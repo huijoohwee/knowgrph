@@ -171,7 +171,9 @@ export async function testMarkdownViewerInlineEditSurfaceKeepsMediaAsInlineChip(
 
     const editor = dom.window.document.querySelector('[contenteditable="true"]') as HTMLElement | null
     if (!editor) throw new Error('expected contenteditable editor to mount after click')
-    const fullImage = editor.querySelector('img')
+    const fullImage = Array.from(editor.querySelectorAll('img')).find(
+      candidate => !candidate.closest('[data-kg-inline-media-edit-token="1"] [data-kg-inline-command-thumbnail]'),
+    ) || null
     if (fullImage) throw new Error(`expected click-to-edit media to stay an inline chip, not full image; html=${editor.innerHTML}`)
     const chip = editor.querySelector('[data-kg-inline-media-edit-token="1"]') as HTMLElement | null
     if (!chip) throw new Error(`expected edit surface media to use inline chip token; html=${editor.innerHTML}`)

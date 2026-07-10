@@ -10,7 +10,7 @@ import { resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { buildGraphDocumentMetaKey } from '@/lib/graph/graphMetaKey'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import type { WidgetEditorSurfaceKind } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 import { orderStoryboardWidgetOverlayNodeIdsByRenderGraph } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayNodeOrder'
@@ -105,7 +105,7 @@ export function buildOverlayEditorElements(args: {
   const overlayGraphMetaKind = useStableFrontmatterGraphAuthority
     ? 'frontmatter-flow'
     : graphMetaKind || (currentGraphIsFrontmatterFlow ? 'frontmatter-flow' : null)
-  const graphMetaKey = buildGraphMetaKeyIgnoringPending(
+  const graphMetaKey = buildGraphDocumentMetaKey(
     useStableFrontmatterGraphAuthority
       ? args.lastStableRenderGraphDataOverride
       : args.renderGraphDataOverride,

@@ -19,6 +19,7 @@ import { resolveCanvasAspectRatioSize } from '@/lib/canvas/canvasAspectRatioDisp
 export type MediaOverlayLayoutItem = { id: string }
 
 export type MediaOverlayLayoutLoop = {
+  flush: () => void
   schedule: () => void
   stop: () => void
 }
@@ -82,6 +83,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   readTransform: () => d3.ZoomTransform | null
   computeSizingZoomK?: (zoomK: number) => number
   aspectRatioMode?: unknown
+  panelDisplay?: 'block' | 'flex'
   scaleLayoutOnZoom?: boolean
   projectWithWorldTransformScale?: boolean
   getPanelSizeForId?: (id: string) => { w: number; h: number } | null
@@ -95,7 +97,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   clampToViewport?: { margin: number; marginLeft?: number; marginRight?: number; marginTop?: number; marginBottom?: number } | null
 }): MediaOverlayLayoutLoop {
   if (!args.enabled || args.items.length === 0) {
-    return { schedule: () => void 0, stop: () => void 0 }
+    return { flush: () => void 0, schedule: () => void 0, stop: () => void 0 }
   }
 
   let rafOnce: number | null = null
@@ -509,7 +511,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
         || Math.abs(prevBox.h - nextBox.h) >= 0.5
         || Math.abs((prevBox.scale || 1) - nextBox.scale) >= 0.001
       if (boxChanged) {
-        applyPanelBox(p.el, { left: nextBox.left, top: nextBox.top, w: nextBox.w, h: nextBox.h, display: 'block', scale: nextBox.scale })
+        applyPanelBox(p.el, { left: nextBox.left, top: nextBox.top, w: nextBox.w, h: nextBox.h, display: args.panelDisplay || 'block', scale: nextBox.scale })
         lastAppliedBoxById.set(p.id, nextBox)
       }
       if (args.scaleLayoutOnZoom === true && !scaleChanged) {
@@ -547,6 +549,11 @@ export function startMediaOverlayLayoutLoop2d(args: {
       update()
     })
   }
+  const flush = () => {
+    if (rafOnce != null) cancelAnimationFrame(rafOnce)
+    rafOnce = null
+    update()
+  }
   scheduleCollectiveLayoutUpdate = schedule
 
   const loop = () => {
@@ -559,6 +566,7 @@ export function startMediaOverlayLayoutLoop2d(args: {
   }
 
   return {
+    flush,
     schedule,
     stop: () => {
       if (rafOnce != null) {

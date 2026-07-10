@@ -418,7 +418,10 @@ export const testGeospatialPoiClicksRenderIntoRichMediaPanelInsteadOfMapLibrePop
   const basemapPath = path.resolve(process.cwd(), '..', 'gympgrph', 'src', 'features', 'geospatial', 'useMapLibreBasemap.ts')
   const viewportText = readUtf8(viewportPath)
   const basemapText = readUtf8(basemapPath)
-  const richMediaPanelText = ['components/useRichMediaPanelMediaState.ts', 'features/geospatial/grabMapsPoiRichMedia.ts'].map(relativePath => readUtf8(path.resolve(process.cwd(), 'src', relativePath))).join('\n')
+  const richMediaPanelText = [
+    readUtf8(path.resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelMediaState.ts')),
+    readUtf8(path.resolve(process.cwd(), 'src', 'features', 'geospatial', 'grabMapsPoiRichMedia.ts')),
+  ].join('\n')
   if (!viewportText.includes('renderPoiInRichMediaPanel')) {
     throw new Error('Expected CanvasViewport to expose a shared geospatial POI -> Rich Media Panel handoff')
   }

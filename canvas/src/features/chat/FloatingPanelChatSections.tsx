@@ -326,6 +326,7 @@ export function FloatingPanelChatMessagesSection({
 type FooterProps = {
   input: string
   setInput: React.Dispatch<React.SetStateAction<string>>
+  appendFocusRequestKey?: number
   isLoading: boolean
   errorText: string | null
   connectivity: 'unknown' | 'ok' | 'error'
@@ -364,6 +365,7 @@ type FooterProps = {
 export function FloatingPanelChatFooter({
   input,
   setInput,
+  appendFocusRequestKey,
   isLoading,
   errorText,
   connectivity,
@@ -472,6 +474,7 @@ export function FloatingPanelChatFooter({
         <FloatingPanelChatComposer
           input={input}
           setInput={setInput}
+          appendFocusRequestKey={appendFocusRequestKey}
           markdownText={markdownText}
           isLoading={isLoading}
           isSubmitDisabled={isSubmitDisabled}

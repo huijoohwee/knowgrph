@@ -35,6 +35,8 @@
 
 **Responsive Baseline**: Mobile viewport → tablet split view → desktop multi-panel canvas → wide-canvas inspection. Wider layouts may reveal more simultaneous surfaces, but the mobile path owns the primary task order.
 
+**Execution Companion**: Use `docs/documents/knowgrph-mobile-first-enhancement-plan.md` as the canonical source-owned priority list for the next mobile-first improvements. It keeps grammar reachability, heavy-runtime gating, virtual-keyboard proof, and Dev -> Prod -> Cloudflare parity in one place.
+
 ## Mobile-First Responsive Contract
 
 | Surface | Mobile-First Directive | Forbidden Drift |

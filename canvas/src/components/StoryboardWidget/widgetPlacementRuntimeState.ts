@@ -136,21 +136,21 @@ export function persistFloatingPosForNode(args: {
   const current = state.flowWidgetPosByNodeId || {}
   const prev = current[nodeId]
   if (prev && prev.top === pos.top && prev.left === pos.left) return
-  state.setFlowWidgetPosByNodeId({ ...current, [nodeId]: { top: pos.top, left: pos.left } })
+  state.setFlowWidgetPosByNodeIdForGraph(graphMetaKey, { ...current, [nodeId]: { top: pos.top, left: pos.left } })
 }
 
 export function persistWorldPosForNode(args: {
   nodeId: string
   graphMetaKey?: string | null
   pos: { x: number; y: number }
-  setFlowWidgetWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => void
 }): void {
-  const { nodeId, graphMetaKey, pos, setFlowWidgetWorldPosByNodeId } = args
+  const { nodeId, graphMetaKey, pos } = args
   if (!nodeId) return
   const state = useGraphStore.getState() as WorkspaceGraphMutationState & {
     flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }>
     flowWidgetWorldPosByNodeIdByGraphMetaKey?: Record<string, Record<string, { x: number; y: number }>>
     graphData?: unknown
+    setFlowWidgetWorldPosByNodeIdForGraph: (graphMetaKey: string | null | undefined, pos: Record<string, { x: number; y: number }>) => void
   }
   if (isWorkspaceGraphMutationBlocked(state)) {
     useGraphStore.setState(prev => {
@@ -183,7 +183,7 @@ export function persistWorldPosForNode(args: {
   const current = state.flowWidgetWorldPosByNodeId || {}
   const prev = current[nodeId]
   if (prev && Math.abs(prev.x - pos.x) <= 0.0001 && Math.abs(prev.y - pos.y) <= 0.0001) return
-  setFlowWidgetWorldPosByNodeId({ ...current, [nodeId]: { x: pos.x, y: pos.y } })
+  state.setFlowWidgetWorldPosByNodeIdForGraph(graphMetaKey, { ...current, [nodeId]: { x: pos.x, y: pos.y } })
 }
 
 export function readStoredWidgetWorldPosForNode(args: {

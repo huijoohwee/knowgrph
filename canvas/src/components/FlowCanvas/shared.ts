@@ -3,7 +3,7 @@ import type React from 'react'
 import type { FlowNativeDrawArgs, FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { GraphSchema } from '@/lib/graph/schema'
-import type { GraphData } from '@/lib/graph/types'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { filterGraphToFlowWidgetEligible } from '@/lib/graph/flowWidgetEligibility'
 
@@ -39,6 +39,8 @@ export type FlowCanvasProps = {
   graphDataOverride?: GraphData | null
   mutationSourceGraphDataOverride?: GraphData | null
   graphDataRevisionOverride?: number
+  canvas2dRendererOverride?: string
+  suppressMediaOverlays?: boolean
   collisionDuringDrag?: boolean
   allowNodeDragOverride?: boolean
   exposeRuntimeRef?: (ref: React.MutableRefObject<FlowNativeRuntime | null>) => void
@@ -49,8 +51,11 @@ export type FlowCanvasProps = {
   hidePortHandleNodeIds?: string[]
   excludeRichMediaOverlayNodeIds?: string[]
   excludeNativeSceneNodeIds?: string[]
+  flowWidgetPinnedByNodeIdOverride?: Record<string, boolean>
+  flowWidgetStateGraphKeyOverride?: string | null
   storyboardWidgetSurfaceId?: string
   forbidCircleNodes?: boolean
+  onNodeChange?: (nodeId: string, patch: Partial<GraphNode>, sourceGraphData?: GraphData | null) => void
   onNodePropertiesChange?: (nodeId: string, patch: Record<string, unknown>, sourceGraphData?: GraphData | null) => void
 }
 

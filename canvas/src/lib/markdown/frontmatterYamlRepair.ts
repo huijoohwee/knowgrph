@@ -32,7 +32,10 @@ const repairYamlBlockScalarIndentation = (raw: string): string => {
         out.push(line)
         continue
       }
-      if (indent <= activeScalarIndent && isYamlBoundaryLine(line)) {
+      if (indent <= activeScalarIndent && (/^---\s*$/.test(trimmed) || /^\.\.\.\s*$/.test(trimmed))) {
+        activeScalarIndent = -1
+        requiredScalarIndent = -1
+      } else if (indent <= activeScalarIndent && isYamlBoundaryLine(line)) {
         activeScalarIndent = -1
         requiredScalarIndent = -1
       } else if (indent <= activeScalarIndent) {
@@ -71,24 +74,6 @@ export const repairYamlInlineColonSpacing = (raw: string): string => {
   }
   return out.join('\n')
 }
-
-export const findLeadingUnfencedYamlMetadataEnd = (lines: readonly string[]): number => {
-  let sawTopLevelKey = false
-  for (let index = 0; index < lines.length; index += 1) {
-    const raw = String(lines[index] || '')
-    const trimmed = raw.trim()
-    if (!trimmed) continue
-    const indent = countYamlIndent(raw)
-    if (indent === 0 && (/^#{1,6}\s+/.test(trimmed) || /^(```|~~~)/.test(trimmed) || /^<[A-Za-z!/]/.test(trimmed))) return sawTopLevelKey ? index : -1
-    if (indent === 0 && /^[A-Za-z0-9_.:$-]+\s*:/.test(trimmed)) sawTopLevelKey = true
-  }
-  return sawTopLevelKey ? lines.length : -1
-}
-
-export const repairWrappedQuotedFrontmatterKeys = (raw: string): string => String(raw || '').replace(
-  /"([A-Za-z0-9_.:-]+)\s*\n\s*([A-Za-z0-9_.:-]+)"(?=\s*:)/g,
-  (_match, prefix: string, suffix: string) => `"${prefix}${suffix}"`,
-)
 
 export const repairFlowInlineEnvelopeBlockScalars = (raw: string): string => {
   const src = String(raw || '')
@@ -167,6 +152,29 @@ export const repairFlowInlineEnvelopeBlockScalars = (raw: string): string => {
     }
   }
   return repairYamlBlockScalarIndentation(out.join('\n'))
+}
+
+export const findLeadingUnfencedYamlMetadataEnd = (lines: readonly string[]): number => {
+  let sawTopLevelKey = false
+  for (let i = 0; i < lines.length; i += 1) {
+    const raw = String(lines[i] || '')
+    const trimmed = raw.trim()
+    if (!trimmed) continue
+    const indent = countYamlIndent(raw)
+    if (indent === 0 && /^#{1,6}\s+/.test(trimmed)) return sawTopLevelKey ? i : -1
+    if (indent === 0 && /^(```|~~~)/.test(trimmed)) return sawTopLevelKey ? i : -1
+    if (indent === 0 && /^<[A-Za-z!/]/.test(trimmed)) return sawTopLevelKey ? i : -1
+    if (indent === 0 && /^[A-Za-z0-9_.:$-]+\s*:/.test(trimmed)) sawTopLevelKey = true
+  }
+  return sawTopLevelKey ? lines.length : -1
+}
+
+export const repairWrappedQuotedFrontmatterKeys = (raw: string): string => {
+  return String(raw || '').replace(
+    /(^|\n)(\s*)"([A-Za-z0-9_.:-]+(?:\s*\n\s*[A-Za-z0-9_.:-]+)+)"(?=\s*:)/g,
+    (_match, lineStart: string, indent: string, joinedSegments: string) =>
+      `${lineStart}${indent}"${joinedSegments.replace(/\s+/g, '')}"`,
+  )
 }
 
 export const repairFrontmatterYamlSyntax = (raw: string): string => {

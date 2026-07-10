@@ -17,6 +17,9 @@ const ToastHostLazy = lazy(() => import('@/components/ui/ToastHost'))
 const RichMediaBrowserSmokePageLazy = lazy(async () => ({
   default: (await import('@/features/testing/RichMediaBrowserSmokePage')).RichMediaBrowserSmokePage,
 }))
+const MobileKeyboardBrowserSmokePageLazy = lazy(async () => ({
+  default: (await import('@/features/testing/MobileKeyboardBrowserSmokePage')).MobileKeyboardBrowserSmokePage,
+}))
 const StoryboardRichMediaDropSmokePageLazy = lazy(async () => ({
   default: (await import('@/features/testing/StoryboardRichMediaDropSmokePage')).StoryboardRichMediaDropSmokePage,
 }))
@@ -42,6 +45,13 @@ export default function App() {
     const pathname = String(window.location.pathname || '')
     const kgPath = String(params.get('kgPath') || '')
     return pathname === '/__smoke__/rich-media' || kgPath === '/__smoke__/rich-media'
+  }, [])
+  const mobileKeyboardBrowserSmokeRequested = useMemo(() => {
+    if (!import.meta.env.DEV || typeof window === 'undefined') return false
+    const params = new URLSearchParams(window.location.search)
+    const pathname = String(window.location.pathname || '')
+    const kgPath = String(params.get('kgPath') || '')
+    return pathname === '/__smoke__/mobile-keyboard' || kgPath === '/__smoke__/mobile-keyboard'
   }, [])
   const storyboardRichMediaDropSmokeRequested = useMemo(() => {
     if (!import.meta.env.DEV || typeof window === 'undefined') return false
@@ -191,6 +201,10 @@ export default function App() {
             element={richMediaBrowserSmokeRequested ? (
               <Suspense fallback={null}>
                 <RichMediaBrowserSmokePageLazy />
+              </Suspense>
+            ) : mobileKeyboardBrowserSmokeRequested ? (
+              <Suspense fallback={null}>
+                <MobileKeyboardBrowserSmokePageLazy />
               </Suspense>
             ) : storyboardRichMediaDropSmokeRequested ? (
               <Suspense fallback={null}>

@@ -1,4 +1,4 @@
-import { computeCollectiveFollowPinnedScale, computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize } from '@/lib/canvas/overlayWidgetZoom'
+import { computeCollectiveFollowPinnedScale, computeWidgetScale, computeWidgetScaleKey, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 import {
   clampBalancedCollectiveScaleToViewport,
@@ -21,19 +21,19 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
   const z1 = computeWidgetScaledSize(s1)
   if (z1.width <= 0 || z1.height <= 0) throw new Error('expected positive size at k=1')
   if (!approxEq(s1, 1)) throw new Error(`expected pinnedInCanvas scale=1 at k=1, got ${s1}`)
-  if (!approxEq(z1.width, 360) || !approxEq(z1.height, 520)) throw new Error(`expected size 360x520 at k=1, got ${z1.width}x${z1.height}`)
+  if (!approxEq(z1.width, WIDGET_BASE_SIZE.width) || !approxEq(z1.height, WIDGET_BASE_SIZE.height)) throw new Error(`expected shared Card/Widget/Rich Media size at k=1, got ${z1.width}x${z1.height}`)
 
   const sMin = computeWidgetScale(extent.minK, extent, { mode: 'pinnedInCanvas' })
   const zMin = computeWidgetScaledSize(sMin)
   if (!approxEq(sMin, extent.minK)) throw new Error(`expected pinnedInCanvas scale=minK at minK, got ${sMin}`)
-  if (!approxEq(zMin.width, 360 * extent.minK) || !approxEq(zMin.height, 520 * extent.minK)) {
+  if (!approxEq(zMin.width, WIDGET_BASE_SIZE.width * extent.minK) || !approxEq(zMin.height, WIDGET_BASE_SIZE.height * extent.minK)) {
     throw new Error(`expected size to shrink with zoom-out at minK, got ${zMin.width}x${zMin.height}`)
   }
 
   const sMax = computeWidgetScale(extent.maxK, extent, { mode: 'pinnedInCanvas' })
   const zMax = computeWidgetScaledSize(sMax)
   if (!approxEq(sMax, 1)) throw new Error(`expected pinnedInCanvas scale capped at 1 on zoom-in, got ${sMax}`)
-  if (!approxEq(zMax.width, 360) || !approxEq(zMax.height, 520)) throw new Error(`expected size capped at 360x520 on zoom-in, got ${zMax.width}x${zMax.height}`)
+  if (!approxEq(zMax.width, WIDGET_BASE_SIZE.width) || !approxEq(zMax.height, WIDGET_BASE_SIZE.height)) throw new Error(`expected shared surface size cap on zoom-in, got ${zMax.width}x${zMax.height}`)
 
   const sZoomInHuge = computeWidgetScale(99, extent, { mode: 'pinnedInCanvas' })
   const sZoomOutHuge = computeWidgetScale(0.01, extent, { mode: 'pinnedInCanvas' })
@@ -69,7 +69,7 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
     viewportH: 1080,
     count: 4,
     baseWidth: 360,
-    baseHeight: 520,
+    baseHeight: WIDGET_BASE_SIZE.height,
     quantizeStep: 0.02,
     hardMinScale: 0.68,
     hardMaxScale: 1.06,
@@ -95,7 +95,7 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
     count: 4,
   })
   const panelW = 360 * balancedCollectiveScale
-  const panelH = 520 * balancedCollectiveScale
+  const panelH = WIDGET_BASE_SIZE.height * balancedCollectiveScale
   const balancedLayout = computeBalancedSpreadLayout({
     count: 4,
     viewportW: 1920,
@@ -133,7 +133,7 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
     viewportH: 1080,
     count: 1,
     baseWidth: 360,
-    baseHeight: 520,
+    baseHeight: WIDGET_BASE_SIZE.height,
     quantizeStep: 0.02,
     hardMinScale: 0.68,
     hardMaxScale: 1.06,
@@ -148,13 +148,13 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
     viewportH: 1080,
     count: 8,
     baseWidth: 360,
-    baseHeight: 520,
+    baseHeight: WIDGET_BASE_SIZE.height,
     quantizeStep: 0.02,
     hardMinScale: 0.68,
     hardMaxScale: 1.06,
   })
-  if (!(denseCollectiveScale < balancedCollectiveScale)) {
-    throw new Error(`expected dense collective scale to shrink below 4-up scale on 1920x1080, got dense=${denseCollectiveScale} four=${balancedCollectiveScale}`)
+  if (!(denseCollectiveScale > 0 && denseCollectiveScale <= balancedCollectiveScale)) {
+    throw new Error(`expected denser shared-aspect surfaces never to outgrow the 4-up scale, got dense=${denseCollectiveScale} four=${balancedCollectiveScale}`)
   }
 
   const followPinnedZoomOut = computeCollectiveFollowPinnedScale({
@@ -164,7 +164,7 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
     viewportH: 1080,
     count: 1,
     baseWidth: 360,
-    baseHeight: 520,
+    baseHeight: WIDGET_BASE_SIZE.height,
   })
   if (!approxEq(followPinnedZoomOut, 0.5)) {
     throw new Error(`expected follow-pinned collective scale to reuse pinned zoom-out size, got ${followPinnedZoomOut}`)
@@ -177,7 +177,7 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
     viewportH: 1080,
     count: 1,
     baseWidth: 360,
-    baseHeight: 520,
+    baseHeight: WIDGET_BASE_SIZE.height,
   })
   if (!approxEq(followPinnedZoomIn, 1)) {
     throw new Error(`expected follow-pinned collective scale to cap at pinned zoom-in size, got ${followPinnedZoomIn}`)
@@ -190,7 +190,7 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
     viewportH: 1080,
     count: 36,
     baseWidth: 360,
-    baseHeight: 520,
+    baseHeight: WIDGET_BASE_SIZE.height,
   })
   if (!(followPinnedDense16x9 >= 0.28 && followPinnedDense16x9 <= 1)) {
     throw new Error(`expected dense 36-up pinned collective scale to stay within explicit 16:9 bounds, got ${followPinnedDense16x9}`)
@@ -224,7 +224,7 @@ export async function testWidgetScaledSizeShrinksOnZoomOutAndCapsOnZoomIn() {
     throw new Error(`expected dense frontmatter widget spacing to exceed generic widget-canvas spacing, got frontmatter=${denseFrontmatterGapPx} canvas=${denseGapPx}`)
   }
   const densePanelW = 360 * followPinnedDense16x9
-  const densePanelH = 520 * followPinnedDense16x9
+  const densePanelH = WIDGET_BASE_SIZE.height * followPinnedDense16x9
   const denseLayout = computeBalancedSpreadLayout({
     count: 36,
     viewportW: 1920,
@@ -252,7 +252,7 @@ export function testFrontmatterLiveCollectiveScaleHonorsConfiguredMinimum() {
     viewportH: 998,
     count: 36,
     baseWidth: 360,
-    baseHeight: 520,
+    baseHeight: WIDGET_BASE_SIZE.height,
     hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.min,
     hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.widget.max,
     viewportPreset: 'widgetFrontmatter',

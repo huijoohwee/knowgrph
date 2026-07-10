@@ -11,6 +11,7 @@ import {
 import { type ToolMode, isRecord, pickString } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
 import {
   CANVAS_OVERLAY_PROXY_ROOT_SELECTOR,
+  STORYBOARD_WIDGET_GEOMETRY_COMMITTED_EVENT,
   STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT,
   STORYBOARD_WIDGET_OVERLAY_SURFACE_ROOT_ATTR,
   collectCanonicalStoryboardWidgetOverlayRectEntries,
@@ -582,7 +583,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
     scheduleOverlayEdgeUpdateRef.current()
   }, [args.overlayEdgesEnabledRef, cacheFrozenOverlayEdgePaths, pushOverlayEdgeTrace, restoreFrozenOverlayEdgePaths])
 
-  const scheduleOverlayEdgeUpdate = React.useCallback(() => {
+  const scheduleOverlayEdgeUpdate = React.useCallback((immediate = false) => {
     if (!args.active) {
       pushOverlayEdgeTrace('schedule-skip-inactive', {
         overlayEdgesEnabled: args.overlayEdgesEnabledRef.current ? 1 : 0,
@@ -595,8 +596,12 @@ export function useStoryboardWidgetOverlayEdges(args: {
       })
       return
     }
-    if (overlayEdgeRafRef.current != null) return
-    overlayEdgeRafRef.current = requestAnimationFrame(() => {
+    if (overlayEdgeRafRef.current != null) {
+      if (!immediate) return
+      cancelAnimationFrame(overlayEdgeRafRef.current)
+      overlayEdgeRafRef.current = null
+    }
+    const updateOverlayEdges = () => {
       overlayEdgeRafRef.current = null
       const graphMutationBlocked = isWorkspaceGraphMutationBlocked(useGraphStore.getState())
       const workspaceOverlayOpen = workspaceOverlayOpenRef.current
@@ -1415,7 +1420,9 @@ export function useStoryboardWidgetOverlayEdges(args: {
         rootHeight: Math.round(rootRect.height),
       })
       if (keep.size === 0) overlayEdgeLayoutSigRef.current = ''
-    })
+    }
+    if (immediate) updateOverlayEdges()
+    else overlayEdgeRafRef.current = requestAnimationFrame(updateOverlayEdges)
   }, [args.active, args.draftGraphDataRef, args.storyboardWidgetSurfaceId, args.openWidgetNodeIdsRef, args.overlayEdgesEnabledRef, args.overlayEditorNodeIdsRef, args.pendingOverlayNodeIdRef, args.renderGraphDataOverride, args.rootRef, args.widgetRegistryRef, cacheFrozenOverlayEdgePaths, storyboardWidgetSelectedPortRowKey, pushOverlayEdgeTrace, rankdir, restoreFrozenOverlayEdgePaths, scheduleOverlayEdgeReadinessRetry, scheduleTransientOverlayEdgeRetry, schema])
   scheduleOverlayEdgeUpdateRef.current = scheduleOverlayEdgeUpdate
 
@@ -1519,14 +1526,23 @@ export function useStoryboardWidgetOverlayEdges(args: {
 
   React.useEffect(() => {
     if (!args.active) return
-    if (!args.overlayOnlyModeEnabled) return
     scheduleOverlayEdgeUpdate()
     const onInteractionFrame = () => {
+      if (overlayEdgeRafRef.current != null) {
+        cancelAnimationFrame(overlayEdgeRafRef.current)
+        overlayEdgeRafRef.current = null
+      }
       overlayEdgeLayoutSigRef.current = ''
       overlayEdgeAnchorCacheRef.current.clear()
       scheduleOverlayEdgeUpdate()
     }
+    const onGeometryCommitted = () => {
+      overlayEdgeLayoutSigRef.current = ''
+      overlayEdgeAnchorCacheRef.current.clear()
+      scheduleOverlayEdgeUpdate(true)
+    }
     window.addEventListener(STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT, onInteractionFrame as EventListener)
+    window.addEventListener(STORYBOARD_WIDGET_GEOMETRY_COMMITTED_EVENT, onGeometryCommitted as EventListener)
     const onAny = () => {
       overlayEdgeLayoutSigRef.current = ''
       overlayEdgeAnchorCacheRef.current.clear()
@@ -1543,6 +1559,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
     return () => {
       try {
         window.removeEventListener(STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT, onInteractionFrame as EventListener)
+        window.removeEventListener(STORYBOARD_WIDGET_GEOMETRY_COMMITTED_EVENT, onGeometryCommitted as EventListener)
       } catch {
         void 0
       }
@@ -1567,7 +1584,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
       }
       cancelOverlayEdgeUpdate()
     }
-  }, [args.active, args.overlayOnlyModeEnabled, args.rootRef, cancelOverlayEdgeUpdate, scheduleOverlayEdgeUpdate])
+  }, [args.active, args.rootRef, cancelOverlayEdgeUpdate, scheduleOverlayEdgeUpdate])
 
   return { overlayEdgesSvgRef: setOverlayEdgesSvgRef, scheduleOverlayEdgeUpdate }
 }

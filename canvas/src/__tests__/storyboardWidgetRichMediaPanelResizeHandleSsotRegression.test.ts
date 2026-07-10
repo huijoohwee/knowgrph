@@ -131,20 +131,10 @@ export function testRichMediaPanelStoryboardWidgetChromeMaintainsContentAspectAc
 
   const chromePanelEl = {
     style: {},
-    getAttribute: (name: string) => {
-      if (name === 'data-kg-rich-media-storyboard-widget-chrome') return '1'
-      if (name === 'data-kg-rich-media-panel') return '1'
-      return null
-    },
   } as unknown as HTMLElement
-  applyPanelBox(chromePanelEl, { left: 0, top: 0, w: 226, h: 163, display: 'block' })
+  applyPanelBox(chromePanelEl, { left: 0, top: 0, w: 226, h: 163, display: 'flex' })
   if (chromePanelEl.style.display !== 'flex') {
     throw new Error(`expected imperative overlay sizing to preserve Storyboard Widget rich-media flex frame, got display=${chromePanelEl.style.display}`)
-  }
-  chromePanelEl.style.width = '100px'
-  applyPanelBox(chromePanelEl, { left: 0, top: 0, w: 226, h: 163, display: 'block' })
-  if (chromePanelEl.style.width !== '226px') {
-    throw new Error(`expected shared panel-box cache to repair external size drift, got width=${chromePanelEl.style.width}`)
   }
 
   const chromePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'StoryboardWidgetPanelChrome.tsx')

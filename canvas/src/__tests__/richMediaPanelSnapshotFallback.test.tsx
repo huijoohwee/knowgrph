@@ -3,10 +3,12 @@ import { resolve } from 'node:path'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import RichMediaPanel from '@/components/RichMediaPanel'
+import { getStoryboardWidgetPanelChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { writeMediaDragPayload, type MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame, waitForTasks } from '@/tests/lib/reactRootHarness'
+
 const waitForBodyLink = async (container: HTMLElement, win: Window, url: string, maxFrames = 12) => {
   for (let i = 0; i < maxFrames; i += 1) {
     const link = Array.from(container.querySelectorAll('section a')).find(anchor =>
@@ -17,6 +19,7 @@ const waitForBodyLink = async (container: HTMLElement, win: Window, url: string,
   }
   return null
 }
+
 const resetRichMediaPanelTestStoreState = () => {
   const state = useGraphStore.getState()
   try { state.setWorkspaceViewMode('canvas') } catch { void 0 }
@@ -463,6 +466,7 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   const storyboardWidgetPanelText = readSource('components', 'StoryboardWidget', 'WidgetEditorPanel.tsx')
   const storyboardWidgetPanelChromeText = readSource('components', 'StoryboardWidget', 'StoryboardWidgetPanelChrome.tsx')
   const storyboardWidgetPanelChromeClassNameText = readSource('components', 'StoryboardWidget', 'storyboardWidgetPanelChromeClassName.ts')
+  const storyboardWidgetPanelChromeClassName = getStoryboardWidgetPanelChromeClassName()
   const flowCanvasOverlayText = readSource('components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
   const graphCanvasOverlayText = readSource('components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx')
   const graphHoverTooltipText = readSource('components', 'GraphHoverTooltip.tsx')
@@ -569,7 +573,8 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   if (
     !storyboardWidgetPanelChromeText.includes('export function StoryboardWidgetPanelChromeHeader')
     || !storyboardWidgetPanelChromeClassNameText.includes('export const getStoryboardWidgetPanelChromeClassName')
-    || !storyboardWidgetPanelChromeClassNameText.includes('rounded-md border shadow-md flex flex-col relative')
+    || !storyboardWidgetPanelChromeClassName.split(/\s+/).includes('border')
+    || storyboardWidgetPanelChromeClassName.includes('shadow')
     || !storyboardWidgetPanelChromeText.includes('data-kg-rich-media-storyboard-widget-header')
     || !storyboardWidgetPanelText.includes("from '@/components/StoryboardWidget/StoryboardWidgetPanelChrome'")
     || !storyboardWidgetPanelText.includes("from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'")

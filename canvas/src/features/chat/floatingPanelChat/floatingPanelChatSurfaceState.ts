@@ -256,6 +256,13 @@ export const createFloatingPanelChatQuickActions = (args: {
       prompt: '/canvas.render Inspect current canvas rendering state, graph revision, re-render pressure, and loading-to-ready transitions.',
     })
   }
+  if ((args.messageCount || 0) > 0 && (hasWorkspace || enabled.length > 0 || graphItemCount > 0)) {
+    addAction({
+      id: 'memory-extract',
+      label: '#memory.extract',
+      prompt: '#memory.extract Promote the completed harness run into reusable procedural memory. Use the exact output_dir when known; otherwise ask for the output_dir and explicit app_id, user_id, agent_id, or run_id before execution.',
+    })
+  }
   if ((args.messageCount || 0) > 0 || enabled.length > 0 || graphItemCount > 0) {
     addAction({
       id: 'token-economics',

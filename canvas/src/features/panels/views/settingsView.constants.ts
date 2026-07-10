@@ -1,4 +1,5 @@
 import { emitPropsPanelOpen, emitFloatingPanelOpen } from '@/features/canvas/utils'
+import { openFloatingPanelChat } from '@/features/chat/floatingPanelChat/floatingPanelChatOpenSeed'
 import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect'
 import { FLOW_IMAGE_GENERATION_NODE_LABEL, FLOW_VIDEO_GENERATION_NODE_LABEL } from '@/lib/config.storyboard-widget'
 import { settingsRegistry } from '@/features/settings/registry'
@@ -87,7 +88,7 @@ export const CHAT_KTV_ROW_KEYS = {
 export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = {
   Chat: {
     panelLabel: 'Open FloatingPanel Chat UI',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [BYTEPLUS_SHARED_TEXT_API_DOC_AREA]: {
     docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1494384',
@@ -117,25 +118,25 @@ export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = 
     docsUrl: MIROMIND_API_DOCS_URL,
     docsLabel: 'Open MiroMind Chat Completions Docs',
     panelLabel: 'Open FloatingPanel Chat UI (MiroMind)',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [AGNES_API_DOC_AREA]: {
     docsUrl: AGNES_API_DOCS_URL,
     docsLabel: 'Open Agnes AI Chat Completions Docs',
     panelLabel: 'Open FloatingPanel Chat UI (Agnes)',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [QWEN_API_DOC_AREA]: {
     docsUrl: QWEN_API_DOCS_URL,
     docsLabel: 'Open Qwen OpenAI-Compatible Chat Docs',
     panelLabel: 'Open FloatingPanel Chat UI (Qwen)',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [GOOGLE_CLOUD_API_DOC_AREA]: {
     docsUrl: GOOGLE_CLOUD_API_DOCS_URL,
     docsLabel: 'Open Google Cloud Vertex AI Chat Docs',
     panelLabel: 'Open FloatingPanel Chat UI (Google Cloud)',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [BYTEPLUS_VIDEO_GENERATION_API_DOC_AREA]: {
     docsUrl: BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL,
@@ -168,37 +169,37 @@ export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
     docsUrl: 'https://github.com/unbrowse-ai/unbrowse',
     docsLabel: 'Open API-Native Browser MCP Reference',
     panelLabel: 'Open FloatingPanel Chat UI',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [CLOUDFLARE_AI_GATEWAY_MCP_DOC_AREA]: {
     docsUrl: CLOUDFLARE_AI_GATEWAY_MCP_DOCS_URL,
     docsLabel: 'Open Cloudflare AI Gateway Docs',
     panelLabel: 'Open FloatingPanel Chat UI',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [OPENAI_MCP_DOC_AREA]: {
     docsUrl: OPENAI_MCP_DOCS_URL,
     docsLabel: 'Open OpenAI MCP Docs',
     panelLabel: 'Open FloatingPanel Chat UI',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [EXA_MCP_DOC_AREA]: {
     docsUrl: EXA_MCP_DOCS_URL,
     docsLabel: 'Open Exa MCP Docs',
     panelLabel: 'Open FloatingPanel Chat UI',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [FEISHU_BASE_MCP_DOC_AREA]: {
     docsUrl: FEISHU_BASE_MCP_DOCS_URL,
     docsLabel: 'Open Feishu Base Docs',
     panelLabel: 'Open FloatingPanel Chat UI',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [LARK_APP_MCP_DOC_AREA]: {
     docsUrl: LARK_APP_MCP_DOCS_URL,
     docsLabel: 'Open Lark Platform Docs',
     panelLabel: 'Open FloatingPanel Chat UI',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [STRIPE_MCP_DOC_AREA]: {
     docsUrl: STRIPE_MCP_DOCS_URL,
@@ -210,19 +211,19 @@ export const MCP_SECTION_META: Readonly<Record<string, SectionMeta>> = {
     docsUrl: MIROMIND_MCP_DOCS_URL,
     docsLabel: 'Open MiroMind MCP Docs',
     panelLabel: 'Open FloatingPanel Chat UI (MiroMind)',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [KNOWGRPH_VDEOXPLN_DOC_AREA]: {
     docsUrl: '/knowgrph/.well-known/agent-skills/index.json',
     docsLabel: 'Open Agent Skills Index',
     panelLabel: 'Open FloatingPanel Chat UI',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [VIDEODB_MCP_DOC_AREA]: {
     docsUrl: VIDEODB_MCP_DOCS_URL,
     docsLabel: 'Open VideoDB MCP Docs',
     panelLabel: 'Open FloatingPanel Chat UI',
-    openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true }),
+    openPanel: () => openFloatingPanelChat(),
   },
   [MAPS_GRABMAPS_MCP_DOC_AREA]: {
     docsUrl: 'https://maps.grab.com/developer/documentation/mcp',

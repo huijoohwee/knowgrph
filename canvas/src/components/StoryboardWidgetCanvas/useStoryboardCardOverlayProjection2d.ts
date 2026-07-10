@@ -3,7 +3,7 @@ import React from 'react'
 import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { readStoryboardCardCenter2d, type StoryboardCardPlacement } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
 import { shouldFreezeProjectionForFlowPortHandleDrag } from '@/components/StoryboardWidget/flowPortHandlePointerDrag'
-import { emitStoryboardWidgetInteractionFrame } from '@/lib/canvas/storyboard-widget-overlay-proxy'
+import { emitStoryboardWidgetGeometryCommitted } from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import { applyVectorPaintedOverlayBox, projectVectorPaintedOverlayZoomBox, type VectorPaintedOverlayScaleProjectionBase } from '@/lib/canvas/vectorPaintedOverlayProjection'
 import type { GraphNode } from '@/lib/graph/types'
 import { computeStoryboardWidgetOverlayScreenBox, type StoryboardWidgetOverlayDragTransform } from '@/lib/storyboardWidget/overlayWorldDrag'
@@ -28,7 +28,6 @@ export function useStoryboardCardOverlayProjection2d(args: {
   cards: ReadonlyArray<StoryboardCardModel>
   dragWorldOverrideByCardIdRef: React.RefObject<Map<string, StoryboardCardPlacement>>
   effectiveFlowWidgetPinnedByNodeId: FlowWidgetPinnedById | null | undefined
-  fixedCardPlacements: ReadonlyMap<string, StoryboardCardPlacement>
   fixedCardReferencePlacements: ReadonlyMap<string, StoryboardCardPlacement>
   fixedLayoutEnabled: boolean
   getTransform: () => StoryboardWidgetOverlayDragTransform | null
@@ -46,7 +45,6 @@ export function useStoryboardCardOverlayProjection2d(args: {
     cards,
     dragWorldOverrideByCardIdRef,
     effectiveFlowWidgetPinnedByNodeId,
-    fixedCardPlacements,
     fixedCardReferencePlacements,
     fixedLayoutEnabled,
     getTransform,
@@ -92,6 +90,10 @@ export function useStoryboardCardOverlayProjection2d(args: {
       let rawCenterCount = 0
       const pending: Array<{ rawBox: ProjectedCardBox; card: StoryboardCardModel; el: HTMLElement; width: number; height: number }> = []
       const readProjectedBox = (cardId: string, rawBox: ProjectedCardBox, width: number, height: number, anchorX: number, anchorY: number) => {
+        if (dragWorldOverrideByCardIdRef.current.has(cardId)) {
+          zoomLayoutBaseBoxByCardIdRef.current.set(cardId, { left: rawBox.left, top: rawBox.top, scale: rawBox.scale, layoutScale: rawBox.scale })
+          return rawBox
+        }
         const previous = lastAppliedBoxByCardIdRef.current.get(cardId) || null
         const projected = projectVectorPaintedOverlayZoomBox({
           previousBox: previous,
@@ -116,7 +118,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
         const referencePlacement = fixedCardReferencePlacements.get(card.id)
         const previousPinned = lastPinnedByCardIdRef.current.get(card.id)
         lastPinnedByCardIdRef.current.set(card.id, cardPinned)
-        const fixedPlacement = fixedLayoutEnabled && cardPinned ? referencePlacement || fixedCardPlacements.get(card.id) : null
+        const fixedPlacement = fixedLayoutEnabled && cardPinned ? referencePlacement : null
         const { width, height } = readCardSize(node)
         if (fixedLayoutEnabled && previousPinned === true && cardPinned === false && !dragWorldOverrideByCardIdRef.current.has(card.id)) {
           const liveBox = lastAppliedBoxByCardIdRef.current.get(card.id) || null
@@ -163,7 +165,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
         if (!boxChanged) continue
         applyVectorPaintedOverlayBox(item.el, { left: box.left, top: box.top, scale: box.scale, display })
         lastAppliedBoxByCardIdRef.current.set(item.card.id, { left: box.left, top: box.top, scale: box.scale, display })
-        emitStoryboardWidgetInteractionFrame()
+        emitStoryboardWidgetGeometryCommitted()
       }
       const initialFitDocumentKey = `${storyboardWidgetSurfaceId}::${String(markdownDocumentName || '').trim()}`
       if (initialFitCommitKeyRef.current !== initialFitDocumentKey) {
@@ -180,7 +182,6 @@ export function useStoryboardCardOverlayProjection2d(args: {
     cards,
     dragWorldOverrideByCardIdRef,
     effectiveFlowWidgetPinnedByNodeId,
-    fixedCardPlacements,
     fixedCardReferencePlacements,
     fixedLayoutEnabled,
     getTransform,

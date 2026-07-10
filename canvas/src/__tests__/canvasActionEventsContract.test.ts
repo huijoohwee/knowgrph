@@ -88,6 +88,9 @@ export const testCanvasActionEmittersUseSharedDispatcherBoundary = () => {
   const launcherText = readUtf8('src/features/toolbar/ToolbarMenuLauncher.tsx')
   const floatingBridgeText = readUtf8('src/features/toolbar/floatingPanelBridge.ts')
   const markdownDataViewBlockText = readUtf8('src/features/markdown/ui/MarkdownDataViewBlock.tsx')
+  const floatingPanelChatOpenSeedText = readUtf8('src/features/chat/floatingPanelChat/floatingPanelChatOpenSeed.ts')
+  const toolbarActionsText = readUtf8('src/features/toolbar/hooks/useToolbarActions.ts')
+  const settingsViewConstantsText = readUtf8('src/features/panels/views/settingsView.constants.ts')
 
   if (!utilsText.includes('function emitCanvasCustomEvent')) {
     throw new Error('expected canvas utils to centralize repeated CustomEvent dispatch in a shared helper')
@@ -131,5 +134,23 @@ export const testCanvasActionEmittersUseSharedDispatcherBoundary = () => {
   }
   if (!markdownDataViewBlockText.includes('useWorkspaceDataViewFloatingRegistration') || !markdownDataViewBlockText.includes("emitFloatingPanelOpen({ tab: 'view', open: true })")) {
     throw new Error('expected MarkdownDataViewBlock viewer path to reuse the shared floating View registration and open emitter')
+  }
+  if (!floatingPanelChatOpenSeedText.includes('export function openFloatingPanelChat(): boolean')) {
+    throw new Error('expected floatingPanelChatOpenSeed to own a shared open-only chat helper')
+  }
+  if (!floatingPanelChatOpenSeedText.includes("return emitFloatingPanelOpen({ tab: 'chat', open: true })")) {
+    throw new Error('expected shared open-only chat helper to own the chat floating-panel emitter')
+  }
+  if (!toolbarActionsText.includes("import { openFloatingPanelChat } from '@/features/chat/floatingPanelChat/floatingPanelChatOpenSeed'") || !toolbarActionsText.includes('openFloatingPanelChat()')) {
+    throw new Error('expected toolbar chat action to reuse the shared open-only chat helper')
+  }
+  if (toolbarActionsText.includes("emitFloatingPanelOpen({ tab: 'chat', open: true })")) {
+    throw new Error('expected toolbar chat action to stop owning the raw chat floating-panel emitter')
+  }
+  if (!settingsViewConstantsText.includes("import { openFloatingPanelChat } from '@/features/chat/floatingPanelChat/floatingPanelChatOpenSeed'") || !settingsViewConstantsText.includes('openPanel: () => openFloatingPanelChat()')) {
+    throw new Error('expected settings chat sections to reuse the shared open-only chat helper')
+  }
+  if (settingsViewConstantsText.includes("openPanel: () => emitFloatingPanelOpen({ tab: 'chat', open: true })")) {
+    throw new Error('expected settings chat sections to stop owning the raw chat floating-panel emitter')
   }
 }

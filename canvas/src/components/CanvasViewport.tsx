@@ -16,10 +16,13 @@ import { shouldRenderTimelineSurface } from '@/lib/timeline/timelineVisibility'
 import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-files/composedSourceSelection'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { isStrybldrStoryboardGraphData } from '@/features/strybldr/strybldrStoryboard'
-
-import { InfiniteCanvasWorkspaceOverlay } from '@/features/canvas/InfiniteCanvasWorkspaceOverlay'
+import { useKnowgrphLiveCanvasHero } from '@/features/canvas/useKnowgrphLiveCanvasHero'
+import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
 const CanvasViewportGeospatialOverlayLazy = React.lazy(() =>
   import('@/components/CanvasViewportGeospatialOverlay').then(mod => ({ default: mod.CanvasViewportGeospatialOverlay })),
+)
+const LiveCanvasHeroLazy = React.lazy(() =>
+  import('@/components/LiveCanvasHero').then(mod => ({ default: mod.LiveCanvasHero })),
 )
 
 const SharedGraphCanvasLazy = React.lazy(() => import('@/components/GraphCanvas'))
@@ -84,6 +87,8 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const activeGraphData = useActiveGraphRenderData(true)
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
+  const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
+  const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
   const explorerActivePath = useMarkdownExplorerStore(s => s.activePath)
   const activeSourceFile = React.useMemo(
     () => resolvePreferredEnabledComposedSourceFile({
@@ -167,9 +172,22 @@ export function CanvasViewport(props: CanvasViewportProps) {
     designTimelineBottomPanelVisible ||
     strybldrTimelineBottomPanelVisible
   const paywallOverlayActive = paywallEnabled && floatingPanelOpen && floatingPanelView === 'chat'
+  const { liveCanvasHeroVisible, liveCanvasHeroSource, dismissLiveCanvasHero } = useKnowgrphLiveCanvasHero({
+    graphData: activeGraphData,
+    sourceFiles,
+    markdownDocumentName,
+    markdownDocumentText,
+    sourceFilesBootstrapReady,
+    isEmbeddedPreview: variant === 'embeddedPreview',
+    workspaceEditorOverlayOpen,
+    workspaceDocumentSwitchPending: documentSwitchBlocksCanvas,
+    floatingPanelOpen,
+    alternateCanvasSurfaceActive: geospatialModeEnabled || canvasRenderMode !== '2d' || active2dSurface !== 'storyboard',
+  })
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
   const minimapOverlayVisible = !documentSwitchBlocksCanvas
     && !geospatialOverlayOwnsViewport
+    && !liveCanvasHeroVisible
     && !isNarrowViewport
     && (
       (activeSurface === '2d' && supportsCanvas2dMinimap(canvas2dRenderer))
@@ -178,6 +196,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const minimapOverlaySurface = activeSurface === '3d' ? '3d' : '2d'
   const bridgeOnlyWidgetDropActive = !documentSwitchBlocksCanvas
     && !geospatialOverlayOwnsViewport
+    && !liveCanvasHeroVisible
     && canvasRenderMode === '2d'
     && active2dSurface !== 'storyboard'
   const rootRef = React.useRef<HTMLElement | null>(null)
@@ -194,46 +213,73 @@ export function CanvasViewport(props: CanvasViewportProps) {
       <React.Suspense fallback={null}>
         {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
           <section className="absolute inset-0 z-[10]">
-            <section
-              className={`absolute inset-0 ${sharedGraphCanvasSurfaceActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}
-              aria-hidden={!sharedGraphCanvasSurfaceActive}
-              data-kg-shared-graph-canvas-surface={sharedGraphCanvasSurfaceActive ? active2dSurface || undefined : undefined}
-            >
-              {sharedGraphCanvasSurfaceActive ? <SharedGraphCanvasLazy active /> : null}
-            </section>
-            <section className={`absolute inset-0 ${active2dSurface === 'dashboard' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'dashboard'}>
-              {active2dSurface === 'dashboard' ? <DashboardCanvasLazy active /> : null}
-            </section>
-            <section className={`absolute inset-0 ${active2dSurface === 'gallery' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'gallery'}>
-              {active2dSurface === 'gallery' ? <GalleryCanvasLazy active /> : null}
-            </section>
-            <section className={`absolute inset-0 ${active2dSurface === 'media' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'media'}>
-              {active2dSurface === 'media' ? <MediaCanvasLazy /> : null}
-            </section>
-            <section className={`absolute inset-0 flex min-h-0 min-w-0 bg-[var(--kg-panel-bg)] ${active2dSurface === 'multiDimTable' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'multiDimTable'}>
-              {active2dSurface === 'multiDimTable' ? <MultiDimTableSurfaceLazy active ariaLabel="Canvas Multi-dimensional Table" /> : null}
-            </section>
-            <section className={`absolute inset-0 ${active2dSurface === 'gitGraph' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'gitGraph'}>
-              {active2dSurface === 'gitGraph' ? <MermaidGitGraphCanvasLazy active /> : null}
-            </section>
-            <section className={`absolute inset-0 ${active2dSurface === 'gantt' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'gantt'}>
-              {active2dSurface === 'gantt' ? <MermaidGanttCanvasLazy active /> : null}
-            </section>
-            <section className={`absolute inset-0 ${active2dSurface === 'flow' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'flow'}>
-              {active2dSurface === 'flow' ? <FlowCanvasLazy active /> : null}
-            </section>
-            <section className={`absolute inset-0 ${active2dSurface === 'animatic' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'animatic'}>
-              {active2dSurface === 'animatic' ? <AnimaticCanvasLazy active /> : null}
-            </section>
-            <section className={`absolute inset-0 ${active2dSurface === 'design' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'design'}>
-              {active2dSurface === 'design' ? <DesignCanvasLazy active /> : null}
-            </section>
-            <section className={`absolute inset-0 ${active2dSurface === 'storyboard' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'storyboard'}>
-              {active2dSurface === 'storyboard' ? <StoryboardWidgetCanvasLazy active storyboardWidgetSurfaceId="storyboard" storyboardCardsMode /> : null}
-              {active2dSurface === 'storyboard' && floatingPanelOpen && floatingPanelView === 'view' ? (
-                <CanvasWorkspaceDataViewFloatingRegistrationBridgeLazy active fallbackDocumentName="storyboard.md" />
-              ) : null}
-            </section>
+            {liveCanvasHeroVisible && liveCanvasHeroSource ? (
+              <>
+                <section
+                  className="absolute inset-0 pointer-events-auto opacity-100"
+                  aria-label="Interactive workspace README command-route canvas"
+                  data-kg-live-canvas-hero-canvas="workspace-runtime"
+                  data-kg-live-canvas-hero-interactive="true"
+                  data-kg-live-canvas-hero-source={liveCanvasHeroSource.sourcePath}
+                  data-kg-live-canvas-hero-source-graph-id={liveCanvasHeroSource.graphId || undefined}
+                >
+                  <FlowCanvasLazy
+                    active
+                    graphDataOverride={liveCanvasHeroSource.canvasGraphData}
+                    mutationSourceGraphDataOverride={liveCanvasHeroSource.graphData}
+                    graphDataRevisionOverride={liveCanvasHeroSource.graphRevision}
+                    canvas2dRendererOverride="flow"
+                    suppressMediaOverlays
+                    flowWidgetStateGraphKeyOverride={`live-hero:${liveCanvasHeroSource.sourceLayerHash}`}
+                    forbidCircleNodes
+                  />
+                </section>
+                <LiveCanvasHeroLazy source={liveCanvasHeroSource} onHandoffComplete={dismissLiveCanvasHero} />
+              </>
+            ) : (
+              <>
+                <section
+                  className={`absolute inset-0 ${sharedGraphCanvasSurfaceActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}
+                  aria-hidden={!sharedGraphCanvasSurfaceActive}
+                  data-kg-shared-graph-canvas-surface={sharedGraphCanvasSurfaceActive ? active2dSurface || undefined : undefined}
+                >
+                  {sharedGraphCanvasSurfaceActive ? <SharedGraphCanvasLazy active /> : null}
+                </section>
+                <section className={`absolute inset-0 ${active2dSurface === 'dashboard' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'dashboard'}>
+                  {active2dSurface === 'dashboard' ? <DashboardCanvasLazy active /> : null}
+                </section>
+                <section className={`absolute inset-0 ${active2dSurface === 'gallery' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'gallery'}>
+                  {active2dSurface === 'gallery' ? <GalleryCanvasLazy active /> : null}
+                </section>
+                <section className={`absolute inset-0 ${active2dSurface === 'media' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'media'}>
+                  {active2dSurface === 'media' ? <MediaCanvasLazy /> : null}
+                </section>
+                <section className={`absolute inset-0 flex min-h-0 min-w-0 bg-[var(--kg-panel-bg)] ${active2dSurface === 'multiDimTable' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'multiDimTable'}>
+                  {active2dSurface === 'multiDimTable' ? <MultiDimTableSurfaceLazy active ariaLabel="Canvas Multi-dimensional Table" /> : null}
+                </section>
+                <section className={`absolute inset-0 ${active2dSurface === 'gitGraph' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'gitGraph'}>
+                  {active2dSurface === 'gitGraph' ? <MermaidGitGraphCanvasLazy active /> : null}
+                </section>
+                <section className={`absolute inset-0 ${active2dSurface === 'gantt' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'gantt'}>
+                  {active2dSurface === 'gantt' ? <MermaidGanttCanvasLazy active /> : null}
+                </section>
+                <section className={`absolute inset-0 ${active2dSurface === 'flow' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'flow'}>
+                  {active2dSurface === 'flow' ? <FlowCanvasLazy active /> : null}
+                </section>
+                <section className={`absolute inset-0 ${active2dSurface === 'animatic' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'animatic'}>
+                  {active2dSurface === 'animatic' ? <AnimaticCanvasLazy active /> : null}
+                </section>
+                <section className={`absolute inset-0 ${active2dSurface === 'design' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'design'}>
+                  {active2dSurface === 'design' ? <DesignCanvasLazy active /> : null}
+                </section>
+                <section className={`absolute inset-0 ${active2dSurface === 'storyboard' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} aria-hidden={active2dSurface !== 'storyboard'}>
+                  {active2dSurface === 'storyboard' ? <StoryboardWidgetCanvasLazy active storyboardWidgetSurfaceId="storyboard" storyboardCardsMode /> : null}
+                  {active2dSurface === 'storyboard' && floatingPanelOpen && floatingPanelView === 'view' ? (
+                    <CanvasWorkspaceDataViewFloatingRegistrationBridgeLazy active fallbackDocumentName="storyboard.md" />
+                  ) : null}
+                </section>
+              </>
+            )}
           </section>
         )}
         {bridgeOnlyWidgetDropActive ? (
@@ -268,7 +314,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
 
         {variant === 'workspace' ? (
           <>
-            {layout === 'full' && !documentSwitchBlocksCanvas ? (
+            {layout === 'full' && !documentSwitchBlocksCanvas && !liveCanvasHeroVisible ? (
               <React.Suspense fallback={null}>
                 <LaunchSpotlightLazy />
               </React.Suspense>
@@ -285,7 +331,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
                 <MinimapLazy />
               </aside>
             ) : null}
-            {timelineBottomPanelVisible ? (
+            {timelineBottomPanelVisible && !liveCanvasHeroVisible ? (
               <StrybldrTimelineBottomPanelLazy
                 active={strybldrTimelineBottomPanelVisible}
                 initialView={
@@ -312,7 +358,6 @@ export function CanvasViewport(props: CanvasViewportProps) {
                 workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}
               />
             ) : null}
-            {!documentSwitchBlocksCanvas ? <InfiniteCanvasWorkspaceOverlay /> : null}
             {!documentSwitchBlocksCanvas && MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}
             {!documentSwitchBlocksCanvas && paywallOverlayActive ? <PaywallOverlayLazy portalTarget={rootRef.current} /> : null}
             {documentSwitchBlocksCanvas ? (

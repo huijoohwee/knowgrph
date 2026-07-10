@@ -972,7 +972,7 @@ export async function testIntegrationsHubSurfacesGrabMapsTravelVideoCopy() {
 
     const text = container.textContent || ''
     ;[
-      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus place search context from Props Panel Discovery Widget, while MainPanel MCP keeps backend/system/API/MCP config.',
+      'Travel-planning video prompts can reuse GrabMaps-selected geojson plus MainPanel Maps place-search context, while MainPanel MCP keeps backend/system/API/MCP config.',
       'Output stays on the shared widget -> edge -> Rich Media Panel pipeline for inline video rendering.',
     ].forEach(token => {
       if (!text.includes(token)) {

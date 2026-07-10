@@ -14,6 +14,8 @@ export const KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES = Object.freeze({
   add: "knowgrph.memory.add",
   search: "knowgrph.memory.search",
   assemblePrompt: "knowgrph.memory.assemble_prompt",
+  extractProcedural: "knowgrph.memory.extract_procedural",
+  materializeUserModel: "knowgrph.memory.materialize_user_model",
 });
 
 export const KNOWGRPH_MEMORY_LAYER_ENV = Object.freeze({
@@ -34,7 +36,7 @@ export const MEMORY_COST_LOG_SCHEMA = Object.freeze({
   required: ["provider", "operation", "latency_ms", "estimated_cost_usd"],
   properties: {
     provider: { type: "string" },
-    operation: { type: "string", enum: ["add", "search", "assemble_prompt"] },
+    operation: { type: "string", enum: ["add", "search", "assemble_prompt", "extract_procedural", "materialize_user_model"] },
     latency_ms: { type: "number" },
     estimated_cost_usd: { oneOf: [{ type: "number" }, { type: "null" }] },
   },
@@ -153,6 +155,73 @@ export const PROMPT_ASSEMBLER_OUTPUT_SCHEMA = Object.freeze({
     enriched_system_message: { type: "string" },
     injected_memory_count: { type: "number" },
     injected_token_estimate: { type: "number" },
+  },
+});
+
+export const PROCEDURAL_MEMORY_EXTRACT_INPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: false,
+  required: ["output_dir"],
+  properties: {
+    output_dir: { type: "string", description: "Harness output directory containing state.json and related artifacts." },
+    title: { type: "string", description: "Optional document title override." },
+    document_slug: { type: "string", description: "Optional stable slug for the generated markdown document." },
+    user_id: { type: "string", description: "Runtime user scope. Required unless another scope field is supplied." },
+    agent_id: { type: "string", description: "Runtime agent scope." },
+    run_id: { type: "string", description: "Runtime run/session scope override." },
+    app_id: { type: "string", description: "Runtime app/workspace scope." },
+    persist_memory: { type: "boolean", default: true, description: "When true, also writes a concise procedural summary into the scoped memory store." },
+  },
+});
+
+export const PROCEDURAL_MEMORY_EXTRACT_OUTPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: true,
+  required: ["contractVersion", "document_path", "document_title", "document_markdown", "task_count", "cost_log"],
+  properties: {
+    contractVersion: { type: "string" },
+    document_path: { type: "string" },
+    document_title: { type: "string" },
+    document_markdown: { type: "string" },
+    task_count: { type: "number" },
+    source_run_id: { type: "string" },
+    source_output_dir: { type: "string" },
+    memory_write: { type: "object", additionalProperties: true },
+    cost_log: MEMORY_COST_LOG_SCHEMA,
+  },
+});
+
+export const USER_MODEL_MATERIALIZE_INPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    title: { type: "string", description: "Optional document title override." },
+    document_slug: { type: "string", description: "Optional stable slug for the generated markdown document." },
+    workspace_path: { type: "string", description: "Optional stable workspace path for the mirrored USER_MODEL markdown document." },
+    default_local_root_path: { type: "string", description: "Optional workspace root used when workspace_path is omitted. Defaults to /chat-log." },
+    user_id: { type: "string", description: "Runtime user scope. Required unless another scope field is supplied." },
+    agent_id: { type: "string", description: "Runtime agent scope." },
+    run_id: { type: "string", description: "Runtime run/session scope." },
+    app_id: { type: "string", description: "Runtime app/workspace scope." },
+    max_memories: { type: "number", default: 20, description: "Maximum number of scoped memories to project into the markdown profile." },
+  },
+});
+
+export const USER_MODEL_MATERIALIZE_OUTPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: true,
+  required: ["contractVersion", "document_path", "workspace_document_path", "document_title", "document_markdown", "memory_count", "cost_log"],
+  properties: {
+    contractVersion: { type: "string" },
+    document_path: { type: "string" },
+    workspace_document_path: { type: "string" },
+    document_title: { type: "string" },
+    document_markdown: { type: "string" },
+    memory_count: { type: "number" },
+    categories: { type: "array", items: { type: "string" } },
+    memory_ids: { type: "array", items: { type: "string" } },
+    scope: { type: "object", additionalProperties: true },
+    cost_log: MEMORY_COST_LOG_SCHEMA,
   },
 });
 

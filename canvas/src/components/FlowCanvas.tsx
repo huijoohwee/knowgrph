@@ -36,6 +36,8 @@ export default function FlowCanvas({
   graphDataOverride,
   mutationSourceGraphDataOverride,
   graphDataRevisionOverride,
+  canvas2dRendererOverride,
+  suppressMediaOverlays = false,
   collisionDuringDrag = false,
   allowNodeDragOverride,
   exposeRuntimeRef,
@@ -46,8 +48,11 @@ export default function FlowCanvas({
   hidePortHandleNodeIds,
   excludeRichMediaOverlayNodeIds,
   excludeNativeSceneNodeIds,
+  flowWidgetPinnedByNodeIdOverride,
+  flowWidgetStateGraphKeyOverride,
   storyboardWidgetSurfaceId,
   forbidCircleNodes = false,
+  onNodeChange,
   onNodePropertiesChange,
 }: FlowCanvasProps) {
   const containerRef = React.useRef<HTMLElement>(null)
@@ -104,7 +109,7 @@ export default function FlowCanvas({
     threeIframeOverlayPoolMax,
     overlaySizing,
     canvasRenderMode,
-    canvas2dRenderer,
+    canvas2dRenderer: storeCanvas2dRenderer,
     infiniteCanvasInteractionMode,
     viewportControlsPreset,
     storyboardWidgetSelectionOnDrag,
@@ -122,6 +127,7 @@ export default function FlowCanvas({
     flowWidgetPinnedByNodeId,
     flowWidgetWorldPosByNodeId,
   } = useFlowCanvasStoreState({ active, containerRef })
+  const canvas2dRenderer = String(canvas2dRendererOverride || storeCanvas2dRenderer || '')
   const canvasPixelW = Math.max(1, Math.floor(viewportW * dpr))
   const canvasPixelH = Math.max(1, Math.floor(viewportH * dpr))
 
@@ -161,6 +167,7 @@ export default function FlowCanvas({
     allowNodeDragOverride,
     canvas2dRenderer,
     renderMediaAsNodes,
+    suppressMediaOverlays,
     infiniteCanvasInteractionMode,
     excludeRichMediaOverlayNodeIds,
     excludeNativeSceneNodeIds,
@@ -395,7 +402,6 @@ export default function FlowCanvas({
     buildDrawArgs,
     allowLayoutCommitWhenWorkspaceBlocked: canvas2dRenderer === 'storyboard',
   })
-
   useFlowCanvasRuntime({
     active,
     storyboardWidgetSurfaceId,
@@ -482,42 +488,50 @@ export default function FlowCanvas({
         ref={canvasRef}
         aria-label="Flow renderer"
         data-kg-canvas-interactive="1"
+        data-kg-canvas-scene-node-count={nativeSceneGraphData?.nodes?.length || 0}
+        data-kg-canvas-scene-edge-count={nativeSceneGraphData?.edges?.length || 0}
         className={CANVAS_INTERACTIVE_CLASS}
         width={canvasPixelW}
         height={canvasPixelH}
         draggable={false}
       />
-      <FlowCanvasMediaOverlays
-        active={active}
-        mediaNodes={mediaNodes as any}
-        selectedOverlayNodeIdSet={selectedOverlayNodeIdSet}
-        sceneGraphData={sceneGraphData}
-        mutationSourceGraphData={mutationSourceGraphDataOverride !== undefined ? mutationSourceGraphDataOverride : renderGraphData}
-        nativeSceneGraphData={nativeSceneGraphData}
-        canvasRef={canvasRef}
-        runtimeRef={runtimeRef}
-        drawArgsRef={drawArgsRef}
-        positionsDirtySinceCommitRef={positionsDirtySinceCommitRef}
-        requestCommit={requestCommit}
-        onInteractionFrame={handleInteractionFrame}
-        schema={schema}
-        canvas2dRenderer={canvas2dRenderer}
-        frontmatterModeEnabled={frontmatterModeEnabled}
-        documentSemanticMode={documentSemanticMode}
-        // Keep the FlowCanvas mount aligned with the overlay resize contract:
-        // resizable={storyboardWidgetOverlayInteractionMode && isSelected}
-        storyboardWidgetOverlayInteractionMode={storyboardWidgetOverlayInteractionMode}
-        storyboardWidgetFrontmatterInteractionMode={storyboardWidgetFrontmatterInteractionMode}
-        mediaPanelDensity={mediaPanelDensity}
-        renderMediaAsNodes={renderMediaAsNodes}
-        infiniteCanvasInteractionMode={infiniteCanvasInteractionMode}
-        viewportW={viewportW}
-        viewportH={viewportH}
-        overlaySizing={overlaySizing}
-        storyboardWidgetSurfaceId={storyboardWidgetSurfaceId}
-        onNodePropertiesChange={onNodePropertiesChange}
-        registerInteractionFrameLayoutScheduler={registerMediaOverlayInteractionFrameScheduler}
-      />
+      {suppressMediaOverlays ? null : (
+        <FlowCanvasMediaOverlays
+          active={active}
+          mediaNodes={mediaNodes as any}
+          flowWidgetPinnedByNodeIdOverride={flowWidgetPinnedByNodeIdOverride}
+          flowWidgetStateGraphKeyOverride={flowWidgetStateGraphKeyOverride}
+          selectedOverlayNodeIdSet={selectedOverlayNodeIdSet}
+          sceneGraphData={sceneGraphData}
+          mutationSourceGraphData={mutationSourceGraphDataOverride !== undefined ? mutationSourceGraphDataOverride : renderGraphData}
+          nativeSceneGraphData={nativeSceneGraphData}
+          canvasRef={canvasRef}
+          runtimeRef={runtimeRef}
+          drawArgsRef={drawArgsRef}
+          positionsDirtySinceCommitRef={positionsDirtySinceCommitRef}
+          requestCommit={requestCommit}
+          onInteractionFrame={handleInteractionFrame}
+          schema={schema}
+          canvas2dRenderer={canvas2dRenderer}
+          frontmatterModeEnabled={frontmatterModeEnabled}
+          documentSemanticMode={documentSemanticMode}
+          // Keep the FlowCanvas mount aligned with the overlay resize contract:
+          // resizable={storyboardWidgetOverlayInteractionMode && isSelected}
+          // Resize repaint contract remains in the runtime owner: if (resized) runtime.dirty = true.
+          storyboardWidgetOverlayInteractionMode={storyboardWidgetOverlayInteractionMode}
+          storyboardWidgetFrontmatterInteractionMode={storyboardWidgetFrontmatterInteractionMode}
+          mediaPanelDensity={mediaPanelDensity}
+          renderMediaAsNodes={renderMediaAsNodes}
+          infiniteCanvasInteractionMode={infiniteCanvasInteractionMode}
+          viewportW={viewportW}
+          viewportH={viewportH}
+          overlaySizing={overlaySizing}
+          storyboardWidgetSurfaceId={storyboardWidgetSurfaceId}
+          onNodeChange={onNodeChange}
+          onNodePropertiesChange={onNodePropertiesChange}
+          registerInteractionFrameLayoutScheduler={registerMediaOverlayInteractionFrameScheduler}
+        />
+      )}
       {selectionBox ? (
         <section
           aria-hidden={true}

@@ -1,4 +1,4 @@
-type RouterBasenameRuntime = {
+export type RouterBasenameRuntime = {
   pathname?: unknown
   rootAliasBasePath?: unknown
 }
@@ -40,14 +40,17 @@ function readRuntimeRootAliasBasePath(runtime?: RouterBasenameRuntime): string |
   return normalizeBasePath(raw)
 }
 
+export function isRouterRootAliasRuntime(baseUrl: unknown, runtime?: RouterBasenameRuntime): boolean {
+  const basename = normalizeBasePath(baseUrl)
+  if (!basename) return false
+  return readRuntimeRootAliasBasePath(runtime) === basename && readRuntimePathname(runtime) === '/'
+}
+
 export function resolveRouterBasename(baseUrl: unknown, runtime?: RouterBasenameRuntime): string | undefined {
   const basename = normalizeBasePath(baseUrl)
   if (!basename) return undefined
 
-  const rootAliasBasePath = readRuntimeRootAliasBasePath(runtime)
-  if (rootAliasBasePath === basename && readRuntimePathname(runtime) === '/') {
-    return undefined
-  }
+  if (isRouterRootAliasRuntime(baseUrl, runtime)) return undefined
 
   return basename
 }

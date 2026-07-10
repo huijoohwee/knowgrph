@@ -274,18 +274,6 @@ export function applyMediaPanelCssVars(el: HTMLElement, vars: MediaPanelCssVars)
   VARS_CACHE.set(el, sig)
 }
 
-function resolvePanelBoxDisplay(el: HTMLElement, display: 'block' | 'none' | 'flex' | undefined): 'block' | 'none' | 'flex' {
-  if (display === 'none') return 'none'
-  if (display === 'flex') return 'flex'
-  if (
-    el.getAttribute('data-kg-rich-media-storyboard-widget-chrome') === '1'
-    && el.getAttribute('data-kg-rich-media-panel') === '1'
-  ) {
-    return 'flex'
-  }
-  return 'block'
-}
-
 export function applyPanelBox(el: HTMLElement, args: {
   left: number
   top: number
@@ -301,7 +289,7 @@ export function applyPanelBox(el: HTMLElement, args: {
   const w = Number.isFinite(args.w) ? args.w : 1
   const h = Number.isFinite(args.h) ? args.h : 1
   const scale = Number.isFinite(args.scale) && Number(args.scale) > 0 ? Math.max(0.001, Number(args.scale)) : 1
-  const display = resolvePanelBoxDisplay(el, args.display)
+  const display = args.display || 'block'
   const z = args.zIndex != null ? String(args.zIndex) : ''
   const positionMode = args.positionMode === 'matrix' ? 'matrix' : 'vectorPainted'
   const posSig = `${positionMode}|${left}|${top}|${scale}`

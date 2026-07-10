@@ -48,6 +48,7 @@ export const STORYBOARD_WIDGET_OVERLAY_INTERACTIVE_SELECTOR =
   `${STORYBOARD_WIDGET_OVERLAY_CONTROL_SELECTOR},[data-kg-card-inline-edit="1"],[${MEDIA_PREVIEW_SELECTABLE_SURFACE_ATTR}="${MEDIA_PREVIEW_SELECTABLE_SURFACE_VALUE}"]`
 
 export const STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT = 'kg-storyboard-widget-interaction-frame'
+export const STORYBOARD_WIDGET_GEOMETRY_COMMITTED_EVENT = 'kg-storyboard-widget-geometry-committed'
 
 let storyboardWidgetInteractionFrameRaf: number | null = null
 
@@ -85,12 +86,13 @@ export function emitStoryboardWidgetInteractionFrame(): void {
   if (storyboardWidgetInteractionFrameRaf != null) return
   storyboardWidgetInteractionFrameRaf = window.requestAnimationFrame(() => {
     storyboardWidgetInteractionFrameRaf = null
-    try {
-      window.dispatchEvent(new Event(STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT))
-    } catch {
-      void 0
-    }
+    try { window.dispatchEvent(new Event(STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT)) } catch { void 0 }
   })
+}
+
+export function emitStoryboardWidgetGeometryCommitted(): void {
+  if (typeof window === 'undefined') return
+  try { window.dispatchEvent(new Event(STORYBOARD_WIDGET_GEOMETRY_COMMITTED_EVENT)) } catch { void 0 }
 }
 
 export type StoryboardWidgetOverlayProxyTarget =

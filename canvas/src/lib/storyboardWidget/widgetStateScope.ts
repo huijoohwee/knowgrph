@@ -1,4 +1,4 @@
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { buildGraphDocumentMetaKey } from '@/lib/graph/graphMetaKey'
 
 const EMPTY_SCOPED_FLOW_WIDGET_NODE_MAP: Record<string, never> = {}
 
@@ -8,7 +8,7 @@ export function resolveFlowWidgetStateGraphKey(args: {
 }): string | null {
   const explicit = String(args.graphMetaKey || '').trim()
   if (explicit) return explicit
-  const derived = buildGraphMetaKeyIgnoringPending((args.graphData || null) as never)
+  const derived = buildGraphDocumentMetaKey((args.graphData || null) as never)
   return String(derived || '').trim() || null
 }
 

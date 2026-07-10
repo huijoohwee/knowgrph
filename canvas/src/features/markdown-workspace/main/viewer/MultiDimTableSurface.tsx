@@ -11,6 +11,7 @@ import {
   applyStructuredSourceDataViewReplacement,
 } from '@/features/markdown-workspace/main/viewer/sourceStructuredDataViewTable'
 import { useCanvasWorkspaceDataViewSource } from './workspaceDataViewCanvasSource'
+import { UI_VIEW_EDIT_SURFACE_AREA_CLASS_NAME, UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES } from '@/lib/ui/surfaceClasses'
 
 const NOOP_REVEAL_LINE = () => void 0
 const NOOP_VIEWER_ROOT_REF = () => void 0
@@ -123,7 +124,7 @@ export function MultiDimTableSurface(props: { active?: boolean; ariaLabel?: stri
   if (!active) return null
 
   return (
-    <section className={`h-full w-full min-h-0 min-w-0 ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`} aria-label={props.ariaLabel || 'Multi-dimensional Table'}>
+    <section className={`${UI_VIEW_EDIT_SURFACE_AREA_CLASS_NAME} ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary}`} aria-label={props.ariaLabel || 'Multi-dimensional Table'} {...UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES}>
       <MarkdownWorkspaceDerivedViewer
         viewerKind="markdown"
         viewerMode="multiDimTable"

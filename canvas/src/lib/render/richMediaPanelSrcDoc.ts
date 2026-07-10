@@ -63,6 +63,7 @@ function buildRichMediaPanelSrcDocResetStyle(scrollOwner: RichMediaPanelSrcDocSc
     `${topLevelFrameSelector},${nestedRootFrameSelector}{${flattenFrameStyle}}`,
     mediaOwnedViewportStyle,
     'img,svg,video,canvas{max-width:100%}',
+    '[data-kg-rich-media-markdown-srcdoc="1"] img{display:block;width:100%;height:auto;object-fit:contain}',
     '</style>',
   ].join('')
 }

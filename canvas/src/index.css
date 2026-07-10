@@ -1,4 +1,5 @@
 @import 'katex/dist/katex.min.css';
+@import './styles/kgTokens.generated.css';
 @import './styles/responsive-toolbar.css';
 @import './styles/responsive-canvas-toolbar.css';
 @import './styles/markdown-presentation-responsive.css';
@@ -94,7 +95,6 @@
   --kg-canvas-grid-minor: #111827;
   --kg-canvas-grid-major: #111827;
   --kg-canvas-viewport-edge-gap: 0.5rem;
-  --kg-media-panel-bg: var(--kg-panel-bg);
   --kg-media-panel-header-bg: #f9fafb;
   --kg-statusbar-bg: #f9fafb;
   --kg-statusbar-text: #4b5563;

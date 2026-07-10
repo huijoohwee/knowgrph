@@ -6,7 +6,7 @@ import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/work
 import { useActiveGraphData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { buildGraphDocumentMetaKey } from '@/lib/graph/graphMetaKey'
 
 const EMPTY_STRING_ARRAY: string[] = []
 const EMPTY_BOOL_RECORD: Record<string, boolean> = {}
@@ -73,7 +73,7 @@ export function useStoryboardWidgetRuntimeStoreState() {
   const flowWidgetPinnedByNodeId = React.useMemo(
     () =>
       resolveScopedFlowWidgetNodeMap({
-        graphMetaKey: buildGraphMetaKeyIgnoringPending(baseGraphData),
+        graphMetaKey: buildGraphDocumentMetaKey(baseGraphData),
         keyedByGraphMetaKey: state.flowWidgetPinnedByNodeIdByGraphMetaKey,
         globalByNodeId: state.globalFlowWidgetPinnedByNodeId,
       }) ?? EMPTY_BOOL_RECORD,

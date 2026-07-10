@@ -9,7 +9,8 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   const root = process.cwd()
   const panelPath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorPanel.tsx')
   const chromePath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'StoryboardWidgetPanelChrome.tsx')
-  const formPath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
+  const formPath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorFormContent.tsx')
+  const frontmatterRowsPath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'useWidgetEditorFrontmatterRows.tsx')
   const registryPath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorRegistrySection.tsx')
   const inlineValuePath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'StoryboardWidgetInlineValueEditor.tsx')
   const jsonLikeValuePath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorJsonLikeValueEditor.tsx')
@@ -38,6 +39,7 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   }
 
   const form = readUtf8(formPath)
+  const frontmatterRows = readUtf8(frontmatterRowsPath)
   if (form.includes("rowKey: 'node-type'")) {
     throw new Error('Expected Node Type identity row to be removed from Widget form')
   }
@@ -76,7 +78,7 @@ export const testWidgetHidesIdentityAndMovesActionsToToolbar = () => {
   if (jsonLikeValue.includes('if (!props.active) return')) {
     throw new Error('Expected JSON-like Storyboard Widget Value commits to accept the first inactive inline edit')
   }
-  if (!form.includes("import { StoryboardWidgetInlineValueEditor } from '@/components/StoryboardWidget/StoryboardWidgetInlineValueEditor'")) {
+  if (!frontmatterRows.includes("import { StoryboardWidgetInlineValueEditor } from '@/components/StoryboardWidget/StoryboardWidgetInlineValueEditor'")) {
     throw new Error('Expected frontmatter Flow Envelope Value cells to route through the shared inline Value adapter')
   }
   if (!registry.includes("import { StoryboardWidgetInlineValueEditor } from '@/components/StoryboardWidget/StoryboardWidgetInlineValueEditor'")) {

@@ -236,8 +236,8 @@ export async function testMediaOverlayPoolPreservesDistinctEmptyRichMediaShells(
     poolMax: 24,
   })
   const ids = new Set(out.map(node => String(node.id || '').trim()))
-  if (out.length !== 1 || !ids.has('panel-empty-1')) {
-    throw new Error(`expected duplicate empty Rich Media Panel shells to collapse to one canonical owner, got ${JSON.stringify(Array.from(ids))}`)
+  if (out.length !== 2 || !ids.has('panel-empty-1') || !ids.has('panel-empty-2')) {
+    throw new Error(`expected every empty Rich Media Panel identity to retain its overlay owner, got ${JSON.stringify(Array.from(ids))}`)
   }
 }
 

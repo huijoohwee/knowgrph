@@ -60,6 +60,7 @@ type UseFlowCanvasGraphStateArgs = {
   allowNodeDragOverride?: boolean
   canvas2dRenderer: string
   renderMediaAsNodes: boolean
+  suppressMediaOverlays: boolean
   infiniteCanvasInteractionMode: 'static' | 'interactive'
   excludeRichMediaOverlayNodeIds?: string[]
   excludeNativeSceneNodeIds?: string[]
@@ -84,6 +85,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     allowNodeDragOverride,
     canvas2dRenderer,
     renderMediaAsNodes,
+    suppressMediaOverlays,
     excludeRichMediaOverlayNodeIds,
     excludeNativeSceneNodeIds,
     openWidgetNodeIds,
@@ -101,7 +103,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     const nodes = Array.isArray(renderGraphData?.nodes) ? renderGraphData.nodes : []
     return new Map(nodes.map(node => [String(node?.id || '').trim(), node] as const).filter(([id]) => Boolean(id)))
   }, [renderGraphData])
-  const allowMutations = allowNodeDragOverride !== false
+  const allowMutations = allowNodeDragOverride !== false && documentStructureBaselineLock !== true
   const effectiveFrontmatter = React.useMemo(() => {
     return computeEffectiveFrontmatterMode({
       frontmatterModeEnabled: frontmatterModeEnabled === true,
@@ -272,6 +274,11 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     || (!storyboardWidgetOverlayInteractionMode && !storyboardWidgetFrontmatterInteractionMode)
 
   const mediaNodes = React.useMemo(() => {
+    if (suppressMediaOverlays) {
+      stickyOverlayNodeByIdRef.current.clear()
+      stickyOverlayOrderRef.current = []
+      return []
+    }
     const nodes = mediaRenderNodes
     const poolMaxRaw = typeof threeIframeOverlayPoolMax === 'number' && Number.isFinite(threeIframeOverlayPoolMax) ? threeIframeOverlayPoolMax : 0
     const poolMax = poolMaxRaw > 0 ? poolMaxRaw : 24
@@ -350,6 +357,7 @@ export function useFlowCanvasGraphState(args: UseFlowCanvasGraphStateArgs) {
     mediaRenderConnectedValuesByNodeId,
     mediaRenderNodes,
     renderMediaAsNodes,
+    suppressMediaOverlays,
     canvas2dRenderer,
     documentSemanticMode,
     frontmatterModeEnabled,

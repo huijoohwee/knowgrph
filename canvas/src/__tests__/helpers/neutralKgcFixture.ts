@@ -32,7 +32,9 @@ export const buildCanonicalKgcTemplateFixtureDocument = (
 ): string => buildNeutralKgcFixtureDocument({
   timestampMs: Date.UTC(2026, 3, 19, 18, 2, 22),
   workspacePath: '/chat-log/20260419T180222Z/kgc_20260419T180222Z.md',
-  requestText: 'Generate a structured KGC response.',
+  // Use an explicit runtime-style request with canonical sections so this helper
+  // always materializes the full KGC pipeline template instead of the response-only scaffold.
+  requestText: '#canvas Generate a structured KGC response with User Flow, Data Flow, Integration Boundaries, and Monetization Surface.',
   assistantText: 'Create a neutral KGC response document.',
   expectationLabel: 'canonical KGC template fixture',
   ...overrides,

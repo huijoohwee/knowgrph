@@ -337,7 +337,20 @@ const appendWidgetBundleNodeRefs = (frontmatter: string, nodeIds: string[]): str
   if (refs.length === 0) return frontmatter
   const lines = String(frontmatter || '').replace(/\r\n/g, '\n').split('\n')
   const widgetBundleIndex = lines.findIndex(line => /^widget_bundle\s*:/.test(line || ''))
-  if (widgetBundleIndex < 0) return frontmatter
+  const canonicalBundleRefs = Array.from(new Set(['n-deliver', ...refs]))
+  if (widgetBundleIndex < 0) {
+    const block = [
+      'widget_bundle:',
+      '  graph:',
+      `    nodes_ref: [${canonicalBundleRefs.map(id => yamlScalar(id)).join(', ')}]`,
+    ]
+    const flowIndex = lines.findIndex(line => /^flow\s*:/.test(line || ''))
+    if (flowIndex >= 0) {
+      lines.splice(flowIndex, 0, ...block)
+      return lines.join('\n')
+    }
+    return `${frontmatter.trimEnd()}\n${block.join('\n')}`
+  }
 
   const widgetBundleEnd = findYamlSectionEnd(lines, widgetBundleIndex, 0)
   const widgetBundleChildIndent = findDirectChildIndent(lines, widgetBundleIndex, widgetBundleEnd, 0)
@@ -349,7 +362,13 @@ const appendWidgetBundleNodeRefs = (frontmatter: string, nodeIds: string[]): str
       break
     }
   }
-  if (graphIndex < 0) return frontmatter
+  if (graphIndex < 0) {
+    lines.splice(widgetBundleEnd, 0,
+      `${' '.repeat(widgetBundleChildIndent)}graph:`,
+      `${' '.repeat(widgetBundleChildIndent + 2)}nodes_ref: [${canonicalBundleRefs.map(id => yamlScalar(id)).join(', ')}]`,
+    )
+    return lines.join('\n')
+  }
 
   const graphIndent = countLeadingSpaces(lines[graphIndex] || '')
   const graphEnd = findYamlSectionEnd(lines, graphIndex, graphIndent)
@@ -362,7 +381,10 @@ const appendWidgetBundleNodeRefs = (frontmatter: string, nodeIds: string[]): str
       break
     }
   }
-  if (nodesRefIndex < 0) return frontmatter
+  if (nodesRefIndex < 0) {
+    lines.splice(graphEnd, 0, `${' '.repeat(graphChildIndent)}nodes_ref: [${canonicalBundleRefs.map(id => yamlScalar(id)).join(', ')}]`)
+    return lines.join('\n')
+  }
 
   const nodesRefLine = lines[nodesRefIndex] || ''
   const existing = new Set<string>()

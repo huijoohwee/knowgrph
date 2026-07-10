@@ -23,6 +23,13 @@ import { MarkdownBlockContainerInlineMenusOverlay } from './markdownBlockContain
 import { MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS } from './markdownContentEditableSurface'
 import type { InlineMediaCommandCandidate } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import type { SlashMenuState } from './markdownBlockContainerCore.menuState'
+import { computeFloatingMenuPosition } from './markdownBlockContainerCore.interaction'
+
+const MARKDOWN_EDIT_SURFACE_MOBILE_GRAMMAR_QUICK_BAR_TOKENS = [
+  { id: 'slash', label: '/', description: 'Open slash commands' },
+  { id: 'semantic', label: '#', description: 'Open semantic commands' },
+  { id: 'variable', label: '@', description: 'Open variable commands' },
+] as const
 
 export const MarkdownBlockContainerEditSurfaceView = (props: {
   editing: boolean
@@ -147,6 +154,47 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
   const editPreserveMinHeightStyle =
     props.editPreserveBlockHeight && props.editMinHeightPx > 0 ? { minHeight: `${props.editMinHeightPx}px` } : undefined
   const skipEditWrapper = props.editStaticChildrenMode === 'passthrough' && hostHeadingFlow
+  const openMobileGrammarQuickBarMenu = (
+    kind: 'slash' | 'semantic' | 'variable',
+    anchorElement: HTMLElement,
+  ) => {
+    const editorRoot = props.editorRef.current
+    if (!editorRoot) return
+    const { leftPx, topPx } = computeFloatingMenuPosition({
+      rangeRect: anchorElement.getBoundingClientRect(),
+      root: editorRoot,
+      gapPx: 8,
+    })
+    if (kind === 'variable') {
+      props.setSlashMenuStable({ show: false, leftPx: 0, topPx: 0, kind: 'slash', query: '', triggerRange: null })
+      props.setVariableMenu(prev => ({
+        ...prev,
+        show: true,
+        leftPx,
+        topPx,
+        query: '',
+        keyInput: '',
+        mode: 'ref',
+      }))
+      return
+    }
+    props.setVariableMenu(prev => ({
+      ...prev,
+      show: false,
+      leftPx: 0,
+      topPx: 0,
+      query: '',
+      keyInput: '',
+    }))
+    props.setSlashMenuStable({
+      show: true,
+      leftPx,
+      topPx,
+      kind,
+      query: '',
+      triggerRange: null,
+    })
+  }
   const surfaceChildren = (
     <>
       {props.editStaticChildren
@@ -258,6 +306,36 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
         onDoubleClick={props.onDoubleClick}
         onKeyDown={props.onKeyDown}
       />
+
+      {!props.editDisableRichUi ? (
+        <span
+          className="mt-2 flex items-center gap-1 border-t pt-2 sm:hidden"
+          role="toolbar"
+          aria-label="Mobile grammar quick bar"
+          data-kg-markdown-mobile-grammar-quick-bar="true"
+        >
+          {MARKDOWN_EDIT_SURFACE_MOBILE_GRAMMAR_QUICK_BAR_TOKENS.map(entry => (
+            <button
+              key={entry.id}
+              type="button"
+              className={`${FLOATING_BUBBLE_BUTTON_CLASSNAME} min-w-[2.5rem] justify-center`}
+              data-kg-markdown-mobile-grammar-quick-bar-token={entry.label}
+              aria-label={entry.description}
+              title={entry.description}
+              onMouseDown={event => {
+                event.preventDefault()
+                props.holdToolbarInteraction()
+                if (entry.id === 'variable') props.onVariableMenuMouseDownCapture()
+              }}
+              onClick={event => {
+                openMobileGrammarQuickBarMenu(entry.id, event.currentTarget)
+              }}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </span>
+      ) : null}
 
       <MarkdownBlockContainerInlineMenusOverlay
         editDisableRichUi={props.editDisableRichUi}

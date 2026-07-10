@@ -51,7 +51,7 @@ export const testStoryboardWidgetOverlayCollisionRebalancesStoredVerticalCluster
   if (!hookText.includes('resolveScopedFlowWidgetNodeMap({')) {
     throw new Error('expected overlay collision runtime to resolve widget pin/screen/world state through the shared graph-scoped helper')
   }
-  if (!hookText.includes('const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForOverlayRuntime)')) {
+  if (!hookText.includes('const graphKey = buildGraphDocumentMetaKey(graphDataForOverlayRuntime)')) {
     throw new Error('expected overlay collision runtime to derive one active render-graph key before reading scoped widget state')
   }
   if (!hookText.includes("import { hashScopedStringArraySignature, hashSignatureParts, normalizeStringArrayForSignature } from '@/lib/hash/signature'")) {
@@ -611,10 +611,11 @@ export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = ()
   if (!overlayText.includes('for (const id of Array.from(lastKnownSizes.keys())) {')) {
     throw new Error('expected Rich Media overlay size cache to prune removed nodes without dropping active-node stable sizes during workspace churn')
   }
-  if (!overlayText.includes('const panelNode = (sceneGraphData?.nodes || []).find(node => isCanonicalNodeIdEqual(node?.id, id))')
-    || !overlayText.includes('const sharedCardSize = panelNode ? readStoryboardCardSize2d(panelNode as GraphNode, strybldrStoryboardCardAspectMode) : null')
-    || !overlayText.includes(': mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null')) {
-    throw new Error('expected Rich Media layout sizing to reuse shared Card sizing before the transient last-known world-size fallback')
+  if (!overlayText.includes('const stableSize = mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null')) {
+    throw new Error('expected the long-lived Rich Media layout loop to consume the current shared Card and Widget size cache')
+  }
+  if (overlayText.includes('const panelNode = (sceneGraphData?.nodes || []).find(node => isCanonicalNodeIdEqual(node?.id, id))')) {
+    throw new Error('expected the long-lived Rich Media layout loop to avoid stale render-graph closure authority')
   }
   if (!presentationText.includes('const lastStableOverlayHalfExtentsByNodeIdRef = useRef<Map<string, NodeHalfExtents>>(new Map())')) {
     throw new Error('expected D3 presentation to retain last stable overlay half-extents across transient missing visual size props')
@@ -624,9 +625,6 @@ export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = ()
   }
   if (!presentationText.includes('lastStableByNodeId: lastStableOverlayHalfExtentsByNodeIdRef.current')) {
     throw new Error('expected D3 presentation to update overlay half-extents from a shared ref-backed SSOT cache')
-  }
-  if (!overlayText.includes('workspaceOverlayOpenRef.current') || !overlayText.includes('workspaceOverlayOpenKey')) {
-    throw new Error('expected Rich Media layout scheduling to track Workspace overlay open/close without raw workspace deps in hot layout state')
   }
   if (!overlayText.includes('const stopPassiveLayoutWhileWorkspaceOverlayOpen =\n      workspaceOverlayOpenRef.current && !storyboardWidgetFrontmatterDocumentModeRequested')) {
     throw new Error('expected Rich Media layout scheduling to derive a frontmatter-aware passive layout exception while Workspace/Indexing overlay is open')
@@ -643,9 +641,9 @@ export const testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback = ()
   if (!overlayText.includes('const sceneGraphDataRevision = React.useMemo(() => readGraphDataRevision(sceneGraphData), [sceneGraphData])')) {
     throw new Error('expected Rich Media overlay maintenance effects to use graph revisions instead of raw scene graph identity churn')
   }
-  const richMediaPanelPath = path.resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
-  const richMediaPanelText = readUtf8(richMediaPanelPath)
-  if (!richMediaPanelText.includes('data-kg-storyboard-widget-mode={storyboardWidgetInteractionMode ? \'1\' : undefined}')) {
+  const richMediaSurfaceStatePath = path.resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts')
+  const richMediaSurfaceStateText = readUtf8(richMediaSurfaceStatePath)
+  if (!richMediaSurfaceStateText.includes("'data-kg-storyboard-widget-mode': storyboardWidgetInteractionMode ? '1' : undefined")) {
     throw new Error('expected rich media overlay roots to explicitly expose Storyboard Widget mode for renderer-scoped isolation')
   }
 

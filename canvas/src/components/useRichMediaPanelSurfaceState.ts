@@ -20,7 +20,7 @@ import {
 } from '@/lib/ui/panelFrame'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readCanvasAspectRatioWidthToHeight } from '@/lib/canvas/canvasAspectRatioDisplayControls'
-import { getStoryboardWidgetPanelChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
+import { getStoryboardWidgetPanelChromeClassName, getStoryboardWidgetPanelSelectionChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
 import { handleRichMediaPanelOverlayDragStartCapture, handleRichMediaPanelOverlayNativeDragStartCapture, installRichMediaOverlayWheelForwarding, startRichMediaPanelHeaderDrag } from './RichMediaPanelOverlayDrag'
 import { beginRichMediaPanelResizeDrag } from './RichMediaPanelResizeHandle'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
@@ -352,11 +352,6 @@ export function useRichMediaPanelSurfaceState(
   const rootStyle: React.CSSProperties = {
     ...PANEL_FRAME_ROOT_STYLE,
     position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (storyboardWidgetInteractionMode ? 'absolute' : 'relative'),
-    ...(!useSurfaceFrame && storyboardWidgetFrontmatterDocumentMode
-      ? {
-          background: 'var(--kg-panel-bg, rgba(255,255,255,0.92))',
-        }
-      : null),
     ...(showStoryboardWidgetChrome ? { borderRadius: undefined, boxShadow: undefined } : null),
     ...(useSurfaceFrame
       ? {
@@ -461,6 +456,7 @@ export function useRichMediaPanelSurfaceState(
     'kg-media',
     'kg-mediaBody',
     showStoryboardWidgetChrome ? getStoryboardWidgetPanelChromeClassName(mediaState.uiPanelTextFontClass) : '',
+    getStoryboardWidgetPanelSelectionChromeClassName(showStoryboardWidgetChrome && props.selected === true),
     props.className || '',
   ].filter(Boolean).join(' ')
   const rootAttributes = {
@@ -470,6 +466,7 @@ export function useRichMediaPanelSurfaceState(
     'data-kg-overlay-pan-owner': canvasOverlayPanOwnedByCollective ? 'canvas' : undefined,
     'data-kg-storyboard-widget-mode': storyboardWidgetInteractionMode ? '1' : undefined,
     'data-kg-storyboard-widget-surface': storyboardWidgetInteractionMode ? (props.storyboardWidgetSurfaceId || undefined) : undefined,
+    'data-kg-storyboard-widget-selected': showStoryboardWidgetChrome && props.selected === true ? '1' : undefined,
     'data-kg-frontmatter-document-mode': storyboardWidgetFrontmatterDocumentMode ? '1' : undefined,
     'data-kg-rich-media-header-pinned': typeof props.headerPinned === 'boolean' ? (props.headerPinned ? '1' : '0') : undefined,
     'data-kg-kind': mediaState.kind,

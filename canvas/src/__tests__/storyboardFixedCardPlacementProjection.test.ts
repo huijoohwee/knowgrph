@@ -22,9 +22,9 @@ export function testStoryboardFixedCardPlacementProjectionAvoidsForceLayoutMutat
   for (const stale of ['fx: next.point.x', 'fy: next.point.y', 'fx: snapped.x', 'fy: snapped.y', 'vx: 0', 'vy: 0']) {
     if (interactions.includes(stale)) throw new Error(`expected Storyboard card drag persistence not to leak D3 force-layout fields: ${stale}`)
   }
-  if (!interactions.includes('args.updateNode(next.id, { x: next.point.x, y: next.point.y })')
+  if (interactions.includes('args.updateNode(next.id, { x: next.point.x, y: next.point.y })')
     || !interactions.includes('args.updateNode(id, { x: snapped.x, y: snapped.y })')) {
-    throw new Error('expected Storyboard card drag persistence to write renderer-neutral x/y coordinates only')
+    throw new Error('expected Storyboard card drag persistence to commit renderer-neutral x/y coordinates once at drag end')
   }
   const nodes: MutableNodeRecord[] = [
     { id: 'source-card', type: 'storyboard', label: 'Source', properties: { lane: 'Source', summary: 'A', order: 0 } },

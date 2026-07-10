@@ -273,4 +273,12 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["ui.canvas.gallery.reusesSharedCardPrimitives","@/__tests__/galleryCanvasConsolidation.test","testGalleryCardsReuseSharedDashboardPrimitives"],
   ["ui.canvas.gallery.zoomScaledFixedAspectGrid","@/__tests__/galleryCanvasConsolidation.test","testGalleryCardsScaleFromSharedScrollSurfaceZoom"],
   ["ui.canvas.gallery.removesLegacySurface","@/__tests__/galleryCanvasConsolidation.test","testLegacyGalleryWorkspaceSurfaceRemoved"],
+  ["ui.canvas.liveHero.sourceBackedContract","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroUsesSourceBackedInvocationContract"],
+  ["ui.canvas.liveHero.workspaceReadmeSourceFidelity","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroWorkspaceReadmeSourceFidelity"],
+  ["ui.canvas.liveHero.hydratedApexVisibility","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex"],
+  ["ui.canvas.liveHero.rawChatHandoff","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroChatHandoffPreservesRawGrammar"],
+  ["ui.canvas.liveHero.rawChatHandoff.sharedAppendEvent","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroChatHandoffFlushesThroughSharedAppendEvent"],
+  ["ui.canvas.liveHero.interactiveWorkspaceCanvas","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroUsesInteractiveWorkspaceCanvas"],
+  ["ui.canvas.liveHero.explicitRunInteraction","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroInteractionHandsOffOnlyOnRun"],
+  ["agentReady.rootAlias.appShell","@/__tests__/rootAgentReadyAlias.test","testRootAgentReadyAliasCanonicalizesPublishedAppShellMount"],
 ]

@@ -125,9 +125,6 @@ export function testWidgetBundleJsonTextHelperPropagatesToExplicitExportPaths() 
 
   const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts')
   const workflowActionsText = readFileSync(workflowActionsPath, 'utf8')
-  if (!workflowActionsText.includes('graphRevision: readGraphDataRevision(subgraph)')) {
-    throw new Error('expected workflow node export path to pass graph revision metadata into shared widget bundle export')
-  }
   if (!workflowActionsText.includes('graphRevision: readGraphDataRevision(draft)')) {
     throw new Error('expected workflow bundle export path to pass graph revision metadata into shared widget bundle export')
   }

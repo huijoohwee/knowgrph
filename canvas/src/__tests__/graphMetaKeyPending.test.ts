@@ -1,5 +1,5 @@
 import type { GraphData } from '@/lib/graph/types'
-import { buildGraphMetaKey, buildGraphMetaKeyIgnoringPending, readBaselineGraphMetaKey } from '@/lib/graph/graphMetaKey'
+import { buildGraphDocumentMetaKey, buildGraphMetaKey, buildGraphMetaKeyIgnoringPending, readBaselineGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { defaultSchema } from '@/lib/graph/schema'
 
@@ -23,6 +23,25 @@ export function testGraphMetaKeyIgnoringPendingStaysStableAcrossPendingFlag() {
   const sa = buildGraphMetaKeyIgnoringPending(pending)
   const sb = buildGraphMetaKeyIgnoringPending(ready)
   if (sa !== sb) throw new Error(`expected buildGraphMetaKeyIgnoringPending to match, got ${JSON.stringify({ sa, sb })}`)
+}
+
+export function testGraphDocumentMetaKeyStaysStableAcrossSourceRevisions() {
+  const first: GraphData = {
+    type: 'Graph',
+    context: 't',
+    metadata: { kind: 'frontmatter-flow', source: 'markdown:workspace.md', sourceLayerHash: 'revision-a' },
+    nodes: [],
+    edges: [],
+  }
+  const second: GraphData = {
+    ...first,
+    metadata: { ...(first.metadata as Record<string, unknown>), sourceLayerHash: 'revision-b' },
+  }
+  const firstKey = buildGraphDocumentMetaKey(first)
+  const secondKey = buildGraphDocumentMetaKey(second)
+  if (firstKey !== secondKey || firstKey !== 'frontmatter-flow:markdown:workspace.md') {
+    throw new Error(`expected document view-state key to ignore source revision, got ${JSON.stringify({ firstKey, secondKey })}`)
+  }
 }
 
 export function testActive2dZoomViewKeyIgnoresPendingFlag() {

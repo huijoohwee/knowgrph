@@ -6,6 +6,62 @@ export type JsdomHarnessEnv = {
   restore: () => void
 }
 
+const activeAnimationFrameTimeoutSets = new Set<Set<ReturnType<typeof setTimeout>>>()
+const activeJsdomHarnessStack: Array<{ window: Window; document: Document }> = []
+let activeJsdomWindow: Window | null = null
+let activeJsdomDocument: Document | null = null
+
+const syncActiveJsdomGlobals = (): void => {
+  const current = activeJsdomHarnessStack[activeJsdomHarnessStack.length - 1] || null
+  activeJsdomWindow = current?.window || null
+  activeJsdomDocument = current?.document || null
+}
+
+export const resetJsdomHarnessAnimationFramesForTests = (): void => {
+  for (const timeouts of activeAnimationFrameTimeoutSets) {
+    for (const timeout of timeouts) clearTimeout(timeout)
+    timeouts.clear()
+  }
+}
+
+export const restoreActiveJsdomGlobalsForTests = (): void => {
+  if (!activeJsdomWindow || !activeJsdomDocument) return
+  const g = globalThis as typeof globalThis & {
+    window?: Window
+    document?: Document
+    Node?: typeof Node
+    Element?: typeof Element
+    HTMLElement?: typeof HTMLElement
+    Range?: typeof Range
+    NodeFilter?: typeof NodeFilter
+    DOMParser?: typeof DOMParser
+    HTMLIFrameElement?: typeof HTMLIFrameElement
+    requestAnimationFrame?: (cb: FrameRequestCallback) => number
+    cancelAnimationFrame?: (id: number) => void
+  }
+  const windowConstructors = activeJsdomWindow as unknown as Pick<
+    typeof globalThis,
+    'Node' | 'Element' | 'HTMLElement' | 'Range' | 'DOMParser'
+  >
+  ;(g as { window?: unknown }).window = activeJsdomWindow
+  g.document = activeJsdomDocument
+  g.Node = windowConstructors.Node
+  g.Element = windowConstructors.Element
+  g.HTMLElement = windowConstructors.HTMLElement
+  g.Range = windowConstructors.Range
+  g.NodeFilter = (activeJsdomWindow as unknown as { NodeFilter?: typeof NodeFilter }).NodeFilter as typeof NodeFilter
+  g.DOMParser = windowConstructors.DOMParser
+  g.HTMLIFrameElement =
+    (activeJsdomWindow as unknown as { HTMLIFrameElement?: typeof HTMLIFrameElement }).HTMLIFrameElement as
+      typeof HTMLIFrameElement
+  if (typeof activeJsdomWindow.requestAnimationFrame === 'function') {
+    g.requestAnimationFrame = activeJsdomWindow.requestAnimationFrame.bind(activeJsdomWindow)
+  }
+  if (typeof activeJsdomWindow.cancelAnimationFrame === 'function') {
+    g.cancelAnimationFrame = activeJsdomWindow.cancelAnimationFrame.bind(activeJsdomWindow)
+  }
+}
+
 export const initJsdomHarness = (html: string = '<!doctype html><html><body></body></html>'): JsdomHarnessEnv => {
   sanitizeNodeTestFlags()
   const dom = new JSDOM(html, {
@@ -49,15 +105,27 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   ;(g as { HTMLElement: typeof HTMLElement }).HTMLElement = dom.window.HTMLElement as unknown as typeof HTMLElement
   ;(g as { Range: typeof Range }).Range = dom.window.Range as unknown as typeof Range
   ;(g as unknown as { IS_REACT_ACT_ENVIRONMENT?: unknown }).IS_REACT_ACT_ENVIRONMENT = true
+  activeJsdomHarnessStack.push({
+    window: dom.window as unknown as Window,
+    document: dom.window.document as unknown as Document,
+  })
+  syncActiveJsdomGlobals()
 
   try {
-    const proto = (dom.window.HTMLElement as unknown as { prototype?: Record<string, unknown> }).prototype
-    if (proto && typeof proto.attachEvent !== 'function') {
-      proto.attachEvent = () => void 0
+    const patchLegacyInputEventMethods = (proto: Record<string, unknown> | undefined) => {
+      if (!proto) return
+      if (typeof proto.attachEvent !== 'function') {
+        proto.attachEvent = () => void 0
+      }
+      if (typeof proto.detachEvent !== 'function') {
+        proto.detachEvent = () => void 0
+      }
     }
-    if (proto && typeof proto.detachEvent !== 'function') {
-      proto.detachEvent = () => void 0
-    }
+    patchLegacyInputEventMethods((dom.window.Element as unknown as { prototype?: Record<string, unknown> }).prototype)
+    patchLegacyInputEventMethods((dom.window.HTMLElement as unknown as { prototype?: Record<string, unknown> }).prototype)
+    patchLegacyInputEventMethods((dom.window as unknown as { HTMLInputElement?: { prototype?: Record<string, unknown> } }).HTMLInputElement?.prototype)
+    patchLegacyInputEventMethods((dom.window as unknown as { HTMLTextAreaElement?: { prototype?: Record<string, unknown> } }).HTMLTextAreaElement?.prototype)
+    patchLegacyInputEventMethods((dom.window as unknown as { HTMLSelectElement?: { prototype?: Record<string, unknown> } }).HTMLSelectElement?.prototype)
   } catch {
     void 0
   }
@@ -292,6 +360,7 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   }
 
   const animationFrameTimeouts = new Set<ReturnType<typeof setTimeout>>()
+  activeAnimationFrameTimeoutSets.add(animationFrameTimeouts)
   anyWindow.requestAnimationFrame = (cb: FrameRequestCallback) => {
     const timeout = setTimeout(() => {
       animationFrameTimeouts.delete(timeout)
@@ -319,6 +388,11 @@ export const initJsdomHarness = (html: string = '<!doctype html><html><body></bo
   const restore = () => {
     for (const timeout of animationFrameTimeouts) clearTimeout(timeout)
     animationFrameTimeouts.clear()
+    activeAnimationFrameTimeoutSets.delete(animationFrameTimeouts)
+    const restoredWindow = dom.window as unknown as Window
+    const activeIndex = activeJsdomHarnessStack.findIndex(entry => entry.window === restoredWindow)
+    if (activeIndex >= 0) activeJsdomHarnessStack.splice(activeIndex, 1)
+    syncActiveJsdomGlobals()
 
     if (typeof originalWindow === 'undefined') {
       delete (g as { window?: Window }).window

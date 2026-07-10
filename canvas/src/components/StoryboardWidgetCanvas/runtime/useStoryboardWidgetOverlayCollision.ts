@@ -42,7 +42,7 @@ import {
 } from '@/lib/ui/overlayBalancedSpread'
 import { getCachedStoryboardWidgetRenderGraph } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 import { orderStoryboardWidgetOverlayNodeIdsByRenderGraph } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayNodeOrder'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { buildGraphDocumentMetaKey } from '@/lib/graph/graphMetaKey'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
 import {
   areStoryboardWidgetOverlaysOwnedByFloatingScreenAuthority,
@@ -282,7 +282,7 @@ export function useStoryboardWidgetOverlayCollision(args: {
       overlayCollisionWarmupAttemptsRef.current = 0
 
       const graphDataForOverlayRuntime = draftGraphDataRef.current || renderGraphDataOverride || null
-      const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForOverlayRuntime)
+      const graphKey = buildGraphDocumentMetaKey(graphDataForOverlayRuntime)
       const graphRevision = readGraphDataRevision(graphDataForOverlayRuntime)
       const overlayGraphLookup = getCachedStoryboardWidgetRenderGraph({
         scope: 'storyboard-widget-overlay-collision-graph',
@@ -971,7 +971,7 @@ export function useStoryboardWidgetOverlayCollision(args: {
       if (!changedPos && !changedWorld) return
       if (workspaceOverlayOpenRef.current) return
       if (isWorkspaceGraphMutationBlocked(st)) return
-      const storeGraphKey = buildGraphMetaKeyIgnoringPending((st as unknown as { graphData?: GraphData | null }).graphData || null)
+      const storeGraphKey = buildGraphDocumentMetaKey((st as unknown as { graphData?: GraphData | null }).graphData || null)
       const shouldWriteGraphScopedInMemory = !!graphKey && graphKey !== storeGraphKey
       selfCommittedPosSignatureRef.current = buildPosSignature(overlayNodeIds, {
         posById: nextPos,
@@ -1122,7 +1122,7 @@ export function useStoryboardWidgetOverlayCollision(args: {
       const state = useGraphStore.getState()
       if (isWorkspaceGraphMutationBlocked(state)) return
       const graphDataForOverlayRuntime = draftGraphDataRef.current || renderGraphDataOverride || null
-      const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForOverlayRuntime)
+      const graphKey = buildGraphDocumentMetaKey(graphDataForOverlayRuntime)
       const overlayEls = queryActiveSurfaceOverlays(STORYBOARD_WIDGET_OVERLAY_ROOT_SELECTOR)
       const nodeIds = normalizeOverlaySignatureIds(overlayEls.map(el => String(el?.dataset?.kgWidget || '').trim()))
       const currentSig = buildPosSignature(nodeIds, {

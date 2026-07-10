@@ -11,7 +11,6 @@ import { createUniqueId } from '@/lib/ids'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { commitRichMediaPanelChange, resolveRichMediaPanelInteractive } from '@/lib/render/richMediaSsot'
 import { resolveCanvasAspectRatioResizeSize, resolveCanvasAspectRatioSize } from '@/lib/canvas/canvasAspectRatioDisplayControls'
-import { readCanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 import { readFlowWidgetPinnedInCanvas } from '@/lib/storyboardWidget/flowWidgetPinnedState'
 import { isFlowWidgetHeaderDragAllowedByPin } from '@/lib/storyboardWidget/flowWidgetPinMovement'
 import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
@@ -89,9 +88,6 @@ export function RichMediaOverlayLayer2d(props: {
   const updateNode = useGraphStore(s => s.updateNode)
   const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
-  const strybldrStoryboardBoardLayoutMode = useGraphStore(s => s.strybldrStoryboardBoardLayoutMode)
-  const storyboardBoardLayoutMode = readCanvasBoardLayoutMode(strybldrStoryboardBoardLayoutMode)
-  const storyboardFixedBoardLayoutEnabled = storyboardBoardLayoutMode === 'fixed'
   const allowEmbeddedMediaInteraction = infiniteCanvasInteractionMode === 'interactive'
   const flowWidgetStateGraphKey = React.useMemo(() => resolveFlowWidgetStateGraphKey({ graphData }), [graphData])
   const effectiveFlowWidgetPinnedByNodeId = React.useMemo(() => resolveScopedFlowWidgetNodeMap({
@@ -235,7 +231,6 @@ export function RichMediaOverlayLayer2d(props: {
         const selected = activePanelId === n.id || selectedNodeId === n.id || (Array.isArray(selectedNodeIds) && selectedNodeIds.some(id => String(id || '').trim() === n.id))
         const richMediaPanelPinned = readFlowWidgetPinnedInCanvas(effectiveFlowWidgetPinnedByNodeId, n.id)
         const richMediaPanelPinAllowsMovement = isFlowWidgetHeaderDragAllowedByPin({
-          fixedLayoutEnabled: storyboardFixedBoardLayoutEnabled,
           pinnedInCanvas: richMediaPanelPinned,
         })
         const richMediaPanelMoveEnabled = richMediaPanelPinAllowsMovement
@@ -288,6 +283,7 @@ export function RichMediaOverlayLayer2d(props: {
               srcDoc={n.srcDoc}
               openUrl={n.openUrl}
               kind={kind}
+              selected={selected}
               panelChrome="storyboardWidget"
               canvasOverlayPinned={richMediaPanelPinned}
               {...headerPinProps}

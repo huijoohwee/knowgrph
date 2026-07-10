@@ -8,7 +8,12 @@ import {
   type VisibleFlowViewport,
 } from '@/components/FlowCanvas/workspaceVisibleViewportRecovery'
 import { placeWidgetsCenteredInGroupBounds } from '@/components/StoryboardWidget/seedGroupSpread'
-import { computeCollectiveFollowPinnedScale, computeWidgetScaledSize, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
+import {
+  computeCollectiveFollowPinnedScale,
+  computeWidgetScaledSize,
+  WIDGET_BASE_SIZE,
+  WIDGET_LAYOUT_BASE_HEIGHT_PX,
+} from '@/lib/canvas/overlayWidgetZoom'
 import {
   isCanonicalFrontmatterBuiltInWidgetNode,
   resolveGraphNodeIdByCanonicalId,
@@ -48,7 +53,7 @@ import {
 } from '@/lib/storyboardWidget/widgetPlacementAuthority'
 import { resolveStoryboardWidgetGraphDataForNodeAuthority } from '@/lib/storyboardWidget/storyboardWidgetGraphAuthority'
 import { collectActiveRichMediaWorldObstacles } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRuntimeRichMediaObstacles'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { buildGraphDocumentMetaKey } from '@/lib/graph/graphMetaKey'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
@@ -510,7 +515,7 @@ export function useStoryboardWidgetRuntimeScene(args: {
         nodeIds: args.openWidgetNodeIds,
       })
       const graphRevisionForSeeding = readGraphDataRevision(graphDataForSeeding)
-      const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)
+      const graphKey = buildGraphDocumentMetaKey(graphDataForSeeding)
       const widgetPlacementContext = getCachedStoryboardWidgetPlacementContext({
         graphData: graphDataForSeeding,
         graphRevision: graphRevisionForSeeding,
@@ -631,7 +636,9 @@ export function useStoryboardWidgetRuntimeScene(args: {
         viewportH: visibleViewport.height,
         count: Math.max(1, boundsIds.length),
         baseWidth: WIDGET_BASE_SIZE.width,
-        baseHeight: WIDGET_BASE_SIZE.height,
+        // Collective layout needs the taller storyboard surface footprint even
+        // though the rendered widget still uses the shared stable paint size.
+        baseHeight: WIDGET_LAYOUT_BASE_HEIGHT_PX,
         viewportPreset: balancedViewportPreset,
         fitToViewport: false,
       })
@@ -760,6 +767,18 @@ export function useStoryboardWidgetRuntimeScene(args: {
   ])
   useIsomorphicLayoutEffect(() => {
     if (!args.active) return
+    if (!(args.viewportW > 1) || !(args.viewportH > 1)) return
+    const surfaceRoot = findStoryboardWidgetOverlaySurfaceRoot(args.storyboardWidgetSurfaceId)
+    const surfaceRect = surfaceRoot?.getBoundingClientRect() || null
+    const measuredSurfaceWidth = Number.isFinite(surfaceRect?.width) ? Math.max(1, Math.floor(Number(surfaceRect?.width))) : null
+    const measuredSurfaceHeight = Number.isFinite(surfaceRect?.height) ? Math.max(1, Math.floor(Number(surfaceRect?.height))) : null
+    // Skip the first seed pass until the mounted Storyboard surface has replaced
+    // the pre-mount window fallback dimensions from useContainerDims.
+    if (
+      measuredSurfaceWidth != null
+      && measuredSurfaceHeight != null
+      && (Math.abs(measuredSurfaceWidth - args.viewportW) > 1 || Math.abs(measuredSurfaceHeight - args.viewportH) > 1)
+    ) return
     const st = useGraphStore.getState()
     const graphDataForSeeding = resolveStoryboardWidgetGraphDataForNodeAuthority({
       preferredGraphData: readPreferredGraphDataForSeeding(),
@@ -785,7 +804,7 @@ export function useStoryboardWidgetRuntimeScene(args: {
     const graphMetaKind = widgetPlacementContext?.graphMetaKind || null
     const isFrontmatterFlow = graphMetaKind === 'frontmatter-flow'
     const defaultPinnedInCanvas = widgetPlacementContext?.defaultPinnedInCanvas ?? true
-    const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)
+    const graphKey = buildGraphDocumentMetaKey(graphDataForSeeding)
     const workspaceMutationBlockedForSeed = isWorkspaceGraphMutationBlocked(st)
     if (workspaceMutationBlockedForSeed) {
       pushStoryboardWidgetRuntimeSceneTrace({
@@ -893,6 +912,7 @@ export function useStoryboardWidgetRuntimeScene(args: {
     const renderGraphNodeCount = Array.isArray(renderGraphDataOverrideRef.current?.nodes) ? renderGraphDataOverrideRef.current.nodes.length : graphNodes.length
     const partitionedFrontmatterRuntimeScene = runtimeSceneNodeCount <= 0 && isFrontmatterFlow && renderGraphNodeCount > 0
     const forceSceneEmptyReseed = runtimeSceneNodeCount <= 0 && isFrontmatterFlow && !partitionedFrontmatterRuntimeScene
+
     const pendingRaw = effectiveOrFallbackOpenIds
       .map(id => String(id || '').trim())
       .filter(Boolean)
@@ -904,7 +924,9 @@ export function useStoryboardWidgetRuntimeScene(args: {
         const w = worldById[id]
         if (w && Number.isFinite(w.x) && Number.isFinite(w.y)) return false
         const node = graphNodeById.get(id)
-        return !node || !Number.isFinite(node.fx) || !Number.isFinite(node.fy)
+        const hasFixedGraphWorldAnchor = !!node && Number.isFinite(node.fx) && Number.isFinite(node.fy)
+        if (hasFixedGraphWorldAnchor) return false
+        return true
       })
 
     const liveZoom = getLiveZoomTransform()
@@ -997,7 +1019,7 @@ export function useStoryboardWidgetRuntimeScene(args: {
       viewportH: visibleViewport.height,
       count: Math.max(1, pinnedOpenIds.length),
       baseWidth: WIDGET_BASE_SIZE.width,
-      baseHeight: WIDGET_BASE_SIZE.height,
+      baseHeight: WIDGET_LAYOUT_BASE_HEIGHT_PX,
       viewportPreset: balancedViewportPreset,
       fitToViewport: false,
     })

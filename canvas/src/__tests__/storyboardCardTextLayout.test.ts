@@ -11,6 +11,7 @@ import { buildStoryboardCardTextModel } from '@/components/StoryboardWidgetCanva
 import { shouldStoryboardCardTextColumnOwnSummaryEditTarget } from '@/components/StoryboardWidgetCanvas/storyboardCardSummaryEditTarget'
 import { readStoryboardCardSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
 import { shouldStoryboardWidgetHeaderYieldToInteractiveTarget } from '@/components/StoryboardWidget/storyboardWidgetHeaderInteractiveTarget'
+import { getStoryboardWidgetPanelChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { buildGraphNodeCanonicalTextPatch, GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS } from '@/lib/cards/graphNodeCardFields'
 import { computeStoryboardWidgetOverlayScreenBox } from '@/lib/storyboardWidget/overlayWorldDrag'
@@ -284,7 +285,7 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
     'data-kg-storyboard-card-pixel-snap="1"',
     'data-kg-storyboard-card-vector-zoom="1"',
     'snapToDevicePixels: true',
-    "import { emitStoryboardWidgetInteractionFrame } from '@/lib/canvas/storyboard-widget-overlay-proxy'",
+    "import { emitStoryboardWidgetGeometryCommitted } from '@/lib/canvas/storyboard-widget-overlay-proxy'",
     "import { applyVectorPaintedOverlayBox, projectVectorPaintedOverlayZoomBox, type VectorPaintedOverlayScaleProjectionBase } from '@/lib/canvas/vectorPaintedOverlayProjection'",
     'const currentTransform = getTransform()',
     'shouldFreezeProjectionForFlowPortHandleDrag()',
@@ -298,7 +299,7 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
     'left: box.left',
     'top: box.top',
     'scale: box.scale',
-    'emitStoryboardWidgetInteractionFrame()',
+    'emitStoryboardWidgetGeometryCommitted()',
     'STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME',
     'grid-cols-[minmax(0,1fr)_minmax(6.25rem,36%)]',
     'data-kg-storyboard-card-body-layout="brief-media"',
@@ -378,8 +379,9 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
   assert(inlineEditingSurface.includes("inlineChipDensity === 'compact' ? editorClassName"), 'expected compact Viewer card editor to avoid appending DataView control padding and text sizing')
   assert(cardTextSurfaceFrame.includes("export const CARD_TEXT_SURFACE_COLUMN_CLASS_NAME") && cardTextSurfaceFrame.includes('rounded border bg-[color:var(--kg-panel-bg)]/70 p-1.5'), 'expected shared Card text frame to own the readable bordered surface chrome')
   assert(cardTextSurfaceFrame.includes("export const CARD_TEXT_SURFACE_TEXT_CLASS_NAME") && cardTextSurfaceFrame.includes('text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)]'), 'expected shared Card text frame to own summary typography')
-  assert(cardTextSurfaceFrame.includes("'h-full min-h-0'") && !cardTextSurfaceFrame.includes("'min-h-full min-h-[3rem]'"), 'expected shared Card edit surface to fill the read frame without competing minimum heights')
-  assert(panelChromeClassName.includes('rounded-md border shadow-md flex flex-col relative'), 'expected the shared Storyboard Widget chrome owner to align Card and Rich Media frame styling')
+  assert(cardTextSurfaceFrame.includes('UI_VIEW_EDIT_SURFACE_AREA_CLASS_NAME') && !cardTextSurfaceFrame.includes("'min-h-full min-h-[3rem]'"), 'expected shared Card edit surface to fill the read frame through the neutral area owner without competing minimum heights')
+  const sharedPanelChromeClassName = getStoryboardWidgetPanelChromeClassName()
+  assert(sharedPanelChromeClassName.split(/\s+/).includes('border') && !sharedPanelChromeClassName.includes('shadow'), 'expected the shared Storyboard Widget chrome owner to align Card and Rich Media frame styling without ghost shadows')
   assert(!source.includes('overflow-visible rounded-md shadow-md'), 'expected Storyboard Card to avoid a downstream frame-style override')
   assert(source.includes("from '@/lib/cards/cardTextSurfaceFrame'"), 'expected Storyboard Card summary to consume the shared Card text frame owner')
   assert(!source.includes('editorClassName="h-full min-h-[3rem] overflow-auto text-[10px] font-medium leading-4 text-[color:var(--kg-text-primary)]'), 'expected Storyboard summary edit mode not to mutate text tone from the read surface')

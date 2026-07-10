@@ -62,7 +62,7 @@ export const AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION = Object.freeze({
   name: AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
   title: "Agentic Canvas OS Docs Invocation",
   description:
-    "Resolve /, #, and @ invocation tokens from the Agentic Canvas OS docs SSOT without running commands, spending model tokens, or mutating files.",
+    "Use this when you need to resolve /, #, and @ invocation tokens from the Agentic Canvas OS docs SSOT without running commands, spending model tokens, or mutating files.",
   inputSchema: AGENTIC_CANVAS_OS_DOCS_INPUT_SCHEMA,
   outputSchema: AGENTIC_CANVAS_OS_DOCS_OUTPUT_SCHEMA,
 });

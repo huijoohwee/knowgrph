@@ -223,7 +223,65 @@ export const useMarkdownBlockContainerHtmlFormatting = (args: {
     expandSelectionToSemanticToken(root, sel)
     const range = pickExpandedRangeInRoot(root, sel)
     if (!range) return
-    const frag = range.extractContents()
+    const readFormattingTokenElement = (targetNode: Node | null): HTMLElement | null => {
+      const element = targetNode?.nodeType === Node.ELEMENT_NODE ? (targetNode as Element) : targetNode?.parentElement || null
+      if (!element) return null
+      const token = element.closest(SELECTABLE_HTML_TOKEN_SELECTOR) as HTMLElement | null
+      return token && root.contains(token) ? token : null
+    }
+    const readBoundaryFormattingTokenElement = (boundaryContainer: Node, boundaryOffset: number, preferPrevious: boolean): HTMLElement | null => {
+      if (boundaryContainer.nodeType !== Node.ELEMENT_NODE) return readFormattingTokenElement(boundaryContainer)
+      const element = boundaryContainer as Element
+      const childIndex = preferPrevious ? boundaryOffset - 1 : boundaryOffset
+      const childNode = childIndex >= 0 && childIndex < element.childNodes.length ? element.childNodes[childIndex] : null
+      return readFormattingTokenElement(childNode) || readFormattingTokenElement(boundaryContainer)
+    }
+    const semanticTokenNode =
+      readBoundaryFormattingTokenElement(range.startContainer, range.startOffset, false)
+      || readBoundaryFormattingTokenElement(range.endContainer, range.endOffset, true)
+    const readCanonicalHighlightFragment = (): DocumentFragment => {
+      const fragment = document.createDocumentFragment()
+      if (!semanticTokenNode || !root.contains(semanticTokenNode)) {
+        fragment.appendChild(range.extractContents())
+        return fragment
+      }
+      if (semanticTokenNode.hasAttribute('data-kg-comment')) {
+        const rawStart = String(semanticTokenNode.getAttribute('data-kg-comment-raw-start') || '').trim()
+        const rawEnd = String(semanticTokenNode.getAttribute('data-kg-comment-raw-end') || '').trim()
+        if (rawStart && rawEnd) {
+          fragment.appendChild(document.createTextNode(`${rawStart}${String(semanticTokenNode.textContent || '')}${rawEnd}`))
+          range.deleteContents()
+          return fragment
+        }
+        const rawComment = String(semanticTokenNode.getAttribute('data-kg-comment-raw') || '').trim()
+        if (rawComment) {
+          fragment.appendChild(document.createTextNode(rawComment))
+          range.deleteContents()
+          return fragment
+        }
+      }
+      if (semanticTokenNode.hasAttribute('data-kg-footnote-ref')) {
+        const label = String(semanticTokenNode.getAttribute('data-kg-footnote-label') || semanticTokenNode.textContent || '').trim()
+        if (label) {
+          fragment.appendChild(document.createTextNode(`[^${label.replace(/^\[\^?/, '').replace(/\]$/, '')}]`))
+          range.deleteContents()
+          return fragment
+        }
+      }
+      if (semanticTokenNode.hasAttribute('data-kg-inline-code-token')) {
+        const raw = String(semanticTokenNode.getAttribute('data-kg-inline-code-raw') || '').trim()
+        if (raw) {
+          const code = document.createElement('code')
+          code.textContent = raw
+          fragment.appendChild(code)
+          range.deleteContents()
+          return fragment
+        }
+      }
+      fragment.appendChild(range.extractContents())
+      return fragment
+    }
+    const frag = readCanonicalHighlightFragment()
     const mark = document.createElement('mark')
     mark.setAttribute('data-kg-default-highlight', '1')
     mark.style.backgroundColor = DEFAULT_HIGHLIGHT_EDITOR_BG

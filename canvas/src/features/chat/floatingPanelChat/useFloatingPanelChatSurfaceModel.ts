@@ -11,6 +11,7 @@ import {
   createFloatingPanelChatQuickActions,
   resolveChatWorkspaceLabel,
 } from './floatingPanelChatSurfaceState'
+import { openFloatingPanelChatWithSeed } from './floatingPanelChatOpenSeed'
 
 type SurfaceModelArgs = {
   chatContextScope: string
@@ -25,7 +26,6 @@ type SurfaceModelArgs = {
   currentNode: GraphNode | null
   messageCount: number
   isLoading: boolean
-  setInput: React.Dispatch<React.SetStateAction<string>>
 }
 
 export const useFloatingPanelChatSurfaceModel = (args: SurfaceModelArgs) => {
@@ -75,12 +75,8 @@ export const useFloatingPanelChatSurfaceModel = (args: SurfaceModelArgs) => {
   const appendPrompt = React.useCallback((prompt: string) => {
     const text = String(prompt || '')
     if (!text) return
-    args.setInput(previous => {
-      const current = String(previous || '')
-      if (!current.trim()) return text
-      return `${current}${current.endsWith('\n') ? '\n' : '\n\n'}${text}`
-    })
-  }, [args.setInput])
+    openFloatingPanelChatWithSeed({ text, mode: 'append', delivery: 'appendEvent' })
+  }, [])
 
   return { appendPrompt, contextItems, pipelineStages, quickActions, workspaceContextCacheKey }
 }

@@ -202,7 +202,9 @@ export interface GraphStateStructure {
   setOpenWidgetNodeIds: (ids: string[]) => void;
   updateOpenWidgetNodeIds: (updater: (prev: string[]) => string[]) => void;
   setFlowWidgetPosByNodeId: (pos: Record<string, { top: number; left: number }>) => void;
+  setFlowWidgetPosByNodeIdForGraph: (graphMetaKey: string | null | undefined, pos: Record<string, { top: number; left: number }>) => void;
   setFlowWidgetWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => void;
+  setFlowWidgetWorldPosByNodeIdForGraph: (graphMetaKey: string | null | undefined, pos: Record<string, { x: number; y: number }>) => void;
   setFlowWidgetDraggingNodeId: (id: string | null) => void;
   setEditMode: (mode: boolean) => void;
   setWorkspaceViewMode: (mode: WorkspaceViewMode) => void;

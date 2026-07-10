@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { emitPropsPanelOpen, emitFloatingPanelOpen } from '@/features/canvas/utils'
+import { openFloatingPanelChat } from '@/features/chat/floatingPanelChat/floatingPanelChatOpenSeed'
 import { UI_COPY } from '@/lib/config'
 import { getNextThemeMode, type ThemeMode } from '@/lib/ui/theme'
 import { type GraphSchema } from '@/lib/graph/schema'
@@ -163,7 +164,7 @@ export function useToolbarActions(
   }, [canvasRenderMode, ensureBaselineUnlocked, setCanvasRenderMode])
 
   const handleOpenChat = useCallback(() => {
-    emitFloatingPanelOpen({ tab: 'chat', open: true })
+    openFloatingPanelChat()
   }, [])
 
   const handleOpenGeospatialMode = useCallback(() => {

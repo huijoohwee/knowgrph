@@ -90,7 +90,7 @@ export function testCardInlineTextEditorViewerSurfaceReusesMarkdownViewerWysiwyg
   if (!storyboardOverlay.includes('value={textModel.primaryRaw || card.slugline || \'\'}') || !storyboardOverlay.includes('displayValue={textModel.primaryDisplay || card.slugline || \'\'}')) {
     throw new Error('expected Storyboard card summary edit mode to keep raw source value separate from read-view display projection')
   }
-  if (!cardTextSurfaceFrame.includes("export const CARD_TEXT_SURFACE_TEXT_CLASS_NAME") || !cardTextSurfaceFrame.includes('text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)]') || !cardTextSurfaceFrame.includes('CARD_TEXT_SURFACE_VIEW_CLASS_NAME') || !cardTextSurfaceFrame.includes("'h-full min-h-0'")) {
+  if (!cardTextSurfaceFrame.includes("export const CARD_TEXT_SURFACE_TEXT_CLASS_NAME") || !cardTextSurfaceFrame.includes('text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)]') || !cardTextSurfaceFrame.includes('CARD_TEXT_SURFACE_VIEW_CLASS_NAME') || !cardTextSurfaceFrame.includes('UI_VIEW_EDIT_SURFACE_AREA_CLASS_NAME')) {
     throw new Error('expected shared Card text frame owner to define read-view typography')
   }
   if (!storyboardOverlay.includes('displayLineClamp="none"') || !storyboardOverlay.includes('editorClassName={cn(CARD_TEXT_SURFACE_EDIT_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME)}')) {

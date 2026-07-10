@@ -151,6 +151,7 @@ export function testStoryboardPortDragResolvesWorkspaceQualifiedMediaNodeId() {
 export function testStoryboardPortEdgesReuseSharedOverlayEdgeSurface() {
   const proxy = readFileSync(resolve(process.cwd(), 'src/lib/canvas/storyboard-widget-overlay-proxy.ts'), 'utf8')
   const cards = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
+  const cardProjection = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/useStoryboardCardOverlayProjection2d.ts'), 'utf8')
   const media = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/FlowCanvasMediaOverlays.tsx'), 'utf8')
   const runtime = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
   const surface = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx'), 'utf8')
@@ -169,7 +170,7 @@ export function testStoryboardPortEdgesReuseSharedOverlayEdgeSurface() {
   if (!runtime.includes('hasOverlayEditors={overlayEdgeHostActive}')) {
     throw new Error('expected Storyboard drag/pan/zoom frames to invalidate shared overlay-edge geometry')
   }
-  if (!cards.includes('emitStoryboardWidgetInteractionFrame()')) {
+  if (!cardProjection.includes('emitStoryboardWidgetGeometryCommitted()')) {
     throw new Error('expected fixed Storyboard card screen-box writes to resync shared overlay-edge geometry')
   }
   if (!surface.includes('props.overlayOnlyActive || props.hasOverlayEditors || storyboardCardsActive')) {

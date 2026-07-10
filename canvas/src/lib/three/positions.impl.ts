@@ -165,7 +165,7 @@ export function computePositions3d(
     const projectedSeed = projectDirectionToEllipsoidShell(s[0], s[1], s[2], targetR, axisX, axisY, axisZ)
     const seedZ = projectedSeed[2]
     if (seed) {
-      out[node.id] = projectDirectionToEllipsoidShell(seed.x, seed.y, seedZ, targetR, axisX, axisY, axisZ)
+      out[node.id] = [seed.x, seed.y, seedZ]
     } else if (nx != null && ny != null) {
       out[node.id] = projectDirectionToEllipsoidShell(nx, ny, seedZ, targetR, axisX, axisY, axisZ)
     } else {

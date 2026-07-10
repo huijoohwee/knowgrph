@@ -1,6 +1,7 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
@@ -11,11 +12,6 @@ import {
 import { isHorizontalOverlayStrip, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
 
 const FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_GAP_PX = 24
-const FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_SIZE = {
-  width: 360,
-  height: 520,
-} as const
-
 function hasAutoManagedWidgetOverlap(items: Array<{ left: number; top: number; width: number; height: number }>, gapPx: number): boolean {
   for (let i = 0; i < items.length; i += 1) {
     const left = items[i]!
@@ -174,8 +170,8 @@ export function shouldPreserveFrontmatterAutoManagedBalancedCollective(args: {
       id,
       left: pos.left,
       top: pos.top,
-      width: FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_SIZE.width,
-      height: FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_SIZE.height,
+      width: WIDGET_BASE_SIZE.width,
+      height: WIDGET_BASE_SIZE.height,
     })
   }
   if (autoManagedNodeCount === 0 || items.length !== autoManagedNodeCount) return false

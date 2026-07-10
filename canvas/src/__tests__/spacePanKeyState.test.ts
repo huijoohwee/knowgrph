@@ -34,31 +34,42 @@ export const testSpacePanKeyStateTracksHeldSpace = () => {
   } as unknown as Document
 
   const g = globalThis as unknown as { window?: Window; document?: Document }
-  g.window = fakeWindow
-  g.document = fakeDocument
+  const originalWindow = g.window
+  const originalDocument = g.document
 
-  ensureSpacePanKeyListenerInstalled()
-  const keydown = (listeners['keydown'] || [])[0]
-  const keyup = (listeners['keyup'] || [])[0]
-  if (typeof keydown !== 'function') throw new Error('expected keydown listener installed')
-  if (typeof keyup !== 'function') throw new Error('expected keyup listener installed')
+  try {
+    g.window = fakeWindow
+    g.document = fakeDocument
 
-  let prevented = 0
-  keydown({ code: 'Space', key: ' ', metaKey: false, ctrlKey: false, altKey: false, repeat: false, target: { tagName: 'SECTION' }, preventDefault: () => (prevented += 1) })
-  if (!isSpacePanHeld()) throw new Error('expected Space to be marked held after keydown')
-  if (prevented !== 1) throw new Error('expected Space keydown to preventDefault')
+    ensureSpacePanKeyListenerInstalled()
+    const keydown = (listeners['keydown'] || [])[0]
+    const keyup = (listeners['keyup'] || [])[0]
+    if (typeof keydown !== 'function') throw new Error('expected keydown listener installed')
+    if (typeof keyup !== 'function') throw new Error('expected keyup listener installed')
 
-  const focusin = (listeners['focusin'] || [])[0]
-  if (typeof focusin !== 'function') throw new Error('expected focusin listener installed')
-  focusin({ target: { tagName: 'INPUT' } })
-  if (isSpacePanHeld()) throw new Error('expected Space to clear when focus enters input')
+    let prevented = 0
+    keydown({ code: 'Space', key: ' ', metaKey: false, ctrlKey: false, altKey: false, repeat: false, target: { tagName: 'SECTION' }, preventDefault: () => (prevented += 1) })
+    if (!isSpacePanHeld()) throw new Error('expected Space to be marked held after keydown')
+    if (prevented !== 1) throw new Error('expected Space keydown to preventDefault')
 
-  keyup({ code: 'Space', key: ' ', target: { tagName: 'SECTION' } })
-  if (isSpacePanHeld()) throw new Error('expected Space to be released after keyup')
+    const focusin = (listeners['focusin'] || [])[0]
+    if (typeof focusin !== 'function') throw new Error('expected focusin listener installed')
+    focusin({ target: { tagName: 'INPUT' } })
+    if (isSpacePanHeld()) throw new Error('expected Space to clear when focus enters input')
 
-  keydown({ code: 'Space', key: ' ', metaKey: false, ctrlKey: false, altKey: false, repeat: false, target: { tagName: 'INPUT' }, preventDefault: () => (prevented += 1) })
-  if (isSpacePanHeld()) throw new Error('expected Space not to be held when typing in input')
+    keyup({ code: 'Space', key: ' ', target: { tagName: 'SECTION' } })
+    if (isSpacePanHeld()) throw new Error('expected Space to be released after keyup')
 
-  keydown({ code: 'Space', key: ' ', metaKey: true, ctrlKey: false, altKey: false, repeat: false, target: { tagName: 'SECTION' }, preventDefault: () => (prevented += 1) })
-  if (isSpacePanHeld()) throw new Error('expected Space not to be held with meta modifier')
+    keydown({ code: 'Space', key: ' ', metaKey: false, ctrlKey: false, altKey: false, repeat: false, target: { tagName: 'INPUT' }, preventDefault: () => (prevented += 1) })
+    if (isSpacePanHeld()) throw new Error('expected Space not to be held when typing in input')
+
+    keydown({ code: 'Space', key: ' ', metaKey: true, ctrlKey: false, altKey: false, repeat: false, target: { tagName: 'SECTION' }, preventDefault: () => (prevented += 1) })
+    if (isSpacePanHeld()) throw new Error('expected Space not to be held with meta modifier')
+  } finally {
+    if (typeof originalWindow === 'undefined') delete g.window
+    else g.window = originalWindow
+    if (typeof originalDocument === 'undefined') delete g.document
+    else g.document = originalDocument
+    resetSpacePanHeldForTests()
+  }
 }

@@ -50,7 +50,7 @@ import {
   mergeSubgraphs,
   readSocketTypes,
 } from '@/features/parsers/markdownFrontmatterFlowGraph.compose'
-import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
+import { WIDGET_BASE_SIZE, WIDGET_LAYOUT_BASE_HEIGHT_PX } from '@/lib/canvas/overlayWidgetZoom'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { computeBalancedSpreadLayout } from '@/lib/ui/overlayBalancedSpread'
 import { appendFrontmatterBalancedConnection, withFrontmatterCollectiveRoleProperties } from '@/lib/storyboardWidget/frontmatterCollectiveLayout'
@@ -209,8 +209,8 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
   })()
 
   const SHOT_WIDGET_COL_GAP_X = WIDGET_BASE_SIZE.width + 160
-  const SHOT_PANEL_OFFSET_Y = WIDGET_BASE_SIZE.height + 140
-  const SHOT_ROW_GAP_Y = SHOT_PANEL_OFFSET_Y + WIDGET_BASE_SIZE.height + 160
+  const SHOT_PANEL_OFFSET_Y = WIDGET_LAYOUT_BASE_HEIGHT_PX + 140
+  const SHOT_ROW_GAP_Y = SHOT_PANEL_OFFSET_Y + WIDGET_LAYOUT_BASE_HEIGHT_PX + 160
   const authoredCenterX = (bounds.minX + bounds.maxX) / 2
   const authoredCenterY = bounds.hasPositionedNodes ? (bounds.minY + bounds.maxY) / 2 : 0
   const GRID_START_X = authoredCenterX
@@ -223,7 +223,7 @@ function deriveDirectorBriefShotWidgets(meta: Record<string, unknown>): void {
     startX: GRID_START_X,
     startY: GRID_START_Y,
     widgetBaseWidth: WIDGET_BASE_SIZE.width,
-    widgetBaseHeight: WIDGET_BASE_SIZE.height,
+    widgetBaseHeight: WIDGET_LAYOUT_BASE_HEIGHT_PX,
     widgetColGapX: SHOT_WIDGET_COL_GAP_X,
     panelOffsetYBase: SHOT_PANEL_OFFSET_Y,
     rowGapYBase: SHOT_ROW_GAP_Y,
@@ -807,6 +807,10 @@ function readTopLevelFrontmatterSectionValue(args: {
     const trimmed = raw.trim()
     if (!trimmed || trimmed.startsWith('#')) continue
     if (countIndent(raw) !== 0) continue
+    if (/^---\s*$/.test(trimmed)) {
+      sectionEnd = i
+      break
+    }
     if (/^[A-Za-z0-9_.-]+\s*:/.test(trimmed)) {
       sectionEnd = i
       break
@@ -823,6 +827,79 @@ function readTopLevelFrontmatterSectionValue(args: {
   }
 }
 
+function readTopLevelNestedBlockScalarValue(args: {
+  lines: string[]
+  frontmatterStartLine: number
+  frontmatterEndLineExclusive: number
+  topLevelKey: string
+  nestedKey: string
+}): string {
+  const lines = Array.isArray(args.lines) ? args.lines : []
+  const start = Math.max(0, Math.floor(args.frontmatterStartLine))
+  const endExclusive = Math.min(lines.length, Math.max(start, Math.floor(args.frontmatterEndLineExclusive)))
+  if (endExclusive <= start) return ''
+
+  let sectionStart = -1
+  for (let i = start; i < endExclusive; i += 1) {
+    const raw = String(lines[i] || '')
+    const trimmed = raw.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    if (countIndent(raw) !== 0) continue
+    if (trimmed === `${args.topLevelKey}:`) {
+      sectionStart = i
+      break
+    }
+  }
+  if (sectionStart < 0) return ''
+
+  let sectionEnd = endExclusive
+  for (let i = sectionStart + 1; i < endExclusive; i += 1) {
+    const raw = String(lines[i] || '')
+    const trimmed = raw.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    if (countIndent(raw) !== 0) continue
+    if (/^---\s*$/.test(trimmed) || /^[A-Za-z0-9_.-]+\s*:/.test(trimmed)) {
+      sectionEnd = i
+      break
+    }
+  }
+
+  const sectionIndent = countIndent(String(lines[sectionStart] || ''))
+  let nestedStart = -1
+  let nestedIndent = -1
+  let inlineScalar = ''
+  for (let i = sectionStart + 1; i < sectionEnd; i += 1) {
+    const raw = String(lines[i] || '')
+    const trimmed = raw.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const indent = countIndent(raw)
+    if (indent <= sectionIndent) continue
+    const blockMatch = new RegExp(`^${args.nestedKey}\\s*:\\s*[|>]\\s*$`).exec(trimmed)
+    if (blockMatch) {
+      nestedStart = i
+      nestedIndent = indent
+      break
+    }
+    const inlineMatch = new RegExp(`^${args.nestedKey}\\s*:\\s*(.+)$`).exec(trimmed)
+    if (inlineMatch) {
+      inlineScalar = asString(inlineMatch[1])
+      break
+    }
+  }
+  if (inlineScalar) return inlineScalar
+  if (nestedStart < 0 || nestedIndent < 0) return ''
+
+  const valueLines: string[] = []
+  for (let i = nestedStart + 1; i < sectionEnd; i += 1) {
+    const raw = String(lines[i] || '')
+    const trimmed = raw.trim()
+    const indent = countIndent(raw)
+    if (trimmed && indent <= nestedIndent) break
+    valueLines.push(indent > nestedIndent ? raw.slice(Math.min(raw.length, nestedIndent + 2)) : '')
+  }
+  return valueLines.join('\n').trim()
+}
+
 function readFrontmatterIndexMermaidValue(args: {
   meta: Record<string, unknown>
   lines: string[]
@@ -836,6 +913,14 @@ function readFrontmatterIndexMermaidValue(args: {
   }
   const dotted = asString(args.meta['index.mermaid'])
   if (dotted) return dotted
+  const rawNested = readTopLevelNestedBlockScalarValue({
+    lines: args.lines,
+    frontmatterStartLine: args.frontmatterStartLine,
+    frontmatterEndLineExclusive: args.frontmatterEndLineExclusive,
+    topLevelKey: 'index',
+    nestedKey: 'mermaid',
+  })
+  if (rawNested) return rawNested
   const fromRaw = readTopLevelFrontmatterSectionValue({
     lines: args.lines,
     frontmatterStartLine: args.frontmatterStartLine,
@@ -857,6 +942,16 @@ function deriveFlowMetaFromIndexMermaid(args: {
   if (isRecord(meta.flow) || (Array.isArray(meta.connections) && meta.connections.length > 0)) return meta
   const mermaid = readFrontmatterIndexMermaidValue(args)
   if (!mermaid) return meta
+  return buildFlowMetaFromIndexMermaidSeed({ meta, mermaid }) || meta
+}
+
+function buildFlowMetaFromIndexMermaidSeed(args: {
+  meta: Record<string, unknown>
+  mermaid: string
+}): Record<string, unknown> | null {
+  const meta = args.meta
+  const mermaid = String(args.mermaid || '').trim()
+  if (!mermaid) return null
   const lines = mermaid.split('\n')
   const nodeKeyToLabel = new Map<string, string>()
   const nodeKeys = new Set<string>()
@@ -921,12 +1016,88 @@ function deriveFlowMetaFromIndexMermaid(args: {
       type: 'default',
       label: nodeKeyToLabel.get(id) || id,
     }))
-  if (nodes.length === 0) return meta
+  if (nodes.length === 0) return null
+  const mergedFlowSettings = isRecord(meta.frontmatterFlowSettings)
+    ? { ...(meta.frontmatterFlowSettings as Record<string, unknown>) }
+    : {}
+  if (direction) mergedFlowSettings.direction = direction
   return {
     ...meta,
     nodes,
     connections,
-    ...(direction ? { frontmatterFlowSettings: { direction } } : {}),
+    ...(Object.keys(mergedFlowSettings).length > 0 ? { frontmatterFlowSettings: mergedFlowSettings } : {}),
+  }
+}
+
+function tryBuildFrontmatterFlowGraphFromIndexMermaid(args: {
+  name: string
+  meta: Record<string, unknown>
+  lines: string[]
+  frontmatterStartLine: number
+  frontmatterEndLineExclusive: number
+}): { graphData: GraphData; warnings: string[] } | null {
+  const mermaid = readFrontmatterIndexMermaidValue({
+    meta: args.meta,
+    lines: args.lines,
+    frontmatterStartLine: args.frontmatterStartLine,
+    frontmatterEndLineExclusive: args.frontmatterEndLineExclusive,
+  })
+  const seededMeta = buildFlowMetaFromIndexMermaidSeed({ meta: args.meta, mermaid })
+  if (!seededMeta) return null
+
+  const metaRecord = normalizeMetaWithFlowBlock(seededMeta)
+  const normalized = normalizeNodes(metaRecord)
+  if (!normalized) return null
+
+  const connParsed = parseConnections(metaRecord)
+  ensureAugmentedPortsFromDeclaredConnections({ nodes: normalized.nodes, registry: normalized.registry, declared: connParsed.declared })
+  const edges = connParsed.edges
+  const layoutedNodes = shouldSeedBalancedNodeLayout(normalized.nodes)
+    ? assignBalancedViewportSpread({
+        nodes: normalized.nodes,
+        edges,
+        direction: readFrontmatterFlowDirection(metaRecord),
+      })
+    : normalized.nodes
+  const frontmatterMeta = enrichSourceFrontmatterMetaFromRawLines({
+    sourceFrontmatterMeta: buildSourceFrontmatterMeta(seededMeta),
+    lines: args.lines,
+    frontmatterStartLine: args.frontmatterStartLine,
+    frontmatterEndLineExclusive: args.frontmatterEndLineExclusive,
+  })
+  const stableId = readFrontmatterStableId(frontmatterMeta, args.name)
+  const sourceLayerHash = buildFrontmatterFlowSourceLayerHash({
+    stableId,
+    nodes: layoutedNodes,
+    edges,
+    subgraphs: [],
+  })
+  const socketTypes = readSocketTypes(metaRecord)
+  const warnings = [
+    ...readFlowWarnings(metaRecord),
+    ...buildConnectionWarnings({ meta: metaRecord, socketTypes, declared: connParsed.declared }),
+  ]
+  const flowSettings = isRecord(metaRecord.frontmatterFlowSettings) ? (metaRecord.frontmatterFlowSettings as Record<string, unknown>) : null
+  const registry = mergeWidgetRegistryEntries(readAuthoredWidgetRegistryEntries(metaRecord), normalized.registry)
+  const metadata = buildFrontmatterFlowMetadata({
+    sourceLayerHash,
+    frontmatterMeta,
+    socketTypes,
+    flowSettings,
+    annotations: { refs: [], nodeIds: [], edgeIds: [], clusterIds: [] },
+    registry,
+    subgraphs: [],
+  })
+  warnings.sort((a, b) => a.localeCompare(b))
+  return {
+    graphData: {
+      type: 'Graph',
+      context: 'frontmatter-flow',
+      nodes: layoutedNodes,
+      edges,
+      metadata,
+    },
+    warnings,
   }
 }
 
@@ -1371,6 +1542,14 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     frontmatterStartLine: lead + 1,
     frontmatterEndLineExclusive: frontmatterClose + 1,
   })
+  const directIndexMermaidGraph = tryBuildFrontmatterFlowGraphFromIndexMermaid({
+    name,
+    meta: metaWithWidgetBundleFallback,
+    lines,
+    frontmatterStartLine: lead + 1,
+    frontmatterEndLineExclusive: frontmatterClose,
+  })
+  if (directIndexMermaidGraph) return directIndexMermaidGraph
   const chatKnowgrphDoc =
     isChatKnowgrphDoc(metaWithIndexMermaidFallback) ||
     isChatKnowgrphFrontmatterText({
@@ -1382,7 +1561,7 @@ export function tryParseMarkdownFrontmatterFlowGraph(
     ? ({ ...metaWithIndexMermaidFallback, 'frontmatter:chatKnowgrphRelaxed': true } as Record<string, unknown>)
     : metaWithIndexMermaidFallback
 
-  const metaRecord = normalizeMetaWithFlowBlock(metaForNormalization as Record<string, unknown>)
+  let metaRecord = normalizeMetaWithFlowBlock(metaForNormalization as Record<string, unknown>)
   deriveDirectorBriefShotWidgets(metaRecord)
   deriveFlowDiagramsWidgets(metaRecord)
   const sourceFrontmatterMeta = enrichSourceFrontmatterMetaFromRawLines({
@@ -1407,9 +1586,25 @@ export function tryParseMarkdownFrontmatterFlowGraph(
   }
   registerFlowDiagramSocketType(metaRecord)
 
-  const normalized = normalizeNodes(metaRecord) || (hasOnlyRoutedFlowDiagramSpecs(metaRecord)
+  let normalized = normalizeNodes(metaRecord) || (hasOnlyRoutedFlowDiagramSpecs(metaRecord)
     ? { nodes: [], registry: [] }
     : null)
+  if (!normalized) {
+    const mermaid = readFrontmatterIndexMermaidValue({
+      meta: metaWithWidgetBundleFallback,
+      lines,
+      frontmatterStartLine: lead + 1,
+      frontmatterEndLineExclusive: frontmatterClose,
+    })
+    const indexMermaidSeedMeta = buildFlowMetaFromIndexMermaidSeed({
+      meta: metaWithWidgetBundleFallback,
+      mermaid,
+    })
+    if (indexMermaidSeedMeta) {
+      metaRecord = normalizeMetaWithFlowBlock(indexMermaidSeedMeta)
+      normalized = normalizeNodes(metaRecord)
+    }
+  }
   if (!normalized) return null
 
   const hasFlowDerivedNodes = isRecord(metaRecord.flow)

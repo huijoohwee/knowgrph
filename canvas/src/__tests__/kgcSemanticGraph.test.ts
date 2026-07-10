@@ -132,10 +132,12 @@ export function testWorkspaceKgcSemanticGraphFeedsActiveRendererGraphWithDocumen
 
 export function testKgcSemanticGraphSuppressesKeywordReDerivationInActiveGraphOwner() {
   const source = readFileSync(resolve(process.cwd(), 'src/hooks/active-graph-data/useActiveGraphData.impl.ts'), 'utf8')
-  const structuredLine = source
-    .split('\n')
-    .find(line => line.includes('const hasStructuredWorkspaceGraph =')) || ''
-  if (!structuredLine.includes('workspaceKgcSemanticGraphData')) {
+  const blockStart = source.indexOf('const hasStructuredWorkspaceGraph =')
+  const blockEnd = source.indexOf('const { graphData: apiGraphFlowchart } =', blockStart)
+  const structuredBlock = blockStart >= 0
+    ? source.slice(blockStart, blockEnd >= 0 ? blockEnd : blockStart + 400)
+    : ''
+  if (!structuredBlock.includes('workspaceKgcSemanticGraphData')) {
     throw new Error('expected KGC semantic Markdown to count as a structured workspace graph and suppress keyword re-derivation')
   }
 }

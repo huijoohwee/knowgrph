@@ -24,7 +24,6 @@ import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/w
 import { STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT } from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { runKnowgrphMotion } from '@/lib/motion/knowgrphMotion'
-import { readCanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
@@ -80,9 +79,7 @@ const FlowWidgetOverlayInner = React.memo(function FlowWidgetOverlayInner({
     selectNode,
     setSelectionSource,
     selectedNodeId,
-    setFlowWidgetWorldPosByNodeId,
     setFlowWidgetPinnedByNodeIdForGraph,
-    strybldrStoryboardBoardLayoutMode,
   } = useGraphStore(
     useShallow(s => ({
       uiIconScale: s.uiIconScale,
@@ -95,9 +92,7 @@ const FlowWidgetOverlayInner = React.memo(function FlowWidgetOverlayInner({
       selectNode: s.selectNode,
       setSelectionSource: s.setSelectionSource,
       selectedNodeId: s.selectedNodeId,
-      setFlowWidgetWorldPosByNodeId: (s as unknown as { setFlowWidgetWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => void }).setFlowWidgetWorldPosByNodeId,
       setFlowWidgetPinnedByNodeIdForGraph: s.setFlowWidgetPinnedByNodeIdForGraph,
-      strybldrStoryboardBoardLayoutMode: s.strybldrStoryboardBoardLayoutMode,
     })),
   )
 
@@ -138,7 +133,6 @@ const FlowWidgetOverlayInner = React.memo(function FlowWidgetOverlayInner({
 
   const storyboardCardLayoutSurface = String(storyboardWidgetSurfaceId || '').trim() === 'storyboard'
   const isRichMediaPanelNode = String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
-  const storyboardBoardLayoutMode = readCanvasBoardLayoutMode(strybldrStoryboardBoardLayoutMode)
   const autoStackOffset = React.useMemo(() => computeWidgetAnchoredStackOffset(stackIndex), [stackIndex])
 
   const effectiveOverlayCollectiveCount = React.useMemo(() => {
@@ -171,7 +165,6 @@ const FlowWidgetOverlayInner = React.memo(function FlowWidgetOverlayInner({
     floatingUsesScreenAuthority: storyboardCardLayoutSurface
       ? false
       : shouldUseStoryboardWidgetFloatingScreenAuthority({ graphMetaKind, pinnedInCanvas: pinnedInCanvasForPlacement, storyboardWidgetSurfaceId }),
-    setFlowWidgetWorldPosByNodeId,
   })
   const uiState = useWidgetEditorOverlayUiState({
     node,
@@ -190,9 +183,7 @@ const FlowWidgetOverlayInner = React.memo(function FlowWidgetOverlayInner({
   const pinnedInCanvas = uiState.pinnedInCanvas
   const effectiveHideFields = isRichMediaPanelNode ? uiState.richMediaKtvRows : uiState.hideFields
   const floating = storyboardCardLayoutSurface ? false : pinnedInCanvas !== true
-  const storyboardFixedBoardLayoutEnabled = String(storyboardWidgetSurfaceId || '').trim() === 'storyboard' && storyboardBoardLayoutMode === 'fixed'
   const headerDragAllowedByPin = isFlowWidgetHeaderDragAllowedByPin({
-    fixedLayoutEnabled: storyboardFixedBoardLayoutEnabled,
     pinnedInCanvas,
   })
   const floatingUsesScreenAuthority = storyboardCardLayoutSurface

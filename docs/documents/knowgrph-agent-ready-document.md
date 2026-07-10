@@ -44,7 +44,20 @@ related:
 
 ## Executive Summary
 
-Knowgrph is agent-ready through a source-owned Dev -> Prod -> Cloudflare chain. Startup prioritizes the shortest install path, clear `/`, `#`, and `@` grammar, proof-backed readiness, offline deterministic evaluation, and explicit release discipline. The implementation exposes DNS-AID, Auth.md, OAuth/OIDC metadata, `.well-known` artifacts, Markdown negotiation, read-only HTTP MCP, browser WebMCP, approval-gated control-plane MCP, `knowgrph.os.status`, and Commerce discovery without moving authority out of the `knowgrph` repository.
+Knowgrph is agent-ready through a source-owned Dev -> Prod -> Cloudflare chain. For startup
+execution, the priority order is:
+
+1. shortest install path
+2. clear `/`, `#`, and `@` grammar differentiation
+3. proof-backed readiness states
+4. offline deterministic evaluation
+5. explicit release discipline
+
+The current implementation exposes DNS-AID, Auth.md, OAuth/OIDC metadata, root and app-scoped
+`.well-known` artifacts, Markdown negotiation, read-only HTTP MCP, browser-visible WebMCP,
+control-plane Streamable HTTP MCP for approval-gated orchestration, Agentic OS visibility via
+`knowgrph.os.status`, and root Commerce discovery without moving authority out of the `knowgrph`
+repository.
 
 The **MCP Gateway** is a discovery-first federation over four existing surfaces (local stdio, Pages
 HTTP MCP, browser WebMCP, Cloudflare `McpAgent` control plane) unified by shared contracts — not a
@@ -53,7 +66,11 @@ via DNS-AID → Link headers → `.well-known` MCP server card → surface selec
 MCP-compatible hosts including Claude, ChatGPT, Codex, Gemini, Qwen Code, Kimi CLI, and BytePlus ModelArk can use public discovery for read-only installation and the control plane for approval-gated grammar invocation. MainPanel claims remain `documented` or `browser-published` unless a `runtime-executable` owner is named.
 For public remote installs, `https://airvio.co/knowgrph/mcp` is the canonical discovery and setup URL.
 `https://airvio.co/knowgrph/control-plane/mcp` remains a separate approval-gated orchestration surface.
-Use `docs/documents/knowgrph-mcp-onboarding-index.md` and its canonical `knowgrph-mcp-install-contract.md` owner for the shortest guided setup, host recipes, and dual-surface boundary.
+The canonical operator-facing boundary, host recipes, and dual-surface install rule now live in
+`docs/documents/knowgrph-mcp-install-contract.md`; use that install contract first whenever a host
+or setup guide needs one explicit MCP onboarding answer.
+For the shortest guided path across install, release note, and MCP reference docs, start with
+`docs/documents/knowgrph-mcp-onboarding-index.md`.
 The public install endpoint truth stays read-only retrieval/inspection plus prompt/resource/template
 discovery, while the separate control-plane surface now advertises remote Agentic Canvas OS docs
 invocation through `knowgrph.agentic_canvas_os.docs.invoke` in current source-owned discovery metadata.
@@ -64,6 +81,18 @@ The repo also ships a local long-horizon SuperAgent harness for research/code/cr
 That harness is available through `python3 -m knowgrph_parser superagent`, `npm run goal:run`, and
 local MCP `knowgrph.superagent.run`. It is source-owned and DeerFlow-inspired only at the concept
 level; it is not a deployed public Pages/WebMCP mutation service.
+
+## Fastest Operator Path
+
+Use this reading and evaluation order when speed and ROI matter more than feature breadth:
+
+1. open `docs/documents/knowgrph-mcp-install-contract.md` for the canonical remote MCP boundary
+2. install `https://airvio.co/knowgrph/mcp` for the lowest-friction remote discovery path
+3. add `https://airvio.co/knowgrph/control-plane/mcp` only when the host can preserve MCP session state and needs live `/`, `#`, `@` grammar lookup
+4. if you want evaluation before any hosted setup, run the offline deterministic path in `README.md` or `docs/documents/knowgrph-superagent-harness.md`
+5. use `knowgrph.os.status` as the proof-friendly zero-token visibility call once local MCP is running
+
+This order is intentional: installability first, grammar differentiation second, proof third.
 
 The shipped browser and deployed surfaces intentionally differ by trust boundary:
 
@@ -106,6 +135,9 @@ flow could drift independently.
 Public remote exposure can also drift if the canonical install URL, MCP server card, `tools/list`,
 and host setup snippets stop telling the same story. That drift is especially costly for low-context
 remote hosts because it turns a one-paste MCP install into manual endpoint selection.
+
+Evaluation can also become unnecessarily expensive if readers are routed into hosted setup before
+they see the offline deterministic proof path.
 
 Knowgrph solves this by keeping discovery and pipeline readiness rooted in upstream owners, then
 projecting generated artifacts to the production mirror and Cloudflare Pages.

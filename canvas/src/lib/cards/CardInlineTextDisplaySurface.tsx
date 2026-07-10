@@ -6,6 +6,7 @@ import { shouldOpenMarkdownViewerInlineEditorFromReadClick } from '@/lib/markdow
 import { readInlineCommandMenuSigilFromKeyEvent } from '@/lib/command-menu/inlineCommandMenuTrigger'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_VIEW_EDIT_SURFACE_BOUNDS_CLASS_NAME, UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES } from '@/lib/ui/surfaceClasses'
 import type { CardInlineTextChipDensity, CardInlineTextEditActivation } from '@/lib/cards/CardInlineTextEditorSupport'
 
 type CardInlineTextDisplaySurfaceProps = {
@@ -50,13 +51,14 @@ export function CardInlineTextDisplaySurface(props: CardInlineTextDisplaySurface
     <section
       ref={props.displayRef}
       id={props.id}
-      className={[props.densityOwnedDisplayClassName, props.displayLineClassName, props.canEdit ? 'cursor-text' : '', props.showPlaceholder ? props.emptyClassName || `${UI_THEME_TOKENS.text.tertiary} italic` : ''].join(' ').trim()}
+      className={[UI_VIEW_EDIT_SURFACE_BOUNDS_CLASS_NAME, props.densityOwnedDisplayClassName, props.displayLineClassName, props.canEdit ? 'cursor-text' : '', props.showPlaceholder ? props.emptyClassName || `${UI_THEME_TOKENS.text.tertiary} italic` : ''].join(' ').trim()}
       title={props.displayTitle}
       aria-label={props.ariaLabel}
       data-kg-card-inline-edit="1"
       data-kg-card-inline-edit-activation={props.editActivation}
       data-kg-card-inline-chip-density={props.inlineChipDensity === 'compact' ? 'compact' : undefined}
       data-kg-card-inline-command-display={props.enableMarkdownCommandMenus ? '1' : undefined}
+      {...UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES}
       tabIndex={props.canEdit && props.enableMarkdownCommandMenus ? 0 : undefined}
       onKeyDown={event => {
         if (!props.canEdit) return

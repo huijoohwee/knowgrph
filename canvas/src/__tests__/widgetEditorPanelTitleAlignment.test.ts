@@ -34,7 +34,7 @@ export function testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes()
   const overlayElementsSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlaySurfaceElements.tsx'), 'utf8')
   const panelSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorPanel.tsx'), 'utf8')
   const viewSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorView.tsx'), 'utf8')
-  const formSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorForm.tsx'), 'utf8')
+  const formSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorFormContent.tsx'), 'utf8')
   if (
     resolveWidgetEditorSurfaceLabel('card') !== UI_LABELS.storyboardCard
     || resolveWidgetEditorSurfaceLabel('widget') !== UI_LABELS.flowWidget

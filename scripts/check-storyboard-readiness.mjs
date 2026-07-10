@@ -41,6 +41,13 @@ runStep({
 });
 
 runStep({
+  name: 'mobile keyboard browser smoke',
+  command: npmCommand,
+  args: ['--prefix', 'canvas', 'run', 'test:smoke:mobile-keyboard:browser'],
+  cwd: repoRoot,
+});
+
+runStep({
   name: 'publish sync drift check',
   command: npmCommand,
   args: ['run', 'pages:check-sync'],

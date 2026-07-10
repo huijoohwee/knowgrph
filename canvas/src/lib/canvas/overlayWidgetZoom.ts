@@ -8,10 +8,12 @@ import {
 } from '@/lib/ui/overlayBalancedSpread'
 import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 
-export const WIDGET_BASE_SIZE = {
-  width: 360,
-  height: 520,
-} as const
+const DEFAULT_STORYBOARD_SURFACE_WIDTH_PX = 360
+export const WIDGET_LAYOUT_BASE_HEIGHT_PX = 520
+export const WIDGET_BASE_SIZE = Object.freeze({
+  width: DEFAULT_STORYBOARD_SURFACE_WIDTH_PX,
+  height: Math.round((DEFAULT_STORYBOARD_SURFACE_WIDTH_PX * 9) / 16),
+})
 
 export type ZoomScaleExtent = { minK: number; maxK: number }
 export type WidgetScaleMode = 'pinnedInCanvas' | 'floating'

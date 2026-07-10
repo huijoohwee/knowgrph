@@ -971,7 +971,7 @@ export async function testMarkdownWorkspaceViewerBubbleToolbarClearFormattingPre
   await runViewerToolbarActionCase({
     activeText: 'Semantic `@key:Ctrl+S` and footnote [^1]\n\n[^1]: Citation body',
     expectedMarkdownSnippet: 'footnote [^1]',
-    expectedJsonSnippet: 'footnote \\\\[^1]',
+    expectedJsonSnippet: 'footnote [^1]',
     action: async ({ dom, doc, toolbar }) => {
       const liveEditor = doc.querySelector('[contenteditable="true"]') as HTMLElement | null
       if (!liveEditor) throw new Error('expected live inline editor')

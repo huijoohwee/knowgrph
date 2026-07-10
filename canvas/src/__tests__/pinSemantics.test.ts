@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { isFlowWidgetHeaderDragAllowedByPin } from '@/lib/storyboardWidget/flowWidgetPinMovement'
+
 const readUtf8 = (absPath: string): string => {
   return fs.readFileSync(absPath, { encoding: 'utf8' })
 }
@@ -25,6 +27,8 @@ export const testPinnedDragSemanticsAcrossPanels = () => {
   const widgetChrome = readUtf8(widgetChromePath)
   const widgetDragHookPath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'useWidgetDragHandlers.ts')
   const widgetDragHook = readUtf8(widgetDragHookPath)
+  const pinMovementPath = path.resolve(root, 'src', 'lib', 'storyboardWidget', 'flowWidgetPinMovement.ts')
+  const pinMovement = readUtf8(pinMovementPath)
   const storyboardWidgetCanvasSurfacePath = path.resolve(root, 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'StoryboardWidgetCanvasSurface.tsx')
   const storyboardWidgetCanvasSurface = readUtf8(storyboardWidgetCanvasSurfacePath)
   const flowCanvasListenersPath = path.resolve(root, 'src', 'components', 'FlowCanvas', 'interactions', 'listeners.ts')
@@ -41,27 +45,31 @@ export const testPinnedDragSemanticsAcrossPanels = () => {
   if (widgetChrome.includes('onHeaderPointerDownCapture')) {
     throw new Error('Expected Storyboard Widget panel chrome to avoid stale header capture hook')
   }
-  if (widgetDragHook.includes('if (pinnedInCanvas) return')) {
-    throw new Error('Expected pinned widget world-position drag not to be disabled by stale pin state')
+  if (isFlowWidgetHeaderDragAllowedByPin({ pinnedInCanvas: true })) {
+    throw new Error('Expected an individually pinned panel, card, or widget to reject local header drag')
+  }
+  if (!isFlowWidgetHeaderDragAllowedByPin({ pinnedInCanvas: false })) {
+    throw new Error('Expected an unpinned panel, card, or widget to allow local header drag')
+  }
+  if (pinMovement.includes('fixedLayoutEnabled')) {
+    throw new Error('Expected pin movement semantics to stay independent of board layout mode')
   }
   for (const snippet of [
     'isFlowWidgetHeaderDragAllowedByPin',
-    'readCanvasBoardLayoutMode(strybldrStoryboardBoardLayoutMode)',
-    "String(storyboardWidgetSurfaceId || '').trim() === 'storyboard'",
     'headerDragEnabled: headerDragAllowedByPin',
     'headerDragEnabled={headerDragAllowedByPin}',
   ]) {
     if (!widgetOverlayInner.includes(snippet)) {
-      throw new Error(`Expected widget overlay drag to reuse shared board-aware pin movement semantics: ${snippet}`)
+      throw new Error(`Expected widget overlay drag to reuse shared pin movement semantics: ${snippet}`)
     }
   }
   if (!widgetDragHook.includes('headerDragEnabled?: boolean') || !widgetDragHook.includes('if (!headerDragEnabled) return')) {
-    throw new Error('Expected widget drag handler to accept the shared board-aware pin movement gate')
+    throw new Error('Expected widget drag handler to accept the shared pin movement gate')
   }
   const widgetViewPath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'WidgetEditorView.tsx')
   const widgetView = readUtf8(widgetViewPath)
   if (!widgetView.includes("data-kg-widget-header-drag-enabled={headerDragEnabled ? '1' : '0'}")) {
-    throw new Error('Expected widget view to expose the board-aware header drag state for Rich Media parity checks')
+    throw new Error('Expected widget view to expose the shared header drag state for Rich Media parity checks')
   }
   if (widgetView.includes('!headerDragEnabled && isHeaderTarget')) {
     throw new Error('Expected disabled widget header drag to use shared collective pan instead of local event consumption')
@@ -74,8 +82,13 @@ export const testPinnedDragSemanticsAcrossPanels = () => {
   }
 
   const headerActions = readUtf8(headerActionsPath)
-  if (!headerActions.includes('PinOff')) {
-    throw new Error('Expected pin toggle to render PinOff when unpinned')
+  if (!headerActions.includes('PinToggleIconButton')) {
+    throw new Error('Expected header actions to reuse the shared pin toggle button owner')
+  }
+  const pinToggleButtonPath = path.resolve(root, 'src', 'components', 'PinToggleIconButton.tsx')
+  const pinToggleButton = readUtf8(pinToggleButtonPath)
+  if (!pinToggleButton.includes('PinOff')) {
+    throw new Error('Expected shared pin toggle button to render PinOff when unpinned')
   }
 
   const pinToggle = readUtf8(pinTogglePath)

@@ -93,9 +93,10 @@ export function emitPropsPanelOpen(detail?: PropsPanelOpenEventDetail): void {
   emitCanvasCustomEvent<PropsPanelOpenEventDetail>(PROPS_PANEL_OPEN_EVENT, detail)
 }
 
-export function emitFloatingPanelOpen(detail?: FloatingPanelOpenEventDetail): void {
-  requestFloatingPanelOpen(detail)
+export function emitFloatingPanelOpen(detail?: FloatingPanelOpenEventDetail): boolean {
+  const accepted = requestFloatingPanelOpen(detail)
   emitCanvasCustomEvent<FloatingPanelOpenEventDetail>(FLOATING_PANEL_OPEN_EVENT, detail)
+  return accepted
 }
 
 export function emitMediaLibraryOpenTop(): void {

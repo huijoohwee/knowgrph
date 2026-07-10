@@ -19,6 +19,14 @@ export function buildGraphMetaKeyIgnoringPending(graph: { metadata?: unknown } |
   return layerHash ? `${base}:${layerHash}` : base
 }
 
+export function buildGraphDocumentMetaKey(graph: { metadata?: unknown } | null): string {
+  const rec = toMetadataRecord(graph?.metadata)
+  const kind = String(rec.kind ?? '')
+  const source = String(rec.source ?? '')
+  if (!kind && !source) return ''
+  return `${kind}:${source}`
+}
+
 export function readBaselineGraphMetaKey(
   graph: { metadata?: unknown } | null | undefined,
   fallbackGraphMetaKey: string,

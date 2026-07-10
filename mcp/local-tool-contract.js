@@ -2,7 +2,7 @@ import { BROWSER_API_TOOL } from "./browser-api-runtime.js"; import { buildOsSta
 import { KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID, KNOWGRPH_AGENT_READY_TOOL_IDS, buildKnowgrphAgentReadyToolContracts } from "../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
 import { KNOWGRPH_LOCAL_MCP_TOOL_NAMES as SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
 import { buildKnowgrphMcpAppsToolMeta, buildKnowgrphMcpNoauthSecuritySchemes } from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
-import { KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES, MEMORY_ADD_INPUT_SCHEMA, MEMORY_ADD_OUTPUT_SCHEMA, MEMORY_SEARCH_INPUT_SCHEMA, MEMORY_SEARCH_OUTPUT_SCHEMA, PROMPT_ASSEMBLER_INPUT_SCHEMA, PROMPT_ASSEMBLER_OUTPUT_SCHEMA } from "../canvas/src/features/memory/aiAgentsMemoryLayerContract.mjs";
+import { KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES, MEMORY_ADD_INPUT_SCHEMA, MEMORY_ADD_OUTPUT_SCHEMA, MEMORY_SEARCH_INPUT_SCHEMA, MEMORY_SEARCH_OUTPUT_SCHEMA, PROCEDURAL_MEMORY_EXTRACT_INPUT_SCHEMA, PROCEDURAL_MEMORY_EXTRACT_OUTPUT_SCHEMA, PROMPT_ASSEMBLER_INPUT_SCHEMA, PROMPT_ASSEMBLER_OUTPUT_SCHEMA, USER_MODEL_MATERIALIZE_INPUT_SCHEMA, USER_MODEL_MATERIALIZE_OUTPUT_SCHEMA } from "../canvas/src/features/memory/aiAgentsMemoryLayerContract.mjs";
 import { AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION } from "./agentic-canvas-os-docs-contract.mjs";
 import { buildProbeTreeLocalToolDefinitions } from "./probe-tree-tool-contract.js";
 import { buildAgentSandboxPolicyToolDefinitions } from "./agent-sandbox-policy-tool-contract.js"; import { VIDEO_WORKFLOW_INPUT_SCHEMA } from "./video-remix/workflow-contract.js";
@@ -434,6 +434,20 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
       outputSchema: PROMPT_ASSEMBLER_OUTPUT_SCHEMA,
       inputSchema: PROMPT_ASSEMBLER_INPUT_SCHEMA,
     }, READ_ONLY_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.extractProcedural,
+      description:
+        "Use this when a local MCP host needs to convert an existing harness run into a reusable KGC markdown procedural-memory document and optionally persist a scoped summary in the memory store.",
+      outputSchema: PROCEDURAL_MEMORY_EXTRACT_OUTPUT_SCHEMA,
+      inputSchema: PROCEDURAL_MEMORY_EXTRACT_INPUT_SCHEMA,
+    }, LOCAL_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.materializeUserModel,
+      description:
+        "Use this when a local MCP host needs a deterministic USER_MODEL markdown document materialized from the scoped in-repo memory store and mirrored into a stable workspace path without external profile infrastructure.",
+      outputSchema: USER_MODEL_MATERIALIZE_OUTPUT_SCHEMA,
+      inputSchema: USER_MODEL_MATERIALIZE_INPUT_SCHEMA,
+    }, LOCAL_PROCESS_TOOL_ANNOTATIONS),
     ...buildProbeTreeLocalToolDefinitions({
       toolNames: KNOWGRPH_LOCAL_MCP_TOOL_NAMES,
       withDefaults: withLocalMcpDescriptorDefaults,

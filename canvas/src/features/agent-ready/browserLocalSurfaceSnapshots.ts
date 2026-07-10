@@ -91,6 +91,9 @@ export type LocalChatPipelineFinalizeSnapshot = {
   persistedKnowgrphPath: string | null
   applied: boolean | null
   message: string | null
+  failureNote: string | null
+  retryHint: string | null
+  retryCommand: string | null
 }
 
 export type LocalChatPipelineSurfaceSnapshot = {
@@ -172,6 +175,9 @@ const DEFAULT_LOCAL_CHAT_PIPELINE_FINALIZE_SNAPSHOT: LocalChatPipelineFinalizeSn
   persistedKnowgrphPath: null,
   applied: null,
   message: null,
+  failureNote: null,
+  retryHint: null,
+  retryCommand: null,
 })
 
 const cloneLocalChatPipelineKgcValidationSnapshot = (

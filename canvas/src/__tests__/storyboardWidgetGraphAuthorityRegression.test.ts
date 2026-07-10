@@ -115,7 +115,7 @@ export function testStoryboardWidgetRuntimeUsesActiveSourceGraphAuthority() {
   if (!runtimeStoreStateText.includes('const baseGraphData = activeBaseGraphData || state.rawBaseGraphData')) {
     throw new Error('expected Storyboard Widget runtime state to prefer selected-source active graph over stale store graph content')
   }
-  if (!runtimeStoreStateText.includes('buildGraphMetaKeyIgnoringPending(baseGraphData)')) {
+  if (!runtimeStoreStateText.includes('buildGraphDocumentMetaKey(baseGraphData)')) {
     throw new Error('expected Storyboard Widget pin scope to follow the active selected-source graph authority')
   }
   if (runtimeStoreStateText.includes('baseGraphData: s.graphData')) {

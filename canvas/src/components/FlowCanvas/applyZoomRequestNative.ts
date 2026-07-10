@@ -234,6 +234,7 @@ export const applyZoomRequestNative = (args: {
   runtime: FlowNativeRuntime
   graphData: GraphData | null
   storyboardWidgetSurfaceId?: string
+  canvas2dRendererOverride?: unknown
   width: number
   height: number
   selectedNodeId: string | null
@@ -253,6 +254,7 @@ export const applyZoomRequestNative = (args: {
     }
   }
   const state = useGraphStore.getState()
+  const canvas2dRenderer = resolveCanvas2dRendererId(args.canvas2dRendererOverride ?? state.canvas2dRenderer)
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen(state)
   const schema = state.schema
   if (!schema) {
@@ -279,18 +281,18 @@ export const applyZoomRequestNative = (args: {
   })
   const isStoryboardWidgetFitLikeRequest =
     state.canvasRenderMode === '2d'
-    && isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
+    && isStoryboardCanvas2dRenderer(canvas2dRenderer)
     && (
       args.zoomRequest.type === 'reset'
       || args.zoomRequest.type === 'fit'
     )
   const isStoryboardWidgetCollectiveOutRequest =
     state.canvasRenderMode === '2d'
-    && isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
+    && isStoryboardCanvas2dRenderer(canvas2dRenderer)
     && args.zoomRequest.type === 'out'
   const isStoryboardWidgetContextualZoomRequest =
     state.canvasRenderMode === '2d'
-    && isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
+    && isStoryboardCanvas2dRenderer(canvas2dRenderer)
     && (
       args.zoomRequest.type === 'in'
       || args.zoomRequest.type === 'out'
@@ -298,7 +300,7 @@ export const applyZoomRequestNative = (args: {
   const forceImmediateWorkspaceOverlayFit = workspaceEditorOverlayOpen && isStoryboardWidgetFitLikeRequest
   const hasStoryboardWidgetGraphFitData =
     state.canvasRenderMode === '2d'
-    && isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))
+    && isStoryboardCanvas2dRenderer(canvas2dRenderer)
     && !!args.graphData
     && Array.isArray(args.graphData.nodes)
     && args.graphData.nodes.length > 0
@@ -312,7 +314,7 @@ export const applyZoomRequestNative = (args: {
   const fitGraphContext = String(args.graphData?.context || '').trim()
   const fitHasCollectiveOverlayFit =
     (Array.isArray(state.openWidgetNodeIds) && state.openWidgetNodeIds.length > 0)
-    || resolveCanvas2dRendererId(state.canvas2dRenderer) === 'storyboard'
+    || canvas2dRenderer === 'storyboard'
     || String(fitGraphMeta.kind || '').trim() === 'frontmatter-flow'
     || fitGraphContext === 'frontmatter-flow'
   const shouldRecenterStoryboardWidgetCollectiveAfterFit =

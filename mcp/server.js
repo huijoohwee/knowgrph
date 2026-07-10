@@ -19,6 +19,8 @@ import { runVideoRemixAsync } from "./video-remix-runtime.js"; import { runShowr
 import {
   addMemoryLayerMemory,
   assembleMemoryLayerPrompt,
+  extractProceduralMemory,
+  materializeUserModel,
   searchMemoryLayerMemories,
 } from "./memory-layer-runtime.js";
 import { buildKnowgrphLocalMcpToolDefinitions, KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "./local-tool-contract.js";
@@ -83,7 +85,13 @@ const LOCAL_MCP_APP_RESOURCE = buildKnowgrphMcpAppsResourceDescriptor({
   appUrl: LOCAL_MCP_APP_URL,
   updatedAt: "local",
 });
-const MEMORY_TOOL_HANDLERS = Object.freeze({ [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAdd]: (args) => addMemoryLayerMemory(args, { rootDir: KNOWGRPH_ROOT }), [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memorySearch]: (args) => searchMemoryLayerMemories(args, { rootDir: KNOWGRPH_ROOT }), [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAssemblePrompt]: (args) => assembleMemoryLayerPrompt(args) });
+const MEMORY_TOOL_HANDLERS = Object.freeze({
+  [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAdd]: (args) => addMemoryLayerMemory(args, { rootDir: KNOWGRPH_ROOT }),
+  [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memorySearch]: (args) => searchMemoryLayerMemories(args, { rootDir: KNOWGRPH_ROOT }),
+  [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryAssemblePrompt]: (args) => assembleMemoryLayerPrompt(args),
+  [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryExtractProcedural]: (args) => extractProceduralMemory(args, { rootDir: KNOWGRPH_ROOT }),
+  [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.memoryMaterializeUserModel]: (args) => materializeUserModel(args, { rootDir: KNOWGRPH_ROOT }),
+});
 
 function resolveRootDir() {
   const envRoot = process.env.KNOWGRPH_ROOT?.trim();

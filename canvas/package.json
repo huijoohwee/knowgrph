@@ -48,6 +48,7 @@
     "test:smoke:miromind:source": "node --preserve-symlinks --preserve-symlinks-main ../node_modules/tsx/dist/cli.cjs src/tests/subsetMiroMindSmoke.ts",
     "test:smoke:rich-media": "node --preserve-symlinks --preserve-symlinks-main ../node_modules/tsx/dist/cli.cjs src/tests/subsetRichMediaSmoke.ts",
     "test:smoke:rich-media:browser": "node ./scripts/run_rich_media_browser_smoke.mjs",
+    "test:smoke:mobile-keyboard:browser": "node ./scripts/run_mobile_keyboard_browser_smoke.mjs",
     "test:smoke:storyboard-rich-media-drop:source": "node --preserve-symlinks --preserve-symlinks-main ../node_modules/tsx/dist/cli.cjs src/tests/subsetStoryboardRichMediaDropSmoke.ts",
     "test:smoke:storyboard-rich-media-drop:browser": "node ./scripts/run_storyboard_rich_media_drop_browser_smoke.mjs",
     "test:live:storyboard-media-panel-retention:browser": "node ./scripts/run_storyboard_live_route_media_panel_retention.mjs",

@@ -7,6 +7,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanelSrcDoc'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
+import { UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES } from '@/lib/ui/surfaceClasses'
 
 const resetRichMediaPanelTestStoreState = () => {
   const state = useGraphStore.getState()
@@ -43,6 +44,10 @@ export async function testRichMediaPanelViewportSrcDocKeepsIframeScrollingEnable
   try {
     const iframe = container.querySelector('iframe') as HTMLIFrameElement | null
     if (!iframe) throw new Error('expected viewport srcdoc RichMediaPanel to render an iframe')
+    const surfaceArea = container.querySelector('[data-kg-rich-media-panel="1"] > [data-kg-view-edit-surface-area]')
+    if (!(surfaceArea instanceof dom.window.HTMLElement) || surfaceArea.getAttribute('data-kg-view-edit-surface-area') !== UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES['data-kg-view-edit-surface-area']) {
+      throw new Error('expected Rich Media iframe to reuse the shared view/edit area contract')
+    }
     if (iframe.getAttribute('scrolling') !== 'auto') {
       throw new Error(`expected viewport srcdoc iframe to keep native scrolling enabled, got ${iframe.getAttribute('scrolling')}`)
     }

@@ -32,6 +32,7 @@ import { useFinalizeAssistantSuccess } from '@/features/chat/floatingPanelChat/u
 import { useFloatingPanelChatSubmit } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSubmit'
 import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
 import { buildStorageChatRelayLogDescriptor } from '@/features/chat/floatingPanelChat/floatingPanelChatRelayDiagnostics'
+import { applyFloatingPanelChatInputAppend, resolveFloatingPanelChatInputAppend } from '@/features/chat/floatingPanelChat/floatingPanelChatInputAppend'
 import {
   readActiveDurableChatStreamRun,
 } from '@/features/chat/floatingPanelChat/floatingPanelChatDurableStream'
@@ -66,6 +67,7 @@ import {
 } from 'grph-shared/ui/keyTypeValueRows'
 import { resolveSharedChatModelSelect } from '@/features/chat/chatModelCredentialResolver'
 import { useFloatingPanelChatSurfaceModel } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSurfaceModel'
+import { flushFloatingPanelChatInputHandoff } from '@/features/chat/floatingPanelChat/floatingPanelChatInputHandoff'
 import { stopFloatingPanelChatStream } from '@/features/chat/floatingPanelChat/floatingPanelChatStop'
 export default function FloatingPanelChat() {
   const graphData = useGraphStore(s => s.graphData)
@@ -113,6 +115,7 @@ export default function FloatingPanelChat() {
   const setBottomSurfaceCollapsed = useGraphStore(s => s.setBottomSurfaceCollapsed)
   const setBottomSurfaceTab = useGraphStore(s => s.setBottomSurfaceTab)
   const pushUiToast = useGraphStore(s => s.pushUiToast)
+  const upsertUiToast = useGraphStore(s => s.upsertUiToast)
 
   const chatStorageTarget = useGraphStore(s => (s.chatStorageTarget === 'chatHistory' ? 'chatHistory' : 'chatKnowgrph'))
   const chatLocalStorageRootPath = useGraphStore(s => s.chatLocalStorageRootPath || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT)
@@ -143,6 +146,7 @@ export default function FloatingPanelChat() {
     modelId: string | null
   } | null>(null)
   const [streamingWorkspacePath, setStreamingWorkspacePath] = React.useState<string | null>(null)
+  const [appendFocusRequestKey, setAppendFocusRequestKey] = React.useState(0)
 
   const abortRef = React.useRef<AbortController | null>(null)
   const scrollRef = React.useRef<HTMLElement | null>(null)
@@ -596,7 +600,7 @@ export default function FloatingPanelChat() {
   } = useFloatingPanelChatSurfaceModel({
     chatContextScope, markdownDocumentName, markdownText, docLocationRevision, sourceFiles,
     graphData, workspaceViewMode, chatKnowgrphWorkspacePath, chatHistoryWorkspacePath,
-    currentNode, messageCount: messages.length, isLoading, setInput,
+    currentNode, messageCount: messages.length, isLoading,
   })
 
   useFloatingPanelChatHistory({
@@ -659,18 +663,13 @@ export default function FloatingPanelChat() {
     if (typeof window === 'undefined') return
     const handler = (ev: Event) => {
       const e = ev as CustomEvent<{ text?: string; mode?: 'append' | 'replace' } | undefined>
-      const text = typeof e.detail?.text === 'string' ? e.detail?.text : ''
-      if (!text.trim()) return
-      const mode = e.detail?.mode === 'replace' ? 'replace' : 'append'
-      setInput(prev => {
-        if (mode === 'replace') return text
-        const base = String(prev || '')
-        if (!base.trim()) return text
-        const sep = base.endsWith('\n') ? '\n' : '\n\n'
-        return `${base}${sep}${text}`
-      })
+      const detail = resolveFloatingPanelChatInputAppend(e.detail)
+      if (!detail) return
+      setInput(prev => applyFloatingPanelChatInputAppend(prev, detail))
+      setAppendFocusRequestKey(previous => previous + 1)
     }
     window.addEventListener(CHAT_INPUT_APPEND_EVENT, handler as EventListener)
+    flushFloatingPanelChatInputHandoff()
     return () => {
       window.removeEventListener(CHAT_INPUT_APPEND_EVENT, handler as EventListener)
     }
@@ -686,6 +685,7 @@ export default function FloatingPanelChat() {
     setChatHistoryWorkspacePath,
     followWorkspaceMarkdownPath,
     pushChatExchangeLog,
+    upsertUiToast,
     setMessages,
     setStreamingAssistant,
     streamFollowRef,
@@ -850,6 +850,7 @@ export default function FloatingPanelChat() {
       <FloatingPanelChatFooter
         input={input}
         setInput={setInput}
+        appendFocusRequestKey={appendFocusRequestKey}
         isLoading={isLoading}
         errorText={errorText}
         connectivity={connectivity}

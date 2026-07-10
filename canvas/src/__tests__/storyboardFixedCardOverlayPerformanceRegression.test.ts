@@ -28,6 +28,7 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
   const overlayProxy = readFileSync(resolve(process.cwd(), 'src/lib/canvas/storyboard-widget-overlay-proxy.ts'), 'utf8')
   const pinToggleButton = readFileSync(resolve(process.cwd(), 'src/components/PinToggleIconButton.tsx'), 'utf8')
   const placements = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/storyboardCardPlacements2d.ts'), 'utf8')
+  const stablePlacements = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/useStableStoryboardCardPlacements2d.ts'), 'utf8')
   const storyboardWidgetChrome = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/StoryboardWidgetPanelChrome.tsx'), 'utf8')
   const storyboardWidgetView = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidget/WidgetEditorView.tsx'), 'utf8')
   const mediaOverlays = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/FlowCanvasMediaOverlays.tsx'), 'utf8')
@@ -44,7 +45,7 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
     'onHeaderPointerDown={cardMoveEnabled ? event => onHeaderPointerDown(event, node) : undefined}',
     '<StoryboardCardResizeHandle',
     'useStoryboardCardOverlayWheelForwarding({ getWheelForwardTarget, rootRef })',
-    'fixedLayoutEnabled ? buildFixedStoryboardCardPlacements2d',
+    'useStableStoryboardCardPlacements2d',
     'const nodeCenter = dragWorldOverrideByCardIdRef.current.get(card.id)',
     'getWheelForwardTarget={() => props.rootRef.current?.querySelector',
     'const overlayPanOwnerCanvas =',
@@ -97,26 +98,27 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
   }
   for (const snippet of [
     'buildFlowCanvasHeaderPinProps',
-    'resolveFlowWidgetStateGraphKey({ graphData })',
-    'resolveScopedFlowWidgetNodeMap({',
-    'keyedByGraphMetaKey: flowWidgetPinnedByNodeIdByGraphMetaKey',
+    'flowWidgetPinnedByNodeId: FlowWidgetPinnedById',
+    'flowWidgetStateGraphKey: string | null',
+    'flowWidgetPinnedByNodeId={effectiveFlowWidgetPinnedByNodeId}',
+    'flowWidgetStateGraphKey={flowWidgetStateGraphKey}',
     'cardMoveEnabled: boolean',
     'if (cardMoveEnabled) onHeaderPointerDown(event, node)',
     'isFlowWidgetHeaderDragAllowedByPin({',
-    'fixedLayoutEnabled,',
     'pinnedInCanvas: headerPinProps.headerPinned === true',
-    'flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId',
-    'buildFixedStoryboardCardReferencePlacements2d',
-    'const fixedCardReferencePlacements = React.useMemo(',
-    'fixedLayoutEnabled ? readStoryboardCardCenter2d(node) || fixedCardReferencePlacements.get(id) : fixedCardReferencePlacements.get(id) || readStoryboardCardCenter2d(node)',
+    'flowWidgetPinnedByNodeId: props.flowWidgetPinnedByNodeId',
+    'fixedCardReferencePlacements: ReadonlyMap<string, StoryboardCardPlacement>',
+    'fixedLayoutEnabled ? readStoryboardCardCenter2d(node) || props.fixedCardReferencePlacements.get(id) : props.fixedCardReferencePlacements.get(id) || readStoryboardCardCenter2d(node)',
     'const previousPinned = lastPinnedByCardIdRef.current.get(card.id)',
     'previousPinned === true && cardPinned === false && !dragWorldOverrideByCardIdRef.current.has(card.id)',
     'const liveBox = lastAppliedBoxByCardIdRef.current.get(card.id) || null',
     'dragWorldOverrideByCardIdRef.current.set(card.id, screenToWorld({ transform: currentTransform, sx, sy }))',
     'const preserveCardScreenPlacementForUnpin = React.useCallback(',
     'onBeforePinnedChange: nextPinned => preserveCardScreenPlacementForUnpin(card.id, nextPinned)',
-    'const fixedPlacement = fixedLayoutEnabled && cardPinned ? referencePlacement || fixedCardPlacements.get(card.id) : null',
+    'const fixedPlacement = fixedLayoutEnabled && cardPinned ? referencePlacement : null',
     'readNodeCenter: readCardCenter',
+    'updateNode: (id, patch) => onNodeChange(id, patch, graphData)',
+    'onNodeChange={props.patchNodeById}',
     'duplicateDisabled: headerPinProps.headerPinned === true',
     'target?.closest(\'[data-kg-port-handle="1"],[data-kg-rich-media-resize-handle="1"]\')',
     "data-kg-storyboard-fixed-card-pinned={headerPinProps.headerPinned === true ? '1' : '0'}",
@@ -125,7 +127,7 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
     'onTogglePinned={headerPinProps.onHeaderTogglePinned}',
     'onPinnedPointerDown={headerPinProps.onHeaderPinnedPointerDown}',
   ]) {
-    if (![overlay, projection].some(text => text.includes(snippet))) throw new Error(`expected Storyboard card header pin/unpin to reuse shared Rich Media header pin controls: ${snippet}`)
+    if (![overlay, projection, stablePlacements, surface].some(text => text.includes(snippet))) throw new Error(`expected Storyboard card header pin/unpin to reuse shared Rich Media header pin controls: ${snippet}`)
   }
   for (const snippet of ['readCanvasBoardLayoutMode(strybldrStoryboardBoardLayoutMode)', "storyboardBoardLayoutMode === 'fixed'", 'if (!storyboardSharedSurfaceActive) return null', 'return applyFixedStoryboardCardPlacementsToGraphData2d({']) {
     if (!overlay.includes(snippet) && !surface.includes(snippet)) throw new Error(`expected Storyboard card/Rich Media surface to reuse shared Board Fixed mode: ${snippet}`)
@@ -134,13 +136,18 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
     "from '@/lib/storyboardWidget/flowWidgetPinnedState'",
     'flowWidgetPinnedByNodeId?: FlowWidgetPinnedById | null',
     'includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, card.id)',
-    'const placements = buildFixedStoryboardCardReferencePlacements2d({ aspectRatioMode, board, nodeById, readPlacementSize, schema })',
+    'const centerOwnsReferenceOrigin = !includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, orderedCards[i]!.id)',
+    'flowWidgetPinnedByNodeId: args.flowWidgetPinnedByNodeId',
+    'referencePlacements?: ReadonlyMap<string, StoryboardCardPlacement> | null',
     'readPlacementSize?: ReadStoryboardPlacementSize',
-    'if (!placement) return node',
+    'if (!placement || !readFlowWidgetPinnedInCanvas(args.flowWidgetPinnedByNodeId, id)) return node',
     'export const buildFixedStoryboardCardReferencePlacements2d',
     'includeUnpinned: true',
   ]) {
-    if (!placements.includes(snippet)) throw new Error(`expected Board Fixed placements to keep pin-agnostic reference geometry while reusing shared pin semantics: ${snippet}`)
+    if (!placements.includes(snippet)) throw new Error(`expected Board Fixed placements to keep pin-anchored reference geometry while reusing shared pin semantics: ${snippet}`)
+  }
+  for (const snippet of ['reconcileStableStoryboardCardPlacements2d', 'stablePlacement || candidatePlacement', 'buildGraphDocumentMetaKey(args.graphData)']) {
+    if (!stablePlacements.includes(snippet)) throw new Error(`expected pin transitions to retain existing shared reference slots: ${snippet}`)
   }
   if (overlay.includes('input,textarea,select,button,[role="button"]')) {
     throw new Error('expected Storyboard header drag guard to avoid blocking inline display editors by role')

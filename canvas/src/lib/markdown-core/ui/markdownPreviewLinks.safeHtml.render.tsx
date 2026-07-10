@@ -352,22 +352,9 @@ export const renderSafeHtmlBlockImpl = (
             inlineMediaChipMode ? CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME : getMediaFrameClassName(cardPreviewMode),
           ].filter(Boolean).join(' ')} /></picture>
         )
-        const fullPicture = inlineMediaToggleEnabled ? (
-          <picture className={safeClass || undefined} style={safeStyle}>{sources as unknown as React.ReactNode}<img src={imgResolved || undefined} alt={label} loading="lazy" decoding="async" className={[
-            'inline-block max-w-full h-auto',
-            getMediaFrameClassName(cardPreviewMode),
-          ].filter(Boolean).join(' ')} /></picture>
-        ) : null
         return (
           <span key={key} className={inlineMediaChipMode ? 'relative inline-block group align-baseline' : 'relative inline-block group align-middle'}>
-            {renderCardPreviewInlineMediaPill({
-              child: picture, label,
-              fallbackLabel: 'Image',
-              fullMedia: fullPicture,
-              inlineMediaChipMode,
-              thumbnailKind: 'image', thumbnailUrl: imgResolved,
-              toggleEnabled: inlineMediaToggleEnabled,
-            })}
+            {picture}
             {renderDownloadControl(imgCandidate, 'image', `${key}-download`, inlineMediaChipMode)}
           </span>
         )

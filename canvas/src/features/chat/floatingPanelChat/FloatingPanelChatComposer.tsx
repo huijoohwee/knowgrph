@@ -44,6 +44,7 @@ import {
 type FloatingPanelChatComposerProps = {
   input: string
   setInput: React.Dispatch<React.SetStateAction<string>>
+  appendFocusRequestKey?: number
   markdownText?: string | null
   isLoading: boolean
   isSubmitDisabled: boolean
@@ -63,6 +64,12 @@ const REMOTE_GRAMMAR_GROUP_BY_KIND = {
   semantic: 'Agentic OS semantic dictionary',
 } as const
 
+const FLOATING_PANEL_CHAT_GRAMMAR_QUICK_BAR_TOKENS = [
+  { id: 'slash', label: '/', description: 'Open slash commands' },
+  { id: 'keyword', label: '#', description: 'Open runtime invocations' },
+  { id: 'binding', label: '@', description: 'Open bindings and variables' },
+] as const
+
 const mergeMenuItems = (
   primaryItems: MarkdownInlineCommandMenuItem[],
   fallbackItems: MarkdownInlineCommandMenuItem[],
@@ -76,6 +83,17 @@ const mergeMenuItems = (
     merged.push(item)
   }
   return merged
+}
+
+const focusFloatingPanelChatComposerInput = (input: HTMLTextAreaElement | null): void => {
+  if (!input) return
+  try {
+    input.focus({ preventScroll: true })
+    return
+  } catch {
+    void 0
+  }
+  input.focus()
 }
 
 const matchesRemoteGrammarTriggerKind = (
@@ -121,7 +139,7 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
       const input = inputRef.current
       if (!input) return
       const cursor = mapFloatingPanelChatComposerRawIndexToDisplayIndex(next.text, next.cursor)
-      input.focus({ preventScroll: true })
+      focusFloatingPanelChatComposerInput(input)
       input.setSelectionRange(cursor, cursor)
       setSelectionRange({ start: cursor, end: cursor })
     })
@@ -150,6 +168,24 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
       })
     return () => abortController.abort()
   }, [query, trigger])
+
+  React.useEffect(() => {
+    if (!props.appendFocusRequestKey) return
+    let cancelled = false
+    requestAnimationFrame(() => {
+      if (cancelled) return
+      const input = inputRef.current
+      if (!input) return
+      const nextCursorDisplay = mapFloatingPanelChatComposerRawIndexToDisplayIndex(props.input, props.input.length)
+      focusFloatingPanelChatComposerInput(input)
+      input.setSelectionRange(nextCursorDisplay, nextCursorDisplay)
+      setSelectionRange({ start: nextCursorDisplay, end: nextCursorDisplay })
+      closeMenu()
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [closeMenu, props.appendFocusRequestKey, props.input])
 
   const remoteGrammarItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     if (!trigger) return []
@@ -313,77 +349,124 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
     requestAnimationFrame(() => {
       const input = inputRef.current
       if (!input) return
-      input.focus({ preventScroll: true })
+      focusFloatingPanelChatComposerInput(input)
       input.setSelectionRange(next.cursor, next.cursor)
       setSelectionRange({ start: next.cursor, end: next.cursor })
     })
     return true
   }, [closeMenu, hasComposerOverlay, props])
+  const insertGrammarQuickBarToken = React.useCallback((token: '/' | '#' | '@') => {
+    const input = inputRef.current
+    const displaySelectionStart = input?.selectionStart ?? displayInput.length
+    const displaySelectionEnd = input?.selectionEnd ?? displayInput.length
+    const rawSelectionStart = mapFloatingPanelChatComposerDisplayIndexToRawIndex(props.input, displaySelectionStart)
+    const rawSelectionEnd = mapFloatingPanelChatComposerDisplayIndexToRawIndex(props.input, displaySelectionEnd)
+    const needsLeadingSpace = rawSelectionStart > 0 && /\S/.test(props.input.charAt(rawSelectionStart - 1) || '')
+    const insertion = `${needsLeadingSpace ? ' ' : ''}${token}`
+    const nextText = `${props.input.slice(0, rawSelectionStart)}${insertion}${props.input.slice(rawSelectionEnd)}`
+    const nextCursorRaw = rawSelectionStart + insertion.length
+    props.setInput(nextText)
+    requestAnimationFrame(() => {
+      const nextInput = inputRef.current
+      if (!nextInput) return
+      const nextDisplay = buildFloatingPanelChatComposerDisplayText(nextText)
+      const nextCursorDisplay = mapFloatingPanelChatComposerRawIndexToDisplayIndex(nextText, nextCursorRaw)
+      focusFloatingPanelChatComposerInput(nextInput)
+      nextInput.setSelectionRange(nextCursorDisplay, nextCursorDisplay)
+      setSelectionRange({ start: nextCursorDisplay, end: nextCursorDisplay })
+      const nextTrigger = resolveChatComposerTrigger(nextDisplay, nextCursorDisplay)
+      setTrigger(nextTrigger)
+      setQuery(nextTrigger?.query || '')
+    })
+  }, [displayInput.length, props.input, props.setInput])
 
   return (
     <section ref={anchorRef} className={`relative border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${projectedLayoutClassName} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
-      <FloatingPanelChatComposerMediaOverlay
-        input={props.input}
-        projectedSelectionRange={selectionRange}
-        showProjectedCaret={hideProjectedCaret}
-        uiPanelTextFontClass={props.uiPanelTextFontClass}
-      />
-      <PlainTextInputEditor
-        ref={inputRef}
-        value={displayInput}
-        onChange={value => {
-          props.setInput(resolveFloatingPanelChatComposerRawText(value, props.input))
-          updateTrigger(value)
-          const input = inputRef.current
-          setSelectionRange({ start: input?.selectionStart ?? value.length, end: input?.selectionEnd ?? value.length })
-        }}
-        onSelect={event => {
-          updateTrigger(event.currentTarget.value)
-          setSelectionRange({ start: event.currentTarget.selectionStart ?? event.currentTarget.value.length, end: event.currentTarget.selectionEnd ?? event.currentTarget.value.length })
-        }}
-        onBeforeInput={event => {
-          const inputType = (event.nativeEvent as InputEvent).inputType
-          const direction = inputType === 'deleteContentBackward'
-            ? 'backward'
-            : inputType === 'deleteContentForward'
-              ? 'forward'
-              : null
-          if (!direction) return
-          if (!deleteProjectedTokenRange(event.currentTarget, direction)) return
-          event.preventDefault()
-        }}
-        placeholder={props.placeholder}
-        ariaLabel={props.placeholder}
-        ariaExpanded={!!trigger}
-        ariaControls={trigger ? menuListId : undefined}
-        disabled={props.isLoading}
-        multiline
-        className="relative z-0 w-full h-full border-0 rounded-none bg-transparent"
-        inputClassName={`${props.uiPanelTextFontClass} ${hasComposerOverlay ? `text-transparent ${hideProjectedCaret ? 'caret-transparent' : 'caret-[color:var(--kg-text-primary)]'} ${FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME}` : ''}`}
-        dataAttributes={{
-          'data-kg-chat-input': true,
-          'data-kg-chat-input-overlay-active': hasComposerOverlay ? '1' : undefined,
-          'data-kg-chat-input-media-overlay-active': hasMediaOverlay ? '1' : undefined,
-        }}
-        onKeyDown={event => {
-          if (hasComposerOverlay && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
+      <section
+        className={`flex items-center gap-1 border-b px-2 py-1 sm:hidden ${UI_THEME_TOKENS.panel.border}`}
+        aria-label="Mobile grammar quick bar"
+        data-kg-chat-grammar-quick-bar="true"
+      >
+        {FLOATING_PANEL_CHAT_GRAMMAR_QUICK_BAR_TOKENS.map(entry => (
+          <button
+            key={entry.id}
+            type="button"
+            data-kg-chat-grammar-quick-bar-token={entry.label}
+            className={`App-toolbar__btn min-w-[2.5rem] justify-center text-xs ${UI_THEME_TOKENS.button.text} ${UI_THEME_TOKENS.button.hoverBg} disabled:opacity-50`}
+            aria-label={entry.description}
+            title={entry.description}
+            disabled={props.isLoading}
+            onPointerDown={event => event.preventDefault()}
+            onClick={() => insertGrammarQuickBarToken(entry.label)}
+          >
+            {entry.label}
+          </button>
+        ))}
+      </section>
+      <section className="relative">
+        <FloatingPanelChatComposerMediaOverlay
+          input={props.input}
+          projectedSelectionRange={selectionRange}
+          showProjectedCaret={hideProjectedCaret}
+          uiPanelTextFontClass={props.uiPanelTextFontClass}
+        />
+        <PlainTextInputEditor
+          ref={inputRef}
+          value={displayInput}
+          onChange={value => {
+            props.setInput(resolveFloatingPanelChatComposerRawText(value, props.input))
+            updateTrigger(value)
+            const input = inputRef.current
+            setSelectionRange({ start: input?.selectionStart ?? value.length, end: input?.selectionEnd ?? value.length })
+          }}
+          onSelect={event => {
+            updateTrigger(event.currentTarget.value)
+            setSelectionRange({ start: event.currentTarget.selectionStart ?? event.currentTarget.value.length, end: event.currentTarget.selectionEnd ?? event.currentTarget.value.length })
+          }}
+          onBeforeInput={event => {
+            const inputType = (event.nativeEvent as InputEvent).inputType
+            const direction = inputType === 'deleteContentBackward'
+              ? 'backward'
+              : inputType === 'deleteContentForward'
+                ? 'forward'
+                : null
+            if (!direction) return
+            if (!deleteProjectedTokenRange(event.currentTarget, direction)) return
             event.preventDefault()
-            event.currentTarget.setSelectionRange(0, event.currentTarget.value.length)
-            setSelectionRange({ start: 0, end: event.currentTarget.value.length })
-            closeMenu()
-            return
-          }
-          if (hasComposerOverlay && (event.key === 'Backspace' || event.key === 'Delete')) {
-            if (deleteProjectedTokenRange(event.currentTarget, event.key === 'Backspace' ? 'backward' : 'forward')) {
+          }}
+          placeholder={props.placeholder}
+          ariaLabel={props.placeholder}
+          ariaExpanded={!!trigger}
+          ariaControls={trigger ? menuListId : undefined}
+          disabled={props.isLoading}
+          multiline
+          className="relative z-0 w-full h-full border-0 rounded-none bg-transparent"
+          inputClassName={`${props.uiPanelTextFontClass} ${hasComposerOverlay ? `text-transparent ${hideProjectedCaret ? 'caret-transparent' : 'caret-[color:var(--kg-text-primary)]'} ${FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME}` : ''}`}
+          dataAttributes={{
+            'data-kg-chat-input': true,
+            'data-kg-chat-input-overlay-active': hasComposerOverlay ? '1' : undefined,
+            'data-kg-chat-input-media-overlay-active': hasMediaOverlay ? '1' : undefined,
+          }}
+          onKeyDown={event => {
+            if (hasComposerOverlay && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
               event.preventDefault()
+              event.currentTarget.setSelectionRange(0, event.currentTarget.value.length)
+              setSelectionRange({ start: 0, end: event.currentTarget.value.length })
+              closeMenu()
               return
             }
-          }
-          if (!(event.metaKey || event.ctrlKey) || event.key !== 'Enter' || props.isSubmitDisabled) return
-          event.preventDefault()
-          event.currentTarget.form?.requestSubmit()
-        }}
-      />
+            if (hasComposerOverlay && (event.key === 'Backspace' || event.key === 'Delete')) {
+              if (deleteProjectedTokenRange(event.currentTarget, event.key === 'Backspace' ? 'backward' : 'forward')) {
+                event.preventDefault()
+                return
+              }
+            }
+            if (!(event.metaKey || event.ctrlKey) || event.key !== 'Enter' || props.isSubmitDisabled) return
+            event.preventDefault()
+            event.currentTarget.form?.requestSubmit()
+          }}
+        />
+      </section>
       <AnchorOverlay anchorRef={anchorRef} open={!!trigger} onClose={closeMenu} align="top-left" className={`w-[min(22rem,calc(100vw-1rem))] rounded border p-2 shadow-sm ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
         <MarkdownBlockContainerCommandMenu
           ariaLabel={ariaLabel}

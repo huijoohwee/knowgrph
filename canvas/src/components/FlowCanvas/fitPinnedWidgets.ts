@@ -12,7 +12,14 @@ import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/storyboardWidget/fron
 import { resolveFlowLayoutBalancedViewportPreset } from '@/lib/graph/frontmatterFlowSettings'
 import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
-import { computeBalancedSpreadBaseGapPx, computeBalancedSpreadLayout, computeBalancedSpreadSpacingPx, computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSpread'
+import {
+  computeBalancedSpreadBaseGapPx,
+  computeBalancedSpreadLayout,
+  computeBalancedSpreadSpacingPx,
+  computeBalancedSpreadViewportMargins,
+  isHorizontalOverlayStrip,
+  isVerticalOverlayCluster,
+} from '@/lib/ui/overlayBalancedSpread'
 import {
   computeLayoutRectSetViewportCenterShift,
   measureTransformedGraphElementScreenRectSet,
@@ -22,6 +29,25 @@ export { readFrontmatterOverlayFitProxyScale } from '@/components/FlowCanvas/fro
 
 type OverlayPanelSize = { width: number; height: number }
 type ReadOverlayPanelSize = (node: GraphNode) => OverlayPanelSize | null | undefined
+const FRONTMATTER_STALE_WORLD_LAYOUT_GAP_PX = 24
+
+function hasOverlappingOverlayLayout(args: {
+  items: Array<{ left: number; top: number; width: number; height: number }>
+  gapPx: number
+}): boolean {
+  const items = Array.isArray(args.items) ? args.items : []
+  const gapPx = Math.max(0, Number(args.gapPx) || 0)
+  for (let i = 0; i < items.length; i += 1) {
+    const left = items[i]!
+    for (let j = i + 1; j < items.length; j += 1) {
+      const right = items[j]!
+      const overlapX = left.left < right.left + right.width + gapPx && right.left < left.left + left.width + gapPx
+      const overlapY = left.top < right.top + right.height + gapPx && right.top < left.top + left.height + gapPx
+      if (overlapX && overlapY) return true
+    }
+  }
+  return false
+}
 
 export function fitStoryboardWidgetPinnedWidgets(args: {
   nodes: GraphNode[]
@@ -176,6 +202,28 @@ export function fitStoryboardWidgetPinnedWidgets(args: {
       marginBottomPx: margins.bottom,
       snapPx: 1,
     })
+    const useFrontmatterBalancedFallback = (() => {
+      if (!isFrontmatterOverlayFit || pinned.length <= 1) return false
+      const items: Array<{ left: number; top: number; width: number; height: number }> = []
+      for (let i = 0; i < pinned.length; i += 1) {
+        const entry = pinned[i]!
+        const stored = worldById[entry.id] as { x?: unknown; y?: unknown } | null
+        const storedX = typeof stored?.x === 'number' && Number.isFinite(stored.x) ? (stored.x as number) : null
+        const storedY = typeof stored?.y === 'number' && Number.isFinite(stored.y) ? (stored.y as number) : null
+        if (storedX == null || storedY == null) continue
+        const panelBaseSize = readPanelSize(entry.id)
+        items.push({
+          left: storedX,
+          top: storedY,
+          width: (panelBaseSize.width * panelScale) / Math.max(1e-6, kGuess),
+          height: (panelBaseSize.height * panelScale) / Math.max(1e-6, kGuess),
+        })
+      }
+      if (items.length !== pinned.length) return false
+      return hasOverlappingOverlayLayout({ items, gapPx: FRONTMATTER_STALE_WORLD_LAYOUT_GAP_PX })
+        || isVerticalOverlayCluster({ items, gapPx: FRONTMATTER_STALE_WORLD_LAYOUT_GAP_PX })
+        || isHorizontalOverlayStrip({ items, gapPx: FRONTMATTER_STALE_WORLD_LAYOUT_GAP_PX })
+    })()
     if (!(maxPanelW > 1e-9) || !(maxPanelH > 1e-9) || !(maxPanelWFit > 1e-9) || !(maxPanelHFit > 1e-9)) {
       return {
         extras: [] as GraphNode[],
@@ -219,8 +267,12 @@ export function fitStoryboardWidgetPinnedWidgets(args: {
         return { left, top }
       })()
 
-      const left = !isFrontmatterOverlayFit && storedX != null ? storedX : (fallback ? fallback.left : storedX)
-      const top = !isFrontmatterOverlayFit && storedY != null ? storedY : (fallback ? fallback.top : storedY)
+      const left = useFrontmatterBalancedFallback
+        ? (fallback ? fallback.left : storedX)
+        : (storedX != null ? storedX : (fallback ? fallback.left : storedX))
+      const top = useFrontmatterBalancedFallback
+        ? (fallback ? fallback.top : storedY)
+        : (storedY != null ? storedY : (fallback ? fallback.top : storedY))
       if (left == null || top == null) continue
       const centerX = left + panelW / 2
       const centerY = top + panelH / 2
@@ -250,15 +302,16 @@ export function fitStoryboardWidgetPinnedWidgets(args: {
       })
     }
 
-    const unpinnedNodes = isFrontmatterOverlayFit
-      ? []
-      : nodes.filter(node => {
-          const id = String(node?.id || '').trim()
-          return !id || !pinnedIdSet.has(id)
-        })
+    const fitBaseNodes =
+      isFrontmatterOverlayFit && fitExtras.length === 1
+        ? nodes
+        : nodes.filter(node => {
+            const id = String(node?.id || '').trim()
+            return !id || !pinnedIdSet.has(id)
+          })
     return {
       extras,
-      fitNodes: fitExtras.length > 0 ? [...unpinnedNodes, ...fitExtras] : nodes,
+      fitNodes: fitExtras.length > 0 ? [...fitBaseNodes, ...fitExtras] : nodes,
     }
   }
 

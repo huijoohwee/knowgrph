@@ -10,6 +10,7 @@ import { setWorkspaceDataViewFloatingDensity } from '@/features/markdown-workspa
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { waitForFrames } from '@/tests/lib/reactRootHarness'
 import { cn } from '@/lib/utils'
+import { UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES } from '@/lib/ui/surfaceClasses'
 
 export async function testCardInlineTextSurfaceKeepsViewEditLayoutStable() {
   const { dom, restore } = initJsdomHarness()
@@ -40,6 +41,9 @@ export async function testCardInlineTextSurfaceKeepsViewEditLayoutStable() {
     })
     const display = container.querySelector('[data-kg-card-inline-edit="1"]')
     if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected Card read surface')
+    if (display.getAttribute('data-kg-view-edit-surface-area') !== UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES['data-kg-view-edit-surface-area']) {
+      throw new Error('expected Card read surface to reuse the shared view/edit area contract')
+    }
     if (!display.className.includes('min-h-full') || !display.className.includes('whitespace-pre-wrap')) {
       throw new Error(`expected caller-owned full-height read layout, got ${display.className}`)
     }
@@ -52,6 +56,10 @@ export async function testCardInlineTextSurfaceKeepsViewEditLayoutStable() {
     })
     const editor = container.querySelector('[data-kg-card-inline-viewer-edit-surface="1"]')
     if (!(editor instanceof dom.window.HTMLElement)) throw new Error('expected Card Viewer edit surface')
+    const editorShell = editor.closest('[data-kg-view-edit-surface-area]')
+    if (!(editorShell instanceof dom.window.HTMLElement) || editorShell.getAttribute('data-kg-view-edit-surface-area') !== UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES['data-kg-view-edit-surface-area']) {
+      throw new Error('expected Card edit shell to reuse the shared view/edit area contract')
+    }
     if (!editor.className.includes('h-full') || !editor.className.includes('min-h-0')) {
       throw new Error(`expected edit surface to fill the same shared frame, got ${editor.className}`)
     }

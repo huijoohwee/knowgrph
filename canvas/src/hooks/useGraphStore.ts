@@ -274,6 +274,17 @@ function clearWorkspaceGraphMutationExpiryTimer(): void {
   workspaceGraphMutationExpiryTimer = null
 }
 
+export function resetGraphStoreForTests(): void {
+  clearWorkspaceGraphMutationExpiryTimer()
+  useGraphStore.getState().resetAll()
+  useGraphStore.setState({
+    workspaceGraphMutationBlockUntilMs: 0,
+    workspaceGraphMutationBlockKey: '',
+    markdownWorkspaceIndexingInFlight: false,
+  } as Partial<GraphState>)
+  scheduleWorkspaceGraphMutationExpiryFromStore()
+}
+
 function scheduleWorkspaceGraphMutationExpiryFromStore(): void {
   clearWorkspaceGraphMutationExpiryTimer()
   const state = useGraphStore.getState()

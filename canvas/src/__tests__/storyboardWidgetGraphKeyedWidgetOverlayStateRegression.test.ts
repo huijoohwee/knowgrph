@@ -3,21 +3,26 @@ import { resolve } from 'node:path'
 
 export function testStoryboardWidgetOverlayPrefersGraphKeyedWidgetState() {
   const editorPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorInner.tsx')
+  const editorStatePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetEditorOverlayUiState.ts')
+  const portalPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'FlowWidgetOverlayPortal.tsx')
   const runtimePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetPlacementRuntime.ts')
+  const runtimeStatePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'widgetPlacementRuntimeState.ts')
+  const runtimeProjectionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'widgetPlacementRuntimeProjection.ts')
   const overlaySurfaceElementsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetOverlaySurfaceElements.tsx')
   const overlaySurfaceRuntimePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx')
   const runtimeScenePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetRuntimeScene.ts')
   const runtimeWidgetStatePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetRuntimeWidgetState.ts')
   const widgetScopePath = resolve(process.cwd(), 'src', 'lib', 'storyboardWidget', 'widgetStateScope.ts')
-  const editorText = readFileSync(editorPath, 'utf8')
-  const runtimeText = readFileSync(runtimePath, 'utf8')
+  const editorText = `${readFileSync(editorPath, 'utf8')}\n${readFileSync(editorStatePath, 'utf8')}`
+  const portalText = readFileSync(portalPath, 'utf8')
+  const runtimeText = `${readFileSync(runtimePath, 'utf8')}\n${readFileSync(runtimeStatePath, 'utf8')}\n${readFileSync(runtimeProjectionPath, 'utf8')}`
   const overlaySurfaceText = readFileSync(overlaySurfaceElementsPath, 'utf8')
   const overlaySurfaceRuntimeText = readFileSync(overlaySurfaceRuntimePath, 'utf8')
   const runtimeSceneText = readFileSync(runtimeScenePath, 'utf8')
   const runtimeWidgetStateText = readFileSync(runtimeWidgetStatePath, 'utf8')
   const widgetScopeText = readFileSync(widgetScopePath, 'utf8')
 
-  if (!overlaySurfaceText.includes('const graphMetaKey = buildGraphMetaKeyIgnoringPending(')
+  if (!overlaySurfaceText.includes('const graphMetaKey = buildGraphDocumentMetaKey(')
     || !overlaySurfaceText.includes('useStableFrontmatterGraphAuthority')
     || !overlaySurfaceText.includes('args.lastStableRenderGraphDataOverride')
     || !overlaySurfaceText.includes(': args.renderGraphDataOverride')) {
@@ -26,7 +31,7 @@ export function testStoryboardWidgetOverlayPrefersGraphKeyedWidgetState() {
   if (!overlaySurfaceRuntimeText.includes("import { resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'")) {
     throw new Error('expected Storyboard Widget overlay surface to reuse the shared scoped widget-state helper for auto-pin seeding')
   }
-  if (!overlaySurfaceRuntimeText.includes("import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'")) {
+  if (!overlaySurfaceRuntimeText.includes("import { buildGraphDocumentMetaKey } from '@/lib/graph/graphMetaKey'")) {
     throw new Error('expected Storyboard Widget overlay surface to derive the active render graph key before auto-pin seeding')
   }
   if (!overlaySurfaceText.includes('graphMetaKey={graphMetaKey}')) {
@@ -64,7 +69,7 @@ export function testStoryboardWidgetOverlayPrefersGraphKeyedWidgetState() {
   if (!editorText.includes('return readScopedFlowWidgetNodeValue({')) {
     throw new Error('expected Storyboard Widget overlay readers to resolve floating screen state through the shared scoped widget-state helper')
   }
-  if (!editorText.includes('return typeof document === \'undefined\' ? overlayElement : createPortal(overlayElement, document.body)')) {
+  if (!portalText.includes('return typeof document === \'undefined\' ? overlayElement : createPortal(overlayElement, document.body)')) {
     throw new Error('expected Storyboard Widget overlays to keep the global body portal contract so fixed-position overlays stay in viewport coordinates')
   }
   if (!editorText.includes('keyedByGraphMetaKey: state.flowWidgetPinnedByNodeIdByGraphMetaKey')) {
@@ -95,7 +100,7 @@ export function testStoryboardWidgetOverlayPrefersGraphKeyedWidgetState() {
     || !runtimeText.includes('const storedWorld = currentStoredWorldForPlacement || (floatingUsesScreenAuthority ? null : widgetWorldPosRef.current)')) {
     throw new Error('expected Storyboard Widget placement loop to keep graph-keyed world SSOT out of floating screen-authority placement reads')
   }
-  if (!runtimeSceneText.includes('const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForSeeding)')) {
+  if (!runtimeSceneText.includes('const graphKey = buildGraphDocumentMetaKey(graphDataForSeeding)')) {
     throw new Error('expected Storyboard Widget runtime scene workspace-blocked widget seeding to write graph-keyed world positions under the active render graph key before falling back to store graph state')
   }
   if (!runtimeSceneText.includes('useStoryboardWidgetStateDependencyCounts')) {
@@ -107,7 +112,7 @@ export function testStoryboardWidgetOverlayPrefersGraphKeyedWidgetState() {
   if (!runtimeWidgetStateText.includes('const state = useGraphStore(useShallow(s => ({')) {
     throw new Error('expected Storyboard Widget runtime scene to gather widget state refs without rebuilding graph identity inside store selectors')
   }
-  if (!runtimeWidgetStateText.includes('const graphKey = React.useMemo(() => buildGraphMetaKeyIgnoringPending(state.graphData), [state.graphData])')) {
+  if (!runtimeWidgetStateText.includes('const graphKey = React.useMemo(() => buildGraphDocumentMetaKey(state.graphData), [state.graphData])')) {
     throw new Error('expected Storyboard Widget runtime scene to memoize the active graph key for widget dependency counts')
   }
   if (!runtimeWidgetStateText.includes('const flowWidgetWorldPosCount = React.useMemo(() => Object.keys(resolveScopedFlowWidgetNodeMap({')) {
@@ -149,13 +154,13 @@ export function testStoryboardWidgetOverlayCollisionPrefersGraphKeyedWidgetState
   const collisionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlayCollision.ts')
   const collisionText = readFileSync(collisionPath, 'utf8')
 
-  if (!collisionText.includes("import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'")) {
+  if (!collisionText.includes("import { buildGraphDocumentMetaKey } from '@/lib/graph/graphMetaKey'")) {
     throw new Error('expected Storyboard Widget overlay collision runtime to derive the active render-graph key before reading widget state')
   }
   if (!collisionText.includes("import { resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'")) {
     throw new Error('expected Storyboard Widget overlay collision runtime to reuse the shared scoped widget-state helper')
   }
-  if (!collisionText.includes('const graphKey = buildGraphMetaKeyIgnoringPending(graphDataForOverlayRuntime)')) {
+  if (!collisionText.includes('const graphKey = buildGraphDocumentMetaKey(graphDataForOverlayRuntime)')) {
     throw new Error('expected Storyboard Widget overlay collision runtime to derive one graph key from the active overlay graph source')
   }
   if (!collisionText.includes('const pinnedById = resolveScopedFlowWidgetNodeMap({')) {

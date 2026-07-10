@@ -32,7 +32,7 @@ const OPERATION_SCHEMA = Object.freeze({
 export const buildAgentSandboxPolicyToolDefinitions = ({ toolNames, withDefaults, readOnlyAnnotations }) => [
   withDefaults({
     name: toolNames.sandboxPolicyValidate,
-    description: "Validate and compile one source-backed dependency-free agent sandbox policy without executing commands, accessing credentials, or opening network connections.",
+    description: "Use this when a local MCP host needs to validate and compile one source-backed dependency-free agent sandbox policy without executing commands, accessing credentials, or opening network connections.",
     outputSchema: OUTPUT_SCHEMA,
     inputSchema: {
       type: "object",
@@ -43,7 +43,7 @@ export const buildAgentSandboxPolicyToolDefinitions = ({ toolNames, withDefaults
   }, readOnlyAnnotations),
   withDefaults({
     name: toolNames.sandboxPolicyAuthorize,
-    description: "Return a fail-closed preflight decision for one filesystem, process, network, or credential operation under a compiled sandbox policy; this does not provide OS isolation or execute the operation.",
+    description: "Use this when a local MCP host needs a fail-closed preflight decision for one filesystem, process, network, or credential operation under a compiled sandbox policy; this does not provide OS isolation or execute the operation.",
     outputSchema: OUTPUT_SCHEMA,
     inputSchema: {
       type: "object",

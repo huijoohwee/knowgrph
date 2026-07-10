@@ -462,22 +462,29 @@ export async function testXrModeModelAssetSwitchUsesDocumentScopedRenderIdentity
 
 export function testXrModeModelAssetSwitchResetsCameraXyzCoordinates() {
   const threeGraph = readFileSync(resolve(process.cwd(), 'src/lib/three/ThreeGraph.impl.tsx'), 'utf8')
-  if (!threeGraph.includes('modelAssetRenderKey={glbAssetRenderKey}')) {
+  if (
+    !threeGraph.includes('modelAssetRenderKey={glbAssetRenderKey}')
+    && !threeGraph.includes('modelAssetRenderKey={spatialCaptureRenderKey || glbAssetRenderKey}')
+  ) {
     throw new Error('Expected ThreeGraph to pass the selected model asset identity into 3D controls')
   }
-  if (!threeGraph.includes('onFitChange={handleGlbAssetFitChange}') || !threeGraph.includes('modelAssetFit={glbAssetFit}')) {
+  if (
+    !threeGraph.includes('onFitChange={handleGlbAssetFitChange}')
+    || (!threeGraph.includes('modelAssetFit={glbAssetFit}') && !threeGraph.includes('modelAssetFit={spatialCaptureRenderKey ? spatialCaptureFit : glbAssetFit}'))
+  ) {
     throw new Error('Expected ThreeGraph to route loaded GLB/GLTF bounds into 3D controls for XYZ camera framing')
   }
 
   const controls = readFileSync(resolve(process.cwd(), 'src/features/three/Controls.tsx'), 'utf8')
+  const modelAssetCameraPose = readFileSync(resolve(process.cwd(), 'src/features/three/modelAssetCameraPose.ts'), 'utf8')
   if (!controls.includes('modelAssetRenderKey?: string')) {
     throw new Error('Expected 3D Controls to accept model asset render identity')
   }
   if (!controls.includes('modelAssetFit?: ModelAssetCameraFit | null')) {
     throw new Error('Expected 3D Controls to accept loaded model fit dimensions')
   }
-  if (!controls.includes("flatAxis?: 'x' | 'y' | 'z' | null")) {
-    throw new Error('Expected 3D Controls to receive the loaded model flat-axis orientation')
+  if (!modelAssetCameraPose.includes("'cameraProfile' | 'cameraTarget' | 'floorY' | 'preserveFlatFacing' | 'flatAxis' | 'stageSpan' | 'scaledSize'")) {
+    throw new Error('Expected model-asset camera fit metadata to retain flat-axis orientation for pose derivation')
   }
   if (!controls.includes("const modelAssetMode = !!String(modelAssetRenderKey || '').trim()")) {
     throw new Error('Expected 3D Controls to identify model-asset render sessions')
@@ -491,10 +498,10 @@ export function testXrModeModelAssetSwitchResetsCameraXyzCoordinates() {
   if (controls.includes('if (paused || viewPinned || !key) return')) {
     throw new Error('Expected GLB/GLTF model camera reset to reframe selected model assets even when the graph view was pinned')
   }
-  if (!controls.includes("fit.flatAxis === 'y'") || !controls.includes('position: [0, span * 2.65, span * 0.02]') || !controls.includes('up: [0, 0, -1]')) {
+  if (!modelAssetCameraPose.includes("if (fit.flatAxis === 'y')") || !modelAssetCameraPose.includes('position: [0, span * 2.65, span * 0.02]') || !modelAssetCameraPose.includes('up: [0, 0, -1]')) {
     throw new Error('Expected horizontal XZ GLB/GLTF planes to use a top-down camera instead of a vertical front camera')
   }
-  if (!controls.includes('verticalSpan <= lateralSpan * 0.22') || !controls.includes('position: [0, span * 2.65, span * 0.02]')) {
+  if (!modelAssetCameraPose.includes('verticalSpan <= lateralSpan * 0.22') || !modelAssetCameraPose.includes('position: [0, span * 2.65, span * 0.02]')) {
     throw new Error('Expected low-height horizontal GLB/GLTF scenes to use a top-down camera instead of a side-on camera')
   }
   if (!controls.includes('controls.autoRotate = modelAssetMode') || !controls.includes('? false')) {

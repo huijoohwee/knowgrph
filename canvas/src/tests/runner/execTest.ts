@@ -1,4 +1,5 @@
 import { ensureTestEnvPolyfills } from '../env/polyfills'
+import { resetCanvasTestRuntime } from '../lib/resetCanvasTestRuntime'
 import type { TestResult } from './testRunnerTypes'
 
 let cachedFilterLower: string | null | undefined
@@ -80,6 +81,7 @@ export const execTest = async (results: TestResult[], name: string, fn: () => vo
     console.log(`DONE ${name} (error)`)
     results.push({ name, ok: false, error: msg })
   } finally {
+    resetCanvasTestRuntime()
     clearCurrentRunningTest()
   }
 }

@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { buildGraphDocumentMetaKey } from '@/lib/graph/graphMetaKey'
 
 export type FlowWidgetWorldPosById = Record<string, { x: number; y: number }>
 export type FlowWidgetScreenPosById = Record<string, { top: number; left: number }>
@@ -31,7 +31,7 @@ export function useStoryboardWidgetStateDependencyCounts() {
     pinned: s.flowWidgetPinnedByNodeId,
     pinnedByGraph: (s as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, FlowWidgetPinnedById> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
   })))
-  const graphKey = React.useMemo(() => buildGraphMetaKeyIgnoringPending(state.graphData), [state.graphData])
+  const graphKey = React.useMemo(() => buildGraphDocumentMetaKey(state.graphData), [state.graphData])
   const flowWidgetWorldPosCount = React.useMemo(() => Object.keys(resolveScopedFlowWidgetNodeMap({
     graphMetaKey: graphKey,
     keyedByGraphMetaKey: state.worldByGraph,

@@ -516,6 +516,7 @@ export default function StoryboardWidgetCanvasRuntime(
     convertNodeToLoopById,
     duplicateNodeById,
     enableHandlesForAllInputs,
+    patchNodeById,
     patchNodePropertiesById,
     patchSelectedNodeProperties,
     removeNodeById,
@@ -822,6 +823,7 @@ export default function StoryboardWidgetCanvasRuntime(
       zoomViewKeyRef={zoomViewKeyRef}
       addNodeFromRegistryAtWorld={addNodeFromRegistryAtWorld}
       addRichMediaPanelFromMediaAtWorld={addRichMediaPanelFromMediaAtWorld}
+      patchNodeById={patchNodeById}
       patchNodePropertiesById={patchNodePropertiesById}
       upsertUiToast={upsertUiToast}
       createPortal={createPortal}

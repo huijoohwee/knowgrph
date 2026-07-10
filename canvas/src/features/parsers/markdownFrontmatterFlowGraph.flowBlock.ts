@@ -2,7 +2,6 @@ import { load as parseYaml } from 'js-yaml'
 import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import {
   repairFlowInlineEnvelopeBlockScalars,
-  repairWrappedQuotedFrontmatterKeys,
   repairYamlInlineColonSpacing,
 } from '@/lib/markdown/frontmatterYamlRepair'
 import { isUnsafeFlowComputeSource } from '@/lib/storyboardWidget/flowComputeInline'
@@ -80,10 +79,20 @@ function countIndent(rawLine: string): number {
   while (i < rawLine.length && rawLine[i] === ' ') i += 1
   return i
 }
+
+function repairWrappedQuotedKeys(raw: string): string {
+  return String(raw || '').replace(
+    /"([A-Za-z0-9_.:-]+)\s*\n\s*([A-Za-z0-9_.:-]+)"(?=\s*:)/g,
+    (_match, prefix: string, suffix: string) => `"${prefix}${suffix}"`,
+  )
+}
+
 function parseFlowObjectFromYamlBlock(rawBlock: string): Record<string, unknown> | null {
   const block = String(rawBlock || '')
   if (!block) return null
-  const repairedBlock = repairWrappedQuotedFrontmatterKeys(repairFlowInlineEnvelopeBlockScalars(repairYamlInlineColonSpacing(block)))
+  const repairedBlock = repairWrappedQuotedKeys(
+    repairFlowInlineEnvelopeBlockScalars(repairYamlInlineColonSpacing(block)),
+  )
   try {
     const parsed = parseYaml(repairedBlock) as unknown
     if (isRecord(parsed) && isRecord(parsed.flow)) return parsed.flow as Record<string, unknown>

@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+
 import { computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK, computeWidgetScaledSize, projectCollectiveScreenLayoutForZoom, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import { coerceRichMediaPanelSizePx } from '@/lib/render/richMediaSsot'
@@ -8,6 +9,7 @@ import {
   applyFixedStoryboardCardPlacementsToGraphData2d,
   readStoryboardWidgetPlacementSize2d,
 } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
+
 function readSourceFilesUnder(dir: string): string[] {
   const entries = fs.readdirSync(dir, { withFileTypes: true })
   const files: string[] = []
@@ -62,7 +64,7 @@ export function testStoryboardWidgetCollectiveScaleDoesNotReverseZoomDirection()
   }
 }
 
-export function testStoryboardWidgetPlacementUsesWidgetBalancedSpreadSize() {
+export function testStoryboardWidgetPlacementReusesSharedSurfaceDefaultSize() {
   const graphData = {
     type: 'application/json',
     nodes: [
@@ -107,12 +109,8 @@ export function testStoryboardWidgetPlacementUsesWidgetBalancedSpreadSize() {
   }
   const cardGap = readGap(cardLayout)
   const widgetGap = readGap(widgetLayout)
-  const minimumWidgetGap = WIDGET_BASE_SIZE.height + 64
-  if (!(widgetGap >= minimumWidgetGap)) {
-    throw new Error(`expected Widget Storyboard placement to use balanced widget-height rows, got gap=${widgetGap} minimum=${minimumWidgetGap}`)
-  }
-  if (!(widgetGap > cardGap + WIDGET_BASE_SIZE.height / 2)) {
-    throw new Error(`expected Widget placement to avoid Card-height row overlap, cardGap=${cardGap} widgetGap=${widgetGap}`)
+  if (widgetGap !== cardGap) {
+    throw new Error(`expected Card and Widget placement to reuse identical default shape and size, cardGap=${cardGap} widgetGap=${widgetGap}`)
   }
 }
 

@@ -248,7 +248,6 @@ export function testStoryboardCanvasKeepsNativeRendererContract() {
     'const snappedTopLeft = snapPointToGrid({',
     'data-kg-storyboard-fixed-card-layout={storyboardBoardLayoutMode}',
     'isFlowWidgetHeaderDragAllowedByPin({',
-    'fixedLayoutEnabled,',
     'pinnedInCanvas: headerPinProps.headerPinned === true',
     'target?.closest(\'[data-kg-port-handle="1"],[data-kg-rich-media-resize-handle="1"]\')',
     'showPinToggle={selected && typeof headerPinProps.onHeaderTogglePinned ===',

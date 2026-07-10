@@ -22,13 +22,14 @@ import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { seedMissingFlowWidgetPinnedByIds } from '@/lib/storyboardWidget/flowWidgetPinnedState'
 import { resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { buildGraphDocumentMetaKey } from '@/lib/graph/graphMetaKey'
 import { isStoryboardWidgetQeTraceEnabled, pushStoryboardWidgetQeTrace } from '@/lib/storyboardWidget/storyboardWidgetQeTrace'
 import {
   buildRichMediaConnectedValueTargetNodeIdSet,
   listDisplayRichMediaOverlayNodes,
 } from '@/lib/render/richMediaSsot'
 import { applyFixedStoryboardCardPlacementsToGraphData2d, readStoryboardWidgetPlacementSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
+import { useStableStoryboardCardPlacements2d } from '@/components/StoryboardWidgetCanvas/useStableStoryboardCardPlacements2d'
 import {
   getCachedStoryboardWidgetRenderGraph,
   getCachedStoryboardWidgetPlacementContext,
@@ -298,6 +299,14 @@ export function useStoryboardWidgetOverlaySurface(args: {
     if (revision > 0) return revision
     return storyboardWidgetViewActive ? draftGraphDataRevision : baseGraphDataRevision
   }, [baseGraphDataRevision, draftGraphDataRevision, storyboardWidgetViewActive, renderGraphDataOverride])
+  const stableStoryboardCardPlacements = useStableStoryboardCardPlacements2d({
+    aspectRatioMode: strybldrStoryboardCardAspectMode,
+    graphData: renderGraphDataOverride,
+    graphRevision: renderGraphDataRevision,
+    layoutKey: stableOverlaySurfaceCacheKey,
+    schema,
+    widgetRegistry,
+  })
   const overlayLayoutGraphData = React.useMemo((): GraphData | null => {
     if (String(storyboardWidgetSurfaceId || '').trim() !== 'storyboard') return renderGraphDataOverride
     return applyFixedStoryboardCardPlacementsToGraphData2d({
@@ -305,6 +314,7 @@ export function useStoryboardWidgetOverlaySurface(args: {
       flowWidgetPinnedByNodeId,
       graphData: renderGraphDataOverride,
       graphRevision: renderGraphDataRevision,
+      referencePlacements: stableStoryboardCardPlacements,
       readPlacementSize: node => readStoryboardWidgetPlacementSize2d(node, strybldrStoryboardCardAspectMode),
       schema,
       widgetRegistry,
@@ -314,6 +324,7 @@ export function useStoryboardWidgetOverlaySurface(args: {
     renderGraphDataOverride,
     renderGraphDataRevision,
     schema,
+    stableStoryboardCardPlacements,
     storyboardWidgetSurfaceId,
     strybldrStoryboardCardAspectMode,
     widgetRegistry,
@@ -348,7 +359,7 @@ export function useStoryboardWidgetOverlaySurface(args: {
   }, [openWidgetNodeIdsSnapshot, overlayLayoutGraphData, renderGraphDataRevision])
   const renderGraphMetaKind = renderGraphPlacementContext?.graphMetaKind || renderGraphLookup?.graphMetaKind || null
   const renderGraphMetaKey = React.useMemo(
-    () => buildGraphMetaKeyIgnoringPending(renderGraphDataOverride),
+    () => buildGraphDocumentMetaKey(renderGraphDataOverride),
     [renderGraphDataOverride],
   )
   const deferComposedGraphOverlayRender = React.useMemo(

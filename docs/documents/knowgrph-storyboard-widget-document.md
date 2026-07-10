@@ -173,12 +173,15 @@
 - The Widget must read row identity from normalized schema path + semantic key, not visible label text. Repeated labels such as `Value` are allowed only when their control ids, accessible names, and port handles remain unique.
 - Validation must prove the full Source Files -> Markdown parser -> Storyboard Widget -> Rich Media Panel chain when a template includes panel outputs. A passing parse without Storyboard surface proof is not enough for renderer changes.
 - A publish-side template is valid only when parser warnings are zero, declared ports have matching `flow:portTypes`, and Rich Media Panel endpoints render through shared panel state rather than local preview branches.
+- Card, Widget, Rich Media Panel, and Editor Workspace Viewer read/edit regions must consume the neutral view/edit surface-area contract. Authored overlay dimensions remain placement state; a child surface must not introduce a second width, height, or scroll policy that can resize or shift sibling overlays.
+- Card, Widget, and Rich Media Panel chrome uses an opaque generated media-surface token plus a true selected outline: the shared panel chrome owner must not add box-shadow rings, the placement shell must not duplicate the semantic Rich Media render-surface marker, and local theme CSS must not remap the canonical media background to a translucent general-panel token.
 
 ### Code Locations
 
 - Dataflow compute: `canvas/src/lib/storyboardWidget/flowDataflow.ts`
 - Overlay wiring: `canvas/src/components/StoryboardWidgetCanvas.tsx`
 - Connected-value UI hints: `canvas/src/components/StoryboardWidget/WidgetEditorRegistrySection.tsx`
+- Shared view/edit area contract: `canvas/src/lib/ui/surfaceClasses.ts`
 
 ---
 

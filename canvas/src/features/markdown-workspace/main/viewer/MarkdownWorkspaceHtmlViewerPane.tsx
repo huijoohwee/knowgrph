@@ -4,6 +4,7 @@ import { buildMarkdownTokensKey } from '@/features/markdown/ui/markdownPreviewLe
 import { buildMarkdownHtmlViewerDocument } from '@/features/markdown/htmlViewerCss'
 import { buildWebpageHtmlSrcdoc } from '@/lib/websites/webpageIframeSrcdoc'
 import { LRUCache } from '@/lib/cache/LRUCache'
+import { UI_VIEW_EDIT_SURFACE_AREA_CLASS_NAME, UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES } from '@/lib/ui/surfaceClasses'
 
 const md = getMarkdownIt()
 const HTML_VIEWER_SRCDOC_CACHE = new LRUCache<string, string>(40)
@@ -37,11 +38,11 @@ export function MarkdownWorkspaceHtmlViewerPane(props: {
   }, [props.markdownText, props.title, renderKey])
 
   return (
-    <section className="h-full w-full" aria-label="HTML viewer">
+    <section className={UI_VIEW_EDIT_SURFACE_AREA_CLASS_NAME} aria-label="HTML viewer" {...UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES}>
       <iframe
         ref={props.onIframeRef}
         title="HTML viewer"
-        className="h-full w-full"
+        className={UI_VIEW_EDIT_SURFACE_AREA_CLASS_NAME}
         sandbox=""
         srcDoc={srcDoc}
       />

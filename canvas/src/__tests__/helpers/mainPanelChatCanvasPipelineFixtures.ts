@@ -112,6 +112,9 @@ export const READY_CHAT_PIPELINE: LocalChatPipelineSurfaceSnapshot = {
     persistedKnowgrphPath: '/chat/knowgrph/agent-ready.md',
     applied: true,
     message: 'Applied',
+    failureNote: null,
+    retryHint: null,
+    retryCommand: null,
   },
 }
 

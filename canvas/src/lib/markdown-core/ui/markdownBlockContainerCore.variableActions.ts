@@ -59,10 +59,12 @@ export const useMarkdownBlockContainerVariableActions = (args: {
   const readCommandDraft = React.useCallback(() => {
     const el = args.editorRef.current
     const hasInlineMarkdownTokens = !!el?.querySelector(INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR)
-    const visibleSelection = args.getCommandSelectionOffsets?.() || args.getSelectionOffsets()
+    const cachedCommandSelection = args.getCommandSelectionOffsets?.()
+    const visibleSelection = args.getSelectionOffsets()
     if (el && hasInlineMarkdownTokens) {
       const text = readInlineMediaEditorMarkdownText(el)
       const selection = getInlineMediaEditorMarkdownSelectionOffsets(el)
+        || cachedCommandSelection
         || mapInlineMediaEditorVisibleOffsetsToMarkdownOffsets(el, visibleSelection)
       return { text: text || args.getDraft(), selection }
     }
@@ -76,7 +78,7 @@ export const useMarkdownBlockContainerVariableActions = (args: {
       }
       return args.getDraft()
     })()
-    return { text, selection: visibleSelection }
+    return { text, selection: cachedCommandSelection || visibleSelection }
   }, [args])
 
   const applyVariableFrontmatterCrud = React.useCallback((mode: 'create' | 'update' | 'delete', keyRaw: string, valueRaw?: string) => {

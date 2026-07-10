@@ -1,6 +1,7 @@
 import React from 'react'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
 import { MarkdownWorkspaceToolbar } from '../../MarkdownWorkspaceToolbar'
+import { UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES, UI_VIEW_EDIT_SURFACE_FLEX_AREA_CLASS_NAME } from '@/lib/ui/surfaceClasses'
 import { resolveMarkdownWorkspacePaneVisibility, type MarkdownWorkspacePaneAvailability, type MarkdownWorkspacePaneVisibility } from '../types'
 
 export function MarkdownWorkspaceLayout(props: {
@@ -26,6 +27,7 @@ export function MarkdownWorkspaceLayout(props: {
   })
   const binaryPaneVisible = props.binaryPaneVisible === true
   const paneClassName = 'kg-markdown-workspace-pane flex-1 min-w-0 min-h-0 flex flex-col'
+  const viewerPaneClassName = `kg-markdown-workspace-pane flex flex-col ${UI_VIEW_EDIT_SURFACE_FLEX_AREA_CLASS_NAME}`
   const paneDividerClassName = 'kg-markdown-workspace-pane-divider w-px self-stretch bg-[color:var(--kg-border)] border-0'
   const splitPanes = [
     binaryPaneVisible ? (
@@ -44,7 +46,7 @@ export function MarkdownWorkspaceLayout(props: {
       </section>
     ) : null,
     paneVisibility.viewer ? (
-      <section key="viewer" className={paneClassName} aria-label="Viewer">
+      <section key="viewer" className={viewerPaneClassName} aria-label="Viewer" {...UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES}>
         {props.viewer}
       </section>
     ) : null,
@@ -57,7 +59,7 @@ export function MarkdownWorkspaceLayout(props: {
   const effectiveSplitPanes = splitPanes.length > 0
     ? splitPanes
     : [
-        <section key="viewer-fallback" className="flex-1 min-w-0 min-h-0 flex flex-col" aria-label="Viewer">
+        <section key="viewer-fallback" className={viewerPaneClassName} aria-label="Viewer" {...UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES}>
           {props.viewer}
         </section>,
       ]
@@ -81,7 +83,9 @@ export function MarkdownWorkspaceLayout(props: {
           ))}
         </section>
       ) : props.layoutMode === 'viewer' ? (
-        props.viewer
+        <section className={`flex flex-col ${UI_VIEW_EDIT_SURFACE_FLEX_AREA_CLASS_NAME}`} aria-label="Viewer" {...UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES}>
+          {props.viewer}
+        </section>
       ) : props.layoutMode === 'presentation' ? (
         <section className="flex-1 min-h-0 flex kg-workspace-surface-shell" aria-label="Presentation view">
           {props.presentation}

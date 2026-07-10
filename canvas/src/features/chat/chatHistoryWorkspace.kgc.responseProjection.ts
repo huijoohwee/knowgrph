@@ -120,7 +120,7 @@ export const buildResponseMarkdownLines = (args: {
   const artifact = fallbackArtifact(args.profile.artifact)
   const intent = sanitizeRequestIntent(args.profile.intent, 320) || 'Prompt unavailable.'
   const resultLine = traceOnly
-    ? `For the request "${intent}", the provider returned trace/tool signals but no final assistant text. This document does not infer missing details or invent an answer; no answer is backfilled. Rerun the request or inspect the trace artifact.`
+    ? `For the request "${intent}", the provider returned trace/tool signals but no final assistant text. This document does not invent the missing answer or infer missing details; no answer is backfilled. Rerun the request or inspect the trace artifact.`
     : assistantSignal
       ? `Partial assistant signal: ${assistantSignal}. No answer is backfilled beyond the provider text.`
       : 'No final assistant answer was available. No answer is backfilled.'

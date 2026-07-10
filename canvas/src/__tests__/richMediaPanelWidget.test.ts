@@ -649,8 +649,8 @@ export function testRichMediaPanelInlineSrcDocUsesUnframedSharedSurface() {
   if (!widgetFormText.includes('onInlineContentSize={handleRichMediaContentSize}')) {
     throw new Error('expected Rich Media Panel form preview to auto-fit measured inline rich media content at the panel chrome')
   }
-  if (!srcDocText.includes('body>:is(main,section,article):first-child')) {
-    throw new Error('expected shared Rich Media Panel srcdoc reset to flatten top-level semantic frame wrappers')
+  if (!srcDocText.includes('body>:is(main,section,article):first-child') || !srcDocText.includes('[data-kg-rich-media-markdown-srcdoc="1"] img{display:block;width:100%;height:auto;object-fit:contain}')) {
+    throw new Error('expected shared Rich Media Panel srcdoc reset to flatten semantic frames and scale Markdown images with the responsive viewport')
   }
   if (srcDocText.includes('body>:is(main,section,article,div)')) {
     throw new Error('expected shared Rich Media Panel srcdoc reset to avoid generic HTML division element selectors')
@@ -1085,9 +1085,7 @@ export function testFlowCanvasRichMediaOverlayDragHandlersAreRendererScoped() {
     'const overlayInteractionEnabled = mediaOverlayInteractionPolicy.overlayPanActive',
     'const headerDragInteractionActive = mediaOverlayInteractionPolicy.headerDragActive',
     'const resizeInteractionActive = mediaOverlayInteractionPolicy.resizeActive',
-    "const storyboardFixedBoardLayoutEnabled = storyboardSharedSurfaceRendererMode && storyboardBoardLayoutMode === 'fixed'",
     'const richMediaPanelPinAllowsMovement = isFlowWidgetHeaderDragAllowedByPin({',
-    'fixedLayoutEnabled: storyboardFixedBoardLayoutEnabled',
     'pinnedInCanvas: richMediaPanelPinned',
     'const richMediaPanelMoveEnabled = headerDragInteractionActive && richMediaPanelPinAllowsMovement',
     'const richMediaPanelOverlayPanEnabled = overlayInteractionEnabled && richMediaPanelPinAllowsMovement',

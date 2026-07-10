@@ -1,5 +1,6 @@
 import React from 'react'
 import type { ChatMessage } from '../FloatingPanelChatSections'
+import type { UiToastInput } from '@/hooks/store/types'
 import {
   appendChatHistoryWorkspaceFile,
   isKgcStructuredMarkdown,
@@ -10,12 +11,264 @@ import {
   toConciseBulletText,
 } from './floatingPanelChatKgcPayload'
 import { persistChatExchangeLog } from './floatingPanelChatRuntime'
+import { buildChatPromotionRetryInsertAction } from './floatingPanelChatPromotionRetryUiAction'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { applyChatKgcWorkspaceDocumentToCanvas } from '@/features/chat/chatKgcCanvasApply'
 import { publishLocalChatPipelineFinalizeSnapshot } from '@/features/agent-ready/browserLocalSurfaceSnapshots'
 import { persistChatStreamArtifacts } from '@/features/chat/chatStreamArtifacts'
 
 const normalizeStoragePromotionPath = (value: unknown): string => normalizeWorkspacePath(String(value || '').trim())
+const WORKSPACE_MARKDOWN_LINK_RE = /\[[^\]]+\]\(((?:workspace:)?\/[^\s)]+\.md)\)/g
+const WORKSPACE_RESULT_PATH_RE = /(?:^|[\s{,[])(?:["']?(?:workspace_document_path|workspace_path|workspacePath)["']?)\s*[:=]\s*["']?((?:workspace:)?\/[^"'`\s,)]+\.md)/gim
+const GENERATED_ARTIFACT_PROMOTION_TOAST_TTL_MS = 12_000
+type WorkspaceArtifactStatus = 'APPLIED' | 'SAVED' | 'GENERATED'
+type WorkspaceArtifactPromotion = 'LOCAL_ONLY' | 'MIRRORED_GITHUB' | 'MIRRORED_STORAGE' | 'MIRRORED_GITHUB+STORAGE' | 'PROMOTION_FAILED'
+
+const normalizeAssistantWorkspacePath = (value: unknown): string => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  return normalizeWorkspacePath(raw.startsWith('workspace:') ? raw.slice('workspace:'.length) : raw)
+}
+
+const classifyWorkspaceArtifactType = (workspacePath: string): 'USER_MODEL' | 'TRACE' | 'REPORT' | 'OUTPUT' | 'KGC' | 'DOC' => {
+  const normalized = normalizeAssistantWorkspacePath(workspacePath).toLowerCase()
+  const base = normalized.split('/').filter(Boolean).slice(-1)[0] || ''
+  if (normalized.includes('/user-models/') || base.includes('user-model')) return 'USER_MODEL'
+  if (normalized.includes('/trace') || base.startsWith('kgc-trace_') || base.includes('--trace')) return 'TRACE'
+  if (base.startsWith('kgc-output_') || normalized.includes('/output')) return 'OUTPUT'
+  if (normalized.includes('/report') || base.includes('report')) return 'REPORT'
+  if (base.startsWith('kgc_')) return 'KGC'
+  return 'DOC'
+}
+
+const workspaceArtifactPriority = (workspacePath: string): number => {
+  const artifactType = classifyWorkspaceArtifactType(workspacePath)
+  if (artifactType === 'USER_MODEL') return 0
+  if (artifactType === 'KGC') return 1
+  if (artifactType === 'REPORT') return 2
+  if (artifactType === 'DOC') return 3
+  if (artifactType === 'OUTPUT') return 4
+  return 5
+}
+
+const collectWorkspaceMarkdownLinkPaths = (text: unknown): string[] => {
+  const content = String(text || '')
+  const paths: string[] = []
+  WORKSPACE_MARKDOWN_LINK_RE.lastIndex = 0
+  for (;;) {
+    const match = WORKSPACE_MARKDOWN_LINK_RE.exec(content)
+    if (!match?.[1]) break
+    const normalized = normalizeAssistantWorkspacePath(match[1])
+    if (normalized) paths.push(normalized)
+  }
+  return paths
+}
+
+const collectWorkspaceResultPaths = (text: unknown): string[] => {
+  const content = String(text || '')
+  const paths: string[] = []
+  WORKSPACE_RESULT_PATH_RE.lastIndex = 0
+  for (;;) {
+    const match = WORKSPACE_RESULT_PATH_RE.exec(content)
+    if (!match?.[1]) break
+    const normalized = normalizeAssistantWorkspacePath(match[1])
+    if (normalized) paths.push(normalized)
+  }
+  return paths
+}
+
+const workspaceArtifactStatusRank = (line: string): number => {
+  if (/\bAPPLIED\b/u.test(line)) return 2
+  if (/\bSAVED\b/u.test(line)) return 1
+  if (/\bGENERATED\b/u.test(line)) return 0
+  return -1
+}
+
+const workspaceArtifactPromotionRank = (line: string): number => {
+  if (/\bMIRRORED_GITHUB\+STORAGE\b/u.test(line)) return 4
+  if (/\bMIRRORED_GITHUB\b/u.test(line)) return 3
+  if (/\bMIRRORED_STORAGE\b/u.test(line)) return 2
+  if (/\bLOCAL_ONLY\b/u.test(line)) return 1
+  if (/\bPROMOTION_FAILED\b/u.test(line)) return 0
+  return -1
+}
+
+const buildWorkspaceSourceLinkLine = (
+  workspacePath: string,
+  status: WorkspaceArtifactStatus = 'GENERATED',
+  promotion: WorkspaceArtifactPromotion | null = null,
+): string => {
+  const label = workspacePath.split('/').filter(Boolean).slice(-1)[0] || 'workspace.md'
+  const artifactType = classifyWorkspaceArtifactType(workspacePath)
+  const qualifiers: Array<WorkspaceArtifactStatus | WorkspaceArtifactPromotion> = [status]
+  if (promotion) qualifiers.push(promotion)
+  return `- ${qualifiers.join(' · ')} · [Open ${artifactType} in Source Files: ${label}](${workspacePath})`
+}
+
+const workspaceSourceLinkLineRank = (line: string): number => {
+  if (/\bOpen (?:USER_MODEL|TRACE|REPORT|OUTPUT|KGC|DOC) in Source Files:/u.test(line)) return 100 + (workspaceArtifactStatusRank(line) * 10) + workspaceArtifactPromotionRank(line)
+  if (/\bOpen in Source Files:/u.test(line)) return (workspaceArtifactStatusRank(line) * 10) + workspaceArtifactPromotionRank(line)
+  return -1
+}
+
+const dedupeWorkspaceSourceLinkLines = (text: string): string => {
+  const lines = String(text || '').split('\n')
+  const keptLines: string[] = []
+  const keptIndicesByPath = new Map<string, number>()
+  for (const line of lines) {
+    const paths = collectWorkspaceMarkdownLinkPaths(line)
+    if (!paths.length) {
+      keptLines.push(line)
+      continue
+    }
+    const path = paths[0]
+    const existingIndex = keptIndicesByPath.get(path)
+    if (existingIndex == null) {
+      keptIndicesByPath.set(path, keptLines.length)
+      keptLines.push(line)
+      continue
+    }
+    const existingLine = keptLines[existingIndex] || ''
+    if (workspaceSourceLinkLineRank(line) > workspaceSourceLinkLineRank(existingLine)) {
+      keptLines[existingIndex] = line
+    }
+  }
+  return keptLines.join('\n')
+}
+
+const canonicalizeWorkspaceSourceLinkLines = (
+  text: string,
+  statusByPath: ReadonlyMap<string, WorkspaceArtifactStatus>,
+  promotionByPath: ReadonlyMap<string, WorkspaceArtifactPromotion>,
+): string => {
+  return String(text || '')
+    .split('\n')
+    .map(line => {
+      const path = collectWorkspaceMarkdownLinkPaths(line)[0]
+      if (!path) return line
+      return buildWorkspaceSourceLinkLine(path, statusByPath.get(path) || 'GENERATED', promotionByPath.get(path) || null)
+    })
+    .join('\n')
+}
+
+const groupWorkspaceSourceLinkLines = (text: string): string => {
+  const bodyLines: string[] = []
+  const workspaceLinkLines: string[] = []
+  for (const line of String(text || '').split('\n')) {
+    if (collectWorkspaceMarkdownLinkPaths(line).length) {
+      workspaceLinkLines.push(line)
+      continue
+    }
+    bodyLines.push(line)
+  }
+  if (!workspaceLinkLines.length) return text
+  const trimmedBody = bodyLines.join('\n').trimEnd()
+  const artifactsBlock = ['Artifacts:', ...workspaceLinkLines].join('\n')
+  return trimmedBody ? `${trimmedBody}\n\n${artifactsBlock}` : artifactsBlock
+}
+
+const appendDiscoveredWorkspaceSourceLinks = (
+  text: string,
+  candidateTexts: ReadonlyArray<unknown>,
+  excludedPaths: ReadonlyArray<string> = [],
+  promotionByPath: ReadonlyMap<string, WorkspaceArtifactPromotion> = new Map(),
+): string => {
+  const existingLinkPaths = new Set(collectWorkspaceMarkdownLinkPaths(text))
+  const excluded = new Set(excludedPaths.map(normalizeAssistantWorkspacePath).filter(Boolean))
+  const discovered = [...new Set(candidateTexts.flatMap(value => collectWorkspaceResultPaths(value)))]
+    .filter(path => path && !existingLinkPaths.has(path) && !excluded.has(path))
+    .map((path, index) => ({ path, index, priority: workspaceArtifactPriority(path) }))
+    .sort((left, right) => left.priority - right.priority || left.index - right.index)
+    .map(entry => entry.path)
+  if (!discovered.length) return text
+  return `${String(text || '').trimEnd()}\n${discovered.map(path => buildWorkspaceSourceLinkLine(path, 'GENERATED', promotionByPath.get(path) || null)).join('\n')}`
+}
+
+const toWorkspaceArtifactPromotion = (
+  result: PromoteGeneratedChatWorkspacePathsResult | null,
+): WorkspaceArtifactPromotion | null => {
+  if (!result || result.paths.length === 0) return null
+  if (result.githubStatus === 'applied' && result.storageStatus === 'applied') return 'MIRRORED_GITHUB+STORAGE'
+  if (result.githubStatus === 'applied') return 'MIRRORED_GITHUB'
+  if (result.storageStatus === 'applied') return 'MIRRORED_STORAGE'
+  if (result.githubStatus === 'failed' || result.storageStatus === 'failed') return 'PROMOTION_FAILED'
+  return 'LOCAL_ONLY'
+}
+
+const buildWorkspacePromotionFailureNote = (
+  result: PromoteGeneratedChatWorkspacePathsResult | null,
+): string | null => {
+  if (!result || (result.githubStatus !== 'failed' && result.storageStatus !== 'failed')) return null
+  const details: string[] = []
+  if (result.githubStatus === 'failed') {
+    details.push(`github: ${String(result.githubError || 'failed')}`)
+  } else {
+    details.push(`github: ${result.githubStatus}`)
+  }
+  if (result.storageStatus === 'failed') {
+    details.push(`storage: ${String(result.storageError || 'failed')}`)
+  } else {
+    details.push(`storage: ${result.storageStatus}`)
+  }
+  return `- Promotion note: mirroring failed (${details.join('; ')}).`
+}
+
+const buildWorkspacePromotionRetryHint = (
+  result: PromoteGeneratedChatWorkspacePathsResult | null,
+): string | null => {
+  if (!result || (result.githubStatus !== 'failed' && result.storageStatus !== 'failed')) return null
+  const githubError = String(result.githubError || '').trim().toLowerCase()
+  const storageError = String(result.storageError || '').trim().toLowerCase()
+  if (githubError.includes('fetch_unavailable')) {
+    return '- Retry hint: rerun from a fetch-capable runtime or browser session before mirroring again.'
+  }
+  if (githubError.includes('github_write_failed')) {
+    return '- Retry hint: verify the GitHub write route/config, or rerun with GitHub mirroring disabled for a local-only save.'
+  }
+  if (storageError.includes('storage_publish_failed')) {
+    return '- Retry hint: verify Knowgrph storage sync availability, then rerun mirroring for the saved local artifact.'
+  }
+  if (result.githubStatus === 'failed') {
+    return '- Retry hint: resolve the GitHub mirroring failure, then rerun promotion for the saved local artifact.'
+  }
+  if (result.storageStatus === 'failed') {
+    return '- Retry hint: resolve the storage mirroring failure, then rerun promotion for the saved local artifact.'
+  }
+  return null
+}
+
+const buildWorkspacePromotionRetryCommand = (
+  result: PromoteGeneratedChatWorkspacePathsResult | null,
+): string | null => {
+  if (!result || (result.githubStatus !== 'failed' && result.storageStatus !== 'failed')) return null
+  const retryPaths = [...new Set(result.paths.map(normalizeAssistantWorkspacePath).filter(Boolean))]
+  if (!retryPaths.length) return null
+  return `- Retry command: \`#promotion.retry ${retryPaths.join(' ')}\``
+}
+
+const stripWorkspaceLedgerLinePrefix = (value: string | null): string => String(value || '').trim().replace(/^-+\s*/, '')
+
+const buildWorkspacePromotionRetryToast = (
+  result: PromoteGeneratedChatWorkspacePathsResult | null,
+): UiToastInput | null => {
+  if (!result || (result.githubStatus !== 'failed' && result.storageStatus !== 'failed')) return null
+  const retryPaths = [...new Set(result.paths.map(normalizeAssistantWorkspacePath).filter(Boolean))]
+  if (!retryPaths.length) return null
+  const retryCommand = stripWorkspaceLedgerLinePrefix(buildWorkspacePromotionRetryCommand(result))
+  const retryHint = stripWorkspaceLedgerLinePrefix(buildWorkspacePromotionRetryHint(result))
+  const artifactLabel = retryPaths.length === 1 ? 'artifact' : 'artifacts'
+  const messageLines = [`Artifact mirroring failed for the saved local ${artifactLabel}.`]
+  if (retryCommand) messageLines.push(retryCommand)
+  else if (retryHint) messageLines.push(retryHint)
+  return {
+    id: `chat-promotion-retry:${retryPaths[0]}`,
+    kind: 'warning',
+    message: messageLines.join('\n'),
+    ttlMs: GENERATED_ARTIFACT_PROMOTION_TOAST_TTL_MS,
+    dismissible: true,
+    actions: retryCommand ? [buildChatPromotionRetryInsertAction(retryCommand, `chat-promotion-retry:${retryPaths[0]}`)] : undefined,
+  }
+}
 
 type GeneratedChatPromotionFetch = typeof fetch
 
@@ -25,6 +278,13 @@ export type PromoteGeneratedChatWorkspacePathsResult = {
   githubError?: string
   storageStatus: 'applied' | 'skipped' | 'failed'
   storageError?: string
+}
+
+export type RetryGeneratedChatWorkspaceArtifactPromotionResult = PromoteGeneratedChatWorkspacePathsResult & {
+  promotion: WorkspaceArtifactPromotion | null
+  failureNote: string | null
+  retryHint: string | null
+  retryCommand: string | null
 }
 
 export const promoteGeneratedChatWorkspacePaths = async (
@@ -96,6 +356,36 @@ export const promoteGeneratedChatWorkspacePaths = async (
   return result
 }
 
+export const retryGeneratedChatWorkspaceArtifactPromotion = async (args: {
+  paths: ReadonlyArray<string | null | undefined>
+  githubEnabled?: boolean
+  githubBaseUrl?: string | null
+  githubFetchImpl?: GeneratedChatPromotionFetch
+  storageWorkspaceId?: string | null
+  storageSyncNow?: boolean
+  storageBaseUrl?: string | null
+  storageDeviceId?: string | null
+  storageFetchImpl?: GeneratedChatPromotionFetch
+}): Promise<RetryGeneratedChatWorkspaceArtifactPromotionResult> => {
+  const result = await promoteGeneratedChatWorkspacePaths(args.paths, {
+    githubEnabled: args.githubEnabled,
+    githubBaseUrl: args.githubBaseUrl,
+    githubFetchImpl: args.githubFetchImpl,
+    storageWorkspaceId: args.storageWorkspaceId,
+    storageSyncNow: args.storageSyncNow,
+    storageBaseUrl: args.storageBaseUrl,
+    storageDeviceId: args.storageDeviceId,
+    storageFetchImpl: args.storageFetchImpl,
+  })
+  return {
+    ...result,
+    promotion: toWorkspaceArtifactPromotion(result),
+    failureNote: buildWorkspacePromotionFailureNote(result),
+    retryHint: buildWorkspacePromotionRetryHint(result),
+    retryCommand: buildWorkspacePromotionRetryCommand(result),
+  }
+}
+
 export const useFinalizeAssistantSuccess = (args: {
   chatStorageTarget: 'chatHistory' | 'chatKnowgrph'
   chatProviderSummary: string
@@ -112,6 +402,7 @@ export const useFinalizeAssistantSuccess = (args: {
     model: string | null
     tsMs: number
   }) => void
+  upsertUiToast?: (toast: UiToastInput) => void
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
   setStreamingAssistant: React.Dispatch<React.SetStateAction<{ id: string; text: string } | null>>
   streamFollowRef: React.MutableRefObject<{ path: string; atMs: number } | null>
@@ -231,6 +522,9 @@ export const useFinalizeAssistantSuccess = (args: {
           message: applied
             ? 'Canonical KGC workspace document was persisted and applied to the active canvas graph.'
             : 'Canonical KGC workspace document was persisted, but graph apply was skipped by import/apply policy or returned false.',
+          failureNote: null,
+          retryHint: null,
+          retryCommand: null,
         })
       } else {
         publishLocalChatPipelineFinalizeSnapshot({
@@ -243,6 +537,9 @@ export const useFinalizeAssistantSuccess = (args: {
           message: args.chatStorageTarget === 'chatKnowgrph'
             ? 'Canonical KGC workspace document was persisted, but no normalized Knowgrph workspace path was available for canvas apply.'
             : 'Assistant response was persisted to chat history only; canvas apply is reserved for chatKnowgrph storage.',
+          failureNote: null,
+          retryHint: null,
+          retryCommand: null,
         })
       }
     } catch (error: unknown) {
@@ -256,6 +553,9 @@ export const useFinalizeAssistantSuccess = (args: {
         persistedKnowgrphPath: knowgrphPath || null,
         applied: false,
         message: canvasApplyError,
+        failureNote: null,
+        retryHint: null,
+        retryCommand: null,
       })
       if (args.chatStorageTarget === 'chatKnowgrph') {
         try {
@@ -266,8 +566,9 @@ export const useFinalizeAssistantSuccess = (args: {
       }
       throw error
     }
+    let promotionResult: PromoteGeneratedChatWorkspacePathsResult | null = null
     if (args.chatStorageTarget === 'chatKnowgrph') {
-      await promoteGeneratedChatWorkspacePaths(storagePromotionPaths)
+      promotionResult = await promoteGeneratedChatWorkspacePaths(storagePromotionPaths)
     }
     const knowgrphLabel = knowgrphPath ? (knowgrphPath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md') : ''
     const conciseSource =
@@ -277,11 +578,62 @@ export const useFinalizeAssistantSuccess = (args: {
     const concise = toConciseBulletText(conciseSource, knowgrphPath ? 49 : 50)
     const lines = [`- ${concise}`]
     if (args.chatStorageTarget === 'chatKnowgrph' && knowgrphPath) {
-      lines.push(`- [Open in Source Files: ${knowgrphLabel}](${knowgrphPath})`)
+      lines.push(buildWorkspaceSourceLinkLine(knowgrphPath, canvasApplied ? 'APPLIED' : 'SAVED'))
     }
-    const finalAssistantText = typeof payload.finalAssistantOverride === 'string' && payload.finalAssistantOverride.trim()
+    const promotionFailureNote = buildWorkspacePromotionFailureNote(promotionResult)
+    const promotionRetryHint = buildWorkspacePromotionRetryHint(promotionResult)
+    const promotionRetryCommand = buildWorkspacePromotionRetryCommand(promotionResult)
+    const promotionRetryToast = buildWorkspacePromotionRetryToast(promotionResult)
+    if (args.chatStorageTarget === 'chatKnowgrph') {
+      publishLocalChatPipelineFinalizeSnapshot({
+        stage: knowgrphPath ? (canvasApplied ? 'applied' : 'skipped') : 'skipped',
+        traceId,
+        modelId,
+        finalStatus: status,
+        persistedKnowgrphPath: knowgrphPath || null,
+        applied: knowgrphPath ? canvasApplied : false,
+        message: knowgrphPath
+          ? (
+              canvasApplied
+                ? 'Canonical KGC workspace document was persisted and applied to the active canvas graph.'
+                : 'Canonical KGC workspace document was persisted, but graph apply was skipped by import/apply policy or returned false.'
+            )
+          : 'Canonical KGC workspace document was persisted, but no normalized Knowgrph workspace path was available for canvas apply.',
+        failureNote: promotionFailureNote,
+        retryHint: promotionRetryHint,
+        retryCommand: promotionRetryCommand,
+      })
+    }
+    if (promotionRetryToast) args.upsertUiToast?.(promotionRetryToast)
+    if (promotionFailureNote) lines.push(promotionFailureNote)
+    if (promotionRetryHint) lines.push(promotionRetryHint)
+    if (promotionRetryCommand) lines.push(promotionRetryCommand)
+    const baseFinalAssistantText = typeof payload.finalAssistantOverride === 'string' && payload.finalAssistantOverride.trim()
       ? payload.finalAssistantOverride
       : lines.join('\n')
+    const workspaceStatusByPath = new Map<string, WorkspaceArtifactStatus>()
+    const workspacePromotionByPath = new Map<string, WorkspaceArtifactPromotion>()
+    if (knowgrphPath) {
+      workspaceStatusByPath.set(knowgrphPath, canvasApplied ? 'APPLIED' : 'SAVED')
+    }
+    const promotion = toWorkspaceArtifactPromotion(promotionResult)
+    if (promotionResult?.paths?.length && promotion) {
+      for (const path of promotionResult.paths) {
+        workspacePromotionByPath.set(normalizeAssistantWorkspacePath(path), promotion)
+      }
+    }
+    const finalAssistantText = groupWorkspaceSourceLinkLines(dedupeWorkspaceSourceLinkLines(appendDiscoveredWorkspaceSourceLinks(
+      canonicalizeWorkspaceSourceLinkLines(
+        (promotionFailureNote || promotionRetryHint || promotionRetryCommand) && typeof payload.finalAssistantOverride === 'string' && payload.finalAssistantOverride.trim()
+          ? `${baseFinalAssistantText}${promotionFailureNote ? `\n${promotionFailureNote}` : ''}${promotionRetryHint ? `\n${promotionRetryHint}` : ''}${promotionRetryCommand ? `\n${promotionRetryCommand}` : ''}`
+          : baseFinalAssistantText,
+        workspaceStatusByPath,
+        workspacePromotionByPath,
+      ),
+      [rawAssistantText, payload.finalAssistantOverride, assistantTextForKgc],
+      [knowgrphPath],
+      workspacePromotionByPath,
+    )))
 
     args.setMessages(prev => {
       let found = false
@@ -318,6 +670,7 @@ export const useFinalizeAssistantSuccess = (args: {
     args.chatStorageTarget,
     args.followWorkspaceMarkdownPath,
     args.pushChatExchangeLog,
+    args.upsertUiToast,
     args.setChatHistoryWorkspacePath,
     args.setChatKnowgrphWorkspacePath,
     args.setMessages,

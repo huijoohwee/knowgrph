@@ -261,6 +261,10 @@ export const nodeDragBehavior = (
         window.removeEventListener('pointercancel', onGlobalRelease, { capture: true })
         window.removeEventListener('pointerdown', onGlobalRelease, { capture: true })
       }
+      if (locked) {
+        locked = false
+        unlockGlobalUserSelect()
+      }
       if (activeNode) resetDragState()
     });
   })()

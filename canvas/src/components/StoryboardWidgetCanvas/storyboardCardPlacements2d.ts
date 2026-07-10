@@ -75,7 +75,8 @@ const buildStoryboardCardPlacements2d = (args: {
     const node = nodeById.get(orderedCards[i]!.id)
     if (!node) continue
     const center = readStoryboardCardCenter2d(node)
-    if (center) centers.push(center)
+    const centerOwnsReferenceOrigin = !includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, orderedCards[i]!.id)
+    if (center && centerOwnsReferenceOrigin) centers.push(center)
     const size = readPlacementSize(node)
     maxCardWidth = Math.max(maxCardWidth, size.width)
     maxCardHeight = Math.max(maxCardHeight, size.height)
@@ -141,16 +142,18 @@ export const buildFixedStoryboardCardPlacements2d = (args: {
 export const buildFixedStoryboardCardReferencePlacements2d = (args: {
   aspectRatioMode: CanvasAspectRatioMode
   board: ReturnType<typeof buildStoryboardBoardModel>
+  flowWidgetPinnedByNodeId?: FlowWidgetPinnedById | null
   nodeById: Map<string, GraphNode>
   readPlacementSize?: ReadStoryboardPlacementSize
   schema: GraphSchema | null | undefined
-}): Map<string, StoryboardCardPlacement> => buildStoryboardCardPlacements2d({ ...args, flowWidgetPinnedByNodeId: null, includeUnpinned: true })
+}): Map<string, StoryboardCardPlacement> => buildStoryboardCardPlacements2d({ ...args, includeUnpinned: true })
 
 export const applyFixedStoryboardCardPlacementsToGraphData2d = (args: {
   aspectRatioMode: CanvasAspectRatioMode
   flowWidgetPinnedByNodeId?: FlowWidgetPinnedById | null
   graphData: GraphData | null
   graphRevision: number
+  referencePlacements?: ReadonlyMap<string, StoryboardCardPlacement> | null
   readPlacementSize?: ReadStoryboardPlacementSize
   schema: GraphSchema | null | undefined
   widgetRegistry?: ReadonlyArray<WidgetRegistryEntry> | null
@@ -165,13 +168,21 @@ export const applyFixedStoryboardCardPlacementsToGraphData2d = (args: {
     const id = String(node?.id || '').trim()
     if (id) nodeById.set(id, node)
   }
-  const placements = buildFixedStoryboardCardReferencePlacements2d({ aspectRatioMode, board, nodeById, readPlacementSize, schema })
+  const placements = args.referencePlacements || buildFixedStoryboardCardReferencePlacements2d({
+    aspectRatioMode,
+    board,
+    flowWidgetPinnedByNodeId: args.flowWidgetPinnedByNodeId,
+    nodeById,
+    readPlacementSize,
+    schema,
+  })
   if (placements.size === 0) return graphData
   let changed = false
   const nextNodes = nodes.map(node => {
     const id = String(node?.id || '').trim()
     const placement = id ? placements.get(id) : null
-    if (!placement) return node
+    if (!placement || !readFlowWidgetPinnedInCanvas(args.flowWidgetPinnedByNodeId, id)) return node
+    if (node.x === placement.x && node.y === placement.y) return node
     changed = true
     return { ...node, x: placement.x, y: placement.y } as GraphNode
   })

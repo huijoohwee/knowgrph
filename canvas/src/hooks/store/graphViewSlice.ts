@@ -3,7 +3,7 @@ import type { StoreApi } from 'zustand'
 import { LS_KEYS } from '@/lib/config.ls.keys'
 import { getLocalStorage, lsJson, lsSetInt, lsSetJson, readJsonFromStorage } from '@/lib/persistence'
 import type { Canvas2dRendererId } from '@/lib/config.render'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { buildGraphDocumentMetaKey, buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { scheduleWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import {
   WORKSPACE_SYNC_SCOPE_FLOW_WIDGET_RUNTIME_PERSISTENCE,
@@ -325,7 +325,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
     const state = get()
     if (isWorkspaceGraphMutationBlocked(state)) return
     const nextPinnedById = normalizePinnedByNodeId(pinnedById)
-    const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+    const graphKey = buildGraphDocumentMetaKey(state.graphData)
     const by = state.flowWidgetPinnedByNodeIdByGraphMetaKey || {}
     const prevPinnedById = state.flowWidgetPinnedByNodeId || {}
     const prevGraphPinnedById = graphKey ? (by[graphKey] || {}) : prevPinnedById
@@ -347,7 +347,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
     const state = get()
     if (isWorkspaceGraphMutationBlocked(state)) return
     const nextPinnedById = normalizePinnedByNodeId(pinnedById)
-    const graphKey = String(graphMetaKey || '').trim() || buildGraphMetaKeyIgnoringPending(state.graphData)
+    const graphKey = String(graphMetaKey || '').trim() || buildGraphDocumentMetaKey(state.graphData)
     const by = state.flowWidgetPinnedByNodeIdByGraphMetaKey || {}
     const prevPinnedById = state.flowWidgetPinnedByNodeId || {}
     const prevGraphPinnedById = graphKey ? (by[graphKey] || {}) : prevPinnedById
@@ -375,7 +375,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
     const state = get()
     if (isWorkspaceGraphMutationBlocked(state)) return
     const nextPosByNodeId = normalizePosByNodeId(pos)
-    const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+    const graphKey = buildGraphDocumentMetaKey(state.graphData)
     const by = state.flowWidgetPosByNodeIdByGraphMetaKey || {}
     const prevPosByNodeId = state.flowWidgetPosByNodeId || {}
     const prevGraphPosByNodeId = graphKey ? (by[graphKey] || {}) : prevPosByNodeId
@@ -392,6 +392,25 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
       return
     }
     set({ flowWidgetPosByNodeId: nextPosByNodeId })
+  },
+  setFlowWidgetPosByNodeIdForGraph: (graphMetaKey: string | null | undefined, pos: Record<string, { top: number; left: number }>) => {
+    const state = get()
+    if (isWorkspaceGraphMutationBlocked(state)) return
+    const nextPosByNodeId = normalizePosByNodeId(pos)
+    const graphKey = String(graphMetaKey || '').trim() || buildGraphDocumentMetaKey(state.graphData)
+    const by = state.flowWidgetPosByNodeIdByGraphMetaKey || {}
+    const prevPosByNodeId = state.flowWidgetPosByNodeId || {}
+    const prevGraphPosByNodeId = graphKey ? (by[graphKey] || {}) : prevPosByNodeId
+    if (isSamePosByNodeId(prevPosByNodeId, nextPosByNodeId) && isSamePosByNodeId(prevGraphPosByNodeId, nextPosByNodeId)) return
+    if (!graphKey) {
+      set({ flowWidgetPosByNodeId: nextPosByNodeId })
+      return
+    }
+    set({
+      flowWidgetPosByNodeId: nextPosByNodeId,
+      flowWidgetPosByNodeIdByGraphMetaKey: { ...by, [graphKey]: nextPosByNodeId },
+    })
+    scheduleFlowWidgetPersistence({ pos: { graphKey, value: nextPosByNodeId } })
   },
   flowWidgetWorldPosByNodeIdByGraphMetaKey: readShardedFlowWidgetGraphMap(storage, LS_KEYS.flowWidgetWorldPosByGraphMetaKey, raw => normalizeWorldByNodeId(raw as Record<string, { x: number; y: number }> | null | undefined), parseFlowWidgetWorldByGraphMap),
   flowWidgetWorldPosByNodeId: lsJson<Record<string, { x: number; y: number }>>(
@@ -416,7 +435,7 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
     const state = get()
     if (isWorkspaceGraphMutationBlocked(state)) return
     const nextWorldByNodeId = normalizeWorldByNodeId(pos)
-    const graphKey = buildGraphMetaKeyIgnoringPending(state.graphData)
+    const graphKey = buildGraphDocumentMetaKey(state.graphData)
     const by = state.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}
     const prevWorldByNodeId = state.flowWidgetWorldPosByNodeId || {}
     const prevGraphWorldByNodeId = graphKey ? (by[graphKey] || {}) : prevWorldByNodeId
@@ -433,6 +452,25 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
       return
     }
     set({ flowWidgetWorldPosByNodeId: nextWorldByNodeId })
+  },
+  setFlowWidgetWorldPosByNodeIdForGraph: (graphMetaKey: string | null | undefined, pos: Record<string, { x: number; y: number }>) => {
+    const state = get()
+    if (isWorkspaceGraphMutationBlocked(state)) return
+    const nextWorldByNodeId = normalizeWorldByNodeId(pos)
+    const graphKey = String(graphMetaKey || '').trim() || buildGraphDocumentMetaKey(state.graphData)
+    const by = state.flowWidgetWorldPosByNodeIdByGraphMetaKey || {}
+    const prevWorldByNodeId = state.flowWidgetWorldPosByNodeId || {}
+    const prevGraphWorldByNodeId = graphKey ? (by[graphKey] || {}) : prevWorldByNodeId
+    if (isSameWorldByNodeId(prevWorldByNodeId, nextWorldByNodeId) && isSameWorldByNodeId(prevGraphWorldByNodeId, nextWorldByNodeId)) return
+    if (!graphKey) {
+      set({ flowWidgetWorldPosByNodeId: nextWorldByNodeId })
+      return
+    }
+    set({
+      flowWidgetWorldPosByNodeId: nextWorldByNodeId,
+      flowWidgetWorldPosByNodeIdByGraphMetaKey: { ...by, [graphKey]: nextWorldByNodeId },
+    })
+    scheduleFlowWidgetPersistence({ world: { graphKey, value: nextWorldByNodeId } })
   },
   flowWidgetDraggingNodeId: null as string | null,
   setFlowWidgetDraggingNodeId: (rawId: string | null) => {

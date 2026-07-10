@@ -29,6 +29,7 @@ import {
 import { buildRichMediaPanelDroppedMediaProperties } from '@/lib/render/richMediaPanelNode'
 import {
   collectCanonicalStoryboardWidgetOverlayRectEntries,
+  emitStoryboardWidgetGeometryCommitted,
   STORYBOARD_WIDGET_OVERLAY_ROOT_SELECTOR,
   STORYBOARD_WIDGET_OVERLAY_SURFACE_ROOT_ATTR,
   readStoryboardWidgetOverlaySurfaceId,
@@ -42,7 +43,6 @@ import { initializeMediaOverlayShell, startMediaOverlayLayoutLoop2d } from '@/li
 import { projectMediaOverlayResizeWorldSizeToLayout } from '@/lib/render/mediaOverlayResizeProjection'
 import { resolveCanvasAspectRatioResizeSize, resolveCanvasAspectRatioSize } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import { readStoryboardCardSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
-import { readCanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
 import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
@@ -62,6 +62,8 @@ function escapeSelectorAttrValue(value: string): string {
 export default function FlowCanvasMediaOverlays(args: {
   active: boolean
   mediaNodes: MediaOverlayNode[]
+  flowWidgetPinnedByNodeIdOverride?: Record<string, boolean>
+  flowWidgetStateGraphKeyOverride?: string | null
   selectedOverlayNodeIdSet: Set<string>
   sceneGraphData: GraphData | null
   mutationSourceGraphData: GraphData | null
@@ -85,12 +87,15 @@ export default function FlowCanvasMediaOverlays(args: {
   viewportH: number
   overlaySizing?: OverlayDensitySizingConfigInput | null
   storyboardWidgetSurfaceId?: string
+  onNodeChange?: (nodeId: string, patch: Partial<GraphNode>, sourceGraphData?: GraphData | null) => void
   onNodePropertiesChange?: (nodeId: string, patch: Record<string, unknown>, sourceGraphData?: GraphData | null) => void
   registerInteractionFrameLayoutScheduler?: (scheduler: null | (() => void)) => void
 }) {
   const {
     active,
     mediaNodes,
+    flowWidgetPinnedByNodeIdOverride,
+    flowWidgetStateGraphKeyOverride,
     selectedOverlayNodeIdSet,
     sceneGraphData,
     mutationSourceGraphData,
@@ -114,6 +119,7 @@ export default function FlowCanvasMediaOverlays(args: {
     viewportH,
     overlaySizing,
     storyboardWidgetSurfaceId,
+    onNodeChange,
     onNodePropertiesChange,
     registerInteractionFrameLayoutScheduler,
   } = args
@@ -137,6 +143,7 @@ export default function FlowCanvasMediaOverlays(args: {
   const mediaOverlayPanelLastKnownWorldSizeRef = React.useRef<Map<string, { w: number; h: number }>>(new Map())
   const mediaOverlayWorldPositionOverrideRef = React.useRef<Map<string, { x: number; y: number }>>(new Map())
   const mediaOverlayLayoutScheduleRef = React.useRef<null | (() => void)>(null)
+  const mediaOverlayLayoutFlushRef = React.useRef<null | (() => void)>(null)
   const mediaOverlayHeaderDragRef = React.useRef<null | { id: string; pointerId: number; startX: number; startY: number; startK: number; lastDx: number; lastDy: number }>(null)
   const mediaOverlayPanRef = React.useRef<null | { pointerId: number; startTransform: d3.ZoomTransform }>(null)
   const mediaOverlayResizeRef = React.useRef<null | {
@@ -165,18 +172,38 @@ export default function FlowCanvasMediaOverlays(args: {
   const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds)
   const flowWidgetPinnedByNodeId = useGraphStore(s => s.flowWidgetPinnedByNodeId)
   const flowWidgetPinnedByNodeIdByGraphMetaKey = useGraphStore(s => s.flowWidgetPinnedByNodeIdByGraphMetaKey)
-  const flowWidgetStateGraphKey = React.useMemo(() => resolveFlowWidgetStateGraphKey({ graphData: sceneGraphData }), [sceneGraphData])
-  const effectiveFlowWidgetPinnedByNodeId = React.useMemo(() => resolveScopedFlowWidgetNodeMap({
+  const flowWidgetWorldPosByNodeId = useGraphStore(s => s.flowWidgetWorldPosByNodeId)
+  const flowWidgetWorldPosByNodeIdByGraphMetaKey = useGraphStore(s => s.flowWidgetWorldPosByNodeIdByGraphMetaKey)
+  const flowWidgetStateGraphKey = React.useMemo(
+    () => flowWidgetStateGraphKeyOverride ?? resolveFlowWidgetStateGraphKey({ graphData: sceneGraphData }),
+    [flowWidgetStateGraphKeyOverride, sceneGraphData],
+  )
+  const effectiveFlowWidgetPinnedByNodeId = React.useMemo(() => flowWidgetPinnedByNodeIdOverride || resolveScopedFlowWidgetNodeMap({
     graphMetaKey: flowWidgetStateGraphKey,
     keyedByGraphMetaKey: flowWidgetPinnedByNodeIdByGraphMetaKey,
     globalByNodeId: flowWidgetPinnedByNodeId,
-  }), [flowWidgetPinnedByNodeId, flowWidgetPinnedByNodeIdByGraphMetaKey, flowWidgetStateGraphKey])
+  }), [flowWidgetPinnedByNodeId, flowWidgetPinnedByNodeIdByGraphMetaKey, flowWidgetPinnedByNodeIdOverride, flowWidgetStateGraphKey])
+  const effectiveFlowWidgetWorldPosByNodeId = React.useMemo(() => resolveScopedFlowWidgetNodeMap({
+    graphMetaKey: flowWidgetStateGraphKey,
+    keyedByGraphMetaKey: flowWidgetWorldPosByNodeIdByGraphMetaKey,
+    globalByNodeId: flowWidgetWorldPosByNodeId,
+  }), [flowWidgetStateGraphKey, flowWidgetWorldPosByNodeId, flowWidgetWorldPosByNodeIdByGraphMetaKey])
+  const persistResolvedMediaOverlayWorldPosition = React.useCallback((id: string, point: { x: number; y: number }) => {
+    mediaOverlayWorldPositionOverrideRef.current.set(id, point)
+    const state = useGraphStore.getState()
+    const current = resolveScopedFlowWidgetNodeMap({
+      graphMetaKey: flowWidgetStateGraphKey,
+      keyedByGraphMetaKey: state.flowWidgetWorldPosByNodeIdByGraphMetaKey,
+      globalByNodeId: state.flowWidgetWorldPosByNodeId,
+    })
+    const previous = current[id]
+    if (previous && Math.abs(previous.x - point.x) < 0.01 && Math.abs(previous.y - point.y) < 0.01) return
+    state.setFlowWidgetWorldPosByNodeIdForGraph(flowWidgetStateGraphKey, { ...current, [id]: point })
+  }, [flowWidgetStateGraphKey])
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
-  const strybldrStoryboardBoardLayoutMode = useGraphStore(s => s.strybldrStoryboardBoardLayoutMode)
-  const storyboardBoardLayoutMode = readCanvasBoardLayoutMode(strybldrStoryboardBoardLayoutMode)
-  const storyboardFixedBoardLayoutEnabled = storyboardSharedSurfaceRendererMode && storyboardBoardLayoutMode === 'fixed'
   const sceneNodePropsByIdRef = React.useRef<Map<string, Record<string, unknown>>>(new Map())
-  const cancelMediaOverlayInteractionState = React.useCallback(() => {
+  const cancelMediaOverlayInteractionState = React.useCallback((options?: { preserveWorldPositionOverrides?: boolean }) => {
+    const headerDragId = mediaOverlayHeaderDragRef.current?.id || ''
     mediaOverlayPanMoveSchedulerRef.current?.cancel()
     mediaOverlayHeaderMoveSchedulerRef.current?.cancel()
     mediaOverlayResizeMoveSchedulerRef.current?.cancel()
@@ -188,7 +215,8 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaOverlayResizeRef.current = null
     mediaOverlayPanelSizeOverrideRef.current.clear()
     mediaOverlayPanelSizeTargetWorldRef.current.clear()
-    mediaOverlayWorldPositionOverrideRef.current.clear()
+    if (options?.preserveWorldPositionOverrides !== true) mediaOverlayWorldPositionOverrideRef.current.clear()
+    if (headerDragId && useGraphStore.getState().flowWidgetDraggingNodeId === headerDragId) useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
   }, [])
   const resetMediaOverlayInteractionState = React.useCallback((options?: { clearLastKnownWorldSize?: boolean }) => {
     cancelMediaOverlayInteractionState()
@@ -197,7 +225,7 @@ export default function FlowCanvasMediaOverlays(args: {
   React.useEffect(() => {
     workspaceOverlayOpenRef.current = workspaceOverlayOpen
     workspaceMutationBlockedRef.current = workspaceMutationBlocked
-    if (workspaceMutationBlocked) cancelMediaOverlayInteractionState()
+    if (workspaceMutationBlocked) cancelMediaOverlayInteractionState({ preserveWorldPositionOverrides: true })
   }, [cancelMediaOverlayInteractionState, workspaceMutationBlocked, workspaceOverlayOpen])
   React.useEffect(() => {
     const next = new Map<string, Record<string, unknown>>()
@@ -318,17 +346,18 @@ export default function FlowCanvasMediaOverlays(args: {
     syncFlowCanvasDebugWindow()
   }, [mediaNodes, mediaLayoutItemsKey, mediaLayoutPropsSignature, workspaceOverlayOpen])
   const buildDrawArgs = React.useCallback(() => drawArgsRef.current, [drawArgsRef])
-  const handleFrame = React.useCallback(() => {
+  const flushMediaOverlayLayout = React.useCallback(() => {
     mediaOverlayLayoutScheduleRef.current?.()
-    onInteractionFrame?.()
-  }, [onInteractionFrame])
+    mediaOverlayLayoutFlushRef.current?.()
+    emitStoryboardWidgetGeometryCommitted()
+  }, [])
   React.useEffect(() => {
     if (!storyboardWidgetSurfaceRendererMode) {
       registerInteractionFrameLayoutScheduler?.(null)
       return () => registerInteractionFrameLayoutScheduler?.(null)
     }
     const scheduleLayout = () => {
-      mediaOverlayLayoutScheduleRef.current?.()
+      mediaOverlayLayoutFlushRef.current?.()
     }
     registerInteractionFrameLayoutScheduler?.(scheduleLayout)
     return () => registerInteractionFrameLayoutScheduler?.(null)
@@ -398,8 +427,8 @@ export default function FlowCanvasMediaOverlays(args: {
     })
     setFlowNativeTransform(runtime, next)
     requestFlowNativeDraw(runtime, buildDrawArgs())
-    onInteractionFrame?.()
-  }, [buildDrawArgs, mediaOverlayDragInteractionMode, onInteractionFrame, runtimeRef])
+    flushMediaOverlayLayout()
+  }, [buildDrawArgs, flushMediaOverlayLayout, mediaOverlayDragInteractionMode, runtimeRef])
   const applyMediaOverlayHeaderDragMove = React.useCallback((id: string, queued: { pointerId: number; dx: number; dy: number }) => {
     if (!mediaOverlayDragInteractionMode) return
     const drag = mediaOverlayHeaderDragRef.current
@@ -425,8 +454,8 @@ export default function FlowCanvasMediaOverlays(args: {
     }
     positionsDirtySinceCommitRef.current = true
     if (node && runtime) requestFlowNativeDraw(runtime, buildDrawArgs())
-    handleFrame()
-  }, [buildDrawArgs, graphSchema, handleFrame, mediaOverlayDragInteractionMode, positionsDirtySinceCommitRef, runtimeRef])
+    flushMediaOverlayLayout()
+  }, [buildDrawArgs, flushMediaOverlayLayout, graphSchema, mediaOverlayDragInteractionMode, positionsDirtySinceCommitRef, runtimeRef])
   const applyMediaOverlayResizeMove = React.useCallback((id: string, queued: { pointerId: number; dx: number; dy: number }) => {
     if (!mediaOverlayDragInteractionMode || workspaceMutationBlockedRef.current) return
     const drag = mediaOverlayResizeRef.current
@@ -447,8 +476,8 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaOverlayPanelSizeOverrideRef.current.set(id, projectMediaOverlayResizeWorldSizeToLayout({ height: nextH, projectWithWorldTransformScale: storyboardRichMediaWorldTransformProjectionMode, scale, width: nextW }))
     mediaOverlayPanelSizeTargetWorldRef.current.set(id, { w: nextW, h: nextH })
     writeRichMediaResizeTrace(['phase=move', `id=${id}`, `pid=${queued.pointerId}`, `nextW=${nextW}`, `nextH=${nextH}`])
-    handleFrame()
-  }, [handleFrame, mediaOverlayDragInteractionMode, storyboardRichMediaWorldTransformProjectionMode, strybldrStoryboardCardAspectMode, writeRichMediaResizeTrace])
+    flushMediaOverlayLayout()
+  }, [flushMediaOverlayLayout, mediaOverlayDragInteractionMode, storyboardRichMediaWorldTransformProjectionMode, strybldrStoryboardCardAspectMode, writeRichMediaResizeTrace])
   const beginMediaOverlayPan = React.useCallback((payload: { pointerId: number; clientX: number; clientY: number; buttons: number; shiftKey: boolean }) => {
     if (!mediaOverlayDragInteractionMode) return
     const runtime = runtimeRef.current
@@ -465,6 +494,7 @@ export default function FlowCanvasMediaOverlays(args: {
     if (!start) return
     disableAutoZoomModesForUserGesture(useGraphStore.getState())
     mediaOverlayHeaderDragRef.current = { id, pointerId, startX: start.x, startY: start.y, startK: runtime?.transform?.k || 1, lastDx: 0, lastDy: 0 }
+    useGraphStore.getState().setFlowWidgetDraggingNodeId(id)
   }, [mediaNodes, mediaOverlayDragInteractionMode, runtimeRef, sceneGraphData?.nodes])
   const finishMediaOverlayHeaderDrag = React.useCallback((id: string, pointerId: number) => {
     const drag = mediaOverlayHeaderDragRef.current
@@ -473,17 +503,20 @@ export default function FlowCanvasMediaOverlays(args: {
     if (mediaOverlayHeaderMoveLatestRef.current?.id === id && mediaOverlayHeaderMoveLatestRef.current.pointerId === pointerId) applyMediaOverlayHeaderDragMove(id, mediaOverlayHeaderMoveLatestRef.current)
     const finalPoint = mediaOverlayWorldPositionOverrideRef.current.get(id)
     if (finalPoint && !workspaceMutationBlockedRef.current) {
-      useGraphStore.getState().updateNode(id, {
+      const patch = {
         fx: finalPoint.x,
         fy: finalPoint.y,
         x: finalPoint.x,
         y: finalPoint.y,
-      } as Partial<GraphNode>)
+      } as Partial<GraphNode>
+      if (onNodeChange) onNodeChange(id, patch, mutationSourceGraphData)
+      else useGraphStore.getState().updateNode(id, patch)
     }
     mediaOverlayHeaderMoveLatestRef.current = null
     mediaOverlayHeaderDragRef.current = null
+    if (useGraphStore.getState().flowWidgetDraggingNodeId === id) useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
     requestCommit()
-  }, [applyMediaOverlayHeaderDragMove, requestCommit])
+  }, [applyMediaOverlayHeaderDragMove, mutationSourceGraphData, onNodeChange, requestCommit])
   const beginMediaOverlayResize = React.useCallback((id: string, pointerId: number) => {
     if (!active || !mediaOverlayDragInteractionMode || workspaceMutationBlockedRef.current) {
       writeRichMediaResizeTrace(['phase=skip', `id=${id}`, `pid=${pointerId}`])
@@ -508,8 +541,8 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaOverlayPanelSizeOverrideRef.current.set(id, projectMediaOverlayResizeWorldSizeToLayout({ height: stableH, projectWithWorldTransformScale: storyboardRichMediaWorldTransformProjectionMode, scale, width: startW }))
     mediaOverlayPanelSizeTargetWorldRef.current.set(id, { w: startW, h: stableH })
     writeRichMediaResizeTrace(['phase=start', `id=${id}`, `pid=${pointerId}`, `startW=${startW}`, `startH=${stableH}`])
-    handleFrame()
-  }, [active, handleFrame, mediaOverlayDragInteractionMode, storyboardRichMediaWorldTransformProjectionMode, strybldrStoryboardCardAspectMode, writeRichMediaResizeTrace])
+    flushMediaOverlayLayout()
+  }, [active, flushMediaOverlayLayout, mediaOverlayDragInteractionMode, storyboardRichMediaWorldTransformProjectionMode, strybldrStoryboardCardAspectMode, writeRichMediaResizeTrace])
   React.useEffect(() => {
     if (mediaOverlayDragInteractionMode) return
     mediaOverlayPanMoveSchedulerRef.current?.cancel()
@@ -597,6 +630,7 @@ export default function FlowCanvasMediaOverlays(args: {
         RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height,
       ),
       aspectRatioMode: strybldrStoryboardCardAspectMode,
+      panelDisplay: 'flex',
       scaleLayoutOnZoom: storyboardWidgetSurfaceRendererMode,
       projectWithWorldTransformScale: storyboardRichMediaWorldTransformProjectionMode,
       getPanelSizeForId: id => {
@@ -608,13 +642,7 @@ export default function FlowCanvasMediaOverlays(args: {
           const coerced = coerceRichMediaPanelSizeForLayoutViewport({ readLayoutViewport: readMediaLayoutViewport, width: override.w, height: override.h, minWidthPx: 220, minHeightPx: 160 })
           return { w: coerced.width, h: coerced.height }
         }
-        const panelNode = (sceneGraphData?.nodes || []).find(node => isCanonicalNodeIdEqual(node?.id, id))
-          || mediaNodes.find(node => isCanonicalNodeIdEqual(node.id, id))
-          || null
-        const sharedCardSize = panelNode ? readStoryboardCardSize2d(panelNode as GraphNode, strybldrStoryboardCardAspectMode) : null
-        const stableSize = sharedCardSize
-          ? { w: sharedCardSize.width, h: sharedCardSize.height }
-          : mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null
+        const stableSize = mediaOverlayPanelLastKnownWorldSizeRef.current.get(id) || null
         if (!stableSize) {
           return storyboardSharedSurfaceRendererMode
             ? { w: RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width, h: RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height }
@@ -628,8 +656,8 @@ export default function FlowCanvasMediaOverlays(args: {
       },
       getElementForId: id => mediaOverlayElsRef.current.get(id) || null,
       getScreenAnchorForId: readMediaDropScreenAnchor,
-      onResolvedWorldTopLeftForId: storyboardRichMediaWorldTransformProjectionMode ? (id, point) => mediaOverlayWorldPositionOverrideRef.current.set(id, point) : undefined,
-      getNodeWorldTopLeftForId: storyboardRichMediaWorldTransformProjectionMode ? id => mediaOverlayWorldPositionOverrideRef.current.get(id) || readNodeWorldTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeWorldTopLeft2d((sceneGraphData?.nodes || []).find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeWorldTopLeft2d(runtimeRef.current?.scene?.nodeById.get(id)) : undefined,
+      onResolvedWorldTopLeftForId: storyboardRichMediaWorldTransformProjectionMode ? persistResolvedMediaOverlayWorldPosition : undefined,
+      getNodeWorldTopLeftForId: storyboardRichMediaWorldTransformProjectionMode ? id => mediaOverlayWorldPositionOverrideRef.current.get(id) || effectiveFlowWidgetWorldPosByNodeId[id] || readNodeWorldTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeWorldTopLeft2d((sceneGraphData?.nodes || []).find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeWorldTopLeft2d(runtimeRef.current?.scene?.nodeById.get(id)) : undefined,
       getNodeWorldCenterForId: id => readNodeWorldCenterFromTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeWorldCenterFromTopLeft2d((sceneGraphData?.nodes || []).find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeCenterWorld2d(runtimeRef.current?.scene?.nodeById.get(id), { coords: 'center' }),
       getCollisionObstacles: () => {
         const obstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
@@ -658,10 +686,12 @@ export default function FlowCanvasMediaOverlays(args: {
         : { margin: mediaViewportMargin },
     })
     mediaOverlayLayoutScheduleRef.current = loop.schedule
+    mediaOverlayLayoutFlushRef.current = loop.flush
     loop.schedule()
     return () => {
       loop.stop()
       if (mediaOverlayLayoutScheduleRef.current === loop.schedule) mediaOverlayLayoutScheduleRef.current = null
+      if (mediaOverlayLayoutFlushRef.current === loop.flush) mediaOverlayLayoutFlushRef.current = null
     }
   }, [
     active,
@@ -674,7 +704,9 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaLayoutItems.length,
     mediaLayoutItemsKey,
     mediaPanelDensity,
+    effectiveFlowWidgetWorldPosByNodeId,
     computeOverlaySizingScale,
+    persistResolvedMediaOverlayWorldPosition,
     readMediaLayoutViewport,
     writeRichMediaResizeTrace,
     queryActiveStoryboardWidgetOverlays,
@@ -713,7 +745,6 @@ export default function FlowCanvasMediaOverlays(args: {
         const resizeInteractionActive = mediaOverlayInteractionPolicy.resizeActive
         const richMediaPanelPinned = readFlowWidgetPinnedInCanvas(effectiveFlowWidgetPinnedByNodeId, node.id)
         const richMediaPanelPinAllowsMovement = isFlowWidgetHeaderDragAllowedByPin({
-          fixedLayoutEnabled: storyboardFixedBoardLayoutEnabled,
           pinnedInCanvas: richMediaPanelPinned,
         })
         const richMediaBodyPanOwnedByCollective = storyboardSharedSurfaceRendererMode
@@ -759,9 +790,9 @@ export default function FlowCanvasMediaOverlays(args: {
             }}
             className={`absolute left-0 top-0 overflow-visible ${overlayPanelPointerEventsClass}`}
             data-kg-rich-media-storyboard-widget-overlay-shell="1"
-            data-kg-rich-media-storyboard-widget-chrome="1"
             data-kg-rich-media-storyboard-widget-pinned={richMediaPanelPinned ? '1' : '0'}
-            data-kg-rich-media-panel="1" data-node-id={node.id} data-kg-storyboard-widget-surface={storyboardWidgetOverlaySurfaceId || undefined}
+            data-node-id={node.id}
+            data-kg-storyboard-widget-surface={storyboardWidgetOverlaySurfaceId || undefined}
             style={{ zIndex: overlayZIndex }}
           >
             <FlowCanvasRichMediaOverlayToolbar visible={isSelected} nodeId={node.id} nodeProperties={sceneNodePropsByIdRef.current.get(node.id) || {}} panel={node.panel} openUrl={node.openUrl} sceneGraphData={sceneGraphData} workspaceMutationBlockedRef={workspaceMutationBlockedRef} />
@@ -774,6 +805,7 @@ export default function FlowCanvasMediaOverlays(args: {
               srcDoc={node.srcDoc}
               openUrl={node.openUrl}
               kind={node.kind}
+              selected={isSelected}
               panelChrome="storyboardWidget" canvasOverlayPinned={richMediaPanelPinned}
               {...richMediaPanelHeaderToolbar.panelProps}
               interactive={resolveRichMediaPanelInteractive({ nodeInteractive: node.interactive, renderMediaAsNodes, infiniteCanvasInteractionMode, canvasRenderMode: '2d', canvas2dRenderer, frontmatterModeEnabled, documentSemanticMode })}

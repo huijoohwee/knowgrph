@@ -11,6 +11,9 @@ export type ChatInvocationId =
   | 'memory.search'
   | 'memory.add'
   | 'memory.assemble'
+  | 'memory.extract'
+  | 'memory.user_model'
+  | 'promotion.retry'
   | 'media'
   | 'agent'
   | 'mcp'
@@ -34,6 +37,9 @@ const BASE_CHAT_INVOCATION_OPTIONS: readonly ChatInvocationOption[] = [
   { id: 'memory.search', token: '#memory.search', label: 'Search memory', summary: 'Retrieve explicitly scoped memory through the configured memory MCP runtime.', keywords: ['recall', 'context', 'mem0'], toolName: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.search },
   { id: 'memory.add', token: '#memory.add', label: 'Add memory', summary: 'Persist explicitly scoped memory through the configured memory MCP runtime.', keywords: ['remember', 'persist', 'mem0'], toolName: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.add },
   { id: 'memory.assemble', token: '#memory.assemble', label: 'Assemble memory prompt', summary: 'Inject ranked memories into a bounded prompt context.', keywords: ['prompt', 'context', 'tokens'], toolName: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.assemblePrompt },
+  { id: 'memory.extract', token: '#memory.extract', label: 'Extract procedural memory', summary: 'Promote a completed harness run into a reusable KGC procedural-memory document through the configured memory MCP runtime.', keywords: ['procedural', 'harness', 'replay', 'kgc'], toolName: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.extractProcedural },
+  { id: 'memory.user_model', token: '#memory.user_model', label: 'Materialize user model', summary: 'Project scoped in-repo memories into a deterministic USER_MODEL markdown document and stable workspace file through the configured memory MCP runtime.', keywords: ['profile', 'user model', 'frontmatter', 'markdown'], toolName: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.materializeUserModel },
+  { id: 'promotion.retry', token: '#promotion.retry', label: 'Retry artifact promotion', summary: 'Retry GitHub/storage mirroring for an already-saved local workspace artifact without regenerating it.', keywords: ['promotion', 'mirror', 'github', 'storage', 'artifact', 'retry'] },
   { id: 'media', token: '#media', label: 'Media context', summary: 'Use media references selected from the shared FloatingPanel Media inventory.', keywords: ['image', 'audio', 'video', 'asset', 'floating panel'] },
   { id: 'agent', token: '#agent', label: 'Agent runtime', summary: 'Route the request through the selected provider-neutral agent capability.', keywords: ['ai', 'orchestration', 'vdeoxpln'] },
   { id: 'mcp', token: '#mcp', label: 'MCP runtime', summary: 'Use only tools exposed by the configured MCP runtime.', keywords: ['tools', 'server', 'protocol'] },
@@ -115,6 +121,9 @@ export const buildChatInvocationSystemPrompt = (args: {
   const directives = parseChatInvocationDirectives(args.userQuery)
   if (directives.length === 0) return ''
   const toolNames = directives.map(directive => directive.toolName).filter((value): value is string => !!value)
+  const requestsProceduralExtract = directives.some(directive => directive.id === 'memory.extract')
+  const requestsUserModel = directives.some(directive => directive.id === 'memory.user_model')
+  const requestsPromotionRetry = directives.some(directive => directive.id === 'promotion.retry')
   const sourceRefs = directives
     .filter(directive => directive.sourcePath)
     .map(directive => `${directive.token}=${directive.sourcePath}`)
@@ -125,6 +134,11 @@ export const buildChatInvocationSystemPrompt = (args: {
     `- Requested MCP tools: ${toolNames.length > 0 ? toolNames.join(', ') : 'none'}`,
     sourceRefs.length > 0 ? `- Agentic OS doc sources: ${sourceRefs.join(', ')}` : '',
     '- Memory tools require an explicit user_id, agent_id, run_id, or app_id scope. Ask for missing scope instead of inventing it.',
+    requestsProceduralExtract ? '- Procedural memory extraction also requires an existing output_dir rooted inside KNOWGRPH_ROOT. Ask for the exact output_dir instead of inferring or fabricating a harness run path.' : '',
+    requestsProceduralExtract ? '- When procedural extraction is requested, keep optional title, document_slug, and persist_memory fields operator-directed; do not invent document names beyond the runtime defaults.' : '',
+    requestsUserModel ? '- User-model materialization writes deterministic USER_MODEL markdown from the scoped in-repo memory store and mirrors it into a stable workspace path under the local chat root by default. Ask for the exact scope if it is missing, and keep title/document_slug/workspace_path/default_local_root_path/max_memories operator-directed.' : '',
+    requestsPromotionRetry ? '- Promotion retry requires one or more exact workspace artifact paths that already exist locally. Ask for the exact path instead of inferring or fabricating one.' : '',
+    requestsPromotionRetry ? '- Promotion retry reuses the saved local workspace artifact as-is. Do not regenerate, rewrite, or revalidate the KGC body when the request is only to rerun mirroring.' : '',
     '- Media directives consume only media references present in the user message or workspace context. Preserve their source URLs and media kinds; do not invent assets.',
     '- Agentic OS doc directives bind to local source docs as reference context only; they do not authorize Prod or Cloudflare deployment.',
     '- Invoke a requested tool only when it is present in the request tool set or connected MCP runtime. Otherwise return the exact tool name and required inputs as a handoff; never claim execution.',

@@ -84,16 +84,16 @@ export function testFloatingPanelChatIngestCommandUsesSharedRegistryParser() {
   }
 }
 export function testFloatingPanelChatMemoryInvocationBuildsExternalRuntimeContract() {
-  const directives = parseChatInvocationDirectives('Use #memory.search with #media, #mcp, and #model for this request.')
-  if (directives.map(directive => directive.id).join(',') !== 'memory.search,media,mcp,model') {
+  const directives = parseChatInvocationDirectives('Use #memory.search with #memory.extract, #memory.user_model, #promotion.retry, #media, #mcp, and #model for this request.')
+  if (directives.map(directive => directive.id).join(',') !== 'memory.search,memory.extract,memory.user_model,promotion.retry,media,mcp,model') {
     throw new Error(`expected ordered deduplicated invocation directives, got ${JSON.stringify(directives)}`)
   }
   const invocationPrompt = buildChatInvocationSystemPrompt({
-    userQuery: 'Use #memory.search with #media, #mcp, and #model for this request.',
+    userQuery: 'Use #memory.search with #memory.extract, #memory.user_model, #promotion.retry, #media, #mcp, and #model for this request.',
     chatProvider: 'openai',
     chatModel: 'gpt-5-nano',
   })
-  for (const expected of ['knowgrph.memory.search', 'openai / gpt-5-nano', 'explicit user_id', 'media references present', 'never claim execution']) {
+  for (const expected of ['knowgrph.memory.search', 'knowgrph.memory.extract_procedural', 'knowgrph.memory.materialize_user_model', 'openai / gpt-5-nano', 'explicit user_id', 'output_dir rooted inside KNOWGRPH_ROOT', 'deterministic USER_MODEL markdown', 'stable workspace path under the local chat root', 'exact workspace artifact paths', 'reuses the saved local workspace artifact as-is', 'media references present', 'never claim execution']) {
     if (!invocationPrompt.includes(expected)) throw new Error(`expected invocation prompt to include ${expected}`)
   }
   const agenticOsPrompt = buildChatInvocationSystemPrompt({
@@ -125,12 +125,12 @@ export function testFloatingPanelChatMemoryInvocationBuildsExternalRuntimeContra
       throw new Error(`expected shared Agentic OS invocation catalog to mirror ${fileName}, expected=${JSON.stringify(expectedTokens)} actual=${JSON.stringify(actualTokens)}`)
     }
   }
-  const plan = buildKnowgrphVdeoxplnRoutingPlan({ intentText: '#memory.search recall scoped memory context' })
+  const plan = buildKnowgrphVdeoxplnRoutingPlan({ intentText: '#memory.extract promote scoped procedural memory from harness replay output_dir' })
   if (plan.selectedVdeoxplnId !== 'knowgrph-memory-layer') {
     throw new Error(`expected memory invocation to select the memory-layer runtime, got ${JSON.stringify(plan)}`)
   }
   const routingPrompt = buildKnowgrphVdeoxplnChatSystemPrompt(plan)
-  for (const toolName of ['knowgrph.memory.add', 'knowgrph.memory.search', 'knowgrph.memory.assemble_prompt']) {
+  for (const toolName of ['knowgrph.memory.add', 'knowgrph.memory.search', 'knowgrph.memory.assemble_prompt', 'knowgrph.memory.extract_procedural', 'knowgrph.memory.materialize_user_model']) {
     if (!routingPrompt.includes(toolName)) throw new Error(`expected routing prompt to expose ${toolName}`)
   }
   const uploadedCandidate = buildUploadedMediaInlineCommandCandidate({
@@ -481,22 +481,22 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     if (adjacentDeleteDisplay.includes(mixedMediaLabel)) {
       throw new Error(`expected Backspace after mixed @ media chip spacing to remove the visible media label, got ${JSON.stringify(adjacentDeleteDisplay)}`)
     }
-    textarea.value = '#memory.sea'
+    textarea.value = '#memory.ext'
     textarea.setSelectionRange(textarea.value.length, textarea.value.length)
     Simulate.change(textarea)
     await waitForFrames(dom.window as unknown as Window, 2)
     const invocationMenu = dom.window.document.querySelector('section[aria-label="Chat runtime invocations"]')
-    const memorySearch = Array.from((invocationMenu?.querySelectorAll('button') || []) as NodeListOf<HTMLButtonElement>).find(button => button.textContent?.includes('#memory.search'))
-    if (!memorySearch) throw new Error('expected # menu to expose the memory search MCP invocation')
-    memorySearch.click()
+    const memoryExtract = Array.from((invocationMenu?.querySelectorAll('button') || []) as NodeListOf<HTMLButtonElement>).find(button => button.textContent?.includes('#memory.extract'))
+    if (!memoryExtract) throw new Error('expected # menu to expose the procedural memory extraction MCP invocation')
+    memoryExtract.click()
     await waitForFrames(dom.window as unknown as Window, 2)
-    if (textarea.value !== '#memory.search ') {
+    if (textarea.value !== '#memory.extract ') {
       throw new Error(`expected # selection to insert the runtime invocation token, got ${JSON.stringify(textarea.value)}`)
     }
-    const memorySearchChip = container.querySelector('[data-kg-chat-input-command-chip="keyword"][data-kg-chat-input-command-token="#memory.search"]')
-    const memorySearchInvocationChip = container.querySelector('[data-kg-chat-input-invocation-chip="keyword"][data-kg-chat-input-invocation-token="#memory.search"]')
-    if (memorySearchChip || !memorySearchInvocationChip || textarea.getAttribute('data-kg-chat-input-overlay-active') !== '1' || !String(textarea.getAttribute('class') || '').includes('text-transparent') || !memorySearchInvocationChip.getAttribute('title')?.includes('knowgrph.memory.search')) {
-      throw new Error(`expected selected #memory.search token to render through shared invocation chips, html=${container.innerHTML}`)
+    const memoryExtractChip = container.querySelector('[data-kg-chat-input-command-chip="keyword"][data-kg-chat-input-command-token="#memory.extract"]')
+    const memoryExtractInvocationChip = container.querySelector('[data-kg-chat-input-invocation-chip="keyword"][data-kg-chat-input-invocation-token="#memory.extract"]')
+    if (memoryExtractChip || !memoryExtractInvocationChip || textarea.getAttribute('data-kg-chat-input-overlay-active') !== '1' || !String(textarea.getAttribute('class') || '').includes('text-transparent') || !memoryExtractInvocationChip.getAttribute('title')?.includes('knowgrph.memory.extract_procedural')) {
+      throw new Error(`expected selected #memory.extract token to render through shared invocation chips, html=${container.innerHTML}`)
     }
     textarea.value = '#mc'
     textarea.setSelectionRange(textarea.value.length, textarea.value.length)

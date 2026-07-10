@@ -5,7 +5,7 @@ import {
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.storyboard-widget'
-import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
+import { WIDGET_BASE_SIZE, WIDGET_LAYOUT_BASE_HEIGHT_PX } from '@/lib/canvas/overlayWidgetZoom'
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -52,7 +52,7 @@ export function spreadMissingNodePositions(nodes: GraphNode[]): GraphNode[] {
     )
   })
   const GAP_X = containsBuiltInWidgetOrPanel ? (WIDGET_BASE_SIZE.width + 120) : 360
-  const GAP_Y = containsBuiltInWidgetOrPanel ? (WIDGET_BASE_SIZE.height + 120) : 260
+  const GAP_Y = containsBuiltInWidgetOrPanel ? (WIDGET_LAYOUT_BASE_HEIGHT_PX + 120) : 260
   const occupied = new Set<string>()
   for (let i = 0; i < nodes.length; i += 1) {
     const x = asFiniteNumber(nodes[i]?.x)

@@ -15,6 +15,16 @@ const preventDefaultCapture = (e: Event) => {
   }
 }
 
+const removeDocumentUserSelectListeners = (): void => {
+  if (typeof document === 'undefined') return
+  const doc = document as Document & {
+    removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions) => void
+  }
+  if (typeof doc.removeEventListener !== 'function') return
+  doc.removeEventListener('selectstart', preventDefaultCapture, true)
+  doc.removeEventListener('dragstart', preventDefaultCapture, true)
+}
+
 export function lockGlobalUserSelect(): void {
   if (typeof document === 'undefined') return
   lockCount += 1
@@ -62,14 +72,23 @@ export function unlockGlobalUserSelect(): void {
   } catch {
     void 0
   }
-  document.removeEventListener('selectstart', preventDefaultCapture, true)
-  document.removeEventListener('dragstart', preventDefaultCapture, true)
+  removeDocumentUserSelectListeners()
 }
 
 export function resetGlobalUserSelectLock(): void {
   if (typeof document === 'undefined') return
   lockCount = 0
   const el = document.documentElement
+  if (!el) {
+    restoreStyles = null
+    try {
+      document.body?.classList?.remove('kg-no-select')
+    } catch {
+      void 0
+    }
+    removeDocumentUserSelectListeners()
+    return
+  }
   const style = el.style as CSSStyleDeclaration & { webkitUserSelect?: string; msUserSelect?: string }
   if (restoreStyles) {
     style.userSelect = restoreStyles.userSelect
@@ -82,8 +101,7 @@ export function resetGlobalUserSelectLock(): void {
   } catch {
     void 0
   }
-  document.removeEventListener('selectstart', preventDefaultCapture, true)
-  document.removeEventListener('dragstart', preventDefaultCapture, true)
+  removeDocumentUserSelectListeners()
 }
 
 export function installGlobalUserSelectFailsafe(): void {

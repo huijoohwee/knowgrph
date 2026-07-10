@@ -29,6 +29,23 @@ import {
   resolveGraphNodeByCanonicalId,
 } from '@/lib/graph/canonicalNodeIds'
 
+export function resolveStoryboardWidgetNodeMutationTarget(args: {
+  baseGraphData: GraphData | null
+  draftGraphData: GraphData | null
+  latestDraftGraphData: GraphData | null
+  nodeId: string
+  sourceGraphData?: GraphData | null
+  storeGraphData: GraphData | null
+}) {
+  return resolveGraphDataAndNodeByCanonicalId([
+    args.latestDraftGraphData,
+    args.draftGraphData,
+    args.sourceGraphData,
+    args.baseGraphData,
+    args.storeGraphData,
+  ], args.nodeId)
+}
+
 export function deriveStoryboardWidgetNodeRemoval(args: {
   graphData: GraphData | null | undefined
   nodeId: unknown
@@ -117,13 +134,14 @@ export function useStoryboardWidgetNodeDraftActions(args: {
     if (!id) return
     const storeGraphData = useGraphStore.getState().graphData as GraphData | null
     const storeNodeId = String(resolveGraphNodeByCanonicalId(storeGraphData, id)?.id || '').trim()
-    const draft = resolveGraphDataAndNodeByCanonicalId([
+    const draft = resolveStoryboardWidgetNodeMutationTarget({
+      baseGraphData: args.baseGraphData,
+      draftGraphData: args.draftGraphData,
+      latestDraftGraphData: args.draftGraphDataRef.current,
+      nodeId: id,
       sourceGraphData,
-      args.draftGraphDataRef.current,
-      args.draftGraphData,
-      args.baseGraphData,
       storeGraphData,
-    ], id)?.graphData || null
+    })?.graphData || null
     let nextDraft: GraphData | null = null
     if (draft && Array.isArray(draft.nodes)) {
       let changed = false
@@ -208,13 +226,14 @@ export function useStoryboardWidgetNodeDraftActions(args: {
   const patchNodePropertiesById = React.useCallback((nodeId: string, patch: Record<string, unknown>, sourceGraphData?: GraphData | null) => {
     const id = String(nodeId || '').trim()
     if (!id) return
-    const resolved = resolveGraphDataAndNodeByCanonicalId([
+    const resolved = resolveStoryboardWidgetNodeMutationTarget({
+      baseGraphData: args.baseGraphData,
+      draftGraphData: args.draftGraphData,
+      latestDraftGraphData: args.draftGraphDataRef.current,
+      nodeId: id,
       sourceGraphData,
-      args.draftGraphDataRef.current,
-      args.draftGraphData,
-      args.baseGraphData,
-      useGraphStore.getState().graphData as GraphData | null,
-    ], id)
+      storeGraphData: useGraphStore.getState().graphData as GraphData | null,
+    })
     const node = resolved?.node || null
     if (!node) return
     const prevProps = (node.properties || {}) as Record<string, unknown>
@@ -415,6 +434,7 @@ export function useStoryboardWidgetNodeDraftActions(args: {
     duplicateNodeById,
     enableHandlesForAllInputs,
     patchNodePropertiesById,
+    patchNodeById: updateNodeById,
     patchSelectedNodeProperties,
     removeNodeById,
     renameSchemaFieldIdByNodeId,

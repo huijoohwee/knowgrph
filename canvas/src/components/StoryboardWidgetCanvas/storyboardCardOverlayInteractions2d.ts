@@ -9,6 +9,8 @@ import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/grid
 import type { StoryboardWidgetOverlayDragTransform } from '@/lib/storyboardWidget/overlayWorldDrag'
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 
 type CardSize = { width: number; height: number }
 type CardPoint = { x: number; y: number }
@@ -72,9 +74,6 @@ export function useStoryboardCardOverlayInteractions2d(args: {
   setDragVisualOverride?: (id: string, point: CardPoint | null) => void
   updateNode: (id: string, patch: Partial<GraphNode>) => void
 }) {
-  const dragSchedulerRef = React.useRef(createRafValueScheduler((next: { id: string; point: CardPoint }) => {
-    args.updateNode(next.id, { x: next.point.x, y: next.point.y })
-  }))
   const resizeSchedulerRef = React.useRef(createRafValueScheduler((next: { el: HTMLElement | null; height: number; id: string; node: GraphNode; width: number }) => {
     if (next.el) {
       next.el.style.width = `${next.width}px`
@@ -91,23 +90,25 @@ export function useStoryboardCardOverlayInteractions2d(args: {
     const startWorld = readPointerWorldPoint(args.getTransform(), event.clientX, event.clientY)
     const grab = { x: startWorld.x - startCenter.x, y: startWorld.y - startCenter.y }
     let latest = startCenter
-    startRichMediaPanelHeaderDrag(event.nativeEvent, {
+    disableAutoZoomModesForUserGesture(useGraphStore.getState())
+    useGraphStore.getState().setFlowWidgetDraggingNodeId(id)
+    const started = startRichMediaPanelHeaderDrag(event.nativeEvent, {
       shouldStartHeaderDrag: native => native.button === 0,
       onHeaderDrag: ({ clientX, clientY }) => {
         const world = readPointerWorldPoint(args.getTransform(), clientX, clientY)
         latest = { x: world.x - grab.x, y: world.y - grab.y }
         args.setDragVisualOverride?.(id, latest)
-        dragSchedulerRef.current.schedule({ id, point: latest })
       },
       onHeaderDragEnd: () => {
-        dragSchedulerRef.current.flush()
         const grid = readSnapGridConfigFromSchema(args.schema)
         const snapped = grid.enabled ? snapPointToGrid(latest, grid) : latest
         args.setDragVisualOverride?.(id, snapped)
         args.updateNode(id, { x: snapped.x, y: snapped.y })
+        if (useGraphStore.getState().flowWidgetDraggingNodeId === id) useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
         args.addHistory('Storyboard card move')
       },
-    })
+    }, event.currentTarget)
+    if (!started && useGraphStore.getState().flowWidgetDraggingNodeId === id) useGraphStore.getState().setFlowWidgetDraggingNodeId(null)
   }, [args])
 
   const beginResize = React.useCallback((event: React.PointerEvent<HTMLButtonElement>, node: GraphNode) => {

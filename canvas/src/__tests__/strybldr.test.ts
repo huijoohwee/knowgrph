@@ -262,7 +262,7 @@ export async function testStrybldrStarterTemplateStaysRunnableAndNeutral() {
   assert(!text.includes('seedream-'), 'expected starter template not to store provider-specific generated model ids')
   assert(!text.includes('video-url'), 'expected starter template not to store placeholder media URLs')
   assert(!text.includes('Generated Strybldr'), 'expected starter template not to store generated runtime handoff copy')
-  assert(!text.includes('New storyboard card'), 'expected starter template not to store ad hoc duplicated storyboard cards')
+  assert(!text.includes('New storyboard card') && text.includes('An individually pinned Card, Widget, or Rich Media Panel rejects local drag in every board layout while collective canvas pan remains available.'), 'expected starter template to avoid ad hoc cards and declare universal individual pin movement semantics')
   const parsedDoc = parseStrybldrStoryboardMarkdown(text)
   assert(parsedDoc, 'expected starter template to expose a structured Strybldr storyboard payload')
   const parsed = await loadGraphDataFromTextViaParser(starterName, text, {

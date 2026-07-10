@@ -26,12 +26,12 @@ const shouldUseResponseOnlyBaseTemplate = (args: {
   assistantText: string
 }): boolean => {
   const profile = args.profile
+  if (profile.signals.computingFlow || shouldMaterializeHeadlessResponseSurface(profile)) return false
   if (!hasRecognizedChatRuntimeInvocation(args.requestText)) return true
   const runtimeQuery = resolveChatRuntimeInvocationQuery(args.requestText)
   if (runtimeQuery.leadingRoute) {
     return isAttachedImageQuestionTerm(profile.intent)
   }
-  if (profile.signals.computingFlow || shouldMaterializeHeadlessResponseSurface(profile)) return false
   if (hasRequestedSections(profile)) return false
   return !profile.product &&
     !profile.domain &&

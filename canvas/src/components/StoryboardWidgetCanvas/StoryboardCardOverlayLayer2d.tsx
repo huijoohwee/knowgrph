@@ -2,7 +2,7 @@ import React from 'react'
 import { buildFlowCanvasHeaderPinProps, type FlowCanvasHeaderPinProps } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
 import { WidgetEditorActionsToolbar } from '@/components/StoryboardWidget/WidgetEditorActionsToolbar'
 import { STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME, StoryboardWidgetPanelChromeHeader } from '@/components/StoryboardWidget/StoryboardWidgetPanelChrome'
-import { getStoryboardWidgetPanelChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
+import { getStoryboardWidgetPanelChromeClassName, getStoryboardWidgetPanelSelectionChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
 import { StoryboardWidgetOverlayPortHandles } from '@/components/StoryboardWidget/StoryboardWidgetOverlayPortHandles'
 import { StoryboardCardMetaScrollRail } from '@/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail'
 import { StoryboardCardMediaDropSlot2d } from '@/components/StoryboardWidgetCanvas/StoryboardCardMediaDropSlot2d'
@@ -10,7 +10,7 @@ import { shouldStoryboardCardTextColumnOwnSummaryEditTarget } from '@/components
 import { commitStoryboardCardCanonicalText2d } from '@/components/StoryboardWidgetCanvas/storyboardCardCanonicalTextCommit2d'
 import { buildStoryboardCardTextModel } from '@/components/StoryboardWidgetCanvas/storyboardCardTextModel'
 import { resolveStoryboardCardOverlayRemoval } from '@/components/StoryboardWidgetCanvas/storyboardCardOverlayRemoval'
-import { buildFixedStoryboardCardPlacements2d, buildFixedStoryboardCardReferencePlacements2d, readStoryboardCardCenter2d, readStoryboardCardSize2d, type StoryboardCardPlacement } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
+import { readStoryboardCardCenter2d, readStoryboardCardSize2d, type StoryboardCardPlacement } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
 import { isStoryboardHeaderDragBlockedTarget, StoryboardCardResizeHandle, useStoryboardCardOverlayInteractions2d, useStoryboardCardOverlayWheelForwarding } from '@/components/StoryboardWidgetCanvas/storyboardCardOverlayInteractions2d'
 import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCanvas/storyboardCardOwnership2d'
 import { useStoryboardCardMediaDrop2d } from '@/components/StoryboardWidgetCanvas/useStoryboardCardMediaDrop2d'
@@ -26,7 +26,7 @@ import { isComposedGraphData } from '@/hooks/store/graph-data-slice/graphDataCom
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { StoryboardWidgetOverlayDragTransform } from '@/lib/storyboardWidget/overlayWorldDrag'
-import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
+import type { FlowWidgetPinnedById } from '@/lib/storyboardWidget/flowWidgetPinnedState'
 import { readCanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 import { isFlowWidgetHeaderDragAllowedByPin } from '@/lib/storyboardWidget/flowWidgetPinMovement'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
@@ -100,7 +100,7 @@ function StoryboardCardOverlayItem(props: {
       className={cn(
         getStoryboardWidgetPanelChromeClassName(),
         'pointer-events-auto absolute left-0 top-0 overflow-visible',
-        selected ? 'ring-2 ring-blue-500/80' : '',
+        getStoryboardWidgetPanelSelectionChromeClassName(selected),
       )}
       data-kg-storyboard-card-pixel-snap="1"
       data-kg-storyboard-card-vector-zoom="1"
@@ -109,6 +109,7 @@ function StoryboardCardOverlayItem(props: {
       data-kg-storyboard-fixed-card-lane={card.lane || 'Storyboard'}
       data-kg-storyboard-fixed-card-rich-media-chrome="1"
       data-kg-storyboard-fixed-card-pinned={headerPinProps.headerPinned === true ? '1' : '0'}
+      data-kg-storyboard-widget-selected={selected ? '1' : undefined}
       data-kg-overlay-pan-owner="canvas"
       data-node-id={card.id}
       data-kg-storyboard-widget-surface={storyboardWidgetSurfaceId}
@@ -237,19 +238,22 @@ function StoryboardCardOverlayItem(props: {
 
 export function StoryboardCardOverlayLayer2d(props: {
   active: boolean
+  flowWidgetPinnedByNodeId: FlowWidgetPinnedById
+  flowWidgetStateGraphKey: string | null
+  fixedCardReferencePlacements: ReadonlyMap<string, StoryboardCardPlacement>
   storyboardWidgetSurfaceId: string
   graphData: GraphData | null
   graphRevision: number
+  onNodeChange: (nodeId: string, patch: Partial<GraphNode>, sourceGraphData?: GraphData | null) => void
   getTransform: () => StoryboardWidgetOverlayDragTransform | null
   getWheelForwardTarget?: () => Element | null
   runWorkflowNode?: (nodeId: string) => Promise<void> | void
   schema: GraphSchema | null
   widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
 }) {
-  const { active, storyboardWidgetSurfaceId, getTransform, getWheelForwardTarget, graphData, graphRevision, runWorkflowNode, schema, widgetRegistry } = props
+  const { active, storyboardWidgetSurfaceId, getTransform, getWheelForwardTarget, graphData, graphRevision, onNodeChange, runWorkflowNode, schema, widgetRegistry } = props
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const strybldrStoryboardBoardLayoutMode = useGraphStore(s => s.strybldrStoryboardBoardLayoutMode)
-  const updateNode = useGraphStore(s => s.updateNode)
   const setGraphDataPreservingLayout = useGraphStore(s => s.setGraphDataPreservingLayout)
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
@@ -260,19 +264,14 @@ export function StoryboardCardOverlayLayer2d(props: {
   const selectNode = useGraphStore(s => s.selectNode)
   const selectedNodeId = useGraphStore(s => String(s.selectedNodeId || '').trim())
   const selectedNodeIds = useGraphStore(s => s.selectedNodeIds)
-  const flowWidgetPinnedByNodeId = useGraphStore(s => s.flowWidgetPinnedByNodeId)
-  const flowWidgetPinnedByNodeIdByGraphMetaKey = useGraphStore(s => s.flowWidgetPinnedByNodeIdByGraphMetaKey)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)
   const requestZoom = useGraphStore(s => s.requestZoom)
   const storyboardBoardLayoutMode = readCanvasBoardLayoutMode(strybldrStoryboardBoardLayoutMode)
   const fixedLayoutEnabled = storyboardBoardLayoutMode === 'fixed'
-  const flowWidgetStateGraphKey = React.useMemo(() => resolveFlowWidgetStateGraphKey({ graphData }), [graphData])
-  const effectiveFlowWidgetPinnedByNodeId = React.useMemo(() => resolveScopedFlowWidgetNodeMap({
-    graphMetaKey: flowWidgetStateGraphKey,
-    keyedByGraphMetaKey: flowWidgetPinnedByNodeIdByGraphMetaKey,
-    globalByNodeId: flowWidgetPinnedByNodeId,
-  }), [flowWidgetPinnedByNodeId, flowWidgetPinnedByNodeIdByGraphMetaKey, flowWidgetStateGraphKey])
+  const storyboardCardSizing = React.useMemo(() => ({
+    aspectRatioMode: strybldrStoryboardCardAspectMode,
+  }), [strybldrStoryboardCardAspectMode])
   const [activeCardId, setActiveCardId] = React.useState('')
   const rootRef = React.useRef<HTMLElement | null>(null)
   const overlayElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
@@ -305,16 +304,8 @@ export function StoryboardCardOverlayLayer2d(props: {
     nodeById,
   })
   const readCardSize = React.useCallback(
-    (node: GraphNode) => readStoryboardCardSize2d(node, strybldrStoryboardCardAspectMode),
-    [strybldrStoryboardCardAspectMode],
-  )
-  const fixedCardPlacements = React.useMemo(
-    () => fixedLayoutEnabled ? buildFixedStoryboardCardPlacements2d({ aspectRatioMode: strybldrStoryboardCardAspectMode, board, flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId, nodeById, schema }) : new Map<string, StoryboardCardPlacement>(),
-    [board, effectiveFlowWidgetPinnedByNodeId, fixedLayoutEnabled, nodeById, schema, strybldrStoryboardCardAspectMode],
-  )
-  const fixedCardReferencePlacements = React.useMemo(
-    () => buildFixedStoryboardCardReferencePlacements2d({ aspectRatioMode: strybldrStoryboardCardAspectMode, board, nodeById, schema }),
-    [board, nodeById, schema, strybldrStoryboardCardAspectMode],
+    (node: GraphNode) => readStoryboardCardSize2d(node, storyboardCardSizing.aspectRatioMode),
+    [storyboardCardSizing],
   )
   const setDragVisualOverride = React.useCallback((id: string, point: { x: number; y: number } | null) => { const key = String(id || '').trim(); if (!key) return; if (point) dragWorldOverrideByCardIdRef.current.set(key, point); else dragWorldOverrideByCardIdRef.current.delete(key) }, [])
   const preserveCardScreenPlacementForUnpin = React.useCallback((id: string, nextPinned: boolean) => {
@@ -331,8 +322,8 @@ export function StoryboardCardOverlayLayer2d(props: {
   const readCardCenter = React.useCallback((node: GraphNode): StoryboardCardPlacement | null => {
     const id = String(node.id || '').trim()
     if (!id) return readStoryboardCardCenter2d(node)
-    return dragWorldOverrideByCardIdRef.current.get(id) || (fixedLayoutEnabled ? readStoryboardCardCenter2d(node) || fixedCardReferencePlacements.get(id) : fixedCardReferencePlacements.get(id) || readStoryboardCardCenter2d(node)) || null
-  }, [fixedCardReferencePlacements, fixedLayoutEnabled])
+    return dragWorldOverrideByCardIdRef.current.get(id) || (fixedLayoutEnabled ? readStoryboardCardCenter2d(node) || props.fixedCardReferencePlacements.get(id) : props.fixedCardReferencePlacements.get(id) || readStoryboardCardCenter2d(node)) || null
+  }, [fixedLayoutEnabled, props.fixedCardReferencePlacements])
   useStoryboardCardOverlayWheelForwarding({ getWheelForwardTarget, rootRef })
   const interactions = useStoryboardCardOverlayInteractions2d({
     addHistory,
@@ -341,15 +332,14 @@ export function StoryboardCardOverlayLayer2d(props: {
     readNodeSize: readCardSize,
     schema,
     setDragVisualOverride,
-    updateNode,
+    updateNode: (id, patch) => onNodeChange(id, patch, graphData),
   })
   const { clearCardProjection } = useStoryboardCardOverlayProjection2d({
     active,
     cards,
     dragWorldOverrideByCardIdRef,
-    effectiveFlowWidgetPinnedByNodeId,
-    fixedCardPlacements,
-    fixedCardReferencePlacements,
+    effectiveFlowWidgetPinnedByNodeId: props.flowWidgetPinnedByNodeId,
+    fixedCardReferencePlacements: props.fixedCardReferencePlacements,
     fixedLayoutEnabled,
     getTransform,
     graphRevision,
@@ -381,9 +371,9 @@ export function StoryboardCardOverlayLayer2d(props: {
   const commitNodePatch = React.useCallback((card: StoryboardCardModel, patch: Partial<GraphNode>, historyLabel: string) => {
     const id = String(card.id || '').trim()
     if (!id) return
-    updateNode(id, patch)
+    onNodeChange(id, patch, graphData)
     addHistory(historyLabel)
-  }, [addHistory, updateNode])
+  }, [addHistory, graphData, onNodeChange])
   const commitNodeCanonicalProperty = React.useCallback((card: StoryboardCardModel, args: {
     canonicalKey: string
     historyLabel: string
@@ -397,9 +387,9 @@ export function StoryboardCardOverlayLayer2d(props: {
       addHistory,
       cardId: String(node?.id || card.id).trim(),
       currentProperties: (node?.properties || {}) as Record<string, unknown>,
-      updateNode,
+      updateNode: (id, patch) => onNodeChange(id, patch, graphData),
     })
-  }, [addHistory, readLatestNode, updateNode])
+  }, [addHistory, graphData, onNodeChange, readLatestNode])
   const commitTitle = React.useCallback((card: StoryboardCardModel, nextValue: string) => {
     const label = String(nextValue || '').trim()
     const node = readLatestNode(card.id)
@@ -547,6 +537,7 @@ export function StoryboardCardOverlayLayer2d(props: {
       ref={rootRef}
       aria-label="Storyboard card overlay"
       className="pointer-events-none absolute inset-0 overflow-hidden"
+      data-kg-flow-widget-state-graph-key={props.flowWidgetStateGraphKey || undefined}
       data-kg-storyboard-fixed-card-grid={fixedLayoutEnabled ? '1' : '0'}
       data-kg-storyboard-fixed-card-layout={storyboardBoardLayoutMode}
       data-kg-storyboard-fixed-card-overlay="1"
@@ -558,8 +549,8 @@ export function StoryboardCardOverlayLayer2d(props: {
         const selected = activeCardId === card.id || selectedNodeId === card.id || (Array.isArray(selectedNodeIds) && selectedNodeIds.some(id => String(id || '').trim() === card.id))
         const headerPinProps = buildFlowCanvasHeaderPinProps({
           enabled: true,
-          flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId,
-          flowWidgetStateGraphKey,
+          flowWidgetPinnedByNodeId: props.flowWidgetPinnedByNodeId,
+          flowWidgetStateGraphKey: props.flowWidgetStateGraphKey,
           nodeId: card.id,
           onBeforePinnedChange: nextPinned => preserveCardScreenPlacementForUnpin(card.id, nextPinned),
           stopEvent: stopCardHeaderControlEvent,
@@ -569,7 +560,6 @@ export function StoryboardCardOverlayLayer2d(props: {
             key={card.id}
             card={card}
             cardMoveEnabled={isFlowWidgetHeaderDragAllowedByPin({
-              fixedLayoutEnabled,
               pinnedInCanvas: headerPinProps.headerPinned === true,
             })}
             storyboardWidgetSurfaceId={storyboardWidgetSurfaceId}

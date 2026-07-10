@@ -1,4 +1,5 @@
 import React from 'react'
+import { markSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { __canvasStartupDebug } from '@/features/canvas/canvasStartupDebug'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
@@ -241,7 +242,6 @@ type SourceFilesComposeRequest = {
   shouldScheduleCompose: boolean
   compositionSignature: string
 }
-
 type BootstrapMountSideEffectsRequest = {
   sourceFilesSnapshot?: ReturnType<typeof useGraphStore.getState>['sourceFiles']
   composeRequest: SourceFilesComposeRequest | null
@@ -1443,7 +1443,7 @@ export function SourceFilesPersistenceBootstrap() {
       } catch {
         hydratedRef.current = true
         workspaceHydratedRef.current = true
-      }
+      } finally { if (!cancelled) markSourceFilesBootstrapReady() }
     })()
 
     return () => {

@@ -331,7 +331,8 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
   const gutterEnabled = (canInsertLine || canReorder) && opts.markdownBlockGutterEnabled !== false
   const standaloneMediaEnabled =
     opts.markdownPresentationMode ||
-    opts.markdownCardPreviewMode === true || blockControlsAllowed ||
+    opts.markdownCardPreviewMode === true ||
+    blockControlsAllowed ||
     opts.markdownViewerMediaMode === 'image'
 
   const dnd = useMarkdownLineBlockDnD({
@@ -342,7 +343,9 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
   })
 
   const standaloneLinkedImage = getStandaloneLinkedImageParagraph(t as unknown as Token)
-  if (standaloneMediaEnabled && standaloneLinkedImage) {
+  const allowStandaloneLinkedYouTubeThumbnail =
+    !!standaloneLinkedImage && !!buildYouTubeEmbedUrl(standaloneLinkedImage.linkHref)
+  if ((standaloneMediaEnabled || allowStandaloneLinkedYouTubeThumbnail) && standaloneLinkedImage) {
     const resolvedImageHref = resolveHref(standaloneLinkedImage.imageHref, opts.activeDocumentPath)
     return (
       <MediaWrapper
@@ -359,8 +362,14 @@ export const MarkdownParagraphBlock = React.memo(function MarkdownParagraphBlock
     )
   }
   const standaloneHrefCandidate = readStandaloneParagraphUrlToken(t as unknown as Token, { rejectLinkedMedia: true })
+  const allowLargeDocumentStandaloneYouTubeSnapshot =
+    !!opts.markdownLargeDocumentMode && !!buildYouTubeEmbedUrl(standaloneHrefCandidate)
   const standaloneHrefRaw =
-    standaloneHrefCandidate && (standaloneMediaEnabled || !looksLikeStandaloneBinaryMediaHref(standaloneHrefCandidate))
+    standaloneHrefCandidate && (
+      standaloneMediaEnabled
+      || allowLargeDocumentStandaloneYouTubeSnapshot
+      || !looksLikeStandaloneBinaryMediaHref(standaloneHrefCandidate)
+    )
       ? standaloneHrefCandidate
       : null
   const standaloneHref = standaloneHrefRaw && shouldRenderStandaloneMediaForLine({ href: standaloneHrefRaw, startLine: t.startLine, markdownLargeDocumentMode: opts.markdownLargeDocumentMode, standaloneMediaRenderLineSet: opts.standaloneMediaRenderLineSet }) ? standaloneHrefRaw : null

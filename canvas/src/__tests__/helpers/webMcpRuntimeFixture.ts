@@ -200,6 +200,9 @@ export const publishMockWebMcpLocalSurfaceSnapshots = (): void => {
       persistedKnowgrphPath: '/chat/knowgrph/session.md',
       applied: true,
       message: 'Canonical KGC workspace document was persisted and applied to the active canvas graph.',
+      failureNote: null,
+      retryHint: null,
+      retryCommand: null,
     },
   })
 }

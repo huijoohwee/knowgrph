@@ -2,8 +2,6 @@ import {
   KNOWGRPH_AGENT_READY_PROMPT_NAMES,
 } from './knowgrphAgentReadyPromptContract.mjs'
 import { KNOWGRPH_SOURCE_FILE_RESOURCE_URI_TEMPLATE } from './knowgrphAgentReadyResourceContract.mjs'
-import { MCP_ONBOARDING_CLIENT_SCRIPT, buildMcpOnboarding, buildMcpOnboardingHtml, resolveMcpOnboardingUrls } from './mcpAppsOnboarding.mjs'
-import { escapeHtml, normalizeString, readUrlOrigin, safeJsonForInlineScript } from './mcpAppsContractText.mjs'
 
 export const KNOWGRPH_MCP_APPS_EXTENSION_ID = 'io.modelcontextprotocol/ui'
 export const KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app'
@@ -28,6 +26,26 @@ export const KNOWGRPH_MCP_CLIENT_IDS = Object.freeze({
   bytePlusModelArk: 'byteplus-modelark',
   generic: 'generic-mcp',
 })
+
+const normalizeString = (value) => String(value || '').trim()
+
+const escapeHtml = (value) => normalizeString(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+
+const safeJsonForInlineScript = (value) => JSON.stringify(value).replace(/</g, '\\u003c')
+
+const readUrlOrigin = (value) => {
+  const source = normalizeString(value)
+  if (!source) return ''
+  try {
+    return new URL(source).origin
+  } catch {
+    return ''
+  }
+}
 
 export const buildKnowgrphMcpAppsCapabilities = () => ({
   extensions: {
@@ -217,7 +235,9 @@ export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
   const appResource = resources.find((resource) => resource?.uri === KNOWGRPH_MCP_APP_RESOURCE_URI) || null
   const extension = capabilities.extensions?.[KNOWGRPH_MCP_APPS_EXTENSION_ID]
   const transportUrl = normalizeString(mcpServerCard.transport?.url) || (baseUrl ? `${baseUrl}/mcp` : '')
-  const { publicReadMcpUrl, controlPlaneMcpUrl } = resolveMcpOnboardingUrls({ baseUrl, transportUrl, surfaceRoles: mcpServerCard.surfaceRoles })
+  const publicReadMcpUrl = normalizeString(mcpServerCard.surfaceRoles?.publicReadMcpUrl) || transportUrl
+  const controlPlaneMcpUrl = normalizeString(mcpServerCard.surfaceRoles?.controlPlaneMcpUrl)
+    || (baseUrl ? `${baseUrl}/control-plane/mcp` : '')
   const transportType = normalizeString(mcpServerCard.transport?.type) || KNOWGRPH_MCP_REMOTE_TRANSPORT_TYPE
   const appResourceHtml = normalizeString(args.appResourceHtml)
     || buildKnowgrphMcpAppsHtml({
@@ -402,7 +422,34 @@ export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
       ],
       renderMode: 'structured-summary-with-json-fallback',
     },
-    onboarding: buildMcpOnboarding({ publicReadMcpUrl, controlPlaneMcpUrl }),
+    onboarding: {
+      publicReadMcpUrl,
+      controlPlaneMcpUrl,
+      controlPlaneCondition:
+        'Add the control plane only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.',
+      cheapestProofPath:
+        'Use the source-side README.md quick start or docs/documents/knowgrph-superagent-harness.md in the knowgrph repo before hosted setup.',
+      steps: [
+        {
+          order: 1,
+          label: 'Install public MCP first',
+          action: publicReadMcpUrl ? `Install ${publicReadMcpUrl}.` : 'Install the public read-only MCP endpoint first.',
+        },
+        {
+          order: 2,
+          label: 'Add control plane only when session-capable',
+          action: controlPlaneMcpUrl
+            ? `Add ${controlPlaneMcpUrl} only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.`
+            : 'Add the control plane only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.',
+        },
+        {
+          order: 3,
+          label: 'Use the cheapest proof path before hosted setup',
+          action:
+            'Run the source-side README.md quick start or docs/documents/knowgrph-superagent-harness.md first.',
+        },
+      ],
+    },
     checklist,
   }
 }
@@ -494,7 +541,8 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
   const appUrl = normalizeString(args.appUrl)
   const updatedAt = normalizeString(args.updatedAt)
   const toolName = normalizeString(args.toolName) || KNOWGRPH_MCP_APP_TOOL_NAME
-  const { publicReadMcpUrl, controlPlaneMcpUrl } = resolveMcpOnboardingUrls({ baseUrl: appUrl })
+  const publicReadMcpUrl = appUrl ? `${appUrl.replace(/\/+$/, '')}/mcp` : ''
+  const controlPlaneMcpUrl = appUrl ? `${appUrl.replace(/\/+$/, '')}/control-plane/mcp` : ''
   const toolNames = Array.isArray(args.toolNames)
     ? args.toolNames.map(normalizeString).filter(Boolean)
     : [toolName]
@@ -505,7 +553,12 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
     toolName,
     toolNames,
     protocolVersion: KNOWGRPH_MCP_APPS_PROTOCOL_VERSION,
-    onboarding: buildMcpOnboarding({ publicReadMcpUrl, controlPlaneMcpUrl }),
+    onboarding: {
+      publicReadMcpUrl,
+      controlPlaneMcpUrl,
+      cheapestProofPath:
+        'Use the source-side README.md quick start or docs/documents/knowgrph-superagent-harness.md before hosted setup.',
+    },
   }
   return `<!doctype html>
 <html lang="en">
@@ -560,7 +613,16 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
         <dt>Status</dt><dd id="status" class="status">Initializing MCP Apps host bridge.</dd>
       </dl>
     </section>
-    ${buildMcpOnboardingHtml({ publicReadMcpUrl, controlPlaneMcpUrl })}
+    <section aria-label="Fastest path">
+      <section id="onboarding" class="readiness">
+        <strong>Fastest Path</strong>
+        <ol>
+          <li>${escapeHtml(publicReadMcpUrl ? `Install ${publicReadMcpUrl}.` : 'Install the public MCP endpoint first.')}</li>
+          <li>${escapeHtml(controlPlaneMcpUrl ? `Add ${controlPlaneMcpUrl} only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.` : 'Add the control plane only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.')}</li>
+          <li>Use the source-side <code>README.md</code> quick start or <code>docs/documents/knowgrph-superagent-harness.md</code> before hosted setup.</li>
+        </ol>
+      </section>
+    </section>
     <section aria-label="MCP Apps server readiness">
       <section id="readiness" class="readiness">Waiting for structured server-readiness data.</section>
     </section>
@@ -649,7 +711,25 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
       parent.appendChild(element);
       return element;
     };
-    ${MCP_ONBOARDING_CLIENT_SCRIPT}
+    const renderOnboarding = (payload) => {
+      onboardingEl.replaceChildren();
+      const onboarding = payload && payload.onboarding && typeof payload.onboarding === 'object'
+        ? payload.onboarding
+        : boot.onboarding;
+      appendText(onboardingEl, 'strong', 'Fastest Path');
+      const list = document.createElement('ol');
+      const steps = Array.isArray(onboarding && onboarding.steps) && onboarding.steps.length
+        ? onboarding.steps
+        : [
+          { action: onboarding && onboarding.publicReadMcpUrl ? 'Install ' + onboarding.publicReadMcpUrl + '.' : 'Install the public MCP endpoint first.' },
+          { action: onboarding && onboarding.controlPlaneMcpUrl ? 'Add ' + onboarding.controlPlaneMcpUrl + ' only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.' : 'Add the control plane only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.' },
+          { action: onboarding && onboarding.cheapestProofPath ? onboarding.cheapestProofPath : 'Use the source-side README.md quick start or docs/documents/knowgrph-superagent-harness.md before hosted setup.' },
+        ];
+      for (const step of steps) {
+        appendText(list, 'li', step && step.action ? String(step.action) : 'Follow the fastest onboarding path.');
+      }
+      onboardingEl.appendChild(list);
+    };
     const renderReadiness = (payload) => {
       readinessEl.replaceChildren();
       const readiness = payload && payload.mcpAppsServerReadiness;

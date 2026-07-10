@@ -366,6 +366,7 @@ function StoryboardCanvasRichMediaPanelNode(props: {
         openUrl={preview.openUrl || preview.url || ''}
         kind={preview.kind || 'iframe'}
         interactive={preview.interactive !== false}
+        selected={props.selected}
         panel={panel}
         panelChrome="storyboardWidget"
         frameMode="surface"

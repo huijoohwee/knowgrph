@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import StoryboardWidgetCanvas from '@/components/StoryboardWidgetCanvas'
@@ -8,6 +8,26 @@ import { viewportCenterToWorld } from '@/lib/zoom/viewport'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
+
+const STORYBOARD_SEED_TIMEOUT_MS = 1600
+const STORYBOARD_TEST_POLL_MS = 5
+
+const waitForStoryboardTick = () => new Promise<void>(resolve => setTimeout(resolve, STORYBOARD_TEST_POLL_MS))
+
+const renderStoryboardCanvas = async (root: ReturnType<typeof createRoot>, element: React.ReactElement) => {
+  await act(async () => {
+    root.render(element)
+    await waitForStoryboardTick()
+  })
+}
+
+const unmountStoryboardCanvas = async (root: ReturnType<typeof createRoot> | null) => {
+  if (!root) return
+  await act(async () => {
+    root.unmount()
+    await waitForStoryboardTick()
+  })
+}
 
 const installStoryboardWidgetViewportRect = (dom: ReturnType<typeof initJsdomHarness>['dom'], width = 800, height = 600) => {
   const rect = {
@@ -72,11 +92,11 @@ export async function testStoryboardWidgetPinnedWidgetsInitCenteredEvenGrid() {
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
 
-    root.render(React.createElement(StoryboardWidgetCanvas, { active: true } as never))
+    await renderStoryboardCanvas(root, React.createElement(StoryboardWidgetCanvas, { active: true } as never))
 
     const ids = ['n1', 'n2', 'n3', 'n4']
     const waitForSeed = async () => {
-      const deadline = Date.now() + 800
+      const deadline = Date.now() + STORYBOARD_SEED_TIMEOUT_MS
       while (Date.now() < deadline) {
         const st = useGraphStore.getState()
         const worldById =
@@ -87,7 +107,7 @@ export async function testStoryboardWidgetPinnedWidgetsInitCenteredEvenGrid() {
           return w && Number.isFinite(w.x) && Number.isFinite(w.y)
         })
         if (ok) return worldById
-        await new Promise<void>(resolve => setTimeout(() => resolve(), 5))
+        await waitForStoryboardTick()
       }
       throw new Error('expected seeded world positions')
     }
@@ -138,7 +158,7 @@ export async function testStoryboardWidgetPinnedWidgetsInitCenteredEvenGrid() {
     }
   } finally {
     try {
-      root?.unmount()
+      await unmountStoryboardCanvas(root)
     } catch {
       void 0
     }
@@ -192,11 +212,11 @@ export async function testStoryboardWidgetPinnedWidgetsInitCenteredWithViewportO
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
 
-    root.render(React.createElement(StoryboardWidgetCanvas, { active: true } as never))
+    await renderStoryboardCanvas(root, React.createElement(StoryboardWidgetCanvas, { active: true } as never))
 
     const ids = ['n1', 'n2', 'n3', 'n4']
     const waitForSeed = async () => {
-      const deadline = Date.now() + 800
+      const deadline = Date.now() + STORYBOARD_SEED_TIMEOUT_MS
       while (Date.now() < deadline) {
         const st = useGraphStore.getState()
         const worldById =
@@ -207,7 +227,7 @@ export async function testStoryboardWidgetPinnedWidgetsInitCenteredWithViewportO
           return w && Number.isFinite(w.x) && Number.isFinite(w.y)
         })
         if (ok) return worldById
-        await new Promise<void>(resolve => setTimeout(() => resolve(), 5))
+        await waitForStoryboardTick()
       }
       throw new Error('expected seeded world positions with non-zero viewport offset')
     }
@@ -242,7 +262,7 @@ export async function testStoryboardWidgetPinnedWidgetsInitCenteredWithViewportO
     }
   } finally {
     try {
-      root?.unmount()
+      await unmountStoryboardCanvas(root)
     } catch {
       void 0
     }
@@ -309,14 +329,14 @@ export async function testStoryboardWidgetPinnedWidgetsReseedWhenViewportStabili
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    root.render(React.createElement(StoryboardWidgetCanvas, { active: true } as never))
+    await renderStoryboardCanvas(root, React.createElement(StoryboardWidgetCanvas, { active: true } as never))
 
     const ids = ['n1', 'n2', 'n3', 'n4']
     const readWorld = () =>
       ((useGraphStore.getState() as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
         .flowWidgetWorldPosByNodeId || {}) as Record<string, { x: number; y: number }>
     const waitForSeed = async () => {
-      const deadline = Date.now() + 1200
+      const deadline = Date.now() + STORYBOARD_SEED_TIMEOUT_MS
       while (Date.now() < deadline) {
         const worldById = readWorld()
         const ok = ids.every(id => {
@@ -324,20 +344,20 @@ export async function testStoryboardWidgetPinnedWidgetsReseedWhenViewportStabili
           return w && Number.isFinite(w.x) && Number.isFinite(w.y)
         })
         if (ok) return worldById
-        await new Promise<void>(resolve => setTimeout(resolve, 5))
+        await waitForStoryboardTick()
       }
       throw new Error('expected seeded world positions')
     }
 
     const initialWorld = await waitForSeed()
     const measureRoot = await (async () => {
-      const deadline = Date.now() + 1200
+      const deadline = Date.now() + STORYBOARD_SEED_TIMEOUT_MS
       while (Date.now() < deadline) {
         const viewportRoot = doc.querySelector('[data-kg-canvas-viewport-root="1"]') as HTMLElement | null
         if (viewportRoot) return viewportRoot
         const storyboardRoot = doc.querySelector('[aria-label="Storyboard"]') as HTMLElement | null
         if (storyboardRoot) return storyboardRoot
-        await new Promise<void>(resolve => setTimeout(resolve, 5))
+        await waitForStoryboardTick()
       }
       throw new Error('expected Storyboard measurement root')
     })()
@@ -383,7 +403,7 @@ export async function testStoryboardWidgetPinnedWidgetsReseedWhenViewportStabili
       return centroid
     }
     const resized = await (async () => {
-      const deadline = Date.now() + 1200
+      const deadline = Date.now() + STORYBOARD_SEED_TIMEOUT_MS
       let latestFinite: { worldById: Record<string, { x: number; y: number }>; moved: boolean; centroid: { x: number; y: number } } | null = null
       while (Date.now() < deadline) {
         const worldById = readWorld()
@@ -401,7 +421,7 @@ export async function testStoryboardWidgetPinnedWidgetsReseedWhenViewportStabili
           latestFinite = { worldById, moved, centroid }
           if (moved && Math.abs(centroid.x - center.x) <= 2 && Math.abs(centroid.y - center.y) <= 2) return latestFinite
         }
-        await new Promise<void>(resolve => setTimeout(resolve, 5))
+        await waitForStoryboardTick()
       }
       if (latestFinite) return latestFinite
       throw new Error('expected reseeded world positions after viewport resize')
@@ -414,7 +434,7 @@ export async function testStoryboardWidgetPinnedWidgetsReseedWhenViewportStabili
     }
   } finally {
     try {
-      root?.unmount()
+      await unmountStoryboardCanvas(root)
     } catch {
       void 0
     }
@@ -471,7 +491,7 @@ export async function testStoryboardWidgetPinnedWidgetsReseedWhenInitiallyStacke
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    root.render(React.createElement(StoryboardWidgetCanvas, { active: true } as never))
+    await renderStoryboardCanvas(root, React.createElement(StoryboardWidgetCanvas, { active: true } as never))
 
     const ids = ['n1', 'n2', 'n3', 'n4']
     const readWorld = () =>
@@ -479,12 +499,12 @@ export async function testStoryboardWidgetPinnedWidgetsReseedWhenInitiallyStacke
         .flowWidgetWorldPosByNodeId || {}) as Record<string, { x: number; y: number }>
 
     const worldById = await (async () => {
-      const deadline = Date.now() + 1200
+      const deadline = Date.now() + STORYBOARD_SEED_TIMEOUT_MS
       while (Date.now() < deadline) {
         const current = readWorld()
         const unique = new Set(ids.map(id => `${Math.round((current[id]?.x || 0) * 1000)}:${Math.round((current[id]?.y || 0) * 1000)}`))
         if (unique.size >= 2) return current
-        await new Promise<void>(resolve => setTimeout(resolve, 5))
+        await waitForStoryboardTick()
       }
       throw new Error('expected stacked widgets to reseed into spread positions')
     })()
@@ -513,7 +533,7 @@ export async function testStoryboardWidgetPinnedWidgetsReseedWhenInitiallyStacke
     }
   } finally {
     try {
-      root?.unmount()
+      await unmountStoryboardCanvas(root)
     } catch {
       void 0
     }
@@ -570,7 +590,7 @@ export async function testStoryboardWidgetPinnedWidgetsReseedWhenInitiallyVertic
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    root.render(React.createElement(StoryboardWidgetCanvas, { active: true } as never))
+    await renderStoryboardCanvas(root, React.createElement(StoryboardWidgetCanvas, { active: true } as never))
 
     const ids = ['n1', 'n2', 'n3', 'n4']
     const readWorld = () =>
@@ -578,12 +598,12 @@ export async function testStoryboardWidgetPinnedWidgetsReseedWhenInitiallyVertic
         .flowWidgetWorldPosByNodeId || {}) as Record<string, { x: number; y: number }>
 
     const worldById = await (async () => {
-      const deadline = Date.now() + 1200
+      const deadline = Date.now() + STORYBOARD_SEED_TIMEOUT_MS
       while (Date.now() < deadline) {
         const current = readWorld()
         const uniqueX = new Set(ids.map(id => Math.round((current[id]?.x || 0) * 1000)))
         if (uniqueX.size >= 2) return current
-        await new Promise<void>(resolve => setTimeout(resolve, 5))
+        await waitForStoryboardTick()
       }
       throw new Error('expected vertical-strip widgets to reseed into spread positions')
     })()
@@ -592,7 +612,7 @@ export async function testStoryboardWidgetPinnedWidgetsReseedWhenInitiallyVertic
     if (uniqueX.size < 2) throw new Error('expected reseeded vertical-strip widgets to use multiple columns')
   } finally {
     try {
-      root?.unmount()
+      await unmountStoryboardCanvas(root)
     } catch {
       void 0
     }
@@ -798,19 +818,22 @@ export async function testStoryboardWidgetPinnedWidgetsReseedAvoidsActiveSurface
     container.id = 'root'
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
-    root.render(React.createElement(StoryboardWidgetCanvas, { active: true, storyboardWidgetSurfaceId: 'surface-test' } as never))
+    await renderStoryboardCanvas(
+      root,
+      React.createElement(StoryboardWidgetCanvas, { active: true, storyboardWidgetSurfaceId: 'surface-test' } as never),
+    )
 
     const readWorld = () =>
       ((useGraphStore.getState() as unknown as { flowWidgetWorldPosByNodeId?: Record<string, { x: number; y: number }> })
         .flowWidgetWorldPosByNodeId || {}) as Record<string, { x: number; y: number }>
 
     const worldById = await (async () => {
-      const deadline = Date.now() + 1200
+      const deadline = Date.now() + STORYBOARD_SEED_TIMEOUT_MS
       while (Date.now() < deadline) {
         const current = readWorld()
         const unique = new Set(ids.map(id => `${Math.round((current[id]?.x || 0) * 1000)}:${Math.round((current[id]?.y || 0) * 1000)}`))
         if (unique.size >= 2) return current
-        await new Promise<void>(resolve => setTimeout(resolve, 5))
+        await waitForStoryboardTick()
       }
       throw new Error('expected widgets to reseed away from active-surface rich-media obstacle')
     })()
@@ -843,7 +866,7 @@ export async function testStoryboardWidgetPinnedWidgetsReseedAvoidsActiveSurface
     }
   } finally {
     try {
-      root?.unmount()
+      await unmountStoryboardCanvas(root)
     } catch {
       void 0
     }

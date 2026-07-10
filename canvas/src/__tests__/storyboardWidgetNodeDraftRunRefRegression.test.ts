@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { resolveStoryboardWidgetAutoRunNodeIds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetAutoRunTargets'
+import { resolveStoryboardWidgetNodeMutationTarget } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetNodeDraftActions'
 import type { GraphData } from '@/lib/graph/types'
 
 export function testStoryboardWidgetNodeDraftUpdatesRefBeforeRunStoreWriteback() {
@@ -24,12 +25,18 @@ export function testStoryboardWidgetNodeDraftUpdatesRefBeforeRunStoreWriteback()
 }
 
 export function testStoryboardWidgetPropertyPatchesPreferLiveDraftBeforeStoreGraph() {
-  const text = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetNodeDraftActions.ts'), 'utf8')
-  const liveDraftRead = 'const resolved = resolveGraphDataAndNodeByCanonicalId(['
-  const patchWrite = 'updateNodeById(id, { properties: nextProps as never }, resolved?.graphData || sourceGraphData)'
-
-  if (!text.includes(liveDraftRead) || !text.includes('sourceGraphData,') || !text.includes(patchWrite) || text.indexOf(liveDraftRead) > text.indexOf(patchWrite)) {
-    throw new Error('expected Storyboard Widget property patches to resolve the canonical renderer source before draft and store fallbacks')
+  const liveDraft = { nodes: [{ id: 'target' }, { id: 'untouched-sibling' }], edges: [] } as GraphData
+  const staleRendererSnapshot = { nodes: [{ id: 'target' }], edges: [] } as GraphData
+  const resolved = resolveStoryboardWidgetNodeMutationTarget({
+    baseGraphData: staleRendererSnapshot,
+    draftGraphData: liveDraft,
+    latestDraftGraphData: liveDraft,
+    nodeId: 'target',
+    sourceGraphData: staleRendererSnapshot,
+    storeGraphData: staleRendererSnapshot,
+  })
+  if (resolved?.graphData !== liveDraft || resolved.graphData.nodes?.some(node => node.id === 'untouched-sibling') !== true) {
+    throw new Error('expected Storyboard Widget node mutations to preserve the live draft and untouched siblings instead of rebuilding from a stale renderer snapshot')
   }
 }
 

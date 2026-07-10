@@ -78,6 +78,9 @@ export const inspectLocalChatPipelineState = (
       persistedKnowgrphPath: snapshot.finalize?.persistedKnowgrphPath || null,
       applied: snapshot.finalize?.applied ?? null,
       message: snapshot.finalize?.message || null,
+      failureNote: snapshot.finalize?.failureNote || null,
+      retryHint: snapshot.finalize?.retryHint || null,
+      retryCommand: snapshot.finalize?.retryCommand || null,
     },
     updatedAtMs: snapshot.updatedAtMs || null,
   }

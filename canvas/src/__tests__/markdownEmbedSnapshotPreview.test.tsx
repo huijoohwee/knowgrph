@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import MarkdownPreview from '@/features/markdown/ui/MarkdownPreview'
 import { fetchYouTubeTranscriptConversion } from '@/lib/net/youtubeTranscriptConversion'
 import { Z_INDEX_ANCHOR_OVERLAY } from '@/lib/ui/zIndex'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 type FetchResponseStub = {
@@ -89,7 +90,9 @@ export async function testMarkdownPreviewRendersWebpageSnapshotForStandaloneLink
 
 export async function testMarkdownPreviewRendersStandaloneYouTubeShortUrlInLargeDocumentMode() {
   const { dom, restore: restoreDom } = initJsdomHarness()
+  const previousRichMediaPanelMode = useGraphStore.getState().richMediaPanelMode
   try {
+    useGraphStore.setState({ richMediaPanelMode: 'snapshot' } as never)
     const doc = dom.window.document
     const container = doc.createElement('section')
     container.id = 'root'
@@ -98,29 +101,32 @@ export async function testMarkdownPreviewRendersStandaloneYouTubeShortUrlInLarge
     const fakeId = buildSyntheticYouTubeId('standalone large document timestamp')
     const markdownText = [
       `https://youtu.be/${fakeId}?t=2178;`,
-      '',
       ...Array.from({ length: 2600 }, (_, i) => `Paragraph ${i + 1}`),
-    ].join('\n')
+    ].join('\n\n')
 
-    root.render(
-      React.createElement(MarkdownPreview, {
-        markdownText,
-        activeDocumentPath: '/test.md',
-        highlightedLineRange: null,
-        markdownWordWrap: true,
-        markdownPresentationMode: false,
-        markdownTextHighlight: false,
-        uiPanelTextFontClass: 'font-sans',
-        uiPanelMonospaceTextClass: 'font-mono',
-        previewOverlayScope: 'container',
-        previewOverlayPortalTarget: null,
-        previewScrollable: false,
-        showSidebar: false,
-      }),
-    )
+    await act(async () => {
+      root.render(
+        React.createElement(MarkdownPreview, {
+          markdownText,
+          activeDocumentPath: '/test.md',
+          highlightedLineRange: null,
+          markdownWordWrap: true,
+          markdownPresentationMode: false,
+          markdownTextHighlight: false,
+          uiPanelTextFontClass: 'font-sans',
+          uiPanelMonospaceTextClass: 'font-mono',
+          previewOverlayScope: 'container',
+          previewOverlayPortalTarget: null,
+          previewScrollable: false,
+          showSidebar: false,
+        }),
+      )
+    })
 
     const tick = () => new Promise<void>(resolve => setTimeout(resolve, 0))
-    for (let i = 0; i < 12; i += 1) await tick()
+    await act(async () => {
+      for (let i = 0; i < 24; i += 1) await tick()
+    })
 
     const videoSnapshot = container.querySelector('[data-kg-video-snapshot="1"]')
     if (!videoSnapshot) throw new Error('expected youtube short URL to render as a large-document snapshot')
@@ -130,6 +136,7 @@ export async function testMarkdownPreviewRendersStandaloneYouTubeShortUrlInLarge
 
     root.unmount()
   } finally {
+    useGraphStore.setState({ richMediaPanelMode: previousRichMediaPanelMode } as never)
     restoreDom()
   }
 }

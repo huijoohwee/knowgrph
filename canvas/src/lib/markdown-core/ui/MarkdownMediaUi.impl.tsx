@@ -88,7 +88,7 @@ export const MediaIframe = React.memo(function MediaIframe({
     return <MediaImage src={rawSrc} alt={title} className={className} style={style} cardPreviewMode={cardPreviewMode} />
   }
   if (inferredKind === 'video') {
-    return richMediaPanelMode === 'snapshot' ? (
+    return richMediaPanelMode === 'snapshot' || deferLoad === true ? (
       <MediaVideoSnapshot
         url={rawSrc}
         title={title}
@@ -106,7 +106,7 @@ export const MediaIframe = React.memo(function MediaIframe({
   if (inferredKind === 'audio') {
     return <MediaAudio src={rawSrc} className={className} style={style} />
   }
-  if (richMediaPanelMode === 'snapshot' && getYouTubeId(rawSrc)) {
+  if ((richMediaPanelMode === 'snapshot' || deferLoad === true) && getYouTubeId(rawSrc)) {
     return (
       <MediaVideoSnapshot
         url={rawSrc}

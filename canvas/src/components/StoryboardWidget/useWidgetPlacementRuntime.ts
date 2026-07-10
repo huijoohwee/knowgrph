@@ -59,7 +59,6 @@ export function useWidgetPlacementRuntime(args: {
   autoStackOffset: { top: number; left: number }
   floating: boolean
   floatingUsesScreenAuthority: boolean
-  setFlowWidgetWorldPosByNodeId: (pos: Record<string, { x: number; y: number }>) => void
 }) {
   const {
     node,
@@ -82,7 +81,6 @@ export function useWidgetPlacementRuntime(args: {
     autoStackOffset,
     floating,
     floatingUsesScreenAuthority,
-    setFlowWidgetWorldPosByNodeId,
   } = args
 
   const asideRef = React.useRef<HTMLElement | null>(null)
@@ -224,9 +222,9 @@ export function useWidgetPlacementRuntime(args: {
 
   const persistWorldPos = React.useCallback(
     (pos: { x: number; y: number }) => {
-      persistWorldPosForNode({ nodeId, graphMetaKey, pos, setFlowWidgetWorldPosByNodeId })
+      persistWorldPosForNode({ nodeId, graphMetaKey, pos })
     },
-    [graphMetaKey, nodeId, setFlowWidgetWorldPosByNodeId],
+    [graphMetaKey, nodeId],
   )
 
   const readStoredWidgetWorldPos = React.useCallback((): { x: number; y: number } | null => {

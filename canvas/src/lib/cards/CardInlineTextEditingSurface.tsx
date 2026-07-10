@@ -8,6 +8,7 @@ import { readInlineCommandMenuSigilFromInsertedText, readInlineCommandMenuSigilF
 import { readDataViewMultiLineControlClassName, type DataViewFieldLineMode, type DataViewRowHeightPreset } from '@/lib/ui/dataViewDensity'
 import { PanelTextInput, PanelTextarea } from '@/lib/ui/panelFormControls'
 import { FloatingPanelChatComposerMediaOverlay, TEXTAREA_INVOCATION_PROJECTED_LAYOUT_CLASS_NAME, type TextareaInvocationMediaAttachment } from '@/lib/ui/textareaInvocationProjection'
+import { UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES, UI_VIEW_EDIT_SURFACE_SHELL_CLASS_NAME } from '@/lib/ui/surfaceClasses'
 import { cn } from '@/lib/utils'
 
 type CardInlineTextEditingSurfaceProps = {
@@ -70,7 +71,7 @@ export function CardInlineTextEditingSurface(props: CardInlineTextEditingSurface
     setDraft, setProjectedCommandDraft, showCommandLaunchers, useViewerEditSurface, viewerEditorRef, persistProjectedCommandDraft,
   } = props
   return (
-    <section ref={commandRootRef} className="relative h-full min-h-0 w-full" {...{ [commandRootAttribute]: '1' }}>
+    <section ref={commandRootRef} className={UI_VIEW_EDIT_SURFACE_SHELL_CLASS_NAME} {...UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES} {...{ [commandRootAttribute]: '1' }}>
       {useViewerEditSurface ? (
         <MarkdownInlineTextEditSurface
           value={draft}

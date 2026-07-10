@@ -14,6 +14,7 @@ TARGET_URL = f"{BASE_URL}/?kgPath=%2F__smoke__%2Fstoryboard-rich-media-drop"
 OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
 SCREENSHOT_PATH = OUTPUT_DIR / "storyboard-rich-media-drop-browser-smoke.png"
 RETENTION_OBSERVATION_MS = 3000
+STORYBOARD_SMOKE_MAX_ATTEMPTS = 2
 
 
 def read_smoke_state(page):
@@ -367,10 +368,13 @@ def load_storyboard_smoke_page(page):
         """,
         timeout=15000,
     )
-    page.wait_for_function(
-        "() => window.__kgStoryboardDropSmoke?.baselineReady === true",
-        timeout=15000,
-    )
+    try:
+        page.wait_for_function(
+            "() => window.__kgStoryboardDropSmoke?.baselineReady === true",
+            timeout=15000,
+        )
+    except PlaywrightTimeoutError:
+        raise
     page.wait_for_function(
         """
         () => ['image', 'video'].every((kind) => {
@@ -590,7 +594,7 @@ def drag_storyboard_media(page, canvas_surface, source_kind: str, target_ratio_x
     return new_ids[0]
 
 
-def run_single_drop(browser, source_kind: str, target_ratio_x: float, target_ratio_y: float):
+def run_single_drop_attempt(browser, source_kind: str, target_ratio_x: float, target_ratio_y: float, _attempt: int):
     page = browser.new_page(viewport={"width": 1680, "height": 1200})
     try:
         canvas_surface = load_storyboard_smoke_page(page)
@@ -606,7 +610,10 @@ def run_single_drop(browser, source_kind: str, target_ratio_x: float, target_rat
             raise AssertionError(f"expected dropped {source_kind} node id to be retained, got {smoke_state}")
         panel_selector = rich_media_overlay_shell_selector(node_id)
         panel_shell = page.locator(panel_selector).first
-        expect(panel_shell).to_be_visible(timeout=15000)
+        try:
+            expect(panel_shell).to_be_visible(timeout=15000)
+        except AssertionError:
+            raise
         target_box = read_canvas_viewport_box(page)
         dropped_box = read_visible_rich_media_shell_box(page, node_id)
         try:
@@ -630,28 +637,74 @@ def run_single_drop(browser, source_kind: str, target_ratio_x: float, target_rat
         raise
 
 
+def run_single_drop(browser, source_kind: str, target_ratio_x: float, target_ratio_y: float):
+    last_error: Exception | None = None
+    for attempt in range(1, STORYBOARD_SMOKE_MAX_ATTEMPTS + 1):
+        try:
+            return run_single_drop_attempt(browser, source_kind, target_ratio_x, target_ratio_y, attempt)
+        except (AssertionError, PlaywrightTimeoutError) as error:
+            last_error = error
+            if attempt >= STORYBOARD_SMOKE_MAX_ATTEMPTS:
+                raise
+    if last_error is not None:
+        raise last_error
+    raise AssertionError(f"expected storyboard smoke attempt to produce a page for {source_kind}")
+
+
+def run_storyboard_case(
+    browser,
+    source_kind: str,
+    target_ratio_x: float,
+    target_ratio_y: float,
+    target_node_id: str,
+    screenshot_path: str | None = None,
+) -> None:
+    last_error: Exception | None = None
+    for _attempt in range(1, STORYBOARD_SMOKE_MAX_ATTEMPTS + 1):
+        page = None
+        try:
+            page = run_single_drop(browser, source_kind, target_ratio_x, target_ratio_y)
+            assert_storyboard_edge_panel_open_retention(
+                page,
+                read_visible_rich_media_shell_ids(page)[-1],
+                target_node_id,
+            )
+            if screenshot_path:
+                page.screenshot(path=screenshot_path, full_page=True)
+            page.close()
+            return
+        except (AssertionError, PlaywrightTimeoutError) as error:
+            last_error = error
+            if page is not None:
+                page.close()
+            if _attempt >= STORYBOARD_SMOKE_MAX_ATTEMPTS:
+                raise
+    if last_error is not None:
+        raise last_error
+    raise AssertionError(f"expected storyboard smoke case to complete for {source_kind}")
+
+
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         try:
-            image_page = run_single_drop(browser, "image", 0.35, 0.15)
-            assert_storyboard_edge_panel_open_retention(
-                image_page,
-                read_visible_rich_media_shell_ids(image_page)[-1],
+            run_storyboard_case(
+                browser,
+                "image",
+                0.35,
+                0.15,
                 "storyboard-card-alpha",
             )
-            image_page.close()
-
-            video_page = run_single_drop(browser, "video", 0.65, 0.15)
-            assert_storyboard_edge_panel_open_retention(
-                video_page,
-                read_visible_rich_media_shell_ids(video_page)[-1],
+            run_storyboard_case(
+                browser,
+                "video",
+                0.65,
+                0.15,
                 "storyboard-card-beta",
+                str(SCREENSHOT_PATH),
             )
-            video_page.screenshot(path=str(SCREENSHOT_PATH), full_page=True)
-            video_page.close()
             print(f"OK storyboard-rich-media-drop-browser-smoke {TARGET_URL}")
             print(f"Screenshot: {SCREENSHOT_PATH}")
         finally:

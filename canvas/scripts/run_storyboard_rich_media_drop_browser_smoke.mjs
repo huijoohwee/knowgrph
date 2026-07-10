@@ -1,9 +1,11 @@
 import { spawn } from 'node:child_process'
+import { resolve } from 'node:path'
 
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const devServerPort = String(process.env.KG_STORYBOARD_DROP_SMOKE_PORT || '4176')
 const devServerBaseUrl = `http://localhost:${devServerPort}`
 const devServerUrl = `${devServerBaseUrl}/__smoke__/storyboard-rich-media-drop`
+const viteCliPath = resolve(process.cwd(), '../node_modules/vite/bin/vite.js')
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -45,12 +47,31 @@ function terminateProcess(child) {
   })
 }
 
+function runCommand(command, args, env) {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(command, args, {
+      cwd: process.cwd(),
+      stdio: 'inherit',
+      env,
+    })
+    child.once('exit', code => {
+      if (code === 0) {
+        resolvePromise()
+        return
+      }
+      reject(new Error(`${command} ${args.join(' ')} exited with code ${code ?? 'null'}`))
+    })
+    child.once('error', reject)
+  })
+}
+
 async function run() {
   let devServer = null
   const reuseExistingServer = await isServerReady(devServerUrl, 1500)
 
   if (!reuseExistingServer) {
-    devServer = spawn(npmCommand, ['run', 'dev', '--', '--port', devServerPort, '--strictPort'], {
+    await runCommand(npmCommand, ['run', 'predev'], process.env)
+    devServer = spawn(process.execPath, [viteCliPath, '--configLoader', 'runner', '--port', devServerPort, '--strictPort'], {
       cwd: process.cwd(),
       stdio: 'inherit',
       env: process.env,

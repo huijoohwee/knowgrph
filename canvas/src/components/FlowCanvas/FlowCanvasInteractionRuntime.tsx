@@ -207,6 +207,7 @@ export default React.memo(function FlowCanvasInteractionRuntime(
       runtime,
       graphData: graphDataForZoomRequests,
       storyboardWidgetSurfaceId,
+      canvas2dRendererOverride: canvas2dRenderer,
       width: widthEffective,
       height: viewportH,
       selectedNodeId: selectedNodeId ? String(selectedNodeId) : null,

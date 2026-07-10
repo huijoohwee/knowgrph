@@ -2,7 +2,7 @@ import { hashText } from '@/features/parsers/hash'
 import type { CorpusSourceUnit } from '@/features/queryable-corpus/corpusGraph'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
-import { splitMarkdownLines } from '@/lib/markdown'
+import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
 import { createUniqueId } from '@/lib/ids'
 import { RICH_MEDIA_PANEL_DEFAULT_HEIGHT_PX, RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
 import { dump as stringifyYaml } from 'js-yaml'
@@ -21,7 +21,6 @@ import { buildMermaidGanttWorkflowCode } from '@/lib/mermaid/mermaidDiagramCode'
 import { buildRemoteVideoFrameRequestUrl, getBilibiliVideoId, getYouTubeId, parseYouTubeStartSeconds } from 'grph-shared/rich-media/providers'
 import { STRYBLDR_CAMERA_PROPERTY_KEY, buildStrybldrCameraHandoffLine, hasStrybldrCameraSettings, readStrybldrCameraSettings } from './strybldrCamera'
 import { buildStrybldrCardOverridePatchFromGraphNodeChange, buildStrybldrWorkflowGanttCode } from './strybldrStoryboardMarkdownSync'
-import { parseStrybldrStoryboardFrontmatter, readStrybldrStoryboardPayloadFromFrontmatterLines, readStrybldrStoryboardPayloadValue } from './strybldrStoryboardFrontmatter'
 export { buildStrybldrCardOverridePatchFromGraphNodeChange, buildStrybldrWorkflowGanttCode } from './strybldrStoryboardMarkdownSync'
 import type {
   StrybldrBox,
@@ -183,6 +182,96 @@ const basenameWithoutExt = (value: string): string => {
   const dot = base.lastIndexOf('.')
   return dot > 0 ? base.slice(0, dot) : base
 }
+
+const countLeadingSpaces = (value: string): number => {
+  const match = String(value || '').match(/^\s*/)
+  return match ? match[0].length : 0
+}
+
+const findLeadingUnfencedYamlEnd = (lines: readonly string[]): number => {
+  let sawTopLevelKey = false
+  for (let index = 0; index < lines.length; index += 1) {
+    const raw = String(lines[index] || '')
+    const trimmed = raw.trim()
+    if (!trimmed) continue
+    const indent = countLeadingSpaces(raw)
+    if (indent === 0 && /^#{1,6}\s+/.test(trimmed)) return sawTopLevelKey ? index : -1
+    if (indent === 0 && /^(```|~~~)/.test(trimmed)) return sawTopLevelKey ? index : -1
+    if (indent === 0 && /^<[A-Za-z!/]/.test(trimmed)) return sawTopLevelKey ? index : -1
+    if (indent === 0 && /^[A-Za-z0-9_.-]+\s*:/.test(trimmed)) sawTopLevelKey = true
+  }
+  return sawTopLevelKey ? lines.length : -1
+}
+
+const parseStrybldrStoryboardFrontmatter = (text: string): ReturnType<typeof parseMarkdownFrontmatter> => {
+  const lines = splitMarkdownLines(String(text || ''))
+  const fenced = parseMarkdownFrontmatter(lines)
+  if (Object.keys(fenced.meta || {}).length > 0 || fenced.warnings.length > 0 || fenced.startIndex > 0) return fenced
+  const end = findLeadingUnfencedYamlEnd(lines)
+  if (end <= 0) return fenced
+  return parseMarkdownFrontmatter(['---', ...lines.slice(0, end), '---'])
+}
+
+const readStrybldrFrontmatterLines = (text: string): string[] => {
+  const lines = splitMarkdownLines(String(text || ''))
+  let lead = 0
+  while (lead < lines.length && !String(lines[lead] || '').trim()) lead += 1
+  if (/^---\s*$/.test(String(lines[lead] || ''))) {
+    for (let index = lead + 1; index < lines.length; index += 1) {
+      if (/^---\s*$/.test(String(lines[index] || ''))) {
+        return lines.slice(lead + 1, index)
+      }
+    }
+    return []
+  }
+  const end = findLeadingUnfencedYamlEnd(lines)
+  return end > 0 ? lines.slice(0, end) : []
+}
+
+const readStrybldrStoryboardPayloadFromLines = (lines: readonly string[]): Record<string, unknown> | null => {
+  if (!Array.isArray(lines) || lines.length === 0) return null
+  for (const key of STRYBLDR_FRONTMATTER_PAYLOAD_KEYS) {
+    let start = -1
+    for (let index = 0; index < lines.length; index += 1) {
+      const raw = String(lines[index] || '')
+      if (countLeadingSpaces(raw) !== 0) continue
+      if (new RegExp(`^${escapeRegExp(key)}\\s*:`).test(raw.trim())) {
+        start = index
+        break
+      }
+    }
+    if (start < 0) continue
+    let end = lines.length
+    for (let index = start + 1; index < lines.length; index += 1) {
+      const raw = String(lines[index] || '')
+      if (!raw.trim()) continue
+      if (countLeadingSpaces(raw) === 0 && /^[A-Za-z0-9_.-]+\s*:/.test(raw.trim())) {
+        end = index
+        break
+      }
+    }
+    const parsed = parseMarkdownFrontmatter(['---', ...lines.slice(start, end), '---'])
+    const meta = parsed.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta)
+      ? parsed.meta as Record<string, unknown>
+      : null
+    if (!meta) continue
+    const value = meta[key]
+    if (typeof value === 'string') {
+      try {
+        const parsedPayload = JSON.parse(value)
+        if (parsedPayload && typeof parsedPayload === 'object' && !Array.isArray(parsedPayload)) {
+          return parsedPayload as Record<string, unknown>
+        }
+      } catch {
+        void 0
+      }
+      continue
+    }
+    if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>
+  }
+  return null
+}
+
 export const isStrybldrStoryboardMarkdown = (text: string): boolean => {
   const raw = String(text || '')
   return STRYBLDR_FRONTMATTER_MARKER_RE.test(raw) || STRYBLDR_JSON_FENCE_RE.test(raw) || STRYBLDR_FRONTMATTER_PAYLOAD_KEYS.some(key => raw.includes(`${key}:`))
@@ -372,11 +461,24 @@ const readStrybldrStoryboardFrontmatterRawPayload = (text: string): Record<strin
     : null
   if (meta) {
     for (const key of STRYBLDR_FRONTMATTER_PAYLOAD_KEYS) {
-      const payload = readStrybldrStoryboardPayloadValue(meta[key])
-      if (payload) return payload
+      const value = meta[key]
+      if (!value) continue
+      if (typeof value === 'string') {
+        try {
+          const parsedPayload = JSON.parse(value)
+          return parsedPayload && typeof parsedPayload === 'object' && !Array.isArray(parsedPayload)
+            ? parsedPayload as Record<string, unknown>
+            : null
+        } catch {
+          return null
+        }
+      }
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        return value as Record<string, unknown>
+      }
     }
   }
-  return readStrybldrStoryboardPayloadFromFrontmatterLines(text, STRYBLDR_FRONTMATTER_PAYLOAD_KEYS)
+  return readStrybldrStoryboardPayloadFromLines(readStrybldrFrontmatterLines(text))
 }
 
 const replaceStrybldrStoryboardFrontmatterRawPayload = (text: string, payload: Record<string, unknown>): string | null => {

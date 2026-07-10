@@ -253,6 +253,17 @@ export function testStoryboardWidgetOverlayEdgeSchedulerStabilizesAcrossScrollPa
   if (!text.includes('const onInteractionFrame = () => {')) {
     throw new Error('expected overlay edge scheduler interaction-frame callback to run explicit invalidation before redraw')
   }
+  const interactionEffectStart = text.indexOf("window.addEventListener(STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT")
+  const interactionEffectOwner = text.slice(Math.max(0, interactionEffectStart - 800), interactionEffectStart)
+  if (interactionEffectOwner.includes('if (!args.overlayOnlyModeEnabled) return')) {
+    throw new Error('expected Card, Widget, and Rich Media edge geometry to share interaction updates across Storyboard display modes')
+  }
+  if (!text.includes('if (overlayEdgeRafRef.current != null) {\n        cancelAnimationFrame(overlayEdgeRafRef.current)\n        overlayEdgeRafRef.current = null')) {
+    throw new Error('expected interaction geometry to replace a stale pending edge frame after drag/pan layout is queued')
+  }
+  if (!text.includes('scheduleOverlayEdgeUpdate(true)') || !text.includes('STORYBOARD_WIDGET_GEOMETRY_COMMITTED_EVENT')) {
+    throw new Error('expected committed Card, Widget, and Rich Media DOM geometry to redraw edges before paint')
+  }
   if (!text.includes('getEdgeBaseStroke') || !text.includes('getEdgeStrokeWidth')) {
     throw new Error('expected overlay edge renderer to reuse shared graph edge stroke and width resolvers')
   }

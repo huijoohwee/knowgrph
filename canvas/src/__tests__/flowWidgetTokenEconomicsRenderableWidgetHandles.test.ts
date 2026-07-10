@@ -87,6 +87,16 @@ function installDomGlobals(dom: JSDOM): () => void {
   g.HTMLInputElement = dom.window.HTMLInputElement as typeof HTMLInputElement
   g.HTMLTextAreaElement = dom.window.HTMLTextAreaElement as typeof HTMLTextAreaElement
   g.IS_REACT_ACT_ENVIRONMENT = true
+  const patchLegacyInputEventMethods = (proto: Record<string, unknown> | undefined) => {
+    if (!proto) return
+    if (typeof proto.attachEvent !== 'function') proto.attachEvent = () => void 0
+    if (typeof proto.detachEvent !== 'function') proto.detachEvent = () => void 0
+  }
+  patchLegacyInputEventMethods((dom.window.Element as unknown as { prototype?: Record<string, unknown> }).prototype)
+  patchLegacyInputEventMethods((dom.window.HTMLElement as unknown as { prototype?: Record<string, unknown> }).prototype)
+  patchLegacyInputEventMethods((dom.window as unknown as { HTMLInputElement?: { prototype?: Record<string, unknown> } }).HTMLInputElement?.prototype)
+  patchLegacyInputEventMethods((dom.window as unknown as { HTMLTextAreaElement?: { prototype?: Record<string, unknown> } }).HTMLTextAreaElement?.prototype)
+  patchLegacyInputEventMethods((dom.window as unknown as { HTMLSelectElement?: { prototype?: Record<string, unknown> } }).HTMLSelectElement?.prototype)
   return () => {
     Object.entries(prev).forEach(([key, value]) => {
       if (typeof value === 'undefined') delete (g as Record<string, unknown>)[key]

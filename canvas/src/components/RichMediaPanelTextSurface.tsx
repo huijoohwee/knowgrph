@@ -3,6 +3,7 @@ import { CardMediaEmptyPlaceholder, CardMediaLoadingSkeleton } from '@/lib/cards
 import { CardMediaDropZoneFrame } from '@/lib/cards/CardMediaDropZone'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { CARD_TEXT_SURFACE_COLUMN_CLASS_NAME, CARD_TEXT_SURFACE_EDIT_CLASS_NAME, CARD_TEXT_SURFACE_SCROLL_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME, CARD_TEXT_SURFACE_VIEW_CLASS_NAME } from '@/lib/cards/cardTextSurfaceFrame'
+import { UI_VIEW_EDIT_SURFACE_AREA_CLASS_NAME, UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES } from '@/lib/ui/surfaceClasses'
 import { cn } from '@/lib/utils'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
 import type { RichMediaPanelModel } from './useRichMediaPanelModel'
@@ -16,7 +17,7 @@ export function RichMediaPanelTextSurface(args: {
     props.onMediaDrop ? (
       <CardMediaDropZoneFrame
         ariaLabel={`Media drop zone for ${model.title}`}
-        className="h-full w-full"
+        className={UI_VIEW_EDIT_SURFACE_AREA_CLASS_NAME}
         dataAttributes={{
           'data-kg-rich-media-media-drop-zone': '1',
           'data-kg-rich-media-panel-id': String(props.overlayId || ''),
@@ -36,8 +37,9 @@ export function RichMediaPanelTextSurface(args: {
         data-kg-rich-media-card-text-frame="1"
         data-kg-canvas-wheel-ignore="true"
         data-kg-media-scroll-surface="1"
-        className={cn('h-full w-full', CARD_TEXT_SURFACE_COLUMN_CLASS_NAME)}
-        style={{ borderColor: 'var(--kg-border)', height: '100%', overflowX: 'hidden', overflowY: 'auto', overscrollBehaviorX: 'none', overscrollBehaviorY: 'contain', pointerEvents: 'auto', touchAction: 'pan-y', width: '100%' }}
+        className={CARD_TEXT_SURFACE_COLUMN_CLASS_NAME}
+        style={{ borderColor: 'var(--kg-border)', pointerEvents: 'auto', touchAction: 'pan-y' }}
+        {...UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES}
         onPointerDownCapture={model.panelTextEditable ? event => event.stopPropagation() : undefined}
         onWheelCapture={model.panelTextEditable ? event => event.stopPropagation() : undefined}
       >

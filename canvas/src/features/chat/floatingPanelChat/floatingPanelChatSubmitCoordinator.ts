@@ -181,6 +181,9 @@ export const executeFloatingPanelChatSubmitCoordinator = async (args: {
       persistedKnowgrphPath: liveKgcPath || null,
       applied: null,
       message: null,
+      failureNote: null,
+      retryHint: null,
+      retryCommand: null,
     })
 
     while (attempt < maxValidationAttempts) {

@@ -24,6 +24,7 @@ export async function testMediaOverlayWorldProjectionKeepsUnscaledCardChromeMetr
         applyY: (value: number) => value * zoom,
       }) as any,
       computeSizingZoomK: () => zoom,
+      panelDisplay: 'flex',
       projectWithWorldTransformScale: true,
       getPanelSizeForId: () => ({ w: 360, h: 203 }),
       getElementForId: id => id === 'media-panel' ? panel : null,
@@ -47,6 +48,9 @@ export async function testMediaOverlayWorldProjectionKeepsUnscaledCardChromeMetr
     }
     if (String((panel.style as CSSStyleDeclaration & { zoom?: string }).zoom || '') !== String(zoom)) {
       throw new Error(`expected world projection to own zoom exactly once, got ${String((panel.style as CSSStyleDeclaration & { zoom?: string }).zoom || '')}`)
+    }
+    if (panel.style.display !== 'flex') {
+      throw new Error(`expected explicit panel display ownership to preserve the flex frame, got ${panel.style.display}`)
     }
     loop.stop()
   } finally {

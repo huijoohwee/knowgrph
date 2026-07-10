@@ -24,7 +24,10 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
-import { renderMarkdownHtmlAudioBlock } from './MarkdownHtmlAudioBlock'
+import {
+  CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME,
+  CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME,
+} from '@/lib/cards/cardMarkdownPreviewUtils'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import {
   MARKDOWN_BLOCK_GUTTER_PADDING_LEFT_CLASS,
@@ -371,8 +374,69 @@ export const MarkdownHtmlBlock = React.memo(function MarkdownHtmlBlock({
     }
   }
 
-  const audioBlock = renderMarkdownHtmlAudioBlock({ html, opts, token: t, highlightClass, highlightStyle })
-  if (audioBlock) return audioBlock
+  // audio
+  if (looksLikeSingleTagBlock(html, 'audio')) {
+    const parsed = (() => {
+      try {
+        if (typeof DOMParser === 'undefined') return null
+        const parser = new DOMParser()
+        const d = parser.parseFromString(html, 'text/html')
+        const audio = d.querySelector('audio')
+        if (!audio) return null
+        const srcRaw = audio.getAttribute('src') || audio.getAttribute('data-src') || ''
+        const srcFromSource = audio.querySelector('source')?.getAttribute('src') || audio.querySelector('source')?.getAttribute('data-src') || ''
+        const srcCandidate = String(srcRaw || srcFromSource || '').trim()
+        if (!srcCandidate || !isSafeHref(srcCandidate) || !isSafeMediaSrc(srcCandidate)) return null
+        const autoPlay = audio.hasAttribute('autoplay')
+        const loop = audio.hasAttribute('loop')
+        const muted = audio.hasAttribute('muted')
+        const controls = audio.hasAttribute('controls')
+        const classRaw = audio.getAttribute('class') || ''
+        const styleRaw = audio.getAttribute('style') || ''
+        return { srcCandidate, autoPlay, loop, muted, controls, classRaw, styleRaw }
+      } catch {
+        return null
+      }
+    })()
+
+    const srcRaw = parsed?.srcCandidate || extractAttr(html, 'src') || extractAttr(html, 'data-src')
+    if (srcRaw && isSafeHref(srcRaw) && isSafeMediaSrc(srcRaw)) {
+      const resolved = resolveHref(srcRaw, opts.activeDocumentPath)
+      const src = applyMediaProxySrc(resolved)
+      const style = (() => {
+        const classStyle = deriveSafeLayoutStyleFromClassAttr(parsed?.classRaw || extractAttr(html, 'class'))
+        const inlineStyle = parseSafeInlineStyle(parsed?.styleRaw || extractAttr(html, 'style'))
+        if (!classStyle && !inlineStyle) return undefined
+        const merged: React.CSSProperties = { ...(classStyle || {}), ...(inlineStyle || {}) }
+        if (merged.width && !merged.maxWidth) merged.maxWidth = '100%'
+        return Object.keys(merged).length ? merged : undefined
+      })()
+      const audioClassName = opts.markdownCardPreviewMode === true
+        ? `${CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME} ${CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME}`
+        : `${CARD_MARKDOWN_PREVIEW_MEDIA_AUDIO_CLASS_NAME} rounded border ${UI_THEME_TOKENS.panel.border}`
+      return (
+        <MediaWrapper
+          type="audio"
+          srcRaw={srcRaw}
+          startLine={t.startLine}
+          endLine={t.endLine || t.startLine}
+          highlightClass={highlightClass}
+          highlightStyle={highlightStyle}
+          opts={opts}
+        >
+          <audio
+            controls={parsed?.controls !== false}
+            src={src || undefined}
+            className={audioClassName}
+            style={style}
+            autoPlay={parsed?.autoPlay || undefined}
+            muted={parsed?.muted || undefined}
+            loop={parsed?.loop || undefined}
+          />
+        </MediaWrapper>
+      )
+    }
+  }
 
   // img
   if (looksLikeSingleTagBlock(html, 'img')) {

@@ -1,8 +1,8 @@
-# Knowgrph — Agentic Canvas
+# Knowgrph
 
-**The canvas that runs a document like a program.**
+**The frontmatter is the program. Git is the audit trail. There is no export step.**
 
-Knowgrph is an **AI/LLM-agent-native, markdown-based, self-runnable agentic widget canvas**. A Knowgrph document is plain Markdown with a typed YAML frontmatter flow: nodes are **widgets** (input, compute, rich-media panels), edges are typed **sockets**, and the whole document renders as an interactive canvas that an agent — or a human — can **run, gate, persist, and replay**.
+Knowgrph is a markdown file that runs. Its YAML frontmatter is a typed widget graph — nodes are **widgets** (input, compute, rich-media panels), edges are typed **sockets** — and that same file is the thing an LLM/MCP agent (or a human) can **run, gate, persist, and replay**. Not a board that exports to markdown. Not a database that a canvas renders. The `.md` file committed to git *is* the graph, the audit trail, and the runnable program, all at once, with nothing else underneath it.
 
 The same file is three things at once:
 
@@ -10,7 +10,7 @@ The same file is three things at once:
 - a **typed widget graph** (`kgc-computing-flow/v1` frontmatter — nodes, edges, sockets, run actions), and
 - a **runnable agent program** (compute nodes, approval gates, budget meters, and media outputs that an LLM/MCP agent can execute end to end).
 
-Knowgrph is provider-neutral and project-agnostic: it operates on any brief, canvas graph, tool schema, or media provider without assuming a particular vendor, document, or domain.
+Knowgrph is provider-neutral and project-agnostic: it operates on any brief, canvas graph, tool schema, or media provider without assuming a particular vendor, document, or domain. If you're looking for "agentic canvas" in the broader sense — Miro, tldraw, and others now use that phrase too, and worth knowing about (see below) — the claim above is the narrower, specific one only Knowgrph makes: the canvas has no format underneath it other than the markdown file itself.
 
 ## Why Knowgrph exists
 
@@ -25,24 +25,33 @@ Knowgrph closes that gap with **KGC (Knowledge Graph Canvas) markdown** — comp
 
 ## Where Knowgrph sits
 
-Infinite-canvas tools split roughly into three tiers today:
+Infinite-canvas and agent tools split roughly into a few tiers today:
 
-- **Drawing surfaces** — Excalidraw, tldraw, FigJam, Miro. The canvas stores shapes and strokes; it doesn't understand them. Agents can *draw on* these canvases (via MCP servers, tldraw's Agent Starter Kit, Excalidraw skills), but a box is a box, not a node with meaning.
-- **Knowledge surfaces** — Obsidian Canvas, Heptabase, Scrintal. Cards are real notes with links, backlinks, and tags. The canvas understands the cards as knowledge, but agent-write access is bolted on, not native, and state often lives outside a plain, git-diffable file.
-- **Thinking surfaces** — Storyflow and similar. An AI reads the full board as context and reasons over structured cards. Closer to what Knowgrph does, but cloud-hosted, proprietary storage, no git-native provenance.
+- **Drawing surfaces** — Excalidraw, tldraw, FigJam. The canvas stores shapes and strokes; it doesn't understand them.
+- **Collaboration surfaces adding agents** — Miro's 2026 Canvas update is the most direct validation that this space is real: it added Mermaid/Markdown/HTML widget formats specifically so agents can write to the board "natively," plus MCP support to pull Markdown from a codebase onto the canvas and push decisions back. Markdown is still an *import/export format* for a proprietary, cloud-hosted board underneath — not the board's source of truth.
+- **Knowledge surfaces** — Obsidian Canvas and similar. Cards are real notes, but the canvas layout (JSON Canvas) is a sidecar file separate from the notes themselves.
+- **Thinking surfaces** — Storyflow-style tools, where an AI reads the whole board as context. Closer to Knowgrph in spirit, but cloud-hosted with proprietary storage.
+- **Orchestration libraries** — LangGraph. No canvas at all; state lives in a checkpointer, not a plain file.
+- **Self-improving agent runtimes** — Hermes Agent (Nous Research). No canvas at all either, but a genuinely self-evolving skill loop — the real version of a claim easy to overstate elsewhere.
 
-**Knowgrph is a fourth thing**: the canvas *is* a git-versioned, typed widget graph — not a UI layer sitting on top of one. There's no export step, no sync job, no proprietary board format underneath. A KGC markdown file committed to git *is* the node/edge data, the audit trail, and the thing an agent reads, runs, and rewrites — all in one artifact.
+**Knowgrph's difference is structural, not cosmetic**: there is no board format, sidecar file, checkpointer, or database underneath the markdown at all. The `.md` file *is* the node/edge data, the audit trail, and the thing an agent reads, runs, and rewrites. It's also a claim the others can't simply bolt on — Miro's board format is the product it sells; Obsidian's canvas-as-sidecar keeps the note format stable across renderers; LangGraph's checkpointer is intentionally pluggable and storage-agnostic. Making markdown-frontmatter the sole runtime state is an architectural bet made from the start.
 
-| | Knowgrph | Excalidraw / tldraw | Obsidian Canvas | Storyflow-style thinking canvas | LangGraph (raw) |
-|---|---|---|---|---|---|
-| Canvas understands content as a typed graph, not just shapes | ✅ | ❌ | ✅ | ✅ | N/A |
-| State is plain, git-diffable markdown | ✅ | ❌ (JSON canvas format) | Partial (JSON Canvas + linked notes) | ❌ (cloud/proprietary) | ❌ (checkpointer) |
-| Nodes are runnable (compute, gate, persist, replay), not just static shapes | ✅ | ❌ | ❌ | Partial | ✅ (state), ❌ (no canvas) |
-| Agent read/write/run is native to the file format | ✅ | ❌ (MCP/skills layer on top) | ❌ | ✅ (but closed) | ✅ (state only) |
-| FOSS, provider-neutral, project-agnostic | ✅ | ✅ (Excalidraw) / ✅ (tldraw core) | ❌ (Obsidian core is proprietary) | ❌ | ✅ |
-| Git is the native provenance/audit layer | ✅ | ❌ | ❌ | ❌ | ❌ |
+| | Knowgrph | Miro Canvas (2026) | Excalidraw / tldraw | Obsidian Canvas | Storyflow-style thinking canvas | LangGraph (raw) | Hermes Agent (Nous Research) |
+|---|---|---|---|---|---|---|---|
+| **Primary category** | Runnable knowledge-graph canvas | Commercial collaboration whiteboard | Drawing/sketching surface | Personal-knowledge canvas plugin | Cloud "thinking surface" canvas | Agent orchestration library | Self-improving personal agent runtime |
+| **Canvas/graph surface** | ✅ native, typed widget graph | ✅ primary product (agent-generated widgets) | ✅ primary (shapes/strokes only) | ✅ JSON Canvas sidecar | ✅ AI reads board as structured cards | Partial (Studio debug/trace view, not authoring) | ❌ none (chat/messaging + dashboard) |
+| **Markdown/frontmatter *is* the runtime state** | ✅ | ❌ (import/export only) | ❌ (JSON canvas format) | Partial (notes yes; layout is a separate sidecar) | ❌ (cloud/proprietary) | ❌ (checkpointer) | ❌ (its own skills/memory store) |
+| **State is git-diffable** | ✅ | ❌ | ❌ | Partial (notes only) | ❌ | ❌ | ❌ |
+| **Nodes/widgets are runnable** (compute, gate, persist, replay) | ✅ | ❌ | ❌ | ❌ | Partial | ✅ (state only, no canvas) | N/A (task loop, no graph nodes) |
+| **Orchestration model** | LangGraph `StateGraph` (via DeerFlow v2) over KGC markdown SSOT | None (human-driven) | None | None | AI reasons over board context | Multi-node `StateGraph` — the library's core value prop | Single agent loop + skill retrieval |
+| **Genuinely self-evolving?** | **No** — scoped; `probe.evolve` evolves one conversation branch, not the agent's own code | No | No | No | No | No | **Yes** — real skill-creation/refinement loop, its core differentiator |
+| **License / openness** | FOSS, provider-neutral, project-agnostic | Proprietary, cloud SaaS | FOSS (Excalidraw MIT; tldraw core FOSS) | Core proprietary; Canvas format is open JSON Canvas spec | Proprietary | MIT/Apache (LangChain org) | MIT, self-hosted |
+| **Deployment model** | Local-first Dev repo; optional Cloudflare mirror; shipped local stdio + public/control-plane MCP endpoints | Cloud SaaS | Self-hostable / embeddable SDK | Local-first desktop app | Cloud-only | Embedded library in your own app/infra | Self-hosted, multi-platform messaging gateway |
+| **Best fit** | The document itself should be the agent-runnable, git-versioned program | Your team already collaborates in Miro and wants agents to read/write boards | You want a polished freehand whiteboard/sketching UX | You keep a personal knowledge base and want simple visual note-linking | You want an AI-native thinking board and don't mind cloud lock-in | You're building custom multi-step orchestration and own the state layer yourself | You want a persistent personal agent that improves at repeated tasks over time |
 
-**The honest tradeoff:** Excalidraw and tldraw have years of polish on the actual drawing/sketching experience — Knowgrph doesn't try to compete there. What Knowgrph optimizes for is the layer underneath: a graph an agent can actually own, run, and version for free in a tool already on every machine — git.
+**The honest tradeoff:** Miro, Excalidraw, and tldraw have years of polish on collaboration and drawing UX that Knowgrph doesn't try to compete with. What Knowgrph optimizes for is the layer underneath — a graph an agent can actually own, run, and version for free in a tool already on every machine: git.
+
+**Why Hermes Agent is on this list despite having no canvas:** it's the clearest existing example of a framework that legitimately earns the word "self-evolving" — a real skill-creation-and-refinement loop, not a marketing gloss. Putting it in the same matrix makes the boundary concrete: Knowgrph doesn't compete on that axis and doesn't claim to. It competes on the canvas/graph-as-markdown axis, where Hermes has no equivalent at all. The two are complementary, not substitutes — a Hermes-style loop could in principle be one more surface reading and writing to a Knowgrph document, the same way DeerFlow/LangGraph already does.
 
 ## What "self-runnable agentic widget canvas" means
 
@@ -92,6 +101,16 @@ flow:
 - **Edges** connect source/target handles with a declared `socket_type`, so the canvas can validate and route connections.
 - **Run** a compute node and its outputs (text, image, video, dashboards) flow to the connected `RichMediaPanel` widgets and persist to storage.
 - **Project** a 2D Storyboard from frontmatter using the shared renderer contract: `flow.nodes[]` and `flow.edges[]` stay the source-owned SSOT, while Cards, Widgets, Rich Media Panels, BottomPanel Timeline, Gantt, and flowchart views render as projections.
+
+## How it's built
+
+A few terms get thrown around loosely in this space. Here's what Knowgrph specifically means by each, tied to an actual artifact — not as a headline claim, but as evidence:
+
+- **Harness** — runs are dry-run first; live spend halts at the first unapproved gate with zero paid actions. Every run produces a `harness-proof.json` verification manifest alongside `state.json` (resumable) and `trace.jsonl` (step-by-step). `--fail-once <tool>` injects a bounded failure for recovery testing.
+- **Orchestration** — DeerFlow v2 is a LangGraph-based kernel; the probe-tree feature runs as a second, independent LangGraph `StateGraph` on top of it, with KGC markdown (not LangGraph's native checkpointer) kept as the source of truth for conversation state.
+- **SuperAgent** — a specific callable tool surface (`/superagent.run`, exposed via the local stdio MCP server), not a claim about the whole system. Any SuperAgent-scoped demo is explicitly labeled as scoped, consistent with the MainPanel readiness rule below.
+
+What Knowgrph does **not** claim: this is not a self-modifying or self-improving system. `probe.evolve` evolves a conversation branch within probe-tree — it does not rewrite the agent's own code or capabilities. If a claim needs a footnote to walk it back, it doesn't belong here; the scoping above is the whole claim, not a preview of a bigger one.
 
 ## Agentic Canvas OS
 

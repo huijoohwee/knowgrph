@@ -99,7 +99,7 @@ function buildPendingActiveMarkdownGraph(args: {
     metadata: {
       kind: 'markdown',
       source: `markdown:${name}`,
-      pending: true,
+      'pending': true,
     },
     nodes: [],
     edges: [],

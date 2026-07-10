@@ -65,11 +65,10 @@ type Candidate = {
 
 function buildRichMediaPanelDedupKey(candidate: Candidate): string {
   const canonicalUrl = canonicalMediaDedupUrl(candidate.url || candidate.openUrl)
-  if (canonicalUrl) return `${candidate.kind}\nrich-media-panel\nurl:${canonicalUrl}`
+  if (canonicalUrl) return `${candidate.kind}\n${canonicalUrl}`
   const srcDoc = String(candidate.srcDoc || '').trim()
   if (srcDoc) return `${candidate.kind}\nrich-media-panel\nsrcdoc:${srcDoc}`
-  const activeTab = String(candidate.panel?.activeTab || 'auto').trim() || 'auto'
-  return `${candidate.kind}\nrich-media-panel\nempty:${activeTab}`
+  return `${candidate.kind}\nrich-media-panel\nempty:${candidate.id}`
 }
 
 function decodeRemoteFetchProxyUrl(raw: string): string {

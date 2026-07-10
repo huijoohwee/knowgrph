@@ -3,7 +3,7 @@ import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
 import { publishGeneratedWorkspacePathsToGitHub } from '@/features/source-files/sourceFilesGitHubWrite'
-import { promoteGeneratedChatWorkspacePaths } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
+import { promoteGeneratedChatWorkspacePaths, retryGeneratedChatWorkspaceArtifactPromotion } from '@/features/chat/floatingPanelChat/useFinalizeAssistantSuccess'
 import { buildKnowgrphStorageDocPath } from '@/lib/storage/knowgrphStorageSyncContract'
 import { __resetKnowgrphStorageDbForTests } from '@/lib/storage/knowgrphStorageDb'
 import { createFakeKnowgrphStorageWorkerEnv } from '@/__tests__/helpers/fakeKnowgrphStorageD1'
@@ -308,6 +308,125 @@ export async function testGeneratedChatPromotionSkipsCloudflareCacheWhenGitHubFa
     }
   } finally {
     await __resetKnowgrphStorageDbForTests()
+    resetWorkspaceFsForTests()
+    restoreWindow()
+    restoreDom()
+    if (typeof previousEnabled === 'string') process.env.VITE_KNOWGRPH_GITHUB_WRITE_ENABLED = previousEnabled
+    else delete process.env.VITE_KNOWGRPH_GITHUB_WRITE_ENABLED
+  }
+}
+
+export async function testRetryGeneratedChatPromotionReusesSavedWorkspaceArtifact() {
+  const previousEnabled = process.env.VITE_KNOWGRPH_GITHUB_WRITE_ENABLED
+  const { restore: restoreDom } = initJsdomHarness()
+  const { restore: restoreWindow } = initWindowHarness({ storage: new MemoryStorage() })
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  const workspaceId = 'kgws:retry-promotion'
+  const workspacePath = '/chat-log/retry-promotion/kgc_retry_promotion.md'
+  const content = '# Retry promotion\n\nReuse the saved local artifact without regenerating it.'
+  const events: string[] = []
+  try {
+    resetWorkspaceFsForTests()
+    await __resetKnowgrphStorageDbForTests()
+    process.env.VITE_KNOWGRPH_GITHUB_WRITE_ENABLED = '1'
+    const fs = await getWorkspaceFs()
+    await fs.createFolder({ parentPath: '/', name: 'chat-log' })
+    await fs.createFolder({ parentPath: '/chat-log', name: 'retry-promotion' })
+    await fs.createFile({
+      parentPath: '/chat-log/retry-promotion',
+      name: 'kgc_retry_promotion.md',
+      text: content,
+    })
+
+    const result = await retryGeneratedChatWorkspaceArtifactPromotion({
+      paths: [workspacePath],
+      githubEnabled: true,
+      githubBaseUrl: 'https://pages.example',
+      githubFetchImpl: async (_input, init) => {
+        events.push('github:write')
+        const body = JSON.parse(String(init?.body || '{}'))
+        if (body.files?.[0]?.workspacePath !== workspacePath || body.files?.[0]?.text !== content) {
+          throw new Error(`expected retry promotion to reuse the saved workspace artifact text, got ${JSON.stringify(body)}`)
+        }
+        return new Response(JSON.stringify({
+          ok: true,
+          status: 'applied',
+          repository: 'owner/repo',
+          files: [{ workspacePath, repositoryPath: workspacePath.replace(/^\/+/, ''), action: 'updated', commitSha: 'retry-commit-sha' }],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      },
+      storageWorkspaceId: workspaceId,
+      storageSyncNow: true,
+      storageBaseUrl: 'https://storage.example',
+      storageDeviceId: 'retry-promotion-device',
+      storageFetchImpl: async (input, init) => {
+        const url = input instanceof Request ? input.url : String(input || '')
+        events.push(`storage:${new URL(url, 'https://storage.example').pathname}`)
+        const request = input instanceof Request
+          ? input
+          : new Request(url.startsWith('/api/storage/') ? `https://storage.example${url}` : url, init)
+        return readStorageWorker().fetch(request, env as never)
+      },
+    })
+
+    if (result.promotion !== 'MIRRORED_GITHUB+STORAGE' || result.failureNote !== null || result.retryHint !== null || result.retryCommand !== null) {
+      throw new Error(`expected retry promotion to report a successful mirrored result, got ${JSON.stringify(result)}`)
+    }
+    if (events[0] !== 'github:write' || !events.some(event => event.startsWith('storage:'))) {
+      throw new Error(`expected retry promotion to preserve GitHub-before-storage ordering, got ${JSON.stringify(events)}`)
+    }
+  } finally {
+    await __resetKnowgrphStorageDbForTests()
+    resetWorkspaceFsForTests()
+    restoreWindow()
+    restoreDom()
+    if (typeof previousEnabled === 'string') process.env.VITE_KNOWGRPH_GITHUB_WRITE_ENABLED = previousEnabled
+    else delete process.env.VITE_KNOWGRPH_GITHUB_WRITE_ENABLED
+  }
+}
+
+export async function testRetryGeneratedChatPromotionReturnsExactRetryCommandOnFailure() {
+  const previousEnabled = process.env.VITE_KNOWGRPH_GITHUB_WRITE_ENABLED
+  const { restore: restoreDom } = initJsdomHarness()
+  const { restore: restoreWindow } = initWindowHarness({ storage: new MemoryStorage() })
+  const workspacePath = '/chat-log/retry-command/kgc_retry_command.md'
+  try {
+    resetWorkspaceFsForTests()
+    process.env.VITE_KNOWGRPH_GITHUB_WRITE_ENABLED = '1'
+    const fs = await getWorkspaceFs()
+    await fs.createFolder({ parentPath: '/', name: 'chat-log' })
+    await fs.createFolder({ parentPath: '/chat-log', name: 'retry-command' })
+    await fs.createFile({
+      parentPath: '/chat-log/retry-command',
+      name: 'kgc_retry_command.md',
+      text: '# Retry command\n\nLocal artifact is already saved.',
+    })
+
+    const result = await retryGeneratedChatWorkspaceArtifactPromotion({
+      paths: [workspacePath],
+      githubEnabled: true,
+      githubFetchImpl: async () => new Response(JSON.stringify({
+        ok: false,
+        status: 'failed',
+        error: 'github_write_failed',
+      }), {
+        status: 424,
+        headers: { 'content-type': 'application/json' },
+      }),
+    })
+
+    if (
+      result.promotion !== 'PROMOTION_FAILED' ||
+      result.failureNote !== '- Promotion note: mirroring failed (github: github_write_failed; storage: skipped).' ||
+      result.retryHint !== '- Retry hint: verify the GitHub write route/config, or rerun with GitHub mirroring disabled for a local-only save.' ||
+      result.retryCommand !== '- Retry command: `#promotion.retry /chat-log/retry-command/kgc_retry_command.md`'
+    ) {
+      throw new Error(`expected retry promotion failure to return the exact runnable retry command, got ${JSON.stringify(result)}`)
+    }
+  } finally {
     resetWorkspaceFsForTests()
     restoreWindow()
     restoreDom()

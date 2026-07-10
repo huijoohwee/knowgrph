@@ -7,18 +7,13 @@ export function testFlowCanvasPartitionsOverlayOwnedNodesBeforeNativeSceneBuild(
     nodes: [
       { id: 'native', label: 'Native', type: 'Text', properties: {} },
       { id: 'overlay', label: 'Overlay', type: 'Text', properties: {} },
-      { id: 'fixed-card', label: 'Fixed card', type: 'Text', properties: {} },
     ],
     edges: [
       { id: 'incident', source: 'native', target: 'overlay', label: 'linksTo', properties: {} },
       { id: 'retained', source: 'native', target: 'native', label: 'linksTo', properties: {} },
     ],
   }
-  const nativeGraph = deriveFlowCanvasNativeSceneGraph({
-    sceneGraphData: graphData,
-    overlayNodes: [{ id: 'overlay' }],
-    excludedNodeIds: ['fixed-card'],
-  })
+  const nativeGraph = deriveFlowCanvasNativeSceneGraph({ sceneGraphData: graphData, overlayNodes: [{ id: 'overlay' }] })
   if (nativeGraph?.nodes.map(node => node.id).join('|') !== 'native') {
     throw new Error('expected overlay-owned nodes to be absent from the native graph')
   }

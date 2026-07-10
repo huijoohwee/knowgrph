@@ -1,10 +1,10 @@
-import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 
 export const getStoryboardWidgetPanelChromeClassName = (panelTextClass?: string): string => cn(
-  'rounded-md border shadow-md flex flex-col relative',
-  UI_THEME_TOKENS.panel.bg,
-  UI_THEME_TOKENS.input.border,
-  UI_THEME_TOKENS.text.primary,
+  'rounded-md border flex flex-col relative bg-[var(--kg-media-panel-bg)] border-[color:var(--kg-border)] text-[color:var(--kg-text-primary)]',
   panelTextClass || '',
+)
+
+export const getStoryboardWidgetPanelSelectionChromeClassName = (selected: boolean): string => (
+  selected ? 'outline outline-2 outline-blue-500/80 outline-offset-0' : ''
 )

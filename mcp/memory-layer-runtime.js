@@ -16,6 +16,7 @@ import {
 
 const STORE_VERSION = "knowgrph-memory-store/v0.1";
 const WORD_RE = /[a-z0-9]+/gi;
+const CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT = "/chat-log";
 
 const nowIso = () => new Date().toISOString();
 
@@ -48,6 +49,248 @@ const buildStorePath = ({ rootDir, storePath }) => {
   const configured = String(storePath || process.env.KNOWGRPH_MEMORY_STORE_PATH || "").trim();
   if (configured) return path.resolve(rootDir, configured);
   return path.join(rootDir, "data", "memory-layer", "local-memory-store.json");
+};
+
+const buildProceduralMemoryDir = ({ rootDir }) =>
+  path.join(rootDir, "data", "memory-layer", "procedural");
+
+const buildUserModelDir = ({ rootDir }) =>
+  path.join(rootDir, "data", "memory-layer", "user-models");
+
+const normalizeWorkspaceLikePath = (value) => {
+  const raw = String(value || "").trim().replace(/\\/g, "/");
+  if (!raw) return "/";
+  const withLeading = raw.startsWith("/") ? raw : `/${raw}`;
+  const collapsed = withLeading.replace(/\/+/g, "/").replace(/\/+$/, "");
+  return collapsed || "/";
+};
+
+const resolveUserModelWorkspaceDocument = ({ rootDir, workspacePath, defaultLocalRootPath, documentSlug }) => {
+  const normalizedPath = workspacePath
+    ? normalizeWorkspaceLikePath(workspacePath)
+    : normalizeWorkspaceLikePath(`${defaultLocalRootPath || CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT}/user-models/${documentSlug}.md`);
+  return {
+    workspacePath: normalizedPath,
+    absolutePath: resolvePathInsideRoot(rootDir, normalizedPath.replace(/^\/+/, "")),
+  };
+};
+
+const resolvePathInsideRoot = (rootDir, candidatePath) => {
+  const root = path.resolve(rootDir);
+  const resolved = path.resolve(root, String(candidatePath || ""));
+  if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
+    throw new Error(`Path must stay inside KNOWGRPH_ROOT (${root}).`);
+  }
+  return resolved;
+};
+
+const toRootRelativePath = (rootDir, absolutePath) =>
+  path.relative(path.resolve(rootDir), absolutePath).split(path.sep).join("/");
+
+const slugifyMemoryText = (value) =>
+  normalizeMemoryText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80)
+  || "procedural-memory";
+
+const readJsonOrThrow = async (filePath, label) => {
+  try {
+    return JSON.parse(await fs.readFile(filePath, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") throw new Error(`Procedural memory extract requires ${label} at ${filePath}.`);
+    throw new Error(`Failed to read ${label} at ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+};
+
+const toKtv = (key, type, value) => stableStringify({ key, type, value });
+
+const buildGoalNode = ({ title, runId, outputDirRelative }) => ({
+  id: "goal_input",
+  type: "InputWidget",
+  label: "Goal Input",
+  summary: title,
+  runAction: {
+    fn: "harness.replay.goal",
+    runId,
+    outputDir: outputDirRelative,
+  },
+});
+
+const buildTaskNode = ({ task, completedStep, runId, outputDirRelative }) => ({
+  id: `task_${slugifyMemoryText(task.task_id).replace(/-/g, "_")}`,
+  type: "ComputeWidget",
+  label: normalizeMemoryText(task.label) || task.task_id,
+  summary: normalizeMemoryText(
+    `${completedStep?.tool_name || task.tool_name} via ${task.agent_id}${completedStep?.attempt ? ` (attempt ${completedStep.attempt})` : ""}`
+  ),
+  runAction: {
+    fn: "harness.replay.step",
+    runId,
+    outputDir: outputDirRelative,
+    taskId: task.task_id,
+    toolName: completedStep?.tool_name || task.tool_name,
+    agentId: task.agent_id,
+  },
+});
+
+const formatFlowNodeLines = (node, index) => {
+  const x = 120 + (index * 320);
+  const y = node.id === "goal_input" ? 240 : 240;
+  const handles = node.id === "goal_input"
+    ? { source: ["out"] }
+    : { target: ["in"], source: ["out"] };
+  const portTypes = node.id === "goal_input"
+    ? { out: { out: "task_signal" } }
+    : { in: { in: "task_signal" }, out: { out: "task_signal" } };
+  return [
+    `    - id: ${toKtv("id", "string", node.id)}`,
+    `      type: ${toKtv("type", "string", node.type)}`,
+    `      label: ${toKtv("label", "string", node.label)}`,
+    `      x: ${toKtv("x", "number", x)}`,
+    `      y: ${toKtv("y", "number", y)}`,
+    `      handles: ${toKtv("handles", "object", handles)}`,
+    `      "flow:portTypes": ${toKtv("flow:portTypes", "object", portTypes)}`,
+    `      summary: ${toKtv("summary", "string", node.summary)}`,
+    `      "canvas:runAction": ${toKtv("canvas:runAction", "object", node.runAction)}`,
+  ];
+};
+
+const formatEdgeLines = (edges) =>
+  edges.map((edge) => `    - ${stableStringify(edge)}`);
+
+const buildProceduralMemoryMarkdown = ({
+  documentTitle,
+  runId,
+  providerMode,
+  scope,
+  outputDirRelative,
+  terminationReason,
+  goalIntent,
+  completedTasks,
+}) => {
+  const nodes = [
+    buildGoalNode({ title: goalIntent, runId, outputDirRelative }),
+    ...completedTasks.map(({ task, step }) => buildTaskNode({ task, completedStep: step, runId, outputDirRelative })),
+  ];
+  const nodeIdByTask = new Map(completedTasks.map(({ task }, index) => [task.task_id, nodes[index + 1].id]));
+  const edges = completedTasks.map(({ task }, index) => {
+    const sources = Array.isArray(task.depends_on) && task.depends_on.length
+      ? task.depends_on.map((dependencyId) => nodeIdByTask.get(dependencyId)).filter(Boolean)
+      : [index === 0 ? "goal_input" : nodes[index].id];
+    return sources.map((sourceId) => ({
+      id: `edge_${slugifyMemoryText(`${sourceId}_${nodeIdByTask.get(task.task_id)}`).replace(/-/g, "_")}`,
+      source: sourceId,
+      sourceHandle: "out",
+      target: nodeIdByTask.get(task.task_id),
+      targetHandle: "in",
+      type: "task_signal",
+    }));
+  }).flat();
+
+  const lines = [
+    "---",
+    'schema: "kgc-computing-flow/v1"',
+    'kgCanvas2dRenderer: "storyboard"',
+    'memory_kind: "procedural"',
+    `memory_scope: ${stableStringify(scope)}`,
+    `source_run: ${stableStringify({ run_id: runId, provider_mode: providerMode, output_dir: outputDirRelative, termination_reason: terminationReason })}`,
+    "socket_types:",
+    '  task_signal: {color: "#6366f1", edgeWidthPx: 2, handleStrokeWidthPx: 2, accepts: [task_signal]}',
+    "flow:",
+    `  direction: ${toKtv("direction", "string", "LR")}`,
+    `  edgeType: ${toKtv("edgeType", "string", "smoothstep")}`,
+    `  computed: ${toKtv("computed", "boolean", true)}`,
+    `  snapToGrid: ${toKtv("snapToGrid", "boolean", true)}`,
+    "  nodes:",
+    ...nodes.flatMap((node, index) => formatFlowNodeLines(node, index)),
+    "  edges:",
+    ...formatEdgeLines(edges),
+    "---",
+    "",
+    `# ${documentTitle}`,
+    "",
+    `Derived from harness run \`${runId}\` in \`${providerMode}\` mode.`,
+    "",
+    "## Goal",
+    "",
+    goalIntent,
+    "",
+    "## Completed Flow",
+    "",
+    ...completedTasks.map(({ task, step }) =>
+      `- \`${task.task_id}\` -> \`${step?.tool_name || task.tool_name}\` by \`${task.agent_id}\`${step?.attempt ? ` (attempt ${step.attempt})` : ""}`
+    ),
+    "",
+    "## Replay",
+    "",
+    `- Output dir: \`${outputDirRelative}\``,
+    `- Termination reason: \`${terminationReason}\``,
+  ];
+  return `${lines.join("\n")}\n`;
+};
+
+const classifyUserModelMemory = (entry) => {
+  const categories = Array.isArray(entry?.categories) ? entry.categories.map(normalizeMemoryText).filter(Boolean) : [];
+  const metadata = entry?.metadata && typeof entry.metadata === "object" ? entry.metadata : {};
+  const memoryKind = normalizeMemoryText(metadata.memory_kind);
+  const memoryKey = normalizeMemoryText(metadata.memory_key || metadata.preference_key);
+  if (memoryKind === "procedural_kgc" || categories.includes("procedural")) return "procedural";
+  if (memoryKey || categories.some((category) => ["preference", "preferences", "profile", "style"].includes(category))) return "preferences";
+  return "context";
+};
+
+const buildUserModelMarkdown = ({
+  documentTitle,
+  scope,
+  selectedMemories,
+  categories,
+  memoryStorePath,
+}) => {
+  const preferences = selectedMemories.filter((entry) => classifyUserModelMemory(entry) === "preferences");
+  const procedural = selectedMemories.filter((entry) => classifyUserModelMemory(entry) === "procedural");
+  const context = selectedMemories.filter((entry) => classifyUserModelMemory(entry) === "context");
+  const buildMemoryLines = (entries, { includeMetadata = false } = {}) =>
+    entries.map((entry) => {
+      const stamp = normalizeMemoryText(entry.updated_at || entry.created_at) || "unknown";
+      const suffix = includeMetadata && entry.metadata?.document_path
+        ? ` (${entry.metadata.document_path})`
+        : "";
+      return `- ${entry.memory} [${stamp}]${suffix}`;
+    });
+  const lines = [
+    "---",
+    'schema: "kgc-user-model/v1"',
+    'memory_kind: "user_model"',
+    `memory_scope: ${stableStringify(scope)}`,
+    `memory_categories: ${stableStringify(categories)}`,
+    `memory_store: ${stableStringify({ path: memoryStorePath, memory_count: selectedMemories.length })}`,
+    "---",
+    "",
+    `# ${documentTitle}`,
+    "",
+    "## Scope",
+    "",
+    `- ${stableStringify(scope)}`,
+    "",
+    "## Preferences",
+    "",
+    ...(preferences.length ? buildMemoryLines(preferences) : ["- No explicit preference memories recorded yet."]),
+    "",
+    "## Active Context",
+    "",
+    ...(context.length ? buildMemoryLines(context) : ["- No scoped context memories recorded yet."]),
+    "",
+    "## Procedural Memory",
+    "",
+    ...(procedural.length ? buildMemoryLines(procedural, { includeMetadata: true }) : ["- No procedural memories recorded yet."]),
+    "",
+    "## Memory Ledger",
+    "",
+    ...buildMemoryLines(selectedMemories, { includeMetadata: true }),
+  ];
+  return `${lines.join("\n")}\n`;
 };
 
 const readStore = async (storePath) => {
@@ -197,5 +440,155 @@ export const inspectMemoryLayerStore = async (options = {}) => {
     memory_count: store.memories.length,
     scope_count: scopes.length,
     updated_at: store.updated_at || "",
+  };
+};
+
+export const extractProceduralMemory = async (input = {}, options = {}) => {
+  const startedAt = performance.now();
+  const rootDir = path.resolve(options.rootDir || process.cwd());
+  const outputDir = resolvePathInsideRoot(rootDir, input.output_dir);
+  const statePath = path.join(outputDir, "state.json");
+  const goalPath = path.join(outputDir, "goal.json");
+  const state = await readJsonOrThrow(statePath, "state.json");
+  const goalPayload = await readJsonOrThrow(goalPath, "goal.json").catch(() => ({}));
+
+  const sourceRunId = normalizeMemoryText(input.run_id || state?.run?.run_id || goalPayload?.run_id);
+  const scope = requireMemoryScope({ ...input, run_id: sourceRunId || input.run_id });
+  const completedTaskIds = Array.isArray(state?.completed_task_ids) ? state.completed_task_ids : [];
+  const completedStepByTask = new Map(
+    (Array.isArray(state?.steps) ? state.steps : [])
+      .filter((step) => step && step.status === "completed" && step.task_id)
+      .map((step) => [String(step.task_id), step])
+  );
+  const plan = Array.isArray(state?.plan) ? state.plan : [];
+  const completedTasks = completedTaskIds
+    .map((taskId) => {
+      const task = plan.find((entry) => String(entry?.task_id) === String(taskId));
+      return task ? { task, step: completedStepByTask.get(String(taskId)) || null } : null;
+    })
+    .filter(Boolean);
+  if (!completedTasks.length) {
+    throw new Error(`Procedural memory extract requires at least one completed task in ${statePath}.`);
+  }
+
+  const goalIntent = normalizeMemoryText(
+    goalPayload?.goal?.intent
+    || goalPayload?.raw_goal
+    || state?.goal?.intent
+    || "Recovered harness procedure"
+  );
+  const documentTitle = normalizeMemoryText(input.title) || `Procedural Memory: ${goalIntent}`;
+  const documentSlug = slugifyMemoryText(input.document_slug || documentTitle || sourceRunId);
+  const proceduralDir = buildProceduralMemoryDir({ rootDir });
+  const documentPath = path.join(proceduralDir, `${documentSlug}.md`);
+  const outputDirRelative = toRootRelativePath(rootDir, outputDir);
+  const documentMarkdown = buildProceduralMemoryMarkdown({
+    documentTitle,
+    runId: sourceRunId,
+    providerMode: normalizeMemoryText(state?.run?.provider_mode) || "unknown",
+    scope,
+    outputDirRelative,
+    terminationReason: normalizeMemoryText(state?.run?.termination_reason) || "unknown",
+    goalIntent,
+    completedTasks,
+  });
+
+  await fs.mkdir(proceduralDir, { recursive: true });
+  await fs.writeFile(documentPath, documentMarkdown, "utf8");
+
+  let memoryWrite = null;
+  if (input.persist_memory !== false) {
+    const summary = normalizeMemoryText([
+      `Procedural memory for ${goalIntent}.`,
+      `Completed tasks: ${completedTasks.map(({ task }) => task.task_id).join(" -> ")}.`,
+      `KGC document: ${toRootRelativePath(rootDir, documentPath)}.`,
+    ].join(" "));
+    memoryWrite = await addMemoryLayerMemory({
+      ...scope,
+      text: summary,
+      metadata: {
+        memory_key: `procedural:${documentSlug}`,
+        memory_kind: "procedural_kgc",
+        document_path: toRootRelativePath(rootDir, documentPath),
+        output_dir: outputDirRelative,
+        run_id: sourceRunId,
+        categories: ["procedural", "kgc", "harness"],
+      },
+    }, options);
+  }
+
+  const latencyMs = performance.now() - startedAt;
+  return {
+    contractVersion: KNOWGRPH_MEMORY_LAYER_CONTRACT_VERSION,
+    source_run_id: sourceRunId,
+    source_output_dir: outputDirRelative,
+    document_path: toRootRelativePath(rootDir, documentPath),
+    document_title: documentTitle,
+    document_markdown: documentMarkdown,
+    task_count: completedTasks.length,
+    memory_write: memoryWrite,
+    cost_log: buildMemoryCostLog({ provider: "local-json", operation: "extract_procedural", latencyMs }),
+  };
+};
+
+export const materializeUserModel = async (input = {}, options = {}) => {
+  const startedAt = performance.now();
+  const rootDir = path.resolve(options.rootDir || process.cwd());
+  const scope = requireMemoryScope(input);
+  const maxMemories = Math.max(1, Math.min(100, Math.floor(Number(input.max_memories) || 20)));
+  const storePath = buildStorePath({ ...options, rootDir });
+  const store = await readStore(storePath);
+  const selectedMemories = store.memories
+    .filter((entry) => scopeMatches(entry.scope, scope))
+    .sort((left, right) => String(right.updated_at || right.created_at || "").localeCompare(String(left.updated_at || left.created_at || "")))
+    .slice(0, maxMemories)
+    .map((entry) => ({
+      ...entry,
+      memory: normalizeMemoryText(entry.memory),
+      categories: Array.isArray(entry.categories) ? entry.categories.map(normalizeMemoryText).filter(Boolean) : [],
+      metadata: entry.metadata && typeof entry.metadata === "object" ? { ...entry.metadata } : {},
+    }))
+    .filter((entry) => entry.memory);
+  if (!selectedMemories.length) {
+    throw new Error("User model materialization requires at least one scoped memory in the local memory store.");
+  }
+
+  const scopeLabel = scope.user_id || scope.agent_id || scope.app_id || scope.run_id || "scoped-profile";
+  const documentTitle = normalizeMemoryText(input.title) || `User Model: ${scopeLabel}`;
+  const documentSlug = slugifyMemoryText(input.document_slug || documentTitle);
+  const userModelDir = buildUserModelDir({ rootDir });
+  const documentPath = path.join(userModelDir, `${documentSlug}.md`);
+  const workspaceDocument = resolveUserModelWorkspaceDocument({
+    rootDir,
+    workspacePath: input.workspace_path,
+    defaultLocalRootPath: input.default_local_root_path,
+    documentSlug,
+  });
+  const categories = Array.from(new Set(selectedMemories.flatMap((entry) => entry.categories))).sort((left, right) => left.localeCompare(right));
+  const documentMarkdown = buildUserModelMarkdown({
+    documentTitle,
+    scope,
+    selectedMemories,
+    categories,
+    memoryStorePath: toRootRelativePath(rootDir, storePath),
+  });
+
+  await fs.mkdir(userModelDir, { recursive: true });
+  await fs.writeFile(documentPath, documentMarkdown, "utf8");
+  await fs.mkdir(path.dirname(workspaceDocument.absolutePath), { recursive: true });
+  await fs.writeFile(workspaceDocument.absolutePath, documentMarkdown, "utf8");
+
+  const latencyMs = performance.now() - startedAt;
+  return {
+    contractVersion: KNOWGRPH_MEMORY_LAYER_CONTRACT_VERSION,
+    document_path: toRootRelativePath(rootDir, documentPath),
+    workspace_document_path: workspaceDocument.workspacePath,
+    document_title: documentTitle,
+    document_markdown: documentMarkdown,
+    memory_count: selectedMemories.length,
+    categories,
+    memory_ids: selectedMemories.map((entry) => entry.id),
+    scope,
+    cost_log: buildMemoryCostLog({ provider: "local-json", operation: "materialize_user_model", latencyMs }),
   };
 };

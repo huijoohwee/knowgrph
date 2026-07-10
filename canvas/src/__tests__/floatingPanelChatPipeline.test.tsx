@@ -1,12 +1,16 @@
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { FloatingPanelChatMessagesSection } from '@/features/chat/FloatingPanelChatSections'
+import { FloatingPanelChatFooter, FloatingPanelChatMessagesSection } from '@/features/chat/FloatingPanelChatSections'
+import { CHAT_INPUT_APPEND_EVENT, FLOATING_PANEL_OPEN_EVENT } from '@/features/canvas/utils'
+import { useFloatingPanelChatSurfaceModel } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSurfaceModel'
+import { applyFloatingPanelChatInputAppend, resolveFloatingPanelChatInputAppend } from '@/features/chat/floatingPanelChat/floatingPanelChatInputAppend'
 import {
   buildFloatingPanelChatSourceFilesSignature,
   buildFloatingPanelChatWorkspaceContextCacheKey,
   createFloatingPanelChatPipelineStages,
   createFloatingPanelChatQuickActions,
 } from '@/features/chat/floatingPanelChat/floatingPanelChatSurfaceState'
+import { installFloatingPanelBridge } from '@/features/toolbar/floatingPanelBridge'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 
@@ -123,16 +127,13 @@ export function testFloatingPanelChatQuickActionsUseInvocationRoutes() {
     messageCount: 1,
   })
   const labels = actions.map(action => action.label)
-  const expected = ['/workspace.review', '/pipeline.trace', '/canvas.render', '/cost.audit #token-economics']
+  const expected = ['/workspace.review', '/pipeline.trace', '/canvas.render', '#memory.extract']
   if (JSON.stringify(labels) !== JSON.stringify(expected)) {
     throw new Error(`expected quick actions to auto-recommend contextual invocation routes, got ${JSON.stringify(labels)}`)
   }
-  if (labels.includes('#token-economics')) {
-    throw new Error(`expected token economics to be recommended as a command plus semantic filter, got ${JSON.stringify(labels)}`)
-  }
-  const tokenEconomics = actions.find(action => action.id === 'token-economics')
-  if (!tokenEconomics?.prompt.startsWith('/cost.audit #token-economics ')) {
-    throw new Error(`expected token economics action to pair semantic filter with executable command, got ${JSON.stringify(tokenEconomics)}`)
+  const memoryExtract = actions.find(action => action.id === 'memory-extract')
+  if (!memoryExtract?.prompt.startsWith('#memory.extract Promote the completed harness run into reusable procedural memory.')) {
+    throw new Error(`expected procedural memory action to route through the new extraction directive, got ${JSON.stringify(memoryExtract)}`)
   }
   const selectionActions = createFloatingPanelChatQuickActions({
     activeWorkspaceLabel: 'brief.md',
@@ -141,8 +142,194 @@ export function testFloatingPanelChatQuickActionsUseInvocationRoutes() {
     graphData: { context: '', type: 'Graph', nodes: [{ id: 'node-a', label: 'A', type: 'Node', properties: {} }], edges: [] },
     messageCount: 1,
   })
-  const plainSelectionAction = selectionActions.find(action => !action.label.startsWith('/'))
-  if (plainSelectionAction) {
-    throw new Error(`expected selected-node quick actions to stay in slash-route grammar, got ${JSON.stringify(selectionActions)}`)
+  const nonSlashSelectionActions = selectionActions.filter(action => !action.label.startsWith('/')).map(action => action.label)
+  if (JSON.stringify(nonSlashSelectionActions) !== JSON.stringify(['#memory.extract'])) {
+    throw new Error(`expected selected-node quick actions to expose only the procedural memory extraction directive outside slash routes, got ${JSON.stringify(selectionActions)}`)
+  }
+}
+
+export async function testFloatingPanelChatQuickActionsReuseAppendFocusComposerPath() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  function Harness() {
+    const [input, setInput] = React.useState('')
+    const [appendFocusRequestKey, setAppendFocusRequestKey] = React.useState(0)
+    React.useEffect(() => {
+      const handler = (event: Event) => {
+        const detail = resolveFloatingPanelChatInputAppend((event as CustomEvent<{ text?: string; mode?: 'append' | 'replace' } | undefined>).detail)
+        if (!detail) return
+        setInput(previous => applyFloatingPanelChatInputAppend(previous, detail))
+        setAppendFocusRequestKey(previous => previous + 1)
+      }
+      dom.window.addEventListener(CHAT_INPUT_APPEND_EVENT, handler as EventListener)
+      return () => {
+        dom.window.removeEventListener(CHAT_INPUT_APPEND_EVENT, handler as EventListener)
+      }
+    }, [])
+
+    const { appendPrompt, contextItems, quickActions } = useFloatingPanelChatSurfaceModel({
+      chatContextScope: 'hybrid',
+      markdownDocumentName: 'brief.md',
+      markdownText: '# Brief',
+      docLocationRevision: 1,
+      sourceFiles: [createSource()],
+      graphData: { context: '', type: 'Graph', nodes: [{ id: 'node-a', label: 'A', type: 'Node', properties: {} }], edges: [] },
+      workspaceViewMode: 'canvas',
+      chatKnowgrphWorkspacePath: '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md',
+      chatHistoryWorkspacePath: null,
+      currentNode: null,
+      messageCount: 1,
+      isLoading: false,
+    })
+
+    return (
+      <>
+        <FloatingPanelChatMessagesSection
+          messages={[]}
+          isLoading={false}
+          historyKey="kg:quick-action-append-focus"
+          contextItems={contextItems}
+          quickActions={quickActions}
+          onQuickAction={appendPrompt}
+          uiPanelTextFontClass="text-sm"
+          uiPanelKeyValueTextSizeClass="text-xs"
+          uiPanelMicroLabelTextSizeClass="text-xs"
+          setMessages={() => undefined}
+        />
+        <FloatingPanelChatFooter
+          input={input}
+          setInput={setInput}
+          appendFocusRequestKey={appendFocusRequestKey}
+          isLoading={false}
+          errorText={null}
+          connectivity="unknown"
+          connectivityDetail={null}
+          currentNode={null}
+          modelId="gpt-5-nano"
+          modelOptions={['gpt-5-nano']}
+          onModelChanged={() => undefined}
+          uiPanelTextFontClass="text-sm"
+          uiPanelMicroLabelTextSizeClass="text-xs"
+          isSubmitDisabled={!input.trim()}
+          onSubmit={event => event.preventDefault()}
+          onStop={() => undefined}
+          markdownText="# Brief"
+        />
+      </>
+    )
+  }
+
+  try {
+    await mountReactRoot(root, React.createElement(Harness), {
+      window: dom.window as unknown as Window,
+      frames: 2,
+    })
+
+    const action = container.querySelector('[data-kg-chat-quick-action-id="pipeline-trace"]') as HTMLButtonElement | null
+    if (!action) throw new Error('expected quick-action harness to render the pipeline trace action')
+
+    await act(async () => {
+      action.click()
+      await waitForFrames(dom.window as unknown as Window, 2)
+    })
+
+    const input = container.querySelector('[data-kg-chat-input="true"]') as HTMLTextAreaElement | null
+    if (!input) throw new Error('expected quick-action harness to expose the chat composer textarea')
+    if (!input.value.startsWith('/pipeline.trace Trace the current document from ingestion to parsing to canvas rendering.')) {
+      throw new Error(`expected quick action to append through the shared chat event path, got ${JSON.stringify(input.value)}`)
+    }
+    if (input.selectionStart !== input.value.length || input.selectionEnd !== input.value.length) {
+      throw new Error(`expected quick action append to place the composer caret at the end, got selection=${input.selectionStart}:${input.selectionEnd}`)
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+  }
+}
+
+export async function testFloatingPanelChatSurfaceModelAppendPromptUsesSharedOpenSeedContract() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  const seenOpen: Array<{ tab?: string; open?: boolean }> = []
+  const seenAppend: Array<{ text?: string; mode?: string }> = []
+  const cleanupBridge = installFloatingPanelBridge({
+    openPropsPanel: () => undefined,
+    openFloatingPanel: () => undefined,
+    openRendererPanel: () => undefined,
+  })
+
+  function Harness() {
+    const { appendPrompt } = useFloatingPanelChatSurfaceModel({
+      chatContextScope: 'hybrid',
+      markdownDocumentName: 'brief.md',
+      markdownText: '# Brief',
+      docLocationRevision: 1,
+      sourceFiles: [createSource()],
+      graphData: { context: '', type: 'Graph', nodes: [{ id: 'node-a', label: 'A', type: 'Node', properties: {} }], edges: [] },
+      workspaceViewMode: 'canvas',
+      chatKnowgrphWorkspacePath: '/workspace/chat/20260522T190000Z/kgc_20260522T190000Z.md',
+      chatHistoryWorkspacePath: null,
+      currentNode: null,
+      messageCount: 1,
+      isLoading: false,
+    })
+
+    return (
+      <button
+        type="button"
+        data-kg-chat-surface-model-append-prompt="true"
+        onClick={() => appendPrompt('/pipeline.trace Trace the current document from ingestion to parsing to canvas rendering.')}
+      >
+        Append
+      </button>
+    )
+  }
+
+  const openListener = (event: Event) => {
+    seenOpen.push((((event as CustomEvent<{ tab?: string; open?: boolean } | undefined>).detail) || {}) as { tab?: string; open?: boolean })
+  }
+  const appendListener = (event: Event) => {
+    seenAppend.push((((event as CustomEvent<{ text?: string; mode?: string } | undefined>).detail) || {}) as { text?: string; mode?: string })
+  }
+
+  try {
+    dom.window.addEventListener(FLOATING_PANEL_OPEN_EVENT, openListener as EventListener)
+    dom.window.addEventListener(CHAT_INPUT_APPEND_EVENT, appendListener as EventListener)
+    await mountReactRoot(root, React.createElement(Harness), {
+      window: dom.window as unknown as Window,
+      frames: 2,
+    })
+
+    const action = container.querySelector('[data-kg-chat-surface-model-append-prompt="true"]') as HTMLButtonElement | null
+    if (!action) throw new Error('expected append-prompt harness to expose a trigger button')
+
+    await act(async () => {
+      action.click()
+      await waitForFrames(dom.window as unknown as Window, 1)
+    })
+
+    if (seenOpen.length !== 1 || seenOpen[0]?.tab !== 'chat' || seenOpen[0]?.open !== true) {
+      throw new Error(`expected surface-model appendPrompt to emit one shared chat-open event, got ${JSON.stringify(seenOpen)}`)
+    }
+    if (
+      seenAppend.length !== 1
+      || seenAppend[0]?.text !== '/pipeline.trace Trace the current document from ingestion to parsing to canvas rendering.'
+      || seenAppend[0]?.mode !== 'append'
+    ) {
+      throw new Error(`expected surface-model appendPrompt to emit one shared chat append event, got ${JSON.stringify(seenAppend)}`)
+    }
+  } finally {
+    dom.window.removeEventListener(FLOATING_PANEL_OPEN_EVENT, openListener as EventListener)
+    dom.window.removeEventListener(CHAT_INPUT_APPEND_EVENT, appendListener as EventListener)
+    cleanupBridge()
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
   }
 }

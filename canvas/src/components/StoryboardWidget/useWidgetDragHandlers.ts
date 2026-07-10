@@ -5,7 +5,7 @@ import { startPointerDrag } from 'grph-shared/dom/pointerDrag'
 import { createRafLatestScheduler } from '@/lib/react/rafLatestScheduler'
 import { getEffectiveZoomStateForKey } from '@/lib/canvas/zoom-effective'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { emitStoryboardWidgetInteractionFrame } from '@/lib/canvas/storyboard-widget-overlay-proxy'
+import { emitStoryboardWidgetGeometryCommitted } from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import { lockGlobalUserSelect, unlockGlobalUserSelect } from '@/lib/canvas/interaction-user-select'
 import { UI_SELECTORS } from '@/lib/config'
 import {
@@ -149,7 +149,7 @@ export function useWidgetDragHandlers(args: {
           if (!p) return
           worldDragOverrideRef.current = p
           applyOverlayPosition()
-          emitStoryboardWidgetInteractionFrame()
+          emitStoryboardWidgetGeometryCommitted()
         }
 
         const scheduler = createRafLatestScheduler((p: { x: number; y: number }) => {
@@ -206,7 +206,7 @@ export function useWidgetDragHandlers(args: {
         pendingLeft = pos.left
         pinnedDragOverrideRef.current = { left: pendingLeft, top: pendingTop }
         applyOverlayPosition()
-        emitStoryboardWidgetInteractionFrame()
+        emitStoryboardWidgetGeometryCommitted()
       }
 
       const scheduler = createRafLatestScheduler((pos: { top: number; left: number }) => {

@@ -70,7 +70,8 @@ export const normalizeKgcAssistantBodyForStorage = (args: KgcStorageNormalizeArg
   const recovered = recoverStructuredKgcAssistantPayload(raw)
   const kgc = typeof recovered.kgc === 'string' ? sanitizeComputingFlowMarkdown(recovered.kgc) : ''
   const profile = analyzeKgcRequest(args.requestText)
-  const allowStructuredKgc = hasRecognizedChatRuntimeInvocation(args.requestText) || profile.signals.computingFlow
+  const hasStructuredKgcInput = Boolean(kgc && isKgcStructuredMarkdown(kgc))
+  const allowStructuredKgc = hasStructuredKgcInput || hasRecognizedChatRuntimeInvocation(args.requestText) || profile.signals.computingFlow
   if (allowStructuredKgc && kgc && isKgcStructuredMarkdown(kgc)) {
     const queryResponsive = enforceKgcQueryResponsiveContent({
       markdown: kgc,

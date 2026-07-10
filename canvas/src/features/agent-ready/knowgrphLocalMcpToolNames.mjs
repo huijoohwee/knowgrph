@@ -22,6 +22,8 @@ export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({
   memoryAdd: "knowgrph.memory.add",
   memorySearch: "knowgrph.memory.search",
   memoryAssemblePrompt: "knowgrph.memory.assemble_prompt",
+  memoryExtractProcedural: "knowgrph.memory.extract_procedural",
+  memoryMaterializeUserModel: "knowgrph.memory.materialize_user_model",
   probeGenerate: KNOWGRPH_PROBE_TREE_TOOL_NAMES.generate,
   probeSelect: KNOWGRPH_PROBE_TREE_TOOL_NAMES.select,
   probeEvolve: KNOWGRPH_PROBE_TREE_TOOL_NAMES.evolve,

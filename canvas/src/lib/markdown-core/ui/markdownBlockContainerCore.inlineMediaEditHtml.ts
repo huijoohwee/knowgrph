@@ -133,7 +133,11 @@ const rewriteTextNodeInvocationsForEditor = (root: HTMLElement): void => {
   let node = walker.nextNode()
   while (node) {
     const parent = (node as Text).parentElement
-    if (!parent?.closest(`${INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR},[${INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR}="1"]`)) textNodes.push(node as Text)
+    if (
+      !parent?.closest(
+        `${INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR},[${INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR}="1"],[data-kg-inline-code-token="1"]`,
+      )
+    ) textNodes.push(node as Text)
     node = walker.nextNode()
   }
   textNodes.forEach(textNode => {
@@ -154,6 +158,15 @@ const rewriteTextNodeInvocationsForEditor = (root: HTMLElement): void => {
       else fragment.append(ownerDocument.createTextNode(token))
     })
     textNode.replaceWith(fragment)
+  })
+}
+
+const rewriteSemanticInlineCodeTokensForEditor = (root: HTMLElement): void => {
+  const tokens = Array.from(root.querySelectorAll('[data-kg-inline-code-token="1"]')) as HTMLElement[]
+  tokens.forEach(token => {
+    const raw = String(token.getAttribute('data-kg-inline-code-raw') || '').replace(/\r/g, '').trim()
+    if (!raw) return
+    token.replaceChildren(root.ownerDocument.createTextNode(raw))
   })
 }
 
@@ -191,6 +204,7 @@ export const rewriteRenderedInlineMediaForEditorHtml = (html: string): string =>
     if (token) node.replaceWith(token)
   })
   rewriteRenderedInvocationChipsForEditor(root)
+  rewriteSemanticInlineCodeTokensForEditor(root)
   const mediaNodes = Array.from(root.querySelectorAll('img,video,audio')) as HTMLElement[]
   mediaNodes.forEach(node => {
     const tag = String(node.tagName || '').toLowerCase()
@@ -221,6 +235,14 @@ export const restoreInlineMediaEditTokensInPlace = (root: HTMLElement): void => 
     if (!markdown) return
     token.replaceWith(root.ownerDocument.createTextNode(markdown))
   })
+  const semanticCodeTokens = Array.from(root.querySelectorAll('[data-kg-inline-code-token="1"]')) as HTMLElement[]
+  semanticCodeTokens.forEach(token => {
+    const raw = String(token.getAttribute('data-kg-inline-code-raw') || token.textContent || '').replace(/\r/g, '').trim()
+    if (!raw) return
+    const code = root.ownerDocument.createElement('code')
+    code.textContent = raw
+    token.replaceWith(code)
+  })
 }
 
 export const INLINE_MEDIA_EDIT_TOKEN_SELECTOR = `[${INLINE_MEDIA_EDIT_TOKEN_ATTR}="1"]`
@@ -233,19 +255,34 @@ const readInlineMediaEditTokenMarkdown = (token: Element): string =>
 const readInlineInvocationEditTokenMarkdown = (token: Element): string =>
   String(token.getAttribute(INLINE_INVOCATION_EDIT_MARKDOWN_ATTR) || token.textContent || '').replace(/\r/g, '').trim()
 
+const readInlineMediaNodeTypeConstants = (node: Node | null | undefined): { element: number; text: number } => {
+  const ownerNode = node?.ownerDocument?.defaultView?.Node
+  const globalNode = typeof Node !== 'undefined' ? Node : null
+  return {
+    element: ownerNode?.ELEMENT_NODE ?? globalNode?.ELEMENT_NODE ?? 1,
+    text: ownerNode?.TEXT_NODE ?? globalNode?.TEXT_NODE ?? 3,
+  }
+}
+
+const isElementNodeType = (node: Node | null | undefined): boolean =>
+  !!node && node.nodeType === readInlineMediaNodeTypeConstants(node).element
+
+const isTextNodeType = (node: Node | null | undefined): boolean =>
+  !!node && node.nodeType === readInlineMediaNodeTypeConstants(node).text
+
 const isInlineMediaEditTokenElement = (node: Node): node is HTMLElement =>
-  node.nodeType === Node.ELEMENT_NODE
+  isElementNodeType(node)
     && (node as Element).matches(INLINE_MEDIA_EDIT_TOKEN_SELECTOR)
 
 const isInlineInvocationEditTokenElement = (node: Node): node is HTMLElement =>
-  node.nodeType === Node.ELEMENT_NODE
+  isElementNodeType(node)
     && (node as Element).matches(`[${INLINE_INVOCATION_EDIT_TOKEN_ATTR}="1"]`)
 
 const isInlineMarkdownEditTokenElement = (node: Node): node is HTMLElement =>
   isInlineMediaEditTokenElement(node) || isInlineInvocationEditTokenElement(node)
 
 const isInlineMarkdownZeroLengthTokenElement = (node: Node): node is HTMLElement =>
-  node.nodeType === Node.ELEMENT_NODE
+  isElementNodeType(node)
     && (node as Element).matches(INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_SELECTOR)
 
 export const readInlineMarkdownEditTokenMarkdown = (node: Element): string =>
@@ -256,8 +293,8 @@ export const readInlineMarkdownEditTokenMarkdown = (node: Element): string =>
 const readSerializedInlineMediaLength = (node: Node): number => {
   if (isInlineMarkdownZeroLengthTokenElement(node)) return 0
   if (isInlineMarkdownEditTokenElement(node)) return readInlineMarkdownEditTokenMarkdown(node).length
-  if (node.nodeType === Node.TEXT_NODE) return String(node.nodeValue || '').replace(/\r/g, '').length
-  if (node.nodeType !== Node.ELEMENT_NODE) return 0
+  if (isTextNodeType(node)) return String(node.nodeValue || '').replace(/\r/g, '').length
+  if (!isElementNodeType(node)) return 0
   const element = node as HTMLElement
   if (String(element.tagName || '').toLowerCase() === 'br') return 1
   let length = 0
@@ -278,11 +315,11 @@ export const readInlineMediaEditorMarkdownText = (root: HTMLElement | null): str
       out += readInlineMarkdownEditTokenMarkdown(node)
       return
     }
-    if (node.nodeType === Node.TEXT_NODE) {
+    if (isTextNodeType(node)) {
       out += String(node.nodeValue || '').replace(/\r/g, '')
       return
     }
-    if (node.nodeType !== Node.ELEMENT_NODE) return
+    if (!isElementNodeType(node)) return
     const element = node as HTMLElement
     const tag = String(element.tagName || '').toLowerCase()
     if (tag === 'br') {
@@ -302,7 +339,7 @@ const readSerializedOffsetToBoundary = (
   offset: number,
 ): number | null => {
   const computeWithin = (parent: Node, baseOffset: number): number | null => {
-    if (parent === container && parent.nodeType === Node.TEXT_NODE) {
+    if (parent === container && isTextNodeType(parent)) {
       return baseOffset + Math.max(0, Math.min(offset, String(parent.nodeValue || '').length))
     }
     if (isInlineMarkdownEditTokenElement(parent)) {
@@ -321,7 +358,7 @@ const readSerializedOffsetToBoundary = (
       if (parent === container && offset === index) return current
       if (index >= children.length) break
       const child = children[index]!
-      if (child === container && child.nodeType === Node.TEXT_NODE) {
+      if (child === container && isTextNodeType(child)) {
         return current + Math.max(0, Math.min(offset, String(child.nodeValue || '').length))
       }
       if (isInlineMarkdownEditTokenElement(child)) {
@@ -335,7 +372,7 @@ const readSerializedOffsetToBoundary = (
         if (child === container || child.contains(container)) return current
         continue
       }
-      if (child.nodeType === Node.ELEMENT_NODE && (child as Element).contains(container)) {
+      if (isElementNodeType(child) && (child as Element).contains(container)) {
         const nested = computeWithin(child, current)
         if (nested != null) return nested
       }
@@ -350,13 +387,16 @@ export const getInlineMediaEditorMarkdownSelectionOffsets = (
   root: HTMLElement | null,
 ): { startOffset: number; endOffset: number } | null => {
   if (!root) return null
-  const selection = typeof window !== 'undefined' ? window.getSelection() : null
+  const ownerWindow = root.ownerDocument?.defaultView || (typeof window !== 'undefined' ? window : null)
+  const ownerNode = ownerWindow?.Node
+  const elementNodeType = ownerNode?.ELEMENT_NODE ?? 1
+  const selection = ownerWindow?.getSelection ? ownerWindow.getSelection() : null
   if (!selection || selection.rangeCount <= 0) return null
   const range = selection.getRangeAt(0)
   const startNode = range.startContainer
   const endNode = range.endContainer
-  const startElement = startNode.nodeType === Node.ELEMENT_NODE ? startNode as Element : startNode.parentElement
-  const endElement = endNode.nodeType === Node.ELEMENT_NODE ? endNode as Element : endNode.parentElement
+  const startElement = startNode.nodeType === elementNodeType ? startNode as Element : startNode.parentElement
+  const endElement = endNode.nodeType === elementNodeType ? endNode as Element : endNode.parentElement
   if (!startElement || !endElement || !root.contains(startElement) || !root.contains(endElement)) return null
   const startOffset = readSerializedOffsetToBoundary(root, startNode, range.startOffset)
   const endOffset = readSerializedOffsetToBoundary(root, endNode, range.endOffset)
@@ -399,12 +439,12 @@ const readInlineMediaOffsetSegments = (root: HTMLElement): InlineMediaOffsetSegm
       push(String(node.textContent || '').replace(/\r/g, '').length, readInlineMarkdownEditTokenMarkdown(node).length, true)
       return
     }
-    if (node.nodeType === Node.TEXT_NODE) {
+    if (isTextNodeType(node)) {
       const length = String(node.nodeValue || '').replace(/\r/g, '').length
       push(length, length, false)
       return
     }
-    if (node.nodeType !== Node.ELEMENT_NODE) return
+    if (!isElementNodeType(node)) return
     const element = node as HTMLElement
     const tag = String(element.tagName || '').toLowerCase()
     if (tag === 'br') {
