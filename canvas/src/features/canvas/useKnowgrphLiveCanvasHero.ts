@@ -179,6 +179,7 @@ export function useKnowgrphLiveCanvasHero(args: {
     || defaultSeedContentChanged
     || (!sourceState.defaultSeedOnly && (graphItemCount > 0 || hasDocumentText))
   const [landingExited, setLandingExited] = React.useState(false)
+  const isRootAlias = isRouterRootAliasRuntime(import.meta.env.BASE_URL)
   const authoredOwnershipReady = args.sourceFilesBootstrapReady
     && args.workspaceDocumentSwitchPending !== true
     && args.graphData?.metadata?.pending !== true
@@ -187,10 +188,9 @@ export function useKnowgrphLiveCanvasHero(args: {
   // Once authored content takes ownership, transient parser recomposition must
   // not revive the landing surface later in the same app session.
   React.useEffect(() => {
-    if (authoredOwnershipReady) setLandingExited(true)
-  }, [authoredOwnershipReady])
+    if (authoredOwnershipReady && !isRootAlias) setLandingExited(true)
+  }, [authoredOwnershipReady, isRootAlias])
 
-  const isRootAlias = isRouterRootAliasRuntime(import.meta.env.BASE_URL)
   const hasSearchParams = typeof window !== 'undefined' && String(window.location.search || '').trim().length > 0
   const visible = shouldShowLiveCanvasHero({
     isRootAlias,

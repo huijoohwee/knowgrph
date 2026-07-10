@@ -238,6 +238,7 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
 export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
   const viewportSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx'), 'utf8')
   const heroSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'LiveCanvasHero.tsx'), 'utf8')
+  const heroHookSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'canvas', 'useKnowgrphLiveCanvasHero.ts'), 'utf8')
   const modelSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'agentic-os', 'liveCanvasHeroModel.ts'), 'utf8')
   const flowCanvasSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx'), 'utf8')
   const flowGraphStateSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts'), 'utf8')
@@ -253,8 +254,9 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     '<LiveCanvasHeroLazy source={liveCanvasHeroSource}',
     'data-kg-live-canvas-hero-enter="true"',
     'Enter Knowgrph',
+    'authoredOwnershipReady && !isRootAlias',
   ]) {
-    if (!`${viewportSource}\n${heroSource}`.includes(contract)) throw new Error(`expected interactive workspace canvas contract ${contract}`)
+    if (!`${viewportSource}\n${heroSource}\n${heroHookSource}`.includes(contract)) throw new Error(`expected interactive workspace canvas contract ${contract}`)
   }
   if (!viewportSource.includes('<FlowCanvasLazy') || !viewportSource.includes('forbidCircleNodes')) {
     throw new Error('expected the source-derived graph to retain live FlowCanvas pan, zoom, selection, and drag ownership')
