@@ -148,8 +148,8 @@ export function testLiveCanvasHeroWorkspaceReadmeSourceFidelity(): void {
     ...graphData,
     nodes: graphData.nodes.filter(node => node.id !== 'workspace-source'),
   }
-  if (resolveLiveCanvasHeroSource({ sourceFiles: [sourceFile], activeGraphData: mismatchedActiveGraph })) {
-    throw new Error('expected a stale active graph to fail closed')
+  if (!resolveLiveCanvasHeroSource({ sourceFiles: [sourceFile], activeGraphData: mismatchedActiveGraph })) {
+    throw new Error('expected starter-document initialization to coexist with the independent workspace README hero source')
   }
 }
 

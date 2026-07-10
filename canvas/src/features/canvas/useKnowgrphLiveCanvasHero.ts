@@ -76,21 +76,6 @@ const readFrontmatterMetadata = (graphData: GraphData): Record<string, unknown> 
     : {}
 }
 
-const graphContainsSourceGraph = (activeGraphData: GraphData | null | undefined, sourceGraphData: GraphData): boolean => {
-  if (!activeGraphData) return false
-  const activeNodeIds = new Set((activeGraphData.nodes || []).map(node => String(node.id || '').trim()).filter(Boolean))
-  const sourceNodeIds = (sourceGraphData.nodes || []).map(node => String(node.id || '').trim()).filter(Boolean)
-  if (sourceNodeIds.length === 0 || sourceNodeIds.some(nodeId => !activeNodeIds.has(nodeId))) return false
-
-  const edgeSignature = (edge: GraphData['edges'][number]) => {
-    const id = String(edge.id || '').trim()
-    return id || `${String(edge.source || '').trim()}->${String(edge.target || '').trim()}`
-  }
-  const activeEdgeSignatures = new Set((activeGraphData.edges || []).map(edgeSignature).filter(Boolean))
-  const sourceEdgeSignatures = (sourceGraphData.edges || []).map(edgeSignature).filter(Boolean)
-  return sourceEdgeSignatures.length > 0 && sourceEdgeSignatures.every(signature => activeEdgeSignatures.has(signature))
-}
-
 export function resolveLiveCanvasHeroSource(args: {
   sourceFiles: SourceFile[]
   activeGraphData: GraphData | null | undefined
@@ -113,7 +98,8 @@ export function resolveLiveCanvasHeroSource(args: {
 
   const graphItemCount = (graphData.nodes?.length || 0) + (graphData.edges?.length || 0)
   const sourceLayerHash = String(readGraphMetadata(graphData).sourceLayerHash || '').trim()
-  if (graphItemCount === 0 || !sourceLayerHash || !graphContainsSourceGraph(args.activeGraphData, graphData)) return null
+  const parsedSourceLayerHash = String(readGraphMetadata(sourceFile.parsedGraphData).sourceLayerHash || '').trim()
+  if (graphItemCount === 0 || !sourceLayerHash || (parsedSourceLayerHash && parsedSourceLayerHash !== sourceLayerHash)) return null
   const canvasGraphData = deriveLiveCanvasHeroCommandRouteGraph(graphData)
   if (!canvasGraphData) return null
 
