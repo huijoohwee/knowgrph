@@ -237,6 +237,10 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
   if (!viewportSource.includes('<FlowCanvasLazy') || !viewportSource.includes('forbidCircleNodes')) {
     throw new Error('expected the source-derived graph to retain live FlowCanvas pan, zoom, selection, and drag ownership')
   }
+  if (!viewportSource.includes("alternateCanvasSurfaceActive: geospatialModeEnabled || canvasRenderMode !== '2d'")
+    || viewportSource.includes("alternateCanvasSurfaceActive: geospatialModeEnabled || canvasRenderMode !== '2d' || active2dSurface !== 'storyboard'")) {
+    throw new Error('expected the root hero to override any current 2D renderer while preserving alternate 3D and geospatial ownership')
+  }
   if (!flowCanvasSource.includes('canvas2dRendererOverride || storeCanvas2dRenderer')
     || !flowZoomSource.includes('args.canvas2dRendererOverride ?? state.canvas2dRenderer')) {
     throw new Error('expected the embedded source route to own flow rendering and fit behavior without mutating the workspace renderer setting')

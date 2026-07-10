@@ -182,7 +182,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     workspaceEditorOverlayOpen,
     workspaceDocumentSwitchPending: documentSwitchBlocksCanvas,
     floatingPanelOpen,
-    alternateCanvasSurfaceActive: geospatialModeEnabled || canvasRenderMode !== '2d' || active2dSurface !== 'storyboard',
+    alternateCanvasSurfaceActive: geospatialModeEnabled || canvasRenderMode !== '2d',
   })
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
   const minimapOverlayVisible = !documentSwitchBlocksCanvas
