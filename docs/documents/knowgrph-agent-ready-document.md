@@ -1,7 +1,7 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-document
-version: 1.3.1
+version: 1.3.2
 status: implemented
 created: 2026-05-29
 updated: 2026-07-10
@@ -54,9 +54,9 @@ via DNS-AID → Link headers → `.well-known` MCP server card → surface selec
 
 For public remote installs, `https://airvio.co/knowgrph/mcp` is the canonical discovery and setup URL.
 `https://airvio.co/knowgrph/control-plane/mcp` remains a separate approval-gated orchestration surface.
-The current public endpoint truth is still read-only retrieval/inspection plus prompt/resource/template
-discovery; remote `/`, `#`, and `@` grammar exposure remains enhancement work until the deployed public
-surface advertises and serves `knowgrph.agentic_canvas_os.docs.invoke`.
+The public install endpoint truth stays read-only retrieval/inspection plus prompt/resource/template
+discovery, while the separate control-plane surface now advertises remote Agentic Canvas OS docs
+invocation through `knowgrph.agentic_canvas_os.docs.invoke` in current source-owned discovery metadata.
 
 The **Agentic OS** (`knowgrph.os.status`) provides read-only cross-harness visibility: process list,
 capability union, cost summary, gate catalog, and circuit-breaker bounds — at zero token cost per call.
@@ -144,7 +144,7 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 - app-scoped and root `.well-known` discovery artifacts
 - Markdown negotiation for root, service homepage, and published document routes
 - read-only HTTP MCP on `/knowgrph/mcp`
-- control-plane Streamable HTTP MCP on `/knowgrph/control-plane/mcp` (Director + stages + os.status)
+- control-plane Streamable HTTP MCP on `/knowgrph/control-plane/mcp` (Director + stages + `knowgrph.os.status` + `knowgrph.agentic_canvas_os.docs.invoke`)
 - public remote endpoint role separation: `/knowgrph/mcp` for install/discovery, `/knowgrph/control-plane/mcp` for approval-gated orchestration
 - browser WebMCP runtime and Pages HTML fallback WebMCP
 - local stdio MCP with Agentic OS `knowgrph.os.status` and full harness tool surface
@@ -165,6 +165,7 @@ projecting generated artifacts to the production mirror and Cloudflare Pages.
 - a fifth monolithic MCP proxy gateway tier (federation uses existing four surfaces per ADR-4)
 - write-capable public MCP tools on Pages HTTP MCP (control-plane orchestration is approval-gated separately)
 - public docs that imply `/knowgrph/control-plane/mcp` is the default install URL for basic remote MCP discovery
+- public docs that claim `/knowgrph/mcp` already exposes `knowgrph.agentic_canvas_os.docs.invoke`
 - direct mutation of unpublished browser drafts from deployed MCP
 - replacing `/knowgrph/` with apex `/` as the service homepage
 - TXT-only DNS-AID substitutes or unsigned public discovery as the canonical path
@@ -598,6 +599,7 @@ Checks:
 
 | Version | Date | Change |
 |---|---|---|
+| 1.3.2 | 2026-07-10 | Updated the implemented baseline to reflect current source truth: `/knowgrph/mcp` remains the canonical public install/discovery URL, while `/knowgrph/control-plane/mcp` advertises approval-gated orchestration plus remote `knowgrph.agentic_canvas_os.docs.invoke` grammar lookup in control-plane discovery metadata. |
 | 1.3.1 | 2026-07-10 | Documented public remote exposure and discovery coherence: `/knowgrph/mcp` is the canonical install/discovery URL, `/knowgrph/control-plane/mcp` remains orchestration-only, and remote `/`, `#`, `@` grammar exposure remains a planned enhancement. |
 | 1.3.0 | 2026-07-03 | Added follow-on PRD/TAD link, PRD-AR-16..18 (HITL durable store, live golden path, dashboard Canvas), Track A/B/C component inventory and validation commands. |
 | 1.2.0 | 2026-07-03 | Added Agentic OS (`knowgrph.os.status`), MCP Gateway four-surface federation, control-plane MCP URL, PRD-AR-12..15, ADR-006/007, updated topology and validation evidence per `knowgrph-agentic-os-prd-tad.md` v0.4.0. |

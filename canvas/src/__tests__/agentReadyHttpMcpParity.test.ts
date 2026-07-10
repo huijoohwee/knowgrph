@@ -267,6 +267,15 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
   if (serverCardInspectTool?.outputSchema?.type !== 'object') {
     throw new Error(`expected inspect_agent_surface server-card tool to expose a structured outputSchema, got ${JSON.stringify(serverCardInspectTool)}`)
   }
+  if (
+    serverCard.surfaceRoles?.publicReadMcpUrl !== 'https://airvio.co/knowgrph/mcp'
+    || serverCard.surfaceRoles?.controlPlaneMcpUrl !== 'https://airvio.co/knowgrph/control-plane/mcp'
+    || serverCard.surfaceRoles?.remoteGrammarInvokePublic !== true
+    || serverCard.surfaceRoles?.remoteGrammarInvokeToolName !== 'knowgrph.agentic_canvas_os.docs.invoke'
+    || serverCard.surfaceRoles?.remoteGrammarInvokeStatus !== 'live-control-plane'
+  ) {
+    throw new Error(`expected mcp server-card surface roles to advertise live remote grammar invocation on the control plane, got ${JSON.stringify(serverCard.surfaceRoles)}`)
+  }
 
   const initializeResponse = await onRequest({
     request: new Request('https://airvio.co/knowgrph/mcp', {

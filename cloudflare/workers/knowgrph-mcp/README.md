@@ -3,7 +3,9 @@
 Cloudflare Worker that hosts the Agents SDK `McpAgent` for the
 **knowgrph ↔ agentic-canvas-os MCP connector** control plane. Exposes the
 Director tool (`knowgrph.video_remix.run`) plus the five stage tools
-(`research`, `storyboard`, `render`, `publish`, `checkout`) over the
+(`research`, `storyboard`, `render`, `publish`, `checkout`), the read-only
+OS status tool (`knowgrph.os.status`), and the read-only Agentic Canvas OS docs
+invocation tool (`knowgrph.agentic_canvas_os.docs.invoke`) over the
 **MCP Streamable HTTP** transport at `https://airvio.co/knowgrph/control-plane/mcp`.
 
 Migrates the deployed plain-JSON-RPC HTTP MCP at
@@ -15,7 +17,7 @@ R14.1; Properties 1, 26).
 
 | File | Responsibility |
 |---|---|
-| `index.ts` | Worker entry. Defines `KnowgrphMcpAgent` (Agents SDK `McpAgent`), registers the 6 tools with the Streamable HTTP transport, routes `/knowgrph/control-plane/mcp[*]` to `KnowgrphMcpAgent.serve(...)`, persists each Director Run_Manifest to the durable store, and serves `GET /knowgrph/control-plane/mcp/runs/{id}` for read-back. |
+| `index.ts` | Worker entry. Defines `KnowgrphMcpAgent` (Agents SDK `McpAgent`), registers the 8 tools with the Streamable HTTP transport, routes `/knowgrph/control-plane/mcp[*]` to `KnowgrphMcpAgent.serve(...)`, persists each Director Run_Manifest to the durable store, and serves `GET /knowgrph/control-plane/mcp/runs/{id}` for read-back. |
 | `tool-registry.mjs` | Pure-JS source of truth for the tool list, schemas, and approval-gate boundary. Imported by the Worker and by the Node `node:test` unit tests. Reuses `mcp/video-remix-runtime.js` for the Director tool. |
 | `run-manifest-store.mjs` | Durable Run_Manifest persistence (task 1.2). `RunManifestStore` Durable Object plus pure helpers (`RunManifestPersistence`, `persistRunManifestThroughNamespace`, `readRunManifestThroughNamespace`). One DO instance per `runId`. |
 | `wrangler.toml` | Worker bindings: route `airvio.co/knowgrph/control-plane/mcp[*]`, Durable Object classes `KnowgrphMcpAgent` (transport sessions) and `RunManifestStore` (Run_Manifest persistence). |
@@ -32,6 +34,8 @@ R14.1; Properties 1, 26).
 | `knowgrph.video_remix.render` | `render-action` | input + output (assets + ledgerEventIds) |
 | `knowgrph.video_remix.publish` | `cloud-deploy` | input + output (publishedUrls) |
 | `knowgrph.video_remix.checkout` | `payment-action` | input + output (Stripe sessionId, payoutSettled) |
+| `knowgrph.os.status` | n/a (read-only) | input + output (Agentic OS status views) |
+| `knowgrph.agentic_canvas_os.docs.invoke` | n/a (read-only) | input + output (`/`, `#`, `@` docs invocation lookup) |
 
 `buildKnowgrphMcpToolDefinitions()` in `tool-registry.mjs` is the canonical
 builder; every entry carries both `inputSchema` and `outputSchema`.
@@ -124,10 +128,17 @@ npx wrangler dev --config wrangler.toml
 Hit the Streamable HTTP endpoint:
 
 ```bash
-curl -sX POST http://localhost:8787/knowgrph/control-plane/mcp \
+SESSION_ID="$(curl -si -X POST http://localhost:8787/knowgrph/control-plane/mcp \
   -H "content-type: application/json" \
   -H "accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"local-probe","version":"0.1.0"}}}' \
+  | awk 'BEGIN{IGNORECASE=1} /^mcp-session-id:/ {print $2}' | tr -d '\r')"
+
+curl -sX POST http://localhost:8787/knowgrph/control-plane/mcp \
+  -H "mcp-session-id: ${SESSION_ID}" \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 ```
 
 ## Deployment

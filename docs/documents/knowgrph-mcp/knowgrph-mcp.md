@@ -54,7 +54,7 @@ Knowgrph should present one low-friction public remote MCP install story:
 - `https://airvio.co/knowgrph/control-plane/mcp` is the approval-gated orchestration endpoint and must stay documented as a separate control-plane surface.
 - MCP server-card metadata, `.well-known` discovery, readiness payloads, and copy-paste host setup snippets must all point basic remote installs at the same canonical public endpoint.
 - The current public endpoint truth is still read-only retrieval/inspection plus prompt/resource/template discovery; it must not be described as already exposing the full local stdio tool surface.
-- `knowgrph.agentic_canvas_os.docs.invoke` remains the key enhancement for public remote `/`, `#`, and `@` invocation readiness. Docs must treat it as local-available and remote-planned until the deployed public endpoint advertises and serves it through the same discovery surface.
+- `knowgrph.agentic_canvas_os.docs.invoke` is now part of the current control-plane truth: docs should treat it as remote-live on `https://airvio.co/knowgrph/control-plane/mcp` while keeping `https://airvio.co/knowgrph/mcp` as the canonical basic install/discovery endpoint.
 
 This coherence rule keeps setup simple for Claude-compatible MCP hosts, Qwen Code, Kimi CLI, ModelArk, and similar Streamable HTTP clients without forcing them to guess which URL owns installation versus orchestration.
 
@@ -84,7 +84,7 @@ Guardrails:
 - The app resource HTML supports both host bridge shapes from the shared resource owner: OpenAI Apps `window.openai` globals / `openai:set_globals` for ChatGPT widgets and the native MCP Apps `ui/initialize` / `ui/notifications/initialized` lifecycle for extension-capable hosts.
 - `search` and `fetch` are the canonical data-first published document tools for OpenAI Deep Research-style hosts, Claude, Qwen Code, Kimi CLI, BytePlus ModelArk, and generic MCP clients; Pages HTTP MCP, local stdio MCP, and WebMCP expose them as read-only tools returning stable `kgdoc:` Source File IDs, citation-ready result URLs, and complete markdown as both `content` and `text` without mutating graph state.
 - Public remote discovery coherence requires install metadata and setup snippets to use `https://airvio.co/knowgrph/mcp` for basic remote MCP installation and to reserve `https://airvio.co/knowgrph/control-plane/mcp` for approval-gated orchestration only.
-- Public remote grammar truth remains explicit: `knowgrph.agentic_canvas_os.docs.invoke` is available locally and is the target enhancement for public `/`, `#`, and `@` invocation, but the current public endpoint must not be documented as already advertising that tool until live discovery and `tools/list` expose it.
+- Public remote grammar truth remains explicit: `knowgrph.agentic_canvas_os.docs.invoke` is available locally and on the control-plane MCP surface, while the canonical public install endpoint `/knowgrph/mcp` remains read-only discovery/retrieval and must not be documented as exposing the grammar tool.
 - Cloudflare AI Gateway MCP is documented as an external, account-scoped operator surface for gateway logs and request/response inspection. Knowgrph only renders non-secret setup and endpoint metadata; Cloudflare API tokens, provider keys, account IDs, and gateway IDs stay with the MCP host or server environment.
 - `search` ranks Source Files with bounded content-aware scoring through the same storage reader used by `fetch`; it must not remain index-line-only because natural LLM queries often target terms inside markdown body content rather than filenames.
 - Agentic Canvas OS does not add a second runtime. It is the operator-facing control-plane contract that composes current MCP, SuperAgent, MainPanel, FloatingPanel Chat, Source Files, and Canvas owners into cross-repo build dashboards for consumer repos such as `strybldr`.
@@ -152,5 +152,5 @@ This file is an overview and document index. The canonical detailed contracts li
 - reuse the shipped chat/validation/parser/apply chain instead of creating a second MCP-only graph pipeline
 - introduce future remote tools as thin adapters over current owners
 - keep public remote install/discovery metadata coherent around `/knowgrph/mcp`, with control-plane orchestration documented separately
-- add public remote `/`, `#`, and `@` grammar invocation only after the deployed public endpoint advertises `knowgrph.agentic_canvas_os.docs.invoke` through the same discovery surface
+- keep remote `/`, `#`, and `@` grammar invocation documented on the control-plane surface only until a future single-endpoint install/discovery contract intentionally merges that capability into the canonical public install surface
 - remove stale/conflicting content instead of preserving parallel narratives

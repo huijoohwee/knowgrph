@@ -584,11 +584,11 @@ const mcpServerCard = {
       "Canonical public install and discovery endpoint for read-only retrieval, prompt discovery, resource discovery, and inspection.",
     controlPlaneMcpUrl: `${APP_URL}control-plane/mcp`,
     controlPlaneMcpScope:
-      "Approval-gated orchestration endpoint for control-plane tools and spend-bearing workflows where deployed.",
-    remoteGrammarInvokePublic: false,
+      "Approval-gated orchestration endpoint for control-plane tools, remote Agentic Canvas OS docs invocation, and spend-bearing workflows where deployed.",
+    remoteGrammarInvokePublic: true,
     remoteGrammarInvokeToolName: "knowgrph.agentic_canvas_os.docs.invoke",
     remoteGrammarInvokeStatus:
-      "planned-public-enhancement",
+      "live-control-plane",
   },
   links: {
     apiCatalog: `${APP_URL}.well-known/api-catalog`,

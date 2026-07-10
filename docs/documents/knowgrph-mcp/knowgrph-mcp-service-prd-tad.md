@@ -4,7 +4,7 @@ id: md:knowgrph-mcp-service-prd-tad
 author: joohwee
 date: 2026-05-20
 updated: 2026-07-10
-version: 0.4.25
+version: 0.4.26
 status: accepted-implemented-baseline
 kgDocumentSemanticMode: document
 kgFrontmatterModeEnabled: true
@@ -22,6 +22,15 @@ linkedDocs:
   - "{{md:knowgrph-llm-prompt-contract-prd-tad}}"
   - "{{md:kgc-ai-pipeline-prd-tad}}"
 changelog:
+  - version: 0.4.26
+    date: 2026-07-10
+    summary: >
+      Updated the implemented baseline to reflect current source-owned control-plane
+      truth: `https://airvio.co/knowgrph/mcp` remains the canonical public
+      install/discovery endpoint, while `https://airvio.co/knowgrph/control-plane/mcp`
+      now documents approval-gated orchestration plus live remote
+      `knowgrph.agentic_canvas_os.docs.invoke` grammar lookup in current
+      control-plane discovery metadata.
   - version: 0.4.25
     date: 2026-07-10
     summary: >
@@ -135,7 +144,7 @@ changelog:
 
 > **Document type**: Combined PRD + TAD  
 > **Phase**: Implemented baseline plus planned remote extension  
-> **Version**: 0.4.25
+> **Version**: 0.4.26
 
 ---
 
@@ -222,7 +231,7 @@ Current public remote truth must stay explicit:
 - `https://airvio.co/knowgrph/control-plane/mcp` is the approval-gated orchestration endpoint for Director, stage tools, and control-plane health/read-back.
 - Public install snippets, MCP server-card metadata, `.well-known` discovery, and `tools/list` must all point to the same canonical public install endpoint.
 - The public endpoint currently ships read-only discovery/retrieval and inspection tools; it must not be documented as already exposing the full local stdio tool inventory.
-- `knowgrph.agentic_canvas_os.docs.invoke` is implemented locally and registered in current control-plane source, but public remote exposure and discovery of that grammar tool are still enhancement work until the deployed public surface advertises and serves it consistently.
+- `knowgrph.agentic_canvas_os.docs.invoke` is implemented locally and registered on the current control-plane MCP surface; docs must describe it as remote-live on `/knowgrph/control-plane/mcp` while keeping `/knowgrph/mcp` as the simpler canonical public install/discovery endpoint.
 
 Desired enhancement state:
 
@@ -370,7 +379,7 @@ This document does not claim that the following are already implemented:
 
 **Given** the public remote MCP surface,  
 **When** docs describe `/`, `#`, and `@` invocation grammar,  
-**Then** they state current truth: local stdio supports `knowgrph.agentic_canvas_os.docs.invoke`, public remote exposure of that tool remains enhancement work until the deployed public endpoint advertises and serves it coherently through discovery metadata and `tools/list`.
+**Then** they state current truth: local stdio supports `knowgrph.agentic_canvas_os.docs.invoke`, the control-plane MCP surface exposes it remotely, and the canonical public install endpoint `/knowgrph/mcp` remains the simpler read-only discovery/retrieval endpoint.
 
 #### PRD-MCP2-S1 - MainPanel shell ownership
 
@@ -510,7 +519,7 @@ This document does not claim that the following are already implemented:
 - Streamable HTTP boundary: POST handles JSON-RPC requests, JSON GET returns transport metadata for discovery, GET with `Accept: text/event-stream` returns 405 while no server stream is implemented, and client notifications/responses return 202 with no body.
 - Tool surface: shared deployed contract = `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_agent_surface`; app-installed browser runtime additionally exposes `knowgrph.inspect_local_settings_chat_readiness`, `knowgrph.inspect_local_mainpanel_state`, `knowgrph.inspect_local_editor_workspace_state`, `knowgrph.inspect_local_chat_pipeline_state`, `knowgrph.inspect_local_mainpanel_chat_canvas_pipeline`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, and `knowgrph.inspect_local_source_files_snapshot`.
 - Public discovery role: `https://airvio.co/knowgrph/mcp` is the canonical public install/discovery endpoint and must be the URL used by server-card metadata, host setup snippets, and readiness payloads.
-- Public grammar truth: the deployed public endpoint currently exposes read-only retrieval/inspection only; `knowgrph.agentic_canvas_os.docs.invoke` must not be documented as publicly available there until discovery metadata and live `tools/list` advertise it.
+- Public grammar truth: the canonical public install endpoint `/knowgrph/mcp` remains read-only retrieval/inspection only, while `knowgrph.agentic_canvas_os.docs.invoke` is a control-plane capability on `/knowgrph/control-plane/mcp`.
 - Resource surface: `resources/list` returns `ui://knowgrph/agent-ready`; `resources/templates/list` returns `kgdoc://source-file/{id}`; `resources/read` returns either MCP Apps HTML or Source Files markdown from the shared contracts.
 - Prompt surface: `prompts/list` returns shared read-only prompt templates; `prompts/get` renders Source Files research and agent-surface inspection guidance that routes hosts to existing read-only tools.
 - Data source: published Source Files and storage-backed markdown doc reads.
@@ -579,7 +588,7 @@ The next remote MCP layer is planned but not implemented. When it is implemented
 | Tool contracts | reuse one SSOT manifest or builder shared across transports | per-transport drifted schemas |
 | Public remote install/discovery | keep `/knowgrph/mcp` as the single public install/discovery URL for remote hosts and advertise it consistently in `.well-known`, server-card metadata, readiness payloads, and setup snippets | splitting basic remote setup across multiple public install URLs or requiring hosts to infer endpoint roles from separate docs |
 | Auth | add explicit remote auth only for future remote tools | rewriting or weakening shipped read-only Pages/browser flows |
-| Remote grammar exposure | expose `knowgrph.agentic_canvas_os.docs.invoke` through the canonical public endpoint only when live discovery metadata, `tools/list`, and host setup guidance all agree | claiming remote `/`, `#`, `@` grammar support in public docs before the deployed public endpoint advertises and serves it coherently |
+| Remote grammar exposure | document `knowgrph.agentic_canvas_os.docs.invoke` truthfully on the control-plane surface today and merge it into the canonical public install endpoint only when live discovery metadata, `tools/list`, and host setup guidance all agree | claiming remote `/`, `#`, `@` grammar support on `/knowgrph/mcp` before that endpoint advertises and serves it coherently |
 | Published-doc reads | reuse existing storage worker and route contract | new ad hoc document fetchers |
 | Chat orchestration | wrap `useSettingsChatAssist`-owned routing semantics and existing chat submit helpers | new MCP-only provider config or submit loop |
 | KGC/MCP response validation | reuse shared recovery, validation, and structured-content extraction rules | accepting prose wrappers, parallel grouping aliases, or synthetic KGC downstream |
@@ -626,7 +635,7 @@ flowchart LR
 - preserve browser WebMCP and MCP Apps parity across app runtime, injected HTML fallback, Pages HTTP MCP, local stdio MCP, static artifacts, and live checks
 - keep MainPanel readiness docs aligned with Stripe MCP and crawler-access MCP SSOT modules
 - keep public remote exposure coherent: `/knowgrph/mcp` stays the canonical public install/discovery URL, while `/knowgrph/control-plane/mcp` stays the approval-gated orchestration URL
-- add remote grammar exposure only after the deployed public endpoint, server-card metadata, and `tools/list` all advertise `knowgrph.agentic_canvas_os.docs.invoke` consistently
+- keep remote grammar exposure documented on the control-plane surface today, and only merge it into `/knowgrph/mcp` after that endpoint, server-card metadata, and `tools/list` all advertise `knowgrph.agentic_canvas_os.docs.invoke` consistently
 - introduce remote read-oriented tools before mutation, reusing storage-worker, published-doc, validation, parser, KGC Markdown, and `flow.subgraphs` contracts
 - keep Agentic Canvas OS P0 at documentation, profiling, dry-run planning, dashboard manifests, companion lane contracts, secured starter-repo blueprints, and demo-pack generation until implementation-specific tests exist
 - add targeted validation around transport parity and canvas materialization correctness before any future remote pipeline bridge ships
@@ -642,7 +651,7 @@ flowchart LR
 - [x] Documents canonical KGC validation, literal MCP structured-surface acceptance, and recovery before canvas apply
 - [x] Documents the shipped MCP Apps resource, Source Files resource template, MIME type, extension capability, OpenAI output-template/widget metadata, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, mirrored no-auth security schemes, read-only annotations, data-first `search`/`fetch`, prompt/resource handlers, and server-readiness payload
 - [x] Documents `/knowgrph/mcp` as the canonical public install/discovery endpoint and `/knowgrph/control-plane/mcp` as the approval-gated orchestration endpoint
-- [x] States that public remote `/`, `#`, `@` grammar exposure remains planned until the deployed public endpoint advertises and serves `knowgrph.agentic_canvas_os.docs.invoke`
+- [x] States that public remote `/`, `#`, `@` grammar exposure is live on the control-plane surface and not yet part of the canonical `/knowgrph/mcp` install surface
 - [x] Documents Agentic Canvas OS as a planned Canvas UI and cross-repo build/control dashboard with bounded companion lanes, not as a shipped mutating remote MCP platform, credential-bearing browser sync, or public private-memory service
 - [x] Documents `flow.subgraphs` as the sole upstream grouping authoring surface
 - [x] Forbids stale remote Worker module claims and duplicate graph pipelines
