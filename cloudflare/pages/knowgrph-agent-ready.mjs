@@ -1434,6 +1434,18 @@ export const buildAgentReadyStaticFiles = async () => ({
 const handlesKnowgrphRoot = (pathname) => pathname === APP_BASE_PATH || pathname === `${APP_BASE_PATH}/`;
 const handlesKnowgrphHtmlSurface = (pathname) =>
   handlesKnowgrphRoot(pathname) || Boolean(resolvePublishedDocPathIdentity(pathname));
+const handlesKnowgrphStaticAsset = (pathname) => pathname.startsWith(`${APP_BASE_PATH}/assets/`);
+
+const fetchKnowgrphStaticAsset = async (context) => {
+  const headers = new Headers(context.request.headers);
+  headers.delete("origin");
+  const assetRequest = new Request(context.request.url, {
+    method: context.request.method,
+    headers,
+  });
+  if (typeof context.env?.ASSETS?.fetch === "function") return context.env.ASSETS.fetch(assetRequest);
+  return context.next(assetRequest);
+};
 
 const resolveAgentReadyRouteTag = (request) => {
   const url = new URL(request.url);
@@ -1541,6 +1553,10 @@ export async function onRequest(context) {
 
   if (method !== "GET" && method !== "HEAD") {
     return jsonStatusResponse(405, { ok: false, error: "unsupported_method" });
+  }
+
+  if (handlesKnowgrphStaticAsset(url.pathname)) {
+    return fetchKnowgrphStaticAsset(context);
   }
 
   const routed = await routeResponse(request);
