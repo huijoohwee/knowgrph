@@ -258,9 +258,10 @@ const checks = [
       && body.includes('<main id="root"></main>')
       && body.includes('/knowgrph/assets/')
       && body.includes('name="x-knowgrph-root-alias" content="/knowgrph/"')
-      && body.includes('id="knowgrph-root-fallback"')
-      && body.includes('data-knowgrph-root-fallback="visible"')
       && body.includes('Agent-actionable chat-to-canvas knowledge graph workspace')
+      && !body.includes('id="knowgrph-root-fallback"')
+      && !body.includes('data-knowgrph-root-fallback')
+      && !body.includes('Open Knowgrph')
       && !body.includes(['Agent-readable', 'knowledge graph workspace'].join(' '))
       && !/http-equiv=["']refresh["']/i.test(body)
       && !body.includes('url=/knowgrph/'),

@@ -224,12 +224,14 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
     { workspaceDocumentSwitchPending: true },
     { floatingPanelOpen: true },
     { alternateCanvasSurfaceActive: true },
-    { meaningfulSourceFilesPresent: true },
   ]
   for (const suppression of suppressions) {
     if (shouldShowLiveCanvasHero({ ...base, ...suppression })) {
       throw new Error(`expected hero suppression for ${JSON.stringify(suppression)}`)
     }
+  }
+  if (!shouldShowLiveCanvasHero({ ...base, meaningfulSourceFilesPresent: true })) {
+    throw new Error('expected apex root landing to stay visible until the user enters /knowgrph/')
   }
 }
 
@@ -249,8 +251,10 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     'suppressMediaOverlays',
     'flowWidgetStateGraphKeyOverride={`live-hero:${liveCanvasHeroSource.sourceLayerHash}`}',
     '<LiveCanvasHeroLazy source={liveCanvasHeroSource}',
+    'data-kg-live-canvas-hero-enter="true"',
+    'Enter Knowgrph',
   ]) {
-    if (!viewportSource.includes(contract)) throw new Error(`expected interactive workspace canvas contract ${contract}`)
+    if (!`${viewportSource}\n${heroSource}`.includes(contract)) throw new Error(`expected interactive workspace canvas contract ${contract}`)
   }
   if (!viewportSource.includes('<FlowCanvasLazy') || !viewportSource.includes('forbidCircleNodes')) {
     throw new Error('expected the source-derived graph to retain live FlowCanvas pan, zoom, selection, and drag ownership')

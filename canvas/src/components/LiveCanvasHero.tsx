@@ -13,6 +13,7 @@ import { handoffLiveCanvasHeroQuery } from '@/features/canvas/liveCanvasHeroHand
 import type { LiveCanvasHeroSource } from '@/features/canvas/useKnowgrphLiveCanvasHero'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { normalizeInvocationTokenSpacing } from '@/lib/markdown/invocationTokens'
+import { resolveLiveCanvasHeroEnterHref } from '@/lib/routing/basePath'
 
 export type LiveCanvasHeroProps = {
   onHandoffComplete?: () => void
@@ -133,9 +134,16 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroProps & { model: Re
           </nav>
 
           <section className="mt-4 flex flex-wrap items-center gap-2">
+            <a
+              href={resolveLiveCanvasHeroEnterHref(import.meta.env.BASE_URL)}
+              className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-[var(--kg-canvas-accent)] bg-[var(--kg-canvas-accent)] px-4 text-sm font-semibold text-slate-950 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)]"
+              data-kg-live-canvas-hero-enter="true"
+            >
+              Enter Knowgrph
+            </a>
             <button
               type="submit"
-              className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-[var(--kg-canvas-accent)] bg-[var(--kg-canvas-accent)] px-4 text-sm font-semibold text-slate-950 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)] disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_72%,transparent)] px-4 text-sm font-semibold text-[var(--kg-text-primary)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)] disabled:cursor-wait disabled:opacity-60"
               disabled={handoffState === 'opening'}
               data-kg-live-canvas-hero-start="true"
             >

@@ -1,4 +1,4 @@
-import { resolveRouterBasename } from '@/lib/routing/basePath'
+import { resolveLiveCanvasHeroEnterHref, resolveRouterBasename } from '@/lib/routing/basePath'
 
 export const testResolveRouterBasenameFromBaseUrl = () => {
   const cases: Array<{ input: unknown; expected: string | undefined }> = [
@@ -39,5 +39,10 @@ export const testResolveRouterBasenameFromBaseUrl = () => {
   })
   if (mismatchedAlias !== '/knowgrph') {
     throw new Error(`Expected mismatched root alias basename to stay /knowgrph, got ${JSON.stringify(mismatchedAlias)}`)
+  }
+
+  const enterHref = resolveLiveCanvasHeroEnterHref('/knowgrph/')
+  if (enterHref !== '/knowgrph/') {
+    throw new Error(`Expected live canvas hero enter CTA to target /knowgrph/, got ${JSON.stringify(enterHref)}`)
   }
 }

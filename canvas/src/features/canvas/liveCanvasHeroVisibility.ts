@@ -22,7 +22,6 @@ export function shouldShowLiveCanvasHero(args: LiveCanvasHeroVisibilityArgs): bo
   if (args.hasSearchParams || args.isEmbeddedPreview) return false
   if (args.workspaceDocumentSwitchPending) return false
   if (args.floatingPanelOpen || args.alternateCanvasSurfaceActive) return false
-  if (args.meaningfulSourceFilesPresent) return false
   if (args.graphData?.metadata?.pending === true) return false
 
   const graphItemCount = (args.graphData?.nodes?.length || 0) + (args.graphData?.edges?.length || 0)

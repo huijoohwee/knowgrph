@@ -54,3 +54,8 @@ export function resolveRouterBasename(baseUrl: unknown, runtime?: RouterBasename
 
   return basename
 }
+
+export function resolveLiveCanvasHeroEnterHref(baseUrl: unknown): string {
+  const basename = normalizeBasePath(baseUrl)
+  return `${basename || ''}/`
+}
