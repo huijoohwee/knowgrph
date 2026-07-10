@@ -188,6 +188,13 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
   if (starterInitializationState.meaningfulSourceFilesPresent || !starterInitializationState.defaultSeedOnly) {
     throw new Error(`expected the canonical starter document to remain part of landing initialization, got ${JSON.stringify(starterInitializationState)}`)
   }
+  const canonicalDocsInitializationState = resolveLiveCanvasHeroWorkspaceSourceState({
+    sourceFiles: [{ ...sourceFile, source: { kind: 'local', path: 'workspace:/docs/runtime-proof.md' } } as SourceFile],
+    markdownDocumentName: 'runtime-proof.md',
+  })
+  if (canonicalDocsInitializationState.meaningfulSourceFilesPresent || !canonicalDocsInitializationState.defaultSeedOnly) {
+    throw new Error(`expected the canonical docs corpus to remain landing initialization, got ${JSON.stringify(canonicalDocsInitializationState)}`)
+  }
 
   const emptyGraph: GraphData = { type: 'Graph', nodes: [], edges: [] }
   const base = {

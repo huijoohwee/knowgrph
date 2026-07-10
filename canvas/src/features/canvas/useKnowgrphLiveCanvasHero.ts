@@ -32,6 +32,7 @@ const LIVE_CANVAS_HERO_INITIALIZATION_SOURCE_BASENAME = 'knowgrph-strybldr-start
 
 const isLiveCanvasHeroInitializationSourcePath = (path: string): boolean => (
   isDefaultWorkspaceSeedSourcePath(path)
+  || path.replace(/\\/g, '/').toLowerCase().startsWith('workspace:/docs/')
   || path.replace(/\\/g, '/').split('/').pop()?.toLowerCase() === LIVE_CANVAS_HERO_INITIALIZATION_SOURCE_BASENAME
 )
 
