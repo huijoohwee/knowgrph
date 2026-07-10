@@ -55,8 +55,11 @@ export async function testRootAgentReadyAliasCanonicalizesPublishedAppShellMount
     if (!body.includes('name="x-knowgrph-root-alias" content="/knowgrph/"')) {
       throw new Error('expected root alias metadata to be injected')
     }
-    if (!body.includes('id="knowgrph-root-fallback"') || !body.includes('data-knowgrph-root-fallback="visible"')) {
-      throw new Error('expected root alias visible fallback to be injected after the canonical root mount')
+    if (body.includes('id="knowgrph-root-fallback"') || body.includes('data-knowgrph-root-fallback')) {
+      throw new Error('expected root alias to omit the old full-screen launch fallback')
+    }
+    if (body.includes('Open Knowgrph')) {
+      throw new Error('expected successful root alias app shell to omit launch fallback CTA')
     }
     if (!body.includes('Agent-actionable chat-to-canvas knowledge graph workspace')) {
       throw new Error('expected root alias description to be canonical')
