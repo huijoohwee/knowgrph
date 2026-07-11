@@ -1572,7 +1572,8 @@ export async function onRequest(context) {
   const nextResponse = new Response(method === "HEAD" ? null : htmlResponse.body, htmlResponse);
   nextResponse.headers.set("link", agentReadyHomepageLinkHeaderValue);
   if (handlesKnowgrphRoot(url.pathname)) {
-    nextResponse.headers.set("x-frame-options", "SAMEORIGIN");
+    nextResponse.headers.delete("x-frame-options");
+    nextResponse.headers.set("content-security-policy", "frame-ancestors 'self'");
   }
   return withKnowgrphRouteHeaders(request, nextResponse);
 }
