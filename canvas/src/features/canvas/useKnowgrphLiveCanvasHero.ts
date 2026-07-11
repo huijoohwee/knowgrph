@@ -196,7 +196,7 @@ export function useKnowgrphLiveCanvasHero(args: {
     isRootAlias,
     sourceFilesBootstrapReady: args.sourceFilesBootstrapReady,
     liveWorkspaceSourceReady: liveCanvasHeroSource != null,
-    dismissed: landingExited || defaultSeedContentChanged,
+    dismissed: landingExited || (!isRootAlias && defaultSeedContentChanged),
     hasSearchParams,
     isEmbeddedPreview: args.isEmbeddedPreview,
     workspaceEditorOverlayOpen: args.workspaceEditorOverlayOpen,

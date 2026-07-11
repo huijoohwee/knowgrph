@@ -239,6 +239,10 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
   if (!shouldShowLiveCanvasHero({ ...base, meaningfulSourceFilesPresent: true, defaultSeedOnly: false })) {
     throw new Error('expected apex root landing to stay visible over authored workspace content until the user enters /knowgrph/')
   }
+  const heroHookSource = readFileSync(new URL('../features/canvas/useKnowgrphLiveCanvasHero.ts', import.meta.url), 'utf8')
+  if (!heroHookSource.includes('dismissed: landingExited || (!isRootAlias && defaultSeedContentChanged)')) {
+    throw new Error('expected persisted workspace document changes to stay isolated from apex hero dismissal')
+  }
 }
 
 export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
