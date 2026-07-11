@@ -119,11 +119,10 @@ export function resolveLiveCanvasHeroSource(args: {
 
   const sourceFileId = String(sourceFile.id || '').trim()
   const text = String(sourceFile.text || '')
-  if (!sourceFileId || !text.trim()) return null
-  const sourceTextGraphData = tryParseMarkdownFrontmatterFlowGraph(
-    String(sourceFile.name || 'workspace-readme.md'),
-    text,
-  )?.graphData || null
+  if (!sourceFileId) return null
+  const sourceTextGraphData = text.trim()
+    ? tryParseMarkdownFrontmatterFlowGraph(String(sourceFile.name || 'workspace-readme.md'), text)?.graphData || null
+    : null
   const graphDataCandidates = [sourceTextGraphData, sourceFile.parsedGraphData, args.activeGraphData]
     .filter((candidate): candidate is GraphData => candidate != null)
   const resolvedGraph = graphDataCandidates
