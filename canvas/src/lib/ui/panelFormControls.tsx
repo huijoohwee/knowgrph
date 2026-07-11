@@ -8,6 +8,7 @@ import {
   type DataViewFieldLineMode,
   type DataViewRowHeightPreset,
 } from '@/lib/ui/dataViewDensity'
+import { UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
 
 export const PANEL_FORM_LABEL_TEXT_CLASSNAME = cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)
@@ -84,7 +85,7 @@ type PanelRangeInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 't
 }
 
 const PANEL_FORM_CHECKBOX_CLASSNAME = cn(
-  'h-4 w-4 rounded',
+  `${UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME} rounded`,
   UI_THEME_TOKENS.input.border,
   UI_THEME_TOKENS.input.selectionControl,
 )

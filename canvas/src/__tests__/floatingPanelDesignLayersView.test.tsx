@@ -1,7 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import { ToolbarToolMenu } from '@/features/toolbar/ToolbarToolMenu'
+import { ToolbarToolMenu } from '@/lib/toolbar/ToolbarToolMenu.impl'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { UI_LABELS } from '@/lib/config'
 import { LS_KEYS } from '@/lib/config.ls.keys'

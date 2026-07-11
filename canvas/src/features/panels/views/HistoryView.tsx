@@ -1,4 +1,5 @@
 import React from 'react'
+import { HistoryUndoRedoControls } from '@/features/history/HistoryUndoRedoControls'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import IconButton from '@/components/IconButton'
 import { UiActionButtons } from '@/components/ui/UiActionButtons'
@@ -153,8 +154,6 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
     historyIndex,
     recentFiles: recentFilesRaw,
     addHistory,
-    undoHistory,
-    redoHistory,
     restoreHistory,
     uiLogEntries: uiLogEntriesRaw,
     clearUiLog,
@@ -170,8 +169,6 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
       historyIndex: s.historyIndex,
       recentFiles: Array.isArray(s.recentFiles) ? s.recentFiles : EMPTY_RECENT_FILES,
       addHistory: s.addHistory,
-      undoHistory: s.undoHistory,
-      redoHistory: s.redoHistory,
       restoreHistory: s.restoreHistory,
       uiLogEntries: Array.isArray(s.uiLogEntries) ? s.uiLogEntries : EMPTY_UI_LOG_ENTRIES,
       clearUiLog: s.clearUiLog,
@@ -312,9 +309,6 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
     [],
   )
 
-  const canUndo = historyIndex > 0
-  const canRedo = historyIndex >= 0 && historyIndex < history.length - 1
-
   // const handleOpen = React.useCallback(async (f: RecentFileEntry) => {
   //   if (f.type === 'markdown') {
   //     await performMarkdownImport(f.url ? 'url' : 'local', f.url || undefined)
@@ -330,16 +324,7 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
       <header className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.border}`}>
         <section className="flex items-center justify-between gap-2">
           <section className="flex items-center gap-2">
-            {canUndo ? (
-              <IconButton className="App-toolbar__btn" title={UI_LABELS.undo} onClick={() => undoHistory()} showTooltip>
-                <ResetIcon className={`${iconSizeClass} rotate-180`} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-              </IconButton>
-            ) : null}
-            {canRedo ? (
-              <IconButton className="App-toolbar__btn" title={UI_LABELS.redo} onClick={() => redoHistory()} showTooltip>
-                <ResetIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-              </IconButton>
-            ) : null}
+            <HistoryUndoRedoControls iconSizeClass={iconSizeClass} iconStrokeWidth={uiIconStrokeWidth} />
             <IconButton className="App-toolbar__btn" title="Snapshot" onClick={applySnapshot} showTooltip>
               <SaveIcon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
             </IconButton>
@@ -446,10 +431,19 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
                     isSelected ? UI_THEME_TOKENS.table.rowSelected : `hover:${UI_THEME_TOKENS.table.rowHover}`
                   }`}
                 >
-                  <section>
-                    <section className={UI_THEME_TOKENS.text.primary}>{h.label}</section>
-                    <section className={`text-xs ${UI_THEME_TOKENS.text.tertiary}`}>{formatTimestamp(h.timestamp)}</section>
-                  </section>
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    aria-current={isSelected ? 'step' : undefined}
+                    onClick={() => {
+                      if (originalIndex < 0) return
+                      restoreHistory(originalIndex)
+                    }}
+                    data-kg-version-history-index={originalIndex >= 0 ? originalIndex : undefined}
+                  >
+                    <span className={`block ${UI_THEME_TOKENS.text.primary}`}>{h.label}</span>
+                    <span className={`block text-xs ${UI_THEME_TOKENS.text.tertiary}`}>{formatTimestamp(h.timestamp)}</span>
+                  </button>
                   <IconButton
                     className="App-toolbar__btn opacity-0 group-hover:opacity-100 focus:opacity-100"
                     title={UI_LABELS.restore}

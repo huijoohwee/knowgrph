@@ -6,6 +6,7 @@ import {
   parseGraphFieldSettingsDocument,
   validateGraphRagWorkflowJsonLdObject,
 } from '@/features/panels/utils/workflowJsonLd'
+import type { VersionHistoryEntry } from '@/features/history/versionHistoryTypes'
 import {
   DEFAULT_GRAPHRAG_CONFIG_PATH,
   parseGraphragCliConfigYamlToJsonLd,
@@ -55,19 +56,32 @@ export function testWorkflowJsonLdHistoryGraphShape() {
       isCustom: false,
     },
   }
-  const history = [
+  const history: VersionHistoryEntry[] = [
     {
       id: 'h1',
+      parentId: null,
       label: 'First',
       timestamp: 1,
+      source: 'manual',
+      contentSignature: 'signature-first',
       graphData: graph,
       graphFieldSettingsById: historySettings,
+      markdownDocumentName: 'first.md',
+      markdownDocumentText: '# First',
+      activeSourceFileSnapshot: null,
     },
     {
       id: 'h2',
+      parentId: 'h1',
       label: 'Second',
       timestamp: 2,
+      source: 'graph',
+      contentSignature: 'signature-second',
       graphData: graph,
+      graphFieldSettingsById: {},
+      markdownDocumentName: 'second.md',
+      markdownDocumentText: '# Second',
+      activeSourceFileSnapshot: null,
     },
   ]
   const doc = buildHistoryJsonLdDocument(history, 1)

@@ -9,6 +9,7 @@ import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { FLOW_RUN_ALL_PHASES } from '@/lib/storyboardWidget/runAllSequenceSsot'
 import { getCachedStoryboardWidgetWorkflowRunPlan } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 
 const waitForRunAllLayoutReleaseFrame = async (): Promise<void> => {
   if (typeof requestAnimationFrame !== 'function') return
@@ -93,7 +94,7 @@ export function useStoryboardWidgetWorkflowRunAll(args: {
       })
       for (let index = 0; index < ids.length; index += 1) {
         const nodeId = ids[index]!
-        const node = nodes.find(candidate => String(candidate.id || '') === nodeId)
+        const node = resolveGraphNodeByCanonicalId(draft, nodeId)
         const label = String(node?.label || node?.type || nodeId).trim() || nodeId
         upsertRunAllToast({
           kind: 'neutral',

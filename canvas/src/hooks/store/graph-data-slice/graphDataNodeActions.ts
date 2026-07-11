@@ -24,6 +24,7 @@ import {
 import { buildUpdatedSourceFileParsedGraphState } from '@/features/source-files/sourceFileParsedState'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
+import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 
 const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'
 
@@ -129,10 +130,12 @@ export function createGraphDataNodeActions(set: SetGraph, get: GetGraph) {
         }
       }
     }
-    const current = graphData.nodes.find(n => n.id === id);
+    const current = resolveGraphNodeByCanonicalId(graphData, id)
+    const targetNodeId = String(current?.id || '').trim()
+    if (!targetNodeId) return
     const nextNode = current ? mergeNodeForUpdate(current, updates) : null;
-    if (!validateNodeProperties(schema, id, nextNode, graphData)) return;
-    const nodes = graphData.nodes.map(n => (n.id === id ? mergeNodeForUpdate(n, updates) : n))
+    if (!validateNodeProperties(schema, targetNodeId, nextNode, graphData)) return;
+    const nodes = graphData.nodes.map(n => (isCanonicalNodeIdEqual(n.id, targetNodeId) ? mergeNodeForUpdate(n, updates) : n))
     const nextGraphDataBase = { ...graphData, nodes }
     const nextRevision = (get().graphDataRevision || 0) + 1
     const nextGraphData = withGraphDataRevision(nextGraphDataBase, nextRevision)

@@ -142,9 +142,13 @@ export function testFrontmatterFlowTypedNodesForcePortHandleDefaultsInFlowScene(
 }
 export function testFrontmatterFlowWidgetFormShowsFlowContractAndOnlyShowsSmartMediaWhenConfigured() {
   const widgetEditorFormPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
+  const widgetEditorFormContentPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorFormContent.tsx')
+  const frontmatterRowsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetEditorFrontmatterRows.tsx')
   const registryHelperPath = resolve(process.cwd(), 'src', 'features', 'storyboard-widget-manager', 'resolveWidgetRegistry.ts')
   const contractHelperPath = resolve(process.cwd(), 'src', 'features', 'storyboard-widget-manager', 'frontmatterWidgetContract.ts')
   const text = readFileSync(widgetEditorFormPath, 'utf8')
+  const formContentText = readFileSync(widgetEditorFormContentPath, 'utf8')
+  const frontmatterRowsText = readFileSync(frontmatterRowsPath, 'utf8')
   const helperText = readFileSync(registryHelperPath, 'utf8')
   const contractHelperText = readFileSync(contractHelperPath, 'utf8')
 
@@ -157,7 +161,7 @@ export function testFrontmatterFlowWidgetFormShowsFlowContractAndOnlyShowsSmartM
   if (!helperText.includes('export function isNodeOwnedFrontmatterWidgetRegistryEntry(')) {
     throw new Error('expected shared widget registry helpers to expose frontmatter node/entry ownership checks')
   }
-  if (!text.includes('!hideFields && isFrontmatterFlow')) {
+  if (!formContentText.includes('!hideFields && isFrontmatterFlow')) {
     throw new Error('expected dedicated frontmatter flow contract section rendering')
   }
   if (!contractHelperText.includes("rowKey: 'flow-handles-target'")) {
@@ -175,7 +179,7 @@ export function testFrontmatterFlowWidgetFormShowsFlowContractAndOnlyShowsSmartM
   if (!contractHelperText.includes('const rawValue = readRecordPathValue(properties, schemaPath)')) {
     throw new Error('expected shared frontmatter contract helper to resolve declared envelope field values by schema path')
   }
-  if (!text.includes('onPatchProperties({ data: parsed })')) {
+  if (!frontmatterRowsText.includes('onPatchProperties({ data: JSON.parse(raw) })')) {
     throw new Error('expected frontmatter flow contract section to parse and persist data json')
   }
 }
@@ -335,12 +339,12 @@ export function testStoryboardWidgetOverlayEdgesAnchorThroughSharedOverlayRoots(
     throw new Error('expected shared overlay node-id reader to support Rich Media overlay roots via data-node-id')
   }
 
-  const richMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'RichMediaPanel.tsx')
-  const richMediaPanelText = readFileSync(richMediaPanelPath, 'utf8')
-  if (!richMediaPanelText.includes('const storyboardWidgetRichMediaOverlayRoot = storyboardWidgetInteractionMode || canvasOverlayProxyEnabled')) {
+  const richMediaPanelSurfaceStatePath = resolve(process.cwd(), 'src', 'components', 'useRichMediaPanelSurfaceState.ts')
+  const richMediaPanelSurfaceStateText = readFileSync(richMediaPanelSurfaceStatePath, 'utf8')
+  if (!richMediaPanelSurfaceStateText.includes('const storyboardWidgetRichMediaOverlayRoot = storyboardWidgetInteractionMode || canvasOverlayProxyEnabled')) {
     throw new Error('expected Rich Media overlay root marker to include Storyboard Widget interaction mode, not only canvas proxy handlers')
   }
-  if (!richMediaPanelText.includes("data-kg-rich-media-overlay={storyboardWidgetRichMediaOverlayRoot ? '1' : undefined}")) {
+  if (!richMediaPanelSurfaceStateText.includes("'data-kg-rich-media-overlay': storyboardWidgetRichMediaOverlayRoot ? '1' : undefined")) {
     throw new Error('expected Rich Media Panel roots to participate in Storyboard Widget edge endpoint discovery whenever Storyboard Widget interaction mode is active')
   }
 }
@@ -674,22 +678,24 @@ export function testFrontmatterFlowOverlayEditorsIncludeCanonicalBuiltInWidgets(
 
 export function testStoryboardWidgetFormEmitsInteractionFrameOnScrollAndWheel() {
   const widgetEditorFormPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
+  const widgetEditorFormContentPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorFormContent.tsx')
   const widgetInnerPanelScrollingPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'widgetInnerPanelScrolling.ts')
   const text = readFileSync(widgetEditorFormPath, 'utf8')
+  const formContentText = readFileSync(widgetEditorFormContentPath, 'utf8')
   const scrollingText = readFileSync(widgetInnerPanelScrollingPath, 'utf8')
 
   if (!text.includes('emitStoryboardWidgetInteractionFrame')) {
     throw new Error('expected widget form to reuse the shared storyboard widget interaction frame emitter')
   }
   if (
-    !text.includes('onScrollCapture={() => handleWidgetInnerPanelScrollCapture(emitInteractionFrame)}')
+    !formContentText.includes('onScrollCapture={() => handleWidgetInnerPanelScrollCapture(emitInteractionFrame)}')
     || !scrollingText.includes('export function handleWidgetInnerPanelScrollCapture')
     || !scrollingText.includes('emitInteractionFrame()')
   ) {
     throw new Error('expected widget form scroll to emit interaction frame for edge-anchor resync')
   }
   if (
-    !text.includes('onWheelCapture={e => handleWidgetInnerPanelWheelCapture(e, emitInteractionFrame)}')
+    !formContentText.includes('onWheelCapture={e => handleWidgetInnerPanelWheelCapture(e, emitInteractionFrame)}')
     || !scrollingText.includes('export function handleWidgetInnerPanelWheelCapture')
     || !scrollingText.includes('emitInteractionFrame()')
   ) {
@@ -698,13 +704,13 @@ export function testStoryboardWidgetFormEmitsInteractionFrameOnScrollAndWheel() 
 }
 
 export function testFrontmatterFlowContractSuppressesPortDotsForComputeAndDataRows() {
-  const widgetEditorFormPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
-  const text = readFileSync(widgetEditorFormPath, 'utf8')
+  const frontmatterRowsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetEditorFrontmatterRows.tsx')
+  const text = readFileSync(frontmatterRowsPath, 'utf8')
 
-  if (!text.includes("rowKey: 'flow-compute'")) {
+  if (!text.includes("rowSpec.kind === 'compute'") || !text.includes("rowSpec.rowKey === 'flow-compute'")) {
     throw new Error('expected flow contract compute row to exist')
   }
-  if (!text.includes("rowKey: 'flow-data'")) {
+  if (!text.includes("rowSpec.kind === 'data'") || !text.includes("rowSpec.rowKey === 'flow-data'")) {
     throw new Error('expected flow contract data row to exist')
   }
   if (!text.includes('showInPortDot: false')) {
@@ -716,7 +722,7 @@ export function testFrontmatterFlowContractSuppressesPortDotsForComputeAndDataRo
 }
 
 export function testWidgetWheelCaptureDoesNotBlockInternalScroll() {
-  const formPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
+  const formPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorFormContent.tsx')
   const scrollingPath = resolve(process.cwd(), 'src', 'lib', 'canvas', 'widgetInnerPanelScrolling.ts')
   const formText = readFileSync(formPath, 'utf8')
   const scrollingText = readFileSync(scrollingPath, 'utf8')
@@ -749,9 +755,9 @@ export function testWidgetPortHandleTooltipUsesDirectionalHandlePath() {
 }
 
 export function testFrontmatterFlowContractFormatsHandlesAsSemanticPortKeys() {
-  const widgetEditorFormPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
+  const frontmatterRowsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetEditorFrontmatterRows.tsx')
   const contractHelperPath = resolve(process.cwd(), 'src', 'features', 'storyboard-widget-manager', 'frontmatterWidgetContract.ts')
-  const text = readFileSync(widgetEditorFormPath, 'utf8')
+  const text = readFileSync(frontmatterRowsPath, 'utf8')
   const helperText = readFileSync(contractHelperPath, 'utf8')
   if (!helperText.includes('formatFlowHandleValueList')) {
     throw new Error('expected shared frontmatter contract helper to reuse the normalized handle value formatter')
@@ -889,8 +895,10 @@ export function testFrontmatterFlowContractUnionsSemanticHandleSourcesWhenPortTy
 
 export function testFrontmatterFlowContractMakesSourceEditableAndTargetReadOnly() {
   const widgetEditorFormPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
+  const widgetEditorFormContentPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorFormContent.tsx')
   const registryHelperPath = resolve(process.cwd(), 'src', 'features', 'storyboard-widget-manager', 'resolveWidgetRegistry.ts')
   const text = readFileSync(widgetEditorFormPath, 'utf8')
+  const formContentText = readFileSync(widgetEditorFormContentPath, 'utf8')
   const helperText = readFileSync(registryHelperPath, 'utf8')
   if (!helperText.includes('export function resolveFrontmatterWidgetRegistrySectionState(')) {
     throw new Error('expected shared widget registry helpers to expose frontmatter registry-section state resolution')
@@ -904,18 +912,20 @@ export function testFrontmatterFlowContractMakesSourceEditableAndTargetReadOnly(
   if (!text.includes('const frontmatterWidgetIdentityLabel = frontmatterWidgetRegistrySection.identityLabel')) {
     throw new Error('expected built-in frontmatter widgets to derive the canonical Widget identity row from shared section state')
   }
-  if (!text.includes('ariaLabel={UI_LABELS.flowWidget}')) {
+  if (!formContentText.includes('ariaLabel={UI_LABELS.flowWidget}')) {
     throw new Error('expected built-in frontmatter widgets to render the canonical Widget identity row')
   }
-  if (!text.includes('showPortRows')) {
+  if (!formContentText.includes('showPortRows')) {
     throw new Error('expected frontmatter widget registry section to keep canonical port rows visible')
   }
 }
 
 export function testFrontmatterFlowContractKeepsTwoDotColumnsAlignedForHandleRows() {
-  const widgetEditorFormPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
+  const widgetEditorFormContentPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorFormContent.tsx')
+  const frontmatterRowsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetEditorFrontmatterRows.tsx')
   const contractHelperPath = resolve(process.cwd(), 'src', 'features', 'storyboard-widget-manager', 'frontmatterWidgetContract.ts')
-  const text = readFileSync(widgetEditorFormPath, 'utf8')
+  const formContentText = readFileSync(widgetEditorFormContentPath, 'utf8')
+  const text = readFileSync(frontmatterRowsPath, 'utf8')
   const helperText = readFileSync(contractHelperPath, 'utf8')
   if (!text.includes('const frontmatterPortRows = React.useMemo<FrontmatterPortKvRow[]>(() => {')) {
     throw new Error('expected frontmatter flow contract handle rows to be rendered from shared row specs')
@@ -935,7 +945,7 @@ export function testFrontmatterFlowContractKeepsTwoDotColumnsAlignedForHandleRow
   if (!helperText.includes('portKeys: string[]')) {
     throw new Error('expected flow contract handle rows to expose explicit semantic port-key lists')
   }
-  if (!text.includes('forcePortDots')) {
+  if (!formContentText.includes('forcePortDots')) {
     throw new Error('expected flow contract handle rows to keep table-level fallback dots for consistent | dot | key | type | value | dot | alignment')
   }
 }
@@ -986,9 +996,9 @@ export function testWidgetRegistryMetadataMissingClearsDocumentRegistryToAvoidSt
 }
 
 export function testFrontmatterFlowContractAvoidsSyntheticHandleAndDataFallbacks() {
-  const widgetEditorFormPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
+  const frontmatterRowsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetEditorFrontmatterRows.tsx')
   const contractHelperPath = resolve(process.cwd(), 'src', 'features', 'storyboard-widget-manager', 'frontmatterWidgetContract.ts')
-  const text = readFileSync(widgetEditorFormPath, 'utf8')
+  const text = readFileSync(frontmatterRowsPath, 'utf8')
   const helperText = readFileSync(contractHelperPath, 'utf8')
   if (!helperText.includes('hasFlowTargetHandles: flowHandleKeys.target.length > 0')) {
     throw new Error('expected shared frontmatter contract helper to gate input handle rows by actual derived handles')
@@ -1025,7 +1035,7 @@ export function testStoryboardWidgetDraftGraphHydrationIsNotClearedByFrontmatter
   if (!runtimeText.includes('const storyboardWidgetBaseGraphData = React.useMemo(')) {
     throw new Error('expected StoryboardWidget draft graph hydration to derive a stable Storyboard Widget graph-family source')
   }
-  if (!renderStateText.includes('const base = args.storyboardWidgetBaseGraphData as GraphData | null')) {
+  if (!renderStateText.includes('const storyboardWidgetBaseGraphDataRef = React.useRef(args.storyboardWidgetBaseGraphData)') || !renderStateText.includes('const base = storyboardWidgetBaseGraphDataRef.current')) {
     throw new Error('expected StoryboardWidget draft graph hydration to avoid raw store graph fallback under view-lock transitions')
   }
   if (!renderStateText.includes('setDraftGraphData(prev => (prev === base ? prev : base))')) {
@@ -1245,7 +1255,7 @@ export function testStoryboardWidgetPortHandleEdgeConnectivityUsesEndpointIdReso
   }
   if (
     !draftActionsText.includes("import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'")
-    || !draftActionsText.includes('const { src, tgt } = readGraphEdgeEndpoints(e)')
+    || !draftActionsText.includes('const { src, tgt } = readGraphEdgeEndpoints(edge)')
   ) {
     throw new Error('expected storyboard widget draft actions to resolve incident edge endpoints via shared pair helper')
   }

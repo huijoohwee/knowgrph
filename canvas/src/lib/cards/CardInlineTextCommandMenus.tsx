@@ -204,6 +204,7 @@ export function CardInlineTextCommandMenus(props: {
       setCommandQuery('')
       const focusOffset = next !== text ? tokenRange.start : commandSelectionRef.current.end
       focusCardInlineTextInputSelectionSoon(inputRef.current, focusOffset, focusOffset, focusSelection)
+      if (shouldRouteToExternalMediaTarget) onMediaCommandSelect(candidate)
       if (options?.closeAfterApply === true && next !== text) onCommandDraftApplied?.(next)
       return
     }

@@ -28,7 +28,7 @@ import { FLOW_PORT_HANDLE_SELECTOR, readFlowPortHandleAtClientPoint } from '@/co
 import { useStoryboardEdgeCreationRequest } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardEdgeCreationRequest'
 import { useStoryboardSharedSurfacePan } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardSharedSurfacePan'
 import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCanvas/storyboardCardOwnership2d'
-import { readStoryboardCardMediaDropPanelTargetId } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
+import { isStoryboardCardMediaDropEdge } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
 import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { applyCanonicalNodePropertyAuthority } from '@/lib/graph/applyCanonicalNodePropertyAuthority'
@@ -74,6 +74,8 @@ export default function StoryboardWidgetCanvasSurface(props: {
   addRichMediaPanelFromMediaAtWorld: (args: { media: import('@/lib/ui/mediaDragPayload').MediaDragPayload; releaseClientPoint?: { clientX: number; clientY: number }; x: number; y: number }) => string
   patchNodeById: (nodeId: string, patch: Partial<GraphNode>, sourceGraphData?: GraphData | null) => void
   patchNodePropertiesById: (nodeId: string, patch: Record<string, unknown>, sourceGraphData?: GraphData | null) => void
+  removeNodeById: (nodeId: string) => void
+  removePendingNodeById: (nodeId: string) => void
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
   createPortal: typeof import('react-dom').createPortal
 }) {
@@ -147,9 +149,13 @@ export default function StoryboardWidgetCanvasSurface(props: {
   const storyboardCardOwnedMediaPanelNodeIds = React.useMemo(() => {
     if (!storyboardSharedSurfaceActive || storyboardFixedCardNodeIds.length === 0) return []
     const fixedCardNodeIdSet = new Set(storyboardFixedCardNodeIds)
+    const sourceIds = new Set((storyboardGraphData?.edges || [])
+      .filter(edge => fixedCardNodeIdSet.has(String(edge.target || '').trim()) && isStoryboardCardMediaDropEdge(edge, String(edge.target || '').trim()))
+      .map(edge => String(edge.source || '').trim())
+      .filter(Boolean))
     return (storyboardGraphData?.nodes || [])
-      .filter(node => fixedCardNodeIdSet.has(readStoryboardCardMediaDropPanelTargetId(node)))
       .map(node => String(node?.id || '').trim())
+      .filter(nodeId => sourceIds.has(nodeId))
       .filter(Boolean)
   }, [storyboardFixedCardNodeIds, storyboardGraphData, storyboardSharedSurfaceActive])
   const readFlowCanvasBaseGraphDataOverride = React.useCallback(() => {
@@ -391,6 +397,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
           flowWidgetStateGraphKeyOverride={flowWidgetStateGraphKey}
           onNodeChange={props.patchNodeById}
           onNodePropertiesChange={props.patchNodePropertiesById}
+          onNodeRemove={props.removeNodeById}
           exposeRuntimeRef={ref => {
             props.flowRuntimeRefRef.current = ref
           }}
@@ -425,6 +432,8 @@ export default function StoryboardWidgetCanvasSurface(props: {
         graphData={storyboardGraphData}
         graphRevision={graphContentRevision || graphDataRevision || 0}
         onNodeChange={props.patchNodeById}
+        removeNodeById={props.removeNodeById}
+        removePendingNodeById={props.removePendingNodeById}
         runWorkflowNode={props.runWorkflowNode}
         schema={schema}
         widgetRegistry={props.widgetRegistry}

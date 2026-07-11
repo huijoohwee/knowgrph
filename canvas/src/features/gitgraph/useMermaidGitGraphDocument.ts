@@ -73,6 +73,7 @@ export function useMermaidGitGraphDocument() {
     const currentText = String(store.markdownDocumentText || '')
     const nextText = replaceMermaidGitGraphCodeInMarkdown(currentText, nextCode)
     if (nextText === currentText) return false
+    store.addHistory(`Before GitGraph ${actionLabel}`)
     const documentName = store.markdownDocumentName
     const sourceFiles = Array.isArray(store.sourceFiles) ? store.sourceFiles : []
     const matchedSourceFileIndex = findGitGraphSourceFileIndex(store, sourceFiles, currentText)

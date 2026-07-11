@@ -8,11 +8,11 @@ import type { MarkdownDataViewColumn } from '@/features/markdown/ui/markdownData
 import type { WorkspaceDataViewConfig } from './workspaceDataViewConfig'
 import { WorkspaceHeader } from '@/components/ui/WorkspaceHeader'
 import {
-  UI_RESPONSIVE_ACTION_ROW_CLASSNAME,
   UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
   UI_RESPONSIVE_DATA_VIEW_SEARCH_FORM_CLASSNAME,
   UI_RESPONSIVE_DATA_VIEW_SEARCH_INPUT_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
+import { getDataViewIconButtonClassName } from '@/lib/ui/dataViewToolbarButton'
 import {
   uiToolbarRowScrollClassName,
   uiToolbarRowScrollInlineClassName,
@@ -55,7 +55,9 @@ export function WorkspaceDataViewHeader(props: {
 
   const icon12Class = [UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME, UI_THEME_TOKENS.icon.color].join(' ')
   const icon14Class = ['w-4 h-4 shrink-0', UI_THEME_TOKENS.icon.color].join(' ')
-  const squareIconButtonClassName = [UI_RESPONSIVE_ACTION_ROW_CLASSNAME, 'shrink-0', UI_THEME_TOKENS.button.square, 'rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.button.hoverBg].join(' ')
+  const squareIconButtonClassName = getDataViewIconButtonClassName({
+    className: ['shrink-0', UI_THEME_TOKENS.button.square].join(' '),
+  })
   const viewModeLabel =
     props.viewConfig?.geospatialViewEnabled === true
       ? MARKDOWN_DATA_VIEW_COPY.geospatialViewLabel

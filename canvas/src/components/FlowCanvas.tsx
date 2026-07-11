@@ -54,6 +54,7 @@ export default function FlowCanvas({
   forbidCircleNodes = false,
   onNodeChange,
   onNodePropertiesChange,
+  onNodeRemove,
 }: FlowCanvasProps) {
   const containerRef = React.useRef<HTMLElement>(null)
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
@@ -529,6 +530,7 @@ export default function FlowCanvas({
           storyboardWidgetSurfaceId={storyboardWidgetSurfaceId}
           onNodeChange={onNodeChange}
           onNodePropertiesChange={onNodePropertiesChange}
+          onNodeRemove={onNodeRemove}
           registerInteractionFrameLayoutScheduler={registerMediaOverlayInteractionFrameScheduler}
         />
       )}

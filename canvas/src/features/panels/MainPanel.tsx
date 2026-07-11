@@ -35,7 +35,7 @@ const ResearchCompilerViewLazy = React.lazy(() => import('./views/ResearchCompil
 const CollaborationViewLazy = React.lazy(() => import('./views/CollaborationView'))
 const DesignEditorMainPanelViewLazy = React.lazy(() => import('@/features/panels/views/DesignEditorMainPanelView'))
 const StoryboardWidgetManagerViewLazy = React.lazy(() => import('@/features/panels/views/StoryboardWidgetManagerView'))
-const PreviewPanelViewLazy = React.lazy(() => import('./views/PreviewPanelView'))
+const PreviewPanelViewLazy = React.lazy(() => import('@/lib/panels/views/PreviewPanelView.impl'))
 const SettingsViewLazy = React.lazy(() => import('@/features/panels/views/SettingsView'))
 const HistoryViewLazy = React.lazy(() => import('@/features/panels/views/HistoryView'))
 const HelpViewLazy = React.lazy(() => import('@/features/panels/views/HelpView'))

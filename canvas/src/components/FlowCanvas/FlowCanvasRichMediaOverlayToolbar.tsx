@@ -5,44 +5,12 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { createUniqueId } from '@/lib/ids'
 import type { RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { commitGraphOverlayNodeRemoval, resolveGraphOverlayNodeRemoval } from '@/lib/graph/graphOverlayNodeRemoval'
 import { lsSetBool } from '@/lib/persistence'
 import { LS_KEYS } from '@/lib/config'
 
 function readGraphNodes(graphData: GraphData | null | undefined): GraphNode[] {
   return Array.isArray(graphData?.nodes) ? graphData.nodes as GraphNode[] : []
-}
-
-function findGraphNode(graphData: GraphData | null | undefined, nodeId: string): GraphNode | null {
-  const key = String(nodeId || '').trim()
-  if (!key) return null
-  const nodes = readGraphNodes(graphData)
-  return nodes.find(item => String(item?.id || '').trim() === key) || null
-}
-
-export function resolveFlowCanvasRichMediaOverlayRemoval(args: {
-  graphData: GraphData | null | undefined
-  nodeId: unknown
-  openWidgetNodeIds: ReadonlyArray<string>
-  selectedNodeId: unknown
-}): {
-  targetNodeId: string
-  nextOpenWidgetNodeIds: string[]
-  clearSelection: boolean
-} | null {
-  const key = String(args.nodeId || '').trim()
-  if (!key) return null
-  const targetNode = resolveGraphNodeByCanonicalId(args.graphData, key) || findGraphNode(args.graphData, key)
-  const targetNodeId = String(targetNode?.id || key).trim()
-  const nextOpenWidgetNodeIds = args.openWidgetNodeIds.filter(nodeId => {
-    return !isCanonicalNodeIdEqual(nodeId, key) && !isCanonicalNodeIdEqual(nodeId, targetNodeId)
-  })
-  const selectedNodeId = String(args.selectedNodeId || '').trim()
-  return {
-    targetNodeId,
-    nextOpenWidgetNodeIds,
-    clearSelection: isCanonicalNodeIdEqual(selectedNodeId, key) || isCanonicalNodeIdEqual(selectedNodeId, targetNodeId),
-  }
 }
 
 export function FlowCanvasRichMediaOverlayToolbar(props: {
@@ -53,6 +21,7 @@ export function FlowCanvasRichMediaOverlayToolbar(props: {
   openUrl?: string
   sceneGraphData: GraphData | null
   workspaceMutationBlockedRef: React.MutableRefObject<boolean>
+  onRemoveNode?: (nodeId: string) => void
 }) {
   const openInSidepane = React.useCallback(() => {
     const key = String(props.nodeId || '').trim()
@@ -92,25 +61,31 @@ export function FlowCanvasRichMediaOverlayToolbar(props: {
   }, [props.nodeId, props.sceneGraphData, props.workspaceMutationBlockedRef])
   const remove = React.useCallback(() => {
     const key = String(props.nodeId || '').trim()
-    if (!key || props.workspaceMutationBlockedRef.current) return
+    if (!key || (props.workspaceMutationBlockedRef.current && !props.onRemoveNode)) return
     const store = useGraphStore.getState()
     const graphData = store.graphData || props.sceneGraphData || null
-    const removal = resolveFlowCanvasRichMediaOverlayRemoval({
+    const removal = resolveGraphOverlayNodeRemoval({
       graphData,
       nodeId: key,
       openWidgetNodeIds: useGraphStore.getState().openWidgetNodeIds || [],
       selectedNodeId: useGraphStore.getState().selectedNodeId,
     })
     if (!removal) return
-    store.removeNode?.(removal.targetNodeId)
-    store.updateOpenWidgetNodeIds?.(() => removal.nextOpenWidgetNodeIds)
-    if (removal.clearSelection) {
-      store.setSelectionSource?.('canvas')
-      store.selectNode?.(null)
-      store.selectEdge?.(null)
-    }
+    commitGraphOverlayNodeRemoval({
+      removal,
+      removeSourceNode: nodeId => {
+        if (props.onRemoveNode) props.onRemoveNode(nodeId)
+        else store.removeNode?.(nodeId)
+      },
+      setOpenWidgetNodeIds: nodeIds => store.updateOpenWidgetNodeIds?.(() => nodeIds),
+      clearSelection: () => {
+        store.setSelectionSource?.('canvas')
+        store.selectNode?.(null)
+        store.selectEdge?.(null)
+      },
+    })
     store.addHistory?.('Rich Media remove')
-  }, [props.nodeId, props.sceneGraphData, props.workspaceMutationBlockedRef])
+  }, [props.nodeId, props.onRemoveNode, props.sceneGraphData, props.workspaceMutationBlockedRef])
   return (
     <WidgetEditorActionsToolbar
       visible={props.visible}

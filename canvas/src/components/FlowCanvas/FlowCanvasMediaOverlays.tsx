@@ -89,6 +89,7 @@ export default function FlowCanvasMediaOverlays(args: {
   storyboardWidgetSurfaceId?: string
   onNodeChange?: (nodeId: string, patch: Partial<GraphNode>, sourceGraphData?: GraphData | null) => void
   onNodePropertiesChange?: (nodeId: string, patch: Record<string, unknown>, sourceGraphData?: GraphData | null) => void
+  onNodeRemove?: (nodeId: string) => void
   registerInteractionFrameLayoutScheduler?: (scheduler: null | (() => void)) => void
 }) {
   const {
@@ -121,6 +122,7 @@ export default function FlowCanvasMediaOverlays(args: {
     storyboardWidgetSurfaceId,
     onNodeChange,
     onNodePropertiesChange,
+    onNodeRemove,
     registerInteractionFrameLayoutScheduler,
   } = args
   const storyboardWidgetFrontmatterDocumentModeRequested = React.useMemo(() => {
@@ -200,6 +202,13 @@ export default function FlowCanvasMediaOverlays(args: {
     if (previous && Math.abs(previous.x - point.x) < 0.01 && Math.abs(previous.y - point.y) < 0.01) return
     state.setFlowWidgetWorldPosByNodeIdForGraph(flowWidgetStateGraphKey, { ...current, [id]: point })
   }, [flowWidgetStateGraphKey])
+  const preserveMediaOverlayScreenPlacementForPinTransition = React.useCallback((id: string) => {
+    const point = readElementWorldTopLeft2d(
+      mediaOverlayElsRef.current.get(String(id || '').trim()),
+      runtimeRef.current?.transform,
+    )
+    if (point) persistResolvedMediaOverlayWorldPosition(id, point)
+  }, [persistResolvedMediaOverlayWorldPosition])
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const sceneNodePropsByIdRef = React.useRef<Map<string, Record<string, unknown>>>(new Map())
   const cancelMediaOverlayInteractionState = React.useCallback((options?: { preserveWorldPositionOverrides?: boolean }) => {
@@ -778,7 +787,8 @@ export default function FlowCanvasMediaOverlays(args: {
         }
         const richMediaPanelHeaderToolbar = buildFlowCanvasRichMediaPanelHeaderToolbar({
           enabled: useStoryboardWidgetRichMediaPanelHeaderToolbar, flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId, flowWidgetStateGraphKey, isSelected,
-          node, requestCommit, scheduleLayout: () => mediaOverlayLayoutScheduleRef.current?.(), setActiveRichMediaPanelId, stopEvent,
+          node, onBeforePinnedChange: () => preserveMediaOverlayScreenPlacementForPinTransition(node.id), requestCommit,
+          scheduleLayout: flushMediaOverlayLayout, setActiveRichMediaPanelId, stopEvent,
         })
         return (
           <section
@@ -790,12 +800,16 @@ export default function FlowCanvasMediaOverlays(args: {
             }}
             className={`absolute left-0 top-0 overflow-visible ${overlayPanelPointerEventsClass}`}
             data-kg-rich-media-storyboard-widget-overlay-shell="1"
+            data-kg-rich-media-overlay="1"
+            data-kg-storyboard-widget-mode="1"
+            data-kg-overlay-pan-owner={richMediaBodyPanOwnedByCollective ? 'canvas' : undefined}
+            data-kg-canvas-overlay-pinned={richMediaPanelPinned ? '1' : '0'}
             data-kg-rich-media-storyboard-widget-pinned={richMediaPanelPinned ? '1' : '0'}
             data-node-id={node.id}
             data-kg-storyboard-widget-surface={storyboardWidgetOverlaySurfaceId || undefined}
             style={{ zIndex: overlayZIndex }}
           >
-            <FlowCanvasRichMediaOverlayToolbar visible={isSelected} nodeId={node.id} nodeProperties={sceneNodePropsByIdRef.current.get(node.id) || {}} panel={node.panel} openUrl={node.openUrl} sceneGraphData={sceneGraphData} workspaceMutationBlockedRef={workspaceMutationBlockedRef} />
+            <FlowCanvasRichMediaOverlayToolbar visible={isSelected} nodeId={node.id} nodeProperties={sceneNodePropsByIdRef.current.get(node.id) || {}} panel={node.panel} openUrl={node.openUrl} sceneGraphData={sceneGraphData} workspaceMutationBlockedRef={workspaceMutationBlockedRef} onRemoveNode={onNodeRemove} />
             <StoryboardWidgetOverlayPortHandles nodeId={node.id} selected={isSelected} />
             <RichMediaPanel
               overlayId={node.id}
@@ -807,6 +821,7 @@ export default function FlowCanvasMediaOverlays(args: {
               kind={node.kind}
               selected={isSelected}
               panelChrome="storyboardWidget" canvasOverlayPinned={richMediaPanelPinned}
+              placementOwner="parent"
               {...richMediaPanelHeaderToolbar.panelProps}
               interactive={resolveRichMediaPanelInteractive({ nodeInteractive: node.interactive, renderMediaAsNodes, infiniteCanvasInteractionMode, canvasRenderMode: '2d', canvas2dRenderer, frontmatterModeEnabled, documentSemanticMode })}
               panel={node.panel}

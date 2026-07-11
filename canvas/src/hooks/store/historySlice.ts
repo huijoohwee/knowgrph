@@ -1,28 +1,50 @@
 import { GraphData } from '@/lib/graph/types';
-import type { GraphState, RecentFileEntry } from '@/hooks/store/types'
+import type { GraphState, RecentFileEntry, SourceFile } from '@/hooks/store/types'
 import type { GraphFieldSettingsById } from '@/features/graph-fields/graphFields'
 import type { StoreApi } from 'zustand';
 import { withGraphDataRevision } from './graphDataSliceUtils'
 import { deepClone } from '@/lib/data/deepClone'
 import { debounce } from '@/lib/async/debounce'
 import { persistGraphDataToLocalStorage } from './graphDataPersistence'
-import { hashArrayOfObjectsSignature, hashRecordSignature } from '@/lib/hash/signature'
+import { hashArrayOfObjectsSignature, hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
+import {
+  inferVersionHistorySource,
+  VERSION_HISTORY_MAX_ENTRIES,
+  type VersionHistoryEntry,
+} from '@/features/history/versionHistoryTypes'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
 
-type HistoryEntry = {
-  id: string
-  label: string
-  timestamp: number
-  graphData: GraphData
-  graphFieldSettingsById?: GraphFieldSettingsById
-  signature?: string
+const readActiveSourceFileSnapshot = (
+  sourceFiles: readonly SourceFile[],
+  markdownDocumentName: string | null | undefined,
+): SourceFile | null => {
+  const documentName = String(markdownDocumentName || '').trim().replace(/^\/+/, '')
+  if (!documentName) return null
+  const match = sourceFiles.find(file => {
+    const sourcePath = String(file.source?.path || '').trim().replace(/^\/+/, '')
+    return sourcePath === documentName || String(file.name || '').trim() === documentName
+  })
+  return match ? deepClone(match) as SourceFile : null
+}
+
+const restoreActiveSourceFileSnapshot = (
+  sourceFiles: readonly SourceFile[],
+  snapshot: SourceFile | null,
+): SourceFile[] => {
+  if (!snapshot) return sourceFiles.slice()
+  const index = sourceFiles.findIndex(file => file.id === snapshot.id)
+  if (index < 0) return [...sourceFiles, deepClone(snapshot) as SourceFile]
+  return sourceFiles.map((file, fileIndex) => fileIndex === index ? deepClone(snapshot) as SourceFile : file)
 }
 
 const getHistorySnapshotSignature = (
   graphData: GraphData | null,
   graphFieldSettingsById: GraphFieldSettingsById | null | undefined,
+  markdownDocumentName: string | null | undefined,
+  markdownDocumentText: string | null | undefined,
+  activeSourceFileSnapshot: SourceFile | null | undefined,
 ): string => {
   const safeGraph = graphData || { nodes: [], edges: [], metadata: null }
   return [
@@ -30,6 +52,10 @@ const getHistorySnapshotSignature = (
     `edges:${hashArrayOfObjectsSignature(safeGraph.edges || [], { maxItems: 80, maxKeysPerItem: 8 })}`,
     `meta:${hashRecordSignature(safeGraph.metadata || {}, { maxEntries: 40 })}`,
     `fields:${hashRecordSignature(graphFieldSettingsById || {}, { maxEntries: 80 })}`,
+    `document:${hashSignatureParts([markdownDocumentName, markdownDocumentText])}`,
+    `source:${hashSignatureParts(activeSourceFileSnapshot
+      ? [activeSourceFileSnapshot.id, activeSourceFileSnapshot.name, activeSourceFileSnapshot.text]
+      : [])}`,
   ].join('|')
 }
 
@@ -38,26 +64,80 @@ const buildHistoryEntry = (args: {
   timestamp: number
   graphData: GraphData
   graphFieldSettingsById: GraphFieldSettingsById
-}): HistoryEntry => {
-  const signature = getHistorySnapshotSignature(args.graphData, args.graphFieldSettingsById)
+  markdownDocumentName: string | null
+  markdownDocumentText: string | null
+  activeSourceFileSnapshot: SourceFile | null
+  parentId: string | null
+}): VersionHistoryEntry => {
+  const contentSignature = getHistorySnapshotSignature(args.graphData, args.graphFieldSettingsById, args.markdownDocumentName, args.markdownDocumentText, args.activeSourceFileSnapshot)
   return {
-    id: `h-${Date.now().toString(36)}`,
+    id: `h-${args.timestamp.toString(36)}-${contentSignature.slice(0, 8)}`,
+    parentId: args.parentId,
     label: args.label,
     timestamp: args.timestamp,
+    source: inferVersionHistorySource(args.label),
+    contentSignature,
     graphData: args.graphData,
     graphFieldSettingsById: args.graphFieldSettingsById,
-    signature,
+    markdownDocumentName: args.markdownDocumentName,
+    markdownDocumentText: args.markdownDocumentText,
+    activeSourceFileSnapshot: args.activeSourceFileSnapshot,
   }
 }
 
-const shouldSkipHistoryCommit = (history: HistoryEntry[], nextSignature: string): boolean => {
+const restoreHistoryEntry = (set: SetGraph, get: GetGraph, entry: VersionHistoryEntry, historyIndex: number): void => {
+  const graphCopy = deepClone(entry.graphData) as GraphData
+  const fieldSettingsCopy = deepClone(entry.graphFieldSettingsById || {}) as GraphFieldSettingsById
+  const sourceFilesCopy = restoreActiveSourceFileSnapshot(get().sourceFiles || [], entry.activeSourceFileSnapshot)
+  const nextRevision = (get().graphDataRevision || 0) + 1
+  set(state => ({
+    graphData: withGraphDataRevision(graphCopy, nextRevision),
+    graphDataRevision: nextRevision,
+    graphFieldSettingsById: fieldSettingsCopy,
+    historyIndex,
+    markdownDocumentName: entry.markdownDocumentName ?? null,
+    markdownDocumentText: entry.markdownDocumentText ?? null,
+    markdownDocumentApplyRevision: (state.markdownDocumentApplyRevision || 0) + 1,
+    markdownTokens: null,
+    markdownTokensPath: null,
+    markdownTokensKey: null,
+    markdownTokensMeta: null,
+    markdownTokensStartLineOffset: null,
+    sourceFiles: sourceFilesCopy,
+    graphContentRevision: (state.graphContentRevision || 0) + 1,
+    docLocationRevision: (state.docLocationRevision || 0) + 1,
+  }))
+  try {
+    get().resyncGraphFieldsFromGraphData?.()
+  } catch {
+    void 0
+  }
+  try {
+    const persisted = get().graphData
+    if (persisted) persistGraphDataToLocalStorage(persisted)
+  } catch {
+    void 0
+  }
+}
+
+const shouldSkipHistoryCommit = (history: VersionHistoryEntry[], nextSignature: string): boolean => {
   const last = history.length > 0 ? history[history.length - 1] : null
-  return !!last && String(last.signature || '') === nextSignature
+  return !!last && last.contentSignature === nextSignature
+}
+
+const appendBoundedHistoryEntry = (
+  history: VersionHistoryEntry[],
+  entry: VersionHistoryEntry,
+): VersionHistoryEntry[] => {
+  const appended = [...history, entry]
+  if (appended.length <= VERSION_HISTORY_MAX_ENTRIES) return appended
+  const bounded = appended.slice(-VERSION_HISTORY_MAX_ENTRIES)
+  return bounded.map((item, index) => index === 0 ? { ...item, parentId: null } : item)
 }
 
 export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
   
-  history: [] as HistoryEntry[],
+  history: [] as VersionHistoryEntry[],
   historyIndex: -1,
   recentFiles: [] as RecentFileEntry[],
   historyDebounceMs: 500,
@@ -81,11 +161,12 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
   },
 
   addHistory: (label: string = 'Snapshot') => {
-    const { graphData, graphFieldSettingsById, history, historyIndex } = get();
+    const { graphData, graphFieldSettingsById, history, historyIndex, markdownDocumentName, markdownDocumentText, sourceFiles } = get();
     if (!graphData) return;
-    const nextSignature = getHistorySnapshotSignature(graphData, graphFieldSettingsById)
+    const activeSourceFileSnapshot = readActiveSourceFileSnapshot(sourceFiles || [], markdownDocumentName)
+    const nextSignature = getHistorySnapshotSignature(graphData, graphFieldSettingsById, markdownDocumentName, markdownDocumentText, activeSourceFileSnapshot)
     const trimmed = history.slice(0, historyIndex + 1);
-    if (shouldSkipHistoryCommit(trimmed as HistoryEntry[], nextSignature)) return
+    if (shouldSkipHistoryCommit(trimmed, nextSignature)) return
     const graphCopy: GraphData = deepClone(graphData)
     const fieldSettingsCopy: GraphFieldSettingsById = deepClone(graphFieldSettingsById || {})
     const entry = buildHistoryEntry({
@@ -93,78 +174,38 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
       timestamp: Date.now(),
       graphData: graphCopy,
       graphFieldSettingsById: fieldSettingsCopy,
+      markdownDocumentName,
+      markdownDocumentText,
+      activeSourceFileSnapshot,
+      parentId: trimmed[trimmed.length - 1]?.id || null,
     })
-    set({ history: [...trimmed, entry], historyIndex: trimmed.length });
+    const nextHistory = appendBoundedHistoryEntry(trimmed, entry)
+    set({ history: nextHistory, historyIndex: nextHistory.length - 1 });
   },
 
   restoreHistory: (index: number) => {
-    const { history, setGraphFieldSettingsById } = get();
-    const entry = (history as HistoryEntry[])[index];
+    const { history } = get();
+    const entry = history[index];
     if (!entry) return;
-    const graphCopy: GraphData = deepClone(entry.graphData)
-    const fieldSettingsCopy: GraphFieldSettingsById = deepClone(entry.graphFieldSettingsById || {})
-    const nextRevision = (get().graphDataRevision || 0) + 1
-    set({ graphData: withGraphDataRevision(graphCopy, nextRevision), graphDataRevision: nextRevision, historyIndex: index });
-    setGraphFieldSettingsById(fieldSettingsCopy);
-    try {
-      get().resyncGraphFieldsFromGraphData?.()
-    } catch {
-      void 0
-    }
-    try {
-      const persisted = get().graphData
-      if (persisted) persistGraphDataToLocalStorage(persisted)
-    } catch {
-      void 0
-    }
+    restoreHistoryEntry(set, get, entry, index)
   },
 
   undoHistory: () => {
-    const { historyIndex, history, setGraphFieldSettingsById } = get();
+    const { historyIndex, history } = get();
     const nextIndex = historyIndex - 1;
     if (nextIndex < 0) return;
-    const entry = (history as HistoryEntry[])[nextIndex];
+    const entry = history[nextIndex];
     if (!entry) return;
-    const graphCopy: GraphData = deepClone(entry.graphData)
-    const fieldSettingsCopy: GraphFieldSettingsById = deepClone(entry.graphFieldSettingsById || {})
-    const nextRevision = (get().graphDataRevision || 0) + 1
-    set({ graphData: withGraphDataRevision(graphCopy, nextRevision), graphDataRevision: nextRevision, historyIndex: nextIndex });
-    setGraphFieldSettingsById(fieldSettingsCopy);
-    try {
-      get().resyncGraphFieldsFromGraphData?.()
-    } catch {
-      void 0
-    }
-    try {
-      const persisted = get().graphData
-      if (persisted) persistGraphDataToLocalStorage(persisted)
-    } catch {
-      void 0
-    }
+    restoreHistoryEntry(set, get, entry, nextIndex)
   },
 
   redoHistory: () => {
-    const { historyIndex, history, setGraphFieldSettingsById } = get();
+    const { historyIndex, history } = get();
     const nextIndex = historyIndex + 1;
     if (nextIndex >= history.length) return;
-    const entry = (history as HistoryEntry[])[nextIndex];
+    const entry = history[nextIndex];
     if (!entry) return;
-    const graphCopy: GraphData = deepClone(entry.graphData)
-    const fieldSettingsCopy: GraphFieldSettingsById = deepClone(entry.graphFieldSettingsById || {})
-    const nextRevision = (get().graphDataRevision || 0) + 1
-    set({ graphData: withGraphDataRevision(graphCopy, nextRevision), graphDataRevision: nextRevision, historyIndex: nextIndex });
-    setGraphFieldSettingsById(fieldSettingsCopy);
-    try {
-      get().resyncGraphFieldsFromGraphData?.()
-    } catch {
-      void 0
-    }
-    try {
-      const persisted = get().graphData
-      if (persisted) persistGraphDataToLocalStorage(persisted)
-    } catch {
-      void 0
-    }
+    restoreHistoryEntry(set, get, entry, nextIndex)
   },
 
   scheduleHistory: (label: string) => {
@@ -181,11 +222,12 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
         void 0
       }
       const next = debounce((l: string) => {
-        const { graphData, graphFieldSettingsById, history, historyIndex } = get();
+        const { graphData, graphFieldSettingsById, history, historyIndex, markdownDocumentName, markdownDocumentText, sourceFiles } = get();
         if (!graphData) return;
-        const nextSignature = getHistorySnapshotSignature(graphData, graphFieldSettingsById)
+        const activeSourceFileSnapshot = readActiveSourceFileSnapshot(sourceFiles || [], markdownDocumentName)
+        const nextSignature = getHistorySnapshotSignature(graphData, graphFieldSettingsById, markdownDocumentName, markdownDocumentText, activeSourceFileSnapshot)
         const trimmed = history.slice(0, historyIndex + 1);
-        if (shouldSkipHistoryCommit(trimmed as HistoryEntry[], nextSignature)) return
+        if (shouldSkipHistoryCommit(trimmed, nextSignature)) return
         const graphCopy: GraphData = deepClone(graphData)
         const fieldSettingsCopy: GraphFieldSettingsById = deepClone(graphFieldSettingsById || {})
         const entry = buildHistoryEntry({
@@ -193,8 +235,13 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
           timestamp: Date.now(),
           graphData: graphCopy,
           graphFieldSettingsById: fieldSettingsCopy,
+          markdownDocumentName,
+          markdownDocumentText,
+          activeSourceFileSnapshot,
+          parentId: trimmed[trimmed.length - 1]?.id || null,
         })
-        set({ history: [...trimmed, entry], historyIndex: trimmed.length });
+        const nextHistory = appendBoundedHistoryEntry(trimmed, entry)
+        set({ history: nextHistory, historyIndex: nextHistory.length - 1 });
         try {
           persistGraphDataToLocalStorage(graphData)
         } catch {
@@ -213,10 +260,10 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
   },
 
   replaceHistoryState: (
-    history: Array<{ id: string; label: string; timestamp: number; graphData: GraphData; graphFieldSettingsById?: GraphFieldSettingsById }>,
+    history: VersionHistoryEntry[],
     historyIndex: number,
   ) => {
-    const { graphData, setGraphFieldSettingsById } = get();
+    const { graphData } = get();
     try {
       const global = globalThis as unknown as Record<string, unknown>
       const st = global['__KG_HISTORY_COMMITTER__'] as { fn?: { cancel?: () => void } } | undefined
@@ -233,9 +280,17 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
             label: String(h.label),
             timestamp: Math.floor(h.timestamp),
             graphData: deepClone(h.graphData) as GraphData,
-            graphFieldSettingsById: deepClone(h.graphFieldSettingsById || {}) as GraphFieldSettingsById,
-            signature: getHistorySnapshotSignature(h.graphData, h.graphFieldSettingsById || {}),
+            parentId: h.parentId || null,
+            source: h.source,
+            contentSignature: h.contentSignature,
+            graphFieldSettingsById: deepClone(h.graphFieldSettingsById) as GraphFieldSettingsById,
+            markdownDocumentName: h.markdownDocumentName,
+            markdownDocumentText: h.markdownDocumentText,
+            activeSourceFileSnapshot: h.activeSourceFileSnapshot
+              ? deepClone(h.activeSourceFileSnapshot) as SourceFile
+              : null,
           }))
+          .slice(-VERSION_HISTORY_MAX_ENTRIES)
       : [];
 
     const boundedIndex = (() => {
@@ -246,27 +301,12 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
       return idx;
     })();
 
-    const nextGraphDataBase: GraphData | null =
-      boundedIndex >= 0 && safeHistory[boundedIndex]
-        ? safeHistory[boundedIndex].graphData
-        : graphData || null
-    const nextRevision = (get().graphDataRevision || 0) + 1
-    const nextGraphData: GraphData | null = nextGraphDataBase
-      ? withGraphDataRevision(deepClone(nextGraphDataBase) as GraphData, nextRevision)
-      : null
-    const nextFieldSettings = boundedIndex >= 0 && safeHistory[boundedIndex] ? safeHistory[boundedIndex].graphFieldSettingsById : get().graphFieldSettingsById || {};
-    set({ history: safeHistory, historyIndex: boundedIndex, graphData: nextGraphData, graphDataRevision: nextRevision });
-    setGraphFieldSettingsById(deepClone(nextFieldSettings || {}) as GraphFieldSettingsById);
-    try {
-      get().resyncGraphFieldsFromGraphData?.()
-    } catch {
-      void 0
+    set({ history: safeHistory, historyIndex: boundedIndex })
+    const selectedEntry = boundedIndex >= 0 ? safeHistory[boundedIndex] : null
+    if (selectedEntry) {
+      restoreHistoryEntry(set, get, selectedEntry, boundedIndex)
+      return
     }
-    try {
-      const persisted = get().graphData
-      if (persisted) persistGraphDataToLocalStorage(persisted)
-    } catch {
-      void 0
-    }
+    if (!graphData) set({ graphData: null })
   },
 });

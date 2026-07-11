@@ -101,6 +101,7 @@ export default function StoryboardWidgetCanvasRuntime(
     updateOpenWidgetNodeIds, updateUserSubgraph, upsertUiToast, workspaceMutationBlocked,
   } = useStoryboardWidgetRuntimeStoreState()
   const strybldrStoryboardDisplayMode = useGraphStore(s => s.strybldrStoryboardDisplayMode)
+  const historyIndex = useGraphStore(s => s.historyIndex)
   const storyboardDisplayMode = readCanvasCardWidgetDisplayMode(strybldrStoryboardDisplayMode)
   const storyboardCardDisplayActive = storyboardCardsMode && storyboardDisplayMode === 'card'
   const storyboardWidgetDisplayActive = storyboardCardsMode && storyboardDisplayMode === 'widget'
@@ -230,6 +231,19 @@ export default function StoryboardWidgetCanvasRuntime(
       return { ...prevNodes, [id]: pendingOverlayNode }
     })
   }, [pendingOverlayNode])
+  const removePendingOverlayNodeById = React.useCallback((nodeId: string) => {
+    const id = String(nodeId || '').trim()
+    if (!id) return
+    setPendingOverlayNodesById(prevNodes => {
+      const matchingId = Object.keys(prevNodes).find(candidateId => isCanonicalNodeIdEqual(candidateId, id))
+      if (!matchingId) return prevNodes
+      const nextNodes = { ...prevNodes }
+      delete nextNodes[matchingId]
+      return nextNodes
+    })
+    if (isCanonicalNodeIdEqual(pendingOverlayNodeIdRef.current, id)) pendingOverlayNodeIdRef.current = null
+    setPendingOverlayNode(prevNode => isCanonicalNodeIdEqual(prevNode?.id, id) ? null : prevNode)
+  }, [])
   const overlayNodeIdOverrideWasSelectedRef = React.useRef(false)
   const overlayNodeIdOverrideUntilMsRef = React.useRef<number>(0)
   const reservedNodeIdsRef = React.useRef<Set<string>>(new Set())
@@ -254,7 +268,9 @@ export default function StoryboardWidgetCanvasRuntime(
     collapsedGroupIdsForView,
     frontmatterOnlyPolicyActive,
     activeDocumentKey,
-    selectedEdgeId, preferDraftGraphData: storyboardCardsMode,
+    selectedEdgeId,
+    historyIndex,
+    preferDraftGraphData: storyboardCardsMode,
   })
   const storyboardCanvasGraphDataForDisplay = React.useMemo((): GraphData | null => {
     if (!storyboardCardsMode) return null
@@ -825,6 +841,8 @@ export default function StoryboardWidgetCanvasRuntime(
       addRichMediaPanelFromMediaAtWorld={addRichMediaPanelFromMediaAtWorld}
       patchNodeById={patchNodeById}
       patchNodePropertiesById={patchNodePropertiesById}
+      removeNodeById={removeNodeById}
+      removePendingNodeById={removePendingOverlayNodeById}
       upsertUiToast={upsertUiToast}
       createPortal={createPortal}
     />

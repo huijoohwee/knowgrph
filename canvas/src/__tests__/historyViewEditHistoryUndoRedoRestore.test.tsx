@@ -8,6 +8,9 @@ import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import HistoryView from '@/features/panels/views/HistoryView'
 import type { GraphData } from '@/lib/graph/types'
+import { resolveMermaidGitGraphCode } from '@/lib/mermaid/mermaidGitGraph'
+import { readYamlFrontmatterMermaidDiagramCodes } from '@/lib/mermaid/mermaidDiagramCode'
+import { VERSION_HISTORY_MAX_ENTRIES } from '@/features/history/versionHistoryTypes'
 
 const tick = async () => {
   await new Promise<void>(resolve => setTimeout(resolve, 0))
@@ -25,8 +28,8 @@ export async function testHistoryViewEditHistoryUndoRedoRestoreWiring() {
     const baseGraph: GraphData = { type: 'Graph', nodes: [], edges: [], metadata: {} }
     store.replaceHistoryState(
       [
-        { id: 'h-0', label: 'A', timestamp: Date.now() - 2000, graphData: baseGraph },
-        { id: 'h-1', label: 'B', timestamp: Date.now() - 1000, graphData: baseGraph },
+        { id: 'h-0', parentId: null, label: 'A', timestamp: Date.now() - 2000, source: 'graph', contentSignature: 'a', graphData: baseGraph, graphFieldSettingsById: {}, markdownDocumentName: null, markdownDocumentText: null, activeSourceFileSnapshot: null },
+        { id: 'h-1', parentId: 'h-0', label: 'B', timestamp: Date.now() - 1000, source: 'graph', contentSignature: 'b', graphData: baseGraph, graphFieldSettingsById: {}, markdownDocumentName: null, markdownDocumentText: null, activeSourceFileSnapshot: null },
       ],
       0,
     )
@@ -51,25 +54,27 @@ export async function testHistoryViewEditHistoryUndoRedoRestoreWiring() {
 
     const undoBtn = dom.window.document.querySelector('button[aria-label="Undo"]') as HTMLButtonElement | null
     const redoBtn = dom.window.document.querySelector('button[aria-label="Redo"]') as HTMLButtonElement | null
-    if (undoBtn) throw new Error('expected Undo button to stay hidden at historyIndex=0')
+    if (!undoBtn) throw new Error('expected shared Undo control')
     if (!redoBtn) throw new Error('expected Redo button')
 
+    if (!undoBtn.disabled) throw new Error('expected Undo to be disabled at historyIndex=0')
     if (redoBtn.disabled) throw new Error('expected Redo to be enabled at historyIndex=0 with 2 entries')
 
-    const restoreButtons = Array.from(dom.window.document.querySelectorAll('button[aria-label="Restore"]')) as HTMLButtonElement[]
-    if (restoreButtons.length < 2) throw new Error('expected at least 2 Restore buttons')
+    const versionRows = Array.from(dom.window.document.querySelectorAll('button[data-kg-version-history-index]')) as HTMLButtonElement[]
+    if (versionRows.length < 2) throw new Error('expected directly restorable version rows')
 
     await act(async () => {
-      restoreButtons[1]!.click()
+      versionRows[1]!.click()
       await tick()
     })
-    if (useGraphStore.getState().historyIndex !== 1) throw new Error('expected restore to set historyIndex=1')
+    if (useGraphStore.getState().historyIndex !== 1) throw new Error('expected version row click to restore historyIndex=1')
 
     const undoBtn2 = dom.window.document.querySelector('button[aria-label="Undo"]') as HTMLButtonElement | null
     const redoBtn2 = dom.window.document.querySelector('button[aria-label="Redo"]') as HTMLButtonElement | null
     if (!undoBtn2) throw new Error('expected Undo button after restore')
-    if (redoBtn2) throw new Error('expected Redo button to stay hidden at the last history entry')
+    if (!redoBtn2) throw new Error('expected shared Redo control after restore')
     if (undoBtn2.disabled) throw new Error('expected Undo to be enabled at historyIndex=1')
+    if (!redoBtn2.disabled) throw new Error('expected Redo to be disabled at the last history entry')
   } finally {
     try {
       await act(async () => {
@@ -110,6 +115,154 @@ export function testHistoryViewUsesScopedStoreSelectionAndSemanticSignatures() {
   }
   if (!text.includes('role="tablist"') || !text.includes('role="tab"') || !text.includes('showTooltip')) {
     throw new Error('expected HistoryView icon-only tabs to preserve tab semantics and tooltips')
+  }
+}
+
+export function testToolbarAndHistoryViewShareVersionUndoRedoControls() {
+  const toolbarText = readFileSync(resolve(process.cwd(), 'src', 'components', 'Toolbar.tsx'), 'utf8')
+  const historyViewText = readFileSync(resolve(process.cwd(), 'src', 'features', 'panels', 'views', 'HistoryView.tsx'), 'utf8')
+  const bottomGitGraphText = readFileSync(resolve(process.cwd(), 'src', 'features', 'gitgraph', 'GitGraphBottomPanelView.tsx'), 'utf8')
+  const floatingGitGraphText = readFileSync(resolve(process.cwd(), 'src', 'features', 'gitgraph', 'GitGraphFloatingPanelView.tsx'), 'utf8')
+  const controlsText = readFileSync(resolve(process.cwd(), 'src', 'features', 'history', 'HistoryUndoRedoControls.tsx'), 'utf8')
+
+  if (
+    !toolbarText.includes('<HistoryUndoRedoControls') ||
+    !historyViewText.includes('<HistoryUndoRedoControls') ||
+    !bottomGitGraphText.includes('headerActions={<HistoryUndoRedoControls') ||
+    !floatingGitGraphText.includes('<HistoryUndoRedoControls')
+  ) {
+    throw new Error('expected Toolbar, MainPanel History, BottomPanel GitGraph, and FloatingPanel GitGraph to reuse visible shared version controls')
+  }
+  if (bottomGitGraphText.includes('showLabels') || floatingGitGraphText.includes('showLabels') || historyViewText.includes('showLabels')) {
+    throw new Error('expected panel Undo/Redo controls to retain the icon-only shared presentation')
+  }
+  const zoomIndex = toolbarText.indexOf('<ZoomModeSelect')
+  const historyControlsIndex = toolbarText.indexOf('<HistoryUndoRedoControls')
+  if (zoomIndex < 0 || historyControlsIndex < zoomIndex) {
+    throw new Error('expected Undo/Redo on the right side of Zoom')
+  }
+  for (const required of ['state.historyIndex', 'state.history.length', 'state.undoHistory', 'state.redoHistory']) {
+    if (!controlsText.includes(required)) throw new Error(`expected shared version controls to derive ${required}`)
+  }
+  if (!controlsText.includes('data-kg-history-action="undo"') || !controlsText.includes('data-kg-history-action="redo"')) {
+    throw new Error('expected selectable semantic Undo/Redo control markers')
+  }
+  if (controlsText.includes('showLabels')) {
+    throw new Error('expected shared Undo/Redo controls to remain icon-only')
+  }
+  if (!bottomGitGraphText.includes('buildVersionHistoryGitGraphCode(history)')) {
+    throw new Error('expected BottomPanel GitGraph chart to fall back to shared version history')
+  }
+  if (!bottomGitGraphText.includes('readVersionHistoryIndexFromCommitId') || !bottomGitGraphText.includes('restoreHistory(versionIndex)')) {
+    throw new Error('expected BottomPanel GitGraph selection to restore the shared runtime version')
+  }
+  if (!bottomGitGraphText.includes('runtimeHistorySelectedRowKey') || !bottomGitGraphText.includes('controlledSelectedRowKey={usesRuntimeHistory ? runtimeHistorySelectedRowKey : undefined}')) {
+    throw new Error('expected BottomPanel GitGraph selection to follow historyIndex through controlled selection')
+  }
+  if (!bottomGitGraphText.includes('shareSelection={!usesRuntimeHistory}')) {
+    throw new Error('expected runtime Version History not to write into authored-Mermaid selection state')
+  }
+  if (!floatingGitGraphText.includes('aria-label="Version history list"') || !floatingGitGraphText.includes('restoreHistory(index)')) {
+    throw new Error('expected FloatingPanel GitGraph list to expose restorable shared version history')
+  }
+  if (!floatingGitGraphText.includes('const usesRuntimeHistory = !code && history.length > 0')) {
+    throw new Error('expected FloatingPanel GitGraph to distinguish runtime history from authored Mermaid commands')
+  }
+  const runtimeHistoryGuards = floatingGitGraphText.match(/if \(usesRuntimeHistory\) return/g) || []
+  if (runtimeHistoryGuards.length < 3) {
+    throw new Error('expected runtime-history selection not to be cleared or scrolled by authored-command effects')
+  }
+}
+
+export function testHistoryUndoRedoRestoresCanonicalGitGraphDocumentAcrossViews() {
+  const store = useGraphStore.getState()
+  store.resetAll()
+  store.setHistoryDebounceMs(0)
+  const beforeText = ['---', 'mermaid: |', '  gitGraph', '    commit id:"before"', '---'].join('\n')
+  const afterText = ['---', 'mermaid: |', '  gitGraph', '    commit id:"after"', '---'].join('\n')
+  const sourceFile = {
+    id: 'gitgraph-source',
+    name: 'versions.md',
+    text: beforeText,
+    enabled: true,
+    status: 'parsed' as const,
+  }
+  useGraphStore.setState({
+    graphData: { type: 'Graph', nodes: [], edges: [], metadata: {} },
+    markdownDocumentName: 'versions.md',
+    markdownDocumentText: beforeText,
+    sourceFiles: [sourceFile],
+  })
+  useGraphStore.getState().addHistory('Before GitGraph edit')
+  useGraphStore.setState({
+    markdownDocumentText: afterText,
+    sourceFiles: [{ ...sourceFile, text: afterText }],
+  })
+  useGraphStore.getState().addHistory('GitGraph edit')
+
+  useGraphStore.getState().undoHistory()
+  const undone = useGraphStore.getState()
+  const undoneCode = resolveMermaidGitGraphCode(readYamlFrontmatterMermaidDiagramCodes(undone.markdownDocumentText || '', 'gitgraph'))
+  if (!undoneCode.includes('commit id:"before"') || undoneCode.includes('commit id:"after"')) {
+    throw new Error(`expected chart/list canonical GitGraph document to undo, got ${undoneCode}`)
+  }
+  if (undone.sourceFiles[0]?.text !== beforeText) throw new Error('expected GitGraph source-file text to undo atomically')
+
+  undone.redoHistory()
+  const redone = useGraphStore.getState()
+  const redoneCode = resolveMermaidGitGraphCode(readYamlFrontmatterMermaidDiagramCodes(redone.markdownDocumentText || '', 'gitgraph'))
+  if (!redoneCode.includes('commit id:"after"') || redoneCode.includes('commit id:"before"')) {
+    throw new Error(`expected chart/list canonical GitGraph document to redo, got ${redoneCode}`)
+  }
+  if (redone.sourceFiles[0]?.text !== afterText) throw new Error('expected GitGraph source-file text to redo atomically')
+
+  redone.undoHistory()
+  const undoneAgain = useGraphStore.getState()
+  if (undoneAgain.markdownDocumentText !== beforeText || undoneAgain.sourceFiles[0]?.text !== beforeText) {
+    throw new Error('expected Undo to remain repeatable after a completed Undo/Redo cycle')
+  }
+  undoneAgain.redoHistory()
+  const redoneAgain = useGraphStore.getState()
+  if (redoneAgain.markdownDocumentText !== afterText || redoneAgain.sourceFiles[0]?.text !== afterText) {
+    throw new Error('expected Redo to remain repeatable after a completed Undo/Redo cycle')
+  }
+
+  const bottomPanelText = readFileSync(resolve(process.cwd(), 'src', 'features', 'gitgraph', 'GitGraphBottomPanelView.tsx'), 'utf8')
+  const floatingPanelText = readFileSync(resolve(process.cwd(), 'src', 'features', 'gitgraph', 'GitGraphFloatingPanelView.tsx'), 'utf8')
+  const documentHookText = readFileSync(resolve(process.cwd(), 'src', 'features', 'gitgraph', 'useMermaidGitGraphDocument.ts'), 'utf8')
+  if (!bottomPanelText.includes('useMermaidGitGraphDocument()') || !floatingPanelText.includes('useMermaidGitGraphDocument()')) {
+    throw new Error('expected GitGraph chart and list to consume the same restored canonical document')
+  }
+  const baselineIndex = documentHookText.indexOf('store.addHistory(`Before GitGraph ${actionLabel}`)')
+  const mutationIndex = documentHookText.indexOf('store.setMarkdownDocument(documentName, nextText')
+  if (baselineIndex < 0 || mutationIndex < 0 || baselineIndex > mutationIndex) {
+    throw new Error('expected GitGraph edits to capture the pre-mutation history baseline')
+  }
+}
+
+export function testVersionHistoryIsSemanticBoundedAndParentLinked() {
+  const store = useGraphStore.getState()
+  store.resetAll()
+  for (let index = 0; index <= VERSION_HISTORY_MAX_ENTRIES; index += 1) {
+    useGraphStore.setState({
+      graphData: { type: 'Graph', nodes: [], edges: [], metadata: { version: index } },
+      markdownDocumentName: 'versions.md',
+      markdownDocumentText: `# Version ${index}`,
+    })
+    useGraphStore.getState().addHistory(`Version ${index}`)
+  }
+  const bounded = useGraphStore.getState().history
+  if (bounded.length !== VERSION_HISTORY_MAX_ENTRIES) {
+    throw new Error(`expected bounded version history length ${VERSION_HISTORY_MAX_ENTRIES}, got ${bounded.length}`)
+  }
+  if (bounded[0]?.parentId !== null) throw new Error('expected bounded history root to clear its removed parent')
+  if (bounded[bounded.length - 1]?.parentId !== bounded[bounded.length - 2]?.id) {
+    throw new Error('expected adjacent semantic versions to retain a linear parent link')
+  }
+  const lengthBeforeNoop = bounded.length
+  useGraphStore.getState().addHistory('No-op duplicate')
+  if (useGraphStore.getState().history.length !== lengthBeforeNoop) {
+    throw new Error('expected identical semantic content not to create a version')
   }
 }
 

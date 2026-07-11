@@ -73,6 +73,12 @@ export async function testStrybldr2dRendererStoryboardTemplateStaysRuntimeReadyA
   assert(!text.includes('\n  cards:\n'), 'expected Storyboard renderer template not to store runtime card override payloads')
   assert(!text.includes('Generated Strybldr'), 'expected Storyboard renderer template not to store generated runtime handoff copy')
   assertNoStoredGeneratedOutputSrcDocPayload(frontmatterPayload)
+  const versionControl = frontmatterPayload.version_control as Record<string, unknown> | undefined
+  assert(versionControl?.version === 'knowgrph-version-history/v1', 'expected Storyboard renderer template to declare the version-history contract')
+  assert(versionControl?.source === 'runtime-history', 'expected runtime history to remain the version-control SSOT')
+  assert(versionControl?.generated_mermaid_is_projection === true, 'expected generated GitGraph Mermaid to remain a derived projection')
+  assert(versionControl?.static_commit_fixtures_forbidden === true, 'expected Storyboard renderer template to forbid static commit fixtures')
+  assert(versionControl?.branch_merge_supported === false, 'expected linear history not to overclaim branch or merge support')
   const doc = parseStrybldrStoryboardMarkdown(text)
   assert(doc, 'expected Storyboard renderer template to expose a structured Strybldr storyboard payload')
   const parsed = await loadGraphDataFromTextViaParser(STORYBOARD_2D_RENDERER_TEMPLATE_NAME, text, {

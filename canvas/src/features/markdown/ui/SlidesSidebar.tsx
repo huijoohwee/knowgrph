@@ -1,6 +1,6 @@
 import React from 'react'
 import { LayoutList, LayoutPanelTop } from 'lucide-react'
-import PreviewGallery from '@/features/panels/views/preview-panel/ui/PreviewGallery'
+import PreviewGallery from '@/lib/panels/views/preview-panel/ui/PreviewGallery.impl'
 import { UI_COPY } from '@/lib/config'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import IconButton from '@/components/IconButton'

@@ -15,6 +15,7 @@ export function buildInlineMediaUrlIdentityKey(raw: unknown): string {
     parsed.searchParams.sort()
     const query = parsed.searchParams.toString()
     const path = `${parsed.pathname}${query ? `?${query}` : ''}`
+    if (parsed.pathname.startsWith('/api/storage/media/')) return path.toLowerCase()
     return /^[a-z][a-z0-9+.-]*:\/\//i.test(normalized)
       ? `${parsed.protocol}//${parsed.host}${path}`.toLowerCase()
       : path.toLowerCase()

@@ -33,3 +33,16 @@ export async function ensureWorkspaceFolderTreeIfMissing(args: {
     parent = next
   }
 }
+
+export async function ensureWorkspaceFolderPathIfMissing(args: {
+  parentPath?: WorkspacePath
+  relativeFolderPath: string
+  fs?: WorkspaceFs
+}): Promise<WorkspacePath> {
+  const parentPath = normalizeWorkspacePath(args.parentPath || '/')
+  const relativeFolderPath = String(args.relativeFolderPath || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
+  if (!relativeFolderPath) return parentPath
+  const folderPath = normalizeWorkspacePath(`${parentPath === '/' ? '' : parentPath}/${relativeFolderPath}`)
+  await ensureWorkspaceFolderTreeIfMissing({ folderPath, fs: args.fs })
+  return folderPath
+}

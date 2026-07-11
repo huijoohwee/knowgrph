@@ -44,3 +44,26 @@ export function testRendererPathsReuseCanonicalNodeLookupHelpers() {
     throw new Error('expected GraphCanvas simulation tick handler to reuse shared canonical node lookup helpers instead of inline composed-id parsing')
   }
 }
+
+export function testGraphRuntimeHotspotsForbidHandwrittenComposedNodeIdMatching() {
+  const paths = [
+    ['components', 'StoryboardWidgetCanvas', 'storyboardWidgetCanvasShared.tsx'],
+    ['components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetGraphActions.ts'],
+    ['components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowRunAll.ts'],
+    ['components', 'StoryboardWidgetCanvas', 'StoryboardCardOverlayLayer2d.tsx'],
+    ['components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx'],
+    ['hooks', 'store', 'graph-data-slice', 'graphDataNodeActions.ts'],
+    ['lib', 'toolbar', 'floatingPropsPanelAddNode.ts'],
+    ['components', 'StoryboardCanvas.tsx'],
+    ['components', 'StoryboardWidgetDropBridge.tsx'],
+  ]
+  for (const parts of paths) {
+    const text = readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
+    if (/endsWith\s*\(\s*`::/.test(text)) {
+      throw new Error(`expected graph runtime to forbid handwritten composed-id suffix matching: ${parts.join('/')}`)
+    }
+    if (!text.includes("from '@/lib/graph/canonicalNodeIds'")) {
+      throw new Error(`expected graph runtime to import the shared canonical-ID owner: ${parts.join('/')}`)
+    }
+  }
+}

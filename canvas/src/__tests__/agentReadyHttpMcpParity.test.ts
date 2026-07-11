@@ -635,6 +635,8 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
         uriTemplates?: string[]
       }
       onboarding?: {
+        canonicalOperatorContract?: string
+        canonicalTransportRule?: string
         grammarToolName?: string
         grammarExamples?: string[]
         hostedBuilderExamples?: string[]; hostedGrammarDefaultPath?: string; hostedGrammarFallback?: string

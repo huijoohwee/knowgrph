@@ -4,7 +4,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MermaidVisibilityGate } from './MermaidVisibilityGate'
 
 const MermaidDiagramLazy = React.lazy(() =>
-  import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
+  import('@/lib/panels/views/preview-panel/ui/MermaidDiagram.impl').then(mod => ({ default: mod.MermaidDiagram })),
 )
 const PlainMermaidDiagramLazy = React.lazy(() =>
   import('@/features/markdown/ui/PlainMermaidDiagram').then(mod => ({ default: mod.PlainMermaidDiagram })),

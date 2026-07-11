@@ -9,20 +9,17 @@ import { StoryboardCardMediaDropSlot2d } from '@/components/StoryboardWidgetCanv
 import { shouldStoryboardCardTextColumnOwnSummaryEditTarget } from '@/components/StoryboardWidgetCanvas/storyboardCardSummaryEditTarget'
 import { commitStoryboardCardCanonicalText2d } from '@/components/StoryboardWidgetCanvas/storyboardCardCanonicalTextCommit2d'
 import { buildStoryboardCardTextModel } from '@/components/StoryboardWidgetCanvas/storyboardCardTextModel'
-import { resolveStoryboardCardOverlayRemoval } from '@/components/StoryboardWidgetCanvas/storyboardCardOverlayRemoval'
 import { readStoryboardCardCenter2d, readStoryboardCardSize2d, type StoryboardCardPlacement } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
 import { isStoryboardHeaderDragBlockedTarget, StoryboardCardResizeHandle, useStoryboardCardOverlayInteractions2d, useStoryboardCardOverlayWheelForwarding } from '@/components/StoryboardWidgetCanvas/storyboardCardOverlayInteractions2d'
 import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCanvas/storyboardCardOwnership2d'
 import { useStoryboardCardMediaDrop2d } from '@/components/StoryboardWidgetCanvas/useStoryboardCardMediaDrop2d'
 import { useStoryboardCardOverlayProjection2d } from '@/components/StoryboardWidgetCanvas/useStoryboardCardOverlayProjection2d'
-import { isStoryboardWidgetNodeRemovalTarget } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetNodeDraftActions'
 import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'
 import { runStoryboardRemoveAction } from '@/components/StoryboardCanvas/storyboardRemoveAction'
 import { buildStoryboardCardMediaTextareaAttachment } from '@/components/StoryboardCanvas/storyboardCardMediaProjection'
 import { buildStoryboardBoardModel, buildStoryboardInlineMediaCommandContext, type StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/storyboardToolbarProps'
 import { writeActiveMarkdownDocumentTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
-import { isComposedGraphData } from '@/hooks/store/graph-data-slice/graphDataComposedSource'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { StoryboardWidgetOverlayDragTransform } from '@/lib/storyboardWidget/overlayWorldDrag'
@@ -35,7 +32,8 @@ import { buildGraphNodeCanonicalTextPatch, GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS, 
 import { buildInlineMediaCommandDragPayload } from '@/lib/command-menu/inlineMediaCommandDragPayload'
 import type { InlineMediaCommandCandidate } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import { GRAPH_KEYWORD_LANE_PROPERTY_KEYS } from '@/lib/graph/keywordTerms'
-import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { commitGraphOverlayNodeRemoval, commitGraphOverlayProjectionRemoval, resolveGraphOverlayNodeRemoval } from '@/lib/graph/graphOverlayNodeRemoval'
 import { createUniqueId } from '@/lib/ids'
 import { UI_LABELS } from '@/lib/config'
 import type { GraphSchema } from '@/lib/graph/schema'
@@ -46,7 +44,6 @@ import { screenToWorld } from '@/lib/zoom/viewport'
 import { cn } from '@/lib/utils'
 const STORYBOARD_CARD_OVERLAY_Z_INDEX = 60
 const ignoreStoryboardCardAction = () => void 0
-export { resolveStoryboardCardOverlayRemoval } from '@/components/StoryboardWidgetCanvas/storyboardCardOverlayRemoval'
 
 function StoryboardCardOverlayItem(props: {
   card: StoryboardCardModel; node: GraphNode; pendingMedia: StoryboardCardModel['media']; storyboardWidgetSurfaceId: string
@@ -245,16 +242,17 @@ export function StoryboardCardOverlayLayer2d(props: {
   graphData: GraphData | null
   graphRevision: number
   onNodeChange: (nodeId: string, patch: Partial<GraphNode>, sourceGraphData?: GraphData | null) => void
+  removeNodeById: (nodeId: string) => void
+  removePendingNodeById: (nodeId: string) => void
   getTransform: () => StoryboardWidgetOverlayDragTransform | null
   getWheelForwardTarget?: () => Element | null
   runWorkflowNode?: (nodeId: string) => Promise<void> | void
   schema: GraphSchema | null
   widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
 }) {
-  const { active, storyboardWidgetSurfaceId, getTransform, getWheelForwardTarget, graphData, graphRevision, onNodeChange, runWorkflowNode, schema, widgetRegistry } = props
+  const { active, storyboardWidgetSurfaceId, getTransform, getWheelForwardTarget, graphData, graphRevision, onNodeChange, removeNodeById, removePendingNodeById, runWorkflowNode, schema, widgetRegistry } = props
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const strybldrStoryboardBoardLayoutMode = useGraphStore(s => s.strybldrStoryboardBoardLayoutMode)
-  const setGraphDataPreservingLayout = useGraphStore(s => s.setGraphDataPreservingLayout)
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText || null)
@@ -308,9 +306,9 @@ export function StoryboardCardOverlayLayer2d(props: {
     [storyboardCardSizing],
   )
   const setDragVisualOverride = React.useCallback((id: string, point: { x: number; y: number } | null) => { const key = String(id || '').trim(); if (!key) return; if (point) dragWorldOverrideByCardIdRef.current.set(key, point); else dragWorldOverrideByCardIdRef.current.delete(key) }, [])
-  const preserveCardScreenPlacementForUnpin = React.useCallback((id: string, nextPinned: boolean) => {
+  const preserveCardScreenPlacementForPinTransition = React.useCallback((id: string) => {
     const key = String(id || '').trim()
-    if (!key || nextPinned) return
+    if (!key) return
     const rect = overlayElsRef.current.get(key)?.getBoundingClientRect()
     if (!rect || !Number.isFinite(rect.left) || !Number.isFinite(rect.top) || rect.width <= 0 || rect.height <= 0) return
     dragWorldOverrideByCardIdRef.current.set(key, screenToWorld({
@@ -462,8 +460,14 @@ export function StoryboardCardOverlayLayer2d(props: {
     if (!id) return
     const liveGraphData = useGraphStore.getState().graphData || null
     const graphDataForRemoval = liveGraphData || graphData || null
-    const sourceNode = resolveGraphNodeByCanonicalId(graphDataForRemoval, id) || nodeById.get(id) || null
-    const resolvedCardNodeId = String(sourceNode?.id || id).trim()
+    const removal = resolveGraphOverlayNodeRemoval({
+      graphData: graphDataForRemoval,
+      nodeId: id,
+      openWidgetNodeIds: useGraphStore.getState().openWidgetNodeIds || [],
+      selectedNodeId: useGraphStore.getState().selectedNodeId,
+    })
+    if (!removal) return
+    const resolvedCardNodeId = removal.targetNodeId
     const markdownRemoveResult = runStoryboardRemoveAction({
       markdownDocumentText,
       cardId: id,
@@ -487,49 +491,31 @@ export function StoryboardCardOverlayLayer2d(props: {
       removeGraphNode: ignoreStoryboardCardAction,
     })
     if (markdownRemoveResult.handled) {
-      const removalNodeIds = [id, resolvedCardNodeId]
-      updateOpenWidgetNodeIds(prev => prev.filter(nodeId => {
-        return !isStoryboardWidgetNodeRemovalTarget({ nodeId, removalNodeIds })
-      }))
-      const selected = useGraphStore.getState().selectedNodeId
-      if (isStoryboardWidgetNodeRemovalTarget({ nodeId: selected, removalNodeIds })) {
-        setSelectionSource('canvas')
-        selectNode(null)
-      }
+      commitGraphOverlayProjectionRemoval({
+        removal,
+        removePendingNode: removePendingNodeById,
+        removeDraftNode: removeNodeById,
+        setOpenWidgetNodeIds: nodeIds => updateOpenWidgetNodeIds(() => nodeIds),
+        clearSelection: () => {
+          setSelectionSource('canvas')
+          selectNode(null)
+        },
+      })
       return
     }
-    if (sourceNode && resolvedCardNodeId && isComposedGraphData(liveGraphData)) {
-      const removalNodeIds = [id, resolvedCardNodeId]
-      removeNode(resolvedCardNodeId)
-      updateOpenWidgetNodeIds(prev => prev.filter(nodeId => {
-        return !isStoryboardWidgetNodeRemovalTarget({ nodeId, removalNodeIds })
-      }))
-      const selected = useGraphStore.getState().selectedNodeId
-      if (isStoryboardWidgetNodeRemovalTarget({ nodeId: selected, removalNodeIds })) {
+    commitGraphOverlayNodeRemoval({
+      removal,
+      removePendingNode: removePendingNodeById,
+      removeSourceNode: removeNode,
+      removeDraftNode: removeNodeById,
+      setOpenWidgetNodeIds: nodeIds => updateOpenWidgetNodeIds(() => nodeIds),
+      clearSelection: () => {
         setSelectionSource('canvas')
         selectNode(null)
-      }
-      return
-    }
-    const removal = resolveStoryboardCardOverlayRemoval({
-      graphData: graphDataForRemoval,
-      cardId: id,
-      openWidgetNodeIds: useGraphStore.getState().openWidgetNodeIds || [],
-      selectedNodeId: useGraphStore.getState().selectedNodeId,
+      },
     })
-    if (removal?.removedNodeIds.length && removal.nextGraphData) {
-      setGraphDataPreservingLayout(removal.nextGraphData)
-      updateOpenWidgetNodeIds(() => removal.nextOpenWidgetNodeIds)
-      if (removal.clearSelection) {
-        setSelectionSource('canvas')
-        selectNode(null)
-      }
-      addHistory('Storyboard remove')
-    } else {
-      removeNode(resolvedCardNodeId || id)
-      addHistory('Storyboard remove')
-    }
-  }, [addHistory, graphData, markdownDocumentName, markdownDocumentText, nodeById, removeNode, selectNode, setGraphDataPreservingLayout, setMarkdownDocument, setSelectionSource, updateOpenWidgetNodeIds])
+    addHistory('Storyboard remove')
+  }, [addHistory, graphData, markdownDocumentName, markdownDocumentText, nodeById, removeNode, removeNodeById, removePendingNodeById, selectNode, setMarkdownDocument, setSelectionSource, updateOpenWidgetNodeIds])
 
   if (!active || cards.length === 0) return null
   return (
@@ -546,13 +532,15 @@ export function StoryboardCardOverlayLayer2d(props: {
       {cards.map(card => {
         const node = nodeById.get(card.id)
         if (!node) return null
-        const selected = activeCardId === card.id || selectedNodeId === card.id || (Array.isArray(selectedNodeIds) && selectedNodeIds.some(id => String(id || '').trim() === card.id))
+        const selected = isCanonicalNodeIdEqual(activeCardId, card.id)
+          || isCanonicalNodeIdEqual(selectedNodeId, card.id)
+          || (Array.isArray(selectedNodeIds) && selectedNodeIds.some(id => isCanonicalNodeIdEqual(id, card.id)))
         const headerPinProps = buildFlowCanvasHeaderPinProps({
           enabled: true,
           flowWidgetPinnedByNodeId: props.flowWidgetPinnedByNodeId,
           flowWidgetStateGraphKey: props.flowWidgetStateGraphKey,
           nodeId: card.id,
-          onBeforePinnedChange: nextPinned => preserveCardScreenPlacementForUnpin(card.id, nextPinned),
+          onBeforePinnedChange: () => preserveCardScreenPlacementForPinTransition(card.id),
           stopEvent: stopCardHeaderControlEvent,
         })
         return (

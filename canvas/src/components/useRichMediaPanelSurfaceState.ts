@@ -184,6 +184,15 @@ export function useRichMediaPanelSurfaceState(
   const allowClickToOpenOverlay = canClickToOpen && !workspaceEditorOverlayOpen
   const rootRef = React.useCallback((element: HTMLElement | null) => {
     rootElementRef.current = element
+    if (element && props.placementOwner === 'parent') {
+      element.style.position = 'relative'
+      element.style.left = '0px'
+      element.style.top = '0px'
+      element.style.width = '100%'
+      element.style.height = '100%'
+      element.style.transform = 'none'
+      ;(element.style as CSSStyleDeclaration & { zoom: string }).zoom = '1'
+    }
     if (typeof ref === 'function') {
       ref(element)
       return
@@ -195,7 +204,7 @@ export function useRichMediaPanelSurfaceState(
         void 0
       }
     }
-  }, [ref])
+  }, [props.placementOwner, ref])
   React.useEffect(() => {
     const element = rootElementRef.current
     if (!element) return
@@ -373,6 +382,9 @@ export function useRichMediaPanelSurfaceState(
     transition: 'opacity 180ms ease-out',
     ...(props.style || null),
     ...(inlineSrcDocPanelContentHeight > 0 ? { height: inlineSrcDocPanelContentHeightCss, minHeight: '100%' } : null),
+    ...(props.placementOwner === 'parent'
+      ? { position: 'relative', left: 0, top: 0, width: '100%', height: '100%', transform: 'none', zoom: 1 }
+      : null),
   }
   const bodySurfaceStyle: React.CSSProperties = {
     ...PANEL_FRAME_BODY_STYLE,
@@ -465,6 +477,7 @@ export function useRichMediaPanelSurfaceState(
     'data-kg-canvas-overlay-drag-handle': installHeaderDrag ? 'true' : undefined,
     'data-kg-canvas-overlay-pinned': canvasOverlayProxyEnabled ? (props.canvasOverlayPinned === false ? '0' : '1') : undefined,
     'data-kg-canvas-wheel-ignore': canvasOverlayProxyEnabled ? 'true' : undefined,
+    'data-kg-overlay-placement-owner': props.placementOwner === 'parent' ? 'parent' : undefined,
     'data-kg-overlay-pan-owner': canvasOverlayPanOwnedByCollective ? 'canvas' : undefined,
     'data-kg-storyboard-widget-mode': storyboardWidgetInteractionMode ? '1' : undefined,
     'data-kg-storyboard-widget-surface': storyboardWidgetInteractionMode ? (props.storyboardWidgetSurfaceId || undefined) : undefined,
@@ -477,7 +490,7 @@ export function useRichMediaPanelSurfaceState(
     'data-kg-rich-media-storyboard-widget-chrome': showStoryboardWidgetChrome ? '1' : undefined,
     'data-kg-rich-media-frame-mode': useSurfaceFrame ? 'surface' : undefined,
     'data-kg-rich-media-image-format-preference': MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR,
-    'data-kg-rich-media-overlay': storyboardWidgetRichMediaOverlayRoot ? '1' : undefined,
+    'data-kg-rich-media-overlay': storyboardWidgetRichMediaOverlayRoot && props.placementOwner !== 'parent' ? '1' : undefined,
     'data-kg-rich-media-panel': '1',
     'data-kg-rich-media-selectable-surface': '1',
     'data-kg-rich-media-render-surface': '1',

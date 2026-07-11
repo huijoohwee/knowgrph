@@ -29,6 +29,7 @@ import {
   buildInlineMediaCommandMenuItem,
   buildInlineVariableBrowseMenuItem,
 } from '@/lib/command-menu/inlineCommandMenuItems'
+import { UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type VariableMode = 'ref' | 'create' | 'update' | 'fallback' | 'delete'
 
@@ -240,6 +241,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
               itemDangerClassName={props.floatingMenuButtonDangerClassName}
               itemDisabledClassName={props.floatingMenuButtonClassName}
               emptyLabel="No commands"
+              menuClassName={`${UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME} overflow-y-auto`}
             />
           </section>
         </AnchorOverlay>
@@ -259,6 +261,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
               itemDangerClassName={props.floatingMenuButtonDangerClassName}
               itemDisabledClassName={props.floatingMenuButtonClassName}
               emptyLabel="No variable commands"
+              menuClassName={`${UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME} overflow-y-auto`}
             />
             {(props.variableMenu.mode === 'create' || props.variableMenu.mode === 'update') ? (
               <input className={`${props.floatingPopoverInputClassName} mt-2`} placeholder="value" value={props.variableMenu.valueInput} onChange={(event) => props.setVariableMenu(prev => ({ ...prev, valueInput: event.target.value }))} />

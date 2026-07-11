@@ -458,6 +458,7 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   const storyboardWidgetInspectorTabsPath = path.resolve(root, 'src', 'components', 'StoryboardWidget', 'StoryboardWidgetInspectorTabs.tsx')
   const collaborationViewPath = path.resolve(root, 'src', 'features', 'panels', 'views', 'CollaborationView.tsx')
   const floatingPanelChatSectionsPath = path.resolve(root, 'src', 'features', 'chat', 'FloatingPanelChatSections.tsx')
+  const chatModelCredentialControlsPath = path.resolve(root, 'src', 'features', 'chat', 'ChatModelCredentialControls.tsx')
   const grabMapsDiscoveryWidgetSectionPath = path.resolve(root, 'src', 'features', 'toolbar', 'GrabMapsDiscoveryWidgetSection.tsx')
   const grabMapsDiscoverySettingsGridPath = path.resolve(root, 'src', 'features', 'toolbar', 'GrabMapsDiscoverySettingsGrid.tsx')
   const designTokensPanelPath = path.resolve(root, 'src', 'features', 'design', 'DesignTokensPanel.tsx')
@@ -473,6 +474,7 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   const searchPanelPath = path.resolve(root, 'src', 'components', 'SearchPanel.tsx')
   const launchDropdownPath = path.resolve(root, 'src', 'lib', 'toolbar', 'LaunchDropdown.impl.tsx')
   const launchDropdownExportPath = path.resolve(root, 'src', 'lib', 'toolbar', 'LaunchDropdownExportMenu.tsx')
+  const launchDropdownImportUrlItemPath = path.resolve(root, 'src', 'lib', 'toolbar', 'LaunchDropdownImportUrlItem.tsx')
   const columnHeaderMenuPath = path.resolve(root, 'src', 'components', 'ui', 'ColumnHeaderMenu.tsx')
   const columnHeaderPropertyTypeMenuPath = path.resolve(root, 'src', 'components', 'ui', 'ColumnHeaderPropertyTypeMenu.tsx')
   const typeMenuPath = path.resolve(root, 'src', 'components', 'ui', 'TypeMenu.tsx')
@@ -484,6 +486,7 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   const dataViewPrimitivesPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewSettingsPrimitives.tsx')
   const dataViewFilterPath = path.resolve(root, 'src', 'features', 'markdown-workspace', 'main', 'viewer', 'WorkspaceDataViewFilterMenu.tsx')
   const dataViewChipsPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewChips.tsx')
+  const dataViewChipStylesPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'dataViewChipStyles.ts')
   const dataViewAddColumnPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewAddColumnMenu.tsx')
   const dataViewTablePath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownDataViewTableView.tsx')
   const kanbanCardPath = path.resolve(root, 'src', 'features', 'markdown', 'ui', 'kanban', 'KanbanCard.tsx')
@@ -613,6 +616,7 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   }
   const collaborationView = readUtf8(collaborationViewPath)
   const floatingPanelChatSections = readUtf8(floatingPanelChatSectionsPath)
+  const chatModelCredentialControls = readUtf8(chatModelCredentialControlsPath)
   const grabMapsDiscoveryWidgetSection = readUtf8(grabMapsDiscoveryWidgetSectionPath)
   const grabMapsDiscoverySettingsGrid = readUtf8(grabMapsDiscoverySettingsGridPath)
   const widgetEditorSchemaTable = readUtf8(widgetEditorSchemaTablePath)
@@ -623,11 +627,12 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     throw new Error('Expected Collaboration panel invite and answer input shells to reuse the shared responsive flex input owner')
   }
   if (
-    !['UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME', 'UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME', 'UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME', 'UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME', 'htmlFor={chatModelSelectId}', 'data-kg-chat-model-select="true"'].every(snippet => floatingPanelChatSections.includes(snippet)) ||
+    !floatingPanelChatSections.includes('UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME') ||
+    !['UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME', 'UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME', 'UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME', 'htmlFor={chatModelSelectId}', 'data-kg-chat-model-select="true"'].every(snippet => chatModelCredentialControls.includes(snippet)) ||
     !grabMapsDiscoverySettingsGrid.includes('UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME') || !responsiveCss.includes('.kg-floating-chat-message-bubble') || !responsiveCss.includes('.kg-responsive-compact-panel-field-input') ||
     !responsiveCss.includes('--kg-responsive-compact-panel-field-input-height') ||
     !responsiveCss.includes('--kg-responsive-compact-panel-field-input-padding-inline') ||
-    floatingPanelChatSections.includes('max-w-[85%]') || floatingPanelChatSections.includes('h-7 px-2') ||
+    floatingPanelChatSections.includes('max-w-[85%]') || chatModelCredentialControls.includes('h-7 px-2') ||
     grabMapsDiscoverySettingsGrid.includes('h-7 w-full rounded border px-2')
   ) {
     throw new Error('Expected chat bubbles and compact panel setting fields to reuse shared responsive owners')
@@ -730,7 +735,8 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
   }
   const launchDropdown = readUtf8(launchDropdownPath)
   const launchDropdownExport = readUtf8(launchDropdownExportPath)
-  if (!launchDropdown.includes('UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME') || !launchDropdown.includes('UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME') || !launchDropdown.includes("const menuIconClass = cn(UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME, 'shrink-0')") || !launchDropdown.includes('importUrlControlsId') || !launchDropdown.includes('kg-click-expand-menu-children') || !launchDropdownExport.includes('kg-click-expand-menu-children') || launchDropdownExport.includes('left-full') || launchDropdown.includes('runImportUrl(draft)') || launchDropdown.includes("const menuIconClass = 'w-4 h-4 shrink-0'") || launchDropdown.includes('const menuIconClass = "w-4 h-4 shrink-0"') || launchDropdown.includes('w-80')) {
+  const launchDropdownImportUrlItem = readUtf8(launchDropdownImportUrlItemPath)
+  if (!launchDropdown.includes('UI_RESPONSIVE_LAUNCH_MENU_ROW_CLASSNAME') || !launchDropdown.includes('UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME') || !launchDropdown.includes("const menuIconClass = cn(UI_RESPONSIVE_DEFAULT_GLYPH_CLASSNAME, 'shrink-0')") || !launchDropdownImportUrlItem.includes('importUrlControlsId') || !launchDropdownImportUrlItem.includes('kg-click-expand-menu-children') || !launchDropdownExport.includes('kg-click-expand-menu-children') || launchDropdownExport.includes('left-full') || launchDropdownImportUrlItem.includes('runImportUrl(draft)') || launchDropdown.includes("const menuIconClass = 'w-4 h-4 shrink-0'") || launchDropdown.includes('const menuIconClass = "w-4 h-4 shrink-0"') || launchDropdown.includes('w-80')) {
     throw new Error('Expected launch menu rows and menu icons to keep bounded click-expand rows without parent-click import execution')
   }
   const columnHeaderMenu = readUtf8(columnHeaderMenuPath)
@@ -754,7 +760,10 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     throw new Error('Expected type menus and column header type glyphs to reuse shared responsive glyph owners')
   }
   const dataViewHeader = readUtf8(dataViewHeaderPath)
-  if (!dataViewHeader.includes('kg-data-view-header-controls') || !dataViewHeader.includes('UI_RESPONSIVE_ACTION_ROW_CLASSNAME')) {
+  if (
+    !dataViewHeader.includes('kg-data-view-header-controls') ||
+    (!dataViewHeader.includes('UI_RESPONSIVE_ACTION_ROW_CLASSNAME') && !dataViewHeader.includes('getDataViewIconButtonClassName'))
+  ) {
     throw new Error('Expected Data View header controls to stay inside viewport bounds')
   }
   if (!dataViewHeader.includes("openSettingsPanel('layout')")) {
@@ -811,7 +820,8 @@ export const testResponsiveMenusAndDataViewSurfacesStayBounded = () => {
     throw new Error('Expected Data View filter menus to stay bounded and ellipsized')
   }
   const dataViewChips = readUtf8(dataViewChipsPath)
-  if (!dataViewChips.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME') || !dataViewChips.includes('UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME') || dataViewChips.includes('w-3 h-3 shrink-0')) {
+  const dataViewChipStyles = readUtf8(dataViewChipStylesPath)
+  if (!dataViewChipStyles.includes('UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME') || !dataViewChips.includes('UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME') || dataViewChips.includes('w-3 h-3 shrink-0')) {
     throw new Error('Expected Data View chips to prevent long tag and icon overflow')
   }
   const dataViewAddColumn = readUtf8(dataViewAddColumnPath)

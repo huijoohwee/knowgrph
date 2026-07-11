@@ -213,6 +213,7 @@ export function applyVectorPaintedOverlayBox(el: HTMLElement, args: {
   zIndex?: string
   positionMode?: VectorPaintedOverlayPositionMode
 }): void {
+  if (el.dataset.kgOverlayPlacementOwner === 'parent') return
   const left = Number.isFinite(args.left) ? args.left : 0
   const top = Number.isFinite(args.top) ? args.top : 0
   const scale = Number.isFinite(args.scale) && Number(args.scale) > 0 ? Math.max(0.001, Number(args.scale)) : 1

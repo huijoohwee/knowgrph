@@ -1,10 +1,10 @@
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { ensureWorkspaceFolderPathIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
 import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import type { CorpusSourceUnit } from '@/features/queryable-corpus/corpusGraph'
 import { setPendingLocalImport } from './pendingLocalImport'
 import { deriveModelWorkspaceDocumentName } from './glbAsset'
-import { ensureWorkspaceFolderRel } from './localImportFolderPaths'
 import {
   buildSpatialCaptureFilesetManifestMarkdown,
   deriveSpatialCaptureManifestName,
@@ -35,7 +35,13 @@ export async function materializeSpatialCaptureFilesetImports(args: {
 
   for (const fileset of filesets) {
     try {
-      const parentPath = fileset.folderPath ? await ensureWorkspaceFolderRel(args.fs, fileset.folderPath) : WORKSPACE_ROOT_PATH
+      const parentPath = fileset.folderPath
+        ? await ensureWorkspaceFolderPathIfMissing({
+            fs: args.fs,
+            parentPath: WORKSPACE_ROOT_PATH,
+            relativeFolderPath: fileset.folderPath,
+          })
+        : WORKSPACE_ROOT_PATH
       const colliderName = deriveModelWorkspaceDocumentName(fileset.collider.originalName, 'glb')
       const colliderPath = normalizeWorkspacePath(`${parentPath}/${colliderName}`)
       setPendingLocalImport(colliderPath, { kind: 'glb', file: fileset.collider.file, originalName: fileset.collider.originalName })

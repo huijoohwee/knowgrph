@@ -11,10 +11,10 @@ import {
 } from '@/features/graph-fields/graphFields'
 import type { GraphData, JSONValue } from '@/lib/graph/types'
 import { isJsonValue } from '@/lib/graph/jsonValue'
+import type { SourceFile } from '@/hooks/store/types'
+import type { VersionHistoryEntry, VersionHistorySource } from '@/features/history/versionHistoryTypes'
 
 type JsonObject = { [key: string]: JSONValue }
-
-type HistoryEntry = { id: string; label: string; timestamp: number; graphData: GraphData; graphFieldSettingsById?: GraphFieldSettingsById }
 
 type WritablePartial<T> = { -readonly [K in keyof T]?: T[K] }
 
@@ -253,7 +253,7 @@ export function applySettingsValuesToRegistry(
   return { wrote, skipped }
 }
 
-export function buildHistoryJsonLdDocument(history: HistoryEntry[], historyIndex: number): JsonObject {
+export function buildHistoryJsonLdDocument(history: VersionHistoryEntry[], historyIndex: number): JsonObject {
   const items: JsonObject[] = history.map((h) => {
     const graphData = isJsonValue(h.graphData) ? h.graphData : null
     const base: JsonObject = {
@@ -261,7 +261,13 @@ export function buildHistoryJsonLdDocument(history: HistoryEntry[], historyIndex
       '@id': h.id,
       'kg:label': h.label,
       'kg:timestamp': h.timestamp,
+      'kg:parentId': h.parentId,
+      'kg:source': h.source,
+      'kg:contentSignature': h.contentSignature,
       'kg:data': graphData,
+      'kg:markdownDocumentName': h.markdownDocumentName,
+      'kg:markdownDocumentText': h.markdownDocumentText,
+      'kg:activeSourceFileSnapshot': isJsonValue(h.activeSourceFileSnapshot) ? h.activeSourceFileSnapshot : null,
     }
     const rawSettings = h.graphFieldSettingsById || {}
     const hasSettings = rawSettings && typeof rawSettings === 'object' && Object.keys(rawSettings).length > 0
@@ -284,7 +290,7 @@ export function buildHistoryJsonLdDocument(history: HistoryEntry[], historyIndex
   }
 }
 
-export function parseHistoryDocument(doc: unknown): { history: HistoryEntry[]; historyIndex: number } | null {
+export function parseHistoryDocument(doc: unknown): { history: VersionHistoryEntry[]; historyIndex: number } | null {
   if (!isRecord(doc)) return null
   const rawHistory = doc['kg:history'] ?? doc.history
   if (!Array.isArray(rawHistory)) return null
@@ -292,17 +298,27 @@ export function parseHistoryDocument(doc: unknown): { history: HistoryEntry[]; h
   const rawIndex = doc['kg:historyIndex'] ?? doc.historyIndex
   const historyIndex = typeof rawIndex === 'number' && Number.isFinite(rawIndex) ? Math.floor(rawIndex) : -1
 
-  const history: HistoryEntry[] = []
+  const history: VersionHistoryEntry[] = []
   rawHistory.forEach((entry) => {
     if (!isRecord(entry)) return
     const idRaw = entry['@id'] ?? entry.id
     const labelRaw = entry['kg:label'] ?? entry.label
     const timestampRaw = entry['kg:timestamp'] ?? entry.timestamp
     const dataRaw = entry['kg:data'] ?? entry.data
+    const parentIdRaw = Object.prototype.hasOwnProperty.call(entry, 'kg:parentId')
+      ? entry['kg:parentId']
+      : entry.parentId
+    const sourceRaw = entry['kg:source'] ?? entry.source
+    const contentSignatureRaw = entry['kg:contentSignature'] ?? entry.contentSignature
     if (typeof idRaw !== 'string' || !idRaw.trim()) return
     if (typeof labelRaw !== 'string') return
     if (typeof timestampRaw !== 'number' || !Number.isFinite(timestampRaw)) return
     if (!isGraphData(dataRaw)) return
+    if (parentIdRaw !== null && typeof parentIdRaw !== 'string') return
+    const parentId: string | null = typeof parentIdRaw === 'string' ? parentIdRaw : null
+    const validSources: VersionHistorySource[] = ['graph', 'gitGraph', 'manual', 'import', 'runtime']
+    if (typeof sourceRaw !== 'string' || !validSources.includes(sourceRaw as VersionHistorySource)) return
+    if (typeof contentSignatureRaw !== 'string' || !contentSignatureRaw.trim()) return
     const settingsRaw = entry['kg:graphFieldSettings'] ?? entry.graphFieldSettings
     const graphFieldSettingsById: GraphFieldSettingsById =
       isRecord(settingsRaw) && Object.keys(settingsRaw).length > 0
@@ -316,10 +332,27 @@ export function parseHistoryDocument(doc: unknown): { history: HistoryEntry[]; h
         : {}
     history.push({
       id: idRaw,
+      parentId,
       label: labelRaw,
       timestamp: Math.floor(timestampRaw),
+      source: sourceRaw as VersionHistorySource,
+      contentSignature: contentSignatureRaw,
       graphData: dataRaw,
       graphFieldSettingsById,
+      markdownDocumentName: typeof (entry['kg:markdownDocumentName'] ?? entry.markdownDocumentName) === 'string'
+        ? String(entry['kg:markdownDocumentName'] ?? entry.markdownDocumentName)
+        : null,
+      markdownDocumentText: typeof (entry['kg:markdownDocumentText'] ?? entry.markdownDocumentText) === 'string'
+        ? String(entry['kg:markdownDocumentText'] ?? entry.markdownDocumentText)
+        : null,
+      activeSourceFileSnapshot: (() => {
+        const value = entry['kg:activeSourceFileSnapshot'] ?? entry.activeSourceFileSnapshot
+        if (!isRecord(value)) return null
+        if (typeof value.id !== 'string' || typeof value.name !== 'string' || typeof value.text !== 'string') return null
+        if (typeof value.enabled !== 'boolean') return null
+        if (!['idle', 'loading', 'parsed', 'error'].includes(String(value.status || ''))) return null
+        return value as unknown as SourceFile
+      })(),
     })
   })
 

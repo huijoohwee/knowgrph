@@ -46,6 +46,7 @@ import type {
   UiToastInput,
   WorkspaceViewMode,
 } from './core'
+import type { VersionHistoryEntry } from '@/features/history/versionHistoryTypes'
 
 export interface GraphStateStructure {
   graphDataRevision: number;
@@ -108,7 +109,7 @@ export interface GraphStateStructure {
   documentStructureBaselineLock: boolean;
   documentStructureBaselineSnapshot: DocumentStructureBaselineSnapshot | null
   setDocumentStructureBaselineLock: (enabled: boolean) => void;
-  history: Array<{ id: string; label: string; timestamp: number; graphData: GraphData; graphFieldSettingsById?: GraphFieldSettingsById }>;
+  history: VersionHistoryEntry[];
   historyIndex: number;
   recentFiles: RecentFileEntry[];
   historyDebounceMs: number;
@@ -217,7 +218,7 @@ export interface GraphStateStructure {
   scheduleHistory: (label: string) => void;
   setHistoryDebounceMs: (ms: number) => void;
   replaceHistoryState: (
-    history: Array<{ id: string; label: string; timestamp: number; graphData: GraphData; graphFieldSettingsById?: GraphFieldSettingsById }>,
+    history: VersionHistoryEntry[],
     historyIndex: number,
   ) => void;
 }

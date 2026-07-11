@@ -80,6 +80,7 @@ export function buildFlowCanvasRichMediaPanelHeaderToolbar(args: {
   flowWidgetStateGraphKey: string | null | undefined
   isSelected: boolean
   node: MediaOverlayNode
+  onBeforePinnedChange?: (pinned: boolean) => void
   requestCommit: () => void
   scheduleLayout: () => void
   setActiveRichMediaPanelId: (id: string) => void
@@ -107,6 +108,7 @@ export function buildFlowCanvasRichMediaPanelHeaderToolbar(args: {
     flowWidgetPinnedByNodeId: args.flowWidgetPinnedByNodeId,
     flowWidgetStateGraphKey: args.flowWidgetStateGraphKey,
     nodeId,
+    onBeforePinnedChange: args.onBeforePinnedChange,
     onPinnedChange: () => {
       args.scheduleLayout()
       args.requestCommit()

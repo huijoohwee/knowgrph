@@ -60,6 +60,24 @@ const normalizeCommittedEditorValue = normalizeCommittedCardInlineEditorValue
 const readInputSelection = readCardInlineEditorInputSelection
 const focusInputSelectionSoon = focusCardInlineEditorInputSelectionSoon
 const replaceTextRange = replaceCardInlineEditorTextRange
+
+const toInlineMediaCommandCandidate = (
+  candidate: CardInlineTextExternalMediaCandidate,
+): InlineMediaCommandCandidate => {
+  const sourceKey = String(candidate.sourceKey || '').trim()
+  const url = String(candidate.url || '').trim()
+  return {
+    id: sourceKey ? `card-inline-external:${candidate.kind}:${sourceKey}` : `card-inline-external:${candidate.kind}:${url}`,
+    kind: candidate.kind,
+    url,
+    thumbnailUrl: candidate.thumbnailUrl,
+    label: candidate.label,
+    sourceKey: sourceKey || undefined,
+    description: url || candidate.label,
+    keywords: [candidate.kind, candidate.label, sourceKey, url].filter(Boolean) as string[],
+  }
+}
+
 export { commitActiveCardInlineTextEditor } from '@/lib/cards/CardInlineTextEditorSupport'
 export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(props: CardInlineTextEditorProps) {
   const {
@@ -106,7 +124,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   const lastEditingRef = React.useRef(editing)
   const lastCommandPersistedDraftRef = React.useRef('')
   const commandSelectionRef = React.useRef<{ start: number; end: number }>({ start: 0, end: 0 })
-  const externalCommandStateRef = React.useRef<CardInlineTextCommandExternalState>({ canEdit, draft, editing, multiline, onCommit, persistCommandDraft: (_nextValue: string) => void 0, value })
+  const externalCommandStateRef = React.useRef<CardInlineTextCommandExternalState>({ canEdit, draft, editing, multiline, onCommit, onMediaCommandSelect, persistCommandDraft: (_nextValue: string) => void 0, value })
   const editorDensity = useWorkspaceDataViewFloatingDensity()
   const useViewerEditSurface = editorSurface === 'viewer'
   const { beginViewerDraft, resolveViewerDraft } = useCardInlineTextViewerDraftProjection(useViewerEditSurface && inlineChipDensity === 'compact')
@@ -226,6 +244,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     editing,
     multiline,
     onCommit,
+    onMediaCommandSelect,
     persistCommandDraft,
     value,
   }
@@ -402,7 +421,9 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       insertText,
       insertMedia: (candidate: CardInlineTextExternalMediaCandidate) => {
         const replacement = buildCardInlineTextMediaEmbed(candidate)
-        return insertText(replacement)
+        const inserted = insertText(replacement)
+        if (inserted) externalCommandStateRef.current.onMediaCommandSelect?.(toInlineMediaCommandCandidate(candidate))
+        return inserted
       },
     }
   }, [ariaLabel, hasProjectedInvocationOverlay, id, updateDraft, useViewerEditSurface])

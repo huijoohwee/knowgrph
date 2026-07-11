@@ -172,6 +172,7 @@ export function useStoryboardWidgetNodeDraftActions(args: {
         removal.nextGraphData,
         { revisionFloor: readDraftMutationRevisionFloor() },
       )
+      args.setDraftGraphData(args.draftGraphDataRef.current)
       args.setGraphDataPreservingLayout(args.draftGraphDataRef.current)
     }
     const idsForOpenWidgetClose = removal.removedNodeIds.length > 0 ? removal.removedNodeIds : [id]

@@ -188,6 +188,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const graphStatsKeywordEntitiesSectionText = readUtf8(path.resolve(root, 'src/features/graph-stats/sections/KeywordEntitiesSection.tsx'))
   const graphStatsEdgesSectionText = readUtf8(path.resolve(root, 'src/features/graph-stats/sections/EdgesStatsSection.tsx'))
   const graphStatsNodeWordFrequenciesSectionText = readUtf8(path.resolve(root, 'src/features/graph-stats/sections/NodeWordFrequenciesSection.tsx'))
+  const markdownDataViewInlineTextCellEditorText = readUtf8(path.resolve(root, 'src/features/markdown/ui/MarkdownDataViewInlineTextCellEditor.tsx'))
   const graphStatsCentralitySectionText = readUtf8(path.resolve(root, 'src/features/graph-stats/sections/GraphRagCentralityStatsSection.tsx'))
   const statusBadgeText = readUtf8(path.resolve(root, 'src/features/panels/ui/StatusBadge.tsx'))
   const errorFeedbackText = readUtf8(path.resolve(root, 'src/components/ui/ErrorFeedback.tsx'))
@@ -203,14 +204,17 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const settingsFallbackDetailsText = readUtf8(path.resolve(root, 'src/features/panels/views/SettingsFallbackDetails.ts'))
   const settingsEntryRowInputText = readUtf8(path.resolve(root, 'src/features/panels/views/settingsEntryRow.input.tsx'))
   const settingsSpecialValueNodeText = readUtf8(path.resolve(root, 'src/features/panels/views/SettingsSpecialValueNode.tsx'))
+  const canvasKeyTypeValueValueCellText = readUtf8(path.resolve(root, 'src/features/panels/ui/canvasKeyTypeValueValueCell.tsx'))
   const embeddedWorkspaceShellText = readUtf8(path.resolve(root, 'src/components/EmbeddedWorkspaceShell.tsx'))
   const markdownDataViewMultiTagSelectText = readUtf8(path.resolve(root, 'src/features/markdown/ui/MarkdownDataViewMultiTagSelect.tsx'))
   const threeSizingAndWidthControlsText = readUtf8(path.resolve(root, 'src/features/panels/views/shared/ThreeSizingAndWidthControls.tsx'))
   const floatingPanelChatSectionsText = readUtf8(path.resolve(root, 'src/features/chat/FloatingPanelChatSections.tsx'))
+  const chatModelCredentialControlsText = readUtf8(path.resolve(root, 'src/features/chat/ChatModelCredentialControls.tsx'))
   const collaborationViewText = readUtf8(path.resolve(root, 'src/features/panels/views/CollaborationView.tsx'))
   const grabMapsDiscoveryWidgetSectionText = readUtf8(path.resolve(root, 'src/features/toolbar/GrabMapsDiscoveryWidgetSection.tsx'))
   const grabMapsDiscoverySettingsGridText = readUtf8(path.resolve(root, 'src/features/toolbar/GrabMapsDiscoverySettingsGrid.tsx'))
   const responsiveControlRowsText = readUtf8(path.resolve(root, 'src/lib/ui/responsiveControlRows.tsx'))
+  const panelFormControlsText = readUtf8(path.resolve(root, 'src/lib/ui/panelFormControls.tsx'))
   const flowchartRendererControlsText = readUtf8(path.resolve(root, 'src/features/toolbar/ui/FlowchartRendererControls.tsx'))
   const flowchartRendererSettingsText = readUtf8(path.resolve(root, 'src/features/toolbar/ui/FlowchartRendererSettings.tsx'))
   const radarGalaxyRendererSettingsText = readUtf8(path.resolve(root, 'src/features/toolbar/ui/RadarGalaxyRendererSettings.tsx'))
@@ -324,6 +328,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const toolbarOrchestratorAreaText = readUtf8(path.resolve(root, 'src/features/toolbar/ToolbarOrchestratorArea.tsx'))
   const threeViewBackgroundFogSectionText = readUtf8(path.resolve(root, 'src/features/panels/views/ThreeViewBackgroundFogSection.tsx'))
   const threeViewStarfieldSectionText = readUtf8(path.resolve(root, 'src/features/panels/views/ThreeViewStarfieldSection.tsx'))
+  const panelKeyTypeColorTextValueRowText = readUtf8(path.resolve(root, 'src/features/panels/ui/PanelKeyTypeColorTextValueRow.tsx'))
   const threeViewCameraSectionText = readUtf8(path.resolve(root, 'src/features/panels/views/ThreeViewCameraSection.tsx'))
   const threeViewGlobeEffectsSectionText = readUtf8(path.resolve(root, 'src/features/panels/views/ThreeViewGlobeEffectsSection.tsx'))
   const iconHelpersText = readUtf8(path.resolve(root, 'src/lib/ui/icons.ts'))
@@ -332,6 +337,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const anchoredPopoverText = readUtf8(path.resolve(root, 'src/components/ui/AnchoredPopover.tsx'))
   const overlayPlacementText = readUtf8(path.resolve(root, 'src/lib/ui/overlayPlacement.ts'))
   const importUrlPromptText = readUtf8(path.resolve(root, 'src/features/toolbar/ImportUrlPrompt.tsx'))
+  const launchDropdownImportUrlItemText = readUtf8(path.resolve(root, 'src/lib/toolbar/LaunchDropdownImportUrlItem.tsx'))
   const cssText = readUtf8(path.resolve(root, 'src/index.css'))
   const responsiveToolbarCssText = readUtf8(path.resolve(root, 'src/styles/responsive-toolbar.css'))
   const responsiveCanvasToolbarCssText = readUtf8(path.resolve(root, 'src/styles/responsive-canvas-toolbar.css'))
@@ -1559,12 +1565,12 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected chat message bubble width and chat/discovery multiline text input editor heights to live in shared responsive owner classes')
   }
   if (
-    !['UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME', 'UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME', 'UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME', 'htmlFor={chatModelSelectId}', 'data-kg-chat-model-select="true"'].every(snippet => floatingPanelChatSectionsText.includes(snippet)) ||
+    !['UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME', 'UI_RESPONSIVE_CONTROL_COMPACT_VALUE_ROW_CLASSNAME', 'UI_RESPONSIVE_CONTROL_INLINE_FILL_CLASSNAME', 'htmlFor={chatModelSelectId}', 'data-kg-chat-model-select="true"'].every(snippet => chatModelCredentialControlsText.includes(snippet)) ||
     !grabMapsDiscoverySettingsGridText.includes('UI_RESPONSIVE_COMPACT_PANEL_FIELD_INPUT_CLASSNAME') ||
     !responsiveToolbarCssText.includes('.kg-responsive-compact-panel-field-input') ||
     !responsiveToolbarCssText.includes('--kg-responsive-compact-panel-field-input-height') ||
     !responsiveToolbarCssText.includes('--kg-responsive-compact-panel-field-input-padding-inline') ||
-    floatingPanelChatSectionsText.includes('h-7 px-2') ||
+    chatModelCredentialControlsText.includes('h-7 px-2') ||
     grabMapsDiscoverySettingsGridText.includes(staleCompactPanelFieldInputSizingClass())
   ) {
     throw new Error('expected compact panel field input sizing to live in the shared responsive owner class')
@@ -1596,13 +1602,12 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   if (
     !widgetEditorParamsText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_TALL_FRAME_CLASSNAME') ||
     !widgetEditorParamsText.includes('UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME') ||
-    !widgetEditorRegistrySectionText.includes('UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME') ||
     !graphRagWorkflowSectionText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
     !graphRagWorkflowSectionText.includes('UI_RESPONSIVE_GRAPH_RAG_WORKFLOW_TOKEN_CLASSNAME') ||
     !graphRagWorkflowSectionText.includes('UI_RESPONSIVE_GRAPH_RAG_WORKFLOW_COMPACT_TOKEN_CLASSNAME') ||
     !orchestratorTraversalPanelsText.includes('UI_RESPONSIVE_PANEL_CODE_EDITOR_FRAME_CLASSNAME') ||
     widgetEditorParamsText.includes('min-h-[140px]') ||
-    [widgetEditorParamsText, widgetEditorRegistrySectionText].some(text => text.includes(stalePanelTextActionButtonSizingClass())) ||
+    widgetEditorParamsText.includes(stalePanelTextActionButtonSizingClass()) ||
     graphRagWorkflowSectionText.includes('min-h-[96px]') ||
     graphRagWorkflowSectionText.includes('max-w-[120px]') ||
     graphRagWorkflowSectionText.includes('max-w-[100px]') ||
@@ -1652,13 +1657,13 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const colorSwatchConsumerTexts = [
     settingsUiText,
     rendererPaletteSettingsText,
-    threeViewBackgroundFogSectionText,
-    threeViewStarfieldSectionText,
     graphFieldsStylesText,
   ]
   if (
     !settingsUiText.includes('UI_RESPONSIVE_COLOR_SWATCH_DASHED_CLASSNAME') ||
     !colorSwatchConsumerTexts.every(text => text.includes('UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME')) ||
+    !panelKeyTypeColorTextValueRowText.includes('UI_RESPONSIVE_COLOR_SWATCH_CLASSNAME') ||
+    ![threeViewBackgroundFogSectionText, threeViewStarfieldSectionText].every(text => text.includes('PanelKeyTypeColorTextValueRow')) ||
     colorSwatchConsumerTexts.some(text =>
       text.includes(staleColorSwatchSizingClass()) ||
       text.includes(staleDashedColorSwatchSizingClass())
@@ -1681,30 +1686,60 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     graphDataTableSortPanelText,
   ]
   const defaultSelectionControlConsumerTexts = [
-    graphFieldsSamplesPanelText,
     graphDataTableFieldsPanelText,
     graphDataTableRowsText,
-    aiKgForceControlsText,
     radarGalaxyRendererSettingsText,
     edgeTypesRendererSettingsText,
   ]
+  const compactSelectionControlOwnerChecks = {
+    graphFieldsSamples: graphFieldsSamplesPanelText.includes('UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME'),
+    graphFieldsSettings: graphFieldsSettingsPanelText.includes('UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME'),
+    graphDataTableGroup: graphDataTableGroupPanelText.includes('UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME'),
+    rendererHover: rendererHoverSettingsText.includes('UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME'),
+    toolbarSettings: toolbarSettingsAreaText.includes('UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME'),
+  }
+  const compactSelectionControlsUseSharedOwner = Object.values(compactSelectionControlOwnerChecks).every(Boolean)
+  const smallSelectionControlOwnerChecks = {
+    threeViewCamera: threeViewCameraSectionText.includes('UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME'),
+    threeViewGlobeEffects: threeViewGlobeEffectsSectionText.includes('UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME'),
+    graphDataTableSort: graphDataTableSortPanelText.includes('UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME'),
+  }
+  const smallSelectionControlsUseSharedOwner = Object.values(smallSelectionControlOwnerChecks).every(Boolean)
+  const defaultSelectionControlOwnerChecks = {
+    graphDataTableFields: graphDataTableFieldsPanelText.includes('UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME'),
+    graphDataTableRows: graphDataTableRowsText.includes('UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME'),
+    radarGalaxyRenderer: radarGalaxyRendererSettingsText.includes('UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME'),
+    edgeTypesRenderer: edgeTypesRendererSettingsText.includes('UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME'),
+  }
+  const defaultSelectionControlsUseSharedOwner = Object.values(defaultSelectionControlOwnerChecks).every(Boolean)
+  const graphFieldsSampleControlsUseSharedOwner = graphFieldsSamplesPanelText.includes('UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME')
+  const panelCheckboxUsesSharedOwner = panelFormControlsText.includes('UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME')
+  const aiKgForceControlsDelegateToPanelCheckbox = aiKgForceControlsText.includes('PanelCheckbox')
+  const compactSelectionControlsUseStaleSizing = compactSelectionControlConsumerTexts.some(text =>
+    text.includes(staleSelectionControlRoundedSizingClass()) ||
+    text.includes(staleSelectionControlRoundedWidthFirstClass()) ||
+    text.includes(staleSelectionControlBareSizingClass())
+  )
+  const smallSelectionControlsUseStaleSizing = smallSelectionControlConsumerTexts.some(text =>
+    text.includes(staleSelectionControlSmallRoundedSizingClass()) ||
+    text.includes(staleSelectionControlSmallRoundedWidthFirstClass())
+  )
+  const defaultSelectionControlsUseStaleSizing = [graphFieldsSamplesPanelText, ...defaultSelectionControlConsumerTexts].some(text =>
+    text.includes(staleSelectionControlDefaultRoundedSizingClass()) ||
+    text.includes(staleSelectionControlDefaultBareSizingClass())
+  )
+  const panelCheckboxKeepsLegacySizing = panelFormControlsText.includes('h-4 w-4 rounded')
   if (
-    !compactSelectionControlConsumerTexts.every(text => text.includes('UI_RESPONSIVE_COMPACT_SELECTION_CONTROL_CLASSNAME')) ||
-    !smallSelectionControlConsumerTexts.every(text => text.includes('UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME')) ||
-    !defaultSelectionControlConsumerTexts.every(text => text.includes('UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME')) ||
-    compactSelectionControlConsumerTexts.some(text =>
-      text.includes(staleSelectionControlRoundedSizingClass()) ||
-      text.includes(staleSelectionControlRoundedWidthFirstClass()) ||
-      text.includes(staleSelectionControlBareSizingClass())
-    ) ||
-    smallSelectionControlConsumerTexts.some(text =>
-      text.includes(staleSelectionControlSmallRoundedSizingClass()) ||
-      text.includes(staleSelectionControlSmallRoundedWidthFirstClass())
-    ) ||
-    defaultSelectionControlConsumerTexts.some(text =>
-      text.includes(staleSelectionControlDefaultRoundedSizingClass()) ||
-      text.includes(staleSelectionControlDefaultBareSizingClass())
-    )
+    !compactSelectionControlsUseSharedOwner ||
+    !smallSelectionControlsUseSharedOwner ||
+    !defaultSelectionControlsUseSharedOwner ||
+    !graphFieldsSampleControlsUseSharedOwner ||
+    !panelCheckboxUsesSharedOwner ||
+    !aiKgForceControlsDelegateToPanelCheckbox ||
+    compactSelectionControlsUseStaleSizing ||
+    smallSelectionControlsUseStaleSizing ||
+    defaultSelectionControlsUseStaleSizing ||
+    panelCheckboxKeepsLegacySizing
   ) {
     throw new Error('expected toolbar, graph-data-table, Graph Fields, and Three view selection controls to use the shared responsive selection control owner')
   }
@@ -1846,7 +1881,8 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !mainPanelSettingsPanelShellText.includes('UI_RESPONSIVE_PANEL_HEADER_SECONDARY_CLASSNAME') ||
     !graphFieldsSamplesPanelText.includes('UI_RESPONSIVE_WIDE_PANEL_HEADER_SECONDARY_CLASSNAME') ||
     !settingsEntryRowInputText.includes('UI_RESPONSIVE_SETTINGS_VALUE_WRAPPER_CLASSNAME') ||
-    !settingsSpecialValueNodeText.includes('UI_RESPONSIVE_COMPACT_PANEL_FLEX_INPUT_CLASSNAME') ||
+    !settingsSpecialValueNodeText.includes('KTV_VALUE_ROW_INPUT_SHELL_CLASS_NAME') ||
+    !canvasKeyTypeValueValueCellText.includes('UI_RESPONSIVE_COMPACT_PANEL_FLEX_INPUT_CLASSNAME') ||
     !errorFeedbackText.includes('UI_RESPONSIVE_COMPACT_ERROR_FEEDBACK_BADGE_CLASSNAME') ||
     !embeddedWorkspaceShellText.includes('UI_RESPONSIVE_EMBEDDED_WORKSPACE_LEFT_CLASSNAME') ||
     !markdownDataViewMultiTagSelectText.includes('UI_RESPONSIVE_TAG_INPUT_FORM_CLASSNAME') ||
@@ -1873,15 +1909,14 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     throw new Error('expected status badges, panel header rows, embedded workspace panes, and tag input forms to use shared responsive owners instead of local breakpoint literals')
   }
   if (
-    !widgetEditorActionsToolbarText.includes('UI_RESPONSIVE_TEXT_ACTION_BUTTON_CLASSNAME') ||
-    !widgetEditorActionsToolbarText.includes('UI_RESPONSIVE_WIDE_TEXT_ACTION_BUTTON_CLASSNAME') ||
+    !widgetEditorActionsToolbarText.includes('App-toolbar__btn') ||
     !grabMapsDiscoveryWidgetSectionText.includes('UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME') ||
     grabMapsDiscoveryWidgetSectionText.includes('inline-flex h-8 items-center gap-1 rounded border px-2 text-sm') ||
     grabMapsDiscoveryWidgetSectionText.includes('inline-flex h-8 items-center gap-1 rounded px-2 text-sm') ||
     widgetEditorActionsToolbarText.includes('min-w-[36px]') ||
     widgetEditorActionsToolbarText.includes('min-w-[40px]')
   ) {
-    throw new Error('expected Storyboard Widget and panel text action buttons to use shared responsive text action button owners')
+    throw new Error('expected Storyboard Widget icon actions and panel text action buttons to use their shared responsive button owners')
   }
   if (
     !threeSizingAndWidthControlsText.includes('UI_RESPONSIVE_CONSTRAINED_VALUE_FIELD_CLASSNAME') ||
@@ -2064,7 +2099,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !dataViewToolbarButtonText.includes('UI_RESPONSIVE_DATA_VIEW_ICON_ACTION_DEFAULT_CLASSNAME') ||
     !dataViewToolbarButtonText.includes('getDataViewToolbarButtonClassName') ||
     !dataViewToolbarButtonText.includes('getDataViewIconButtonClassName') ||
-    !workspaceDataViewHeaderText.includes('UI_RESPONSIVE_DATA_VIEW_ACTION_DEFAULT_CLASSNAME') ||
+    !workspaceDataViewHeaderText.includes('getDataViewIconButtonClassName') ||
     !workspaceDataViewFilterMenuText.includes('UI_RESPONSIVE_DATA_VIEW_ACTION_DEFAULT_CLASSNAME') ||
     [dataViewToolbarButtonText, workspaceDataViewHeaderText, workspaceDataViewFilterMenuText, workspaceDataViewSettingsFilterText, workspaceDataViewSettingsSortText, workspaceDataViewSettingsPropertiesText].some(text =>
       text.includes(staleDataViewSmallActionSizingClass()) ||
@@ -2105,7 +2140,9 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !markdownDataViewTableViewText.includes('UI_RESPONSIVE_DATA_VIEW_MENU_PANEL_CLASSNAME') ||
     !markdownDataViewTableViewText.includes('UI_RESPONSIVE_DATA_VIEW_TABLE_FRAME_CLASSNAME') ||
     !markdownDataViewTableViewText.includes('UI_RESPONSIVE_DATA_VIEW_TABLE_VALUE_CLASSNAME') ||
-    !markdownDataViewTableViewText.includes('UI_RESPONSIVE_DATA_VIEW_TABLE_PROGRESS_CLASSNAME') || !markdownDataViewTableViewText.includes('MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS') ||
+    !markdownDataViewTableViewText.includes('UI_RESPONSIVE_DATA_VIEW_TABLE_PROGRESS_CLASSNAME') ||
+    !markdownDataViewTableViewText.includes('MarkdownDataViewInlineTextCellEditor') ||
+    !markdownDataViewInlineTextCellEditorText.includes('MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS') ||
     !markdownDataViewKanbanCardText.includes('UI_RESPONSIVE_DATA_VIEW_COMPACT_MENU_PANEL_CLASSNAME') ||
     !markdownDataViewKanbanCardText.includes('UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME') ||
     !markdownDataViewKanbanGroupText.includes('UI_RESPONSIVE_SMALL_ICON_ACTION_CLASSNAME') ||
@@ -2782,7 +2819,7 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     !importUrlPromptText.includes('UI_RESPONSIVE_IMPORT_URL_FIELD_CLASSNAME') ||
     !importUrlPromptText.includes('UI_RESPONSIVE_IMPORT_URL_CONFIRM_ACTION_CLASSNAME') ||
     !importUrlRendererSelectText.includes('UI_RESPONSIVE_IMPORT_URL_FIELD_CLASSNAME') ||
-    !launchDropdownText.includes('UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME') ||
+    !launchDropdownImportUrlItemText.includes('UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME') ||
     importUrlPromptText.includes('h-6 px-2 inline-flex items-center justify-center rounded border text-xs') ||
     importUrlPromptText.includes('kg-import-url-input flex-1 min-w-0 h-[var(--kg-control-height,28px)] px-2 rounded border box-border text-xs') ||
     importUrlPromptText.includes('kg-import-url-confirm h-[var(--kg-control-height,28px)] px-2 inline-flex items-center justify-center rounded border text-xs') ||

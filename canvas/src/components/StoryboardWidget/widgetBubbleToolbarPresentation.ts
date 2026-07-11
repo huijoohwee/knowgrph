@@ -7,7 +7,6 @@ import {
 const FLOW_WIDGET_BUBBLE_TOOLBAR_NAV_STYLE = {
   pointerEvents: 'auto',
   top: -WIDGET_ACTIONS_TOOLBAR_OFFSET_PX,
-  transform: 'translateX(-50%)',
 } as const
 const WIDGET_BUBBLE_TOOLBAR_ICON_SIZE_CLASS = 'h-3.5 w-3.5'
 const WIDGET_BUBBLE_TOOLBAR_ICON_STROKE_WIDTH = 1.8
@@ -29,7 +28,7 @@ export type WidgetBubbleToolbarPresentation = Pick<
   | 'maxWidthPx'
 >
 
-const WIDGET_BUBBLE_TOOLBAR_NAV_CLASS_NAME = 'absolute left-1/2 z-10'
+const WIDGET_BUBBLE_TOOLBAR_NAV_CLASS_NAME = 'absolute inset-x-0 mx-auto z-10'
 
 const readWidgetBubbleToolbarPlacementClassName = (_placement: WidgetBubbleToolbarPlacement): string =>
   WIDGET_BUBBLE_TOOLBAR_NAV_CLASS_NAME

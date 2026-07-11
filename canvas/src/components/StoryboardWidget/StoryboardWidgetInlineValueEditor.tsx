@@ -29,7 +29,7 @@ export const StoryboardWidgetInlineValueEditor = React.memo(function StoryboardW
     ariaLabel,
     placeholder,
     multiline = false,
-    editorSurface = 'viewer',
+    editorSurface = 'control',
     rows,
     className,
     displayClassName,

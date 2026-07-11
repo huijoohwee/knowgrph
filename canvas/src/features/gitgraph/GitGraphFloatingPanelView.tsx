@@ -19,6 +19,8 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { useStoryboardWidgetDiagramSelectionBridge } from './useStoryboardWidgetDiagramSelectionBridge'
 import { useMermaidGitGraphDocument } from './useMermaidGitGraphDocument'
+import { HistoryUndoRedoControls } from '@/features/history/HistoryUndoRedoControls'
+import { getIconSizeClass } from '@/lib/ui'
 
 const GITGRAPH_COMMAND_LABELS: Record<MermaidGitGraphAddKind, string> = {
   commit: 'Commit',
@@ -43,15 +45,27 @@ export function GitGraphFloatingPanelView() {
     mermaidDiagramSelectedRowKey,
     setGitGraphSelectedCommandLineIndex,
     setMermaidDiagramSelectedRowKey,
+    uiIconScale,
+    uiIconStrokeWidth,
+    history,
+    historyIndex,
+    restoreHistory,
   } = useGraphStore(
     useShallow(state => ({
       gitGraphSelectedCommandLineIndex: state.gitGraphSelectedCommandLineIndex,
       mermaidDiagramSelectedRowKey: state.mermaidDiagramSelectedRowKeyByKind.gitgraph || '',
       setGitGraphSelectedCommandLineIndex: state.setGitGraphSelectedCommandLineIndex,
       setMermaidDiagramSelectedRowKey: state.setMermaidDiagramSelectedRowKey,
+      uiIconScale: state.uiIconScale,
+      uiIconStrokeWidth: state.uiIconStrokeWidth,
+      history: state.history,
+      historyIndex: state.historyIndex,
+      restoreHistory: state.restoreHistory,
     })),
   )
+  const iconSizeClass = getIconSizeClass(uiIconScale)
   const { code, commitGitGraphCode, gitGraphModel, graphData } = useMermaidGitGraphDocument()
+  const usesRuntimeHistory = !code && history.length > 0
   const gitGraphDiagramModel = React.useMemo(() => parseMermaidDiagramCodeModel(code, 'gitgraph'), [code])
   const { handleDiagramSelectedRowKeyChange } = useStoryboardWidgetDiagramSelectionBridge({
     graphData,
@@ -87,16 +101,18 @@ export function GitGraphFloatingPanelView() {
   }, [handleDiagramSelectedRowKeyChange, resolveCommandSelectionKey, setGitGraphSelectedCommandLineIndex, setMermaidDiagramSelectedRowKey])
 
   React.useEffect(() => {
+    if (usesRuntimeHistory) return
     if (gitGraphSelectedCommandLineIndex == null) return
     if (gitGraphModel.commands.some(command => command.lineIndex === gitGraphSelectedCommandLineIndex)) return
     setGitGraphSelectedCommandLineIndex(null)
-  }, [gitGraphModel.commands, gitGraphSelectedCommandLineIndex, setGitGraphSelectedCommandLineIndex])
+  }, [gitGraphModel.commands, gitGraphSelectedCommandLineIndex, setGitGraphSelectedCommandLineIndex, usesRuntimeHistory])
 
   React.useEffect(() => {
+    if (usesRuntimeHistory) return
     if (!mermaidDiagramSelectedRowKey) return
     if (findGitGraphCommandForRowKey(gitGraphModel.commands, mermaidDiagramSelectedRowKey, gitGraphDiagramModel)) return
     setMermaidDiagramSelectedRowKey('gitgraph', null)
-  }, [gitGraphDiagramModel, gitGraphModel.commands, mermaidDiagramSelectedRowKey, setMermaidDiagramSelectedRowKey])
+  }, [gitGraphDiagramModel, gitGraphModel.commands, mermaidDiagramSelectedRowKey, setMermaidDiagramSelectedRowKey, usesRuntimeHistory])
 
   React.useEffect(() => {
     if (!sharedSelectedCommand) return
@@ -105,6 +121,7 @@ export function GitGraphFloatingPanelView() {
   }, [gitGraphSelectedCommandLineIndex, setGitGraphSelectedCommandLineIndex, sharedSelectedCommand])
 
   React.useLayoutEffect(() => {
+    if (usesRuntimeHistory) return
     if (gitGraphSelectedCommandLineIndex == null) return
     const frame = window.requestAnimationFrame(() => {
       const row = commandListRef.current?.querySelector(
@@ -114,7 +131,7 @@ export function GitGraphFloatingPanelView() {
       row.scrollIntoView({ block: 'center' })
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [gitGraphModel.commands.length, gitGraphSelectedCommandLineIndex])
+  }, [gitGraphModel.commands.length, gitGraphSelectedCommandLineIndex, usesRuntimeHistory])
 
   const addCommand = React.useCallback((kind: MermaidGitGraphAddKind) => {
     if (!code) return
@@ -151,8 +168,33 @@ export function GitGraphFloatingPanelView() {
   if (!code) {
     return (
       <section className="flex h-full flex-col" aria-label="GitGraph command editor" data-kg-gitgraph-floating-panel="1">
-        <section className={cn('px-1 py-1 text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>GitGraph</section>
-        <section className={cn('px-1 text-xs', UI_THEME_TOKENS.text.secondary)}>No GitGraph Mermaid frontmatter.</section>
+        <header className="flex items-center justify-between gap-2 px-1 py-1">
+          <span className={cn('truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>GitGraph</span>
+          <HistoryUndoRedoControls iconSizeClass={iconSizeClass} iconStrokeWidth={uiIconStrokeWidth} />
+        </header>
+        {history.length ? (
+          <ol className="min-h-0 flex-1 overflow-auto rounded-md border border-[var(--kg-border)]" aria-label="Version history list">
+            {history.map((entry, index) => (
+              <li key={entry.id}>
+                <button
+                  type="button"
+                  className={cn(
+                    'flex w-full items-center justify-between gap-2 border-b border-[var(--kg-border)] px-2 py-1.5 text-left text-xs last:border-b-0',
+                    index === historyIndex ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.button.hoverBg,
+                  )}
+                  aria-current={index === historyIndex ? 'step' : undefined}
+                  onClick={() => restoreHistory(index)}
+                  data-kg-version-history-index={index}
+                >
+                  <span className="min-w-0 flex-1 truncate">{entry.label}</span>
+                  <span className={UI_THEME_TOKENS.text.tertiary}>v{index + 1}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <section className={cn('px-1 text-xs', UI_THEME_TOKENS.text.secondary)}>No version history yet.</section>
+        )}
       </section>
     )
   }
@@ -173,16 +215,19 @@ export function GitGraphFloatingPanelView() {
             {buildCommandDescription(selectedCommand)}
           </section>
         </section>
-        <button
-          type="button"
-          className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
-          aria-label="Edit selected GitGraph command"
-          title="Edit selected GitGraph command"
-          disabled={!selectedCommand}
-          onClick={() => setEditRequestKey(value => value + 1)}
-        >
-          <PencilLine className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
+        <nav className="flex items-center gap-1" aria-label="GitGraph version and edit controls">
+          <HistoryUndoRedoControls iconSizeClass={iconSizeClass} iconStrokeWidth={uiIconStrokeWidth} />
+          <button
+            type="button"
+            className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
+            aria-label="Edit selected GitGraph command"
+            title="Edit selected GitGraph command"
+            disabled={!selectedCommand}
+            onClick={() => setEditRequestKey(value => value + 1)}
+          >
+            <PencilLine className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </nav>
       </header>
       <section className={GITGRAPH_CREATE_ACTION_GRID_CLASS_NAME} data-kg-gitgraph-create-actions="1">
         <button

@@ -242,6 +242,16 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
     )
     await execTest(
       results,
+      'ui.graphOverlay.remove.clearsPendingProjectionBeforeAuthorities',
+      modRichMediaOpenWidgetExclusion.testGraphOverlayRemovalClearsPendingProjectionBeforeSourceAndDraft,
+    )
+    await execTest(
+      results,
+      'ui.storyboardWidget.remove.publishesDraftImmediately',
+      modRichMediaOpenWidgetExclusion.testStoryboardWidgetRemovalPublishesDraftStateImmediately,
+    )
+    await execTest(
+      results,
       'ui.storyboardWidget.richMediaPanel.graphState.noStoreGraphFallback',
       modRichMediaOpenWidgetExclusion.testFlowCanvasGraphStateDoesNotFallbackToStoreGraphForStoryboardWidgetWhenOverrideIsEmpty,
     )

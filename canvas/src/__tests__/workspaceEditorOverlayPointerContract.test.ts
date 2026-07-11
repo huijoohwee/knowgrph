@@ -126,6 +126,8 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   const workspaceSelectText = readFileSync(workspaceSelectPath, 'utf8')
   const workspaceSsotPath = resolve(process.cwd(), 'src', 'features', 'workspace-table', 'workspaceTableSsot.ts')
   const workspaceSsotText = readFileSync(workspaceSsotPath, 'utf8')
+  const workspaceEditorPanePath = resolve(process.cwd(), 'src', 'features', 'workspace-table', 'workspaceEditorPane.ts')
+  const workspaceEditorPaneText = readFileSync(workspaceEditorPanePath, 'utf8')
   const uiInitialStatePath = resolve(process.cwd(), 'src', 'hooks', 'store', 'uiSliceInitialState.ts')
   const uiInitialStateText = readFileSync(uiInitialStatePath, 'utf8')
   const workspaceToolbarPath = resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'MarkdownWorkspaceToolbar.tsx')
@@ -135,7 +137,10 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   if (!text.includes('const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })')) {
     throw new Error('expected Canvas page to derive overlay-open state from canonical store state only')
   }
-  if (!text.includes('{!workspaceEditorOverlayOpen ? (')) {
+  if (
+    !text.includes('!workspaceEditorOverlayOpen') ||
+    !text.includes('aria-label="Canvas Toolbar"')
+  ) {
     throw new Error('expected Canvas toolbar visibility to depend on overlay-open state, not workspace editor mode alone')
   }
   if (text.includes('effectiveWorkspaceViewMode')) {
@@ -144,7 +149,10 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   if (!text.includes('{workspaceCanvasPaneVisible ? (')) {
     throw new Error('expected Canvas page to mount the canvas-side toolbar only while the Canvas pane is checked')
   }
-  if (!text.includes('{workspaceEditorOverlayOpen ? (')) {
+  if (
+    !text.includes('workspaceEditorOverlayOpen') ||
+    !text.includes('aria-label="Workspace editor overlay shell"')
+  ) {
     throw new Error('expected Canvas page to keep the workspace editor overlay mounted throughout editor mode')
   }
   if (!text.includes('aria-label="Workspace editor overlay shell"')) {
@@ -177,10 +185,10 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   if (text.includes("${workspaceEditorOverlayOpen ? '' : 'hidden'}")) {
     throw new Error('expected Canvas page not to keep a hidden workspace editor separator mounted while the pane is off')
   }
-  if (!workspaceSsotText.includes('export function openWorkspaceEditorPane')) {
+  if (!workspaceSsotText.includes('openWorkspaceEditorPane')) {
     throw new Error('expected workspace editor open flow to stay centralized in a shared helper')
   }
-  if (!workspaceSsotText.includes("args.setWorkspaceViewState({ mode: 'editor', paneOpen: true })")) {
+  if (!workspaceEditorPaneText.includes("args.setWorkspaceViewState({ mode: 'editor', paneOpen: true })")) {
     throw new Error('expected shared workspace open helper to reopen the canvas pane atomically and clear stale OFF residue')
   }
   if (!uiInitialStateText.includes('const initialWorkspaceCanvasPaneOpen = lsBool(LS_KEYS.workspaceCanvasPaneOpen, true)')) {
@@ -189,7 +197,7 @@ export function testWorkspaceEditorOverlayDoesNotShrinkCanvasViewport() {
   if (!text.includes("style={{ width: workspaceCanvasPaneVisible ? workspacePaneBoundaryCss : '100%' }}")) {
     throw new Error('expected unchecked Canvas pane to let Editor Workspace fully cover the canvas')
   }
-  if (!workspaceSsotText.includes("args.setWorkspaceViewState({ mode: 'editor', paneOpen: true })")) {
+  if (!workspaceEditorPaneText.includes("args.setWorkspaceViewState({ mode: 'editor', paneOpen: true })")) {
     throw new Error('expected shared workspace open helper to prefer atomic editor/pane-open transition')
   }
   if (!workspaceSsotText.includes('export function closeWorkspaceView')) {

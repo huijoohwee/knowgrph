@@ -98,6 +98,7 @@ import {
   UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME,
   UI_RESPONSIVE_STORYBOARD_FILTER_ACTION_CLASSNAME,
   UI_RESPONSIVE_STORYBOARD_INDEX_BADGE_CLASSNAME,
+  UI_RESPONSIVE_STORYBOARD_REFERENCE_LINK_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import {
   createStrytreeCandidateRunAction,
@@ -120,7 +121,7 @@ import { createUniqueId } from '@/lib/ids'
 import { createStoryboardWidgetWorkflowNodeRunner, resolveStoryboardWidgetBaseGraphKind } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunAction'
 import { resolveStoryboardPaintScale } from '@/components/StoryboardCanvas/storyboardInfiniteZoomMetrics'
 import { openWorkflowManagerMappingForNode } from '@/features/storyboard-widget-manager/openWorkflowManagerMappingForNode'
-import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
+import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
 import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
 import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
@@ -1071,14 +1072,13 @@ export default function StoryboardCanvas({
     addNode(nextNode)
     const committedGraphData = useGraphStore.getState().graphData as GraphData | null
     const committedNodes = Array.isArray(committedGraphData?.nodes) ? committedGraphData.nodes : []
-    const exactId = committedNodes.find(node => String(node.id || '').trim() === nextId)?.id
-    const composedId = committedNodes.find(node => String(node.id || '').trim().endsWith(`::${nextId}`))?.id
+    const canonicalId = resolveGraphNodeByCanonicalId(committedGraphData, nextId)?.id
     const insertedId = committedNodes.find(node => {
       const nodeId = String(node.id || '').trim()
       if (!nodeId || beforeIds.has(nodeId)) return false
       return String(node.label || '').trim() === label && String(node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
     })?.id
-    const selectedId = String(exactId || composedId || insertedId || nextId).trim() || nextId
+    const selectedId = String(canonicalId || insertedId || nextId).trim() || nextId
     setSelectionSource('canvas')
     selectNode(selectedId)
     updateOpenWidgetNodeIds(prev => (prev.includes(selectedId) ? prev : [...prev, selectedId]))
@@ -1155,14 +1155,13 @@ export default function StoryboardCanvas({
     addNode(nextNode)
     const committedGraphData = useGraphStore.getState().graphData as GraphData | null
     const committedNodes = Array.isArray(committedGraphData?.nodes) ? committedGraphData.nodes : []
-    const exactId = committedNodes.find(node => String(node.id || '').trim() === nextId)?.id
-    const composedId = committedNodes.find(node => String(node.id || '').trim().endsWith(`::${nextId}`))?.id
+    const canonicalId = resolveGraphNodeByCanonicalId(committedGraphData, nextId)?.id
     const insertedId = committedNodes.find(node => {
       const nodeId = String(node.id || '').trim()
       if (!nodeId || beforeIds.has(nodeId)) return false
       return String(node.label || '').trim() === label && String(node.type || '').trim() === type
     })?.id
-    selectNode(String(exactId || composedId || insertedId || nextId))
+    selectNode(String(canonicalId || insertedId || nextId))
   }, [addNode, board.lanes, cardById, commitStoryboardMarkdownMutation, currentPropertiesByCardId, graphData, markdownDocumentText, selectNode, selectedNodeId, visibleLanes])
   const resolveStoryboardActionTarget = React.useCallback((cardId: string) => {
     const sourceNode = nodeById.get(cardId) || null
@@ -2648,7 +2647,7 @@ export default function StoryboardCanvas({
                                           href={card.href}
                                           target="_blank"
                                           rel="noreferrer"
-                                          className={CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME}
+                                          className={[UI_RESPONSIVE_STORYBOARD_REFERENCE_LINK_CLASSNAME, CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME].join(' ')}
                                           draggable={false}
                                           onClick={event => {
                                             event.stopPropagation()
@@ -2693,7 +2692,7 @@ export default function StoryboardCanvas({
                                     href={card.href}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className={['inline-flex max-w-full items-center gap-1 text-xs underline underline-offset-2', UI_THEME_TOKENS.text.secondary].join(' ')}
+                                    className={[UI_RESPONSIVE_STORYBOARD_REFERENCE_LINK_CLASSNAME, 'inline-flex max-w-full items-center gap-1 text-xs underline underline-offset-2', UI_THEME_TOKENS.text.secondary].join(' ')}
                                     draggable={false}
                                     onClick={event => {
                                       event.stopPropagation()

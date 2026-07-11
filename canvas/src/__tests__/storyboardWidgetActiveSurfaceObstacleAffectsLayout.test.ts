@@ -84,6 +84,33 @@ export function testStoryboardWidgetCanonicalOverlayRectEntriesSkipTransientOffs
   }
 }
 
+export function testPinnedRichMediaRectBeatsFullscreenSemanticProxy() {
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body></body></html>')
+  try {
+    const doc = dom.window.document
+    const semanticProxy = doc.createElement('section')
+    semanticProxy.setAttribute('data-kg-storyboard-widget-surface', 'surface-a')
+    semanticProxy.setAttribute('data-node-id', 'media-a')
+    setFixedRect(semanticProxy, { left: 0, top: 0, width: 1113, height: 998 })
+
+    const pinnedPanel = doc.createElement('section')
+    pinnedPanel.setAttribute('data-kg-storyboard-widget-mode', '1')
+    pinnedPanel.setAttribute('data-kg-storyboard-widget-surface', 'surface-a')
+    pinnedPanel.setAttribute('data-kg-rich-media-overlay', '1')
+    pinnedPanel.setAttribute('data-kg-canvas-overlay-pinned', '1')
+    pinnedPanel.setAttribute('data-node-id', 'media-a')
+    setFixedRect(pinnedPanel, { left: 376, top: 788, width: 196, height: 109 })
+
+    const entries = collectCanonicalStoryboardWidgetOverlayRectEntries([semanticProxy, pinnedPanel])
+    const entry = entries[0] || null
+    if (entries.length !== 1 || entry?.el !== pinnedPanel) {
+      throw new Error('expected the visible pinned Rich Media Panel to own edge-anchor geometry over a fullscreen semantic proxy')
+    }
+  } finally {
+    restore()
+  }
+}
+
 export async function testStoryboardWidgetActiveSurfaceObstaclesAffectFinalRichMediaLayoutPlacement() {
   const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
   try {

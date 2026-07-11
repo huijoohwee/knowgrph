@@ -7,6 +7,7 @@ import { getUiSectionStatusChipClassName } from '@/lib/ui/sectionChipChrome'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME,
+  UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { ChatModelCredentialControls } from '@/features/chat/ChatModelCredentialControls'
 import { FloatingPanelChatComposer } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposer'
@@ -480,6 +481,7 @@ export function FloatingPanelChatFooter({
           isSubmitDisabled={isSubmitDisabled}
           uiPanelTextFontClass={uiPanelTextFontClass}
           placeholder={UI_COPY.chatInputPlaceholder}
+          responsiveEditorClassName={UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME}
         />
 
         <section className={`flex items-center gap-2 ${currentNode ? 'justify-between' : 'justify-end'}`}>

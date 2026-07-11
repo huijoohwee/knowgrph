@@ -15,7 +15,6 @@ import { buildFlowRunAllNodeSequence, type FlowRunAllPhaseId } from '@/lib/story
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import { buildFrontmatterOverlayNodeLookup, resolveFrontmatterOverlayEdgeCurveOptions } from '@/lib/storyboardWidget/frontmatterCollectiveLayout'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
-import { appendStoryboardCardMediaDropOverlayEdges } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayMediaDropEdges'
 import {
   readCachedStoryboardWidgetOverlayEdgeGraph,
   readCachedStoryboardWidgetRenderGraph,
@@ -323,18 +322,6 @@ export function getCachedStoryboardWidgetOverlayEdgeGraph(args: {
       edgeType: String(edge?.type || '').trim() || readPropString(props, 'flow:socketType'),
     })
   }
-  appendStoryboardCardMediaDropOverlayEdges({
-    defaultPortKeyByNodeId,
-    edgeCurveById,
-    edges,
-    graphMetaKind: baseGraph.graphMetaKind,
-    nodeIds,
-    nodes,
-    overlayNodeById,
-    rawEdgeById,
-    readCanonicalId: readCanonicalStoryboardWidgetOverlayIdentity,
-  })
-
   return writeCachedStoryboardWidgetOverlayEdgeGraph(cacheKey, {
     graphSemanticKey,
     graphMetaKind: baseGraph.graphMetaKind,

@@ -3,15 +3,19 @@ import { STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY } from '@/components/Storyb
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY, readFlowEdgePortKey } from '@/lib/graph/flowPorts'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { createUniqueId } from '@/lib/ids'
+import { buildInlineMediaUrlIdentityKey } from '@/lib/command-menu/inlineMediaUrlIdentity'
+import { hashString32 } from '@/lib/hash/stringHash'
 import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
 import { buildRichMediaPanelDroppedMediaProperties, buildRichMediaPanelNode, isRichMediaPanelNode } from '@/lib/render/richMediaPanelNode'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 
 export const CARD_MEDIA_DROP_EDGE_TARGET_PORT = 'mediaUrl'
 const CARD_MEDIA_DROP_EDGE_LABEL = 'linksTo'
 const CARD_MEDIA_DROP_SOURCE_KEY = 'storyboard-card-media-drop'
 const CARD_MEDIA_DROP_EDGE_KEY = 'storyboardCardMediaDropEdge'
 const CARD_MEDIA_DROP_TARGET_KEY = 'storyboardCardMediaTargetId'
+const CARD_MEDIA_DROP_SEMANTIC_KEY = 'storyboardCardMediaSemanticKey'
 const CARD_MEDIA_DROP_SOURCE_KIND_KEY = 'storyboardCardMediaSourceKind'
 const CARD_MEDIA_DROP_PANEL_X_OFFSET = Math.round(RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width / 3)
 const CARD_MEDIA_DROP_PANEL_VERTICAL_GAP = Math.round(RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height / 6)
@@ -25,9 +29,6 @@ export type StoryboardCardMediaDropGraphResult = {
 }
 
 const clean = (value: unknown): string => String(value || '').trim()
-
-const readNodeById = (nodes: readonly GraphNode[], id: string): GraphNode | null =>
-  nodes.find(node => clean(node?.id) === id) || null
 
 const readSourcePortForMedia = (kind: MediaDragPayload['kind']): string => {
   if (kind === 'video') return 'videoUrl'
@@ -72,24 +73,20 @@ const readNodeProperties = (node: { properties?: unknown } | null | undefined): 
     ? node.properties as Record<string, unknown>
     : {}
 
-const isDropOwnedPanelNodeForCard = (node: CardMediaDropPanelNodeLike, cardId: string): boolean => {
+const isDropOwnedPanelNode = (node: CardMediaDropPanelNodeLike): boolean => {
   if (!isRichMediaPanelNode(node)) return false
   const props = readNodeProperties(node)
-  return clean(props[CARD_MEDIA_DROP_TARGET_KEY]) === cardId && clean(props.mediaSource) === CARD_MEDIA_DROP_SOURCE_KEY
+  return clean(props.mediaSource) === CARD_MEDIA_DROP_SOURCE_KEY
 }
 
-export const isStoryboardCardMediaDropPanelNodeForCard = (
-  node: CardMediaDropPanelNodeLike,
-  cardId: string,
-): boolean => isDropOwnedPanelNodeForCard(node, clean(cardId))
+const buildMediaSemanticKey = (media: MediaDragPayload): string =>
+  buildInlineMediaUrlIdentityKey(media.url) || clean(media.sourceKey)
 
-export const readStoryboardCardMediaDropPanelTargetId = (
-  node: CardMediaDropPanelNodeLike,
-): string => {
+const readPanelMediaSemanticKey = (node: CardMediaDropPanelNodeLike): string => {
   if (!isRichMediaPanelNode(node)) return ''
   const props = readNodeProperties(node)
-  if (clean(props.mediaSource) !== CARD_MEDIA_DROP_SOURCE_KEY) return ''
-  return clean(props[CARD_MEDIA_DROP_TARGET_KEY])
+  return clean(props[CARD_MEDIA_DROP_SEMANTIC_KEY])
+    || buildInlineMediaUrlIdentityKey(props.videoUrl || props.audioUrl || props.imageUrl || props.mediaUrl || props.src)
 }
 
 export const readStoryboardCardMediaDropPanelSourcePortKey = (
@@ -127,31 +124,17 @@ export const isStoryboardCardMediaDropOverlayEdge = (
 ): boolean => {
   const normalizedCardId = clean(cardId)
   if (!normalizedCardId || clean(edge?.target) !== normalizedCardId) return false
-  return isStoryboardCardMediaDropEdge(edge, normalizedCardId)
-    || isStoryboardCardMediaDropPanelNodeForCard(sourceNode, normalizedCardId)
+  return isStoryboardCardMediaDropEdge(edge, normalizedCardId) && isDropOwnedPanelNode(sourceNode)
 }
 
 const isCardMediaTargetEdge = (edge: GraphEdge, cardId: string): boolean =>
   clean(edge.target) === cardId && readFlowEdgePortKey(edge, 'target') === CARD_MEDIA_DROP_EDGE_TARGET_PORT
 
-const findReusableMediaPanelEdge = (args: {
-  cardId: string
-  edges: readonly GraphEdge[]
-  nodes: readonly GraphNode[]
-}): GraphEdge | null => {
-  for (const edge of args.edges) {
-    if (!isStoryboardCardMediaDropEdge(edge, args.cardId)) continue
-    const sourceNode = readNodeById(args.nodes, clean(edge.source))
-    if (isDropOwnedPanelNodeForCard(sourceNode, args.cardId)) return edge
-  }
-  return null
-}
+const findReusableMediaPanelNode = (nodes: readonly GraphNode[], mediaSemanticKey: string): GraphNode | null =>
+  nodes.find(node => readPanelMediaSemanticKey(node) === mediaSemanticKey) || null
 
-const findReusableMediaPanelNode = (nodes: readonly GraphNode[], cardId: string): GraphNode | null =>
-  nodes.find(node => isDropOwnedPanelNodeForCard(node, cardId)) || null
-
-const buildPanelId = (cardId: string, usedIds: ReadonlySet<string>): string => {
-  const base = `${cardId.replace(/[^a-zA-Z0-9_.:-]+/g, '-').replace(/^-+|-+$/g, '') || 'card'}-media-panel`
+const buildPanelId = (mediaSemanticKey: string, usedIds: ReadonlySet<string>): string => {
+  const base = `media-panel-${hashString32(mediaSemanticKey).toString(16).padStart(8, '0')}`
   if (!usedIds.has(base)) return base
   return createUniqueId(`${base}-`, new Set(usedIds))
 }
@@ -182,18 +165,21 @@ export function applyStoryboardCardMediaDropGraph(args: {
   graphData: GraphData
   media: MediaDragPayload
 }): StoryboardCardMediaDropGraphResult | null {
-  const cardId = clean(args.cardId)
+  const requestedCardId = clean(args.cardId)
   const mediaUrl = clean(args.media.url)
-  if (!cardId || !mediaUrl) return null
+  const mediaSemanticKey = buildMediaSemanticKey(args.media)
+  if (!requestedCardId || !mediaUrl || !mediaSemanticKey) return null
   const nodes = Array.isArray(args.graphData.nodes) ? args.graphData.nodes : []
   const edges = Array.isArray(args.graphData.edges) ? args.graphData.edges : []
-  const cardNode = readNodeById(nodes, cardId)
+  const cardNode = resolveGraphNodeByCanonicalId(args.graphData, requestedCardId)
   if (!cardNode) return null
+  const cardId = clean(cardNode.id)
+  if (!cardId) return null
 
-  const reusableEdge = findReusableMediaPanelEdge({ cardId, edges, nodes })
-  const reusablePanel = reusableEdge ? readNodeById(nodes, clean(reusableEdge.source)) : findReusableMediaPanelNode(nodes, cardId)
+  const reusablePanel = findReusableMediaPanelNode(nodes, mediaSemanticKey)
   const usedIds = new Set(nodes.map(node => clean(node?.id)).filter(Boolean))
-  const panelId = clean(reusablePanel?.id) || buildPanelId(cardId, usedIds)
+  const panelId = clean(reusablePanel?.id) || buildPanelId(mediaSemanticKey, usedIds)
+  const reusableEdge = edges.find(edge => isStoryboardCardMediaDropEdge(edge, cardId) && clean(edge.source) === panelId) || null
   const sourcePort = readSourcePortForMedia(args.media.kind)
   const panelLabel = clean(args.media.label) || clean(cardNode.label) || 'Card media'
   const panelPlacement = readCardMediaDropPanelPlacement(cardNode)
@@ -205,14 +191,15 @@ export function applyStoryboardCardMediaDropGraph(args: {
     yOffset: panelPlacement.yOffset,
   })
   const panelProperties = {
+    ...readNodeProperties(reusablePanel),
     ...buildRichMediaPanelDroppedMediaProperties({ ...args.media, url: mediaUrl, label: panelLabel }),
-    [CARD_MEDIA_DROP_TARGET_KEY]: cardId,
+    [CARD_MEDIA_DROP_SEMANTIC_KEY]: mediaSemanticKey,
     [CARD_MEDIA_DROP_SOURCE_KIND_KEY]: args.media.kind,
     [STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY]: true,
-    mediaSource: CARD_MEDIA_DROP_SOURCE_KEY,
+    ...(!reusablePanel || isDropOwnedPanelNode(reusablePanel) ? { mediaSource: CARD_MEDIA_DROP_SOURCE_KEY } : {}),
   }
   const shouldApplyPanelPlacement = !reusablePanel
-    || (isDropOwnedPanelNodeForCard(reusablePanel, cardId) && readFiniteNumber(reusablePanel.fx) == null && readFiniteNumber(reusablePanel.fy) == null)
+    || (isDropOwnedPanelNode(reusablePanel) && readFiniteNumber(reusablePanel.fx) == null && readFiniteNumber(reusablePanel.fy) == null)
   const nextPanelNode = {
     ...panelNode,
     label: panelLabel,
@@ -227,7 +214,7 @@ export function applyStoryboardCardMediaDropGraph(args: {
     .filter(edge => isCardMediaTargetEdge(edge, cardId) && clean(edge.source) !== panelId)
     .map(edge => clean(edge.id))
     .filter(Boolean))
-  const nextNodes = nodes.map(node => {
+  let nextNodes = nodes.map(node => {
     const id = clean(node?.id)
     if (id === cardId) return nextCardNode
     if (id === panelId) return nextPanelNode
@@ -263,6 +250,9 @@ export function applyStoryboardCardMediaDropGraph(args: {
         : edge)
     }
   }
+
+  const referencedPanelIds = new Set(nextEdges.map(edge => clean(edge.source)).filter(Boolean))
+  nextNodes = nextNodes.filter(node => clean(node.id) === panelId || !isDropOwnedPanelNode(node) || referencedPanelIds.has(clean(node.id)))
 
   return {
     createdEdge,

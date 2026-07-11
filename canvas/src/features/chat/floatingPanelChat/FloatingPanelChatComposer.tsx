@@ -50,6 +50,7 @@ type FloatingPanelChatComposerProps = {
   isSubmitDisabled: boolean
   uiPanelTextFontClass: string
   placeholder: string
+  responsiveEditorClassName?: string
 }
 
 const REMOTE_GRAMMAR_SIGIL_BY_TRIGGER_KIND = {
@@ -381,7 +382,7 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
   }, [displayInput.length, props.input, props.setInput])
 
   return (
-    <section ref={anchorRef} className={`relative border rounded overflow-hidden ${UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${projectedLayoutClassName} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
+    <section ref={anchorRef} className={`relative border rounded overflow-hidden ${props.responsiveEditorClassName || UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${projectedLayoutClassName} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
       <section
         className={`flex items-center gap-1 border-b px-2 py-1 sm:hidden ${UI_THEME_TOKENS.panel.border}`}
         aria-label="Mobile grammar quick bar"

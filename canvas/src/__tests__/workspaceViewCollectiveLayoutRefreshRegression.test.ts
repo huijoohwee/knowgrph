@@ -35,6 +35,7 @@ export function testWorkspaceViewUpdateSchedulesStoryboardWidgetCollectiveCollis
   const editorPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'FlowWidgetOverlay.tsx')
   const editorInnerPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorInner.tsx')
   const editorPlacementPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetPlacementRuntime.ts')
+  const editorPlacementStatePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'widgetPlacementRuntimeState.ts')
   const editorViewPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorView.tsx')
   const editorSharedPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'flowWidgetOverlayShared.ts')
   const editorWrapperText = readFileSync(editorPath, 'utf8')
@@ -42,6 +43,7 @@ export function testWorkspaceViewUpdateSchedulesStoryboardWidgetCollectiveCollis
     editorWrapperText,
     editorWrapperText.includes("from '@/components/StoryboardWidget/WidgetEditorInner'") ? readFileSync(editorInnerPath, 'utf8') : '',
     readFileSync(editorPlacementPath, 'utf8'),
+    readFileSync(editorPlacementStatePath, 'utf8'),
     readFileSync(editorViewPath, 'utf8'),
     readFileSync(editorSharedPath, 'utf8'),
   ].join('\n')
@@ -93,10 +95,10 @@ export function testWorkspaceViewUpdateSchedulesStoryboardWidgetCollectiveCollis
   if (!editorText.includes('flowWidgetWorldPosByNodeIdByGraphMetaKey')) {
     throw new Error('expected direct Storyboard Widget world-position in-memory updates to mirror graph-keyed SSOT while workspace mutation is blocked')
   }
-  if (!editorText.includes('state.setFlowWidgetPosByNodeId(next)')) {
+  if (!editorText.includes('state.setFlowWidgetPosByNodeIdForGraph(graphMetaKey, {')) {
     throw new Error('expected direct Storyboard Widget screen-position persistence path to remain available when workspace mutation is not blocked')
   }
-  if (!editorText.includes('setFlowWidgetWorldPosByNodeId(next)')) {
+  if (!editorText.includes('state.setFlowWidgetWorldPosByNodeIdForGraph(graphMetaKey, {')) {
     throw new Error('expected direct Storyboard Widget world-position persistence path to remain available when workspace mutation is not blocked')
   }
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
@@ -913,10 +915,10 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!text.includes('onWheelCapture={mediaOverlayInteractionPolicy.capturePanelEvents ? stopEvent : undefined}')) {
     throw new Error('expected Rich Media overlay wheel capture to follow the shared interaction policy')
   }
-  if (!text.includes('const cancelMediaOverlayInteractionState = React.useCallback(() => {')) {
+  if (!text.includes('const cancelMediaOverlayInteractionState = React.useCallback(')) {
     throw new Error('expected FlowCanvas media overlays to centralize cancellation of delayed interaction writes')
   }
-  const workspaceOpenCancelIndex = text.indexOf('if (workspaceMutationBlocked) cancelMediaOverlayInteractionState()')
+  const workspaceOpenCancelIndex = text.indexOf('if (workspaceMutationBlocked) cancelMediaOverlayInteractionState({ preserveWorldPositionOverrides: true })')
   const schedulerCancelIndex = text.indexOf('mediaOverlayHeaderMoveSchedulerRef.current?.cancel()')
   if (workspaceOpenCancelIndex < 0 || schedulerCancelIndex < 0) {
     throw new Error('expected workspace overlay open transition to cancel queued Rich Media overlay writes before they can flush after close')
@@ -928,7 +930,7 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     throw new Error('expected Rich Media resize runtime writes to remain blocked while workspace mutation blocking is active')
   }
   const resizeGuardIndex = text.indexOf('if (!workspaceMutationBlockedRef.current) {')
-  const resizeWriteIndex = text.indexOf("store.updateNode?.(node.id, { properties: { ...baseProps, 'visual:width': drag.lastW, 'visual:height': drag.lastH } })")
+  const resizeWriteIndex = text.indexOf('const nextProperties = { ...baseProps, \'visual:width\': drag.lastW, \'visual:height\': drag.lastH }')
   if (resizeGuardIndex < 0 || resizeWriteIndex < 0 || resizeGuardIndex > resizeWriteIndex) {
     throw new Error('expected Rich Media resize persistence to be blocked while workspace overlay is open')
   }
@@ -1024,9 +1026,11 @@ export function testCollectiveInitializationIndexingAndWorkspaceToggleDoNotMutat
     throw new Error('expected Storyboard Widget overlay placement runtime to apply collective pan events for rich-media and widget overlays, not floating-only widgets')
   }
   const screenAuthorityPanText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'storyboardWidget', 'screenAuthorityCollectivePan.ts'), 'utf8')
+  const vectorPaintedOverlayProjectionText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'canvas', 'vectorPaintedOverlayProjection.ts'), 'utf8')
   if (!screenAuthorityPanText.includes('applyScreenAuthorityPanDomPositions')
     || !screenAuthorityPanText.includes('queryStoryboardWidgetOverlayRootsForSurface')
-    || !screenAuthorityPanText.includes('el.style.transform = `matrix(')) {
+    || !vectorPaintedOverlayProjectionText.includes('const nextTransform = `matrix(')
+    || !vectorPaintedOverlayProjectionText.includes('el.style.transform = nextTransform')) {
     throw new Error('expected shared screen-authority pan helper to apply surface-scoped DOM transforms for rich-media roots as well as store persistence')
   }
   if (!screenAuthorityPanText.includes('export function shouldUseStoryboardWidgetScreenAuthorityCollectivePan')

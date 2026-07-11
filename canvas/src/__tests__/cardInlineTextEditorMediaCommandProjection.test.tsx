@@ -462,6 +462,7 @@ export async function testCardInlineTextEditorAtCommandSkipsDuplicateUploadedMed
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const committedValues: string[] = []
+  const reconciledMediaUrls: string[] = []
   const publicUrl = 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/airvio-demo.jpg'
   const accessUrl = `${publicUrl}?kg_media_token=token`
   const initialValue = [
@@ -516,6 +517,8 @@ export async function testCardInlineTextEditorAtCommandSkipsDuplicateUploadedMed
           editorSurface: 'control',
           editActivation: 'click',
           multiline: true,
+          mediaCommandMode: 'external',
+          onMediaCommandSelect: candidate => reconciledMediaUrls.push(candidate.url),
           onCommit: next => {
             committedValues.push(next)
           },
@@ -549,6 +552,9 @@ export async function testCardInlineTextEditorAtCommandSkipsDuplicateUploadedMed
     })
     if (committedValues.length !== 0) {
       throw new Error(`expected duplicate @ media insertion to no-op without mutating Action text, got ${JSON.stringify(committedValues)}`)
+    }
+    if (reconciledMediaUrls.length !== 1 || !reconciledMediaUrls[0]?.includes('/upload-demo/image/airvio-demo.jpg')) {
+      throw new Error(`expected duplicate external @ media selection to reconcile the graph owner once, got ${JSON.stringify(reconciledMediaUrls)}`)
     }
   } finally {
     dom.window.localStorage.removeItem(UPLOADED_MEDIA_PANEL_STORAGE_KEY)

@@ -22,6 +22,8 @@ import { importUrlFallback } from '@/features/toolbar/launchDropdownFallbacks'
 import { importStrybldrRunAllSource } from '@/features/strybldr/strybldrRunAllSourceImport'
 import { createStrybldrLocalVideoArtifactFromGraphData } from '@/features/strybldr/strybldrVideoHandoffArtifact'
 import { getDeferredInstallPrompt, promptPwaInstall } from '@/lib/pwa/runtime'
+import { setRunAllLayoutMutationLock } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowRunAll'
+import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import {
   UI_RESPONSIVE_MAIN_PANEL_COLLAPSED_CARD_CLASSNAME,
   UI_RESPONSIVE_MAIN_PANEL_MOBILE_SHEET_CLASSNAME,
@@ -30,6 +32,7 @@ import {
 
 import { ZoomModeSelect } from '@/components/toolbar/ZoomModeSelect';
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
+import { HistoryUndoRedoControls } from '@/features/history/HistoryUndoRedoControls'
 
 interface ToolbarProps {
   onZoomSelection?: () => void;
@@ -86,6 +89,18 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
   const canResetAll = canvas2dRenderer === 'storyboard'
   const strybldrRunAllGraphData = useActiveGraphRenderData(canRunAll && canvas2dRenderer === 'storyboard')
   const [strybldrToolbarRunAllRunning, setStrybldrToolbarRunAllRunning] = useState(false)
+  const primeStoryboardWidgetRunAllLayoutLockFromToolbar = React.useCallback(() => {
+    if (canvas2dRenderer !== 'storyboard') return
+    const state = useGraphStore.getState()
+    disableAutoZoomModesForUserGesture({
+      viewPinned: state.viewPinned,
+      fitToScreenMode: state.fitToScreenMode,
+      zoomToSelectionMode: state.zoomToSelectionMode,
+      setFitToScreenMode: state.setFitToScreenMode,
+      setZoomToSelectionMode: state.setZoomToSelectionMode,
+    })
+    setRunAllLayoutMutationLock(true)
+  }, [canvas2dRenderer])
   const runStrybldrToolbarRunAll = React.useCallback(async () => {
     if (strybldrToolbarRunAllRunning) return
     setStrybldrToolbarRunAllRunning(true)
@@ -302,12 +317,16 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
         className="App-toolbar__btn"
         title={canRunAll ? 'Run all' : 'Run all (Storyboard only)'}
         tooltipContent={canRunAll ? 'Run all' : 'Run all (Storyboard only)'}
+        onPointerDownCapture={() => {
+          primeStoryboardWidgetRunAllLayoutLockFromToolbar()
+        }}
         onClick={() => {
           if (!canRunAll) {
             pushUiToast({ id: 'toolbar-run-all-disabled', kind: 'neutral', message: 'Open Storyboard to run all.', ttlMs: 2200 })
             return
           }
           if (canvas2dRenderer === 'storyboard') {
+            primeStoryboardWidgetRunAllLayoutLockFromToolbar()
             void runStrybldrToolbarRunAll()
             return
           }
@@ -333,6 +352,7 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
         <RotateCcw className={iconSizeClass} strokeWidth={iconStrokeWidth} />
       </IconButton>
       <ZoomModeSelect iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} onZoomSelection={onZoomSelection} />
+      <HistoryUndoRedoControls iconSizeClass={iconSizeClass} iconStrokeWidth={iconStrokeWidth} />
       <hr className="App-toolbar__divider" aria-hidden="true" />
       <IconButton
         className="App-toolbar__btn"

@@ -1,5 +1,6 @@
 import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { ensureWorkspaceFolderPathIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
 import { parseWebkitRelativePath } from '@/features/source-files/webkitRelativePath'
 import type { WorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
 import { deriveMarkdownNameFromPdfFilename } from '@/features/toolbar/ingestUtils'
@@ -25,7 +26,6 @@ import {
   materializeVideoSequenceTimelineImportDocument,
   type VideoSequenceImportAsset,
 } from './videoSequenceTimelineImport'
-import { ensureFolderRel } from './localImportFolderPaths'
 import { materializeSpatialCaptureFilesetImports } from './spatialCaptureFilesetImport'
 import { importPdfFile } from './localImportPdf'
 import { deriveSpatialCaptureStandaloneManifestName, resolveSpatialCaptureStandaloneFormat } from './spatialCaptureFileset'
@@ -512,7 +512,13 @@ export async function importWorkspaceLocalFolder(args: {
         })
         continue
       }
-      const parentPath = relDir ? await ensureFolderRel(args.fs, WORKSPACE_ROOT_PATH, relDir) : WORKSPACE_ROOT_PATH
+      const parentPath = relDir
+        ? await ensureWorkspaceFolderPathIfMissing({
+            fs: args.fs,
+            parentPath: WORKSPACE_ROOT_PATH,
+            relativeFolderPath: relDir,
+          })
+        : WORKSPACE_ROOT_PATH
       const desiredPath = normalizeWorkspacePath(`${parentPath}/${relName}`)
       let unitText = ''
       let unitStatus: CorpusSourceUnit['status'] = 'pending'

@@ -1,6 +1,6 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { MermaidDiagram } from '@/features/panels/views/preview-panel/ui/MermaidDiagram'
+import { MermaidDiagram } from '@/lib/panels/views/preview-panel/ui/MermaidDiagram.impl'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'

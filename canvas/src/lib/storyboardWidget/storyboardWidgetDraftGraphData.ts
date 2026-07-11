@@ -192,9 +192,11 @@ export function resolveStoryboardWidgetDraftGraphDataForBaseReset(args: {
   currentDraftGraphData: GraphData | null
   nextBaseGraphData: GraphData | null
   previousBaseGraphData?: GraphData | null
+  forceBaseReset?: boolean
 }): GraphData | null {
   const base = args.nextBaseGraphData
   if (!base) return null
+  if (args.forceBaseReset) return base
   const current = args.currentDraftGraphData
   if (!current || current === base) return base
   if (args.previousDocumentKey !== args.activeDocumentKey) return base

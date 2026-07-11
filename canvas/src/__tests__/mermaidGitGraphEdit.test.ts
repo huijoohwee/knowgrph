@@ -6,6 +6,10 @@ import {
   replaceMermaidGitGraphCodeInMarkdown,
   updateMermaidGitGraphCommandLine,
 } from '@/lib/mermaid/mermaidGitGraphEdit'
+import { buildVersionHistoryGitGraphCode, readVersionHistoryIndexFromCommitId } from '@/features/gitgraph/versionHistoryGitGraph'
+import type { VersionHistoryEntry } from '@/features/history/versionHistoryTypes'
+import { parseMermaidDiagramCodeModel } from '@/lib/mermaid/mermaidDiagramCode'
+import { findGitGraphCommandForRowKey, resolveGitGraphCommandRowKey } from '@/lib/mermaid/mermaidGitGraphSelection'
 
 const sampleGitGraphCode = [
   '---',
@@ -116,5 +120,43 @@ export function testMermaidGitGraphEditCreatesFrontmatterWhenMissing() {
   const replaced = replaceMermaidGitGraphCodeInMarkdown('# Body', 'gitGraph\n  commit id:"root"')
   if (!replaced.startsWith('---\nmermaid: |\n  gitGraph\n    commit id:"root"\n---\n\n# Body')) {
     throw new Error('expected GitGraph frontmatter to be created when markdown has no YAML block')
+  }
+}
+
+export function testVersionHistoryGitGraphUsesCanonicalDeclaration() {
+  const graphData = { type: 'Graph' as const, nodes: [], edges: [] }
+  const history: VersionHistoryEntry[] = [{
+    id: 'h1',
+    parentId: null,
+    label: 'Initial version',
+    timestamp: 1,
+    source: 'manual',
+    contentSignature: 'signature-1',
+    graphData,
+    graphFieldSettingsById: {},
+    markdownDocumentName: null,
+    markdownDocumentText: null,
+    activeSourceFileSnapshot: null,
+  }]
+  const code = buildVersionHistoryGitGraphCode(history)
+  if (!code.startsWith('gitGraph\n  commit')) {
+    throw new Error(`expected canonical GitGraph declaration, got ${JSON.stringify(code.split('\n')[0])}`)
+  }
+  if (/^gitGraph\s+(?:LR|TB|BT)(?!:)/m.test(code)) {
+    throw new Error('expected version-history GitGraph not to emit an unpunctuated orientation suffix')
+  }
+  if (readVersionHistoryIndexFromCommitId('version_1') !== 0 || readVersionHistoryIndexFromCommitId('version_2') !== 1) {
+    throw new Error('expected generated GitGraph commit ids to map to zero-based history indexes')
+  }
+  if (readVersionHistoryIndexFromCommitId('authored_commit') !== -1) {
+    throw new Error('expected authored GitGraph commit ids not to resolve as runtime history versions')
+  }
+  const diagramModel = parseMermaidDiagramCodeModel(code, 'gitgraph')
+  const commandModel = parseMermaidGitGraphModel(code)
+  const firstCommand = commandModel.commands[0]
+  const rowKey = resolveGitGraphCommandRowKey(firstCommand, 0, diagramModel)
+  const selectedCommand = findGitGraphCommandForRowKey(commandModel.commands, rowKey, diagramModel)
+  if (readVersionHistoryIndexFromCommitId(selectedCommand?.commitId) !== 0) {
+    throw new Error('expected a derived Chart row key to resolve back to its runtime history index')
   }
 }

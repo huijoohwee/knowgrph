@@ -21,10 +21,10 @@ import {
 import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
 
 const ToolbarToolMenuLazy = React.lazy(() =>
-  import('@/features/toolbar/ToolbarToolMenu').then(mod => ({ default: mod.ToolbarToolMenu })),
+  import('@/lib/toolbar/ToolbarToolMenu.impl').then(mod => ({ default: mod.ToolbarToolMenu })),
 )
 const LaunchDropdownLazy = React.lazy(() =>
-  import('@/features/toolbar/LaunchDropdown').then(mod => ({ default: mod.LaunchDropdown })),
+  import('@/lib/toolbar/LaunchDropdown.impl').then(mod => ({ default: mod.LaunchDropdown })),
 )
 
 type ToolbarMenuLauncherProps = {

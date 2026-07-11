@@ -101,17 +101,18 @@ export function useD3PresentationUpdates2d(args: {
   setHoverInfo: Dispatch<SetStateAction<HoverInfo | null>>
 }): void {
   const workspaceViewMode = useGraphStore(s => s.workspaceViewMode)
-  const workspaceCanvasPaneOpen = useGraphStore(s => s.workspaceCanvasPaneOpen)
   const workspaceOverlayOpenRef = useRef(false)
   useEffect(() => {
     const sync = () => {
-      workspaceOverlayOpenRef.current = isWorkspaceEditorOverlayOpen(useGraphStore.getState())
+      const state = useGraphStore.getState()
+      workspaceOverlayOpenRef.current = isWorkspaceEditorOverlayOpen({
+        workspaceViewMode: state.workspaceViewMode,
+        workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
+      })
     }
-    const selectWorkspaceOverlayKey = (state: ReturnType<typeof useGraphStore.getState>) =>
-      `${state.workspaceViewMode}:${state.workspaceCanvasPaneOpen ? 1 : 0}`
     sync()
     return useGraphStore.subscribe(
-      selectWorkspaceOverlayKey,
+      s => s.workspaceViewMode,
       sync,
     )
   }, [])
@@ -352,7 +353,6 @@ export function useD3PresentationUpdates2d(args: {
     tempLinkSelRef,
     multiDimTableModeEnabled,
     zoomRef,
-    workspaceCanvasPaneOpen,
     workspaceViewMode,
   ])
 

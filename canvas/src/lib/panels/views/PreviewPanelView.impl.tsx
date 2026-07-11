@@ -22,7 +22,7 @@ const previewPanelHeaderClassName = `shrink-0 border-b ${UI_THEME_TOKENS.panel.d
 export const PREVIEW_PANEL_MEDIA_FRAME_CLASS_NAME = `kg-preview-panel-media-frame rounded border ${UI_THEME_TOKENS.panel.border}`
 const PREVIEW_PANEL_EMBED_FRAME_CLASS_NAME = `${PREVIEW_PANEL_MEDIA_FRAME_CLASS_NAME} bg-black/5`
 const MermaidDiagramLazy = React.lazy(() =>
-  import('@/features/panels/views/preview-panel/ui/MermaidDiagram').then(mod => ({ default: mod.MermaidDiagram })),
+  import('@/lib/panels/views/preview-panel/ui/MermaidDiagram.impl').then(mod => ({ default: mod.MermaidDiagram })),
 )
 
 export default function PreviewPanelView() {

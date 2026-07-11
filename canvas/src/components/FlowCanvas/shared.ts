@@ -57,6 +57,7 @@ export type FlowCanvasProps = {
   forbidCircleNodes?: boolean
   onNodeChange?: (nodeId: string, patch: Partial<GraphNode>, sourceGraphData?: GraphData | null) => void
   onNodePropertiesChange?: (nodeId: string, patch: Record<string, unknown>, sourceGraphData?: GraphData | null) => void
+  onNodeRemove?: (nodeId: string) => void
 }
 
 export type FlowCanvasMediaOverlayInteractionPolicy = {

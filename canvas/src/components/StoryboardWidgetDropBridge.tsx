@@ -2,6 +2,7 @@ import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { createUniqueId } from '@/lib/ids'
 import {
   buildFloatingPropsPanelAddedNode,
@@ -104,14 +105,13 @@ export default function StoryboardWidgetDropBridge(props: {
       })
       const committedGraph = useGraphStore.getState().graphData as GraphData | null
       const committedNodes = Array.isArray(committedGraph?.nodes) ? (committedGraph.nodes as GraphNode[]) : []
-      const exactId = committedNodes.find(node => String(node.id || '') === id)?.id
-      const composedId = committedNodes.find(node => String(node.id || '').endsWith(`::${id}`))?.id
+      const canonicalId = resolveGraphNodeByCanonicalId(committedGraph, id)?.id
       const insertedId = committedNodes.find(node => {
         const nodeId = String(node.id || '')
         if (!nodeId || beforeIds.has(nodeId)) return false
         return String(node.type || '').trim() === type && String(node.label || '').trim() === label
       })?.id
-      const actualId = String(exactId || composedId || insertedId || committedId || id).trim() || id
+      const actualId = String(canonicalId || insertedId || committedId || id).trim() || id
       reservedNodeIdsRef.current.delete(id)
       reservedNodeIdsRef.current.delete(actualId)
       return actualId
@@ -191,11 +191,7 @@ export default function StoryboardWidgetDropBridge(props: {
   React.useEffect(() => {
     const pending = String(pendingOpenWidgetNodeIdRef.current || '').trim()
     if (!pending) return
-    const nodes = Array.isArray(graphData?.nodes) ? (graphData.nodes as GraphNode[]) : []
-    const resolved = nodes.find(node => {
-      const nodeId = String(node.id || '').trim()
-      return nodeId === pending || nodeId.endsWith(`::${pending}`)
-    })
+    const resolved = resolveGraphNodeByCanonicalId(graphData, pending)
     const openId = String(resolved?.id || pending).trim()
     if (!openId) return
     pendingOpenWidgetNodeIdRef.current = null

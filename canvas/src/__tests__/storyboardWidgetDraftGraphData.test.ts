@@ -35,6 +35,22 @@ export function testStoryboardWidgetBaseResetPreservesNewerSameDocumentDraft() {
   if (resolved !== draft) throw new Error('expected same-document stale base reset to preserve the newer live draft graph')
 }
 
+export function testStoryboardWidgetHistoryNavigationAlwaysRestoresBaseAuthority() {
+  const staleDraft = graph(20, ['draft-only'])
+  const undoBase = graph(4, ['undo-snapshot'])
+  const redoBase = graph(5, ['redo-snapshot'])
+  for (const base of [undoBase, redoBase, undoBase, redoBase]) {
+    const resolved = resolveStoryboardWidgetDraftGraphDataForBaseReset({
+      activeDocumentKey: 'docs/example.md::',
+      previousDocumentKey: 'docs/example.md::',
+      currentDraftGraphData: staleDraft,
+      nextBaseGraphData: base,
+      forceBaseReset: true,
+    })
+    if (resolved !== base) throw new Error('expected every Undo/Redo index transition to restore its canonical base snapshot')
+  }
+}
+
 export function testStoryboardWidgetBaseResetReplacesDraftAcrossDocumentSwitchOrIncompatibleGraph() {
   const base = graph(3, ['source_input', 'compute_summary'])
   const switched = resolveStoryboardWidgetDraftGraphDataForBaseReset({
@@ -129,5 +145,8 @@ export function testStoryboardWidgetBaseResetEffectKeysOffRevisionInsteadOfDeriv
   }
   if (!source.includes('storyboardWidgetBaseContentSignature')) {
     throw new Error('expected derived base content changes to retrigger draft reconciliation without object-identity churn')
+  }
+  if (!source.includes('forceBaseReset: historyIndexChanged') || !source.includes('args.historyIndex')) {
+    throw new Error('expected every reactive history index transition to reset the Storyboard draft authority')
   }
 }

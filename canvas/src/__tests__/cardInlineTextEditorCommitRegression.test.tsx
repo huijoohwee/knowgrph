@@ -225,6 +225,7 @@ export async function testCardInlineTextEditorExternalMediaInvokeTargetsActiveFi
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const committedValues: string[] = []
+  const selectedMediaUrls: string[] = []
   try {
     await act(async () => {
       root.render(
@@ -237,6 +238,7 @@ export async function testCardInlineTextEditorExternalMediaInvokeTargetsActiveFi
           multiline: true,
           rows: 3,
           onCommit: value => committedValues.push(value),
+          onMediaCommandSelect: candidate => selectedMediaUrls.push(candidate.url),
         }),
       )
       await waitForFrames(dom.window, 8)
@@ -250,16 +252,23 @@ export async function testCardInlineTextEditorExternalMediaInvokeTargetsActiveFi
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForFrames(dom.window, 2)
     })
-    const inserted = insertMediaIntoActiveCardInlineTextEditor({
-      kind: 'image',
-      url: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/demo.jpg?kg_media_token=token',
-      label: 'airvio_.JPEG',
-      sourceKey: 'sha256:demo',
+    let inserted = false
+    await act(async () => {
+      inserted = insertMediaIntoActiveCardInlineTextEditor({
+        kind: 'image',
+        url: 'https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/demo.jpg?kg_media_token=token',
+        label: 'airvio_.JPEG',
+        sourceKey: 'sha256:demo',
+      })
+      await waitForFrames(dom.window, 2)
     })
     if (!inserted) throw new Error('expected FloatingPanel Media invoke to insert into the active card field')
     const latest = committedValues.at(-1) || ''
     if (!latest.includes('Review source evidence.\n![airvio_.JPEG](https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/demo.jpg?kg_media_token=token)')) {
       throw new Error(`expected external Media invoke to append image markdown to Action field, got ${latest}`)
+    }
+    if (selectedMediaUrls.length !== 1 || !selectedMediaUrls[0]?.includes('/upload-demo/image/demo.jpg')) {
+      throw new Error(`expected external @ media insertion to notify the Card/Widget graph owner once, got ${JSON.stringify(selectedMediaUrls)}`)
     }
   } finally {
     await act(async () => {
@@ -730,13 +739,13 @@ export async function testStoryboardWidgetInlineValueEditorReusesDensityAwareVie
       display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForFrames(dom.window, 4)
     })
-    const editor = container.querySelector('[contenteditable="true"][data-kg-card-inline-viewer-edit-surface="1"][aria-label="Widget value"]')
-    if (!(editor instanceof dom.window.HTMLElement)) throw new Error('expected Storyboard Widget value to open the shared Viewer edit surface')
-    if (!editor.className.includes('min-h-12')) {
-      throw new Error(`expected Storyboard Widget Viewer edit surface to use two-line panel density, class=${editor.className}`)
+    const editor = container.querySelector('textarea[aria-label="Widget value"]')
+    if (!(editor instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected Storyboard Widget value to open the shared control textarea surface')
+    if (!editor.className.includes('min-h-12') || !editor.className.includes('resize-y')) {
+      throw new Error(`expected Storyboard Widget control textarea surface to use two-line panel density, class=${editor.className}`)
     }
     if (editor.className.split(/\s+/).includes('resize')) {
-      throw new Error(`expected Storyboard Widget Viewer edit surface not to enable unconstrained two-axis resizing, class=${editor.className}`)
+      throw new Error(`expected Storyboard Widget control textarea surface not to enable unconstrained two-axis resizing, class=${editor.className}`)
     }
   } finally {
     setWorkspaceDataViewFloatingDensity({ rowHeightPreset: 'comfortable', fieldLineMode: 'single' })

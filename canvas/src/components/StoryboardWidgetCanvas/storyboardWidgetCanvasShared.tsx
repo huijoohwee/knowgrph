@@ -88,12 +88,7 @@ export function readProjectedRichMediaShellTransform(args: {
   const graphData = args.draftGraphDataRef.current || useGraphStore.getState().graphData || args.baseGraphData || null
   const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
   const readNodeForOverlayId = (overlayId: string) => {
-    const cleanOverlayId = String(overlayId || '').trim()
-    if (!cleanOverlayId) return null
-    return nodes.find(node => {
-      const nodeId = String(node?.id || '').trim()
-      return !!nodeId && (nodeId === cleanOverlayId || nodeId.endsWith(`::${cleanOverlayId}`) || cleanOverlayId.endsWith(`::${nodeId}`))
-    }) || null
+    return resolveGraphNodeByCanonicalId({ ...graphData, nodes }, overlayId)
   }
   const shells = Array.from(document.querySelectorAll<HTMLElement>('[data-kg-rich-media-storyboard-widget-overlay-shell="1"][data-node-id]'))
   for (const shell of shells) {

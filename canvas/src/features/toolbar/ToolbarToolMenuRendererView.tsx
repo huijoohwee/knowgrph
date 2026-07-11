@@ -1,7 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useRendererPanelState } from '@/features/panels/hooks/useRendererPanelState'
-import RenderSettingsSection from '@/features/panels/views/RenderSettingsSection'
+import RenderSettingsSection from '@/lib/panels/views/RenderSettingsSection.impl'
 import { UI_LABELS } from '@/lib/config'
 import { RendererPaletteSettings } from '@/features/toolbar/ui/RendererPaletteSettings'
 import { RendererHoverSettings } from '@/features/toolbar/ui/RendererHoverSettings'

@@ -6447,7 +6447,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L58; canvas/src/hooks/store/historySlice.ts:L210; canvas/src/hooks/store/store-types/graph-state-structure.ts:L218"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L58; canvas/src/hooks/store/historySlice.ts:L257; canvas/src/hooks/store/store-types/graph-state-structure.ts:L219"
   },
   "keyword.source.maxLines": {
     "area": "—",
@@ -6465,7 +6465,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L67; canvas/src/hooks/store/store-types/graph-state-structure.ts:L61; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L343"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L67; canvas/src/hooks/store/store-types/graph-state-structure.ts:L62; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L343"
   },
   "keyword.source.maxChars": {
     "area": "—",
@@ -6483,7 +6483,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L76; canvas/src/hooks/store/store-types/graph-state-structure.ts:L62; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L349"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L76; canvas/src/hooks/store/store-types/graph-state-structure.ts:L63; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L349"
   },
   "keyword.graph.previewDebounceMs": {
     "area": "—",
@@ -6501,7 +6501,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L85; canvas/src/hooks/store/store-types/graph-state-structure.ts:L63; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L355"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L85; canvas/src/hooks/store/store-types/graph-state-structure.ts:L64; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L355"
   },
   "keyword.graph.fullDebounceMs": {
     "area": "—",
@@ -6519,7 +6519,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L94; canvas/src/hooks/store/store-types/graph-state-structure.ts:L64; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L361"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L94; canvas/src/hooks/store/store-types/graph-state-structure.ts:L65; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L361"
   },
   "keyword.graph.edgesPerNode": {
     "area": "—",
@@ -6537,7 +6537,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L103; canvas/src/hooks/store/store-types/graph-state-structure.ts:L65; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L367"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L103; canvas/src/hooks/store/store-types/graph-state-structure.ts:L66; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L367"
   },
   "keyword.graph.maxEdges": {
     "area": "—",
@@ -6555,7 +6555,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L112; canvas/src/hooks/store/store-types/graph-state-structure.ts:L66; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L373"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L112; canvas/src/hooks/store/store-types/graph-state-structure.ts:L67; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L373"
   },
   "keyword.graph.mentionEdgesPerSourceNode": {
     "area": "—",
@@ -6573,7 +6573,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L121; canvas/src/hooks/store/store-types/graph-state-structure.ts:L67; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L379"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L121; canvas/src/hooks/store/store-types/graph-state-structure.ts:L68; canvas/src/hooks/store/uiSettingsSliceModeActions.ts:L379"
   },
   "codeHighlightDurationMs": {
     "area": "Editor Behavior & Timing",

@@ -1,2 +1,0 @@
-export const CANVAS_PAN_COMMIT_MIN_INTERVAL_MS = 32
-

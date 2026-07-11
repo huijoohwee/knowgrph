@@ -120,6 +120,7 @@ export async function testWorkspaceDataViewFieldLineFlexInlineEditorUsesLayoutRo
           placeholder="Add action"
           canEdit
           editActivation="click"
+          editorSurface="control"
           multiline
           rows={4}
           displayClassName="line-clamp-4 truncate whitespace-pre-wrap break-words"

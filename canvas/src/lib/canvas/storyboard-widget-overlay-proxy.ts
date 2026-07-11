@@ -231,9 +231,9 @@ function readOverlayRectCandidateRank(el: HTMLElement): number {
   const hasWidgetShellId = String(el.dataset.kgWidget || '').trim().length > 0
   const isRichMediaOverlay = String(el.dataset.kgRichMediaOverlay || '').trim() === '1'
   const isPinnedCanvasProxy = readCanvasOverlayPinnedState(el)
-  if (surfaceId && hasWidgetShellId) return 3
-  if (surfaceId && isRichMediaOverlay && !isPinnedCanvasProxy) return 3
-  if (surfaceId && isPinnedCanvasProxy) return 1
+  if (surfaceId && hasWidgetShellId) return 5
+  if (surfaceId && isRichMediaOverlay && !isPinnedCanvasProxy) return 4
+  if (surfaceId && isRichMediaOverlay && isPinnedCanvasProxy) return 3
   if (surfaceId) return 2
   if (isRichMediaOverlay) return 1
   return 0

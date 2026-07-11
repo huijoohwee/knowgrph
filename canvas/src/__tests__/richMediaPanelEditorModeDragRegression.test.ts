@@ -321,12 +321,16 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
   if (!storyboardToolbarPropsText.includes('buildWidgetBubbleToolbarPresentation({') || !storyboardToolbarPropsText.includes("placement: 'flow-widget-above-center'")) {
     throw new Error('expected Storyboard card/widget toolbar placement to reuse the Storyboard Widget bubble-toolbar presentation helper')
   }
-  for (const snippet of ["export type WidgetBubbleToolbarPlacement = 'flow-widget-above-center'", "const WIDGET_BUBBLE_TOOLBAR_NAV_CLASS_NAME = 'absolute left-1/2 z-10'", 'top: -WIDGET_ACTIONS_TOOLBAR_OFFSET_PX', "transform: 'translateX(-50%)'"]) {
+  for (const snippet of ["export type WidgetBubbleToolbarPlacement = 'flow-widget-above-center'", "const WIDGET_BUBBLE_TOOLBAR_NAV_CLASS_NAME = 'absolute inset-x-0 mx-auto z-10'", 'top: -WIDGET_ACTIONS_TOOLBAR_OFFSET_PX']) {
     if (!sharedBubbleToolbarText.includes(snippet)) throw new Error(`expected the shared bubble-toolbar presentation helper to own the canonical above-center placement: ${snippet}`)
   }
+  if (sharedBubbleToolbarText.includes("transform: 'translateX(-50%)'")) throw new Error('expected CSS-zoomed bubble toolbars not to retain transform-based centering during drag')
   if (sharedBubbleToolbarText.includes('absolute bottom-full left-1/2')) throw new Error('expected the shared bubble-toolbar presentation helper to remove stale Storyboard-only bottom-full placement')
   if (flowCanvasOverlayText.includes('onPointerDownCapture={richMediaPanelHeaderToolbar.activate}')) {
     throw new Error('expected Rich Media overlay shell not to preempt shared panel header drag with a parent capture-phase activation')
+  }
+  if (!flowCanvasOverlayText.includes('scheduleLayout: flushMediaOverlayLayout')) {
+    throw new Error('expected Rich Media pin transitions to flush shared geometry before overlay-edge recomputation')
   }
   if (!panelText.includes('props.onPointerDownCapture?.(event)')
     || !panelText.includes('const handled = handleRootDragStartCapture(event)')
@@ -415,8 +419,8 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
     'resolveScopedFlowWidgetNodeMap',
     'const useStoryboardWidgetRichMediaPanelHeaderToolbar = storyboardSharedSurfaceRendererMode',
     'const flowWidgetPinnedByNodeIdByGraphMetaKey = useGraphStore(s => s.flowWidgetPinnedByNodeIdByGraphMetaKey)',
-    'const flowWidgetStateGraphKey = React.useMemo(() => resolveFlowWidgetStateGraphKey({ graphData: sceneGraphData }), [sceneGraphData])',
-    'const effectiveFlowWidgetPinnedByNodeId = React.useMemo(() => resolveScopedFlowWidgetNodeMap({',
+    '() => flowWidgetStateGraphKeyOverride ?? resolveFlowWidgetStateGraphKey({ graphData: sceneGraphData })',
+    'const effectiveFlowWidgetPinnedByNodeId = React.useMemo(() => flowWidgetPinnedByNodeIdOverride || resolveScopedFlowWidgetNodeMap({',
     'graphMetaKey: flowWidgetStateGraphKey',
     'keyedByGraphMetaKey: flowWidgetPinnedByNodeIdByGraphMetaKey',
     'readFlowWidgetPinnedInCanvas',
@@ -426,12 +430,17 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
 	    'openUrl={node.openUrl}',
 	    'sceneGraphData={sceneGraphData}',
 	    'workspaceMutationBlockedRef={workspaceMutationBlockedRef}',
+	    'onRemoveNode={onNodeRemove}',
 	    'buildFlowCanvasRichMediaPanelHeaderToolbar({',
 	    'onPointerDownCapture={event => {',
 	    'richMediaPanelHeaderToolbar.activate()',
 	    'flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId',
     '{...richMediaPanelHeaderToolbar.panelProps}',
     'mediaOverlayWorldPositionOverrideRef.current.set(id, next)',
+    'const preserveMediaOverlayScreenPlacementForPinTransition = React.useCallback((id: string) => {',
+    'const point = readElementWorldTopLeft2d(',
+    'if (point) persistResolvedMediaOverlayWorldPosition(id, point)',
+    'onBeforePinnedChange: () => preserveMediaOverlayScreenPlacementForPinTransition(node.id)',
     'mediaOverlayWorldPositionOverrideRef.current.get(id)',
     'const start = readNodeWorldTopLeft2d(node) || mediaOverlayWorldPositionOverrideRef.current.get(id)',
     'readElementWorldTopLeft2d(mediaOverlayElsRef.current.get(id), runtime?.transform)',
@@ -446,7 +455,7 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
     'if (bodyDragMovesRichMediaPanel) { beginMediaOverlayHeaderDrag(node.id, payload.pointerId); return }',
     'if (bodyDragMovesRichMediaPanel) { finishMediaOverlayHeaderDrag(node.id, payload.pointerId); return }',
     'if (onNodeChange) onNodeChange(id, patch, mutationSourceGraphData)',
-    'useGraphStore.getState().updateNode(id, {',
+    'useGraphStore.getState().updateNode(id, patch as Partial<GraphNode>)',
     'fx: finalPoint.x,',
     'fy: finalPoint.y,',
     'x: finalPoint.x,',
@@ -460,6 +469,20 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
     if (!flowCanvasOverlayText.includes(snippet)) {
       throw new Error(`expected Storyboard Widget Rich Media overlay owner to mount the shared floating toolbar shell: ${snippet}`)
     }
+  }
+  for (const snippet of [
+    'workspaceMutationBlockedRef.current && !props.onRemoveNode',
+    'if (props.onRemoveNode) props.onRemoveNode(nodeId)',
+  ]) {
+    if (!flowCanvasToolbarText.includes(snippet)) throw new Error(`expected source-backed Rich Media removal to bypass the mutable-store guard through the shared remover: ${snippet}`)
+  }
+  const pinTransitionStart = flowCanvasOverlayText.indexOf('const preserveMediaOverlayScreenPlacementForPinTransition')
+  const pinTransitionEnd = flowCanvasOverlayText.indexOf('const strybldrStoryboardCardAspectMode', pinTransitionStart)
+  const pinTransitionBlock = pinTransitionStart >= 0 && pinTransitionEnd > pinTransitionStart
+    ? flowCanvasOverlayText.slice(pinTransitionStart, pinTransitionEnd)
+    : ''
+  if (!pinTransitionBlock || pinTransitionBlock.includes('nextPinned')) {
+    throw new Error('expected Rich Media pin and unpin transitions to preserve painted screen position symmetrically')
   }
   if (
     flowCanvasOverlayText.includes('const bodyDragMovesRichMediaPanel = headerDragInteractionActive && (flowWidgetPinnedByNodeId || {})[node.id] === false')
@@ -518,6 +541,7 @@ export function testRichMediaPanelStoryboardWidgetReusesSharedFloatingToolbarVar
     'toggleFlowWidgetPinnedById(currentPinnedById, nodeId)',
     'st.setFlowWidgetPinnedByNodeIdForGraph(args.flowWidgetStateGraphKey, nextPinnedById)',
     'args.onBeforePinnedChange?.(nextPinned)',
+    'onBeforePinnedChange: args.onBeforePinnedChange',
     'args.onPinnedChange?.(nextPinned)',
     'onPinnedChange: () => {',
     'args.scheduleLayout()',

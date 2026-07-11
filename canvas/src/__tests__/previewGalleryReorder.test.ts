@@ -1,7 +1,7 @@
 import React from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
-import PreviewGallery from '@/features/panels/views/preview-panel/ui/PreviewGallery'
+import PreviewGallery from '@/lib/panels/views/preview-panel/ui/PreviewGallery.impl'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 const createDataTransfer = (): DataTransfer => {

@@ -3,7 +3,10 @@ import { Search } from 'lucide-react'
 import { preventDefaultMouseDown } from '@/features/markdown/ui/markdownFloatingSelectionToolbar'
 import { InlineMediaCommandThumbnail } from '@/lib/command-menu/InlineMediaCommandThumbnail'
 import type { InlineMediaKind } from '@/lib/command-menu/inlineCommandMenuCatalog'
-import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import {
+  UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
+  UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME,
+} from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export type MarkdownInlineCommandMenuItem = {
@@ -61,6 +64,7 @@ export const MarkdownBlockContainerCommandMenu = (props: {
   itemDisabledClassName: string
   emptyLabel: string
   selectOnPointerDown?: boolean
+  menuClassName?: string
 }) => {
   const inputRef = React.useRef<HTMLInputElement | null>(null)
   const mouseDownSelectedItemIdRef = React.useRef('')
@@ -146,7 +150,7 @@ export const MarkdownBlockContainerCommandMenu = (props: {
       </label>
       <menu
         id={`${props.ariaLabel.replace(/\s+/g, '-').toLowerCase()}-list`}
-        className="m-0 max-h-[min(42vh,18rem)] overflow-y-auto p-0"
+        className={props.menuClassName || `${UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME} overflow-y-auto`}
         role="listbox"
         aria-label={props.ariaLabel}
       >

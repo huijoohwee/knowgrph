@@ -7,6 +7,7 @@ import { applyStoryboardCardMediaDropGraph } from '@/components/StoryboardWidget
 import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 
 const STORYBOARD_DROPPED_PRIMARY_MEDIA_CLEAR_KEYS = [
   'renderUrl',
@@ -64,7 +65,7 @@ export function useStoryboardCardMediaDrop2d(args: {
   const dropCardMedia = React.useCallback((card: StoryboardCardModel, payload: MediaDragPayload) => {
     const url = readStoryboardScalar2d(payload.url)
     if (!url) return
-    const node = nodeById.get(card.id)
+    const node = nodeById.get(card.id) || resolveGraphNodeByCanonicalId(graphData, card.id)
     if (!node) return
     setPendingMediaByCardId(current => ({
       ...current,
@@ -108,7 +109,7 @@ export function useStoryboardCardMediaDrop2d(args: {
         label: 'Storyboard media',
       })
     }
-    const nextGraph = graphData?.nodes?.some(item => readStoryboardScalar2d(item?.id) === card.id)
+    const nextGraph = resolveGraphNodeByCanonicalId(graphData, card.id)
       ? applyStoryboardCardMediaDropGraph({ cardId: card.id, cardProperties: nextProperties, graphData, media: { ...payload, url } })
       : null
     if (nextGraph) {

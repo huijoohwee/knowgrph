@@ -238,6 +238,9 @@ export function MermaidDiagramPanelView({
   onSelectedRowKeyChange,
   rowFilter,
   rowTree,
+  headerActions,
+  controlledSelectedRowKey,
+  shareSelection = true,
 }: {
   code: string
   model: MermaidDiagramCodeModel
@@ -251,19 +254,23 @@ export function MermaidDiagramPanelView({
   onSelectedRowKeyChange?: (rowKey: string | null) => void
   rowFilter?: MermaidDiagramPanelRowFilter
   rowTree?: MermaidDiagramPanelRowTreeResolver
+  headerActions?: React.ReactNode
+  controlledSelectedRowKey?: string
+  shareSelection?: boolean
 }) {
   const showDiagram = renderMode !== 'list'
   const showRowList = renderMode !== 'diagram'
-  const { selectedRowKey, setMermaidDiagramSelectedRowKey } = useGraphStore(
+  const { sharedSelectedRowKey, setMermaidDiagramSelectedRowKey } = useGraphStore(
     useShallow(state => ({
-      selectedRowKey: state.mermaidDiagramSelectedRowKeyByKind[kind] || '',
+      sharedSelectedRowKey: state.mermaidDiagramSelectedRowKeyByKind[kind] || '',
       setMermaidDiagramSelectedRowKey: state.setMermaidDiagramSelectedRowKey,
     })),
   )
+  const selectedRowKey = controlledSelectedRowKey ?? sharedSelectedRowKey
   const setSelectedRowKey = React.useCallback((rowKey: string | null) => {
-    setMermaidDiagramSelectedRowKey(kind, rowKey)
+    if (shareSelection) setMermaidDiagramSelectedRowKey(kind, rowKey)
     onSelectedRowKeyChange?.(rowKey)
-  }, [kind, onSelectedRowKeyChange, setMermaidDiagramSelectedRowKey])
+  }, [kind, onSelectedRowKeyChange, setMermaidDiagramSelectedRowKey, shareSelection])
   const rowListRef = React.useRef<HTMLElement | null>(null)
   const panelAriaLabel = showDiagram ? `${title} Mermaid diagram` : `${title} Mermaid rows`
   const rowEntries = React.useMemo(() => {
@@ -295,7 +302,10 @@ export function MermaidDiagramPanelView({
         data-kg-mermaid-diagram-render-mode={renderMode}
         data-kg-mermaid-diagram-empty="1"
       >
-        <section className={cn('px-1 py-1 text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{title}</section>
+        <header className="flex min-w-0 items-center justify-between gap-2 px-1 py-1">
+          <span className={cn('truncate text-xs font-semibold', UI_THEME_TOKENS.text.primary)}>{title}</span>
+          {headerActions}
+        </header>
         <section className={cn('px-1 text-xs', UI_THEME_TOKENS.text.secondary)}>{emptyLabel}</section>
       </section>
     )
@@ -321,6 +331,7 @@ export function MermaidDiagramPanelView({
             </section>
           ) : null}
         </section>
+        {headerActions}
       </header>
       {showDiagram ? (
         <MermaidDiagramRenderPreview

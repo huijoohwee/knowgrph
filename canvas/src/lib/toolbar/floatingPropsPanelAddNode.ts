@@ -1,4 +1,5 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { createId } from '@/lib/id'
 
@@ -70,11 +71,7 @@ export function commitFloatingPropsPanelAddedNode(args: {
   if (!nodeId) return ''
   args.addNode(args.node)
   const graphData = args.readGraphData?.() || null
-  const committedId = String(
-    graphData?.nodes?.find(node => String(node.id || '') === nodeId)?.id
-    || graphData?.nodes?.find(node => String(node.id || '').endsWith(`::${nodeId}`))?.id
-    || nodeId,
-  ).trim()
+  const committedId = String(resolveGraphNodeByCanonicalId(graphData, nodeId)?.id || nodeId).trim()
   args.setSelectionSource?.(args.selectionSource || 'toolbar')
   args.selectNode?.(committedId || nodeId)
   return committedId || nodeId

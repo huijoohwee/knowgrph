@@ -44,6 +44,7 @@ export type CardInlineTextCommandExternalState = {
   editing: boolean
   multiline: boolean
   onCommit?: (nextValue: string) => void
+  onMediaCommandSelect?: (candidate: InlineMediaCommandCandidate) => void
   persistCommandDraft: (nextValue: string) => void
   value: string
 }

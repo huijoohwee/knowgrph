@@ -334,7 +334,8 @@ export function testStoryboardWidgetFloatingPanelReusesSharedFloatingPanelAndKtv
     || !toolbarLauncherText.includes("? 'storyboardWidget'")) {
     throw new Error('expected shared floating-panel open bridge to accept StoryboardWidget without a local alias')
   }
-  if (!configRenderText.includes("ToolbarRunAllFloatingPanelTab = 'strybldr'")
+  if (!configRenderText.includes('export const supportsToolbarRunAll = (id: Canvas2dRendererId | null | undefined): boolean => {')
+    || !configRenderText.includes("return id === 'storyboard'")
     || configRenderText.includes("if (id === 'storyboardWidget') return 'storyboardWidget'")) {
     throw new Error('expected StoryboardWidget Run All to keep its always-mounted canvas runtime consumer')
   }

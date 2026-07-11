@@ -333,14 +333,13 @@ export function useStoryboardWidgetGraphActions(args: {
       })
       const committedGraph = useGraphStore.getState().graphData as GraphData | null
       const committedNodes = Array.isArray(committedGraph?.nodes) ? (committedGraph.nodes as GraphNode[]) : []
-      const exactId = committedNodes.find(node => String(node.id || '') === id)?.id
-      const composedId = committedNodes.find(node => String(node.id || '').endsWith(`::${id}`))?.id
+      const canonicalId = resolveGraphNodeByCanonicalId(committedGraph, id)?.id
       const insertedId = committedNodes.find(node => {
         const nodeId = String(node.id || '')
         if (!nodeId || beforeIds.has(nodeId)) return false
         return String(node.type || '').trim() === type && String(node.label || '').trim() === label
       })?.id
-      const actualId = String(exactId || composedId || insertedId || committedId || '').trim()
+      const actualId = String(canonicalId || insertedId || committedId || '').trim()
       if (!actualId) return ''
       const liveGraphData = readLiveGraphData()
       const revisionFloor = Math.max(

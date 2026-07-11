@@ -46,6 +46,7 @@ export type RichMediaPanelProps = {
   onHeaderPinnedPointerDown?: (event: React.PointerEvent) => void
   onHeaderToggleMinimized?: () => void
   frameMode?: 'panel' | 'surface'
+  placementOwner?: 'self' | 'parent'
   resizeHandlePlacement?: 'root' | 'external'
   scrollOwner?: 'media' | 'panel'
   onInlineContentSize?: (size: { width: number; height: number }) => void

@@ -4,7 +4,6 @@ import {
   buildStoryboardCardMediaDropOverlayEdgeId,
   isStoryboardCardMediaDropEdge,
   isStoryboardCardMediaDropOverlayEdge,
-  isStoryboardCardMediaDropPanelNodeForCard,
 } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
 import { getCachedStoryboardWidgetOverlayEdgeGraph } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 import {
@@ -36,8 +35,8 @@ function assert(condition: unknown, message: string): asserts condition {
 const readNode = (graphData: GraphData, id: string): GraphNode | null =>
   (graphData.nodes || []).find(node => String(node.id || '') === id) || null
 
-const buildCardNode = (): GraphNode => ({
-  id: 'story-card',
+const buildCardNode = (id = 'story-card'): GraphNode => ({
+  id,
   type: FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
   label: 'Story card',
   x: 120,
@@ -93,7 +92,6 @@ export function testStoryboardCardMediaDropCreatesInboundRichMediaPanelEdge() {
   assert(edgeProperties[FLOW_EDGE_TARGET_PORT_KEY] === 'mediaUrl', 'expected edge to target the card media port')
   assert(edgeProperties.storyboardCardMediaDropEdge === true, 'expected edge to be marked as card media-drop owned')
   assert(isStoryboardCardMediaDropEdge(edge, 'story-card'), 'expected generated edge to be recognized by the shared card media-drop edge helper')
-  assert(isStoryboardCardMediaDropPanelNodeForCard(panel, 'story-card'), 'expected generated Rich Media Panel source node to be recognized as card media-drop owned')
   assert(isStoryboardCardMediaDropOverlayEdge(edge, panel, 'story-card'), 'expected overlay edge helper to recognize generated panel -> card media edges')
   const overlayAnchors = readStoryboardOutputCardLeftSideAnchors({
     outputCardRect: { left: 387, top: 655, right: 608.4, bottom: 779.8, width: 221.4, height: 124.8 },
@@ -114,7 +112,7 @@ export function testStoryboardCardMediaDropCreatesInboundRichMediaPanelEdge() {
   assert(targetCard?.media?.url === videoPayload.url && targetCard.media.kind === 'video', `expected inbound Rich Media edge to project card media, got ${JSON.stringify(targetCard?.media)}`)
 }
 
-export function testStoryboardCardMediaDropOverlayGraphDerivesMissingPanelEdge() {
+export function testStoryboardCardMediaDropOverlayGraphRequiresExplicitConsumerEdge() {
   const card = buildCardNode()
   const result = applyStoryboardCardMediaDropGraph({
     cardId: 'story-card',
@@ -139,12 +137,7 @@ export function testStoryboardCardMediaDropOverlayGraphDerivesMissingPanelEdge()
     preferCurrentGraphDataRefs: true,
   })
   const expectedEdgeId = buildStoryboardCardMediaDropOverlayEdgeId(result.panelId, 'story-card')
-  const overlayEdge = overlayGraph?.edges.find(edge => edge.id === expectedEdgeId)
-  assert(overlayEdge, `expected overlay graph to derive missing panel -> card media edge ${expectedEdgeId}, got ${JSON.stringify(overlayGraph?.edges)}`)
-  assert(overlayEdge.source === result.panelId && overlayEdge.target === 'story-card', `expected derived edge to connect panel -> card, got ${JSON.stringify(overlayEdge)}`)
-  assert(overlayEdge.sourcePortKey === 'videoUrl' && overlayEdge.targetPortKey === 'mediaUrl', `expected derived edge to preserve semantic media ports, got ${JSON.stringify(overlayEdge)}`)
-  const rawEdge = overlayGraph?.rawEdgeById.get(expectedEdgeId)
-  assert(isStoryboardCardMediaDropEdge(rawEdge, 'story-card'), 'expected derived raw edge to be recognized as card media-drop owned')
+  assert(!overlayGraph?.edges.some(edge => edge.id === expectedEdgeId), 'expected shared media panels not to invent a single-target edge from panel-local state')
 
   const explicitOverlayGraph = getCachedStoryboardWidgetOverlayEdgeGraph({
     graphData: result.graphData,
@@ -178,14 +171,86 @@ export function testStoryboardCardMediaDropReusesInboundRichMediaPanelEdge() {
     media: imagePayload,
   })
   assert(second, 'expected replacement media drop graph result')
-  assert(second.panelId === first.panelId, `expected replacement drop to reuse panel ${first.panelId}, got ${second.panelId}`)
-  assert(second.edgeId === first.edgeId, `expected replacement drop to reuse edge ${first.edgeId}, got ${second.edgeId}`)
-  assert(second.graphData.nodes.length === first.graphData.nodes.length, 'expected replacement drop not to duplicate Rich Media Panels')
-  assert(second.graphData.edges.length === first.graphData.edges.length, 'expected replacement drop not to duplicate inbound edges')
+  assert(second.panelId !== first.panelId, 'expected different media identities to use different canonical panel ids')
+  assert(second.graphData.nodes.length === first.graphData.nodes.length, 'expected replacement drop to remove the orphaned prior Rich Media Panel')
+  assert(second.graphData.edges.length === first.graphData.edges.length, 'expected replacement drop to replace rather than duplicate the inbound edge')
   const panelProperties = readNode(second.graphData, second.panelId)?.properties as Record<string, unknown>
   assert(panelProperties.imageUrl === imagePayload.url && !panelProperties.videoUrl, `expected reused panel to replace stale video media, got ${JSON.stringify(panelProperties)}`)
   const edgeProperties = second.graphData.edges.find(edge => String(edge.id || '') === second.edgeId)?.properties as Record<string, unknown>
   assert(edgeProperties[FLOW_EDGE_SOURCE_PORT_KEY] === 'imageUrl' && edgeProperties[FLOW_EDGE_TARGET_PORT_KEY] === 'mediaUrl', `expected reused edge to retarget imageUrl -> mediaUrl, got ${JSON.stringify(edgeProperties)}`)
+}
+
+export function testStoryboardCardMediaDropSharesPanelAcrossConsumers() {
+  const cardA = buildCardNode('story-card-a')
+  const cardB = buildCardNode('story-card-b')
+  const first = applyStoryboardCardMediaDropGraph({
+    cardId: 'story-card-a',
+    cardProperties: { ...cardA.properties, mediaKind: videoPayload.kind, mediaUrl: videoPayload.url },
+    graphData: { type: 'Graph', nodes: [cardA, cardB], edges: [] },
+    media: videoPayload,
+  })
+  assert(first, 'expected first media consumer graph result')
+  const second = applyStoryboardCardMediaDropGraph({
+    cardId: 'story-card-b',
+    cardProperties: { ...cardB.properties, mediaKind: videoPayload.kind, mediaUrl: `${videoPayload.url}?kg_media_token=rotated` },
+    graphData: first.graphData,
+    media: { ...videoPayload, url: `${videoPayload.url}?kg_media_token=rotated`, sourceKey: 'another-catalog-entry-for-the-same-media' },
+  })
+  assert(second, 'expected second media consumer graph result')
+  assert(second.panelId === first.panelId, `expected both consumers to share panel ${first.panelId}, got ${second.panelId}`)
+  assert(second.createdPanel === false, 'expected the second consumer not to create a duplicate Rich Media Panel')
+  const panels = second.graphData.nodes.filter(node => node.type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+  assert(panels.length === 1, `expected one semantic media panel, got ${JSON.stringify(panels.map(node => node.id))}`)
+  const consumerEdges = second.graphData.edges.filter(edge => edge.source === first.panelId)
+  assert(consumerEdges.length === 2, `expected one edge per consumer, got ${JSON.stringify(consumerEdges)}`)
+  assert(new Set(consumerEdges.map(edge => edge.target)).size === 2, 'expected distinct panel -> Card/Widget consumer edges')
+}
+
+export function testStoryboardCardMediaDropReusesExistingPanelAcrossRuntimeStorageOrigins() {
+  const cardA = buildCardNode('story-card-a')
+  const cardB = buildCardNode('story-card-b')
+  const storagePath = '/api/storage/media/airvio/runs/upload-730/image/shared.jpg'
+  const existingPanel: GraphNode = {
+    id: 'existing-shared-media-panel',
+    type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+    label: FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
+    x: 420,
+    y: 260,
+    properties: {
+      [FLOW_WIDGET_TYPE_ID_KEY]: FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+      [FLOW_WIDGET_FORM_ID_KEY]: FLOW_RICH_MEDIA_PANEL_FORM_ID,
+      imageUrl: `http://localhost:5181${storagePath}?kg_media_token=old`,
+      retainedProperty: 'keep-me',
+    },
+  }
+  const result = applyStoryboardCardMediaDropGraph({
+    cardId: cardB.id,
+    cardProperties: { ...cardB.properties, mediaKind: 'image', mediaUrl: `http://localhost:5180${storagePath}?kg_media_token=new` },
+    graphData: { type: 'Graph', nodes: [cardA, cardB, existingPanel], edges: [] },
+    media: { kind: 'image', url: `http://localhost:5180${storagePath}?kg_media_token=new`, label: 'Shared image' },
+  })
+  assert(result, 'expected shared runtime storage media graph result')
+  assert(result.panelId === existingPanel.id, `expected existing canonical panel reuse, got ${result.panelId}`)
+  assert(result.createdPanel === false, 'expected no duplicate panel for the same storage resource')
+  const panels = result.graphData.nodes.filter(node => node.type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+  assert(panels.length === 1, `expected one Rich Media Panel, got ${JSON.stringify(panels.map(node => node.id))}`)
+  const properties = readNode(result.graphData, existingPanel.id)?.properties as Record<string, unknown>
+  assert(properties.retainedProperty === 'keep-me', 'expected reuse to preserve existing panel properties')
+  assert(properties.mediaSource !== 'storyboard-card-media-drop', 'expected reuse not to claim cleanup ownership of a pre-existing panel')
+}
+
+export function testStoryboardCardMediaDropCreatesEdgeForNamespacedWidgetConsumer() {
+  const card = buildCardNode('n2')
+  const result = applyStoryboardCardMediaDropGraph({
+    cardId: 'ws:workspace-a::n2',
+    cardProperties: { ...card.properties, mediaKind: videoPayload.kind, mediaUrl: videoPayload.url },
+    graphData: { type: 'Graph', nodes: [card], edges: [] },
+    media: videoPayload,
+  })
+  assert(result, 'expected namespaced Widget media graph result')
+  assert(result.graphData.edges.length === 1, 'expected namespaced Widget @ media to create an inbound edge')
+  const edge = result.graphData.edges[0]!
+  assert(edge.source === result.panelId && edge.target === 'n2', `expected canonical panel -> Widget edge, got ${edge.source} -> ${edge.target}`)
 }
 
 export function testStoryboardCardMediaDropCreatesVisiblePanelInsteadOfReusingUnownedEdge() {

@@ -17,6 +17,7 @@ import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '
 import { UI_RESPONSIVE_PASSIVE_FILL_SURFACE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { lsSetBool } from '@/lib/persistence'
 import { LS_KEYS } from '@/lib/config'
+import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 type RichMediaResizeState = {
   id: string
   pointerId: number
@@ -228,7 +229,9 @@ export function RichMediaOverlayLayer2d(props: {
     >
       {mediaOverlayNodes.map(n => {
         const kind = n.kind === 'iframe' || n.kind === 'image' || n.kind === 'svg' || n.kind === 'video' || n.kind === 'audio' ? n.kind : undefined
-        const selected = activePanelId === n.id || selectedNodeId === n.id || (Array.isArray(selectedNodeIds) && selectedNodeIds.some(id => String(id || '').trim() === n.id))
+        const selected = isCanonicalNodeIdEqual(activePanelId, n.id)
+          || isCanonicalNodeIdEqual(selectedNodeId, n.id)
+          || (Array.isArray(selectedNodeIds) && selectedNodeIds.some(id => isCanonicalNodeIdEqual(id, n.id)))
         const richMediaPanelPinned = readFlowWidgetPinnedInCanvas(effectiveFlowWidgetPinnedByNodeId, n.id)
         const richMediaPanelPinAllowsMovement = isFlowWidgetHeaderDragAllowedByPin({
           pinnedInCanvas: richMediaPanelPinned,
@@ -285,6 +288,7 @@ export function RichMediaOverlayLayer2d(props: {
               kind={kind}
               selected={selected}
               panelChrome="storyboardWidget"
+              placementOwner="parent"
               canvasOverlayPinned={richMediaPanelPinned}
               {...headerPinProps}
               interactive={resolveRichMediaPanelInteractive({

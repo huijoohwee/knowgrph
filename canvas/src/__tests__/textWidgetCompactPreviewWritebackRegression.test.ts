@@ -3,8 +3,10 @@ import { resolve } from 'node:path'
 
 export function testTextWidgetCompactPreviewKeepsRawTextWhileTyping() {
   const filePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
+  const fileContentPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorFormContent.tsx')
   const compactPreviewPath = resolve(process.cwd(), 'src', 'features', 'storyboard-widget-manager', 'widgetCompactPreview.ts')
   const text = readFileSync(filePath, 'utf8')
+  const formContentText = readFileSync(fileContentPath, 'utf8')
   const compactPreviewText = readFileSync(compactPreviewPath, 'utf8')
 
   if (!compactPreviewText.includes("args.nextText === '' ? undefined : args.nextText")) {
@@ -17,18 +19,18 @@ export function testTextWidgetCompactPreviewKeepsRawTextWhileTyping() {
     throw new Error('expected WidgetEditorForm to delegate compact preview text mutation to the shared helper')
   }
   if (
-    !text.includes("import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'")
-    || !text.includes('onCommit={setCompactPreviewText}')
-    || !text.includes('editActivation="click"')
-    || !text.includes('markdownPreview="auto"')
-    || !text.includes('markdownCommandContextText={propertiesInlineMediaCommandContext}')
-    || !text.includes('editorSurface="viewer"')
-    || !text.includes('inlineChipDensity="compact"')
-    || !text.includes('openOnPointerDown')
+    !formContentText.includes("import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'")
+    || !formContentText.includes('onCommit={setCompactPreviewText}')
+    || !formContentText.includes('editActivation="click"')
+    || !formContentText.includes('markdownPreview="auto"')
+    || !formContentText.includes('markdownCommandContextText={propertiesInlineMediaCommandContext}')
+    || !formContentText.includes('editorSurface="viewer"')
+    || !formContentText.includes('inlineChipDensity="compact"')
+    || !formContentText.includes('openOnPointerDown')
   ) {
     throw new Error('expected Widget compact preview text edits to reuse the shared Viewer WYSIWYG inline editor')
   }
-  if (text.includes('hasCardMarkdownPreviewSyntax(compactPreviewView.textValue)')) {
+  if (formContentText.includes('hasCardMarkdownPreviewSyntax(compactPreviewView.textValue)')) {
     throw new Error('expected Widget compact preview to avoid a parallel markdown/read-only branch outside the shared Card inline editor')
   }
   if (!text.includes('return buildWidgetCompactPreviewViewModel({')) {

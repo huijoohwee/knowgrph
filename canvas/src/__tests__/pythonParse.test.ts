@@ -1,4 +1,4 @@
-import { pythonSpec } from '@/features/parsers/python'
+import { pythonSpec } from '@/features/parsers/python/index'
 
 export const testPythonParseBasic = () => {
   const name = 'sample.py'

@@ -1,6 +1,11 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
+  ["graph.canonicalNodeIds.hotspotsForbidHandwrittenMatching","@/__tests__/canonicalNodeLookupSharedHelperRegression.test","testGraphRuntimeHotspotsForbidHandwrittenComposedNodeIdMatching"],
+  ["history.versionControl.gitGraph.canonicalDeclaration","@/__tests__/mermaidGitGraphEdit.test","testVersionHistoryGitGraphUsesCanonicalDeclaration"],
+  ["toolbar.history.undoRedo.sharedVersionControls","@/__tests__/historyViewEditHistoryUndoRedoRestore.test.tsx","testToolbarAndHistoryViewShareVersionUndoRedoControls"],
+  ["history.undoRedo.gitGraph.restoresCanonicalDocumentAcrossViews","@/__tests__/historyViewEditHistoryUndoRedoRestore.test.tsx","testHistoryUndoRedoRestoresCanonicalGitGraphDocumentAcrossViews"],
+  ["history.versionControl.semanticBoundedParentLinked","@/__tests__/historyViewEditHistoryUndoRedoRestore.test.tsx","testVersionHistoryIsSemanticBoundedAndParentLinked"],
   ["richMedia.browserSmokeContract","@/__tests__/richMediaBrowserSmokeContract.test","testRichMediaBrowserSmokeContract"],
   ["flowWidget.placement.explicitGraphScope","@/__tests__/flowWidgetGraphScopedPlacement.test","testFlowWidgetPlacementWritesToExplicitGraphScope"],
   ["graph.documentMetaKey.sourceRevisionStable","@/__tests__/graphMetaKeyPending.test","testGraphDocumentMetaKeyStaysStableAcrossSourceRevisions"],

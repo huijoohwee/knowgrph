@@ -346,6 +346,7 @@ import type { TestCaseTuple } from '../runner/testRunnerTypes'; export const TES
   ["viewport.storyboardWidget.overlay.bodyPanIntent","@/__tests__/flowCanvasSpacePanOverlayProxyRegression.test","testFlowCanvasOverlayBodyPanUsesViewportPanIntent"],
   ["viewport.storyboardWidget.overlay.wheelProxy","@/__tests__/flowCanvasWheelOverlayProxyRegression.test","testFlowCanvasWheelZoomCanStartFromStoryboardWidgetOverlay"],
   ["viewport.storyboardWidget.overlay.surfaceRootFallback","@/__tests__/storyboardWidgetActiveSurfaceObstacleCollection.test","testStoryboardWidgetOverlaySurfaceResolutionFallsBackToSurfaceRoot"],
+  ["viewport.storyboardWidget.overlay.prefersInteractiveRichMediaOverPinnedProxy","@/__tests__/storyboardWidgetActiveSurfaceObstacleCollection.test","testStoryboardWidgetActiveSurfaceObstacleCollectionPrefersInteractiveRichMediaRootOverPinnedProxy"],
   ["viewport.storyboardWidget.overlay.rootDataAttr","@/__tests__/storyboardWidgetFlyoutOverlayRootDataAttrRegression.test","testStoryboardWidgetFlyoutOverlayRootHasWidgetDataAttr"],
   ["viewport.storyboardWidget.overlay.defaultPinHelper","@/__tests__/storyboardWidgetDefaultsPinnedToNodeRegression.test","testStoryboardWidgetDefaultsUseSharedPinHelper"],
   ["viewport.storyboardWidget.overlay.frontmatterDefaultFloating","@/__tests__/storyboardWidgetDefaultsPinnedToNodeRegression.test","testStoryboardWidgetFrontmatterWidgetsDefaultToFloatingScreenAuthority"],

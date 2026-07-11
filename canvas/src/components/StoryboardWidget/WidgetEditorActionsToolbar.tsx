@@ -8,6 +8,7 @@ import type { WidgetOpenExternalAction } from '@/components/StoryboardWidget/wid
 import { GRAPH_FIELDS_ENTRY_SHORTCUT_NODE_LABEL } from '@/features/panels/views/graph-fields/graphFieldsEntryCommands'
 import { UI_COPY, UI_LABELS } from '@/lib/config'
 import { getRichMediaPanelViewTitle } from '@/lib/render/richMediaSsot'
+import { uiToolbarColumnMenuListClassName } from '@/features/toolbar/ui/toolbarStyles'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { Copy, Eraser, ExternalLink, GitBranch, GitMerge, HelpCircle, Link, PanelRightOpen, Play, Share2, SplitSquareVertical, Trash2, type LucideIcon } from 'lucide-react'
@@ -77,7 +78,6 @@ type WidgetToolbarActionId =
   | 'remove'
 
 type WidgetToolbarActionButtonProps = {
-  activateOnPointerDown?: boolean
   actionId: WidgetToolbarActionId
   className?: string
   disabled?: boolean
@@ -93,19 +93,10 @@ type WidgetToolbarActionButtonProps = {
 
 const WidgetToolbarActionButton = React.forwardRef<HTMLButtonElement, WidgetToolbarActionButtonProps>(function WidgetToolbarActionButton(props, ref) {
   const Icon = props.icon
-  const pointerActivatedRef = React.useRef(false)
   const handlePointerDown = React.useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
     props.onPointerDown?.(event)
-    if (event.defaultPrevented) return
-    if (props.disabled || props.activateOnPointerDown !== true || event.button !== 0) return
-    pointerActivatedRef.current = true
-    props.onClick?.(event as unknown as React.MouseEvent<HTMLButtonElement>)
   }, [props])
   const handleClick = React.useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
-    if (pointerActivatedRef.current) {
-      pointerActivatedRef.current = false
-      return
-    }
     props.onClick?.(event)
   }, [props])
   return (
@@ -179,6 +170,7 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
   const showHelpAction = actionVisibility.help !== false
   const showRemoveAction = actionVisibility.remove !== false
   const importUrlButtonRef = React.useRef<HTMLButtonElement | null>(null)
+  const removeCaptureActivatedRef = React.useRef(false)
   const [importUrlOpen, setImportUrlOpen] = React.useState(false)
   const [importUrlDraft, setImportUrlDraft] = React.useState('')
 
@@ -193,18 +185,30 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
   }, [args.importUrlAction?.initialUrl, args.importUrlAction?.visible, importUrlDraft, importUrlOpen])
 
   const handleToolbarPointerDownCapture = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
-    try {
+    const target = event.target instanceof Element ? event.target : null
+    const removeButton = target?.closest('button[data-kg-toolbar-action="remove"]') || null
+    if (event.button === 0 && removeButton) {
+      removeCaptureActivatedRef.current = true
+      event.preventDefault()
       event.stopPropagation()
-    } catch {
-      void 0
+      onRemove()
+      return
     }
+    event.stopPropagation()
     if (event.button !== 0) return
     try {
       event.preventDefault()
     } catch {
       void 0
     }
-  }, [])
+  }, [onRemove])
+  const handleRemoveClick = React.useCallback(() => {
+    if (removeCaptureActivatedRef.current) {
+      removeCaptureActivatedRef.current = false
+      return
+    }
+    onRemove()
+  }, [onRemove])
 
   if (!visible) return null
   return (
@@ -403,7 +407,7 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
             actionId="remove"
             title={UI_LABELS.removeNode}
             tooltipContent={UI_COPY.flowWidgetRemoveNode}
-            onClick={onRemove}
+            onClick={handleRemoveClick}
             className={cn('App-toolbar__btn', UI_THEME_TOKENS.status.error.split(' ').slice(0, 2).join(' '))}
             icon={Trash2}
             iconSizeClass={iconSizeClass}
@@ -423,20 +427,24 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
         onClose={() => setImportUrlOpen(false)}
       >
         <section className={`${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border} border rounded p-2 shadow-sm`}>
-          <ImportUrlPrompt
-            urlDraft={importUrlDraft}
-            onChange={setImportUrlDraft}
-            autoFocus
-            confirmLabel="Set"
-            onCancel={() => setImportUrlOpen(false)}
-            onConfirm={(nextUrlRaw) => {
-              const cleaned = unwrapUserProvidedText(nextUrlRaw) || nextUrlRaw
-              const next = String(cleaned || '').trim()
-              if (!next) return
-              args.importUrlAction?.onConfirm(next)
-              setImportUrlOpen(false)
-            }}
-          />
+          <menu className={uiToolbarColumnMenuListClassName} aria-label="Storyboard widget media selector">
+            <li>
+              <ImportUrlPrompt
+                urlDraft={importUrlDraft}
+                onChange={setImportUrlDraft}
+                autoFocus
+                confirmLabel="Set"
+                onCancel={() => setImportUrlOpen(false)}
+                onConfirm={(nextUrlRaw) => {
+                  const cleaned = unwrapUserProvidedText(nextUrlRaw) || nextUrlRaw
+                  const next = String(cleaned || '').trim()
+                  if (!next) return
+                  args.importUrlAction?.onConfirm(next)
+                  setImportUrlOpen(false)
+                }}
+              />
+            </li>
+          </menu>
         </section>
       </AnchoredPopover>
     </>

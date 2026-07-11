@@ -1,13 +1,10 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
+import GraphRecordSelectionInspector from '@/features/graph-inspector/ui/GraphRecordSelectionInspector'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { STORYBOARD_WIDGET_INSPECTOR_PORTAL_SLOT_ID } from '@/lib/config'
 import { isStoryboardCanvas2dRenderer } from '@/lib/config.render'
-
-const GraphRecordSelectionInspectorLazy = React.lazy(
-  () => import('@/features/graph-inspector/ui/GraphRecordSelectionInspector'),
-)
 
 export default function WorkflowManagerInspectorPanel() {
   const { workspaceViewMode, canvasRenderMode, canvas2dRenderer } = useGraphStore(
@@ -26,9 +23,5 @@ export default function WorkflowManagerInspectorPanel() {
     return <section id={STORYBOARD_WIDGET_INSPECTOR_PORTAL_SLOT_ID} className="h-full" aria-label="Workflow inspector slot" />
   }
 
-  return (
-    <React.Suspense fallback={null}>
-      <GraphRecordSelectionInspectorLazy />
-    </React.Suspense>
-  )
+  return <GraphRecordSelectionInspector />
 }
