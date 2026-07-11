@@ -230,8 +230,8 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
       throw new Error(`expected hero suppression for ${JSON.stringify(suppression)}`)
     }
   }
-  if (!shouldShowLiveCanvasHero({ ...base, meaningfulSourceFilesPresent: true })) {
-    throw new Error('expected apex root landing to stay visible until the user enters /knowgrph/')
+  if (!shouldShowLiveCanvasHero({ ...base, meaningfulSourceFilesPresent: true, defaultSeedOnly: false })) {
+    throw new Error('expected apex root landing to stay visible over authored workspace content until the user enters /knowgrph/')
   }
 }
 
