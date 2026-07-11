@@ -45,6 +45,7 @@ export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia 
           className="h-full w-full"
           mediaClassName="h-full w-full"
           mediaThumbnailDataAttr
+          mediaSelectableSurfaceDataAttr
         />
       ) : null}
       {mediaUrl && inlineMediaKind ? (

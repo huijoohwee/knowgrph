@@ -133,7 +133,7 @@ export function RichMediaPanelDirectMediaSurface(args: {
         kind={model.kind}
         url={model.mediaSrc}
         title={model.title}
-        interactive={model.contentInteractive}
+        {...model.directMediaPreviewCardProps}
         fit="contain"
         onMediaElement={model.handleDirectMediaElement}
         onReady={() => model.setReady(true)}

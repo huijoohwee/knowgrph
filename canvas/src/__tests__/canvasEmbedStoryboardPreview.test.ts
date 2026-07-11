@@ -13,7 +13,7 @@ export function testCanvasEmbedStoryboardPreviewUsesSharedStoryboardSurface(): v
   ]) {
     if (!viewport.includes(contract)) throw new Error(`expected shared Storyboard embed preview contract ${contract}`)
   }
-  if (!heroRuntime.includes('isRootAlias ? CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL')) {
-    throw new Error('expected every apex Dev origin to default to the canonical remote Storyboard iframe')
+  if (!heroRuntime.includes('isRootAlias ? resolveCanonicalWorkspaceReadmeCanvasEmbedRuntimeUrl()')) {
+    throw new Error('expected every apex Dev origin to default to the canonical same-runtime Storyboard iframe')
   }
 }

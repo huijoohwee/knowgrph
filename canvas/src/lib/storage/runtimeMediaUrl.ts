@@ -43,7 +43,6 @@ export function normalizeRuntimeStorageMediaUrl(value: unknown, runtimeOrigin = 
   if (!raw || !origin) return raw
   try {
     const current = new URL(origin)
-    if (!isLocalStorageHost(current.hostname)) return raw
     const parsed = new URL(raw, current.origin)
     if (!/^https?:$/i.test(parsed.protocol) || !isLocalStorageHost(parsed.hostname) || !isStorageMediaPath(parsed.pathname)) return raw
     return new URL(`${parsed.pathname}${parsed.search}${parsed.hash}`, current.origin).toString()

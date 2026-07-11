@@ -444,11 +444,11 @@ export function useRichMediaPanelSurfaceState(
     ariaLabel: `${mediaState.title} media preview`,
     claimPointerDown: directMediaPreviewClaimsPointerDown,
     selectableSurface: directMediaPreviewMarksSelectableSurface,
-    enabled: mediaState.kind === 'image' || mediaState.kind === 'svg' || mediaState.kind === 'video',
+    enabled: mediaState.kind === 'image' || mediaState.kind === 'svg' || mediaState.kind === 'video' || mediaState.kind === 'audio',
     onSelect: event => selectSelf(event.nativeEvent as PointerEvent),
   }), [directMediaPreviewClaimsPointerDown, directMediaPreviewMarksSelectableSurface, mediaState.kind, mediaState.title, selectSelf])
   const directMediaPreviewCardProps = React.useMemo(() => resolveMediaPreviewSurfaceCardProps({
-    enabled: mediaState.kind === 'image' || mediaState.kind === 'svg' || mediaState.kind === 'video',
+    enabled: mediaState.kind === 'image' || mediaState.kind === 'svg' || mediaState.kind === 'video' || mediaState.kind === 'audio',
     interactive: false,
     selectableSurface: directMediaPreviewMarksSelectableSurface,
   }), [directMediaPreviewMarksSelectableSurface, mediaState.kind])
@@ -460,6 +460,8 @@ export function useRichMediaPanelSurfaceState(
     props.className || '',
   ].filter(Boolean).join(' ')
   const rootAttributes = {
+    'aria-label': mediaState.title,
+    role: 'group',
     'data-kg-canvas-overlay-drag-handle': installHeaderDrag ? 'true' : undefined,
     'data-kg-canvas-overlay-pinned': canvasOverlayProxyEnabled ? (props.canvasOverlayPinned === false ? '0' : '1') : undefined,
     'data-kg-canvas-wheel-ignore': canvasOverlayProxyEnabled ? 'true' : undefined,
@@ -477,6 +479,7 @@ export function useRichMediaPanelSurfaceState(
     'data-kg-rich-media-image-format-preference': MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR,
     'data-kg-rich-media-overlay': storyboardWidgetRichMediaOverlayRoot ? '1' : undefined,
     'data-kg-rich-media-panel': '1',
+    'data-kg-rich-media-selectable-surface': '1',
     'data-kg-rich-media-render-surface': '1',
     'data-kg-rich-media-shared-pan-drag-zoom': mediaState.kind === 'image' || mediaState.kind === 'svg' || mediaState.kind === 'video' ? '1' : undefined,
     'data-kg-rich-media-video-format-preference': MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR,

@@ -57,8 +57,12 @@ export function testMobileKeyboardBrowserSmokeContract() {
   }
 
   for (const snippet of [
-    'const devServerUrl = `${devServerBaseUrl}/__smoke__/mobile-keyboard`',
-    "python3', ['scripts/verify_mobile_keyboard_browser_smoke.py']",
+    "import { runLocalViteBrowserSmoke } from './lib/run-local-vite-browser-smoke.mjs'",
+    "logLabel: 'mobile-keyboard-browser-smoke'",
+    "devServerPath: '/__smoke__/mobile-keyboard'",
+    "verifierArgs: ['scripts/verify_mobile_keyboard_browser_smoke.py']",
+    "prepareBeforeStart: true",
+    "devServerStartMode: 'vite-runner'",
     'KG_MOBILE_KEYBOARD_SMOKE_BASE_URL',
   ]) {
     if (!runnerSource.includes(snippet)) {

@@ -313,6 +313,8 @@ export function CanvasViewport(props: CanvasViewportProps) {
                       title={`Interactive canvas embed for ${liveCanvasHeroSource.sourcePath}`}
                       className="absolute inset-0 h-full w-full border-0 bg-transparent"
                       sandbox="allow-forms allow-popups allow-same-origin allow-scripts"
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
                       referrerPolicy="strict-origin-when-cross-origin"
                       data-kg-live-canvas-hero-selected-embed="true"
                       data-kg-live-canvas-hero-embed-url={liveCanvasHeroSource.embedUrl}

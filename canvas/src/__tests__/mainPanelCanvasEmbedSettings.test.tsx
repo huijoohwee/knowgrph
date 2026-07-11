@@ -11,6 +11,7 @@ import {
   readCanvasEmbedIframeSrc,
 } from '@/features/canvas/canvasEmbedImportContract'
 import { normalizeCanonicalWorkspaceReadmeCanvasEmbedUrl } from '@/features/canvas/canvasEmbedPresets'
+import { resolveCanonicalWorkspaceReadmeCanvasEmbedRuntimeUrl } from '@/features/canvas/canvasEmbedPresets'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 import { readLiveCanvasHeroSourceSelection, LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT } from '@/features/canvas/liveCanvasHeroSourceSelection'
@@ -28,6 +29,10 @@ export async function testMainPanelCanvasEmbedSettingsReuseSharedImportPanel(): 
   const migratedLegacySelection = normalizeCanonicalWorkspaceReadmeCanvasEmbedUrl(`${CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL}&kgPreview=1&kgLiveHero=1`)
   if (migratedLegacySelection.includes('kgPreview=') || migratedLegacySelection.includes('kgLiveHero=')) {
     throw new Error(`expected stale canonical Hero preview flags to migrate to the direct Storyboard iframe, got ${migratedLegacySelection}`)
+  }
+  const localRuntimeEmbed = resolveCanonicalWorkspaceReadmeCanvasEmbedRuntimeUrl('http://localhost:5174')
+  if (!localRuntimeEmbed.startsWith('http://localhost:5174/knowgrph/share/')) {
+    throw new Error(`expected Dev to mirror the canonical share token through its same-origin runtime, got ${localRuntimeEmbed}`)
   }
   if (readCanvasEmbedIframeSrc(`<iframe src="${CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL}"></iframe>`) !== CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL) {
     throw new Error('expected the canonical Workspace README URL to use the shared iframe parser')
@@ -56,8 +61,9 @@ export async function testMainPanelCanvasEmbedSettingsReuseSharedImportPanel(): 
       presetButton.click()
       await waitForFrames(dom.window as unknown as Window, 1)
     })
-    if (selectedEmbedUrl !== CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL) {
-      throw new Error(`expected the preset to preserve the actual remote Storyboard iframe URL, got ${selectedEmbedUrl}`)
+    const selectedUrl = new URL(selectedEmbedUrl)
+    if (!selectedUrl.pathname.startsWith('/knowgrph/share/') || selectedUrl.searchParams.get('kgCanvas2dRenderer') !== 'storyboard') {
+      throw new Error(`expected the preset to preserve the canonical Storyboard share identity, got ${selectedEmbedUrl}`)
     }
     await act(async () => {
       importButton.click()

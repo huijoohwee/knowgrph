@@ -45,8 +45,12 @@ export function testStoryboardRichMediaDropBrowserSmokeContract() {
   }
 
   for (const snippet of [
-    'const devServerUrl = `${devServerBaseUrl}/__smoke__/storyboard-rich-media-drop`',
-    "python3', ['scripts/verify_storyboard_rich_media_drop_browser_smoke.py']",
+    "import { runLocalViteBrowserSmoke } from './lib/run-local-vite-browser-smoke.mjs'",
+    "logLabel: 'storyboard-rich-media-drop-smoke'",
+    "devServerPath: '/__smoke__/storyboard-rich-media-drop'",
+    "verifierArgs: ['scripts/verify_storyboard_rich_media_drop_browser_smoke.py']",
+    "prepareBeforeStart: true",
+    "devServerStartMode: 'vite-runner'",
     'KG_STORYBOARD_DROP_SMOKE_BASE_URL',
   ]) {
     if (!runnerSource.includes(snippet)) {
