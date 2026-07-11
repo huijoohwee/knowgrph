@@ -1,6 +1,7 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
+  ["richMedia.browserSmokeContract","@/__tests__/richMediaBrowserSmokeContract.test","testRichMediaBrowserSmokeContract"],
   ["flowWidget.placement.explicitGraphScope","@/__tests__/flowWidgetGraphScopedPlacement.test","testFlowWidgetPlacementWritesToExplicitGraphScope"],
   ["graph.documentMetaKey.sourceRevisionStable","@/__tests__/graphMetaKeyPending.test","testGraphDocumentMetaKeyStaysStableAcrossSourceRevisions"],
   ["ui.storyboard.fixedCardOverlay.flexInteractions","@/__tests__/storyboardFixedCardOverlayPerformanceRegression.test","testStoryboardCardOverlayRestoresFlexInteractions"],

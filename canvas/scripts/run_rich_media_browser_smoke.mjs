@@ -9,7 +9,7 @@ async function run() {
     verifierCommand: 'python3',
     verifierArgs: ['scripts/verify_rich_media_browser_smoke.py'],
     prepareBeforeStart: true,
-    devServerStartMode: 'npm-dev',
+    devServerStartMode: 'vite-runner',
   })
 }
 

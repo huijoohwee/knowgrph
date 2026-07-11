@@ -45,7 +45,7 @@ export function testRichMediaBrowserSmokeContract() {
     "devServerPath: '/__smoke__/rich-media'",
     "verifierArgs: ['scripts/verify_rich_media_browser_smoke.py']",
     "prepareBeforeStart: true",
-    "devServerStartMode: 'npm-dev'",
+    "devServerStartMode: 'vite-runner'",
     'KG_RICH_MEDIA_SMOKE_BASE_URL',
   ]) {
     if (!runnerSource.includes(snippet)) {
@@ -58,8 +58,9 @@ export function testRichMediaBrowserSmokeContract() {
     'window.__kgRichMediaSmokeOpened = []',
     'def open_text_edit_input(page):',
     'display = page.locator(f\'{panel_selector} [data-kg-card-inline-edit="1"]\').first',
+    'input_locator = page.locator(f\'{panel_selector} [data-kg-card-inline-edit-input="1"]\').first',
     'input_locator.wait_for(state="visible", timeout=5000)',
-    'expected rich media text edit panel to reveal the inline textarea',
+    'expected rich media text edit panel to reveal the inline editor surface',
     'KG_RICH_MEDIA_SMOKE_BASE_URL',
     'data-kg-smoke-panel="storyboard-widget"',
     'data-kg-smoke-flow-size="1"',

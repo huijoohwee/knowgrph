@@ -1,7 +1,7 @@
 const CANONICAL_WORKSPACE_README_SHARE_PATH = '/knowgrph/share/eyJjYW5vbmljYWxQYXRoIjoiaHVpam9vaHdlZS9kb2NzL3dvcmtzcGFjZS1yZWFkbWUubWQiLCJ3b3Jrc3BhY2VJZCI6bnVsbH0'
 const LOCAL_RUNTIME_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
 
-export const CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL = `https://airvio.co${CANONICAL_WORKSPACE_README_SHARE_PATH}?kgCanvasSurfaceMode=2d&kgCanvasRenderMode=2d&kgCanvas2dRenderer=storyboard`
+export const CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL = `https://airvio.co${CANONICAL_WORKSPACE_README_SHARE_PATH}?kgCanvasSurfaceMode=2d&kgCanvasRenderMode=2d&kgCanvas2dRenderer=storyboard&openEditorWorkspace=1`
 
 export function resolveCanonicalWorkspaceReadmeCanvasEmbedRuntimeUrl(runtimeOrigin?: string | null): string {
   const rawOrigin = String(runtimeOrigin || (typeof window !== 'undefined' ? window.location?.origin : '') || '').trim()
@@ -30,6 +30,7 @@ export function normalizeCanonicalWorkspaceReadmeCanvasEmbedUrl(value: string): 
     url.searchParams.set('kgCanvasSurfaceMode', '2d')
     url.searchParams.set('kgCanvasRenderMode', '2d')
     url.searchParams.set('kgCanvas2dRenderer', 'storyboard')
+    url.searchParams.set('openEditorWorkspace', '1')
     const runtimeOrigin = typeof window !== 'undefined' ? String(window.location?.origin || '').trim() : ''
     if (runtimeOrigin) {
       const runtime = new URL(runtimeOrigin)

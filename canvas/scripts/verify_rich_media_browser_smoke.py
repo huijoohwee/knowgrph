@@ -47,23 +47,25 @@ def click_panel_inset(page, panel_selector: str, target_selector: str, *, inset_
 def open_text_edit_input(page):
     panel_selector = '[data-kg-smoke-panel="text-edit"]'
     display = page.locator(f'{panel_selector} [data-kg-card-inline-edit="1"]').first
-    input_locator = page.locator(f'{panel_selector} textarea[data-kg-card-inline-edit-input]').first
+    input_locator = page.locator(f'{panel_selector} [data-kg-card-inline-edit-input="1"]').first
     expect(display).to_be_visible()
 
     activation_steps = (
         lambda: display.click(timeout=5000),
         lambda: display.dblclick(timeout=5000),
-        lambda: click_panel_inset(page, panel_selector, '[data-kg-card-inline-edit="1"]'),
+        lambda: display.focus(),
     )
     for activate in activation_steps:
-      try:
-        activate()
-        input_locator.wait_for(state="visible", timeout=5000)
-        return input_locator
-      except PlaywrightTimeoutError:
-        continue
+        try:
+            activate()
+            if activate == activation_steps[-1]:
+                page.keyboard.press("Enter")
+            input_locator.wait_for(state="visible", timeout=5000)
+            return input_locator
+        except PlaywrightTimeoutError:
+            continue
 
-    raise AssertionError("expected rich media text edit panel to reveal the inline textarea")
+    raise AssertionError("expected rich media text edit panel to reveal the inline editor surface")
 
 
 def main() -> None:

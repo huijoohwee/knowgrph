@@ -12,7 +12,7 @@ const SMOKE_MARKDOWN_PREVIEW = [
 ].join('\n')
 
 const SMOKE_EDITABLE_TEXT = [
-  '## Editable Rich Media',
+  'Editable Rich Media',
   '',
   'Click to edit this runtime smoke panel.',
 ].join('\n')

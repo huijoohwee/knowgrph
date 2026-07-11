@@ -21,7 +21,7 @@ export async function testMainPanelCanvasEmbedSettingsReuseSharedImportPanel(): 
   if (!CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL.startsWith('https://airvio.co/knowgrph/share/')) {
     throw new Error('expected the canonical Workspace README share URL to remain source-backed')
   }
-  for (const rendererParam of ['kgCanvasSurfaceMode=2d', 'kgCanvasRenderMode=2d', 'kgCanvas2dRenderer=storyboard']) {
+  for (const rendererParam of ['kgCanvasSurfaceMode=2d', 'kgCanvasRenderMode=2d', 'kgCanvas2dRenderer=storyboard', 'openEditorWorkspace=1']) {
     if (!CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL.includes(rendererParam)) {
       throw new Error(`expected the canonical embed preset to select the Storyboard 2D renderer via ${rendererParam}`)
     }
@@ -62,7 +62,9 @@ export async function testMainPanelCanvasEmbedSettingsReuseSharedImportPanel(): 
       await waitForFrames(dom.window as unknown as Window, 1)
     })
     const selectedUrl = new URL(selectedEmbedUrl)
-    if (!selectedUrl.pathname.startsWith('/knowgrph/share/') || selectedUrl.searchParams.get('kgCanvas2dRenderer') !== 'storyboard') {
+    if (!selectedUrl.pathname.startsWith('/knowgrph/share/')
+      || selectedUrl.searchParams.get('kgCanvas2dRenderer') !== 'storyboard'
+      || selectedUrl.searchParams.get('openEditorWorkspace') !== '1') {
       throw new Error(`expected the preset to preserve the canonical Storyboard share identity, got ${selectedEmbedUrl}`)
     }
     await act(async () => {
