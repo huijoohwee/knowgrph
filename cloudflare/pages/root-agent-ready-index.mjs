@@ -38,7 +38,7 @@ const injectIntoHead = (html, markup) =>
 const canonicalizeRootMount = (html) =>
   String(html || "").replace(ROOT_MOUNT_PATTERN, ROOT_MOUNT_MARKUP);
 
-const rootNoscriptFallbackMarkup = () => `<noscript><a href="${APP_BASE_PATH}/">Open Knowgrph</a></noscript>`;
+const rootNoscriptFallbackMarkup = () => `<noscript><a href="${APP_BASE_PATH}/">Enter Knowgrph</a></noscript>`;
 
 const rewriteRootAppHtml = (html) => {
   let next = canonicalizeRootMount(html);
