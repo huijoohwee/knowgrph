@@ -287,10 +287,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
             ) : liveCanvasHeroVisible && liveCanvasHeroSource ? (
               <>
                 <section
-                  className="absolute inset-0 pointer-events-auto opacity-100"
-                  aria-label="Interactive workspace README command-route canvas"
-                  data-kg-live-canvas-hero-canvas="workspace-runtime"
-                  data-kg-live-canvas-hero-interactive="true"
+                  className={`absolute inset-0 opacity-100 ${liveCanvasHeroSource.embedUrl ? 'pointer-events-auto' : 'pointer-events-none bg-[var(--kg-canvas-bg)]'}`}
+                  aria-label={liveCanvasHeroSource.embedUrl ? 'Shared interactive canvas background' : 'Home background unavailable'}
+                  data-kg-live-canvas-hero-background={liveCanvasHeroSource.embedUrl ? 'shared-embed' : 'unavailable'}
                   data-kg-live-canvas-hero-source={liveCanvasHeroSource.sourcePath}
                   data-kg-live-canvas-hero-source-graph-id={liveCanvasHeroSource.graphId || undefined}
                 >
@@ -305,18 +304,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
                       data-kg-live-canvas-hero-selected-embed="true"
                       data-kg-live-canvas-hero-embed-url={liveCanvasHeroSource.embedUrl}
                     />
-                  ) : (
-                    <FlowCanvasLazy
-                      active
-                      graphDataOverride={liveCanvasHeroSource.canvasGraphData}
-                      mutationSourceGraphDataOverride={liveCanvasHeroSource.graphData}
-                      graphDataRevisionOverride={liveCanvasHeroSource.graphRevision}
-                      canvas2dRendererOverride="flow"
-                      suppressMediaOverlays
-                      flowWidgetStateGraphKeyOverride={`live-hero:${liveCanvasHeroSource.sourceLayerHash}`}
-                      forbidCircleNodes
-                    />
-                  )}
+                  ) : null}
                 </section>
                 <LiveCanvasHeroLazy source={liveCanvasHeroSource} onHandoffComplete={dismissLiveCanvasHero} />
               </>

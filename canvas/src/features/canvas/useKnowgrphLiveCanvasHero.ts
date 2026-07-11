@@ -14,9 +14,11 @@ import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdow
 import { hasLiveCanvasHeroBlockingSearchParams, shouldShowLiveCanvasHero } from './liveCanvasHeroVisibility'
 import {
   LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT,
+  readPersistedLiveCanvasHeroSourceSelection,
   readLiveCanvasHeroSourceSelection,
   type LiveCanvasHeroSourceSelection,
 } from './liveCanvasHeroSourceSelection'
+import { resolveLiveCanvasHeroEmbedUrl } from './liveCanvasHeroEmbed'
 import { deriveLiveCanvasHeroCommandRouteGraph } from './liveCanvasHeroProjection'
 
 export type LiveCanvasHeroWorkspaceSourceState = {
@@ -195,7 +197,7 @@ export function useKnowgrphLiveCanvasHero(args: {
   floatingPanelOpen: boolean
   alternateCanvasSurfaceActive: boolean
 }) {
-  const [selectedEmbedSource, setSelectedEmbedSource] = React.useState<LiveCanvasHeroSourceSelection | null>(null)
+  const [selectedEmbedSource, setSelectedEmbedSource] = React.useState<LiveCanvasHeroSourceSelection | null>(readPersistedLiveCanvasHeroSourceSelection)
   const [landingExited, setLandingExited] = React.useState(false)
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -256,19 +258,24 @@ export function useKnowgrphLiveCanvasHero(args: {
   }, [isRootAlias, liveCanvasHeroSource])
   const effectiveLiveCanvasHeroSource = React.useMemo(() => {
     const source = liveCanvasHeroSource || rootAliasFallbackSource
-    if (!selectedEmbedSource) return source
+    const sourcePath = selectedEmbedSource?.sourcePath || source?.sourcePath || ''
+    const embedUrl = selectedEmbedSource?.embedUrl || resolveLiveCanvasHeroEmbedUrl({
+      sourcePath,
+      baseUrl: import.meta.env.BASE_URL,
+    }) || undefined
+    if (!selectedEmbedSource && !embedUrl) return source
     return {
       ...(source || {
-        sourceFileId: `embed:${selectedEmbedSource.sourcePath}`,
+        sourceFileId: `embed:${sourcePath}`,
         graphData: { nodes: [], edges: [] },
         canvasGraphData: { nodes: [], edges: [] },
         graphRevision: 0,
         graphId: '',
         schema: '',
-        sourceLayerHash: `embed:${selectedEmbedSource.embedUrl}`,
+        sourceLayerHash: `embed:${embedUrl || sourcePath}`,
       }),
-      sourcePath: selectedEmbedSource.sourcePath,
-      embedUrl: selectedEmbedSource.embedUrl,
+      sourcePath,
+      embedUrl,
     }
   }, [liveCanvasHeroSource, rootAliasFallbackSource, selectedEmbedSource])
   const authoredOwnershipReady = args.sourceFilesBootstrapReady

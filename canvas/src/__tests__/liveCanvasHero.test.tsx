@@ -17,6 +17,7 @@ import { resolveLiveCanvasHeroEmbedUrl } from '@/features/canvas/liveCanvasHeroE
 import { buildLocalDocCanvasEmbedUrl, isSameOriginCanvasEmbedUrl } from '@/features/canvas/canvasDocDeepLink'
 import {
   LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT,
+  readPersistedLiveCanvasHeroSourceSelection,
   readLiveCanvasHeroSourceSelection,
   selectLiveCanvasHeroSource,
 } from '@/features/canvas/liveCanvasHeroSourceSelection'
@@ -325,13 +326,8 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
   const flowGraphStateSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasGraphState.ts'), 'utf8')
   const flowZoomSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'applyZoomRequestNative.ts'), 'utf8')
   for (const contract of [
-    'data-kg-live-canvas-hero-canvas="workspace-runtime"',
-    'data-kg-live-canvas-hero-interactive="true"',
-    'graphDataOverride={liveCanvasHeroSource.canvasGraphData}',
-    'mutationSourceGraphDataOverride={liveCanvasHeroSource.graphData}',
-    'canvas2dRendererOverride="flow"',
-    'suppressMediaOverlays',
-    'flowWidgetStateGraphKeyOverride={`live-hero:${liveCanvasHeroSource.sourceLayerHash}`}',
+    'data-kg-live-canvas-hero-background={liveCanvasHeroSource.embedUrl ? \'shared-embed\' : \'unavailable\'}',
+    "aria-label={liveCanvasHeroSource.embedUrl ? 'Shared interactive canvas background' : 'Home background unavailable'}",
     'data-kg-live-canvas-hero-selected-embed="true"',
     'src={liveCanvasHeroSource.embedUrl}',
     'deriveLiveCanvasHeroCommandRouteGraph(safeGraphData) || safeGraphData',
@@ -345,8 +341,9 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
   ]) {
     if (!`${viewportSource}\n${heroSource}\n${heroHookSource}`.includes(contract)) throw new Error(`expected interactive workspace canvas contract ${contract}`)
   }
-  if (!viewportSource.includes('<FlowCanvasLazy') || !viewportSource.includes('forbidCircleNodes')) {
-    throw new Error('expected the source-derived graph to retain live FlowCanvas pan, zoom, selection, and drag ownership')
+  if (viewportSource.includes('graphDataOverride={liveCanvasHeroSource.canvasGraphData}')
+    || viewportSource.includes('flowWidgetStateGraphKeyOverride={`live-hero:${liveCanvasHeroSource.sourceLayerHash}`}')) {
+    throw new Error('expected Home to avoid mounting a default workspace FlowCanvas background')
   }
   if (!viewportSource.includes('<iframe') || !viewportSource.includes('sandbox="allow-forms allow-popups allow-same-origin allow-scripts"')) {
     throw new Error('expected Explorer Share canvas embed selection to mount the resolved interactive canvas in the hero background')
@@ -365,8 +362,12 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     || !viewportSource.includes('!liveCanvasHeroVisible && paywallOverlayActive')) {
     throw new Error('expected Live Canvas Hero ownership to suppress ancillary viewport overlays')
   }
-  if (!heroHookSource.includes('sourcePath: selectedEmbedSource.sourcePath') || !heroHookSource.includes('embedUrl: selectedEmbedSource.embedUrl')) {
-    throw new Error('expected a selected embed to retain hero ownership even when the source is not already materialized in the graph store')
+  if (!heroHookSource.includes('const sourcePath = selectedEmbedSource?.sourcePath || source?.sourcePath || \'\'')
+    || !heroHookSource.includes('const embedUrl = selectedEmbedSource?.embedUrl || resolveLiveCanvasHeroEmbedUrl({')) {
+    throw new Error('expected Home to resolve either the selected embed or the canonical Share canvas embed URL')
+  }
+  if (!heroHookSource.includes('readPersistedLiveCanvasHeroSourceSelection')) {
+    throw new Error('expected Home to restore an explicit Share canvas embed selection for the current session')
   }
   if (!viewportSource.includes("alternateCanvasSurfaceActive: geospatialModeEnabled || canvasRenderMode !== '2d'")
     || viewportSource.includes("alternateCanvasSurfaceActive: geospatialModeEnabled || canvasRenderMode !== '2d' || active2dSurface !== 'storyboard'")) {
@@ -419,6 +420,10 @@ export function testLiveCanvasHeroCanvasEmbedSelectionEvent(): void {
     }
     if (selections[0]?.sourcePath !== '/docs/shared-canvas.md' || !selections[0]?.embedUrl.includes('kgPreview=1')) {
       throw new Error(`expected exact shared canvas selection detail, got ${JSON.stringify(selections[0])}`)
+    }
+    const restored = readPersistedLiveCanvasHeroSourceSelection()
+    if (restored?.sourcePath !== '/docs/shared-canvas.md' || restored.embedUrl !== selections[0]?.embedUrl) {
+      throw new Error(`expected the selected canvas to persist for Home, got ${JSON.stringify(restored)}`)
     }
   } finally {
     dom.window.removeEventListener(LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT, listener)
