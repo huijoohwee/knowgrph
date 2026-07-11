@@ -8,6 +8,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["ui.floatingPanelChat.openSeed.appendEvent.normalizesInvocationSpacing","@/__tests__/floatingPanelChatOpenSeed.test","testFloatingPanelChatOpenSeedAppendEventNormalizesInvocationSpacing"],
   ["ui.floatingPanelChat.openSeed.appendEvent.preservesRawSeedText","@/__tests__/floatingPanelChatOpenSeed.test","testFloatingPanelChatOpenSeedAppendEventPreservesRawSeedText"],
   ["ui.floatingPanelChat.openSeed.queuedHandoffFailClosed","@/__tests__/floatingPanelChatOpenSeed.test","testFloatingPanelChatOpenSeedQueuedHandoffClearsQueueWhenChatUnavailable"],
+  ["ui.floatingPanelChat.openSeed.queuedHandoff.resolvesSeedOnce","@/__tests__/floatingPanelChatOpenSeed.test","testFloatingPanelChatOpenSeedQueuedHandoffQueuesResolvedSeedWhenChatAvailable"],
   ["chat.responseContract.prompt.kgcComputingFlowKtvShape","@/__tests__/chatResponseKgcComputingFlowContract.test","testChatKgcResponseContractPromptEnforcesComputingFlowShape"],
   ["chat.responseContract.storage.kgcComputingFlowKtvBodyTokens","@/__tests__/chatResponseKgcComputingFlowContract.test","testKgcDeterministicFallbackGeneratesComputingFlowKtvBodyTokens"],
   ["chat.responseContract.storage.kgcPreservesAssistantAnswerResponseBody","@/__tests__/chatResponseKgcComputingFlowContract.test","testKgcDeterministicFallbackPreservesAssistantAnswerInResponseBody"],

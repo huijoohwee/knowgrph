@@ -1471,6 +1471,21 @@ export async function testFinalizeAssistantSuccessReportsPromotionFailureDetails
     ) {
       throw new Error(`expected local chat pipeline inspection to expose promotion recovery diagnostics, got: ${JSON.stringify(inspectedPipeline.finalize)}`)
     }
+    if (
+      inspectedPipeline.promotionRecovery?.available !== true
+      || inspectedPipeline.promotionRecovery?.scope !== 'mirror-saved-local-artifacts-only'
+      || inspectedPipeline.promotionRecovery?.retryCommand !== '#promotion.retry /workspace/chat/20260522T195000Z/kgc_20260522T195000Z.md /workspace/chat/20260522T195000Z/kgc-trace_20260522T195000Z.md'
+      || inspectedPipeline.promotionRecovery?.retryCommandLine !== '- Retry command: `#promotion.retry /workspace/chat/20260522T195000Z/kgc_20260522T195000Z.md /workspace/chat/20260522T195000Z/kgc-trace_20260522T195000Z.md`'
+      || inspectedPipeline.promotionRecovery?.insertionMode !== 'append'
+      || inspectedPipeline.promotionRecovery?.reusesSavedLocalArtifacts !== true
+      || inspectedPipeline.promotionRecovery?.rerunsValidation !== false
+      || inspectedPipeline.promotionRecovery?.reappliesCanvas !== false
+      || inspectedPipeline.promotionRecovery?.githubBeforeStorage !== true
+      || !Array.isArray(inspectedPipeline.promotionRecovery?.surfaces)
+      || !inspectedPipeline.promotionRecovery.surfaces.includes('warning-toast')
+    ) {
+      throw new Error(`expected local chat pipeline inspection to expose the promotion retry operator contract, got: ${JSON.stringify(inspectedPipeline.promotionRecovery)}`)
+    }
     const retryToast = observedToasts.find(toast => toast.id === 'chat-promotion-retry:/workspace/chat/20260522T195000Z/kgc_20260522T195000Z.md') || null
     if (
       !retryToast

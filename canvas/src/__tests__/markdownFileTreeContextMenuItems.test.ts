@@ -1,3 +1,4 @@
+import { buildCanvasEmbedIframeMarkup } from '@/features/canvas/canvasEmbedIframeMarkup'
 import { buildMarkdownFileTreeContextMenuItems } from '@/features/markdown-workspace/markdownFileTreeContextMenuItems'
 import { WORKSPACE_README_SEED_PATH } from '@/features/workspace-fs/workspaceFs'
 
@@ -121,6 +122,40 @@ export async function testMarkdownFileTreeShareUrlAwaitsAsyncPublishedUrlBeforeC
   }
 }
 
+export async function testMarkdownFileTreeShareActionsReuseCodePanelContract() {
+  const panels: Array<{ sourceName: string; title: string; language: string; code: string }> = []
+  const copied: string[] = []
+  const items = buildMarkdownFileTreeContextMenuItems({
+    entry: {
+      path: '/docs/public.md',
+      parentPath: '/docs',
+      kind: 'file',
+      name: 'public.md',
+      updatedAtMs: 0,
+    },
+    buildShareUrl: async () => 'https://airvio.co/knowgrph/share/kg-public-token',
+    copyToClipboard: async text => {
+      copied.push(text)
+      return true
+    },
+    onShareCodeReady: detail => panels.push(detail),
+    closeContextMenu: () => void 0,
+  })
+
+  await items[0]?.onSelect()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  await items[3]?.onSelect()
+  await items[4]?.onSelect()
+
+  const panelSummary = panels.map(panel => `${panel.title}:${panel.language}:${panel.code}`).join('|')
+  if (panelSummary !== 'Share URL:plaintext:https://airvio.co/knowgrph/share/kg-public-token|Copy Path:plaintext:/docs/public.md|Copy Relative Path:plaintext:docs/public.md') {
+    throw new Error(`expected URL and path actions to use the shared code-panel contract, got ${panelSummary}`)
+  }
+  if (copied.join(',') !== 'https://airvio.co/knowgrph/share/kg-public-token,/docs/public.md,docs/public.md') {
+    throw new Error(`expected share and copy actions to preserve their clipboard values, got ${copied.join(',')}`)
+  }
+}
+
 export async function testMarkdownFileTreeShareCanvasEmbedAwaitsAsyncPublishedUrlBeforeCopy() {
   const calls: string[] = []
   const copied: string[] = []
@@ -148,8 +183,9 @@ export async function testMarkdownFileTreeShareCanvasEmbedAwaitsAsyncPublishedUr
   if (calls.join(',') !== 'start:/docs/public.md,close') {
     throw new Error(`expected Share canvas embed to close the context menu immediately, got ${calls.join(',')}`)
   }
-  if (copied.join(',') !== 'https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1') {
-    throw new Error(`expected async published canvas embed URL to be copied, got ${copied.join(',')}`)
+  const expectedIframe = buildCanvasEmbedIframeMarkup('https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1')
+  if (copied.join(',') !== expectedIframe) {
+    throw new Error(`expected async published canvas iframe markup to be copied, got ${copied.join(',')}`)
   }
   if (selected.join(',') !== '/docs/public.md:https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1') {
     throw new Error(`expected the published canvas embed to select the same source for the Live Canvas Hero, got ${selected.join(',')}`)

@@ -10,6 +10,16 @@ Knowgrph Canvas is primarily a client-side app. Local “API” surfaces used by
 
 API and MCP contracts are owned upstream in Dev. Production mirrors should receive synced artifacts only after upstream validation passes; do not patch generated API behavior inside the publish directory.
 
+## Canvas iframe embed contract
+
+- UI entry: Editor Workspace → Source Files → right-click a file → **Share canvas embed**.
+- Panel output: a complete sandboxed `<iframe>` snippet in an HTML code-block panel with the shared **Copy code to clipboard** control, not only a URL.
+- Frame source: the published opaque share route with `kgPreview=1`; Live Canvas Hero isolation adds `kgLiveHero=1` when it owns the selected background.
+- Runtime boundary: iframe rendering remains owned by Knowgrph. External hosts may size or position the frame but must not reimplement canvas state.
+- Security: generated markup accepts HTTP(S) only and includes `sandbox="allow-scripts allow-same-origin"` plus `referrerpolicy="no-referrer"`. Cloudflare permits external `frame-ancestors` only for the apex/embed owner and opaque published-document HTML routes.
+- Home import: **Import canvas embed** reuses the shared canvas-embed panel shell and accepts the generated iframe HTML or a JSON `postMessage` envelope with `type: "knowgrph.canvas-embed.select"`, `version: 1`, and either `embedUrl` or `iframe`. The optional `sourcePath` preserves source identity. Successful imports normalize `kgPreview=1&kgLiveHero=1` and select the iframe as Home's live background without mounting the full workspace route.
+- Host control: the same v1 envelope is accepted only from the embedding parent or opening window; direct host mutation of internal renderer state remains forbidden.
+
 ## Endpoints
 
 ### Remote media fetch proxy
@@ -129,6 +139,20 @@ Route owner: `huijoohwee/functions/__chat_proxy/[[path]].js`. Public route: `air
 
 This route is a Cloudflare Pages Function relay, not a persistence owner. It enforces the provider host allowlist, injects BYOK or server-managed Authorization headers, bounds the upstream timeout, and returns `cache-control: no-store`. It does not create user identity, workspace membership, role-based authorization, or a collaboration room record.
 
+For the current Cloudflare AI Gateway runtime slice, the relay also accepts the internal
+request-only headers `x-kg-ai-gateway-route`, `x-kg-ai-gateway-metadata`, and
+`x-kg-ai-gateway-cache-ttl`. When `KNOWGRPH_CHAT_PROXY_AI_GATEWAY_BASE_URL` plus a matching
+Cloudflare token are configured, the OpenAI draft lane can be rewritten from the standard provider
+path to the AI Gateway REST surface and the request model can be switched to `dynamic/draft`
+without changing the browser route.
+
+For authenticated storage-relayed chat, the storage Worker now owns the default draft AI Gateway
+policy when the browser omits `x-kg-ai-gateway-route` and `x-kg-ai-gateway-cache-ttl`: OpenAI
+requests carrying `intent=draft` derive the `dynamic/draft` route server-side, requests carrying a
+`workspace_context_cache_key` get the longer deterministic-context cache lane (`120` seconds), and
+history-backed draft traffic falls back to `60` seconds. Explicit route or cache TTL values still
+override those defaults when a server-owned caller needs a different bound.
+
 #### Current Route Contract
 
 | Surface | Current owner | Public route | Runtime persistence | Secret/config owner |
@@ -150,6 +174,10 @@ This route is a Cloudflare Pages Function relay, not a persistence owner. It enf
 | `MIROMIND_API_KEY` | Fallback MiroMind proxy key alias | Cloudflare Pages project secret; cleanup debt only |
 | `AGNES_API_KEY` | Fallback Agnes proxy key alias | Cloudflare Pages project secret; cleanup debt only |
 | `BYTEPLUS_API_KEY` | Fallback BytePlus proxy key alias | Cloudflare Pages project secret; cleanup debt only |
+| `KNOWGRPH_CHAT_PROXY_AI_GATEWAY_BASE_URL` | Cloudflare AI Gateway universal base URL. **Legacy:** `https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway_id>`. **Modern REST API:** `https://api.cloudflare.com/client/v4/accounts/<account_id>/ai` for `/run` and `/v1/chat/completions` | Cloudflare Pages project variable |
+| `KNOWGRPH_CHAT_PROXY_AI_GATEWAY_TOKEN` | Server-managed Cloudflare AI Gateway token | Cloudflare Pages project secret |
+| `AI_GATEWAY_TOKEN` | Fallback AI Gateway token alias | Cloudflare Pages project secret; cleanup debt only |
+| `KNOWGRPH_CHAT_PROXY_AI_GATEWAY_GATEWAY_ID` | Optional explicit gateway id header override | Cloudflare Pages project variable |
 | `KNOWGRPH_CHAT_PROXY_UPSTREAM` | Optional upstream base override | Cloudflare Pages project variable |
 | `KNOWGRPH_CHAT_PROXY_TIMEOUT_MS` | Upstream timeout override | Cloudflare Pages project variable |
 | `KNOWGRPH_INTEGRATION_ALLOWED_HOSTS` | Canonical additional host allowlist | Cloudflare Pages project variable |
@@ -162,6 +190,13 @@ This route is a Cloudflare Pages Function relay, not a persistence owner. It enf
 3. From `knowgrph`, run `npm run pages:functions:build` to build the Pages Functions bundle and regenerate `huijoohwee/_worker.js` plus `huijoohwee/_routes.json`.
 4. From `knowgrph`, run `npm run pages:deploy-cloudflare`, which executes `wrangler pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true`.
 5. Cloudflare Pages project `joohwee` serves the updated `__chat_proxy` route at `airvio.co/__chat_proxy/*`.
+
+Use `npm run ai-gateway:readiness:check` before or after deployment when the OpenAI draft lane changes.
+It chains the focused source proof, publish-proxy smoke, Pages secret-list check, and a bounded live
+Cloudflare-hosted transport smoke for the AI Gateway path. Add `-- --skip-sync-check` only while
+working in a deliberately dirty tree and keep the default sync gate on for release decisions.
+Passing `-- --skip-live` skips only the live transport smoke; the Pages secret-list verification
+still runs first, so a missing AI Gateway secret remains a hard stop for the readiness gate.
 
 #### Recommended Successor Route
 

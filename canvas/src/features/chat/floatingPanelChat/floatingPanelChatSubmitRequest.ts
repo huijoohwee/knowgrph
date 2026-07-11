@@ -34,6 +34,7 @@ import {
   buildOpenAiResponsesInput,
   sanitizeOpenAiResponsesMessageText,
 } from './floatingPanelChatOpenAiResponsesInput'
+import { buildChatSubmitAiGatewayConfig } from './floatingPanelChatAiGateway'
 import {
   KNOWGRPH_STORAGE_API_VERSION,
   type KnowgrphStorageChatRelayRequest,
@@ -332,6 +333,15 @@ export const createChatSubmitRequestSender = (args: {
       ? args.submitArgs.storageChatRelayDecision.config
       : null
     const isOpenAiResponsesRequest = isOpenAiResponsesSubmit({ chatProvider: args.submitArgs.chatProvider, endpointUrl })
+    const aiGatewayConfig = buildChatSubmitAiGatewayConfig({
+      chatProvider: args.submitArgs.chatProvider,
+      chatStorageTarget: args.submitArgs.chatStorageTarget,
+      chatContextScope: args.submitArgs.chatContextScope,
+      workspaceContextCacheKey: args.submitArgs.workspaceContextCacheKey,
+      historyKey: args.submitArgs.historyKey,
+      clientRequestId,
+      requestSurface: isOpenAiResponsesRequest ? 'responses' : 'chat-completions',
+    })
     if (storageRelayConfig && storageRelayProviderId && args.requestUrl === storageRelayConfig.relayUrl) {
       const relayResponsesInput = isOpenAiResponsesRequest ? await buildOpenAiResponsesInput(messages) : null
       const relayMessages = isOpenAiResponsesRequest
@@ -349,6 +359,11 @@ export const createChatSubmitRequestSender = (args: {
         input: relayResponsesInput,
         stream: false,
         byokApiKey: args.submitArgs.chatAuthMode === 'byok' ? args.submitArgs.chatApiKey : null,
+        // Let the authenticated storage relay own the default AI Gateway route policy.
+        aiGatewayRoute: null,
+        aiGatewayMetadata: aiGatewayConfig?.metadata || null,
+        // Let the authenticated storage relay own the default AI Gateway cache policy.
+        aiGatewayCacheTtlSeconds: null,
         providerOptions: {
           ...providerOptions,
           ...tokenLimitOptions,
@@ -381,6 +396,7 @@ export const createChatSubmitRequestSender = (args: {
         apiKey: args.submitArgs.chatAuthMode === 'byok' ? args.submitArgs.chatApiKey : null,
         endpointUrl,
         clientRequestId,
+        aiGateway: aiGatewayConfig,
       }),
     }
     const requestBody = isOpenAiResponsesRequest

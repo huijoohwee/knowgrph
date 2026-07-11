@@ -3,6 +3,12 @@ import type { LocalChatPipelineSurfaceSnapshot } from './browserLocalSurfaceSnap
 const normalizeString = (value: unknown): string => String(value || '').trim()
 const buildPreview = (text: string, maxLength = 400): string =>
   text.length <= maxLength ? text : `${text.slice(0, maxLength)}\n...(truncated)`
+const stripLedgerLinePrefix = (value: unknown): string => normalizeString(value).replace(/^-+\s*/, '')
+const extractRunnableRetryCommand = (value: unknown): string | null => {
+  const normalized = stripLedgerLinePrefix(value)
+  const match = normalized.match(/Retry command:\s*`([^`]+)`/i)
+  return match?.[1] ? normalizeString(match[1]) : null
+}
 
 export const inspectLocalChatPipelineState = (
   snapshot: (LocalChatPipelineSurfaceSnapshot & { updatedAtMs?: number }) | null,
@@ -18,6 +24,15 @@ export const inspectLocalChatPipelineState = (
   const streamDraftText = normalizeString(snapshot.streamDraft?.text)
   const streamingReasoningPreview = normalizeString(snapshot.streamingInsights?.reasoningPreview || snapshot.streamingAssistant?.reasoningPreview)
   const streamingUsageSummary = normalizeString(snapshot.streamingInsights?.usageSummary || snapshot.streamingAssistant?.usageSummary)
+  const finalizeFailureNote = snapshot.finalize?.failureNote || null
+  const finalizeRetryHint = snapshot.finalize?.retryHint || null
+  const finalizeRetryCommand = snapshot.finalize?.retryCommand || null
+  const runnableRetryCommand = extractRunnableRetryCommand(finalizeRetryCommand)
+  const promotionRecoveryAvailable = Boolean(
+    normalizeString(finalizeFailureNote)
+    || normalizeString(finalizeRetryHint)
+    || normalizeString(finalizeRetryCommand),
+  )
   return {
     available: true,
     sourceKind: 'browser-local-chat-pipeline',
@@ -78,9 +93,23 @@ export const inspectLocalChatPipelineState = (
       persistedKnowgrphPath: snapshot.finalize?.persistedKnowgrphPath || null,
       applied: snapshot.finalize?.applied ?? null,
       message: snapshot.finalize?.message || null,
-      failureNote: snapshot.finalize?.failureNote || null,
-      retryHint: snapshot.finalize?.retryHint || null,
-      retryCommand: snapshot.finalize?.retryCommand || null,
+      failureNote: finalizeFailureNote,
+      retryHint: finalizeRetryHint,
+      retryCommand: finalizeRetryCommand,
+    },
+    promotionRecovery: {
+      available: promotionRecoveryAvailable,
+      scope: promotionRecoveryAvailable ? 'mirror-saved-local-artifacts-only' : null,
+      retryCommand: runnableRetryCommand,
+      retryCommandLine: finalizeRetryCommand,
+      insertionMode: runnableRetryCommand ? 'append' : null,
+      reusesSavedLocalArtifacts: promotionRecoveryAvailable,
+      rerunsValidation: false,
+      reappliesCanvas: false,
+      githubBeforeStorage: true,
+      surfaces: promotionRecoveryAvailable
+        ? ['final-assistant-ledger', 'browser-local-finalize-inspection', 'warning-toast', 'toast-insert-action']
+        : [],
     },
     updatedAtMs: snapshot.updatedAtMs || null,
   }

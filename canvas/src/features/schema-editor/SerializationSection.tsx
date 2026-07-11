@@ -13,6 +13,7 @@ type SerializationSectionProps = {
   uiPanelKeyValueTextSizeClass: string
   uiPanelMonospaceTextClass: string
   uiPanelMicroLabelTextSizeClass: string
+  defaultCollapsed?: boolean
   setSerialization: (patch: {
     predicatesByLabel?: Record<string, string>
     typesByNode?: Record<string, string>
@@ -24,6 +25,7 @@ export default function SerializationSection({
   uiPanelKeyValueTextSizeClass,
   uiPanelMonospaceTextClass,
   uiPanelMicroLabelTextSizeClass,
+  defaultCollapsed,
   setSerialization,
 }: SerializationSectionProps) {
   const [serializationError, setSerializationError] = React.useState('')
@@ -37,7 +39,7 @@ export default function SerializationSection({
   return (
     <section className="space-y-3">
       <section className={sectionHeadingClassName}>Serialization</section>
-      <Subsection title="Serialization">
+      <Subsection title="Serialization" defaultCollapsed={defaultCollapsed}>
         <section className="space-y-2">
           <section>
             <section className={fieldLabelClassName}>
@@ -51,6 +53,7 @@ export default function SerializationSection({
                 uri="inmemory://schema/serialization/predicatesByLabel"
                 themeMode="light"
                 wordWrap={false}
+                deferMonacoOnTouchViewport
                 className={`w-full h-full ${uiPanelMonospaceTextClass}`}
                 onBlur={() => {
                   const { value, error } = parseJsonOrError(predicatesText)
@@ -81,6 +84,7 @@ export default function SerializationSection({
                 uri="inmemory://schema/serialization/typesByNode"
                 themeMode="light"
                 wordWrap={false}
+                deferMonacoOnTouchViewport
                 className={`w-full h-full ${uiPanelMonospaceTextClass}`}
                 onBlur={() => {
                   const { value, error } = parseJsonOrError(typesText)
@@ -111,6 +115,7 @@ export default function SerializationSection({
                 uri="inmemory://schema/serialization/context"
                 themeMode="light"
                 wordWrap={false}
+                deferMonacoOnTouchViewport
                 className={`w-full h-full ${uiPanelMonospaceTextClass}`}
                 onBlur={() => {
                   const { value, error } = parseJsonOrError(contextText)

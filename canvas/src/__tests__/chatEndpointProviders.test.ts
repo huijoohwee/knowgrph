@@ -4,6 +4,9 @@ import { resolve } from 'node:path'
 import {
   CHAT_AGNES_BASE,
   CHAT_AGNES_ENDPOINT_URL,
+  CHAT_PROXY_AI_GATEWAY_CACHE_TTL_HEADER,
+  CHAT_PROXY_AI_GATEWAY_METADATA_HEADER,
+  CHAT_PROXY_AI_GATEWAY_ROUTE_HEADER,
   CHAT_BYTEPLUS_AP_SOUTHEAST_BASE,
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_GOOGLE_CLOUD_ENDPOINT_URL,
@@ -58,6 +61,35 @@ export function testBytePlusProviderBuildsOfficialProxyHeaders() {
   }
   if (headers['X-Client-Request-Id'] !== 'kg-byteplus-test-123') {
     throw new Error(`expected client request id header, got ${JSON.stringify(headers)}`)
+  }
+}
+
+export function testOpenAiDraftRouteBuildsAiGatewayHeaders() {
+  const headers = buildChatProxyHeaders({
+    provider: CHAT_PROVIDER_OPENAI,
+    endpointUrl: CHAT_OPENAI_ENDPOINT_URL,
+    clientRequestId: 'kg-openai-aig-draft',
+    aiGateway: {
+      route: 'dynamic/draft',
+      metadata: {
+        intent: 'draft',
+        request_surface: 'responses',
+        storage_target: 'chatHistory',
+        context_scope: 'workspace',
+        request_id: 'kg-openai-aig-draft',
+      },
+      cacheTtlSeconds: 120,
+    },
+  })
+  if (headers[CHAT_PROXY_AI_GATEWAY_ROUTE_HEADER] !== 'dynamic/draft') {
+    throw new Error(`expected AI Gateway dynamic route header, got ${JSON.stringify(headers)}`)
+  }
+  if (headers[CHAT_PROXY_AI_GATEWAY_CACHE_TTL_HEADER] !== '120') {
+    throw new Error(`expected AI Gateway cache TTL header, got ${JSON.stringify(headers)}`)
+  }
+  const metadata = JSON.parse(String(headers[CHAT_PROXY_AI_GATEWAY_METADATA_HEADER] || '{}')) as Record<string, unknown>
+  if (metadata.intent !== 'draft' || metadata.request_surface !== 'responses') {
+    throw new Error(`expected AI Gateway metadata header, got ${JSON.stringify(headers)}`)
   }
 }
 
@@ -534,6 +566,11 @@ export function testOpenAiServerManagedProxyLoadsLocalEnvFiles() {
     "import { loadChatProxyServerManagedEnv } from './viteChatProxyEnv'",
     'loadChatProxyServerManagedEnv({ repoRoot, canvasRoot: __dirname })',
     'process.env.KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY || process.env.OPENAI_API_KEY',
+    'process.env.KNOWGRPH_CHAT_PROXY_AI_GATEWAY_BASE_URL',
+    'process.env.KNOWGRPH_CHAT_PROXY_AI_GATEWAY_TOKEN || process.env.AI_GATEWAY_TOKEN || process.env.CLOUDFLARE_API_TOKEN',
+    'cf-aig-cache-ttl',
+    'cf-aig-metadata',
+    "parsed.model = aiGatewayRoute",
   ]
   const missingViteSnippets = expectedViteSnippets.filter(snippet => !source.includes(snippet))
   if (missingViteSnippets.length) {

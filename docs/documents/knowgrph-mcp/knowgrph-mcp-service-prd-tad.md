@@ -3,8 +3,8 @@ title: Knowgrph MCP Service - PRD & TAD
 id: md:knowgrph-mcp-service-prd-tad
 author: joohwee
 date: 2026-05-20
-updated: 2026-07-10
-version: 0.4.26
+updated: 2026-07-11
+version: 0.4.27
 status: accepted-implemented-baseline
 kgDocumentSemanticMode: document
 kgFrontmatterModeEnabled: true
@@ -146,6 +146,15 @@ changelog:
 > **Phase**: Implemented baseline plus planned remote extension  
 > **Version**: 0.4.26
 
+For current remote MCP onboarding, start with
+`docs/documents/knowgrph-mcp-onboarding-index.md`, then use
+`docs/documents/knowgrph-mcp-install-contract.md` for the canonical
+public-discovery vs control-plane endpoint boundary.
+Map intent on `https://airvio.co/knowgrph/mcp`, orchestrate agents on
+`https://airvio.co/knowgrph/control-plane/mcp` only for session-capable hosts,
+and prove outcomes first with the source-side `README.md` or
+`docs/documents/knowgrph-superagent-harness.md` offline path.
+
 ---
 
 ## Executive Summary
@@ -157,7 +166,7 @@ This document defines the implemented MCP baseline for Knowgrph and the rules fo
 | Surface | Current state | Canonical owner | Notes |
 |---|---|---|---|
 | Local stdio MCP server | Shipped | `mcp/server.js` + `mcp/local-tool-contract.js` | `server.js` owns stdio handling, read-only `search`/`fetch`, local tools, MCP Apps capabilities, prompt/resource/template handlers, and local tool execution; `local-tool-contract.js` owns the shared local tool inventory |
-| MCP Apps-ready shared contract | Shipped | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | `io.modelcontextprotocol/ui`, `text/html;profile=mcp-app`, `ui://knowgrph/agent-ready`, tool metadata, mirrored no-auth security schemes, OpenAI output-template/widget metadata, prompt and resource-template readiness, app resource descriptors, resource HTML, output schema, and server-readiness model |
+| MCP Apps-ready shared contract | Shipped | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | `io.modelcontextprotocol/ui`, `text/html;profile=mcp-app`, `ui://knowgrph/agent-ready`, tool metadata, mirrored no-auth security schemes, OpenAI output-template/widget metadata, prompt and resource-template readiness, app resource descriptors, resource HTML, output schema, server-readiness model, and the published template-only `promotionRecovery` operator contract that points exact retry commands back to browser-local finalize inspection |
 | Agent-ready resource-template contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyResourceContract.mjs` | `kgdoc://source-file/{id}` template, Source Files resource URI parsing/building, `text/markdown` read result, and shared Source Files resource metadata |
 | Agent-ready prompt contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyPromptContract.mjs` | shared read-only prompt templates for Source Files research and agent-surface inspection |
 | Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | Registers the published and browser-local read-only tools in the app runtime with shared descriptor parity, including Settings chat readiness, MainPanel, Editor Workspace, chat pipeline, workspace, canvas, 3d, 2d viewport, and Source Files snapshot inspectors |

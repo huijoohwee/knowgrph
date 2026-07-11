@@ -77,7 +77,9 @@ const buildAuditId = (): string =>
 const readAuthorizationBearerToken = (request: Request): string => {
   const authorization = String(request.headers.get('authorization') || '').trim()
   if (/^bearer\s+/i.test(authorization)) return authorization.replace(/^bearer\s+/i, '').trim()
-  return String(request.headers.get('x-knowgrph-session-token') || '').trim()
+  const headerToken = String(request.headers.get('x-knowgrph-session-token') || '').trim()
+  if (headerToken) return headerToken
+  return String(new URL(request.url).searchParams.get('kg_session_token') || '').trim()
 }
 
 const encodeHex = (bytes: Uint8Array): string =>
@@ -103,8 +105,33 @@ const readAuditLimit = (request: Request): number => {
 const hasAuditAccessRole = (role: string): boolean =>
   role === 'owner' || role === 'provider-admin'
 
-const hasRelayAccessRole = (role: string): boolean =>
+export const hasRelayAccessRole = (role: string): boolean =>
   role === 'editor' || role === 'owner' || role === 'provider-admin'
+
+const clampAiGatewayCacheTtlSeconds = (value: unknown): string | null => {
+  if (!Number.isFinite(Number(value))) return null
+  return String(Math.max(1, Math.min(86_400, Math.floor(Number(value)))))
+}
+
+const deriveStorageRelayAiGatewayRoute = (payload: KnowgrphStorageChatRelayRequest): string | null => {
+  if (payload.providerId !== 'openai') return null
+  const metadata = payload.aiGatewayMetadata && typeof payload.aiGatewayMetadata === 'object'
+    ? payload.aiGatewayMetadata
+    : null
+  const intent = normalizeString(metadata?.intent)
+  return intent === 'draft' ? 'dynamic/draft' : null
+}
+
+const deriveStorageRelayAiGatewayCacheTtlSeconds = (payload: KnowgrphStorageChatRelayRequest): string | null => {
+  if (payload.providerId !== 'openai') return null
+  const route = normalizeString(payload.aiGatewayRoute) || deriveStorageRelayAiGatewayRoute(payload)
+  if (!route) return null
+  const metadata = payload.aiGatewayMetadata && typeof payload.aiGatewayMetadata === 'object'
+    ? payload.aiGatewayMetadata
+    : null
+  const workspaceContextCacheKey = normalizeString(metadata?.workspace_context_cache_key)
+  return workspaceContextCacheKey ? '120' : '60'
+}
 
 const mapPolicyRow = (row: Awaited<ReturnType<typeof readWorkspaceProviderPolicyRows>>[number]): KnowgrphStorageChatPolicyRecord => ({
   workspaceId: row.workspace_id,
@@ -137,7 +164,7 @@ const mapAuditRow = (row: ChatProxyAuditRow): KnowgrphStorageChatAuditEntry => (
   createdAtMs: normalizeIsoToMs(row.created_at),
 })
 
-type AuthenticatedChatContext = {
+export type AuthenticatedChatContext = {
   session: {
     id: string
     userId: string
@@ -151,15 +178,15 @@ type AuthenticatedChatContext = {
   }
 }
 
-type AuthenticatedChatContextResult =
+export type AuthenticatedChatContextResult =
   | { ok: true; value: AuthenticatedChatContext }
   | { ok: false; response: Response }
 
-type AuthorizedMembershipResult =
+export type AuthorizedMembershipResult =
   | { ok: true; membership: { id: string; role: KnowgrphStorageChatRole; status: string } }
   | { ok: false; response: Response }
 
-const readAuthenticatedChatContext = async (
+export const readAuthenticatedChatContext = async (
   request: Request,
   db: D1DatabaseLike,
 ): Promise<AuthenticatedChatContextResult> => {
@@ -187,7 +214,7 @@ const readAuthenticatedChatContext = async (
   }
 }
 
-const readAuthorizedMembership = async (args: {
+export const readAuthorizedMembership = async (args: {
   db: D1DatabaseLike
   workspaceId: string
   userId: string
@@ -300,6 +327,9 @@ const isChatRelayRequest = (value: unknown): value is KnowgrphStorageChatRelayRe
     && Array.isArray(record.messages)
     && (record.requestSurface == null || record.requestSurface === 'chat-completions' || record.requestSurface === 'responses')
     && (record.input == null || Array.isArray(record.input))
+    && (record.aiGatewayRoute == null || typeof record.aiGatewayRoute === 'string')
+    && (record.aiGatewayMetadata == null || typeof record.aiGatewayMetadata === 'object')
+    && (record.aiGatewayCacheTtlSeconds == null || Number.isFinite(Number(record.aiGatewayCacheTtlSeconds)))
     && (record.providerOptions == null || typeof record.providerOptions === 'object')
   )
 }
@@ -367,6 +397,16 @@ export const handleChatRelay = async (
   })
   if (payload.endpointUrl) proxyHeaders.set('x-kg-chat-upstream', String(payload.endpointUrl).trim())
   if (payload.authMode === 'byok' && payload.byokApiKey) proxyHeaders.set('x-kg-chat-api-key', payload.byokApiKey.trim())
+  const aiGatewayRoute = normalizeString(payload.aiGatewayRoute) || deriveStorageRelayAiGatewayRoute(payload)
+  if (aiGatewayRoute) proxyHeaders.set('x-kg-ai-gateway-route', aiGatewayRoute)
+  if (payload.aiGatewayMetadata && typeof payload.aiGatewayMetadata === 'object') {
+    proxyHeaders.set('x-kg-ai-gateway-metadata', JSON.stringify(payload.aiGatewayMetadata))
+  }
+  const aiGatewayCacheTtlSeconds = clampAiGatewayCacheTtlSeconds(payload.aiGatewayCacheTtlSeconds)
+    || deriveStorageRelayAiGatewayCacheTtlSeconds(payload)
+  if (aiGatewayCacheTtlSeconds) {
+    proxyHeaders.set('x-kg-ai-gateway-cache-ttl', aiGatewayCacheTtlSeconds)
+  }
   const useResponsesInput = payload.requestSurface === 'responses' && Array.isArray(payload.input)
   const providerOptions = payload.providerOptions && typeof payload.providerOptions === 'object'
     ? payload.providerOptions

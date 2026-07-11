@@ -20,10 +20,6 @@ import {
 } from './liveCanvasHeroSourceSelection'
 import { resolveLiveCanvasHeroEmbedUrl } from './liveCanvasHeroEmbed'
 import { deriveLiveCanvasHeroCommandRouteGraph } from './liveCanvasHeroProjection'
-import {
-  removeCanvasEmbedImportFromSearch,
-  shouldOpenCanvasEmbedImportFromSearch,
-} from './canvasQueryBootstrapSearch'
 
 export type LiveCanvasHeroWorkspaceSourceState = {
   defaultSeedOnly: boolean
@@ -208,10 +204,6 @@ export function useKnowgrphLiveCanvasHero(args: {
     const handleSourceSelection = (event: Event) => {
       const selection = readLiveCanvasHeroSourceSelection(event)
       if (!selection) return
-      const nextSearch = removeCanvasEmbedImportFromSearch(window.location.search)
-      if (nextSearch !== window.location.search) {
-        window.history.replaceState(null, '', `${window.location.pathname}${nextSearch}${window.location.hash}`)
-      }
       setSelectedEmbedSource(selection)
       setLandingExited(false)
     }
@@ -293,28 +285,26 @@ export function useKnowgrphLiveCanvasHero(args: {
     && args.graphData?.metadata?.pending !== true
     && meaningfulWorkspaceContent
 
-  // Once authored content takes ownership, transient parser recomposition must
-  // not revive the landing surface later in the same app session.
+  // The workspace route always owns authored content. A selected embed changes
+  // Home's background source only; it must never promote /knowgrph into Home.
   React.useEffect(() => {
-    if (authoredOwnershipReady && !isRootAlias && !selectedEmbedSource) setLandingExited(true)
-  }, [authoredOwnershipReady, isRootAlias, selectedEmbedSource])
+    if (authoredOwnershipReady && !isRootAlias) setLandingExited(true)
+  }, [authoredOwnershipReady, isRootAlias])
 
   const hasSearchParams = typeof window !== 'undefined' && hasLiveCanvasHeroBlockingSearchParams(
     window.location.search,
     resolveLiveCanvasHeroEnterHref(import.meta.env.BASE_URL),
   )
-  const canvasEmbedImportRequested = typeof window !== 'undefined'
-    && shouldOpenCanvasEmbedImportFromSearch(window.location.search)
   const visible = shouldShowLiveCanvasHero({
-    isRootAlias: isRootAlias || selectedEmbedSource != null,
+    isRootAlias,
     // The apex root owns Home from the first React render. Its canonical Share
     // Canvas Embed URL is source-addressable before workspace hydration.
     sourceFilesBootstrapReady: isRootAlias || args.sourceFilesBootstrapReady,
     liveWorkspaceSourceReady: effectiveLiveCanvasHeroSource != null,
-    dismissed: landingExited || (!isRootAlias && !selectedEmbedSource && defaultSeedContentChanged),
-    // A source-selection event is an explicit request to replace the hero
-    // canvas. The single-root router's kgPath query must not suppress it.
-    hasSearchParams: selectedEmbedSource && !canvasEmbedImportRequested ? false : hasSearchParams,
+    dismissed: landingExited || (!isRootAlias && defaultSeedContentChanged),
+    // A selected source can replace Home's background only. It cannot take
+    // ownership from a routed workspace document (including kgPath routes).
+    hasSearchParams,
     isEmbeddedPreview: args.isEmbeddedPreview,
     workspaceEditorOverlayOpen: args.workspaceEditorOverlayOpen,
     workspaceDocumentSwitchPending: isRootAlias ? false : args.workspaceDocumentSwitchPending,

@@ -1566,12 +1566,13 @@ export async function onRequest(context) {
     return next;
   }
 
-  const response = resolvePublishedDocRequestIdentity(request.url) ? await fetchKnowgrphAppShellAsset(context, APP_BASE_PATH) : await context.next();
+  const publishedDocIdentity = resolvePublishedDocRequestIdentity(request.url);
+  const response = publishedDocIdentity ? await fetchKnowgrphAppShellAsset(context, APP_BASE_PATH) : await context.next();
   if (!handlesKnowgrphHtmlSurface(url.pathname)) return response;
   const htmlResponse = method === "HEAD" ? response : await injectWebMcpScript(response);
   const nextResponse = new Response(method === "HEAD" ? null : htmlResponse.body, htmlResponse);
   nextResponse.headers.set("link", agentReadyHomepageLinkHeaderValue);
-  if (handlesKnowgrphRoot(url.pathname)) {
+  if (handlesKnowgrphRoot(url.pathname) || publishedDocIdentity) {
     nextResponse.headers.delete("x-frame-options");
     nextResponse.headers.delete("content-security-policy-report-only");
     nextResponse.headers.set("content-security-policy", "frame-ancestors *");

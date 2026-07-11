@@ -11,6 +11,10 @@ import {
   buildKnowgrphStorageDocPath,
 } from '@/lib/storage/knowgrphStorageSyncContract'
 import {
+  buildPublishedDocCanvasEmbedUrl,
+  buildPublishedDocCanvasEmbedUrlFromSource,
+} from '@/features/canvas/canvasDocDeepLink'
+import {
   buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState,
   buildSourceFilesStorageSyncSignature,
   syncSourceFilesToKnowgrphStorage,
@@ -347,6 +351,45 @@ export async function testSourceFileShareUrlReturnsAirvioOpaquePublicRouteAfterP
     if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
     else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
     await __resetKnowgrphStorageDbForTests()
+  }
+}
+
+export function testPublishedDocCanvasEmbedUrlAppendsPreviewParamToOpaqueShareRoute() {
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://airvio.co'
+  try {
+    const embedUrl = buildPublishedDocCanvasEmbedUrl({
+      workspaceId: 'kgws:test-share-url-public-route',
+      canonicalPath: 'workspace/chat/public.md',
+    })
+    if (!embedUrl || !embedUrl.startsWith('https://airvio.co/knowgrph/share/')) {
+      throw new Error(`expected canvas embed URL to keep the public opaque share route, got ${String(embedUrl || '')}`)
+    }
+    if (!embedUrl.includes('kgPreview=1')) {
+      throw new Error(`expected canvas embed URL to append the embedded preview param, got ${String(embedUrl || '')}`)
+    }
+  } finally {
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  }
+}
+
+export function testPublishedDocCanvasEmbedUrlFromSourceParsesDocRoute() {
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://airvio.co'
+  try {
+    const embedUrl = buildPublishedDocCanvasEmbedUrlFromSource({
+      sourceUrl: '/api/storage/doc/kgws:test-share-url-public-route/workspace%2Fchat%2Fpublic.md',
+    })
+    if (!embedUrl || !embedUrl.startsWith('https://airvio.co/knowgrph/share/')) {
+      throw new Error(`expected canvas embed source URL helper to resolve the public opaque share route, got ${String(embedUrl || '')}`)
+    }
+    if (!embedUrl.includes('kgPreview=1')) {
+      throw new Error(`expected canvas embed source URL helper to append the embedded preview param, got ${String(embedUrl || '')}`)
+    }
+  } finally {
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
   }
 }
 

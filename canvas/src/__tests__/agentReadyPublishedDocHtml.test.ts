@@ -47,4 +47,10 @@ export async function testPublishedDocHtmlUsesKnowgrphAppShellAsset(): Promise<v
   if (!html.includes('id="root"') || html.includes('url=/knowgrph/')) {
     throw new Error(`expected published doc HTML route to return app shell without root refresh, got ${html.slice(0, 160)}`)
   }
+  if (response.headers.get('content-security-policy') !== 'frame-ancestors *') {
+    throw new Error(`expected the opaque published document route to allow external iframe hosts, got ${response.headers.get('content-security-policy')}`)
+  }
+  if (response.headers.has('x-frame-options')) {
+    throw new Error('expected the embeddable published document route to omit conflicting X-Frame-Options')
+  }
 }

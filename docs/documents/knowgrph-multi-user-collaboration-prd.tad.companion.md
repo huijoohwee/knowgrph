@@ -1,10 +1,10 @@
 ---
 title: "Knowgrph Multi-User Collaboration TAD Companion"
 doc_type: "TAD Companion"
-version: "1.1.2"
-date: "2026-06-06"
-status: "Accepted and implemented P2P pilot"
-scope: "Technical continuation for the no-server WebRTC collaboration pilot"
+version: "1.2.1"
+date: "2026-07-11"
+status: "Accepted and implemented authenticated room transport"
+scope: "Technical continuation for the authenticated storage-room collaboration baseline with fallback P2P"
 lang: "en-US"
 parent: "knowgrph-multi-user-collaboration-prd.tad.md"
 deployment_boundary: "Dev only until explicit Prod or Cloudflare instruction"
@@ -12,17 +12,17 @@ deployment_boundary: "Dev only until explicit Prod or Cloudflare instruction"
 
 # Knowgrph Multi-User Collaboration - TAD Companion
 
-Continuation of [knowgrph-multi-user-collaboration-prd.tad.md](knowgrph-multi-user-collaboration-prd.tad.md). Contains the detailed architecture inventory for the shipped no-server P2P collaboration pilot.
+Continuation of [knowgrph-multi-user-collaboration-prd.tad.md](knowgrph-multi-user-collaboration-prd.tad.md). Contains the detailed architecture inventory for the shipped authenticated collaboration room baseline plus the retained fallback P2P path.
 
-**Document Version**: 1.1.2
-**Date**: 2026-06-06
-**Status**: Accepted and implemented P2P pilot
+**Document Version**: 1.2.1
+**Date**: 2026-07-11
+**Status**: Accepted and implemented authenticated room transport
 
 ---
 
 ## Architecture Overview
 
-The implemented collaboration surface is a browser-to-browser WebRTC pilot. It does not require a server-side room service. The host owns invite creation, guest answer application, multi-peer relay, roster publication, document sync, presence, and peer removal. Runtime concerns are split into neutral state helpers, command effects, broadcast effects, and the orchestration hook.
+The implemented collaboration surface is an authenticated storage-room baseline backed by the storage Worker and Durable Object room relay. Storage-configured workspaces use the shared collaboration store, authenticated room runtime, and Worker-authenticated canvas-room route for roster, document sync, presence, and peer removal. The browser-to-browser WebRTC pilot remains in the repo as a fallback path when authenticated room transport is not configured.
 
 ```mermaid
 flowchart LR
@@ -48,15 +48,18 @@ flowchart LR
 |---|---|---|---|---|
 | TAD-MUC-C001 | MainPanel tab registry | Exposes `collaboration` as a top-level tab | `canvas/src/features/panels/mainPanelTabs.ts` | Shipped |
 | TAD-MUC-C002 | Collaboration view | Renders session, invite, answer, peer roster, follow, and remove controls | `canvas/src/features/panels/views/CollaborationView.tsx` | Shipped |
-| TAD-MUC-C003 | P2P protocol | Encodes/decodes invite and answer tokens; validates wire messages | `canvas/src/features/collaboration/p2pCollaborationProtocol.ts` | Shipped |
-| TAD-MUC-C004 | P2P store | Owns session state, peer roster, commands, local caret, and follow target | `canvas/src/features/collaboration/p2pCollaborationStore.ts` | Shipped |
-| TAD-MUC-C005 | Runtime orchestration | Creates WebRTC peer connections, receives wire messages, and coordinates effects | `canvas/src/features/collaboration/useP2PCollaborationRuntime.ts` | Shipped |
-| TAD-MUC-C006 | Runtime state helpers | Own reusable runtime refs, peer snapshots, signatures, and WebRTC helpers | `canvas/src/features/collaboration/p2pCollaborationRuntimeState.ts` | Shipped |
-| TAD-MUC-C007 | Command effects | Executes start-host, join-invite, apply-answer, disconnect, and remove-peer commands | `canvas/src/features/collaboration/useP2PCollaborationCommandEffect.ts` | Shipped |
-| TAD-MUC-C008 | Broadcast effects | Debounces document sync and emits hello, presence, and roster broadcasts | `canvas/src/features/collaboration/useP2PCollaborationBroadcastEffects.ts` | Shipped |
-| TAD-MUC-C009 | Type icons | Provides shared Collaboration row icon semantics | `canvas/src/features/panels/ui/mainPanelTypeIcons.tsx` | Shipped |
-| TAD-MUC-C010 | Test harness | Validates protocol, store, view, runtime relay, and runtime lifecycle behavior | `canvas/src/__tests__/mainPanelCollaboration.*` | Shipped |
-| TAD-MUC-C011 | App-level E2E smoke | Opens the Markdown workspace, dispatches the shared MainPanel collaboration event, and validates host invite readiness | `canvas/scripts/verify-multi-user-collaboration-e2e.ts` | Shipped |
+| TAD-MUC-C003 | Authenticated room runtime | Connects the active document to the storage-backed room and relays document or presence changes | `canvas/src/features/collaboration/useKnowgrphStorageCollaborationRuntime.ts` | Shipped |
+| TAD-MUC-C004 | Authenticated room client contract | Reads storage env, builds room URLs, and scopes them by workspace id | `canvas/src/lib/storage/knowgrphStorageCanvasRoomClient.ts` | Shipped |
+| TAD-MUC-C005 | Storage Worker room owners | Authenticate sessions, expose the canvas-room route, and relay room events through the Durable Object | `cloudflare/workers/knowgrph-storage/index.ts`, `cloudflare/workers/knowgrph-storage/chatAuth.ts`, `cloudflare/workers/knowgrph-storage/canvasSyncRoom.ts` | Shipped |
+| TAD-MUC-C006 | P2P protocol | Encodes/decodes invite and answer tokens; validates wire messages for the fallback path | `canvas/src/features/collaboration/p2pCollaborationProtocol.ts` | Shipped |
+| TAD-MUC-C007 | P2P store | Owns session state, peer roster, commands, local caret, and follow target | `canvas/src/features/collaboration/p2pCollaborationStore.ts` | Shipped |
+| TAD-MUC-C008 | Runtime orchestration | Creates WebRTC peer connections, receives wire messages, and coordinates effects for the fallback path | `canvas/src/features/collaboration/useP2PCollaborationRuntime.ts` | Shipped |
+| TAD-MUC-C009 | Runtime state helpers | Own reusable runtime refs, peer snapshots, signatures, and WebRTC helpers | `canvas/src/features/collaboration/p2pCollaborationRuntimeState.ts` | Shipped |
+| TAD-MUC-C010 | Command effects | Executes start-host, join-invite, apply-answer, disconnect, and remove-peer commands | `canvas/src/features/collaboration/useP2PCollaborationCommandEffect.ts` | Shipped |
+| TAD-MUC-C011 | Broadcast effects | Debounces document sync and emits hello, presence, and roster broadcasts | `canvas/src/features/collaboration/useP2PCollaborationBroadcastEffects.ts` | Shipped |
+| TAD-MUC-C012 | Type icons | Provides shared Collaboration row icon semantics | `canvas/src/features/panels/ui/mainPanelTypeIcons.tsx` | Shipped |
+| TAD-MUC-C013 | Test harness | Validates protocol, store, view, runtime relay, and runtime lifecycle behavior | `canvas/src/__tests__/mainPanelCollaboration.*` | Shipped |
+| TAD-MUC-C014 | App-level E2E smoke | Opens owner and guest Markdown workspaces, connects the authenticated room, and validates guest-to-owner document propagation | `canvas/scripts/verify-multi-user-collaboration-e2e.ts` | Shipped |
 
 ## Data Flows
 
@@ -122,11 +125,11 @@ flowchart LR
 
 ## Architectural Decisions
 
-### ADR-MUC-001: Ship No-Server P2P Before Authenticated D1 Rooms
+### ADR-MUC-001: Authenticated Room First, P2P As Fallback
 
 **Status**: Accepted and implemented.  
-**Decision**: Ship a no-server WebRTC pilot first and keep authenticated D1/JWT collaboration as a planned extension.  
-**Reasoning**: The pilot delivers real collaborative document sync without a new Worker auth surface or Durable Object room service.
+**Decision**: Use authenticated storage-room transport as the default collaboration path and retain the no-server WebRTC pilot only as a fallback.  
+**Reasoning**: The authenticated room now exists, keeps identity and room scope honest, and is the path validated by the canonical browser smoke.
 
 ### ADR-MUC-002: Host Owns Multi-Peer Relay
 
@@ -142,7 +145,7 @@ flowchart LR
 
 ## Planned Extension Boundary
 
-Authenticated workspace membership, D1 role checks, server-side audit trails, and Durable Object rooms are not part of the implemented baseline. They need source owners and focused tests before this document can promote them.
+Richer role models, longer-lived audit replay, and media fan-out are not part of the completed baseline. They need source owners and focused tests before this document can promote them.
 
 | Extension | Expected Owner |
 |---|---|
@@ -156,16 +159,17 @@ Authenticated workspace membership, D1 role checks, server-side audit trails, an
 
 | Attribute | Implemented Pattern | Evidence |
 |---|---|---|
-| Local-first | No-server WebRTC handshake | protocol and runtime owners |
+| Local-first | Authenticated room joins against operator-owned local stack with fallback P2P escape hatch | storage room and runtime owners |
 | Neutrality | MainPanel tab and shared KTV rows | `CollaborationView.tsx` |
 | State safety | Typed Zustand store and command queue | `p2pCollaborationStore.ts` |
 | Runtime safety | Support checks, explicit reset, peer removal, echo suppression | split runtime owners |
 | Testability | Protocol/store/view/runtime focused cases | split `mainPanelCollaboration.*` tests |
-| TCO | Zero new server dependency for shipped pilot | ADR-MUC-001 |
+| TCO | Reuses the existing storage Worker and Durable Object room; no extra vendor realtime dependency | ADR-MUC-001 |
 
 ## Validation
 
 ```bash
+npm run collaboration:readiness:check
 npm --prefix canvas run test:ci:unit -- "multiUserCollaboration.docs"
 npm --prefix canvas run test:ci:unit -- "collaboration."
 npm --prefix canvas run test:ci:unit -- "ui.mainPanel.collaboration"
@@ -173,7 +177,7 @@ npm --prefix canvas run validate:multi-user-collaboration:e2e
 npm --prefix canvas exec tsc -- -p canvas/tsconfig.json --noEmit --pretty false
 ```
 
-The E2E command expects a local Vite canvas server and uses the shared `QUERY_PARAM_OPEN_EDITOR_WORKSPACE` route to mount the Markdown runtime before opening Collaboration. `npm run hygiene:check` remains a repo-wide changed-file gate and can be red from unrelated dirty-tree files. The collaboration owners in this document are each below the 600-line source budget.
+`npm run collaboration:readiness:check` is the canonical proof step: it runs the docs guard, focused collaboration/runtime suites, and the authenticated browser smoke together. The browser smoke expects the local authenticated stack by default: owner app on `127.0.0.1:5173`, guest app on `127.0.0.1:5174`, and storage worker on `127.0.0.1:8787`, with env overrides available. It uses the shared `QUERY_PARAM_OPEN_EDITOR_WORKSPACE` route to mount the Markdown runtime on both pages, opens Collaboration, connects the authenticated room, applies a guest-side marker, and asserts that the owner receives the same marker. `npm run hygiene:check` remains a repo-wide changed-file gate and can be red from unrelated dirty-tree files. The collaboration owners in this document are each below the 600-line source budget.
 
 ## Revision History
 
@@ -183,3 +187,5 @@ The E2E command expects a local Vite canvas server and uses the shared `QUERY_PA
 | 1.1.0 | 2026-05-29 | joohwee | Promoted implemented no-server WebRTC pilot and separated planned auth/D1 extension |
 | 1.1.1 | 2026-06-06 | Codex | Added YAML frontmatter and aligned architecture inventory with split runtime and test owners |
 | 1.1.2 | 2026-06-06 | Codex | Added app-level E2E smoke validation for shared MainPanel Collaboration open and host invite readiness |
+| 1.2.0 | 2026-07-11 | Codex | Promoted authenticated storage-room transport as the default architecture and updated the canonical E2E smoke to validate guest-to-owner propagation |
+| 1.2.1 | 2026-07-11 | Codex | Added `npm run collaboration:readiness:check` as the canonical collaboration proof gate |

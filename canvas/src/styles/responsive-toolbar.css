@@ -2478,6 +2478,11 @@
       --kg-graph-fields-inline-field-padding-inline: 0.75rem;
     }
 
+    .kg-schema-editor-serialization-editor--compact {
+      --kg-schema-editor-serialization-editor-height: 12rem;
+      --kg-schema-editor-serialization-editor-min-height: 12rem;
+    }
+
     .kg-graph-fields-option-row {
       --kg-graph-fields-option-row-min-height: var(--kg-touch-target, 44px);
       --kg-graph-fields-option-row-padding-block: 0.375rem;

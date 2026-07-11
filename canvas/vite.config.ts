@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
-import { existsSync, createReadStream } from 'node:fs'
+import { existsSync, createReadStream, readFileSync } from 'node:fs'
 import fs from 'node:fs/promises'
 import { unwrapUserProvidedText } from 'grph-shared/url'
 import { getYouTubeId } from 'grph-shared/rich-media/providers'
@@ -42,6 +42,9 @@ import { loadChatProxyServerManagedEnv } from './viteChatProxyEnv'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..'), workspaceRoot = path.resolve(repoRoot, '..')
 const siblingDocsRoot = path.resolve(workspaceRoot, 'huijoohwee', 'docs'); loadChatProxyServerManagedEnv({ repoRoot, canvasRoot: __dirname })
+const liveCanvasHeroDocPath = path.resolve(repoRoot, 'docs', 'documents', 'knowgrph-live-canvas-hero.md')
+const mainPanelSectionDescriptionsDocPath = path.resolve(repoRoot, 'docs', 'documents', 'knowgrph-mainpanel-section-descriptions.md')
+const LIVE_CANVAS_HERO_DISCOVERY_ROUTE_PATH = '/knowgrph-live-canvas-hero.md'
 const nodeRequire = createRequire(import.meta.url)
 const resolvedReact = nodeRequire.resolve('react')
 const resolvedReactJsxRuntime = nodeRequire.resolve('react/jsx-runtime')
@@ -65,6 +68,8 @@ const KG_FS_WRITE_PATH = '/__kg_fs_write'
 const KG_FS_LIST_PATH = '/__kg_fs_list'
 const GRABMAPS_PROXY_PREFIX = GRABMAPS_PROXY_PATH
 const CHAT_PROXY_OPENAI_HOST = 'api.openai.com'
+const CHAT_PROXY_AI_GATEWAY_HOST = 'gateway.ai.cloudflare.com'
+const CHAT_PROXY_CLOUDFLARE_API_HOST = 'api.cloudflare.com'
 const CHAT_PROXY_MIROMIND_HOST = 'api.miromind.ai'
 const CHAT_PROXY_AGNES_HOST = 'apihub.agnes-ai.com'
 const CHAT_PROXY_SEALION_HOST = 'api.sea-lion.ai'
@@ -92,6 +97,7 @@ const CHAT_PROXY_GOOGLE_CLOUD_HOSTS = new Set([
   CHAT_PROXY_GOOGLE_CLOUD_ASIA_SOUTHEAST1_HOST,
 ])
 const CHAT_PROXY_BYTEPLUS_HOSTS = new Set([CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST, CHAT_PROXY_BYTEPLUS_EU_WEST_HOST])
+const CHAT_PROXY_AI_GATEWAY_HOSTS = new Set([CHAT_PROXY_AI_GATEWAY_HOST, CHAT_PROXY_CLOUDFLARE_API_HOST])
 const CHAT_LOG_MAX_BODY_BYTES = 1024 * 1024
 const CHAT_LOG_MAX_FIELD_LENGTH = 20_000
 const STRIPE_MAX_REQUEST_BYTES = 16 * 1024
@@ -103,20 +109,55 @@ const readSingleHeader = (value: unknown): string => {
   return ''
 }
 const isLocalChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_LOCAL_HOSTS.has(normalizeHost(value))
+const isAiGatewayChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_AI_GATEWAY_HOSTS.has(normalizeHost(value))
 const isQwenChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_QWEN_HOSTS.has(normalizeHost(value))
 const isGoogleCloudChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_GOOGLE_CLOUD_HOSTS.has(normalizeHost(value))
 const isBytePlusChatUpstreamHost = (value: unknown): boolean => CHAT_PROXY_BYTEPLUS_HOSTS.has(normalizeHost(value))
 const parseAllowedChatProxyHosts = (): Set<string> => {
   const envValue = String(process.env.KNOWGRPH_CHAT_PROXY_ALLOWED_HOSTS || '').trim()
-  if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, CHAT_PROXY_SEALION_HOST, ...CHAT_PROXY_QWEN_HOSTS, ...CHAT_PROXY_GOOGLE_CLOUD_HOSTS, ...CHAT_PROXY_BYTEPLUS_HOSTS])
+  if (!envValue) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, CHAT_PROXY_SEALION_HOST, ...CHAT_PROXY_QWEN_HOSTS, ...CHAT_PROXY_GOOGLE_CLOUD_HOSTS, ...CHAT_PROXY_BYTEPLUS_HOSTS, ...CHAT_PROXY_AI_GATEWAY_HOSTS])
   const out = new Set<string>()
   envValue
     .split(',')
     .map(part => normalizeHost(part))
     .filter(Boolean)
     .forEach(host => out.add(host))
-  if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, CHAT_PROXY_SEALION_HOST, ...CHAT_PROXY_QWEN_HOSTS, ...CHAT_PROXY_GOOGLE_CLOUD_HOSTS, ...CHAT_PROXY_BYTEPLUS_HOSTS])
+  if (!out.size) return new Set([...CHAT_PROXY_LOCAL_HOSTS, CHAT_PROXY_OPENAI_HOST, CHAT_PROXY_MIROMIND_HOST, CHAT_PROXY_AGNES_HOST, CHAT_PROXY_SEALION_HOST, ...CHAT_PROXY_QWEN_HOSTS, ...CHAT_PROXY_GOOGLE_CLOUD_HOSTS, ...CHAT_PROXY_BYTEPLUS_HOSTS, ...CHAT_PROXY_AI_GATEWAY_HOSTS])
   return out
+}
+
+const sanitizeAiGatewayRoute = (value: unknown): string => {
+  const route = readSingleHeader(value)
+  if (!/^dynamic\/[a-z0-9._/-]+$/i.test(route)) return ''
+  return route.slice(0, 128)
+}
+
+const sanitizeAiGatewayMetadataHeader = (value: unknown): string => {
+  const raw = readSingleHeader(value)
+  if (!raw) return ''
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    const entries = Object.entries(parsed)
+      .filter(([, entryValue]) => typeof entryValue === 'string' || typeof entryValue === 'number' || typeof entryValue === 'boolean')
+      .slice(0, 5)
+      .map(([key, entryValue]) => [String(key || '').trim().slice(0, 64), typeof entryValue === 'string' ? entryValue.trim().slice(0, 160) : entryValue])
+      .filter(([key]) => key)
+    return entries.length ? JSON.stringify(Object.fromEntries(entries)) : ''
+  } catch {
+    return ''
+  }
+}
+
+const sanitizeAiGatewayCacheTtl = (value: unknown): string => {
+  const parsed = Number(readSingleHeader(value))
+  if (!Number.isFinite(parsed)) return ''
+  return String(Math.max(1, Math.min(86_400, Math.floor(parsed))))
+}
+
+const buildChatProxyUpstreamUrl = (baseUrl: URL, upstreamPath: string, search: string): URL => {
+  const basePath = baseUrl.pathname === '/' ? '' : String(baseUrl.pathname || '').replace(/\/+$/g, '')
+  const nextPath = `${basePath}${upstreamPath.startsWith('/') ? upstreamPath : `/${upstreamPath}`}`
+  return new URL(`${nextPath}${search || ''}`, `${baseUrl.protocol}//${baseUrl.host}`)
 }
 const toLogSafeText = (value: unknown): string => {
   return String(value || '')
@@ -2054,6 +2095,11 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       return
     }
     const providerHeader = normalizeHost(readSingleHeader(req.headers['x-kg-chat-provider']))
+    const aiGatewayRoute = sanitizeAiGatewayRoute(req.headers['x-kg-ai-gateway-route'])
+    const aiGatewayMetadata = sanitizeAiGatewayMetadataHeader(req.headers['x-kg-ai-gateway-metadata'])
+    const aiGatewayCacheTtl = sanitizeAiGatewayCacheTtl(req.headers['x-kg-ai-gateway-cache-ttl'])
+    const aiGatewayBaseRaw = String(process.env.KNOWGRPH_CHAT_PROXY_AI_GATEWAY_BASE_URL || '').trim()
+    const aiGatewayGatewayId = String(process.env.KNOWGRPH_CHAT_PROXY_AI_GATEWAY_GATEWAY_ID || '').trim()
     const gatewayMode = String(process.env.KNOWGRPH_CHAT_GATEWAY_MODE || '').trim().toLowerCase()
     const localGatewayOnly = gatewayMode === 'local-only' || (gatewayMode.endsWith('-only') && gatewayMode !== 'openai-only')
     const localProviderSelected = providerHeader === 'lmstudio-local'
@@ -2070,6 +2116,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       return
     }
     const requestedUpstreamRaw = readSingleHeader(req.headers['x-kg-chat-upstream'])
+    const aiGatewayRequested = providerHeader === 'openai' && !!aiGatewayBaseRaw && !!aiGatewayRoute
     const upstreamBaseRaw = (() => {
       const legacyLocalUpstreamKey = ['KNOWGRPH_CHAT_PROXY_', 'DEER', 'FLOW', '_UPSTREAM'].join('')
       const legacyLocalUpstream = String((process.env as Record<string, string | undefined>)[legacyLocalUpstreamKey] || '').trim()
@@ -2077,6 +2124,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       if (localGatewayOnly || localProviderSelected) {
         return localGatewayBase || legacyLocalUpstream || String(process.env.KNOWGRPH_CHAT_PROXY_UPSTREAM || '').trim() || 'http://127.0.0.1:1234'
       }
+      if (aiGatewayRequested) return aiGatewayBaseRaw
       if (bytePlusProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_BYTEPLUS_AP_SOUTHEAST_HOST}`
       if (miromindProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_MIROMIND_HOST}`
       if (agnesProviderSelected) return requestedUpstreamRaw || `https://${CHAT_PROXY_AGNES_HOST}`
@@ -2117,14 +2165,17 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     const bytePlusUpstreamSelected = bytePlusProviderSelected || isBytePlusChatUpstreamHost(upstreamHostname)
     const qwenUpstreamSelected = qwenProviderSelected || isQwenChatUpstreamHost(upstreamHostname)
     const googleCloudUpstreamSelected = googleCloudProviderSelected || isGoogleCloudChatUpstreamHost(upstreamHostname)
-    const requiresOpenAiKey = !localGatewayOnly && (providerHeader === 'openai' || upstreamHostname === CHAT_PROXY_OPENAI_HOST)
+    const aiGatewayUpstreamSelected = aiGatewayRequested || isAiGatewayChatUpstreamHost(upstreamHostname)
+    const requiresOpenAiKey = !localGatewayOnly && !aiGatewayUpstreamSelected && (providerHeader === 'openai' || upstreamHostname === CHAT_PROXY_OPENAI_HOST)
     const requiresMiroMindKey = !localGatewayOnly && (miromindProviderSelected || upstreamHostname === CHAT_PROXY_MIROMIND_HOST)
     const requiresAgnesKey = !localGatewayOnly && (agnesProviderSelected || upstreamHostname === CHAT_PROXY_AGNES_HOST)
     const requiresSealionKey = !localGatewayOnly && (sealionProviderSelected || upstreamHostname === CHAT_PROXY_SEALION_HOST)
     const requiresQwenKey = !localGatewayOnly && qwenUpstreamSelected
     const requiresGoogleCloudKey = !localGatewayOnly && googleCloudUpstreamSelected
     const requiresBytePlusKey = !localGatewayOnly && bytePlusUpstreamSelected
+    const requiresAiGatewayKey = !localGatewayOnly && aiGatewayUpstreamSelected
     const envOpenAiApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '').trim()
+    const envAiGatewayApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_AI_GATEWAY_TOKEN || process.env.AI_GATEWAY_TOKEN || process.env.CLOUDFLARE_API_TOKEN || '').trim()
     const envMiroMindApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_MIROMIND_API_KEY || process.env.MIROMIND_API_KEY || '').trim()
     const envAgnesApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_AGNES_API_KEY || process.env.AGNES_API_KEY || '').trim()
     const envSealionApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_SEALION_API_KEY || '').trim()
@@ -2132,6 +2183,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     const envGoogleCloudApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_GOOGLE_CLOUD_ACCESS_TOKEN || process.env.GOOGLE_CLOUD_ACCESS_TOKEN || process.env.VERTEX_AI_ACCESS_TOKEN || process.env.GOOGLE_OAUTH_ACCESS_TOKEN || '').trim()
     const envBytePlusApiKey = String(process.env.KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY || '').trim()
     const headerProviderApiKey = readSingleHeader(req.headers['x-kg-chat-api-key'])
+    const aiGatewayApiKey = (headerProviderApiKey || envAiGatewayApiKey).slice(0, 512)
     const openAiApiKey = (headerProviderApiKey || envOpenAiApiKey).slice(0, 512)
     const miromindApiKey = (headerProviderApiKey || envMiroMindApiKey).slice(0, 512)
     const agnesApiKey = (headerProviderApiKey || envAgnesApiKey).slice(0, 512)
@@ -2141,6 +2193,8 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
     const bytePlusApiKey = (headerProviderApiKey || envBytePlusApiKey).slice(0, 512)
     const providerApiKey = requiresBytePlusKey
       ? bytePlusApiKey
+      : requiresAiGatewayKey
+        ? aiGatewayApiKey
       : requiresAgnesKey
         ? agnesApiKey
         : requiresSealionKey
@@ -2154,6 +2208,10 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
                 : openAiApiKey
     if (requiresOpenAiKey && !openAiApiKey) {
       writeJson(res, 401, { ok: false, error: 'Missing OpenAI API key for chat proxy upstream. Set Settings → Chat auth to BYOK, or export OPENAI_API_KEY and restart the dev server.' })
+      return
+    }
+    if (requiresAiGatewayKey && !providerApiKey) {
+      writeJson(res, 401, { ok: false, error: 'Missing Cloudflare AI Gateway token for chat proxy upstream. Export KNOWGRPH_CHAT_PROXY_AI_GATEWAY_TOKEN or AI_GATEWAY_TOKEN and restart the dev server.' })
       return
     }
     if (requiresMiroMindKey && !providerApiKey) {
@@ -2216,7 +2274,7 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       if (suffix.startsWith('/contents/generations/tasks')) suffix = `/api/v3${suffix}`
     }
     const upstreamPath = suffix.startsWith('/') ? suffix : `/${suffix}`
-    const upstreamUrl = new URL(`${upstreamPath}${parsedReq.search || ''}`, upstreamBase)
+    const upstreamUrl = buildChatProxyUpstreamUrl(upstreamBase, upstreamPath, parsedReq.search || '')
     let timeoutId: ReturnType<typeof setTimeout> | null = null
     let controller: AbortController | null = null
     try {
@@ -2289,15 +2347,28 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
       }
       if (contentType) headers.set('Content-Type', contentType)
       if (accept) headers.set('Accept', accept)
-      if (requiresOpenAiKey || requiresMiroMindKey || requiresAgnesKey || requiresSealionKey || requiresQwenKey || requiresGoogleCloudKey || requiresBytePlusKey) {
+      if (requiresOpenAiKey || requiresAiGatewayKey || requiresMiroMindKey || requiresAgnesKey || requiresSealionKey || requiresQwenKey || requiresGoogleCloudKey || requiresBytePlusKey) {
         headers.set('Authorization', `Bearer ${providerApiKey}`)
       }
       const clientRequestId = readSingleHeader(req.headers['x-client-request-id']).slice(0, 512)
       if (clientRequestId) headers.set('X-Client-Request-Id', clientRequestId)
+      if (requiresAiGatewayKey && aiGatewayGatewayId) headers.set('cf-aig-gateway-id', aiGatewayGatewayId)
+      if (aiGatewayMetadata) headers.set('cf-aig-metadata', aiGatewayMetadata)
+      if (aiGatewayCacheTtl) headers.set('cf-aig-cache-ttl', aiGatewayCacheTtl)
+      const upstreamBody = (() => {
+        if (!(aiGatewayRequested && method === 'POST')) return body
+        try {
+          const parsed = JSON.parse(body.toString('utf8')) as Record<string, unknown>
+          parsed.model = aiGatewayRoute
+          return Buffer.from(JSON.stringify(parsed))
+        } catch {
+          return body
+        }
+      })()
       const upstreamRes = await fetch(upstreamUrl.toString(), {
         method,
         headers,
-        body: method === 'GET' || method === 'HEAD' ? undefined : body,
+        body: method === 'GET' || method === 'HEAD' ? undefined : upstreamBody,
         signal: ctrl.signal,
       })
       res.statusCode = upstreamRes.status
@@ -6665,6 +6736,92 @@ const videoDownloadDevPlugin = {
   },
 }
 const remoteVideoFrameDevPlugin = { name: 'knowgrph-remote-video-frame-dev', configureServer(server: import('vite').ViteDevServer) { const handler = createRemoteVideoFrameHandler({ repoRoot, workspaceRoot, getPythonBin, withRepoPythonPath }); server.middlewares.use('/__video_frame', handler); server.middlewares.use(REMOTE_VIDEO_FRAME_PUBLIC_PREFIX, createRemoteVideoFramePublicAssetHandler({ workspaceRoot })) }, configurePreviewServer(server: import('vite').PreviewServer) { const handler = createRemoteVideoFrameHandler({ repoRoot, workspaceRoot, getPythonBin, withRepoPythonPath }); server.middlewares.use('/__video_frame', handler); server.middlewares.use(REMOTE_VIDEO_FRAME_PUBLIC_PREFIX, createRemoteVideoFramePublicAssetHandler({ workspaceRoot })) } }
+const workspaceReadmePublicSourceDevPlugin: Plugin = {
+  name: 'knowgrph-workspace-readme-public-source-dev',
+  configureServer(server) {
+    server.middlewares.use('/docs/workspace-readme.md', createWorkspaceReadmePublicSourceHandler())
+  },
+  configurePreviewServer(server) {
+    server.middlewares.use('/docs/workspace-readme.md', createWorkspaceReadmePublicSourceHandler())
+  },
+}
+
+const liveCanvasHeroMarkdownPublicSourcePlugin: Plugin = {
+  name: 'knowgrph-live-canvas-hero-markdown-public-source',
+  apply: 'serve',
+  configureServer(server) {
+    server.middlewares.use(LIVE_CANVAS_HERO_DISCOVERY_ROUTE_PATH, createLiveCanvasHeroMarkdownPublicSourceHandler())
+  },
+  configurePreviewServer(server) {
+    server.middlewares.use(LIVE_CANVAS_HERO_DISCOVERY_ROUTE_PATH, createLiveCanvasHeroMarkdownPublicSourceHandler())
+  },
+}
+
+const liveCanvasHeroMarkdownBuildAssetPlugin: Plugin = {
+  name: 'knowgrph-live-canvas-hero-markdown-build-asset',
+  apply: 'build',
+  async closeBundle() {
+    const source = readLiveCanvasHeroMarkdownSource()
+    if (!source.trim()) return
+    const outputPath = path.resolve(__dirname, 'dist', LIVE_CANVAS_HERO_DISCOVERY_ROUTE_PATH.replace(/^\/+/g, ''))
+    await fs.mkdir(path.dirname(outputPath), { recursive: true })
+    await fs.writeFile(outputPath, source, 'utf8')
+  },
+}
+
+const apexRootAliasDevPlugin: Plugin = {
+  name: 'knowgrph-apex-root-alias-dev',
+  transformIndexHtml(html) {
+    if (String(process.env.VITE_APEX_ROOT_ALIAS || '').trim() !== '1') return html
+    return html.replace('</head>', '<meta name="x-knowgrph-root-alias" content="/knowgrph/" /></head>')
+  },
+}
+
+function createWorkspaceReadmePublicSourceHandler(): import('vite').Connect.NextHandleFunction {
+  return async (_request, response) => {
+    try {
+      const text = await fs.readFile(path.join(siblingDocsRoot, 'workspace-readme.md'), 'utf8')
+      response.statusCode = 200
+      response.setHeader('content-type', 'text/markdown; charset=utf-8')
+      response.setHeader('cache-control', 'no-store')
+      response.end(text)
+    } catch {
+      response.statusCode = 404
+      response.end('workspace-readme.md is unavailable')
+    }
+  }
+}
+
+function readLiveCanvasHeroMarkdownSource(): string {
+  try {
+    return readFileSync(liveCanvasHeroDocPath, 'utf8')
+  } catch {
+    return ''
+  }
+}
+
+function readMainPanelSectionDescriptionsMarkdownSource(): string {
+  try {
+    return readFileSync(mainPanelSectionDescriptionsDocPath, 'utf8')
+  } catch {
+    return ''
+  }
+}
+
+function createLiveCanvasHeroMarkdownPublicSourceHandler(): import('vite').Connect.NextHandleFunction {
+  return async (_request, response) => {
+    try {
+      const text = await fs.readFile(liveCanvasHeroDocPath, 'utf8')
+      response.statusCode = 200
+      response.setHeader('content-type', 'text/markdown; charset=utf-8')
+      response.setHeader('cache-control', 'no-store')
+      response.end(text)
+    } catch {
+      response.statusCode = 404
+      response.end('knowgrph-live-canvas-hero.md is unavailable')
+    }
+  }
+}
 
 function readViteDevPortHint(): string {
   const envPort = String(
@@ -6721,6 +6878,10 @@ export default defineConfig(({ command }) => {
         return withLeading.endsWith('/') ? withLeading : `${withLeading}/`
       })()
     : '/',
+  define: {
+    __KNOWGRPH_LIVE_CANVAS_HERO_MARKDOWN__: JSON.stringify(readLiveCanvasHeroMarkdownSource()),
+    __KNOWGRPH_MAIN_PANEL_SECTION_DESCRIPTIONS_MARKDOWN__: JSON.stringify(readMainPanelSectionDescriptionsMarkdownSource()),
+  },
   esbuild: {
     sourcemap: false,
   },
@@ -7027,6 +7188,10 @@ export default defineConfig(({ command }) => {
           youtubeConvertDevPlugin,
           videoDownloadDevPlugin,
           remoteVideoFrameDevPlugin,
+          workspaceReadmePublicSourceDevPlugin,
+          liveCanvasHeroMarkdownPublicSourcePlugin,
+          liveCanvasHeroMarkdownBuildAssetPlugin,
+          apexRootAliasDevPlugin,
         ]),
   ],
   }

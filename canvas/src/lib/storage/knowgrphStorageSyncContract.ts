@@ -4,6 +4,7 @@ export const KNOWGRPH_STORAGE_ROUTE_PATHS = {
   push: '/api/storage/push',
   pull: '/api/storage/pull',
   collabSave: '/api/storage/collab/save',
+  canvasRoomPrefix: '/api/storage/canvas-room/',
   chatSession: '/api/storage/chat/session',
   chatRelay: '/api/storage/chat/relay',
   chatPoliciesPrefix: '/api/storage/chat/policies/',
@@ -225,6 +226,24 @@ export type KnowgrphStorageChatSessionMembership = {
   status: string
 }
 
+export type KnowgrphCanvasRoomPeerRecord = {
+  userId: string
+  displayName: string
+  role: KnowgrphStorageChatRole
+  joinedAt: number
+  caretLine: number | null
+}
+
+export type KnowgrphCanvasRoomStatusResponse = {
+  ok: true
+  apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
+  workspaceId: string
+  roomId: string
+  activePeerCount: number
+  latestAssetKey: string | null
+  peers: KnowgrphCanvasRoomPeerRecord[]
+}
+
 export type KnowgrphStorageChatSessionResponse = {
   ok: true
   apiVersion: typeof KNOWGRPH_STORAGE_API_VERSION
@@ -293,6 +312,9 @@ export type KnowgrphStorageChatRelayRequest = {
   input?: unknown[] | null
   stream?: boolean
   byokApiKey?: string | null
+  aiGatewayRoute?: string | null
+  aiGatewayMetadata?: Record<string, string | number | boolean> | null
+  aiGatewayCacheTtlSeconds?: number | null
   providerOptions?: Record<string, unknown> | null
 }
 
@@ -539,6 +561,9 @@ export const buildKnowgrphStoragePullRequest = (args: {
 
 export const buildKnowgrphCollaborationSavePath = (): string =>
   KNOWGRPH_STORAGE_ROUTE_PATHS.collabSave
+
+export const buildKnowgrphStorageCanvasRoomPath = (workspaceId: string, roomId: string): string =>
+  `${KNOWGRPH_STORAGE_ROUTE_PATHS.canvasRoomPrefix}${encodeURIComponent(String(workspaceId || '').trim())}/${encodeURIComponent(String(roomId || '').trim())}`
 
 export const buildKnowgrphStorageChatSessionPath = (): string =>
   KNOWGRPH_STORAGE_ROUTE_PATHS.chatSession

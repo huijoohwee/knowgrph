@@ -328,6 +328,26 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if ((localSettingsChatReadiness as { routing?: { integrationEnabled?: unknown } }).routing?.integrationEnabled !== true) {
       throw new Error(`expected inspect_local_settings_chat_readiness to report integration enablement, got ${JSON.stringify(localSettingsChatReadiness)}`)
     }
+    if (
+      (localChatPipelineState as {
+        available?: unknown
+        promotionRecovery?: { available?: unknown; retryCommand?: unknown; surfaces?: unknown }
+      }).available !== true
+      || (localChatPipelineState as {
+        promotionRecovery?: { available?: unknown; retryCommand?: unknown; surfaces?: unknown }
+      }).promotionRecovery?.available !== false
+      || (localChatPipelineState as {
+        promotionRecovery?: { available?: unknown; retryCommand?: unknown; surfaces?: unknown }
+      }).promotionRecovery?.retryCommand !== null
+      || !Array.isArray((localChatPipelineState as {
+        promotionRecovery?: { available?: unknown; retryCommand?: unknown; surfaces?: unknown }
+      }).promotionRecovery?.surfaces)
+      || ((localChatPipelineState as {
+        promotionRecovery?: { available?: unknown; retryCommand?: unknown; surfaces?: unknown }
+      }).promotionRecovery?.surfaces as unknown[]).length !== 0
+    ) {
+      throw new Error(`expected inspect_local_chat_pipeline_state to expose an idle promotion recovery contract when no mirroring failure exists, got ${JSON.stringify(localChatPipelineState)}`)
+    }
     if ((localSettingsChatReadiness as { modelDiscovery?: { discoveredCount?: unknown } }).modelDiscovery?.discoveredCount !== 3) {
       throw new Error(`expected inspect_local_settings_chat_readiness to report discovered model count, got ${JSON.stringify(localSettingsChatReadiness)}`)
     }

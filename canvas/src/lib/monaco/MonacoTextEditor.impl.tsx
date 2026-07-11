@@ -3,9 +3,11 @@ import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
 import { ensureMonacoStyles } from '@/lib/ui/lazyStyles'
+import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useShallow } from 'zustand/react/shallow'
 import { applyExternalMonacoValue } from './monacoExternalValueApply'
+import { resolveMonacoRuntimeMode } from './monacoRuntimeMode'
 
 const FLASH_STYLE_ID = 'monaco-flash-style'
 const FLASH_CSS = `
@@ -40,6 +42,13 @@ const LONG_LINE_CSS = `
   font-style: italic;
 }
 `
+const MONACO_TOUCH_VIEWPORT_QUERY = '(max-width: 768px), (pointer: coarse)'
+const MONACO_TOUCH_INTENT_COPY = {
+  eyebrow: 'Rich editor runtime',
+  title: 'Load Monaco editor on this device',
+  body: 'Phone sessions stay on the lightweight editor first so the workspace opens faster. Load Monaco only when you need the heavier editing runtime.',
+  action: 'Load rich editor',
+} as const
 
 export type MonacoTextEditorHandle = {
   focus: () => void
@@ -90,6 +99,7 @@ export type MonacoTextEditorProps = {
   onHandle?: (handle: MonacoTextEditorHandle | null) => void
   flashLine?: number | null
   flashDurationMs?: number
+  deferMonacoOnTouchViewport?: boolean
 }
 
 type MonacoApi = typeof import('monaco-editor/esm/vs/editor/editor.api')
@@ -457,6 +467,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     flashDurationMs = 1000,
   } = props
   const monacoSettings = useMonacoCapabilitySettings()
+  const touchViewportMatches = useMediaQuery(MONACO_TOUCH_VIEWPORT_QUERY)
 
   const hostRef = React.useRef<HTMLElement | null>(null)
   const textareaElRef = React.useRef<HTMLTextAreaElement | null>(null)
@@ -486,6 +497,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
   const onHandleRef = React.useRef(onHandle)
   const themeModeRef = React.useRef<'light' | 'dark'>(themeMode)
   const textareaHandleRef = React.useRef<MonacoTextEditorHandle | null>(null)
+  const [touchViewportIntentActivated, setTouchViewportIntentActivated] = React.useState(false)
 
   React.useEffect(() => {
     themeModeRef.current = themeMode
@@ -569,11 +581,24 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
     typeof window.navigator !== 'undefined' &&
     /jsdom/i.test(String(window.navigator.userAgent || ''))
 
-  const canUseMonaco =
+  const monacoPlatformSupported =
     typeof window !== 'undefined' &&
     typeof document !== 'undefined' &&
-    typeof (window as unknown as { Worker?: unknown }).Worker !== 'undefined' &&
-    !isJsdom
+    typeof (window as unknown as { Worker?: unknown }).Worker !== 'undefined'
+  const initialTouchViewport = React.useMemo(() => {
+    if (typeof window === 'undefined') return false
+    if (typeof window.matchMedia !== 'function') return false
+    return window.matchMedia(MONACO_TOUCH_VIEWPORT_QUERY).matches
+  }, [])
+  const touchViewportActive = touchViewportMatches || initialTouchViewport
+  const runtimeMode = resolveMonacoRuntimeMode({
+    monacoPlatformSupported,
+    isJsdom,
+    deferMonacoOnTouchViewport: !!props.deferMonacoOnTouchViewport,
+    touchViewportActive,
+    touchViewportIntentActivated,
+  })
+  const canUseMonaco = runtimeMode === 'monaco'
 
   const shouldHideLongHtmlBlocks = hideLongHtmlBlocks ?? String(language || '').toLowerCase() === 'markdown'
 
@@ -1313,13 +1338,42 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
   }, [])
 
   return (
-    <section className={`kg-monaco-editor-root ${className || ''}`.trim()}>
+    <section
+      className={`kg-monaco-editor-root flex min-h-0 flex-col ${className || ''}`.trim()}
+      data-kg-monaco-runtime-mode={runtimeMode}
+    >
+      {runtimeMode === 'deferred-touch' ? (
+        <section
+          className="border-b border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-3 py-3"
+          data-kg-monaco-touch-intent="true"
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--kg-text-secondary)]">
+            {MONACO_TOUCH_INTENT_COPY.eyebrow}
+          </p>
+          <h2 className="mt-1 text-sm font-semibold text-[var(--kg-text-primary)]">
+            {MONACO_TOUCH_INTENT_COPY.title}
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--kg-text-secondary)]">
+            {MONACO_TOUCH_INTENT_COPY.body}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <button
+              type="button"
+              className="App-toolbar__btn min-h-11 px-4 text-sm font-medium"
+              data-kg-monaco-touch-intent-activate="true"
+              onClick={() => setTouchViewportIntentActivated(true)}
+            >
+              {MONACO_TOUCH_INTENT_COPY.action}
+            </button>
+          </div>
+        </section>
+      ) : null}
       {canUseMonaco ? (
         <section
           ref={el => {
             hostRef.current = el
           }}
-          className={['h-full w-full kg-monaco-editor-host', UI_THEME_TOKENS.input.bg].join(' ')}
+          className={['kg-monaco-editor-host min-h-0 flex-1 w-full', UI_THEME_TOKENS.input.bg].join(' ')}
         />
       ) : (
         <PlainTextInputEditor
@@ -1368,7 +1422,7 @@ export function MonacoTextEditor(props: MonacoTextEditorProps) {
           }}
           onBlur={onBlur}
           className={[
-            'h-full w-full resize-none outline-none p-2',
+            'min-h-0 flex-1 w-full resize-none outline-none p-2',
             UI_THEME_TOKENS.input.bg,
             UI_THEME_TOKENS.input.text,
             textareaClassName || className || '',

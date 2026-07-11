@@ -295,13 +295,17 @@ const toSqlNullableString = (value) => {
   return toSqlString(value)
 }
 
-const executeD1SqlFile = async (sqlText) => {
+const formatElapsedMs = (startedAt) => `${Date.now() - startedAt}ms`
+
+const executeD1SqlFile = async (sqlText, label = 'unnamed-step') => {
   const tempDir = path.resolve(knowgrphRoot, '.tmp')
   const fileName = `seed-storage-docs-${Date.now()}-${Math.random().toString(16).slice(2)}.sql`
   const tempFile = path.resolve(tempDir, fileName)
   const tempFileArg = path.relative(knowgrphRoot, tempFile) || fileName
   await fs.mkdir(tempDir, { recursive: true })
   await fs.writeFile(tempFile, sqlText, 'utf8')
+  const startedAt = Date.now()
+  console.log(`[knowgrph] d1 execute start: ${label}`)
   try {
     const result = spawnSync(
       'npx',
@@ -327,6 +331,7 @@ const executeD1SqlFile = async (sqlText) => {
       const message = (result.stderr || result.stdout || '').trim()
       throw new Error(message || 'npx wrangler@latest d1 execute failed')
     }
+    console.log(`[knowgrph] d1 execute done: ${label} (${formatElapsedMs(startedAt)})`)
   } finally {
     await fs.rm(tempFile, { force: true }).catch(() => void 0)
   }
@@ -344,6 +349,7 @@ const seedDocumentsDirectlyToD1 = async (args) => {
       `title = excluded.title,`,
       `updated_at = excluded.updated_at;`,
     ].join('\n'),
+    'workspace-upsert',
   )
   for (let i = 0; i < args.documentSeeds.length; i += 1) {
     const seed = args.documentSeeds[i]
@@ -423,7 +429,8 @@ const seedDocumentsDirectlyToD1 = async (args) => {
         ].join('\n'),
       )
     }
-    await executeD1SqlFile(statements.join('\n'))
+    console.log(`[knowgrph] d1 document upsert ${i + 1}/${args.documentSeeds.length}: ${record.canonicalPath} (chunks=${seed.chunkMutations.length})`)
+    await executeD1SqlFile(statements.join('\n'), `document-upsert:${record.canonicalPath}`)
   }
   for (let i = 0; i < args.deleteMutations.length; i += 1) {
     const mutation = args.deleteMutations[i]
@@ -443,7 +450,8 @@ const seedDocumentsDirectlyToD1 = async (args) => {
       `  AND (id = ${toSqlString(record.id)} OR canonical_path = ${toSqlString(record.canonicalPath)});`,
       `DELETE FROM document_chunks WHERE document_id = ${toSqlString(record.id)} AND workspace_id = ${toSqlString(record.workspaceId)};`,
     ].join('\n')
-    await executeD1SqlFile(sql)
+    console.log(`[knowgrph] d1 stale document delete ${i + 1}/${args.deleteMutations.length}: ${record.canonicalPath}`)
+    await executeD1SqlFile(sql, `document-delete:${record.canonicalPath}`)
   }
 }
 
@@ -489,7 +497,10 @@ const run = async () => {
     return
   }
   let deleteMutations = []
+  const beforeExportStartedAt = Date.now()
+  console.log('[knowgrph] export start: before-seed')
   const beforeExport = await exportWorkspace({ baseUrl, workspaceId })
+  console.log(`[knowgrph] export done: before-seed (${formatElapsedMs(beforeExportStartedAt)})`)
   deleteMutations = buildReconciliationMutations({
     exported: beforeExport,
     mutations,
@@ -513,7 +524,10 @@ const run = async () => {
       const conflict = acknowledgements.filter(item => item && item.status === 'conflict').length
       const rejected = acknowledgements.filter(item => item && item.status === 'rejected').length
       console.log(`[knowgrph] push complete: applied=${applied}, conflict=${conflict}, rejected=${rejected}`)
+      const exportedStartedAt = Date.now()
+      console.log('[knowgrph] export start: api-push-verification')
       const exported = await exportWorkspace({ baseUrl, workspaceId })
+      console.log(`[knowgrph] export done: api-push-verification (${formatElapsedMs(exportedStartedAt)})`)
       const documentCount = countActiveExportedDocuments(exported)
       console.log(`[knowgrph] export verification: documents=${documentCount}`)
       if (documentCount !== docsSourceFiles.length) {
@@ -533,7 +547,10 @@ const run = async () => {
     documentSeeds,
     deleteMutations,
   })
+  const exportedStartedAt = Date.now()
+  console.log('[knowgrph] export start: direct-d1-verification')
   const exported = await exportWorkspace({ baseUrl, workspaceId })
+  console.log(`[knowgrph] export done: direct-d1-verification (${formatElapsedMs(exportedStartedAt)})`)
   const documentCount = countActiveExportedDocuments(exported)
   console.log(`[knowgrph] export verification: documents=${documentCount}`)
   if (documentCount !== docsSourceFiles.length) {

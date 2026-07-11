@@ -27,26 +27,25 @@ export function toMainPanelSectionDescriptionMap(rows: readonly MainPanelSection
   return Object.fromEntries(rows.map(row => [row.key, row])) as Record<string, MainPanelSectionDescription>
 }
 
-async function readMainPanelSectionDescriptionsMarkdownFromNode(): Promise<string> {
-  if (typeof process === 'undefined' || typeof process.versions?.node !== 'string') return ''
-  try {
-    const fs = await import(/* @vite-ignore */ 'node:fs/promises') as typeof import('node:fs/promises')
-    return await fs.readFile(new URL('../../../../docs/documents/knowgrph-mainpanel-section-descriptions.md', import.meta.url), 'utf8')
-  } catch {
-    return ''
+declare const __KNOWGRPH_MAIN_PANEL_SECTION_DESCRIPTIONS_MARKDOWN__: string | undefined
+type MainPanelSectionDescriptionsGlobalScope = typeof globalThis & {
+  __KNOWGRPH_MAIN_PANEL_SECTION_DESCRIPTIONS_MARKDOWN__?: string
+}
+
+function readBundledMainPanelSectionDescriptionsMarkdown(): string {
+  if (
+    typeof __KNOWGRPH_MAIN_PANEL_SECTION_DESCRIPTIONS_MARKDOWN__ === 'string'
+    && __KNOWGRPH_MAIN_PANEL_SECTION_DESCRIPTIONS_MARKDOWN__.trim()
+  ) {
+    return __KNOWGRPH_MAIN_PANEL_SECTION_DESCRIPTIONS_MARKDOWN__
   }
+  const globalMarkdown = (globalThis as MainPanelSectionDescriptionsGlobalScope).__KNOWGRPH_MAIN_PANEL_SECTION_DESCRIPTIONS_MARKDOWN__
+  return typeof globalMarkdown === 'string' ? globalMarkdown : ''
 }
 
 export async function loadMainPanelSectionDescriptions(): Promise<Record<string, MainPanelSectionDescription>> {
-  try {
-    const markdownModule = await import('../../../../docs/documents/knowgrph-mainpanel-section-descriptions.md?raw') as { default?: string }
-    const markdown = markdownModule.default || ''
-    if (markdown.trim()) return toMainPanelSectionDescriptionMap(parseMainPanelSectionDescriptionRows(markdown))
-  } catch {
-    void 0
-  }
-  const nodeMarkdown = await readMainPanelSectionDescriptionsMarkdownFromNode()
-  return nodeMarkdown.trim()
-    ? toMainPanelSectionDescriptionMap(parseMainPanelSectionDescriptionRows(nodeMarkdown))
+  const markdown = readBundledMainPanelSectionDescriptionsMarkdown()
+  return markdown.trim()
+    ? toMainPanelSectionDescriptionMap(parseMainPanelSectionDescriptionRows(markdown))
     : {}
 }

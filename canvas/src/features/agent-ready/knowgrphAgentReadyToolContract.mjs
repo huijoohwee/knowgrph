@@ -206,7 +206,7 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalChatPipelineState,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalChatPipelineState),
           title: 'Inspect Local Chat Pipeline State',
-          description: 'Inspect the active browser-local Knowgrph FloatingPanel chat runtime, including streaming, workspace follow path, and LLM-to-workspace pipeline state.',
+          description: 'Inspect the active browser-local Knowgrph FloatingPanel chat runtime, including streaming, workspace follow path, LLM-to-workspace pipeline state, and promotion retry recovery for already-saved local artifacts.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
         }, {

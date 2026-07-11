@@ -145,6 +145,7 @@ export function testMainPanelCloudflareMediaAssetSyncUsesSharedRuntimeContract()
   const canvasRoomText = readFileSync(resolve(process.cwd(), '..', 'cloudflare', 'workers', 'knowgrph-storage', 'canvasSyncRoom.ts'), 'utf8')
   const wranglerText = readFileSync(resolve(process.cwd(), '..', 'cloudflare', 'workers', 'knowgrph-storage', 'wrangler.toml'), 'utf8')
   const requiredContractFragments = [
+    "canvasRoomPrefix: '/api/storage/canvas-room/'",
     "mediaAssetPersist: '/api/storage/media/assets'",
     "mediaPrefix: '/api/storage/media/'",
     'KNOWGRPH_STORAGE_R2_MEDIA_BINDING_NAME = KNOWGRPH_STORAGE_R2_BLOB_BINDING_NAME',
@@ -153,6 +154,7 @@ export function testMainPanelCloudflareMediaAssetSyncUsesSharedRuntimeContract()
     "KNOWGRPH_STORAGE_CANVAS_ROOM_BINDING_NAME = 'KNOWGRPH_CANVAS_ROOM'",
     'KnowgrphMediaAssetPersistRequest',
     'KnowgrphMediaAssetPersistResponse',
+    'buildKnowgrphStorageCanvasRoomPath',
   ]
   for (const fragment of requiredContractFragments) {
     if (!contractText.includes(fragment)) {
@@ -222,8 +224,13 @@ export function testMainPanelCloudflareMediaAssetSyncUsesSharedRuntimeContract()
   }
   if (!canvasRoomText.includes('class KnowgrphCanvasSyncRoom')
     || !canvasRoomText.includes("`asset:${workspaceId}:${roomId}:${artifactId}`")
-    || !canvasRoomText.includes('this.state.storage.put(storageKey')) {
-    throw new Error('expected Durable Object canvas room to persist media asset sync notifications')
+    || !canvasRoomText.includes('this.state.storage.put(storageKey')
+    || !canvasRoomText.includes('this.state.acceptWebSocket')
+    || !canvasRoomText.includes("type: 'asset.synced'")
+    || !workerIndexText.includes('handleCanvasRoomProxy')
+    || !workerIndexText.includes('x-knowgrph-room-workspace-id')
+    || !workerIndexText.includes('canvasRoomPrefix')) {
+    throw new Error('expected Durable Object canvas room to proxy authenticated collaboration joins and persist media asset sync notifications')
   }
   if (!wranglerText.includes('KNOWGRPH_STORAGE_BLOB_BUCKET')
     || !wranglerText.includes('knowgrph-storage-blobs')

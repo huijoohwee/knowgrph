@@ -131,6 +131,9 @@ export const CHAT_PROVIDER_OPTIONS = [CHAT_PROVIDER_OPENAI, CHAT_PROVIDER_MIROMI
 export type ChatProviderId = (typeof CHAT_PROVIDER_OPTIONS)[number]
 export const CHAT_DEFAULT_PROVIDER: ChatProviderId = CHAT_PROVIDER_OPENAI
 export const CHAT_DEFAULT_ENDPOINT_URL = CHAT_OPENAI_ENDPOINT_URL
+export const CHAT_PROXY_AI_GATEWAY_ROUTE_HEADER = 'X-KG-AI-Gateway-Route'
+export const CHAT_PROXY_AI_GATEWAY_METADATA_HEADER = 'X-KG-AI-Gateway-Metadata'
+export const CHAT_PROXY_AI_GATEWAY_CACHE_TTL_HEADER = 'X-KG-AI-Gateway-Cache-TTL'
 const CHAT_PROVIDER_LABELS: Record<ChatProviderId, string> = {
   [CHAT_PROVIDER_BYTEPLUS]: 'BytePlus ModelArk',
   [CHAT_PROVIDER_DEERFLOW]: 'DeerFlow Gateway',
@@ -207,6 +210,45 @@ const toAsciiRequestId = (value: unknown): string => {
     .replace(/[^\x20-\x7E]/g, '')
     .slice(0, 512)
   return next
+}
+
+const toAiGatewayRoute = (value: unknown): string => {
+  const route = typeof value === 'string' ? value.trim() : ''
+  if (!/^dynamic\/[a-z0-9._/-]+$/i.test(route)) return ''
+  return route.slice(0, 128)
+}
+
+const toAiGatewayCacheTtlSeconds = (value: unknown): string => {
+  const parsed = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(parsed)) return ''
+  const bounded = Math.max(1, Math.min(86_400, Math.floor(parsed)))
+  return String(bounded)
+}
+
+const isAiGatewayMetadataPrimitive = (value: unknown): value is string | number | boolean =>
+  typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+
+const toAiGatewayMetadataHeaderValue = (value: unknown): string => {
+  if (!value || typeof value !== 'object') return ''
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, entryValue]) => isAiGatewayMetadataPrimitive(entryValue))
+    .slice(0, 5)
+    .map(([key, entryValue]) => {
+      const nextKey = String(key || '').trim().slice(0, 64)
+      if (!nextKey) return null
+      if (typeof entryValue === 'string') return [nextKey, entryValue.trim().slice(0, 160)]
+      if (typeof entryValue === 'number') return [nextKey, Number.isFinite(entryValue) ? entryValue : 0]
+      return [nextKey, entryValue]
+    })
+    .filter(Boolean) as Array<[string, string | number | boolean]>
+  if (!entries.length) return ''
+  return JSON.stringify(Object.fromEntries(entries))
+}
+
+export type ChatProxyAiGatewayConfig = {
+  route?: unknown
+  metadata?: Record<string, string | number | boolean> | null
+  cacheTtlSeconds?: unknown
 }
 
 const toProxyPathFromLocalUrl = (url: URL): string => {
@@ -688,6 +730,7 @@ export function buildChatProxyHeaders(args: {
   apiKey?: unknown
   endpointUrl?: unknown
   clientRequestId?: unknown
+  aiGateway?: ChatProxyAiGatewayConfig | null
 }): Record<string, string> {
   const headers: Record<string, string> = {}
   const provider = normalizeChatProviderId(args.provider)
@@ -703,6 +746,18 @@ export function buildChatProxyHeaders(args: {
   const clientRequestId = toAsciiRequestId(args.clientRequestId)
   if (clientRequestId) {
     headers['X-Client-Request-Id'] = clientRequestId
+  }
+  const aiGatewayRoute = toAiGatewayRoute(args.aiGateway?.route)
+  if (aiGatewayRoute) {
+    headers[CHAT_PROXY_AI_GATEWAY_ROUTE_HEADER] = aiGatewayRoute
+  }
+  const aiGatewayMetadata = toAiGatewayMetadataHeaderValue(args.aiGateway?.metadata)
+  if (aiGatewayMetadata) {
+    headers[CHAT_PROXY_AI_GATEWAY_METADATA_HEADER] = aiGatewayMetadata
+  }
+  const aiGatewayCacheTtlSeconds = toAiGatewayCacheTtlSeconds(args.aiGateway?.cacheTtlSeconds)
+  if (aiGatewayCacheTtlSeconds) {
+    headers[CHAT_PROXY_AI_GATEWAY_CACHE_TTL_HEADER] = aiGatewayCacheTtlSeconds
   }
   return headers
 }

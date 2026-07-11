@@ -12,7 +12,10 @@ import { deriveMarkdownWorkspaceSelectionState } from './markdownWorkspaceSelect
 import { normalizeMarkdownWorkspaceSelectionPath } from './markdownWorkspaceSelectionPath'
 import { resolveMarkdownWorkspaceSelectionRestoreApply } from './markdownWorkspaceSelectionRestoreApply'
 import { readMarkdownWorkspaceRestoreTextForPath } from './markdownWorkspaceSelectionRestore'
-import { resolveMarkdownWorkspaceSelectionWritebackSync } from './markdownWorkspaceSelectionWriteback'
+import {
+  resolveMarkdownWorkspaceSelectionWritebackSync,
+  resolvePreferredMarkdownWorkspaceSelectionSyncText,
+} from './markdownWorkspaceSelectionWriteback'
 import { commitMarkdownWorkspaceWriteback } from './markdownWorkspaceWritebackCommit'
 import {
   resolveActivePathFromWorkspaceFileSelection,
@@ -266,13 +269,20 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     void (async () => {
       const fs = await args.getFs()
       if (cancelled || switchedActivePathRef.current?.next !== switched.next || args.activePath !== switched.next) return
-      const nextText = await readCachedWorkspaceSelectionResolvedTextForActivePath({
+      const selectionText = await readCachedWorkspaceSelectionResolvedTextForActivePath({
         activePath: switched.next,
         activeEntry,
         fs,
         storageFallbackByPath: storageFallbackByPathRef.current,
         preferPathResolvedText: true,
         cacheRef: resolvedTextCacheRef,
+      })
+      const nextText = resolvePreferredMarkdownWorkspaceSelectionSyncText({
+        activePath: switched.next,
+        activeDocumentKey,
+        markdownDocumentName: args.markdownDocumentName,
+        markdownDocumentText: args.markdownDocumentText,
+        selectionText,
       })
       if (!shouldAcceptWorkspaceDocumentSelectionText({
         activePath: switched.next,
@@ -350,6 +360,13 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
           cacheRef: resolvedTextCacheRef,
         })
       }
+      nextText = resolvePreferredMarkdownWorkspaceSelectionSyncText({
+        activePath: path,
+        activeDocumentKey,
+        markdownDocumentName: args.markdownDocumentName,
+        markdownDocumentText: args.markdownDocumentText,
+        selectionText: nextText,
+      })
       if (!shouldHydrateStableWorkspaceSelectionText({
         activePath: path,
         activeEntryKind,

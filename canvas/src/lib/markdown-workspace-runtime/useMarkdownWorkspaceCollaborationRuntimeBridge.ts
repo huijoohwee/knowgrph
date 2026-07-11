@@ -1,3 +1,5 @@
+import { readKnowgrphStorageCanvasRoomConfig } from '@/lib/storage/knowgrphStorageCanvasRoomClient'
+import { useKnowgrphStorageCollaborationRuntime } from '@/features/collaboration/useKnowgrphStorageCollaborationRuntime'
 import { useP2PCollaborationRuntime } from '@/features/collaboration/useP2PCollaborationRuntime'
 
 type SetActiveMarkdownDocument = (args: {
@@ -8,28 +10,55 @@ type SetActiveMarkdownDocument = (args: {
   normalizeMermaidMmd?: boolean
 }) => Promise<boolean>
 
+type SetActiveTextProgrammatic = (text: string) => void
+
+export async function applyRemoteDocumentToMarkdownWorkspace(args: {
+  activeDocumentKey: string | null
+  documentKey: string
+  text: string
+  setActiveMarkdownDocument: SetActiveMarkdownDocument
+  setActiveTextProgrammatic: SetActiveTextProgrammatic
+}): Promise<boolean> {
+  const applied = await args.setActiveMarkdownDocument({
+    name: args.documentKey,
+    text: args.text,
+    normalizeMermaidMmd: false,
+    autoEnableFrontmatter: false,
+    applyViewPreset: false,
+  })
+  if (applied !== false && String(args.activeDocumentKey || '').trim() === String(args.documentKey || '').trim()) {
+    args.setActiveTextProgrammatic(args.text)
+  }
+  return applied
+}
+
 export const useMarkdownWorkspaceCollaborationRuntimeBridge = (args: {
   active: boolean
   activeDocumentKey: string | null
   activeText: string
   setActiveMarkdownDocument: SetActiveMarkdownDocument
+  setActiveTextProgrammatic: SetActiveTextProgrammatic
   revealLineInEditor: (line: number) => void
 }) => {
-  return useP2PCollaborationRuntime({
+  const runtimeArgs = {
     active: args.active,
     activeDocumentKey: args.activeDocumentKey,
     activeText: args.activeText,
     applyRemoteDocument: async ({ documentKey, text }) => {
-      await args.setActiveMarkdownDocument({
-        name: documentKey,
+      await applyRemoteDocumentToMarkdownWorkspace({
+        activeDocumentKey: args.activeDocumentKey,
+        documentKey,
         text,
-        normalizeMermaidMmd: false,
-        autoEnableFrontmatter: false,
-        applyViewPreset: false,
+        setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+        setActiveTextProgrammatic: args.setActiveTextProgrammatic,
       })
     },
     revealRemoteLine: line => {
       args.revealLineInEditor(line)
     },
-  })
+  }
+  if (readKnowgrphStorageCanvasRoomConfig()) {
+    return useKnowgrphStorageCollaborationRuntime(runtimeArgs)
+  }
+  return useP2PCollaborationRuntime(runtimeArgs)
 }

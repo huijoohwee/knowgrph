@@ -196,7 +196,14 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
     || !String(staticMcpAppHtml.body || '').includes(KNOWGRPH_MCP_APPS_PROTOCOL_VERSION)
     || !String(staticMcpAppHtml.body || '').includes('Fastest Path')
     || !String(staticMcpAppHtml.body || '').includes('control-plane/mcp')
+    || !String(staticMcpAppHtml.body || '').includes('knowgrph.agentic_canvas_os.docs.invoke')
+    || !String(staticMcpAppHtml.body || '').includes('/mcp.capabilities')
+    || !String(staticMcpAppHtml.body || '').includes('@mcp-gateway')
     || !String(staticMcpAppHtml.body || '').includes('knowgrph-superagent-harness.md')
+    || !String(staticMcpAppHtml.body || '').includes('Promotion Recovery')
+    || !String(staticMcpAppHtml.body || '').includes('#promotion.retry &lt;path...&gt;')
+    || !String(staticMcpAppHtml.body || '').includes('mirror-saved-local-artifacts-only')
+    || !String(staticMcpAppHtml.body || '').includes('browser-local finalize inspection after a real mirroring failure')
     || !String(staticMcpAppHtml.body || '').includes("request('ui/initialize'")
     || !String(staticMcpAppHtml.body || '').includes('appCapabilities')
     || !String(staticMcpAppHtml.body || '').includes('ui/notifications/initialized')
@@ -630,6 +637,9 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
         uriTemplates?: string[]
       }
       onboarding?: {
+        grammarToolName?: string
+        grammarExamples?: string[]
+        grammarExecutionBoundary?: string
         publicReadMcpUrl?: string
         controlPlaneMcpUrl?: string
         cheapestProofPath?: string
@@ -638,6 +648,21 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
           label?: string
           action?: string
         }>
+      }
+      operatorContracts?: {
+        promotionRecovery?: {
+          availability?: string
+          scope?: string
+          commandTemplate?: string
+          exactCommandSource?: string
+          reusesSavedLocalArtifacts?: boolean
+          rerunsValidation?: boolean
+          reappliesCanvas?: boolean
+          githubBeforeStorage?: boolean
+          insertionMode?: string
+          surfaces?: string[]
+          note?: string
+        }
       }
       clients?: Record<string, any>
       tool?: {
@@ -688,14 +713,34 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
     throw new Error(`expected readiness resource-template details to prove Source Files template discovery, got ${JSON.stringify(readiness.resourceTemplates)}`)
   }
   if (
-    readiness.onboarding?.publicReadMcpUrl !== 'https://airvio.co/knowgrph/mcp'
+    readiness.onboarding?.grammarToolName !== 'knowgrph.agentic_canvas_os.docs.invoke'
+    || readiness.onboarding?.grammarExecutionBoundary !== 'Keep install on the public discovery endpoint and execute live grammar on the approval-gated control plane.'
+    || !Array.isArray(readiness.onboarding?.grammarExamples)
+    || readiness.onboarding.grammarExamples.join('|') !== '/mcp.capabilities|#mcp|@mcp-gateway'
+    || readiness.onboarding?.publicReadMcpUrl !== 'https://airvio.co/knowgrph/mcp'
     || readiness.onboarding?.controlPlaneMcpUrl !== 'https://airvio.co/knowgrph/control-plane/mcp'
     || !String(readiness.onboarding?.cheapestProofPath || '').includes('knowgrph-superagent-harness.md')
     || !Array.isArray(readiness.onboarding?.steps)
     || readiness.onboarding.steps.length !== 3
-    || !String(readiness.onboarding.steps[1]?.action || '').includes('live /, #, @ grammar lookup')
+    || !String(readiness.onboarding.steps[1]?.action || '').includes('live /, #, @ grammar lookup through knowgrph.agentic_canvas_os.docs.invoke')
   ) {
     throw new Error(`expected readiness onboarding details to expose the install-first sequence, got ${JSON.stringify(readiness.onboarding)}`)
+  }
+  if (
+    readiness.operatorContracts?.promotionRecovery?.availability !== 'template-only-published-contract'
+    || readiness.operatorContracts?.promotionRecovery?.scope !== 'mirror-saved-local-artifacts-only'
+    || readiness.operatorContracts?.promotionRecovery?.commandTemplate !== '#promotion.retry <path...>'
+    || readiness.operatorContracts?.promotionRecovery?.exactCommandSource !== 'browser-local finalize inspection after a real mirroring failure'
+    || readiness.operatorContracts?.promotionRecovery?.reusesSavedLocalArtifacts !== true
+    || readiness.operatorContracts?.promotionRecovery?.rerunsValidation !== false
+    || readiness.operatorContracts?.promotionRecovery?.reappliesCanvas !== false
+    || readiness.operatorContracts?.promotionRecovery?.githubBeforeStorage !== true
+    || readiness.operatorContracts?.promotionRecovery?.insertionMode !== 'append'
+    || !Array.isArray(readiness.operatorContracts?.promotionRecovery?.surfaces)
+    || !readiness.operatorContracts.promotionRecovery.surfaces.includes('published-operator-card')
+    || !String(readiness.operatorContracts?.promotionRecovery?.note || '').includes('command template only')
+  ) {
+    throw new Error(`expected readiness to expose the published promotion recovery contract, got ${JSON.stringify(readiness.operatorContracts)}`)
   }
   if (readiness.tool?.securitySchemes?.[0]?.type !== 'noauth' || readiness.tool?.mirroredSecuritySchemes?.[0]?.type !== 'noauth' || readiness.tool?.widgetAccessible !== true || readiness.tool?.openAiWidgetBridge !== true || readiness.tool?.annotationsReady !== true || readiness.tool?.openWorld !== false || readiness.tool?.destructive !== false || readiness.tool?.idempotent !== true) {
     throw new Error(`expected readiness tool details to prove mirrored noauth security, widget accessibility, and complete read-only annotations, got ${JSON.stringify(readiness.tool)}`)

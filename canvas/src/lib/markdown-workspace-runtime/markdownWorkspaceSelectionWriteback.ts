@@ -8,6 +8,25 @@ export type MarkdownWorkspaceSelectionWritebackSync = {
   nextText: string
 }
 
+export function resolvePreferredMarkdownWorkspaceSelectionSyncText(args: {
+  activePath?: string | null
+  activeDocumentKey: string
+  markdownDocumentName: string
+  markdownDocumentText: unknown
+  selectionText: string
+}): string {
+  const writebackSync = resolveMarkdownWorkspaceSelectionWritebackSync({
+    activePath: args.activePath,
+    activeDocumentKey: args.activeDocumentKey,
+    markdownDocumentName: args.markdownDocumentName,
+    markdownDocumentText: args.markdownDocumentText,
+  })
+  if (writebackSync && writebackSync.nextText !== String(args.selectionText || '')) {
+    return writebackSync.nextText
+  }
+  return String(args.selectionText || '')
+}
+
 export function resolveMarkdownWorkspaceSelectionWritebackSync(args: {
   activePath?: string | null
   activeDocumentKey: string

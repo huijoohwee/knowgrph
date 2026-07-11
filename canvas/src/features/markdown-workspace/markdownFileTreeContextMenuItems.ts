@@ -1,3 +1,4 @@
+import { buildCanvasEmbedIframeMarkup } from '@/features/canvas/canvasEmbedIframeMarkup'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
@@ -16,6 +17,7 @@ type BuildMarkdownFileTreeContextMenuItemsArgs = {
   buildCanvasEmbedUrl?: (entry: WorkspaceEntry) => string | null | Promise<string | null>
   onCanvasEmbedStart?: (entry: WorkspaceEntry) => void
   onCanvasEmbedReady?: (entry: WorkspaceEntry, url: string) => void
+  onShareCodeReady?: (detail: { sourceName: string; title: string; language: string; code: string }) => void
   promptShareUrl?: (url: string) => void
   onShareUrlError?: (message: string) => void
   onCreateNewFile?: (parentPath: WorkspacePath) => void
@@ -47,6 +49,13 @@ export function buildMarkdownFileTreeContextMenuItems(
           promptShareUrl: args.promptShareUrl,
           onShareUrlError: args.onShareUrlError,
           unavailableMessage: 'Share URL is unavailable because the file could not be published.',
+          onResolved: url => args.onShareCodeReady?.({
+            sourceName: args.entry.name || args.entry.path,
+            title: 'Share URL',
+            language: 'plaintext',
+            code: url,
+          }),
+          allowNativeShare: false,
         })
         args.closeContextMenu()
       },
@@ -64,6 +73,12 @@ export function buildMarkdownFileTreeContextMenuItems(
       label: 'Copy Path',
       onSelect: () => {
         void args.copyToClipboard(entryPath)
+        args.onShareCodeReady?.({
+          sourceName: args.entry.name || args.entry.path,
+          title: 'Copy Path',
+          language: 'plaintext',
+          code: entryPath,
+        })
         args.closeContextMenu()
       },
     },
@@ -73,6 +88,12 @@ export function buildMarkdownFileTreeContextMenuItems(
       onSelect: () => {
         const relative = String(entryPath || '').replace(/^\/+/, '')
         void args.copyToClipboard(relative)
+        args.onShareCodeReady?.({
+          sourceName: args.entry.name || args.entry.path,
+          title: 'Copy Relative Path',
+          language: 'plaintext',
+          code: relative,
+        })
         args.closeContextMenu()
       },
     },
@@ -91,6 +112,9 @@ export function buildMarkdownFileTreeContextMenuItems(
           onShareUrlError: args.onShareUrlError,
           unavailableMessage: 'Canvas embed URL is unavailable because the file could not be published.',
           onResolved: url => args.onCanvasEmbedReady?.(args.entry, url),
+          buildShareText: buildCanvasEmbedIframeMarkup,
+          allowNativeShare: false,
+          promptTitle: 'Copy canvas iframe embed',
         })
         args.closeContextMenu()
       },
@@ -162,6 +186,9 @@ async function resolveAndShareUrl(args: {
   onShareUrlError?: (message: string) => void
   unavailableMessage: string
   onResolved?: (url: string) => void
+  buildShareText?: (url: string) => string | null
+  allowNativeShare?: boolean
+  promptTitle?: string
 }): Promise<void> {
   try {
     const url = await Promise.resolve(args.buildUrl() || null)
@@ -169,7 +196,16 @@ async function resolveAndShareUrl(args: {
       notifyShareUrlError(args.onShareUrlError, args.unavailableMessage)
       return
     }
-    await shareOrCopyUrl(url, args.copyToClipboard, args.promptShareUrl)
+    const shareText = args.buildShareText ? args.buildShareText(url) : url
+    if (!shareText) {
+      notifyShareUrlError(args.onShareUrlError, args.unavailableMessage)
+      return
+    }
+    await shareOrCopyUrl(url, args.copyToClipboard, args.promptShareUrl, {
+      shareText,
+      allowNativeShare: args.allowNativeShare,
+      promptTitle: args.promptTitle,
+    })
     args.onResolved?.(url)
   } catch (error) {
     notifyShareUrlError(args.onShareUrlError, args.unavailableMessage, error)
@@ -196,8 +232,13 @@ async function shareOrCopyUrl(
   url: string,
   copyToClipboard: (text: string) => Promise<boolean>,
   promptShareUrl?: (url: string) => void,
+  options: {
+    shareText?: string
+    allowNativeShare?: boolean
+    promptTitle?: string
+  } = {},
 ): Promise<void> {
-  if (typeof navigator !== 'undefined' && navigator.share) {
+  if (options.allowNativeShare !== false && typeof navigator !== 'undefined' && navigator.share) {
     try {
       await navigator.share({ title: 'Knowgrph Document', url })
       return
@@ -205,13 +246,14 @@ async function shareOrCopyUrl(
       if (err instanceof Error && err.name === 'AbortError') return
     }
   }
-  const copied = await copyToClipboard(url)
+  const shareText = options.shareText || url
+  const copied = await copyToClipboard(shareText)
   if (copied) return
   if (typeof promptShareUrl === 'function') {
-    promptShareUrl(url)
+    promptShareUrl(shareText)
     return
   }
   if (typeof window !== 'undefined' && typeof window.prompt === 'function') {
-    window.prompt('Share URL', url)
+    window.prompt(options.promptTitle || 'Share URL', shareText)
   }
 }

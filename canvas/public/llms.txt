@@ -4,6 +4,7 @@
 
 - Editor Workspace Source Files for LLMs: /api/storage/llms.txt
 - Editor Workspace Source Files index: /api/storage/source-files
+- Live Canvas Hero discovery markdown: /knowgrph-live-canvas-hero.md
 - Default published Source File markdown documents: /api/storage/doc-default/{canonicalPath}
 - Source File markdown documents: /api/storage/doc/{workspaceId}/{canonicalPath}
 - Canonical shared default document URLs: /knowgrph/share/{opaque-default-doc-token}

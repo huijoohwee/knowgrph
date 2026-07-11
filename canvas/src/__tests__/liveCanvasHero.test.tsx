@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Simulate } from 'react-dom/test-utils'
 
 import { LiveCanvasHeroEditorial } from '@/components/LiveCanvasHero'
 import { LIVE_CANVAS_HERO_DOC_PATH, readLiveCanvasHeroContent } from '@/features/agentic-os/liveCanvasHeroContent'
@@ -12,12 +13,14 @@ import {
   buildLiveCanvasHeroModel,
 } from '@/features/agentic-os/liveCanvasHeroModel'
 import { hasLiveCanvasHeroBlockingSearchParams, shouldShowLiveCanvasHero } from '@/features/canvas/liveCanvasHeroVisibility'
-import { removeCanvasEmbedImportFromSearch } from '@/features/canvas/canvasQueryBootstrapSearch'
-import { handoffLiveCanvasHeroQuery } from '@/features/canvas/liveCanvasHeroHandoff'
+import { buildCanvasEmbedIframeMarkup } from '@/features/canvas/canvasEmbedIframeMarkup'
 import {
-  resolveLiveCanvasHeroEmbedUrl,
-  resolveLiveCanvasHeroImportEmbedHref,
-} from '@/features/canvas/liveCanvasHeroEmbed'
+  KNOWGRPH_CANVAS_EMBED_MESSAGE_VERSION,
+  KNOWGRPH_CANVAS_EMBED_SELECT_MESSAGE,
+  resolveCanvasEmbedImport,
+} from '@/features/canvas/canvasEmbedImportContract'
+import { handoffLiveCanvasHeroQuery } from '@/features/canvas/liveCanvasHeroHandoff'
+import { resolveLiveCanvasHeroEmbedUrl } from '@/features/canvas/liveCanvasHeroEmbed'
 import { buildLocalDocCanvasEmbedUrl, isSameOriginCanvasEmbedUrl } from '@/features/canvas/canvasDocDeepLink'
 import {
   LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT,
@@ -283,8 +286,8 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
     markdownDocumentText: '',
   }
   if (!shouldShowLiveCanvasHero(base)) throw new Error('expected a source-ready apex workspace to show the hero')
-  if (hasLiveCanvasHeroBlockingSearchParams('?kgPath=%2Fknowgrph%2F', '/knowgrph/')) {
-    throw new Error('expected the single-root routing alias to preserve Live Canvas Hero ownership')
+  if (!hasLiveCanvasHeroBlockingSearchParams('?kgPath=%2Fknowgrph%2F', '/knowgrph/')) {
+    throw new Error('expected the single-root workspace route alias to suppress Live Canvas Hero ownership')
   }
   if (!hasLiveCanvasHeroBlockingSearchParams('?kgDoc=workspace-readme.md&kgPreview=1', '/knowgrph/')) {
     throw new Error('expected a document preview query to suppress the outer Live Canvas Hero')
@@ -315,7 +318,13 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
     throw new Error('expected apex root landing to stay visible over authored workspace content until the user enters /knowgrph/')
   }
   const heroHookSource = readFileSync(new URL('../features/canvas/useKnowgrphLiveCanvasHero.ts', import.meta.url), 'utf8')
-  if (!heroHookSource.includes('dismissed: landingExited || (!isRootAlias && !selectedEmbedSource && defaultSeedContentChanged)')) {
+  if (heroHookSource.includes('isRootAlias: isRootAlias || selectedEmbedSource != null')) {
+    throw new Error('expected a selected iframe to remain a Home background choice, not promote /knowgrph into Home')
+  }
+  if (!heroHookSource.includes('isRootAlias,\n    // The apex root owns Home')) {
+    throw new Error('expected Live Canvas Hero visibility to remain apex-route-owned')
+  }
+  if (!heroHookSource.includes('dismissed: landingExited || (!isRootAlias && defaultSeedContentChanged)')) {
     throw new Error('expected persisted workspace document changes to stay isolated from apex hero dismissal')
   }
 }
@@ -345,6 +354,7 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     '|| (isRootAlias ? WORKSPACE_README_SOURCE_PATH : \'\')',
     'sourceFilesBootstrapReady: isRootAlias || args.sourceFilesBootstrapReady',
     'workspaceDocumentSwitchPending: isRootAlias ? false : args.workspaceDocumentSwitchPending',
+    'hasSearchParams,\n    isEmbeddedPreview:',
   ]) {
     if (!`${viewportSource}\n${heroSource}\n${heroHookSource}`.includes(contract)) throw new Error(`expected interactive workspace canvas contract ${contract}`)
   }
@@ -463,6 +473,22 @@ export function testLiveCanvasHeroEmbedUrlUsesSelectedOrSourceAddress(): void {
   if (selected !== 'https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1&kgLiveHero=1') {
     throw new Error(`expected exact selected embed URL, got ${String(selected)}`)
   }
+  const iframeMarkup = buildCanvasEmbedIframeMarkup(selected)
+  for (const contract of [
+    '<iframe',
+    'sandbox="allow-scripts allow-same-origin"',
+    'referrerpolicy="no-referrer"',
+    'allow="fullscreen"',
+    'loading="lazy"',
+    'kgPreview=1&amp;kgLiveHero=1',
+  ]) {
+    if (!iframeMarkup?.includes(contract)) {
+      throw new Error(`expected external iframe embed contract ${contract}, got ${String(iframeMarkup)}`)
+    }
+  }
+  if (buildCanvasEmbedIframeMarkup('javascript:alert(1)') !== null) {
+    throw new Error('expected canvas iframe markup to reject non-http URLs')
+  }
   const canonical = resolveLiveCanvasHeroEmbedUrl({
     sourcePath: 'workspace:/workspace-readme.md',
     baseUrl: '/',
@@ -473,31 +499,55 @@ export function testLiveCanvasHeroEmbedUrlUsesSelectedOrSourceAddress(): void {
   }
 }
 
-export function testLiveCanvasHeroImportEmbedOpensSourceFilesWorkflow(): void {
-  const href = resolveLiveCanvasHeroImportEmbedHref('/knowgrph/')
-  const url = new URL(href, 'https://airvio.co')
-  if (
-    url.pathname !== '/knowgrph/'
-    || url.searchParams.get('openEditorWorkspace') !== '1'
-    || url.searchParams.get('importCanvasEmbed') !== '1'
-  ) {
-    throw new Error(`expected Import canvas embed to open the Editor Workspace Source Files workflow, got ${href}`)
+export function testLiveCanvasHeroImportEmbedAcceptsIframeAndPostMessage(): void {
+  const iframeSelection = resolveCanvasEmbedImport('<iframe src="https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1&amp;kgLiveHero=1"></iframe>')
+  if (iframeSelection?.embedUrl !== 'https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1&kgLiveHero=1') {
+    throw new Error(`expected pasted iframe markup to resolve the live embed selection, got ${JSON.stringify(iframeSelection)}`)
   }
-  if (removeCanvasEmbedImportFromSearch(url.search) !== '') {
-    throw new Error('expected source selection to consume the transient canvas embed import workflow intent')
+  const messageSelection = resolveCanvasEmbedImport({
+    type: KNOWGRPH_CANVAS_EMBED_SELECT_MESSAGE,
+    version: KNOWGRPH_CANVAS_EMBED_MESSAGE_VERSION,
+    sourcePath: '/docs/shared-canvas.md',
+    embedUrl: 'https://airvio.co/knowgrph/share/kg-public-token',
+  })
+  if (messageSelection?.sourcePath !== '/docs/shared-canvas.md' || !messageSelection.embedUrl.includes('kgPreview=1&kgLiveHero=1')) {
+    throw new Error(`expected postMessage v1 to resolve the same live embed selection contract, got ${JSON.stringify(messageSelection)}`)
+  }
+  if (resolveCanvasEmbedImport({
+    type: KNOWGRPH_CANVAS_EMBED_SELECT_MESSAGE,
+    version: 2,
+    embedUrl: 'https://airvio.co/knowgrph/share/kg-public-token',
+  })) {
+    throw new Error('expected unsupported postMessage versions to fail closed')
+  }
+  if (resolveCanvasEmbedImport('<iframe src="javascript:alert(1)"></iframe>')) {
+    throw new Error('expected iframe import to reject non-http sources')
   }
 
   const heroSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'LiveCanvasHero.tsx'), 'utf8')
-  const workspaceBootstrapSource = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceBootstrapState.ts'), 'utf8')
+  const importPanelSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'canvas', 'CanvasEmbedImportPanel.tsx'), 'utf8')
+  const sharedPanelSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'canvas', 'CanvasEmbedPanelShell.tsx'), 'utf8')
+  const codePanelSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'markdown-workspace', 'CanvasEmbedCodePanel.tsx'), 'utf8')
   for (const contract of [
     'data-kg-live-canvas-hero-import-embed="true"',
     'Import canvas embed',
-    'canvasEmbedImportRequested || initialExplorerChromeState.explorerOpen',
-    'canvasEmbedImportRequested ? false : initialExplorerSectionCollapseState.sourceFilesCollapsed',
+    'setImportPanelOpen(true)',
+    "window.addEventListener('message', handleMessage)",
+    'isTrustedCanvasEmbedMessageSource(event)',
+    'Use as Home background',
+    'resolveCanvasEmbedImport(value)',
+    '<CanvasEmbedPanelShell',
   ]) {
-    if (!`${heroSource}\n${workspaceBootstrapSource}`.includes(contract)) {
-      throw new Error(`expected Import canvas embed workflow contract ${contract}`)
+    if (!`${heroSource}\n${importPanelSource}\n${sharedPanelSource}`.includes(contract)) {
+      throw new Error(`expected direct Home canvas embed import contract ${contract}`)
     }
+  }
+  if (!importPanelSource.includes("from '@/features/canvas/CanvasEmbedPanelShell'")
+    || !codePanelSource.includes("from '@/features/canvas/CanvasEmbedPanelShell'")) {
+    throw new Error('expected import and share-code surfaces to reuse the same canvas embed panel shell')
+  }
+  if (importPanelSource.includes("window.addEventListener('keydown'") || codePanelSource.includes("window.addEventListener('keydown'")) {
+    throw new Error('expected shared panel chrome to own Escape listener lifecycle without downstream duplication')
   }
 }
 
@@ -560,6 +610,9 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
   dom.window.document.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
   const handedOffQueries: string[] = []
+  let importedSelection: ReturnType<typeof readLiveCanvasHeroSourceSelection> = null
+  const importListener = (event: Event) => { importedSelection = readLiveCanvasHeroSourceSelection(event) }
+  dom.window.addEventListener(LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT, importListener as EventListener)
   let completedCount = 0
   const model = buildLiveCanvasHeroModel()
   if (model.status !== 'ready') throw new Error(`expected ready hero model, missing ${model.missingTokens.join(', ')}`)
@@ -599,6 +652,38 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
     if (!shareButton || shareButton.textContent?.trim() !== 'Share canvas embed') {
       throw new Error('expected a visible Share canvas embed action on the hero')
     }
+    const importButton = container.querySelector('[data-kg-live-canvas-hero-import-embed="true"]') as HTMLButtonElement | null
+    if (!importButton) throw new Error('expected an explicit Import canvas embed action')
+    if (importButton.tagName !== 'BUTTON' || importButton.hasAttribute('href')) {
+      throw new Error('expected Import canvas embed to open in place without a workspace navigation link')
+    }
+    await act(async () => {
+      importButton.click()
+      await waitForFrames(dom.window as unknown as Window, 1)
+    })
+    const importPanel = container.querySelector('[aria-label="Import canvas embed panel"]')
+    const importValue = importPanel?.querySelector('#canvas-embed-import-value') as HTMLTextAreaElement | null
+    const useBackgroundButton = importPanel?.querySelector('button[type="submit"]') as HTMLButtonElement | null
+    if (!importValue || !useBackgroundButton || !importPanel) {
+      throw new Error('expected Import canvas embed to open its iframe/postMessage input panel')
+    }
+    const valueSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, 'value')?.set
+    if (!valueSetter) throw new Error('expected textarea value setter')
+    await act(async () => {
+      valueSetter.call(importValue, '<iframe src="https://airvio.co/knowgrph/share/kg-imported-token"></iframe>')
+      Simulate.change(importValue)
+      await waitForFrames(dom.window as unknown as Window, 1)
+    })
+    await act(async () => {
+      useBackgroundButton.click()
+      await waitForFrames(dom.window as unknown as Window, 1)
+    })
+    if (!importedSelection?.embedUrl.includes('/share/kg-imported-token?kgPreview=1&kgLiveHero=1')) {
+      throw new Error(`expected imported iframe to dispatch the canonical Hero source selection, got ${JSON.stringify({ importedSelection, value: importValue.value, panelText: importPanel.textContent })}`)
+    }
+    if (container.querySelector('[aria-label="Import canvas embed panel"]')) {
+      throw new Error('expected a successful import to return to the Live Canvas Hero')
+    }
     await act(async () => {
       startButton.click()
       await waitForFrames(dom.window as unknown as Window, 1)
@@ -607,6 +692,7 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
       throw new Error(`expected exactly one explicit handoff, got ${JSON.stringify({ handedOffQueries, completedCount })}`)
     }
   } finally {
+    dom.window.removeEventListener(LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT, importListener as EventListener)
     await unmountReactRoot(root, { window: dom.window as unknown as Window })
     container.remove()
     restore()

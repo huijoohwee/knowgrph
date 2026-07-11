@@ -2,6 +2,11 @@ import {
   KNOWGRPH_AGENT_READY_PROMPT_NAMES,
 } from './knowgrphAgentReadyPromptContract.mjs'
 import { KNOWGRPH_SOURCE_FILE_RESOURCE_URI_TEMPLATE } from './knowgrphAgentReadyResourceContract.mjs'
+import {
+  buildMcpOnboarding,
+  buildMcpOnboardingHtml,
+  MCP_ONBOARDING_CLIENT_SCRIPT,
+} from './mcpAppsOnboarding.mjs'
 
 export const KNOWGRPH_MCP_APPS_EXTENSION_ID = 'io.modelcontextprotocol/ui'
 export const KNOWGRPH_MCP_APPS_RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app'
@@ -46,6 +51,41 @@ const readUrlOrigin = (value) => {
     return ''
   }
 }
+
+const buildPublishedPromotionRecoveryContract = () => ({
+  availability: 'template-only-published-contract',
+  scope: 'mirror-saved-local-artifacts-only',
+  commandTemplate: '#promotion.retry <path...>',
+  exactCommandSource: 'browser-local finalize inspection after a real mirroring failure',
+  reusesSavedLocalArtifacts: true,
+  rerunsValidation: false,
+  reappliesCanvas: false,
+  githubBeforeStorage: true,
+  insertionMode: 'append',
+  surfaces: [
+    'published-operator-card',
+    'final-assistant-ledger',
+    'browser-local-finalize-inspection',
+    'warning-toast',
+    'toast-insert-action',
+  ],
+  note: 'This published card shows the command template only. The exact runnable path-bearing command appears after a real mirroring failure in the browser-local finalize inspection, finalize ledger, and warning toast.',
+})
+
+const buildPromotionRecoveryHtml = (contract) => `<section aria-label="Promotion recovery">
+  <section id="promotion-recovery" class="readiness">
+    <strong>Promotion Recovery</strong>
+    <p>${escapeHtml('Retry mirroring only for already-saved local artifacts. Do not regenerate, revalidate, or reapply Canvas.')}</p>
+    <p>${escapeHtml(`Command template: ${contract.commandTemplate}`)}</p>
+    <ul>
+      <li>${escapeHtml(`Scope: ${contract.scope}`)}</li>
+      <li>${escapeHtml(`Exact command source: ${contract.exactCommandSource}`)}</li>
+      <li>${escapeHtml(`Insert mode: ${contract.insertionMode}`)}</li>
+      <li>${escapeHtml(`GitHub before storage: ${contract.githubBeforeStorage ? 'true' : 'false'}`)}</li>
+    </ul>
+    <p>${escapeHtml(contract.note)}</p>
+  </section>
+</section>`
 
 export const buildKnowgrphMcpAppsCapabilities = () => ({
   extensions: {
@@ -326,6 +366,7 @@ export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
     booleanCheck('stdio-transport', 'Repo-local MCP server supports stdio host configuration', args.localStdio === false ? false : true, ['node mcp/server.js']),
   ]
   const ready = checklist.every((check) => check.ok)
+  const promotionRecovery = buildPublishedPromotionRecoveryContract()
   return {
     schemaVersion: KNOWGRPH_MCP_APPS_SERVER_READINESS_SCHEMA_VERSION,
     ready,
@@ -422,33 +463,9 @@ export const buildKnowgrphMcpAppsServerReadiness = (args = {}) => {
       ],
       renderMode: 'structured-summary-with-json-fallback',
     },
-    onboarding: {
-      publicReadMcpUrl,
-      controlPlaneMcpUrl,
-      controlPlaneCondition:
-        'Add the control plane only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.',
-      cheapestProofPath:
-        'Use the source-side README.md quick start or docs/documents/knowgrph-superagent-harness.md in the knowgrph repo before hosted setup.',
-      steps: [
-        {
-          order: 1,
-          label: 'Install public MCP first',
-          action: publicReadMcpUrl ? `Install ${publicReadMcpUrl}.` : 'Install the public read-only MCP endpoint first.',
-        },
-        {
-          order: 2,
-          label: 'Add control plane only when session-capable',
-          action: controlPlaneMcpUrl
-            ? `Add ${controlPlaneMcpUrl} only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.`
-            : 'Add the control plane only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.',
-        },
-        {
-          order: 3,
-          label: 'Use the cheapest proof path before hosted setup',
-          action:
-            'Run the source-side README.md quick start or docs/documents/knowgrph-superagent-harness.md first.',
-        },
-      ],
+    onboarding: buildMcpOnboarding({ publicReadMcpUrl, controlPlaneMcpUrl }),
+    operatorContracts: {
+      promotionRecovery,
     },
     checklist,
   }
@@ -553,12 +570,8 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
     toolName,
     toolNames,
     protocolVersion: KNOWGRPH_MCP_APPS_PROTOCOL_VERSION,
-    onboarding: {
-      publicReadMcpUrl,
-      controlPlaneMcpUrl,
-      cheapestProofPath:
-        'Use the source-side README.md quick start or docs/documents/knowgrph-superagent-harness.md before hosted setup.',
-    },
+    onboarding: buildMcpOnboarding({ publicReadMcpUrl, controlPlaneMcpUrl }),
+    promotionRecovery: buildPublishedPromotionRecoveryContract(),
   }
   return `<!doctype html>
 <html lang="en">
@@ -613,16 +626,8 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
         <dt>Status</dt><dd id="status" class="status">Initializing MCP Apps host bridge.</dd>
       </dl>
     </section>
-    <section aria-label="Fastest path">
-      <section id="onboarding" class="readiness">
-        <strong>Fastest Path</strong>
-        <ol>
-          <li>${escapeHtml(publicReadMcpUrl ? `Install ${publicReadMcpUrl}.` : 'Install the public MCP endpoint first.')}</li>
-          <li>${escapeHtml(controlPlaneMcpUrl ? `Add ${controlPlaneMcpUrl} only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.` : 'Add the control plane only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.')}</li>
-          <li>Use the source-side <code>README.md</code> quick start or <code>docs/documents/knowgrph-superagent-harness.md</code> before hosted setup.</li>
-        </ol>
-      </section>
-    </section>
+    ${buildMcpOnboardingHtml({ publicReadMcpUrl, controlPlaneMcpUrl })}
+    ${buildPromotionRecoveryHtml(boot.promotionRecovery)}
     <section aria-label="MCP Apps server readiness">
       <section id="readiness" class="readiness">Waiting for structured server-readiness data.</section>
     </section>
@@ -711,25 +716,7 @@ export const buildKnowgrphMcpAppsHtml = (args = {}) => {
       parent.appendChild(element);
       return element;
     };
-    const renderOnboarding = (payload) => {
-      onboardingEl.replaceChildren();
-      const onboarding = payload && payload.onboarding && typeof payload.onboarding === 'object'
-        ? payload.onboarding
-        : boot.onboarding;
-      appendText(onboardingEl, 'strong', 'Fastest Path');
-      const list = document.createElement('ol');
-      const steps = Array.isArray(onboarding && onboarding.steps) && onboarding.steps.length
-        ? onboarding.steps
-        : [
-          { action: onboarding && onboarding.publicReadMcpUrl ? 'Install ' + onboarding.publicReadMcpUrl + '.' : 'Install the public MCP endpoint first.' },
-          { action: onboarding && onboarding.controlPlaneMcpUrl ? 'Add ' + onboarding.controlPlaneMcpUrl + ' only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.' : 'Add the control plane only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.' },
-          { action: onboarding && onboarding.cheapestProofPath ? onboarding.cheapestProofPath : 'Use the source-side README.md quick start or docs/documents/knowgrph-superagent-harness.md before hosted setup.' },
-        ];
-      for (const step of steps) {
-        appendText(list, 'li', step && step.action ? String(step.action) : 'Follow the fastest onboarding path.');
-      }
-      onboardingEl.appendChild(list);
-    };
+    ${MCP_ONBOARDING_CLIENT_SCRIPT}
     const renderReadiness = (payload) => {
       readinessEl.replaceChildren();
       const readiness = payload && payload.mcpAppsServerReadiness;

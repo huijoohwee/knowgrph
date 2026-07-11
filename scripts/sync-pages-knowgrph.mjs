@@ -16,6 +16,7 @@ const githubRoot = path.resolve(knowgrphRoot, '..')
 const distDir = path.resolve(knowgrphRoot, 'canvas', 'dist')
 const targetDir = path.resolve(githubRoot, 'huijoohwee', 'content', 'knowgrph')
 const publicRouteDir = path.resolve(githubRoot, 'huijoohwee', 'knowgrph')
+const liveCanvasHeroMarkdownSource = path.resolve(knowgrphRoot, 'docs', 'documents', 'knowgrph-live-canvas-hero.md')
 const grphSharedRoot = path.resolve(knowgrphRoot, 'grph-shared')
 const redirectsPath = path.resolve(githubRoot, 'huijoohwee', '_redirects')
 const headersPath = path.resolve(githubRoot, 'huijoohwee', '_headers')
@@ -160,6 +161,7 @@ const sharedPublishedDocTarget = path.resolve(githubRoot, 'huijoohwee', 'cloudfl
 const publicManagedRootFiles = new Set([
   'favicon.svg',
   'index.html',
+  'knowgrph-live-canvas-hero.md',
   'llms.txt',
   'manifest.webmanifest',
   'settings-flow.json',
@@ -516,12 +518,26 @@ if (!(await existsDir(distDir))) {
 }
 
 const sourceFiles = await listFiles(distDir)
-const sourceSet = new Set(sourceFiles)
+const rootManagedSourceFiles = [
+  {
+    rel: 'knowgrph-live-canvas-hero.md',
+    src: liveCanvasHeroMarkdownSource,
+  },
+]
+const sourceSet = new Set([
+  ...sourceFiles,
+  ...rootManagedSourceFiles.map(entry => entry.rel),
+])
 const filesToCopy = []
 for (const rel of sourceFiles) {
   const src = path.resolve(distDir, rel)
   const dst = path.resolve(targetDir, rel)
   if (await fileNeedsUpdate(src, dst, rel)) filesToCopy.push(rel)
+}
+const rootManagedFilesToCopy = []
+for (const entry of rootManagedSourceFiles) {
+  const dst = path.resolve(targetDir, entry.rel)
+  if (await plainFileNeedsUpdate(entry.src, dst)) rootManagedFilesToCopy.push(entry)
 }
 
 const filesToRemove = []
@@ -541,6 +557,11 @@ for (const rel of sourceFiles) {
   const dst = path.resolve(publicRouteDir, rel)
   if (await fileNeedsUpdate(src, dst, rel)) publicFilesToCopy.push(rel)
 }
+const publicRootManagedFilesToCopy = []
+for (const entry of rootManagedSourceFiles) {
+  const dst = path.resolve(publicRouteDir, entry.rel)
+  if (await plainFileNeedsUpdate(entry.src, dst)) publicRootManagedFilesToCopy.push(entry)
+}
 const publicFilesToRemove = []
 if (await existsDir(publicRouteDir)) {
   const publicFiles = await listAllFiles(publicRouteDir)
@@ -550,7 +571,10 @@ if (await existsDir(publicRouteDir)) {
     publicFilesToRemove.push(rel)
   }
 }
-const rootFiles = sourceFiles
+const rootFiles = [...new Set([
+  ...sourceFiles,
+  ...rootManagedSourceFiles.map(entry => entry.rel),
+])]
   .filter(rel => !rel.includes('/') && rel !== 'index.html' && !rel.startsWith('_'))
   .sort((a, b) => a.localeCompare(b))
 const existingRedirects = await fs.readFile(redirectsPath, 'utf8')
@@ -602,8 +626,10 @@ const headersNeedUpdate = nextHeaders !== existingHeaders
 if (checkMode) {
   const hasDrift = (
     filesToCopy.length > 0 ||
+    rootManagedFilesToCopy.length > 0 ||
     filesToRemove.length > 0 ||
     publicFilesToCopy.length > 0 ||
+    publicRootManagedFilesToCopy.length > 0 ||
     publicFilesToRemove.length > 0 ||
     redirectsNeedUpdate ||
     agentReadyFunctionNeedsUpdate ||
@@ -643,6 +669,10 @@ if (checkMode) {
       for (const rel of filesToCopy.slice(0, 20)) console.error(`  - ${rel}`)
       if (filesToCopy.length > 20) console.error(`  - ... ${filesToCopy.length - 20} more`)
     }
+    if (rootManagedFilesToCopy.length > 0) {
+      console.error(`  root-managed source files needing sync (${rootManagedFilesToCopy.length}):`)
+      for (const entry of rootManagedFilesToCopy.slice(0, 20)) console.error(`  - ${entry.rel}`)
+    }
     if (filesToRemove.length > 0) {
       console.error(`  stale content files needing removal (${filesToRemove.length}):`)
       for (const rel of filesToRemove.slice(0, 20)) console.error(`  - ${rel}`)
@@ -652,6 +682,10 @@ if (checkMode) {
       console.error(`  public route files needing sync (${publicFilesToCopy.length}):`)
       for (const rel of publicFilesToCopy.slice(0, 20)) console.error(`  - ${rel}`)
       if (publicFilesToCopy.length > 20) console.error(`  - ... ${publicFilesToCopy.length - 20} more`)
+    }
+    if (publicRootManagedFilesToCopy.length > 0) {
+      console.error(`  public root-managed source files needing sync (${publicRootManagedFilesToCopy.length}):`)
+      for (const entry of publicRootManagedFilesToCopy.slice(0, 20)) console.error(`  - ${entry.rel}`)
     }
     if (publicFilesToRemove.length > 0) {
       console.error(`  stale public route files needing removal (${publicFilesToRemove.length}):`)
@@ -714,6 +748,12 @@ if (checkMode) {
     const copied = await copyIfChanged(src, dst, rel)
     if (copied) copiedCount += 1
   }
+  for (const entry of rootManagedSourceFiles) {
+    if (await plainFileNeedsUpdate(entry.src, path.resolve(targetDir, entry.rel))) {
+      await copyPlainFile(entry.src, path.resolve(targetDir, entry.rel))
+      copiedCount += 1
+    }
+  }
 
   if (await existsDir(targetDir)) {
     for (const rel of filesToRemove) {
@@ -730,6 +770,12 @@ if (checkMode) {
     const dst = path.resolve(publicRouteDir, rel)
     const copied = await copyIfChanged(src, dst, rel)
     if (copied) copiedPublicCount += 1
+  }
+  for (const entry of rootManagedSourceFiles) {
+    if (await plainFileNeedsUpdate(entry.src, path.resolve(publicRouteDir, entry.rel))) {
+      await copyPlainFile(entry.src, path.resolve(publicRouteDir, entry.rel))
+      copiedPublicCount += 1
+    }
   }
   if (await existsDir(publicRouteDir)) {
     for (const rel of publicFilesToRemove) {

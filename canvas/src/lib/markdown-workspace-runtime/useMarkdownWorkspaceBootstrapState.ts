@@ -16,15 +16,11 @@ import { SIDEBAR_MAX_PX, SIDEBAR_MIN_PX } from '@/features/markdown-workspace/ma
 import { upsertWorkspaceEntryInlineText } from '@/features/workspace-fs/workspaceInlineText'
 import type { FolderModeContract } from './markdownWorkspaceRuntime.shared'
 import type { MarkdownWorkspaceLayoutMode } from '@/features/markdown-explorer/workspaceUi'
-import { shouldOpenCanvasEmbedImportFromSearch } from '@/features/canvas/canvasQueryBootstrapSearch'
 
 export function useMarkdownWorkspaceBootstrapState(args: {
   activePath: WorkspacePath | null
   effectiveBottomSurfaceCollapsed: boolean
 }) {
-  const canvasEmbedImportRequested = React.useMemo(() => (
-    typeof window !== 'undefined' && shouldOpenCanvasEmbedImportFromSearch(window.location.search)
-  ), [])
   const setMarkdownWorkspaceIndexingInFlight = useGraphStore(s => s.setMarkdownWorkspaceIndexingInFlight)
   const [entries, setEntries] = React.useState<WorkspaceEntry[]>([])
   const [sourcesByPath, setSourcesByPath] = React.useState(() => loadWorkspaceSourceIndex())
@@ -42,14 +38,10 @@ export function useMarkdownWorkspaceBootstrapState(args: {
     [],
   )
   const [sidebarWidthPx, setSidebarWidthPx] = React.useState(() => initialExplorerChromeState.sidebarWidthPx)
-  const [explorerOpen, setExplorerOpen] = React.useState(() => (
-    canvasEmbedImportRequested || initialExplorerChromeState.explorerOpen
-  ))
+  const [explorerOpen, setExplorerOpen] = React.useState(() => initialExplorerChromeState.explorerOpen)
 
   const initialExplorerSectionCollapseState = React.useMemo(() => readMarkdownExplorerSectionCollapseState(), [])
-  const [sourceFilesCollapsed, setSourceFilesCollapsed] = React.useState(() => (
-    canvasEmbedImportRequested ? false : initialExplorerSectionCollapseState.sourceFilesCollapsed
-  ))
+  const [sourceFilesCollapsed, setSourceFilesCollapsed] = React.useState(() => initialExplorerSectionCollapseState.sourceFilesCollapsed)
   const [tocCollapsed, setTocCollapsed] = React.useState(() => initialExplorerSectionCollapseState.outlineCollapsed)
   const [backlinksCollapsed, setBacklinksCollapsed] = React.useState(() => initialExplorerSectionCollapseState.backlinksCollapsed)
 

@@ -14,6 +14,8 @@ import { publishWorkspaceEntryShareUrl } from '@/features/source-files/sourceFil
 import { UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_EMPTY_STATE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { selectLiveCanvasHeroSource } from '@/features/canvas/liveCanvasHeroSourceSelection'
 import { resolveLiveCanvasHeroEmbedUrl } from '@/features/canvas/liveCanvasHeroEmbed'
+import { openCanvasEmbedCodePanel } from '@/features/canvas/canvasEmbedCodePanelEvent'
+import { buildCanvasEmbedIframeMarkup } from '@/features/canvas/canvasEmbedIframeMarkup'
 
 type MarkdownWorkspaceSourceFilesListProps = {
   loading: boolean
@@ -76,6 +78,8 @@ export function MarkdownWorkspaceSourceFilesList(props: MarkdownWorkspaceSourceF
   }, [sourcesByPath])
 
   const handleCanvasEmbedReady = React.useCallback((entry: WorkspaceEntry, embedUrl: string) => {
+    const code = buildCanvasEmbedIframeMarkup(embedUrl)
+    if (code) openCanvasEmbedCodePanel({ sourceName: entry.name || entry.path, title: 'Canvas iframe embed', language: 'html', code })
     if (!isSameOriginCanvasEmbedUrl(embedUrl)) return
     const isolatedEmbedUrl = resolveLiveCanvasHeroEmbedUrl({
       sourcePath: entry.path,
@@ -88,7 +92,18 @@ export function MarkdownWorkspaceSourceFilesList(props: MarkdownWorkspaceSourceF
   const handleCanvasEmbedStart = React.useCallback((entry: WorkspaceEntry) => {
     const embedUrl = buildLocalDocCanvasEmbedUrl({ relativePath: entry.path })
     if (!embedUrl) return
+    const code = buildCanvasEmbedIframeMarkup(embedUrl)
+    if (code) openCanvasEmbedCodePanel({ sourceName: entry.name || entry.path, title: 'Canvas iframe embed', language: 'html', code })
     selectLiveCanvasHeroSource({ sourcePath: entry.path, embedUrl })
+  }, [])
+
+  const handleShareCodeReady = React.useCallback((detail: {
+    sourceName: string
+    title: string
+    language: string
+    code: string
+  }) => {
+    openCanvasEmbedCodePanel(detail)
   }, [])
 
   if (loading) {
@@ -117,6 +132,7 @@ export function MarkdownWorkspaceSourceFilesList(props: MarkdownWorkspaceSourceF
       buildCanvasEmbedUrl={buildCanvasEmbedUrl}
       onCanvasEmbedStart={handleCanvasEmbedStart}
       onCanvasEmbedReady={handleCanvasEmbedReady}
+      onShareCodeReady={handleShareCodeReady}
       renderFileRight={renderFileRight}
     />
   )

@@ -20,6 +20,7 @@ import { useKnowgrphLiveCanvasHero } from '@/features/canvas/useKnowgrphLiveCanv
 import { deriveLiveCanvasHeroCommandRouteGraph } from '@/features/canvas/liveCanvasHeroProjection'
 import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
 import { resolveCanvasViewportHeavyRuntimeIntentSurface } from '@/components/canvasViewportHeavyRuntimeIntent'
+import { CanvasEmbedCodePanelHost } from '@/components/CanvasEmbedCodePanelHost'
 const CanvasViewportGeospatialOverlayLazy = React.lazy(() =>
   import('@/components/CanvasViewportGeospatialOverlay').then(mod => ({ default: mod.CanvasViewportGeospatialOverlay })),
 )
@@ -475,6 +476,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
           </>
         ) : null}
       </React.Suspense>
+      {variant === 'workspace' ? <CanvasEmbedCodePanelHost /> : null}
     </section>
   )
 }

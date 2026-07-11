@@ -13,6 +13,12 @@ export function testMarkdownMermaidRenderingDefersUntilVisible() {
   if (!gateText.includes("data-kg-mermaid-visibility-gate")) {
     throw new Error('expected Mermaid visibility gate to expose a stable source-visible marker')
   }
+  if (!gateText.includes("useMediaQuery(MERMAID_TOUCH_VIEWPORT_QUERY)") || !gateText.includes("data-kg-mermaid-touch-placeholder")) {
+    throw new Error('expected Mermaid visibility gate to expose a touch-placeholder path for mobile explicit intent')
+  }
+  if (!gateText.includes("data-kg-mermaid-touch-placeholder-activate")) {
+    throw new Error('expected Mermaid visibility gate to expose a stable mobile activation control')
+  }
 
   const markdownCodeBlockText = readFileSync(resolve(root, 'src', 'features', 'markdown', 'ui', 'MarkdownCodeBlock.tsx'), 'utf8')
   if (!markdownCodeBlockText.includes('MermaidVisibilityGate')) {

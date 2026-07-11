@@ -12,8 +12,14 @@ import {
 import { readLiveCanvasHeroContent } from '@/features/agentic-os/liveCanvasHeroContent'
 import {
   resolveLiveCanvasHeroEmbedUrl,
-  resolveLiveCanvasHeroImportEmbedHref,
 } from '@/features/canvas/liveCanvasHeroEmbed'
+import { buildCanvasEmbedIframeMarkup } from '@/features/canvas/canvasEmbedIframeMarkup'
+import {
+  isTrustedCanvasEmbedMessageSource,
+  resolveCanvasEmbedImport,
+} from '@/features/canvas/canvasEmbedImportContract'
+import { CanvasEmbedImportPanel } from '@/features/canvas/CanvasEmbedImportPanel'
+import { selectLiveCanvasHeroSource } from '@/features/canvas/liveCanvasHeroSourceSelection'
 import { handoffLiveCanvasHeroQuery } from '@/features/canvas/liveCanvasHeroHandoff'
 import type { LiveCanvasHeroSource } from '@/features/canvas/useKnowgrphLiveCanvasHero'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -56,17 +62,30 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
   const [handoffState, setHandoffState] = React.useState<'idle' | 'opening' | 'error'>('idle')
   const [errorText, setErrorText] = React.useState('')
   const [shareState, setShareState] = React.useState<'idle' | 'copied' | 'error'>('idle')
+  const [importPanelOpen, setImportPanelOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (!isTrustedCanvasEmbedMessageSource(event)) return
+      const selection = resolveCanvasEmbedImport(event.data)
+      if (selection) selectLiveCanvasHeroSource(selection)
+    }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [])
 
   const handleShareCanvasEmbed = async () => {
     const embedUrl = String(props.shareEmbedUrl || '').trim()
     if (!embedUrl) return
+    const iframeMarkup = buildCanvasEmbedIframeMarkup(embedUrl)
+    if (!iframeMarkup) return
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
-      await navigator.clipboard.writeText(embedUrl)
+      await navigator.clipboard.writeText(iframeMarkup)
       setShareState('copied')
     } catch {
       setShareState('error')
-      window.prompt?.('Copy canvas embed URL', embedUrl)
+      window.prompt?.('Copy canvas iframe embed', iframeMarkup)
     }
   }
 
@@ -186,13 +205,14 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
             >
               {handoffState === 'opening' ? 'Opening Chat…' : 'Start locally'}
             </button>
-            <a
-              href={resolveLiveCanvasHeroImportEmbedHref(import.meta.env?.BASE_URL)}
+            <button
+              type="button"
+              onClick={() => setImportPanelOpen(true)}
               className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_72%,transparent)] px-4 text-sm font-semibold text-[var(--kg-text-primary)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)]"
               data-kg-live-canvas-hero-import-embed="true"
             >
               Import canvas embed
-            </a>
+            </button>
             {props.shareEmbedUrl ? (
               <button
                 type="button"
@@ -207,7 +227,7 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
           </section>
           {props.shareEmbedUrl ? (
             <p className="mt-2 min-h-4 text-[11px] text-[var(--kg-text-secondary)]" aria-live="polite" data-kg-live-canvas-hero-share-status="true">
-              {shareState === 'copied' ? 'Canvas embed URL copied.' : shareState === 'error' ? 'Copy the canvas embed URL from the dialog.' : ''}
+              {shareState === 'copied' ? 'Canvas iframe embed copied.' : shareState === 'error' ? 'Copy the canvas iframe embed from the dialog.' : ''}
             </p>
           ) : null}
           {errorText ? <p className="mt-2 text-xs text-red-500" role="alert">{errorText}</p> : null}
@@ -221,6 +241,7 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
           ))}
         </ul>
       </article>
+      {importPanelOpen ? <CanvasEmbedImportPanel onClose={() => setImportPanelOpen(false)} /> : null}
     </section>
   )
 }

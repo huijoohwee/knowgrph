@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 const readRepoFile = (repoRelativePath: string): string =>
   readFileSync(resolve(process.cwd(), '..', repoRelativePath), 'utf8')
 
-export function testMultiUserCollaborationDocsUseImplementedP2POwners(): void {
+export function testMultiUserCollaborationDocsUseImplementedCollaborationOwners(): void {
   const docs = [
     'docs/documents/knowgrph-multi-user-collaboration-prd.tad.md',
     'docs/documents/knowgrph-multi-user-collaboration-prd.tad.companion.md',
@@ -12,6 +12,11 @@ export function testMultiUserCollaborationDocsUseImplementedP2POwners(): void {
   const owners = [
     'canvas/src/features/panels/mainPanelTabs.ts',
     'canvas/src/features/panels/views/CollaborationView.tsx',
+    'canvas/src/features/collaboration/useKnowgrphStorageCollaborationRuntime.ts',
+    'canvas/src/lib/storage/knowgrphStorageCanvasRoomClient.ts',
+    'cloudflare/workers/knowgrph-storage/canvasSyncRoom.ts',
+    'cloudflare/workers/knowgrph-storage/index.ts',
+    'cloudflare/workers/knowgrph-storage/chatAuth.ts',
     'canvas/src/features/collaboration/p2pCollaborationProtocol.ts',
     'canvas/src/features/collaboration/p2pCollaborationStore.ts',
     'canvas/src/features/collaboration/useP2PCollaborationRuntime.ts',
@@ -27,14 +32,17 @@ export function testMultiUserCollaborationDocsUseImplementedP2POwners(): void {
   ].map(readRepoFile).join('\n')
 
   const requiredDocTokens = [
-    '**Status**: Accepted and implemented P2P pilot',
-    'no-server WebRTC invite/answer sessions',
+    '**Status**: Accepted and implemented authenticated room transport',
+    'authenticated storage-room transport',
+    'current canonical collaboration path for storage-configured workspaces is the authenticated canvas-room transport',
+    'fallback no-server WebRTC invite/answer flow remains available only when authenticated room transport is not configured',
+    '`canvas/src/features/collaboration/useKnowgrphStorageCollaborationRuntime.ts` | Shipped',
+    '`canvas/src/lib/storage/knowgrphStorageCanvasRoomClient.ts` | Shipped',
+    '`cloudflare/workers/knowgrph-storage/canvasSyncRoom.ts` | Shipped',
     '`canvas/src/features/panels/views/CollaborationView.tsx` | Shipped',
     '`canvas/src/features/collaboration/p2pCollaborationProtocol.ts` | Shipped',
     '`canvas/src/features/collaboration/p2pCollaborationStore.ts` | Shipped',
     '`canvas/src/features/collaboration/useP2PCollaborationRuntime.ts` | Shipped',
-    'The larger authenticated collaboration model remains a planned extension.',
-    'Authenticated workspace membership, D1 role checks, server-side audit trails, and Durable Object rooms are not part of the implemented baseline.',
     '`npm --prefix canvas run validate:multi-user-collaboration:e2e`',
   ]
   for (const token of requiredDocTokens) {
@@ -45,6 +53,12 @@ export function testMultiUserCollaborationDocsUseImplementedP2POwners(): void {
 
   const requiredOwnerTokens = [
     "key: 'collaboration'",
+    'useKnowgrphStorageCollaborationRuntime',
+    'buildKnowgrphStorageCanvasRoomWebSocketUrl',
+    'Workspace room connected',
+    'Connect Room',
+    'Reconnect Room',
+    'buildKnowgrphStorageCanvasRoomPath',
     'useP2PCollaborationStore',
     'P2P_COLLAB_INVITE_SEARCH_PARAM',
     'P2P_COLLAB_ANSWER_SEARCH_PARAM',
@@ -78,8 +92,9 @@ export function testMultiUserCollaborationDocsUseImplementedP2POwners(): void {
     'Worker returns 403 Forbidden',
     '0002_knowgrph_auth.sql',
     'Auth Middleware',
-    'workspace_members',
     'users table',
+    'The larger authenticated collaboration model remains a planned extension.',
+    'Authenticated workspace membership, D1 role checks, server-side audit trails, and Durable Object rooms are not part of the implemented baseline.',
   ]
   for (const token of staleDocTokens) {
     if (docs.includes(token)) {
@@ -87,3 +102,6 @@ export function testMultiUserCollaborationDocsUseImplementedP2POwners(): void {
     }
   }
 }
+
+export const testMultiUserCollaborationDocsUseImplementedP2POwners =
+  testMultiUserCollaborationDocsUseImplementedCollaborationOwners

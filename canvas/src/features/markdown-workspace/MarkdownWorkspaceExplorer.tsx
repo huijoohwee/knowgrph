@@ -295,7 +295,6 @@ export const MarkdownWorkspaceExplorer = React.memo(function MarkdownWorkspaceEx
           />
         </MarkdownExplorerSection>
       </section>
-
     </aside>
   )
 })

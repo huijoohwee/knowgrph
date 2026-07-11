@@ -1,4 +1,7 @@
-import { resolveMarkdownWorkspaceSelectionWritebackSync } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionWriteback'
+import {
+  resolveMarkdownWorkspaceSelectionWritebackSync,
+  resolvePreferredMarkdownWorkspaceSelectionSyncText,
+} from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionWriteback'
 
 const VITE_DEV_INDEX_HTML = [
   '<!doctype html><html lang="en">',
@@ -93,5 +96,29 @@ export function testMarkdownWorkspaceSelectionWritebackSuppressesNonMarkdownSour
   })
   if (jsonSync !== null) {
     throw new Error('expected writeback helper to avoid mutating JSON source text with derived markdown text')
+  }
+}
+
+export function testMarkdownWorkspaceSelectionWritebackPrefersCanonicalActiveDocumentTextOverStaleSelectionText() {
+  const preferred = resolvePreferredMarkdownWorkspaceSelectionSyncText({
+    activePath: '/docs/workspace-readme.md',
+    activeDocumentKey: 'docs/workspace-readme.md',
+    markdownDocumentName: '/docs/workspace-readme.md',
+    markdownDocumentText: '# Canonical guest edit\nSMOKE_REMOTE_APPLY_MARKER\n',
+    selectionText: '# Stale selection text\n',
+  })
+  if (preferred !== '# Canonical guest edit\nSMOKE_REMOTE_APPLY_MARKER\n') {
+    throw new Error(`expected canonical active markdown document text to win over stale workspace selection text, got ${JSON.stringify(preferred)}`)
+  }
+
+  const unchanged = resolvePreferredMarkdownWorkspaceSelectionSyncText({
+    activePath: '/docs/workspace-readme.md',
+    activeDocumentKey: 'docs/workspace-readme.md',
+    markdownDocumentName: '/docs/other.md',
+    markdownDocumentText: '# Other canonical text\n',
+    selectionText: '# Stale selection text\n',
+  })
+  if (unchanged !== '# Stale selection text\n') {
+    throw new Error(`expected non-owning markdown document state not to override selection text, got ${JSON.stringify(unchanged)}`)
   }
 }

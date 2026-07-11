@@ -162,7 +162,19 @@ The template's local runtime lane is source → ideation → invocation → Stor
 
 MCP-compatible LLM hosts are ready to use Knowgrph today through the shipped public discovery and control-plane surfaces. The repo currently ships explicit setup and readiness contracts for ChatGPT/OpenAI Apps, Claude, Qwen Code, Kimi CLI, BytePlus ModelArk, and generic MCP clients that can talk to MCP over stdio or Streamable HTTP.
 
+**Fastest path**
+
+Map intent. Orchestrate agents. Prove outcomes.
+
+A source-backed canvas where `/` routes work, `#` sets meaning, and `@` binds context.
+
+1. Map intent: install `https://airvio.co/knowgrph/mcp` first for public discovery, retrieval, and inspection.
+2. Orchestrate agents: add `https://airvio.co/knowgrph/control-plane/mcp` only when the host can preserve MCP session state and you need live `/`, `#`, `@` grammar invocation.
+3. Prove outcomes: for zero-spend evaluation, run the local parser or harness in `--provider-mode mock` before wiring any hosted MCP client.
+
 For the canonical third-party install boundary, host recipes, and the explicit public-discovery vs control-plane split, see [`docs/documents/knowgrph-mcp-install-contract.md`](docs/documents/knowgrph-mcp-install-contract.md). For the one-page onboarding path that also links the release note, agent-ready doc, and MCP overview, see [`docs/documents/knowgrph-mcp-onboarding-index.md`](docs/documents/knowgrph-mcp-onboarding-index.md).
+For the current min-viable-max-value Cloudflare AI Gateway execution queue, see [`docs/documents/knowgrph-ai-gateway-enhancement-plan.md`](docs/documents/knowgrph-ai-gateway-enhancement-plan.md).
+For the canonical webpage embed boundary, see [`docs/documents/knowgrph-embeddability-contract.md`](docs/documents/knowgrph-embeddability-contract.md).
 
 **Current topology**
 

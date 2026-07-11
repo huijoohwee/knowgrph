@@ -1,8 +1,9 @@
-import { emitChatInputAppend, emitFloatingPanelOpen, type ChatInputAppendEventDetail } from '@/features/canvas/utils'
+import { emitFloatingPanelOpen, type ChatInputAppendEventDetail } from '@/features/canvas/utils'
 import {
   consumeFloatingPanelChatInputHandoff,
-  normalizeFloatingPanelChatSeedText,
-  queueFloatingPanelChatInputHandoff,
+  dispatchResolvedFloatingPanelChatSeed,
+  queueResolvedFloatingPanelChatInputHandoff,
+  resolveFloatingPanelChatSeed,
 } from './floatingPanelChatInputHandoff'
 
 export type FloatingPanelChatOpenSeedDelivery = 'appendEvent' | 'queuedHandoff'
@@ -16,13 +17,12 @@ export function openFloatingPanelChatWithSeed(args: {
   mode?: ChatInputAppendEventDetail['mode']
   delivery?: FloatingPanelChatOpenSeedDelivery
 }): boolean {
-  const text = normalizeFloatingPanelChatSeedText(args.text)
-  if (!text) return false
-  const mode = args.mode === 'replace' ? 'replace' : 'append'
+  const resolved = resolveFloatingPanelChatSeed(args)
+  if (!resolved) return false
   const delivery = args.delivery === 'queuedHandoff' ? 'queuedHandoff' : 'appendEvent'
 
   if (delivery === 'queuedHandoff') {
-    queueFloatingPanelChatInputHandoff({ text, mode })
+    queueResolvedFloatingPanelChatInputHandoff(resolved)
   }
 
   const accepted = openFloatingPanelChat()
@@ -34,7 +34,7 @@ export function openFloatingPanelChatWithSeed(args: {
   }
 
   if (delivery === 'appendEvent') {
-    emitChatInputAppend({ text, mode })
+    dispatchResolvedFloatingPanelChatSeed(resolved)
   }
   return delivery === 'appendEvent' ? true : accepted
 }

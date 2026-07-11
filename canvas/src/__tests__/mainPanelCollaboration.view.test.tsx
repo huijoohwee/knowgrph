@@ -169,3 +169,63 @@ export async function testMainPanelCollaborationViewStabilizesRegisteredActions(
     restoreWindow()
   }
 }
+
+export async function testMainPanelCollaborationViewPrefersAuthenticatedRoomSurfaceWhenConfigured() {
+  resetCollaborationStore()
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  const previousWorkspaceId = process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+  const previousSessionToken = process.env.VITE_KNOWGRPH_STORAGE_CHAT_SESSION_TOKEN
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  let root: ReturnType<typeof createRoot> | null = null
+
+  try {
+    process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://airvio.co/knowgrph'
+    process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = 'kgws:test-room'
+    process.env.VITE_KNOWGRPH_STORAGE_CHAT_SESSION_TOKEN = 'sess_test_token'
+    const anyWindow = dom.window as unknown as { requestAnimationFrame?: (cb: (ts: number) => void) => number }
+    anyWindow.requestAnimationFrame = installDeterministicRaf(dom.window)
+
+    useGraphStore.getState().resetAll()
+    const store = useP2PCollaborationStore.getState()
+    store.setSessionState({
+      role: 'host',
+      phase: 'connected',
+      sessionId: 'workspace:/docs/example.md',
+      localPeerId: 'owner-local-01',
+      ownerPeerId: 'owner-local-01',
+      statusText: 'Workspace room connected',
+    })
+    store.replacePeers([
+      makePeer({ peerId: 'owner-local-01', displayName: 'Owner Local', ownership: 'owner', isLocal: true }),
+      makePeer({ peerId: 'guest-room-01', displayName: 'Guest Room', ownership: 'guest' }),
+    ])
+
+    const doc = dom.window.document
+    const container = doc.createElement('section')
+    doc.body.appendChild(container)
+    root = createRoot(container as unknown as HTMLElement)
+    await mountReactRoot(root, React.createElement(CollaborationView, { searchQuery: '' }), { window: dom.window, frames: 3 })
+
+    const text = container.textContent || ''
+    assertIncludes(text, 'Room Session')
+    assertIncludes(text, 'Reconnect Room')
+    assertIncludes(text, 'Workspace room connected')
+    assertIncludes(text, 'Authenticated workspace room relays presence and document sync for the active document.')
+    if (text.includes('Invite Link') || text.includes('Join Invite') || text.includes('Guest Answer') || text.includes('Apply Answer')) {
+      throw new Error(`expected authenticated room surface to hide legacy invite-answer rows, got ${text}`)
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window })
+    resetCollaborationStore()
+    restoreDom()
+    restoreWindow()
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    if (typeof previousWorkspaceId === 'string') process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = previousWorkspaceId
+    else delete process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+    if (typeof previousSessionToken === 'string') process.env.VITE_KNOWGRPH_STORAGE_CHAT_SESSION_TOKEN = previousSessionToken
+    else delete process.env.VITE_KNOWGRPH_STORAGE_CHAT_SESSION_TOKEN
+  }
+}

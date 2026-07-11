@@ -65,6 +65,12 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
     throw new Error('expected already-hydrated Source Files selection to replay Canvas/frontmatter apply when active markdown document is stale')
   }
   if (
+    !selectionText.includes('resolvePreferredMarkdownWorkspaceSelectionSyncText({') ||
+    !selectionText.includes('selectionText: nextText')
+  ) {
+    throw new Error('expected Source Files stable selection hydration to prefer canonical active markdown document text over stale entry text before replaying Canvas apply')
+  }
+  if (
     !activeGraphDataText.includes('resolveActiveMarkdownBaseGraph({') ||
     !activeGraphDataText.includes('source === `markdown:${markdownName}`') ||
     !activeGraphDataText.includes('buildPendingActiveMarkdownGraph({ markdownName })') ||
@@ -139,7 +145,11 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
   ) {
     throw new Error('expected Source Files switches to prime Canvas from the selected file before parser output, without YAML/frontmatter-only gating')
   }
-  if (!documentActionsText.includes('const graphApplied = await get().applyMarkdownDocumentToGraph(') || !documentActionsText.includes('if (graphApplied) return true') || !documentActionsText.includes('applyViewPresetForSwitch &&\n          active.markdownDocumentName === name')) {
+  if (
+    !documentActionsText.includes('const graphApplied = await get().applyMarkdownDocumentToGraph(') ||
+    !documentActionsText.includes('if (graphApplied) {\n          requestActiveDocumentFit()\n          return true\n        }') ||
+    !documentActionsText.includes('applyViewPresetForSwitch &&\n          active.markdownDocumentName === name')
+  ) {
     throw new Error('expected file switches to complete when the selected document applied even if graph parsing had no node commit')
   }
   if (viewShellText.includes("React.startTransition(() => {\n        setSelectionSource('editor')")) {

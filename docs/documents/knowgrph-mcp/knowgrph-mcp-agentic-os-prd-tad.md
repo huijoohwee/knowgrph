@@ -55,6 +55,15 @@ constraints:
 
 # Knowgrph MCP Agentic Canvas OS - PRD and TAD
 
+For current remote MCP onboarding, start with
+`docs/documents/knowgrph-mcp-onboarding-index.md`, then use
+`docs/documents/knowgrph-mcp-install-contract.md` for the canonical
+public-discovery vs control-plane endpoint boundary.
+Map intent on `https://airvio.co/knowgrph/mcp`, orchestrate agents on
+`https://airvio.co/knowgrph/control-plane/mcp` only for session-capable hosts,
+and prove outcomes first with the source-side `README.md` or
+`docs/documents/knowgrph-superagent-harness.md` offline path.
+
 ## Executive Summary
 
 Knowgrph MCP should become the **Agentic Canvas OS** control plane for building, inspecting, and operating real agent products from the Canvas UI. The first consumer is a sibling repo such as `strybldr`, but the contract is repo-agnostic: Knowgrph reads a root-allowlisted consumer repo, profiles its stack, turns goals into source-backed plans, runs local harnesses, and renders an operator dashboard with decisions, traces, artifacts, token/TCO budgets, approval gates, and source-backed market validation.

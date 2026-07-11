@@ -54,6 +54,12 @@ Mobile keyboards make `/`, `#`, and `@` slower to reach than plain text. That ad
 - Dock it in the same safe-area-aware thumb zone already used by the mobile toolbar direction.
 - Reuse one shared trigger contract across FloatingPanel Chat UI, Editor Workspace, and any controlled command composer.
 
+**Implementation status**
+
+- Implemented in source-owned edit surfaces: FloatingPanel Chat, inline Markdown block editing, and the Editor Workspace Markdown editor.
+- Browser smoke now covers the shared chat composer, inline Markdown block editing, and the main Editor Workspace Markdown editor on the dedicated mobile-keyboard route.
+- The remaining gap is expanding that proof to additional mobile edit surfaces beyond the current shared owners.
+
 **Source owners**
 
 - `knowgrph/canvas/src/pages/Canvas.tsx`
@@ -84,6 +90,16 @@ The current feature map already shows the main mobile cost centers clearly: Mona
 - `knowgrph/canvas/src/features/markdown/**`
 - `knowgrph/canvas/src/features/three/**`
 - `knowgrph/canvas/src/features/maps/**`
+
+**Implementation status**
+
+- `CanvasViewport` now treats 3D and geospatial viewport ownership as explicit-intent runtimes on touch viewports.
+- On mobile and coarse-pointer devices, the viewport keeps a lightweight activation card in place until the user explicitly loads the 3D or map surface.
+- Shared Markdown Mermaid rendering now stays behind the visibility gate and requires an explicit tap to hydrate once the diagram enters a touch viewport.
+- The dedicated mobile browser smoke route now verifies the chat/workspace quick bars, the 3D/map activation cards, and the Mermaid touch placeholder on a real mobile viewport.
+- Editable Markdown workspace panes now keep Monaco behind the existing plain-text fallback on touch viewports until the user explicitly loads the rich editor runtime.
+- The same mobile Monaco gate is now browser-proven for the secondary JSON editor path, including fallback editing before rich-editor activation.
+- Schema-editor serialization Monaco surfaces now follow the same touch activation gate, and the shared mobile smoke route now mounts that source-owned harness section with the serialization subsection expanded by default so the browser proof remains deterministic on fresh mobile sessions.
 
 **Acceptance target**
 
@@ -144,7 +160,8 @@ Mobile fixes lose value when they only exist in one surface or are patched downs
 
 - Keep responsive behavior source-owned in Dev.
 - Mirror only generated artifacts into Prod.
-- Treat mobile proof as a release gate before publish parity claims.
+- Treat responsive proof as an explicit release gate before publish parity claims.
+- Block `pages:deploy-cloudflare` when the mobile keyboard proof, route-and-action matrix, or publish sync proof is missing.
 
 **Source owners**
 
@@ -156,6 +173,12 @@ Mobile fixes lose value when they only exist in one surface or are patched downs
 
 - Mobile behavior described upstream matches the published route and schema mirror without route-specific downstream patches.
 
+**Implementation status**
+
+- The canonical route-and-action matrix now lives in `docs/documents/knowgrph-feature-map.md`.
+- The focused mobile keyboard browser smoke already proves the touch-first keyboard lane.
+- The remaining cleanup is making those proofs an explicit publish blocker in the cross-repo release contract instead of leaving them as implied operator discipline.
+
 ## Release Gate Checklist
 
 - Mobile grammar entry is reachable without symbol-pane switching.
@@ -164,10 +187,11 @@ Mobile fixes lose value when they only exist in one surface or are patched downs
 - Virtual-keyboard proof covers chat and workspace surfaces.
 - Mobile, tablet, desktop, and wide proof classes stay documented in one upstream path.
 - Publish and schema mirrors describe only validated upstream behavior.
+- `pages:check-sync` passes before publish.
+- The route-and-action matrix and mobile keyboard smoke are reviewed together before `pages:deploy-cloudflare`.
 
 ## Deferred Until Code Edits Are Allowed
 
-- UI implementation of the grammar quick bar
 - Mobile-specific preview surfaces for Mermaid, maps, or 3D
 - Browser-smoke automation for the quick bar and mobile fallback states
 - Route-level runtime gating changes in canvas owners

@@ -158,3 +158,38 @@ The most useful concrete follow-up is a route-and-action matrix that records, fo
 | Near-Term | Chunk and cache hygiene | Preserve deferrable heavy feature families | Keep granular Monaco, Mermaid, MapLibre, and Three chunk splitting; verify caching/compression on deploy so repeated mobile sessions reuse those chunks. |
 | Later | Mobile-specific fallbacks | Reduce cost for high-frequency heavy workflows | Introduce lighter mobile alternatives where justified, such as static or deferred diagram/map previews before full runtime activation. |
 | Later | Journey-based performance budgets | Turn the feature map into ongoing guardrails | Define acceptable mobile budgets per workflow for transfer, parse/execute time, and interaction latency; use them to prioritize future optimization work. |
+
+## Mobile Route-And-Action Evidence Matrix
+
+This matrix turns the mobile-first plan into one source-owned operator artifact. The goal is to answer one practical question for each top phone workflow: which user action wakes an expensive runtime, and is that wake-up required immediately?
+
+| Mobile workflow | Primary phone action | Immediate surface owner | Heavy chunk family triggered | Activation policy on phones | Why this policy holds |
+|---|---|---|---|---|---|
+| Chat ask + stream review | Open chat, type with quick bar, review streaming context | FloatingPanel Chat plus workspace stream surface | None beyond the default shell | Immediate | This is the primary time-to-value path and must stay reachable above the keyboard without waking optional runtimes. |
+| Inline markdown edit | Tap inline workspace block and use `/`, `#`, `@` quick bar | Markdown workspace inline edit surface | None beyond the default shell | Immediate | Grammar entry and lightweight text editing are core mobile authoring tasks and should stay inside the lean shell. |
+| Full markdown editor activation | Tap the deferred-touch editor activation card | `MarkdownEditorPane` plus Monaco host | Monaco chunk family plus Monaco workers | Deferred and fallback-safe | Phone users can edit through the fallback textarea first; full Monaco is valuable but not required for first action. |
+| JSON or schema editing | Tap into JSON editor or schema serialization editor, then activate advanced editing | `MarkdownEditorPane`, `SerializationSection`, Monaco host | Monaco chunk family plus Monaco workers | Deferred and fallback-safe | The fallback editor covers low-friction edits; advanced code editing should only load on explicit intent. |
+| Diagram review | Open a Mermaid-heavy doc section and activate the touch placeholder | Mermaid visibility gate | Mermaid runtime, and ELK when the diagram path needs it | Deferred and fallback-safe | Diagram comprehension matters, but the phone path should not pay the Mermaid cost until the reader asks for it. |
+| Geospatial preview | Open map-oriented content and tap into the runtime card | `CanvasViewport` geospatial preview surface | MapLibre chunk family | Deferred and fallback-safe | Geo preview is expensive relative to its mobile frequency and should stay behind explicit intent. |
+| 3D canvas inspect | Switch to 3D view from the runtime gate | `CanvasViewport` 3D preview surface | Three.js chunk family | Deferred and fallback-safe | 3D is valuable but expensive on mobile GPU and CPU budgets, so it should never be part of first paint. |
+| Standard graph or canvas browse | Open the main app and remain in standard 2D canvas use | Base shell plus graph canvas bundle | Default shell and graph canvas chunks | Immediate | This is the core browsing path and must remain the baseline mobile contract. |
+
+## Mobile Workflow Release Rules
+
+Use the matrix above as the release decision table for touch-first changes:
+
+| Rule | Release meaning |
+|---|---|
+| Immediate | The workflow is part of the phone first-action path and must remain reachable in the default shell. Do not hide it behind a heavyweight activation card. |
+| Deferred | The workflow may load a heavy runtime only after one explicit user action that clearly signals intent. |
+| Fallback-safe | The mobile path must provide a lighter but usable alternative before the heavy runtime is activated. |
+| Evidence update required | Any change that moves a workflow between `Immediate`, `Deferred`, or `Fallback-safe` must update this matrix and the matching mobile-first docs in the same change. |
+
+## Current Highest-ROI Mobile Decisions
+
+For the current mobile topology, the best return remains:
+
+1. Keep chat and lightweight workspace editing in the default shell.
+2. Keep Monaco, Mermaid, MapLibre, and Three behind explicit touch intent.
+3. Treat fallback-first editing and placeholder-first rendering as release requirements, not optional nice-to-haves.
+4. Evaluate future mobile work by workflow activation, not by total bundle size alone.

@@ -7,6 +7,11 @@ export type FloatingPanelChatInputHandoff = {
   mode: 'append' | 'replace'
 }
 
+export type FloatingPanelChatSeedRequest = {
+  text: string
+  mode?: 'append' | 'replace'
+}
+
 let pendingInputHandoff: FloatingPanelChatInputHandoff | null = null
 
 export function normalizeFloatingPanelChatSeedText(text: string): string {
@@ -27,13 +32,37 @@ export function normalizeFloatingPanelChatSeedText(text: string): string {
   return normalizeInvocationTokenSpacing(trimmed)
 }
 
-export function queueFloatingPanelChatInputHandoff(args: FloatingPanelChatInputHandoff): void {
+export function resolveFloatingPanelChatSeed(args: FloatingPanelChatSeedRequest): FloatingPanelChatInputHandoff | null {
   const text = normalizeFloatingPanelChatSeedText(args.text)
-  if (!text) return
-  pendingInputHandoff = {
+  if (!text) return null
+  return {
     text,
     mode: args.mode === 'append' ? 'append' : 'replace',
   }
+}
+
+function storeFloatingPanelChatInputHandoff(handoff: FloatingPanelChatInputHandoff): void {
+  pendingInputHandoff = handoff
+}
+
+export function queueResolvedFloatingPanelChatInputHandoff(handoff: FloatingPanelChatInputHandoff): void {
+  storeFloatingPanelChatInputHandoff({
+    text: handoff.text,
+    mode: handoff.mode === 'append' ? 'append' : 'replace',
+  })
+}
+
+export function dispatchResolvedFloatingPanelChatSeed(handoff: FloatingPanelChatInputHandoff): void {
+  emitChatInputAppend({
+    text: handoff.text,
+    mode: handoff.mode === 'append' ? 'append' : 'replace',
+  })
+}
+
+export function queueFloatingPanelChatInputHandoff(args: FloatingPanelChatSeedRequest): void {
+  const resolved = resolveFloatingPanelChatSeed(args)
+  if (!resolved) return
+  queueResolvedFloatingPanelChatInputHandoff(resolved)
 }
 
 export function consumeFloatingPanelChatInputHandoff(): FloatingPanelChatInputHandoff | null {
@@ -45,10 +74,7 @@ export function consumeFloatingPanelChatInputHandoff(): FloatingPanelChatInputHa
 export function flushFloatingPanelChatInputHandoff(): boolean {
   const pending = consumeFloatingPanelChatInputHandoff()
   if (!pending) return false
-  emitChatInputAppend({
-    text: pending.text,
-    mode: pending.mode,
-  })
+  dispatchResolvedFloatingPanelChatSeed(pending)
   return true
 }
 

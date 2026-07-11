@@ -23,10 +23,13 @@ Release path (app shell only):
 ```
 npm --prefix canvas run test:ci:unit -- strybldr
 npm --prefix canvas run typecheck
+npm run collaboration:release:check
 npm run pages:build-sync
 npm run pages:check-sync
 npm run pages:deploy-cloudflare
 ```
+
+If the release scope touches authenticated collaboration only and the publish mirror is intentionally dirty during local iteration, you may use `npm run collaboration:release:check -- --skip-sync` before `pages:build-sync`. The actual release lane still requires the full `npm run collaboration:release:check` result before `pages:deploy-cloudflare`.
 
 ## Pre-reqs (one-time)
 

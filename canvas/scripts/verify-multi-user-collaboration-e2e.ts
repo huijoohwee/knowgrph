@@ -1,23 +1,69 @@
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { existsSync } from 'node:fs'
 import { chromium, type Page } from 'playwright'
+import { buildKnowgrphStorageCanvasRoomPath } from '../src/lib/storage/knowgrphStorageSyncContract'
 import { QUERY_PARAM_OPEN_EDITOR_WORKSPACE } from '../src/lib/routing/queryParams'
 
-const DEFAULT_APP_URL = 'http://127.0.0.1:5174/'
-const APP_URL = process.env.KG_COLLABORATION_E2E_URL || DEFAULT_APP_URL
-const SCREENSHOT_PATH = process.env.KG_COLLABORATION_E2E_SCREENSHOT || join(tmpdir(), 'knowgrph-collaboration-e2e.png')
+const DEFAULT_OWNER_APP_URL = 'http://127.0.0.1:5173/'
+const DEFAULT_GUEST_APP_URL = 'http://127.0.0.1:5174/'
+const DEFAULT_WORKER_URL = 'http://127.0.0.1:8787'
+const DEFAULT_WORKSPACE_ID = 'kgws:test-room'
+const DEFAULT_DOC_PATH = '/docs/workspace-readme.md'
+const OWNER_APP_URL = process.env.KG_COLLABORATION_E2E_OWNER_URL || DEFAULT_OWNER_APP_URL
+const GUEST_APP_URL = process.env.KG_COLLABORATION_E2E_GUEST_URL || DEFAULT_GUEST_APP_URL
+const WORKER_URL = process.env.KG_COLLABORATION_E2E_WORKER_URL || DEFAULT_WORKER_URL
+const WORKSPACE_ID = process.env.KG_COLLABORATION_E2E_WORKSPACE_ID || DEFAULT_WORKSPACE_ID
+const OWNER_TOKEN = process.env.KG_COLLABORATION_E2E_OWNER_TOKEN || ''
+const GUEST_TOKEN = process.env.KG_COLLABORATION_E2E_GUEST_TOKEN || ''
+const DOC_PATH = process.env.KG_COLLABORATION_E2E_DOC_PATH || DEFAULT_DOC_PATH
+const MARKER = process.env.KG_COLLABORATION_E2E_MARKER || `SMOKE_REMOTE_APPLY_MARKER_${new Date().toISOString().replace(/[-:.]/g, '').replace('T', 'T').replace('Z', 'Z')}`
+const SCREENSHOT_PREFIX = process.env.KG_COLLABORATION_E2E_SCREENSHOT_PREFIX || join(tmpdir(), 'knowgrph-collaboration-e2e')
+const OWNER_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}.owner.png`
+const GUEST_SCREENSHOT_PATH = `${SCREENSHOT_PREFIX}.guest.png`
+const MACOS_BROWSER_CANDIDATES = [
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+]
+
+type BrowserStoreSnapshot = {
+  markdownDocumentName: string
+  markdownDocumentText: string
+  sessionPhase: string
+  statusText: string
+  errorText: string
+  peerCount: number
+  connectedPeerCount: number
+}
+
+function resolveBrowserLaunchOptions(): Parameters<typeof chromium.launch>[0] {
+  const configuredExecutablePath = String(process.env.KG_COLLABORATION_E2E_BROWSER_EXECUTABLE || '').trim()
+  if (configuredExecutablePath) {
+    return { headless: true, executablePath: configuredExecutablePath }
+  }
+  const discoveredExecutablePath = MACOS_BROWSER_CANDIDATES.find(candidate => existsSync(candidate))
+  if (discoveredExecutablePath) {
+    return { headless: true, executablePath: discoveredExecutablePath }
+  }
+  return { headless: true }
+}
 
 function buildWorkspaceUrl(rawUrl: string): string {
   const url = new URL(rawUrl)
   if (!String(url.searchParams.get(QUERY_PARAM_OPEN_EDITOR_WORKSPACE) || '').trim()) {
     url.searchParams.set(QUERY_PARAM_OPEN_EDITOR_WORKSPACE, '1')
   }
+  if (!String(url.searchParams.get('kgPath') || '').trim()) {
+    url.searchParams.set('kgPath', DOC_PATH)
+  }
   return url.toString()
 }
 
-async function failWithScreenshot(page: Page, message: string): Promise<never> {
-  await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true }).catch(() => undefined)
-  throw new Error(`${message}\nScreenshot: ${SCREENSHOT_PATH}`)
+async function failWithScreenshots(ownerPage: Page | null, guestPage: Page | null, message: string): Promise<never> {
+  await ownerPage?.screenshot({ path: OWNER_SCREENSHOT_PATH, fullPage: true }).catch(() => undefined)
+  await guestPage?.screenshot({ path: GUEST_SCREENSHOT_PATH, fullPage: true }).catch(() => undefined)
+  throw new Error(`${message}\nOwner screenshot: ${OWNER_SCREENSHOT_PATH}\nGuest screenshot: ${GUEST_SCREENSHOT_PATH}`)
 }
 
 function assertIncludes(haystack: string, needle: string): void {
@@ -26,74 +72,232 @@ function assertIncludes(haystack: string, needle: string): void {
   }
 }
 
-async function main(): Promise<void> {
-  const browser = await chromium.launch({ headless: true })
-  const page = await browser.newPage({ viewport: { width: 1440, height: 950 } })
-  const pageErrors: string[] = []
-  page.on('pageerror', error => {
-    pageErrors.push(error.message)
+async function readBrowserStoreSnapshot(page: Page): Promise<BrowserStoreSnapshot> {
+  return await page.evaluate(async () => {
+    const graphStoreModule = await import('/src/hooks/useGraphStore.ts')
+    const collaborationStoreModule = await import('/src/features/collaboration/p2pCollaborationStore.ts')
+    const graphState = graphStoreModule.useGraphStore.getState()
+    const collaborationState = collaborationStoreModule.useP2PCollaborationStore.getState()
+    const peers = Array.isArray(collaborationState.peers) ? collaborationState.peers : []
+    return {
+      markdownDocumentName: String(graphState.markdownDocumentName || ''),
+      markdownDocumentText: String(graphState.markdownDocumentText || ''),
+      sessionPhase: String(collaborationState.phase || ''),
+      statusText: String(collaborationState.statusText || ''),
+      errorText: String(collaborationState.errorText || ''),
+      peerCount: peers.length,
+      connectedPeerCount: peers.filter(peer => String(peer?.connectionState || '') === 'connected').length,
+    }
   })
+}
+
+async function openCollaborationPanel(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.__KG_MAIN_PANEL_OPEN_READY__ === true, null, { timeout: 60_000 })
+  await page.waitForSelector('[aria-label="Markdown Workspace"]', { timeout: 60_000 })
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('kg:mainPanelOpen', { detail: { tab: 'collaboration' } }))
+  })
+  await page.waitForSelector('#main-panel-collaboration-tab[aria-selected="true"]', { timeout: 30_000 })
+}
+
+async function readMainPanelText(page: Page): Promise<string> {
+  return await page.getByRole('complementary', { name: 'Main panel', exact: true }).innerText()
+}
+
+async function waitForPageCondition(page: Page, label: string, predicate: (snapshot: BrowserStoreSnapshot) => boolean): Promise<BrowserStoreSnapshot> {
+  const startedAt = Date.now()
+  let lastSnapshot = await readBrowserStoreSnapshot(page)
+  while (Date.now() - startedAt < 60_000) {
+    lastSnapshot = await readBrowserStoreSnapshot(page)
+    if (predicate(lastSnapshot)) return lastSnapshot
+    await page.waitForTimeout(500)
+  }
+  throw new Error(`${label} timed out: ${JSON.stringify(lastSnapshot)}`)
+}
+
+async function connectAuthenticatedRoom(page: Page): Promise<void> {
+  let lastError: Error | null = null
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const connectButton = page.getByRole('button', { name: /Connect Room|Reconnect Room/, exact: false })
+    await connectButton.click({ timeout: 30_000 })
+    try {
+      await waitForPageCondition(
+        page,
+        `workspace room connection attempt ${attempt}`,
+        snapshot => snapshot.sessionPhase === 'connected' && snapshot.statusText.includes('Workspace room connected'),
+      )
+      const panelText = await readMainPanelText(page)
+      assertIncludes(panelText, 'Runtime Status')
+      assertIncludes(panelText, 'Workspace room connected')
+      return
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+      if (attempt < 3) {
+        await page.waitForTimeout(1_000)
+        continue
+      }
+    }
+  }
+  if (lastError) throw lastError
+  throw new Error('workspace room connection failed without surfaced error')
+}
+
+async function waitForActiveDocumentReady(page: Page): Promise<void> {
+  const expectedDocumentName = DOC_PATH.replace(/^\/+/, '')
+  await waitForPageCondition(
+    page,
+    'active document readiness',
+    snapshot => snapshot.markdownDocumentName === expectedDocumentName && snapshot.markdownDocumentText.trim().length > 0,
+  )
+}
+
+async function applyMarkerToActiveDocument(page: Page, marker: string) {
+  return await page.evaluate(async (inputMarker: string) => {
+    const graphStoreModule = await import('/src/hooks/useGraphStore.ts')
+    const graphState = graphStoreModule.useGraphStore.getState()
+    const name = String(graphState.markdownDocumentName || '').trim()
+    const currentText = String(graphState.markdownDocumentText || '')
+    const nextText = currentText.includes(inputMarker)
+      ? currentText
+      : `${currentText.replace(/\s*$/, '')}\n${inputMarker}\n`
+    const applied = await graphState.setActiveMarkdownDocument({
+      name,
+      text: nextText,
+      normalizeMermaidMmd: false,
+      autoEnableFrontmatter: false,
+      applyViewPreset: false,
+    })
+    const nextState = graphStoreModule.useGraphStore.getState()
+    return {
+      applied,
+      markdownDocumentName: String(nextState.markdownDocumentName || ''),
+      markdownDocumentText: String(nextState.markdownDocumentText || ''),
+    }
+  }, marker)
+}
+
+async function assertSession(workerUrl: string, token: string, label: string): Promise<void> {
+  if (!String(token || '').trim()) return
+  const response = await fetch(new URL('/api/storage/chat/session', workerUrl), {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) {
+    throw new Error(`${label} session request failed with ${response.status}`)
+  }
+}
+
+async function assertRoomStatus(workerUrl: string, docPath: string): Promise<void> {
+  if (!String(OWNER_TOKEN || '').trim()) return
+  const roomId = String(docPath || '').replace(/^\/+/, '')
+  const response = await fetch(
+    new URL(buildKnowgrphStorageCanvasRoomPath(WORKSPACE_ID, roomId), workerUrl),
+    { headers: { Authorization: `Bearer ${OWNER_TOKEN}` } },
+  )
+  if (!response.ok) {
+    throw new Error(`workspace room status request failed with ${response.status}`)
+  }
+  const body = await response.json() as { activePeerCount?: unknown; roomId?: unknown }
+  if (String(body.roomId || '') !== roomId) {
+    throw new Error(`expected worker room id ${JSON.stringify(roomId)}, got ${JSON.stringify(body.roomId)}`)
+  }
+  if (Number(body.activePeerCount || 0) < 2) {
+    throw new Error(`expected worker room to report at least 2 active peers, got ${JSON.stringify(body.activePeerCount)}`)
+  }
+}
+
+async function main(): Promise<void> {
+  const browser = await chromium.launch(resolveBrowserLaunchOptions())
+  const ownerPage = await browser.newPage({ viewport: { width: 1440, height: 950 } })
+  const guestPage = await browser.newPage({ viewport: { width: 1440, height: 950 } })
+  const pageErrors: string[] = []
+  for (const page of [ownerPage, guestPage]) {
+    page.on('pageerror', error => {
+      pageErrors.push(error.message)
+    })
+  }
 
   try {
-    await page.goto(buildWorkspaceUrl(APP_URL), { waitUntil: 'domcontentloaded', timeout: 60_000 })
-    await page.waitForFunction(() => window.__KG_MAIN_PANEL_OPEN_READY__ === true, null, { timeout: 60_000 })
-    await page.waitForSelector('[aria-label="Markdown Workspace"]', { timeout: 60_000 })
+    await assertSession(WORKER_URL, OWNER_TOKEN, 'owner')
+    await assertSession(WORKER_URL, GUEST_TOKEN, 'guest')
 
-    const webRtcAvailable = await page.evaluate(() => typeof window.RTCPeerConnection === 'function')
-    if (!webRtcAvailable) {
-      await failWithScreenshot(page, 'RTCPeerConnection is unavailable in the E2E browser')
+    await ownerPage.goto(buildWorkspaceUrl(OWNER_APP_URL), { waitUntil: 'domcontentloaded', timeout: 60_000 })
+    await guestPage.goto(buildWorkspaceUrl(GUEST_APP_URL), { waitUntil: 'domcontentloaded', timeout: 60_000 })
+
+    await Promise.all([
+      openCollaborationPanel(ownerPage),
+      openCollaborationPanel(guestPage),
+    ])
+
+    await Promise.all([
+      waitForActiveDocumentReady(ownerPage),
+      waitForActiveDocumentReady(guestPage),
+    ])
+
+    await Promise.all([
+      connectAuthenticatedRoom(ownerPage),
+      connectAuthenticatedRoom(guestPage),
+    ])
+
+    await waitForPageCondition(ownerPage, 'owner peer roster', snapshot => snapshot.connectedPeerCount >= 2)
+    await waitForPageCondition(guestPage, 'guest peer roster', snapshot => snapshot.connectedPeerCount >= 2)
+    await assertRoomStatus(WORKER_URL, DOC_PATH)
+
+    const applyResult = await applyMarkerToActiveDocument(guestPage, MARKER)
+    if (applyResult.applied !== true) {
+      throw new Error(`expected guest document apply to succeed, got ${JSON.stringify(applyResult)}`)
     }
 
-    await page.evaluate(() => {
-      window.dispatchEvent(new CustomEvent('kg:mainPanelOpen', { detail: { tab: 'collaboration' } }))
-    })
-    await page.waitForSelector('#main-panel-collaboration-tab[aria-selected="true"]', { timeout: 30_000 })
-
-    const panel = page.getByRole('complementary', { name: 'Main panel', exact: true })
-    let panelText = await panel.innerText()
-    for (const token of [
-      'Session',
-      'Runtime Status',
-      'Host Session',
-      'Start Host',
-      'Invite Link',
-      'Join Invite',
-      'Guest Answer',
-      'Apply Answer',
-      'Peers',
-      'Transport',
-    ]) {
-      assertIncludes(panelText, token)
-    }
-
-    await page.getByRole('button', { name: 'Start Host', exact: true }).click({ timeout: 30_000 })
-    await page.waitForFunction(
-      () => document.body.innerText.includes('Invite ready. Waiting for guest answer...'),
-      null,
-      { timeout: 20_000 },
+    const guestSnapshot = await waitForPageCondition(
+      guestPage,
+      'guest marker retention',
+      snapshot => snapshot.markdownDocumentText.includes(MARKER),
     )
-    panelText = await panel.innerText()
-    for (const token of [
-      'host',
-      'awaiting-answer',
-      'Invite ready. Waiting for guest answer...',
-      'Generate Invite',
-      'You',
-      'connected',
-      'docs/workspace-readme.md',
-    ]) {
-      assertIncludes(panelText, token)
+    const ownerSnapshot = await waitForPageCondition(
+      ownerPage,
+      'owner marker propagation',
+      snapshot => snapshot.markdownDocumentText.includes(MARKER),
+    )
+
+    const ownerPanelText = await readMainPanelText(ownerPage)
+    const guestPanelText = await readMainPanelText(guestPage)
+    for (const panelText of [ownerPanelText, guestPanelText]) {
+      assertIncludes(panelText, 'Session')
+      assertIncludes(panelText, 'Peers')
+      assertIncludes(panelText, 'Transport')
+      assertIncludes(panelText, 'Workspace room connected')
     }
 
-    await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true })
-    console.log(`multi-user collaboration E2E passed: ${SCREENSHOT_PATH}`)
+    await ownerPage.screenshot({ path: OWNER_SCREENSHOT_PATH, fullPage: true })
+    await guestPage.screenshot({ path: GUEST_SCREENSHOT_PATH, fullPage: true })
+    console.log(
+      JSON.stringify({
+        ok: true,
+        ownerAppUrl: buildWorkspaceUrl(OWNER_APP_URL),
+        guestAppUrl: buildWorkspaceUrl(GUEST_APP_URL),
+        workerUrl: WORKER_URL,
+        marker: MARKER,
+        ownerDocumentName: ownerSnapshot.markdownDocumentName,
+        guestDocumentName: guestSnapshot.markdownDocumentName,
+        ownerTextLength: ownerSnapshot.markdownDocumentText.length,
+        guestTextLength: guestSnapshot.markdownDocumentText.length,
+        ownerScreenshotPath: OWNER_SCREENSHOT_PATH,
+        guestScreenshotPath: GUEST_SCREENSHOT_PATH,
+      }),
+    )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     const suffix = pageErrors.length ? `\nPage errors:\n${pageErrors.join('\n')}` : ''
-    await failWithScreenshot(page, `${message}${suffix}`)
+    await failWithScreenshots(ownerPage, guestPage, `${message}${suffix}`)
   } finally {
     await browser.close()
   }
 }
 
-void main()
+main()
+  .then(() => {
+    process.exit(0)
+  })
+  .catch(error => {
+    console.error(error instanceof Error ? (error.stack || error.message) : String(error))
+    process.exit(1)
+  })

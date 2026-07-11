@@ -37,6 +37,8 @@
 
 **Execution Companion**: Use `docs/documents/knowgrph-mobile-first-enhancement-plan.md` as the canonical source-owned priority list for the next mobile-first improvements. It keeps grammar reachability, heavy-runtime gating, virtual-keyboard proof, and Dev -> Prod -> Cloudflare parity in one place.
 
+**Workflow Evidence Companion**: Use `docs/documents/knowgrph-feature-map.md` as the source-owned mobile route-and-action matrix. Heavy-runtime activation decisions for phones must follow that matrix instead of ad hoc local judgement.
+
 ## Mobile-First Responsive Contract
 
 | Surface | Mobile-First Directive | Forbidden Drift |
@@ -48,6 +50,15 @@
 | Canvas | Preserve pan, zoom, fit, selection, quick edit, inspect actions, and Design editor chrome through touch and pointer input inside shared safe-area-aware bounds. | Component-local breakpoints, hardcoded coordinates, fixed editor-chrome offsets, resize-observer loops |
 | Rich Media Panel | Keep media playback, fallback states, and metadata inspection reachable inside safe-area-aware bounds. | Offscreen-only controls, silent clipping, desktop-only playback affordances |
 | Generated Widgets | Emit responsive bounds, min sizes, fit strategy, edge anchors, and overflow behavior as metadata. | One-off fixed scenes, stale desktop coordinates, hidden edge handles |
+
+## Mobile Workflow Evidence Contract
+
+| Workflow class | Mobile requirement | Evidence owner |
+|---|---|---|
+| Default-shell workflows | Chat ask, stream review, inline markdown edit, and standard 2D browse remain reachable without activating Monaco, Mermaid, MapLibre, or Three. | `docs/documents/knowgrph-feature-map.md` |
+| Explicit-intent workflows | Full editor activation, diagram activation, geospatial preview, and 3D preview require one explicit touch action before their heavy runtime loads. | `docs/documents/knowgrph-feature-map.md` plus focused browser smoke or contract proof |
+| Fallback-first workflows | Phone users get a usable fallback before Monaco, Mermaid, MapLibre, or Three activate. | Shared surface owner plus focused proof path |
+| Release review | If a workflow changes from immediate to deferred, or loses its fallback, the feature-map matrix and mobile proof docs must update in the same change. | `docs/documents/knowgrph-mobile-first-enhancement-plan.md` and `docs/documents/knowgrph-cross-repo-publish-topology.md` |
 
 ---
 

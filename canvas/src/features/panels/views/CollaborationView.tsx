@@ -20,6 +20,7 @@ import { uiToolbarToggleActiveClassName } from '@/features/toolbar/ui/toolbarSty
 import { useP2PCollaborationStore } from '@/features/collaboration/p2pCollaborationStore'
 import { MainPanelTypeIcon, type MainPanelTypeIconKey } from '@/features/panels/ui/mainPanelHelpIconLibrary'
 import { UI_RESPONSIVE_PANEL_FLEX_INPUT_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { readKnowgrphStorageCanvasRoomConfig } from '@/lib/storage/knowgrphStorageCanvasRoomClient'
 
 type SectionId = 'session' | 'invite' | 'answer' | 'peer'
 
@@ -79,6 +80,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
   const [collapsedBySection, setCollapsedBySection] = React.useState<Record<SectionId, boolean>>(() => buildCollapsedState(false))
 
   const normalizedQuery = React.useMemo(() => String(searchQuery || '').trim().toLowerCase(), [searchQuery])
+  const hasAuthenticatedRoomTransport = React.useMemo(() => !!readKnowgrphStorageCanvasRoomConfig(), [])
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const renderTypeIcon = React.useCallback((iconKey: MainPanelTypeIconKey) => (
     <MainPanelTypeIcon iconKey={iconKey} className={iconSizeClass} strokeWidth={uiIconStrokeWidth} />
@@ -93,7 +95,9 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
     [remotePeers],
   )
   const isOwner = Boolean(localPeerId && ownerPeerId && localPeerId === ownerPeerId)
-  const hostActionLabel = role === 'host' ? 'Generate Invite' : 'Start Host'
+  const hostActionLabel = hasAuthenticatedRoomTransport
+    ? (phase === 'connected' ? 'Reconnect Room' : 'Connect Room')
+    : (role === 'host' ? 'Generate Invite' : 'Start Host')
   const collapseAll = React.useCallback(() => {
     setCollapsedBySection(buildCollapsedState(true))
   }, [])
@@ -279,7 +283,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
     matchesQuery('Host or disconnect', 'start host', 'disconnect') && (
       <KeyTypeValueRow
         key="session-actions"
-        keyNode="Host Session"
+        keyNode={hasAuthenticatedRoomTransport ? 'Room Session' : 'Host Session'}
         typeNode={renderTypeIcon('collaboration.connection')}
         valueNode={(
           <RightAlignedValueCell>
@@ -306,7 +310,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
   ].filter(Boolean)
 
   const inviteRows = [
-    matchesQuery('Invite link', inviteUrl, inviteToken) && (
+    !hasAuthenticatedRoomTransport && matchesQuery('Invite link', inviteUrl, inviteToken) && (
       <KeyTypeValueRow
         key="invite-link"
         keyNode="Invite Link"
@@ -338,7 +342,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         )}
       />
     ),
-    matchesQuery('Join invite', inviteInput, 'guest') && (
+    !hasAuthenticatedRoomTransport && matchesQuery('Join invite', inviteInput, 'guest') && (
       <KeyTypeValueRow
         key="invite-join"
         keyNode="Join Invite"
@@ -368,7 +372,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
   ].filter(Boolean)
 
   const answerRows = [
-    matchesQuery('Guest answer', answerToken, 'copy answer') && (
+    !hasAuthenticatedRoomTransport && matchesQuery('Guest answer', answerToken, 'copy answer') && (
       <KeyTypeValueRow
         key="answer-token"
         keyNode="Guest Answer"
@@ -400,7 +404,7 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
         )}
       />
     ),
-    matchesQuery('Apply answer', answerInput, 'host') && (
+    !hasAuthenticatedRoomTransport && matchesQuery('Apply answer', answerInput, 'host') && (
       <KeyTypeValueRow
         key="answer-apply"
         keyNode="Apply Answer"
@@ -503,7 +507,15 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
           <RightAlignedValueCell>
             <span className={noteClassName}>
               {role === 'host'
-                ? (phase === 'connected' ? 'Owner relays presence and document sync across guests.' : 'Awaiting connected guests or a new invite answer.')
+                ? (
+                    hasAuthenticatedRoomTransport
+                      ? (phase === 'connected'
+                          ? 'Authenticated workspace room relays presence and document sync for the active document.'
+                          : 'Connect the authenticated workspace room for the active document.')
+                      : (phase === 'connected'
+                          ? 'Owner relays presence and document sync across guests.'
+                          : 'Awaiting connected guests or a new invite answer.')
+                  )
                 : (phase === 'connected' ? 'Connected to the owner relay channel.' : 'Awaiting owner channel.')}
             </span>
           </RightAlignedValueCell>
@@ -518,7 +530,10 @@ export default function CollaborationView({ searchQuery, onRegisterActions }: Co
     { id: 'answer', title: 'Answer', rows: answerRows },
     { id: 'peer', title: 'Peers', rows: peerRows },
   ] satisfies Array<{ id: SectionId; title: string; rows: React.ReactNode[] }>).filter(
-    section => section.rows.length > 0 || !normalizedQuery,
+    section => section.rows.length > 0 || (
+      !normalizedQuery
+      && !(hasAuthenticatedRoomTransport && (section.id === 'invite' || section.id === 'answer'))
+    ),
   )
 
   return (

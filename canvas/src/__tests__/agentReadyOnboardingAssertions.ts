@@ -1,4 +1,9 @@
 export type AgentReadyOnboarding = {
+  promise?: string
+  grammarSummary?: string
+  grammarToolName?: string
+  grammarExamples?: string[]
+  grammarExecutionBoundary?: string
   publicReadMcpUrl?: string
   controlPlaneMcpUrl?: string
   cheapestProofPath?: string
@@ -6,18 +11,32 @@ export type AgentReadyOnboarding = {
 }
 
 export function assertAgentReadyOnboardingHtml(html: string) {
-  if (!html.includes('Fastest Path') || !html.includes('control-plane/mcp') || !html.includes('knowgrph-superagent-harness.md')) {
+  if (
+    !html.includes('Fastest Path')
+    || !html.includes('Map intent. Orchestrate agents. Prove outcomes.')
+    || !html.includes('A source-backed canvas where / routes work, # sets meaning, and @ binds context.')
+    || !html.includes('knowgrph.agentic_canvas_os.docs.invoke')
+    || !html.includes('/mcp.capabilities')
+    || !html.includes('control-plane/mcp')
+    || !html.includes('knowgrph-superagent-harness.md')
+  ) {
     throw new Error('expected MCP Apps HTML to expose the fastest onboarding path')
   }
 }
 
 export function assertAgentReadyOnboardingReadiness(onboarding?: AgentReadyOnboarding) {
-  if (onboarding?.publicReadMcpUrl !== 'https://airvio.co/knowgrph/mcp'
+  if (onboarding?.promise !== 'Map intent. Orchestrate agents. Prove outcomes.'
+    || onboarding?.grammarSummary !== 'A source-backed canvas where / routes work, # sets meaning, and @ binds context.'
+    || onboarding?.grammarToolName !== 'knowgrph.agentic_canvas_os.docs.invoke'
+    || !Array.isArray(onboarding?.grammarExamples)
+    || onboarding.grammarExamples.join('|') !== '/mcp.capabilities|#mcp|@mcp-gateway'
+    || onboarding?.grammarExecutionBoundary !== 'Keep install on the public discovery endpoint and execute live grammar on the approval-gated control plane.'
+    || onboarding?.publicReadMcpUrl !== 'https://airvio.co/knowgrph/mcp'
     || onboarding?.controlPlaneMcpUrl !== 'https://airvio.co/knowgrph/control-plane/mcp'
     || !String(onboarding?.cheapestProofPath || '').includes('knowgrph-superagent-harness.md')
     || !Array.isArray(onboarding?.steps)
     || onboarding.steps.length !== 3
-    || !String(onboarding.steps[1]?.action || '').includes('live /, #, @ grammar lookup')) {
+    || !String(onboarding.steps[1]?.action || '').includes('live /, #, @ grammar lookup through knowgrph.agentic_canvas_os.docs.invoke')) {
     throw new Error(`expected readiness onboarding details to expose the install-first sequence, got ${JSON.stringify(onboarding)}`)
   }
 }

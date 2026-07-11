@@ -2,8 +2,17 @@
 
 Implementation-accurate supplement to [knowgrph-mcp-service-prd-tad.md](knowgrph-mcp-service-prd-tad.md).
 
-**Document Version**: 0.4.23
-**Date**: 2026-06-08
+For current remote MCP onboarding, start with
+`docs/documents/knowgrph-mcp-onboarding-index.md`, then use
+`docs/documents/knowgrph-mcp-install-contract.md` for the canonical
+public-discovery vs control-plane endpoint boundary.
+Map intent on `https://airvio.co/knowgrph/mcp`, orchestrate agents on
+`https://airvio.co/knowgrph/control-plane/mcp` only for session-capable hosts,
+and prove outcomes first with the source-side `README.md` or
+`docs/documents/knowgrph-superagent-harness.md` offline path.
+
+**Document Version**: 0.4.24
+**Date**: 2026-07-11
 **Status**: Implementation-aligned supplement
 
 ---
@@ -34,7 +43,7 @@ It answers five questions:
 | Agent-ready resource-template contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyResourceContract.mjs` | shared `kgdoc://source-file/{id}` template, URI parsing/building, and `text/markdown` Source Files resource read results |
 | Local stdio MCP docs | Shipped | `mcp/README.md` | local configuration and usage |
 | Pages HTTP MCP | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | read-only JSON-RPC MCP with tools, resources, and data-first `search`/`fetch` |
-| MCP Apps-ready shared contract | Shipped | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | `io.modelcontextprotocol/ui`, `text/html;profile=mcp-app`, `ui://knowgrph/agent-ready`, app resource descriptor/read result, app HTML, tool metadata, mirrored no-auth security schemes, OpenAI output-template/widget metadata, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, `search`/`fetch` plus resource-template readiness, and readiness payload |
+| MCP Apps-ready shared contract | Shipped | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | `io.modelcontextprotocol/ui`, `text/html;profile=mcp-app`, `ui://knowgrph/agent-ready`, app resource descriptor/read result, app HTML, tool metadata, mirrored no-auth security schemes, OpenAI output-template/widget metadata, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, `search`/`fetch` plus resource-template readiness, readiness payload, and the published template-only `promotionRecovery` operator contract |
 | Agent-ready prompt contract | Shipped | `canvas/src/features/agent-ready/knowgrphAgentReadyPromptContract.mjs` | shared prompt names, descriptors, and rendered read-only guidance for Source Files research and agent-surface inspection |
 | MCP Apps-ready inspection payload | Shipped | `canvas/src/features/agent-ready/agentSurfaceInspection.mjs` | adds `mcpAppsServerReadiness` to `inspect_agent_surface.structuredContent` |
 | MCP Apps static artifact | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | publishes `.well-known/mcp/apps/knowgrph-agent-ready.html` from the shared resource contract |
@@ -91,13 +100,13 @@ It answers five questions:
 | Prompt contract builder | `canvas/src/features/agent-ready/knowgrphAgentReadyPromptContract.mjs` | `buildKnowgrphAgentReadyPromptContracts()` and `getKnowgrphAgentReadyPrompt()` own prompt discovery and rendered prompt messages |
 | Resource-template contract builder | `canvas/src/features/agent-ready/knowgrphAgentReadyResourceContract.mjs` | owns `kgdoc://source-file/{id}`, URI parsing/building, and Source Files markdown resource read payloads |
 | Resource descriptor and read result | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | owns `resources/list` descriptor shape, CSP/border/domain metadata, and `resources/read` HTML payload |
-| Resource HTML view | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | native inline HTML implements the OpenAI Apps `window.openai` bridge, the MCP Apps host bridge, and the readiness view |
+| Resource HTML view | `canvas/src/features/agent-ready/mcpAppsReadyContract.mjs` | native inline HTML implements the OpenAI Apps `window.openai` bridge, the MCP Apps host bridge, the readiness view, and the published Promotion Recovery operator card |
 | Pages prompt/resource route | `cloudflare/pages/knowgrph-agent-ready.mjs` | handles `prompts/list`, `prompts/get`, `resources/templates/list`, `resources/list`, `resources/read`, static app artifact, and `tools/call` text fallback plus structured content |
 | Local prompt/resource route | `mcp/server.js` | handles `ListPromptsRequestSchema`, `GetPromptRequestSchema`, `ListResourcesRequestSchema`, `ListResourceTemplatesRequestSchema`, and `ReadResourceRequestSchema` for stdio clients |
 | Pages app tool | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | links `inspect_agent_surface` to the shared app resource and output schema |
 | Local app tool | `mcp/local-tool-contract.js` | links `knowgrph.vdeoxpln.list` to the shared app resource and output schema |
 | Server-readiness payload | `canvas/src/features/agent-ready/agentSurfaceInspection.mjs` | builds `mcpAppsServerReadiness` from current tools, resources, server card, `search`/`fetch` output-schema readiness, base URL, and local stdio support |
-| Focused coverage | `canvas/src/__tests__/agentReadyHttpMcpParity.test.ts` + `canvas/src/__tests__/mcpLocalToolContract.test.ts` + `scripts/check-agent-ready.mjs` | checks `search`/`fetch`, prompt discovery/rendering, resource-template discovery/read, resource linkage, OpenAI metadata, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, mirrored security schemes, widget accessibility, MIME type, output schema, static artifact, full tool descriptor parity, and live readiness |
+| Focused coverage | `canvas/src/__tests__/agentReadyHttpMcpParity.test.ts` + `canvas/src/__tests__/mcpLocalToolContract.test.ts` + `scripts/check-agent-ready.mjs` | checks `search`/`fetch`, prompt discovery/rendering, resource-template discovery/read, resource linkage, OpenAI metadata, Qwen Code HTTP setup metadata, Kimi CLI HTTP setup metadata, BytePlus ModelArk Responses API MCP setup metadata, mirrored security schemes, widget accessibility, MIME type, output schema, static artifact, full tool descriptor parity, live readiness, and published `promotionRecovery` parity |
 
 ### Readiness Invariants
 

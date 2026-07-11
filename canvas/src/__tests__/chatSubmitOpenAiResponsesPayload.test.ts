@@ -166,6 +166,12 @@ export async function testCreateChatSubmitRequestSenderUsesStorageRelayResponses
   if (capturedRelayBody.requestSurface !== 'responses') {
     throw new Error(`Expected relay payload to declare Responses surface, got ${JSON.stringify(capturedRelayBody)}`)
   }
+  if (capturedRelayBody.aiGatewayRoute !== null || capturedRelayBody.aiGatewayCacheTtlSeconds !== null) {
+    throw new Error(`Expected browser relay payload to omit default AI Gateway route and cache policy so the authenticated storage relay can derive them, got ${JSON.stringify({
+      aiGatewayRoute: capturedRelayBody.aiGatewayRoute,
+      aiGatewayCacheTtlSeconds: capturedRelayBody.aiGatewayCacheTtlSeconds,
+    })}`)
+  }
   const relayMessages = Array.isArray(capturedRelayBody.messages) ? capturedRelayBody.messages as Array<Record<string, unknown>> : []
   if (relayMessages[1]?.content !== "what's in [attached image]") {
     throw new Error(`Expected relay metadata messages to be sanitized, got ${JSON.stringify(relayMessages)}`)

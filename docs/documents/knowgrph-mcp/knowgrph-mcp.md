@@ -2,7 +2,7 @@
 title: "Knowgrph MCP Integration"
 doc_type: "MCP Overview"
 status: "active"
-updated: "2026-07-10"
+updated: "2026-07-11"
 lang: "en-US"
 frontmatter_contract: "required"
 related:
@@ -23,6 +23,10 @@ Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudfl
 - frame Knowgrph MCP as an Agentic Canvas OS control plane for Canvas UI and cross-repo agent build dashboards
 - keep MainPanel -> FloatingPanel Chat -> YAML frontmatter or MCP structured response -> Editor Workspace -> Canvas flow implementation-accurate
 - forbid stale/conflicting MCP narratives
+
+**Fastest Promise**
+- Map intent. Orchestrate agents. Prove outcomes.
+- A source-backed canvas where `/` routes work, `#` sets meaning, and `@` binds context.
 
 ---
 
@@ -78,6 +82,22 @@ surfaces today.
 The readiness boundary is intentional: the canonical public install endpoint
 stays read-only, while live remote `/`, `#`, and `@` grammar invocation is
 available on the separate control-plane MCP surface.
+
+## Fastest Operator Path
+
+When an operator wants the shortest path to live Agentic Canvas OS grammar:
+
+1. Map intent: install `https://airvio.co/knowgrph/mcp` first for read-only discovery
+2. Orchestrate agents: add `https://airvio.co/knowgrph/control-plane/mcp` only when the host can preserve MCP session state
+3. Prove outcomes: call `knowgrph.agentic_canvas_os.docs.invoke` on the control-plane surface for live `/`, `#`, and `@` resolution
+
+Use the grammar as a control surface, not as marketing shorthand:
+
+- `/` resolves bounded commands such as `/mcp.capabilities`
+- `#` resolves semantic scopes such as `#mcp`
+- `@` resolves source or runtime bindings such as `@mcp-gateway`
+
+Do not document `/knowgrph/mcp` as if it already serves the grammar tool directly.
 
 MainPanel readiness remains intentionally narrower:
 

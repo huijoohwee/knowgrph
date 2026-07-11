@@ -13,6 +13,7 @@ frontmatter_contract: "required"
 related:
   - "docs/documents/knowgrph-agent-ready-prd-tad.md"
   - "docs/documents/knowgrph-agent-ready-prd-tad.runtime.md"
+  - "docs/documents/knowgrph-ai-gateway-enhancement-plan.md"
   - "docs/documents/knowgrph-crawler-prd-tad.md"
   - "docs/documents/knowgrph-storage-sync-document.md"
   - "docs/documents/knowgrph-storage-schemas-document.md"
@@ -47,6 +48,10 @@ For current remote MCP onboarding, start with
 `docs/documents/knowgrph-mcp-onboarding-index.md`, then use
 `docs/documents/knowgrph-mcp-install-contract.md` for the canonical
 public-discovery vs control-plane endpoint boundary.
+Map intent on `https://airvio.co/knowgrph/mcp`, orchestrate agents on
+`https://airvio.co/knowgrph/control-plane/mcp` only for session-capable hosts,
+and prove outcomes first with the source-side `README.md` or
+`docs/documents/knowgrph-superagent-harness.md` offline path.
 
 **Governing lenses**: min-viable-max-value, TCO-zero, FOSS-first, token economics, and
 harness-first. This document has no AI harness in its own runtime path; token cost is therefore
@@ -69,6 +74,21 @@ harness-first. This document has no AI harness in its own runtime path; token co
 Pages API-token permissions, DNS record configuration, and REST API bearer-token usage. Wrangler
 OAuth remains valid for Wrangler-managed deploy flows, but direct DNS record writes require a
 scoped API token with zone DNS edit permission.
+
+## AI Gateway High-ROI Next Steps
+
+The Cloudflare baseline in this document stays implementation-accurate and infrastructure-owned.
+The next min-viable-max-value Cloudflare lane for Knowgrph is AI Gateway operationalization:
+deterministic context caching, intent-mapped dynamic routes, spend/rate limits, source-owned cost
+proof, and future alignment toward current AI Gateway REST surfaces.
+
+The canonical execution queue for that work lives in
+`docs/documents/knowgrph-ai-gateway-enhancement-plan.md`.
+
+Current operator evidence is narrower than full live activation: the focused source draft-route
+proofs and the publish-repo `__chat_proxy` smoke pass, but the readiness command remains fail-closed
+until the `joohwee` Pages project exposes an accepted AI Gateway secret. `-- --skip-live` skips the
+live transport smoke only; it does not bypass the Pages secret-list gate.
 
 ---
 

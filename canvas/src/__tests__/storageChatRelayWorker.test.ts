@@ -238,6 +238,7 @@ export async function testStorageChatRelayRouteForwardsOpenAiResponsesInput() {
     updated_at: '2026-06-15T10:00:00.000Z',
   })
   let forwardedBody: Record<string, unknown> | null = null
+  let forwardedAiGatewayMetadata = ''
   const originalFetch = globalThis.fetch
   try {
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -251,6 +252,13 @@ export async function testStorageChatRelayRouteForwardsOpenAiResponsesInput() {
       if (readHeaderValue(init?.headers, 'x-kg-chat-upstream') !== 'https://api.openai.com/v1/responses') {
         throw new Error('Expected relay to forward the Responses upstream endpoint header')
       }
+      if (readHeaderValue(init?.headers, 'x-kg-ai-gateway-route') !== 'dynamic/draft') {
+        throw new Error('Expected relay to forward the AI Gateway draft route header')
+      }
+      if (readHeaderValue(init?.headers, 'x-kg-ai-gateway-cache-ttl') !== '120') {
+        throw new Error('Expected relay to derive the workspace AI Gateway cache TTL header')
+      }
+      forwardedAiGatewayMetadata = readHeaderValue(init?.headers, 'x-kg-ai-gateway-metadata')
       forwardedBody = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
       return new Response(JSON.stringify({ output_text: 'pong' }), {
         status: 200,
@@ -286,6 +294,13 @@ export async function testStorageChatRelayRouteForwardsOpenAiResponsesInput() {
           },
         ],
         stream: false,
+        aiGatewayRoute: 'dynamic/draft',
+        aiGatewayMetadata: {
+          intent: 'draft',
+          request_surface: 'responses',
+          context_scope: 'workspace',
+          workspace_context_cache_key: 'workspace:ctx:kgc',
+        },
         providerOptions: { max_output_tokens: 512 },
       }),
     })
@@ -301,10 +316,83 @@ export async function testStorageChatRelayRouteForwardsOpenAiResponsesInput() {
     if (forwardedBody.model !== 'gpt-5-nano' || forwardedBody.max_output_tokens !== 512 || !imagePart) {
       throw new Error(`Expected Responses relay provider body to preserve model, options, and input_image, got ${bodyText}`)
     }
+    const metadata = JSON.parse(String(forwardedAiGatewayMetadata || '{}'))
+    if (metadata.intent !== 'draft' || metadata.request_surface !== 'responses') {
+      throw new Error(`Expected relay to forward AI Gateway metadata, got ${JSON.stringify(metadata)}`)
+    }
     const auditRows = Array.from(db.chatProxyAudit.values())
     if (auditRows[0]?.provider_id !== 'openai' || auditRows[0]?.auth_mode !== 'serverManaged' || auditRows[0]?.relay_status !== 'allowed') {
       throw new Error(`Expected audit row to capture OpenAI Responses relay status, got ${JSON.stringify(auditRows[0])}`)
     }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+}
+
+export async function testStorageChatRelayRouteDerivesShortAiGatewayCacheTtlWithoutWorkspaceCacheKey() {
+  const env = createFakeKnowgrphStorageWorkerEnv() as ReturnType<typeof createFakeKnowgrphStorageWorkerEnv> & {
+    KNOWGRPH_STORAGE_CHAT_PROXY_BASE_URL?: string
+  }
+  env.KNOWGRPH_STORAGE_CHAT_PROXY_BASE_URL = 'https://airvio.co'
+  const db = env.DB as FakeKnowgrphStorageD1Database
+  const { token, workspaceId } = await seedAuthenticatedWorkspace(db, { role: 'editor' })
+  db.workspaceProviderPolicies.set('policy:openai', {
+    id: 'policy:openai',
+    workspace_id: workspaceId,
+    provider_id: 'openai',
+    allow_server_managed: 1,
+    allow_byok: 1,
+    monthly_request_limit: null,
+    monthly_token_limit: null,
+    monthly_spend_limit_cents: null,
+    default_model: 'gpt-5-nano',
+    created_at: '2026-06-15T10:00:00.000Z',
+    updated_at: '2026-06-15T10:00:00.000Z',
+  })
+  const originalFetch = globalThis.fetch
+  try {
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (!url.startsWith('https://airvio.co/__chat_proxy/v1/chat/completions')) {
+        throw new Error(`Unexpected relay URL ${url}`)
+      }
+      if (readHeaderValue(init?.headers, 'x-kg-ai-gateway-cache-ttl') !== '60') {
+        throw new Error(`Expected relay to derive the short AI Gateway cache TTL header, got ${readHeaderValue(init?.headers, 'x-kg-ai-gateway-cache-ttl')}`)
+      }
+      return new Response(JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'pong' } }] }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+        },
+      })
+    }) as typeof fetch
+    const response = await createStorageWorkerFetch(env)(`https://example.com${buildKnowgrphStorageChatRelayPath()}`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': 'application/json',
+        'x-client-request-id': 'req:test-short-cache-relay',
+      },
+      body: JSON.stringify({
+        apiVersion: KNOWGRPH_STORAGE_API_VERSION,
+        workspaceId,
+        providerId: 'openai',
+        authMode: 'serverManaged',
+        endpointUrl: 'https://api.openai.com/v1/chat/completions',
+        model: 'gpt-5-nano',
+        messages: [{ role: 'user', content: 'hello from short cache lane' }],
+        requestSurface: 'chat-completions',
+        stream: false,
+        aiGatewayRoute: 'dynamic/draft',
+        aiGatewayMetadata: {
+          intent: 'draft',
+          request_surface: 'chat-completions',
+          context_scope: 'workspace',
+          history_key: 'history:chat:1',
+        },
+      }),
+    })
+    if (!response.ok) throw new Error(`Expected short cache relay route to succeed, got ${response.status}`)
   } finally {
     globalThis.fetch = originalFetch
   }

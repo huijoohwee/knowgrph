@@ -41,6 +41,7 @@ Knowgrph is an Agent-actionable chat-to-canvas knowledge graph workspace served 
 - A2A Agent Card: ${A2A_AGENT_CARD_URL}
 - Agent skills: ${APP_URL}.well-known/agent-skills/index.json
 - LLM reference: ${APP_URL}llms.txt
+- Live Canvas Hero discovery markdown: ${ROOT_URL}knowgrph-live-canvas-hero.md
 
 ## APIs
 

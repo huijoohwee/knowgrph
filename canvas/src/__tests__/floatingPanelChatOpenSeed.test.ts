@@ -165,3 +165,46 @@ export async function testFloatingPanelChatOpenSeedQueuedHandoffClearsQueueWhenC
     restore()
   }
 }
+
+export async function testFloatingPanelChatOpenSeedQueuedHandoffQueuesResolvedSeedWhenChatAvailable(): Promise<void> {
+  const { dom, restore } = initJsdomHarness()
+  const seenOpen: Array<{ tab?: string; open?: boolean }> = []
+  const seenAppend: Array<{ text?: string; mode?: string }> = []
+  const cleanupBridge = installFloatingPanelBridge({
+    openPropsPanel: () => undefined,
+    openFloatingPanel: () => undefined,
+    openRendererPanel: () => undefined,
+  })
+  const openListener = (event: Event) => {
+    seenOpen.push((((event as CustomEvent<{ tab?: string; open?: boolean } | undefined>).detail) || {}) as { tab?: string; open?: boolean })
+  }
+  const appendListener = (event: Event) => {
+    seenAppend.push((((event as CustomEvent<{ text?: string; mode?: string } | undefined>).detail) || {}) as { text?: string; mode?: string })
+  }
+  try {
+    void consumeFloatingPanelChatInputHandoff()
+    dom.window.addEventListener(FLOATING_PANEL_OPEN_EVENT, openListener as EventListener)
+    dom.window.addEventListener(CHAT_INPUT_APPEND_EVENT, appendListener as EventListener)
+    const accepted = openFloatingPanelChatWithSeed({
+      text: '  /workspace.review   #token-economics   @dev-only  ',
+      mode: 'replace',
+      delivery: 'queuedHandoff',
+    })
+    if (!accepted) throw new Error('expected queued-handoff chat seed helper to accept an available chat surface')
+    if (seenOpen.length !== 1 || seenOpen[0]?.tab !== 'chat' || seenOpen[0]?.open !== true) {
+      throw new Error(`expected queued-handoff chat seed helper to emit one chat-open event, got ${JSON.stringify(seenOpen)}`)
+    }
+    if (seenAppend.length !== 0) {
+      throw new Error(`expected queued-handoff chat seed helper not to emit append events before flush, got ${JSON.stringify(seenAppend)}`)
+    }
+    const handoff = consumeFloatingPanelChatInputHandoff()
+    if (!handoff || handoff.text !== '/workspace.review #token-economics @dev-only' || handoff.mode !== 'replace') {
+      throw new Error(`expected queued-handoff chat seed helper to queue one resolved draft, got ${JSON.stringify(handoff)}`)
+    }
+  } finally {
+    dom.window.removeEventListener(FLOATING_PANEL_OPEN_EVENT, openListener as EventListener)
+    dom.window.removeEventListener(CHAT_INPUT_APPEND_EVENT, appendListener as EventListener)
+    cleanupBridge()
+    restore()
+  }
+}

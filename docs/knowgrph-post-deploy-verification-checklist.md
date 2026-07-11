@@ -21,12 +21,35 @@ Cloudflare Pages. The goal is to confirm:
 - a safe dry-run `tools/call` works without paid side effects
 - persisted Run_Manifest read-back is consistent
 
-## Recent Release Evidence (2026-06-29)
+## Recent Release Evidence
 
-- Dev repo commit: `530462d6`
-- Publish repo commit: `ec4dfa47`
-- Preview: `https://0d3c18ba.joohwee.pages.dev`
-- Live: `https://airvio.co/knowgrph/`
+Record the latest bounded release proof here after a real deploy.
+
+### Latest release snapshot (2026-07-11)
+
+- Pages preview: `https://8ccfa5b7.joohwee.pages.dev`
+- Live route: `https://airvio.co/knowgrph/`
+- Live verify: `npm run runtime:verify` passed
+- Docs seed: `node ./scripts/seed-storage-docs-to-cloudflare.mjs` passed
+- Canonical docs seed proof:
+  - `source-files=41`
+  - `chunked-source-files=15`
+  - `before-seed` export: `825ms`
+  - `direct-d1-verification` export: `736ms`
+  - final verification: `documents=41`
+  - terminal result: `direct D1 seed complete`
+
+### Release evidence template
+
+- Dev repo commit or release scope:
+- Publish repo commit or release scope:
+- Pages preview URL:
+- Live route:
+- `pages:build` result and wall time:
+- `collaboration:release:check` result:
+- `pages:check-sync` result:
+- docs seed result and verification count:
+- `runtime:verify` result:
 
 ## 1. Route Reachability
 
@@ -58,6 +81,26 @@ Expected content types:
 - `/knowgrph/llms.txt` -> `text/plain`
 - `/.well-known/api-catalog` -> `application/linkset+json`
 - `/knowgrph/mcp/health` -> `application/json`
+
+## AI Gateway Draft-Lane Gate
+
+Before treating the Cloudflare-hosted OpenAI draft lane as live, run:
+
+```bash
+npm run ai-gateway:readiness:check -- --skip-sync-check
+```
+
+Pass criteria:
+
+- focused source proofs pass
+- publish-repo `__chat_proxy` smoke passes
+- downloaded Pages project config contains `KNOWGRPH_CHAT_PROXY_AI_GATEWAY_BASE_URL`
+- Pages project `joohwee` exposes one accepted AI Gateway secret:
+  `KNOWGRPH_CHAT_PROXY_AI_GATEWAY_TOKEN`, `AI_GATEWAY_TOKEN`, or `CLOUDFLARE_API_TOKEN`
+- live `POST https://airvio.co/__chat_proxy/v1/responses` smoke returns a bounded non-5xx result
+
+Fail closed until those config checks pass; source proof alone is not enough to claim the hosted
+AI Gateway lane is live.
 
 ## 2. Browser Sanity
 

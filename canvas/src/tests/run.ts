@@ -214,6 +214,13 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
       modPaneGate.testWorkspaceOpenCanvasToolbarDoesNotCoverEditorPaneControls,
     )
 
+    const modMarkdownEditorQuickBar = await import('../__tests__/markdownEditorPaneGrammarQuickBar.test')
+    await execTest(
+      results,
+      'ui.markdown.workspace.editorQuickBar.seedsSigilsAtCaret',
+      modMarkdownEditorQuickBar.testMarkdownEditorPaneGrammarQuickBarSeedsSigilsAtTheCaret,
+    )
+
     const modComposedPosDebounce = await import('../__tests__/sourceFilesComposedPositionDebounceRegression.test')
     await execTest(
       results,
@@ -507,6 +514,18 @@ export const runAllTests = async () => {
       results,
       'ui.d3.workspaceVisibleViewport.sharedOccluderContract',
       modWorkspaceVisibleViewportD3Fit.testD3WorkspaceVisibleViewportFitUsesSharedOccluderContract,
+    )
+
+    const modCanvasViewportHeavyRuntimeIntent = await import('../__tests__/canvasViewportHeavyRuntimeIntentGate.test')
+    await execTest(
+      results,
+      'canvas.viewport.mobileHeavyRuntimeIntent.surfaceResolution',
+      modCanvasViewportHeavyRuntimeIntent.testCanvasViewportHeavyRuntimeIntentSurfaceResolution,
+    )
+    await execTest(
+      results,
+      'canvas.viewport.mobileHeavyRuntimeIntent.sourceGate',
+      modCanvasViewportHeavyRuntimeIntent.testCanvasViewportSourceWiresHeavyRuntimeIntentGate,
     )
 
   const modMinimapBounds = await import('../__tests__/minimapBoundsIgnoreMissingCoordsRegression.test')

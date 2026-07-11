@@ -84,12 +84,23 @@ export async function testMainPanelOpenAiApiKeyUsesServerManagedProxyContract() 
       endpointUrl: CHAT_OPENAI_ENDPOINT_URL,
       apiKey: '',
       clientRequestId: 'kg-openai-mainpanel-server-managed',
+      aiGateway: {
+        route: 'dynamic/draft',
+        metadata: {
+          intent: 'draft',
+          request_surface: 'responses',
+        },
+        cacheTtlSeconds: 120,
+      },
     })
     if (headers['X-KG-Chat-Provider'] !== CHAT_PROVIDER_OPENAI || headers['X-KG-Chat-Api-Key']) {
       throw new Error(`expected server-managed OpenAI requests to omit browser API-key headers, got ${JSON.stringify(headers)}`)
     }
     if (headers['X-KG-Chat-Upstream'] !== CHAT_OPENAI_BASE) {
       throw new Error(`expected OpenAI upstream to route through the shared proxy owner, got ${JSON.stringify(headers)}`)
+    }
+    if (headers['X-KG-AI-Gateway-Route'] !== 'dynamic/draft' || headers['X-KG-AI-Gateway-Cache-TTL'] !== '120') {
+      throw new Error(`expected OpenAI server-managed requests to carry AI Gateway draft headers, got ${JSON.stringify(headers)}`)
     }
   } finally {
     if (root) {

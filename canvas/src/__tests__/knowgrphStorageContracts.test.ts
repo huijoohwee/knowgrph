@@ -16,6 +16,7 @@ import {
   KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID,
   KNOWGRPH_STORAGE_ROUTE_PATHS,
   buildKnowgrphStorageCursorId,
+  buildKnowgrphStorageCanvasRoomPath,
   buildKnowgrphStorageDefaultDocPath,
   buildKnowgrphStorageDocPath,
   buildKnowgrphStorageExportPath,
@@ -77,6 +78,9 @@ export const testKnowgrphStorageContractExposesExpectedRoutesAndBindings = () =>
   }
   if (buildKnowgrphStorageExportPath('wk_123') !== '/api/storage/export/wk_123') {
     throw new Error('expected export path helper to keep workspace-scoped route structure')
+  }
+  if (buildKnowgrphStorageCanvasRoomPath('wk_123', 'workspace:/docs/example.md') !== '/api/storage/canvas-room/wk_123/workspace%3A%2Fdocs%2Fexample.md') {
+    throw new Error('expected canvas room path helper to keep workspace-scoped authenticated room structure')
   }
   if (buildKnowgrphStorageDocPath('wk_123', 'docs/example file.md') !== '/api/storage/doc/wk_123/docs%2Fexample%20file.md') {
     throw new Error('expected doc path helper to encode workspace and canonical source-file path')

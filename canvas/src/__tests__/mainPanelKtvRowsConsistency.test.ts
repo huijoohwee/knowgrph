@@ -1049,7 +1049,7 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     !mainPanelSectionDescriptionsDoc.includes('| Key | Type | Value | Highlights |')
     || !mainPanelSectionDescriptionsDoc.includes('| Crawler Access MCP Configuration | mainPanel.sectionDescription |')
     || !mainPanelSectionDescriptions.includes('MAIN_PANEL_SECTION_DESCRIPTIONS_DOC_PATH')
-    || !mainPanelSectionDescriptions.includes("knowgrph-mainpanel-section-descriptions.md?raw")
+    || !mainPanelSectionDescriptions.includes('__KNOWGRPH_MAIN_PANEL_SECTION_DESCRIPTIONS_MARKDOWN__')
     || !settingsSections.includes('loadMainPanelSectionDescriptions')
   ) {
     throw new Error('Expected MainPanel section descriptions to be editable from docs/documents outside KTV Value cells')

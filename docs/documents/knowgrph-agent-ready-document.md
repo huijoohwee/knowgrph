@@ -1,10 +1,10 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-document
-version: 1.4.0
+version: 1.4.2
 status: implemented
 created: 2026-05-29
-updated: 2026-07-10
+updated: 2026-07-11
 author: airvio / joohwee
 domain: knowgrph
 doc_type: "Implementation PRD/TAD"
@@ -30,6 +30,7 @@ constraints:
 related:
   - docs/documents/knowgrph-next-step-priorities.md
   - docs/documents/knowgrph-mcp-install-contract.md
+  - docs/documents/markdown-convertible-agent-discovery-document.md
   - docs/documents/knowgrph-superagent-harness.md
   - docs/documents/knowgrph-agent-ready-prd-tad.md
   - docs/documents/knowgrph-agent-ready-prd-tad.runtime.md
@@ -46,6 +47,10 @@ related:
 
 Knowgrph is agent-ready through a source-owned Dev -> Prod -> Cloudflare chain. For startup
 execution, the priority order is:
+
+Map intent. Orchestrate agents. Prove outcomes.
+
+A source-backed canvas where `/` routes work, `#` sets meaning, and `@` binds context.
 
 1. shortest install path
 2. clear `/`, `#`, and `@` grammar differentiation
@@ -71,6 +76,8 @@ The canonical operator-facing boundary, host recipes, and dual-surface install r
 or setup guide needs one explicit MCP onboarding answer.
 For the shortest guided path across install, release note, and MCP reference docs, start with
 `docs/documents/knowgrph-mcp-onboarding-index.md`.
+For the detailed source-backed Markdown discovery contract behind the Live Canvas Hero and its
+public route, use `docs/documents/markdown-convertible-agent-discovery-document.md`.
 The public install endpoint truth stays read-only retrieval/inspection plus prompt/resource/template
 discovery, while the separate control-plane surface now advertises remote Agentic Canvas OS docs
 invocation through `knowgrph.agentic_canvas_os.docs.invoke` in current source-owned discovery metadata.
@@ -86,13 +93,32 @@ level; it is not a deployed public Pages/WebMCP mutation service.
 
 Use this reading and evaluation order when speed and ROI matter more than feature breadth:
 
-1. open `docs/documents/knowgrph-mcp-install-contract.md` for the canonical remote MCP boundary
-2. install `https://airvio.co/knowgrph/mcp` for the lowest-friction remote discovery path
-3. add `https://airvio.co/knowgrph/control-plane/mcp` only when the host can preserve MCP session state and needs live `/`, `#`, `@` grammar lookup
-4. if you want evaluation before any hosted setup, run the offline deterministic path in `README.md` or `docs/documents/knowgrph-superagent-harness.md`
+1. Map intent: open `docs/documents/knowgrph-mcp-install-contract.md` and install `https://airvio.co/knowgrph/mcp` for the lowest-friction remote discovery path
+2. Orchestrate agents: add `https://airvio.co/knowgrph/control-plane/mcp` only when the host can preserve MCP session state and needs live `/`, `#`, `@` grammar lookup
+3. Inspect landing discovery: open `docs/documents/markdown-convertible-agent-discovery-document.md` for the Live Canvas Hero Markdown route, publish contract, and live proof
+4. Prove outcomes: if you want evaluation before any hosted setup, run the offline deterministic path in `README.md` or `docs/documents/knowgrph-superagent-harness.md`
 5. use `knowgrph.os.status` as the proof-friendly zero-token visibility call once local MCP is running
 
 This order is intentional: installability first, grammar differentiation second, proof third.
+
+## Remote Grammar Invocation Contract
+
+Treat `/`, `#`, and `@` as the operator-facing Agentic Canvas OS control grammar.
+
+Use this compact remote rule:
+
+1. install `https://airvio.co/knowgrph/mcp` for discovery, retrieval, prompt discovery, and resource discovery
+2. add `https://airvio.co/knowgrph/control-plane/mcp` only when the host can preserve MCP session state and needs live grammar invocation
+3. call `knowgrph.agentic_canvas_os.docs.invoke` on the control-plane surface for current grammar resolution against the source-owned docs contract
+
+Grammar examples:
+
+- `/mcp.capabilities` for capability lookup
+- `#mcp` for semantic scope lookup
+- `@mcp-gateway` for source or runtime surface lookup
+
+Do not present the public discovery endpoint as if it already executes live grammar resolution.
+Keep the public endpoint install-first and keep grammar execution on the approval-gated control-plane boundary.
 
 The shipped browser and deployed surfaces intentionally differ by trust boundary:
 

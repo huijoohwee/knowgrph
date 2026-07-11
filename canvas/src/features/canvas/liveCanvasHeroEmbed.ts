@@ -1,17 +1,4 @@
 import { resolveLiveCanvasHeroEnterHref } from '@/lib/routing/basePath'
-import {
-  QUERY_PARAM_IMPORT_CANVAS_EMBED,
-  QUERY_PARAM_OPEN_EDITOR_WORKSPACE,
-} from '@/lib/routing/queryParams'
-
-export function resolveLiveCanvasHeroImportEmbedHref(baseUrl?: string | null): string {
-  const path = resolveLiveCanvasHeroEnterHref(baseUrl)
-  const params = new URLSearchParams({
-    [QUERY_PARAM_OPEN_EDITOR_WORKSPACE]: '1',
-    [QUERY_PARAM_IMPORT_CANVAS_EMBED]: '1',
-  })
-  return `${path}?${params.toString()}`
-}
 
 export function resolveLiveCanvasHeroEmbedUrl(args: {
   sourcePath: string

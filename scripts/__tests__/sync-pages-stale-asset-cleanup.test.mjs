@@ -35,3 +35,7 @@ test("publish sync includes the MCP Apps contract dependency closure", () => {
   assert.match(syncScript, /'mcpAppsOnboarding\.mjs'/);
   assert.match(syncScript, /\.map\(filename => \[agentReadyFeatureSource\(filename\), agentReadyFeatureTarget\(filename\)\]\)/);
 });
+
+test("publish sync keeps the live canvas hero markdown route in the root-managed file set", () => {
+  assert.match(syncScript, /'knowgrph-live-canvas-hero\.md'/);
+});
