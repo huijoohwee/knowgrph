@@ -78,7 +78,7 @@ export async function testMermaidVisibilityGateRequiresExplicitTouchActivationOn
           isIntersecting: true,
           intersectionRatio: 1,
           target: gateBeforeVisible,
-        } as IntersectionObserverEntry,
+        } as unknown as IntersectionObserverEntry,
       ], {} as IntersectionObserver)
       await waitForFrames(dom.window as unknown as Window, 2)
     })

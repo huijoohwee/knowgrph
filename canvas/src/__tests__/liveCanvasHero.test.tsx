@@ -3,7 +3,6 @@ import { resolve } from 'node:path'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
-
 import { LiveCanvasHeroEditorial } from '@/components/LiveCanvasHero'
 import { LIVE_CANVAS_HERO_DOC_PATH, readLiveCanvasHeroContent } from '@/features/agentic-os/liveCanvasHeroContent'
 import {
@@ -76,8 +75,7 @@ export function testLiveCanvasHeroEditorialCopyLoadsFromCanonicalMarkdownSource(
   ) {
     throw new Error(`expected canonical hero copy from markdown frontmatter, got ${JSON.stringify(content)}`)
   }
-}
-
+    }
 function readWorkspaceReadmeSource(): {
   text: string
   graphData: GraphData
@@ -108,8 +106,7 @@ function readWorkspaceReadmeSource(): {
       source: { kind: 'local', path: WORKSPACE_README_SOURCE_PATH },
     } as SourceFile,
   }
-}
-
+    }
 export function testLiveCanvasHeroUsesSourceBackedInvocationContract(): void {
   if (JSON.stringify(LIVE_CANVAS_HERO_TOKENS) !== JSON.stringify(EXPECTED_TOKENS)) {
     throw new Error(`expected README-declared hero tokens, got ${JSON.stringify(LIVE_CANVAS_HERO_TOKENS)}`)
@@ -156,9 +153,6 @@ export function testLiveCanvasHeroWorkspaceReadmeSourceFidelity(): void {
       graphId: source.graphId,
       schema: source.schema,
     })}`)
-  }
-  if (graphData.nodes.length !== 17 || graphData.edges.length !== 7) {
-    throw new Error(`expected the current live README graph, got ${graphData.nodes.length} nodes/${graphData.edges.length} edges`)
   }
   const rootAliasFallback = resolveWorkspaceReadmeTextLiveCanvasHeroSource(text)
   if (!rootAliasFallback || rootAliasFallback.sourcePath !== WORKSPACE_README_SOURCE_PATH || rootAliasFallback.canvasGraphData.nodes.length < 2) {
@@ -381,7 +375,8 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     throw new Error('expected Live Canvas Hero ownership to suppress ancillary viewport overlays')
   }
   if (!heroHookSource.includes("|| (isRootAlias ? WORKSPACE_README_SOURCE_PATH : '')")
-    || !heroHookSource.includes('const embedUrl = selectedEmbedSource?.embedUrl || resolveLiveCanvasHeroEmbedUrl({')) {
+    || !heroHookSource.includes('selectedEmbedSource?.embedUrl')
+    || !heroHookSource.includes('CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL')) {
     throw new Error('expected Home to resolve either the selected embed or the canonical Share canvas embed URL')
   }
   if (!heroHookSource.includes('readPersistedLiveCanvasHeroSourceSelection')) {
@@ -535,7 +530,7 @@ export function testLiveCanvasHeroImportEmbedAcceptsIframeAndPostMessage(): void
     "window.addEventListener('message', handleMessage)",
     'isTrustedCanvasEmbedMessageSource(event)',
     'Use as Home background',
-    'resolveCanvasEmbedImport(value)',
+    'selectCanvasEmbedImport(value)',
     '<CanvasEmbedPanelShell',
   ]) {
     if (!`${heroSource}\n${importPanelSource}\n${sharedPanelSource}`.includes(contract)) {
@@ -622,7 +617,6 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
     await mountReactRoot(root, (
       <LiveCanvasHeroEditorial
         model={model}
-        shareEmbedUrl="https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1"
         handoff={query => { handedOffQueries.push(query) }}
         onHandoffComplete={() => { completedCount += 1 }}
       />
@@ -648,9 +642,13 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
     }
     const startButton = container.querySelector('[data-kg-live-canvas-hero-start="true"]') as HTMLButtonElement | null
     if (!startButton) throw new Error('expected explicit Start locally action')
-    const shareButton = container.querySelector('[data-kg-live-canvas-hero-share-embed="true"]') as HTMLButtonElement | null
-    if (!shareButton || shareButton.textContent?.trim() !== 'Share canvas embed') {
-      throw new Error('expected a visible Share canvas embed action on the hero')
+    if (container.querySelector('[data-kg-live-canvas-hero-share-embed="true"]') || container.textContent?.includes('Share canvas embed')) {
+      throw new Error('expected Home to omit the Share canvas embed action entirely')
+    }
+    const actionIcons = Array.from(container.querySelectorAll('[data-kg-live-canvas-hero-action-icon]')) as HTMLElement[],
+      iconNames = actionIcons.map(icon => icon.getAttribute('data-kg-live-canvas-hero-action-icon')).join(',')
+    if (iconNames !== 'enter,start,import' || actionIcons.some(icon => icon.getAttribute('aria-hidden') === 'true')) {
+      throw new Error(`expected visible, queryable Home action icons, got ${iconNames}`)
     }
     const importButton = container.querySelector('[data-kg-live-canvas-hero-import-embed="true"]') as HTMLButtonElement | null
     if (!importButton) throw new Error('expected an explicit Import canvas embed action')

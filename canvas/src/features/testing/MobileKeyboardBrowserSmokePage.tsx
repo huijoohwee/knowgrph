@@ -1,4 +1,5 @@
 import React from 'react'
+import { coercePanelTypography } from 'grph-shared/ui/panelTypography'
 import { FloatingPanelChatComposer } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposer'
 import { MarkdownBlockContainer } from '@/lib/markdown-core/ui/MarkdownBlockContainerCore.impl.engine.runtime'
 import { MarkdownEditorPane } from '@/features/markdown-workspace/main/editor/MarkdownEditorPane'
@@ -222,7 +223,7 @@ export function MobileKeyboardBrowserSmokePage() {
                 onChange={setWorkspaceEditorText}
                 wordWrap={true}
                 editorRef={workspaceEditorRef}
-                panelTypography={{ panelTextClass: 'text-sm', panelMonospaceTextClass: 'font-mono text-xs' }}
+                panelTypography={coercePanelTypography({ panelTextClass: 'text-sm', monospaceTextClass: 'font-mono text-xs' })}
                 themeMode="dark"
                 language="markdown"
                 uri="file:///__smoke__/mobile-keyboard-editor.md"
@@ -258,7 +259,7 @@ export function MobileKeyboardBrowserSmokePage() {
                 onChange={setWorkspaceJsonEditorText}
                 wordWrap={true}
                 editorRef={workspaceJsonEditorRef}
-                panelTypography={{ panelTextClass: 'text-sm', panelMonospaceTextClass: 'font-mono text-xs' }}
+                panelTypography={coercePanelTypography({ panelTextClass: 'text-sm', monospaceTextClass: 'font-mono text-xs' })}
                 themeMode="dark"
                 language="json"
                 uri="file:///__smoke__/mobile-keyboard-editor.json"

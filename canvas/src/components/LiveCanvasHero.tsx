@@ -1,4 +1,5 @@
 import React from 'react'
+import { ArrowRight, Play, Upload } from 'lucide-react'
 import {
   buildAgenticOsInvocationChipAttrs,
   buildAgenticOsInvocationChipTitle,
@@ -10,10 +11,6 @@ import {
   type LiveCanvasHeroModel,
 } from '@/features/agentic-os/liveCanvasHeroModel'
 import { readLiveCanvasHeroContent } from '@/features/agentic-os/liveCanvasHeroContent'
-import {
-  resolveLiveCanvasHeroEmbedUrl,
-} from '@/features/canvas/liveCanvasHeroEmbed'
-import { buildCanvasEmbedIframeMarkup } from '@/features/canvas/canvasEmbedIframeMarkup'
 import {
   isTrustedCanvasEmbedMessageSource,
   resolveCanvasEmbedImport,
@@ -39,8 +36,9 @@ type ReadyLiveCanvasHeroModel = Extract<LiveCanvasHeroModel, { status: 'ready' }
 
 type LiveCanvasHeroEditorialProps = LiveCanvasHeroProps & {
   model: ReadyLiveCanvasHeroModel
-  shareEmbedUrl?: string | null
 }
+
+const heroActionControlClassName = 'inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_72%,transparent)] p-2.5 text-[var(--kg-text-primary)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)] disabled:cursor-wait disabled:opacity-60'
 
 function renderHeroInlineCodeText(text: string): React.ReactNode {
   return text.split(/(`[^`]+`)/g).map((segment, index) => {
@@ -61,7 +59,6 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
   const [draft, setDraft] = React.useState(model.defaultQuery)
   const [handoffState, setHandoffState] = React.useState<'idle' | 'opening' | 'error'>('idle')
   const [errorText, setErrorText] = React.useState('')
-  const [shareState, setShareState] = React.useState<'idle' | 'copied' | 'error'>('idle')
   const [importPanelOpen, setImportPanelOpen] = React.useState(false)
 
   React.useEffect(() => {
@@ -73,21 +70,6 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
   }, [])
-
-  const handleShareCanvasEmbed = async () => {
-    const embedUrl = String(props.shareEmbedUrl || '').trim()
-    if (!embedUrl) return
-    const iframeMarkup = buildCanvasEmbedIframeMarkup(embedUrl)
-    if (!iframeMarkup) return
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
-      await navigator.clipboard.writeText(iframeMarkup)
-      setShareState('copied')
-    } catch {
-      setShareState('error')
-      window.prompt?.('Copy canvas iframe embed', iframeMarkup)
-    }
-  }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -192,44 +174,35 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
             <a
               href={resolveLiveCanvasHeroEnterHref(import.meta.env?.BASE_URL)}
               onClick={props.onHandoffComplete}
-              className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-[var(--kg-canvas-accent)] bg-[var(--kg-canvas-accent)] px-4 text-sm font-semibold text-slate-950 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)]"
+              className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--kg-canvas-accent)] bg-[var(--kg-canvas-accent)] p-2.5 text-slate-950 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)]"
+              aria-label="Enter Knowgrph"
+              title="Enter Knowgrph"
               data-kg-live-canvas-hero-enter="true"
             >
-              Enter Knowgrph
+              <ArrowRight className="h-4 w-4" aria-label="Enter Knowgrph icon" data-kg-live-canvas-hero-action-icon="enter" />
             </a>
             <button
               type="submit"
-              className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_72%,transparent)] px-4 text-sm font-semibold text-[var(--kg-text-primary)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)] disabled:cursor-wait disabled:opacity-60"
+              className={heroActionControlClassName}
               disabled={handoffState === 'opening'}
+              aria-label={handoffState === 'opening' ? 'Opening Chat' : 'Start locally'}
+              title={handoffState === 'opening' ? 'Opening Chat' : 'Start locally'}
               data-kg-live-canvas-hero-start="true"
             >
-              {handoffState === 'opening' ? 'Opening Chat…' : 'Start locally'}
+              <Play className="h-4 w-4" aria-label="Start locally icon" data-kg-live-canvas-hero-action-icon="start" />
             </button>
             <button
               type="button"
               onClick={() => setImportPanelOpen(true)}
-              className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_72%,transparent)] px-4 text-sm font-semibold text-[var(--kg-text-primary)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)]"
+              className={heroActionControlClassName}
+              aria-label="Import canvas embed"
+              title="Import canvas embed"
               data-kg-live-canvas-hero-import-embed="true"
             >
-              Import canvas embed
+              <Upload className="h-4 w-4" aria-label="Import canvas embed icon" data-kg-live-canvas-hero-action-icon="import" />
             </button>
-            {props.shareEmbedUrl ? (
-              <button
-                type="button"
-                className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_72%,transparent)] px-4 text-sm font-semibold text-[var(--kg-text-primary)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)]"
-                onClick={() => { void handleShareCanvasEmbed() }}
-                data-kg-live-canvas-hero-share-embed="true"
-              >
-                Share canvas embed
-              </button>
-            ) : null}
-            <span className="text-[11px] text-[var(--kg-text-secondary)]">Ctrl/⌘ + Enter</span>
+            <kbd className="rounded-md border border-[color:var(--kg-border)] px-2 py-1 font-mono text-[10px] text-[var(--kg-text-secondary)]" title="Start locally shortcut">Ctrl/⌘↵</kbd>
           </section>
-          {props.shareEmbedUrl ? (
-            <p className="mt-2 min-h-4 text-[11px] text-[var(--kg-text-secondary)]" aria-live="polite" data-kg-live-canvas-hero-share-status="true">
-              {shareState === 'copied' ? 'Canvas iframe embed copied.' : shareState === 'error' ? 'Copy the canvas iframe embed from the dialog.' : ''}
-            </p>
-          ) : null}
           {errorText ? <p className="mt-2 text-xs text-red-500" role="alert">{errorText}</p> : null}
         </form>
 
@@ -248,11 +221,6 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
 
 export function LiveCanvasHero(props: LiveCanvasHeroShellProps) {
   const model = React.useMemo(buildLiveCanvasHeroModel, [])
-  const shareEmbedUrl = React.useMemo(() => resolveLiveCanvasHeroEmbedUrl({
-    sourcePath: props.source.sourcePath,
-    selectedEmbedUrl: props.source.embedUrl,
-    baseUrl: import.meta.env?.BASE_URL,
-  }), [props.source.embedUrl, props.source.sourcePath])
   const requestZoom = useGraphStore(state => state.requestZoom)
   React.useEffect(() => {
     let secondFrameId = 0
@@ -288,7 +256,7 @@ export function LiveCanvasHero(props: LiveCanvasHeroShellProps) {
       data-kg-live-canvas-hero-source-revision={props.source.graphRevision}
       data-kg-live-canvas-hero-source-schema={props.source.schema || undefined}
     >
-      <LiveCanvasHeroEditorial {...props} model={model} shareEmbedUrl={shareEmbedUrl} />
+      <LiveCanvasHeroEditorial {...props} model={model} />
     </section>
   )
 }

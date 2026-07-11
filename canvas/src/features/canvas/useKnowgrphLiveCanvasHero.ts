@@ -20,6 +20,7 @@ import {
 } from './liveCanvasHeroSourceSelection'
 import { resolveLiveCanvasHeroEmbedUrl } from './liveCanvasHeroEmbed'
 import { deriveLiveCanvasHeroCommandRouteGraph } from './liveCanvasHeroProjection'
+import { CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL } from './canvasEmbedPresets'
 
 export type LiveCanvasHeroWorkspaceSourceState = {
   defaultSeedOnly: boolean
@@ -261,16 +262,18 @@ export function useKnowgrphLiveCanvasHero(args: {
     const sourcePath = selectedEmbedSource?.sourcePath
       || source?.sourcePath
       || (isRootAlias ? WORKSPACE_README_SOURCE_PATH : '')
-    const embedUrl = selectedEmbedSource?.embedUrl || resolveLiveCanvasHeroEmbedUrl({
-      sourcePath,
-      baseUrl: import.meta.env.BASE_URL,
-    }) || undefined
+    const embedUrl = selectedEmbedSource?.embedUrl
+      || (isRootAlias ? CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL : resolveLiveCanvasHeroEmbedUrl({
+        sourcePath,
+        baseUrl: import.meta.env.BASE_URL,
+      }))
+      || undefined
     if (!selectedEmbedSource && !embedUrl) return source
     return {
       ...(source || {
         sourceFileId: `embed:${sourcePath}`,
-        graphData: { nodes: [], edges: [] },
-        canvasGraphData: { nodes: [], edges: [] },
+        graphData: { type: 'GraphData', nodes: [], edges: [] },
+        canvasGraphData: { type: 'GraphData', nodes: [], edges: [] },
         graphRevision: 0,
         graphId: '',
         schema: '',

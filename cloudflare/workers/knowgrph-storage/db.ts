@@ -652,7 +652,7 @@ export const readCrawlerDocumentRows = async (
       content_length: sql<number>`length(coalesce(${documentsTable.content_md}, ''))`,
     })
     .from(documentsTable)
-    .where(and(eq(documentsTable.workspace_id, workspaceId), eq(documentsTable.deleted, 0)))
+    .where(and(eq(documentsTable.workspace_id, workspaceId), eq(documentsTable.deleted, 0), gt(sql<number>`length(coalesce(${documentsTable.content_md}, ''))`, 0)))
     .orderBy(asc(documentsTable.canonical_path), asc(documentsTable.id))
     .all()
   return rows as CrawlerDocumentRow[]

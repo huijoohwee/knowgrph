@@ -12,6 +12,12 @@ import {
   buildKnowgrphStorageSourceFilesIndexPath,
 } from './contract'
 import {
+  KNOWGRPH_MARKDOWN_CONTENT_MANIFEST_PATH,
+  KNOWGRPH_MARKDOWN_CONTENT_MANIFEST_SCHEMA,
+  KNOWGRPH_MARKDOWN_CONTENT_MANIFEST_SUFFIX,
+  buildKnowgrphMarkdownContentManifestPath,
+} from '../../../canvas/src/lib/storage/markdownContentManifestContract'
+import {
   readCrawlerDocumentRows,
   type D1DatabaseLike,
   type CrawlerDocumentRow,
@@ -32,10 +38,13 @@ type CrawlerDocument = {
 
 type CrawlerRoute = {
   workspaceId: string
-  format: 'index' | 'llms'
+  format: 'index' | 'llms' | 'manifest'
 }
 
 const SOURCE_FILES_LLM_SUFFIX = '/llms.txt'
+
+export const isDiscoverableCrawlerDocument = (document: Pick<CrawlerDocument, 'id' | 'canonicalPath' | 'contentLength'>): boolean =>
+  Boolean(document.id && document.canonicalPath && document.contentLength > 0)
 
 const decodeRouteSegment = (value: string): string => {
   try {
@@ -65,6 +74,9 @@ const buildCrawlerDocPath = (workspaceId: string, canonicalPath: string): string
     : buildKnowgrphStorageDocPath(workspaceId, canonicalPath)
 
 const readCrawlerRoute = (pathname: string): CrawlerRoute | null => {
+  if (pathname === KNOWGRPH_MARKDOWN_CONTENT_MANIFEST_PATH) {
+    return { workspaceId: KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID, format: 'manifest' }
+  }
   if (pathname === KNOWGRPH_STORAGE_ROUTE_PATHS.sourceFilesLlms) {
     return { workspaceId: KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID, format: 'llms' }
   }
@@ -73,10 +85,11 @@ const readCrawlerRoute = (pathname: string): CrawlerRoute | null => {
   }
   if (!pathname.startsWith(KNOWGRPH_STORAGE_ROUTE_PATHS.sourceFilesIndexPrefix)) return null
   const suffix = pathname.slice(KNOWGRPH_STORAGE_ROUTE_PATHS.sourceFilesIndexPrefix.length)
-  const format = suffix.endsWith(SOURCE_FILES_LLM_SUFFIX) ? 'llms' : 'index'
-  const workspaceSegment = format === 'llms'
-    ? suffix.slice(0, -SOURCE_FILES_LLM_SUFFIX.length)
-    : suffix
+  const format = suffix.endsWith(SOURCE_FILES_LLM_SUFFIX)
+    ? 'llms'
+    : suffix.endsWith(KNOWGRPH_MARKDOWN_CONTENT_MANIFEST_SUFFIX) ? 'manifest' : 'index'
+  const routeSuffix = format === 'llms' ? SOURCE_FILES_LLM_SUFFIX : format === 'manifest' ? KNOWGRPH_MARKDOWN_CONTENT_MANIFEST_SUFFIX : ''
+  const workspaceSegment = routeSuffix ? suffix.slice(0, -routeSuffix.length) : suffix
   const normalizedWorkspaceSegment = workspaceSegment.replace(/\/+$/, '')
   if (!normalizedWorkspaceSegment || normalizedWorkspaceSegment.includes('/')) return null
   const workspaceId = normalizeString(decodeRouteSegment(normalizedWorkspaceSegment))
@@ -144,6 +157,7 @@ const buildSourceFilesIndexMarkdown = (args: {
   const indexUrl = absoluteUrl(args.requestUrl, buildKnowgrphStorageSourceFilesIndexPath(args.workspaceId))
   const llmsUrl = absoluteUrl(args.requestUrl, buildKnowgrphStorageLlmsPath(args.workspaceId))
   const exportUrl = absoluteUrl(args.requestUrl, buildKnowgrphStorageExportPath(args.workspaceId))
+  const manifestUrl = absoluteUrl(args.requestUrl, buildKnowgrphMarkdownContentManifestPath(args.workspaceId))
   const lines = [
     '# Knowgrph Source Files',
     '',
@@ -159,6 +173,7 @@ const buildSourceFilesIndexMarkdown = (args: {
     `- [Source Files index](${indexUrl})`,
     `- [LLM text](${llmsUrl})`,
     `- [Storage export JSON](${exportUrl})`,
+    `- [Markdown content manifest](${manifestUrl})`,
     '',
     '## Source Files',
     '',
@@ -178,6 +193,35 @@ const buildSourceFilesIndexMarkdown = (args: {
   }
   return `${lines.join('\n')}\n`
 }
+
+export const buildMarkdownContentManifest = (args: {
+  requestUrl: string
+  workspaceId: string
+  exportedAtIso: string
+  documents: CrawlerDocument[]
+}): Record<string, unknown> => ({
+  schema: KNOWGRPH_MARKDOWN_CONTENT_MANIFEST_SCHEMA,
+  workspace_id: args.workspaceId,
+  generated_at: args.exportedAtIso,
+  documents: args.documents.filter(isDiscoverableCrawlerDocument).map(document => {
+    const encodedPath = encodeURIComponent(document.canonicalPath)
+    const canonicalPath = args.workspaceId === KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID
+      ? `/knowgrph/doc-default/${encodedPath}`
+      : `/knowgrph/doc/${encodeURIComponent(args.workspaceId)}/${encodedPath}`
+    return {
+      id: document.id,
+      title: document.title,
+      type: document.docType,
+      source_path: document.canonicalPath,
+      canonical_url: absoluteUrl(args.requestUrl, canonicalPath),
+      markdown_url: absoluteUrl(args.requestUrl, buildCrawlerDocPath(args.workspaceId, document.canonicalPath)),
+      content_hash: document.contentHash,
+      revision: document.revision,
+      updated_at: document.updatedAt,
+      content_length: document.contentLength,
+    }
+  }),
+})
 
 const buildSourceFilesLlmsText = (args: {
   requestUrl: string
@@ -219,11 +263,12 @@ export const handleCrawlerSourceFiles = async (
   if (!route) return null
   const nowIso = new Date().toISOString()
   const documents = await readCrawlerDocuments(db, route.workspaceId)
-  const body = route.format === 'llms'
-    ? buildSourceFilesLlmsText({ requestUrl: request.url, workspaceId: route.workspaceId, exportedAtIso: nowIso, documents })
-    : buildSourceFilesIndexMarkdown({ requestUrl: request.url, workspaceId: route.workspaceId, exportedAtIso: nowIso, documents })
-  const contentType = route.format === 'llms'
-    ? 'text/plain; charset=utf-8'
-    : 'text/markdown; charset=utf-8'
+  const args = { requestUrl: request.url, workspaceId: route.workspaceId, exportedAtIso: nowIso, documents }
+  const body = route.format === 'manifest'
+    ? JSON.stringify(buildMarkdownContentManifest(args), null, 2)
+    : route.format === 'llms' ? buildSourceFilesLlmsText(args) : buildSourceFilesIndexMarkdown(args)
+  const contentType = route.format === 'manifest'
+    ? 'application/json; charset=utf-8'
+    : route.format === 'llms' ? 'text/plain; charset=utf-8' : 'text/markdown; charset=utf-8'
   return new Response(body, { status: 200, headers: buildCrawlerHeaders(contentType, corsHeaders) })
 }

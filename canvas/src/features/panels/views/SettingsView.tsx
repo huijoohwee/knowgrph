@@ -43,9 +43,15 @@ import { useSettingsRowBundles } from './useSettingsRowBundles'
 import { useSettingsSync } from './useSettingsSync'
 import { PANEL_TYPOGRAPHY_DENSITY_PRESETS } from 'grph-shared/ui/panelTypography'
 import { useSettingsWorkspaceActions } from './useSettingsWorkspaceActions'
+import {
+  CANVAS_EMBED_SETTINGS_ROW_COUNT,
+  CanvasEmbedSettingsRows,
+  matchesCanvasEmbedQuery,
+} from './CanvasEmbedSettingsRows'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 const SETTINGS_MAIN_HEADER_STICKY_OFFSET_CLASS = 'top-9'
+const CANVAS_EMBED_SETTINGS_AREA = 'Canvas Embed'
 
 export default function SettingsView({
   searchQuery,
@@ -284,25 +290,39 @@ export default function SettingsView({
     uiIconStrokeWidth,
     uiPanelKeyValueTextSizeClass,
   })
-  const sectionDescriptors = React.useMemo<SettingsSectionDescriptor[]>(() => groupByArea.map(([area, entries]) => ({
-    area,
-    collapsed: normalizedQuery ? false : !!collapsedByArea[area],
-    entries,
-    sectionMeta:
-      INTEGRATIONS_SECTION_META[area]
-      || MAPS_SECTION_META[area]
-      || MCP_SECTION_META[area],
-    showDensityPresets: area === 'UI Density: Panels',
-  })), [collapsedByArea, groupByArea, normalizedQuery])
+  const sectionDescriptors = React.useMemo<SettingsSectionDescriptor[]>(() => {
+    const descriptors = groupByArea.map(([area, entries]) => ({
+      area,
+      collapsed: normalizedQuery ? false : !!collapsedByArea[area],
+      entries,
+      sectionMeta:
+        INTEGRATIONS_SECTION_META[area]
+        || MAPS_SECTION_META[area]
+        || MCP_SECTION_META[area],
+      showDensityPresets: area === 'UI Density: Panels',
+    }))
+    if (mode === 'all' && matchesCanvasEmbedQuery(normalizedQuery)) {
+      descriptors.push({
+        area: CANVAS_EMBED_SETTINGS_AREA,
+        collapsed: normalizedQuery ? false : !!collapsedByArea[CANVAS_EMBED_SETTINGS_AREA],
+        entries: [],
+        sectionMeta: undefined,
+        showDensityPresets: false,
+      })
+    }
+    return descriptors
+  }, [collapsedByArea, groupByArea, mode, normalizedQuery])
   const shouldRenderSourceFileManagementRows = React.useCallback((area: string) => {
     return mode === 'all'
       && area === 'Source File Management'
       && matchesSourceFileManagementQuery(normalizedQuery)
   }, [mode, normalizedQuery])
   const getSettingsAreaIntroItemCount = React.useCallback((area: string) => {
+    if (area === CANVAS_EMBED_SETTINGS_AREA) return CANVAS_EMBED_SETTINGS_ROW_COUNT
     return shouldRenderSourceFileManagementRows(area) ? SOURCE_FILE_MANAGEMENT_SETTINGS_ROW_COUNT : 0
   }, [shouldRenderSourceFileManagementRows])
   const renderSettingsAreaIntro = React.useCallback((area: string) => {
+    if (area === CANVAS_EMBED_SETTINGS_AREA) return <CanvasEmbedSettingsRows />
     if (!shouldRenderSourceFileManagementRows(area)) return null
     return (
       <SourceFileManagementSettingsRows

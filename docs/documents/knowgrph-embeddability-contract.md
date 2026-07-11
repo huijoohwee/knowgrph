@@ -55,7 +55,7 @@ The first source-owned bridge message is:
 }
 ```
 
-The Home runtime accepts this message only from its embedding `parent` or opening window. The same validator also powers **Import canvas embed**, which accepts either the generated `<iframe>` HTML or the JSON payload above. Its dialog reuses the same `CanvasEmbedPanelShell` chrome, responsive boundary, accessibility labels, close lifecycle, and code-panel visual grammar as **Share canvas embed**. Both paths normalize the HTTP(S) source to `kgPreview=1&kgLiveHero=1`, dispatch the canonical Hero source-selection event, and replace Home's background without navigating through the full `/knowgrph/` workspace.
+The Home runtime accepts this message only from its embedding `parent` or opening window. The same validator also powers **Import canvas embed** on Home and in **MainPanel Settings → Canvas Embed**, accepting either the generated `<iframe>` HTML or the JSON payload above. Both entry points reuse `CanvasEmbedImportPanel` and the same `CanvasEmbedPanelShell` chrome, responsive boundary, accessibility labels, close lifecycle, and code-panel visual grammar as **Share canvas embed**. Generic imports normalize the HTTP(S) source to `kgPreview=1&kgLiveHero=1`; every apex Dev origin defaults to the Workspace README preset's direct remote iframe, carrying `kgCanvasSurfaceMode=2d`, `kgCanvasRenderMode=2d`, and `kgCanvas2dRenderer=storyboard`. This avoids origin-local session setup and the missing root-level `workspace-readme.md` fallback.
 
 Allowed categories:
 

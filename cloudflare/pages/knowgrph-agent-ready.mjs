@@ -34,6 +34,9 @@ import {
   buildAgentReadyA2aSkills,
   buildAgentReadyAgentSkillsIndex,
   buildAgentReadyOpenApiPaths,
+  buildMarkdownDiscoverySitemapXml,
+  buildRootLlmsTxt,
+  resolveMachineRouteRedirect,
 } from "./knowgrph-agent-ready-discovery.mjs";
 import {
   buildKnowgrphCommerceDiscovery,
@@ -78,6 +81,8 @@ const AGENT_READY_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
 });
 const AGENT_READY_PROMPT_CONTRACTS = buildKnowgrphAgentReadyPromptContracts();
 const AGENT_READY_RESOURCE_TEMPLATE_CONTRACTS = buildKnowgrphAgentReadyResourceTemplateContracts();
+const STORAGE_LLMS_URL = `${SITE_ORIGIN}/api/storage/llms.txt`;
+const STORAGE_MANIFEST_URL = `${SITE_ORIGIN}/api/storage/content-manifest.json`;
 const buildStorageDocPath = (canonicalPath, workspaceId = "") => {
   const normalizedCanonicalPath = String(canonicalPath || "").trim();
   const normalizedWorkspaceId = String(workspaceId || "").trim();
@@ -421,25 +426,10 @@ Disallow: /api/payments/
 Content-Signal: ai-train=no, search=yes, ai-input=yes
 Sitemap: ${sitemapUrl}
 `;
-const buildSitemapXml = (baseUrl) => `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>${APP_URL}</loc>
-    <lastmod>${UPDATED_AT}</lastmod>
-  </url>
-  <url>
-    <loc>${APP_URL}llms.txt</loc>
-    <lastmod>${UPDATED_AT}</lastmod>
-  </url>
-  <url>
-    <loc>${baseUrl}.well-known/mcp/server-card.json</loc>
-    <lastmod>${UPDATED_AT}</lastmod>
-  </url>
-</urlset>
-`;
-
 const robotsTxt = buildRobotsTxt(`${APP_URL}sitemap.xml`);
-const sitemapXml = buildSitemapXml(APP_URL);
+const discoveryInputs = { appUrl: APP_URL, rootUrl: ROOT_URL, storageSourceFilesUrl: STORAGE_SOURCE_FILES_URL, storageLlmsUrl: STORAGE_LLMS_URL, storageManifestUrl: STORAGE_MANIFEST_URL, agentCardUrl: A2A_AGENT_CARD_URL, updatedAt: UPDATED_AT };
+const sitemapXml = buildMarkdownDiscoverySitemapXml(discoveryInputs);
+const rootLlmsTxt = buildRootLlmsTxt(discoveryInputs);
 const apiCatalog = {
   linkset: [
     {
@@ -1375,6 +1365,7 @@ const buildKnowgrphMcpAppHtmlBody = () => buildKnowgrphMcpAppsResourceReadResult
 
 export const buildAgentReadyStaticFiles = async () => ({
   ...buildKnowgrphCommerceStaticFiles({ origin: SITE_ORIGIN }),
+  "llms.txt": { contentType: "text/plain; charset=utf-8", body: rootLlmsTxt },
   "auth.md": { contentType: "text/markdown; charset=utf-8", body: authMd },
   "robots.txt": {
     contentType: "text/plain; charset=utf-8",
@@ -1382,7 +1373,7 @@ export const buildAgentReadyStaticFiles = async () => ({
   },
   "sitemap.xml": {
     contentType: "application/xml; charset=utf-8",
-    body: buildSitemapXml(ROOT_URL),
+    body: sitemapXml,
   },
   ".well-known/api-catalog": {
     contentType: "application/linkset+json; charset=utf-8",
@@ -1477,6 +1468,8 @@ const routeResponse = async (request) => {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/+$/, "") || "/";
   const publishedDocIdentity = resolvePublishedDocRequestIdentity(request.url);
+  const machineRedirect = resolveMachineRouteRedirect(pathname);
+  if (machineRedirect) return Response.redirect(new URL(machineRedirect, request.url), 308);
 
   if (publishedDocIdentity && wantsMarkdown(request)) {
     return proxyPublishedDocMarkdownResponse(request, publishedDocIdentity);

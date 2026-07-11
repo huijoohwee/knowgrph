@@ -1,6 +1,9 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
+  ["agentReady.markdownDiscovery.canonicalRoutes","@/__tests__/agentMarkdownDiscovery.test","testAgentMarkdownDiscoveryUsesCanonicalMachineRoutes"],
+  ["agentReady.markdownDiscovery.nonEmptyDocuments","@/__tests__/agentMarkdownDiscovery.test","testAgentMarkdownDiscoveryExcludesEmptyPlaceholders"],
+  ["agentReady.markdownDiscovery.editorWorkspaceManifest","@/__tests__/agentMarkdownDiscovery.test","testAgentMarkdownDiscoveryBuildsEditorWorkspaceManifest"],
   ["ui.payments.stripe.paywall.returnUrls","@/__tests__/paywallOverlay.test","testPaywallOverlayBuildsNeutralStripeCheckoutReturnUrls"],
   ["ui.payments.stripe.paywall.opensOverlay","@/__tests__/paywallOverlay.test","testPaywallOverlayOpensFromPaymentsStripeToggle"],
   ["ui.payments.stripe.paywall.generatesCheckout","@/__tests__/paywallOverlay.test","testPaywallOverlayGeneratesServerManagedCheckout"],
@@ -282,6 +285,8 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["ui.canvas.liveHero.canvasEmbedSelectionEvent","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroCanvasEmbedSelectionEvent"],
   ["ui.canvas.liveHero.canvasEmbedVisibleAction","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroEmbedUrlUsesSelectedOrSourceAddress"],
   ["ui.canvas.liveHero.canvasEmbedImportWorkflow","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroImportEmbedAcceptsIframeAndPostMessage"],
+  ["ui.canvas.liveHero.canvasEmbedStoryboardPreview","@/__tests__/canvasEmbedStoryboardPreview.test","testCanvasEmbedStoryboardPreviewUsesSharedStoryboardSurface"],
+  ["ui.mainPanel.settings.canvasEmbedImportWorkflow","@/__tests__/mainPanelCanvasEmbedSettings.test","testMainPanelCanvasEmbedSettingsReuseSharedImportPanel"],
   ["ui.canvas.liveHero.explicitRunInteraction","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroInteractionHandsOffOnlyOnRun"],
   ["agentReady.rootAlias.appShell","@/__tests__/rootAgentReadyAlias.test","testRootAgentReadyAliasCanonicalizesPublishedAppShellMount"],
 ]

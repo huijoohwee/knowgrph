@@ -1,6 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
+import { coercePanelTypography } from 'grph-shared/ui/panelTypography'
 import { MarkdownEditorPane } from '@/features/markdown-workspace/main/editor/MarkdownEditorPane'
 import type { MonacoTextEditorHandle } from '@/features/monaco/MonacoTextEditor'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -21,7 +22,7 @@ export async function testMarkdownEditorPaneGrammarQuickBarSeedsSigilsAtTheCaret
         onChange={setValue}
         wordWrap={true}
         editorRef={editorRef}
-        panelTypography={{ panelTextClass: 'text-sm', panelMonospaceTextClass: 'font-mono text-xs' }}
+        panelTypography={coercePanelTypography({ panelTextClass: 'text-sm', monospaceTextClass: 'font-mono text-xs' })}
         themeMode="light"
         language="markdown"
         uri="file:///grammar-quick-bar.md"
@@ -77,7 +78,7 @@ export async function testMarkdownEditorPaneGrammarQuickBarSeedsSigilsAtTheCaret
       await waitForFrames(dom.window as unknown as Window, 2)
     })
 
-    if (textarea.value !== 'Tell me #') {
+    if (String(textarea.value) !== 'Tell me #') {
       throw new Error(`expected keyword quick bar button to append a spaced token at the caret, got ${JSON.stringify(textarea.value)}`)
     }
   } finally {

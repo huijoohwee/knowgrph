@@ -545,7 +545,7 @@ export class FakeKnowgrphStorageD1Database {
     if (normalizedSql.includes('select id, canonical_path, title, doc_type, content_hash, revision, updated_at') && normalizedSql.includes('from documents')) {
       const [workspaceId] = values
       return Array.from(this.documents.values())
-        .filter(row => row.workspace_id === workspaceId && Number(row.deleted || 0) === 0)
+        .filter(row => row.workspace_id === workspaceId && Number(row.deleted || 0) === 0 && String(row.content_md || '').length > 0)
         .sort((a, b) => {
           const pathDelta = String(a.canonical_path || '').localeCompare(String(b.canonical_path || ''))
           if (pathDelta !== 0) return pathDelta

@@ -1,9 +1,10 @@
 import { resolveLiveCanvasHeroEmbedUrl } from '@/features/canvas/liveCanvasHeroEmbed'
 import type { LiveCanvasHeroSourceSelection } from '@/features/canvas/liveCanvasHeroSourceSelection'
+import { selectLiveCanvasHeroSource } from '@/features/canvas/liveCanvasHeroSourceSelection'
+export { CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL } from '@/features/canvas/canvasEmbedPresets'
 
 export const KNOWGRPH_CANVAS_EMBED_SELECT_MESSAGE = 'knowgrph.canvas-embed.select'
 export const KNOWGRPH_CANVAS_EMBED_MESSAGE_VERSION = 1
-
 export type KnowgrphCanvasEmbedSelectMessage = {
   type: typeof KNOWGRPH_CANVAS_EMBED_SELECT_MESSAGE
   version: typeof KNOWGRPH_CANVAS_EMBED_MESSAGE_VERSION
@@ -42,7 +43,11 @@ function inferSourcePath(url: URL, sourcePath: unknown): string {
   return url.pathname || '/shared-canvas'
 }
 
-function resolveSelection(args: { embedUrl: string; sourcePath?: unknown }): LiveCanvasHeroSourceSelection | null {
+type CanvasEmbedImportOptions = Readonly<{
+  liveHeroPreview?: boolean
+}>
+
+function resolveSelection(args: { embedUrl: string; sourcePath?: unknown; options?: CanvasEmbedImportOptions }): LiveCanvasHeroSourceSelection | null {
   let parsedUrl: URL
   try {
     parsedUrl = new URL(String(args.embedUrl || '').trim())
@@ -51,27 +56,34 @@ function resolveSelection(args: { embedUrl: string; sourcePath?: unknown }): Liv
   }
   if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') return null
   const sourcePath = inferSourcePath(parsedUrl, args.sourcePath)
-  const embedUrl = resolveLiveCanvasHeroEmbedUrl({ sourcePath, selectedEmbedUrl: parsedUrl.toString() })
+  const embedUrl = args.options?.liveHeroPreview === false
+    ? parsedUrl.toString()
+    : resolveLiveCanvasHeroEmbedUrl({ sourcePath, selectedEmbedUrl: parsedUrl.toString() })
   return embedUrl ? { sourcePath, embedUrl } : null
 }
 
-export function resolveCanvasEmbedImport(value: unknown): LiveCanvasHeroSourceSelection | null {
+export function resolveCanvasEmbedImport(value: unknown, options?: CanvasEmbedImportOptions): LiveCanvasHeroSourceSelection | null {
   if (typeof value === 'string') {
     const raw = value.trim()
     if (!raw) return null
     const iframeSrc = readCanvasEmbedIframeSrc(raw)
-    if (iframeSrc) return resolveSelection({ embedUrl: iframeSrc })
+    if (iframeSrc) return resolveSelection({ embedUrl: iframeSrc, options })
     try {
-      return resolveCanvasEmbedImport(JSON.parse(raw) as unknown)
+      return resolveCanvasEmbedImport(JSON.parse(raw) as unknown, options)
     } catch {
-      return resolveSelection({ embedUrl: raw })
+      return resolveSelection({ embedUrl: raw, options })
     }
   }
 
   const message = readMessageRecord(value)
   if (!message) return null
   const embedUrl = String(message.embedUrl || '').trim() || readCanvasEmbedIframeSrc(String(message.iframe || ''))
-  return embedUrl ? resolveSelection({ embedUrl, sourcePath: message.sourcePath }) : null
+  return embedUrl ? resolveSelection({ embedUrl, sourcePath: message.sourcePath, options }) : null
+}
+
+export function selectCanvasEmbedImport(value: unknown, options?: CanvasEmbedImportOptions): LiveCanvasHeroSourceSelection | null {
+  const selection = resolveCanvasEmbedImport(value, options)
+  return selection && selectLiveCanvasHeroSource(selection) ? selection : null
 }
 
 export function isTrustedCanvasEmbedMessageSource(event: MessageEvent, runtimeWindow: Window = window): boolean {

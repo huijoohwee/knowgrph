@@ -1,6 +1,38 @@
 import { KNOWGRPH_AGENT_READY_TOOL_IDS } from "../../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
 import { buildKnowgrphVdeoxplnAgentSkillDefinitions } from "../../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
 
+export const buildMarkdownDiscoverySitemapXml = ({ appUrl, rootUrl, storageSourceFilesUrl, storageLlmsUrl, storageManifestUrl, agentCardUrl, updatedAt }) => {
+  const locations = [appUrl, `${appUrl}llms.txt`, `${rootUrl}llms.txt`, storageSourceFilesUrl, storageLlmsUrl, storageManifestUrl, `${appUrl}.well-known/openapi.json`, agentCardUrl, `${appUrl}.well-known/mcp/server-card.json`]
+  const entries = locations.map((location) => `  <url>\n    <loc>${location}</loc>\n    <lastmod>${updatedAt}</lastmod>\n  </url>`)
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join('\n')}\n</urlset>\n`
+}
+
+export const buildRootLlmsTxt = ({ appUrl, rootUrl, storageLlmsUrl, storageManifestUrl, agentCardUrl }) => `# Airvio
+
+> Agent discovery index for Airvio products and machine-readable interfaces.
+
+## Products
+
+- [Knowgrph](${appUrl}llms.txt): Agent-actionable chat-to-canvas knowledge graph workspace.
+
+## Agent Interfaces
+
+- [Knowgrph Source Files](${storageLlmsUrl})
+- [Markdown Content Manifest](${storageManifestUrl})
+- [Knowgrph OpenAPI](${appUrl}.well-known/openapi.json)
+- [A2A Agent Card](${agentCardUrl})
+- [MCP Server Card](${appUrl}.well-known/mcp/server-card.json)
+- [Crawl policy](${rootUrl}robots.txt)
+- [Sitemap](${rootUrl}sitemap.xml)
+`
+
+const MACHINE_ROUTE_REDIRECTS = new Map([
+  ['/knowgrph/openapi.json', '/knowgrph/.well-known/openapi.json'],
+  ['/knowgrph/api-catalog.json', '/knowgrph/.well-known/api-catalog'],
+])
+
+export const resolveMachineRouteRedirect = (pathname) => MACHINE_ROUTE_REDIRECTS.get(pathname) || ''
+
 export const AGENT_READY_A2A_SKILL_META_BY_TOOL_ID = {
   [KNOWGRPH_AGENT_READY_TOOL_IDS.search]: {
     id: "search",
@@ -151,6 +183,14 @@ export const buildAgentReadyOpenApiPaths = ({
       summary: "Read the Source Files LLM index",
       responses: {
         "200": { description: "Plain-text LLM index" },
+      },
+    },
+  },
+  "/api/storage/content-manifest.json": {
+    get: {
+      summary: "Read the Markdown-first published content manifest",
+      responses: {
+        "200": { description: "Editor Workspace source paths with canonical HTML and Markdown projections" },
       },
     },
   },

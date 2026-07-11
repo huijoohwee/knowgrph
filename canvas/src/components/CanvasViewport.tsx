@@ -11,7 +11,7 @@ import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { UI_RESPONSIVE_CANVAS_MINIMAP_OVERLAY_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 
-import { getCanvas2dSurfaceId, isStoryboardCanvas2dRenderer, supportsCanvas2dMinimap } from '@/lib/config.render'
+import { getCanvas2dSurfaceId, isCanvas2dRendererId, isStoryboardCanvas2dRenderer, supportsCanvas2dMinimap } from '@/lib/config.render'
 import { shouldRenderTimelineSurface } from '@/lib/timeline/timelineVisibility'
 import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-files/composedSourceSelection'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
@@ -95,6 +95,12 @@ function isLiveCanvasHeroEmbedPreview(variant: CanvasViewportVariant): boolean {
   return new URLSearchParams(window.location.search).get('kgLiveHero') === '1'
 }
 
+function resolveLiveCanvasHeroEmbedPreviewSurface(variant: CanvasViewportVariant): string | null {
+  if (!isLiveCanvasHeroEmbedPreview(variant) || typeof window === 'undefined') return null
+  const renderer = new URLSearchParams(window.location.search).get('kgCanvas2dRenderer')
+  return isCanvas2dRendererId(renderer) ? getCanvas2dSurfaceId(renderer) : null
+}
+
 export function CanvasViewport(props: CanvasViewportProps) {
   const {
     variant,
@@ -137,6 +143,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const sharedGraphCanvasSurfaceActive = active2dSurface === 'd3'
   const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
   const liveCanvasHeroEmbedPreview = isLiveCanvasHeroEmbedPreview(variant)
+  const liveCanvasHeroEmbedPreviewSurface = resolveLiveCanvasHeroEmbedPreviewSurface(variant)
   const liveCanvasHeroEmbedGraph = React.useMemo(
     () => liveCanvasHeroEmbedPreview
       ? deriveLiveCanvasHeroCommandRouteGraph(safeGraphData) || safeGraphData
@@ -268,23 +275,28 @@ export function CanvasViewport(props: CanvasViewportProps) {
         {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
           <section className="absolute inset-0 z-[10]">
             {liveCanvasHeroEmbedPreview && liveCanvasHeroEmbedGraph ? (
-              <section
-                className="absolute inset-0 pointer-events-auto opacity-100"
-                aria-label="Shared interactive workspace README command-route canvas"
-                data-kg-live-canvas-hero-embed-preview="true"
-                data-kg-live-canvas-hero-interactive="true"
-              >
-                <FlowCanvasLazy
-                  active
-                  graphDataOverride={liveCanvasHeroEmbedGraph}
-                  mutationSourceGraphDataOverride={safeGraphData}
-                  graphDataRevisionOverride={graphDataRevision}
-                  canvas2dRendererOverride="flow"
-                  suppressMediaOverlays
-                  flowWidgetStateGraphKeyOverride={`live-hero-embed:${graphDataRevision}`}
-                  forbidCircleNodes
-                />
-              </section>
+                <section
+                  className="absolute inset-0 pointer-events-auto opacity-100"
+                  aria-label={liveCanvasHeroEmbedPreviewSurface === 'storyboard' ? 'Shared interactive workspace README Storyboard canvas' : 'Shared interactive workspace README command-route canvas'}
+                  data-kg-live-canvas-hero-embed-preview="true"
+                  data-kg-live-canvas-hero-interactive="true"
+                  data-kg-live-canvas-hero-embed-surface={liveCanvasHeroEmbedPreviewSurface || 'flow'}
+                >
+                  {liveCanvasHeroEmbedPreviewSurface === 'storyboard' ? (
+                    <StoryboardWidgetCanvasLazy active storyboardWidgetSurfaceId="storyboard" storyboardCardsMode />
+                  ) : (
+                    <FlowCanvasLazy
+                      active
+                      graphDataOverride={liveCanvasHeroEmbedGraph}
+                      mutationSourceGraphDataOverride={safeGraphData}
+                      graphDataRevisionOverride={graphDataRevision}
+                      canvas2dRendererOverride="flow"
+                      suppressMediaOverlays
+                      flowWidgetStateGraphKeyOverride={`live-hero-embed:${graphDataRevision}`}
+                      forbidCircleNodes
+                    />
+                  )}
+                </section>
             ) : liveCanvasHeroVisible && liveCanvasHeroSource ? (
               <>
                 <section
