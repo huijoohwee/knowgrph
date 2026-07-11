@@ -1573,7 +1573,7 @@ export async function onRequest(context) {
   nextResponse.headers.set("link", agentReadyHomepageLinkHeaderValue);
   if (handlesKnowgrphRoot(url.pathname)) {
     nextResponse.headers.delete("x-frame-options");
-    nextResponse.headers.set("content-security-policy", "frame-ancestors 'self'");
+    nextResponse.headers.set("content-security-policy", "frame-ancestors *");
   }
   return withKnowgrphRouteHeaders(request, nextResponse);
 }
