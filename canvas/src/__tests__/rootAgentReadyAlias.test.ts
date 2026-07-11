@@ -42,6 +42,17 @@ export async function testRootAgentReadyAliasCanonicalizesPublishedAppShellMount
     if (!body.includes('data-kg-live-canvas-hero-enter="true">Enter Knowgrph</a>')) {
       throw new Error('expected root landing to expose the canonical Enter Knowgrph action')
     }
+    for (const marker of [
+      'data-kg-live-canvas-hero-command-deck="true"',
+      'data-kg-live-canvas-hero-query="true"',
+      'data-kg-live-canvas-hero-start="true">Start locally</button>',
+      '/runtime-ready.check #token-economics @dev-only',
+      '0 model calls before Run',
+      'Frontmatter SSOT',
+      'Approval-gated',
+    ]) {
+      if (!body.includes(marker)) throw new Error(`expected Dev hero fidelity marker ${marker}`)
+    }
     if (body.includes('id="knowgrph-root-fallback"') || body.includes('data-knowgrph-root-fallback')) {
       throw new Error('expected root alias to omit the old full-screen launch fallback')
     }
