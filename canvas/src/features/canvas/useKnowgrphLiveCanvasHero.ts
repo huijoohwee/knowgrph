@@ -8,7 +8,7 @@ import {
 import type { SourceFile } from '@/hooks/store/types'
 import type { GraphData } from '@/lib/graph/types'
 import { isRouterRootAliasRuntime } from '@/lib/routing/basePath'
-import { parseWorkspaceFrontmatterFlowGraphDataCached } from '@/hooks/active-graph-data/workspaceStructuredGraph'
+import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import { shouldShowLiveCanvasHero } from './liveCanvasHeroVisibility'
 
 export type LiveCanvasHeroWorkspaceSourceState = {
@@ -47,7 +47,36 @@ export function deriveLiveCanvasHeroCommandRouteGraph(graphData: GraphData): Gra
   ))
   const connectedNodeIdSet = new Set(edges.flatMap(edge => [String(edge.source || '').trim(), String(edge.target || '').trim()]))
   const nodes = (graphData.nodes || []).filter(node => connectedNodeIdSet.has(String(node.id || '').trim()))
-  if (nodes.length < 2 || edges.length === 0) return null
+  if (nodes.length < 2 || edges.length === 0) {
+    const sourceNodeIds = new Set((graphData.nodes || []).map(node => String(node.id || '').trim()).filter(Boolean))
+    const firstEdge = (graphData.edges || []).find(edge => (
+      sourceNodeIds.has(String(edge.source || '').trim())
+      && sourceNodeIds.has(String(edge.target || '').trim())
+    ))
+    if (!firstEdge) return null
+    const routeEdges = [firstEdge]
+    const firstTargetId = String(firstEdge.target || '').trim()
+    const continuationEdge = (graphData.edges || []).find(edge => (
+      String(edge.source || '').trim() === firstTargetId
+      && sourceNodeIds.has(String(edge.target || '').trim())
+    ))
+    if (continuationEdge) routeEdges.push(continuationEdge)
+    const routeNodeIds = new Set(routeEdges.flatMap(edge => [String(edge.source || '').trim(), String(edge.target || '').trim()]))
+    const routeNodes = (graphData.nodes || []).filter(node => routeNodeIds.has(String(node.id || '').trim()))
+    return {
+      ...graphData,
+      nodes: routeNodes,
+      edges: routeEdges,
+      metadata: {
+        ...graphData.metadata,
+        liveCanvasHeroProjection: {
+          kind: 'source-connected-route',
+          sourceNodeCount: graphData.nodes.length,
+          sourceEdgeCount: graphData.edges.length,
+        },
+      },
+    }
+  }
   return {
     ...graphData,
     nodes,
@@ -82,7 +111,7 @@ export function resolveLiveCanvasHeroSource(args: {
   activeGraphData: GraphData | null | undefined
 }): LiveCanvasHeroSource | null {
   const sourceFile = (Array.isArray(args.sourceFiles) ? args.sourceFiles : []).find(file => {
-    if (!file || file.enabled === false) return false
+    if (!file) return false
     const sourcePath = file.source?.path || file.source?.url || file.name
     return resolveWorkspaceSeedSourcePath(sourcePath) === WORKSPACE_README_SOURCE_PATH
   })
@@ -91,25 +120,28 @@ export function resolveLiveCanvasHeroSource(args: {
   const sourceFileId = String(sourceFile.id || '').trim()
   const text = String(sourceFile.text || '')
   if (!sourceFileId || !text.trim()) return null
-  const graphData = parseWorkspaceFrontmatterFlowGraphDataCached({
-    markdownName: String(sourceFile.name || 'workspace-readme.md'),
-    markdownText: text,
-  })
-  if (!graphData) return null
+  const sourceTextGraphData = tryParseMarkdownFrontmatterFlowGraph(
+    String(sourceFile.name || 'workspace-readme.md'),
+    text,
+  )?.graphData || null
+  const graphDataCandidates = [sourceTextGraphData, sourceFile.parsedGraphData, args.activeGraphData]
+    .filter((candidate): candidate is GraphData => candidate != null)
+  const resolvedGraph = graphDataCandidates
+    .map(graphData => ({ graphData, canvasGraphData: deriveLiveCanvasHeroCommandRouteGraph(graphData) }))
+    .find(candidate => candidate.canvasGraphData != null)
+  if (!resolvedGraph) return null
 
+  const { graphData, canvasGraphData } = resolvedGraph
   const graphItemCount = (graphData.nodes?.length || 0) + (graphData.edges?.length || 0)
-  const sourceLayerHash = String(readGraphMetadata(graphData).sourceLayerHash || '').trim()
-  const parsedSourceLayerHash = String(readGraphMetadata(sourceFile.parsedGraphData).sourceLayerHash || '').trim()
-  if (graphItemCount === 0 || !sourceLayerHash || (parsedSourceLayerHash && parsedSourceLayerHash !== sourceLayerHash)) return null
-  const canvasGraphData = deriveLiveCanvasHeroCommandRouteGraph(graphData)
-  if (!canvasGraphData) return null
+  const sourceLayerHash = String(readGraphMetadata(graphData).sourceLayerHash || getSourceFileTextHash(sourceFile)).trim()
+  if (graphItemCount === 0 || !sourceLayerHash) return null
 
   const frontmatter = readFrontmatterMetadata(graphData)
   return {
     sourceFileId,
     sourcePath: WORKSPACE_README_SOURCE_PATH,
     graphData,
-    canvasGraphData,
+    canvasGraphData: canvasGraphData as GraphData,
     graphRevision: Number.isFinite(sourceFile.parsedGraphRevision) ? Number(sourceFile.parsedGraphRevision) : 0,
     graphId: String(frontmatter.graphId || '').trim(),
     schema: String(frontmatter.schema || '').trim(),
@@ -208,7 +240,6 @@ export function useKnowgrphLiveCanvasHero(args: {
     graphData: args.graphData,
     markdownDocumentText: args.markdownDocumentText,
   })
-
   return {
     liveCanvasHeroVisible: visible,
     liveCanvasHeroSource,

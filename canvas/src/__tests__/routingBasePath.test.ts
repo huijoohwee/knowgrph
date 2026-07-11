@@ -1,4 +1,8 @@
-import { resolveLiveCanvasHeroEnterHref, resolveRouterBasename } from '@/lib/routing/basePath'
+import {
+  isRouterRootAliasRuntime,
+  resolveLiveCanvasHeroEnterHref,
+  resolveRouterBasename,
+} from '@/lib/routing/basePath'
 
 export const testResolveRouterBasenameFromBaseUrl = () => {
   const cases: Array<{ input: unknown; expected: string | undefined }> = [
@@ -23,6 +27,9 @@ export const testResolveRouterBasenameFromBaseUrl = () => {
   })
   if (rootAlias !== undefined) {
     throw new Error(`Expected root alias basename to be undefined, got ${JSON.stringify(rootAlias)}`)
+  }
+  if (!isRouterRootAliasRuntime('/', { pathname: '/', rootAliasBasePath: '/knowgrph/' })) {
+    throw new Error('Expected the explicit root alias marker to own the Vite Dev root runtime')
   }
 
   const canonicalPath = resolveRouterBasename('/knowgrph/', {

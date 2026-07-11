@@ -42,8 +42,9 @@ function readRuntimeRootAliasBasePath(runtime?: RouterBasenameRuntime): string |
 
 export function isRouterRootAliasRuntime(baseUrl: unknown, runtime?: RouterBasenameRuntime): boolean {
   const basename = normalizeBasePath(baseUrl)
-  if (!basename) return false
-  return readRuntimeRootAliasBasePath(runtime) === basename && readRuntimePathname(runtime) === '/'
+  const rootAliasBasePath = readRuntimeRootAliasBasePath(runtime)
+  if (!rootAliasBasePath || readRuntimePathname(runtime) !== '/') return false
+  return !basename || rootAliasBasePath === basename
 }
 
 export function resolveRouterBasename(baseUrl: unknown, runtime?: RouterBasenameRuntime): string | undefined {
@@ -56,6 +57,6 @@ export function resolveRouterBasename(baseUrl: unknown, runtime?: RouterBasename
 }
 
 export function resolveLiveCanvasHeroEnterHref(baseUrl: unknown): string {
-  const basename = normalizeBasePath(baseUrl)
+  const basename = normalizeBasePath(baseUrl) || readRuntimeRootAliasBasePath()
   return `${basename || ''}/`
 }

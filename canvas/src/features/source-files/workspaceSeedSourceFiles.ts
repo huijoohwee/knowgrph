@@ -10,6 +10,7 @@ import {
   TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   WORKSPACE_README_SEED_REL_PATH,
+  WORKSPACE_README_SEED_BASENAME,
   WORKSPACE_README_SEED_PATH,
 } from '@/features/workspace-fs/workspaceFs'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
@@ -66,6 +67,7 @@ const WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH = new Map<string, string>([
   ...buildSeedWorkspacePathVariants(
     WORKSPACE_README_SEED_PATH,
     WORKSPACE_README_SEED_REL_PATH,
+    `/docs/${WORKSPACE_README_SEED_BASENAME}`,
   ).map(path => [path, WORKSPACE_README_SOURCE_PATH] as const),
   ...buildSeedWorkspacePathVariants(
     TEST_VALIDATION_WORKSPACE_SEED_PATH,
@@ -105,6 +107,9 @@ export function resolveWorkspaceSeedSourcePath(path: unknown): string | null {
     return normalizeWorkspacePath(normalized)
   })()
   const canonicalDocsWorkspacePath = canonicalizeWorkspaceDocsPath(normalizedWorkspacePath)
+  const seededPath = WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH.get(normalizedWorkspacePath)
+    || WORKSPACE_SEED_SOURCE_PATH_BY_WORKSPACE_PATH.get(canonicalDocsWorkspacePath)
+  if (seededPath) return seededPath
   if (canonicalDocsWorkspacePath.startsWith('/docs/')) {
     return `workspace:${canonicalDocsWorkspacePath}`
   }

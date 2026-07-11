@@ -136,13 +136,18 @@ export function testLiveCanvasHeroWorkspaceReadmeSourceFidelity(): void {
     if (!edgeSignatures.has(signature)) throw new Error(`expected authored workspace edge ${signature}`)
   }
 
-  const staleFile = { ...sourceFile, text: text.replace('value: "workspace-source"', 'value: "workspace-source-edited"') }
-  if (resolveLiveCanvasHeroSource({ sourceFiles: [staleFile], activeGraphData: graphData })) {
-    throw new Error('expected edited text with a stale parse identity to fail closed')
+  const editedFile = { ...sourceFile, text: text.replace('value: "workspace-source"', 'value: "workspace-source-edited"') }
+  const editedSource = resolveLiveCanvasHeroSource({ sourceFiles: [editedFile], activeGraphData: graphData })
+  if (!editedSource || editedSource.sourceLayerHash === source.sourceLayerHash) {
+    throw new Error('expected the live hero to reparse edited source text instead of trusting stale parsed state')
   }
   const wrongPathFile = { ...sourceFile, source: { kind: 'local', path: 'workspace:/product.md' } } as SourceFile
   if (resolveLiveCanvasHeroSource({ sourceFiles: [wrongPathFile], activeGraphData: graphData })) {
     throw new Error('expected a non-canonical source path to fail closed')
+  }
+  const docsMirrorFile = { ...sourceFile, source: { kind: 'local', path: 'workspace:/docs/workspace-readme.md' } } as SourceFile
+  if (!resolveLiveCanvasHeroSource({ sourceFiles: [docsMirrorFile], activeGraphData: graphData })) {
+    throw new Error('expected the canonical docs mirror workspace README to resolve the live hero source')
   }
   const mismatchedActiveGraph = {
     ...graphData,

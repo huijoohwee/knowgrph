@@ -1,5 +1,7 @@
 import { onRequest as onRootRequest } from '../../../cloudflare/pages/root-agent-ready-index.mjs'
 
+const PUBLISHED_APP_SHELL = `<!DOCTYPE html><html lang="en"><head><title>Knowgrph</title><script type="module" src="/knowgrph/assets/index-proof.js"></script></head><body><div id="root"></div></body></html>`
+
 export async function testRootAgentReadyAliasCanonicalizesPublishedAppShellMount(): Promise<void> {
   const originalFetch = globalThis.fetch
   const fetchUrls: string[] = []
@@ -8,8 +10,8 @@ export async function testRootAgentReadyAliasCanonicalizesPublishedAppShellMount
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       const url = String(input)
       fetchUrls.push(url)
-      if (url === 'https://airvio.co/knowgrph/?agentReadyRootWebMcp=1') {
-        return new Response('<script>const createWebMcpLifecycleController = true; const toolDefinitions = [];</script>', {
+      if (url === 'https://airvio.co/knowgrph/?agentReadyRootAlias=1') {
+        return new Response(PUBLISHED_APP_SHELL, {
           status: 200,
           headers: { 'content-type': 'text/html; charset=utf-8' },
         })
@@ -30,28 +32,20 @@ export async function testRootAgentReadyAliasCanonicalizesPublishedAppShellMount
     if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) {
       throw new Error(`expected root alias HTML response, got ${response.status} ${response.headers.get('content-type')}`)
     }
-    if (fetchUrls.length !== 1 || fetchUrls[0] !== 'https://airvio.co/knowgrph/?agentReadyRootWebMcp=1') {
-      throw new Error(`expected root landing to load only the WebMCP contract, got ${JSON.stringify(fetchUrls)}`)
+    if (fetchUrls.length !== 1 || fetchUrls[0] !== 'https://airvio.co/knowgrph/?agentReadyRootAlias=1') {
+      throw new Error(`expected root alias to load only the published app shell, got ${JSON.stringify(fetchUrls)}`)
     }
-    if (!body.includes('data-kg-live-canvas-launch="true"')) {
-      throw new Error(`expected root landing overlay, got ${body.slice(0, 400)}`)
+    if (!body.includes('<main id="root"></main>') || body.includes('<div id="root"></div>')) {
+      throw new Error(`expected the canonical React root mount, got ${body.slice(0, 400)}`)
     }
-    if (!body.includes('<iframe class="live-canvas" src="/knowgrph/" title="Interactive Knowgrph canvas"></iframe>')) {
-      throw new Error('expected root landing to embed the live canonical canvas')
+    if (!body.includes('/knowgrph/assets/index-proof.js')) {
+      throw new Error('expected the root alias to retain the published React app assets')
     }
-    if (!body.includes('data-kg-live-canvas-hero-enter="true">Enter Knowgrph</a>')) {
-      throw new Error('expected root landing to expose the canonical Enter Knowgrph action')
+    if (!body.includes('name="x-knowgrph-root-alias" content="/knowgrph/"')) {
+      throw new Error('expected root alias metadata for the Dev-owned React hero')
     }
-    for (const marker of [
-      'data-kg-live-canvas-hero-command-deck="true"',
-      'data-kg-live-canvas-hero-query="true"',
-      'data-kg-live-canvas-hero-start="true">Start locally</button>',
-      '/runtime-ready.check #token-economics @dev-only',
-      '0 model calls before Run',
-      'Frontmatter SSOT',
-      'Approval-gated',
-    ]) {
-      if (!body.includes(marker)) throw new Error(`expected Dev hero fidelity marker ${marker}`)
+    if (body.includes('data-kg-live-canvas-launch="true"') || body.includes('<iframe class="live-canvas"')) {
+      throw new Error('expected the duplicated production-only hero shell to stay off the successful root path')
     }
     if (body.includes('id="knowgrph-root-fallback"') || body.includes('data-knowgrph-root-fallback')) {
       throw new Error('expected root alias to omit the old full-screen launch fallback')
