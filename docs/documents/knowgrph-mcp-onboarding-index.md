@@ -1,10 +1,10 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-mcp-onboarding-index
-version: 1.0.3
+version: 1.0.4
 status: implemented
 created: 2026-07-10
-updated: 2026-07-11
+updated: 2026-07-12
 author: airvio / joohwee
 domain: knowgrph
 doc_type: "Onboarding Index"
@@ -51,6 +51,8 @@ Use it when you need one short path to:
 Map intent. Orchestrate agents. Prove outcomes.
 
 A source-backed canvas where `/` routes work, `#` sets meaning, and `@` binds context.
+
+One canonical operator contract: install and discovery stay on `https://airvio.co/knowgrph/mcp`, while live `/`, `#`, and `@` grammar stays on `https://airvio.co/knowgrph/control-plane/mcp` or an app-owned forwarder until the host proves MCP session support.
 
 - Install `https://airvio.co/knowgrph/mcp` for public discovery and read-only MCP usage
 - Use `https://airvio.co/knowgrph/control-plane/mcp` only for approval-gated orchestration and
@@ -126,6 +128,8 @@ Concrete grammar examples:
 |---|---|---|
 | Public discovery | `https://airvio.co/knowgrph/mcp` | Install, discovery, read-only retrieval, prompts, resources, inspection |
 | Control plane | `https://airvio.co/knowgrph/control-plane/mcp` | Approval-gated orchestration, live grammar invocation, sessioned MCP flows |
+
+Canonicalize the contract first, not the transport. The current dual-surface runtime stays intentional until hosted proof supports a single-runtime claim.
 
 ## Guardrails
 

@@ -5,6 +5,10 @@ export const MCP_ONBOARDING_GRAMMAR_SUMMARY =
   'A source-backed canvas where / routes work, # sets meaning, and @ binds context.'
 export const MCP_ONBOARDING_GRAMMAR_TOOL_NAME = 'knowgrph.agentic_canvas_os.docs.invoke'
 export const MCP_ONBOARDING_GRAMMAR_EXAMPLES = Object.freeze(['/mcp.capabilities', '#mcp', '@mcp-gateway'])
+export const MCP_ONBOARDING_CANONICAL_OPERATOR_CONTRACT =
+  'One canonical operator contract: install and discovery stay on the public endpoint, while live /, #, @ grammar stays on the approval-gated control plane or an app-owned forwarder until the host proves MCP session support.'
+export const MCP_ONBOARDING_CANONICAL_TRANSPORT_RULE =
+  'Canonicalize the contract first, not the transport. Keep the runtime split underneath until hosted proof supports a single runtime.'
 export const MCP_ONBOARDING_HOSTED_BUILDER_EXAMPLES = Object.freeze(['Lovable', 'Vercel'])
 export const MCP_ONBOARDING_HOSTED_GRAMMAR_DEFAULT =
   'Hosted app builders such as Lovable and Vercel should keep /mcp for discovery and use an app-owned forwarder for live /, #, @ unless the host proves MCP session support.'
@@ -20,6 +24,8 @@ export const resolveMcpOnboardingUrls = ({ baseUrl, transportUrl, surfaceRoles }
 export const buildMcpOnboarding = ({ publicReadMcpUrl, controlPlaneMcpUrl } = {}) => ({
   promise: MCP_ONBOARDING_PROMISE,
   grammarSummary: MCP_ONBOARDING_GRAMMAR_SUMMARY,
+  canonicalOperatorContract: MCP_ONBOARDING_CANONICAL_OPERATOR_CONTRACT,
+  canonicalTransportRule: MCP_ONBOARDING_CANONICAL_TRANSPORT_RULE,
   publicReadMcpUrl: clean(publicReadMcpUrl),
   controlPlaneMcpUrl: clean(controlPlaneMcpUrl),
   controlPlaneCondition: 'Add the control plane only when the host can preserve MCP session state and needs live /, #, @ grammar lookup.',
@@ -59,6 +65,8 @@ export const buildMcpOnboardingHtml = ({ publicReadMcpUrl, controlPlaneMcpUrl } 
     <strong>Fastest Path</strong>
     <p>${escapeHtml(MCP_ONBOARDING_PROMISE)}</p>
     <p>${escapeHtml(MCP_ONBOARDING_GRAMMAR_SUMMARY)}</p>
+    <p>${escapeHtml(MCP_ONBOARDING_CANONICAL_OPERATOR_CONTRACT)}</p>
+    <p>${escapeHtml(MCP_ONBOARDING_CANONICAL_TRANSPORT_RULE)}</p>
     <p>${escapeHtml(`Live grammar executes through ${MCP_ONBOARDING_GRAMMAR_TOOL_NAME} on the control plane. Try ${MCP_ONBOARDING_GRAMMAR_EXAMPLES.join(', ')}.`)}</p>
     <p>${escapeHtml(MCP_ONBOARDING_HOSTED_GRAMMAR_DEFAULT)}</p>
     <ol>
@@ -75,6 +83,20 @@ export const MCP_ONBOARDING_CLIENT_SCRIPT = `const renderOnboarding = (payload) 
   appendText(onboardingEl, 'strong', 'Fastest Path');
   appendText(onboardingEl, 'p', onboarding && onboarding.promise ? String(onboarding.promise) : '${MCP_ONBOARDING_PROMISE}');
   appendText(onboardingEl, 'p', onboarding && onboarding.grammarSummary ? String(onboarding.grammarSummary) : '${MCP_ONBOARDING_GRAMMAR_SUMMARY}');
+  appendText(
+    onboardingEl,
+    'p',
+    onboarding && onboarding.canonicalOperatorContract
+      ? String(onboarding.canonicalOperatorContract)
+      : '${MCP_ONBOARDING_CANONICAL_OPERATOR_CONTRACT}',
+  );
+  appendText(
+    onboardingEl,
+    'p',
+    onboarding && onboarding.canonicalTransportRule
+      ? String(onboarding.canonicalTransportRule)
+      : '${MCP_ONBOARDING_CANONICAL_TRANSPORT_RULE}',
+  );
   appendText(
     onboardingEl,
     'p',

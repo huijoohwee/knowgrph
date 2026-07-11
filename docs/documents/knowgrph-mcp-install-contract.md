@@ -1,10 +1,10 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-mcp-install-contract
-version: 1.1.2
+version: 1.1.3
 status: implemented
 created: 2026-07-10
-updated: 2026-07-11
+updated: 2026-07-12
 author: airvio / joohwee
 domain: knowgrph
 doc_type: "Install Contract"
@@ -49,6 +49,10 @@ Map intent. Orchestrate agents. Prove outcomes.
 
 A source-backed canvas where `/` routes work, `#` sets meaning, and `@` binds context.
 
+One canonical operator contract: install and discovery stay on the public endpoint, while live `/`, `#`, and `@` grammar stays on the approval-gated control plane or an app-owned forwarder until the host proves MCP session support.
+
+Canonicalize the contract first, not the transport. Keep the current runtime split underneath this contract until hosted proof supports a single runtime claim.
+
 ## Fastest Decision Path
 
 If you only need one quick setup answer, use this order:
@@ -80,6 +84,11 @@ start with the source-side `README.md` quick start or
 
 ## Operator Rule
 
+Keep one canonical operator-facing contract even when the runtime stays split underneath:
+
+- install and discovery stay on `https://airvio.co/knowgrph/mcp`
+- live `/`, `#`, and `@` grammar stays on `https://airvio.co/knowgrph/control-plane/mcp` or an app-owned forwarder
+
 If a host supports one simple public MCP install, give it `https://airvio.co/knowgrph/mcp`.
 
 If a host also supports a second Streamable HTTP MCP endpoint with `initialize` plus session-header
@@ -88,7 +97,7 @@ handling, add `https://airvio.co/knowgrph/control-plane/mcp` for live `/`, `#`, 
 If a host cannot manage that second sessioned MCP surface, keep discovery on the public endpoint and
 route grammar invocation through a thin app-owned forwarder such as `agentic-canvas-os /api/invoke`.
 
-This rule exists to optimize time-to-value first, then grammar power second.
+This rule exists to optimize time-to-value first, then grammar power second, without collapsing the intentional public-discovery vs control-plane boundary before hosted proof exists.
 
 ## Public Endpoint Contract
 

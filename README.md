@@ -168,6 +168,10 @@ Map intent. Orchestrate agents. Prove outcomes.
 
 A source-backed canvas where `/` routes work, `#` sets meaning, and `@` binds context.
 
+One canonical operator contract: install and discovery stay on `https://airvio.co/knowgrph/mcp`, while live `/`, `#`, and `@` grammar stays on `https://airvio.co/knowgrph/control-plane/mcp` or an app-owned forwarder until the host proves MCP session support.
+
+Canonicalize the contract first, not the transport. The current dual-surface runtime remains intentional until hosted proof supports a single runtime claim.
+
 1. Map intent: install `https://airvio.co/knowgrph/mcp` first for public discovery, retrieval, and inspection.
 2. Orchestrate agents: add `https://airvio.co/knowgrph/control-plane/mcp` only when the host can preserve MCP session state and you need live `/`, `#`, `@` grammar invocation.
 3. Prove outcomes: for zero-spend evaluation, run the local parser or harness in `--provider-mode mock` before wiring any hosted MCP client.

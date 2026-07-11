@@ -2,7 +2,7 @@
 title: "Knowgrph MCP Integration"
 doc_type: "MCP Overview"
 status: "active"
-updated: "2026-07-11"
+updated: "2026-07-12"
 lang: "en-US"
 frontmatter_contract: "required"
 related:
@@ -54,6 +54,8 @@ Dev repo `knowgrph` -> Prod repo mirror `huijoohwee/content/knowgrph` -> Cloudfl
 
 Knowgrph should present one low-friction public remote MCP install story:
 
+- One canonical operator contract owns endpoint selection: install and discovery stay on `https://airvio.co/knowgrph/mcp`, while live `/`, `#`, and `@` grammar stays on `https://airvio.co/knowgrph/control-plane/mcp` or an app-owned forwarder until the host proves MCP session support.
+- Canonicalize the contract first, not the transport. The current dual-surface runtime stays intentional until hosted proof supports a single-runtime claim.
 - The canonical operator-facing install boundary and host recipes live in `docs/documents/knowgrph-mcp-install-contract.md`; use that install contract when a setup guide, host integration, or onboarding note needs one explicit answer.
 - For the shortest guided path across the install contract, release note, agent-ready context, and MCP overview, start with `docs/documents/knowgrph-mcp-onboarding-index.md`.
 - `https://airvio.co/knowgrph/mcp` is the canonical public install and discovery endpoint.

@@ -1,10 +1,10 @@
 ---
 schema: kgc-computing-flow/v1
 id: knowgrph-agent-ready-document
-version: 1.4.2
+version: 1.4.3
 status: implemented
 created: 2026-05-29
-updated: 2026-07-11
+updated: 2026-07-12
 author: airvio / joohwee
 domain: knowgrph
 doc_type: "Implementation PRD/TAD"
@@ -68,9 +68,9 @@ The **MCP Gateway** is a discovery-first federation over four existing surfaces 
 HTTP MCP, browser WebMCP, Cloudflare `McpAgent` control plane) unified by shared contracts — not a
 fifth monolithic proxy tier (see `knowgrph-agentic-os-prd-tad.md` ADR-4). Agents discover capabilities
 via DNS-AID → Link headers → `.well-known` MCP server card → surface selection by trust boundary.
-MCP-compatible hosts including Claude, ChatGPT, Codex, Gemini, Qwen Code, Kimi CLI, and BytePlus ModelArk can use public discovery for read-only installation and the control plane for approval-gated grammar invocation. MainPanel claims remain `documented` or `browser-published` unless a `runtime-executable` owner is named.
-For public remote installs, `https://airvio.co/knowgrph/mcp` is the canonical discovery and setup URL.
+MCP-compatible hosts including Claude, ChatGPT, Codex, Gemini, Qwen Code, Kimi CLI, and BytePlus ModelArk can use public discovery for read-only installation and the control plane for approval-gated grammar invocation; MainPanel claims remain `documented` or `browser-published` unless a `runtime-executable` owner is named. For public remote installs, `https://airvio.co/knowgrph/mcp` is the canonical discovery and setup URL.
 `https://airvio.co/knowgrph/control-plane/mcp` remains a separate approval-gated orchestration surface.
+One canonical operator contract owns that split: install and discovery stay public, while live `/`, `#`, and `@` grammar stays on the control plane or an app-owned forwarder until the host proves MCP session support; canonicalize the contract first, not the transport. The current dual-surface runtime remains intentional until hosted proof supports a single-runtime claim.
 The canonical operator-facing boundary, host recipes, and dual-surface install rule now live in
 `docs/documents/knowgrph-mcp-install-contract.md`; use that install contract first whenever a host
 or setup guide needs one explicit MCP onboarding answer.

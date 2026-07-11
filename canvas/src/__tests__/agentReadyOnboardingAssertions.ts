@@ -1,6 +1,8 @@
 export type AgentReadyOnboarding = {
   promise?: string
   grammarSummary?: string
+  canonicalOperatorContract?: string
+  canonicalTransportRule?: string
   grammarToolName?: string
   grammarExamples?: string[]
   grammarExecutionBoundary?: string
@@ -18,6 +20,8 @@ export function assertAgentReadyOnboardingHtml(html: string) {
     !html.includes('Fastest Path')
     || !html.includes('Map intent. Orchestrate agents. Prove outcomes.')
     || !html.includes('A source-backed canvas where / routes work, # sets meaning, and @ binds context.')
+    || !html.includes('One canonical operator contract: install and discovery stay on the public endpoint')
+    || !html.includes('Canonicalize the contract first, not the transport.')
     || !html.includes('knowgrph.agentic_canvas_os.docs.invoke')
     || !html.includes('/mcp.capabilities')
     || !html.includes('control-plane/mcp')
@@ -31,6 +35,8 @@ export function assertAgentReadyOnboardingHtml(html: string) {
 export function assertAgentReadyOnboardingReadiness(onboarding?: AgentReadyOnboarding) {
   if (onboarding?.promise !== 'Map intent. Orchestrate agents. Prove outcomes.'
     || onboarding?.grammarSummary !== 'A source-backed canvas where / routes work, # sets meaning, and @ binds context.'
+    || onboarding?.canonicalOperatorContract !== 'One canonical operator contract: install and discovery stay on the public endpoint, while live /, #, @ grammar stays on the approval-gated control plane or an app-owned forwarder until the host proves MCP session support.'
+    || onboarding?.canonicalTransportRule !== 'Canonicalize the contract first, not the transport. Keep the runtime split underneath until hosted proof supports a single runtime.'
     || onboarding?.grammarToolName !== 'knowgrph.agentic_canvas_os.docs.invoke'
     || !Array.isArray(onboarding?.grammarExamples)
     || onboarding.grammarExamples.join('|') !== '/mcp.capabilities|#mcp|@mcp-gateway'

@@ -711,8 +711,8 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
   if (readiness.resourceTemplates?.ready !== true || !readiness.resourceTemplates.uriTemplates?.includes(EXPECTED_RESOURCE_TEMPLATE_CONTRACTS[0].uriTemplate)) {
     throw new Error(`expected readiness resource-template details to prove Source Files template discovery, got ${JSON.stringify(readiness.resourceTemplates)}`)
   }
-  if (
-    readiness.onboarding?.grammarToolName !== 'knowgrph.agentic_canvas_os.docs.invoke'
+  if (readiness.onboarding?.grammarToolName !== 'knowgrph.agentic_canvas_os.docs.invoke'
+    || readiness.onboarding?.canonicalOperatorContract !== 'One canonical operator contract: install and discovery stay on the public endpoint, while live /, #, @ grammar stays on the approval-gated control plane or an app-owned forwarder until the host proves MCP session support.' || readiness.onboarding?.canonicalTransportRule !== 'Canonicalize the contract first, not the transport. Keep the runtime split underneath until hosted proof supports a single runtime.'
     || readiness.onboarding?.grammarExecutionBoundary !== 'Keep install on the public discovery endpoint and execute live grammar on the approval-gated control plane.'
     || !Array.isArray(readiness.onboarding?.grammarExamples)
     || readiness.onboarding.grammarExamples.join('|') !== '/mcp.capabilities|#mcp|@mcp-gateway'
