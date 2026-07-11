@@ -1571,5 +1571,8 @@ export async function onRequest(context) {
   const htmlResponse = method === "HEAD" ? response : await injectWebMcpScript(response);
   const nextResponse = new Response(method === "HEAD" ? null : htmlResponse.body, htmlResponse);
   nextResponse.headers.set("link", agentReadyHomepageLinkHeaderValue);
+  if (handlesKnowgrphRoot(url.pathname)) {
+    nextResponse.headers.set("x-frame-options", "SAMEORIGIN");
+  }
   return withKnowgrphRouteHeaders(request, nextResponse);
 }
