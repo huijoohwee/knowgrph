@@ -3,9 +3,17 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { MarkdownFileTree } from './MarkdownFileTree'
 import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
-import { buildPublishedDocShareUrlFromSource } from '@/features/canvas/canvasDocDeepLink'
+import {
+  appendCanvasPreviewParam,
+  buildLocalDocCanvasEmbedUrl,
+  buildPublishedDocCanvasEmbedUrlFromSource,
+  buildPublishedDocShareUrlFromSource,
+  isSameOriginCanvasEmbedUrl,
+} from '@/features/canvas/canvasDocDeepLink'
 import { publishWorkspaceEntryShareUrl } from '@/features/source-files/sourceFileShareUrl'
 import { UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_EMPTY_STATE_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { selectLiveCanvasHeroSource } from '@/features/canvas/liveCanvasHeroSourceSelection'
+import { resolveLiveCanvasHeroEmbedUrl } from '@/features/canvas/liveCanvasHeroEmbed'
 
 type MarkdownWorkspaceSourceFilesListProps = {
   loading: boolean
@@ -56,6 +64,33 @@ export function MarkdownWorkspaceSourceFilesList(props: MarkdownWorkspaceSourceF
     return publishWorkspaceEntryShareUrl({ entry, sourcesByPath })
   }, [sourcesByPath])
 
+  const buildCanvasEmbedUrl = React.useCallback(async (entry: WorkspaceEntry): Promise<string | null> => {
+    if (entry.kind !== 'file') return null
+    const source = sourcesByPath?.[entry.path]
+    if (source?.kind === 'url') {
+      const sourceEmbedUrl = buildPublishedDocCanvasEmbedUrlFromSource({ sourceUrl: source.url })
+      if (sourceEmbedUrl) return sourceEmbedUrl
+    }
+    const shareUrl = await publishWorkspaceEntryShareUrl({ entry, sourcesByPath })
+    return appendCanvasPreviewParam(shareUrl || '')
+  }, [sourcesByPath])
+
+  const handleCanvasEmbedReady = React.useCallback((entry: WorkspaceEntry, embedUrl: string) => {
+    if (!isSameOriginCanvasEmbedUrl(embedUrl)) return
+    const isolatedEmbedUrl = resolveLiveCanvasHeroEmbedUrl({
+      sourcePath: entry.path,
+      selectedEmbedUrl: embedUrl,
+    })
+    if (!isolatedEmbedUrl) return
+    selectLiveCanvasHeroSource({ sourcePath: entry.path, embedUrl: isolatedEmbedUrl })
+  }, [])
+
+  const handleCanvasEmbedStart = React.useCallback((entry: WorkspaceEntry) => {
+    const embedUrl = buildLocalDocCanvasEmbedUrl({ relativePath: entry.path })
+    if (!embedUrl) return
+    selectLiveCanvasHeroSource({ sourcePath: entry.path, embedUrl })
+  }, [])
+
   if (loading) {
     return <p className={`${UI_RESPONSIVE_MARKDOWN_WORKSPACE_EXPLORER_EMPTY_STATE_CLASSNAME} px-2 py-1 ${textSizeClass} ${UI_THEME_TOKENS.text.secondary}`}>Loading…</p>
   }
@@ -79,6 +114,9 @@ export function MarkdownWorkspaceSourceFilesList(props: MarkdownWorkspaceSourceF
       onRenameEntry={onRenameEntry}
       onDeleteEntry={onDeleteEntry}
       buildShareUrl={buildShareUrl}
+      buildCanvasEmbedUrl={buildCanvasEmbedUrl}
+      onCanvasEmbedStart={handleCanvasEmbedStart}
+      onCanvasEmbedReady={handleCanvasEmbedReady}
       renderFileRight={renderFileRight}
     />
   )

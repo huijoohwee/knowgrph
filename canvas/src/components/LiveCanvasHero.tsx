@@ -9,6 +9,8 @@ import {
   liveCanvasHeroQueryHasToken,
   type LiveCanvasHeroModel,
 } from '@/features/agentic-os/liveCanvasHeroModel'
+import { readLiveCanvasHeroContent } from '@/features/agentic-os/liveCanvasHeroContent'
+import { resolveLiveCanvasHeroEmbedUrl } from '@/features/canvas/liveCanvasHeroEmbed'
 import { handoffLiveCanvasHeroQuery } from '@/features/canvas/liveCanvasHeroHandoff'
 import type { LiveCanvasHeroSource } from '@/features/canvas/useKnowgrphLiveCanvasHero'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -26,11 +28,44 @@ type LiveCanvasHeroShellProps = LiveCanvasHeroProps & {
 
 type ReadyLiveCanvasHeroModel = Extract<LiveCanvasHeroModel, { status: 'ready' }>
 
-export function LiveCanvasHeroEditorial(props: LiveCanvasHeroProps & { model: ReadyLiveCanvasHeroModel }) {
+type LiveCanvasHeroEditorialProps = LiveCanvasHeroProps & {
+  model: ReadyLiveCanvasHeroModel
+  shareEmbedUrl?: string | null
+}
+
+function renderHeroInlineCodeText(text: string): React.ReactNode {
+  return text.split(/(`[^`]+`)/g).map((segment, index) => {
+    if (segment.startsWith('`') && segment.endsWith('`')) {
+      return (
+        <span key={`${segment}:${index}`} className="font-mono text-[var(--kg-text-primary)]">
+          {segment.slice(1, -1)}
+        </span>
+      )
+    }
+    return <React.Fragment key={`${segment}:${index}`}>{segment}</React.Fragment>
+  })
+}
+
+export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
   const { model } = props
+  const content = React.useMemo(readLiveCanvasHeroContent, [])
   const [draft, setDraft] = React.useState(model.defaultQuery)
   const [handoffState, setHandoffState] = React.useState<'idle' | 'opening' | 'error'>('idle')
   const [errorText, setErrorText] = React.useState('')
+  const [shareState, setShareState] = React.useState<'idle' | 'copied' | 'error'>('idle')
+
+  const handleShareCanvasEmbed = async () => {
+    const embedUrl = String(props.shareEmbedUrl || '').trim()
+    if (!embedUrl) return
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
+      await navigator.clipboard.writeText(embedUrl)
+      setShareState('copied')
+    } catch {
+      setShareState('error')
+      window.prompt?.('Copy canvas embed URL', embedUrl)
+    }
+  }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -78,17 +113,15 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroProps & { model: Re
       >
         <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--kg-text-secondary)]">
           <span className="h-2 w-2 rounded-full bg-[var(--kg-canvas-accent)] shadow-[0_0_18px_var(--kg-canvas-accent)]" aria-hidden="true" />
-          Knowgrph · Live canvas
+          {content.eyebrow}
         </p>
         <h1 id="knowgrph-live-canvas-hero-title" className="mt-3 text-balance text-3xl font-semibold leading-[1.02] tracking-[-0.045em] md:mt-4 md:text-5xl lg:text-[3.5rem]">
-          <span className="block">Map intent.</span>
-          <span className="block">Orchestrate agents.</span>
-          <span className="block text-[var(--kg-canvas-accent)]">Prove outcomes.</span>
+          <span className="block">{content.headline[0]}</span>
+          <span className="block">{content.headline[1]}</span>
+          <span className="block text-[var(--kg-canvas-accent)]">{content.headline[2]}</span>
         </h1>
         <p className="mt-4 max-w-[34rem] text-sm leading-6 text-[var(--kg-text-secondary)] sm:text-base">
-          A source-backed canvas where <span className="font-mono text-[var(--kg-text-primary)]">/</span> routes work,
-          {' '}<span className="font-mono text-[var(--kg-text-primary)]">#</span> sets meaning, and
-          {' '}<span className="font-mono text-[var(--kg-text-primary)]">@</span> binds context.
+          {renderHeroInlineCodeText(content.lede)}
         </p>
 
         <form
@@ -135,7 +168,8 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroProps & { model: Re
 
           <section className="mt-4 flex flex-wrap items-center gap-2">
             <a
-              href={resolveLiveCanvasHeroEnterHref(import.meta.env.BASE_URL)}
+              href={resolveLiveCanvasHeroEnterHref(import.meta.env?.BASE_URL)}
+              onClick={props.onHandoffComplete}
               className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-[var(--kg-canvas-accent)] bg-[var(--kg-canvas-accent)] px-4 text-sm font-semibold text-slate-950 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)]"
               data-kg-live-canvas-hero-enter="true"
             >
@@ -149,13 +183,28 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroProps & { model: Re
             >
               {handoffState === 'opening' ? 'Opening Chat…' : 'Start locally'}
             </button>
+            {props.shareEmbedUrl ? (
+              <button
+                type="button"
+                className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_72%,transparent)] px-4 text-sm font-semibold text-[var(--kg-text-primary)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)]"
+                onClick={() => { void handleShareCanvasEmbed() }}
+                data-kg-live-canvas-hero-share-embed="true"
+              >
+                Share canvas embed
+              </button>
+            ) : null}
             <span className="text-[11px] text-[var(--kg-text-secondary)]">Ctrl/⌘ + Enter</span>
           </section>
+          {props.shareEmbedUrl ? (
+            <p className="mt-2 min-h-4 text-[11px] text-[var(--kg-text-secondary)]" aria-live="polite" data-kg-live-canvas-hero-share-status="true">
+              {shareState === 'copied' ? 'Canvas embed URL copied.' : shareState === 'error' ? 'Copy the canvas embed URL from the dialog.' : ''}
+            </p>
+          ) : null}
           {errorText ? <p className="mt-2 text-xs text-red-500" role="alert">{errorText}</p> : null}
         </form>
 
         <ul className="mt-3 hidden flex-wrap gap-2 text-[10px] text-[var(--kg-text-secondary)] md:flex" aria-label="Agent-ready execution posture">
-          {['0 model calls before Run', 'Frontmatter SSOT', 'Approval-gated'].map(label => (
+          {content.posture.map(label => (
             <li key={label} className="rounded-full border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_54%,transparent)] px-2.5 py-1 backdrop-blur-md">
               {label}
             </li>
@@ -168,6 +217,11 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroProps & { model: Re
 
 export function LiveCanvasHero(props: LiveCanvasHeroShellProps) {
   const model = React.useMemo(buildLiveCanvasHeroModel, [])
+  const shareEmbedUrl = React.useMemo(() => resolveLiveCanvasHeroEmbedUrl({
+    sourcePath: props.source.sourcePath,
+    selectedEmbedUrl: props.source.embedUrl,
+    baseUrl: import.meta.env?.BASE_URL,
+  }), [props.source.embedUrl, props.source.sourcePath])
   const requestZoom = useGraphStore(state => state.requestZoom)
   React.useEffect(() => {
     let secondFrameId = 0
@@ -203,7 +257,7 @@ export function LiveCanvasHero(props: LiveCanvasHeroShellProps) {
       data-kg-live-canvas-hero-source-revision={props.source.graphRevision}
       data-kg-live-canvas-hero-source-schema={props.source.schema || undefined}
     >
-      <LiveCanvasHeroEditorial {...props} model={model} />
+      <LiveCanvasHeroEditorial {...props} model={model} shareEmbedUrl={shareEmbedUrl} />
     </section>
   )
 }

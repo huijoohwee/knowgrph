@@ -8,6 +8,7 @@ import type { RemoteDocDeepLink } from './canvasDocDeepLink'
 async function handleLocalDeepLink(
   relativePath: string,
   pushUiToast: (t: UiToastInput) => void,
+  options: { applyToGraph: boolean },
 ): Promise<void> {
   const toastId = 'deep-link:doc-local'
   pushUiToast({ id: toastId, kind: 'neutral', message: 'Opening document…', ttlMs: null, dismissible: false })
@@ -44,16 +45,17 @@ async function handleLocalDeepLink(
 
     const entryText = typeof entry.text === 'string' ? entry.text : ''
     if (entryText) {
-      void applyActiveMarkdownDocumentPayload({
+      await applyActiveMarkdownDocumentPayload({
         setActiveMarkdownDocument: graphStore.setActiveMarkdownDocument,
         name: workspaceDocumentKey(targetPath),
         text: entryText,
         sourceUrl: null,
         autoEnableFrontmatter: false,
-        applyViewPreset: false,
-        applyToGraph: false,
+        applyViewPreset: options.applyToGraph,
+        applyToGraph: options.applyToGraph,
+        forceApplyToGraph: options.applyToGraph,
         normalizeWebpageFrontmatterToMarkdown: false,
-      })?.catch(() => { void 0 })
+      })
     }
 
     pushUiToast({
@@ -129,10 +131,13 @@ export function CanvasDocDeepLinkRuntime(props: { search: string }) {
     const currentSearch = typeof window !== 'undefined' ? String(window.location.search || '') : String(search || '')
     const link = parseDocDeepLink(currentSearch)
     if (!link) return
+    const previewRequested = new URLSearchParams(currentSearch.startsWith('?') ? currentSearch.slice(1) : currentSearch).get('kgPreview') === '1'
     consumeDeepLinkParams(currentSearch)
 
     if (link.kind === 'local') {
-      void handleLocalDeepLink(link.relativePath, pushUiToast)
+      void handleLocalDeepLink(link.relativePath, pushUiToast, {
+        applyToGraph: previewRequested,
+      })
     } else {
       void handleRemoteDeepLink(link, pushUiToast).catch(err => {
         const message = err instanceof Error ? err.message : 'Failed to load shared document'

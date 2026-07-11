@@ -1,5 +1,5 @@
 import React from 'react'
-import { BarChart3, CloudDownload, FilePlus2, FolderOpen, FolderPlus, Image as ImageIcon, Save, Sparkles, Upload, Workflow } from 'lucide-react'
+import { BarChart3, CloudDownload, FilePlus2, FolderOpen, FolderPlus, Home, Image as ImageIcon, Save, Sparkles, Upload, Workflow } from 'lucide-react'
 import { DropdownPanel } from '@/lib/ui/overlay'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { SOURCE_FILES_FORMATS } from '@/lib/config-copy/importExportCopy'
@@ -21,6 +21,7 @@ import { LaunchDropdownImportUrlItem } from './LaunchDropdownImportUrlItem'
 import { loadLaunchDropdownFallbackModule } from '@/features/toolbar/launchDropdownFallbackModule'
 import { runLaunchImportLocalFiles } from './launchImportDispatch'
 import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
+import { AIRVIO_HOME_URL } from '@/lib/routing/airvioHome'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 const WORKSPACE_IMPORT_IMAGE_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif,.avif,image/png,image/jpeg,image/webp,image/gif,image/avif'
@@ -259,6 +260,20 @@ export function LaunchDropdown({
 
       <DropdownPanel anchorRef={anchorRef} open={open} onClose={onClose} align="bottom-left">
         <menu className={menuRootClass} aria-label="Launch">
+          <li className="list-none">
+            <a
+              href={AIRVIO_HOME_URL}
+              className={menuItemClass}
+              onClick={onClose}
+              data-kg-launch-home="true"
+            >
+              <Home className={menuIconClass} strokeWidth={1.6} />
+              <span className="truncate">Home</span>
+            </a>
+          </li>
+
+          <li className={cn('my-1 border-t', UI_THEME_TOKENS.panel.divider)} aria-hidden="true" />
+
           {typeof onLaunchSpotlight === 'function' ? (
             <li className="list-none">
               <button

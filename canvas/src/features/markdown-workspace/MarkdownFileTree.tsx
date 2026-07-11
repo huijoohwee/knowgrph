@@ -58,6 +58,9 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
   onRenameEntry?: (path: WorkspacePath, nextName: string) => void
   onDeleteEntry?: (path: WorkspacePath) => void
   buildShareUrl?: (entry: WorkspaceEntry) => string | null | Promise<string | null>
+  buildCanvasEmbedUrl?: (entry: WorkspaceEntry) => string | null | Promise<string | null>
+  onCanvasEmbedStart?: (entry: WorkspaceEntry) => void
+  onCanvasEmbedReady?: (entry: WorkspaceEntry, url: string) => void
   renderFileRight?: (args: { entry: WorkspaceEntry; isActive: boolean }) => React.ReactNode
 }) {
   const {
@@ -74,6 +77,9 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
     onRenameEntry,
     onDeleteEntry,
     buildShareUrl,
+    buildCanvasEmbedUrl,
+    onCanvasEmbedStart,
+    onCanvasEmbedReady,
     renderFileRight,
   } = props
   const panelTypography = usePanelTypography()
@@ -129,6 +135,9 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
             entry: contextMenu.entry,
             copyToClipboard,
             buildShareUrl: defaultBuildShareUrl,
+            buildCanvasEmbedUrl,
+            onCanvasEmbedStart,
+            onCanvasEmbedReady,
             onCreateNewFile,
             onRevealInFinder,
             onClearFile,
@@ -137,7 +146,7 @@ export const MarkdownFileTree = React.memo(function MarkdownFileTree(props: {
             closeContextMenu,
           })
         : [],
-    [closeContextMenu, contextMenu, copyToClipboard, defaultBuildShareUrl, onClearFile, onCreateNewFile, onDeleteEntry, onRenameEntry, onRevealInFinder],
+    [buildCanvasEmbedUrl, closeContextMenu, contextMenu, copyToClipboard, defaultBuildShareUrl, onCanvasEmbedReady, onCanvasEmbedStart, onClearFile, onCreateNewFile, onDeleteEntry, onRenameEntry, onRevealInFinder],
   )
 
   const renderNode = (node: Node, depth: number) => {

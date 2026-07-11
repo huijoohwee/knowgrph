@@ -3,7 +3,7 @@ import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspace
 import { WORKSPACE_ROOT_PATH } from '@/features/workspace-fs/path'
 
 export type MarkdownFileTreeContextMenuItem = {
-  key: 'shareUrl' | 'reveal' | 'copyPath' | 'copyRelativePath' | 'newFile' | 'clear' | 'rename' | 'delete'
+  key: 'shareUrl' | 'shareCanvasEmbed' | 'reveal' | 'copyPath' | 'copyRelativePath' | 'newFile' | 'clear' | 'rename' | 'delete'
   label: string
   tone?: 'default' | 'danger'
   onSelect: () => void | Promise<void>
@@ -13,6 +13,9 @@ type BuildMarkdownFileTreeContextMenuItemsArgs = {
   entry: WorkspaceEntry
   copyToClipboard: (text: string) => Promise<boolean>
   buildShareUrl?: (entry: WorkspaceEntry) => string | null | Promise<string | null>
+  buildCanvasEmbedUrl?: (entry: WorkspaceEntry) => string | null | Promise<string | null>
+  onCanvasEmbedStart?: (entry: WorkspaceEntry) => void
+  onCanvasEmbedReady?: (entry: WorkspaceEntry, url: string) => void
   promptShareUrl?: (url: string) => void
   onShareUrlError?: (message: string) => void
   onCreateNewFile?: (parentPath: WorkspacePath) => void
@@ -38,17 +41,13 @@ export function buildMarkdownFileTreeContextMenuItems(
       key: 'shareUrl',
       label: 'Share URL',
       onSelect: () => {
-        void Promise.resolve(args.buildShareUrl?.(args.entry) || null)
-          .then(url => {
-            if (!url) {
-              notifyShareUrlError(args.onShareUrlError, 'Share URL is unavailable because the file could not be published.')
-              return
-            }
-            return shareOrCopyUrl(url, args.copyToClipboard, args.promptShareUrl)
-          })
-          .catch(error => {
-            notifyShareUrlError(args.onShareUrlError, 'Share URL is unavailable because the file could not be published.', error)
-          })
+        void resolveAndShareUrl({
+          buildUrl: () => args.buildShareUrl?.(args.entry) || null,
+          copyToClipboard: args.copyToClipboard,
+          promptShareUrl: args.promptShareUrl,
+          onShareUrlError: args.onShareUrlError,
+          unavailableMessage: 'Share URL is unavailable because the file could not be published.',
+        })
         args.closeContextMenu()
       },
     },
@@ -78,6 +77,25 @@ export function buildMarkdownFileTreeContextMenuItems(
       },
     },
   ]
+
+  if (args.entry.kind === 'file') {
+    items.splice(1, 0, {
+      key: 'shareCanvasEmbed',
+      label: 'Share canvas embed',
+      onSelect: () => {
+        args.onCanvasEmbedStart?.(args.entry)
+        void resolveAndShareUrl({
+          buildUrl: () => args.buildCanvasEmbedUrl?.(args.entry) || null,
+          copyToClipboard: args.copyToClipboard,
+          promptShareUrl: args.promptShareUrl,
+          onShareUrlError: args.onShareUrlError,
+          unavailableMessage: 'Canvas embed URL is unavailable because the file could not be published.',
+          onResolved: url => args.onCanvasEmbedReady?.(args.entry, url),
+        })
+        args.closeContextMenu()
+      },
+    })
+  }
 
   if (args.onCreateNewFile) {
     items.push({
@@ -135,6 +153,27 @@ export function buildMarkdownFileTreeContextMenuItems(
   }
 
   return items
+}
+
+async function resolveAndShareUrl(args: {
+  buildUrl: () => string | null | Promise<string | null>
+  copyToClipboard: (text: string) => Promise<boolean>
+  promptShareUrl?: (url: string) => void
+  onShareUrlError?: (message: string) => void
+  unavailableMessage: string
+  onResolved?: (url: string) => void
+}): Promise<void> {
+  try {
+    const url = await Promise.resolve(args.buildUrl() || null)
+    if (!url) {
+      notifyShareUrlError(args.onShareUrlError, args.unavailableMessage)
+      return
+    }
+    await shareOrCopyUrl(url, args.copyToClipboard, args.promptShareUrl)
+    args.onResolved?.(url)
+  } catch (error) {
+    notifyShareUrlError(args.onShareUrlError, args.unavailableMessage, error)
+  }
 }
 
 function notifyShareUrlError(

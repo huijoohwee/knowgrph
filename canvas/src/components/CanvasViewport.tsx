@@ -17,7 +17,9 @@ import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-fil
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { isStrybldrStoryboardGraphData } from '@/features/strybldr/strybldrStoryboard'
 import { useKnowgrphLiveCanvasHero } from '@/features/canvas/useKnowgrphLiveCanvasHero'
+import { deriveLiveCanvasHeroCommandRouteGraph } from '@/features/canvas/liveCanvasHeroProjection'
 import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
+import { resolveCanvasViewportHeavyRuntimeIntentSurface } from '@/components/canvasViewportHeavyRuntimeIntent'
 const CanvasViewportGeospatialOverlayLazy = React.lazy(() =>
   import('@/components/CanvasViewportGeospatialOverlay').then(mod => ({ default: mod.CanvasViewportGeospatialOverlay })),
 )
@@ -57,6 +59,20 @@ const PaywallOverlayLazy = React.lazy(async (): Promise<{ default: React.Compone
   default: (await import('@/features/payments/PaywallOverlay')).PaywallOverlay,
 }))
 const MARKDOWN_METRICS_DEV_ENABLED = Boolean((import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV)
+const HEAVY_RUNTIME_INTENT_COPY = {
+  '3d': {
+    eyebrow: '3D runtime',
+    title: 'Load 3D canvas on this device',
+    body: '3D stays opt-in on touch viewports so the mobile shell remains lighter until you explicitly open it.',
+    action: 'Load 3D view',
+  },
+  geo: {
+    eyebrow: 'Map runtime',
+    title: 'Load geospatial canvas on this device',
+    body: 'Map rendering stays opt-in on touch viewports so the mobile shell avoids the heavier geospatial runtime until you ask for it.',
+    action: 'Load map view',
+  },
+} as const
 
 export type CanvasViewportVariant = 'workspace' | 'embeddedPreview'
 
@@ -70,6 +86,12 @@ export type CanvasViewportProps = {
   canvas2dRenderer: Canvas2dRendererId
   documentSwitchPending?: boolean
   documentSwitchPendingLabel?: string
+  onLiveCanvasHeroVisibilityChange?: (visible: boolean) => void
+}
+
+function isLiveCanvasHeroEmbedPreview(variant: CanvasViewportVariant): boolean {
+  if (variant !== 'embeddedPreview' || typeof window === 'undefined') return false
+  return new URLSearchParams(window.location.search).get('kgLiveHero') === '1'
 }
 
 export function CanvasViewport(props: CanvasViewportProps) {
@@ -83,8 +105,10 @@ export function CanvasViewport(props: CanvasViewportProps) {
     canvas2dRenderer,
     documentSwitchPending = false,
     documentSwitchPendingLabel = 'Switching document...',
+    onLiveCanvasHeroVisibilityChange,
   } = props
   const activeGraphData = useActiveGraphRenderData(true)
+  const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
@@ -111,6 +135,13 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceStoryboardSurfaceActive
   const sharedGraphCanvasSurfaceActive = active2dSurface === 'd3'
   const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
+  const liveCanvasHeroEmbedPreview = isLiveCanvasHeroEmbedPreview(variant)
+  const liveCanvasHeroEmbedGraph = React.useMemo(
+    () => liveCanvasHeroEmbedPreview
+      ? deriveLiveCanvasHeroCommandRouteGraph(safeGraphData) || safeGraphData
+      : null,
+    [liveCanvasHeroEmbedPreview, safeGraphData],
+  )
   const { frontmatterModeEnabled, multiDimTableModeEnabled, documentSemanticMode, schema, timelineEnabled, bottomSurfaceCollapsed, bottomSurfaceTab } = useGraphStore(
     useShallow(s => ({
       frontmatterModeEnabled: s.frontmatterModeEnabled === true,
@@ -184,10 +215,31 @@ export function CanvasViewport(props: CanvasViewportProps) {
     floatingPanelOpen,
     alternateCanvasSurfaceActive: geospatialModeEnabled || canvasRenderMode !== '2d',
   })
+  React.useEffect(() => {
+    onLiveCanvasHeroVisibilityChange?.(liveCanvasHeroVisible)
+    return () => onLiveCanvasHeroVisibilityChange?.(false)
+  }, [liveCanvasHeroVisible, onLiveCanvasHeroVisibilityChange])
+  const isTouchViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
+  const [activatedHeavyRuntimeSurfaces, setActivatedHeavyRuntimeSurfaces] = React.useState<Partial<Record<'3d' | 'geo', true>>>({})
+  const heavyRuntimeIntentSurface = resolveCanvasViewportHeavyRuntimeIntentSurface({
+    isTouchViewport,
+    geospatialOverlayOwnsViewport,
+    canvasRenderMode,
+  })
+  const heavyRuntimeIntentBlocked = heavyRuntimeIntentSurface !== null && activatedHeavyRuntimeSurfaces[heavyRuntimeIntentSurface] !== true
+  const activateHeavyRuntimeIntentSurface = React.useCallback(() => {
+    if (!heavyRuntimeIntentSurface) return
+    setActivatedHeavyRuntimeSurfaces(previous => {
+      if (previous[heavyRuntimeIntentSurface] === true) return previous
+      return { ...previous, [heavyRuntimeIntentSurface]: true }
+    })
+  }, [heavyRuntimeIntentSurface])
   const minimapOverlayVisible = !documentSwitchBlocksCanvas
     && !geospatialOverlayOwnsViewport
     && !liveCanvasHeroVisible
+    && !liveCanvasHeroEmbedPreview
+    && !heavyRuntimeIntentBlocked
     && !isNarrowViewport
     && (
       (activeSurface === '2d' && supportsCanvas2dMinimap(canvas2dRenderer))
@@ -197,6 +249,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const bridgeOnlyWidgetDropActive = !documentSwitchBlocksCanvas
     && !geospatialOverlayOwnsViewport
     && !liveCanvasHeroVisible
+    && !liveCanvasHeroEmbedPreview
     && canvasRenderMode === '2d'
     && active2dSurface !== 'storyboard'
   const rootRef = React.useRef<HTMLElement | null>(null)
@@ -213,7 +266,25 @@ export function CanvasViewport(props: CanvasViewportProps) {
       <React.Suspense fallback={null}>
         {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
           <section className="absolute inset-0 z-[10]">
-            {liveCanvasHeroVisible && liveCanvasHeroSource ? (
+            {liveCanvasHeroEmbedPreview && liveCanvasHeroEmbedGraph ? (
+              <section
+                className="absolute inset-0 pointer-events-auto opacity-100"
+                aria-label="Shared interactive workspace README command-route canvas"
+                data-kg-live-canvas-hero-embed-preview="true"
+                data-kg-live-canvas-hero-interactive="true"
+              >
+                <FlowCanvasLazy
+                  active
+                  graphDataOverride={liveCanvasHeroEmbedGraph}
+                  mutationSourceGraphDataOverride={safeGraphData}
+                  graphDataRevisionOverride={graphDataRevision}
+                  canvas2dRendererOverride="flow"
+                  suppressMediaOverlays
+                  flowWidgetStateGraphKeyOverride={`live-hero-embed:${graphDataRevision}`}
+                  forbidCircleNodes
+                />
+              </section>
+            ) : liveCanvasHeroVisible && liveCanvasHeroSource ? (
               <>
                 <section
                   className="absolute inset-0 pointer-events-auto opacity-100"
@@ -223,16 +294,29 @@ export function CanvasViewport(props: CanvasViewportProps) {
                   data-kg-live-canvas-hero-source={liveCanvasHeroSource.sourcePath}
                   data-kg-live-canvas-hero-source-graph-id={liveCanvasHeroSource.graphId || undefined}
                 >
-                  <FlowCanvasLazy
-                    active
-                    graphDataOverride={liveCanvasHeroSource.canvasGraphData}
-                    mutationSourceGraphDataOverride={liveCanvasHeroSource.graphData}
-                    graphDataRevisionOverride={liveCanvasHeroSource.graphRevision}
-                    canvas2dRendererOverride="flow"
-                    suppressMediaOverlays
-                    flowWidgetStateGraphKeyOverride={`live-hero:${liveCanvasHeroSource.sourceLayerHash}`}
-                    forbidCircleNodes
-                  />
+                  {liveCanvasHeroSource.embedUrl ? (
+                    <iframe
+                      key={liveCanvasHeroSource.embedUrl}
+                      src={liveCanvasHeroSource.embedUrl}
+                      title={`Interactive canvas embed for ${liveCanvasHeroSource.sourcePath}`}
+                      className="absolute inset-0 h-full w-full border-0 bg-transparent"
+                      sandbox="allow-forms allow-popups allow-same-origin allow-scripts"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      data-kg-live-canvas-hero-selected-embed="true"
+                      data-kg-live-canvas-hero-embed-url={liveCanvasHeroSource.embedUrl}
+                    />
+                  ) : (
+                    <FlowCanvasLazy
+                      active
+                      graphDataOverride={liveCanvasHeroSource.canvasGraphData}
+                      mutationSourceGraphDataOverride={liveCanvasHeroSource.graphData}
+                      graphDataRevisionOverride={liveCanvasHeroSource.graphRevision}
+                      canvas2dRendererOverride="flow"
+                      suppressMediaOverlays
+                      flowWidgetStateGraphKeyOverride={`live-hero:${liveCanvasHeroSource.sourceLayerHash}`}
+                      forbidCircleNodes
+                    />
+                  )}
                 </section>
                 <LiveCanvasHeroLazy source={liveCanvasHeroSource} onHandoffComplete={dismissLiveCanvasHero} />
               </>
@@ -291,7 +375,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
             <StoryboardWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled />
           </section>
         ) : null}
-        {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '3d' ? (
+        {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '3d' && !heavyRuntimeIntentBlocked ? (
           <section className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
             <ThreeGraphLazy active mode={effectiveCanvas3dMode} />
           </section>
@@ -303,13 +387,42 @@ export function CanvasViewport(props: CanvasViewportProps) {
           </section>
         ) : null}
 
-        {!documentSwitchBlocksCanvas && geospatialOverlayOwnsViewport ? (
+        {!documentSwitchBlocksCanvas && geospatialOverlayOwnsViewport && !heavyRuntimeIntentBlocked ? (
           <CanvasViewportGeospatialOverlayLazy
             active={activeSurface === 'geo'}
             geospatialModeEnabled={geospatialModeEnabled}
             graphData={safeGraphData}
             storyboardWidgetPanelsActive={geospatialModeEnabled && active2dSurface === 'storyboard'}
           />
+        ) : null}
+        {!documentSwitchBlocksCanvas && heavyRuntimeIntentSurface && heavyRuntimeIntentBlocked ? (
+          <section
+            className="absolute inset-0 z-[35] flex items-center justify-center bg-[var(--kg-canvas-bg)]/96 px-4"
+            aria-label={`${HEAVY_RUNTIME_INTENT_COPY[heavyRuntimeIntentSurface].title} activation`}
+            data-kg-canvas-heavy-runtime-intent={heavyRuntimeIntentSurface}
+          >
+            <section className="w-full max-w-sm rounded-2xl border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] px-5 py-5 text-left shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--kg-text-secondary)]">
+                {HEAVY_RUNTIME_INTENT_COPY[heavyRuntimeIntentSurface].eyebrow}
+              </p>
+              <h2 className="mt-2 text-base font-semibold text-[var(--kg-text-primary)]">
+                {HEAVY_RUNTIME_INTENT_COPY[heavyRuntimeIntentSurface].title}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--kg-text-secondary)]">
+                {HEAVY_RUNTIME_INTENT_COPY[heavyRuntimeIntentSurface].body}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  className="App-toolbar__btn min-h-11 px-4 text-sm font-medium"
+                  onClick={activateHeavyRuntimeIntentSurface}
+                  data-kg-canvas-heavy-runtime-intent-activate={heavyRuntimeIntentSurface}
+                >
+                  {HEAVY_RUNTIME_INTENT_COPY[heavyRuntimeIntentSurface].action}
+                </button>
+              </div>
+            </section>
+          </section>
         ) : null}
 
         {variant === 'workspace' ? (
@@ -358,8 +471,8 @@ export function CanvasViewport(props: CanvasViewportProps) {
                 workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}
               />
             ) : null}
-            {!documentSwitchBlocksCanvas && MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}
-            {!documentSwitchBlocksCanvas && paywallOverlayActive ? <PaywallOverlayLazy portalTarget={rootRef.current} /> : null}
+            {!documentSwitchBlocksCanvas && !liveCanvasHeroVisible && MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}
+            {!documentSwitchBlocksCanvas && !liveCanvasHeroVisible && paywallOverlayActive ? <PaywallOverlayLazy portalTarget={rootRef.current} /> : null}
             {documentSwitchBlocksCanvas ? (
               <section
                 className="absolute inset-0 z-[80] flex items-center justify-center bg-[var(--kg-canvas-bg)]"

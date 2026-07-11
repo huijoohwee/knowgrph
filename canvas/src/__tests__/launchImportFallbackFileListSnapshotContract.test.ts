@@ -51,3 +51,19 @@ export function testLaunchDropdownNewMarkdownUsesSharedDocsCreator() {
     throw new Error('expected Launch markdown creation to reuse the shared workspace UTC timestamp helper')
   }
 }
+
+export function testLaunchDropdownHomeUsesCanonicalAirvioOrigin() {
+  const dropdown = readFileSync(resolve(process.cwd(), 'src', 'lib', 'toolbar', 'LaunchDropdown.impl.tsx'), 'utf8')
+  const homeRoute = readFileSync(resolve(process.cwd(), 'src', 'lib', 'routing', 'airvioHome.ts'), 'utf8')
+  const required = [
+    "import { AIRVIO_HOME_URL } from '@/lib/routing/airvioHome'",
+    'href={AIRVIO_HOME_URL}',
+    'data-kg-launch-home="true"',
+    '<span className="truncate">Home</span>',
+  ]
+  const missing = required.filter(snippet => !dropdown.includes(snippet))
+  if (missing.length) throw new Error(`expected Launch Home action contract: ${missing.join(', ')}`)
+  if (!homeRoute.includes("AIRVIO_HOME_URL = 'https://airvio.co/'")) {
+    throw new Error('expected Launch Home to use the canonical airvio.co origin')
+  }
+}

@@ -14,6 +14,8 @@ import {
 const DEEP_LINK_PREFIX = '/doc/'
 const DEFAULT_DEEP_LINK_PREFIX = '/doc-default/'
 const SHARE_DEEP_LINK_PREFIX = '/share/'
+const CANVAS_PREVIEW_PARAM = 'kgPreview'
+const LIVE_CANVAS_HERO_PREVIEW_PARAM = 'kgLiveHero'
 const DEEP_LINK_PARAM = 'kgPath'
 const LOCAL_DOC_PARAM = 'kgDoc'
 const WORKSPACE_ID_PARAM = 'kgWorkspaceId'
@@ -129,6 +131,16 @@ export function buildPublishedDocShareUrl(args: {
   return `${readPublishedDocShareOrigin(args.origin)}${buildPublishedDocShareDeepLink(identity)}`
 }
 
+export function buildPublishedDocCanvasEmbedUrl(args: {
+  workspaceId?: string | null
+  canonicalPath: string
+  origin?: string | null
+}): string | null {
+  const shareUrl = buildPublishedDocShareUrl(args)
+  if (!shareUrl) return null
+  return appendCanvasPreviewParam(shareUrl)
+}
+
 function parsePublishedDocSourceUrl(sourceUrl: string): { workspaceId: string | null; canonicalPath: string } | null {
   const trimmed = String(sourceUrl || '').trim()
   if (!trimmed) return null
@@ -162,6 +174,64 @@ export function buildPublishedDocShareUrlFromSource(args: {
   const parsed = parsePublishedDocSourceUrl(args.sourceUrl)
   if (!parsed) return null
   return buildPublishedDocShareUrl({ ...parsed, origin: args.origin })
+}
+
+export function buildPublishedDocCanvasEmbedUrlFromSource(args: {
+  sourceUrl: string
+  origin?: string | null
+}): string | null {
+  const parsed = parsePublishedDocSourceUrl(args.sourceUrl)
+  if (!parsed) return null
+  return buildPublishedDocCanvasEmbedUrl({ ...parsed, origin: args.origin })
+}
+
+export function appendCanvasPreviewParam(url: string): string | null {
+  const trimmed = String(url || '').trim()
+  if (!trimmed) return null
+  try {
+    const parsed = new URL(trimmed, typeof window !== 'undefined' ? window.location.origin : 'https://airvio.co')
+    parsed.searchParams.set(CANVAS_PREVIEW_PARAM, '1')
+    return parsed.toString()
+  } catch {
+    return null
+  }
+}
+
+export function buildLocalDocCanvasEmbedUrl(args: {
+  relativePath: string
+  origin?: string | null
+  pathname?: string | null
+}): string | null {
+  const relativePath = String(args.relativePath || '').trim().replace(/^\/+/, '')
+  if (!relativePath) return null
+  const origin = String(args.origin || '').trim()
+    || (typeof window !== 'undefined' ? String(window.location.origin || '').trim() : '')
+  const pathname = String(args.pathname || '').trim()
+    || (typeof window !== 'undefined' ? String(window.location.pathname || '/').trim() : '/')
+  if (!origin) return null
+  try {
+    const url = new URL(pathname || '/', origin)
+    url.search = ''
+    url.hash = ''
+    url.searchParams.set(LOCAL_DOC_PARAM, relativePath)
+    url.searchParams.set(CANVAS_PREVIEW_PARAM, '1')
+    url.searchParams.set(LIVE_CANVAS_HERO_PREVIEW_PARAM, '1')
+    return url.toString()
+  } catch {
+    return null
+  }
+}
+
+export function isSameOriginCanvasEmbedUrl(url: string, origin?: string | null): boolean {
+  const candidate = String(url || '').trim()
+  const runtimeOrigin = String(origin || '').trim()
+    || (typeof window !== 'undefined' ? String(window.location.origin || '').trim() : '')
+  if (!candidate || !runtimeOrigin) return false
+  try {
+    return new URL(candidate, runtimeOrigin).origin === new URL(runtimeOrigin).origin
+  } catch {
+    return false
+  }
 }
 
 export function consumeDeepLinkParams(search: string): void {

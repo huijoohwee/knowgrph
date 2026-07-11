@@ -152,6 +152,11 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
     )
     await execTest(
       results,
+      'ui.toolbar.launch.home.canonicalAirvioOrigin',
+      modLaunchImportContract.testLaunchDropdownHomeUsesCanonicalAirvioOrigin,
+    )
+    await execTest(
+      results,
       'ui.workspaceEditor.overlay.d3SceneLayoutWrites.gated',
       modWorkspaceOverlayContract.testWorkspaceEditorOverlayGatesD3SceneLayoutWrites,
     )

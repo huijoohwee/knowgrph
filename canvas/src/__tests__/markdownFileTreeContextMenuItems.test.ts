@@ -33,21 +33,22 @@ export async function testMarkdownFileTreeContextMenuItemsReuseSharedDefinitions
   })
 
   const labels = items.map(item => item.label).join(',')
-  if (labels !== 'Share URL,Reveal in Finder,Copy Path,Copy Relative Path,New file,Clear,Rename,Delete') {
+  if (labels !== 'Share URL,Share canvas embed,Reveal in Finder,Copy Path,Copy Relative Path,New file,Clear,Rename,Delete') {
     throw new Error(`expected shared file-tree context-menu labels, got ${labels}`)
   }
-  if (items[7]?.tone !== 'danger') {
-    throw new Error(`expected delete menu item to be danger tone, got ${String(items[7]?.tone || '')}`)
+  if (items[8]?.tone !== 'danger') {
+    throw new Error(`expected delete menu item to be danger tone, got ${String(items[8]?.tone || '')}`)
   }
 
   items[0]?.onSelect()
   items[1]?.onSelect()
-  await items[2]?.onSelect()
+  items[2]?.onSelect()
   await items[3]?.onSelect()
-  items[4]?.onSelect()
+  await items[4]?.onSelect()
   items[5]?.onSelect()
   items[6]?.onSelect()
   items[7]?.onSelect()
+  items[8]?.onSelect()
 
   const callLog = calls.join(',')
   if (!callLog.includes('new-file,close')) {
@@ -86,7 +87,7 @@ export async function testMarkdownFileTreeContextMenuItemsHideMutationsForInitia
   })
 
   const labels = items.map(item => item.label).join(',')
-  if (labels !== 'Share URL,Reveal in Finder,Copy Path,Copy Relative Path,New file,Clear') {
+  if (labels !== 'Share URL,Share canvas embed,Reveal in Finder,Copy Path,Copy Relative Path,New file,Clear') {
     throw new Error(`expected initialization-file menu to hide rename and delete, got ${labels}`)
   }
 }
@@ -120,6 +121,41 @@ export async function testMarkdownFileTreeShareUrlAwaitsAsyncPublishedUrlBeforeC
   }
 }
 
+export async function testMarkdownFileTreeShareCanvasEmbedAwaitsAsyncPublishedUrlBeforeCopy() {
+  const calls: string[] = []
+  const copied: string[] = []
+  const selected: string[] = []
+  const items = buildMarkdownFileTreeContextMenuItems({
+    entry: {
+      path: '/docs/public.md',
+      parentPath: '/docs',
+      kind: 'file',
+      name: 'public.md',
+      updatedAtMs: 0,
+    },
+    buildCanvasEmbedUrl: async () => 'https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1',
+    copyToClipboard: async text => {
+      copied.push(text)
+      return true
+    },
+    onCanvasEmbedStart: entry => calls.push(`start:${entry.path}`),
+    onCanvasEmbedReady: (entry, url) => selected.push(`${entry.path}:${url}`),
+    closeContextMenu: () => calls.push('close'),
+  })
+
+  await items[1]?.onSelect()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  if (calls.join(',') !== 'start:/docs/public.md,close') {
+    throw new Error(`expected Share canvas embed to close the context menu immediately, got ${calls.join(',')}`)
+  }
+  if (copied.join(',') !== 'https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1') {
+    throw new Error(`expected async published canvas embed URL to be copied, got ${copied.join(',')}`)
+  }
+  if (selected.join(',') !== '/docs/public.md:https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1') {
+    throw new Error(`expected the published canvas embed to select the same source for the Live Canvas Hero, got ${selected.join(',')}`)
+  }
+}
+
 export async function testMarkdownFileTreeShareUrlPromptsWhenClipboardUnavailable() {
   const prompted: string[] = []
   const items = buildMarkdownFileTreeContextMenuItems({
@@ -140,6 +176,41 @@ export async function testMarkdownFileTreeShareUrlPromptsWhenClipboardUnavailabl
   await new Promise(resolve => setTimeout(resolve, 0))
   if (prompted.join(',') !== 'https://airvio.co/knowgrph/share/kg-public-token') {
     throw new Error(`expected Share URL fallback prompt when clipboard write is unavailable, got ${prompted.join(',')}`)
+  }
+}
+
+export async function testMarkdownFileTreeShareCanvasEmbedSurfacesUnavailablePublishResult() {
+  const errors: string[] = []
+  const copied: string[] = []
+  const selected: string[] = []
+  const items = buildMarkdownFileTreeContextMenuItems({
+    entry: {
+      path: '/docs/public.md',
+      parentPath: '/docs',
+      kind: 'file',
+      name: 'public.md',
+      updatedAtMs: 0,
+    },
+    buildCanvasEmbedUrl: async () => null,
+    copyToClipboard: async text => {
+      copied.push(text)
+      return true
+    },
+    onShareUrlError: message => errors.push(message),
+    onCanvasEmbedReady: (entry, url) => selected.push(`${entry.path}:${url}`),
+    closeContextMenu: () => void 0,
+  })
+
+  await items[1]?.onSelect()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  if (copied.length !== 0) {
+    throw new Error(`expected unavailable canvas embed URL to avoid copying unpublished URLs, got ${copied.join(',')}`)
+  }
+  if (!errors.join(',').includes('Canvas embed URL is unavailable')) {
+    throw new Error(`expected unavailable canvas embed URL to surface a publish message, got ${errors.join(',')}`)
+  }
+  if (selected.length !== 0) {
+    throw new Error(`expected unavailable canvas embed URL not to swap the Live Canvas Hero, got ${selected.join(',')}`)
   }
 }
 

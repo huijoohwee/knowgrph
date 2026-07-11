@@ -3,13 +3,21 @@ import { getSourceFileTextHash } from '@/features/source-files/sourceFilesSignat
 import {
   isDefaultWorkspaceSeedSourcePath,
   resolveWorkspaceSeedSourcePath,
+  WORKSPACE_README_PUBLIC_SOURCE_PATH,
+  WORKSPACE_README_SOURCE_ID,
   WORKSPACE_README_SOURCE_PATH,
 } from '@/features/source-files/workspaceSeedSourceFiles'
 import type { SourceFile } from '@/hooks/store/types'
 import type { GraphData } from '@/lib/graph/types'
-import { isRouterRootAliasRuntime } from '@/lib/routing/basePath'
+import { isRouterRootAliasRuntime, resolveLiveCanvasHeroEnterHref } from '@/lib/routing/basePath'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
-import { shouldShowLiveCanvasHero } from './liveCanvasHeroVisibility'
+import { hasLiveCanvasHeroBlockingSearchParams, shouldShowLiveCanvasHero } from './liveCanvasHeroVisibility'
+import {
+  LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT,
+  readLiveCanvasHeroSourceSelection,
+  type LiveCanvasHeroSourceSelection,
+} from './liveCanvasHeroSourceSelection'
+import { deriveLiveCanvasHeroCommandRouteGraph } from './liveCanvasHeroProjection'
 
 export type LiveCanvasHeroWorkspaceSourceState = {
   defaultSeedOnly: boolean
@@ -26,71 +34,46 @@ export type LiveCanvasHeroSource = {
   graphId: string
   schema: string
   sourceLayerHash: string
+  embedUrl?: string
 }
 
 const LIVE_CANVAS_HERO_INITIALIZATION_SOURCE_BASENAME = 'knowgrph-strybldr-starter-template.md'
+
+const normalizeLiveCanvasHeroSourceIdentity = (value: unknown): string => String(value || '')
+  .trim()
+  .replace(/\\/g, '/')
+  .replace(/^[a-z]+:\/+/i, '')
+  .replace(/^\/+/, '')
+  .replace(/\/+$/, '')
+  .toLowerCase()
+
+const resolvePreferredLiveCanvasHeroSourceFile = (
+  sourceFiles: SourceFile[],
+  preferredSourcePath: string,
+): SourceFile | null => {
+  const preferred = normalizeLiveCanvasHeroSourceIdentity(preferredSourcePath)
+  if (!preferred) return null
+  const preferredBasename = preferred.split('/').pop() || preferred
+  const ranked = sourceFiles.map(sourceFile => {
+    const identities = [sourceFile.id, sourceFile.name, sourceFile.source?.path, sourceFile.source?.url]
+      .map(normalizeLiveCanvasHeroSourceIdentity)
+      .filter(Boolean)
+    const exact = identities.some(identity => identity === preferred)
+    const suffix = identities.some(identity => identity.endsWith(`/${preferred}`) || preferred.endsWith(`/${identity}`))
+    const basename = identities.some(identity => identity.split('/').pop() === preferredBasename)
+    return { sourceFile, rank: exact ? 3 : suffix ? 2 : basename ? 1 : 0 }
+  }).filter(candidate => candidate.rank > 0)
+  ranked.sort((left, right) => right.rank - left.rank)
+  const bestRank = ranked[0]?.rank || 0
+  const bestMatches = ranked.filter(candidate => candidate.rank === bestRank)
+  return bestMatches.length === 1 ? bestMatches[0]?.sourceFile || null : null
+}
 
 const isLiveCanvasHeroInitializationSourcePath = (path: string): boolean => (
   isDefaultWorkspaceSeedSourcePath(path)
   || path.replace(/\\/g, '/').toLowerCase().startsWith('workspace:/docs/')
   || path.replace(/\\/g, '/').split('/').pop()?.toLowerCase() === LIVE_CANVAS_HERO_INITIALIZATION_SOURCE_BASENAME
 )
-
-export function deriveLiveCanvasHeroCommandRouteGraph(graphData: GraphData): GraphData | null {
-  const commandNodeIdSet = new Set((graphData.nodes || [])
-    .filter(node => String(node.properties?.command || '').trim().startsWith('/'))
-    .map(node => String(node.id || '').trim())
-    .filter(Boolean))
-  const edges = (graphData.edges || []).filter(edge => (
-    commandNodeIdSet.has(String(edge.source || '').trim())
-    && commandNodeIdSet.has(String(edge.target || '').trim())
-  ))
-  const connectedNodeIdSet = new Set(edges.flatMap(edge => [String(edge.source || '').trim(), String(edge.target || '').trim()]))
-  const nodes = (graphData.nodes || []).filter(node => connectedNodeIdSet.has(String(node.id || '').trim()))
-  if (nodes.length < 2 || edges.length === 0) {
-    const sourceNodeIds = new Set((graphData.nodes || []).map(node => String(node.id || '').trim()).filter(Boolean))
-    const firstEdge = (graphData.edges || []).find(edge => (
-      sourceNodeIds.has(String(edge.source || '').trim())
-      && sourceNodeIds.has(String(edge.target || '').trim())
-    ))
-    if (!firstEdge) return null
-    const routeEdges = [firstEdge]
-    const firstTargetId = String(firstEdge.target || '').trim()
-    const continuationEdge = (graphData.edges || []).find(edge => (
-      String(edge.source || '').trim() === firstTargetId
-      && sourceNodeIds.has(String(edge.target || '').trim())
-    ))
-    if (continuationEdge) routeEdges.push(continuationEdge)
-    const routeNodeIds = new Set(routeEdges.flatMap(edge => [String(edge.source || '').trim(), String(edge.target || '').trim()]))
-    const routeNodes = (graphData.nodes || []).filter(node => routeNodeIds.has(String(node.id || '').trim()))
-    return {
-      ...graphData,
-      nodes: routeNodes,
-      edges: routeEdges,
-      metadata: {
-        ...graphData.metadata,
-        liveCanvasHeroProjection: {
-          kind: 'source-connected-route',
-          sourceNodeCount: graphData.nodes.length,
-          sourceEdgeCount: graphData.edges.length,
-        },
-      },
-    }
-  }
-  return {
-    ...graphData,
-    nodes,
-    edges,
-    metadata: {
-      ...graphData.metadata,
-      liveCanvasHeroProjection: {
-        kind: 'source-command-route',
-        sourceNodeCount: graphData.nodes.length,
-        sourceEdgeCount: graphData.edges.length,
-      },
-    },
-  }
-}
 
 const readGraphMetadata = (graphData: GraphData | null | undefined): Record<string, unknown> => {
   const metadata = graphData?.metadata
@@ -109,8 +92,13 @@ const readFrontmatterMetadata = (graphData: GraphData): Record<string, unknown> 
 export function resolveLiveCanvasHeroSource(args: {
   sourceFiles: SourceFile[]
   activeGraphData: GraphData | null | undefined
+  preferredSourcePath?: string | null
 }): LiveCanvasHeroSource | null {
-  const sourceFile = (Array.isArray(args.sourceFiles) ? args.sourceFiles : []).find(file => {
+  const sourceFiles = Array.isArray(args.sourceFiles) ? args.sourceFiles : []
+  const preferredSourcePath = String(args.preferredSourcePath || '').trim()
+  const sourceFile = preferredSourcePath
+    ? resolvePreferredLiveCanvasHeroSourceFile(sourceFiles, preferredSourcePath)
+    : sourceFiles.find(file => {
     if (!file) return false
     const sourcePath = file.source?.path || file.source?.url || file.name
     return resolveWorkspaceSeedSourcePath(sourcePath) === WORKSPACE_README_SOURCE_PATH
@@ -123,7 +111,11 @@ export function resolveLiveCanvasHeroSource(args: {
   const sourceTextGraphData = text.trim()
     ? tryParseMarkdownFrontmatterFlowGraph(String(sourceFile.name || 'workspace-readme.md'), text)?.graphData || null
     : null
-  const graphDataCandidates = [sourceTextGraphData, sourceFile.parsedGraphData, args.activeGraphData]
+  const graphDataCandidates = [
+    sourceTextGraphData,
+    sourceFile.parsedGraphData,
+    preferredSourcePath ? null : args.activeGraphData,
+  ]
     .filter((candidate): candidate is GraphData => candidate != null)
   const resolvedGraph = graphDataCandidates
     .map(graphData => ({ graphData, canvasGraphData: deriveLiveCanvasHeroCommandRouteGraph(graphData) }))
@@ -138,7 +130,7 @@ export function resolveLiveCanvasHeroSource(args: {
   const frontmatter = readFrontmatterMetadata(graphData)
   return {
     sourceFileId,
-    sourcePath: WORKSPACE_README_SOURCE_PATH,
+    sourcePath: preferredSourcePath || WORKSPACE_README_SOURCE_PATH,
     graphData,
     canvasGraphData: canvasGraphData as GraphData,
     graphRevision: Number.isFinite(sourceFile.parsedGraphRevision) ? Number(sourceFile.parsedGraphRevision) : 0,
@@ -146,6 +138,21 @@ export function resolveLiveCanvasHeroSource(args: {
     schema: String(frontmatter.schema || '').trim(),
     sourceLayerHash,
   }
+}
+
+export function resolveWorkspaceReadmeTextLiveCanvasHeroSource(text: string): LiveCanvasHeroSource | null {
+  return resolveLiveCanvasHeroSource({
+    sourceFiles: [{
+      id: WORKSPACE_README_SOURCE_ID,
+      name: 'workspace-readme.md',
+      text,
+      enabled: true,
+      status: 'parsed',
+      parsedGraphRevision: 0,
+      source: { kind: 'local', path: WORKSPACE_README_SOURCE_PATH },
+    }],
+    activeGraphData: null,
+  })
 }
 
 export function resolveLiveCanvasHeroWorkspaceSourceState(args: {
@@ -188,14 +195,33 @@ export function useKnowgrphLiveCanvasHero(args: {
   floatingPanelOpen: boolean
   alternateCanvasSurfaceActive: boolean
 }) {
+  const [selectedEmbedSource, setSelectedEmbedSource] = React.useState<LiveCanvasHeroSourceSelection | null>(null)
+  const [landingExited, setLandingExited] = React.useState(false)
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleSourceSelection = (event: Event) => {
+      const selection = readLiveCanvasHeroSourceSelection(event)
+      if (!selection) return
+      setSelectedEmbedSource(selection)
+      setLandingExited(false)
+    }
+    window.addEventListener(LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT, handleSourceSelection)
+    return () => window.removeEventListener(LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT, handleSourceSelection)
+  }, [])
   const sourceState = resolveLiveCanvasHeroWorkspaceSourceState({
     sourceFiles: args.sourceFiles,
     markdownDocumentName: args.markdownDocumentName,
   })
-  const liveCanvasHeroSource = React.useMemo(() => resolveLiveCanvasHeroSource({
-    sourceFiles: args.sourceFiles,
-    activeGraphData: args.graphData,
-  }), [args.graphData, args.sourceFiles])
+  const liveCanvasHeroSource = React.useMemo(() => (
+    resolveLiveCanvasHeroSource({
+      sourceFiles: args.sourceFiles,
+      activeGraphData: args.graphData,
+      preferredSourcePath: selectedEmbedSource?.sourcePath,
+    }) || resolveLiveCanvasHeroSource({
+      sourceFiles: args.sourceFiles,
+      activeGraphData: args.graphData,
+    })
+  ), [args.graphData, args.sourceFiles, selectedEmbedSource?.sourcePath])
   const graphItemCount = (args.graphData?.nodes?.length || 0) + (args.graphData?.edges?.length || 0)
   const hasDocumentText = String(args.markdownDocumentText || '').trim().length > 0
   const [defaultSeedBaselineSignature, setDefaultSeedBaselineSignature] = React.useState<string | null>(null)
@@ -209,8 +235,42 @@ export function useKnowgrphLiveCanvasHero(args: {
   const meaningfulWorkspaceContent = sourceState.meaningfulSourceFilesPresent
     || defaultSeedContentChanged
     || (!sourceState.defaultSeedOnly && (graphItemCount > 0 || hasDocumentText))
-  const [landingExited, setLandingExited] = React.useState(false)
   const isRootAlias = isRouterRootAliasRuntime(import.meta.env.BASE_URL)
+  const [rootAliasFallbackSource, setRootAliasFallbackSource] = React.useState<LiveCanvasHeroSource | null>(null)
+  React.useEffect(() => {
+    if (!isRootAlias || liveCanvasHeroSource) {
+      setRootAliasFallbackSource(null)
+      return
+    }
+    let active = true
+    void fetch(WORKSPACE_README_PUBLIC_SOURCE_PATH, { cache: 'no-store' })
+      .then(response => response.ok ? response.text() : '')
+      .then(text => {
+        if (!active) return
+        setRootAliasFallbackSource(resolveWorkspaceReadmeTextLiveCanvasHeroSource(text))
+      })
+      .catch(() => {
+        if (active) setRootAliasFallbackSource(null)
+      })
+    return () => { active = false }
+  }, [isRootAlias, liveCanvasHeroSource])
+  const effectiveLiveCanvasHeroSource = React.useMemo(() => {
+    const source = liveCanvasHeroSource || rootAliasFallbackSource
+    if (!selectedEmbedSource) return source
+    return {
+      ...(source || {
+        sourceFileId: `embed:${selectedEmbedSource.sourcePath}`,
+        graphData: { nodes: [], edges: [] },
+        canvasGraphData: { nodes: [], edges: [] },
+        graphRevision: 0,
+        graphId: '',
+        schema: '',
+        sourceLayerHash: `embed:${selectedEmbedSource.embedUrl}`,
+      }),
+      sourcePath: selectedEmbedSource.sourcePath,
+      embedUrl: selectedEmbedSource.embedUrl,
+    }
+  }, [liveCanvasHeroSource, rootAliasFallbackSource, selectedEmbedSource])
   const authoredOwnershipReady = args.sourceFilesBootstrapReady
     && args.workspaceDocumentSwitchPending !== true
     && args.graphData?.metadata?.pending !== true
@@ -219,16 +279,21 @@ export function useKnowgrphLiveCanvasHero(args: {
   // Once authored content takes ownership, transient parser recomposition must
   // not revive the landing surface later in the same app session.
   React.useEffect(() => {
-    if (authoredOwnershipReady && !isRootAlias) setLandingExited(true)
-  }, [authoredOwnershipReady, isRootAlias])
+    if (authoredOwnershipReady && !isRootAlias && !selectedEmbedSource) setLandingExited(true)
+  }, [authoredOwnershipReady, isRootAlias, selectedEmbedSource])
 
-  const hasSearchParams = typeof window !== 'undefined' && String(window.location.search || '').trim().length > 0
+  const hasSearchParams = typeof window !== 'undefined' && hasLiveCanvasHeroBlockingSearchParams(
+    window.location.search,
+    resolveLiveCanvasHeroEnterHref(import.meta.env.BASE_URL),
+  )
   const visible = shouldShowLiveCanvasHero({
-    isRootAlias,
+    isRootAlias: isRootAlias || selectedEmbedSource != null,
     sourceFilesBootstrapReady: args.sourceFilesBootstrapReady,
-    liveWorkspaceSourceReady: liveCanvasHeroSource != null,
-    dismissed: landingExited || (!isRootAlias && defaultSeedContentChanged),
-    hasSearchParams,
+    liveWorkspaceSourceReady: effectiveLiveCanvasHeroSource != null,
+    dismissed: landingExited || (!isRootAlias && !selectedEmbedSource && defaultSeedContentChanged),
+    // A source-selection event is an explicit request to replace the hero
+    // canvas. The single-root router's kgPath query must not suppress it.
+    hasSearchParams: selectedEmbedSource ? false : hasSearchParams,
     isEmbeddedPreview: args.isEmbeddedPreview,
     workspaceEditorOverlayOpen: args.workspaceEditorOverlayOpen,
     workspaceDocumentSwitchPending: args.workspaceDocumentSwitchPending,
@@ -241,7 +306,7 @@ export function useKnowgrphLiveCanvasHero(args: {
   })
   return {
     liveCanvasHeroVisible: visible,
-    liveCanvasHeroSource,
+    liveCanvasHeroSource: effectiveLiveCanvasHeroSource,
     dismissLiveCanvasHero: () => setLandingExited(true),
   }
 }

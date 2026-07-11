@@ -5,6 +5,7 @@ const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encodin
 
 export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () => {
   const text = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'canvas', 'CanvasDocDeepLinkRuntime.tsx'))
+  const canvasViewportText = readUtf8(path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx'))
   const helperText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'canvas', 'canvasDocDeepLink.ts'))
   const shareTokenText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'canvas', 'canvasDocShareToken.mjs'))
   const explorerStoreText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'markdown-explorer', 'store.ts'))
@@ -41,8 +42,23 @@ export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () =>
   if (!text.includes('name: workspaceDocumentKey(targetPath)')) {
     throw new Error('Expected local document deep links to use canonical workspace document keys')
   }
-  if (!text.includes('applyToGraph: false') || !text.includes('normalizeWebpageFrontmatterToMarkdown: false')) {
-    throw new Error('Expected local document deep links to open the target markdown document without mutating the Canvas graph')
+  if (!text.includes('applyToGraph: options.applyToGraph') || !text.includes('normalizeWebpageFrontmatterToMarkdown: false')) {
+    throw new Error('Expected local document deep links to keep graph application under the explicit preview option')
+  }
+  if (!text.includes("get('kgPreview') === '1'") || !text.includes('applyToGraph: previewRequested')) {
+    throw new Error('Expected source-addressed canvas preview links to hydrate their graph while normal local document links stay passive')
+  }
+  if (!text.includes('forceApplyToGraph: options.applyToGraph')) {
+    throw new Error('Expected repeated preview links to force the selected source graph into the embedded canvas')
+  }
+  if (!canvasViewportText.includes("get('kgLiveHero') === '1'") || !canvasViewportText.includes('deriveLiveCanvasHeroCommandRouteGraph(safeGraphData)')) {
+    throw new Error('Expected Live Canvas Hero embeds to reuse the exact source-derived command-route projection at the viewport boundary')
+  }
+  if (!canvasViewportText.includes('data-kg-live-canvas-hero-embed-preview="true"') || !canvasViewportText.includes('canvas2dRendererOverride="flow"')) {
+    throw new Error('Expected Live Canvas Hero embeds to own a dedicated interactive Flow renderer')
+  }
+  if (!canvasViewportText.includes('graphDataOverride={liveCanvasHeroEmbedGraph}') || !canvasViewportText.includes('mutationSourceGraphDataOverride={safeGraphData}')) {
+    throw new Error('Expected the embedded Flow renderer to retain source-derived display and interaction ownership across hydration')
   }
   if (text.includes('consumedRef') || text.includes('consumedSearchRef')) {
     throw new Error('Expected document deep-link consumption to avoid stale one-shot latches')
@@ -59,6 +75,9 @@ export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () =>
   if (!helperText.includes('buildPublishedDocShareUrlFromSource')) {
     throw new Error('Expected published Share URL generation to reuse the shared document deep-link helper')
   }
+  if (!helperText.includes('buildPublishedDocCanvasEmbedUrlFromSource') || !helperText.includes('appendCanvasPreviewParam')) {
+    throw new Error('Expected canvas embed URL generation to reuse the shared document deep-link helper and preview-param appender')
+  }
   if (!helperText.includes('buildPublishedDocShareDeepLink')) {
     throw new Error('Expected published Share URL generation to prefer the canonical opaque share-route builder')
   }
@@ -67,6 +86,9 @@ export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () =>
   }
   if (!helperText.includes("const SHARE_DEEP_LINK_PREFIX = '/share/'")) {
     throw new Error('Expected published Share URL generation to expose the canonical opaque share path')
+  }
+  if (!helperText.includes("const CANVAS_PREVIEW_PARAM = 'kgPreview'")) {
+    throw new Error('Expected canvas embed URL generation to expose the canonical embedded-preview query param')
   }
   if (!text.includes("link.kind === 'default-remote'")) {
     throw new Error('Expected the deep-link runtime to route default-workspace shared documents through the shared storage markdown reader')

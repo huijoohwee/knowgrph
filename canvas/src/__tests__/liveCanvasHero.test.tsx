@@ -4,16 +4,25 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { LiveCanvasHeroEditorial } from '@/components/LiveCanvasHero'
+import { LIVE_CANVAS_HERO_DOC_PATH, readLiveCanvasHeroContent } from '@/features/agentic-os/liveCanvasHeroContent'
 import {
   LIVE_CANVAS_HERO_DEFAULT_QUERY_TOKENS,
   LIVE_CANVAS_HERO_TOKENS,
   appendLiveCanvasHeroToken,
   buildLiveCanvasHeroModel,
 } from '@/features/agentic-os/liveCanvasHeroModel'
-import { shouldShowLiveCanvasHero } from '@/features/canvas/liveCanvasHeroVisibility'
+import { hasLiveCanvasHeroBlockingSearchParams, shouldShowLiveCanvasHero } from '@/features/canvas/liveCanvasHeroVisibility'
 import { handoffLiveCanvasHeroQuery } from '@/features/canvas/liveCanvasHeroHandoff'
+import { resolveLiveCanvasHeroEmbedUrl } from '@/features/canvas/liveCanvasHeroEmbed'
+import { buildLocalDocCanvasEmbedUrl, isSameOriginCanvasEmbedUrl } from '@/features/canvas/canvasDocDeepLink'
+import {
+  LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT,
+  readLiveCanvasHeroSourceSelection,
+  selectLiveCanvasHeroSource,
+} from '@/features/canvas/liveCanvasHeroSourceSelection'
 import {
   resolveLiveCanvasHeroSource,
+  resolveWorkspaceReadmeTextLiveCanvasHeroSource,
   resolveLiveCanvasHeroWorkspaceSourceState,
 } from '@/features/canvas/useKnowgrphLiveCanvasHero'
 import {
@@ -41,6 +50,25 @@ const EXPECTED_TOKENS = [
   '@dev-only',
 ] as const
 const EXPECTED_DEFAULT_QUERY = '/runtime-ready.check #token-economics @dev-only'
+;(globalThis as typeof globalThis & { __KNOWGRPH_LIVE_CANVAS_HERO_MARKDOWN__?: string }).__KNOWGRPH_LIVE_CANVAS_HERO_MARKDOWN__ = readFileSync(
+  resolve(process.cwd(), '..', LIVE_CANVAS_HERO_DOC_PATH),
+  'utf8',
+)
+
+export function testLiveCanvasHeroEditorialCopyLoadsFromCanonicalMarkdownSource(): void {
+  const expectedMarkdown = readFileSync(resolve(process.cwd(), '..', LIVE_CANVAS_HERO_DOC_PATH), 'utf8').trim()
+  const content = readLiveCanvasHeroContent()
+  if (content.markdown.trim() !== expectedMarkdown) {
+    throw new Error('expected live canvas hero content loader to read the canonical markdown document')
+  }
+  if (
+    content.eyebrow !== 'Knowgrph · Live canvas'
+    || content.headline.join(' ') !== 'Map intent. Orchestrate agents. Prove outcomes.'
+    || content.posture.join(' | ') !== '0 model calls before Run | Frontmatter SSOT | Approval-gated'
+  ) {
+    throw new Error(`expected canonical hero copy from markdown frontmatter, got ${JSON.stringify(content)}`)
+  }
+}
 
 function readWorkspaceReadmeSource(): {
   text: string
@@ -124,6 +152,10 @@ export function testLiveCanvasHeroWorkspaceReadmeSourceFidelity(): void {
   if (graphData.nodes.length !== 17 || graphData.edges.length !== 7) {
     throw new Error(`expected the current live README graph, got ${graphData.nodes.length} nodes/${graphData.edges.length} edges`)
   }
+  const rootAliasFallback = resolveWorkspaceReadmeTextLiveCanvasHeroSource(text)
+  if (!rootAliasFallback || rootAliasFallback.sourcePath !== WORKSPACE_README_SOURCE_PATH || rootAliasFallback.canvasGraphData.nodes.length < 2) {
+    throw new Error(`expected the root alias fallback to parse the canonical workspace README, got ${JSON.stringify(rootAliasFallback)}`)
+  }
   if (source.canvasGraphData.nodes.length !== 3 || source.canvasGraphData.edges.length !== 2) {
     throw new Error(`expected the source-derived command route, got ${source.canvasGraphData.nodes.length} nodes/${source.canvasGraphData.edges.length} edges`)
   }
@@ -155,6 +187,33 @@ export function testLiveCanvasHeroWorkspaceReadmeSourceFidelity(): void {
   }
   if (!resolveLiveCanvasHeroSource({ sourceFiles: [sourceFile], activeGraphData: mismatchedActiveGraph })) {
     throw new Error('expected starter-document initialization to coexist with the independent workspace README hero source')
+  }
+
+  const swappableSourceFile = {
+    ...sourceFile,
+    id: 'shared-canvas-source',
+    name: 'shared-canvas.md',
+    source: { kind: 'local', path: 'workspace:/docs/shared-canvas.md' },
+  } as SourceFile
+  const swappableSource = resolveLiveCanvasHeroSource({
+    sourceFiles: [sourceFile, swappableSourceFile],
+    activeGraphData: graphData,
+    preferredSourcePath: '/docs/shared-canvas.md',
+  })
+  if (!swappableSource || swappableSource.sourceFileId !== 'shared-canvas-source' || swappableSource.sourcePath !== '/docs/shared-canvas.md') {
+    throw new Error(`expected Share canvas embed selection to swap the hero source, got ${JSON.stringify(swappableSource)}`)
+  }
+  const duplicateBasenameSource = {
+    ...swappableSourceFile,
+    id: 'duplicate-shared-canvas-source',
+    source: { kind: 'local', path: 'workspace:/archive/shared-canvas.md' },
+  } as SourceFile
+  if (resolveLiveCanvasHeroSource({
+    sourceFiles: [sourceFile, swappableSourceFile, duplicateBasenameSource],
+    activeGraphData: graphData,
+    preferredSourcePath: 'shared-canvas.md',
+  })) {
+    throw new Error('expected an ambiguous Share canvas embed basename to fail closed instead of selecting the wrong hero source')
   }
 }
 
@@ -219,6 +278,12 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
     markdownDocumentText: '',
   }
   if (!shouldShowLiveCanvasHero(base)) throw new Error('expected a source-ready apex workspace to show the hero')
+  if (hasLiveCanvasHeroBlockingSearchParams('?kgPath=%2Fknowgrph%2F', '/knowgrph/')) {
+    throw new Error('expected the single-root routing alias to preserve Live Canvas Hero ownership')
+  }
+  if (!hasLiveCanvasHeroBlockingSearchParams('?kgDoc=workspace-readme.md&kgPreview=1', '/knowgrph/')) {
+    throw new Error('expected a document preview query to suppress the outer Live Canvas Hero')
+  }
   const suppressions = [
     { isRootAlias: false },
     { sourceFilesBootstrapReady: false },
@@ -245,13 +310,14 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
     throw new Error('expected apex root landing to stay visible over authored workspace content until the user enters /knowgrph/')
   }
   const heroHookSource = readFileSync(new URL('../features/canvas/useKnowgrphLiveCanvasHero.ts', import.meta.url), 'utf8')
-  if (!heroHookSource.includes('dismissed: landingExited || (!isRootAlias && defaultSeedContentChanged)')) {
+  if (!heroHookSource.includes('dismissed: landingExited || (!isRootAlias && !selectedEmbedSource && defaultSeedContentChanged)')) {
     throw new Error('expected persisted workspace document changes to stay isolated from apex hero dismissal')
   }
 }
 
 export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
   const viewportSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx'), 'utf8')
+  const canvasPageSource = readFileSync(resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx'), 'utf8')
   const heroSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'LiveCanvasHero.tsx'), 'utf8')
   const heroHookSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'canvas', 'useKnowgrphLiveCanvasHero.ts'), 'utf8')
   const modelSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'agentic-os', 'liveCanvasHeroModel.ts'), 'utf8')
@@ -266,15 +332,41 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     'canvas2dRendererOverride="flow"',
     'suppressMediaOverlays',
     'flowWidgetStateGraphKeyOverride={`live-hero:${liveCanvasHeroSource.sourceLayerHash}`}',
+    'data-kg-live-canvas-hero-selected-embed="true"',
+    'src={liveCanvasHeroSource.embedUrl}',
+    'deriveLiveCanvasHeroCommandRouteGraph(safeGraphData) || safeGraphData',
     '<LiveCanvasHeroLazy source={liveCanvasHeroSource}',
     'data-kg-live-canvas-hero-enter="true"',
+    'onClick={props.onHandoffComplete}',
     'Enter Knowgrph',
     'authoredOwnershipReady && !isRootAlias',
+    'resolveWorkspaceReadmeTextLiveCanvasHeroSource',
+    'WORKSPACE_README_PUBLIC_SOURCE_PATH',
   ]) {
     if (!`${viewportSource}\n${heroSource}\n${heroHookSource}`.includes(contract)) throw new Error(`expected interactive workspace canvas contract ${contract}`)
   }
   if (!viewportSource.includes('<FlowCanvasLazy') || !viewportSource.includes('forbidCircleNodes')) {
     throw new Error('expected the source-derived graph to retain live FlowCanvas pan, zoom, selection, and drag ownership')
+  }
+  if (!viewportSource.includes('<iframe') || !viewportSource.includes('sandbox="allow-forms allow-popups allow-same-origin allow-scripts"')) {
+    throw new Error('expected Explorer Share canvas embed selection to mount the resolved interactive canvas in the hero background')
+  }
+  for (const shellIsolationContract of [
+    'onLiveCanvasHeroVisibilityChange={setLiveCanvasHeroOwnsWorkspace}',
+    'workspaceCanvasPaneVisible && !liveCanvasHeroOwnsWorkspace',
+    '!workspaceEditorOverlayOpen && !liveCanvasHeroOwnsWorkspace',
+    'workspaceEditorOverlayOpen && !liveCanvasHeroOwnsWorkspace',
+  ]) {
+    if (!canvasPageSource.includes(shellIsolationContract)) {
+      throw new Error(`expected Live Canvas Hero to isolate page shell contract ${shellIsolationContract}`)
+    }
+  }
+  if (!viewportSource.includes('!liveCanvasHeroVisible && MARKDOWN_METRICS_DEV_ENABLED')
+    || !viewportSource.includes('!liveCanvasHeroVisible && paywallOverlayActive')) {
+    throw new Error('expected Live Canvas Hero ownership to suppress ancillary viewport overlays')
+  }
+  if (!heroHookSource.includes('sourcePath: selectedEmbedSource.sourcePath') || !heroHookSource.includes('embedUrl: selectedEmbedSource.embedUrl')) {
+    throw new Error('expected a selected embed to retain hero ownership even when the source is not already materialized in the graph store')
   }
   if (!viewportSource.includes("alternateCanvasSurfaceActive: geospatialModeEnabled || canvasRenderMode !== '2d'")
     || viewportSource.includes("alternateCanvasSurfaceActive: geospatialModeEnabled || canvasRenderMode !== '2d' || active2dSurface !== 'storyboard'")) {
@@ -306,6 +398,65 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     if (`${heroSource}\n${modelSource}`.toLowerCase().includes(forbidden)) {
       throw new Error(`expected no copied or static reference asset token ${forbidden}`)
     }
+  }
+}
+
+export function testLiveCanvasHeroCanvasEmbedSelectionEvent(): void {
+  const { dom, restore } = initJsdomHarness()
+  const selections: Array<{ sourcePath: string; embedUrl: string }> = []
+  const listener = (event: Event) => {
+    const selection = readLiveCanvasHeroSourceSelection(event)
+    if (selection) selections.push(selection)
+  }
+  try {
+    dom.window.addEventListener(LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT, listener)
+    const selected = selectLiveCanvasHeroSource({
+      sourcePath: '/docs/shared-canvas.md',
+      embedUrl: 'https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1',
+    })
+    if (!selected || selections.length !== 1) {
+      throw new Error(`expected one shared canvas hero selection event, got ${JSON.stringify(selections)}`)
+    }
+    if (selections[0]?.sourcePath !== '/docs/shared-canvas.md' || !selections[0]?.embedUrl.includes('kgPreview=1')) {
+      throw new Error(`expected exact shared canvas selection detail, got ${JSON.stringify(selections[0])}`)
+    }
+  } finally {
+    dom.window.removeEventListener(LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT, listener)
+    restore()
+  }
+}
+
+export function testLiveCanvasHeroEmbedUrlUsesSelectedOrSourceAddress(): void {
+  const immediateLocal = buildLocalDocCanvasEmbedUrl({
+    relativePath: '/knowgrph-token-economics-model-demo.md',
+    origin: 'http://127.0.0.1:4193',
+    pathname: '/knowgrph/',
+  })
+  if (immediateLocal !== 'http://127.0.0.1:4193/knowgrph/?kgDoc=knowgrph-token-economics-model-demo.md&kgPreview=1&kgLiveHero=1') {
+    throw new Error(`expected an immediate source-addressed local canvas embed, got ${String(immediateLocal)}`)
+  }
+  if (!isSameOriginCanvasEmbedUrl(immediateLocal || '', 'http://127.0.0.1:4193')) {
+    throw new Error('expected the local canvas embed URL to remain eligible for the live hero')
+  }
+  if (isSameOriginCanvasEmbedUrl('https://airvio.co/knowgrph/share/source?kgPreview=1', 'http://127.0.0.1:4193')) {
+    throw new Error('expected a cross-origin published URL to be rejected as a localhost hero upgrade')
+  }
+  const selected = resolveLiveCanvasHeroEmbedUrl({
+    sourcePath: '/docs/shared-canvas.md',
+    selectedEmbedUrl: 'https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1',
+    baseUrl: '/',
+    origin: 'http://127.0.0.1:4193',
+  })
+  if (selected !== 'https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1&kgLiveHero=1') {
+    throw new Error(`expected exact selected embed URL, got ${String(selected)}`)
+  }
+  const canonical = resolveLiveCanvasHeroEmbedUrl({
+    sourcePath: 'workspace:/workspace-readme.md',
+    baseUrl: '/',
+    origin: 'http://127.0.0.1:4193',
+  })
+  if (canonical !== 'http://127.0.0.1:4193/?kgDoc=workspace-readme.md&kgPreview=1&kgLiveHero=1') {
+    throw new Error(`expected source-addressed canonical embed URL, got ${String(canonical)}`)
   }
 }
 
@@ -373,9 +524,11 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
   if (model.status !== 'ready') throw new Error(`expected ready hero model, missing ${model.missingTokens.join(', ')}`)
 
   try {
+    const content = readLiveCanvasHeroContent()
     await mountReactRoot(root, (
       <LiveCanvasHeroEditorial
         model={model}
+        shareEmbedUrl="https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1"
         handoff={query => { handedOffQueries.push(query) }}
         onHandoffComplete={() => { completedCount += 1 }}
       />
@@ -384,6 +537,10 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
     const textarea = container.querySelector('[data-kg-live-canvas-hero-query="true"]') as HTMLTextAreaElement | null
     if (!textarea || textarea.value !== EXPECTED_DEFAULT_QUERY) {
       throw new Error(`expected visible raw editable hero query, got ${JSON.stringify(textarea?.value)}`)
+    }
+    const heroText = String(container.textContent || '')
+    for (const requiredText of [content.eyebrow, ...content.headline, ...content.posture]) {
+      if (!heroText.includes(requiredText)) throw new Error(`expected hero UI to render markdown-backed copy ${JSON.stringify(requiredText)}`)
     }
     if (handedOffQueries.length !== 0 || completedCount !== 0) throw new Error('expected zero handoff on mount')
     const proofToken = container.querySelector('[data-kg-agentic-os-invocation-token="@runtime-proof"]') as HTMLButtonElement | null
@@ -397,6 +554,10 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
     }
     const startButton = container.querySelector('[data-kg-live-canvas-hero-start="true"]') as HTMLButtonElement | null
     if (!startButton) throw new Error('expected explicit Start locally action')
+    const shareButton = container.querySelector('[data-kg-live-canvas-hero-share-embed="true"]') as HTMLButtonElement | null
+    if (!shareButton || shareButton.textContent?.trim() !== 'Share canvas embed') {
+      throw new Error('expected a visible Share canvas embed action on the hero')
+    }
     await act(async () => {
       startButton.click()
       await waitForFrames(dom.window as unknown as Window, 1)

@@ -57,6 +57,7 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
   const { isEmbeddedPreview, setIsEmbeddedPreview, detectEmbeddedPreviewWriteback } = useCanvasEmbeddedPreviewRuntime(location.search)
   const hasSearchParams = React.useMemo(() => String(location.search || '').trim().length > 0, [location.search])
   const hasDocDeepLinkParams = React.useMemo(() => Boolean(parseDocDeepLink(String(location.search || ''))), [location.search])
+  const [liveCanvasHeroOwnsWorkspace, setLiveCanvasHeroOwnsWorkspace] = React.useState(false)
 
   const {
     uiOverlayOpacity,
@@ -244,7 +245,7 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
           </main>
         ) : (
           <>
-            {workspaceCanvasPaneVisible ? (
+            {workspaceCanvasPaneVisible && !liveCanvasHeroOwnsWorkspace ? (
               <header
                 ref={toolbarHeaderRef}
                 className={`absolute inset-0 pointer-events-none ${toolbarHeaderLayerClassName}`}
@@ -284,7 +285,7 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
                     className="absolute inset-0 min-h-0 overflow-hidden bg-[var(--kg-canvas-bg)]"
                     aria-label="Canvas pane"
                   >
-                    {!workspaceEditorOverlayOpen ? (
+                    {!workspaceEditorOverlayOpen && !liveCanvasHeroOwnsWorkspace ? (
                       <nav
                         className={UI_RESPONSIVE_CANVAS_TOOLBAR_DOCK_CLASSNAME}
                         aria-label="Canvas Toolbar"
@@ -316,11 +317,12 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
                         canvas2dRenderer={canvas2dRenderer}
                         documentSwitchPending={workspaceDocumentSwitchPending}
                         documentSwitchPendingLabel={switchingDocumentLabel}
+                        onLiveCanvasHeroVisibilityChange={setLiveCanvasHeroOwnsWorkspace}
                       />
                     </React.Suspense>
                   </section>
 
-                  {workspaceEditorOverlayOpen ? (
+                  {workspaceEditorOverlayOpen && !liveCanvasHeroOwnsWorkspace ? (
                     <section
                       ref={editorOverlayRef}
                       className="absolute inset-0 z-[300] pointer-events-none"
