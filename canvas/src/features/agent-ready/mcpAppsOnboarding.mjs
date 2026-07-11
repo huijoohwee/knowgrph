@@ -5,6 +5,9 @@ export const MCP_ONBOARDING_GRAMMAR_SUMMARY =
   'A source-backed canvas where / routes work, # sets meaning, and @ binds context.'
 export const MCP_ONBOARDING_GRAMMAR_TOOL_NAME = 'knowgrph.agentic_canvas_os.docs.invoke'
 export const MCP_ONBOARDING_GRAMMAR_EXAMPLES = Object.freeze(['/mcp.capabilities', '#mcp', '@mcp-gateway'])
+export const MCP_ONBOARDING_HOSTED_BUILDER_EXAMPLES = Object.freeze(['Lovable', 'Vercel'])
+export const MCP_ONBOARDING_HOSTED_GRAMMAR_DEFAULT =
+  'Hosted app builders such as Lovable and Vercel should keep /mcp for discovery and use an app-owned forwarder for live /, #, @ unless the host proves MCP session support.'
 
 export const resolveMcpOnboardingUrls = ({ baseUrl, transportUrl, surfaceRoles } = {}) => {
   const base = clean(baseUrl).replace(/\/+$/, '')
@@ -23,6 +26,9 @@ export const buildMcpOnboarding = ({ publicReadMcpUrl, controlPlaneMcpUrl } = {}
   grammarToolName: MCP_ONBOARDING_GRAMMAR_TOOL_NAME,
   grammarExamples: MCP_ONBOARDING_GRAMMAR_EXAMPLES.map((value) => clean(value)),
   grammarExecutionBoundary: 'Keep install on the public discovery endpoint and execute live grammar on the approval-gated control plane.',
+  hostedBuilderExamples: MCP_ONBOARDING_HOSTED_BUILDER_EXAMPLES.map((value) => clean(value)),
+  hostedGrammarDefaultPath: MCP_ONBOARDING_HOSTED_GRAMMAR_DEFAULT,
+  hostedGrammarFallback: 'app-owned-forwarder',
   cheapestProofPath: 'Use the source-side README.md quick start or docs/documents/knowgrph-superagent-harness.md in the knowgrph repo before hosted setup.',
   steps: [
     {
@@ -54,6 +60,7 @@ export const buildMcpOnboardingHtml = ({ publicReadMcpUrl, controlPlaneMcpUrl } 
     <p>${escapeHtml(MCP_ONBOARDING_PROMISE)}</p>
     <p>${escapeHtml(MCP_ONBOARDING_GRAMMAR_SUMMARY)}</p>
     <p>${escapeHtml(`Live grammar executes through ${MCP_ONBOARDING_GRAMMAR_TOOL_NAME} on the control plane. Try ${MCP_ONBOARDING_GRAMMAR_EXAMPLES.join(', ')}.`)}</p>
+    <p>${escapeHtml(MCP_ONBOARDING_HOSTED_GRAMMAR_DEFAULT)}</p>
     <ol>
       <li>${escapeHtml(publicReadMcpUrl ? `Map intent: install ${clean(publicReadMcpUrl)} first for public discovery, retrieval, and inspection.` : 'Map intent: install the public MCP endpoint first for discovery, retrieval, and inspection.')}</li>
       <li>${escapeHtml(controlPlaneMcpUrl ? `Orchestrate agents: add ${clean(controlPlaneMcpUrl)} only when the host can preserve MCP session state and needs live /, #, @ grammar lookup through ${MCP_ONBOARDING_GRAMMAR_TOOL_NAME}.` : `Orchestrate agents: add the control plane only when the host can preserve MCP session state and needs live /, #, @ grammar lookup through ${MCP_ONBOARDING_GRAMMAR_TOOL_NAME}.`)}</li>
@@ -74,6 +81,13 @@ export const MCP_ONBOARDING_CLIENT_SCRIPT = `const renderOnboarding = (payload) 
     onboarding && onboarding.grammarToolName
       ? 'Live grammar executes through ' + String(onboarding.grammarToolName) + ' on the control plane. Try ' + (Array.isArray(onboarding.grammarExamples) && onboarding.grammarExamples.length ? onboarding.grammarExamples.join(', ') : '${MCP_ONBOARDING_GRAMMAR_EXAMPLES.join(', ')}') + '.'
       : 'Live grammar executes through ${MCP_ONBOARDING_GRAMMAR_TOOL_NAME} on the control plane. Try ${MCP_ONBOARDING_GRAMMAR_EXAMPLES.join(', ')}.',
+  );
+  appendText(
+    onboardingEl,
+    'p',
+    onboarding && onboarding.hostedGrammarDefaultPath
+      ? String(onboarding.hostedGrammarDefaultPath)
+      : '${MCP_ONBOARDING_HOSTED_GRAMMAR_DEFAULT}',
   );
   const list = document.createElement('ol');
   const steps = Array.isArray(onboarding && onboarding.steps) && onboarding.steps.length ? onboarding.steps : [

@@ -328,7 +328,7 @@ Technical architecture continues in [knowgrph-multi-user-collaboration-prd.tad.c
 
 | Goal | Command or Evidence | Passing Condition |
 |---|---|---|
-| Collaboration readiness gate stays green | `npm run collaboration:readiness:check` | docs guard, focused collaboration/unit suites, and authenticated browser smoke all pass |
+| Collaboration readiness gate stays green | `npm run collaboration:readiness:check` | docs guard, focused collaboration/unit suites, and authenticated browser smoke all pass; the gate reuses or auto-starts the default local owner app, guest app, and storage worker, and seeds the local auth fixture needed for the browser proof |
 | Docs match shipped owners | `npm --prefix canvas run test:ci:unit -- "multiUserCollaboration.docs"` | 1/1 docs guard passes |
 | Collaboration behavior remains intact | `npm --prefix canvas run test:ci:unit -- "collaboration."` | protocol, store, UI, and runtime tests pass |
 | MainPanel UI remains stable | `npm --prefix canvas run test:ci:unit -- "ui.mainPanel.collaboration"` | roster, owner removal, and action registration tests pass |
@@ -356,3 +356,5 @@ Technical architecture continues in [knowgrph-multi-user-collaboration-prd.tad.c
 | 1.1.3 | 2026-06-15 | Codex | Added the authenticated chat relay route plan, D1 owner tables, and migration criteria for turning the Pages chat proxy into a true multi-user collaboration boundary |
 | 1.3.0 | 2026-07-11 | Codex | Promoted authenticated storage-room transport as the canonical collaboration path and updated the browser smoke to validate guest-to-owner document propagation |
 | 1.3.1 | 2026-07-11 | Codex | Added `npm run collaboration:readiness:check` as the canonical readiness gate for docs, focused collaboration suites, and authenticated room smoke |
+| 1.3.2 | 2026-07-11 | Codex | Upgraded the canonical readiness gate to auto-start and reuse the default local collaboration stack for the browser smoke |
+| 1.3.3 | 2026-07-11 | Codex | Added self-contained local D1 migration and auth-fixture seeding so the canonical readiness gate can prove the authenticated room path from a clean checkout |

@@ -92,7 +92,6 @@ const buildStorageDocPath = (canonicalPath, workspaceId = "") => {
 };
 const normalizeToolString = (value) => String(value || "").trim();
 export { agentReadyHomepageLinkHeaderValue };
-
 const jsonResponse = (body, contentType = "application/json; charset=utf-8") =>
   new Response(JSON.stringify(body, null, 2), {
     status: 200,
@@ -575,6 +574,7 @@ const mcpServerCard = {
     controlPlaneMcpUrl: `${APP_URL}control-plane/mcp`,
     controlPlaneMcpScope:
       "Approval-gated orchestration endpoint for control-plane tools, remote Agentic Canvas OS docs invocation, and spend-bearing workflows where deployed.",
+    hostedGrammarDefaultPath: "app-owned-forwarder", hostedGrammarDefaultScope: "Hosted app builders should keep /mcp for discovery and route live /, #, @ through an app-owned forwarder unless the host proves MCP session support.",
     remoteGrammarInvokePublic: true,
     remoteGrammarInvokeToolName: "knowgrph.agentic_canvas_os.docs.invoke",
     remoteGrammarInvokeStatus:

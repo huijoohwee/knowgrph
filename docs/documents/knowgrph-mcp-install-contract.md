@@ -150,8 +150,9 @@ metadata.
 ### Vercel
 
 - Treat `https://airvio.co/knowgrph/mcp` as the default MCP server URL
-- If the Vercel-side MCP client supports a second sessioned Streamable HTTP server, register the control-plane endpoint separately for grammar invocation
-- If not, keep Knowgrph public discovery read-only and call a thin app-owned forwarder for `/`, `#`, and `@`
+- Use the public surface for discovery, retrieval, and inspection
+- Default live `/`, `#`, and `@` to a thin app-owned forwarder
+- Register the control-plane endpoint directly only if the Vercel-side MCP client supports a second sessioned Streamable HTTP server and can preserve `mcp-session-id`
 
 Evidence level: generic integration recipe. The repo ships the control-plane-forwarder pattern and
 does not claim a one-URL Vercel install for grammar invocation.
@@ -160,8 +161,8 @@ does not claim a one-URL Vercel install for grammar invocation.
 
 - Treat `https://airvio.co/knowgrph/mcp` as the default MCP server URL
 - Use the public surface for discovery, retrieval, and inspection
+- Default live `/`, `#`, and `@` to an app-owned forwarder
 - Add the control plane only if the host can perform `initialize`, preserve `mcp-session-id`, and call `knowgrph.agentic_canvas_os.docs.invoke`
-- Otherwise keep grammar resolution behind an app-owned forwarder
 
 Evidence level: generic integration recipe. Public discovery is ready; direct two-surface grammar
 support depends on host MCP session support.
@@ -173,6 +174,7 @@ Knowgrph is:
 - plug-and-play for public MCP discovery
 - coherent for remote install metadata
 - remotely live for `/`, `#`, and `@` on the control plane
+- forwarder-first for hosted live grammar when session support is unclear
 - not a single-endpoint grammar-install surface
 
 That distinction is intentional. It keeps public discovery low-friction and keeps spend-bearing or

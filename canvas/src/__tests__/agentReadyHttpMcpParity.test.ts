@@ -23,13 +23,11 @@ import { buildAgentSurfaceInspectionPayload } from '@/features/agent-ready/agent
 import { createPublishedAgentReadyToolExecutors } from '@/features/agent-ready/publishedToolExecutors.mjs'
 import { onRequest, buildAgentReadyStaticFiles } from '../../../cloudflare/pages/knowgrph-agent-ready.mjs'
 import { buildKnowgrphCommerceDiscovery, buildKnowgrphX402PaymentRequiredResponse } from '../../../cloudflare/pages/knowgrph-agent-ready-commerce.mjs'
-
 const EXPECTED_PUBLISHED_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
   defaultWorkspaceId: KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
 })
 const EXPECTED_PROMPT_CONTRACTS = buildKnowgrphAgentReadyPromptContracts()
 const EXPECTED_RESOURCE_TEMPLATE_CONTRACTS = buildKnowgrphAgentReadyResourceTemplateContracts()
-
 const toComparableMcpToolEntry = (tool: Record<string, unknown>) => ({
   name: tool.name,
   title: tool.title,
@@ -639,6 +637,7 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
       onboarding?: {
         grammarToolName?: string
         grammarExamples?: string[]
+        hostedBuilderExamples?: string[]; hostedGrammarDefaultPath?: string; hostedGrammarFallback?: string
         grammarExecutionBoundary?: string
         publicReadMcpUrl?: string
         controlPlaneMcpUrl?: string
@@ -717,6 +716,7 @@ export async function testAgentReadyHttpMcpTransportMatchesSharedContractExactly
     || readiness.onboarding?.grammarExecutionBoundary !== 'Keep install on the public discovery endpoint and execute live grammar on the approval-gated control plane.'
     || !Array.isArray(readiness.onboarding?.grammarExamples)
     || readiness.onboarding.grammarExamples.join('|') !== '/mcp.capabilities|#mcp|@mcp-gateway'
+    || !Array.isArray(readiness.onboarding?.hostedBuilderExamples) || readiness.onboarding.hostedBuilderExamples.join('|') !== 'Lovable|Vercel' || readiness.onboarding?.hostedGrammarDefaultPath !== 'Hosted app builders such as Lovable and Vercel should keep /mcp for discovery and use an app-owned forwarder for live /, #, @ unless the host proves MCP session support.' || readiness.onboarding?.hostedGrammarFallback !== 'app-owned-forwarder'
     || readiness.onboarding?.publicReadMcpUrl !== 'https://airvio.co/knowgrph/mcp'
     || readiness.onboarding?.controlPlaneMcpUrl !== 'https://airvio.co/knowgrph/control-plane/mcp'
     || !String(readiness.onboarding?.cheapestProofPath || '').includes('knowgrph-superagent-harness.md')

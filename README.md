@@ -188,7 +188,7 @@ An MCP-compatible LLM can install the public Knowgrph server for discovery and r
 
 Baseline runs are provable **offline with deterministic mock providers**. Real providers activate only when host-owned keys are wired and the matching gate is approved.
 
-For hosted app-builder platforms (Lovable, Vercel, and similar) that expect a network-reachable HTTP/SSE MCP endpoint rather than a spawned local process: the public discovery and control-plane endpoints above are that surface — point the platform's MCP integration at `https://airvio.co/knowgrph/mcp` for read-only discovery, or the control-plane URL for gated live invocation.
+For hosted app-builder platforms (Lovable, Vercel, and similar) that expect a network-reachable HTTP/SSE MCP endpoint rather than a spawned local process: point the platform's MCP integration at `https://airvio.co/knowgrph/mcp` for read-only discovery. For live `/`, `#`, and `@`, default to a thin app-owned forwarder and add `https://airvio.co/knowgrph/control-plane/mcp` directly only when the host proves it can preserve MCP session state.
 
 **MainPanel readiness states** — use one label per claim:
 

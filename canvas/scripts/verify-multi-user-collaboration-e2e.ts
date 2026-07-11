@@ -118,7 +118,10 @@ async function waitForPageCondition(page: Page, label: string, predicate: (snaps
 async function connectAuthenticatedRoom(page: Page): Promise<void> {
   let lastError: Error | null = null
   for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await openCollaborationPanel(page)
+    await waitForActiveDocumentReady(page)
     const connectButton = page.getByRole('button', { name: /Connect Room|Reconnect Room/, exact: false })
+    await connectButton.waitFor({ state: 'visible', timeout: 30_000 })
     await connectButton.click({ timeout: 30_000 })
     try {
       await waitForPageCondition(

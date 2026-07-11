@@ -4,6 +4,9 @@ export type AgentReadyOnboarding = {
   grammarToolName?: string
   grammarExamples?: string[]
   grammarExecutionBoundary?: string
+  hostedBuilderExamples?: string[]
+  hostedGrammarDefaultPath?: string
+  hostedGrammarFallback?: string
   publicReadMcpUrl?: string
   controlPlaneMcpUrl?: string
   cheapestProofPath?: string
@@ -18,6 +21,7 @@ export function assertAgentReadyOnboardingHtml(html: string) {
     || !html.includes('knowgrph.agentic_canvas_os.docs.invoke')
     || !html.includes('/mcp.capabilities')
     || !html.includes('control-plane/mcp')
+    || !html.includes('app-owned forwarder')
     || !html.includes('knowgrph-superagent-harness.md')
   ) {
     throw new Error('expected MCP Apps HTML to expose the fastest onboarding path')
@@ -31,6 +35,10 @@ export function assertAgentReadyOnboardingReadiness(onboarding?: AgentReadyOnboa
     || !Array.isArray(onboarding?.grammarExamples)
     || onboarding.grammarExamples.join('|') !== '/mcp.capabilities|#mcp|@mcp-gateway'
     || onboarding?.grammarExecutionBoundary !== 'Keep install on the public discovery endpoint and execute live grammar on the approval-gated control plane.'
+    || !Array.isArray(onboarding?.hostedBuilderExamples)
+    || onboarding.hostedBuilderExamples.join('|') !== 'Lovable|Vercel'
+    || onboarding?.hostedGrammarDefaultPath !== 'Hosted app builders such as Lovable and Vercel should keep /mcp for discovery and use an app-owned forwarder for live /, #, @ unless the host proves MCP session support.'
+    || onboarding?.hostedGrammarFallback !== 'app-owned-forwarder'
     || onboarding?.publicReadMcpUrl !== 'https://airvio.co/knowgrph/mcp'
     || onboarding?.controlPlaneMcpUrl !== 'https://airvio.co/knowgrph/control-plane/mcp'
     || !String(onboarding?.cheapestProofPath || '').includes('knowgrph-superagent-harness.md')
