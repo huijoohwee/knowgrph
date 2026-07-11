@@ -281,6 +281,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["ui.canvas.liveHero.interactiveWorkspaceCanvas","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroUsesInteractiveWorkspaceCanvas"],
   ["ui.canvas.liveHero.canvasEmbedSelectionEvent","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroCanvasEmbedSelectionEvent"],
   ["ui.canvas.liveHero.canvasEmbedVisibleAction","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroEmbedUrlUsesSelectedOrSourceAddress"],
+  ["ui.canvas.liveHero.canvasEmbedImportWorkflow","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroImportEmbedOpensSourceFilesWorkflow"],
   ["ui.canvas.liveHero.explicitRunInteraction","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroInteractionHandsOffOnlyOnRun"],
   ["agentReady.rootAlias.appShell","@/__tests__/rootAgentReadyAlias.test","testRootAgentReadyAliasCanonicalizesPublishedAppShellMount"],
 ]

@@ -13,7 +13,10 @@ import {
 } from '@/features/agentic-os/liveCanvasHeroModel'
 import { hasLiveCanvasHeroBlockingSearchParams, shouldShowLiveCanvasHero } from '@/features/canvas/liveCanvasHeroVisibility'
 import { handoffLiveCanvasHeroQuery } from '@/features/canvas/liveCanvasHeroHandoff'
-import { resolveLiveCanvasHeroEmbedUrl } from '@/features/canvas/liveCanvasHeroEmbed'
+import {
+  resolveLiveCanvasHeroEmbedUrl,
+  resolveLiveCanvasHeroImportEmbedHref,
+} from '@/features/canvas/liveCanvasHeroEmbed'
 import { buildLocalDocCanvasEmbedUrl, isSameOriginCanvasEmbedUrl } from '@/features/canvas/canvasDocDeepLink'
 import {
   LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT,
@@ -466,6 +469,31 @@ export function testLiveCanvasHeroEmbedUrlUsesSelectedOrSourceAddress(): void {
   })
   if (canonical !== 'http://127.0.0.1:4193/?kgDoc=workspace-readme.md&kgPreview=1&kgLiveHero=1') {
     throw new Error(`expected source-addressed canonical embed URL, got ${String(canonical)}`)
+  }
+}
+
+export function testLiveCanvasHeroImportEmbedOpensSourceFilesWorkflow(): void {
+  const href = resolveLiveCanvasHeroImportEmbedHref('/knowgrph/')
+  const url = new URL(href, 'https://airvio.co')
+  if (
+    url.pathname !== '/knowgrph/'
+    || url.searchParams.get('openEditorWorkspace') !== '1'
+    || url.searchParams.get('importCanvasEmbed') !== '1'
+  ) {
+    throw new Error(`expected Import canvas embed to open the Editor Workspace Source Files workflow, got ${href}`)
+  }
+
+  const heroSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'LiveCanvasHero.tsx'), 'utf8')
+  const workspaceBootstrapSource = readFileSync(resolve(process.cwd(), 'src', 'lib', 'markdown-workspace-runtime', 'useMarkdownWorkspaceBootstrapState.ts'), 'utf8')
+  for (const contract of [
+    'data-kg-live-canvas-hero-import-embed="true"',
+    'Import canvas embed',
+    'canvasEmbedImportRequested || initialExplorerChromeState.explorerOpen',
+    'canvasEmbedImportRequested ? false : initialExplorerSectionCollapseState.sourceFilesCollapsed',
+  ]) {
+    if (!`${heroSource}\n${workspaceBootstrapSource}`.includes(contract)) {
+      throw new Error(`expected Import canvas embed workflow contract ${contract}`)
+    }
   }
 }
 

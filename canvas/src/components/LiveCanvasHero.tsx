@@ -10,7 +10,10 @@ import {
   type LiveCanvasHeroModel,
 } from '@/features/agentic-os/liveCanvasHeroModel'
 import { readLiveCanvasHeroContent } from '@/features/agentic-os/liveCanvasHeroContent'
-import { resolveLiveCanvasHeroEmbedUrl } from '@/features/canvas/liveCanvasHeroEmbed'
+import {
+  resolveLiveCanvasHeroEmbedUrl,
+  resolveLiveCanvasHeroImportEmbedHref,
+} from '@/features/canvas/liveCanvasHeroEmbed'
 import { handoffLiveCanvasHeroQuery } from '@/features/canvas/liveCanvasHeroHandoff'
 import type { LiveCanvasHeroSource } from '@/features/canvas/useKnowgrphLiveCanvasHero'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -183,6 +186,13 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
             >
               {handoffState === 'opening' ? 'Opening Chat…' : 'Start locally'}
             </button>
+            <a
+              href={resolveLiveCanvasHeroImportEmbedHref(import.meta.env?.BASE_URL)}
+              className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_72%,transparent)] px-4 text-sm font-semibold text-[var(--kg-text-primary)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)]"
+              data-kg-live-canvas-hero-import-embed="true"
+            >
+              Import canvas embed
+            </a>
             {props.shareEmbedUrl ? (
               <button
                 type="button"
