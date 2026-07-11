@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import expect, sync_playwright
 
 
@@ -43,6 +44,28 @@ def click_panel_inset(page, panel_selector: str, target_selector: str, *, inset_
     )
 
 
+def open_text_edit_input(page):
+    panel_selector = '[data-kg-smoke-panel="text-edit"]'
+    display = page.locator(f'{panel_selector} [data-kg-card-inline-edit="1"]').first
+    input_locator = page.locator(f'{panel_selector} textarea[data-kg-card-inline-edit-input]').first
+    expect(display).to_be_visible()
+
+    activation_steps = (
+        lambda: display.click(timeout=5000),
+        lambda: display.dblclick(timeout=5000),
+        lambda: click_panel_inset(page, panel_selector, '[data-kg-card-inline-edit="1"]'),
+    )
+    for activate in activation_steps:
+      try:
+        activate()
+        input_locator.wait_for(state="visible", timeout=5000)
+        return input_locator
+      except PlaywrightTimeoutError:
+        continue
+
+    raise AssertionError("expected rich media text edit panel to reveal the inline textarea")
+
+
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -60,13 +83,7 @@ def main() -> None:
             expect(preview_surface).to_be_visible()
             expect(page.locator('[data-kg-smoke-panel="text-preview"] table')).to_have_count(1)
 
-            click_panel_inset(
-                page,
-                '[data-kg-smoke-panel="text-edit"]',
-                '[data-kg-card-inline-edit="1"]',
-            )
-            edit_input = page.locator('[data-kg-smoke-panel="text-edit"] textarea[data-kg-card-inline-edit-input]').first
-            expect(edit_input).to_be_visible()
+            edit_input = open_text_edit_input(page)
             edit_input.fill("## Browser updated\n\nRuntime edit OK.")
             page.locator("body").click(position={"x": 8, "y": 8})
             expect(page.locator('[data-kg-smoke-edit-value="1"]')).to_contain_text("Browser updated")

@@ -28,6 +28,7 @@ import {
 } from '@/__tests__/richMediaSurfaceCoverage.test'
 import { testStoryboardWidgetScreenAuthorityPanUsesVectorPaintedDom } from '@/__tests__/storyboardWidgetScreenAuthorityTransformScaleRegression.test'
 import { testStaticRichMediaPanelPreviewRendersImageVideoAndIframe } from '@/__tests__/staticRichMediaPanelPreview.test'
+import { testRichMediaBrowserSmokeContract } from '@/__tests__/richMediaBrowserSmokeContract.test'
 
 async function main() {
   testRichMediaPanelEditorModeDisablesInteractiveContentForDragging()
@@ -49,6 +50,7 @@ async function main() {
 
   testRichMediaPanelMarkdownPayloadCoversRendererModeMatrix()
   testRichMediaSurfaceRuntimePathsReuseSharedOverlayOwners()
+  testRichMediaBrowserSmokeContract()
   testStoryboardWidgetScreenAuthorityPanUsesVectorPaintedDom()
   await testStaticRichMediaPanelPreviewRendersImageVideoAndIframe()
 
