@@ -12,6 +12,7 @@ import {
   buildLiveCanvasHeroModel,
 } from '@/features/agentic-os/liveCanvasHeroModel'
 import { hasLiveCanvasHeroBlockingSearchParams, shouldShowLiveCanvasHero } from '@/features/canvas/liveCanvasHeroVisibility'
+import { removeCanvasEmbedImportFromSearch } from '@/features/canvas/canvasQueryBootstrapSearch'
 import { handoffLiveCanvasHeroQuery } from '@/features/canvas/liveCanvasHeroHandoff'
 import {
   resolveLiveCanvasHeroEmbedUrl,
@@ -481,6 +482,9 @@ export function testLiveCanvasHeroImportEmbedOpensSourceFilesWorkflow(): void {
     || url.searchParams.get('importCanvasEmbed') !== '1'
   ) {
     throw new Error(`expected Import canvas embed to open the Editor Workspace Source Files workflow, got ${href}`)
+  }
+  if (removeCanvasEmbedImportFromSearch(url.search) !== '') {
+    throw new Error('expected source selection to consume the transient canvas embed import workflow intent')
   }
 
   const heroSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'LiveCanvasHero.tsx'), 'utf8')

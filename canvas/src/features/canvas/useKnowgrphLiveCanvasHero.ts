@@ -20,6 +20,10 @@ import {
 } from './liveCanvasHeroSourceSelection'
 import { resolveLiveCanvasHeroEmbedUrl } from './liveCanvasHeroEmbed'
 import { deriveLiveCanvasHeroCommandRouteGraph } from './liveCanvasHeroProjection'
+import {
+  removeCanvasEmbedImportFromSearch,
+  shouldOpenCanvasEmbedImportFromSearch,
+} from './canvasQueryBootstrapSearch'
 
 export type LiveCanvasHeroWorkspaceSourceState = {
   defaultSeedOnly: boolean
@@ -204,6 +208,10 @@ export function useKnowgrphLiveCanvasHero(args: {
     const handleSourceSelection = (event: Event) => {
       const selection = readLiveCanvasHeroSourceSelection(event)
       if (!selection) return
+      const nextSearch = removeCanvasEmbedImportFromSearch(window.location.search)
+      if (nextSearch !== window.location.search) {
+        window.history.replaceState(null, '', `${window.location.pathname}${nextSearch}${window.location.hash}`)
+      }
       setSelectedEmbedSource(selection)
       setLandingExited(false)
     }
@@ -295,6 +303,8 @@ export function useKnowgrphLiveCanvasHero(args: {
     window.location.search,
     resolveLiveCanvasHeroEnterHref(import.meta.env.BASE_URL),
   )
+  const canvasEmbedImportRequested = typeof window !== 'undefined'
+    && shouldOpenCanvasEmbedImportFromSearch(window.location.search)
   const visible = shouldShowLiveCanvasHero({
     isRootAlias: isRootAlias || selectedEmbedSource != null,
     // The apex root owns Home from the first React render. Its canonical Share
@@ -304,7 +314,7 @@ export function useKnowgrphLiveCanvasHero(args: {
     dismissed: landingExited || (!isRootAlias && !selectedEmbedSource && defaultSeedContentChanged),
     // A source-selection event is an explicit request to replace the hero
     // canvas. The single-root router's kgPath query must not suppress it.
-    hasSearchParams: selectedEmbedSource ? false : hasSearchParams,
+    hasSearchParams: selectedEmbedSource && !canvasEmbedImportRequested ? false : hasSearchParams,
     isEmbeddedPreview: args.isEmbeddedPreview,
     workspaceEditorOverlayOpen: args.workspaceEditorOverlayOpen,
     workspaceDocumentSwitchPending: isRootAlias ? false : args.workspaceDocumentSwitchPending,
