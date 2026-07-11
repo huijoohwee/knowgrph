@@ -907,6 +907,23 @@ const readTextViaNodeFs = async (absolutePath: string): Promise<string | null> =
   }
 }
 
+const isLikelyHtmlDocumentText = (text: string): boolean => {
+  const head = String(text || '').trim().slice(0, 512).toLowerCase()
+  return head.startsWith('<!doctype html') || head.startsWith('<html') || head.includes('<html ')
+}
+
+const readSeedTextViaFetch = async (url: string): Promise<string | null> => {
+  const text = await readTextViaFetch(url)
+  if (!text || isLikelyHtmlDocumentText(text)) return null
+  return text
+}
+
+const buildPublishedSeedRelPath = (relPath: string): string => {
+  const normalized = normalizeRelPath(relPath)
+  if (!normalized || !normalized.startsWith('docs/')) return ''
+  return `/${normalized}`
+}
+
 const writeTextViaLocalFsProxy = async (absolutePath: string, text: string): Promise<boolean> => {
   if (typeof window === 'undefined' || typeof fetch !== 'function') return false
   if (isHiddenDocumentWriteSkipActive()) return false
@@ -1235,7 +1252,7 @@ export async function readWorkspaceInitializationSeedText(args: {
     const absolutePath = absolutePathCandidates[i]!
     const absoluteViaFetch = buildLocalFsFetchPath(absolutePath)
     if (absoluteViaFetch) {
-      const text = await readTextViaFetch(absoluteViaFetch)
+      const text = await readSeedTextViaFetch(absoluteViaFetch)
       if (text) return text
     }
     const text = await readTextViaNodeFs(absolutePath)
@@ -1246,7 +1263,12 @@ export async function readWorkspaceInitializationSeedText(args: {
     new Set((args.relPathCandidates || []).map(path => normalizeRelPath(path)).filter(Boolean)),
   )
   for (let i = 0; i < relCandidates.length; i += 1) {
-    const text = await readTextViaFetch(buildCodebaseFilePath(relCandidates[i]!))
+    const publishedPath = buildPublishedSeedRelPath(relCandidates[i]!)
+    if (publishedPath) {
+      const text = await readSeedTextViaFetch(publishedPath)
+      if (text) return text
+    }
+    const text = await readSeedTextViaFetch(buildCodebaseFilePath(relCandidates[i]!))
     if (text) return text
   }
   return null

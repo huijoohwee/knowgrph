@@ -9,7 +9,10 @@ import {
   readWorkspaceActiveEntrySnapshot,
 } from '@/features/source-files/sourceFilesRuntimeShared'
 import { invalidateCachedWorkspaceActiveEntrySnapshot } from '@/features/source-files/workspaceActiveEntryCache'
-import { readWorkspaceInitializationDocsMirrorEntries } from '@/features/workspace-fs/workspaceSeedProvider'
+import {
+  readWorkspaceInitializationDocsMirrorEntries,
+  readWorkspaceInitializationSeedText,
+} from '@/features/workspace-fs/workspaceSeedProvider'
 import { buildWorkspaceEntriesSemanticKey } from '@/features/workspace-fs/workspaceEntriesSemanticKey'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
@@ -463,5 +466,43 @@ export async function testWorkspaceSeedProviderConfiguredDocsRootDedupesBurstRea
         throw new Error(`expected burst reads to resolve the same docs mirror payload, got ${JSON.stringify(texts)}`)
       }
     })
+  })
+}
+
+export async function testWorkspaceSeedProviderPublishedDocsSeedRejectsHtmlFallback() {
+  const capturedUrls: string[] = []
+  await withFetchAndEnv({
+    VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT: '/Users/demo/huijoohwee/docs',
+    VITE_KNOWGRPH_STORAGE_BASE_URL: undefined,
+  }, (async input => {
+    const url = String(typeof input === 'string' ? input : (input as URL).toString())
+    capturedUrls.push(url)
+    if (url === '/docs/workspace-readme.md') {
+      return new Response('---\ntitle: Seed\n---\n# Published seed', {
+        status: 200,
+        headers: { 'content-type': 'text/markdown; charset=utf-8' },
+      })
+    }
+    return new Response('<!DOCTYPE html><html><head><title>knowgrph</title></head><body>app shell</body></html>', {
+      status: 200,
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    })
+  }) as typeof fetch, async () => {
+    const text = await readWorkspaceInitializationSeedText({
+      basename: 'workspace-readme.md',
+      relPathCandidates: ['docs/workspace-readme.md'],
+    })
+    if (String(text || '').trim() !== '---\ntitle: Seed\n---\n# Published seed') {
+      throw new Error(`expected published docs seed to win over HTML fallbacks, got ${JSON.stringify(text)}`)
+    }
+    if (!capturedUrls.includes('/@fs/Users/demo/huijoohwee/docs/workspace-readme.md')) {
+      throw new Error(`expected absolute /@fs candidate to be attempted, got ${JSON.stringify(capturedUrls)}`)
+    }
+    if (!capturedUrls.includes('/docs/workspace-readme.md')) {
+      throw new Error(`expected root published docs seed to be attempted, got ${JSON.stringify(capturedUrls)}`)
+    }
+    if (capturedUrls.includes('/__codebase_file?path=docs%2Fworkspace-readme.md')) {
+      throw new Error(`expected valid published seed to avoid __codebase_file fallback, got ${JSON.stringify(capturedUrls)}`)
+    }
   })
 }
