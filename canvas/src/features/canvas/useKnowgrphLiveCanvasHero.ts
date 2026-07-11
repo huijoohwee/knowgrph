@@ -258,7 +258,9 @@ export function useKnowgrphLiveCanvasHero(args: {
   }, [isRootAlias, liveCanvasHeroSource])
   const effectiveLiveCanvasHeroSource = React.useMemo(() => {
     const source = liveCanvasHeroSource || rootAliasFallbackSource
-    const sourcePath = selectedEmbedSource?.sourcePath || source?.sourcePath || ''
+    const sourcePath = selectedEmbedSource?.sourcePath
+      || source?.sourcePath
+      || (isRootAlias ? WORKSPACE_README_SOURCE_PATH : '')
     const embedUrl = selectedEmbedSource?.embedUrl || resolveLiveCanvasHeroEmbedUrl({
       sourcePath,
       baseUrl: import.meta.env.BASE_URL,
@@ -295,7 +297,9 @@ export function useKnowgrphLiveCanvasHero(args: {
   )
   const visible = shouldShowLiveCanvasHero({
     isRootAlias: isRootAlias || selectedEmbedSource != null,
-    sourceFilesBootstrapReady: args.sourceFilesBootstrapReady,
+    // The apex root owns Home from the first React render. Its canonical Share
+    // Canvas Embed URL is source-addressable before workspace hydration.
+    sourceFilesBootstrapReady: isRootAlias || args.sourceFilesBootstrapReady,
     liveWorkspaceSourceReady: effectiveLiveCanvasHeroSource != null,
     dismissed: landingExited || (!isRootAlias && !selectedEmbedSource && defaultSeedContentChanged),
     // A source-selection event is an explicit request to replace the hero
@@ -303,7 +307,7 @@ export function useKnowgrphLiveCanvasHero(args: {
     hasSearchParams: selectedEmbedSource ? false : hasSearchParams,
     isEmbeddedPreview: args.isEmbeddedPreview,
     workspaceEditorOverlayOpen: args.workspaceEditorOverlayOpen,
-    workspaceDocumentSwitchPending: args.workspaceDocumentSwitchPending,
+    workspaceDocumentSwitchPending: isRootAlias ? false : args.workspaceDocumentSwitchPending,
     floatingPanelOpen: args.floatingPanelOpen,
     alternateCanvasSurfaceActive: args.alternateCanvasSurfaceActive,
     defaultSeedOnly: sourceState.defaultSeedOnly,

@@ -338,6 +338,9 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     'authoredOwnershipReady && !isRootAlias',
     'resolveWorkspaceReadmeTextLiveCanvasHeroSource',
     'WORKSPACE_README_PUBLIC_SOURCE_PATH',
+    '|| (isRootAlias ? WORKSPACE_README_SOURCE_PATH : \'\')',
+    'sourceFilesBootstrapReady: isRootAlias || args.sourceFilesBootstrapReady',
+    'workspaceDocumentSwitchPending: isRootAlias ? false : args.workspaceDocumentSwitchPending',
   ]) {
     if (!`${viewportSource}\n${heroSource}\n${heroHookSource}`.includes(contract)) throw new Error(`expected interactive workspace canvas contract ${contract}`)
   }
@@ -349,6 +352,7 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     throw new Error('expected Explorer Share canvas embed selection to mount the resolved interactive canvas in the hero background')
   }
   for (const shellIsolationContract of [
+    'isRouterRootAliasRuntime(import.meta.env.BASE_URL)',
     'onLiveCanvasHeroVisibilityChange={setLiveCanvasHeroOwnsWorkspace}',
     'workspaceCanvasPaneVisible && !liveCanvasHeroOwnsWorkspace',
     '!workspaceEditorOverlayOpen && !liveCanvasHeroOwnsWorkspace',
@@ -362,7 +366,7 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     || !viewportSource.includes('!liveCanvasHeroVisible && paywallOverlayActive')) {
     throw new Error('expected Live Canvas Hero ownership to suppress ancillary viewport overlays')
   }
-  if (!heroHookSource.includes('const sourcePath = selectedEmbedSource?.sourcePath || source?.sourcePath || \'\'')
+  if (!heroHookSource.includes("|| (isRootAlias ? WORKSPACE_README_SOURCE_PATH : '')")
     || !heroHookSource.includes('const embedUrl = selectedEmbedSource?.embedUrl || resolveLiveCanvasHeroEmbedUrl({')) {
     throw new Error('expected Home to resolve either the selected embed or the canonical Share canvas embed URL')
   }

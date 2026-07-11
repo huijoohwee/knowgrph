@@ -28,6 +28,7 @@ import {
   UI_RESPONSIVE_CANVAS_WORKSPACE_TOOLBAR_DOCK_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
+import { isRouterRootAliasRuntime } from '@/lib/routing/basePath'
 
 import { CanvasStartupRuntimes } from '@/features/canvas/CanvasStartupRuntimes'
 
@@ -57,7 +58,9 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
   const { isEmbeddedPreview, setIsEmbeddedPreview, detectEmbeddedPreviewWriteback } = useCanvasEmbeddedPreviewRuntime(location.search)
   const hasSearchParams = React.useMemo(() => String(location.search || '').trim().length > 0, [location.search])
   const hasDocDeepLinkParams = React.useMemo(() => Boolean(parseDocDeepLink(String(location.search || ''))), [location.search])
-  const [liveCanvasHeroOwnsWorkspace, setLiveCanvasHeroOwnsWorkspace] = React.useState(false)
+  const [liveCanvasHeroOwnsWorkspace, setLiveCanvasHeroOwnsWorkspace] = React.useState(() => (
+    isRouterRootAliasRuntime(import.meta.env.BASE_URL)
+  ))
 
   const {
     uiOverlayOpacity,
