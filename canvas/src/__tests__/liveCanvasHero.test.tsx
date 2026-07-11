@@ -222,12 +222,18 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
     { hasSearchParams: true },
     { isEmbeddedPreview: true },
     { workspaceDocumentSwitchPending: true },
-    { floatingPanelOpen: true },
-    { alternateCanvasSurfaceActive: true },
   ]
   for (const suppression of suppressions) {
     if (shouldShowLiveCanvasHero({ ...base, ...suppression })) {
       throw new Error(`expected hero suppression for ${JSON.stringify(suppression)}`)
+    }
+  }
+  for (const persistedWorkspaceState of [
+    { floatingPanelOpen: true },
+    { alternateCanvasSurfaceActive: true },
+  ]) {
+    if (!shouldShowLiveCanvasHero({ ...base, ...persistedWorkspaceState })) {
+      throw new Error(`expected apex hero to isolate persisted workspace state ${JSON.stringify(persistedWorkspaceState)}`)
     }
   }
   if (!shouldShowLiveCanvasHero({ ...base, meaningfulSourceFilesPresent: true, defaultSeedOnly: false })) {

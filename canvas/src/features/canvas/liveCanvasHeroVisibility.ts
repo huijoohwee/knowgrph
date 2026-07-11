@@ -21,7 +21,6 @@ export function shouldShowLiveCanvasHero(args: LiveCanvasHeroVisibilityArgs): bo
   if (!args.isRootAlias || !args.sourceFilesBootstrapReady || !args.liveWorkspaceSourceReady || args.dismissed) return false
   if (args.hasSearchParams || args.isEmbeddedPreview) return false
   if (args.workspaceDocumentSwitchPending) return false
-  if (args.floatingPanelOpen || args.alternateCanvasSurfaceActive) return false
   if (args.graphData?.metadata?.pending === true) return false
 
   return true
