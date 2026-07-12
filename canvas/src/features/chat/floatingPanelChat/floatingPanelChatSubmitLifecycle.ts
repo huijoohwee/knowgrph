@@ -1,5 +1,5 @@
 import type React from 'react'
-import type { StreamingAssistantState } from '../FloatingPanelChatSections'
+import type { ChatMessage, StreamingAssistantState } from '../FloatingPanelChatSections'
 
 export type SubmitStreamingWorkspaceResetRefs = {
   setStreamingWorkspacePath: React.Dispatch<React.SetStateAction<string | null>>
@@ -26,11 +26,16 @@ export const finalizeSubmitTerminalState = (args: SubmitStreamingWorkspaceResetR
   resetSubmitStreamingWorkspaceState(args)
 }
 
-export const dismissPendingSubmitAssistant = <TMessage extends { id: string }>(args: {
+export const materializePendingSubmitAssistantError = (args: {
   assistantMessageId: string
+  responseText: string
   setStreamingAssistant: React.Dispatch<React.SetStateAction<StreamingAssistantState | null>>
-  setMessages: React.Dispatch<React.SetStateAction<TMessage[]>>
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
 }): void => {
   args.setStreamingAssistant(null)
-  args.setMessages(prev => prev.filter(message => message.id !== args.assistantMessageId))
+  args.setMessages(previous => previous.map(message => (
+    message.id === args.assistantMessageId
+      ? { ...message, content: args.responseText }
+      : message
+  )))
 }

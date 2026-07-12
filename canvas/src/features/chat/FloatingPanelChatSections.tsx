@@ -13,6 +13,7 @@ import { ChatModelCredentialControls } from '@/features/chat/ChatModelCredential
 import { FloatingPanelChatComposer } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposer'
 import { renderFloatingPanelChatMessageContent } from '@/features/chat/floatingPanelChat/FloatingPanelChatMessageContent'
 import { FloatingPanelChatQuickActionGrid } from '@/features/chat/floatingPanelChat/FloatingPanelChatQuickActionGrid'
+import { FloatingPanelChatVideoPresetButton } from '@/features/chat/floatingPanelChat/FloatingPanelChatVideoPresetButton'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
 export type StreamingAssistantState = {
@@ -328,6 +329,7 @@ type FooterProps = {
   input: string
   setInput: React.Dispatch<React.SetStateAction<string>>
   appendFocusRequestKey?: number
+  submitRequestKey?: number
   isLoading: boolean
   errorText: string | null
   connectivity: 'unknown' | 'ok' | 'error'
@@ -367,6 +369,7 @@ export function FloatingPanelChatFooter({
   input,
   setInput,
   appendFocusRequestKey,
+  submitRequestKey = 0,
   isLoading,
   errorText,
   connectivity,
@@ -391,6 +394,13 @@ export function FloatingPanelChatFooter({
   onQuickAction,
   markdownText,
 }: FooterProps) {
+  const formRef = React.useRef<HTMLFormElement | null>(null)
+  const handledSubmitRequestKeyRef = React.useRef(0)
+  React.useEffect(() => {
+    if (submitRequestKey <= handledSubmitRequestKeyRef.current || isSubmitDisabled) return
+    handledSubmitRequestKeyRef.current = submitRequestKey
+    formRef.current?.requestSubmit()
+  }, [isSubmitDisabled, submitRequestKey])
   const normalizedErrorText = String(errorText || '').trim()
   const normalizedConnectivityDetail = String(connectivityDetail || '').trim()
   const duplicateConnectivityError = connectivity === 'error' &&
@@ -471,7 +481,7 @@ export function FloatingPanelChatFooter({
         placement="footer"
         onQuickAction={onQuickAction}
       />
-      <form onSubmit={onSubmit} className="space-y-2">
+      <form ref={formRef} onSubmit={onSubmit} className="space-y-2">
         <FloatingPanelChatComposer
           input={input}
           setInput={setInput}
@@ -501,6 +511,13 @@ export function FloatingPanelChatFooter({
                 {UI_COPY.chatNewChatButtonLabel}
               </button>
             )}
+            {showNewChatButton ? (
+              <FloatingPanelChatVideoPresetButton
+                setInput={setInput}
+                disabled={isLoading}
+                textSizeClassName={uiPanelMicroLabelTextSizeClass}
+              />
+            ) : null}
             {isLoading && (
               <button
                 type="button"

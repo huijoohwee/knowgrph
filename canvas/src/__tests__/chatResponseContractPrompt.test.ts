@@ -16,10 +16,7 @@ import {
   resolveChatKnowgrphAttempt,
   resolveKgcCorrectionInvalidMarkdown,
 } from '@/features/chat/floatingPanelChat/floatingPanelChatKgcAttempt'
-import {
-  dismissPendingSubmitAssistant,
-  finalizeSubmitTerminalState,
-} from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitLifecycle'
+import { finalizeSubmitTerminalState } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitLifecycle'
 import {
   handleSubmitIssueExit,
   resolveSubmitRuntimeFriendlyMessage,
@@ -2591,31 +2588,6 @@ export function testFinalizeSubmitTerminalStateResetsLoadingAbortAndStreamingWor
   }
 }
 
-export function testDismissPendingSubmitAssistantClearsStreamingAssistantAndRemovesPlaceholderMessage() {
-  const streamingAssistantWrites: Array<{ id: string; text: string } | null> = []
-  let nextMessages: Array<{ id: string; role?: string }> = [
-    { id: 'user-1', role: 'user' },
-    { id: 'assistant-pending', role: 'assistant' },
-    { id: 'assistant-stable', role: 'assistant' },
-  ]
-  dismissPendingSubmitAssistant({
-    assistantMessageId: 'assistant-pending',
-    setStreamingAssistant: value => { streamingAssistantWrites.push(typeof value === 'function' ? null : value) },
-    setMessages: updater => {
-      nextMessages = typeof updater === 'function' ? updater(nextMessages) : updater
-    },
-  })
-  if (streamingAssistantWrites.length !== 1 || streamingAssistantWrites[0] !== null) {
-    throw new Error(`Expected pending-assistant helper to clear streaming assistant once, got: ${JSON.stringify(streamingAssistantWrites)}`)
-  }
-  if (nextMessages.some(message => message.id === 'assistant-pending')) {
-    throw new Error('Expected pending-assistant helper to remove the pending assistant placeholder message')
-  }
-  if (!nextMessages.some(message => message.id === 'assistant-stable')) {
-    throw new Error('Expected pending-assistant helper to preserve unrelated messages')
-  }
-}
-
 export function testResolveSubmitRuntimeFriendlyMessageUsesEndpointSpecificNetworkCopy() {
   const friendly = resolveSubmitRuntimeFriendlyMessage({
     raw: 'Failed to fetch',
@@ -2694,12 +2666,12 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorFailsOnPrepar
   if (loadingWrites[0] !== false || workspaceWrites[0] !== null || streamingAssistantWrites[0] !== null) {
     throw new Error(`Expected coordinator timeout exit to clear loading and streaming state, got: ${JSON.stringify({ loadingWrites, workspaceWrites, streamingAssistantWrites })}`)
   }
-  if (messages.some(message => message.id === 'assistant-pending')) {
-    throw new Error('Expected coordinator timeout exit to dismiss the pending assistant placeholder')
+  if (!String(messages.find(message => message.id === 'assistant-pending')?.content || '').includes('preparing the chat request')) {
+    throw new Error(`Expected coordinator timeout exit to persist the terminal assistant error, got: ${JSON.stringify(messages)}`)
   }
 }
 
-export function testHandleSubmitIssueExitReportsDismissesAndFinalizes() {
+export function testHandleSubmitIssueExitReportsMaterializedErrorAndFinalizes() {
   const logs: string[] = []
   const persisted: string[] = []
   const uiLogs: string[] = []
@@ -2708,7 +2680,10 @@ export function testHandleSubmitIssueExitReportsDismissesAndFinalizes() {
   const connectivity: Array<'unknown' | 'ok' | 'error'> = []
   const connectivityDetail: Array<string | null> = []
   const streamingAssistantWrites: Array<{ id: string; text: string } | null> = []
-  let messages: Array<{ id: string }> = [{ id: 'assistant-pending' }, { id: 'stable' }]
+  let messages: ChatMessage[] = [
+    { id: 'assistant-pending', role: 'assistant' as const, content: '' },
+    { id: 'stable', role: 'assistant' as const, content: 'Stable response' },
+  ]
   const abortRef = { current: new AbortController() as AbortController | null }
   const streamFollowRef = { current: { path: '/workspace/chat/trace.md', atMs: 1 } }
   const streamDraftTextRef = { current: { path: '/workspace/chat/trace.md', text: 'draft' } }
@@ -2757,8 +2732,8 @@ export function testHandleSubmitIssueExitReportsDismissesAndFinalizes() {
   if (historySubTabs[0] !== 'log') {
     throw new Error(`Expected issue exit helper to bias History toward the Log subtab, got: ${JSON.stringify(historySubTabs)}`)
   }
-  if (messages.some(message => message.id === 'assistant-pending')) {
-    throw new Error('Expected issue exit helper to remove the pending assistant placeholder')
+  if (messages.find(message => message.id === 'assistant-pending')?.content !== 'Synthetic submit failure') {
+    throw new Error(`Expected issue exit helper to persist the terminal assistant error, got: ${JSON.stringify(messages)}`)
   }
   if (streamingAssistantWrites[0] !== null || abortRef.current !== null || workspaceWrites[0] !== null || loadingWrites[0] !== false) {
     throw new Error('Expected issue exit helper to clear streaming assistant, abort ref, workspace path, and loading state')
@@ -2769,7 +2744,7 @@ export function testHandleSubmitIssueExitCanSkipReportingForEndpointFailure() {
   const logs: string[] = []
   const persisted: string[] = []
   const uiLogs: string[] = []
-  let messages: Array<{ id: string }> = [{ id: 'assistant-pending' }]
+  let messages: ChatMessage[] = [{ id: 'assistant-pending', role: 'assistant', content: '' }]
   handleSubmitIssueExit({
     assistantMessageId: 'assistant-pending',
     requestText: 'Generate KGC',
@@ -2805,8 +2780,8 @@ export function testHandleSubmitIssueExitCanSkipReportingForEndpointFailure() {
   if (uiLogs.length !== 1 || !uiLogs[0]?.includes('Endpoint status text')) {
     throw new Error(`Expected endpoint-style issue exit to still push the diagnosis to the UI log, got: ${JSON.stringify(uiLogs)}`)
   }
-  if (messages.length !== 0) {
-    throw new Error('Expected endpoint-style issue exit to still dismiss the pending assistant placeholder')
+  if (messages[0]?.content !== 'Endpoint status text') {
+    throw new Error(`Expected endpoint-style issue exit to retain its terminal assistant error, got: ${JSON.stringify(messages)}`)
   }
 }
 

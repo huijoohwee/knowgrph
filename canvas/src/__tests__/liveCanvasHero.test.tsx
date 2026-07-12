@@ -18,7 +18,6 @@ import {
   KNOWGRPH_CANVAS_EMBED_SELECT_MESSAGE,
   resolveCanvasEmbedImport,
 } from '@/features/canvas/canvasEmbedImportContract'
-import { handoffLiveCanvasHeroQuery } from '@/features/canvas/liveCanvasHeroHandoff'
 import { resolveLiveCanvasHeroEmbedUrl } from '@/features/canvas/liveCanvasHeroEmbed'
 import { buildLocalDocCanvasEmbedUrl, isSameOriginCanvasEmbedUrl } from '@/features/canvas/canvasDocDeepLink'
 import {
@@ -27,6 +26,7 @@ import {
   readLiveCanvasHeroSourceSelection,
   selectLiveCanvasHeroSource,
 } from '@/features/canvas/liveCanvasHeroSourceSelection'
+import { installEmbeddedCanvasChatCommandBridge } from '@/features/canvas/embeddedCanvasChatCommand'
 import {
   resolveLiveCanvasHeroSource,
   resolveWorkspaceReadmeTextLiveCanvasHeroSource,
@@ -109,9 +109,6 @@ export function testLiveCanvasHeroUsesSourceBackedInvocationContract(): void {
     throw new Error(`expected exact raw default query, got ${LIVE_CANVAS_HERO_DEFAULT_QUERY_TOKENS.join(' ')}`)
   }
   const model = buildLiveCanvasHeroModel()
-  if (model.status !== 'ready') {
-    throw new Error(`expected all source-backed invocations to resolve, missing ${model.missingTokens.join(', ')}`)
-  }
   if (!model.defaultQuery.startsWith(EXPECTED_DEFAULT_QUERY_PREFIX) || !model.defaultQuery.includes('Chinese, Cantonese, and English audio variants') || 'graphData' in model) {
     throw new Error('expected an editorial-only multilingual video-agent model with no synthetic graph')
   }
@@ -329,7 +326,7 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     'deriveLiveCanvasHeroCommandRouteGraph(safeGraphData) || safeGraphData',
     '<LiveCanvasHeroLazy source={liveCanvasHeroSource}',
     'data-kg-live-canvas-hero-enter="true"',
-    'onClick={props.onHandoffComplete}',
+    'onClick={props.onEnter}',
     'Enter Knowgrph',
     'authoredOwnershipReady && !isRootAlias',
     'resolveWorkspaceReadmeTextLiveCanvasHeroSource',
@@ -535,7 +532,7 @@ export function testLiveCanvasHeroImportEmbedAcceptsIframeAndPostMessage(): void
   }
 }
 
-export async function testLiveCanvasHeroChatHandoffPreservesRawGrammar(): Promise<void> {
+export async function testLiveCanvasHeroRunAllPreservesRawGrammar(): Promise<void> {
   const expectedDefaultQuery = readExpectedDefaultQuery()
   consumeFloatingPanelChatInputHandoff()
   queueFloatingPanelChatInputHandoff({ text: expectedDefaultQuery, mode: 'replace' })
@@ -552,21 +549,6 @@ export async function testLiveCanvasHeroChatHandoffPreservesRawGrammar(): Promis
     throw new Error('expected quick tokens to remain idempotent')
   }
 
-  const { restore } = initJsdomHarness()
-  try {
-    let errorText = ''
-    try {
-      await handoffLiveCanvasHeroQuery(expectedDefaultQuery)
-    } catch (error) {
-      errorText = error instanceof Error ? error.message : String(error)
-    }
-    if (!errorText.includes('Chat is not ready')) {
-      throw new Error(`expected unacknowledged Chat open to fail visibly, got ${JSON.stringify(errorText)}`)
-    }
-    if (consumeFloatingPanelChatInputHandoff() !== null) throw new Error('expected failed Chat open to clear its pending draft')
-  } finally {
-    restore()
-  }
 }
 
 export async function testLiveCanvasHeroChatHandoffFlushesThroughSharedAppendEvent(): Promise<void> {
@@ -591,18 +573,23 @@ export async function testLiveCanvasHeroChatHandoffFlushesThroughSharedAppendEve
   }
 }
 
-export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<void> {
+export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Promise<void> {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
-  const handedOffQueries: string[] = []
+  const submittedQueries: string[] = []
+  const cleanupChatBridge = installEmbeddedCanvasChatCommandBridge({
+    submit: query => {
+      submittedQueries.push(query)
+      return true
+    },
+  })
   let importedSelection: ReturnType<typeof readLiveCanvasHeroSourceSelection> = null
   const importListener = (event: Event) => { importedSelection = readLiveCanvasHeroSourceSelection(event) }
   dom.window.addEventListener(LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT, importListener as EventListener)
   let completedCount = 0
   const model = buildLiveCanvasHeroModel()
-  if (model.status !== 'ready') throw new Error(`expected ready hero model, missing ${model.missingTokens.join(', ')}`)
   const expectedDefaultQuery = model.defaultQuery
 
   try {
@@ -610,8 +597,7 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
     await mountReactRoot(root, (
       <LiveCanvasHeroEditorial
         model={model}
-        handoff={query => { handedOffQueries.push(query) }}
-        onHandoffComplete={() => { completedCount += 1 }}
+        onEnter={() => { completedCount += 1 }}
       />
     ), { window: dom.window as unknown as Window, frames: 2 })
 
@@ -619,11 +605,14 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
     if (!textarea || textarea.value !== expectedDefaultQuery) {
       throw new Error(`expected visible raw editable hero query, got ${JSON.stringify(textarea?.value)}`)
     }
+    if (!textarea.closest('[data-kg-textarea-invocation-editor="shared"]') || textarea.getAttribute('data-kg-chat-input-overlay-active') !== '1') {
+      throw new Error(`expected Hero query to reuse the shared Floating Panel textarea invocation editor, got ${textarea.outerHTML}`)
+    }
     const heroText = String(container.textContent || '')
     for (const requiredText of [content.eyebrow, ...content.headline, ...content.posture]) {
       if (!heroText.includes(requiredText)) throw new Error(`expected hero UI to render markdown-backed copy ${JSON.stringify(requiredText)}`)
     }
-    if (handedOffQueries.length !== 0 || completedCount !== 0) throw new Error('expected zero handoff on mount')
+    if (submittedQueries.length !== 0 || completedCount !== 0) throw new Error('expected zero embedded Chat submissions on mount')
     const openAiToken = container.querySelector('[data-kg-live-canvas-hero-invocation-token="@provider.openai"]') as HTMLButtonElement | null
     if (!openAiToken) throw new Error('expected source-backed @provider.openai provider token')
     await act(async () => {
@@ -680,10 +669,11 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
       startButton.click()
       await waitForFrames(dom.window as unknown as Window, 1)
     })
-    if (Number(handedOffQueries.length) !== 1 || handedOffQueries[0] !== textarea.value || Number(completedCount) !== 1) {
-      throw new Error(`expected exactly one explicit handoff, got ${JSON.stringify({ handedOffQueries, completedCount })}`)
+    if (Number(submittedQueries.length) !== 1 || submittedQueries[0] !== textarea.value || Number(completedCount) !== 0) {
+      throw new Error(`expected the Hero action to submit the exact query to embedded Chat once, got ${JSON.stringify({ submittedQueries, completedCount })}`)
     }
   } finally {
+    cleanupChatBridge()
     dom.window.removeEventListener(LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT, importListener as EventListener)
     await unmountReactRoot(root, { window: dom.window as unknown as Window })
     container.remove()

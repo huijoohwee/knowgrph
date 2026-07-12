@@ -243,6 +243,71 @@ export async function testWriteTextWidgetRunOutputArtifactLandsInSourceFiles() {
   }
 }
 
+export async function testWriteTextWidgetRunOutputArtifactPublishesForReplayWhenRuntimeSyncEnabled() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore: restoreDom } = initJsdomHarness()
+  const originalFetch = globalThis.fetch
+  const previousRuntimeSync = process.env.VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED
+  const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  const previousWorkspaceId = process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+  const env = createFakeKnowgrphStorageWorkerEnv()
+  const workspaceId = 'kgws:test-text-widget-replay'
+  try {
+    resetWorkspaceFsForTests()
+    await __resetKnowgrphStorageDbForTests()
+    process.env.VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED = '1'
+    process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://example.com'
+    process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = workspaceId
+    const fs = createMemoryWorkspaceFs()
+    await fs.ensureSeed()
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input || '')
+      if (url === '/__kg_fs_write') {
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      const request = input instanceof Request
+        ? input
+        : new Request(url.startsWith('/api/storage/') ? `https://example.com${url}` : String(input), init)
+      return readStorageWorker().fetch(request, env as never)
+    }) as typeof fetch
+
+    const output = '# Generated Text\n\nReplayable video-agent shot plan.'
+    const outputPath = await writeTextWidgetRunOutputArtifact({
+      workspacePath: '/workspace/demo.md',
+      node: { id: 'text-widget-1', type: 'TextGeneration', label: 'Text Widget', properties: {} },
+      output,
+      variant: 'text-output',
+      fs,
+    })
+    if (outputPath !== '/workspace/demo-text-widget-text-output.md') {
+      throw new Error(`expected stable text artifact path, got ${String(outputPath || '')}`)
+    }
+    const response = await readStorageWorker().fetch(
+      new Request(`https://example.com${buildKnowgrphStorageDocPath(workspaceId, 'workspace/demo-text-widget-text-output.md')}`),
+      env as never,
+    )
+    if (!response.ok || await response.text() !== output) {
+      throw new Error(`expected generated text artifact to replay from D1, got ${response.status}`)
+    }
+  } finally {
+    await __resetKnowgrphStorageDbForTests()
+    resetWorkspaceFsForTests()
+    globalThis.fetch = originalFetch
+    if (typeof previousRuntimeSync === 'string') process.env.VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED = previousRuntimeSync
+    else delete process.env.VITE_KNOWGRPH_STORAGE_RUNTIME_SYNC_ENABLED
+    if (typeof previousBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+    if (typeof previousWorkspaceId === 'string') process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = previousWorkspaceId
+    else delete process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
+    restoreDom()
+    restoreWindow()
+  }
+}
+
 export async function testWriteRichMediaWidgetRunOutputArtifactLandsManifestInSourceFiles() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })

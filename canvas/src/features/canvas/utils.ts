@@ -42,6 +42,7 @@ export type FloatingPanelOpenEventDetail = {
 export type ChatInputAppendEventDetail = {
   text?: string
   mode?: 'append' | 'replace'
+  submit?: boolean
 }
 
 export type WorkflowRunAllEventDetail = {

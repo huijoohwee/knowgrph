@@ -10,7 +10,6 @@ export type FloatingPanelChatMediaToken = {
 }
 
 const MARKDOWN_IMAGE_RE = /!\[([^\]\r\n]{0,160})\]\s*\(\s*(<[^>]+>|[^)\s]+)(?:\s+["'][^)]*["'])?\s*\)/gi
-const MARKDOWN_DOCUMENT_RE = /(^|[^!])\[([^\]\r\n]{1,160})\]\s*\(\s*(workspace:[^)\s]+\.md)\s*\)/gi
 const HTML_MEDIA_RE = /<(audio|video)\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))[^>]*>/gi
 const HTML_IMAGE_RE = /<img\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))[^>]*>/gi
 
@@ -42,17 +41,6 @@ export function collectFloatingPanelChatMediaTokens(text: string): FloatingPanel
       label,
       sourceUrl: url,
       thumbnailUrl: url,
-    })
-  }
-  for (const match of source.matchAll(MARKDOWN_DOCUMENT_RE)) {
-    const prefix = match[1] || ''
-    const raw = String(match[0] || '').slice(prefix.length)
-    pushToken(tokens, {
-      index: (match.index || 0) + prefix.length,
-      raw,
-      mediaKind: 'image',
-      label: String(match[2] || 'Document').trim() || 'Document',
-      sourceUrl: cleanMediaUrl(match[3] || ''),
     })
   }
   for (const match of source.matchAll(HTML_IMAGE_RE)) {

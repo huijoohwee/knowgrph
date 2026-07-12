@@ -3,6 +3,7 @@ import type { ChatInputAppendEventDetail } from '@/features/canvas/utils'
 export type ResolvedFloatingPanelChatInputAppend = {
   text: string
   mode: 'append' | 'replace'
+  submit: boolean
 }
 
 export function resolveFloatingPanelChatInputAppend(
@@ -13,6 +14,7 @@ export function resolveFloatingPanelChatInputAppend(
   return {
     text,
     mode: detail?.mode === 'replace' ? 'replace' : 'append',
+    submit: detail?.submit === true,
   }
 }
 

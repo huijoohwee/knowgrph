@@ -50,6 +50,26 @@ export function testFloatingPanelChatComposerMediaProjectionPreservesInvocationG
   if (!isFloatingPanelChatComposerProjectedCaretInsideChip(raw, display.length, display.length)) throw new Error('expected trailing # keyword caret to resolve inside the projected invocation chip')
 }
 
+export function testFloatingPanelChatComposerKeepsWorkspaceDocumentLinksAuthored() {
+  const documentLink = '[AI视频-执行总表.md](workspace:/docs/AI视频-执行总表.md)'
+  const raw = `/video-agent @video-generation-demo-script #spec.low ${documentLink}`
+  const display = buildFloatingPanelChatComposerDisplayText(raw)
+  const overlay = buildFloatingPanelChatComposerOverlayParts(raw)
+  if (display !== raw) {
+    throw new Error(`expected workspace Markdown source link to remain authored text, got ${JSON.stringify(display)}`)
+  }
+  if (overlay.hasMedia || overlay.parts.some(part => part.kind === 'media')) {
+    throw new Error(`expected workspace Markdown source link not to become an image/media chip, got ${JSON.stringify(overlay)}`)
+  }
+  const invocationTokens = overlay.parts.flatMap(part => part.kind === 'invocation' ? [part.text] : [])
+  if (JSON.stringify(invocationTokens) !== JSON.stringify(['/video-agent', '@video-generation-demo-script', '#spec.low'])) {
+    throw new Error(`expected workspace document URL path to remain text rather than slash-command chips, got ${JSON.stringify(invocationTokens)}`)
+  }
+  if (resolveFloatingPanelChatComposerRawText(display, raw) !== raw) {
+    throw new Error('expected workspace Markdown source link to round-trip without mutation')
+  }
+}
+
 export function testFloatingPanelChatComposerAttachedMediaProjectionStaysDisplayOnly() {
   const raw = 'I can ...'
   const attachment = {

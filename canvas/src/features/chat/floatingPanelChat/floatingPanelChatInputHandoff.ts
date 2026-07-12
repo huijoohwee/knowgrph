@@ -5,11 +5,13 @@ import { applyFloatingPanelChatInputAppend } from './floatingPanelChatInputAppen
 export type FloatingPanelChatInputHandoff = {
   text: string
   mode: 'append' | 'replace'
+  submit?: boolean
 }
 
 export type FloatingPanelChatSeedRequest = {
   text: string
   mode?: 'append' | 'replace'
+  submit?: boolean
 }
 
 let pendingInputHandoff: FloatingPanelChatInputHandoff | null = null
@@ -38,6 +40,7 @@ export function resolveFloatingPanelChatSeed(args: FloatingPanelChatSeedRequest)
   return {
     text,
     mode: args.mode === 'append' ? 'append' : 'replace',
+    submit: args.submit === true,
   }
 }
 
@@ -49,6 +52,7 @@ export function queueResolvedFloatingPanelChatInputHandoff(handoff: FloatingPane
   storeFloatingPanelChatInputHandoff({
     text: handoff.text,
     mode: handoff.mode === 'append' ? 'append' : 'replace',
+    submit: handoff.submit === true,
   })
 }
 
@@ -56,6 +60,7 @@ export function dispatchResolvedFloatingPanelChatSeed(handoff: FloatingPanelChat
   emitChatInputAppend({
     text: handoff.text,
     mode: handoff.mode === 'append' ? 'append' : 'replace',
+    submit: handoff.submit === true,
   })
 }
 

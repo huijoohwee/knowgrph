@@ -10,6 +10,7 @@ type FloatingPanelBridge = {
 }
 
 const FLOATING_PANEL_BRIDGE_KEY = '__knowgrphFloatingPanelBridge'
+const floatingPanelBridgeReadyCallbacks = new Set<() => void>()
 
 declare global {
   interface Window {
@@ -20,11 +21,26 @@ declare global {
 export function installFloatingPanelBridge(bridge: FloatingPanelBridge): () => void {
   if (typeof window === 'undefined') return () => void 0
   window[FLOATING_PANEL_BRIDGE_KEY] = bridge
+  for (const callback of floatingPanelBridgeReadyCallbacks) callback()
+  floatingPanelBridgeReadyCallbacks.clear()
   return () => {
     if (window[FLOATING_PANEL_BRIDGE_KEY] === bridge) {
       delete window[FLOATING_PANEL_BRIDGE_KEY]
     }
   }
+}
+
+export function isFloatingPanelBridgeReady(): boolean {
+  return typeof window !== 'undefined' && Boolean(window[FLOATING_PANEL_BRIDGE_KEY])
+}
+
+export function whenFloatingPanelBridgeReady(callback: () => void): () => void {
+  if (isFloatingPanelBridgeReady()) {
+    callback()
+    return () => void 0
+  }
+  floatingPanelBridgeReadyCallbacks.add(callback)
+  return () => floatingPanelBridgeReadyCallbacks.delete(callback)
 }
 
 export function requestPropsPanelOpen(detail?: PropsPanelOpenEventDetail): boolean {

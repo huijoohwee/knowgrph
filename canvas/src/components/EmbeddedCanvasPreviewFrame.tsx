@@ -2,6 +2,11 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { ZoomRequest } from '@/lib/zoom/requests'
 import { hashGraphDataForPreviewSync } from '@/hooks/store/graphDataSliceUtils'
+import {
+  createEmbeddedCanvasChatSubmitMessage,
+  deliverEmbeddedCanvasChatSubmit,
+  installEmbeddedCanvasChatCommandBridge,
+} from '@/features/canvas/embeddedCanvasChatCommand'
 
 export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; className?: string }) {
   const graphData = useGraphStore(s => s.graphData)
@@ -22,6 +27,15 @@ export function EmbeddedCanvasPreviewFrame(props: { previewSrc: string; classNam
   const pendingZoomRef = React.useRef<ZoomRequest | null>(null)
   const pendingThreeRef = React.useRef<{ type: 'in' | 'out' | 'fit' | 'reset' | 'selection'; at: number } | null>(null)
   const lastInboundPreviewGraphHashRef = React.useRef<string>('')
+
+  React.useEffect(() => installEmbeddedCanvasChatCommandBridge({
+    submit: text => {
+      const target = iframeRef.current?.contentWindow
+      const message = createEmbeddedCanvasChatSubmitMessage(text)
+      if (!target || !message) return false
+      return deliverEmbeddedCanvasChatSubmit(target, message, window.location.origin)
+    },
+  }), [])
 
   const sendPreviewSnapshot = React.useCallback(() => {
     const target = iframeRef.current?.contentWindow

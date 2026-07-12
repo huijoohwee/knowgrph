@@ -1,5 +1,5 @@
 import React from 'react'
-import { PlainTextInputEditor } from '@/components/ui/PlainTextInputEditor'
+import { TextareaInvocationEditor } from '@/lib/ui/TextareaInvocationEditor'
 import { collectMarkdownVariableBrowseRows, buildMarkdownVariableToken } from '@/features/markdown/ui/markdownVariableReferences'
 import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
 import { getChatInvocationOptions, isChatInvocationToken } from '@/features/chat/chatInvocationRegistry'
@@ -32,13 +32,9 @@ import { replaceChatComposerTrigger, resolveChatComposerTrigger, type ChatCompos
 import {
   buildFloatingPanelChatComposerDisplayText,
   buildFloatingPanelChatComposerOverlayParts,
-  deleteFloatingPanelChatComposerProjectedTokenDisplayRange,
   FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME,
-  FloatingPanelChatComposerMediaOverlay,
-  isFloatingPanelChatComposerProjectedCaretInsideChip,
   mapFloatingPanelChatComposerDisplayIndexToRawIndex,
   mapFloatingPanelChatComposerRawIndexToDisplayIndex,
-  resolveFloatingPanelChatComposerRawText,
 } from './FloatingPanelChatComposerMediaOverlay'
 
 type FloatingPanelChatComposerProps = {
@@ -324,38 +320,9 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
   const ariaLabel = trigger?.kind === 'slash' ? 'Chat slash commands' : trigger?.kind === 'keyword' ? 'Chat runtime invocations' : 'Chat variable commands'
   const menuListId = `${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-list`
   const composerOverlay = React.useMemo(() => buildFloatingPanelChatComposerOverlayParts(props.input), [props.input])
-  const hasMediaOverlay = composerOverlay.hasMedia
   const hasComposerOverlay = composerOverlay.hasOverlay
   const displayInput = React.useMemo(() => buildFloatingPanelChatComposerDisplayText(props.input), [props.input])
-  React.useEffect(() => {
-    const input = inputRef.current
-    if (!input) return
-    const start = input.selectionStart ?? displayInput.length
-    const end = input.selectionEnd ?? displayInput.length
-    setSelectionRange(previous => previous.start === start && previous.end === end ? previous : { start, end })
-  }, [displayInput])
   const projectedLayoutClassName = hasComposerOverlay ? FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME : ''
-  const hideProjectedCaret = hasComposerOverlay && isFloatingPanelChatComposerProjectedCaretInsideChip(props.input, selectionRange.start, selectionRange.end)
-  const deleteProjectedTokenRange = React.useCallback((target: HTMLInputElement | HTMLTextAreaElement, direction: 'backward' | 'forward'): boolean => {
-    if (!hasComposerOverlay) return false
-    const next = deleteFloatingPanelChatComposerProjectedTokenDisplayRange({
-      text: props.input,
-      selectionStart: target.selectionStart ?? target.value.length,
-      selectionEnd: target.selectionEnd ?? target.value.length,
-      direction,
-    })
-    if (!next) return false
-    props.setInput(next.text)
-    closeMenu()
-    requestAnimationFrame(() => {
-      const input = inputRef.current
-      if (!input) return
-      focusFloatingPanelChatComposerInput(input)
-      input.setSelectionRange(next.cursor, next.cursor)
-      setSelectionRange({ start: next.cursor, end: next.cursor })
-    })
-    return true
-  }, [closeMenu, hasComposerOverlay, props])
   const insertGrammarQuickBarToken = React.useCallback((token: '/' | '#' | '@') => {
     const input = inputRef.current
     const displaySelectionStart = input?.selectionStart ?? displayInput.length
@@ -404,70 +371,28 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
           </button>
         ))}
       </section>
-      <section className="relative">
-        <FloatingPanelChatComposerMediaOverlay
-          input={props.input}
-          projectedSelectionRange={selectionRange}
-          showProjectedCaret={hideProjectedCaret}
-          uiPanelTextFontClass={props.uiPanelTextFontClass}
-        />
-        <PlainTextInputEditor
-          ref={inputRef}
-          value={displayInput}
-          onChange={value => {
-            props.setInput(resolveFloatingPanelChatComposerRawText(value, props.input))
-            updateTrigger(value)
-            const input = inputRef.current
-            setSelectionRange({ start: input?.selectionStart ?? value.length, end: input?.selectionEnd ?? value.length })
-          }}
-          onSelect={event => {
-            updateTrigger(event.currentTarget.value)
-            setSelectionRange({ start: event.currentTarget.selectionStart ?? event.currentTarget.value.length, end: event.currentTarget.selectionEnd ?? event.currentTarget.value.length })
-          }}
-          onBeforeInput={event => {
-            const inputType = (event.nativeEvent as InputEvent).inputType
-            const direction = inputType === 'deleteContentBackward'
-              ? 'backward'
-              : inputType === 'deleteContentForward'
-                ? 'forward'
-                : null
-            if (!direction) return
-            if (!deleteProjectedTokenRange(event.currentTarget, direction)) return
-            event.preventDefault()
-          }}
-          placeholder={props.placeholder}
-          ariaLabel={props.placeholder}
-          ariaExpanded={!!trigger}
-          ariaControls={trigger ? menuListId : undefined}
-          disabled={props.isLoading}
-          multiline
-          className="relative z-0 w-full h-full border-0 rounded-none bg-transparent"
-          inputClassName={`${props.uiPanelTextFontClass} ${hasComposerOverlay ? `text-transparent ${hideProjectedCaret ? 'caret-transparent' : 'caret-[color:var(--kg-text-primary)]'} ${FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME}` : ''}`}
-          dataAttributes={{
-            'data-kg-chat-input': true,
-            'data-kg-chat-input-overlay-active': hasComposerOverlay ? '1' : undefined,
-            'data-kg-chat-input-media-overlay-active': hasMediaOverlay ? '1' : undefined,
-          }}
-          onKeyDown={event => {
-            if (hasComposerOverlay && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
-              event.preventDefault()
-              event.currentTarget.setSelectionRange(0, event.currentTarget.value.length)
-              setSelectionRange({ start: 0, end: event.currentTarget.value.length })
-              closeMenu()
-              return
-            }
-            if (hasComposerOverlay && (event.key === 'Backspace' || event.key === 'Delete')) {
-              if (deleteProjectedTokenRange(event.currentTarget, event.key === 'Backspace' ? 'backward' : 'forward')) {
-                event.preventDefault()
-                return
-              }
-            }
-            if (!(event.metaKey || event.ctrlKey) || event.key !== 'Enter' || props.isSubmitDisabled) return
-            event.preventDefault()
-            event.currentTarget.form?.requestSubmit()
-          }}
-        />
-      </section>
+      <TextareaInvocationEditor
+        value={props.input}
+        onChange={props.setInput}
+        inputRef={inputRef}
+        ariaLabel={props.placeholder}
+        placeholder={props.placeholder}
+        ariaExpanded={!!trigger}
+        ariaControls={trigger ? menuListId : undefined}
+        disabled={props.isLoading}
+        overlayTextClassName={props.uiPanelTextFontClass}
+        projectedLayoutClassName={FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME}
+        className="relative z-0 h-full w-full rounded-none border-0 bg-transparent"
+        inputClassName={props.uiPanelTextFontClass}
+        dataAttributes={{ 'data-kg-chat-input': true }}
+        onDisplayChange={updateTrigger}
+        onDisplaySelectionChange={updateTrigger}
+        onSelectAll={closeMenu}
+        onProjectedDelete={closeMenu}
+        submitOnModEnter={!props.isSubmitDisabled}
+        selectionRange={selectionRange}
+        onSelectionRangeChange={setSelectionRange}
+      />
       <AnchorOverlay anchorRef={anchorRef} open={!!trigger} onClose={closeMenu} align="top-left" className={`w-[min(22rem,calc(100vw-1rem))] rounded border p-2 shadow-sm ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
         <MarkdownBlockContainerCommandMenu
           ariaLabel={ariaLabel}

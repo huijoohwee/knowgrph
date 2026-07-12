@@ -231,7 +231,7 @@ export async function testExecuteFloatingPanelChatSubmitCoordinatorAvoidsDuplica
   if (connectivity[0] !== 'error' || connectivityDetail[0] !== null) {
     throw new Error(`Expected endpoint status failure to avoid a duplicate connectivity detail, got ${JSON.stringify({ connectivity, connectivityDetail })}`)
   }
-  if (messages.some(message => message.id === 'assistant-pending')) {
-    throw new Error('Expected endpoint status failure to dismiss the pending assistant placeholder')
+  if (!messages.find(message => message.id === 'assistant-pending')?.content.includes("Unsupported parameter: 'messages'")) {
+    throw new Error(`Expected endpoint status failure to persist the terminal assistant error, got: ${JSON.stringify(messages)}`)
   }
 }

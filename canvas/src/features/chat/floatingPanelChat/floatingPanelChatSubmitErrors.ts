@@ -5,7 +5,8 @@ import type { UiLogEntryInput } from '@/hooks/store/types'
 import { CHAT_STREAM_FIRST_CHUNK_TIMEOUT_ERROR } from './floatingPanelChatStreaming'
 import { CHAT_SUBMIT_PREPARATION_TIMEOUT_ERROR } from './floatingPanelChatSubmitCoordinator'
 import { CHAT_SUBMIT_TRANSPORT_TIMEOUT_ERROR } from './floatingPanelChatSubmitTransport'
-import { dismissPendingSubmitAssistant, finalizeSubmitTerminalState } from './floatingPanelChatSubmitLifecycle'
+import { finalizeSubmitTerminalState, materializePendingSubmitAssistantError } from './floatingPanelChatSubmitLifecycle'
+import type { ChatMessage } from '../FloatingPanelChatSections'
 
 const INVALID_TOKEN_PATTERN = /(invalid token|invalid api key|invalid authorization|无效的令牌)/i
 const MISSING_API_KEY_PATTERN = /(missing [\w\s-]*api key|requires an api key)/i
@@ -175,7 +176,7 @@ export const reportSubmitExchangeIssue = (args: {
   })
 }
 
-export const handleSubmitIssueExit = <TMessage extends { id: string }>(args: {
+export const handleSubmitIssueExit = (args: {
   assistantMessageId: string
   requestText: string
   responseText: string
@@ -183,7 +184,7 @@ export const handleSubmitIssueExit = <TMessage extends { id: string }>(args: {
   modelId: string | null
   timestampMs: number
   setStreamingAssistant: React.Dispatch<React.SetStateAction<{ id: string; text: string } | null>>
-  setMessages: React.Dispatch<React.SetStateAction<TMessage[]>>
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
   setErrorText?: React.Dispatch<React.SetStateAction<string | null>>
   errorText?: string | null
   setConnectivity: React.Dispatch<React.SetStateAction<'unknown' | 'ok' | 'error'>>
@@ -215,19 +216,17 @@ export const handleSubmitIssueExit = <TMessage extends { id: string }>(args: {
   chatProvider?: string | null
   chatAuthMode?: 'byok' | 'serverManaged' | null
   endpointUrl?: string | null
-  shouldDismissAssistant?: boolean
   shouldReportIssue?: boolean
 }): void => {
   if (args.setErrorText && typeof args.errorText === 'string') {
     args.setErrorText(args.errorText)
   }
-  if (args.shouldDismissAssistant !== false) {
-    dismissPendingSubmitAssistant({
-      assistantMessageId: args.assistantMessageId,
-      setStreamingAssistant: args.setStreamingAssistant,
-      setMessages: args.setMessages,
-    })
-  }
+  materializePendingSubmitAssistantError({
+    assistantMessageId: args.assistantMessageId,
+    responseText: args.responseText,
+    setStreamingAssistant: args.setStreamingAssistant,
+    setMessages: args.setMessages,
+  })
   args.setConnectivity(args.connectivity)
   args.setConnectivityDetail(args.connectivityDetail)
   if (args.shouldReportIssue !== false) {

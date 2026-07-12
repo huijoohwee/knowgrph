@@ -8,7 +8,7 @@ import {
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
-import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME, UI_INLINE_CHIP_SHELL_15CH_CLASSNAME } from '@/lib/ui/textLayout'
+import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME } from '@/lib/ui/textLayout'
 import {
   normalizeMediaProjectionUrlKey,
   readMediaAttachmentLabel,
@@ -68,6 +68,8 @@ const TEXTAREA_INVOCATION_OVERLAY_BASE_CLASS_NAME =
   'pointer-events-none absolute inset-0 z-10 overflow-hidden whitespace-pre-wrap break-words'
 const TEXTAREA_INVOCATION_PROJECTED_CARET_CLASS_NAME =
   'relative z-20 inline-block h-[1em] w-0 border-l border-[color:var(--kg-text-primary)] align-[-0.125em] opacity-95'
+const TEXTAREA_INVOCATION_METRIC_TEXT_CLASS_NAME =
+  'before:whitespace-pre before:content-[attr(data-kg-textarea-invocation-metric-text)]'
 
 function readMediaProjectionDedupeKey(part: Pick<ChatComposerMediaPart, 'label' | 'mediaKind' | 'raw' | 'sourceUrl' | 'thumbnailUrl'>): string {
   const sourceKey = normalizeMediaProjectionUrlKey(part.sourceUrl || part.thumbnailUrl || part.raw)
@@ -345,23 +347,14 @@ function renderComposerInvocationChipWithCaret(part: ChatComposerInvocationMetri
 function renderTextareaInvocationVisibleTokenText(displayText: string): React.ReactNode {
   const text = String(displayText || '')
   const sigil = text.startsWith('/') || text.startsWith('#') || text.startsWith('@') ? text.slice(0, 1) : ''
-  if (!sigil) {
-    return (
-      <span
-        className="inline-block min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap"
-        data-kg-textarea-invocation-token-text="1"
-      >
-        {text}
-      </span>
-    )
-  }
   return (
     <span
-      className="inline-flex min-w-0 max-w-full items-center overflow-hidden whitespace-nowrap"
+      className={`inline-block min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${sigil ? UI_INLINE_CHIP_LABEL_15CH_CLASSNAME : ''}`}
       data-kg-textarea-invocation-token-text="1"
+      data-kg-textarea-invocation-token-sigil={sigil || undefined}
+      data-kg-textarea-invocation-token-label={sigil ? '1' : undefined}
     >
-      <span className="shrink-0" data-kg-textarea-invocation-token-sigil={sigil}>{sigil}</span>
-      <span className={`min-w-0 ${UI_INLINE_CHIP_LABEL_15CH_CLASSNAME}`} data-kg-textarea-invocation-token-label="1">{text.slice(1)}</span>
+      {text}
     </span>
   )
 }
@@ -377,10 +370,20 @@ function renderTextareaInvocationProjectionMetricText(args: {
   const offset = args.caretOffset == null
     ? null
     : Math.max(0, Math.min(text.length, Math.floor(args.caretOffset)))
-  if (offset == null) return <span className={args.className}>{text}</span>
+  if (offset == null) {
+    return (
+      <span
+        className={`${args.className} ${TEXTAREA_INVOCATION_METRIC_TEXT_CLASS_NAME}`}
+        data-kg-textarea-invocation-metric-text={text}
+      />
+    )
+  }
   return (
     <span className={args.className}>
-      {text.slice(0, offset)}
+      <span
+        className={TEXTAREA_INVOCATION_METRIC_TEXT_CLASS_NAME}
+        data-kg-textarea-invocation-metric-text={text.slice(0, offset)}
+      />
       <span
         aria-hidden="true"
         className={TEXTAREA_INVOCATION_PROJECTED_CARET_CLASS_NAME}
@@ -388,7 +391,10 @@ function renderTextareaInvocationProjectionMetricText(args: {
         data-kg-textarea-invocation-projected-caret-kind={args.caretKind}
         data-kg-textarea-invocation-projected-caret-token={args.caretToken}
       />
-      {text.slice(offset)}
+      <span
+        className={TEXTAREA_INVOCATION_METRIC_TEXT_CLASS_NAME}
+        data-kg-textarea-invocation-metric-text={text.slice(offset)}
+      />
     </span>
   )
 }
@@ -513,6 +519,7 @@ export function FloatingPanelChatComposerMediaOverlay(props: {
   projectedLayoutClassName?: string
   projectedSelectionRange?: TextareaInvocationProjectionSelectionRange | null
   showProjectedCaret?: boolean
+  overlayRef?: React.Ref<HTMLElement>
 }) {
   const projection = React.useMemo(
     () => buildFloatingPanelChatComposerOverlayParts(props.input, {
@@ -533,6 +540,7 @@ export function FloatingPanelChatComposerMediaOverlay(props: {
   return (
     <section
       aria-hidden="true"
+      ref={props.overlayRef}
       className={[
         TEXTAREA_INVOCATION_OVERLAY_BASE_CLASS_NAME,
         overlayChromeClassName,

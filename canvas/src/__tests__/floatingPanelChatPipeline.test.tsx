@@ -48,6 +48,44 @@ export function testFloatingPanelChatPipelineStagesDeriveFromRuntimeState() {
   }
 }
 
+export async function testFloatingPanelChatFooterAutoSubmitUsesNativeForm(): Promise<void> {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  let submitCount = 0
+  try {
+    await mountReactRoot(root, (
+      <FloatingPanelChatFooter
+        input="/video-agent @provider.byteplus @text"
+        setInput={() => undefined}
+        submitRequestKey={1}
+        isLoading={false}
+        errorText={null}
+        connectivity="unknown"
+        connectivityDetail={null}
+        currentNode={null}
+        modelId="seed-model"
+        modelOptions={['seed-model']}
+        onModelChanged={() => undefined}
+        uiPanelTextFontClass="text-sm"
+        uiPanelMicroLabelTextSizeClass="text-xs"
+        isSubmitDisabled={false}
+        onSubmit={event => {
+          event.preventDefault()
+          submitCount += 1
+        }}
+        onStop={() => undefined}
+      />
+    ), { window: dom.window as unknown as Window, frames: 2 })
+    if (submitCount !== 1) throw new Error(`expected one native form auto-submit, got ${submitCount}`)
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+  }
+}
+
 export function testFloatingPanelChatContextKeysRejectSameLengthMiddleEditStaleness() {
   const documentA = '# Title\nalpha payload\nfooter'
   const documentB = '# Title\nomega payload\nfooter'

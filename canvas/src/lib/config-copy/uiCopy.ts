@@ -220,6 +220,9 @@ export const UI_COPY = {
   chatUsingSelectedNodeContextStatus: (label: string, type: string) =>
     `Using workspace-wide context plus selected node ${label} (${type}).`,
   chatNewChatButtonLabel: 'New Chat',
+  chatLoadPresetButtonLabel: 'Load preset',
+  chatLoadingPresetButtonLabel: 'Loading…',
+  chatLoadVideoPresetButtonTitle: 'Load the source-backed agentic video demo preset',
   chatNewChatFailedError: 'Unable to create a new chat workspace file. Try again.',
   chatStopButtonLabel: 'Stop',
   chatSendButtonLabel: 'Send',

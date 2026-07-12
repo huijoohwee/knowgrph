@@ -207,6 +207,7 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     await mountReactRoot(root, React.createElement(Harness), { window: dom.window as unknown as Window, frames: 2 })
     const textarea = container.querySelector('[data-kg-chat-input="true"]') as HTMLTextAreaElement | null
     if (!textarea) throw new Error('expected chat composer textarea')
+    if (!String(textarea.closest('[data-kg-textarea-invocation-editor="shared"]')?.getAttribute('class') || '').includes('h-full')) throw new Error('expected Floating Panel Chat shared textarea editor to fill its Chatbox')
     textarea.value = '/sto'
     textarea.setSelectionRange(4, 4)
     Simulate.change(textarea)
@@ -335,6 +336,8 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     }
     const overlay = container.querySelector('[data-kg-chat-input-media-overlay="1"]') as HTMLElement | null
     if (!overlay) throw new Error('expected Chat composer media overlay')
+    textarea.scrollTop = 24; Simulate.scroll(textarea)
+    if (overlay.scrollTop !== textarea.scrollTop) throw new Error(`expected projected overlay to follow textarea scroll, got ${overlay.scrollTop}:${textarea.scrollTop}`)
     const overlayText = String(overlay.textContent || '')
     if (overlayText.includes('https://example.com/media/cover.png') || overlayText.includes('![')) {
       throw new Error(`expected Chat composer overlay to project compact media chip text instead of raw markdown, got ${JSON.stringify(overlayText)}`)
@@ -362,8 +365,19 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     if (!mixedSlashInvocationChip.querySelector('[data-kg-textarea-invocation-token-sigil="/"]') || !mixedKeywordInvocationChip.querySelector('[data-kg-textarea-invocation-token-sigil="#"]')) {
       throw new Error(`expected mixed / and # composer chips to preserve visible sigils under truncation, html=${container.innerHTML}`)
     }
+    const mixedOverlayText = String(overlay.textContent || '')
+    for (const token of ['/prd-tad.create', '#media']) {
+      const occurrenceCount = mixedOverlayText.split(token).length - 1
+      if (occurrenceCount !== 1) {
+        throw new Error(`expected projected ${token} text to occur once without a transparent DOM duplicate, got ${occurrenceCount}: ${JSON.stringify(mixedOverlayText)}`)
+      }
+    }
     for (const invocationChip of [mixedSlashInvocationChip, mixedKeywordInvocationChip]) {
       const label = invocationChip.querySelector('[data-kg-textarea-invocation-token-label="1"]')
+      const expectedToken = String(invocationChip.getAttribute('data-kg-chat-input-invocation-token') || '')
+      if (!label || label.childElementCount !== 0 || label.textContent !== expectedToken) {
+        throw new Error(`expected selected chip text to match the textarea token without split sigil/label nodes, html=${invocationChip.outerHTML}`)
+      }
       if (!String(label?.getAttribute('class') || '').includes('kg-inline-chip-label-15ch')) {
         throw new Error(`expected mixed / and # composer chip labels to use shared 15ch truncation, html=${invocationChip.outerHTML}`)
       }
@@ -582,5 +596,4 @@ export async function testFloatingPanelChatComposerReusesSlashAndVariableMenus()
     restore()
   }
 }
-
 export { testFloatingPanelChatComposerWiresRemoteAgenticOsGrammar, testRemoteAgenticOsGrammarHydratesSharedInvocationLookups } from './floatingPanelRemoteGrammarCommands.test'

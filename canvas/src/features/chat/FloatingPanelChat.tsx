@@ -147,6 +147,7 @@ export default function FloatingPanelChat() {
   } | null>(null)
   const [streamingWorkspacePath, setStreamingWorkspacePath] = React.useState<string | null>(null)
   const [appendFocusRequestKey, setAppendFocusRequestKey] = React.useState(0)
+  const [submitRequestKey, setSubmitRequestKey] = React.useState(0)
 
   const abortRef = React.useRef<AbortController | null>(null)
   const scrollRef = React.useRef<HTMLElement | null>(null)
@@ -662,11 +663,12 @@ export default function FloatingPanelChat() {
   React.useEffect(() => {
     if (typeof window === 'undefined') return
     const handler = (ev: Event) => {
-      const e = ev as CustomEvent<{ text?: string; mode?: 'append' | 'replace' } | undefined>
+      const e = ev as CustomEvent<{ text?: string; mode?: 'append' | 'replace'; submit?: boolean } | undefined>
       const detail = resolveFloatingPanelChatInputAppend(e.detail)
       if (!detail) return
       setInput(prev => applyFloatingPanelChatInputAppend(prev, detail))
       setAppendFocusRequestKey(previous => previous + 1)
+      if (detail.submit) setSubmitRequestKey(previous => previous + 1)
     }
     window.addEventListener(CHAT_INPUT_APPEND_EVENT, handler as EventListener)
     flushFloatingPanelChatInputHandoff()
@@ -851,6 +853,7 @@ export default function FloatingPanelChat() {
         input={input}
         setInput={setInput}
         appendFocusRequestKey={appendFocusRequestKey}
+        submitRequestKey={submitRequestKey}
         isLoading={isLoading}
         errorText={errorText}
         connectivity={connectivity}

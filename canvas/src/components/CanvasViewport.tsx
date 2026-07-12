@@ -21,6 +21,13 @@ import { deriveLiveCanvasHeroCommandRouteGraph } from '@/features/canvas/liveCan
 import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
 import { resolveCanvasViewportHeavyRuntimeIntentSurface } from '@/components/canvasViewportHeavyRuntimeIntent'
 import { CanvasEmbedCodePanelHost } from '@/components/CanvasEmbedCodePanelHost'
+import {
+  createEmbeddedCanvasChatSubmitMessage,
+  deliverEmbeddedCanvasChatSubmit,
+  isEmbeddedCanvasChatReadyMessage,
+  installEmbeddedCanvasChatCommandBridge,
+} from '@/features/canvas/embeddedCanvasChatCommand'
+import { useEmbeddedCanvasChatCommandReceiver } from '@/features/canvas/useEmbeddedCanvasChatCommandReceiver'
 const CanvasViewportGeospatialOverlayLazy = React.lazy(() =>
   import('@/components/CanvasViewportGeospatialOverlay').then(mod => ({ default: mod.CanvasViewportGeospatialOverlay })),
 )
@@ -102,6 +109,7 @@ function resolveLiveCanvasHeroEmbedPreviewSurface(variant: CanvasViewportVariant
 }
 
 export function CanvasViewport(props: CanvasViewportProps) {
+  useEmbeddedCanvasChatCommandReceiver()
   const {
     variant,
     layout = 'full',
@@ -223,6 +231,42 @@ export function CanvasViewport(props: CanvasViewportProps) {
     floatingPanelOpen,
     alternateCanvasSurfaceActive: geospatialModeEnabled || canvasRenderMode !== '2d',
   })
+  const liveCanvasHeroEmbedRef = React.useRef<HTMLIFrameElement | null>(null)
+  const liveCanvasHeroEmbedReadyRef = React.useRef(false)
+  const pendingLiveCanvasHeroChatMessageRef = React.useRef<ReturnType<typeof createEmbeddedCanvasChatSubmitMessage>>(null)
+  React.useEffect(() => {
+    if (!liveCanvasHeroVisible || !liveCanvasHeroSource?.embedUrl) return
+    liveCanvasHeroEmbedReadyRef.current = false
+    pendingLiveCanvasHeroChatMessageRef.current = null
+    return installEmbeddedCanvasChatCommandBridge({
+      submit: text => {
+        const target = liveCanvasHeroEmbedRef.current?.contentWindow
+        const message = createEmbeddedCanvasChatSubmitMessage(text)
+        if (!target || !message) return false
+        if (!liveCanvasHeroEmbedReadyRef.current) {
+          pendingLiveCanvasHeroChatMessageRef.current = message
+          return true
+        }
+        return deliverEmbeddedCanvasChatSubmit(target, message, window.location.origin)
+      },
+    })
+  }, [liveCanvasHeroSource?.embedUrl, liveCanvasHeroVisible])
+  React.useEffect(() => {
+    if (!liveCanvasHeroVisible || !liveCanvasHeroSource?.embedUrl) return
+    const handleEmbeddedChatReady = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return
+      if (event.source !== liveCanvasHeroEmbedRef.current?.contentWindow) return
+      if (!isEmbeddedCanvasChatReadyMessage(event.data)) return
+      liveCanvasHeroEmbedReadyRef.current = true
+      const pendingMessage = pendingLiveCanvasHeroChatMessageRef.current
+      const target = liveCanvasHeroEmbedRef.current?.contentWindow
+      if (!pendingMessage || !target) return
+      pendingLiveCanvasHeroChatMessageRef.current = null
+      deliverEmbeddedCanvasChatSubmit(target, pendingMessage, window.location.origin)
+    }
+    window.addEventListener('message', handleEmbeddedChatReady)
+    return () => window.removeEventListener('message', handleEmbeddedChatReady)
+  }, [liveCanvasHeroSource?.embedUrl, liveCanvasHeroVisible])
   React.useEffect(() => {
     onLiveCanvasHeroVisibilityChange?.(liveCanvasHeroVisible)
     return () => onLiveCanvasHeroVisibilityChange?.(false)
@@ -308,6 +352,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
                 >
                   {liveCanvasHeroSource.embedUrl ? (
                     <iframe
+                      ref={liveCanvasHeroEmbedRef}
                       key={liveCanvasHeroSource.embedUrl}
                       src={liveCanvasHeroSource.embedUrl}
                       title={`Interactive canvas embed for ${liveCanvasHeroSource.sourcePath}`}
@@ -321,7 +366,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
                     />
                   ) : null}
                 </section>
-                <LiveCanvasHeroLazy source={liveCanvasHeroSource} sourceFiles={sourceFiles} onHandoffComplete={dismissLiveCanvasHero} />
+                <LiveCanvasHeroLazy source={liveCanvasHeroSource} sourceFiles={sourceFiles} onEnter={dismissLiveCanvasHero} />
               </>
             ) : (
               <>

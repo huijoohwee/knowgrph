@@ -75,17 +75,17 @@ export type GenerationInvocation = {
   kinds: GenerationKind[];
   prompt: string;
 };
-const providerByToken = new Map(
+const providerByToken = new Map<string, GenerationProvider>(
   GENERATION_PROVIDER_INVOCATIONS.map(
     (item) => [item.token, item.provider] as const,
   ),
 );
-const specificationByToken = new Map(
+const specificationByToken = new Map<string, GenerationSpecification>(
   GENERATION_SPECIFICATION_INVOCATIONS.map(
     (item) => [item.token, item.specification] as const,
   ),
 );
-const kindByToken = new Map(
+const kindByToken = new Map<string, GenerationKind>(
   GENERATION_KIND_INVOCATIONS.map((item) => [item.token, item.kind] as const),
 );
 
@@ -100,14 +100,14 @@ export function parseGenerationInvocation(
   const kinds = Array.from(
     new Set(
       tokens
-        .map((token) => kindByToken.get(token as `@${string}`))
+        .map((token) => kindByToken.get(token))
         .filter((value): value is GenerationKind => Boolean(value)),
     ),
   );
   if (!kinds.length) return null;
   const provider =
     tokens
-      .map((token) => providerByToken.get(token as `@provider.${string}`))
+      .map((token) => providerByToken.get(token))
       .find(Boolean) || CHAT_PROVIDER_BYTEPLUS;
   const specification =
     tokens
@@ -115,7 +115,7 @@ export function parseGenerationInvocation(
         specificationByToken.get(token as `#spec.${GenerationSpecification}`),
       )
       .find(Boolean) || "low";
-  const grammarTokens = new Set([
+  const grammarTokens = new Set<string>([
     AGENTIC_VIDEO_ROUTE_TOKEN,
     ...GENERATION_PROVIDER_INVOCATIONS.map((item) => item.token),
     ...GENERATION_SPECIFICATION_INVOCATIONS.map((item) => item.token),

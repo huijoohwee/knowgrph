@@ -17,13 +17,12 @@ import {
 } from '@/features/canvas/canvasEmbedImportContract'
 import { CanvasEmbedImportPanel } from '@/features/canvas/CanvasEmbedImportPanel'
 import { selectLiveCanvasHeroSource } from '@/features/canvas/liveCanvasHeroSourceSelection'
-import { handoffLiveCanvasHeroQuery } from '@/features/canvas/liveCanvasHeroHandoff'
+import { submitToEmbeddedCanvasChat } from '@/features/canvas/embeddedCanvasChatCommand'
 import type { LiveCanvasHeroSource } from '@/features/canvas/useKnowgrphLiveCanvasHero'
 import type { SourceFile } from '@/hooks/store/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { normalizeInvocationTokenSpacing } from '@/lib/markdown/invocationTokens'
 import { resolveLiveCanvasHeroEnterHref } from '@/lib/routing/basePath'
-import { CHAT_PROVIDER_BYTEPLUS, type ChatProviderId } from '@/lib/chatEndpoint'
 import {
   GENERATION_KIND_INVOCATIONS,
   GENERATION_PROVIDER_INVOCATIONS,
@@ -36,8 +35,7 @@ import {
 import { LiveCanvasHeroQueryEditor } from '@/features/agentic-os/LiveCanvasHeroQueryEditor'
 
 export type LiveCanvasHeroProps = {
-  onHandoffComplete?: () => void
-  handoff?: (query: string, provider: ChatProviderId) => Promise<void> | void
+  onEnter?: () => void
   sourceFiles?: readonly SourceFile[]
 }
 
@@ -71,11 +69,9 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
   const content = React.useMemo(readLiveCanvasHeroContent, [])
   const [draft, setDraft] = React.useState(model.defaultQuery)
   const previousDefaultQueryRef = React.useRef(model.defaultQuery)
-  const [handoffState, setHandoffState] = React.useState<'idle' | 'opening' | 'error'>('idle')
   const [errorText, setErrorText] = React.useState('')
   const [importPanelOpen, setImportPanelOpen] = React.useState(false)
   const invocation = React.useMemo(() => parseGenerationInvocation(draft), [draft])
-  const provider = invocation?.provider || CHAT_PROVIDER_BYTEPLUS
   const selectedKinds = invocation?.kinds || []
 
   React.useEffect(() => {
@@ -94,22 +90,17 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
     return () => window.removeEventListener('message', handleMessage)
   }, [])
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const query = normalizeInvocationTokenSpacing(draft.trim())
     if (!query) {
-      setHandoffState('error')
-      setErrorText('Enter an agent-ready query before opening Chat.')
+      setErrorText('Enter an agent-ready query before running the canvas.')
       return
     }
-    setHandoffState('opening')
     setErrorText('')
-    try {
-      await (props.handoff || handoffLiveCanvasHeroQuery)(query, provider)
-      props.onHandoffComplete?.()
-    } catch (error) {
-      setHandoffState('error')
-      setErrorText(error instanceof Error ? error.message : 'Chat handoff failed.')
+    if (!submitToEmbeddedCanvasChat(query)) {
+      setErrorText('The canvas Chat surface is not ready. Keep the query here and try again.')
+      return
     }
   }
 
@@ -198,7 +189,7 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
           <section className="mt-4 flex flex-wrap items-center gap-2">
             <a
               href={resolveLiveCanvasHeroEnterHref(import.meta.env?.BASE_URL)}
-              onClick={props.onHandoffComplete}
+              onClick={props.onEnter}
               className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--kg-canvas-accent)] bg-[var(--kg-canvas-accent)] p-2.5 text-slate-950 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)]"
               aria-label="Enter Knowgrph"
               title="Enter Knowgrph"
@@ -209,9 +200,8 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
             <button
               type="submit"
               className={heroActionControlClassName}
-              disabled={handoffState === 'opening'}
-              aria-label={handoffState === 'opening' ? 'Running' : 'Run'}
-              title={handoffState === 'opening' ? 'Running' : 'Run'}
+              aria-label="Run all"
+              title="Run all"
               data-kg-live-canvas-hero-start="true"
             >
               <Play className="h-4 w-4" aria-label="Run icon" data-kg-live-canvas-hero-action-icon="run" />
@@ -259,18 +249,6 @@ export function LiveCanvasHero(props: LiveCanvasHeroShellProps) {
       if (secondFrameId) cancelAnimationFrame(secondFrameId)
     }
   }, [props.source.sourceLayerHash, requestZoom])
-  if (model.status === 'blocked') {
-    return (
-      <aside
-        className="absolute inset-x-4 bottom-4 z-[40] rounded-lg border border-amber-400/50 bg-[var(--kg-panel-bg)] px-4 py-3 text-sm text-[var(--kg-text-primary)] shadow-lg"
-        aria-label="Knowgrph Live Canvas Hero unavailable"
-        data-kg-live-canvas-hero-state="blocked"
-      >
-        Agent-ready landing sources are unavailable: {model.missingTokens.join(', ')}
-      </aside>
-    )
-  }
-
   return (
     <section
       className="pointer-events-none absolute inset-0 z-[40] overflow-hidden"

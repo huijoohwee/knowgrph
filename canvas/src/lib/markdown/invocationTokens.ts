@@ -36,7 +36,8 @@ export const splitInvocationTokenSegments = (text: string): InvocationTokenSegme
     const next = end < raw.length ? raw[end] || '' : ''
     const startsAfterAcceptedToken = start === lastAcceptedTokenEnd
     const startsCompactKeyword = tokenKind === 'keyword' && previous && INVOCATION_TOKEN_COMPACT_KEYWORD_PREVIOUS_RE.test(previous)
-    if ((previous && INVOCATION_TOKEN_PREVIOUS_BOUNDARY_RE.test(previous) && !startsAfterAcceptedToken && !startsCompactKeyword) || (next && INVOCATION_TOKEN_NEXT_BOUNDARY_RE.test(next))) continue
+    const startsInsideSchemePath = tokenKind === 'slash' && previous === ':'
+    if (startsInsideSchemePath || (previous && INVOCATION_TOKEN_PREVIOUS_BOUNDARY_RE.test(previous) && !startsAfterAcceptedToken && !startsCompactKeyword) || (next && INVOCATION_TOKEN_NEXT_BOUNDARY_RE.test(next))) continue
     if (start > last) out.push({ kind: 'text', value: raw.slice(last, start) })
     out.push({ kind: 'token', value: token, tokenKind })
     last = end

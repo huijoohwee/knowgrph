@@ -208,3 +208,28 @@ export async function testFloatingPanelChatOpenSeedQueuedHandoffQueuesResolvedSe
     restore()
   }
 }
+
+export async function testFloatingPanelChatOpenSeedQueuedHandoffPreservesAutoSubmitIntent(): Promise<void> {
+  const { restore } = initJsdomHarness()
+  const cleanupBridge = installFloatingPanelBridge({
+    openPropsPanel: () => undefined,
+    openFloatingPanel: () => undefined,
+    openRendererPanel: () => undefined,
+  })
+  try {
+    void consumeFloatingPanelChatInputHandoff()
+    const accepted = openFloatingPanelChatWithSeed({
+      text: '/video-agent @provider.byteplus @text',
+      mode: 'replace',
+      delivery: 'queuedHandoff',
+      submit: true,
+    })
+    const handoff = consumeFloatingPanelChatInputHandoff()
+    if (!accepted || handoff?.text !== '/video-agent @provider.byteplus @text' || handoff.submit !== true) {
+      throw new Error(`expected queued Chat seed to preserve auto-submit intent, got ${JSON.stringify({ accepted, handoff })}`)
+    }
+  } finally {
+    cleanupBridge()
+    restore()
+  }
+}

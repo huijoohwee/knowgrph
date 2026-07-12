@@ -5,6 +5,7 @@ import {
   queueResolvedFloatingPanelChatInputHandoff,
   resolveFloatingPanelChatSeed,
 } from './floatingPanelChatInputHandoff'
+import { isFloatingPanelBridgeReady, whenFloatingPanelBridgeReady } from '@/features/toolbar/floatingPanelBridge'
 
 export type FloatingPanelChatOpenSeedDelivery = 'appendEvent' | 'queuedHandoff'
 
@@ -16,6 +17,7 @@ export function openFloatingPanelChatWithSeed(args: {
   text: string
   mode?: ChatInputAppendEventDetail['mode']
   delivery?: FloatingPanelChatOpenSeedDelivery
+  submit?: boolean
 }): boolean {
   const resolved = resolveFloatingPanelChatSeed(args)
   if (!resolved) return false
@@ -37,4 +39,14 @@ export function openFloatingPanelChatWithSeed(args: {
     dispatchResolvedFloatingPanelChatSeed(resolved)
   }
   return delivery === 'appendEvent' ? true : accepted
+}
+
+export function openFloatingPanelChatWithSeedWhenReady(args: Parameters<typeof openFloatingPanelChatWithSeed>[0]): boolean {
+  const resolved = resolveFloatingPanelChatSeed(args)
+  if (!resolved) return false
+  if (isFloatingPanelBridgeReady()) return openFloatingPanelChatWithSeed(args)
+  whenFloatingPanelBridgeReady(() => {
+    openFloatingPanelChatWithSeed(args)
+  })
+  return true
 }
