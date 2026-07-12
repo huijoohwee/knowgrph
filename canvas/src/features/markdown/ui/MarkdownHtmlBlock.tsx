@@ -16,7 +16,7 @@ import {
   renderSafeHtmlBlock,
 } from '@/features/markdown/ui/markdownPreviewLinks'
 import { extractScriptEmbedAnchorHref, normalizeHtmlHrefLikeValue } from 'grph-shared/markdown/mediaHtml'
-import { MediaWrapper, MediaIframe, MediaVideo, MediaVideoSnapshot, MediaImage, MediaWebpageSnapshot } from './MarkdownMediaUi'
+import { MediaWrapper, MediaIframe, MediaVideo, MediaVideoSnapshot, MediaImage, MediaWebpageSnapshot } from '@/lib/markdown-core/ui/MarkdownMediaUi.impl'
 import type { RenderOpts } from './MarkdownRendererTypes'
 import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME } from './dataViewChipStyles'
 import { MarkdownBlockContainer } from './MarkdownBlockContainer'

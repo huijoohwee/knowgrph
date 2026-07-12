@@ -1,7 +1,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { buildYouTubeThumbnailPreviewDescriptor, buildYouTubeTimestampFramePreviewDescriptor, type RichMediaPreviewDescriptor } from 'grph-shared/rich-media/providers'
-import { MediaVideoSnapshot } from '@/features/markdown/ui/MarkdownMediaUi'
+import { MediaVideoSnapshot } from '@/lib/markdown-core/ui/MarkdownMediaUi.impl'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_ANCHOR_PREVIEW_OVERLAY_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { Z_INDEX_ANCHOR_OVERLAY } from '@/lib/ui/zIndex'

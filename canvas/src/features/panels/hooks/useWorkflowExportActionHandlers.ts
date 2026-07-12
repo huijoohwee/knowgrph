@@ -21,7 +21,7 @@ import { useGraphExportHandlers } from './export-handlers/useGraphExportHandlers
 import { useSelectionExportHandlers } from './export-handlers/useSelectionExportHandlers'
 import { useSchemaExportHandlers } from './export-handlers/useSchemaExportHandlers'
 import { useValidationExportHandlers } from './export-handlers/useValidationExportHandlers'
-import { useSnapshotExportHandlers } from './export-handlers/useSnapshotExportHandlers'
+import { useSnapshotExportHandlers } from '@/lib/panels/hooks/export-handlers'
 import { useWorkflowSettingsExportHandlers } from './export-handlers/useWorkflowSettingsExportHandlers'
 import { useImportHandlers } from './export-handlers/useImportHandlers'
 

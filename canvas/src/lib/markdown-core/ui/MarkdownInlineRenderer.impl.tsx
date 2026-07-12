@@ -30,7 +30,7 @@ import type { InlineRenderOpts } from '@/features/markdown/ui/MarkdownRendererTy
 import { resolveIframeEmbed } from 'grph-shared/rich-media/iframe'
 import { buildYouTubeTimestampPreviewDescriptor } from 'grph-shared/rich-media/providers'
 import { Volume2 } from 'lucide-react'
-import { MediaIframe, MediaVideo, MediaWebpageSnapshot } from '@/features/markdown/ui/MarkdownMediaUi'
+import { MediaIframe, MediaVideo, MediaWebpageSnapshot } from '@/lib/markdown-core/ui/MarkdownMediaUi.impl'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { MARKDOWN_INLINE_CODE_VIEW_CLASS } from '@/features/markdown/ui/markdownInlineCodeParity'

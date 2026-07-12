@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { normalizeFlowchartApiGraphData, parseFlowchartApiGraphPayload } from '@/features/flowchart/apiGraphFlowchart'
+import { normalizeFlowchartApiGraphData, parseFlowchartApiGraphPayload } from '@/lib/flowchart'
 import { buildFlowchartApiMetaUrl, buildFlowchartApiUrl, buildFlowchartSourceMeta } from '@/lib/flowchart/source'
 import { readSubgraphs } from '@/lib/graph/subgraphs'
 

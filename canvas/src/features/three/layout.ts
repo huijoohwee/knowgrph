@@ -11,14 +11,14 @@ import { computeLayoutDatasetKey, buildLayoutViewKey, buildLayoutPositionCacheKe
 import { coverageOfPositions, pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { computeLayerOffsetIndices, computePositions3d, computePositionsVoxel, type Vec3 } from './positions'
+import { computeLayerOffsetIndices, computePositions3d, computePositionsVoxel, type Vec3 } from '@/lib/three/positions.impl'
 import { projectPositionsToSphereShell } from './sphereConstraint'
 import { quantizeVoxelCoordToCellCenter, quantizeVoxelCoordToGridLine, resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveVoxelGridStep } from './threeLayoutConfig'
 import { isRadarFlowEdge, isRadarGraph, isRadarHubNode, isRadarSpokeEdge, readRadarForceConfig } from '@/lib/graph/radarForces'
 import type { Canvas3dModeId } from '@/lib/config'
 
-export { fibSphere } from './positions'
-export type { Vec3 } from './positions'
+export { fibSphere } from '@/lib/three/positions.impl'
+export type { Vec3 } from '@/lib/three/positions.impl'
 
 export function usePositions(nodes: GraphNode[], schema: GraphSchema | null, graphDataForViewOverride?: GraphData | null, mode: Canvas3dModeId = '3d'): Record<string, Vec3> {
   const layoutPositionCacheByMode = useGraphStore(s => s.layoutPositionCacheByMode)

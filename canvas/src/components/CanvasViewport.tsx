@@ -50,7 +50,7 @@ const MarkdownMetricsDevOverlayLazy = React.lazy(() =>
   import('@/components/CanvasViewportMarkdownMetricsDevOverlay').then(mod => ({ default: mod.CanvasViewportMarkdownMetricsDevOverlay })),
 )
 const DesignCanvasLazy = React.lazy(() => import('@/components/DesignCanvas'))
-const ThreeGraphLazy = React.lazy(() => import('@/features/three/ThreeGraph'))
+const ThreeGraphLazy = React.lazy(() => import('@/lib/three/ThreeGraph.impl'))
 const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
 const StrybldrTimelineBottomPanelLazy = React.lazy(() =>
   import('@/features/strybldr/StrybldrTimelineBottomPanel').then(mod => ({ default: mod.StrybldrTimelineBottomPanel })),

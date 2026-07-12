@@ -1,6 +1,6 @@
 import type { GraphNode } from '@/lib/graph/types'
 
-import { computePositions3d } from '@/features/three/positions'
+import { computePositions3d } from '@/lib/three/positions.impl'
 
 export const testThreePositionsSeedFrom2dUsesStableXy = () => {
   const nodes: GraphNode[] = [
@@ -21,4 +21,3 @@ export const testThreePositionsSeedFrom2dUsesStableXy = () => {
     throw new Error('expected node b to use seeded 2D xy')
   }
 }
-

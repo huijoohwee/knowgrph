@@ -1,5 +1,5 @@
 import type { GraphNode } from '@/lib/graph/types'
-import { computePositionsVoxel } from '@/features/three/positions'
+import { computePositionsVoxel } from '@/lib/three/positions.impl'
 import { resolveVoxelGridStep } from '@/features/three/threeLayoutConfig'
 
 type FullStackJson = {

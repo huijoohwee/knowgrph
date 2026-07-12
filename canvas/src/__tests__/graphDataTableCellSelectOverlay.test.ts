@@ -7,7 +7,7 @@ import type { GraphDataTableColumnKey, GraphDataTableListItem } from '@/features
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
-import { GraphDataTable } from '@/features/graph-data-table/ui/GraphDataTableTable'
+import { GraphDataTable } from '@/lib/graph-data-table/ui'
 
 export async function testGraphDataTableCellSelectOverlayEditsMultiSelectProperties() {
   const storage = new MemoryStorage()

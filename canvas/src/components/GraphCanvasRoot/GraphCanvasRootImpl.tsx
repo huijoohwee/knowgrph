@@ -17,7 +17,7 @@ import { useGroupSelectionHighlight } from '@/components/GraphCanvas/hooks/useGr
 import { useGraphCanvasStyles } from '@/components/GraphCanvas/useGraphCanvasStyles'
 import { useAutoZoomModes2d } from '@/features/zoom/useAutoZoomModes2d'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
-import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
+import { MarkdownDesignOverlay } from '@/lib/markdown-edgeless'
 import { buildMarkdownTokensKey, lexMarkdown } from '@/features/markdown/ui/markdownPreviewLex'
 import { deriveMarkdownDesignLayout, MARKDOWN_DESIGN_LAYOUT, type MarkdownDesignBlock, type MarkdownDesignLayout } from '@/features/markdown-edgeless/markdownDesignLayout'
 import {

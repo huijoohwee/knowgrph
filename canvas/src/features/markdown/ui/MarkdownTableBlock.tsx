@@ -1,7 +1,7 @@
 import React from 'react'
 import type { TokensTable, Token } from './MarkdownTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
-import { renderInlineTokens } from './MarkdownInlineRenderer'
+import { renderInlineTokens } from '@/lib/markdown-core/ui/MarkdownInlineRenderer.impl'
 import type { RenderOpts } from './MarkdownRendererTypes'
 import { MarkdownBlockContainer } from './MarkdownBlockContainer'
 import { useGraphStore } from '@/hooks/useGraphStore'

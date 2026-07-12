@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { buildRuntimeStorageMediaAccessUrl, normalizeRuntimeStorageMediaUrl } from '@/lib/storage/runtimeMediaUrl'
+import { buildRichMediaPanelOverlayState, buildRichMediaPanelPreviewSpec } from '@/lib/render/richMediaSsot'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/storyboardWidget/richMediaPanelConfig'
 
 export function testCanvasEmbedMediaRebindsAndExposesSelectableSurfaces(): void {
   const staleLocalUrl = 'http://localhost:5181/api/storage/media/airvio/runs/upload-demo/image/example.jpg?kg_media_token=stale'
@@ -11,6 +13,32 @@ export function testCanvasEmbedMediaRebindsAndExposesSelectableSurfaces(): void 
   const accessUrl = buildRuntimeStorageMediaAccessUrl({ publicUrl: rebound, runtimeOrigin: 'https://airvio.co' })
   if (!accessUrl.includes('kg_media_token=') || accessUrl.includes('kg_media_token=stale')) {
     throw new Error(`expected published embed media to receive a fresh runtime access token, got ${accessUrl}`)
+  }
+
+  const previousWindow = (globalThis as { window?: unknown }).window
+  ;(globalThis as { window?: unknown }).window = { location: { origin: 'http://localhost:5173' } }
+  try {
+    const staleLocalMediaPanelNode = {
+      id: 'rendered-local-media-artifact',
+      type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      label: 'Rendered local media artifact',
+      properties: {
+        imageUrl: 'http://localhost:5174/api/storage/media/airvio/runs/upload-demo/image/runtime-demo.jpg?kg_media_token=stale-token',
+      },
+    }
+    const staleLocalMediaPanel = buildRichMediaPanelOverlayState({ node: staleLocalMediaPanelNode as never })
+    const staleLocalMediaPreview = staleLocalMediaPanel
+      ? buildRichMediaPanelPreviewSpec({ node: staleLocalMediaPanelNode as never, panel: staleLocalMediaPanel })
+      : null
+    const expectedRuntimePrefix = 'http://localhost:5173/api/storage/media/airvio/runs/upload-demo/image/runtime-demo.jpg?kg_media_token='
+    if (!staleLocalMediaPreview || staleLocalMediaPreview.kind !== 'image' || !staleLocalMediaPreview.url.startsWith(expectedRuntimePrefix)) {
+      throw new Error(`expected stale local Rich Media preview URL to remap to the current runtime origin, got ${JSON.stringify(staleLocalMediaPreview)}`)
+    }
+    if (staleLocalMediaPreview.url.includes('localhost:5174') || staleLocalMediaPreview.url.includes('stale-token')) {
+      throw new Error(`expected stale local Rich Media preview URL to replace the prior dev origin and token, got ${JSON.stringify(staleLocalMediaPreview)}`)
+    }
+  } finally {
+    ;(globalThis as { window?: unknown }).window = previousWindow
   }
 
   const richMediaState = readFileSync(resolve(process.cwd(), 'src/components/useRichMediaPanelSurfaceState.ts'), 'utf8')

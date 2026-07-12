@@ -23,7 +23,7 @@ import { parseStandaloneSpatialCaptureManifest } from '@/features/markdown-works
 import { SpatialCaptureManifestStage } from '@/features/three/SpatialCaptureManifestStage'
 
 const SceneLazy = React.lazy(() =>
-  import('@/features/three/Scene').then(mod => ({
+  import('@/lib/three/Scene.impl').then(mod => ({
     default: mod.Scene,
   })),
 )

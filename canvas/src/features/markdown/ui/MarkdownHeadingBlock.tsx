@@ -1,7 +1,7 @@
 import React from 'react'
 import type { TokensHeading } from './MarkdownTokens'
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
-import { renderInlineTokens } from './MarkdownInlineRenderer'
+import { renderInlineTokens } from '@/lib/markdown-core/ui/MarkdownInlineRenderer.impl'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { RenderOpts } from './MarkdownRendererTypes'
 import { MarkdownBlockContainer } from './MarkdownBlockContainer'

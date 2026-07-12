@@ -2,7 +2,7 @@ import React from 'react'
 
 import type { TokenWithLines } from '@/features/markdown/ui/markdownPreviewLex'
 import type { RenderOpts } from './MarkdownRendererTypes'
-import { MediaWrapper } from './MarkdownMediaUi'
+import { MediaWrapper } from '@/lib/markdown-core/ui/MarkdownMediaUi.impl'
 import {
   applyMediaProxySrc,
   deriveSafeLayoutStyleFromClassAttr,

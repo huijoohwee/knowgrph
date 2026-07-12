@@ -1,6 +1,6 @@
 import { parseGraph } from '@/lib/graph/io/adapter'
 import { defaultSchema } from '@/lib/graph/schema'
-import { computePositionsVoxel } from '@/features/three/positions'
+import { computePositionsVoxel } from '@/lib/three/positions.impl'
 
 const PMF_FIXTURE = {
   meta: {

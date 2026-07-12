@@ -12,7 +12,7 @@ import { DesignCanvasMediaOverlay } from '@/components/DesignCanvas/MediaOverlay
 import { DesignCanvasSelectionOverlay } from '@/components/DesignCanvas/SelectionOverlay'
 import { DesignCanvasWebpageStatusPanel } from '@/components/DesignCanvas/webpageStatusPanel'
 import { DesignCanvasWireframePreviewLayer } from '@/components/DesignCanvas/WireframePreviewLayer'
-import { MarkdownDesignOverlay } from '@/features/markdown-edgeless/MarkdownDesignOverlay'
+import { MarkdownDesignOverlay } from '@/lib/markdown-edgeless'
 import type { GraphGroup } from '@/components/GraphCanvas/layout/graphGroupsTypes'
 import type {
   DesignCanvasFrameNodeRef,

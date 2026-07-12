@@ -5,7 +5,7 @@ import { addLineRangesToTokens } from '@/features/markdown/ui/markdownPreviewLex
 import MarkdownTokenRenderer from './MarkdownTokenRenderer'
 import type { RenderOpts } from './MarkdownRendererTypes'
 import { MarkdownBlockContainer } from './MarkdownBlockContainer'
-import { renderInlineTokens } from './MarkdownInlineRenderer'
+import { renderInlineTokens } from '@/lib/markdown-core/ui/MarkdownInlineRenderer.impl'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { getIconSizeClass } from '@/lib/ui'
 import { UI_COPY } from '@/lib/config'

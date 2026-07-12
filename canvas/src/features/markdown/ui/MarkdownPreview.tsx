@@ -17,7 +17,7 @@ import type {
   MarkdownViewerMediaMode,
 } from './MarkdownRendererTypes'
 import { useMarkdownPresentation } from './useMarkdownPresentation'
-import { MarkdownPreviewViewer } from '@/features/markdown/ui/MarkdownPreviewViewer'
+import { MarkdownPreviewViewer } from '@/lib/markdown-core/ui/MarkdownPreviewViewer.impl'
 import { MarkdownSelectionToolbar, type MarkdownSelectionToolbarState } from '@/features/markdown/ui/MarkdownSelectionToolbar'
 import { MarkdownInlineSelectionActionsContext } from '@/lib/markdown-core/ui/markdownInlineSelectionActions'
 import type { SsotSurface } from 'grph-shared/ssot/types'

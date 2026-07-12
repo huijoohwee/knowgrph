@@ -1,4 +1,4 @@
-import { parseFlowchartApiGraphPayload } from '@/features/flowchart/apiGraphFlowchart'
+import { parseFlowchartApiGraphPayload } from '@/lib/flowchart'
 
 type TopLevelJson = Record<string, unknown>
 

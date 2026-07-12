@@ -6,7 +6,7 @@ import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdow
 import {
   normalizeFlowchartApiGraphData,
   parseFlowchartApiGraphPayload,
-} from '@/features/flowchart/apiGraphFlowchart'
+} from '@/lib/flowchart'
 import { buildFlowchartSourceMeta } from '@/lib/flowchart/source'
 import { containsFrontmatterMermaid } from 'grph-shared/markdown/mermaidInput'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'

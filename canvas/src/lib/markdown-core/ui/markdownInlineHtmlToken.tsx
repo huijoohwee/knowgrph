@@ -11,7 +11,7 @@ import {
 } from '@/features/markdown/ui/markdownPreviewLinks'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import type { InlineRenderOpts } from '@/features/markdown/ui/MarkdownRendererTypes'
-import { MediaIframe, MediaWebpageSnapshot } from '@/features/markdown/ui/MarkdownMediaUi'
+import { MediaIframe, MediaWebpageSnapshot } from '@/lib/markdown-core/ui/MarkdownMediaUi.impl'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { parseHtmlFragmentCached } from './markdownHtmlParseCache'
 
