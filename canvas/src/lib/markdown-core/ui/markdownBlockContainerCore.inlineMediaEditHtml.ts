@@ -15,6 +15,7 @@ import {
   readInlineKeywordChipToneValue,
   resolveDataViewChipClass,
 } from '@/features/markdown/ui/dataViewChipStyles'
+import { normalizeRuntimeStorageMediaAccessUrl } from '@/lib/storage/runtimeMediaUrl'
 import {
   AGENTIC_OS_INVOCATION_CHIP_ATTR,
   AGENTIC_OS_INVOCATION_TOKEN_ATTR,
@@ -61,10 +62,13 @@ const buildInlineMediaEditTokenHtml = (args: {
 }): string => {
   const label = readCardMarkdownPreviewMediaLabel(args.alt || args.title, args.kind === 'audio' ? 'Audio' : args.kind === 'video' ? 'Video' : 'Image')
   const markdown = readMediaMarkdown(args.kind, args.src, args.alt || args.title || label)
-  const hasThumbnail = args.kind === 'image' && !!args.src
+  const thumbnailUrl = args.kind === 'image'
+    ? normalizeRuntimeStorageMediaAccessUrl({ url: args.src })
+    : ''
+  const hasThumbnail = Boolean(thumbnailUrl)
   const thumbnailClassName = readInlineMediaCommandThumbnailClassName({ hasThumbnail, kind: args.kind, variant: 'inline' })
   const thumbnailBody = hasThumbnail
-    ? `<img src="${escapeHtmlAttr(args.src)}" alt="" class="${escapeHtmlAttr(INLINE_MEDIA_COMMAND_THUMBNAIL_IMAGE_CLASS_NAME)}" loading="lazy" decoding="async" draggable="false">`
+    ? `<img src="${escapeHtmlAttr(thumbnailUrl)}" alt="" class="${escapeHtmlAttr(INLINE_MEDIA_COMMAND_THUMBNAIL_IMAGE_CLASS_NAME)}" loading="lazy" decoding="async" draggable="false">`
     : ''
   return [
     `<span class="${escapeHtmlAttr(`${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME} isolate !overflow-visible`)}"`,

@@ -1,6 +1,7 @@
 import React from 'react'
 import { FileAudio, Image, Video } from 'lucide-react'
 import type { InlineMediaKind } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import { normalizeRuntimeStorageMediaAccessUrl } from '@/lib/storage/runtimeMediaUrl'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 
 export const INLINE_MEDIA_COMMAND_THUMBNAIL_ATTR = 'data-kg-inline-command-thumbnail'
@@ -29,11 +30,12 @@ export function InlineMediaCommandThumbnail(props: {
   const isInline = props.variant === 'inline'
   const iconClassName = isInline ? 'h-2 w-2' : 'h-4 w-4'
   const mediaLabel = String(props.thumbnailAlt || `${kind} media`).trim()
-  if (props.thumbnailUrl) {
+  const thumbnailUrl = normalizeRuntimeStorageMediaAccessUrl({ url: props.thumbnailUrl })
+  if (thumbnailUrl) {
     const body = (
       <>
         <img
-          src={props.thumbnailUrl}
+          src={thumbnailUrl}
           alt={props.thumbnailAlt || ''}
           className={INLINE_MEDIA_COMMAND_THUMBNAIL_IMAGE_CLASS_NAME}
           loading="lazy"

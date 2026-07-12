@@ -1,8 +1,9 @@
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 export async function testMarkdownViewerInlineEditInvocationChipToneMatchesReadSurface() {
-  const { restore } = initJsdomHarness('<!doctype html><html><body></body></html>')
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body></body></html>')
   try {
+    dom.reconfigure({ url: 'https://airvio.co/knowgrph/' })
     const { rewriteRenderedInlineMediaForEditorHtml } = await import('@/lib/markdown-core/ui/markdownBlockContainerCore.inlineMediaEditHtml')
     const {
       DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
@@ -61,6 +62,29 @@ export async function testMarkdownViewerInlineEditInvocationChipToneMatchesReadS
     }))
     if (!selectableThumbnailMarkup.includes('aria-label="Storyboard source frame"') || selectableThumbnailMarkup.includes('aria-hidden="true"')) {
       throw new Error(`expected shared media thumbnail wrapper to remain labeled and visible to selection tooling, html=${selectableThumbnailMarkup}`)
+    }
+    const staleLocalThumbnailMarkup = renderToStaticMarkup(createElement(InlineMediaCommandThumbnail, {
+      kind: 'image',
+      thumbnailAlt: 'Stale local storage thumbnail',
+      thumbnailUrl: 'http://localhost:5181/api/storage/media/airvio/runs/upload-demo/image/source-frame.jpg?kg_media_token=stale',
+      variant: 'inline',
+    }))
+    if (
+      !staleLocalThumbnailMarkup.includes('https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/source-frame.jpg?kg_media_token=')
+      || staleLocalThumbnailMarkup.includes('localhost:5181')
+      || staleLocalThumbnailMarkup.includes('kg_media_token=stale')
+    ) {
+      throw new Error(`expected shared inline media thumbnails to normalize stale local storage urls, html=${staleLocalThumbnailMarkup}`)
+    }
+    root.innerHTML = rewriteRenderedInlineMediaForEditorHtml('<img src="http://localhost:5177/api/storage/media/airvio/runs/upload-demo/image/inline-source.jpg?kg_media_token=stale" alt="Inline source">')
+    const normalizedEditThumbnail = root.querySelector('[data-kg-inline-media-edit-token="1"] img') as HTMLImageElement | null
+    if (
+      !normalizedEditThumbnail
+      || !String(normalizedEditThumbnail.getAttribute('src') || '').startsWith('https://airvio.co/api/storage/media/airvio/runs/upload-demo/image/inline-source.jpg?kg_media_token=')
+      || String(normalizedEditThumbnail.getAttribute('src') || '').includes('localhost:5177')
+      || String(normalizedEditThumbnail.getAttribute('src') || '').includes('kg_media_token=stale')
+    ) {
+      throw new Error(`expected Viewer inline media edit html to normalize stale local storage thumbnail urls, html=${root.innerHTML}`)
     }
   } finally {
     restore()
