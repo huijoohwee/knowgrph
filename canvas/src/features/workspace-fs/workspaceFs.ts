@@ -236,7 +236,7 @@ const buildInitializationSeedRelPathCandidates = (basename: string): string[] =>
   return [...out]
 }
 export const WORKSPACE_README_SEED_BASENAME = 'workspace-readme.md'
-export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_BASENAME = ['knowgrph', 'strybldr', 'starter', 'template.md'].join('-')
+export const DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_BASENAME = 'knowgrph-agentic-video-canvas-demo.md'
 export const GEOSPATIAL_WORKSPACE_SEED_BASENAME = 'knowgrph-maps-places.md'
 const WORKSPACE_README_SEED_REL_PATH_CANDIDATES = buildInitializationSeedRelPathCandidates(WORKSPACE_README_SEED_BASENAME)
 export const WORKSPACE_README_SEED_REL_PATH = WORKSPACE_README_SEED_REL_PATH_CANDIDATES[0] || WORKSPACE_README_SEED_BASENAME

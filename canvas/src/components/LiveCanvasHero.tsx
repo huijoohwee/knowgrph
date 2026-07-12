@@ -19,13 +19,26 @@ import { CanvasEmbedImportPanel } from '@/features/canvas/CanvasEmbedImportPanel
 import { selectLiveCanvasHeroSource } from '@/features/canvas/liveCanvasHeroSourceSelection'
 import { handoffLiveCanvasHeroQuery } from '@/features/canvas/liveCanvasHeroHandoff'
 import type { LiveCanvasHeroSource } from '@/features/canvas/useKnowgrphLiveCanvasHero'
+import type { SourceFile } from '@/hooks/store/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { normalizeInvocationTokenSpacing } from '@/lib/markdown/invocationTokens'
 import { resolveLiveCanvasHeroEnterHref } from '@/lib/routing/basePath'
+import { CHAT_PROVIDER_BYTEPLUS, type ChatProviderId } from '@/lib/chatEndpoint'
+import {
+  GENERATION_KIND_INVOCATIONS,
+  GENERATION_PROVIDER_INVOCATIONS,
+  parseGenerationInvocation,
+  setGenerationKinds,
+  setGenerationProvider,
+  setGenerationSpecification,
+  type GenerationSpecification,
+} from '@/features/chat/generationInvocation'
+import { LiveCanvasHeroQueryEditor } from '@/features/agentic-os/LiveCanvasHeroQueryEditor'
 
 export type LiveCanvasHeroProps = {
   onHandoffComplete?: () => void
-  handoff?: (query: string) => Promise<void> | void
+  handoff?: (query: string, provider: ChatProviderId) => Promise<void> | void
+  sourceFiles?: readonly SourceFile[]
 }
 
 type LiveCanvasHeroShellProps = LiveCanvasHeroProps & {
@@ -57,9 +70,19 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
   const { model } = props
   const content = React.useMemo(readLiveCanvasHeroContent, [])
   const [draft, setDraft] = React.useState(model.defaultQuery)
+  const previousDefaultQueryRef = React.useRef(model.defaultQuery)
   const [handoffState, setHandoffState] = React.useState<'idle' | 'opening' | 'error'>('idle')
   const [errorText, setErrorText] = React.useState('')
   const [importPanelOpen, setImportPanelOpen] = React.useState(false)
+  const invocation = React.useMemo(() => parseGenerationInvocation(draft), [draft])
+  const provider = invocation?.provider || CHAT_PROVIDER_BYTEPLUS
+  const selectedKinds = invocation?.kinds || []
+
+  React.useEffect(() => {
+    const previous = previousDefaultQueryRef.current
+    previousDefaultQueryRef.current = model.defaultQuery
+    setDraft(current => current === previous ? model.defaultQuery : current)
+  }, [model.defaultQuery])
 
   React.useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -82,7 +105,7 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
     setHandoffState('opening')
     setErrorText('')
     try {
-      await (props.handoff || handoffLiveCanvasHeroQuery)(query)
+      await (props.handoff || handoffLiveCanvasHeroQuery)(query, provider)
       props.onHandoffComplete?.()
     } catch (error) {
       setHandoffState('error')
@@ -134,24 +157,14 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
           data-kg-live-canvas-hero-command-deck="true"
         >
           <label className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--kg-text-secondary)]" htmlFor="knowgrph-live-canvas-hero-query">
-            Agent-ready query
+            Agentic Video Canvas
           </label>
-          <textarea
-            id="knowgrph-live-canvas-hero-query"
-            className="mt-2 min-h-16 w-full resize-none rounded-xl border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-code-bg)_88%,transparent)] px-3 py-2.5 font-mono text-xs leading-5 text-[var(--kg-code-text)] outline-none transition-colors focus:border-[var(--kg-canvas-accent)] focus:ring-1 focus:ring-[var(--kg-canvas-accent)] md:resize-y"
-            value={draft}
-            spellCheck={false}
-            onChange={event => setDraft(event.target.value)}
-            onKeyDown={event => {
-              if (event.key !== 'Enter' || (!event.metaKey && !event.ctrlKey)) return
-              event.preventDefault()
-              event.currentTarget.form?.requestSubmit()
-            }}
-            data-kg-live-canvas-hero-query="true"
-          />
-
-          <nav className="-mx-1 mt-3 flex flex-nowrap gap-1.5 overflow-x-auto px-1 pb-1 md:flex-wrap" aria-label="Live Canvas Hero invocation grammar">
-            {model.invocations.map(invocation => {
+          <LiveCanvasHeroQueryEditor value={draft} onChange={setDraft} />
+          {model.sourceLabel ? <p className="mt-2 truncate text-[10px] text-[var(--kg-text-secondary)]" title={model.sourceWorkspacePath || model.sourceLabel}>Script: {model.sourceLabel}</p> : null}
+          <section className="mt-3 grid gap-2" aria-label="Agentic video invocation controls">
+            {(['Route', 'Provider', 'Specification', 'Outputs'] as const).map(group => <fieldset key={group} data-kg-live-canvas-hero-invocation-group={group.toLowerCase()}>
+              <legend className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--kg-text-secondary)]">{group}</legend>
+              <nav className="mt-1 flex flex-wrap gap-1.5" aria-label={`${group} invocations`}>{model.invocations.filter(invocation => invocation.group === group).map(invocation => {
               const active = liveCanvasHeroQueryHasToken(draft, invocation.token)
               const attrs = buildAgenticOsInvocationChipAttrs(invocation.token) || {}
               return (
@@ -160,15 +173,27 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
                   type="button"
                   className={`shrink-0 rounded-full border px-2.5 py-1 font-mono text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)] ${active ? 'border-[var(--kg-canvas-accent)] bg-[color-mix(in_srgb,var(--kg-canvas-accent)_16%,transparent)] text-[var(--kg-text-primary)]' : 'border-[color:var(--kg-border)] bg-[color:var(--kg-panel-bg)]/70 text-[var(--kg-text-secondary)] hover:text-[var(--kg-text-primary)]'}`}
                   aria-pressed={active}
-                  title={buildAgenticOsInvocationChipTitle(invocation.token)}
-                  onClick={() => setDraft(current => appendLiveCanvasHeroToken(current, invocation.token))}
+                  title={buildAgenticOsInvocationChipTitle(invocation.token) || invocation.summary}
+                  data-kg-live-canvas-hero-invocation-token={invocation.token}
+                  onClick={() => setDraft(current => {
+                    const providerOption = GENERATION_PROVIDER_INVOCATIONS.find(item => item.token === invocation.token)
+                    if (providerOption) return setGenerationProvider(current, providerOption.provider)
+                    if (invocation.token.startsWith('#spec.')) return setGenerationSpecification(current, invocation.token.slice('#spec.'.length) as GenerationSpecification)
+                    const kindOption = GENERATION_KIND_INVOCATIONS.find(item => item.token === invocation.token)
+                    if (kindOption) {
+                      const next = selectedKinds.includes(kindOption.kind) ? selectedKinds.filter(kind => kind !== kindOption.kind) : [...selectedKinds, kindOption.kind]
+                      return next.length ? setGenerationKinds(current, next) : current
+                    }
+                    return appendLiveCanvasHeroToken(current, invocation.token)
+                  })}
                   {...attrs}
                 >
                   {invocation.token}
                 </button>
               )
-            })}
-          </nav>
+              })}</nav>
+            </fieldset>)}
+          </section>
 
           <section className="mt-4 flex flex-wrap items-center gap-2">
             <a
@@ -185,11 +210,11 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
               type="submit"
               className={heroActionControlClassName}
               disabled={handoffState === 'opening'}
-              aria-label={handoffState === 'opening' ? 'Opening Chat' : 'Start locally'}
-              title={handoffState === 'opening' ? 'Opening Chat' : 'Start locally'}
+              aria-label={handoffState === 'opening' ? 'Running' : 'Run'}
+              title={handoffState === 'opening' ? 'Running' : 'Run'}
               data-kg-live-canvas-hero-start="true"
             >
-              <Play className="h-4 w-4" aria-label="Start locally icon" data-kg-live-canvas-hero-action-icon="start" />
+              <Play className="h-4 w-4" aria-label="Run icon" data-kg-live-canvas-hero-action-icon="run" />
             </button>
             <button
               type="button"
@@ -220,7 +245,7 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
 }
 
 export function LiveCanvasHero(props: LiveCanvasHeroShellProps) {
-  const model = React.useMemo(buildLiveCanvasHeroModel, [])
+  const model = React.useMemo(() => buildLiveCanvasHeroModel({ sourceFiles: props.sourceFiles }), [props.sourceFiles])
   const requestZoom = useGraphStore(state => state.requestZoom)
   React.useEffect(() => {
     let secondFrameId = 0

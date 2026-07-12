@@ -48,15 +48,9 @@ import { isRouterRootAliasRuntime } from '@/lib/routing/basePath'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 
-const EXPECTED_TOKENS = [
-  '/runtime-ready.check',
-  '/cost.audit',
-  '#token-economics',
-  '#runtime-ready',
-  '@runtime-proof',
-  '@dev-only',
-] as const
-const EXPECTED_DEFAULT_QUERY = '/runtime-ready.check #token-economics @dev-only'
+const EXPECTED_TOKENS = ['/video-agent', '@provider.byteplus', '@provider.openai', '#spec.low', '#spec.medium', '#spec.high', '@text', '@image', '@audio', '@video'] as const
+const EXPECTED_DEFAULT_QUERY_PREFIX = '/video-agent @provider.byteplus @text @image @audio @video #spec.low'
+const readExpectedDefaultQuery = () => buildLiveCanvasHeroModel().defaultQuery
 ;(globalThis as typeof globalThis & { __KNOWGRPH_LIVE_CANVAS_HERO_MARKDOWN__?: string }).__KNOWGRPH_LIVE_CANVAS_HERO_MARKDOWN__ = readFileSync(
   resolve(process.cwd(), '..', LIVE_CANVAS_HERO_DOC_PATH),
   'utf8',
@@ -111,30 +105,25 @@ export function testLiveCanvasHeroUsesSourceBackedInvocationContract(): void {
   if (JSON.stringify(LIVE_CANVAS_HERO_TOKENS) !== JSON.stringify(EXPECTED_TOKENS)) {
     throw new Error(`expected README-declared hero tokens, got ${JSON.stringify(LIVE_CANVAS_HERO_TOKENS)}`)
   }
-  if (LIVE_CANVAS_HERO_DEFAULT_QUERY_TOKENS.join(' ') !== EXPECTED_DEFAULT_QUERY) {
+  if (LIVE_CANVAS_HERO_DEFAULT_QUERY_TOKENS.join(' ') !== EXPECTED_DEFAULT_QUERY_PREFIX) {
     throw new Error(`expected exact raw default query, got ${LIVE_CANVAS_HERO_DEFAULT_QUERY_TOKENS.join(' ')}`)
   }
   const model = buildLiveCanvasHeroModel()
   if (model.status !== 'ready') {
     throw new Error(`expected all source-backed invocations to resolve, missing ${model.missingTokens.join(', ')}`)
   }
-  if (model.defaultQuery !== EXPECTED_DEFAULT_QUERY || 'graphData' in model) {
-    throw new Error('expected an editorial-only hero model with no synthetic graph')
+  if (!model.defaultQuery.startsWith(EXPECTED_DEFAULT_QUERY_PREFIX) || !model.defaultQuery.includes('Chinese, Cantonese, and English audio variants') || 'graphData' in model) {
+    throw new Error('expected an editorial-only multilingual video-agent model with no synthetic graph')
   }
   for (const invocation of model.invocations) {
-    const dictionary = invocation.token.startsWith('/')
-      ? 'DICTIONARY-COMMAND.md'
-      : invocation.token.startsWith('#')
-        ? 'DICTIONARY-SEMANTIC.md'
-        : 'DICTIONARY-BINDING.md'
-    if (!invocation.sourcePath.endsWith(dictionary) || invocation.sourcePath.includes('/Users/')) {
-      throw new Error(`expected portable dictionary source for ${invocation.token}, got ${invocation.sourcePath}`)
+    if (!invocation.sourcePath.endsWith('generationInvocation.ts') || invocation.sourcePath.includes('/Users/')) {
+      throw new Error(`expected portable generation grammar source for ${invocation.token}, got ${invocation.sourcePath}`)
     }
   }
 
   const { text } = readWorkspaceReadmeSource()
-  for (const token of EXPECTED_TOKENS) {
-    if (!text.includes(token)) throw new Error(`expected ${token} to be declared by workspace-readme.md`)
+  if (!text.includes('docs/knowgrph-agentic-video-canvas-demo.md')) {
+    throw new Error('expected workspace-readme.md to point to the canonical default agentic video demo')
   }
 }
 
@@ -242,17 +231,17 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
   if (!customSourceState.meaningfulSourceFilesPresent || customSourceState.defaultSeedOnly) {
     throw new Error(`expected authored sources to suppress the hero, got ${JSON.stringify(customSourceState)}`)
   }
-  const starterInitializationState = resolveLiveCanvasHeroWorkspaceSourceState({
+  const agenticVideoInitializationState = resolveLiveCanvasHeroWorkspaceSourceState({
     sourceFiles: [sourceFile, {
       ...sourceFile,
-      id: 'starter-template',
-      name: 'knowgrph-strybldr-starter-template.md',
-      source: { kind: 'local', path: 'workspace:/docs/knowgrph-strybldr-starter-template.md' },
+      id: 'agentic-video-canvas-demo',
+      name: 'knowgrph-agentic-video-canvas-demo.md',
+      source: { kind: 'local', path: 'workspace:/docs/knowgrph-agentic-video-canvas-demo.md' },
     }],
-    markdownDocumentName: 'knowgrph-strybldr-starter-template.md',
+    markdownDocumentName: 'knowgrph-agentic-video-canvas-demo.md',
   })
-  if (starterInitializationState.meaningfulSourceFilesPresent || !starterInitializationState.defaultSeedOnly) {
-    throw new Error(`expected the canonical starter document to remain part of landing initialization, got ${JSON.stringify(starterInitializationState)}`)
+  if (agenticVideoInitializationState.meaningfulSourceFilesPresent || !agenticVideoInitializationState.defaultSeedOnly) {
+    throw new Error(`expected the canonical agentic video demo to remain part of landing initialization, got ${JSON.stringify(agenticVideoInitializationState)}`)
   }
   const canonicalDocsInitializationState = resolveLiveCanvasHeroWorkspaceSourceState({
     sourceFiles: [{ ...sourceFile, source: { kind: 'local', path: 'workspace:/docs/runtime-proof.md' } } as SourceFile],
@@ -376,7 +365,7 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
   }
   if (!heroHookSource.includes("|| (isRootAlias ? WORKSPACE_README_SOURCE_PATH : '')")
     || !heroHookSource.includes('selectedEmbedSource?.embedUrl')
-    || !heroHookSource.includes('CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL')) {
+    || !heroHookSource.includes('resolveCanonicalWorkspaceReadmeCanvasEmbedRuntimeUrl()')) {
     throw new Error('expected Home to resolve either the selected embed or the canonical Share canvas embed URL')
   }
   if (!heroHookSource.includes('readPersistedLiveCanvasHeroSourceSelection')) {
@@ -547,18 +536,19 @@ export function testLiveCanvasHeroImportEmbedAcceptsIframeAndPostMessage(): void
 }
 
 export async function testLiveCanvasHeroChatHandoffPreservesRawGrammar(): Promise<void> {
+  const expectedDefaultQuery = readExpectedDefaultQuery()
   consumeFloatingPanelChatInputHandoff()
-  queueFloatingPanelChatInputHandoff({ text: EXPECTED_DEFAULT_QUERY, mode: 'replace' })
+  queueFloatingPanelChatInputHandoff({ text: expectedDefaultQuery, mode: 'replace' })
   const handoff = consumeFloatingPanelChatInputHandoff()
-  if (handoff?.text !== EXPECTED_DEFAULT_QUERY || handoff.mode !== 'replace') {
+  if (handoff?.text !== expectedDefaultQuery || handoff.mode !== 'replace') {
     throw new Error(`expected exact raw grammar handoff, got ${JSON.stringify(handoff)}`)
   }
   if (consumeFloatingPanelChatInputHandoff() !== null) throw new Error('expected the pending Chat draft to be consumed once')
-  const appended = applyFloatingPanelChatInputHandoff('Keep this context', { text: EXPECTED_DEFAULT_QUERY, mode: 'append' })
-  if (appended !== `Keep this context\n\n${EXPECTED_DEFAULT_QUERY}`) {
+  const appended = applyFloatingPanelChatInputHandoff('Keep this context', { text: expectedDefaultQuery, mode: 'append' })
+  if (appended !== `Keep this context\n\n${expectedDefaultQuery}`) {
     throw new Error(`expected append handoff to preserve editable text, got ${JSON.stringify(appended)}`)
   }
-  if (appendLiveCanvasHeroToken(EXPECTED_DEFAULT_QUERY, '@dev-only') !== EXPECTED_DEFAULT_QUERY) {
+  if (appendLiveCanvasHeroToken(expectedDefaultQuery, '@provider.byteplus') !== expectedDefaultQuery) {
     throw new Error('expected quick tokens to remain idempotent')
   }
 
@@ -566,7 +556,7 @@ export async function testLiveCanvasHeroChatHandoffPreservesRawGrammar(): Promis
   try {
     let errorText = ''
     try {
-      await handoffLiveCanvasHeroQuery(EXPECTED_DEFAULT_QUERY)
+      await handoffLiveCanvasHeroQuery(expectedDefaultQuery)
     } catch (error) {
       errorText = error instanceof Error ? error.message : String(error)
     }
@@ -580,6 +570,7 @@ export async function testLiveCanvasHeroChatHandoffPreservesRawGrammar(): Promis
 }
 
 export async function testLiveCanvasHeroChatHandoffFlushesThroughSharedAppendEvent(): Promise<void> {
+  const expectedDefaultQuery = readExpectedDefaultQuery()
   const { dom, restore } = initJsdomHarness()
   const details: Array<{ text?: string; mode?: string }> = []
   const listener = (event: Event) => {
@@ -588,9 +579,10 @@ export async function testLiveCanvasHeroChatHandoffFlushesThroughSharedAppendEve
   try {
     consumeFloatingPanelChatInputHandoff()
     dom.window.addEventListener(CHAT_INPUT_APPEND_EVENT, listener as EventListener)
-    queueFloatingPanelChatInputHandoff({ text: `  ${EXPECTED_DEFAULT_QUERY}   `, mode: 'replace' })
+    const queuedQuery = `  ${expectedDefaultQuery}   `
+    queueFloatingPanelChatInputHandoff({ text: queuedQuery, mode: 'replace' })
     if (!flushFloatingPanelChatInputHandoff()) throw new Error('expected queued hero handoff to flush')
-    if (details.length !== 1 || details[0]?.text !== EXPECTED_DEFAULT_QUERY || details[0]?.mode !== 'replace') {
+    if (details.length !== 1 || details[0]?.text !== queuedQuery || details[0]?.mode !== 'replace') {
       throw new Error(`expected one normalized shared append event, got ${JSON.stringify(details)}`)
     }
   } finally {
@@ -611,6 +603,7 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
   let completedCount = 0
   const model = buildLiveCanvasHeroModel()
   if (model.status !== 'ready') throw new Error(`expected ready hero model, missing ${model.missingTokens.join(', ')}`)
+  const expectedDefaultQuery = model.defaultQuery
 
   try {
     const content = readLiveCanvasHeroContent()
@@ -623,7 +616,7 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
     ), { window: dom.window as unknown as Window, frames: 2 })
 
     const textarea = container.querySelector('[data-kg-live-canvas-hero-query="true"]') as HTMLTextAreaElement | null
-    if (!textarea || textarea.value !== EXPECTED_DEFAULT_QUERY) {
+    if (!textarea || textarea.value !== expectedDefaultQuery) {
       throw new Error(`expected visible raw editable hero query, got ${JSON.stringify(textarea?.value)}`)
     }
     const heroText = String(container.textContent || '')
@@ -631,23 +624,24 @@ export async function testLiveCanvasHeroInteractionHandsOffOnlyOnRun(): Promise<
       if (!heroText.includes(requiredText)) throw new Error(`expected hero UI to render markdown-backed copy ${JSON.stringify(requiredText)}`)
     }
     if (handedOffQueries.length !== 0 || completedCount !== 0) throw new Error('expected zero handoff on mount')
-    const proofToken = container.querySelector('[data-kg-agentic-os-invocation-token="@runtime-proof"]') as HTMLButtonElement | null
-    if (!proofToken) throw new Error('expected source-backed @runtime-proof quick token')
+    const openAiToken = container.querySelector('[data-kg-live-canvas-hero-invocation-token="@provider.openai"]') as HTMLButtonElement | null
+    if (!openAiToken) throw new Error('expected source-backed @provider.openai provider token')
     await act(async () => {
-      proofToken.click()
+      openAiToken.click()
       await waitForFrames(dom.window as unknown as Window, 1)
     })
-    if (String(textarea.value) !== `${EXPECTED_DEFAULT_QUERY} @runtime-proof`) {
-      throw new Error(`expected raw token append, got ${JSON.stringify(textarea.value)}`)
+    const expectedOpenAiQuery = expectedDefaultQuery.replace('@provider.byteplus', '@provider.openai')
+    if (String(textarea.value) !== expectedOpenAiQuery) {
+      throw new Error(`expected raw provider replacement, got ${JSON.stringify(textarea.value)}`)
     }
     const startButton = container.querySelector('[data-kg-live-canvas-hero-start="true"]') as HTMLButtonElement | null
-    if (!startButton) throw new Error('expected explicit Start locally action')
+    if (!startButton) throw new Error('expected explicit Run action')
     if (container.querySelector('[data-kg-live-canvas-hero-share-embed="true"]') || container.textContent?.includes('Share canvas embed')) {
       throw new Error('expected Home to omit the Share canvas embed action entirely')
     }
     const actionIcons = Array.from(container.querySelectorAll('[data-kg-live-canvas-hero-action-icon]')) as HTMLElement[],
       iconNames = actionIcons.map(icon => icon.getAttribute('data-kg-live-canvas-hero-action-icon')).join(',')
-    if (iconNames !== 'enter,start,import' || actionIcons.some(icon => icon.getAttribute('aria-hidden') === 'true')) {
+    if (iconNames !== 'enter,run,import' || actionIcons.some(icon => icon.getAttribute('aria-hidden') === 'true')) {
       throw new Error(`expected visible, queryable Home action icons, got ${iconNames}`)
     }
     const importButton = container.querySelector('[data-kg-live-canvas-hero-import-embed="true"]') as HTMLButtonElement | null

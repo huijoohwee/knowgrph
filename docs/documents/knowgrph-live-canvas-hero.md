@@ -38,6 +38,8 @@ A source-backed canvas where `/` routes work, `#` sets meaning, and `@` binds co
 - `#` sets meaning
 - `@` binds context
 
+The Home command deck is **Agentic Video Canvas**. Its editable query is the SSOT: `/video-agent` selects the route, `@provider.byteplus|@provider.openai` selects the provider, `@text|@image|@audio|@video` selects outputs, and `#spec.low|#spec.medium|#spec.high` selects the specification. BytePlus and Low are defaults; the visual controls only edit these tokens.
+
 ## Actions
 
 - [Enter Knowgrph](/knowgrph/)

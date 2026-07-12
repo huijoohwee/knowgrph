@@ -6,6 +6,7 @@ import {
   getAgenticOsSemanticInvocations,
   type AgenticOsDocInvocationId,
 } from '@/features/agentic-os/agenticOsDocInvocations'
+import { buildGenerationInvocationSystemPrompt, GENERATION_SPECIFICATION_INVOCATIONS } from './generationInvocation'
 
 export type ChatInvocationId =
   | 'memory.search'
@@ -34,6 +35,7 @@ export type ChatInvocationOption = {
 }
 
 const BASE_CHAT_INVOCATION_OPTIONS: readonly ChatInvocationOption[] = [
+  ...GENERATION_SPECIFICATION_INVOCATIONS.map(option => ({ id: `generation.${option.specification}`, token: option.token, label: `${option.label} specification`, summary: option.summary, keywords: ['generation', 'specification', option.specification], slashCommand: '/video-agent' })),
   { id: 'memory.search', token: '#memory.search', label: 'Search memory', summary: 'Retrieve explicitly scoped memory through the configured memory MCP runtime.', keywords: ['recall', 'context', 'mem0'], toolName: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.search },
   { id: 'memory.add', token: '#memory.add', label: 'Add memory', summary: 'Persist explicitly scoped memory through the configured memory MCP runtime.', keywords: ['remember', 'persist', 'mem0'], toolName: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.add },
   { id: 'memory.assemble', token: '#memory.assemble', label: 'Assemble memory prompt', summary: 'Inject ranked memories into a bounded prompt context.', keywords: ['prompt', 'context', 'tokens'], toolName: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.assemblePrompt },
@@ -119,7 +121,8 @@ export const buildChatInvocationSystemPrompt = (args: {
   chatModel: string | null
 }): string => {
   const directives = parseChatInvocationDirectives(args.userQuery)
-  if (directives.length === 0) return ''
+  const generationPrompt = buildGenerationInvocationSystemPrompt(args.userQuery)
+  if (directives.length === 0 && !generationPrompt) return ''
   const toolNames = directives.map(directive => directive.toolName).filter((value): value is string => !!value)
   const requestsProceduralExtract = directives.some(directive => directive.id === 'memory.extract')
   const requestsUserModel = directives.some(directive => directive.id === 'memory.user_model')
@@ -143,5 +146,6 @@ export const buildChatInvocationSystemPrompt = (args: {
     '- Agentic OS doc directives bind to local source docs as reference context only; they do not authorize Prod or Cloudflare deployment.',
     '- Invoke a requested tool only when it is present in the request tool set or connected MCP runtime. Otherwise return the exact tool name and required inputs as a handoff; never claim execution.',
     '- Keep tool output provider-neutral and preserve structured MCP results for the existing response projector.',
+    generationPrompt,
   ].filter(Boolean).join('\n')
 }

@@ -1,73 +1,84 @@
+import type { SourceFile } from '@/hooks/store/types'
+import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
 import {
-  findAgenticOsInvocationByToken,
-  type AgenticOsResolvedInvocation,
-} from '@/features/agentic-os/agenticOsDocInvocations'
-import {
-  normalizeInvocationTokenSpacing,
-  splitInvocationTokenSegments,
-} from '@/lib/markdown/invocationTokens'
+  AGENTIC_VIDEO_ROUTE_TOKEN,
+  GENERATION_KIND_INVOCATIONS,
+  GENERATION_PROVIDER_INVOCATIONS,
+  GENERATION_SPECIFICATION_INVOCATIONS,
+} from '@/features/chat/generationInvocation'
+import { buildLiveCanvasHeroVideoQuery } from './liveCanvasHeroVideoGeneration'
 
 export const LIVE_CANVAS_HERO_TOKENS = [
-  '/runtime-ready.check',
-  '/cost.audit',
-  '#token-economics',
-  '#runtime-ready',
-  '@runtime-proof',
-  '@dev-only',
+  AGENTIC_VIDEO_ROUTE_TOKEN,
+  ...GENERATION_PROVIDER_INVOCATIONS.map(item => item.token),
+  ...GENERATION_SPECIFICATION_INVOCATIONS.map(item => item.token),
+  ...GENERATION_KIND_INVOCATIONS.map(item => item.token),
 ] as const
 
 export const LIVE_CANVAS_HERO_DEFAULT_QUERY_TOKENS = [
-  '/runtime-ready.check',
-  '#token-economics',
-  '@dev-only',
-] as const satisfies readonly LiveCanvasHeroToken[]
+  AGENTIC_VIDEO_ROUTE_TOKEN,
+  GENERATION_PROVIDER_INVOCATIONS[0].token,
+  ...GENERATION_KIND_INVOCATIONS.map(item => item.token),
+  GENERATION_SPECIFICATION_INVOCATIONS[0].token,
+] as const
 
 export type LiveCanvasHeroToken = typeof LIVE_CANVAS_HERO_TOKENS[number]
-
-export type LiveCanvasHeroInvocation = AgenticOsResolvedInvocation & {
+export type LiveCanvasHeroInvocation = {
   token: LiveCanvasHeroToken
+  group: 'Route' | 'Provider' | 'Specification' | 'Outputs'
+  label: string
+  summary: string
+  sourcePath: string
+  keywords: string[]
+}
+export type LiveCanvasHeroModel = {
+  status: 'ready'
+  invocations: LiveCanvasHeroInvocation[]
+  defaultQuery: string
+  sourceLabel: string | null
+  sourceWorkspacePath: string | null
 }
 
-export type LiveCanvasHeroModel =
-  | {
-      status: 'ready'
-      invocations: LiveCanvasHeroInvocation[]
-      defaultQuery: string
-    }
-  | {
-      status: 'blocked'
-      missingTokens: LiveCanvasHeroToken[]
-    }
-
-export function buildLiveCanvasHeroModel(): LiveCanvasHeroModel {
-  const invocations: LiveCanvasHeroInvocation[] = []
-  const missingTokens: LiveCanvasHeroToken[] = []
-
-  for (const token of LIVE_CANVAS_HERO_TOKENS) {
-    const invocation = findAgenticOsInvocationByToken(token)
-    if (!invocation) {
-      missingTokens.push(token)
-      continue
-    }
-    invocations.push({ ...invocation, token })
-  }
-
-  if (missingTokens.length > 0) return { status: 'blocked', missingTokens }
+export function buildLiveCanvasHeroModel(args: { sourceFiles?: readonly SourceFile[] | null } = {}): LiveCanvasHeroModel {
+  const query = buildLiveCanvasHeroVideoQuery(args.sourceFiles)
   return {
     status: 'ready',
-    invocations,
-    defaultQuery: normalizeInvocationTokenSpacing(LIVE_CANVAS_HERO_DEFAULT_QUERY_TOKENS.join(' ')),
+    defaultQuery: query.query,
+    sourceLabel: query.source?.name || null,
+    sourceWorkspacePath: query.source?.workspacePath || null,
+    invocations: [
+      {
+        token: AGENTIC_VIDEO_ROUTE_TOKEN,
+        group: 'Route',
+        label: 'Video agent',
+        summary: 'Agentic video route.',
+        sourcePath: 'canvas/src/features/chat/generationInvocation.ts',
+        keywords: ['video', 'agent'],
+      },
+      ...GENERATION_PROVIDER_INVOCATIONS.map(item => ({
+        ...item,
+        group: 'Provider' as const,
+        sourcePath: 'canvas/src/features/chat/generationInvocation.ts',
+        keywords: ['provider'],
+      })),
+      ...GENERATION_SPECIFICATION_INVOCATIONS.map(item => ({
+        ...item,
+        group: 'Specification' as const,
+        sourcePath: 'canvas/src/features/chat/generationInvocation.ts',
+        keywords: ['specification'],
+      })),
+      ...GENERATION_KIND_INVOCATIONS.map(item => ({
+        ...item,
+        group: 'Outputs' as const,
+        sourcePath: 'canvas/src/features/chat/generationInvocation.ts',
+        keywords: ['output'],
+      })),
+    ],
   }
 }
 
-export function liveCanvasHeroQueryHasToken(query: string, token: LiveCanvasHeroToken): boolean {
-  return splitInvocationTokenSegments(String(query || '')).some(segment => (
-    segment.kind === 'token' && segment.value.toLowerCase() === token.toLowerCase()
-  ))
-}
+export const liveCanvasHeroQueryHasToken = (query: string, token: LiveCanvasHeroToken) =>
+  splitInvocationTokenSegments(query).some(part => part.kind === 'token' && part.value.toLowerCase() === token.toLowerCase())
 
-export function appendLiveCanvasHeroToken(query: string, token: LiveCanvasHeroToken): string {
-  const current = String(query || '')
-  if (liveCanvasHeroQueryHasToken(current, token)) return normalizeInvocationTokenSpacing(current)
-  return normalizeInvocationTokenSpacing([current.trim(), token].filter(Boolean).join(' '))
-}
+export const appendLiveCanvasHeroToken = (query: string, token: LiveCanvasHeroToken) =>
+  liveCanvasHeroQueryHasToken(query, token) ? query.trim() : [query.trim(), token].filter(Boolean).join(' ')

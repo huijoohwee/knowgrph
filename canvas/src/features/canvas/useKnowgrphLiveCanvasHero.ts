@@ -40,7 +40,7 @@ export type LiveCanvasHeroSource = {
   embedUrl?: string
 }
 
-const LIVE_CANVAS_HERO_INITIALIZATION_SOURCE_BASENAME = 'knowgrph-strybldr-starter-template.md'
+const LIVE_CANVAS_HERO_INITIALIZATION_SOURCE_BASENAME = 'knowgrph-agentic-video-canvas-demo.md'
 
 const normalizeLiveCanvasHeroSourceIdentity = (value: unknown): string => String(value || '')
   .trim()

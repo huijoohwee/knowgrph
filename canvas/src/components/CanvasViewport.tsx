@@ -321,7 +321,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
                     />
                   ) : null}
                 </section>
-                <LiveCanvasHeroLazy source={liveCanvasHeroSource} onHandoffComplete={dismissLiveCanvasHero} />
+                <LiveCanvasHeroLazy source={liveCanvasHeroSource} sourceFiles={sourceFiles} onHandoffComplete={dismissLiveCanvasHero} />
               </>
             ) : (
               <>

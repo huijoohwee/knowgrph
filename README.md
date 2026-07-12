@@ -399,6 +399,18 @@ Feature-specific planning belongs in canonical docs instead of the root README:
 - Keep secrets out of source and use server-managed environment bindings for hosted provider keys.
 - Keep Dev as the implementation source; publish mirror and Cloudflare outputs are generated from Dev.
 
+## E2E Agentic Video Generation
+
+Home **Agentic Video Canvas** and FloatingPanel Chat share one editable query contract:
+
+```text
+/video-agent @provider.byteplus @text @image @audio @video #spec.low @script.md
+```
+
+`/video-agent` selects the route; `@provider.byteplus` (default) or `@provider.openai` selects the provider; output `@` tokens select Text/Image/Audio/Video; and `#spec.low|#spec.medium|#spec.high` controls the declared specification. Enabled Markdown scripts remain canonical `workspace:` references but render through the existing `@*.md` inline-chip projection. A source-backed multilingual production request preserves Chinese, Cantonese, and English audio variants with synchronized Chinese/English subtitles, and projects generated artifacts through Cards, Widgets, Rich Media Panels, and BottomPanel Timeline video/FBF/audio lanes. Missing approval, credentials, or provider capability fails closed. This remains Dev-only and does not authorize a paid model call or Cloudflare deployment.
+
+The default Source Files validation document is `../huijoohwee/docs/knowgrph-agentic-video-canvas-demo.md`; it keeps the supplied video-generation script as an `@`-inserted `workspace:` reference and starts all generated artifact fields blank until a provider returns them.
+
 ## Get involved
 
 - ⭐ Star the repo to follow progress
