@@ -19,6 +19,7 @@ import {
   readCachedWorkspaceActiveEntrySnapshot,
   rememberWorkspaceActiveEntrySnapshot,
 } from '@/features/source-files/workspaceActiveEntryCache'
+import { normalizeRuntimeStorageMediaAccessUrlsInText } from '@/lib/storage/runtimeMediaUrl'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
 
@@ -75,7 +76,7 @@ const resolveWorkspaceActiveDocumentText = (
   modelAssetFormat: 'glb' | 'gltf' | null,
   textRaw: string,
 ): string => {
-  const text = String(textRaw || '')
+  const text = normalizeRuntimeStorageMediaAccessUrlsInText({ text: textRaw })
   if (!text.trim()) return ''
   if (!modelAssetFormat || hasWorkspaceModelAssetCanvasManifest(text)) return text
   return buildWorkspaceModelAssetFallbackText(activePath, modelAssetFormat)

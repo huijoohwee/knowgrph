@@ -1,6 +1,7 @@
 const LOCAL_STORAGE_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
 const DEFAULT_MEDIA_TOKEN_TTL_MS = 15 * 60 * 1000
 const MEDIA_TOKEN_REFRESH_SKEW_MS = 30 * 1000
+const RUNTIME_STORAGE_MEDIA_URL_IN_TEXT_RE = /https?:\/\/[^\s<>"')\]]+/gi
 
 type RuntimeMediaAccessUrlCacheEntry = {
   expiresAt: number
@@ -105,4 +106,34 @@ export function normalizeRuntimeStorageMediaAccessUrl(args: {
     runtimeOrigin: args.runtimeOrigin,
     ttlMs: args.ttlMs,
   }) || normalizeRuntimeStorageMediaUrl(rawUrl, normalizeString(args.runtimeOrigin) || readRuntimeOrigin())
+}
+
+const splitRuntimeStorageTextUrlToken = (rawToken: string): { url: string; suffix: string } => {
+  let url = String(rawToken || '')
+  let suffix = ''
+  while (url && /[.,;:!?}\]]$/.test(url)) {
+    suffix = `${url.slice(-1)}${suffix}`
+    url = url.slice(0, -1)
+  }
+  return { url, suffix }
+}
+
+export function normalizeRuntimeStorageMediaAccessUrlsInText(args: {
+  text: unknown
+  runtimeOrigin?: string | null
+  ttlMs?: number | null
+}): string {
+  const text = String(args.text || '')
+  if (!text || !text.includes('/api/storage/media/')) return text
+  const runtimeOrigin = normalizeString(args.runtimeOrigin) || readRuntimeOrigin()
+  return text.replace(RUNTIME_STORAGE_MEDIA_URL_IN_TEXT_RE, (rawToken) => {
+    if (!rawToken.includes('/api/storage/media/')) return rawToken
+    const { url, suffix } = splitRuntimeStorageTextUrlToken(rawToken)
+    const normalized = normalizeRuntimeStorageMediaAccessUrl({
+      url,
+      runtimeOrigin,
+      ttlMs: args.ttlMs,
+    })
+    return normalized ? `${normalized}${suffix}` : rawToken
+  })
 }
