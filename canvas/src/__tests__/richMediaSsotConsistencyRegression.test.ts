@@ -139,6 +139,26 @@ export function testRichMediaSsotConsistencyRegression() {
     if (!staleBlobPreview || staleBlobPreview.kind !== 'iframe' || !String(staleBlobPreview.srcDoc || '').includes('Inline artifact fallback')) {
       throw new Error(`expected stale Rich Media blob videoUrl to render the inline artifact fallback, got ${JSON.stringify(staleBlobPreview)}`)
     }
+
+    const staleLocalMediaPanelNode = {
+      id: 'rendered-local-media-artifact',
+      type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      label: 'Rendered local media artifact',
+      properties: {
+        imageUrl: 'http://localhost:5174/api/storage/media/airvio/runs/upload-demo/image/runtime-demo.jpg?kg_media_token=stale-token',
+      },
+    }
+    const staleLocalMediaPanel = buildRichMediaPanelOverlayState({ node: staleLocalMediaPanelNode as never })
+    const staleLocalMediaPreview = staleLocalMediaPanel
+      ? buildRichMediaPanelPreviewSpec({ node: staleLocalMediaPanelNode as never, panel: staleLocalMediaPanel })
+      : null
+    const expectedRuntimePrefix = 'http://localhost:5173/api/storage/media/airvio/runs/upload-demo/image/runtime-demo.jpg?kg_media_token='
+    if (!staleLocalMediaPreview || staleLocalMediaPreview.kind !== 'image' || !String(staleLocalMediaPreview.url || '').startsWith(expectedRuntimePrefix)) {
+      throw new Error(`expected stale local Rich Media preview URL to remap to the current runtime origin, got ${JSON.stringify(staleLocalMediaPreview)}`)
+    }
+    if (String(staleLocalMediaPreview.url || '').includes('localhost:5174') || String(staleLocalMediaPreview.url || '').includes('stale-token')) {
+      throw new Error(`expected stale local Rich Media preview URL to replace the prior dev origin and token, got ${JSON.stringify(staleLocalMediaPreview)}`)
+    }
   } finally {
     ;(globalThis as { window?: unknown }).window = previousWindow
   }

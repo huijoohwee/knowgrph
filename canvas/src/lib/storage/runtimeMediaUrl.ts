@@ -90,3 +90,19 @@ export function buildRuntimeStorageMediaAccessUrl(args: {
     return publicUrl
   }
 }
+
+export function normalizeRuntimeStorageMediaAccessUrl(args: {
+  url: unknown
+  runId?: string | null
+  runtimeOrigin?: string | null
+  ttlMs?: number | null
+}): string {
+  const rawUrl = normalizeString(args.url)
+  if (!rawUrl) return ''
+  return buildRuntimeStorageMediaAccessUrl({
+    publicUrl: rawUrl,
+    runId: args.runId,
+    runtimeOrigin: args.runtimeOrigin,
+    ttlMs: args.ttlMs,
+  }) || normalizeRuntimeStorageMediaUrl(rawUrl, normalizeString(args.runtimeOrigin) || readRuntimeOrigin())
+}

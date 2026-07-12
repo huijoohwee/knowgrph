@@ -7,6 +7,7 @@ import {
   resolveRichMediaPlayableUrl,
   resolveRichMediaPanelSelectedTab,
 } from '@/lib/render/richMediaSsot'
+import { normalizeRuntimeStorageMediaAccessUrl } from '@/lib/storage/runtimeMediaUrl'
 import {
   readLatestGrabMapsPoiRichMediaPreview,
   subscribeGrabMapsPoiRichMediaPreview,
@@ -104,8 +105,12 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     || props.kind === 'audio'
       ? props.kind
       : 'iframe'
-  const rawUrl = String(props.url || '').trim()
-  const openUrl = String(props.openUrl || '').trim() || rawUrl
+  const rawUrl = React.useMemo(() => normalizeRuntimeStorageMediaAccessUrl({
+    url: props.url,
+  }), [props.url])
+  const openUrl = React.useMemo(() => (
+    normalizeRuntimeStorageMediaAccessUrl({ url: props.openUrl }) || rawUrl
+  ), [props.openUrl, rawUrl])
   const safeOpenUrl = React.useMemo(() => {
     if (!openUrl) return ''
     try {

@@ -16,6 +16,7 @@ import {
 } from '@/lib/render/richMediaPanelState'
 import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 import { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanelSrcDoc'
+import { normalizeRuntimeStorageMediaAccessUrl } from '@/lib/storage/runtimeMediaUrl'
 import {
   getRichMediaPanelNodeLabel,
   isRichMediaPanelNode,
@@ -203,9 +204,11 @@ function readRichMediaPanelGenericMediaUrl(props: Record<string, unknown>): {
   mediaUrl: string
   videoUrl: string
 } {
-  const mediaUrl = (
+  const mediaUrl = normalizeRuntimeStorageMediaAccessUrl({
+    url: (
     typeof props.mediaUrl === 'string' ? props.mediaUrl : typeof props.media_url === 'string' ? props.media_url : ''
-  ).trim()
+    ).trim(),
+  })
   const mediaKind = (
     typeof props.mediaKind === 'string' ? props.mediaKind : typeof props.media_kind === 'string' ? props.media_kind : ''
   ).trim().toLowerCase()
@@ -230,9 +233,15 @@ export function buildRichMediaPanelPreviewSpec(args: {
   })
   const props = (renderNode.properties || {}) as Record<string, unknown>
   const genericMedia = readRichMediaPanelGenericMediaUrl(props)
-  const rawImageUrl = (typeof props.imageUrl === 'string' ? props.imageUrl.trim() : '') || genericMedia.imageUrl
-  const rawVideoUrl = (typeof props.videoUrl === 'string' ? props.videoUrl.trim() : '') || genericMedia.videoUrl
-  const rawAudioUrl = (typeof props.audioUrl === 'string' ? props.audioUrl.trim() : '') || genericMedia.audioUrl
+  const rawImageUrl = normalizeRuntimeStorageMediaAccessUrl({
+    url: (typeof props.imageUrl === 'string' ? props.imageUrl.trim() : '') || genericMedia.imageUrl,
+  })
+  const rawVideoUrl = normalizeRuntimeStorageMediaAccessUrl({
+    url: (typeof props.videoUrl === 'string' ? props.videoUrl.trim() : '') || genericMedia.videoUrl,
+  })
+  const rawAudioUrl = normalizeRuntimeStorageMediaAccessUrl({
+    url: (typeof props.audioUrl === 'string' ? props.audioUrl.trim() : '') || genericMedia.audioUrl,
+  })
   const rawMediaUrl = genericMedia.mediaUrl
   const rawOpenUrl = rawImageUrl || rawVideoUrl || rawAudioUrl || rawMediaUrl
   const rawOutputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
@@ -244,7 +253,9 @@ export function buildRichMediaPanelPreviewSpec(args: {
   const fallbackSrcDoc = String(renderSpec?.srcDoc || outputSrcDoc || '')
   const playableVideoUrl = resolveRichMediaPlayableUrl({
     fallbackSrcDocAvailable: !!fallbackSrcDoc.trim(),
-    url: rawVideoUrl || (renderSpec?.kind === 'video' ? renderSpec.url : ''),
+    url: rawVideoUrl || (renderSpec?.kind === 'video'
+      ? normalizeRuntimeStorageMediaAccessUrl({ url: renderSpec.url })
+      : ''),
   })
   const selectedTab = resolveRichMediaPanelSelectedTab({
     activeTab: panel.activeTab,
@@ -271,28 +282,34 @@ export function buildRichMediaPanelPreviewSpec(args: {
     }
     return {
       kind: selectedTab,
-      url: selectedTab === 'video' ? selectedUrl : selectedUrl || String(renderSpec?.url || ''),
-      openUrl: selectedUrl || rawOpenUrl || String(renderSpec?.url || ''),
+      url: selectedTab === 'video'
+        ? selectedUrl
+        : selectedUrl || normalizeRuntimeStorageMediaAccessUrl({ url: renderSpec?.url }),
+      openUrl: selectedUrl || rawOpenUrl || normalizeRuntimeStorageMediaAccessUrl({ url: renderSpec?.url }),
       srcDoc: selectedTab === 'video' ? fallbackSrcDoc || undefined : undefined,
       interactive: selectedTab === 'video' ? renderSpec?.interactive !== false : renderSpec?.interactive === true,
     }
   }
   if (selectedTab === 'audio' || renderSpec?.kind === 'audio') {
-    const url = String(rawAudioUrl || renderSpec?.url || rawMediaUrl || '').trim()
+    const url = normalizeRuntimeStorageMediaAccessUrl({
+      url: rawAudioUrl || renderSpec?.url || rawMediaUrl || '',
+    })
     return { kind: 'audio', url, openUrl: rawAudioUrl || rawOpenUrl || url, interactive: renderSpec?.interactive !== false }
   }
   if (selectedTab === 'text' && selectedText) {
+    const runtimeUrl = normalizeRuntimeStorageMediaAccessUrl({ url: rawOpenUrl || String(renderSpec?.url || '') })
     return {
       kind: 'iframe',
-      url: rawOpenUrl || String(renderSpec?.url || ''),
-      openUrl: rawOpenUrl || String(renderSpec?.url || ''),
+      url: runtimeUrl,
+      openUrl: runtimeUrl,
       interactive: false,
     }
   }
+  const runtimeUrl = normalizeRuntimeStorageMediaAccessUrl({ url: rawOpenUrl || String(renderSpec?.url || '') })
   return {
     kind: 'iframe',
-    url: rawOpenUrl || String(renderSpec?.url || ''),
-    openUrl: rawOpenUrl || String(renderSpec?.url || ''),
+    url: runtimeUrl,
+    openUrl: runtimeUrl,
     srcDoc: String(renderSpec?.srcDoc || outputSrcDoc || '') || undefined,
     interactive: renderSpec?.interactive !== false,
   }
