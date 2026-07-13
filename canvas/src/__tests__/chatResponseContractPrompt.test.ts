@@ -149,7 +149,7 @@ export function testBuildChatSubmitPayloadMessagesPlacesCorrectionBetweenSystemA
 }
 
 export async function testChatStorybuildingSkillPromptIsModularAndPathNeutral() {
-  const requiredVariantCommands = ['/storybuilding', '/research-agent', '/video-agent', '/care-agent']
+  const requiredVariantCommands = ['/storybuilding', '/investment-research-agent', '/sme-care-agent', '/video-agent']
   const resolvedVariantCommands = requiredVariantCommands.map(command => {
     const invocation = parseChatSkillSlashInvocation(`${command} build a useful artifact`)
     return invocation?.query === 'build a useful artifact' ? invocation.skill.slashCommand : null
@@ -209,11 +209,11 @@ export async function testChatStorybuildingSkillPromptIsModularAndPathNeutral() 
   }
   const researchContext = await buildChatSubmitRequestContext({
     submitArgs: buildSubmitArgsFixture({ chatStorageTarget: 'chatHistory' }),
-    nextMessages: [{ id: 'user-1', role: 'user', content: '/research-agent compile claims from these notes' }],
+    nextMessages: [{ id: 'user-1', role: 'user', content: '/investment-research-agent compile claims from these notes' }],
     assistantMessageId: 'assistant-pending',
   })
-  if (!researchContext.systemMessages.some(message => message.content.includes('/research-agent') && message.content.includes('plain Markdown chat contract'))) {
-    throw new Error('Expected plain chat request context to include the /research-agent variant prompt')
+  if (!researchContext.systemMessages.some(message => message.content.includes('/investment-research-agent') && message.content.includes('plain Markdown chat contract'))) {
+    throw new Error('Expected plain chat request context to include the /investment-research-agent variant prompt')
   }
   const inactiveSkillContext = await buildChatSubmitRequestContext({
     submitArgs: buildSubmitArgsFixture({ chatStorageTarget: 'chatKnowgrph' }),
@@ -229,7 +229,7 @@ export async function testChatStorybuildingSkillPromptIsModularAndPathNeutral() 
     nextMessages: [{ id: 'user-1', role: 'user', content: '/video-agent build a transcript timeline' }],
     assistantMessageId: 'assistant-pending',
   })
-  if (!chatHistoryContext.systemMessages.some(message => message.content.includes('/video-agent') && message.content.includes('source-backed video reasoning package'))) {
+  if (!chatHistoryContext.systemMessages.some(message => message.content.includes('/video-agent') && message.content.includes('source metadata, transcript windows, frame evidence'))) {
     throw new Error('Expected /video-agent variant prompt to work with plain chat history')
   }
 }

@@ -14,7 +14,11 @@
     "./credit-ledger": "./credit-ledger.schema.js",
     "./kgc-document": "./kgc-document.schema.js",
     "./demo-pack": "./demo-pack.schema.js",
-    "./media-artifact": "./media-artifact.schema.js"
+    "./media-artifact": "./media-artifact.schema.js",
+    "./agent-runtime": "./agent-runtime.schema.js",
+    "./semantic-key": "./semantic-key.js",
+    "./sme-profile": "./sme-profile.schema.js",
+    "./sme-risk-coverage": "./sme-risk-coverage.schema.js"
   },
   "scripts": {
     "test": "node --test __tests__/*.test.mjs"

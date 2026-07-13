@@ -19,6 +19,7 @@ from .superagent_contracts import (
     SUPERAGENT_TASK_LEVELS,
 )
 from .superagent_responsive import REQUIRED_RESPONSIVE_WIDGET_IDS, required_responsive_proof_class_ids
+from .agent_definition_registry import list_agent_definitions, resolve_agent_definition
 
 
 GOAL_TEXT = """
@@ -52,6 +53,31 @@ class SuperAgentHarnessTests(unittest.TestCase):
         with open(path, "w", encoding="utf-8") as handle:
             handle.write(text)
         return path
+
+    def test_agent_definition_registry_resolves_exact_invocations(self) -> None:
+        self.assertEqual(
+            [definition["invocation"] for definition in list_agent_definitions()],
+            ["/investment-research-agent", "/sme-care-agent", "/video-agent"],
+        )
+        self.assertEqual(resolve_agent_definition("/sme-care-agent")["id"], "agent.sme-care")
+        with self.assertRaises(HarnessError):
+            resolve_agent_definition("/care-agent")
+
+    def test_sme_care_definition_runs_through_shared_harness(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            brief = self.write_brief(tmp)
+            state = run_harness(
+                input_path=brief,
+                output_dir=os.path.join(tmp, "sme-care-run"),
+                goal_text=GOAL_TEXT,
+                run_id="sme-care-e2e",
+                agent_definition_id="agent.sme-care",
+                provider_mode="mock",
+                budget=RunBudget(max_steps=40, max_retries_per_task=2, max_wall_seconds=120),
+            )
+            self.assertEqual(state["run"]["status"], "completed")
+            self.assertEqual(state["run"]["agent_invocation"], "/sme-care-agent")
+            self.assertIn("coverage.graph", state["agent_definition"]["capabilities"])
 
     def test_external_xr_validation_document_is_runtime_input_only(self) -> None:
         repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))

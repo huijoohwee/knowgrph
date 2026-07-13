@@ -12,7 +12,10 @@
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.12"
     },
-    "esbuild": "^0.25.12"
+    "esbuild": "^0.25.12",
+    "tsx": {
+      "esbuild": "^0.28.1"
+    }
   },
   "scripts": {
     "setup": "npm install",
@@ -55,7 +58,9 @@
     "mcp:worker:test": "node --test cloudflare/workers/knowgrph-mcp/__tests__/*.test.mjs",
     "web:build": "npm run build --prefix web",
     "web:test": "node --test web/__tests__/*.test.mjs",
-    "runtime:check": "npm run runtime:test && node ./scripts/check-runtime-ready.mjs",
+    "runtime:check": "npm run runtime:test && npm run sme-care-agent:canvas-demo:check && npm -C canvas run test:ci:unit -- smeCareAgent.canvasEvidence.runtimeReady && node ./scripts/check-runtime-ready.mjs",
+    "sme-care-agent:canvas-demo": "node ./scripts/build-sme-care-agent-canvas-demo.mjs",
+    "sme-care-agent:canvas-demo:check": "node ./scripts/build-sme-care-agent-canvas-demo.mjs --check",
     "runtime:verify:deployed": "node ./scripts/verify-deployed-runtime.mjs",
     "runtime:proof": "node ./scripts/capture-runtime-proof.mjs",
     "runtime:demo-pack": "node ./scripts/build-demo-pack-from-proof.mjs",
@@ -126,6 +131,7 @@
   },
   "devDependencies": {
     "fast-check": "3.23.2",
-    "js-yaml": "^4.1.1"
+    "js-yaml": "^4.1.1",
+    "zod": "^4.4.3"
   }
 }

@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "knowgrph.agent-definition-registry/v1",
+  "registryVersion": "2026-07-13",
+  "invocationAuthority": "agentic-canvas-os/docs/SKILLS.md",
+  "invocationConvention": "/<agent-domain>-agent",
+  "profiles": {
+    "superagent.full.v1": {
+      "surfaceProjection": {
+        "subagents": ["source_scout", "thesis_compiler", "code_worker", "artifact_builder", "review_gate"],
+        "taskCapabilities": ["research", "code", "create"]
+      },
+      "roles": [
+        { "id": "planner", "responsibility": "Normalize the goal, inspect constraints, and produce the active run plan.", "tools": ["workspace.inspect"] },
+        { "id": "skill_curator", "responsibility": "Select registry-backed capabilities and policy hints.", "tools": ["skill.select"] },
+        { "id": "research_worker", "responsibility": "Build a source-grounded evidence pack.", "tools": ["research.scout"] },
+        { "id": "code_worker", "responsibility": "Create deterministic code and execute it in a bounded sandbox.", "tools": ["code.write_and_run"] },
+        { "id": "text_worker", "responsibility": "Compile the brief into text, scene, and media plans.", "tools": ["text.generate.mock"] },
+        { "id": "image_worker", "responsibility": "Generate or mock a reference image.", "tools": ["image.generate.mock"] },
+        { "id": "video_worker", "responsibility": "Generate or mock a video artifact.", "tools": ["video.generate"] },
+        { "id": "canvas_worker", "responsibility": "Compose a typed canvas graph with provenance.", "tools": ["canvas.write"] },
+        { "id": "verifier", "responsibility": "Judge trace, artifact, policy, and topology completeness.", "tools": ["judge.verify"] },
+        { "id": "synthesizer", "responsibility": "Export the final report and termination evidence.", "tools": ["artifact.export_report"] }
+      ],
+      "tasks": [
+        { "id": "inspect_goal", "label": "Inspect goal, input brief, and tool capabilities", "role": "planner", "tool": "workspace.inspect", "dependsOn": [] },
+        { "id": "select_skills", "label": "Select registry-backed capabilities and policy hints", "role": "skill_curator", "tool": "skill.select", "dependsOn": ["inspect_goal"] },
+        { "id": "research_goal", "label": "Research the input brief and produce an evidence pack", "role": "research_worker", "tool": "research.scout", "dependsOn": ["inspect_goal", "select_skills"] },
+        { "id": "code_sandbox", "label": "Create and execute bounded sandbox code", "role": "code_worker", "tool": "code.write_and_run", "dependsOn": ["inspect_goal", "select_skills", "research_goal"] },
+        { "id": "generate_text", "label": "Generate text plan and media prompts", "role": "text_worker", "tool": "text.generate.mock", "dependsOn": ["inspect_goal", "select_skills", "research_goal", "code_sandbox"] },
+        { "id": "generate_image", "label": "Generate reference image", "role": "image_worker", "tool": "image.generate.mock", "dependsOn": ["generate_text"] },
+        { "id": "generate_video", "label": "Generate storyboard video", "role": "video_worker", "tool": "video.generate", "dependsOn": ["generate_text", "generate_image"] },
+        { "id": "compose_canvas", "label": "Compose rich-media canvas graph", "role": "canvas_worker", "tool": "canvas.write", "dependsOn": ["inspect_goal", "select_skills", "research_goal", "code_sandbox", "generate_text", "generate_image", "generate_video"] },
+        { "id": "verify_outputs", "label": "Verify artifacts, trace, canvas, and policy posture", "role": "verifier", "tool": "judge.verify", "dependsOn": ["compose_canvas"] },
+        { "id": "synthesize_report", "label": "Export final run report", "role": "synthesizer", "tool": "artifact.export_report", "dependsOn": ["verify_outputs"], "terminal": true }
+      ]
+    }
+  },
+  "agents": [
+    {
+      "id": "agent.investment-research",
+      "version": "1.0.0",
+      "title": "Investment Research Agent",
+      "summary": "Source-grounded investment research with claims, evidence, contradictions, assumptions, and review-first graph candidates.",
+      "planProfile": "superagent.full.v1",
+      "capabilities": ["evidence.research", "claim.ledger", "contradiction.review", "graph.review", "artifact.export", "audit", "cost"],
+      "inputSchemaRef": "knowgrph.agent-run.input/v1",
+      "outputSchemaRef": "knowgrph.agent-run.output/v1",
+      "policyRefs": ["source-grounding", "review-before-graph-mutation", "financial-information-not-advice", "paid-model-call-approval"],
+      "renderers": ["markdown", "claim-ledger", "canvas", "audit"],
+      "bounds": { "maxSteps": 80, "maxRetriesPerTask": 2, "maxWallSeconds": 900, "maxConcurrentWorkers": 3 },
+      "fallback": "Return a source-gap report and verification plan without fabricating claims, citations, prices, or provenance.",
+      "vccs": ["Every material claim is linked to evidence or marked as an assumption.", "Contradictions and unknowns remain visible.", "No graph mutation or paid model call occurs without the required approval."],
+      "promptContract": ["Separate claims, evidence, assumptions, contradictions, open questions, and verification steps.", "Stage graph candidates for review before mutation.", "State evidence freshness and research-depth cost posture."]
+    },
+    {
+      "id": "agent.sme-care",
+      "version": "1.1.0",
+      "title": "SME Care Agent",
+      "summary": "Coverage-gap and risk-exposure guidance for SMEs across cyber, supply-chain, asset, and growth-stage change.",
+      "planProfile": "superagent.full.v1",
+      "skillVariant": "agent.sme",
+      "skillId": "sme.risk.profile",
+      "runtimeKernel": "sme.risk.profile",
+      "skillInputSchemaRef": "knowgrph-sme-profile/v1",
+      "skillOutputSchemaRef": "knowgrph-sme-risk-run/v1",
+      "topology": { "pattern": "fan-out/fan-in", "domains": ["cyber", "supply_chain", "asset_physical"], "maxIterations": 1, "circuitBreakers": ["schema_error", "approval_denial", "token_budget_breach", "verification_failure"] },
+      "capabilities": ["evidence.research", "coverage.graph", "risk.assessment", "growth.change-detection", "responsible.guidance", "adviser.handoff", "artifact.export", "audit", "cost"],
+      "inputSchemaRef": "knowgrph.agent-run.input/v1",
+      "outputSchemaRef": "knowgrph.agent-run.output/v1",
+      "policyRefs": ["unknown-never-safe", "urgency-confidence-separation", "review-before-bind", "data-minimization", "paid-model-call-approval"],
+      "renderers": ["markdown", "protection-graph", "gap-cards", "canvas", "audit"],
+      "bounds": { "maxSteps": 8, "maxRetriesPerTask": 1, "maxWallSeconds": 300, "maxConcurrentWorkers": 3, "tokenBudget": 100000 },
+      "fallback": "Return an explicit unknown-and-evidence-needed assessment with a licensed adviser handoff; never imply that unknown coverage is safe.",
+      "vccs": ["Exposure, coverage, gaps, evidence confidence, and urgency remain distinct.", "Recommendations stop before automated quote, bind, or policy mutation.", "Every material gap includes evidence needed and a review path."],
+      "promptContract": ["Build a living protection graph across exposures, controls, policies, limits, exclusions, dependencies, evidence, and gaps.", "Keep urgency separate from evidence confidence.", "Guide the SME to a review-ready adviser handoff rather than automated binding."]
+    },
+    {
+      "id": "agent.video",
+      "version": "1.0.0",
+      "title": "Video Agent",
+      "summary": "Source-backed video reasoning across transcript, frame evidence, annotations, timeline planning, render intent, and rich-media output.",
+      "planProfile": "superagent.full.v1",
+      "capabilities": ["evidence.research", "media.ingest", "media.annotation", "media.storyboard", "media.render", "artifact.export", "audit", "cost"],
+      "inputSchemaRef": "knowgrph.agent-run.input/v1",
+      "outputSchemaRef": "knowgrph.agent-run.output/v1",
+      "policyRefs": ["operator-supplied-media", "source-provenance", "render-approval", "paid-model-call-approval"],
+      "renderers": ["markdown", "storyboard", "timeline", "rich-media-panel", "canvas", "audit"],
+      "bounds": { "maxSteps": 80, "maxRetriesPerTask": 2, "maxWallSeconds": 900, "maxConcurrentWorkers": 3 },
+      "fallback": "Return source metadata, frame and transcript evidence, a deterministic render plan, and a structured provider-unavailable error without inventing media URLs.",
+      "vccs": ["Every media artifact preserves source and prompt provenance.", "Dry-run makes zero paid calls and emits no invented URLs.", "Render and publish mutations remain approval-gated."],
+      "promptContract": ["Compile source metadata, transcript windows, frame evidence, annotations, timeline lanes, render intent, and rich-media outputs.", "Use operator-supplied media and preserve artifact provenance.", "Keep generation providers behind runtime adapters and explicit approvals."]
+    }
+  ]
+}

@@ -3,7 +3,6 @@ import path from "node:path";
 import process from "node:process";
 import { spawn } from "node:child_process";
 import net from "node:net";
-
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -31,10 +30,9 @@ import { KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID } from "../canvas/src/feature
 import { createPublishedAgentReadyToolExecutors } from "../canvas/src/features/agent-ready/publishedToolExecutors.mjs";
 import { buildKnowgrphVdeoxplnMarkdown, buildKnowgrphVdeoxplnRegistry, buildKnowgrphVdeoxplnRoutingPlan, validateKnowgrphVdeoxplnRegistry } from "../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
 import { KNOWGRPH_MCP_APP_RESOURCE_URI, buildKnowgrphMcpAppsCapabilities, buildKnowgrphMcpAppsResourceDescriptor, buildKnowgrphMcpAppsResourceReadResult } from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
+import { runLocalAgentRuntime } from "./local-agent-runtime.js";
 
-const MAX_OUTPUT_CHARS = Number(process.env.KNOWGRPH_MCP_MAX_OUTPUT_CHARS ?? "20000");
-const DEFAULT_TIMEOUT_MS = Number(process.env.KNOWGRPH_MCP_TIMEOUT_MS ?? "600000");
-const KNOWGRPH_HTML_VIDEO_ENGINE = "KNOWGRPH_HTML_VIDEO_ENGINE";
+const MAX_OUTPUT_CHARS = Number(process.env.KNOWGRPH_MCP_MAX_OUTPUT_CHARS ?? "20000"); const DEFAULT_TIMEOUT_MS = Number(process.env.KNOWGRPH_MCP_TIMEOUT_MS ?? "600000"); const KNOWGRPH_HTML_VIDEO_ENGINE = "KNOWGRPH_HTML_VIDEO_ENGINE";
 
 const KNOWGRPH_ROOT = resolveRootDir();
 const PYTHON_BIN = process.env.KNOWGRPH_PYTHON?.trim() || "python3";
@@ -481,60 +479,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun) {
-      const timeoutMs = typeof args.timeoutMs === "number" ? args.timeoutMs : undefined;
-      const resume = typeof args.resume === "boolean" ? args.resume : false;
-      const outputDir =
-        typeof args.outputDir === "string" && args.outputDir.trim()
-          ? resolvePathMaybeWithinRoot(args.outputDir, { allowOutsideRoot: false })
-          : path.join(KNOWGRPH_ROOT, "data", "outputs", `superagent-mcp-run-${Date.now()}`);
-
-      const cmdArgs = ["-m", "knowgrph_parser", "superagent", "--output-dir", outputDir];
-      if (resume) {
-        cmdArgs.push("--resume");
-      } else {
-        if (typeof args.inputPath !== "string" || !args.inputPath.trim()) {
-          throw new Error("Missing required argument: inputPath (unless resume=true).");
-        }
-        cmdArgs.push(
-          "--input",
-          resolvePathMaybeWithinRoot(args.inputPath, { allowOutsideRoot: Boolean(args.allowExternalInput) })
-        );
-      }
-      if (typeof args.goalPath === "string" && args.goalPath.trim()) {
-        cmdArgs.push("--goal-file", resolvePathMaybeWithinRoot(args.goalPath, { allowOutsideRoot: false }));
-      }
-      if (typeof args.runId === "string" && args.runId.trim()) {
-        cmdArgs.push("--run-id", args.runId.trim());
-      }
-      if (typeof args.providerMode === "string" && args.providerMode.trim()) {
-        const providerMode = args.providerMode.trim();
-        if (!["byteplus-modelark", "mock"].includes(providerMode)) {
-          throw new Error("providerMode must be byteplus-modelark or mock.");
-        }
-        cmdArgs.push("--provider-mode", providerMode);
-      }
-      if (typeof args.stopAfterStep === "number" && Number.isFinite(args.stopAfterStep)) {
-        cmdArgs.push("--stop-after-step", String(Math.max(0, Math.floor(args.stopAfterStep))));
-      }
-      if (typeof args.failOnceTool === "string" && args.failOnceTool.trim()) {
-        cmdArgs.push("--fail-once", args.failOnceTool.trim());
-      }
-
-      const result = await runCommand(PYTHON_BIN, cmdArgs, { cwd: KNOWGRPH_ROOT, timeoutMs });
-      const artifacts = await summarizeArtifacts({ outputDir });
-
-      const outputText = [
-        `KNOWGRPH_ROOT: ${KNOWGRPH_ROOT}`,
-        `Command: ${formatCommand(PYTHON_BIN, cmdArgs, KNOWGRPH_ROOT)}`,
-        `Exit: ${String(result.code)}${result.signal ? ` (signal: ${result.signal})` : ""}`,
-        artifacts.length ? `Artifacts:\n- ${artifacts.join("\n- ")}` : "Artifacts: (none detected)",
-        result.stdout.trim() ? `\nSTDOUT:\n${truncate(result.stdout)}` : "",
-        result.stderr.trim() ? `\nSTDERR:\n${truncate(result.stderr)}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
-
-      return { content: [{ type: "text", text: outputText }], isError: result.code !== 0 };
+      return runLocalAgentRuntime(args, {
+        rootDir: KNOWGRPH_ROOT, pythonBin: PYTHON_BIN, resolvePath: resolvePathMaybeWithinRoot,
+        runCommand, summarizeArtifacts, formatCommand, truncate, jsonToolResult,
+      });
     }
 
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun) {

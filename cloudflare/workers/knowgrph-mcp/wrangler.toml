@@ -10,7 +10,7 @@
 
 name = "knowgrph-mcp"
 main = "index.ts"
-compatibility_date = "2026-05-29"
+compatibility_date = "2026-07-13"
 compatibility_flags = [ "nodejs_compat" ]
 
 [observability]
@@ -19,6 +19,9 @@ enabled = true
 [vars]
 KNOWGRPH_MCP_PUBLIC_BASE_URL = "https://airvio.co"
 KNOWGRPH_MCP_TOOL_LIST_NAME = "knowgrph-video-remix"
+KNOWGRPH_AGENT_MODEL = "@cf/aisingapore/gemma-sea-lion-v4-27b-it"
+# Required before serving authenticated MCP, agent-run POST, or persisted-run reads:
+#   npx wrangler secret put KNOWGRPH_AGENT_RUNTIME_BEARER_TOKEN --config cloudflare/workers/knowgrph-mcp/wrangler.toml
 # task 12.5 — env-gated live/mock stage clients. Default "0" keeps the Director
 # on deterministic mocks (zero live/paid calls). Flip to "1" to enable live
 # clients, or provide a provider credential as a SECRET (not a var):
@@ -35,12 +38,23 @@ KNOWGRPH_LIVE_CLIENTS = "0"
 #   Commerce: KNOWGRPH_PAYMENT_URL + KNOWGRPH_PAYMENT_API_KEY.
 
 # Streamable HTTP transport endpoint per Requirement R14.1.
+[ai]
+binding = "AI"
+
 [[routes]]
 pattern = "airvio.co/knowgrph/control-plane/mcp"
 zone_name = "airvio.co"
 
 [[routes]]
 pattern = "airvio.co/knowgrph/control-plane/mcp/*"
+zone_name = "airvio.co"
+
+[[routes]]
+pattern = "airvio.co/knowgrph/control-plane/agents"
+zone_name = "airvio.co"
+
+[[routes]]
+pattern = "airvio.co/knowgrph/control-plane/agents/*"
 zone_name = "airvio.co"
 
 # McpAgent maintains per-session state in a Durable Object. Task 1.2 adds a

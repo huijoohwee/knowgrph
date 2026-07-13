@@ -1,5 +1,10 @@
 from typing import List
 
+from .agent_definition_registry import (
+    DEFAULT_AGENT_DEFINITION_ID,
+    resolve_agent_definition,
+    resolve_agent_profile,
+)
 from .superagent_contracts import AgentContract, GoalSpec, TaskSpec
 
 
@@ -11,111 +16,45 @@ def resolve_video_tool_name(provider_mode: str = DEFAULT_SUPERAGENT_PROVIDER_MOD
     return "video.generate.mock" if normalized == "mock" else "video.generate.byteplus_modelark_placeholder"
 
 
-def build_agent_contracts(provider_mode: str = DEFAULT_SUPERAGENT_PROVIDER_MODE) -> List[AgentContract]:
-    video_tool_name = resolve_video_tool_name(provider_mode)
+def _resolve_tool_name(tool_name: str, provider_mode: str) -> str:
+    return resolve_video_tool_name(provider_mode) if tool_name == "video.generate" else tool_name
+
+
+def build_agent_contracts(
+    provider_mode: str = DEFAULT_SUPERAGENT_PROVIDER_MODE,
+    agent_definition_id: str = DEFAULT_AGENT_DEFINITION_ID,
+) -> List[AgentContract]:
+    definition = resolve_agent_definition(agent_definition_id)
+    profile = resolve_agent_profile(definition)
     return [
         AgentContract(
-            "planner",
-            "Normalize the goal, inspect constraints, and produce the active run plan.",
-            ["workspace.inspect"],
+            str(role["id"]),
+            str(role["responsibility"]),
+            [_resolve_tool_name(str(tool), provider_mode) for tool in role.get("tools") or []],
             "run",
-            "goal, input snapshot, tool inventory",
-            "input profile persisted",
-        ),
-        AgentContract(
-            "text_worker",
-            "Turn the brief into a scene plan, captions, narration, and media prompts.",
-            ["text.generate.mock"],
-            "run",
-            "text plan artifacts",
-            "scene plan persisted",
-        ),
-        AgentContract(
-            "research_worker",
-            "Build a source-grounded research pack from the brief, frontmatter, and corpus evidence.",
-            ["research.scout"],
-            "run",
-            "research pack artifacts",
-            "research pack persisted",
-        ),
-        AgentContract(
-            "skill_curator",
-            "Select registry-backed capability lanes and frontmatter skill hints needed for the run.",
-            ["skill.select"],
-            "run",
-            "selected skill artifacts",
-            "skill manifest persisted",
-        ),
-        AgentContract(
-            "code_worker",
-            "Create deterministic code and execute it in a bounded local sandbox artifact directory.",
-            ["code.write_and_run"],
-            "run",
-            "code and sandbox proof artifacts",
-            "sandbox result persisted",
-        ),
-        AgentContract(
-            "image_worker",
-            "Generate or mock a reference image from the scene plan.",
-            ["image.generate.mock"],
-            "run",
-            "image artifacts",
-            "image artifact persisted",
-        ),
-        AgentContract(
-            "video_worker",
-            "Generate or mock a video artifact from the scene plan and reference image.",
-            [video_tool_name],
-            "run",
-            "video artifacts",
-            "video artifact persisted",
-        ),
-        AgentContract(
-            "canvas_worker",
-            "Compose a typed canvas graph with media nodes, dependencies, and provenance.",
-            ["canvas.write"],
-            "run",
-            "canvas graph artifacts",
-            "canvas graph persisted",
-        ),
-        AgentContract(
-            "verifier",
-            "Judge trace completeness, artifact integrity, canvas topology, and stop criteria.",
-            ["judge.verify"],
-            "run",
-            "verification result",
-            "all hard checks passed or blocker recorded",
-        ),
-        AgentContract(
-            "synthesizer",
-            "Write the final report with artifact links, recovery events, and termination evidence.",
-            ["artifact.export_report"],
-            "run",
-            "final report",
-            "report persisted",
-        ),
+            f"{definition['id']} artifacts owned by {role['id']}",
+            f"{role['id']} completion recorded",
+        )
+        for role in profile.get("roles") or []
     ]
 
 
-def build_plan(provider_mode: str = DEFAULT_SUPERAGENT_PROVIDER_MODE) -> List[TaskSpec]:
-    video_tool_name = resolve_video_tool_name(provider_mode)
+def build_plan(
+    provider_mode: str = DEFAULT_SUPERAGENT_PROVIDER_MODE,
+    agent_definition_id: str = DEFAULT_AGENT_DEFINITION_ID,
+) -> List[TaskSpec]:
+    definition = resolve_agent_definition(agent_definition_id)
+    profile = resolve_agent_profile(definition)
     return [
-        TaskSpec("inspect_goal", "Inspect goal, input brief, and tool capabilities", "planner", "workspace.inspect"),
-        TaskSpec("select_skills", "Select registry-backed skills and frontmatter hints for the run", "skill_curator", "skill.select", ["inspect_goal"]),
-        TaskSpec("research_goal", "Research the input brief and produce an evidence pack", "research_worker", "research.scout", ["inspect_goal", "select_skills"]),
-        TaskSpec("code_sandbox", "Create and execute bounded sandbox code", "code_worker", "code.write_and_run", ["inspect_goal", "select_skills", "research_goal"]),
-        TaskSpec("generate_text", "Generate text plan and media prompts", "text_worker", "text.generate.mock", ["inspect_goal", "select_skills", "research_goal", "code_sandbox"]),
-        TaskSpec("generate_image", "Generate reference image", "image_worker", "image.generate.mock", ["generate_text"]),
-        TaskSpec("generate_video", "Generate storyboard video", "video_worker", video_tool_name, ["generate_text", "generate_image"]),
         TaskSpec(
-            "compose_canvas",
-            "Compose rich media canvas graph",
-            "canvas_worker",
-            "canvas.write",
-            ["inspect_goal", "select_skills", "research_goal", "code_sandbox", "generate_text", "generate_image", "generate_video"],
-        ),
-        TaskSpec("verify_outputs", "Verify artifacts, trace, canvas, and neutrality posture", "verifier", "judge.verify", ["compose_canvas"]),
-        TaskSpec("synthesize_report", "Export final run report", "synthesizer", "artifact.export_report", ["verify_outputs"], terminal=True),
+            str(task["id"]),
+            str(task["label"]),
+            str(task["role"]),
+            _resolve_tool_name(str(task["tool"]), provider_mode),
+            [str(dependency) for dependency in task.get("dependsOn") or []],
+            terminal=bool(task.get("terminal")),
+        )
+        for task in profile.get("tasks") or []
     ]
 
 

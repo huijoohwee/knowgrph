@@ -22,6 +22,7 @@ import {
   collectApprovedGateIds,
   executeKnowgrphMcpTool,
   executeKnowgrphMcpToolAsync,
+  AGENT_RUNTIME_TOOL_NAME,
   AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
   KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
   KNOWGRPH_MCP_STAGE_GATES,
@@ -29,16 +30,17 @@ import {
   KNOWGRPH_OS_STATUS_TOOL_NAME,
 } from "../tool-registry.mjs";
 
-test("tool surface lists the Director, all five stage tools, OS status, and docs invocation", () => {
+test("tool surface lists the generic agent runtime, Director, all five stage tools, OS status, and docs invocation", () => {
   const definitions = buildKnowgrphMcpToolDefinitions();
   const names = definitions.map((tool) => tool.name);
   assert.ok(names.includes(KNOWGRPH_MCP_DIRECTOR_TOOL_NAME));
+  assert.ok(names.includes(AGENT_RUNTIME_TOOL_NAME));
   for (const stageName of Object.values(KNOWGRPH_MCP_STAGE_TOOL_NAMES)) {
     assert.ok(names.includes(stageName), `missing stage tool: ${stageName}`);
   }
   assert.ok(names.includes(KNOWGRPH_OS_STATUS_TOOL_NAME));
   assert.ok(names.includes(AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME));
-  assert.equal(definitions.length, 8);
+  assert.equal(definitions.length, 9);
 });
 
 test("Property 26 / R14.4: every listed tool exposes a non-empty input schema AND output schema", () => {
@@ -47,6 +49,7 @@ test("Property 26 / R14.4: every listed tool exposes a non-empty input schema AN
   // The listing surface must cover the Director plus all five stage tools.
   const expectedNames = [
     KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
+    AGENT_RUNTIME_TOOL_NAME,
     ...Object.values(KNOWGRPH_MCP_STAGE_TOOL_NAMES),
     KNOWGRPH_OS_STATUS_TOOL_NAME,
     AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
@@ -78,6 +81,20 @@ test("Property 26 / R14.4: every listed tool exposes a non-empty input schema AN
     // R14.4: each listed tool includes its input schema AND its output schema.
     hasNonEmptyProperties(tool.inputSchema, `${tool.name} inputSchema`);
     hasNonEmptyProperties(tool.outputSchema, `${tool.name} outputSchema`);
+  }
+});
+
+test("generic agent runtime compiles each registered invocation through one zero-spend tool", () => {
+  for (const invocation of ["/investment-research-agent", "/sme-care-agent", "/video-agent"]) {
+    const result = executeKnowgrphMcpTool(AGENT_RUNTIME_TOOL_NAME, {
+      invocation,
+      brief: "Compile a deterministic dry-run plan.",
+      mode: "dry-run",
+      runId: `proof-${invocation.slice(1)}`,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.structuredContent.status, "planned");
+    assert.equal(result.structuredContent.budgetMeters.paidProviderCalls, 0);
   }
 });
 

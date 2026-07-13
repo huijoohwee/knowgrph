@@ -7,6 +7,7 @@ from dataclasses import asdict
 from typing import Iterable, Optional, Sequence, Set
 
 from .common import read_json, sha256_text, slugify, utc_now_iso, write_json, write_text
+from .agent_definition_registry import DEFAULT_AGENT_DEFINITION_ID, resolve_agent_definition
 from .superagent_contracts import (
     ERROR_CONFIG,
     ERROR_FATAL,
@@ -35,6 +36,7 @@ class SuperAgentHarness:
         goal_text: str,
         run_id: str,
         budget: RunBudget,
+        agent_definition_id: str = DEFAULT_AGENT_DEFINITION_ID,
         provider_mode: str = DEFAULT_SUPERAGENT_PROVIDER_MODE,
         resume: bool = False,
         stop_after_step: int = 0,
@@ -45,6 +47,8 @@ class SuperAgentHarness:
         self.goal_text = goal_text
         self.run_id = slugify(run_id)
         self.budget = budget
+        self.agent_definition = resolve_agent_definition(agent_definition_id)
+        self.agent_definition_id = str(self.agent_definition["id"])
         self.provider_mode = provider_mode
         self.resume = resume
         self.stop_after_step = max(0, int(stop_after_step or 0))
@@ -79,6 +83,7 @@ class SuperAgentHarness:
                 "run_id": self.run_id,
                 "resume": self.resume,
                 "provider_mode": self.provider_mode,
+                "agent_definition_id": self.agent_definition_id,
                 "budget": asdict(self.budget),
             },
         )
@@ -107,8 +112,8 @@ class SuperAgentHarness:
 
     def _new_state(self) -> JsonDict:
         goal_hash = sha256_text(self.goal_text)[:16]
-        tasks = build_plan(self.provider_mode)
-        agents = build_agent_contracts(self.provider_mode)
+        tasks = build_plan(self.provider_mode, self.agent_definition_id)
+        agents = build_agent_contracts(self.provider_mode, self.agent_definition_id)
         return {
             "run": {
                 "run_id": self.run_id,
@@ -120,11 +125,15 @@ class SuperAgentHarness:
                 "goal_hash": goal_hash,
                 "input_path": self.input_path,
                 "provider_mode": self.provider_mode,
+                "agent_definition_id": self.agent_definition_id,
+                "agent_invocation": self.agent_definition["invocation"],
+                "agent_definition_version": self.agent_definition["version"],
                 "step_count": 0,
                 "termination_reason": "",
                 "budget": asdict(self.budget),
             },
             "goal": asdict(parse_goal_contract(self.goal_text)),
+            "agent_definition": self.agent_definition,
             "agents": [asdict(agent) for agent in agents],
             "plan": [asdict(task) for task in tasks],
             "tool_registry": self.registry.describe(),
@@ -409,6 +418,7 @@ def run_harness(
     goal_text: str,
     run_id: str,
     budget: Optional[RunBudget] = None,
+    agent_definition_id: str = DEFAULT_AGENT_DEFINITION_ID,
     provider_mode: str = DEFAULT_SUPERAGENT_PROVIDER_MODE,
     resume: bool = False,
     stop_after_step: int = 0,
@@ -420,6 +430,7 @@ def run_harness(
         goal_text=goal_text,
         run_id=run_id,
         budget=budget or RunBudget(),
+        agent_definition_id=agent_definition_id,
         provider_mode=provider_mode,
         resume=resume,
         stop_after_step=stop_after_step,
@@ -434,6 +445,11 @@ def main(argv: Optional[Sequence[str]] = None, *, base_dir: Optional[str] = None
     parser.add_argument("--goal-file", default="", help="Path to the goal contract. Defaults to ./goal when present.")
     parser.add_argument("--output-dir", default="", help="Directory for state, trace, and artifacts.")
     parser.add_argument("--run-id", default="", help="Stable run id. Defaults to a timestamped id.")
+    parser.add_argument(
+        "--agent-definition",
+        default=DEFAULT_AGENT_DEFINITION_ID,
+        help="Agent definition id or slash invocation, for example agent.sme-care or /sme-care-agent.",
+    )
     parser.add_argument(
         "--provider-mode",
         default=DEFAULT_SUPERAGENT_PROVIDER_MODE,
@@ -463,6 +479,7 @@ def main(argv: Optional[Sequence[str]] = None, *, base_dir: Optional[str] = None
         state = read_json(os.path.join(output_dir, "state.json"))
         if isinstance(state, dict):
             run_id = str(state.get("run", {}).get("run_id") or run_id)
+            args.agent_definition = str(state.get("run", {}).get("agent_definition_id") or args.agent_definition)
 
     try:
         state = run_harness(
@@ -470,6 +487,7 @@ def main(argv: Optional[Sequence[str]] = None, *, base_dir: Optional[str] = None
             output_dir=output_dir,
             goal_text=goal_text,
             run_id=run_id,
+            agent_definition_id=str(args.agent_definition),
             budget=RunBudget(
                 max_steps=int(args.max_steps),
                 max_retries_per_task=int(args.max_retries),
