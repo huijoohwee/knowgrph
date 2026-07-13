@@ -65,6 +65,38 @@ export const validateContract = contract => {
   if (coordination.unique_active_scope !== true) throw new Error('coordination.unique_active_scope must be true')
   requireStringArray(coordination.protected_push_refs, 'coordination.protected_push_refs')
 
+  const localDevelopment = contract.local_development
+  if (!localDevelopment || typeof localDevelopment !== 'object') {
+    throw new Error('local_development mapping is required')
+  }
+  for (const key of ['canonical_mode', 'task_mode', 'mode_environment_variable']) {
+    if (typeof localDevelopment[key] !== 'string' || !localDevelopment[key]) {
+      throw new Error(`local_development.${key} is required`)
+    }
+  }
+  const canonicalSources = localDevelopment.canonical_sources
+  if (!Array.isArray(canonicalSources) || canonicalSources.length === 0) {
+    throw new Error('local_development.canonical_sources must be a non-empty array')
+  }
+  const sourceIds = new Set()
+  for (const [index, source] of canonicalSources.entries()) {
+    const label = `local_development.canonical_sources[${index}]`
+    if (!source || typeof source !== 'object' || Array.isArray(source)) throw new Error(`${label} must be a mapping`)
+    for (const key of ['id', 'repository_path', 'required_path', 'canonical_remote', 'canonical_branch']) {
+      if (typeof source[key] !== 'string' || !source[key]) throw new Error(`${label}.${key} is required`)
+    }
+    if (sourceIds.has(source.id)) throw new Error(`local_development.canonical_sources id ${source.id} is duplicated`)
+    sourceIds.add(source.id)
+    if (source.fetch_required !== true) throw new Error(`${label}.fetch_required must be true`)
+    if (source.clean_required !== true) throw new Error(`${label}.clean_required must be true`)
+    if (typeof source.task_divergence_allowed !== 'boolean') {
+      throw new Error(`${label}.task_divergence_allowed must be a boolean`)
+    }
+  }
+  if (canonicalSources.filter(source => source.task_divergence_allowed).length !== 1) {
+    throw new Error('local_development.canonical_sources must allow task divergence for exactly one source')
+  }
+
   const deployment = contract.deployment
   if (!deployment || typeof deployment !== 'object') throw new Error('deployment mapping is required')
   requireStringArray(deployment.allowed_workflows, 'deployment.allowed_workflows')
