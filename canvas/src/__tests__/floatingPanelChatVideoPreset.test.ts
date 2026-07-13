@@ -1,5 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import React, { act } from 'react'
+import { createRoot } from 'react-dom/client'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { TEST_VALIDATION_WORKSPACE_SEED_PATH } from '@/features/workspace-fs/workspaceFs'
 import {
@@ -7,6 +9,12 @@ import {
   loadVideoAgentDemoPreset,
   resolveVideoAgentDemoPresetWorkspacePath,
 } from '@/features/chat/videoAgentDemoPreset'
+import {
+  isPromptPresetCatalogError,
+  loadPromptPreset,
+  loadPromptPresetCatalog,
+  PROMPT_PRESET_CATALOG_WORKSPACE_PATH,
+} from '@/features/chat/promptPresetCatalog'
 import {
   buildVideoAgentPresetRunProgressResponse,
   isVideoAgentDemoPresetInvocation,
@@ -20,6 +28,10 @@ import {
 } from '@/features/canvas/workflowRunAllBridge'
 import { resolveStoryboardWidgetWorkflowRunGraphSnapshot } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowRunAll'
 import type { ChatMessage } from '@/features/chat/FloatingPanelChatSections'
+import { getChatInvocationOptions } from '@/features/chat/chatInvocationRegistry'
+import { FloatingPanelChatPromptPresetControl } from '@/features/chat/floatingPanelChat/FloatingPanelChatPromptPresetControl'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 import {
   adoptLatestChatHistoryTransition,
   getCachedChatHistory,
@@ -31,22 +43,52 @@ import {
 } from '@/features/chat/floatingPanelChat/floatingPanelChatRuntime'
 
 const sourcePath = '/docs/video-script.md'
-const invocation = '/video-agent @video-generation-demo-script @provider.byteplus @text @image @audio @video #spec.low [video-script.md](workspace:/docs/video-script.md)'
+const invocation = '/video-agent @video-generation-demo-script @provider.byteplus @text @image @audio @video #spec.low #thinking.type.enabled #token-cap.medium [video-script.md](workspace:/docs/video-script.md)'
+
+const promptCatalogMarkdown = [
+  '---',
+  'schema: "agentic-os-prompt-preset-catalog/v1"',
+  'prompt_presets:',
+  '  - id: "video-agent"',
+  '    label: "Video Agent"',
+  '    slash_command: "/video-agent"',
+  '    description: "Video preset"',
+  '    activation: "source-backed-canvas"',
+  '    prompt: |-',
+  `      ${invocation}`,
+  '',
+  '      Generate the complete source-backed video package.',
+  '  - id: "sme-care-agent"',
+  '    label: "SME Care Agent"',
+  '    slash_command: "/sme-care-agent"',
+  '    description: "SME preset"',
+  '    activation: "chat-agent"',
+  '    prompt: |-',
+  '      /sme-care-agent @source.frontmatter @source.body #runtime-ready',
+  '',
+  '      Assess the active SME sources.',
+  '  - id: "investment-research-agent"',
+  '    label: "Investment Research Agent"',
+  '    slash_command: "/investment-research-agent"',
+  '    description: "Investment preset"',
+  '    activation: "chat-agent"',
+  '    prompt: |-',
+  '      /investment-research-agent @source.body @runtime-proof #runtime-ready',
+  '',
+  '      Research the active investment sources.',
+  '---',
+  '',
+  '# Prompt presets',
+].join('\n')
 
 const presetMarkdown = [
   '---',
   'inputs:',
   `  video_generation_demo_script: "workspace:${sourcePath}"`,
-  `  default_invocation: "${invocation}"`,
+  '  prompt_preset_id: "video-agent"',
   '---',
   '',
   '# Video preset',
-  '',
-  '```text',
-  invocation,
-  '',
-  'Generate the complete source-backed video package.',
-  '```',
 ].join('\n')
 
 const createPresetWorkspace = async () => {
@@ -55,6 +97,9 @@ const createPresetWorkspace = async () => {
   await workspace.writeFileText(TEST_VALIDATION_WORKSPACE_SEED_PATH, presetMarkdown)
   await workspace.createFolder({ parentPath: '/', name: 'docs' })
   await workspace.createFile({ parentPath: '/docs', name: 'video-script.md', text: '# Source script' })
+  await workspace.createFolder({ parentPath: '/', name: 'agentic-canvas-os' })
+  await workspace.createFolder({ parentPath: '/agentic-canvas-os', name: 'docs' })
+  await workspace.createFile({ parentPath: '/agentic-canvas-os/docs', name: 'PROMPT-PRESETS.md', text: promptCatalogMarkdown })
   return workspace
 }
 
@@ -100,18 +145,99 @@ export async function testFloatingPanelChatVideoPresetFailsClosedWithoutSource()
   }
 }
 
+export async function testFloatingPanelChatPromptPresetCatalogLoadsThreeCentralizedAgents() {
+  const workspace = await createPresetWorkspace()
+  const catalog = await loadPromptPresetCatalog(workspace)
+  if (isPromptPresetCatalogError(catalog)) throw new Error(catalog.error)
+  if (catalog.sourcePath !== PROMPT_PRESET_CATALOG_WORKSPACE_PATH) throw new Error(`unexpected catalog source ${catalog.sourcePath}`)
+  if (catalog.presets.map(preset => preset.id).join(',') !== 'video-agent,sme-care-agent,investment-research-agent') {
+    throw new Error(`unexpected centralized prompt presets ${JSON.stringify(catalog.presets)}`)
+  }
+  for (const preset of catalog.presets) {
+    const loaded = await loadPromptPreset(preset.id, workspace)
+    if (isPromptPresetCatalogError(loaded) || !loaded.preset.prompt.startsWith(preset.slashCommand)) {
+      throw new Error(`expected ${preset.id} to load from the centralized catalog, got ${JSON.stringify(loaded)}`)
+    }
+  }
+}
+
+export async function testFloatingPanelChatPromptPresetCatalogFailsClosedOnMissingEntry() {
+  const workspace = await createPresetWorkspace()
+  await workspace.writeFileText(PROMPT_PRESET_CATALOG_WORKSPACE_PATH, promptCatalogMarkdown.replace('  - id: "investment-research-agent"', '  - id: "sme-care-agent"'))
+  const catalog = await loadPromptPresetCatalog(workspace)
+  if (!isPromptPresetCatalogError(catalog) || !catalog.error.includes('three unique presets')) {
+    throw new Error(`expected duplicate preset ids to fail closed, got ${JSON.stringify(catalog)}`)
+  }
+}
+
 export function testFloatingPanelChatVideoPresetRendersAfterNewChat() {
   const source = fs.readFileSync(path.join(process.cwd(), 'src', 'features', 'chat', 'FloatingPanelChatSections.tsx'), 'utf8')
   const newChatIndex = source.indexOf('UI_COPY.chatNewChatButtonLabel')
-  const presetIndex = source.indexOf('<FloatingPanelChatVideoPresetButton')
+  const presetIndex = source.indexOf('<FloatingPanelChatPromptPresetControl')
   if (newChatIndex < 0 || presetIndex <= newChatIndex) {
     throw new Error('expected the video preset control immediately after New Chat')
   }
 }
 
+export function testFloatingPanelChatPromptPresetControlOwnsSelectionAndLoad() {
+  const source = fs.readFileSync(path.join(process.cwd(), 'src', 'features', 'chat', 'floatingPanelChat', 'FloatingPanelChatPromptPresetControl.tsx'), 'utf8')
+  for (const expected of ['loadPromptPresetCatalog()', 'data-kg-chat-prompt-preset-control="true"', 'aria-label={UI_COPY.chatPromptPresetSelectLabel}', 'data-kg-chat-load-preset="true"']) {
+    if (!source.includes(expected)) throw new Error(`prompt preset selector missing ${expected}`)
+  }
+  if (source.includes('FloatingPanelChatVideoPresetButton') || source.includes('data-kg-chat-load-video-preset')) {
+    throw new Error('prompt preset selector must not preserve the stale video-only control')
+  }
+}
+
+export async function testFloatingPanelChatPromptPresetControlRendersAndLoadsAgentChoices() {
+  const workspace = await createPresetWorkspace()
+  const catalog = await loadPromptPresetCatalog(workspace)
+  if (isPromptPresetCatalogError(catalog)) throw new Error(catalog.error)
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  let loadedInput = ''
+  const setInput: React.Dispatch<React.SetStateAction<string>> = value => {
+    loadedInput = typeof value === 'function' ? value(loadedInput) : value
+  }
+  try {
+    await mountReactRoot(root, React.createElement(FloatingPanelChatPromptPresetControl, {
+      setInput,
+      disabled: false,
+      textSizeClassName: 'text-xs',
+      runtime: {
+        loadCatalog: async () => catalog,
+        loadPrompt: async id => {
+          const result = await loadPromptPreset(id, workspace)
+          return isPromptPresetCatalogError(result) ? result.error : result.preset.prompt
+        },
+      },
+    }), { window: dom.window as unknown as Window, frames: 4 })
+    const select = container.querySelector('select[aria-label="Prompt preset"]') as HTMLSelectElement | null
+    const loadButton = container.querySelector('button[data-kg-chat-load-preset="true"]') as HTMLButtonElement | null
+    if (!select || !loadButton) throw new Error('expected rendered prompt preset selector and Load preset button')
+    if ([...select.options].map(option => option.value).join(',') !== 'video-agent,sme-care-agent,investment-research-agent') {
+      throw new Error(`unexpected rendered preset choices ${[...select.options].map(option => option.value).join(',')}`)
+    }
+    for (const id of ['sme-care-agent', 'investment-research-agent']) {
+      await act(async () => {
+        select.value = id
+        select.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+      })
+      await act(async () => { loadButton.click() })
+      await waitForFrames(dom.window as unknown as Window, 3)
+      if (!loadedInput.startsWith(`/${id}`)) throw new Error(`expected ${id} selection to load its centralized prompt, got ${loadedInput}`)
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    restore()
+  }
+}
+
 export function testFloatingPanelChatVideoPresetInvocationBypassesGenericChat() {
   if (!isVideoAgentDemoPresetInvocation(invocation)) throw new Error('expected canonical video preset invocation')
-  const projectedSourceBinding = '/video-agent @video-generation-demo-script @provider.byteplus @text @image @audio @video #spec.low @[video-script.md](https://airvio.co/knowgrph/share/opaque)'
+  const projectedSourceBinding = '/video-agent @video-generation-demo-script @provider.byteplus @text @image @audio @video #spec.low #thinking.type.enabled #token-cap.medium @[video-script.md](https://airvio.co/knowgrph/share/opaque)'
   if (!isVideoAgentDemoPresetInvocation(projectedSourceBinding)) {
     throw new Error('expected the structured source-chip projection to retain preset routing')
   }
@@ -135,8 +261,19 @@ export function testFloatingPanelChatVideoPresetExecutionPreflightUsesInvocation
     chatAuthMode: 'byok',
     chatApiKey: 'test-key',
   })
-  if (byok.ok === false || byok.invocation.provider !== 'byteplus-modelark' || byok.invocation.specification !== 'low') {
-    throw new Error(`expected preset execution to use its BytePlus low-spec invocation, got ${JSON.stringify(byok)}`)
+  if (
+    byok.ok === false
+    || byok.invocation.provider !== 'byteplus-modelark'
+    || byok.invocation.specification !== 'low'
+    || byok.invocation.thinkingType !== 'enabled'
+    || byok.invocation.tokenCap !== 'medium'
+    || byok.invocation.reasoningEffort !== 'medium'
+    || byok.invocation.maxCompletionTokens !== 16384
+  ) {
+    throw new Error(`expected preset execution to use BytePlus low spec with enabled thinking and the default medium token cap, got ${JSON.stringify(byok)}`)
+  }
+  if (byok.invocation.prompt.includes('#thinking.type') || byok.invocation.prompt.includes('#token-cap')) {
+    throw new Error(`expected typed thinking and token-cap grammar to stay out of the provider prompt, got ${byok.invocation.prompt}`)
   }
   const missingByok = resolveVideoAgentPresetExecutionPreflight({
     input: invocation,
@@ -153,6 +290,43 @@ export function testFloatingPanelChatVideoPresetExecutionPreflightUsesInvocation
   })
   if (serverManaged.ok === false) {
     throw new Error(`expected server-managed preset execution to pass credential preflight, got ${JSON.stringify(serverManaged)}`)
+  }
+}
+
+export function testFloatingPanelChatVideoPresetResolvesThinkingAndTokenCapProfiles() {
+  const declaredTokens = new Set(getChatInvocationOptions().map(option => option.token))
+  for (const token of ['#thinking.type.enabled', '#thinking.type.disabled', '#thinking.type.auto', '#token-cap.low', '#token-cap.medium', '#token-cap.high']) {
+    if (!declaredTokens.has(token as `#${string}`)) throw new Error(`composer invocation registry missing ${token}`)
+  }
+  const tokenProfiles = [
+    { token: '#token-cap.low', tokenCap: 'low', reasoningEffort: 'low', maxCompletionTokens: 4096 },
+    { token: '#token-cap.medium', tokenCap: 'medium', reasoningEffort: 'medium', maxCompletionTokens: 16384 },
+    { token: '#token-cap.high', tokenCap: 'high', reasoningEffort: 'high', maxCompletionTokens: 32768 },
+  ] as const
+  for (const expected of tokenProfiles) {
+    const result = resolveVideoAgentPresetExecutionPreflight({
+      input: invocation.replace('#token-cap.medium', expected.token),
+      chatAuthMode: 'serverManaged',
+      chatApiKey: null,
+    })
+    if (
+      result.ok === false
+      || result.invocation.tokenCap !== expected.tokenCap
+      || result.invocation.reasoningEffort !== expected.reasoningEffort
+      || result.invocation.maxCompletionTokens !== expected.maxCompletionTokens
+    ) {
+      throw new Error(`unexpected ${expected.token} profile: ${JSON.stringify(result)}`)
+    }
+  }
+  for (const thinkingType of ['enabled', 'disabled', 'auto'] as const) {
+    const result = resolveVideoAgentPresetExecutionPreflight({
+      input: invocation.replace('#thinking.type.enabled', `#thinking.type.${thinkingType}`),
+      chatAuthMode: 'serverManaged',
+      chatApiKey: null,
+    })
+    if (result.ok === false || result.invocation.thinkingType !== thinkingType) {
+      throw new Error(`unexpected #thinking.type.${thinkingType} profile: ${JSON.stringify(result)}`)
+    }
   }
 }
 
@@ -288,8 +462,15 @@ export async function testFloatingPanelChatVideoPresetLogsActivationWithoutGener
   if (!submitSource.includes("source: 'chat'") || !submitSource.includes('onStatus: publishRunStatusToChat')) {
     throw new Error('preset submission must hand the committed source graph to the shared Run all owner')
   }
-  if (!submitSource.includes('setChatProvider(preflight.invocation.provider)')) {
-    throw new Error('preset submission must align the shared generation runtime to its explicit provider token')
+  for (const expectedSetting of [
+    'setChatProvider(preflight.invocation.provider)',
+    'setChatThinkingType(preflight.invocation.thinkingType)',
+    'setChatReasoningEffort(preflight.invocation.reasoningEffort)',
+    'setChatMaxCompletionTokens(preflight.invocation.maxCompletionTokens)',
+  ]) {
+    if (!submitSource.includes(expectedSetting)) {
+      throw new Error(`preset submission must project its typed invocation into the shared generation runtime: ${expectedSetting}`)
+    }
   }
   const runAllSource = fs.readFileSync(path.join(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowRunAll.ts'), 'utf8')
   const nodeRunnerSource = fs.readFileSync(path.join(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')

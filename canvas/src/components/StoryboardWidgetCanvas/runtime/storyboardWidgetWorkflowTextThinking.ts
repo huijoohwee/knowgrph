@@ -31,6 +31,8 @@ export function resolveStoryboardWidgetTextThinkingOptions(args: {
       ? args.resolvedMaxCompletionTokens
       : Math.max(Number(args.resolvedMaxCompletionTokens) || 0, VIDEO_SCRIPT_MINIMUM_COMPLETION_TOKENS),
     chatThinkingJson: '',
-    chatThinkingType: 'disabled',
+    chatThinkingType: owns(args.localProperties, 'chatThinkingType')
+      ? args.resolvedThinkingType
+      : 'enabled',
   }
 }

@@ -28,7 +28,7 @@ const buildVideoAgentPresetRunStartedResponse = (args: {
   invocation: GenerationInvocation
   authMode: 'byok' | 'serverManaged'
 }): string => (
-  `Loaded the source-backed agentic video canvas and started Run all with ${getChatProviderLabel(args.invocation.provider)} using ${args.authMode === 'byok' ? 'BYOK' : 'server-managed credentials'} at #spec.${args.invocation.specification}. Progress and typed failures appear in this Chat thread; returned text, image, audio, and video artifacts populate Cards, Widgets, Rich Media Panels, Timeline, Media, and Source Files.`
+  `Loaded the source-backed agentic video canvas and started Run all with ${getChatProviderLabel(args.invocation.provider)} using ${args.authMode === 'byok' ? 'BYOK' : 'server-managed credentials'} at #spec.${args.invocation.specification}, #thinking.type.${args.invocation.thinkingType}, and #token-cap.${args.invocation.tokenCap}. Progress and typed failures appear in this Chat thread; returned text, image, audio, and video artifacts populate Cards, Widgets, Rich Media Panels, Timeline, Media, and Source Files.`
 )
 
 export const buildVideoAgentPresetRunProgressResponse = (args: {
@@ -220,7 +220,11 @@ export const tryActivateVideoAgentDemoPreset = async (args: {
         chatApiKey: submitArgs.chatApiKey,
       })
       if (preflight.ok === false) throw new Error(preflight.error)
-      useGraphStore.getState().setChatProvider(preflight.invocation.provider)
+      const graphState = useGraphStore.getState()
+      graphState.setChatProvider(preflight.invocation.provider)
+      graphState.setChatThinkingType(preflight.invocation.thinkingType)
+      graphState.setChatReasoningEffort(preflight.invocation.reasoningEffort)
+      graphState.setChatMaxCompletionTokens(preflight.invocation.maxCompletionTokens)
       startedResponse = buildVideoAgentPresetRunStartedResponse({
         invocation: preflight.invocation,
         authMode: submitArgs.chatAuthMode,

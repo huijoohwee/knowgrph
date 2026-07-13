@@ -1,6 +1,6 @@
 import { resolveStoryboardWidgetTextThinkingOptions } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowTextThinking'
 
-export function testVideoScriptWorkflowDefaultsToFinalOutputThinkingMode() {
+export function testVideoScriptWorkflowDefaultsToEnabledThinkingMode() {
   const resolved = resolveStoryboardWidgetTextThinkingOptions({
     formId: 'videoScript',
     localProperties: {},
@@ -8,15 +8,15 @@ export function testVideoScriptWorkflowDefaultsToFinalOutputThinkingMode() {
     resolvedThinkingJson: '{"type":"enabled"}',
     resolvedThinkingType: 'enabled',
   })
-  if (resolved.chatThinkingType !== 'disabled' || resolved.chatThinkingJson !== '') {
-    throw new Error(`expected videoScript to prevent inherited reasoning from consuming its final-output budget, got ${JSON.stringify(resolved)}`)
+  if (resolved.chatThinkingType !== 'enabled' || resolved.chatThinkingJson !== '') {
+    throw new Error(`expected videoScript to use the typed enabled thinking mode, got ${JSON.stringify(resolved)}`)
   }
   if (resolved.chatMaxCompletionTokens !== 4096) {
     throw new Error(`expected videoScript to reserve enough final-output tokens, got ${JSON.stringify(resolved)}`)
   }
 }
 
-export function testVideoScriptWorkflowRejectsConflictingThinkingOverride() {
+export function testVideoScriptWorkflowPreservesTypedThinkingOverride() {
   const resolved = resolveStoryboardWidgetTextThinkingOptions({
     formId: 'videoScript',
     localProperties: {
@@ -28,8 +28,8 @@ export function testVideoScriptWorkflowRejectsConflictingThinkingOverride() {
     resolvedThinkingJson: '{"type":"auto"}',
     resolvedThinkingType: 'auto',
   })
-  if (resolved.chatThinkingType !== 'disabled' || resolved.chatThinkingJson !== '') {
-    throw new Error(`expected videoScript to reject thinking controls that conflict with final-output generation, got ${JSON.stringify(resolved)}`)
+  if (resolved.chatThinkingType !== 'auto' || resolved.chatThinkingJson !== '') {
+    throw new Error(`expected videoScript to preserve its typed thinking override without a conflicting JSON payload, got ${JSON.stringify(resolved)}`)
   }
   if (resolved.chatMaxCompletionTokens !== 2048) {
     throw new Error(`expected explicit videoScript token budget to remain authoritative, got ${JSON.stringify(resolved)}`)

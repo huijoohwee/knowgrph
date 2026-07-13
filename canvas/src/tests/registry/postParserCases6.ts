@@ -1,8 +1,8 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
-  ["storyboardWidget.videoScript.thinkingDefaultsToFinalOutput","@/__tests__/storyboardWidgetWorkflowTextThinking.test","testVideoScriptWorkflowDefaultsToFinalOutputThinkingMode"],
-  ["storyboardWidget.videoScript.thinkingRejectsConflictingOverride","@/__tests__/storyboardWidgetWorkflowTextThinking.test","testVideoScriptWorkflowRejectsConflictingThinkingOverride"],
+  ["storyboardWidget.videoScript.thinkingDefaultsToEnabled","@/__tests__/storyboardWidgetWorkflowTextThinking.test","testVideoScriptWorkflowDefaultsToEnabledThinkingMode"],
+  ["storyboardWidget.videoScript.thinkingPreservesTypedOverride","@/__tests__/storyboardWidgetWorkflowTextThinking.test","testVideoScriptWorkflowPreservesTypedThinkingOverride"],
   ["storyboardWidget.textGeneration.thinkingPreservesGlobalMode","@/__tests__/storyboardWidgetWorkflowTextThinking.test","testOrdinaryTextWorkflowPreservesGlobalThinkingMode"],
   ["byteplus.run.text.reasoningOnlyLengthIsTyped","@/__tests__/byteplusRunTextTerminal.test","testBytePlusRunTextReportsReasoningOnlyLengthTerminal"],
   ["byteplus.run.text.missingEndpointFailsBeforeFetch","@/__tests__/byteplusRunTextTerminal.test","testBytePlusRunTextRejectsMissingEndpointBeforeFetch"],
@@ -36,9 +36,14 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["ui.floatingPanelChat.videoPreset.loadsSourceBackedInvocation","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetLoadsSourceBackedInvocation"],
   ["ui.floatingPanelChat.videoPreset.prefersCanonicalDocsMirror","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetPrefersCanonicalDocsMirrorAtRuntime"],
   ["ui.floatingPanelChat.videoPreset.failsClosedWithoutSource","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetFailsClosedWithoutSource"],
+  ["ui.floatingPanelChat.promptPreset.centralizedCatalog","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatPromptPresetCatalogLoadsThreeCentralizedAgents"],
+  ["ui.floatingPanelChat.promptPreset.invalidCatalogFailsClosed","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatPromptPresetCatalogFailsClosedOnMissingEntry"],
   ["ui.floatingPanelChat.videoPreset.rendersAfterNewChat","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetRendersAfterNewChat"],
+  ["ui.floatingPanelChat.promptPreset.selectorControl","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatPromptPresetControlOwnsSelectionAndLoad"],
+  ["ui.floatingPanelChat.promptPreset.renderedChoices","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatPromptPresetControlRendersAndLoadsAgentChoices"],
   ["ui.floatingPanelChat.videoPreset.bypassesGenericChat","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetInvocationBypassesGenericChat"],
   ["ui.floatingPanelChat.videoPreset.executionPreflight","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetExecutionPreflightUsesInvocationProvider"],
+  ["ui.floatingPanelChat.videoPreset.thinkingAndTokenCapProfiles","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetResolvesThinkingAndTokenCapProfiles"],
   ["ui.floatingPanelChat.videoPreset.committedRunAllOwner","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetQueuesCommittedRunAllOwner"],
   ["ui.floatingPanelChat.videoPreset.exactCommittedGraphSnapshot","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetUsesExactCommittedGraphSnapshot"],
   ["ui.floatingPanelChat.videoPreset.runProgressAssistantBubble","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetRunProgressUpdatesAssistantBubble"],

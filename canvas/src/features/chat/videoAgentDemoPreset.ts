@@ -8,6 +8,7 @@ import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { readWorkspaceInitializationDocsMirrorEntries, readWorkspaceInitializationSeedText } from '@/features/workspace-fs/workspaceSeedProvider'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { parseGenerationInvocation } from './generationInvocation'
+import { isPromptPresetCatalogError, loadPromptPreset } from './promptPresetCatalog'
 
 type PlainRecord = Record<string, unknown>
 
@@ -35,11 +36,6 @@ const normalizeWorkspaceReferencePath = (value: unknown): string => {
   const raw = String(value || '').trim()
   if (!raw.startsWith('workspace:/')) return ''
   return raw.slice('workspace:'.length)
-}
-
-const readExecutablePrompt = (markdownText: string): string => {
-  const match = markdownText.match(/```text\s*\n([\s\S]*?)\n```/i)
-  return String(match?.[1] || '').trim()
 }
 
 const materializeWorkspaceFile = async (fs: WorkspaceFs, path: string, text: string): Promise<void> => {
@@ -97,10 +93,13 @@ export const loadVideoAgentDemoPreset = async (fsOverride?: WorkspaceFs): Promis
   const frontmatter = parseFrontmatter(markdownText)
   const inputs = isRecord(frontmatter?.inputs) ? frontmatter.inputs : null
   const sourcePath = normalizeWorkspaceReferencePath(inputs?.video_generation_demo_script)
-  const prompt = readExecutablePrompt(markdownText)
-  if (!inputs || !sourcePath || !prompt || !parseGenerationInvocation(prompt)) {
-    return { ok: false, error: 'Preset is missing a valid source-backed /video-agent invocation.' }
+  if (!inputs || inputs.prompt_preset_id !== 'video-agent' || !sourcePath) {
+    return { ok: false, error: 'Video Canvas is missing its centralized video-agent prompt preset binding.' }
   }
+  const promptPreset = await loadPromptPreset('video-agent', fs)
+  if (isPromptPresetCatalogError(promptPreset)) return promptPreset
+  const prompt = promptPreset.preset.prompt
+  if (!parseGenerationInvocation(prompt)) return { ok: false, error: 'Centralized video-agent prompt preset is invalid.' }
   const sourceText = (await fs.readFileText(sourcePath)) || await readMirrorText(sourcePath)
   if (!sourceText) {
     return { ok: false, error: `Import the preset source first: ${sourcePath}` }
