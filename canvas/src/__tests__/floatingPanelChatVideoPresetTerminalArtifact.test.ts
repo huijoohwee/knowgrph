@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { finalizeVideoAgentDemoPresetTerminalStatus } from '@/features/chat/floatingPanelChat/videoAgentDemoPresetSubmit'
 
 const invocation = '/video-agent @video-generation-demo-script @provider.byteplus @text @image @audio @video #spec.low #thinking.type.enabled #token-cap.medium [video-script.md](workspace:/docs/video-script.md)'
@@ -38,5 +40,14 @@ export async function testFloatingPanelChatVideoPresetPersistsOnlyTerminalRunSta
     || !payload?.rawAssistantText.includes('Run All complete: ran 3 nodes.')
   ) {
     throw new Error(`expected one forward-only terminal KGC finalization that preserves the preset graph, got ${JSON.stringify(payloads)}`)
+  }
+
+  const finalizerSource = fs.readFileSync(path.join(process.cwd(), 'src', 'features', 'chat', 'floatingPanelChat', 'useFinalizeAssistantSuccess.ts'), 'utf8')
+  if (!finalizerSource.includes([
+    'if (applyWorkspaceDocumentToCanvas) {',
+    '          args.followWorkspaceMarkdownPath(knowgrphPath, { forceReveal: true })',
+    '          canvasApplied = await applyChatKgcWorkspaceDocumentToCanvas(knowgrphPath)',
+  ].join('\n'))) {
+    throw new Error('persist-only terminal finalization must suppress both workspace selection and direct canvas apply')
   }
 }

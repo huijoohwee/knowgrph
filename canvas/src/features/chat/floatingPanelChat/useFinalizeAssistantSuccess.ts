@@ -310,10 +310,11 @@ export const useFinalizeAssistantSuccess = (args: {
     let canvasApplyError: string | null = null
     try {
       if (args.chatStorageTarget === 'chatKnowgrph' && knowgrphPath) {
-        args.followWorkspaceMarkdownPath(knowgrphPath, { forceReveal: true })
-        canvasApplied = applyWorkspaceDocumentToCanvas
-          ? await applyChatKgcWorkspaceDocumentToCanvas(knowgrphPath)
-          : false
+        canvasApplied = false
+        if (applyWorkspaceDocumentToCanvas) {
+          args.followWorkspaceMarkdownPath(knowgrphPath, { forceReveal: true })
+          canvasApplied = await applyChatKgcWorkspaceDocumentToCanvas(knowgrphPath)
+        }
         publishLocalChatPipelineFinalizeSnapshot({
           stage: canvasApplied ? 'applied' : 'skipped',
           traceId,
