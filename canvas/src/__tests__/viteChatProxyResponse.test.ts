@@ -70,6 +70,42 @@ export async function testChatProxyRejectsEmptyJsonBeforePublishingSuccessHeader
   }
 }
 
+export async function testChatProxyRejectsEmptyBodyWithoutContentTypeBeforePublishingSuccessHeaders() {
+  const output = createTarget()
+  let failure = ''
+  try {
+    await forwardChatProxyUpstreamResponse({
+      response: new Response('', { status: 200 }),
+      target: output.target,
+      requestOrigin: '',
+    })
+  } catch (error) {
+    failure = error instanceof Error ? error.message : String(error)
+  }
+  if (!failure.includes('empty response')) throw new Error(`expected empty body failure, got ${JSON.stringify(failure)}`)
+  if (output.target.statusCode !== 0 || output.headers.size !== 0 || output.readEnded()) {
+    throw new Error('expected an untyped empty body to fail before a downstream success response starts')
+  }
+}
+
+export async function testChatProxyRejectsEmptyEventStreamBeforePublishingSuccessHeaders() {
+  const output = createTarget()
+  let failure = ''
+  try {
+    await forwardChatProxyUpstreamResponse({
+      response: new Response('', { status: 200, headers: { 'content-type': 'text/event-stream' } }),
+      target: output.target,
+      requestOrigin: '',
+    })
+  } catch (error) {
+    failure = error instanceof Error ? error.message : String(error)
+  }
+  if (!failure.includes('empty event stream')) throw new Error(`expected empty event stream failure, got ${JSON.stringify(failure)}`)
+  if (output.target.statusCode !== 0 || output.headers.size !== 0 || output.readEnded()) {
+    throw new Error('expected an empty event stream to fail before a downstream success response starts')
+  }
+}
+
 export async function testChatProxyForwardsCompleteBufferedJson() {
   const output = createTarget()
   const mode = await forwardChatProxyUpstreamResponse({

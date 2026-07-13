@@ -33,9 +33,12 @@ const applyUpstreamHeaders = (args: {
 
 const validateBufferedBody = (response: Response, body: Buffer): void => {
   const contentType = String(response.headers.get('content-type') || '').toLowerCase()
-  if (!isJsonContentType(contentType)) return
   const text = body.toString('utf8').trim()
-  if (!text) throw new Error(`Chat proxy upstream returned an empty JSON response (HTTP ${response.status})`)
+  if (!text) {
+    const responseKind = isJsonContentType(contentType) ? 'JSON response' : 'response'
+    throw new Error(`Chat proxy upstream returned an empty ${responseKind} (HTTP ${response.status})`)
+  }
+  if (!isJsonContentType(contentType)) return
   try {
     JSON.parse(text)
   } catch {
@@ -90,12 +93,20 @@ export const forwardChatProxyUpstreamResponse = async (args: {
     return 'buffered'
   }
 
-  applyUpstreamHeaders(args)
   const reader = args.response.body?.getReader()
   if (!reader) {
-    args.target.end()
-    return 'streamed'
+    throw new Error(`Chat proxy upstream returned an empty event stream (HTTP ${args.response.status})`)
   }
+  let firstChunk: Uint8Array | null = null
+  while (!firstChunk) {
+    const chunk = await reader.read()
+    if (chunk.done) {
+      throw new Error(`Chat proxy upstream returned an empty event stream (HTTP ${args.response.status})`)
+    }
+    if (chunk.value?.byteLength) firstChunk = chunk.value
+  }
+  applyUpstreamHeaders(args)
+  args.target.write(Buffer.from(firstChunk))
   while (true) {
     const chunk = await reader.read()
     if (chunk.done) break
