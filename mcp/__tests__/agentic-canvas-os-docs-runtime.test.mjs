@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,10 +16,16 @@ import { buildKnowgrphLocalMcpToolDefinitions, KNOWGRPH_LOCAL_MCP_TOOL_NAMES } f
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const KNOWGRPH_ROOT = path.resolve(__dirname, "..", "..");
-const DOCS_ROOT = path.resolve(KNOWGRPH_ROOT, "..", "agentic-canvas-os", "docs");
+const DOCS_ROOT = process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT
+  ? path.resolve(process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT)
+  : path.resolve(KNOWGRPH_ROOT, "..", "agentic-canvas-os", "docs");
+const DOCS_ENV = process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT
+  ? { KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: DOCS_ROOT }
+  : {};
+const DOCS_AVAILABLE = existsSync(path.join(DOCS_ROOT, "FACTS.md"));
 
-test("Agentic Canvas OS docs root resolves to sibling agentic-canvas-os/docs", () => {
-  assert.equal(resolveAgenticCanvasOsDocsRoot({ rootDir: KNOWGRPH_ROOT, env: {} }), DOCS_ROOT);
+test("Agentic Canvas OS docs root resolves from explicit configuration or the sibling default", () => {
+  assert.equal(resolveAgenticCanvasOsDocsRoot({ rootDir: KNOWGRPH_ROOT, env: DOCS_ENV }), DOCS_ROOT);
 });
 
 test("local MCP descriptor exposes Agentic Canvas OS docs invocation as read-only", () => {
@@ -31,10 +38,10 @@ test("local MCP descriptor exposes Agentic Canvas OS docs invocation as read-onl
   assert.equal(descriptor.inputSchema.properties.token.type, "string");
 });
 
-test("local MCP docs invocation catalogs /, #, and @ entries from source docs", async () => {
+test("local MCP docs invocation catalogs /, #, and @ entries from source docs", { skip: !DOCS_AVAILABLE }, async () => {
   const result = await runAgenticCanvasOsDocsInvokeTool({ limit: 500 }, {
     rootDir: KNOWGRPH_ROOT,
-    env: {},
+    env: DOCS_ENV,
   });
 
   assert.equal(result.ok, true);
@@ -51,11 +58,11 @@ test("local MCP docs invocation catalogs /, #, and @ entries from source docs", 
   assert.ok(result.catalog.some((entry) => entry.token === "@sandbox-policy"));
 });
 
-test("local MCP docs invocation resolves specific /, #, and @ tokens with source content", async () => {
+test("local MCP docs invocation resolves specific /, #, and @ tokens with source content", { skip: !DOCS_AVAILABLE }, async () => {
   for (const token of ["/query", "#runtime-ready", "@mcp-gateway"]) {
     const result = await runAgenticCanvasOsDocsInvokeTool({ token, includeContent: true }, {
       rootDir: KNOWGRPH_ROOT,
-      env: {},
+      env: DOCS_ENV,
     });
 
     assert.equal(result.ok, true);
@@ -66,11 +73,11 @@ test("local MCP docs invocation resolves specific /, #, and @ tokens with source
   }
 });
 
-test("local MCP docs invocation resolves native sandbox policy routes from source dictionaries", async () => {
+test("local MCP docs invocation resolves native sandbox policy routes from source dictionaries", { skip: !DOCS_AVAILABLE }, async () => {
   for (const token of ["/sandbox.policy.validate", "/sandbox.policy.authorize", "#agent-sandbox-policy", "@sandbox-policy"]) {
     const result = await runAgenticCanvasOsDocsInvokeTool({ token, includeContent: true }, {
       rootDir: KNOWGRPH_ROOT,
-      env: {},
+      env: DOCS_ENV,
     });
     assert.equal(result.ok, true);
     assert.equal(result.invocation.token, token);

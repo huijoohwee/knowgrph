@@ -5,7 +5,7 @@
 //   * the workflow wraps `runVideoRemix` and preserves its Run_Manifest shape
 //     (Section-1 McpAgent compatibility, reuse-not-rebuild),
 //   * the four lane builders are wired as the workflow plan,
-//   * the canonical stage ordering research -> storyboard -> render ->
+//   * the canonical stage ordering research -> storyboard -> render -> edit ->
 //     publish -> checkout is established and the produced Run_Manifest's stage
 //     sequence is a prefix of it (Property 7).
 //
@@ -20,7 +20,6 @@ import { runVideoRemix } from "../video-remix-runtime.js";
 import {
   DIRECTOR_STAGE_ORDER,
   DIRECTOR_STAGE_GATES,
-  DIRECTOR_PREFLIGHT_STAGE,
   DIRECTOR_TOOL_NAME,
   DIRECTOR_SEAMS,
   buildDirectorPlan,
@@ -56,10 +55,10 @@ const VALID_RUN_ARGS = Object.freeze({
 // Canonical ordering constant (R4.1 / Property 7).
 // ---------------------------------------------------------------------------
 
-test("canonical stage order is research -> storyboard -> render -> publish -> checkout", () => {
+test("canonical stage order includes edit between render and publish", () => {
   assert.deepEqual(
     [...DIRECTOR_STAGE_ORDER],
-    ["research", "storyboard", "render", "publish", "checkout"],
+    ["research", "storyboard", "render", "edit", "publish", "checkout"],
   );
 });
 
@@ -106,22 +105,16 @@ test("seam map documents the 2.2-2.16 follow-on tasks", () => {
 // Stage-ordering invariant (Property 7) over real runtime output.
 // ---------------------------------------------------------------------------
 
-test("runtime Run_Manifest now includes a publish stage between render and checkout", () => {
+test("runtime Run_Manifest derives the canonical stage order", () => {
   const { payload } = runVideoRemix(VALID_RUN_ARGS);
   const ids = payload.stages.map((s) => s.id);
-  // ingest is the preflight bookkeeping stage; the pipeline follows it.
-  assert.deepEqual(ids, ["ingest", "research", "storyboard", "render", "publish", "checkout"]);
-  const renderIdx = ids.indexOf("render");
-  const publishIdx = ids.indexOf("publish");
-  const checkoutIdx = ids.indexOf("checkout");
-  assert.ok(renderIdx < publishIdx && publishIdx < checkoutIdx, "publish sits between render and checkout");
+  assert.deepEqual(ids, [...DIRECTOR_STAGE_ORDER]);
 });
 
-test("extractDirectorStageOrder drops the ingest preflight stage", () => {
+test("extractDirectorStageOrder returns the complete canonical sequence", () => {
   const { payload } = runVideoRemix(VALID_RUN_ARGS);
   const observed = extractDirectorStageOrder(payload);
-  assert.ok(!observed.includes(DIRECTOR_PREFLIGHT_STAGE));
-  assert.deepEqual(observed, ["research", "storyboard", "render", "publish", "checkout"]);
+  assert.deepEqual(observed, [...DIRECTOR_STAGE_ORDER]);
 });
 
 test("checkStageOrderingInvariant passes for a complete live run", () => {
@@ -157,7 +150,6 @@ test("checkStageOrderingInvariant detects a reordered sequence", () => {
   const reordered = {
     runId: "bad",
     stages: [
-      { id: "ingest", status: "complete" },
       { id: "storyboard", status: "complete" },
       { id: "research", status: "complete" },
     ],
@@ -225,7 +217,6 @@ test("runDirectorWorkflow honors an injected runtime (seam for tests / future SD
       payload: {
         runId: "injected",
         stages: [
-          { id: "ingest", status: "complete" },
           { id: "research", status: "complete" },
           { id: "storyboard", status: "complete" },
         ],
@@ -315,9 +306,9 @@ test("NEGATIVE CASE: a weak-signal research stage halts every downstream stage",
   assert.equal(byId.research.status, "weak_signal");
   assert.equal(wrapped.workflow.orderingFrontier, "research");
 
-  // No stage after research may have begun: storyboard/render/publish/checkout
+  // No stage after research may have begun.
   // must all be held at a not-begun status (pending/blocked/blocked_weak_signal).
-  for (const stageId of ["storyboard", "render", "publish", "checkout"]) {
+  for (const stageId of ["storyboard", "render", "edit", "publish", "checkout"]) {
     assert.equal(
       hasStageBegun(byId[stageId].status),
       false,
@@ -339,13 +330,15 @@ test("NEGATIVE CASE: an unapproved render gate halts publish and checkout", () =
   assert.equal(byId.render.status, "approval_required");
   assert.equal(wrapped.workflow.orderingFrontier, "render");
 
-  // publish and checkout must NOT begin (no approval_required, no dry_run_ready)
+  // edit, publish, and checkout must not begin.
   // until render completes — they are downgraded/held.
+  assert.equal(hasStageBegun(byId.edit.status), false, `edit held (status=${byId.edit.status})`);
   assert.equal(hasStageBegun(byId.publish.status), false, `publish held (status=${byId.publish.status})`);
   assert.equal(hasStageBegun(byId.checkout.status), false, `checkout held (status=${byId.checkout.status})`);
 
-  // Those two stages were downgraded by the ordering enforcer.
+  // All three stages were downgraded by the ordering enforcer.
   const haltedIds = wrapped.workflow.orderingHalts.map((d) => d.stageId);
+  assert.ok(haltedIds.includes("edit"));
   assert.ok(haltedIds.includes("publish"));
   assert.ok(haltedIds.includes("checkout"));
 
@@ -358,7 +351,6 @@ test("checkStrictStageOrdering flags a stage that began before its predecessor c
   const violating = {
     runId: "synthetic-violation",
     stages: [
-      { id: "ingest", status: "complete" },
       { id: "research", status: "weak_signal" },
       { id: "storyboard", status: "approval_required" },
       { id: "render", status: "dry_run_ready" },
@@ -378,7 +370,6 @@ test("enforceStrictStageOrdering downgrades begun downstream stages and is non-m
   const violating = {
     runId: "synthetic-violation",
     stages: [
-      { id: "ingest", status: "complete" },
       { id: "research", status: "weak_signal" },
       { id: "storyboard", status: "approval_required" },
       { id: "checkout", status: "dry_run_ready" },
@@ -392,21 +383,19 @@ test("enforceStrictStageOrdering downgrades begun downstream stages and is non-m
   assert.equal(byId.storyboard.status, "blocked");
   assert.equal(byId.checkout.status, "blocked");
   assert.equal(byId.research.status, "weak_signal"); // frontier untouched
-  assert.equal(byId.ingest.status, "complete"); // preflight untouched
 
   // Enforced manifest now satisfies the strict check.
   assert.equal(checkStrictStageOrdering(enforced.manifest).ok, true);
 
   // Original input is left intact (non-mutating).
-  assert.equal(violating.stages[2].status, "approval_required");
-  assert.equal(violating.stages[3].status, "dry_run_ready");
+  assert.equal(violating.stages[1].status, "approval_required");
+  assert.equal(violating.stages[2].status, "dry_run_ready");
 });
 
 test("enforceStrictStageOrdering leaves a clean prefix-complete run untouched", () => {
   const clean = {
     runId: "clean",
     stages: [
-      { id: "ingest", status: "complete" },
       { id: "research", status: "complete" },
       { id: "storyboard", status: "complete" },
       { id: "render", status: "approval_required" }, // frontier, allowed to begin
@@ -415,5 +404,5 @@ test("enforceStrictStageOrdering leaves a clean prefix-complete run untouched", 
   const enforced = enforceStrictStageOrdering(clean);
   assert.deepEqual(enforced.downgrades, []);
   assert.equal(enforced.frontier, "render");
-  assert.equal(enforced.manifest.stages[3].status, "approval_required");
+  assert.equal(enforced.manifest.stages[2].status, "approval_required");
 });

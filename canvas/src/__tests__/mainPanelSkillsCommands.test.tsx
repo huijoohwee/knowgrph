@@ -3,9 +3,8 @@ import { resolve } from 'node:path'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  AGENTIC_OS_BINDING_INVOCATIONS,
-  AGENTIC_OS_COMMAND_INVOCATIONS,
-  AGENTIC_OS_DOC_INVOCATIONS,
+  getAgenticOsBindingInvocations,
+  getAgenticOsCommandInvocations,
 } from '@/features/agentic-os/agenticOsDocInvocations'
 import { getChatInvocationOptions } from '@/features/chat/chatInvocationRegistry'
 import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
@@ -28,7 +27,29 @@ const setInputValue = (window: InputHarnessWindow, input: HTMLInputElement, valu
   input.dispatchEvent(new window.Event('change', { bubbles: true }))
 }
 
+const registerAuthoritativeGrammar = () => {
+  const fileByKind = {
+    command: 'DICTIONARY-COMMAND.md',
+    semantic: 'DICTIONARY-SEMANTIC.md',
+    binding: 'DICTIONARY-BINDING.md',
+  } as const
+  registerAgenticOsRemoteGrammarCatalogEntries(Object.entries(fileByKind).flatMap(([kind, fileName]) => {
+    const source = readFileSync(resolve(process.cwd(), '../../agentic-canvas-os/docs', fileName), 'utf8')
+    const match = /^dictionary_entries:\n((?:[ ]{2}- .+\n)+)/m.exec(source)
+    if (!match) throw new Error(`Expected ${fileName} to expose dictionary_entries`)
+    return match[1].split(/\r?\n/).map(line => line.trim().replace(/^- /, '').replace(/^"|"$/g, '')).filter(Boolean).map(token => ({
+      token,
+      kind,
+      label: token.replace(/^[/#@]/, '').replace(/[._-]+/g, ' '),
+      sourcePath: `${fileName}#${token}`,
+      sourceUrl: `https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/${fileName}#${token}`,
+    }))
+  }))
+}
+
 export async function testFloatingPanelSkillsCommandsViewRendersSlashInvokableSkills() {
+  resetAgenticOsRemoteGrammarCatalogForTests()
+  registerAuthoritativeGrammar()
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
   const container = doc.createElement('section')
@@ -87,33 +108,28 @@ export async function testFloatingPanelSkillsCommandsViewRendersSlashInvokableSk
     const slashEntries = container.querySelectorAll('[data-kg-skill-command-slash]')
     const hashEntries = container.querySelectorAll('[data-kg-skill-command-hash]')
     const atEntries = container.querySelectorAll('[data-kg-skill-command-at]')
-    const expectedSlashCount = CHAT_SKILL_OPTIONS.length + AGENTIC_OS_COMMAND_INVOCATIONS.length + AGENTIC_OS_DOC_INVOCATIONS.length
+    const expectedSlashCount = CHAT_SKILL_OPTIONS.length + getAgenticOsCommandInvocations().length
     const expectedHashCount = getChatInvocationOptions().length
-    const expectedAtCount = AGENTIC_OS_BINDING_INVOCATIONS.length + AGENTIC_OS_DOC_INVOCATIONS.length
+    const expectedAtCount = getAgenticOsBindingInvocations().length
     if (slashEntries.length !== expectedSlashCount || hashEntries.length !== expectedHashCount || atEntries.length !== expectedAtCount) {
       throw new Error(`Expected Skills & Commands to render all / # @ entries, got slash=${slashEntries.length}/${expectedSlashCount} hash=${hashEntries.length}/${expectedHashCount} at=${atEntries.length}/${expectedAtCount}`)
     }
     if (!container.querySelector('[data-kg-floating-panel-catalog-list="skills-commands"]') || !container.querySelector('[data-kg-floating-panel-catalog-row-layout="compact-list"]')) {
       throw new Error('Expected Skills & Commands catalog rows to reuse the shared FloatingPanel catalog compact-list layout')
     }
-    const superagentRun = AGENTIC_OS_COMMAND_INVOCATIONS.find(invocation => invocation.token === '/superagent.run')
+    const superagentRun = getAgenticOsCommandInvocations().find(invocation => invocation.token === '/superagent.run')
     const longHorizonHarness = getChatInvocationOptions().find(invocation => invocation.token === '#long-horizon-harness')
-    const messageGateway = AGENTIC_OS_BINDING_INVOCATIONS.find(invocation => invocation.token === '@message-gateway')
-    const harnessDoc = AGENTIC_OS_DOC_INVOCATIONS.find(invocation => invocation.id === 'agentic-os.harness')
-    if (!superagentRun || !longHorizonHarness || !messageGateway || !harnessDoc) {
+    const messageGateway = getAgenticOsBindingInvocations().find(invocation => invocation.token === '@message-gateway')
+    if (!superagentRun || !longHorizonHarness || !messageGateway) {
       throw new Error('Expected Agentic OS invocation source registries to expose SuperAgent harness tokens')
     }
     const superagentSlash = container.querySelector(`[data-kg-skill-command-slash="${superagentRun.id}"]`)
     const harnessHash = container.querySelector(`[data-kg-skill-command-hash="hash:${longHorizonHarness.id}"]`)
     const gatewayAt = container.querySelector(`[data-kg-skill-command-at="${messageGateway.id}"]`)
-    const docSlash = container.querySelector(`[data-kg-skill-command-slash="doc:${harnessDoc.id}:slash"]`)
-    const docAt = container.querySelector(`[data-kg-skill-command-at="doc:${harnessDoc.id}:at"]`)
     if (
       superagentSlash?.textContent?.trim() !== '/superagent.run' ||
       harnessHash?.textContent?.trim() !== '#long-horizon-harness' ||
-      gatewayAt?.textContent?.trim() !== '@message-gateway' ||
-      docSlash?.textContent?.trim() !== '/agentic-os.harness' ||
-      docAt?.textContent?.trim() !== '@agentic-os.harness'
+      gatewayAt?.textContent?.trim() !== '@message-gateway'
     ) {
       throw new Error('Expected FloatingPanel Skills & Commands to render dictionary and doc / # @ invocation tokens')
     }
@@ -147,6 +163,7 @@ export async function testFloatingPanelSkillsCommandsViewRendersSlashInvokableSk
     await unmountReactRoot(root, { window: dom.window as unknown as Window })
     container.remove()
     restore()
+    resetAgenticOsRemoteGrammarCatalogForTests()
   }
 }
 
@@ -199,6 +216,8 @@ export async function testSkillsCommandsViewHydratesRemoteGrammarCatalogEntries(
 }
 
 export async function testFloatingPanelSkillsCommandsViewReusesMediaPanelLayout() {
+  resetAgenticOsRemoteGrammarCatalogForTests()
+  registerAuthoritativeGrammar()
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
   const container = doc.createElement('section')
@@ -210,7 +229,7 @@ export async function testFloatingPanelSkillsCommandsViewReusesMediaPanelLayout(
       window: dom.window as unknown as Window,
       frames: 2,
     })
-    const messageGateway = AGENTIC_OS_BINDING_INVOCATIONS.find(invocation => invocation.token === '@message-gateway')
+    const messageGateway = getAgenticOsBindingInvocations().find(invocation => invocation.token === '@message-gateway')
     if (!messageGateway) throw new Error('Expected Agentic OS binding registry to expose @message-gateway')
 
     const panel = container.querySelector('[data-kg-floating-panel-skills-commands-view="true"]')
@@ -402,10 +421,13 @@ export async function testFloatingPanelSkillsCommandsViewReusesMediaPanelLayout(
     await unmountReactRoot(root, { window: dom.window as unknown as Window })
     container.remove()
     restore()
+    resetAgenticOsRemoteGrammarCatalogForTests()
   }
 }
 
 export async function testFloatingPanelSkillsCommandsRowsInsertActiveCardInvocationTokens() {
+  resetAgenticOsRemoteGrammarCatalogForTests()
+  registerAuthoritativeGrammar()
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
   const container = doc.createElement('section')
@@ -467,6 +489,7 @@ export async function testFloatingPanelSkillsCommandsRowsInsertActiveCardInvocat
     await unmountReactRoot(root, { window: dom.window as unknown as Window })
     container.remove()
     restore()
+    resetAgenticOsRemoteGrammarCatalogForTests()
   }
 }
 

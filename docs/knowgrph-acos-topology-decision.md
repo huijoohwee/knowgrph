@@ -56,7 +56,7 @@ Cloudflare control plane regardless of where the source lives.
    `contracts/` package into the `agentic-canvas-os` repo and publish `contracts`
    as a shared package; nothing else in the architecture changes.
 3. Deployment commands and the demo narrative reference the `knowgrph` paths
-   above (see `npm run` scripts + `scripts/verify-runtime-ready.mjs`).
+   above (see `npm run` scripts + `scripts/verify-deployed-runtime.mjs`).
 
 ---
 
@@ -179,7 +179,7 @@ roles:
 
 | Surface | Role | Protocol | Consumers |
 |---|---|---|---|
-| API Gateway + Lambda + S3 (Section 5/11.2) | Product **REST** surface: `POST /auth/session`, `POST /run`, `GET /runs/{id}`, `GET /health`, S3 artifacts | HTTPS/REST | Vercel frontend (`web/`), judges, `runtime:verify` |
+| API Gateway + Lambda + S3 (Section 5/11.2) | Product **REST** surface: `POST /auth/session`, `POST /run`, `GET /runs/{id}`, `GET /health`, S3 artifacts | HTTPS/REST | Vercel frontend (`web/`), judges, `runtime:verify:deployed` |
 | AgentCore Runtime (Section 13) | Durable **MCP tool surface** as the deployable-agent judging artifact (`tools/list`, `knowgrph.video_remix.run` + stage tools, `/ping`) | MCP Streamable HTTP | MCP clients (`agentcore invoke`), judges (Actions & Tool Use / Orchestration) |
 
 Both are **keyless thin forwarders** to the Cloudflare control plane: each
@@ -215,7 +215,7 @@ narrative — it is **additive**, not a migration of the REST surface.
   cannot weaken R11 or Property 1.
 - **Why not replace:** "replace" would (1) break the frontend's REST
   integration, (2) drop the REST `POST /auth/session` Auth_Token minting and the
-  `GET /runs/{id}` read-back surface that judges and `runtime:verify` exercise,
+  `GET /runs/{id}` read-back surface that judges and `runtime:verify:deployed` exercise,
   and (3) lose the S3 artifact storage role — all for no spend-isolation or
   cost gain, since the MCP surface is already keyless. Replace fails
   min-viable-max-value and adds rework risk; complement does not.

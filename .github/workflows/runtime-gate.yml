@@ -1,53 +1,48 @@
-# Runtime Gate — automates the `spec-complete -> runtime-ready` checks on a
-# deploy trigger (knowgrph-acos-mcp-connector tasks 11.4 / 12.7).
+# Runtime Verification — proves local readiness first, then optionally verifies
+# explicitly supplied deployed endpoints without deploying or mutating state.
 #
 # Design principles honored:
 #   * No hardcoded URLs/secrets — every endpoint is read from a workflow input,
 #     repo/environment Variable, or Secret, so the gate is neutral and reusable
 #     across environments. Nothing project-specific is baked in.
-#   * No duplicated logic — the gate simply invokes the existing npm scripts
-#     (`runtime:test`, `runtime:verify`) which are the single source of truth;
-#     the reachability probe lives only in `scripts/verify-runtime-ready.mjs`.
-#   * Fail-closed but wiring-graceful — `runtime:test` (network-free) always
-#     runs; `runtime:verify` runs only once at least one endpoint is configured,
-#     so the gate is inert until you wire credentials and becomes active
-#     automatically thereafter.
+#   * No duplicated logic — npm scripts own local proof and deployed probes.
+#   * Fail closed — deployed verification requires both explicit endpoints.
 #
-# Triggers (any "deploy" signal):
-#   * workflow_dispatch — manual run with optional endpoint inputs.
-#   * repository_dispatch (event_type: deploy) — programmatic deploy trigger.
+# Trigger:
+#   * workflow_dispatch — explicit manual run with optional endpoint inputs.
 
-name: Runtime Gate
+name: Runtime Verification
 
 on:
   workflow_dispatch:
     inputs:
-      agent_api_url:
-        description: "AWS Agent-API base URL (overrides the AGENT_API_URL variable)"
-        required: false
-        default: ""
       mcp_endpoint:
         description: "Cloudflare MCP endpoint (overrides the MCP_ENDPOINT variable)"
         required: false
         default: ""
       frontend_url:
-        description: "Vercel frontend URL (overrides the FRONTEND_URL variable)"
+        description: "Frontend URL (overrides the FRONTEND_URL variable)"
         required: false
         default: ""
-      agentcore_mcp_url:
-        description: "AWS AgentCore Runtime base URL (overrides the AGENTCORE_MCP_URL variable)"
+      storage_worker_url:
+        description: "Optional storage Worker URL"
         required: false
         default: ""
-  repository_dispatch:
-    types: [deploy]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-verification
+  cancel-in-progress: true
 
 # Endpoints resolve with precedence: dispatch input > repo/env Variable. They
 # stay empty when unset so the verify step can skip cleanly (no hardcode).
 env:
-  AGENT_API_URL: ${{ github.event.inputs.agent_api_url || vars.AGENT_API_URL }}
   MCP_ENDPOINT: ${{ github.event.inputs.mcp_endpoint || vars.MCP_ENDPOINT }}
   FRONTEND_URL: ${{ github.event.inputs.frontend_url || vars.FRONTEND_URL }}
-  AGENTCORE_MCP_URL: ${{ github.event.inputs.agentcore_mcp_url || vars.AGENTCORE_MCP_URL }}
+  STORAGE_WORKER_URL: ${{ github.event.inputs.storage_worker_url || vars.STORAGE_WORKER_URL }}
+  KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: ${{ github.workspace }}/agentic-canvas-os/docs
 
 jobs:
   runtime-gate:
@@ -55,6 +50,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Checkout Agentic Canvas OS docs SSOT
+        uses: actions/checkout@v4
+        with:
+          repository: huijoohwee/agentic-canvas-os
+          ref: 97c3a48be4515c017f56a199bf59a0652e04d57b
+          path: agentic-canvas-os
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -66,22 +68,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Network-free gate — must pass before any reachability check (runbook §0).
-      - name: Runtime tests (network-free)
-        run: npm run runtime:test
+      # Deterministic network-free gate — must pass before reachability checks.
+      - name: Runtime readiness check (network-free)
+        run: npm run runtime:check
 
       # Active only once at least one endpoint is configured (input or Variable),
       # so the gate is inert before credentials are wired and self-activates after.
       - name: Resolve verify activation
         id: verify
         run: |
-          if [ -n "$AGENT_API_URL" ] || [ -n "$FRONTEND_URL" ] || [ -n "$MCP_ENDPOINT" ] || [ -n "$AGENTCORE_MCP_URL" ]; then
+          if [ -n "$FRONTEND_URL" ] && [ -n "$MCP_ENDPOINT" ]; then
             echo "active=true" >> "$GITHUB_OUTPUT"
           else
             echo "active=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Runtime verify skipped — no endpoint configured. Set the AGENT_API_URL / MCP_ENDPOINT / FRONTEND_URL / AGENTCORE_MCP_URL repository Variables (or pass workflow inputs) to activate the reachability gate."
+            echo "::notice::Deployed verification skipped — both FRONTEND_URL and MCP_ENDPOINT are required."
           fi
 
       - name: Runtime verify (deployed reachability — AC-7)
         if: steps.verify.outputs.active == 'true'
-        run: npm run runtime:verify
+        run: npm run runtime:verify:deployed

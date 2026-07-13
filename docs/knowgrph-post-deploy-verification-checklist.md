@@ -29,7 +29,7 @@ Record the latest bounded release proof here after a real deploy.
 
 - Pages preview: `https://8ccfa5b7.joohwee.pages.dev`
 - Live route: `https://airvio.co/knowgrph/`
-- Live verify: `npm run runtime:verify` passed
+- Deployed reachability: `npm run runtime:verify:deployed` passed with explicit URLs
 - Docs seed: `node ./scripts/seed-storage-docs-to-cloudflare.mjs` passed
 - Canonical docs seed proof:
   - `source-files=41`
@@ -49,7 +49,7 @@ Record the latest bounded release proof here after a real deploy.
 - `collaboration:release:check` result:
 - `pages:check-sync` result:
 - docs seed result and verification count:
-- `runtime:verify` result:
+- `runtime:verify:deployed` result:
 
 ## 1. Route Reachability
 

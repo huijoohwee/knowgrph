@@ -1,3 +1,10 @@
+---
+title: "Knowgrph Branch Protection"
+doc_type: "Process Guide"
+status: "active"
+frontmatter_contract: "required"
+---
+
 # Knowgrph Branch Protection
 
 ## Overview
@@ -28,7 +35,7 @@ Each mantra and table row stays alphabetized for predictable administration and 
 - History; preserve auditable review flow; forbid direct unreviewed pushes to `main`
 - Merges; gate integration through pull requests; forbid bypassing review and automation
 - Reviews; require human approval; forbid self-merging without policy satisfaction
-- Status; require `Conflict Compliance`; forbid merging with missing required checks
+- Status; require `Integration Gate`; forbid merging with missing required checks
 
 ---
 
@@ -40,7 +47,7 @@ Each mantra and table row stays alphabetized for predictable administration and 
 | History | Preserve auditable review flow | - [ ] Protect `main` branch history; preserve review flow; forbid direct unreviewed pushes |
 | Merges | Gate integration through pull requests | - [ ] Require pull requests for `main`; gate integration; forbid bypassing review and automation |
 | Reviews | Require human approval | - [ ] Require approving reviews before merge; preserve accountability; forbid self-merging without policy satisfaction |
-| Status | Require `Conflict Compliance` | - [ ] Mark `Conflict Compliance` as required; enforce conflict policy; forbid merging with missing required checks |
+| Status | Require `Integration Gate` | - [ ] Mark `Integration Gate` as required; enforce conflict policy; forbid merging with missing required checks |
 
 ---
 
@@ -49,14 +56,14 @@ Each mantra and table row stays alphabetized for predictable administration and 
 Apply these settings to the `main` branch in GitHub:
 
 - **Require a pull request before merging**: `ON`
-- **Require approvals**: `ON`
-- **Required approving reviews**: `1` minimum
-- **Dismiss stale pull request approvals when new commits are pushed**: `ON`
-- **Require review from code owners**: `ON` when CODEOWNERS is added for `knowgrph`
+- **Require approvals**: `OFF` while one human is the sole maintainer; turn `ON` when another human regularly reviews
+- **Required approving reviews**: `1` when multi-human review is active
+- **Dismiss stale pull request approvals when new commits are pushed**: `ON` when approvals are required
+- **Require review from code owners**: `ON` only after maintainable CODEOWNERS coverage exists
 - **Require status checks to pass before merging**: `ON`
 - **Require branches to be up to date before merging**: `ON`
-- **Required status checks**: select `Conflict Compliance`
-- **Restrict who can push to matching branches**: `ON` if you want to block direct pushes entirely
+- **Required status checks**: select `Integration Gate`
+- **Restrict who can push to matching branches**: `ON`; all device and Codex changes enter through task branches
 - **Allow force pushes**: `OFF`
 - **Allow deletions**: `OFF`
 
@@ -66,26 +73,31 @@ Apply these settings to the `main` branch in GitHub:
 
 - **Require conversation resolution before merging**: `ON`
 - **Do not allow bypassing the above settings**: `ON`
-- **Require linear history**: `ON` if the repo prefers rebase/squash-only history
+- **Require linear history**: `ON`
 - **Lock branch**: `OFF` by default; turn `ON` only for release freezes or emergency governance windows
 
 ---
 
 ## Required Status Check
 
-The workflow added in this repo is:
+The sole merge-gating workflow and job are:
 
-- **Workflow name**: `Conflict Compliance`
+- **Workflow name**: `Integration`
+- **Required job name**: `Integration Gate`
 
-Use this exact workflow/status check as a required merge gate. It runs:
+Use the job name as the exact required merge status. It runs:
 
-- `npm run conflict:check`
+- `npm run ci:integration`
+- canonical collaboration frontmatter and manual-only deployment-boundary validation
+- `agent/<device>/<semantic-scope>` branch and canonical `main` target validation
+- declared base-SHA ancestry and unique active semantic-scope validation across open pull requests
+- affected-scope checks selected from `docs/collaboration-runtime-contract.md`
 - changed-file hygiene budget regression checks (`<600` lines/file and `<500 KiB` text chunks for new files; no growth for existing over-budget files)
 - built JS/CSS chunk budgets after Pages build (`<500 KiB` per asset)
 - graph cache semantic keys must use `canvas/src/lib/graph/semanticKey.ts`
-- publish mirror drift detection
 - merge-marker detection
-- sibling `AgenticRAG` schema map validation when available
+
+Publish-mirror and sibling-schema parity are release checks after ephemeral sync; they are not Dev merge prerequisites.
 
 ---
 
@@ -96,7 +108,7 @@ Use this exact workflow/status check as a required merge gate. It runs:
 3. Add or edit a branch protection rule for `main`.
 4. Enable pull request requirements and approval requirements.
 5. Enable required status checks.
-6. Select `Conflict Compliance` as a required check.
+6. Select `Integration Gate` as the sole required check.
 7. Disable force pushes and branch deletion.
 8. Save the rule and verify the workflow appears on the next pull request.
 
@@ -105,11 +117,13 @@ Use this exact workflow/status check as a required merge gate. It runs:
 ## Validation Checklist
 
 - [ ] `main` requires pull requests before merge
-- [ ] `main` requires at least one approval
-- [ ] `Conflict Compliance` is marked as a required status check
-- [ ] stale approvals are dismissed on new commits
+- [ ] `main` requires one approval when more than one human maintainer is active
+- [ ] `Integration Gate` is marked as the sole required status check
+- [ ] stale approvals are dismissed when approvals are enabled
 - [ ] force pushes are disabled
-- [ ] direct pushes are restricted if strict protection is desired
+- [ ] direct pushes to `main` are restricted without bypass
+- [ ] the `production` environment requires an authorized reviewer
+- [ ] only `Production Release` can deploy, and only through `workflow_dispatch`
 
 ---
 

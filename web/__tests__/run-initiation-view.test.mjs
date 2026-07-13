@@ -3,13 +3,11 @@
 // Property 32 / design Frontend `renderManifest`).
 //
 // Covers:
-//   - the view lists EVERY planned stage in canonical order
-//     (research -> storyboard -> render -> publish -> checkout)
+//   - the view projects source-declared stages in manifest order
 //   - the budget cap is surfaced from the manifest
 //   - the view is correct BEFORE any Approval_Gate is approved
-//   - a minimal / empty manifest is tolerated gracefully (still lists all
-//     planned stages; budget cap resolves to null)
-//   - the guarding gate id is surfaced per stage and mirrors the worker tier
+//   - a minimal / empty manifest is tolerated without fabricated stages
+//   - the guarding gate id is surfaced from each stage
 //
 // ZERO network / ZERO browser.
 
@@ -20,15 +18,12 @@ import {
   buildRunInitiationView,
   resolveBudgetCapUsd,
   anyGateApproved,
-  PLANNED_STAGE_ORDER,
-  PLANNED_STAGE_GATES,
 } from "../src/lib/run-initiation-view.js";
 
 // --- Fixtures ---------------------------------------------------------------
 
 /**
  * A live-without-approvals Run_Manifest as the Director emits at run initiation:
- * the runtime prepends an `ingest` stage carrying `{ referenceUrl, budgetUsd }`,
  * all spend gates are still `pending`, and budgetMeters are zeroed (Property 2).
  */
 function initiatedManifest(overrides = {}) {
@@ -37,12 +32,12 @@ function initiatedManifest(overrides = {}) {
     state: "blocked",
     mode: "live",
     stages: [
-      { id: "ingest", status: "complete", artifact: { referenceUrl: "https://example.com/v", budgetUsd: 42.5 } },
-      { id: "research", status: "approval_required", retryCount: 0, costLog: null, artifact: {} },
-      { id: "storyboard", status: "pending", retryCount: 0, costLog: null, artifact: null },
-      { id: "render", status: "pending", retryCount: 0, costLog: null, artifact: null },
-      { id: "publish", status: "pending", retryCount: 0, costLog: null, artifact: null },
-      { id: "checkout", status: "pending", retryCount: 0, costLog: null, artifact: null },
+      { id: "research", gateId: "paid-model-call", status: "approval_required" },
+      { id: "storyboard", gateId: "paid-model-call", status: "pending" },
+      { id: "render", gateId: "render-action", status: "pending" },
+      { id: "edit", gateId: "edit-manifest-assembly", status: "pending" },
+      { id: "publish", gateId: "cloud-deploy", status: "pending" },
+      { id: "checkout", gateId: "payment-action", status: "pending" },
     ],
     approvalGates: [
       { gateId: "paid-model-call", approvalState: "pending", estimatedCostUsd: 0, token: null },
@@ -51,7 +46,7 @@ function initiatedManifest(overrides = {}) {
       { gateId: "payment-action", approvalState: "pending", estimatedCostUsd: 0, token: null },
       { gateId: "authenticated-browser", approvalState: "pending", estimatedCostUsd: 0, token: null },
     ],
-    budgetMeters: { estimatedCostUsd: 0, actualCostUsd: 0, providerSpendUsd: 0 },
+    budgetMeters: { budgetUsd: 42.5, estimatedCostUsd: 0, actualCostUsd: 0, providerSpendUsd: 0 },
     demoPack: null,
     failures: [],
     reconciliationFlags: [],
@@ -65,21 +60,11 @@ test("lists every planned stage in canonical order", () => {
   const view = buildRunInitiationView(initiatedManifest());
   assert.deepEqual(
     view.stages.map((s) => s.id),
-    ["research", "storyboard", "render", "publish", "checkout"],
+    ["research", "storyboard", "render", "edit", "publish", "checkout"],
   );
-  assert.equal(view.stageCount, 5);
+  assert.equal(view.stageCount, 6);
   // `order` is strictly increasing and matches the canonical index.
   view.stages.forEach((s, i) => assert.equal(s.order, i));
-});
-
-test("order matches the worker-tier canonical stage order (no fork)", () => {
-  const view = buildRunInitiationView(initiatedManifest());
-  assert.deepEqual(view.stages.map((s) => s.id), [...PLANNED_STAGE_ORDER]);
-});
-
-test("the ingest preflight stage is excluded from the planned display", () => {
-  const view = buildRunInitiationView(initiatedManifest());
-  assert.ok(!view.stages.some((s) => s.id === "ingest"));
 });
 
 test("per-stage status is taken from the manifest when present", () => {
@@ -92,9 +77,7 @@ test("per-stage status is taken from the manifest when present", () => {
 
 test("each planned stage surfaces its guarding gate id (mirrors worker tier)", () => {
   const view = buildRunInitiationView(initiatedManifest());
-  for (const s of view.stages) {
-    assert.equal(s.gateId, PLANNED_STAGE_GATES[s.id]);
-  }
+  assert.deepEqual(view.stages.map((stage) => stage.gateId), initiatedManifest().stages.map((stage) => stage.gateId));
 });
 
 test("each planned stage carries a human-readable label", () => {
@@ -107,7 +90,7 @@ test("each planned stage carries a human-readable label", () => {
 
 // --- Budget cap surfaced ----------------------------------------------------
 
-test("budget cap is surfaced from the ingest stage artifact", () => {
+test("budget cap is surfaced from Budget_Meters", () => {
   const view = buildRunInitiationView(initiatedManifest());
   assert.equal(view.budgetCapUsd, 42.5);
 });
@@ -144,7 +127,7 @@ test("at initiation no gate is approved and the full plan is still shown", () =>
   const view = buildRunInitiationView(manifest);
   assert.equal(view.anyGateApproved, false);
   // The full planned sequence and the budget cap are present pre-approval.
-  assert.equal(view.stageCount, 5);
+  assert.equal(view.stageCount, 6);
   assert.equal(view.budgetCapUsd, 42.5);
 });
 
@@ -155,34 +138,29 @@ test("anyGateApproved flips true once a gate is approved", () => {
   // The planned list is unchanged regardless of approval state.
   const view = buildRunInitiationView(manifest);
   assert.equal(view.anyGateApproved, true);
-  assert.equal(view.stageCount, 5);
+  assert.equal(view.stageCount, 6);
 });
 
 // --- Minimal / empty manifest tolerated -------------------------------------
 
-test("an empty manifest still yields the full planned stage list", () => {
+test("an empty manifest does not fabricate a planned stage list", () => {
   const view = buildRunInitiationView({});
-  assert.deepEqual(
-    view.stages.map((s) => s.id),
-    ["research", "storyboard", "render", "publish", "checkout"],
-  );
-  assert.equal(view.stageCount, 5);
+  assert.deepEqual(view.stages, []);
+  assert.equal(view.stageCount, 0);
   assert.equal(view.budgetCapUsd, null);
   assert.equal(view.anyGateApproved, false);
-  // Default status is applied when the manifest carries no stage entry.
-  for (const s of view.stages) assert.equal(s.status, "planned");
 });
 
 test("a manifest with no stages[] is tolerated gracefully", () => {
   const view = buildRunInitiationView({ runId: "x", budgetUsd: 9.99 });
-  assert.equal(view.stageCount, 5);
+  assert.equal(view.stageCount, 0);
   assert.equal(view.budgetCapUsd, 9.99);
 });
 
-test("non-object / malformed input never throws and yields the full plan", () => {
+test("non-object / malformed input never throws or fabricates a plan", () => {
   for (const bad of [null, undefined, 5, "x", [], true]) {
     const view = buildRunInitiationView(bad);
-    assert.equal(view.stageCount, 5);
+    assert.equal(view.stageCount, 0);
     assert.equal(view.budgetCapUsd, null);
     assert.equal(view.anyGateApproved, false);
   }
@@ -192,7 +170,7 @@ test("malformed stages entries are skipped without throwing", () => {
   const view = buildRunInitiationView({
     stages: [null, 5, { status: "running" }, { id: "render", status: "running" }],
   });
-  assert.equal(view.stageCount, 5);
+  assert.equal(view.stageCount, 1);
   const render = view.stages.find((s) => s.id === "render");
   assert.equal(render.status, "running");
 });

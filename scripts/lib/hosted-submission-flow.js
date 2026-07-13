@@ -36,7 +36,7 @@ export function buildHostedSubmissionFlowSteps(config) {
     {
       id: "verify",
       label: "Verify deployed runtime reachability",
-      script: "./scripts/verify-runtime-ready.mjs",
+      script: "./scripts/verify-deployed-runtime.mjs",
       env: {
         FRONTEND_URL:  config.frontendUrl,
         MCP_ENDPOINT:  config.mcpEndpoint,

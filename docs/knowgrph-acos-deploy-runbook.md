@@ -120,7 +120,7 @@ AGENT_API_URL=<ApiUrl> \
 MCP_ENDPOINT=https://airvio.co/knowgrph/control-plane/mcp \
 FRONTEND_URL=<vercel-url> \
 AGENTCORE_MCP_URL=<optional-agentcore-runtime-base-url> \
-npm run runtime:verify
+npm run runtime:verify:deployed
 ```
 This probes all three `/health`/reachability surfaces (5s-bounded) and prints a
 sample Demo_Pack `urls[]`. When `AGENTCORE_MCP_URL` is set, the additive AWS
@@ -141,7 +141,7 @@ ARTIFACTS_DIR=./artifacts \
 SUBMISSION_TITLE='Knowgrph Hackathon Submission Brief' \
 npm run runtime:flow
 ```
-This runs `runtime:verify` -> `runtime:proof` -> `runtime:demo-pack` ->
+This runs `runtime:verify:deployed` -> `runtime:proof` -> `runtime:demo-pack` ->
 `runtime:submission-brief` -> `runtime:bundle` and writes the complete artifact
 set under `ARTIFACTS_DIR`.
 
@@ -255,22 +255,28 @@ AGENTCORE_AUTH_TOKEN=<auth-token-from-post-auth-session> \
 npm run agentcore:verify        # tools/list over Streamable HTTP; /ping 200 within 5s
 ```
 Register the deployed AgentCore MCP endpoint in the Demo_Pack `urls[]` and the
-`runtime:verify` probe (task 13.10) so the Demo_Pack carries **both** AWS
+`runtime:verify:deployed` probe (task 13.10) so the Demo_Pack carries **both** AWS
 endpoints — the REST Agent_Api `/health` (§2) and the AgentCore MCP endpoint —
 as distinct reachable artifacts. Mark the section unverified if the endpoint
 does not return success within 5s.
 
-## Automated gate (CI)
+## Manual runtime verification
 
-The `.github/workflows/runtime-gate.yml` workflow automates §0 + §4 on a deploy
-trigger (`workflow_dispatch` or a `repository_dispatch` of type `deploy`):
+The `.github/workflows/runtime-gate.yml` workflow verifies §0 + §4 only after
+an explicit `workflow_dispatch`. It does not deploy or mutate an environment:
 
-- Always runs `npm run runtime:test` (network-free).
-- Runs `npm run runtime:verify` once at least one endpoint is configured. Wire
+- Always runs `npm run runtime:ci` (deterministic and network-free). Run
+  `npm run runtime:test` separately for the broader property/audit suite while
+  its existing source-contract findings remain under upstream remediation.
+- Runs `npm run runtime:verify:deployed` only when both required endpoints are explicitly configured. Wire
   the endpoints WITHOUT editing the workflow (no hardcode): set repository
   **Variables** `AGENT_API_URL`, `MCP_ENDPOINT`, `FRONTEND_URL` (or pass them as
   `workflow_dispatch` inputs). Until then the verify step skips with a notice, so
   the gate is inert pre-wiring and self-activates afterward.
+
+Production deployment is isolated in `.github/workflows/release.yml`. It requires
+an exact verified Dev commit SHA, `confirmation=DEPLOY`, and the protected GitHub
+`production` environment. Pull requests and pushes to `main` cannot invoke it.
 
 ## Rollback
 

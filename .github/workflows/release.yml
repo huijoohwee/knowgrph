@@ -1,0 +1,164 @@
+name: Production Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Exact 40-character Dev commit SHA already verified by Integration Gate
+        required: true
+        type: string
+      confirmation:
+        description: Type DEPLOY to authorize the production release
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify Release Candidate
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_SHA: ${{ inputs.commit_sha }}
+      RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+
+    steps:
+      - name: Validate explicit authorization
+        run: |
+          if [[ ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "commit_sha must be an exact lowercase 40-character Git commit SHA" >&2
+            exit 1
+          fi
+          if [ "$RELEASE_CONFIRMATION" != "DEPLOY" ]; then
+            echo "production release requires confirmation=DEPLOY" >&2
+            exit 1
+          fi
+
+      - name: Checkout exact Dev commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+          path: knowgrph
+          fetch-depth: 2
+
+      - name: Verify checked-out commit
+        working-directory: knowgrph
+        run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+
+      - name: Checkout production mirror
+        uses: actions/checkout@v4
+        with:
+          repository: huijoohwee/huijoohwee
+          path: huijoohwee
+
+      - name: Checkout schema mirror
+        uses: actions/checkout@v4
+        with:
+          repository: huijoohwee/huijoohwee.github.io
+          path: huijoohwee.github.io
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            knowgrph/package-lock.json
+            knowgrph/canvas/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: knowgrph
+        run: npm ci
+
+      - name: Reverify exact candidate
+        working-directory: knowgrph
+        run: npm run ci:integration
+
+      - name: Sync verified build into ephemeral production artifact
+        working-directory: knowgrph
+        run: npm run pages:sync
+
+      - name: Verify source-to-mirror parity
+        working-directory: knowgrph
+        run: npm run conflict:mirror:check
+
+      - name: Build Pages functions
+        working-directory: knowgrph
+        run: npm run pages:functions:build
+
+      - name: Upload verified release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-${{ inputs.commit_sha }}
+          path: |
+            huijoohwee/content/knowgrph
+            huijoohwee/functions
+            huijoohwee/_headers
+            huijoohwee/_redirects
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Deploy Production
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Checkout exact Dev commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+          path: knowgrph
+          fetch-depth: 1
+
+      - name: Checkout production mirror
+        uses: actions/checkout@v4
+        with:
+          repository: huijoohwee/huijoohwee
+          path: huijoohwee
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            knowgrph/package-lock.json
+            knowgrph/canvas/package-lock.json
+
+      - name: Install dependencies
+        working-directory: knowgrph
+        run: npm ci
+
+      - name: Download verified release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: production-${{ inputs.commit_sha }}
+          path: huijoohwee
+
+      - name: Require configured deployment credentials
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+
+      - name: Deploy verified artifact
+        working-directory: knowgrph
+        run: npx --yes wrangler@4.110.0 pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true
+
+      - name: Verify live agent-ready discovery
+        working-directory: knowgrph
+        run: ./.github/workflows/smoke-test.sh

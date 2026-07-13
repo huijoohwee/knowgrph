@@ -10,8 +10,8 @@
 //       `completed`) via the strict stage-ordering state machine
 //       (`enforceStrictStageOrdering` / `checkStrictStageOrdering`).
 //     - Design Property 7 (stage ordering invariant): the observed stage start
-//       sequence is a prefix of research -> storyboard -> render -> publish ->
-//       checkout, and no stage begins before its predecessor completes.
+//       sequence is a prefix of the canonical stage contract, and no stage
+//       begins before its predecessor completes.
 //     - Design refs: "Components and Interfaces > Director Orchestrator" and
 //       "Work Flow > Director run as a durable AgentWorkflow".
 //
@@ -39,33 +39,20 @@ import {
   buildApprovalGates,
   buildFailureHandling,
 } from "./director-lanes.js";
+import {
+  VIDEO_REMIX_STAGE_GATES,
+  VIDEO_REMIX_STAGE_ORDER,
+} from "./video-remix/stage-contract.js";
 
 export const DIRECTOR_TOOL_NAME = "knowgrph.video_remix.run";
 
 export const DIRECTOR_WORKFLOW_VERSION = "knowgrph.director.workflow/v0.1";
 
 /**
- * Canonical Director stage ordering (R4.1 / Property 7). This is the
- * skeleton's single source of truth for stage sequencing. The runtime's
- * durable Run_Manifest `stages[]` prepends an `ingest` bookkeeping stage
- * (pre-existing, not a spend-bearing pipeline stage); the five entries below
- * are the spend-bearing pipeline stages whose ORDER the workflow guarantees.
+ * Director stage ordering derives from the executable video-remix stage
+ * contract so workflow validation and Run_Manifest projection cannot drift.
  */
-export const DIRECTOR_STAGE_ORDER = Object.freeze([
-  "research",
-  "storyboard",
-  "render",
-  "publish",
-  "checkout",
-]);
-
-/**
- * The runtime stage that precedes `research` in the durable Run_Manifest.
- * Tracked here so the stage-ordering invariant can ignore it without
- * hard-coding it at every call site. (Out of scope for Property 7, which is a
- * statement about the research..checkout pipeline.)
- */
-export const DIRECTOR_PREFLIGHT_STAGE = "ingest";
+export const DIRECTOR_STAGE_ORDER = VIDEO_REMIX_STAGE_ORDER;
 
 /**
  * Gate id guarding each pipeline stage. Mirrors the runtime gate ids checked
@@ -78,13 +65,7 @@ export const DIRECTOR_PREFLIGHT_STAGE = "ingest";
  * gate ids in the design Glossary. Reconciling the design-vs-runtime gate-id
  * set is task 4.1's responsibility and is intentionally NOT resolved here.
  */
-export const DIRECTOR_STAGE_GATES = Object.freeze({
-  research: "paid-model-call",
-  storyboard: "paid-model-call",
-  render: "render-action",
-  publish: "cloud-deploy",
-  checkout: "payment-action",
-});
+export const DIRECTOR_STAGE_GATES = VIDEO_REMIX_STAGE_GATES;
 
 /**
  * Stage statuses the runtime uses to mark a stage as having reached a
@@ -225,30 +206,21 @@ export function buildDirectorSteps() {
 }
 
 /**
- * Extract the observed pipeline stage-start sequence from a Run_Manifest,
- * dropping the runtime `ingest` preflight bookkeeping stage and any stage
- * without an id. Returns the ordered list of stage ids the Director actually
- * produced for the research..checkout pipeline.
+ * Extract the observed stage-start sequence from a Run_Manifest, dropping
+ * entries without an id. Returns the ordered list the Director produced.
  */
 export function extractDirectorStageOrder(manifest) {
   if (!manifest || typeof manifest !== "object") return [];
   const stages = Array.isArray(manifest.stages) ? manifest.stages : [];
   return stages
-    .filter(
-      (stage) =>
-        stage &&
-        typeof stage === "object" &&
-        asString(stage.id).length > 0 &&
-        asString(stage.id) !== DIRECTOR_PREFLIGHT_STAGE,
-    )
+    .filter((stage) => stage && typeof stage === "object" && asString(stage.id).length > 0)
     .map((stage) => asString(stage.id));
 }
 
 /**
  * Property 7 (stage ordering invariant) skeleton check. Verifies the observed
  * pipeline stage sequence in a Run_Manifest is a PREFIX of the canonical
- * `DIRECTOR_STAGE_ORDER` (research -> storyboard -> render -> publish ->
- * checkout) - i.e. stages appear in canonical order with none reordered,
+ * `DIRECTOR_STAGE_ORDER` - i.e. stages appear in canonical order with none reordered,
  * skipped-in-the-middle, or duplicated. Returns a structured result rather
  * than throwing so callers (tests today, task 2.2 enforcement later) choose
  * how to react.
@@ -314,8 +286,8 @@ export function assertStageOrderingInvariant(manifest) {
  * STATUS and flags any stage that entered execution (work/spend/plan
  * artifact/gate eval) while an upstream stage had not completed.
  *
- * The runtime `ingest` preflight stage and any non-pipeline stage are ignored.
- * `research` (the first pipeline stage) may always begin.
+ * Unknown stages are rejected by the sequence validator. `research` (the
+ * first pipeline stage) may always begin.
  *
  * @returns {{ ok: boolean, violations: string[], frontier: string|null }}
  */
@@ -332,7 +304,7 @@ export function checkStrictStageOrdering(manifest) {
   for (const stage of stages) {
     if (!stage || typeof stage !== "object") continue;
     const id = asString(stage.id);
-    if (!DIRECTOR_STAGE_ORDER.includes(id)) continue; // skip ingest / unknown
+    if (!DIRECTOR_STAGE_ORDER.includes(id)) continue;
 
     if (!precedingCompleted && hasStageBegun(stage.status)) {
       violations.push(
@@ -362,8 +334,8 @@ export function checkStrictStageOrdering(manifest) {
  *
  * The frontier stage (the first non-completed stage) keeps its own status — it
  * legitimately began and then halted (e.g. `weak_signal`, `approval_required`).
- * Only stages strictly AFTER the frontier are downgraded. `ingest` and any
- * non-pipeline stage pass through unchanged. Stage objects are copied, never
+ * Only stages strictly after the frontier are downgraded. Unknown stages pass
+ * through for the sequence validator to reject. Stage objects are copied, never
  * mutated in place, so the caller's input manifest is left intact.
  *
  * @param {object} manifest
@@ -385,7 +357,7 @@ export function enforceStrictStageOrdering(manifest, options = {}) {
   const nextStages = stages.map((stage) => {
     if (!stage || typeof stage !== "object") return stage;
     const id = asString(stage.id);
-    if (!DIRECTOR_STAGE_ORDER.includes(id)) return stage; // ingest / unknown untouched
+    if (!DIRECTOR_STAGE_ORDER.includes(id)) return stage;
 
     if (precedingCompleted) {
       // This stage is allowed to begin. If it has not completed, it becomes the

@@ -1,5 +1,4 @@
 import {
-  KNOWGRPH_PROBE_TREE_DOC_INVOCATION_ID,
   findAgenticOsInvocationByToken,
   type AgenticOsResolvedInvocation,
 } from '@/features/agentic-os/agenticOsDocInvocations'
@@ -12,12 +11,8 @@ import {
 } from './chatRuntimeInvocationQuery'
 import { CHAT_STORYBOARD_TEMPLATE_AGENTIC_OS_DIRECTIVE_PROMPT } from './chatStoryboardTemplateContract'
 
-const isProbeTreeInvocationToken = (token: string): boolean => (
-  String(token || '').trim().toLowerCase().replace(/^[/#@]/, '') === KNOWGRPH_PROBE_TREE_DOC_INVOCATION_ID
-)
-
-const buildProbeTreeCardMaterializationPrompt = (invocations: readonly AgenticOsResolvedInvocation[]): string => {
-  if (!invocations.some(invocation => isProbeTreeInvocationToken(invocation.token))) return ''
+const buildProbeTreeCardMaterializationPrompt = (userQuery: string): string => {
+  if (!/\bknowgrph\.probe\.(?:generate|select)\b/i.test(userQuery)) return ''
   return [
     'Probe-Tree card materialization contract:',
     '- Treat the active request or selected card as the current probe node.',
@@ -44,12 +39,14 @@ export const collectAgenticOsRuntimeInvocations = (userQuery: string): AgenticOs
 export const hasRecognizedChatRuntimeInvocation = (userQuery: string): boolean => {
   if (parseChatSkillSlashInvocation(userQuery)) return true
   if (parseChatInvocationDirectives(userQuery).length > 0) return true
+  if (/\bknowgrph\.probe\.(?:generate|select)\b/i.test(userQuery)) return true
   return collectAgenticOsRuntimeInvocations(userQuery).length > 0
 }
 
 export const buildAgenticOsRuntimeInvocationSystemPrompt = (userQuery: string): string => {
   const invocations = collectAgenticOsRuntimeInvocations(userQuery)
-  if (invocations.length === 0) return ''
+  const probeTreePrompt = buildProbeTreeCardMaterializationPrompt(userQuery)
+  if (invocations.length === 0 && !probeTreePrompt) return ''
   const runtimeQuery = resolveChatRuntimeInvocationQuery(userQuery)
   const remainingRequest = sanitizeRuntimeInvocationQueryText(resolveChatRuntimeInvocationResponsiveQueryText(userQuery))
   return [
@@ -64,7 +61,7 @@ export const buildAgenticOsRuntimeInvocationSystemPrompt = (userQuery: string): 
     )),
     '- Treat source documents as reference context only; this does not authorize Prod mirror or Cloudflare deployment.',
     '- Keep command outputs inside the active response contract; PRD/TAD and computing-flow commands use the structured KGC scaffold when that contract is selected.',
-    buildProbeTreeCardMaterializationPrompt(invocations),
+    probeTreePrompt,
     CHAT_STORYBOARD_TEMPLATE_AGENTIC_OS_DIRECTIVE_PROMPT,
   ].filter(Boolean).join('\n')
 }

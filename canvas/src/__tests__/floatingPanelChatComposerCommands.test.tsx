@@ -7,13 +7,7 @@ import { parseChatIngestUrlCommand } from '@/features/chat/chatCommandRegistry'
 import { buildChatInvocationSystemPrompt, parseChatInvocationDirectives } from '@/features/chat/chatInvocationRegistry'
 import { buildKnowgrphVdeoxplnChatSystemPrompt, buildKnowgrphVdeoxplnRoutingPlan } from '@/features/agent-ready/knowgrphVdeoxplnContract.mjs'
 import {
-  AGENTIC_OS_BINDING_INVOCATIONS,
-  AGENTIC_OS_COMMAND_INVOCATIONS,
-  AGENTIC_OS_DICTIONARY_INVOCATIONS,
   AGENTIC_OS_DOCS_GITHUB_ROOT_URL,
-  AGENTIC_OS_DOC_INVOCATIONS,
-  AGENTIC_OS_SEMANTIC_INVOCATIONS,
-  KNOWGRPH_DOCS_GITHUB_ROOT_URL,
 } from '@/features/agentic-os/agenticOsDocInvocations'
 import { FloatingPanelChatComposer } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposer'
 import {
@@ -26,25 +20,12 @@ import { buildUploadedMediaInlineCommandCandidate } from '@/lib/command-menu/inl
 import type { UploadedMediaStorageResult } from '@/lib/storage/uploadedMediaStorage'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
-function readAgenticOsDictionaryEntries(fileName: string): string[] {
-  const text = readFileSync(resolve(process.cwd(), '../../agentic-canvas-os/docs', fileName), 'utf8')
-  const match = /^dictionary_entries:\n((?:[ ]{2}- .+\n)+)/m.exec(text)
-  if (!match) throw new Error(`expected ${fileName} to expose dictionary_entries frontmatter`)
-  return match[1].split(/\r?\n/).map(line => line.trim().replace(/^- /, '').replace(/^"|"$/g, '')).filter(Boolean)
-}
 export function testAgenticOsInvocationsUsePublicSourceLinks() {
-  const invocations = [
-    ...AGENTIC_OS_DOC_INVOCATIONS,
-    ...AGENTIC_OS_DICTIONARY_INVOCATIONS,
-  ]
-  const allowedRoots = [AGENTIC_OS_DOCS_GITHUB_ROOT_URL, KNOWGRPH_DOCS_GITHUB_ROOT_URL]
-  for (const invocation of invocations) {
-    if (!allowedRoots.some(root => invocation.sourcePath.startsWith(`${root}/`))) {
-      throw new Error(`expected ${invocation.id} to use GitHub source URL, got ${invocation.sourcePath}`)
-    }
-    if (invocation.sourcePath.includes('/Users/') || invocation.sourcePath.includes('localhost')) {
-      throw new Error(`expected ${invocation.id} to avoid local source links, got ${invocation.sourcePath}`)
-    }
+  if (!AGENTIC_OS_DOCS_GITHUB_ROOT_URL.startsWith('https://github.com/huijoohwee/agentic-canvas-os/')) {
+    throw new Error(`expected the invocation source root to use the Agentic Canvas OS repository, got ${AGENTIC_OS_DOCS_GITHUB_ROOT_URL}`)
+  }
+  if (AGENTIC_OS_DOCS_GITHUB_ROOT_URL.includes('/Users/') || AGENTIC_OS_DOCS_GITHUB_ROOT_URL.includes('localhost')) {
+    throw new Error(`expected a portable invocation source root, got ${AGENTIC_OS_DOCS_GITHUB_ROOT_URL}`)
   }
 }
 export function testFloatingPanelChatComposerTriggerRangesStayInlineAndNeutral() {
@@ -96,34 +77,15 @@ export function testFloatingPanelChatMemoryInvocationBuildsExternalRuntimeContra
   for (const expected of ['knowgrph.memory.search', 'knowgrph.memory.extract_procedural', 'knowgrph.memory.materialize_user_model', 'openai / gpt-5-nano', 'explicit user_id', 'output_dir rooted inside KNOWGRPH_ROOT', 'deterministic USER_MODEL markdown', 'stable workspace path under the local chat root', 'exact workspace artifact paths', 'reuses the saved local workspace artifact as-is', 'media references present', 'never claim execution']) {
     if (!invocationPrompt.includes(expected)) throw new Error(`expected invocation prompt to include ${expected}`)
   }
-  const agenticOsPrompt = buildChatInvocationSystemPrompt({
-    userQuery: 'Use /agentic-os.runtime with #agentic-os.runtime, #frontmatter, and @agentic-os.runtime.',
-    chatProvider: 'openai',
-    chatModel: 'gpt-5-nano',
-  })
-  for (const expected of ['#agentic-os.runtime', '#frontmatter', 'RUNTIME-READINESS.md', 'DICTIONARY-SEMANTIC.md', 'do not authorize Prod or Cloudflare deployment']) if (!agenticOsPrompt.includes(expected)) throw new Error(`expected Agentic OS invocation prompt to include ${expected}`)
-  const agenticOsOverlay = buildFloatingPanelChatComposerOverlayParts('/agentic-os.runtime /runtime-ready.check #agentic-os.runtime #frontmatter @agentic-os.runtime @operator')
+  const agenticOsOverlay = buildFloatingPanelChatComposerOverlayParts('/runtime-ready.check #frontmatter @operator')
   const agenticOsOverlayTokens = agenticOsOverlay.parts.flatMap(part => part.kind === 'invocation' ? [`${part.tokenKind}:${part.text}`] : [])
-  if (!agenticOsOverlay.hasOverlay || JSON.stringify(agenticOsOverlayTokens) !== JSON.stringify(['slash:/agentic-os.runtime', 'slash:/runtime-ready.check', 'keyword:#agentic-os.runtime', 'keyword:#frontmatter', 'binding:@agentic-os.runtime', 'binding:@operator'])) {
+  if (!agenticOsOverlay.hasOverlay || JSON.stringify(agenticOsOverlayTokens) !== JSON.stringify(['slash:/runtime-ready.check', 'keyword:#frontmatter', 'binding:@operator'])) {
     throw new Error(`expected /, #, and @ Agentic OS tokens to render invocation chip metrics, got ${JSON.stringify(agenticOsOverlay)}`)
   }
   const chatRegistryOverlay = buildFloatingPanelChatComposerOverlayParts('/ingest-url #memory.add')
   const chatRegistryOverlayTokens = chatRegistryOverlay.parts.flatMap(part => part.kind === 'invocation' ? [`${part.tokenKind}:${part.text}`] : [])
   if (!chatRegistryOverlay.hasOverlay || JSON.stringify(chatRegistryOverlayTokens) !== JSON.stringify(['slash:/ingest-url', 'keyword:#memory.add'])) {
     throw new Error(`expected command-only / and # input to render shared invocation chips, got ${JSON.stringify(chatRegistryOverlay)}`)
-  }
-  const commandTokens = AGENTIC_OS_COMMAND_INVOCATIONS.map(invocation => invocation.token)
-  const semanticTokens = AGENTIC_OS_SEMANTIC_INVOCATIONS.map(invocation => invocation.token)
-  const bindingTokens = AGENTIC_OS_BINDING_INVOCATIONS.map(invocation => invocation.token)
-  for (const [fileName, actualTokens] of [
-    ['DICTIONARY-COMMAND.md', commandTokens],
-    ['DICTIONARY-SEMANTIC.md', semanticTokens],
-    ['DICTIONARY-BINDING.md', bindingTokens],
-  ] as const) {
-    const expectedTokens = readAgenticOsDictionaryEntries(fileName)
-    if (JSON.stringify(actualTokens) !== JSON.stringify(expectedTokens)) {
-      throw new Error(`expected shared Agentic OS invocation catalog to mirror ${fileName}, expected=${JSON.stringify(expectedTokens)} actual=${JSON.stringify(actualTokens)}`)
-    }
   }
   const plan = buildKnowgrphVdeoxplnRoutingPlan({ intentText: '#memory.extract promote scoped procedural memory from harness replay output_dir' })
   if (plan.selectedVdeoxplnId !== 'knowgrph-memory-layer') {

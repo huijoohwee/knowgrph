@@ -258,7 +258,7 @@ test("Property 4: Director input validation rejects malformed runs", () => {
 });
 
 // -----------------------------------------------------------------------------
-// Feature: knowgrph-acos-mcp-connector, Property 7: For any Director run started in Live_Mode, the observed stage start sequence is a prefix of research -> storyboard -> render -> publish -> checkout, and no stage begins before its immediately preceding stage has reached a completed state.
+// Feature: knowgrph-acos-mcp-connector, Property 7: For any Director run started in Live_Mode, the observed stage start sequence is a prefix of the canonical stage contract, and no stage begins before its immediately preceding stage has reached a completed state.
 // -----------------------------------------------------------------------------
 test("Property 7: stage ordering invariant", () => {
   const gateSubsetArb = fc.subarray(

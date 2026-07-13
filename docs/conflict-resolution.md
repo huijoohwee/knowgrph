@@ -21,6 +21,7 @@ frontmatter_contract: "required"
 - This guide defines how to resolve multiple concurrent updates in `knowgrph` without creating source-of-truth drift.
 - The repository contains four conflict-prone surfaces: runtime source, canonical docs, generated outputs, and cross-repo publish mirrors.
 - The default rule is simple: merge at the highest upstream owner, regenerate downstream artifacts, and delete stale parallel paths.
+- `docs/collaboration-runtime-contract.md` is the machine SSOT for `/`, `#`, `@` task declarations, affected-scope CI commands, and the manual-only deployment boundary.
 
 ---
 
@@ -84,12 +85,15 @@ Each mantra and table row stays alphabetized so merge decisions remain easy to s
 
 ## Merge Order
 
-1. Classify each conflicting file as `runtime-source`, `canonical-doc`, `generator`, `schema-mirror`, or `publish-mirror`.
-2. Merge the upstream owner first and decide the intended behavior there.
-3. Remove stale duplicate paths, legacy routes, or parallel copy instead of preserving both sides.
-4. Regenerate emitted docs, redirects, or publish assets from the merged upstream state.
-5. Validate only the surfaces affected by the merge.
-6. Review downstream mirrors for parity and confirm no manual hotfixes remain.
+1. Fetch `origin`, create `agent/<device>/<semantic-scope>` from `origin/main`, and keep that branch writable on one device only.
+2. Declare one action, semantic scope, actor, and exact `origin/main` base SHA in pull-request frontmatter.
+3. Classify each conflicting file as `runtime-source`, `canonical-doc`, `generator`, `schema-mirror`, or `publish-mirror`.
+4. Stop parallel implementation when another active change owns the same semantic scope; serialize or explicitly hand over ownership.
+5. Merge the upstream owner first and decide the intended behavior there.
+6. Remove stale duplicate paths, legacy routes, or parallel copy instead of preserving both sides.
+7. Regenerate emitted docs, redirects, or publish assets from the merged upstream state.
+8. Run the affected checks selected from the collaboration runtime contract.
+9. Review downstream mirrors for parity and confirm no manual hotfixes remain.
 
 ---
 
@@ -133,11 +137,25 @@ Each mantra and table row stays alphabetized so merge decisions remain easy to s
 
 ```bash
 npm run conflict:check
+npm run conflict:source
 ```
 
-GitHub Actions also runs this compliance check automatically on pull requests and pushes to `main`.
+GitHub Actions runs `npm run ci:integration` through the single `Integration Gate` status on pull requests and pushes to `main`.
 Local Git enforcement also runs it on `git push` through the repo-managed `.githooks/pre-push` hook. The hook installs automatically during `npm install` via `npm run hooks:install`.
 For server-side merge gating, see `docs/branch-protection.md`.
+
+### Collaboration Runtime
+
+```bash
+npm run collaboration:contract:check
+npm run ci:affected
+npm run ci:integration
+```
+
+- `collaboration:contract:check` parses canonical frontmatter, validates branch/base/scope ownership in CI, and rejects deployment commands outside the manual release workflow.
+- `ci:affected` derives focused commands from the canonical `ci_scopes` map rather than duplicating path rules in workflow YAML.
+- `ci:integration` composes contract, source/build conflict, and affected-scope validation behind one stable merge status without mutating or requiring Prod.
+- `conflict:check` remains the end-to-end source-plus-mirror parity check used after release sync.
 
 ### Pages And Publish
 
@@ -151,11 +169,7 @@ To rebuild and then sync:
 npm run pages:build-sync
 ```
 
-To rebuild, sync, apply remote D1 migrations, and deploy the storage Worker:
-
-```bash
-npm run pages:build-sync-cloudflare
-```
+Building and syncing is not deployment authorization. Remote migration and deployment commands must run only through an explicitly authorized release operation.
 
 ### Docs And Schema
 
@@ -216,11 +230,16 @@ Use `npm run hygiene:audit` before broad refactors to list all current source-bu
 ## Validation Checklist
 
 - [ ] Every conflicting file has an identified owner surface
+- [ ] Pull-request frontmatter declares one `/` action, `#` semantic scope, `@` actor, and exact base SHA
+- [ ] The task branch identifies one device and matches the declared semantic scope
+- [ ] No other active change owns the same semantic scope
+- [ ] A cross-device handoff stopped the sender before the receiver resumed the exact pushed commit
 - [ ] No generated or publish mirror file was hand-merged without fixing the upstream source
 - [ ] No stale duplicate path, alias, or compatibility branch remains
 - [ ] The correct sync or validation command was run for the affected surface
 - [ ] Downstream mirrors match the regenerated upstream state
 - [ ] Unrelated local worktree changes were preserved
+- [ ] No deployment, remote migration, or Prod mutation occurred during CI or conflict resolution
 
 ---
 

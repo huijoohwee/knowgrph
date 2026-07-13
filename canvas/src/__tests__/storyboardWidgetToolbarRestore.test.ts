@@ -134,7 +134,7 @@ export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() 
     structural: false,
   } as Parameters<typeof resolveProbeTreeCardMaterializationRequestText>[0]
   const probeTreeInvocationText = resolveProbeTreeCardMaterializationRequestText(probeTreeCard)
-  for (const expected of ['/knowgrph.probe-tree', 'Selected card id: care_source', 'response.structuredContent.cards']) {
+  for (const expected of ['knowgrph.probe.generate', 'Selected card id: care_source', 'response.structuredContent.cards']) {
     if (!probeTreeInvocationText.includes(expected)) throw new Error(`expected Probe-Tree toolbar invocation to include ${expected}`)
   }
   for (const forbidden of ['emitChatInputAppend', 'emitFloatingPanelOpen']) {
@@ -165,8 +165,8 @@ export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() 
   if (probeNodes.length !== 3 || candidateEdges.length !== 3) {
     throw new Error('expected Probe-Tree toolbar materialization to create ProbeTreeCandidate nodes with candidateOption edges')
   }
-  if (!probeNodes.every(node => node.properties.slashCommand === '/knowgrph.probe-tree' && node.properties.hashToken === '#knowgrph.probe-tree' && node.properties.atToken === '@knowgrph.probe-tree')) {
-    throw new Error('expected Probe-Tree materialized cards to reuse shared slash, hash, and at invocation chips')
+  if (!probeNodes.every(node => node.properties.invocation === 'knowgrph.probe.generate')) {
+    throw new Error('expected Probe-Tree materialized cards to use the MCP tool identity without local grammar aliases')
   }
   const graphMermaid = String((materializedGraph?.metadata || {}).probeTreeMermaidFlowchart || '')
   if (

@@ -19,15 +19,13 @@ import { normalizeApprovals, buildApprovalGates, hasGate } from "./approvals.js"
 import { normalizeSourceCards, buildMarketRadar } from "./evidence.js";
 import { buildShotPlan, buildStoryboardFlow, buildStoryboardMarkdown } from "./storyboard.js";
 import { buildDryRunPlanArtifact } from "./stages.js";
+import { VIDEO_REMIX_STAGE_GATES, VIDEO_REMIX_STAGE_ORDER } from "./stage-contract.js";
 import { buildDemoPack } from "./demo-pack.js";
 import { buildFailureHandling } from "./failure-handling.js";
 import { normalizeCumulativeSpendUsd, budgetCapExceeded } from "./budget.js";
 import { buildBudgetMetersUpdate } from "./budget-meters.js";
 import { validateDirectorInput } from "./director-input.js";
-import {
-  buildCostLogAccounting,
-  MODEL_BEARING_STAGE_IDS,
-} from "./cost-log.js";
+import { buildCostLogAccounting, MODEL_BEARING_STAGE_IDS } from "./cost-log.js";
 import { buildLedgerReconciliation } from "./reconciliation.js";
 import { buildEditStage } from "./editing-harness.js";
 import { checkNarrativeCoherence, clampShotCount } from "./storyboard-harness.js";
@@ -38,7 +36,6 @@ import {
   buildVideoWorkflowManifest,
   buildVideoWorkflowValidationChecks,
 } from "./workflow-manifest.js";
-
 export function runVideoRemix(args = {}) {
   const validated = validateDirectorInput(args);
   const referenceUrl = validated.referenceUrl;
@@ -203,9 +200,8 @@ export function runVideoRemix(args = {}) {
               ? "approval_required_no_verified_token"
               : "halted_or_not_reached",
       });
-    return { id, status, executed, artifact, ...details };
+    return { id, gateId: VIDEO_REMIX_STAGE_GATES[id], status, executed, artifact, ...details };
   };
-
   const researchStatus = !liveRequested || paidApproved
     ? (weakSignal ? "weak_signal" : "complete")
     : "approval_required";
@@ -243,16 +239,17 @@ export function runVideoRemix(args = {}) {
         ? "blocked"
       : (paymentApproved ? "dry_run_ready" : "approval_required");
 
-  const stages = [
-    buildSpendBearingStage("research", researchStatus, { sourceCount: sources.length, costLog: costLogByStage.research, weakSignal: weakSignalHalt.weakSignal, awaitingApprovalToContinue: weakSignalHalt.awaitingApprovalToContinue, continuationGateId: weakSignalHalt.gateId }),
-    buildSpendBearingStage("storyboard", storyboardStatus, { shotCount: plannedShots.length, costLog: costLogByStage.storyboard, narrativeCoherence: checkNarrativeCoherence(plannedShots) }),
-    buildSpendBearingStage("render", renderStatus, { assetCount: assets.length }),
-    budgetExceeded
-      ? { ...buildEditStage("edit", editResult), status: STAGE_STATUS_BUDGET_HELD }
-      : buildEditStage("edit", editResult),
-    buildSpendBearingStage("publish", publishStatus, { publishedCount: publishedUrls.length }),
-    buildSpendBearingStage("checkout", checkoutStatus),
-  ];
+  const stagesById = {
+    research: buildSpendBearingStage("research", researchStatus, { sourceCount: sources.length, costLog: costLogByStage.research, weakSignal: weakSignalHalt.weakSignal, awaitingApprovalToContinue: weakSignalHalt.awaitingApprovalToContinue, continuationGateId: weakSignalHalt.gateId }),
+    storyboard: buildSpendBearingStage("storyboard", storyboardStatus, { shotCount: plannedShots.length, costLog: costLogByStage.storyboard, narrativeCoherence: checkNarrativeCoherence(plannedShots) }),
+    render: buildSpendBearingStage("render", renderStatus, { assetCount: assets.length }),
+    edit: budgetExceeded
+      ? { ...buildEditStage("edit", editResult), gateId: VIDEO_REMIX_STAGE_GATES.edit, status: STAGE_STATUS_BUDGET_HELD, executed: false }
+      : { ...buildEditStage("edit", editResult), gateId: VIDEO_REMIX_STAGE_GATES.edit, executed: stageExecuted.edit },
+    publish: buildSpendBearingStage("publish", publishStatus, { publishedCount: publishedUrls.length }),
+    checkout: buildSpendBearingStage("checkout", checkoutStatus),
+  };
+  const stages = VIDEO_REMIX_STAGE_ORDER.map((stageId) => stagesById[stageId]);
 
   const weakSignalHaltOk = weakSignalHalt.haltEnforced({ state, researchStatus, storyboardStatus, stages });
   // Recorded paid-provider-call counter (spec task 2.3 / R2.3, R2.6 / Properties

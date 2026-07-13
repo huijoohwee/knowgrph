@@ -15,19 +15,13 @@
 //   { runState, stages: [...], budgetMeters, renderWithinDeadline,
 //     renderDeadlineMs, ... }
 //
-// exposing the current Run_State, the COMPLETE creative stage list (every
-// planned stage with its current status, in canonical order), and the
+// exposing the current Run_State, the complete source-declared stage list, and the
 // Budget_Meters (estimatedCostUsd, actualCostUsd, providerSpendUsd). Re-building
 // from an updated manifest yields the new state / stages / meters, which is how
 // the Frontend reflects each stage transition (R1.9 / R13.4 / Property 32).
 //
-// STAGE-LIST REUSE (do NOT fork): the complete stage list is built with the
-// existing `buildRunInitiationView` builder, which already mirrors the worker
-// tier's canonical stage order and per-stage gate ids
-// (`mcp/director-workflow.js` `DIRECTOR_STAGE_ORDER` / `DIRECTOR_STAGE_GATES`)
-// and reads per-stage `status` from the manifest. This guarantees the rendered
-// list is ALWAYS complete (all five planned stages) regardless of how sparse the
-// manifest is, with each stage reflecting its latest manifest status.
+// STAGE-LIST REUSE (do NOT fork): `buildRunInitiationView` projects the runtime
+// manifest directly. The frontend never backfills or mirrors stage topology.
 //
 // RUN_STATE MIRROR (do NOT fork): the canonical Run_State catalog mirrors the
 // design Data Models / Glossary. The runtime is the single source of truth for

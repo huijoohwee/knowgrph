@@ -6,6 +6,11 @@
 // the approval-gate / demo-section catalogs. Pure data — importable by both
 // the Node tests and the Cloudflare Worker bundle.
 
+import {
+  VIDEO_REMIX_SPEND_BEARING_STAGES,
+  VIDEO_REMIX_STAGE_GATES,
+} from "./stage-contract.js";
+
 const CONTRACT_VERSION = "knowgrph.video_remix/v0.1";
 const DEFAULT_MAX_ITERATIONS = 8;
 const DEFAULT_SHOT_COUNT = 4;
@@ -96,25 +101,15 @@ const MODEL_BEARING_PAID_STAGES = 2;
 // render provider spend, deploy, or payment). In `mode:"dry-run"` — and in
 // Live_Mode whenever the stage is reached without a verified Approval_Token —
 // the stage MUST resolve to a Dry_Run plan artifact rather than executing.
-const SPEND_BEARING_STAGES = Object.freeze([
-  "research",
-  "storyboard",
-  "render",
-  "publish",
-  "checkout",
-]);
+const SPEND_BEARING_STAGES = VIDEO_REMIX_SPEND_BEARING_STAGES;
 
 // Gate id guarding each spend-bearing stage. Mirrors `APPROVAL_GATES` /
 // `DIRECTOR_STAGE_GATES` so the runtime, the workflow skeleton, and the
 // Section-1 McpAgent boundary agree on what each stage requires. Recorded on
 // the plan artifact so a dry-run / approval_required resolution is observable.
-const SPEND_BEARING_STAGE_GATES = Object.freeze({
-  research: "paid-model-call",
-  storyboard: "paid-model-call",
-  render: "render-action",
-  publish: "cloud-deploy",
-  checkout: "payment-action",
-});
+const SPEND_BEARING_STAGE_GATES = Object.freeze(Object.fromEntries(
+  SPEND_BEARING_STAGES.map((stageId) => [stageId, VIDEO_REMIX_STAGE_GATES[stageId]]),
+));
 
 // Planned per-model-stage estimate ceiling used when a model-bearing stage
 // resolves to a plan artifact (so the dry-run plan shows what the step WOULD
