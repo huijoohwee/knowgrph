@@ -1,6 +1,17 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
+  ["storyboardWidget.videoScript.thinkingDefaultsToFinalOutput","@/__tests__/storyboardWidgetWorkflowTextThinking.test","testVideoScriptWorkflowDefaultsToFinalOutputThinkingMode"],
+  ["storyboardWidget.videoScript.thinkingRejectsConflictingOverride","@/__tests__/storyboardWidgetWorkflowTextThinking.test","testVideoScriptWorkflowRejectsConflictingThinkingOverride"],
+  ["storyboardWidget.textGeneration.thinkingPreservesGlobalMode","@/__tests__/storyboardWidgetWorkflowTextThinking.test","testOrdinaryTextWorkflowPreservesGlobalThinkingMode"],
+  ["byteplus.run.text.reasoningOnlyLengthIsTyped","@/__tests__/byteplusRunTextTerminal.test","testBytePlusRunTextReportsReasoningOnlyLengthTerminal"],
+  ["byteplus.run.text.missingEndpointFailsBeforeFetch","@/__tests__/byteplusRunTextTerminal.test","testBytePlusRunTextRejectsMissingEndpointBeforeFetch"],
+  ["byteplus.providerOptions.disabledThinkingOmitsReasoningEffort","@/__tests__/floatingPanelChatProviderOptions.test","testBytePlusDisabledThinkingOmitsReasoningEffort"],
+  ["byteplus.video.duration.seedanceOneProviderRange","@/__tests__/byteplusVideoDuration.test","testBytePlusSeedanceOneDurationUsesProviderRange"],
+  ["byteplus.video.duration.laterSeedanceProviderRange","@/__tests__/byteplusVideoDuration.test","testBytePlusLaterSeedanceDurationUsesProviderRange"],
+  ["byteplus.video.draft.seedanceOnePointFiveOnly","@/__tests__/byteplusVideoDuration.test","testBytePlusDraftSupportIsSeedanceOnePointFiveOnly"],
+  ["byteplus.video.referenceImage.materializesBase64Mode","@/__tests__/byteplusVideoReferenceImage.test","testBytePlusVideoReferenceImageMaterializesBase64Mode"],
+  ["byteplus.video.referenceImage.preservesUrlMode","@/__tests__/byteplusVideoReferenceImage.test","testBytePlusVideoReferenceImagePreservesUrlMode"],
   ["ui.canvasActionEvents.sharedDispatcher.reusesSharedCustomEventDispatcher","@/__tests__/canvasActionEventsContract.test","testCanvasActionEmittersReuseSharedCustomEventDispatcher"],
   ["ui.canvasActionEvents.sharedDispatcher.boundary","@/__tests__/canvasActionEventsContract.test","testCanvasActionEmittersUseSharedDispatcherBoundary"],
   ["ui.floatingPanelChat.openSeed.openOnly","@/__tests__/floatingPanelChatOpenSeed.test","testFloatingPanelChatOpenOnlyHelperDispatchesSharedOpenEvent"],

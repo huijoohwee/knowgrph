@@ -598,9 +598,10 @@ export async function testGenerateRunVideoWithBytePlusPollsTaskAndDownloadsBlob(
       if (url.includes('/models')) {
         return {
           ok: true,
-          json: async () => ({ data: [{ id: CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT }] }),
+          json: async () => ({ data: [{ id: 'seedance-1-5-pro-251215' }] }),
         } as Response
       }
+      if (url === '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Freference.png') return new Response(new Blob([Uint8Array.from([1, 2, 3])], { type: 'image/png' }), { status: 200 })
       if (url === '/__chat_proxy/api/v3/contents/generations/tasks' && String(init?.method || 'GET').toUpperCase() === 'POST') {
         const body = JSON.parse(String(init?.body || '{}')) as {
           content?: Array<{ type?: string; image_url?: { url?: string } }>
@@ -612,12 +613,8 @@ export async function testGenerateRunVideoWithBytePlusPollsTaskAndDownloadsBlob(
         if (body.ratio !== '9:16' || body.duration !== 6 || body.generate_audio !== true || body.draft !== true) {
           throw new Error(`expected video generation options to map onto the BytePlus task request: ${JSON.stringify(body)}`)
         }
-        const imageRef = Array.isArray(body.content)
-          ? body.content.find(item => item && item.type === 'image_url')
-          : null
-        if (imageRef?.image_url?.url !== 'https://example.com/reference.png') {
-          throw new Error('expected reference image URL to be forwarded into the BytePlus video task payload')
-        }
+        const imageRef = Array.isArray(body.content) ? body.content.find(item => item && item.type === 'image_url') : null
+        if (imageRef?.image_url?.url !== 'data:image/png;base64,AQID') throw new Error('expected reference image to be materialized as a provider-readable Base64 data URL')
         return {
           ok: true,
           json: async () => ({ id: 'task-123' }),
@@ -651,6 +648,7 @@ export async function testGenerateRunVideoWithBytePlusPollsTaskAndDownloadsBlob(
       },
       prompt: 'Generate video',
       options: {
+        model: 'seedance-1-5-pro-251215',
         contentJson: JSON.stringify([{ type: 'text', text: 'Widget-local content override' }]),
         ratio: '9:16',
         duration: 6,
