@@ -10,6 +10,7 @@ import { parseFrontmatter, repoRoot } from "./collaboration-contract.mjs";
 import { runAgenticCanvasOsDocsInvokeTool } from "../mcp/agentic-canvas-os-docs-runtime.js";
 import { runVideoRemix } from "../mcp/video-remix-runtime.js";
 import { VIDEO_REMIX_STAGE_ORDER } from "../mcp/video-remix/stage-contract.js";
+import { listAgentDefinitions } from "../contracts/agent-runtime.schema.js";
 
 const execFileAsync = promisify(execFile);
 const contractPath = path.resolve(repoRoot, "docs", "runtime-readiness-contract.md");
@@ -53,7 +54,15 @@ async function verifyDocs(contract) {
       fail(`docs SSOT did not resolve ${token}`);
     }
   }
-  return { root: docsRoot, ref: docsCommit.trim(), tokens: dependency.proof_tokens };
+  const skillsSource = await fs.readFile(path.join(docsRoot, "SKILLS.md"), "utf8");
+  const agentVariants = listAgentDefinitions().map((definition) => {
+    const expectedRowPrefix = `| \`${definition.id}\` | \`${definition.invocation}\` |`;
+    if (!skillsSource.includes(expectedRowPrefix)) {
+      fail(`Agentic Canvas OS SKILLS.md did not authorize ${definition.id} -> ${definition.invocation}`);
+    }
+    return { id: definition.id, invocation: definition.invocation };
+  });
+  return { root: docsRoot, ref: docsCommit.trim(), tokens: dependency.proof_tokens, agentVariants };
 }
 
 const mockArgs = Object.freeze({

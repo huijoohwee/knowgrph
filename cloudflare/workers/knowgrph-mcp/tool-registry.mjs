@@ -10,16 +10,13 @@
 // Director-owned pipeline so sequencing, retry, and manifest writes stay in one
 // source owner.
 import { runVideoRemix, runVideoRemixAsync, VIDEO_WORKFLOW_INPUT_SCHEMA } from "../../../mcp/video-remix-runtime.js";
-import {
-  AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
-  AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION,
-} from "../../../mcp/agentic-canvas-os-docs-contract.mjs";
+import { AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION } from "../../../mcp/agentic-canvas-os-docs-contract.mjs";
 import { buildAgenticCanvasOsDocsStaticResolutionPayload, buildAgenticCanvasOsDocsDynamicResolutionPayload } from "../../../mcp/agentic-canvas-os-docs-core.mjs";
 import { executeCloudflareOsStatusTool, KNOWGRPH_OS_STATUS_TOOL_NAME, OS_STATUS_TOOL_DEFINITION } from "./os-status-tool.mjs";
+import { AGENT_RUNTIME_TOOL_DEFINITION, AGENT_RUNTIME_TOOL_NAME, executeAgentRuntimeTool, executeAgentRuntimeToolAsync } from "./agent-runtime-tool.mjs";
 
 export const KNOWGRPH_MCP_CONTRACT_VERSION = "knowgrph.mcp.video_remix/v0.1";
-export { AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, KNOWGRPH_OS_STATUS_TOOL_NAME };
-
+export { AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, AGENT_RUNTIME_TOOL_NAME, KNOWGRPH_OS_STATUS_TOOL_NAME };
 export const KNOWGRPH_MCP_DIRECTOR_TOOL_NAME = "knowgrph.video_remix.run";
 
 export const KNOWGRPH_MCP_STAGE_TOOL_NAMES = Object.freeze({
@@ -29,7 +26,6 @@ export const KNOWGRPH_MCP_STAGE_TOOL_NAMES = Object.freeze({
   publish: "knowgrph.video_remix.publish",
   checkout: "knowgrph.video_remix.checkout",
 });
-
 // Approval gate ids the McpAgent boundary enforces per stage tool (R14.6).
 // These mirror the *runtime* gate ids the Director actually checks in
 // `mcp/video-remix-runtime.js` (`APPROVAL_GATES` + `hasGate(...)`), so the
@@ -439,6 +435,7 @@ const DIRECTOR_TOOL_DEFINITION = Object.freeze({
   inputSchema: VIDEO_REMIX_RUN_INPUT_SCHEMA,
   outputSchema: VIDEO_REMIX_RUN_OUTPUT_SCHEMA,
 });
+
 /**
  * Returns the canonical tool list this McpAgent exposes at
  * airvio.co/knowgrph/control-plane/mcp. Property 26 / R14.4: every entry carries both
@@ -453,7 +450,7 @@ export function buildKnowgrphMcpToolDefinitions() {
       gateId: KNOWGRPH_MCP_STAGE_GATES[tool.name] ?? null,
     },
   });
-  return [DIRECTOR_TOOL_DEFINITION, ...STAGE_TOOL_DEFINITIONS, OS_STATUS_TOOL_DEFINITION, AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION].map((tool) => {
+  return [AGENT_RUNTIME_TOOL_DEFINITION, DIRECTOR_TOOL_DEFINITION, ...STAGE_TOOL_DEFINITIONS, OS_STATUS_TOOL_DEFINITION, AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION].map((tool) => {
     const decorated = decorate(tool);
     return tool.name === KNOWGRPH_OS_STATUS_TOOL_NAME || tool.name === AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME
       ? { ...decorated, annotations: { ...decorated.annotations, readOnlyHint: true } }
@@ -525,6 +522,8 @@ function buildApprovalRequiredEnvelope({ toolName, gateId, reason }) {
 export function executeKnowgrphMcpTool(toolName, rawArgs = {}) {
   const args = rawArgs && typeof rawArgs === "object" ? rawArgs : {};
 
+  if (toolName === AGENT_RUNTIME_TOOL_NAME) return executeAgentRuntimeTool(args);
+
   if (toolName === KNOWGRPH_MCP_DIRECTOR_TOOL_NAME) {
     const result = runVideoRemix(args);
     return {
@@ -581,6 +580,7 @@ export function executeKnowgrphMcpTool(toolName, rawArgs = {}) {
 
 export async function executeKnowgrphMcpToolAsync(toolName, rawArgs = {}, deps = {}) {
   const args = rawArgs && typeof rawArgs === "object" ? rawArgs : {};
+  if (toolName === AGENT_RUNTIME_TOOL_NAME) return executeAgentRuntimeToolAsync(args, deps);
   if (toolName === KNOWGRPH_MCP_DIRECTOR_TOOL_NAME) {
     const result = await runVideoRemixAsync(args, deps);
     return {

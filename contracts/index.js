@@ -10,3 +10,4 @@ export * from "./credit-ledger.schema.js";
 export * from "./kgc-document.schema.js";
 export * from "./demo-pack.schema.js";
 export * from "./media-artifact.schema.js";
+export * from "./agent-runtime.schema.js";

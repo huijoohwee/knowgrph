@@ -13,10 +13,10 @@ stage_contract:
   order: ["research", "storyboard", "render", "edit", "publish", "checkout"]
 docs_dependency:
   repository: "https://github.com/huijoohwee/agentic-canvas-os.git"
-  ref: "a567e7f432c3ff738ed5503b31024cdff7e67161"
+  ref: "bac0812e4b1079c8015e7ffc4238d2e5f0717d7b"
   root_env: "KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT"
   default_relative_root: "../agentic-canvas-os/docs"
-  required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "RUNTIME-PROOF.md"]
+  required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "RUNTIME-PROOF.md", "SKILLS.md"]
   proof_tokens: ["/runtime-ready.check", "/session.start", "/release.complete", "#runtime-ready", "#multi-agent-collaboration", "@operator", "@working-directory", "@source.frontmatter", "@runtime-proof", "@mcp-gateway", "/sandbox.policy.validate", "#agent-sandbox-policy", "@sandbox-policy"]
 local_proof:
   provider_mode: "mock"
@@ -35,7 +35,7 @@ deployed_verification:
 
 ## Authority
 
-The opening frontmatter is the machine source of truth for the Dev runtime-readiness gate. The external Agentic Canvas OS dictionaries remain the invocation grammar SSOT; this contract records only the pinned dependency and proof probes required by Knowgrph.
+The opening frontmatter is the machine source of truth for the Dev runtime-readiness gate. The external Agentic Canvas OS dictionaries remain the invocation grammar SSOT, while `SKILLS.md` owns named `/*-agent` variants. This contract records only the pinned dependency and proof probes required by Knowgrph.
 
 ## Promotion Rule
 
@@ -43,10 +43,25 @@ The opening frontmatter is the machine source of truth for the Dev runtime-readi
 
 The local gate performs no network calls, deployments, remote migrations, or repository writes. Deployed reachability is a separate operator-invoked verification and cannot promote a failing local runtime.
 
+## Cloudflare-Only Runtime Boundary
+
+The deployed agent runtime requires only the `knowgrph-mcp` Worker, its Agents SDK Durable Objects, the `AI` Workers AI binding, and the `KNOWGRPH_AGENT_RUNTIME_BEARER_TOKEN` Worker secret. Agent definitions, schemas, plans, policies, and renderer contracts are bundled from `data/config/agents/agent-definitions.json`; request handling does not read another repository or call an external orchestration service.
+
+The pinned Agentic Canvas OS documentation is a source-time governance dependency checked before promotion. It is not a request-time infrastructure dependency. BytePlus, Exa, StryTree, payment, and media services remain optional adapters for their existing specialized stages and are not required for `/investment-research-agent`, `/sme-care-agent`, or `/video-agent` to compile and dry-run.
+
+Live execution is fail-closed: it requires bearer authentication, the `paid-model-call` approval, and a configured Workers AI binding. Dry-run is deterministic and records zero paid provider calls.
+
 ## Commands
 
 ```bash
 npm run runtime:check
+```
+
+Pre-deployment secret configuration (operator action):
+
+```bash
+npx wrangler secret put KNOWGRPH_AGENT_RUNTIME_BEARER_TOKEN \
+  --config cloudflare/workers/knowgrph-mcp/wrangler.toml
 ```
 
 Post-deploy verification, only after explicit authorization and with explicit URLs:

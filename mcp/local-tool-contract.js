@@ -1,4 +1,5 @@
 import { BROWSER_API_TOOL } from "./browser-api-runtime.js"; import { buildOsStatusToolDefinition } from "./os-status-contract.js";
+import { buildLocalAgentRuntimeToolDefinition } from "./local-agent-tool-contract.js";
 import { KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID, KNOWGRPH_AGENT_READY_TOOL_IDS, buildKnowgrphAgentReadyToolContracts } from "../canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs";
 import { KNOWGRPH_LOCAL_MCP_TOOL_NAMES as SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
 import { buildKnowgrphMcpAppsToolMeta, buildKnowgrphMcpNoauthSecuritySchemes } from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
@@ -260,61 +261,12 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
         },
       },
     }, LOCAL_PROCESS_TOOL_ANNOTATIONS),
-    withLocalMcpDescriptorDefaults({
-      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun,
-      description:
-        "Use this when a local MCP host needs to run the Codex-compatible long-horizon SuperAgent harness for research, code, and create tasks across quick_triage, bounded_compile, deep_research, and parallel_build levels with native memory, skill selection, sandbox artifacts, subagent contracts, and provider-neutral media outputs.",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          inputPath: {
-            type: "string",
-            description: "Path to a markdown/text brief. Required unless resume=true.",
-          },
-          outputDir: {
-            type: "string",
-            description: "Directory for state, trace, report, and artifacts. Defaults to data/outputs/superagent-mcp-run-<timestamp>.",
-          },
-          goalPath: {
-            type: "string",
-            description: "Optional goal file path. Defaults to KNOWGRPH_ROOT/goal.",
-          },
-          runId: {
-            type: "string",
-            description: "Optional stable run id.",
-          },
-          providerMode: {
-            type: "string",
-            enum: ["byteplus-modelark", "mock"],
-            default: "byteplus-modelark",
-            description: "Optional media provider mode. byteplus-modelark records the minimal ModelArk MCP placeholder; mock is deterministic.",
-          },
-          resume: {
-            type: "boolean",
-            default: false,
-            description: "Resume from outputDir/state.json.",
-          },
-          stopAfterStep: {
-            type: "number",
-            description: "Optional checkpoint after N completed tasks.",
-          },
-          failOnceTool: {
-            type: "string",
-            description: "Optional tool name to fail once for recovery testing, e.g. video.generate.mock.",
-          },
-          allowExternalInput: {
-            type: "boolean",
-            default: false,
-            description: "Allow inputPath outside KNOWGRPH_ROOT for explicit E2E runs.",
-          },
-          timeoutMs: {
-            type: "number",
-            description: "Optional timeout in milliseconds.",
-          },
-        },
-      },
-    }, LOCAL_PROCESS_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults(
+      buildLocalAgentRuntimeToolDefinition(
+        KNOWGRPH_LOCAL_MCP_TOOL_NAMES.superagentRun,
+      ),
+      LOCAL_PROCESS_TOOL_ANNOTATIONS,
+    ),
     withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.videoRemixRun,
       description:

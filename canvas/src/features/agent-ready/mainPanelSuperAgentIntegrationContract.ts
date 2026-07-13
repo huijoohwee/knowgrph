@@ -7,6 +7,7 @@ import {
   CHAT_PROVIDER_QWEN,
   getChatProviderLabel,
 } from '@/lib/chatEndpoint'
+import { AGENT_DEFINITION_REGISTRY } from '../../../../contracts/agent-runtime.schema.js'
 
 export const KNOWGRPH_AGENT_READY_MAIN_PANEL_ENTRY_TABS = [
   'mcp',
@@ -102,27 +103,20 @@ export const KNOWGRPH_SUPERAGENT_RUNTIME_SURFACE_NODE_IDS = {
 
 export const KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_TYPE = 'subagent'
 
-export const KNOWGRPH_SUPERAGENT_SUBAGENT_IDS = [
-  'source_scout',
-  'thesis_compiler',
-  'code_worker',
-  'artifact_builder',
-  'review_gate',
-] as const
+const SUPERAGENT_SURFACE_PROJECTION =
+  AGENT_DEFINITION_REGISTRY.profiles['superagent.full.v1'].surfaceProjection
 
-export const KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_IDS = {
-  source_scout: 'kgra_subagent_source_scout',
-  thesis_compiler: 'kgra_subagent_thesis_compiler',
-  code_worker: 'kgra_subagent_code_worker',
-  artifact_builder: 'kgra_subagent_artifact_builder',
-  review_gate: 'kgra_subagent_review_gate',
-} as const satisfies Record<(typeof KNOWGRPH_SUPERAGENT_SUBAGENT_IDS)[number], string>
+export const KNOWGRPH_SUPERAGENT_SUBAGENT_IDS =
+  Object.freeze([...SUPERAGENT_SURFACE_PROJECTION.subagents])
 
-export const KNOWGRPH_SUPERAGENT_TASK_CAPABILITIES = [
-  'research',
-  'code',
-  'create',
-] as const
+export const KNOWGRPH_SUPERAGENT_SUBAGENT_NODE_IDS: Readonly<Record<string, string>> =
+  Object.freeze(Object.fromEntries(KNOWGRPH_SUPERAGENT_SUBAGENT_IDS.map(subagentId => [
+    subagentId,
+    `kgra_subagent_${subagentId}`,
+  ])))
+
+export const KNOWGRPH_SUPERAGENT_TASK_CAPABILITIES =
+  Object.freeze([...SUPERAGENT_SURFACE_PROJECTION.taskCapabilities])
 
 export const KNOWGRPH_SUPERAGENT_TASK_LEVELS = [
   'quick_triage',

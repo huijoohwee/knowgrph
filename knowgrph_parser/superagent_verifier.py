@@ -268,8 +268,9 @@ def tool_judge_verify(payload: JsonDict) -> JsonDict:
 
     completed = set(state.get("completed_task_ids") if isinstance(state.get("completed_task_ids"), list) else [])
     provider_mode = str(state.get("run", {}).get("provider_mode") or "mock") if isinstance(state.get("run"), dict) else "mock"
+    agent_definition_id = str(state.get("run", {}).get("agent_definition_id") or "agent.video") if isinstance(state.get("run"), dict) else "agent.video"
     expected_before_verify = {
-        task.task_id for task in build_plan(provider_mode) if task.task_id not in {"verify_outputs", "synthesize_report"}
+        task.task_id for task in build_plan(provider_mode, agent_definition_id) if task.task_id not in {"verify_outputs", "synthesize_report"}
     }
     checks.append(
         {

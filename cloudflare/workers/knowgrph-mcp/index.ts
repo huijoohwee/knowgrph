@@ -25,15 +25,26 @@ import { z } from "zod";
 import {
   buildKnowgrphMcpToolDefinitions,
   AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
+  AGENT_RUNTIME_TOOL_NAME,
   KNOWGRPH_MCP_CONTRACT_VERSION,
   KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
   KNOWGRPH_OS_STATUS_TOOL_NAME,
 } from "./tool-registry.mjs";
 import {
+  listAgentDefinitions,
+} from "../../../contracts/agent-runtime.schema.js";
+import {
+  AGENTS_PATH,
+  AGENT_RUNS_PATH,
+  authorizeRuntimeRequest,
+  handleAgentRun,
+  handleRunsRead,
+  runtimeJsonResponse,
+} from "./agent-runtime-http";
+import {
   defaultPersistenceDiagnosticEmitter,
   defaultStageTransitionDiagnosticEmitter,
   dispatchKnowgrphMcpToolCall,
-  readRunManifestThroughNamespace,
   RUN_MANIFEST_PERSISTENCE_DEADLINE_MS,
   RunManifestStore,
 } from "./run-manifest-store.mjs";
@@ -45,15 +56,11 @@ import {
   createLiveArgsResolver,
 } from "../../../mcp/video-remix/live-clients.js";
 
-export interface KnowgrphMcpEnv {
-  MCP_AGENT: DurableObjectNamespace;
-  RUN_MANIFEST_STORE: DurableObjectNamespace;
-  KNOWGRPH_MCP_PUBLIC_BASE_URL?: string;
-  KNOWGRPH_MCP_TOOL_LIST_NAME?: string;
+export interface KnowgrphMcpEnv extends Env {
+  KNOWGRPH_AGENT_RUNTIME_BEARER_TOKEN?: string;
   // task 12.5 env gating: live stage clients are enabled when KNOWGRPH_LIVE_CLIENTS
   // is truthy or a provider credential (EXA_API_KEY) is present; otherwise the
   // Director runs against deterministic mocks (zero live/paid calls).
-  KNOWGRPH_LIVE_CLIENTS?: string;
   EXA_API_KEY?: string;
   EXA_MCP_ENDPOINT?: string;
   AI_GATEWAY_CHAT_URL?: string;
@@ -132,7 +139,7 @@ const RESEARCH_INPUT = {
 
 const STORYBOARD_INPUT = {
   brief: z.string().min(1).max(5000),
-  evidencePack: z.record(z.unknown()),
+  evidencePack: z.record(z.string(), z.unknown()),
   shotCount: z.number().int().min(1).max(500).optional(),
   approvals: APPROVALS_INPUT,
   runId: z.string().optional(),
@@ -221,7 +228,7 @@ const STAGE_OUTPUT_ENVELOPE = {
   paidProviderCalls: z.number().optional(),
   runManifestStateChanged: z.boolean().optional(),
   note: z.string().optional(),
-  error: z.record(z.unknown()).optional(),
+  error: z.record(z.string(), z.unknown()).optional(),
 } as const;
 
 const VIDEO_REMIX_RUN_OUTPUT = {
@@ -229,27 +236,27 @@ const VIDEO_REMIX_RUN_OUTPUT = {
   runId: z.string().optional(),
   state: z.string().optional(),
   mode: z.string().optional(),
-  approvalGates: z.array(z.record(z.unknown())).optional(),
-  stages: z.array(z.record(z.unknown())).optional(),
-  evidencePack: z.record(z.unknown()).optional(),
-  storyboard: z.record(z.unknown()).optional(),
-  render: z.record(z.unknown()).optional(),
-  commerce: z.record(z.unknown()).optional(),
-  failureHandling: z.record(z.unknown()).optional(),
-  budgetMeters: z.record(z.unknown()).optional(),
-  demoPack: z.record(z.unknown()).nullable().optional(),
-  validation: z.record(z.unknown()).optional(),
-  persistence: z.record(z.unknown()).optional(),
+  approvalGates: z.array(z.record(z.string(), z.unknown())).optional(),
+  stages: z.array(z.record(z.string(), z.unknown())).optional(),
+  evidencePack: z.record(z.string(), z.unknown()).optional(),
+  storyboard: z.record(z.string(), z.unknown()).optional(),
+  render: z.record(z.string(), z.unknown()).optional(),
+  commerce: z.record(z.string(), z.unknown()).optional(),
+  failureHandling: z.record(z.string(), z.unknown()).optional(),
+  budgetMeters: z.record(z.string(), z.unknown()).optional(),
+  demoPack: z.record(z.string(), z.unknown()).nullable().optional(),
+  validation: z.record(z.string(), z.unknown()).optional(),
+  persistence: z.record(z.string(), z.unknown()).optional(),
   // Stage-transition diagnostics emitted on this run (R14.5 / Property 27).
-  stageTransitions: z.array(z.record(z.unknown())).optional(),
+  stageTransitions: z.array(z.record(z.string(), z.unknown())).optional(),
 };
 
 const RESEARCH_OUTPUT = {
   ...STAGE_OUTPUT_ENVELOPE,
   evidencePack: z
     .object({
-      sources: z.array(z.record(z.unknown())).optional(),
-      citations: z.array(z.record(z.unknown())).optional(),
+      sources: z.array(z.record(z.string(), z.unknown())).optional(),
+      citations: z.array(z.record(z.string(), z.unknown())).optional(),
       summary: z.string().optional(),
     })
     .passthrough()
@@ -261,8 +268,8 @@ const STORYBOARD_OUTPUT = {
   canvasDocumentMarkdown: z.string().optional(),
   flow: z
     .object({
-      nodes: z.array(z.record(z.unknown())).optional(),
-      edges: z.array(z.record(z.unknown())).optional(),
+      nodes: z.array(z.record(z.string(), z.unknown())).optional(),
+      edges: z.array(z.record(z.string(), z.unknown())).optional(),
     })
     .passthrough()
     .optional(),
@@ -270,7 +277,7 @@ const STORYBOARD_OUTPUT = {
 
 const RENDER_OUTPUT = {
   ...STAGE_OUTPUT_ENVELOPE,
-  assets: z.array(z.record(z.unknown())).optional(),
+  assets: z.array(z.record(z.string(), z.unknown())).optional(),
 };
 
 const PUBLISH_OUTPUT = {
@@ -287,17 +294,17 @@ const CHECKOUT_OUTPUT = {
 const OS_STATUS_OUTPUT = {
   ok: z.boolean().optional(),
   view: z.string().optional(),
-  entries: z.array(z.record(z.unknown())).optional(),
+  entries: z.array(z.record(z.string(), z.unknown())).optional(),
   truncated: z.boolean().optional(),
-  unavailableSources: z.array(z.record(z.unknown())).optional(),
+  unavailableSources: z.array(z.record(z.string(), z.unknown())).optional(),
   unreachableCatalogs: z.array(z.string()).optional(),
-  totalsByHarness: z.record(z.object({ estimated_cost_usd: z.number() }).passthrough()).optional(),
-  validationFailures: z.array(z.record(z.unknown())).optional(),
-  costEmissionGaps: z.array(z.record(z.unknown())).optional(),
-  gates: z.array(z.record(z.unknown())).optional(),
+  totalsByHarness: z.record(z.string(), z.object({ estimated_cost_usd: z.number() }).passthrough()).optional(),
+  validationFailures: z.array(z.record(z.string(), z.unknown())).optional(),
+  costEmissionGaps: z.array(z.record(z.string(), z.unknown())).optional(),
+  gates: z.array(z.record(z.string(), z.unknown())).optional(),
   approvalTokenTtlMs: z.number().optional(),
-  breakers: z.array(z.record(z.unknown())).optional(),
-  cost_log: z.record(z.unknown()).optional(),
+  breakers: z.array(z.record(z.string(), z.unknown())).optional(),
+  cost_log: z.record(z.string(), z.unknown()).optional(),
   errorCode: z.string().optional(),
   message: z.string().optional(),
 };
@@ -308,11 +315,35 @@ const AGENTIC_CANVAS_OS_DOCS_OUTPUT = {
   sourceRootUrl: z.string().optional(),
   absoluteDocsRoot: z.string().optional(),
   token: z.string().optional(),
-  invocation: z.record(z.unknown()).nullable().optional(),
-  catalog: z.array(z.record(z.unknown())).optional(),
-  counts: z.record(z.unknown()).optional(),
+  invocation: z.record(z.string(), z.unknown()).nullable().optional(),
+  catalog: z.array(z.record(z.string(), z.unknown())).optional(),
+  counts: z.record(z.string(), z.unknown()).optional(),
   truncated: z.boolean().optional(),
-  error: z.record(z.unknown()).optional(),
+  error: z.record(z.string(), z.unknown()).optional(),
+};
+
+const AGENT_RUNTIME_INPUT = {
+  agentDefinitionId: z.string().optional(),
+  invocation: z.string().optional(),
+  brief: z.string().min(1).max(20_000),
+  mode: z.enum(["dry-run", "live"]).default("dry-run"),
+  runId: z.string().min(1).max(128).optional(),
+  providerMode: z.enum(["workers-ai", "byteplus-modelark", "mock"]).optional(),
+  approvals: APPROVALS_INPUT,
+  context: z.record(z.string(), z.unknown()).optional(),
+};
+
+const AGENT_RUNTIME_OUTPUT = {
+  contractVersion: z.string(),
+  runId: z.string(),
+  agentDefinitionId: z.string(),
+  invocation: z.string(),
+  mode: z.enum(["dry-run", "live"]),
+  status: z.enum(["planned", "approval_required", "ready", "completed", "blocked"]),
+  plan: z.record(z.string(), z.unknown()),
+  budgetMeters: z.record(z.string(), z.unknown()),
+  result: z.record(z.string(), z.unknown()).optional(),
+  error: z.record(z.string(), z.unknown()).optional(),
 };
 
 type ToolHandlerArgs = Record<string, unknown>;
@@ -399,8 +430,8 @@ export class KnowgrphMcpAgent extends McpAgent<KnowgrphMcpEnv> {
     // surface, which `server.tool(...)` cannot.
     const register = (
       name: string,
-      inputSchema: Record<string, z.ZodTypeAny>,
-      outputSchema: Record<string, z.ZodTypeAny>,
+      inputSchema: z.ZodRawShape,
+      outputSchema: z.ZodRawShape,
     ): void => {
       const def = definitions.find((entry) => entry.name === name);
       this.server.registerTool(
@@ -416,6 +447,11 @@ export class KnowgrphMcpAgent extends McpAgent<KnowgrphMcpEnv> {
       );
     };
 
+    register(
+      AGENT_RUNTIME_TOOL_NAME,
+      AGENT_RUNTIME_INPUT,
+      AGENT_RUNTIME_OUTPUT,
+    );
     register(
       KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
       VIDEO_REMIX_RUN_INPUT,
@@ -448,6 +484,12 @@ function buildHealthBody(env: KnowgrphMcpEnv): Record<string, unknown> {
       readBackEndpoint: `${MCP_PATH}/runs/{id}`,
       deadlineMs: RUN_MANIFEST_PERSISTENCE_DEADLINE_MS,
     },
+    agentRuntime: {
+      definitions: listAgentDefinitions().map((definition) => definition.id),
+      dryRun: "ready",
+      liveAdapter: env?.AI && env?.KNOWGRPH_AGENT_MODEL ? "configured" : "blocked_by_configuration",
+      endpoint: AGENT_RUNS_PATH,
+    },
   };
 }
 
@@ -457,70 +499,9 @@ const jsonResponse = (body: unknown, init?: ResponseInit): Response =>
     headers: {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
-      "access-control-allow-origin": "*",
       ...(init?.headers ?? {}),
     },
   });
-
-/**
- * GET /knowgrph/control-plane/mcp/runs/{id}
- *
- * Reads the latest persisted Run_Manifest record for `runId` from the
- * `RUN_MANIFEST_STORE` Durable Object and returns it as JSON. After a
- * Director state change the McpAgent persists within 2s, so this endpoint
- * is the read-back surface that satisfies R14.2 / Property 25.
- *
- * Caller authentication and authorization are handled by the Cloudflare MCP
- * gateway boundary before this read-back handler is exposed.
- */
-async function handleRunsRead(
-  env: KnowgrphMcpEnv,
-  runId: string,
-): Promise<Response> {
-  if (!env?.RUN_MANIFEST_STORE) {
-    return jsonResponse(
-      {
-        error: "run_manifest_store_unbound",
-        message:
-          "RUN_MANIFEST_STORE Durable Object binding is missing. Cannot read persisted Run_Manifest.",
-      },
-      { status: 500 },
-    );
-  }
-  const trimmed = runId.trim();
-  if (!trimmed) {
-    return jsonResponse(
-      { error: "missing_run_id", message: "runId path parameter is required." },
-      { status: 400 },
-    );
-  }
-  try {
-    const record = await readRunManifestThroughNamespace(
-      env.RUN_MANIFEST_STORE,
-      trimmed,
-    );
-    if (!record) {
-      return jsonResponse(
-        {
-          error: "run_not_found",
-          runId: trimmed,
-          message: "No Run_Manifest has been persisted for this runId yet.",
-        },
-        { status: 404 },
-      );
-    }
-    return jsonResponse(record);
-  } catch (err) {
-    return jsonResponse(
-      {
-        error: "run_manifest_read_failed",
-        runId: trimmed,
-        message: err instanceof Error ? err.message : String(err),
-      },
-      { status: 500 },
-    );
-  }
-}
 
 export default {
   async fetch(
@@ -542,16 +523,35 @@ export default {
       });
     }
 
+    if (request.method === "GET" && pathname === AGENTS_PATH) {
+      return runtimeJsonResponse({
+        contractVersion: "knowgrph.agent-definition-registry/v1",
+        agents: listAgentDefinitions(),
+        runEndpoint: AGENT_RUNS_PATH,
+      });
+    }
+
+    if (request.method === "POST" && pathname === AGENT_RUNS_PATH) {
+      return handleAgentRun(request, env);
+    }
+
     if (
       request.method === "GET" &&
       (pathname === `${MCP_PATH}/runs` || pathname.startsWith(RUNS_PATH_PREFIX))
     ) {
       const tail = pathname.slice(RUNS_PATH_PREFIX.length);
       const runId = tail ? decodeURIComponent(tail.split("/")[0] ?? "") : "";
-      return handleRunsRead(env, runId);
+      return handleRunsRead(request, env, runId);
     }
 
     if (pathname === MCP_PATH || pathname.startsWith(`${MCP_PATH}/`)) {
+      const authorization = await authorizeRuntimeRequest(request, env);
+      if (!authorization.ok) {
+        return jsonResponse(
+          { error: authorization.code, message: "Runtime authorization is required." },
+          { status: authorization.status, headers: authorization.status === 401 ? { "www-authenticate": "Bearer" } : undefined },
+        );
+      }
       // Streamable HTTP transport handled by the Agents SDK McpAgent.
       // `serve` returns a Worker-compatible fetch handler bound to MCP_PATH.
       // The Agents SDK defaults its Durable Object lookup to a binding named
