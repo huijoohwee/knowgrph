@@ -67,6 +67,7 @@ import { resolveSharedChatModelSelect } from '@/features/chat/chatModelCredentia
 import { useFloatingPanelChatSurfaceModel } from '@/features/chat/floatingPanelChat/useFloatingPanelChatSurfaceModel'
 import { flushFloatingPanelChatInputHandoff } from '@/features/chat/floatingPanelChat/floatingPanelChatInputHandoff'
 import { stopFloatingPanelChatStream } from '@/features/chat/floatingPanelChat/floatingPanelChatStop'
+import { useFloatingPanelChatThreadFollow } from '@/features/chat/floatingPanelChat/useFloatingPanelChatThreadFollow'
 export default function FloatingPanelChat() {
   const graphData = useGraphStore(s => s.graphData)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
@@ -148,8 +149,6 @@ export default function FloatingPanelChat() {
   const [submitRequestKey, setSubmitRequestKey] = React.useState(0)
 
   const abortRef = React.useRef<AbortController | null>(null)
-  const scrollRef = React.useRef<HTMLElement | null>(null)
-  const scrollRafRef = React.useRef<number | null>(null)
   const streamFollowRef = React.useRef<{ path: string; atMs: number } | null>(null)
   const streamDraftTextRef = React.useRef<{ path: string; text: string } | null>(null)
   const lastRelayLogSignatureRef = React.useRef<string | null>(null)
@@ -607,28 +606,18 @@ export default function FloatingPanelChat() {
     setMessages,
     streamingAssistant,
   })
-
-  React.useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    const bottomDistancePx = el.scrollHeight - (el.scrollTop + el.clientHeight)
-    if (bottomDistancePx > 160) return
-    const prev = scrollRafRef.current
-    if (typeof prev === 'number') {
-      try {
-        cancelAnimationFrame(prev)
-      } catch {
-        void 0
-      }
-    }
-    scrollRafRef.current = requestAnimationFrame(() => {
-      try {
-        el.scrollTop = el.scrollHeight
-      } catch {
-        void 0
-      }
-    })
-  }, [messages.length, streamingAssistant ? streamingAssistant.text.length : 0])
+  const chatThreadStreamRevision = [
+    streamingAssistant?.text.length || 0,
+    streamingInsights?.reasoningPreview?.length || 0,
+    streamingInsights?.usageSummary?.length || 0,
+    streamingInsights?.finishReason?.length || 0,
+    streamingWorkspacePath?.length || 0,
+  ].join('\u0000')
+  const chatThreadFollow = useFloatingPanelChatThreadFollow({
+    isLoading,
+    messageCount: messages.length,
+    streamRevision: chatThreadStreamRevision,
+  })
 
   React.useEffect(() => {
     return () => {
@@ -637,19 +626,6 @@ export default function FloatingPanelChat() {
       if (!ctrl) return
       try {
         ctrl.abort()
-      } catch {
-        void 0
-      }
-    }
-  }, [])
-
-  React.useEffect(() => {
-    return () => {
-      const id = scrollRafRef.current
-      scrollRafRef.current = null
-      if (typeof id !== 'number') return
-      try {
-        cancelAnimationFrame(id)
       } catch {
         void 0
       }
@@ -820,7 +796,11 @@ export default function FloatingPanelChat() {
   }, [handleSubmit, input, isLoading, pushUiToast])
   return (
     <section className="h-full flex flex-col">
-      <section ref={scrollRef} className={`${UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME} p-2 space-y-2`}>
+      <section
+        ref={chatThreadFollow.scrollRef}
+        onScroll={chatThreadFollow.onScroll}
+        className={`${UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME} p-2 space-y-2`}
+      >
         <FloatingPanelChatMessagesSection
           messages={messages}
           isLoading={isLoading}

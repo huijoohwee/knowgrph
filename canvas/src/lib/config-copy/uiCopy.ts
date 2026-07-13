@@ -216,6 +216,7 @@ export const UI_COPY = {
   geospatialModeOffTitle: 'Document Mode',
   chatEmptyStateHelp:
     'Chat has workspace-wide context from Explorer, Source Files, and Workspace Editor. Configure endpoint and model in Settings, then ask about any file, node, or dataset.',
+  chatAssistantPendingStatus: 'Waiting for response…',
   chatNoSelectionContextStatus: 'Using workspace-wide context from Explorer, Source Files, and Workspace Editor.',
   chatUsingSelectedNodeContextStatus: (label: string, type: string) =>
     `Using workspace-wide context plus selected node ${label} (${type}).`,

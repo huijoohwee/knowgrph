@@ -1,5 +1,5 @@
 ---
-title: {{product}} · Chat → AI Markdown Pipeline
+title: "{{product}} · Chat → AI Markdown Pipeline"
 product: Knowgrph Canvas
 pipeline: canvas → chat context → user intent → AI markdown → validation → render/save
 status: canonical
@@ -33,6 +33,11 @@ Chat uses the provider proxy and sends:
 - Raw SSE JSON chunks remain owned by the shared streaming helper; provider extensions must not add a second streaming client stack
 - The shared Storyboard template contract is injected through `chatStoryboardTemplateContract.ts`: no-slash chat remains a plain Markdown/`response:` contract, while recognized Agentic OS invocations such as `/prd-tad.create` select the structured KGC contract and receive Storyboard slash/#/@ directive context without cloning the source template or authorizing Prod/Cloudflare.
 - Recognized invocation routes are metadata, not answer content. `chatRuntimeInvocationQuery.ts` separates the leading route token from the remaining user request before provider payload shaping, KGC profiling, storage fallback, and stream relevance, so `/prd-tad.create [attached image]` keeps PRD/TAD defaults while the model sees the remaining query/media.
+
+### Chat Thread Streaming Contract
+- Submit materializes the user turn and exactly one assistant row before transport returns content. The assistant row begins as a visible, busy pending bubble, receives cumulative streamed text in place, and becomes the final settled bubble without a duplicate placeholder or tail row.
+- `useFloatingPanelChatThreadFollow.ts` owns chat-thread follow intent. A stream starts pinned to the tail, subsequent content and status revisions preserve that pre-update decision even when one chunk adds more than the near-tail threshold, and explicit user scrolling disables follow until the next stream begins.
+- Reasoning, usage, finish, and workspace-write status stay chronological after the live assistant row. They must not move into a sticky header, generic toast, second graph-apply runtime, or provider-local chat surface.
 
 ### Shared Provider Contract
 - MainPanel Integrations and Settings may expose provider-specific readiness rows, but request execution must still converge on the shared FloatingPanel Chat transport path.
