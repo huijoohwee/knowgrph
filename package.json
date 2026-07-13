@@ -55,12 +55,14 @@
     "mcp:worker:test": "node --test cloudflare/workers/knowgrph-mcp/__tests__/*.test.mjs",
     "web:build": "npm run build --prefix web",
     "web:test": "node --test web/__tests__/*.test.mjs",
-    "runtime:verify": "node ./scripts/verify-runtime-ready.mjs",
+    "runtime:check": "npm run runtime:test && node ./scripts/check-runtime-ready.mjs",
+    "runtime:verify:deployed": "node ./scripts/verify-deployed-runtime.mjs",
     "runtime:proof": "node ./scripts/capture-runtime-proof.mjs",
     "runtime:demo-pack": "node ./scripts/build-demo-pack-from-proof.mjs",
     "runtime:submission-brief": "node ./scripts/export-submission-brief.mjs",
     "runtime:bundle": "node ./scripts/package-submission-bundle.mjs",
     "runtime:flow": "node ./scripts/run-hosted-submission-flow.mjs",
+    "runtime:ci": "node --test --test-concurrency=1 cloudflare/workers/knowgrph-mcp/__tests__/*.test.mjs web/__tests__/*.test.mjs contracts/__tests__/*.test.mjs",
     "runtime:test": "node --test --test-concurrency=1 cloudflare/workers/knowgrph-mcp/__tests__/*.test.mjs cloudflare/workers/knowgrph-mcp/__pbt__/*.test.mjs mcp/__tests__/*.test.mjs mcp/__pbt__/*.test.mjs web/__tests__/*.test.mjs web/__pbt__/*.test.mjs contracts/__tests__/*.test.mjs contracts/__pbt__/*.test.mjs",
     "payment:stripe:configure": "node ./scripts/configure-stripe-payment-worker.mjs",
     "payment:stripe:readiness": "node ./scripts/check-stripe-payment-readiness.mjs",
@@ -80,7 +82,13 @@
     "hygiene:audit": "node ./scripts/check-hygiene-compliance.mjs --all",
     "hygiene:layout": "node ./scripts/check-hygiene-compliance.mjs --layout-only",
     "hygiene:chunks": "node ./scripts/check-hygiene-compliance.mjs --chunks",
+    "collaboration:contract:check": "node ./scripts/check-collaboration-runtime.mjs",
+    "test:collaboration-contract": "node --test scripts/__tests__/collaboration-contract.test.mjs",
+    "ci:affected": "node ./scripts/run-affected-ci.mjs",
+    "ci:integration": "npm run collaboration:contract:check && npm run conflict:source && npm run ci:affected",
     "test:publish-sync:contract": "node --test scripts/__tests__/sync-pages-stale-asset-cleanup.test.mjs",
+    "conflict:source": "npm run hygiene:check && npm run test:publish-sync:contract && npm run pages:build && npm run hygiene:chunks && node ./scripts/check-conflict-compliance.mjs --source-only",
+    "conflict:mirror:check": "node ./scripts/check-conflict-compliance.mjs",
     "conflict:check": "npm run hygiene:check && npm run test:publish-sync:contract && npm run pages:build && npm run hygiene:chunks && node ./scripts/check-conflict-compliance.mjs",
     "api-index:generate": "npx tsx --tsconfig canvas/tsconfig.json canvas/src/cli/generateApiCodebaseIndex.ts",
     "api-index:check": "npx tsx --tsconfig canvas/tsconfig.json canvas/src/cli/generateApiCodebaseIndex.ts --check",
@@ -117,6 +125,7 @@
     "yjs": "^13.6.31"
   },
   "devDependencies": {
-    "fast-check": "3.23.2"
+    "fast-check": "3.23.2",
+    "js-yaml": "^4.1.1"
   }
 }

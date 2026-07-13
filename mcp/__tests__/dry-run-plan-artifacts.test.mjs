@@ -26,8 +26,7 @@ import assert from "node:assert/strict";
 import { runVideoRemix } from "../video-remix-runtime.js";
 import { runDirectorWorkflow } from "../director-workflow.js";
 
-// The canonical spend-bearing stages (R2.6 / R4.4). `ingest` is preflight
-// bookkeeping and is never spend-bearing.
+// The canonical spend-bearing stages (R2.6 / R4.4). Zero-spend edit is not included.
 const SPEND_BEARING_STAGE_IDS = ["research", "storyboard", "render", "publish", "checkout"];
 
 const DRY_RUN_ARGS = Object.freeze({

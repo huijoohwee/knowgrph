@@ -1,16 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import {
-  AGENTIC_OS_DOC_INVOCATIONS,
-  KNOWGRPH_DOCS_GITHUB_ROOT_URL,
-  findAgenticOsInvocationByToken,
-} from '@/features/agentic-os/agenticOsDocInvocations'
-import {
-  buildFloatingPanelChatComposerOverlayParts,
-} from '@/features/chat/floatingPanelChat/FloatingPanelChatComposerMediaOverlay'
-import { buildChatInvocationSystemPrompt, parseChatInvocationDirectives } from '@/features/chat/chatInvocationRegistry'
-import { resolveChatRuntimeInvocationQuery } from '@/features/chat/chatRuntimeInvocationQuery'
 import { buildAgenticOsRuntimeInvocationSystemPrompt } from '@/features/chat/chatRuntimeInvocationProfile'
 import { extractChatResponseStructuredSurface } from '@/features/chat/chatResponseStructuredContent'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
@@ -20,55 +10,10 @@ import {
 } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
 import type { GraphData } from '@/lib/graph/types'
 
-export function testKnowgrphProbeTreeDocInvocationResolvesAcrossSlashHashAt() {
-  const doc = AGENTIC_OS_DOC_INVOCATIONS.find(invocation => invocation.id === 'knowgrph.probe-tree')
-  if (!doc) throw new Error('expected Knowgrph probe-tree PRD/TAD doc invocation to be registered')
-  if (doc.fileName !== 'knowgrph-probe-tree-prd-tad.md') {
-    throw new Error(`expected probe-tree invocation to point at the PRD/TAD doc, got ${doc.fileName}`)
-  }
-  if (doc.sourcePath !== `${KNOWGRPH_DOCS_GITHUB_ROOT_URL}/knowgrph-probe-tree-prd-tad.md`) {
-    throw new Error(`expected portable Knowgrph docs source URL, got ${doc.sourcePath}`)
-  }
-  if (doc.sourcePath.includes('/Users/') || doc.sourcePath.includes('localhost')) {
-    throw new Error(`expected probe-tree source path to stay portable, got ${doc.sourcePath}`)
-  }
-
-  const expectedTokens = ['/knowgrph.probe-tree', '#knowgrph.probe-tree', '@knowgrph.probe-tree'] as const
-  for (const token of expectedTokens) {
-    const resolved = findAgenticOsInvocationByToken(token)
-    if (resolved?.kind !== 'doc' || resolved.sourcePath !== doc.sourcePath) {
-      throw new Error(`expected ${token} to resolve to the probe-tree doc, got ${JSON.stringify(resolved)}`)
-    }
-    const runtimeQuery = resolveChatRuntimeInvocationQuery(`${token} generate first branch questions`)
-    if (runtimeQuery.leadingRoute?.sourcePath !== doc.sourcePath || runtimeQuery.query !== 'generate first branch questions') {
-      throw new Error(`expected ${token} to split route from the live query, got ${JSON.stringify(runtimeQuery)}`)
-    }
-  }
-
-  const directives = parseChatInvocationDirectives('Bind this response to #knowgrph.probe-tree and #runtime-ready.')
-  if (!directives.some(directive => directive.id === 'knowgrph.probe-tree' && directive.sourcePath === doc.sourcePath)) {
-    throw new Error(`expected #knowgrph.probe-tree to resolve as a chat invocation directive, got ${JSON.stringify(directives)}`)
-  }
-  const systemPrompt = buildChatInvocationSystemPrompt({
-    userQuery: 'Bind this response to #knowgrph.probe-tree and #runtime-ready.',
-    chatProvider: 'local',
-    chatModel: 'probe-tree-harness',
-  })
-  for (const expected of ['#knowgrph.probe-tree', 'knowgrph-probe-tree-prd-tad.md', 'do not authorize Prod or Cloudflare deployment']) {
-    if (!systemPrompt.includes(expected)) throw new Error(`expected Knowgrph invocation prompt to include ${expected}`)
-  }
-  for (const token of expectedTokens) {
-    const runtimePrompt = buildAgenticOsRuntimeInvocationSystemPrompt(`${token} Generate branch choices for card care_source.`)
-    for (const expected of ['response.structuredContent.cards', 'knowgrph.probe.generate', 'knowgrph.probe.select', 'candidateOption']) {
-      if (!runtimePrompt.includes(expected)) throw new Error(`expected ${token} runtime prompt to include ${expected}`)
-    }
-  }
-
-  const overlay = buildFloatingPanelChatComposerOverlayParts(expectedTokens.join(' '))
-  const overlayTokens = overlay.parts.flatMap(part => part.kind === 'invocation' ? [`${part.tokenKind}:${part.text}`] : [])
-  const expectedOverlayTokens = ['slash:/knowgrph.probe-tree', 'keyword:#knowgrph.probe-tree', 'binding:@knowgrph.probe-tree']
-  if (!overlay.hasOverlay || JSON.stringify(overlayTokens) !== JSON.stringify(expectedOverlayTokens)) {
-    throw new Error(`expected probe-tree / # @ tokens to render through shared invocation chips, got ${JSON.stringify(overlay)}`)
+export function testKnowgrphProbeTreeUsesToolIdentityWithoutGrammarAliases() {
+  const runtimePrompt = buildAgenticOsRuntimeInvocationSystemPrompt('knowgrph.probe.generate Generate branch choices for card care_source.')
+  for (const expected of ['response.structuredContent.cards', 'knowgrph.probe.generate', 'knowgrph.probe.select', 'candidateOption']) {
+    if (!runtimePrompt.includes(expected)) throw new Error(`expected Probe-Tree runtime prompt to include ${expected}`)
   }
 
   const surface = extractChatResponseStructuredSurface([
@@ -141,7 +86,7 @@ export function testKnowgrphProbeTreeDocInvocationResolvesAcrossSlashHashAt() {
       properties: {
         summary: 'Clean-slate selected card context',
         action: 'Generate bounded next-step options',
-        prompt: '/knowgrph.probe-tree #knowgrph.probe-tree @knowgrph.probe-tree',
+        prompt: 'knowgrph.probe.generate',
         lane: 'Storyboard',
         tags: ['runtime-ready', 'props-panel'],
       },
@@ -163,11 +108,11 @@ export function testKnowgrphProbeTreeDocInvocationResolvesAcrossSlashHashAt() {
     throw new Error(`expected Props Panel Probe-Tree path to produce candidate cards and edges, got ${JSON.stringify(propsPanelMaterialized.graphData)}`)
   }
   if (!propsPanelProbeNodes.every(node => (
-    node.properties.slashCommand === '/knowgrph.probe-tree'
-    && node.properties.hashToken === '#knowgrph.probe-tree'
-    && node.properties.atToken === '@knowgrph.probe-tree'
-    && String(node.properties.invocation || '').includes('/knowgrph.probe-tree #knowgrph.probe-tree @knowgrph.probe-tree')
+    node.properties.invocation === 'knowgrph.probe.generate'
+    && !Object.prototype.hasOwnProperty.call(node.properties, 'slashCommand')
+    && !Object.prototype.hasOwnProperty.call(node.properties, 'hashToken')
+    && !Object.prototype.hasOwnProperty.call(node.properties, 'atToken')
   ))) {
-    throw new Error(`expected Props Panel Probe-Tree downstream cards to preserve /, #, @ invocation grammar, got ${JSON.stringify(propsPanelProbeNodes)}`)
+    throw new Error(`expected Probe-Tree cards to use the MCP tool identity without invented grammar aliases, got ${JSON.stringify(propsPanelProbeNodes)}`)
   }
 }

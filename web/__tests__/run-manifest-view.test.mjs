@@ -31,8 +31,6 @@ import {
   BUDGET_METER_FIELDS,
 } from "../src/lib/run-manifest-view.js";
 
-import { PLANNED_STAGE_ORDER } from "../src/lib/run-initiation-view.js";
-
 // --- Fixtures ---------------------------------------------------------------
 
 /** A single Stage entry as the durable Run_Manifest carries it. */
@@ -68,27 +66,22 @@ test("renders the current Run_State surfaced verbatim from the manifest", () => 
   assert.equal(view.isTerminalState, false);
 });
 
-test("renders the COMPLETE planned stage list in canonical order", () => {
-  const view = buildRunManifestView(manifest());
-  assert.equal(view.stageCount, PLANNED_STAGE_ORDER.length);
-  assert.deepEqual(
-    view.stages.map((s) => s.id),
-    [...PLANNED_STAGE_ORDER],
-  );
+test("renders the complete source-declared stage list in manifest order", () => {
+  const stages = [stage("research", "complete"), stage("edit", "pending")];
+  const view = buildRunManifestView(manifest({ stages }));
+  assert.equal(view.stageCount, stages.length);
+  assert.deepEqual(view.stages.map((entry) => entry.id), stages.map((entry) => entry.id));
   view.stages.forEach((s, i) => assert.equal(s.order, i));
 });
 
-test("the complete stage list is present even for a sparse manifest", () => {
-  // Manifest carries only one stage; the view still lists all five.
+test("a sparse manifest remains sparse without downstream backfill", () => {
   const view = buildRunManifestView(
     manifest({ stages: [stage("research", "completed")] }),
   );
-  assert.equal(view.stageCount, 5);
+  assert.equal(view.stageCount, 1);
   const research = view.stages.find((s) => s.id === "research");
   assert.equal(research.status, "completed");
-  // Stages absent from the manifest default to the planned status.
-  const checkout = view.stages.find((s) => s.id === "checkout");
-  assert.equal(checkout.status, "planned");
+  assert.equal(view.stages.some((s) => s.id === "checkout"), false);
 });
 
 test("each stage reflects its current manifest status", () => {
@@ -293,13 +286,12 @@ test("buildBudgetMetersView zeroes a missing budgetMeters object", () => {
 
 // --- Malformed / empty manifest never throws --------------------------------
 
-test("malformed manifest input never throws and yields a complete view", () => {
+test("malformed manifest input never throws or fabricates stage data", () => {
   for (const bad of [null, undefined, 5, "x", [], true, NaN]) {
     const view = buildRunManifestView(bad);
     // Run_State falls back to the default.
     assert.equal(view.runState, DEFAULT_RUN_STATE);
-    // The complete planned stage list is still present.
-    assert.equal(view.stageCount, PLANNED_STAGE_ORDER.length);
+    assert.equal(view.stageCount, 0);
     // Meters are zeroed, not NaN.
     for (const field of BUDGET_METER_FIELDS) {
       assert.equal(view.budgetMeters[field], 0);
@@ -313,7 +305,7 @@ test("malformed manifest input never throws and yields a complete view", () => {
 test("an empty manifest object renders gracefully", () => {
   const view = buildRunManifestView({});
   assert.equal(view.runState, DEFAULT_RUN_STATE);
-  assert.equal(view.stageCount, 5);
+  assert.equal(view.stageCount, 0);
   assert.equal(view.budgetMeters.estimatedCostUsd, 0);
 });
 

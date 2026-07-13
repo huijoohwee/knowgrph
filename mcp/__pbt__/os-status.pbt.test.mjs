@@ -12,6 +12,8 @@ import fc from "fast-check";
 
 import { APPROVAL_GATE_ID_VALUES } from "../../contracts/approval.schema.js";
 import { COST_LOG_UNKNOWN } from "../../contracts/cost-log.schema.js";
+import { buildKnowgrphVdeoxplnRegistry } from "../../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
+import { buildKnowgrphLocalMcpToolDefinitions } from "../local-tool-contract.js";
 import {
   listCapabilityRegistry,
   listCircuitBreakerRegistry,
@@ -254,8 +256,16 @@ test("Feature: knowgrph-agentic-os, Property 6: Capability_Registry de-duplicati
   }), async () => {
     const result = await listCapabilityRegistry({ cloudflareMcpUrl: "https://worker.test/mcp" });
     const matches = result.entries.filter((entry) => entry.toolId === duplicateToolId);
+    const expectedSources = new Set(["cloudflare_mcp_agent"]);
+    if (buildKnowgrphLocalMcpToolDefinitions().some((tool) => tool.name === duplicateToolId)) {
+      expectedSources.add("local_mcp");
+    }
+    if (buildKnowgrphVdeoxplnRegistry().some((entry) =>
+      Object.values(entry.tools || {}).some((tools) => Array.isArray(tools) && tools.includes(duplicateToolId)))) {
+      expectedSources.add("vdeoxpln");
+    }
     assert.equal(matches.length, 1);
-    assert.deepEqual(matches[0].sourceCatalogs.sort(), ["cloudflare_mcp_agent", "local_mcp"]);
+    assert.deepEqual(matches[0].sourceCatalogs.sort(), [...expectedSources].sort());
   })), { numRuns: RUNS });
 });
 

@@ -1,19 +1,22 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import {
-  AGENTIC_OS_COMMAND_INVOCATIONS,
-  AGENTIC_OS_DOC_INVOCATIONS,
   buildAgenticOsDictionaryInvocationMarkdown,
-  buildAgenticOsDocBindingInvocationMarkdown,
-  buildAgenticOsDocInvocationMarkdown,
-  buildAgenticOsDocSemanticInvocationMarkdown,
+  getAgenticOsCommandInvocations,
 } from '@/features/agentic-os/agenticOsDocInvocations'
 import { buildAgenticOsSlashInvocationMenuItems } from '@/features/agentic-os/agenticOsInlineCommandItems'
+import { registerAgenticOsRemoteGrammarCatalogEntries, resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { toStableSlashMenuState } from '@/lib/markdown-core/ui/markdownBlockContainerCore.menuState'
 
 const readUtf8 = (filePath: string) => readFileSync(filePath, 'utf8')
 
 export function testMarkdownSlashMenuActionsReuseTriggerRangeAfterMenuFocus() {
+  resetAgenticOsRemoteGrammarCatalogForTests()
+  registerAgenticOsRemoteGrammarCatalogEntries([{
+    token: '/prd-tad.create',
+    kind: 'command',
+    sourcePath: 'DICTIONARY-COMMAND.md#/prd-tad.create',
+  }])
   const root = process.cwd()
   const menuState = toStableSlashMenuState(
     { show: false, leftPx: 0, topPx: 0 },
@@ -40,19 +43,7 @@ export function testMarkdownSlashMenuActionsReuseTriggerRangeAfterMenuFocus() {
     throw new Error('expected Agentic OS insertion to prefer captured slash trigger selection before live menu-focus selection')
   }
 
-  const harnessDoc = AGENTIC_OS_DOC_INVOCATIONS.find(doc => doc.id === 'agentic-os.harness')
-  if (!harnessDoc) throw new Error('expected Agentic OS harness doc invocation to exist')
-  if (buildAgenticOsDocInvocationMarkdown(harnessDoc) !== '/agentic-os.harness') {
-    throw new Error('expected slash doc insertion to persist the canonical slash token only')
-  }
-  if (buildAgenticOsDocSemanticInvocationMarkdown(harnessDoc) !== '#agentic-os.harness') {
-    throw new Error('expected semantic doc insertion to persist the canonical hash token only')
-  }
-  if (buildAgenticOsDocBindingInvocationMarkdown(harnessDoc) !== '@agentic-os.harness') {
-    throw new Error('expected binding doc insertion to persist the canonical at token only')
-  }
-
-  const prdTadInvocation = AGENTIC_OS_COMMAND_INVOCATIONS.find(invocation => invocation.token === '/prd-tad.create')
+  const prdTadInvocation = getAgenticOsCommandInvocations().find(invocation => invocation.token === '/prd-tad.create')
   if (!prdTadInvocation) throw new Error('expected Agentic OS command dictionary to expose /prd-tad.create')
   if (buildAgenticOsDictionaryInvocationMarkdown(prdTadInvocation) !== '/prd-tad.create') {
     throw new Error('expected dictionary command insertion to persist the canonical slash token only')
@@ -69,4 +60,5 @@ export function testMarkdownSlashMenuActionsReuseTriggerRangeAfterMenuFocus() {
   if (selectedReplacements.some(replacement => /https?:\/\//.test(replacement))) {
     throw new Error(`expected card slash command menu not to persist invocation source URLs, got ${JSON.stringify(selectedReplacements)}`)
   }
+  resetAgenticOsRemoteGrammarCatalogForTests()
 }

@@ -73,9 +73,14 @@ test("Property 32: manifest and approval-prompt rendering completeness", () => {
     estimatedCostUsd: fc.double({ min: 0, max: 1000, noNaN: true, noDefaultInfinity: true }).map((n) => Number(n.toFixed(2))),
     token: fc.constant(null),
   });
+  const stageArb = fc.record({
+    id: wordArb,
+    gateId: wordArb,
+    status: fc.constantFrom("pending", "running", "complete", "approval_required", "blocked"),
+  });
   const manifestArb = fc.record({
     state: fc.constantFrom("running", "blocked", "approval_required", "completed", "budget_exceeded"),
-    stages: fc.constant([]),
+    stages: fc.uniqueArray(stageArb, { selector: (stage) => stage.id, maxLength: 12 }),
     approvalGates: fc.array(gateArb, { maxLength: 8 }),
     budgetMeters: fc.record({
       estimatedCostUsd: fc.double({ min: 0, max: 1000, noNaN: true, noDefaultInfinity: true }).map((n) => Number(n.toFixed(2))),
@@ -89,7 +94,7 @@ test("Property 32: manifest and approval-prompt rendering completeness", () => {
       // Manifest view reflects current Run_State, the complete stage list, and meters.
       const view = buildRunManifestView(manifest);
       assert.equal(view.runState, manifest.state);
-      assert.ok(Array.isArray(view.stages) && view.stages.length === 5); // complete planned stage list
+      assert.deepEqual(view.stages.map(({ id }) => id), manifest.stages.map(({ id }) => id));
       assert.equal(view.budgetMeters.estimatedCostUsd, manifest.budgetMeters.estimatedCostUsd);
       assert.equal(view.budgetMeters.actualCostUsd, manifest.budgetMeters.actualCostUsd);
       assert.equal(view.budgetMeters.providerSpendUsd, manifest.budgetMeters.providerSpendUsd);

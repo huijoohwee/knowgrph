@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename)
 const knowgrphRoot = path.resolve(__dirname, '..')
 const githubRoot = path.resolve(knowgrphRoot, '..')
 const syncMapPath = path.resolve(githubRoot, 'huijoohwee.github.io', 'schema', 'AgenticRAG', 'sync_map.py')
+const sourceOnly = process.argv.includes('--source-only')
 
 const ignoredDirNames = new Set([
   '.git',
@@ -137,26 +138,28 @@ const main = async () => {
     process.exit(1)
   }
 
-  const syncExitCode = await runCommand(
-    process.execPath,
-    [path.resolve(__dirname, 'sync-pages-knowgrph.mjs'), '--check'],
-    knowgrphRoot,
-  )
-  if (syncExitCode !== 0) process.exit(syncExitCode)
-
-  try {
-    await fs.access(syncMapPath)
-    const schemaExitCode = await runCommand(
-      'python3',
-      [syncMapPath, '--mode', 'check'],
-      githubRoot,
+  if (!sourceOnly) {
+    const syncExitCode = await runCommand(
+      process.execPath,
+      [path.resolve(__dirname, 'sync-pages-knowgrph.mjs'), '--check'],
+      knowgrphRoot,
     )
-    if (schemaExitCode !== 0) process.exit(schemaExitCode)
-  } catch {
-    console.log('[knowgrph] schema sync check skipped (sibling AgenticRAG repo not available)')
+    if (syncExitCode !== 0) process.exit(syncExitCode)
+
+    try {
+      await fs.access(syncMapPath)
+      const schemaExitCode = await runCommand(
+        'python3',
+        [syncMapPath, '--mode', 'check'],
+        githubRoot,
+      )
+      if (schemaExitCode !== 0) process.exit(schemaExitCode)
+    } catch {
+      console.log('[knowgrph] schema sync check skipped (sibling AgenticRAG repo not available)')
+    }
   }
 
-  console.log('[knowgrph] conflict-resolution compliance checks passed')
+  console.log(`[knowgrph] conflict-resolution ${sourceOnly ? 'source' : 'source and mirror'} compliance checks passed`)
 }
 
 await main()

@@ -149,8 +149,7 @@ test("derived transitions cover the full research -> ... -> checkout chain", () 
     diagnostics[0]?.fromStage,
     ...diagnostics.map((d) => d.toStage),
   ];
-  // The Director's ordered sequence: ingest -> research -> storyboard ->
-  // render -> checkout. Every adjacent pair becomes a transition.
+  // Every adjacent pair in the source-owned stage sequence becomes a transition.
   assert.deepEqual(chain, payload.stages.map((s) => s.id));
   assert.ok(chain.includes("research"));
   assert.ok(chain.includes("storyboard"));

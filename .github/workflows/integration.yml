@@ -1,0 +1,84 @@
+name: Integration
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: integration-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration-gate:
+    name: Integration Gate
+    runs-on: ubuntu-latest
+    env:
+      KNOWGRPH_PR_BODY: ${{ github.event.pull_request.body || '' }}
+      KNOWGRPH_PR_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
+      KNOWGRPH_PR_DRAFT: ${{ github.event.pull_request.draft || false }}
+      KNOWGRPH_PR_HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
+      KNOWGRPH_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+      KNOWGRPH_REPOSITORY: ${{ github.repository }}
+      KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: ${{ github.workspace }}/agentic-canvas-os/docs
+
+    steps:
+      - name: Checkout knowgrph
+        uses: actions/checkout@v4
+        with:
+          path: knowgrph
+          fetch-depth: 0
+
+      - name: Checkout Agentic Canvas OS docs SSOT
+        uses: actions/checkout@v4
+        with:
+          repository: huijoohwee/agentic-canvas-os
+          ref: 97c3a48be4515c017f56a199bf59a0652e04d57b
+          path: agentic-canvas-os
+
+      - name: Checkout publish mirror for drift verification
+        uses: actions/checkout@v4
+        with:
+          repository: huijoohwee/huijoohwee
+          path: huijoohwee
+
+      - name: Checkout schema mirror for drift verification
+        uses: actions/checkout@v4
+        with:
+          repository: huijoohwee/huijoohwee.github.io
+          path: huijoohwee.github.io
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            knowgrph/package-lock.json
+            knowgrph/canvas/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: knowgrph
+        run: npm ci
+
+      - name: Validate cross-device scope ownership
+        working-directory: knowgrph
+        env:
+          KNOWGRPH_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KNOWGRPH_REQUIRE_REMOTE_SCOPE_CHECK: true
+        run: npm run collaboration:contract:check
+
+      - name: Run canonical integration gate
+        working-directory: knowgrph
+        run: npm run ci:integration

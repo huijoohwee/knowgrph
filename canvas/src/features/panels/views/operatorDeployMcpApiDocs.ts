@@ -35,7 +35,7 @@ const OPERATOR_DEPLOY_DOC_ROWS: ReadonlyArray<OperatorDeployDocRow> = [
     typeLabel: 'url',
     valueKey: OPERATOR_DEPLOY_SETTING_KEYS.mcpEndpoint,
     responsibility: 'Cloudflare MCP Worker endpoint (deploy env MCP_ENDPOINT). The single MCP Streamable HTTP surface for the Director.',
-    notes: 'Set after `npm run mcp:worker:deploy`. Drives runtime:verify reachability + the Demo_Pack urls[].',
+    notes: 'Set after an explicitly authorized deployment. Drives runtime:verify:deployed reachability and Demo_Pack urls[].',
     tooltipDefaultValue: OPERATOR_DEPLOY_DEFAULT_MCP_ENDPOINT,
     searchHints: ['MCP_ENDPOINT', 'airvio.co/knowgrph/mcp', 'control plane', 'streamable http', 'wrangler'],
   },

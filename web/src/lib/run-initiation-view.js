@@ -10,69 +10,23 @@
 //
 //   { stages: [...], budgetCapUsd, anyGateApproved, ... }
 //
-// listing EVERY planned creative stage (research -> storyboard -> render ->
-// publish -> checkout) IN ORDER plus the run's budget cap, suitable for
+// listing every source-declared stage in order plus the run's budget cap, suitable for
 // rendering the moment a run is initiated and BEFORE any gate is approved.
 //
-// SCHEMA REUSE (do NOT fork): the canonical stage order and per-stage gate ids
-// MIRROR the worker tier's single source of truth in
-// `mcp/director-workflow.js` (`DIRECTOR_STAGE_ORDER`, `DIRECTOR_STAGE_GATES`)
-// and the durable Run_Manifest shape in the design Data Models
-// (`{ stages[], approvalGates[], budgetMeters, ... }`, with an `ingest`
-// preflight stage prepended by the runtime). The constants below are a
-// product-tier mirror — they intentionally match the worker definitions rather
-// than re-deriving a different schema.
+// SCHEMA REUSE (do NOT fork): stage order, status, and gate ids are projected
+// directly from the durable Run_Manifest. The frontend owns no stage mirror.
 //
 // STACK BOUNDARY (R11): the product tier holds no model provider keys; this
 // builder reads only manifest data and performs no I/O.
 
-// --- Canonical schema mirror (single source of truth: mcp/director-workflow.js)
-
-/**
- * The five planned creative pipeline stages, in canonical execution order
- * (R4.1). MIRRORS `DIRECTOR_STAGE_ORDER` in `mcp/director-workflow.js`. The
- * runtime prepends an `ingest` preflight bookkeeping stage to the durable
- * Run_Manifest `stages[]`; `ingest` is NOT a planned creative stage and is
- * excluded from the run-initiation display.
- */
-export const PLANNED_STAGE_ORDER = Object.freeze([
-  "research",
-  "storyboard",
-  "render",
-  "publish",
-  "checkout",
-]);
-
-/**
- * The runtime preflight stage excluded from the planned-stage display.
- * MIRRORS `DIRECTOR_PREFLIGHT_STAGE` in `mcp/director-workflow.js`.
- */
-export const PREFLIGHT_STAGE_ID = "ingest";
-
-/**
- * Gate id guarding each planned stage. MIRRORS `DIRECTOR_STAGE_GATES` in
- * `mcp/director-workflow.js` so the run-initiation display names the same gate
- * the worker enforces at each spend boundary.
- */
-export const PLANNED_STAGE_GATES = Object.freeze({
-  research: "paid-model-call",
-  storyboard: "paid-model-call",
-  render: "render-action",
-  publish: "cloud-deploy",
-  checkout: "payment-action",
-});
-
-/** Human-readable labels for the planned stages (display only). */
-export const PLANNED_STAGE_LABELS = Object.freeze({
-  research: "Research",
-  storyboard: "Storyboard",
-  render: "Render",
-  publish: "Publish",
-  checkout: "Checkout",
-});
-
 /** Status shown for a planned stage that has no manifest status yet. */
 export const DEFAULT_PLANNED_STATUS = "planned";
+
+const stageLabel = (id) => id
+  .split(/[-_]+/)
+  .filter(Boolean)
+  .map((part) => part[0].toUpperCase() + part.slice(1))
+  .join(" ");
 
 // --- Helpers ----------------------------------------------------------------
 
@@ -104,9 +58,8 @@ function indexManifestStages(manifest) {
  * payload, WITHOUT forking the schema. The cap is sought in priority order:
  *   1. an explicit top-level `budgetCapUsd`
  *   2. the run-initiation `budgetUsd` (Director input field, R2.1)
- *   3. the runtime `ingest` stage artifact `{ referenceUrl, budgetUsd }`
- *      (see `mcp/video-remix/run-video-remix.js`)
- *   4. `budgetMeters.budgetCapUsd` if a future manifest surfaces it there
+ *   3. `budgetMeters.budgetUsd`
+ *   4. `budgetMeters.budgetCapUsd`
  *
  * Returns a finite, non-negative number when a usable cap is present, else
  * `null` (a minimal/empty manifest carries no cap — the UI then shows "no cap"
@@ -118,14 +71,6 @@ function indexManifestStages(manifest) {
 export function resolveBudgetCapUsd(manifest) {
   if (!manifest || typeof manifest !== "object") return null;
 
-  const ingest =
-    indexManifestStages(manifest).get(PREFLIGHT_STAGE_ID) || null;
-  const ingestArtifact =
-    ingest && ingest.artifact && typeof ingest.artifact === "object"
-      ? ingest.artifact
-      : ingest && typeof ingest === "object"
-        ? ingest
-        : null;
   const budgetMeters =
     manifest.budgetMeters && typeof manifest.budgetMeters === "object"
       ? manifest.budgetMeters
@@ -134,7 +79,7 @@ export function resolveBudgetCapUsd(manifest) {
   const candidates = [
     manifest.budgetCapUsd,
     manifest.budgetUsd,
-    ingestArtifact ? ingestArtifact.budgetUsd : undefined,
+    budgetMeters ? budgetMeters.budgetUsd : undefined,
     budgetMeters ? budgetMeters.budgetCapUsd : undefined,
   ];
 
@@ -169,11 +114,7 @@ export function anyGateApproved(manifest) {
  * Build the run-initiation display view-model from a Run_Manifest (or a
  * run-initiation payload).
  *
- * The result ALWAYS lists EVERY planned creative stage in canonical order
- * (research -> storyboard -> render -> publish -> checkout), regardless of how
- * sparse the input is — a minimal/empty manifest still yields the full planned
- * sequence so the creator sees the complete plan before approving spend (R1.3 /
- * Property 32). Per-stage `status` is taken from the manifest when present and
+ * The result lists the source-declared stages in manifest order. Per-stage `status` is
  * defaults to `"planned"` otherwise; the guarding gate id is surfaced so the UI
  * can label each spend boundary. The run's `budgetCapUsd` is surfaced (or
  * `null` when the input carries no cap). `anyGateApproved` records the R1.3
@@ -201,20 +142,18 @@ export function buildRunInitiationView(manifest) {
     manifest && typeof manifest === "object" && !Array.isArray(manifest)
       ? manifest
       : {};
-  const stagesById = indexManifestStages(safeManifest);
-
-  const stages = PLANNED_STAGE_ORDER.map((id, index) => {
-    const manifestStage = stagesById.get(id) || null;
+  const stages = [...indexManifestStages(safeManifest).values()].map((manifestStage, index) => {
+    const id = manifestStage.id;
     const status =
       manifestStage && typeof manifestStage.status === "string"
         ? manifestStage.status
         : DEFAULT_PLANNED_STATUS;
     return {
       id,
-      label: PLANNED_STAGE_LABELS[id] || id,
+      label: stageLabel(id),
       order: index,
       status,
-      gateId: PLANNED_STAGE_GATES[id] || null,
+      gateId: typeof manifestStage.gateId === "string" ? manifestStage.gateId : null,
     };
   });
 

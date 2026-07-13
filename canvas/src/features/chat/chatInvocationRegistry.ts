@@ -1,7 +1,5 @@
 import { KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES } from '@/features/memory/aiAgentsMemoryLayerContract.mjs'
 import {
-  AGENTIC_OS_DOC_INVOCATIONS,
-  AGENTIC_OS_SEMANTIC_INVOCATIONS,
   getAgenticOsDocInvocations,
   getAgenticOsSemanticInvocations,
   type AgenticOsDocInvocationId,
@@ -52,24 +50,6 @@ const BASE_CHAT_INVOCATION_TOKENS = new Set(BASE_CHAT_INVOCATION_OPTIONS.map(opt
 
 export const CHAT_INVOCATION_OPTIONS: readonly ChatInvocationOption[] = [
   ...BASE_CHAT_INVOCATION_OPTIONS,
-  ...AGENTIC_OS_DOC_INVOCATIONS.map(doc => ({
-    id: doc.id,
-    token: doc.hashToken,
-    label: doc.label,
-    summary: doc.summary,
-    keywords: doc.keywords,
-    sourcePath: doc.sourcePath,
-    slashCommand: doc.slashCommand,
-    atToken: doc.atToken,
-  })),
-  ...AGENTIC_OS_SEMANTIC_INVOCATIONS.filter(invocation => !BASE_CHAT_INVOCATION_TOKENS.has(invocation.token.toLowerCase())).map(invocation => ({
-    id: invocation.id as ChatInvocationId,
-    token: invocation.token as `#${string}`,
-    label: invocation.label,
-    summary: invocation.summary,
-    keywords: invocation.keywords,
-    sourcePath: invocation.sourcePath,
-  })),
 ]
 
 export const getChatInvocationOptions = (): readonly ChatInvocationOption[] => {

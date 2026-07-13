@@ -31,7 +31,7 @@ test("buildHostedSubmissionFlowSteps returns the full ordered deployed flow", ()
     steps.map((step) => step.id),
     ["verify", "proof", "demo-pack", "submission-brief", "bundle"],
   );
-  assert.equal(steps[0].script, "./scripts/verify-runtime-ready.mjs");
+  assert.equal(steps[0].script, "./scripts/verify-deployed-runtime.mjs");
   assert.equal(steps[1].env.PROOF_OUTPUT_PATH, config.proofOutputPath);
   assert.deepEqual(steps[4].args, [
     config.proofOutputPath,

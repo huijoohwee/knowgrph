@@ -14,11 +14,6 @@ import {
   resolveWorkspaceRunReadyDemoSeed,
   resolveWorkspaceValidationSeedRelPath,
 } from '@/features/workspace-fs/workspaceRunReadyDemos'
-import {
-  AGENTIC_OS_BINDING_INVOCATIONS,
-  AGENTIC_OS_COMMAND_INVOCATIONS,
-  AGENTIC_OS_SEMANTIC_INVOCATIONS,
-} from '@/features/agentic-os/agenticOsDocInvocations'
 
 type PlainRecord = Record<string, unknown>
 
@@ -64,6 +59,12 @@ const readCareAgentDoc = (): { markdownText: string; meta: PlainRecord } => {
   const parsed = parseYaml(extractFrontmatterYaml(markdownText))
   if (!isRecord(parsed)) throw new Error('expected care-agent demo frontmatter to parse as a YAML object')
   return { markdownText, meta: parsed }
+}
+
+const readDictionaryEntries = (fileName: string): string[] => {
+  const source = fs.readFileSync(path.join(GITHUB_ROOT, 'agentic-canvas-os', 'docs', fileName), 'utf8')
+  const parsed = parseYaml(extractFrontmatterYaml(source))
+  return asStringArray(asRecord(parsed, `${fileName} frontmatter`).dictionary_entries, `${fileName}.dictionary_entries`)
 }
 
 const assertSubset = (label: string, actual: string[], allowed: readonly string[]): void => {
@@ -166,9 +167,9 @@ export function testCareAgentDemoIsRuntimeReadyFromLocalProof() {
   const pipeline = asRecord(meta.agentic_os_care_agent_pipeline, 'agentic_os_care_agent_pipeline')
   if (pipeline.status !== 'runtime-ready') throw new Error(`expected pipeline status runtime-ready, got ${String(pipeline.status)}`)
   const routes = asRecord(pipeline.invocation_routes, 'agentic_os_care_agent_pipeline.invocation_routes')
-  assertSubset('slash routes', asStringArray(routes.slash, 'slash routes'), AGENTIC_OS_COMMAND_INVOCATIONS.map(invocation => invocation.token))
-  assertSubset('semantic routes', asStringArray(routes.semantic, 'semantic routes'), AGENTIC_OS_SEMANTIC_INVOCATIONS.map(invocation => invocation.token))
-  assertSubset('binding routes', asStringArray(routes.binding, 'binding routes'), AGENTIC_OS_BINDING_INVOCATIONS.map(invocation => invocation.token))
+  assertSubset('slash routes', asStringArray(routes.slash, 'slash routes'), readDictionaryEntries('DICTIONARY-COMMAND.md'))
+  assertSubset('semantic routes', asStringArray(routes.semantic, 'semantic routes'), readDictionaryEntries('DICTIONARY-SEMANTIC.md'))
+  assertSubset('binding routes', asStringArray(routes.binding, 'binding routes'), readDictionaryEntries('DICTIONARY-BINDING.md'))
 
   const harness = asRecord(meta.care_agent_harness, 'care_agent_harness')
   const bounds = asRecord(harness.bounds, 'care_agent_harness.bounds')

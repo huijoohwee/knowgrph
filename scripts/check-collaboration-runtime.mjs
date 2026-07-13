@@ -1,0 +1,121 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { load } from 'js-yaml'
+import {
+  findActiveScopeConflicts,
+  readContract,
+  repoRoot,
+  validatePullRequestMetadata,
+  validateTaskBranch,
+} from './collaboration-contract.mjs'
+
+const listWorkflowPaths = async () => {
+  const workflowDir = path.resolve(repoRoot, '.github', 'workflows')
+  const entries = await fs.readdir(workflowDir, { withFileTypes: true })
+  return entries
+    .filter(entry => entry.isFile() && /\.ya?ml$/i.test(entry.name))
+    .map(entry => path.resolve(workflowDir, entry.name))
+    .sort()
+}
+
+const workflowTriggers = workflow => {
+  const trigger = workflow.on
+  if (typeof trigger === 'string') return [trigger]
+  if (Array.isArray(trigger)) return trigger
+  if (trigger && typeof trigger === 'object') return Object.keys(trigger)
+  return []
+}
+
+const validateDeploymentIsolation = async contract => {
+  const allowed = new Set(contract.deployment.allowed_workflows)
+  const requiredTrigger = contract.deployment.required_trigger
+  const forbiddenTriggers = new Set(contract.deployment.forbidden_triggers)
+  const deploymentPatterns = contract.deployment.command_patterns.map(pattern => new RegExp(pattern, 'i'))
+  const seenAllowed = new Set()
+
+  for (const absolutePath of await listWorkflowPaths()) {
+    const rel = path.relative(repoRoot, absolutePath).split(path.sep).join('/')
+    const source = await fs.readFile(absolutePath, 'utf8')
+    const containsDeployment = deploymentPatterns.some(pattern => pattern.test(source))
+    if (!containsDeployment) continue
+    if (!allowed.has(rel)) throw new Error(`deployment command is forbidden outside an allowed workflow: ${rel}`)
+
+    seenAllowed.add(rel)
+    const workflow = load(source)
+    const triggers = workflowTriggers(workflow)
+    if (!triggers.includes(requiredTrigger) || triggers.some(trigger => forbiddenTriggers.has(trigger))) {
+      throw new Error(`${rel} must use ${requiredTrigger} without automatic deployment triggers`)
+    }
+  }
+
+  for (const rel of allowed) {
+    if (!seenAllowed.has(rel)) throw new Error(`allowed deployment workflow is missing a recognized deployment command: ${rel}`)
+  }
+}
+
+const assertBaseShaIsAncestor = baseSha => {
+  const result = spawnSync('git', ['merge-base', '--is-ancestor', baseSha, 'HEAD'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  })
+  if (result.status !== 0) throw new Error(`declared base_sha is not an ancestor of HEAD: ${baseSha}`)
+}
+
+const fetchOpenPullRequests = async (repository, token) => {
+  const pullRequests = []
+  for (let page = 1; ; page += 1) {
+    const response = await fetch(`https://api.github.com/repos/${repository}/pulls?state=open&per_page=100&page=${page}`, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    })
+    if (!response.ok) throw new Error(`GitHub active-scope query failed with HTTP ${response.status}`)
+    const pageItems = await response.json()
+    if (!Array.isArray(pageItems)) throw new Error('GitHub active-scope query returned a non-array payload')
+    pullRequests.push(...pageItems)
+    if (pageItems.length < 100) return pullRequests
+  }
+}
+
+const validatePullRequestCoordination = async contract => {
+  const pullNumber = Number(process.env.KNOWGRPH_PR_NUMBER)
+  if (!Number.isInteger(pullNumber) || pullNumber < 1) return
+
+  if (process.env.KNOWGRPH_PR_BASE_REF !== contract.coordination.base_branch) {
+    throw new Error(`pull request must target ${contract.coordination.base_branch}`)
+  }
+  validateTaskBranch(process.env.KNOWGRPH_PR_HEAD_REF, contract)
+  const allowIncomplete = String(process.env.KNOWGRPH_PR_DRAFT).toLowerCase() === 'true'
+  const metadata = validatePullRequestMetadata(process.env.KNOWGRPH_PR_BODY, contract, { allowIncomplete })
+  if (!metadata) return
+  validateTaskBranch(process.env.KNOWGRPH_PR_HEAD_REF, contract, metadata.scope)
+  assertBaseShaIsAncestor(metadata.base_sha)
+
+  const repository = String(process.env.KNOWGRPH_REPOSITORY || '').trim()
+  const token = String(process.env.KNOWGRPH_GITHUB_TOKEN || '').trim()
+  const requireRemoteScopeCheck = String(process.env.KNOWGRPH_REQUIRE_REMOTE_SCOPE_CHECK).toLowerCase() === 'true'
+  if (!repository || !token) {
+    if (requireRemoteScopeCheck) throw new Error('pull request scope enforcement requires repository and GitHub token context')
+    return
+  }
+  const openPullRequests = await fetchOpenPullRequests(repository, token)
+  const conflicts = findActiveScopeConflicts(openPullRequests, pullNumber, contract)
+  if (conflicts.length > 0) {
+    const owners = conflicts.map(conflict => `#${conflict.number} ${conflict.actor} ${conflict.branch}`).join(', ')
+    throw new Error(`semantic scope ${metadata.scope} already has an active owner: ${owners}`)
+  }
+}
+
+const main = async () => {
+  const contract = await readContract()
+  await validateDeploymentIsolation(contract)
+
+  await validatePullRequestCoordination(contract)
+
+  console.log('[knowgrph] collaboration runtime contract passed')
+}
+
+await main()

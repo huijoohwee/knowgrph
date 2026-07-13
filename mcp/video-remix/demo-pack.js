@@ -144,7 +144,7 @@ function buildSectionEvidence(id, ctx) {
   switch (id) {
     case "agent_overview":
       return `Single autonomous Director (knowgrph.video_remix.run) drove the ` +
-        `research -> storyboard -> render -> publish -> checkout loop to terminal Run_State "${state}".`;
+        `research -> storyboard -> render -> edit -> publish -> checkout loop to terminal Run_State "${state}".`;
     case "autonomy_decision_making":
       return `Director resolved each spend boundary autonomously under a dry-run-first policy, ` +
         `escalating to a human Approval_Gate only at paid actions; ${sourceCount} research source(s) informed planning; ${citationsText}.`;

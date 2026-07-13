@@ -47,7 +47,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["ui.floatingPanelChat.composer.attachedMediaProjectionDisplayOnly","@/__tests__/floatingPanelChatComposerMediaProjection.test","testFloatingPanelChatComposerAttachedMediaProjectionStaysDisplayOnly"],
   ["ui.floatingPanelChat.composer.grammarQuickBar","@/__tests__/floatingPanelChatGrammarQuickBar.test","testFloatingPanelChatComposerGrammarQuickBarSeedsSigilsAndMenus"],
   ["ui.floatingPanelChat.composer.memoryInvocationRuntime","@/__tests__/floatingPanelChatComposerCommands.test","testFloatingPanelChatMemoryInvocationBuildsExternalRuntimeContract"],
-  ["ui.floatingPanelChat.composer.knowgrphProbeTreeInvocation","@/__tests__/agenticOsKnowgrphDocInvocation.test","testKnowgrphProbeTreeDocInvocationResolvesAcrossSlashHashAt"],
+  ["ui.floatingPanelChat.composer.knowgrphProbeTreeToolIdentity","@/__tests__/agenticOsKnowgrphDocInvocation.test","testKnowgrphProbeTreeUsesToolIdentityWithoutGrammarAliases"],
   ["ui.floatingPanelChat.storyboardTemplate.responseContract","@/__tests__/floatingPanelChatNoSlashInvocationContract.test","testFloatingPanelChatResponseContractsAdhereToStoryboardTemplate"],
   ["ui.floatingPanelChat.noSlash.cleanSlateRuntimePrompts","@/__tests__/floatingPanelChatNoSlashInvocationContract.test","testFloatingPanelChatNoSlashImagePromptKeepsRuntimeInvocationPromptsClean"],
   ["ui.floatingPanelChat.prdTadSlash.structuredKgcContract","@/__tests__/floatingPanelChatNoSlashInvocationContract.test","testFloatingPanelChatPrdTadSlashUsesStructuredKgcContract"],

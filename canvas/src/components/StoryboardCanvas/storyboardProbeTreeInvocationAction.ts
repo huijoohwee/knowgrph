@@ -7,11 +7,6 @@ import {
   STORYBOARD_SUMMARY_PROPERTY_KEYS,
   STORYBOARD_TITLE_PROPERTY_KEYS,
 } from '@/components/StoryboardCanvas/storyboardModel'
-import {
-  AGENTIC_OS_DOC_INVOCATIONS,
-  buildAgenticOsDocInvocationMarkdown,
-  KNOWGRPH_PROBE_TREE_DOC_INVOCATION_ID,
-} from '@/features/agentic-os/agenticOsDocInvocations'
 import { hashText } from '@/features/parsers/hash'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
@@ -38,6 +33,7 @@ export type ProbeTreeBranchCardMaterializationResult = {
 
 const PROBE_TREE_EDGE_LABEL = 'candidateOption'
 const PROBE_TREE_NODE_TYPE = 'ProbeTreeCandidate'
+const PROBE_TREE_TOOL_NAME = 'knowgrph.probe.generate'
 
 const PROBE_TREE_BRANCH_HEURISTICS = [
   {
@@ -188,11 +184,8 @@ export function buildProbeTreeCardFromGraphNode(node: GraphNode, inputIndex = 0)
 }
 
 export function resolveProbeTreeCardMaterializationRequestText(card?: StoryboardCardModel | null): string {
-  const doc = AGENTIC_OS_DOC_INVOCATIONS.find(invocation => invocation.id === KNOWGRPH_PROBE_TREE_DOC_INVOCATION_ID)
-  if (!doc) return ''
   return [
-    buildAgenticOsDocInvocationMarkdown(doc),
-    doc.hashToken,
+    PROBE_TREE_TOOL_NAME,
     buildSelectedCardPromptContext(card),
     'Return the AI/LLM response as `response.structuredContent.cards` so the canvas response projector can materialize editable branch cards for the user to select next steps.',
   ].join(' ')
@@ -202,9 +195,8 @@ export function materializeProbeTreeBranchCards(args: {
   graphData: GraphData | null | undefined
   card?: StoryboardCardModel | null
 }): ProbeTreeBranchCardMaterializationResult {
-  const invocation = AGENTIC_OS_DOC_INVOCATIONS.find(entry => entry.id === KNOWGRPH_PROBE_TREE_DOC_INVOCATION_ID)
   const invocationText = resolveProbeTreeCardMaterializationRequestText(args.card)
-  if (!args.graphData || !args.card || !invocation || !invocationText) {
+  if (!args.graphData || !args.card || !invocationText) {
     return {
       graphData: args.graphData || null,
       changed: false,
@@ -259,17 +251,13 @@ export function materializeProbeTreeBranchCards(args: {
           cardTypeLabel: asJson('Probe-Tree Card'),
           summary: asJson(`${heuristic.summary} Source card: ${parentSummary || parentTitle}.`),
           action: asJson(heuristic.action),
-          prompt: asJson(`${invocation.slashCommand} ${invocation.hashToken} ${invocation.atToken} ${heuristic.action} Parent card: ${parentTitle}. ${parentSummary}`.trim()),
-          command: asJson(invocation.slashCommand),
-          slashCommand: asJson(invocation.slashCommand),
-          hashToken: asJson(invocation.hashToken),
-          atToken: asJson(invocation.atToken),
-          invocation: asJson(`${invocation.slashCommand} ${invocation.hashToken} ${invocation.atToken}`),
+          prompt: asJson(`${PROBE_TREE_TOOL_NAME} ${heuristic.action} Parent card: ${parentTitle}. ${parentSummary}`.trim()),
+          invocation: asJson(PROBE_TREE_TOOL_NAME),
           responseStructuredContentKind: asJson('cards'),
           responseMaterialization: asJson('response.structuredContent.cards'),
           probeTreeCandidateKey: asJson(heuristic.key),
           probeTreeRequestSignature: asJson(requestSignature),
-          probeTreeTool: asJson(heuristic.key === 'select' ? 'probe.select' : 'probe.generate'),
+          probeTreeTool: asJson(heuristic.key === 'select' ? 'knowgrph.probe.select' : PROBE_TREE_TOOL_NAME),
           nextAction: asJson(heuristic.key === 'select' ? 'knowgrph.probe.select' : 'knowgrph.probe.generate'),
           parentGraphNodeId: asJson(parent.id),
           parentNodeId: asJson(parent.id),
@@ -300,8 +288,7 @@ export function materializeProbeTreeBranchCards(args: {
         metadata: {
           ...(graphData.metadata || {}),
           probeTreeMaterializedAtMs: Date.now(),
-          probeTreeInvocation: invocation.slashCommand,
-          probeTreeSemantic: invocation.hashToken,
+          probeTreeInvocation: PROBE_TREE_TOOL_NAME,
         } as GraphData['metadata'],
       }
     : graphData

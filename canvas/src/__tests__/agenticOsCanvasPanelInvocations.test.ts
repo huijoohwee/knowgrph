@@ -3,12 +3,13 @@ import { resolve } from 'node:path'
 
 import {
   AGENTIC_OS_CANVAS_INTERACTION_PANEL_KEYWORD,
-  AGENTIC_OS_BINDING_INVOCATIONS,
-  AGENTIC_OS_COMMAND_INVOCATIONS,
-  AGENTIC_OS_SEMANTIC_INVOCATIONS,
   findAgenticOsInvocationByToken,
+  getAgenticOsBindingInvocations,
   getAgenticOsCanvasInteractionPanelInvocations,
+  getAgenticOsCommandInvocations,
+  getAgenticOsSemanticInvocations,
 } from '@/features/agentic-os/agenticOsDocInvocations'
+import { registerAgenticOsRemoteGrammarCatalogEntries, resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { parseChatInvocationDirectives } from '@/features/chat/chatInvocationRegistry'
 import { resolveChatRuntimeInvocationQuery } from '@/features/chat/chatRuntimeInvocationQuery'
 
@@ -87,7 +88,7 @@ const assertRegistryHasTokens = (
   for (const token of expectedTokens) {
     const invocation = registry.find(entry => entry.token === token)
     if (!invocation) throw new Error(`Expected ${token} to be registered in the Agentic OS ${dictionaryFileName} runtime mirror`)
-    if (invocation.dictionaryFileName !== dictionaryFileName || !invocation.sourcePath.endsWith(dictionaryFileName)) {
+    if (invocation.dictionaryFileName !== dictionaryFileName || !invocation.sourcePath.includes(`/${dictionaryFileName}`)) {
       throw new Error(`Expected ${token} to resolve to ${dictionaryFileName}, got ${JSON.stringify(invocation)}`)
     }
     const resolved = findAgenticOsInvocationByToken(token)
@@ -113,14 +114,31 @@ const assertSourceDictionaryHasTokens = (
   }
 }
 
+const registerCanvasGrammar = () => {
+  const entries = ([
+    ['command', 'DICTIONARY-COMMAND.md', collectExpectedTokens('/')],
+    ['semantic', 'DICTIONARY-SEMANTIC.md', collectExpectedTokens('#')],
+    ['binding', 'DICTIONARY-BINDING.md', collectExpectedTokens('@')],
+  ] as const).flatMap(([kind, fileName, tokens]) => tokens.map(token => ({
+    token,
+    kind,
+    sourcePath: `${fileName}#${token}`,
+    sourceUrl: `https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/${fileName}#${token}`,
+    keywords: [AGENTIC_OS_CANVAS_INTERACTION_PANEL_KEYWORD],
+  })))
+  registerAgenticOsRemoteGrammarCatalogEntries(entries)
+}
+
 export function testCanvasPanelFunctionsAreAgenticOsInvokable() {
+  resetAgenticOsRemoteGrammarCatalogForTests()
+  registerCanvasGrammar()
   const slashTokens = collectExpectedTokens('/')
   const hashTokens = collectExpectedTokens('#')
   const atTokens = collectExpectedTokens('@')
 
-  assertRegistryHasTokens(AGENTIC_OS_COMMAND_INVOCATIONS, slashTokens, 'DICTIONARY-COMMAND.md')
-  assertRegistryHasTokens(AGENTIC_OS_SEMANTIC_INVOCATIONS, hashTokens, 'DICTIONARY-SEMANTIC.md')
-  assertRegistryHasTokens(AGENTIC_OS_BINDING_INVOCATIONS, atTokens, 'DICTIONARY-BINDING.md')
+  assertRegistryHasTokens(getAgenticOsCommandInvocations(), slashTokens, 'DICTIONARY-COMMAND.md')
+  assertRegistryHasTokens(getAgenticOsSemanticInvocations(), hashTokens, 'DICTIONARY-SEMANTIC.md')
+  assertRegistryHasTokens(getAgenticOsBindingInvocations(), atTokens, 'DICTIONARY-BINDING.md')
 
   assertSourceDictionaryHasTokens('DICTIONARY-COMMAND.md', slashTokens)
   assertSourceDictionaryHasTokens('DICTIONARY-SEMANTIC.md', hashTokens)
@@ -144,7 +162,7 @@ export function testCanvasPanelFunctionsAreAgenticOsInvokable() {
 
   const skillsCommandsView = readFileSync(resolve(process.cwd(), 'src/features/panels/views/SkillsCommandsView.tsx'), 'utf8')
   const composer = readFileSync(resolve(process.cwd(), 'src/features/chat/floatingPanelChat/FloatingPanelChatComposer.tsx'), 'utf8')
-  for (const registryName of ['AGENTIC_OS_COMMAND_INVOCATIONS', 'AGENTIC_OS_SEMANTIC_INVOCATIONS', 'AGENTIC_OS_BINDING_INVOCATIONS']) {
+  for (const registryName of ['getAgenticOsCommandInvocations', 'getAgenticOsSemanticInvocations', 'getAgenticOsBindingInvocations']) {
     if (!composer.includes(registryName)) {
       throw new Error(`Expected FloatingPanel Chat composer to consume ${registryName}`)
     }
@@ -159,9 +177,12 @@ export function testCanvasPanelFunctionsAreAgenticOsInvokable() {
       throw new Error(`Expected canvas function invocations to stay in shared dictionaries instead of reintroducing local panel controls: ${staleSnippet}`)
     }
   }
+  resetAgenticOsRemoteGrammarCatalogForTests()
 }
 
 export function testCanvasInteractionInvocationsUseSkillsCommandsCatalog() {
+  resetAgenticOsRemoteGrammarCatalogForTests()
+  registerCanvasGrammar()
   const invocations = getAgenticOsCanvasInteractionPanelInvocations()
   const tokenSet = new Set<string>(invocations.map(invocation => invocation.token))
   const expectedTokens = new Set([
@@ -217,7 +238,9 @@ export function testCanvasInteractionInvocationsUseSkillsCommandsCatalog() {
   const catalogSearchLayout = readFileSync(resolve(process.cwd(), 'src/lib/ui/floatingPanelCatalogLayout.tsx'), 'utf8')
   if (
     !floatingSkillsCommands.includes("import SkillsCommandsView from '@/features/panels/views/SkillsCommandsView'") ||
-    !floatingSkillsCommands.includes('<SkillsCommandsView prefixFilter={prefixFilter} searchQuery={search.searchQuery} />') ||
+    !floatingSkillsCommands.includes('<SkillsCommandsView') ||
+    !floatingSkillsCommands.includes('prefixFilter={prefixFilter}') ||
+    !floatingSkillsCommands.includes('searchQuery={search.searchQuery}') ||
     !catalogSearchLayout.includes('export function useFloatingPanelCatalogSearch(): FloatingPanelCatalogSearchState') ||
     !toolbar.includes("<FloatingPanelSkillsCommandsView />")
   ) {
@@ -255,4 +278,5 @@ export function testCanvasInteractionInvocationsUseSkillsCommandsCatalog() {
       throw new Error(`Expected Skills & Commands centralization to avoid stale Interaction panel code: ${staleSnippet}`)
     }
   }
+  resetAgenticOsRemoteGrammarCatalogForTests()
 }

@@ -28,8 +28,8 @@ export function defaultStageTransitionDiagnosticEmitter(diagnostic) {
 //   transition outcome status.
 //
 // The Director (`mcp/video-remix-runtime.js`) returns the resulting
-// Run_Manifest with an ordered `stages[]` sequence (ingest -> research ->
-// storyboard -> render -> checkout, including early-halt / blocked stages).
+// Run_Manifest with an ordered source-owned `stages[]` sequence, including
+// early-halt and blocked stages.
 // We derive one diagnostic per consecutive transition straight from that
 // ordered sequence so the diagnostics track exactly the stages the Director
 // produced - no second source of truth (reuse-not-rebuild). The diagnostic
