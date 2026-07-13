@@ -49,11 +49,6 @@ import {
   resolvePublishedDocIdentity,
 } from "../../canvas/src/features/canvas/canvasDocShareToken.mjs";
 import {
-  buildKnowgrphStorageDefaultDocPath,
-  buildKnowgrphStorageDocPath,
-  buildKnowgrphStorageSourceFilesIndexPath,
-} from "../../canvas/src/lib/storage/knowgrphStorageSyncContract.ts";
-import {
   A2A_AGENT_CARD_PATH,
   A2A_AGENT_CARD_URL,
   agentReadyHomepageLinkHeaderValue,
@@ -61,6 +56,9 @@ import {
   APP_A2A_AGENT_CARD_PATH,
   APP_BASE_PATH,
   APP_URL,
+  buildKnowgrphStorageDefaultDocPath,
+  buildKnowgrphStorageDocPath,
+  buildKnowgrphStorageSourceFilesIndexPath,
   DEFAULT_WORKSPACE_ID,
   HEALTH_PATH,
   HEALTH_URL,

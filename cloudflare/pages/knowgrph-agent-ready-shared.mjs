@@ -10,12 +10,26 @@ export const HEALTH_URL = `${SITE_ORIGIN}${HEALTH_PATH}`;
 export const A2A_AGENT_CARD_PATH = "/.well-known/agent-card.json";
 export const APP_A2A_AGENT_CARD_PATH = `${APP_BASE_PATH}/.well-known/agent-card.json`;
 export const A2A_AGENT_CARD_URL = `${SITE_ORIGIN}${A2A_AGENT_CARD_PATH}`;
-export const STORAGE_SOURCE_FILES_URL = `${SITE_ORIGIN}/api/storage/source-files`;
-export const STORAGE_DEFAULT_DOC_PATTERN = `${SITE_ORIGIN}/api/storage/doc-default/{canonicalPath}`;
-export const STORAGE_WORKSPACE_DOC_PATTERN = `${SITE_ORIGIN}/api/storage/doc/{workspaceId}/{canonicalPath}`;
+export const STORAGE_SOURCE_FILES_PATH = "/api/storage/source-files";
+export const STORAGE_SOURCE_FILES_PATH_PREFIX = `${STORAGE_SOURCE_FILES_PATH}/`;
+export const STORAGE_DEFAULT_DOC_PATH_PREFIX = "/api/storage/doc-default/";
+export const STORAGE_WORKSPACE_DOC_PATH_PREFIX = "/api/storage/doc/";
+export const STORAGE_SOURCE_FILES_URL = `${SITE_ORIGIN}${STORAGE_SOURCE_FILES_PATH}`;
+export const STORAGE_DEFAULT_DOC_PATTERN = `${SITE_ORIGIN}${STORAGE_DEFAULT_DOC_PATH_PREFIX}{canonicalPath}`;
+export const STORAGE_WORKSPACE_DOC_PATTERN = `${SITE_ORIGIN}${STORAGE_WORKSPACE_DOC_PATH_PREFIX}{workspaceId}/{canonicalPath}`;
 export const STORAGE_BLOB_PATTERN = `${SITE_ORIGIN}/api/storage/blob/{workspaceId}/{canonicalPath}`;
 export const KNOWGRPH_AGENT_READY_ROUTE_OWNER = "knowgrph-agent-ready-pages";
 export const ROOT_AGENT_READY_ROUTE_OWNER = "root-agent-ready-pages";
+export const buildKnowgrphStorageDocPath = (workspaceId, canonicalPath) =>
+  `${STORAGE_WORKSPACE_DOC_PATH_PREFIX}${encodeURIComponent(String(workspaceId || "").trim())}/${encodeURIComponent(String(canonicalPath || "").trim())}`;
+export const buildKnowgrphStorageDefaultDocPath = (canonicalPath) =>
+  `${STORAGE_DEFAULT_DOC_PATH_PREFIX}${encodeURIComponent(String(canonicalPath || "").trim())}`;
+export const buildKnowgrphStorageSourceFilesIndexPath = (workspaceId) => {
+  const normalizedWorkspaceId = String(workspaceId || "").trim();
+  return normalizedWorkspaceId
+    ? `${STORAGE_SOURCE_FILES_PATH_PREFIX}${encodeURIComponent(normalizedWorkspaceId)}`
+    : STORAGE_SOURCE_FILES_PATH;
+};
 export const agentReadyHomepageLinkHeaderValue = [
   `</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"`,
   `<${APP_BASE_PATH}/.well-known/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1"`,
