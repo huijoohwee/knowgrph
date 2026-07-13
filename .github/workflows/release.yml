@@ -26,6 +26,7 @@ jobs:
     env:
       RELEASE_SHA: ${{ inputs.commit_sha }}
       RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+      KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: ${{ github.workspace }}/agentic-canvas-os/docs
 
     steps:
       - name: Validate explicit authorization
@@ -49,6 +50,13 @@ jobs:
       - name: Verify checked-out commit
         working-directory: knowgrph
         run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+
+      - name: Checkout Agentic Canvas OS docs SSOT
+        uses: actions/checkout@v4
+        with:
+          repository: huijoohwee/agentic-canvas-os
+          ref: 184ad7db0b7efa9460caeb21be1a0a5399d05d14
+          path: agentic-canvas-os
 
       - name: Checkout production mirror
         uses: actions/checkout@v4
