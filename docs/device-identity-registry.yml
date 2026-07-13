@@ -1,0 +1,5 @@
+schemaVersion: 1
+devices:
+  - deviceId: desktop
+    operatorLabel: operator
+    registeredAt: '2026-07-13T10:02:53.444Z'
