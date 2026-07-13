@@ -10,6 +10,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { buildKnowgrphStorageDocPath } from '@/lib/storage/knowgrphStorageSyncContract'
 import { __resetKnowgrphStorageDbForTests } from '@/lib/storage/knowgrphStorageDb'
+import { readStoredUploadedMediaPanelItems } from '@/lib/storage/uploadedMediaPanelItems'
 
 const readStorageWorker = (): { fetch: (request: Request, env: never) => Promise<Response> } => {
   const candidate = storageWorker as unknown as {
@@ -376,6 +377,11 @@ export async function testWriteRichMediaWidgetRunOutputArtifactLandsManifestInSo
     if (!sourceFile || sourceFile.enabled !== true || sourceFile.status !== 'idle' || String(sourceFile.text || '') !== manifestText) {
       throw new Error(`Expected generated rich-media manifest to land passively in Source Files, got ${JSON.stringify(useGraphStore.getState().sourceFiles.map(file => ({ name: file.name, source: file.source?.path, enabled: file.enabled, status: file.status, text: file.text })))}`)
     }
+    const binarySourcePath = 'workspace:/workspace/current-image-widget.png'
+    const binarySourceFile = useGraphStore.getState().sourceFiles.find(file => String(file?.source?.path || '') === binarySourcePath) || null
+    if (!binarySourceFile || binarySourceFile.enabled !== true || binarySourceFile.status !== 'idle') {
+      throw new Error(`Expected generated rich-media binary to land passively in Source Files, got ${JSON.stringify(useGraphStore.getState().sourceFiles.map(file => ({ name: file.name, source: file.source?.path, enabled: file.enabled, status: file.status })))}`)
+    }
   } finally {
     store.setSourceFiles(previousSourceFiles)
     resetWorkspaceFsForTests()
@@ -442,14 +448,18 @@ export async function testWriteRichMediaWidgetRunOutputArtifactUploadsR2AndPubli
     if (result.outputManifestPath !== '/workspace/current-image-widget-image-output.md') {
       throw new Error(`expected rich-media manifest output path, got ${String(result.outputManifestPath || '')}`)
     }
-    if (!result.outputStorageUrl || !result.outputStorageUrl.includes('/api/storage/blob/')) {
+    if (!result.outputStorageUrl || !result.outputStorageUrl.includes('/api/storage/media/')) {
       throw new Error(`expected rich-media helper to return durable storage URL, got ${String(result.outputStorageUrl || '')}`)
+    }
+    const registeredMedia = readStoredUploadedMediaPanelItems()
+    if (registeredMedia.length !== 1 || registeredMedia[0]?.kind !== 'image' || registeredMedia[0]?.name !== 'current-image-widget.png') {
+      throw new Error(`expected generated rich-media output to register in the shared Media @ inventory, got ${JSON.stringify(registeredMedia)}`)
     }
     if (env.KNOWGRPH_STORAGE_BLOB_BUCKET.objects.size !== 1) {
       throw new Error(`expected rich-media output to upload one R2 object, got ${env.KNOWGRPH_STORAGE_BLOB_BUCKET.objects.size}`)
     }
     const manifestText = await fs.readFileText('/workspace/current-image-widget-image-output.md')
-    if (!manifestText || !manifestText.includes('| storageUrl | /api/storage/blob/') || !manifestText.includes('| r2ObjectKey |')) {
+    if (!manifestText || !manifestText.includes('| storageUrl | /api/storage/media/') || !manifestText.includes('| storagePublicPath | /api/storage/media/') || !manifestText.includes('| r2ObjectKey |')) {
       throw new Error(`expected rich-media manifest to include R2 storage metadata, got ${String(manifestText || '')}`)
     }
     const docResponse = await readStorageWorker().fetch(

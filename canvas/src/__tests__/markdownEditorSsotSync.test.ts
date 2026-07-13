@@ -45,6 +45,19 @@ export function testMarkdownEditorSsotSyncAllowsOwnedActiveWorkspaceText() {
   }
 }
 
+export function testMarkdownEditorSsotSyncRejectsStaleScheduledExplorerDocument() {
+  const shouldCommit = shouldCommitMarkdownEditorSsotSync({
+    scheduledDocumentKey: 'docs/workspace-readme.md',
+    activeDocumentKey: 'docs/workspace-readme.md',
+    activeText: '# Stale workspace readme',
+    activeTextOwnedByActivePath: true,
+    liveExplorerDocumentKey: 'docs/knowgrph-agentic-video-canvas-demo.md',
+  })
+  if (shouldCommit) {
+    throw new Error('expected a scheduled editor sync to revalidate the live Explorer document before mutating graph-owned Markdown state')
+  }
+}
+
 export function testMarkdownEditorSsotSyncSkipsNonMarkdownWorkspaceSources() {
   const nonMarkdownKeys = [
     '/docs/data.json',

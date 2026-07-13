@@ -58,6 +58,8 @@ export async function runStoryboardWidgetMediaWorkflowNode(args: {
   publishMediaRunOutputToRichMediaPanel: StoryboardWidgetMediaRunOutputPublisher
   publishAnnotationRunOutputToRichMediaPanel: StoryboardWidgetAnnotationRunOutputPublisher
   upsertUiToast: WorkflowToastPublisher
+  propagateErrors?: boolean
+  requireDurableMediaPersistence?: boolean
 }): Promise<boolean> {
   if (String(args.node.type || '').trim() === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID) {
     try {
@@ -207,8 +209,12 @@ export async function runStoryboardWidgetMediaWorkflowNode(args: {
       generationConfig: { provider: runProvider, endpointUrl: runEndpointUrl, apiKey: runApiKey, chatModel: args.generationRuntime.chatModel },
     })
     if (!richMediaResult) {
+      if (args.propagateErrors) throw new Error(UI_COPY.storyboardWidgetRunFailedToast)
       args.upsertUiToast({ id: `storyboard-widget-run-${args.id}`, kind: 'neutral', message: UI_COPY.storyboardWidgetRunFailedToast, ttlMs: 2600 })
       return true
+    }
+    if (args.requireDurableMediaPersistence && !richMediaResult.outputStorageUrl) {
+      throw new Error(`Generated ${richMediaResult.kind} output, but durable Media registration did not confirm R2/D1 persistence.`)
     }
     const outputPatch = buildRichMediaWidgetOutputPatch({ kind: richMediaResult.kind, asset: richMediaResult.asset, hasAudioTrack: richMediaResult.hasAudioTrack, outputPath: richMediaResult.outputPath, outputManifestPath: richMediaResult.outputManifestPath })
     args.updateRunOutputForKnownNodeIds(nodeProps => ({ ...clearRichMediaOutputProperties(nodeProps), ...outputPatch }))

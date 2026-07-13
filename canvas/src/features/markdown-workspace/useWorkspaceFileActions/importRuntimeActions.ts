@@ -12,6 +12,8 @@ import { shouldApplyImportedCanvasDocumentToGraph } from '../workspaceImport/app
 import { normalizeCorpusImportManifest } from '@/features/queryable-corpus/sourceFilesCorpusManifest'
 import { activateStrybldrImportSurface } from '@/features/strybldr/strybldrImportSurface'
 
+const IMPORTED_WORKSPACE_DOCUMENT_ACTIVATION_MAX_ATTEMPTS = 2
+
 export function normalizeWorkspaceImportResult(raw: unknown): WorkspaceImportResult {
   const rec = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
   const createdPaths = Array.isArray(rec.createdPaths)
@@ -165,14 +167,14 @@ export async function activateFirstImportedWorkspaceFile(args: {
   createdPaths: string[]
   applyToGraph?: boolean
   jsonSourceDocuments?: WorkspaceImportResult['jsonSourceDocuments']
-}): Promise<void> {
+}): Promise<boolean> {
   const createdPaths = Array.isArray(args.createdPaths)
     ? args.createdPaths.map(path => String(path || '').trim()).filter(Boolean)
     : []
-  if (createdPaths.length === 0) return
+  if (createdPaths.length === 0) return false
   try {
     const [
-      { workspaceBasename, workspaceDocumentKey },
+      { normalizeWorkspacePath, workspaceBasename, workspaceDocumentKey },
       { normalizeMermaidMmdToMarkdown },
     ] = await Promise.all([
       import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
@@ -180,56 +182,73 @@ export async function activateFirstImportedWorkspaceFile(args: {
     ])
 
     const firstPath = (await pickFirstCreatedFilePathForImportFocus(args.fs, createdPaths)) || ''
-    if (!firstPath) return
+    if (!firstPath) return false
 
     const pendingImport = peekPendingWorkspaceLocalImport(firstPath as WorkspacePath)
     const hydrated = pendingImport?.kind === 'glb' || pendingImport?.kind === 'gltf'
       ? null
       : await hydrateWorkspaceFileFromPendingLocalImport({ fs: args.fs, path: firstPath }).catch(() => null)
-    const text = String((hydrated?.text || (await args.fs.readFileText(firstPath).catch(() => ''))) || '')
-    const docKey = workspaceDocumentKey(firstPath)
-    const name = docKey || workspaceBasename(firstPath) || firstPath
-    const normalizedPath = firstPath as WorkspacePath
-    const jsonSourceText = (args.jsonSourceDocuments || [])
-      .find(item => String(item?.path || '').trim() === normalizedPath)?.text ?? null
-    const state = useGraphStore.getState()
+    let activationPath = normalizeWorkspacePath(firstPath) as WorkspacePath
+    let activationText = String((hydrated?.text || (await args.fs.readFileText(activationPath).catch(() => ''))) || '')
+    let activationName = workspaceDocumentKey(activationPath) || workspaceBasename(activationPath) || activationPath
     try {
-      useMarkdownExplorerStore.getState().setActivePath(normalizedPath)
+      useMarkdownExplorerStore.getState().setActivePath(activationPath)
     } catch {
       try {
         useMarkdownExplorerStore.setState({
-          activePath: normalizedPath,
-          lastSetActivePath: { path: normalizedPath, atMs: Date.now() },
+          activePath: activationPath,
+          lastSetActivePath: { path: activationPath, atMs: Date.now() },
         })
       } catch {
         void 0
       }
     }
 
-    await state.setActiveMarkdownDocument({
-      name,
-      text: normalizeMermaidMmdToMarkdown(name, text),
-      normalizeMermaidMmd: false,
-      sourceUrl: null,
-      jsonSourceText,
-      applyViewPreset: args.applyToGraph === true,
-      applyToGraph: args.applyToGraph === true,
-    })
+    let activated = false
+    for (let attempt = 0; attempt < IMPORTED_WORKSPACE_DOCUMENT_ACTIVATION_MAX_ATTEMPTS; attempt += 1) {
+      const selectedPath = normalizeWorkspacePath(useMarkdownExplorerStore.getState().activePath || '/')
+      if (selectedPath !== activationPath) {
+        const selectedText = await args.fs.readFileText(selectedPath).catch(() => '')
+        const sameSourceAlias = !!(
+          selectedText
+          && selectedText === activationText
+          && workspaceBasename(selectedPath) === workspaceBasename(activationPath)
+        )
+        if (!sameSourceAlias) return false
+        activationPath = selectedPath as WorkspacePath
+        activationText = selectedText
+        activationName = workspaceDocumentKey(activationPath) || workspaceBasename(activationPath) || activationPath
+      }
+      const jsonSourceText = (args.jsonSourceDocuments || [])
+        .find(item => normalizeWorkspacePath(String(item?.path || '')) === activationPath)?.text ?? null
+      activated = await useGraphStore.getState().setActiveMarkdownDocument({
+        name: activationName,
+        text: normalizeMermaidMmdToMarkdown(activationName, activationText),
+        normalizeMermaidMmd: false,
+        sourceUrl: null,
+        jsonSourceText,
+        applyViewPreset: args.applyToGraph === true,
+        applyToGraph: args.applyToGraph === true,
+      })
+      if (activated) break
+    }
+    if (!activated) return false
     if (args.applyToGraph === true) {
       try {
         applyCanvasFrontmatterPreset({
           graphData: useGraphStore.getState().graphData,
-          rawText: text,
+          rawText: activationText,
         })
         activateStrybldrImportSurface({
           graphData: useGraphStore.getState().graphData,
-          rawText: text,
+          rawText: activationText,
         })
       } catch {
         void 0
       }
     }
+    return true
   } catch {
-    void 0
+    return false
   }
 }

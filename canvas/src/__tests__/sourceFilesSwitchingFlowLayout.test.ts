@@ -148,9 +148,9 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
   if (
     !documentActionsText.includes('const graphApplied = await get().applyMarkdownDocumentToGraph(') ||
     !documentActionsText.includes('if (graphApplied) {\n          requestActiveDocumentFit()\n          return true\n        }') ||
-    !documentActionsText.includes('applyViewPresetForSwitch &&\n          active.markdownDocumentName === name')
+    !documentActionsText.includes('applyViewPresetForSwitch &&\n          !isMarkdownLikeFileName(name) &&\n          active.markdownDocumentName === name')
   ) {
-    throw new Error('expected file switches to complete when the selected document applied even if graph parsing had no node commit')
+    throw new Error('expected Markdown graph switches to require a committed graph while retaining the non-Markdown view-preset fallback')
   }
   if (viewShellText.includes("React.startTransition(() => {\n        setSelectionSource('editor')")) {
     throw new Error('expected Source Files row selection to update the active file synchronously under renderer load')

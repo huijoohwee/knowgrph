@@ -32,6 +32,25 @@ export const WORKSPACE_SOURCE_MIRROR_TEXT_EXTENSIONS = dedupeMirrorExtensions([
 
 export const WORKSPACE_SOURCE_MIRROR_BINARY_EXTENSIONS = ['.glb', '.ply', '.spz'] as const
 
+export const WORKSPACE_SOURCE_PERSISTED_BINARY_EXTENSIONS = [
+  ...WORKSPACE_SOURCE_MIRROR_BINARY_EXTENSIONS,
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.webp',
+  '.gif',
+  '.avif',
+  '.mp4',
+  '.mov',
+  '.webm',
+  '.m4v',
+  '.mp3',
+  '.wav',
+  '.m4a',
+  '.aac',
+  '.ogg',
+] as const
+
 export const WORKSPACE_SOURCE_MIRROR_EXTENSIONS = dedupeMirrorExtensions([
   ...WORKSPACE_SOURCE_MIRROR_TEXT_EXTENSIONS,
   ...WORKSPACE_SOURCE_MIRROR_BINARY_EXTENSIONS,
@@ -46,3 +65,6 @@ export const isWorkspaceSourceMirrorFileName = (name: string): boolean => {
 
 export const shouldEncodeWorkspaceSourceMirrorAsBase64 = (name: string): boolean =>
   WORKSPACE_SOURCE_MIRROR_BINARY_EXTENSIONS.includes(readMirrorFileExtension(name) as typeof WORKSPACE_SOURCE_MIRROR_BINARY_EXTENSIONS[number])
+
+export const isPersistedWorkspaceBinaryFileName = (name: string): boolean =>
+  WORKSPACE_SOURCE_PERSISTED_BINARY_EXTENSIONS.includes(readMirrorFileExtension(name) as typeof WORKSPACE_SOURCE_PERSISTED_BINARY_EXTENSIONS[number])

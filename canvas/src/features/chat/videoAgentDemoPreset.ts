@@ -1,5 +1,10 @@
 import { load as parseYaml } from 'js-yaml'
-import { getWorkspaceFs, TEST_VALIDATION_WORKSPACE_SEED_PATH } from '@/features/workspace-fs/workspaceFs'
+import {
+  DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_BASENAME,
+  getWorkspaceFs,
+  TEST_VALIDATION_WORKSPACE_SEED_PATH,
+} from '@/features/workspace-fs/workspaceFs'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { readWorkspaceInitializationDocsMirrorEntries, readWorkspaceInitializationSeedText } from '@/features/workspace-fs/workspaceSeedProvider'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { parseGenerationInvocation } from './generationInvocation'
@@ -70,9 +75,22 @@ const readMirrorText = async (relPath: string): Promise<string> => {
   return String(entries.find(entry => entry.relPath === normalized)?.text || '')
 }
 
+export const resolveVideoAgentDemoPresetWorkspacePath = async (args: {
+  fs: WorkspaceFs
+  preferDocsMirror: boolean
+}): Promise<string> => {
+  if (!args.preferDocsMirror) return TEST_VALIDATION_WORKSPACE_SEED_PATH
+  const docsMirrorPath = normalizeWorkspacePath(`/docs/${DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_BASENAME}`)
+  const docsMirrorText = await args.fs.readFileText(docsMirrorPath).catch(() => '')
+  return docsMirrorText ? docsMirrorPath : TEST_VALIDATION_WORKSPACE_SEED_PATH
+}
+
 export const loadVideoAgentDemoPreset = async (fsOverride?: WorkspaceFs): Promise<VideoAgentDemoPresetResult> => {
   const fs = fsOverride || await getWorkspaceFs()
-  const presetPath = TEST_VALIDATION_WORKSPACE_SEED_PATH
+  const presetPath = await resolveVideoAgentDemoPresetWorkspacePath({
+    fs,
+    preferDocsMirror: !fsOverride,
+  })
   const markdownText = (await fs.readFileText(presetPath)) || await readMirrorText(`docs/${presetPath.replace(/^\/+/, '')}`)
   if (!markdownText) return { ok: false, error: `Preset unavailable: ${presetPath}` }
   if (!await fs.readFileText(presetPath)) await materializeWorkspaceFile(fs, presetPath, markdownText)

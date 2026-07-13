@@ -20,7 +20,7 @@ import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
-import { buildGeneratedMediaManifestMarkdown, publishGeneratedTextToStorage, uploadRichMediaBinaryToStorage } from './richMediaRunStorage'
+import { buildGeneratedMediaManifestMarkdown, buildGeneratedMediaWorkspaceEntries, publishGeneratedTextToStorage, uploadRichMediaBinaryToStorage } from './richMediaRunStorage'
 import { hasMediaAudioTrack } from './mediaAudioTrackProbe'
 
 export type RichMediaWidgetKind = 'image' | 'video' | 'annotation'
@@ -419,13 +419,20 @@ export const writeRichMediaWidgetRunOutputArtifact = async (args: {
     const fs = args.fs || await getWorkspaceFs()
     await applyWorkspaceImportToCanvas({
       fs,
-      createdPaths: [outputManifestPath],
-      opts: { applyToGraph: false },
+      createdPaths: [outputPath, outputManifestPath],
+      opts: {
+        applyToGraph: false,
+        workspaceEntries: buildGeneratedMediaWorkspaceEntries({
+          outputPath,
+          outputManifestPath,
+          manifestText,
+        }),
+      },
     })
   } catch {
     void 0
   }
-  return { outputPath, outputManifestPath, outputStorageUrl: storage?.publicUrl || null }
+  return { outputPath, outputManifestPath, outputStorageUrl: storage?.accessUrl || storage?.publicUrl || null }
 }
 
 export const writeTextWidgetRunOutputArtifact = async (args: {

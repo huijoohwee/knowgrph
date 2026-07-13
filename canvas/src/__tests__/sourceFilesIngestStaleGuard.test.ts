@@ -951,8 +951,8 @@ export function testMarkdownApplyUsesDirectParserPathForActiveText() {
   if (!documentActionsText.includes('const reusedGraph = withMarkdownDocumentSourceMetadata(exactSourceFile.parsedGraphData as GraphData') || !documentActionsText.includes('get().setGraphData(reusedGraph)')) {
     throw new Error('expected applyMarkdownDocumentToGraph parsed-graph reuse path to commit the reused graph directly before parser fallback')
   }
-  if (!documentActionsText.includes('let markdownApplyInFlight = false') || !documentActionsText.includes('let queuedMarkdownApplyRequest: PendingMarkdownApplyRequest | null = null')) {
-    throw new Error('expected applyMarkdownDocumentToGraph to enforce a single in-flight markdown apply with shared queued-request state')
+  if (!documentActionsText.includes('const markdownApplyRequestQueue = new MarkdownApplyRequestQueue<PendingMarkdownApplyRequest>()')) {
+    throw new Error('expected applyMarkdownDocumentToGraph to enforce a single in-flight markdown apply through the shared request queue')
   }
   if (
     !documentActionsText.includes('requireActiveMarkdownDocument: boolean') ||
@@ -962,10 +962,10 @@ export function testMarkdownApplyUsesDirectParserPathForActiveText() {
   ) {
     throw new Error('expected Source Files document switches to guard async markdown graph commits by the currently active document content')
   }
-  if (!documentActionsText.includes('if (markdownApplyInFlight) {') || !documentActionsText.includes('queuedMarkdownApplyRequest = request')) {
+  if (!documentActionsText.includes('if (markdownApplyRequestQueue.inFlight) {') || !documentActionsText.includes('markdownApplyRequestQueue.enqueueLatest(request, requestKey)')) {
     throw new Error('expected overlapping markdown apply requests to coalesce into latest queued request instead of running concurrently')
   }
-  if (!documentActionsText.includes('while (currentRequest) {') || !documentActionsText.includes('currentRequest = queuedMarkdownApplyRequest')) {
+  if (!documentActionsText.includes('while (currentRequest) {') || !documentActionsText.includes('const nextRequest = markdownApplyRequestQueue.takeQueued()')) {
     throw new Error('expected markdown apply execution to process only the latest queued request after the current in-flight apply finishes')
   }
 }

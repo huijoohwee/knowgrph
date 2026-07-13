@@ -38,6 +38,8 @@ export const buildHistoryKey = (graphData: GraphData | null): string => {
 
 export type ChatHistoryHydrationAction = 'skip' | 'mark-loaded' | 'hydrate'
 
+export type ChatHistoryPersistenceAction = 'skip-hydration-commit' | 'persist'
+
 export const resolveChatHistoryHydrationAction = (args: {
   historyKey: string
   lastLoadedHistoryKey: string | null
@@ -47,6 +49,16 @@ export const resolveChatHistoryHydrationAction = (args: {
   if (!historyKey || String(args.lastLoadedHistoryKey || '') === historyKey) return 'skip'
   return args.isLoading ? 'mark-loaded' : 'hydrate'
 }
+
+export const resolveChatHistoryPersistenceAction = (args: {
+  historyKey: string
+  pendingHydrationHistoryKey: string | null
+}): ChatHistoryPersistenceAction => (
+  String(args.historyKey || '').trim() &&
+  String(args.pendingHydrationHistoryKey || '').trim() === String(args.historyKey || '').trim()
+    ? 'skip-hydration-commit'
+    : 'persist'
+)
 
 export const createPendingChatRequestMessageId = (assistantMessageId: string): string => {
   const safeAssistantMessageId = String(assistantMessageId || '').trim()
@@ -113,7 +125,37 @@ export const upsertPendingChatRequestTurn = (args: {
 export const CHAT_HISTORY_COALESCE_DELAY_MS = 220
 
 const CHAT_HISTORY_CACHE_LIMIT = 80
+const CHAT_HISTORY_TRANSITION_REPLAY_MS = 5_000
 const chatHistoryCache = new Map<string, ChatMessage[]>()
+const chatHistoryCacheListeners = new Map<string, Set<(messages: ChatMessage[]) => void>>()
+const chatHistoryTransitionListeners = new Map<string, Set<(messages: ChatMessage[]) => void>>()
+type ChatHistoryTransitionRecord = {
+  historyKeys: Set<string>
+  messages: ChatMessage[]
+  publishedAtMs: number
+}
+const latestChatHistoryTransitions = new Map<string, ChatHistoryTransitionRecord>()
+
+const areChatHistoryMessagesEqual = (left: ChatMessage[] | undefined, right: ChatMessage[]): boolean => {
+  if (!left || left.length !== right.length) return false
+  return left.every((message, index) => {
+    const candidate = right[index]
+    return candidate?.id === message.id && candidate.role === message.role && candidate.content === message.content
+  })
+}
+
+const haveSameChatHistoryMessageIdentity = (left: ChatMessage[], right: ChatMessage[]): boolean => (
+  left.length === right.length
+  && left.every((message, index) => message.id === right[index]?.id && message.role === right[index]?.role)
+)
+
+const trimChatHistoryTransitions = (): void => {
+  while (latestChatHistoryTransitions.size > CHAT_HISTORY_CACHE_LIMIT) {
+    const oldestKey = latestChatHistoryTransitions.keys().next().value
+    if (typeof oldestKey !== 'string') break
+    latestChatHistoryTransitions.delete(oldestKey)
+  }
+}
 
 export const getCachedChatHistory = (key: string): ChatMessage[] | null => {
   const v = chatHistoryCache.get(String(key || ''))
@@ -122,15 +164,113 @@ export const getCachedChatHistory = (key: string): ChatMessage[] | null => {
 
 export const putChatHistoryCache = (key: string, value: ChatMessage[]): void => {
   if (!key) return
+  const previous = chatHistoryCache.get(key)
   if (chatHistoryCache.has(key)) {
     chatHistoryCache.delete(key)
   }
   chatHistoryCache.set(key, value)
+  if (!areChatHistoryMessagesEqual(previous, value)) {
+    for (const listener of chatHistoryCacheListeners.get(key) || []) listener(value)
+  }
   if (chatHistoryCache.size <= CHAT_HISTORY_CACHE_LIMIT) return
   const oldestKey = chatHistoryCache.keys().next().value
   if (typeof oldestKey === 'string' && oldestKey) {
     chatHistoryCache.delete(oldestKey)
   }
+}
+
+export const subscribeToChatHistoryCache = (
+  key: string,
+  listener: (messages: ChatMessage[]) => void,
+): (() => void) => {
+  const historyKey = String(key || '').trim()
+  if (!historyKey) return () => undefined
+  const listeners = chatHistoryCacheListeners.get(historyKey) || new Set<(messages: ChatMessage[]) => void>()
+  listeners.add(listener)
+  chatHistoryCacheListeners.set(historyKey, listeners)
+  return () => {
+    const current = chatHistoryCacheListeners.get(historyKey)
+    if (!current) return
+    current.delete(listener)
+    if (current.size === 0) chatHistoryCacheListeners.delete(historyKey)
+  }
+}
+
+export const publishChatHistoryTransition = (args: {
+  historyKeys: readonly string[]
+  messages: ChatMessage[]
+}): ChatMessage[] => {
+  const requestedHistoryKeys = [...new Set(args.historyKeys.map(key => String(key || '').trim()).filter(Boolean))]
+  const publishedAtMs = Date.now()
+  const historyKeys = new Set(requestedHistoryKeys)
+  for (const historyKey of requestedHistoryKeys) {
+    const previous = latestChatHistoryTransitions.get(historyKey)
+    if (
+      previous
+      && publishedAtMs - previous.publishedAtMs <= CHAT_HISTORY_TRANSITION_REPLAY_MS
+      && haveSameChatHistoryMessageIdentity(previous.messages, args.messages)
+    ) {
+      for (const transitionedHistoryKey of previous.historyKeys) historyKeys.add(transitionedHistoryKey)
+    }
+  }
+  const transition: ChatHistoryTransitionRecord = { historyKeys, messages: args.messages, publishedAtMs }
+  for (const historyKey of historyKeys) {
+    if (latestChatHistoryTransitions.has(historyKey)) latestChatHistoryTransitions.delete(historyKey)
+    latestChatHistoryTransitions.set(historyKey, transition)
+    for (const listener of chatHistoryTransitionListeners.get(historyKey) || []) listener(args.messages)
+  }
+  trimChatHistoryTransitions()
+  return args.messages
+}
+
+export const adoptLatestChatHistoryTransition = (args: {
+  historyKey: string
+  previousHistoryKey: string | null
+  currentMessages: ChatMessage[]
+}): ChatMessage[] | null => {
+  const historyKey = String(args.historyKey || '').trim()
+  const previousHistoryKey = String(args.previousHistoryKey || '').trim()
+  if (!historyKey || !previousHistoryKey || historyKey === previousHistoryKey) return null
+  const transition = latestChatHistoryTransitions.get(previousHistoryKey)
+  if (!transition || Date.now() - transition.publishedAtMs > CHAT_HISTORY_TRANSITION_REPLAY_MS) return null
+  if (!areChatHistoryMessagesEqual(args.currentMessages, transition.messages)) return null
+  transition.historyKeys.add(historyKey)
+  if (latestChatHistoryTransitions.has(historyKey)) latestChatHistoryTransitions.delete(historyKey)
+  latestChatHistoryTransitions.set(historyKey, transition)
+  trimChatHistoryTransitions()
+  putChatHistoryCache(historyKey, transition.messages)
+  return transition.messages
+}
+
+export const subscribeToChatHistoryTransition = (
+  key: string,
+  listener: (messages: ChatMessage[]) => void,
+): (() => void) => {
+  const historyKey = String(key || '').trim()
+  if (!historyKey) return () => undefined
+  const listeners = chatHistoryTransitionListeners.get(historyKey) || new Set<(messages: ChatMessage[]) => void>()
+  listeners.add(listener)
+  chatHistoryTransitionListeners.set(historyKey, listeners)
+  const latest = latestChatHistoryTransitions.get(historyKey)
+  if (latest && Date.now() - latest.publishedAtMs <= CHAT_HISTORY_TRANSITION_REPLAY_MS) {
+    listener(latest.messages)
+  }
+  return () => {
+    const current = chatHistoryTransitionListeners.get(historyKey)
+    if (!current) return
+    current.delete(listener)
+    if (current.size === 0) chatHistoryTransitionListeners.delete(historyKey)
+  }
+}
+
+export const cacheChatHistoryMessagesForKeys = (args: {
+  historyKeys: readonly string[]
+  messages: ChatMessage[]
+}): ChatMessage[] => {
+  const messages = args.messages.slice(-80)
+  const historyKeys = [...new Set(args.historyKeys.map(key => String(key || '').trim()).filter(Boolean))]
+  for (const historyKey of historyKeys) putChatHistoryCache(historyKey, messages)
+  return messages
 }
 
 export const toHistoryTaskKey = (historyKey: string): string => {

@@ -12,8 +12,6 @@ import { FloatingPanelChatFooter, FloatingPanelChatMessagesSection } from './Flo
 import { createNewChatHistoryWorkspaceFilePath } from '@/features/chat/chatHistoryWorkspace'
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT } from '@/features/chat/chatStorageConfig'
 import { ensureChatStreamArtifactBundleInitialized } from '@/features/chat/chatStreamArtifacts'
-import { mirrorChatWorkspaceFileToHost } from '@/features/chat/chatWorkspaceMirror'
-import { writeWorkspaceFileTextEnsuringFile } from '@/features/chat/chatWorkspaceFsWrite'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import {
   CHAT_DEFAULT_ENDPOINT_URL,
@@ -553,8 +551,6 @@ export default function FloatingPanelChat() {
         timestampMs,
         defaultLocalRootPath: chatLocalStorageRootPath,
       })
-      await writeWorkspaceFileTextEnsuringFile({ path: nextPath, text: '' })
-      await mirrorChatWorkspaceFileToHost({ workspacePath: nextPath, text: '' })
       useGraphStore.setState({ workspaceGraphMutationLayoutLockActive: false })
       followWorkspaceMarkdownPath(nextPath, { forceReveal: true })
       setChatKnowgrphWorkspacePath(nextPath)
