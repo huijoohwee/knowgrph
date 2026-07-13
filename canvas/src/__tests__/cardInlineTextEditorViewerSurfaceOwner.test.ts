@@ -7,6 +7,7 @@ export function testCardInlineTextEditorViewerSurfaceReusesMarkdownViewerWysiwyg
   const cardInlineEditingSurface = readUtf8('../lib/cards/CardInlineTextEditingSurface.tsx')
   const cardInlineEditorSupport = readUtf8('../lib/cards/CardInlineTextEditorSupport.ts')
   const viewerSurface = readUtf8('../lib/markdown-core/ui/MarkdownInlineTextEditSurface.tsx')
+  const contentEditableCore = readUtf8('../lib/markdown-core/ui/MarkdownContentEditableCore.tsx')
   const sharedContentEditableSurface = readUtf8('../lib/markdown-core/ui/markdownContentEditableSurface.ts')
   const markdownBlockEditSurface = readUtf8('../lib/markdown-core/ui/markdownBlockContainerCore.editSurfaceView.tsx')
   const markdownCaretProbe = readUtf8('../lib/markdown-core/ui/markdownBlockContainerCore.editOpenCaretProbe.ts')
@@ -27,6 +28,26 @@ export function testCardInlineTextEditorViewerSurfaceReusesMarkdownViewerWysiwyg
       throw new Error(`expected CardInlineTextEditor to route the shared default edit path through the Viewer WYSIWYG surface: ${snippet}`)
     }
   }
+  for (const [surfaceName, sourceText] of [
+    ['MarkdownInlineTextEditSurface', viewerSurface],
+    ['Editor Workspace Viewer', markdownBlockEditSurface],
+  ] as const) {
+    if (!sourceText.includes('MarkdownContentEditableCore')) {
+      throw new Error(`expected ${surfaceName} to reuse the canonical Markdown contenteditable core`)
+    }
+  }
+  for (const snippet of [
+    'data-kg-markdown-contenteditable-core="1"',
+    "aria-multiline={ariaMultiline ? 'true' : 'false'}",
+    'MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS',
+    'MARKDOWN_CONTENT_EDITABLE_PLACEHOLDER_CLASS',
+    'preventInlineTokenSecondMouseDown',
+    'stopInlineTextEditorDoubleClick',
+  ]) {
+    if (!contentEditableCore.includes(snippet)) {
+      throw new Error(`expected canonical Markdown contenteditable core to own ${snippet}`)
+    }
+  }
   if (!cardInlineEditingSurface.includes('useViewerEditSurface ? draft : projectedEditorDisplayValue')) {
     throw new Error('expected CardInlineTextEditingSurface to preserve Viewer draft vs textarea display command-menu routing')
   }
@@ -42,7 +63,6 @@ export function testCardInlineTextEditorViewerSurfaceReusesMarkdownViewerWysiwyg
   for (const snippet of [
     'rewriteRenderedInlineMediaForEditorHtml',
     'readFastInlineMarkdownDraft',
-    'aria-multiline={props.multiline',
     'readInlineMediaEditorMarkdownText',
     'MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS',
     'MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS',
@@ -81,8 +101,8 @@ export function testCardInlineTextEditorViewerSurfaceReusesMarkdownViewerWysiwyg
       throw new Error(`expected neutral Markdown contenteditable owner to expose ${snippet}`)
     }
   }
-  if (!markdownBlockEditSurface.includes("from './markdownContentEditableSurface'")) {
-    throw new Error('expected Editor Workspace Viewer blocks to reuse the neutral contenteditable interaction owner')
+  if (!markdownBlockEditSurface.includes("from './MarkdownContentEditableCore'")) {
+    throw new Error('expected Editor Workspace Viewer blocks to reuse the canonical contenteditable core')
   }
   if (!markdownCaretProbe.includes('readMarkdownContentEditableCaretRangeFromPoint')) {
     throw new Error('expected Editor Workspace caret placement to reuse the neutral point-selection helper')
