@@ -57,6 +57,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["ui.floatingPanelChat.videoPreset.committedRunAllOwner","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetQueuesCommittedRunAllOwner"],
   ["ui.floatingPanelChat.videoPreset.exactCommittedGraphSnapshot","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetUsesExactCommittedGraphSnapshot"],
   ["ui.floatingPanelChat.videoPreset.runProgressAssistantBubble","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetRunProgressUpdatesAssistantBubble"],
+  ["ui.floatingPanelChat.videoPreset.terminalArtifactForwardOnly","@/__tests__/floatingPanelChatVideoPresetTerminalArtifact.test","testFloatingPanelChatVideoPresetPersistsOnlyTerminalRunStatusWithoutReplacingCanvas"],
   ["ui.floatingPanelChat.videoPreset.defersHostArtifactUntilFinalization","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatNewChatDefersHostArtifactUntilFinalization"],
   ["ui.floatingPanelChat.videoPreset.logsActivationWithoutGeneratedKgc","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetLogsActivationWithoutGeneratedKgc"],
   ["ui.floatingPanelChat.videoPreset.historyHydrationCacheGuard","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatHistoryHydrationCannotOverwriteTargetCache"],

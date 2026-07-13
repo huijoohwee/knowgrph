@@ -456,8 +456,13 @@ export async function testFloatingPanelChatVideoPresetLogsActivationWithoutGener
     }
   }
   const submitSource = fs.readFileSync(path.join(process.cwd(), 'src', 'features', 'chat', 'floatingPanelChat', 'videoAgentDemoPresetSubmit.ts'), 'utf8')
-  if (submitSource.includes('finalizeAssistantSuccess')) {
-    throw new Error('preset activation must not enter generated-KGC finalization before any provider stage runs')
+  const exchangeStart = submitSource.indexOf('export const persistVideoAgentDemoPresetExchange')
+  const exchangeEnd = submitSource.indexOf('export const updateVideoAgentDemoPresetAssistantMessage', exchangeStart)
+  if (submitSource.slice(exchangeStart, exchangeEnd).includes('finalizeAssistantSuccess')) {
+    throw new Error('preset activation must not enter generated-KGC finalization before any provider stage reaches a terminal status')
+  }
+  if (!submitSource.includes('applyWorkspaceDocumentToCanvas: false')) {
+    throw new Error('terminal video-preset finalization must preserve the committed source-backed graph as canvas authority')
   }
   if (!submitSource.includes("source: 'chat'") || !submitSource.includes('onStatus: publishRunStatusToChat')) {
     throw new Error('preset submission must hand the committed source graph to the shared Run all owner')
