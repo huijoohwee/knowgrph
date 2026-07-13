@@ -64,6 +64,34 @@ export function testBytePlusProviderOptionsIncludeSharedRequestParams() {
   }
 }
 
+export function testBytePlusDisabledThinkingOmitsReasoningEffort() {
+  const options = buildProviderChatRequestOptions({
+    provider: CHAT_PROVIDER_BYTEPLUS,
+    chatTemperature: 0.3,
+    chatServiceTier: 'auto',
+    chatStream: true,
+    chatMessagesJson: '',
+    chatReasoningEffort: 'medium',
+    chatThinkingType: 'disabled',
+    chatThinkingJson: '',
+    chatFrequencyPenalty: 0,
+    chatPresencePenalty: 0,
+    chatTopP: 0.7,
+    chatLogprobs: false,
+    chatTopLogprobs: 0,
+    chatParallelToolCalls: true,
+    chatStopJson: '',
+    chatStreamOptionsJson: '',
+    chatResponseFormatJson: '',
+    chatLogitBiasJson: '',
+    chatToolsJson: '',
+    chatToolChoiceJson: '',
+  })
+  if (stableStringify(options.thinking) !== stableStringify({ type: 'disabled' }) || 'reasoning_effort' in options) {
+    throw new Error(`expected disabled BytePlus thinking to omit incompatible reasoning_effort, got ${stableStringify(options)}`)
+  }
+}
+
 export function testNonBytePlusProviderOptionsStayMinimal() {
   const options = buildProviderChatRequestOptions({
     provider: CHAT_PROVIDER_OPENAI,

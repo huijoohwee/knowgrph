@@ -38,7 +38,7 @@ import { runStoryboardWidgetMediaWorkflowNode } from '@/components/StoryboardWid
 import { createStoryboardWidgetWorkflowRichMediaPublishers } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPublication'
 import { readFlowComputeSource } from '@/lib/storyboardWidget/flowComputeInline'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
-
+import { resolveStoryboardWidgetTextThinkingOptions } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowTextThinking'
 export type StoryboardWidgetWorkflowNodeRunner = (nodeId: string, runOptions?: {
   allowCreateRichMediaPanel?: boolean
   suppressLayoutMutation?: boolean
@@ -484,6 +484,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
         }
         setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
         const mirrorTextOutputToRichMediaPanel = isFlowVideoScriptFormId(resolvedTextRegistryEntry?.formId) || providerFamily === 'byteplus'
+        const textThinkingOptions = resolveStoryboardWidgetTextThinkingOptions({ formId: resolvedTextRegistryEntry?.formId || rawNodeProperties[FLOW_WIDGET_FORM_ID_KEY], localProperties: rawNodeProperties, resolvedMaxCompletionTokens: properties.chatMaxCompletionTokens ?? store.chatMaxCompletionTokens, resolvedThinkingJson: properties.chatThinkingJson ?? store.chatThinkingJson, resolvedThinkingType: properties.chatThinkingType ?? store.chatThinkingType })
         if (mirrorTextOutputToRichMediaPanel) {
           updateRunOutputForKnownNodeIds(nodeProps => ({ ...clearRichMediaOutputProperties(nodeProps), outputLoading: true, outputLoadingKind: 'text', lastRunAt: new Date().toISOString() }))
         }
@@ -519,13 +520,13 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
             prompt,
             options: {
               chatTemperature: properties.chatTemperature ?? store.chatTemperature,
-              chatMaxCompletionTokens: properties.chatMaxCompletionTokens ?? store.chatMaxCompletionTokens,
+              chatMaxCompletionTokens: textThinkingOptions.chatMaxCompletionTokens,
               chatServiceTier: properties.chatServiceTier ?? store.chatServiceTier,
               chatStream: properties.chatStream ?? store.chatStream,
               chatMessagesJson: properties.chatMessagesJson ?? store.chatMessagesJson,
               chatReasoningEffort: properties.chatReasoningEffort ?? store.chatReasoningEffort,
-              chatThinkingType: properties.chatThinkingType ?? store.chatThinkingType,
-              chatThinkingJson: properties.chatThinkingJson ?? store.chatThinkingJson,
+              chatThinkingType: textThinkingOptions.chatThinkingType,
+              chatThinkingJson: textThinkingOptions.chatThinkingJson,
               chatFrequencyPenalty: properties.chatFrequencyPenalty ?? store.chatFrequencyPenalty,
               chatPresencePenalty: properties.chatPresencePenalty ?? store.chatPresencePenalty,
               chatTopP: properties.chatTopP ?? store.chatTopP,
