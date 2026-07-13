@@ -20,6 +20,24 @@ export const parseErrorBody = async (res: Response): Promise<string> => {
   }
 }
 
+export const parseJsonResponseBody = async (res: Response, context: string): Promise<unknown> => {
+  const label = String(context || '').trim() || 'Provider request'
+  let text = ''
+  try {
+    text = String(await res.text() || '').trim()
+  } catch {
+    throw new Error(`${label} returned a truncated response body (HTTP ${res.status}). The request was not retried automatically because it may have reached the provider.`)
+  }
+  if (!text) {
+    throw new Error(`${label} returned an empty JSON response (HTTP ${res.status}). The request was not retried automatically because it may have reached the provider.`)
+  }
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    throw new Error(`${label} returned malformed JSON (HTTP ${res.status}). The request was not retried automatically because it may have reached the provider.`)
+  }
+}
+
 export const shouldRetryWithModelFallback = (status: number, detail: string): boolean => {
   if (status !== 400 && status !== 404) return false
   const lowered = String(detail || '').toLowerCase()
@@ -56,7 +74,7 @@ export const loadAvailableModelIds = async (
     headers,
   })
   if (!res.ok) return []
-  const data = (await res.json()) as { data?: unknown }
+  const data = (await parseJsonResponseBody(res, 'Model catalog request')) as { data?: unknown }
   const list = Array.isArray(data?.data) ? data.data : []
   const ids = list
     .map(entry => {

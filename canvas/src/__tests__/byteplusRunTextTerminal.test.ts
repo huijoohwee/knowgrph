@@ -72,3 +72,88 @@ export async function testBytePlusRunTextRejectsMissingEndpointBeforeFetch() {
     globalThis.fetch = originalFetch
   }
 }
+
+export async function testBytePlusRunTextReportsEmptySuccessfulJsonWithoutRawParserFailure() {
+  const originalFetch = globalThis.fetch
+  try {
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/models')) {
+        return new Response(JSON.stringify({ data: [{ id: CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT }] }), {
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return new Response('', { status: 200, headers: { 'content-type': 'application/json' } })
+    }) as typeof fetch
+
+    let failure = ''
+    try {
+      await generateRunMarkdownWithProvider({
+        config: {
+          provider: CHAT_PROVIDER_BYTEPLUS,
+          endpointUrl: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
+          apiKey: 'test-key',
+          chatModel: CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
+        },
+        prompt: 'Generate the final artifact.',
+        options: { chatStream: false },
+      })
+    } catch (error) {
+      failure = error instanceof Error ? error.message : String(error)
+    }
+    if (!failure.includes('Run text generation returned an empty JSON response')) {
+      throw new Error(`expected typed empty JSON failure, got ${JSON.stringify(failure)}`)
+    }
+    if (failure.includes('Unexpected end of JSON input')) {
+      throw new Error(`expected raw Response.json failure to be eliminated, got ${JSON.stringify(failure)}`)
+    }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+}
+
+export async function testBytePlusRunTextReportsTruncatedSuccessfulJsonWithoutRetrying() {
+  const originalFetch = globalThis.fetch
+  let generationRequests = 0
+  try {
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/models')) {
+        return new Response(JSON.stringify({ data: [{ id: CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT }] }), {
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      generationRequests += 1
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.error(new Error('upstream terminated'))
+        },
+      })
+      return new Response(stream, { status: 200, headers: { 'content-type': 'application/json' } })
+    }) as typeof fetch
+
+    let failure = ''
+    try {
+      await generateRunMarkdownWithProvider({
+        config: {
+          provider: CHAT_PROVIDER_BYTEPLUS,
+          endpointUrl: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
+          apiKey: 'test-key',
+          chatModel: CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
+        },
+        prompt: 'Generate the final artifact.',
+        options: { chatStream: false },
+      })
+    } catch (error) {
+      failure = error instanceof Error ? error.message : String(error)
+    }
+    if (!failure.includes('Run text generation returned a truncated response body')) {
+      throw new Error(`expected typed truncated-body failure, got ${JSON.stringify(failure)}`)
+    }
+    if (generationRequests !== 1) {
+      throw new Error(`expected no automatic retry after an ambiguous provider response, got ${generationRequests} requests`)
+    }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+}
