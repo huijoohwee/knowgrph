@@ -366,17 +366,18 @@ export async function testFloatingPanelChatContextRailAndQuickActionsStayStateOw
     if (quickActionPrompts[0] !== '/pipeline.trace Trace the current document from ingestion to parsing to canvas rendering.') {
       throw new Error(`expected quick action to publish its prompt through state, got ${JSON.stringify(quickActionPrompts)}`)
     }
-    const input = container.querySelector('[data-kg-chat-input="true"]') as HTMLTextAreaElement | null
+    const input = container.querySelector('[data-kg-chat-input="1"]') as HTMLElement | null
+    const commandProxy = container.querySelector('[data-kg-card-inline-viewer-edit-command-proxy="1"]') as HTMLTextAreaElement | null
     if (!input) throw new Error('expected FloatingPanel chat input to expose the stable data hook')
     if (input.getAttribute('aria-label') !== 'Ask a question about the current graph or selection.') {
       throw new Error(`expected chat input to expose the shared placeholder as its aria label, got ${input.getAttribute('aria-label')}`)
     }
-    if (!String(input.value || '').includes('/pipeline.trace Trace the current document')) {
-      throw new Error(`expected quick action to populate chat input, got ${JSON.stringify(input.value)}`)
+    if (!String(commandProxy?.value || '').includes('/pipeline.trace Trace the current document')) {
+      throw new Error(`expected quick action to populate chat input, got ${JSON.stringify(commandProxy?.value)}`)
     }
-    const traceChip = container.querySelector('[data-kg-chat-input-invocation-chip="slash"][data-kg-chat-input-invocation-token="/pipeline.trace"]')
-    if (!traceChip || input.getAttribute('data-kg-chat-input-overlay-active') !== '1' || !traceChip.getAttribute('title')?.includes('DICTIONARY-COMMAND.md')) {
-      throw new Error(`expected slash quick action prompt to render through composer invocation overlay, got ${input.outerHTML}`)
+    const traceChip = container.querySelector('[data-kg-inline-invocation-edit-token="1"][data-kg-inline-invocation-markdown="/pipeline.trace"]')
+    if (!traceChip || !traceChip.getAttribute('title')?.includes('DICTIONARY-COMMAND.md')) {
+      throw new Error(`expected slash quick action prompt to render through the shared Card/Widget edit chip, got ${input.outerHTML}`)
     }
   } finally {
     await unmountReactRoot(root, { window: dom.window as unknown as Window })

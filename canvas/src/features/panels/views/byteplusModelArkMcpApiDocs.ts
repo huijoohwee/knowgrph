@@ -1,6 +1,7 @@
 import type { FlowDetails, SettingMeta } from '@/features/settings/types'
 import type { VirtualSettingsEntry } from './byteplusSharedTextApiDocs'
 import { buildSettingsRowAnchorId } from './settingsRowAnchor'
+import { CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT } from '@/lib/chatEndpoint'
 
 export const BYTEPLUS_MODELARK_MCP_DOC_AREA = 'BytePlus ModelArk Remote MCP'
 export const BYTEPLUS_MODELARK_MCP_DOCS_URL = 'https://docs.byteplus.com/en/docs/ModelArk/1827534'
@@ -17,7 +18,7 @@ export const BYTEPLUS_MODELARK_MCP_BASE_URL = 'https://ark.ap-southeast.byteplus
 export const BYTEPLUS_MODELARK_MCP_AUTH_ENV = 'ARK_API_KEY'
 export const BYTEPLUS_MODELARK_MCP_BETA_HEADER = 'ark-beta-mcp'
 export const BYTEPLUS_MODELARK_MCP_BETA_HEADER_VALUE = 'true'
-export const BYTEPLUS_MODELARK_MCP_DEFAULT_MODEL = 'seed-2-0-lite-260228'
+export const BYTEPLUS_MODELARK_MCP_DEFAULT_MODEL = CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT
 export const BYTEPLUS_MODELARK_MCP_DEFAULT_IMAGE_MODEL = 'seedream-4-0-250828'
 export const BYTEPLUS_MODELARK_MCP_VIDEO_MODEL_FAMILY = 'Seedance / Dreamina Seedance operator-selected model'
 export const BYTEPLUS_MODELARK_MCP_CODEX_SERVER_KEY = 'byteplus-modelark-media'

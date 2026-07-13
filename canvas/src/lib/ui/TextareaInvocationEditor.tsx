@@ -6,6 +6,7 @@ import {
   deleteFloatingPanelChatComposerProjectedTokenDisplayRange,
   FloatingPanelChatComposerMediaOverlay,
   isFloatingPanelChatComposerProjectedCaretInsideChip,
+  resolveFloatingPanelChatComposerProjectedCaretEnd,
   resolveFloatingPanelChatComposerRawText,
   type TextareaInvocationMediaAttachment,
 } from '@/lib/ui/textareaInvocationProjection'
@@ -51,6 +52,7 @@ export function TextareaInvocationEditor(props: TextareaInvocationEditorProps) {
   const internalRef = React.useRef<HTMLTextAreaElement | null>(null)
   const inputRef = props.inputRef || internalRef
   const overlayRef = React.useRef<HTMLElement | null>(null)
+  const pointerScrollRef = React.useRef<{ left: number; top: number } | null>(null)
   const [internalSelectionRange, setInternalSelectionRange] = React.useState<TextareaInvocationSelectionRange>({ start: 0, end: 0 })
   const selectionRange = props.selectionRange || internalSelectionRange
   const setSelectionRange = React.useCallback((range: TextareaInvocationSelectionRange) => {
@@ -66,28 +68,50 @@ export function TextareaInvocationEditor(props: TextareaInvocationEditorProps) {
     () => buildFloatingPanelChatComposerDisplayText(props.value, projectionOptions),
     [projectionOptions, props.value],
   )
-  const hideNativeCaret = overlay.hasOverlay && isFloatingPanelChatComposerProjectedCaretInsideChip(
+  const hasRangeSelection = selectionRange.end > selectionRange.start
+  const projectionActive = overlay.hasOverlay && !hasRangeSelection
+  const hideNativeCaret = projectionActive && isFloatingPanelChatComposerProjectedCaretInsideChip(
     props.value,
     selectionRange.start,
     selectionRange.end,
     projectionOptions,
   )
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     const input = inputRef.current
     if (!input) return
     const start = input.selectionStart ?? displayValue.length
     const end = input.selectionEnd ?? displayValue.length
+    if (start === 0 && end === 0 && input.scrollTop !== 0) {
+      input.scrollTop = 0
+      if (overlayRef.current) overlayRef.current.scrollTop = 0
+    }
     if (selectionRange.start !== start || selectionRange.end !== end) setSelectionRange({ start, end })
   }, [displayValue, inputRef, selectionRange.end, selectionRange.start, setSelectionRange])
 
   const updateSelection = React.useCallback((target: HTMLTextAreaElement, value: string) => {
-    setSelectionRange({
-      start: target.selectionStart ?? value.length,
-      end: target.selectionEnd ?? value.length,
-    })
+    const start = target.selectionStart ?? value.length
+    const end = target.selectionEnd ?? value.length
+    const projectedEnd = start === end
+      ? resolveFloatingPanelChatComposerProjectedCaretEnd(props.value, start, projectionOptions)
+      : null
+    const nextRange = projectedEnd == null ? { start, end } : { start: projectedEnd, end: projectedEnd }
+    const pointerScroll = pointerScrollRef.current
+    pointerScrollRef.current = null
+    if (projectedEnd != null) {
+      target.setSelectionRange(projectedEnd, projectedEnd)
+      if (pointerScroll) {
+        target.scrollLeft = pointerScroll.left
+        target.scrollTop = pointerScroll.top
+        if (overlayRef.current) {
+          overlayRef.current.scrollLeft = pointerScroll.left
+          overlayRef.current.scrollTop = pointerScroll.top
+        }
+      }
+    }
+    setSelectionRange(nextRange)
     props.onDisplaySelectionChange?.(value)
-  }, [props])
+  }, [projectionOptions, props])
 
   const deleteProjectedToken = React.useCallback((target: HTMLTextAreaElement, direction: 'backward' | 'forward'): boolean => {
     if (!overlay.hasOverlay) return false
@@ -113,7 +137,7 @@ export function TextareaInvocationEditor(props: TextareaInvocationEditorProps) {
 
   return (
     <section className="relative h-full" data-kg-textarea-invocation-editor="shared">
-      <FloatingPanelChatComposerMediaOverlay
+      {projectionActive ? <FloatingPanelChatComposerMediaOverlay
         input={props.value}
         mediaAttachments={props.mediaAttachments}
         projectedSelectionRange={selectionRange}
@@ -122,7 +146,7 @@ export function TextareaInvocationEditor(props: TextareaInvocationEditorProps) {
         overlayChromeClassName={props.overlayChromeClassName}
         projectedLayoutClassName={props.projectedLayoutClassName}
         overlayRef={overlayRef}
-      />
+      /> : null}
       <PlainTextInputEditor
         ref={inputRef}
         id={props.id}
@@ -134,6 +158,9 @@ export function TextareaInvocationEditor(props: TextareaInvocationEditorProps) {
           if (input) updateSelection(input, value)
         }}
         onSelect={event => updateSelection(event.currentTarget as HTMLTextAreaElement, event.currentTarget.value)}
+        onPointerDown={event => {
+          pointerScrollRef.current = { left: event.currentTarget.scrollLeft, top: event.currentTarget.scrollTop }
+        }}
         onScroll={event => {
           const overlayElement = overlayRef.current
           if (!overlayElement) return
@@ -171,11 +198,11 @@ export function TextareaInvocationEditor(props: TextareaInvocationEditorProps) {
         disabled={props.disabled}
         multiline
         className={props.className}
-        inputClassName={`${props.inputClassName || ''} ${overlay.hasOverlay ? `text-transparent ${hideNativeCaret ? 'caret-transparent' : 'caret-[color:var(--kg-text-primary)]'} ${props.projectedLayoutClassName}` : ''}`}
+        inputClassName={`${props.inputClassName || ''} ${projectionActive ? `text-transparent ${hideNativeCaret ? 'caret-transparent' : 'caret-[color:var(--kg-text-primary)]'} ${props.projectedLayoutClassName}` : ''}`}
         dataAttributes={{
           ...props.dataAttributes,
-          'data-kg-chat-input-overlay-active': overlay.hasOverlay ? '1' : undefined,
-          'data-kg-chat-input-media-overlay-active': overlay.hasMedia ? '1' : undefined,
+          'data-kg-chat-input-overlay-active': projectionActive ? '1' : undefined,
+          'data-kg-chat-input-media-overlay-active': projectionActive && overlay.hasMedia ? '1' : undefined,
         }}
       />
     </section>

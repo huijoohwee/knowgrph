@@ -20,6 +20,12 @@ frontmatter_contract: "required"
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-07-13
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Agentic Video Canvas default runtime recovery | Restore the source-backed demo and keep generated media visible after provider success. | Route canonical script bindings before generic chat, recover BytePlus activation failures through bounded model discovery, use registered generation forms, and project one persisted media identity into Widgets and Rich Media Panels. | `knowgrph/{canvas/src,docs/documents,todo-log.md}; huijoohwee/docs/knowgrph-agentic-video-canvas-demo.md` | Chat transport + workflow media projection + default seed | `executeChatSubmitTransportAttempt`, `buildRichMediaWidgetOutputPatch`, `publishMediaRunOutputToRichMediaPanel` | `/video-agent` source binding, provider response, generated artifacts | Local preset activation, bounded provider fallback, durable text/image/audio/video projections | Source binding is the route SSOT; runtime artifacts remain blank until provider return and storage read-back; no chat-log backfill or deploy. | Run an explicitly approved bounded provider smoke only after model entitlement is confirmed; then record live manifest, playback, cost, and Canvas reload proof. | 2026-07-13 |
+
 ## 2026-07-11
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

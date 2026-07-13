@@ -39,15 +39,15 @@
   - The canonical initialization-file source root is `huijoohwee/docs`.
   - Runtime seed loading reads source text from that docs root and materializes the files into the workspace root.
 - **Canonical initialization-file family**:
-  - `/README.md`
-  - `/knowgrph-video-demo.md`
-  - `/knowgrph-maps-grabmap-multim-demo.md`
+  - `/workspace-readme.md`
+  - `/knowgrph-agentic-video-canvas-demo.md`
+  - `/knowgrph-maps-places.md`
 - **Materialization rule**:
   - Workspace-visible initialization files stay root-level for deterministic explorer ordering and stable source-file ids, while their authoritative source text lives under `huijoohwee/docs`.
 - **Frontmatter SSOT**:
-  - `README.md` lands on `2d + d3 + Frontmatter Mode`.
-  - `knowgrph-video-demo.md` lands on `2d + Storyboard Widget + Frontmatter Mode`.
-  - `knowgrph-maps-grabmap-multim-demo.md` lands on `Geospatial Mode` from frontmatter and keeps document/frontmatter semantics enabled.
+  - `workspace-readme.md` lands on `2d + d3 + Frontmatter Mode`.
+  - `knowgrph-agentic-video-canvas-demo.md` lands on `2d + Storyboard Widget + Frontmatter Mode` and remains the default validation/loading demo.
+  - `knowgrph-maps-places.md` lands on `Geospatial Mode` from frontmatter and keeps document/frontmatter semantics enabled.
 - **Activation precedence**:
   - On workspace bootstrap and exact UI import, the activated initialization file becomes the raw-frontmatter authority before composed source-file replay or metadata/layout helpers run.
   - A previously active document must not reapply stale frontmatter over the newly activated initialization file.
@@ -116,10 +116,10 @@
   - Must ensure `layout.mode` is 'force'.
   - Must ensure `frontmatterModeEnabled` is true.
   - Must ensure Frontmatter Mode never yields an empty canvas: if no frontmatter Mermaid nodes exist, render the full graph.
-  - Must materialize the canonical 3-file initialization family (`README.md`, `knowgrph-video-demo.md`, `knowgrph-maps-grabmap-multim-demo.md`) from `huijoohwee/docs`.
+  - Must materialize the canonical 3-file initialization family (`workspace-readme.md`, `knowgrph-agentic-video-canvas-demo.md`, `knowgrph-maps-places.md`) from `huijoohwee/docs`.
   - Must keep initialization-file content in `huijoohwee/docs` as the bootstrap SSOT while exposing root-level workspace paths for activation and source-file reconciliation.
-  - Must default `README.md` to `canvasRenderMode='2d'`, `canvas2dRenderer='d3'`, `documentSemanticMode='document'`, and `frontmatterModeEnabled=true` from frontmatter.
-  - Must default `knowgrph-video-demo.md` to `canvasRenderMode='2d'`, `canvas2dRenderer='storyboard'`, `documentSemanticMode='document'`, and `frontmatterModeEnabled=true` from frontmatter.
+  - Must default `workspace-readme.md` to `canvasRenderMode='2d'`, `canvas2dRenderer='d3'`, `documentSemanticMode='document'`, and `frontmatterModeEnabled=true` from frontmatter.
+  - Must default `knowgrph-agentic-video-canvas-demo.md` to `canvasRenderMode='2d'`, `canvas2dRenderer='storyboard'`, `documentSemanticMode='document'`, and `frontmatterModeEnabled=true` from frontmatter.
   - Must keep geospatial startup opt-in for non-geospatial sessions, while allowing the canonical geospatial initialization file to enable geospatial mode directly from frontmatter.
   - Must keep FloatingPanel closed by default and restore its shared baseline view as `propsPanel` rather than forcing Geo on startup.
   - Must default `View Lock` OFF by initializing `documentStructureBaselineLock` to false in the shared UI slice.

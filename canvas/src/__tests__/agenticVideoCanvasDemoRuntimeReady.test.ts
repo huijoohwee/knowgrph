@@ -4,6 +4,8 @@ import path from 'node:path'
 import { load as parseYaml } from 'js-yaml'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import { parseGenerationInvocation } from '@/features/chat/generationInvocation'
+import { isVideoAgentDemoPresetInvocation } from '@/features/chat/floatingPanelChat/videoAgentDemoPresetSubmit'
+import { buildLiveCanvasHeroModel } from '@/features/agentic-os/liveCanvasHeroModel'
 
 type PlainRecord = Record<string, unknown>
 
@@ -53,8 +55,16 @@ export function testAgenticVideoCanvasDemoIsExecutableAndReplayable() {
 
   const inputs = meta.inputs
   if (!isRecord(inputs)) throw new Error('expected inputs contract')
+  if (inputs.video_generation_demo_script !== `workspace:/docs/${path.basename(SCRIPT_PATH)}`) {
+    throw new Error('expected the authored source binding to preserve the canonical workspace docs path')
+  }
   const invocation = parseGenerationInvocation(inputs.default_invocation)
   if (!invocation) throw new Error('expected default /video-agent invocation to resolve')
+  if (!isVideoAgentDemoPresetInvocation(String(inputs.default_invocation || ''))) throw new Error('expected the real default invocation to bypass generic provider chat')
+  const heroDefaultQuery = buildLiveCanvasHeroModel().defaultQuery
+  if ((heroDefaultQuery.match(/@video-generation-demo-script/g) || []).length !== 1) {
+    throw new Error('expected the Hero default query to preserve one canonical video-script binding token')
+  }
   if (invocation.provider !== 'byteplus-modelark') throw new Error(`unexpected provider ${invocation.provider}`)
   if (invocation.specification !== 'low') throw new Error(`unexpected specification ${invocation.specification}`)
   if (invocation.kinds.join(',') !== 'text,image,audio,video') throw new Error(`unexpected output kinds ${invocation.kinds.join(',')}`)

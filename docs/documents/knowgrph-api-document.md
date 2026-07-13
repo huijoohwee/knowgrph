@@ -10,6 +10,16 @@ Knowgrph Canvas is primarily a client-side app. Local “API” surfaces used by
 
 API and MCP contracts are owned upstream in Dev. Production mirrors should receive synced artifacts only after upstream validation passes; do not patch generated API behavior inside the publish directory.
 
+## Agentic Video Canvas runtime contract
+
+- Default source: `huijoohwee/docs/knowgrph-agentic-video-canvas-demo.md`, materialized through the shared workspace seed and docs-mirror canonicalization owners.
+- Invocation: `/video-agent @video-generation-demo-script @provider.byteplus @text @image @audio @video #spec.low` plus one authored `workspace:` Markdown reference. Recognized demo invocations activate locally before generic chat transport.
+- Chat presentation: the raw composer string remains the source of truth while FloatingPanel Chat reuses the Card/Widget `MarkdownInlineTextEditSurface` contenteditable owner for `/`, `@`, `#`, media, and `.md` source-binding chips. Text, atomic chips, caret movement, and Select All therefore share one DOM selection geometry; the only textarea is the existing screen-reader-hidden command-selection proxy. The shared serializer publishes each edit once and preserves exact authored Markdown, including decoded `workspace:` paths, while a source reference such as `[script.md](workspace:/docs/script.md)` renders as one `@script.md` atomic edit chip. During execution, one `streamingAssistant` tail is rendered in Chat and the same streaming workspace state drives Editor Workspace content and tail-follow; neither surface persists rendered chip markup back into authored Markdown.
+- Provider recovery: BytePlus `ModelNotOpen` responses use the shared bounded `/models` fallback and persist the resolved account-accessible model; approval, credentials, entitlement, and budget failures still fail closed.
+- Execution: registered `videoScript`, `imageGeneration`, and `videoGeneration` forms run through the shared workflow. `generate_audio: true` requests audio; the persisted master identity reaches audio projections only when the returned MP4 container proves a real audio track.
+- Persistence and projection: generated text uses the workspace document publisher; generated media uses the existing R2 upload plus workspace-manifest publisher. The read-back storage URL is reused across the generator Widget, downstream Rich Media Panel, and Timeline surfaces.
+- Proof boundary: `live_provider_run_proven` stays false until an explicitly approved provider run proves real bytes, manifest/read-back identity, playback, synchronized audio/subtitles, Canvas projection, and bounded cost. Dev validation does not authorize Prod or Cloudflare deployment.
+
 ## Canvas iframe embed contract
 
 - UI entry: Editor Workspace → Source Files → right-click a file → **Share canvas embed**.

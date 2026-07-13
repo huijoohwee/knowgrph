@@ -21,6 +21,7 @@ import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorks
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { buildGeneratedMediaManifestMarkdown, publishGeneratedTextToStorage, uploadRichMediaBinaryToStorage } from './richMediaRunStorage'
+import { hasMediaAudioTrack } from './mediaAudioTrackProbe'
 
 export type RichMediaWidgetKind = 'image' | 'video' | 'annotation'
 
@@ -53,6 +54,7 @@ export type RichMediaWidgetRunRequest = {
 export type RichMediaWidgetRunResult = {
   kind: RichMediaWidgetKind
   asset: GeneratedBinaryAsset
+  hasAudioTrack: boolean
   outputPath: string | null
   outputManifestPath: string | null
   outputStorageUrl?: string | null
@@ -139,7 +141,7 @@ export const resolveRichMediaWidgetKind = (node: GraphNode | null | undefined): 
   return null
 }
 
-export const isRichMediaVideoOutputTargetNode = (node: GraphNode | null | undefined): boolean => {
+export const isRichMediaOutputTargetNode = (node: GraphNode | null | undefined): boolean => {
   if (!node) return false
   if (cleanString(node.type) === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return true
   return resolveRichMediaWidgetKind(node) === 'video'
@@ -181,14 +183,16 @@ export const clearRichMediaOutputProperties = (properties: Record<string, unknow
 export const buildRichMediaWidgetOutputPatch = (args: {
   kind: RichMediaWidgetKind
   asset: GeneratedBinaryAsset
+  hasAudioTrack?: boolean
   outputPath: string | null
   outputManifestPath?: string | null
 }): Record<string, unknown> => {
   const isImage = args.kind === 'image'
+  const isVideo = args.kind === 'video'
   return {
     imageUrl: isImage ? args.asset.renderUrl : undefined,
-    videoUrl: isImage ? undefined : args.asset.renderUrl,
-    audioUrl: undefined,
+    videoUrl: isVideo ? args.asset.renderUrl : undefined,
+    audioUrl: isVideo && args.hasAudioTrack === true ? args.asset.renderUrl : undefined,
     image_url: undefined,
     video_url: undefined,
     audio_url: undefined,
@@ -562,6 +566,9 @@ export const runRichMediaWidgetGeneration = async (args: {
   })()
   const resolvedAsset = await asset
   if (!resolvedAsset) return null
+  const hasAudioTrack = request.kind === 'video' && request.generateAudio === true
+    ? await hasMediaAudioTrack(resolvedAsset.blob)
+    : false
   const outputArtifact = await writeRichMediaWidgetRunOutputArtifact({
     workspacePath: args.workspacePath,
     node: args.node,
@@ -571,6 +578,7 @@ export const runRichMediaWidgetGeneration = async (args: {
   })
   return {
     kind: request.kind,
+    hasAudioTrack,
     asset: outputArtifact.outputStorageUrl
       ? { ...resolvedAsset, renderUrl: outputArtifact.outputStorageUrl }
       : resolvedAsset,

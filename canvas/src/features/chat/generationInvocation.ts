@@ -13,6 +13,7 @@ export type GenerationSpecification = "low" | "medium" | "high";
 export type GenerationKind = "text" | "image" | "audio" | "video";
 
 export const AGENTIC_VIDEO_ROUTE_TOKEN = "/video-agent" as const;
+export const VIDEO_GENERATION_DEMO_SCRIPT_BINDING_TOKEN = "@video-generation-demo-script" as const;
 export const GENERATION_PROVIDER_INVOCATIONS = [
   {
     provider: CHAT_PROVIDER_BYTEPLUS,

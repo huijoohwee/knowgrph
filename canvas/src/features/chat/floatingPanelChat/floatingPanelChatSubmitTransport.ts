@@ -1,4 +1,4 @@
-import { shouldRetryWithModelFallback } from './floatingPanelChatHttp'
+import { shouldRetryWithActivationFallback, shouldRetryWithModelFallback } from './floatingPanelChatHttp'
 import { CHAT_PROVIDER_OPENAI, normalizeChatProviderId } from '@/lib/chatEndpoint'
 
 export type ChatSubmitTokenLimitKey = 'max_tokens' | 'max_completion_tokens'
@@ -139,7 +139,10 @@ export const executeChatSubmitTransportAttempt = async (args: {
       })
       detail = response.ok ? null : await args.parseErrorBody(response)
     }
-    if (!response.ok && shouldRetryWithModelFallback(response.status, detail)) {
+    if (!response.ok && (
+      shouldRetryWithModelFallback(response.status, detail || '')
+      || shouldRetryWithActivationFallback(response.status, detail || '')
+    )) {
       const availableModelIds = await args.loadFallbackModelIds()
       const fallback = resolvePreferredFallbackModel({
         providerModelOptions: args.providerModelOptions,

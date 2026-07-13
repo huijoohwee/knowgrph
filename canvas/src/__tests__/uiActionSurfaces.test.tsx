@@ -260,7 +260,7 @@ export async function testToastHostPromotionRetryActionAppendsCommandIntoChatCom
     if (!openEvent || (openEvent.detail as { tab?: string; open?: boolean } | null)?.tab !== 'chat' || (openEvent.detail as { tab?: string; open?: boolean } | null)?.open !== true) {
       throw new Error(`expected retry toast action to open the shared chat surface before appending the command, got ${JSON.stringify(observedEvents)}`)
     }
-    const textarea = dom.window.document.querySelector('[data-kg-chat-input="true"]') as HTMLTextAreaElement | null
+    const textarea = dom.window.document.querySelector('[data-kg-card-inline-viewer-edit-command-proxy="1"]') as HTMLTextAreaElement | null
     if (!textarea) throw new Error('expected retry toast action test to mount the FloatingPanel chat composer')
     if (textarea.value !== retryCommand) {
       throw new Error(`expected retry toast action to queue the exact retry command into the chat composer, got ${JSON.stringify(textarea.value)}`)

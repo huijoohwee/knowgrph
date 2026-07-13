@@ -4,6 +4,9 @@ import {
   resolveBytePlusTextWidgetSharedTextApiRowKey,
 } from '@/features/integrations/byteplusChatApiSsot'
 import { resolveOpenAiTextWidgetChatApiRowKey } from '@/features/integrations/openaiResponsesSsot'
+import { BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY } from '@/features/integrations/byteplusChatApiSsot.tooltips'
+import { BYTEPLUS_MODELARK_MCP_DEFAULT_MODEL } from '@/features/panels/views/byteplusModelArkMcpApiDocs'
+import { CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT } from '@/lib/chatEndpoint'
 
 export function testBytePlusTextWidgetKtvRowsStayBytePlus() {
   const schemaPaths = [
@@ -34,5 +37,11 @@ export function testBytePlusTextWidgetKtvRowsStayBytePlus() {
   if (!providerField || String(providerField.fieldType || '').trim().toLowerCase() !== 'readonly') {
     throw new Error('Expected BytePlus Text Widget provider field to be readonly')
   }
-}
 
+  if (
+    BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY.model?.defaultValue !== CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT
+    || BYTEPLUS_MODELARK_MCP_DEFAULT_MODEL !== CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT
+  ) {
+    throw new Error('Expected BytePlus runtime, tooltip, and MCP docs to reuse one default text model')
+  }
+}

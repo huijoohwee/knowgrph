@@ -21,6 +21,8 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["aiShowrunner.podcast.voiceMapCoverage","@/__tests__/aiShowrunner.test","testAiShowrunnerPodcastVoiceMapCoverage"],
   ["aiShowrunner.flowRegistry.integration","@/__tests__/aiShowrunner.test","testAiShowrunnerFlowAndRegistryIntegration"],
   ["aiShowrunner.hygiene.noProviderHardcodes","@/__tests__/aiShowrunner.test","testAiShowrunnerSourceContractsAvoidProviderHardcodes"],
+  ["videoAgent.mediaProjection.videoAudioReusesPersistedIdentity","@/__tests__/videoAgentMediaProjection.test","testVideoWidgetOutputPatchProjectsOnePersistedAssetToVideoAndAudio"],
+  ["chat.responseContract.transport.recoversBytePlusActivationFailure","@/__tests__/chatSubmitModelFallback.test","testChatSubmitTransportRecoversFromBytePlusModelActivationFailure"],
 ["visualAnnotation.spec.model","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationSpecValidationAndModelResolution"],
 ["visualAnnotation.semantic.serializers","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationSemanticKeyAndSerializers"],
 ["visualAnnotation.dataset.e2e","@/__tests__/visualAnnotationEngine.test","testVisualAnnotationDatasetLoadSplitMergeSaveAndZoneCounts"],

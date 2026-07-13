@@ -9,4 +9,5 @@ export {
   mapFloatingPanelChatComposerDisplayIndexToRawIndex,
   mapFloatingPanelChatComposerRawIndexToDisplayIndex,
   resolveFloatingPanelChatComposerRawText,
+  resolveFloatingPanelChatComposerProjectedCaretEnd,
 } from '@/lib/ui/textareaInvocationProjection'

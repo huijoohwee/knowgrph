@@ -152,11 +152,11 @@ export async function testFloatingPanelChatStreamingPromptSurvivesGraphHistoryKe
       frames: 2,
       tasks: 1,
     })
-    const input = container.querySelector('[data-kg-chat-input="true"]') as HTMLTextAreaElement | null
+    const input = container.querySelector('[data-kg-chat-input="1"]') as HTMLElement | null
     if (!input) throw new Error('expected FloatingPanel chat input to render')
     await act(async () => {
-      input.value = promptText
-      Simulate.change(input)
+      input.textContent = promptText
+      Simulate.input(input)
       await waitForFrames(dom.window as unknown as Window, 1)
     })
     const form = input.closest('form') as HTMLFormElement | null
@@ -254,11 +254,11 @@ export async function testFloatingPanelChatNewChatStopsSendingAndCreatesFreshSes
       frames: 2,
       tasks: 1,
     })
-    const input = container.querySelector('[data-kg-chat-input="true"]') as HTMLTextAreaElement | null
+    const input = container.querySelector('[data-kg-chat-input="1"]') as HTMLElement | null
     if (!input) throw new Error('expected FloatingPanel chat input to render')
     await act(async () => {
-      input.value = '/prd-tad.create #media @operator'
-      Simulate.change(input)
+      input.textContent = '/prd-tad.create #media @operator'
+      Simulate.input(input)
       await waitForFrames(dom.window as unknown as Window, 1)
     })
     const form = input.closest('form') as HTMLFormElement | null

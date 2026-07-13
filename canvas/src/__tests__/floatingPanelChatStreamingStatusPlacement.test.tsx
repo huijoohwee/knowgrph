@@ -102,6 +102,53 @@ export async function testFloatingPanelChatStreamsReasoningStatusAfterLatestMess
   }
 }
 
+export async function testFloatingPanelChatRendersLiveAssistantTailBeforeStreamingStatus() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await mountReactRoot(
+      root,
+      React.createElement(FloatingPanelChatMessagesSection, {
+        messages: [
+          { id: 'user-live-tail', role: 'user', content: '/video-agent build the demo' },
+          { id: 'assistant-live-tail', role: 'assistant', content: '' },
+        ],
+        streamingAssistant: {
+          id: 'assistant-live-tail',
+          text: 'First streamed chunk. Tail sentinel.',
+        },
+        isLoading: true,
+        historyKey: 'history-key',
+        uiPanelTextFontClass: 'text-sm',
+        uiPanelKeyValueTextSizeClass: 'text-xs',
+        uiPanelMicroLabelTextSizeClass: 'text-xs',
+        streamingReasoningPreview: 'Generating scene plan',
+        setMessages: () => undefined,
+      }),
+      { window: dom.window as unknown as Window, frames: 2 },
+    )
+
+    const tail = container.querySelector('[data-kg-chat-streaming-tail="true"]') as HTMLElement | null
+    if (!tail || !String(tail.textContent || '').includes('Tail sentinel.')) {
+      throw new Error(`expected real-time assistant stream tail in the thread, html=${container.innerHTML}`)
+    }
+    if (container.querySelectorAll('[data-kg-chat-streaming-tail="true"]').length !== 1) {
+      throw new Error('expected pending assistant placeholder and live tail to resolve to one visible streaming row')
+    }
+    const status = container.querySelector('[data-kg-chat-stream-status="chronological"]')
+    if (!status || !(tail.compareDocumentPosition(status) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING)) {
+      throw new Error('expected live assistant tail to render immediately before chronological stream status')
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+  }
+}
+
 export function testWorkspaceRuntimeDoesNotMirrorChatStreamingStatusIntoToast() {
   const text = readFileSync(resolve(process.cwd(), 'src/lib/markdown-workspace-runtime/MarkdownWorkspaceRuntime.impl.tsx'), 'utf8')
   if (text.includes('Streaming to ')) {

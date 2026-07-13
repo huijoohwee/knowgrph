@@ -20,7 +20,7 @@ export function testStoryboardWidgetTextRunsPersistWorkspaceOutputArtifacts() {
 }
 
 export function testStoryboardWidgetRichMediaRunsPersistWorkspaceManifests() {
-  const workflowActionsText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
+  const workflowMediaHandlersText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowMediaRunHandlers.ts'), 'utf8')
   const richMediaRunText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'richMediaRun.ts'), 'utf8')
 
   if (!richMediaRunText.includes('export const writeRichMediaWidgetRunOutputArtifact = async (args: {')) {
@@ -32,7 +32,7 @@ export function testStoryboardWidgetRichMediaRunsPersistWorkspaceManifests() {
   if (!richMediaRunText.includes('createdPaths: [outputManifestPath]') || !richMediaRunText.includes('opts: { applyToGraph: false }')) {
     throw new Error('expected generated rich-media manifest to register in Source Files without graph recomposition')
   }
-  if (!workflowActionsText.includes('outputManifestPath: richMediaResult.outputManifestPath')) {
+  if (!workflowMediaHandlersText.includes('outputManifestPath: richMediaResult.outputManifestPath')) {
     throw new Error('expected Storyboard Widget image/video run patches to carry the shared workspace manifest path')
   }
 }

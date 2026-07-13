@@ -6,29 +6,21 @@ import { isKgcWorkspaceCompanionPath, toCanonicalKgcWorkspacePath } from '@/feat
 import { emitKgcRunOutput } from '@/features/chat/kgcRunOutput'
 import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLandingGuard'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { UI_COPY, FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID, FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
+import { UI_COPY, FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
-import { buildTextWidgetOutputPatch, buildRichMediaWidgetOutputPatch, clearRichMediaOutputProperties, isRichMediaVideoOutputTargetNode, resolveRichMediaWidgetKind, runRichMediaWidgetGeneration, writeTextWidgetRunOutputArtifact } from '@/features/chat/richMediaRun'
+import { buildTextWidgetOutputPatch, clearRichMediaOutputProperties, resolveRichMediaWidgetKind, writeTextWidgetRunOutputArtifact } from '@/features/chat/richMediaRun'
 import { fetchYouTubeTranscriptMarkdown } from '@/features/transcription/youtubeTranscriptMarkdown'
-import { getChatDefaultEndpointUrlForProvider, normalizeChatProviderId } from '@/lib/chatEndpoint'
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
 import { inferTextGenerationProviderFamily, resolveEffectiveTextGenerationWidgetProperties } from '@/features/storyboard-widget-manager/registryTemplates'
 import { runSwarmPredictionWidgetProperties } from '@/features/swarm-prediction/swarmPredictionWidget'
 import { FLOW_SHOWRUNNER_NODE_TYPE_ID, runShowrunnerWidgetProperties } from '@/features/ai-showrunner/showrunnerFlowNode'
-import { createHtmlVideoEngineRegistryFromRuntimeConfig } from '@/features/html-video-renderer/htmlVideoEngineRegistry'
-import { buildHtmlVideoPreviewSrcDocFromNode, runHtmlVideoFlowNode } from '@/features/html-video-renderer/htmlVideoFlowNode'
-import { runAnnotationFlowNode, toAnnotationPreviewSrcDoc, toMarkdownSummary, type AnnotationRunResult } from '@/features/visual-annotation-engine'
 import {
   getCachedStoryboardWidgetWorkflowNodeResolutionContext,
   resolveStoryboardWidgetWorkflowNodeByIdAcrossGraphs,
   resolveStoryboardWidgetWorkflowRunTarget,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
-import {
-  applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch,
-  ensureStoryboardWidgetWorkflowRichMediaPanelNodeId,
-} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
 import {
   buildStoryboardWidgetInlineComputeOutputPatch,
   resolveStoryboardWidgetWorkflowConnectedValuesInput,
@@ -39,10 +31,11 @@ import {
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowDownstreamRunTargets'
 import { publishStoryboardWidgetSourceBackedRunOutput } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetSourceBackedRunOutput'
 import {
-  areStoryboardWidgetWorkflowRecordValuesEqual,
   setStoryboardWidgetWorkflowRunLoadingStateForKnownNodeIds,
   updateStoryboardWidgetWorkflowOutputForKnownNodeIds,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowWriteback'
+import { runStoryboardWidgetMediaWorkflowNode } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowMediaRunHandlers'
+import { createStoryboardWidgetWorkflowRichMediaPublishers } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPublication'
 import { readFlowComputeSource } from '@/lib/storyboardWidget/flowComputeInline'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 
@@ -72,44 +65,6 @@ export type StoryboardWidgetWorkflowNodeRunnerArgs = {
   updateNode: (id: string, patch: Partial<GraphNode>) => void
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
   scheduleOverlayEdgeUpdate: () => void
-}
-
-const HTML_VIDEO_PREVIEW_STABILITY_KEYS = [
-  'output',
-  'outputSrcDoc',
-  'outputMimeType',
-  'outputModel',
-  'renderErrorCode',
-  'renderErrorReason',
-  'richMediaActiveTab',
-] as const
-
-const readWorkflowScalar = (value: unknown): unknown => {
-  if (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value) {
-    return (value as { value?: unknown }).value
-  }
-  return value
-}
-
-const readWorkflowString = (value: unknown): string => {
-  const scalar = readWorkflowScalar(value)
-  return typeof scalar === 'string' ? scalar.trim() : ''
-}
-
-function stabilizeHtmlVideoPreviewPatchForExistingProps(
-  currentProps: Record<string, unknown>,
-  patch: Record<string, unknown>,
-): Record<string, unknown> {
-  const outputSrcDoc = typeof patch.outputSrcDoc === 'string' ? patch.outputSrcDoc : ''
-  if (!outputSrcDoc || currentProps.outputSrcDoc !== outputSrcDoc) return patch
-  for (const key of HTML_VIDEO_PREVIEW_STABILITY_KEYS) {
-    if (!Object.prototype.hasOwnProperty.call(patch, key)) continue
-    if (!Object.is(currentProps[key], patch[key])) return patch
-  }
-  return {
-    ...patch,
-    lastRunAt: currentProps.lastRunAt,
-  }
 }
 
 export function resolveStoryboardWidgetBaseGraphKind(graphData: GraphData | null | undefined): string {
@@ -312,164 +267,23 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
         return
       }
 
-      const publishTextRunOutputToRichMediaPanel = (panelArgs: { anchorNode: GraphNode; outputText: string; title: string; model?: unknown; sourceUrl?: string; outputPath?: string | null; loading?: boolean }) => {
-        withRunLayoutMutationGuard(() => {
-          const panelNodeId = ensureStoryboardWidgetWorkflowRichMediaPanelNodeId({
-            context: workflowNodeResolutionContext,
-            graphForRun,
-            allowCreateRichMediaPanel,
-            anchorNode: panelArgs.anchorNode,
-            readLiveDraftGraphData: args.readDraftGraphData,
-            appendDraftNode: args.appendDraftNode,
-          })
-          if (!panelNodeId) return
-          const patch: Record<string, unknown> = {
-            ...clearRichMediaOutputProperties({}),
-            ...buildTextWidgetOutputPatch({ output: String(panelArgs.outputText || ''), title: panelArgs.title, model: panelArgs.model, outputPath: panelArgs.outputPath }),
-            richMediaActiveTab: 'text',
-            outputLoading: panelArgs.loading === true ? true : undefined,
-            outputLoadingKind: panelArgs.loading === true ? 'text' : undefined,
-            lastRunAt: panelArgs.loading === true ? new Date().toISOString() : undefined,
-            outputSourceUrl: typeof panelArgs.sourceUrl === 'string' && panelArgs.sourceUrl.trim() ? panelArgs.sourceUrl.trim() : undefined,
-          }
-          const updatedPanelInDraft = applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch({
-            panelNodeId,
-            patch,
-            readLiveDraftGraphData: args.readDraftGraphData,
-            commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
-            scheduleWorkflowOutputEdgeRefresh: scheduleRunOutputEdgeRefresh,
-          })
-          const liveDraft = args.readDraftGraphData()
-          const updatedPanel = updatedPanelInDraft || (Array.isArray(liveDraft?.nodes)
-            ? liveDraft!.nodes.find(existing => String(existing?.id || '').trim() === panelNodeId) || null
-            : resolveNodeByIdAcrossGraphs(panelNodeId))
-          const existingPanelProps = (updatedPanel?.properties || {}) as Record<string, unknown>
-          if (!suppressLayoutMutation) args.updateNode(panelNodeId, { properties: { ...existingPanelProps, ...patch } as never })
-        })
-      }
-
-      const publishVideoRunOutputToRichMediaPanel = (panelArgs: { anchorNode: GraphNode; patch: Record<string, unknown> }) => {
-        withRunLayoutMutationGuard(() => {
-          const downstreamPanelTargetIds = resolveStoryboardWidgetWorkflowDownstreamRunTargetIds({
-            node: panelArgs.anchorNode,
-            graphData: graphForRun,
-          }).filter(targetId => {
-            const candidate = resolveNodeByIdAcrossGraphs(targetId)
-            return isRichMediaVideoOutputTargetNode(candidate)
-          })
-          const panelNodeIds = downstreamPanelTargetIds.length > 0
-            ? downstreamPanelTargetIds
-            : [ensureStoryboardWidgetWorkflowRichMediaPanelNodeId({
-              context: workflowNodeResolutionContext,
-              graphForRun,
-              allowCreateRichMediaPanel,
-              anchorNode: panelArgs.anchorNode,
-              readLiveDraftGraphData: args.readDraftGraphData,
-              appendDraftNode: args.appendDraftNode,
-            })].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-          for (const panelNodeId of panelNodeIds) {
-            const rawPatch = {
-              ...panelArgs.patch,
-              richMediaActiveTab: panelArgs.patch.richMediaActiveTab || 'video',
-            }
-            const liveDraftBeforePatch = args.readDraftGraphData()
-            const existingPanelBeforePatch = Array.isArray(liveDraftBeforePatch?.nodes)
-              ? liveDraftBeforePatch!.nodes.find(existing => String(existing?.id || '').trim() === panelNodeId) || resolveNodeByIdAcrossGraphs(panelNodeId)
-              : resolveNodeByIdAcrossGraphs(panelNodeId)
-            const existingPanelBeforePatchProps = (existingPanelBeforePatch?.properties || {}) as Record<string, unknown>
-            const patch = stabilizeHtmlVideoPreviewPatchForExistingProps(existingPanelBeforePatchProps, rawPatch)
-            const updatedPanelInDraft = applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch({
-              panelNodeId,
-              patch,
-              readLiveDraftGraphData: args.readDraftGraphData,
-              commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
-              scheduleWorkflowOutputEdgeRefresh: scheduleRunOutputEdgeRefresh,
-            })
-            const liveDraft = args.readDraftGraphData()
-            const updatedPanel = updatedPanelInDraft || (Array.isArray(liveDraft?.nodes)
-              ? liveDraft!.nodes.find(existing => String(existing?.id || '').trim() === panelNodeId) || null
-              : resolveNodeByIdAcrossGraphs(panelNodeId))
-            const existingPanelProps = (updatedPanel?.properties || {}) as Record<string, unknown>
-            const nextPanelProps = { ...existingPanelProps, ...patch }
-            if (!suppressLayoutMutation && !areStoryboardWidgetWorkflowRecordValuesEqual(existingPanelProps, nextPanelProps)) {
-              args.updateNode(panelNodeId, { properties: nextPanelProps as never })
-            }
-          }
-        })
-      }
-
-      const publishAnnotationRunOutputToRichMediaPanel = (panelArgs: { anchorNode: GraphNode; result: AnnotationRunResult }) => {
-        const result = panelArgs.result
-        const jsonText = JSON.stringify(result, null, 2)
-        const summaryText = result.ok === true ? toMarkdownSummary(result) : [
-          '## Annotation Error',
-          '',
-          `- code: ${result.errorCode}`,
-          ...(result.modelId ? [`- modelId: ${result.modelId}`] : []),
-          ...(result.field ? [`- field: ${result.field}`] : []),
-          ...(result.reason ? [`- reason: ${result.reason}`] : []),
-          '',
-          '```json',
-          jsonText,
-          '```',
-        ].join('\n')
-        const outputText = result.ok === true ? `${summaryText}\n\n## Annotation JSON\n\n\`\`\`json\n${jsonText}\n\`\`\`` : summaryText
-        withRunLayoutMutationGuard(() => {
-          const downstreamPanelTargetIds = resolveStoryboardWidgetWorkflowDownstreamRunTargetIds({
-            node: panelArgs.anchorNode,
-            graphData: graphForRun,
-          }).filter(targetId => {
-            const candidate = resolveNodeByIdAcrossGraphs(targetId)
-            return readWorkflowString(candidate?.type) === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
-          })
-          const panelNodeIds = downstreamPanelTargetIds.length > 0
-            ? downstreamPanelTargetIds
-            : [ensureStoryboardWidgetWorkflowRichMediaPanelNodeId({
-              context: workflowNodeResolutionContext,
-              graphForRun,
-              allowCreateRichMediaPanel,
-              anchorNode: panelArgs.anchorNode,
-              readLiveDraftGraphData: args.readDraftGraphData,
-              appendDraftNode: args.appendDraftNode,
-            })].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-          for (const panelNodeId of panelNodeIds) {
-            const patch: Record<string, unknown> = {
-              ...clearRichMediaOutputProperties({}),
-              ...buildTextWidgetOutputPatch({
-                output: outputText,
-                title: panelArgs.anchorNode.label || 'Annotation Engine',
-                model: result.modelId || 'annotation',
-                outputPath: result.ok === true ? result.outputPath : null,
-              }),
-              ...(result.ok === true ? {
-                outputSrcDoc: toAnnotationPreviewSrcDoc(result),
-              } : {}),
-              annotationId: result.ok === true ? result.annotationId : undefined,
-              annotationSchemaVersion: result.ok === true ? result.schemaVersion : undefined,
-              renderErrorCode: result.ok === false ? result.errorCode : undefined,
-              renderErrorReason: result.ok === false ? result.reason : undefined,
-              richMediaActiveTab: result.ok === true ? 'auto' : 'text',
-              lastRunAt: new Date().toISOString(),
-            }
-            const updatedPanelInDraft = applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch({
-              panelNodeId,
-              patch,
-              readLiveDraftGraphData: args.readDraftGraphData,
-              commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
-              scheduleWorkflowOutputEdgeRefresh: scheduleRunOutputEdgeRefresh,
-            })
-            const liveDraft = args.readDraftGraphData()
-            const updatedPanel = updatedPanelInDraft || (Array.isArray(liveDraft?.nodes)
-              ? liveDraft!.nodes.find(existing => String(existing?.id || '').trim() === panelNodeId) || null
-              : resolveNodeByIdAcrossGraphs(panelNodeId))
-            const existingPanelProps = (updatedPanel?.properties || {}) as Record<string, unknown>
-            const nextPanelProps = { ...existingPanelProps, ...patch }
-            if (!suppressLayoutMutation && !areStoryboardWidgetWorkflowRecordValuesEqual(existingPanelProps, nextPanelProps)) {
-              args.updateNode(panelNodeId, { properties: nextPanelProps as never })
-            }
-          }
-        })
-      }
+      const {
+        publishTextRunOutputToRichMediaPanel,
+        publishMediaRunOutputToRichMediaPanel,
+        publishAnnotationRunOutputToRichMediaPanel,
+      } = createStoryboardWidgetWorkflowRichMediaPublishers({
+        context: workflowNodeResolutionContext,
+        graphForRun,
+        allowCreateRichMediaPanel,
+        suppressLayoutMutation,
+        withRunLayoutMutationGuard,
+        scheduleWorkflowOutputEdgeRefresh: scheduleRunOutputEdgeRefresh,
+        readLiveDraftGraphData: args.readDraftGraphData,
+        appendDraftNode: args.appendDraftNode,
+        commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
+        updateNode: args.updateNode,
+        resolveNodeByIdAcrossGraphs,
+      })
 
       if (String(node.type || '').trim() === FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID) {
         const sourceUrlRaw = typeof rawNodeProperties.sourceUrl === 'string' ? rawNodeProperties.sourceUrl.trim() : ''
@@ -594,174 +408,30 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
         return
       }
 
-      if (String(node.type || '').trim() === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID) {
-        try {
-          const connectedValuesInput = resolveStoryboardWidgetWorkflowConnectedValuesInput({
-            context: workflowNodeResolutionContext,
-            graphForRun,
-            writableNodeId,
-            registry: args.widgetRegistry,
-          })
-          const connectedValuesBySchemaPath = connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId)
-          const readConnectedHtmlVideoProperty = (schemaPath: string, propertyKey: string): unknown => {
-            const connected = connectedValuesBySchemaPath?.[schemaPath]?.value
-            return typeof connected === 'undefined' || connected === null ? rawNodeProperties[propertyKey] : connected
-          }
-          const htmlVideoNode = {
-            ...node,
-            properties: {
-              ...rawNodeProperties,
-              html: readConnectedHtmlVideoProperty('properties.html', 'html'),
-              css: readConnectedHtmlVideoProperty('properties.css', 'css'),
-              data_json: readConnectedHtmlVideoProperty('properties.data_json', 'data_json'),
-              duration_ms: readConnectedHtmlVideoProperty('properties.duration_ms', 'duration_ms'),
-              fps: readConnectedHtmlVideoProperty('properties.fps', 'fps'),
-              width: readConnectedHtmlVideoProperty('properties.width', 'width'),
-              height: readConnectedHtmlVideoProperty('properties.height', 'height'),
-              engine_hint: readConnectedHtmlVideoProperty('properties.engine_hint', 'engine_hint'),
-            } as never,
-          }
-          const result = await runHtmlVideoFlowNode({
-            node: htmlVideoNode,
-            registry: createHtmlVideoEngineRegistryFromRuntimeConfig(),
-            workspacePath: activeWorkspacePath || null,
-            fs: await getWorkspaceFs(),
-          })
-          if (result.ok === false) {
-            const outputSrcDoc = buildHtmlVideoPreviewSrcDocFromNode(htmlVideoNode)
-            if (outputSrcDoc.trim()) {
-              const previewPatch = {
-                output: result.reason || 'HTML video encoder unavailable; rendered inline HTML preview.',
-                outputSrcDoc,
-                outputMimeType: 'text/html; charset=utf-8',
-                outputModel: String(result.engineId || rawNodeProperties.engine_hint || 'html-video-preview').trim(),
-                renderErrorCode: result.errorCode,
-                renderErrorReason: result.reason,
-                richMediaActiveTab: 'auto',
-                lastRunAt: new Date().toISOString(),
-              }
-              updateRunOutputForKnownNodeIds(nodeProps => ({
-                ...clearRichMediaOutputProperties(nodeProps),
-                ...stabilizeHtmlVideoPreviewPatchForExistingProps(nodeProps, previewPatch),
-              }))
-              publishVideoRunOutputToRichMediaPanel({
-                anchorNode: node,
-                patch: previewPatch,
-              })
-            }
-            args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: 'warning', message: result.reason || UI_COPY.storyboardWidgetRunFailedToast, ttlMs: 3200 })
-            return
-          }
-          const renderUrl = result.outputStorageUrl || (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(result.blob) : '')
-          const outputSrcDoc = buildHtmlVideoPreviewSrcDocFromNode(htmlVideoNode)
-          const outputPatch = {
-            ...buildRichMediaWidgetOutputPatch({
-              kind: 'video',
-              asset: {
-                blob: result.blob,
-                renderUrl,
-                model: result.engineId,
-              },
-              outputPath: result.outputPath,
-              outputManifestPath: result.outputManifestPath,
-            }),
-            ...(outputSrcDoc.trim() ? { outputSrcDoc } : null),
-            renderJobId: result.renderJobId,
-            engineId: result.engineId,
-            richMediaActiveTab: 'video',
-          }
-          updateRunOutputForKnownNodeIds(nodeProps => ({
-            ...clearRichMediaOutputProperties(nodeProps),
-            ...outputPatch,
-          }))
-          publishVideoRunOutputToRichMediaPanel({
-            anchorNode: node,
-            patch: outputPatch,
-          })
-          const generatedName = result.outputPath ? result.outputPath.split('/').pop() : 'HTML video output'
-          args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: 'neutral', message: `Generated ${generatedName}.`, ttlMs: 2400 })
-        } finally {
-          setRunLoadingStateForKnownNodeIds({ loading: false })
-        }
-        return
-      }
-
-      if (readWorkflowString(node.type) === FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID) {
-        setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
-        try {
-          const result = await runAnnotationFlowNode({
-            node,
-            workspacePath: activeWorkspacePath || null,
-            fs: await getWorkspaceFs(),
-          })
-          publishAnnotationRunOutputToRichMediaPanel({ anchorNode: node, result })
-          if (result.ok === true) {
-            const annotationJson = JSON.stringify(result, null, 2)
-            updateRunOutputForKnownNodeIds(nodeProps => ({
-              ...nodeProps,
-              annotationId: result.annotationId,
-              annotationSchemaVersion: result.schemaVersion,
-              annotation_json: annotationJson,
-              outputPath: result.outputPath || undefined,
-              outputManifestPath: result.outputManifestPath || undefined,
-              output: annotationJson,
-              outputSrcDoc: toAnnotationPreviewSrcDoc(result),
-              lastRunAt: new Date().toISOString(),
-            }))
-            args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: 'neutral', message: 'Generated annotation JSON.', ttlMs: 2400 })
-          } else {
-            updateRunOutputForKnownNodeIds(nodeProps => ({
-              ...nodeProps,
-              renderErrorCode: result.errorCode,
-              renderErrorReason: result.reason,
-              output: JSON.stringify(result, null, 2),
-              lastRunAt: new Date().toISOString(),
-            }))
-            args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: 'warning', message: result.reason || result.errorCode, ttlMs: 3200 })
-          }
-        } finally {
-          setRunLoadingStateForKnownNodeIds({ loading: false })
-        }
-        return
-      }
-
-      const richMediaKind = resolveRichMediaWidgetKind(node)
-      if (richMediaKind && richMediaKind !== 'annotation') {
-        setRunLoadingStateForKnownNodeIds({ loading: true, kind: richMediaKind })
-        try {
-          const connectedValuesInput = resolveStoryboardWidgetWorkflowConnectedValuesInput({
-            context: workflowNodeResolutionContext,
-            graphForRun,
-            writableNodeId,
-            registry: args.widgetRegistry,
-          })
-          const normalizedProvider = normalizeChatProviderId(store.chatProvider)
-          const runProvider = normalizedProvider || store.chatProvider
-          const runAuthMode = store.chatAuthMode === 'byok' ? 'byok' : 'serverManaged'
-          const runApiKey = runAuthMode === 'byok' ? store.chatApiKey : ''
-          const runEndpointUrl = String(store.chatEndpointUrl || '').trim() || getChatDefaultEndpointUrlForProvider(runProvider)
-          const richMediaResult = await runRichMediaWidgetGeneration({
-            node,
-            connectedValuesBySchemaPath: connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId),
-            markdownDocumentText: typeof store.markdownDocumentText === 'string' ? store.markdownDocumentText : '',
-            workspacePath: activeWorkspacePath || null,
-            generationConfig: { provider: runProvider, endpointUrl: runEndpointUrl, apiKey: runApiKey, chatModel: store.chatModel },
-          })
-          if (!richMediaResult) {
-            args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: 'neutral', message: UI_COPY.storyboardWidgetRunFailedToast, ttlMs: 2600 })
-            return
-          }
-          updateRunOutputForKnownNodeIds(nodeProps => ({
-            ...clearRichMediaOutputProperties(nodeProps),
-            ...buildRichMediaWidgetOutputPatch({ kind: richMediaResult.kind, asset: richMediaResult.asset, outputPath: richMediaResult.outputPath, outputManifestPath: richMediaResult.outputManifestPath }),
-          }))
-          const generatedName = richMediaResult.outputPath ? richMediaResult.outputPath.split('/').pop() : richMediaResult.kind === 'video' ? 'video output' : 'image output'
-          args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: 'neutral', message: `Generated ${generatedName}.`, ttlMs: 2400 })
-        } finally {
-          setRunLoadingStateForKnownNodeIds({ loading: false })
-        }
-        return
-      }
+      const mediaNodeHandled = await runStoryboardWidgetMediaWorkflowNode({
+        id,
+        node,
+        rawNodeProperties,
+        context: workflowNodeResolutionContext,
+        graphForRun,
+        writableNodeId,
+        widgetRegistry: args.widgetRegistry,
+        activeWorkspacePath,
+        generationRuntime: {
+          chatProvider: store.chatProvider,
+          chatAuthMode: store.chatAuthMode,
+          chatApiKey: store.chatApiKey,
+          chatEndpointUrl: store.chatEndpointUrl,
+          chatModel: store.chatModel,
+          markdownDocumentText: typeof store.markdownDocumentText === 'string' ? store.markdownDocumentText : '',
+        },
+        updateRunOutputForKnownNodeIds,
+        setRunLoadingStateForKnownNodeIds,
+        publishMediaRunOutputToRichMediaPanel,
+        publishAnnotationRunOutputToRichMediaPanel,
+        upsertUiToast: args.upsertUiToast,
+      })
+      if (mediaNodeHandled) return
 
       if (String(node.type || '').trim() === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
         const resolvedTextRegistryEntry = resolveWidgetRegistryEntry({ node, registry: args.widgetRegistry, graphMetaKind: args.baseGraphKind })
