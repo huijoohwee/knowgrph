@@ -2,7 +2,7 @@
 title: "Knowgrph Collaboration Runtime Contract"
 doc_type: "Runtime Contract"
 status: "active"
-contract_version: 1
+contract_version: 2
 frontmatter_contract: "required"
 ci_command_timeout_ms: 300000
 invocation:
@@ -16,6 +16,14 @@ coordination:
   branch_pattern: "^agent/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
   unique_active_scope: true
   protected_push_refs: ["refs/heads/main"]
+local_development:
+  canonical_remote: "origin"
+  canonical_branch: "main"
+  canonical_mode: "canonical"
+  task_mode: "task"
+  mode_environment_variable: "KG_DEV_SOURCE_MODE"
+  fetch_required: true
+  clean_required: true
 deployment:
   allowed_workflows: [".github/workflows/release.yml"]
   required_trigger: "workflow_dispatch"
@@ -39,7 +47,7 @@ ci_scopes:
     roots: ["docs/", "CodeWiki.md", "README.md", "goal.md", "todo-log.md", "todo.md"]
     commands: []
   collaboration:
-    roots: [".github/", ".githooks/", "AGENTS.md", "docs/branch-protection.md", "docs/collaboration-runtime-contract.md", "docs/conflict-resolution.md", "scripts/collaboration-contract.mjs", "scripts/check-collaboration-runtime.mjs", "scripts/check-pre-push-refs.mjs", "scripts/run-affected-ci.mjs", "scripts/__tests__/collaboration-contract.test.mjs"]
+    roots: [".github/", ".githooks/", "AGENTS.md", "docs/branch-protection.md", "docs/collaboration-runtime-contract.md", "docs/conflict-resolution.md", "scripts/collaboration-contract.mjs", "scripts/dev-source-consistency.mjs", "scripts/check-dev-source-consistency.mjs", "scripts/check-collaboration-runtime.mjs", "scripts/check-pre-push-refs.mjs", "scripts/run-affected-ci.mjs", "scripts/__tests__/collaboration-contract.test.mjs", "scripts/__tests__/dev-source-consistency.test.mjs"]
     commands:
       - ["npm", "run", "test:collaboration-contract"]
 fallback_commands:
@@ -99,6 +107,14 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 3. Only one device may resume writes to that branch; the sender remains stopped.
 4. A non-fast-forward update or duplicate active semantic scope halts both tasks for explicit upstream resolution.
 5. GitHub pull-request metadata is the live coordination registry; shared folders and committed lease files are forbidden.
+
+## Local Development Source Identity
+
+- Normal `npm run dev` startup fetches the configured canonical remote branch before Vite starts.
+- Canonical mode requires a clean worktree and exact `HEAD` equality with the fetched `origin/main` SHA. The port number never selects source code.
+- Stale, ahead, divergent, or dirty checkouts fail closed with their exact local and canonical SHAs instead of serving a different application silently.
+- Task branches use `KG_DEV_SOURCE_MODE=task npm run dev -- --port <port>` explicitly. Task mode validates the branch naming contract and prints its non-canonical source identity; it is never inferred from a port.
+- Already-running servers retain the SHA they started with. Restart them after `origin/main` advances so the startup gate can validate the new canonical source.
 
 ## Deployment Boundary
 

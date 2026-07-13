@@ -65,6 +65,18 @@ export const validateContract = contract => {
   if (coordination.unique_active_scope !== true) throw new Error('coordination.unique_active_scope must be true')
   requireStringArray(coordination.protected_push_refs, 'coordination.protected_push_refs')
 
+  const localDevelopment = contract.local_development
+  if (!localDevelopment || typeof localDevelopment !== 'object') {
+    throw new Error('local_development mapping is required')
+  }
+  for (const key of ['canonical_remote', 'canonical_branch', 'canonical_mode', 'task_mode', 'mode_environment_variable']) {
+    if (typeof localDevelopment[key] !== 'string' || !localDevelopment[key]) {
+      throw new Error(`local_development.${key} is required`)
+    }
+  }
+  if (localDevelopment.fetch_required !== true) throw new Error('local_development.fetch_required must be true')
+  if (localDevelopment.clean_required !== true) throw new Error('local_development.clean_required must be true')
+
   const deployment = contract.deployment
   if (!deployment || typeof deployment !== 'object') throw new Error('deployment mapping is required')
   requireStringArray(deployment.allowed_workflows, 'deployment.allowed_workflows')
