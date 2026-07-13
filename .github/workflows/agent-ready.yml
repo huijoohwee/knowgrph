@@ -43,10 +43,6 @@ jobs:
         working-directory: knowgrph
         run: npm run pages:check-sync
 
-      - name: Smoke live agent-ready discovery
-        working-directory: knowgrph
-        run: ./.github/workflows/smoke-test.sh
-
       - name: Deploy Cloudflare Pages
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: knowgrph
@@ -54,3 +50,8 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npm run pages:functions:build && npx wrangler pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true
+
+      - name: Smoke live agent-ready discovery
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: knowgrph
+        run: ./.github/workflows/smoke-test.sh
