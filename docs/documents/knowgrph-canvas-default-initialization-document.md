@@ -47,6 +47,7 @@
 - **Frontmatter SSOT**:
   - `workspace-readme.md` lands on `2d + d3 + Frontmatter Mode`.
   - `knowgrph-agentic-video-canvas-demo.md` lands on `2d + Storyboard Widget + Frontmatter Mode` and remains the default validation/loading demo.
+  - `Load preset` must refresh its runtime `/docs/knowgrph-agentic-video-canvas-demo.md` mirror from this canonical initialization source before parsing, so generated runtime projections cannot replace the authored text/image/video stage graph across local ports.
   - `knowgrph-maps-places.md` lands on `Geospatial Mode` from frontmatter and keeps document/frontmatter semantics enabled.
 - **Activation precedence**:
   - On workspace bootstrap and exact UI import, the activated initialization file becomes the raw-frontmatter authority before composed source-file replay or metadata/layout helpers run.

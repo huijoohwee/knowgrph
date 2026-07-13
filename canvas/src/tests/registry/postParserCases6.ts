@@ -44,6 +44,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["ui.floatingPanelChat.newChat.workspaceFile","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatNewChatCreatesAndFollowsCanonicalWorkspaceFile"],
   ["ui.floatingPanelChat.videoPreset.loadsSourceBackedInvocation","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetLoadsSourceBackedInvocation"],
   ["ui.floatingPanelChat.videoPreset.prefersCanonicalDocsMirror","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetPrefersCanonicalDocsMirrorAtRuntime"],
+  ["ui.floatingPanelChat.videoPreset.repairsDriftedRuntimeMirror","@/__tests__/videoAgentDemoPresetSourceReconciliation.test","testFloatingPanelChatVideoPresetRepairsDriftedRuntimeMirrorFromCanonicalSource"],
   ["ui.floatingPanelChat.videoPreset.failsClosedWithoutSource","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatVideoPresetFailsClosedWithoutSource"],
   ["ui.floatingPanelChat.promptPreset.centralizedCatalog","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatPromptPresetCatalogLoadsThreeCentralizedAgents"],
   ["ui.floatingPanelChat.promptPreset.invalidCatalogFailsClosed","@/__tests__/floatingPanelChatVideoPreset.test","testFloatingPanelChatPromptPresetCatalogFailsClosedOnMissingEntry"],

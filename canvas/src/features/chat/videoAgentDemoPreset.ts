@@ -71,6 +71,28 @@ const readMirrorText = async (relPath: string): Promise<string> => {
   return String(entries.find(entry => entry.relPath === normalized)?.text || '')
 }
 
+export const reconcileVideoAgentDemoPresetWorkspaceSource = async (args: {
+  fs: WorkspaceFs
+  presetPath: string
+  workspaceText: string
+  canonicalText: string
+  preferCanonicalSource: boolean
+}): Promise<string> => {
+  const workspaceText = String(args.workspaceText || '')
+  const canonicalText = String(args.canonicalText || '')
+  const selectedText = args.preferCanonicalSource && canonicalText.trim()
+    ? canonicalText
+    : workspaceText || canonicalText
+  if (!selectedText) return ''
+  if (workspaceText !== selectedText) {
+    await args.fs.writeFileText(args.presetPath, selectedText)
+    if (await args.fs.readFileText(args.presetPath) !== selectedText) {
+      await materializeWorkspaceFile(args.fs, args.presetPath, selectedText)
+    }
+  }
+  return selectedText
+}
+
 export const resolveVideoAgentDemoPresetWorkspacePath = async (args: {
   fs: WorkspaceFs
   preferDocsMirror: boolean
@@ -83,13 +105,23 @@ export const resolveVideoAgentDemoPresetWorkspacePath = async (args: {
 
 export const loadVideoAgentDemoPreset = async (fsOverride?: WorkspaceFs): Promise<VideoAgentDemoPresetResult> => {
   const fs = fsOverride || await getWorkspaceFs()
+  const preferCanonicalSource = !fsOverride
   const presetPath = await resolveVideoAgentDemoPresetWorkspacePath({
     fs,
-    preferDocsMirror: !fsOverride,
+    preferDocsMirror: preferCanonicalSource,
   })
-  const markdownText = (await fs.readFileText(presetPath)) || await readMirrorText(`docs/${presetPath.replace(/^\/+/, '')}`)
+  const workspaceText = String((await fs.readFileText(presetPath)) || '')
+  const canonicalText = preferCanonicalSource
+    ? await readMirrorText(`docs/${DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_BASENAME}`)
+    : ''
+  const markdownText = await reconcileVideoAgentDemoPresetWorkspaceSource({
+    fs,
+    presetPath,
+    workspaceText,
+    canonicalText,
+    preferCanonicalSource,
+  })
   if (!markdownText) return { ok: false, error: `Preset unavailable: ${presetPath}` }
-  if (!await fs.readFileText(presetPath)) await materializeWorkspaceFile(fs, presetPath, markdownText)
   const frontmatter = parseFrontmatter(markdownText)
   const inputs = isRecord(frontmatter?.inputs) ? frontmatter.inputs : null
   const sourcePath = normalizeWorkspaceReferencePath(inputs?.video_generation_demo_script)
