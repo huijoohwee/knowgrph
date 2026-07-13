@@ -1,4 +1,5 @@
 export const AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME = "knowgrph.agentic_canvas_os.docs.invoke";
+export const AGENTIC_CANVAS_OS_DOCS_CONTROL_PLANE_PATH = "/knowgrph/control-plane/mcp";
 
 export const AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT = "agentic-canvas-os/docs";
 export const AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL =

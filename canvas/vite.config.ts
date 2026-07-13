@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { existsSync, createReadStream, readFileSync } from 'node:fs'
 import fs from 'node:fs/promises'
+import { createAgenticOsGrammarDevPlugin } from './agenticOsGrammarDevServer.mjs'
 import { unwrapUserProvidedText } from 'grph-shared/url'
 import { getYouTubeId } from 'grph-shared/rich-media/providers'
 import { GRABMAPS_PROXY_PATH } from 'grph-shared/geospatial/grabMapsSsot'
@@ -7131,9 +7132,7 @@ export default defineConfig(({ command }) => {
         ],
       },
     }),
-    ...(command === 'build'
-      ? []
-      : [
+    ...(command === 'build' ? [] : [
           traeBadgePlugin({
             variant: 'dark',
             position: 'bottom-right',
@@ -7144,6 +7143,7 @@ export default defineConfig(({ command }) => {
             autoThemeTarget: '#root',
           }),
           stripeCheckoutDevPlugin,
+          createAgenticOsGrammarDevPlugin({ rootDir: repoRoot }),
           markdownPipelineDevPlugin,
           apiGraphDevPlugin,
           flowchartFixtureDevPlugin,
