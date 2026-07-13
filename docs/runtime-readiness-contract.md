@@ -13,11 +13,11 @@ stage_contract:
   order: ["research", "storyboard", "render", "edit", "publish", "checkout"]
 docs_dependency:
   repository: "https://github.com/huijoohwee/agentic-canvas-os.git"
-  ref: "97c3a48be4515c017f56a199bf59a0652e04d57b"
+  ref: "a567e7f432c3ff738ed5503b31024cdff7e67161"
   root_env: "KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT"
   default_relative_root: "../agentic-canvas-os/docs"
-  required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md"]
-  proof_tokens: ["/runtime-ready.check", "#runtime-ready", "@mcp-gateway", "/sandbox.policy.validate", "#agent-sandbox-policy", "@sandbox-policy"]
+  required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "RUNTIME-PROOF.md"]
+  proof_tokens: ["/runtime-ready.check", "/session.start", "/release.complete", "#runtime-ready", "#multi-agent-collaboration", "@operator", "@working-directory", "@source.frontmatter", "@runtime-proof", "@mcp-gateway", "/sandbox.policy.validate", "#agent-sandbox-policy", "@sandbox-policy"]
 local_proof:
   provider_mode: "mock"
   network_allowed: false
