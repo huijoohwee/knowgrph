@@ -5,6 +5,10 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import {
+  isFloatingPanelChatThreadNearTail,
+  reduceFloatingPanelChatThreadFollowState,
+} from '@/features/chat/floatingPanelChat/useFloatingPanelChatThreadFollow'
 
 export async function testFloatingPanelChatStreamsReasoningStatusAfterLatestMessage() {
   const { dom, restore } = initJsdomHarness()
@@ -146,6 +150,73 @@ export async function testFloatingPanelChatRendersLiveAssistantTailBeforeStreami
     await unmountReactRoot(root, { window: dom.window as unknown as Window })
     container.remove()
     restore()
+  }
+}
+
+export async function testFloatingPanelChatRendersPendingAssistantBubbleBeforeFirstToken() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await mountReactRoot(
+      root,
+      React.createElement(FloatingPanelChatMessagesSection, {
+        messages: [
+          { id: 'user-pending', role: 'user', content: 'Build the workspace plan.' },
+          { id: 'assistant-pending', role: 'assistant', content: '' },
+        ],
+        streamingAssistant: { id: 'assistant-pending', text: '' },
+        isLoading: true,
+        historyKey: 'history-key',
+        uiPanelTextFontClass: 'text-sm',
+        uiPanelKeyValueTextSizeClass: 'text-xs',
+        uiPanelMicroLabelTextSizeClass: 'text-xs',
+        setMessages: () => undefined,
+      }),
+      { window: dom.window as unknown as Window, frames: 2 },
+    )
+
+    const pending = container.querySelector('[data-kg-chat-streaming-state="pending"]') as HTMLElement | null
+    if (!pending || !String(pending.textContent || '').includes('Waiting for response')) {
+      throw new Error(`expected a visible assistant bubble before the first token, html=${container.innerHTML}`)
+    }
+    if (pending.getAttribute('aria-busy') !== 'true') {
+      throw new Error('expected the pending assistant bubble to expose its busy state')
+    }
+    if (container.querySelectorAll('[data-kg-chat-streaming-tail="true"]').length !== 1) {
+      throw new Error('expected one pending/live assistant row to own the streaming tail')
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+  }
+}
+
+export function testFloatingPanelChatFollowsLargeStreamingTailUntilManualScroll() {
+  let state = { isLoading: true, shouldFollow: true }
+  state = reduceFloatingPanelChatThreadFollowState(state, { type: 'render', isLoading: true })
+  if (!state.shouldFollow) {
+    throw new Error('expected a large streamed chunk to preserve the pre-update tail-follow decision')
+  }
+
+  const isNearTail = isFloatingPanelChatThreadNearTail({
+    clientHeight: 200,
+    scrollHeight: 900,
+    scrollTop: 100,
+  })
+  state = reduceFloatingPanelChatThreadFollowState(state, { type: 'scroll', isNearTail })
+  state = reduceFloatingPanelChatThreadFollowState(state, { type: 'render', isLoading: true })
+  if (state.shouldFollow) {
+    throw new Error('expected manual scroll position to disable tail-follow until the next stream starts')
+  }
+
+  state = reduceFloatingPanelChatThreadFollowState(state, { type: 'render', isLoading: false })
+  state = reduceFloatingPanelChatThreadFollowState(state, { type: 'render', isLoading: true })
+  if (!state.shouldFollow) {
+    throw new Error('expected a new stream to restore tail-follow')
   }
 }
 

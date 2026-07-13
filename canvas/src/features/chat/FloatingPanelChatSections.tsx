@@ -135,11 +135,16 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
 }) {
   const content = typeof overrideText === 'string' ? overrideText : message.content
   const isUser = message.role === 'user'
+  const streamingState = isStreaming
+    ? (String(content || '').trim() ? 'receiving' : 'pending')
+    : null
   return (
     <section
       className="flex"
       data-kg-chat-streaming-tail={isStreaming ? 'true' : undefined}
+      data-kg-chat-streaming-state={streamingState || undefined}
       aria-live={isStreaming ? 'polite' : undefined}
+      aria-busy={streamingState === 'pending' ? 'true' : undefined}
     >
       <section
         className={[
@@ -151,7 +156,10 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             : `mr-auto ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.text.primary} ${UI_THEME_TOKENS.panel.border}`,
         ].join(' ')}
       >
-        {renderFloatingPanelChatMessageContent(content, onOpenWorkspacePath)}
+        {renderFloatingPanelChatMessageContent(
+          streamingState === 'pending' ? UI_COPY.chatAssistantPendingStatus : content,
+          onOpenWorkspacePath,
+        )}
       </section>
     </section>
   )
@@ -202,9 +210,7 @@ export function FloatingPanelChatMessagesSection({
   const liveStreamingUsageSummary = isLoading ? streamingUsageSummary : null
   const liveStreamingFinishReason = isLoading ? streamingFinishReason : null
   const liveWritingWorkspaceFileLabel = isLoading ? writingWorkspaceFileLabel : null
-  const liveStreamingAssistant = isLoading && String(streamingAssistant?.text || '').trim()
-    ? streamingAssistant
-    : null
+  const liveStreamingAssistant = isLoading && streamingAssistant ? streamingAssistant : null
 
   return (
     <section data-kg-chat-thread-viewport="true" className="flex min-h-full flex-col gap-2">
