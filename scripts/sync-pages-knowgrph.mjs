@@ -51,6 +51,8 @@ const agentReadyRuntimeSharedEntries = [
   'dist/hash/signature.js',
   'dist/payments/agenticCommerceSsot.js',
 ]
+const semanticKeyContractSource = path.resolve(knowgrphRoot, 'contracts', 'semantic-key.js')
+const semanticKeyContractTarget = path.resolve(githubRoot, 'huijoohwee', 'contracts', 'semantic-key.js')
 const videoFrameSharedProviderSource = path.resolve(knowgrphRoot, 'grph-shared', 'dist', 'rich-media', 'providers.js')
 const videoFrameSharedProviderTarget = path.resolve(githubRoot, 'huijoohwee', 'grph-shared', 'dist', 'rich-media', 'providers.js')
 const rootAgentReadySharedTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph-agent-ready-shared.mjs')
@@ -378,6 +380,7 @@ const fileExists = async (filePath) => {
 
 const agentReadyRuntimeCopies = [
   [agentReadyCommerceSource, agentReadyCommerceTarget], [agentReadyAppShellSource, agentReadyAppShellTarget],
+  [semanticKeyContractSource, semanticKeyContractTarget],
   ...['mcpAppsContractText.mjs', 'mcpAppsOnboarding.mjs'].map(filename => [agentReadyFeatureSource(filename), agentReadyFeatureTarget(filename)]),
   ...(await collectGrphSharedRuntimeCopies(agentReadyRuntimeSharedEntries)),
 ]

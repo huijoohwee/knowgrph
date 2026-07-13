@@ -36,6 +36,12 @@ test("publish sync includes the MCP Apps contract dependency closure", () => {
   assert.match(syncScript, /\.map\(filename => \[agentReadyFeatureSource\(filename\), agentReadyFeatureTarget\(filename\)\]\)/);
 });
 
+test("publish sync includes the cross-root semantic-key dependency", () => {
+  assert.match(syncScript, /semanticKeyContractSource = path\.resolve\(knowgrphRoot, 'contracts', 'semantic-key\.js'\)/);
+  assert.match(syncScript, /semanticKeyContractTarget = path\.resolve\(githubRoot, 'huijoohwee', 'contracts', 'semantic-key\.js'\)/);
+  assert.match(syncScript, /\[semanticKeyContractSource, semanticKeyContractTarget\]/);
+});
+
 test("publish sync keeps the live canvas hero markdown route in the root-managed file set", () => {
   assert.match(syncScript, /'knowgrph-live-canvas-hero\.md'/);
 });
