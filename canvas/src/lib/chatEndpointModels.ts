@@ -1,4 +1,4 @@
-export const CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT = 'seed-2-0-mini-260215'
+export const CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT = 'seed-2-0-lite-260228'
 export const CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT = 'seedream-4-0-250828'
 export const CHAT_BYTEPLUS_IMAGE_MODEL_OPTIONS = [
   CHAT_BYTEPLUS_IMAGE_MODEL_DEFAULT,
@@ -14,7 +14,6 @@ export const CHAT_BYTEPLUS_VIDEO_MODEL_OPTIONS = [
 ] as const
 export const CHAT_BYTEPLUS_TEXT_MODEL_OPTIONS = [
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
-  'seed-2-0-lite-260228',
   'seed-2-0-pro-260328',
   'seed-1-8-251228',
 ] as const

@@ -1,13 +1,22 @@
 import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { activateFirstImportedWorkspaceFile } from '@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions'
-import { parseGenerationInvocation } from '@/features/chat/generationInvocation'
+import { AGENTIC_VIDEO_ROUTE_TOKEN, VIDEO_GENERATION_DEMO_SCRIPT_BINDING_TOKEN } from '@/features/chat/generationInvocation'
 import { isVideoAgentDemoPresetError, loadVideoAgentDemoPreset } from '@/features/chat/videoAgentDemoPreset'
+import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
 import type { FloatingPanelChatSubmitArgs } from './floatingPanelChatSubmitTypes'
 
-export const isVideoAgentDemoPresetInvocation = (input: string): boolean => (
-  input.includes('@video-generation-demo-script') && parseGenerationInvocation(input) != null
-)
+export const isVideoAgentDemoPresetInvocation = (input: string): boolean => {
+  const invocationTokens = new Set(
+    splitInvocationTokenSegments(input)
+      .filter(segment => segment.kind === 'token')
+      .map(segment => segment.value.toLowerCase()),
+  )
+  return (
+    invocationTokens.has(AGENTIC_VIDEO_ROUTE_TOKEN)
+    && invocationTokens.has(VIDEO_GENERATION_DEMO_SCRIPT_BINDING_TOKEN)
+  )
+}
 
 export const tryActivateVideoAgentDemoPreset = async (args: {
   input: string

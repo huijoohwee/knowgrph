@@ -24,7 +24,7 @@ const CHAT_COMPOSER_SLASH_INVOCATION_SOURCES = new Map(CHAT_SKILL_OPTIONS.map(op
 
 export function readComposerInvocationChipClassName(part: Pick<ComposerInvocationSourcePart, 'text'>): string {
   return [
-    'pointer-events-auto cursor-help no-underline',
+    'pointer-events-none cursor-text no-underline',
     DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
     UI_INLINE_CHIP_SHELL_15CH_CLASSNAME,
     resolveDataViewChipClass(part.text),

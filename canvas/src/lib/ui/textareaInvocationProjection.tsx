@@ -8,7 +8,9 @@ import {
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
-import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME } from '@/lib/ui/textLayout'
+import { collectTextareaInvocationSourceBindings } from '@/lib/ui/textareaInvocationSourceBindings'
+import { renderTextareaInvocationProjectionMetricText, renderTextareaInvocationVisibleTokenText } from '@/lib/ui/textareaInvocationProjectionRender'
+import { UI_INLINE_CHIP_SHELL_15CH_CLASSNAME } from '@/lib/ui/textLayout'
 import {
   normalizeMediaProjectionUrlKey,
   readMediaAttachmentLabel,
@@ -45,12 +47,14 @@ type ChatComposerMediaPart = {
   virtual?: boolean
   prefixBoundary?: boolean
 }
-type ChatComposerMediaProjectionPart = ChatComposerTextPart | ChatComposerMediaPart
+type ChatComposerSourceBindingPart = { kind: 'source-binding'; raw: string; label: string; sourceUrl: string }
+type ChatComposerMediaProjectionPart = ChatComposerTextPart | ChatComposerMediaPart | ChatComposerSourceBindingPart
 type ChatComposerInvocationMetricKind = InvocationTokenKind
 type ChatComposerInvocationMetricPart = { kind: 'invocation'; tokenKind: ChatComposerInvocationMetricKind; text: string; displayText: string }
 type ChatComposerDisplayPart =
   | (ChatComposerTextPart & { displayText: string })
   | (ChatComposerMediaPart & { displayText: string })
+  | (ChatComposerSourceBindingPart & { displayText: string })
 type ChatComposerOverlayPart = ChatComposerDisplayPart | ChatComposerInvocationMetricPart
 type TextareaInvocationProjectionSelectionRange = { start: number; end: number }
 type TextareaInvocationProjectedCaret = {
@@ -64,12 +68,10 @@ export const FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME =
 export const TEXTAREA_INVOCATION_PROJECTED_LAYOUT_CLASS_NAME = 'kg-floating-chat-composer-projected'
 const FLOATING_PANEL_CHAT_COMPOSER_VISIBLE_INVOCATION_CHIP_CLASS_NAME =
   'absolute left-0 top-1/2 w-full max-w-full -translate-y-1/2 !border-0 !px-0 shadow-[inset_0_0_0_1px_var(--kg-border)]'
+const FLOATING_PANEL_CHAT_COMPOSER_INVOCATION_METRIC_CLASS_NAME =
+  `relative inline-block overflow-hidden align-baseline [--kg-inline-chip-shell-extra:0px] ${UI_INLINE_CHIP_SHELL_15CH_CLASSNAME}`
 const TEXTAREA_INVOCATION_OVERLAY_BASE_CLASS_NAME =
   'pointer-events-none absolute inset-0 z-10 overflow-hidden whitespace-pre-wrap break-words'
-const TEXTAREA_INVOCATION_PROJECTED_CARET_CLASS_NAME =
-  'relative z-20 inline-block h-[1em] w-0 border-l border-[color:var(--kg-text-primary)] align-[-0.125em] opacity-95'
-const TEXTAREA_INVOCATION_METRIC_TEXT_CLASS_NAME =
-  'before:whitespace-pre before:content-[attr(data-kg-textarea-invocation-metric-text)]'
 
 function readMediaProjectionDedupeKey(part: Pick<ChatComposerMediaPart, 'label' | 'mediaKind' | 'raw' | 'sourceUrl' | 'thumbnailUrl'>): string {
   const sourceKey = normalizeMediaProjectionUrlKey(part.sourceUrl || part.thumbnailUrl || part.raw)
@@ -112,14 +114,19 @@ export function buildFloatingPanelChatComposerMediaParts(
   options: TextareaInvocationProjectionOptions = {},
 ): { hasMedia: boolean; parts: ChatComposerMediaProjectionPart[] } {
   const source = String(text || '')
-  const matches = collectFloatingPanelChatMediaTokens(source)
+  const matches = [
+    ...collectFloatingPanelChatMediaTokens(source).map(match => ({ ...match, end: match.index + match.raw.length, projectionKind: 'media' as const })),
+    ...collectTextareaInvocationSourceBindings(source).map(match => ({ ...match, projectionKind: 'source-binding' as const })),
+  ].sort((a, b) => a.index - b.index || a.end - b.end)
   const parts: ChatComposerMediaProjectionPart[] = []
   let cursor = 0
   for (const match of matches) {
     if (match.index < cursor) continue
     if (match.index > cursor) parts.push({ kind: 'text', text: source.slice(cursor, match.index) })
-    parts.push({ kind: 'media', raw: match.raw, mediaKind: match.mediaKind, label: match.label, sourceUrl: match.sourceUrl, thumbnailUrl: match.thumbnailUrl })
-    cursor = match.index + match.raw.length
+    parts.push(match.projectionKind === 'media'
+      ? { kind: 'media', raw: match.raw, mediaKind: match.mediaKind, label: match.label, sourceUrl: match.sourceUrl, thumbnailUrl: match.thumbnailUrl }
+      : { kind: 'source-binding', raw: match.raw, label: match.label, sourceUrl: match.sourceUrl })
+    cursor = match.end
   }
   if (cursor < source.length) parts.push({ kind: 'text', text: source.slice(cursor) })
   appendTextareaInvocationMediaAttachments(parts, options.mediaAttachments, source)
@@ -146,12 +153,14 @@ function readMediaDisplayLabel(part: ChatComposerMediaPart): string {
 function buildFloatingPanelChatComposerDisplayParts(
   text: string,
   options: TextareaInvocationProjectionOptions = {},
-): { hasMedia: boolean; parts: ChatComposerDisplayPart[] } {
+): { hasMedia: boolean; hasSourceBinding: boolean; parts: ChatComposerDisplayPart[] } {
   const projection = buildFloatingPanelChatComposerMediaParts(text, options)
   return {
     hasMedia: projection.hasMedia,
+    hasSourceBinding: projection.parts.some(part => part.kind === 'source-binding'),
     parts: projection.parts.map((part, index) => part.kind === 'media'
       ? { ...part, displayText: readMediaDisplayText(projection.parts, index) }
+      : part.kind === 'source-binding' ? { ...part, displayText: `@${part.label}` }
       : { ...part, displayText: part.text }),
   }
 }
@@ -168,7 +177,7 @@ export function buildFloatingPanelChatComposerOverlayParts(
   const hasInvocationChips = parts.some(part => part.kind === 'invocation')
   return {
     hasMedia: projection.hasMedia,
-    hasOverlay: projection.hasMedia || hasInvocationChips,
+    hasOverlay: projection.hasMedia || projection.hasSourceBinding || hasInvocationChips,
     parts,
   }
 }
@@ -220,32 +229,46 @@ export function resolveFloatingPanelChatComposerRawText(
   options: TextareaInvocationProjectionOptions = {},
 ): string {
   const projection = buildFloatingPanelChatComposerDisplayParts(previousRawText, options)
-  if (!projection.hasMedia) return displayText
-  let cursor = 0
-  let rawText = ''
+  if (!projection.hasMedia && !projection.hasSourceBinding) return displayText
+  const previousDisplayText = projection.parts.map(part => part.displayText).join('')
+  if (displayText === previousDisplayText) return previousRawText
+  let stableCursor = 0
+  let stableRawText = ''
+  let stableProjection = true
   for (const part of projection.parts) {
-    if (part.kind !== 'media') continue
-    const fullTokenIndex = displayText.indexOf(part.displayText, cursor)
-    const displayLabel = readMediaDisplayLabel(part)
-    const labelIndex = fullTokenIndex >= 0 ? -1 : displayText.indexOf(displayLabel, cursor)
-    if (fullTokenIndex < 0 && labelIndex < 0) return displayText
-    const index = fullTokenIndex >= 0 ? fullTokenIndex : labelIndex
-    const labelEnd = fullTokenIndex >= 0 ? fullTokenIndex + part.displayText.length : labelIndex + displayLabel.length
-    const consumeBoundary = part.displayText.endsWith(CHAT_COMPOSER_MEDIA_BOUNDARY) && displayText[labelEnd] === CHAT_COMPOSER_MEDIA_BOUNDARY
-    rawText += displayText.slice(cursor, index)
-    if (!part.virtual) rawText += part.raw
-    cursor = labelEnd
-    if (consumeBoundary && !part.virtual) {
-      rawText += CHAT_COMPOSER_MEDIA_BOUNDARY
-      cursor += CHAT_COMPOSER_MEDIA_BOUNDARY.length
-    } else if (consumeBoundary) {
-      cursor += CHAT_COMPOSER_MEDIA_BOUNDARY.length
-    } else if (fullTokenIndex >= 0 && part.displayText.endsWith(CHAT_COMPOSER_MEDIA_BOUNDARY) && !part.virtual) {
-      rawText += CHAT_COMPOSER_MEDIA_BOUNDARY
+    if (part.kind === 'text') continue
+    const displayLabel = part.kind === 'media' ? readMediaDisplayLabel(part) : part.displayText
+    const fullIndex = displayText.indexOf(part.displayText, stableCursor)
+    const labelIndex = fullIndex >= 0 ? -1 : displayText.indexOf(displayLabel, stableCursor)
+    if (fullIndex < 0 && labelIndex < 0) {
+      stableProjection = false
+      break
+    }
+    const index = fullIndex >= 0 ? fullIndex : labelIndex
+    const displayEnd = fullIndex >= 0 ? fullIndex + part.displayText.length : labelIndex + displayLabel.length
+    stableRawText += displayText.slice(stableCursor, index)
+    if (part.kind === 'source-binding' || !part.virtual) stableRawText += part.raw
+    stableCursor = displayEnd
+    if (part.kind === 'media' && part.displayText.endsWith(CHAT_COMPOSER_MEDIA_BOUNDARY) && displayText[stableCursor] === CHAT_COMPOSER_MEDIA_BOUNDARY) {
+      if (!part.virtual) stableRawText += CHAT_COMPOSER_MEDIA_BOUNDARY
+      stableCursor += CHAT_COMPOSER_MEDIA_BOUNDARY.length
+    } else if (part.kind === 'media' && fullIndex >= 0 && part.displayText.endsWith(CHAT_COMPOSER_MEDIA_BOUNDARY) && !part.virtual) {
+      stableRawText += CHAT_COMPOSER_MEDIA_BOUNDARY
     }
   }
-  rawText += displayText.slice(cursor)
-  return rawText
+  if (stableProjection) return stableRawText + displayText.slice(stableCursor)
+  let prefixLength = 0
+  const sharedLength = Math.min(displayText.length, previousDisplayText.length)
+  while (prefixLength < sharedLength && displayText[prefixLength] === previousDisplayText[prefixLength]) prefixLength += 1
+  let nextSuffixStart = displayText.length
+  let previousSuffixStart = previousDisplayText.length
+  while (nextSuffixStart > prefixLength && previousSuffixStart > prefixLength && displayText[nextSuffixStart - 1] === previousDisplayText[previousSuffixStart - 1]) {
+    nextSuffixStart -= 1
+    previousSuffixStart -= 1
+  }
+  const rawStart = mapFloatingPanelChatComposerDisplayIndexToRawIndex(previousRawText, prefixLength, options)
+  const rawEnd = mapFloatingPanelChatComposerDisplayIndexToRawIndex(previousRawText, previousSuffixStart, options)
+  return `${previousRawText.slice(0, rawStart)}${displayText.slice(prefixLength, nextSuffixStart)}${previousRawText.slice(rawEnd)}`
 }
 
 export function mapFloatingPanelChatComposerRawIndexToDisplayIndex(
@@ -257,10 +280,10 @@ export function mapFloatingPanelChatComposerRawIndexToDisplayIndex(
   let rawCursor = 0
   let displayCursor = 0
   for (const part of projection.parts) {
-    const rawLength = part.kind === 'media' ? part.raw.length : part.text.length
+    const rawLength = part.kind === 'text' ? part.text.length : part.raw.length
     const displayLength = part.displayText.length
     if (rawIndex <= rawCursor + rawLength) {
-      if (part.kind === 'media') return displayCursor + displayLength
+      if (part.kind !== 'text') return displayCursor + displayLength
       return displayCursor + Math.max(0, rawIndex - rawCursor)
     }
     rawCursor += rawLength
@@ -278,10 +301,10 @@ export function mapFloatingPanelChatComposerDisplayIndexToRawIndex(
   let rawCursor = 0
   let displayCursor = 0
   for (const part of projection.parts) {
-    const rawLength = part.kind === 'media' ? part.raw.length : part.text.length
+    const rawLength = part.kind === 'text' ? part.text.length : part.raw.length
     const displayLength = part.displayText.length
     if (displayIndex <= displayCursor + displayLength) {
-      if (part.kind === 'media') return rawCursor + rawLength
+      if (part.kind !== 'text') return rawCursor + rawLength
       return rawCursor + Math.max(0, displayIndex - displayCursor)
     }
     rawCursor += rawLength
@@ -321,7 +344,7 @@ function renderComposerInvocationChipWithCaret(part: ChatComposerInvocationMetri
   return (
     <span
       key={key}
-      className="relative inline-block max-w-full align-baseline"
+      className={FLOATING_PANEL_CHAT_COMPOSER_INVOCATION_METRIC_CLASS_NAME}
       {...metricAttrs}
     >
       {renderTextareaInvocationProjectionMetricText({
@@ -344,57 +367,25 @@ function renderComposerInvocationChipWithCaret(part: ChatComposerInvocationMetri
   )
 }
 
-function renderTextareaInvocationVisibleTokenText(displayText: string): React.ReactNode {
-  const text = String(displayText || '')
-  const sigil = text.startsWith('/') || text.startsWith('#') || text.startsWith('@') ? text.slice(0, 1) : ''
+function renderComposerSourceBindingChipWithCaret(part: ChatComposerSourceBindingPart & { displayText: string }, key: string, caretOffset: number | null): React.ReactNode {
+  const sourceTitle = `${part.displayText}\nSource: ${part.sourceUrl}`
   return (
-    <span
-      className={`inline-block min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap ${sigil ? UI_INLINE_CHIP_LABEL_15CH_CLASSNAME : ''}`}
-      data-kg-textarea-invocation-token-text="1"
-      data-kg-textarea-invocation-token-sigil={sigil || undefined}
-      data-kg-textarea-invocation-token-label={sigil ? '1' : undefined}
-    >
-      {text}
-    </span>
-  )
-}
-
-function renderTextareaInvocationProjectionMetricText(args: {
-  caretKind: string
-  caretOffset: number | null
-  caretToken: string
-  className: string
-  displayText: string
-}): React.ReactNode {
-  const text = String(args.displayText || '')
-  const offset = args.caretOffset == null
-    ? null
-    : Math.max(0, Math.min(text.length, Math.floor(args.caretOffset)))
-  if (offset == null) {
-    return (
+    <span key={key} className={FLOATING_PANEL_CHAT_COMPOSER_INVOCATION_METRIC_CLASS_NAME} data-kg-chat-input-source-binding-metric="preserve">
+      {renderTextareaInvocationProjectionMetricText({
+        caretKind: 'source-binding', caretOffset, caretToken: part.displayText,
+        className: 'whitespace-pre text-transparent', displayText: part.displayText,
+      })}
       <span
-        className={`${args.className} ${TEXTAREA_INVOCATION_METRIC_TEXT_CLASS_NAME}`}
-        data-kg-textarea-invocation-metric-text={text}
-      />
-    )
-  }
-  return (
-    <span className={args.className}>
-      <span
-        className={TEXTAREA_INVOCATION_METRIC_TEXT_CLASS_NAME}
-        data-kg-textarea-invocation-metric-text={text.slice(0, offset)}
-      />
-      <span
-        aria-hidden="true"
-        className={TEXTAREA_INVOCATION_PROJECTED_CARET_CLASS_NAME}
-        data-kg-textarea-invocation-projected-caret="1"
-        data-kg-textarea-invocation-projected-caret-kind={args.caretKind}
-        data-kg-textarea-invocation-projected-caret-token={args.caretToken}
-      />
-      <span
-        className={TEXTAREA_INVOCATION_METRIC_TEXT_CLASS_NAME}
-        data-kg-textarea-invocation-metric-text={text.slice(offset)}
-      />
+        aria-label={sourceTitle}
+        className={`${readComposerInvocationChipClassName({ text: part.displayText })} ${FLOATING_PANEL_CHAT_COMPOSER_VISIBLE_INVOCATION_CHIP_CLASS_NAME}`}
+        title={sourceTitle}
+        data-kg-card-inline-keyword-pill="1"
+        data-kg-chat-input-source-binding-chip="1"
+        data-kg-chat-input-source-binding-source={part.sourceUrl}
+        data-kg-chat-input-source-binding-token={part.displayText}
+      >
+        {renderTextareaInvocationVisibleTokenText(part.displayText)}
+      </span>
     </span>
   )
 }
@@ -408,10 +399,10 @@ function mapFloatingPanelChatComposerOverlayDisplayIndexToRawIndex(
   let rawCursor = 0
   let displayCursor = 0
   for (const part of projection.parts) {
-    const rawLength = part.kind === 'media' ? part.raw.length : readComposerOverlayPartDisplayText(part).length
+    const rawLength = part.kind === 'media' || part.kind === 'source-binding' ? part.raw.length : readComposerOverlayPartDisplayText(part).length
     const displayLength = readComposerOverlayPartDisplayText(part).length
     if (displayIndex <= displayCursor + displayLength) {
-      if (part.kind === 'media') return rawCursor + rawLength
+      if (part.kind === 'media' || part.kind === 'source-binding') return rawCursor + rawLength
       return rawCursor + Math.max(0, displayIndex - displayCursor)
     }
     rawCursor += rawLength
@@ -429,6 +420,22 @@ export function isFloatingPanelChatComposerProjectedCaretInsideChip(
   return readFloatingPanelChatComposerProjectedCaret(text, { start: selectionStart, end: selectionEnd }, options) != null
 }
 
+export function resolveFloatingPanelChatComposerProjectedCaretEnd(
+  text: string,
+  displayCursor: number,
+  options: TextareaInvocationProjectionOptions = {},
+): number | null {
+  const projection = buildFloatingPanelChatComposerOverlayParts(text, options)
+  let partStart = 0
+  for (const part of projection.parts) {
+    const partEnd = partStart + readComposerOverlayPartDisplayText(part).length
+    const isChip = part.kind === 'media' || part.kind === 'source-binding' || part.kind === 'invocation'
+    if (isChip && displayCursor > partStart && displayCursor < partEnd) return partEnd
+    partStart = partEnd
+  }
+  return null
+}
+
 function readFloatingPanelChatComposerProjectedCaret(
   text: string,
   selectionRange?: TextareaInvocationProjectionSelectionRange | null,
@@ -443,7 +450,7 @@ function readFloatingPanelChatComposerProjectedCaret(
   for (const [partIndex, part] of projection.parts.entries()) {
     const displayPartText = readComposerOverlayPartDisplayText(part)
     const displayEnd = displayCursor + displayPartText.length
-    const isProjectedChip = part.kind === 'media' || part.kind === 'invocation'
+    const isProjectedChip = part.kind === 'media' || part.kind === 'source-binding' || part.kind === 'invocation'
     if (isProjectedChip && cursor >= displayCursor && cursor <= displayEnd) {
       return { partIndex, offset: cursor - displayCursor }
     }
@@ -487,7 +494,7 @@ export function deleteFloatingPanelChatComposerProjectedTokenDisplayRange(args: 
   let displayCursor = 0
   for (const part of projection.parts) {
     const displayPartText = readComposerOverlayPartDisplayText(part)
-    const rawLength = part.kind === 'media' ? part.raw.length : displayPartText.length
+    const rawLength = part.kind === 'media' || part.kind === 'source-binding' ? part.raw.length : displayPartText.length
     const displayLength = displayPartText.length
     const rawStart = rawCursor
     const rawEnd = rawCursor + rawLength
@@ -495,7 +502,7 @@ export function deleteFloatingPanelChatComposerProjectedTokenDisplayRange(args: 
     const displayEnd = displayCursor + displayLength
     rawCursor = rawEnd
     displayCursor = displayEnd
-    if (part.kind !== 'media' || part.virtual) continue
+    if (part.kind === 'text' || part.kind === 'invocation' || (part.kind === 'media' && part.virtual)) continue
     const intersectsToken = rangeStart < displayEnd && rangeEnd > displayStart
     const deletesWhitespaceAfterToken = selectionStart === selectionEnd && args.direction === 'backward' && rangeStart === displayEnd && /\s/.test(displayText.slice(rangeStart, rangeEnd))
     const deletesWhitespaceBeforeToken = selectionStart === selectionEnd && args.direction === 'forward' && rangeEnd === displayStart && /\s/.test(displayText.slice(rangeStart, rangeEnd))
@@ -565,7 +572,7 @@ export function FloatingPanelChatComposerMediaOverlay(props: {
               displayText: part.displayText,
             })}
             <span
-              className={`pointer-events-auto absolute left-0 top-1/2 w-full max-w-full -translate-y-1/2 cursor-help overflow-hidden bg-[color:var(--kg-panel-bg)] shadow-sm ${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME} !mr-0 align-baseline`}
+              className={`pointer-events-none absolute left-0 top-1/2 w-full max-w-full -translate-y-1/2 cursor-text overflow-hidden bg-[color:var(--kg-panel-bg)] shadow-sm ${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME} !mr-0 align-baseline`}
               data-kg-chat-input-media-chip="1"
               data-kg-chat-input-media-source={part.sourceUrl || part.raw}
               title={readComposerMediaSource(part)}
@@ -576,6 +583,8 @@ export function FloatingPanelChatComposerMediaOverlay(props: {
           </span>
       ) : part.kind === 'invocation'
         ? renderComposerInvocationChipWithCaret(part, `invocation-${index}`, projectedCaret?.partIndex === index ? projectedCaret.offset : null)
+        : part.kind === 'source-binding'
+          ? renderComposerSourceBindingChipWithCaret(part, `source-binding-${index}`, projectedCaret?.partIndex === index ? projectedCaret.offset : null)
         : <React.Fragment key={`text-${index}`}>{part.text}</React.Fragment>)}
     </section>
   )

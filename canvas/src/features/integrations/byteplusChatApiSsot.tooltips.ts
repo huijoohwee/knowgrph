@@ -1,3 +1,5 @@
+import { CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT } from '@/lib/chatEndpoint'
+
 export const BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
   defaultValue?: string | number | boolean | null
   min?: string | number
@@ -28,7 +30,7 @@ export const BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY: Readonly<Record<string, {
     contractionNote: 'No key narrows execution to server-managed auth only.',
   },
   model: {
-    defaultValue: 'seed-2-0-lite-260228',
+    defaultValue: CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
     expansionNote: 'Switching to larger or more specialized models expands capability coverage.',
     contractionNote: 'Keeping one pinned model narrows drift across Integrations, Workflow Manager, and widget runs.',
   },

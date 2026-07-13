@@ -1,5 +1,4 @@
 import React from 'react'
-import { TextareaInvocationEditor } from '@/lib/ui/TextareaInvocationEditor'
 import { collectMarkdownVariableBrowseRows, buildMarkdownVariableToken } from '@/features/markdown/ui/markdownVariableReferences'
 import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
 import { getChatInvocationOptions, isChatInvocationToken } from '@/features/chat/chatInvocationRegistry'
@@ -29,13 +28,8 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { FLOATING_MENU_BUTTON_CLASSNAME, FLOATING_MENU_BUTTON_DISABLED_CLASSNAME, FLOATING_MENU_BUTTON_DANGER_CLASSNAME, FLOATING_POPOVER_INPUT_CLASSNAME } from '@/features/markdown-workspace/main/viewer/floatingMenuStyles'
 import { UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { replaceChatComposerTrigger, resolveChatComposerTrigger, type ChatComposerTrigger } from './chatComposerTrigger'
-import {
-  buildFloatingPanelChatComposerDisplayText,
-  buildFloatingPanelChatComposerOverlayParts,
-  FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME,
-  mapFloatingPanelChatComposerDisplayIndexToRawIndex,
-  mapFloatingPanelChatComposerRawIndexToDisplayIndex,
-} from './FloatingPanelChatComposerMediaOverlay'
+import { focusMarkdownInlineTextSelectionSoon } from '@/lib/markdown-core/ui/MarkdownInlineTextEditSurface'
+import { FloatingPanelChatContentEditableSurface } from './FloatingPanelChatContentEditableSurface'
 
 type FloatingPanelChatComposerProps = {
   input: string
@@ -82,17 +76,6 @@ const mergeMenuItems = (
   return merged
 }
 
-const focusFloatingPanelChatComposerInput = (input: HTMLTextAreaElement | null): void => {
-  if (!input) return
-  try {
-    input.focus({ preventScroll: true })
-    return
-  } catch {
-    void 0
-  }
-  input.focus()
-}
-
 const matchesRemoteGrammarTriggerKind = (
   entry: AgenticOsRemoteGrammarCatalogEntry,
   triggerKind: NonNullable<ChatComposerTrigger>['kind'],
@@ -109,14 +92,24 @@ const resolveRemoteGrammarGroup = (entry: AgenticOsRemoteGrammarCatalogEntry): s
 export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps) {
   const anchorRef = React.useRef<HTMLElement | null>(null)
   const inputRef = React.useRef<HTMLTextAreaElement | null>(null)
+  const editorRef = React.useRef<HTMLElement | null>(null)
+  const pendingSelectionRef = React.useRef<{ start: number; end: number } | null>(null)
   const [trigger, setTrigger] = React.useState<ChatComposerTrigger | null>(null)
   const [query, setQuery] = React.useState('')
-  const [selectionRange, setSelectionRange] = React.useState({ start: 0, end: 0 })
   const [remoteGrammarEntries, setRemoteGrammarEntries] = React.useState<AgenticOsRemoteGrammarCatalogEntry[]>([])
   useAgenticOsRemoteGrammarCatalog({
     sigils: trigger ? [REMOTE_GRAMMAR_SIGIL_BY_TRIGGER_KIND[trigger.kind]] : [],
   })
   const uploadedMediaItems = useUploadedMediaInlineCommandCandidates()
+  const focusComposerSelection = React.useCallback((cursor: number) => {
+    const selection = { start: cursor, end: cursor }
+    pendingSelectionRef.current = selection
+    inputRef.current?.setSelectionRange(cursor, cursor)
+    focusMarkdownInlineTextSelectionSoon(editorRef, cursor)
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (pendingSelectionRef.current === selection) pendingSelectionRef.current = null
+    }))
+  }, [])
 
   const closeMenu = React.useCallback(() => {
     setTrigger(null)
@@ -124,29 +117,13 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
   }, [])
   const applyReplacement = React.useCallback((replacement: string) => {
     if (!trigger) return
-    const rawTrigger = {
-      ...trigger,
-      rangeStart: mapFloatingPanelChatComposerDisplayIndexToRawIndex(props.input, trigger.rangeStart),
-      rangeEnd: mapFloatingPanelChatComposerDisplayIndexToRawIndex(props.input, trigger.rangeEnd),
-    }
-    const next = replaceChatComposerTrigger({ text: props.input, trigger: rawTrigger, replacement })
+    const next = replaceChatComposerTrigger({ text: props.input, trigger, replacement })
     props.setInput(next.text)
     closeMenu()
     requestAnimationFrame(() => {
-      const input = inputRef.current
-      if (!input) return
-      const cursor = mapFloatingPanelChatComposerRawIndexToDisplayIndex(next.text, next.cursor)
-      focusFloatingPanelChatComposerInput(input)
-      input.setSelectionRange(cursor, cursor)
-      setSelectionRange({ start: cursor, end: cursor })
+      focusComposerSelection(next.cursor)
     })
-  }, [closeMenu, props, trigger])
-  const updateTrigger = React.useCallback((value: string) => {
-    const cursor = inputRef.current?.selectionStart ?? value.length
-    const next = resolveChatComposerTrigger(value, cursor)
-    setTrigger(next)
-    setQuery(next?.query || '')
-  }, [])
+  }, [closeMenu, focusComposerSelection, props, trigger])
   React.useEffect(() => {
     if (!trigger) {
       setRemoteGrammarEntries([])
@@ -171,18 +148,13 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
     let cancelled = false
     requestAnimationFrame(() => {
       if (cancelled) return
-      const input = inputRef.current
-      if (!input) return
-      const nextCursorDisplay = mapFloatingPanelChatComposerRawIndexToDisplayIndex(props.input, props.input.length)
-      focusFloatingPanelChatComposerInput(input)
-      input.setSelectionRange(nextCursorDisplay, nextCursorDisplay)
-      setSelectionRange({ start: nextCursorDisplay, end: nextCursorDisplay })
+      focusComposerSelection(props.input.length)
       closeMenu()
     })
     return () => {
       cancelled = true
     }
-  }, [closeMenu, props.appendFocusRequestKey, props.input])
+  }, [closeMenu, focusComposerSelection, props.appendFocusRequestKey, props.input])
 
   const remoteGrammarItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     if (!trigger) return []
@@ -318,38 +290,25 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
   )
   const items = trigger?.kind === 'slash' ? slashItems : trigger?.kind === 'keyword' ? keywordItems : variableItems
   const ariaLabel = trigger?.kind === 'slash' ? 'Chat slash commands' : trigger?.kind === 'keyword' ? 'Chat runtime invocations' : 'Chat variable commands'
-  const menuListId = `${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-list`
-  const composerOverlay = React.useMemo(() => buildFloatingPanelChatComposerOverlayParts(props.input), [props.input])
-  const hasComposerOverlay = composerOverlay.hasOverlay
-  const displayInput = React.useMemo(() => buildFloatingPanelChatComposerDisplayText(props.input), [props.input])
-  const projectedLayoutClassName = hasComposerOverlay ? FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME : ''
   const insertGrammarQuickBarToken = React.useCallback((token: '/' | '#' | '@') => {
     const input = inputRef.current
-    const displaySelectionStart = input?.selectionStart ?? displayInput.length
-    const displaySelectionEnd = input?.selectionEnd ?? displayInput.length
-    const rawSelectionStart = mapFloatingPanelChatComposerDisplayIndexToRawIndex(props.input, displaySelectionStart)
-    const rawSelectionEnd = mapFloatingPanelChatComposerDisplayIndexToRawIndex(props.input, displaySelectionEnd)
+    const rawSelectionStart = input?.selectionStart ?? props.input.length
+    const rawSelectionEnd = input?.selectionEnd ?? props.input.length
     const needsLeadingSpace = rawSelectionStart > 0 && /\S/.test(props.input.charAt(rawSelectionStart - 1) || '')
     const insertion = `${needsLeadingSpace ? ' ' : ''}${token}`
     const nextText = `${props.input.slice(0, rawSelectionStart)}${insertion}${props.input.slice(rawSelectionEnd)}`
     const nextCursorRaw = rawSelectionStart + insertion.length
     props.setInput(nextText)
     requestAnimationFrame(() => {
-      const nextInput = inputRef.current
-      if (!nextInput) return
-      const nextDisplay = buildFloatingPanelChatComposerDisplayText(nextText)
-      const nextCursorDisplay = mapFloatingPanelChatComposerRawIndexToDisplayIndex(nextText, nextCursorRaw)
-      focusFloatingPanelChatComposerInput(nextInput)
-      nextInput.setSelectionRange(nextCursorDisplay, nextCursorDisplay)
-      setSelectionRange({ start: nextCursorDisplay, end: nextCursorDisplay })
-      const nextTrigger = resolveChatComposerTrigger(nextDisplay, nextCursorDisplay)
+      focusComposerSelection(nextCursorRaw)
+      const nextTrigger = resolveChatComposerTrigger(nextText, nextCursorRaw)
       setTrigger(nextTrigger)
       setQuery(nextTrigger?.query || '')
     })
-  }, [displayInput.length, props.input, props.setInput])
+  }, [focusComposerSelection, props.input, props.setInput])
 
   return (
-    <section ref={anchorRef} className={`relative border rounded overflow-hidden ${props.responsiveEditorClassName || UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${projectedLayoutClassName} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
+    <section ref={anchorRef} className={`relative border rounded overflow-hidden ${props.responsiveEditorClassName || UI_RESPONSIVE_MULTILINE_TEXT_INPUT_EDITOR_CLASSNAME} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.bg}`}>
       <section
         className={`flex items-center gap-1 border-b px-2 py-1 sm:hidden ${UI_THEME_TOKENS.panel.border}`}
         aria-label="Mobile grammar quick bar"
@@ -371,27 +330,28 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
           </button>
         ))}
       </section>
-      <TextareaInvocationEditor
+      <FloatingPanelChatContentEditableSurface
         value={props.input}
         onChange={props.setInput}
-        inputRef={inputRef}
+        inputProxyRef={inputRef}
+        editorRef={editorRef}
         ariaLabel={props.placeholder}
         placeholder={props.placeholder}
-        ariaExpanded={!!trigger}
-        ariaControls={trigger ? menuListId : undefined}
         disabled={props.isLoading}
-        overlayTextClassName={props.uiPanelTextFontClass}
-        projectedLayoutClassName={FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME}
-        className="relative z-0 h-full w-full rounded-none border-0 bg-transparent"
-        inputClassName={props.uiPanelTextFontClass}
-        dataAttributes={{ 'data-kg-chat-input': true }}
-        onDisplayChange={updateTrigger}
-        onDisplaySelectionChange={updateTrigger}
-        onSelectAll={closeMenu}
-        onProjectedDelete={closeMenu}
-        submitOnModEnter={!props.isSubmitDisabled}
-        selectionRange={selectionRange}
-        onSelectionRangeChange={setSelectionRange}
+        className={`h-full overflow-auto bg-transparent px-2 py-1 ${props.uiPanelTextFontClass}`}
+        commandMode={trigger}
+        onSelectionChange={(selection, value) => {
+          if (pendingSelectionRef.current) return
+          const next = resolveChatComposerTrigger(value, selection.end)
+          setTrigger(next)
+          setQuery(next?.query || '')
+        }}
+        onOpenCommandMenuForSigil={(sigil, selection) => {
+          const kind = sigil === '/' ? 'slash' : sigil === '@' ? 'variable' : 'keyword'
+          setTrigger({ kind, query: '', rangeStart: selection.start, rangeEnd: selection.end })
+          setQuery('')
+        }}
+        onModEnter={() => { if (!props.isSubmitDisabled) editorRef.current?.closest('form')?.requestSubmit() }}
       />
       <AnchorOverlay anchorRef={anchorRef} open={!!trigger} onClose={closeMenu} align="top-left" className={`w-[min(22rem,calc(100vw-1rem))] rounded border p-2 shadow-sm ${UI_THEME_TOKENS.panel.bg} ${UI_THEME_TOKENS.panel.border}`}>
         <MarkdownBlockContainerCommandMenu

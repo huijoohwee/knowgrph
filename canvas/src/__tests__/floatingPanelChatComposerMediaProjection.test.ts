@@ -6,6 +6,7 @@ import {
   mapFloatingPanelChatComposerDisplayIndexToRawIndex,
   mapFloatingPanelChatComposerRawIndexToDisplayIndex,
   resolveFloatingPanelChatComposerRawText,
+  resolveFloatingPanelChatComposerProjectedCaretEnd,
 } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposerMediaOverlay'
 
 export function testFloatingPanelChatComposerMediaProjectionPreservesInvocationGrammar() {
@@ -48,6 +49,14 @@ export function testFloatingPanelChatComposerMediaProjectionPreservesInvocationG
   }
   if (!isFloatingPanelChatComposerProjectedCaretInsideChip(raw, '/prd-tad.create'.length, '/prd-tad.create'.length)) throw new Error('expected leading / route caret to resolve inside the projected invocation chip')
   if (!isFloatingPanelChatComposerProjectedCaretInsideChip(raw, display.length, display.length)) throw new Error('expected trailing # keyword caret to resolve inside the projected invocation chip')
+  const slashStart = display.indexOf('/prd-tad.create')
+  if (resolveFloatingPanelChatComposerProjectedCaretEnd(raw, slashStart + 3) !== slashStart + '/prd-tad.create'.length) {
+    throw new Error('expected clicking inside a slash chip to place edits at the token end')
+  }
+  const keywordStart = display.indexOf('#media')
+  if (resolveFloatingPanelChatComposerProjectedCaretEnd(raw, keywordStart + 2) !== keywordStart + '#media'.length) {
+    throw new Error('expected clicking inside a keyword chip to place edits at the token end')
+  }
 }
 
 export function testFloatingPanelChatComposerKeepsWorkspaceDocumentLinksAuthored() {
@@ -55,18 +64,39 @@ export function testFloatingPanelChatComposerKeepsWorkspaceDocumentLinksAuthored
   const raw = `/video-agent @video-generation-demo-script #spec.low ${documentLink}`
   const display = buildFloatingPanelChatComposerDisplayText(raw)
   const overlay = buildFloatingPanelChatComposerOverlayParts(raw)
-  if (display !== raw) {
-    throw new Error(`expected workspace Markdown source link to remain authored text, got ${JSON.stringify(display)}`)
+  const expectedDisplay = '/video-agent @video-generation-demo-script #spec.low @AI视频-执行总表.md'
+  if (display !== expectedDisplay) {
+    throw new Error(`expected workspace Markdown source link to project as one @filename chip, got ${JSON.stringify(display)}`)
   }
   if (overlay.hasMedia || overlay.parts.some(part => part.kind === 'media')) {
     throw new Error(`expected workspace Markdown source link not to become an image/media chip, got ${JSON.stringify(overlay)}`)
+  }
+  const sourceBinding = overlay.parts.find(part => part.kind === 'source-binding')
+  if (!sourceBinding || sourceBinding.displayText !== '@AI视频-执行总表.md' || sourceBinding.sourceUrl !== 'workspace:/docs/AI视频-执行总表.md') {
+    throw new Error(`expected a typed workspace source-binding projection, got ${JSON.stringify(overlay)}`)
   }
   const invocationTokens = overlay.parts.flatMap(part => part.kind === 'invocation' ? [part.text] : [])
   if (JSON.stringify(invocationTokens) !== JSON.stringify(['/video-agent', '@video-generation-demo-script', '#spec.low'])) {
     throw new Error(`expected workspace document URL path to remain text rather than slash-command chips, got ${JSON.stringify(invocationTokens)}`)
   }
-  if (resolveFloatingPanelChatComposerRawText(display, raw) !== raw) {
+  if (resolveFloatingPanelChatComposerRawText(expectedDisplay, raw) !== raw) {
     throw new Error('expected workspace Markdown source link to round-trip without mutation')
+  }
+  const prefixedDisplay = `Draft ${expectedDisplay}`
+  if (resolveFloatingPanelChatComposerRawText(prefixedDisplay, raw) !== `Draft ${raw}`) {
+    throw new Error('expected typing before projected chips to mutate raw text without flattening the source link')
+  }
+  const displayStart = expectedDisplay.indexOf('@AI视频-执行总表.md')
+  const rawStart = raw.indexOf(documentLink)
+  if (mapFloatingPanelChatComposerDisplayIndexToRawIndex(raw, displayStart) !== rawStart || mapFloatingPanelChatComposerDisplayIndexToRawIndex(raw, displayStart + 1) !== rawStart + documentLink.length) {
+    throw new Error('expected projected source-binding caret edges to map to the authored Markdown boundaries')
+  }
+  if (resolveFloatingPanelChatComposerProjectedCaretEnd(raw, displayStart + 3) !== displayStart + '@AI视频-执行总表.md'.length) {
+    throw new Error('expected clicking inside a Markdown source chip to place edits at the chip end')
+  }
+  const insertedInsideChip = `${expectedDisplay.slice(0, displayStart + 1)}X${expectedDisplay.slice(displayStart + 1)}`
+  if (resolveFloatingPanelChatComposerRawText(insertedInsideChip, raw) !== `${raw.slice(0, rawStart + documentLink.length)}X${raw.slice(rawStart + documentLink.length)}`) {
+    throw new Error('expected typing on a projected source chip to preserve the raw Markdown token and insert at its boundary')
   }
 }
 

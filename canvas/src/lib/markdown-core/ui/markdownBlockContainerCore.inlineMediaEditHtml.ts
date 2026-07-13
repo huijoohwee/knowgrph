@@ -116,6 +116,36 @@ const buildInlineInvocationEditTokenHtml = (token: string): string => {
   ].join('')
 }
 
+const buildInlineSourceBindingEditTokenHtml = (args: { label: string; markdown: string; source: string }): string => {
+  const token = `@${args.label}`
+  const className = `${DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME} ${UI_INLINE_CHIP_SHELL_15CH_CLASSNAME} ${resolveDataViewChipClass(readInlineKeywordChipToneValue(token))}`
+  return [
+    `<span class="${escapeHtmlAttr(className)}" title="${escapeHtmlAttr(`${token}\nSource: ${args.source}`)}"`,
+    ` ${INLINE_INVOCATION_EDIT_TOKEN_ATTR}="1" ${INLINE_INVOCATION_EDIT_MARKDOWN_ATTR}="${escapeHtmlAttr(args.markdown)}"`,
+    ' data-kg-inline-source-binding-edit-token="1" contenteditable="false">',
+    `<span class="${escapeHtmlAttr(`${UI_TEXT_TRUNCATE_CHIP} ${UI_INLINE_CHIP_LABEL_15CH_CLASSNAME}`)}">${escapeHtml(token)}</span>`,
+    '</span>',
+  ].join('')
+}
+
+const rewriteMarkdownSourceLinksForEditor = (root: HTMLElement): void => {
+  const links = Array.from(root.querySelectorAll('a[href]')) as HTMLAnchorElement[]
+  links.forEach(link => {
+    const label = String(link.textContent || '').trim()
+    const renderedSource = String(link.getAttribute('href') || '').trim()
+    const source = renderedSource.startsWith('workspace:') ? decodeURI(renderedSource) : renderedSource
+    if (!label.toLowerCase().endsWith('.md') || !source) return
+    const prefix = link.previousSibling
+    const hasAtPrefix = prefix?.nodeType === 3 && String(prefix.nodeValue || '').endsWith('@')
+    if (hasAtPrefix && prefix) prefix.nodeValue = String(prefix.nodeValue || '').slice(0, -1)
+    const markdown = `${hasAtPrefix ? '@' : ''}[${label}](${source})`
+    const wrapper = root.ownerDocument.createElement('span')
+    wrapper.innerHTML = buildInlineSourceBindingEditTokenHtml({ label, markdown, source })
+    const token = wrapper.firstElementChild
+    if (token) link.replaceWith(token)
+  })
+}
+
 const rewriteRenderedInvocationChipsForEditor = (root: HTMLElement): void => {
   const selector = `[${AGENTIC_OS_INVOCATION_CHIP_ATTR}="1"][${AGENTIC_OS_INVOCATION_TOKEN_ATTR}]`
   const nodes = Array.from(root.querySelectorAll(selector)) as HTMLElement[]
@@ -208,6 +238,7 @@ export const rewriteRenderedInlineMediaForEditorHtml = (html: string): string =>
     if (token) node.replaceWith(token)
   })
   rewriteRenderedInvocationChipsForEditor(root)
+  rewriteMarkdownSourceLinksForEditor(root)
   rewriteSemanticInlineCodeTokensForEditor(root)
   const mediaNodes = Array.from(root.querySelectorAll('img,video,audio')) as HTMLElement[]
   mediaNodes.forEach(node => {

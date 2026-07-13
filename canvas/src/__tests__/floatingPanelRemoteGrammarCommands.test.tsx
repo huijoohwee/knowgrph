@@ -93,11 +93,15 @@ export async function testFloatingPanelChatComposerWiresRemoteAgenticOsGrammar()
 
   try {
     await mountReactRoot(root, React.createElement(Harness), { window: dom.window as unknown as Window, frames: 2 })
-    const textarea = container.querySelector('[data-kg-chat-input="true"]') as HTMLTextAreaElement | null
-    if (!textarea) throw new Error('expected remote-grammar harness to mount the chat composer textarea')
-    textarea.value = '/remo'
-    textarea.setSelectionRange(textarea.value.length, textarea.value.length)
-    Simulate.change(textarea)
+    const editor = container.querySelector('[data-kg-chat-input="1"]') as HTMLElement | null
+    const commandProxy = container.querySelector('[data-kg-card-inline-viewer-edit-command-proxy="1"]') as HTMLTextAreaElement | null
+    if (!editor || !commandProxy) throw new Error('expected remote-grammar harness to mount the shared Card/Widget editor')
+    editor.textContent = '/remo'
+    Simulate.input(editor)
+    await waitForFrames(dom.window as unknown as Window, 2)
+    const activeEditor = container.querySelector('[data-kg-chat-input="1"]') as HTMLElement
+    const range = dom.window.document.createRange(); range.selectNodeContents(activeEditor); range.collapse(false)
+    const selection = dom.window.getSelection(); selection?.removeAllRanges(); selection?.addRange(range); Simulate.keyUp(activeEditor)
     await waitForTasks(4)
     await waitForFrames(dom.window as unknown as Window, 6)
     const slashMenu = dom.window.document.querySelector('section[aria-label="Chat slash commands"]')
@@ -108,8 +112,8 @@ export async function testFloatingPanelChatComposerWiresRemoteAgenticOsGrammar()
     }
     remoteItem.click()
     await waitForFrames(dom.window as unknown as Window, 2)
-    if (textarea.value !== '/remote.only ') {
-      throw new Error(`expected remote MCP grammar selection to update the composer input, got ${JSON.stringify(textarea.value)}`)
+    if (commandProxy.value !== '/remote.only ') {
+      throw new Error(`expected remote MCP grammar selection to update the composer input, got ${JSON.stringify(commandProxy.value)}`)
     }
     const initializeCall = calls.find(call => call.method === 'initialize')
     const toolsCall = calls.find(call => call.method === 'tools/call' && (call.body.params as { arguments?: { query?: string } })?.arguments?.query === '/remo')

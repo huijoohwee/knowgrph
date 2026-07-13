@@ -4,6 +4,7 @@ import {
   GENERATION_KIND_INVOCATIONS,
   GENERATION_PROVIDER_INVOCATIONS,
   GENERATION_SPECIFICATION_INVOCATIONS,
+  VIDEO_GENERATION_DEMO_SCRIPT_BINDING_TOKEN,
 } from "@/features/chat/generationInvocation";
 
 type VideoSource = { name: string; workspacePath: string };
@@ -67,6 +68,7 @@ export function buildLiveCanvasHeroVideoQuery(
       GENERATION_PROVIDER_INVOCATIONS[0].token,
       ...GENERATION_KIND_INVOCATIONS.map((item) => item.token),
       GENERATION_SPECIFICATION_INVOCATIONS[0].token,
+      VIDEO_GENERATION_DEMO_SCRIPT_BINDING_TOKEN,
       reference,
       "Generate an end-to-end agentic video canvas from the referenced script. Produce Chinese, Cantonese, and English audio variants with synchronized Chinese/English bilingual subtitles. Persist typed text, image, audio, and video artifacts for playable Cards, Widgets, Rich Media Panels, and BottomPanel Timeline video/FBF/audio lanes. Stop at approval or a missing provider capability.",
     ]

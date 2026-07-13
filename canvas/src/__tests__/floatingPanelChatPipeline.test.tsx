@@ -274,8 +274,8 @@ export async function testFloatingPanelChatQuickActionsReuseAppendFocusComposerP
       await waitForFrames(dom.window as unknown as Window, 2)
     })
 
-    const input = container.querySelector('[data-kg-chat-input="true"]') as HTMLTextAreaElement | null
-    if (!input) throw new Error('expected quick-action harness to expose the chat composer textarea')
+    const input = container.querySelector('[data-kg-card-inline-viewer-edit-command-proxy="1"]') as HTMLTextAreaElement | null
+    if (!input) throw new Error('expected quick-action harness to expose the chat command proxy')
     if (!input.value.startsWith('/pipeline.trace Trace the current document from ingestion to parsing to canvas rendering.')) {
       throw new Error(`expected quick action to append through the shared chat event path, got ${JSON.stringify(input.value)}`)
     }

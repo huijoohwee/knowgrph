@@ -21,7 +21,7 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
 } from '@/lib/config.storyboard-widget'
 import { buildCanonicalWidgetRegistryDraft, getWidgetRegistryEntryLabel } from '@/features/storyboard-widget-manager/registryTemplates'
-import { isRichMediaVideoOutputTargetNode, resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
+import { isRichMediaOutputTargetNode, resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
 
 const validSpec = (): RenderSpec => ({
   html: '<main><h1>Quarterly Update</h1></main>',
@@ -191,10 +191,10 @@ export function testHtmlVideoRendererFlowRegistryAndRichMediaKind() {
   }
   const kind = resolveRichMediaWidgetKind({ id: 'html-video-1', type: FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID, label: '', properties: {} })
   if (kind !== 'video') throw new Error(`expected rich media video kind, got ${kind}`)
-  if (!isRichMediaVideoOutputTargetNode({ id: 'html-video-1', type: FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID, label: '', properties: {} })) {
+  if (!isRichMediaOutputTargetNode({ id: 'html-video-1', type: FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID, label: '', properties: {} })) {
     throw new Error('expected HTML video renderer to be a video output source target')
   }
-  if (!isRichMediaVideoOutputTargetNode({ id: 'rich-media-panel-1', type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, label: '', properties: {} })) {
+  if (!isRichMediaOutputTargetNode({ id: 'rich-media-panel-1', type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, label: '', properties: {} })) {
     throw new Error('expected Rich Media Panel to accept rendered video output')
   }
 }
@@ -342,17 +342,21 @@ export function testHtmlVideoWorkflowPublishesRenderedMp4ToRichMediaPanel() {
   if (!mainText.includes('installHtmlVideoBrowserRuntimeAdapters()')) {
     throw new Error('expected browser runtime to install HTML video runtime adapters at app startup')
   }
-  const workflowText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
+  const workflowRunText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
+  const mediaHandlersText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowMediaRunHandlers.ts'), 'utf8')
+  const richMediaPublicationText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRichMediaPublication.ts'), 'utf8')
+  const workflowText = [workflowRunText, mediaHandlersText, richMediaPublicationText].join('\n')
   for (const required of [
-    'publishVideoRunOutputToRichMediaPanel',
+    'runStoryboardWidgetMediaWorkflowNode',
+    'publishMediaRunOutputToRichMediaPanel',
     'resolveStoryboardWidgetWorkflowDownstreamRunTargetIds',
     "richMediaActiveTab: 'video'",
     "readConnectedHtmlVideoProperty('properties.html', 'html')",
     'createHtmlVideoEngineRegistryFromRuntimeConfig()',
-    'isRichMediaVideoOutputTargetNode(candidate)',
+    'isRichMediaOutputTargetNode(args.resolveNodeByIdAcrossGraphs(targetId))',
     'buildHtmlVideoPreviewSrcDocFromNode(htmlVideoNode)',
     '...(outputSrcDoc.trim() ? { outputSrcDoc } : null)',
-    "richMediaActiveTab: panelArgs.patch.richMediaActiveTab || 'video'",
+    'resolveMediaPatchActiveTab',
     'stabilizeHtmlVideoPreviewPatchForExistingProps',
     'HTML_VIDEO_PREVIEW_STABILITY_KEYS',
     'lastRunAt: currentProps.lastRunAt',
@@ -360,9 +364,9 @@ export function testHtmlVideoWorkflowPublishesRenderedMp4ToRichMediaPanel() {
   ]) {
     if (!workflowText.includes(required)) throw new Error(`expected workflow runner to include ${required}`)
   }
-  const htmlVideoRunBranch = workflowText.slice(
-    workflowText.indexOf("String(node.type || '').trim() === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID"),
-    workflowText.indexOf('if (readWorkflowString(node.type) === FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID)'),
+  const htmlVideoRunBranch = mediaHandlersText.slice(
+    mediaHandlersText.indexOf("String(args.node.type || '').trim() === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID"),
+    mediaHandlersText.indexOf('if (readWorkflowString(args.node.type) === FLOW_ANNOTATION_ENGINE_NODE_TYPE_ID)'),
   )
   if (htmlVideoRunBranch.includes('setRunLoadingStateForKnownNodeIds({ loading: true')) {
     throw new Error('expected HTML video preview-capable runs to avoid blanking Rich Media Panel with a loading skeleton')

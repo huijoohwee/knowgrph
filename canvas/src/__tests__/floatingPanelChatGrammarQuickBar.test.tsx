@@ -35,8 +35,9 @@ export async function testFloatingPanelChatComposerGrammarQuickBarSeedsSigilsAnd
     const quickBar = container.querySelector('[data-kg-chat-grammar-quick-bar="true"]') as HTMLElement | null
     if (!quickBar) throw new Error('expected FloatingPanel chat composer to render the grammar quick bar')
 
-    const textarea = container.querySelector('[data-kg-chat-input="true"]') as HTMLTextAreaElement | null
-    if (!textarea) throw new Error('expected FloatingPanel chat composer textarea')
+    const editor = container.querySelector('[data-kg-chat-input="1"]') as HTMLElement | null
+    const commandProxy = container.querySelector('[data-kg-card-inline-viewer-edit-command-proxy="1"]') as HTMLTextAreaElement | null
+    if (!editor || !commandProxy) throw new Error('expected FloatingPanel chat shared Card/Widget editor and command proxy')
 
     const slashButton = container.querySelector('[data-kg-chat-grammar-quick-bar-token="/"]') as HTMLButtonElement | null
     if (!slashButton) throw new Error('expected grammar quick bar slash token button')
@@ -46,19 +47,15 @@ export async function testFloatingPanelChatComposerGrammarQuickBarSeedsSigilsAnd
       await waitForFrames(dom.window as unknown as Window, 2)
     })
 
-    if (textarea.value !== '/') {
-      throw new Error(`expected slash quick bar button to seed slash token at caret, got ${JSON.stringify(textarea.value)}`)
-    }
-    if (textarea.getAttribute('aria-expanded') !== 'true') {
-      throw new Error('expected slash quick bar button to open the shared slash menu')
+    if (commandProxy.value !== '/') {
+      throw new Error(`expected slash quick bar button to seed slash token at caret, got ${JSON.stringify(commandProxy.value)}`)
     }
     const slashMenu = dom.window.document.querySelector('section[aria-label="Chat slash commands"]')
-    if (!slashMenu) throw new Error('expected slash quick bar token to mount the slash command menu')
+    if (!slashMenu) throw new Error(`expected slash quick bar token to mount the slash command menu, html=${container.innerHTML}`)
 
     await act(async () => {
-      textarea.value = 'Tell me'
-      textarea.setSelectionRange(textarea.value.length, textarea.value.length)
-      Simulate.change(textarea)
+      editor.textContent = 'Tell me'
+      Simulate.input(editor)
       await waitForFrames(dom.window as unknown as Window, 2)
     })
 
@@ -70,7 +67,7 @@ export async function testFloatingPanelChatComposerGrammarQuickBarSeedsSigilsAnd
       await waitForFrames(dom.window as unknown as Window, 2)
     })
 
-    const keywordValue = String(textarea.value || '')
+    const keywordValue = String(commandProxy.value || '')
     if (keywordValue !== 'Tell me #') {
       throw new Error(`expected keyword quick bar button to append a spaced token at the caret, got ${JSON.stringify(keywordValue)}`)
     }

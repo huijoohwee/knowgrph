@@ -167,3 +167,55 @@ export async function testFloatingPanelChatRendersUserMediaMarkdownAsInlineChip(
     restore()
   }
 }
+
+export async function testFloatingPanelChatRendersInvocationChipsAcrossThreadMessages() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  const content = [
+    '/video-agent @video-generation-demo-script @provider.byteplus #spec.low',
+    '@[AI video script.md](https://airvio.co/knowgrph/share/opaque)',
+  ].join(' ')
+
+  try {
+    await mountReactRoot(
+      root,
+      React.createElement(FloatingPanelChatMessagesSection, {
+        messages: [{ id: 'user-invocations', role: 'user', content }],
+        isLoading: false,
+        historyKey: 'history-key',
+        uiPanelTextFontClass: 'text-sm',
+        uiPanelKeyValueTextSizeClass: 'text-xs',
+        uiPanelMicroLabelTextSizeClass: 'text-xs',
+        setMessages: () => undefined,
+      }),
+      { window: dom.window as unknown as Window, frames: 2 },
+    )
+
+    const bubble = container.querySelector('.kg-floating-chat-message-bubble')
+    if (!bubble) throw new Error('expected invocation message bubble to render')
+    const tokens = (Array.from(bubble.querySelectorAll('[data-kg-chat-message-invocation-token]')) as HTMLElement[])
+      .map(node => node.getAttribute('data-kg-chat-message-invocation-token'))
+    const expectedTokens = ['/video-agent', '@video-generation-demo-script', '@provider.byteplus', '#spec.low']
+    expectedTokens.forEach(token => {
+      if (!tokens.includes(token)) {
+        throw new Error(`expected thread bubble to project ${token} as an inline invocation chip, got ${JSON.stringify(tokens)}`)
+      }
+    })
+    const sourceBinding = bubble.querySelector('[data-kg-chat-message-source-binding="1"]') as HTMLAnchorElement | null
+    if (!sourceBinding || sourceBinding.textContent !== '@AI video script.md') {
+      throw new Error(`expected structured @ source link to render as one filename chip, html=${bubble.innerHTML}`)
+    }
+    if (sourceBinding.href !== 'https://airvio.co/knowgrph/share/opaque') {
+      throw new Error(`expected structured @ source chip to preserve its target, got ${sourceBinding.href}`)
+    }
+    if (String(bubble.textContent || '').includes('@[AI video script.md](')) {
+      throw new Error(`expected raw structured binding markdown to stay out of visible bubble text, got ${bubble.textContent}`)
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+  }
+}

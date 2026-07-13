@@ -30,6 +30,7 @@ type PlainTextInputEditorProps = {
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement | HTMLTextAreaElement>
   onSelect?: React.ReactEventHandler<HTMLInputElement | HTMLTextAreaElement>
   onScroll?: React.UIEventHandler<HTMLInputElement | HTMLTextAreaElement>
+  onPointerDown?: React.PointerEventHandler<HTMLInputElement | HTMLTextAreaElement>
   onDoubleClick?: React.MouseEventHandler<HTMLInputElement | HTMLTextAreaElement>
   dataAttributes?: Record<`data-${string}`, string | number | boolean | undefined>
 }
@@ -61,6 +62,7 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
   onKeyDown,
   onSelect,
   onScroll,
+  onPointerDown,
   onDoubleClick,
   dataAttributes,
 }: PlainTextInputEditorProps, ref) {
@@ -89,6 +91,7 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
         onKeyDown={onKeyDown}
         onSelect={onSelect}
         onScroll={onScroll}
+        onPointerDown={onPointerDown}
         onDoubleClick={onDoubleClick}
         className={cn(
           'w-full h-full px-2 py-1 resize-none outline-none',
@@ -129,6 +132,7 @@ const PlainTextInputEditorBase = React.forwardRef<HTMLInputElement | HTMLTextAre
       onKeyDown={onKeyDown}
       onSelect={onSelect}
       onScroll={onScroll}
+      onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
       className={cn(
         `w-full ${UI_RESPONSIVE_MICRO_INLINE_CONTROL_CLASSNAME} border rounded outline-none`,

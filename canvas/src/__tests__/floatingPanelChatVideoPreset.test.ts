@@ -65,8 +65,15 @@ export function testFloatingPanelChatVideoPresetRendersAfterNewChat() {
 
 export function testFloatingPanelChatVideoPresetInvocationBypassesGenericChat() {
   if (!isVideoAgentDemoPresetInvocation(invocation)) throw new Error('expected canonical video preset invocation')
+  const projectedSourceBinding = '/video-agent @video-generation-demo-script @provider.byteplus @text @image @audio @video #spec.low @[video-script.md](https://airvio.co/knowgrph/share/opaque)'
+  if (!isVideoAgentDemoPresetInvocation(projectedSourceBinding)) {
+    throw new Error('expected the structured source-chip projection to retain preset routing')
+  }
   if (isVideoAgentDemoPresetInvocation('/video-agent @video #spec.low unrelated request')) {
     throw new Error('expected unrelated /video-agent requests to retain the generic chat path')
+  }
+  if (isVideoAgentDemoPresetInvocation('/video-agent note:@video-generation-demo-scripted')) {
+    throw new Error('expected source-binding substrings to retain the generic chat path')
   }
   const submitHook = fs.readFileSync(path.join(process.cwd(), 'src', 'features', 'chat', 'floatingPanelChat', 'useFloatingPanelChatSubmit.ts'), 'utf8')
   const presetIndex = submitHook.indexOf('tryActivateVideoAgentDemoPreset')

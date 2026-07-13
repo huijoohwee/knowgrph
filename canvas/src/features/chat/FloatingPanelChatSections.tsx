@@ -124,17 +124,23 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   uiPanelKeyValueTextSizeClass,
   overrideText,
   onOpenWorkspacePath,
+  isStreaming = false,
 }: {
   message: ChatMessage
   uiPanelTextFontClass: string
   uiPanelKeyValueTextSizeClass: string
   overrideText?: string | null
   onOpenWorkspacePath?: (path: string) => void
+  isStreaming?: boolean
 }) {
   const content = typeof overrideText === 'string' ? overrideText : message.content
   const isUser = message.role === 'user'
   return (
-    <section className="flex">
+    <section
+      className="flex"
+      data-kg-chat-streaming-tail={isStreaming ? 'true' : undefined}
+      aria-live={isStreaming ? 'polite' : undefined}
+    >
       <section
         className={[
           UI_RESPONSIVE_CHAT_MESSAGE_BUBBLE_CLASSNAME,
@@ -164,6 +170,7 @@ type MessagesSectionProps = {
   streamingReasoningPreview?: string | null
   streamingUsageSummary?: string | null
   streamingFinishReason?: string | null
+  streamingAssistant?: StreamingAssistantState | null
   writingWorkspaceFileLabel?: string | null
   onOpenWorkspacePath?: (path: string) => void
   quickActions?: FloatingPanelChatQuickAction[]
@@ -184,6 +191,7 @@ export function FloatingPanelChatMessagesSection({
   streamingReasoningPreview,
   streamingUsageSummary,
   streamingFinishReason,
+  streamingAssistant,
   writingWorkspaceFileLabel,
   onOpenWorkspacePath,
   quickActions = [],
@@ -194,6 +202,9 @@ export function FloatingPanelChatMessagesSection({
   const liveStreamingUsageSummary = isLoading ? streamingUsageSummary : null
   const liveStreamingFinishReason = isLoading ? streamingFinishReason : null
   const liveWritingWorkspaceFileLabel = isLoading ? writingWorkspaceFileLabel : null
+  const liveStreamingAssistant = isLoading && String(streamingAssistant?.text || '').trim()
+    ? streamingAssistant
+    : null
 
   return (
     <section data-kg-chat-thread-viewport="true" className="flex min-h-full flex-col gap-2">
@@ -300,6 +311,7 @@ export function FloatingPanelChatMessagesSection({
       )}
 
       {messages.map(m => {
+        if (liveStreamingAssistant?.id === m.id && m.role === 'assistant') return null
         const hidePendingAssistant = m.role === 'assistant' && !String(m.content || '').trim()
         if (hidePendingAssistant) return null
         return (
@@ -312,6 +324,17 @@ export function FloatingPanelChatMessagesSection({
           />
         )
       })}
+
+      {liveStreamingAssistant ? (
+        <ChatMessageRow
+          key={`streaming-${liveStreamingAssistant.id}`}
+          message={{ id: liveStreamingAssistant.id, role: 'assistant', content: liveStreamingAssistant.text }}
+          uiPanelTextFontClass={uiPanelTextFontClass}
+          uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
+          onOpenWorkspacePath={onOpenWorkspacePath}
+          isStreaming
+        />
+      ) : null}
 
       <FloatingPanelChatStreamingStatus
         reasoningPreview={liveStreamingReasoningPreview}

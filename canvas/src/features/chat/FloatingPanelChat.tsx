@@ -822,7 +822,6 @@ export default function FloatingPanelChat() {
       }
     })()
   }, [handleSubmit, input, isLoading, pushUiToast])
-
   return (
     <section className="h-full flex flex-col">
       <section ref={scrollRef} className={`${UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME} p-2 space-y-2`}>
@@ -839,6 +838,7 @@ export default function FloatingPanelChat() {
           streamingReasoningPreview={streamingInsights?.reasoningPreview || null}
           streamingUsageSummary={streamingInsights?.usageSummary || null}
           streamingFinishReason={streamingInsights?.finishReason || null}
+          streamingAssistant={streamingAssistant}
           writingWorkspaceFileLabel={
             isLoading && chatStorageTarget === 'chatKnowgrph' && streamingWorkspacePath
               ? `Writing to ${(streamingWorkspacePath.split('/').filter(Boolean).slice(-1)[0] || 'kgc.md')}...`
