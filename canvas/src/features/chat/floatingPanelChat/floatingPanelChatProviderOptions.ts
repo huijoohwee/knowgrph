@@ -137,12 +137,16 @@ export const buildProviderChatRequestOptions = (args: {
     const logitBias = parseOptionalJsonConfig(args.chatLogitBiasJson, 'logit_bias', 'BytePlus')
     const tools = parseOptionalJsonConfig(args.chatToolsJson, 'tools', 'BytePlus')
     const toolChoice = parseOptionalJsonConfig(args.chatToolChoiceJson, 'tool_choice', 'BytePlus')
+    const resolvedThinking = thinking ?? { type: normalizeBytePlusThinkingType(args.chatThinkingType) }
+    const thinkingType = resolvedThinking && typeof resolvedThinking === 'object' && !Array.isArray(resolvedThinking)
+      ? String((resolvedThinking as Record<string, unknown>).type || '').trim().toLowerCase()
+      : ''
     return {
       ...base,
       ...(typeof messages !== 'undefined' ? { messages } : {}),
       service_tier: normalizeBytePlusServiceTier(args.chatServiceTier),
-      reasoning_effort: normalizeBytePlusReasoningEffort(args.chatReasoningEffort),
-      thinking: thinking ?? { type: normalizeBytePlusThinkingType(args.chatThinkingType) },
+      ...(thinkingType === 'disabled' ? {} : { reasoning_effort: normalizeBytePlusReasoningEffort(args.chatReasoningEffort) }),
+      thinking: resolvedThinking,
       frequency_penalty: clampBytePlusPenalty(args.chatFrequencyPenalty),
       presence_penalty: clampBytePlusPenalty(args.chatPresencePenalty),
       top_p: clampBytePlusTopP(args.chatTopP),

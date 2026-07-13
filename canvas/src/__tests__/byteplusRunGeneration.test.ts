@@ -598,9 +598,10 @@ export async function testGenerateRunVideoWithBytePlusPollsTaskAndDownloadsBlob(
       if (url.includes('/models')) {
         return {
           ok: true,
-          json: async () => ({ data: [{ id: CHAT_BYTEPLUS_VIDEO_MODEL_DEFAULT }] }),
+          json: async () => ({ data: [{ id: 'seedance-1-5-pro-251215' }] }),
         } as Response
       }
+      if (url === '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Freference.png') return new Response(new Blob([Uint8Array.from([1, 2, 3])], { type: 'image/png' }), { status: 200 })
       if (url === '/__chat_proxy/api/v3/contents/generations/tasks' && String(init?.method || 'GET').toUpperCase() === 'POST') {
         const body = JSON.parse(String(init?.body || '{}')) as {
           content?: Array<{ type?: string; image_url?: { url?: string } }>
@@ -612,12 +613,8 @@ export async function testGenerateRunVideoWithBytePlusPollsTaskAndDownloadsBlob(
         if (body.ratio !== '9:16' || body.duration !== 6 || body.generate_audio !== true || body.draft !== true) {
           throw new Error(`expected video generation options to map onto the BytePlus task request: ${JSON.stringify(body)}`)
         }
-        const imageRef = Array.isArray(body.content)
-          ? body.content.find(item => item && item.type === 'image_url')
-          : null
-        if (imageRef?.image_url?.url !== 'https://example.com/reference.png') {
-          throw new Error('expected reference image URL to be forwarded into the BytePlus video task payload')
-        }
+        const imageRef = Array.isArray(body.content) ? body.content.find(item => item && item.type === 'image_url') : null
+        if (imageRef?.image_url?.url !== 'data:image/png;base64,AQID') throw new Error('expected reference image to be materialized as a provider-readable Base64 data URL')
         return {
           ok: true,
           json: async () => ({ id: 'task-123' }),
@@ -651,6 +648,7 @@ export async function testGenerateRunVideoWithBytePlusPollsTaskAndDownloadsBlob(
       },
       prompt: 'Generate video',
       options: {
+        model: 'seedance-1-5-pro-251215',
         contentJson: JSON.stringify([{ type: 'text', text: 'Widget-local content override' }]),
         ratio: '9:16',
         duration: 6,
@@ -666,74 +664,6 @@ export async function testGenerateRunVideoWithBytePlusPollsTaskAndDownloadsBlob(
     }
   } finally {
     globalThis.fetch = originalFetch
-  }
-}
-
-export async function testGenerateRunVideoWithBytePlusCompletesAfterExtendedPollingWindow() {
-  const originalFetch = globalThis.fetch
-  const originalSetTimeout = globalThis.setTimeout
-  try {
-    let statusCalls = 0
-    globalThis.setTimeout = ((handler: TimerHandler) => {
-      if (typeof handler === 'function') {
-        handler()
-      }
-      return 0 as unknown as ReturnType<typeof setTimeout>
-    }) as typeof globalThis.setTimeout
-    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input)
-      if (url.includes('/models')) {
-        return {
-          ok: true,
-          json: async () => ({ data: [{ id: 'seedance-1-5-pro-251215' }] }),
-        } as Response
-      }
-      if (url === '/__chat_proxy/api/v3/contents/generations/tasks' && String(init?.method || 'GET').toUpperCase() === 'POST') {
-        return {
-          ok: true,
-          json: async () => ({ id: 'task-extended-window' }),
-        } as Response
-      }
-      if (url === '/__chat_proxy/api/v3/contents/generations/tasks/task-extended-window') {
-        statusCalls += 1
-        return {
-          ok: true,
-          json: async () => (
-            statusCalls < 23
-              ? { status: 'running', updated_at: 1765510559 + statusCalls }
-              : { status: 'succeeded', content: { video_url: 'https://example.com/extended-window.mp4' }, updated_at: 1765510600 }
-          ),
-        } as Response
-      }
-      if (url === '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fextended-window.mp4') {
-        return {
-          ok: true,
-          blob: async () => new Blob([Uint8Array.from([0, 1, 2, 3])], { type: 'video/mp4' }),
-        } as Response
-      }
-      throw new Error(`unexpected fetch request: ${url}`)
-    }) as typeof fetch
-
-    const result = await generateRunVideoWithBytePlus({
-      config: {
-        provider: CHAT_PROVIDER_BYTEPLUS,
-        endpointUrl: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
-        apiKey: 'byteplus-key',
-      },
-      prompt: 'Generate longer video',
-      options: {
-        model: 'ByteDance-Seedance-1.5-pro',
-      },
-    })
-    if (!result || result.renderUrl !== '/__chat_asset_proxy?url=https%3A%2F%2Fexample.com%2Fextended-window.mp4') {
-      throw new Error('expected BytePlus video helper to keep polling long enough to complete a legitimate longer-running task')
-    }
-    if (statusCalls !== 23) {
-      throw new Error(`expected extended polling window to reach the later succeeded response, got ${String(statusCalls)} status calls`)
-    }
-  } finally {
-    globalThis.fetch = originalFetch
-    globalThis.setTimeout = originalSetTimeout
   }
 }
 

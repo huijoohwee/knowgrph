@@ -612,7 +612,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["byteplus.run.imageUrlDownloadsThroughAssetProxy","@/__tests__/byteplusRunGeneration.test","testGenerateRunImageWithBytePlusDownloadsUrlThroughAssetProxy"],
   ["byteplus.run.imageExplicitModelDisablesFallback","@/__tests__/byteplusRunGeneration.test","testGenerateRunImageWithBytePlusDoesNotFallbackWhenModelExplicit"],
   ["byteplus.run.videoPollsTaskAndDownloadsBlob","@/__tests__/byteplusRunGeneration.test","testGenerateRunVideoWithBytePlusPollsTaskAndDownloadsBlob"],
-  ["byteplus.run.videoCompletesAfterExtendedPollingWindow","@/__tests__/byteplusRunGeneration.test","testGenerateRunVideoWithBytePlusCompletesAfterExtendedPollingWindow"],
+  ["byteplus.run.videoCompletesAfterExtendedPollingWindow","@/__tests__/byteplusVideoPolling.test","testGenerateRunVideoWithBytePlusCompletesAfterExtendedPollingWindow"],
   ["byteplus.run.videoPrefersWidgetContentJsonOverride","@/__tests__/byteplusRunGeneration.test","testGenerateRunVideoWithBytePlusPrefersWidgetContentJsonOverride"],
   ["byteplus.run.videoResolvesCanonicalAliasToAvailableModelId","@/__tests__/byteplusRunGeneration.test","testGenerateRunVideoWithBytePlusResolvesCanonicalVideoAliasToAvailableModelId"],
   ["byteplus.run.videoCreateFailureIncludesActionableFixDetail","@/__tests__/byteplusRunGeneration.test","testGenerateRunVideoWithBytePlusCreateFailureIncludesActionableFixDetail"],

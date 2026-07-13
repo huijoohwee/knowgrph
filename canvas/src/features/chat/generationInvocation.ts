@@ -11,6 +11,8 @@ export type GenerationProvider = Extract<
 >;
 export type GenerationSpecification = "low" | "medium" | "high";
 export type GenerationKind = "text" | "image" | "audio" | "video";
+export type GenerationThinkingType = "enabled" | "disabled" | "auto";
+export type GenerationTokenCap = "low" | "medium" | "high";
 
 export const AGENTIC_VIDEO_ROUTE_TOKEN = "/video-agent" as const;
 export const VIDEO_GENERATION_DEMO_SCRIPT_BINDING_TOKEN = "@video-generation-demo-script" as const;
@@ -69,11 +71,61 @@ export const GENERATION_KIND_INVOCATIONS = [
     summary: "Generate video.",
   },
 ] as const;
+export const GENERATION_THINKING_INVOCATIONS = [
+  {
+    thinkingType: "enabled",
+    token: "#thinking.type.enabled",
+    label: "Enabled",
+    summary: "Default preset thinking mode.",
+  },
+  {
+    thinkingType: "disabled",
+    token: "#thinking.type.disabled",
+    label: "Disabled",
+    summary: "Disable provider thinking when supported.",
+  },
+  {
+    thinkingType: "auto",
+    token: "#thinking.type.auto",
+    label: "Auto",
+    summary: "Let the provider select thinking behavior.",
+  },
+] as const;
+export const GENERATION_TOKEN_CAP_INVOCATIONS = [
+  {
+    tokenCap: "low",
+    token: "#token-cap.low",
+    label: "Low",
+    reasoningEffort: "low",
+    maxCompletionTokens: 4096,
+    summary: "4,096 completion tokens with low reasoning effort.",
+  },
+  {
+    tokenCap: "medium",
+    token: "#token-cap.medium",
+    label: "Medium (Default)",
+    reasoningEffort: "medium",
+    maxCompletionTokens: 16384,
+    summary: "16,384 completion tokens with medium reasoning effort.",
+  },
+  {
+    tokenCap: "high",
+    token: "#token-cap.high",
+    label: "High",
+    reasoningEffort: "high",
+    maxCompletionTokens: 32768,
+    summary: "32,768 completion tokens with high reasoning effort.",
+  },
+] as const;
 
 export type GenerationInvocation = {
   provider: GenerationProvider;
   specification: GenerationSpecification;
   kinds: GenerationKind[];
+  thinkingType: GenerationThinkingType;
+  tokenCap: GenerationTokenCap;
+  reasoningEffort: "low" | "medium" | "high";
+  maxCompletionTokens: number;
   prompt: string;
 };
 const providerByToken = new Map<string, GenerationProvider>(
@@ -88,6 +140,14 @@ const specificationByToken = new Map<string, GenerationSpecification>(
 );
 const kindByToken = new Map<string, GenerationKind>(
   GENERATION_KIND_INVOCATIONS.map((item) => [item.token, item.kind] as const),
+);
+const thinkingByToken = new Map<string, GenerationThinkingType>(
+  GENERATION_THINKING_INVOCATIONS.map(
+    (item) => [item.token, item.thinkingType] as const,
+  ),
+);
+const tokenCapByToken = new Map<string, typeof GENERATION_TOKEN_CAP_INVOCATIONS[number]>(
+  GENERATION_TOKEN_CAP_INVOCATIONS.map((item) => [item.token, item] as const),
 );
 
 export function parseGenerationInvocation(
@@ -116,11 +176,19 @@ export function parseGenerationInvocation(
         specificationByToken.get(token as `#spec.${GenerationSpecification}`),
       )
       .find(Boolean) || "low";
+  const thinkingType =
+    tokens.map((token) => thinkingByToken.get(token)).find(Boolean) ||
+    "enabled";
+  const tokenCapProfile =
+    tokens.map((token) => tokenCapByToken.get(token)).find(Boolean) ||
+    GENERATION_TOKEN_CAP_INVOCATIONS[1];
   const grammarTokens = new Set<string>([
     AGENTIC_VIDEO_ROUTE_TOKEN,
     ...GENERATION_PROVIDER_INVOCATIONS.map((item) => item.token),
     ...GENERATION_SPECIFICATION_INVOCATIONS.map((item) => item.token),
     ...GENERATION_KIND_INVOCATIONS.map((item) => item.token),
+    ...GENERATION_THINKING_INVOCATIONS.map((item) => item.token),
+    ...GENERATION_TOKEN_CAP_INVOCATIONS.map((item) => item.token),
   ]);
   const prompt = splitInvocationTokenSegments(text)
     .map((part) =>
@@ -131,7 +199,16 @@ export function parseGenerationInvocation(
     .join("")
     .replace(/\s+/g, " ")
     .trim();
-  return { provider, specification, kinds, prompt };
+  return {
+    provider,
+    specification,
+    kinds,
+    thinkingType,
+    tokenCap: tokenCapProfile.tokenCap,
+    reasoningEffort: tokenCapProfile.reasoningEffort,
+    maxCompletionTokens: tokenCapProfile.maxCompletionTokens,
+    prompt,
+  };
 }
 
 function replaceTokens(
@@ -188,12 +265,34 @@ export const setGenerationKinds = (
     ),
   );
 
+export const setGenerationThinkingType = (
+  raw: string,
+  thinkingType: GenerationThinkingType,
+) =>
+  replaceTokens(
+    raw,
+    GENERATION_THINKING_INVOCATIONS.map((item) => item.token),
+    [`#thinking.type.${thinkingType}`],
+  );
+
+export const setGenerationTokenCap = (
+  raw: string,
+  tokenCap: GenerationTokenCap,
+) =>
+  replaceTokens(
+    raw,
+    GENERATION_TOKEN_CAP_INVOCATIONS.map((item) => item.token),
+    [`#token-cap.${tokenCap}`],
+  );
+
 export function buildGenerationInvocationSystemPrompt(raw: unknown): string {
   const invocation = parseGenerationInvocation(raw);
   if (!invocation) return "";
   return [
     "Generation invocation contract:",
     `- Provider: ${invocation.provider}. Specification: #spec.${invocation.specification}. Outputs: ${invocation.kinds.map((kind) => `@${kind}`).join(", ")}.`,
+    `- Thinking: #thinking.type.${invocation.thinkingType}. Token cap: #token-cap.${invocation.tokenCap} (${invocation.maxCompletionTokens} completion tokens, ${invocation.reasoningEffort} reasoning effort).`,
+    "- The structured text artifact must include Character, Scene, Dialogue, Visual asset, Audio, Timing, Metadata, and Prompt sheets.",
     "- Preserve real provider-returned text, image, audio, and video artifacts; never invent a URL or relabel a media kind.",
     "- For a multilingual video request, preserve Chinese, Cantonese, and English audio variants with synchronized Chinese/English bilingual subtitles.",
     "- Project persisted artifacts through Cards, Widgets, Rich Media Panels, and BottomPanel Timeline video/FBF/audio lanes.",

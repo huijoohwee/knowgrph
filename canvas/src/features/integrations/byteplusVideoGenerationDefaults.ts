@@ -29,10 +29,19 @@ function normalizeResolution(value: unknown): string {
   return '480p'
 }
 
-function normalizeDuration(value: unknown): number {
+export function resolveBytePlusVideoDurationForModel(model: unknown, value: unknown): number {
   const numeric = typeof value === 'number' && Number.isFinite(value) ? Math.trunc(value) : Number.NaN
-  if (Number.isFinite(numeric) && numeric > 0) return Math.max(2, Math.min(15, numeric))
-  return 2
+  const normalizedModel = typeof model === 'string' ? model.toLowerCase().replace(/[^a-z0-9]/g, '') : ''
+  const isSeedanceOne = normalizedModel.includes('seedance10')
+  const minimum = isSeedanceOne ? 2 : 4
+  const maximum = isSeedanceOne ? 12 : 15
+  if (Number.isFinite(numeric) && numeric > 0) return Math.max(minimum, Math.min(maximum, numeric))
+  return minimum
+}
+
+export function supportsBytePlusVideoDraft(model: unknown): boolean {
+  const normalized = typeof model === 'string' ? model.toLowerCase().replace(/[^a-z0-9]/g, '') : ''
+  return normalized.includes('seedance15pro')
 }
 
 function normalizeRatio(value: unknown): string {
@@ -66,7 +75,7 @@ export function readBytePlusVideoWidgetDefaults(): BytePlusVideoWidgetDefaults {
     content_json: typeof contentJson === 'string' ? contentJson : '',
     ratio: normalizeRatio(ratio),
     resolution: normalizeResolution(resolution),
-    duration: normalizeDuration(duration),
+    duration: resolveBytePlusVideoDurationForModel(model, duration),
     generate_audio: generateAudio === true,
     draft: draft === true,
     camera_fixed: cameraFixed === true,
@@ -85,7 +94,9 @@ export function resolveEffectiveBytePlusVideoWidgetProperties(args: {
     content_json: typeof local.content_json === 'string' ? local.content_json : defaults.content_json,
     ratio: hasNonEmptyString(local.ratio) ? normalizeRatio(local.ratio) : defaults.ratio,
     resolution: hasNonEmptyString(local.resolution) ? normalizeResolution(local.resolution) : defaults.resolution,
-    duration: hasFiniteNumber(local.duration) ? normalizeDuration(local.duration) : defaults.duration,
+    duration: hasFiniteNumber(local.duration)
+      ? resolveBytePlusVideoDurationForModel(local.model || defaults.model, local.duration)
+      : defaults.duration,
     generate_audio: typeof local.generate_audio === 'boolean' ? local.generate_audio : defaults.generate_audio,
     draft: typeof local.draft === 'boolean' ? local.draft : defaults.draft,
     camera_fixed: typeof local.camera_fixed === 'boolean' ? local.camera_fixed : defaults.camera_fixed,

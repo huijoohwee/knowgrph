@@ -4,7 +4,12 @@ import {
   getAgenticOsSemanticInvocations,
   type AgenticOsDocInvocationId,
 } from '@/features/agentic-os/agenticOsDocInvocations'
-import { buildGenerationInvocationSystemPrompt, GENERATION_SPECIFICATION_INVOCATIONS } from './generationInvocation'
+import {
+  buildGenerationInvocationSystemPrompt,
+  GENERATION_SPECIFICATION_INVOCATIONS,
+  GENERATION_THINKING_INVOCATIONS,
+  GENERATION_TOKEN_CAP_INVOCATIONS,
+} from './generationInvocation'
 
 export type ChatInvocationId =
   | 'memory.search'
@@ -34,6 +39,8 @@ export type ChatInvocationOption = {
 
 const BASE_CHAT_INVOCATION_OPTIONS: readonly ChatInvocationOption[] = [
   ...GENERATION_SPECIFICATION_INVOCATIONS.map(option => ({ id: `generation.${option.specification}`, token: option.token, label: `${option.label} specification`, summary: option.summary, keywords: ['generation', 'specification', option.specification], slashCommand: '/video-agent' })),
+  ...GENERATION_THINKING_INVOCATIONS.map(option => ({ id: `generation.thinking.${option.thinkingType}`, token: option.token, label: `${option.label} thinking`, summary: option.summary, keywords: ['generation', 'thinking', option.thinkingType], slashCommand: '/video-agent' })),
+  ...GENERATION_TOKEN_CAP_INVOCATIONS.map(option => ({ id: `generation.token-cap.${option.tokenCap}`, token: option.token, label: `${option.label} token cap`, summary: option.summary, keywords: ['generation', 'token', 'cap', option.tokenCap], slashCommand: '/video-agent' })),
   { id: 'memory.search', token: '#memory.search', label: 'Search memory', summary: 'Retrieve explicitly scoped memory through the configured memory MCP runtime.', keywords: ['recall', 'context', 'mem0'], toolName: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.search },
   { id: 'memory.add', token: '#memory.add', label: 'Add memory', summary: 'Persist explicitly scoped memory through the configured memory MCP runtime.', keywords: ['remember', 'persist', 'mem0'], toolName: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.add },
   { id: 'memory.assemble', token: '#memory.assemble', label: 'Assemble memory prompt', summary: 'Inject ranked memories into a bounded prompt context.', keywords: ['prompt', 'context', 'tokens'], toolName: KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES.assemblePrompt },

@@ -15,14 +15,20 @@ import {
   resolveChatEndpointForRequest,
 } from '@/lib/chatEndpoint'
 import { buildProviderChatRequestOptions } from './floatingPanelChat/floatingPanelChatProviderOptions'
-import { extractAssistantDelta, parseSseEvents } from './floatingPanelChat/floatingPanelChatStreamParsing'
+import { extractAssistantDelta } from './floatingPanelChat/floatingPanelChatStreamParsing'
+import { readRunTextEventStream } from './runTextEventStream'
+import { resolveBytePlusVideoReferenceImage } from './byteplusVideoReferenceImage'
 import {
   loadAvailableModelIds,
   parseErrorBody,
   shouldRetryWithActivationFallback,
 } from './floatingPanelChat/floatingPanelChatHttp'
 import { readBytePlusImageWidgetDefaults } from '@/features/integrations/byteplusImageGenerationDefaults'
-import { readBytePlusVideoWidgetDefaults } from '@/features/integrations/byteplusVideoGenerationDefaults'
+import {
+  readBytePlusVideoWidgetDefaults,
+  resolveBytePlusVideoDurationForModel,
+  supportsBytePlusVideoDraft,
+} from '@/features/integrations/byteplusVideoGenerationDefaults'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsInt, lsJson } from '@/lib/persistence'
 
@@ -116,13 +122,9 @@ type BytePlusImageFailureContext = {
   attemptedResolvedModels: string[]
 }
 
-export const BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS = 24
+export const BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS = 60
 
-export const getBytePlusVideoPollDelayMs = (attempt: number): number => {
-  if (attempt < 3) return 2500
-  if (attempt < 6) return 5000
-  return 10000
-}
+export const getBytePlusVideoPollDelayMs = (_attempt: number): number => 10000
 export const BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS = Array.from({ length: BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS - 1 }, (_, index) => getBytePlusVideoPollDelayMs(index + 1)).reduce((sum, delayMs) => sum + delayMs, 0)
 const toRequestId = (prefix: string): string => `${prefix}-${Date.now().toString(36)}`
 
@@ -717,7 +719,7 @@ export async function generateRunMarkdownWithProvider(args: {
   options?: RunTextGenerationOptions
 }): Promise<string | null> {
   const endpoint = resolveChatEndpointForRequest(args.config.endpointUrl)
-  if (!endpoint) return null
+  if (!endpoint) throw new Error('Text generation endpoint is unavailable for the selected provider.')
   const isResponsesEndpoint = isResponsesEndpointUrl(endpoint)
   const model = await resolveGenerationModel(args.config, 'text')
   const requestId = toRequestId('kg-run-text')
@@ -804,48 +806,11 @@ export async function generateRunMarkdownWithProvider(args: {
   ).toLowerCase()
   const isEventStream = streamRequested && contentType.includes('text/event-stream')
   if (isEventStream && res.body) {
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let fullText = ''
-    let done = false
-    while (!done) {
-      const chunk = await reader.read()
-      if (chunk.done) break
-      buffer += decoder.decode(chunk.value, { stream: true })
-      const parsed = parseSseEvents(buffer)
-      buffer = parsed.rest
-      for (const raw of parsed.events) {
-        if (raw === '[DONE]') {
-          done = true
-          break
-        }
-        try {
-          const next = extractStreamTextDelta(JSON.parse(raw) as unknown)
-          if (!next) continue
-          fullText += next
-          args.options?.onText?.(fullText)
-        } catch {
-          void 0
-        }
-      }
-    }
-    buffer += decoder.decode()
-    if (buffer.trim()) {
-      const parsed = parseSseEvents(buffer)
-      for (const raw of parsed.events) {
-        if (raw === '[DONE]') continue
-        try {
-          const next = extractStreamTextDelta(JSON.parse(raw) as unknown)
-          if (!next) continue
-          fullText += next
-          args.options?.onText?.(fullText)
-        } catch {
-          void 0
-        }
-      }
-    }
-    return fullText.trim() ? fullText : null
+    return readRunTextEventStream({
+      body: res.body,
+      extractText: extractStreamTextDelta,
+      onText: args.options?.onText,
+    })
   }
   const data = (await res.json()) as unknown
   const text = extractChatText(data)
@@ -1014,6 +979,7 @@ export async function generateRunVideoWithBytePlus(args: {
   if (referenceImageUrl && imageUrlUrlMode === 'url' && !/^https?:\/\//i.test(referenceImageUrl)) {
     throw new Error('BytePlus video run failed: reference image mode is url but referenceImageUrl is not an http(s) URL.')
   }
+  const requestReferenceImageUrl = await resolveBytePlusVideoReferenceImage({ mode: imageUrlUrlMode, url: referenceImageUrl })
   const contentOverride = (() => {
     const widgetOverrideRaw = cleanString(args.options?.contentJson)
     if (widgetOverrideRaw) {
@@ -1044,17 +1010,17 @@ export async function generateRunVideoWithBytePlus(args: {
       return false
     }
   })()
-  if (referenceImageUrl) {
+  if (requestReferenceImageUrl) {
     content.push({
       type: 'image_url',
       image_url: {
-        url: referenceImageUrl,
+        url: requestReferenceImageUrl,
       },
     })
   }
-  const isImageConditionedRun = Boolean(referenceImageUrl) || contentHasImageUrl
+  const isImageConditionedRun = Boolean(requestReferenceImageUrl) || contentHasImageUrl
   const durationCandidate = cleanInteger(args.options?.duration)
-  const duration = durationCandidate != null ? Math.max(2, Math.min(15, durationCandidate)) : defaults.duration
+  const duration = resolveBytePlusVideoDurationForModel(model, durationCandidate ?? defaults.duration)
   const generateAudio = cleanBool(args.options?.generateAudio) ?? defaults.generateAudio
   const draft = cleanBool(args.options?.draft) ?? defaults.draft
   const cameraFixed = cleanBool(args.options?.cameraFixed) ?? defaults.cameraFixed
@@ -1069,7 +1035,7 @@ export async function generateRunVideoWithBytePlus(args: {
     duration,
     generate_audio: generateAudio === true,
   }
-  if (isImageConditionedRun && draft === true) {
+  if (isImageConditionedRun && draft === true && supportsBytePlusVideoDraft(model)) {
     requestBody.draft = true
   }
   if (isImageConditionedRun && cameraFixed === true) {
@@ -1140,7 +1106,7 @@ export async function generateRunVideoWithBytePlus(args: {
     'BytePlus task did not reach a downloadable succeeded state before polling timed out.',
     `Last task status: ${lastKnownStatus || 'unknown'}.`,
     lastKnownUpdatedAt ? `Last updated_at: ${lastKnownUpdatedAt}.` : '',
-    `Polling window: ${String(BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS)} attempts with progressive 2.5s/5s/10s backoff.`,
+    `Polling window: ${String(BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS)} attempts at the provider-recommended 10-second interval.`,
     'Fix: the task may still be generating; rerun after lowering duration/resolution or use a faster/smaller model if this region/account consistently exceeds the current polling window.',
   ].filter(Boolean).join(' ')
   throw new Error(formatBytePlusVideoFailure(timeoutDetail, failureContext))
