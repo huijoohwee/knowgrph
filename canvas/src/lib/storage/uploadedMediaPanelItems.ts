@@ -144,3 +144,11 @@ export const buildUploadedMediaPanelItemFromStorage = (storage: UploadedMediaSto
     error: null,
   }
 }
+
+export const registerUploadedMediaPanelStorage = (storage: UploadedMediaStorageResult): UploadedMediaPanelItem | null => {
+  const item = buildUploadedMediaPanelItemFromStorage(storage)
+  if (!item) return null
+  const next = mergeUploadedMediaPanelItems([item, ...readStoredUploadedMediaPanelItems()])
+  writeStoredUploadedMediaPanelItems(next)
+  return item
+}

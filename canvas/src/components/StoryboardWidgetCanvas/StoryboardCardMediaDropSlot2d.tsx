@@ -8,6 +8,7 @@ import {
 } from '@/lib/cards/cardMarkdownPreviewUtils'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
+import { MediaDownloadOverlay } from '@/lib/ui/MediaKindOverlay'
 
 type StoryboardCardMediaDropSlot2dProps = {
   card: StoryboardCardModel
@@ -25,7 +26,7 @@ export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia 
   return (
     <CardMediaDropZoneFrame
       ariaLabel={`Media drop zone for ${card.title || card.id}`}
-      className="h-full w-full"
+      className="group h-full w-full"
       dataAttributes={{
         'data-kg-storyboard-card-media-drop': '1',
         'data-kg-storyboard-card-id': card.id,
@@ -55,6 +56,9 @@ export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia 
             <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{mediaChipLabel}</span>
           </span>
         </figcaption>
+      ) : null}
+      {mediaUrl && inlineMediaKind ? (
+        <MediaDownloadOverlay href={mediaUrl} kind={inlineMediaKind} appearance="hover" />
       ) : null}
       {!mediaUrl ? (
         <span className={CARD_MEDIA_DROP_ZONE_EMPTY_PLACEHOLDER_CLASS_NAME}>+</span>

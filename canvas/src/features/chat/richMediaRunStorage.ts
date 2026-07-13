@@ -2,7 +2,8 @@ import type { GraphNode } from '@/lib/graph/types'
 import type { GeneratedBinaryAsset } from './byteplusRunGeneration'
 import type { RichMediaWidgetKind } from './richMediaRun'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
-import type { UploadGeneratedWorkspaceBlobToKnowgrphStorageResult } from '@/features/source-files/sourceFilesBinaryStorage'
+import { registerUploadedMediaPanelStorage } from '@/lib/storage/uploadedMediaPanelItems'
+import { uploadMediaFileToKnowgrphStorage, type UploadedMediaStorageResult } from '@/lib/storage/uploadedMediaStorage'
 
 const cleanString = (value: unknown): string => typeof value === 'string' ? value.trim() : ''
 
@@ -20,16 +21,43 @@ const readWorkspacePathParent = (workspacePath: string): string => {
 export const uploadRichMediaBinaryToStorage = async (args: {
   outputPath: string
   blob: Blob
-}): Promise<UploadGeneratedWorkspaceBlobToKnowgrphStorageResult | null> => {
+}): Promise<UploadedMediaStorageResult | null> => {
   try {
-    const { uploadGeneratedWorkspaceBlobToKnowgrphStorage } = await import('@/features/source-files/sourceFilesBinaryStorage')
-    return await uploadGeneratedWorkspaceBlobToKnowgrphStorage({
-      workspacePath: args.outputPath,
-      blob: args.blob,
-    })
+    if (typeof File !== 'function') return null
+    const fileName = readWorkspacePathName(args.outputPath)
+    const file = new File([args.blob], fileName, { type: args.blob.type || 'application/octet-stream' })
+    const storage = await uploadMediaFileToKnowgrphStorage({ file, uploadNow: true })
+    if (storage) registerUploadedMediaPanelStorage(storage)
+    return storage
   } catch {
     return null
   }
+}
+
+export const buildGeneratedMediaWorkspaceEntries = (args: {
+  outputPath: string
+  outputManifestPath: string
+  manifestText: string
+  updatedAtMs?: number
+}): WorkspaceEntry[] => {
+  const updatedAtMs = Number.isFinite(args.updatedAtMs) ? Number(args.updatedAtMs) : Date.now()
+  return [
+    {
+      kind: 'file',
+      path: args.outputPath,
+      parentPath: readWorkspacePathParent(args.outputPath),
+      name: readWorkspacePathName(args.outputPath),
+      updatedAtMs,
+    },
+    {
+      kind: 'file',
+      path: args.outputManifestPath,
+      parentPath: readWorkspacePathParent(args.outputManifestPath),
+      name: readWorkspacePathName(args.outputManifestPath),
+      text: args.manifestText,
+      updatedAtMs,
+    },
+  ]
 }
 
 export const publishGeneratedTextToStorage = async (args: {
@@ -68,7 +96,7 @@ export const buildGeneratedMediaManifestMarkdown = (args: {
   kind: RichMediaWidgetKind
   outputPath: string
   asset: GeneratedBinaryAsset
-  storage?: UploadGeneratedWorkspaceBlobToKnowgrphStorageResult | null
+  storage?: UploadedMediaStorageResult | null
   manifestMetadata?: ReadonlyArray<readonly [string, unknown]>
 }): string => {
   const title = cleanString(args.node.label) || cleanString(args.node.id) || `${args.kind} output`
@@ -82,11 +110,10 @@ export const buildGeneratedMediaManifestMarkdown = (args: {
     ['model', cleanString(args.asset.model)],
     ['sourceUrl', cleanString(args.asset.sourceUrl)],
     ['storageUrl', cleanString(args.storage?.publicUrl)],
-    ['storageCanonicalPath', cleanString(args.storage?.canonicalPath)],
+    ['storagePublicPath', cleanString(args.storage?.publicPath)],
     ['r2ObjectKey', cleanString(args.storage?.objectKey)],
     ['contentHash', cleanString(args.storage?.contentHash)],
-    ['sizeBytes', args.storage?.sizeBytes == null ? '' : String(args.storage.sizeBytes)],
-    ['etag', cleanString(args.storage?.etag)],
+    ['sizeBytes', args.storage?.provenance?.sizeBytes == null ? '' : String(args.storage.provenance.sizeBytes)],
     ...(Array.isArray(args.manifestMetadata) ? args.manifestMetadata : []),
   ]
   const rows = rawRows.filter(([, value]) => cleanString(value))

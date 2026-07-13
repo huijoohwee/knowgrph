@@ -26,6 +26,7 @@ import {
 } from '@/hooks/store/graphDataSliceUtils'
 import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import { isStrybldrStoryboardMarkdown } from '@/features/strybldr/strybldrStoryboard'
+import { MarkdownApplyRequestQueue } from './markdownApplyRequestQueue'
 
 type PendingMarkdownApplyRequest = {
   name: string
@@ -36,10 +37,7 @@ type PendingMarkdownApplyRequest = {
   requireActiveMarkdownDocument: boolean
 }
 
-let markdownApplyInFlight = false
-let queuedMarkdownApplyRequest: PendingMarkdownApplyRequest | null = null
-let activeMarkdownApplyKey = ''
-let queuedMarkdownApplyKey = ''
+const markdownApplyRequestQueue = new MarkdownApplyRequestQueue<PendingMarkdownApplyRequest>()
 let lastCompletedMarkdownApplyKey = ''
 let lastCompletedMarkdownApplyGraph: GraphData | null = null
 let lastCompletedMarkdownApplyGraphRevision = -1
@@ -69,9 +67,6 @@ function buildMarkdownApplyRequestSemanticKey(request: PendingMarkdownApplyReque
       name,
       text.length,
       textHash,
-      request.force ? 'force:1' : 'force:0',
-      request.applyViewPreset ? 'view:1' : 'view:0',
-      request.requireActiveMarkdownDocument ? 'active-doc:1' : 'active-doc:0',
       buildCanvasWorkspacePresetApplyKey(request.preset),
     ].join('|'),
   })
@@ -109,7 +104,7 @@ function isCompletedMarkdownApplyRequestCurrent(get: GetGraph, request: PendingM
 }
 
 function isMarkdownApplyRequestInFlight(requestKey: string): boolean {
-  return !!requestKey && (requestKey === activeMarkdownApplyKey || requestKey === queuedMarkdownApplyKey)
+  return markdownApplyRequestQueue.isKeyInFlight(requestKey)
 }
 
 function isMarkdownApplyRequestActiveDocumentCurrent(get: GetGraph, request: PendingMarkdownApplyRequest): boolean {
@@ -412,7 +407,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       }
       const requestKey = buildMarkdownApplyRequestSemanticKey(request)
       if (isCompletedMarkdownApplyRequestCurrent(get, request, requestKey)) return true
-      if (isMarkdownApplyRequestInFlight(requestKey)) return false
+      if (isMarkdownApplyRequestInFlight(requestKey)) return markdownApplyRequestQueue.waitFor(requestKey)
 
       if (applyViewPresetForSwitch) {
         get().setGraphData(buildPendingMarkdownDocumentGraph({
@@ -456,6 +451,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
         const active = get()
         return !!(
           applyViewPresetForSwitch &&
+          !isMarkdownLikeFileName(name) &&
           active.markdownDocumentName === name &&
           active.markdownDocumentText === text
         )
@@ -464,6 +460,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
         const active = get()
         return !!(
           applyViewPresetForSwitch &&
+          !isMarkdownLikeFileName(name) &&
           active.markdownDocumentName === name &&
           active.markdownDocumentText === text
         )
@@ -580,24 +577,22 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       text: String(text || ''),
       force: opts?.force === true,
       applyViewPreset: opts?.applyViewPreset !== false,
-      preset: opts?.preset,
+      preset: opts?.preset === undefined ? parseCanvasWorkspaceFrontmatterPreset(String(text || '')) : opts.preset,
       requireActiveMarkdownDocument: opts?.requireActiveMarkdownDocument === true,
     }
     const requestKey = buildMarkdownApplyRequestSemanticKey(request)
     if (isCompletedMarkdownApplyRequestCurrent(get, request, requestKey)) return true
-    if (markdownApplyInFlight) {
-      if (isMarkdownApplyRequestInFlight(requestKey)) return false
-      queuedMarkdownApplyRequest = request
-      queuedMarkdownApplyKey = requestKey
-      return false
+    if (markdownApplyRequestQueue.inFlight) {
+      if (isMarkdownApplyRequestInFlight(requestKey)) return markdownApplyRequestQueue.waitFor(requestKey)
+      return markdownApplyRequestQueue.enqueueLatest(request, requestKey)
     }
-    markdownApplyInFlight = true
-    activeMarkdownApplyKey = requestKey
+    markdownApplyRequestQueue.start(requestKey)
     try {
       let currentRequest: PendingMarkdownApplyRequest | null = request
       let currentRequestKey = requestKey
-      let result = false
+      let initialResult = false
       while (currentRequest) {
+        let result = false
         if (isCompletedMarkdownApplyRequestCurrent(get, currentRequest, currentRequestKey)) {
           result = true
         } else {
@@ -610,18 +605,15 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
             lastCompletedMarkdownApplyGraphContentRevision = state.graphContentRevision
           }
         }
-        currentRequest = queuedMarkdownApplyRequest
-        currentRequestKey = queuedMarkdownApplyKey
-        activeMarkdownApplyKey = currentRequestKey
-        queuedMarkdownApplyRequest = null
-        queuedMarkdownApplyKey = ''
+        if (currentRequestKey === requestKey) initialResult = result
+        markdownApplyRequestQueue.settle(currentRequestKey, result)
+        const nextRequest = markdownApplyRequestQueue.takeQueued()
+        currentRequest = nextRequest?.request || null
+        currentRequestKey = nextRequest?.key || ''
       }
-      return result
+      return initialResult
     } finally {
-      queuedMarkdownApplyRequest = null
-      queuedMarkdownApplyKey = ''
-      activeMarkdownApplyKey = ''
-      markdownApplyInFlight = false
+      markdownApplyRequestQueue.finish()
     }
   },
 

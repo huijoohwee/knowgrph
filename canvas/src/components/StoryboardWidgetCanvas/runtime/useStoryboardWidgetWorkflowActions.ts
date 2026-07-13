@@ -51,6 +51,7 @@ export function useStoryboardWidgetWorkflowActions(args: {
     storyboardWidgetViewActive: args.storyboardWidgetViewActive,
     draftGraphData: args.draftGraphData,
     draftGraphDataRef: args.draftGraphDataRef,
+    setDraftGraphData: args.setDraftGraphData,
     upsertUiToast: args.upsertUiToast,
     runWorkflowNode,
     scheduleOutputEdgeRefresh: args.scheduleOverlayEdgeUpdate,

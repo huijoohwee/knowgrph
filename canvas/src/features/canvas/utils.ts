@@ -1,4 +1,5 @@
 import * as d3 from 'd3'
+import type { GraphData } from '@/lib/graph/types'
 import {
   requestPropsPanelOpen,
   requestRendererPanelOpen,
@@ -46,7 +47,18 @@ export type ChatInputAppendEventDetail = {
 }
 
 export type WorkflowRunAllEventDetail = {
-  source?: 'propsPanel' | 'toolbar' | 'inspector' | 'unknown'
+  source?: 'chat' | 'propsPanel' | 'toolbar' | 'inspector' | 'unknown'
+  committedGraphData?: GraphData | null
+  onStatus?: (status: WorkflowRunAllStatus) => void
+}
+
+export type WorkflowRunAllStatus = {
+  phase: 'starting' | 'running' | 'completed' | 'complete' | 'error'
+  message: string
+  current?: number
+  total?: number
+  nodeId?: string
+  label?: string
 }
 
 export type WorkflowResetAllEventDetail = {

@@ -43,8 +43,8 @@ export type StoryboardWidgetWorkflowNodeRunner = (nodeId: string, runOptions?: {
   allowCreateRichMediaPanel?: boolean
   suppressLayoutMutation?: boolean
   visitedNodeIds?: Set<string>
+  propagateErrors?: boolean; requireDurableMediaPersistence?: boolean
 }) => Promise<void>
-
 export type StoryboardWidgetWorkflowNodeRunnerArgs = {
   baseGraphKind: string
   baseGraphData: GraphData | null
@@ -90,6 +90,11 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
       const id = String(nodeId || '').trim()
       const allowCreateRichMediaPanel = runOptions?.allowCreateRichMediaPanel !== false
       const suppressLayoutMutation = runOptions?.suppressLayoutMutation === true
+      const reportNodeRunFailure = (message: string, ttlMs = 2600) => {
+        const failureMessage = String(message || '').trim() || UI_COPY.storyboardWidgetRunFailedToast
+        if (runOptions?.propagateErrors) throw new Error(failureMessage)
+        args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: 'neutral', message: failureMessage, ttlMs })
+      }
       const stampRunLayoutMutationGuard = () => {
         if (!suppressLayoutMutation) return
         const state = useGraphStore.getState()
@@ -254,7 +259,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
           currentProperties: rawNodeProperties,
         })
         if (!nextInlinePatch) {
-          args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: 'neutral', message: UI_COPY.storyboardWidgetRunFailedToast, ttlMs: 2600 })
+          reportNodeRunFailure(UI_COPY.storyboardWidgetRunFailedToast)
           return
         }
         updateRunOutputForKnownNodeIds(nodeProps => buildStoryboardWidgetInlineComputeOutputPatch({
@@ -289,18 +294,18 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
         const sourceUrlRaw = typeof rawNodeProperties.sourceUrl === 'string' ? rawNodeProperties.sourceUrl.trim() : ''
         const langRaw = typeof rawNodeProperties.languageHint === 'string' ? rawNodeProperties.languageHint.trim() : ''
         if (!sourceUrlRaw) {
-          args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: 'neutral', message: 'Import a video URL before running the Video Transcriber Widget.', ttlMs: 2400 })
+          reportNodeRunFailure('Import a video URL before running the Video Transcriber Widget.', 2400)
           return
         }
         setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
         try {
           const converted = await fetchYouTubeTranscriptMarkdown({ url: sourceUrlRaw, ...(langRaw ? { lang: langRaw } : {}) })
           if (!converted) {
-            args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: 'neutral', message: UI_COPY.storyboardWidgetRunFailedToast, ttlMs: 2600 })
+            reportNodeRunFailure(UI_COPY.storyboardWidgetRunFailedToast)
             return
           }
           if ('error' in converted) {
-            args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: 'neutral', message: converted.error.trim() ? converted.error.trim() : UI_COPY.storyboardWidgetRunFailedToast, ttlMs: 2600 })
+            reportNodeRunFailure(converted.error.trim() ? converted.error.trim() : UI_COPY.storyboardWidgetRunFailedToast)
             return
           }
           const nodeTitle = node.label || FLOW_VIDEO_TRANSCRIBER_NODE_LABEL
@@ -430,6 +435,8 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
         publishMediaRunOutputToRichMediaPanel,
         publishAnnotationRunOutputToRichMediaPanel,
         upsertUiToast: args.upsertUiToast,
+        propagateErrors: runOptions?.propagateErrors === true,
+        requireDurableMediaPersistence: runOptions?.requireDurableMediaPersistence === true,
       })
       if (mediaNodeHandled) return
 
@@ -472,7 +479,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
         })
         const prompt = typeof properties.prompt === 'string' ? properties.prompt.trim() : ''
         if (!prompt) {
-          args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: 'neutral', message: 'Add a prompt before running the Text Widget.', ttlMs: 2400 })
+          reportNodeRunFailure('Add a prompt before running the Text Widget.', 2400)
           return
         }
         setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
@@ -539,7 +546,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
             },
           })
           if (!result) {
-            args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: 'neutral', message: UI_COPY.storyboardWidgetRunFailedToast, ttlMs: 2600 })
+            reportNodeRunFailure(UI_COPY.storyboardWidgetRunFailedToast)
             return
           }
           const outputPath = await writeTextWidgetRunOutputArtifact({
@@ -566,7 +573,9 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
       }))
       if (downstreamRunnableTargetIds.length > 0) {
         for (const targetId of downstreamRunnableTargetIds) {
-          await runWorkflowNode(targetId, { allowCreateRichMediaPanel, suppressLayoutMutation, visitedNodeIds })
+          await runWorkflowNode(targetId, {
+            ...runOptions, allowCreateRichMediaPanel, suppressLayoutMutation, visitedNodeIds,
+          })
         }
         args.upsertUiToast({
           id: `storyboard-widget-run-downstream-${id}`,
@@ -579,6 +588,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
 
       publishStoryboardWidgetSourceBackedRunOutput({ id, node, publishTextRunOutputToRichMediaPanel, updateRunOutputForKnownNodeIds, upsertUiToast: args.upsertUiToast })
     } catch (error) {
+      if (runOptions?.propagateErrors) throw error
       const detail = error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '').trim() : ''
       args.upsertUiToast({ id: `storyboard-widget-run-failed-${String(nodeId || '')}`, kind: 'error', message: detail || UI_COPY.storyboardWidgetRunFailedToast, ttlMs: 4200 })
     }

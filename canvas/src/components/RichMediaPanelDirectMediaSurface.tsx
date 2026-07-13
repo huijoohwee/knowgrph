@@ -6,6 +6,7 @@ import { shouldUseDirectRichMediaPanelSrcDocSandbox } from '@/lib/render/richMed
 import { resolveIframeSandbox } from 'grph-shared/rich-media/iframe'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
 import type { RichMediaPanelModel } from './useRichMediaPanelModel'
+import { MediaDownloadOverlay } from '@/lib/ui/MediaKindOverlay'
 
 export function RichMediaPanelDirectMediaSurface(args: {
   model: RichMediaPanelModel
@@ -17,7 +18,7 @@ export function RichMediaPanelDirectMediaSurface(args: {
   if (model.kind === 'image' || model.kind === 'svg' || model.kind === 'video') {
     return (
       <section
-        className="relative h-full w-full overflow-hidden"
+        className="group relative h-full w-full overflow-hidden"
         data-kg-rich-media-zoom-pan-viewport="1"
         style={{ background: 'transparent', pointerEvents: 'auto' }}
       >
@@ -124,24 +125,37 @@ export function RichMediaPanelDirectMediaSurface(args: {
             />
           )}
         </ZoomPanViewport>
+        {model.mediaSrc ? (
+          <MediaDownloadOverlay
+            href={model.mediaSrc}
+            kind={model.kind === 'svg' ? 'image' : model.kind}
+            appearance="hover"
+            className="bottom-auto top-1"
+          />
+        ) : null}
       </section>
     )
   }
   if (model.kind === 'audio') {
     return (
-      <CardMediaPreview
-        kind={model.kind}
-        url={model.mediaSrc}
-        title={model.title}
-        {...model.directMediaPreviewCardProps}
-        fit="contain"
-        onMediaElement={model.handleDirectMediaElement}
-        onReady={() => model.setReady(true)}
-        onError={() => {
-          if (!model.fallbackToRawSrc()) model.setReady(true)
-        }}
-        mediaStyle={model.buildDirectMediaStyle('flex', 'rgba(15, 23, 42, 0.06)')}
-      />
+      <section className="group relative h-full w-full overflow-hidden">
+        <CardMediaPreview
+          kind={model.kind}
+          url={model.mediaSrc}
+          title={model.title}
+          {...model.directMediaPreviewCardProps}
+          fit="contain"
+          onMediaElement={model.handleDirectMediaElement}
+          onReady={() => model.setReady(true)}
+          onError={() => {
+            if (!model.fallbackToRawSrc()) model.setReady(true)
+          }}
+          mediaStyle={model.buildDirectMediaStyle('flex', 'rgba(15, 23, 42, 0.06)')}
+        />
+        {model.mediaSrc ? (
+          <MediaDownloadOverlay href={model.mediaSrc} kind="audio" appearance="hover" className="bottom-auto top-1" />
+        ) : null}
+      </section>
     )
   }
   return null

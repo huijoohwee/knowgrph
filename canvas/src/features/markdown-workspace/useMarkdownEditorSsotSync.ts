@@ -7,6 +7,8 @@ import {
   WORKSPACE_SYNC_TASK_MARKDOWN_EDITOR_SSOT,
 } from '@/lib/async/workspaceSyncKeys'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
+import { workspaceDocumentKey } from '@/features/workspace-fs/path'
 import { isMarkdownPath } from './markdownWorkspaceUtils'
 
 export function isMarkdownEditorSsotPath(path: string | null | undefined): boolean {
@@ -32,10 +34,15 @@ export function shouldCommitMarkdownEditorSsotSync(args: {
   activeDocumentKey: string
   activeText: string
   activeTextOwnedByActivePath: boolean
+  liveExplorerDocumentKey?: string
 }): boolean {
   const scheduledKey = String(args.scheduledDocumentKey || '').trim()
   const currentKey = String(args.activeDocumentKey || '').trim()
   if (!scheduledKey || currentKey !== scheduledKey) return false
+  if (
+    Object.prototype.hasOwnProperty.call(args, 'liveExplorerDocumentKey')
+    && String(args.liveExplorerDocumentKey || '').trim() !== scheduledKey
+  ) return false
   if (!isMarkdownEditorSsotPath(currentKey)) return false
   if (args.activeTextOwnedByActivePath !== true) return false
   return !!String(args.activeText || '').trim()
@@ -63,6 +70,22 @@ export function useMarkdownEditorSsotSync(args: {
   const lastSeenRef = React.useRef<{ key: string; signature: string } | null>(null)
   const idleRef = React.useRef<number | null>(null)
   const scheduleTaskKeyRef = React.useRef<string | null>(null)
+  const liveArgsRef = React.useRef({
+    activeDocumentKey,
+    activeDocumentSourceUrl,
+    activeText,
+    activeTextOwnedByActivePath,
+    canonicalMarkdownText,
+    setActiveMarkdownDocument,
+  })
+  liveArgsRef.current = {
+    activeDocumentKey,
+    activeDocumentSourceUrl,
+    activeText,
+    activeTextOwnedByActivePath,
+    canonicalMarkdownText,
+    setActiveMarkdownDocument,
+  }
 
   React.useEffect(() => {
     if (scheduleTaskKeyRef.current) {
@@ -99,30 +122,33 @@ export function useMarkdownEditorSsotSync(args: {
     lastSeenRef.current = { key, signature }
 
     const commit = () => {
-      const rawNow = String(activeText || '')
+      const live = liveArgsRef.current
+      const rawNow = String(live.activeText || '')
+      const explorerPath = useMarkdownExplorerStore.getState().activePath
       if (!shouldCommitMarkdownEditorSsotSync({
         scheduledDocumentKey: key,
-        activeDocumentKey,
+        activeDocumentKey: live.activeDocumentKey,
         activeText: rawNow,
-        activeTextOwnedByActivePath,
+        activeTextOwnedByActivePath: live.activeTextOwnedByActivePath,
+        liveExplorerDocumentKey: explorerPath ? workspaceDocumentKey(explorerPath) : '',
       })) return
 
       const normalizedRaw = normalizeWebpageFrontmatterView(rawNow, 'markdown')
       const normalized = preferCanonicalYamlFrontmatterFencedText({
         candidateText: normalizedRaw,
-        canonicalText: canonicalMarkdownText || '',
+        canonicalText: live.canonicalMarkdownText || '',
       })
       const normalizedHash = hashStringToHexCached(`markdown-editor-ssot-normalized:${key}`, normalized)
       const prev = lastPushedRef.current
       if (prev && prev.key === key && prev.textHash === normalizedHash) return
       try {
-        void setActiveMarkdownDocument({
+        void live.setActiveMarkdownDocument({
           name: key,
           text: normalized,
           normalizeMermaidMmd: false,
           autoEnableFrontmatter: false,
           applyViewPreset: false,
-          sourceUrl: activeDocumentSourceUrl,
+          sourceUrl: live.activeDocumentSourceUrl,
         })
         lastPushedRef.current = { key, textHash: normalizedHash }
       } catch {

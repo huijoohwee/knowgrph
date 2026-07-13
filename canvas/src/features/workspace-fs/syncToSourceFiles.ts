@@ -12,6 +12,7 @@ import {
   isWorkspacePathUnderSourceRoots,
   normalizeWorkspaceSourceRootPaths,
 } from '@/features/workspace-fs/workspaceSourceRoots'
+import { isPersistedWorkspaceBinaryFileName } from '@/features/workspace-fs/workspaceSourceMirrorFormats'
 
 function readYamlQuotedString(raw: string, key: string): string {
   const match = String(raw || '').match(new RegExp(`^${key}:\\s*['"]([^'"]+)['"]\\s*$`, 'm'))
@@ -192,11 +193,28 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
       const workspacePath = sourcePath.slice('workspace:'.length)
       if (!workspacePath) continue
       if (internalSpatialCapturePayloadPaths.has(workspacePath)) continue
-      if (!String(file.text || '').trim()) continue
+      const basename = workspacePath.replace(/\\/g, '/').replace(/\/+$/, '').split('/').pop() || ''
+      const seedSourcePath = resolveWorkspaceSeedSourcePath(workspacePath)
+      const isLegacyRootSeedAliasCoveredByDocsMirror =
+        !!seedSourcePath
+        && isCanonicalWorkspaceSeedSourcePath(seedSourcePath)
+        && !isWorkspacePathUnderSourceRoots(workspacePath, args.workspaceSourceRootPaths || workspaceSourceRootPaths)
+        && docsMirrorCanonicalSeedSourcePathSet.has(seedSourcePath)
+      if (isLegacyRootSeedAliasCoveredByDocsMirror) continue
+      const isStaleRootDocsAliasCoveredByDocsMirror =
+        workspaceDocsOnly
+        && !seedSourcePath
+        && workspacePath.split('/').filter(Boolean).length === 1
+        && /\.md$/i.test(basename)
+        && canonicalMirrorBasenameSet.has(basename.toLowerCase())
+      if (isStaleRootDocsAliasCoveredByDocsMirror) continue
+      const hasInlineText = Boolean(String(file.text || '').trim())
+      if (!hasInlineText && !isPersistedWorkspaceBinaryFileName(workspacePath)) continue
       if (
         workspaceDocsOnly
         && !isWorkspacePathUnderSourceRoots(workspacePath, args.workspaceSourceRootPaths || workspaceSourceRootPaths)
         && !forceInclude.has(workspacePath)
+        && file.enabled !== true
       ) {
         continue
       }

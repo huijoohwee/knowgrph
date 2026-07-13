@@ -6,6 +6,7 @@ import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdow
 import { parseGenerationInvocation } from '@/features/chat/generationInvocation'
 import { isVideoAgentDemoPresetInvocation } from '@/features/chat/floatingPanelChat/videoAgentDemoPresetSubmit'
 import { buildLiveCanvasHeroModel } from '@/features/agentic-os/liveCanvasHeroModel'
+import { getCachedStoryboardWidgetWorkflowRunPlan } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 
 type PlainRecord = Record<string, unknown>
 
@@ -93,6 +94,16 @@ export function testAgenticVideoCanvasDemoIsExecutableAndReplayable() {
   for (const requiredType of ['TextGeneration', 'ImageGeneration', 'VideoGeneration', 'RichMediaPanel']) {
     if (!parsedTypes.has(requiredType)) throw new Error(`parsed graph missing ${requiredType}`)
   }
+  const runPlan = getCachedStoryboardWidgetWorkflowRunPlan({
+    graphData: parsedGraph.graphData,
+    graphRevision: 0,
+    preferCurrentGraphDataRefs: true,
+  })
+  for (const requiredNodeId of ['video_text_generation', 'video_image_generation', 'video_clip_generation']) {
+    if (!runPlan?.orderedNodeIds.includes(requiredNodeId)) {
+      throw new Error(`Run all plan missing ${requiredNodeId}: ${runPlan?.orderedNodeIds.join(',') || '<empty>'}`)
+    }
+  }
   const artifactContract = meta.runtime_artifact_contract
   if (!isRecord(artifactContract)) throw new Error('expected runtime_artifact_contract')
   for (const kind of invocation.kinds) {
@@ -108,10 +119,11 @@ export function testAgenticVideoCanvasDemoUsesSharedCloudflarePersistenceOwners(
   const richMediaRunStoragePath = path.join(process.cwd(), 'src', 'features', 'chat', 'richMediaRunStorage.ts')
   const source = `${fs.readFileSync(richMediaRunPath, 'utf8')}\n${fs.readFileSync(richMediaRunStoragePath, 'utf8')}`
   for (const required of [
-    'uploadGeneratedWorkspaceBlobToKnowgrphStorage',
+    'uploadMediaFileToKnowgrphStorage',
+    'registerUploadedMediaPanelStorage',
     'publishGeneratedWorkspaceEntriesToKnowgrphStorage',
     'publishGeneratedTextToStorage({ outputPath',
-    'outputStorageUrl: storage?.publicUrl',
+    'outputStorageUrl: storage?.accessUrl || storage?.publicUrl',
   ]) {
     if (!source.includes(required)) throw new Error(`shared persistence owner missing ${required}`)
   }

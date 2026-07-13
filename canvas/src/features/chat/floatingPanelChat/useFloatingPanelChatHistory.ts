@@ -5,10 +5,14 @@ import { cancelWorkspaceSyncTask, scheduleWorkspaceSyncTask } from '@/lib/async/
 import { WORKSPACE_SYNC_SCOPE_CHAT_HISTORY_RUNTIME_PERSISTENCE } from '@/lib/async/workspaceSyncKeys'
 import type { ChatMessage, StreamingAssistantState } from '../FloatingPanelChatSections'
 import {
+  adoptLatestChatHistoryTransition,
   CHAT_HISTORY_COALESCE_DELAY_MS,
   getCachedChatHistory,
   putChatHistoryCache,
   resolveChatHistoryHydrationAction,
+  resolveChatHistoryPersistenceAction,
+  subscribeToChatHistoryCache,
+  subscribeToChatHistoryTransition,
   toHistoryTaskKey,
 } from './floatingPanelChatRuntime'
 
@@ -43,17 +47,48 @@ export const useFloatingPanelChatHistory = (args: {
     streamingAssistant,
   } = args
   const lastLoadedHistoryKeyRef = React.useRef<string | null>(null)
+  const pendingHydrationPersistenceSkipKeyRef = React.useRef<string | null>(null)
+  const messagesRef = React.useRef(messages)
+  messagesRef.current = messages
   const streamingAssistantId = streamingAssistant?.id || ''
 
+  React.useEffect(() => subscribeToChatHistoryCache(historyKey, cached => {
+    setMessages(cached)
+  }), [historyKey, setMessages])
+
+  React.useEffect(() => subscribeToChatHistoryTransition(historyKey, nextMessages => {
+    const trimmed = nextMessages.slice(-80)
+    putChatHistoryCache(historyKey, trimmed)
+    setMessages(trimmed)
+  }), [historyKey, setMessages])
+
   React.useEffect(() => {
+    const previousHistoryKey = lastLoadedHistoryKeyRef.current
     const hydrationAction = resolveChatHistoryHydrationAction({
       historyKey,
-      lastLoadedHistoryKey: lastLoadedHistoryKeyRef.current,
+      lastLoadedHistoryKey: previousHistoryKey,
       isLoading,
     })
     if (hydrationAction === 'skip') return
     lastLoadedHistoryKeyRef.current = historyKey
-    if (hydrationAction === 'mark-loaded') return
+    const transitionedMessages = adoptLatestChatHistoryTransition({
+      historyKey,
+      previousHistoryKey,
+      currentMessages: messagesRef.current,
+    })
+    if (transitionedMessages) {
+      pendingHydrationPersistenceSkipKeyRef.current = historyKey
+      setMessages(transitionedMessages)
+      return
+    }
+    if (hydrationAction === 'mark-loaded') {
+      pendingHydrationPersistenceSkipKeyRef.current = null
+      return
+    }
+    // The persistence effect runs in the same commit. Skip it once so the
+    // pre-hydration render cannot replace the target key's cache with stale
+    // messages from the graph that was just left.
+    pendingHydrationPersistenceSkipKeyRef.current = historyKey
     const cached = getCachedChatHistory(historyKey)
     if (cached) {
       setMessages(cached)
@@ -71,6 +106,14 @@ export const useFloatingPanelChatHistory = (args: {
   }, [historyKey, isLoading, setMessages])
 
   React.useEffect(() => {
+    const persistenceAction = resolveChatHistoryPersistenceAction({
+      historyKey,
+      pendingHydrationHistoryKey: pendingHydrationPersistenceSkipKeyRef.current,
+    })
+    if (persistenceAction === 'skip-hydration-commit') {
+      pendingHydrationPersistenceSkipKeyRef.current = null
+      return
+    }
     const history = (() => {
       const base = messages.slice(-80)
       if (!streamingAssistantId) return base

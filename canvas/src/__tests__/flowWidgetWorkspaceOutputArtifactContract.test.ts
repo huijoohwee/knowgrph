@@ -29,8 +29,8 @@ export function testStoryboardWidgetRichMediaRunsPersistWorkspaceManifests() {
   if (!richMediaRunText.includes('writeWorkspaceBlobArtifactAtPath({') || !richMediaRunText.includes('writeWorkspaceTextArtifactAtPath({') || !richMediaRunText.includes('buildGeneratedMediaManifestMarkdown({')) {
     throw new Error('expected shared rich-media artifact writer to persist the binary asset and editable markdown manifest')
   }
-  if (!richMediaRunText.includes('createdPaths: [outputManifestPath]') || !richMediaRunText.includes('opts: { applyToGraph: false }')) {
-    throw new Error('expected generated rich-media manifest to register in Source Files without graph recomposition')
+  if (!richMediaRunText.includes('createdPaths: [outputPath, outputManifestPath]') || !richMediaRunText.includes('workspaceEntries: buildGeneratedMediaWorkspaceEntries({') || !richMediaRunText.includes('applyToGraph: false')) {
+    throw new Error('expected generated rich-media binary and manifest to register in Source Files without graph recomposition')
   }
   if (!workflowMediaHandlersText.includes('outputManifestPath: richMediaResult.outputManifestPath')) {
     throw new Error('expected Storyboard Widget image/video run patches to carry the shared workspace manifest path')
