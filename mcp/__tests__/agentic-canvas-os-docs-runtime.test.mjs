@@ -58,6 +58,19 @@ test("local MCP docs invocation catalogs /, #, and @ entries from source docs", 
   assert.ok(result.catalog.some((entry) => entry.token === "@sandbox-policy"));
 });
 
+test("local MCP docs invocation treats sigil-only queries as token-prefix filters", { skip: !DOCS_AVAILABLE }, async () => {
+  for (const [query, kind] of [["/", "command"], ["#", "semantic"], ["@", "binding"]]) {
+    const result = await runAgenticCanvasOsDocsInvokeTool({ query, limit: 500 }, {
+      rootDir: KNOWGRPH_ROOT,
+      env: DOCS_ENV,
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.catalog.length, result.counts[kind]);
+    assert.ok(result.catalog.every((entry) => entry.token.startsWith(query)));
+  }
+});
+
 test("local MCP docs invocation resolves specific /, #, and @ tokens with source content", { skip: !DOCS_AVAILABLE }, async () => {
   for (const token of ["/query", "#runtime-ready", "@mcp-gateway"]) {
     const result = await runAgenticCanvasOsDocsInvokeTool({ token, includeContent: true }, {

@@ -256,13 +256,16 @@ export default function SkillsCommandsView({
   prefixFilter = 'all',
   searchQuery = '',
 }: SkillsCommandsViewProps) {
-  useAgenticOsRemoteGrammarCatalog({ sigils: ['/', '#', '@'] })
+  const grammarCatalog = useAgenticOsRemoteGrammarCatalog({ sigils: ['/', '#', '@'] })
   const uiIconScale = useGraphStore(s => s.uiIconScale)
   const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
   const uiIconColorClass = useGraphStore(s => s.uiIconColorClass)
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const iconColorClass = uiIconColorClass && uiIconColorClass.trim().length > 0 ? uiIconColorClass : UI_THEME_TOKENS.icon.color
-  const renderEntries = React.useMemo<readonly SkillsCommandsRenderEntry[]>(() => resolveSkillsCommandsRenderEntries(prefixFilter, searchQuery), [prefixFilter, searchQuery])
+  const renderEntries = React.useMemo<readonly SkillsCommandsRenderEntry[]>(
+    () => resolveSkillsCommandsRenderEntries(prefixFilter, searchQuery),
+    [grammarCatalog.version, prefixFilter, searchQuery],
+  )
   const entryGroups = React.useMemo(() => groupSkillsCommandsRenderEntries(renderEntries, grammarGroupBy), [grammarGroupBy, renderEntries])
   const [uncontrolledCollapsedGroupKeys, setUncontrolledCollapsedGroupKeys] = React.useState<ReadonlySet<string>>(() => new Set())
   const collapsedGroupKeys = controlledCollapsedGroupKeys ?? uncontrolledCollapsedGroupKeys

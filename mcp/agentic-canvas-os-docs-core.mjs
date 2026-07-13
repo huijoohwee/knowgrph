@@ -161,14 +161,17 @@ export const buildAgenticCanvasOsDocsInvokePayload = ({
   }, {});
   const normalizedToken = normalizeText(token);
   const normalizedQuery = normalizeText(query).toLowerCase();
+  const sigilQuery = ["/", "#", "@"].includes(normalizedQuery) ? normalizedQuery : "";
   const boundedLimit = Math.max(1, Math.min(500, Number.isFinite(Number(limit)) ? Math.floor(Number(limit)) : 120));
-  const matchesQuery = (entry) => !normalizedQuery || [
-    entry.token,
-    entry.kind,
-    entry.label,
-    entry.summary,
-    entry.sourcePath,
-  ].some((value) => normalizeText(value).toLowerCase().includes(normalizedQuery));
+  const matchesQuery = (entry) => sigilQuery
+    ? entry.token.startsWith(sigilQuery)
+    : !normalizedQuery || [
+      entry.token,
+      entry.kind,
+      entry.label,
+      entry.summary,
+      entry.sourcePath,
+    ].some((value) => normalizeText(value).toLowerCase().includes(normalizedQuery));
 
   const invocation = normalizedToken
     ? catalog.find((entry) => entry.token === normalizedToken) || null

@@ -20,6 +20,12 @@ frontmatter_contract: "required"
 - **Canonical directive**: **STRICTLY COMPLY** with one-row-one-directive (Max 50 words)
 - **Table cells**: MUST fill-up all cells in the table; FORBID empty/`-` cells.
 
+## 2026-07-14
+
+| Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |
+|--------|--------|-----------|--------|-----------------|-------|--------|----------------|--------------------------|--------------------------|--------------|
+| Skills & Commands source-backed invocation restoration | Restore complete `/`, `#`, and `@` catalog rows on localhost without reviving copied invocation arrays. | Project the three Agentic Canvas OS dictionaries through the existing read-only docs tool in Vite dev/preview, and recompute shared catalog rows whenever the authoritative grammar snapshot changes. | `knowgrph/{canvas/agenticOsGrammarDevServer.mjs,canvas/src/features/agentic-os,canvas/src/features/panels/views/SkillsCommandsView.tsx,mcp/agentic-canvas-os-docs-contract.mjs,docs/documents/knowgrph-api-document.md,todo-log.md}`; `agentic-canvas-os/docs/MCP-GATEWAY.md` | Local grammar forwarder plus shared invocation catalog | `handleAgenticOsGrammarDevRpc`, `useAgenticOsRemoteGrammarCatalog`, `resolveSkillsCommandsRenderEntries` | Fetched command, semantic, and binding dictionary entries | Complete interactive Skills & Commands rows from one source-backed registry | Localhost uses the read-only app-owned MCP forwarder; deployed hosts retain control-plane ownership; snapshot versions invalidate the catalog projection. | Keep focused catalog, forwarder, TypeScript, hygiene, and browser checks in the regression gate; do not add static fallback registries. | 2026-07-14 |
+
 ## 2026-07-13
 
 | Context | Intent | Directive | Module | Class/Object | Function/Method | Input | Output | Decision Logic | Next Step Recommendation | Updated Date |

@@ -52,6 +52,15 @@ API and MCP contracts are owned upstream in Dev. Production mirrors should recei
 - Purpose: allow the UI/dev workflow to trigger the repo-level markdown pipeline once.
 - Implementation: [vite.config.ts](../../canvas/vite.config.ts)
 
+### Agentic Canvas OS invocation grammar (dev/preview)
+
+- Path: `/knowgrph/control-plane/mcp` (POST, MCP initialize and `tools/call` for `knowgrph.agentic_canvas_os.docs.invoke`).
+- Purpose: keep localhost Skills & Commands and shared composer menus projected from the sibling `agentic-canvas-os/docs` command, semantic, and binding dictionaries after static downstream invocation arrays were removed.
+- Query contract: sigil-only `/`, `#`, and `@` searches filter by token prefix and request the bounded 500-entry catalog ceiling.
+- Runtime: the Vite dev/preview middleware delegates to the existing read-only local docs tool; deployed hosts continue to use the control-plane MCP owner.
+- Boundary: the forwarder exposes no mutation or deployment operation and removes the machine-local absolute docs path from browser responses.
+- Implementations: [agenticOsGrammarDevServer.mjs](../../canvas/agenticOsGrammarDevServer.mjs), [agentic-canvas-os-docs-runtime.js](../../mcp/agentic-canvas-os-docs-runtime.js), and [agenticOsRemoteGrammarClient.ts](../../canvas/src/features/agentic-os/agenticOsRemoteGrammarClient.ts).
+
 ### Super-agent harness (CLI/MCP)
 
 - CLI: `python3 -m knowgrph_parser superagent` or `python3 -m knowgrph_parser run-goal`

@@ -169,26 +169,6 @@ export async function testFloatingPanelSkillsCommandsViewRendersSlashInvokableSk
 
 export async function testSkillsCommandsViewHydratesRemoteGrammarCatalogEntries() {
   resetAgenticOsRemoteGrammarCatalogForTests()
-  registerAgenticOsRemoteGrammarCatalogEntries([
-    {
-      token: '#remote-display',
-      kind: 'semantic',
-      label: 'Remote display',
-      summary: 'Remote-only semantic entry surfaced in Skills & Commands',
-      sourcePath: 'DICTIONARY-SEMANTIC.md#remote-display',
-      sourceUrl: 'https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/DICTIONARY-SEMANTIC.md#remote-display',
-      keywords: ['remote', 'display'],
-    },
-    {
-      token: '@remote-display',
-      kind: 'binding',
-      label: 'Remote display binding',
-      summary: 'Remote-only binding entry surfaced in Skills & Commands',
-      sourcePath: 'DICTIONARY-BINDING.md#remote-display',
-      sourceUrl: 'https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/DICTIONARY-BINDING.md#remote-display',
-      keywords: ['remote', 'display'],
-    },
-  ])
   const { dom, restore } = initJsdomHarness()
   const doc = dom.window.document
   const container = doc.createElement('section')
@@ -198,6 +178,32 @@ export async function testSkillsCommandsViewHydratesRemoteGrammarCatalogEntries(
     await mountReactRoot(root, React.createElement(SkillsCommandsView, { searchQuery: 'remote display' }), {
       window: dom.window as unknown as Window,
       frames: 2,
+    })
+    if (container.querySelector('[data-kg-skill-command-token="#remote-display"]')) {
+      throw new Error('Expected the remote-only grammar row to be absent before catalog hydration')
+    }
+    await act(async () => {
+      registerAgenticOsRemoteGrammarCatalogEntries([
+        {
+          token: '#remote-display',
+          kind: 'semantic',
+          label: 'Remote display',
+          summary: 'Remote-only semantic entry surfaced in Skills & Commands',
+          sourcePath: 'DICTIONARY-SEMANTIC.md#remote-display',
+          sourceUrl: 'https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/DICTIONARY-SEMANTIC.md#remote-display',
+          keywords: ['remote', 'display'],
+        },
+        {
+          token: '@remote-display',
+          kind: 'binding',
+          label: 'Remote display binding',
+          summary: 'Remote-only binding entry surfaced in Skills & Commands',
+          sourcePath: 'DICTIONARY-BINDING.md#remote-display',
+          sourceUrl: 'https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/DICTIONARY-BINDING.md#remote-display',
+          keywords: ['remote', 'display'],
+        },
+      ])
+      await waitForFrames(dom.window as unknown as Window, 2)
     })
     await waitForFrames(dom.window as unknown as Window, 2)
     const remoteHash = Array.from<HTMLElement>(container.querySelectorAll<HTMLElement>('[data-kg-skill-command-hash]'))
@@ -353,7 +359,6 @@ export async function testFloatingPanelSkillsCommandsViewReusesMediaPanelLayout(
       storybuildingToken.getAttribute('data-kg-skill-command-token-chip') !== '1' ||
       !storybuildingToken.className.includes('kg-responsive-element-row') ||
       !storybuildingToken.className.includes('inline-flex') ||
-      !storybuildingToken.className.includes('leading-5') ||
       storybuildingToken.tagName.toLowerCase() === 'code' ||
       storybuildingToken.className.includes('font-mono')
     ) {

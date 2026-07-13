@@ -1,5 +1,9 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { readEnvString } from '@/lib/config.env'
+import {
+  AGENTIC_CANVAS_OS_DOCS_CONTROL_PLANE_PATH,
+  AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
+} from '../../../../mcp/agentic-canvas-os-docs-contract.mjs'
 
 export type AgenticOsRemoteGrammarCatalogEntry = {
   token: string
@@ -26,7 +30,6 @@ type AgenticOsRemoteGrammarClientOptions = {
 export type AgenticOsRemoteGrammarSigil = '/' | '#' | '@'
 
 const DEFAULT_KNOWGRPH_AGENT_READY_BASE_URL = 'https://airvio.co/knowgrph'
-const CONTROL_PLANE_PATH = '/knowgrph/control-plane/mcp'
 const REMOTE_GRAMMAR_SIGIL_ORDER: readonly AgenticOsRemoteGrammarSigil[] = ['/', '#', '@'] as const
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
@@ -71,7 +74,7 @@ const resolveControlPlaneEndpoint = (endpoint?: string): string => {
   const explicitEndpoint = normalizeString(endpoint)
   if (explicitEndpoint) return explicitEndpoint
   const baseUrl = readKnowgrphAgentReadyBaseUrl()
-  return `${baseUrl}${CONTROL_PLANE_PATH.replace(/^\/knowgrph/, '')}`
+  return `${baseUrl}${AGENTIC_CANVAS_OS_DOCS_CONTROL_PLANE_PATH.replace(/^\/knowgrph/, '')}`
 }
 
 const parseJsonMaybe = (value: string): Record<string, unknown> | null => {
@@ -298,8 +301,8 @@ export function createAgenticOsRemoteGrammarClient(options: AgenticOsRemoteGramm
         id: nextId++,
         method: 'tools/call',
         params: {
-          name: 'knowgrph.agentic_canvas_os.docs.invoke',
-          arguments: { query: normalizedQuery },
+          name: AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
+          arguments: { query: normalizedQuery, limit: 500 },
         },
       }, { signal, sessionId })
       if (invoked.rpc.error) {
