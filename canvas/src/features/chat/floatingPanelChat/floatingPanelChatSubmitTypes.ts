@@ -88,6 +88,7 @@ export type FloatingPanelChatSubmitArgs = {
     knownKnowgrphPath?: string | null
     status?: 'ok' | 'error'
     finalAssistantOverride?: string | null
+    applyWorkspaceDocumentToCanvas?: boolean
     streamUsageSummary?: string | null
     streamFinishReason?: string | null
     streamReasoningSteps?: string[]

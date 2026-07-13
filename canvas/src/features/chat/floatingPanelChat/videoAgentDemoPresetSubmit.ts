@@ -36,6 +36,35 @@ export const buildVideoAgentPresetRunProgressResponse = (args: {
   status: WorkflowRunAllStatus
 }): string => `${args.startedResponse}\n\n${args.status.message}`
 
+export const finalizeVideoAgentDemoPresetTerminalStatus = async (args: {
+  input: string
+  startedResponse: string
+  status: WorkflowRunAllStatus
+  assistantMessageId: string
+  timestampMs: number
+  modelId: string
+  finalizeAssistantSuccess: FloatingPanelChatSubmitArgs['finalizeAssistantSuccess']
+}): Promise<boolean> => {
+  if (args.status.phase !== 'complete' && args.status.phase !== 'error') return false
+  const finalResponse = buildVideoAgentPresetRunProgressResponse({
+    startedResponse: args.startedResponse,
+    status: args.status,
+  })
+  await args.finalizeAssistantSuccess({
+    assistantMessageId: args.assistantMessageId,
+    requestText: args.input,
+    modelId: args.modelId,
+    rawAssistantText: finalResponse,
+    timestampMs: args.timestampMs,
+    status: args.status.phase === 'error' ? 'error' : 'ok',
+    finalAssistantOverride: finalResponse,
+    // The committed preset remains the graph authority; finalization owns only
+    // the canonical chat-log document and terminal trace for this run.
+    applyWorkspaceDocumentToCanvas: false,
+  })
+  return true
+}
+
 export type VideoAgentPresetExecutionPreflight =
   | { ok: true; invocation: GenerationInvocation }
   | { ok: false; error: string }
@@ -147,6 +176,30 @@ export const tryActivateVideoAgentDemoPreset = async (args: {
   let startedResponse = ''
   let latestRunStatus: WorkflowRunAllStatus | null = null
   let assistantMessageId = ''
+  let terminalRunFinalized = false
+  const finalizeTerminalRunStatus = () => {
+    const runStatus = latestRunStatus
+    if (
+      terminalRunFinalized
+      || !runStatus
+      || (runStatus.phase !== 'complete' && runStatus.phase !== 'error')
+      || !assistantMessageId
+      || !startedResponse
+    ) return
+    terminalRunFinalized = true
+    void finalizeVideoAgentDemoPresetTerminalStatus({
+      input: args.input,
+      startedResponse,
+      status: runStatus,
+      assistantMessageId,
+      timestampMs,
+      modelId: submitArgs.chatModel || submitArgs.chatProvider || 'video-agent-preset',
+      finalizeAssistantSuccess: submitArgs.finalizeAssistantSuccess,
+    }).catch(error => {
+      const errorMessage = error instanceof Error ? error.message : 'Unable to persist the terminal video preset result.'
+      submitArgs.setErrorText(errorMessage)
+    })
+  }
   const publishRunStatusToChat = (runStatus: WorkflowRunAllStatus) => {
     latestRunStatus = runStatus
     if (!assistantMessageId || !startedResponse) return
@@ -156,6 +209,7 @@ export const tryActivateVideoAgentDemoPreset = async (args: {
       historyKeys: [submitArgs.historyKey, activatedHistoryKey],
       setMessages: submitArgs.setMessages,
     })
+    finalizeTerminalRunStatus()
   }
   try {
     const preset = await loadVideoAgentDemoPreset()
