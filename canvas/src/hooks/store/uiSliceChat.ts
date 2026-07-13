@@ -128,7 +128,11 @@ export const createUiChatActions = (set: SetGraph)=> ({
           currentProvider: state.chatProvider,
           provider,
         })
-        if (state.chatProvider === next.chatProvider) return {}
+        if (
+          state.chatProvider === next.chatProvider
+          && state.chatModel === next.chatModel
+          && state.chatEndpointUrl === next.chatEndpointUrl
+        ) return {}
         return {
           chatProvider: lsSetJson(LS_KEYS.chatProvider, next.chatProvider),
           chatModel: lsSetJson(LS_KEYS.chatModel, next.chatModel),
