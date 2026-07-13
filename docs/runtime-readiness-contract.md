@@ -25,6 +25,13 @@ local_proof:
   paid_call_count: 0
   actual_cost_usd: 0
   deterministic_replays: 2
+sme_canvas_evidence:
+  fixture: "sme-agent/fixtures/pre-seed.md"
+  artifact: "sme-agent/demo/sme-care-agent-canvas-evidence.md"
+  invocation: "/sme-care-agent"
+  schema: "knowgrph-sme-canvas-evidence/v1"
+  kgc_schema: "kgc-computing-flow/v1"
+  renderer: "storyboard"
 deployed_verification:
   script: "scripts/verify-deployed-runtime.mjs"
   explicit_environment_only: true
@@ -39,7 +46,7 @@ The opening frontmatter is the machine source of truth for the Dev runtime-readi
 
 ## Promotion Rule
 
-`runtime-ready` is an executable claim. It requires the focused runtime suite, readable pinned dictionaries, canonical stage topology, deterministic replay, zero paid calls, zero actual cost, and proof bound to the current Git source state.
+`runtime-ready` is an executable claim. It requires the focused runtime suite, readable pinned dictionaries, canonical stage topology, deterministic replay, zero paid calls, zero actual cost, proof bound to the current Git source state, and a byte-stable `/sme-care-agent` Canvas evidence artifact that parses through the shared frontmatter-flow path.
 
 The local gate performs no network calls, deployments, remote migrations, or repository writes. Deployed reachability is a separate operator-invoked verification and cannot promote a failing local runtime.
 
@@ -51,7 +58,7 @@ The pinned Agentic Canvas OS documentation is a source-time governance dependenc
 
 Live execution is fail-closed: it requires bearer authentication, the `paid-model-call` approval, and a configured Workers AI binding. Dry-run is deterministic and records zero paid provider calls.
 
-`/sme-care-agent` additionally owns the internal `agent.sme` / `sme.risk.profile` deterministic kernel. Its Cloudflare bundle compiles without an external orchestration service, while its full Dev execution uses the existing local Source Files owner for atomic `sme-agent/profiles/*` and `sme-agent/runs/*` writes. Prod mirror and Cloudflare mutations remain prohibited until separately authorized.
+`/sme-care-agent` additionally owns the internal `agent.sme` / `sme.risk.profile` deterministic kernel. Its Cloudflare bundle compiles without an external orchestration service, while its full Dev execution uses the existing local Source Files owner for atomic `sme-agent/profiles/*` and `sme-agent/runs/*` writes. Every successful live run includes `sme-agent/runs/<runId>/canvas-evidence.md`, a `kgc-computing-flow/v1` Storyboard projection of exposures, gaps, unknown risks, protection guidance, rationales, cost, and deployment boundaries. The checked-in pre-seed evidence mirror is regenerated from the same runtime owner and must remain byte-identical. Prod mirror and Cloudflare mutations remain prohibited until separately authorized.
 
 ## Commands
 

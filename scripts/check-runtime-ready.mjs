@@ -11,6 +11,9 @@ import { runAgenticCanvasOsDocsInvokeTool } from "../mcp/agentic-canvas-os-docs-
 import { runVideoRemix } from "../mcp/video-remix-runtime.js";
 import { VIDEO_REMIX_STAGE_ORDER } from "../mcp/video-remix/stage-contract.js";
 import { listAgentDefinitions } from "../contracts/agent-runtime.schema.js";
+import { kgcRoundTripEquivalent } from "../contracts/kgc-document.schema.js";
+import { buildSmeCanvasEvidence } from "../mcp/sme-risk-coverage/canvas-evidence.js";
+import { runSmeRiskCoverageMarkdown } from "../mcp/sme-risk-coverage/core.js";
 
 const execFileAsync = promisify(execFile);
 const contractPath = path.resolve(repoRoot, "docs", "runtime-readiness-contract.md");
@@ -101,6 +104,44 @@ function verifyMockRuntime(contract) {
   return first;
 }
 
+async function verifySmeCanvasEvidence(contract) {
+  const evidenceContract = contract.sme_canvas_evidence;
+  const fixturePath = path.resolve(repoRoot, evidenceContract.fixture);
+  const artifactPath = path.resolve(repoRoot, evidenceContract.artifact);
+  const fixture = await fs.readFile(fixturePath, "utf8");
+  const result = runSmeRiskCoverageMarkdown(fixture);
+  if (!result.ok) fail(`SME Canvas fixture failed: ${JSON.stringify(result.error)}`);
+  const document = buildSmeCanvasEvidence(result.run);
+  const artifact = await fs.readFile(artifactPath, "utf8");
+  if (artifact !== document.canvasDocumentMarkdown) fail("SME Canvas evidence artifact is stale");
+  if (!kgcRoundTripEquivalent(document)) fail("SME Canvas evidence did not round-trip through Kgc_Document");
+  if (document.schema !== evidenceContract.kgc_schema || document.proof.invocation !== evidenceContract.invocation) {
+    fail("SME Canvas evidence schema or invocation drifted");
+  }
+  if (document.proof.runtime_status !== "runtime-ready" || document.proof.estimated_cost_usd !== 0 || document.proof.paid_provider_calls !== 0) {
+    fail("SME Canvas evidence is not a zero-cost runtime-ready proof");
+  }
+  if (document.proof.deployment.prodMirrorMutation !== false || document.proof.deployment.cloudflareMutation !== false) {
+    fail("SME Canvas evidence crossed the Dev deployment boundary");
+  }
+  return {
+    runId: result.run.runId,
+    artifact: evidenceContract.artifact,
+    sourceFilesPath: document.proof.source_path,
+    schema: document.schema,
+    renderer: evidenceContract.renderer,
+    nodes: document.flow.nodes.length,
+    edges: document.flow.edges.length,
+    exposures: document.proof.exposure_count,
+    gaps: document.proof.gap_count,
+    unknownRisks: document.proof.unknown_risk_count,
+    protections: document.proof.protection_count,
+    rationales: document.proof.rationale_count,
+    paidProviderCalls: document.proof.paid_provider_calls,
+    actualCostUsd: document.proof.estimated_cost_usd,
+  };
+}
+
 async function gitSourceState() {
   const [{ stdout: sha }, { stdout: status }] = await Promise.all([
     execFileAsync("git", ["rev-parse", "HEAD"], { cwd: repoRoot }),
@@ -117,7 +158,7 @@ async function gitSourceState() {
 
 async function main() {
   const contract = await readContract();
-  const [docs, source] = await Promise.all([verifyDocs(contract), gitSourceState()]);
+  const [docs, source, smeCanvas] = await Promise.all([verifyDocs(contract), gitSourceState(), verifySmeCanvasEvidence(contract)]);
   const runtime = verifyMockRuntime(contract);
   const proof = {
     status: "runtime-ready",
@@ -126,6 +167,7 @@ async function main() {
     source,
     docs,
     runtime,
+    smeCanvas,
   };
   console.log(JSON.stringify(proof, null, 2));
 }

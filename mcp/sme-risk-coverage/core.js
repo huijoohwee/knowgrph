@@ -15,6 +15,7 @@ import {
   SME_SEVERITIES,
   validateSmeRiskRun,
 } from "../../contracts/sme-risk-coverage.schema.js";
+import { buildSmeCanvasEvidence, SME_CANVAS_EVIDENCE_FILE } from "./canvas-evidence.js";
 
 export const SME_SKILL_VARIANT = "agent.sme";
 export const SME_SKILL_ID = "sme.risk.profile";
@@ -277,6 +278,7 @@ export function buildSmeSourceFiles(run) {
   const profileDocument = printSmeProfileMarkdown(run.profile);
   if (!profileDocument.ok) throw new Error(profileDocument.error.reason);
   const base = `sme-agent/runs/${run.runId}`;
+  const canvasEvidence = buildSmeCanvasEvidence(run);
   return {
     [`sme-agent/profiles/${run.profile.profile_id}/profile.md`]: profileDocument.markdown,
     [`${base}/exposures.md`]: markdownArtifact("Risk Exposures", run.exposureProfile),
@@ -284,6 +286,7 @@ export function buildSmeSourceFiles(run) {
     [`${base}/protection.md`]: markdownArtifact("Protection Guidance", { disclaimer: run.disclaimer, protections: run.protections }),
     [`${base}/rationale.md`]: markdownArtifact("Rationales", run.rationales),
     [`${base}/delta.md`]: markdownArtifact("Growth Delta", run.delta),
+    [`${base}/${SME_CANVAS_EVIDENCE_FILE}`]: canvasEvidence.canvasDocumentMarkdown,
   };
 }
 
