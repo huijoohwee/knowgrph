@@ -1,3 +1,17 @@
 schemaVersion: 1
 defaultClaimTtlMs: 86400000
-entries: []
+entries:
+  - deviceId: desktop
+    semanticScope: multi-device-scope-locking
+    branch: agent/desktop/multi-device-scope-locking
+    baseRef: origin/main
+    baseSha: f3d10faedfd8237d5c62ef1d108d4811272298b0
+    worktree: knowgrph-desktop-multi-device-scope-locking
+    activeWriter: desktop
+    claimedAt: '2026-07-13T10:03:00.542Z'
+    state: active
+    claimExpiry: '2026-07-14T10:03:00.542Z'
+    handoff: null
+    override: null
+    releasedAt: null
+    integrationSha: null
