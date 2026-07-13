@@ -1,24 +1,43 @@
-import { TEXTAREA_INVOCATION_PROJECTED_LAYOUT_CLASS_NAME } from "@/lib/ui/textareaInvocationProjection";
-import { TextareaInvocationEditor } from "@/lib/ui/TextareaInvocationEditor";
+import React from 'react'
+import { MarkdownInlineTextEditSurface } from '@/lib/markdown-core/ui/MarkdownInlineTextEditSurface'
 
 export function LiveCanvasHeroQueryEditor(props: {
   value: string;
   onChange: (value: string) => void;
 }) {
+  const editorRef = React.useRef<HTMLElement | null>(null)
+  const inputProxyRef = React.useRef<HTMLTextAreaElement | null>(null)
+
   return (
-    <section className="relative mt-2 min-h-16 overflow-hidden rounded-xl border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-code-bg)_88%,transparent)]">
-      <TextareaInvocationEditor
+    <section
+      className="relative mt-2 min-h-16 overflow-hidden rounded-xl border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-code-bg)_88%,transparent)]"
+      onKeyDownCapture={event => {
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+          editorRef.current?.closest('form')?.requestSubmit()
+        }
+      }}
+    >
+      <MarkdownInlineTextEditSurface
         value={props.value}
-        onChange={props.onChange}
-        id="knowgrph-live-canvas-hero-query"
         ariaLabel="Agentic Video Canvas"
-        overlayTextClassName="font-mono text-xs leading-5 text-[var(--kg-code-text)]"
-        overlayChromeClassName="px-3 py-2.5"
-        projectedLayoutClassName={`${TEXTAREA_INVOCATION_PROJECTED_LAYOUT_CLASS_NAME} leading-5`}
-        className="relative z-0 min-h-16 w-full resize-none border-0 bg-transparent px-3 py-2.5 font-mono text-xs leading-5 text-[var(--kg-code-text)] outline-none md:resize-y"
-        submitOnModEnter
-        dataAttributes={{ 'data-kg-live-canvas-hero-query': 'true' }}
+        placeholder="Describe the agentic video workflow"
+        className="min-h-16 bg-transparent px-3 py-2.5 font-mono text-xs leading-5 text-[var(--kg-code-text)] outline-none"
+        commandMode={null}
+        editorRef={editorRef}
+        inputProxyRef={inputProxyRef}
+        inlineChipDensity="compact"
+        multiline
+        projectedMediaAttachments={null}
+        isCommandMenuTarget={() => false}
+        onCancel={() => undefined}
+        onCommit={() => undefined}
+        onDraftChange={props.onChange}
+        onFocus={() => undefined}
+        onOpenCommandMenuForSigilAtSelection={() => undefined}
+        readCommandSigilFromKeyEvent={() => null}
+        readCommandSigilFromInsertedText={() => null}
+        cardInlineEditInputAttribute="data-kg-live-canvas-hero-query"
       />
     </section>
-  );
+  )
 }

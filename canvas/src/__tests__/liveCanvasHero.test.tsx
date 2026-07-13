@@ -1,9 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import React, { act } from 'react'
-import { createRoot } from 'react-dom/client'
-import { Simulate } from 'react-dom/test-utils'
-import { LiveCanvasHeroEditorial } from '@/components/LiveCanvasHero'
+import { act } from 'react'
 import { LIVE_CANVAS_HERO_DOC_PATH, readLiveCanvasHeroContent } from '@/features/agentic-os/liveCanvasHeroContent'
 import {
   LIVE_CANVAS_HERO_DEFAULT_QUERY_TOKENS,
@@ -26,7 +23,6 @@ import {
   readLiveCanvasHeroSourceSelection,
   selectLiveCanvasHeroSource,
 } from '@/features/canvas/liveCanvasHeroSourceSelection'
-import { installEmbeddedCanvasChatCommandBridge } from '@/features/canvas/embeddedCanvasChatCommand'
 import {
   resolveLiveCanvasHeroSource,
   resolveWorkspaceReadmeTextLiveCanvasHeroSource,
@@ -569,114 +565,6 @@ export async function testLiveCanvasHeroChatHandoffFlushesThroughSharedAppendEve
     }
   } finally {
     dom.window.removeEventListener(CHAT_INPUT_APPEND_EVENT, listener as EventListener)
-    restore()
-  }
-}
-
-export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Promise<void> {
-  const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('section')
-  dom.window.document.body.appendChild(container)
-  const root = createRoot(container as unknown as HTMLElement)
-  const submittedQueries: string[] = []
-  const cleanupChatBridge = installEmbeddedCanvasChatCommandBridge({
-    submit: query => {
-      submittedQueries.push(query)
-      return true
-    },
-  })
-  let importedSelection: ReturnType<typeof readLiveCanvasHeroSourceSelection> = null
-  const importListener = (event: Event) => { importedSelection = readLiveCanvasHeroSourceSelection(event) }
-  dom.window.addEventListener(LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT, importListener as EventListener)
-  let completedCount = 0
-  const model = buildLiveCanvasHeroModel()
-  const expectedDefaultQuery = model.defaultQuery
-
-  try {
-    const content = readLiveCanvasHeroContent()
-    await mountReactRoot(root, (
-      <LiveCanvasHeroEditorial
-        model={model}
-        onEnter={() => { completedCount += 1 }}
-      />
-    ), { window: dom.window as unknown as Window, frames: 2 })
-
-    const textarea = container.querySelector('[data-kg-live-canvas-hero-query="true"]') as HTMLTextAreaElement | null
-    if (!textarea || textarea.value !== expectedDefaultQuery) {
-      throw new Error(`expected visible raw editable hero query, got ${JSON.stringify(textarea?.value)}`)
-    }
-    if (!textarea.closest('[data-kg-textarea-invocation-editor="shared"]') || textarea.getAttribute('data-kg-chat-input-overlay-active') !== '1') {
-      throw new Error(`expected Hero query to reuse the shared Floating Panel textarea invocation editor, got ${textarea.outerHTML}`)
-    }
-    const heroText = String(container.textContent || '')
-    for (const requiredText of [content.eyebrow, ...content.headline, ...content.posture]) {
-      if (!heroText.includes(requiredText)) throw new Error(`expected hero UI to render markdown-backed copy ${JSON.stringify(requiredText)}`)
-    }
-    if (submittedQueries.length !== 0 || completedCount !== 0) throw new Error('expected zero embedded Chat submissions on mount')
-    const openAiToken = container.querySelector('[data-kg-live-canvas-hero-invocation-token="@provider.openai"]') as HTMLButtonElement | null
-    if (!openAiToken) throw new Error('expected source-backed @provider.openai provider token')
-    await act(async () => {
-      openAiToken.click()
-      await waitForFrames(dom.window as unknown as Window, 1)
-    })
-    const expectedOpenAiQuery = expectedDefaultQuery.replace('@provider.byteplus', '@provider.openai')
-    if (String(textarea.value) !== expectedOpenAiQuery) {
-      throw new Error(`expected raw provider replacement, got ${JSON.stringify(textarea.value)}`)
-    }
-    const startButton = container.querySelector('[data-kg-live-canvas-hero-start="true"]') as HTMLButtonElement | null
-    if (!startButton) throw new Error('expected explicit Run action')
-    if (container.querySelector('[data-kg-live-canvas-hero-share-embed="true"]') || container.textContent?.includes('Share canvas embed')) {
-      throw new Error('expected Home to omit the Share canvas embed action entirely')
-    }
-    const actionIcons = Array.from(container.querySelectorAll('[data-kg-live-canvas-hero-action-icon]')) as HTMLElement[],
-      iconNames = actionIcons.map(icon => icon.getAttribute('data-kg-live-canvas-hero-action-icon')).join(',')
-    if (iconNames !== 'enter,run,import' || actionIcons.some(icon => icon.getAttribute('aria-hidden') === 'true')) {
-      throw new Error(`expected visible, queryable Home action icons, got ${iconNames}`)
-    }
-    const importButton = container.querySelector('[data-kg-live-canvas-hero-import-embed="true"]') as HTMLButtonElement | null
-    if (!importButton) throw new Error('expected an explicit Import canvas embed action')
-    if (importButton.tagName !== 'BUTTON' || importButton.hasAttribute('href')) {
-      throw new Error('expected Import canvas embed to open in place without a workspace navigation link')
-    }
-    await act(async () => {
-      importButton.click()
-      await waitForFrames(dom.window as unknown as Window, 1)
-    })
-    const importPanel = container.querySelector('[aria-label="Import canvas embed panel"]')
-    const importValue = importPanel?.querySelector('#canvas-embed-import-value') as HTMLTextAreaElement | null
-    const useBackgroundButton = importPanel?.querySelector('button[type="submit"]') as HTMLButtonElement | null
-    if (!importValue || !useBackgroundButton || !importPanel) {
-      throw new Error('expected Import canvas embed to open its iframe/postMessage input panel')
-    }
-    const valueSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, 'value')?.set
-    if (!valueSetter) throw new Error('expected textarea value setter')
-    await act(async () => {
-      valueSetter.call(importValue, '<iframe src="https://airvio.co/knowgrph/share/kg-imported-token"></iframe>')
-      Simulate.change(importValue)
-      await waitForFrames(dom.window as unknown as Window, 1)
-    })
-    await act(async () => {
-      useBackgroundButton.click()
-      await waitForFrames(dom.window as unknown as Window, 1)
-    })
-    if (!importedSelection?.embedUrl.includes('/share/kg-imported-token?kgPreview=1&kgLiveHero=1')) {
-      throw new Error(`expected imported iframe to dispatch the canonical Hero source selection, got ${JSON.stringify({ importedSelection, value: importValue.value, panelText: importPanel.textContent })}`)
-    }
-    if (container.querySelector('[aria-label="Import canvas embed panel"]')) {
-      throw new Error('expected a successful import to return to the Live Canvas Hero')
-    }
-    await act(async () => {
-      startButton.click()
-      await waitForFrames(dom.window as unknown as Window, 1)
-    })
-    if (Number(submittedQueries.length) !== 1 || submittedQueries[0] !== textarea.value || Number(completedCount) !== 0) {
-      throw new Error(`expected the Hero action to submit the exact query to embedded Chat once, got ${JSON.stringify({ submittedQueries, completedCount })}`)
-    }
-  } finally {
-    cleanupChatBridge()
-    dom.window.removeEventListener(LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT, importListener as EventListener)
-    await unmountReactRoot(root, { window: dom.window as unknown as Window })
-    container.remove()
     restore()
   }
 }

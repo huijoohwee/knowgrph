@@ -20,7 +20,7 @@ import {
 import { MarkdownBlockContainerBubbleToolbarOverlay } from './markdownBlockContainerCore.bubbleToolbarOverlay'
 import { MarkdownBlockContainerCommentPreviewOverlay } from './markdownBlockContainerCore.commentPreviewOverlay'
 import { MarkdownBlockContainerInlineMenusOverlay } from './markdownBlockContainerCore.inlineMenusOverlay'
-import { MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS } from './markdownContentEditableSurface'
+import { MarkdownContentEditableCore } from './MarkdownContentEditableCore'
 import type { InlineMediaCommandCandidate } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import type { SlashMenuState } from './markdownBlockContainerCore.menuState'
 import { computeFloatingMenuPosition } from './markdownBlockContainerCore.interaction'
@@ -263,19 +263,13 @@ export const MarkdownBlockContainerEditSurfaceView = (props: {
         onClose={props.closeCommentPreview}
       />
 
-      <EditorTag
-        ref={(node: HTMLElement | null) => {
-          ;(props.editorRef as React.MutableRefObject<HTMLElement | null>).current = node
-        }}
-        contentEditable
-        suppressContentEditableWarning
+      <MarkdownContentEditableCore
+        as={EditorTag}
+        editorRef={props.editorRef}
+        ariaLabel="Edit markdown block"
         spellCheck={false}
-        role="textbox"
-        aria-multiline="true"
-        aria-label="Edit markdown block"
         className={[
           props.editorClassName || `${MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS} ${MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_MIN_LINE_CLASS}`,
-          MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS,
           htmlBlockEditing ? 'block' : '',
           htmlEditNormalizeClassName,
           htmlEditBlockFlowClassName,

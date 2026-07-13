@@ -24,7 +24,7 @@ export async function testFloatingPanelChatComposerReusesCardViewerEditSurface()
       uiPanelTextFontClass: 'text-sm',
       placeholder: 'Ask a question',
     }), { window: dom.window as unknown as Window, frames: 4 })
-    const editor = container.querySelector('[data-kg-chat-input="1"][data-kg-card-inline-viewer-edit-surface="1"]')
+    const editor = container.querySelector('[data-kg-chat-input="1"][data-kg-card-inline-viewer-edit-surface="1"][data-kg-markdown-contenteditable-core="1"]')
     const proxy = container.querySelector('[data-kg-card-inline-viewer-edit-command-proxy="1"]')
     if (!(editor instanceof dom.window.HTMLElement) || !(proxy instanceof dom.window.HTMLTextAreaElement)) {
       throw new Error(`expected Chat to reuse the Card/Widget contenteditable surface and hidden command proxy, html=${container.innerHTML}`)
@@ -33,6 +33,17 @@ export async function testFloatingPanelChatComposerReusesCardViewerEditSurface()
     const tokens = (Array.from(editor.querySelectorAll('[data-kg-inline-invocation-edit-token="1"]')) as HTMLElement[]).map(node => node.textContent)
     for (const token of ['/video-agent', '@video-generation-demo-script', '@provider.byteplus', '#spec.low']) {
       if (!tokens.includes(token)) throw new Error(`expected shared Card/Widget edit chip ${token}, got ${JSON.stringify(tokens)}`)
+    }
+    const routeChip = editor.querySelector('[data-kg-inline-invocation-edit-token="1"][data-kg-inline-invocation-markdown="/video-agent"]')
+    if (!(routeChip instanceof dom.window.HTMLElement)) throw new Error('expected structured /video-agent chip')
+    const editorHtmlBeforeDoubleClick = editor.innerHTML
+    const secondMouseDown = new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true, detail: 2 })
+    if (routeChip.dispatchEvent(secondMouseDown) || !secondMouseDown.defaultPrevented) {
+      throw new Error('expected the shared surface to suppress native double-click text selection on invocation chips')
+    }
+    routeChip.dispatchEvent(new dom.window.MouseEvent('dblclick', { bubbles: true, cancelable: true, detail: 2 }))
+    if (editor.innerHTML !== editorHtmlBeforeDoubleClick || proxy.value !== INITIAL_VALUE || !editor.contains(routeChip)) {
+      throw new Error('expected double-click to preserve the structured chip node and exact raw source')
     }
     const range = dom.window.document.createRange()
     range.selectNodeContents(editor)

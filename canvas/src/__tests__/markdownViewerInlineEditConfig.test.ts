@@ -145,8 +145,8 @@ export const testMarkdownViewerInlineEditConfigSupportsImagesTasksHrTable = () =
   if (!blockText.includes('buildApproximateRangeInRoot') || !blockText.includes('buildLocalFallbackRange() || buildApproximateRangeInRoot()')) {
     throw new Error('expected click-open caret placement to use in-root approximate fallback when point-range APIs fail or resolve outside editor')
   }
-  if (!blockText.includes('MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS')) {
-    throw new Error('expected markdown block editor to centralize caret/selection/focus interaction parity for all edit surfaces')
+  if (!blockText.includes('MarkdownContentEditableCore')) {
+    throw new Error('expected markdown block editor to reuse the canonical contenteditable core')
   }
   if (
     (!blockText.includes('[&_div]:font-inherit') || !blockText.includes('[&_div]:whitespace-pre-wrap'))

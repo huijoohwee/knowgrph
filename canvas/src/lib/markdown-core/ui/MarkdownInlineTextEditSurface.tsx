@@ -15,9 +15,8 @@ import {
   rewriteRenderedInlineMediaForEditorHtml,
 } from '@/lib/markdown-core/ui/markdownBlockContainerCore.inlineMediaEditHtml'
 import { readFastInlineMarkdownDraft } from '@/lib/markdown-core/ui/markdownBlockContainerCore.inlineDraftSerialization'
+import { MarkdownContentEditableCore } from '@/lib/markdown-core/ui/MarkdownContentEditableCore'
 import {
-  MARKDOWN_CONTENT_EDITABLE_PLACEHOLDER_CLASS,
-  MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS,
   applyMarkdownContentEditableSelection,
   readMarkdownContentEditableCaretRangeFromPoint,
   type MarkdownContentEditablePoint,
@@ -510,27 +509,20 @@ export function MarkdownInlineTextEditSurface(props: {
 
   return (
     <section className="relative h-full min-h-0 w-full" data-kg-card-inline-viewer-edit-shell="1">
-      <section
-        ref={(node: HTMLElement | null) => {
-          ;(props.editorRef as React.MutableRefObject<HTMLElement | null>).current = node
-        }}
-        contentEditable
-        suppressContentEditableWarning
-        role="textbox"
-        aria-multiline={props.multiline ? 'true' : 'false'}
-        aria-label={props.ariaLabel}
-        spellCheck
+      <MarkdownContentEditableCore
+        as="section"
+        editorRef={props.editorRef}
+        ariaLabel={props.ariaLabel}
+        ariaMultiline={props.multiline}
+        placeholder={props.placeholder}
+        showPlaceholder={showPlaceholder}
         className={cn(
           MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_CLASS,
           MARKDOWN_TEXT_EDIT_SURFACE_MIN_LINE_HEIGHT_CLASS,
           'relative z-10 min-h-0 w-full',
-          MARKDOWN_EDIT_SURFACE_INTERACTION_PARITY_CLASS,
           '[overflow-wrap:anywhere] [caret-color:var(--kg-text-primary)]',
-          showPlaceholder ? MARKDOWN_CONTENT_EDITABLE_PLACEHOLDER_CLASS : '',
           props.className,
         )}
-        aria-placeholder={showPlaceholder ? props.placeholder : undefined}
-        data-kg-markdown-edit-placeholder={showPlaceholder ? '1' : undefined}
         data-kg-card-inline-chip-density={props.inlineChipDensity === 'compact' ? 'compact' : undefined}
         data-kg-card-inline-viewer-edit-surface="1"
         {...{ [props.cardInlineEditInputAttribute]: '1' }}
@@ -581,9 +573,6 @@ export function MarkdownInlineTextEditSurface(props: {
         }}
         onMouseUp={syncProxySelection}
         onKeyUp={syncProxySelection}
-        onDoubleClick={event => {
-          event.stopPropagation()
-        }}
       />
       <textarea
         ref={props.inputProxyRef}

@@ -291,6 +291,6 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["ui.canvas.liveHero.canvasEmbedStoryboardPreview","@/__tests__/canvasEmbedStoryboardPreview.test","testCanvasEmbedStoryboardPreviewUsesSharedStoryboardSurface"],
   ["ui.canvas.liveHero.canvasEmbedMediaRuntime","@/__tests__/canvasEmbedMediaRuntime.test","testCanvasEmbedMediaRebindsAndExposesSelectableSurfaces"],
   ["ui.mainPanel.settings.canvasEmbedImportWorkflow","@/__tests__/mainPanelCanvasEmbedSettings.test","testMainPanelCanvasEmbedSettingsReuseSharedImportPanel"],
-  ["ui.canvas.liveHero.embeddedChatSubmitInteraction","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroInteractionSubmitsToEmbeddedChat"],
+  ["ui.canvas.liveHero.embeddedChatSubmitInteraction","@/__tests__/liveCanvasHeroInteraction.test","testLiveCanvasHeroInteractionSubmitsToEmbeddedChat"],
   ["agentReady.rootAlias.appShell","@/__tests__/rootAgentReadyAlias.test","testRootAgentReadyAliasCanonicalizesPublishedAppShellMount"],
 ]
