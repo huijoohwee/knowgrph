@@ -1,4 +1,4 @@
-import { KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID, buildKnowgrphAgentReadyToolContracts, KNOWGRPH_AGENT_READY_TOOL_IDS } from "./knowgrphAgentReadyToolContract.mjs"; import { hashSignatureParts } from "../../../../grph-shared/dist/hash/signature.js"; import { buildKnowgrphLocalMcpToolNameList, KNOWGRPH_LOCAL_MCP_TOOL_NAMES, KNOWGRPH_OS_STATUS_TOOL_NAME } from "./knowgrphLocalMcpToolNames.mjs"; import { buildVdeoxplnToolPromptLines, buildVdeoxplnToolRoutingAliases } from "./knowgrphVdeoxplnRoutingTools.mjs";
+import { KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID, buildKnowgrphAgentReadyToolContracts, KNOWGRPH_AGENT_READY_TOOL_IDS } from "./knowgrphAgentReadyToolContract.mjs"; import { hashSemanticParts, stableStringify } from "../../../../contracts/semantic-key.js"; import { buildKnowgrphLocalMcpToolNameList, KNOWGRPH_LOCAL_MCP_TOOL_NAMES, KNOWGRPH_OS_STATUS_TOOL_NAME } from "./knowgrphLocalMcpToolNames.mjs"; import { buildVdeoxplnToolPromptLines, buildVdeoxplnToolRoutingAliases } from "./knowgrphVdeoxplnRoutingTools.mjs";
 export const KNOWGRPH_VDEOXPLN_CONTRACT_VERSION = "knowgrph-vdeoxpln/v0.1"; export { buildKnowgrphLocalMcpToolNameList, KNOWGRPH_LOCAL_MCP_TOOL_NAMES, KNOWGRPH_OS_STATUS_TOOL_NAME };
 
 export const KNOWGRPH_VDEOXPLN_IDS = Object.freeze({
@@ -31,20 +31,11 @@ const normalizeOrderedStringArray = (values) => {
   return out;
 };
 
-const normalizeJsonValue = (value) => {
-  if (Array.isArray(value)) return value.map(normalizeJsonValue);
-  if (!value || typeof value !== "object") return value;
-  return Object.keys(value).sort((left, right) => left.localeCompare(right)).reduce((acc, key) => {
-    acc[key] = normalizeJsonValue(value[key]);
-    return acc;
-  }, {});
-};
-
-export const stableStringifyVdeoxplnValue = (value) => JSON.stringify(normalizeJsonValue(value));
+export const stableStringifyVdeoxplnValue = stableStringify;
 
 export const buildKnowgrphVdeoxplnSemanticKey = (scope, parts) => {
   const normalizedScope = normalizeString(scope) || "vdeoxpln";
-  return `kgvx_${hashSignatureParts([
+  return `kgvx_${hashSemanticParts([
     normalizedScope,
     KNOWGRPH_VDEOXPLN_CONTRACT_VERSION,
     stableStringifyVdeoxplnValue(parts),

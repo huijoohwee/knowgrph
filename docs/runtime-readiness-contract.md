@@ -51,6 +51,8 @@ The pinned Agentic Canvas OS documentation is a source-time governance dependenc
 
 Live execution is fail-closed: it requires bearer authentication, the `paid-model-call` approval, and a configured Workers AI binding. Dry-run is deterministic and records zero paid provider calls.
 
+`/sme-care-agent` additionally owns the internal `agent.sme` / `sme.risk.profile` deterministic kernel. Its Cloudflare bundle compiles without an external orchestration service, while its full Dev execution uses the existing local Source Files owner for atomic `sme-agent/profiles/*` and `sme-agent/runs/*` writes. Prod mirror and Cloudflare mutations remain prohibited until separately authorized.
+
 ## Commands
 
 ```bash

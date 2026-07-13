@@ -17,6 +17,23 @@ test("registry exposes the three exact agent invocations without broad aliases",
   );
   assert.equal(resolveAgentDefinition("/research-agent"), null);
   assert.equal(resolveAgentDefinition("/care-agent"), null);
+  assert.equal(resolveAgentDefinition("/sme-agent"), null);
+});
+
+test("SME Care compiles the internal SME risk skill through the shared public invocation", () => {
+  const result = compileAgentRun({ invocation: "/sme-care-agent", brief: "Assess a typed SME profile.", mode: "dry-run", runId: "sme-contract" });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.payload.plan.skill, {
+    variant: "agent.sme",
+    id: "sme.risk.profile",
+    inputSchemaRef: "knowgrph-sme-profile/v1",
+    outputSchemaRef: "knowgrph-sme-risk-run/v1",
+    runtimeKernel: "sme.risk.profile",
+  });
+  assert.equal(result.payload.plan.topology.pattern, "fan-out/fan-in");
+  assert.equal(result.payload.plan.topology.maxIterations, 1);
+  assert.equal(result.payload.plan.bounds.maxWallSeconds, 300);
+  assert.equal(result.payload.plan.bounds.tokenBudget, 100000);
 });
 
 test("every registered agent compiles through the same deterministic zero-spend kernel", () => {

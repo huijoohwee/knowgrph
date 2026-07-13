@@ -66,6 +66,7 @@ export function buildLocalAgentRuntimeToolDefinition(toolName) {
         failOnceTool: { type: "string" },
         allowExternalInput: { type: "boolean", default: false },
         timeoutMs: { type: "number" },
+        tokenBudget: { type: "integer", minimum: 0, maximum: 100000 },
       },
     },
   };

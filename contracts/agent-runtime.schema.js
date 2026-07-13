@@ -62,6 +62,14 @@ export function validateAgentDefinitionRegistry(document = registryDocument) {
     for (const field of ["title", "summary", "version", "inputSchemaRef", "outputSchemaRef", "fallback"]) {
       if (!nonEmpty(definition[field])) add(`${path}.${field}`, "must be a non-empty string");
     }
+    if (definition.runtimeKernel === "sme.risk.profile") {
+      if (definition.skillVariant !== "agent.sme") add(`${path}.skillVariant`, "must equal agent.sme for the SME risk kernel");
+      if (definition.skillId !== "sme.risk.profile") add(`${path}.skillId`, "must equal sme.risk.profile");
+      if (definition.skillInputSchemaRef !== "knowgrph-sme-profile/v1") add(`${path}.skillInputSchemaRef`, "must reference the SME profile schema");
+      if (definition.skillOutputSchemaRef !== "knowgrph-sme-risk-run/v1") add(`${path}.skillOutputSchemaRef`, "must reference the SME run schema");
+      if (definition.topology?.pattern !== "fan-out/fan-in" || definition.topology?.maxIterations !== 1) add(`${path}.topology`, "must declare bounded fan-out/fan-in topology");
+      if (definition.bounds?.maxWallSeconds > 300 || definition.bounds?.tokenBudget > 100000) add(`${path}.bounds`, "must stay within the SME timeout and token budget");
+    }
     for (const field of ["capabilities", "policyRefs", "renderers", "vccs", "promptContract"]) {
       if (!Array.isArray(definition[field]) || definition[field].length === 0 || !definition[field].every(nonEmpty)) {
         add(`${path}.${field}`, "must be a non-empty string array");
@@ -178,6 +186,14 @@ export function compileAgentRun(input, { createRunId = () => crypto.randomUUID()
     renderers: [...definition.renderers],
     bounds: { ...definition.bounds },
     vccs: [...definition.vccs],
+    ...(definition.skillId ? { skill: {
+      variant: definition.skillVariant,
+      id: definition.skillId,
+      inputSchemaRef: definition.skillInputSchemaRef,
+      outputSchemaRef: definition.skillOutputSchemaRef,
+      runtimeKernel: definition.runtimeKernel,
+    } } : {}),
+    ...(definition.topology ? { topology: structuredClone(definition.topology) } : {}),
   };
   const hasPaidApproval = approvedGateIds(input.approvals).has(AGENT_RUNTIME_PAID_GATE_ID);
   const status = mode === "dry-run" ? "planned" : hasPaidApproval ? "ready" : "approval_required";

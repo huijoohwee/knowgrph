@@ -5,6 +5,11 @@ import {
   AGENT_RUN_OUTPUT_SCHEMA_ID,
   resolveAgentDefinition,
 } from "../contracts/agent-runtime.schema.js";
+import {
+  buildSmeSourceFiles,
+  runSmeRiskCoverageMarkdown,
+} from "./sme-risk-coverage/core.js";
+import { writeSmeSourceFilesAtomically } from "./sme-risk-coverage/local-source-files.js";
 
 const approvedGateIds = (approvals) =>
   new Set(
@@ -52,6 +57,68 @@ export async function runLocalAgentRuntime(args, deps) {
     );
   }
   const mode = typeof args.mode === "string" ? args.mode : "dry-run";
+  if (!resume && definition?.runtimeKernel === "sme.risk.profile") {
+    if (typeof args.inputPath !== "string" || !args.inputPath.trim()) {
+      throw new Error("Missing required argument: inputPath.");
+    }
+    const inputPath = resolvePath(args.inputPath, { allowOutsideRoot: Boolean(args.allowExternalInput) });
+    const markdown = await fs.readFile(inputPath, "utf8");
+    const result = runSmeRiskCoverageMarkdown(markdown, {
+      tokenBudget: typeof args.tokenBudget === "number" ? args.tokenBudget : undefined,
+      timeoutSeconds: typeof timeoutMs === "number" ? timeoutMs / 1000 : undefined,
+    });
+    if (!result.ok) {
+      const payload = {
+        contractVersion: AGENT_RUN_OUTPUT_SCHEMA_ID,
+        runId: typeof args.runId === "string" && args.runId.trim() ? args.runId.trim() : "validation-failed",
+        agentDefinitionId: definition.id,
+        invocation: definition.invocation,
+        mode,
+        status: "blocked",
+        plan: { profileId: definition.planProfile, skillId: definition.skillId, topology: definition.topology },
+        budgetMeters: { estimatedCostUsd: 0, actualCostUsd: 0, paidProviderCalls: 0 },
+        error: result.error,
+        result: { costLogs: result.costLogs, mutationPerformed: false },
+      };
+      return jsonToolResult(payload, true);
+    }
+    let persistence = { status: "not_requested", paths: [] };
+    if (mode === "live") {
+      try {
+        const written = await writeSmeSourceFilesAtomically(outputDir, buildSmeSourceFiles(result.run));
+        persistence = { status: "persisted", ...written };
+      } catch (error) {
+        return jsonToolResult({
+          contractVersion: AGENT_RUN_OUTPUT_SCHEMA_ID,
+          runId: result.run.runId,
+          agentDefinitionId: definition.id,
+          invocation: definition.invocation,
+          mode,
+          status: "blocked",
+          plan: { profileId: definition.planProfile, skillId: definition.skillId, topology: definition.topology },
+          budgetMeters: { estimatedCostUsd: 0, actualCostUsd: 0, paidProviderCalls: 0 },
+          error: { code: "source_files_write_failed", message: error instanceof Error ? error.message : String(error) },
+          result: { costLogs: result.run.costLogs, mutationPerformed: false },
+        }, true);
+      }
+    }
+    const payload = {
+      contractVersion: AGENT_RUN_OUTPUT_SCHEMA_ID,
+      runId: result.run.runId,
+      agentDefinitionId: definition.id,
+      invocation: definition.invocation,
+      mode,
+      status: "completed",
+      plan: { profileId: definition.planProfile, skillId: definition.skillId, topology: definition.topology },
+      budgetMeters: { estimatedCostUsd: 0, actualCostUsd: 0, paidProviderCalls: 0, tokensUsed: 0 },
+      result: { ...result.run, persistence, outputDir },
+    };
+    return {
+      content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+      structuredContent: payload,
+      isError: false,
+    };
+  }
   if (mode === "live" && !approvedGateIds(args.approvals).has("paid-model-call")) {
     return jsonToolResult(
       {
