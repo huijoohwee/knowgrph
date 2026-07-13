@@ -2,7 +2,7 @@
 title: "Knowgrph Collaboration Runtime Contract"
 doc_type: "Runtime Contract"
 status: "active"
-contract_version: 2
+contract_version: 3
 frontmatter_contract: "required"
 ci_command_timeout_ms: 300000
 invocation:
@@ -17,13 +17,26 @@ coordination:
   unique_active_scope: true
   protected_push_refs: ["refs/heads/main"]
 local_development:
-  canonical_remote: "origin"
-  canonical_branch: "main"
   canonical_mode: "canonical"
   task_mode: "task"
   mode_environment_variable: "KG_DEV_SOURCE_MODE"
-  fetch_required: true
-  clean_required: true
+  canonical_sources:
+    - id: "knowgrph"
+      repository_path: "."
+      required_path: "."
+      canonical_remote: "origin"
+      canonical_branch: "main"
+      fetch_required: true
+      clean_required: true
+      task_divergence_allowed: true
+    - id: "agentic-canvas-os-docs"
+      repository_path: "../agentic-canvas-os"
+      required_path: "docs"
+      canonical_remote: "origin"
+      canonical_branch: "main"
+      fetch_required: true
+      clean_required: true
+      task_divergence_allowed: false
 deployment:
   allowed_workflows: [".github/workflows/release.yml"]
   required_trigger: "workflow_dispatch"
@@ -58,7 +71,7 @@ fallback_commands:
 
 ## Authority
 
-This opening YAML frontmatter is the machine source of truth for collaboration grammar, deployment isolation, and affected-scope CI selection. Runtime scripts parse it directly; workflow files must not duplicate its path-to-command mapping.
+This opening YAML frontmatter is the machine source of truth for collaboration grammar, local source identity, deployment isolation, and affected-scope CI selection. Runtime scripts parse it directly; workflow files must not duplicate its source registry or path-to-command mapping.
 
 ## Invocation Grammar
 
@@ -110,10 +123,10 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 
 ## Local Development Source Identity
 
-- Normal `npm run dev` startup fetches the configured canonical remote branch before Vite starts.
-- Canonical mode requires a clean worktree and exact `HEAD` equality with the fetched `origin/main` SHA. The port number never selects source code.
-- Stale, ahead, divergent, or dirty checkouts fail closed with their exact local and canonical SHAs instead of serving a different application silently.
-- Task branches use `KG_DEV_SOURCE_MODE=task npm run dev -- --port <port>` explicitly. Task mode validates the branch naming contract and prints its non-canonical source identity; it is never inferred from a port.
+- Normal `npm run dev` startup fetches every `local_development.canonical_sources` entry before Vite starts.
+- Canonical mode requires every registered repository to be clean and exactly equal to its fetched canonical SHA. The port number never selects application or documentation source code.
+- The centralized Agentic Canvas OS docs entry resolves from the sibling repository and requires its `docs` root. Stale, ahead, divergent, dirty, or missing sources fail closed with the responsible source identity.
+- Task branches use `KG_DEV_SOURCE_MODE=task npm run dev -- --port <port>` explicitly. Task mode permits divergence only for the source whose contract declares `task_divergence_allowed: true`; the shared Agentic Canvas OS docs revision remains clean and canonical.
 - Already-running servers retain the SHA they started with. Restart them after `origin/main` advances so the startup gate can validate the new canonical source.
 
 ## Deployment Boundary
