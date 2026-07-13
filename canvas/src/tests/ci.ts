@@ -139,9 +139,17 @@ type WindowStub = Pick<
   HTMLIFrameElement?: typeof HTMLIFrameElement
 }
 
-type GlobalWithWindowStub = typeof globalThis & { window?: WindowStub }
+type GlobalWithWindowStub = typeof globalThis & { window?: WindowStub; navigator?: Navigator }
 
 const g = globalThis as GlobalWithWindowStub
+
+if (!g.navigator) {
+  Object.defineProperty(g, 'navigator', {
+    configurable: true,
+    enumerable: false,
+    value: { userAgent: 'node.js' } as Navigator,
+  })
+}
 
 type LocalStorageLike = {
   getItem: (key: string) => string | null
