@@ -18,11 +18,7 @@ import { buildProviderChatRequestOptions } from './floatingPanelChat/floatingPan
 import { extractAssistantDelta } from './floatingPanelChat/floatingPanelChatStreamParsing'
 import { readRunTextEventStream } from './runTextEventStream'
 import { resolveBytePlusVideoReferenceImage } from './byteplusVideoReferenceImage'
-import {
-  loadAvailableModelIds,
-  parseErrorBody,
-  shouldRetryWithActivationFallback,
-} from './floatingPanelChat/floatingPanelChatHttp'
+import { loadAvailableModelIds, parseErrorBody, parseJsonResponseBody, shouldRetryWithActivationFallback } from './floatingPanelChat/floatingPanelChatHttp'
 import { readBytePlusImageWidgetDefaults } from '@/features/integrations/byteplusImageGenerationDefaults'
 import {
   readBytePlusVideoWidgetDefaults,
@@ -812,7 +808,7 @@ export async function generateRunMarkdownWithProvider(args: {
       onText: args.options?.onText,
     })
   }
-  const data = (await res.json()) as unknown
+  const data = await parseJsonResponseBody(res, 'Run text generation')
   const text = extractChatText(data)
   if (text) args.options?.onText?.(text)
   return text || null
@@ -938,7 +934,7 @@ export async function generateRunImageWithBytePlus(args: {
   if (!res.ok) {
     throw new Error(formatBytePlusImageFailure(detail || `Run image generation failed (${res.status})`, failureContext))
   }
-  const data = (await res.json()) as unknown
+  const data = await parseJsonResponseBody(res, 'Run image generation')
   const asset = await extractImageAsset(data)
   return asset ? { ...asset, model } : null
 }
@@ -1050,7 +1046,7 @@ export async function generateRunVideoWithBytePlus(args: {
     const detail = await parseErrorBody(createRes)
     throw new Error(formatBytePlusVideoFailure(detail || `Run video generation failed (${createRes.status})`, failureContext))
   }
-  const created = (await createRes.json()) as { id?: unknown }
+  const created = (await parseJsonResponseBody(createRes, 'Run video task creation')) as { id?: unknown }
   const taskId = cleanString(created?.id)
   if (!taskId) {
     throw new Error(formatBytePlusVideoFailure('BytePlus task creation succeeded but no task id was returned.', failureContext))
@@ -1079,7 +1075,7 @@ export async function generateRunVideoWithBytePlus(args: {
       }
       continue
     }
-    const payload = (await statusRes.json()) as { status?: unknown }
+    const payload = (await parseJsonResponseBody(statusRes, 'Run video task polling')) as { status?: unknown }
     const status = cleanString(payload?.status).toLowerCase()
     if (status) lastKnownStatus = status
     lastKnownUpdatedAt = cleanString((payload as { updated_at?: unknown }).updated_at)

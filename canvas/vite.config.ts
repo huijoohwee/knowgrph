@@ -39,6 +39,7 @@ import { WEBPAGE_SHELL_PATTERN_REGEX_SOURCES } from './src/lib/websites/webpageS
 import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBase64 } from './src/features/workspace-fs/workspaceSourceMirrorFormats'
 import { DEFAULT_VITE_WATCH_IGNORED, buildWorkspaceMirrorWatchIgnoredRoots, createWorkspaceMirrorWatchPathIgnore } from './viteWorkspaceMirrorWatch'
 import { loadChatProxyServerManagedEnv } from './viteChatProxyEnv'
+import { forwardChatProxyUpstreamHead, forwardChatProxyUpstreamResponse } from './viteChatProxyResponse'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..'), workspaceRoot = path.resolve(repoRoot, '..')
 const siblingDocsRoot = path.resolve(workspaceRoot, 'huijoohwee', 'docs'); loadChatProxyServerManagedEnv({ repoRoot, canvasRoot: __dirname })
@@ -2371,39 +2372,12 @@ function createChatProxyHandler(): import('vite').Connect.NextHandleFunction {
         body: method === 'GET' || method === 'HEAD' ? undefined : upstreamBody,
         signal: ctrl.signal,
       })
-      res.statusCode = upstreamRes.status
-      upstreamRes.headers.forEach((value, key) => {
-        const lower = key.toLowerCase()
-        if (lower === 'content-length') return
-        if (lower === 'content-encoding') return
-        if (lower === 'connection') return
-        if (lower === 'transfer-encoding') return
-        if (lower === 'www-authenticate') return
-        res.setHeader(key, value)
-      })
-      res.setHeader('Cache-Control', 'no-store')
       const requestOrigin = String(req.headers.origin || '').trim()
-      if (requestOrigin) {
-        res.setHeader('Access-Control-Allow-Origin', requestOrigin)
-        res.setHeader('Vary', 'Origin')
-      }
       if (method === 'HEAD') {
-        res.end()
+        forwardChatProxyUpstreamHead({ response: upstreamRes, target: res, requestOrigin })
         return
       }
-      const reader = upstreamRes.body?.getReader()
-      if (!reader) {
-        const fallback = Buffer.from(await upstreamRes.arrayBuffer())
-        res.end(fallback)
-        return
-      }
-      while (true) {
-        const chunk = await reader.read()
-        if (chunk.done) break
-        if (!chunk.value || chunk.value.byteLength === 0) continue
-        res.write(Buffer.from(chunk.value))
-      }
-      res.end()
+      await forwardChatProxyUpstreamResponse({ response: upstreamRes, target: res, requestOrigin })
     } catch (error) {
       if (!canWriteChatProxyResponse(res)) return
       if (res.headersSent) {
