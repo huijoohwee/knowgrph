@@ -15,3 +15,17 @@ entries:
     override: null
     releasedAt: null
     integrationSha: null
+  - deviceId: desktop
+    semanticScope: sme-protection-gap
+    branch: agent/desktop/sme-protection-gap
+    baseRef: origin/main
+    baseSha: f3d10faedfd8237d5c62ef1d108d4811272298b0
+    worktree: knowgrph-desktop-sme-protection-gap
+    activeWriter: desktop
+    claimedAt: '2026-07-13T10:08:46.258Z'
+    state: active
+    claimExpiry: '2026-07-14T10:08:46.258Z'
+    handoff: null
+    override: null
+    releasedAt: null
+    integrationSha: null
