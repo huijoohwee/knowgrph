@@ -122,13 +122,9 @@ type BytePlusImageFailureContext = {
   attemptedResolvedModels: string[]
 }
 
-export const BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS = 24
+export const BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS = 60
 
-export const getBytePlusVideoPollDelayMs = (attempt: number): number => {
-  if (attempt < 3) return 2500
-  if (attempt < 6) return 5000
-  return 10000
-}
+export const getBytePlusVideoPollDelayMs = (_attempt: number): number => 10000
 export const BYTEPLUS_VIDEO_POLL_BOUNDED_WINDOW_MS = Array.from({ length: BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS - 1 }, (_, index) => getBytePlusVideoPollDelayMs(index + 1)).reduce((sum, delayMs) => sum + delayMs, 0)
 const toRequestId = (prefix: string): string => `${prefix}-${Date.now().toString(36)}`
 
@@ -1110,7 +1106,7 @@ export async function generateRunVideoWithBytePlus(args: {
     'BytePlus task did not reach a downloadable succeeded state before polling timed out.',
     `Last task status: ${lastKnownStatus || 'unknown'}.`,
     lastKnownUpdatedAt ? `Last updated_at: ${lastKnownUpdatedAt}.` : '',
-    `Polling window: ${String(BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS)} attempts with progressive 2.5s/5s/10s backoff.`,
+    `Polling window: ${String(BYTEPLUS_VIDEO_POLL_MAX_ATTEMPTS)} attempts at the provider-recommended 10-second interval.`,
     'Fix: the task may still be generating; rerun after lowering duration/resolution or use a faster/smaller model if this region/account consistently exceeds the current polling window.',
   ].filter(Boolean).join(' ')
   throw new Error(formatBytePlusVideoFailure(timeoutDetail, failureContext))

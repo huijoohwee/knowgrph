@@ -313,7 +313,7 @@ export const BYTEPLUS_VIDEO_GENERATION_DOC_ROWS: ReadonlyArray<BytePlusVideoApiD
     typeLabel: 'string',
     value: 'GET /api/v3/contents/generations/tasks/{id}',
     keyDescription: 'Task-status reader -> poll the created task until it reaches a downloadable succeeded state -> retrieve the final video URL for the shared asset pipeline.',
-    valueDescription: 'Default: GET /api/v3/contents/generations/tasks/{id}; Polling expands asynchronous task completion into a downloadable asset; skipping it narrows the flow to task creation without usable output.',
+    valueDescription: 'Default: GET /api/v3/contents/generations/tasks/{id}; pending tasks use the vendor-recommended 10-second interval and a 60-attempt client window before a typed timeout.',
     ssot: `${BYTEPLUS_VIDEO_GENERATION_API_DOCS_URL} :: Query task endpoint`,
     module: ['canvas/src/features/chat/byteplusRunGeneration.ts'],
     className: ['RunGenerationConfig'],
