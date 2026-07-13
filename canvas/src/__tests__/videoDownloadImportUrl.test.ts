@@ -83,8 +83,8 @@ export async function testVideoDownloadResolverRequestDedupAndSanitization() {
   if (body.url !== sourceUrl || body.format !== 'mp4' || body.mediaKind !== 'video-audio' || body.quality !== '720p' || body.subtitleLang !== 'en') {
     throw new Error('expected resolver request body to match schema')
   }
-  if (typeof body.outputDir !== 'string' || !body.outputDir.endsWith('/huijoohwee/video')) {
-    throw new Error('expected resolver request body to include configured output directory')
+  if ('outputDir' in body) {
+    throw new Error('expected the portable default to defer output directory resolution to the local server')
   }
   const headers = calls[0]?.init?.headers as Record<string, string>
   if (headers['Content-Type'] !== 'application/json' || headers.Accept !== 'application/json') {
@@ -133,7 +133,7 @@ export async function testVideoDownloadWorkspaceRegistrationPreservesFields() {
 }
 
 export function testVideoDownloadLaunchAndEndpointSourceContracts() {
-  const launch = readSource('lib', 'toolbar', 'LaunchDropdown.impl.tsx')
+  const launch = readSource('lib', 'toolbar', 'LaunchDropdownImportUrlItem.tsx')
   const panel = readSource('features', 'toolbar', 'VideoDownloadOptionsPanel.tsx')
   const bridge = readSource('features', 'markdown-explorer', 'workspaceActionBridge.ts')
   const config = readSource('lib', 'config.env.ts')
@@ -162,6 +162,9 @@ export function testVideoDownloadLaunchAndEndpointSourceContracts() {
   }
   if (!settingsStore.includes('WORKSPACE_IMPORT_VIDEO_DOWNLOAD_OUTPUT_DIR_DEFAULT')) {
     throw new Error('expected workspace settings store to own the video download output default')
+  }
+  if (settingsStore.includes('/Users/')) {
+    throw new Error('expected workspace settings defaults to avoid user-specific filesystem paths')
   }
   if (!viteConfig.includes('videoDownloadDevPlugin') || !viteConfig.includes("server.middlewares.use(VIDEO_DOWNLOAD_LOCAL_ROUTE_PATH")) {
     throw new Error('expected Vite dev/preview server to register local video download route')
