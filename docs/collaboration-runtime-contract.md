@@ -2,7 +2,7 @@
 title: "Knowgrph Collaboration Runtime Contract"
 doc_type: "Runtime Contract"
 status: "active"
-contract_version: 12
+contract_version: 13
 frontmatter_contract: "required"
 ci_command_timeout_ms: 300000
 invocation:
@@ -122,10 +122,11 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 - Superseded runs on the same pull request or branch are cancelled.
 - `runtime:check` owns the focused runtime/property suite, external invocation-dictionary validation, canonical stage topology, deterministic mock replay, and zero-spend proof.
 - `npm run collaboration:contract:check` auto-discovers every workflow that references Agentic Canvas OS and requires dependency installation, the contract resolver, and the checkout in order; checkout repository and immutable ref must come from resolver outputs, never copied workflow YAML.
-- `npm run --silent collaboration:contract:check -- --json` validates against `schemas/collaboration-runtime-report.v1.schema.json` before emitting `knowgrph.collaboration-runtime-report/v1`, including deployment isolation, discovered runtime-docs workflow consumers and checks, and pull-request coordination status. Integration uploads the report as the seven-day `collaboration-contract-report` artifact, downloads that stored artifact, and runs `npm run collaboration:report:check` against the downloaded file before the canonical gate. The validator accepts either an artifact path or `-` for UTF-8 JSON from stdin.
+- `npm run --silent collaboration:contract:check -- --json` validates against `schemas/collaboration-runtime-report.v1.schema.json` before emitting `knowgrph.collaboration-runtime-report/v1`, including deployment isolation, discovered runtime-docs workflow consumers and checks, and pull-request coordination status. Integration uploads the report as the seven-day `collaboration-contract-report` artifact, downloads that stored artifact, and runs `npm run collaboration:report:check` against the downloaded file before the canonical gate. The validator accepts either an artifact path or `-` for UTF-8 JSON from stdin; the optional leading `--json` emits structured `status`, `schemaId`, `schemaVersion`, and `input` identity instead of human-readable success text.
 - `npm run --silent collaboration:report:schema` emits that exact canonical Draft 2020-12 schema through the shared cached loader, so external machine consumers do not need repository-path knowledge or a copied schema.
 - `npm run --silent collaboration:report:example` invokes the same validated report generator with pull-request context disabled, emitting a current schema-valid local example whose pull-request coordination status is `not-applicable`; external integration tests must use this command instead of copied fixtures.
 - `npm run --silent collaboration:report:example | npm run --silent collaboration:report:check -- -` is the canonical path-independent consumer smoke test.
+- `npm run --silent collaboration:report:example | npm run --silent collaboration:report:check -- --json -` is the machine-readable variant; consumers must parse the JSON result rather than human text.
 
 ## Cross-Device Handoff
 

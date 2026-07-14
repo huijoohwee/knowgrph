@@ -6,11 +6,25 @@ import {
 } from './collaboration-runtime-report.mjs'
 
 const args = process.argv.slice(2)
-if (args.length !== 1) {
-  throw new Error('usage: npm run collaboration:report:check -- <report.json|->')
+const jsonOutput = args[0] === '--json'
+const inputArgs = jsonOutput ? args.slice(1) : args
+if (inputArgs.length !== 1) {
+  throw new Error('usage: npm run collaboration:report:check -- [--json] <report.json|->')
 }
 
-const result = args[0] === '-'
+const input = inputArgs[0]
+const inputType = input === '-' ? 'stdin' : 'file'
+const result = inputType === 'stdin'
   ? await validateCollaborationRuntimeReportSource(await text(process.stdin))
-  : await validateCollaborationRuntimeReportArtifact(path.resolve(args[0]))
-console.log(`[knowgrph] collaboration runtime report passed (${result.schemaVersion})`)
+  : await validateCollaborationRuntimeReportArtifact(path.resolve(input))
+
+if (jsonOutput) {
+  console.log(JSON.stringify({
+    status: 'passed',
+    schemaId: result.schemaId,
+    schemaVersion: result.schemaVersion,
+    input: inputType,
+  }, null, 2))
+} else {
+  console.log(`[knowgrph] collaboration runtime report passed (${result.schemaVersion})`)
+}
