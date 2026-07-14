@@ -5,6 +5,7 @@ import {
   isStoryboardCardMediaDropEdge,
   isStoryboardCardMediaDropOverlayEdge,
 } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
+import { readStoryboardInlineMediaConsumerIds } from '@/components/StoryboardWidgetCanvas/storyboardCardInlineMediaConsumers'
 import { getCachedStoryboardWidgetOverlayEdgeGraph } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 import {
   buildStoryboardOverlayEdgePathD,
@@ -321,6 +322,49 @@ export function testStoryboardCardMediaDropSharesPanelAcrossConsumers() {
   const consumerEdges = second.graphData.edges.filter(edge => edge.source === first.panelId)
   assert(consumerEdges.length === 2, `expected one edge per consumer, got ${JSON.stringify(consumerEdges)}`)
   assert(new Set(consumerEdges.map(edge => edge.target)).size === 2, 'expected distinct panel -> Card/Widget consumer edges')
+}
+
+export function testStoryboardInlineMediaSharesPanelAcrossCardAndWidgetConsumers() {
+  const card = buildCardNode('story-card-a')
+  const widget = buildCardNode('n2')
+  const rotatedUrl = `${videoPayload.url}?kg_media_token=rotated`
+  const inlineConsumers = [
+    {
+      id: card.id,
+      summary: '', output: '', action: '', dialogue: '', style: '', slugline: '',
+      prompt: `<video src="${videoPayload.url}" title="Shared reference" controls></video>`,
+    },
+    {
+      id: 'ws:workspace-a::n2',
+      summary: `Use <video src="${rotatedUrl}" title="Shared reference" controls></video>`,
+      output: '', action: '', dialogue: '', prompt: '', style: '', slugline: '',
+    },
+  ]
+  const consumerIds = readStoryboardInlineMediaConsumerIds(inlineConsumers, videoPayload)
+  assert(consumerIds.length === 2, `expected both Card and Widget inline-chip consumers, got ${JSON.stringify(consumerIds)}`)
+
+  let graphData: GraphData = { type: 'Graph', nodes: [card, widget], edges: [] }
+  let panelId = ''
+  for (const consumerId of consumerIds) {
+    const result = applyStoryboardCardMediaDropGraph({
+      cardId: consumerId,
+      cardProperties: consumerId === card.id ? card.properties as Record<string, unknown> : widget.properties as Record<string, unknown>,
+      graphData,
+      media: videoPayload,
+    })
+    assert(result, `expected shared inline media graph result for ${consumerId}`)
+    graphData = result.graphData
+    panelId = panelId || result.panelId
+    assert(result.panelId === panelId, `expected one shared Rich Media Panel ${panelId}, got ${result.panelId}`)
+  }
+
+  const panels = graphData.nodes.filter(node => node.type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+  const sharedEdges = graphData.edges.filter(edge => edge.source === panelId)
+  assert(panels.length === 1, `expected one Rich Media Panel for the shared inline chip, got ${JSON.stringify(panels.map(node => node.id))}`)
+  assert(sharedEdges.length === 2, `expected two edges from the shared panel, got ${JSON.stringify(sharedEdges)}`)
+  assert(new Set(sharedEdges.map(edge => edge.id)).size === 2, 'expected a unique edge for each shared-media consumer')
+  assert(new Set(sharedEdges.map(edge => edge.target)).size === 2, `expected shared panel edges to target both Card and Widget, got ${JSON.stringify(sharedEdges.map(edge => edge.target))}`)
+  assert(sharedEdges.every(edge => isStoryboardCardMediaDropEdge(edge, String(edge.target || ''))), 'expected every shared-media consumer edge to retain Card/Widget ownership metadata')
 }
 
 export function testStoryboardCardMediaDropReusesExistingPanelAcrossRuntimeStorageOrigins() {

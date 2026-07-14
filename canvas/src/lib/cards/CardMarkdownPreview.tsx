@@ -1,13 +1,13 @@
 import React from 'react'
 import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME } from '@/features/markdown/ui/dataViewChipStyles'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
+import { readCardInlineMediaTokens, type CardInlineMediaToken } from '@/lib/cards/cardInlineMediaTokens'
 import { InlineMediaCommandThumbnail } from '@/lib/command-menu/InlineMediaCommandThumbnail'
 import {
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
   hasCardMarkdownPreviewSyntax,
   normalizeCardInlineMediaSoftLineBreaks,
-  readCardMarkdownPreviewMediaLabel,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 
@@ -15,49 +15,12 @@ const MarkdownPreviewLazy = React.lazy(() => import('@/features/markdown/ui/Mark
 
 const CARD_MARKDOWN_CONTENT_CLASS_NAME = 'w-full max-w-none mx-0 min-w-0 px-0 box-border'
 const MARKDOWN_IMAGE_LINE_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/
-const INLINE_MEDIA_TOKEN_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)|<(audio|video)\b([^>]*)>\s*(?:<\/\3>)?/gi
-const HTML_ATTR_RE = /\s([a-zA-Z][a-zA-Z0-9:-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/g
 
-type CardMarkdownPreviewInlineMedia = {
-  kind: 'image' | 'audio' | 'video'
-  url: string
-  label: string
-}
+type CardMarkdownPreviewInlineMedia = Pick<CardInlineMediaToken, 'kind' | 'url' | 'label'>
 
 type CardMarkdownPreviewInlinePart =
   | { kind: 'text'; text: string }
   | { kind: 'media'; media: CardMarkdownPreviewInlineMedia }
-
-function readHtmlAttr(attrs: string, name: string): string {
-  HTML_ATTR_RE.lastIndex = 0
-  for (const match of attrs.matchAll(HTML_ATTR_RE)) {
-    if (String(match[1] || '').toLowerCase() !== name.toLowerCase()) continue
-    return String(match[2] ?? match[3] ?? match[4] ?? '').trim()
-  }
-  return ''
-}
-
-function parseInlineMediaToken(match: RegExpExecArray): CardMarkdownPreviewInlineMedia | null {
-  if (match[2]) {
-    const url = String(match[2] || '').trim()
-    if (!url) return null
-    return {
-      kind: 'image',
-      url,
-      label: readCardMarkdownPreviewMediaLabel(match[1], 'Image'),
-    }
-  }
-  const kind = String(match[3] || '').toLowerCase()
-  if (kind !== 'audio' && kind !== 'video') return null
-  const attrs = String(match[4] || '')
-  const url = readHtmlAttr(attrs, 'src')
-  if (!url) return null
-  return {
-    kind,
-    url,
-    label: readCardMarkdownPreviewMediaLabel(readHtmlAttr(attrs, 'title'), kind === 'audio' ? 'Audio' : 'Video'),
-  }
-}
 
 function splitCardMarkdownPreviewInlineParts(markdownText: string): {
   text: string
@@ -68,19 +31,15 @@ function splitCardMarkdownPreviewInlineParts(markdownText: string): {
   const parts: CardMarkdownPreviewInlinePart[] = []
   let text = ''
   let cursor = 0
-  INLINE_MEDIA_TOKEN_RE.lastIndex = 0
-  for (const match of source.matchAll(INLINE_MEDIA_TOKEN_RE)) {
-    const media = parseInlineMediaToken(match)
-    if (!media) continue
-    const index = match.index ?? 0
-    if (index > cursor) {
-      const before = source.slice(cursor, index)
+  for (const token of readCardInlineMediaTokens(source)) {
+    if (token.start > cursor) {
+      const before = source.slice(cursor, token.start)
       parts.push({ kind: 'text', text: before })
       text += before
     }
-    parts.push({ kind: 'media', media })
+    parts.push({ kind: 'media', media: token })
     text += ' '
-    cursor = index + String(match[0] || '').length
+    cursor = token.end
   }
   if (cursor < source.length) {
     const after = source.slice(cursor)

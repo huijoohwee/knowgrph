@@ -437,6 +437,7 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
   const sharedCardMediaDropZoneText = readSource('lib', 'cards', 'CardMediaDropZone.tsx')
   const sharedCardMarkdownText = readSource('lib', 'cards', 'CardMarkdownPreview.tsx')
   const sharedCardMarkdownUtilsText = readSource('lib', 'cards', 'cardMarkdownPreviewUtils.ts')
+  const sharedCardInlineMediaTokensText = readSource('lib', 'cards', 'cardInlineMediaTokens.ts')
   const sharedCardTextSurfaceFrameText = readSource('lib', 'cards', 'cardTextSurfaceFrame.ts')
   const sharedCardInlineText = readSource('lib', 'cards', 'CardInlineTextEditor.tsx')
   const sharedCardInlineTextSupport = readSource('lib', 'cards', 'CardInlineTextEditorSupport.ts')
@@ -751,7 +752,8 @@ export function testRichMediaPanelAndStoryboardReuseSharedCardMediaSurface() {
     || !sharedCardMarkdownText.includes('CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME')
     || !sharedCardMarkdownText.includes('CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME')
     || !sharedCardMarkdownText.includes('data-kg-card-inline-media-pill="1"')
-    || !sharedCardMarkdownText.includes('readCardMarkdownPreviewMediaLabel')
+    || !sharedCardMarkdownText.includes('readCardInlineMediaTokens')
+    || !sharedCardInlineMediaTokensText.includes('readCardMarkdownPreviewMediaLabel')
     || !safeHtmlRendererText.includes('CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME')
     || !markdownMediaUiText.includes('CARD_MARKDOWN_PREVIEW_MEDIA_CHROME_CLASS_NAME')
   ) {

@@ -4,10 +4,11 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { writeActiveMarkdownDocumentTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 import { applyStoryboardCardMediaDropGraph } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
+import { readStoryboardInlineMediaConsumerIds } from '@/components/StoryboardWidgetCanvas/storyboardCardInlineMediaConsumers'
 import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
-import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import {
   appendStoryboardMediaAlbumItem,
   STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY,
@@ -132,18 +133,42 @@ export function useStoryboardCardMediaDrop2d(args: {
         label: 'Storyboard media',
       })
     }
-    const nextGraph = resolveGraphNodeByCanonicalId(liveGraphData, card.id)
-      ? applyStoryboardCardMediaDropGraph({ cardId: card.id, cardProperties: nextProperties, graphData: liveGraphData, media: { ...payload, url } })
-      : null
+    const sharedConsumerIds = [
+      card.id,
+      ...readStoryboardInlineMediaConsumerIds(cards, { ...payload, url }),
+    ]
+    let nextGraphData = liveGraphData
+    let nextGraph: ReturnType<typeof applyStoryboardCardMediaDropGraph> = null
+    const reconciledConsumerNodeIds = new Set<string>()
+    for (const consumerId of sharedConsumerIds) {
+      const consumerNode = resolveGraphNodeByCanonicalId(nextGraphData, consumerId)
+      const consumerNodeId = readStoryboardScalar2d(consumerNode?.id)
+      if (!consumerNode || !consumerNodeId || reconciledConsumerNodeIds.has(consumerNodeId)) continue
+      reconciledConsumerNodeIds.add(consumerNodeId)
+      const consumerProperties = isCanonicalNodeIdEqual(consumerNodeId, card.id)
+        ? nextProperties
+        : consumerNode.properties && typeof consumerNode.properties === 'object' && !Array.isArray(consumerNode.properties)
+          ? { ...(consumerNode.properties as Record<string, unknown>) }
+          : {}
+      const applied = applyStoryboardCardMediaDropGraph({
+        cardId: consumerId,
+        cardProperties: consumerProperties,
+        graphData: nextGraphData,
+        media: { ...payload, url },
+      })
+      if (!applied) continue
+      nextGraphData = applied.graphData
+      if (isCanonicalNodeIdEqual(consumerNodeId, card.id)) nextGraph = applied
+    }
     if (nextGraph) {
-      if (commitGraphData) commitGraphData(nextGraph.graphData)
-      else setGraphDataPreservingLayout(nextGraph.graphData)
+      if (commitGraphData) commitGraphData(nextGraphData)
+      else setGraphDataPreservingLayout(nextGraphData)
       addHistory('Storyboard media')
       return
     }
     updateNode(card.id, { properties: nextProperties as never })
     addHistory('Storyboard media')
-  }, [addHistory, commitGraphData, graphData, markdownDocumentName, markdownDocumentText, nodeById, setGraphDataPreservingLayout, setMarkdownDocument, updateNode])
+  }, [addHistory, cards, commitGraphData, graphData, markdownDocumentName, markdownDocumentText, nodeById, setGraphDataPreservingLayout, setMarkdownDocument, updateNode])
 
   return { dropCardMedia, pendingMediaByCardId }
 }

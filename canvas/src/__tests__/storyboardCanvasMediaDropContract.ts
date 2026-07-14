@@ -261,7 +261,7 @@ export function assertStoryboard2dMediaDropContract() {
     'onDropMedia',
     'setMarkdownDocument(markdownDocumentName, nextMarkdownText, { applyViewPreset: false })',
     'applyStoryboardCardMediaDropGraph',
-    'setGraphDataPreservingLayout(nextGraph.graphData)',
+    'setGraphDataPreservingLayout(nextGraphData)',
   ]) {
     if (!graphStoryboardCardOverlaySource.includes(snippet)) {
       throw new Error(`expected Storyboard media drop owner to retain snippet: ${snippet}`)
@@ -288,16 +288,19 @@ export function assertStoryboard2dMediaDropContract() {
   const overlayDropLiveGraphIndex = graphStoryboardMediaDropHookSource.indexOf('const liveGraphData = useGraphStore.getState().graphData || graphData', overlayDropMediaIndex)
   const overlayDropGraphPatchIndex = graphStoryboardMediaDropHookSource.indexOf('const nextProperties = buildNodeMediaProperties({', overlayDropMediaIndex)
   const overlayDropMarkdownMirrorIndex = graphStoryboardMediaDropHookSource.indexOf('const nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({', overlayDropMediaIndex)
-  const overlayDropGraphCommitIndex = graphStoryboardMediaDropHookSource.indexOf('setGraphDataPreservingLayout(nextGraph.graphData)', overlayDropMediaIndex)
+  const overlayDropGraphCommitIndex = graphStoryboardMediaDropHookSource.indexOf('setGraphDataPreservingLayout(nextGraphData)', overlayDropMediaIndex)
   if (overlayDropMediaIndex < 0 || overlayDropLiveGraphIndex < overlayDropMediaIndex || overlayDropGraphPatchIndex < overlayDropLiveGraphIndex || overlayDropMarkdownMirrorIndex < overlayDropGraphPatchIndex || overlayDropGraphCommitIndex < overlayDropMarkdownMirrorIndex) {
     throw new Error('expected fixed Storyboard card media drops to build and commit visible graph media while mirroring Markdown secondarily')
   }
   for (const snippet of [
     'resolveGraphNodeByCanonicalId(liveGraphData, card.id)',
-    'graphData: liveGraphData',
+    'readStoryboardInlineMediaConsumerIds(cards, { ...payload, url })',
+    'for (const consumerId of sharedConsumerIds)',
+    'graphData: nextGraphData',
+    'setGraphDataPreservingLayout(nextGraphData)',
   ]) {
     if (!graphStoryboardMediaDropHookSource.includes(snippet)) {
-      throw new Error(`expected sequential Card @ media selections to accumulate from the action-time graph: ${snippet}`)
+      throw new Error(`expected shared Card/Widget @ media consumers to accumulate from the action-time graph: ${snippet}`)
     }
   }
   const overlayDropMarkdownBranch = graphStoryboardMediaDropHookSource.slice(
@@ -341,7 +344,7 @@ export function assertStoryboard2dMediaDropContract() {
   }
   for (const snippet of [
     'commitGraphData?: (graphData: GraphData) => void',
-    'if (commitGraphData) commitGraphData(nextGraph.graphData)',
+    'if (commitGraphData) commitGraphData(nextGraphData)',
   ]) {
     if (!graphStoryboardCardOverlaySource.includes(snippet)) {
       throw new Error(`expected Card @ media graph commits to update the Storyboard draft owner: ${snippet}`)
