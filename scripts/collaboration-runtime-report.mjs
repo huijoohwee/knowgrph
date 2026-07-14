@@ -46,8 +46,12 @@ export const validateCollaborationRuntimeReport = async report => {
   }
 }
 
+export const validateCollaborationRuntimeReportSource = async source => {
+  const report = JSON.parse(source)
+  return validateCollaborationRuntimeReport(report)
+}
+
 export const validateCollaborationRuntimeReportArtifact = async artifactPath => {
-  const report = JSON.parse(await readFile(artifactPath, 'utf8'))
-  const identity = await validateCollaborationRuntimeReport(report)
+  const identity = await validateCollaborationRuntimeReportSource(await readFile(artifactPath, 'utf8'))
   return { artifactPath, ...identity }
 }

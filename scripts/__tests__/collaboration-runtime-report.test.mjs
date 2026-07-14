@@ -73,6 +73,32 @@ test('example command emits the canonical local report without pull request cont
   assert.equal(example.policies.pullRequestCoordination.status, 'not-applicable')
 })
 
+test('report validator accepts the canonical example through stdin and rejects mutations', () => {
+  const exampleResult = spawnSync('npm', ['run', '--silent', 'collaboration:report:example'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  })
+  assert.equal(exampleResult.status, 0, exampleResult.stderr)
+
+  const validationResult = spawnSync(
+    'npm',
+    ['run', '--silent', 'collaboration:report:check', '--', '-'],
+    { cwd: repoRoot, encoding: 'utf8', input: exampleResult.stdout },
+  )
+  assert.equal(validationResult.status, 0, validationResult.stderr)
+  assert.match(validationResult.stdout, /collaboration runtime report passed/)
+
+  const invalidExample = JSON.parse(exampleResult.stdout)
+  invalidExample.legacyStatus = 'passed'
+  const invalidResult = spawnSync(
+    'npm',
+    ['run', '--silent', 'collaboration:report:check', '--', '-'],
+    { cwd: repoRoot, encoding: 'utf8', input: JSON.stringify(invalidExample) },
+  )
+  assert.notEqual(invalidResult.status, 0)
+  assert.match(invalidResult.stderr, /must NOT have additional properties/)
+})
+
 test('report schema rejects unknown fields and mutated workflow checks', async () => {
   const reportWithUnknownField = readLocalReport()
   reportWithUnknownField.legacyStatus = 'passed'
