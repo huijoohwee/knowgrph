@@ -129,6 +129,50 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
       })
       assertPreviewKind(kind)
     }
+    const previousButton = dom.window.document.querySelector('[data-kg-media-catalog-preview-previous="1"]')
+    const nextButton = dom.window.document.querySelector('[data-kg-media-catalog-preview-next="1"]')
+    if (!(previousButton instanceof dom.window.HTMLButtonElement) || !(nextButton instanceof dom.window.HTMLButtonElement)) {
+      throw new Error('expected expanded preview to expose visible Previous and Next media controls')
+    }
+    await act(async () => {
+      nextButton.click()
+      await waitForFrames(dom.window, 2)
+    })
+    assertPreviewKind('video')
+    await act(async () => {
+      previousButton.click()
+      await waitForFrames(dom.window, 2)
+    })
+    assertPreviewKind('image')
+    const preview = dom.window.document.querySelector('[data-kg-media-catalog-preview="1"]')
+    if (!(preview instanceof dom.window.HTMLElement) || preview.getAttribute('data-kg-media-catalog-preview-touch-navigation') !== 'horizontal-swipe') {
+      throw new Error('expected expanded preview to expose horizontal touch-swipe navigation')
+    }
+    const dispatchTouch = (type: 'touchstart' | 'touchend', x: number, y: number) => {
+      const event = new dom.window.Event(type, { bubbles: true, cancelable: true })
+      Object.defineProperty(event, type === 'touchstart' ? 'touches' : 'changedTouches', {
+        value: [{ clientX: x, clientY: y }],
+      })
+      preview.dispatchEvent(event)
+    }
+    await act(async () => {
+      dispatchTouch('touchstart', 420, 200)
+      dispatchTouch('touchend', 180, 210)
+      await waitForFrames(dom.window, 2)
+    })
+    assertPreviewKind('video')
+    await act(async () => {
+      dispatchTouch('touchstart', 180, 200)
+      dispatchTouch('touchend', 420, 210)
+      await waitForFrames(dom.window, 2)
+    })
+    assertPreviewKind('image')
+    await act(async () => {
+      dispatchTouch('touchstart', 300, 100)
+      dispatchTouch('touchend', 310, 300)
+      await waitForFrames(dom.window, 2)
+    })
+    assertPreviewKind('image')
   } finally {
     await act(async () => root.unmount())
     restore()

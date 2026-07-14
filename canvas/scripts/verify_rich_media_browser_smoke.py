@@ -145,6 +145,39 @@ def assert_catalog_preview_arrow_navigation(page) -> None:
     preview = page.locator('[data-kg-media-catalog-preview="1"]').first
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "image")
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-count", "2")
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-touch-navigation", "horizontal-swipe")
+
+    previous_button = preview.locator('[data-kg-media-catalog-preview-previous="1"]')
+    next_button = preview.locator('[data-kg-media-catalog-preview-next="1"]')
+    expect(previous_button).to_be_visible()
+    expect(next_button).to_be_visible()
+    next_button.click()
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "video")
+    previous_button.click()
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "image")
+
+    def swipe(start_x: int, start_y: int, end_x: int, end_y: int) -> None:
+        preview.evaluate(
+            """
+            (element, points) => {
+              const dispatch = (type, x, y, field) => {
+                const event = new Event(type, { bubbles: true, cancelable: true })
+                Object.defineProperty(event, field, { value: [{ clientX: x, clientY: y }] })
+                element.dispatchEvent(event)
+              }
+              dispatch('touchstart', points.startX, points.startY, 'touches')
+              dispatch('touchend', points.endX, points.endY, 'changedTouches')
+            }
+            """,
+            {"startX": start_x, "startY": start_y, "endX": end_x, "endY": end_y},
+        )
+
+    swipe(700, 300, 300, 310)
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "video")
+    swipe(300, 300, 700, 310)
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "image")
+    swipe(500, 200, 510, 500)
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "image")
 
     for key, expected_kind in (
         ("ArrowRight", "video"),
