@@ -24,6 +24,7 @@ const ignoredDirNames = new Set([
 
 const ignoredRelativeRoots = new Set([
   'canvas/dist',
+  'data/outputs',
 ])
 
 const textExtensions = new Set([
@@ -62,7 +63,7 @@ const textBasenames = new Set([
 
 const toPosixRel = absolutePath => path.relative(knowgrphRoot, absolutePath).split(path.sep).filter(Boolean).join('/')
 
-const isIgnoredRelativePath = rel => {
+export const isIgnoredRelativePath = rel => {
   for (const root of ignoredRelativeRoots) {
     if (rel === root || rel.startsWith(`${root}/`)) return true
   }
@@ -233,4 +234,4 @@ const main = async () => {
   console.log(`[knowgrph] conflict-resolution ${sourceOnly ? 'source' : 'source and mirror'} compliance checks passed`)
 }
 
-await main()
+if (path.resolve(process.argv[1] || '') === __filename) await main()
