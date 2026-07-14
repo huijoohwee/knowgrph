@@ -16,6 +16,7 @@ import {
   validateSmeRiskRun,
 } from "../../contracts/sme-risk-coverage.schema.js";
 import { buildSmeCanvasEvidence, SME_CANVAS_EVIDENCE_FILE } from "./canvas-evidence.js";
+import { verifyGateToken } from "../video-remix/gate-token.js";
 
 export const SME_SKILL_VARIANT = "agent.sme";
 export const SME_SKILL_ID = "sme.risk.profile";
@@ -24,6 +25,13 @@ export const SME_TOKEN_BUDGET_MAX = 100_000;
 export const SME_TIMEOUT_SECONDS_MAX = 300;
 export const SME_MAX_ITERATIONS = 1;
 export const SME_CIRCUIT_BREAKERS = Object.freeze(["schema_error", "approval_denial", "token_budget_breach", "verification_failure"]);
+export const SME_ACTION_GATE_IDS = Object.freeze({
+  purchase: "sme-purchase",
+  bind: "sme-bind",
+  apply: "sme-apply",
+  contact_third_party: "sme-contact-third-party",
+  paid_model_call: "paid-model-call",
+});
 
 const severityRank = new Map(SME_SEVERITIES.map((severity, index) => [severity, index]));
 const levelRank = Object.freeze({ low: 1, medium: 2, high: 3 });
@@ -221,15 +229,15 @@ export function buildGrowthDelta(previousRun, currentRun, previousProfile, curre
 }
 
 export function gateSmeAction(action, approval, now = Date.now()) {
-  const gated = ["purchase", "bind", "apply", "contact_third_party", "paid_model_call"].includes(action);
-  if (!gated) return { status: "allowed", action, costLog: zeroCost("approval_gate") };
-  const valid = approval && approval.action === action && approval.state === "approved" && Number.isFinite(approval.expiresAt) && approval.expiresAt > now;
-  return valid
-    ? { status: "approved", action, approvalId: approval.id, costLog: zeroCost("approval_gate") }
-    : { status: "blocked", action, reason: "approval_required", costLog: zeroCost("approval_gate"), mutationPerformed: false };
+  const gateId = SME_ACTION_GATE_IDS[action];
+  if (!gateId) return { status: "allowed", action, costLog: zeroCost("approval_gate") };
+  const verification = verifyGateToken(approval, { gateId, now });
+  if (!verification.valid) return { status: "blocked", action, gateId, reason: verification.reason, costLog: zeroCost("approval_gate"), mutationPerformed: false };
+  approval.consumed = true;
+  return { status: "approved", action, gateId, approvalId: approval.tokenId || gateId, costLog: zeroCost("approval_gate"), tokenConsumed: true };
 }
 
-export function computeSmeRiskRun(profile, { previousRun = null, previousProfile = null, tokenBudget = SME_TOKEN_BUDGET_MAX, timeoutSeconds = SME_TIMEOUT_SECONDS_MAX } = {}) {
+export function computeSmeRiskRun(profile, { previousRun = null, previousProfile = null, runId = "", tokenBudget = SME_TOKEN_BUDGET_MAX, timeoutSeconds = SME_TIMEOUT_SECONDS_MAX } = {}) {
   if (previousProfile) {
     const transition = validateGrowthTransition(profile);
     if (!transition.ok) return { ok: false, error: transition.error, costLogs: [zeroCost("growth_transition_validation")], mutationPerformed: false };
@@ -238,9 +246,11 @@ export function computeSmeRiskRun(profile, { previousRun = null, previousProfile
   if (!validation.ok) return { ok: false, error: validation.error, costLogs: [zeroCost("input_validation")], mutationPerformed: false };
   if (!Number.isInteger(tokenBudget) || tokenBudget < 0 || tokenBudget > SME_TOKEN_BUDGET_MAX) return { ok: false, error: { code: "token_budget_breach", maximum: SME_TOKEN_BUDGET_MAX }, costLogs: [zeroCost("budget_gate")], mutationPerformed: false };
   if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0 || timeoutSeconds > SME_TIMEOUT_SECONDS_MAX) return { ok: false, error: { code: "invalid_timeout", maximumSeconds: SME_TIMEOUT_SECONDS_MAX }, costLogs: [zeroCost("timeout_gate")], mutationPerformed: false };
+  const callerRunId = String(runId || "").trim();
+  if (callerRunId && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(callerRunId)) return { ok: false, error: { code: "invalid_run_id" }, costLogs: [zeroCost("run_identity_gate")], mutationPerformed: false };
   const currentProfile = validation.profile;
   const unchanged = previousRun && previousProfile && previousProfile.growth_stage === currentProfile.growth_stage && previousProfile.size === currentProfile.size && stableStringify(previousProfile) === stableStringify(currentProfile);
-  if (unchanged) return { ok: true, run: { ...structuredClone(previousRun), reuse: true, delta: buildGrowthDelta(previousRun, previousRun, previousProfile, currentProfile), costLogs: [zeroCost("growth_reuse")] } };
+  if (unchanged) return { ok: true, run: { ...structuredClone(previousRun), runId: callerRunId || previousRun.runId, reuse: true, delta: buildGrowthDelta(previousRun, previousRun, previousProfile, currentProfile), costLogs: [zeroCost("growth_reuse")] } };
   const exposureProfile = buildRiskExposureProfile(currentProfile);
   const { matches, gaps } = detectCoverageGaps(exposureProfile, currentProfile.declared_coverage);
   const { unknownRisks, unsupportedInferences } = surfaceUnknownRisks(exposureProfile.exposures);
@@ -249,7 +259,7 @@ export function computeSmeRiskRun(profile, { previousRun = null, previousProfile
   const costLogs = ["intake", "risk_profiler", "gap_detector", "unknown_risk_surfacer", "protection_advisor", "explainability_engine", "cost_observer"].map(zeroCost);
   const run = {
     contractVersion: SME_RISK_RUN_SCHEMA_ID,
-    runId: exposureProfile.run_id,
+    runId: callerRunId || exposureProfile.run_id,
     skillVariant: SME_SKILL_VARIANT,
     skillId: SME_SKILL_ID,
     topology: { pattern: "fan-out/fan-in", domains: [...SME_RISK_DOMAINS], maxIterations: SME_MAX_ITERATIONS, circuitBreakers: [...SME_CIRCUIT_BREAKERS] },

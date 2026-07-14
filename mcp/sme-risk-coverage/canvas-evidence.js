@@ -31,7 +31,13 @@ const node = ({ id, type, label, x, y, data, inputs = [], outputs = [] }) => ({
   data: canvasData(data),
 });
 
-const edge = (source, target, relation) => ({
+const COVERAGE_VISUALS = Object.freeze({
+  covered: { color: "#16a34a", label: "covered" },
+  partially_covered: { color: "#d97706", label: "partially covered" },
+  uncovered: { color: "#dc2626", label: "uncovered" },
+});
+
+const edge = (source, target, relation, coverageState = "") => ({
   id: buildSemanticKey("sme.canvas.edge", { source, target, relation }),
   source,
   target,
@@ -39,6 +45,7 @@ const edge = (source, target, relation) => ({
   targetHandle: relation,
   label: relation.replaceAll("_", " "),
   type: "sme-evidence",
+  ...(COVERAGE_VISUALS[coverageState] ? { data: { coverage_state: coverageState, ...COVERAGE_VISUALS[coverageState], visual_role: "risk_coverage" } } : {}),
 });
 
 const serializeNode = (item) => [
@@ -60,7 +67,8 @@ const serializeEdge = (item) => [
   `      targetHandle: ${json(item.targetHandle)}`,
   `      label: ${json(item.label)}`,
   `      type: ${json(item.type)}`,
-].join("\n");
+  item.data ? `      data: ${json(item.data)}` : "",
+].filter(Boolean).join("\n");
 
 const findRationale = (run, itemKey) => run.rationales.find((item) => item.item_key === itemKey);
 
@@ -86,9 +94,10 @@ export function buildSmeCanvasEvidence(run) {
   const exposureY = new Map();
   run.exposureProfile.exposures.forEach((exposure, index) => {
     const y = index * 360;
+    const coverageState = run.coverageMatches.find((item) => item.exposure_key === exposure.key)?.outcome || "uncovered";
     exposureY.set(exposure.key, y);
-    nodes.push(node({ id: exposure.key, type: "risk-exposure", label: `${exposure.domain}: ${exposure.type}`, x: 840, y, inputs: ["exposes"], outputs: ["reveals_gap", "reveals_unknown"], data: { kind: "risk_exposure", ...exposure } }));
-    edges.push(edge(ids.profile, exposure.key, "exposes"));
+    nodes.push(node({ id: exposure.key, type: "risk-exposure", label: `${exposure.domain}: ${exposure.type}`, x: 840, y, inputs: ["exposes"], outputs: ["reveals_gap", "reveals_unknown"], data: { kind: "risk_exposure", coverage_state: coverageState, coverage_color: COVERAGE_VISUALS[coverageState].color, ...exposure } }));
+    edges.push(edge(ids.profile, exposure.key, "exposes", coverageState));
   });
   run.gaps.forEach((gap) => {
     const y = exposureY.get(gap.exposure_key) || 0;

@@ -47,7 +47,7 @@ flow:
       position: {"x":840,"y":0}
       handles: {"target":["exposes"],"source":["reveals_gap","reveals_unknown"]}
       properties: {"flow:portTypes":{"in":{"exposes":"sme-evidence"},"out":{"reveals_gap":"sme-evidence","reveals_unknown":"sme-evidence"}}}
-      data: {"kind":"risk_exposure","semantic_key":"kg_0c2b369e","domain":"cyber","evidence_type":"digital_footprint_insufficient_input","description":"Digital footprint information is undeclared, so cyber exposure cannot be fully evaluated.","likelihood":"medium","impact":"medium","source_fields":["digital_footprint","industry","growth_stage"],"resolution":"insufficient_input","inference_chain":["digital_footprint is undeclared","cyber dependency remains unknown","evaluate digital exposure"]}
+      data: {"kind":"risk_exposure","coverage_state":"uncovered","coverage_color":"#dc2626","semantic_key":"kg_0c2b369e","domain":"cyber","evidence_type":"digital_footprint_insufficient_input","description":"Digital footprint information is undeclared, so cyber exposure cannot be fully evaluated.","likelihood":"medium","impact":"medium","source_fields":["digital_footprint","industry","growth_stage"],"resolution":"insufficient_input","inference_chain":["digital_footprint is undeclared","cyber dependency remains unknown","evaluate digital exposure"]}
     - id: "kg_f9a7abe2"
       type: "risk-exposure"
       label: "supply_chain: supplier_dependency_insufficient_input"
@@ -55,7 +55,7 @@ flow:
       position: {"x":840,"y":360}
       handles: {"target":["exposes"],"source":["reveals_gap","reveals_unknown"]}
       properties: {"flow:portTypes":{"in":{"exposes":"sme-evidence"},"out":{"reveals_gap":"sme-evidence","reveals_unknown":"sme-evidence"}}}
-      data: {"kind":"risk_exposure","semantic_key":"kg_f9a7abe2","domain":"supply_chain","evidence_type":"supplier_dependency_insufficient_input","description":"Supplier information is undeclared, so dependency and interruption exposure cannot be fully evaluated.","likelihood":"medium","impact":"medium","source_fields":["suppliers","size","growth_stage"],"resolution":"insufficient_input","inference_chain":["suppliers are undeclared","dependency concentration remains unknown","evaluate supply-chain exposure"]}
+      data: {"kind":"risk_exposure","coverage_state":"uncovered","coverage_color":"#dc2626","semantic_key":"kg_f9a7abe2","domain":"supply_chain","evidence_type":"supplier_dependency_insufficient_input","description":"Supplier information is undeclared, so dependency and interruption exposure cannot be fully evaluated.","likelihood":"medium","impact":"medium","source_fields":["suppliers","size","growth_stage"],"resolution":"insufficient_input","inference_chain":["suppliers are undeclared","dependency concentration remains unknown","evaluate supply-chain exposure"]}
     - id: "kg_30471764"
       type: "risk-exposure"
       label: "asset_physical: asset_inventory_insufficient_input"
@@ -63,7 +63,7 @@ flow:
       position: {"x":840,"y":720}
       handles: {"target":["exposes"],"source":["reveals_gap","reveals_unknown"]}
       properties: {"flow:portTypes":{"in":{"exposes":"sme-evidence"},"out":{"reveals_gap":"sme-evidence","reveals_unknown":"sme-evidence"}}}
-      data: {"kind":"risk_exposure","semantic_key":"kg_30471764","domain":"asset_physical","evidence_type":"asset_inventory_insufficient_input","description":"Asset information is undeclared, so physical loss and interruption exposure cannot be fully evaluated.","likelihood":"medium","impact":"medium","source_fields":["assets","industry","size"],"resolution":"insufficient_input","inference_chain":["assets are undeclared","physical values and concentrations remain unknown","evaluate asset exposure"]}
+      data: {"kind":"risk_exposure","coverage_state":"uncovered","coverage_color":"#dc2626","semantic_key":"kg_30471764","domain":"asset_physical","evidence_type":"asset_inventory_insufficient_input","description":"Asset information is undeclared, so physical loss and interruption exposure cannot be fully evaluated.","likelihood":"medium","impact":"medium","source_fields":["assets","industry","size"],"resolution":"insufficient_input","inference_chain":["assets are undeclared","physical values and concentrations remain unknown","evaluate asset exposure"]}
     - id: "kg_3702d8d5"
       type: "coverage-gap"
       label: "cyber: uncovered"
@@ -254,6 +254,7 @@ flow:
       targetHandle: "exposes"
       label: "exposes"
       type: "sme-evidence"
+      data: {"coverage_state":"uncovered","color":"#dc2626","label":"uncovered","visual_role":"risk_coverage"}
     - id: "kg_7a2611ec"
       source: "kg_6e57db13"
       sourceHandle: "exposes"
@@ -261,6 +262,7 @@ flow:
       targetHandle: "exposes"
       label: "exposes"
       type: "sme-evidence"
+      data: {"coverage_state":"uncovered","color":"#dc2626","label":"uncovered","visual_role":"risk_coverage"}
     - id: "kg_bddf1a29"
       source: "kg_6e57db13"
       sourceHandle: "exposes"
@@ -268,6 +270,7 @@ flow:
       targetHandle: "exposes"
       label: "exposes"
       type: "sme-evidence"
+      data: {"coverage_state":"uncovered","color":"#dc2626","label":"uncovered","visual_role":"risk_coverage"}
     - id: "kg_3016854d"
       source: "kg_0c2b369e"
       sourceHandle: "reveals_gap"

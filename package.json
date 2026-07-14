@@ -25,6 +25,7 @@
     "dev": "npm run dev --workspace=@knowgrph/canvas --",
     "dev:apex": "VITE_BASE_PATH=/ VITE_APEX_ROOT_ALIAS=1 npm run dev --workspace=@knowgrph/canvas --",
     "demo:care-agent": "npm run dev:care-agent --workspace=@knowgrph/canvas --",
+    "demo:risk-copilot": "npm run dev:risk-copilot --workspace=@knowgrph/canvas --",
     "dev:all": "bash scripts/dev-all.sh",
     "build": "npm run build --workspace=@knowgrph/canvas",
     "pages:build": "KG_SKIP_DOCS_UPDATE=1 VITE_BASE_PATH=/knowgrph/ npm run build --workspace=@knowgrph/canvas",

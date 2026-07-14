@@ -14,7 +14,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { runVideoRemixAsync } from "./video-remix-runtime.js"; import { runShowrunnerLocalTool } from "./showrunner-runtime.js"; import { runOsStatusTool } from "./os-status-runtime.js"; import { callSealionSidecarTool } from "./sealion-sidecar-runtime.js"; import { callBrowserApiRuntime } from "./browser-api-runtime.js"; import { runProbeTreeTool } from "./probe-tree-runtime.js"; import { handleAnnotateImageTool, handleAnnotateVideoFrameTool } from "./annotation-runtime.js"; import { runAgentSandboxPolicyTool } from "./agent-sandbox-policy-runtime.js"; import { runAgenticCanvasOsDocsInvokeTool } from "./agentic-canvas-os-docs-runtime.js";
+import { runVideoRemixAsync } from "./video-remix-runtime.js"; import { runShowrunnerLocalTool } from "./showrunner-runtime.js"; import { runOsStatusTool } from "./os-status-runtime.js"; import { callSealionSidecarTool } from "./sealion-sidecar-runtime.js"; import { callBrowserApiRuntime } from "./browser-api-runtime.js"; import { runProbeTreeTool } from "./probe-tree-runtime.js"; import { runSmeRiskCopilotTool } from "./sme-risk-copilot-runtime.js"; import { handleAnnotateImageTool, handleAnnotateVideoFrameTool } from "./annotation-runtime.js"; import { runAgentSandboxPolicyTool } from "./agent-sandbox-policy-runtime.js"; import { runAgenticCanvasOsDocsInvokeTool } from "./agentic-canvas-os-docs-runtime.js";
 import {
   addMemoryLayerMemory,
   assembleMemoryLayerPrompt,
@@ -31,7 +31,6 @@ import { createPublishedAgentReadyToolExecutors } from "../canvas/src/features/a
 import { buildKnowgrphVdeoxplnMarkdown, buildKnowgrphVdeoxplnRegistry, buildKnowgrphVdeoxplnRoutingPlan, validateKnowgrphVdeoxplnRegistry } from "../canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs";
 import { KNOWGRPH_MCP_APP_RESOURCE_URI, buildKnowgrphMcpAppsCapabilities, buildKnowgrphMcpAppsResourceDescriptor, buildKnowgrphMcpAppsResourceReadResult } from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
 import { runLocalAgentRuntime } from "./local-agent-runtime.js";
-
 const MAX_OUTPUT_CHARS = Number(process.env.KNOWGRPH_MCP_MAX_OUTPUT_CHARS ?? "20000"); const DEFAULT_TIMEOUT_MS = Number(process.env.KNOWGRPH_MCP_TIMEOUT_MS ?? "600000"); const KNOWGRPH_HTML_VIDEO_ENGINE = "KNOWGRPH_HTML_VIDEO_ENGINE";
 
 const KNOWGRPH_ROOT = resolveRootDir();
@@ -512,7 +511,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.annotateImage) { const payload = await handleAnnotateImageTool(args); return jsonToolResult(payload, payload.ok === false); }
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.annotateVideoFrame) { const payload = await handleAnnotateVideoFrameTool(args); return jsonToolResult(payload, payload.ok === false); }
-    if (MEMORY_TOOL_HANDLERS[toolName]) return jsonToolResult(await MEMORY_TOOL_HANDLERS[toolName](args)); if (typeof toolName === "string" && toolName.startsWith("knowgrph.probe.")) return jsonToolResult(await runProbeTreeTool(toolName, args, { rootDir: KNOWGRPH_ROOT }));
+    if (MEMORY_TOOL_HANDLERS[toolName]) return jsonToolResult(await MEMORY_TOOL_HANDLERS[toolName](args)); if (typeof toolName === "string" && toolName.startsWith("knowgrph.probe.")) return jsonToolResult(await runProbeTreeTool(toolName, args, { rootDir: KNOWGRPH_ROOT })); if (typeof toolName === "string" && (toolName.startsWith("knowgrph.sme.") || toolName === "sme_care_agent_status")) { const payload = await runSmeRiskCopilotTool(toolName, args); return jsonToolResult(payload, payload.ok === false); }
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.agenticCanvasOsDocsInvoke) {
       const payload = await runAgenticCanvasOsDocsInvokeTool(args, { rootDir: KNOWGRPH_ROOT, env: process.env });
       return jsonToolResult(payload, payload.ok === false);

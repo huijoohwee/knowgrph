@@ -11,6 +11,7 @@ import { validateSmeRiskRun } from "../../contracts/sme-risk-coverage.schema.js"
 import { kgcRoundTripEquivalent } from "../../contracts/kgc-document.schema.js";
 import { resolveAgentDefinition } from "../../contracts/agent-runtime.schema.js";
 import {
+  SME_ACTION_GATE_IDS,
   buildSmeSourceFiles,
   gateSmeAction,
   runSmeRiskCoverageMarkdown,
@@ -107,6 +108,11 @@ test("binding and third-party actions remain blocked without exact unexpired app
     assert.equal(result.mutationPerformed, false);
     assert.equal(result.costLog.estimated_cost_usd, 0);
   }
+  const now = Date.UTC(2026, 6, 14, 6, 0, 0);
+  const token = { gateId: SME_ACTION_GATE_IDS.bind, issuedAt: now, consumed: false, verified: true, tokenId: "synthetic-bind-approval" };
+  assert.equal(gateSmeAction("bind", token, now).status, "approved");
+  assert.equal(token.consumed, true);
+  assert.equal(gateSmeAction("bind", token, now).reason, "consumed");
 });
 
 test("public identity remains /sme-care-agent while spec metadata is internal", () => {
@@ -128,6 +134,7 @@ test("/sme-care-agent invokes the specialized kernel through the shared local ru
       inputPath,
       outputDir,
       mode: "live",
+      runId: "sme-care-demo-01",
     }, {
       rootDir: root,
       pythonBin: "python3",
@@ -140,10 +147,27 @@ test("/sme-care-agent invokes the specialized kernel through the shared local ru
     });
     assert.equal(result.isError, false);
     assert.equal(result.structuredContent.status, "completed");
+    assert.equal(result.structuredContent.runId, "sme-care-demo-01");
     assert.equal(result.structuredContent.invocation, "/sme-care-agent");
     assert.equal(result.structuredContent.result.persistence.status, "persisted");
     assert.equal(result.structuredContent.budgetMeters.paidProviderCalls, 0);
     await fs.access(path.join(outputDir, "sme-agent", "profiles", fixture().profile_id, "profile.md"));
+
+    await fs.writeFile(inputPath, printSmeProfileMarkdown(fixture({ growth_stage: "established", size: 80 })).markdown, "utf8");
+    const changed = await runLocalAgentRuntime({ invocation: "/sme-care-agent", inputPath, outputDir, mode: "live", runId: "sme-care-demo-02" }, {
+      rootDir: root,
+      pythonBin: "python3",
+      resolvePath: (candidate) => path.resolve(candidate),
+      runCommand: async () => { throw new Error("generic Python harness must not run"); },
+      summarizeArtifacts: async () => [],
+      formatCommand: () => "",
+      truncate: (value) => value,
+      jsonToolResult: (payload, isError = false) => ({ structuredContent: payload, isError }),
+    });
+    assert.equal(changed.isError, false);
+    assert.equal(changed.structuredContent.runId, "sme-care-demo-02");
+    assert.equal(changed.structuredContent.result.delta.reason, "growth_stage_or_size_changed");
+    assert.equal(changed.structuredContent.result.delta.changed, true);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
