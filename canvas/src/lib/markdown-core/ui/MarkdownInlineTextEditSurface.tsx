@@ -245,11 +245,13 @@ function findProjectedMediaChipMatch(args: {
 function buildMarkdownInlineTextEditSegments(args: {
   value: string
   projectedMediaAttachments?: readonly TextareaInvocationMediaAttachment[] | null
+  appendMissingProjectedMediaKeys?: ReadonlySet<string> | null
 }): MarkdownInlineTextEditSegment[] {
   const source = String(args.value || '').replace(/\r/g, '')
   const virtualChips = collectTextareaInvocationMediaAttachmentCandidateChips(args.projectedMediaAttachments)
   if (!virtualChips.length) return [{ kind: 'text', value: source }]
   const segments: MarkdownInlineTextEditSegment[] = []
+  const matchedChipIndexes = new Set<number>()
   let cursor = 0
   for (;;) {
     const match = findProjectedMediaChipMatch({ source, cursor, chips: virtualChips })
@@ -261,9 +263,21 @@ function buildMarkdownInlineTextEditSegments(args: {
       markdown: match.label,
       prefixGap: false,
     })
+    matchedChipIndexes.add(match.chipIndex)
     cursor = match.end
   }
   if (cursor < source.length) segments.push({ kind: 'text', value: source.slice(cursor) })
+  virtualChips.forEach((chip, chipIndex) => {
+    if (matchedChipIndexes.has(chipIndex)) return
+    const key = readTextareaInvocationMediaReferenceKey(chip.displayLabel || chip.label)
+    if (args.appendMissingProjectedMediaKeys && !args.appendMissingProjectedMediaKeys.has(key)) return
+    segments.push({
+      kind: 'media',
+      chip,
+      markdown: null,
+      prefixGap: segments.length > 0,
+    })
+  })
   return segments.length ? segments : [{ kind: 'text', value: source }]
 }
 
@@ -304,6 +318,7 @@ export function buildMarkdownInlineTextEditHtml(args: {
   value: string
   inlineChipDensity?: 'regular' | 'compact'
   projectedMediaAttachments?: readonly TextareaInvocationMediaAttachment[] | null
+  appendMissingProjectedMediaKeys?: ReadonlySet<string> | null
 }): string {
   const markdownIt = getMarkdownItFastHtml()
   const renderTextSegment = (value: string): string => normalizeEscapedInlineMediaMarkdown(value)
@@ -334,7 +349,7 @@ export function readMarkdownInlineTextEditDraft(
   const virtualChips = Array.from(workingRoot.querySelectorAll(`[${CARD_INLINE_TEXT_VIEWER_VIRTUAL_MEDIA_CHIP_ATTRIBUTE}="1"]`))
   virtualChips.forEach(node => {
     const markdown = String(node.getAttribute(CARD_INLINE_TEXT_VIEWER_MEDIA_MARKDOWN_ATTRIBUTE) || '').trim()
-    node.replaceWith(workingRoot.ownerDocument.createTextNode(markdown || ' '))
+    node.replaceWith(workingRoot.ownerDocument.createTextNode(markdown))
   })
   const markdown = readFastInlineMarkdownDraft(workingRoot, 'inline')
   const draft = String(markdown ?? readInlineMediaEditorMarkdownText(workingRoot) ?? '').replace(/\r/g, '')
@@ -498,6 +513,16 @@ export function MarkdownInlineTextEditSurface(props: {
   const domDirtyRef = React.useRef(false)
   const lastRenderedHtmlRef = React.useRef('')
   const latestDraftRef = React.useRef(String(props.value || '').replace(/\r/g, ''))
+  const initialProjectedSourceRef = React.useRef(String(props.value || '').replace(/\r/g, ''))
+  const appendMissingProjectedMediaKeys = React.useMemo(() => new Set(
+    collectTextareaInvocationMediaAttachmentCandidateChips(props.projectedMediaAttachments)
+      .filter(chip => !findProjectedMediaChipMatch({
+        source: initialProjectedSourceRef.current,
+        cursor: 0,
+        chips: [chip],
+      }))
+      .map(chip => readTextareaInvocationMediaReferenceKey(chip.displayLabel || chip.label)),
+  ), [props.projectedMediaAttachments])
   const showPlaceholder = !String(props.value || '').trim()
 
   const readSelection = React.useCallback(() => {
@@ -552,6 +577,7 @@ export function MarkdownInlineTextEditSurface(props: {
       value,
       inlineChipDensity: props.inlineChipDensity,
       projectedMediaAttachments: props.projectedMediaAttachments,
+      appendMissingProjectedMediaKeys,
     })
     if (root.innerHTML === html) {
       domDirtyRef.current = false
@@ -572,7 +598,7 @@ export function MarkdownInlineTextEditSurface(props: {
         focusMarkdownInlineTextSelectionSoon(props.editorRef, nextSelection.start, nextSelection.end)
       }
     }
-  }, [props.editorRef, props.inlineChipDensity, props.initialSelectionPointRef, props.projectedMediaAttachments, props.value, readSelection, syncProxySelection])
+  }, [appendMissingProjectedMediaKeys, props.editorRef, props.inlineChipDensity, props.initialSelectionPointRef, props.projectedMediaAttachments, props.value, readSelection, syncProxySelection])
 
   return (
     <section className="relative h-full min-h-0 w-full" data-kg-card-inline-viewer-edit-shell="1">
