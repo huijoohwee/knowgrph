@@ -88,6 +88,7 @@ The sole merge-gating workflow and job are:
 Use the job name as the exact required merge status. It runs:
 
 - `npm run ci:integration`
+- standalone `npm run worktree:check` enforcement before build or affected-scope work
 - canonical collaboration frontmatter and manual-only deployment-boundary validation
 - `agent/<device>/<semantic-scope>` branch and canonical `main` target validation
 - declared base-SHA ancestry and unique active semantic-scope validation across open pull requests

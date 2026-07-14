@@ -2,7 +2,7 @@
 title: "Knowgrph Collaboration Runtime Contract"
 doc_type: "Runtime Contract"
 status: "active"
-contract_version: 4
+contract_version: 5
 frontmatter_contract: "required"
 ci_command_timeout_ms: 300000
 invocation:
@@ -68,7 +68,7 @@ ci_scopes:
     roots: ["docs/", "CodeWiki.md", "README.md", "goal.md"]
     commands: []
   collaboration:
-    roots: [".github/", ".githooks/", "AGENTS.md", "docs/branch-protection.md", "docs/collaboration-runtime-contract.md", "docs/conflict-resolution.md", "scripts/collaboration-contract.mjs", "scripts/dev-source-consistency.mjs", "scripts/check-dev-source-consistency.mjs", "scripts/check-collaboration-runtime.mjs", "scripts/check-pre-push-refs.mjs", "scripts/run-affected-ci.mjs", "scripts/__tests__/collaboration-contract.test.mjs", "scripts/__tests__/dev-source-consistency.test.mjs"]
+    roots: [".github/", ".githooks/", "AGENTS.md", "docs/branch-protection.md", "docs/collaboration-runtime-contract.md", "docs/conflict-resolution.md", "scripts/collaboration-contract.mjs", "scripts/worktree-policy.mjs", "scripts/check-worktree-policy.mjs", "scripts/dev-source-consistency.mjs", "scripts/check-dev-source-consistency.mjs", "scripts/check-collaboration-runtime.mjs", "scripts/check-pre-push-refs.mjs", "scripts/run-affected-ci.mjs", "scripts/__tests__/collaboration-contract.test.mjs", "scripts/__tests__/dev-source-consistency.test.mjs", "scripts/__tests__/worktree-policy.test.mjs"]
     commands:
       - ["npm", "run", "test:collaboration-contract"]
 fallback_commands:
@@ -134,6 +134,7 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 
 - Normal `npm run dev` startup fetches every `local_development.canonical_sources` entry before Vite starts.
 - Startup counts each source repository's registered worktrees and fails closed unless the count is exactly `local_development.worktree_policy.maximum_registered_per_repository`.
+- `npm run worktree:check` exposes that count-only policy as a standalone preflight without fetching, checking cleanliness, or starting Dev. `ci:integration` runs it first, so the installed pre-push hook and remote Integration Gate reject redundant registered worktrees before expensive validation.
 - Canonical mode requires every registered repository to be clean and exactly equal to its fetched canonical SHA. The port number never selects application or documentation source code.
 - The centralized Agentic Canvas OS docs entry resolves from the sibling repository and requires its `docs` root. Stale, ahead, divergent, dirty, or missing sources fail closed with the responsible source identity.
 - Task branches use `KG_DEV_SOURCE_MODE=task npm run dev -- --port <port>` explicitly. Task mode permits divergence only for the source whose contract declares `task_divergence_allowed: true`; the shared Agentic Canvas OS docs revision remains clean and canonical.
