@@ -11,6 +11,7 @@ import CommerceHubView from '@/features/panels/views/CommerceHubView'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
+import { installMainPanelSectionDescriptionsHarness } from '@/tests/lib/mainPanelSectionDescriptionsHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { installDeterministicRaf, mountReactRoot, unmountReactRoot, waitForFrames as waitForFramesShared, waitForTasks as waitForTasksShared } from '@/tests/lib/reactRootHarness'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -117,7 +118,6 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
     doc.body.appendChild(container)
     root = createRoot(container as unknown as HTMLElement)
     await renderAndFlush(root, React.createElement(IntegrationsHubView), anyWindow.requestAnimationFrame, 3)
-
     const text = container.textContent || ''
     const expectedTokens = [
       'Key',
@@ -130,7 +130,7 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'chatContextScope',
       'integrationConfigsJson',
       'BytePlus Shared + Text API',
-      'Open FloatingPanel Props Panel Text Widget',
+      'Open FloatingPanel Props Panel Widget Card',
       'byteplusApi.provider',
       'byteplus.auth_mode',
       'byteplus.endpoint_url',
@@ -140,7 +140,7 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'byteplusApi.response_format.type',
       'byteplusApi.tool_choice',
       'OpenAI Chat API',
-      'Open FloatingPanel Props Panel Text Widget',
+      'Open FloatingPanel Props Panel Widget Card',
       'openaiApi.provider',
       'openaiApi.endpoint_url',
       'openaiApi.model',
@@ -154,7 +154,7 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'openaiImageApi.size',
       'openaiImageApi.output_format',
       'DeerFlow Gateway API',
-      'Open FloatingPanel Props Panel Text Widget',
+      'Open FloatingPanel Props Panel Widget Card',
       'deerflowApi.provider',
       'deerflowApi.endpoint_url',
       'deerflowApi.model',
@@ -247,7 +247,6 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
       }
       return originalDispatchEvent(event)
     }) as typeof eventWindow.dispatchEvent
-
     const clickButton = async (label: string) => {
       const buttons = Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]
       const button = buttons.find(node => Boolean(node.textContent?.includes(label)))
@@ -260,10 +259,9 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
 
     await clickButton('Open FloatingPanel Chat UI')
     await clickButton('Open FloatingPanel Chat UI (Agnes)')
-    await clickButton('Open FloatingPanel Props Panel Text Widget')
-    await clickButton('Open FloatingPanel Props Panel Text Widget')
+    for (let index = 0; index < 2; index += 1) await clickButton('Open FloatingPanel Props Panel Widget Card')
     await clickButton('Open FloatingPanel Props Panel OpenAI Image Widget')
-    await clickButton('Open FloatingPanel Props Panel Text Widget')
+    await clickButton('Open FloatingPanel Props Panel Widget Card')
     await clickButton('Open FloatingPanel BytePlus Video Widget')
     await clickButton('Open FloatingPanel BytePlus Image Widget')
 
@@ -956,6 +954,7 @@ export async function testIntegrationsHubSurfacesGrabMapsTravelVideoCopy() {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
+  const restoreSectionDescriptions = installMainPanelSectionDescriptionsHarness()
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
@@ -987,6 +986,7 @@ export async function testIntegrationsHubSurfacesGrabMapsTravelVideoCopy() {
     }
     restoreDom()
     restoreWindow()
+    restoreSectionDescriptions()
   }
 }
 
@@ -1333,7 +1333,7 @@ export async function testPropsPanelPaletteOmitsGrabMapsDiscoveryWidgetCopy() {
     ;[
       'Rich Media Panel',
       'default/richMediaPanel',
-      'Text Widget',
+      'Widget Card',
       'default/textGeneration',
     ].forEach(token => {
       if (!text.includes(token)) {

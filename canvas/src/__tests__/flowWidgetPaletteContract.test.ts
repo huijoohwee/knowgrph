@@ -92,13 +92,13 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
     .entries
     .filter(isPropsPanelWidgetPaletteEntry)
   const paletteLabels = seededPalette.map(entry => getWidgetRegistryEntryLabel(entry))
-  const expectedLabels = ['Rich Media Panel', 'Text Widget']
+  const expectedLabels = ['Rich Media Panel', 'Widget Card']
   const actualLabelSet = new Set(paletteLabels)
   for (const label of expectedLabels) {
     if (!actualLabelSet.has(label)) throw new Error(`expected neutral Props Panel palette label: ${label}`)
   }
   if (paletteLabels.length !== expectedLabels.length) {
-    throw new Error(`expected Props Panel palette to consolidate media creation into Rich Media Panel and Text Widget, got ${paletteLabels.join(', ')}`)
+    throw new Error(`expected Props Panel palette to consolidate media creation into Rich Media Panel and Widget Card, got ${paletteLabels.join(', ')}`)
   }
   for (const forbidden of ['Image Widget', 'Video Widget', 'BytePlus', 'OpenAI', 'DeerFlow', 'GrabMaps', 'Video Script', 'HTML Video Renderer', 'Video Transcriber', 'Storyboard Element']) {
     if (paletteLabels.some(label => label.includes(forbidden))) {
@@ -107,18 +107,19 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
   }
   const mediaPanelEntry = seededPalette.find(entry => getWidgetRegistryEntryLabel(entry) === 'Rich Media Panel')
   if (!mediaPanelEntry) throw new Error('expected consolidated Props Panel palette to expose Rich Media Panel as the media entry')
-  const textWidgetEntry = seededPalette.find(entry => getWidgetRegistryEntryLabel(entry) === 'Text Widget')
-  if (!textWidgetEntry) throw new Error('expected neutral Props Panel palette to expose Text Widget')
+  if (paletteLabels.includes('Text Widget')) throw new Error(`expected Props Panel palette to remove the legacy Text Widget label, got ${paletteLabels.join(', ')}`)
+  const textWidgetEntry = seededPalette.find(entry => getWidgetRegistryEntryLabel(entry) === 'Widget Card')
+  if (!textWidgetEntry) throw new Error('expected neutral Props Panel palette to expose Widget Card')
   const droppedTextWidgetNode = {
     id: 'dropped-text-widget',
     type: textWidgetEntry.nodeTypeId,
-    label: 'Text Widget',
+    label: 'Widget Card',
     properties: {
       'flow:widgetTypeId': textWidgetEntry.widgetTypeId,
       'flow:widgetFormId': textWidgetEntry.formId,
       prompt: 'Generate a text response for the active request.',
       output: '',
-      title: 'Text Widget',
+      title: 'Widget Card',
     },
   }
   const cardBoard = buildStoryboardBoardModel({
@@ -135,11 +136,11 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
   })
   const textWidgetCard = cardBoard.lanes.flatMap(lane => lane.cards).find(card => card.id === 'dropped-text-widget') || null
   if (!isStoryboardFixedCardOwnedNode(droppedTextWidgetNode)) {
-    throw new Error('expected dropped Text Widget to be owned by the Storyboard Card overlay, not the Rich Media overlay path')
+    throw new Error('expected dropped Widget Card to be owned by the Storyboard Card overlay, not the Rich Media overlay path')
   }
-  if (!textWidgetCard) throw new Error('expected dropped Text Widget to project into the Storyboard Card board')
-  if (textWidgetCard.title !== 'Text Widget') throw new Error(`expected dropped Text Widget Card title, got ${textWidgetCard.title}`)
-  if (textWidgetCard.lane !== 'Text Generation') throw new Error(`expected dropped Text Widget Card lane from node type, got ${textWidgetCard.lane}`)
+  if (!textWidgetCard) throw new Error('expected dropped Widget Card to project into the Storyboard Card board')
+  if (textWidgetCard.title !== 'Widget Card') throw new Error(`expected dropped Widget Card title, got ${textWidgetCard.title}`)
+  if (textWidgetCard.lane !== 'Text Generation') throw new Error(`expected dropped Widget Card lane from node type, got ${textWidgetCard.lane}`)
 
   const canvasRuntimeSnippets = [
     'useStoryboardWidgetDropBridge',

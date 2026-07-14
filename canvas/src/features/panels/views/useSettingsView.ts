@@ -1196,7 +1196,7 @@ export function useSettingsView({
         },
         {
           title: BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
-          searchIndex: normalizeText('BytePlus Shared + Text API BytePlus Chat API ModelArk FloatingPanel Props Panel Text Widget text generation shared auth api key endpoint'),
+          searchIndex: normalizeText('BytePlus Shared + Text API BytePlus Chat API ModelArk FloatingPanel Props Panel Widget Card text generation shared auth api key endpoint'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === BYTEPLUS_SHARED_TEXT_API_DOC_AREA,
         },
         {
@@ -1231,7 +1231,7 @@ export function useSettingsView({
         },
         {
           title: OPENAI_CHAT_API_DOC_AREA,
-          searchIndex: normalizeText('OpenAI Chat API Responses FloatingPanel Props Panel Text Widget text generation'),
+          searchIndex: normalizeText('OpenAI Chat API Responses FloatingPanel Props Panel Widget Card text generation'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === OPENAI_CHAT_API_DOC_AREA,
         },
         {

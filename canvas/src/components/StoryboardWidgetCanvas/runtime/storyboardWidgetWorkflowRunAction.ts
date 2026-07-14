@@ -479,7 +479,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
         })
         const prompt = typeof properties.prompt === 'string' ? properties.prompt.trim() : ''
         if (!prompt) {
-          reportNodeRunFailure('Add a prompt before running the Text Widget.', 2400)
+          reportNodeRunFailure('Add a prompt before running the Widget Card.', 2400)
           return
         }
         setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })

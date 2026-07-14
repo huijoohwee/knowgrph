@@ -156,8 +156,8 @@ export function testStoryboardBoardModelReusesCanonicalWidgetTitles() {
     graphRevision: 1,
   })
   const cards = board.lanes.flatMap(lane => lane.cards)
-  if (cards.find(card => card.id === 'legacy-text')?.title !== 'Text Widget') {
-    throw new Error(`expected Card title to reuse canonical Text Widget naming, got ${JSON.stringify(cards)}`)
+  if (cards.find(card => card.id === 'legacy-text')?.title !== 'Widget Card') {
+    throw new Error(`expected Card title to reuse canonical Widget Card naming, got ${JSON.stringify(cards)}`)
   }
   if (cards.find(card => card.id === 'custom-text')?.title !== 'Campaign Copywriter') {
     throw new Error(`expected Card title to preserve authored widget names, got ${JSON.stringify(cards)}`)
@@ -207,7 +207,7 @@ export function testStoryboardBoardModelProjectsGeneratedOutputAndAudioMedia() {
       nodes: [
         {
           id: 'text-run',
-          label: 'Text Widget Run',
+          label: 'Widget Card Run',
           type: 'TextGeneration',
           properties: {
             lane: 'Generated',

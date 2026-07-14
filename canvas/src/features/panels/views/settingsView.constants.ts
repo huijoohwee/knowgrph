@@ -93,13 +93,13 @@ export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = 
   [BYTEPLUS_SHARED_TEXT_API_DOC_AREA]: {
     docsUrl: 'https://docs.byteplus.com/en/docs/ModelArk/1494384',
     docsLabel: 'Open BytePlus Text API Docs',
-    panelLabel: 'Open FloatingPanel Props Panel Text Widget',
+    panelLabel: 'Open FloatingPanel Props Panel Widget Card',
     openPanel: () => emitPropsPanelOpen(),
   },
   [OPENAI_CHAT_API_DOC_AREA]: {
     docsUrl: 'https://developers.openai.com/api/reference/resources/responses',
     docsLabel: 'Open OpenAI Chat API Docs',
-    panelLabel: 'Open FloatingPanel Props Panel Text Widget',
+    panelLabel: 'Open FloatingPanel Props Panel Widget Card',
     openPanel: () => emitPropsPanelOpen(),
   },
   [OPENAI_IMAGES_API_DOC_AREA]: {
@@ -111,7 +111,7 @@ export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = 
   [DEERFLOW_API_DOC_AREA]: {
     docsUrl: 'https://github.com/bytedance/deer-flow',
     docsLabel: 'Open DeerFlow Docs',
-    panelLabel: 'Open FloatingPanel Props Panel Text Widget',
+    panelLabel: 'Open FloatingPanel Props Panel Widget Card',
     openPanel: () => emitPropsPanelOpen(),
   },
   [MIROMIND_API_DOC_AREA]: {

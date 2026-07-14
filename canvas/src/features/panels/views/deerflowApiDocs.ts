@@ -39,7 +39,7 @@ export const DEERFLOW_API_REQUEST_DOC_ENTRIES: ReadonlyArray<VirtualSettingsEntr
     })()
     const responsibility = (() => {
       if (row.key === 'provider') {
-        return 'Orchestrator -> pin DeerFlow Gateway provider routing -> keep MainPanel Integrations, Flow Manager, and Text Widget provider semantics aligned.'
+        return 'Orchestrator -> pin DeerFlow Gateway provider routing -> keep MainPanel Integrations, Flow Manager, and Widget Card provider semantics aligned.'
       }
       if (row.key === 'endpoint_url') {
         return 'Transport -> route requests to DeerFlow Gateway OpenAI-compatible endpoint -> keep Dev localhost and Prod Cloudflare Tunnel routing on one endpoint SSOT.'

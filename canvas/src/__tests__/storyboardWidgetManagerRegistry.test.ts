@@ -173,20 +173,20 @@ export function testStoryboardWidgetManagerSeedsDefaultRegistryEntriesAndConsoli
   )
   if (seeded.length !== 4) throw new Error(`expected four neutral default registry entries, got ${seeded.length}`)
   if (!imageFound) throw new Error('expected Image Widget mapping')
-  if (!textFound) throw new Error('expected Text Widget mapping')
+  if (!textFound) throw new Error('expected Widget Card mapping')
   if (videoScriptFound) throw new Error('expected default registry seed to omit provider-specific Video Script Widget mapping')
   if (openAiVideoScriptFound) throw new Error('expected default registry seed to omit provider-specific OpenAI Video Script Widget mapping')
   if (!richMediaPanelFound) throw new Error('expected Rich Media Panel mapping')
   if (storyboardElementFound) throw new Error('expected default registry seed to omit Storyboard Element mapping')
   if (discoveryFound) throw new Error('expected default registry seed to omit GrabMaps Chat Discovery Widget mapping')
   if (!found) throw new Error('expected Generate Video mapping')
-  if (getWidgetRegistryEntryLabel(textFound) !== 'Text Widget') throw new Error('expected default text palette label to stay neutral')
+  if (getWidgetRegistryEntryLabel(textFound) !== 'Widget Card') throw new Error('expected default text palette label to stay neutral')
   if (getWidgetRegistryEntryLabel(imageFound) !== 'Image Widget') throw new Error('expected default image palette label to stay neutral')
   if (getWidgetRegistryEntryLabel(found) !== 'Video Widget') throw new Error('expected default video palette label to stay neutral')
   const propsPanelPaletteLabels = seeded
     .filter(entry => isPropsPanelWidgetPaletteEntry(entry))
     .map(entry => getWidgetRegistryEntryLabel(entry))
-  if (propsPanelPaletteLabels.join('|') !== 'Rich Media Panel|Text Widget') {
+  if (propsPanelPaletteLabels.join('|') !== 'Rich Media Panel|Widget Card') {
     throw new Error(`expected Props Panel palette to consolidate Image/Video creation into Rich Media Panel, got ${propsPanelPaletteLabels.join(', ')}`)
   }
 
@@ -271,14 +271,14 @@ export function testStoryboardWidgetManagerBuildsReusableTextRegistryDrafts() {
     throw new Error('expected DeerFlow text draft scaffold to stay on the OpenAI-compatible text widget field set')
   }
   const deerflowLabel = getWidgetRegistryEntryLabel({ nodeTypeId: deerflowDraft.nodeTypeId, formId: deerflowDraft.formId })
-  if (deerflowLabel !== 'Text Widget') {
-    throw new Error(`expected DeerFlow compatibility form to use the canonical Text Widget label, got ${String(deerflowLabel)}`)
+  if (deerflowLabel !== 'Widget Card') {
+    throw new Error(`expected DeerFlow compatibility form to use the canonical Widget Card label, got ${String(deerflowLabel)}`)
   }
   ;(['byteplus', 'openai', 'deerflow', 'miromind', 'agnes', 'sealion', 'qwen', 'google-cloud'] as const).forEach(providerFamily => {
     const draft = buildTextGenerationRegistryDraft({ providerFamily })
     const label = getWidgetRegistryEntryLabel({ nodeTypeId: draft.nodeTypeId, formId: draft.formId })
-    if (label !== 'Text Widget') {
-      throw new Error(`expected ${providerFamily} compatibility form to use the canonical Text Widget label, got ${String(label)}`)
+    if (label !== 'Widget Card') {
+      throw new Error(`expected ${providerFamily} compatibility form to use the canonical Widget Card label, got ${String(label)}`)
     }
   })
 }
