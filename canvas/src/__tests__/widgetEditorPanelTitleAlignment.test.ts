@@ -122,7 +122,7 @@ export function testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes()
       updatedAt: '2026-04-22T00:00:00.000Z',
     } satisfies WidgetRegistryEntry,
   })
-  if (openAiText !== 'OpenAI Text Widget') throw new Error(`expected OpenAI Text Widget, got ${openAiText}`)
+  if (openAiText !== 'Text Widget') throw new Error(`expected canonical Text Widget, got ${openAiText}`)
 
   const openAiTextFromPropsOnly = resolveWidgetNodeTitle({
     node: makeNode({
@@ -136,8 +136,8 @@ export function testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes()
       },
     }),
   })
-  if (openAiTextFromPropsOnly !== 'OpenAI Text Widget') {
-    throw new Error(`expected OpenAI Text Widget from widget identity fallback, got ${openAiTextFromPropsOnly}`)
+  if (openAiTextFromPropsOnly !== 'Text Widget') {
+    throw new Error(`expected canonical Text Widget from compatibility identity fallback, got ${openAiTextFromPropsOnly}`)
   }
 
   const seedreamImage = resolveWidgetNodeTitle({

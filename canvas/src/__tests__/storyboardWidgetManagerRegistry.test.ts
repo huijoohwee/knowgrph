@@ -272,9 +272,16 @@ export function testStoryboardWidgetManagerBuildsReusableTextRegistryDrafts() {
     throw new Error('expected DeerFlow text draft scaffold to stay on the OpenAI-compatible text widget field set')
   }
   const deerflowLabel = getTextGenerationWidgetLabel({ formId: deerflowDraft.formId })
-  if (deerflowLabel !== 'DeerFlow Text Widget') {
-    throw new Error(`expected DeerFlow label helper to classify future text widgets, got ${String(deerflowLabel)}`)
+  if (deerflowLabel !== 'Text Widget') {
+    throw new Error(`expected DeerFlow compatibility form to use the canonical Text Widget label, got ${String(deerflowLabel)}`)
   }
+  ;(['byteplus', 'openai', 'deerflow', 'miromind', 'agnes', 'sealion', 'qwen', 'google-cloud'] as const).forEach(providerFamily => {
+    const draft = buildTextGenerationRegistryDraft({ providerFamily })
+    const label = getTextGenerationWidgetLabel({ formId: draft.formId, provider: providerFamily })
+    if (label !== 'Text Widget') {
+      throw new Error(`expected ${providerFamily} compatibility form to use the canonical Text Widget label, got ${String(label)}`)
+    }
+  })
 }
 
 export function testStoryboardWidgetManagerDoesNotSeedOpenAiTextRegistryEntry() {
