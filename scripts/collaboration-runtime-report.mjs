@@ -15,13 +15,23 @@ let validatorPromise = null
 const loadValidator = async () => {
   if (!validatorPromise) {
     validatorPromise = readFile(COLLABORATION_RUNTIME_REPORT_SCHEMA_PATH, 'utf8')
-      .then(JSON.parse)
-      .then(schema => {
+      .then(source => {
+        const schema = JSON.parse(source)
         const ajv = new Ajv2020({ allErrors: true, strict: true })
-        return { ajv, schema, validate: ajv.compile(schema) }
+        return { ajv, schema, source, validate: ajv.compile(schema) }
       })
   }
   return validatorPromise
+}
+
+export const readCollaborationRuntimeReportSchema = async () => {
+  const { schema } = await loadValidator()
+  return structuredClone(schema)
+}
+
+export const readCollaborationRuntimeReportSchemaSource = async () => {
+  const { source } = await loadValidator()
+  return source
 }
 
 export const validateCollaborationRuntimeReport = async report => {
