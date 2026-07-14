@@ -17,7 +17,6 @@ import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
 import { insertMediaIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
 import { writeCommandMenuMediaNameDraft } from '@/lib/command-menu/commandMenuMediaNameSync'
 import { collectInlineKeywordCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
-import { UPLOADED_MEDIA_PANEL_STORAGE_KEY } from '@/lib/storage/uploadedMediaPanelItems'
 import {
   DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
   resolveDataViewChipClass,
@@ -395,6 +394,7 @@ export async function testCommandMenuMediaPanelPointerDownInvokesBeforeBlurClick
   }
 }
 export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardField() {
+  await (await import('./mediaCatalogPreviewKeyboardNavigation.test')).assertMediaCatalogPreviewKeyboardNavigation()
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)

@@ -102,6 +102,26 @@ def assert_catalog_preview_parent_placement(page, kind: str) -> None:
     expect(preview).to_have_count(0)
 
 
+def assert_catalog_preview_arrow_navigation(page) -> None:
+    page.locator('[data-kg-smoke-open-image-preview="1"]').click()
+    preview = page.locator('[data-kg-media-catalog-preview="1"]').first
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "image")
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-count", "2")
+
+    for key, expected_kind in (
+        ("ArrowRight", "video"),
+        ("ArrowDown", "image"),
+        ("ArrowLeft", "video"),
+        ("ArrowUp", "image"),
+    ):
+        page.keyboard.press(key)
+        expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", expected_kind)
+        expect(preview.locator("video" if expected_kind == "video" else "img").first).to_be_visible()
+
+    preview.locator('[data-kg-media-catalog-preview-close="1"]').click()
+    expect(preview).to_have_count(0)
+
+
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -173,6 +193,7 @@ def main() -> None:
 
             assert_catalog_preview_parent_placement(page, "image")
             assert_catalog_preview_parent_placement(page, "video")
+            assert_catalog_preview_arrow_navigation(page)
 
             page.screenshot(path=str(SCREENSHOT_PATH), full_page=True)
             print(f"OK rich-media-browser-smoke {TARGET_URL}")

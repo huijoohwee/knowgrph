@@ -289,7 +289,14 @@ export function RichMediaBrowserSmokePage() {
             </menu>
           </header>
           <section className="h-[22rem] min-h-0 overflow-hidden">
-            {catalogPreviewKind ? <MediaCatalogRichMediaPreview item={SMOKE_CATALOG_MEDIA[catalogPreviewKind]} onClose={() => setCatalogPreviewKind(null)} /> : null}
+            {catalogPreviewKind ? (
+              <MediaCatalogRichMediaPreview
+                item={SMOKE_CATALOG_MEDIA[catalogPreviewKind]}
+                items={Object.values(SMOKE_CATALOG_MEDIA)}
+                onClose={() => setCatalogPreviewKind(null)}
+                onNavigate={item => setCatalogPreviewKind(item.kind === 'video' ? 'video' : 'image')}
+              />
+            ) : null}
           </section>
         </article>
 
