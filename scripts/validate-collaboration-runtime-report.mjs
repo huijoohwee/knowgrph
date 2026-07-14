@@ -1,8 +1,10 @@
 import path from 'node:path'
 import { text } from 'node:stream/consumers'
 import {
+  COLLABORATION_RUNTIME_VALIDATION_SCHEMA,
   validateCollaborationRuntimeReportArtifact,
   validateCollaborationRuntimeReportSource,
+  validateCollaborationRuntimeValidation,
 } from './collaboration-runtime-report.mjs'
 
 const args = process.argv.slice(2)
@@ -23,6 +25,11 @@ const classifyError = error => {
   return { code: 'validation-failed', message }
 }
 
+const writeValidationEnvelope = async (stream, envelope) => {
+  await validateCollaborationRuntimeValidation(envelope)
+  stream.write(`${JSON.stringify(envelope, null, 2)}\n`)
+}
+
 const main = async () => {
   if (inputArgs.length !== 1) {
     throw new Error('usage: npm run collaboration:report:check -- [--json] <report.json|->')
@@ -34,12 +41,13 @@ const main = async () => {
     : await validateCollaborationRuntimeReportArtifact(path.resolve(input))
 
   if (jsonOutput) {
-    console.log(JSON.stringify({
+    await writeValidationEnvelope(process.stdout, {
+      schema: COLLABORATION_RUNTIME_VALIDATION_SCHEMA,
       status: 'passed',
       schemaId: result.schemaId,
       schemaVersion: result.schemaVersion,
       input: inputType,
-    }, null, 2))
+    })
   } else {
     console.log(`[knowgrph] collaboration runtime report passed (${result.schemaVersion})`)
   }
@@ -49,10 +57,11 @@ try {
   await main()
 } catch (error) {
   if (!jsonOutput) throw error
-  process.stderr.write(`${JSON.stringify({
+  await writeValidationEnvelope(process.stderr, {
+    schema: COLLABORATION_RUNTIME_VALIDATION_SCHEMA,
     status: 'failed',
     input: inputType,
     error: classifyError(error),
-  }, null, 2)}\n`)
+  })
   process.exitCode = 1
 }

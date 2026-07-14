@@ -93,6 +93,7 @@
     "hygiene:chunks": "node ./scripts/check-hygiene-compliance.mjs --chunks",
     "collaboration:contract:check": "node ./scripts/check-collaboration-runtime.mjs",
     "collaboration:report:check": "node ./scripts/validate-collaboration-runtime-report.mjs",
+    "collaboration:report:check-schema": "node ./scripts/print-collaboration-runtime-validation-schema.mjs",
     "collaboration:report:example": "node ./scripts/print-collaboration-runtime-report-example.mjs",
     "collaboration:report:schema": "node ./scripts/print-collaboration-runtime-report-schema.mjs",
     "test:collaboration-contract": "node --test scripts/__tests__/collaboration-contract.test.mjs scripts/__tests__/collaboration-runtime-report.test.mjs scripts/__tests__/conflict-compliance.test.mjs scripts/__tests__/dev-source-consistency.test.mjs scripts/__tests__/runtime-readiness-contract.test.mjs scripts/__tests__/worktree-policy.test.mjs",
