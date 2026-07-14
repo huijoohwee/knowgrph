@@ -16,7 +16,7 @@ import { useStoryboardCardMediaDrop2d } from '@/components/StoryboardWidgetCanva
 import { useStoryboardCardOverlayProjection2d } from '@/components/StoryboardWidgetCanvas/useStoryboardCardOverlayProjection2d'
 import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'
 import { runStoryboardRemoveAction } from '@/components/StoryboardCanvas/storyboardRemoveAction'
-import { buildStoryboardCardMediaTextareaAttachment } from '@/components/StoryboardCanvas/storyboardCardMediaProjection'
+import { buildStoryboardCardMediaTextareaAttachments } from '@/components/StoryboardCanvas/storyboardCardMediaProjection'
 import { mergeStoryboardMediaAlbumItems, toStoryboardMediaAlbumItem } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
 import { buildStoryboardBoardModel, buildStoryboardInlineMediaCommandContext, type StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/storyboardToolbarProps'
@@ -68,9 +68,12 @@ function StoryboardCardOverlayItem(props: {
     [toStoryboardMediaAlbumItem(pendingMedia)],
   ), [card.media, card.mediaItems, pendingMedia])
   const projectedMediaAttachments = React.useMemo(() => {
-    const attachment = buildStoryboardCardMediaTextareaAttachment(displayMedia, card.title || card.id)
-    return attachment ? [attachment] : null
-  }, [card.id, card.title, displayMedia])
+    const attachments = buildStoryboardCardMediaTextareaAttachments(
+      [...displayMediaItems, displayMedia],
+      card.title || card.id,
+    )
+    return attachments.length > 0 ? attachments : null
+  }, [card.id, card.title, displayMedia, displayMediaItems])
   const [summaryEditRequestKey, setSummaryEditRequestKey] = React.useState<number | null>(null)
   const storyboardCommandContextText = buildStoryboardInlineMediaCommandContext(
     displayMedia === card.media ? card : { ...card, media: displayMedia },

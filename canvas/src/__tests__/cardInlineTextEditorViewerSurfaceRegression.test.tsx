@@ -368,6 +368,27 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     if (!(authoredMediaThumbnail instanceof dom.window.HTMLElement) || authoredMediaThumbnail.hasAttribute('aria-hidden') || !authoredMediaThumbnail.getAttribute('aria-label')) {
       throw new Error(`expected authored @ media chip thumbnail to stay visible to selection tooling, html=${authoredMediaChip.outerHTML}`)
     }
+    const secondaryAlbumToken = '@secondary-album-frame.png'
+    directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
+      value: `Generate a text response for the active request. ${secondaryAlbumToken}`,
+      projectedMediaAttachments: [
+        ...mediaAttachments,
+        {
+          mediaKind: 'image',
+          label: 'secondary-album-frame.png',
+          sourceUrl: 'https://airvio.co/api/storage/media/airvio/runs/storyboard/secondary-album-frame.png',
+          thumbnailUrl: 'https://airvio.co/api/storage/media/airvio/runs/storyboard/secondary-album-frame.png',
+        },
+      ],
+    })
+    const secondaryAlbumChip = directProbe.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]') as HTMLElement | null
+    if (!(secondaryAlbumChip instanceof dom.window.HTMLElement) || secondaryAlbumChip.getAttribute('data-kg-card-inline-wysiwyg-media-markdown') !== secondaryAlbumToken) {
+      throw new Error(`expected a non-primary album @ token to remain a visible media chip after opening the editor, html=${directProbe.innerHTML}`)
+    }
+    directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
+      value: authoredMediaValue,
+      projectedMediaAttachments: mediaAttachments,
+    })
     const authoredMediaToken = '@strybldr-starter-source-017d1e965528642f.png'
     const authoredMediaTokenStart = authoredMediaValue.indexOf(authoredMediaToken)
     const authoredMediaTokenEnd = authoredMediaTokenStart + authoredMediaToken.length

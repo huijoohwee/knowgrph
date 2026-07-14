@@ -44,3 +44,20 @@ export function buildStoryboardCardMediaTextareaAttachment(
       : String(media?.thumbnailUrl || '').trim() || undefined,
   }
 }
+
+export function buildStoryboardCardMediaTextareaAttachments(
+  mediaItems: readonly StoryboardProjectedMedia[],
+  fallbackLabel: string,
+): TextareaInvocationMediaAttachment[] {
+  const seen = new Set<string>()
+  const attachments: TextareaInvocationMediaAttachment[] = []
+  mediaItems.forEach(media => {
+    const attachment = buildStoryboardCardMediaTextareaAttachment(media, fallbackLabel)
+    if (!attachment) return
+    const identity = `${attachment.mediaKind}\n${attachment.label.toLowerCase()}\n${String(attachment.sourceUrl || '').toLowerCase()}`
+    if (seen.has(identity)) return
+    seen.add(identity)
+    attachments.push(attachment)
+  })
+  return attachments
+}
