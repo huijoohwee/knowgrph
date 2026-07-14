@@ -20,9 +20,12 @@ const requireCanonicalSource = (state, source) => {
     throw new Error(`${source.id} source requires a clean worktree; commit, stash, or remove local changes first`)
   }
   if (state.headSha !== state.canonicalSha) {
+    const recovery = !state.status && state.branch === source.canonical_branch
+      ? ' Run npm run dev:latest to fast-forward clean canonical checkouts safely.'
+      : ''
     throw new Error(
       `${source.id} canonical Dev source mismatch: HEAD ${state.headSha} != ${canonicalRef(source)} ${state.canonicalSha}. `
-      + `Update the ${source.id} checkout to the fetched canonical revision`,
+      + `Update the ${source.id} checkout to the fetched canonical revision.${recovery}`,
     )
   }
   return `${source.id}=${canonicalRef(source)}@${state.canonicalSha.slice(0, 12)}`

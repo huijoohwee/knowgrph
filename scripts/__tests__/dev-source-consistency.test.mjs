@@ -41,7 +41,7 @@ test('canonical Dev source rejects stale or dirty checkouts before any port can 
   const contract = await readContract()
   assert.throws(() => evaluateDevSourceConsistency(sourceStates({
     application: { canonicalSha: SHA_B },
-  }), contract, 'canonical'), /knowgrph canonical Dev source mismatch/)
+  }), contract, 'canonical'), /Run npm run dev:latest to fast-forward clean canonical checkouts safely/)
   assert.throws(() => evaluateDevSourceConsistency(sourceStates({
     docs: { status: ' M docs\/FACTS.md' },
   }), contract, 'canonical'), /agentic-canvas-os-docs source requires a clean worktree/)
