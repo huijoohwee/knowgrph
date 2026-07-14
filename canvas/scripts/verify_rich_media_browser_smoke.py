@@ -42,9 +42,19 @@ def install_fullscreen_probe(page) -> None:
     page.evaluate(
         """
         () => {
-          window.__kgRichMediaFullscreenTarget = null
+          let fullscreenTarget = null
+          Object.defineProperty(document, 'fullscreenElement', {
+            configurable: true,
+            get: () => fullscreenTarget,
+          })
           HTMLElement.prototype.requestFullscreen = function () {
-            window.__kgRichMediaFullscreenTarget = this.getAttribute('data-kg-media-catalog-preview')
+            fullscreenTarget = this
+            document.dispatchEvent(new Event('fullscreenchange'))
+            return Promise.resolve()
+          }
+          document.exitFullscreen = function () {
+            fullscreenTarget = null
+            document.dispatchEvent(new Event('fullscreenchange'))
             return Promise.resolve()
           }
         }
@@ -112,9 +122,18 @@ def assert_catalog_preview_parent_placement(page, kind: str) -> None:
     expect(page.locator('[data-kg-media-lightbox="1"]')).to_have_count(0)
     fullscreen_button = preview.locator('[data-kg-media-catalog-preview-fullscreen="1"]')
     expect(fullscreen_button).to_be_visible()
+    expect(fullscreen_button).to_have_attribute("aria-label", "Enter fullscreen")
+    expect(fullscreen_button).to_have_attribute("aria-pressed", "false")
     fullscreen_button.click()
-    if page.evaluate("() => window.__kgRichMediaFullscreenTarget") != "1":
+    expect(fullscreen_button).to_have_attribute("aria-label", "Exit fullscreen")
+    expect(fullscreen_button).to_have_attribute("aria-pressed", "true")
+    if page.evaluate("() => document.fullscreenElement?.getAttribute('data-kg-media-catalog-preview')") != "1":
         raise AssertionError(f"expected {kind} fullscreen action to target the expanded Rich Media Panel preview")
+    fullscreen_button.click()
+    expect(fullscreen_button).to_have_attribute("aria-label", "Enter fullscreen")
+    expect(fullscreen_button).to_have_attribute("aria-pressed", "false")
+    if page.evaluate("() => document.fullscreenElement") is not None:
+        raise AssertionError(f"expected {kind} fullscreen exit action to clear the fullscreen target")
     if kind == "video":
         preview.screenshot(path=str(CATALOG_PREVIEW_SCREENSHOT_PATH))
     preview.locator('[data-kg-media-catalog-preview-close="1"]').click()
