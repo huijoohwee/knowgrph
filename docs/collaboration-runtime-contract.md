@@ -141,6 +141,8 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 ## Local Development Source Identity
 
 - Normal `npm run dev` startup fetches every `local_development.canonical_sources` entry before Vite starts.
+- `npm run dev:latest` is the explicit canonical-refresh path. It preflights every canonical source before mutation, requires one registered worktree plus a clean canonical branch, rejects divergent history, applies only `git merge --ff-only` updates, and then delegates to the unchanged `npm run dev` gate.
+- `dev:latest` never stashes, resets, pulls, switches branches, or mutates an owned task branch. If any source cannot update safely, all source fast-forwards are withheld and startup fails with the responsible identity.
 - Startup counts each source repository's registered worktrees and fails closed unless the count is exactly `local_development.worktree_policy.maximum_registered_per_repository`.
 - `npm run worktree:check` exposes that count-only policy as a standalone preflight without fetching, checking cleanliness, or starting Dev. `ci:integration` runs it first, so the installed pre-push hook and remote Integration Gate reject redundant registered worktrees before expensive validation.
 - Canonical mode requires every registered repository to be clean and exactly equal to its fetched canonical SHA. The port number never selects application or documentation source code.
