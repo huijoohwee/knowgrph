@@ -8,7 +8,7 @@ export function buildLocalAgentRuntimeToolDefinition(toolName) {
   return {
     name: toolName,
     description:
-      "Run one registered Knowgrph agent through the shared SuperAgent kernel. Agent identity, capabilities, policy, roles, and plan are resolved from the canonical agent-definition registry.",
+      "Use this when a local MCP host needs model-selectable research, code, and create tasks through the shared SuperAgent kernel, including quick_triage and parallel_build plans. Agent identity, capabilities, policy, roles, and plan resolve from the canonical agent-definition registry.",
     outputSchema: AGENT_RUN_OUTPUT_SCHEMA,
     inputSchema: {
       type: "object",
@@ -46,6 +46,7 @@ export function buildLocalAgentRuntimeToolDefinition(toolName) {
           type: "string",
           enum: ["byteplus-modelark", "mock"],
           default: "byteplus-modelark",
+          description: "Provider selector; byteplus-modelark is the ModelArk MCP placeholder and mock is the deterministic zero-spend fallback.",
         },
         mode: {
           type: "string",

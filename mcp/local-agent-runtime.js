@@ -5,6 +5,7 @@ import {
   AGENT_RUN_OUTPUT_SCHEMA_ID,
   resolveAgentDefinition,
 } from "../contracts/agent-runtime.schema.js";
+import { parseSmeProfileMarkdown } from "../contracts/sme-profile.schema.js";
 import {
   buildSmeSourceFiles,
   runSmeRiskCoverageMarkdown,
@@ -63,7 +64,28 @@ export async function runLocalAgentRuntime(args, deps) {
     }
     const inputPath = resolvePath(args.inputPath, { allowOutsideRoot: Boolean(args.allowExternalInput) });
     const markdown = await fs.readFile(inputPath, "utf8");
+    let previousProfile = null;
+    let previousRun = null;
+    if (mode === "live") {
+      const current = parseSmeProfileMarkdown(markdown);
+      const profileId = current.ok ? current.profile.profile_id : "";
+      if (profileId) {
+        try {
+          const previousMarkdown = await fs.readFile(path.join(outputDir, "sme-agent", "profiles", profileId, "profile.md"), "utf8");
+          const previous = runSmeRiskCoverageMarkdown(previousMarkdown);
+          if (previous.ok) {
+            previousProfile = previous.run.profile;
+            previousRun = previous.run;
+          }
+        } catch (error) {
+          if (error?.code !== "ENOENT") throw error;
+        }
+      }
+    }
     const result = runSmeRiskCoverageMarkdown(markdown, {
+      previousRun,
+      previousProfile,
+      runId: typeof args.runId === "string" ? args.runId : "",
       tokenBudget: typeof args.tokenBudget === "number" ? args.tokenBudget : undefined,
       timeoutSeconds: typeof timeoutMs === "number" ? timeoutMs / 1000 : undefined,
     });

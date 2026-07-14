@@ -1,3 +1,5 @@
+import { inspectSmeSourceSafety } from "./sme-source-safety.js";
+
 export const SME_PROFILE_SCHEMA_ID = "knowgrph-sme-profile/v1";
 export const SME_GROWTH_STAGES = Object.freeze(["pre_seed", "early", "growth", "established"]);
 export const SME_RISK_DOMAINS = Object.freeze(["cyber", "supply_chain", "asset_physical"]);
@@ -16,6 +18,19 @@ function error(path, reason) {
   return { ok: false, error: { code: "invalid_sme_profile", path, reason }, costState: "zero_spend" };
 }
 
+function unsafeError(rejectedFields) {
+  return {
+    ok: false,
+    error: {
+      code: "unsafe_sme_profile",
+      path: rejectedFields[0] || "source",
+      reason: "registry, financial-account, or credential-like input is forbidden",
+      rejected_fields: rejectedFields,
+    },
+    costState: "zero_spend",
+  };
+}
+
 function normalizeCoverage(value) {
   if (typeof value === "string") return value.trim();
   if (!isObject(value)) return value;
@@ -27,6 +42,8 @@ function normalizeCoverage(value) {
 
 export function validateSmeProfile(value) {
   if (!isObject(value)) return error("", "profile must be an object");
+  const safety = inspectSmeSourceSafety(value);
+  if (!safety.safe) return unsafeError(safety.rejected_fields);
   if (!("schema" in value) || value.schema === "") return error("schema", "required field is missing");
   if (value.schema !== SME_PROFILE_SCHEMA_ID) return error("schema", `must equal ${SME_PROFILE_SCHEMA_ID}`);
   for (const field of REQUIRED_FIELDS.slice(1)) {
@@ -35,6 +52,7 @@ export function validateSmeProfile(value) {
   for (const field of ["profile_id", "industry"]) {
     if (!isText(value[field])) return error(field, `must be a non-empty string of at most ${SME_TEXT_MAX} characters`);
   }
+  if (/[\\/]/.test(value.profile_id) || value.profile_id.includes("..")) return error("profile_id", "must be one safe path segment");
   if (!Number.isInteger(value.size) || value.size < SME_SIZE_RANGE.minimum || value.size > SME_SIZE_RANGE.maximum) {
     return error("size", `must be an integer from ${SME_SIZE_RANGE.minimum} to ${SME_SIZE_RANGE.maximum}`);
   }
@@ -99,16 +117,20 @@ export function parseSmeProfileMarkdown(markdown) {
   const end = lines.slice(1).findIndex((line) => line.trim() === "---");
   if (end < 0) return error("", "frontmatter closing delimiter is missing");
   const source = {};
+  const safetySource = {};
   for (const line of lines.slice(1, end + 1)) {
     if (!line.trim() || line.trimStart().startsWith("#")) continue;
     const match = line.match(/^([a-z_]+):\s*(.*)$/);
     if (!match) return error("", "frontmatter must use one key: value pair per line");
-    if (!PRINT_FIELDS.includes(match[1])) continue;
-    if (Object.hasOwn(source, match[1])) return error(match[1], "field must appear once");
     const parsed = parseScalar(match[2]);
     if (parsed === Symbol.for("invalid")) return error(match[1], "contains invalid JSON-compatible YAML");
+    safetySource[match[1]] = parsed;
+    if (!PRINT_FIELDS.includes(match[1])) continue;
+    if (Object.hasOwn(source, match[1])) return error(match[1], "field must appear once");
     source[match[1]] = parsed;
   }
+  const safety = inspectSmeSourceSafety(safetySource);
+  if (!safety.safe) return unsafeError(safety.rejected_fields);
   return validateSmeProfile(source);
 }
 

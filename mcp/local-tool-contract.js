@@ -6,6 +6,7 @@ import { buildKnowgrphMcpAppsToolMeta, buildKnowgrphMcpNoauthSecuritySchemes } f
 import { KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES, MEMORY_ADD_INPUT_SCHEMA, MEMORY_ADD_OUTPUT_SCHEMA, MEMORY_SEARCH_INPUT_SCHEMA, MEMORY_SEARCH_OUTPUT_SCHEMA, PROCEDURAL_MEMORY_EXTRACT_INPUT_SCHEMA, PROCEDURAL_MEMORY_EXTRACT_OUTPUT_SCHEMA, PROMPT_ASSEMBLER_INPUT_SCHEMA, PROMPT_ASSEMBLER_OUTPUT_SCHEMA, USER_MODEL_MATERIALIZE_INPUT_SCHEMA, USER_MODEL_MATERIALIZE_OUTPUT_SCHEMA } from "../canvas/src/features/memory/aiAgentsMemoryLayerContract.mjs";
 import { AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION } from "./agentic-canvas-os-docs-contract.mjs";
 import { buildProbeTreeLocalToolDefinitions } from "./probe-tree-tool-contract.js";
+import { buildSmeRiskCopilotLocalToolDefinitions } from "./sme-risk-copilot-tool-contract.js";
 import { buildAgentSandboxPolicyToolDefinitions } from "./agent-sandbox-policy-tool-contract.js"; import { VIDEO_WORKFLOW_INPUT_SCHEMA } from "./video-remix/workflow-contract.js";
 export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES;
 
@@ -401,6 +402,12 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
       inputSchema: USER_MODEL_MATERIALIZE_INPUT_SCHEMA,
     }, LOCAL_PROCESS_TOOL_ANNOTATIONS),
     ...buildProbeTreeLocalToolDefinitions({
+      toolNames: KNOWGRPH_LOCAL_MCP_TOOL_NAMES,
+      withDefaults: withLocalMcpDescriptorDefaults,
+      readOnlyAnnotations: READ_ONLY_TOOL_ANNOTATIONS,
+      processAnnotations: LOCAL_PROCESS_TOOL_ANNOTATIONS,
+    }),
+    ...buildSmeRiskCopilotLocalToolDefinitions({
       toolNames: KNOWGRPH_LOCAL_MCP_TOOL_NAMES,
       withDefaults: withLocalMcpDescriptorDefaults,
       readOnlyAnnotations: READ_ONLY_TOOL_ANNOTATIONS,

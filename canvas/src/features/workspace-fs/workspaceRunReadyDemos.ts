@@ -3,6 +3,8 @@ import { readEnvString } from '@/lib/config.env'
 export const WORKSPACE_RUN_READY_DEMO_ENV = 'VITE_KNOWGRPH_RUN_READY_DEMO'
 export const CARE_AGENT_RUN_READY_DEMO_ID = 'care-agent'
 export const CARE_AGENT_DEMO_WORKSPACE_SEED_BASENAME = 'knowgrph-care-agent-demo.md'
+export const RISK_COPILOT_RUN_READY_DEMO_ID = 'risk-copilot'
+export const RISK_COPILOT_DEMO_WORKSPACE_SEED_BASENAME = 'knowgrph-sme-care-agent-demo.md'
 
 export type WorkspaceRunReadyDemoSeed = {
   id: string
@@ -28,6 +30,18 @@ export const WORKSPACE_RUN_READY_DEMO_SEEDS: readonly WorkspaceRunReadyDemoSeed[
       `docs/workspace-seeds/${CARE_AGENT_DEMO_WORKSPACE_SEED_BASENAME}`,
       `docs/${CARE_AGENT_DEMO_WORKSPACE_SEED_BASENAME}`,
       CARE_AGENT_DEMO_WORKSPACE_SEED_BASENAME,
+    ],
+    sourceRoot: 'huijoohwee/docs',
+    cleanCanvasRecommended: true,
+  },
+  {
+    id: RISK_COPILOT_RUN_READY_DEMO_ID,
+    label: 'Knowgrph SME Risk Copilot Demo',
+    validationSeedRelPath: RISK_COPILOT_DEMO_WORKSPACE_SEED_BASENAME,
+    seedRelPathCandidates: [
+      `docs/workspace-seeds/${RISK_COPILOT_DEMO_WORKSPACE_SEED_BASENAME}`,
+      `docs/${RISK_COPILOT_DEMO_WORKSPACE_SEED_BASENAME}`,
+      RISK_COPILOT_DEMO_WORKSPACE_SEED_BASENAME,
     ],
     sourceRoot: 'huijoohwee/docs',
     cleanCanvasRecommended: true,
