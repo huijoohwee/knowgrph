@@ -8,6 +8,11 @@ import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboa
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import {
+  appendStoryboardMediaAlbumItem,
+  STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY,
+  toStoryboardMediaAlbumItem,
+} from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
 
 const STORYBOARD_DROPPED_PRIMARY_MEDIA_CLEAR_KEYS = [
   'renderUrl',
@@ -77,12 +82,26 @@ export function useStoryboardCardMediaDrop2d(args: {
       },
     }))
     const currentProperties = { ...((node.properties || {}) as Record<string, unknown>) }
+    const droppedMedia = toStoryboardMediaAlbumItem({
+      kind: payload.kind,
+      url,
+      sourceUrl: url,
+      thumbnailUrl: payload.thumbnailUrl || null,
+    })
+    const mediaAlbumItems = droppedMedia
+      ? appendStoryboardMediaAlbumItem({
+          existing: currentProperties[STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY],
+          current: toStoryboardMediaAlbumItem(card.media),
+          dropped: droppedMedia,
+        })
+      : readStoryboardScalar2d(currentProperties[STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY])
     STORYBOARD_DROPPED_PRIMARY_MEDIA_CLEAR_KEYS.forEach(key => {
       delete currentProperties[key]
     })
     const nextProperties = buildNodeMediaProperties({
       extra: {
         ...currentProperties,
+        ...(Array.isArray(mediaAlbumItems) ? { [STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY]: mediaAlbumItems } : {}),
         ...(payload.thumbnailUrl ? { thumbnailUrl: payload.thumbnailUrl } : {}),
       },
       kind: payload.kind,

@@ -27,6 +27,12 @@ import {
   FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
 } from '@/lib/config.storyboard-widget'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { CardMediaAlbum } from '@/lib/cards/CardMediaAlbum'
+import {
+  appendStoryboardMediaAlbumItem,
+  STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY,
+} from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
@@ -178,6 +184,61 @@ export function testStoryboardCardMediaDropReusesInboundRichMediaPanelEdge() {
   assert(panelProperties.imageUrl === imagePayload.url && !panelProperties.videoUrl, `expected reused panel to replace stale video media, got ${JSON.stringify(panelProperties)}`)
   const edgeProperties = second.graphData.edges.find(edge => String(edge.id || '') === second.edgeId)?.properties as Record<string, unknown>
   assert(edgeProperties[FLOW_EDGE_SOURCE_PORT_KEY] === 'imageUrl' && edgeProperties[FLOW_EDGE_TARGET_PORT_KEY] === 'mediaUrl', `expected reused edge to retarget imageUrl -> mediaUrl, got ${JSON.stringify(edgeProperties)}`)
+}
+
+export function testStoryboardCardMediaDropAppendsResponsiveMixedMediaAlbum() {
+  const image = {
+    kind: 'image' as const,
+    url: 'https://example.com/first-frame.png?kg_media_token=old',
+    sourceUrl: 'https://example.com/first-frame.png',
+  }
+  const video = {
+    kind: 'video' as const,
+    url: 'https://example.com/second-clip.mp4',
+    sourceUrl: 'https://example.com/second-clip.mp4',
+    thumbnailUrl: 'https://example.com/second-clip.jpg',
+  }
+  const album = appendStoryboardMediaAlbumItem({ existing: null, current: image, dropped: video })
+  const deduplicated = appendStoryboardMediaAlbumItem({
+    existing: album,
+    current: video,
+    dropped: { ...image, url: 'https://example.com/first-frame.png?kg_media_token=rotated' },
+  })
+  assert(deduplicated.length === 2, `expected token-rotated media to stay deduplicated, got ${JSON.stringify(deduplicated)}`)
+  assert(deduplicated.map(item => item.kind).join(',') === 'image,video', `expected ordered mixed-media album, got ${JSON.stringify(deduplicated)}`)
+
+  const card = buildCardNode()
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [{
+      ...card,
+      properties: {
+        ...card.properties,
+        mediaKind: 'video',
+        mediaUrl: video.url,
+        media: video.url,
+        video: video.url,
+        thumbnailUrl: video.thumbnailUrl,
+        [STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY]: deduplicated,
+      },
+    }],
+    edges: [],
+  }
+  const board = buildStoryboardBoardModel({ graphData, graphRevision: 2, widgetRegistry: registry })
+  const targetCard = board.lanes.flatMap(lane => lane.cards).find(item => item.id === card.id)
+  assert(targetCard?.mediaItems?.length === 2, `expected card model to project two album items, got ${JSON.stringify(targetCard?.mediaItems)}`)
+  assert(targetCard.mediaItems[0]?.kind === 'image' && targetCard.mediaItems[1]?.kind === 'video', 'expected card model to preserve album order and mixed kinds')
+
+  const sevenItems = Array.from({ length: 7 }, (_, index) => ({
+    kind: index === 1 ? 'video' as const : 'image' as const,
+    url: `https://example.com/media-${index}.${index === 1 ? 'mp4' : 'png'}`,
+    sourceUrl: `https://example.com/media-${index}.${index === 1 ? 'mp4' : 'png'}`,
+    ...(index === 1 ? { thumbnailUrl: 'https://example.com/media-1.jpg' } : {}),
+  }))
+  const markup = renderToStaticMarkup(CardMediaAlbum({ items: sevenItems, title: 'Text Widget' }))
+  assert(markup.includes('data-kg-card-media-album-count="7"'), `expected album count metadata, got ${markup}`)
+  assert((markup.match(/data-kg-card-media-album-item="1"/g) || []).length === 6, 'expected responsive album to cap the visible tile set at six')
+  assert(markup.includes('data-kg-card-media-album-kind="video"') && markup.includes('>+1<'), 'expected mixed video affordance and overflow count')
 }
 
 export function testStoryboardCardMediaDropSharesPanelAcrossConsumers() {

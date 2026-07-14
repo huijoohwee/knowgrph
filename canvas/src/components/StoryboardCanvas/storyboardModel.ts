@@ -23,10 +23,8 @@ import {
   readGraphNodeAuthoredTextProperty,
 } from '@/lib/cards/graphNodeCardFields'
 import { buildStoryboardInvocationTokensByLane, readStoryboardCardInvocationTokens } from '@/components/StoryboardCanvas/storyboardInvocationTokens'
-import {
-  readImageToThreeJsRenderMode,
-  type ImageToThreeJsRenderMode,
-} from '@/features/image-to-threejs/imageToThreeJsContract'
+import { readImageToThreeJsRenderMode, type ImageToThreeJsRenderMode } from '@/features/image-to-threejs/imageToThreeJsContract'
+import { projectStoryboardMediaAlbumItems, STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY, type StoryboardMediaAlbumItem } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
 export const STORYBOARD_EMPTY_LANE = 'Storyboard'
 export const STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY = 'storyboardCanvasRichMediaPanel' as const
 const STRUCTURAL_NODE_TYPE_RE = /\b(document|root|workspace|group|cluster|section)\b/i
@@ -87,6 +85,7 @@ export type StoryboardCardModel = {
   sourcePromptLabel: string
   href: string
   media: StoryboardCardMedia | null
+  mediaItems?: StoryboardMediaAlbumItem[]
   references: StoryboardCardReference[]
   order: number
   inputIndex: number
@@ -490,6 +489,7 @@ const buildCardModel = (node: GraphNode, inputIndex: number, stageTokensByLane: 
     sourcePromptLabel: readSourcePromptLabel(properties),
     href: readStoryboardHref(properties, media),
     media,
+    mediaItems: projectStoryboardMediaAlbumItems(properties[STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY], media),
     references,
     order: readFirstPropertyNumber(properties, ORDER_PROPERTY_KEYS) ?? inputIndex,
     inputIndex,

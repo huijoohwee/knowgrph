@@ -1,4 +1,5 @@
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
+import '@/lib/cards/CardMediaAlbum.css'
 import { CardMediaDropZoneFrame, CARD_MEDIA_DROP_ZONE_EMPTY_PLACEHOLDER_CLASS_NAME } from '@/lib/cards/CardMediaDropZone'
 import { readStoryboardMediaFileLabel, toStoryboardInlineMediaKind } from '@/components/StoryboardCanvas/storyboardCardMediaProjection'
 import { InlineMediaCommandThumbnail } from '@/lib/command-menu/InlineMediaCommandThumbnail'
@@ -9,14 +10,17 @@ import {
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { MediaDownloadOverlay } from '@/lib/ui/MediaKindOverlay'
+import { CardMediaAlbum } from '@/lib/cards/CardMediaAlbum'
+import type { StoryboardMediaAlbumItem } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
 
 type StoryboardCardMediaDropSlot2dProps = {
   card: StoryboardCardModel
   displayMedia: StoryboardCardModel['media']
+  displayMediaItems: readonly StoryboardMediaAlbumItem[]
   onDropMedia: (card: StoryboardCardModel, payload: MediaDragPayload) => void
 }
 
-export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia }: StoryboardCardMediaDropSlot2dProps) {
+export function StoryboardCardMediaDropSlot2d({ card, displayMedia, displayMediaItems, onDropMedia }: StoryboardCardMediaDropSlot2dProps) {
   const mediaUrl = displayMedia?.url || displayMedia?.thumbnailUrl || ''
   const mediaPoster = displayMedia?.thumbnailUrl || undefined
   const inlineMediaKind = toStoryboardInlineMediaKind(displayMedia?.kind)
@@ -33,7 +37,9 @@ export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia 
       }}
       onDropMedia={payload => onDropMedia(card, payload)}
     >
-      {mediaUrl ? (
+      {displayMediaItems.length > 1 ? (
+        <CardMediaAlbum items={displayMediaItems} title={card.title || card.id} />
+      ) : mediaUrl ? (
         <CardMediaPreview
           title={card.title}
           kind={displayMedia?.kind || null}
@@ -50,7 +56,7 @@ export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia 
           mediaSelectableSurfaceDataAttr
         />
       ) : null}
-      {mediaUrl && inlineMediaKind ? (
+      {displayMediaItems.length <= 1 && mediaUrl && inlineMediaKind ? (
         <figcaption className="pointer-events-none absolute bottom-1 left-1 right-1 z-10 flex min-w-0">
           <span className={`${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME} max-w-full bg-[color:var(--kg-panel-bg)]/90 shadow-sm backdrop-blur`} data-kg-storyboard-card-media-chip="1">
             <InlineMediaCommandThumbnail kind={inlineMediaKind} thumbnailUrl={mediaChipThumbnailUrl} variant="inline" />
@@ -58,7 +64,7 @@ export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia 
           </span>
         </figcaption>
       ) : null}
-      {mediaUrl && inlineMediaKind ? (
+      {displayMediaItems.length <= 1 && mediaUrl && inlineMediaKind ? (
         <MediaDownloadOverlay href={mediaUrl} kind={inlineMediaKind} appearance="hover" />
       ) : null}
       {!mediaUrl ? (

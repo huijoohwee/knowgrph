@@ -17,6 +17,7 @@ import { useStoryboardCardOverlayProjection2d } from '@/components/StoryboardWid
 import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'
 import { runStoryboardRemoveAction } from '@/components/StoryboardCanvas/storyboardRemoveAction'
 import { buildStoryboardCardMediaTextareaAttachment } from '@/components/StoryboardCanvas/storyboardCardMediaProjection'
+import { mergeStoryboardMediaAlbumItems, toStoryboardMediaAlbumItem } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
 import { buildStoryboardBoardModel, buildStoryboardInlineMediaCommandContext, type StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/storyboardToolbarProps'
 import { writeActiveMarkdownDocumentTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
@@ -61,6 +62,11 @@ function StoryboardCardOverlayItem(props: {
   const { width, height } = readCardSize(node)
   const textModel = buildStoryboardCardTextModel(card)
   const displayMedia = pendingMedia || card.media
+  const displayMediaItems = React.useMemo(() => mergeStoryboardMediaAlbumItems(
+    card.mediaItems || [],
+    [toStoryboardMediaAlbumItem(card.media)],
+    [toStoryboardMediaAlbumItem(pendingMedia)],
+  ), [card.media, card.mediaItems, pendingMedia])
   const projectedMediaAttachments = React.useMemo(() => {
     const attachment = buildStoryboardCardMediaTextareaAttachment(displayMedia, card.title || card.id)
     return attachment ? [attachment] : null
@@ -225,7 +231,7 @@ function StoryboardCardOverlayItem(props: {
               />
             ) : null}
           </section>
-          <StoryboardCardMediaDropSlot2d card={card} displayMedia={displayMedia} onDropMedia={onDropMedia} />
+          <StoryboardCardMediaDropSlot2d card={card} displayMedia={displayMedia} displayMediaItems={displayMediaItems} onDropMedia={onDropMedia} />
         </section>
       </section>
       {selected ? <StoryboardCardResizeHandle onPointerDown={event => onResizePointerDown(event, node)} /> : null}
