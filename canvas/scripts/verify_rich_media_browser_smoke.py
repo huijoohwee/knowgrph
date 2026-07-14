@@ -169,7 +169,24 @@ def wait_for_image_ready(page, image, timeout_ms: int) -> None:
         raise AssertionError(f"expected image ready within {timeout_ms}ms, got {state}") from error
 
 
-def assert_catalog_preview_arrow_navigation(page) -> dict[str, float]:
+def wait_for_video_metadata(page, video, timeout_ms: int) -> None:
+    element = video.element_handle()
+    if element is None:
+        raise AssertionError("expected video element for media-ready timing")
+    try:
+        page.wait_for_function(
+            "element => element.readyState >= element.HAVE_METADATA",
+            arg=element,
+            timeout=timeout_ms,
+        )
+    except PlaywrightTimeoutError as error:
+        state = video.evaluate(
+            "element => ({ connected: element.isConnected, errorCode: element.error?.code || null, networkState: element.networkState, readyState: element.readyState, src: element.currentSrc || element.src })"
+        )
+        raise AssertionError(f"expected video metadata ready within {timeout_ms}ms, got {state}") from error
+
+
+def assert_catalog_preview_arrow_navigation(page) -> dict[str, object]:
     cold_started_at = float(page.evaluate("() => performance.now()"))
     page.locator('[data-kg-smoke-open-image-preview="1"]').click()
     preview = page.locator('[data-kg-media-catalog-preview="1"]').first
@@ -181,13 +198,23 @@ def assert_catalog_preview_arrow_navigation(page) -> dict[str, float]:
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-touch-navigation", "horizontal-swipe")
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-count", "1")
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-kinds", "video")
+    preloaded_video = preview.locator('[data-kg-media-catalog-preview-preload-kind="video"]').first
+    wait_for_video_metadata(page, preloaded_video, 5000)
 
     previous_button = preview.locator('[data-kg-media-catalog-preview-previous="1"]')
     next_button = preview.locator('[data-kg-media-catalog-preview-next="1"]')
     expect(previous_button).to_be_visible()
     expect(next_button).to_be_visible()
+    video_started_at = float(page.evaluate("() => performance.now()"))
     next_button.click()
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "video")
+    visible_video = preview.locator('[data-kg-media-catalog-preview-panel="1"] video').first
+    wait_for_video_metadata(page, visible_video, CATALOG_PREVIEW_READY_BUDGET_MS)
+    video_ready_ms = float(page.evaluate("startedAt => performance.now() - startedAt", video_started_at))
+    if video_ready_ms > CATALOG_PREVIEW_READY_BUDGET_MS:
+        raise AssertionError(
+            f"expected preloaded video metadata ready within {CATALOG_PREVIEW_READY_BUDGET_MS}ms, got {video_ready_ms:.1f}ms"
+        )
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-kinds", "image")
     preloaded_image = preview.locator('[data-kg-media-catalog-preview-preload-kind="image"]').first
     wait_for_image_ready(page, preloaded_image, 5000)
@@ -246,8 +273,15 @@ def assert_catalog_preview_arrow_navigation(page) -> dict[str, float]:
     expect(page.locator('[data-kg-media-catalog-preview-preload="1"]')).to_have_count(0)
     return {
         "budgetMs": float(CATALOG_PREVIEW_READY_BUDGET_MS),
-        "coldOpenReadyMs": round(cold_ready_ms, 3),
-        "preloadedTransitionReadyMs": round(preloaded_ready_ms, 3),
+        "image": {
+            "criterion": "complete && naturalWidth > 0",
+            "coldOpenReadyMs": round(cold_ready_ms, 3),
+            "preloadedTransitionReadyMs": round(preloaded_ready_ms, 3),
+        },
+        "video": {
+            "criterion": "readyState >= HAVE_METADATA",
+            "preloadedTransitionReadyMs": round(video_ready_ms, 3),
+        },
     }
 
 
@@ -327,14 +361,15 @@ def main() -> None:
 
             page.screenshot(path=str(SCREENSHOT_PATH), full_page=True)
             CATALOG_PREVIEW_TIMING_PATH.write_text(
-                json.dumps({"status": "passed", "targetKind": "image", **timing}, indent=2) + "\n",
+                json.dumps({"status": "passed", **timing}, indent=2) + "\n",
                 encoding="utf-8",
             )
             print(f"OK rich-media-browser-smoke {TARGET_URL}")
             print(
                 "Catalog preview ready timing: "
-                f"cold={timing['coldOpenReadyMs']:.1f}ms "
-                f"preloaded={timing['preloadedTransitionReadyMs']:.1f}ms "
+                f"image-cold={timing['image']['coldOpenReadyMs']:.1f}ms "
+                f"image-preloaded={timing['image']['preloadedTransitionReadyMs']:.1f}ms "
+                f"video-preloaded={timing['video']['preloadedTransitionReadyMs']:.1f}ms "
                 f"budget={timing['budgetMs']:.0f}ms"
             )
             print(f"Screenshot: {SCREENSHOT_PATH}")

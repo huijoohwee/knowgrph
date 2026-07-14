@@ -7,6 +7,7 @@ export function testRichMediaBrowserSmokeContract() {
   const packageJson = readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
   const runnerSource = readFileSync(new URL('../../scripts/run_rich_media_browser_smoke.mjs', import.meta.url), 'utf8')
   const verifierSource = readFileSync(new URL('../../scripts/verify_rich_media_browser_smoke.py', import.meta.url), 'utf8')
+  const videoFixture = readFileSync(new URL('../../public/demo/media-preview-metadata-ready.mp4', import.meta.url))
 
   for (const snippet of [
     "pathname === '/__smoke__/rich-media'",
@@ -29,11 +30,19 @@ export function testRichMediaBrowserSmokeContract() {
     'data-kg-smoke-panel="video-inline"',
     'data-kg-smoke-panel="audio"',
     'data-kg-smoke-panel="storyboard-widget"',
+    "linkUrl: '/demo/media-preview-metadata-ready.mp4'",
     'setEditableText(next.text)',
   ]) {
     if (!smokePageSource.includes(snippet)) {
       throw new Error(`expected rich media smoke page to mount shared media surfaces: ${snippet}`)
     }
+  }
+
+  if (smokePageSource.includes('data:video/mp4;base64,AAAA')) {
+    throw new Error('expected the browser smoke to use the valid local video fixture')
+  }
+  if (videoFixture.length > 16_384 || videoFixture.subarray(4, 8).toString('ascii') !== 'ftyp') {
+    throw new Error('expected a tiny ISO media fixture for video metadata readiness')
   }
 
   for (const snippet of [
@@ -80,7 +89,11 @@ export function testRichMediaBrowserSmokeContract() {
     'KG_MEDIA_PREVIEW_READY_BUDGET_MS',
     'CATALOG_PREVIEW_TIMING_PATH',
     'def wait_for_image_ready(page, image, timeout_ms: int) -> None:',
+    'def wait_for_video_metadata(page, video, timeout_ms: int) -> None:',
+    'element.readyState >= element.HAVE_METADATA',
     'expected preloaded image preview ready within',
+    'expected preloaded video metadata ready within',
+    '"criterion": "readyState >= HAVE_METADATA"',
     'preloadedTransitionReadyMs',
     'OK rich-media-browser-smoke',
   ]) {
