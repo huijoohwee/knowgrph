@@ -70,7 +70,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["ui.flowWidget.storyboardCardTextLayout.invocationChips","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardInvocationChipsReuseSharedInvocationRenderer"],
   ["ui.flowWidget.storyboardCardTextLayout.metaWheelRail","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardMetaWheelScrollsInsideRail"],
   ["ui.inlineCardEditor.viewerSurface.keepsFocusedDomWhenRenderedDraftMatches","@/__tests__/cardInlineTextEditorViewerSurfaceRegression.test.tsx","testCardInlineTextEditorViewerSurfaceKeepsFocusedDomWhenRenderedDraftMatches"],
-  ["ui.inlineCardEditor.viewerSurface.singleLineTitle","@/__tests__/cardInlineTextEditorViewerSurfaceRegression.test.tsx","testCardInlineTextEditorViewerSurfaceEditsSingleLineTitles"],
+  ["ui.inlineCardEditor.viewerSurface.singleLineTitle","@/__tests__/cardInlineTextEditorViewerTitleRegression.test.tsx","testCardInlineTextEditorViewerSurfaceEditsSingleLineTitles"],
   ["ui.inlineCardEditor.viewerSurface.stableViewEditLayout","@/__tests__/cardInlineTextSurfaceLayoutRegression.test.tsx","testCardInlineTextSurfaceKeepsViewEditLayoutStable"],
   ["ui.inlineCardEditor.viewerSurface.mediaCatalogInsertionKeepsMiddleLineSelection","@/__tests__/cardInlineTextViewerSelectionRegression.test.tsx","testCardInlineTextEditorViewerMediaCatalogInsertionKeepsMiddleLineSelection"],
   ["ui.inlineCardEditor.viewerSurface.openPlacesCaretAtClickedPoint","@/__tests__/cardInlineTextViewerSelectionRegression.test.tsx","testCardInlineTextEditorViewerOpenPlacesCaretAtClickedPoint"],
