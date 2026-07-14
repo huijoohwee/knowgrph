@@ -82,7 +82,15 @@ jobs:
         env:
           KNOWGRPH_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KNOWGRPH_REQUIRE_REMOTE_SCOPE_CHECK: true
-        run: npm run collaboration:contract:check
+        run: npm run --silent collaboration:contract:check -- --json > collaboration-contract-report.json
+
+      - name: Upload collaboration contract report
+        uses: actions/upload-artifact@v7
+        with:
+          name: collaboration-contract-report
+          path: knowgrph/collaboration-contract-report.json
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Run canonical integration gate
         working-directory: knowgrph
