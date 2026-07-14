@@ -26,6 +26,7 @@ import {
 import { PANEL_FRAME_EMBEDDED_SURFACE_STYLE } from '@/lib/ui/panelFrame'
 import type { SharedChatModelSelect } from '@/features/chat/chatModelCredentialResolver'
 import type { WidgetCompactPreviewViewModel } from '@/features/storyboard-widget-manager/widgetCompactPreview'
+import type { ImageToThreeJsRenderMode } from '@/features/image-to-threejs/imageToThreeJsContract'
 
 type WidgetEditorFormContentProps = {
   active: boolean
@@ -82,6 +83,7 @@ type WidgetEditorFormContentProps = {
     openUrl?: string
     kind?: 'iframe' | 'image' | 'video' | 'audio' | 'svg'
     interactive?: boolean
+    renderMode?: ImageToThreeJsRenderMode
   } | null
   richMediaPanelState: RichMediaWidgetPreviewState['richMediaPanelState'] | null | undefined
   handleRichMediaResizeStart?: (args: { pointerId: number; clientX: number; clientY: number }) => void
@@ -274,6 +276,7 @@ export function WidgetEditorFormContent(props: WidgetEditorFormContentProps) {
             srcDoc={richMediaPreview?.srcDoc}
             openUrl={richMediaPreview?.openUrl || richMediaPreview?.url || ''}
             kind={richMediaPreview?.kind || 'iframe'}
+            renderMode={richMediaPreview?.renderMode}
             interactive={richMediaPreview?.interactive !== false}
             resizable={true}
             onResizeStart={handleRichMediaResizeStart || handleFallbackRichMediaResize}
@@ -318,6 +321,7 @@ export function WidgetEditorFormContent(props: WidgetEditorFormContentProps) {
             ) : (
               <CardMediaPreview
                 kind={compactPreviewView.kind}
+                renderMode={compactPreviewView.kind === 'image' ? compactPreviewView.renderMode : undefined}
                 url={compactPreviewView.mediaUrl}
                 title={compactPreviewView.kind === 'image' ? compactPreviewView.mediaAlt : String(nodeHelperSnapshot.label || getRichMediaPanelNodeLabel())}
                 {...compactMediaPreviewCardProps}

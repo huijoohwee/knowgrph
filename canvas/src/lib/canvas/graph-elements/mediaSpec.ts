@@ -15,6 +15,10 @@ import { buildWebpageHtmlSrcdoc } from '@/lib/websites/webpageIframeSrcdoc'
 import type { NodeMediaKind } from '@/lib/canvas/graph-elements/mediaProperties'
 import { extractMarkdownMediaUrl, normalizeExternalUrl } from '@/lib/canvas/graph-elements/mediaSpecMarkdown'
 import { readNodeFieldBoolean, readNodeFieldString, readNodeFieldValue } from '@/lib/canvas/graph-elements/mediaSpecNodeFields'
+import {
+  readImageToThreeJsRenderMode,
+  type ImageToThreeJsRenderMode,
+} from '@/features/image-to-threejs/imageToThreeJsContract'
 
 export { DEFAULT_NODE_MEDIA_KIND, NODE_MEDIA_KINDS, buildNodeMediaProperties, patchNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
 export type { NodeMediaKind } from '@/lib/canvas/graph-elements/mediaProperties'
@@ -24,6 +28,7 @@ export type NodeMediaSpec = {
   url: string
   srcDoc?: string
   interactive: boolean
+  renderMode?: ImageToThreeJsRenderMode
 }
 
 export type NodeMediaInventoryRow = {
@@ -197,6 +202,7 @@ function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
     props.srcDoc,
     props.inputSrcDoc,
     props.media_interactive,
+    props.mediaRenderMode,
     props.outputSrcDoc,
     props.output,
     props[RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY],
@@ -464,7 +470,11 @@ export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const cacheKey = getCacheKey(node, props)
   const cached = mediaSpecCache.get(node)
   if (cached && cached.cacheKey === cacheKey) return cached.spec
-  const spec = computeNodeMediaSpec(node)
+  const computed = computeNodeMediaSpec(node)
+  const renderMode = readImageToThreeJsRenderMode(props)
+  const spec = computed && renderMode && (computed.kind === 'image' || computed.kind === 'svg')
+    ? { ...computed, renderMode }
+    : computed
   mediaSpecCache.set(node, { cacheKey, spec })
   return spec
 }

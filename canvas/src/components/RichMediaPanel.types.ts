@@ -1,6 +1,7 @@
 import type React from 'react'
 import type { RichMediaPanelTab } from '@/lib/render/richMediaPanelState'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
+import type { ImageToThreeJsRenderMode } from '@/features/image-to-threejs/imageToThreeJsContract'
 
 export type RichMediaKind = 'iframe' | 'image' | 'svg' | 'video' | 'audio'
 
@@ -11,6 +12,7 @@ export type RichMediaPanelProps = {
   srcDoc?: string
   openUrl?: string
   kind?: RichMediaKind
+  renderMode?: ImageToThreeJsRenderMode
   interactive?: boolean
   videoControls?: boolean
   videoPoster?: string

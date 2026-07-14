@@ -37,6 +37,7 @@ export function StoryboardCardMediaDropSlot2d({ card, displayMedia, onDropMedia 
         <CardMediaPreview
           title={card.title}
           kind={displayMedia?.kind || null}
+          renderMode={displayMedia?.renderMode}
           url={mediaUrl}
           href={card.href || displayMedia?.sourceUrl || mediaUrl}
           srcDoc={displayMedia?.srcDoc}

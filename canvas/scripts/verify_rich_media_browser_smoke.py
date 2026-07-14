@@ -5,12 +5,22 @@ from pathlib import Path
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import expect, sync_playwright
+from PIL import Image
 
 
 BASE_URL = os.environ.get("KG_RICH_MEDIA_SMOKE_BASE_URL", "http://localhost:4175").rstrip("/")
 TARGET_URL = f"{BASE_URL}/__smoke__/rich-media"
 OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
 SCREENSHOT_PATH = OUTPUT_DIR / "rich-media-browser-smoke.png"
+
+
+def assert_canvas_has_visual_content(canvas, artifact_name: str) -> None:
+    artifact_path = OUTPUT_DIR / artifact_name
+    canvas.screenshot(path=str(artifact_path))
+    with Image.open(artifact_path).convert("RGB") as image:
+        channel_spread = [high - low for low, high in image.getextrema()]
+    if max(channel_spread) < 16:
+        raise AssertionError(f"expected rendered WebGL content in {artifact_name}, got channel spread {channel_spread}")
 
 
 def install_window_open_probe(page) -> None:
@@ -109,6 +119,20 @@ def main() -> None:
             expect(page.locator('[data-kg-smoke-panel="image-zoom"] img')).to_have_count(1)
             image_panel.hover()
             page.mouse.wheel(0, -320)
+
+            for panel_id, source_kind in (("image-threejs-raster", "raster"), ("image-threejs-svg", "svg")):
+                three_surface = page.locator(
+                    f'[data-kg-smoke-panel="{panel_id}"] [data-kg-image-threejs-surface="1"]'
+                ).first
+                expect(three_surface).to_be_visible()
+                expect(three_surface).to_have_attribute("data-kg-image-threejs-source-kind", source_kind)
+                expect(three_surface).to_have_attribute("data-kg-image-threejs-load-state", "ready")
+                canvas = three_surface.locator("canvas").first
+                expect(canvas).to_have_count(1)
+                assert_canvas_has_visual_content(canvas, f"{panel_id}.png")
+                expect(
+                    page.locator(f'[data-kg-smoke-panel="{panel_id}"] [data-kg-image-threejs-fallback="1"]')
+                ).to_have_count(0)
 
             expect(page.locator('[data-kg-smoke-panel="video-inline"] [data-kg-rich-media-zoom-pan-viewport="1"]')).to_be_visible()
             expect(

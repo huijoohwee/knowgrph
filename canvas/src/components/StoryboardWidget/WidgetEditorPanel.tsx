@@ -247,6 +247,7 @@ export const WidgetEditorPanel = React.memo(function WidgetEditorPanel(args: {
             srcDoc={richMediaPreview?.srcDoc}
             openUrl={richMediaPreview?.openUrl || richMediaPreview?.url || ''}
             kind={richMediaPreview?.kind || 'iframe'}
+            renderMode={richMediaPreview?.renderMode}
             interactive={richMediaPreview?.interactive !== false}
             resizable={true}
             onResizeStart={handleRichMediaResizeStart}

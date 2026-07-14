@@ -24,6 +24,10 @@ API and MCP contracts are owned upstream in Dev. Production mirrors should recei
 - Persistence and projection: generated text uses the workspace document publisher; generated media uses the shared FloatingPanel Media R2/D1 upload and registration pipeline plus the workspace-manifest publisher. The read-back identity becomes an invocable Media `@` candidate, is reused across the generator Widget, downstream Rich Media Panel, and Timeline surfaces, and exposes the shared hover-only download overlay. Binary and manifest workspace entries are registered together in Explorer → Source Files without applying either artifact as a replacement graph. Sequential Run-all stages preserve previously registered input, text, manifest, and binary Source Files even when the workspace is in docs-only mode. A Chat-started Run all finalizes its canonical KGC and trace only after the shared workflow owner reports terminal `complete` or `error`, without replacing the committed source-backed graph. Zero-byte historical Markdown evidence remains excluded and is never backfilled; the lifecycle repair applies to fresh runs only.
 - Proof boundary: `live_provider_run_proven` stays false until an explicitly approved provider run proves real bytes, manifest/read-back identity, playback, synchronized audio/subtitles, Canvas projection, and bounded cost. Dev validation does not authorize Prod or Cloudflare deployment.
 
+## Image-to-Three.js skill contract
+
+- Canonical API contract: [knowgrph-image-to-threejs-api.md](knowgrph-image-to-threejs-api.md) owns the typed input, manifest, native Three.js lifecycle, shared surface propagation, no-copy boundary, proof, and deployment gate.
+
 ## Canvas iframe embed contract
 
 - UI entry: Editor Workspace → Source Files → right-click a file → **Share canvas embed**.

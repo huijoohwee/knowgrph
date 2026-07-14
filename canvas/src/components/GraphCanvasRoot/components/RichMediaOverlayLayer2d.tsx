@@ -286,6 +286,7 @@ export function RichMediaOverlayLayer2d(props: {
               srcDoc={n.srcDoc}
               openUrl={n.openUrl}
               kind={kind}
+              renderMode={n.renderMode}
               selected={selected}
               panelChrome="storyboardWidget"
               placementOwner="parent"

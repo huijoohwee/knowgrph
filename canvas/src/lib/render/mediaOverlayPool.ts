@@ -19,6 +19,8 @@ import { getTextGenerationWidgetLabel } from '@/features/storyboard-widget-manag
 import { applyConnectedValuesToNodeForRender, hasConnectedValuesBySchemaPath } from '@/lib/render/effectiveMediaNode'
 import { buildRichMediaPanelOverlayState, type RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 import { shouldUseWebpageAssetPathProxyUrl } from '@/lib/url'
+import type { ImageToThreeJsRenderMode } from '@/features/image-to-threejs/imageToThreeJsContract'
+import type { NodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 
 export type MediaOverlayKind = 'iframe' | 'image' | 'svg' | 'video' | 'audio'
 
@@ -32,6 +34,7 @@ export type MediaOverlayNode = {
   openUrl: string
   interactive: boolean
   kind: MediaOverlayKind
+  renderMode?: ImageToThreeJsRenderMode
   panel?: RichMediaPanelOverlayState
   x?: number
   y?: number
@@ -51,6 +54,7 @@ type Candidate = {
   openUrl: string
   interactive: boolean
   kind: MediaOverlayKind
+  renderMode?: ImageToThreeJsRenderMode
   panel?: RichMediaPanelOverlayState
   x?: number
   y?: number
@@ -323,7 +327,7 @@ export function listMediaOverlayNodes(args: {
           renderNode: nodeForSpec,
         })
       : panel
-    const spec = nodeForSpec === n0
+    const spec: NodeMediaSpec | null = nodeForSpec === n0
       ? baseSpec
       : (getNodeMediaSpec(nodeForSpec) || buildRichMediaPanelFallbackSpec(resolvedPanel))
     if (!spec) continue
@@ -366,6 +370,7 @@ export function listMediaOverlayNodes(args: {
       openUrl,
       interactive: spec.interactive,
       kind,
+      ...(spec.renderMode ? { renderMode: spec.renderMode } : {}),
       ...(resolvedPanel ? { panel: resolvedPanel } : {}),
       ...(typeof n0.x === 'number' && Number.isFinite(n0.x) ? { x: n0.x } : {}),
       ...(typeof n0.y === 'number' && Number.isFinite(n0.y) ? { y: n0.y } : {}),
@@ -417,6 +422,7 @@ export function listMediaOverlayNodes(args: {
     openUrl: n.openUrl,
     interactive: n.interactive,
     kind: n.kind,
+    ...(n.renderMode ? { renderMode: n.renderMode } : {}),
     ...(n.panel ? { panel: n.panel } : {}),
     ...(typeof n.x === 'number' && Number.isFinite(n.x) ? { x: n.x } : {}),
     ...(typeof n.y === 'number' && Number.isFinite(n.y) ? { y: n.y } : {}),

@@ -221,6 +221,32 @@ export function RichMediaBrowserSmokePage() {
           />
         </article>
 
+        <article className={smokePanelCardClassName} data-kg-smoke-panel="image-threejs-raster">
+          <header className="mb-3">
+            <h2 className="text-sm font-semibold">PNG To Three.js</h2>
+          </header>
+          <RichMediaPanel
+            title="PNG Three.js Panel"
+            url="/apple-touch-icon.png"
+            kind="image"
+            renderMode="threejs"
+            style={smokePanelStyle}
+          />
+        </article>
+
+        <article className={smokePanelCardClassName} data-kg-smoke-panel="image-threejs-svg">
+          <header className="mb-3">
+            <h2 className="text-sm font-semibold">SVG To Three.js</h2>
+          </header>
+          <RichMediaPanel
+            title="SVG Three.js Panel"
+            url="/demo/placeholder.svg"
+            kind="svg"
+            renderMode="threejs"
+            style={smokePanelStyle}
+          />
+        </article>
+
         <article className={smokePanelCardClassName} data-kg-smoke-panel="video-inline">
           <header className="mb-3">
             <h2 className="text-sm font-semibold">Video HTML Fallback</h2>

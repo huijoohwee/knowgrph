@@ -25,6 +25,7 @@ import {
   STORYBOARD_WIDGET_VIDEO_MODEL_OPTIONS,
   FLOW_HTML_VIDEO_RENDERER_NODE_LABEL,
   FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
+  IMAGE_TO_THREEJS_SKILL_NODE_LABEL, IMAGE_TO_THREEJS_SKILL_NODE_TYPE_ID,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_FORM_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
@@ -53,7 +54,7 @@ import { buildRichMediaPanelRegistryDraft } from '@/features/storyboard-widget-m
 import { buildStoryboardElementRegistryDraft } from '@/features/storyboard-widget-manager/storyboardElementRegistryDraft'
 export { buildStoryboardElementRegistryDraft } from '@/features/storyboard-widget-manager/storyboardElementRegistryDraft'
 import { buildShowrunnerRegistryDraft, FLOW_SHOWRUNNER_NODE_TYPE_ID } from '@/features/ai-showrunner/showrunnerFlowNode'
-import { buildHtmlVideoRendererRegistryDraft } from '@/features/html-video-renderer/htmlVideoWidget'
+import { buildHtmlVideoRendererRegistryDraft } from '@/features/html-video-renderer/htmlVideoWidget'; import { buildImageToThreeJsSkillRegistryDraft } from '@/features/image-to-threejs/imageToThreeJsWidget'
 import {
   buildBytePlusTextGenerationFields,
   getBytePlusSharedTextApiDocRowByRowKey,
@@ -92,14 +93,11 @@ import {
   getSealionApiRowAnchorId,
   mapOpenAiRowKeyToDeerFlowRowKey,
 } from '@/features/panels/views/chatApiDocAnchors'
-
 export type TextGenerationProviderFamily = 'byteplus' | 'openai' | 'deerflow' | 'miromind' | 'agnes' | 'sealion' | 'qwen' | 'google-cloud'
-
 export type WidgetRegistryApiDocRef = {
   rowKey: string
   apiKey: string
 }
-
 export type WidgetRegistryMainPanelLink = {
   tab: 'integrations' | 'maps'
   searchQuery: string
@@ -456,6 +454,7 @@ export function getWidgetRegistryEntryLabel(args: {
     return getTextGenerationWidgetLabel(args)
   }
   if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'Image Widget'
+  if (nodeTypeId === IMAGE_TO_THREEJS_SKILL_NODE_TYPE_ID) return IMAGE_TO_THREEJS_SKILL_NODE_LABEL
   if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return 'Video Widget'
   if (nodeTypeId === FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID) return FLOW_HTML_VIDEO_RENDERER_NODE_LABEL
   if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
@@ -632,6 +631,7 @@ export function buildCanonicalWidgetRegistryDraft(args: {
       formId: formId || 'imageGeneration',
     }
   }
+  if (nodeTypeId === IMAGE_TO_THREEJS_SKILL_NODE_TYPE_ID) { const draft = buildImageToThreeJsSkillRegistryDraft(); return { ...draft, widgetTypeId: widgetTypeId || draft.widgetTypeId, formId: formId || draft.formId } }
   if (nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) {
     return {
       ...buildWidgetDraftFromSmartFields({ nodeTypeId, mode: 'video' }),

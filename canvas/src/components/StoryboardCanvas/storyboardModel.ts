@@ -23,6 +23,10 @@ import {
   readGraphNodeAuthoredTextProperty,
 } from '@/lib/cards/graphNodeCardFields'
 import { buildStoryboardInvocationTokensByLane, readStoryboardCardInvocationTokens } from '@/components/StoryboardCanvas/storyboardInvocationTokens'
+import {
+  readImageToThreeJsRenderMode,
+  type ImageToThreeJsRenderMode,
+} from '@/features/image-to-threejs/imageToThreeJsContract'
 export const STORYBOARD_EMPTY_LANE = 'Storyboard'
 export const STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY = 'storyboardCanvasRichMediaPanel' as const
 const STRUCTURAL_NODE_TYPE_RE = /\b(document|root|workspace|group|cluster|section)\b/i
@@ -56,6 +60,7 @@ export type StoryboardCardMedia = {
   srcDoc?: string
   sourceUrl: string
   thumbnailUrl?: string | null
+  renderMode?: ImageToThreeJsRenderMode
 }
 export type StoryboardCardReference = {
   kind: UrlMediaKind | 'link'
@@ -245,6 +250,7 @@ const readPropertyLists = (properties: GraphNodeProperties, keys: readonly strin
 }
 
 const readStoryboardMedia = (node: GraphNode, properties: GraphNodeProperties): StoryboardCardMedia | null => {
+  const renderMode = readImageToThreeJsRenderMode(properties)
   const outputSrcDoc = typeof properties.outputSrcDoc === 'string' ? properties.outputSrcDoc.trim() : ''
   if (outputSrcDoc) {
     return {
@@ -269,13 +275,24 @@ const readStoryboardMedia = (node: GraphNode, properties: GraphNodeProperties): 
     const sourceUrl = explicitMediaSourceUrl || (key === 'renderUrl' || key === 'embedUrl'
       ? readFirstPropertyString(properties, LINK_PROPERTY_KEYS) || readFirstPropertyString(properties, ['mediaUrl', 'media_url']) || resource.sourceUrl
       : resource.sourceUrl)
-    return { ...resource, sourceUrl, thumbnailUrl: explicitThumbnailUrl || resource.thumbnailUrl || null }
+    return {
+      ...resource,
+      sourceUrl,
+      thumbnailUrl: explicitThumbnailUrl || resource.thumbnailUrl || null,
+      ...(renderMode && (resource.kind === 'image' || resource.kind === 'svg') ? { renderMode } : {}),
+    }
   }
   if (typeof node.type === 'string' && /\b(image|video)\b/i.test(node.type)) {
     const url = readFirstPropertyString(properties, LINK_PROPERTY_KEYS)
     if (!url) return null
     const resource = resolveRenderableMediaResource(url, declaredKind)
-    return resource ? { ...resource, thumbnailUrl: explicitThumbnailUrl || resource.thumbnailUrl || null } : null
+    return resource
+      ? {
+          ...resource,
+          thumbnailUrl: explicitThumbnailUrl || resource.thumbnailUrl || null,
+          ...(renderMode && (resource.kind === 'image' || resource.kind === 'svg') ? { renderMode } : {}),
+        }
+      : null
   }
   return null
 }
