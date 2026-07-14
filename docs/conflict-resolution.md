@@ -154,7 +154,7 @@ npm run ci:integration
 ```
 
 - `worktree:check` validates the contract's canonical source registry without fetching or starting Dev; `ci:integration` runs it first and the pre-push hook inherits the same fast failure.
-- `collaboration:contract:check` parses canonical frontmatter, validates branch/base/scope ownership in CI, and rejects deployment commands outside the manual release workflow.
+- `collaboration:contract:check` parses canonical frontmatter, validates branch/base/scope ownership in CI, rejects deployment commands outside the manual release workflow, and auto-discovers Agentic Canvas OS workflow consumers to enforce contract-derived checkout inputs.
 - `ci:affected` derives focused commands from the canonical `ci_scopes` map rather than duplicating path rules in workflow YAML.
 - `ci:integration` composes contract, source/build conflict, and affected-scope validation behind one stable merge status without mutating or requiring Prod.
 - `conflict:check` remains the end-to-end source-plus-mirror parity check used after release sync.
