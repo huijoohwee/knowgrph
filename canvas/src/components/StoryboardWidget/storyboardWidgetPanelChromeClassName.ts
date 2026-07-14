@@ -8,3 +8,12 @@ export const getStoryboardWidgetPanelChromeClassName = (panelTextClass?: string)
 export const getStoryboardWidgetPanelSelectionChromeClassName = (selected: boolean): string => (
   selected ? 'outline outline-2 outline-blue-500/80 outline-offset-0' : ''
 )
+
+export const getStoryboardWidgetPanelSurfaceChromeClassName = (args: {
+  className?: string
+  panelTextClass?: string
+  selected: boolean
+}): string => [
+  cn(getStoryboardWidgetPanelChromeClassName(args.panelTextClass), args.className || ''),
+  getStoryboardWidgetPanelSelectionChromeClassName(args.selected),
+].filter(Boolean).join(' ')
