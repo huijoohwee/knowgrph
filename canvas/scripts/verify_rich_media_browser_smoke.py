@@ -4,6 +4,7 @@ import json
 import math
 import os
 from pathlib import Path
+import subprocess
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import expect, sync_playwright
@@ -16,6 +17,10 @@ OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
 SCREENSHOT_PATH = OUTPUT_DIR / "rich-media-browser-smoke.png"
 CATALOG_PREVIEW_SCREENSHOT_PATH = OUTPUT_DIR / "rich-media-catalog-preview-browser-smoke.png"
 CATALOG_PREVIEW_TIMING_PATH = OUTPUT_DIR / "rich-media-catalog-preview-timing.json"
+CATALOG_PREVIEW_TIMING_SCHEMA = "rich-media-catalog-preview-timing/v1"
+CATALOG_PREVIEW_TIMING_VALIDATOR_PATH = (
+    Path(__file__).resolve().parent / "validate_rich_media_catalog_preview_timing.mjs"
+)
 FIXTURE_MANIFEST_PATH = (
     Path(__file__).resolve().parents[1]
     / "src"
@@ -415,8 +420,12 @@ def main() -> None:
 
             page.screenshot(path=str(SCREENSHOT_PATH), full_page=True)
             CATALOG_PREVIEW_TIMING_PATH.write_text(
-                json.dumps({"status": "passed", **timing}, indent=2) + "\n",
+                json.dumps({"schema": CATALOG_PREVIEW_TIMING_SCHEMA, "status": "passed", **timing}, indent=2) + "\n",
                 encoding="utf-8",
+            )
+            subprocess.run(
+                ["node", str(CATALOG_PREVIEW_TIMING_VALIDATOR_PATH), str(CATALOG_PREVIEW_TIMING_PATH)],
+                check=True,
             )
             print(f"OK rich-media-browser-smoke {TARGET_URL}")
             print(
