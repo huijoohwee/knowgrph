@@ -595,5 +595,10 @@ export function testStoryboardPortHandleActivationForbidsTimingBasedDuplicateEdg
   }
   if (!dragSource.includes('function consumeFlowPortHandleDragEvent(event: Event): void') || !dragSource.includes('consumeFlowPortHandleDragEvent(event)') || !dragSource.includes('stopImmediatePropagation')) throw new Error('expected active source-handle drag move/up events to be consumed before canvas pan/zoom handlers can mutate Storyboard card projection')
   if (!dragSource.includes('shouldFreezeProjectionForFlowPortHandleDrag') || !dragSource.includes('FLOW_PORT_HANDLE_PROJECTION_SETTLE_FREEZE_MS')) throw new Error('expected source-handle edge creation to expose a projection freeze window for fixed Storyboard cards')
+  if (!dragSource.includes('sourcePortKey: string | null') || !dragSource.includes('sourcePortKey: args.sourcePortKey')) throw new Error('expected finalized source-handle drags to preserve the authored source port')
+  const graphActions = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetGraphActions.ts'), 'utf8')
+  if (!graphActions.includes('source?: { nodeId: string; portKey: string | null }') || !graphActions.includes('const requestedSourceId = resolveStoryboardWidgetEdgeAuthoringNodeId(authoringGraphData, source?.nodeId || args.pendingEdgeSourceId)')) {
+    throw new Error('expected edge materialization to use the finalized source endpoint instead of a stale pending-edge snapshot')
+  }
   if (!handles.includes('e.preventDefault()')) throw new Error('expected source-handle pointer/mouse down to prevent browser/canvas default drag handling')
 }

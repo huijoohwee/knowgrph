@@ -27,6 +27,7 @@ type FlowPortHandleMouseDragEvent = {
 
 export type FlowPortHandleFinalizeDetail = {
   sourceNodeId: string
+  sourcePortKey: string | null
   targetNodeId: string
   targetPortKey: string | null
 }
@@ -137,6 +138,7 @@ function finalizeSemanticInputHandleAt(args: {
   clientX: number
   clientY: number
   sourceNodeId: string
+  sourcePortKey: string | null
 }): boolean {
   const target = readSemanticInputHandleAt(args)
   if (!target) return false
@@ -145,6 +147,7 @@ function finalizeSemanticInputHandleAt(args: {
   const targetPortKey = String(target.dataset.kgPortKey || '').trim() || null
   const detail: FlowPortHandleFinalizeDetail = {
     sourceNodeId: args.sourceNodeId,
+    sourcePortKey: args.sourcePortKey,
     targetNodeId,
     targetPortKey,
   }
@@ -241,7 +244,7 @@ export function startFlowPortHandlePointerDrag(args: FlowPortHandlePointerDragAr
     dispatchFlowPortHandlePreview({ phase: 'move', sourceNodeId, sourcePortKey, clientX, clientY })
     finishFrame = scheduleAfterHandleStateCommit(() => {
       finishFrame = 0
-      if (!finalizeSemanticInputHandleAt({ clientX, clientY, sourceNodeId })) {
+      if (!finalizeSemanticInputHandleAt({ clientX, clientY, sourceNodeId, sourcePortKey })) {
         dispatchFlowPortHandlePreview({ phase: 'cancel', sourceNodeId, sourcePortKey, clientX, clientY })
         dispatchFlowPortHandleCancel({ sourceNodeId, sourcePortKey, clientX, clientY })
       }
@@ -288,7 +291,7 @@ export function startFlowPortHandleMouseDrag(args: FlowPortHandleMouseDragArgs):
     const clientY = event.clientY
     dispatchFlowPortHandlePreview({ phase: 'move', sourceNodeId, sourcePortKey, clientX, clientY })
     scheduleAfterHandleStateCommit(() => {
-      if (!finalizeSemanticInputHandleAt({ clientX, clientY, sourceNodeId })) {
+      if (!finalizeSemanticInputHandleAt({ clientX, clientY, sourceNodeId, sourcePortKey })) {
         dispatchFlowPortHandlePreview({ phase: 'cancel', sourceNodeId, sourcePortKey, clientX, clientY })
         dispatchFlowPortHandleCancel({ sourceNodeId, sourcePortKey, clientX, clientY })
       }

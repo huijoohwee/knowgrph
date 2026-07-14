@@ -163,28 +163,27 @@ export function useStoryboardWidgetGraphActions(args: {
   )
 
   const finalizePendingEdge = React.useCallback(
-    (nodeId: string, portKey?: string | null) => {
+    (nodeId: string, portKey?: string | null, source?: { nodeId: string; portKey: string | null }) => {
       if (!args.active) return
-      if (args.toolMode !== 'addEdge') return
       const authoringGraphData = readAuthoringGraphData()
       if (!authoringGraphData) return
       const id = resolveStoryboardWidgetEdgeAuthoringNodeId(authoringGraphData, nodeId)
       if (!id) return
       const baseNodeIds = readCommittedNodeIds()
-      if (!args.pendingEdgeSourceId) {
+      const requestedSourceId = resolveStoryboardWidgetEdgeAuthoringNodeId(authoringGraphData, source?.nodeId || args.pendingEdgeSourceId)
+      const requestedSourcePortKey = String(source?.portKey || args.pendingEdgeSourcePortKey || '').trim() || null
+      if (!requestedSourceId) {
+        if (args.toolMode !== 'addEdge') return
         args.setPendingEdgeSourceId(id)
         args.setPendingEdgeSourcePortKey(null)
         return
       }
-      if (args.pendingEdgeSourceId === id) return
+      if (requestedSourceId === id) return
 
       const nodeById = new Map((authoringGraphData.nodes || []).map(node => [String(node.id || ''), node] as const))
-      const sourceNode = nodeById.get(args.pendingEdgeSourceId) || null
+      const sourceNode = nodeById.get(requestedSourceId) || null
       const targetNode = nodeById.get(id) || null
-      const explicitSource =
-        typeof args.pendingEdgeSourcePortKey === 'string' && args.pendingEdgeSourcePortKey.trim()
-          ? args.pendingEdgeSourcePortKey.trim()
-          : null
+      const explicitSource = requestedSourcePortKey
       const sourcePort = explicitSource || pickDefaultFlowPortKey(sourceNode, 'out') || null
       const explicitTarget = typeof portKey === 'string' && portKey.trim() ? portKey.trim() : null
       const targetPort = explicitTarget || pickDefaultFlowPortKey(targetNode, 'in') || null
@@ -195,7 +194,7 @@ export function useStoryboardWidgetGraphActions(args: {
         schema: args.schema,
         label: 'linksTo',
         selectedEdgeId: null,
-        from: { nodeId: args.pendingEdgeSourceId, portKey: sourcePort },
+        from: { nodeId: requestedSourceId, portKey: sourcePort },
         to: { nodeId: id, portKey: targetPort },
       })
 
@@ -224,7 +223,7 @@ export function useStoryboardWidgetGraphActions(args: {
       }
 
       if (result.kind === 'create') {
-        const sourceNode = nodeById.get(String(args.pendingEdgeSourceId || '')) || null
+        const sourceNode = nodeById.get(requestedSourceId) || null
         const targetNode = nodeById.get(id) || null
         if (sourceNode && !baseNodeIds.has(String(sourceNode.id || ''))) args.addNode(sourceNode)
         if (targetNode && !baseNodeIds.has(String(targetNode.id || ''))) args.addNode(targetNode)
