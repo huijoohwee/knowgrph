@@ -46,6 +46,7 @@ const main = async () => {
       status: 'passed',
       schemaId: result.schemaId,
       schemaVersion: result.schemaVersion,
+      sourceRevision: result.sourceRevision,
       reportDigest: result.reportDigest,
       input: inputType,
     })

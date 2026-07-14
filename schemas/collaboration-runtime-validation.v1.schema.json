@@ -14,7 +14,7 @@
     "success": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "status", "schemaId", "schemaVersion", "reportDigest", "input"],
+      "required": ["schema", "status", "schemaId", "schemaVersion", "sourceRevision", "reportDigest", "input"],
       "properties": {
         "schema": {
           "const": "knowgrph.collaboration-runtime-validation/v1"
@@ -27,6 +27,10 @@
         },
         "schemaVersion": {
           "const": "knowgrph.collaboration-runtime-report/v1"
+        },
+        "sourceRevision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
         },
         "reportDigest": {
           "type": "string",

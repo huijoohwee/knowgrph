@@ -26,6 +26,7 @@ jobs:
       KNOWGRPH_PR_HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
       KNOWGRPH_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
       KNOWGRPH_REPOSITORY: ${{ github.repository }}
+      KNOWGRPH_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
       KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: ${{ github.workspace }}/agentic-canvas-os/docs
 
     steps:
@@ -118,7 +119,7 @@ jobs:
 
       - name: Validate downloaded collaboration validation result
         working-directory: knowgrph
-        run: npm run --silent collaboration:report:check-result -- collaboration-validation-result-proof/collaboration-validation-result.json --report collaboration-contract-report-proof/collaboration-contract-report.json
+        run: npm run --silent collaboration:report:check-result -- collaboration-validation-result-proof/collaboration-validation-result.json --report collaboration-contract-report-proof/collaboration-contract-report.json --source-revision "$KNOWGRPH_SOURCE_REVISION"
 
       - name: Run canonical integration gate
         working-directory: knowgrph

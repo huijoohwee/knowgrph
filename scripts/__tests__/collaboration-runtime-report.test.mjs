@@ -13,6 +13,7 @@ import {
   calculateCollaborationRuntimeReportDigest,
   readCollaborationRuntimeReportSchema,
   readCollaborationRuntimeValidationSchema,
+  resolveCollaborationRuntimeSourceRevision,
   validateCollaborationRuntimeReport,
   validateCollaborationRuntimeValidation,
 } from '../collaboration-runtime-report.mjs'
@@ -36,10 +37,31 @@ test('standalone checker emits a schema-valid machine report', async () => {
   const identity = await validateCollaborationRuntimeReport(report)
 
   assert.equal(identity.schemaVersion, COLLABORATION_RUNTIME_REPORT_SCHEMA)
+  assert.equal(identity.sourceRevision, report.sourceRevision)
+  assert.match(report.sourceRevision, /^[0-9a-f]{40}$/)
   assert.equal(report.status, 'passed')
   assert.equal(report.policies.runtimeDocsWorkflow.status, 'passed')
   assert.ok(report.policies.runtimeDocsWorkflow.consumers.includes('.github/workflows/integration.yml'))
   assert.equal(report.policies.pullRequestCoordination.status, 'not-applicable')
+})
+
+test('source revision resolves from the explicit CI value or repository HEAD', () => {
+  const configuredRevision = 'a'.repeat(40)
+  assert.equal(
+    resolveCollaborationRuntimeSourceRevision({ environment: { KNOWGRPH_SOURCE_REVISION: configuredRevision } }),
+    configuredRevision,
+  )
+
+  const headResult = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' })
+  assert.equal(headResult.status, 0, headResult.stderr)
+  assert.equal(
+    resolveCollaborationRuntimeSourceRevision({ environment: {}, cwd: repoRoot }),
+    headResult.stdout.trim(),
+  )
+  assert.throws(
+    () => resolveCollaborationRuntimeSourceRevision({ environment: { KNOWGRPH_SOURCE_REVISION: 'A'.repeat(40) } }),
+    /invalid collaboration source revision/,
+  )
 })
 
 test('report digest binds the exact source bytes', () => {
@@ -109,6 +131,7 @@ test('report validator accepts the canonical example through stdin and rejects m
     encoding: 'utf8',
   })
   assert.equal(exampleResult.status, 0, exampleResult.stderr)
+  const example = JSON.parse(exampleResult.stdout)
 
   const validationResult = spawnSync(
     'npm',
@@ -131,6 +154,7 @@ test('report validator accepts the canonical example through stdin and rejects m
     status: 'passed',
     schemaId: 'https://knowgrph.dev/schemas/collaboration-runtime-report/v1',
     schemaVersion: COLLABORATION_RUNTIME_REPORT_SCHEMA,
+    sourceRevision: example.sourceRevision,
     reportDigest: calculateCollaborationRuntimeReportDigest(exampleResult.stdout),
     input: 'stdin',
   })
@@ -198,11 +222,22 @@ test('validation schema rejects unknown fields and error codes', async () => {
     status: 'passed',
     schemaId: 'https://knowgrph.dev/schemas/collaboration-runtime-report/v1',
     schemaVersion: COLLABORATION_RUNTIME_REPORT_SCHEMA,
+    sourceRevision: readLocalReport().sourceRevision,
     input: 'file',
   }
   await assert.rejects(
     validateCollaborationRuntimeValidation(successWithoutDigest),
     /must have required property 'reportDigest'/,
+  )
+
+  const successWithoutRevision = {
+    ...successWithoutDigest,
+    reportDigest: '0'.repeat(64),
+  }
+  delete successWithoutRevision.sourceRevision
+  await assert.rejects(
+    validateCollaborationRuntimeValidation(successWithoutRevision),
+    /must have required property 'sourceRevision'/,
   )
 })
 
@@ -255,6 +290,7 @@ test('validation-result CLI accepts a stored artifact and rejects schema drift',
     status: 'passed',
     schemaId: 'https://knowgrph.dev/schemas/collaboration-runtime-report/v1',
     schemaVersion: COLLABORATION_RUNTIME_REPORT_SCHEMA,
+    sourceRevision: report.sourceRevision,
     reportDigest: calculateCollaborationRuntimeReportDigest(reportSource),
     input: 'file',
   }
@@ -263,11 +299,31 @@ test('validation-result CLI accepts a stored artifact and rejects schema drift',
     await writeFile(artifactPath, `${JSON.stringify(envelope, null, 2)}\n`)
     const validResult = spawnSync(
       'npm',
-      ['run', '--silent', 'collaboration:report:check-result', '--', artifactPath, '--report', reportPath],
+      ['run', '--silent', 'collaboration:report:check-result', '--', artifactPath, '--report', reportPath, '--source-revision', report.sourceRevision],
       { cwd: repoRoot, encoding: 'utf8' },
     )
     assert.equal(validResult.status, 0, validResult.stderr)
     assert.match(validResult.stdout, new RegExp(envelope.reportDigest))
+    assert.match(validResult.stdout, new RegExp(report.sourceRevision))
+
+    const alternateRevision = report.sourceRevision === '0'.repeat(40) ? '1'.repeat(40) : '0'.repeat(40)
+    await writeFile(artifactPath, `${JSON.stringify({ ...envelope, sourceRevision: alternateRevision }, null, 2)}\n`)
+    const revisionMismatchResult = spawnSync(
+      'npm',
+      ['run', '--silent', 'collaboration:report:check-result', '--', artifactPath, '--report', reportPath],
+      { cwd: repoRoot, encoding: 'utf8' },
+    )
+    assert.notEqual(revisionMismatchResult.status, 0)
+    assert.match(revisionMismatchResult.stderr, /collaboration source revision mismatch/)
+
+    await writeFile(artifactPath, `${JSON.stringify(envelope, null, 2)}\n`)
+    const unexpectedRevisionResult = spawnSync(
+      'npm',
+      ['run', '--silent', 'collaboration:report:check-result', '--', artifactPath, '--report', reportPath, '--source-revision', alternateRevision],
+      { cwd: repoRoot, encoding: 'utf8' },
+    )
+    assert.notEqual(unexpectedRevisionResult.status, 0)
+    assert.match(unexpectedRevisionResult.stderr, /does not match the expected CI revision/)
 
     report.contractVersion += 1
     await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`)
@@ -314,7 +370,11 @@ test('integration round-trips the real validation envelope artifact before the c
   )
   assert.match(
     workflowSource,
-    /collaboration:report:check-result -- collaboration-validation-result-proof\/collaboration-validation-result\.json --report collaboration-contract-report-proof\/collaboration-contract-report\.json/,
+    /collaboration:report:check-result -- collaboration-validation-result-proof\/collaboration-validation-result\.json --report collaboration-contract-report-proof\/collaboration-contract-report\.json --source-revision "\$KNOWGRPH_SOURCE_REVISION"/,
+  )
+  assert.match(
+    workflowSource,
+    /KNOWGRPH_SOURCE_REVISION: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/,
   )
 })
 
@@ -324,6 +384,13 @@ test('report schema rejects unknown fields and mutated workflow checks', async (
   await assert.rejects(
     validateCollaborationRuntimeReport(reportWithUnknownField),
     /must NOT have additional properties/,
+  )
+
+  const reportWithoutRevision = readLocalReport()
+  delete reportWithoutRevision.sourceRevision
+  await assert.rejects(
+    validateCollaborationRuntimeReport(reportWithoutRevision),
+    /must have required property 'sourceRevision'/,
   )
 
   const reportWithMissingCheck = readLocalReport()
@@ -356,6 +423,7 @@ test('artifact validator CLI accepts canonical output and rejects a mutated file
     const success = JSON.parse(validJsonResult.stdout)
     await validateCollaborationRuntimeValidation(success)
     assert.equal(success.input, 'file')
+    assert.equal(success.sourceRevision, report.sourceRevision)
     assert.match(success.reportDigest, /^[0-9a-f]{64}$/)
 
     report.policies.pullRequestCoordination.status = 'unknown'
