@@ -479,8 +479,8 @@ export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardFiel
       previewButton.click()
       await waitForFrames(dom.window, 4)
     })
-    const mediaPreview = container.querySelector('[data-kg-media-catalog-preview="1"]')
-    if (!(mediaPreview instanceof dom.window.HTMLElement)) throw new Error('expected thumbnail click to open an inline FloatingPanel media preview')
+    const mediaPreview = dom.window.document.querySelector('[data-kg-media-catalog-preview="1"]')
+    if (!(mediaPreview instanceof dom.window.HTMLElement)) throw new Error('expected thumbnail click to open the viewport-positioned FloatingPanel media preview')
     if (mediaPreview.getAttribute('data-kg-media-catalog-preview-kind') !== 'image') throw new Error(`expected image preview kind, got ${String(mediaPreview.getAttribute('data-kg-media-catalog-preview-kind') || '')}`)
     const richMediaPanel = mediaPreview.querySelector('[data-kg-rich-media-panel="1"]')
     if (!(richMediaPanel instanceof dom.window.HTMLElement)) throw new Error('expected inline preview to reuse Rich Media Panel')
@@ -493,7 +493,7 @@ export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardFiel
     if (!decodeURIComponent(previewSrc).includes(`${mediaUrl}?kg_media_token=`)) {
       throw new Error(`expected inline preview image to use uploaded access URL, got ${previewSrc}`)
     }
-    if (dom.window.document.querySelector('[data-kg-media-lightbox="1"]')) throw new Error('expected uploaded media preview to avoid the lightbox route')
+    if (dom.window.document.querySelector('[data-kg-media-lightbox="1"]') || mediaPreview.getAttribute('data-kg-media-catalog-preview-placement') !== 'legacy-lightbox') throw new Error('expected Rich Media Panel to reuse the previous lightbox placement without mounting MediaLightbox')
     const closePreview = mediaPreview.querySelector('[data-kg-media-catalog-preview-close="1"]')
     if (!(closePreview instanceof dom.window.HTMLButtonElement)) throw new Error('expected inline media preview to expose a Back to media catalog action')
     if (committedValues.length !== 0) {
@@ -503,7 +503,7 @@ export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardFiel
       closePreview.click()
       await waitForFrames(dom.window, 2)
     })
-    if (container.querySelector('[data-kg-media-catalog-preview="1"]')) throw new Error('expected Back to dismiss the inline media preview')
+    if (dom.window.document.querySelector('[data-kg-media-catalog-preview="1"]')) throw new Error('expected Close to dismiss the expanded media preview')
     const restoredMediaName = container.querySelector('[data-kg-media-upload-name-text="cloudflare-media:sha256:uploaded-demo"]')
     if (!(restoredMediaName instanceof dom.window.HTMLElement)) throw new Error('expected media catalog rows to return after closing preview')
     await act(async () => {
