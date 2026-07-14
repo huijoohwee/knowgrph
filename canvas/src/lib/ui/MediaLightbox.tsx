@@ -15,6 +15,7 @@ import {
   MEDIA_EXPANDED_PREVIEW_MEDIA_CLASS_NAME,
   MEDIA_EXPANDED_PREVIEW_RICH_PANEL_CLASS_NAME,
 } from './mediaExpandedPreviewLayout'
+import { requestMediaExpandedPreviewFullscreen } from './mediaExpandedPreviewFullscreen'
 
 export type MediaLightboxPromptParameterOption = {
   value: string
@@ -111,14 +112,7 @@ export function MediaLightbox({
   }, [open, parameterControls])
 
   const enterFullscreen = React.useCallback(() => {
-    const root = rootRef.current
-    if (!root) return
-    const requestFullscreen = (root as HTMLElement & { requestFullscreen?: () => Promise<void> }).requestFullscreen
-    try {
-      void requestFullscreen?.call(root)
-    } catch {
-      void 0
-    }
+    requestMediaExpandedPreviewFullscreen(rootRef.current)
   }, [])
 
   const submitPrompt = React.useCallback(() => {
