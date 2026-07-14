@@ -1,5 +1,3 @@
-import fs from 'node:fs/promises'
-import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { load } from 'js-yaml'
 import {
@@ -9,15 +7,10 @@ import {
   validatePullRequestMetadata,
   validateTaskBranch,
 } from './collaboration-contract.mjs'
-
-const listWorkflowPaths = async () => {
-  const workflowDir = path.resolve(repoRoot, '.github', 'workflows')
-  const entries = await fs.readdir(workflowDir, { withFileTypes: true })
-  return entries
-    .filter(entry => entry.isFile() && /\.ya?ml$/i.test(entry.name))
-    .map(entry => path.resolve(workflowDir, entry.name))
-    .sort()
-}
+import {
+  listWorkflowSources,
+  validateRuntimeDocsWorkflowPolicy,
+} from './runtime-docs-workflow-policy.mjs'
 
 const workflowTriggers = workflow => {
   const trigger = workflow.on
@@ -27,16 +20,14 @@ const workflowTriggers = workflow => {
   return []
 }
 
-const validateDeploymentIsolation = async contract => {
+const validateDeploymentIsolation = (contract, workflowSources) => {
   const allowed = new Set(contract.deployment.allowed_workflows)
   const requiredTrigger = contract.deployment.required_trigger
   const forbiddenTriggers = new Set(contract.deployment.forbidden_triggers)
   const deploymentPatterns = contract.deployment.command_patterns.map(pattern => new RegExp(pattern, 'i'))
   const seenAllowed = new Set()
 
-  for (const absolutePath of await listWorkflowPaths()) {
-    const rel = path.relative(repoRoot, absolutePath).split(path.sep).join('/')
-    const source = await fs.readFile(absolutePath, 'utf8')
+  for (const { workflowPath: rel, source } of workflowSources) {
     const containsDeployment = deploymentPatterns.some(pattern => pattern.test(source))
     if (!containsDeployment) continue
     if (!allowed.has(rel)) throw new Error(`deployment command is forbidden outside an allowed workflow: ${rel}`)
@@ -111,7 +102,9 @@ const validatePullRequestCoordination = async contract => {
 
 const main = async () => {
   const contract = await readContract()
-  await validateDeploymentIsolation(contract)
+  const workflowSources = await listWorkflowSources()
+  validateDeploymentIsolation(contract, workflowSources)
+  validateRuntimeDocsWorkflowPolicy(workflowSources)
 
   await validatePullRequestCoordination(contract)
 
