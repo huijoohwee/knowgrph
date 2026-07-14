@@ -18,6 +18,7 @@ export type TextareaInvocationProjectedMediaChip = {
 }
 
 const CHAT_COMPOSER_MEDIA_INVOCATION_PREFIX = '@'
+export const TEXTAREA_INVOCATION_MEDIA_BOUNDARY = ' '
 const TEXTAREA_INVOCATION_MEDIA_REFERENCE_RE = /@[\p{L}\p{N}][\p{L}\p{N}._-]*/gu
 const TEXTAREA_INVOCATION_MEDIA_REFERENCE_START_BOUNDARY_RE = /[\p{L}\p{N}_/-]/u
 const TEXTAREA_INVOCATION_MEDIA_REFERENCE_END_BOUNDARY_RE = /[\p{L}\p{N}_-]/u

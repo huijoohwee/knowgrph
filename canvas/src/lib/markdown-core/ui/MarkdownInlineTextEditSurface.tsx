@@ -23,14 +23,18 @@ import {
   type MarkdownContentEditablePoint,
 } from '@/lib/markdown-core/ui/markdownContentEditableSurface'
 import {
-  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME,
-  CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
   normalizeCardInlineMediaSoftLineBreaks,
 } from '@/lib/cards/cardMarkdownPreviewUtils'
+import { readCardInlineTextProjectedMediaChipPresentation } from '@/lib/cards/cardInlineTextProjectedMediaChipPresentation'
+import {
+  INLINE_MEDIA_COMMAND_THUMBNAIL_IMAGE_CLASS_NAME,
+  readInlineMediaCommandThumbnailClassName,
+} from '@/lib/command-menu/InlineMediaCommandThumbnail'
 import {
   collectTextareaInvocationMediaAttachmentCandidateChips,
   readTextareaInvocationMediaReferenceKey,
+  TEXTAREA_INVOCATION_MEDIA_BOUNDARY,
   type TextareaInvocationMediaAttachment,
   type TextareaInvocationProjectedMediaChip,
 } from '@/lib/ui/textareaInvocationProjection'
@@ -245,11 +249,13 @@ function findProjectedMediaChipMatch(args: {
 function buildMarkdownInlineTextEditSegments(args: {
   value: string
   projectedMediaAttachments?: readonly TextareaInvocationMediaAttachment[] | null
+  appendMissingProjectedMediaKeys?: ReadonlySet<string> | null
 }): MarkdownInlineTextEditSegment[] {
   const source = String(args.value || '').replace(/\r/g, '')
   const virtualChips = collectTextareaInvocationMediaAttachmentCandidateChips(args.projectedMediaAttachments)
   if (!virtualChips.length) return [{ kind: 'text', value: source }]
   const segments: MarkdownInlineTextEditSegment[] = []
+  const matchedChipIndexes = new Set<number>()
   let cursor = 0
   for (;;) {
     const match = findProjectedMediaChipMatch({ source, cursor, chips: virtualChips })
@@ -261,9 +267,21 @@ function buildMarkdownInlineTextEditSegments(args: {
       markdown: match.label,
       prefixGap: false,
     })
+    matchedChipIndexes.add(match.chipIndex)
     cursor = match.end
   }
   if (cursor < source.length) segments.push({ kind: 'text', value: source.slice(cursor) })
+  virtualChips.forEach((chip, chipIndex) => {
+    if (matchedChipIndexes.has(chipIndex)) return
+    const key = readTextareaInvocationMediaReferenceKey(chip.displayLabel || chip.label)
+    if (args.appendMissingProjectedMediaKeys && !args.appendMissingProjectedMediaKeys.has(key)) return
+    segments.push({
+      kind: 'media',
+      chip,
+      markdown: null,
+      prefixGap: segments.length > 0,
+    })
+  })
   return segments.length ? segments : [{ kind: 'text', value: source }]
 }
 
@@ -276,25 +294,35 @@ function buildVirtualMediaChipHtml(args: {
   markdown?: string | null
   mediaKind: string
   prefixGap: boolean
-  source?: string
+  sourceUrl?: string
+  thumbnailUrl?: string
 }): string {
-  const title = [
-    `${args.label} - ${args.mediaKind}`,
-    args.source ? `Source: ${args.source}` : '',
-  ].filter(Boolean).join('\n')
-  const className = [
-    args.prefixGap ? 'ml-[0.25em]' : '',
-    'inline-flex bg-[color:var(--kg-panel-bg)]',
-    CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_PILL_CLASS_NAME,
-  ].filter(Boolean).join(' ')
+  const presentation = readCardInlineTextProjectedMediaChipPresentation({
+    displayLabel: args.label,
+    mediaKind: args.mediaKind as TextareaInvocationProjectedMediaChip['mediaKind'],
+    sourceUrl: args.sourceUrl,
+    thumbnailUrl: args.thumbnailUrl,
+  })
+  const className = presentation.className
   const markdown = String(args.markdown || '').trim()
+  const thumbnailClassName = readInlineMediaCommandThumbnailClassName({
+    hasThumbnail: !!presentation.thumbnailUrl,
+    kind: args.mediaKind as TextareaInvocationProjectedMediaChip['mediaKind'],
+    variant: 'inline',
+  })
+  const thumbnailHtml = presentation.thumbnailUrl
+    ? `<img src="${escapeHtmlAttr(presentation.thumbnailUrl)}" alt="" class="${escapeHtmlAttr(INLINE_MEDIA_COMMAND_THUMBNAIL_IMAGE_CLASS_NAME)}" loading="lazy" decoding="async" draggable="false"/>`
+    : ''
   return [
+    args.prefixGap ? escapeHtml(TEXTAREA_INVOCATION_MEDIA_BOUNDARY) : '',
     `<span class="${escapeHtmlAttr(className)}"`,
     ` ${CARD_INLINE_TEXT_VIEWER_VIRTUAL_MEDIA_CHIP_ATTRIBUTE}="1"`,
     markdown ? ` ${CARD_INLINE_TEXT_VIEWER_MEDIA_MARKDOWN_ATTRIBUTE}="${escapeHtmlAttr(markdown)}"` : ` ${INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR}="1"`,
     ' contenteditable="false"',
-    ` title="${escapeHtmlAttr(title)}">`,
-    `<span class="${escapeHtmlAttr(`${CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME} bg-black/5 text-[color:var(--kg-text-secondary)]`)}" aria-label="${escapeHtmlAttr(`${args.mediaKind} media`)}" data-kg-card-inline-wysiwyg-media-thumbnail="1"></span>`,
+    ` title="${escapeHtmlAttr(presentation.title)}">`,
+    `<span aria-label="${escapeHtmlAttr(presentation.mediaLabel)}" class="inline-flex" data-kg-card-inline-display-media-thumbnail="1" data-kg-card-inline-wysiwyg-media-thumbnail="1">`,
+    `<span class="${escapeHtmlAttr(thumbnailClassName)}" aria-label="${escapeHtmlAttr(presentation.mediaLabel)}" data-kg-inline-command-thumbnail="${escapeHtmlAttr(args.mediaKind)}">${thumbnailHtml}</span>`,
+    '</span>',
     `<span class="${escapeHtmlAttr(CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME)}">${escapeHtml(args.label)}</span>`,
     '</span>',
   ].join('')
@@ -304,6 +332,7 @@ export function buildMarkdownInlineTextEditHtml(args: {
   value: string
   inlineChipDensity?: 'regular' | 'compact'
   projectedMediaAttachments?: readonly TextareaInvocationMediaAttachment[] | null
+  appendMissingProjectedMediaKeys?: ReadonlySet<string> | null
 }): string {
   const markdownIt = getMarkdownItFastHtml()
   const renderTextSegment = (value: string): string => normalizeEscapedInlineMediaMarkdown(value)
@@ -321,7 +350,8 @@ export function buildMarkdownInlineTextEditHtml(args: {
         markdown: segment.markdown,
         mediaKind: segment.chip.mediaKind,
         prefixGap: segment.prefixGap,
-        source: segment.chip.sourceUrl || segment.chip.thumbnailUrl || '',
+        sourceUrl: segment.chip.sourceUrl,
+        thumbnailUrl: segment.chip.thumbnailUrl,
       }))
     .join('')
 }
@@ -334,7 +364,13 @@ export function readMarkdownInlineTextEditDraft(
   const virtualChips = Array.from(workingRoot.querySelectorAll(`[${CARD_INLINE_TEXT_VIEWER_VIRTUAL_MEDIA_CHIP_ATTRIBUTE}="1"]`))
   virtualChips.forEach(node => {
     const markdown = String(node.getAttribute(CARD_INLINE_TEXT_VIEWER_MEDIA_MARKDOWN_ATTRIBUTE) || '').trim()
-    node.replaceWith(workingRoot.ownerDocument.createTextNode(markdown || ' '))
+    if (!markdown) {
+      const previous = node.previousSibling
+      if (previous?.nodeType === 3 && String(previous.nodeValue || '').endsWith(TEXTAREA_INVOCATION_MEDIA_BOUNDARY)) {
+        previous.nodeValue = String(previous.nodeValue || '').slice(0, -TEXTAREA_INVOCATION_MEDIA_BOUNDARY.length)
+      }
+    }
+    node.replaceWith(workingRoot.ownerDocument.createTextNode(markdown))
   })
   const markdown = readFastInlineMarkdownDraft(workingRoot, 'inline')
   const draft = String(markdown ?? readInlineMediaEditorMarkdownText(workingRoot) ?? '').replace(/\r/g, '')
@@ -498,6 +534,16 @@ export function MarkdownInlineTextEditSurface(props: {
   const domDirtyRef = React.useRef(false)
   const lastRenderedHtmlRef = React.useRef('')
   const latestDraftRef = React.useRef(String(props.value || '').replace(/\r/g, ''))
+  const initialProjectedSourceRef = React.useRef(String(props.value || '').replace(/\r/g, ''))
+  const appendMissingProjectedMediaKeys = React.useMemo(() => new Set(
+    collectTextareaInvocationMediaAttachmentCandidateChips(props.projectedMediaAttachments)
+      .filter(chip => !findProjectedMediaChipMatch({
+        source: initialProjectedSourceRef.current,
+        cursor: 0,
+        chips: [chip],
+      }))
+      .map(chip => readTextareaInvocationMediaReferenceKey(chip.displayLabel || chip.label)),
+  ), [props.projectedMediaAttachments])
   const showPlaceholder = !String(props.value || '').trim()
 
   const readSelection = React.useCallback(() => {
@@ -552,6 +598,7 @@ export function MarkdownInlineTextEditSurface(props: {
       value,
       inlineChipDensity: props.inlineChipDensity,
       projectedMediaAttachments: props.projectedMediaAttachments,
+      appendMissingProjectedMediaKeys,
     })
     if (root.innerHTML === html) {
       domDirtyRef.current = false
@@ -572,7 +619,7 @@ export function MarkdownInlineTextEditSurface(props: {
         focusMarkdownInlineTextSelectionSoon(props.editorRef, nextSelection.start, nextSelection.end)
       }
     }
-  }, [props.editorRef, props.inlineChipDensity, props.initialSelectionPointRef, props.projectedMediaAttachments, props.value, readSelection, syncProxySelection])
+  }, [appendMissingProjectedMediaKeys, props.editorRef, props.inlineChipDensity, props.initialSelectionPointRef, props.projectedMediaAttachments, props.value, readSelection, syncProxySelection])
 
   return (
     <section className="relative h-full min-h-0 w-full" data-kg-card-inline-viewer-edit-shell="1">

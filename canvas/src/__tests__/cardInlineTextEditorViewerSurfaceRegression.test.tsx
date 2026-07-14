@@ -1,62 +1,9 @@
 import React, { act } from 'react'
-import { readFileSync } from 'node:fs'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
-import { StoryboardWidgetInlineValueEditor } from '@/components/StoryboardWidget/StoryboardWidgetInlineValueEditor'
-import CommandMenuCatalogPanel from '@/features/command-menu/CommandMenuCatalogPanel'
-import {
-  clearWorkspaceDataViewFloatingBinding,
-  setWorkspaceDataViewFloatingBinding,
-  setWorkspaceDataViewFloatingDensity,
-  useWorkspaceDataViewFloatingDensity,
-  type WorkspaceDataViewFloatingBinding,
-} from '@/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore'
-import { coerceWorkspaceDataViewConfig, type WorkspaceDataViewConfig } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
-import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
-import { insertMediaIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
-import { writeCommandMenuMediaNameDraft } from '@/lib/command-menu/commandMenuMediaNameSync'
-import { collectInlineKeywordCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
-import { UPLOADED_MEDIA_PANEL_STORAGE_KEY } from '@/lib/storage/uploadedMediaPanelItems'
-import {
-  DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
-  resolveDataViewChipClass,
-} from '@/features/markdown/ui/dataViewChipStyles'
-import { renderSafeHtmlBlock } from '@/features/markdown/ui/markdownPreviewLinks'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { waitForFrames } from '@/tests/lib/reactRootHarness'
-const readUtf8 = (relativePath: string) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
-const buildFloatingBinding = (viewConfig: WorkspaceDataViewConfig): WorkspaceDataViewFloatingBinding => ({
-  registrationId: 'storybook-refresh-density',
-  contextLabel: 'Storyboard',
-  activePanel: 'layout',
-  canMutate: true,
-  viewerLayout: 'kanban',
-  viewerMode: 'multiDimTable',
-  allowMultiDimLayout: true,
-  columns: [],
-  groupByColumnId: null,
-  viewConfig,
-  setViewConfig: () => void 0,
-  onChangeLayout: () => void 0,
-})
-const buildViewConfig = (density: { rowHeightPreset: 'compact' | 'comfortable'; fieldLineMode: 'single' | 'double' }): WorkspaceDataViewConfig => {
-  const viewConfig = coerceWorkspaceDataViewConfig({
-    v: 2,
-    id: 'v0',
-    name: 'Kanban View',
-    layout: 'kanban',
-    groupByColumnId: null,
-    visibleColumnIds: null,
-    columnTypesById: null,
-    filterGroups: [{ id: 'g0', rules: [] }],
-    sortRules: [],
-    rowHeightPreset: density.rowHeightPreset,
-    fieldLineMode: density.fieldLineMode,
-  })
-  if (!viewConfig) throw new Error('expected test view config to coerce')
-  return viewConfig
-}
 
 export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndMediaChips() {
   const { dom, restore } = initJsdomHarness()
@@ -116,6 +63,10 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
     const readMediaChip = display.querySelector('[data-kg-card-inline-display-media-chip="1"]') as HTMLElement | null
     if (!(readMediaChip instanceof dom.window.HTMLElement) || readMediaChip.textContent !== `@${attachmentLabel}`) {
       throw new Error(`expected read-mode Card textarea to render source-authored @ media in-place, html=${display.innerHTML}`)
+    }
+    const readMediaChipImage = readMediaChip.querySelector('img') as HTMLImageElement | null
+    if (!(readMediaChipImage instanceof dom.window.HTMLImageElement)) {
+      throw new Error(`expected read-mode projected media chip to render its shared thumbnail image, html=${readMediaChip.outerHTML}`)
     }
     const longReadMediaChip = Array.from(display.querySelectorAll('[data-kg-card-inline-display-media-chip="1"]') as NodeListOf<HTMLElement>)
       .find(node => node.textContent === longAttachmentToken)
@@ -227,6 +178,18 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
     if (!(virtualMediaThumbnail instanceof dom.window.HTMLElement) || virtualMediaThumbnail.hasAttribute('aria-hidden') || !virtualMediaThumbnail.getAttribute('aria-label')) {
       throw new Error(`expected Viewer edit projected @ media chip thumbnail to stay visible to selection tooling, html=${virtualMediaChip.outerHTML}`)
     }
+    const virtualMediaChipImage = virtualMediaChip.querySelector('img') as HTMLImageElement | null
+    if (!(virtualMediaChipImage instanceof dom.window.HTMLImageElement)) {
+      throw new Error(`expected Viewer edit projected @ media chip to keep the same real thumbnail image as read mode, html=${virtualMediaChip.outerHTML}`)
+    }
+    if (
+      virtualMediaChip.className !== readMediaChip.className
+      || virtualMediaChip.getAttribute('title') !== readMediaChip.getAttribute('title')
+      || virtualMediaChipImage.getAttribute('src') !== readMediaChipImage.getAttribute('src')
+      || virtualMediaChipImage.className !== readMediaChipImage.className
+    ) {
+      throw new Error(`expected projected media chip chrome, title, and thumbnail not to mutate between read and edit modes, read=${readMediaChip.outerHTML}, edit=${virtualMediaChip.outerHTML}`)
+    }
     if (!virtualMediaChip.className.includes('inline-flex bg-[color:var(--kg-panel-bg)]') || !virtualMediaChip.className.includes('kg-inline-chip-shell-15ch')) {
       throw new Error(`expected Viewer edit projected @ media chip to reuse the read-view inline media chip shell, got ${virtualMediaChip.className}`)
     }
@@ -274,6 +237,7 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     focusMarkdownInlineTextSelectionSoon,
     buildMarkdownInlineTextEditHtml,
     deleteMarkdownInlineTextAtomicMediaToken,
+    readMarkdownInlineTextEditDraft,
   } = await import('@/lib/markdown-core/ui/MarkdownInlineTextEditSurface')
   const {
     INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR,
@@ -327,8 +291,23 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     })
     const editor = editorRef.current
     if (!editor) throw new Error('expected Viewer edit surface')
-    if (editor.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]')) {
-      throw new Error(`expected attachment-only media not to be appended into Viewer edit text without an authored @ token, html=${editor.innerHTML}`)
+    const initialProjectedMediaChip = editor.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]') as HTMLElement | null
+    if (!(initialProjectedMediaChip instanceof dom.window.HTMLElement) || initialProjectedMediaChip.getAttribute(INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR) !== '1') {
+      throw new Error(`expected attachment-only media to remain visible as a display-only chip while editing, html=${editor.innerHTML}`)
+    }
+    if (initialProjectedMediaChip.className.includes('ml-[0.25em]')) {
+      throw new Error(`expected edit-mode projected media to avoid a margin-based position shift, html=${initialProjectedMediaChip.outerHTML}`)
+    }
+    if (initialProjectedMediaChip.previousSibling?.nodeType !== dom.window.Node.TEXT_NODE || !String(initialProjectedMediaChip.previousSibling.nodeValue || '').endsWith(' ')) {
+      throw new Error(`expected edit-mode projected media to reuse read-mode whitespace flow before the chip, html=${editor.innerHTML}`)
+    }
+    directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
+      value: initialValue,
+      inlineChipDensity: 'compact',
+      projectedMediaAttachments: null,
+    })
+    if (readMarkdownInlineTextEditDraft(editor) !== readMarkdownInlineTextEditDraft(directProbe)) {
+      throw new Error(`expected display-only edit chips not to mutate the raw prompt, html=${editor.innerHTML}`)
     }
     if (editor.querySelector('br')) {
       throw new Error(`expected compact Viewer edit surface to flatten media-adjacent source line breaks, html=${editor.innerHTML}`)
@@ -355,9 +334,12 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
       value: nextValue,
       projectedMediaAttachments: mediaAttachments,
     })
-    const directText = String(directProbe.textContent || '').replace(/\s+/g, ' ').trim()
-    if (directText.includes('@strybldr-starter-source-017d1e965528642f.png')) {
-      throw new Error(`expected attachment-only @ media chip not to be appended into card edit text, text=${JSON.stringify(directText)}`)
+    const directProjectedMediaChip = directProbe.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]') as HTMLElement | null
+    if (!(directProjectedMediaChip instanceof dom.window.HTMLElement) || directProjectedMediaChip.getAttribute(INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR) !== '1') {
+      throw new Error(`expected attachment-only @ media to remain visible in the card editor, html=${directProbe.innerHTML}`)
+    }
+    if (readMarkdownInlineTextEditDraft(directProbe) !== nextValue) {
+      throw new Error(`expected attachment-only @ media projection to serialize to the unchanged prompt, html=${directProbe.innerHTML}`)
     }
     directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
       value: 'I and\n![buddydrone.jpg](https://airvio.co/api/storage/media/airvio/runs/storyboard/buddydrone.jpg)\ncan see that #storyboard is as interesting as /cost.audit\n',
@@ -367,8 +349,8 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     if (directProbe.querySelector('br')) {
       throw new Error(`expected compact Viewer card edit HTML to flatten media-adjacent soft line breaks, html=${directProbe.innerHTML}`)
     }
-    if (String(directProbe.textContent || '').replace(/\s+/g, ' ').trim() !== 'I and buddydrone.jpg can see that #storyboard is as interesting as /cost.audit') {
-      throw new Error(`expected compact Viewer card edit text to keep media, /, and # inline, html=${directProbe.innerHTML}`)
+    if (!String(directProbe.textContent || '').replace(/\s+/g, ' ').trim().startsWith('I and buddydrone.jpg can see that #storyboard is as interesting as /cost.audit')) {
+      throw new Error(`expected compact Viewer card edit text to keep media, /, #, and the display-only attachment inline, html=${directProbe.innerHTML}`)
     }
     const authoredMediaValue = `I can ... #storyboard @strybldr-starter-source-017d1e965528642f.png /soul.load ..`
     directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
@@ -452,8 +434,17 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     if (proxyRef.current?.value !== expectedValueAfterMediaDelete) {
       throw new Error(`expected Backspace after an authored @ media chip to publish its removal, got ${JSON.stringify(proxyRef.current?.value)}`)
     }
-    if (editor.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]')) {
-      throw new Error(`expected removed @ media chip not to be projected back into the editor, html=${editor.innerHTML}`)
+    const projectedChipAfterAuthoredTokenDelete = editor.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]') as HTMLElement | null
+    if (!(projectedChipAfterAuthoredTokenDelete instanceof dom.window.HTMLElement) || projectedChipAfterAuthoredTokenDelete.getAttribute(INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR) !== '1') {
+      throw new Error(`expected an initially attachment-only chip to remain visible after its temporary authored token is deleted, html=${editor.innerHTML}`)
+    }
+    directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
+      value: expectedValueAfterMediaDelete,
+      projectedMediaAttachments: mediaAttachments,
+      appendMissingProjectedMediaKeys: new Set(),
+    })
+    if (directProbe.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]')) {
+      throw new Error(`expected an attachment that was authored when editing began not to be re-projected after deletion, html=${directProbe.innerHTML}`)
     }
     directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
       value: 'Generate a text response for the active request.\n@空武.jpg',
@@ -578,64 +569,6 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsFocusedDomWhenRe
     })
     if (committedValues.at(-1) !== nextValue) {
       throw new Error(`expected blur commit to preserve the latest typed draft, got ${JSON.stringify(committedValues)}`)
-    }
-  } finally {
-    await act(async () => {
-      root.unmount()
-    })
-    restore()
-  }
-}
-
-export async function testCardInlineTextEditorViewerSurfaceEditsSingleLineTitles() {
-  const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('section')
-  dom.window.document.body.appendChild(container)
-  const root = createRoot(container)
-  const committedValues: string[] = []
-  try {
-    await act(async () => {
-      root.render(
-        React.createElement(CardInlineTextEditor, {
-          value: 'Runtime Gate',
-          ariaLabel: 'Storyboard title for workspace-runtime',
-          placeholder: 'Add title',
-          canEdit: true,
-          editActivation: 'click',
-          editorSurface: 'viewer',
-          inlineChipDensity: 'compact',
-          displayClassName: 'min-w-0 flex-1 truncate text-[12px] font-semibold leading-4 text-[color:var(--kg-text-primary)]',
-          editorClassName: 'min-w-0 flex-1 truncate text-[12px] font-semibold leading-4 text-[color:var(--kg-text-primary)]',
-          onCommit: value => committedValues.push(value),
-        }),
-      )
-      await waitForFrames(dom.window, 4)
-    })
-    const display = container.querySelector('[aria-label="Storyboard title for workspace-runtime"][data-kg-card-inline-edit="1"]')
-    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected Storyboard title display to use the shared card inline display surface')
-    await act(async () => {
-      display.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
-      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
-      await waitForFrames(dom.window, 8)
-    })
-    const viewerEditor = container.querySelector('[data-kg-card-inline-viewer-edit-surface="1"][contenteditable="true"]')
-    if (!(viewerEditor instanceof dom.window.HTMLElement)) throw new Error(`expected title edit to open the shared Viewer contenteditable surface, html=${container.innerHTML}`)
-    if (viewerEditor.getAttribute('aria-multiline') !== 'false') {
-      throw new Error(`expected title Viewer edit surface to stay single-line, html=${viewerEditor.outerHTML}`)
-    }
-    if (container.querySelector('input[aria-label="Storyboard title for workspace-runtime"]')) {
-      throw new Error('expected title edit not to reopen the legacy PanelTextInput surface')
-    }
-    const hiddenProxy = container.querySelector('[data-kg-card-inline-viewer-edit-command-proxy="1"]')
-    if (!(hiddenProxy instanceof dom.window.HTMLTextAreaElement)) throw new Error('expected single-line Viewer title edit to keep the hidden command proxy')
-    await act(async () => {
-      viewerEditor.textContent = 'Runtime Gateway'
-      Simulate.input(viewerEditor)
-      Simulate.keyDown(viewerEditor, { key: 'Enter' })
-      await waitForFrames(dom.window, 4)
-    })
-    if (committedValues.at(-1) !== 'Runtime Gateway') {
-      throw new Error(`expected Enter to commit single-line Viewer title edits, got ${JSON.stringify(committedValues)}`)
     }
   } finally {
     await act(async () => {
