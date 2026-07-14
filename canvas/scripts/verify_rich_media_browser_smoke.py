@@ -38,6 +38,20 @@ def install_window_open_probe(page) -> None:
     )
 
 
+def install_fullscreen_probe(page) -> None:
+    page.evaluate(
+        """
+        () => {
+          window.__kgRichMediaFullscreenTarget = null
+          HTMLElement.prototype.requestFullscreen = function () {
+            window.__kgRichMediaFullscreenTarget = this.getAttribute('data-kg-media-catalog-preview')
+            return Promise.resolve()
+          }
+        }
+        """
+    )
+
+
 def click_panel_inset(page, panel_selector: str, target_selector: str, *, inset_x: float = 24, inset_y: float = 24) -> None:
     panel = page.locator(panel_selector).first
     target = page.locator(f"{panel_selector} {target_selector}").first
@@ -96,6 +110,11 @@ def assert_catalog_preview_parent_placement(page, kind: str) -> None:
     if not media_box or media_box["width"] < 840 or media_box["height"] < 520:
         raise AssertionError(f"expected {kind} media to fill the shared Rich Media Panel, got {media_box}")
     expect(page.locator('[data-kg-media-lightbox="1"]')).to_have_count(0)
+    fullscreen_button = preview.locator('[data-kg-media-catalog-preview-fullscreen="1"]')
+    expect(fullscreen_button).to_be_visible()
+    fullscreen_button.click()
+    if page.evaluate("() => window.__kgRichMediaFullscreenTarget") != "1":
+        raise AssertionError(f"expected {kind} fullscreen action to target the expanded Rich Media Panel preview")
     if kind == "video":
         preview.screenshot(path=str(CATALOG_PREVIEW_SCREENSHOT_PATH))
     preview.locator('[data-kg-media-catalog-preview-close="1"]').click()
@@ -132,6 +151,7 @@ def main() -> None:
             page.goto(TARGET_URL, wait_until="domcontentloaded")
             page.wait_for_selector('[data-kg-rich-media-smoke-page="1"]')
             install_window_open_probe(page)
+            install_fullscreen_probe(page)
 
             preview_surface = page.locator(
                 '[data-kg-smoke-panel="text-preview"] [data-kg-rich-media-markdown-preview="1"]'

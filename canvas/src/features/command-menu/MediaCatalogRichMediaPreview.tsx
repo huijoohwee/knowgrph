@@ -1,5 +1,5 @@
 import React from 'react'
-import { X } from 'lucide-react'
+import { Maximize2, X } from 'lucide-react'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
 import { readUploadedMediaPanelItemRuntimeUrl, type UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
@@ -12,6 +12,7 @@ import {
   MEDIA_EXPANDED_PREVIEW_MEDIA_CLASS_NAME,
   MEDIA_EXPANDED_PREVIEW_RICH_PANEL_CLASS_NAME,
 } from '@/lib/ui/mediaExpandedPreviewLayout'
+import { requestMediaExpandedPreviewFullscreen } from '@/lib/ui/mediaExpandedPreviewFullscreen'
 import { cn } from '@/lib/utils'
 
 export function MediaCatalogRichMediaPreview(props: {
@@ -21,6 +22,7 @@ export function MediaCatalogRichMediaPreview(props: {
   onNavigate: (item: UploadedMediaPanelItem) => void
 }) {
   const { item, items, onClose, onNavigate } = props
+  const previewRef = React.useRef<HTMLElement | null>(null)
   const runtimeUrl = readUploadedMediaPanelItemRuntimeUrl(item)
   const navigableItems = React.useMemo(
     () => items.filter(candidate => candidate.kind === 'image' || candidate.kind === 'video'),
@@ -58,6 +60,7 @@ export function MediaCatalogRichMediaPreview(props: {
       panelClassName={MEDIA_EXPANDED_PREVIEW_PANEL_CLASS_NAME}
     >
       <section
+        ref={previewRef}
         className={MEDIA_EXPANDED_PREVIEW_PLAYER_CLASS_NAME}
         aria-label={`${item.name} media preview`}
         data-kg-media-catalog-preview="1"
@@ -66,18 +69,37 @@ export function MediaCatalogRichMediaPreview(props: {
         data-kg-media-catalog-preview-index={activeIndex >= 0 ? activeIndex + 1 : undefined}
         data-kg-media-catalog-preview-count={navigableItems.length}
       >
-        <button
-          type="button"
-          className={cn('absolute right-2 top-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded border bg-black/50 text-white backdrop-blur-sm', UI_THEME_TOKENS.panel.border)}
-          aria-label="Close media preview"
-          data-kg-media-catalog-preview-close="1"
-          onClick={event => {
-            event.stopPropagation()
-            onClose()
-          }}
-        >
-          <X className="h-4 w-4" strokeWidth={1.7} aria-hidden />
-        </button>
+        <menu className="absolute right-2 top-2 z-20 m-0 flex list-none items-center gap-1 p-0" aria-label="Media preview actions">
+          <li className="list-none">
+            <button
+              type="button"
+              className={cn('inline-flex h-8 w-8 items-center justify-center rounded border bg-black/50 text-white backdrop-blur-sm', UI_THEME_TOKENS.panel.border)}
+              title="Enter fullscreen"
+              aria-label="Enter fullscreen"
+              data-kg-media-catalog-preview-fullscreen="1"
+              onClick={event => {
+                event.stopPropagation()
+                requestMediaExpandedPreviewFullscreen(previewRef.current)
+              }}
+            >
+              <Maximize2 className="h-4 w-4" strokeWidth={1.7} aria-hidden />
+            </button>
+          </li>
+          <li className="list-none">
+            <button
+              type="button"
+              className={cn('inline-flex h-8 w-8 items-center justify-center rounded border bg-black/50 text-white backdrop-blur-sm', UI_THEME_TOKENS.panel.border)}
+              aria-label="Close media preview"
+              data-kg-media-catalog-preview-close="1"
+              onClick={event => {
+                event.stopPropagation()
+                onClose()
+              }}
+            >
+              <X className="h-4 w-4" strokeWidth={1.7} aria-hidden />
+            </button>
+          </li>
+        </menu>
         {canNavigate ? (
           <p className="sr-only" aria-live="polite" data-kg-media-catalog-preview-navigation="arrow-keys">
             {`${item.name}, item ${activeIndex + 1} of ${navigableItems.length}. Use Left or Up for previous; Right or Down for next.`}
