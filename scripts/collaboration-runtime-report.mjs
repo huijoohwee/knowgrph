@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import Ajv2020 from 'ajv/dist/2020.js'
@@ -56,6 +57,10 @@ export const validateCollaborationRuntimeReport = async report => {
   }
 }
 
+export const calculateCollaborationRuntimeReportDigest = source => (
+  createHash('sha256').update(source).digest('hex')
+)
+
 export const readCollaborationRuntimeValidationSchema = async () => {
   const { schema } = await loadValidationValidator()
   return structuredClone(schema)
@@ -82,15 +87,28 @@ export const validateCollaborationRuntimeValidationSource = async source => {
 
 export const validateCollaborationRuntimeValidationArtifact = async artifactPath => {
   const envelope = await validateCollaborationRuntimeValidationSource(await readFile(artifactPath, 'utf8'))
-  return { artifactPath, schemaVersion: envelope.schema, status: envelope.status }
+  return { artifactPath, ...envelope }
+}
+
+export const validateCollaborationRuntimeValidationPair = (envelope, reportIdentity) => {
+  if (envelope.status !== 'passed') {
+    throw new Error('collaboration validation failure envelopes cannot prove a report pairing')
+  }
+  if (envelope.reportDigest !== reportIdentity.reportDigest) {
+    throw new Error(
+      `collaboration report digest mismatch: expected ${envelope.reportDigest}, received ${reportIdentity.reportDigest}`,
+    )
+  }
+  return { reportDigest: envelope.reportDigest }
 }
 
 export const validateCollaborationRuntimeReportSource = async source => {
-  const report = JSON.parse(source)
-  return validateCollaborationRuntimeReport(report)
+  const report = JSON.parse(source.toString('utf8'))
+  const identity = await validateCollaborationRuntimeReport(report)
+  return { ...identity, reportDigest: calculateCollaborationRuntimeReportDigest(source) }
 }
 
 export const validateCollaborationRuntimeReportArtifact = async artifactPath => {
-  const identity = await validateCollaborationRuntimeReportSource(await readFile(artifactPath, 'utf8'))
+  const identity = await validateCollaborationRuntimeReportSource(await readFile(artifactPath))
   return { artifactPath, ...identity }
 }

@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { text } from 'node:stream/consumers'
+import { buffer } from 'node:stream/consumers'
 import {
   COLLABORATION_RUNTIME_VALIDATION_SCHEMA,
   validateCollaborationRuntimeReportArtifact,
@@ -37,7 +37,7 @@ const main = async () => {
 
   const input = inputArgs[0]
   const result = inputType === 'stdin'
-    ? await validateCollaborationRuntimeReportSource(await text(process.stdin))
+    ? await validateCollaborationRuntimeReportSource(await buffer(process.stdin))
     : await validateCollaborationRuntimeReportArtifact(path.resolve(input))
 
   if (jsonOutput) {
@@ -46,6 +46,7 @@ const main = async () => {
       status: 'passed',
       schemaId: result.schemaId,
       schemaVersion: result.schemaVersion,
+      reportDigest: result.reportDigest,
       input: inputType,
     })
   } else {
