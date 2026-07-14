@@ -1,7 +1,16 @@
-import { ArrowLeft } from 'lucide-react'
+import { X } from 'lucide-react'
 import RichMediaPanel from '@/components/RichMediaPanel'
+import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
 import { readUploadedMediaPanelItemRuntimeUrl, type UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import {
+  MEDIA_EXPANDED_PREVIEW_OVERLAY_CLASS_NAME,
+  MEDIA_EXPANDED_PREVIEW_PANEL_CLASS_NAME,
+  MEDIA_EXPANDED_PREVIEW_PLAYER_CLASS_NAME,
+  MEDIA_EXPANDED_PREVIEW_PLAYER_FRAME_CLASS_NAME,
+  MEDIA_EXPANDED_PREVIEW_MEDIA_CLASS_NAME,
+  MEDIA_EXPANDED_PREVIEW_RICH_PANEL_CLASS_NAME,
+} from '@/lib/ui/mediaExpandedPreviewLayout'
 import { cn } from '@/lib/utils'
 
 export function MediaCatalogRichMediaPreview(props: {
@@ -11,40 +20,51 @@ export function MediaCatalogRichMediaPreview(props: {
   const { item, onClose } = props
   const runtimeUrl = readUploadedMediaPanelItemRuntimeUrl(item)
   return (
-    <section
-      className="flex h-full min-h-[16rem] flex-col gap-2 p-1"
-      aria-label={`${item.name} media preview`}
-      data-kg-media-catalog-preview="1"
-      data-kg-media-catalog-preview-kind={item.kind}
+    <PreviewOverlay
+      open
+      onClose={onClose}
+      overlayClassName={MEDIA_EXPANDED_PREVIEW_OVERLAY_CLASS_NAME}
+      panelClassName={MEDIA_EXPANDED_PREVIEW_PANEL_CLASS_NAME}
     >
-      <header className="flex min-w-0 items-center gap-2">
+      <section
+        className={MEDIA_EXPANDED_PREVIEW_PLAYER_CLASS_NAME}
+        aria-label={`${item.name} media preview`}
+        data-kg-media-catalog-preview="1"
+        data-kg-media-catalog-preview-kind={item.kind}
+        data-kg-media-catalog-preview-placement="legacy-lightbox"
+      >
         <button
           type="button"
-          className={cn('inline-flex h-7 shrink-0 items-center gap-1 rounded border px-2 text-xs font-semibold', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg, UI_THEME_TOKENS.button.hoverBg)}
-          aria-label="Back to media catalog"
+          className={cn('absolute right-2 top-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded border bg-black/50 text-white backdrop-blur-sm', UI_THEME_TOKENS.panel.border)}
+          aria-label="Close media preview"
           data-kg-media-catalog-preview-close="1"
-          onClick={onClose}
+          onClick={event => {
+            event.stopPropagation()
+            onClose()
+          }}
         >
-          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
-          Media
+          <X className="h-4 w-4" strokeWidth={1.7} aria-hidden />
         </button>
-        <span className={cn('min-w-0 truncate text-xs font-semibold', UI_THEME_TOKENS.text.secondary)}>{item.name}</span>
-      </header>
-      <section className="min-h-0 flex-1 overflow-hidden rounded-md" data-kg-media-catalog-preview-panel="1">
-        <RichMediaPanel
-          overlayId={`floating-media-preview:${item.id}`}
-          title={item.name || 'Uploaded media'}
-          url={runtimeUrl}
-          openUrl={runtimeUrl}
-          kind={item.kind}
-          interactive={item.kind !== 'image'}
-          videoControls={item.kind === 'video'}
-          panelChrome="storyboardWidget"
-          frameMode="surface"
-          placementOwner="parent"
-          style={{ height: '100%', width: '100%' }}
-        />
+        <section className={MEDIA_EXPANDED_PREVIEW_PLAYER_FRAME_CLASS_NAME}>
+          <section className={MEDIA_EXPANDED_PREVIEW_MEDIA_CLASS_NAME} data-kg-media-catalog-preview-panel="1">
+            <section className={MEDIA_EXPANDED_PREVIEW_RICH_PANEL_CLASS_NAME}>
+              <RichMediaPanel
+                overlayId={`floating-media-preview:${item.id}`}
+                title={item.name || 'Uploaded media'}
+                url={runtimeUrl}
+                openUrl={runtimeUrl}
+                kind={item.kind}
+                interactive={item.kind !== 'image'}
+                videoControls={item.kind === 'video'}
+                panelChrome="storyboardWidget"
+                frameMode="surface"
+                placementOwner="parent"
+                style={{ height: '100%', width: '100%' }}
+              />
+            </section>
+          </section>
+        </section>
       </section>
-    </section>
+    </PreviewOverlay>
   )
 }

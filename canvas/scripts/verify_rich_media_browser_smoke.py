@@ -85,18 +85,19 @@ def assert_catalog_preview_parent_placement(page, kind: str) -> None:
     panel = preview.locator('[data-kg-rich-media-panel="1"]').first
     media = preview.locator("video" if kind == "video" else "img").first
     expect(preview).to_be_visible()
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-placement", "legacy-lightbox")
     expect(panel).to_be_visible()
     expect(panel).to_have_attribute("data-kg-overlay-placement-owner", "parent")
     expect(media).to_be_visible()
     panel_box = panel.bounding_box()
     media_box = media.bounding_box()
-    if not panel_box or panel_box["width"] < 280 or panel_box["height"] < 260:
-        raise AssertionError(f"expected {kind} preview to fill FloatingPanel Media, got {panel_box}")
-    if not media_box or media_box["width"] < 240 or media_box["height"] < 180:
+    if not panel_box or panel_box["width"] < 900 or panel_box["height"] < 600:
+        raise AssertionError(f"expected {kind} Rich Media Panel to reuse the previous lightbox size, got {panel_box}")
+    if not media_box or media_box["width"] < 840 or media_box["height"] < 520:
         raise AssertionError(f"expected {kind} media to fill the shared Rich Media Panel, got {media_box}")
     expect(page.locator('[data-kg-media-lightbox="1"]')).to_have_count(0)
     if kind == "video":
-        page.locator('[data-kg-smoke-panel="floating-media-preview"]').screenshot(path=str(CATALOG_PREVIEW_SCREENSHOT_PATH))
+        preview.screenshot(path=str(CATALOG_PREVIEW_SCREENSHOT_PATH))
     preview.locator('[data-kg-media-catalog-preview-close="1"]').click()
     expect(preview).to_have_count(0)
 

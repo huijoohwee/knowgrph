@@ -7,6 +7,14 @@ import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOver
 import { PanelSelect, PanelTextarea } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import {
+  MEDIA_EXPANDED_PREVIEW_OVERLAY_CLASS_NAME,
+  MEDIA_EXPANDED_PREVIEW_PANEL_CLASS_NAME,
+  MEDIA_EXPANDED_PREVIEW_PLAYER_CLASS_NAME,
+  MEDIA_EXPANDED_PREVIEW_PLAYER_FRAME_CLASS_NAME,
+  MEDIA_EXPANDED_PREVIEW_MEDIA_CLASS_NAME,
+  MEDIA_EXPANDED_PREVIEW_RICH_PANEL_CLASS_NAME,
+} from './mediaExpandedPreviewLayout'
 
 export type MediaLightboxPromptParameterOption = {
   value: string
@@ -128,8 +136,8 @@ export function MediaLightbox({
     <PreviewOverlay
       open={open && (hasMediaSource || editablePrompt)}
       onClose={onClose}
-      overlayClassName="bg-black/85"
-      panelClassName="relative h-[min(94dvh,58rem)] w-[min(94vw,76rem)] overflow-hidden rounded-none border-0 bg-transparent shadow-none"
+      overlayClassName={MEDIA_EXPANDED_PREVIEW_OVERLAY_CLASS_NAME}
+      panelClassName={MEDIA_EXPANDED_PREVIEW_PANEL_CLASS_NAME}
     >
       <section
         ref={rootRef}
@@ -191,11 +199,11 @@ export function MediaLightbox({
               </section>
             </section>
           ) : (
-            <section className="flex h-full w-full items-center justify-center p-6" data-kg-media-lightbox-player="1">
-              <section className="grid h-full w-full max-w-5xl place-items-center gap-4">
+            <section className={MEDIA_EXPANDED_PREVIEW_PLAYER_CLASS_NAME} data-kg-media-lightbox-player="1">
+              <section className={MEDIA_EXPANDED_PREVIEW_PLAYER_FRAME_CLASS_NAME}>
                 {isImage ? (
-                  <section className="h-full w-full max-h-[70dvh]" data-kg-media-lightbox-image="1">
-                    <section className="h-full w-full overflow-hidden rounded-md" data-kg-media-lightbox-image-panel="1">
+                  <section className={MEDIA_EXPANDED_PREVIEW_MEDIA_CLASS_NAME} data-kg-media-lightbox-image="1">
+                    <section className={MEDIA_EXPANDED_PREVIEW_RICH_PANEL_CLASS_NAME} data-kg-media-lightbox-image-panel="1">
                       <RichMediaPanel
                         overlayId="media-lightbox-image"
                         title={displayTitle || alt || 'Image'}
@@ -210,8 +218,8 @@ export function MediaLightbox({
                     </section>
                   </section>
                 ) : isVideo ? (
-                  <section className="h-full w-full max-h-[70dvh]" data-kg-media-lightbox-video="1">
-                    <section className="h-full w-full overflow-hidden rounded-md" data-kg-media-lightbox-video-panel="1">
+                  <section className={MEDIA_EXPANDED_PREVIEW_MEDIA_CLASS_NAME} data-kg-media-lightbox-video="1">
+                    <section className={MEDIA_EXPANDED_PREVIEW_RICH_PANEL_CLASS_NAME} data-kg-media-lightbox-video-panel="1">
                       <RichMediaPanel
                         overlayId="media-lightbox-video"
                         title={displayTitle || alt || 'Video'}

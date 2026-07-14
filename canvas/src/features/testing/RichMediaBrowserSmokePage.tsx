@@ -87,7 +87,7 @@ const smokePanelCardClassName =
 
 export function RichMediaBrowserSmokePage() {
   const [editableText, setEditableText] = React.useState(SMOKE_EDITABLE_TEXT)
-  const [catalogPreviewKind, setCatalogPreviewKind] = React.useState<'image' | 'video' | null>('image')
+  const [catalogPreviewKind, setCatalogPreviewKind] = React.useState<'image' | 'video' | null>(null)
   const [flowPanelState, setFlowPanelState] = React.useState({
     dragCount: 0,
     offsetX: 0,
