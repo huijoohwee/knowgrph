@@ -102,8 +102,16 @@ export function testStoryboardCardTextModelDoesNotDuplicatePrimaryPrompt() {
     prompt,
   })
   assert(textOnlyModel.primaryRaw === prompt, `expected prompt to become the primary card Viewer text, got ${JSON.stringify(textOnlyModel.primaryRaw)}`)
+  assert(textOnlyModel.primaryDisplay === prompt, `expected text-only prompt display to preserve authored grammar, got ${JSON.stringify(textOnlyModel.primaryDisplay)}`)
   assert(textOnlyModel.primaryField.id === 'prompt', `expected prompt-only Text Widget card edits to persist through prompt, got ${textOnlyModel.primaryField.id}`)
   assert(textOnlyModel.secondaryRaw === '', `expected prompt-only Text Widget not to duplicate into secondary text, got ${JSON.stringify(textOnlyModel.secondaryRaw)}`)
+  const promptWithEmbeddedMedia = 'Generate a ![source image](https://media.invalid/source.png) text response for the active request.'
+  const mediaPromptModel = buildStoryboardCardTextModel({ prompt: promptWithEmbeddedMedia })
+  assert(mediaPromptModel.primaryRaw === promptWithEmbeddedMedia, 'expected the editable prompt to retain its authored embedded-media reference')
+  assert(mediaPromptModel.primaryDisplay === 'Generate a text response for the active request.', `expected the card read surface to omit duplicated embedded media, got ${JSON.stringify(mediaPromptModel.primaryDisplay)}`)
+  const overlaySource = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
+  assert(!overlaySource.includes('projectedMediaAttachments={projectedMediaAttachments}'), 'expected the Storyboard text column not to duplicate the media album as inline attachment tokens')
+  assert(!overlaySource.includes('buildStoryboardCardMediaTextareaAttachments'), 'expected the Storyboard text column to avoid a second media-attachment projection owner')
   const nextPrompt = 'Generate an edited /runtime #storyboard @asset response.'
   const promptPatch = buildGraphNodeCanonicalTextPatch({
     currentProperties: { imagePrompt: prompt },
