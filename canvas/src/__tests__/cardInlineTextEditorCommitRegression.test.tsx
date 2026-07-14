@@ -474,40 +474,40 @@ export async function testCommandMenuMediaPanelUploadedNameInvokesActiveCardFiel
       throw new Error(`expected Download Media to reuse the shared media download proxy, got ${downloadHref}`)
     }
     const previewButton = container.querySelector('[data-kg-media-thumbnail-fullscreen="cloudflare-media:sha256:uploaded-demo"]')
-    if (!(previewButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected uploaded media thumbnail to open fullscreen preview')
+    if (!(previewButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected uploaded media thumbnail to open its Rich Media Panel preview')
     await act(async () => {
-      previewButton.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
       previewButton.click()
       await waitForFrames(dom.window, 4)
     })
-    const lightbox = dom.window.document.querySelector('[data-kg-media-lightbox="1"]')
-    if (!(lightbox instanceof dom.window.HTMLElement)) throw new Error('expected thumbnail click to open the shared media lightbox')
-    if (lightbox.getAttribute('data-kg-media-lightbox-kind') !== 'image') {
-      throw new Error(`expected image lightbox kind, got ${String(lightbox.getAttribute('data-kg-media-lightbox-kind') || '')}`)
+    const mediaPreview = container.querySelector('[data-kg-media-catalog-preview="1"]')
+    if (!(mediaPreview instanceof dom.window.HTMLElement)) throw new Error('expected thumbnail click to open an inline FloatingPanel media preview')
+    if (mediaPreview.getAttribute('data-kg-media-catalog-preview-kind') !== 'image') throw new Error(`expected image preview kind, got ${String(mediaPreview.getAttribute('data-kg-media-catalog-preview-kind') || '')}`)
+    const richMediaPanel = mediaPreview.querySelector('[data-kg-rich-media-panel="1"]')
+    if (!(richMediaPanel instanceof dom.window.HTMLElement)) throw new Error('expected inline preview to reuse Rich Media Panel')
+    if (richMediaPanel.getAttribute('data-kg-overlay-placement-owner') !== 'parent') {
+      throw new Error('expected FloatingPanel Media to retain ownership of Rich Media Panel placement')
     }
-    const lightboxImage = dom.window.document.querySelector('[data-kg-media-lightbox-image="1"]')
-    if (!(lightboxImage instanceof dom.window.HTMLImageElement)) throw new Error('expected lightbox to render an image element')
-    const lightboxSrc = String(lightboxImage.getAttribute('src') || '')
-    if (!lightboxSrc.startsWith(`${mediaUrl}?kg_media_token=`)) {
-      throw new Error(`expected lightbox image to use uploaded access URL, got ${lightboxSrc}`)
+    const previewImage = mediaPreview.querySelector('img')
+    if (!(previewImage instanceof dom.window.HTMLImageElement)) throw new Error('expected inline Rich Media Panel to render an image element')
+    const previewSrc = String(previewImage.getAttribute('src') || '')
+    if (!decodeURIComponent(previewSrc).includes(`${mediaUrl}?kg_media_token=`)) {
+      throw new Error(`expected inline preview image to use uploaded access URL, got ${previewSrc}`)
     }
-    if (!dom.window.document.querySelector('[data-kg-media-lightbox-fullscreen="1"]')) {
-      throw new Error('expected media lightbox to expose an Enter fullscreen action')
-    }
-    const closeLightbox = dom.window.document.querySelector('[data-kg-media-lightbox-close="1"]')
-    if (!(closeLightbox instanceof dom.window.HTMLButtonElement)) throw new Error('expected media lightbox to expose a Close action')
+    if (dom.window.document.querySelector('[data-kg-media-lightbox="1"]')) throw new Error('expected uploaded media preview to avoid the lightbox route')
+    const closePreview = mediaPreview.querySelector('[data-kg-media-catalog-preview-close="1"]')
+    if (!(closePreview instanceof dom.window.HTMLButtonElement)) throw new Error('expected inline media preview to expose a Back to media catalog action')
     if (committedValues.length !== 0) {
       throw new Error(`expected thumbnail preview to avoid invoking active card insertion, got ${JSON.stringify(committedValues)}`)
     }
     await act(async () => {
-      closeLightbox.click()
+      closePreview.click()
       await waitForFrames(dom.window, 2)
     })
-    if (dom.window.document.querySelector('[data-kg-media-lightbox="1"]')) {
-      throw new Error('expected Close to dismiss the media lightbox')
-    }
+    if (container.querySelector('[data-kg-media-catalog-preview="1"]')) throw new Error('expected Back to dismiss the inline media preview')
+    const restoredMediaName = container.querySelector('[data-kg-media-upload-name-text="cloudflare-media:sha256:uploaded-demo"]')
+    if (!(restoredMediaName instanceof dom.window.HTMLElement)) throw new Error('expected media catalog rows to return after closing preview')
     await act(async () => {
-      mediaName.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+      restoredMediaName.click()
       await waitForFrames(dom.window, 2)
     })
     const latest = committedValues.at(-1) || ''

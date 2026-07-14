@@ -1,7 +1,7 @@
 import React from 'react'
 import RichMediaPanel from '@/components/RichMediaPanel'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { MediaLightbox } from '@/lib/ui/MediaLightbox'
+import { MediaCatalogRichMediaPreview } from '@/features/command-menu/MediaCatalogRichMediaPreview'
+import type { UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
 
 const SMOKE_MARKDOWN_PREVIEW = [
   '## Rich Media Smoke',
@@ -72,6 +72,11 @@ const SMOKE_VIDEO_SRCDOC = [
 const SMOKE_AUDIO_DATA_URL =
   'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA='
 
+const SMOKE_CATALOG_MEDIA: Record<'image' | 'video', UploadedMediaPanelItem> = {
+  image: { id: 'smoke-image', name: 'Floating media image.png', kind: 'image', localUrl: '', linkUrl: '/demo/placeholder.svg', contentType: 'image/svg+xml', sizeBytes: 0, status: 'local', storage: null, error: null },
+  video: { id: 'smoke-video', name: 'Floating media video.mp4', kind: 'video', localUrl: '', linkUrl: 'data:video/mp4;base64,AAAA', contentType: 'video/mp4', sizeBytes: 0, status: 'local', storage: null, error: null },
+}
+
 const smokePanelStyle: React.CSSProperties = {
   height: 280,
   width: '100%',
@@ -82,11 +87,7 @@ const smokePanelCardClassName =
 
 export function RichMediaBrowserSmokePage() {
   const [editableText, setEditableText] = React.useState(SMOKE_EDITABLE_TEXT)
-  const [lightboxKind, setLightboxKind] = React.useState<'image' | 'video' | null>(null)
-  const lightboxStoreSnapshotRef = React.useRef<{
-    canvas2dRenderer: ReturnType<typeof useGraphStore.getState>['canvas2dRenderer']
-    frontmatterModeEnabled: boolean
-  } | null>(null)
+  const [catalogPreviewKind, setCatalogPreviewKind] = React.useState<'image' | 'video' | null>('image')
   const [flowPanelState, setFlowPanelState] = React.useState({
     dragCount: 0,
     offsetX: 0,
@@ -144,44 +145,12 @@ export function RichMediaBrowserSmokePage() {
     }))
   }, [])
 
-  const restoreLightboxStoreSnapshot = React.useCallback(() => {
-    const snapshot = lightboxStoreSnapshotRef.current
-    if (!snapshot) return
-    lightboxStoreSnapshotRef.current = null
-    useGraphStore.setState(snapshot)
-  }, [])
-
-  const openLightbox = React.useCallback((kind: 'image' | 'video') => {
-    const store = useGraphStore.getState()
-    lightboxStoreSnapshotRef.current = {
-      canvas2dRenderer: store.canvas2dRenderer,
-      frontmatterModeEnabled: store.frontmatterModeEnabled,
-    }
-    useGraphStore.setState({ canvas2dRenderer: 'storyboard', frontmatterModeEnabled: true })
-    setLightboxKind(kind)
-  }, [])
-
-  const closeLightbox = React.useCallback(() => {
-    setLightboxKind(null)
-    restoreLightboxStoreSnapshot()
-  }, [restoreLightboxStoreSnapshot])
-
-  React.useEffect(() => restoreLightboxStoreSnapshot, [restoreLightboxStoreSnapshot])
-
   return (
     <main
       data-kg-rich-media-smoke-page="1"
       className="min-h-screen bg-[var(--kg-canvas-bg)] px-6 py-8 text-[var(--kg-text)]"
       aria-label="Rich media browser smoke"
     >
-      <MediaLightbox
-        open={lightboxKind !== null}
-        src={lightboxKind === 'video' ? 'data:video/mp4;base64,AAAA' : '/demo/placeholder.svg'}
-        alt={lightboxKind === 'video' ? 'Video lightbox placement smoke' : 'Image lightbox placement smoke'}
-        kind={lightboxKind || 'image'}
-        title={lightboxKind === 'video' ? 'Video Lightbox' : 'Image Lightbox'}
-        onClose={closeLightbox}
-      />
       <header className="mx-auto flex w-full max-w-7xl flex-col gap-3">
         <h1 className="text-2xl font-semibold">Rich Media Browser Smoke</h1>
         <p className="max-w-3xl text-sm text-[var(--kg-text-secondary)]">
@@ -311,6 +280,19 @@ export function RichMediaBrowserSmokePage() {
           />
         </article>
 
+        <article className={smokePanelCardClassName} data-kg-smoke-panel="floating-media-preview">
+          <header className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">FloatingPanel Media Preview</h2>
+            <menu className="m-0 flex list-none gap-2 p-0" aria-label="Floating media preview actions">
+              <li><button type="button" data-kg-smoke-open-image-preview="1" onClick={() => setCatalogPreviewKind('image')}>Image</button></li>
+              <li><button type="button" data-kg-smoke-open-video-preview="1" onClick={() => setCatalogPreviewKind('video')}>Video</button></li>
+            </menu>
+          </header>
+          <section className="h-[22rem] min-h-0 overflow-hidden">
+            {catalogPreviewKind ? <MediaCatalogRichMediaPreview item={SMOKE_CATALOG_MEDIA[catalogPreviewKind]} onClose={() => setCatalogPreviewKind(null)} /> : null}
+          </section>
+        </article>
+
         <article className={smokePanelCardClassName} data-kg-smoke-panel="storyboard-widget">
           <header className="mb-3">
             <h2 className="text-sm font-semibold">Storyboard Widget Chrome</h2>
@@ -347,14 +329,6 @@ export function RichMediaBrowserSmokePage() {
       </section>
 
       <aside className="mx-auto mt-6 w-full max-w-7xl rounded-2xl border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-4" aria-label="Rich media smoke diagnostics">
-        <menu className="mb-4 flex list-none gap-2 p-0" aria-label="Lightbox placement smoke actions">
-          <li>
-            <button type="button" data-kg-smoke-open-image-lightbox="1" onClick={() => openLightbox('image')}>Open image lightbox</button>
-          </li>
-          <li>
-            <button type="button" data-kg-smoke-open-video-lightbox="1" onClick={() => openLightbox('video')}>Open video lightbox</button>
-          </li>
-        </menu>
         <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <dt className="font-semibold">Editable Text</dt>
           <dd data-kg-smoke-edit-value="1" className="text-[var(--kg-text-secondary)]">{editableText}</dd>

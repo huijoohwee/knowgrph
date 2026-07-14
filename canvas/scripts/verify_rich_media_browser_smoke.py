@@ -12,7 +12,7 @@ BASE_URL = os.environ.get("KG_RICH_MEDIA_SMOKE_BASE_URL", "http://localhost:4175
 TARGET_URL = f"{BASE_URL}/__smoke__/rich-media"
 OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
 SCREENSHOT_PATH = OUTPUT_DIR / "rich-media-browser-smoke.png"
-LIGHTBOX_SCREENSHOT_PATH = OUTPUT_DIR / "rich-media-lightbox-browser-smoke.png"
+CATALOG_PREVIEW_SCREENSHOT_PATH = OUTPUT_DIR / "rich-media-catalog-preview-browser-smoke.png"
 
 
 def assert_canvas_has_visual_content(canvas, artifact_name: str) -> None:
@@ -79,25 +79,26 @@ def open_text_edit_input(page):
     raise AssertionError("expected rich media text edit panel to reveal the inline editor surface")
 
 
-def assert_lightbox_parent_placement(page, kind: str) -> None:
-    page.locator(f'[data-kg-smoke-open-{kind}-lightbox="1"]').click()
-    lightbox = page.locator(f'[data-kg-media-lightbox-kind="{kind}"]').first
-    panel = lightbox.locator(f'[data-kg-media-lightbox-{kind}="1"] [data-kg-rich-media-panel="1"]').first
-    media = panel.locator("video" if kind == "video" else "img").first
-    expect(lightbox).to_be_visible()
+def assert_catalog_preview_parent_placement(page, kind: str) -> None:
+    page.locator(f'[data-kg-smoke-open-{kind}-preview="1"]').click()
+    preview = page.locator(f'[data-kg-media-catalog-preview-kind="{kind}"]').first
+    panel = preview.locator('[data-kg-rich-media-panel="1"]').first
+    media = preview.locator("video" if kind == "video" else "img").first
+    expect(preview).to_be_visible()
     expect(panel).to_be_visible()
     expect(panel).to_have_attribute("data-kg-overlay-placement-owner", "parent")
     expect(media).to_be_visible()
     panel_box = panel.bounding_box()
     media_box = media.bounding_box()
-    if not panel_box or panel_box["width"] < 640 or panel_box["height"] < 360:
-        raise AssertionError(f"expected expanded {kind} panel to fill the lightbox, got {panel_box}")
-    if not media_box or media_box["width"] < 600 or media_box["height"] < 320:
-        raise AssertionError(f"expected expanded {kind} media to fill the shared panel, got {media_box}")
+    if not panel_box or panel_box["width"] < 280 or panel_box["height"] < 260:
+        raise AssertionError(f"expected {kind} preview to fill FloatingPanel Media, got {panel_box}")
+    if not media_box or media_box["width"] < 240 or media_box["height"] < 180:
+        raise AssertionError(f"expected {kind} media to fill the shared Rich Media Panel, got {media_box}")
+    expect(page.locator('[data-kg-media-lightbox="1"]')).to_have_count(0)
     if kind == "video":
-        page.screenshot(path=str(LIGHTBOX_SCREENSHOT_PATH))
-    lightbox.locator('[data-kg-media-lightbox-close="1"]').click()
-    expect(lightbox).to_have_count(0)
+        page.locator('[data-kg-smoke-panel="floating-media-preview"]').screenshot(path=str(CATALOG_PREVIEW_SCREENSHOT_PATH))
+    preview.locator('[data-kg-media-catalog-preview-close="1"]').click()
+    expect(preview).to_have_count(0)
 
 
 def main() -> None:
@@ -169,13 +170,13 @@ def main() -> None:
             expect(resize_handle).to_be_visible()
             expect(page.locator('[data-kg-smoke-flow-size="1"]')).to_contain_text("320x220")
 
-            assert_lightbox_parent_placement(page, "image")
-            assert_lightbox_parent_placement(page, "video")
+            assert_catalog_preview_parent_placement(page, "image")
+            assert_catalog_preview_parent_placement(page, "video")
 
             page.screenshot(path=str(SCREENSHOT_PATH), full_page=True)
             print(f"OK rich-media-browser-smoke {TARGET_URL}")
             print(f"Screenshot: {SCREENSHOT_PATH}")
-            print(f"Lightbox screenshot: {LIGHTBOX_SCREENSHOT_PATH}")
+            print(f"Catalog preview screenshot: {CATALOG_PREVIEW_SCREENSHOT_PATH}")
         finally:
             browser.close()
 

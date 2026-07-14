@@ -24,6 +24,7 @@ import { MediaActionCard, MediaActionRow, MediaCandidateCard, MediaCandidateRow,
 import { MediaActionListRow, MediaCandidateListRow, MediaSourceMetadataListRow, UploadedMediaListRow } from './mediaCatalogListItems'
 import { UploadedMediaCard, UploadedMediaRow } from './mediaCatalogUploadedItems'
 import { buildUploadedMediaInfoLabel, readUploadedMediaDescription, readUploadedMediaFieldText } from './mediaCatalogUploadedFields'
+import { MediaCatalogRichMediaPreview } from './MediaCatalogRichMediaPreview'
 
 type MediaCatalogPanelViewProps = {
   catalogLayout: MediaCatalogLayout
@@ -35,7 +36,7 @@ type MediaCatalogPanelViewProps = {
   importUrlBusy: boolean
   importUrlDraft: string
   importUrlPromptOpen: boolean
-  lightboxItem: UploadedMediaPanelItem | null
+  previewItem: UploadedMediaPanelItem | null
   mediaActions: readonly MediaPanelActionSpec[]
   mediaDescriptionDrafts: UploadedMediaDescriptionDrafts
   mediaFieldDrafts: UploadedMediaFieldDrafts
@@ -48,7 +49,7 @@ type MediaCatalogPanelViewProps = {
   uploadInputRef: React.RefObject<HTMLInputElement | null>
   uploadedMediaItems: UploadedMediaPanelItem[]
   onCloseGenerateLightbox: () => void
-  onCloseLightbox: () => void
+  onClosePreview: () => void
   onDeleteUploadedMedia: (item: UploadedMediaPanelItem) => void
   onDescriptionChange: (item: UploadedMediaPanelItem, nextDescription: string) => void
   onDragCommandMenuMedia: (event: React.DragEvent<HTMLElement>, item: CommandMenuRichMediaItem) => void
@@ -82,7 +83,7 @@ export function MediaCatalogPanelView({
   importUrlBusy,
   importUrlDraft,
   importUrlPromptOpen,
-  lightboxItem,
+  previewItem,
   mediaActions,
   mediaDescriptionDrafts,
   mediaFieldDrafts,
@@ -95,7 +96,7 @@ export function MediaCatalogPanelView({
   uploadInputRef,
   uploadedMediaItems,
   onCloseGenerateLightbox,
-  onCloseLightbox,
+  onClosePreview,
   onDeleteUploadedMedia,
   onDescriptionChange,
   onDragCommandMenuMedia,
@@ -156,13 +157,6 @@ export function MediaCatalogPanelView({
       {...animationAttributes}
       style={animationStyle}
     >
-      <MediaLightbox
-        open={!!lightboxItem}
-        src={lightboxItem?.linkUrl || ''}
-        alt={lightboxItem?.name || 'Uploaded media'}
-        kind={lightboxItem?.kind || 'media'}
-        onClose={() => onCloseLightbox()}
-      />
       <MediaLightbox
         open={generateLightboxOpen}
         src={generatedMediaItem?.linkUrl || ''}
@@ -261,7 +255,11 @@ export function MediaCatalogPanelView({
           />
         )}
       />
-      <section ref={panelRef} className={floatingPanelCatalogBodyClassName()} data-kg-floating-panel-catalog-body="media">
+      <section ref={panelRef} className={floatingPanelCatalogBodyClassName(previewItem ? 'overflow-hidden' : undefined)} data-kg-floating-panel-catalog-body="media">
+        {previewItem ? (
+          <MediaCatalogRichMediaPreview item={previewItem} onClose={onClosePreview} />
+        ) : (
+          <>
         {importUrlPromptOpen ? (
           <section
             className={cn('mb-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}
@@ -401,6 +399,8 @@ export function MediaCatalogPanelView({
             </section>
           )}
         </section>
+          </>
+        )}
       </section>
     </section>
   )
