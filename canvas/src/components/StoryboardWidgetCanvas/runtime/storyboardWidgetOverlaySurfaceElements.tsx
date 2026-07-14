@@ -75,7 +75,7 @@ export function buildOverlayEditorElements(args: {
   getLiveZoomTransform?: () => { k: number; x: number; y: number } | null
   getLiveContainmentGroupAabbForNode?: (nodeId: string) => { groupId: string; minX: number; minY: number; maxX: number; maxY: number } | null
   beginAddEdgeFromNode: (nodeId: string, portKey?: string | null) => void
-  finalizePendingEdge: (nodeId: string, portKey?: string | null) => void
+  finalizePendingEdge: (nodeId: string, portKey?: string | null, source?: { nodeId: string; portKey: string | null }) => void
   setNodeLabelById: (nodeId: string, label: string) => void
   setNodeTypeById: (nodeId: string, type: string) => void
   patchNodePropertiesById: (nodeId: string, patch: Record<string, unknown>) => void

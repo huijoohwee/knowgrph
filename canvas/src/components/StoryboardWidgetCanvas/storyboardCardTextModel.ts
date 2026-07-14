@@ -43,7 +43,8 @@ export const buildStoryboardCardTextModel = (card: StoryboardCardTextSource): St
   const secondaryRaw = secondaryCandidate?.raw || ''
   return {
     primaryRaw,
-    primaryDisplay: primaryRaw,
+    // The media album already owns embedded asset previews; keep the text column readable.
+    primaryDisplay: readStoryboardCardSummaryText(primaryRaw),
     primaryField,
     secondaryRaw,
     secondaryDisplay: readStoryboardCardSummaryText(secondaryRaw),

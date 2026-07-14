@@ -25,7 +25,7 @@ type PortHandleInteractionContextValue = {
   toolMode: 'select' | 'addEdge'
   beginEdge: (nodeId: string, portKey?: string | null) => void
   cancelEdge: () => void
-  finalizeEdge: (nodeId: string, portKey?: string | null) => void
+  finalizeEdge: (nodeId: string, portKey?: string | null, source?: { nodeId: string; portKey: string | null }) => void
 }
 
 const PortHandleInteractionContext = React.createContext<PortHandleInteractionContextValue | null>(null)
@@ -65,7 +65,10 @@ export function StoryboardWidgetOverlayPortHandleProvider(props: React.PropsWith
       const targetNodeId = String(detail?.targetNodeId || '').trim()
       if (!targetNodeId) return
       event.preventDefault()
-      value.finalizeEdge(targetNodeId, detail.targetPortKey)
+      value.finalizeEdge(targetNodeId, detail.targetPortKey, {
+        nodeId: String(detail.sourceNodeId || '').trim(),
+        portKey: String(detail.sourcePortKey || '').trim() || null,
+      })
     }
     const handleCancel = (event: Event) => {
       const detail = (event as CustomEvent<FlowPortHandleCancelDetail>).detail

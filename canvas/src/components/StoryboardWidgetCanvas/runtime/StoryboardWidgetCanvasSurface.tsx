@@ -64,7 +64,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
   pendingEdgeSourceId: string | null
   beginAddEdgeFromNode: (nodeId: string, portKey?: string | null) => void
   cancelPendingEdge: () => void
-  finalizePendingEdge: (nodeId: string, portKey?: string | null) => void
+  finalizePendingEdge: (nodeId: string, portKey?: string | null, source?: { nodeId: string; portKey: string | null }) => void
   runWorkflowNode: (nodeId: string) => Promise<void> | void
   inspectorPortalHost: HTMLElement | null
   inspectorElement: React.ReactNode
