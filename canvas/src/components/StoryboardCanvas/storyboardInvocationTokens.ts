@@ -14,6 +14,11 @@ const INVOCATION_TEXT_KEYS = [
   'hash',
   'hashToken',
   'hashTokens',
+  'at',
+  'atToken',
+  'atTokens',
+  'binding',
+  'bindings',
 ] as const
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
@@ -40,17 +45,19 @@ const readInvocationTextValues = (record: Record<string, unknown>): string[] => 
   return values
 }
 
-const readPrimarySlashAndHashTokens = (values: readonly string[]): string[] => {
+const readPrimaryInvocationTokens = (values: readonly string[]): string[] => {
   let slash = ''
+  let binding = ''
   let hash = ''
   values.forEach(value => {
     splitInvocationTokenSegments(value).forEach(segment => {
       if (segment.kind !== 'token') return
       if (!slash && segment.tokenKind === 'slash') slash = segment.value
+      if (!binding && segment.tokenKind === 'binding') binding = segment.value
       if (!hash && segment.tokenKind === 'keyword') hash = segment.value
     })
   })
-  return [slash, hash].filter(Boolean)
+  return [slash, binding, hash].filter(Boolean)
 }
 
 const collectStageLikeRecords = (value: unknown, out: Record<string, unknown>[], depth = 0): void => {
@@ -76,7 +83,7 @@ export const buildStoryboardInvocationTokensByLane = (graphData: GraphData | nul
   stages.forEach(stage => {
     const key = laneKey(stage.lane)
     if (!key || byLane.has(key)) return
-    const tokens = readPrimarySlashAndHashTokens(readInvocationTextValues(stage))
+    const tokens = readPrimaryInvocationTokens(readInvocationTextValues(stage))
     if (tokens.length > 0) byLane.set(key, tokens)
   })
   return byLane
@@ -88,7 +95,7 @@ export const readStoryboardCardInvocationTokens = (
   stageTokensByLane: ReadonlyMap<string, readonly string[]>,
 ): string[] => {
   const properties = isRecord(node.properties) ? node.properties : {}
-  const directTokens = readPrimarySlashAndHashTokens(readInvocationTextValues(properties))
+  const directTokens = readPrimaryInvocationTokens(readInvocationTextValues(properties))
   if (directTokens.length > 0) return directTokens
   return [...(stageTokensByLane.get(laneKey(lane)) || [])]
 }

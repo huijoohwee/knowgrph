@@ -96,7 +96,7 @@ export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
 
   await new Promise<void>(resolve => setTimeout(resolve, 20))
 
-  const overlayButtons = Array.from(overlayHost.querySelectorAll<HTMLButtonElement>('button[data-kg-port-handle="1"]'))
+  const overlayButtons = Array.from(overlayHost.querySelectorAll('button[data-kg-port-handle="1"]')) as HTMLButtonElement[]
   if (overlayButtons.length !== 2) throw new Error(`expected Card/Rich Media overlay to render 2 handles, got ${overlayButtons.length}`)
   if (overlayButtons.some(button => button.style.top !== '50%')) {
     throw new Error(`expected Card/Rich Media handles at vertical middle, got ${overlayButtons.map(button => button.style.top).join(', ')}`)
