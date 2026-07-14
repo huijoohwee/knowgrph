@@ -110,6 +110,27 @@ test('report validator accepts the canonical example through stdin and rejects m
   )
   assert.notEqual(invalidResult.status, 0)
   assert.match(invalidResult.stderr, /must NOT have additional properties/)
+
+  const invalidJsonResult = spawnSync(
+    'npm',
+    ['run', '--silent', 'collaboration:report:check', '--', '--json', '-'],
+    { cwd: repoRoot, encoding: 'utf8', input: JSON.stringify(invalidExample) },
+  )
+  assert.notEqual(invalidJsonResult.status, 0)
+  assert.equal(invalidJsonResult.stdout, '')
+  const failure = JSON.parse(invalidJsonResult.stderr)
+  assert.equal(failure.status, 'failed')
+  assert.equal(failure.input, 'stdin')
+  assert.equal(failure.error.code, 'schema-validation-failed')
+  assert.match(failure.error.message, /must NOT have additional properties/)
+
+  const malformedJsonResult = spawnSync(
+    'npm',
+    ['run', '--silent', 'collaboration:report:check', '--', '--json', '-'],
+    { cwd: repoRoot, encoding: 'utf8', input: '{' },
+  )
+  assert.notEqual(malformedJsonResult.status, 0)
+  assert.equal(JSON.parse(malformedJsonResult.stderr).error.code, 'invalid-json')
 })
 
 test('report schema rejects unknown fields and mutated workflow checks', async () => {
