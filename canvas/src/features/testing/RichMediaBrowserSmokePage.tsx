@@ -73,7 +73,7 @@ const SMOKE_AUDIO_DATA_URL =
   'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA='
 
 const SMOKE_CATALOG_MEDIA: Record<'image' | 'video', UploadedMediaPanelItem> = {
-  image: { id: 'smoke-image', name: 'Floating media image.png', kind: 'image', localUrl: '', linkUrl: '/demo/placeholder.svg', contentType: 'image/svg+xml', sizeBytes: 0, status: 'local', storage: null, error: null },
+  image: { id: 'smoke-image', name: 'Floating media image.png', kind: 'image', localUrl: '', linkUrl: '/demo/placeholder.svg?catalog-preview-timing=1', contentType: 'image/svg+xml', sizeBytes: 0, status: 'local', storage: null, error: null },
   video: { id: 'smoke-video', name: 'Floating media video.mp4', kind: 'video', localUrl: '', linkUrl: 'data:video/mp4;base64,AAAA', contentType: 'video/mp4', sizeBytes: 0, status: 'local', storage: null, error: null },
 }
 

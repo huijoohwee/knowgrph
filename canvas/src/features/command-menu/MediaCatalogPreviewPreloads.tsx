@@ -42,8 +42,18 @@ function MediaCatalogPreviewPreloadResource(props: { item: MediaCatalogPreviewPr
 
   React.useEffect(() => {
     const resource = resourceRef.current
+    if (!resource) return
+    // Strict Mode replays cleanup; setup must restore the source it owns.
+    resource.setAttribute('src', item.url)
+    if (resource.tagName === 'VIDEO') {
+      try {
+        ;(resource as HTMLVideoElement).load()
+      } catch {
+        void 0
+      }
+    }
     return () => {
-      if (resource) releasePreloadElement(resource)
+      releasePreloadElement(resource)
     }
   }, [item.url])
 
@@ -51,7 +61,6 @@ function MediaCatalogPreviewPreloadResource(props: { item: MediaCatalogPreviewPr
     return (
       <video
         ref={resourceRef as React.RefObject<HTMLVideoElement | null>}
-        src={item.url}
         preload="metadata"
         muted
         playsInline
@@ -66,7 +75,6 @@ function MediaCatalogPreviewPreloadResource(props: { item: MediaCatalogPreviewPr
   return (
     <img
       ref={resourceRef as React.RefObject<HTMLImageElement | null>}
-      src={item.url}
       alt=""
       decoding="async"
       loading="eager"
@@ -82,7 +90,11 @@ export function MediaCatalogPreviewPreloads(props: {
 }) {
   if (!props.items.length) return null
   return (
-    <aside hidden aria-hidden="true" data-kg-media-catalog-preview-preloads="1">
+    <aside
+      aria-hidden="true"
+      className="pointer-events-none fixed -left-2 -top-2 h-px w-px overflow-hidden opacity-0"
+      data-kg-media-catalog-preview-preloads="1"
+    >
       {props.items.map(item => <MediaCatalogPreviewPreloadResource key={item.id} item={item} />)}
     </aside>
   )

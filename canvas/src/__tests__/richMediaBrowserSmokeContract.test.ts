@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 export function testRichMediaBrowserSmokeContract() {
   const appSource = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8')
   const smokePageSource = readFileSync(new URL('../features/testing/RichMediaBrowserSmokePage.tsx', import.meta.url), 'utf8')
+  const preloadSource = readFileSync(new URL('../features/command-menu/MediaCatalogPreviewPreloads.tsx', import.meta.url), 'utf8')
   const packageJson = readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
   const runnerSource = readFileSync(new URL('../../scripts/run_rich_media_browser_smoke.mjs', import.meta.url), 'utf8')
   const verifierSource = readFileSync(new URL('../../scripts/verify_rich_media_browser_smoke.py', import.meta.url), 'utf8')
@@ -35,6 +36,17 @@ export function testRichMediaBrowserSmokeContract() {
     }
   }
 
+  for (const snippet of [
+    'data-kg-media-catalog-preview-preloads="1"',
+    'pointer-events-none fixed -left-2 -top-2 h-px w-px overflow-hidden opacity-0',
+    "resource.setAttribute('src', item.url)",
+    'Strict Mode replays cleanup; setup must restore the source it owns.',
+  ]) {
+    if (!preloadSource.includes(snippet)) {
+      throw new Error(`expected media preview preloads to remain fetchable while visually isolated: ${snippet}`)
+    }
+  }
+
   if (!packageJson.includes('"test:smoke:rich-media:browser": "node ./scripts/run_rich_media_browser_smoke.mjs"')) {
     throw new Error('expected package.json to expose rich media browser smoke command')
   }
@@ -64,6 +76,12 @@ export function testRichMediaBrowserSmokeContract() {
     'KG_RICH_MEDIA_SMOKE_BASE_URL',
     'data-kg-smoke-panel="storyboard-widget"',
     'data-kg-smoke-flow-size="1"',
+    'CATALOG_PREVIEW_READY_BUDGET_MS',
+    'KG_MEDIA_PREVIEW_READY_BUDGET_MS',
+    'CATALOG_PREVIEW_TIMING_PATH',
+    'def wait_for_image_ready(page, image, timeout_ms: int) -> None:',
+    'expected preloaded image preview ready within',
+    'preloadedTransitionReadyMs',
     'OK rich-media-browser-smoke',
   ]) {
     if (!verifierSource.includes(snippet)) {
