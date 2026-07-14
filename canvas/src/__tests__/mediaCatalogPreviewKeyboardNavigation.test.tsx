@@ -1,6 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MediaCatalogRichMediaPreview } from '@/features/command-menu/MediaCatalogRichMediaPreview'
+import { resolveMediaCatalogPreviewAdjacentItems } from '@/features/command-menu/useMediaCatalogPreviewNavigation'
 import type { UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { waitForFrames } from '@/tests/lib/reactRootHarness'
@@ -46,23 +47,56 @@ const PREVIEW_ITEMS: UploadedMediaPanelItem[] = [
 
 function KeyboardNavigationHarness() {
   const [item, setItem] = React.useState(PREVIEW_ITEMS[0]!)
-  return (
+  const [open, setOpen] = React.useState(true)
+  return open ? (
     <MediaCatalogRichMediaPreview
       item={item}
       items={PREVIEW_ITEMS}
-      onClose={() => void 0}
+      onClose={() => setOpen(false)}
       onNavigate={setItem}
     />
-  )
+  ) : <p data-kg-media-catalog-preview-closed="1">Preview closed</p>
 }
 
 export async function assertMediaCatalogPreviewKeyboardNavigation() {
+  const threeItemSequence = [
+    PREVIEW_ITEMS[0]!,
+    PREVIEW_ITEMS[2]!,
+    { ...PREVIEW_ITEMS[0]!, id: 'keyboard-image-second', name: 'keyboard-image-second.svg' },
+  ]
+  const adjacentItems = resolveMediaCatalogPreviewAdjacentItems(threeItemSequence, 0)
+  if (adjacentItems.map(item => item.id).join(',') !== 'keyboard-image-second,keyboard-video') {
+    throw new Error('expected preload planning to return the distinct previous and next media items')
+  }
+  const dedupedAdjacentItems = resolveMediaCatalogPreviewAdjacentItems([PREVIEW_ITEMS[0]!, PREVIEW_ITEMS[2]!], 0)
+  if (dedupedAdjacentItems.map(item => item.id).join(',') !== 'keyboard-video') {
+    throw new Error('expected two-item wraparound to preload its shared adjacent item once')
+  }
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   let fullscreenTarget: Element | null = null
   let exitFullscreenCalls = 0
+  let releasedVideoPauseCalls = 0
+  let releasedVideoLoadCalls = 0
+  const videoPrototype = dom.window.HTMLVideoElement.prototype
+  const originalVideoPause = Object.getOwnPropertyDescriptor(videoPrototype, 'pause')
+  const originalVideoLoad = Object.getOwnPropertyDescriptor(videoPrototype, 'load')
+  Object.defineProperty(videoPrototype, 'pause', {
+    configurable: true,
+    value: function pause() {
+      if (this.getAttribute('data-kg-media-catalog-preview-preload') === '1') releasedVideoPauseCalls += 1
+    },
+  })
+  Object.defineProperty(videoPrototype, 'load', {
+    configurable: true,
+    value: function load() {
+      if (this.getAttribute('data-kg-media-catalog-preview-preload') === '1' && !this.hasAttribute('src')) {
+        releasedVideoLoadCalls += 1
+      }
+    },
+  })
   Object.defineProperty(dom.window.document, 'fullscreenElement', {
     configurable: true,
     get: () => fullscreenTarget,
@@ -96,7 +130,23 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
       if (preview.getAttribute('data-kg-media-catalog-preview-count') !== '2') throw new Error('expected navigation to exclude audio and include two image/video items')
       if (!preview.querySelector(kind === 'video' ? 'video' : 'img')) throw new Error(`expected Rich Media Panel to render ${kind}`)
     }
+    const assertPreloadKind = (kind: 'image' | 'video') => {
+      const preview = dom.window.document.querySelector('[data-kg-media-catalog-preview="1"]')
+      if (!(preview instanceof dom.window.HTMLElement)) throw new Error('expected expanded media catalog preview for preload assertion')
+      if (preview.getAttribute('data-kg-media-catalog-preview-preload-count') !== '1') {
+        throw new Error('expected the duplicate previous/next item to preload once')
+      }
+      if (preview.getAttribute('data-kg-media-catalog-preview-preload-kinds') !== kind) {
+        throw new Error(`expected adjacent ${kind} preload metadata`)
+      }
+      const resource = preview.querySelector(`[data-kg-media-catalog-preview-preload-kind="${kind}"]`)
+      if (!(resource instanceof dom.window.HTMLElement) || !resource.hasAttribute('src')) {
+        throw new Error(`expected adjacent ${kind} preload resource`)
+      }
+      return resource
+    }
     assertPreviewKind('image')
+    const initialVideoPreload = assertPreloadKind('video')
     const fullscreenButton = dom.window.document.querySelector('[data-kg-media-catalog-preview-fullscreen="1"]')
     if (!(fullscreenButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected expanded Rich Media Panel to restore the fullscreen action')
     await act(async () => {
@@ -128,6 +178,10 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
         await waitForFrames(dom.window, 2)
       })
       assertPreviewKind(kind)
+      assertPreloadKind(kind === 'image' ? 'video' : 'image')
+    }
+    if (initialVideoPreload.hasAttribute('src') || releasedVideoPauseCalls < 1 || releasedVideoLoadCalls < 1) {
+      throw new Error('expected obsolete video preload to pause, clear its source, and release its resource')
     }
     const previousButton = dom.window.document.querySelector('[data-kg-media-catalog-preview-previous="1"]')
     const nextButton = dom.window.document.querySelector('[data-kg-media-catalog-preview-next="1"]')
@@ -139,11 +193,13 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
       await waitForFrames(dom.window, 2)
     })
     assertPreviewKind('video')
+    assertPreloadKind('image')
     await act(async () => {
       previousButton.click()
       await waitForFrames(dom.window, 2)
     })
     assertPreviewKind('image')
+    assertPreloadKind('video')
     const preview = dom.window.document.querySelector('[data-kg-media-catalog-preview="1"]')
     if (!(preview instanceof dom.window.HTMLElement) || preview.getAttribute('data-kg-media-catalog-preview-touch-navigation') !== 'horizontal-swipe') {
       throw new Error('expected expanded preview to expose horizontal touch-swipe navigation')
@@ -173,8 +229,23 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
       await waitForFrames(dom.window, 2)
     })
     assertPreviewKind('image')
+    const finalVideoPreload = assertPreloadKind('video')
+    const closeButton = dom.window.document.querySelector('[data-kg-media-catalog-preview-close="1"]')
+    if (!(closeButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected media preview close action')
+    await act(async () => {
+      closeButton.click()
+      await waitForFrames(dom.window, 2)
+    })
+    if (dom.window.document.querySelector('[data-kg-media-catalog-preview="1"]')) {
+      throw new Error('expected close action to unmount the expanded preview')
+    }
+    if (dom.window.document.querySelector('[data-kg-media-catalog-preview-preload="1"]') || finalVideoPreload.hasAttribute('src')) {
+      throw new Error('expected close action to remove and release adjacent preload resources')
+    }
   } finally {
     await act(async () => root.unmount())
+    if (originalVideoPause) Object.defineProperty(videoPrototype, 'pause', originalVideoPause)
+    if (originalVideoLoad) Object.defineProperty(videoPrototype, 'load', originalVideoLoad)
     restore()
   }
 }

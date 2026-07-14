@@ -7,6 +7,24 @@ type TouchPoint = { x: number; y: number }
 const MINIMUM_HORIZONTAL_SWIPE_PX = 48
 const HORIZONTAL_SWIPE_DOMINANCE_RATIO = 1.25
 
+export function resolveMediaCatalogPreviewAdjacentItems(
+  navigableItems: readonly UploadedMediaPanelItem[],
+  activeIndex: number,
+): UploadedMediaPanelItem[] {
+  if (activeIndex < 0 || navigableItems.length < 2) return []
+  const adjacentIndexes = [
+    (activeIndex - 1 + navigableItems.length) % navigableItems.length,
+    (activeIndex + 1) % navigableItems.length,
+  ]
+  const seenIds = new Set<string>()
+  return adjacentIndexes.flatMap(index => {
+    const adjacentItem = navigableItems[index]
+    if (!adjacentItem || seenIds.has(adjacentItem.id)) return []
+    seenIds.add(adjacentItem.id)
+    return [adjacentItem]
+  })
+}
+
 export function useMediaCatalogPreviewNavigation(args: {
   item: UploadedMediaPanelItem
   items: readonly UploadedMediaPanelItem[]
@@ -20,6 +38,10 @@ export function useMediaCatalogPreviewNavigation(args: {
   )
   const activeIndex = navigableItems.findIndex(candidate => candidate.id === item.id)
   const canNavigate = activeIndex >= 0 && navigableItems.length > 1
+  const adjacentItems = React.useMemo(
+    () => resolveMediaCatalogPreviewAdjacentItems(navigableItems, activeIndex),
+    [activeIndex, navigableItems],
+  )
   const navigate = React.useCallback((direction: NavigationDirection) => {
     if (!canNavigate) return
     const nextIndex = (activeIndex + direction + navigableItems.length) % navigableItems.length
@@ -66,6 +88,7 @@ export function useMediaCatalogPreviewNavigation(args: {
 
   return {
     activeIndex,
+    adjacentItems,
     canNavigate,
     count: navigableItems.length,
     navigate,

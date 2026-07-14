@@ -110,6 +110,11 @@ def assert_catalog_preview_parent_placement(page, kind: str) -> None:
     media = preview.locator("video" if kind == "video" else "img").first
     expect(preview).to_be_visible()
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-placement", "legacy-lightbox")
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-count", "1")
+    expect(preview).to_have_attribute(
+        "data-kg-media-catalog-preview-preload-kinds", "video" if kind == "image" else "image"
+    )
+    expect(preview.locator('[data-kg-media-catalog-preview-preload="1"]')).to_have_count(1)
     expect(panel).to_be_visible()
     expect(panel).to_have_attribute("data-kg-overlay-placement-owner", "parent")
     expect(media).to_be_visible()
@@ -138,6 +143,7 @@ def assert_catalog_preview_parent_placement(page, kind: str) -> None:
         preview.screenshot(path=str(CATALOG_PREVIEW_SCREENSHOT_PATH))
     preview.locator('[data-kg-media-catalog-preview-close="1"]').click()
     expect(preview).to_have_count(0)
+    expect(page.locator('[data-kg-media-catalog-preview-preload="1"]')).to_have_count(0)
 
 
 def assert_catalog_preview_arrow_navigation(page) -> None:
@@ -146,6 +152,8 @@ def assert_catalog_preview_arrow_navigation(page) -> None:
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "image")
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-count", "2")
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-touch-navigation", "horizontal-swipe")
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-count", "1")
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-kinds", "video")
 
     previous_button = preview.locator('[data-kg-media-catalog-preview-previous="1"]')
     next_button = preview.locator('[data-kg-media-catalog-preview-next="1"]')
@@ -153,8 +161,10 @@ def assert_catalog_preview_arrow_navigation(page) -> None:
     expect(next_button).to_be_visible()
     next_button.click()
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "video")
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-kinds", "image")
     previous_button.click()
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "image")
+    expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-kinds", "video")
 
     def swipe(start_x: int, start_y: int, end_x: int, end_y: int) -> None:
         preview.evaluate(
@@ -191,6 +201,7 @@ def assert_catalog_preview_arrow_navigation(page) -> None:
 
     preview.locator('[data-kg-media-catalog-preview-close="1"]').click()
     expect(preview).to_have_count(0)
+    expect(page.locator('[data-kg-media-catalog-preview-preload="1"]')).to_have_count(0)
 
 
 def main() -> None:
