@@ -8,6 +8,8 @@ export function testRichMediaBrowserSmokeContract() {
   const packageJson = readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
   const runnerSource = readFileSync(new URL('../../scripts/run_rich_media_browser_smoke.mjs', import.meta.url), 'utf8')
   const verifierSource = readFileSync(new URL('../../scripts/verify_rich_media_browser_smoke.py', import.meta.url), 'utf8')
+  const timingSchemaSource = readFileSync(new URL('../../schemas/rich-media-catalog-preview-timing.v1.schema.json', import.meta.url), 'utf8')
+  const timingValidatorSource = readFileSync(new URL('../../scripts/lib/rich-media-catalog-preview-timing-schema.mjs', import.meta.url), 'utf8')
   const fixtureManifestSource = readFileSync(new URL('../features/testing/richMediaBrowserSmokeFixtures.json', import.meta.url), 'utf8')
   const fixtureManifest = JSON.parse(fixtureManifestSource) as {
     catalogVideo: { durationSeconds: number; height: number; path: string; sha256: string; sizeBytes: number; width: number }
@@ -76,6 +78,32 @@ export function testRichMediaBrowserSmokeContract() {
   if (!packageJson.includes('"test:smoke:rich-media:browser": "node ./scripts/run_rich_media_browser_smoke.mjs"')) {
     throw new Error('expected package.json to expose rich media browser smoke command')
   }
+  if (!packageJson.includes('"validate:rich-media-catalog-preview-timing": "node ./scripts/validate_rich_media_catalog_preview_timing.mjs"')) {
+    throw new Error('expected package.json to expose timing artifact schema validation')
+  }
+
+  for (const snippet of [
+    'https://json-schema.org/draft/2020-12/schema',
+    'https://knowgrph.dev/schemas/rich-media-catalog-preview-timing/v1',
+    '"additionalProperties": false',
+    '"const": "rich-media-catalog-preview-timing/v1"',
+    '"required": ["expected", "preloaded", "visible"]',
+  ]) {
+    if (!timingSchemaSource.includes(snippet)) {
+      throw new Error(`expected versioned Rich Media timing schema contract: ${snippet}`)
+    }
+  }
+
+  for (const snippet of [
+    "import Ajv2020 from 'ajv/dist/2020.js'",
+    'new Ajv2020({ allErrors: true, strict: true })',
+    'validateRichMediaCatalogPreviewTimingArtifact',
+    'invalid ${RICH_MEDIA_CATALOG_PREVIEW_TIMING_SCHEMA} artifact',
+  ]) {
+    if (!timingValidatorSource.includes(snippet)) {
+      throw new Error(`expected strict Rich Media timing validator contract: ${snippet}`)
+    }
+  }
 
   for (const snippet of [
     "import { runLocalViteBrowserSmoke } from './lib/run-local-vite-browser-smoke.mjs'",
@@ -105,6 +133,8 @@ export function testRichMediaBrowserSmokeContract() {
     'CATALOG_PREVIEW_READY_BUDGET_MS',
     'KG_MEDIA_PREVIEW_READY_BUDGET_MS',
     'CATALOG_PREVIEW_TIMING_PATH',
+    'CATALOG_PREVIEW_TIMING_SCHEMA = "rich-media-catalog-preview-timing/v1"',
+    'CATALOG_PREVIEW_TIMING_VALIDATOR_PATH',
     'FIXTURE_MANIFEST_PATH',
     'richMediaBrowserSmokeFixtures.json',
     'def wait_for_image_ready(page, image, timeout_ms: int) -> None:',
@@ -114,6 +144,7 @@ export function testRichMediaBrowserSmokeContract() {
     'math.isfinite(duration_seconds)',
     '"preloaded": preloaded_video_metadata',
     '"visible": visible_video_metadata',
+    'subprocess.run(',
     'expected preloaded image preview ready within',
     'expected preloaded video metadata ready within',
     '"criterion": "readyState >= HAVE_METADATA"',

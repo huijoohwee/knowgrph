@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://knowgrph.dev/schemas/rich-media-catalog-preview-timing/v1",
+  "title": "Knowgrph Rich Media Catalog Preview Timing Evidence v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "status", "budgetMs", "fixture", "image", "video"],
+  "properties": {
+    "schema": {
+      "const": "rich-media-catalog-preview-timing/v1"
+    },
+    "status": {
+      "const": "passed"
+    },
+    "budgetMs": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "fixture": {
+      "$ref": "#/$defs/fixtureIdentity"
+    },
+    "image": {
+      "$ref": "#/$defs/imageTiming"
+    },
+    "video": {
+      "$ref": "#/$defs/videoTiming"
+    }
+  },
+  "$defs": {
+    "fixtureIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "sizeBytes"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^/demo/.+\\.mp4$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "imageTiming": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["criterion", "coldOpenReadyMs", "preloadedTransitionReadyMs"],
+      "properties": {
+        "criterion": {
+          "const": "complete && naturalWidth > 0"
+        },
+        "coldOpenReadyMs": {
+          "$ref": "#/$defs/nonNegativeMilliseconds"
+        },
+        "preloadedTransitionReadyMs": {
+          "$ref": "#/$defs/nonNegativeMilliseconds"
+        }
+      }
+    },
+    "videoTiming": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["criterion", "metadata", "preloadedTransitionReadyMs"],
+      "properties": {
+        "criterion": {
+          "const": "readyState >= HAVE_METADATA"
+        },
+        "metadata": {
+          "$ref": "#/$defs/videoMetadataEvidence"
+        },
+        "preloadedTransitionReadyMs": {
+          "$ref": "#/$defs/nonNegativeMilliseconds"
+        }
+      }
+    },
+    "videoMetadataEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expected", "preloaded", "visible"],
+      "properties": {
+        "expected": {
+          "$ref": "#/$defs/expectedVideoMetadata"
+        },
+        "preloaded": {
+          "$ref": "#/$defs/observedVideoMetadata"
+        },
+        "visible": {
+          "$ref": "#/$defs/observedVideoMetadata"
+        }
+      }
+    },
+    "expectedVideoMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["durationSeconds", "durationToleranceSeconds", "height", "width"],
+      "properties": {
+        "durationSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "durationToleranceSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "height": {
+          "$ref": "#/$defs/positivePixels"
+        },
+        "width": {
+          "$ref": "#/$defs/positivePixels"
+        }
+      }
+    },
+    "observedVideoMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["durationSeconds", "height", "width"],
+      "properties": {
+        "durationSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "$ref": "#/$defs/positivePixels"
+        },
+        "width": {
+          "$ref": "#/$defs/positivePixels"
+        }
+      }
+    },
+    "nonNegativeMilliseconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "positivePixels": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}
