@@ -359,48 +359,49 @@ export function testBlankRichMediaPanelsStayOverlayOwnedBesideMeaningfulPanel() 
 export function testStoryboardSharedSurfaceSuppressesOpenRichMediaWidgetDuplicateOverlay() {
   const runtimePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.runtime.tsx')
   const surfacePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'StoryboardWidgetCanvasSurface.tsx')
+  const overlaySurfacePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx')
   const sharedPath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'storyboardWidgetCanvasShared.tsx')
   const runtimeText = fs.readFileSync(runtimePath, 'utf8')
   const surfaceText = fs.readFileSync(surfacePath, 'utf8')
+  const overlaySurfaceText = fs.readFileSync(overlaySurfacePath, 'utf8')
   const sharedText = fs.readFileSync(sharedPath, 'utf8')
 
   if (!runtimeText.includes('openWidgetNodeIds={overlayOpenWidgetNodeIds}')) {
-    throw new Error('expected Storyboard Widget runtime to pass the merged overlay widget owner ids into the shared surface for Rich Media duplicate suppression')
-  }
-  if (runtimeText.includes('() => storyboardWidgetDisplayActive ? storyboardWidgetNodeIds : openWidgetNodeIds')) {
-    throw new Error('expected Storyboard Widget runtime not to drop explicit open Rich Media widgets when Storyboard display mode owns fixed cards')
-  }
-  if (!runtimeText.includes('if (storyboardCardDisplayActive) return []')) {
-    throw new Error('expected Storyboard Card display mode to suppress floating widget shells, including Rich Media panels already owned by the canvas overlay')
+    throw new Error('expected Storyboard Widget runtime to pass merged overlay owners into the shared surface')
   }
   if (!runtimeText.includes('for (let i = 0; i < storyboardWidgetNodeIds.length; i += 1) pushId(storyboardWidgetNodeIds[i])')
     || !runtimeText.includes('for (let i = 0; i < openWidgetNodeIds.length; i += 1) pushId(openWidgetNodeIds[i])')) {
-    throw new Error('expected Storyboard Widget runtime to merge fixed Storyboard widget ids with explicit open widget ids before duplicate suppression')
+    throw new Error('expected fixed and explicit Storyboard widget ids to share one overlay-owner list')
+  }
+  if (!runtimeText.includes('if (storyboardCardDisplayActive) return []')) {
+    throw new Error('expected Storyboard Card display mode to suppress stale floating editor shells')
   }
   if (!surfaceText.includes("import { buildRichMediaPanelOverlayExcludeNodeIdSet } from '@/lib/render/richMediaSsot'")) {
-    throw new Error('expected Storyboard shared surface to reuse the upstream Rich Media overlay exclusion helper')
+    throw new Error('expected the shared surface to reuse Rich Media overlay exclusion SSOT')
   }
-  if (!surfaceText.includes('deriveStoryboardCanvasRichMediaPanelNodeIds')
-    || !surfaceText.includes('const storyboardCanvasRichMediaPanelNodeIds = storyboardCardsActive')
-    || !surfaceText.includes('for (const id of storyboardCanvasRichMediaPanelNodeIds) hiddenNodeIds.add(id)')) {
-    throw new Error('expected Storyboard Card display mode to hide canvas-owned Rich Media panels from FlowCanvas so the backing panel cannot shadow the Storyboard-owned panel')
+  if (!surfaceText.includes('const storyboardOpenWidgetNodeIds = React.useMemo')
+    || !surfaceText.includes('resolveGraphNodeByCanonicalId(storyboardGraphData, rawId)')) {
+    throw new Error('expected explicit open Card/Widget ids to resolve to canonical graph ids before native-scene exclusion')
   }
-  if (!surfaceText.includes('props.storyboardWidgetMode === true && Array.isArray(props.openWidgetNodeIds)')
-    || !surfaceText.includes('candidateRawIds: explicitOpenWidgetNodeIds')) {
-    throw new Error('expected Storyboard shared surface to keep the explicit open-widget Rich Media duplicate suppression path')
+  if (!surfaceText.includes('...storyboardOpenWidgetNodeIds')
+    || !surfaceText.includes('...storyboardOverlayConsumerNodeIds')) {
+    throw new Error('expected open Card/Widget overlays to suppress their conflicting native FlowCanvas node copies')
   }
-  if (!surfaceText.includes('for (const id of openRichMediaPanelNodeIds) hiddenNodeIds.add(id)')) {
-    throw new Error('expected open Rich Media widgets to be merged into the FlowCanvas hidden node ids instead of rendering a duplicate Rich Media overlay')
+  if (!surfaceText.includes("readFlowEdgePortKey(edge, 'target') === 'mediaUrl'")) {
+    throw new Error('expected explicit Rich Media Panel -> Card/Widget @ media edges to retain overlay ownership')
   }
-  const overlaySurfacePath = path.resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx')
-  const overlaySurfaceText = fs.readFileSync(overlaySurfacePath, 'utf8')
-  if (!overlaySurfaceText.includes('selectedNodeId: selectedOverlayEditorNodeIdForDerivation')) {
-    throw new Error('expected selected overlay editor node ids to pass through the shared Rich Media duplicate-suppression gate')
+  if (!surfaceText.includes('excludeRichMediaOverlayNodeIds={flowCanvasRichMediaOverlayExcludedNodeIds}')) {
+    throw new Error('expected open Rich Media Panel editors to suppress the duplicate automatic media overlay')
   }
-  if (!sharedText.includes("String(args.storyboardWidgetSurfaceId || '').trim() !== 'storyboard'") || !sharedText.includes('isRichMediaPanelNode(node) ? null : selectedNodeId')) {
-    throw new Error('expected selected Storyboard Rich Media panels to stay canvas-owned instead of opening a duplicate floating widget shell')
+  if (surfaceText.includes('filterGraphByExcludedNodeIds({')) {
+    throw new Error('expected duplicate cleanup to preserve the full edge graph and exclude only render surfaces')
   }
-  if (!overlaySurfaceText.includes("if (editorSurfaceKind === 'card') return []")) {
-    throw new Error('expected Storyboard Card display mode to remove stale floating overlay editor shells at the shared overlay surface')
+  if (!overlaySurfaceText.includes('selectedNodeId: selectedOverlayEditorNodeIdForDerivation')
+    || !overlaySurfaceText.includes("if (editorSurfaceKind === 'card') return []")) {
+    throw new Error('expected overlay selection and Card display mode to retain their duplicate-suppression gates')
+  }
+  if (!sharedText.includes("String(args.storyboardWidgetSurfaceId || '').trim() !== 'storyboard'")
+    || !sharedText.includes('isRichMediaPanelNode(node) ? null : selectedNodeId')) {
+    throw new Error('expected selected Storyboard Rich Media panels to remain canvas-owned')
   }
 }
