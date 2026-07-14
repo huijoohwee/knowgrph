@@ -1,5 +1,5 @@
 import React from 'react'
-import { X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
 import { readUploadedMediaPanelItemRuntimeUrl, type UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
@@ -14,6 +14,7 @@ import {
 } from '@/lib/ui/mediaExpandedPreviewLayout'
 import { MediaExpandedPreviewFullscreenButton } from '@/lib/ui/MediaExpandedPreviewFullscreenButton'
 import { cn } from '@/lib/utils'
+import { useMediaCatalogPreviewNavigation } from './useMediaCatalogPreviewNavigation'
 
 export function MediaCatalogRichMediaPreview(props: {
   item: UploadedMediaPanelItem
@@ -24,33 +25,7 @@ export function MediaCatalogRichMediaPreview(props: {
   const { item, items, onClose, onNavigate } = props
   const previewRef = React.useRef<HTMLElement | null>(null)
   const runtimeUrl = readUploadedMediaPanelItemRuntimeUrl(item)
-  const navigableItems = React.useMemo(
-    () => items.filter(candidate => candidate.kind === 'image' || candidate.kind === 'video'),
-    [items],
-  )
-  const activeIndex = navigableItems.findIndex(candidate => candidate.id === item.id)
-  const canNavigate = activeIndex >= 0 && navigableItems.length > 1
-
-  React.useEffect(() => {
-    if (!canNavigate) return
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-      const direction = event.key === 'ArrowLeft' || event.key === 'ArrowUp'
-        ? -1
-        : event.key === 'ArrowRight' || event.key === 'ArrowDown'
-          ? 1
-          : 0
-      if (!direction) return
-      const nextIndex = (activeIndex + direction + navigableItems.length) % navigableItems.length
-      const nextItem = navigableItems[nextIndex]
-      if (!nextItem) return
-      event.preventDefault()
-      event.stopPropagation()
-      onNavigate(nextItem)
-    }
-    window.addEventListener('keydown', handleKeyDown, true)
-    return () => window.removeEventListener('keydown', handleKeyDown, true)
-  }, [activeIndex, canNavigate, navigableItems, onNavigate])
+  const navigation = useMediaCatalogPreviewNavigation({ item, items, onNavigate })
 
   return (
     <PreviewOverlay
@@ -66,8 +41,10 @@ export function MediaCatalogRichMediaPreview(props: {
         data-kg-media-catalog-preview="1"
         data-kg-media-catalog-preview-kind={item.kind}
         data-kg-media-catalog-preview-placement="legacy-lightbox"
-        data-kg-media-catalog-preview-index={activeIndex >= 0 ? activeIndex + 1 : undefined}
-        data-kg-media-catalog-preview-count={navigableItems.length}
+        data-kg-media-catalog-preview-index={navigation.activeIndex >= 0 ? navigation.activeIndex + 1 : undefined}
+        data-kg-media-catalog-preview-count={navigation.count}
+        data-kg-media-catalog-preview-touch-navigation={navigation.canNavigate ? 'horizontal-swipe' : undefined}
+        {...navigation.touchHandlers}
       >
         <menu className="absolute right-2 top-2 z-20 m-0 flex list-none items-center gap-1 p-0" aria-label="Media preview actions">
           <li className="list-none">
@@ -91,10 +68,38 @@ export function MediaCatalogRichMediaPreview(props: {
             </button>
           </li>
         </menu>
-        {canNavigate ? (
-          <p className="sr-only" aria-live="polite" data-kg-media-catalog-preview-navigation="arrow-keys">
-            {`${item.name}, item ${activeIndex + 1} of ${navigableItems.length}. Use Left or Up for previous; Right or Down for next.`}
-          </p>
+        {navigation.canNavigate ? (
+          <>
+            <button
+              type="button"
+              className={cn('absolute left-2 top-1/2 z-20 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-black/50 text-white backdrop-blur-sm', UI_THEME_TOKENS.panel.border)}
+              title="Previous media"
+              aria-label="Previous media"
+              data-kg-media-catalog-preview-previous="1"
+              onClick={event => {
+                event.stopPropagation()
+                navigation.navigate(-1)
+              }}
+            >
+              <ChevronLeft className="h-5 w-5" strokeWidth={1.8} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className={cn('absolute right-2 top-1/2 z-20 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-black/50 text-white backdrop-blur-sm', UI_THEME_TOKENS.panel.border)}
+              title="Next media"
+              aria-label="Next media"
+              data-kg-media-catalog-preview-next="1"
+              onClick={event => {
+                event.stopPropagation()
+                navigation.navigate(1)
+              }}
+            >
+              <ChevronRight className="h-5 w-5" strokeWidth={1.8} aria-hidden />
+            </button>
+            <p className="sr-only" aria-live="polite" data-kg-media-catalog-preview-navigation="arrow-keys">
+              {`${item.name}, item ${navigation.activeIndex + 1} of ${navigation.count}. Use Previous, Left, or Up for the previous item; use Next, Right, or Down for the next item. Swipe horizontally on touch screens.`}
+            </p>
+          </>
         ) : null}
         <section className={MEDIA_EXPANDED_PREVIEW_PLAYER_FRAME_CLASS_NAME}>
           <section className={MEDIA_EXPANDED_PREVIEW_MEDIA_CLASS_NAME} data-kg-media-catalog-preview-panel="1">
