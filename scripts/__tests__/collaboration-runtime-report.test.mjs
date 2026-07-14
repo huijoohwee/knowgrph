@@ -88,6 +88,19 @@ test('report validator accepts the canonical example through stdin and rejects m
   assert.equal(validationResult.status, 0, validationResult.stderr)
   assert.match(validationResult.stdout, /collaboration runtime report passed/)
 
+  const jsonValidationResult = spawnSync(
+    'npm',
+    ['run', '--silent', 'collaboration:report:check', '--', '--json', '-'],
+    { cwd: repoRoot, encoding: 'utf8', input: exampleResult.stdout },
+  )
+  assert.equal(jsonValidationResult.status, 0, jsonValidationResult.stderr)
+  assert.deepEqual(JSON.parse(jsonValidationResult.stdout), {
+    status: 'passed',
+    schemaId: 'https://knowgrph.dev/schemas/collaboration-runtime-report/v1',
+    schemaVersion: COLLABORATION_RUNTIME_REPORT_SCHEMA,
+    input: 'stdin',
+  })
+
   const invalidExample = JSON.parse(exampleResult.stdout)
   invalidExample.legacyStatus = 'passed'
   const invalidResult = spawnSync(
@@ -127,6 +140,14 @@ test('artifact validator CLI accepts canonical output and rejects a mutated file
       { cwd: repoRoot, encoding: 'utf8' },
     )
     assert.equal(validResult.status, 0, validResult.stderr)
+
+    const validJsonResult = spawnSync(
+      process.execPath,
+      ['scripts/validate-collaboration-runtime-report.mjs', '--json', artifactPath],
+      { cwd: repoRoot, encoding: 'utf8' },
+    )
+    assert.equal(validJsonResult.status, 0, validJsonResult.stderr)
+    assert.equal(JSON.parse(validJsonResult.stdout).input, 'file')
 
     report.policies.pullRequestCoordination.status = 'unknown'
     await writeFile(artifactPath, `${JSON.stringify(report, null, 2)}\n`)
