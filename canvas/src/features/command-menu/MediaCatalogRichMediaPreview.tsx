@@ -1,5 +1,5 @@
 import React from 'react'
-import { Maximize2, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
 import { readUploadedMediaPanelItemRuntimeUrl, type UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
@@ -12,7 +12,7 @@ import {
   MEDIA_EXPANDED_PREVIEW_MEDIA_CLASS_NAME,
   MEDIA_EXPANDED_PREVIEW_RICH_PANEL_CLASS_NAME,
 } from '@/lib/ui/mediaExpandedPreviewLayout'
-import { requestMediaExpandedPreviewFullscreen } from '@/lib/ui/mediaExpandedPreviewFullscreen'
+import { MediaExpandedPreviewFullscreenButton } from '@/lib/ui/MediaExpandedPreviewFullscreenButton'
 import { cn } from '@/lib/utils'
 
 export function MediaCatalogRichMediaPreview(props: {
@@ -71,19 +71,10 @@ export function MediaCatalogRichMediaPreview(props: {
       >
         <menu className="absolute right-2 top-2 z-20 m-0 flex list-none items-center gap-1 p-0" aria-label="Media preview actions">
           <li className="list-none">
-            <button
-              type="button"
-              className={cn('inline-flex h-8 w-8 items-center justify-center rounded border bg-black/50 text-white backdrop-blur-sm', UI_THEME_TOKENS.panel.border)}
-              title="Enter fullscreen"
-              aria-label="Enter fullscreen"
-              data-kg-media-catalog-preview-fullscreen="1"
-              onClick={event => {
-                event.stopPropagation()
-                requestMediaExpandedPreviewFullscreen(previewRef.current)
-              }}
-            >
-              <Maximize2 className="h-4 w-4" strokeWidth={1.7} aria-hidden />
-            </button>
+            <MediaExpandedPreviewFullscreenButton
+              targetRef={previewRef}
+              dataAttributes={{ 'data-kg-media-catalog-preview-fullscreen': '1' }}
+            />
           </li>
           <li className="list-none">
             <button
