@@ -8,8 +8,12 @@ import { repoRoot } from '../collaboration-contract.mjs'
 import {
   COLLABORATION_RUNTIME_REPORT_SCHEMA,
   COLLABORATION_RUNTIME_REPORT_SCHEMA_PATH,
+  COLLABORATION_RUNTIME_VALIDATION_SCHEMA,
+  COLLABORATION_RUNTIME_VALIDATION_SCHEMA_PATH,
   readCollaborationRuntimeReportSchema,
+  readCollaborationRuntimeValidationSchema,
   validateCollaborationRuntimeReport,
+  validateCollaborationRuntimeValidation,
 } from '../collaboration-runtime-report.mjs'
 
 const readLocalReport = () => {
@@ -54,6 +58,23 @@ test('schema command emits the canonical schema without path knowledge', async (
   assert.equal(commandSchema.$id, 'https://knowgrph.dev/schemas/collaboration-runtime-report/v1')
 })
 
+test('validation schema command emits the canonical envelope schema without path knowledge', async () => {
+  const result = spawnSync('npm', ['run', '--silent', 'collaboration:report:check-schema'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  })
+  assert.equal(result.status, 0, result.stderr)
+
+  const commandSchema = JSON.parse(result.stdout)
+  const fileSource = await readFile(COLLABORATION_RUNTIME_VALIDATION_SCHEMA_PATH, 'utf8')
+  const fileSchema = JSON.parse(fileSource)
+  const sharedSchema = await readCollaborationRuntimeValidationSchema()
+  assert.equal(result.stdout, fileSource)
+  assert.deepEqual(commandSchema, fileSchema)
+  assert.deepEqual(sharedSchema, fileSchema)
+  assert.equal(commandSchema.$id, 'https://knowgrph.dev/schemas/collaboration-runtime-validation/v1')
+})
+
 test('example command emits the canonical local report without pull request context', async () => {
   const result = spawnSync('npm', ['run', '--silent', 'collaboration:report:example'], {
     cwd: repoRoot,
@@ -73,7 +94,7 @@ test('example command emits the canonical local report without pull request cont
   assert.equal(example.policies.pullRequestCoordination.status, 'not-applicable')
 })
 
-test('report validator accepts the canonical example through stdin and rejects mutations', () => {
+test('report validator accepts the canonical example through stdin and rejects mutations', async () => {
   const exampleResult = spawnSync('npm', ['run', '--silent', 'collaboration:report:example'], {
     cwd: repoRoot,
     encoding: 'utf8',
@@ -94,7 +115,10 @@ test('report validator accepts the canonical example through stdin and rejects m
     { cwd: repoRoot, encoding: 'utf8', input: exampleResult.stdout },
   )
   assert.equal(jsonValidationResult.status, 0, jsonValidationResult.stderr)
-  assert.deepEqual(JSON.parse(jsonValidationResult.stdout), {
+  const success = JSON.parse(jsonValidationResult.stdout)
+  await validateCollaborationRuntimeValidation(success)
+  assert.deepEqual(success, {
+    schema: COLLABORATION_RUNTIME_VALIDATION_SCHEMA,
     status: 'passed',
     schemaId: 'https://knowgrph.dev/schemas/collaboration-runtime-report/v1',
     schemaVersion: COLLABORATION_RUNTIME_REPORT_SCHEMA,
@@ -119,6 +143,8 @@ test('report validator accepts the canonical example through stdin and rejects m
   assert.notEqual(invalidJsonResult.status, 0)
   assert.equal(invalidJsonResult.stdout, '')
   const failure = JSON.parse(invalidJsonResult.stderr)
+  await validateCollaborationRuntimeValidation(failure)
+  assert.equal(failure.schema, COLLABORATION_RUNTIME_VALIDATION_SCHEMA)
   assert.equal(failure.status, 'failed')
   assert.equal(failure.input, 'stdin')
   assert.equal(failure.error.code, 'schema-validation-failed')
@@ -130,7 +156,32 @@ test('report validator accepts the canonical example through stdin and rejects m
     { cwd: repoRoot, encoding: 'utf8', input: '{' },
   )
   assert.notEqual(malformedJsonResult.status, 0)
-  assert.equal(JSON.parse(malformedJsonResult.stderr).error.code, 'invalid-json')
+  const malformedFailure = JSON.parse(malformedJsonResult.stderr)
+  await validateCollaborationRuntimeValidation(malformedFailure)
+  assert.equal(malformedFailure.error.code, 'invalid-json')
+})
+
+test('validation schema rejects unknown fields and error codes', async () => {
+  const failure = {
+    schema: COLLABORATION_RUNTIME_VALIDATION_SCHEMA,
+    status: 'failed',
+    input: 'unknown',
+    error: {
+      code: 'unknown-error',
+      message: 'unexpected failure',
+    },
+  }
+  await assert.rejects(
+    validateCollaborationRuntimeValidation(failure),
+    /must be equal to one of the allowed values/,
+  )
+
+  failure.error.code = 'validation-failed'
+  failure.legacyStatus = 'failed'
+  await assert.rejects(
+    validateCollaborationRuntimeValidation(failure),
+    /must NOT have additional properties/,
+  )
 })
 
 test('report schema rejects unknown fields and mutated workflow checks', async () => {
@@ -168,7 +219,9 @@ test('artifact validator CLI accepts canonical output and rejects a mutated file
       { cwd: repoRoot, encoding: 'utf8' },
     )
     assert.equal(validJsonResult.status, 0, validJsonResult.stderr)
-    assert.equal(JSON.parse(validJsonResult.stdout).input, 'file')
+    const success = JSON.parse(validJsonResult.stdout)
+    await validateCollaborationRuntimeValidation(success)
+    assert.equal(success.input, 'file')
 
     report.policies.pullRequestCoordination.status = 'unknown'
     await writeFile(artifactPath, `${JSON.stringify(report, null, 2)}\n`)
