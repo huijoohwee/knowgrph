@@ -226,6 +226,7 @@ export function testStoryboardCardInlineMediaChipsRetainInboundRichMediaPanels()
   const inboundEdges = third.graphData.edges.filter(edge => isStoryboardCardMediaDropEdge(edge, card.id))
   assert(panels.length === 3, `expected one Rich Media Panel per distinct inline media chip, got ${JSON.stringify(panels.map(node => node.id))}`)
   assert(inboundEdges.length === 3, `expected one inbound edge per distinct inline media chip, got ${JSON.stringify(inboundEdges)}`)
+  assert(new Set(inboundEdges.map(edge => edge.id)).size === 3, `expected retained inline media edges to keep unique ids across graph normalization, got ${JSON.stringify(inboundEdges.map(edge => edge.id))}`)
   assert(new Set(inboundEdges.map(edge => edge.source)).size === 3, 'expected each inline media panel to own one deduplicated inbound edge')
   assert(new Set(panels.map(panel => panel.x)).size === 3, `expected retained panels to use distinct visible placements, got ${JSON.stringify(panels.map(panel => panel.x))}`)
 

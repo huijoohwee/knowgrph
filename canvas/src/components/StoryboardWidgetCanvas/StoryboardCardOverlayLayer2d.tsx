@@ -387,13 +387,14 @@ export function StoryboardCardOverlayLayer2d(props: {
     preserveFormatting?: boolean
     propertyKeys: readonly string[]
   }) => {
+    const liveGraphData = useGraphStore.getState().graphData || graphData
     const node = readLatestNode(card.id)
     commitStoryboardCardCanonicalText2d({
       ...args,
       addHistory,
       cardId: String(node?.id || card.id).trim(),
       currentProperties: (node?.properties || {}) as Record<string, unknown>,
-      updateNode: (id, patch) => onNodeChange(id, patch, graphData),
+      updateNode: (id, patch) => onNodeChange(id, patch, liveGraphData),
     })
   }, [addHistory, graphData, onNodeChange, readLatestNode])
   const commitTitle = React.useCallback((card: StoryboardCardModel, nextValue: string) => {

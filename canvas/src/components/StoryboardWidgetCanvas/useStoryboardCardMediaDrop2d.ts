@@ -71,7 +71,10 @@ export function useStoryboardCardMediaDrop2d(args: {
   const dropCardMedia = React.useCallback((card: StoryboardCardModel, payload: MediaDragPayload) => {
     const url = readStoryboardScalar2d(payload.url)
     if (!url) return
-    const node = nodeById.get(card.id) || resolveGraphNodeByCanonicalId(graphData, card.id)
+    const liveGraphData = useGraphStore.getState().graphData || graphData
+    const node = resolveGraphNodeByCanonicalId(liveGraphData, card.id)
+      || nodeById.get(card.id)
+      || resolveGraphNodeByCanonicalId(graphData, card.id)
     if (!node) return
     setPendingMediaByCardId(current => ({
       ...current,
@@ -129,8 +132,8 @@ export function useStoryboardCardMediaDrop2d(args: {
         label: 'Storyboard media',
       })
     }
-    const nextGraph = resolveGraphNodeByCanonicalId(graphData, card.id)
-      ? applyStoryboardCardMediaDropGraph({ cardId: card.id, cardProperties: nextProperties, graphData, media: { ...payload, url } })
+    const nextGraph = resolveGraphNodeByCanonicalId(liveGraphData, card.id)
+      ? applyStoryboardCardMediaDropGraph({ cardId: card.id, cardProperties: nextProperties, graphData: liveGraphData, media: { ...payload, url } })
       : null
     if (nextGraph) {
       if (commitGraphData) commitGraphData(nextGraph.graphData)
