@@ -34,6 +34,7 @@ import {
 import {
   collectTextareaInvocationMediaAttachmentCandidateChips,
   readTextareaInvocationMediaReferenceKey,
+  TEXTAREA_INVOCATION_MEDIA_BOUNDARY,
   type TextareaInvocationMediaAttachment,
   type TextareaInvocationProjectedMediaChip,
 } from '@/lib/ui/textareaInvocationProjection'
@@ -302,10 +303,7 @@ function buildVirtualMediaChipHtml(args: {
     sourceUrl: args.sourceUrl,
     thumbnailUrl: args.thumbnailUrl,
   })
-  const className = [
-    args.prefixGap ? 'ml-[0.25em]' : '',
-    presentation.className,
-  ].filter(Boolean).join(' ')
+  const className = presentation.className
   const markdown = String(args.markdown || '').trim()
   const thumbnailClassName = readInlineMediaCommandThumbnailClassName({
     hasThumbnail: !!presentation.thumbnailUrl,
@@ -316,6 +314,7 @@ function buildVirtualMediaChipHtml(args: {
     ? `<img src="${escapeHtmlAttr(presentation.thumbnailUrl)}" alt="" class="${escapeHtmlAttr(INLINE_MEDIA_COMMAND_THUMBNAIL_IMAGE_CLASS_NAME)}" loading="lazy" decoding="async" draggable="false"/>`
     : ''
   return [
+    args.prefixGap ? escapeHtml(TEXTAREA_INVOCATION_MEDIA_BOUNDARY) : '',
     `<span class="${escapeHtmlAttr(className)}"`,
     ` ${CARD_INLINE_TEXT_VIEWER_VIRTUAL_MEDIA_CHIP_ATTRIBUTE}="1"`,
     markdown ? ` ${CARD_INLINE_TEXT_VIEWER_MEDIA_MARKDOWN_ATTRIBUTE}="${escapeHtmlAttr(markdown)}"` : ` ${INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR}="1"`,
@@ -365,6 +364,12 @@ export function readMarkdownInlineTextEditDraft(
   const virtualChips = Array.from(workingRoot.querySelectorAll(`[${CARD_INLINE_TEXT_VIEWER_VIRTUAL_MEDIA_CHIP_ATTRIBUTE}="1"]`))
   virtualChips.forEach(node => {
     const markdown = String(node.getAttribute(CARD_INLINE_TEXT_VIEWER_MEDIA_MARKDOWN_ATTRIBUTE) || '').trim()
+    if (!markdown) {
+      const previous = node.previousSibling
+      if (previous?.nodeType === 3 && String(previous.nodeValue || '').endsWith(TEXTAREA_INVOCATION_MEDIA_BOUNDARY)) {
+        previous.nodeValue = String(previous.nodeValue || '').slice(0, -TEXTAREA_INVOCATION_MEDIA_BOUNDARY.length)
+      }
+    }
     node.replaceWith(workingRoot.ownerDocument.createTextNode(markdown))
   })
   const markdown = readFastInlineMarkdownDraft(workingRoot, 'inline')

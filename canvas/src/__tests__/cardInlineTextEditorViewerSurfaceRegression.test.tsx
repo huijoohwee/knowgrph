@@ -295,6 +295,12 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     if (!(initialProjectedMediaChip instanceof dom.window.HTMLElement) || initialProjectedMediaChip.getAttribute(INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR) !== '1') {
       throw new Error(`expected attachment-only media to remain visible as a display-only chip while editing, html=${editor.innerHTML}`)
     }
+    if (initialProjectedMediaChip.className.includes('ml-[0.25em]')) {
+      throw new Error(`expected edit-mode projected media to avoid a margin-based position shift, html=${initialProjectedMediaChip.outerHTML}`)
+    }
+    if (initialProjectedMediaChip.previousSibling?.nodeType !== dom.window.Node.TEXT_NODE || !String(initialProjectedMediaChip.previousSibling.nodeValue || '').endsWith(' ')) {
+      throw new Error(`expected edit-mode projected media to reuse read-mode whitespace flow before the chip, html=${editor.innerHTML}`)
+    }
     directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
       value: initialValue,
       inlineChipDensity: 'compact',

@@ -16,6 +16,7 @@ import {
   readMediaAttachmentLabel,
   readTextareaInvocationMediaDisplayLabelFromLabel,
   sourceContainsTextareaInvocationMediaReference,
+  TEXTAREA_INVOCATION_MEDIA_BOUNDARY,
   type TextareaInvocationMediaAttachment,
   type TextareaInvocationProjectedMediaChip,
 } from '@/lib/ui/textareaInvocationProjectionMedia'
@@ -28,6 +29,7 @@ export { readTextareaInvocationProjectionTextClassName } from '@/lib/ui/textarea
 export {
   collectTextareaInvocationMediaAttachmentCandidateChips,
   readTextareaInvocationMediaReferenceKey,
+  TEXTAREA_INVOCATION_MEDIA_BOUNDARY,
   type TextareaInvocationMediaAttachment,
   type TextareaInvocationProjectedMediaChip,
 } from '@/lib/ui/textareaInvocationProjectionMedia'
@@ -62,7 +64,6 @@ type TextareaInvocationProjectedCaret = {
   partIndex: number
 }
 
-const CHAT_COMPOSER_MEDIA_BOUNDARY = ' '
 export const FLOATING_PANEL_CHAT_COMPOSER_PROJECTED_LAYOUT_CLASS_NAME =
   'kg-floating-chat-composer-projected leading-6 [--kg-multiline-text-input-editor-height:6.75rem] [--kg-multiline-text-input-editor-min-height:6.75rem]'
 export const TEXTAREA_INVOCATION_PROJECTED_LAYOUT_CLASS_NAME = 'kg-floating-chat-composer-projected'
@@ -142,8 +143,8 @@ function readMediaDisplayText(parts: ChatComposerMediaProjectionPart[], index: n
   const part = parts[index]
   if (!part || part.kind !== 'media') return ''
   const label = readMediaDisplayLabel(part)
-  const prefix = part.prefixBoundary ? CHAT_COMPOSER_MEDIA_BOUNDARY : ''
-  return shouldAddMediaDisplayBoundary(parts, index) ? `${prefix}${label}${CHAT_COMPOSER_MEDIA_BOUNDARY}` : `${prefix}${label}`
+  const prefix = part.prefixBoundary ? TEXTAREA_INVOCATION_MEDIA_BOUNDARY : ''
+  return shouldAddMediaDisplayBoundary(parts, index) ? `${prefix}${label}${TEXTAREA_INVOCATION_MEDIA_BOUNDARY}` : `${prefix}${label}`
 }
 
 function readMediaDisplayLabel(part: ChatComposerMediaPart): string {
@@ -249,11 +250,11 @@ export function resolveFloatingPanelChatComposerRawText(
     stableRawText += displayText.slice(stableCursor, index)
     if (part.kind === 'source-binding' || !part.virtual) stableRawText += part.raw
     stableCursor = displayEnd
-    if (part.kind === 'media' && part.displayText.endsWith(CHAT_COMPOSER_MEDIA_BOUNDARY) && displayText[stableCursor] === CHAT_COMPOSER_MEDIA_BOUNDARY) {
-      if (!part.virtual) stableRawText += CHAT_COMPOSER_MEDIA_BOUNDARY
-      stableCursor += CHAT_COMPOSER_MEDIA_BOUNDARY.length
-    } else if (part.kind === 'media' && fullIndex >= 0 && part.displayText.endsWith(CHAT_COMPOSER_MEDIA_BOUNDARY) && !part.virtual) {
-      stableRawText += CHAT_COMPOSER_MEDIA_BOUNDARY
+    if (part.kind === 'media' && part.displayText.endsWith(TEXTAREA_INVOCATION_MEDIA_BOUNDARY) && displayText[stableCursor] === TEXTAREA_INVOCATION_MEDIA_BOUNDARY) {
+      if (!part.virtual) stableRawText += TEXTAREA_INVOCATION_MEDIA_BOUNDARY
+      stableCursor += TEXTAREA_INVOCATION_MEDIA_BOUNDARY.length
+    } else if (part.kind === 'media' && fullIndex >= 0 && part.displayText.endsWith(TEXTAREA_INVOCATION_MEDIA_BOUNDARY) && !part.virtual) {
+      stableRawText += TEXTAREA_INVOCATION_MEDIA_BOUNDARY
     }
   }
   if (stableProjection) return stableRawText + displayText.slice(stableCursor)
