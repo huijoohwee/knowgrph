@@ -27,7 +27,6 @@ import { buildProceduralMediaMarkdown, generateProceduralMediaArtifact, readProc
 
 const MEDIA_INLINE_INSERT_ACTION_IDS: readonly InlineVariableCommandId[] = ['insert-image', 'insert-audio', 'insert-video']
 type MediaInlineInsertAction = (typeof INLINE_VARIABLE_COMMAND_ACTIONS)[number]
-
 const MEDIA_INLINE_INSERT_ACTIONS = MEDIA_INLINE_INSERT_ACTION_IDS
   .map(actionId => INLINE_VARIABLE_COMMAND_ACTIONS.find(action => action.id === actionId))
   .filter((action): action is MediaInlineInsertAction => !!action)
@@ -42,7 +41,7 @@ export function MediaCatalogPanel() {
   const [uploadedMediaItems, setUploadedMediaItems] = React.useState<UploadedMediaPanelItem[]>(readStoredUploadedMediaPanelItems)
   const [mediaDescriptionDrafts, setMediaDescriptionDrafts] = React.useState<UploadedMediaDescriptionDrafts>(readStoredMediaDescriptionDrafts)
   const [mediaFieldDrafts, setMediaFieldDrafts] = React.useState<UploadedMediaFieldDrafts>(readStoredMediaFieldDrafts)
-  const [lightboxItem, setLightboxItem] = React.useState<UploadedMediaPanelItem | null>(null)
+  const [previewItem, setPreviewItem] = React.useState<UploadedMediaPanelItem | null>(null)
   const [generateLightboxOpen, setGenerateLightboxOpen] = React.useState(false), [generateMediaBusy, setGenerateMediaBusy] = React.useState(false)
   const [generateMediaPrompt, setGenerateMediaPrompt] = React.useState(''), [generatedMediaItem, setGeneratedMediaItem] = React.useState<UploadedMediaPanelItem | null>(null)
   const [importUrlPromptOpen, setImportUrlPromptOpen] = React.useState(false)
@@ -461,13 +460,14 @@ export function MediaCatalogPanel() {
       return next
     })
     if (generatedMediaItem?.id === item.id) setGeneratedMediaItem(null)
+    if (previewItem?.id === item.id) setPreviewItem(null)
     removeGeneratedMediaSources(item)
     if (!item.storage) return
     removeUploadedMediaSources(item.storage)
     void deleteUploadedMediaFromKnowgrphStorage({ storage: item.storage }).catch(() => {
       void 0
     })
-  }, [generatedMediaItem?.id, removeGeneratedMediaSources, removeUploadedMediaSources])
+  }, [generatedMediaItem?.id, previewItem?.id, removeGeneratedMediaSources, removeUploadedMediaSources])
   const handleSelectUploadedMedia = React.useCallback((item: UploadedMediaPanelItem) => {
     if (!item.storage || item.status !== 'synced') return
     appendSyncedUploadedMediaSource({ itemId: item.id, name: item.name, kind: item.kind, storage: item.storage })
@@ -482,7 +482,7 @@ export function MediaCatalogPanel() {
     setActiveMediaKey(`media-upload:${item.storage.contentHash}`)
   }, [appendSyncedUploadedMediaSource, setActiveMediaKey, setMermaidFocus])
   const handlePreviewUploadedMedia = React.useCallback((item: UploadedMediaPanelItem) => {
-    setLightboxItem(item)
+    setPreviewItem(item)
   }, [])
   const handleDragCommandMenuMedia = React.useCallback((event: React.DragEvent<HTMLElement>, item: CommandMenuRichMediaItem) => {
     startMediaDrag(event, buildCommandMenuMediaDragPayload(item))
@@ -555,7 +555,7 @@ export function MediaCatalogPanel() {
       importUrlBusy={importUrlBusy}
       importUrlDraft={importUrlDraft}
       importUrlPromptOpen={importUrlPromptOpen}
-      lightboxItem={lightboxItem}
+      previewItem={previewItem}
       mediaActions={mediaActions}
       mediaDescriptionDrafts={mediaDescriptionDrafts}
       mediaFieldDrafts={mediaFieldDrafts}
@@ -568,7 +568,7 @@ export function MediaCatalogPanel() {
       uploadInputRef={uploadInputRef}
       uploadedMediaItems={uploadedMediaItems}
       onCloseGenerateLightbox={() => setGenerateLightboxOpen(false)}
-      onCloseLightbox={() => setLightboxItem(null)}
+      onClosePreview={() => setPreviewItem(null)}
       onDeleteUploadedMedia={handleDeleteUploadedMedia}
       onDescriptionChange={handleUploadedMediaDescriptionChange}
       onDragCommandMenuMedia={handleDragCommandMenuMedia}
