@@ -202,6 +202,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["ui.inlineCardEditor.markdownPreview.standaloneMediaDoesNotMutateProse","@/__tests__/cardInlineTextEditorMarkdownMediaPreviewRegression.test.tsx","testCardMarkdownPreviewStandaloneMediaDoesNotMutateProse"],
   ["ui.inlineCardEditor.markdownPreview.boundaryMediaDoesNotMutateProseTypography","@/__tests__/cardInlineTextEditorMarkdownMediaPreviewRegression.test.tsx","testCardMarkdownPreviewBoundaryMediaDoesNotMutateProseTypography"],
   ["ui.inlineCardEditor.markdownPreview.inlineImageDoesNotMutateProseTypography","@/__tests__/cardInlineTextEditorMarkdownMediaPreviewRegression.test.tsx","testCardMarkdownPreviewInlineImageDoesNotMutateProseTypography"],
+  ["ui.inlineCardEditor.markdownPreview.sharedMediaHoverPreview","@/__tests__/cardInlineTextEditorMarkdownMediaPreviewRegression.test.tsx","testCardMediaSurfacesReuseSharedHoverPreview"],
   ["ui.inlineCardEditor.markdownPreview.oneClickReopensDefaultEditor","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testCardInlineTextEditorMarkdownPreviewOneClickReopensDefaultEditor"],
   ["ui.storyboardWidget.inlineValue.firstInactiveClickCommits","@/__tests__/cardInlineTextEditorCommitRegression.test.tsx","testStoryboardWidgetInlineValueEditorFirstInactiveClickCommits"],
   ["ui.inlineCardEditor.sharedAcrossAnimaticFlowStoryboardAndKanban","@/__tests__/inlineCardEditingSourceContract.test.ts","testInlineCardEditingStaysSharedAcrossSurfaces"],

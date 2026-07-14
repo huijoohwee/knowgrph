@@ -13,6 +13,7 @@ import {
 } from '@/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore'
 import { coerceWorkspaceDataViewConfig, type WorkspaceDataViewConfig } from '@/features/markdown-workspace/main/viewer/workspaceDataViewConfig'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
+import { CardMediaAlbum } from '@/lib/cards/CardMediaAlbum'
 import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
 import { insertMediaIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
 import { writeCommandMenuMediaNameDraft } from '@/lib/command-menu/commandMenuMediaNameSync'
@@ -327,6 +328,76 @@ export async function testCardInlineTextEditorCompactProjectedAtMediaKeepsParagr
     }
     if (text.includes('Strybldr starter source.\n@空武.jpg')) {
       throw new Error(`expected compact card display not to force authored @ media chip onto a new line, got ${JSON.stringify(text)}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
+export async function testCardMediaSurfacesReuseSharedHoverPreview() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const imageUrl = 'https://example.com/shared-hover-preview.png'
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(React.Fragment, null,
+          React.createElement(CardMarkdownPreview, {
+            markdownText: `Review ![shared-hover-preview.png](${imageUrl}) source.`,
+            activeDocumentPath: '/hover-preview.md',
+            inlineChipDensity: 'compact',
+          }),
+          React.createElement(CardMediaAlbum, {
+            items: [{ kind: 'image', url: imageUrl, sourceUrl: imageUrl }],
+            title: 'Text Widget',
+          }),
+        ),
+      )
+      await waitForFrames(dom.window, 4)
+    })
+    const chip = container.querySelector('[data-kg-card-inline-media-pill="1"]')
+    if (!(chip instanceof dom.window.HTMLElement)) throw new Error(`expected inline media hover anchor, html=${container.innerHTML}`)
+    await act(async () => {
+      chip.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 4)
+    })
+    const chipPreview = dom.window.document.querySelector('[data-kg-card-media-hover-preview="1"]')
+    if (!(chipPreview instanceof dom.window.HTMLElement) || !chipPreview.querySelector('img[data-kg-card-media-kind="image"]')) {
+      throw new Error(`expected inline media hover to render the shared CardMediaPreview overlay, body=${dom.window.document.body.innerHTML}`)
+    }
+    await act(async () => {
+      chip.dispatchEvent(new dom.window.MouseEvent('mouseout', { bubbles: true, cancelable: true, relatedTarget: dom.window.document.body }))
+      await waitForFrames(dom.window, 2)
+    })
+    if (dom.window.document.querySelector('[data-kg-card-media-hover-preview="1"]')) {
+      throw new Error('expected inline media hover preview to close on mouse leave')
+    }
+    const albumTile = container.querySelector('[data-kg-card-media-album-item="1"]')
+    if (!(albumTile instanceof dom.window.HTMLElement)) throw new Error(`expected album media hover anchor, html=${container.innerHTML}`)
+    await act(async () => {
+      albumTile.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 4)
+    })
+    const albumPreview = dom.window.document.querySelector('[data-kg-card-media-hover-preview="1"]')
+    if (!(albumPreview instanceof dom.window.HTMLElement) || albumPreview.getAttribute('data-kg-card-media-hover-preview-kind') !== 'image') {
+      throw new Error(`expected album tile to reuse shared media hover preview, body=${dom.window.document.body.innerHTML}`)
+    }
+    const directMediaSurfaceText = readUtf8('../components/RichMediaPanelDirectMediaSurface.tsx')
+    const albumText = readUtf8('../lib/cards/CardMediaAlbum.tsx')
+    const markdownPreviewText = readUtf8('../lib/cards/CardMarkdownPreview.tsx')
+    for (const [label, source] of [
+      ['Rich Media Panel', directMediaSurfaceText],
+      ['Card media album', albumText],
+      ['inline media chip', markdownPreviewText],
+    ] as const) {
+      if (!source.includes('useCardMediaHoverPreview') || !source.includes('<CardMediaHoverPreview')) {
+        throw new Error(`expected ${label} to consume the shared media hover preview owner`)
+      }
     }
   } finally {
     await act(async () => {

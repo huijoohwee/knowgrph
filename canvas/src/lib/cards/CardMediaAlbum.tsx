@@ -1,9 +1,58 @@
 import { Play } from 'lucide-react'
+import { CardMediaHoverPreview, useCardMediaHoverPreview } from '@/lib/cards/CardMediaHoverPreview'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { MediaDownloadOverlay, MediaKindOverlay } from '@/lib/ui/MediaKindOverlay'
 import type { StoryboardMediaAlbumItem } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
 
 const CARD_MEDIA_ALBUM_VISIBLE_LIMIT = 6
+
+function CardMediaAlbumTile(props: {
+  item: StoryboardMediaAlbumItem
+  itemTitle: string
+  index: number
+  showOverflow: boolean
+  overflowCount: number
+}) {
+  const hoverPreview = useCardMediaHoverPreview<HTMLElement>()
+  const { item, itemTitle, index, showOverflow, overflowCount } = props
+  return (
+    <section
+      ref={hoverPreview.anchorRef}
+      {...hoverPreview.anchorProps}
+      className="kg-card-media-album-tile group"
+      aria-label={itemTitle}
+      data-kg-card-media-album-item="1"
+      data-kg-card-media-album-kind={item.kind}
+    >
+      <CardMediaPreview
+        title={itemTitle}
+        kind={item.kind}
+        url={item.url}
+        href={item.sourceUrl || item.url}
+        interactive={false}
+        fit="cover"
+        videoPoster={item.thumbnailUrl || undefined}
+        videoMuted
+        className="h-full w-full"
+        mediaClassName="h-full w-full"
+        mediaThumbnailDataAttr
+        mediaSelectableSurfaceDataAttr
+      />
+      {item.kind === 'video' ? <MediaKindOverlay Icon={Play} label="Video" appearance="always" /> : null}
+      <MediaDownloadOverlay href={item.url} kind={item.kind === 'svg' ? 'image' : item.kind} appearance="hover" label={`Download media ${index + 1}`} />
+      {showOverflow ? <span className="kg-card-media-album-overflow">+{overflowCount}</span> : null}
+      <CardMediaHoverPreview
+        anchorRef={hoverPreview.anchorRef}
+        kind={item.kind}
+        open={hoverPreview.show}
+        title={itemTitle}
+        tooltipId={hoverPreview.tooltipId}
+        url={item.url}
+        onClose={hoverPreview.close}
+      />
+    </section>
+  )
+}
 
 export function CardMediaAlbum({
   items,
@@ -26,33 +75,7 @@ export function CardMediaAlbum({
         {visibleItems.map((item, index) => {
           const itemTitle = `${title || 'Card'} media ${index + 1} of ${items.length}`
           const showOverflow = overflowCount > 0 && index === visibleItems.length - 1
-          return (
-            <section
-              key={`${item.kind}:${item.url}`}
-              className="kg-card-media-album-tile group"
-              aria-label={itemTitle}
-              data-kg-card-media-album-item="1"
-              data-kg-card-media-album-kind={item.kind}
-            >
-              <CardMediaPreview
-                title={itemTitle}
-                kind={item.kind}
-                url={item.url}
-                href={item.sourceUrl || item.url}
-                interactive={false}
-                fit="cover"
-                videoPoster={item.thumbnailUrl || undefined}
-                videoMuted
-                className="h-full w-full"
-                mediaClassName="h-full w-full"
-                mediaThumbnailDataAttr
-                mediaSelectableSurfaceDataAttr
-              />
-              {item.kind === 'video' ? <MediaKindOverlay Icon={Play} label="Video" appearance="always" /> : null}
-              <MediaDownloadOverlay href={item.url} kind={item.kind === 'svg' ? 'image' : item.kind} appearance="hover" label={`Download media ${index + 1}`} />
-              {showOverflow ? <span className="kg-card-media-album-overflow">+{overflowCount}</span> : null}
-            </section>
-          )
+          return <CardMediaAlbumTile key={`${item.kind}:${item.url}`} item={item} itemTitle={itemTitle} index={index} showOverflow={showOverflow} overflowCount={overflowCount} />
         })}
       </section>
     </section>

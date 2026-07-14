@@ -1,5 +1,6 @@
 import React from 'react'
 import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME } from '@/features/markdown/ui/dataViewChipStyles'
+import { CardMediaHoverPreview, useCardMediaHoverPreview } from '@/lib/cards/CardMediaHoverPreview'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { readCardInlineMediaTokens, type CardInlineMediaToken } from '@/lib/cards/cardInlineMediaTokens'
 import { InlineMediaCommandThumbnail } from '@/lib/command-menu/InlineMediaCommandThumbnail'
@@ -54,8 +55,11 @@ function splitCardMarkdownPreviewInlineParts(markdownText: string): {
 }
 
 function CardMarkdownPreviewInlineMediaChip({ media }: { media: CardMarkdownPreviewInlineMedia }) {
+  const hoverPreview = useCardMediaHoverPreview<HTMLAnchorElement>()
   return (
     <a
+      ref={hoverPreview.anchorRef}
+      {...hoverPreview.anchorProps}
       href={media.url}
       target="_blank"
       rel="noreferrer"
@@ -76,6 +80,15 @@ function CardMarkdownPreviewInlineMediaChip({ media }: { media: CardMarkdownPrev
         variant="inline"
       />
       <span className={CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME}>{media.label}</span>
+      <CardMediaHoverPreview
+        anchorRef={hoverPreview.anchorRef}
+        kind={media.kind}
+        open={hoverPreview.show}
+        title={media.label}
+        tooltipId={hoverPreview.tooltipId}
+        url={media.url}
+        onClose={hoverPreview.close}
+      />
     </a>
   )
 }

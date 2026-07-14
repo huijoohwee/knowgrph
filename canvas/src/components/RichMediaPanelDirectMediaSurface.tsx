@@ -1,5 +1,6 @@
 import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'
 import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
+import { CardMediaHoverPreview, useCardMediaHoverPreview } from '@/lib/cards/CardMediaHoverPreview'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { LS_KEYS } from '@/lib/config'
 import { shouldUseDirectRichMediaPanelSrcDocSandbox } from '@/lib/render/richMediaPanelSrcDoc'
@@ -13,11 +14,15 @@ export function RichMediaPanelDirectMediaSurface(args: {
   props: RichMediaPanelProps
 }) {
   const { model, props } = args
+  const hoverPreview = useCardMediaHoverPreview<HTMLElement>()
+  const hoverPreviewUrl = model.mediaSrc || model.openUrl || model.rawUrl
   const directVideoControls = model.kind === 'video' && (props.videoControls !== false || model.contentInteractive)
   const directVideoPassivePlayback = model.kind === 'video' && !directVideoControls
   if (model.kind === 'image' || model.kind === 'svg' || model.kind === 'video') {
     return (
       <section
+        ref={hoverPreview.anchorRef}
+        {...hoverPreview.anchorProps}
         className="group relative h-full w-full overflow-hidden"
         data-kg-rich-media-zoom-pan-viewport="1"
         style={{ background: 'transparent', pointerEvents: 'auto' }}
@@ -134,12 +139,21 @@ export function RichMediaPanelDirectMediaSurface(args: {
             className="bottom-auto top-1"
           />
         ) : null}
+        <CardMediaHoverPreview
+          anchorRef={hoverPreview.anchorRef}
+          kind={model.kind}
+          open={hoverPreview.show}
+          title={model.title}
+          tooltipId={hoverPreview.tooltipId}
+          url={hoverPreviewUrl}
+          onClose={hoverPreview.close}
+        />
       </section>
     )
   }
   if (model.kind === 'audio') {
     return (
-      <section className="group relative h-full w-full overflow-hidden">
+      <section ref={hoverPreview.anchorRef} {...hoverPreview.anchorProps} className="group relative h-full w-full overflow-hidden">
         <CardMediaPreview
           kind={model.kind}
           url={model.mediaSrc}
@@ -156,6 +170,15 @@ export function RichMediaPanelDirectMediaSurface(args: {
         {model.mediaSrc ? (
           <MediaDownloadOverlay href={model.mediaSrc} kind="audio" appearance="hover" className="bottom-auto top-1" />
         ) : null}
+        <CardMediaHoverPreview
+          anchorRef={hoverPreview.anchorRef}
+          kind="audio"
+          open={hoverPreview.show}
+          title={model.title}
+          tooltipId={hoverPreview.tooltipId}
+          url={hoverPreviewUrl}
+          onClose={hoverPreview.close}
+        />
       </section>
     )
   }
