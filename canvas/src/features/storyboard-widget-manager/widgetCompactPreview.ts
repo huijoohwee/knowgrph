@@ -7,6 +7,10 @@ import { setObjectPath } from '@/lib/data/objectPath'
 import { FRONTMATTER_FLOW_WIDGET_FIELDS_KEY } from '@/features/parsers/markdownFrontmatterFlowGraph.flowBlock'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { resolveWidgetIdentity } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
+import {
+  readImageToThreeJsRenderMode,
+  type ImageToThreeJsRenderMode,
+} from '@/features/image-to-threejs/imageToThreeJsContract'
 
 export type WidgetCompactPreviewKind = 'text' | 'image' | 'video' | 'audio'
 
@@ -33,6 +37,7 @@ export type WidgetCompactPreviewViewModel =
       sectionAriaLabel: 'Widget output preview'
       mediaUrl: string
       mediaAlt: string
+      renderMode?: ImageToThreeJsRenderMode
     }
   | {
       kind: 'video'
@@ -53,7 +58,7 @@ export function isEditableWidgetCompactPreviewText(
 
 export function buildWidgetCompactPreviewViewModel(args: {
   preview: WidgetCompactPreviewSpec | null | undefined
-  node: Pick<GraphNode, 'id' | 'label'> | null | undefined
+  node: Pick<GraphNode, 'id' | 'label' | 'properties'> | null | undefined
 }): WidgetCompactPreviewViewModel | null {
   const preview = args.preview
   if (!preview) return null
@@ -72,6 +77,7 @@ export function buildWidgetCompactPreviewViewModel(args: {
       sectionAriaLabel: 'Widget output preview',
       mediaUrl: String(preview.url || ''),
       mediaAlt: String(args.node?.label || args.node?.id || 'Widget image output'),
+      renderMode: readImageToThreeJsRenderMode(args.node?.properties),
     }
   }
   if (preview.kind === 'video') {

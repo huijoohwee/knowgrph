@@ -1,6 +1,12 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
+  ["imageToThreeJs.formats.supportedAndProxied","@/__tests__/imageToThreeJs.test","testImageToThreeJsSupportsPngJpgAndSvgIncludingProxyUrls"],
+  ["imageToThreeJs.contract.typedZeroCostPatch","@/__tests__/imageToThreeJs.test","testImageToThreeJsBuildsTypedZeroCostRenderPatch"],
+  ["imageToThreeJs.contract.rejectsUnsupported","@/__tests__/imageToThreeJs.test","testImageToThreeJsRejectsMissingAndUnsupportedSources"],
+  ["imageToThreeJs.skill.connectedSourcePrecedence","@/__tests__/imageToThreeJs.test","testImageToThreeJsSkillUsesConnectedImageBeforeLocalFallback"],
+  ["imageToThreeJs.surfaces.sharedRenderMode","@/__tests__/imageToThreeJs.test","testImageToThreeJsSkillRegistryAndMediaProjectionShareCanonicalMode"],
+  ["imageToThreeJs.three.nativeLifecycle","@/__tests__/imageToThreeJs.test","testImageToThreeJsSurfaceUsesNativeThreeLoadersAndExplicitDisposal"],
   ["graph.canonicalNodeIds.hotspotsForbidHandwrittenMatching","@/__tests__/canonicalNodeLookupSharedHelperRegression.test","testGraphRuntimeHotspotsForbidHandwrittenComposedNodeIdMatching"],
   ["history.versionControl.gitGraph.canonicalDeclaration","@/__tests__/mermaidGitGraphEdit.test","testVersionHistoryGitGraphUsesCanonicalDeclaration"],
   ["toolbar.history.undoRedo.sharedVersionControls","@/__tests__/historyViewEditHistoryUndoRedoRestore.test.tsx","testToolbarAndHistoryViewShareVersionUndoRedoControls"],

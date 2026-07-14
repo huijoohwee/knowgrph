@@ -8,6 +8,7 @@ import {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.storyboard-widget'
+import { isImageToThreeJsSkillNode } from '@/features/image-to-threejs/imageToThreeJsContract'
 import { FLOW_WIDGET_FORM_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import { downloadBlob, saveBlobWithPicker } from '@/lib/graph/save'
 import type { GeneratedBinaryAsset, RunGenerationConfig } from './byteplusRunGeneration'
@@ -22,7 +23,6 @@ import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { buildGeneratedMediaManifestMarkdown, buildGeneratedMediaWorkspaceEntries, publishGeneratedTextToStorage, uploadRichMediaBinaryToStorage } from './richMediaRunStorage'
 import { hasMediaAudioTrack } from './mediaAudioTrackProbe'
-
 export type RichMediaWidgetKind = 'image' | 'video' | 'annotation'
 
 export type RichMediaWidgetRunRequest = {
@@ -127,9 +127,9 @@ const readNodeProperty = (node: GraphNode, schemaPath: string): unknown => {
   }
   return getObjectPath(root, schemaPath)
 }
-
 export const resolveRichMediaWidgetKind = (node: GraphNode | null | undefined): RichMediaWidgetKind | null => {
   if (!node) return null
+  if (isImageToThreeJsSkillNode(node)) return 'image'
   const typeId = cleanString(node.type)
   if (typeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'image'
   if (typeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return 'video'
@@ -140,13 +140,11 @@ export const resolveRichMediaWidgetKind = (node: GraphNode | null | undefined): 
   if (formId === 'videoGeneration') return 'video'
   return null
 }
-
 export const isRichMediaOutputTargetNode = (node: GraphNode | null | undefined): boolean => {
   if (!node) return false
   if (cleanString(node.type) === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return true
   return resolveRichMediaWidgetKind(node) === 'video'
 }
-
 export const clearRichMediaOutputProperties = (properties: Record<string, unknown> | null | undefined): Record<string, unknown> => {
   const next = { ...(properties || {}) }
   delete next.imageUrl
@@ -170,6 +168,8 @@ export const clearRichMediaOutputProperties = (properties: Record<string, unknow
   delete next.outputModel
   delete next.outputSourceUrl
   delete next.outputSavedName
+  delete next.mediaRenderMode
+  delete next.imageThreeJsManifest
   delete next.outputSrcDoc
   delete next.outputLoading
   delete next.outputLoadingKind

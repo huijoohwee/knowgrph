@@ -169,6 +169,7 @@ export function DesignCanvasMediaOverlay(props: {
           srcDoc={node.srcDoc}
           openUrl={node.openUrl}
           kind={node.kind}
+          renderMode={node.renderMode}
           panelChrome="storyboardWidget"
           interactive={resolveRichMediaPanelInteractive({
             nodeInteractive: node.interactive,

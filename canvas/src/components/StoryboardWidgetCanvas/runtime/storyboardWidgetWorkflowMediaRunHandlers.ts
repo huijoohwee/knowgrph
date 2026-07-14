@@ -8,6 +8,11 @@ import { createHtmlVideoEngineRegistryFromRuntimeConfig } from '@/features/html-
 import { buildHtmlVideoPreviewSrcDocFromNode, runHtmlVideoFlowNode } from '@/features/html-video-renderer/htmlVideoFlowNode'
 import { runAnnotationFlowNode, toAnnotationPreviewSrcDoc } from '@/features/visual-annotation-engine'
 import type { StoryboardWidgetWorkflowNodeResolutionContext } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
+import {
+  buildImageToThreeJsConversion,
+  isImageToThreeJsSkillNode,
+  resolveImageToThreeJsSourceUrl,
+} from '@/features/image-to-threejs/imageToThreeJsContract'
 import { resolveStoryboardWidgetWorkflowConnectedValuesInput } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunInputs'
 import {
   stabilizeHtmlVideoPreviewPatchForExistingProps,
@@ -180,6 +185,52 @@ export async function runStoryboardWidgetMediaWorkflowNode(args: {
         }))
         args.upsertUiToast({ id: `storyboard-widget-run-${args.id}`, kind: 'warning', message: result.reason || result.errorCode, ttlMs: 3200 })
       }
+    } finally {
+      args.setRunLoadingStateForKnownNodeIds({ loading: false })
+    }
+    return true
+  }
+
+  if (isImageToThreeJsSkillNode(args.node)) {
+    args.setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'image' })
+    try {
+      const connectedValuesInput = resolveStoryboardWidgetWorkflowConnectedValuesInput({
+        context: args.context,
+        graphForRun: args.graphForRun,
+        writableNodeId: args.writableNodeId,
+        registry: args.widgetRegistry,
+      })
+      const sourceUrl = resolveImageToThreeJsSourceUrl({
+        node: args.node,
+        connectedValuesBySchemaPath: connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId),
+      })
+      const result = buildImageToThreeJsConversion(sourceUrl)
+      if (result.ok === false) {
+        args.updateRunOutputForKnownNodeIds(nodeProperties => ({
+          ...clearRichMediaOutputProperties(nodeProperties),
+          renderErrorCode: result.errorCode,
+          renderErrorReason: result.reason,
+          lastRunAt: new Date().toISOString(),
+        }))
+        args.upsertUiToast({
+          id: `storyboard-widget-run-${args.id}`,
+          kind: 'warning',
+          message: result.reason,
+          ttlMs: 3200,
+        })
+        return true
+      }
+      args.updateRunOutputForKnownNodeIds(nodeProperties => ({
+        ...clearRichMediaOutputProperties(nodeProperties),
+        ...result.patch,
+      }))
+      args.publishMediaRunOutputToRichMediaPanel({ anchorNode: args.node, patch: result.patch })
+      args.upsertUiToast({
+        id: `storyboard-widget-run-${args.id}`,
+        kind: 'success',
+        message: `Converted ${result.manifest.source.extension.toUpperCase()} to a Three.js ${result.manifest.render.primitive}.`,
+        ttlMs: 2600,
+      })
     } finally {
       args.setRunLoadingStateForKnownNodeIds({ loading: false })
     }

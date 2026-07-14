@@ -11,6 +11,8 @@ import {
   type CardMediaSkeletonVariant,
 } from '@/lib/cards/cardMediaPreviewUtils'
 import { resolveMediaPreviewSelectableDataAttr } from '@/lib/cards/mediaPreviewSurfaceSelection'
+import { ImageThreeJsSurface } from '@/features/image-to-threejs/ImageThreeJsSurface'
+import type { ImageToThreeJsRenderMode } from '@/features/image-to-threejs/imageToThreeJsContract'
 
 type SkeletonBlock = {
   width: string
@@ -317,6 +319,7 @@ export function CardMediaEmptyPlaceholder({
 
 export function CardMediaPreview({
   kind,
+  renderMode,
   url,
   srcDoc,
   title,
@@ -343,6 +346,7 @@ export function CardMediaPreview({
   onError,
 }: {
   kind: CardMediaKind | null | undefined
+  renderMode?: ImageToThreeJsRenderMode
   url: string
   srcDoc?: string
   title: string
@@ -399,6 +403,31 @@ export function CardMediaPreview({
           }
         },
       }
+
+  if ((kind === 'image' || kind === 'svg') && mediaUrl && renderMode === 'threejs') {
+    const src = proxyImageLike ? applyImageLikeProxySrc(mediaUrl) : mediaUrl
+    return (
+      <section
+        className={rootClassName}
+        data-kg-card-media-interactive={interactive ? '1' : undefined}
+        data-kg-media-thumbnail={mediaThumbnailDataAttr ? '1' : undefined}
+        data-kg-rich-media-selectable-surface={selectableSurfaceDataAttr}
+        data-kg-image-threejs-card-surface="1"
+        style={style}
+        {...mediaEventProps}
+      >
+        <ImageThreeJsSurface
+          sourceUrl={src}
+          title={title}
+          mediaClassName={mediaClassName}
+          mediaStyle={{ ...mediaPointerStyle, ...(mediaStyle || null) }}
+          interactive={interactive}
+          onReady={onReady}
+          onError={onError}
+        />
+      </section>
+    )
+  }
 
   if ((kind === 'image' || kind === 'svg') && mediaUrl) {
     const src = proxyImageLike ? applyImageLikeProxySrc(mediaUrl) : mediaUrl

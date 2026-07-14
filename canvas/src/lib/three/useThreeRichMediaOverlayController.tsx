@@ -496,7 +496,7 @@ export function useThreeRichMediaOverlayController(args: {
           url={n.url}
           srcDoc={n.srcDoc}
           openUrl={n.openUrl}
-          kind={n.kind}
+          kind={n.kind} renderMode={n.renderMode}
           panelChrome="storyboardWidget"
           widgetToolbarActive={true}
           headerPinned={readPanelPinned(n.id)}

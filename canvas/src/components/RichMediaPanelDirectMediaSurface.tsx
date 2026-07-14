@@ -101,6 +101,7 @@ export function RichMediaPanelDirectMediaSurface(args: {
           ) : (
             <CardMediaPreview
               kind={model.kind === 'svg' ? 'svg' : model.kind}
+              renderMode={props.renderMode}
               url={model.mediaSrc}
               title={model.title}
               {...model.directMediaPreviewCardProps}

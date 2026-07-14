@@ -1,6 +1,7 @@
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
 import {
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
+  IMAGE_TO_THREEJS_SKILL_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
@@ -178,6 +179,7 @@ export function isFrontmatterWidgetRegistryNode(
   return (
     nodeType === FLOW_TEXT_GENERATION_NODE_TYPE_ID
     || nodeType === FLOW_IMAGE_GENERATION_NODE_TYPE_ID
+    || nodeType === IMAGE_TO_THREEJS_SKILL_NODE_TYPE_ID
     || nodeType === FLOW_VIDEO_GENERATION_NODE_TYPE_ID
     || nodeType === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
   )

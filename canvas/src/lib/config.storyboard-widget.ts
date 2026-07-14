@@ -10,6 +10,12 @@ export {
   FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
 } from '@/lib/storyboardWidget/richMediaPanelConfig'
+export {
+  IMAGE_TO_THREEJS_SKILL_FORM_ID,
+  IMAGE_TO_THREEJS_SKILL_NODE_LABEL,
+  IMAGE_TO_THREEJS_SKILL_NODE_TYPE_ID,
+  IMAGE_TO_THREEJS_SKILL_WIDGET_TYPE_ID,
+} from '@/features/image-to-threejs/imageToThreeJsContract'
 import type { JSONValue } from '@/lib/graph/types'
 
 export type StoryboardWidgetSmartNodeModel = string

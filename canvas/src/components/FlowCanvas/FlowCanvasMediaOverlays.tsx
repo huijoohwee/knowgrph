@@ -818,7 +818,7 @@ export default function FlowCanvasMediaOverlays(args: {
               url={node.url}
               srcDoc={node.srcDoc}
               openUrl={node.openUrl}
-              kind={node.kind}
+              kind={node.kind} renderMode={node.renderMode}
               selected={isSelected}
               panelChrome="storyboardWidget" canvasOverlayPinned={richMediaPanelPinned}
               placementOwner="parent"

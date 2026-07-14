@@ -9,6 +9,7 @@ import {
   type RichMediaPanelTab,
 } from '@/lib/render/richMediaPanelState'
 import { normalizeRuntimeStorageMediaAccessUrl } from '@/lib/storage/runtimeMediaUrl'
+import type { ImageToThreeJsRenderMode } from '@/features/image-to-threejs/imageToThreeJsContract'
 
 type RichMediaDirectPreviewKind = 'image' | 'video' | 'audio'
 
@@ -19,6 +20,7 @@ export type RichMediaPanelPreviewSpec =
       openUrl?: string
       srcDoc?: string
       interactive: boolean
+      renderMode?: ImageToThreeJsRenderMode
     }
   | {
       kind: 'iframe'
@@ -26,6 +28,7 @@ export type RichMediaPanelPreviewSpec =
       openUrl?: string
       srcDoc?: string
       interactive: boolean
+      renderMode?: ImageToThreeJsRenderMode
     }
 
 export type ResolvedRichMediaPanelTab = Exclude<RichMediaPanelTab, 'auto'>
@@ -178,6 +181,7 @@ export function buildRichMediaPanelPreviewSpec(args: {
       openUrl: selectedUrl || rawOpenUrl || normalizeRuntimeStorageMediaAccessUrl({ url: renderSpec?.url }),
       srcDoc: selectedTab === 'video' ? fallbackSrcDoc || undefined : undefined,
       interactive: selectedTab === 'video' ? renderSpec?.interactive !== false : renderSpec?.interactive === true,
+      ...(selectedTab === 'image' && renderSpec?.renderMode ? { renderMode: renderSpec.renderMode } : {}),
     }
   }
   if (selectedTab === 'audio' || renderSpec?.kind === 'audio') {
