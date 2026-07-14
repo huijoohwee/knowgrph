@@ -39,7 +39,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: huijoohwee/agentic-canvas-os
-          ref: 9a37243c794e6bd4a86d0d58b1d9dc23e1541673
+          ref: 1ab765631b6e9c36ffa551cefa3574b0720da2de
           path: agentic-canvas-os
 
       - name: Checkout publish mirror for drift verification

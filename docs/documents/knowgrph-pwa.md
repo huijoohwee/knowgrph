@@ -10,7 +10,7 @@
 **Date**: 2026-05-08
 **Status**: Deployed (manifest, SW, install button, share target, regression tests)
 **Owner**: Knowgrph canonical docs
-**Cross-references**: `knowgrph-storage-sync-document.md` (deployment topology), `todo-log.md` (2026-05-08 entries)
+**Cross-references**: `knowgrph-storage-sync-document.md` (deployment topology), `agentic-canvas-os/todo/2026-05.md` (migrated 2026-05-08 planning history)
 
 ## Companion Files
 
