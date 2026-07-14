@@ -1,5 +1,6 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { MediaLightbox } from '@/lib/ui/MediaLightbox'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
@@ -26,9 +27,15 @@ async function assertMediaLightboxUsesRichMediaPanel(args: {
   const storage = new MemoryStorage()
   const { restore: restoreWindow } = initWindowHarness({ storage })
   const { dom, restore: restoreDom } = initJsdomHarness()
+  const previousCanvas2dRenderer = useGraphStore.getState().canvas2dRenderer
+  const previousFrontmatterModeEnabled = useGraphStore.getState().frontmatterModeEnabled
   let root: ReturnType<typeof createRoot> | null = null
 
   try {
+    useGraphStore.setState({
+      canvas2dRenderer: 'storyboard',
+      frontmatterModeEnabled: true,
+    })
     const doc = dom.window.document
     const container = doc.createElement('section')
     doc.body.appendChild(container)
@@ -65,6 +72,22 @@ async function assertMediaLightboxUsesRichMediaPanel(args: {
     if (richMediaPanel.getAttribute('data-kg-kind') !== args.kind) {
       throw new Error(`expected lightbox RichMediaPanel kind=${args.kind}, got ${String(richMediaPanel.getAttribute('data-kg-kind') || '')}`)
     }
+    if (richMediaPanel.getAttribute('data-kg-url') !== args.src) {
+      throw new Error(`expected ${args.kind} lightbox RichMediaPanel source to stay aligned with the catalog source`)
+    }
+    if (richMediaPanel.getAttribute('data-kg-overlay-placement-owner') !== 'parent') {
+      throw new Error(`expected ${args.kind} lightbox parent to own RichMediaPanel placement`)
+    }
+    if (richMediaPanel.style.position !== 'relative' || richMediaPanel.style.width !== '100%' || richMediaPanel.style.height !== '100%') {
+      throw new Error(`expected ${args.kind} lightbox RichMediaPanel to fill its parent surface`)
+    }
+    const mediaElement = mediaPanel.querySelector(args.kind === 'video' ? 'video' : 'img')
+    if (!(mediaElement instanceof dom.window.HTMLElement)) {
+      throw new Error(`expected ${args.kind} lightbox to render its native media element`)
+    }
+    if (!String(mediaElement.getAttribute('src') || '').trim()) {
+      throw new Error(`expected ${args.kind} lightbox native media source to be renderable`)
+    }
     const storyboardWidgetHeader = mediaPanel.querySelector('[data-kg-rich-media-storyboard-widget-header="1"]')
     if (!(storyboardWidgetHeader instanceof dom.window.HTMLElement)) {
       throw new Error(`expected ${args.kind} lightbox RichMediaPanel to preserve shared panel chrome`)
@@ -79,6 +102,10 @@ async function assertMediaLightboxUsesRichMediaPanel(args: {
     } catch {
       void 0
     }
+    useGraphStore.setState({
+      canvas2dRenderer: previousCanvas2dRenderer,
+      frontmatterModeEnabled: previousFrontmatterModeEnabled,
+    })
     restoreDom()
     restoreWindow()
   }
