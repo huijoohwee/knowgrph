@@ -9,33 +9,43 @@ export const COLLABORATION_RUNTIME_REPORT_SCHEMA_PATH = path.resolve(
   'schemas',
   'collaboration-runtime-report.v1.schema.json',
 )
+export const COLLABORATION_RUNTIME_VALIDATION_SCHEMA = 'knowgrph.collaboration-runtime-validation/v1'
+export const COLLABORATION_RUNTIME_VALIDATION_SCHEMA_PATH = path.resolve(
+  repoRoot,
+  'schemas',
+  'collaboration-runtime-validation.v1.schema.json',
+)
 
-let validatorPromise = null
-
-const loadValidator = async () => {
-  if (!validatorPromise) {
-    validatorPromise = readFile(COLLABORATION_RUNTIME_REPORT_SCHEMA_PATH, 'utf8')
-      .then(source => {
-        const schema = JSON.parse(source)
-        const ajv = new Ajv2020({ allErrors: true, strict: true })
-        return { ajv, schema, source, validate: ajv.compile(schema) }
-      })
+const createValidatorLoader = schemaPath => {
+  let validatorPromise = null
+  return async () => {
+    if (!validatorPromise) {
+      validatorPromise = readFile(schemaPath, 'utf8')
+        .then(source => {
+          const schema = JSON.parse(source)
+          const ajv = new Ajv2020({ allErrors: true, strict: true })
+          return { ajv, schema, source, validate: ajv.compile(schema) }
+        })
+    }
+    return validatorPromise
   }
-  return validatorPromise
 }
 
+const loadReportValidator = createValidatorLoader(COLLABORATION_RUNTIME_REPORT_SCHEMA_PATH)
+const loadValidationValidator = createValidatorLoader(COLLABORATION_RUNTIME_VALIDATION_SCHEMA_PATH)
+
 export const readCollaborationRuntimeReportSchema = async () => {
-  const { schema } = await loadValidator()
+  const { schema } = await loadReportValidator()
   return structuredClone(schema)
 }
 
 export const readCollaborationRuntimeReportSchemaSource = async () => {
-  const { source } = await loadValidator()
+  const { source } = await loadReportValidator()
   return source
 }
 
 export const validateCollaborationRuntimeReport = async report => {
-  const { ajv, schema, validate } = await loadValidator()
+  const { ajv, schema, validate } = await loadReportValidator()
   if (!validate(report)) {
     const detail = ajv.errorsText(validate.errors, { dataVar: 'report', separator: '; ' })
     throw new Error(`invalid ${COLLABORATION_RUNTIME_REPORT_SCHEMA}: ${detail}`)
@@ -44,6 +54,25 @@ export const validateCollaborationRuntimeReport = async report => {
     schemaId: schema.$id,
     schemaVersion: report.schema,
   }
+}
+
+export const readCollaborationRuntimeValidationSchema = async () => {
+  const { schema } = await loadValidationValidator()
+  return structuredClone(schema)
+}
+
+export const readCollaborationRuntimeValidationSchemaSource = async () => {
+  const { source } = await loadValidationValidator()
+  return source
+}
+
+export const validateCollaborationRuntimeValidation = async envelope => {
+  const { ajv, validate } = await loadValidationValidator()
+  if (!validate(envelope)) {
+    const detail = ajv.errorsText(validate.errors, { dataVar: 'validation', separator: '; ' })
+    throw new Error(`invalid ${COLLABORATION_RUNTIME_VALIDATION_SCHEMA}: ${detail}`)
+  }
+  return envelope
 }
 
 export const validateCollaborationRuntimeReportSource = async source => {

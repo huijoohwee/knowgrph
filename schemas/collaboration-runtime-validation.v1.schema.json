@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://knowgrph.dev/schemas/collaboration-runtime-validation/v1",
+  "title": "Knowgrph Collaboration Runtime Validation v1",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/success"
+    },
+    {
+      "$ref": "#/$defs/failure"
+    }
+  ],
+  "$defs": {
+    "success": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "status", "schemaId", "schemaVersion", "input"],
+      "properties": {
+        "schema": {
+          "const": "knowgrph.collaboration-runtime-validation/v1"
+        },
+        "status": {
+          "const": "passed"
+        },
+        "schemaId": {
+          "const": "https://knowgrph.dev/schemas/collaboration-runtime-report/v1"
+        },
+        "schemaVersion": {
+          "const": "knowgrph.collaboration-runtime-report/v1"
+        },
+        "input": {
+          "enum": ["stdin", "file"]
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "status", "input", "error"],
+      "properties": {
+        "schema": {
+          "const": "knowgrph.collaboration-runtime-validation/v1"
+        },
+        "status": {
+          "const": "failed"
+        },
+        "input": {
+          "enum": ["stdin", "file", "unknown"]
+        },
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": {
+              "enum": [
+                "invalid-arguments",
+                "invalid-json",
+                "schema-validation-failed",
+                "input-read-failed",
+                "validation-failed"
+              ]
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}
