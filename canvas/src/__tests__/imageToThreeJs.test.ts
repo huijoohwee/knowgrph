@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import * as THREE from 'three'
 import {
   IMAGE_TO_THREEJS_RENDER_MODE,
   IMAGE_TO_THREEJS_SCHEMA,
@@ -10,8 +11,13 @@ import {
   resolveImageToThreeJsSourceUrl,
 } from '@/features/image-to-threejs/imageToThreeJsContract'
 import { buildImageToThreeJsSkillRegistryDraft } from '@/features/image-to-threejs/imageToThreeJsWidget'
+import {
+  buildImageThreeJsSvgGroup,
+  disposeImageThreeJsObject,
+} from '@/features/image-to-threejs/ImageThreeJsSurface'
 import { getNodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 import { buildWidgetCompactPreviewViewModel } from '@/features/storyboard-widget-manager/widgetCompactPreview'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 
 export function testImageToThreeJsSupportsPngJpgAndSvgIncludingProxyUrls() {
   const cases = [
@@ -105,8 +111,10 @@ export function testImageToThreeJsSurfaceUsesNativeThreeLoadersAndExplicitDispos
     'SVGLoader.createShapes(path)',
     'SVGLoader.pointsToStroke(',
     'ownedTexture?.dispose()',
-    'disposeObject(ownedGroup)',
+    'disposeImageThreeJsObject(ownedGroup)',
     'frameloop="demand"',
+    'key={`svg:${sourceUrl}`}',
+    'key={`raster:${sourceUrl}`}',
   ]
   for (const token of required) {
     if (!source.includes(token)) throw new Error(`missing native Three.js lifecycle contract: ${token}`)
@@ -124,4 +132,54 @@ export function testImageToThreeJsSurfaceUsesNativeThreeLoadersAndExplicitDispos
   }
   const cardSource = readFileSync(new URL('../lib/cards/CardMediaPreview.tsx', import.meta.url), 'utf8')
   if (!cardSource.includes('<ImageThreeJsSurface')) throw new Error('expected shared Card media projection to own the Three.js surface')
+}
+
+export function testImageToThreeJsBuildsAndDisposesRealSvgGeometry() {
+  const harness = initJsdomHarness()
+  try {
+    const group = buildImageThreeJsSvgGroup([
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">',
+      '<rect x="4" y="4" width="112" height="72" rx="8" fill="#2563eb"/>',
+      '<path d="M16 58 L52 20 L104 60" fill="none" stroke="#f8fafc" stroke-width="6"/>',
+      '</svg>',
+    ].join(''))
+    const meshes: THREE.Mesh[] = []
+    group.traverse(object => {
+      if (object instanceof THREE.Mesh) meshes.push(object)
+    })
+    if (meshes.length < 2) throw new Error(`expected SVG fill and stroke meshes, got ${meshes.length}`)
+
+    const renderedBounds = new THREE.Box3().setFromObject(group)
+    const renderedSize = renderedBounds.getSize(new THREE.Vector3())
+    const largestDimension = Math.max(renderedSize.x, renderedSize.y)
+    if (!Number.isFinite(largestDimension) || Math.abs(largestDimension - 2.2) > 0.001) {
+      throw new Error(`expected bounded SVG fit at 2.2 units, got ${largestDimension}`)
+    }
+
+    let disposedGeometryCount = 0
+    let disposedMaterialCount = 0
+    for (const mesh of meshes) {
+      mesh.geometry.addEventListener('dispose', () => { disposedGeometryCount += 1 })
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      materials.forEach(material => material.addEventListener('dispose', () => { disposedMaterialCount += 1 }))
+    }
+    disposeImageThreeJsObject(group)
+    if (disposedGeometryCount !== meshes.length || disposedMaterialCount !== meshes.length) {
+      throw new Error(`expected every SVG mesh resource to dispose, got geometry=${disposedGeometryCount} material=${disposedMaterialCount}`)
+    }
+  } finally {
+    harness.restore()
+  }
+}
+
+export function testImageToThreeJsForbidsExternalPluginRuntimeDependency() {
+  const packageJson = readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
+  const contractSource = readFileSync(new URL('../features/image-to-threejs/imageToThreeJsContract.ts', import.meta.url), 'utf8')
+  const surfaceSource = readFileSync(new URL('../features/image-to-threejs/ImageThreeJsSurface.tsx', import.meta.url), 'utf8')
+  const combinedRuntimeSource = [packageJson, contractSource, surfaceSource].join('\n')
+  for (const forbidden of ['Three.js-Object-Sculptor-Codex-Plugin', 'object-to-threejs-procedural']) {
+    if (combinedRuntimeSource.includes(forbidden)) {
+      throw new Error(`forbid external Object Sculptor runtime dependency: ${forbidden}`)
+    }
+  }
 }

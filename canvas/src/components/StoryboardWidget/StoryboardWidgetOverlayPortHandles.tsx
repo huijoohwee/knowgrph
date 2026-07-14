@@ -95,8 +95,7 @@ export function StoryboardWidgetOverlayPortHandles(props: {
   const interaction = React.useContext(PortHandleInteractionContext)
   const nodeId = String(props.node?.id || props.nodeId || '').trim()
   const node = props.node || resolveGraphNodeByCanonicalId(interaction?.graphData, nodeId)
-  const visible = props.selected || Boolean(interaction?.pendingEdgeSourceId)
-  if (!interaction || !interaction.active || !visible || !node) return null
+  if (!interaction || !interaction.active || !props.selected || !node) return null
 
   return (
     <WidgetEditorPortHandles
@@ -105,7 +104,6 @@ export function StoryboardWidgetOverlayPortHandles(props: {
       schema={interaction.schema}
       registryEntries={interaction.registryEntries}
       edges={interaction.graphData?.edges || []}
-      minimized={false}
       forceEnabled
       toolMode={interaction.toolMode}
       pendingEdgeSourceId={interaction.pendingEdgeSourceId}

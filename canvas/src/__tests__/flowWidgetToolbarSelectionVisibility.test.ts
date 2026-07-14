@@ -123,7 +123,7 @@ export function testRichMediaPanelActionsLiveInSharedFloatingToolbar() {
     throw new Error('expected Rich Media floating toolbar toggle to reuse the shared Rich Media Panel title helper')
   }
   if (!uiCopyText.includes("flowWidgetRichMediaPanelView: 'Switch to Rich Media Panel (Connect media to render) in the shared widget shell.'")
-    || !uiCopyText.includes("flowWidgetRichMediaKtvRows: 'Switch to Rich Media Panel KTV Rows with port handles in the shared widget shell.'")) {
+    || !uiCopyText.includes("flowWidgetRichMediaKtvRows: 'Switch to Rich Media Panel KTV Rows; the outer surface keeps the centered port pair.'")) {
     throw new Error('expected the shared widget-shell Rich Media toolbar to keep the approved Rich Media Panel switch tooltips')
   }
   if (!toolbarText.includes('onEnableHandlesForAllInputs?: () => void')) {

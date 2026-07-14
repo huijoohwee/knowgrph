@@ -1,5 +1,4 @@
 import React from 'react'
-
 import { FLOW_HANDLE_DEFAULT_EDGE_ID, buildFlowHandleId, computeFlowHandlesByNode } from '@/components/FlowCanvas/handles'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
@@ -9,6 +8,7 @@ import {
   hashSignatureParts,
 } from '@/lib/hash/signature'
 import { type ToolMode, isRecord, pickString } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
+import { readStoryboardOverlayPortHandleSignature } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayPortHandleSignature'
 import {
   CANVAS_OVERLAY_PROXY_ROOT_SELECTOR,
   STORYBOARD_WIDGET_GEOMETRY_COMMITTED_EVENT,
@@ -19,10 +19,7 @@ import {
   readCanvasOverlayNodeId,
   readStoryboardWidgetOverlaySurfaceId,
 } from '@/lib/canvas/storyboard-widget-overlay-proxy'
-import {
-  FLOW_EDGE_SOURCE_PORT_KEY,
-  FLOW_EDGE_TARGET_PORT_KEY,
-} from '@/lib/graph/flowPorts'
+import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphEdge } from '@/lib/graph/types'
 import {
@@ -1118,7 +1115,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
           const scrollTop = overlayEl && Number.isFinite(overlayEl.scrollTop) ? round2(overlayEl.scrollTop) : 0
           const scrollLeft = overlayEl && Number.isFinite(overlayEl.scrollLeft) ? round2(overlayEl.scrollLeft) : 0
           const nestedScrollSignature = readOverlayScrollSurfaceSignature(overlayEl)
-          nodeParts.push(`${nodeId}:${round2(rect.left)}:${round2(rect.top)}:${round2(rect.width)}:${round2(rect.height)}:${scrollLeft}:${scrollTop}:${nestedScrollSignature}`)
+          nodeParts.push(`${nodeId}:${round2(rect.left)}:${round2(rect.top)}:${round2(rect.width)}:${round2(rect.height)}:${scrollLeft}:${scrollTop}:${nestedScrollSignature}:${readStoryboardOverlayPortHandleSignature(overlayEl)}`)
         }
         const edgeParts = edges
           .map(e => {
@@ -1158,7 +1155,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
         const el = overlayElByNodeId.get(anchorArgs.nodeId)
         const portKey = String(anchorArgs.portKey || '').trim()
         const rect = anchorArgs.fallbackRect
-        const overlayScrollSignature = readOverlayScrollSurfaceSignature(el || null)
+        const overlayScrollSignature = `${readOverlayScrollSurfaceSignature(el || null)}|${readStoryboardOverlayPortHandleSignature(el || null)}`
         const anchorCacheKey = buildRectAnchorCacheKey(anchorArgs.nodeId, anchorArgs.dir, portKey, rect, overlayScrollSignature)
         let portHandleCandidates: HTMLElement[] = []
         if (el && portKey) {
@@ -1166,7 +1163,8 @@ export function useStoryboardWidgetOverlayEdges(args: {
           const dotBtn = el.querySelector(`button${baseSel}[data-kg-port-handle-kind="dot"]`) as HTMLElement | null
           const railBtn = el.querySelector(`button${baseSel}[data-kg-port-handle-kind="rail"]`) as HTMLElement | null
           const fallbackBtn = el.querySelector(`button${baseSel}`) as HTMLElement | null
-          portHandleCandidates = [dotBtn, railBtn, fallbackBtn].filter((btn, index, items): btn is HTMLElement => !!btn && items.indexOf(btn) === index)
+          const directionalRailBtn = railBtn || el.querySelector(`button[data-kg-port-handle="1"][data-kg-port-handle-kind="rail"][data-kg-port-dir="${anchorArgs.dir}"]`) as HTMLElement | null
+          portHandleCandidates = [dotBtn, directionalRailBtn, fallbackBtn].filter((btn, index, items): btn is HTMLElement => !!btn && items.indexOf(btn) === index)
           const resolveFromButton = (btn: HTMLElement | null): { anchor: { x: number; y: number }; boundaryRect: DOMRect } | null => {
             if (!btn) return null
             if (!isUsablePortHandleForOverlay(el, btn)) return null
@@ -1186,7 +1184,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
           }
           const dotAnchor = resolveFromButton(dotBtn)
           const dotVisible = !!(dotAnchor && isAnchorVisibleInBoundary(dotAnchor.anchor, dotAnchor.boundaryRect))
-          const railAnchor = resolveFromButton(railBtn)
+          const railAnchor = resolveFromButton(directionalRailBtn)
           const fallbackAnchor = resolveFromButton(fallbackBtn)
           const nextAnchor = (dotVisible ? dotAnchor : null) || railAnchor || dotAnchor || fallbackAnchor
           if (nextAnchor) {
@@ -1206,7 +1204,8 @@ export function useStoryboardWidgetOverlayEdges(args: {
           overlayEdgeAnchorCacheRef.current.delete(anchorCacheKey)
         }
         if (!(Number.isFinite(rect.top) && Number.isFinite(rect.left) && Number.isFinite(rect.right) && Number.isFinite(rect.height) && rect.height > 0)) return null
-        return readStoryboardOverlayFallbackRectAnchor({ dir: anchorArgs.dir, fallbackPct: anchorArgs.fallbackPct, rect })
+        const fallbackPct = el?.matches('[data-kg-rich-media-overlay="1"], [data-kg-storyboard-fixed-card="1"]') ? 50 : anchorArgs.fallbackPct
+        return readStoryboardOverlayFallbackRectAnchor({ dir: anchorArgs.dir, fallbackPct, rect })
       }
 
       const transientMissingEdgeAnchorParts: string[] = []

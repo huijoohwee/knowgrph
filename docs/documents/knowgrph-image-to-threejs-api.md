@@ -70,6 +70,7 @@ The success patch carries `mediaRenderMode: threejs`, the manifest, output MIME,
 - Raster images use `THREE.TextureLoader`, `THREE.SRGBColorSpace`, a textured plane, and explicit texture disposal.
 - SVG images use `SVGLoader`, fill `ShapeGeometry`, stroke geometry, bounded group fitting, abortable fetch, and explicit geometry/material disposal.
 - The shared `frameloop="demand"` renderer invalidates after asynchronous raster or SVG state becomes renderable.
+- Source replacement remounts the keyed raster or SVG loader, disposing the prior resource before the next conversion can render.
 - A loader failure returns visibly to the original image surface without provider calls, retry loops, or generated-media backfill.
 
 ## Shared Surface Projection
@@ -84,8 +85,11 @@ The named Object Sculptor repository is a behavioral reference for code-first st
 
 | Gate | Proof |
 |---|---|
-| Typed conversion | Six focused `imageToThreeJs` unit selectors pass. |
+| Typed conversion | Eight focused `imageToThreeJs` unit selectors pass for format bounds, zero-cost manifests, connected input precedence, shared render mode, real SVG geometry, disposal, and the no-dependency boundary. |
 | Compile | Canvas TypeScript exits zero. |
-| Raster render | The Rich Media browser smoke proves a non-fallback WebGL PNG surface. |
-| SVG render | The same smoke proves a non-fallback WebGL SVG geometry surface. |
+| PNG render | The Rich Media browser smoke derives a typed conversion and proves a non-fallback WebGL Rich Media Panel surface. |
+| JPG render | The same smoke generates a real JPEG image in-browser, derives the typed conversion, and proves a non-fallback shared Card WebGL surface. |
+| SVG render | The same smoke derives the typed conversion and proves non-fallback SVG geometry in both the Rich Media Panel and Storyboard Widget panel owner. |
+| Fallback render | A text-only SVG fixture intentionally yields no Three.js shape or stroke geometry; browser proof observes the original SVG image fallback and no remaining Three.js canvas surface. |
+| Resource lifecycle | Focused unit proof creates real SVG fill and stroke meshes, verifies bounded fitting, and observes every geometry and material disposal event. |
 | Deployment | Prod mirror and Cloudflare remain untouched. |

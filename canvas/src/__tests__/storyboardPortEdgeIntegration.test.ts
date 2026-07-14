@@ -280,15 +280,16 @@ export function testStoryboardRichMediaOverlaySelectionMountsSharedPortHandles()
   }
   if (!mediaOverlays.includes('onPointerDownCapture={event => {')
     || !mediaOverlays.includes('const id = String(node.id ||')
-    || !mediaOverlays.includes('richMediaPanelHeaderToolbar.activate()')) {
+    || !mediaOverlays.includes('richMediaPanelHeaderToolbar.activate()')
+    || !mediaOverlays.includes('const hasSelectionChrome =')
+    || !mediaOverlays.includes('<StoryboardWidgetOverlayPortHandles nodeId={node.id} selected={hasSelectionChrome} />')) {
     throw new Error('expected Rich Media overlay pointer selection to feed the shared port-handle owner')
   }
-  if (!mediaOverlays.includes('const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds)') || !mediaOverlays.includes('openWidgetNodeIds.some(openNodeId => isCanonicalNodeIdEqual(openNodeId, node.id))')) throw new Error('expected open Rich Media overlay panels to keep shared port handles visible through pan/zoom selection normalization')
   if (!headerToolbar.includes('st.updateOpenWidgetNodeIds(prev => (prev.includes(nodeId) ? prev : [...prev, nodeId]))')) {
     throw new Error('expected Rich Media overlay reselection on Storyboard to reopen the panel in shared open-widget state')
   }
-  if (!overlayHandles.includes('resolveGraphNodeByCanonicalId(interaction?.graphData, nodeId)')) {
-    throw new Error('expected shared overlay port handles to resolve workspace-qualified Rich Media node ids canonically')
+  if (!overlayHandles.includes('resolveGraphNodeByCanonicalId(interaction?.graphData, nodeId)') || !overlayHandles.includes('!props.selected')) {
+    throw new Error('expected shared overlay port handles to resolve canonical node ids and unmount without selection chrome')
   }
   if (!overlayHandles.includes('FLOW_PORT_HANDLE_FINALIZE_EVENT') || !overlayHandles.includes('value.finalizeEdge(targetNodeId, detail.targetPortKey)')) {
     throw new Error('expected shared overlay port handles to consume semantic drag-finalize events')
@@ -370,8 +371,8 @@ export function testStoryboardRichMediaOverlaySelectionMountsSharedPortHandles()
   if (!nodeHandles.includes('isCanonicalNodeIdEqual(args.pendingEdgeSourceId, nodeId)')) {
     throw new Error('expected shared overlay port handles to compare pending edge source ids canonically')
   }
-  if (!nodeHandles.includes('const edgeDotHitOffsetPx = sizePx') || !nodeHandles.includes('railWidthPx + edgeDotHitOffsetPx') || !nodeHandles.includes('right: `-${edgeDotHitOffsetPx}px`')) {
-    throw new Error('expected source-port visible dot to stay inside the shared draggable rail hit area')
+  if (!nodeHandles.includes('const edgeDotHitOffsetPx = sizePx') || !nodeHandles.includes('railWidthPx + edgeDotHitOffsetPx') || !nodeHandles.includes('right: `-${edgeDotHitOffsetPx}px`') || !overlayEdges.includes('readStoryboardOverlayPortHandleSignature') || !overlayEdges.includes('const directionalRailBtn = railBtn || el.querySelector') || !overlayEdges.includes("el?.matches('[data-kg-rich-media-overlay=\"1\"], [data-kg-storyboard-fixed-card=\"1\"]') ? 50")) {
+    throw new Error('expected edge geometry to use the visible draggable directional rail')
   }
   const pointerDownBlockStart = nodeHandles.indexOf('onPointerDown={e => {')
   const pointerDownBlockEnd = nodeHandles.indexOf('onMouseDown={e => {', Math.max(0, pointerDownBlockStart))

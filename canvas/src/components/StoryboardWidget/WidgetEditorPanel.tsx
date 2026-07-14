@@ -294,20 +294,21 @@ export const WidgetEditorPanel = React.memo(function WidgetEditorPanel(args: {
         />
       )}
 
-      <WidgetEditorPortHandles
-        active={active}
-        node={{ id: node.id, type: node.type, properties: node.properties }}
-        schema={schema}
-        registryEntries={registryEntries}
-        edges={portHandleEdges}
-        minimized={minimized}
-        forceEnabled={isFrontmatterFlow}
-        strictHandleSet={isFrontmatterFlow}
-        toolMode={toolMode}
-        pendingEdgeSourceId={pendingEdgeSourceId}
-        onBeginAddEdgeFromNode={onBeginAddEdgeFromNode}
-        onFinalizeAddEdgeToNode={onFinalizeAddEdgeToNode}
-      />
+      {isRichMediaPanelWidget ? (
+        <WidgetEditorPortHandles
+          active={active}
+          node={{ id: node.id, type: node.type, properties: node.properties }}
+          schema={schema}
+          registryEntries={registryEntries}
+          edges={portHandleEdges}
+          forceEnabled
+          strictHandleSet={isFrontmatterFlow}
+          toolMode={toolMode}
+          pendingEdgeSourceId={pendingEdgeSourceId}
+          onBeginAddEdgeFromNode={onBeginAddEdgeFromNode}
+          onFinalizeAddEdgeToNode={onFinalizeAddEdgeToNode}
+        />
+      ) : null}
 
       {showRichMediaPanelBody && hasRichMediaResizeHandlers ? (
         <RichMediaPanelResizeHandle placement="panel" onPointerDown={handleRichMediaOuterResizePointerDown} />

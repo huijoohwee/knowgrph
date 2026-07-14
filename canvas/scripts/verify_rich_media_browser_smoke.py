@@ -387,7 +387,16 @@ def main() -> None:
             image_panel.hover()
             page.mouse.wheel(0, -320)
 
-            for panel_id, source_kind in (("image-threejs-raster", "raster"), ("image-threejs-svg", "svg")):
+            image_threejs_surfaces = (
+                ("image-threejs-raster", "raster", "png"),
+                ("image-threejs-card-jpg", "raster", "jpg"),
+                ("image-threejs-svg", "svg", "svg"),
+                ("storyboard-widget", "svg", "svg"),
+            )
+            for panel_id, source_kind, source_format in image_threejs_surfaces:
+                expect(page.locator(f'[data-kg-smoke-panel="{panel_id}"]')).to_have_attribute(
+                    "data-kg-image-threejs-smoke-format", source_format
+                )
                 three_surface = page.locator(
                     f'[data-kg-smoke-panel="{panel_id}"] [data-kg-image-threejs-surface="1"]'
                 ).first
@@ -400,6 +409,18 @@ def main() -> None:
                 expect(
                     page.locator(f'[data-kg-smoke-panel="{panel_id}"] [data-kg-image-threejs-fallback="1"]')
                 ).to_have_count(0)
+
+            expect(
+                page.locator('[data-kg-smoke-panel="image-threejs-card-jpg"] [data-kg-image-threejs-card-surface="1"]')
+            ).to_have_count(1)
+
+            fallback_panel = page.locator('[data-kg-smoke-panel="image-threejs-fallback"]')
+            expect(fallback_panel).to_have_attribute("data-kg-image-threejs-smoke-format", "svg-fallback")
+            fallback_image = fallback_panel.locator('[data-kg-image-threejs-fallback="1"]').first
+            expect(fallback_image).to_be_visible()
+            expect(fallback_panel.locator('[data-kg-image-threejs-surface="1"]')).to_have_count(0)
+            if not fallback_image.evaluate("image => image.complete && image.naturalWidth > 0"):
+                raise AssertionError("expected original SVG image fallback to load after Three.js geometry rejection")
 
             expect(page.locator('[data-kg-smoke-panel="video-inline"] [data-kg-rich-media-zoom-pan-viewport="1"]')).to_be_visible()
             expect(

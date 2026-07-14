@@ -15,7 +15,7 @@ const tokenChipClassName = (token: string): string => [
 ].join(' ')
 
 export function StoryboardCardInvocationChips(props: { tokens: readonly string[] }) {
-  const tokens = props.tokens.filter(token => token.startsWith('/') || token.startsWith('#'))
+  const tokens = props.tokens.filter(token => token.startsWith('/') || token.startsWith('@') || token.startsWith('#'))
   if (tokens.length === 0) return null
   return (
     <ul className="m-0 flex shrink-0 list-none items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-contain p-0 [scrollbar-gutter:stable]" aria-label="Storyboard card invocation chips" data-kg-canvas-pointer-ignore="true" data-kg-canvas-wheel-ignore="true" data-kg-media-scroll-surface="1" data-kg-storyboard-card-invocation-chips="1">

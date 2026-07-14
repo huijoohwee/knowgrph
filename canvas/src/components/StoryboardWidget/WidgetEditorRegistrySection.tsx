@@ -38,6 +38,7 @@ export const WidgetEditorRegistrySection = React.memo(function WidgetEditorRegis
   dotSizePx: number
   dotHitPx: number
   portHandlesEnabled: boolean
+  portHandlesVisible?: boolean
   showFieldRows?: boolean
   showPortRows?: boolean
   showTableHeader?: boolean
@@ -62,6 +63,7 @@ export const WidgetEditorRegistrySection = React.memo(function WidgetEditorRegis
     dotSizePx,
     dotHitPx,
     portHandlesEnabled,
+    portHandlesVisible = true,
     showFieldRows = true,
     showPortRows = true,
     showTableHeader = false,
@@ -161,53 +163,56 @@ export const WidgetEditorRegistrySection = React.memo(function WidgetEditorRegis
     return out
   }, [effectiveProperties, ids, properties, registryEntry, registryPorts])
 
-  const renderRegistryPortButton = React.useCallback((model: RegistryPortRowModel) => (
-    <button
-      type="button"
-      aria-label={model.aria}
-      title={model.aria}
-      data-kg-port-handle="1"
-      data-kg-port-handle-kind="dot"
-      data-kg-port-dir={model.isIn ? 'in' : 'out'}
-      data-kg-port-key={model.portKey}
-      data-kg-port-schema-path={model.schemaPath || undefined}
-      data-kg-port-path={model.handlePath}
-      className={cn('relative', UI_THEME_TOKENS.button.text)}
-      style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px` }}
-      onPointerDown={e => {
-        try {
-          e.stopPropagation()
-        } catch {
-          void 0
-        }
-      }}
-      onClick={e => {
-        try {
-          e.stopPropagation()
-        } catch {
-          void 0
-        }
-        if (!active || !portHandlesEnabled) return
-        if (onSchemaPortHandleClick) {
-          onSchemaPortHandleClick({ dir: model.isIn ? 'in' : 'out', portKey: model.portKey })
-          return
-        }
-        if (!model.mainPanelLink) return
-        emitMainPanelOpen(model.mainPanelLink)
-      }}
-      disabled={!active || !portHandlesEnabled}
-    >
-      <span
-        aria-hidden={true}
-        className={cn(
-          'absolute top-1/2 left-1/2 rounded-full border',
-          UI_THEME_TOKENS.panel.bg,
-          PORT_HANDLE_STROKE_CLASS,
-        )}
-        style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }}
-      />
-    </button>
-  ), [active, dotHitPx, dotSizePx, onSchemaPortHandleClick, portHandlesEnabled])
+  const renderRegistryPortButton = React.useCallback((model: RegistryPortRowModel) => {
+    if (!portHandlesVisible) return null
+    return (
+      <button
+        type="button"
+        aria-label={model.aria}
+        title={model.aria}
+        data-kg-port-handle="1"
+        data-kg-port-handle-kind="dot"
+        data-kg-port-dir={model.isIn ? 'in' : 'out'}
+        data-kg-port-key={model.portKey}
+        data-kg-port-schema-path={model.schemaPath || undefined}
+        data-kg-port-path={model.handlePath}
+        className={cn('relative', UI_THEME_TOKENS.button.text)}
+        style={{ width: `${dotHitPx}px`, height: `${dotHitPx}px` }}
+        onPointerDown={e => {
+          try {
+            e.stopPropagation()
+          } catch {
+            void 0
+          }
+        }}
+        onClick={e => {
+          try {
+            e.stopPropagation()
+          } catch {
+            void 0
+          }
+          if (!active || !portHandlesEnabled) return
+          if (onSchemaPortHandleClick) {
+            onSchemaPortHandleClick({ dir: model.isIn ? 'in' : 'out', portKey: model.portKey })
+            return
+          }
+          if (!model.mainPanelLink) return
+          emitMainPanelOpen(model.mainPanelLink)
+        }}
+        disabled={!active || !portHandlesEnabled}
+      >
+        <span
+          aria-hidden={true}
+          className={cn(
+            'absolute top-1/2 left-1/2 rounded-full border',
+            UI_THEME_TOKENS.panel.bg,
+            PORT_HANDLE_STROKE_CLASS,
+          )}
+          style={{ width: `${dotSizePx}px`, height: `${dotSizePx}px`, transform: 'translate(-50%, -50%)' }}
+        />
+      </button>
+    )
+  }, [active, dotHitPx, dotSizePx, onSchemaPortHandleClick, portHandlesEnabled, portHandlesVisible])
 
   const mergedRegistryPortNodesBySchemaPath = React.useMemo(() => {
     const out = new Map<string, Pick<WidgetEditorKvRow, 'inPortNode' | 'outPortNode'>>()
@@ -540,7 +545,7 @@ export const WidgetEditorRegistrySection = React.memo(function WidgetEditorRegis
 
   if (!registryEntry) return null
   const visibleFieldRows = showFieldRows ? rows : []
-  const visiblePortRows = showPortRows ? portRows : []
+  const visiblePortRows = showPortRows && portHandlesVisible ? portRows : []
   if (visibleFieldRows.length === 0 && visiblePortRows.length === 0) return null
 
   return (
@@ -553,12 +558,12 @@ export const WidgetEditorRegistrySection = React.memo(function WidgetEditorRegis
           showHeader={showTableHeader}
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
-          forcePortDots
+          forcePortDots={portHandlesVisible}
           extraPlaceholderCell
         />
       )}
 
-      {showPortRows && visiblePortRows.length > 0 && (
+      {visiblePortRows.length > 0 && (
         <WidgetEditorKvTable
           ariaLabel="Registry ports"
           microLabelClass={microLabelClass}
@@ -566,7 +571,7 @@ export const WidgetEditorRegistrySection = React.memo(function WidgetEditorRegis
           showHeader={showTableHeader}
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
-          forcePortDots
+          forcePortDots={portHandlesVisible}
         />
       )}
     </section>

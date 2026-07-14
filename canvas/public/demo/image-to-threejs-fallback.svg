@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" role="img" aria-labelledby="title description">
+  <title id="title">Image to Three.js fallback proof</title>
+  <desc id="description">Text-only SVG intentionally contains no shape path geometry.</desc>
+  <text x="160" y="82" fill="#334155" font-family="system-ui, sans-serif" font-size="22" text-anchor="middle">Original SVG fallback</text>
+  <text x="160" y="112" fill="#64748b" font-family="system-ui, sans-serif" font-size="14" text-anchor="middle">No renderable Three.js paths</text>
+</svg>

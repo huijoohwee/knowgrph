@@ -34,7 +34,7 @@ export function testStoryboardCardTextLayoutKeepsSemanticLabelsReadable() {
       frontmatterMeta: {
         pipeline: {
           stages: [
-            { lane: 'Source', command: '/source.normalize', semantics: ['#frontmatter', '#no-hardcode'] },
+            { lane: 'Source', command: '/source.normalize', bindings: ['@source.frontmatter'], semantics: ['#frontmatter', '#no-hardcode'] },
           ],
         },
       },
@@ -68,8 +68,8 @@ export function testStoryboardCardTextLayoutKeepsSemanticLabelsReadable() {
   assert(cards.find(card => card.id === 'source-card')?.summary === authoredSummary, 'expected Storyboard card model to preserve authored summary typography, media markup, and spacing')
   assert(cards.find(card => card.id === 'source-card')?.typeLabel === 'Runtime Proof Gate', 'expected compact PascalCase type labels to render as readable semantic words')
   assert(cards.find(card => card.id === 'frame-card')?.typeLabel === 'Storyboard Frame', 'expected storyboard frame type labels to render as readable semantic words')
-  assert(JSON.stringify(cards.find(card => card.id === 'source-card')?.invocationTokens) === JSON.stringify(['/source.normalize', '#frontmatter']), 'expected Source card to display stage-owned / and # invocation chips')
-  assert(JSON.stringify(cards.find(card => card.id === 'frame-card')?.invocationTokens) === JSON.stringify(['/canvas.project', '#canvas']), 'expected explicit card invocation to display node-owned / and # invocation chips')
+  assert(JSON.stringify(cards.find(card => card.id === 'source-card')?.invocationTokens) === JSON.stringify(['/source.normalize', '@source.frontmatter', '#frontmatter']), 'expected Source card to display its bounded /, @, and # invocation chips')
+  assert(JSON.stringify(cards.find(card => card.id === 'frame-card')?.invocationTokens) === JSON.stringify(['/canvas.project', '@runtime-proof', '#canvas']), 'expected explicit card invocation to display its bounded /, @, and # invocation chips')
 }
 
 export function testStoryboardCardSummaryTextStripsInlineMediaEmbeds() {
@@ -442,6 +442,7 @@ export function testStoryboardCardInvocationChipsReuseSharedInvocationRenderer()
     'data-kg-canvas-pointer-ignore="true"',
     'data-kg-media-scroll-surface="1"',
     'className="shrink-0 list-none"',
+    "token.startsWith('@')",
   ]) {
     assert(source.includes(snippet), `expected Storyboard invocation chips to reuse shared chip contract: ${snippet}`)
   }
