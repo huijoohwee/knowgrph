@@ -61,6 +61,14 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
+  let fullscreenTarget: Element | null = null
+  Object.defineProperty(dom.window.HTMLElement.prototype, 'requestFullscreen', {
+    configurable: true,
+    value: function requestFullscreen() {
+      fullscreenTarget = this as Element
+      return Promise.resolve()
+    },
+  })
   try {
     await act(async () => {
       root.render(<KeyboardNavigationHarness />)
@@ -74,6 +82,12 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
       if (!preview.querySelector(kind === 'video' ? 'video' : 'img')) throw new Error(`expected Rich Media Panel to render ${kind}`)
     }
     assertPreviewKind('image')
+    const fullscreenButton = dom.window.document.querySelector('[data-kg-media-catalog-preview-fullscreen="1"]')
+    if (!(fullscreenButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected expanded Rich Media Panel to restore the fullscreen action')
+    await act(async () => fullscreenButton.click())
+    if (!(fullscreenTarget instanceof dom.window.HTMLElement) || fullscreenTarget.getAttribute('data-kg-media-catalog-preview') !== '1') {
+      throw new Error('expected fullscreen action to target the expanded Rich Media Panel preview')
+    }
     for (const [key, kind] of [
       ['ArrowRight', 'video'],
       ['ArrowDown', 'image'],
