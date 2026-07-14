@@ -2,6 +2,7 @@ import React from 'react'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { MediaCatalogRichMediaPreview } from '@/features/command-menu/MediaCatalogRichMediaPreview'
 import type { UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
+import richMediaBrowserSmokeFixtures from './richMediaBrowserSmokeFixtures.json'
 
 const SMOKE_MARKDOWN_PREVIEW = [
   '## Rich Media Smoke',
@@ -74,7 +75,7 @@ const SMOKE_AUDIO_DATA_URL =
 
 const SMOKE_CATALOG_MEDIA: Record<'image' | 'video', UploadedMediaPanelItem> = {
   image: { id: 'smoke-image', name: 'Floating media image.png', kind: 'image', localUrl: '', linkUrl: '/demo/placeholder.svg?catalog-preview-timing=1', contentType: 'image/svg+xml', sizeBytes: 0, status: 'local', storage: null, error: null },
-  video: { id: 'smoke-video', name: 'Floating media video.mp4', kind: 'video', localUrl: '', linkUrl: '/demo/media-preview-metadata-ready.mp4', contentType: 'video/mp4', sizeBytes: 1092, status: 'local', storage: null, error: null },
+  video: { id: 'smoke-video', name: 'Floating media video.mp4', kind: 'video', localUrl: '', linkUrl: richMediaBrowserSmokeFixtures.catalogVideo.path, contentType: richMediaBrowserSmokeFixtures.catalogVideo.contentType, sizeBytes: richMediaBrowserSmokeFixtures.catalogVideo.sizeBytes, status: 'local', storage: null, error: null },
 }
 
 const smokePanelStyle: React.CSSProperties = {

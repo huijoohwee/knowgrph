@@ -1,0 +1,12 @@
+{
+  "catalogVideo": {
+    "path": "/demo/media-preview-metadata-ready.mp4",
+    "contentType": "video/mp4",
+    "sizeBytes": 1092,
+    "sha256": "d165317102285ee0ebf46dca943b4b70b510fe1442dc84c523f30cb73ec5a2a2",
+    "width": 160,
+    "height": 90,
+    "durationSeconds": 0.4,
+    "durationToleranceSeconds": 0.02
+  }
+}
