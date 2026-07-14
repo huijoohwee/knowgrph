@@ -54,6 +54,25 @@ test('schema command emits the canonical schema without path knowledge', async (
   assert.equal(commandSchema.$id, 'https://knowgrph.dev/schemas/collaboration-runtime-report/v1')
 })
 
+test('example command emits the canonical local report without pull request context', async () => {
+  const result = spawnSync('npm', ['run', '--silent', 'collaboration:report:example'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      KNOWGRPH_PR_NUMBER: '999',
+      KNOWGRPH_PR_BASE_REF: 'invalid',
+    },
+  })
+  assert.equal(result.status, 0, result.stderr)
+
+  const example = JSON.parse(result.stdout)
+  const identity = await validateCollaborationRuntimeReport(example)
+  assert.deepEqual(example, readLocalReport())
+  assert.equal(identity.schemaVersion, COLLABORATION_RUNTIME_REPORT_SCHEMA)
+  assert.equal(example.policies.pullRequestCoordination.status, 'not-applicable')
+})
+
 test('report schema rejects unknown fields and mutated workflow checks', async () => {
   const reportWithUnknownField = readLocalReport()
   reportWithUnknownField.legacyStatus = 'passed'
