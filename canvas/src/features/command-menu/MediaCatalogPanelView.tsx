@@ -257,7 +257,12 @@ export function MediaCatalogPanelView({
       />
       <section ref={panelRef} className={floatingPanelCatalogBodyClassName(previewItem ? 'overflow-hidden' : undefined)} data-kg-floating-panel-catalog-body="media">
         {previewItem ? (
-          <MediaCatalogRichMediaPreview item={previewItem} onClose={onClosePreview} />
+          <MediaCatalogRichMediaPreview
+            item={previewItem}
+            items={visibleUploadedMediaItems}
+            onClose={onClosePreview}
+            onNavigate={onPreviewUploadedMedia}
+          />
         ) : (
           <>
         {importUrlPromptOpen ? (
