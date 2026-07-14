@@ -914,7 +914,7 @@ export const testRichMediaPanelKtvRowsReuseSharedWidgetKvTableSsot = async () =>
     }
   })
   const portButtons = host.querySelectorAll('button[data-kg-port-handle="1"]')
-  if (portButtons.length < 4) throw new Error(`expected Rich Media Panel KTV mode to keep shared port handles, got ${portButtons.length}`)
+  if (portButtons.length !== 0) throw new Error(`expected Rich Media Panel KTV rows to suppress duplicate row handles, got ${portButtons.length}`)
 
   root.unmount()
 }

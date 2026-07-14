@@ -4,6 +4,8 @@ import { readNodePortHandleVisualMetrics } from '@/components/GraphCanvas/portHa
 export const PORT_HANDLE_STROKE_CLASS = 'border-[color:var(--kg-canvas-accent)]'
 export const PORT_HANDLE_LINE_CLASS = 'bg-[color:var(--kg-canvas-accent)]'
 export const PORT_HANDLE_MIN_INTERACTIVE_SIZE_PX = 24
+export const PORT_HANDLE_MIN_VISUAL_SIZE_PX = 10
+export const PORT_HANDLE_VISUAL_SCALE = 1.75
 
 export function readPortHandleUiMetrics(
   schema: GraphSchema | null,
@@ -21,7 +23,7 @@ export function readPortHandleUiMetrics(
     nodeHeight: Number.isFinite(opts?.nodeHeight) ? Math.max(1, opts?.nodeHeight as number) : 96,
     zoomK: opts?.zoomK,
   })
-  const sizePx = Math.max(1, Math.round(base.sizePx * 1.4))
+  const sizePx = Math.max(PORT_HANDLE_MIN_VISUAL_SIZE_PX, Math.round(base.sizePx * PORT_HANDLE_VISUAL_SCALE))
   const hitSizePx = Math.max(6, Math.round(sizePx + 3))
   const offsetPx = Math.max(2, Math.floor(sizePx / 4))
   const railWidthPx = Math.max(hitSizePx, Math.round(hitSizePx + offsetPx))

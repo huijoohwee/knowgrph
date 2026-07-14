@@ -53,7 +53,7 @@ export const UI_COPY = {
   flowWidgetHideFields: 'Hide fields in widget',
   flowWidgetShowFields: 'Show fields in widget',
   flowWidgetRichMediaPanelView: 'Switch to Rich Media Panel (Connect media to render) in the shared widget shell.',
-  flowWidgetRichMediaKtvRows: 'Switch to Rich Media Panel KTV Rows with port handles in the shared widget shell.',
+  flowWidgetRichMediaKtvRows: 'Switch to Rich Media Panel KTV Rows; the outer surface keeps the centered port pair.',
   flowWidgetChangeName: 'Change node label',
   flowWidgetDuplicate: 'Duplicate',
   flowWidgetClearOutput: 'Reset',

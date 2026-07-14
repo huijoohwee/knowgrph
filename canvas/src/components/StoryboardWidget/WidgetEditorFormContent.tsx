@@ -395,6 +395,7 @@ export function WidgetEditorFormContent(props: WidgetEditorFormContentProps) {
           dotSizePx={dotSizePx}
           dotHitPx={dotHitPx}
           portHandlesEnabled={portHandlesEnabled}
+          portHandlesVisible={false}
           connectedValuesBySchemaPath={connectedValuesSnapshot}
           onSetProperties={onSetProperties}
           onSchemaPortHandleClick={onSchemaPortHandleClick}

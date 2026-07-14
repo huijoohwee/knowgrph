@@ -740,11 +740,11 @@ export default function FlowCanvasMediaOverlays(args: {
       style={{ zIndex: Z_INDEX_GRAPH_MEDIA_LAYER }}
     >
       {mediaNodes.map((node, index) => {
-        const isSelected =
+        const hasSelectionChrome =
           canonicalNodeIdSetHas(selectedOverlayNodeIdSet, node.id)
           || isCanonicalNodeIdEqual(selectedNodeId, node.id)
           || isCanonicalNodeIdEqual(activeRichMediaPanelId, node.id)
-          || (Array.isArray(openWidgetNodeIds) && openWidgetNodeIds.some(openNodeId => isCanonicalNodeIdEqual(openNodeId, node.id)))
+        const isSelected = hasSelectionChrome || (Array.isArray(openWidgetNodeIds) && openWidgetNodeIds.some(openNodeId => isCanonicalNodeIdEqual(openNodeId, node.id)))
         const mediaOverlayInteractionPolicy = resolveFlowCanvasMediaOverlayInteractionPolicy({
           rendererInteractionMode: mediaOverlayDragInteractionMode,
           workspaceMutationBlocked,
@@ -810,7 +810,7 @@ export default function FlowCanvasMediaOverlays(args: {
             style={{ zIndex: overlayZIndex }}
           >
             <FlowCanvasRichMediaOverlayToolbar visible={isSelected} nodeId={node.id} nodeProperties={sceneNodePropsByIdRef.current.get(node.id) || {}} panel={node.panel} openUrl={node.openUrl} sceneGraphData={sceneGraphData} workspaceMutationBlockedRef={workspaceMutationBlockedRef} onRemoveNode={onNodeRemove} />
-            <StoryboardWidgetOverlayPortHandles nodeId={node.id} selected={isSelected} />
+            <StoryboardWidgetOverlayPortHandles nodeId={node.id} selected={hasSelectionChrome} />
             <RichMediaPanel
               overlayId={node.id}
               className="relative h-full w-full pointer-events-auto"

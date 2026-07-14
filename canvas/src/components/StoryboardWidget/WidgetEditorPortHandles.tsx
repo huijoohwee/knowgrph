@@ -57,6 +57,13 @@ export function orderFlowPortHandlesByCenterPriority<T extends { topPct: number;
     .map(entry => entry.handle)
 }
 
+export function selectCenteredFlowPortHandle<T extends { topPct: number; id?: string }>(
+  handles: ReadonlyArray<T> | null | undefined,
+): T[] {
+  const centered = orderFlowPortHandlesByCenterPriority(handles)[0]
+  return centered ? [{ ...centered, topPct: 50 }] : []
+}
+
 function coerceEdgeEndpoints(raw: ReadonlyArray<GraphEdge>): Array<{ id: string; source: string; target: string; properties?: unknown }> {
   const out: Array<{ id: string; source: string; target: string; properties?: unknown }> = []
   for (let i = 0; i < raw.length; i += 1) {
@@ -75,7 +82,6 @@ export const WidgetEditorPortHandles = React.memo(function WidgetEditorPortHandl
   schema: GraphSchema | null
   registryEntries?: ReadonlyArray<WidgetRegistryEntry>
   edges: ReadonlyArray<GraphEdge>
-  minimized: boolean
   forceEnabled?: boolean
   strictHandleSet?: boolean
   toolMode?: StoryboardWidgetToolMode
@@ -365,9 +371,11 @@ export const WidgetEditorPortHandles = React.memo(function WidgetEditorPortHandl
     )
   }
 
-  const hasAny = (handles.in?.length || 0) + (handles.out?.length || 0) > 0
+  const inputHandles = selectCenteredFlowPortHandle(handles.in)
+  const outputHandles = selectCenteredFlowPortHandle(handles.out)
+  const hasAny = (inputHandles?.length || 0) + (outputHandles?.length || 0) > 0
   if (!hasAny) return null
-  const outputHandlesByCenterPriority = orderFlowPortHandlesByCenterPriority(handles.out)
+  const outputHandlesByCenterPriority = orderFlowPortHandlesByCenterPriority(outputHandles)
 
   return (
     <nav
@@ -376,7 +384,7 @@ export const WidgetEditorPortHandles = React.memo(function WidgetEditorPortHandl
       style={{ zIndex: Z_INDEX_GRAPH_OVERLAY_SELECTED }}
     >
       <section className={cn('absolute inset-y-0 left-0', isSource ? 'opacity-100' : 'opacity-90')} style={{ width: `${railWidthPx}px` }}>
-        {(handles.in || []).map((h, idx) => (
+        {(inputHandles || []).map((h, idx) => (
           <Dot key={h.id} handleId={h.id} dir="in" idx={idx} topPct={h.topPct} />
         ))}
       </section>

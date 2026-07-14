@@ -1,6 +1,11 @@
 import React from 'react'
 import RichMediaPanel from '@/components/RichMediaPanel'
+import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { MediaCatalogRichMediaPreview } from '@/features/command-menu/MediaCatalogRichMediaPreview'
+import {
+  IMAGE_TO_THREEJS_RENDER_MODE,
+  buildImageToThreeJsConversion,
+} from '@/features/image-to-threejs/imageToThreeJsContract'
 import type { UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
 import richMediaBrowserSmokeFixtures from './richMediaBrowserSmokeFixtures.json'
 
@@ -86,6 +91,32 @@ const smokePanelStyle: React.CSSProperties = {
 const smokePanelCardClassName =
   'relative isolate overflow-hidden rounded-2xl border border-[var(--kg-border)] bg-[var(--kg-panel-bg)] p-4'
 
+function createImageThreeJsSmokeJpegDataUrl(): string {
+  const canvas = document.createElement('canvas')
+  canvas.width = 160
+  canvas.height = 100
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Image to Three.js smoke requires a 2D canvas context.')
+  const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height)
+  gradient.addColorStop(0, '#2563eb')
+  gradient.addColorStop(1, '#f97316')
+  context.fillStyle = gradient
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  context.fillStyle = '#f8fafc'
+  context.fillRect(28, 28, 104, 44)
+  return canvas.toDataURL('image/jpeg', 0.9)
+}
+
+function buildImageThreeJsSmokeProjection(sourceUrl: string) {
+  const result = buildImageToThreeJsConversion(sourceUrl)
+  if (result.ok === false) throw new Error(result.reason)
+  return {
+    kind: result.manifest.source.kind === 'svg' ? 'svg' as const : 'image' as const,
+    renderMode: IMAGE_TO_THREEJS_RENDER_MODE,
+    url: result.manifest.source.url,
+  }
+}
+
 export function RichMediaBrowserSmokePage() {
   const [editableText, setEditableText] = React.useState(SMOKE_EDITABLE_TEXT)
   const [catalogPreviewKind, setCatalogPreviewKind] = React.useState<'image' | 'video' | null>(null)
@@ -97,6 +128,22 @@ export function RichMediaBrowserSmokePage() {
     width: 320,
     height: 220,
   })
+  const imageThreeJsPng = React.useMemo(
+    () => buildImageThreeJsSmokeProjection('/apple-touch-icon.png'),
+    [],
+  )
+  const imageThreeJsJpg = React.useMemo(
+    () => buildImageThreeJsSmokeProjection(createImageThreeJsSmokeJpegDataUrl()),
+    [],
+  )
+  const imageThreeJsSvg = React.useMemo(
+    () => buildImageThreeJsSmokeProjection('/demo/placeholder.svg'),
+    [],
+  )
+  const imageThreeJsFallback = React.useMemo(
+    () => buildImageThreeJsSmokeProjection('/demo/image-to-threejs-fallback.svg'),
+    [],
+  )
 
   const editablePanel = React.useMemo(() => ({
     activeTab: 'text' as const,
@@ -155,7 +202,7 @@ export function RichMediaBrowserSmokePage() {
       <header className="mx-auto flex w-full max-w-7xl flex-col gap-3">
         <h1 className="text-2xl font-semibold">Rich Media Browser Smoke</h1>
         <p className="max-w-3xl text-sm text-[var(--kg-text-secondary)]">
-          Dev-only runtime harness for verifying rich media text, iframe, overlay, direct-media, and storyboard-widget chrome interactions.
+          Dev-only runtime harness for verifying rich media text, iframe, overlay, direct-media, image-to-Three.js Card, Widget, Panel, and storyboard-widget chrome interactions.
         </p>
       </header>
 
@@ -230,28 +277,49 @@ export function RichMediaBrowserSmokePage() {
           />
         </article>
 
-        <article className={smokePanelCardClassName} data-kg-smoke-panel="image-threejs-raster">
+        <article className={smokePanelCardClassName} data-kg-smoke-panel="image-threejs-raster" data-kg-image-threejs-smoke-format="png">
           <header className="mb-3">
             <h2 className="text-sm font-semibold">PNG To Three.js</h2>
           </header>
           <RichMediaPanel
             title="PNG Three.js Panel"
-            url="/apple-touch-icon.png"
-            kind="image"
-            renderMode="threejs"
+            {...imageThreeJsPng}
             style={smokePanelStyle}
           />
         </article>
 
-        <article className={smokePanelCardClassName} data-kg-smoke-panel="image-threejs-svg">
+        <article className={smokePanelCardClassName} data-kg-smoke-panel="image-threejs-card-jpg" data-kg-image-threejs-smoke-format="jpg">
+          <header className="mb-3">
+            <h2 className="text-sm font-semibold">JPG To Three.js Card</h2>
+          </header>
+          <section className="h-[280px] overflow-hidden rounded-xl" aria-label="JPG Three.js Card">
+            <CardMediaPreview
+              {...imageThreeJsJpg}
+              title="JPG Three.js Card"
+              fit="contain"
+              mediaThumbnailDataAttr
+            />
+          </section>
+        </article>
+
+        <article className={smokePanelCardClassName} data-kg-smoke-panel="image-threejs-svg" data-kg-image-threejs-smoke-format="svg">
           <header className="mb-3">
             <h2 className="text-sm font-semibold">SVG To Three.js</h2>
           </header>
           <RichMediaPanel
             title="SVG Three.js Panel"
-            url="/demo/placeholder.svg"
-            kind="svg"
-            renderMode="threejs"
+            {...imageThreeJsSvg}
+            style={smokePanelStyle}
+          />
+        </article>
+
+        <article className={smokePanelCardClassName} data-kg-smoke-panel="image-threejs-fallback" data-kg-image-threejs-smoke-format="svg-fallback">
+          <header className="mb-3">
+            <h2 className="text-sm font-semibold">Three.js Load Fallback</h2>
+          </header>
+          <RichMediaPanel
+            title="SVG Three.js Fallback Panel"
+            {...imageThreeJsFallback}
             style={smokePanelStyle}
           />
         </article>
@@ -301,7 +369,7 @@ export function RichMediaBrowserSmokePage() {
           </section>
         </article>
 
-        <article className={smokePanelCardClassName} data-kg-smoke-panel="storyboard-widget">
+        <article className={smokePanelCardClassName} data-kg-smoke-panel="storyboard-widget" data-kg-image-threejs-smoke-format="svg">
           <header className="mb-3">
             <h2 className="text-sm font-semibold">Storyboard Widget Chrome</h2>
           </header>
@@ -320,8 +388,7 @@ export function RichMediaBrowserSmokePage() {
             >
               <RichMediaPanel
                 title="Storyboard Widget Rich Media"
-                url="/demo/placeholder.svg"
-                kind="image"
+                {...imageThreeJsSvg}
                 panelChrome="storyboardWidget"
                 storyboardWidgetInteractionMode
                 resizable

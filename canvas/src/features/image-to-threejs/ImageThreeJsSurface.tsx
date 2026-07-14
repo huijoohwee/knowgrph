@@ -6,7 +6,7 @@ import { resolveImageToThreeJsSourceKind } from './imageToThreeJsContract'
 
 type LoadState = 'loading' | 'ready' | 'error'
 
-function disposeObject(root: THREE.Object3D) {
+export function disposeImageThreeJsObject(root: THREE.Object3D) {
   root.traverse(object => {
     if (!(object instanceof THREE.Mesh)) return
     object.geometry?.dispose()
@@ -25,7 +25,7 @@ function fitSvgGroup(group: THREE.Group) {
   group.position.set(-center.x * scale, center.y * scale, -center.z * scale)
 }
 
-function buildSvgGroup(text: string): THREE.Group {
+export function buildImageThreeJsSvgGroup(text: string): THREE.Group {
   const data = new SVGLoader().parse(text)
   const group = new THREE.Group()
   data.paths.forEach((path, pathIndex) => {
@@ -158,7 +158,7 @@ function SvgImageObject(props: {
       })
       .then(text => {
         if (controller.signal.aborted) return
-        ownedGroup = buildSvgGroup(text)
+        ownedGroup = buildImageThreeJsSvgGroup(text)
         setGroup(ownedGroup)
         onLoadState('ready')
       })
@@ -167,7 +167,7 @@ function SvgImageObject(props: {
       })
     return () => {
       controller.abort()
-      if (ownedGroup) disposeObject(ownedGroup)
+      if (ownedGroup) disposeImageThreeJsObject(ownedGroup)
     }
   }, [onLoadState, sourceUrl])
 
@@ -232,8 +232,8 @@ export function ImageThreeJsSurface(props: {
         <ambientLight intensity={1.4} />
         <directionalLight position={[2, 3, 4]} intensity={1.8} />
         {sourceKind === 'svg'
-          ? <SvgImageObject sourceUrl={sourceUrl} onLoadState={handleLoadState} />
-          : <RasterImageObject sourceUrl={sourceUrl} onLoadState={handleLoadState} />}
+          ? <SvgImageObject key={`svg:${sourceUrl}`} sourceUrl={sourceUrl} onLoadState={handleLoadState} />
+          : <RasterImageObject key={`raster:${sourceUrl}`} sourceUrl={sourceUrl} onLoadState={handleLoadState} />}
       </Canvas>
       {loadState === 'loading' ? (
         <span className="absolute inset-x-0 bottom-2 text-center text-[11px] text-slate-500" role="status">
