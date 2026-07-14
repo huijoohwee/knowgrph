@@ -64,6 +64,10 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
     if (!(readMediaChip instanceof dom.window.HTMLElement) || readMediaChip.textContent !== `@${attachmentLabel}`) {
       throw new Error(`expected read-mode Card textarea to render source-authored @ media in-place, html=${display.innerHTML}`)
     }
+    const readMediaChipImage = readMediaChip.querySelector('img') as HTMLImageElement | null
+    if (!(readMediaChipImage instanceof dom.window.HTMLImageElement)) {
+      throw new Error(`expected read-mode projected media chip to render its shared thumbnail image, html=${readMediaChip.outerHTML}`)
+    }
     const longReadMediaChip = Array.from(display.querySelectorAll('[data-kg-card-inline-display-media-chip="1"]') as NodeListOf<HTMLElement>)
       .find(node => node.textContent === longAttachmentToken)
     if (!(longReadMediaChip instanceof dom.window.HTMLElement)) {
@@ -173,6 +177,18 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
     const virtualMediaThumbnail = virtualMediaChip.querySelector('[data-kg-card-inline-wysiwyg-media-thumbnail="1"]') as HTMLElement | null
     if (!(virtualMediaThumbnail instanceof dom.window.HTMLElement) || virtualMediaThumbnail.hasAttribute('aria-hidden') || !virtualMediaThumbnail.getAttribute('aria-label')) {
       throw new Error(`expected Viewer edit projected @ media chip thumbnail to stay visible to selection tooling, html=${virtualMediaChip.outerHTML}`)
+    }
+    const virtualMediaChipImage = virtualMediaChip.querySelector('img') as HTMLImageElement | null
+    if (!(virtualMediaChipImage instanceof dom.window.HTMLImageElement)) {
+      throw new Error(`expected Viewer edit projected @ media chip to keep the same real thumbnail image as read mode, html=${virtualMediaChip.outerHTML}`)
+    }
+    if (
+      virtualMediaChip.className !== readMediaChip.className
+      || virtualMediaChip.getAttribute('title') !== readMediaChip.getAttribute('title')
+      || virtualMediaChipImage.getAttribute('src') !== readMediaChipImage.getAttribute('src')
+      || virtualMediaChipImage.className !== readMediaChipImage.className
+    ) {
+      throw new Error(`expected projected media chip chrome, title, and thumbnail not to mutate between read and edit modes, read=${readMediaChip.outerHTML}, edit=${virtualMediaChip.outerHTML}`)
     }
     if (!virtualMediaChip.className.includes('inline-flex bg-[color:var(--kg-panel-bg)]') || !virtualMediaChip.className.includes('kg-inline-chip-shell-15ch')) {
       throw new Error(`expected Viewer edit projected @ media chip to reuse the read-view inline media chip shell, got ${virtualMediaChip.className}`)
