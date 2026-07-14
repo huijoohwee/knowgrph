@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 from pathlib import Path
 
@@ -15,6 +16,14 @@ OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
 SCREENSHOT_PATH = OUTPUT_DIR / "rich-media-browser-smoke.png"
 CATALOG_PREVIEW_SCREENSHOT_PATH = OUTPUT_DIR / "rich-media-catalog-preview-browser-smoke.png"
 CATALOG_PREVIEW_TIMING_PATH = OUTPUT_DIR / "rich-media-catalog-preview-timing.json"
+FIXTURE_MANIFEST_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "src"
+    / "features"
+    / "testing"
+    / "richMediaBrowserSmokeFixtures.json"
+)
+CATALOG_VIDEO_FIXTURE = json.loads(FIXTURE_MANIFEST_PATH.read_text(encoding="utf-8"))["catalogVideo"]
 CATALOG_PREVIEW_READY_BUDGET_MS = max(
     1,
     int(os.environ.get("KG_MEDIA_PREVIEW_READY_BUDGET_MS", "500")),
@@ -186,6 +195,34 @@ def wait_for_video_metadata(page, video, timeout_ms: int) -> None:
         raise AssertionError(f"expected video metadata ready within {timeout_ms}ms, got {state}") from error
 
 
+def assert_video_metadata_identity(video, label: str) -> dict[str, float]:
+    metadata = video.evaluate(
+        "element => ({ durationSeconds: element.duration, height: element.videoHeight, width: element.videoWidth })"
+    )
+    duration_seconds = float(metadata["durationSeconds"])
+    expected_duration_seconds = float(CATALOG_VIDEO_FIXTURE["durationSeconds"])
+    duration_tolerance_seconds = float(CATALOG_VIDEO_FIXTURE["durationToleranceSeconds"])
+    expected_width = int(CATALOG_VIDEO_FIXTURE["width"])
+    expected_height = int(CATALOG_VIDEO_FIXTURE["height"])
+    if int(metadata["width"]) != expected_width or int(metadata["height"]) != expected_height:
+        raise AssertionError(
+            f"expected {label} dimensions {expected_width}x{expected_height}, "
+            f"got {metadata['width']}x{metadata['height']}"
+        )
+    if not math.isfinite(duration_seconds) or duration_seconds <= 0:
+        raise AssertionError(f"expected {label} finite positive duration, got {duration_seconds}")
+    if abs(duration_seconds - expected_duration_seconds) > duration_tolerance_seconds:
+        raise AssertionError(
+            f"expected {label} duration {expected_duration_seconds:.3f}s +/- {duration_tolerance_seconds:.3f}s, "
+            f"got {duration_seconds:.3f}s"
+        )
+    return {
+        "durationSeconds": round(duration_seconds, 6),
+        "height": int(metadata["height"]),
+        "width": int(metadata["width"]),
+    }
+
+
 def assert_catalog_preview_arrow_navigation(page) -> dict[str, object]:
     cold_started_at = float(page.evaluate("() => performance.now()"))
     page.locator('[data-kg-smoke-open-image-preview="1"]').click()
@@ -200,6 +237,7 @@ def assert_catalog_preview_arrow_navigation(page) -> dict[str, object]:
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-kinds", "video")
     preloaded_video = preview.locator('[data-kg-media-catalog-preview-preload-kind="video"]').first
     wait_for_video_metadata(page, preloaded_video, 5000)
+    preloaded_video_metadata = assert_video_metadata_identity(preloaded_video, "preloaded video")
 
     previous_button = preview.locator('[data-kg-media-catalog-preview-previous="1"]')
     next_button = preview.locator('[data-kg-media-catalog-preview-next="1"]')
@@ -210,6 +248,7 @@ def assert_catalog_preview_arrow_navigation(page) -> dict[str, object]:
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "video")
     visible_video = preview.locator('[data-kg-media-catalog-preview-panel="1"] video').first
     wait_for_video_metadata(page, visible_video, CATALOG_PREVIEW_READY_BUDGET_MS)
+    visible_video_metadata = assert_video_metadata_identity(visible_video, "visible video")
     video_ready_ms = float(page.evaluate("startedAt => performance.now() - startedAt", video_started_at))
     if video_ready_ms > CATALOG_PREVIEW_READY_BUDGET_MS:
         raise AssertionError(
@@ -273,6 +312,11 @@ def assert_catalog_preview_arrow_navigation(page) -> dict[str, object]:
     expect(page.locator('[data-kg-media-catalog-preview-preload="1"]')).to_have_count(0)
     return {
         "budgetMs": float(CATALOG_PREVIEW_READY_BUDGET_MS),
+        "fixture": {
+            "path": CATALOG_VIDEO_FIXTURE["path"],
+            "sha256": CATALOG_VIDEO_FIXTURE["sha256"],
+            "sizeBytes": CATALOG_VIDEO_FIXTURE["sizeBytes"],
+        },
         "image": {
             "criterion": "complete && naturalWidth > 0",
             "coldOpenReadyMs": round(cold_ready_ms, 3),
@@ -280,6 +324,16 @@ def assert_catalog_preview_arrow_navigation(page) -> dict[str, object]:
         },
         "video": {
             "criterion": "readyState >= HAVE_METADATA",
+            "metadata": {
+                "expected": {
+                    "durationSeconds": CATALOG_VIDEO_FIXTURE["durationSeconds"],
+                    "durationToleranceSeconds": CATALOG_VIDEO_FIXTURE["durationToleranceSeconds"],
+                    "height": CATALOG_VIDEO_FIXTURE["height"],
+                    "width": CATALOG_VIDEO_FIXTURE["width"],
+                },
+                "preloaded": preloaded_video_metadata,
+                "visible": visible_video_metadata,
+            },
             "preloadedTransitionReadyMs": round(video_ready_ms, 3),
         },
     }
@@ -370,6 +424,9 @@ def main() -> None:
                 f"image-cold={timing['image']['coldOpenReadyMs']:.1f}ms "
                 f"image-preloaded={timing['image']['preloadedTransitionReadyMs']:.1f}ms "
                 f"video-preloaded={timing['video']['preloadedTransitionReadyMs']:.1f}ms "
+                f"video-metadata={timing['video']['metadata']['visible']['width']}x"
+                f"{timing['video']['metadata']['visible']['height']}@"
+                f"{timing['video']['metadata']['visible']['durationSeconds']:.3f}s "
                 f"budget={timing['budgetMs']:.0f}ms"
             )
             print(f"Screenshot: {SCREENSHOT_PATH}")

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 
 export function testRichMediaBrowserSmokeContract() {
@@ -7,7 +8,12 @@ export function testRichMediaBrowserSmokeContract() {
   const packageJson = readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
   const runnerSource = readFileSync(new URL('../../scripts/run_rich_media_browser_smoke.mjs', import.meta.url), 'utf8')
   const verifierSource = readFileSync(new URL('../../scripts/verify_rich_media_browser_smoke.py', import.meta.url), 'utf8')
-  const videoFixture = readFileSync(new URL('../../public/demo/media-preview-metadata-ready.mp4', import.meta.url))
+  const fixtureManifestSource = readFileSync(new URL('../features/testing/richMediaBrowserSmokeFixtures.json', import.meta.url), 'utf8')
+  const fixtureManifest = JSON.parse(fixtureManifestSource) as {
+    catalogVideo: { durationSeconds: number; height: number; path: string; sha256: string; sizeBytes: number; width: number }
+  }
+  const catalogVideoFixture = fixtureManifest.catalogVideo
+  const videoFixture = readFileSync(new URL(`../../public${catalogVideoFixture.path}`, import.meta.url))
 
   for (const snippet of [
     "pathname === '/__smoke__/rich-media'",
@@ -30,7 +36,9 @@ export function testRichMediaBrowserSmokeContract() {
     'data-kg-smoke-panel="video-inline"',
     'data-kg-smoke-panel="audio"',
     'data-kg-smoke-panel="storyboard-widget"',
-    "linkUrl: '/demo/media-preview-metadata-ready.mp4'",
+    'richMediaBrowserSmokeFixtures.catalogVideo.path',
+    'richMediaBrowserSmokeFixtures.catalogVideo.contentType',
+    'richMediaBrowserSmokeFixtures.catalogVideo.sizeBytes',
     'setEditableText(next.text)',
   ]) {
     if (!smokePageSource.includes(snippet)) {
@@ -41,8 +49,17 @@ export function testRichMediaBrowserSmokeContract() {
   if (smokePageSource.includes('data:video/mp4;base64,AAAA')) {
     throw new Error('expected the browser smoke to use the valid local video fixture')
   }
-  if (videoFixture.length > 16_384 || videoFixture.subarray(4, 8).toString('ascii') !== 'ftyp') {
-    throw new Error('expected a tiny ISO media fixture for video metadata readiness')
+  const fixtureSha256 = createHash('sha256').update(videoFixture).digest('hex')
+  if (
+    videoFixture.length !== catalogVideoFixture.sizeBytes
+    || videoFixture.subarray(4, 8).toString('ascii') !== 'ftyp'
+    || fixtureSha256 !== catalogVideoFixture.sha256
+    || catalogVideoFixture.width !== 160
+    || catalogVideoFixture.height !== 90
+    || !Number.isFinite(catalogVideoFixture.durationSeconds)
+    || catalogVideoFixture.durationSeconds <= 0
+  ) {
+    throw new Error('expected the video fixture binary to match its source-owned metadata identity')
   }
 
   for (const snippet of [
@@ -88,9 +105,15 @@ export function testRichMediaBrowserSmokeContract() {
     'CATALOG_PREVIEW_READY_BUDGET_MS',
     'KG_MEDIA_PREVIEW_READY_BUDGET_MS',
     'CATALOG_PREVIEW_TIMING_PATH',
+    'FIXTURE_MANIFEST_PATH',
+    'richMediaBrowserSmokeFixtures.json',
     'def wait_for_image_ready(page, image, timeout_ms: int) -> None:',
     'def wait_for_video_metadata(page, video, timeout_ms: int) -> None:',
+    'def assert_video_metadata_identity(video, label: str) -> dict[str, float]:',
     'element.readyState >= element.HAVE_METADATA',
+    'math.isfinite(duration_seconds)',
+    '"preloaded": preloaded_video_metadata',
+    '"visible": visible_video_metadata',
     'expected preloaded image preview ready within',
     'expected preloaded video metadata ready within',
     '"criterion": "readyState >= HAVE_METADATA"',
