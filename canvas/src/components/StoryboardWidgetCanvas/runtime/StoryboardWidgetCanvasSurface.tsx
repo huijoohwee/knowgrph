@@ -75,6 +75,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
   zoomViewKeyRef: React.MutableRefObject<string | null>
   addNodeFromRegistryAtWorld: (args: { entry: WidgetRegistryEntry; x: number; y: number }) => void
   addRichMediaPanelFromMediaAtWorld: (args: { media: import('@/lib/ui/mediaDragPayload').MediaDragPayload; releaseClientPoint?: { clientX: number; clientY: number }; x: number; y: number }) => string
+  commitStoryboardCardMediaGraph: (graphData: GraphData) => void
   patchNodeById: (nodeId: string, patch: Partial<GraphNode>, sourceGraphData?: GraphData | null) => void
   patchNodePropertiesById: (nodeId: string, patch: Record<string, unknown>, sourceGraphData?: GraphData | null) => void
   removeNodeById: (nodeId: string) => void
@@ -215,10 +216,10 @@ export default function StoryboardWidgetCanvasSurface(props: {
         ]))
       : undefined
   ), [openRichMediaPanelNodeIds, storyboardCardOwnedMediaPanelNodeIds, storyboardOverlayConsumerNodeIds, storyboardSharedSurfaceActive])
-  const flowCanvasRichMediaOverlayExcludedNodeIds = React.useMemo(() => Array.from(new Set([
-    ...storyboardCardOwnedMediaPanelNodeIds,
-    ...openRichMediaPanelNodeIds,
-  ])), [openRichMediaPanelNodeIds, storyboardCardOwnedMediaPanelNodeIds])
+  const flowCanvasRichMediaOverlayExcludedNodeIds = React.useMemo(
+    () => Array.from(new Set(openRichMediaPanelNodeIds)),
+    [openRichMediaPanelNodeIds],
+  )
   const storyboardSurfaceGraphSignature = React.useMemo(() => {
     return [
       String(storyboardSharedSurfaceActive),
@@ -471,6 +472,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
       {props.overlayEditorElements}
       <StoryboardCardOverlayLayer2d
         active={storyboardCardsActive}
+        commitGraphData={props.commitStoryboardCardMediaGraph}
         flowWidgetPinnedByNodeId={effectiveFlowWidgetPinnedByNodeId}
         flowWidgetStateGraphKey={flowWidgetStateGraphKey}
         fixedCardReferencePlacements={stableStoryboardCardPlacements}

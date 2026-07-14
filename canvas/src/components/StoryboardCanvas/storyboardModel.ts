@@ -25,6 +25,7 @@ import {
 import { buildStoryboardInvocationTokensByLane, readStoryboardCardInvocationTokens } from '@/components/StoryboardCanvas/storyboardInvocationTokens'
 import { readImageToThreeJsRenderMode, type ImageToThreeJsRenderMode } from '@/features/image-to-threejs/imageToThreeJsContract'
 import { projectStoryboardMediaAlbumItems, STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY, type StoryboardMediaAlbumItem } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
+import { resolveWidgetNodeTitle } from '@/components/StoryboardWidget/widgetEditorTitle'
 export const STORYBOARD_EMPTY_LANE = 'Storyboard'
 export const STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY = 'storyboardCanvasRichMediaPanel' as const
 const STRUCTURAL_NODE_TYPE_RE = /\b(document|root|workspace|group|cluster|section)\b/i
@@ -371,7 +372,7 @@ const readIndexLabel = (properties: GraphNodeProperties): string => {
 
 const readCardTitle = (node: GraphNode, properties: GraphNodeProperties): string => {
   const label = readString(node.label)
-  if (label) return label
+  if (label) return resolveWidgetNodeTitle({ node })
   const propertyTitle = readFirstPropertyString(properties, STORYBOARD_TITLE_PROPERTY_KEYS)
   if (propertyTitle) return propertyTitle
   const id = readString(node.id)

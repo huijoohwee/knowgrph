@@ -140,6 +140,20 @@ export function testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes()
     throw new Error(`expected canonical Text Widget from compatibility identity fallback, got ${openAiTextFromPropsOnly}`)
   }
 
+  const legacyProviderText = resolveWidgetNodeTitle({
+    node: makeNode({ id: 'text-legacy', type: 'TextGeneration', label: 'OpenAI Text Widget' }),
+  })
+  if (legacyProviderText !== 'Text Widget') {
+    throw new Error(`expected legacy provider-prefixed label to consolidate into Text Widget, got ${legacyProviderText}`)
+  }
+
+  const customText = resolveWidgetNodeTitle({
+    node: makeNode({ id: 'text-custom', type: 'TextGeneration', label: 'Campaign Copywriter' }),
+  })
+  if (customText !== 'Campaign Copywriter') {
+    throw new Error(`expected authored Text Widget name to remain intact, got ${customText}`)
+  }
+
   const seedreamImage = resolveWidgetNodeTitle({
     node: makeNode({ id: 'image-1', type: 'ImageGeneration', label: 'BytePlus Image Widget', properties: { model: 'seedream-4-0-250828' } }),
     registryEntry: {

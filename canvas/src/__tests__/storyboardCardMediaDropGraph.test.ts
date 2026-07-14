@@ -5,6 +5,7 @@ import {
   isStoryboardCardMediaDropEdge,
   isStoryboardCardMediaDropOverlayEdge,
 } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
+import { readStoryboardInlineMediaConsumerIds } from '@/components/StoryboardWidgetCanvas/storyboardCardInlineMediaConsumers'
 import { getCachedStoryboardWidgetOverlayEdgeGraph } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 import {
   buildStoryboardOverlayEdgePathD,
@@ -164,26 +165,82 @@ export function testStoryboardCardMediaDropReusesInboundRichMediaPanelEdge() {
     media: videoPayload,
   })
   assert(first, 'expected initial media drop graph result')
-  const imagePayload: MediaDragPayload = {
-    kind: 'image',
-    url: 'https://example.com/replacement.png',
-    label: 'Replacement image',
-    sourceKey: 'floating-media:replacement',
+  const refreshedVideoPayload: MediaDragPayload = {
+    ...videoPayload,
+    url: `${videoPayload.url}?kg_media_token=rotated`,
+    sourceKey: 'floating-media:refreshed-story-reference',
   }
   const second = applyStoryboardCardMediaDropGraph({
     cardId: 'story-card',
+    cardProperties: { ...card.properties, mediaKind: refreshedVideoPayload.kind, mediaUrl: refreshedVideoPayload.url },
+    graphData: first.graphData,
+    media: refreshedVideoPayload,
+  })
+  assert(second, 'expected refreshed media graph result')
+  assert(second.panelId === first.panelId, `expected the same media identity to reuse panel ${first.panelId}, got ${second.panelId}`)
+  assert(second.edgeId === first.edgeId, `expected the same Card/media pair to reuse edge ${first.edgeId}, got ${second.edgeId}`)
+  assert(second.graphData.nodes.length === first.graphData.nodes.length, 'expected refreshed media not to duplicate its Rich Media Panel')
+  assert(second.graphData.edges.length === first.graphData.edges.length, 'expected refreshed media not to duplicate its inbound edge')
+  const panelProperties = readNode(second.graphData, second.panelId)?.properties as Record<string, unknown>
+  assert(panelProperties.videoUrl === refreshedVideoPayload.url, `expected the reused panel to refresh its runtime URL, got ${JSON.stringify(panelProperties)}`)
+  const edgeProperties = second.graphData.edges.find(edge => String(edge.id || '') === second.edgeId)?.properties as Record<string, unknown>
+  assert(edgeProperties[FLOW_EDGE_SOURCE_PORT_KEY] === 'videoUrl' && edgeProperties[FLOW_EDGE_TARGET_PORT_KEY] === 'mediaUrl', `expected reused edge to retain videoUrl -> mediaUrl, got ${JSON.stringify(edgeProperties)}`)
+}
+
+export function testStoryboardCardInlineMediaChipsRetainInboundRichMediaPanels() {
+  const card = buildCardNode()
+  const imagePayload: MediaDragPayload = {
+    kind: 'image',
+    url: 'https://example.com/reference-frame.png',
+    label: 'Reference frame',
+    sourceKey: 'floating-media:reference-frame',
+  }
+  const audioPayload: MediaDragPayload = {
+    kind: 'audio',
+    url: 'https://example.com/reference-score.mp3',
+    label: 'Reference score',
+    sourceKey: 'floating-media:reference-score',
+  }
+  const first = applyStoryboardCardMediaDropGraph({
+    cardId: card.id,
+    cardProperties: { ...card.properties, mediaKind: videoPayload.kind, mediaUrl: videoPayload.url },
+    graphData: { type: 'Graph', nodes: [card], edges: [] },
+    media: videoPayload,
+  })
+  assert(first, 'expected first inline media chip graph result')
+  const second = applyStoryboardCardMediaDropGraph({
+    cardId: card.id,
     cardProperties: { ...card.properties, mediaKind: imagePayload.kind, mediaUrl: imagePayload.url },
     graphData: first.graphData,
     media: imagePayload,
   })
-  assert(second, 'expected replacement media drop graph result')
-  assert(second.panelId !== first.panelId, 'expected different media identities to use different canonical panel ids')
-  assert(second.graphData.nodes.length === first.graphData.nodes.length, 'expected replacement drop to remove the orphaned prior Rich Media Panel')
-  assert(second.graphData.edges.length === first.graphData.edges.length, 'expected replacement drop to replace rather than duplicate the inbound edge')
-  const panelProperties = readNode(second.graphData, second.panelId)?.properties as Record<string, unknown>
-  assert(panelProperties.imageUrl === imagePayload.url && !panelProperties.videoUrl, `expected reused panel to replace stale video media, got ${JSON.stringify(panelProperties)}`)
-  const edgeProperties = second.graphData.edges.find(edge => String(edge.id || '') === second.edgeId)?.properties as Record<string, unknown>
-  assert(edgeProperties[FLOW_EDGE_SOURCE_PORT_KEY] === 'imageUrl' && edgeProperties[FLOW_EDGE_TARGET_PORT_KEY] === 'mediaUrl', `expected reused edge to retarget imageUrl -> mediaUrl, got ${JSON.stringify(edgeProperties)}`)
+  assert(second, 'expected second inline media chip graph result')
+  const third = applyStoryboardCardMediaDropGraph({
+    cardId: card.id,
+    cardProperties: { ...card.properties, mediaKind: audioPayload.kind, mediaUrl: audioPayload.url },
+    graphData: second.graphData,
+    media: audioPayload,
+  })
+  assert(third, 'expected third inline media chip graph result')
+
+  const panels = third.graphData.nodes.filter(node => node.type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+  const inboundEdges = third.graphData.edges.filter(edge => isStoryboardCardMediaDropEdge(edge, card.id))
+  assert(panels.length === 3, `expected one Rich Media Panel per distinct inline media chip, got ${JSON.stringify(panels.map(node => node.id))}`)
+  assert(inboundEdges.length === 3, `expected one inbound edge per distinct inline media chip, got ${JSON.stringify(inboundEdges)}`)
+  assert(new Set(inboundEdges.map(edge => edge.id)).size === 3, `expected retained inline media edges to keep unique ids across graph normalization, got ${JSON.stringify(inboundEdges.map(edge => edge.id))}`)
+  assert(new Set(inboundEdges.map(edge => edge.source)).size === 3, 'expected each inline media panel to own one deduplicated inbound edge')
+  assert(new Set(panels.map(panel => panel.x)).size === 3, `expected retained panels to use distinct visible placements, got ${JSON.stringify(panels.map(panel => panel.x))}`)
+
+  const repeated = applyStoryboardCardMediaDropGraph({
+    cardId: card.id,
+    cardProperties: { ...card.properties, mediaKind: imagePayload.kind, mediaUrl: `${imagePayload.url}?kg_media_token=rotated` },
+    graphData: third.graphData,
+    media: { ...imagePayload, url: `${imagePayload.url}?kg_media_token=rotated` },
+  })
+  assert(repeated, 'expected repeated inline media chip graph result')
+  assert(repeated.panelId === second.panelId, 'expected a repeated semantic media chip to reuse its existing panel')
+  assert(repeated.graphData.nodes.length === third.graphData.nodes.length, 'expected repeated inline media not to duplicate panels')
+  assert(repeated.graphData.edges.length === third.graphData.edges.length, 'expected repeated inline media not to duplicate edges')
 }
 
 export function testStoryboardCardMediaDropAppendsResponsiveMixedMediaAlbum() {
@@ -265,6 +322,49 @@ export function testStoryboardCardMediaDropSharesPanelAcrossConsumers() {
   const consumerEdges = second.graphData.edges.filter(edge => edge.source === first.panelId)
   assert(consumerEdges.length === 2, `expected one edge per consumer, got ${JSON.stringify(consumerEdges)}`)
   assert(new Set(consumerEdges.map(edge => edge.target)).size === 2, 'expected distinct panel -> Card/Widget consumer edges')
+}
+
+export function testStoryboardInlineMediaSharesPanelAcrossCardAndWidgetConsumers() {
+  const card = buildCardNode('story-card-a')
+  const widget = buildCardNode('n2')
+  const rotatedUrl = `${videoPayload.url}?kg_media_token=rotated`
+  const inlineConsumers = [
+    {
+      id: card.id,
+      summary: '', output: '', action: '', dialogue: '', style: '', slugline: '',
+      prompt: `<video src="${videoPayload.url}" title="Shared reference" controls></video>`,
+    },
+    {
+      id: 'ws:workspace-a::n2',
+      summary: `Use <video src="${rotatedUrl}" title="Shared reference" controls></video>`,
+      output: '', action: '', dialogue: '', prompt: '', style: '', slugline: '',
+    },
+  ]
+  const consumerIds = readStoryboardInlineMediaConsumerIds(inlineConsumers, videoPayload)
+  assert(consumerIds.length === 2, `expected both Card and Widget inline-chip consumers, got ${JSON.stringify(consumerIds)}`)
+
+  let graphData: GraphData = { type: 'Graph', nodes: [card, widget], edges: [] }
+  let panelId = ''
+  for (const consumerId of consumerIds) {
+    const result = applyStoryboardCardMediaDropGraph({
+      cardId: consumerId,
+      cardProperties: consumerId === card.id ? card.properties as Record<string, unknown> : widget.properties as Record<string, unknown>,
+      graphData,
+      media: videoPayload,
+    })
+    assert(result, `expected shared inline media graph result for ${consumerId}`)
+    graphData = result.graphData
+    panelId = panelId || result.panelId
+    assert(result.panelId === panelId, `expected one shared Rich Media Panel ${panelId}, got ${result.panelId}`)
+  }
+
+  const panels = graphData.nodes.filter(node => node.type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+  const sharedEdges = graphData.edges.filter(edge => edge.source === panelId)
+  assert(panels.length === 1, `expected one Rich Media Panel for the shared inline chip, got ${JSON.stringify(panels.map(node => node.id))}`)
+  assert(sharedEdges.length === 2, `expected two edges from the shared panel, got ${JSON.stringify(sharedEdges)}`)
+  assert(new Set(sharedEdges.map(edge => edge.id)).size === 2, 'expected a unique edge for each shared-media consumer')
+  assert(new Set(sharedEdges.map(edge => edge.target)).size === 2, `expected shared panel edges to target both Card and Widget, got ${JSON.stringify(sharedEdges.map(edge => edge.target))}`)
+  assert(sharedEdges.every(edge => isStoryboardCardMediaDropEdge(edge, String(edge.target || ''))), 'expected every shared-media consumer edge to retain Card/Widget ownership metadata')
 }
 
 export function testStoryboardCardMediaDropReusesExistingPanelAcrossRuntimeStorageOrigins() {

@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { getStoryboardWidgetPanelChromeClassName, getStoryboardWidgetPanelSelectionChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
+import {
+  getStoryboardWidgetPanelChromeClassName,
+  getStoryboardWidgetPanelSelectionChromeClassName,
+  getStoryboardWidgetPanelSurfaceChromeClassName,
+} from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
 import { applyVectorPaintedOverlayBox } from '@/lib/canvas/vectorPaintedOverlayProjection'
 
 const readSource = (...parts: string[]): string => readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
@@ -29,6 +33,20 @@ export function testStoryboardWidgetSelectionChromeParity() {
   if (!selectedChrome.includes('outline') || selectedChrome.includes('ring')) {
     throw new Error('expected selected Storyboard panel chrome to use a true outline without box-shadow rings')
   }
+  const selectedSurfaceChrome = getStoryboardWidgetPanelSurfaceChromeClassName({
+    className: 'pointer-events-auto absolute',
+    selected: true,
+  })
+  if (!selectedSurfaceChrome.includes(selectedChrome) || !selectedSurfaceChrome.includes('absolute')) {
+    throw new Error(`expected shared surface composition to preserve the complete selected outline after layout class merging, got ${selectedSurfaceChrome}`)
+  }
+  const unselectedSurfaceChrome = getStoryboardWidgetPanelSurfaceChromeClassName({
+    className: 'pointer-events-auto absolute',
+    selected: false,
+  })
+  if (unselectedSurfaceChrome.includes('outline')) {
+    throw new Error(`expected unselected shared surface composition to omit outline chrome, got ${unselectedSurfaceChrome}`)
+  }
 
   const cardOverlay = readSource('components', 'StoryboardWidgetCanvas', 'StoryboardCardOverlayLayer2d.tsx')
   const richMediaSurface = readSource('components', 'useRichMediaPanelSurfaceState.ts')
@@ -37,13 +55,15 @@ export function testStoryboardWidgetSelectionChromeParity() {
   const storyboardCanvas = readSource('components', 'StoryboardCanvas.tsx')
   const graphMediaOverlay = readSource('components', 'GraphCanvasRoot', 'components', 'RichMediaOverlayLayer2d.tsx')
 
-  if (!cardOverlay.includes('getStoryboardWidgetPanelSelectionChromeClassName(selected)')
+  if (!cardOverlay.includes('getStoryboardWidgetPanelSurfaceChromeClassName({')
+    || !cardOverlay.includes('selected,')
     || !cardOverlay.includes("data-kg-storyboard-widget-selected={selected ? '1' : undefined}")) {
     throw new Error('expected Card and Widget selection to consume the shared panel selection chrome owner')
   }
   if (!richMediaTypes.includes('selected?: boolean')
     || !richMediaTypes.includes("placementOwner?: 'self' | 'parent'")
-    || !richMediaSurface.includes('getStoryboardWidgetPanelSelectionChromeClassName(showStoryboardWidgetChrome && props.selected === true)')
+    || !richMediaSurface.includes('getStoryboardWidgetPanelSurfaceChromeClassName({')
+    || !richMediaSurface.includes('selected: props.selected === true')
     || !richMediaSurface.includes("props.placementOwner === 'parent'")
     || !richMediaSurface.includes("'data-kg-overlay-placement-owner': props.placementOwner === 'parent' ? 'parent' : undefined")
     || !richMediaSurface.includes("element.style.width = '100%'")

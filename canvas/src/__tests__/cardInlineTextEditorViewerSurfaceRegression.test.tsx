@@ -252,6 +252,7 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     MarkdownInlineTextEditSurface,
     focusMarkdownInlineTextSelectionSoon,
     buildMarkdownInlineTextEditHtml,
+    deleteMarkdownInlineTextAtomicMediaToken,
   } = await import('@/lib/markdown-core/ui/MarkdownInlineTextEditSurface')
   const {
     INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR,
@@ -366,6 +367,51 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     const authoredMediaThumbnail = authoredMediaChip.querySelector('[data-kg-card-inline-wysiwyg-media-thumbnail="1"]') as HTMLElement | null
     if (!(authoredMediaThumbnail instanceof dom.window.HTMLElement) || authoredMediaThumbnail.hasAttribute('aria-hidden') || !authoredMediaThumbnail.getAttribute('aria-label')) {
       throw new Error(`expected authored @ media chip thumbnail to stay visible to selection tooling, html=${authoredMediaChip.outerHTML}`)
+    }
+    const authoredMediaToken = '@strybldr-starter-source-017d1e965528642f.png'
+    const authoredMediaTokenStart = authoredMediaValue.indexOf(authoredMediaToken)
+    const authoredMediaTokenEnd = authoredMediaTokenStart + authoredMediaToken.length
+    const forwardDeletion = deleteMarkdownInlineTextAtomicMediaToken({
+      root: directProbe,
+      value: authoredMediaValue,
+      selection: { start: authoredMediaTokenStart, end: authoredMediaTokenStart },
+      direction: 'forward',
+    })
+    if (forwardDeletion?.value !== authoredMediaValue.replace(authoredMediaToken, '')) {
+      throw new Error(`expected Delete before an authored @ media chip to remove the complete token, got ${JSON.stringify(forwardDeletion)}`)
+    }
+    const trailingMediaValue = `Generate a text response for the active request. ${authoredMediaToken}`
+    directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
+      value: trailingMediaValue,
+      projectedMediaAttachments: mediaAttachments,
+    })
+    const trailingBackspaceDeletion = deleteMarkdownInlineTextAtomicMediaToken({
+      root: directProbe,
+      value: trailingMediaValue,
+      selection: { start: trailingMediaValue.indexOf(authoredMediaToken) - 1, end: trailingMediaValue.indexOf(authoredMediaToken) - 1 },
+      direction: 'backward',
+    })
+    if (trailingBackspaceDeletion?.value !== 'Generate a text response for the active request.') {
+      throw new Error(`expected browser End boundary before a trailing @ media chip to delete the chip atomically, got ${JSON.stringify(trailingBackspaceDeletion)}`)
+    }
+    await act(async () => {
+      setHarnessValue?.(authoredMediaValue)
+      await waitForFrames(dom.window, 8)
+    })
+    await act(async () => {
+      focusMarkdownInlineTextSelectionSoon(editorRef, authoredMediaTokenEnd)
+      await waitForFrames(dom.window, 4)
+    })
+    await act(async () => {
+      Simulate.keyDown(editor, { key: 'Backspace' })
+      await waitForFrames(dom.window, 8)
+    })
+    const expectedValueAfterMediaDelete = authoredMediaValue.replace(authoredMediaToken, '')
+    if (proxyRef.current?.value !== expectedValueAfterMediaDelete) {
+      throw new Error(`expected Backspace after an authored @ media chip to publish its removal, got ${JSON.stringify(proxyRef.current?.value)}`)
+    }
+    if (editor.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]')) {
+      throw new Error(`expected removed @ media chip not to be projected back into the editor, html=${editor.innerHTML}`)
     }
     directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
       value: 'Generate a text response for the active request.\n@空武.jpg',

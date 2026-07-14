@@ -2,7 +2,7 @@ import React from 'react'
 import { buildFlowCanvasHeaderPinProps, type FlowCanvasHeaderPinProps } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
 import { WidgetEditorActionsToolbar } from '@/components/StoryboardWidget/WidgetEditorActionsToolbar'
 import { STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME, StoryboardWidgetPanelChromeHeader } from '@/components/StoryboardWidget/StoryboardWidgetPanelChrome'
-import { getStoryboardWidgetPanelChromeClassName, getStoryboardWidgetPanelSelectionChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
+import { getStoryboardWidgetPanelSurfaceChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
 import { StoryboardWidgetOverlayPortHandles } from '@/components/StoryboardWidget/StoryboardWidgetOverlayPortHandles'
 import { StoryboardCardMetaScrollRail } from '@/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail'
 import { StoryboardCardMediaDropSlot2d } from '@/components/StoryboardWidgetCanvas/StoryboardCardMediaDropSlot2d'
@@ -100,11 +100,10 @@ function StoryboardCardOverlayItem(props: {
     <article
       ref={el => register(card.id, el)}
       aria-label={`Storyboard card ${card.title}`}
-      className={cn(
-        getStoryboardWidgetPanelChromeClassName(),
-        'pointer-events-auto absolute left-0 top-0 overflow-visible',
-        getStoryboardWidgetPanelSelectionChromeClassName(selected),
-      )}
+      className={getStoryboardWidgetPanelSurfaceChromeClassName({
+        className: 'pointer-events-auto absolute left-0 top-0 overflow-visible',
+        selected,
+      })}
       data-kg-storyboard-card-pixel-snap="1"
       data-kg-storyboard-card-vector-zoom="1"
       data-kg-storyboard-fixed-card="1"
@@ -241,6 +240,7 @@ function StoryboardCardOverlayItem(props: {
 
 export function StoryboardCardOverlayLayer2d(props: {
   active: boolean
+  commitGraphData?: (graphData: GraphData) => void
   flowWidgetPinnedByNodeId: FlowWidgetPinnedById
   flowWidgetStateGraphKey: string | null
   fixedCardReferencePlacements: ReadonlyMap<string, StoryboardCardPlacement>
@@ -256,7 +256,7 @@ export function StoryboardCardOverlayLayer2d(props: {
   schema: GraphSchema | null
   widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
 }) {
-  const { active, storyboardWidgetSurfaceId, getTransform, getWheelForwardTarget, graphData, graphRevision, onNodeChange, removeNodeById, removePendingNodeById, runWorkflowNode, schema, widgetRegistry } = props
+  const { active, commitGraphData, storyboardWidgetSurfaceId, getTransform, getWheelForwardTarget, graphData, graphRevision, onNodeChange, removeNodeById, removePendingNodeById, runWorkflowNode, schema, widgetRegistry } = props
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const strybldrStoryboardBoardLayoutMode = useGraphStore(s => s.strybldrStoryboardBoardLayoutMode)
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
@@ -302,6 +302,7 @@ export function StoryboardCardOverlayLayer2d(props: {
   )
   const { dropCardMedia, pendingMediaByCardId } = useStoryboardCardMediaDrop2d({
     cards,
+    commitGraphData,
     graphData,
     markdownDocumentName,
     markdownDocumentText,
@@ -385,13 +386,14 @@ export function StoryboardCardOverlayLayer2d(props: {
     preserveFormatting?: boolean
     propertyKeys: readonly string[]
   }) => {
+    const liveGraphData = useGraphStore.getState().graphData || graphData
     const node = readLatestNode(card.id)
     commitStoryboardCardCanonicalText2d({
       ...args,
       addHistory,
       cardId: String(node?.id || card.id).trim(),
       currentProperties: (node?.properties || {}) as Record<string, unknown>,
-      updateNode: (id, patch) => onNodeChange(id, patch, graphData),
+      updateNode: (id, patch) => onNodeChange(id, patch, liveGraphData),
     })
   }, [addHistory, graphData, onNodeChange, readLatestNode])
   const commitTitle = React.useCallback((card: StoryboardCardModel, nextValue: string) => {

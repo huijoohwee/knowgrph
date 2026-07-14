@@ -20,7 +20,7 @@ import {
 } from '@/lib/ui/panelFrame'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { readCanvasAspectRatioWidthToHeight } from '@/lib/canvas/canvasAspectRatioDisplayControls'
-import { getStoryboardWidgetPanelChromeClassName, getStoryboardWidgetPanelSelectionChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
+import { getStoryboardWidgetPanelSurfaceChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
 import { handleRichMediaPanelOverlayDragStartCapture, handleRichMediaPanelOverlayNativeDragStartCapture, installRichMediaOverlayWheelForwarding, startRichMediaPanelHeaderDrag } from './RichMediaPanelOverlayDrag'
 import { beginRichMediaPanelResizeDrag } from './RichMediaPanelResizeHandle'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
@@ -467,9 +467,11 @@ export function useRichMediaPanelSurfaceState(
   const rootClassName = [
     'kg-media',
     'kg-mediaBody',
-    showStoryboardWidgetChrome ? getStoryboardWidgetPanelChromeClassName(mediaState.uiPanelTextFontClass) : '',
-    getStoryboardWidgetPanelSelectionChromeClassName(showStoryboardWidgetChrome && props.selected === true),
-    props.className || '',
+    showStoryboardWidgetChrome ? getStoryboardWidgetPanelSurfaceChromeClassName({
+      className: props.className,
+      panelTextClass: mediaState.uiPanelTextFontClass,
+      selected: props.selected === true,
+    }) : props.className || '',
   ].filter(Boolean).join(' ')
   const rootAttributes = {
     'aria-label': mediaState.title,

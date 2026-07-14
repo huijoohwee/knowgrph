@@ -15,7 +15,7 @@ import {
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
   getStoryboardWidgetSmartWidgetLabel,
 } from '@/lib/config.storyboard-widget'
-import { getTextGenerationWidgetLabel } from '@/features/storyboard-widget-manager/registryTemplates'
+import { getWidgetRegistryEntryLabel } from '@/features/storyboard-widget-manager/registryTemplates'
 import { applyConnectedValuesToNodeForRender, hasConnectedValuesBySchemaPath } from '@/lib/render/effectiveMediaNode'
 import { buildRichMediaPanelOverlayState, type RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 import { shouldUseWebpageAssetPathProxyUrl } from '@/lib/url'
@@ -142,8 +142,8 @@ function deriveOverlayNodeLabel(node: GraphNode): string {
   const properties = (node.properties || {}) as Record<string, unknown>
   const nodeTypeId = String(node.type || '').trim()
   if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
-    return getTextGenerationWidgetLabel({
-      provider: properties.chatProvider,
+    return getWidgetRegistryEntryLabel({
+      nodeTypeId,
       widgetTypeId: properties['flow:widgetTypeId'],
       formId: properties['flow:widgetFormId'],
     })

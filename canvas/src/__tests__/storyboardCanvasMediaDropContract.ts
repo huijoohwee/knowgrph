@@ -3,8 +3,10 @@ import { readFileSync } from 'node:fs'
 export function assertStoryboard2dMediaDropContract() {
   const storyboardCanvasSource = readFileSync(new URL('../components/StoryboardCanvas.tsx', import.meta.url), 'utf8')
   const storyboardWidgetSurfaceSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx', import.meta.url), 'utf8')
+  const storyboardWidgetRuntimeSource = readFileSync(new URL('../components/StoryboardWidgetCanvas.runtime.tsx', import.meta.url), 'utf8')
   const storyboardWidgetDropBridgeSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetDropBridge.ts', import.meta.url), 'utf8')
   const graphStoryboardOverlaySource = readFileSync(new URL('../components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx', import.meta.url), 'utf8')
+  const graphStoryboardOverlayProjectionSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/useStoryboardCardOverlayProjection2d.ts', import.meta.url), 'utf8')
   const graphStoryboardMediaDropSlotSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/StoryboardCardMediaDropSlot2d.tsx', import.meta.url), 'utf8')
   const graphStoryboardMediaDropHookSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/useStoryboardCardMediaDrop2d.ts', import.meta.url), 'utf8')
   const graphStoryboardMediaDropGraphSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph.ts', import.meta.url), 'utf8')
@@ -110,14 +112,14 @@ export function assertStoryboard2dMediaDropContract() {
   }
   if (
     !graphStoryboardOverlaySource.includes("const requestZoom = useGraphStore(s => s.requestZoom)")
-    || !graphStoryboardOverlaySource.includes("requestZoom('fit', { intent: 'fitToView' })")
-    || !graphStoryboardOverlaySource.includes('initialFitCommitKeyRef')
-    || !graphStoryboardOverlaySource.includes('initialFitCommitKeyRef.current !== initialFitDocumentKey')
-    || !graphStoryboardOverlaySource.includes('`${storyboardWidgetSurfaceId}::${String(markdownDocumentName || \'\').trim()}`')
+    || !graphStoryboardOverlayProjectionSource.includes("requestZoom('fit', { intent: 'fitToView' })")
+    || !graphStoryboardOverlayProjectionSource.includes('initialFitCommitKeyRef')
+    || !graphStoryboardOverlayProjectionSource.includes('initialFitCommitKeyRef.current !== initialFitDocumentKey')
+    || !graphStoryboardOverlayProjectionSource.includes('`${storyboardWidgetSurfaceId}::${String(markdownDocumentName || \'\').trim()}`')
   ) {
     throw new Error('expected Storyboard 2D fixed-card overlay to seed offscreen startup through the shared FlowCanvas zoom request path')
   }
-  if (graphStoryboardOverlaySource.includes('initialFitCommitKeyRef.current !== zoomViewKey')) {
+  if (graphStoryboardOverlayProjectionSource.includes('initialFitCommitKeyRef.current !== zoomViewKey')) {
     throw new Error('expected Storyboard graph and selection mutations not to re-arm initial fit')
   }
   if (
@@ -130,7 +132,8 @@ export function assertStoryboard2dMediaDropContract() {
   }
   for (const snippet of [
     "import { isStoryboardCanvas2dRenderer, resolveCanvas2dRendererId } from '@/lib/config.render'",
-    'isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(state.canvas2dRenderer))',
+    'const canvas2dRenderer = resolveCanvas2dRendererId(args.canvas2dRendererOverride ?? state.canvas2dRenderer)',
+    'isStoryboardCanvas2dRenderer(canvas2dRenderer)',
   ]) {
     if (!flowCanvasZoomRequestSource.includes(snippet)) {
       throw new Error(`expected FlowCanvas zoom requests to reuse the shared Storyboard renderer predicate for Storyboard: ${snippet}`)
@@ -146,7 +149,7 @@ export function assertStoryboard2dMediaDropContract() {
     'top: t.applyY(center.y - h / 2)',
     'onResolvedWorldTopLeftForId?: (id: string, point: { x: number; y: number }) => void',
     'args.onResolvedWorldTopLeftForId?.(id, worldTopLeft)',
-    'applyPanelBox(p.el, { left: nextBox.left, top: nextBox.top, w: nextBox.w, h: nextBox.h, display: \'block\', scale: nextBox.scale })',
+    "applyPanelBox(p.el, { left: nextBox.left, top: nextBox.top, w: nextBox.w, h: nextBox.h, display: args.panelDisplay || 'block', scale: nextBox.scale })",
     'readSnapGridConfigFromSchema',
     'snapPanelTopLeftToGrid',
     'preserveWorldTopLeft: !!anchoredWorldBox || (!!projectedWorldBox && !!topLeftNow)',
@@ -168,7 +171,7 @@ export function assertStoryboard2dMediaDropContract() {
     'onResolvedWorldTopLeftForId: storyboardRichMediaWorldTransformProjectionMode',
     'mediaOverlayWorldPositionOverrideRef.current.set(id, point)',
     'getNodeWorldTopLeftForId: storyboardRichMediaWorldTransformProjectionMode',
-    '? id => mediaOverlayWorldPositionOverrideRef.current.get(id) || readNodeWorldTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id)))',
+    'mediaOverlayWorldPositionOverrideRef.current.get(id) || effectiveFlowWidgetWorldPosByNodeId[id]',
     "getNodeWorldCenterForId: id => readNodeWorldCenterFromTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id)))",
     'if (storyboardSharedSurfaceRendererMode) return override',
     'w: RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width',
@@ -237,9 +240,11 @@ export function assertStoryboard2dMediaDropContract() {
     'onDropMedia(card, payload)',
     'onMediaCommandSelect={applyInlineMediaCommandToCard}',
     'const readLatestNode = React.useCallback',
-    'const renderNode = nodeById.get(key) || null',
-    'if (renderNode) return renderNode',
     'const latestGraphData = useGraphStore.getState().graphData',
+    'const latestNode = resolveGraphNodeByCanonicalId(latestGraphData, key)',
+    'if (latestNode) return latestNode',
+    'const liveGraphData = useGraphStore.getState().graphData || graphData',
+    'updateNode: (id, patch) => onNodeChange(id, patch, liveGraphData)',
     'openOnPointerDown',
     'data-kg-storyboard-card-text-column="1"',
     'onPointerDownCapture={requestSummaryEditFromTextColumn}',
@@ -256,7 +261,7 @@ export function assertStoryboard2dMediaDropContract() {
     'onDropMedia',
     'setMarkdownDocument(markdownDocumentName, nextMarkdownText, { applyViewPreset: false })',
     'applyStoryboardCardMediaDropGraph',
-    'setGraphDataPreservingLayout(nextGraph.graphData)',
+    'setGraphDataPreservingLayout(nextGraphData)',
   ]) {
     if (!graphStoryboardCardOverlaySource.includes(snippet)) {
       throw new Error(`expected Storyboard media drop owner to retain snippet: ${snippet}`)
@@ -280,11 +285,23 @@ export function assertStoryboard2dMediaDropContract() {
   }
 
   const overlayDropMediaIndex = graphStoryboardMediaDropHookSource.indexOf('const dropCardMedia = React.useCallback')
+  const overlayDropLiveGraphIndex = graphStoryboardMediaDropHookSource.indexOf('const liveGraphData = useGraphStore.getState().graphData || graphData', overlayDropMediaIndex)
   const overlayDropGraphPatchIndex = graphStoryboardMediaDropHookSource.indexOf('const nextProperties = buildNodeMediaProperties({', overlayDropMediaIndex)
   const overlayDropMarkdownMirrorIndex = graphStoryboardMediaDropHookSource.indexOf('const nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({', overlayDropMediaIndex)
-  const overlayDropGraphCommitIndex = graphStoryboardMediaDropHookSource.indexOf('setGraphDataPreservingLayout(nextGraph.graphData)', overlayDropMediaIndex)
-  if (overlayDropMediaIndex < 0 || overlayDropGraphPatchIndex < overlayDropMediaIndex || overlayDropMarkdownMirrorIndex < overlayDropGraphPatchIndex || overlayDropGraphCommitIndex < overlayDropMarkdownMirrorIndex) {
+  const overlayDropGraphCommitIndex = graphStoryboardMediaDropHookSource.indexOf('setGraphDataPreservingLayout(nextGraphData)', overlayDropMediaIndex)
+  if (overlayDropMediaIndex < 0 || overlayDropLiveGraphIndex < overlayDropMediaIndex || overlayDropGraphPatchIndex < overlayDropLiveGraphIndex || overlayDropMarkdownMirrorIndex < overlayDropGraphPatchIndex || overlayDropGraphCommitIndex < overlayDropMarkdownMirrorIndex) {
     throw new Error('expected fixed Storyboard card media drops to build and commit visible graph media while mirroring Markdown secondarily')
+  }
+  for (const snippet of [
+    'resolveGraphNodeByCanonicalId(liveGraphData, card.id)',
+    'readStoryboardInlineMediaConsumerIds(cards, { ...payload, url })',
+    'for (const consumerId of sharedConsumerIds)',
+    'graphData: nextGraphData',
+    'setGraphDataPreservingLayout(nextGraphData)',
+  ]) {
+    if (!graphStoryboardMediaDropHookSource.includes(snippet)) {
+      throw new Error(`expected shared Card/Widget @ media consumers to accumulate from the action-time graph: ${snippet}`)
+    }
   }
   const overlayDropMarkdownBranch = graphStoryboardMediaDropHookSource.slice(
     graphStoryboardMediaDropHookSource.indexOf('if (nextMarkdownText && markdownDocumentName && nextMarkdownText !== markdownDocumentText)', overlayDropMediaIndex),
@@ -298,12 +315,14 @@ export function assertStoryboard2dMediaDropContract() {
     throw new Error('expected fixed Storyboard card media drops to publish an immediate pending media preview before graph/Markdown commit work')
   }
   for (const snippet of [
-    'findReusableMediaPanelEdge',
+    'findReusableMediaPanelNode',
     'CARD_MEDIA_DROP_EDGE_TARGET_PORT = \'mediaUrl\'',
     'CARD_MEDIA_DROP_PANEL_X_OFFSET = Math.round(RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width / 3)',
     'readCardMediaDropPanelPlacement',
-    'isDropOwnedPanelNodeForCard',
+    'isDropOwnedPanelNode',
+    'countCardMediaPanelSources',
     'isCardMediaTargetEdge',
+    'supersededSingleSourceEdgeIds',
     'isStoryboardCardMediaDropEdge',
     'isStoryboardCardMediaDropOverlayEdge',
     'buildRichMediaPanelDroppedMediaProperties',
@@ -317,6 +336,32 @@ export function assertStoryboard2dMediaDropContract() {
     if (!graphStoryboardMediaDropGraphSource.includes(snippet)) {
       throw new Error(`expected Storyboard card media drops to create and reuse inbound Rich Media Panel edges: ${snippet}`)
     }
+  }
+  for (const staleReplacementSnippet of ['staleAutoEdgeIds', 'referencedPanelIds']) {
+    if (graphStoryboardMediaDropGraphSource.includes(staleReplacementSnippet)) {
+      throw new Error(`expected distinct Card @ media chips to retain their inbound Rich Media Panels and edges: ${staleReplacementSnippet}`)
+    }
+  }
+  for (const snippet of [
+    'commitGraphData?: (graphData: GraphData) => void',
+    'if (commitGraphData) commitGraphData(nextGraphData)',
+  ]) {
+    if (!graphStoryboardCardOverlaySource.includes(snippet)) {
+      throw new Error(`expected Card @ media graph commits to update the Storyboard draft owner: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'commitStoryboardCardMediaGraph',
+    'draftGraphDataRef.current = nextDraft',
+    'setDraftGraphData(nextDraft)',
+    'setGraphDataPreservingLayout(nextDraft)',
+  ]) {
+    if (!storyboardWidgetRuntimeSource.includes(snippet)) {
+      throw new Error(`expected Card @ media graph commits to preserve draft and store topology: ${snippet}`)
+    }
+  }
+  if (storyboardWidgetSurfaceSource.includes('...storyboardCardOwnedMediaPanelNodeIds,\n    ...openRichMediaPanelNodeIds')) {
+    throw new Error('expected inbound Card Rich Media Panels to remain visible in the Storyboard overlay renderer')
   }
   for (const snippet of [
     'isStoryboardCardMediaDropOverlayEdge(rawEdge, overlayNodeById.get(source) || null, target)',
