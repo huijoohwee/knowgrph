@@ -2,7 +2,7 @@
 
 Before changing this repository, read and follow `docs/collaboration-runtime-contract.md` and `docs/conflict-resolution.md`.
 
-- Use one task, one branch, and one worktree.
+- Use one task and one branch in the device's single registered worktree for this repository; switch branches in place and forbid `git worktree add`.
 - Fetch `origin` before starting and create `agent/<device>/<semantic-scope>` from `origin/main`.
 - Never write the same branch from two devices; stop the sender before a commit-SHA handoff.
 - Declare `/`, `#`, and `@` intent before editing.

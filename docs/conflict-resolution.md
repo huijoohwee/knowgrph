@@ -85,7 +85,7 @@ Each mantra and table row stays alphabetized so merge decisions remain easy to s
 
 ## Merge Order
 
-1. Fetch `origin`, create `agent/<device>/<semantic-scope>` from `origin/main`, and keep that branch writable on one device only.
+1. Fetch `origin`, verify the repository has exactly one registered worktree on this device, and create `agent/<device>/<semantic-scope>` from `origin/main` in that checkout; switch branches in place and forbid `git worktree add`.
 2. Declare one action, semantic scope, actor, and exact `origin/main` base SHA in pull-request frontmatter.
 3. Classify each conflicting file as `runtime-source`, `canonical-doc`, `generator`, `schema-mirror`, or `publish-mirror`.
 4. Stop parallel implementation when another active change owns the same semantic scope; serialize or explicitly hand over ownership.
@@ -232,6 +232,7 @@ Use `npm run hygiene:audit` before broad refactors to list all current source-bu
 - [ ] Every conflicting file has an identified owner surface
 - [ ] Pull-request frontmatter declares one `/` action, `#` semantic scope, `@` actor, and exact base SHA
 - [ ] The task branch identifies one device and matches the declared semantic scope
+- [ ] Each source repository has exactly one registered worktree on this device
 - [ ] No other active change owns the same semantic scope
 - [ ] A cross-device handoff stopped the sender before the receiver resumed the exact pushed commit
 - [ ] No generated or publish mirror file was hand-merged without fixing the upstream source

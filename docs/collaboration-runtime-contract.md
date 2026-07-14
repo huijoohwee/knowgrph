@@ -2,7 +2,7 @@
 title: "Knowgrph Collaboration Runtime Contract"
 doc_type: "Runtime Contract"
 status: "active"
-contract_version: 3
+contract_version: 4
 frontmatter_contract: "required"
 ci_command_timeout_ms: 300000
 invocation:
@@ -20,6 +20,9 @@ local_development:
   canonical_mode: "canonical"
   task_mode: "task"
   mode_environment_variable: "KG_DEV_SOURCE_MODE"
+  worktree_policy:
+    mode: "single-device-single-worktree"
+    maximum_registered_per_repository: 1
   canonical_sources:
     - id: "knowgrph"
       repository_path: "."
@@ -52,6 +55,11 @@ ci_scopes:
     roots: ["canvas/src/", "canvas/scripts/", "grph-shared/src/", "gympgrph/src/"]
     commands:
       - ["npm", "run", "check"]
+  rich_media_preview_timing:
+    roots: ["canvas/schemas/rich-media-catalog-preview-timing.v1.schema.json", "canvas/scripts/lib/rich-media-catalog-preview-timing-schema.mjs", "canvas/scripts/validate_rich_media_catalog_preview_timing.mjs", "canvas/scripts/__tests__/rich-media-catalog-preview-timing-schema.test.mjs", "canvas/scripts/run_rich_media_browser_smoke.mjs", "canvas/scripts/verify_rich_media_browser_smoke.py", "canvas/src/features/testing/RichMediaBrowserSmokePage.tsx", "canvas/src/features/testing/richMediaBrowserSmokeFixtures.json", "canvas/src/__tests__/richMediaBrowserSmokeContract.test.ts"]
+    commands:
+      - ["npm", "--prefix", "canvas", "run", "test:smoke:rich-media:timing-schema"]
+      - ["npm", "--prefix", "canvas", "run", "test:ci:unit", "--", "richMedia.browserSmokeContract"]
   runtime:
     roots: ["cloudflare/workers/", "contracts/", "mcp/", "web/"]
     commands:
@@ -95,7 +103,8 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 
 ## Ownership And Conflict Prevention
 
-- One task owns one branch and one worktree.
+- Each device keeps one registered worktree per repository and switches task branches in place; `git worktree add` is forbidden.
+- One task owns the writable branch currently checked out in that worktree.
 - One semantic scope has one active implementation owner.
 - Every task branch uses `agent/<device>/<semantic-scope>` and starts from the declared `origin/main` commit.
 - If two active changes claim the same scope, serialize them or explicitly hand over ownership before further edits.
@@ -124,6 +133,7 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 ## Local Development Source Identity
 
 - Normal `npm run dev` startup fetches every `local_development.canonical_sources` entry before Vite starts.
+- Startup counts each source repository's registered worktrees and fails closed unless the count is exactly `local_development.worktree_policy.maximum_registered_per_repository`.
 - Canonical mode requires every registered repository to be clean and exactly equal to its fetched canonical SHA. The port number never selects application or documentation source code.
 - The centralized Agentic Canvas OS docs entry resolves from the sibling repository and requires its `docs` root. Stale, ahead, divergent, dirty, or missing sources fail closed with the responsible source identity.
 - Task branches use `KG_DEV_SOURCE_MODE=task npm run dev -- --port <port>` explicitly. Task mode permits divergence only for the source whose contract declares `task_divergence_allowed: true`; the shared Agentic Canvas OS docs revision remains clean and canonical.

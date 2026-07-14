@@ -26,6 +26,33 @@ test('canonical contract is valid and selects deduplicated affected checks', asy
   ])
 })
 
+test('Rich Media preview timing owners always select schema and browser contract gates', async () => {
+  const contract = await readContract()
+  const timingOwnerPaths = [
+    'canvas/schemas/rich-media-catalog-preview-timing.v1.schema.json',
+    'canvas/scripts/lib/rich-media-catalog-preview-timing-schema.mjs',
+    'canvas/scripts/validate_rich_media_catalog_preview_timing.mjs',
+    'canvas/scripts/__tests__/rich-media-catalog-preview-timing-schema.test.mjs',
+    'canvas/scripts/run_rich_media_browser_smoke.mjs',
+    'canvas/scripts/verify_rich_media_browser_smoke.py',
+    'canvas/src/features/testing/RichMediaBrowserSmokePage.tsx',
+    'canvas/src/features/testing/richMediaBrowserSmokeFixtures.json',
+    'canvas/src/__tests__/richMediaBrowserSmokeContract.test.ts',
+  ]
+
+  for (const ownerPath of timingOwnerPaths) {
+    const plan = selectAffectedCommands([ownerPath], contract)
+    assert.ok(plan.scopes.includes('rich_media_preview_timing'), ownerPath)
+    assert.deepEqual(plan.unmatchedPaths, [], ownerPath)
+    assert.ok(plan.commands.some(command => command.join(' ') === (
+      'npm --prefix canvas run test:smoke:rich-media:timing-schema'
+    )), ownerPath)
+    assert.ok(plan.commands.some(command => command.join(' ') === (
+      'npm --prefix canvas run test:ci:unit -- richMedia.browserSmokeContract'
+    )), ownerPath)
+  }
+})
+
 test('ready pull request metadata follows slash hash at grammar', async () => {
   const contract = await readContract()
   const metadata = validatePullRequestMetadata(`---
