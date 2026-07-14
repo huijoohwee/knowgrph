@@ -6,7 +6,8 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
-import { parseFrontmatter, repoRoot } from "./collaboration-contract.mjs";
+import { repoRoot } from "./collaboration-contract.mjs";
+import { readRuntimeReadinessContract } from "./runtime-readiness-contract.mjs";
 import { runAgenticCanvasOsDocsInvokeTool } from "../mcp/agentic-canvas-os-docs-runtime.js";
 import { runVideoRemix } from "../mcp/video-remix-runtime.js";
 import { VIDEO_REMIX_STAGE_ORDER } from "../mcp/video-remix/stage-contract.js";
@@ -16,8 +17,6 @@ import { buildSmeCanvasEvidence } from "../mcp/sme-risk-coverage/canvas-evidence
 import { runSmeRiskCoverageMarkdown } from "../mcp/sme-risk-coverage/core.js";
 
 const execFileAsync = promisify(execFile);
-const contractPath = path.resolve(repoRoot, "docs", "runtime-readiness-contract.md");
-
 const fail = (message) => {
   throw new Error(`runtime-ready check failed: ${message}`);
 };
@@ -25,9 +24,7 @@ const fail = (message) => {
 const equalJson = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 
 async function readContract() {
-  const source = await fs.readFile(contractPath, "utf8");
-  const contract = parseFrontmatter(source, path.relative(repoRoot, contractPath));
-  if (contract.status !== "active" || contract.contract_version !== 1) fail("contract is not active v1");
+  const contract = await readRuntimeReadinessContract();
   if (!equalJson(contract.stage_contract?.order, VIDEO_REMIX_STAGE_ORDER)) {
     fail("frontmatter stage order does not match the executable stage contract");
   }
