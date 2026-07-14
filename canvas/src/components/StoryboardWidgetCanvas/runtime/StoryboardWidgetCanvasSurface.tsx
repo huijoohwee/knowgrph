@@ -33,6 +33,9 @@ import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { applyCanonicalNodePropertyAuthority } from '@/lib/graph/applyCanonicalNodePropertyAuthority'
 import { useStableStoryboardCardPlacements2d } from '@/components/StoryboardWidgetCanvas/useStableStoryboardCardPlacements2d'
+import { buildRichMediaPanelOverlayExcludeNodeIdSet } from '@/lib/render/richMediaSsot'
+import { isRichMediaPanelNode } from '@/lib/render/richMediaPanelNode'
+import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'
 
 export default function StoryboardWidgetCanvasSurface(props: {
   rootRef: React.RefObject<HTMLElement | null>
@@ -146,18 +149,55 @@ export default function StoryboardWidgetCanvasSurface(props: {
       .filter(id => isStoryboardFixedCardOwnedNode(resolveGraphNodeByCanonicalId(storyboardGraphData, id)))
     return fixedCardNodeIds
   }, [graphContentRevision, graphDataRevision, props.widgetRegistry, storyboardSharedSurfaceActive, storyboardGraphData])
+  const storyboardNodeById = React.useMemo(() => {
+    const nodeById = new Map<string, GraphNode>()
+    for (const node of storyboardGraphData?.nodes || []) {
+      const id = String(node?.id || '').trim()
+      if (id) nodeById.set(id, node)
+    }
+    return nodeById
+  }, [storyboardGraphData])
+  const explicitOpenWidgetNodeIds = React.useMemo(() => (
+    props.storyboardWidgetMode === true && Array.isArray(props.openWidgetNodeIds)
+      ? props.openWidgetNodeIds
+      : []
+  ), [props.openWidgetNodeIds, props.storyboardWidgetMode])
+  const storyboardOpenWidgetNodeIds = React.useMemo(() => {
+    if (!storyboardSharedSurfaceActive) return []
+    const resolvedIds = new Set<string>()
+    for (const rawId of explicitOpenWidgetNodeIds) {
+      const id = String(resolveGraphNodeByCanonicalId(storyboardGraphData, rawId)?.id || '').trim()
+      if (id) resolvedIds.add(id)
+    }
+    return Array.from(resolvedIds)
+  }, [explicitOpenWidgetNodeIds, storyboardGraphData, storyboardSharedSurfaceActive])
+  const openRichMediaPanelNodeIds = React.useMemo(() => Array.from(buildRichMediaPanelOverlayExcludeNodeIdSet({
+    graphData: storyboardGraphData,
+    nodeById: storyboardNodeById,
+    candidateRawIds: explicitOpenWidgetNodeIds,
+  })), [explicitOpenWidgetNodeIds, storyboardGraphData, storyboardNodeById])
+  const storyboardOverlayConsumerNodeIds = React.useMemo(() => Array.from(new Set([
+    ...storyboardFixedCardNodeIds,
+    ...storyboardOpenWidgetNodeIds,
+  ])), [storyboardFixedCardNodeIds, storyboardOpenWidgetNodeIds])
   const storyboardCardOwnedMediaPanelNodeIds = React.useMemo(() => {
-    if (!storyboardSharedSurfaceActive || storyboardFixedCardNodeIds.length === 0) return []
-    const fixedCardNodeIdSet = new Set(storyboardFixedCardNodeIds)
+    if (!storyboardSharedSurfaceActive || storyboardOverlayConsumerNodeIds.length === 0) return []
+    const overlayConsumerNodeIdSet = new Set(storyboardOverlayConsumerNodeIds)
     const sourceIds = new Set((storyboardGraphData?.edges || [])
-      .filter(edge => fixedCardNodeIdSet.has(String(edge.target || '').trim()) && isStoryboardCardMediaDropEdge(edge, String(edge.target || '').trim()))
-      .map(edge => String(edge.source || '').trim())
+      .filter(edge => {
+        const targetId = String(resolveGraphNodeByCanonicalId(storyboardGraphData, edge.target)?.id || '').trim()
+        if (!overlayConsumerNodeIdSet.has(targetId)) return false
+        const sourceNode = resolveGraphNodeByCanonicalId(storyboardGraphData, edge.source)
+        if (!isRichMediaPanelNode(sourceNode)) return false
+        return isStoryboardCardMediaDropEdge(edge, targetId) || readFlowEdgePortKey(edge, 'target') === 'mediaUrl'
+      })
+      .map(edge => String(resolveGraphNodeByCanonicalId(storyboardGraphData, edge.source)?.id || '').trim())
       .filter(Boolean))
     return (storyboardGraphData?.nodes || [])
       .map(node => String(node?.id || '').trim())
       .filter(nodeId => sourceIds.has(nodeId))
       .filter(Boolean)
-  }, [storyboardFixedCardNodeIds, storyboardGraphData, storyboardSharedSurfaceActive])
+  }, [storyboardGraphData, storyboardOverlayConsumerNodeIds, storyboardSharedSurfaceActive])
   const readFlowCanvasBaseGraphDataOverride = React.useCallback(() => {
     const flowCanvasGraphDataOverride = storyboardSharedSurfaceActive ? storyboardGraphData : props.renderGraphDataOverride
     return flowCanvasGraphDataOverride
@@ -168,9 +208,17 @@ export default function StoryboardWidgetCanvasSurface(props: {
   const storyboardEdgeGraphData = storyboardSharedSurfaceActive ? storyboardGraphData : flowCanvasGraphDataOverride
   const flowCanvasNativeSceneExcludedNodeIds = React.useMemo(() => (
     storyboardSharedSurfaceActive
-      ? [...storyboardFixedCardNodeIds, ...storyboardCardOwnedMediaPanelNodeIds]
+      ? Array.from(new Set([
+          ...storyboardOverlayConsumerNodeIds,
+          ...storyboardCardOwnedMediaPanelNodeIds,
+          ...openRichMediaPanelNodeIds,
+        ]))
       : undefined
-  ), [storyboardCardOwnedMediaPanelNodeIds, storyboardFixedCardNodeIds, storyboardSharedSurfaceActive])
+  ), [openRichMediaPanelNodeIds, storyboardCardOwnedMediaPanelNodeIds, storyboardOverlayConsumerNodeIds, storyboardSharedSurfaceActive])
+  const flowCanvasRichMediaOverlayExcludedNodeIds = React.useMemo(() => Array.from(new Set([
+    ...storyboardCardOwnedMediaPanelNodeIds,
+    ...openRichMediaPanelNodeIds,
+  ])), [openRichMediaPanelNodeIds, storyboardCardOwnedMediaPanelNodeIds])
   const storyboardSurfaceGraphSignature = React.useMemo(() => {
     return [
       String(storyboardSharedSurfaceActive),
@@ -392,7 +440,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
           mutationSourceGraphDataOverride={storyboardSourceGraphData || flowCanvasGraphDataOverride}
           graphDataRevisionOverride={props.storyboardWidgetViewActive ? props.draftGraphDataRevision : props.baseGraphDataRevision}
           excludeNativeSceneNodeIds={flowCanvasNativeSceneExcludedNodeIds}
-          excludeRichMediaOverlayNodeIds={storyboardCardOwnedMediaPanelNodeIds}
+          excludeRichMediaOverlayNodeIds={flowCanvasRichMediaOverlayExcludedNodeIds}
           flowWidgetPinnedByNodeIdOverride={effectiveFlowWidgetPinnedByNodeId}
           flowWidgetStateGraphKeyOverride={flowWidgetStateGraphKey}
           onNodeChange={props.patchNodeById}
