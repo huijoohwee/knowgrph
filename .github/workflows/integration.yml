@@ -68,7 +68,7 @@ jobs:
       - name: Resolve Agentic Canvas OS docs dependency
         id: agentic_canvas_os_docs
         working-directory: knowgrph
-        run: npm run runtime:docs-dependency:resolve -- --github-output >> "$GITHUB_OUTPUT"
+        run: npm run --silent runtime:docs-dependency:resolve -- --github-output >> "$GITHUB_OUTPUT"
 
       - name: Checkout Agentic Canvas OS docs SSOT
         uses: actions/checkout@v4

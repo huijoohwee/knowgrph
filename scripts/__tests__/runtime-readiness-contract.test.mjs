@@ -51,6 +51,7 @@ test('all workflow checkouts consume the contract resolver without copied SHAs',
     assert.ok(installIndex >= 0 && installIndex < resolverIndex, workflowPath)
     assert.ok(resolverIndex < checkoutIndex, workflowPath)
     assert.match(source, /id: agentic_canvas_os_docs/)
+    assert.match(source, /npm run --silent runtime:docs-dependency:resolve -- --github-output/)
     assert.match(source, /repository: \$\{\{ steps\.agentic_canvas_os_docs\.outputs\.repository \}\}/)
     assert.match(source, /ref: \$\{\{ steps\.agentic_canvas_os_docs\.outputs\.ref \}\}/)
     assert.doesNotMatch(source, /ref: [0-9a-f]{40}/)
