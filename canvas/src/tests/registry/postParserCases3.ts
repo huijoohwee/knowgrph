@@ -330,6 +330,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["canvas.storyboard.nodeLookupIncludesStoreAndComposedIds","@/__tests__/storyboardNodeLookup.test","testStoryboardGraphBackedNodeLookupIncludesStoreAndComposedIds"],
   ["canvas.storyboard.projectsSceneLikeNodesIntoLanes","@/__tests__/storyboardModel.test","testStoryboardBoardModelProjectsSceneLikeNodesIntoLanes"],
   ["canvas.storyboard.supportsUniversalNeutralAliases","@/__tests__/storyboardModel.test","testStoryboardBoardModelSupportsUniversalNeutralAliases"],
+  ["canvas.storyboard.reusesCanonicalWidgetTitles","@/__tests__/storyboardModel.test","testStoryboardBoardModelReusesCanonicalWidgetTitles"],
   ["canvas.storyboard.providerVideo.renderableEmbedThumbnail","@/__tests__/storyboardModel.test","testStoryboardBoardModelResolvesProviderVideoToRenderableEmbedAndThumbnail"],
   ["canvas.storyboard.generatedOutputAudio.mediaProjection","@/__tests__/storyboardModel.test","testStoryboardBoardModelProjectsGeneratedOutputAndAudioMedia"],
   ["canvas.storyboard.droppedGenericMedia.visibleCardMedia","@/__tests__/storyboardModel.test","testStoryboardBoardModelProjectsDroppedGenericMediaIntoVisibleCardMedia"],

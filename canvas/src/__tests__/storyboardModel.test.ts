@@ -143,6 +143,27 @@ export function testStoryboardBoardModelSupportsUniversalNeutralAliases() {
   }
 }
 
+export function testStoryboardBoardModelReusesCanonicalWidgetTitles() {
+  const board = buildStoryboardBoardModel({
+    graphData: {
+      type: 'Graph',
+      nodes: [
+        { id: 'legacy-text', type: 'TextGeneration', label: 'OpenAI Text Widget', properties: {} },
+        { id: 'custom-text', type: 'TextGeneration', label: 'Campaign Copywriter', properties: {} },
+      ],
+      edges: [],
+    },
+    graphRevision: 1,
+  })
+  const cards = board.lanes.flatMap(lane => lane.cards)
+  if (cards.find(card => card.id === 'legacy-text')?.title !== 'Text Widget') {
+    throw new Error(`expected Card title to reuse canonical Text Widget naming, got ${JSON.stringify(cards)}`)
+  }
+  if (cards.find(card => card.id === 'custom-text')?.title !== 'Campaign Copywriter') {
+    throw new Error(`expected Card title to preserve authored widget names, got ${JSON.stringify(cards)}`)
+  }
+}
+
 export function testStoryboardBoardModelResolvesProviderVideoToRenderableEmbedAndThumbnail() {
   const videoId = ['Story', 'Board', '42'].join('')
   const watchUrl = ['https://www.youtube.com/watch', `?v=${videoId}&t=42`].join('')

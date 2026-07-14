@@ -242,17 +242,6 @@ export function inferTextGenerationProviderFamily(args: {
   return 'byteplus'
 }
 
-export function getTextGenerationWidgetLabel(args: {
-  provider?: unknown
-  widgetTypeId?: unknown
-  formId?: unknown
-}): string {
-  // Provider-specific form IDs remain valid compatibility aliases, but the
-  // provider is configuration of the canonical Text Widget, not its identity.
-  void args
-  return FLOW_TEXT_GENERATION_NODE_LABEL
-}
-
 export function listVisibleWidgetRegistryPortsForPropsEditor(args: {
   registryEntry?: Pick<WidgetRegistryEntry, 'nodeTypeId' | 'widgetTypeId' | 'formId' | 'ports'> | null | undefined
   properties?: Record<string, unknown> | null | undefined
@@ -434,7 +423,9 @@ export function getWidgetRegistryEntryLabel(args: {
   if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
     if (formId === FLOW_VIDEO_SCRIPT_FORM_ID) return FLOW_VIDEO_SCRIPT_WIDGET_LABEL
     if (formId === FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID) return FLOW_OPENAI_VIDEO_SCRIPT_WIDGET_LABEL
-    return getTextGenerationWidgetLabel(args)
+    // Provider-specific form IDs are compatibility aliases. The provider is
+    // configuration of the canonical Text Widget, not a separate identity.
+    return FLOW_TEXT_GENERATION_NODE_LABEL
   }
   if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'Image Widget'
   if (nodeTypeId === IMAGE_TO_THREEJS_SKILL_NODE_TYPE_ID) return IMAGE_TO_THREEJS_SKILL_NODE_LABEL

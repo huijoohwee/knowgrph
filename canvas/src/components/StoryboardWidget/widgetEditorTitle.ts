@@ -12,7 +12,7 @@ import {
   FLOW_VIDEO_GENERATION_NODE_TYPE_ID,
   getStoryboardWidgetSmartWidgetLabel,
 } from '@/lib/config.storyboard-widget'
-import { getTextGenerationWidgetLabel, getWidgetRegistryEntryLabel } from '@/features/storyboard-widget-manager/registryTemplates'
+import { getWidgetRegistryEntryLabel } from '@/features/storyboard-widget-manager/registryTemplates'
 import { isGrabMapsDiscoveryWidgetEntry } from '@/features/storyboard-widget-manager/grabMapsDiscoveryWidget'
 import {
   resolveWidgetIdentity,
@@ -73,8 +73,8 @@ function resolveSpecificWidgetTitle(args: {
     if (registryLabel) return registryLabel
   }
   if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
-    return getTextGenerationWidgetLabel({
-      provider: properties.chatProvider,
+    return getWidgetRegistryEntryLabel({
+      nodeTypeId,
       widgetTypeId: widgetIdentity.widgetTypeId,
       formId: widgetIdentity.formId,
     })
@@ -105,6 +105,8 @@ export function resolveWidgetNodeTitle(args: {
   const node = args.node
   const fallback = normalizeWidgetLabelText(node.label) || String(node.id || '').trim() || 'Node'
   const specificTitle = resolveSpecificWidgetTitle(args)
+  const isLegacyProviderTextWidgetLabel = node.type === FLOW_TEXT_GENERATION_NODE_TYPE_ID
+    && /^(?:openai|byteplus|deerflow|miromind|agnes|sealion|qwen|google(?: cloud)?)\s+text widget$/i.test(fallback)
   const genericFallbacks = new Set([
     '',
     String(node.id || '').trim(),
@@ -114,7 +116,7 @@ export function resolveWidgetNodeTitle(args: {
     FLOW_VIDEO_GENERATION_NODE_LABEL,
   ])
   if (String(args.graphMetaKind || '').trim() !== 'frontmatter-flow') {
-    return specificTitle && genericFallbacks.has(fallback) ? specificTitle : fallback
+    return specificTitle && (genericFallbacks.has(fallback) || isLegacyProviderTextWidgetLabel) ? specificTitle : fallback
   }
   const data = readNodeData(node)
   const type = String(node.type || '').trim().toLowerCase()
