@@ -6,6 +6,7 @@ import {
 } from '@/features/markdown/ui/markdownEditSurfaceLayout'
 import { normalizeEscapedInlineMediaMarkdown } from '@/features/markdown/ui/inlineMediaMarkdown'
 import {
+  INLINE_MEDIA_EDIT_TOKEN_SELECTOR,
   INLINE_MARKDOWN_EDIT_TOKEN_SELECTOR,
   INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR,
   INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_SELECTOR,
@@ -37,6 +38,11 @@ import { cn } from '@/lib/utils'
 
 const CARD_INLINE_TEXT_VIEWER_VIRTUAL_MEDIA_CHIP_ATTRIBUTE = 'data-kg-card-inline-wysiwyg-virtual-media-chip'
 const CARD_INLINE_TEXT_VIEWER_MEDIA_MARKDOWN_ATTRIBUTE = 'data-kg-card-inline-wysiwyg-media-markdown'
+const CARD_INLINE_TEXT_ATOMIC_MEDIA_TOKEN_SELECTOR = [
+  `[${CARD_INLINE_TEXT_VIEWER_VIRTUAL_MEDIA_CHIP_ATTRIBUTE}="1"]`,
+  INLINE_MEDIA_EDIT_TOKEN_SELECTOR,
+  '[data-kg-inline-source-binding-edit-token="1"]',
+].join(',')
 
 type MarkdownInlineTextPendingSelection = { start: number; end: number }
 type MarkdownInlineTextMediaChipMatch = {
@@ -56,6 +62,67 @@ type MarkdownInlineTextEditSegment =
   }
 
 const pendingViewerSelections = new WeakMap<HTMLElement, MarkdownInlineTextPendingSelection>()
+
+export function deleteMarkdownInlineTextAtomicMediaToken(args: {
+  root: HTMLElement | null
+  value: string
+  selection: { start: number; end: number }
+  direction: 'backward' | 'forward'
+}): { value: string; cursor: number } | null {
+  if (!args.root) return null
+  const value = String(args.value || '').replace(/\r/g, '')
+  const selectionStart = Math.max(0, Math.min(value.length, Math.min(args.selection.start, args.selection.end)))
+  const selectionEnd = Math.max(selectionStart, Math.min(value.length, Math.max(args.selection.start, args.selection.end)))
+  const tokens = Array.from(args.root.querySelectorAll(CARD_INLINE_TEXT_ATOMIC_MEDIA_TOKEN_SELECTOR))
+  let searchFrom = 0
+  for (const token of tokens) {
+    const markdown = String(
+      token.getAttribute(CARD_INLINE_TEXT_VIEWER_MEDIA_MARKDOWN_ATTRIBUTE)
+      || readInlineMarkdownEditTokenMarkdown(token),
+    ).replace(/\r/g, '').trim()
+    if (!markdown) continue
+    const tokenStart = value.indexOf(markdown, searchFrom)
+    if (tokenStart < 0) continue
+    const tokenEnd = tokenStart + markdown.length
+    searchFrom = tokenEnd
+    if (selectionStart !== selectionEnd) {
+      if (selectionStart >= tokenEnd || selectionEnd <= tokenStart) continue
+      return {
+        value: `${value.slice(0, Math.min(selectionStart, tokenStart))}${value.slice(Math.max(selectionEnd, tokenEnd))}`,
+        cursor: Math.min(selectionStart, tokenStart),
+      }
+    }
+    if (args.direction === 'backward') {
+      const gap = value.slice(tokenEnd, selectionStart)
+      if (tokenEnd <= selectionStart && gap.length <= 1 && /^\s*$/.test(gap)) {
+        return {
+          value: `${value.slice(0, tokenStart)}${value.slice(selectionStart)}`,
+          cursor: tokenStart,
+        }
+      }
+      const gapBeforeTrailingToken = value.slice(selectionStart, tokenStart)
+      if (
+        tokenStart >= selectionStart
+        && gapBeforeTrailingToken.length <= 1
+        && /^\s*$/.test(gapBeforeTrailingToken)
+        && /^\s*$/.test(value.slice(tokenEnd))
+      ) {
+        return {
+          value: `${value.slice(0, selectionStart)}${value.slice(tokenEnd)}`,
+          cursor: selectionStart,
+        }
+      }
+      continue
+    }
+    const gap = value.slice(selectionStart, tokenStart)
+    if (tokenStart < selectionStart || gap.length > 1 || !/^\s*$/.test(gap)) continue
+    return {
+      value: `${value.slice(0, selectionStart)}${value.slice(tokenEnd)}`,
+      cursor: selectionStart,
+    }
+  }
+  return null
+}
 
 function scheduleMarkdownInlineSelectionFrame(
   editorRef: React.RefObject<HTMLElement | null>,
@@ -565,6 +632,22 @@ export function MarkdownInlineTextEditSurface(props: {
             event.preventDefault()
             props.onOpenCommandMenuForSigilAtSelection(sigil, readSelection())
             return
+          }
+          if (event.key === 'Backspace' || event.key === 'Delete') {
+            const deletion = deleteMarkdownInlineTextAtomicMediaToken({
+              root: props.editorRef.current,
+              value: latestDraftRef.current,
+              selection: readSelection(),
+              direction: event.key === 'Backspace' ? 'backward' : 'forward',
+            })
+            if (deletion) {
+              event.preventDefault()
+              domDirtyRef.current = false
+              latestDraftRef.current = deletion.value
+              props.onDraftChange(deletion.value)
+              focusMarkdownInlineTextSelectionSoon(props.editorRef, deletion.cursor)
+              return
+            }
           }
           if (event.key === 'Enter' && (!props.multiline || event.metaKey || event.ctrlKey)) {
             event.preventDefault()
