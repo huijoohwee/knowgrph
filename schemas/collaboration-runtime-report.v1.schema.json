@@ -4,7 +4,7 @@
   "title": "Knowgrph Collaboration Runtime Report v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "status", "contractVersion", "policies"],
+  "required": ["schema", "status", "contractVersion", "sourceRevision", "policies"],
   "properties": {
     "schema": {
       "const": "knowgrph.collaboration-runtime-report/v1"
@@ -15,6 +15,10 @@
     "contractVersion": {
       "type": "integer",
       "minimum": 1
+    },
+    "sourceRevision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
     },
     "policies": {
       "type": "object",

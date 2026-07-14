@@ -13,6 +13,7 @@ import {
 } from './runtime-docs-workflow-policy.mjs'
 import {
   COLLABORATION_RUNTIME_REPORT_SCHEMA,
+  resolveCollaborationRuntimeSourceRevision,
   validateCollaborationRuntimeReport,
 } from './collaboration-runtime-report.mjs'
 
@@ -159,6 +160,7 @@ const main = async () => {
     schema: COLLABORATION_RUNTIME_REPORT_SCHEMA,
     status: 'passed',
     contractVersion: contract.contract_version,
+    sourceRevision: resolveCollaborationRuntimeSourceRevision(),
     policies: {
       deploymentIsolation,
       runtimeDocsWorkflow,

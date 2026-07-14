@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { spawnSync } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import Ajv2020 from 'ajv/dist/2020.js'
@@ -34,6 +35,31 @@ const createValidatorLoader = schemaPath => {
 
 const loadReportValidator = createValidatorLoader(COLLABORATION_RUNTIME_REPORT_SCHEMA_PATH)
 const loadValidationValidator = createValidatorLoader(COLLABORATION_RUNTIME_VALIDATION_SCHEMA_PATH)
+const SOURCE_REVISION_PATTERN = /^[0-9a-f]{40}$/
+
+export const validateCollaborationRuntimeSourceRevision = sourceRevision => {
+  if (!SOURCE_REVISION_PATTERN.test(sourceRevision)) {
+    throw new Error(`invalid collaboration source revision: ${sourceRevision}`)
+  }
+  return sourceRevision
+}
+
+export const resolveCollaborationRuntimeSourceRevision = ({
+  environment = process.env,
+  cwd = repoRoot,
+} = {}) => {
+  const configuredRevision = environment.KNOWGRPH_SOURCE_REVISION
+  if (configuredRevision !== undefined && configuredRevision !== '') {
+    return validateCollaborationRuntimeSourceRevision(String(configuredRevision))
+  }
+
+  const result = spawnSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' })
+  if (result.error) throw result.error
+  if (result.status !== 0) {
+    throw new Error(result.stderr.trim() || `git rev-parse HEAD exited with status ${result.status}`)
+  }
+  return validateCollaborationRuntimeSourceRevision(result.stdout.trim())
+}
 
 export const readCollaborationRuntimeReportSchema = async () => {
   const { schema } = await loadReportValidator()
@@ -54,6 +80,7 @@ export const validateCollaborationRuntimeReport = async report => {
   return {
     schemaId: schema.$id,
     schemaVersion: report.schema,
+    sourceRevision: report.sourceRevision,
   }
 }
 
@@ -90,7 +117,11 @@ export const validateCollaborationRuntimeValidationArtifact = async artifactPath
   return { artifactPath, ...envelope }
 }
 
-export const validateCollaborationRuntimeValidationPair = (envelope, reportIdentity) => {
+export const validateCollaborationRuntimeValidationPair = (
+  envelope,
+  reportIdentity,
+  expectedSourceRevision = null,
+) => {
   if (envelope.status !== 'passed') {
     throw new Error('collaboration validation failure envelopes cannot prove a report pairing')
   }
@@ -99,7 +130,20 @@ export const validateCollaborationRuntimeValidationPair = (envelope, reportIdent
       `collaboration report digest mismatch: expected ${envelope.reportDigest}, received ${reportIdentity.reportDigest}`,
     )
   }
-  return { reportDigest: envelope.reportDigest }
+  if (envelope.sourceRevision !== reportIdentity.sourceRevision) {
+    throw new Error(
+      `collaboration source revision mismatch: expected ${envelope.sourceRevision}, received ${reportIdentity.sourceRevision}`,
+    )
+  }
+  if (expectedSourceRevision && reportIdentity.sourceRevision !== expectedSourceRevision) {
+    throw new Error(
+      `collaboration source revision does not match the expected CI revision: expected ${expectedSourceRevision}, received ${reportIdentity.sourceRevision}`,
+    )
+  }
+  return {
+    reportDigest: envelope.reportDigest,
+    sourceRevision: envelope.sourceRevision,
+  }
 }
 
 export const validateCollaborationRuntimeReportSource = async source => {
