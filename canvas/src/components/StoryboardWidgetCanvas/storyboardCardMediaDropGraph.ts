@@ -18,6 +18,7 @@ const CARD_MEDIA_DROP_TARGET_KEY = 'storyboardCardMediaTargetId'
 const CARD_MEDIA_DROP_SEMANTIC_KEY = 'storyboardCardMediaSemanticKey'
 const CARD_MEDIA_DROP_SOURCE_KIND_KEY = 'storyboardCardMediaSourceKind'
 const CARD_MEDIA_DROP_PANEL_X_OFFSET = Math.round(RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width / 3)
+const CARD_MEDIA_DROP_PANEL_HORIZONTAL_GAP = Math.round(RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width / 10)
 const CARD_MEDIA_DROP_PANEL_VERTICAL_GAP = Math.round(RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height / 6)
 
 export type StoryboardCardMediaDropGraphResult = {
@@ -47,7 +48,7 @@ const readSourcePortForPanelProperties = (props: Record<string, unknown>): strin
 const readFiniteNumber = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? value : null
 
-const readCardMediaDropPanelPlacement = (anchor: GraphNode): {
+const readCardMediaDropPanelPlacement = (anchor: GraphNode, slotIndex: number): {
   x: number
   xOffset: number
   y: number
@@ -55,13 +56,16 @@ const readCardMediaDropPanelPlacement = (anchor: GraphNode): {
 } => {
   const anchorX = readFiniteNumber(anchor.x) ?? 0
   const anchorY = readFiniteNumber(anchor.y) ?? 0
+  const safeSlotIndex = Number.isFinite(slotIndex) ? Math.max(0, Math.floor(slotIndex)) : 0
+  const xOffset = CARD_MEDIA_DROP_PANEL_X_OFFSET
+    + safeSlotIndex * (RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.width + CARD_MEDIA_DROP_PANEL_HORIZONTAL_GAP)
   const belowOffset = RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE.height + CARD_MEDIA_DROP_PANEL_VERTICAL_GAP
   const aboveOffset = -belowOffset
   const yOffset = anchorY + aboveOffset >= 0 ? aboveOffset : belowOffset
   return {
-    x: anchorX + CARD_MEDIA_DROP_PANEL_X_OFFSET,
+    x: anchorX + xOffset,
     y: anchorY + yOffset,
-    xOffset: CARD_MEDIA_DROP_PANEL_X_OFFSET,
+    xOffset,
     yOffset,
   }
 }
@@ -133,6 +137,12 @@ const isCardMediaTargetEdge = (edge: GraphEdge, cardId: string): boolean =>
 const findReusableMediaPanelNode = (nodes: readonly GraphNode[], mediaSemanticKey: string): GraphNode | null =>
   nodes.find(node => readPanelMediaSemanticKey(node) === mediaSemanticKey) || null
 
+const countCardMediaPanelSources = (edges: readonly GraphEdge[], cardId: string): number =>
+  new Set(edges
+    .filter(edge => isStoryboardCardMediaDropEdge(edge, cardId))
+    .map(edge => clean(edge.source))
+    .filter(Boolean)).size
+
 const buildPanelId = (mediaSemanticKey: string, usedIds: ReadonlySet<string>): string => {
   const base = `media-panel-${hashString32(mediaSemanticKey).toString(16).padStart(8, '0')}`
   if (!usedIds.has(base)) return base
@@ -182,7 +192,7 @@ export function applyStoryboardCardMediaDropGraph(args: {
   const reusableEdge = edges.find(edge => isStoryboardCardMediaDropEdge(edge, cardId) && clean(edge.source) === panelId) || null
   const sourcePort = readSourcePortForMedia(args.media.kind)
   const panelLabel = clean(args.media.label) || clean(cardNode.label) || 'Card media'
-  const panelPlacement = readCardMediaDropPanelPlacement(cardNode)
+  const panelPlacement = readCardMediaDropPanelPlacement(cardNode, reusablePanel ? 0 : countCardMediaPanelSources(edges, cardId))
   const panelNode = reusablePanel || buildRichMediaPanelNode({
     id: panelId,
     anchor: cardNode,
@@ -210,11 +220,11 @@ export function applyStoryboardCardMediaDropGraph(args: {
     ...cardNode,
     properties: args.cardProperties as never,
   }
-  const staleAutoEdgeIds = new Set(edges
-    .filter(edge => isCardMediaTargetEdge(edge, cardId) && clean(edge.source) !== panelId)
+  const supersededSingleSourceEdgeIds = new Set(edges
+    .filter(edge => isCardMediaTargetEdge(edge, cardId) && !isStoryboardCardMediaDropEdge(edge, cardId))
     .map(edge => clean(edge.id))
     .filter(Boolean))
-  let nextNodes = nodes.map(node => {
+  const nextNodes = nodes.map(node => {
     const id = clean(node?.id)
     if (id === cardId) return nextCardNode
     if (id === panelId) return nextPanelNode
@@ -224,7 +234,7 @@ export function applyStoryboardCardMediaDropGraph(args: {
 
   let createdEdge = false
   let edgeId = clean(reusableEdge?.id)
-  let nextEdges = edges.filter(edge => !staleAutoEdgeIds.has(clean(edge.id)))
+  let nextEdges = edges.filter(edge => !supersededSingleSourceEdgeIds.has(clean(edge.id)))
   if (reusableEdge && edgeId) {
     nextEdges = nextEdges.map(edge => clean(edge.id) === edgeId
       ? { ...edge, source: panelId, target: cardId, label: CARD_MEDIA_DROP_EDGE_LABEL, properties: buildEdgeProperties({ cardId, existing: edge, media: args.media, sourcePort }) as never }
@@ -250,9 +260,6 @@ export function applyStoryboardCardMediaDropGraph(args: {
         : edge)
     }
   }
-
-  const referencedPanelIds = new Set(nextEdges.map(edge => clean(edge.source)).filter(Boolean))
-  nextNodes = nextNodes.filter(node => clean(node.id) === panelId || !isDropOwnedPanelNode(node) || referencedPanelIds.has(clean(node.id)))
 
   return {
     createdEdge,

@@ -241,6 +241,7 @@ function StoryboardCardOverlayItem(props: {
 
 export function StoryboardCardOverlayLayer2d(props: {
   active: boolean
+  commitGraphData?: (graphData: GraphData) => void
   flowWidgetPinnedByNodeId: FlowWidgetPinnedById
   flowWidgetStateGraphKey: string | null
   fixedCardReferencePlacements: ReadonlyMap<string, StoryboardCardPlacement>
@@ -256,7 +257,7 @@ export function StoryboardCardOverlayLayer2d(props: {
   schema: GraphSchema | null
   widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
 }) {
-  const { active, storyboardWidgetSurfaceId, getTransform, getWheelForwardTarget, graphData, graphRevision, onNodeChange, removeNodeById, removePendingNodeById, runWorkflowNode, schema, widgetRegistry } = props
+  const { active, commitGraphData, storyboardWidgetSurfaceId, getTransform, getWheelForwardTarget, graphData, graphRevision, onNodeChange, removeNodeById, removePendingNodeById, runWorkflowNode, schema, widgetRegistry } = props
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
   const strybldrStoryboardBoardLayoutMode = useGraphStore(s => s.strybldrStoryboardBoardLayoutMode)
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
@@ -302,6 +303,7 @@ export function StoryboardCardOverlayLayer2d(props: {
   )
   const { dropCardMedia, pendingMediaByCardId } = useStoryboardCardMediaDrop2d({
     cards,
+    commitGraphData,
     graphData,
     markdownDocumentName,
     markdownDocumentText,

@@ -40,12 +40,13 @@ const readStoryboardScalar2d = (value: unknown): string => {
 
 export function useStoryboardCardMediaDrop2d(args: {
   cards: readonly StoryboardCardModel[]
+  commitGraphData?: (graphData: GraphData) => void
   graphData: GraphData | null
   markdownDocumentName: string | null
   markdownDocumentText: string | null
   nodeById: ReadonlyMap<string, GraphNode>
 }) {
-  const { cards, graphData, markdownDocumentName, markdownDocumentText, nodeById } = args
+  const { cards, commitGraphData, graphData, markdownDocumentName, markdownDocumentText, nodeById } = args
   const addHistory = useGraphStore(s => s.addHistory)
   const setGraphDataPreservingLayout = useGraphStore(s => s.setGraphDataPreservingLayout)
   const setMarkdownDocument = useGraphStore(s => s.setMarkdownDocument)
@@ -132,13 +133,14 @@ export function useStoryboardCardMediaDrop2d(args: {
       ? applyStoryboardCardMediaDropGraph({ cardId: card.id, cardProperties: nextProperties, graphData, media: { ...payload, url } })
       : null
     if (nextGraph) {
-      setGraphDataPreservingLayout(nextGraph.graphData)
+      if (commitGraphData) commitGraphData(nextGraph.graphData)
+      else setGraphDataPreservingLayout(nextGraph.graphData)
       addHistory('Storyboard media')
       return
     }
     updateNode(card.id, { properties: nextProperties as never })
     addHistory('Storyboard media')
-  }, [addHistory, graphData, markdownDocumentName, markdownDocumentText, nodeById, setGraphDataPreservingLayout, setMarkdownDocument, updateNode])
+  }, [addHistory, commitGraphData, graphData, markdownDocumentName, markdownDocumentText, nodeById, setGraphDataPreservingLayout, setMarkdownDocument, updateNode])
 
   return { dropCardMedia, pendingMediaByCardId }
 }

@@ -37,6 +37,7 @@ import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCanvas/storyboardCardOwnership2d'
 import { readCanvasCardWidgetDisplayMode } from '@/lib/canvas/canvasCardWidgetDisplayControls'
+import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 
 // #region debug-point A:runtime-storyboard-graph-handoff
 const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'
@@ -272,6 +273,14 @@ export default function StoryboardWidgetCanvasRuntime(
     historyIndex,
     preferDraftGraphData: storyboardCardsMode,
   })
+  const commitStoryboardCardMediaGraph = React.useCallback((graphData: GraphData) => {
+    const nextDraft = bumpStoryboardWidgetDraftGraphDataRevision(graphData, {
+      revisionFloor: Math.max(draftGraphDataRevision, baseGraphDataRevision),
+    })
+    draftGraphDataRef.current = nextDraft
+    setDraftGraphData(nextDraft)
+    setGraphDataPreservingLayout(nextDraft)
+  }, [baseGraphDataRevision, draftGraphDataRef, draftGraphDataRevision, setDraftGraphData, setGraphDataPreservingLayout])
   const storyboardCanvasGraphDataForDisplay = React.useMemo((): GraphData | null => {
     if (!storyboardCardsMode) return null
     return resolveStoryboardCanvasGraphDataAuthority({
@@ -839,6 +848,7 @@ export default function StoryboardWidgetCanvasRuntime(
       zoomViewKeyRef={zoomViewKeyRef}
       addNodeFromRegistryAtWorld={addNodeFromRegistryAtWorld}
       addRichMediaPanelFromMediaAtWorld={addRichMediaPanelFromMediaAtWorld}
+      commitStoryboardCardMediaGraph={commitStoryboardCardMediaGraph}
       patchNodeById={patchNodeById}
       patchNodePropertiesById={patchNodePropertiesById}
       removeNodeById={removeNodeById}
