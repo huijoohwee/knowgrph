@@ -274,6 +274,7 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     focusMarkdownInlineTextSelectionSoon,
     buildMarkdownInlineTextEditHtml,
     deleteMarkdownInlineTextAtomicMediaToken,
+    readMarkdownInlineTextEditDraft,
   } = await import('@/lib/markdown-core/ui/MarkdownInlineTextEditSurface')
   const {
     INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR,
@@ -327,8 +328,17 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     })
     const editor = editorRef.current
     if (!editor) throw new Error('expected Viewer edit surface')
-    if (editor.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]')) {
-      throw new Error(`expected attachment-only media not to be appended into Viewer edit text without an authored @ token, html=${editor.innerHTML}`)
+    const initialProjectedMediaChip = editor.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]') as HTMLElement | null
+    if (!(initialProjectedMediaChip instanceof dom.window.HTMLElement) || initialProjectedMediaChip.getAttribute(INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR) !== '1') {
+      throw new Error(`expected attachment-only media to remain visible as a display-only chip while editing, html=${editor.innerHTML}`)
+    }
+    directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
+      value: initialValue,
+      inlineChipDensity: 'compact',
+      projectedMediaAttachments: null,
+    })
+    if (readMarkdownInlineTextEditDraft(editor) !== readMarkdownInlineTextEditDraft(directProbe)) {
+      throw new Error(`expected display-only edit chips not to mutate the raw prompt, html=${editor.innerHTML}`)
     }
     if (editor.querySelector('br')) {
       throw new Error(`expected compact Viewer edit surface to flatten media-adjacent source line breaks, html=${editor.innerHTML}`)
@@ -355,9 +365,12 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
       value: nextValue,
       projectedMediaAttachments: mediaAttachments,
     })
-    const directText = String(directProbe.textContent || '').replace(/\s+/g, ' ').trim()
-    if (directText.includes('@strybldr-starter-source-017d1e965528642f.png')) {
-      throw new Error(`expected attachment-only @ media chip not to be appended into card edit text, text=${JSON.stringify(directText)}`)
+    const directProjectedMediaChip = directProbe.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]') as HTMLElement | null
+    if (!(directProjectedMediaChip instanceof dom.window.HTMLElement) || directProjectedMediaChip.getAttribute(INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR) !== '1') {
+      throw new Error(`expected attachment-only @ media to remain visible in the card editor, html=${directProbe.innerHTML}`)
+    }
+    if (readMarkdownInlineTextEditDraft(directProbe) !== nextValue) {
+      throw new Error(`expected attachment-only @ media projection to serialize to the unchanged prompt, html=${directProbe.innerHTML}`)
     }
     directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
       value: 'I and\n![buddydrone.jpg](https://airvio.co/api/storage/media/airvio/runs/storyboard/buddydrone.jpg)\ncan see that #storyboard is as interesting as /cost.audit\n',
@@ -367,8 +380,8 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     if (directProbe.querySelector('br')) {
       throw new Error(`expected compact Viewer card edit HTML to flatten media-adjacent soft line breaks, html=${directProbe.innerHTML}`)
     }
-    if (String(directProbe.textContent || '').replace(/\s+/g, ' ').trim() !== 'I and buddydrone.jpg can see that #storyboard is as interesting as /cost.audit') {
-      throw new Error(`expected compact Viewer card edit text to keep media, /, and # inline, html=${directProbe.innerHTML}`)
+    if (!String(directProbe.textContent || '').replace(/\s+/g, ' ').trim().startsWith('I and buddydrone.jpg can see that #storyboard is as interesting as /cost.audit')) {
+      throw new Error(`expected compact Viewer card edit text to keep media, /, #, and the display-only attachment inline, html=${directProbe.innerHTML}`)
     }
     const authoredMediaValue = `I can ... #storyboard @strybldr-starter-source-017d1e965528642f.png /soul.load ..`
     directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
@@ -452,8 +465,17 @@ export async function testCardInlineTextEditorViewerSurfaceKeepsChipCaretOffsets
     if (proxyRef.current?.value !== expectedValueAfterMediaDelete) {
       throw new Error(`expected Backspace after an authored @ media chip to publish its removal, got ${JSON.stringify(proxyRef.current?.value)}`)
     }
-    if (editor.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]')) {
-      throw new Error(`expected removed @ media chip not to be projected back into the editor, html=${editor.innerHTML}`)
+    const projectedChipAfterAuthoredTokenDelete = editor.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]') as HTMLElement | null
+    if (!(projectedChipAfterAuthoredTokenDelete instanceof dom.window.HTMLElement) || projectedChipAfterAuthoredTokenDelete.getAttribute(INLINE_MARKDOWN_ZERO_LENGTH_TOKEN_ATTR) !== '1') {
+      throw new Error(`expected an initially attachment-only chip to remain visible after its temporary authored token is deleted, html=${editor.innerHTML}`)
+    }
+    directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
+      value: expectedValueAfterMediaDelete,
+      projectedMediaAttachments: mediaAttachments,
+      appendMissingProjectedMediaKeys: new Set(),
+    })
+    if (directProbe.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]')) {
+      throw new Error(`expected an attachment that was authored when editing began not to be re-projected after deletion, html=${directProbe.innerHTML}`)
     }
     directProbe.innerHTML = buildMarkdownInlineTextEditHtml({
       value: 'Generate a text response for the active request.\n@空武.jpg',
