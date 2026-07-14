@@ -97,7 +97,7 @@ function buildMarkdown(): string {
     `- \`${RAW_SSOT_PATH}\``,
     '',
     'Scope:',
-    '- This static reference is intentionally limited to the BytePlus request-surface rows that knowgrph exposes in `MainPanel Integrations`, `Workflow Manager`, and the `BytePlus Text Widget`.',
+    '- This static reference is intentionally limited to the BytePlus request-surface rows that knowgrph exposes in `MainPanel Integrations`, `Workflow Manager`, and the `Text Widget` when configured for BytePlus.',
     '- `provider`, `auth_mode`, `endpoint_url`, and `api_key` are knowgrph integration transport settings aligned to BytePlus ModelArk execution, not raw OpenArk body fields.',
     '',
     'Table columns:',

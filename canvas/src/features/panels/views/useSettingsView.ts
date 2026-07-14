@@ -1231,7 +1231,7 @@ export function useSettingsView({
         },
         {
           title: OPENAI_CHAT_API_DOC_AREA,
-          searchIndex: normalizeText('OpenAI Chat API Responses FloatingPanel Props Panel OpenAI Text Widget text generation'),
+          searchIndex: normalizeText('OpenAI Chat API Responses FloatingPanel Props Panel Text Widget text generation'),
           match: entry => normalizeSettingsAreaLabel(entry.details.area) === OPENAI_CHAT_API_DOC_AREA,
         },
         {

@@ -99,7 +99,7 @@ export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = 
   [OPENAI_CHAT_API_DOC_AREA]: {
     docsUrl: 'https://developers.openai.com/api/reference/resources/responses',
     docsLabel: 'Open OpenAI Chat API Docs',
-    panelLabel: 'Open FloatingPanel Props Panel OpenAI Text Widget',
+    panelLabel: 'Open FloatingPanel Props Panel Text Widget',
     openPanel: () => emitPropsPanelOpen(),
   },
   [OPENAI_IMAGES_API_DOC_AREA]: {
@@ -111,7 +111,7 @@ export const INTEGRATIONS_SECTION_META: Readonly<Record<string, SectionMeta>> = 
   [DEERFLOW_API_DOC_AREA]: {
     docsUrl: 'https://github.com/bytedance/deer-flow',
     docsLabel: 'Open DeerFlow Docs',
-    panelLabel: 'Open FloatingPanel Props Panel DeerFlow Text Widget',
+    panelLabel: 'Open FloatingPanel Props Panel Text Widget',
     openPanel: () => emitPropsPanelOpen(),
   },
   [MIROMIND_API_DOC_AREA]: {

@@ -140,7 +140,7 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'byteplusApi.response_format.type',
       'byteplusApi.tool_choice',
       'OpenAI Chat API',
-      'Open FloatingPanel Props Panel OpenAI Text Widget',
+      'Open FloatingPanel Props Panel Text Widget',
       'openaiApi.provider',
       'openaiApi.endpoint_url',
       'openaiApi.model',
@@ -154,7 +154,7 @@ export async function testIntegrationsHubReusesSettingsEntryList() {
       'openaiImageApi.size',
       'openaiImageApi.output_format',
       'DeerFlow Gateway API',
-      'Open FloatingPanel Props Panel DeerFlow Text Widget',
+      'Open FloatingPanel Props Panel Text Widget',
       'deerflowApi.provider',
       'deerflowApi.endpoint_url',
       'deerflowApi.model',
@@ -261,9 +261,9 @@ export async function testIntegrationsHubSectionLinksOpenFloatingPanels() {
     await clickButton('Open FloatingPanel Chat UI')
     await clickButton('Open FloatingPanel Chat UI (Agnes)')
     await clickButton('Open FloatingPanel Props Panel Text Widget')
-    await clickButton('Open FloatingPanel Props Panel OpenAI Text Widget')
+    await clickButton('Open FloatingPanel Props Panel Text Widget')
     await clickButton('Open FloatingPanel Props Panel OpenAI Image Widget')
-    await clickButton('Open FloatingPanel Props Panel DeerFlow Text Widget')
+    await clickButton('Open FloatingPanel Props Panel Text Widget')
     await clickButton('Open FloatingPanel BytePlus Video Widget')
     await clickButton('Open FloatingPanel BytePlus Image Widget')
 

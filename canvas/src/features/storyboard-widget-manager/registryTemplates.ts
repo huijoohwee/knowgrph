@@ -108,7 +108,6 @@ type TextGenerationProviderProfile = {
   providerId: string
   defaultEndpointUrl: string
   defaultModel: string
-  widgetLabel: string
 }
 
 const TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY: Readonly<Record<TextGenerationProviderFamily, TextGenerationProviderProfile>> = {
@@ -116,49 +115,41 @@ const TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY: Readonly<Record<TextGeneration
     providerId: CHAT_PROVIDER_BYTEPLUS,
     defaultEndpointUrl: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
     defaultModel: CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
-    widgetLabel: 'BytePlus Text Widget',
   },
   openai: {
     providerId: CHAT_PROVIDER_OPENAI,
     defaultEndpointUrl: CHAT_OPENAI_ENDPOINT_URL,
     defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_OPENAI),
-    widgetLabel: 'OpenAI Text Widget',
   },
   deerflow: {
     providerId: CHAT_PROVIDER_DEERFLOW,
     defaultEndpointUrl: CHAT_DEERFLOW_ENDPOINT_URL,
     defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_DEERFLOW),
-    widgetLabel: 'DeerFlow Text Widget',
   },
   miromind: {
     providerId: CHAT_PROVIDER_MIROMIND,
     defaultEndpointUrl: CHAT_MIROMIND_ENDPOINT_URL,
     defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_MIROMIND),
-    widgetLabel: 'MiroMind Text Widget',
   },
   agnes: {
     providerId: CHAT_PROVIDER_AGNES,
     defaultEndpointUrl: CHAT_AGNES_ENDPOINT_URL,
     defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_AGNES),
-    widgetLabel: 'Agnes AI Text Widget',
   },
   sealion: {
     providerId: CHAT_PROVIDER_SEALION,
     defaultEndpointUrl: CHAT_SEALION_ENDPOINT_URL,
     defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_SEALION),
-    widgetLabel: 'SEA-LION Text Widget',
   },
   qwen: {
     providerId: CHAT_PROVIDER_QWEN,
     defaultEndpointUrl: CHAT_QWEN_ENDPOINT_URL,
     defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_QWEN),
-    widgetLabel: 'Qwen Text Widget',
   },
   'google-cloud': {
     providerId: CHAT_PROVIDER_GOOGLE_CLOUD,
     defaultEndpointUrl: CHAT_GOOGLE_CLOUD_ENDPOINT_URL,
     defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_GOOGLE_CLOUD),
-    widgetLabel: 'Google Cloud Text Widget',
   },
 } as const
 
@@ -256,18 +247,10 @@ export function getTextGenerationWidgetLabel(args: {
   widgetTypeId?: unknown
   formId?: unknown
 }): string {
-  const formId = String(args.formId || '').trim()
-  const widgetTypeId = String(args.widgetTypeId || '').trim().toLowerCase()
-  const provider = String(args.provider || '').trim().toLowerCase()
-  if (
-    formId === 'textGeneration'
-    && !widgetTypeId.includes('byteplus')
-    && !provider.includes('byteplus')
-    && !provider.includes('modelark')
-  ) {
-    return FLOW_TEXT_GENERATION_NODE_LABEL
-  }
-  return getTextGenerationProviderProfile(inferTextGenerationProviderFamily(args)).widgetLabel
+  // Provider-specific form IDs remain valid compatibility aliases, but the
+  // provider is configuration of the canonical Text Widget, not its identity.
+  void args
+  return FLOW_TEXT_GENERATION_NODE_LABEL
 }
 
 export function listVisibleWidgetRegistryPortsForPropsEditor(args: {
