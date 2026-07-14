@@ -100,7 +100,25 @@ jobs:
 
       - name: Validate downloaded collaboration contract report
         working-directory: knowgrph
-        run: npm run --silent collaboration:report:check -- collaboration-contract-report-proof/collaboration-contract-report.json
+        run: npm run --silent collaboration:report:check -- --json collaboration-contract-report-proof/collaboration-contract-report.json > collaboration-validation-result.json
+
+      - name: Upload collaboration validation result
+        uses: actions/upload-artifact@v7
+        with:
+          name: collaboration-validation-result
+          path: knowgrph/collaboration-validation-result.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Download collaboration validation result proof
+        uses: actions/download-artifact@v8
+        with:
+          name: collaboration-validation-result
+          path: knowgrph/collaboration-validation-result-proof
+
+      - name: Validate downloaded collaboration validation result
+        working-directory: knowgrph
+        run: npm run --silent collaboration:report:check-result -- collaboration-validation-result-proof/collaboration-validation-result.json
 
       - name: Run canonical integration gate
         working-directory: knowgrph

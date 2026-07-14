@@ -75,6 +75,16 @@ export const validateCollaborationRuntimeValidation = async envelope => {
   return envelope
 }
 
+export const validateCollaborationRuntimeValidationSource = async source => {
+  const envelope = JSON.parse(source)
+  return validateCollaborationRuntimeValidation(envelope)
+}
+
+export const validateCollaborationRuntimeValidationArtifact = async artifactPath => {
+  const envelope = await validateCollaborationRuntimeValidationSource(await readFile(artifactPath, 'utf8'))
+  return { artifactPath, schemaVersion: envelope.schema, status: envelope.status }
+}
+
 export const validateCollaborationRuntimeReportSource = async source => {
   const report = JSON.parse(source)
   return validateCollaborationRuntimeReport(report)

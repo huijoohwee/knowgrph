@@ -184,6 +184,102 @@ test('validation schema rejects unknown fields and error codes', async () => {
   )
 })
 
+test('validation-result CLI accepts success and failure envelopes through stdin', () => {
+  const exampleResult = spawnSync('npm', ['run', '--silent', 'collaboration:report:example'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  })
+  assert.equal(exampleResult.status, 0, exampleResult.stderr)
+
+  const successResult = spawnSync(
+    'npm',
+    ['run', '--silent', 'collaboration:report:check', '--', '--json', '-'],
+    { cwd: repoRoot, encoding: 'utf8', input: exampleResult.stdout },
+  )
+  assert.equal(successResult.status, 0, successResult.stderr)
+  const successCheck = spawnSync(
+    'npm',
+    ['run', '--silent', 'collaboration:report:check-result', '--', '-'],
+    { cwd: repoRoot, encoding: 'utf8', input: successResult.stdout },
+  )
+  assert.equal(successCheck.status, 0, successCheck.stderr)
+  assert.match(successCheck.stdout, /collaboration validation result passed .*passed/)
+
+  const invalidReport = JSON.parse(exampleResult.stdout)
+  invalidReport.legacyStatus = 'failed'
+  const failureResult = spawnSync(
+    'npm',
+    ['run', '--silent', 'collaboration:report:check', '--', '--json', '-'],
+    { cwd: repoRoot, encoding: 'utf8', input: JSON.stringify(invalidReport) },
+  )
+  assert.notEqual(failureResult.status, 0)
+  const failureCheck = spawnSync(
+    'npm',
+    ['run', '--silent', 'collaboration:report:check-result', '--', '-'],
+    { cwd: repoRoot, encoding: 'utf8', input: failureResult.stderr },
+  )
+  assert.equal(failureCheck.status, 0, failureCheck.stderr)
+  assert.match(failureCheck.stdout, /collaboration validation result passed .*failed/)
+})
+
+test('validation-result CLI accepts a stored artifact and rejects schema drift', async () => {
+  const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'knowgrph-validation-result-'))
+  const artifactPath = path.join(temporaryDirectory, 'collaboration-validation-result.json')
+  const envelope = {
+    schema: COLLABORATION_RUNTIME_VALIDATION_SCHEMA,
+    status: 'passed',
+    schemaId: 'https://knowgrph.dev/schemas/collaboration-runtime-report/v1',
+    schemaVersion: COLLABORATION_RUNTIME_REPORT_SCHEMA,
+    input: 'file',
+  }
+  try {
+    await writeFile(artifactPath, `${JSON.stringify(envelope, null, 2)}\n`)
+    const validResult = spawnSync(
+      'npm',
+      ['run', '--silent', 'collaboration:report:check-result', '--', artifactPath],
+      { cwd: repoRoot, encoding: 'utf8' },
+    )
+    assert.equal(validResult.status, 0, validResult.stderr)
+
+    envelope.legacyStatus = 'passed'
+    await writeFile(artifactPath, `${JSON.stringify(envelope, null, 2)}\n`)
+    const invalidResult = spawnSync(
+      'npm',
+      ['run', '--silent', 'collaboration:report:check-result', '--', artifactPath],
+      { cwd: repoRoot, encoding: 'utf8' },
+    )
+    assert.notEqual(invalidResult.status, 0)
+    assert.match(invalidResult.stderr, /must NOT have additional properties/)
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true })
+  }
+})
+
+test('integration round-trips the real validation envelope artifact before the canonical gate', async () => {
+  const workflowSource = await readFile(path.resolve(repoRoot, '.github/workflows/integration.yml'), 'utf8')
+  const orderedProofSteps = [
+    'Validate downloaded collaboration contract report',
+    'Upload collaboration validation result',
+    'Download collaboration validation result proof',
+    'Validate downloaded collaboration validation result',
+    'Run canonical integration gate',
+  ]
+  let previousIndex = -1
+  for (const stepName of orderedProofSteps) {
+    const stepIndex = workflowSource.indexOf(`- name: ${stepName}`)
+    assert.ok(stepIndex > previousIndex, `${stepName} must follow the preceding proof step`)
+    previousIndex = stepIndex
+  }
+  assert.match(
+    workflowSource,
+    /collaboration:report:check -- --json .* > collaboration-validation-result\.json/,
+  )
+  assert.match(
+    workflowSource,
+    /collaboration:report:check-result -- collaboration-validation-result-proof\/collaboration-validation-result\.json/,
+  )
+})
+
 test('report schema rejects unknown fields and mutated workflow checks', async () => {
   const reportWithUnknownField = readLocalReport()
   reportWithUnknownField.legacyStatus = 'passed'
