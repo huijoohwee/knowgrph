@@ -463,7 +463,7 @@ Representative test files:
 
 These cross-repo docs must stay aligned:
 
-- `knowgrph/todo-log.md`
+- `agentic-canvas-os/docs/TODO.md` and the active `agentic-canvas-os/todo/YYYY-MM.md` shard
 - `knowgrph/docs/documents/knowgrph-storage-sync-document.md` (canonical)
 - `knowgrph/docs/documents/knowgrph-storage-sync-document.companion.md` (this file)
 - `knowgrph/docs/documents/knowgrph-storage-sync-adrs-document.md`

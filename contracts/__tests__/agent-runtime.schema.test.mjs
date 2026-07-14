@@ -10,14 +10,24 @@ import {
   validateAgentDefinitionRegistry,
 } from "../agent-runtime.schema.js";
 
-test("registry exposes the three exact agent invocations without broad aliases", () => {
+test("registry exposes the four exact agent invocations without broad aliases", () => {
   assert.deepEqual(
     listAgentDefinitions().map((definition) => definition.invocation),
-    ["/investment-research-agent", "/sme-care-agent", "/video-agent"],
+    ["/investment-research-agent", "/pmf-agent", "/sme-care-agent", "/video-agent"],
   );
   assert.equal(resolveAgentDefinition("/research-agent"), null);
   assert.equal(resolveAgentDefinition("/care-agent"), null);
   assert.equal(resolveAgentDefinition("/sme-agent"), null);
+  assert.equal(resolveAgentDefinition("/product-market-fit-agent"), null);
+});
+
+test("PMF Agent compiles as an evidence-led bounded agent", () => {
+  const result = compileAgentRun({ invocation: "/pmf-agent", brief: "Evaluate the active product evidence.", mode: "dry-run", runId: "pmf-contract" });
+  assert.equal(result.ok, true);
+  assert.equal(result.payload.agentDefinitionId, "agent.pmf");
+  assert.equal(result.payload.status, "planned");
+  assert.ok(result.payload.promptContract.some(line => line.includes("problem-to-solution gaps")));
+  assert.equal(result.payload.budgetMeters.paidProviderCalls, 0);
 });
 
 test("SME Care compiles the internal SME risk skill through the shared public invocation", () => {

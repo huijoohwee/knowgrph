@@ -57,7 +57,7 @@ ci_scopes:
     commands:
       - ["npm", "run", "runtime:check"]
   documentation:
-    roots: ["docs/", "CodeWiki.md", "README.md", "goal.md", "todo-log.md", "todo.md"]
+    roots: ["docs/", "CodeWiki.md", "README.md", "goal.md"]
     commands: []
   collaboration:
     roots: [".github/", ".githooks/", "AGENTS.md", "docs/branch-protection.md", "docs/collaboration-runtime-contract.md", "docs/conflict-resolution.md", "scripts/collaboration-contract.mjs", "scripts/dev-source-consistency.mjs", "scripts/check-dev-source-consistency.mjs", "scripts/check-collaboration-runtime.mjs", "scripts/check-pre-push-refs.mjs", "scripts/run-affected-ci.mjs", "scripts/__tests__/collaboration-contract.test.mjs", "scripts/__tests__/dev-source-consistency.test.mjs"]

@@ -149,7 +149,7 @@ export function testBuildChatSubmitPayloadMessagesPlacesCorrectionBetweenSystemA
 }
 
 export async function testChatStorybuildingSkillPromptIsModularAndPathNeutral() {
-  const requiredVariantCommands = ['/storybuilding', '/investment-research-agent', '/sme-care-agent', '/video-agent']
+  const requiredVariantCommands = ['/storybuilding', '/investment-research-agent', '/pmf-agent', '/sme-care-agent', '/video-agent']
   const resolvedVariantCommands = requiredVariantCommands.map(command => {
     const invocation = parseChatSkillSlashInvocation(`${command} build a useful artifact`)
     return invocation?.query === 'build a useful artifact' ? invocation.skill.slashCommand : null

@@ -48,15 +48,15 @@ const nodeById = (nodes: PlainRecord[], id: string): PlainRecord => {
 
 const property = (node: PlainRecord, key: string): unknown => unwrap(node[key])
 
-export function testAgenticPromptPresetCatalogOwnsThreeRuntimeRoutes() {
+export function testAgenticPromptPresetCatalogOwnsRuntimeRoutes() {
   const catalogText = fs.readFileSync(PROMPT_CATALOG_PATH, 'utf8')
   const catalog = readFrontmatter(catalogText)
   const presets = Array.isArray(catalog.prompt_presets) ? catalog.prompt_presets.filter(isRecord) : []
-  if (catalog.schema !== 'agentic-os-prompt-preset-catalog/v1' || presets.length !== 3) {
-    throw new Error('expected the centralized three-entry prompt preset catalog')
+  if (catalog.schema !== 'agentic-os-prompt-preset-catalog/v1' || presets.length !== 4) {
+    throw new Error('expected the centralized four-entry prompt preset catalog')
   }
   const routes = presets.map(preset => String(preset.slash_command || ''))
-  if (routes.join(',') !== '/video-agent,/sme-care-agent,/investment-research-agent') {
+  if (routes.join(',') !== '/video-agent,/sme-care-agent,/investment-research-agent,/pmf-agent') {
     throw new Error(`unexpected centralized preset routes ${routes.join(',')}`)
   }
   for (const preset of presets) {

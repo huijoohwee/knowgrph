@@ -76,6 +76,15 @@ const promptCatalogMarkdown = [
   '      /investment-research-agent @source.body @runtime-proof #runtime-ready',
   '',
   '      Research the active investment sources.',
+  '  - id: "pmf-agent"',
+  '    label: "PMF Agent"',
+  '    slash_command: "/pmf-agent"',
+  '    description: "PMF preset"',
+  '    activation: "chat-agent"',
+  '    prompt: |-',
+  '      /pmf-agent @pmf-agent @source.body @runtime-proof #pmf-agent',
+  '',
+  '      Evaluate product-market-fit evidence and gaps.',
   '---',
   '',
   '# Prompt presets',
@@ -145,12 +154,12 @@ export async function testFloatingPanelChatVideoPresetFailsClosedWithoutSource()
   }
 }
 
-export async function testFloatingPanelChatPromptPresetCatalogLoadsThreeCentralizedAgents() {
+export async function testFloatingPanelChatPromptPresetCatalogLoadsCentralizedAgents() {
   const workspace = await createPresetWorkspace()
   const catalog = await loadPromptPresetCatalog(workspace)
   if (isPromptPresetCatalogError(catalog)) throw new Error(catalog.error)
   if (catalog.sourcePath !== PROMPT_PRESET_CATALOG_WORKSPACE_PATH) throw new Error(`unexpected catalog source ${catalog.sourcePath}`)
-  if (catalog.presets.map(preset => preset.id).join(',') !== 'video-agent,sme-care-agent,investment-research-agent') {
+  if (catalog.presets.map(preset => preset.id).join(',') !== 'video-agent,sme-care-agent,investment-research-agent,pmf-agent') {
     throw new Error(`unexpected centralized prompt presets ${JSON.stringify(catalog.presets)}`)
   }
   for (const preset of catalog.presets) {
@@ -161,11 +170,11 @@ export async function testFloatingPanelChatPromptPresetCatalogLoadsThreeCentrali
   }
 }
 
-export async function testFloatingPanelChatPromptPresetCatalogFailsClosedOnMissingEntry() {
+export async function testFloatingPanelChatPromptPresetCatalogFailsClosedOnDuplicateEntry() {
   const workspace = await createPresetWorkspace()
   await workspace.writeFileText(PROMPT_PRESET_CATALOG_WORKSPACE_PATH, promptCatalogMarkdown.replace('  - id: "investment-research-agent"', '  - id: "sme-care-agent"'))
   const catalog = await loadPromptPresetCatalog(workspace)
-  if (!isPromptPresetCatalogError(catalog) || !catalog.error.includes('three unique presets')) {
+  if (!isPromptPresetCatalogError(catalog) || !catalog.error.includes('unique ids and slash commands')) {
     throw new Error(`expected duplicate preset ids to fail closed, got ${JSON.stringify(catalog)}`)
   }
 }
@@ -217,10 +226,10 @@ export async function testFloatingPanelChatPromptPresetControlRendersAndLoadsAge
     const select = container.querySelector('select[aria-label="Prompt preset"]') as HTMLSelectElement | null
     const loadButton = container.querySelector('button[data-kg-chat-load-preset="true"]') as HTMLButtonElement | null
     if (!select || !loadButton) throw new Error('expected rendered prompt preset selector and Load preset button')
-    if ([...select.options].map(option => option.value).join(',') !== 'video-agent,sme-care-agent,investment-research-agent') {
+    if ([...select.options].map(option => option.value).join(',') !== 'video-agent,sme-care-agent,investment-research-agent,pmf-agent') {
       throw new Error(`unexpected rendered preset choices ${[...select.options].map(option => option.value).join(',')}`)
     }
-    for (const id of ['sme-care-agent', 'investment-research-agent']) {
+    for (const id of ['sme-care-agent', 'investment-research-agent', 'pmf-agent']) {
       await act(async () => {
         select.value = id
         select.dispatchEvent(new dom.window.Event('change', { bubbles: true }))

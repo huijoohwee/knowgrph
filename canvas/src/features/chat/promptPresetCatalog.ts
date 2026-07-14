@@ -96,11 +96,14 @@ export const loadPromptPresetCatalog = async (fsOverride?: WorkspaceFs): Promise
   if (presets.some(preset => !preset)) return { ok: false, error: 'Prompt preset catalog contains an invalid preset.' }
   const typedPresets = presets.filter((preset): preset is PromptPreset => Boolean(preset))
   const ids = new Set(typedPresets.map(preset => preset.id))
-  if (typedPresets.length !== 3 || ids.size !== 3) {
-    return { ok: false, error: 'Prompt preset catalog must contain three unique presets.' }
+  const slashCommands = new Set(typedPresets.map(preset => preset.slashCommand))
+  if (typedPresets.length === 0 || ids.size !== typedPresets.length || slashCommands.size !== typedPresets.length) {
+    return { ok: false, error: 'Prompt preset catalog must contain unique ids and slash commands.' }
   }
-  for (const id of ['video-agent', 'sme-care-agent', 'investment-research-agent']) {
-    if (!ids.has(id)) return { ok: false, error: `Prompt preset catalog is missing ${id}.` }
+  for (const preset of typedPresets) {
+    if (preset.slashCommand !== `/${preset.id}`) {
+      return { ok: false, error: `Prompt preset id and slash command do not match: ${preset.id}.` }
+    }
   }
   return { ok: true, presets: typedPresets, sourcePath: PROMPT_PRESET_CATALOG_WORKSPACE_PATH }
 }

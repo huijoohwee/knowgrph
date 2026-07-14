@@ -142,6 +142,11 @@
       "import": "./dist/data/recordEntries.js",
       "default": "./dist/data/recordEntries.js"
     },
+    "./react/rafRuntime": {
+      "types": "./dist/react/rafRuntime.d.ts",
+      "import": "./dist/react/rafRuntime.js",
+      "default": "./dist/react/rafRuntime.js"
+    },
     "./react/rafLatestScheduler": {
       "types": "./dist/react/rafLatestScheduler.d.ts",
       "import": "./dist/react/rafLatestScheduler.js",

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "knowgrph.agent-definition-registry/v1",
-  "registryVersion": "2026-07-13",
+  "registryVersion": "2026-07-14",
   "invocationAuthority": "agentic-canvas-os/docs/SKILLS.md",
   "invocationConvention": "/<agent-domain>-agent",
   "profiles": {
@@ -51,6 +51,22 @@
       "fallback": "Return a source-gap report and verification plan without fabricating claims, citations, prices, or provenance.",
       "vccs": ["Every material claim is linked to evidence or marked as an assumption.", "Contradictions and unknowns remain visible.", "No graph mutation or paid model call occurs without the required approval."],
       "promptContract": ["Separate claims, evidence, assumptions, contradictions, open questions, and verification steps.", "Stage graph candidates for review before mutation.", "State evidence freshness and research-depth cost posture."]
+    },
+    {
+      "id": "agent.pmf",
+      "version": "1.0.0",
+      "title": "PMF Agent",
+      "summary": "Evidence-led product-market-fit hypotheses, problem-to-solution gap mapping, and falsifiable experiment planning.",
+      "planProfile": "superagent.full.v1",
+      "capabilities": ["evidence.research", "customer-segment.analysis", "problem-solution.gap-map", "signal.ledger", "experiment.design", "artifact.export", "audit", "cost"],
+      "inputSchemaRef": "knowgrph.agent-run.input/v1",
+      "outputSchemaRef": "knowgrph.agent-run.output/v1",
+      "policyRefs": ["source-grounding", "unknown-never-demand", "pmf-claim-evidence", "review-before-mutation", "paid-model-call-approval"],
+      "renderers": ["markdown", "evidence-ledger", "gap-map", "experiment-cards", "canvas", "audit"],
+      "bounds": { "maxSteps": 40, "maxRetriesPerTask": 1, "maxWallSeconds": 600, "maxConcurrentWorkers": 3 },
+      "fallback": "Return an insufficient-evidence report, ranked unknowns, and a bounded verification plan without inventing customer demand, retention, willingness to pay, or provenance.",
+      "vccs": ["Every material PMF signal is linked to evidence or marked as an assumption.", "Problem, solution, adoption, retention, and willingness-to-pay signals remain distinct.", "Experiments include decision thresholds and stop conditions; outreach, spend, persistence, and mutation remain approval-gated."],
+      "promptContract": ["Separate target segment, job to be done, pain, alternatives, product promise, adoption, retention, willingness to pay, evidence confidence, freshness, and unknowns.", "Map problem-to-solution gaps and rank hypotheses from cited evidence.", "Return falsifiable experiments with thresholds and one continue, iterate, pivot, or insufficient-evidence recommendation."]
     },
     {
       "id": "agent.sme-care",

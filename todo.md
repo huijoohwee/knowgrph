@@ -1,21 +1,18 @@
 ---
-title: "todo"
-doc_type: "Backlog + Rules"
-status: "active"
+title: "Knowgrph Historical Backlog"
+doc_type: "Historical Backlog"
+status: "historical"
 lang: "en-US"
 frontmatter_contract: "required"
 ---
 
-# todo
+# Knowgrph Historical Backlog
 
-## Backlog Contract
+## Historical Boundary
 
-- The opening YAML frontmatter block remains the first-block machine SSOT for this backlog/rules document's metadata, status, and scope.
-- This document is a canonical authored backlog and rules surface, not a generated registry surface or typed validation fixture.
-- Frontmatter stays in plain YAML so the file demonstrates the default authoring path for backlog items, reusable rules, and work-planning directives.
-- Checklist items, dated backlog sections, and embedded planning notes belong to the live document body; do not duplicate backlog ownership in ad hoc metadata tables or downstream mirrors.
-- If typed `{key, type, value}` envelopes are needed for ingest -> parse -> render validation, that coverage should live in a dedicated fixture doc rather than replacing canonical planning prose.
-- Backlog meaning, rules, and prioritization must be derived from parsed frontmatter and document content only, never from file path assumptions or downstream mirrors.
+- This file preserves pre-migration backlog context only and is not a live planning owner.
+- `../agentic-canvas-os/docs/TODO.md` owns the planning contract; new and superseding task rows append only to the active `../agentic-canvas-os/todo/YYYY-MM.md` shard.
+- Do not add, reprioritize, or complete items here. Retrieve historical content only when an exact prior Context requires it.
 
 ## RULES
 
@@ -39,7 +36,7 @@ frontmatter_contract: "required"
 - [ ] Unique Dataset ID
 - [ ] Document structure; adhere to [document-template.md](../huijoohwee.github.io/docs/document-template.md); forbid inconsistent structure
 
-- [ ] Post-task completion; update `docs/documents/`
+- [ ] Historical rule: post-task completion updated `docs/documents/`; current work also appends its task row to `../agentic-canvas-os/todo/YYYY-MM.md`.
 
 ---
 
@@ -104,44 +101,44 @@ update to demo; FORBID duplicate content
 #### 2026-02-22
 
 ```
-# ENHANCE End-to-End native local in-repo Import â†’ Render PIPELINEÂ
-- ENHANCE importing, indexing, loading, and rendering pipeline performance Â
-- Implement broad and targeted searches cross-repo (hooks, workers, parser pipeline, schema/scene/view derivations, and any use of timing metrics). Â
-- Refactor debounce, worker, and performanceâ€‘instrumentation patterns used for parsing and derivation. Â
-- Enhance indexing, parsing, categorization, calculation, and rendering of Nodes, Clusters, and Edges Â
+# ENHANCE End-to-End native local in-repo Import â†’ Render PIPELINE
+- ENHANCE importing, indexing, loading, and rendering pipeline performance
+- Implement broad and targeted searches cross-repo (hooks, workers, parser pipeline, schema/scene/view derivations, and any use of timing metrics).
+- Refactor debounce, worker, and performanceâ€‘instrumentation patterns used for parsing and derivation.
+- Enhance indexing, parsing, categorization, calculation, and rendering of Nodes, Clusters, and Edges
 
 ## **TODO: ENHANCE 2D Renderer (Design)**
  - native in-repo develop & enhance, FORBID hardcode/external dependency to Penpot upstream repo
 
 ## ENFORCE Layout & Initialization alignment/consistency/sync in the infinite canvas viewport
 - CENTRALIZE, REUSE, ENHANCE initialization logic to center and evenly distribute collective (NOT individual) GRAPHS
-- Add postâ€‘computation layout collective fit;Â
-- AVOID/FORBID chaotic clustering, excessive void spaces, mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:Â
- Â Â  Â
- ### TOUCHPOINTSÂ
- - Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Gallery renderer, EXPLORER, Canvas PreviewÂ
- Â Â
- ### MODES/LAYOUTSÂ
- - Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Storyboard), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)Â
- Â Â  Â
- ### ZOOMSÂ
- - Pin to View, Fit to View, Fit to Screen, Zoom to SelectionÂ
- Â Â  Â
+- Add postâ€‘computation layout collective fit;
+- AVOID/FORBID chaotic clustering, excessive void spaces, mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:
+
+ ### TOUCHPOINTS
+ - Editor workspace, Graph Data Table, Graph Fields, Props Panel, Markdown Editor/Viewer/Presentation/Gallery renderer, EXPLORER, Canvas Preview
+
+ ### MODES/LAYOUTS
+ - Keyword Mode/Frontmatter Mode/Canvas Mode (2D/3D), Document Mode/Geospatial Mode (2D/3D), 2D Renderer (D3 Graph, Flow, Storyboard), Node Shape (Circle, Rect, Multi-shape), Cluster Shape (Rect, Polygon), Multi-select Mode, Port Handles, Radial Layout)
+
+ ### ZOOMS
+ - Pin to View, Fit to View, Fit to Screen, Zoom to Selection
+
  ### GRAPHS
- - **GRAPHS Elements:** nodes, Storyboard Widget widgets, edges, graph layers (subgraphs, groups, clusters, communities), labels, textÂ
- - **GRAPHS Configs:** grouping, positioning, collisions, timing, knobsÂ
- Â Â  Â
- ## Code MaintenanceÂ
- - COMPLY withÂ `/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}`Â
- - COMPLY with existing font/icon/label/text/text size/tooltip/typography semantic/design token SSOTÂ
- - REMOVE, PREVENT, RESOLVE, FORBID crossâ€‘repo conflicts/duplicates/stale/interference across layers/modesÂ
- - CENTRALIZE/REUSE shared algorithm/config/element/logic/utility (box, collision, drag, font, icon, knob, label, pan, scroll, text, text size, throttle, timing, typography, zoom)Â
- - OPTIMIZE & ENHANCE cache, loading, modularity, memory, state, store, rendering performance; FORBID churn, re-calculation, re-computation, re-renderingÂ
- - USE semantic HTML; forbid generic HTML division elementÂ
- - UPDATE unified setting to MainPanel Settings schemaÂ
- - TEST/VALIDATE only bounded diffs; FORBID indefinite runsÂ
- Â Â  Â
- ## UPDATE CROSSâ€‘REPO Docs `/GitHub/{knowgrph/todo-log.md,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
+ - **GRAPHS Elements:** nodes, Storyboard Widget widgets, edges, graph layers (subgraphs, groups, clusters, communities), labels, text
+ - **GRAPHS Configs:** grouping, positioning, collisions, timing, knobs
+
+ ## Code Maintenance
+ - COMPLY withÂ `/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}`
+ - COMPLY with existing font/icon/label/text/text size/tooltip/typography semantic/design token SSOT
+ - REMOVE, PREVENT, RESOLVE, FORBID crossâ€‘repo conflicts/duplicates/stale/interference across layers/modes
+ - CENTRALIZE/REUSE shared algorithm/config/element/logic/utility (box, collision, drag, font, icon, knob, label, pan, scroll, text, text size, throttle, timing, typography, zoom)
+ - OPTIMIZE & ENHANCE cache, loading, modularity, memory, state, store, rendering performance; FORBID churn, re-calculation, re-computation, re-rendering
+ - USE semantic HTML; forbid generic HTML division element
+ - UPDATE unified setting to MainPanel Settings schema
+ - TEST/VALIDATE only bounded diffs; FORBID indefinite runs
+
+ ## UPDATE CROSSâ€‘REPO Docs `/GitHub/{agentic-canvas-os/todo,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
  ```
 
 #### 2026-02-19
@@ -193,7 +190,7 @@ FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:
 - UPDATE unified setting to MainPanel Settings schema
 - TEST/VALIDATE only bounded diffs; FORBID indefinite runs
 
-## UPDATE CROSSâ€‘REPO Docs `/GitHub/{knowgrph/todo-log.md,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
+## UPDATE CROSSâ€‘REPO Docs `/GitHub/{agentic-canvas-os/todo,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
 ```
 
 #### 2026-02-13
@@ -247,7 +244,7 @@ FORBID mess-up other TOUCHPOINTS/MODES/LAYOUTS/ZOOMS WHEN switching across:
 - UPDATE unified setting to MainPanel Settings schema
 - TEST/VALIDATE only bounded diffs; FORBID indefinite runs
 
-## UPDATE CROSSâ€‘REPO Docs `/GitHub/{knowgrph/todo-log.md,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
+## UPDATE CROSSâ€‘REPO Docs `/GitHub/{agentic-canvas-os/todo,knowgrph/docs/documents,huijoohwee.github.io/schema/AgenticRAG}`
 ```
 
 #### 2026-02-12
