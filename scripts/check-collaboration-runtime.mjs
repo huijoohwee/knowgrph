@@ -43,6 +43,14 @@ const validateDeploymentIsolation = (contract, workflowSources) => {
   for (const rel of allowed) {
     if (!seenAllowed.has(rel)) throw new Error(`allowed deployment workflow is missing a recognized deployment command: ${rel}`)
   }
+
+  return {
+    id: 'deployment-isolation/v1',
+    status: 'passed',
+    workflowCount: workflowSources.length,
+    deploymentWorkflowCount: seenAllowed.size,
+    allowedWorkflows: [...allowed].sort(),
+  }
 }
 
 const assertBaseShaIsAncestor = baseSha => {
@@ -73,7 +81,12 @@ const fetchOpenPullRequests = async (repository, token) => {
 
 const validatePullRequestCoordination = async contract => {
   const pullNumber = Number(process.env.KNOWGRPH_PR_NUMBER)
-  if (!Number.isInteger(pullNumber) || pullNumber < 1) return
+  if (!Number.isInteger(pullNumber) || pullNumber < 1) {
+    return {
+      id: 'pull-request-coordination/v1',
+      status: 'not-applicable',
+    }
+  }
 
   if (process.env.KNOWGRPH_PR_BASE_REF !== contract.coordination.base_branch) {
     throw new Error(`pull request must target ${contract.coordination.base_branch}`)
@@ -81,7 +94,16 @@ const validatePullRequestCoordination = async contract => {
   validateTaskBranch(process.env.KNOWGRPH_PR_HEAD_REF, contract)
   const allowIncomplete = String(process.env.KNOWGRPH_PR_DRAFT).toLowerCase() === 'true'
   const metadata = validatePullRequestMetadata(process.env.KNOWGRPH_PR_BODY, contract, { allowIncomplete })
-  if (!metadata) return
+  if (!metadata) {
+    return {
+      id: 'pull-request-coordination/v1',
+      status: 'passed',
+      pullNumber,
+      draft: true,
+      scope: null,
+      remoteScopeCheck: 'not-applicable',
+    }
+  }
   validateTaskBranch(process.env.KNOWGRPH_PR_HEAD_REF, contract, metadata.scope)
   assertBaseShaIsAncestor(metadata.base_sha)
 
@@ -90,7 +112,14 @@ const validatePullRequestCoordination = async contract => {
   const requireRemoteScopeCheck = String(process.env.KNOWGRPH_REQUIRE_REMOTE_SCOPE_CHECK).toLowerCase() === 'true'
   if (!repository || !token) {
     if (requireRemoteScopeCheck) throw new Error('pull request scope enforcement requires repository and GitHub token context')
-    return
+    return {
+      id: 'pull-request-coordination/v1',
+      status: 'passed',
+      pullNumber,
+      draft: allowIncomplete,
+      scope: metadata.scope,
+      remoteScopeCheck: 'skipped',
+    }
   }
   const openPullRequests = await fetchOpenPullRequests(repository, token)
   const conflicts = findActiveScopeConflicts(openPullRequests, pullNumber, contract)
@@ -98,17 +127,43 @@ const validatePullRequestCoordination = async contract => {
     const owners = conflicts.map(conflict => `#${conflict.number} ${conflict.actor} ${conflict.branch}`).join(', ')
     throw new Error(`semantic scope ${metadata.scope} already has an active owner: ${owners}`)
   }
+  return {
+    id: 'pull-request-coordination/v1',
+    status: 'passed',
+    pullNumber,
+    draft: allowIncomplete,
+    scope: metadata.scope,
+    remoteScopeCheck: 'passed',
+  }
 }
+
+const outputFormat = (() => {
+  const args = process.argv.slice(2)
+  if (args.length === 0) return 'human'
+  if (args.length === 1 && args[0] === '--json') return 'json'
+  throw new Error(`unsupported collaboration contract arguments: ${args.join(' ')}`)
+})()
 
 const main = async () => {
   const contract = await readContract()
   const workflowSources = await listWorkflowSources()
-  validateDeploymentIsolation(contract, workflowSources)
-  validateRuntimeDocsWorkflowPolicy(workflowSources)
+  const deploymentIsolation = validateDeploymentIsolation(contract, workflowSources)
+  const runtimeDocsWorkflow = validateRuntimeDocsWorkflowPolicy(workflowSources)
+  const pullRequestCoordination = await validatePullRequestCoordination(contract)
 
-  await validatePullRequestCoordination(contract)
+  const report = {
+    schema: 'knowgrph.collaboration-runtime-report/v1',
+    status: 'passed',
+    contractVersion: contract.contract_version,
+    policies: {
+      deploymentIsolation,
+      runtimeDocsWorkflow,
+      pullRequestCoordination,
+    },
+  }
 
-  console.log('[knowgrph] collaboration runtime contract passed')
+  if (outputFormat === 'json') console.log(JSON.stringify(report, null, 2))
+  else console.log('[knowgrph] collaboration runtime contract passed')
 }
 
 await main()

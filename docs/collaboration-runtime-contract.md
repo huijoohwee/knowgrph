@@ -2,7 +2,7 @@
 title: "Knowgrph Collaboration Runtime Contract"
 doc_type: "Runtime Contract"
 status: "active"
-contract_version: 7
+contract_version: 8
 frontmatter_contract: "required"
 ci_command_timeout_ms: 300000
 invocation:
@@ -122,6 +122,7 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 - Superseded runs on the same pull request or branch are cancelled.
 - `runtime:check` owns the focused runtime/property suite, external invocation-dictionary validation, canonical stage topology, deterministic mock replay, and zero-spend proof.
 - `npm run collaboration:contract:check` auto-discovers every workflow that references Agentic Canvas OS and requires dependency installation, the contract resolver, and the checkout in order; checkout repository and immutable ref must come from resolver outputs, never copied workflow YAML.
+- `npm run --silent collaboration:contract:check -- --json` emits `knowgrph.collaboration-runtime-report/v1`, including deployment isolation, discovered runtime-docs workflow consumers and checks, and pull-request coordination status. Integration uploads that report as the seven-day `collaboration-contract-report` artifact and fails if the file is absent.
 
 ## Cross-Device Handoff
 

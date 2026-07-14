@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import test from 'node:test'
+import { repoRoot } from '../collaboration-contract.mjs'
 import {
   formatGitHubOutput,
   readRuntimeReadinessContract,
@@ -38,8 +40,30 @@ test('runtime docs dependency rejects mutable or non-GitHub sources', () => {
 })
 
 test('all auto-discovered workflow checkouts satisfy the shared runtime docs policy', async () => {
-  const workflows = await checkRuntimeDocsWorkflowPolicy()
-  assert.ok(workflows.length > 0)
+  const report = await checkRuntimeDocsWorkflowPolicy()
+  assert.equal(report.status, 'passed')
+  assert.ok(report.consumerCount > 0)
+  assert.equal(report.consumers.length, report.consumerCount)
+})
+
+test('standalone collaboration checker emits a stable machine-readable policy report', () => {
+  const env = { ...process.env }
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('KNOWGRPH_PR_') || key === 'KNOWGRPH_GITHUB_TOKEN') delete env[key]
+  }
+  const result = spawnSync(process.execPath, ['scripts/check-collaboration-runtime.mjs', '--json'], {
+    cwd: repoRoot,
+    env,
+    encoding: 'utf8',
+  })
+  assert.equal(result.status, 0, result.stderr)
+  const report = JSON.parse(result.stdout)
+  assert.equal(report.schema, 'knowgrph.collaboration-runtime-report/v1')
+  assert.equal(report.status, 'passed')
+  assert.equal(report.policies.deploymentIsolation.status, 'passed')
+  assert.equal(report.policies.runtimeDocsWorkflow.status, 'passed')
+  assert.ok(report.policies.runtimeDocsWorkflow.consumers.includes('.github/workflows/integration.yml'))
+  assert.equal(report.policies.pullRequestCoordination.status, 'not-applicable')
 })
 
 test('runtime docs workflow policy fails closed for missing consumers and copied refs', () => {

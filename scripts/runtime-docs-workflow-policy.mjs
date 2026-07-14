@@ -4,6 +4,30 @@ import { repoRoot } from './collaboration-contract.mjs'
 
 const workflowFilePattern = /\.ya?ml$/i
 const agenticCanvasOsMarker = 'agentic-canvas-os'
+const orderedStepChecks = [
+  { id: 'dependencies-installed', marker: 'name: Install dependencies' },
+  { id: 'contract-resolver-after-install', marker: 'name: Resolve Agentic Canvas OS docs dependency' },
+  { id: 'checkout-after-resolver', marker: 'name: Checkout Agentic Canvas OS docs SSOT' },
+]
+const sourcePatternChecks = [
+  { id: 'resolver-step-id', pattern: /id: agentic_canvas_os_docs/, label: 'resolver step id' },
+  {
+    id: 'silent-resolver-command',
+    pattern: /npm run --silent runtime:docs-dependency:resolve -- --github-output/,
+    label: 'silent contract resolver command',
+  },
+  {
+    id: 'contract-derived-repository',
+    pattern: /repository: \$\{\{ steps\.agentic_canvas_os_docs\.outputs\.repository \}\}/,
+    label: 'contract-derived checkout repository',
+  },
+  {
+    id: 'contract-derived-ref',
+    pattern: /ref: \$\{\{ steps\.agentic_canvas_os_docs\.outputs\.ref \}\}/,
+    label: 'contract-derived checkout ref',
+  },
+]
+const noCopiedRefCheckId = 'no-copied-ref'
 
 export const workflowsRoot = path.resolve(repoRoot, '.github', 'workflows')
 
@@ -24,14 +48,9 @@ const requireWorkflowSource = (condition, workflowPath, message) => {
 }
 
 export const validateRuntimeDocsWorkflowConsumer = ({ workflowPath, source }) => {
-  const orderedMarkers = [
-    'name: Install dependencies',
-    'name: Resolve Agentic Canvas OS docs dependency',
-    'name: Checkout Agentic Canvas OS docs SSOT',
-  ]
   let previousIndex = -1
 
-  for (const marker of orderedMarkers) {
+  for (const { marker } of orderedStepChecks) {
     const markerIndex = source.indexOf(marker)
     requireWorkflowSource(
       markerIndex > previousIndex,
@@ -41,13 +60,7 @@ export const validateRuntimeDocsWorkflowConsumer = ({ workflowPath, source }) =>
     previousIndex = markerIndex
   }
 
-  const requiredPatterns = [
-    [/id: agentic_canvas_os_docs/, 'resolver step id'],
-    [/npm run --silent runtime:docs-dependency:resolve -- --github-output/, 'silent contract resolver command'],
-    [/repository: \$\{\{ steps\.agentic_canvas_os_docs\.outputs\.repository \}\}/, 'contract-derived checkout repository'],
-    [/ref: \$\{\{ steps\.agentic_canvas_os_docs\.outputs\.ref \}\}/, 'contract-derived checkout ref'],
-  ]
-  for (const [pattern, label] of requiredPatterns) {
+  for (const { pattern, label } of sourcePatternChecks) {
     requireWorkflowSource(pattern.test(source), workflowPath, `missing ${label}`)
   }
 
@@ -64,7 +77,17 @@ export const validateRuntimeDocsWorkflowPolicy = workflowSources => {
     throw new Error('expected at least one Agentic Canvas OS workflow consumer')
   }
   consumers.forEach(validateRuntimeDocsWorkflowConsumer)
-  return consumers
+  return {
+    id: 'runtime-docs-workflow/v1',
+    status: 'passed',
+    consumerCount: consumers.length,
+    consumers: consumers.map(consumer => consumer.workflowPath),
+    checks: [
+      ...orderedStepChecks.map(check => check.id),
+      ...sourcePatternChecks.map(check => check.id),
+      noCopiedRefCheckId,
+    ],
+  }
 }
 
 export const checkRuntimeDocsWorkflowPolicy = async () => (
