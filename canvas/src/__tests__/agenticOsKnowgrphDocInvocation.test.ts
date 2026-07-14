@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
 import { buildAgenticOsRuntimeInvocationSystemPrompt } from '@/features/chat/chatRuntimeInvocationProfile'
+import { resolveChatRuntimeInvocationQuery } from '@/features/chat/chatRuntimeInvocationQuery'
 import { extractChatResponseStructuredSurface } from '@/features/chat/chatResponseStructuredContent'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import {
@@ -10,7 +12,22 @@ import {
 } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
 import type { GraphData } from '@/lib/graph/types'
 
-export function testKnowgrphProbeTreeUsesToolIdentityWithoutGrammarAliases() {
+export function testKnowgrphProbeTreeInvocationGrammarUsesDocAliasesAndToolIdentity() {
+  for (const token of ['/knowgrph.probe-tree', '#knowgrph.probe-tree', '@knowgrph.probe-tree']) {
+    const invocation = findAgenticOsInvocationByToken(token)
+    if (!invocation || invocation.kind !== 'doc' || invocation.token !== token || invocation.label !== 'Knowgrph Probe-Tree') {
+      throw new Error(`expected Probe-Tree alias ${token} to resolve through the document catalog, got ${JSON.stringify(invocation)}`)
+    }
+    const route = resolveChatRuntimeInvocationQuery(`${token} generate bounded branch choices`)
+    if (route.leadingRoute?.kind !== 'agentic-os' || route.leadingRoute.token !== token || route.query !== 'generate bounded branch choices') {
+      throw new Error(`expected Probe-Tree alias ${token} to resolve as the leading route, got ${JSON.stringify(route)}`)
+    }
+    const aliasPrompt = buildAgenticOsRuntimeInvocationSystemPrompt(`${token} generate bounded branch choices`)
+    if (!aliasPrompt.includes(`Directives: ${token}`) || !aliasPrompt.includes('Knowgrph Probe-Tree')) {
+      throw new Error(`expected Probe-Tree alias ${token} to contribute runtime context, got ${aliasPrompt}`)
+    }
+  }
+
   const runtimePrompt = buildAgenticOsRuntimeInvocationSystemPrompt('knowgrph.probe.generate Generate branch choices for card care_source.')
   for (const expected of ['response.structuredContent.cards', 'knowgrph.probe.generate', 'knowgrph.probe.select', 'candidateOption']) {
     if (!runtimePrompt.includes(expected)) throw new Error(`expected Probe-Tree runtime prompt to include ${expected}`)

@@ -95,7 +95,7 @@ export function testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes()
   if (outputFallback !== 'Logged Result') throw new Error(`expected Logged Result, got ${outputFallback}`)
 
   const bytePlusText = resolveWidgetNodeTitle({
-    node: makeNode({ id: 'text-1', type: 'TextGeneration', label: 'Text Widget' }),
+    node: makeNode({ id: 'text-1', type: 'TextGeneration', label: 'Widget Card' }),
     registryEntry: {
       id: 'textGeneration-default',
       isEnabled: true,
@@ -107,10 +107,10 @@ export function testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes()
       updatedAt: '2026-04-22T00:00:00.000Z',
     } satisfies WidgetRegistryEntry,
   })
-  if (bytePlusText !== 'Text Widget') throw new Error(`expected Text Widget, got ${bytePlusText}`)
+  if (bytePlusText !== 'Widget Card') throw new Error(`expected Widget Card, got ${bytePlusText}`)
 
   const openAiText = resolveWidgetNodeTitle({
-    node: makeNode({ id: 'text-2', type: 'TextGeneration', label: 'Text Widget', properties: { chatProvider: 'openai' } }),
+    node: makeNode({ id: 'text-2', type: 'TextGeneration', label: 'Widget Card', properties: { chatProvider: 'openai' } }),
     registryEntry: {
       id: 'textGeneration-openai',
       isEnabled: true,
@@ -122,13 +122,13 @@ export function testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes()
       updatedAt: '2026-04-22T00:00:00.000Z',
     } satisfies WidgetRegistryEntry,
   })
-  if (openAiText !== 'Text Widget') throw new Error(`expected canonical Text Widget, got ${openAiText}`)
+  if (openAiText !== 'Widget Card') throw new Error(`expected canonical Widget Card, got ${openAiText}`)
 
   const openAiTextFromPropsOnly = resolveWidgetNodeTitle({
     node: makeNode({
       id: 'text-2b',
       type: 'TextGeneration',
-      label: 'Text Widget',
+      label: 'Widget Card',
       properties: {
         chatProvider: 'openai',
         'flow:widgetTypeId': 'default',
@@ -136,22 +136,22 @@ export function testWidgetTitleUsesFrontmatterDataLabelsWithoutSampleHardcodes()
       },
     }),
   })
-  if (openAiTextFromPropsOnly !== 'Text Widget') {
-    throw new Error(`expected canonical Text Widget from compatibility identity fallback, got ${openAiTextFromPropsOnly}`)
+  if (openAiTextFromPropsOnly !== 'Widget Card') {
+    throw new Error(`expected canonical Widget Card from compatibility identity fallback, got ${openAiTextFromPropsOnly}`)
   }
 
   const legacyProviderText = resolveWidgetNodeTitle({
     node: makeNode({ id: 'text-legacy', type: 'TextGeneration', label: 'OpenAI Text Widget' }),
   })
-  if (legacyProviderText !== 'Text Widget') {
-    throw new Error(`expected legacy provider-prefixed label to consolidate into Text Widget, got ${legacyProviderText}`)
+  if (legacyProviderText !== 'Widget Card') {
+    throw new Error(`expected legacy provider-prefixed label to consolidate into Widget Card, got ${legacyProviderText}`)
   }
 
   const customText = resolveWidgetNodeTitle({
     node: makeNode({ id: 'text-custom', type: 'TextGeneration', label: 'Campaign Copywriter' }),
   })
   if (customText !== 'Campaign Copywriter') {
-    throw new Error(`expected authored Text Widget name to remain intact, got ${customText}`)
+    throw new Error(`expected authored Widget Card name to remain intact, got ${customText}`)
   }
 
   const seedreamImage = resolveWidgetNodeTitle({

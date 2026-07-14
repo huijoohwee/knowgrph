@@ -472,7 +472,7 @@ export const testFrontmatterTextWidgetUsesCanonicalWidgetIdentityPattern = async
   assertFrontmatterBuiltInWidgetIdentityPattern({
     host,
     registryEntry,
-    expectedIdentityLabel: 'Text Widget',
+    expectedIdentityLabel: 'Widget Card',
   })
 
   root.unmount()

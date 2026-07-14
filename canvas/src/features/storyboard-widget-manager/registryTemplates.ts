@@ -424,7 +424,7 @@ export function getWidgetRegistryEntryLabel(args: {
     if (formId === FLOW_VIDEO_SCRIPT_FORM_ID) return FLOW_VIDEO_SCRIPT_WIDGET_LABEL
     if (formId === FLOW_OPENAI_VIDEO_SCRIPT_FORM_ID) return FLOW_OPENAI_VIDEO_SCRIPT_WIDGET_LABEL
     // Provider-specific form IDs are compatibility aliases. The provider is
-    // configuration of the canonical Text Widget, not a separate identity.
+    // configuration of the canonical Widget Card, not a separate identity.
     return FLOW_TEXT_GENERATION_NODE_LABEL
   }
   if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID) return 'Image Widget'

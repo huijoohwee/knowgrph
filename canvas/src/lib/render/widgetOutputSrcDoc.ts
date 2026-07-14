@@ -20,7 +20,7 @@ export function buildTextWidgetOutputSrcDoc(args: {
   title?: unknown
   text?: unknown
 }): string {
-  const title = String(args.title || '').trim() || 'Text Widget Output'
+  const title = String(args.title || '').trim() || 'Widget Card Output'
   const text = typeof args.text === 'string' ? args.text : String(args.text ?? '')
   const textHash = hashStringToHexCached(`rich-media-text-srcdoc:${title.slice(0, 120)}`, text)
   const cacheKey = hashSignatureParts(['rich-media-text-srcdoc', title, text.length, textHash])

@@ -43,7 +43,7 @@ export async function testPropsPanelRendersWidgetPaletteOnlySurface() {
       'Widgets',
       'Rich Media Panel',
       'default/richMediaPanel',
-      'Text Widget',
+      'Widget Card',
       'default/textGeneration',
     ]) {
       if (!text.includes(expected)) {
@@ -63,6 +63,7 @@ export async function testPropsPanelRendersWidgetPaletteOnlySurface() {
       'Video Widget',
       'Update Media',
       'Add Media Node',
+      'Text Widget',
     ]) {
       if (text.includes(staleToken)) {
         throw new Error(`expected Floating Props Panel palette-only render to omit stale token ${JSON.stringify(staleToken)}, got ${JSON.stringify(text)}`)

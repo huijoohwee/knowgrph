@@ -269,10 +269,10 @@ export const MarkdownCodeBlock = React.memo(function MarkdownCodeBlock({
   const editorCodeClassName = [
     MARKDOWN_NORMAL_TEXT_EDIT_SURFACE_BASE_CLASS,
     MARKDOWN_CODE_FENCE_EDITOR_LAYOUT_CLASS,
+    monospaceCodeClass,
     MARKDOWN_CODE_FENCE_LINE_SPACING_CLASS,
     isAsciiDiagram ? MARKDOWN_CODE_FENCE_ASCII_TEXT_COMPACT_CLASS : '',
     effectiveWrapClass,
-    monospaceCodeClass,
     UI_THEME_TOKENS.code.bg,
     UI_THEME_TOKENS.code.text,
   ]
