@@ -10,6 +10,7 @@ import {
   COLLABORATION_RUNTIME_REPORT_SCHEMA_PATH,
   COLLABORATION_RUNTIME_VALIDATION_SCHEMA,
   COLLABORATION_RUNTIME_VALIDATION_SCHEMA_PATH,
+  calculateCollaborationRuntimeReportDigest,
   readCollaborationRuntimeReportSchema,
   readCollaborationRuntimeValidationSchema,
   validateCollaborationRuntimeReport,
@@ -39,6 +40,14 @@ test('standalone checker emits a schema-valid machine report', async () => {
   assert.equal(report.policies.runtimeDocsWorkflow.status, 'passed')
   assert.ok(report.policies.runtimeDocsWorkflow.consumers.includes('.github/workflows/integration.yml'))
   assert.equal(report.policies.pullRequestCoordination.status, 'not-applicable')
+})
+
+test('report digest binds the exact source bytes', () => {
+  const source = JSON.stringify(readLocalReport())
+  const digest = calculateCollaborationRuntimeReportDigest(source)
+
+  assert.match(digest, /^[0-9a-f]{64}$/)
+  assert.notEqual(digest, calculateCollaborationRuntimeReportDigest(`${source}\n`))
 })
 
 test('schema command emits the canonical schema without path knowledge', async () => {
@@ -122,6 +131,7 @@ test('report validator accepts the canonical example through stdin and rejects m
     status: 'passed',
     schemaId: 'https://knowgrph.dev/schemas/collaboration-runtime-report/v1',
     schemaVersion: COLLABORATION_RUNTIME_REPORT_SCHEMA,
+    reportDigest: calculateCollaborationRuntimeReportDigest(exampleResult.stdout),
     input: 'stdin',
   })
 
@@ -182,6 +192,18 @@ test('validation schema rejects unknown fields and error codes', async () => {
     validateCollaborationRuntimeValidation(failure),
     /must NOT have additional properties/,
   )
+
+  const successWithoutDigest = {
+    schema: COLLABORATION_RUNTIME_VALIDATION_SCHEMA,
+    status: 'passed',
+    schemaId: 'https://knowgrph.dev/schemas/collaboration-runtime-report/v1',
+    schemaVersion: COLLABORATION_RUNTIME_REPORT_SCHEMA,
+    input: 'file',
+  }
+  await assert.rejects(
+    validateCollaborationRuntimeValidation(successWithoutDigest),
+    /must have required property 'reportDigest'/,
+  )
 })
 
 test('validation-result CLI accepts success and failure envelopes through stdin', () => {
@@ -225,21 +247,37 @@ test('validation-result CLI accepts success and failure envelopes through stdin'
 test('validation-result CLI accepts a stored artifact and rejects schema drift', async () => {
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'knowgrph-validation-result-'))
   const artifactPath = path.join(temporaryDirectory, 'collaboration-validation-result.json')
+  const reportPath = path.join(temporaryDirectory, 'collaboration-contract-report.json')
+  const report = readLocalReport()
+  const reportSource = `${JSON.stringify(report, null, 2)}\n`
   const envelope = {
     schema: COLLABORATION_RUNTIME_VALIDATION_SCHEMA,
     status: 'passed',
     schemaId: 'https://knowgrph.dev/schemas/collaboration-runtime-report/v1',
     schemaVersion: COLLABORATION_RUNTIME_REPORT_SCHEMA,
+    reportDigest: calculateCollaborationRuntimeReportDigest(reportSource),
     input: 'file',
   }
   try {
+    await writeFile(reportPath, reportSource)
     await writeFile(artifactPath, `${JSON.stringify(envelope, null, 2)}\n`)
     const validResult = spawnSync(
       'npm',
-      ['run', '--silent', 'collaboration:report:check-result', '--', artifactPath],
+      ['run', '--silent', 'collaboration:report:check-result', '--', artifactPath, '--report', reportPath],
       { cwd: repoRoot, encoding: 'utf8' },
     )
     assert.equal(validResult.status, 0, validResult.stderr)
+    assert.match(validResult.stdout, new RegExp(envelope.reportDigest))
+
+    report.contractVersion += 1
+    await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`)
+    const mismatchResult = spawnSync(
+      'npm',
+      ['run', '--silent', 'collaboration:report:check-result', '--', artifactPath, '--report', reportPath],
+      { cwd: repoRoot, encoding: 'utf8' },
+    )
+    assert.notEqual(mismatchResult.status, 0)
+    assert.match(mismatchResult.stderr, /collaboration report digest mismatch/)
 
     envelope.legacyStatus = 'passed'
     await writeFile(artifactPath, `${JSON.stringify(envelope, null, 2)}\n`)
@@ -276,7 +314,7 @@ test('integration round-trips the real validation envelope artifact before the c
   )
   assert.match(
     workflowSource,
-    /collaboration:report:check-result -- collaboration-validation-result-proof\/collaboration-validation-result\.json/,
+    /collaboration:report:check-result -- collaboration-validation-result-proof\/collaboration-validation-result\.json --report collaboration-contract-report-proof\/collaboration-contract-report\.json/,
   )
 })
 
@@ -318,6 +356,7 @@ test('artifact validator CLI accepts canonical output and rejects a mutated file
     const success = JSON.parse(validJsonResult.stdout)
     await validateCollaborationRuntimeValidation(success)
     assert.equal(success.input, 'file')
+    assert.match(success.reportDigest, /^[0-9a-f]{64}$/)
 
     report.policies.pullRequestCoordination.status = 'unknown'
     await writeFile(artifactPath, `${JSON.stringify(report, null, 2)}\n`)

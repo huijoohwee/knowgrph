@@ -14,7 +14,7 @@
     "success": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "status", "schemaId", "schemaVersion", "input"],
+      "required": ["schema", "status", "schemaId", "schemaVersion", "reportDigest", "input"],
       "properties": {
         "schema": {
           "const": "knowgrph.collaboration-runtime-validation/v1"
@@ -27,6 +27,10 @@
         },
         "schemaVersion": {
           "const": "knowgrph.collaboration-runtime-report/v1"
+        },
+        "reportDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         },
         "input": {
           "enum": ["stdin", "file"]

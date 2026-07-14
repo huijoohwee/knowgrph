@@ -118,7 +118,7 @@ jobs:
 
       - name: Validate downloaded collaboration validation result
         working-directory: knowgrph
-        run: npm run --silent collaboration:report:check-result -- collaboration-validation-result-proof/collaboration-validation-result.json
+        run: npm run --silent collaboration:report:check-result -- collaboration-validation-result-proof/collaboration-validation-result.json --report collaboration-contract-report-proof/collaboration-contract-report.json
 
       - name: Run canonical integration gate
         working-directory: knowgrph
