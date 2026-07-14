@@ -92,7 +92,8 @@
     "hygiene:layout": "node ./scripts/check-hygiene-compliance.mjs --layout-only",
     "hygiene:chunks": "node ./scripts/check-hygiene-compliance.mjs --chunks",
     "collaboration:contract:check": "node ./scripts/check-collaboration-runtime.mjs",
-    "test:collaboration-contract": "node --test scripts/__tests__/collaboration-contract.test.mjs scripts/__tests__/conflict-compliance.test.mjs scripts/__tests__/dev-source-consistency.test.mjs scripts/__tests__/runtime-readiness-contract.test.mjs scripts/__tests__/worktree-policy.test.mjs",
+    "collaboration:report:check": "node ./scripts/validate-collaboration-runtime-report.mjs",
+    "test:collaboration-contract": "node --test scripts/__tests__/collaboration-contract.test.mjs scripts/__tests__/collaboration-runtime-report.test.mjs scripts/__tests__/conflict-compliance.test.mjs scripts/__tests__/dev-source-consistency.test.mjs scripts/__tests__/runtime-readiness-contract.test.mjs scripts/__tests__/worktree-policy.test.mjs",
     "ci:affected": "node ./scripts/run-affected-ci.mjs",
     "ci:integration": "npm run worktree:check && npm run collaboration:contract:check && npm run conflict:source && npm run ci:affected",
     "test:publish-sync:contract": "node --test scripts/__tests__/sync-pages-stale-asset-cleanup.test.mjs",
@@ -134,6 +135,7 @@
     "yjs": "^13.6.31"
   },
   "devDependencies": {
+    "ajv": "8.17.1",
     "fast-check": "3.23.2",
     "js-yaml": "^4.1.1",
     "zod": "^4.4.3"

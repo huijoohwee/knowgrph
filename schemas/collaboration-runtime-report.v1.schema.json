@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://knowgrph.dev/schemas/collaboration-runtime-report/v1",
+  "title": "Knowgrph Collaboration Runtime Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "status", "contractVersion", "policies"],
+  "properties": {
+    "schema": {
+      "const": "knowgrph.collaboration-runtime-report/v1"
+    },
+    "status": {
+      "const": "passed"
+    },
+    "contractVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deploymentIsolation", "runtimeDocsWorkflow", "pullRequestCoordination"],
+      "properties": {
+        "deploymentIsolation": {
+          "$ref": "#/$defs/deploymentIsolation"
+        },
+        "runtimeDocsWorkflow": {
+          "$ref": "#/$defs/runtimeDocsWorkflow"
+        },
+        "pullRequestCoordination": {
+          "$ref": "#/$defs/pullRequestCoordination"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "deploymentIsolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "workflowCount", "deploymentWorkflowCount", "allowedWorkflows"],
+      "properties": {
+        "id": {
+          "const": "deployment-isolation/v1"
+        },
+        "status": {
+          "const": "passed"
+        },
+        "workflowCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "deploymentWorkflowCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "allowedWorkflows": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/workflowPath"
+          }
+        }
+      }
+    },
+    "runtimeDocsWorkflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "consumerCount", "consumers", "checks"],
+      "properties": {
+        "id": {
+          "const": "runtime-docs-workflow/v1"
+        },
+        "status": {
+          "const": "passed"
+        },
+        "consumerCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "consumers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/workflowPath"
+          }
+        },
+        "checks": {
+          "const": [
+            "dependencies-installed",
+            "contract-resolver-after-install",
+            "checkout-after-resolver",
+            "resolver-step-id",
+            "silent-resolver-command",
+            "contract-derived-repository",
+            "contract-derived-ref",
+            "no-copied-ref"
+          ]
+        }
+      }
+    },
+    "pullRequestCoordination": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "status"],
+          "properties": {
+            "id": {
+              "const": "pull-request-coordination/v1"
+            },
+            "status": {
+              "const": "not-applicable"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "status", "pullNumber", "draft", "scope", "remoteScopeCheck"],
+          "properties": {
+            "id": {
+              "const": "pull-request-coordination/v1"
+            },
+            "status": {
+              "const": "passed"
+            },
+            "pullNumber": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "draft": {
+              "type": "boolean"
+            },
+            "scope": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^#[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "remoteScopeCheck": {
+              "enum": ["passed", "skipped", "not-applicable"]
+            }
+          }
+        }
+      ]
+    },
+    "workflowPath": {
+      "type": "string",
+      "pattern": "^\\.github/workflows/.+\\.ya?ml$"
+    }
+  }
+}

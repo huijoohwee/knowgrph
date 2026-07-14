@@ -11,6 +11,10 @@ import {
   listWorkflowSources,
   validateRuntimeDocsWorkflowPolicy,
 } from './runtime-docs-workflow-policy.mjs'
+import {
+  COLLABORATION_RUNTIME_REPORT_SCHEMA,
+  validateCollaborationRuntimeReport,
+} from './collaboration-runtime-report.mjs'
 
 const workflowTriggers = workflow => {
   const trigger = workflow.on
@@ -152,7 +156,7 @@ const main = async () => {
   const pullRequestCoordination = await validatePullRequestCoordination(contract)
 
   const report = {
-    schema: 'knowgrph.collaboration-runtime-report/v1',
+    schema: COLLABORATION_RUNTIME_REPORT_SCHEMA,
     status: 'passed',
     contractVersion: contract.contract_version,
     policies: {
@@ -161,6 +165,8 @@ const main = async () => {
       pullRequestCoordination,
     },
   }
+
+  await validateCollaborationRuntimeReport(report)
 
   if (outputFormat === 'json') console.log(JSON.stringify(report, null, 2))
   else console.log('[knowgrph] collaboration runtime contract passed')
