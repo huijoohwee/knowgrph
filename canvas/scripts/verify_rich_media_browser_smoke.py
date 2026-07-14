@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -13,6 +14,11 @@ TARGET_URL = f"{BASE_URL}/__smoke__/rich-media"
 OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
 SCREENSHOT_PATH = OUTPUT_DIR / "rich-media-browser-smoke.png"
 CATALOG_PREVIEW_SCREENSHOT_PATH = OUTPUT_DIR / "rich-media-catalog-preview-browser-smoke.png"
+CATALOG_PREVIEW_TIMING_PATH = OUTPUT_DIR / "rich-media-catalog-preview-timing.json"
+CATALOG_PREVIEW_READY_BUDGET_MS = max(
+    1,
+    int(os.environ.get("KG_MEDIA_PREVIEW_READY_BUDGET_MS", "500")),
+)
 
 
 def assert_canvas_has_visual_content(canvas, artifact_name: str) -> None:
@@ -146,10 +152,31 @@ def assert_catalog_preview_parent_placement(page, kind: str) -> None:
     expect(page.locator('[data-kg-media-catalog-preview-preload="1"]')).to_have_count(0)
 
 
-def assert_catalog_preview_arrow_navigation(page) -> None:
+def wait_for_image_ready(page, image, timeout_ms: int) -> None:
+    element = image.element_handle()
+    if element is None:
+        raise AssertionError("expected image element for media-ready timing")
+    try:
+        page.wait_for_function(
+            "element => element.complete && element.naturalWidth > 0",
+            arg=element,
+            timeout=timeout_ms,
+        )
+    except PlaywrightTimeoutError as error:
+        state = image.evaluate(
+            "element => ({ complete: element.complete, connected: element.isConnected, naturalWidth: element.naturalWidth, src: element.currentSrc || element.src })"
+        )
+        raise AssertionError(f"expected image ready within {timeout_ms}ms, got {state}") from error
+
+
+def assert_catalog_preview_arrow_navigation(page) -> dict[str, float]:
+    cold_started_at = float(page.evaluate("() => performance.now()"))
     page.locator('[data-kg-smoke-open-image-preview="1"]').click()
     preview = page.locator('[data-kg-media-catalog-preview="1"]').first
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "image")
+    visible_image = preview.locator('[data-kg-media-catalog-preview-panel="1"] img').first
+    wait_for_image_ready(page, visible_image, 5000)
+    cold_ready_ms = float(page.evaluate("startedAt => performance.now() - startedAt", cold_started_at))
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-count", "2")
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-touch-navigation", "horizontal-swipe")
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-count", "1")
@@ -162,8 +189,23 @@ def assert_catalog_preview_arrow_navigation(page) -> None:
     next_button.click()
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "video")
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-kinds", "image")
+    preloaded_image = preview.locator('[data-kg-media-catalog-preview-preload-kind="image"]').first
+    wait_for_image_ready(page, preloaded_image, 5000)
+    preloaded_started_at = float(page.evaluate("() => performance.now()"))
     previous_button.click()
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "image")
+    try:
+        wait_for_image_ready(page, visible_image, CATALOG_PREVIEW_READY_BUDGET_MS)
+    except PlaywrightTimeoutError as error:
+        elapsed_ms = float(page.evaluate("startedAt => performance.now() - startedAt", preloaded_started_at))
+        raise AssertionError(
+            f"expected preloaded image preview ready within {CATALOG_PREVIEW_READY_BUDGET_MS}ms, got >={elapsed_ms:.1f}ms"
+        ) from error
+    preloaded_ready_ms = float(page.evaluate("startedAt => performance.now() - startedAt", preloaded_started_at))
+    if preloaded_ready_ms > CATALOG_PREVIEW_READY_BUDGET_MS:
+        raise AssertionError(
+            f"expected preloaded image preview ready within {CATALOG_PREVIEW_READY_BUDGET_MS}ms, got {preloaded_ready_ms:.1f}ms"
+        )
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-kinds", "video")
 
     def swipe(start_x: int, start_y: int, end_x: int, end_y: int) -> None:
@@ -202,6 +244,11 @@ def assert_catalog_preview_arrow_navigation(page) -> None:
     preview.locator('[data-kg-media-catalog-preview-close="1"]').click()
     expect(preview).to_have_count(0)
     expect(page.locator('[data-kg-media-catalog-preview-preload="1"]')).to_have_count(0)
+    return {
+        "budgetMs": float(CATALOG_PREVIEW_READY_BUDGET_MS),
+        "coldOpenReadyMs": round(cold_ready_ms, 3),
+        "preloadedTransitionReadyMs": round(preloaded_ready_ms, 3),
+    }
 
 
 def main() -> None:
@@ -274,14 +321,25 @@ def main() -> None:
             expect(resize_handle).to_be_visible()
             expect(page.locator('[data-kg-smoke-flow-size="1"]')).to_contain_text("320x220")
 
+            timing = assert_catalog_preview_arrow_navigation(page)
             assert_catalog_preview_parent_placement(page, "image")
             assert_catalog_preview_parent_placement(page, "video")
-            assert_catalog_preview_arrow_navigation(page)
 
             page.screenshot(path=str(SCREENSHOT_PATH), full_page=True)
+            CATALOG_PREVIEW_TIMING_PATH.write_text(
+                json.dumps({"status": "passed", "targetKind": "image", **timing}, indent=2) + "\n",
+                encoding="utf-8",
+            )
             print(f"OK rich-media-browser-smoke {TARGET_URL}")
+            print(
+                "Catalog preview ready timing: "
+                f"cold={timing['coldOpenReadyMs']:.1f}ms "
+                f"preloaded={timing['preloadedTransitionReadyMs']:.1f}ms "
+                f"budget={timing['budgetMs']:.0f}ms"
+            )
             print(f"Screenshot: {SCREENSHOT_PATH}")
             print(f"Catalog preview screenshot: {CATALOG_PREVIEW_SCREENSHOT_PATH}")
+            print(f"Catalog preview timing: {CATALOG_PREVIEW_TIMING_PATH}")
         finally:
             browser.close()
 

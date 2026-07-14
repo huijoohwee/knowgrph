@@ -139,6 +139,10 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
       if (preview.getAttribute('data-kg-media-catalog-preview-preload-kinds') !== kind) {
         throw new Error(`expected adjacent ${kind} preload metadata`)
       }
+      const preloadContainer = preview.querySelector('[data-kg-media-catalog-preview-preloads="1"]')
+      if (!(preloadContainer instanceof dom.window.HTMLElement) || preloadContainer.hasAttribute('hidden')) {
+        throw new Error('expected preload resources to stay visually isolated without suppressing browser fetches')
+      }
       const resource = preview.querySelector(`[data-kg-media-catalog-preview-preload-kind="${kind}"]`)
       if (!(resource instanceof dom.window.HTMLElement) || !resource.hasAttribute('src')) {
         throw new Error(`expected adjacent ${kind} preload resource`)
