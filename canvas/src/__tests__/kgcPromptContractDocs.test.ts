@@ -24,7 +24,6 @@ export function testKgcPromptContractDocsUseCanonicalImplementedNames() {
     readFileSync(companionPath, 'utf8'),
     readRepoFile('docs/knowgrph-technical-architecture.md'),
     readRepoFile('docs/documents/knowgrph-mcp/knowgrph-mcp-service-prd-tad.md'),
-    readRepoFile('todo-log.md'),
   ].join('\n')
 
   const required = [

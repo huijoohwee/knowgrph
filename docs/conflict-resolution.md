@@ -76,7 +76,7 @@ Each mantra and table row stays alphabetized so merge decisions remain easy to s
 | Surface | Owner | Typical Files | Conflict Rule |
 |---|---|---|---|
 | Runtime source | Upstream application code | `knowgrph/canvas/src/**` | Merge source logic first, then validate runtime behavior |
-| Canonical docs | Upstream documentation | `knowgrph/docs/**`, `knowgrph/todo-log.md`, `knowgrph/README.md` | Merge canonical wording first, then update any mirrors or generated derivatives |
+| Canonical docs | Upstream documentation | `agentic-canvas-os/docs/TODO.md`, `agentic-canvas-os/todo/**`, `knowgrph/docs/**`, `knowgrph/README.md` | Merge canonical wording first, append the planning row, then update any mirrors or generated derivatives |
 | Generators and sync logic | Upstream automation | `knowgrph/scripts/**`, `knowgrph/canvas/src/cli/**`, generator inputs | Fix the generator or its input, then rerun the workflow |
 | Schema mirrors | Downstream documentation mirror | `huijoohwee.github.io/schema/AgenticRAG/**` | Update only after the canonical owner is aligned |
 | Publish mirrors | Downstream deploy surface | `huijoohwee/content/knowgrph/**`, managed route files in `huijoohwee/knowgrph/**` | Never hand-merge; rebuild and resync from `knowgrph` |
@@ -107,7 +107,7 @@ Each mantra and table row stays alphabetized so merge decisions remain easy to s
 
 ### Canonical Docs
 
-- Resolve doc conflicts in `knowgrph/docs/**`, `knowgrph/todo-log.md`, or other explicitly named canonical files first.
+- Resolve planning conflicts in `agentic-canvas-os/docs/TODO.md` and the active `agentic-canvas-os/todo/YYYY-MM.md` shard; resolve Knowgrph documentation conflicts in `knowgrph/docs/**` or other explicitly named canonical files.
 - Treat downstream schema and publish copies as mirrors unless a directive row explicitly assigns ownership elsewhere.
 - Preserve one canonical statement of a contract, then propagate it.
 

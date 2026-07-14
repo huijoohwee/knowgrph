@@ -98,12 +98,8 @@ const listTextFiles = async (rootDir, { allowIgnoredRelativeRoots = false } = {}
   return out
 }
 
-const immutableHistoryPaths = new Set([
-  'todo-log.md',
-])
-
 const isImmutableHistoryPath = rel => (
-  immutableHistoryPaths.has(rel) || rel.startsWith('docs/reports/')
+  rel.startsWith('docs/reports/')
 )
 
 const placeholderUserNames = new Set([

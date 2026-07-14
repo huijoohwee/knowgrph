@@ -36,7 +36,7 @@
 ## Agentic GraphRAG/Knowledge Graph Pipeline Guidelines
 
 ## COMPLY
-`/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},knowgrph/todo.md#L5-21}`
+`/GitHub/{huijoohwee.github.io/guidelines/{codebase-neutrality-guidelines.md,codebase-maintainability-guidelines.md},agentic-canvas-os/docs/{AGENTS.md,TODO.md}}`
 
 ## ALIGN (Semantic Definition)
 - **GRAPHS Elements:** nodes, edges, graph layers (subgraphs, groups, clusters, communities), labels, text

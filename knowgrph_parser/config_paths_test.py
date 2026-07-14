@@ -27,6 +27,9 @@ IGNORED_REF_SCAN_DIRS = {
     "node_modules",
     "__pycache__",
 }
+IGNORED_REF_SCAN_ROOTS_REL = {
+    os.path.join("data", "outputs"),
+}
 TEXT_REF_EXTENSIONS = {
     ".js",
     ".json",
@@ -50,7 +53,6 @@ GITIGNORE_REL = ".gitignore"
 ACTIVE_DOC_ROOTS_REL = (
     "README.md",
     "CodeWiki.md",
-    "todo-log.md",
     os.path.join("docs", "documents"),
 )
 ACTIVE_SOURCE_ROOTS_REL = (
@@ -143,9 +145,18 @@ DISALLOWED_GITIGNORE_STALE_DEMO_REFS = (
 )
 
 
+def prune_ignored_ref_scan_dirs(dirpath, dirnames):
+    dirnames[:] = [
+        name
+        for name in dirnames
+        if name not in IGNORED_REF_SCAN_DIRS
+        and os.path.relpath(os.path.join(dirpath, name), REPO_ROOT) not in IGNORED_REF_SCAN_ROOTS_REL
+    ]
+
+
 def iter_text_ref_files():
     for dirpath, dirnames, filenames in os.walk(REPO_ROOT):
-        dirnames[:] = [name for name in dirnames if name not in IGNORED_REF_SCAN_DIRS]
+        prune_ignored_ref_scan_dirs(dirpath, dirnames)
         for filename in filenames:
             if filename not in TEXT_REF_BASENAMES and os.path.splitext(filename)[1] not in TEXT_REF_EXTENSIONS:
                 continue
@@ -155,7 +166,7 @@ def iter_text_ref_files():
 def iter_data_test_data_text_files():
     root = repo_path(REPO_ROOT, DATA_TEST_DATA_ROOT_REL)
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [name for name in dirnames if name not in IGNORED_REF_SCAN_DIRS]
+        prune_ignored_ref_scan_dirs(dirpath, dirnames)
         for filename in filenames:
             if os.path.splitext(filename)[1] not in TEXT_REF_EXTENSIONS:
                 continue
@@ -169,7 +180,7 @@ def iter_active_doc_ref_files():
             yield abs_root
             continue
         for dirpath, dirnames, filenames in os.walk(abs_root):
-            dirnames[:] = [name for name in dirnames if name not in IGNORED_REF_SCAN_DIRS]
+            prune_ignored_ref_scan_dirs(dirpath, dirnames)
             for filename in filenames:
                 if os.path.splitext(filename)[1] not in TEXT_REF_EXTENSIONS:
                     continue
@@ -180,7 +191,7 @@ def iter_active_source_ref_files():
     for rel_root in ACTIVE_SOURCE_ROOTS_REL:
         abs_root = repo_path(REPO_ROOT, rel_root)
         for dirpath, dirnames, filenames in os.walk(abs_root):
-            dirnames[:] = [name for name in dirnames if name not in IGNORED_REF_SCAN_DIRS]
+            prune_ignored_ref_scan_dirs(dirpath, dirnames)
             for filename in filenames:
                 if filename not in TEXT_REF_BASENAMES and os.path.splitext(filename)[1] not in TEXT_REF_EXTENSIONS:
                     continue
@@ -349,7 +360,7 @@ class ConfigPathsTest(unittest.TestCase):
         source_root = repo_path(REPO_ROOT, GRPH_SHARED_SRC_REL)
         for dirpath, _dirnames, filenames in os.walk(source_root):
             for filename in filenames:
-                if not filename.endswith(".ts"):
+                if not filename.endswith((".ts", ".tsx")):
                     continue
                 rel_path = os.path.relpath(os.path.join(dirpath, filename), source_root)
                 source_modules.add(os.path.splitext(rel_path)[0].replace(os.sep, "/"))

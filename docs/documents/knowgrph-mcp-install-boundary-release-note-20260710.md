@@ -32,7 +32,7 @@ overview, open `docs/documents/knowgrph-mcp-onboarding-index.md`.
 - Mirrored the same install-boundary note into the published docs overview
 - Mirrored the template-only `#promotion.retry <path...>` recovery contract into the shared
   browser-published MCP Apps card instead of creating a second publish-only recovery path
-- Logged the new install boundary and doc-routing follow-ups in `todo-log.md`
+- Logged the new install boundary and doc-routing follow-ups in the planning history now centralized under `agentic-canvas-os/todo/2026-07.md`
 
 ## Latest Release Evidence (2026-07-11)
 
@@ -98,7 +98,7 @@ Current live examples:
 - Canonical MCP overview:
   `docs/documents/knowgrph-mcp/knowgrph-mcp.md`
 - Planning ledger:
-  `todo-log.md`
+  `agentic-canvas-os/docs/TODO.md` plus `agentic-canvas-os/todo/2026-07.md`
 
 ## Published Recovery Surface
 
