@@ -13,7 +13,7 @@ stage_contract:
   order: ["research", "storyboard", "render", "edit", "publish", "checkout"]
 docs_dependency:
   repository: "https://github.com/huijoohwee/agentic-canvas-os.git"
-  ref: "50f50f4740ca8312482ed27dff7dbb38ce64892f"
+  ref: "ea145cc6a2ba8d6da673706bc36b752be4a6d938"
   root_env: "KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT"
   default_relative_root: "../agentic-canvas-os/docs"
   required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "RUNTIME-PROOF.md", "SKILLS.md"]
