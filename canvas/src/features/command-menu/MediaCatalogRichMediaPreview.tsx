@@ -14,6 +14,10 @@ import {
 } from '@/lib/ui/mediaExpandedPreviewLayout'
 import { MediaExpandedPreviewFullscreenButton } from '@/lib/ui/MediaExpandedPreviewFullscreenButton'
 import { cn } from '@/lib/utils'
+import {
+  MediaCatalogPreviewPreloads,
+  resolveMediaCatalogPreviewPreloadItems,
+} from './MediaCatalogPreviewPreloads'
 import { useMediaCatalogPreviewNavigation } from './useMediaCatalogPreviewNavigation'
 
 export function MediaCatalogRichMediaPreview(props: {
@@ -26,6 +30,10 @@ export function MediaCatalogRichMediaPreview(props: {
   const previewRef = React.useRef<HTMLElement | null>(null)
   const runtimeUrl = readUploadedMediaPanelItemRuntimeUrl(item)
   const navigation = useMediaCatalogPreviewNavigation({ item, items, onNavigate })
+  const preloadItems = React.useMemo(
+    () => resolveMediaCatalogPreviewPreloadItems(navigation.adjacentItems),
+    [navigation.adjacentItems],
+  )
 
   return (
     <PreviewOverlay
@@ -43,6 +51,8 @@ export function MediaCatalogRichMediaPreview(props: {
         data-kg-media-catalog-preview-placement="legacy-lightbox"
         data-kg-media-catalog-preview-index={navigation.activeIndex >= 0 ? navigation.activeIndex + 1 : undefined}
         data-kg-media-catalog-preview-count={navigation.count}
+        data-kg-media-catalog-preview-preload-count={preloadItems.length}
+        data-kg-media-catalog-preview-preload-kinds={preloadItems.map(preloadItem => preloadItem.kind).join(',') || undefined}
         data-kg-media-catalog-preview-touch-navigation={navigation.canNavigate ? 'horizontal-swipe' : undefined}
         {...navigation.touchHandlers}
       >
@@ -121,6 +131,7 @@ export function MediaCatalogRichMediaPreview(props: {
             </section>
           </section>
         </section>
+        <MediaCatalogPreviewPreloads items={preloadItems} />
       </section>
     </PreviewOverlay>
   )
