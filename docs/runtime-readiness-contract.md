@@ -42,7 +42,7 @@ deployed_verification:
 
 ## Authority
 
-The opening frontmatter is the machine source of truth for the Dev runtime-readiness gate. The external Agentic Canvas OS dictionaries remain the invocation grammar SSOT, while `SKILLS.md` owns named `/*-agent` variants. This contract records only the pinned dependency and proof probes required by Knowgrph.
+The opening frontmatter is the machine source of truth for the Dev runtime-readiness gate. The external Agentic Canvas OS dictionaries remain the invocation grammar SSOT, while `SKILLS.md` owns named `/*-agent` variants. This contract records the only Agentic Canvas OS repository and revision pin; Integration, runtime-verification, and release workflows resolve their checkout inputs from it instead of copying the SHA.
 
 ## Promotion Rule
 
@@ -63,6 +63,7 @@ Live execution is fail-closed: it requires bearer authentication, the `paid-mode
 ## Commands
 
 ```bash
+npm run runtime:docs-dependency:resolve
 npm run runtime:check
 ```
 

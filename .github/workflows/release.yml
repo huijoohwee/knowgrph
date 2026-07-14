@@ -51,13 +51,6 @@ jobs:
         working-directory: knowgrph
         run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
 
-      - name: Checkout Agentic Canvas OS docs SSOT
-        uses: actions/checkout@v4
-        with:
-          repository: huijoohwee/agentic-canvas-os
-          ref: 50f50f4740ca8312482ed27dff7dbb38ce64892f
-          path: agentic-canvas-os
-
       - name: Checkout production mirror
         uses: actions/checkout@v4
         with:
@@ -87,6 +80,18 @@ jobs:
       - name: Install dependencies
         working-directory: knowgrph
         run: npm ci
+
+      - name: Resolve Agentic Canvas OS docs dependency
+        id: agentic_canvas_os_docs
+        working-directory: knowgrph
+        run: npm run --silent runtime:docs-dependency:resolve -- --github-output >> "$GITHUB_OUTPUT"
+
+      - name: Checkout Agentic Canvas OS docs SSOT
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.agentic_canvas_os_docs.outputs.repository }}
+          ref: ${{ steps.agentic_canvas_os_docs.outputs.ref }}
+          path: agentic-canvas-os
 
       - name: Reverify exact candidate
         working-directory: knowgrph
