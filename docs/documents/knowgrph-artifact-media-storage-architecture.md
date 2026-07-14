@@ -183,7 +183,7 @@ Generated or uploaded media is durable only after the Cloudflare storage path co
 
 | Layer | Owner | Runtime contract |
 |---|---|---|
-| FloatingPanel Media | Media browser/catalog | Lists uploaded and generated image/audio/video records, previews uploaded media in the shared lightbox, downloads media through the shared download helper, and inserts selected media into active card fields as inline mention chips. Its thumbnails share hover/focus-appearing kind, info, open-link, and download overlays with Storyboard card media and reference thumbnails. |
+| FloatingPanel Media | Media browser/catalog | Lists uploaded and generated image/audio/video records, previews uploaded media in the shared lightbox, downloads media through the shared download helper, and inserts selected media into active card fields as inline mention chips. Expanded image/video previews reuse the shared Rich Media Panel direct-media surface with parent-owned placement so Canvas Storyboard/frontmatter positioning cannot collapse the lightbox player; audio retains the shared card-media surface. Its thumbnails share hover/focus-appearing kind, info, open-link, and download overlays with Storyboard card media and reference thumbnails. |
 | `@ Upload Media` command | Shared Media upload helper | Reuses the FloatingPanel Media upload utility and inventory builder; no second uploader, no panel-local storage config. |
 | R2 | Blob persistence | Stores image/audio/video binary objects under configured workspace/object prefixes. |
 | D1 | Metadata and provenance | Stores media asset metadata, content type, object key, source/provenance, workspace/run/card context, and persistence status. |

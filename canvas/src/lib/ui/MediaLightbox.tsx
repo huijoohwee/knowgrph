@@ -205,6 +205,7 @@ export function MediaLightbox({
                         interactive={false}
                         panelChrome="storyboardWidget"
                         frameMode="surface"
+                        placementOwner="parent"
                       />
                     </section>
                   </section>
@@ -221,6 +222,7 @@ export function MediaLightbox({
                         videoControls
                         panelChrome="storyboardWidget"
                         frameMode="surface"
+                        placementOwner="parent"
                       />
                     </section>
                   </section>
