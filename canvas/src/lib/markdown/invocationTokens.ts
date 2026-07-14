@@ -4,7 +4,7 @@ export type InvocationTokenSegment =
   | { kind: 'text'; value: string }
   | { kind: 'token'; value: string; tokenKind: InvocationTokenKind }
 
-export const INVOCATION_TOKEN_RE = /(?:#[\p{L}\p{N}][\p{L}\p{N}._-]{0,63}|[@/]\p{L}[\p{L}\p{N}._-]{0,63})/gu
+export const INVOCATION_TOKEN_RE = /(?:#[\p{L}\p{N}][\p{L}\p{N}._-]{0,63}|\/\p{L}[\p{L}\p{N}._-]{0,63}|@\p{L}[\p{L}\p{N}._-]{0,255})/gu
 const INVOCATION_TOKEN_PREVIOUS_BOUNDARY_RE = /[\p{L}\p{N}_/-]/u
 const INVOCATION_TOKEN_NEXT_BOUNDARY_RE = /[\p{L}\p{N}_-]/u
 const INVOCATION_TOKEN_COMPACT_KEYWORD_PREVIOUS_RE = /[\p{L}\p{N}_.-]/u

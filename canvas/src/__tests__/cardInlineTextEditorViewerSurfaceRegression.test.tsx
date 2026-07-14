@@ -57,6 +57,7 @@ const buildViewConfig = (density: { rowHeightPreset: 'compact' | 'comfortable'; 
   if (!viewConfig) throw new Error('expected test view config to coerce')
   return viewConfig
 }
+
 export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndMediaChips() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
@@ -65,8 +66,10 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
   const committedValues: string[] = []
   const leakedAttachmentToken = '@strybldr-s.tarter-source-017d1e965528642f.png'
   const attachmentLabel = 'strybldr-starter-source-017d1e965528642f.png'
+  const longAttachmentLabel = 'knowgrph-agentic-video-canvas-demo-image-source-consistent-keyframes-7fa233b6799880b4.png'
+  const longAttachmentToken = `@${longAttachmentLabel}`
   const sourceText = [
-    `I can ...#storyboard ${leakedAttachmentToken} ../source.normalize#media @canvas, is it better in#storyboard`,
+    `I can ...#storyboard ${leakedAttachmentToken} ${longAttachmentToken} ../source.normalize#media @canvas, is it better in#storyboard`,
     '![Strybldr starter source](https://airvio.co/api/storage/media/airvio/runs/storyboard/source.png)',
   ].join(' ')
   try {
@@ -74,7 +77,7 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
       root.render(
         React.createElement(CardInlineTextEditor, {
           value: sourceText,
-          displayValue: `I can ... #storyboard ${leakedAttachmentToken} .. /source.normalize #media @canvas`,
+          displayValue: `I can ... #storyboard ${leakedAttachmentToken} ${longAttachmentToken} .. /source.normalize #media @canvas`,
           ariaLabel: 'Summary for workspace-source',
           placeholder: 'Add summary',
           canEdit: true,
@@ -85,12 +88,20 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
           markdownPreview: 'auto',
           displayClassName: 'm-0 h-full min-h-0 select-none overflow-auto whitespace-pre-wrap break-words text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)] [scrollbar-gutter:stable]',
           editorClassName: 'h-full min-h-[3rem] overflow-auto text-[10px] font-medium leading-4 text-[color:var(--kg-text-primary)] [scrollbar-gutter:stable]',
-          projectedMediaAttachments: [{
-            mediaKind: 'image',
-            label: attachmentLabel,
-            sourceUrl: 'https://airvio.co/api/storage/media/airvio/runs/storyboard/attached.png',
-            thumbnailUrl: 'https://airvio.co/api/storage/media/airvio/runs/storyboard/attached-thumb.png',
-          }],
+          projectedMediaAttachments: [
+            {
+              mediaKind: 'image',
+              label: attachmentLabel,
+              sourceUrl: 'https://airvio.co/api/storage/media/airvio/runs/storyboard/attached.png',
+              thumbnailUrl: 'https://airvio.co/api/storage/media/airvio/runs/storyboard/attached-thumb.png',
+            },
+            {
+              mediaKind: 'image',
+              label: longAttachmentLabel,
+              sourceUrl: 'https://airvio.co/api/storage/media/airvio/runs/storyboard/long-attached.png',
+              thumbnailUrl: 'https://airvio.co/api/storage/media/airvio/runs/storyboard/long-attached-thumb.png',
+            },
+          ],
           rows: 2,
           onCommit: value => committedValues.push(value),
         }),
@@ -105,6 +116,11 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
     const readMediaChip = display.querySelector('[data-kg-card-inline-display-media-chip="1"]') as HTMLElement | null
     if (!(readMediaChip instanceof dom.window.HTMLElement) || readMediaChip.textContent !== `@${attachmentLabel}`) {
       throw new Error(`expected read-mode Card textarea to render source-authored @ media in-place, html=${display.innerHTML}`)
+    }
+    const longReadMediaChip = Array.from(display.querySelectorAll('[data-kg-card-inline-display-media-chip="1"]') as NodeListOf<HTMLElement>)
+      .find(node => node.textContent === longAttachmentToken)
+    if (!(longReadMediaChip instanceof dom.window.HTMLElement)) {
+      throw new Error(`expected read-mode Card textarea to keep a generated long-form @ media reference visible as a chip before editing, html=${display.innerHTML}`)
     }
     const readDisplayText = String(display.textContent || '')
     const readStoryboardIndex = readDisplayText.indexOf('#storyboard')
@@ -186,6 +202,11 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
     }
     if (!viewerEditor.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]')) {
       throw new Error(`expected projected attached media to render as a display-only Viewer edit chip, html=${viewerEditor.innerHTML}`)
+    }
+    const longEditorMediaChip = Array.from(viewerEditor.querySelectorAll('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]') as NodeListOf<HTMLElement>)
+      .find(node => node.getAttribute('data-kg-card-inline-wysiwyg-media-markdown') === longAttachmentToken)
+    if (!(longEditorMediaChip instanceof dom.window.HTMLElement)) {
+      throw new Error(`expected the same generated long-form @ media chip to remain visible after entering edit mode, html=${viewerEditor.innerHTML}`)
     }
     const virtualMediaChip = viewerEditor.querySelector('[data-kg-card-inline-wysiwyg-virtual-media-chip="1"]') as HTMLElement | null
     if (!(virtualMediaChip instanceof dom.window.HTMLElement)) throw new Error(`expected projected media chip element, html=${viewerEditor.innerHTML}`)
