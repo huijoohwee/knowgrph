@@ -147,11 +147,13 @@ For server-side merge gating, see `docs/branch-protection.md`.
 ### Collaboration Runtime
 
 ```bash
+npm run worktree:check
 npm run collaboration:contract:check
 npm run ci:affected
 npm run ci:integration
 ```
 
+- `worktree:check` validates the contract's canonical source registry without fetching or starting Dev; `ci:integration` runs it first and the pre-push hook inherits the same fast failure.
 - `collaboration:contract:check` parses canonical frontmatter, validates branch/base/scope ownership in CI, and rejects deployment commands outside the manual release workflow.
 - `ci:affected` derives focused commands from the canonical `ci_scopes` map rather than duplicating path rules in workflow YAML.
 - `ci:integration` composes contract, source/build conflict, and affected-scope validation behind one stable merge status without mutating or requiring Prod.

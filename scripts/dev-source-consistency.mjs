@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { readContract, repoRoot, validateTaskBranch } from './collaboration-contract.mjs'
+import { countRegisteredWorktrees, evaluateWorktreePolicy } from './worktree-policy.mjs'
 
 const runGit = (args, cwd) => {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
@@ -13,21 +14,6 @@ const runGit = (args, cwd) => {
 }
 
 const canonicalRef = source => `${source.canonical_remote}/${source.canonical_branch}`
-
-const countRegisteredWorktrees = porcelain => String(porcelain || '')
-  .split(/\r?\n/)
-  .filter(line => line.startsWith('worktree '))
-  .length
-
-const requireSingleWorktree = (state, source, settings) => {
-  const maximum = settings.worktree_policy.maximum_registered_per_repository
-  if (state.worktreeCount !== maximum) {
-    throw new Error(
-      `${source.id} source requires exactly ${maximum} registered worktree per repository on this device; `
-      + `found ${state.worktreeCount}. Remove redundant linked worktrees before continuing`,
-    )
-  }
-}
 
 const requireCanonicalSource = (state, source) => {
   if (source.clean_required && state.status) {
@@ -50,11 +36,11 @@ export const evaluateDevSourceConsistency = (sourceStates, contract, mode) => {
     )
   }
 
+  evaluateWorktreePolicy(sourceStates, contract)
   const statesById = new Map(sourceStates.map(state => [state.id, state]))
   const identities = settings.canonical_sources.map(source => {
     const state = statesById.get(source.id)
     if (!state) throw new Error(`missing local source identity for ${source.id}`)
-    requireSingleWorktree(state, source, settings)
     if (mode === settings.task_mode && source.task_divergence_allowed) {
       validateTaskBranch(state.branch, contract)
       return `${source.id}=task:${state.branch}@${state.headSha.slice(0, 12)} (canonical ${canonicalRef(source)}@${state.canonicalSha.slice(0, 12)})`
