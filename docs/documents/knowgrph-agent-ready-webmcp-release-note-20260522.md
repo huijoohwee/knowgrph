@@ -59,14 +59,14 @@ canonical upstream flow. No second MCP-only graph pipeline was introduced.
 ### Focused local checks
 
 ```bash
-cd /Users/huijoohwee/Documents/GitHub/knowgrph/canvas
+cd $GITHUB_ROOT/knowgrph/canvas
 node --preserve-symlinks --preserve-symlinks-main ./node_modules/tsx/dist/cli.cjs -e "Promise.all([import('./src/__tests__/webMcpRuntime.test.ts'), import('./src/__tests__/agentReadyWebMcpHtmlFallback.test.ts')]).then(async ([runtimeTest, htmlTest]) => { await runtimeTest.testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths(); await htmlTest.testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOriginStoragePaths(); })"
 ```
 
 ### Preview smoke
 
 ```bash
-cd /Users/huijoohwee/Documents/GitHub/knowgrph
+cd $GITHUB_ROOT/knowgrph
 KNOWGRPH_AGENT_READY_BASE_URL=https://agent-ready-webmcp-preview.joohwee.pages.dev/knowgrph node ./scripts/check-agent-ready.mjs
 ```
 
@@ -79,7 +79,7 @@ Expected result:
 ### Live smoke
 
 ```bash
-cd /Users/huijoohwee/Documents/GitHub/knowgrph
+cd $GITHUB_ROOT/knowgrph
 node ./scripts/check-agent-ready.mjs
 ```
 

@@ -1,7 +1,7 @@
 # Post-Deploy Verification Checklist — `airvio.co/knowgrph`
 
 Short operator checklist for the live `knowgrph` Cloudflare Pages + MCP deploy.
-This is the compact follow-up to the full [deploy runbook](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/knowgrph-acos-deploy-runbook.md).
+This is the compact follow-up to the full [deploy runbook](knowgrph-acos-deploy-runbook.md).
 
 For the hosted AWS REST proof path (`POST /auth/session` -> `POST /run` ->
 `GET /runs/{id}`), the fastest path is `npm run runtime:flow` from the main

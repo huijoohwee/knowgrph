@@ -819,8 +819,8 @@ sequenceDiagram
 
 ### Deployment Strategy
 
-- Development repo only: `/Users/huijoohwee/Documents/GitHub/knowgrph`.
-- Do not update `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`.
+- Development repo only: `$GITHUB_ROOT/knowgrph`.
+- Do not update `$GITHUB_ROOT/huijoohwee/content/knowgrph`.
 - Do not deploy to Cloudflare.
 - Implementation can be validated with focused tests and static guards before any publish step.
 

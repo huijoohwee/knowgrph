@@ -15,7 +15,7 @@
 
 **Directive**: Keep crawler access rooted in the shared storage contract and D1-backed document rows; keep Pay Per Crawl as a Cloudflare zone policy boundary; do not emulate payment headers, prices, crawler identity, parsing, rendering, uploads, or local import behavior in application code.
 
-**Current deployment context**: Dev is `/Users/huijoohwee/Documents/GitHub/knowgrph`; the static production mirror is `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`; Cloudflare serves the app at `airvio.co/knowgrph`, the storage Worker at `airvio.co/api/storage/*`, and the separate payment Worker at `airvio.co/api/payments/*`.
+**Current deployment context**: Dev is `$GITHUB_ROOT/knowgrph`; the static production mirror is `$GITHUB_ROOT/huijoohwee/content/knowgrph`; Cloudflare serves the app at `airvio.co/knowgrph`, the storage Worker at `airvio.co/api/storage/*`, and the separate payment Worker at `airvio.co/api/payments/*`.
 
 ---
 

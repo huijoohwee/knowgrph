@@ -93,7 +93,7 @@ The explicit `--deploy-visible-vars --apply --yes --confirm=apply-stripe-payment
 
 | Stage | Path | Responsibility |
 |---|---|---|
-| Dev | `/Users/huijoohwee/Documents/GitHub/knowgrph` | Source code, docs, tests, Worker configs, and build source |
-| Prod mirror | `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph` | Synced static SPA artifact only |
+| Dev | `$GITHUB_ROOT/knowgrph` | Source code, docs, tests, Worker configs, and build source |
+| Prod mirror | `$GITHUB_ROOT/huijoohwee/content/knowgrph` | Synced static SPA artifact only |
 | Cloudflare Pages | `airvio.co/knowgrph` | Static app route and hashed assets |
 | Cloudflare Workers | `airvio.co/api/storage/*`, `airvio.co/api/payments/*` | D1 storage, crawler access, Stripe checkout, and Stripe webhook routes |

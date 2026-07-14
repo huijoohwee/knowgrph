@@ -1083,4 +1083,4 @@ Each row is a project-scoped instantiation of the universal CID grammar applied 
 - glTF Transform CLI documentation: `https://gltf-transform.dev/`
 - VTracer raster-to-vector converter: `https://github.com/visioncortex/vtracer`
 - Potrace bitmap tracing documentation: `https://potrace.sourceforge.net/`
-- PRD/TAD guideline source: `/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/guidelines/prd-tad-guidelines.md`
+- PRD/TAD guideline source: `$GITHUB_ROOT/huijoohwee.github.io/guidelines/prd-tad-guidelines.md`

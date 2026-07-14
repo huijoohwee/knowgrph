@@ -43,19 +43,19 @@ The broader living protection graph in `docs/documents/knowgrph-sme-protection-g
 This runbook belongs to the SME protection-gap worktree:
 
 ```text
-/Users/katrina/Documents/GitHub/knowgrph-desktop-sme-protection-gap
+$GITHUB_ROOT/knowgrph-desktop-sme-protection-gap
 ```
 
 Run commands from that directory unless a command says otherwise:
 
 ```bash
-cd /Users/katrina/Documents/GitHub/knowgrph-desktop-sme-protection-gap
+cd $GITHUB_ROOT/knowgrph-desktop-sme-protection-gap
 ```
 
 The canonical integrated repository is:
 
 ```text
-/Users/katrina/Documents/GitHub/knowgrph
+$GITHUB_ROOT/knowgrph
 ```
 
 ## Quick Start: Canvas Webpage Demo
@@ -86,7 +86,7 @@ Open [http://127.0.0.1:5173/](http://127.0.0.1:5173/), then:
 3. Paste this absolute local path:
 
    ```text
-   /Users/katrina/Documents/GitHub/knowgrph-desktop-sme-protection-gap/sme-agent/demo/sme-care-agent-canvas-evidence.md
+   $GITHUB_ROOT/knowgrph-desktop-sme-protection-gap/sme-agent/demo/sme-care-agent-canvas-evidence.md
    ```
 
 4. Select **Import**.
@@ -280,7 +280,7 @@ npm run sme-care-agent:canvas-demo:check
 Full runtime-readiness gate:
 
 ```bash
-KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT=/Users/katrina/Documents/GitHub/agentic-canvas-os/docs \
+KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT=$GITHUB_ROOT/agentic-canvas-os/docs \
 npm run runtime:check
 ```
 
@@ -335,7 +335,7 @@ Check the typed error. Expected fail-closed causes include invalid profile field
 Point the source-time check at the canonical docs directory:
 
 ```bash
-export KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT=/Users/katrina/Documents/GitHub/agentic-canvas-os/docs
+export KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT=$GITHUB_ROOT/agentic-canvas-os/docs
 ```
 
 This environment variable affects readiness verification only; the deterministic SME request path does not read that repository at runtime.

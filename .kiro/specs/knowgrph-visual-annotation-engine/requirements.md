@@ -33,7 +33,7 @@ constraints:
   - "reuse shared heuristics / semantic-key helpers / rich-media pipeline / MCP surface"
   - "FOSS-first: Transformers.js + Florence-2-base or equivalent zero-TCO model"
 traceability:
-  repo_dev: "/Users/huijoohwee/Documents/GitHub/knowgrph"
+  repo_dev: "$GITHUB_ROOT/knowgrph"
   spec_path: ".kiro/specs/knowgrph-visual-annotation-engine/requirements.md"
   feature_surface: "Visual Annotation Engine — image/video annotation with semantic labels and LLM-ready structured output"
   model_reference: "https://huggingface.co/microsoft/Florence-2-base"

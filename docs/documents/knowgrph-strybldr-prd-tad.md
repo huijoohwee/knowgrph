@@ -11,8 +11,8 @@ domain: "knowgrph"
 lang: "en-US"
 frontmatter_contract: "required"
 deployment_topology: "Dev -> Prod -> Cloudflare"
-dev_root: "/Users/huijoohwee/Documents/GitHub/knowgrph"
-prod_mirror: "/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph"
+dev_root: "$GITHUB_ROOT/knowgrph"
+prod_mirror: "$GITHUB_ROOT/huijoohwee/content/knowgrph"
 cloudflare_route: "https://airvio.co/knowgrph"
 source_repo: "https://github.com/huijoohwee/knowgrph"
 timebox: "3-hour hackathon"
@@ -48,7 +48,7 @@ related:
 
 ## Document Map
 
-This combined PRD/TAD follows `/Users/huijoohwee/Documents/GitHub/huijoohwee.github.io/guidelines/prd-tad-guidelines.md`. It defines a 3-hour hackathon slice for Knowgrph Strybldr: import an image, reverse engineer it into editable storyboard element cards, let the user update those cards, and generate or hand off a bounded video request through the existing BytePlus ModelArk run owners.
+This combined PRD/TAD follows `$GITHUB_ROOT/huijoohwee.github.io/guidelines/prd-tad-guidelines.md`. It defines a 3-hour hackathon slice for Knowgrph Strybldr: import an image, reverse engineer it into editable storyboard element cards, let the user update those cards, and generate or hand off a bounded video request through the existing BytePlus ModelArk run owners.
 
 The contract is intentionally implementation-facing. It names the reusable owners, verifies economic constraints, and keeps the architecture neutral to project, file, and demo-image specifics.
 
@@ -325,8 +325,8 @@ Parser output must include graph metadata:
 
 | Stage | Path | Requirement |
 |---|---|---|
-| Dev | `/Users/huijoohwee/Documents/GitHub/knowgrph` | Implement, typecheck, focused tests, browser smoke. |
-| Prod mirror | `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph` | Sync built/static output only after validation. |
+| Dev | `$GITHUB_ROOT/knowgrph` | Implement, typecheck, focused tests, browser smoke. |
+| Prod mirror | `$GITHUB_ROOT/huijoohwee/content/knowgrph` | Sync built/static output only after validation. |
 | Cloudflare | `https://airvio.co/knowgrph` | Publish only with correct Wrangler credentials and live smoke. |
 
 ## ADRs

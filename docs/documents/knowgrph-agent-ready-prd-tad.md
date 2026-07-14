@@ -83,25 +83,25 @@ stale downstream patches.
 
 Crawler-visible Markdown pane content must resolve from the published Editor Workspace -> Source
 Files -> storage-worker D1 document routes, not from repo-local docs trees such as
-`/Users/huijoohwee/Documents/GitHub/huijoohwee/docs`.
+`$GITHUB_ROOT/huijoohwee/docs`.
 
 ### Deployment topology
 
 ```text
 Dev SSOT
-  /Users/huijoohwee/Documents/GitHub/knowgrph
+  $GITHUB_ROOT/knowgrph
     -> npm run pages:build-sync
 
 Prod static mirror
-  /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
+  $GITHUB_ROOT/huijoohwee/content/knowgrph
     -> mirrored app payload only
 
 Prod Pages route owner
-  /Users/huijoohwee/Documents/GitHub/huijoohwee/functions/knowgrph/[[path]].js
+  $GITHUB_ROOT/huijoohwee/functions/knowgrph/[[path]].js
     -> generated from cloudflare/pages/knowgrph-agent-ready.mjs
 
 Prod Pages root config
-  /Users/huijoohwee/Documents/GitHub/huijoohwee/{_headers,_redirects,.well-known/*}
+  $GITHUB_ROOT/huijoohwee/{_headers,_redirects,.well-known/*}
 
 Cloudflare Pages
   https://airvio.co/knowgrph/

@@ -8,8 +8,8 @@ status: Accepted and implemented
 created: 2026-05-21
 updated: 2026-07-08
 author: "@airvio"
-repo_dev: /Users/huijoohwee/Documents/GitHub/knowgrph
-repo_prod: /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
+repo_dev: $GITHUB_ROOT/knowgrph
+repo_prod: $GITHUB_ROOT/huijoohwee/content/knowgrph
 deploy_url: airvio.co/knowgrph
 stack_ref: kgc-computing-flow/v1
 related_docs:

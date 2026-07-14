@@ -30,7 +30,7 @@
     "pages:build": "KG_SKIP_DOCS_UPDATE=1 VITE_BASE_PATH=/knowgrph/ npm run build --workspace=@knowgrph/canvas",
     "pages:check-sync": "node ./scripts/sync-pages-knowgrph.mjs --check",
     "pages:sync": "node ./scripts/sync-pages-knowgrph.mjs",
-    "pages:build-sync": "npm run pages:build && npm run pages:sync",
+    "pages:build-sync": "npm run pages:build && node ./scripts/check-conflict-compliance.mjs --source-only && npm run pages:sync",
     "pages:functions:build": "node ./scripts/build-pages-functions-worker.mjs",
     "pages:deploy-cloudflare": "npm run pages:build-sync && npm run pages:functions:build && npx --yes wrangler@latest pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true && npm run storage:d1:seed:docs",
     "pages:github-write:configure": "node ./scripts/configure-pages-github-write.mjs",

@@ -113,7 +113,7 @@ covers this; re-run after build): `npm run web:test`.
 
 For a compact operator-ready checklist covering the live `/knowgrph` routes, MCP
 session handshake, dry-run `tools/call`, and persisted Run_Manifest read-back,
-see [knowgrph-post-deploy-verification-checklist.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/knowgrph-post-deploy-verification-checklist.md).
+see [knowgrph-post-deploy-verification-checklist.md](knowgrph-post-deploy-verification-checklist.md).
 
 ```
 AGENT_API_URL=<ApiUrl> \

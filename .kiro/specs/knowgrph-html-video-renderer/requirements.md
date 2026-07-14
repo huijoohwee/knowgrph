@@ -31,7 +31,7 @@ constraints:
   - "reuse shared heuristics / semantic-key helpers / headless / unopinionated"
   - "pluggable render engines: headless-browser, canvas-2d, server-side; engine selected at runtime via env/config"
 traceability:
-  repo_dev: "/Users/huijoohwee/Documents/GitHub/knowgrph"
+  repo_dev: "$GITHUB_ROOT/knowgrph"
   spec_path: ".kiro/specs/knowgrph-html-video-renderer/requirements.md"
   feature_surface: "HTML-to-Video Render Pipeline"
   inspired_by: "https://github.com/nexu-io/html-video, https://github.com/heygen-com/hyperframes, https://github.com/FFmpeg/FFmpeg"

@@ -12,7 +12,7 @@ import type { WorkspaceFs } from '@/features/workspace-fs/types'
 
 type MockRoute = { test: (url: string) => boolean; handler: (url: string, init?: RequestInit) => Response | Promise<Response> }
 
-const KG_GITHUB_ROOT = '/Users/huijoohwee/Documents/GitHub'
+const KG_GITHUB_ROOT = '/workspace'
 const KG_HUIJOOHWEE_DOCS_ROOT = `${KG_GITHUB_ROOT}/huijoohwee/docs`
 
 const jsonResponse = (obj: unknown, status: number = 200) =>

@@ -36,9 +36,9 @@ It answers five questions:
 
 ### Before Any Phase Starts
 
-- [x] Confirm [knowgrph-feishu-base-mcp-prd-tad.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-mcp/knowgrph-feishu-base-mcp-prd-tad.md) remains the current SSOT
-- [x] Confirm implementation starts in `/Users/huijoohwee/Documents/GitHub/knowgrph`
-- [x] Confirm no one is proposing a primary implementation in `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`
+- [x] Confirm [knowgrph-feishu-base-mcp-prd-tad.md](knowgrph-feishu-base-mcp-prd-tad.md) remains the current SSOT
+- [x] Confirm implementation starts in `$GITHUB_ROOT/knowgrph`
+- [x] Confirm no one is proposing a primary implementation in `$GITHUB_ROOT/huijoohwee/content/knowgrph`
 - [x] Confirm no one is proposing a primary implementation in Cloudflare Pages Functions
 - [x] Confirm browser storage will not own Base secrets, app secrets, or privileged tokens
 - [x] Confirm the MainPanel -> validation -> workspace -> canvas path remains the canonical graph-apply route
@@ -219,7 +219,7 @@ Add Feishu Base as a promotion target without coupling write-back to graph gener
 
 - [ ] Do not add direct Base-to-graph mutation logic
 - [ ] Do not store Feishu Base secrets in browser state
-- [ ] Do not implement the feature first in `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`
+- [ ] Do not implement the feature first in `$GITHUB_ROOT/huijoohwee/content/knowgrph`
 - [ ] Do not implement the feature first in Cloudflare Functions
 - [ ] Do not collapse Phase 1, Phase 2, and Phase 3 into one unbounded rollout
 - [ ] Do not duplicate Feishu Base constants across docs, settings, tests, and runtime files

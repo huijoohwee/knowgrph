@@ -346,7 +346,7 @@ The checkpoint is a typed transport payload. Persistence stays with the existing
 
 ## Runtime proof
 
-Run from `/Users/huijoohwee/Documents/GitHub/knowgrph`:
+Run from `$GITHUB_ROOT/knowgrph`:
 
 ```bash
 node --test mcp/__tests__/video-agent-workflow.test.mjs mcp/__tests__/video-agent-runtime.test.mjs mcp/__pbt__/video-agent.pbt.test.mjs

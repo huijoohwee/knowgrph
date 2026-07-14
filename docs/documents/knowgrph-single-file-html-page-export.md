@@ -12,8 +12,8 @@ lang: "en-US"
 feature: "workspace-export-html"
 frontmatter_contract: "required"
 deployment_topology: "Dev -> Prod -> Cloudflare"
-dev_root: "/Users/huijoohwee/Documents/GitHub/knowgrph"
-prod_mirror: "/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph"
+dev_root: "$GITHUB_ROOT/knowgrph"
+prod_mirror: "$GITHUB_ROOT/huijoohwee/content/knowgrph"
 cloudflare_route: "https://airvio.co/knowgrph"
 source_repo: "https://github.com/huijoohwee/knowgrph"
 menu_path: "Toolbar -> Launch -> Export -> HTML (.html) — Workspace"
@@ -253,7 +253,7 @@ The `.html` artifact must be a single document with:
 - FORBID implicit localhost proxy origins, hardcoded dev ports, proxy probes, or runtime remote fetch fallbacks in exported HTML.
 - FORBID legacy backfill: do not add hidden aliases or remap stale split labels; keep Workspace, Viewer, and Canvas as explicit scoped export actions.
 - FORBID re-render loops: export captures one coherent state after writeback flush and must not repeatedly recompute parser/import/layout output.
-- FORBID manual edits to `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`; production mirror updates come from the source-owned sync flow.
+- FORBID manual edits to `$GITHUB_ROOT/huijoohwee/content/knowgrph`; production mirror updates come from the source-owned sync flow.
 
 ## Quality Attributes
 
@@ -269,8 +269,8 @@ The `.html` artifact must be a single document with:
 
 ## Deployment And Validation
 
-Source changes begin in `/Users/huijoohwee/Documents/GitHub/knowgrph`. The production mirror at
-`/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph` is generated, not manually patched.
+Source changes begin in `$GITHUB_ROOT/knowgrph`. The production mirror at
+`$GITHUB_ROOT/huijoohwee/content/knowgrph` is generated, not manually patched.
 Cloudflare proof lives at `https://airvio.co/knowgrph` after the normal Pages sync/deploy flow.
 
 Focused validation set:

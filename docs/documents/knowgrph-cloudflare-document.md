@@ -148,7 +148,7 @@ contract
 
 **Acceptance criteria**:
 
-- **Given** source changes are ready in `/Users/huijoohwee/Documents/GitHub/knowgrph`
+- **Given** source changes are ready in `$GITHUB_ROOT/knowgrph`
 - **When** the maintainer runs the release validation chain
 - **Then** `npm run pages:check-sync` reports no mirror drift
 - **And** live probes confirm `https://airvio.co/knowgrph/` and at least one hashed asset return 200

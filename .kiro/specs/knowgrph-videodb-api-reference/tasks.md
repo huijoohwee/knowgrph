@@ -11,7 +11,7 @@ The reference document has already been written to `docs/documents/knowgrph-api-
 ### Phase 0 — Runnable Dev Demo
 
 - [ ] 0. Create and validate runnable Dev demo
-  - [ ] 0.1 Consolidate the VideoDB renderer-neutral markdown workspace into `/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-strybldr-demo.md` for knowgrph brief -> VideoDB generation -> async poll -> spoken-word index -> review search -> stream -> local publish packet
+  - [ ] 0.1 Consolidate the VideoDB renderer-neutral markdown workspace into `$GITHUB_ROOT/huijoohwee/docs/knowgrph-strybldr-demo.md` for knowgrph brief -> VideoDB generation -> async poll -> spoken-word index -> review search -> stream -> local publish packet
     - Keep `demo_status` scoped to Dev/runtime-slot behavior
     - Set `deployed_api_claim: false`
     - Reference the API table keys for every flow node

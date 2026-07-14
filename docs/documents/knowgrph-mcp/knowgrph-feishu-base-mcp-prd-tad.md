@@ -33,8 +33,8 @@ source_references:
   settings_view_helpers: "canvas/src/features/panels/views/useSettingsView.helpers.ts"
   feishu_base_test: "canvas/src/__tests__/mainPanelMcpFeishuBase.test.tsx"
   mainpanel_mcp_expectations: "canvas/src/__tests__/helpers/mainPanelMcpExpectations.ts"
-  dev_repo_path: "/Users/huijoohwee/Documents/GitHub/knowgrph"
-  prod_repo_path: "/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph"
+  dev_repo_path: "$GITHUB_ROOT/knowgrph"
+  prod_repo_path: "$GITHUB_ROOT/huijoohwee/content/knowgrph"
   cloudflare_site_url: "https://airvio.co/knowgrph"
 linked_docs:
   - "{{md:knowgrph-mcp}}"
@@ -447,8 +447,8 @@ flowchart LR
 
 Implementation follows the existing release chain:
 
-1. Author and implement in `Dev` at `/Users/huijoohwee/Documents/GitHub/knowgrph`.
-2. Mirror generated artifacts to `Prod` at `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`.
+1. Author and implement in `Dev` at `$GITHUB_ROOT/knowgrph`.
+2. Mirror generated artifacts to `Prod` at `$GITHUB_ROOT/huijoohwee/content/knowgrph`.
 3. Publish via Cloudflare Pages to `https://airvio.co/knowgrph`.
 
 Deployment rules:

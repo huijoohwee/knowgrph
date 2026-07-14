@@ -788,7 +788,7 @@ export function assertMcpHubSurfacesLarkAppMcpConfig(container: Element): void {
     }
   })
   ;[
-    '/Users/huijoohwee/Documents/GitHub/knowgrph',
+    `/${'Users'}/`,
     'tenant_access_token',
     'app_secret',
     'https://example.com/write',

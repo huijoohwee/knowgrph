@@ -37,7 +37,7 @@ Enable the experimental Codex goal feature in Codex config:
 goals = true
 ```
 
-Then use `/goal` from Codex while working in `/Users/huijoohwee/Documents/GitHub/knowgrph`, or run the same repo-owned goal loop through the local harness:
+Then use `/goal` from Codex while working in `$GITHUB_ROOT/knowgrph`, or run the same repo-owned goal loop through the local harness:
 
 ```bash
 npm run goal:run

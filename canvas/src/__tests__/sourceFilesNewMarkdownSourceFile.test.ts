@@ -11,7 +11,7 @@ import {
 import { LS_KEYS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
-const KG_HUIJOOHWEE_DOCS_ROOT = '/Users/huijoohwee/Documents/GitHub/huijoohwee/docs'
+const KG_HUIJOOHWEE_DOCS_ROOT = '/workspace/huijoohwee/docs'
 
 export async function testCreateNewMarkdownSourceFileDefaultsToDocsRoot() {
   resetWorkspaceFsForTests()

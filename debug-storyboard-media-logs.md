@@ -1,7 +1,7 @@
 # Debug Session: storyboard-media-logs
 
 - Status: OPEN
-- Repo: `/Users/huijoohwee/Documents/GitHub/knowgrph`
+- Repo: `$GITHUB_ROOT/knowgrph`
 - Scope: Canvas 2D Renderer storyboard -> FloatingPanel media -> drag/drop image/video -> Canvas -> Rich Media Panel
 - Constraint: No business-logic modification before runtime evidence is collected
 

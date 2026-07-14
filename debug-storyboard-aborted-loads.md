@@ -19,7 +19,7 @@
 ## Evidence Log
 - Pre-fix evidence:
   - Multiple `readWorkspaceInitializationDocsMirrorEntries()` entries fired within the same millisecond for the same docs root.
-  - Multiple `readWorkspaceDocsMirrorEntriesViaProxy()` calls ran concurrently against the same `/Users/huijoohwee/Documents/GitHub/huijoohwee/docs` root.
+  - Multiple `readWorkspaceDocsMirrorEntriesViaProxy()` calls ran concurrently against the same `$GITHUB_ROOT/huijoohwee/docs` root.
   - Proxy responses were healthy (`200`, `fileCount=39`), but startup launched duplicate heavy requests that overlapped for ~0.5s to ~0.9s.
 - Post-fix evidence:
   - Bootstrap still re-enters, but duplicate callers now share one local docs-root proxy request per burst.
