@@ -189,7 +189,7 @@ Focused test families:
 - `flow.compute.inline.*` for safe inline compute readers and neutral compute context.
 - `flow.dataflow.connectedValues.*` for bounded propagation, transforms, null-stop branching, long DAGs, and runtime validation hardcode guards.
 - `swarmPredictionEngine.*` for deterministic replay, run bounds, Storyboard Widget outputs, shared semantic keys, and the no-copy external-inspiration boundary.
-- Publish-demo E2E tests should resolve the file from `/Users/huijoohwee/Documents/GitHub/huijoohwee/docs` through the docs mirror path, but they must not backfill or rewrite that external file when it is absent.
+- Publish-demo E2E tests should resolve the file from `$GITHUB_ROOT/huijoohwee/docs` through the docs mirror path, but they must not backfill or rewrite that external file when it is absent.
 - Publish-demo syntax guards should reject body-side `## KGC Reading Layer`, line-start `@node:`, line-start `@edge:`, and body `flow:` mirrors for frontmatter-driven Storyboard Widget documents.
 
 ---

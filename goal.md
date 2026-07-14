@@ -25,14 +25,14 @@ The deliverable is not a single demo asset, a desktop-only canvas, or a cosmetic
 The refactor covers the full upstream repository rooted at:
 
 ```text
-/Users/huijoohwee/Documents/GitHub/knowgrph
+$GITHUB_ROOT/knowgrph
 ```
 
 Execution topology is fixed for this goal:
 
 ```text
-Dev SSOT: /Users/huijoohwee/Documents/GitHub/knowgrph
-Prod artifact mirror: /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
+Dev SSOT: $GITHUB_ROOT/knowgrph
+Prod artifact mirror: $GITHUB_ROOT/huijoohwee/content/knowgrph
 Cloudflare route: airvio.co/knowgrph
 ```
 
@@ -136,7 +136,7 @@ Default automated management is the baseline path:
 
 - Empty or freshly seeded workspaces must hydrate Source Files automatically from the canonical upstream source chain without asking the user to import local files.
 - In single-user canonical-docs mode, `huijoohwee/docs/**` is the filesystem authoring SSOT, Cloudflare D1 workspace `kgws:canonical-docs` is the shared remote store, and the app hydrates through the storage export/doc-view/persisted-cache path.
-- Dev changes originate in `/Users/huijoohwee/Documents/GitHub/knowgrph`; publish output syncs to `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`; Cloudflare production at `airvio.co/knowgrph` consumes the generated Prod artifact and D1-backed storage routes.
+- Dev changes originate in `$GITHUB_ROOT/knowgrph`; publish output syncs to `$GITHUB_ROOT/huijoohwee/content/knowgrph`; Cloudflare production at `airvio.co/knowgrph` consumes the generated Prod artifact and D1-backed storage routes.
 - Default Source Files must be deduped by canonical source path and semantic content hash, not by display name, import order, local absolute path, or stale alias.
 - Automated sync owns bootstrap, D1 pull/push, persisted-cache hydration, docs mirror hydration, source-file indexing, composed graph replay, and stale-guard recovery as one observable pipeline.
 - Automated updates must not overwrite a locally edited manual Source File silently. They must preserve the manual edit, surface a conflict, or require an explicit user action to replace, merge, or discard.

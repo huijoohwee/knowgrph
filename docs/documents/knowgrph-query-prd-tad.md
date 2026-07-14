@@ -11,8 +11,8 @@ domain: "knowgrph"
 lang: "en-US"
 frontmatter_contract: "required"
 deployment_topology: "Dev -> Prod -> Cloudflare"
-dev_root: "/Users/huijoohwee/Documents/GitHub/knowgrph"
-prod_mirror: "/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph"
+dev_root: "$GITHUB_ROOT/knowgrph"
+prod_mirror: "$GITHUB_ROOT/huijoohwee/content/knowgrph"
 cloudflare_route: "https://airvio.co/knowgrph"
 inspiration_source: "https://github.com/safishamsi/graphify"
 copy_policy: "No Graphify code, prompts, schemas, assets, output files, or wording are copied; only product-level workflow inspiration is referenced."
@@ -545,7 +545,7 @@ Every composed edge emitted by corpus adapters carries evidence kind: `extracted
 
 The implementation must preserve the existing topology:
 
-Dev `/Users/huijoohwee/Documents/GitHub/knowgrph` owns source edits, tests, docs, and Pages build; prod mirror `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph` receives generated app payload only; Cloudflare `https://airvio.co/knowgrph` requires live smoke after sync/deploy when claiming production completion.
+Dev `$GITHUB_ROOT/knowgrph` owns source edits, tests, docs, and Pages build; prod mirror `$GITHUB_ROOT/huijoohwee/content/knowgrph` receives generated app payload only; Cloudflare `https://airvio.co/knowgrph` requires live smoke after sync/deploy when claiming production completion.
 
 ### Validation Plan
 

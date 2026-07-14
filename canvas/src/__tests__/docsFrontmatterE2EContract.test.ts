@@ -262,8 +262,8 @@ export function testHuijoohweeDocsAndGuidelinesForbidAbsoluteRepoPathHardcodes()
     MARKDOWN_GUIDELINES_PATH,
   ]
   const forbiddenNeedles = [
-    'file:///Users/huijoohwee/Documents/GitHub/',
-    '/Users/huijoohwee/Documents/GitHub/',
+    `file:///${'Users'}/`,
+    `/${'Users'}/`,
   ]
   const violations: Array<{ file: string; needle: string }> = []
   for (const filePath of targets) {

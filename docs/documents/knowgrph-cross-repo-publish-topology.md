@@ -13,10 +13,10 @@ and prove outcomes first with the source-side `README.md` or
 
 ## Scope
 
-- Dev SSOT repo: `/Users/huijoohwee/Documents/GitHub/knowgrph`
-- Shared publish repo: `/Users/huijoohwee/Documents/GitHub/huijoohwee`
-- Prod artifact mirror: `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`
-- Public route managed files: `/Users/huijoohwee/Documents/GitHub/huijoohwee/knowgrph`
+- Dev SSOT repo: `$GITHUB_ROOT/knowgrph`
+- Shared publish repo: `$GITHUB_ROOT/huijoohwee`
+- Prod artifact mirror: `$GITHUB_ROOT/huijoohwee/content/knowgrph`
+- Public route managed files: `$GITHUB_ROOT/huijoohwee/knowgrph`
 - Public route: `airvio.co/knowgrph`
 - Storage Worker routes: `airvio.co/api/storage/*`
 - Storage Worker server-side fetch origin: `https://knowgrph-storage.huijoohwee.workers.dev`
@@ -29,20 +29,20 @@ The current deployment chain is:
 
 ```text
 Dev source + docs
-  /Users/huijoohwee/Documents/GitHub/knowgrph
+  $GITHUB_ROOT/knowgrph
     -> npm run pages:build-sync
     -> npm run pages:functions:build
 Prod publish mirror
-  /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
-  /Users/huijoohwee/Documents/GitHub/huijoohwee/knowgrph
-  /Users/huijoohwee/Documents/GitHub/huijoohwee/_worker.js
-    -> commit and push /Users/huijoohwee/Documents/GitHub/huijoohwee
+  $GITHUB_ROOT/huijoohwee/content/knowgrph
+  $GITHUB_ROOT/huijoohwee/knowgrph
+  $GITHUB_ROOT/huijoohwee/_worker.js
+    -> commit and push $GITHUB_ROOT/huijoohwee
 Cloudflare Pages
   airvio.co (Knowgrph root launch alias)
     -> airvio.co/knowgrph
 ```
 
-`npm run pages:build-sync` owns the static SPA build and mirror sync. `npm run pages:build-sync-cloudflare` extends that path with `npm run workers:deploy`, which reuses `npm run storage:deploy` to apply remote D1 migrations, deploy the `knowgrph-storage` Worker from `cloudflare/workers/knowgrph-storage/wrangler.toml`, and re-seed D1 from `huijoohwee/docs`. Publish sync must preserve the canonical hashed asset URL emitted by Vite for `index.html`; query-versioning the entry script URL is forbidden because it can split browser module identity across the same chunk. The generated `knowgrph` HTML app-shell cache headers must also include `no-transform` so Cloudflare JavaScript Detections do not inject `cdn-cgi/challenge-platform` scripts into the SPA shell.
+`npm run pages:build-sync` owns the static SPA build, rejects personal home-directory paths in active source and built text assets, and only then updates the mirror. `npm run pages:build-sync-cloudflare` extends that path with `npm run workers:deploy`, which reuses `npm run storage:deploy` to apply remote D1 migrations, deploy the `knowgrph-storage` Worker from `cloudflare/workers/knowgrph-storage/wrangler.toml`, and re-seed D1 from `huijoohwee/docs`. Publish sync must preserve the canonical hashed asset URL emitted by Vite for `index.html`; query-versioning the entry script URL is forbidden because it can split browser module identity across the same chunk. The generated `knowgrph` HTML app-shell cache headers must also include `no-transform` so Cloudflare JavaScript Detections do not inject `cdn-cgi/challenge-platform` scripts into the SPA shell.
 
 For the detailed source-backed Markdown discovery contract behind the Live Canvas Hero route, use `docs/documents/markdown-convertible-agent-discovery-document.md`.
 
@@ -114,7 +114,7 @@ Public route ownership remains `airvio.co/api/storage/*`, but server-side reads 
 | Collaboration release gate | `npm run collaboration:release:check` | Required before `pages:deploy-cloudflare` when a change affects authenticated canvas-room transport, collaboration room auth/relay, collaboration docs/runtime contracts, or guest-to-owner document propagation. Runs the canonical collaboration readiness gate and then `pages:check-sync` so collaboration proof and publish drift fail upstream together. Use `npm run collaboration:release:check -- --skip-sync` only for local iteration while the publish mirror is intentionally dirty; release approval still requires the full gate. |
 | Responsive parity release gate | `npm --prefix canvas run test:smoke:mobile-keyboard:browser`; `npm run pages:check-sync`; review `docs/documents/knowgrph-feature-map.md` | Required before `pages:deploy-cloudflare` when a change affects mobile grammar reachability, heavy-runtime intent policy, or touch-first responsive behavior. Blocks release until the mobile keyboard proof, the route-and-action matrix, and the publish mirror all agree. |
 | Mobile route-and-action evidence audit | Review `docs/documents/knowgrph-feature-map.md` together with the focused mobile browser smoke before publish when a change alters phone workflow activation, fallback behavior, or heavy-runtime intent gates. | Confirms the documented immediate/deferred/fallback-safe matrix still matches the shipped mobile topology and proof path. |
-| Static build + sync | `npm run pages:build-sync` | Rebuilds with `VITE_BASE_PATH=/knowgrph/` and syncs the Prod mirror. |
+| Static build + sync | `npm run pages:build-sync` | Rebuilds with `VITE_BASE_PATH=/knowgrph/`, blocks personal home-directory paths in active source and built text assets, then syncs the Prod mirror. |
 | Pages Functions build | `npm run pages:functions:build` | Generates the publish-repo `_worker.js`, including the root Knowgrph app-shell alias handler. |
 | Static + Worker deploy | `npm run pages:build-sync-cloudflare` | Runs static build/sync and then `workers:deploy`; storage deploy applies D1 migrations, deploys the storage Worker, and re-seeds D1 docs. |
 | Conflict gate | `npm run conflict:check` | Runs changed-file hygiene, static build, chunk budgets, conflict compliance, and publish sync drift checks. |

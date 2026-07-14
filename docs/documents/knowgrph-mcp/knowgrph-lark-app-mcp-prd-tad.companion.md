@@ -39,9 +39,9 @@ It answers six questions:
 
 ### Before Any Phase Starts
 
-- [x] Confirm [knowgrph-lark-app-mcp-prd-tad.md](file:///Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/knowgrph-mcp/knowgrph-lark-app-mcp-prd-tad.md) remains the current SSOT
-- [x] Confirm implementation starts in `/Users/huijoohwee/Documents/GitHub/knowgrph`
-- [x] Confirm no one is proposing a primary implementation in `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`
+- [x] Confirm [knowgrph-lark-app-mcp-prd-tad.md](knowgrph-lark-app-mcp-prd-tad.md) remains the current SSOT
+- [x] Confirm implementation starts in `$GITHUB_ROOT/knowgrph`
+- [x] Confirm no one is proposing a primary implementation in `$GITHUB_ROOT/huijoohwee/content/knowgrph`
 - [x] Confirm no one is proposing a primary implementation in Cloudflare Pages route files for Lark-specific behavior
 - [x] Confirm the remote MCP target remains `https://airvio.co/knowgrph/mcp`
 - [x] Confirm `knowgrph` Canvas remains the canonical review/import/visualization surface
@@ -283,13 +283,13 @@ Add an authenticated remote mutation bridge only if the product needs server-med
 
 ## Forbidden Shortcuts
 
-- [x] Do not connect the Lark app directly to `/Users/huijoohwee/Documents/GitHub/knowgrph`
+- [x] Do not connect the Lark app directly to `$GITHUB_ROOT/knowgrph`
 - [x] Do not treat `https://open.larksuite.com/app/cli_a7ddaa5aeff89010/baseinfo` as a Base URL or `knowgrph` MCP endpoint
 - [x] Do not treat `https://open.larksuite.com/app/cli_a7ddaa5aeff89010/webpage` as the deployed MCP endpoint
 - [x] Do not let the `webpage` surface replace `knowgrph` Canvas as the canonical review/import surface
 - [x] Do not store Lark or Base secrets in browser state
 - [x] Do not add direct Lark/webpage-to-graph mutation logic
-- [x] Do not implement the feature first in `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`
+- [x] Do not implement the feature first in `$GITHUB_ROOT/huijoohwee/content/knowgrph`
 - [x] Do not implement the feature first in Cloudflare Pages route files
 - [x] Do not collapse Phase 1, Phase 2, and Phase 3 into one unbounded rollout
 - [x] Do not duplicate Lark app constants across docs, tests, and runtime files

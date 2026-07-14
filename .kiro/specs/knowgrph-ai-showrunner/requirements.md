@@ -30,8 +30,8 @@ constraints:
   - "no backfill, churn, conflict, duplicate, freeze, or stale"
   - "reuse shared heuristics / semantic-key helpers / headless / unopinionated"
 traceability:
-  repo_dev: "/Users/huijoohwee/Documents/GitHub/knowgrph"
-  repo_prod: "/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph"
+  repo_dev: "$GITHUB_ROOT/knowgrph"
+  repo_prod: "$GITHUB_ROOT/huijoohwee/content/knowgrph"
   cloudflare_route: "https://airvio.co/knowgrph"
 ---
 

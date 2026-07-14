@@ -6,7 +6,7 @@ This spec produces two Dev artifacts:
 
 `docs/documents/knowgrph-api-reference/knowgrph-videodb-api-reference.md`
 
-`/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-strybldr-demo.md`
+`$GITHUB_ROOT/huijoohwee/docs/knowgrph-strybldr-demo.md`
 
 The reference document is the codebase map and runtime-ready reference for the VideoDB integration in knowgrph's `MainPanel Integrations` surface. The TypeScript SSOT lives at `canvas/src/features/integrations/videodbSsot.ts`; the CLI generator remains planned at `canvas/src/cli/generate-videodb-reference.ts`. The demo document is a runnable local renderer-neutral workspace that exercises the knowgrph brief -> generated video -> indexed review -> publish packet path without storing credentials, IDs, job IDs, stream URLs, download URLs, or publish URLs.
 
@@ -52,7 +52,7 @@ VideoDB Configuration Reference Table
       key | type | value | key-description | value-description | ssot | module | class | function
 
 Runnable Dev Demo
-  └── /Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-strybldr-demo.md
+  └── $GITHUB_ROOT/huijoohwee/docs/knowgrph-strybldr-demo.md
       ├── demo_status marks Dev/runtime-slot scope
       ├── deployed_api_claim: false
       ├── flow nodes reference the API table keys and local knowgrph handoff keys

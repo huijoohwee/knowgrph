@@ -521,8 +521,8 @@ Dev → Prod → Cloudflare context:
 
 | Environment | Repo / Deploy | Role |
 |---|---|---|
-| Dev | `/Users/huijoohwee/Documents/GitHub/knowgrph` (MainPanel Maps) | iterate UI + integration |
-| Prod | `/Users/huijoohwee/Documents/GitHub/huijoohwee/knowgrph` | release-ready build |
+| Dev | `$GITHUB_ROOT/knowgrph` (MainPanel Maps) | iterate UI + integration |
+| Prod | `$GITHUB_ROOT/huijoohwee/knowgrph` | release-ready build |
 | Cloudflare | `airvio.co/knowgrph` | deploy + serve |
 
 ---

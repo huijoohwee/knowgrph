@@ -10,7 +10,7 @@
 The PRD/TAD describes `knowgrph` (Cloudflare control plane) and
 `agentic-canvas-os` (AWS + Vercel product) as two distinct repos. On disk:
 
-- `/Users/huijoohwee/Documents/GitHub/agentic-canvas-os` is an **empty git repo**
+- `$GITHUB_ROOT/agentic-canvas-os` is an **empty git repo**
   (no commits, no tracked files).
 - The entire connector — AWS Agent-API (`aws/agent-api`), Vercel frontend
   (`web/`), the Cloudflare `McpAgent` worker (`cloudflare/workers/knowgrph-mcp`),

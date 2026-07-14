@@ -6,7 +6,7 @@ This spec defines requirements for generating `docs/documents/knowgrph-api-refer
 
 VideoDB (base URL: `https://api.videodb.io`, auth: `x-access-token` header) provides collections, video CRUD, streaming, transcription, semantic/keyword search over spoken-word and scene indexes, AI generation (video, audio, image, text, dub, translate), timeline compilation, async operation polling, RTStream, downloads, and utility endpoints. The TypeScript SSOT file exists at `canvas/src/features/integrations/videodbSsot.ts` for MainPanel Integrations runtime rendering; the CLI generator remains planned.
 
-The spec also covers the runnable Dev demo at `/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-strybldr-demo.md`. This consolidated Strybldr demo is the local documentation/demo artifact for VideoDB. It SHALL NOT imply a Prod publish, Cloudflare deploy, or live route claim until the operator explicitly authorizes deployment.
+The spec also covers the runnable Dev demo at `$GITHUB_ROOT/huijoohwee/docs/knowgrph-strybldr-demo.md`. This consolidated Strybldr demo is the local documentation/demo artifact for VideoDB. It SHALL NOT imply a Prod publish, Cloudflare deploy, or live route claim until the operator explicitly authorizes deployment.
 
 The document must:
 - Follow the exact `key | type | value | key-description | value-description | ssot | module | class | function` table format used by `knowgrph-grabmaps-api-reference.md` and `knowgrph-byteplus-openark-video-generation-api-reference.md`
@@ -328,7 +328,7 @@ The document must:
 
 #### Acceptance Criteria
 
-1. THE VideoDB workflow SHALL live inside `/Users/huijoohwee/Documents/GitHub/huijoohwee/docs/knowgrph-strybldr-demo.md`, and the legacy standalone `knowgrph-videodb-demo.md` SHALL NOT exist.
+1. THE VideoDB workflow SHALL live inside `$GITHUB_ROOT/huijoohwee/docs/knowgrph-strybldr-demo.md`, and the legacy standalone `knowgrph-videodb-demo.md` SHALL NOT exist.
 2. THE demo SHALL declare `demo_status` as a Dev/runtime-slot demo and SHALL set `deployed_api_claim` to `false`.
 3. THE demo SHALL include flow nodes for `knowgrph.content_brief`, `videodb.health`, `videodb.collection.list`, `videodb.ai.generate_video`, `videodb.async_response.get`, `videodb.index.spoken_word`, `videodb.video.search`, `videodb.video.stream`, and `knowgrph.publish_packet`.
 4. THE demo SHALL include the exact endpoint templates `POST /video/{id}/generate/video`, `POST /video/{id}/index/`, `POST /video/{id}/search/`, and `POST /video/{id}/stream/`.

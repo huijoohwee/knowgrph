@@ -5,8 +5,8 @@ doc_type: prd-tad
 version: 0.5.0
 status: dev-source-implemented-no-deploy
 updated: 2026-06-05
-repo_dev: /Users/huijoohwee/Documents/GitHub/knowgrph
-repo_prod: /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
+repo_dev: $GITHUB_ROOT/knowgrph
+repo_prod: $GITHUB_ROOT/huijoohwee/content/knowgrph
 deploy_url: airvio.co/knowgrph
 ---
 

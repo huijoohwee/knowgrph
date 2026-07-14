@@ -310,7 +310,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 2. Build, sync, and drift-check Pages artifacts: `npm run pages:build-sync && npm run pages:check-sync && npm run auth-md:check`
 3. Smoke-check the HTTP agent-ready surface: `npm run agent-ready:check`
 4. Deploy the shared Pages repo:
-   `cd /Users/huijoohwee/Documents/GitHub/huijoohwee && npx wrangler pages deploy . --project-name=joohwee --branch=main --commit-dirty=true`
+   `cd $GITHUB_ROOT/huijoohwee && npx wrangler pages deploy . --project-name=joohwee --branch=main --commit-dirty=true`
 5. Re-run live checks against `https://airvio.co/knowgrph/`
 
 *Document version: 1.27.5 - Root WebMCP scanning is stable without meta-refresh navigation, and the live external scan passes with five unique published WebMCP tools; DNS-AID, Auth.md, and MainPanel -> FloatingPanel Chat -> KGC or MCP structured response -> Editor Workspace -> Canvas ownership contracts stay unchanged - 2026-05-29*

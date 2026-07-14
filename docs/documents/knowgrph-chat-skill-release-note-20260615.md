@@ -4,9 +4,9 @@
 
 Knowgrph shipped the chat skill prompt modularization update from the Dev source repo through the generated Prod mirror and into the live Cloudflare Pages route.
 
-- Source repo: `/Users/huijoohwee/Documents/GitHub/knowgrph`
-- Publish repo: `/Users/huijoohwee/Documents/GitHub/huijoohwee`
-- Prod mirror: `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`
+- Source repo: `$GITHUB_ROOT/knowgrph`
+- Publish repo: `$GITHUB_ROOT/huijoohwee`
+- Prod mirror: `$GITHUB_ROOT/huijoohwee/content/knowgrph`
 - Live route: `https://airvio.co/knowgrph/`
 
 ## Shipped Change
@@ -28,7 +28,7 @@ Knowgrph shipped the chat skill prompt modularization update from the Dev source
 - Canonical deploy command:
 
 ```bash
-cd /Users/huijoohwee/Documents/GitHub/knowgrph
+cd $GITHUB_ROOT/knowgrph
 npm run pages:deploy-cloudflare
 ```
 
@@ -42,7 +42,7 @@ npm run pages:deploy-cloudflare
 ### Build and mirror
 
 ```bash
-cd /Users/huijoohwee/Documents/GitHub/knowgrph
+cd $GITHUB_ROOT/knowgrph
 npm run build
 npm run pages:check-sync
 ```

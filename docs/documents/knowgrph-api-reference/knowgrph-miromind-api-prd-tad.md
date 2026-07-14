@@ -7,8 +7,8 @@ date: 2026-05-29
 repo: https://github.com/huijoohwee/knowgrph
 surface: MainPanel > Integrations
 publish_topology:
-  dev: /Users/huijoohwee/Documents/GitHub/knowgrph
-  prod: /Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph
+  dev: $GITHUB_ROOT/knowgrph
+  prod: $GITHUB_ROOT/huijoohwee/content/knowgrph
   cloudflare: https://airvio.co/knowgrph
 tags: [prd, tad, miromind, integrations, mcp, chat, markdown, frontmatter, canvas]
 ---
@@ -395,8 +395,8 @@ Documentation ownership must stay aligned across the publish chain:
 
 | Stage | Path | Rule |
 |---|---|---|
-| Source of truth | `/Users/huijoohwee/Documents/GitHub/knowgrph/docs/documents/...` | edit here only |
-| Published content | `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph` | generated/synced output only |
+| Source of truth | `$GITHUB_ROOT/knowgrph/docs/documents/...` | edit here only |
+| Published content | `$GITHUB_ROOT/huijoohwee/content/knowgrph` | generated/synced output only |
 | Cloudflare route | `https://airvio.co/knowgrph` | serves published output; no manual hotfix divergence |
 
 Guardrails:

@@ -56,7 +56,7 @@ export async function testRemoteVideoFrameFileNameIsStableAndNeutral() {
 }
 
 export function testRemoteVideoFrameCacheRootUsesTimestampedSiblingImageFolder() {
-  const workspaceRoot = '/Users/huijoohwee/Documents/GitHub'
+  const workspaceRoot = '/workspace'
   const folderName = readRemoteVideoFrameOutputFolderName()
   const cacheRoot = buildRemoteVideoFrameDefaultCacheRoot(workspaceRoot)
   const publicPrefix = buildRemoteVideoFrameDefaultPublicPrefix()

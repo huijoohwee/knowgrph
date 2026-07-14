@@ -19,8 +19,8 @@ frontmatter_contract: "required"
 
 This plan converts the current mobile-first design intent into a focused execution queue for:
 
-- `/Users/huijoohwee/Documents/GitHub/knowgrph`
-- `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`
+- `$GITHUB_ROOT/knowgrph`
+- `$GITHUB_ROOT/huijoohwee/content/knowgrph`
 - `airvio.co/knowgrph`
 
 The goal is not broad redesign. The goal is higher mobile time-to-value for the existing orchestration stack, especially:

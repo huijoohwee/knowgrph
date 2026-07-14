@@ -47,8 +47,8 @@ source_references:
   feishu_base_import_contract: "canvas/src/features/source-files/feishuBaseSourceImportContract.ts"
   feishu_base_source_adapter: "canvas/src/features/source-files/feishuBaseSourceAdapter.ts"
   feishu_base_source_ingest: "canvas/src/features/source-files/sourceFilesIngestIntegration.ts"
-  dev_repo_path: "/Users/huijoohwee/Documents/GitHub/knowgrph"
-  prod_repo_path: "/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph"
+  dev_repo_path: "$GITHUB_ROOT/knowgrph"
+  prod_repo_path: "$GITHUB_ROOT/huijoohwee/content/knowgrph"
   cloudflare_site_url: "https://airvio.co/knowgrph"
   deployed_mcp_url: "https://airvio.co/knowgrph/mcp"
   lark_app_baseinfo_url: "https://open.larksuite.com/app/cli_a7ddaa5aeff89010/baseinfo"
@@ -191,7 +191,7 @@ The current Lark app page can discover app settings, but by itself it does not e
 
 Without a repo-accurate contract, a Lark app integration will drift into one of four bad patterns:
 
-- trying to connect the Lark app directly to `/Users/huijoohwee/Documents/GitHub/knowgrph`
+- trying to connect the Lark app directly to `$GITHUB_ROOT/knowgrph`
 - treating the Lark app admin page as a Feishu Base or MCP endpoint
 - creating a parallel write-capable remote graph service before validation and auth are designed
 - pushing Base-originated content into graph state without the existing Canvas review and validation steps
@@ -288,7 +288,7 @@ Proceed because the min-viable scope is a documentation and integration-contract
 | Must | Defer remote write-capable mutation until auth and conflict contracts exist | Prevents unsafe architecture drift |
 | Should | Define a future authenticated bridge for approved write/import workflows | Valuable later once auth and ownership are explicit |
 | Could | Add richer MainPanel MCP copy blocks or deep-link helpers specifically for Lark app setup snippets | Useful after the baseline contract is accepted |
-| Won't | Connect the Lark app directly to `/Users/huijoohwee/Documents/GitHub/knowgrph` | Explicitly forbidden |
+| Won't | Connect the Lark app directly to `$GITHUB_ROOT/knowgrph` | Explicitly forbidden |
 | Won't | Treat the Lark Open Platform admin page as a Base or MCP endpoint | Explicitly forbidden |
 | Won't | Add direct remote graph mutation in the first phase | Explicitly forbidden |
 
@@ -586,7 +586,7 @@ flowchart LR
 
 | Requirement | Rule | Validation |
 |---|---|---|
-| No local-path coupling | Lark integration must not target `/Users/huijoohwee/Documents/GitHub/knowgrph`. | Docs review and future integration tests |
+| No local-path coupling | Lark integration must not target `$GITHUB_ROOT/knowgrph`. | Docs review and future integration tests |
 | No browser secrets | Lark/Base secrets must stay backend-managed, host-managed, or server-managed. | Code review and targeted tests when implemented |
 | No direct graph mutation | Lark- or Base-originated content cannot bypass validation/apply owners. | Pipeline inspection and focused tests |
 | Human review boundary | Canvas remains the user-mediated review surface for imported content in the initial contract. | Workflow proof and product review |
@@ -607,8 +607,8 @@ flowchart LR
 
 Implementation follows the existing release chain:
 
-1. Author and implement in `Dev` at `/Users/huijoohwee/Documents/GitHub/knowgrph`.
-2. Mirror generated artifacts to `Prod` at `/Users/huijoohwee/Documents/GitHub/huijoohwee/content/knowgrph`.
+1. Author and implement in `Dev` at `$GITHUB_ROOT/knowgrph`.
+2. Mirror generated artifacts to `Prod` at `$GITHUB_ROOT/huijoohwee/content/knowgrph`.
 3. Publish via Cloudflare Pages to `https://airvio.co/knowgrph`.
 
 Deployment rules:

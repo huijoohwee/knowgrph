@@ -75,7 +75,7 @@ const isTextFile = absolutePath => {
   return textExtensions.has(ext) || textBasenames.has(base)
 }
 
-const listTextFiles = async rootDir => {
+const listTextFiles = async (rootDir, { allowIgnoredRelativeRoots = false } = {}) => {
   const out = []
   const walk = async dir => {
     const entries = await fs.readdir(dir, { withFileTypes: true })
@@ -83,7 +83,7 @@ const listTextFiles = async rootDir => {
       if (ignoredDirNames.has(entry.name)) continue
       const abs = path.resolve(dir, entry.name)
       const rel = toPosixRel(abs)
-      if (isIgnoredRelativePath(rel)) continue
+      if (!allowIgnoredRelativeRoots && isIgnoredRelativePath(rel)) continue
       if (entry.isDirectory()) {
         await walk(abs)
         continue
@@ -94,6 +94,60 @@ const listTextFiles = async rootDir => {
   }
   await walk(rootDir)
   out.sort((a, b) => a.localeCompare(b))
+  return out
+}
+
+const immutableHistoryPaths = new Set([
+  'todo-log.md',
+])
+
+const isImmutableHistoryPath = rel => (
+  immutableHistoryPaths.has(rel) || rel.startsWith('docs/reports/')
+)
+
+const placeholderUserNames = new Set([
+  '...',
+  'demo',
+  'example',
+  'test',
+  'user',
+  'username',
+])
+
+const findMachineSpecificPathLabel = line => {
+  const unixMatches = line.matchAll(/(^|[^A-Za-z0-9.])(?:file:\/{2})?\/(?:Users|home)\/([^/\s"'`]+)(?:\/|$)/g)
+  for (const match of unixMatches) {
+    if (!placeholderUserNames.has(String(match[2] || '').toLowerCase())) return 'Unix user home path'
+  }
+
+  const windowsMatches = line.matchAll(/[A-Za-z]:\\Users\\([^\\\s"'`]+)(?:\\|$)/g)
+  for (const match of windowsMatches) {
+    if (!placeholderUserNames.has(String(match[1] || '').toLowerCase())) return 'Windows user home path'
+  }
+  return null
+}
+
+const findMachineSpecificPaths = async (
+  rootDir,
+  { allowIgnoredRelativeRoots = false, excludeImmutableHistory = false } = {},
+) => {
+  try {
+    await fs.access(rootDir)
+  } catch {
+    return []
+  }
+
+  const files = await listTextFiles(rootDir, { allowIgnoredRelativeRoots })
+  const out = []
+  for (const filePath of files) {
+    const rel = toPosixRel(filePath)
+    if (excludeImmutableHistory && isImmutableHistoryPath(rel)) continue
+    const lines = (await fs.readFile(filePath, 'utf8')).split('\n')
+    for (let index = 0; index < lines.length; index += 1) {
+      const violationLabel = findMachineSpecificPathLabel(lines[index])
+      if (violationLabel) out.push(`${rel}:${index + 1} (${violationLabel})`)
+    }
+  }
   return out
 }
 
@@ -134,6 +188,23 @@ const main = async () => {
     for (const entry of conflictMarkers.slice(0, 50)) console.error(`  - ${entry}`)
     if (conflictMarkers.length > 50) {
       console.error(`  - ... ${conflictMarkers.length - 50} more`)
+    }
+    process.exit(1)
+  }
+
+  const sourcePathLeaks = await findMachineSpecificPaths(knowgrphRoot, {
+    excludeImmutableHistory: true,
+  })
+  const buildPathLeaks = await findMachineSpecificPaths(
+    path.resolve(knowgrphRoot, 'canvas', 'dist'),
+    { allowIgnoredRelativeRoots: true },
+  )
+  const machineSpecificPathLeaks = [...sourcePathLeaks, ...buildPathLeaks]
+  if (machineSpecificPathLeaks.length > 0) {
+    console.error('[knowgrph] machine-specific filesystem paths detected:')
+    for (const entry of machineSpecificPathLeaks.slice(0, 50)) console.error(`  - ${entry}`)
+    if (machineSpecificPathLeaks.length > 50) {
+      console.error(`  - ... ${machineSpecificPathLeaks.length - 50} more`)
     }
     process.exit(1)
   }

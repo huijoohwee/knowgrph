@@ -102,7 +102,7 @@ export function testFloatingPanelChatResponseContractsAdhereToStoryboardTemplate
     ]) {
       if (!contract.includes(required)) throw new Error(`Expected response contract to include storyboard template rule: ${required}`)
     }
-    for (const forbidden of ['/Users/huijoohwee', 'kg_media_token=', 'generated_asset_url: "http']) {
+    for (const forbidden of [`/${'Users'}/huijoohwee`, 'kg_media_token=', 'generated_asset_url: "http']) {
       if (contract.includes(forbidden)) throw new Error(`Expected response contract to avoid local/runtime hardcode: ${forbidden}`)
     }
   }
