@@ -2,7 +2,7 @@
 title: "Knowgrph Collaboration Runtime Contract"
 doc_type: "Runtime Contract"
 status: "active"
-contract_version: 10
+contract_version: 11
 frontmatter_contract: "required"
 ci_command_timeout_ms: 300000
 invocation:
@@ -68,7 +68,7 @@ ci_scopes:
     roots: ["docs/", "CodeWiki.md", "README.md", "goal.md"]
     commands: []
   collaboration:
-    roots: [".github/", ".githooks/", "AGENTS.md", "docs/branch-protection.md", "docs/collaboration-runtime-contract.md", "docs/conflict-resolution.md", "schemas/collaboration-runtime-report.v1.schema.json", "scripts/collaboration-contract.mjs", "scripts/collaboration-runtime-report.mjs", "scripts/print-collaboration-runtime-report-schema.mjs", "scripts/validate-collaboration-runtime-report.mjs", "scripts/runtime-readiness-contract.mjs", "scripts/runtime-docs-workflow-policy.mjs", "scripts/resolve-runtime-docs-dependency.mjs", "scripts/worktree-policy.mjs", "scripts/check-worktree-policy.mjs", "scripts/dev-source-consistency.mjs", "scripts/check-dev-source-consistency.mjs", "scripts/check-collaboration-runtime.mjs", "scripts/check-pre-push-refs.mjs", "scripts/run-affected-ci.mjs", "scripts/__tests__/collaboration-contract.test.mjs", "scripts/__tests__/collaboration-runtime-report.test.mjs", "scripts/__tests__/dev-source-consistency.test.mjs", "scripts/__tests__/runtime-readiness-contract.test.mjs", "scripts/__tests__/worktree-policy.test.mjs"]
+    roots: [".github/", ".githooks/", "AGENTS.md", "docs/branch-protection.md", "docs/collaboration-runtime-contract.md", "docs/conflict-resolution.md", "schemas/collaboration-runtime-report.v1.schema.json", "scripts/collaboration-contract.mjs", "scripts/collaboration-runtime-report.mjs", "scripts/print-collaboration-runtime-report-example.mjs", "scripts/print-collaboration-runtime-report-schema.mjs", "scripts/validate-collaboration-runtime-report.mjs", "scripts/runtime-readiness-contract.mjs", "scripts/runtime-docs-workflow-policy.mjs", "scripts/resolve-runtime-docs-dependency.mjs", "scripts/worktree-policy.mjs", "scripts/check-worktree-policy.mjs", "scripts/dev-source-consistency.mjs", "scripts/check-dev-source-consistency.mjs", "scripts/check-collaboration-runtime.mjs", "scripts/check-pre-push-refs.mjs", "scripts/run-affected-ci.mjs", "scripts/__tests__/collaboration-contract.test.mjs", "scripts/__tests__/collaboration-runtime-report.test.mjs", "scripts/__tests__/dev-source-consistency.test.mjs", "scripts/__tests__/runtime-readiness-contract.test.mjs", "scripts/__tests__/worktree-policy.test.mjs"]
     commands:
       - ["npm", "run", "test:collaboration-contract"]
 fallback_commands:
@@ -124,6 +124,7 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 - `npm run collaboration:contract:check` auto-discovers every workflow that references Agentic Canvas OS and requires dependency installation, the contract resolver, and the checkout in order; checkout repository and immutable ref must come from resolver outputs, never copied workflow YAML.
 - `npm run --silent collaboration:contract:check -- --json` validates against `schemas/collaboration-runtime-report.v1.schema.json` before emitting `knowgrph.collaboration-runtime-report/v1`, including deployment isolation, discovered runtime-docs workflow consumers and checks, and pull-request coordination status. Integration uploads the report as the seven-day `collaboration-contract-report` artifact, downloads that stored artifact, and runs `npm run collaboration:report:check` against the downloaded file before the canonical gate.
 - `npm run --silent collaboration:report:schema` emits that exact canonical Draft 2020-12 schema through the shared cached loader, so external machine consumers do not need repository-path knowledge or a copied schema.
+- `npm run --silent collaboration:report:example` invokes the same validated report generator with pull-request context disabled, emitting a current schema-valid local example whose pull-request coordination status is `not-applicable`; external integration tests must use this command instead of copied fixtures.
 
 ## Cross-Device Handoff
 
