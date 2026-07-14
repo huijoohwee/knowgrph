@@ -92,6 +92,16 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Download collaboration contract report proof
+        uses: actions/download-artifact@v8
+        with:
+          name: collaboration-contract-report
+          path: knowgrph/collaboration-contract-report-proof
+
+      - name: Validate downloaded collaboration contract report
+        working-directory: knowgrph
+        run: npm run --silent collaboration:report:check -- collaboration-contract-report-proof/collaboration-contract-report.json
+
       - name: Run canonical integration gate
         working-directory: knowgrph
         run: npm run ci:integration
