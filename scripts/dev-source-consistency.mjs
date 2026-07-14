@@ -14,6 +14,21 @@ const runGit = (args, cwd) => {
 
 const canonicalRef = source => `${source.canonical_remote}/${source.canonical_branch}`
 
+const countRegisteredWorktrees = porcelain => String(porcelain || '')
+  .split(/\r?\n/)
+  .filter(line => line.startsWith('worktree '))
+  .length
+
+const requireSingleWorktree = (state, source, settings) => {
+  const maximum = settings.worktree_policy.maximum_registered_per_repository
+  if (state.worktreeCount !== maximum) {
+    throw new Error(
+      `${source.id} source requires exactly ${maximum} registered worktree per repository on this device; `
+      + `found ${state.worktreeCount}. Remove redundant linked worktrees before continuing`,
+    )
+  }
+}
+
 const requireCanonicalSource = (state, source) => {
   if (source.clean_required && state.status) {
     throw new Error(`${source.id} source requires a clean worktree; commit, stash, or remove local changes first`)
@@ -39,6 +54,7 @@ export const evaluateDevSourceConsistency = (sourceStates, contract, mode) => {
   const identities = settings.canonical_sources.map(source => {
     const state = statesById.get(source.id)
     if (!state) throw new Error(`missing local source identity for ${source.id}`)
+    requireSingleWorktree(state, source, settings)
     if (mode === settings.task_mode && source.task_divergence_allowed) {
       validateTaskBranch(state.branch, contract)
       return `${source.id}=task:${state.branch}@${state.headSha.slice(0, 12)} (canonical ${canonicalRef(source)}@${state.canonicalSha.slice(0, 12)})`
@@ -77,6 +93,7 @@ export const checkDevSourceConsistency = async ({
       headSha: git(['rev-parse', 'HEAD'], sourceRoot),
       canonicalSha: git(['rev-parse', `refs/remotes/${source.canonical_remote}/${source.canonical_branch}`], sourceRoot),
       status: git(['status', '--porcelain'], sourceRoot),
+      worktreeCount: countRegisteredWorktrees(git(['worktree', 'list', '--porcelain'], sourceRoot)),
     })
   }
   const mode = String(environment[settings.mode_environment_variable] || settings.canonical_mode).trim()

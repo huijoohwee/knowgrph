@@ -14,6 +14,7 @@ const sourceStates = ({ application = {}, docs = {} } = {}) => [
     headSha: SHA_A,
     canonicalSha: SHA_A,
     status: '',
+    worktreeCount: 1,
     ...application,
   },
   {
@@ -22,6 +23,7 @@ const sourceStates = ({ application = {}, docs = {} } = {}) => [
     headSha: SHA_A,
     canonicalSha: SHA_A,
     status: '',
+    worktreeCount: 1,
     ...docs,
   },
 ]
@@ -43,6 +45,20 @@ test('canonical Dev source rejects stale or dirty checkouts before any port can 
   assert.throws(() => evaluateDevSourceConsistency(sourceStates({
     docs: { status: ' M docs\/FACTS.md' },
   }), contract, 'canonical'), /agentic-canvas-os-docs source requires a clean worktree/)
+})
+
+test('all source modes reject multiple registered worktrees on one device', async () => {
+  const contract = await readContract()
+  assert.throws(() => evaluateDevSourceConsistency(sourceStates({
+    application: { worktreeCount: 2 },
+  }), contract, 'canonical'), /requires exactly 1 registered worktree/)
+  assert.throws(() => evaluateDevSourceConsistency(sourceStates({
+    application: {
+      branch: 'agent/macbook/dev-source-consistency',
+      headSha: SHA_B,
+      worktreeCount: 2,
+    },
+  }), contract, 'task'), /requires exactly 1 registered worktree/)
 })
 
 test('task mode allows application divergence but keeps Agentic Canvas OS docs canonical', async () => {
@@ -75,6 +91,7 @@ test('source collection fetches and identifies both repositories from the shared
     if (args[1] === 'HEAD') return SHA_A
     if (args[1]?.startsWith('refs/remotes/')) return SHA_A
     if (args[0] === 'status') return ''
+    if (args[0] === 'worktree') return `worktree ${cwd}\nHEAD ${SHA_A}\nbranch refs/heads/main`
     return ''
   }
   const checkedPaths = []
@@ -91,6 +108,7 @@ test('source collection fetches and identifies both repositories from the shared
     { args: ['fetch', '--quiet', 'origin', 'main'], cwd: repoRoot },
     { args: ['fetch', '--quiet', 'origin', 'main'], cwd: docsRoot },
   ])
+  assert.equal(calls.filter(call => call.args[0] === 'worktree').length, 2)
 })
 
 test('unknown source modes fail closed', async () => {

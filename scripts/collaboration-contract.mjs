@@ -74,6 +74,16 @@ export const validateContract = contract => {
       throw new Error(`local_development.${key} is required`)
     }
   }
+  const worktreePolicy = localDevelopment.worktree_policy
+  if (!worktreePolicy || typeof worktreePolicy !== 'object' || Array.isArray(worktreePolicy)) {
+    throw new Error('local_development.worktree_policy mapping is required')
+  }
+  if (worktreePolicy.mode !== 'single-device-single-worktree') {
+    throw new Error('local_development.worktree_policy.mode must be single-device-single-worktree')
+  }
+  if (worktreePolicy.maximum_registered_per_repository !== 1) {
+    throw new Error('local_development.worktree_policy.maximum_registered_per_repository must be 1')
+  }
   const canonicalSources = localDevelopment.canonical_sources
   if (!Array.isArray(canonicalSources) || canonicalSources.length === 0) {
     throw new Error('local_development.canonical_sources must be a non-empty array')

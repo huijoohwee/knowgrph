@@ -44,6 +44,7 @@
 **Rich-media targeted smoke**:
 - Run `npm run test:smoke:rich-media` for the repo-native focused bundle that exercises shared `RichMediaPanel` regressions without a browser.
 - Run `npm run test:smoke:rich-media:browser` for the Dev-only live-route smoke that mounts `canvas/src/features/testing/RichMediaBrowserSmokePage.tsx`, drives `canvas/scripts/verify_rich_media_browser_smoke.py`, and writes `data/outputs/rich-media-browser-smoke.png`.
+- Rich Media preview timing owners are registered as one affected-CI scope: changes to the v1 timing schema, validator, fixture manifest, smoke page/runner/verifier, or browser-contract test automatically run `test:smoke:rich-media:timing-schema` and the focused `richMedia.browserSmokeContract` unit gate.
 - Browser smoke scope is deterministic runtime coverage only: markdown preview/edit, inline `srcDoc`, snapshot iframe, click-to-open overlay, image zoom wheel, video HTML fallback, audio, and storyboard-widget chrome visibility.
 - Run `npm run test:smoke:storyboard-rich-media-drop:source` for the repo-native focused storyboard source bundle that guards exact pointer-centering and the browser-smoke route/runner/verifier seam without launching a browser.
 - Run `npm run test:smoke:storyboard-rich-media-drop:browser` for the Dev-only storyboard drag smoke that mounts `canvas/src/features/testing/StoryboardRichMediaDropSmokePage.tsx`, drives `canvas/scripts/verify_storyboard_rich_media_drop_browser_smoke.py`, and writes `data/outputs/storyboard-rich-media-drop-browser-smoke.png`.
