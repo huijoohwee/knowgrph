@@ -1,5 +1,5 @@
 import React from 'react'
-import { Image as ImageIcon, Maximize2, Wand2, X } from 'lucide-react'
+import { Image as ImageIcon, Wand2, X } from 'lucide-react'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import type { MarkdownMediaDownloadKind } from '@/lib/markdown-core/ui/mediaDownload'
@@ -15,7 +15,7 @@ import {
   MEDIA_EXPANDED_PREVIEW_MEDIA_CLASS_NAME,
   MEDIA_EXPANDED_PREVIEW_RICH_PANEL_CLASS_NAME,
 } from './mediaExpandedPreviewLayout'
-import { requestMediaExpandedPreviewFullscreen } from './mediaExpandedPreviewFullscreen'
+import { MediaExpandedPreviewFullscreenButton } from './MediaExpandedPreviewFullscreenButton'
 
 export type MediaLightboxPromptParameterOption = {
   value: string
@@ -111,10 +111,6 @@ export function MediaLightbox({
     setParameterValues(readPromptParameterValues(parameterControls))
   }, [open, parameterControls])
 
-  const enterFullscreen = React.useCallback(() => {
-    requestMediaExpandedPreviewFullscreen(rootRef.current)
-  }, [])
-
   const submitPrompt = React.useCallback(() => {
     if (!onPromptSubmit || promptBusy) return
     const nextPrompt = promptDraft.trim()
@@ -154,19 +150,10 @@ export function MediaLightbox({
           aria-label="Media lightbox actions"
         >
           <li className="list-none">
-            <button
-              type="button"
-              className={cn('inline-flex h-8 w-8 items-center justify-center rounded border bg-black/50 text-white backdrop-blur-sm', UI_THEME_TOKENS.panel.border)}
-              title="Enter fullscreen"
-              aria-label="Enter fullscreen"
-              data-kg-media-lightbox-fullscreen="1"
-              onClick={event => {
-                event.stopPropagation()
-                enterFullscreen()
-              }}
-            >
-              <Maximize2 className="h-4 w-4" strokeWidth={1.7} aria-hidden />
-            </button>
+            <MediaExpandedPreviewFullscreenButton
+              targetRef={rootRef}
+              dataAttributes={{ 'data-kg-media-lightbox-fullscreen': '1' }}
+            />
           </li>
           <li className="list-none">
             <button

@@ -62,10 +62,25 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   let fullscreenTarget: Element | null = null
+  let exitFullscreenCalls = 0
+  Object.defineProperty(dom.window.document, 'fullscreenElement', {
+    configurable: true,
+    get: () => fullscreenTarget,
+  })
+  Object.defineProperty(dom.window.document, 'exitFullscreen', {
+    configurable: true,
+    value: () => {
+      fullscreenTarget = null
+      exitFullscreenCalls += 1
+      dom.window.document.dispatchEvent(new dom.window.Event('fullscreenchange'))
+      return Promise.resolve()
+    },
+  })
   Object.defineProperty(dom.window.HTMLElement.prototype, 'requestFullscreen', {
     configurable: true,
     value: function requestFullscreen() {
       fullscreenTarget = this as Element
+      dom.window.document.dispatchEvent(new dom.window.Event('fullscreenchange'))
       return Promise.resolve()
     },
   })
@@ -84,9 +99,23 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
     assertPreviewKind('image')
     const fullscreenButton = dom.window.document.querySelector('[data-kg-media-catalog-preview-fullscreen="1"]')
     if (!(fullscreenButton instanceof dom.window.HTMLButtonElement)) throw new Error('expected expanded Rich Media Panel to restore the fullscreen action')
-    await act(async () => fullscreenButton.click())
+    await act(async () => {
+      fullscreenButton.click()
+      await waitForFrames(dom.window, 1)
+    })
     if (!(fullscreenTarget instanceof dom.window.HTMLElement) || fullscreenTarget.getAttribute('data-kg-media-catalog-preview') !== '1') {
       throw new Error('expected fullscreen action to target the expanded Rich Media Panel preview')
+    }
+    if (fullscreenButton.getAttribute('aria-label') !== 'Exit fullscreen' || fullscreenButton.getAttribute('aria-pressed') !== 'true') {
+      throw new Error('expected fullscreen action to switch to its exit state after fullscreenchange')
+    }
+    await act(async () => {
+      fullscreenButton.click()
+      await waitForFrames(dom.window, 1)
+    })
+    if (fullscreenTarget || exitFullscreenCalls !== 1) throw new Error('expected fullscreen exit action to leave the expanded Rich Media Panel fullscreen state')
+    if (fullscreenButton.getAttribute('aria-label') !== 'Enter fullscreen' || fullscreenButton.getAttribute('aria-pressed') !== 'false') {
+      throw new Error('expected fullscreen action to return to its enter state after exit')
     }
     for (const [key, kind] of [
       ['ArrowRight', 'video'],
