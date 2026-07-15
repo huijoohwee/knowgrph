@@ -26,7 +26,7 @@ type CardInlineTextEditingSurfaceProps = {
   editorClassName?: string
   editorDensity: { rowHeightPreset: DataViewRowHeightPreset; fieldLineMode: DataViewFieldLineMode }
   enableMarkdownCommandMenus: boolean
-  finishProjectedCommandDraft: (nextValue: string) => void
+  closeCommandDraft: () => void
   focusViewerCommandSelection: (start: number, end?: number) => void
   hasProjectedInvocationOverlay: boolean
   hideProjectedCaret: boolean
@@ -64,7 +64,7 @@ export function CardInlineTextEditingSurface(props: CardInlineTextEditingSurface
   const {
     ariaLabel, cardInlineEditInputAttribute, closeCommandMenu, commandContextText, commandMode, commandQuery, commandRootAttribute,
     commandRootRef, commandSelectionRef, commonEditorProps, draft, editorClassName, editorDensity, enableMarkdownCommandMenus,
-    finishProjectedCommandDraft, focusViewerCommandSelection, hasProjectedInvocationOverlay, hideProjectedCaret, inputRef,
+    closeCommandDraft, focusViewerCommandSelection, hasProjectedInvocationOverlay, hideProjectedCaret, inputRef,
     inlineChipDensity, isCommandMenuTarget, mediaCommandMode, initialViewerSelectionPointRef, multiline, onCancel, onCommit, onCommandDraftChange, onMediaCommandSelect, openCommandMenu,
     openCommandMenuForSigilAtSelection, placeholder, projectedEditorDisplayValue, projectedEditorOverlay, projectedMediaAttachments,
     projectedSelectionRange, projectedTextareaOverlayTextClassName, projectedTextareaShellClassName, rows, setCommandMode, setCommandQuery,
@@ -144,7 +144,7 @@ export function CardInlineTextEditingSurface(props: CardInlineTextEditingSurface
           setCommandMode={setCommandMode}
           setDraft={useViewerEditSurface ? setDraft : setProjectedCommandDraft}
           onCommandDraftChange={useViewerEditSurface ? onCommandDraftChange : persistProjectedCommandDraft}
-          onCommandDraftApplied={useViewerEditSurface ? undefined : finishProjectedCommandDraft}
+          onCommandDraftApplied={closeCommandDraft}
           onMediaCommandSelect={onMediaCommandSelect}
         />
       ) : null}

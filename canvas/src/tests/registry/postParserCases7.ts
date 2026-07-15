@@ -93,6 +93,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["ui.flowWidget.storyboardCardTextLayout.summaryTextMediaStrip","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardSummaryTextStripsInlineMediaEmbeds"],
   ["ui.flowWidget.storyboardCardTextLayout.noPromptDuplicate","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardTextModelDoesNotDuplicatePrimaryPrompt"],
   ["ui.flowWidget.storyboardCardTextLayout.promptCommitMirrorsSource","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardPromptCommitMirrorsStrybldrMarkdownSource"],
+  ["ui.flowWidget.storyboardCardTextLayout.promptCommitDurableBeforeRun","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardPromptCommitUpdatesDurableDraftBeforeRun"],
   ["ui.flowWidget.storyboardCardTextLayout.sequentialPromptCommitsUseLiveGraph","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardSequentialPromptCommitsUseLiveGraphState"],
   ["ui.flowWidget.storyboardCardTextLayout.inlineEditorOwnsDirectClick","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardSummaryTextColumnLetsInlineEditorOwnDirectTargets"],
   ["ui.flowWidget.storyboardCardTextLayout.headerDragYieldsToInlineEditors","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardHeaderDragYieldsToInlineEditors"],

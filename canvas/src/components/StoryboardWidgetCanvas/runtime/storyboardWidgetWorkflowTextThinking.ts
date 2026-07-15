@@ -1,4 +1,5 @@
 import { isFlowVideoScriptFormId } from '@/lib/config'
+import { parseChatSkillSlashInvocation } from '@/features/chat/chatSkillRegistry'
 
 type StoryboardWidgetTextThinkingOptions = {
   chatMaxCompletionTokens: unknown
@@ -15,11 +16,19 @@ const owns = (record: Record<string, unknown>, key: string): boolean => (
 export function resolveStoryboardWidgetTextThinkingOptions(args: {
   formId: unknown
   localProperties: Record<string, unknown>
+  prompt?: unknown
   resolvedMaxCompletionTokens: unknown
   resolvedThinkingJson: unknown
   resolvedThinkingType: unknown
 }): StoryboardWidgetTextThinkingOptions {
   if (!isFlowVideoScriptFormId(args.formId)) {
+    if (parseChatSkillSlashInvocation(args.prompt)) {
+      return {
+        chatMaxCompletionTokens: args.resolvedMaxCompletionTokens,
+        chatThinkingJson: '',
+        chatThinkingType: 'disabled',
+      }
+    }
     return {
       chatMaxCompletionTokens: args.resolvedMaxCompletionTokens,
       chatThinkingJson: args.resolvedThinkingJson,

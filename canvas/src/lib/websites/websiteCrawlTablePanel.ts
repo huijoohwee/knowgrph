@@ -7,7 +7,7 @@ export const WEBSITE_CRAWL_ARTIFACT_QUERY_PARAM = 'kgCrawlArtifact'
 export const WEBSITE_CRAWL_SOURCE_URL_QUERY_PARAM = 'kgCrawlSourceUrl'
 export const WEBSITE_CRAWL_TABLE_MARKDOWN_HEADING = '## Website crawl multi-dimensional table'
 
-const WEBSITE_CRAWL_TABLE_COLUMNS = ['Page', 'Status', 'Source URL', 'HTML', 'Markdown', 'Downloads'] as const
+const WEBSITE_CRAWL_TABLE_COLUMNS = ['Page', 'Status', 'Source URL', 'HTML', 'Markdown', 'Downloads', 'Error'] as const
 const WEBSITE_CRAWL_TABLE_MARKDOWN_HEADER = serializeMarkdownPipeTable({ columns: WEBSITE_CRAWL_TABLE_COLUMNS, rows: [] })[0] || ''
 
 const buildWebsiteCrawlMarkdownDeepLink = (args: { artifactHref: string; sourceUrl: string; workspacePath: string }): string => {
@@ -124,6 +124,7 @@ export function enhanceWebsiteCrawlTableRenderedMarkdownHtml(html: string): stri
 }
 
 export function buildWebsiteCrawlTablePanelMarkdown(manifest: WebsiteImportManifestV1): string {
+  const errorByUrl = new Map((manifest.errors || []).map(item => [String(item.url || '').trim(), String(item.error || '').trim()]))
   const rows = manifest.nodes.map((node, index) => {
     const downloads = Array.isArray(node.artifacts.downloads) ? node.artifacts.downloads : []
     return [
@@ -138,6 +139,7 @@ export function buildWebsiteCrawlTablePanelMarkdown(manifest: WebsiteImportManif
           download.fileName,
         )).join('; ')
         : 'None',
+      escapeMarkdownCellText(errorByUrl.get(String(node.url || '').trim()) || '') || 'None',
     ].map(text => String(text ?? ''))
   })
   const tableLines = serializeMarkdownPipeTable({ columns: WEBSITE_CRAWL_TABLE_COLUMNS, rows })

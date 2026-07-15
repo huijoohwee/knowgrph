@@ -32,6 +32,53 @@ export function testInlineMediaCommandContextFromRecordFindsNestedMediaUrls() {
   }
 }
 
+export async function testCardInlineTextViewerDisplayInvokesEveryCommandSigil() {
+  const { dom, restore } = initJsdomHarness()
+  const cases = [
+    { sigil: '/', menu: 'slash', code: 'Slash', key: '/', shiftKey: false },
+    { sigil: '@', menu: 'variable', code: 'Digit2', key: '@', shiftKey: true },
+    { sigil: '#', menu: 'keyword', code: 'Digit3', key: '#', shiftKey: true },
+  ] as const
+  try {
+    for (const command of cases) {
+      const container = dom.window.document.createElement('section')
+      dom.window.document.body.appendChild(container)
+      const root = createRoot(container)
+      await act(async () => {
+        root.render(React.createElement(CardInlineTextEditor, {
+          value: 'Generate a text response for the active request.',
+          ariaLabel: `Prompt ${command.sigil}`,
+          placeholder: 'Add prompt',
+          canEdit: true,
+          editorSurface: 'viewer',
+          editActivation: 'click',
+          multiline: true,
+        }))
+        await new Promise(resolve => setTimeout(resolve, 0))
+      })
+      const display = container.querySelector(`[aria-label="Prompt ${command.sigil}"]`)
+      if (!(display instanceof dom.window.HTMLElement)) throw new Error(`expected ${command.sigil} display surface`)
+      await act(async () => {
+        display.focus()
+        display.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+          bubbles: true,
+          cancelable: true,
+          code: command.code,
+          key: command.key,
+          shiftKey: command.shiftKey,
+        }))
+        await new Promise(resolve => setTimeout(resolve, 0))
+      })
+      const menu = dom.window.document.querySelector(`section[aria-label="Card ${command.menu} commands"]`)
+      if (!(menu instanceof dom.window.HTMLElement)) throw new Error(`expected ${command.sigil} to invoke Card ${command.menu} commands`)
+      await act(async () => root.unmount())
+      container.remove()
+    }
+  } finally {
+    restore()
+  }
+}
+
 export async function testCardInlineTextEditorShiftedAtKeyOpensVariableCommands() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')

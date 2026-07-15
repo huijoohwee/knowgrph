@@ -32,6 +32,7 @@ import {
   IMAGE_TO_GLB_COMMAND_TOKEN,
   IMAGE_TO_GLB_SEMANTIC_TOKEN,
 } from '@/features/image-to-glb/imageToGlbContract'
+import type { PromptPreset } from './promptPresetCatalog'
 
 export type ChatInvocationId =
   | 'memory.search'
@@ -74,8 +75,22 @@ export type ChatInvocationCatalogEntry = {
   insertionText?: string
 }
 
-const IMAGE_TO_THREEJS_PROMPT_PRESET_SOURCE_PATH = 'agentic-canvas-os/docs/PROMPT-PRESETS.md' as const
-const IMAGE_TO_GLB_PROMPT_PRESET_SOURCE_PATH = 'agentic-canvas-os/docs/PROMPT-PRESETS.md' as const
+const PROMPT_PRESET_CATALOG_SOURCE_PATH = 'agentic-canvas-os/docs/PROMPT-PRESETS.md' as const
+
+export const buildPromptPresetChatInvocationCatalogEntries = (
+  presets: readonly PromptPreset[],
+): readonly ChatInvocationCatalogEntry[] => presets.map(preset => ({
+  id: `prompt-preset:${preset.id}`,
+  label: preset.label,
+  token: preset.slashCommand,
+  summary: preset.description,
+  group: 'Prompt preset',
+  kind: 'skill' as const,
+  sourcePath: PROMPT_PRESET_CATALOG_SOURCE_PATH,
+  keywords: [preset.runtimeCommand, preset.activation, 'prompt preset'],
+  promptPresetId: preset.id,
+  insertionText: preset.prompt,
+}))
 
 const IMAGE_TO_THREEJS_PROMPT_PRESET_COMMAND_ENTRY: ChatInvocationCatalogEntry = {
   id: `prompt-preset:${IMAGE_TO_THREEJS_PROMPT_PRESET_ID}`,
@@ -84,7 +99,7 @@ const IMAGE_TO_THREEJS_PROMPT_PRESET_COMMAND_ENTRY: ChatInvocationCatalogEntry =
   summary: 'Load the native image-to-threejs prompt preset into the selected Widget Card.',
   group: 'Native prompt preset',
   kind: 'skill',
-  sourcePath: IMAGE_TO_THREEJS_PROMPT_PRESET_SOURCE_PATH,
+  sourcePath: PROMPT_PRESET_CATALOG_SOURCE_PATH,
   keywords: ['image', 'three.js', 'threejs', 'widget card', 'prompt preset', IMAGE_TO_THREEJS_SEMANTIC_TOKEN, IMAGE_TO_THREEJS_BINDING_TOKEN],
   promptPresetId: IMAGE_TO_THREEJS_PROMPT_PRESET_ID,
   insertionText: buildImageToThreeJsPromptPreset(),
@@ -97,7 +112,7 @@ const IMAGE_TO_THREEJS_BINDING_CATALOG_ENTRY: ChatInvocationCatalogEntry = {
   summary: 'Bind the selected image source to the native image-to-threejs conversion.',
   group: 'Native prompt preset',
   kind: 'binding',
-  sourcePath: IMAGE_TO_THREEJS_PROMPT_PRESET_SOURCE_PATH,
+  sourcePath: PROMPT_PRESET_CATALOG_SOURCE_PATH,
   keywords: ['image', 'three.js', 'threejs', 'source', 'widget card', IMAGE_TO_THREEJS_COMMAND_TOKEN, IMAGE_TO_THREEJS_SEMANTIC_TOKEN],
 }
 
@@ -108,7 +123,7 @@ const IMAGE_TO_GLB_PROMPT_PRESET_COMMAND_ENTRY: ChatInvocationCatalogEntry = {
   summary: 'Load the native procedural image-to-glb prompt preset into the selected Widget Card.',
   group: 'Native prompt preset',
   kind: 'skill',
-  sourcePath: IMAGE_TO_GLB_PROMPT_PRESET_SOURCE_PATH,
+  sourcePath: PROMPT_PRESET_CATALOG_SOURCE_PATH,
   keywords: ['image', 'glb', 'gltf', 'three.js', 'threejs', 'procedural', 'widget card', 'prompt preset', IMAGE_TO_GLB_SEMANTIC_TOKEN, IMAGE_TO_GLB_BINDING_TOKEN],
   promptPresetId: IMAGE_TO_GLB_PROMPT_PRESET_ID,
   insertionText: buildImageToGlbPromptPreset(),
@@ -121,7 +136,7 @@ const IMAGE_TO_GLB_BINDING_CATALOG_ENTRY: ChatInvocationCatalogEntry = {
   summary: 'Bind the selected image source to the native procedural image-to-glb conversion.',
   group: 'Native prompt preset',
   kind: 'binding',
-  sourcePath: IMAGE_TO_GLB_PROMPT_PRESET_SOURCE_PATH,
+  sourcePath: PROMPT_PRESET_CATALOG_SOURCE_PATH,
   keywords: ['image', 'glb', 'gltf', 'three.js', 'threejs', 'procedural', 'source', 'widget card', IMAGE_TO_GLB_COMMAND_TOKEN, IMAGE_TO_GLB_SEMANTIC_TOKEN],
 }
 
@@ -145,7 +160,7 @@ const BASE_CHAT_INVOCATION_OPTIONS: readonly ChatInvocationOption[] = [
     label: 'Image to Three.js',
     summary: 'Use the native image-to-threejs prompt preset for a selected image source.',
     keywords: ['image', 'three.js', 'threejs', 'prompt preset', 'widget card'],
-    sourcePath: IMAGE_TO_THREEJS_PROMPT_PRESET_SOURCE_PATH,
+    sourcePath: PROMPT_PRESET_CATALOG_SOURCE_PATH,
     slashCommand: IMAGE_TO_THREEJS_COMMAND_TOKEN,
     atToken: IMAGE_TO_THREEJS_BINDING_TOKEN,
   },
@@ -155,7 +170,7 @@ const BASE_CHAT_INVOCATION_OPTIONS: readonly ChatInvocationOption[] = [
     label: 'Image to GLB',
     summary: 'Use the native procedural image-to-glb prompt preset for a selected image source.',
     keywords: ['image', 'glb', 'gltf', 'three.js', 'threejs', 'procedural', 'prompt preset', 'widget card'],
-    sourcePath: IMAGE_TO_GLB_PROMPT_PRESET_SOURCE_PATH,
+    sourcePath: PROMPT_PRESET_CATALOG_SOURCE_PATH,
     slashCommand: IMAGE_TO_GLB_COMMAND_TOKEN,
     atToken: IMAGE_TO_GLB_BINDING_TOKEN,
   },

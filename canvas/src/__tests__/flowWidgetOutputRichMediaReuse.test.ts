@@ -69,7 +69,7 @@ export function testStoryboardWidgetCanvasTextRunUsesSharedRichMediaOutputPatch(
   if (!text.includes('const panelNodeId = ensureStoryboardWidgetWorkflowRichMediaPanelNodeId({')) {
     throw new Error('expected StoryboardWidgetCanvas text widget run path to reuse the shared rich-media panel target helper')
   }
-  if (!text.includes('const updatedPanelInDraft = applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch({')) {
+  if (!text.includes('applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch({') || !text.includes('applyPublishedPanelPatch(panelNodeId, patch)')) {
     throw new Error('expected StoryboardWidgetCanvas text widget run path to reuse the shared rich-media panel draft patch helper')
   }
 }

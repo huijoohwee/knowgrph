@@ -32,47 +32,6 @@ const RICH_MEDIA_CONNECTED_RENDER_PATHS = [
   'properties.modelUrl',
 ] as const
 
-const RICH_MEDIA_ORPHANED_LOADING_BACKFILL_AFTER_MS = 30 * 60 * 1000
-
-function readRunTimestamp(node: GraphNode | null | undefined): number | null {
-  const value = (node?.properties as Record<string, unknown> | undefined)?.lastRunAt
-  if (typeof value !== 'string' || !value.trim()) return null
-  const timestamp = Date.parse(value)
-  return Number.isFinite(timestamp) ? timestamp : null
-}
-
-function isOrphanedLoadingRunStale(node: GraphNode | null | undefined): boolean {
-  const timestamp = readRunTimestamp(node)
-  return timestamp !== null && Date.now() - timestamp >= RICH_MEDIA_ORPHANED_LOADING_BACKFILL_AFTER_MS
-}
-
-function deriveOrphanedRichMediaTextBackfill(args: {
-  node: GraphNode
-  nodeById?: ReadonlyMap<string, GraphNode>
-  localLoading: boolean
-}): string {
-  if (!args.localLoading || !args.nodeById || !isOrphanedLoadingRunStale(args.node)) return ''
-  const panelProps = (args.node.properties || {}) as Record<string, unknown>
-  const panelModel = typeof panelProps.outputModel === 'string' ? panelProps.outputModel.trim() : ''
-  const panelSourceUrl = typeof panelProps.outputSourceUrl === 'string' ? panelProps.outputSourceUrl.trim() : ''
-  const panelOutput = typeof panelProps.output === 'string' ? panelProps.output.trim() : ''
-  if (!panelModel || !panelSourceUrl) return ''
-  let best: { output: string; timestamp: number } | null = null
-  for (const candidate of args.nodeById.values()) {
-    if (!candidate || String(candidate.id || '').trim() === String(args.node.id || '').trim()) continue
-    if (String(candidate.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) continue
-    const props = (candidate.properties || {}) as Record<string, unknown>
-    if (String(props.outputModel || '').trim() !== panelModel || String(props.outputSourceUrl || '').trim() !== panelSourceUrl) continue
-    const output = typeof props.output === 'string' ? props.output.trim() : ''
-    if (!output || output === panelOutput) continue
-    const loading = readLoadingStateFromNode(candidate).loading
-    if (loading && !isOrphanedLoadingRunStale(candidate)) continue
-    const timestamp = readRunTimestamp(candidate) || 0
-    if (!best || timestamp > best.timestamp) best = { output, timestamp }
-  }
-  return best?.output || ''
-}
-
 function readLoadingStateFromNode(node: GraphNode | null | undefined): { loading: boolean; kind: 'text' | 'image' | 'video' | 'audio' | 'model' | '' } {
   if (!node) return { loading: false, kind: '' }
   const props = (node.properties || {}) as Record<string, unknown>
@@ -244,7 +203,6 @@ export function buildRichMediaPanelOverlayState(args: {
   const freezeConnectedOutput = readNodeFieldBoolean(nodeForState, props, 'freezeConnectedOutput')
   const localLoading = readLoadingStateFromNode(nodeForState)
   const connectedText = normalizeConnectedTextValue(connectedValuesBySchemaPath?.['properties.output']?.value)
-    || deriveOrphanedRichMediaTextBackfill({ node: nodeForState, nodeById: args.nodeById, localLoading: localLoading.loading })
   const connectedLoading = deriveRichMediaPanelLoadingSourceLabels({
     connectedValuesBySchemaPath,
     nodeById: args.nodeById,

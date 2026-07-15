@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import test from 'node:test'
 import {
   findActiveScopeConflicts,
@@ -8,6 +9,11 @@ import {
   validateTaskBranch,
 } from '../collaboration-contract.mjs'
 import { findProtectedPushes } from '../check-pre-push-refs.mjs'
+
+test('device end delegates to the canonical Agentic Canvas OS checkout wrapper', () => {
+  const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
+  assert.equal(pkg.scripts?.['device:end'], 'node ../agentic-canvas-os/scripts/device-branch.mjs end')
+})
 
 test('canonical contract is valid and selects deduplicated affected checks', async () => {
   const contract = await readContract()

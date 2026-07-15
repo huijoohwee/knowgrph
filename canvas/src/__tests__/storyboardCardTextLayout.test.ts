@@ -231,6 +231,35 @@ export function testStoryboardCardPromptCommitMirrorsStrybldrMarkdownSource() {
   assert(history.join('|') === 'Storyboard prompt', `expected one history entry for prompt commit, got ${JSON.stringify(history)}`)
 }
 
+export function testStoryboardCardPromptCommitUpdatesDurableDraftBeforeRun() {
+  const graphData: GraphData = {
+    type: 'flow',
+    nodes: [{ id: 'frontmatter::n1', type: 'TextGeneration', label: 'Widget Card', properties: { imagePrompt: 'Old prompt', keep: 'yes' } }],
+    edges: [],
+  }
+  let committedGraph: GraphData | null = null
+  let canonicalStoreProperties: Record<string, unknown> | null = null
+  commitStoryboardCardCanonicalText2d({
+    addHistory: () => void 0,
+    canonicalKey: 'prompt',
+    cardId: 'n1',
+    commitGraphData: next => { committedGraph = next },
+    currentProperties: {},
+    graphData,
+    historyLabel: 'Storyboard prompt',
+    nextValue: '/crawler-agent @url:https://example.com @reference-policy #canvas',
+    preserveFormatting: true,
+    propertyKeys: ['prompt', 'imagePrompt'],
+    updateNode: (_id, patch) => { canonicalStoreProperties = (patch.properties || {}) as Record<string, unknown> },
+  })
+  const committedNode = committedGraph?.nodes?.[0]
+  assert(committedNode?.properties?.prompt === '/crawler-agent @url:https://example.com @reference-policy #canvas', `expected the durable draft graph to receive the prompt before Run, got ${JSON.stringify(committedNode?.properties)}`)
+  assert(!('imagePrompt' in (committedNode?.properties || {})), 'expected durable prompt commit to neutralize the stale alias')
+  assert(committedNode?.properties?.keep === 'yes', 'expected durable prompt commit to retain sibling properties')
+  assert(canonicalStoreProperties?.prompt === '/crawler-agent @url:https://example.com @reference-policy #canvas', 'expected prompt commit to mirror the durable draft into the canonical graph store before Run')
+  assert(!('imagePrompt' in (canonicalStoreProperties || {})), 'expected the canonical graph store mirror to neutralize the stale prompt alias')
+}
+
 export function testStoryboardCardSequentialPromptCommitsUseLiveGraphState() {
   const firstCardId = 'prompt-card-a'
   const secondCardId = 'prompt-card-b'

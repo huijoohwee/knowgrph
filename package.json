@@ -23,6 +23,7 @@
     "postinstall": "npm run hooks:install",
     "dev:source:check": "node ./scripts/check-dev-source-consistency.mjs",
     "dev:latest": "node ./scripts/run-dev-latest.mjs && npm run dev",
+    "device:end": "node ../agentic-canvas-os/scripts/device-branch.mjs end",
     "worktree:check": "node ./scripts/check-worktree-policy.mjs",
     "dev": "npm run dev --workspace=@knowgrph/canvas --",
     "dev:apex": "VITE_BASE_PATH=/ VITE_APEX_ROOT_ALIAS=1 npm run dev --workspace=@knowgrph/canvas --",

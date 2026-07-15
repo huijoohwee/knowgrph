@@ -60,6 +60,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["websiteImport.native.invocation","@/__tests__/nativeWebsiteCrawler.test","testNativeCrawlerInvocationUsesAuthoritativeTokens"],
   ["websiteImport.native.widgetRunRichMedia","@/__tests__/nativeWebsiteCrawler.test","testNativeCrawlerWidgetRunReusesImportUrlBridgeAndPublishesRichMedia"],
   ["websiteImport.native.fastRecoveryTable","@/__tests__/nativeWebsiteCrawler.test","testNativeCrawlerRecoveryUsesManifestTableWithoutRematerializing"],
+  ["websiteImport.native.terminalErrorManifest","@/__tests__/nativeWebsiteCrawler.test","testNativeCrawlerTerminalErrorManifestPublishesReasonWithoutBackfill"],
   ["websiteImport.native.completedTableBackfill","@/__tests__/nativeWebsiteCrawler.test","testNativeCrawlerRecoveryBackfillsMissingCompletedTable"],
   ["websiteImport.native.noExternalDependency","@/__tests__/nativeWebsiteCrawler.test","testNativeCrawlerHasNoExternalCrawlerDependency"],
   ["websiteImport.semanticSnapshot.indexesQueryablePageData","@/__tests__/websiteImportSitemap.test","testWebsiteSemanticSnapshotIndexesQueryablePageData"],

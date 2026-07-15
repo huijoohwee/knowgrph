@@ -121,7 +121,6 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   const initialViewerSelectionPointRef = React.useRef<MarkdownContentEditablePoint | null>(null)
   const lastEditRequestKeyRef = React.useRef<string | number | null>(null)
   const lastEditingRef = React.useRef(editing)
-  const lastCommandPersistedDraftRef = React.useRef('')
   const commandSelectionRef = React.useRef<{ start: number; end: number }>({ start: 0, end: 0 })
   const externalCommandStateRef = React.useRef<CardInlineTextCommandExternalState>({ canEdit, draft, editing, multiline, onCommit, onMediaCommandSelect, persistCommandDraft: (_nextValue: string) => void 0, value })
   const editorDensity = useWorkspaceDataViewFloatingDensity()
@@ -136,9 +135,6 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   React.useEffect(() => {
     if (editing) return
     updateDraft(normalizeEditorValue(value))
-    if (lastCommandPersistedDraftRef.current === normalizeEditorValue(value)) {
-      lastCommandPersistedDraftRef.current = ''
-    }
   }, [editing, updateDraft, value])
   React.useEffect(() => {
     if (!editing) return
@@ -203,7 +199,6 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     setCommandQuery('')
     const next = normalizeCommittedValueForSurface(rawNext)
     if (next === normalizeEditorValue(value)) return
-    if (next === lastCommandPersistedDraftRef.current) return
     onCommit?.(next)
   }, [draft, normalizeCommittedValueForSurface, onCommit, readDraft, readProjectedEditorRawValue, useViewerEditSurface, value])
   const readOpenEditorValue = React.useCallback((): string | null => {
@@ -233,8 +228,6 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       : next
     if (input && input.value !== displayNext) input.value = displayNext
     if (next === normalizeEditorValue(value)) return
-    if (next === lastCommandPersistedDraftRef.current) return
-    lastCommandPersistedDraftRef.current = next
     onCommit?.(next)
   }, [hasProjectedInvocationOverlay, normalizeCommittedValueForSurface, onCommit, value])
   externalCommandStateRef.current = {
@@ -247,12 +240,11 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     persistCommandDraft,
     value,
   }
-  const finishCommandDraft = React.useCallback((nextValue: string) => {
-    persistCommandDraft(nextValue)
+  const closeCommandDraft = React.useCallback(() => {
     setEditing(false)
     setCommandMode(null)
     setCommandQuery('')
-  }, [persistCommandDraft])
+  }, [])
   const cancel = React.useCallback(() => {
     updateDraft(normalizeEditorValue(value))
     setEditing(false)
@@ -367,9 +359,6 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
   const persistProjectedCommandDraft = React.useCallback((nextValue: string) => {
     persistCommandDraft(readProjectedEditorRawValue(nextValue))
   }, [persistCommandDraft, readProjectedEditorRawValue])
-  const finishProjectedCommandDraft = React.useCallback((nextValue: string) => {
-    finishCommandDraft(readProjectedEditorRawValue(nextValue))
-  }, [finishCommandDraft, readProjectedEditorRawValue])
   const focusViewerCommandSelection = React.useCallback((start: number, end: number = start) => {
     focusMarkdownInlineTextSelectionSoon(viewerEditorRef, start, end)
   }, [])
@@ -411,7 +400,6 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       const separator = current ? (current.endsWith('\n') ? '' : '\n') : ''
       const next = normalizeCommittedEditorValue(`${current}${separator}${replacement}`)
       updateDraft(next)
-      lastCommandPersistedDraftRef.current = next
       latest.onCommit?.(next)
       return true
     }
@@ -552,7 +540,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
         editorClassName={editorClassName}
         editorDensity={editorDensity}
         enableMarkdownCommandMenus={enableMarkdownCommandMenus}
-        finishProjectedCommandDraft={finishProjectedCommandDraft}
+        closeCommandDraft={closeCommandDraft}
         focusViewerCommandSelection={focusViewerCommandSelection}
         hasProjectedInvocationOverlay={hasProjectedInvocationOverlay}
         hideProjectedCaret={hideProjectedCaret}

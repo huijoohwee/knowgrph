@@ -3,7 +3,13 @@ import { createPortal } from 'react-dom'
 import { AtSign, Hash, Slash } from 'lucide-react'
 import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { buildMarkdownVariableToken, collectMarkdownVariableBrowseRows } from '@/features/markdown/ui/markdownVariableReferences'
-import { resolveChatInvocationCatalogEntries, type ChatInvocationCatalogPrefixFilter } from '@/features/chat/chatInvocationRegistry'
+import {
+  buildPromptPresetChatInvocationCatalogEntries,
+  resolveChatInvocationCatalogEntries,
+  resolveChatInvocationCatalogEntryInsertionText,
+  type ChatInvocationCatalogPrefixFilter,
+} from '@/features/chat/chatInvocationRegistry'
+import { usePromptPresetCatalog } from '@/features/chat/usePromptPresetCatalog'
 import { preventDefaultMouseDown } from '@/features/markdown/ui/markdownFloatingSelectionToolbar'
 import { MarkdownBlockContainerCommandMenu, type MarkdownInlineCommandMenuItem } from '@/lib/markdown-core/ui/markdownBlockContainerCore.commandMenu'
 import {
@@ -117,6 +123,7 @@ export function CardInlineTextCommandMenus(props: {
   } = props
   const [menuFrame, setMenuFrame] = React.useState<CardInlineCommandMenuFrame | null>(null)
   const grammarCatalog = useAgenticOsRemoteGrammarCatalog({ sigils: CARD_INLINE_TEXT_COMMAND_SIGILS })
+  const promptPresets = usePromptPresetCatalog()
   const uploadInputRef = React.useRef<HTMLInputElement | null>(null)
   const uploadObjectUrlsRef = React.useRef<Set<string>>(new Set())
   const [inlineUploadItems, setInlineUploadItems] = React.useState<UploadedMediaPanelItem[]>(readStoredUploadedMediaPanelItems)
@@ -169,10 +176,10 @@ export function CardInlineTextCommandMenus(props: {
       window.removeEventListener('scroll', updateFrame, true)
     }
   }, [commandMode, inputRef, menuAnchorRef])
-  const replaceCommandSelection = React.useCallback((replacement: string, options?: { closeAfterApply?: boolean }) => {
+  const replaceCommandSelection = React.useCallback((replacement: string, options?: { closeAfterApply?: boolean; replaceAll?: boolean }) => {
     const text = String(draft || '')
-    const start = Math.max(0, Math.min(text.length, commandSelectionRef.current.start))
-    const end = Math.max(start, Math.min(text.length, commandSelectionRef.current.end))
+    const start = options?.replaceAll === true ? 0 : Math.max(0, Math.min(text.length, commandSelectionRef.current.start))
+    const end = options?.replaceAll === true ? text.length : Math.max(start, Math.min(text.length, commandSelectionRef.current.end))
     const next = replaceDraftRange({
       input: inputRef.current,
       draft,
@@ -188,17 +195,22 @@ export function CardInlineTextCommandMenus(props: {
     if (options?.closeAfterApply === true) onCommandDraftApplied?.(next.text)
   }, [commandSelectionRef, draft, focusSelection, inputRef, onCommandDraftApplied, onCommandDraftChange, setCommandMode, setCommandQuery, setDraft])
   const skillsCommandsInvocationItems = React.useMemo(() => {
-    const buildItems = (prefixFilter: ChatInvocationCatalogPrefixFilter): MarkdownInlineCommandMenuItem[] =>
-      resolveChatInvocationCatalogEntries(prefixFilter, '').map(entry => buildInlineCommandMenuItem({
+    const buildItems = (prefixFilter: ChatInvocationCatalogPrefixFilter): MarkdownInlineCommandMenuItem[] => {
+      const fallbackEntries = resolveChatInvocationCatalogEntries(prefixFilter, '')
+      const presetEntries = prefixFilter === 'slash' ? buildPromptPresetChatInvocationCatalogEntries(promptPresets) : []
+      const presetTokens = new Set(presetEntries.map(entry => entry.token.toLowerCase()))
+      const entries = [...presetEntries, ...fallbackEntries.filter(entry => !presetTokens.has(entry.token.toLowerCase()))]
+      return entries.map(entry => buildInlineCommandMenuItem({
         id: `skills-commands-${prefixFilter}-${entry.id}`,
         label: entry.token,
         group: entry.group,
         description: entry.summary,
         keywords: [entry.label, entry.sourcePath || '', ...entry.keywords].filter(Boolean),
-        onSelect: () => replaceCommandSelection(entry.token),
+        onSelect: () => replaceCommandSelection(resolveChatInvocationCatalogEntryInsertionText(entry), { closeAfterApply: Boolean(entry.promptPresetId), replaceAll: Boolean(entry.promptPresetId) }),
       }))
+    }
     return { slash: buildItems('slash'), variable: buildItems('at'), keyword: buildItems('hash') }
-  }, [grammarCatalog.version, replaceCommandSelection])
+  }, [grammarCatalog.version, promptPresets, replaceCommandSelection])
   const insertMediaCommand = React.useCallback((candidate: InlineMediaCommandCandidate, options?: { closeAfterApply?: boolean }) => {
     const text = String(draft || '')
     const sourceText = String(sourceDraft || '')
@@ -527,6 +539,7 @@ export function CardInlineTextCommandMenus(props: {
       <MarkdownBlockContainerCommandMenu
         ariaLabel={commandMenuConfig?.ariaLabel || 'Card commands'}
         items={commandMenuConfig?.items || []}
+        selectOnPointerDown={false}
         query={commandQuery}
         onQueryChange={setCommandQuery}
         onCancel={closeCommandMenu}

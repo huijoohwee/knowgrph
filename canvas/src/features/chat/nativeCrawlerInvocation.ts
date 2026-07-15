@@ -174,16 +174,20 @@ export const executeNativeCrawlerInvocation = async (
       : { ...invocation, url: authoritativeSourceUrl }
     const outputPath = args.createdPaths.find(path => /website\.crawl\.canvas\.md$/i.test(path)) || args.createdPaths[0] || null
     const summary = args.manifest ? buildWebsiteImportManifestSummary(args.manifest) : args.fallbackSummary
+    const crawlErrors = (args.manifest?.errors || []).map(item => ({ url: String(item.url || '').trim(), error: String(item.error || '').trim() })).filter(item => item.error)
+    const pageArtifactCount = Math.max(0, Number(summary?.storedFiles || 0) - (args.manifest ? 1 : 0))
+    const proxyMode = args.manifest?.runtime?.proxyMode === 'rotating' ? 'rotating' : 'direct'
     const outputText = [
       '# Website crawl imported',
       '',
       ...(summary ? [`Completed with ${summary.processedPages} pages: ${summary.successfulPages} successful, ${summary.errorPages} errors, ${summary.storedFiles} stored files.`, ''] : []),
       `- Source URL: ${authoritativeSourceUrl}`,
       '- Runtime: native headless browser automation',
-      '- Proxy rotation: enabled',
+      `- Proxy routing: ${proxyMode}`,
       '- Canvas projection: complete',
-      '- Website files: downloaded to the workspace',
+      `- Page artifacts stored: ${pageArtifactCount}`,
       ...(outputPath ? [`- Canvas document: ${outputPath}`] : []),
+      ...(crawlErrors.length ? ['', '## Crawl errors', '', ...crawlErrors.slice(0, 20).map(item => `- ${item.url || authoritativeSourceUrl}: ${item.error}`)] : []),
     ].join('\n')
     return {
       invocation: authoritativeInvocation,
