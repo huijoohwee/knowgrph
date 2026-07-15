@@ -147,7 +147,7 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 - `npm run worktree:check` exposes that count-only policy as a standalone preflight without fetching, checking cleanliness, or starting Dev. `ci:integration` runs it first, so the installed pre-push hook and remote Integration Gate reject redundant registered worktrees before expensive validation.
 - Canonical mode requires every registered repository to be clean and exactly equal to its fetched canonical SHA. The port number never selects application or documentation source code.
 - The centralized Agentic Canvas OS docs entry resolves from the sibling repository and requires its `docs` root. Stale, ahead, divergent, dirty, or missing sources fail closed with the responsible source identity.
-- Task branches use `KG_DEV_SOURCE_MODE=task npm run dev -- --port <port>` explicitly. Task mode permits divergence only for the source whose contract declares `task_divergence_allowed: true`; the shared Agentic Canvas OS docs revision remains clean and canonical.
+- `npm run dev` and `npm run dev:apex` infer task mode when the application checkout is on a contract-valid `agent/<device>/<semantic-scope>` branch. `KG_DEV_SOURCE_MODE` remains an expert override for an explicit canonical or task check. Task mode permits divergence only for the source whose contract declares `task_divergence_allowed: true`; the shared Agentic Canvas OS docs revision remains clean and canonical.
 - Already-running servers retain the SHA they started with. Restart them after `origin/main` advances so the startup gate can validate the new canonical source.
 
 ## Deployment Boundary
