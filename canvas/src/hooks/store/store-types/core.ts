@@ -56,7 +56,6 @@ export type BottomSurfaceTab =
   | 'gitGraph'
   | 'gantt'
   | 'timeline'
-  | 'xr'
   | 'architecture'
   | 'eventModeling'
 

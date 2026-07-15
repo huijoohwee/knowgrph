@@ -12,7 +12,7 @@ Scope:
 ## 1. Postal District Mapping (by postal sector prefix)
 
 | district | postcode range | planning areas (hint) |
-| --- | --- | --- |
+| -------- | ------------ | ------------ |
 | 01 | 01xxxx | Raffles Place / Cecil, Marina Square |
 | 02 | 02xxxx | Chinatown, Tanjong Pagar |
 | 03 | 03xxxx–08xxxx | Hill St, Victoria St, Mt Sophia |
@@ -45,7 +45,7 @@ Scope:
 ## 2. Special Postcode Zones (prefix-3)
 
 | prefix3 | area |
-| --- | --- |
+| ------- | ---- |
 | 018 | Marina Bay / Downtown Core 2 |
 | 019 | Marina Bay / Gardens by the Bay |
 | 097 | Sentosa Island (Southern) |

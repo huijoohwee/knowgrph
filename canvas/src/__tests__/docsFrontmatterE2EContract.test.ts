@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { load as parseYaml } from 'js-yaml'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
+import { isUnsafeFlowComputeSource, readFlowComputeSource } from '@/lib/storyboardWidget/flowComputeInline'
 
 const GITHUB_ROOT = path.resolve(process.cwd(), '..', '..')
 const HUIJOOHWEE_DOCS_ROOT = path.join(GITHUB_ROOT, 'huijoohwee', 'docs')
@@ -796,7 +797,6 @@ export function testStoryboardWidgetDemoRunnableStructure() {
     }
 
     // 4. At least one compute node with non-empty inline compute source
-    const { readFlowComputeSource, isUnsafeFlowComputeSource } = require('@/lib/storyboardWidget/flowComputeInline')
     const computeNodes = nodes.filter(n => {
       const props = (n.properties || {}) as Record<string, unknown>
       const t = String(n.type || props['type'] || '')

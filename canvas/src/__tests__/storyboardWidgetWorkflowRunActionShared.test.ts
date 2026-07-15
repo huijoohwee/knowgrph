@@ -7,8 +7,8 @@ export function testStoryboardWidgetWorkflowRunActionIsSharedBetweenStoryboardWi
 
   for (const snippet of [
     'export function createStoryboardWidgetWorkflowNodeRunner',
-    'export function resolveStoryboardWidgetBaseGraphKind',
-    'export type StoryboardWidgetWorkflowNodeRunnerArgs',
+    "export { resolveStoryboardWidgetBaseGraphKind } from './storyboardWidgetWorkflowRunTypes'",
+    "export type { StoryboardWidgetWorkflowNodeRunner, StoryboardWidgetWorkflowNodeRunnerArgs } from './storyboardWidgetWorkflowRunTypes'",
     'const runWorkflowNode: StoryboardWidgetWorkflowNodeRunner = async',
   ]) {
     if (!sharedSource.includes(snippet)) {

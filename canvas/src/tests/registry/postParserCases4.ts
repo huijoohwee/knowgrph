@@ -507,6 +507,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["edgeCreation.finalizeUpdateSource","@/__tests__/edgeCreation.test","testFinalizeUpdateSource"],
   ["edgeCreation.finalizeUpdateTarget","@/__tests__/edgeCreation.test","testFinalizeUpdateTarget"],
   ["minimap.computeViewRect","@/__tests__/minimap.test","testComputeViewRect"],
+  ["minimap.surface.semanticMarkers","@/__tests__/minimap.test","testMinimapSurfaceUsesStableSemanticMarkers"],
   ["graph.selectionHighlight.nodeNeighbors","@/__tests__/selectionHighlight.test","testSelectionHighlightNeighborsFromNodeSelection"],
   ["graph.selectionHighlight.edgeEndpoints","@/__tests__/selectionHighlight.test","testSelectionHighlightEdgeSelectionEndpointsAndEdges"],
   ["graph.selectionHighlight.mediaOpacity.respectsToggleAndLayer","@/__tests__/selectionHighlight.test","testSelectionHighlightMediaOpacityRespectsRenderToggleAndLayerOpacity"], ["graph.selectionHighlight.labelOpacity.floor","@/__tests__/selectionHighlight.test","testSelectionHighlightLabelOpacityDoesNotDisappearAtZeroLayerOpacity"],

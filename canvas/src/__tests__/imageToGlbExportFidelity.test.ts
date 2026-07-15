@@ -41,7 +41,7 @@ export function testImageToGlbExporterOptionsMatchInstalledThreeRuntime() {
 export function testImageToGlbSurfaceReadinessWaitsForGltfLoader() {
   const surfaceSource = readCanvasSource('../features/image-to-glb/ImageToGlbSurface.tsx')
   const modelSource = readCanvasSource('../lib/three/GlbAssetModel.tsx')
-  const settleAssetBody = surfaceSource.match(/const settleAsset = \(dataUrl: string\) => \{([\s\S]*?)\n    \}/)?.[1] || ''
+  const settleAssetBody = surfaceSource.match(/const settleAsset = \(dataUrl: string\) => \{([\s\S]*?)\n {4}\}/)?.[1] || ''
   if (!settleAssetBody.includes('setAsset(buildModelAsset') || settleAssetBody.includes("setLoadState('ready')")) {
     throw new Error('expected data acquisition to mount the asset without claiming GLTFLoader readiness')
   }

@@ -21,7 +21,7 @@ constraints:
 related:
   - docs/documents/knowgrph-mcp-install-contract.md
   - docs/documents/knowgrph-mcp-install-boundary-release-note-20260710.md
-  - docs/documents/knowgrph-agent-ready-document.md
+  - docs/documents/knowgrph-agent-ready-prd-tad.md
   - docs/documents/markdown-convertible-agent-discovery-document.md
   - docs/documents/knowgrph-superagent-harness.md
   - docs/documents/knowgrph-mcp/knowgrph-mcp.md
@@ -88,7 +88,7 @@ Concrete grammar examples:
    - Canonical install rule, host recipes, and dual-surface boundary
 2. `docs/documents/knowgrph-mcp-install-boundary-release-note-20260710.md`
    - Recent-change summary plus the latest evidence-backed release proof
-3. `docs/documents/knowgrph-agent-ready-document.md`
+3. `docs/documents/knowgrph-agent-ready-prd-tad.md`
    - Broader agent-ready surface, trust boundary, and discovery context
 4. `docs/documents/markdown-convertible-agent-discovery-document.md`
    - Live Canvas Hero Markdown-discovery contract, publish route, and live proof
@@ -113,7 +113,7 @@ Concrete grammar examples:
 | I just need the right install URL | `docs/documents/knowgrph-mcp-install-contract.md` |
 | I want the shortest update summary | `docs/documents/knowgrph-mcp-install-boundary-release-note-20260710.md` |
 | I want the latest release proof with preview URL and docs-seed verification | `docs/documents/knowgrph-mcp-install-boundary-release-note-20260710.md` |
-| I want the larger discovery and readiness context | `docs/documents/knowgrph-agent-ready-document.md` |
+| I want the larger discovery and readiness context | `docs/documents/knowgrph-agent-ready-prd-tad.md` |
 | I want the Live Canvas Hero Markdown route and discovery contract | `docs/documents/markdown-convertible-agent-discovery-document.md` |
 | I want the cheapest evaluation path before hosted setup | `huijoohwee/knowgrph` `README.md` or `docs/documents/knowgrph-superagent-harness.md` |
 | I want the MCP-specific architecture and scope | `docs/documents/knowgrph-mcp/knowgrph-mcp.md` |

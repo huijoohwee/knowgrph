@@ -3,14 +3,12 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { StandaloneSpatialCaptureManifest } from '@/features/markdown-workspace/workspaceImport/spatialCaptureFileset'
 import {
-  readSpatialCaptureAxis,
   readSpatialCaptureCenterAction,
   readSpatialCaptureTool,
-  subscribeSpatialCaptureAxis,
   subscribeSpatialCaptureCenterAction,
   subscribeSpatialCaptureTool,
 } from '@/features/three/xrSpatialCaptureTools'
-import type { SpatialCaptureAxisId, SpatialCaptureCenterActionId, SpatialCaptureToolId } from '@/features/three/xrSpatialCaptureTools'
+import type { SpatialCaptureCenterActionId, SpatialCaptureToolId } from '@/features/three/xrSpatialCaptureTools'
 import { loadSpatialCapturePointCloud, loadSpatialCapturePointCloudPreview, type SpatialCapturePointCloudLoad } from '@/lib/assets/spatialCaptureAssetRuntime'
 import type { GlbFit } from '@/lib/three/GlbAssetModel'
 import {
@@ -194,13 +192,6 @@ function resolveSelectionScale(load: SpatialCapturePointCloudLoad): [number, num
   ]
 }
 
-function resolveAxisCameraPosition(axis: SpatialCaptureAxisId, fit: GlbFit): [number, number, number] {
-  const distance = Math.max(220, fit.stageSpan * 1.15)
-  if (axis === 'x') return [distance, Math.max(42, distance * 0.22), 0]
-  if (axis === 'y') return [0, distance, Math.max(42, distance * 0.12)]
-  return [0, Math.max(42, distance * 0.22), distance]
-}
-
 function SpatialCaptureSelectionOverlay({
   action,
   load,
@@ -276,7 +267,6 @@ export function SpatialCaptureManifestStage({
   const { camera, size } = useThree()
   const [state, setState] = React.useState<LoadState>({ status: 'loading' })
   const [spatialTool, setSpatialTool] = React.useState<SpatialCaptureToolId>(readSpatialCaptureTool())
-  const [spatialAxis, setSpatialAxis] = React.useState<SpatialCaptureAxisId>(readSpatialCaptureAxis())
   const [spatialCenterAction, setSpatialCenterAction] = React.useState<SpatialCaptureCenterActionId>(readSpatialCaptureCenterAction())
   const sortStateRef = React.useRef<{
     direction: readonly [number, number, number]
@@ -300,7 +290,6 @@ export function SpatialCaptureManifestStage({
   ].join('|')
 
   React.useEffect(() => subscribeSpatialCaptureTool(setSpatialTool), [])
-  React.useEffect(() => subscribeSpatialCaptureAxis(setSpatialAxis), [])
   React.useEffect(() => subscribeSpatialCaptureCenterAction(setSpatialCenterAction), [])
 
   React.useEffect(() => {
@@ -363,7 +352,7 @@ export function SpatialCaptureManifestStage({
       viewportHeight: size.height,
       viewportWidth: size.width,
     })
-  }, [state])
+  }, [size.height, size.width, state])
   React.useEffect(() => {
     if (!gaussianSplatMaterial) return
     gaussianSplatMaterial.uniforms.opacityScale.value = paused ? 0.42 : 1.0
@@ -423,14 +412,6 @@ export function SpatialCaptureManifestStage({
       onFitChange?.(null)
     }
   }, [fit, onFitChange])
-
-  React.useEffect(() => {
-    if (!fit || state.status !== 'ready') return
-    const nextPosition = resolveAxisCameraPosition(spatialAxis, fit)
-    camera.position.set(nextPosition[0], nextPosition[1], nextPosition[2])
-    camera.lookAt(0, 0, 0)
-    camera.updateProjectionMatrix()
-  }, [camera, fit, spatialAxis, state.status])
 
   if (state.status !== 'ready' || !geometry || !fit) {
     return <SpatialCaptureStatusMarker color={state.status === 'error' ? '#f97316' : '#38bdf8'} />

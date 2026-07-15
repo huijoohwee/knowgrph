@@ -89,9 +89,9 @@ function GraphRagPathTraverseHelperSection({
   uiPanelKeyValueTextSizeClass,
   uiPanelTextFontClass,
 }: GraphRagPathTraverseHelperSectionProps) {
-  if (!graphRagPathHelper) return null
   const defaultStaticRowProps = useCanvasKeyTypeValueStaticRowProps('default')
   const compactStaticRowProps = useCanvasKeyTypeValueStaticRowProps('compact')
+  if (!graphRagPathHelper) return null
 
   return (
     <section className={helperPanelClassName}>
@@ -247,8 +247,8 @@ function DuckDbQueryPresetsSection({
   uiPanelTextFontClass,
 }: DuckDbQueryPresetsSectionProps) {
   const activePreset = presets.find(preset => preset.id === activePresetId) || null
-  if (!activePreset) return null
   const defaultStaticRowProps = useCanvasKeyTypeValueStaticRowProps('default')
+  if (!activePreset) return null
 
   return (
     <section className={helperPanelClassName}>

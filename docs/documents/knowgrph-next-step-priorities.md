@@ -20,7 +20,7 @@ related:
   - README.md
   - docs/documents/knowgrph-mcp-install-contract.md
   - docs/documents/knowgrph-mcp-onboarding-index.md
-  - docs/documents/knowgrph-agent-ready-document.md
+  - docs/documents/knowgrph-agent-ready-prd-tad.md
   - docs/documents/knowgrph-superagent-harness.md
   - ../agentic-canvas-os/docs
   - ../huijoohwee/content/knowgrph
@@ -171,7 +171,7 @@ publish/deploy drift.
 1. `README.md`
 2. `docs/documents/knowgrph-mcp-install-contract.md`
 3. `docs/documents/knowgrph-mcp-onboarding-index.md`
-4. `docs/documents/knowgrph-agent-ready-document.md`
+4. `docs/documents/knowgrph-agent-ready-prd-tad.md`
 5. `docs/documents/knowgrph-superagent-harness.md`
 6. `../agentic-canvas-os/docs`
 

@@ -8,16 +8,13 @@ import {
   OPENAI_VALUE_TOOLTIP_BY_ROW_KEY,
   type OpenAiApiDocRow,
 } from '../features/integrations/openaiResponsesSsot'
+import { resolveApiReferenceCodebaseIndexOutputPath } from './apiReferenceOutputPaths'
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '../../..')
 
-const OUTPUT_PATH = path.join(
+const OUTPUT_PATH = resolveApiReferenceCodebaseIndexOutputPath(
   REPO_ROOT,
-  'docs',
-  'documents',
-  'api-reference',
-  'api-reference-codebase-index_202604261230',
   'knowgrph-openai-responses-api-reference-codebase-index.md',
 )
 
