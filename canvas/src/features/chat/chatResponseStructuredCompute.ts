@@ -60,7 +60,6 @@ export const STRUCTURED_SURFACE_INLINE_COMPUTE_SOURCE = `inputs => {
   if (text) result.output = text;
   if (sourceSrcDoc) result.outputSrcDoc = sourceSrcDoc;
   else if (geoText) result.outputSrcDoc = "<section data-kg-structured-compute=\\"1\\" data-kg-structured-geospatial=\\"1\\"><h1>Geospatial output</h1><p>" + escape(geoSummary) + "</p><pre>" + escape(geoText.slice(0, 6000)) + "</pre></section>";
-  else if (text) result.outputSrcDoc = "<section data-kg-structured-compute=\\"1\\"><pre>" + escape(text) + "</pre></section>";
   const imageUrl = first(inputs.imageUrl);
   const audioUrl = first(inputs.audioUrl);
   const videoUrl = first(inputs.videoUrl);

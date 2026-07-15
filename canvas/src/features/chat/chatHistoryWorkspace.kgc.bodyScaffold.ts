@@ -1,3 +1,5 @@
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
+
 import { hasResponseOnlyKgcMarker } from './chatKgcResponseOnlyContract'
 
 const splitLeadingFrontmatterAndBody = (raw: string): { frontmatter: string; body: string } | null => {
@@ -28,13 +30,16 @@ const hasCanonicalPrdScaffold = (body: string): boolean => {
 const CANONICAL_PRD_SCAFFOLD = [
   '### Goals',
   '',
-  '| id | Goal | maps to | Priority | Status |',
-  '|---|---|---|---|---|',
-  '| `G-01` | Preserve one universal pipeline contract across request variants | `@node:n-trigger` | `#D85A30:P0` | TBD |',
-  '| `G-02` | Shape context from the current request instead of cloning fixture prose | `@node:n-pack` | `#D85A30:P0` | TBD |',
-  '| `G-03` | Generate `{{artifact}}` with request-relevant body content | `@node:n-process` | `#D85A30:P0` | TBD |',
-  '| `G-04` | Reject unresolved or malformed markdown before persistence | `@node:n-validate` | `#185FA5|bg#E6F1FB:P1` | TBD |',
-  '| `G-05` | Persist only the normalized artifact identity and body | `@node:n-deliver` | `#185FA5|bg#E6F1FB:P1` | TBD |',
+  ...serializeMarkdownPipeTable({
+    columns: ['id', 'Goal', 'maps to', 'Priority', 'Status'],
+    rows: [
+      ['`G-01`', 'Preserve one universal pipeline contract across request variants', '`@node:n-trigger`', '`#D85A30:P0`', 'TBD'],
+      ['`G-02`', 'Shape context from the current request instead of cloning fixture prose', '`@node:n-pack`', '`#D85A30:P0`', 'TBD'],
+      ['`G-03`', 'Generate `{{artifact}}` with request-relevant body content', '`@node:n-process`', '`#D85A30:P0`', 'TBD'],
+      ['`G-04`', 'Reject unresolved or malformed markdown before persistence', '`@node:n-validate`', '`#185FA5|bg#E6F1FB:P1`', 'TBD'],
+      ['`G-05`', 'Persist only the normalized artifact identity and body', '`@node:n-deliver`', '`#185FA5|bg#E6F1FB:P1`', 'TBD'],
+    ],
+  }),
   '',
   '### Non-Goals',
   '',
@@ -42,12 +47,15 @@ const CANONICAL_PRD_SCAFFOLD = [
   '',
   '### User Stories',
   '',
-  '| id | As a... | I want... | So that... | Acceptance criteria |',
-  '|---|---|---|---|---|',
-  '| `US-01` | `{{owner}}` | one request to map into one valid stored artifact | the chat pipeline stays predictable | output starts with frontmatter and contains required body sections |',
-  '| `US-02` | `{{owner}}` | the body to reflect the request | the stored document stays relevant to the query | problem and architecture prose mention request-specific scope without fabrication |',
-  '| `US-03` | `reviewer` | failed rule feedback to stay bounded and actionable | retry loops do not drift or freeze | retry arc stops at `{{runtime.maxRetry}}` and surfaces a correction signal |',
-  '| `US-04` | `renderer` | frontmatter and body to stay aligned | graph, markdown, and storage stay in sync | section references and node IDs remain consistent across surfaces |',
+  ...serializeMarkdownPipeTable({
+    columns: ['id', 'As a...', 'I want...', 'So that...', 'Acceptance criteria'],
+    rows: [
+      ['`US-01`', '`{{owner}}`', 'one request to map into one valid stored artifact', 'the chat pipeline stays predictable', 'output starts with frontmatter and contains required body sections'],
+      ['`US-02`', '`{{owner}}`', 'the body to reflect the request', 'the stored document stays relevant to the query', 'problem and architecture prose mention request-specific scope without fabrication'],
+      ['`US-03`', '`reviewer`', 'failed rule feedback to stay bounded and actionable', 'retry loops do not drift or freeze', 'retry arc stops at `{{runtime.maxRetry}}` and surfaces a correction signal'],
+      ['`US-04`', '`renderer`', 'frontmatter and body to stay aligned', 'graph, markdown, and storage stay in sync', 'section references and node IDs remain consistent across surfaces'],
+    ],
+  }),
 ].join('\n')
 
 const insertCanonicalPrdScaffold = (body: string): string => {

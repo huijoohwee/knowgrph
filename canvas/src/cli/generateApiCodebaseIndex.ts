@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 const REPO_ROOT = process.cwd()
 const INDEX_DIR = path.join(
@@ -155,10 +156,6 @@ function normalizeRow(raw: Record<string, unknown>): SsotRow {
   }
 }
 
-function escapeTableCell(value: string): string {
-  return String(value).replace(/\|/g, '\\|')
-}
-
 function inferEndpointKind(key: string, endpointPrefix: string): string {
   const lower = key.toLowerCase()
   if (lower === 'provider' || lower === 'auth_mode' || lower === 'api_key' || lower === 'endpoint' || lower === 'endpoint_url') return 'ALL'
@@ -197,7 +194,7 @@ function inferType(typeLabel: string): string {
   return 'string'
 }
 
-function buildRow(row: SsotRow, spec: IndexSpec): string {
+function buildRow(row: SsotRow, spec: IndexSpec): string[] {
   const endpoint = inferEndpointKind(row.key, spec.endpointPrefix)
   const actor = inferActor(row.key)
   const required = inferRequired(row.value, row.typeLabel)
@@ -205,23 +202,23 @@ function buildRow(row: SsotRow, spec: IndexSpec): string {
   const type = inferType(row.typeLabel)
 
   const modules = row.modules?.length
-    ? row.modules.map(m => escapeTableCell(m)).join('; ')
+    ? row.modules.join('; ')
     : spec.sourceFile
 
   const classes = row.classes?.length
-    ? row.classes.map(c => escapeTableCell(c)).join('; ')
+    ? row.classes.join('; ')
     : ''
 
   const functions = row.functions?.length
-    ? row.functions.map(f => escapeTableCell(f)).join('; ')
+    ? row.functions.join('; ')
     : ''
 
   return [
     endpoint,
     'param',
-    escapeTableCell(row.key),
+    row.key,
     type,
-    escapeTableCell(row.value),
+    row.value,
     required,
     'in',
     actor,
@@ -229,25 +226,28 @@ function buildRow(row: SsotRow, spec: IndexSpec): string {
     endpoint === 'ALL' ? '—' : 'body',
     '—',
     pattern,
-    escapeTableCell(row.responsibility),
-    escapeTableCell(row.value),
+    row.responsibility,
+    row.value,
     modules,
     classes,
     functions,
-  ].join(' | ').trimEnd()
+  ]
 }
 
 function generateIndex(spec: IndexSpec, rows: ReadonlyArray<SsotRow>): string {
   const sectionHeader = '## Table'
-  const header = '| endpoint | kind | key | type | value | required | direction | actor | seq-note | location | scope | pattern | key-description | value-description | module | class | function |'
-  const separator = '|----------|------|-----|------|-------|----------|-----------|-------|----------|----------|-------|---------|-----------------|-------------------|--------|-------|----------|'
 
   const dataRows = rows
     .map(raw => normalizeRow(raw as unknown as Record<string, unknown>))
     .filter(row => row.key)
     .map(row => buildRow(row, spec))
 
-  return [sectionHeader, '', header, separator, ...dataRows].join('\n')
+  const table = serializeMarkdownPipeTable({
+    columns: ['endpoint', 'kind', 'key', 'type', 'value', 'required', 'direction', 'actor', 'seq-note', 'location', 'scope', 'pattern', 'key-description', 'value-description', 'module', 'class', 'function'],
+    rows: dataRows,
+  })
+
+  return [sectionHeader, '', ...table].join('\n')
 }
 
 async function main() {

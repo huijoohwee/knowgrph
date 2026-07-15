@@ -33,12 +33,12 @@ import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasApp
 import { resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
 import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { appendPendingOverlayNodesToGraphData, resolvePendingOverlayGraphDataBase } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetPendingOverlayGraph'
+import { useNativeCrawlerWorkflowRecovery } from '@/components/StoryboardWidgetCanvas/runtime/useNativeCrawlerWorkflowRecovery'
+import { useStoryboardCardMediaGraphCommit } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardCardMediaGraphCommit'
 import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCanvas/storyboardCardOwnership2d'
 import { readCanvasCardWidgetDisplayMode } from '@/lib/canvas/canvasCardWidgetDisplayControls'
-import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
-import { persistStoryboardCardMediaGraphSource } from '@/components/StoryboardWidgetCanvas/runtime/storyboardCardMediaGraphSource'
 // #region debug-point A:runtime-storyboard-graph-handoff
 const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'
 const reportStoryboardMediaPanelLoopRuntimeDebug = (args: {
@@ -272,15 +272,7 @@ export default function StoryboardWidgetCanvasRuntime(
     historyIndex,
     preferDraftGraphData: storyboardCardsMode,
   })
-  const commitStoryboardCardMediaGraph = React.useCallback((graphData: GraphData) => {
-    const nextDraft = bumpStoryboardWidgetDraftGraphDataRevision(graphData, {
-      revisionFloor: Math.max(draftGraphDataRevision, baseGraphDataRevision),
-    })
-    draftGraphDataRef.current = nextDraft
-    setDraftGraphData(nextDraft)
-    setGraphDataPreservingLayout(nextDraft)
-    persistStoryboardCardMediaGraphSource(nextDraft)
-  }, [baseGraphDataRevision, draftGraphDataRef, draftGraphDataRevision, setDraftGraphData, setGraphDataPreservingLayout])
+  const { commitStoryboardCardMediaGraph, commitStoryboardCardMediaGraphForSurface } = useStoryboardCardMediaGraphCommit({ baseRevision: baseGraphDataRevision, draftRevision: draftGraphDataRevision, draftGraphDataRef, setDraftGraphData, setGraphDataPreservingLayout, upsertUiToast })
   const storyboardCanvasGraphDataForDisplay = React.useMemo((): GraphData | null => {
     if (!storyboardCardsMode) return null
     return resolveStoryboardCanvasGraphDataAuthority({
@@ -596,11 +588,14 @@ export default function StoryboardWidgetCanvasRuntime(
     appendDraftNode,
     setDraftGraphData,
     commitPublishedGraphData: commitStoryboardCardMediaGraph,
+    persistDraftGraphData: commitStoryboardCardMediaGraph,
     updateNode,
     upsertUiToast,
     scheduleOverlayEdgeUpdate,
   })
   runWorkflowNodeRef.current = runWorkflowNode
+
+  useNativeCrawlerWorkflowRecovery({ active: storyboardWidgetViewActive, graphData: draftGraphDataRef.current || draftGraphData, documentName: markdownDocumentName, runNode: runWorkflowNode })
 
   const { inspectorElement } = useStoryboardWidgetInspectorSurface({
     active,
@@ -848,7 +843,7 @@ export default function StoryboardWidgetCanvasRuntime(
       zoomViewKeyRef={zoomViewKeyRef}
       addNodeFromRegistryAtWorld={addNodeFromRegistryAtWorld}
       addRichMediaPanelFromMediaAtWorld={addRichMediaPanelFromMediaAtWorld}
-      commitStoryboardCardMediaGraph={commitStoryboardCardMediaGraph}
+      commitStoryboardCardMediaGraph={commitStoryboardCardMediaGraphForSurface}
       patchNodeById={patchNodeById}
       patchNodePropertiesById={patchNodePropertiesById}
       removeNodeById={removeNodeById}

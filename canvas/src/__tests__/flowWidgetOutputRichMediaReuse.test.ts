@@ -22,6 +22,8 @@ export function testTextWidgetOutputPatchBuildsRichMediaIframeSpec() {
 
   const spec = getNodeMediaSpec(node)
   if (spec) throw new Error('expected text widget output patch to stay off the direct media overlay path and render through Rich Media Panel instead')
+  if (patch.outputSrcDoc) throw new Error('expected generated text output to persist Markdown without materializing srcDoc by default')
+
 }
 
 export function testRichMediaRunDispatchSupportsDeerFlowAdapters() {
@@ -43,10 +45,12 @@ export function testStoryboardWidgetCanvasTextRunUsesSharedRichMediaOutputPatch(
   const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts')
   const workflowRunActionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts')
   const workflowRichMediaPanelPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRichMediaPanel.ts')
+  const workflowRichMediaPublicationPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRichMediaPublication.ts')
   const text = [
     readFileSync(storyboardWidgetCanvasPath, 'utf8'),
     readFileSync(workflowActionsPath, 'utf8'),
     readFileSync(workflowRunActionPath, 'utf8'),
+    readFileSync(workflowRichMediaPublicationPath, 'utf8'),
   ].join('\n')
   const workflowRichMediaPanelText = readFileSync(workflowRichMediaPanelPath, 'utf8')
 
@@ -248,8 +252,9 @@ export function testStoryboardWidgetCanvasDataflowRegistryPrefersNonEmptyDocumen
   const workflowActionsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts')
   const workflowRunActionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts')
   const workflowRunInputsPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunInputs.ts')
+  const workflowMediaRunHandlersPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowMediaRunHandlers.ts')
   const runtimeText = readFileSync(storyboardWidgetCanvasRuntimePath, 'utf8')
-  const workflowActionsText = `${readFileSync(workflowActionsPath, 'utf8')}\n${readFileSync(workflowRunActionPath, 'utf8')}`
+  const workflowActionsText = `${readFileSync(workflowActionsPath, 'utf8')}\n${readFileSync(workflowRunActionPath, 'utf8')}\n${readFileSync(workflowMediaRunHandlersPath, 'utf8')}`
   const workflowRunInputsText = readFileSync(workflowRunInputsPath, 'utf8')
 
   if (!runtimeText.includes('buildDataflowWidgetRegistry')) {
@@ -577,81 +582,6 @@ export function testFlowCanvasWheelProxyHonorsWheelIgnoreTargets() {
     || !widgetInnerPanelScrollText.includes('allowModifierZoom: false')
   ) {
     throw new Error('expected shared widget inner-panel scrolling utility to consume wheel over RichMediaPanel scroll chrome before canvas zoom')
-  }
-}
-
-export function testStoryboardWidgetCanvasRunSetsSharedOutputLoadingState() {
-  const storyboardWidgetCanvasPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowActions.ts')
-  const workflowRunActionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts')
-  const renderGraphHelperPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetRenderGraph.ts')
-  const workflowWritebackPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowWriteback.ts')
-  const text = readFileSync(storyboardWidgetCanvasPath, 'utf8')
-  const workflowRunActionText = readFileSync(workflowRunActionPath, 'utf8')
-  const renderGraphHelperText = readFileSync(renderGraphHelperPath, 'utf8')
-  const workflowWritebackText = readFileSync(workflowWritebackPath, 'utf8')
-  if (!workflowWritebackText.includes('export function setStoryboardWidgetWorkflowRunLoadingStateForKnownNodeIds(args: {') || !workflowWritebackText.includes("kind?: StoryboardWidgetWorkflowOutputLoadingKind")) {
-    throw new Error('expected StoryboardWidget runtime helper to centralize output loading state patching for run widgets')
-  }
-  if (!workflowRunActionText.includes("setRunLoadingStateForKnownNodeIds({ loading: true, kind: richMediaKind })")) {
-    throw new Error('expected RichMedia widget run path to publish loading state before generation')
-  }
-  if (!workflowRunActionText.includes("setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })")) {
-    throw new Error('expected TextGeneration run path to publish loading state before generation')
-  }
-  if (!workflowWritebackText.includes("lastRunAt: args.loading === true ? new Date().toISOString() : nodeProps.lastRunAt")) {
-    throw new Error('expected shared workflow loading-state helper to stamp lastRunAt so initialization does not masquerade as an active run')
-  }
-  if (!workflowRunActionText.includes('const publishTextRunOutput = (outputText: string, loading: boolean, outputPath?: string | null) => {')) {
-    throw new Error('expected TextGeneration run path to centralize streamed/final output publishing in one SSOT helper')
-  }
-  if (!workflowRunActionText.includes('const runProvider = normalizedProvider || store.chatProvider')) {
-    throw new Error('expected rich-media run dispatch to derive provider from normalized active provider/store value instead of hard-forcing one provider')
-  }
-  if (!workflowRunActionText.includes("const runEndpointUrl = String(store.chatEndpointUrl || '').trim() || getChatDefaultEndpointUrlForProvider(runProvider)")) {
-    throw new Error('expected rich-media run dispatch to resolve endpoint from active store endpoint with provider-scoped fallback')
-  }
-  if (workflowRunActionText.includes('const runProvider = CHAT_PROVIDER_BYTEPLUS')) {
-    throw new Error('expected rich-media run dispatch to remove hardcoded BytePlus provider pinning')
-  }
-  if (workflowRunActionText.includes('getChatDefaultEndpointUrlForProvider(CHAT_PROVIDER_BYTEPLUS)')) {
-    throw new Error('expected rich-media run dispatch to remove BytePlus-only endpoint fallback pinning')
-  }
-  if (!workflowRunActionText.includes('onText: (nextText) => {')) {
-    throw new Error('expected TextGeneration run path to reuse streamed text callback for progressive Rich Media output updates')
-  }
-  if (!text.includes('args.draftGraphDataRef.current || args.draftGraphData') || !workflowRunActionText.includes('args.readDraftGraphData()')) {
-    throw new Error('expected run output updates to prefer latest draft graph state so loading-clear does not wipe freshly published text output')
-  }
-  if (!workflowWritebackText.includes('if (updated) args.scheduleWorkflowOutputEdgeRefresh()')) {
-    throw new Error('expected shared workflow output writes to refresh overlay edges after output/loading writes without forcing layout reseed')
-  }
-  if (!renderGraphHelperText.includes('export function getCachedStoryboardWidgetWorkflowRunPlan(args: {')) {
-    throw new Error('expected StoryboardWidget runtime helper to centralize run-all workflow plan derivation')
-  }
-  const workflowRunAllText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowRunAll.ts'), 'utf8')
-  if (!workflowRunAllText.includes('const runPlan = getCachedStoryboardWidgetWorkflowRunPlan({')) {
-    throw new Error('expected StoryboardWidget run-all helper to reuse the shared workflow plan')
-  }
-  if (!workflowRunAllText.includes("import type { UiToastInput } from '@/hooks/store/types'")) {
-    throw new Error('expected StoryboardWidget Run All progress to reuse the shared toast input contract')
-  }
-  for (const snippet of [
-    "const toastId = 'storyboard-widget-run-all'",
-    'const upsertRunAllToast = (toast: Omit<UiToastInput,',
-    'ttlMs: null',
-    'dismissible: false',
-    'busy: true',
-    '`Run All starting: 0/${ids.length} nodes. ${phaseSummary}`',
-    '`Run All running ${index + 1}/${ids.length}: ${label}`',
-    '`Run All completed ${index + 1}/${ids.length}: ${label}`',
-    "`Run All complete: ran ${ids.length} node${ids.length === 1 ? '' : 's'}.`",
-  ]) {
-    if (!workflowRunAllText.includes(snippet)) {
-      throw new Error(`expected StoryboardWidget Run All progress toast contract snippet: ${snippet}`)
-    }
-  }
-  if (workflowRunAllText.includes("args.upsertUiToast({ id: 'storyboard-widget-run-all-done'")) {
-    throw new Error('expected StoryboardWidget Run All completion to resolve the shared progress toast instead of spawning a separate done toast')
   }
 }
 

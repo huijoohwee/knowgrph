@@ -1,7 +1,35 @@
 import inspect
+import unittest
 
 from . import webpage_cmd
-from .webpage_cmd import _extract_structured_details_markdown, _table_html_to_markdown
+from .webpage_cmd import (
+    SimpleMarkdownParser,
+    _extract_structured_details_markdown,
+    _table_html_to_markdown,
+)
+
+
+class SimpleMarkdownParserTableTest(unittest.TestCase):
+    def test_source_html_table_is_emitted_as_markdown_pipe_table(self) -> None:
+        parser = SimpleMarkdownParser(base_url="https://example.com/")
+        parser.feed(
+            """
+            <main>
+              <table class="pricing">
+                <tr><th>Plan</th><th>Details</th></tr>
+                <tr><td>Team | Plus</td><td>Fast<br>Shared</td></tr>
+              </table>
+            </main>
+            """
+        )
+
+        markdown = parser.get_markdown()
+
+        self.assertIn("| Plan | Details |", markdown)
+        self.assertRegex(markdown, r"\| -{3,} \| -{3,} \|")
+        self.assertIn(r"| Team \| Plus | Fast Shared |", markdown)
+        self.assertNotIn("<table", markdown.lower())
+        self.assertNotIn("<br", markdown.lower())
 
 
 def main() -> int:
@@ -69,7 +97,10 @@ def main() -> int:
     if any(token in fetch_source for token in forbidden_fetch_tokens):
         raise SystemExit("webpage fetch must keep TLS verification enabled")
 
-    return 0
+    result = unittest.TextTestRunner().run(
+        unittest.defaultTestLoader.loadTestsFromTestCase(SimpleMarkdownParserTableTest)
+    )
+    return 0 if result.wasSuccessful() else 1
 
 
 if __name__ == "__main__":

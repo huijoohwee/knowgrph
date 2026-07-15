@@ -2,6 +2,7 @@ import { hashText } from '@/features/parsers/hash'
 import { inferCorpusMediaKind, type CorpusSourceUnit } from '@/features/queryable-corpus/corpusGraph'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import { yamlQuote } from './yaml'
 
 export type VideoSequenceImportAsset = {
@@ -145,6 +146,14 @@ export function buildVideoSequenceTimelineImportMarkdown(assetsRaw: ReadonlyArra
     '  section Audio',
     ...clips.map(clip => `  ${clip.label} audio : ${buildClipLaneId(clip.clipId, 'audio')}, ${formatSourceRangeToken(0, clip.sourceDurationSeconds)}, ${formatTimelineClock(clip.startMinutes)}, ${clip.durationMinutes}m`),
   ]
+  const clipTableLines = serializeMarkdownPipeTable({
+    columns: ['Clip', 'Source', 'Mode'],
+    rows: clips.map(clip => [
+      clip.label,
+      cleanPath(clip.asset.relativePath || clip.asset.sourceUrl || clip.asset.originalName) || clip.label,
+      clip.asset.importMode,
+    ]),
+  })
   return [
     '---',
     'kgCanvasRenderMode: "2d"',
@@ -164,9 +173,7 @@ export function buildVideoSequenceTimelineImportMarkdown(assetsRaw: ReadonlyArra
     '',
     '# Video Sequence Timeline',
     '',
-    '| Clip | Source | Mode |',
-    '| --- | --- | --- |',
-    ...clips.map(clip => `| ${clip.label} | ${cleanPath(clip.asset.relativePath || clip.asset.sourceUrl || clip.asset.originalName) || clip.label} | ${clip.asset.importMode} |`),
+    ...clipTableLines,
     '',
   ].join('\n')
 }

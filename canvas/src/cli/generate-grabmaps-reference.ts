@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import {
   GRABMAPS_DOC_ROWS,
   type GrabMapsApiDocRow,
@@ -17,19 +18,12 @@ const OUTPUT_PATH = path.join(
 )
 const GRABMAPS_DOCS_URL = 'https://maps.grab.com/developer/documentation'
 
-function escapeMarkdownCell(value: unknown): string {
-  return String(value ?? '')
-    .replace(/\r?\n/g, ' ')
-    .replace(/\|/g, '\\|')
-    .trim()
-}
-
 function formatList(values: readonly string[] | undefined): string {
   return (values || []).map(value => `\`${value}\``).join('; ')
 }
 
-function buildRow(row: GrabMapsApiDocRow): string {
-  const cells = [
+function buildRow(row: GrabMapsApiDocRow): string[] {
+  return [
     row.key,
     row.typeLabel,
     row.value,
@@ -39,8 +33,7 @@ function buildRow(row: GrabMapsApiDocRow): string {
     formatList(row.module),
     formatList(row.className),
     formatList(row.functionName),
-  ].map(escapeMarkdownCell)
-  return `| ${cells.join(' | ')} |`
+  ]
 }
 
 function getSortedRows(): GrabMapsApiDocRow[] {
@@ -66,9 +59,10 @@ function buildMarkdown(): string {
     '- `module | class | function`: where the row is anchored in the knowgrph codebase',
     '- Rows are sorted by `key` in ascending `a-z` order for static-reference scanability.',
     '',
-    '| key | type | value | key-description | value-description | ssot | module | class | function |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
-    ...getSortedRows().map(buildRow),
+    ...serializeMarkdownPipeTable({
+      columns: ['key', 'type', 'value', 'key-description', 'value-description', 'ssot', 'module', 'class', 'function'],
+      rows: getSortedRows().map(buildRow),
+    }),
     '',
   ].join('\n')
 }

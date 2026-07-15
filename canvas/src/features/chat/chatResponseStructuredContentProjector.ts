@@ -22,6 +22,15 @@ const yamlValue = (value: JSONValue): string => {
 const yamlKey = (key: string): string =>
   /^[A-Za-z_][A-Za-z0-9_-]*$/.test(key) ? key : yamlScalar(key)
 
+const appendYamlPropertyLines = (lines: string[], indent: string, key: string, value: JSONValue): void => {
+  if (typeof value === 'string' && value.includes('\n')) {
+    lines.push(`${indent}${yamlKey(key)}: |-`)
+    for (const row of value.replace(/\r\n?/g, '\n').split('\n')) lines.push(`${indent}  ${row}`)
+    return
+  }
+  lines.push(`${indent}${yamlKey(key)}: ${yamlValue(value)}`)
+}
+
 const CHAT_RESPONSE_REGISTRY_UPDATED_AT = '1970-01-01T00:00:00.000Z'
 
 const cleanRegistryIdPart = (value: unknown): string =>
@@ -435,7 +444,7 @@ export const buildChatResponseSurfaceFlowPatch = (surface: ChatResponseStructure
       '      properties:',
     ]
     for (const [key, value] of Object.entries(node.properties)) {
-      lines.push(`        ${yamlKey(key)}: ${yamlValue(value)}`)
+      appendYamlPropertyLines(lines, '        ', key, value)
     }
     return lines
   })

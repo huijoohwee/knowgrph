@@ -23,6 +23,7 @@ import {
   saveBlobWithPicker,
   writeExportPrefs,
 } from '@/lib/graph/save'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 const ensureExt = (name: string, allowed: string[], fallback: string): string => {
   const s = String(name || '').toLowerCase()
@@ -212,12 +213,6 @@ export const exportGraphMarkdownFromStore = () => {
     const base = suggested ? String(suggested) : pref
     const name = ensureExt(base, ['.md', '.markdown'], 'graph.md')
 
-    const escapeCell = (v: unknown): string => {
-      const s = String(v ?? '').replace(/\r\n?/g, '\n').replace(/\n/g, ' ').trim()
-      if (!s) return ''
-      return s.replace(/\|/g, '\\|')
-    }
-
     const run = async () => {
       const handle = await openSaveFilePickerHandle(name, {
         description: 'Markdown Files',
@@ -229,10 +224,10 @@ export const exportGraphMarkdownFromStore = () => {
       const edges = Array.isArray(current.edges) ? current.edges : []
       const MAX_ROWS = 800
 
-      const nodeRows = nodes.slice(0, MAX_ROWS).map(n => `| ${escapeCell(n.id)} | ${escapeCell(n.label)} | ${escapeCell(n.type)} |`)
+      const nodeRows = nodes.slice(0, MAX_ROWS).map(n => [n.id, n.label, n.type])
       const edgeRows = edges
         .slice(0, MAX_ROWS)
-        .map(e => `| ${escapeCell(e.id)} | ${escapeCell(e.source)} | ${escapeCell(e.target)} | ${escapeCell(e.label)} | ${escapeCell(e.type)} |`)
+        .map(e => [e.id, e.source, e.target, e.label, e.type])
 
       const jsonld = await exportAsJsonLdBlob(current).text().catch(() => '')
 
@@ -252,15 +247,17 @@ export const exportGraphMarkdownFromStore = () => {
       lines.push('')
       lines.push('## Nodes')
       lines.push('')
-      lines.push('| id | label | type |')
-      lines.push('|---|---|---|')
-      lines.push(...(nodeRows.length ? nodeRows : ['| | | |']))
+      lines.push(...serializeMarkdownPipeTable({
+        columns: ['id', 'label', 'type'],
+        rows: nodeRows.length ? nodeRows : [['', '', '']],
+      }))
       lines.push('')
       lines.push('## Edges')
       lines.push('')
-      lines.push('| id | source | target | label | type |')
-      lines.push('|---|---|---|---|---|')
-      lines.push(...(edgeRows.length ? edgeRows : ['| | | | | |']))
+      lines.push(...serializeMarkdownPipeTable({
+        columns: ['id', 'source', 'target', 'label', 'type'],
+        rows: edgeRows.length ? edgeRows : [['', '', '', '', '']],
+      }))
       lines.push('')
       if (jsonld.trim()) {
         lines.push('## JSON-LD')

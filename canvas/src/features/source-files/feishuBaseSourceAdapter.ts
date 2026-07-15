@@ -1,4 +1,5 @@
 import { sanitizeImportedMarkdownText } from '@/lib/markdown/sanitizeImportedMarkdown'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 export type FeishuBaseSourceField = {
   id: string
@@ -94,12 +95,6 @@ const summarizeValue = (value: unknown): string => {
   }
 }
 
-const escapeTableCell = (value: string): string =>
-  String(value || '')
-    .replace(/\|/g, '\\|')
-    .replace(/\r?\n/g, ' ')
-    .trim()
-
 const readRecordHeading = (record: FeishuBaseSourceRecord, fields: FeishuBaseSourceField[]): string => {
   const explicit = normalizeString(record.title)
   if (explicit) return explicit
@@ -174,12 +169,14 @@ const buildFieldSchemaSection = (fields: FeishuBaseSourceField[]): string => {
     lines.push('No field schema was provided for this snapshot.', '')
     return lines.join('\n')
   }
-  lines.push('| Field | Type | Role |', '|---|---|---|')
-  for (const field of fields) {
-    lines.push(
-      `| ${escapeTableCell(field.name)} | ${escapeTableCell(normalizeString(field.type) || 'unknown')} | ${field.isPrimary ? 'primary' : 'standard'} |`,
-    )
-  }
+  lines.push(...serializeMarkdownPipeTable({
+    columns: ['Field', 'Type', 'Role'],
+    rows: fields.map(field => [
+      field.name,
+      normalizeString(field.type) || 'unknown',
+      field.isPrimary ? 'primary' : 'standard',
+    ]),
+  }))
   lines.push('')
   return lines.join('\n')
 }

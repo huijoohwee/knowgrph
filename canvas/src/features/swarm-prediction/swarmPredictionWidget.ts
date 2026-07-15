@@ -35,7 +35,6 @@ const SWARM_PREDICTION_FIELDS: WidgetRegistryField[] = [
   { fieldKey: 'ticks', fieldType: 'number', schemaPath: 'properties.ticks', label: 'Ticks' },
   { fieldKey: 'randomSeed', fieldType: 'text', schemaPath: 'properties.randomSeed', label: 'Seed' },
   { fieldKey: 'output', fieldType: 'textarea', schemaPath: 'properties.output', label: 'Output' },
-  { fieldKey: 'outputSrcDoc', fieldType: 'textarea', schemaPath: 'properties.outputSrcDoc', label: 'HTML srcdoc' },
   { fieldKey: 'imageUrl', fieldType: 'text', schemaPath: 'properties.imageUrl', label: 'Chart image URL' },
   { fieldKey: 'predictionScore', fieldType: 'number', schemaPath: 'properties.predictionScore', label: 'Prediction score' },
   { fieldKey: 'confidenceScore', fieldType: 'number', schemaPath: 'properties.confidenceScore', label: 'Confidence score' },
@@ -49,7 +48,6 @@ const SWARM_PREDICTION_PORTS: WidgetRegistryPort[] = [
   { portKey: 'interventionsJson_in', direction: 'input', schemaPath: 'properties.interventionsJson' },
   { portKey: 'scenarioTitle_in', direction: 'input', schemaPath: 'properties.scenarioTitle' },
   { portKey: 'output', direction: 'output', schemaPath: 'properties.output' },
-  { portKey: 'outputSrcDoc', direction: 'output', schemaPath: 'properties.outputSrcDoc' },
   { portKey: 'imageUrl', direction: 'output', schemaPath: 'properties.imageUrl' },
   { portKey: 'predictionScore', direction: 'output', schemaPath: 'properties.predictionScore' },
   { portKey: 'confidenceScore', direction: 'output', schemaPath: 'properties.confidenceScore' },
@@ -82,7 +80,6 @@ export function runSwarmPredictionWidgetProperties(properties: Record<string, un
   return {
     ...properties,
     output: result.output,
-    outputSrcDoc: result.outputSrcDoc,
     imageUrl: result.imageUrl,
     predictionScore: result.prediction.score,
     confidenceScore: result.prediction.confidence,

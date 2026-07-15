@@ -8,7 +8,6 @@ import {
   FLOW_IMAGE_GENERATION_NODE_LABEL,
   FLOW_IMAGE_GENERATION_NODE_TYPE_ID,
   FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
-  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_LABEL,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
   FLOW_VIDEO_GENERATION_NODE_LABEL,
@@ -34,6 +33,8 @@ import {
   isImageToGlbOutputPanel,
 } from '@/features/image-to-glb/imageToGlbContract'
 import type { NodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
+import { isRichMediaPanelNode } from '@/lib/render/richMediaPanelNode'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 
 export type MediaOverlayKind = 'iframe' | 'image' | 'svg' | 'video' | 'audio' | 'model'
 
@@ -78,9 +79,11 @@ type Candidate = {
   rank: number
   idx: number
   preferred: boolean
+  workflowOutputKey?: string
 }
 
 function buildRichMediaPanelDedupKey(candidate: Candidate): string {
+  if (candidate.workflowOutputKey) return `${candidate.kind}\nworkflow-output\n${candidate.id}\n${candidate.workflowOutputKey}`
   const canonicalUrl = canonicalMediaDedupUrl(candidate.url || candidate.openUrl)
   if (canonicalUrl) return `${candidate.kind}\n${canonicalUrl}`
   const srcDoc = String(candidate.srcDoc || '').trim()
@@ -174,7 +177,7 @@ function deriveOverlayNodeLabel(node: GraphNode): string {
       model: properties.model,
     })
   }
-  if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+  if (isRichMediaPanelNode(node)) {
     if (isImageToGlbOutputPanel(properties)) return IMAGE_TO_GLB_OUTPUT_PANEL_LABEL
     if (isImageToThreeJsOutputPanel(properties)) return IMAGE_TO_THREEJS_OUTPUT_PANEL_LABEL
     return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
@@ -188,7 +191,7 @@ function buildOverlayTitle(args: {
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
 }): string {
   const base = deriveOverlayNodeLabel(args.node)
-  if (String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+  if (isRichMediaPanelNode(args.node)) {
     return base || FLOW_RICH_MEDIA_PANEL_NODE_LABEL
   }
   return base || 'Media node'
@@ -219,7 +222,7 @@ function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }):
 
   const typeRaw = nodeTypeId.toLowerCase()
   // Keep Rich Media Panel as canonical renderer when media URLs collide with source widgets.
-  if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID || typeRaw === 'richmediapanel' || typeRaw === 'rich media panel') {
+  if (isRichMediaPanelNode(node) || typeRaw === 'richmediapanel' || typeRaw === 'rich media panel') {
     score += 1000
   }
   if (typeRaw === 'image' || typeRaw === 'video' || typeRaw === 'audio' || typeRaw === 'iframe' || typeRaw === 'webpageelement' || typeRaw === 'link') {
@@ -343,7 +346,8 @@ export function listMediaOverlayNodes(args: {
       : renderNode
 
     const connectedValuesBySchemaPath = connectedValuesByNodeId?.get(id)
-    const isRichMediaPanel = String(n0.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    const isRichMediaPanel = isRichMediaPanelNode(n0)
+    const workflowOutputKey = String(unwrapGraphCellValue((n0.properties as Record<string, unknown> | undefined)?.workflowOutputKey) || '').trim()
     const panelNodeById = isRichMediaPanel ? getNodeById() : undefined
     const panel = buildRichMediaPanelOverlayState({
       node: n0,
@@ -430,6 +434,7 @@ export function listMediaOverlayNodes(args: {
       rank,
       idx: i,
       preferred: preferredHit,
+      ...(workflowOutputKey ? { workflowOutputKey } : {}),
     })
   }
 

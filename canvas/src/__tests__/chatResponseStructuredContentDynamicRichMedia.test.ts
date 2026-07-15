@@ -563,12 +563,12 @@ export async function testChatResponseStructuredContentSynthesizesNeutralCardPan
       graphData,
       registry,
       targetNodeIds: new Set(['mcp-response-card-panel']),
-    }).get('mcp-response-card-panel')?.['properties.outputSrcDoc']
+    }).get('mcp-response-card-panel')?.['properties.output']
     if (
       typeof connected?.value !== 'string'
       || !connected.value.includes('Storyboard card value from neutral structured content.')
-      || !connected.sources.some(source => source.nodeId === 'mcp-response-structured-compute' && source.portKey === 'outputSrcDoc')
-    ) throw new Error(`Expected synthesized outputSrcDoc to source from inline compute, got: ${JSON.stringify(connected)}`)
+      || !connected.sources.some(source => source.nodeId === 'mcp-response-structured-compute' && source.portKey === 'output')
+    ) throw new Error(`Expected synthesized Markdown output to source from inline compute, got: ${JSON.stringify(connected)}`)
 
     const updatedGraphData = {
       ...graphData,
@@ -580,7 +580,7 @@ export async function testChatResponseStructuredContentSynthesizesNeutralCardPan
       graphData: updatedGraphData,
       registry,
       targetNodeIds: new Set(['mcp-response-card-panel']),
-    }).get('mcp-response-card-panel')?.['properties.outputSrcDoc']?.value
+    }).get('mcp-response-card-panel')?.['properties.output']?.value
     if (typeof recomputed !== 'string' || !recomputed.includes('updated card value')) {
       throw new Error(`Expected synthesized dataflow to recompute from card edits, got: ${String(recomputed)}`)
     }

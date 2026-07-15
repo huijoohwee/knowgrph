@@ -20,7 +20,7 @@ const MARKDOWN_EXPLORER_SECTION_COLLAPSE_KEYS = {
   backlinksCollapsed: LS_KEYS.markdownExplorerBacklinksCollapsed,
 } as const
 
-const MARKDOWN_EXPLORER_OPEN_SOURCE_FILES_EVENT = 'kg:markdown-explorer:open-source-files'
+export const MARKDOWN_EXPLORER_OPEN_SOURCE_FILES_EVENT = 'kg:markdown-explorer:open-source-files'
 
 function normalizeMarkdownExplorerSectionCollapseState(
   state?: Partial<MarkdownExplorerSectionCollapseState> | null,
@@ -74,12 +74,14 @@ export function persistMarkdownExplorerSectionCollapseState(
   return next
 }
 
-export function requestMarkdownExplorerSourceFilesOpen() {
+export function requestMarkdownExplorerSourceFilesOpen(path?: string | null) {
   const current = readMarkdownExplorerSectionCollapseState()
   persistMarkdownExplorerSectionCollapseState({ ...current, sourceFilesCollapsed: false })
   if (typeof window === 'undefined') return
   try {
-    window.dispatchEvent(new Event(MARKDOWN_EXPLORER_OPEN_SOURCE_FILES_EVENT))
+    window.dispatchEvent(new CustomEvent(MARKDOWN_EXPLORER_OPEN_SOURCE_FILES_EVENT, {
+      detail: { path: typeof path === 'string' ? path.trim() : '' },
+    }))
   } catch {
     void 0
   }

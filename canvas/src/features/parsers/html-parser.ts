@@ -4,6 +4,7 @@ import { plainTextToMarkdown } from '@/lib/markdown/plainTextToMarkdown'
 import { runInIdle } from '@/features/panels/utils/idle'
 import { convertHtmlToMarkdownUnified } from '@/lib/markdown/htmlToMarkdownUnified'
 import { pickFirstSrcsetUrl } from 'grph-shared/markdown/mediaHtml'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 function decodeBase64Utf8(base64: string): string {
   const b64 = String(base64 || '').trim()
@@ -171,6 +172,30 @@ function traverseNode(
     return ''
   }
 
+  if (tagName === 'table') {
+    const parsedRows = Array.from(el.querySelectorAll('tr'))
+      .filter(row => row.closest('table') === el)
+      .map(row => {
+        const cells = Array.from(row.children)
+          .filter(cell => cell.tagName.toLowerCase() === 'th' || cell.tagName.toLowerCase() === 'td')
+          .map(cell => Array.from(cell.childNodes)
+            .map(child => traverseNode(child, { baseUrl: options.baseUrl }))
+            .join('')
+            .trim())
+        return { cells, hasHeader: Array.from(row.children).some(cell => cell.tagName.toLowerCase() === 'th') }
+      })
+      .filter(row => row.cells.length > 0)
+    const columnCount = parsedRows.reduce((max, row) => Math.max(max, row.cells.length), 0)
+    if (columnCount < 1) return ''
+    const hasHeader = parsedRows[0]?.hasHeader === true
+    const columns = Array.from({ length: columnCount }, (_, index) => (
+      hasHeader ? parsedRows[0]?.cells[index] || `Column ${index + 1}` : `Column ${index + 1}`
+    ))
+    const rows = (hasHeader ? parsedRows.slice(1) : parsedRows)
+      .map(row => Array.from({ length: columnCount }, (_, index) => row.cells[index] || ''))
+    return `\n${serializeMarkdownPipeTable({ columns, rows }).join('\n')}\n`
+  }
+
   const isPre = options.isPre || tagName === 'pre'
   const isTable = options.isTable || tagName === 'table'
   const baseUrl = options.baseUrl
@@ -268,13 +293,10 @@ function traverseNode(
       const src = resolveUrl(baseUrl, el.getAttribute('src') || '')
       return src ? `![IFrame](${src})` : ''
     }
-    case 'table':
-      return `\n${content}\n`
     case 'tr':
-      return `| ${content.trim()} |\n`
     case 'td':
     case 'th':
-      return `${content.trim()} | `
+      return content
     case 'dl':
       return `${content}\n`
     case 'dt':

@@ -12,6 +12,7 @@ import {
   IMAGE_TO_GLB_PROMPT_PRESET_ID,
   isImageToGlbPromptPreset,
 } from '@/features/image-to-glb/imageToGlbPromptPreset'
+import { parseNativeCrawlerInvocation } from './nativeCrawlerInvocation'
 
 type PlainRecord = Record<string, unknown>
 
@@ -24,6 +25,7 @@ export type PromptPreset = {
   id: string
   label: string
   slashCommand: `/${string}`
+  runtimeCommand: `/${string}`
   description: string
   activation: PromptPresetActivation
   prompt: string
@@ -63,6 +65,10 @@ const parsePreset = (value: unknown): PromptPreset | null => {
   const id = String(value.id || '').trim()
   const label = String(value.label || '').trim()
   const slashCommand = normalizeSlashCommand(value.slash_command)
+  const explicitRuntimeCommand = normalizeSlashCommand(value.runtime_command)
+  const runtimeCommand = explicitRuntimeCommand || (
+    id === IMAGE_TO_THREEJS_PROMPT_PRESET_ID || id === IMAGE_TO_GLB_PROMPT_PRESET_ID ? slashCommand : ''
+  )
   const description = String(value.description || '').trim()
   const activation = String(value.activation || '').trim()
   const prompt = String(value.prompt || '').trim()
@@ -70,6 +76,8 @@ const parsePreset = (value: unknown): PromptPreset | null => {
     !id
     || !label
     || !slashCommand
+    || !runtimeCommand
+    || (!slashCommand.endsWith('-prompt-preset') && id !== IMAGE_TO_THREEJS_PROMPT_PRESET_ID && id !== IMAGE_TO_GLB_PROMPT_PRESET_ID)
     || !description
     || !prompt
     || (activation !== 'source-backed-canvas' && activation !== 'chat-agent' && activation !== 'card-inline')
@@ -86,27 +94,35 @@ const parsePreset = (value: unknown): PromptPreset | null => {
       || activation !== 'card-inline'
       || !isImageToGlbPromptPreset(prompt)
     ) return null
-  } else if (slashCommand === '/video-agent') {
+  } else if (runtimeCommand === '/video-agent') {
     const invocation = parseGenerationInvocation(prompt)
     if (!invocation || !prompt.includes('@video-generation-demo-script') || activation !== 'source-backed-canvas') return null
+  } else if (runtimeCommand === '/crawler-agent') {
+    const invocation = parseNativeCrawlerInvocation(prompt)
+    if (!invocation || invocation.command !== runtimeCommand || activation !== 'chat-agent') return null
   } else {
     const invocation = parseChatSkillSlashInvocation(prompt)
-    if (!invocation || invocation.skill.slashCommand !== slashCommand || activation !== 'chat-agent') return null
+    if (!invocation || invocation.skill.slashCommand !== runtimeCommand || activation !== 'chat-agent') return null
   }
-  return { id, label, slashCommand, description, activation, prompt }
+  return { id, label, slashCommand, runtimeCommand, description, activation, prompt }
 }
 
-const readCatalogText = async (fs: WorkspaceFs): Promise<string> => {
+const readCatalogText = async (fs: WorkspaceFs, preferAuthoritativeMirror: boolean): Promise<string> => {
+  const relPath = PROMPT_PRESET_CATALOG_WORKSPACE_PATH.replace(/^\//, '')
+  if (preferAuthoritativeMirror) {
+    const entries = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
+    const authoritativeText = String(entries.find(entry => entry.relPath === relPath)?.text || '')
+    if (authoritativeText) return authoritativeText
+  }
   const workspaceText = await fs.readFileText(PROMPT_PRESET_CATALOG_WORKSPACE_PATH).catch(() => '')
   if (workspaceText) return workspaceText
   const entries = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
-  const relPath = PROMPT_PRESET_CATALOG_WORKSPACE_PATH.replace(/^\//, '')
   return String(entries.find(entry => entry.relPath === relPath)?.text || '')
 }
 
 export const loadPromptPresetCatalog = async (fsOverride?: WorkspaceFs): Promise<PromptPresetCatalogResult> => {
   const fs = fsOverride || await getWorkspaceFs()
-  const markdownText = await readCatalogText(fs)
+  const markdownText = await readCatalogText(fs, !fsOverride)
   if (!markdownText) return { ok: false, error: `Prompt preset catalog unavailable: ${PROMPT_PRESET_CATALOG_WORKSPACE_PATH}` }
   const frontmatter = parseFrontmatter(markdownText)
   if (frontmatter?.schema !== PROMPT_PRESET_CATALOG_SCHEMA || !Array.isArray(frontmatter.prompt_presets)) {
@@ -122,9 +138,14 @@ export const loadPromptPresetCatalog = async (fsOverride?: WorkspaceFs): Promise
     IMAGE_TO_GLB_PROMPT_PRESET_ID,
     'sme-care-agent',
     'investment-research-agent',
+    'crawler-agent',
   ]
-  if (typedPresets.length !== requiredPresetIds.length || ids.size !== requiredPresetIds.length) {
-    return { ok: false, error: `Prompt preset catalog must contain ${requiredPresetIds.length} unique presets.` }
+  const slashCommands = new Set(typedPresets.map(preset => preset.slashCommand))
+  if (ids.size !== typedPresets.length) {
+    return { ok: false, error: 'Prompt preset catalog contains duplicate ids.' }
+  }
+  if (slashCommands.size !== typedPresets.length) {
+    return { ok: false, error: 'Prompt preset catalog contains duplicate slash commands.' }
   }
   for (const id of requiredPresetIds) {
     if (!ids.has(id)) return { ok: false, error: `Prompt preset catalog is missing ${id}.` }

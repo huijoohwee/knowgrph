@@ -17,20 +17,25 @@ export const writeWorkspaceFileTextEnsuringFile = async (args: {
 }): Promise<void> => {
   const normalized = normalizeWorkspacePath(args.path)
   const fs = args.fs || await getWorkspaceFs()
+  await fs.ensureSeed()
   const existing = await fs.readFileText(normalized)
+  const idx = normalized.lastIndexOf('/')
+  const parentPath = normalizeWorkspacePath(idx > 0 ? normalized.slice(0, idx) : '/')
+  await ensureWorkspaceFolderTreeIfMissing({ fs, folderPath: parentPath })
   if (existing === null) {
-    const idx = normalized.lastIndexOf('/')
-    const parentPath = normalizeWorkspacePath(idx > 0 ? normalized.slice(0, idx) : '/')
     const name = normalized.split('/').filter(Boolean).slice(-1)[0] || ''
     if (name) {
-      await ensureWorkspaceFolderTreeIfMissing({ fs, folderPath: parentPath })
       try {
         await fs.createFile({ parentPath, name, text: args.text })
-        return
       } catch {
-        void 0
+        await fs.writeFileText(normalized, args.text)
       }
     }
+  } else {
+    await fs.writeFileText(normalized, args.text)
   }
-  await fs.writeFileText(normalized, args.text)
+  const persistedText = await fs.readFileText(normalized)
+  if (persistedText !== args.text) {
+    throw new Error(`Workspace text artifact persistence verification failed for ${normalized}`)
+  }
 }

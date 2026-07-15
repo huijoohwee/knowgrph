@@ -2,6 +2,7 @@ import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { toKgcOutputWorkspacePath } from './chatHistoryWorkspace.paths'
+import { writeWorkspaceFileTextEnsuringFile } from './chatWorkspaceFsWrite'
 
 const KG_FS_WRITE_PATH = '/__kg_fs_write'
 
@@ -65,13 +66,13 @@ const blobToBase64 = async (blob: Blob): Promise<string | null> => {
   }
 }
 
-const mirrorWorkspaceFileBlobToHostFs = async (args: { absolutePath: string; blob: Blob }): Promise<void> => {
-  if (typeof window === 'undefined') return
+const mirrorWorkspaceFileBlobToHostFs = async (args: { absolutePath: string; blob: Blob }): Promise<boolean> => {
+  if (typeof window === 'undefined') return false
   const abs = String(args.absolutePath || '').trim()
-  if (!looksLikeMirrorableFsPath(abs)) return
+  if (!looksLikeMirrorableFsPath(abs)) return false
   const blob = args.blob
   const base64 = await blobToBase64(blob)
-  if (!base64) return
+  if (!base64) return false
   try {
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => {
@@ -93,29 +94,13 @@ const mirrorWorkspaceFileBlobToHostFs = async (args: { absolutePath: string; blo
         }),
         signal: controller.signal,
       })
-      if (!res.ok) return
+      return res.ok
     } finally {
       window.clearTimeout(timeoutId)
     }
   } catch {
-    void 0
+    return false
   }
-}
-
-const ensureWorkspaceTextFile = async (workspacePath: string, text: string, fsOverride?: WorkspaceFs | null): Promise<void> => {
-  const fs = fsOverride || await getWorkspaceFs()
-  await fs.ensureSeed()
-  const normalized = normalizeWorkspacePath(workspacePath)
-  const existing = await fs.readFileText(normalized)
-  if (existing === null) {
-    const parts = normalized.split('/').filter(Boolean)
-    const name = String(parts[parts.length - 1] || '').trim()
-    const parentPath = normalizeWorkspacePath(`/${parts.slice(0, -1).join('/') || ''}`) || '/'
-    if (!name) return
-    await fs.createFile({ parentPath, name, text })
-    return
-  }
-  await fs.writeFileText(normalized, text)
 }
 
 export const resolveWorkspaceSiblingArtifactPath = (args: {
@@ -139,11 +124,11 @@ export const writeWorkspaceTextArtifactAtPath = async (args: {
   const outputPath = normalizeWorkspacePath(String(args.absolutePath || '').trim())
   if (!outputPath) return null
   const text = String(args.text || '')
-  try {
-    await ensureWorkspaceTextFile(outputPath, text, args.fs)
-  } catch {
-    void 0
-  }
+  await writeWorkspaceFileTextEnsuringFile({
+    fs: args.fs || undefined,
+    path: outputPath,
+    text,
+  })
   await mirrorWorkspaceFileTextToHostFs({ absolutePath: outputPath, text })
   return outputPath
 }
@@ -154,8 +139,8 @@ export const writeWorkspaceBlobArtifactAtPath = async (args: {
 }): Promise<string | null> => {
   const outputPath = normalizeWorkspacePath(String(args.absolutePath || '').trim())
   if (!outputPath) return null
-  await mirrorWorkspaceFileBlobToHostFs({ absolutePath: outputPath, blob: args.blob })
-  return outputPath
+  const persisted = await mirrorWorkspaceFileBlobToHostFs({ absolutePath: outputPath, blob: args.blob })
+  return persisted ? outputPath : null
 }
 
 const readWorkspacePathBasename = (workspacePath: string): string => {

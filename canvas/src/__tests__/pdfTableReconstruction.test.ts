@@ -34,7 +34,6 @@ export async function testPdfTableReconstructionBuildsMarkdownPipeTable() {
     tableMaxRows: 50,
   })
   if (!md.includes('| Name | Qty | Price |')) throw new Error('expected markdown table header')
-  if (!md.includes('| --- | --- | --- |')) throw new Error('expected markdown table separator')
+  if (!/\| -{3,} \| -{3,} \| -{3,} \|/.test(md)) throw new Error('expected markdown table separator')
   if (!md.includes('| Apple | 2 | $3 |')) throw new Error('expected markdown table row')
 }
-

@@ -1,3 +1,5 @@
+import { CHAT_TABLE_PERSISTENCE_CONTRACT_PROMPT } from './chatTablePersistenceContract'
+
 export const CHAT_AI_MARKDOWN_MODEL_DEFAULT = 'claude-sonnet-4-20250514'
 
 export const CHAT_AI_MARKDOWN_TEMPERATURE_DEFAULT = 0.3
@@ -13,6 +15,7 @@ export const CHAT_AI_MARKDOWN_VALIDATION_RULES = [
   'V-05',
   'V-06',
   'V-07',
+  'V-10',
 ] as const
 
 export type ChatAiMarkdownValidationRuleId = (typeof CHAT_AI_MARKDOWN_VALIDATION_RULES)[number]
@@ -60,6 +63,7 @@ const GUIDELINE_LINES = [
   '- `compute: |` blocks must be pure: forbid `fetch`, `document`, `window`.',
   '- Headings (H1–H4) must not end with `...`.',
   '- `confidence:` values must be exactly `low`, `medium`, or `high`.',
+  `- ${CHAT_TABLE_PERSISTENCE_CONTRACT_PROMPT.replace(/\n/g, ' ')}`,
   '',
   'Validation rules run sequentially; first failure triggers `@flag:correction`:',
   `- rules: ${CHAT_AI_MARKDOWN_VALIDATION_RULES.join(', ')}`,

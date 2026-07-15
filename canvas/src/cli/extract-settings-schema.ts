@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import { settingsRegistry } from '../features/settings/registry'
 import { FALLBACK_DETAILS } from '../features/panels/views/SettingsFallbackDetails'
 import { MARKDOWN_DATA_VIEW_COPY } from '../lib/config-copy/markdownDataViewCopy'
@@ -301,23 +302,25 @@ function deriveFromCode(repoRoot: string): SettingsFlowSchema {
   return schema
 }
 
-function toMdCell(value: string): string {
-  return String(value || '').replace(/\|/g, '\\|')
-}
-
 function buildMarkdown(schema: SettingsFlowSchema): string {
-  const header =
-    '| Area | Responsibility | Modules | Classes/Objects | Functions/Methods | Key | Imports | Notes | Line Range |'
-  const separator =
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |'
   const rows = Object.entries(schema)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, row]) => {
-      return [
-        `| ${toMdCell(row.area)} | ${toMdCell(row.responsibility)} | \`${toMdCell(row.modules.join(', '))}\` | \`${toMdCell(row.classes.join(', '))}\` | \`${toMdCell(row.functions.join(', '))}\` | \`${toMdCell(key)}\` | \`${toMdCell(row.imports.join(', '))}\` | ${toMdCell(row.notes)} | \`${toMdCell(row.lineRange)}\` |`,
-      ].join('')
-    })
-  return ['# Knowgrph Codebase Responsibility Flow', '', header, separator, ...rows, ''].join('\n')
+    .map(([key, row]) => [
+      row.area,
+      row.responsibility,
+      `\`${row.modules.join(', ')}\``,
+      `\`${row.classes.join(', ')}\``,
+      `\`${row.functions.join(', ')}\``,
+      `\`${key}\``,
+      `\`${row.imports.join(', ')}\``,
+      row.notes,
+      `\`${row.lineRange}\``,
+    ])
+  const table = serializeMarkdownPipeTable({
+    columns: ['Area', 'Responsibility', 'Modules', 'Classes/Objects', 'Functions/Methods', 'Key', 'Imports', 'Notes', 'Line Range'],
+    rows,
+  })
+  return ['# Knowgrph Codebase Responsibility Flow', '', ...table, ''].join('\n')
 }
 
 function mergeFlowRow(base: SettingsFlowRow, override: SettingsFlowRow): SettingsFlowRow {

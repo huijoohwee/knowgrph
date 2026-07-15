@@ -13,68 +13,23 @@ import {
   safeJsonParse,
   urlToTreePath,
 } from './websiteImportCore'
+import { NativeWebsiteCrawler } from './nativeWebsiteCrawler'
+import { handleWebsiteImportArtifact } from './websiteImportArtifactServer'
+import type {
+  WebsiteImportManifestV1,
+  WebsiteImportNode,
+  WebsiteImportOptions,
+  WebsiteImportProgress,
+  WebsiteImportRuntime,
+} from './websiteImportTypes'
 import { buildWebsiteSemanticSnapshotFromHtml } from '../websiteSemanticSnapshot'
-
-type WebsiteImportStatus = 'queued' | 'running' | 'done' | 'failed'
-
-type WebsiteImportProgress = {
-  stage: 'queued' | 'discovering' | 'crawling' | 'converting' | 'done' | 'failed'
-  total: number
-  processed: number
-  ok: number
-  error: number
-  queued: number
-  lastUrl?: string
-  updatedAtMs: number
-}
-
-type WebsiteImportNode = {
-  nodeId: string
-  url: string
-  path: string
-  title?: string
-  status: 'ok' | 'error'
-  artifacts: {
-    rawHtmlRelPath?: string
-    rawHtmlBytes?: number
-    rawHtmlSha256?: string
-    markdownRelPath?: string
-    markdownBytes?: number
-    markdownSha256?: string
-    conversionJsonRelPath?: string
-    conversionJsonBytes?: number
-    conversionJsonSha256?: string
-  }
-}
-
-export type WebsiteImportManifestV1 = {
-  version: 1
-  importId: string
-  rootUrl: string
-  sitemapUrl?: string
-  status: WebsiteImportStatus
-  startedAtMs: number
-  finishedAtMs?: number
-  progress?: WebsiteImportProgress
-  nodes: WebsiteImportNode[]
-  errors: Array<{ url: string; error: string }>
-}
+import { resolveWebsiteImportGenerationToken, resolveWebsiteImportWorkspaceRoot } from './websiteImportStorage'
 
 const extractTitleFromHtml = (html: string): string => {
   const raw = String(html || '')
   const m = raw.match(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/i)
   const t = m ? String(m[1] || '') : ''
   return t.replace(/\s+/g, ' ').trim()
-}
-
-type WebsiteImportOptions = {
-  discoverSitemap?: boolean
-  sitemapUrl?: string
-  maxPages?: number
-  concurrency?: number
-  includeImages?: boolean
-  generateMarkdownArtifacts?: boolean
-  outputDirRel?: string
 }
 
 const isHttpUrl = (raw: string): boolean => /^https?:\/\//i.test(String(raw || '').trim())
@@ -123,7 +78,7 @@ const listLocalHtmlFiles = async (rootAbs: string, maxPages: number): Promise<st
   const out: string[] = []
   const queue: string[] = [rootAbs]
   const rootResolved = path.resolve(rootAbs)
-  const skipDirs = new Set(['node_modules', '.git', '.knowgrph-workspace', 'dist', 'build', 'out', '.next', '.cache'])
+  const skipDirs = new Set(['node_modules', '.git', '.knowgrph-workspace', 'knowgrph-workspace', 'dist', 'build', 'out', '.next', '.cache'])
   while (queue.length && out.length < maxPages) {
     const dir = queue.shift() as string
     let entries: Array<import('node:fs').Dirent> = []
@@ -149,22 +104,6 @@ const listLocalHtmlFiles = async (rootAbs: string, maxPages: number): Promise<st
     }
   }
   return out
-}
-
-const normalizeRel = (raw: string): string => String(raw || '').trim().replace(/\\/g, '/').replace(/^\/+/, '')
-
-const resolveWorkspaceRoot = (args: { repoRoot: string; outputDirRel?: string | null }): { ok: true; abs: string; rel: string } | { ok: false; error: string } => {
-  const fallbackRel = '.knowgrph-workspace/website-imports'
-  const relRaw = normalizeRel(args.outputDirRel || fallbackRel) || fallbackRel
-  const normalized = path.posix.normalize(relRaw)
-  const parts = normalized.split('/').filter(Boolean)
-  if (parts.length === 0) return { ok: false, error: 'Missing outputDirRel' }
-  if (parts[0] !== '.knowgrph-workspace') return { ok: false, error: 'outputDirRel must be under .knowgrph-workspace' }
-  if (normalized.startsWith('..') || normalized.includes('/../')) return { ok: false, error: 'Invalid outputDirRel' }
-  const abs = path.resolve(args.repoRoot, normalized)
-  const rootResolved = path.resolve(args.repoRoot)
-  if (!abs.startsWith(rootResolved + path.sep) && abs !== rootResolved) return { ok: false, error: 'outputDirRel escapes repo root' }
-  return { ok: true, abs, rel: normalized }
 }
 
 const readJsonFile = async <T,>(filePath: string): Promise<T | null> => {
@@ -313,7 +252,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
     const base = `http://${req.headers.host || 'localhost'}`
     const parsed = new URL(rawUrl, base)
     const pathname = parsed.pathname
-    const workspaceResolved = resolveWorkspaceRoot({ repoRoot: args.repoRoot, outputDirRel: parsed.searchParams.get('outputDirRel') })
+    const workspaceResolved = resolveWebsiteImportWorkspaceRoot({ repoRoot: args.repoRoot, outputDirRel: parsed.searchParams.get('outputDirRel') })
     if (workspaceResolved.ok !== true) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json')
@@ -346,47 +285,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
     }
 
     if (req.method === 'GET' && pathname === '/__website_import/artifact') {
-      const importId = sanitizeImportId(parsed.searchParams.get('importId') || '')
-      const nodeId = sanitizeImportId(parsed.searchParams.get('nodeId') || '')
-      const kind = String(parsed.searchParams.get('kind') || '').trim()
-      if (!importId || !nodeId || !kind) {
-        res.statusCode = 400
-        res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: false, error: 'Missing importId, nodeId, or kind' }))
-        return
-      }
-      const allowed = new Set(['rawHtml', 'markdown', 'conversionJson'])
-      if (!allowed.has(kind)) {
-        res.statusCode = 400
-        res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: false, error: 'Invalid kind' }))
-        return
-      }
-      const dirAbs = path.join(workspaceAbs, importId, 'nodes', nodeId)
-      const fileAbs =
-        kind === 'rawHtml'
-          ? path.join(dirAbs, 'raw.html')
-          : kind === 'markdown'
-            ? path.join(dirAbs, 'page.md')
-            : path.join(dirAbs, 'conversion.json')
-      try {
-        const text = await fs.readFile(fileAbs, 'utf8')
-        res.statusCode = 200
-        res.setHeader(
-          'Content-Type',
-          kind === 'rawHtml'
-            ? 'text/html; charset=utf-8'
-            : kind === 'conversionJson'
-              ? 'application/json; charset=utf-8'
-              : 'text/plain; charset=utf-8',
-        )
-        res.setHeader('Cache-Control', 'no-store')
-        res.end(text)
-      } catch {
-        res.statusCode = 404
-        res.setHeader('Content-Type', 'application/json')
-        res.end(JSON.stringify({ ok: false, error: 'Not found' }))
-      }
+      await handleWebsiteImportArtifact({ workspaceAbs, parsed, res, readManifest: readJsonFile })
       return
     }
 
@@ -412,7 +311,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
 
       const opt = (body.options && typeof body.options === 'object' ? (body.options as Record<string, unknown>) : {})
       void opt
-      const importId = randomUUID()
+      const importId = resolveWebsiteImportGenerationToken(opt.generationToken)
       const nodeId = hashHex(pageUrl).slice(0, 24)
       const importDirAbs = path.join(workspaceAbs, importId)
       const nodeDirAbs = path.join(importDirAbs, 'nodes', nodeId)
@@ -523,11 +422,52 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
         includeImages: opt.includeImages !== false,
         generateMarkdownArtifacts: opt.generateMarkdownArtifacts === true,
         outputDirRel: typeof opt.outputDirRel === 'string' ? opt.outputDirRel : undefined,
+        browserMode: rootKind === 'http' && opt.browserMode === 'headless' ? 'headless' : 'http',
+        proxyRotation: opt.proxyRotation === true,
+        downloadAssets: opt.downloadAssets === true,
+        maxDownloads: clampInt(opt.maxDownloads, 120, 1, 500),
+        maxDownloadBytes: clampInt(opt.maxDownloadBytes, 250 * 1024 * 1024, 1024 * 1024, 1024 * 1024 * 1024),
+        generationToken: typeof opt.generationToken === 'string' ? opt.generationToken : undefined,
       }
 
-      const importId = randomUUID()
+      const nativeCrawler = options.browserMode === 'headless'
+        ? new NativeWebsiteCrawler({
+            concurrency: options.concurrency || 4,
+            proxyRotation: options.proxyRotation === true,
+            downloadAssets: options.downloadAssets === true,
+            maxDownloads: options.maxDownloads || 120,
+            maxDownloadBytes: options.maxDownloadBytes || 250 * 1024 * 1024,
+          })
+        : null
+      const runtime: WebsiteImportRuntime = nativeCrawler?.runtime || {
+        engine: 'http',
+        headless: false,
+        proxyMode: 'direct',
+        proxyPoolSize: 0,
+        downloadAssets: false,
+        maxDownloads: 0,
+        maxDownloadBytes: 0,
+      }
+
+      const importId = resolveWebsiteImportGenerationToken(options.generationToken)
       const importDirAbs = path.join(workspaceAbs, importId)
       const manifestPathAbs = path.join(importDirAbs, 'manifest.json')
+      const existingManifest = await readJsonFile<WebsiteImportManifestV1>(manifestPathAbs)
+      const existingProgressUpdatedAtMs = existingManifest?.progress?.updatedAtMs || existingManifest?.startedAtMs || 0
+      const existingRunIsFresh = Boolean(
+        existingManifest
+        && existingManifest.rootUrl === rootUrl
+        && (existingManifest.status === 'queued' || existingManifest.status === 'running')
+        && Date.now() - existingProgressUpdatedAtMs < 2 * 60_000,
+      )
+      if (existingManifest?.rootUrl === rootUrl && (existingManifest.status === 'done' || existingRunIsFresh)) {
+        const out: StartResponse = { ok: true, importId }
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Cache-Control', 'no-store')
+        res.end(JSON.stringify(out))
+        return
+      }
       const initialProgress: WebsiteImportProgress = {
         stage: 'queued',
         total: 0,
@@ -544,6 +484,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
         status: 'queued',
         startedAtMs: Date.now(),
         progress: initialProgress,
+        runtime,
         nodes: [],
         errors: [],
       }
@@ -636,6 +577,10 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
           let sitemapUrlForManifest: string | undefined
           const limited = await (async (): Promise<string[]> => {
             if (rootKind === 'http') {
+              if (nativeCrawler) {
+                await updateManifest({ progress: { ...initialProgress, stage: 'crawling', updatedAtMs: Date.now() } })
+                return [rootUrl]
+              }
               const explicitSitemap = normalizeUrl(options.sitemapUrl || '')
               const discovered = explicitSitemap ? explicitSitemap : options.discoverSitemap ? await discoverSitemapUrl(rootUrl) : null
               const effectiveSitemap = discovered ? normalizeUrl(discovered) : null
@@ -761,7 +706,9 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
 
           const nodes: WebsiteImportNode[] = []
           const queue = limited.slice()
+          const queuedUrls = new Set(queue)
           let idx = 0
+          let captureSequence = 0
           let processed = 0
           let okCount = 0
           let errorCount = 0
@@ -811,30 +758,58 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
             const nodeDirAbs = path.join(importDirAbs, 'nodes', nodeId)
             await fs.mkdir(nodeDirAbs, { recursive: true })
 
-            const rawHtmlRes = rootKind === 'http' || isHttpUrl(u)
-              ? await fetchTextWithLimit(u, {
-                  timeoutMs: 30_000,
-                  maxBytes: WEBSITE_IMPORT_PAGE_MAX_BYTES,
-                  accept: 'text/html,*/*;q=0.9',
-                })
-              : await readLocalTextWithLimit(path.resolve(repoRootAbs, u), WEBSITE_IMPORT_PAGE_MAX_BYTES)
-            if (rawHtmlRes.ok !== true) {
-              errors.push({ url: u, error: rawHtmlRes.error })
+            let html = ''
+            let title = ''
+            let discoveredLinks: string[] = []
+            let downloads: WebsiteImportNode['artifacts']['downloads'] = []
+            try {
+              if (nativeCrawler && isHttpUrl(u)) {
+                const capture = await nativeCrawler.capture({ url: u, nodeDirAbs, sequence: captureSequence++ })
+                html = capture.html
+                title = capture.title
+                downloads = capture.downloads
+                discoveredLinks = capture.links
+                  .map(normalizeUrl)
+                  .filter((link): link is string => Boolean(link && isCrawlableInternalUrl(link, rootUrl)))
+              } else {
+                const rawHtmlRes = rootKind === 'http' || isHttpUrl(u)
+                  ? await fetchTextWithLimit(u, {
+                      timeoutMs: 30_000,
+                      maxBytes: WEBSITE_IMPORT_PAGE_MAX_BYTES,
+                      accept: 'text/html,*/*;q=0.9',
+                    })
+                  : await readLocalTextWithLimit(path.resolve(repoRootAbs, u), WEBSITE_IMPORT_PAGE_MAX_BYTES)
+                if (rawHtmlRes.ok !== true) throw new Error(rawHtmlRes.error)
+                html = String(rawHtmlRes.text || '')
+                title = extractTitleFromHtml(html)
+              }
+            } catch (error) {
+              const message = error && typeof error === 'object' && 'message' in error ? String(error.message || '') : String(error || '')
+              errors.push({ url: u, error: message || 'Crawl failed' })
               nodes.push({ nodeId, url: u, path: toTreePath(isHttpUrl(u) ? 'http' : 'local', u, localSiteRootRel), status: 'error', artifacts: {} })
               errorCount += 1
               return
             }
-            const html = String(rawHtmlRes.text || '')
-            try {
-              await fs.writeFile(path.join(nodeDirAbs, 'raw.html'), html, 'utf8')
-            } catch {
-              void 0
+            for (const link of discoveredLinks) {
+              if (queue.length >= (options.maxPages || 50)) break
+              if (queuedUrls.has(link)) continue
+              queuedUrls.add(link)
+              queue.push(link)
             }
-            const title = extractTitleFromHtml(html)
 
-            const artifacts: WebsiteImportNode['artifacts'] = { rawHtmlRelPath: path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'raw.html'), rawHtmlBytes: Buffer.byteLength(html, 'utf8'), rawHtmlSha256: hashHex(html) }
+            const artifacts: WebsiteImportNode['artifacts'] = downloads.length ? { downloads } : {}
+            if (html) {
+              try {
+                await fs.writeFile(path.join(nodeDirAbs, 'raw.html'), html, 'utf8')
+                artifacts.rawHtmlRelPath = path.posix.join(workspaceResolved.rel, importId, 'nodes', nodeId, 'raw.html')
+                artifacts.rawHtmlBytes = Buffer.byteLength(html, 'utf8')
+                artifacts.rawHtmlSha256 = hashHex(html)
+              } catch {
+                void 0
+              }
+            }
 
-            if (options.generateMarkdownArtifacts) {
+            if (html && options.generateMarkdownArtifacts) {
               try {
                 await ensureConvertReady()
                 if (convertFn) {
@@ -870,6 +845,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
               path: toTreePath(isHttpUrl(u) ? 'http' : 'local', u, localSiteRootRel),
               title: title || undefined,
               status: 'ok',
+              links: discoveredLinks.length ? discoveredLinks : undefined,
               artifacts,
             })
             okCount += 1
@@ -884,15 +860,15 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
               processed += 1
               const nextProgress: WebsiteImportProgress = {
                 stage: 'converting',
-                total: limited.length,
+                total: queue.length,
                 processed,
                 ok: okCount,
                 error: errorCount,
-                queued: Math.max(0, limited.length - processed),
+                queued: Math.max(0, queue.length - processed),
                 lastUrl: u,
                 updatedAtMs: Date.now(),
               }
-              await updateManifest({ progress: nextProgress })
+              await updateManifest({ progress: nextProgress, nodes: [...nodes], errors: [...errors] })
             }
           })
 
@@ -911,7 +887,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
               finishedAtMs: Date.now(),
               progress: {
                 stage: 'done',
-                total: limited.length,
+                total: queue.length,
                 processed,
                 ok: okCount,
                 error: errorCount,
@@ -945,6 +921,7 @@ export function createWebsiteImportHandler(args: { repoRoot: string }): import('
             { flush: true },
           )
         } finally {
+          await nativeCrawler?.close().catch(() => void 0)
           jobs.delete(importId)
         }
       })()

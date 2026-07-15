@@ -68,6 +68,7 @@ import { useFloatingPanelChatSurfaceModel } from '@/features/chat/floatingPanelC
 import { flushFloatingPanelChatInputHandoff } from '@/features/chat/floatingPanelChat/floatingPanelChatInputHandoff'
 import { stopFloatingPanelChatStream } from '@/features/chat/floatingPanelChat/floatingPanelChatStop'
 import { useFloatingPanelChatThreadFollow } from '@/features/chat/floatingPanelChat/useFloatingPanelChatThreadFollow'
+import { openMarkdownWorkspacePathInExplorer } from '@/features/markdown-workspace/openMarkdownWorkspacePathInExplorer'
 export default function FloatingPanelChat() {
   const graphData = useGraphStore(s => s.graphData)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
@@ -481,11 +482,7 @@ export default function FloatingPanelChat() {
   }, [historyKey])
 
   const openWorkspaceMarkdownPath = React.useCallback((path: string) => {
-    const normalized = normalizeMarkdownWorkspaceSelectionPath(path as never) || path
-    openMarkdownWorkspaceEditorPane(useGraphStore.getState())
-    useMarkdownExplorerStore.getState().setActivePath(normalized)
-    lsSetJson<'split' | 'editor' | 'viewer'>(LS_KEYS.markdownLayoutMode, 'editor')
-    emitMarkdownLayoutRequest('editor')
+    openMarkdownWorkspacePathInExplorer(path)
   }, [])
 
   const followWorkspaceMarkdownPath = React.useCallback((path: string, options?: { forceReveal?: boolean }) => {

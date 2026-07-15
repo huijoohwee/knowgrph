@@ -745,6 +745,7 @@ export default function StoryboardCanvas({
       setGraphDataPreservingLayout(nextGraphData)
       persistStoryboardCardMediaGraphSource(nextGraphData)
     },
+    persistDraftGraphData: persistStoryboardCardMediaGraphSource,
     renderGraphDataOverride: graphData,
     markdownDocumentName,
     markdownDocumentSourceUrl: null,

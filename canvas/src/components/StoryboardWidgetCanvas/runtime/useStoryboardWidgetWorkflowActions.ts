@@ -26,6 +26,7 @@ export function useStoryboardWidgetWorkflowActions(args: {
   appendDraftNode: (args: { id?: string | null; type: string; label?: string | null; x: number; y: number; properties?: Record<string, unknown> }) => string
   setDraftGraphData: React.Dispatch<React.SetStateAction<GraphData | null>>
   commitPublishedGraphData?: (graphData: GraphData) => void
+  persistDraftGraphData: (graphData: GraphData) => void | Promise<void>
   updateNode: (id: string, patch: Partial<GraphNode>) => void
   upsertUiToast: (args: UiToastInput) => void
   scheduleOverlayEdgeUpdate: () => void
@@ -39,6 +40,7 @@ export function useStoryboardWidgetWorkflowActions(args: {
       args.setDraftGraphData(prev => (prev === currentDraft ? nextDraft : args.draftGraphDataRef.current))
     },
     commitPublishedGraphData: args.commitPublishedGraphData,
+    persistDraftGraphData: args.persistDraftGraphData,
     renderGraphDataOverride: args.renderGraphDataOverride,
     markdownDocumentName: args.markdownDocumentName,
     markdownDocumentSourceUrl: args.markdownDocumentSourceUrl,

@@ -1,6 +1,7 @@
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphNode } from '@/lib/graph/types'
 import { buildTextWidgetOutputPatch } from '@/features/chat/richMediaRun'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 const RUN_OUTPUT_KEYS = [
   'lane',
@@ -28,9 +29,6 @@ const cleanString = (value: unknown): string => {
   return typeof unwrapped === 'number' || typeof unwrapped === 'boolean' ? String(unwrapped) : ''
 }
 
-const escapeMarkdownTableCell = (value: string): string =>
-  value.replace(/\r\n?/g, '\n').replace(/\|/g, '\\|').replace(/\n+/g, '<br>').trim()
-
 export const buildStoryboardWidgetSourceBackedRunOutput = (node: GraphNode): string => {
   const properties = (node.properties || {}) as Record<string, unknown>
   const title = cleanString(node.label) || cleanString(node.id) || 'Storyboard card'
@@ -39,11 +37,7 @@ export const buildStoryboardWidgetSourceBackedRunOutput = (node: GraphNode): str
     .map(key => [key, cleanString(properties[key])] as const)
     .filter(([, value]) => value)
   const table = rows.length
-    ? [
-        '| Field | Source-backed value |',
-        '| --- | --- |',
-        ...rows.map(([key, value]) => `| ${escapeMarkdownTableCell(key)} | ${escapeMarkdownTableCell(value)} |`),
-      ].join('\n')
+    ? serializeMarkdownPipeTable({ columns: ['Field', 'Source-backed value'], rows }).join('\n')
     : 'No source-backed card fields were available beyond node identity.'
   return [
     `# ${title}`,

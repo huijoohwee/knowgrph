@@ -14,6 +14,7 @@ export {
 } from './config.ls.keys'
 
 import { LS_KEY_OWNERS, type LsKeyOwner } from './config.ls.owners'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 export { LS_KEY_OWNERS, type LsKeyOwner } from './config.ls.owners'
 
 export type LsKeyId = keyof typeof LS_KEYS;
@@ -235,13 +236,10 @@ export function buildOrchestratorSectionToggleAnalyticsEvent(
 
 export function getOrchestratorSectionMarkdownTable(): string {
   const diagnostics = getOrchestratorSectionDiagnostics();
-  const header = '| Section ID | Label | Storage Key | Owner |';
-  const separator = '| --- | --- | --- | --- |';
-  const rows = diagnostics.map(diagnostic => {
-    const escapedLabel = diagnostic.label.replace(/\|/g, '\\|');
-    return `| ${diagnostic.id} | ${escapedLabel} | ${diagnostic.collapsedStorageKey} | ${diagnostic.owner} |`;
-  });
-  return [header, separator, ...rows].join('\n');
+  return serializeMarkdownPipeTable({
+    columns: ['Section ID', 'Label', 'Storage Key', 'Owner'],
+    rows: diagnostics.map(diagnostic => [diagnostic.id, diagnostic.label, diagnostic.collapsedStorageKey, diagnostic.owner]),
+  }).join('\n');
 }
 
 export function getRenderSectionDiagnostics(): {
@@ -300,11 +298,8 @@ export function buildRenderSectionToggleAnalyticsEvent(
 
 export function getRenderSectionMarkdownTable(): string {
   const diagnostics = getRenderSectionDiagnostics();
-  const header = '| Section ID | Label | Storage Key | Owner |';
-  const separator = '| --- | --- | --- | --- |';
-  const rows = diagnostics.map(diagnostic => {
-    const escapedLabel = diagnostic.label.replace(/\|/g, '\\|');
-    return `| ${diagnostic.id} | ${escapedLabel} | ${diagnostic.collapsedStorageKey} | ${diagnostic.owner} |`;
-  });
-  return [header, separator, ...rows].join('\n');
+  return serializeMarkdownPipeTable({
+    columns: ['Section ID', 'Label', 'Storage Key', 'Owner'],
+    rows: diagnostics.map(diagnostic => [diagnostic.id, diagnostic.label, diagnostic.collapsedStorageKey, diagnostic.owner]),
+  }).join('\n');
 }

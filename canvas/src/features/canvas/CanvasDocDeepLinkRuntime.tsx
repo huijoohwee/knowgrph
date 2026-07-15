@@ -4,6 +4,27 @@ import type { UiToastInput } from '@/hooks/store/store-types/core'
 import { buildDefaultDocViewUrl, buildDocViewUrl, consumeDeepLinkParams, parseDocDeepLink } from './canvasDocDeepLink'
 import type { DefaultRemoteDocDeepLink } from './canvasDocDeepLink'
 import type { RemoteDocDeepLink } from './canvasDocDeepLink'
+import {
+  consumeWebsiteCrawlMarkdownDeepLinkRequest,
+  openWebsiteCrawlMarkdownArtifactInExplorer,
+  readWebsiteCrawlMarkdownDeepLinkRequest,
+} from '@/lib/websites/openWebsiteCrawlMarkdownArtifactInExplorer'
+
+function openCrawlMarkdownRequest(
+  crawlRequest: NonNullable<ReturnType<typeof readWebsiteCrawlMarkdownDeepLinkRequest>>,
+  pushUiToast: (t: UiToastInput) => void,
+): void {
+  const toastId = 'deep-link:crawl-artifact'
+  pushUiToast({ id: toastId, kind: 'neutral', message: 'Opening crawl artifact…', ttlMs: null, dismissible: false })
+  void openWebsiteCrawlMarkdownArtifactInExplorer(crawlRequest)
+    .then(result => {
+      if (!result) throw new Error('Crawl artifact is unavailable')
+      pushUiToast({ id: toastId, kind: 'success', message: 'Opened crawl Markdown in Source Files', ttlMs: 3000, dismissible: false })
+    })
+    .catch(error => {
+      pushUiToast({ id: toastId, kind: 'error', message: error instanceof Error ? error.message : 'Failed to open crawl artifact', ttlMs: 5000, dismissible: true })
+    })
+}
 
 async function handleLocalDeepLink(
   relativePath: string,
@@ -131,6 +152,12 @@ export function CanvasDocDeepLinkRuntime(props: { search: string }) {
     const currentSearch = typeof window !== 'undefined' ? String(window.location.search || '') : String(search || '')
     const link = parseDocDeepLink(currentSearch)
     if (!link) return
+    const crawlRequest = readWebsiteCrawlMarkdownDeepLinkRequest()
+    if (link.kind === 'local' && crawlRequest) {
+      consumeWebsiteCrawlMarkdownDeepLinkRequest()
+      openCrawlMarkdownRequest(crawlRequest, pushUiToast)
+      return
+    }
     const previewRequested = new URLSearchParams(currentSearch.startsWith('?') ? currentSearch.slice(1) : currentSearch).get('kgPreview') === '1'
     consumeDeepLinkParams(currentSearch)
 

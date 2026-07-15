@@ -136,6 +136,7 @@ export const isVideoUrl = (href: string): boolean => {
 const isInternalRouteHref = (href: string): boolean => {
   const raw = String(href || '').trim()
   if (!raw) return false
+  if (raw.startsWith('/?')) return true
   if (raw.startsWith('/__')) return true
   if (raw.startsWith('/@')) return true
   return false

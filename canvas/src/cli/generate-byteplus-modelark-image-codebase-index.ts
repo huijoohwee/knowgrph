@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import {
   BYTEPLUS_IMAGE_GENERATION_DOC_ROWS,
   type BytePlusImageApiDocRow,
@@ -22,13 +23,6 @@ const OUTPUT_PATH = path.join(
 
 const CONFIG_KEYS = new Set(['auth_mode', 'api_key', 'docs_url', 'endpoint'])
 const REQUIRED_KEYS = new Set(['model', 'prompt'])
-
-function escapeMarkdownCell(value: string): string {
-  return String(value || '')
-    .replace(/\r?\n/g, ' ')
-    .replace(/\|/g, '\\|')
-    .trim()
-}
 
 function normalizeScalar(value: string | number | boolean | null | undefined): string {
   if (typeof value === 'undefined') return ''
@@ -68,7 +62,7 @@ function formatList(values: string[] | undefined): string {
   return (values || []).map(value => String(value || '').trim()).filter(Boolean).join('; ')
 }
 
-function buildRow(row: BytePlusImageApiDocRow): string {
+function buildRow(row: BytePlusImageApiDocRow): string[] {
   const isConfig = CONFIG_KEYS.has(row.key)
   const endpoint = isConfig ? 'ALL' : `POST ${CHAT_BYTEPLUS_IMAGES_GENERATIONS_PATH}`
   const kind = isConfig ? 'config' : 'param'
@@ -82,7 +76,7 @@ function buildRow(row: BytePlusImageApiDocRow): string {
   const keyDescription = row.responsibility
   const valueDescription = buildValueDescription(row)
 
-  const cells = [
+  return [
     endpoint,
     kind,
     row.key,
@@ -100,17 +94,17 @@ function buildRow(row: BytePlusImageApiDocRow): string {
     formatList(row.module),
     formatList(row.className),
     formatList(row.functionName),
-  ].map(escapeMarkdownCell)
-  return `| ${cells.join(' | ')} |`
+  ]
 }
 
 function buildMarkdown(): string {
   const lines = [
     '## Table',
     '',
-    '| endpoint | kind | key | type | value | required | direction | actor | seq-note | location | scope | pattern | key-description | value-description | module | class | function |',
-    '|----------|------|-----|------|-------|----------|-----------|-------|----------|----------|-------|---------|-----------------|-------------------|--------|-------|----------|',
-    ...BYTEPLUS_IMAGE_GENERATION_DOC_ROWS.map(buildRow),
+    ...serializeMarkdownPipeTable({
+      columns: ['endpoint', 'kind', 'key', 'type', 'value', 'required', 'direction', 'actor', 'seq-note', 'location', 'scope', 'pattern', 'key-description', 'value-description', 'module', 'class', 'function'],
+      rows: BYTEPLUS_IMAGE_GENERATION_DOC_ROWS.map(buildRow),
+    }),
     '',
   ]
   return lines.join('\n')
@@ -123,4 +117,3 @@ function main(): void {
 }
 
 main()
-

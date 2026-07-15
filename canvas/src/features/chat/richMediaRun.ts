@@ -173,7 +173,7 @@ export const clearRichMediaOutputProperties = (properties: Record<string, unknow
   delete next.imageThreeJsInvocation
   delete next.outputSrcDoc
   delete next.outputLoading
-  delete next.outputLoadingKind
+  delete next.outputLoadingKind; delete next.outputLoadingLabel
   delete next.renderErrorCode
   delete next.renderErrorReason
   delete next.renderJobId
@@ -219,6 +219,7 @@ export const buildTextWidgetOutputPatch = (args: {
   title?: unknown
   model?: unknown
   outputPath?: string | null
+  materializeSrcDoc?: boolean
 }): Record<string, unknown> => {
   const output = String(args.output || '')
   const outputPath = cleanString(args.outputPath)
@@ -229,10 +230,12 @@ export const buildTextWidgetOutputPatch = (args: {
     outputModel: cleanString(args.model) || undefined,
     outputSourceUrl: undefined,
     outputSavedName: outputPath ? outputPath.split('/').filter(Boolean).pop() || undefined : undefined,
-    outputSrcDoc: buildTextWidgetOutputSrcDoc({
-      title: args.title,
-      text: output,
-    }),
+    outputSrcDoc: args.materializeSrcDoc === true
+      ? buildTextWidgetOutputSrcDoc({
+        title: args.title,
+        text: output,
+      })
+      : undefined,
     lastRunAt: new Date().toISOString(),
   }
 }

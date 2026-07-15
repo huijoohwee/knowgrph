@@ -1,19 +1,24 @@
 import React from 'react'
 import type { WorkspaceFs, WorkspacePath } from '@/features/workspace-fs/types'
-import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
+import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
+import { upsertWorkspaceTextDocument } from '@/features/workspace-fs/upsertWorkspaceTextDocument'
 import { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent } from '@/features/workspace-fs/workspaceFsEvents'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { hashStringToHex } from '@/lib/hash/stringHash'
 import { mapLimit } from '@/lib/async/mapLimit'
-import { safeWebsitePathSegment } from '@/lib/websites/websitePathUtils'
+import { resolveWebsiteImportNodeRelativeDocumentPath, safeWebsitePathSegment } from '@/lib/websites/websitePathUtils'
 import { fetchWebsiteImportArtifact } from '@/lib/websites/webpageIframeSrcdoc'
 import { convertWebpageHtmlToMarkdownArtifactAsync } from '@/lib/websites/webpageHtmlToMarkdownArtifact'
 import { convertWebpageUrlToMarkdownViaBrowser, looksLowFidelityWebpageMarkdown } from '@/lib/websites/webpageClientConvert'
 import { buildWebsiteSitemapMarkdown } from '@/lib/websites/websiteSitemapMarkdown'
+import { buildWebsiteCrawlCanvasMarkdown } from '@/lib/websites/websiteCrawlCanvasMarkdown'
+import { buildWebsiteImportManifestSummary } from '@/lib/websites/websiteImportManifestSummary'
+import type { WebsiteImportManifestV1 } from '@/lib/websites/server/websiteImportTypes'
 import { bulkSetWorkspaceEntrySources } from '@/features/workspace-fs/sourceIndex'
 import { buildWebpageWorkspaceEntryTextFromUpstreamMarkdown } from '../workspaceImport'
-import type { WorkspaceImportWebsiteOpts } from '@/features/markdown-explorer/workspaceActionBridge'
-import type { WorkspaceWebsiteImportCtx } from './types'
+import type { WorkspaceImportWebsiteOpts, WorkspaceWebsiteImportProgress, WorkspaceWebsiteImportSummary } from '@/features/markdown-explorer/workspaceActionBridge'
+export { importWebsiteViaWorkspaceRuntime, useWorkspaceWebsiteImportAction } from './websiteImportRuntimeFacade'
 
 type WebsiteImportSettings = {
   outputDirRel: string
@@ -24,14 +29,18 @@ type WebsiteImportSettings = {
   defaultView: unknown
   generateArtifactDocs: boolean
   browserEnhance: boolean
+  headless: boolean
+  proxyRotation: boolean
+  downloadAssets: boolean
+  applyToCanvas: boolean
+  preserveActiveDocument: boolean
+  maxDownloads: number
+  maxDownloadBytes: number
+  generationToken?: string
+  onProgress?: (progress: WorkspaceWebsiteImportProgress) => void
 }
 
-type WebsiteImportManifestNode = Record<string, unknown>
-
-type WebsiteImportManifest = {
-  rootUrl: string
-  nodes: WebsiteImportManifestNode[]
-}
+type WebsiteImportManifest = WebsiteImportManifestV1
 
 type WebsiteImportCreated = {
   createdPaths: WorkspacePath[]
@@ -63,6 +72,15 @@ function resolveWebsiteImportSettings(opts?: WorkspaceImportWebsiteOpts): Websit
       ? opts.generateArtifactDocs
       : store.websiteImportGenerateWebpageArtifactDocs !== false,
     browserEnhance: opts?.browserEnhance === true,
+    headless: opts?.headless === true,
+    proxyRotation: opts?.proxyRotation === true,
+    downloadAssets: opts?.downloadAssets === true,
+    applyToCanvas: opts?.applyToCanvas === true,
+    preserveActiveDocument: opts?.preserveActiveDocument === true,
+    maxDownloads: Number.isFinite(opts?.maxDownloads) ? Math.max(1, Math.min(500, Math.floor(Number(opts?.maxDownloads)))) : 120,
+    maxDownloadBytes: Number.isFinite(opts?.maxDownloadBytes) ? Math.max(1024 * 1024, Math.min(1024 * 1024 * 1024, Math.floor(Number(opts?.maxDownloadBytes)))) : 250 * 1024 * 1024,
+    generationToken: typeof opts?.generationToken === 'string' ? opts.generationToken : undefined,
+    onProgress: typeof opts?.onProgress === 'function' ? opts.onProgress : undefined,
   }
 }
 
@@ -96,6 +114,12 @@ async function runWebsiteImportServerJob(args: {
           concurrency: settings.concurrency,
           includeImages: settings.includeImages,
           generateMarkdownArtifacts: settings.generateArtifactDocs,
+          browserMode: settings.headless ? 'headless' : 'http',
+          proxyRotation: settings.proxyRotation,
+          downloadAssets: settings.downloadAssets,
+          maxDownloads: settings.maxDownloads,
+          maxDownloadBytes: settings.maxDownloadBytes,
+          generationToken: settings.generationToken,
         },
       }),
     },
@@ -120,21 +144,32 @@ async function runWebsiteImportServerJob(args: {
             stage?: unknown
             total?: unknown
             processed?: unknown
+            ok?: unknown
+            error?: unknown
           }
         | null
+      running?: unknown
     }>({
       url: `/__website_import/status?outputDirRel=${encodeURIComponent(settings.outputDirRel)}&importId=${encodeURIComponent(importId)}`,
       init: { headers: { Accept: 'application/json' } },
     })
     const state = typeof statusJson.status === 'string' ? statusJson.status : ''
-    if (state === 'done') break
-    if (state === 'failed') throw new Error('Import failed')
-    if (Date.now() - startedAtMs > 10 * 60_000) throw new Error('Import failed')
-
     const progress = statusJson.progress
     const total = progress && typeof progress.total === 'number' && Number.isFinite(progress.total) ? progress.total : null
     const processed = progress && typeof progress.processed === 'number' && Number.isFinite(progress.processed) ? progress.processed : null
     const stage = progress && typeof progress.stage === 'string' ? progress.stage : ''
+    settings.onProgress?.({
+      stage,
+      total,
+      processed,
+      ok: progress && typeof progress.ok === 'number' && Number.isFinite(progress.ok) ? progress.ok : null,
+      error: progress && typeof progress.error === 'number' && Number.isFinite(progress.error) ? progress.error : null,
+      running: statusJson.running === true,
+    })
+    if (state === 'done') break
+    if (state === 'failed') throw new Error('Import failed')
+    if (Date.now() - startedAtMs > 30 * 60_000) throw new Error('Import failed')
+
     const label = stage === 'discovering' ? 'Discovering' : stage === 'crawling' ? 'Crawling' : stage === 'converting' ? 'Importing' : 'Importing website'
     if (typeof processed === 'number' && typeof total === 'number' && total > 0) {
       status.setStatusProgress(label, Math.min(total, Math.max(0, processed)), total)
@@ -163,13 +198,10 @@ async function runWebsiteImportServerJob(args: {
     const err = typeof manifestJson.error === 'string' && manifestJson.error.trim() ? manifestJson.error.trim() : `HTTP ${manifestRes.status}`
     throw new Error(err)
   }
-  const manifestRaw = manifestJson.manifest as { rootUrl?: unknown; nodes?: unknown }
+  const manifestRaw = manifestJson.manifest as WebsiteImportManifestV1
   return {
     importId,
-    manifest: {
-      rootUrl: typeof manifestRaw.rootUrl === 'string' ? manifestRaw.rootUrl : url,
-      nodes: Array.isArray(manifestRaw.nodes) ? (manifestRaw.nodes as WebsiteImportManifestNode[]) : [],
-    },
+    manifest: manifestRaw,
   }
 }
 
@@ -213,19 +245,8 @@ async function getBrowserEnhancedWebsiteMarkdown(url: string): Promise<{ markdow
 
 async function ensureWebsiteFolderPath(fs: WorkspaceFs, absPath: string): Promise<WorkspacePath> {
   const normalized = normalizeWorkspacePath(absPath)
-  const segments = normalized.split('/').filter(Boolean)
-  let parent = WORKSPACE_ROOT_PATH
-  for (const seg of segments) {
-    const name = safeWebsitePathSegment(seg)
-    const nextPath = normalizeWorkspacePath(`${parent}/${name}`)
-    try {
-      await fs.createFolder({ parentPath: parent, name })
-    } catch {
-      void 0
-    }
-    parent = nextPath
-  }
-  return parent
+  await ensureWorkspaceFolderTreeIfMissing({ folderPath: normalized, fs })
+  return normalized
 }
 
 async function materializeWebsiteImportWorkspace(args: {
@@ -237,7 +258,7 @@ async function materializeWebsiteImportWorkspace(args: {
   importJobRef: React.MutableRefObject<number>
   jobId: number
   status: ReturnType<typeof import('./core').useWorkspaceStatusHelpers>
-}): Promise<{ created: WebsiteImportCreated; host: string }> {
+}): Promise<{ created: WebsiteImportCreated; host: string; canvasPath: WorkspacePath | null }> {
   const { fs, url, importId, manifest, settings, importJobRef, jobId, status } = args
   const rootUrl = manifest.rootUrl
   const nodes = manifest.nodes
@@ -269,7 +290,7 @@ async function materializeWebsiteImportWorkspace(args: {
     const ctrl = new AbortController()
     const nodeRows = nodes
       .map(n => {
-        const node = n || {}
+        const node = n
         const nodeUrl = typeof node.url === 'string' ? node.url : ''
         const nodeId = typeof node.nodeId === 'string' ? node.nodeId : hashStringToHex(nodeUrl).slice(0, 16)
         const nodeTreePath = typeof node.path === 'string' ? node.path : ''
@@ -323,20 +344,15 @@ async function materializeWebsiteImportWorkspace(args: {
       writeConcurrency,
       async row => {
         if (!isWebsiteImportJobCurrent(importJobRef, jobId)) throw new Error('cancelled')
-        const nodePath = (() => {
-          try {
-            const raw = row.nodeTreePath && row.nodeTreePath.trim() ? row.nodeTreePath : new URL(row.nodeUrl).pathname
-            const parts = String(raw || '').split('/').filter(Boolean)
-            return parts.map(safeWebsitePathSegment)
-          } catch {
-            return []
-          }
-        })()
-        const leaf = nodePath[nodePath.length - 1] || 'index'
-        const folderParts = nodePath.slice(0, Math.max(0, nodePath.length - 1))
+        const relativeDocumentPath = resolveWebsiteImportNodeRelativeDocumentPath({
+          nodeUrl: row.nodeUrl,
+          nodePath: row.nodeTreePath,
+        })
+        const documentParts = relativeDocumentPath.split('/').filter(Boolean)
+        const primaryName = documentParts[documentParts.length - 1] || 'index.md'
+        const folderParts = documentParts.slice(0, Math.max(0, documentParts.length - 1))
         const folderPath = folderParts.length ? await ensureFolderCached(`${rootFolder}/${folderParts.join('/')}`) : rootFolder
-        const nameBase = (leaf || 'index').replace(/\.md$/i, '')
-        const primaryName = `${nameBase}.md`
+        const nameBase = primaryName.replace(/\.md$/i, '') || 'index'
 
         const text = await (async () => {
           if (!generateArtifactDocs) return stubForNode(row.nodeUrl, row.nodeId)
@@ -408,7 +424,7 @@ async function materializeWebsiteImportWorkspace(args: {
         })()
 
         const tryCreate = async (name: string) => {
-          const createdPath = await fs.createFile({ parentPath: folderPath, name, text })
+          const createdPath = await upsertWorkspaceTextDocument({ fs, parentPath: folderPath, name, text })
           createdPaths.push(createdPath)
           sources.push({ path: createdPath, source: { kind: 'url', url: row.nodeUrl, path: `workspace:${createdPath}` } })
           try {
@@ -463,77 +479,94 @@ async function materializeWebsiteImportWorkspace(args: {
           })
           .filter(n => n.url),
       })
-      const sitemapPath = await fs.createFile({ parentPath: rootFolder, name: 'website.sitemap.md', text: sitemapText })
+      const sitemapPath = await upsertWorkspaceTextDocument({ fs, parentPath: rootFolder, name: 'website.sitemap.md', text: sitemapText })
       createdPaths.unshift(sitemapPath)
       sources.unshift({ path: sitemapPath, source: { kind: 'url', url: rootUrl, path: `workspace:${sitemapPath}` } })
     } catch {
       void 0
     }
 
+    let canvasPath: WorkspacePath | null = null
+    try {
+      const canvasText = buildWebsiteCrawlCanvasMarkdown({
+        rootUrl,
+        importId,
+        outputDirRel: settings.outputDirRel,
+        runtime: manifest.runtime,
+        nodes,
+      })
+      canvasPath = await upsertWorkspaceTextDocument({ fs, parentPath: rootFolder, name: 'website.crawl.canvas.md', text: canvasText })
+      createdPaths.unshift(canvasPath)
+      sources.unshift({ path: canvasPath, source: { kind: 'url', url: rootUrl, path: `workspace:${canvasPath}` } })
+    } catch {
+      void 0
+    }
+
     status.setStatusProgress('Writing', totalWrites, totalWrites)
-    return { createdPaths, sources }
+    return { createdPaths, sources, canvasPath }
   })
 
-  return { created, host }
+  return { created, host, canvasPath: created.canvasPath }
 }
 
-export function useWorkspaceWebsiteImportAction(args: {
-  core: {
-    importJobRef: React.MutableRefObject<number>
-    status: ReturnType<typeof import('./core').useWorkspaceStatusHelpers>
-    focusAfterImport: (createdPath: WorkspacePath, opts?: { sourceUrl?: string | null; applyToGraph?: boolean; jobId?: number }) => Promise<void>
+type WebsiteImportRuntimeStatus = {
+  setStatusProgress: (label: string, current?: number | null, total?: number | null) => void
+}
+
+export async function runWorkspaceWebsiteImport(args: {
+  url: string
+  opts?: WorkspaceImportWebsiteOpts
+  importJobRef: { current: number }
+  jobId: number
+  status: WebsiteImportRuntimeStatus
+  getFs: () => Promise<WorkspaceFs>
+  refresh?: () => Promise<{ entries: import('@/features/workspace-fs/types').WorkspaceEntry[]; sourcesByPath: import('@/features/workspace-fs/sourceIndex').WorkspaceSourceIndex }>
+  focusAfterImport?: (createdPath: WorkspacePath, opts?: { sourceUrl?: string | null; applyToGraph?: boolean; jobId?: number }) => Promise<void>
+}): Promise<{ createdPaths: WorkspacePath[]; host: string; websiteImportManifest: WebsiteImportManifestV1; websiteImportSummary: WorkspaceWebsiteImportSummary }> {
+  const settings = resolveWebsiteImportSettings(args.opts)
+  const { importId, manifest } = await runWebsiteImportServerJob({
+    url: args.url,
+    settings,
+    importJobRef: args.importJobRef,
+    jobId: args.jobId,
+    status: args.status as ReturnType<typeof import('./core').useWorkspaceStatusHelpers>,
+  })
+  if (!isWebsiteImportJobCurrent(args.importJobRef, args.jobId)) throw new Error('cancelled')
+  const fs = await args.getFs()
+  await fs.ensureSeed()
+  const { created, host, canvasPath } = await materializeWebsiteImportWorkspace({
+    fs,
+    url: args.url,
+    importId,
+    manifest,
+    settings,
+    importJobRef: args.importJobRef,
+    jobId: args.jobId,
+    status: args.status as ReturnType<typeof import('./core').useWorkspaceStatusHelpers>,
+  })
+
+  if (!isWebsiteImportJobCurrent(args.importJobRef, args.jobId)) throw new Error('cancelled')
+  bulkSetWorkspaceEntrySources(created.sources)
+  const refreshed = args.refresh ? await args.refresh() : null
+  if (settings.applyToCanvas && canvasPath) {
+    const { applyWorkspaceImportToCanvasBestEffort } = await import('./importRuntimeActions')
+    await applyWorkspaceImportToCanvasBestEffort({
+      fs,
+      createdPaths: [canvasPath],
+      opts: {
+        applyToGraph: true,
+        ...(refreshed ? { workspaceEntries: refreshed.entries, sourcesByPath: refreshed.sourcesByPath } : {}),
+      },
+    })
   }
-  ctx: WorkspaceWebsiteImportCtx
-}) {
-  const { importJobRef, status, focusAfterImport } = args.core
-  const { getFs, refresh } = args.ctx
-
-  const handleImportWebsite = React.useCallback(
-    async (urlRaw: string, opts?: WorkspaceImportWebsiteOpts) => {
-      const url = String(urlRaw || '').trim()
-      if (!url) return
-      const jobId = (importJobRef.current += 1)
-      status.setStatusProgress('Importing website')
-      try {
-        const settings = resolveWebsiteImportSettings(opts)
-        const { importId, manifest } = await runWebsiteImportServerJob({
-          url,
-          settings,
-          importJobRef,
-          jobId,
-          status,
-        })
-        if (!isWebsiteImportJobCurrent(importJobRef, jobId)) return
-        const fs = await getFs()
-        await fs.ensureSeed()
-        const { created, host } = await materializeWebsiteImportWorkspace({
-          fs,
-          url,
-          importId,
-          manifest,
-          settings,
-          importJobRef,
-          jobId,
-          status,
-        })
-
-        if (!isWebsiteImportJobCurrent(importJobRef, jobId)) return
-        bulkSetWorkspaceEntrySources(created.sources)
-        await refresh()
-        const first = created.createdPaths[0]
-        if (first) {
-          await focusAfterImport(first, { sourceUrl: null, applyToGraph: false, jobId })
-        }
-        status.setStatusInfo(`Imported website: ${host}`)
-      } catch (e) {
-        if (!isWebsiteImportJobCurrent(importJobRef, jobId)) return
-        const msg = String((e as { message?: unknown })?.message ?? e)
-        if (/cancelled/i.test(msg)) return
-        status.setStatusError(`Import failed: ${msg}`)
-      }
-    },
-    [focusAfterImport, getFs, importJobRef, refresh, status],
-  )
-
-  return { handleImportWebsite }
+  const first = settings.preserveActiveDocument ? null : (canvasPath || created.createdPaths[0])
+  if (first) {
+    if (args.focusAfterImport) {
+      await args.focusAfterImport(first, { sourceUrl: null, applyToGraph: false, jobId: args.jobId })
+    } else {
+      const { activateFirstImportedWorkspaceFile } = await import('./importRuntimeActions')
+      await activateFirstImportedWorkspaceFile({ fs, createdPaths: [first], applyToGraph: false })
+    }
+  }
+  return { createdPaths: created.createdPaths, host, websiteImportManifest: manifest, websiteImportSummary: buildWebsiteImportManifestSummary(manifest) }
 }

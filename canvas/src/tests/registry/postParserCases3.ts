@@ -348,7 +348,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["richMedia.panel.markdownBlocks.escapeRawHtml","@/__tests__/richMediaPanelMarkdownSrcDoc.test","testTextWidgetOutputSrcDocEscapesRawHtmlWhileRenderingMarkdown"],
   ["richMedia.panel.markdownBlocks.semanticHtmlNoGenericDiv","@/__tests__/richMediaPanelMarkdownSrcDoc.test","testMarkdownViewerDocumentNormalizesGenericDivContainers"],
   ["richMedia.panel.nodeMediaProperties.sharedOwner","@/__tests__/richMediaPanelMarkdownSrcDoc.test","testRichMediaNodeMediaPropertiesHaveSingleSharedOwner"],
-  ["richMedia.panel.ssot.consistency","@/__tests__/richMediaSsotConsistencyRegression.test","testRichMediaSsotConsistencyRegression"], ["richMedia.storyboard.overlay.onlyPanels","@/__tests__/richMediaStoryboardOverlayOwnership.test","testStoryboardFlowCanvasOverlayKeepsOnlyRichMediaPanels"],
+  ["richMedia.panel.ssot.consistency","@/__tests__/richMediaSsotConsistencyRegression.test","testRichMediaSsotConsistencyRegression"], ["richMedia.nativeCrawler.progressAndRecovery","@/__tests__/nativeCrawlerRichMediaRecovery.test","testNativeCrawlerRichMediaProgressAndTerminalRecovery"], ["richMedia.storyboard.overlay.onlyPanels","@/__tests__/richMediaStoryboardOverlayOwnership.test","testStoryboardFlowCanvasOverlayKeepsOnlyRichMediaPanels"],
   ["richMedia.panel.cardMarkdown.sourceLineRange","@/__tests__/cardMarkdownPreviewUtils.test","testCardMarkdownPreviewTextUsesSourceLineRangeForStructuredMarkdown"],
   ["richMedia.panel.cardMarkdown.previewFallbacks","@/__tests__/cardMarkdownPreviewUtils.test","testCardMarkdownPreviewTextFallbacksPreserveSharedMarkdownSyntax"],
   ["richMedia.panel.cardMarkdown.tableSyntax","@/__tests__/cardMarkdownPreviewUtils.test","testCardMarkdownPreviewSyntaxDetectsMarkdownTables"],

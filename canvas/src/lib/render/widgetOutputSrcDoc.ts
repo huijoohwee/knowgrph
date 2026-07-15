@@ -3,6 +3,10 @@ import { buildMarkdownHtmlViewerDocument } from '@/features/markdown/htmlViewerC
 import { LRUCache } from '@/lib/cache/LRUCache'
 import { hashSignatureParts } from '@/lib/hash/signature'
 import { hashStringToHexCached } from '@/lib/hash/textHashCache'
+import {
+  enhanceWebsiteCrawlTableRenderedMarkdownHtml,
+  isWebsiteCrawlTablePanelMarkdown,
+} from '@/lib/websites/websiteCrawlTablePanel'
 
 function escapeHtml(raw: string): string {
   return String(raw || '')
@@ -26,10 +30,14 @@ export function buildTextWidgetOutputSrcDoc(args: {
   const cacheKey = hashSignatureParts(['rich-media-text-srcdoc', title, text.length, textHash])
   const cached = textWidgetOutputSrcDocCache.get(cacheKey)
   if (cached) return cached
-  const markdownHtml = text.trim() ? md.render(text) : `<pre>${escapeHtml(text)}</pre>`
+  const websiteCrawlTable = isWebsiteCrawlTablePanelMarkdown(text)
+  const renderedMarkdownHtml = text.trim() ? md.render(text) : `<pre>${escapeHtml(text)}</pre>`
+  const markdownHtml = websiteCrawlTable
+    ? enhanceWebsiteCrawlTableRenderedMarkdownHtml(renderedMarkdownHtml)
+    : renderedMarkdownHtml
   const html = buildMarkdownHtmlViewerDocument({
     title,
-    bodyHtml: `<section data-kg-rich-media-markdown-srcdoc="1">${markdownHtml}</section>`,
+    bodyHtml: `<section data-kg-rich-media-markdown-srcdoc="1"${websiteCrawlTable ? ' data-kg-website-crawl-table-panel="1" data-kg-rich-media-panel-size="viewport" data-kg-rich-media-panel-scroll-owner="media"' : ''}>${markdownHtml}</section>`,
   })
   textWidgetOutputSrcDocCache.set(cacheKey, html)
   return html

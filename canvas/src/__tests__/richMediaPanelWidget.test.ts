@@ -21,9 +21,8 @@ import {
   RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID,
   RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE,
   RICH_MEDIA_PANEL_SRCDOC_STYLE_ID,
-  RICH_MEDIA_PANEL_SRCDOC_TIMELINE_SCRIPT_ID,
+  RICH_MEDIA_PANEL_SRCDOC_THEME_MESSAGE, RICH_MEDIA_PANEL_SRCDOC_THEME_SCRIPT_ID, RICH_MEDIA_PANEL_SRCDOC_TIMELINE_SCRIPT_ID,
 } from '@/lib/render/richMediaPanelSrcDoc'
-
 type ParsedGraphData = Parameters<typeof computeFlowConnectedValuesBySchemaPath>[0]['graphData']
 
 function readRichMediaPanelSourceBundle(root: string): string {
@@ -694,6 +693,7 @@ export function testRichMediaPanelInlineSrcDocRefreshesSharedResetStyle() {
   if (timelineScriptCount !== 1) {
     throw new Error(`expected Rich Media Panel srcdoc normalization to keep exactly one shared timeline transport script, got ${timelineScriptCount}`)
   }
+  const themeScriptCount = normalized.split(`id="${RICH_MEDIA_PANEL_SRCDOC_THEME_SCRIPT_ID}"`).length - 1; if (themeScriptCount !== 1 || !normalized.includes(RICH_MEDIA_PANEL_SRCDOC_THEME_MESSAGE)) throw new Error(`expected Rich Media Panel srcdoc normalization to keep exactly one shared theme bridge, got ${themeScriptCount}`)
   if (!normalized.includes(RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE)) {
     throw new Error('expected Rich Media Panel srcdoc resize script to publish the shared size message type')
   }

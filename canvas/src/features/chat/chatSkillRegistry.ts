@@ -1,4 +1,5 @@
 import { listAgentDefinitions } from '../../../../contracts/agent-runtime.schema.js'
+import { CHAT_TABLE_PERSISTENCE_CONTRACT_PROMPT } from './chatTablePersistenceContract'
 
 export type ChatSkillId = string
 
@@ -26,6 +27,7 @@ const STORYBUILDING_SKILL: ChatSkillOption = {
       'Prefer universal storybuilding semantics: proof goal, source evidence, import/input lanes, text/image/video generation lanes, storyboard card lineage, validation checklist, acceptance criteria, and unresolved open questions.',
       'Never hardcode repository paths, sibling publication paths, fixture media URLs, fixture media ids, API keys, or browser-stored secrets. If a concrete value is missing from current context, leave a neutral placeholder or open question instead of inventing it.',
       'Persist the final answer through the existing chat-log/KGC artifact flow; do not ask for a separate downstream patch layer or local backfill.',
+      CHAT_TABLE_PERSISTENCE_CONTRACT_PROMPT,
     ].join('\n'),
   }
 
@@ -47,6 +49,7 @@ const buildAgentChatSkillOptions = (): ChatSkillOption[] => listAgentDefinitions
     `Policy references: ${definition.policyRefs.join(', ')}.`,
     'Use available workspace/source context first. Mark missing evidence as unknown instead of fabricating citations, metrics, URLs, provenance, or media artifacts.',
     'For chatKnowgrph output, express the result as a complete KGC document. For plain chat, keep Markdown concise and use response.structuredContent only for renderable cards, panels, nodes, edges, media, or tables.',
+    CHAT_TABLE_PERSISTENCE_CONTRACT_PROMPT,
   ].join('\n'),
 }))
 

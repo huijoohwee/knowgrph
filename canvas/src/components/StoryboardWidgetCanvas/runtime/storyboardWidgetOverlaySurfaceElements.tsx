@@ -176,6 +176,7 @@ export function buildOverlayEditorElements(args: {
         editorSurfaceKind={args.editorSurfaceKind}
         overlayCollectiveCount={orderedOverlayEditorNodeIds.length}
         node={renderNode}
+        nodeById={args.renderGraphNodeById}
         graphMetaKind={overlayGraphMetaKind}
         graphMetaKey={graphMetaKey}
         portHandleEdges={portHandleEdges}

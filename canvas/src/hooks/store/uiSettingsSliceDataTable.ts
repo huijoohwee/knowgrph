@@ -132,7 +132,7 @@ export const createUiSettingsDataTableSlice = (set: SetGraph)=> ({
     set({ websiteImportConcurrency: n < 1 ? 1 : n > 12 ? 12 : n })
   },
 
-  websiteImportOutputDirRel: '.knowgrph-workspace/website-imports',
+  websiteImportOutputDirRel: 'knowgrph-workspace/website-imports',
   setWebsiteImportOutputDirRel: (v: string) => set({ websiteImportOutputDirRel: String(v || '').trim() }),
 
   setPdfImportIncludeImages: (v: boolean) => set({ pdfImportIncludeImages: v }),

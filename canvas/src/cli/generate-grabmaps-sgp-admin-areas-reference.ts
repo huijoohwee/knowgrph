@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import { SG_POSTAL_DISTRICT_RANGES, SG_SPECIAL_POSTCODE_ZONES } from 'grph-shared/geospatial/sgpAdministrativeAreas'
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
@@ -13,24 +14,15 @@ const OUTPUT_PATH = path.join(
   'knowgrph-grabmaps-sgp-administrative-areas-reference.md',
 )
 
-function escapeMarkdownCell(value: unknown): string {
-  return String(value ?? '')
-    .replace(/\r?\n/g, ' ')
-    .replace(/\|/g, '\\|')
-    .trim()
-}
-
-function buildDistrictRow(row: { district: string; sectorMin: number; sectorMax: number; label: string }): string {
+function buildDistrictRow(row: { district: string; sectorMin: number; sectorMax: number; label: string }): string[] {
   const range = row.sectorMin === row.sectorMax
     ? `${String(row.sectorMin).padStart(2, '0')}xxxx`
     : `${String(row.sectorMin).padStart(2, '0')}xxxx–${String(row.sectorMax).padStart(2, '0')}xxxx`
-  const cells = [row.district, range, row.label].map(escapeMarkdownCell)
-  return `| ${cells.join(' | ')} |`
+  return [row.district, range, row.label]
 }
 
-function buildZoneRow(row: { prefix3: string; label: string }): string {
-  const cells = [row.prefix3, row.label].map(escapeMarkdownCell)
-  return `| ${cells.join(' | ')} |`
+function buildZoneRow(row: { prefix3: string; label: string }): string[] {
+  return [row.prefix3, row.label]
 }
 
 function buildMarkdown(): string {
@@ -50,15 +42,17 @@ function buildMarkdown(): string {
     '',
     '## 1. Postal District Mapping (by postal sector prefix)',
     '',
-    '| district | postcode range | planning areas (hint) |',
-    '| --- | --- | --- |',
-    ...districts.map(buildDistrictRow),
+    ...serializeMarkdownPipeTable({
+      columns: ['district', 'postcode range', 'planning areas (hint)'],
+      rows: districts.map(buildDistrictRow),
+    }),
     '',
     '## 2. Special Postcode Zones (prefix-3)',
     '',
-    '| prefix3 | area |',
-    '| --- | --- |',
-    ...zones.map(buildZoneRow),
+    ...serializeMarkdownPipeTable({
+      columns: ['prefix3', 'area'],
+      rows: zones.map(buildZoneRow),
+    }),
     '',
   ].join('\n')
 }
@@ -70,4 +64,3 @@ function main(): void {
 }
 
 main()
-

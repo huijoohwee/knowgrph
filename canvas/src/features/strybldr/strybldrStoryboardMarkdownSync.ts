@@ -10,6 +10,7 @@ import {
 } from '@/lib/cards/graphNodeCardFields'
 import { buildMermaidGanttWorkflowCode } from '@/lib/mermaid/mermaidDiagramCode'
 import type { StrybldrCardOverride, StrybldrStoryboardDocument } from './strybldrTypes'
+import { normalizeGeneratedRichMediaTableProperties } from '@/features/rich-media/richMediaTablePersistence'
 
 const cleanText = (value: unknown): string => String(value ?? '').replace(/\s+/g, ' ').trim()
 const cleanMultilineText = (value: unknown): string => String(value ?? '').replace(/\r\n?/g, '\n').trim()
@@ -33,8 +34,16 @@ export const buildStrybldrCardOverridePatchFromGraphNodeChange = (args: { previo
   const nextLabel = cleanMultilineText(nextNode.label)
   const previousType = cleanMultilineText(previousNode?.type)
   const nextType = cleanMultilineText(nextNode.type)
-  const previousProperties = (previousNode?.properties || {}) as Record<string, unknown>
-  const nextProperties = (nextNode.properties || {}) as Record<string, unknown>
+  const previousProperties = normalizeGeneratedRichMediaTableProperties({
+    nodeType: previousNode?.type,
+    nodeLabel: previousNode?.label,
+    properties: (previousNode?.properties || {}) as Record<string, unknown>,
+  })
+  const nextProperties = normalizeGeneratedRichMediaTableProperties({
+    nodeType: nextNode.type,
+    nodeLabel: nextNode.label,
+    properties: (nextNode.properties || {}) as Record<string, unknown>,
+  })
   if (previousLabel !== nextLabel) patch.title = nextLabel
   if (previousType !== nextType) patch.type = nextType
   const semanticKeys = new Set<string>()

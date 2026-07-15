@@ -15,6 +15,7 @@ import {
 import {
   normalizeRichMediaPanelInlineSrcDoc,
   RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE,
+  RICH_MEDIA_PANEL_SRCDOC_THEME_MESSAGE,
   shouldUsePanelOwnedRichMediaPanelSrcDocScroll,
   shouldUseViewportRichMediaPanelSrcDocSize,
 } from '@/lib/render/richMediaPanelSrcDoc'
@@ -74,6 +75,7 @@ export type RichMediaPanelMediaState = {
   richMediaPanelMode: string
   safeOpenUrl: string
   scheduleInlineSrcDocTimelineFrameBurst: (override?: Partial<TimelineTransportPlaybackRequestDetail>) => void
+  syncInlineSrcDocTheme: () => void
   scrollOwner: 'media' | 'panel'
   setMediaSrc: React.Dispatch<React.SetStateAction<string>>
   setPanelDraftText: React.Dispatch<React.SetStateAction<string>>
@@ -274,6 +276,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     isStoryboardRenderer,
     markdownDocumentName,
     richMediaPanelMode,
+    resolvedThemeMode,
     timelineTransportDocumentKey,
     timelineTransportPlaybackRate,
     timelineTransportPlaying,
@@ -295,6 +298,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
       isStoryboardRenderer: String(store.canvas2dRenderer || '') === 'storyboard',
       markdownDocumentName: store.markdownDocumentName || '',
       richMediaPanelMode: store.richMediaPanelMode,
+      resolvedThemeMode: (store.resolvedThemeMode || 'light') as 'light' | 'dark',
       timelineTransportDocumentKey: store.timelineTransportDocumentKey || '',
       timelineTransportPlaybackRate: store.timelineTransportPlaybackRate || 1,
       timelineTransportPlaying: store.timelineTransportPlaying === true,
@@ -347,6 +351,25 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
       void 0
     }
   }, [])
+  const syncInlineSrcDocTheme = React.useCallback(() => {
+    const payload = { type: RICH_MEDIA_PANEL_SRCDOC_THEME_MESSAGE, theme: resolvedThemeMode }
+    try {
+      inlineSrcDocMessageTargetRef.current?.postMessage(payload, { targetOrigin: '*' })
+    } catch {
+      void 0
+    }
+    for (const frame of [inlineSrcDocFrameRef.current, directVideoFallbackFrameRef.current]) {
+      try {
+        frame?.contentWindow?.postMessage(payload, '*')
+      } catch {
+        void 0
+      }
+    }
+  }, [resolvedThemeMode])
+  React.useEffect(() => {
+    if (!normalizedInlineSrcDoc) return
+    syncInlineSrcDocTheme()
+  }, [normalizedInlineSrcDoc, syncInlineSrcDocTheme])
   const postTimelineFrameToSrcDocPreview = React.useCallback((
     frame: HTMLIFrameElement | null,
     override?: Partial<TimelineTransportPlaybackRequestDetail>,
@@ -397,10 +420,11 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
       const payload = event.data as { type?: unknown } | null
       if (!payload || payload.type !== RICH_MEDIA_TIMELINE_TRANSPORT_READY_MESSAGE) return
       inlineSrcDocMessageTargetRef.current = event.source
+      syncInlineSrcDocTheme()
     }
     window.addEventListener('message', handleSrcDocReady)
     return () => window.removeEventListener('message', handleSrcDocReady)
-  }, [])
+  }, [syncInlineSrcDocTheme])
   const handleDirectMediaElement = React.useCallback((element: HTMLMediaElement | null) => {
     directMediaElementRef.current = element
     setDirectMediaElement(previous => (previous === element ? previous : element))
@@ -540,6 +564,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     setMediaSrc,
     setPanelDraftText,
     setReady,
+    syncInlineSrcDocTheme,
     shouldForceSnapshotIframe,
     title,
     uiPanelMonospaceTextClass,

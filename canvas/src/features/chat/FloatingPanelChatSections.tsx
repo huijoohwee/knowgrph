@@ -13,7 +13,6 @@ import { ChatModelCredentialControls } from '@/features/chat/ChatModelCredential
 import { FloatingPanelChatComposer } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposer'
 import { renderFloatingPanelChatMessageContent } from '@/features/chat/floatingPanelChat/FloatingPanelChatMessageContent'
 import { FloatingPanelChatQuickActionGrid } from '@/features/chat/floatingPanelChat/FloatingPanelChatQuickActionGrid'
-import { FloatingPanelChatPromptPresetControl } from '@/features/chat/floatingPanelChat/FloatingPanelChatPromptPresetControl'
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
 export type StreamingAssistantState = {
@@ -540,13 +539,6 @@ export function FloatingPanelChatFooter({
                 {UI_COPY.chatNewChatButtonLabel}
               </button>
             )}
-            {showNewChatButton ? (
-              <FloatingPanelChatPromptPresetControl
-                setInput={setInput}
-                disabled={isLoading}
-                textSizeClassName={uiPanelMicroLabelTextSizeClass}
-              />
-            ) : null}
             {isLoading && (
               <button
                 type="button"

@@ -3,6 +3,7 @@ import { LRUCache } from '../cache/LRUCache'
 import { postprocessWebpageMarkdownSsot } from './webpageMarkdownPostprocess'
 import { pickFirstSrcsetUrl } from 'grph-shared/markdown/mediaHtml'
 import { looksLikePlaceholderMediaSrc, scoreHtmlContentRootCandidate, shouldPreserveRawHtmlMarkdownLine } from './htmlToMarkdownHeuristics'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 type HastNode = {
   type?: unknown
@@ -380,8 +381,6 @@ const renderHeadSectionMarkdown = (head: HtmlHeadArtifacts, baseUrl: string): st
       .replace(/\s+/g, ' ')
       .trim()
   }
-  const cell = (v: unknown): string => inline(v).replace(/\|/g, '\\|')
-
   const lines: string[] = []
   lines.push('## HTML Head')
   lines.push('')
@@ -397,20 +396,18 @@ const renderHeadSectionMarkdown = (head: HtmlHeadArtifacts, baseUrl: string): st
     })
     if (filtered.length === 0) return lines.join('\n')
     lines.push('')
-    lines.push('| name | property | httpEquiv | charset | content |')
-    lines.push('|---|---|---|---|---|')
-    filtered.forEach(m => {
-      lines.push(`| ${cell(m.name)} | ${cell(m.property)} | ${cell(m.httpEquiv)} | ${cell(m.charset)} | ${cell(m.content)} |`)
-    })
+    lines.push(...serializeMarkdownPipeTable({
+      columns: ['name', 'property', 'httpEquiv', 'charset', 'content'],
+      rows: filtered.map(m => [inline(m.name), inline(m.property), inline(m.httpEquiv), inline(m.charset), inline(m.content)]),
+    }))
   }
 
   if (head.links.length > 0) {
     lines.push('')
-    lines.push('| rel | href | as | type | sizes |')
-    lines.push('|---|---|---|---|---|')
-    head.links.forEach(l => {
-      lines.push(`| ${cell(l.rel)} | ${cell(l.href)} | ${cell(l.as)} | ${cell(l.type)} | ${cell(l.sizes)} |`)
-    })
+    lines.push(...serializeMarkdownPipeTable({
+      columns: ['rel', 'href', 'as', 'type', 'sizes'],
+      rows: head.links.map(l => [inline(l.rel), inline(l.href), inline(l.as), inline(l.type), inline(l.sizes)]),
+    }))
   }
 
   return lines.join('\n')

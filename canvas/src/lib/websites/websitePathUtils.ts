@@ -18,3 +18,22 @@ export const hostFromUrl = (url: string): string => {
   }
 }
 
+export const resolveWebsiteImportNodeRelativeDocumentPath = (args: {
+  nodeUrl: string
+  nodePath?: string | null
+}): string => {
+  const rawPath = (() => {
+    const declared = String(args.nodePath || '').trim()
+    if (declared) return declared
+    try {
+      return new URL(String(args.nodeUrl || '')).pathname
+    } catch {
+      return ''
+    }
+  })()
+  const parts = rawPath.split('/').filter(Boolean).map(safeWebsitePathSegment)
+  const leaf = parts[parts.length - 1] || 'index'
+  const folderParts = parts.slice(0, Math.max(0, parts.length - 1))
+  const nameBase = leaf.replace(/\.md$/i, '') || 'index'
+  return [...folderParts, `${nameBase}.md`].join('/')
+}

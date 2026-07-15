@@ -67,6 +67,7 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'mainPanel.help',
   'floatingPanel.propsPanel',
   'floatingPanel.skillsCommands',
+  'floatingPanel.promptPresets',
   'floatingPanel.view',
   'floatingPanel.media',
   'floatingPanel.camera',
@@ -312,6 +313,11 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'Skills & Commands',
     Icon: SquareTerminal,
   },
+  'floatingPanel.promptPresets': {
+    category: 'FloatingPanel surface',
+    label: 'Prompt Presets',
+    Icon: ListChecks,
+  },
   'floatingPanel.view': {
     category: 'FloatingPanel surface',
     label: 'View',
@@ -402,6 +408,7 @@ export const MAIN_PANEL_TAB_TYPE_ICON_BY_KEY = Object.fromEntries(
 export type FloatingPanelTypeIconView =
   | 'propsPanel'
   | 'skillsCommands'
+  | 'promptPresets'
   | 'view'
   | 'media'
   | 'camera'
@@ -422,6 +429,7 @@ export type FloatingPanelTypeIconView =
 export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   propsPanel: 'floatingPanel.propsPanel',
   skillsCommands: 'floatingPanel.skillsCommands',
+  promptPresets: 'floatingPanel.promptPresets',
   view: 'floatingPanel.view',
   media: 'floatingPanel.media',
   camera: 'floatingPanel.camera',

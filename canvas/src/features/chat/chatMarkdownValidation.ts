@@ -2,14 +2,14 @@ import type { JSONValue } from '@/lib/graph/types'
 import { collectComputingFlowBodyVarKeys, findUndeclaredComputingFlowBodyRef, hasComputingFlowContract, readComputingFlowBodyRefKey } from './chatComputingFlowContract'
 import { extractSecondLevelYamlKeys, isFrontmatterVarKeyDeclared } from './chatKgcFrontmatter'
 import { isResponseOnlyKgcFrontmatter, readResponseOnlyKgcVariableLinkError } from './chatKgcResponseOnlyContract'
-export type ChatMarkdownValidationRuleId =
+import { validateNoAuthoredHtmlTables } from './chatMarkdownTableValidation'; export type ChatMarkdownValidationRuleId =
   | 'V-01'
   | 'V-02'
   | 'V-03'
   | 'V-04'
   | 'V-05'
   | 'V-06'
-  | 'V-07'
+  | 'V-07' | 'V-10'
 
 export type ChatMarkdownValidationError = {
   ruleId: ChatMarkdownValidationRuleId
@@ -773,7 +773,7 @@ export const validateChatMarkdown = (args: {
   const errors: ChatMarkdownValidationError[] = []
 
   const validators: Array<(md: string) => ChatMarkdownValidationError | null> = [
-    validateSigilsUpperHex,
+    validateSigilsUpperHex, validateNoAuthoredHtmlTables,
     validateKgcEnvelopeStartsAtFrontmatter,
     validateLongQuotes,
     validateCanonicalKgcFrontmatterShape,

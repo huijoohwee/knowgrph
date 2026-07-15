@@ -8,6 +8,7 @@ import { RICH_MEDIA_OVERLAY_ACTION_VISIBILITY } from '@/components/StoryboardWid
 
 export function useWidgetRichMediaToolbar(args: {
   node: GraphNode
+  nodeById?: ReadonlyMap<string, GraphNode>
   minimized: boolean
   hideFields: boolean
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
@@ -16,6 +17,7 @@ export function useWidgetRichMediaToolbar(args: {
 }) {
   const {
     node,
+    nodeById,
     minimized,
     hideFields,
     connectedValuesBySchemaPath,
@@ -27,6 +29,7 @@ export function useWidgetRichMediaToolbar(args: {
   const richMediaWidgetPreview = useRichMediaWidgetPreview({
     enabled: showRichMediaPanelBody,
     node,
+    nodeById,
     onPatchProperties,
     connectedValuesBySchemaPath,
   })

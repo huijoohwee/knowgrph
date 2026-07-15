@@ -17,12 +17,9 @@ export function testWebpageMarkdownPostprocessRemotionPricingToAsciiTable() {
 
   const pricing = sliceBetween(out, '## Pricing', '\n## Trusted by')
   if (!pricing) throw new Error('expected pricing section')
-  if (!pricing.includes('```ascii')) throw new Error('expected pricing section to include ascii block')
-  if (!pricing.includes('Free License')) throw new Error('expected Free License in ascii table')
-  if (!pricing.includes('Company License')) throw new Error('expected Company License in ascii table')
-  if (!pricing.includes('Enterprise License')) throw new Error('expected Enterprise License in ascii table')
-  if (!pricing.includes('┌') || !pricing.includes('┬') || !pricing.includes('┐')) {
-    throw new Error('expected pricing ascii table to include box-drawing borders')
+  if (!pricing.includes('| Free License | Company License | Enterprise License |')) throw new Error('expected pricing section to include a Markdown pipe table')
+  if (pricing.includes('```ascii') || pricing.includes('┌') || pricing.includes('┬') || pricing.includes('┐')) {
+    throw new Error('expected generated pricing tables to use the shared Markdown pipe-table format')
   }
   if (/\n-\s+Create and automate/.test(pricing)) {
     throw new Error('expected old pricing bullet list to be replaced (no duplicates)')
@@ -45,10 +42,7 @@ export function testWebpageMarkdownPostprocessHandlesCollapsedRemotionPricingBlo
 
   const out = postprocessWebpageMarkdownSsot(input)
   const pricing = sliceBetween(out, '## Pricing', '\n## Trusted by')
-  if (!pricing.includes('```ascii')) throw new Error('expected pricing to be converted into ascii fence')
-  if (!pricing.includes('Free License')) throw new Error('expected Free License in table')
-  if (!pricing.includes('Company License')) throw new Error('expected Company License in table')
-  if (!pricing.includes('Enterprise License')) throw new Error('expected Enterprise License in table')
-  if (!pricing.includes('┌') || !pricing.includes('┬') || !pricing.includes('┐')) throw new Error('expected box drawing borders')
+  if (!pricing.includes('| Free License | Company License | Enterprise License |')) throw new Error('expected pricing to be converted into a Markdown pipe table')
+  if (pricing.includes('```ascii') || pricing.includes('┌') || pricing.includes('┬') || pricing.includes('┐')) throw new Error('expected no generated ASCII-table duplicate')
   if (pricing.includes('peopleFree License')) throw new Error('expected collapsed blob to be removed (no duplicates)')
 }

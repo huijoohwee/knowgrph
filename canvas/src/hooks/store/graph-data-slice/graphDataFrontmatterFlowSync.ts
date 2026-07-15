@@ -3,7 +3,6 @@ import type { GraphState } from '@/hooks/store/types'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { extractYamlFrontmatterBlock } from '@/lib/markdown/frontmatter'
 import { isMarkdownLikeFileName } from 'grph-shared/markdown/mermaidInput'
-import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { recordDocumentVersionSnapshot } from '@/features/document-versioning/documentVersioning'
 import yaml from 'js-yaml'
 import {
@@ -18,6 +17,7 @@ import {
   syncStrybldrStoryboardMarkdownWorkflowEdges,
 } from '@/features/strybldr/strybldrStoryboard'
 import { appendStrybldrStoryboardNodeSource, isStrybldrStoryboardNodeSourceOwned } from '@/hooks/store/graph-data-slice/strybldrStoryboardNodeSourceSync'
+import { normalizeGeneratedRichMediaTableProperties } from '@/features/rich-media/richMediaTablePersistence'; import { containsMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'; import { enqueueWorkspaceSourceTextWrite } from './workspaceSourceTextWriteQueue'
 const FLOW_YAML_PLAIN_KEY_RE = /^[A-Za-z0-9_.-]+$/
 const FLOW_EDGE_SOURCE_PORT_KEY = 'flow:sourcePortKey'
 const FLOW_EDGE_TARGET_PORT_KEY = 'flow:targetPortKey'
@@ -115,10 +115,11 @@ function appendFlowYamlEnvelopeFieldLines(
   const yamlKey = flowYamlKey(key)
   const normalizedType = String(fieldType || '').trim() || inferFrontmatterFlowFieldType(value)
   if (typeof value === 'string' && value.includes('\n')) {
+    const blockIndicator = key === 'output' && containsMarkdownPipeTable(value) ? '|-' : '|'
     lines.push(`${indent}${yamlKey}:`)
     lines.push(`${indent}  key: ${flowYamlInlineStringValue(String(key || '').trim() || key)}`)
     lines.push(`${indent}  type: ${flowYamlInlineStringValue(normalizedType)}`)
-    lines.push(`${indent}  value: |`)
+    lines.push(`${indent}  value: ${blockIndicator}`)
     for (const row of value.split('\n')) lines.push(`${indent}    ${row}`)
     return
   }
@@ -163,6 +164,9 @@ function buildFrontmatterFlowBlockLines(graphData: GraphData): string[] {
   lines.push('  nodes:')
   const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
   for (const node of nodes) {
+    const originalProps = (node.properties || {}) as Record<string, unknown>
+    const normalizedProps = normalizeGeneratedRichMediaTableProperties({ nodeType: node.type, nodeLabel: node.label, properties: originalProps })
+    const normalizedNode: GraphNode = normalizedProps === originalProps ? node : { ...node, properties: normalizedProps as GraphNode['properties'] }
     appendFlowYamlEnvelopeFieldLines(lines, '    - ', 'id', String(node.id || ''), 'string')
     appendFlowYamlEnvelopeFieldLines(lines, '      ', 'type', String(node.type || 'Node'), 'string')
     appendFlowYamlEnvelopeFieldLines(lines, '      ', 'label', String(node.label || node.id || ''), 'string')
@@ -174,9 +178,9 @@ function buildFrontmatterFlowBlockLines(graphData: GraphData): string[] {
       if (y != null) position.y = y
       appendFlowYamlEnvelopeFieldLines(lines, '      ', 'position', position, 'object')
     }
-    const handles = readFlowHandlesFromNode(node)
+    const handles = readFlowHandlesFromNode(normalizedNode)
     if (handles) appendFlowYamlEnvelopeFieldLines(lines, '      ', 'handles', handles, 'object')
-    const props = (node.properties || {}) as Record<string, unknown>
+    const props = normalizedProps
     const propEntries = Object.entries(props)
       .filter(([key, value]) => {
         if (typeof value === 'undefined') return false
@@ -187,7 +191,7 @@ function buildFrontmatterFlowBlockLines(graphData: GraphData): string[] {
       })
       .sort(([a], [b]) => a.localeCompare(b))
     for (const [key, value] of propEntries) {
-      appendFlowYamlEnvelopeFieldLines(lines, '      ', key, value, readFrontmatterFlowFieldType(node, key, value))
+      appendFlowYamlEnvelopeFieldLines(lines, '      ', key, value, readFrontmatterFlowFieldType(normalizedNode, key, value))
     }
     const compute = typeof props[FLOW_COMPUTE_PROPERTY_KEY] === 'string' ? String(props[FLOW_COMPUTE_PROPERTY_KEY] || '') : ''
     if (compute.trim()) appendFlowYamlEnvelopeFieldLines(lines, '      ', 'compute', compute, 'string')
@@ -394,18 +398,16 @@ export function writeWorkspaceSourceTextIfPresent(
   text: string,
   label = 'Source file update',
   source: 'sourceFiles' | 'gitGraph' = 'sourceFiles',
-): void {
+): Promise<boolean> {
   const workspacePath = normalizeComposedSourcePath(readComposedSourceFilePath(file))
-  if (!workspacePath) return
+  if (!workspacePath) return Promise.resolve(false)
   recordDocumentVersionSnapshot({
     path: workspacePath,
     text,
     label,
     source,
   })
-  void getWorkspaceFs()
-    .then(fs => fs.writeFileText(workspacePath as any, text))
-    .catch(() => void 0)
+  return enqueueWorkspaceSourceTextWrite(workspacePath, text)
 }
 
 function isFrontmatterFlowGraphData(graphData: GraphData | null | undefined): boolean {
@@ -534,24 +536,21 @@ export function writeActiveMarkdownDocumentTextIfPresent(args: {
   text: string
   label?: string
   source?: 'sourceFiles' | 'gitGraph'
-}): void {
+}): Promise<boolean> {
   const activeFileMatch = findActiveMarkdownDocumentSourceFile(args)
   if (activeFileMatch?.file) {
-    writeWorkspaceSourceTextIfPresent(activeFileMatch.file, args.text, args.label || 'Source file update', args.source || 'sourceFiles')
-    return
+    return writeWorkspaceSourceTextIfPresent(activeFileMatch.file, args.text, args.label || 'Source file update', args.source || 'sourceFiles')
   }
   const activePath = normalizeComposedSourcePath(String(args.state.markdownDocumentName || '').trim())
-  if (!activePath) return
-  if (!isMarkdownLikeFileName(activePath)) return
+  if (!activePath) return Promise.resolve(false)
+  if (!isMarkdownLikeFileName(activePath)) return Promise.resolve(false)
   recordDocumentVersionSnapshot({
     path: activePath,
     text: args.text,
     label: args.label || 'Markdown document update',
     source: args.source || 'sourceFiles',
   })
-  void getWorkspaceFs()
-    .then(fs => fs.writeFileText(activePath as any, args.text))
-    .catch(() => void 0)
+  return enqueueWorkspaceSourceTextWrite(activePath, args.text)
 }
 
 export function syncSourceFileTextFromParsedGraph(args: {

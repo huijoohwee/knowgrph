@@ -21,6 +21,7 @@ export type FlowWidgetOverlayProps = {
   editorSurfaceKind?: WidgetEditorSurfaceKind
   overlayCollectiveCount?: number
   node: GraphNode
+  nodeById?: ReadonlyMap<string, GraphNode>
   viewportW: number
   viewportH: number
   canvasWindowOffset?: { left: number; top: number } | null

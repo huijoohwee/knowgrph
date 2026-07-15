@@ -4,6 +4,8 @@ import sys
 from dataclasses import dataclass
 from typing import Any, Iterable, List, Mapping, MutableMapping, Optional, Sequence
 
+from .markdown_tables import serialize_markdown_pipe_table
+
 
 JsonLike = Any
 
@@ -73,12 +75,6 @@ def _has_nested_structures(value: Any) -> bool:
     return False
 
 
-def _escape_table_cell(value: str) -> str:
-    text = value.replace("\n", " ").replace("\r", " ")
-    text = text.replace("|", "\\|")
-    return text.strip()
-
-
 def _format_scalar(value: Any) -> str:
     if value is None:
         return "null"
@@ -112,22 +108,20 @@ def _render_table(rows: Sequence[Mapping[str, Any]], config: JsonToMarkdownConfi
     header_keys = list(rows[0].keys())
     if config.table_max_columns > 0 and len(header_keys) > config.table_max_columns:
         header_keys = header_keys[: config.table_max_columns]
-    lines: List[str] = []
-    header_cells = [_escape_table_cell(str(k)) or "key" for k in header_keys]
-    lines.append("| " + " | ".join(header_cells) + " |")
-    lines.append("| " + " | ".join(["---"] * len(header_cells)) + " |")
     max_rows = config.table_max_rows if config.table_max_rows > 0 else len(rows)
     visible_rows = rows[:max_rows]
+    body_rows: List[List[str]] = []
     for row in visible_rows:
         cells: List[str] = []
         for key in header_keys:
             value = row.get(key)
             if _is_scalar(value):
-                cell = _escape_table_cell(_format_scalar(value))
+                cell = _format_scalar(value)
             else:
-                cell = _escape_table_cell(json.dumps(value, ensure_ascii=False))
+                cell = json.dumps(value, ensure_ascii=False)
             cells.append(cell)
-        lines.append("| " + " | ".join(cells) + " |")
+        body_rows.append(cells)
+    lines = serialize_markdown_pipe_table([str(key) or "key" for key in header_keys], body_rows)
     if len(rows) > max_rows:
         remaining = len(rows) - max_rows
         lines.append("")
@@ -284,4 +278,3 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

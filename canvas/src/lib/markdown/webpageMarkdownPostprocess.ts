@@ -1,6 +1,7 @@
 import { normalizeInline } from '@/lib/websites/webpageMarkdownArtifactUtils'
-import { stripTrailingPunctuation, truncate } from '@/lib/websites/webpageMarkdownArtifactUtils'
+import { stripTrailingPunctuation } from '@/lib/websites/webpageMarkdownArtifactUtils'
 import { normalizeMarkdownAsciiBlocks } from 'grph-shared/markdown/asciiBlocks'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 type PricingTier = { title: string; audience: string; lines: string[] }
 
@@ -175,7 +176,7 @@ const extractPricingTiers = (sectionLines: string[]): PricingTier[] => {
   return tiers
 }
 
-const renderPricingTiersAsciiTable = (tiers: PricingTier[]): string => {
+const renderPricingTiersMarkdownTable = (tiers: PricingTier[]): string => {
   const wanted = ['free license', 'company license', 'enterprise license']
   const picked = tiers
     .filter(t => wanted.includes(t.title.toLowerCase()))
@@ -184,37 +185,26 @@ const renderPricingTiersAsciiTable = (tiers: PricingTier[]): string => {
 
   if (picked.length < 2) return ''
 
-  const colW = 26
   const cols = 3
   while (picked.length < cols) picked.push({ title: '', audience: '', lines: [] })
 
-  const header = picked.map(t => truncate(t.title || '', colW))
+  const header = picked.map(t => t.title || '')
   const bodies = picked.map(t => {
     const out: string[] = []
-    if (t.audience) out.push(truncate(t.audience, colW))
+    if (t.audience) out.push(t.audience)
     for (const ln of t.lines) {
       if (out.length >= 7) break
-      out.push(truncate(ln, colW))
+      out.push(ln)
     }
     return out
   })
   const rowCount = Math.max(2, ...bodies.map(b => b.length))
-
-  const top = `┌${'─'.repeat(colW)}┬${'─'.repeat(colW)}┬${'─'.repeat(colW)}┐`
-  const mid = `├${'─'.repeat(colW)}┼${'─'.repeat(colW)}┼${'─'.repeat(colW)}┤`
-  const bot = `└${'─'.repeat(colW)}┴${'─'.repeat(colW)}┴${'─'.repeat(colW)}┘`
-
-  const row = (cells: string[]) => `│${cells.map(c => String(c || '').padEnd(colW, ' ')).join('│')}│`
-
-  const out: string[] = []
-  out.push(top)
-  out.push(row(header))
-  out.push(mid)
-  for (let r = 0; r < rowCount; r += 1) {
-    out.push(row([bodies[0]?.[r] || '', bodies[1]?.[r] || '', bodies[2]?.[r] || '']))
-  }
-  out.push(bot)
-  return out.join('\n')
+  const rows = Array.from({ length: rowCount }, (_, index) => [
+    bodies[0]?.[index] || '',
+    bodies[1]?.[index] || '',
+    bodies[2]?.[index] || '',
+  ])
+  return serializeMarkdownPipeTable({ columns: header, rows }).join('\n')
 }
 
 const splitNonEmptyLines = (text: string): string[] => {
@@ -259,8 +249,7 @@ const coalesceNavLinksToTable = (markdown: string): string => {
     const cells = matches.map(m => m.trim()).filter(Boolean)
     if (cells.length < 4) continue
 
-    const header = `| ${cells.join(' | ')} |`
-    const sep = `| ${cells.map(() => '---').join(' | ')} |`
+    const [header = '', sep = ''] = serializeMarkdownPipeTable({ columns: cells, rows: [] })
     lines[i] = header
     lines.splice(i + 1, 0, sep, '')
     break
@@ -280,8 +269,7 @@ const coalesceNavLinksToTable = (markdown: string): string => {
       consumed += 1
     }
     if (cells.length < 4) continue
-    const header = `| ${cells.join(' | ')} |`
-    const sep = `| ${cells.map(() => '---').join(' | ')} |`
+    const [header = '', sep = ''] = serializeMarkdownPipeTable({ columns: cells, rows: [] })
     lines.splice(i, consumed, header, sep, '')
     break
   }
@@ -371,21 +359,20 @@ const coalesceHtmlNavOrGridBlockToTable = (markdown: string): string => {
     const anyImages = candidates.some(c => !!c.imgSrc)
 
     if (cells.length >= 4 && cells.length <= 8 && !anyImages) {
-      out.push(`| ${cells.join(' | ')} |`)
-      out.push(`| ${cells.map(() => '---').join(' | ')} |`)
+      out.push(serializeMarkdownPipeTable({ columns: cells, rows: [] }).join('\n'))
       continue
     }
 
     if (cells.length >= 4) {
       const n = cells.length
       const colCount = n >= 9 ? 4 : n >= 7 ? 4 : n >= 5 ? 3 : 2
-      out.push(`| ${new Array(colCount).fill(' ').join(' | ')} |`)
-      out.push(`| ${new Array(colCount).fill('---').join(' | ')} |`)
+      const rows: string[][] = []
       for (let i = 0; i < cells.length; i += colCount) {
         const row = cells.slice(i, i + colCount)
         while (row.length < colCount) row.push(' ')
-        out.push(`| ${row.join(' | ')} |`)
+        rows.push(row)
       }
+      out.push(serializeMarkdownPipeTable({ columns: new Array(colCount).fill(' '), rows }).join('\n'))
       continue
     }
 
@@ -464,7 +451,7 @@ const pickCardTitle = (lines: string[]): { title: string; rest: string[] } => {
 }
 
 const escapeTableCell = (text: string): string => {
-  return escapeMarkdownText(String(text || '').replace(/\|/g, '\\|')).trim()
+  return escapeMarkdownText(String(text || '')).replace(/\\\|/g, '|').trim()
 }
 
 const formatPlainLinesAsBulletsInTableCell = (lines: string[]): string => {
@@ -509,12 +496,8 @@ const coalesceCardBlocksToMarkdownTable = (blocks: string[]): string[] => {
     const parsed = group.map(b => splitNonEmptyLines(b))
     const cards = parsed.map(lines => pickCardTitle(lines))
     const headers = cards.map(c => escapeTableCell(c.title))
-    const table: string[] = []
-    table.push(`| ${headers.join(' | ')} |`)
-    table.push(`| ${headers.map(() => '---').join(' | ')} |`)
     const cells = cards.map(c => formatPlainLinesAsBulletsInTableCell(c.rest))
-    table.push(`| ${cells.join(' | ')} |`)
-    out.push(table.join('\n'))
+    out.push(serializeMarkdownPipeTable({ columns: headers, rows: [cells] }).join('\n'))
     i = j
   }
   return out
@@ -538,16 +521,16 @@ export function postprocessWebpageMarkdownSsot(markdown: string): string {
   if (!pricing) return base
 
   const sectionText = pricing.lines.join('\n')
-  if (/```ascii[\s\S]*Free License[\s\S]*Company License/m.test(sectionText)) return base
+  if (/\|\s*Free License\s*\|[\s\S]*\|\s*:?-{3,}/m.test(sectionText)) return base
 
   const normalizedPricingLines = normalizePricingSectionLines(pricing.lines)
   const tiers = extractPricingTiers(normalizedPricingLines)
-  const table = renderPricingTiersAsciiTable(tiers)
+  const table = renderPricingTiersMarkdownTable(tiers)
   if (!table) return base
 
   const lines = base.split(/\r?\n/)
   const before = lines.slice(0, pricing.start)
   const after = lines.slice(pricing.end)
-  const replacement = ['## Pricing', '', '```ascii', table, '```', ''].join('\n')
+  const replacement = ['## Pricing', '', table, ''].join('\n')
   return [...before, replacement.trimEnd(), ...after].join('\n').replace(/\n{3,}/g, '\n\n')
 }

@@ -2,15 +2,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import { FLOW_RUN_ALL_PHASES } from '@/lib/storyboardWidget/runAllSequenceSsot'
 import { TEST_VALIDATION_WORKSPACE_SEED_REL_PATH } from '@/features/workspace-fs/workspaceFs'
-
-function escapeMarkdownCell(value: unknown): string {
-  return String(value ?? '')
-    .replace(/\|/g, '\\|')
-    .replace(/\n/g, '<br />')
-    .trim()
-}
 
 function buildMarkdown(): string {
   const lines: string[] = []
@@ -21,12 +15,10 @@ function buildMarkdown(): string {
   lines.push('')
   lines.push(`Validation script target: \`${TEST_VALIDATION_WORKSPACE_SEED_REL_PATH}\`.`)
   lines.push('')
-  lines.push('| Sequence | phase id | label |')
-  lines.push('| --- | --- | --- |')
-  for (let i = 0; i < FLOW_RUN_ALL_PHASES.length; i += 1) {
-    const phase = FLOW_RUN_ALL_PHASES[i]!
-    lines.push(`| ${i + 1} | \`${escapeMarkdownCell(phase.id)}\` | ${escapeMarkdownCell(phase.label)} |`)
-  }
+  lines.push(...serializeMarkdownPipeTable({
+    columns: ['Sequence', 'phase id', 'label'],
+    rows: FLOW_RUN_ALL_PHASES.map((phase, index) => [index + 1, `\`${phase.id}\``, phase.label]),
+  }))
   lines.push('')
   lines.push('Run-order policy:')
   lines.push('- Execute in phase order: Text -> Character/Location Image -> Scene Image -> Video.')
@@ -45,4 +37,3 @@ function main(): void {
 }
 
 main()
-

@@ -19,3 +19,8 @@ export const formatWorkspaceUtcSessionTimestamp = (timestampMs: number): string 
   const compact = formatWorkspaceUtcCompactTimestamp(timestampMs)
   return `${compact.slice(0, 8)}T${compact.slice(8, 14)}Z`
 }
+
+export const readWorkspaceUtcSessionTimestamp = (value: unknown): string | null => {
+  const match = /(?:^|[^0-9])(\d{8}T\d{6}Z)(?:[^0-9]|$)/.exec(String(value || ''))
+  return match?.[1] || null
+}

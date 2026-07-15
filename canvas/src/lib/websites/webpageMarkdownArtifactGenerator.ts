@@ -20,6 +20,7 @@ import {
   stripWww,
   truncate,
 } from './webpageMarkdownArtifactUtils'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   markdown: string
@@ -347,7 +348,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
     return tiers
   }
 
-  const renderPricingTiersAsciiTable = (tiers: PricingTier[]): string => {
+  const renderPricingTiersMarkdownTable = (tiers: PricingTier[]): string => {
     const wanted = ['free license', 'company license', 'enterprise license']
     const picked = tiers
       .filter(t => wanted.includes(t.title.toLowerCase()))
@@ -355,43 +356,11 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
       .slice(0, 3)
 
     if (picked.length < 2) return ''
-    const colW = 26
     const cols = 3
     while (picked.length < cols) picked.push({ title: '', audience: '', lines: [] })
-
-    const header = picked.map(t => truncate(t.title || '', colW))
-    const bodies = picked.map(t => {
-      const out: string[] = []
-      if (t.audience) out.push(truncate(t.audience, colW))
-      for (const ln of t.lines) {
-        if (out.length >= 7) break
-        out.push(truncate(ln, colW))
-      }
-      return out
-    })
-    const rowCount = Math.max(2, ...bodies.map(b => b.length))
-
-    const top = `┌${'─'.repeat(colW)}┬${'─'.repeat(colW)}┬${'─'.repeat(colW)}┐`
-    const mid = `├${'─'.repeat(colW)}┼${'─'.repeat(colW)}┼${'─'.repeat(colW)}┤`
-    const bot = `└${'─'.repeat(colW)}┴${'─'.repeat(colW)}┴${'─'.repeat(colW)}┘`
-
-    const row = (cells: string[]) => `│${cells.map(c => String(c || '').padEnd(colW, ' ')).join('│')}│`
-
-    const out: string[] = []
-    out.push(top)
-    out.push(row(header))
-    out.push(mid)
-    for (let r = 0; r < rowCount; r += 1) {
-      out.push(
-        row([
-          bodies[0]?.[r] || '',
-          bodies[1]?.[r] || '',
-          bodies[2]?.[r] || '',
-        ]),
-      )
-    }
-    out.push(bot)
-    return out.join('\n')
+    const columns = picked.map(t => t.title || 'Plan')
+    const cells = picked.map(t => [t.audience, ...t.lines.slice(0, 7)].filter(Boolean).join(' · '))
+    return serializeMarkdownPipeTable({ columns, rows: [cells] }).join('\n')
   }
 
   const buildPageStructureOverviewAscii = () => {
@@ -474,12 +443,14 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   doc.push('<a id="document-structure"></a>')
   doc.push('## Document Structure')
   doc.push('')
-  doc.push('| Heading | Level | Notes |')
-  doc.push('|---------|-------|-------|')
-  for (const h of headings.slice(0, 18)) {
-    const note = h.level === 1 ? 'Page title' : h.level === 2 ? 'Section' : ''
-    doc.push(`| ${truncate(h.title, 72)} | ${h.level} | ${note} |`)
-  }
+  doc.push(...serializeMarkdownPipeTable({
+    columns: ['Heading', 'Level', 'Notes'],
+    rows: headings.slice(0, 18).map(h => [
+      truncate(h.title, 72),
+      h.level,
+      h.level === 1 ? 'Page title' : h.level === 2 ? 'Section' : '',
+    ]),
+  }))
   doc.push('')
   doc.push('---')
   doc.push('')
@@ -508,25 +479,23 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   doc.push(renderAsciiFrame({ title: 'PRIMARY NAV', width: 84, lines: [`  [Logo] ${headerItems.map(x => `[${x}]`).join(' ')}`] }))
   doc.push('```')
   doc.push('')
-  doc.push('| Token | Count | Sample |')
-  doc.push('|------|------:|--------|')
-  doc.push(`| [NAV] | ${signals.nav.length} | ${signals.nav.slice(0, 5).map(x => x.label.replace(/^\[NAV\]\s*/i, '')).join(', ') || '(not detected)'} |`)
-  doc.push(`| [CTA] | ${signals.cta.length} | ${signals.cta.slice(0, 5).map(x => x.label.replace(/^\[CTA\]\s*/i, '')).join(', ') || '(not detected)'} |`)
+  doc.push(...serializeMarkdownPipeTable({
+    columns: ['Token', 'Count', 'Sample'],
+    alignments: [null, 'right', null],
+    rows: [
+      ['[NAV]', signals.nav.length, signals.nav.slice(0, 5).map(x => x.label.replace(/^\[NAV\]\s*/i, '')).join(', ') || '(not detected)'],
+      ['[CTA]', signals.cta.length, signals.cta.slice(0, 5).map(x => x.label.replace(/^\[CTA\]\s*/i, '')).join(', ') || '(not detected)'],
+    ],
+  }))
   doc.push('')
 
   doc.push('### Navigation Menu Structure')
   doc.push('')
-  doc.push('| Menu | Items | Type |')
-  doc.push('|------|-------|------|')
   const menus = Object.keys(navMenus)
-  if (menus.length) {
-    for (const m of menus) {
-      const items = (navMenus[m] || []).slice(0, 10).join(', ') || '(not detected)'
-      doc.push(`| **${m}** | ${items} | Dropdown |`)
-    }
-  } else {
-    for (const h of headerItems.slice(0, 6)) doc.push(`| **${h}** | (not detected) | Direct navigation |`)
-  }
+  const menuRows = menus.length
+    ? menus.map(m => [`**${m}**`, (navMenus[m] || []).slice(0, 10).join(', ') || '(not detected)', 'Dropdown'])
+    : headerItems.slice(0, 6).map(h => [`**${h}**`, '(not detected)', 'Direct navigation'])
+  doc.push(...serializeMarkdownPipeTable({ columns: ['Menu', 'Items', 'Type'], rows: menuRows }))
   doc.push('')
   doc.push('---')
   doc.push('')
@@ -548,26 +517,33 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   )
   doc.push('```')
   doc.push('')
-  doc.push('| Element | Value |')
-  doc.push('|---------|-------|')
-  doc.push(`| Title | ${stripTrailingPunctuation(pageTitle)} |`)
-  doc.push(`| Summary | ${overview || '(not detected)'} |`)
-  doc.push(`| Primary CTAs | ${heroCtas.length ? heroCtas.map(x => `**${x}**`).join(', ') : '(not detected)'} |`)
+  doc.push(...serializeMarkdownPipeTable({
+    columns: ['Element', 'Value'],
+    rows: [
+      ['Title', stripTrailingPunctuation(pageTitle)],
+      ['Summary', overview || '(not detected)'],
+      ['Primary CTAs', heroCtas.length ? heroCtas.map(x => `**${x}**`).join(', ') : '(not detected)'],
+    ],
+  }))
   doc.push('')
   doc.push('---')
   doc.push('')
 
   doc.push('## Page Statistics')
   doc.push('')
-  doc.push('| Metric | Count |')
-  doc.push('|--------|------:|')
-  doc.push(`| Paragraphs | ${stats.paragraphs} |`)
-  doc.push(`| List items | ${stats.listItems} |`)
-  doc.push(`| Unique links (by text) | ${stats.links} |`)
-  doc.push(`| Media files (video) | ${Math.max(0, stats.mediaFiles)} |`)
-  doc.push(`| Interactive cues | ${stats.interactiveUi} |`)
-  doc.push(`| Time tokens | ${stats.timecodes} |`)
-  doc.push(`| Price tokens | ${stats.pricingTokens} |`)
+  doc.push(...serializeMarkdownPipeTable({
+    columns: ['Metric', 'Count'],
+    alignments: [null, 'right'],
+    rows: [
+      ['Paragraphs', stats.paragraphs],
+      ['List items', stats.listItems],
+      ['Unique links (by text)', stats.links],
+      ['Media files (video)', Math.max(0, stats.mediaFiles)],
+      ['Interactive cues', stats.interactiveUi],
+      ['Time tokens', stats.timecodes],
+      ['Price tokens', stats.pricingTokens],
+    ],
+  }))
   doc.push('')
 
   if (featureBlocks.length && fidelityLevel >= 3) {
@@ -623,7 +599,7 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   doc.push('## Pricing')
     doc.push('')
     const pricingTiers = fidelityLevel >= 4 ? extractPricingTiers(pricingBlockRaw) : []
-    const pricingTiersTable = pricingTiers.length ? renderPricingTiersAsciiTable(pricingTiers) : ''
+    const pricingTiersTable = pricingTiers.length ? renderPricingTiersMarkdownTable(pricingTiers) : ''
     doc.push('```ascii')
     doc.push(
       renderDoubleLineFrame({
@@ -635,12 +611,14 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
         ].filter(Boolean),
       }),
     )
-    if (pricingTiersTable) {
-      doc.push('')
-      doc.push(pricingTiersTable)
-    }
     doc.push('```')
     doc.push('')
+    if (pricingTiersTable) {
+      doc.push('### Pricing Tiers')
+      doc.push('')
+      doc.push(pricingTiersTable)
+      doc.push('')
+    }
     if (pricingComparisonTable) {
       doc.push('### Pricing Comparison (Extracted)')
       doc.push('')
@@ -672,21 +650,24 @@ export function buildWebpageMarkdownArtifactFromMarkdown(args: {
   doc.push('<a id="asset-catalog"></a>')
   doc.push('## Asset Catalog')
   doc.push('')
-  doc.push('| Kind | Count | Samples |')
-  doc.push('|------|------:|---------|')
-  doc.push(`| Images | ${assets.images.length} | ${assets.images.slice(0, 6).join(', ') || '(none detected)'} |`)
-  doc.push(`| Videos | ${assets.videos.length} | ${assets.videos.slice(0, 6).join(', ') || '(none detected)'} |`)
-  doc.push(`| External domains | ${assets.externalDomains.length} | ${assets.externalDomains.slice(0, 10).join(', ') || '(none detected)'} |`)
+  doc.push(...serializeMarkdownPipeTable({
+    columns: ['Kind', 'Count', 'Samples'],
+    alignments: [null, 'right', null],
+    rows: [
+      ['Images', assets.images.length, assets.images.slice(0, 6).join(', ') || '(none detected)'],
+      ['Videos', assets.videos.length, assets.videos.slice(0, 6).join(', ') || '(none detected)'],
+      ['External domains', assets.externalDomains.length, assets.externalDomains.slice(0, 10).join(', ') || '(none detected)'],
+    ],
+  }))
   doc.push('')
 
   if (assets.sampleLinks.length) {
     doc.push('### Sample Links')
     doc.push('')
-    doc.push('| Text | URL |')
-    doc.push('|------|-----|')
-    for (const l of assets.sampleLinks.slice(0, 12)) {
-      doc.push(`| ${truncate(l.text, 52)} | ${truncate(l.href, 90)} |`)
-    }
+    doc.push(...serializeMarkdownPipeTable({
+      columns: ['Text', 'URL'],
+      rows: assets.sampleLinks.slice(0, 12).map(l => [truncate(l.text, 52), truncate(l.href, 90)]),
+    }))
     doc.push('')
   }
 

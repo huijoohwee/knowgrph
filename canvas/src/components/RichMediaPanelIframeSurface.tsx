@@ -33,6 +33,7 @@ export function RichMediaPanelIframeSurface(args: {
           style={model.inlineSrcDocSurfaceStyle}
           onLoad={() => {
             model.setReady(true)
+            model.syncInlineSrcDocTheme()
             model.scheduleInlineSrcDocTimelineFrameBurst()
           }}
         />

@@ -39,7 +39,8 @@ export function testStoryboardWidgetCanvasRunsFlowComputeBeforeProviderTextBranc
     'updateRunOutputForKnownNodeIds(nodeProps => buildStoryboardWidgetInlineComputeOutputPatch({',
     "message: 'Ran inline compute.'",
     'resolveStoryboardWidgetWorkflowDownstreamRunTargetIds({',
-    'await runWorkflowNode(targetId, { allowCreateRichMediaPanel, suppressLayoutMutation, visitedNodeIds })',
+    'await runWorkflowNode(targetId, {',
+    '...runOptions, allowCreateRichMediaPanel, suppressLayoutMutation, visitedNodeIds,',
     'publishStoryboardWidgetSourceBackedRunOutput({ id, node',
   ]) {
     if (!workflowActionsText.includes(snippet)) throw new Error(`expected StoryboardWidget workflow run path to include ${snippet}`)

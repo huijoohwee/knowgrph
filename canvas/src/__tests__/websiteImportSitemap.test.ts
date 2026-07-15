@@ -57,7 +57,10 @@ export const testWebsiteImportExtractsSpaRouteLinksWithinWebsiteScope = () => {
 export const testLaunchWebsiteImportButtonUsesEnhancedOptions = () => {
   const opts = buildAutoWebsiteImportOptions()
   if (opts.generateArtifactDocs !== true) throw new Error('expected explicit website import to materialize content docs')
-  if (opts.browserEnhance !== true) throw new Error('expected explicit website import to prefer browser-enhanced webpage fidelity')
+  if (opts.browserEnhance !== false || opts.headless !== true) throw new Error('expected server-owned headless webpage fidelity')
+  if (opts.proxyRotation !== true) throw new Error('expected explicit website import to request server-owned proxy rotation')
+  if (opts.downloadAssets !== true || !opts.maxDownloads || !opts.maxDownloadBytes) throw new Error('expected bounded website artifact downloads')
+  if (opts.applyToCanvas !== true) throw new Error('expected website crawl to project extracted data to Canvas')
   if (!opts.minPages || opts.minPages < 100) throw new Error('expected explicit website import to cover multi-page websites')
 }
 

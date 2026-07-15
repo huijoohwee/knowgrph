@@ -1,3 +1,5 @@
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
+
 import { analyzeKgcRequest, sanitizeRequestIntent } from './chatKgcRequestProfile'
 import {
   buildGuardrailRows,
@@ -19,65 +21,7 @@ import {
   deriveOutputTargetFileName,
 } from './chatHistoryWorkspace.kgc.fallbackCommon'
 import { buildResponseMarkdown, summariseAssistantSignal } from './chatHistoryWorkspace.kgc.responseProjection'
-
-const buildUseCaseText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
-  const surfaces = [
-    profile.signals.mcp ? 'MCP delivery' : '',
-    profile.signals.externalUsers ? 'external-user access' : '',
-    profile.signals.openClaw ? 'OpenClaw and related marketplace surfaces' : (profile.signals.marketplace ? 'marketplace surfaces' : 'the stated delivery surfaces'),
-    profile.signals.stripe ? 'checkout completion' : (profile.signals.payments ? 'payment completion' : ''),
-  ].filter(Boolean)
-  const deliverySurface = profile.signals.openClaw
-    ? 'OpenClaw and related marketplace surfaces'
-    : (profile.signals.marketplace ? 'marketplace surfaces' : 'reusable delivery surfaces')
-  const mcpSurface = profile.signals.mcp ? 'package `{{product}}` as an MCP offer for external users' : 'package `{{product}}` for external delivery'
-  return `\`{{subject}}\` needs a reusable pipeline surface for \`{{product}}\` that can ${mcpSurface}, produce \`{{artifact}}\`, preserve the machine-readable KGC contract, and stay relevant across ${surfaces.join(', ') || deliverySurface}. The response should stay request-shaped without rewriting the base graph contract per request.`
-}
-
-const buildProblemText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
-  if (profile.signals.creativeScript) {
-    return `\`{{subject}}\` needs \`{{artifact}}\` that feels distinctive and production-ready without copying named source properties. The response should preserve originality, turn high-level inspiration into a clear brief, and keep brand or franchise references out of the final wording.`
-  }
-  const pressures = [
-    profile.signals.zeroBudget ? 'zero-budget constraints' : '',
-    profile.signals.bootstrap ? 'bootstrap execution pressure' : '',
-    profile.signals.organicGrowth ? 'organic-growth expectations' : '',
-  ].filter(Boolean)
-  const requiredCoverage = [
-    profile.signals.mcp ? 'delivery packaging' : '',
-    profile.signals.externalUsers ? 'external-user access' : '',
-    profile.signals.marketplace || profile.signals.openClaw ? 'distribution and discovery' : '',
-    profile.signals.b2c || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion ? 'monetized user actions' : '',
-    profile.signals.stripe || profile.signals.payments ? 'payment or checkout transitions' : '',
-    profile.signals.rxdb || profile.signals.maplibre ? 'stated implementation boundaries' : '',
-  ].filter(Boolean)
-  return `\`{{subject}}\` needs \`{{artifact}}\` for \`{{product}}\`${pressures.length ? ` under ${pressures.join(', ')}` : ''}. Generic planning prose is not enough because the response has to make ${requiredCoverage.join(', ') || 'the stated request constraints'} explicit in a form that can guide delivery, monetization, and follow-up implementation decisions.`
-}
-
-const buildSolutionText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
-  if (profile.signals.creativeScript) {
-    return 'Shape the response as one coherent script package with explicit tone, pacing, scene logic, and guardrails. Keep the wording original, keep the handoff reusable, and make the creative direction concrete enough that another pass can refine execution without reinterpreting the brief.'
-  }
-  const channels = [
-    profile.signals.mcp ? '`{{product}}` as an MCP offer' : '',
-    profile.signals.openClaw ? 'OpenClaw marketplace distribution' : (profile.signals.marketplace ? 'skills marketplace distribution' : ''),
-    profile.signals.stripe ? 'Stripe checkout and payment completion' : '',
-    profile.signals.rxdb ? 'RxDB local-first state' : '',
-    profile.signals.maplibre ? 'MapLibre spatial presentation' : '',
-  ].filter(Boolean)
-  const namedTerms = buildNamedTermSummary(profile)
-  return `Shape a lean response package that turns the request into an actionable handoff covering ${channels.join(', ') || namedTerms || 'the active request terms'}. Keep text and rich-media handoff ready for editor workspace widgets, cards, edges, and Rich Media Panels when the response includes renderable handles such as \`outputSrcDoc\` or media URLs. Make the deliverable concrete enough for follow-through without drifting into boilerplate, stale template prose, or unrelated examples.`
-}
-
-const buildUserFlowText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
-  const conversionMoment = profile.signals.stripe
-    ? 'completes the Stripe checkout flow and unlocks the paid entitlement or action'
-    : (profile.signals.payments ? 'completes checkout and unlocks the paid entitlement or action' : 'crosses from free exploration into paid activation')
-  if (profile.signals.payments || profile.signals.stripe || profile.signals.subscriptions || profile.signals.payPerUse || profile.signals.conversion) {
-    return `A user discovers the \`{{product}}\` offer, evaluates the entry point, reaches the requested paid or conversion action, ${conversionMoment}, and then receives the promised output, capability, or follow-up access.`
-  }
-  return `\`{{subject}}\` opens the workspace, provides the active request terms, reviews generated text plus connected render outputs, edits assumptions inline, and persists the validated handoff so downstream panels and cards stay aligned with the same source values.`
-}
+import { buildProblemText, buildSolutionText, buildUseCaseText, buildUserFlowText } from './chatHistoryWorkspace.kgc.bodyNarratives'
 
 const buildMonetizationText = (profile: ReturnType<typeof analyzeKgcRequest>): string => {
   const modes = [
@@ -282,46 +226,59 @@ export const buildBody = (args: {
     '',
     '### Variable Link Map',
     '',
-    '| Placeholder | Current value | Used in body as | Why it matters |',
-    '|---|---|---|---|',
-    ...variableLinkRows.map(row => `| ${row[0]} | ${row[1]} | ${row[2]} | ${row[3]} |`),
+    ...serializeMarkdownPipeTable({
+      columns: ['Placeholder', 'Current value', 'Used in body as', 'Why it matters'],
+      rows: variableLinkRows,
+    }),
     '',
     '### Runner Protocol',
     '',
-    '| seq | Action | Input | Output | Notes |',
-    '|---|---|---|---|---|',
-    '| `R01` | ingest | raw file bytes | parsed YAML object | validate `kgc-pipeline/v1` |',
-    '| `R02` | resolve | parsed YAML object | resolved variables | unresolved Tier B sentinels remain visible |',
-    '| `R03` | build-graph | resolved YAML | graph nodes + edges | keep `pipeline`, `flow`, `mermaid`, and `graph_meta` aligned |',
-    '| `R04` | compile-compute | graph | compiled graph | purity guard blocks `fetch`, `document`, `window` |',
-    '| `R05` | traverse | compiled graph | executed graph | feedback arc retries remain bounded by `{{runtime.maxRetry}}` |',
-    '| `R06` | render | executed graph + body | rendered workspace artifact | `dagre-LR` owns layout |',
+    ...serializeMarkdownPipeTable({
+      columns: ['seq', 'Action', 'Input', 'Output', 'Notes'],
+      rows: [
+        ['`R01`', 'ingest', 'raw file bytes', 'parsed YAML object', 'validate `kgc-pipeline/v1`'],
+        ['`R02`', 'resolve', 'parsed YAML object', 'resolved variables', 'unresolved Tier B sentinels remain visible'],
+        ['`R03`', 'build-graph', 'resolved YAML', 'graph nodes + edges', 'keep `pipeline`, `flow`, `mermaid`, and `graph_meta` aligned'],
+        ['`R04`', 'compile-compute', 'graph', 'compiled graph', 'purity guard blocks `fetch`, `document`, `window`'],
+        ['`R05`', 'traverse', 'compiled graph', 'executed graph', 'feedback arc retries remain bounded by `{{runtime.maxRetry}}`'],
+        ['`R06`', 'render', 'executed graph + body', 'rendered workspace artifact', '`dagre-LR` owns layout'],
+      ],
+    }),
     '',
     '### Graph Registry',
     '',
-    '| Dimension | Value |',
-    '|---|---|',
-    '| Nodes | 5 |',
-    '| Edges | 5 |',
-    '| Phases | 3 |',
-    '| Entry node | `@node:n-trigger` |',
-    '| Exit node | `@node:n-deliver` |',
-    '| Feedback bound | `{{runtime.maxRetry}}` |',
+    ...serializeMarkdownPipeTable({
+      columns: ['Dimension', 'Value'],
+      rows: [
+        ['Nodes', '5'],
+        ['Edges', '5'],
+        ['Phases', '3'],
+        ['Entry node', '`@node:n-trigger`'],
+        ['Exit node', '`@node:n-deliver`'],
+        ['Feedback bound', '`{{runtime.maxRetry}}`'],
+      ],
+    }),
     '',
-    '| Phase | Seq | Nodes |',
-    '|---|---|---|',
-    '| P1 | S01-S02 | `@node:n-trigger` · `@node:n-pack` |',
-    '| P2 | S03-S04 | `@node:n-process` · `@node:n-validate` |',
-    '| P3 | S05 | `@node:n-deliver` |',
+    ...serializeMarkdownPipeTable({
+      columns: ['Phase', 'Seq', 'Nodes'],
+      rows: [
+        ['P1', 'S01-S02', '`@node:n-trigger` · `@node:n-pack`'],
+        ['P2', 'S03-S04', '`@node:n-process` · `@node:n-validate`'],
+        ['P3', 'S05', '`@node:n-deliver`'],
+      ],
+    }),
     '',
     '### Document Links',
     '',
-    '| Direction | Frontmatter key | Target |',
-    '|---|---|---|',
-    '| YAML -> body | `links.body_anchor` | `#flow-graph` |',
-    '| YAML -> body | `links.yaml_anchor` | `#computing-flow-definition` |',
-    `| Cross-document | \`links.self_ref\` | \`${args.fileName}\` |`,
-    '| Body -> YAML | frontmatter delimiter | source of truth |',
+    ...serializeMarkdownPipeTable({
+      columns: ['Direction', 'Frontmatter key', 'Target'],
+      rows: [
+        ['YAML -> body', '`links.body_anchor`', '`#flow-graph`'],
+        ['YAML -> body', '`links.yaml_anchor`', '`#computing-flow-definition`'],
+        ['Cross-document', '`links.self_ref`', `\`${args.fileName}\``],
+        ['Body -> YAML', 'frontmatter delimiter', 'source of truth'],
+      ],
+    }),
     '',
     '## Flow Graph',
     '',
@@ -333,18 +290,21 @@ export const buildBody = (args: {
     '',
     buildFlowGraphSummary(args.profile, artifact, domain),
     '',
-    '| Frontmatter key | Resolves in body as | Example |',
-    '|---|---|---|',
-    '| `$schema` | format gate | `kgc-pipeline/v1` |',
-    '| `runner` | Runner Protocol table | `R01-R06` |',
-    '| `graph_meta` | Graph Registry table | `entry_node` |',
-    '| `links` | Document Links table | `self_ref` |',
-    '| `mermaid` | diagram block | `{{mermaid}}` |',
-    '| `flow.nodes` | node references | `@node:n-process` |',
-    '| `flow.edges` | edge references | `@edge:n-validate:correction→n-process:correction` |',
-    '| `pipeline` | Pipeline table | `S03` |',
-    '| `runtime.*` | runtime references | `{{runtime.maxRetry}}` |',
-    '| Tier B keys | request-shaped prose | `{{artifact}}` |',
+    ...serializeMarkdownPipeTable({
+      columns: ['Frontmatter key', 'Resolves in body as', 'Example'],
+      rows: [
+        ['`$schema`', 'format gate', '`kgc-pipeline/v1`'],
+        ['`runner`', 'Runner Protocol table', '`R01-R06`'],
+        ['`graph_meta`', 'Graph Registry table', '`entry_node`'],
+        ['`links`', 'Document Links table', '`self_ref`'],
+        ['`mermaid`', 'diagram block', '`{{mermaid}}`'],
+        ['`flow.nodes`', 'node references', '`@node:n-process`'],
+        ['`flow.edges`', 'edge references', '`@edge:n-validate:correction→n-process:correction`'],
+        ['`pipeline`', 'Pipeline table', '`S03`'],
+        ['`runtime.*`', 'runtime references', '`{{runtime.maxRetry}}`'],
+        ['Tier B keys', 'request-shaped prose', '`{{artifact}}`'],
+      ],
+    }),
     '',
     '## Pipeline',
     '',
@@ -356,29 +316,36 @@ export const buildBody = (args: {
     '',
     'Read the table left to right: user action explains what the actor does, system event explains what the pipeline does next, and data columns show what moves across edges. Shared nouns such as `{{product}}`, `{{artifact}}`, and `{{subject}}` come from frontmatter so the prose stays aligned even when request details change.',
     '',
-    '| seq | `@node:id` | pipeline step | `bg#E1F5EE:UF` user action | `bg#E6F1FB:WF` system event | `bg#EAF3DE:DF` data in | `bg#EAF3DE:DF` data out | edge | actor | trigger | on fail | kanban | confidence |',
-    '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
-    `| \`S01\` | \`@node:n-trigger\` | \`bg#E1F5EE:intent\` | ${subject} submits request scope | capture request intent | — | signal | \`@edge:n-trigger:signal→n-pack:signal\` | \`["${subject}","system"]\` | request | \`@flag:waiting\` | TBD | high |`,
-    `| \`S02\` | \`@node:n-pack\` | \`bg#E1F5EE:context\` | — | build bounded context from request and workspace state | signal | context | \`@edge:n-pack:context→n-process:context\` | \`["system"]\` | signal | null | TBD | high |`,
-    `| \`S03\` | \`@node:n-process\` | \`bg#FAEEDA:artifacts\` | ${subject} reviews streamed output | generate ${artifact} from context | context + correction | md | \`@edge:n-process:md→n-validate:md\` | \`["${subject}","AI"]\` | context | null | TBD | high |`,
-    '| `S04` | `@node:n-validate` | `bg#FAEEDA:review` | validation feedback is surfaced | check format, variables, and confidence constraints | md | valid_md or correction | `@edge:n-validate:correction→n-process:correction` | `["system"]` | md | retry | TBD | high |',
-    '| `S05` | `@node:n-deliver` | `bg#EAF3DE:handoff` | accepted artifact becomes workspace state | persist validated markdown and refresh renderer | valid_md | stored | `@edge:n-validate:valid_md→n-deliver:valid_md` | `["system"]` | valid_md | short-circuit | TBD | high |',
+    ...serializeMarkdownPipeTable({
+      columns: ['seq', '`@node:id`', 'pipeline step', '`bg#E1F5EE:UF` user action', '`bg#E6F1FB:WF` system event', '`bg#EAF3DE:DF` data in', '`bg#EAF3DE:DF` data out', 'edge', 'actor', 'trigger', 'on fail', 'kanban', 'confidence'],
+      rows: [
+        ['`S01`', '`@node:n-trigger`', '`bg#E1F5EE:intent`', `${subject} submits request scope`, 'capture request intent', '—', 'signal', '`@edge:n-trigger:signal→n-pack:signal`', `\`["${subject}","system"]\``, 'request', '`@flag:waiting`', 'TBD', 'high'],
+        ['`S02`', '`@node:n-pack`', '`bg#E1F5EE:context`', '—', 'build bounded context from request and workspace state', 'signal', 'context', '`@edge:n-pack:context→n-process:context`', '`["system"]`', 'signal', 'null', 'TBD', 'high'],
+        ['`S03`', '`@node:n-process`', '`bg#FAEEDA:artifacts`', `${subject} reviews streamed output`, `generate ${artifact} from context`, 'context + correction', 'md', '`@edge:n-process:md→n-validate:md`', `\`["${subject}","AI"]\``, 'context', 'null', 'TBD', 'high'],
+        ['`S04`', '`@node:n-validate`', '`bg#FAEEDA:review`', 'validation feedback is surfaced', 'check format, variables, and confidence constraints', 'md', 'valid_md or correction', '`@edge:n-validate:correction→n-process:correction`', '`["system"]`', 'md', 'retry', 'TBD', 'high'],
+        ['`S05`', '`@node:n-deliver`', '`bg#EAF3DE:handoff`', 'accepted artifact becomes workspace state', 'persist validated markdown and refresh renderer', 'valid_md', 'stored', '`@edge:n-validate:valid_md→n-deliver:valid_md`', '`["system"]`', 'valid_md', 'short-circuit', 'TBD', 'high'],
+      ],
+    }),
     '',
     '### Retry arc — S04 feedback to S03',
     '',
-    '| retry | trigger | injected payload | expected outcome | confidence |',
-    '|---|---|---|---|---|',
-    '| 1 | first validation failure | `@flag:correction` | targeted correction without changing request intent | medium |',
-    '| 2 | repeated failure | `@flag:correction` | narrower correction against the failed rule | medium |',
-    '| `{{runtime.maxRetry}}` | final failure | `@flag:correction` | stop and surface `@flag:validation-failed` | low |',
+    ...serializeMarkdownPipeTable({
+      columns: ['retry', 'trigger', 'injected payload', 'expected outcome', 'confidence'],
+      rows: [
+        ['1', 'first validation failure', '`@flag:correction`', 'targeted correction without changing request intent', 'medium'],
+        ['2', 'repeated failure', '`@flag:correction`', 'narrower correction against the failed rule', 'medium'],
+        ['`{{runtime.maxRetry}}`', 'final failure', '`@flag:correction`', 'stop and surface `@flag:validation-failed`', 'low'],
+      ],
+    }),
     '',
     '## PRD — Product Requirements',
     '',
     '### Request Snapshot',
     '',
-    '| Focus | Current reading | Why it matters |',
-    '|---|---|---|',
-    ...snapshotRows.map(row => `| ${row[0]} | ${row[1]} | ${row[2]} |`),
+    ...serializeMarkdownPipeTable({
+      columns: ['Focus', 'Current reading', 'Why it matters'],
+      rows: snapshotRows,
+    }),
     '',
     ...(usePlanningScaffold
       ? [
@@ -391,13 +358,16 @@ export const buildBody = (args: {
         userFlowBlock.trimEnd(),
         '### Goals',
         '',
-        '| id | Goal | maps to | Priority | Status |',
-        '|---|---|---|---|---|',
-        '| `G-01` | Preserve one universal pipeline contract across request variants | `@node:n-trigger` | `#D85A30:P0` | TBD |',
-        '| `G-02` | Shape context from the current request instead of cloning fixture prose | `@node:n-pack` | `#D85A30:P0` | TBD |',
-        `| \`G-03\` | Generate \`{{artifact}}\` with request-relevant body content | \`@node:n-process\` | \`#D85A30:P0\` | TBD |`,
-        '| `G-04` | Reject unresolved or malformed markdown before persistence | `@node:n-validate` | `#185FA5|bg#E6F1FB:P1` | TBD |',
-        '| `G-05` | Persist only the normalized artifact identity and body | `@node:n-deliver` | `#185FA5|bg#E6F1FB:P1` | TBD |',
+        ...serializeMarkdownPipeTable({
+          columns: ['id', 'Goal', 'maps to', 'Priority', 'Status'],
+          rows: [
+            ['`G-01`', 'Preserve one universal pipeline contract across request variants', '`@node:n-trigger`', '`#D85A30:P0`', 'TBD'],
+            ['`G-02`', 'Shape context from the current request instead of cloning fixture prose', '`@node:n-pack`', '`#D85A30:P0`', 'TBD'],
+            ['`G-03`', 'Generate `{{artifact}}` with request-relevant body content', '`@node:n-process`', '`#D85A30:P0`', 'TBD'],
+            ['`G-04`', 'Reject unresolved or malformed markdown before persistence', '`@node:n-validate`', '`#185FA5|bg#E6F1FB:P1`', 'TBD'],
+            ['`G-05`', 'Persist only the normalized artifact identity and body', '`@node:n-deliver`', '`#185FA5|bg#E6F1FB:P1`', 'TBD'],
+          ],
+        }),
         '',
         '### Non-Goals',
         '',
@@ -405,12 +375,15 @@ export const buildBody = (args: {
         '',
         '### User Stories',
         '',
-        '| id | As a... | I want... | So that... | Acceptance criteria |',
-        '|---|---|---|---|---|',
-        `| \`US-01\` | \`${owner}\` | one request to map into one valid stored artifact | the chat pipeline stays predictable | output starts with frontmatter and contains required body sections |`,
-        `| \`US-02\` | \`${owner}\` | the body to reflect ${requestSummary} | the stored document stays relevant to the query | problem and architecture prose mention request-specific scope without fabrication |`,
-        '| `US-03` | `reviewer` | failed rule feedback to stay bounded and actionable | retry loops do not drift or freeze | retry arc stops at `{{runtime.maxRetry}}` and surfaces a correction signal |',
-        '| `US-04` | `renderer` | frontmatter and body to stay aligned | graph, markdown, and storage stay in sync | section references and node IDs remain consistent across surfaces |',
+        ...serializeMarkdownPipeTable({
+          columns: ['id', 'As a...', 'I want...', 'So that...', 'Acceptance criteria'],
+          rows: [
+            ['`US-01`', `\`${owner}\``, 'one request to map into one valid stored artifact', 'the chat pipeline stays predictable', 'output starts with frontmatter and contains required body sections'],
+            ['`US-02`', `\`${owner}\``, `the body to reflect ${requestSummary}`, 'the stored document stays relevant to the query', 'problem and architecture prose mention request-specific scope without fabrication'],
+            ['`US-03`', '`reviewer`', 'failed rule feedback to stay bounded and actionable', 'retry loops do not drift or freeze', 'retry arc stops at `{{runtime.maxRetry}}` and surfaces a correction signal'],
+            ['`US-04`', '`renderer`', 'frontmatter and body to stay aligned', 'graph, markdown, and storage stay in sync', 'section references and node IDs remain consistent across surfaces'],
+          ],
+        }),
       ]
       : [
         '### Request Fit',
@@ -423,9 +396,10 @@ export const buildBody = (args: {
         '',
         '### Guardrails',
         '',
-        '| Focus | Constraint | Why it matters |',
-        '|---|---|---|',
-        ...buildGuardrailRows(args.profile).map(row => `| ${row[0]} | ${row[1]} | ${row[2]} |`),
+        ...serializeMarkdownPipeTable({
+          columns: ['Focus', 'Constraint', 'Why it matters'],
+          rows: buildGuardrailRows(args.profile),
+        }),
       ]),
     '',
     '## TAD — Technical Architecture',
@@ -450,11 +424,14 @@ export const buildBody = (args: {
     '    })',
     '```',
     '',
-    '| Field | Type | Rule |',
-    '|---|---|---|',
-    '| `key` | `string` | use `compute` |',
-    '| `type` | `string` | use `function` |',
-    '| `value` | block scalar | keep the function body pure |',
+    ...serializeMarkdownPipeTable({
+      columns: ['Field', 'Type', 'Rule'],
+      rows: [
+        ['`key`', '`string`', 'use `compute`'],
+        ['`type`', '`string`', 'use `function`'],
+        ['`value`', 'block scalar', 'keep the function body pure'],
+      ],
+    }),
     '',
     '```js',
     'function parseMappingFn(node) {',
@@ -468,25 +445,31 @@ export const buildBody = (args: {
     '',
     '### S02 Context Bundle Field Spec',
     '',
-    '| Field | Source | Type | Token budget |',
-    '|---|---|---|---|',
-    '| `selected_scope` | current workspace selection | `object` | — |',
-    '| `frontmatter` | active markdown frontmatter | `object` | — |',
-    '| `graph_summary` | graph summarizer | `string` | bounded |',
-    '| `guideline_digest` | markdown guidelines | `string` | bounded |',
-    '| `request_text` | active user request | `string` | bounded |',
+    ...serializeMarkdownPipeTable({
+      columns: ['Field', 'Source', 'Type', 'Token budget'],
+      rows: [
+        ['`selected_scope`', 'current workspace selection', '`object`', '—'],
+        ['`frontmatter`', 'active markdown frontmatter', '`object`', '—'],
+        ['`graph_summary`', 'graph summarizer', '`string`', 'bounded'],
+        ['`guideline_digest`', 'markdown guidelines', '`string`', 'bounded'],
+        ['`request_text`', 'active user request', '`string`', 'bounded'],
+      ],
+    }),
     '',
     '### S04 Validation Rules',
     '',
-    '| Rule | Check | Pass condition |',
-    '|---|---|---|',
-    '| `V-01` | sigil HEX format | uppercase 6-digit hex only |',
-    '| `V-02` | long quote guard | no quoted span >= 15 words |',
-    '| `V-03` | variable linkage | body variables resolve from frontmatter or inline declaration |',
-    '| `V-04` | inline arrays | JSON.parse-safe arrays |',
-    '| `V-05` | compute purity | no `fetch`, `document`, `window` |',
-    '| `V-06` | heading truncation | no heading ends with `...` |',
-    '| `V-07` | confidence enum | only `low`, `medium`, `high` |',
+    ...serializeMarkdownPipeTable({
+      columns: ['Rule', 'Check', 'Pass condition'],
+      rows: [
+        ['`V-01`', 'sigil HEX format', 'uppercase 6-digit hex only'],
+        ['`V-02`', 'long quote guard', 'no quoted span >= 15 words'],
+        ['`V-03`', 'variable linkage', 'body variables resolve from frontmatter or inline declaration'],
+        ['`V-04`', 'inline arrays', 'JSON.parse-safe arrays'],
+        ['`V-05`', 'compute purity', 'no `fetch`, `document`, `window`'],
+        ['`V-06`', 'heading truncation', 'no heading ends with `...`'],
+        ['`V-07`', 'confidence enum', 'only `low`, `medium`, `high`'],
+      ],
+    }),
     '',
     '### S05 Data Schema',
     '',
@@ -517,27 +500,34 @@ export const buildBody = (args: {
     '',
     '## Node Reference',
     '',
-    '| id | type | phase | actor | handles (target -> source) | applies_rules | db_writes | retry_arc | confidence | kanban |',
-    '|---|---|---|---|---|---|---|---|---|---|',
-    `| \`@node:n-trigger\` | \`input\` | emit | \`["${subject}","system"]\` | — -> [signal] | \`[]\` | \`flow_nodes\` | — | high | TBD |`,
-    '| `@node:n-pack` | `default` | pack | `["system"]` | [signal] -> [context] | `[]` | `flow_nodes` | — | high | TBD |',
-    `| \`@node:n-process\` | \`default\` | generate | \`["${subject}","AI"]\` | [context, correction] -> [md] | \`["V-05"]\` | \`flow_nodes\` | source | high | TBD |`,
-    '| `@node:n-validate` | `default` | validate | `["system"]` | [md] -> [valid_md, correction] | `["V-01","V-02","V-03","V-04","V-05","V-06","V-07"]` | `flow_nodes` | target | high | TBD |',
-    '| `@node:n-deliver` | `output` | deliver | `["system"]` | [valid_md] -> — | `[]` | `["flow_nodes","flow_edges"]` | — | high | TBD |',
+    ...serializeMarkdownPipeTable({
+      columns: ['id', 'type', 'phase', 'actor', 'handles (target -> source)', 'applies_rules', 'db_writes', 'retry_arc', 'confidence', 'kanban'],
+      rows: [
+        ['`@node:n-trigger`', '`input`', 'emit', `\`["${subject}","system"]\``, '— -> [signal]', '`[]`', '`flow_nodes`', '—', 'high', 'TBD'],
+        ['`@node:n-pack`', '`default`', 'pack', '`["system"]`', '[signal] -> [context]', '`[]`', '`flow_nodes`', '—', 'high', 'TBD'],
+        ['`@node:n-process`', '`default`', 'generate', `\`["${subject}","AI"]\``, '[context, correction] -> [md]', '`["V-05"]`', '`flow_nodes`', 'source', 'high', 'TBD'],
+        ['`@node:n-validate`', '`default`', 'validate', '`["system"]`', '[md] -> [valid_md, correction]', '`["V-01","V-02","V-03","V-04","V-05","V-06","V-07"]`', '`flow_nodes`', 'target', 'high', 'TBD'],
+        ['`@node:n-deliver`', '`output`', 'deliver', '`["system"]`', '[valid_md] -> —', '`[]`', '`["flow_nodes","flow_edges"]`', '—', 'high', 'TBD'],
+      ],
+    }),
     '',
-    '| Handle | Direction | Carries | PostgreSQL column |',
-    '|---|---|---|---|',
-    '| `signal` | trigger -> pack | request signal | — |',
-    '| `context` | pack -> process | bounded context | — |',
-    '| `md` | process -> validate | generated markdown | — |',
-    '| `valid_md` | validate -> deliver | accepted markdown | — |',
-    '| `correction` | validate -> process | failed-rule feedback | — |',
+    ...serializeMarkdownPipeTable({
+      columns: ['Handle', 'Direction', 'Carries', 'PostgreSQL column'],
+      rows: [
+        ['`signal`', 'trigger -> pack', 'request signal', '—'],
+        ['`context`', 'pack -> process', 'bounded context', '—'],
+        ['`md`', 'process -> validate', 'generated markdown', '—'],
+        ['`valid_md`', 'validate -> deliver', 'accepted markdown', '—'],
+        ['`correction`', 'validate -> process', 'failed-rule feedback', '—'],
+      ],
+    }),
     '',
     '## Open Questions',
     '',
-    '| id | Question | Owner | Due | Status |',
-    '|---|---|---|---|---|',
-    ...openQuestions.map(row => `| \`${row.id}\` | ${row.question} | \`${owner}\` | TBD | ${row.status} |`),
+    ...serializeMarkdownPipeTable({
+      columns: ['id', 'Question', 'Owner', 'Due', 'Status'],
+      rows: openQuestions.map(row => [`\`${row.id}\``, row.question, `\`${owner}\``, 'TBD', row.status]),
+    }),
     '',
     '## Customization Guide',
     '',
@@ -545,36 +535,45 @@ export const buildBody = (args: {
     '',
     '### Frontmatter variable map',
     '',
-    '| Variable | Base (generic) | Example domain |',
-    '|---|---|---|',
-    '| `{{product}}` | product name | Planning Canvas |',
-    '| `{{domain}}` | operating domain | Research Workflow |',
-    '| `{{subject}}` | primary actor | analyst |',
-    '| `{{objective}}` | request objective | deliver an implementation brief |',
-    '| `{{artifact}}` | requested deliverable | PRD + TAD |',
-    '| `{{owner}}` | owning role | platform-ai |',
-    '| `{{version}}` | version string | 0.1.0 |',
-    '| `{{status}}` | lifecycle label | draft |',
+    ...serializeMarkdownPipeTable({
+      columns: ['Variable', 'Base (generic)', 'Example domain'],
+      rows: [
+        ['`{{product}}`', 'product name', 'Planning Canvas'],
+        ['`{{domain}}`', 'operating domain', 'Research Workflow'],
+        ['`{{subject}}`', 'primary actor', 'analyst'],
+        ['`{{objective}}`', 'request objective', 'deliver an implementation brief'],
+        ['`{{artifact}}`', 'requested deliverable', 'PRD + TAD'],
+        ['`{{owner}}`', 'owning role', 'platform-ai'],
+        ['`{{version}}`', 'version string', '0.1.0'],
+        ['`{{status}}`', 'lifecycle label', 'draft'],
+      ],
+    }),
     '',
     '### Extension checklist',
     '',
-    '| Step | Action | Target section |',
-    '|---|---|---|',
-    '| 1 | Resolve Tier B variables when request context is explicit | YAML frontmatter |',
-    '| 2 | Keep `pipeline`, `flow`, `mermaid`, and `graph_meta` aligned | frontmatter graph blocks |',
-    '| 3 | Add domain validation rules from `V-08` onward if needed | TAD validation rules |',
-    '| 4 | Extend open questions after `OQ-04` for domain-specific unknowns | Open Questions |',
-    '| 5 | Keep streamed prose request-shaped rather than fixture-shaped | body sections |',
+    ...serializeMarkdownPipeTable({
+      columns: ['Step', 'Action', 'Target section'],
+      rows: [
+        ['1', 'Resolve Tier B variables when request context is explicit', 'YAML frontmatter'],
+        ['2', 'Keep `pipeline`, `flow`, `mermaid`, and `graph_meta` aligned', 'frontmatter graph blocks'],
+        ['3', 'Add domain validation rules from `V-08` onward if needed', 'TAD validation rules'],
+        ['4', 'Extend open questions after `OQ-04` for domain-specific unknowns', 'Open Questions'],
+        ['5', 'Keep streamed prose request-shaped rather than fixture-shaped', 'body sections'],
+      ],
+    }),
     '',
     '### Syntax quick-reference',
     '',
-    '| Convention | Symbol | Meaning | Example |',
-    '|---|---|---|---|',
-    '| Variable reference | `{{key}}` | resolve from frontmatter | `{{artifact}}` |',
-    '| Node reference | `@node:id` | refer to a flow node | `@node:n-process` |',
-    '| Edge reference | `@edge:src:h→tgt:h` | refer to a flow edge | `@edge:n-validate:correction→n-process:correction` |',
-    '| Background sigil | `bg#HEX:text` | semantic highlight | `bg#E1F5EE:intent` |',
-    '| Multi-select array | `["A","B"]` | JSON-safe inline array | `["system"]` |',
+    ...serializeMarkdownPipeTable({
+      columns: ['Convention', 'Symbol', 'Meaning', 'Example'],
+      rows: [
+        ['Variable reference', '`{{key}}`', 'resolve from frontmatter', '`{{artifact}}`'],
+        ['Node reference', '`@node:id`', 'refer to a flow node', '`@node:n-process`'],
+        ['Edge reference', '`@edge:src:h→tgt:h`', 'refer to a flow edge', '`@edge:n-validate:correction→n-process:correction`'],
+        ['Background sigil', '`bg#HEX:text`', 'semantic highlight', '`bg#E1F5EE:intent`'],
+        ['Multi-select array', '`["A","B"]`', 'JSON-safe inline array', '`["system"]`'],
+      ],
+    }),
   ].filter(Boolean).join('\n')
 }
 

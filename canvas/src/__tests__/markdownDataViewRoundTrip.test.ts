@@ -8,7 +8,11 @@ import {
   renameMarkdownDataViewColumn,
   updateMarkdownDataViewCell,
 } from '@/features/markdown/ui/markdownDataViewModel'
-import { serializeMarkdownDataViewToTableLines } from '@/features/markdown/ui/markdownDataViewSerialize'
+import {
+  containsMarkdownPipeTable,
+  serializeMarkdownDataViewToTableLines,
+  serializeMarkdownPipeTable,
+} from '@/features/markdown/ui/markdownDataViewSerialize'
 import { duplicateMarkdownLineRange, replaceMarkdownLineRange } from 'grph-shared/markdown/lineEditing'
 
 export function testMarkdownDataViewInfersGroupAndTitleColumns() {
@@ -93,6 +97,28 @@ export function testMarkdownDataViewEditsRoundTripToMarkdownTable() {
   }
   if (!next.includes('|  | Todo |')) {
     throw new Error('expected new row appended to markdown table')
+  }
+}
+
+export function testGeneratedMarkdownPipeTableUsesCanonicalHtmlFreePersistenceFormat() {
+  const lines = serializeMarkdownPipeTable({
+    columns: ['Name', 'Count', 'Notes'],
+    alignments: ['left', 'right', 'center'],
+    rows: [['Alpha | Beta', 2, 'first<br/>second\nthird']],
+  })
+  const markdown = lines.join('\n')
+
+  if (!containsMarkdownPipeTable(markdown)) {
+    throw new Error(`expected canonical serializer output to be detected as a Markdown pipe table, got ${JSON.stringify(markdown)}`)
+  }
+  if (!markdown.includes('| Alpha \\| Beta | 2 | first second third |')) {
+    throw new Error(`expected pipes to be escaped and HTML/newlines normalized centrally, got ${JSON.stringify(markdown)}`)
+  }
+  if (!/^\| -+ \| -+: \| :-+: \|$/m.test(markdown)) {
+    throw new Error(`expected canonical right and center alignment markers, got ${JSON.stringify(markdown)}`)
+  }
+  if (/<(?:table|br)\b/i.test(markdown)) {
+    throw new Error(`generated table persistence must not contain authored table HTML, got ${JSON.stringify(markdown)}`)
   }
 }
 

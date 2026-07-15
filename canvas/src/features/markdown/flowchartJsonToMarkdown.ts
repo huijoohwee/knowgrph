@@ -1,10 +1,11 @@
 import { parseFlowchartApiGraphPayload } from '@/lib/flowchart'
+import { serializeMarkdownPipeTable } from './ui/markdownDataViewSerialize'
 
 type TopLevelJson = Record<string, unknown>
 
 const safeText = (v: unknown): string => {
   if (v == null) return ''
-  return String(v).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').trim()
+  return String(v).replace(/\r?\n/g, ' ').trim()
 }
 
 const safeNum = (v: unknown, digits: number = 3): string => {
@@ -40,14 +41,7 @@ const asArrayObj = (v: unknown): Array<Record<string, unknown>> => {
 }
 
 const table = (title: string, headers: string[], rows: string[][]): string[] => {
-  const out: string[] = []
-  out.push(title)
-  out.push('')
-  out.push(`| ${headers.join(' | ')} |`)
-  out.push(`| ${headers.map(() => '---').join(' | ')} |`)
-  for (let i = 0; i < rows.length; i += 1) out.push(`| ${rows[i]!.join(' | ')} |`)
-  out.push('')
-  return out
+  return [title, '', ...serializeMarkdownPipeTable({ columns: headers, rows }), '']
 }
 
 const readNumber = (v: unknown): number | null => {
