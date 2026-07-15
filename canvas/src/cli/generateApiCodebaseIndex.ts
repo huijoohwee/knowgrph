@@ -2,11 +2,12 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
+import { API_REFERENCE_CODEBASE_INDEX_DIRECTORY } from './apiReferenceOutputPaths'
 
 const REPO_ROOT = process.cwd()
 const INDEX_DIR = path.join(
   REPO_ROOT,
-  'docs/documents/knowgrph-api-reference/api-reference-codebase-index_202604261230',
+  API_REFERENCE_CODEBASE_INDEX_DIRECTORY,
 )
 
 type SsotRow = {

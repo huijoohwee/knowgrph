@@ -16,7 +16,7 @@ The opening YAML frontmatter block remains the machine SSOT for this generated r
 <!-- SETTINGS_REGISTRY_TABLE_START -->
 
 | Setting key | Type | Source | LS key (if any) | Owner |
-| --- | --- | --- | --- | --- |
+| ----------- | ---- | ------ | ------------ | ----- |
 | `startup.openWorkflowPanel` | boolean | localStorage |  |  |
 | `uiOverlayOpacity` | number | store | `kg:ui:overlayOpacity` | `ui.overlayOpacity` |
 | `uiPanelOpacity` | number | store | `kg:ui:panelOpacity` | `ui.panelOpacity` |

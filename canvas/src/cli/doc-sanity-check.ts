@@ -194,7 +194,7 @@ function checkRunnableStoryboardDemoCompliance(): string {
         'gm',
       )
       // Simple approach: split flowDiagrams section on 8-space indented keys (diagram entry starts)
-      const entryBlocks = flowDiagramsSection.split(/\n(?=        \w)/g)
+      const entryBlocks = flowDiagramsSection.split(/\n(?= {8}\w)/g)
       for (const block of entryBlocks) {
         if (!new RegExp(`type:\\s*${diagramType}\\b`).test(block)) continue
         if (!block.includes(`floatingPanelView: "${panelKeys.floatingPanelView}"`)) {

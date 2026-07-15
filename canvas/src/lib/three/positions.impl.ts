@@ -81,7 +81,7 @@ export function asVec3(v: unknown): Vec3 | null {
   if (!Array.isArray(v)) return null
   if (v.length !== 3) return null
   const a = v[0], b = v[1], c = v[2]
-  if (typeof a !== 'number' || typeof b !== 'number' || typeof c !== 'number') return null
+  if (typeof a !== 'number' || typeof b !== 'number' || typeof c !== 'number' || !Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(c)) return null
   return [a, b, c]
 }
 

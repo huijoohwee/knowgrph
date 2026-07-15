@@ -5,7 +5,7 @@ import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvas
 import type { KeyTypeValueRowProps } from '@/features/panels/ui/canvasKeyTypeValueStaticRow'
 import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 
-export interface CanvasEditableKeyTypeValueRowProps extends KeyTypeValueRowProps {}
+export type CanvasEditableKeyTypeValueRowProps = KeyTypeValueRowProps
 
 export function CanvasEditableKeyTypeValueRow({
   keyNode,

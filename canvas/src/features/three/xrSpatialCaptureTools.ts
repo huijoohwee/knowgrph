@@ -35,7 +35,8 @@ export const SPATIAL_CAPTURE_SIDE_TOOL_IDS = new Set(['center', 'sphere', 'box',
 
 export type SpatialCaptureToolId = typeof SPATIAL_CAPTURE_TOOL_BUTTONS[number]['id']
 export type SpatialCapturePrimaryModeId = typeof SPATIAL_CAPTURE_RAIL_BUTTONS[number]['id']
-export type SpatialCaptureAxisId = 'x' | 'y' | 'z'
+export type SpatialCaptureViewAxisId = 'x' | 'y' | 'z'
+export type SpatialCaptureAxisId = SpatialCaptureViewAxisId | 'free'
 export type SpatialCaptureCenterActionId = 'set' | 'add' | 'remove'
 
 type SpatialCaptureToolListener = (tool: SpatialCaptureToolId) => void
@@ -89,7 +90,6 @@ export function setSpatialCapturePrimaryMode(mode: SpatialCapturePrimaryModeId):
 }
 
 export function setSpatialCaptureAxis(axis: SpatialCaptureAxisId): void {
-  if (activeSpatialCaptureAxis === axis) return
   activeSpatialCaptureAxis = axis
   for (const listener of spatialCaptureAxisListeners) listener(activeSpatialCaptureAxis)
 }

@@ -114,22 +114,18 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
 }
 
 export function testCanvasSurfaceMode3dSelectionUsesSharedOwner() {
-  const toolbarModeSelectText = readFileSync(resolve(process.cwd(), 'src/components/toolbar/Canvas3dModeSelect.tsx'), 'utf8')
   const canvasViewActionsText = readFileSync(resolve(process.cwd(), 'src/components/toolbar/canvasViewActions.ts'), 'utf8')
   const canvasViewMenuText = readFileSync(resolve(process.cwd(), 'src/components/toolbar/canvasViewMenu.ts'), 'utf8')
-  if (!toolbarModeSelectText.includes('applyCanvasSurfaceModeSelection') || !canvasViewActionsText.includes('applyCanvasSurfaceModeSelection')) {
-    throw new Error('Expected both standalone 3D mode selector and Canvas View Surface Mode actions to reuse the shared surface-mode selection owner')
+  if (!canvasViewActionsText.includes('applyCanvasSurfaceModeSelection')) {
+    throw new Error('Expected Canvas View Surface Mode actions to reuse the shared surface-mode selection owner')
   }
-  if (!toolbarModeSelectText.includes('getCanvasSurfaceModeDisabledCopy') || !canvasViewMenuText.includes('getCanvasSurfaceModeDisabledCopy')) {
-    throw new Error('Expected both 3D mode selector and Canvas View Surface Mode menu to reuse shared surface-mode disabled copy')
-  }
-  if (!toolbarModeSelectText.includes('listCanvasSurfaceModeSpecs') || !canvasViewMenuText.includes('listCanvasSurfaceModeSpecs')) {
-    throw new Error('Expected both 3D mode selector and Canvas View Surface Mode menu to reuse shared surface-mode specs')
+  if (!canvasViewMenuText.includes('getCanvasSurfaceModeDisabledCopy') || !canvasViewMenuText.includes('listCanvasSurfaceModeSpecs')) {
+    throw new Error('Expected Canvas View Surface Mode to reuse shared specs and disabled copy')
   }
   if (canvasViewMenuText.includes('view:geospatial')) {
     throw new Error('Expected Geospatial Mode to be owned by Surface Mode, not a stale view-scoped option id')
   }
-  if (canvasViewActionsText.includes("setCanvas3dMode('3d')") || toolbarModeSelectText.includes("setCanvas3dMode('3d')")) {
+  if (canvasViewActionsText.includes("setCanvas3dMode('3d')")) {
     throw new Error('Expected UI surfaces to avoid local direct 3D-mode setter sequences outside the shared owner')
   }
 

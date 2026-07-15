@@ -44,7 +44,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
 
   const runWorkflowNode: StoryboardWidgetWorkflowNodeRunner = async (nodeId, runOptions) => {
     let runAnchorNode: GraphNode | null = null
-    try {
+    const executeWorkflowNode = async () => {
       const id = String(nodeId || '').trim()
       const allowCreateRichMediaPanel = runOptions?.allowCreateRichMediaPanel !== false
       const suppressLayoutMutation = runOptions?.suppressLayoutMutation === true
@@ -568,30 +568,32 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
       }
 
       publishStoryboardWidgetSourceBackedRunOutput({ id, node, publishTextRunOutputToRichMediaPanel, updateRunOutputForKnownNodeIds, upsertUiToast: args.upsertUiToast })
-    } catch (error) {
-      if (runOptions?.propagateErrors) throw error
-      const detail = error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '').trim() : ''
-      args.upsertUiToast({ id: `storyboard-widget-run-failed-${String(nodeId || '')}`, kind: 'error', message: detail || UI_COPY.storyboardWidgetRunFailedToast, ttlMs: 4200 })
-    } finally {
-      const currentDurableGraph = args.readDraftGraphData()
-      const durableGraph = currentDurableGraph && runAnchorNode ? preserveStoryboardWidgetWorkflowInputTopology({ graphData: currentDurableGraph, anchorNode: runAnchorNode }) : currentDurableGraph
-      if (durableGraph) {
-        try {
-          await args.persistDraftGraphData(durableGraph)
-        } catch (error) {
-          const detail = error && typeof error === 'object' && 'message' in error
-            ? String((error as { message?: unknown }).message || '').trim()
-            : ''
-          args.upsertUiToast({
-            id: `storyboard-widget-persistence-failed-${String(nodeId || '')}`,
-            kind: 'error',
-            message: detail || 'Generated output could not be persisted to the workspace.',
-            ttlMs: 5200,
-          })
-          await Promise.reject(error)
-        }
+    }
+    const executeWorkflowNodeWithFailureReporting = async () => {
+      try {
+        await executeWorkflowNode()
+      } catch (error) {
+        if (runOptions?.propagateErrors) throw error
+        const detail = error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '').trim() : ''
+        args.upsertUiToast({ id: `storyboard-widget-run-failed-${String(nodeId || '')}`, kind: 'error', message: detail || UI_COPY.storyboardWidgetRunFailedToast, ttlMs: 4200 })
       }
     }
+    let deferredError: { value: unknown } | null = null
+    try {
+      await executeWorkflowNodeWithFailureReporting()
+    } catch (error) {
+      deferredError = { value: error }
+    }
+    const currentDurableGraph = args.readDraftGraphData()
+    const durableGraph = currentDurableGraph && runAnchorNode ? preserveStoryboardWidgetWorkflowInputTopology({ graphData: currentDurableGraph, anchorNode: runAnchorNode }) : currentDurableGraph
+    try {
+      if (durableGraph) await args.persistDraftGraphData(durableGraph)
+    } catch (error) {
+      const detail = error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '').trim() : ''
+      args.upsertUiToast({ id: `storyboard-widget-persistence-failed-${String(nodeId || '')}`, kind: 'error', message: detail || 'Generated output could not be persisted to the workspace.', ttlMs: 5200 })
+      deferredError = { value: error }
+    }
+    if (deferredError) throw deferredError.value
   }
   return runWorkflowNode
 }

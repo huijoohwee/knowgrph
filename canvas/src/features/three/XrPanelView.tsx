@@ -2,6 +2,7 @@ import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { activateCanvasGraphSurfaceMode } from '@/lib/canvas/canvas3dMode'
 import { XR_PHYSICS_CONTROLLER_MODES, type XrPhysicsControllerMode } from '@/features/three/xrPhysicsPlaygroundModel'
 import {
   readXrPhysicsPlaygroundControls,
@@ -32,46 +33,39 @@ import {
   subscribeSpatialCaptureTool,
 } from '@/features/three/xrSpatialCaptureTools'
 import type { SpatialCaptureAxisId, SpatialCaptureCenterActionId, SpatialCapturePrimaryModeId, SpatialCaptureToolId } from '@/features/three/xrSpatialCaptureTools'
+import { XrCameraFramingSection } from '@/features/three/XrCameraFramingSection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-
-export type XrPanelSurface = 'bottomPanel' | 'floatingPanel'
 
 function formatBooleanLabel(value: boolean): string {
   return value ? 'On' : 'Off'
 }
 
-export function XrPanelView({ surface }: { surface: XrPanelSurface }) {
+export function XrPanelView() {
   const [physicsMode, setPhysicsMode] = React.useState<XrPhysicsControllerMode>(readXrPhysicsPlaygroundControls().activeMode || 'roll')
   const [capabilities, setCapabilities] = React.useState(XR_BROWSER_GRAPHICS_CAPABILITY_DEFAULTS)
   const [spatialTool, setSpatialToolState] = React.useState<SpatialCaptureToolId>(readSpatialCaptureTool())
   const [spatialPrimaryMode, setSpatialPrimaryModeState] = React.useState<SpatialCapturePrimaryModeId>(readSpatialCapturePrimaryMode())
   const [spatialAxis, setSpatialAxisState] = React.useState<SpatialCaptureAxisId>(readSpatialCaptureAxis())
   const [spatialCenterAction, setSpatialCenterActionState] = React.useState<SpatialCaptureCenterActionId>(readSpatialCaptureCenterAction())
-  const graphData = useActiveGraphRenderData(true)
+  const activeGraphData = useActiveGraphRenderData(true)
   const {
     canvas3dMode,
     canvasRenderMode,
+    graphData: rawGraphData,
     markdownDocumentName,
     markdownDocumentText,
-    setBottomSurfaceCollapsed,
-    setBottomSurfaceTab,
     setCanvas3dMode,
     setCanvasRenderMode,
-    setFloatingPanelOpen,
-    setFloatingPanelView,
   } = useGraphStore(
     useShallow(state => ({
       canvas3dMode: state.canvas3dMode,
       canvasRenderMode: state.canvasRenderMode,
+      graphData: state.graphData,
       markdownDocumentName: state.markdownDocumentName,
       markdownDocumentText: state.markdownDocumentText,
-      setBottomSurfaceCollapsed: state.setBottomSurfaceCollapsed,
-      setBottomSurfaceTab: state.setBottomSurfaceTab,
       setCanvas3dMode: state.setCanvas3dMode,
       setCanvasRenderMode: state.setCanvasRenderMode,
-      setFloatingPanelOpen: state.setFloatingPanelOpen,
-      setFloatingPanelView: state.setFloatingPanelView,
     })),
   )
   React.useEffect(() => {
@@ -88,20 +82,14 @@ export function XrPanelView({ surface }: { surface: XrPanelSurface }) {
   }, [])
 
   const activateXrMode = React.useCallback(() => {
-    setCanvas3dMode('xr')
-    setCanvasRenderMode('3d')
+    activateCanvasGraphSurfaceMode({
+      mode: 'xr',
+      setCanvas3dMode,
+      setCanvasRenderMode,
+    })
   }, [setCanvas3dMode, setCanvasRenderMode])
 
-  const openBottomXr = React.useCallback(() => {
-    setBottomSurfaceTab('xr')
-    setBottomSurfaceCollapsed(false)
-  }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
-
-  const openFloatingXr = React.useCallback(() => {
-    setFloatingPanelView('xr')
-    setFloatingPanelOpen(true)
-  }, [setFloatingPanelOpen, setFloatingPanelView])
-
+  const graphData = activeGraphData || rawGraphData
   const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes.length : 0
   const edges = Array.isArray(graphData?.edges) ? graphData.edges.length : 0
   const xrActive = canvasRenderMode === '3d' && canvas3dMode === 'xr'
@@ -111,9 +99,9 @@ export function XrPanelView({ surface }: { surface: XrPanelSurface }) {
   return (
     <section
       className={cn('flex h-full min-h-0 flex-col gap-2 overflow-y-auto p-2', UI_THEME_TOKENS.text.primary)}
-      aria-label={surface === 'bottomPanel' ? 'BottomPanel XR' : 'FloatingPanel XR'}
+      aria-label="FloatingPanel XR"
       data-kg-xr-panel="1"
-      data-kg-xr-panel-surface={surface}
+      data-kg-xr-panel-surface="floatingPanel"
       data-kg-xr-panel-active={xrActive ? '1' : '0'}
       data-kg-xr-panel-spatial-status={sourceProfile.kind}
       data-kg-xr-panel-source-format={sourceProfile.format}
@@ -137,18 +125,10 @@ export function XrPanelView({ surface }: { surface: XrPanelSurface }) {
           >
             Activate
           </button>
-          {surface !== 'bottomPanel' ? (
-            <button type="button" className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.hoverBg)} onClick={openBottomXr} data-kg-xr-panel-open-bottom="1">
-              Bottom
-            </button>
-          ) : null}
-          {surface !== 'floatingPanel' ? (
-            <button type="button" className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.hoverBg)} onClick={openFloatingXr} data-kg-xr-panel-open-floating="1">
-              Floating
-            </button>
-          ) : null}
         </nav>
       </header>
+
+      <XrCameraFramingSection />
 
       <section className="grid min-w-0 gap-2 sm:grid-cols-2" aria-label="XR status">
         <section className={cn('rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-xr-panel-scene="1">

@@ -749,7 +749,7 @@ export function ToolbarToolMenu({
                 <TimelineFloatingPanelViewLazy />
               </React.Suspense>
             )}
-            {floatingPanelView === 'xr' && <React.Suspense fallback={null}><XrPanelViewLazy surface="floatingPanel" /></React.Suspense>}
+            {floatingPanelView === 'xr' && <React.Suspense fallback={null}><XrPanelViewLazy /></React.Suspense>}
             {floatingPanelView === 'architecture' && (
               <React.Suspense fallback={null}>
                 <ArchitectureFloatingPanelViewLazy />

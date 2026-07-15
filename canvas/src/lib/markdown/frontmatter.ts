@@ -191,7 +191,7 @@ function readBooleanPreset(value: unknown): boolean | undefined {
   return undefined
 }
 
-function readBottomSurfaceTabPreset(value: unknown): BottomSurfaceTab | undefined {
+export function readBottomSurfaceTabPreset(value: unknown): BottomSurfaceTab | undefined {
   const raw = String(value || '').trim()
   if (
     raw === 'stats' ||
@@ -209,7 +209,7 @@ function readBottomSurfaceTabPreset(value: unknown): BottomSurfaceTab | undefine
   return undefined
 }
 
-function readFloatingPanelViewPreset(value: unknown): FloatingPanelView | undefined {
+export function readFloatingPanelViewPreset(value: unknown): FloatingPanelView | undefined {
   const raw = String(value || '').trim()
   if (
     raw === 'propsPanel' ||
@@ -227,6 +227,7 @@ function readFloatingPanelViewPreset(value: unknown): FloatingPanelView | undefi
     raw === 'gitGraph' ||
     raw === 'gantt' ||
     raw === 'timeline' ||
+    raw === 'xr' ||
     raw === 'architecture' ||
     raw === 'eventModeling' ||
     raw === 'graphTraversal'

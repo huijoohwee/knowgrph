@@ -19,7 +19,7 @@ export interface KeyTypeValueRowProps {
   useMarkdownSigilBridge?: boolean
 }
 
-export interface CanvasKeyTypeValueStaticRowProps extends KeyTypeValueRowProps {}
+export type CanvasKeyTypeValueStaticRowProps = KeyTypeValueRowProps
 
 export function CanvasKeyTypeValueStaticRow({
   keyNode,
