@@ -4,6 +4,7 @@ export function assertStoryboard2dMediaDropContract() {
   const storyboardCanvasSource = readFileSync(new URL('../components/StoryboardCanvas.tsx', import.meta.url), 'utf8')
   const storyboardWidgetSurfaceSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx', import.meta.url), 'utf8')
   const storyboardWidgetRuntimeSource = readFileSync(new URL('../components/StoryboardWidgetCanvas.runtime.tsx', import.meta.url), 'utf8')
+  const storyboardCardMediaGraphSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/storyboardCardMediaGraphSource.ts', import.meta.url), 'utf8')
   const storyboardWidgetDropBridgeSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetDropBridge.ts', import.meta.url), 'utf8')
   const graphStoryboardOverlaySource = readFileSync(new URL('../components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx', import.meta.url), 'utf8')
   const graphStoryboardOverlayProjectionSource = readFileSync(new URL('../components/StoryboardWidgetCanvas/useStoryboardCardOverlayProjection2d.ts', import.meta.url), 'utf8')
@@ -286,7 +287,7 @@ export function assertStoryboard2dMediaDropContract() {
   }
 
   const overlayDropMediaIndex = graphStoryboardMediaDropHookSource.indexOf('const dropCardMedia = React.useCallback')
-  const overlayDropLiveGraphIndex = graphStoryboardMediaDropHookSource.indexOf('const liveGraphData = useGraphStore.getState().graphData || graphData', overlayDropMediaIndex)
+  const overlayDropLiveGraphIndex = graphStoryboardMediaDropHookSource.indexOf('const liveGraphData = resolveStoryboardCardMediaDropGraphData({', overlayDropMediaIndex)
   const overlayDropGraphPatchIndex = graphStoryboardMediaDropHookSource.indexOf('const nextProperties = buildNodeMediaProperties({', overlayDropMediaIndex)
   const overlayDropMarkdownMirrorIndex = graphStoryboardMediaDropHookSource.indexOf('const nextMarkdownText = updateStrybldrStoryboardMarkdownCardOverride({', overlayDropMediaIndex)
   const overlayDropGraphCommitIndex = graphStoryboardMediaDropHookSource.indexOf('setGraphDataPreservingLayout(nextGraphData)', overlayDropMediaIndex)
@@ -356,8 +357,19 @@ export function assertStoryboard2dMediaDropContract() {
     'draftGraphDataRef.current = nextDraft',
     'setDraftGraphData(nextDraft)',
     'setGraphDataPreservingLayout(nextDraft)',
+    'persistStoryboardCardMediaGraphSource(nextDraft)',
   ]) {
     if (!storyboardWidgetRuntimeSource.includes(snippet)) {
+      throw new Error(`expected Card @ media graph commits to preserve draft and store topology: ${snippet}`)
+    }
+  }
+  for (const snippet of [
+    'syncActiveMarkdownDocumentTextFromParsedGraph',
+    'state.setSourceFiles(sourceSync.sourceFiles)',
+    'state.setMarkdownDocument(',
+    "label: 'Storyboard media graph'",
+  ]) {
+    if (!storyboardCardMediaGraphSource.includes(snippet)) {
       throw new Error(`expected Card @ media graph commits to preserve draft and store topology: ${snippet}`)
     }
   }

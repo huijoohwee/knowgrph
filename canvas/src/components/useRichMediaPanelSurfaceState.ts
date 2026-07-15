@@ -74,6 +74,7 @@ export type RichMediaPanelSurfaceState = {
   panelOwnsInlineSrcDocScroll: boolean
   preferEmbed: boolean
   resizeHandlePlacement: 'root' | 'external'
+  resizeHandleVisible: boolean
   rootAttributes: Record<string, string | undefined>
   rootClassName: string
   rootRef: React.RefCallback<HTMLElement>
@@ -157,6 +158,7 @@ export function useRichMediaPanelSurfaceState(
   const installHeaderDrag = Boolean(props.onHeaderDragStart || props.onHeaderDrag || props.onHeaderDragEnd)
   const installResize =
     props.resizable === true && Boolean(props.onResizeStart || props.onResize || props.onResizeEnd)
+  const resizeHandleVisible = props.resizeHandleVisible === true || installResize
   const canvasOverlayProxyEnabled = installOverlayPan || installHeaderDrag || typeof props.forwardWheelTo === 'function'
   const storyboardWidgetRichMediaOverlayRoot = storyboardWidgetInteractionMode || canvasOverlayProxyEnabled
   const fallbackToRawSrc = React.useCallback(() => {
@@ -535,6 +537,7 @@ export function useRichMediaPanelSurfaceState(
     panelOwnsInlineSrcDocScroll,
     preferEmbed,
     resizeHandlePlacement,
+    resizeHandleVisible,
     rootAttributes,
     rootClassName,
     rootRef,

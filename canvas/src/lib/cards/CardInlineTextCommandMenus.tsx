@@ -219,11 +219,12 @@ export function CardInlineTextCommandMenus(props: {
       setCommandQuery('')
       const focusOffset = next !== text ? tokenRange.start : commandSelectionRef.current.end
       focusCardInlineTextInputSelectionSoon(inputRef.current, focusOffset, focusOffset, focusSelection)
-      if (shouldRouteToExternalMediaTarget) onMediaCommandSelect(candidate)
       if (options?.closeAfterApply === true && next !== text) onCommandDraftApplied?.(next)
+      // Commit the source-backed chip before reconciling its graph panel/edge.
+      // The graph reconciliation may replace the active graph snapshot.
+      if (shouldRouteToExternalMediaTarget) onMediaCommandSelect(candidate)
       return
     }
-    if (candidate.url) onMediaCommandSelect?.(candidate)
     if (shouldRouteToExternalMediaTarget) {
       const selection = commandSelectionRef.current
       const selected = text.slice(
@@ -254,8 +255,12 @@ export function CardInlineTextCommandMenus(props: {
       setCommandQuery('')
       focusCardInlineTextInputSelectionSoon(inputRef.current, next.cursor, next.cursor, focusSelection)
       if (options?.closeAfterApply === true) onCommandDraftApplied?.(next.text)
+      // Keep the text-owner commit ahead of the graph-owner media mutation so
+      // a freshly inserted @ chip cannot be overwritten by a stale snapshot.
+      onMediaCommandSelect(candidate)
       return
     }
+    if (candidate.url) onMediaCommandSelect?.(candidate)
     const selection = commandSelectionRef.current
     const selected = text.slice(
       Math.max(0, Math.min(text.length, selection.start)),

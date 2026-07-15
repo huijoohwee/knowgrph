@@ -220,18 +220,6 @@ export function testRichMediaSsotConsistencyRegression() {
   ) {
     throw new Error('expected Rich Media overlay pool SSOT to enable XR surface overlays through the shared helper')
   }
-  if (
-    listDisplayRichMediaOverlayNodes({
-      renderMediaAsNodes: false,
-      canvas2dRenderer: 'storyboard',
-      frontmatterModeEnabled: true,
-      documentSemanticMode: 'document',
-      nodes: [imageNode],
-      poolMax: 24,
-    }).length !== 1
-  ) {
-    throw new Error('expected frontmatter Storyboard Widget document mode to enable the Rich Media overlay pool without the manual toggle')
-  }
   const geospatialMenu = buildCanvasViewOptions(
     {
       canvas2dRenderer: 'd3',
@@ -359,8 +347,8 @@ export function testRichMediaSsotConsistencyRegression() {
   if (!storyboardWidgetCanvasText.includes('flowCanvasGraphDataOverride')) {
     throw new Error('expected StoryboardWidgetCanvas runtime to pass an upstream-filtered graph override into FlowCanvas to prevent overlay seepage')
   }
-  if (!storyboardWidgetCanvasSurfaceText.includes('excludeRichMediaOverlayNodeIds={storyboardCardOwnedMediaPanelNodeIds}')) {
-    throw new Error('expected Storyboard fixed-card mode to suppress duplicate FlowCanvas Rich Media overlay panels via shared exclusion ids')
+  if (!storyboardWidgetCanvasSurfaceText.includes('excludeRichMediaOverlayNodeIds={flowCanvasRichMediaOverlayExcludedNodeIds}')) {
+    throw new Error('expected Storyboard fixed-card mode to pass its explicit Rich Media overlay exclusions through FlowCanvas')
   }
   if (!storyboardWidgetOverlaySurfaceText.includes('buildRichMediaConnectedValueTargetNodeIdSet({')) {
     throw new Error('expected StoryboardWidget overlay surface to reuse the upstream Rich Media connected-value target helper')

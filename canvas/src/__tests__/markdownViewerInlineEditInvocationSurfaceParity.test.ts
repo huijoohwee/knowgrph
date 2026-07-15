@@ -49,6 +49,7 @@ export async function testMarkdownViewerInlineEditInvocationChipToneMatchesReadS
       !thumbnail
       || thumbnail.className !== expectedThumbnailClass
       || thumbnail.getAttribute('aria-label') !== 'Scene'
+      || thumbnail.getAttribute('role') !== 'img'
       || thumbnail.hasAttribute('aria-hidden')
       || thumbnailImage?.className !== INLINE_MEDIA_COMMAND_THUMBNAIL_IMAGE_CLASS_NAME
     ) {
@@ -60,7 +61,7 @@ export async function testMarkdownViewerInlineEditInvocationChipToneMatchesReadS
       thumbnailUrl: 'https://media.example.test/source-frame.jpg',
       variant: 'inline',
     }))
-    if (!selectableThumbnailMarkup.includes('aria-label="Storyboard source frame"') || selectableThumbnailMarkup.includes('aria-hidden="true"')) {
+    if (!selectableThumbnailMarkup.includes('aria-label="Storyboard source frame"') || !selectableThumbnailMarkup.includes('role="img"') || selectableThumbnailMarkup.includes('aria-hidden="true"')) {
       throw new Error(`expected shared media thumbnail wrapper to remain labeled and visible to selection tooling, html=${selectableThumbnailMarkup}`)
     }
     const staleLocalThumbnailMarkup = renderToStaticMarkup(createElement(InlineMediaCommandThumbnail, {

@@ -108,7 +108,7 @@ export function testCardInlineTextEditorViewerSurfaceReusesMarkdownViewerWysiwyg
     throw new Error('expected Editor Workspace caret placement to reuse the neutral point-selection helper')
   }
   if (!storyboardOverlay.includes('value={textModel.primaryRaw || card.slugline || \'\'}') || !storyboardOverlay.includes('displayValue={textModel.primaryDisplay || card.slugline || \'\'}')) {
-    throw new Error('expected Storyboard card summary edit mode to keep raw source value separate from read-view display projection')
+    throw new Error('expected Storyboard card summary edit mode to retain source-backed inline chips while read view remains media-free')
   }
   if (!cardTextSurfaceFrame.includes("export const CARD_TEXT_SURFACE_TEXT_CLASS_NAME") || !cardTextSurfaceFrame.includes('text-[10px] font-medium leading-4 text-[color:var(--kg-text-secondary)]') || !cardTextSurfaceFrame.includes('CARD_TEXT_SURFACE_VIEW_CLASS_NAME') || !cardTextSurfaceFrame.includes('UI_VIEW_EDIT_SURFACE_AREA_CLASS_NAME')) {
     throw new Error('expected shared Card text frame owner to define read-view typography')

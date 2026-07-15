@@ -31,6 +31,7 @@ import {
   INLINE_MEDIA_COMMAND_THUMBNAIL_IMAGE_CLASS_NAME,
   readInlineMediaCommandThumbnailClassName,
 } from '@/lib/command-menu/InlineMediaCommandThumbnail'
+import { sourceContainsInlineMediaUrl } from '@/lib/command-menu/inlineMediaUrlIdentity'
 import {
   collectTextareaInvocationMediaAttachmentCandidateChips,
   readTextareaInvocationMediaReferenceKey,
@@ -321,7 +322,7 @@ function buildVirtualMediaChipHtml(args: {
     ' contenteditable="false"',
     ` title="${escapeHtmlAttr(presentation.title)}">`,
     `<span aria-label="${escapeHtmlAttr(presentation.mediaLabel)}" class="inline-flex" data-kg-card-inline-display-media-thumbnail="1" data-kg-card-inline-wysiwyg-media-thumbnail="1">`,
-    `<span class="${escapeHtmlAttr(thumbnailClassName)}" aria-label="${escapeHtmlAttr(presentation.mediaLabel)}" data-kg-inline-command-thumbnail="${escapeHtmlAttr(args.mediaKind)}">${thumbnailHtml}</span>`,
+    `<span class="${escapeHtmlAttr(thumbnailClassName)}" aria-label="${escapeHtmlAttr(presentation.mediaLabel)}" data-kg-inline-command-thumbnail="${escapeHtmlAttr(args.mediaKind)}" role="img">${thumbnailHtml}</span>`,
     '</span>',
     `<span class="${escapeHtmlAttr(CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME)}">${escapeHtml(args.label)}</span>`,
     '</span>',
@@ -537,10 +538,8 @@ export function MarkdownInlineTextEditSurface(props: {
   const initialProjectedSourceRef = React.useRef(String(props.value || '').replace(/\r/g, ''))
   const appendMissingProjectedMediaKeys = React.useMemo(() => new Set(
     collectTextareaInvocationMediaAttachmentCandidateChips(props.projectedMediaAttachments)
-      .filter(chip => !findProjectedMediaChipMatch({
-        source: initialProjectedSourceRef.current,
-        cursor: 0,
-        chips: [chip],
+      .filter(chip => !sourceContainsInlineMediaUrl(initialProjectedSourceRef.current, chip.sourceUrl) && !findProjectedMediaChipMatch({
+        source: initialProjectedSourceRef.current, cursor: 0, chips: [chip],
       }))
       .map(chip => readTextareaInvocationMediaReferenceKey(chip.displayLabel || chip.label)),
   ), [props.projectedMediaAttachments])

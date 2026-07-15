@@ -80,6 +80,7 @@ export function beginRichMediaPanelResizeDrag(
 }
 
 export function RichMediaPanelResizeHandle(props: {
+  disabled?: boolean
   onPointerDown: React.PointerEventHandler<HTMLButtonElement>
   placement?: 'root' | 'panel'
   style?: React.CSSProperties
@@ -88,6 +89,8 @@ export function RichMediaPanelResizeHandle(props: {
     <button
       type="button"
       aria-label="Resize"
+      aria-disabled={props.disabled === true ? 'true' : undefined}
+      disabled={props.disabled === true}
       data-kg-resize-handle="se"
       data-kg-rich-media-resize-handle="1"
       data-kg-rich-media-resize-placement={props.placement || 'root'}
@@ -101,7 +104,7 @@ export function RichMediaPanelResizeHandle(props: {
         width: 22,
         height: 22,
         background: 'transparent',
-        cursor: 'nwse-resize',
+        cursor: props.disabled === true ? 'default' : 'nwse-resize',
         pointerEvents: 'auto',
         zIndex: 20,
         ...(props.style || null),

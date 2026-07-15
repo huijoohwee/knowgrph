@@ -166,9 +166,9 @@ export default function FlowCanvasMediaOverlays(args: {
   const mediaOverlayResizeMoveSchedulerRef = React.useRef<RafLatestScheduler<{ id: string; pointerId: number; dx: number; dy: number }> | null>(null)
   const storyboardWidgetZoomBaselineKRef = React.useRef<number | null>(null)
   const workspaceOverlayOpenRef = React.useRef(false)
-  const workspaceMutationBlockedRef = React.useRef(false)
+  const workspaceMutationBlockedRef = React.useRef(false), resizeMutationBlockedRef = React.useRef(false)
   const workspaceOverlayOpen = useGraphStore(s => isWorkspaceEditorOverlayOpen(s))
-  const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s))
+  const workspaceMutationBlocked = useGraphStore(s => isWorkspaceGraphMutationBlocked(s)), resizeMutationBlocked = workspaceMutationBlocked && typeof onNodePropertiesChange !== 'function'
   const [activeRichMediaPanelId, setActiveRichMediaPanelId] = React.useState('')
   const selectedNodeId = useGraphStore(s => String(s.selectedNodeId || '').trim())
   const openWidgetNodeIds = useGraphStore(s => s.openWidgetNodeIds)
@@ -233,9 +233,9 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [cancelMediaOverlayInteractionState])
   React.useEffect(() => {
     workspaceOverlayOpenRef.current = workspaceOverlayOpen
-    workspaceMutationBlockedRef.current = workspaceMutationBlocked
+    workspaceMutationBlockedRef.current = workspaceMutationBlocked; resizeMutationBlockedRef.current = resizeMutationBlocked
     if (workspaceMutationBlocked) cancelMediaOverlayInteractionState({ preserveWorldPositionOverrides: true })
-  }, [cancelMediaOverlayInteractionState, workspaceMutationBlocked, workspaceOverlayOpen])
+  }, [cancelMediaOverlayInteractionState, resizeMutationBlocked, workspaceMutationBlocked, workspaceOverlayOpen])
   React.useEffect(() => {
     const next = new Map<string, Record<string, unknown>>()
     const lastKnownSizes = mediaOverlayPanelLastKnownWorldSizeRef.current
@@ -466,7 +466,7 @@ export default function FlowCanvasMediaOverlays(args: {
     flushMediaOverlayLayout()
   }, [buildDrawArgs, flushMediaOverlayLayout, graphSchema, mediaOverlayDragInteractionMode, positionsDirtySinceCommitRef, runtimeRef])
   const applyMediaOverlayResizeMove = React.useCallback((id: string, queued: { pointerId: number; dx: number; dy: number }) => {
-    if (!mediaOverlayDragInteractionMode || workspaceMutationBlockedRef.current) return
+    if (!mediaOverlayDragInteractionMode || resizeMutationBlockedRef.current) return
     const drag = mediaOverlayResizeRef.current
     if (!drag || drag.id !== id || drag.pointerId !== queued.pointerId) return
     const scale = Math.max(0.001, drag.startScale)
@@ -527,7 +527,7 @@ export default function FlowCanvasMediaOverlays(args: {
     requestCommit()
   }, [applyMediaOverlayHeaderDragMove, mutationSourceGraphData, onNodeChange, requestCommit])
   const beginMediaOverlayResize = React.useCallback((id: string, pointerId: number) => {
-    if (!active || !mediaOverlayDragInteractionMode || workspaceMutationBlockedRef.current) {
+    if (!active || !mediaOverlayDragInteractionMode || resizeMutationBlockedRef.current) {
       writeRichMediaResizeTrace(['phase=skip', `id=${id}`, `pid=${pointerId}`])
       return
     }
@@ -747,7 +747,7 @@ export default function FlowCanvasMediaOverlays(args: {
         const isSelected = hasSelectionChrome || (Array.isArray(openWidgetNodeIds) && openWidgetNodeIds.some(openNodeId => isCanonicalNodeIdEqual(openNodeId, node.id)))
         const mediaOverlayInteractionPolicy = resolveFlowCanvasMediaOverlayInteractionPolicy({
           rendererInteractionMode: mediaOverlayDragInteractionMode,
-          workspaceMutationBlocked,
+          resizeMutationBlocked,
         })
         const overlayInteractionEnabled = mediaOverlayInteractionPolicy.overlayPanActive
         const headerDragInteractionActive = mediaOverlayInteractionPolicy.headerDragActive
@@ -760,7 +760,7 @@ export default function FlowCanvasMediaOverlays(args: {
         const richMediaPanelMoveEnabled = headerDragInteractionActive && richMediaPanelPinAllowsMovement
         const richMediaPanelOverlayPanEnabled = overlayInteractionEnabled && richMediaPanelPinAllowsMovement && !richMediaBodyPanOwnedByCollective
         const bodyDragMovesRichMediaPanel = richMediaPanelMoveEnabled
-        const resizeHandleVisible = resizeInteractionActive
+        const resizeHandleVisible = isSelected
         const overlayPanelPointerEventsClass = mediaOverlayInteractionPolicy.panelPointerEventsClassName
         const overlayZIndex = isSelected
           ? Z_INDEX_GRAPH_OVERLAY_SELECTED
@@ -859,7 +859,7 @@ export default function FlowCanvasMediaOverlays(args: {
                 mediaOverlayHeaderMoveSchedulerRef.current.schedule(queued)
               } : undefined}
               onHeaderDragEnd={richMediaPanelMoveEnabled ? ({ pointerId }) => finishMediaOverlayHeaderDrag(node.id, pointerId) : undefined}
-              resizable={resizeHandleVisible}
+              resizable={resizeHandleVisible} resizeHandleVisible={resizeHandleVisible}
               onResizeStart={resizeInteractionActive ? ({ pointerId }) => beginMediaOverlayResize(node.id, pointerId) : undefined}
               onResize={resizeInteractionActive ? ({ dx, dy, pointerId }) => {
                 const queued = { id: node.id, pointerId, dx, dy }
@@ -874,7 +874,7 @@ export default function FlowCanvasMediaOverlays(args: {
                 if (mediaOverlayResizeMoveLatestRef.current?.id === node.id && mediaOverlayResizeMoveLatestRef.current.pointerId === pointerId) applyMediaOverlayResizeMove(node.id, mediaOverlayResizeMoveLatestRef.current)
                 mediaOverlayResizeMoveLatestRef.current = null
                 mediaOverlayResizeRef.current = null
-                if (!workspaceMutationBlockedRef.current) {
+                if (!resizeMutationBlockedRef.current) {
                   try {
                     const baseProps = sceneNodePropsByIdRef.current.get(node.id) || {}
                     const nextProperties = { ...baseProps, 'visual:width': drag.lastW, 'visual:height': drag.lastH }

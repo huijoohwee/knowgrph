@@ -1095,7 +1095,7 @@ export function testFlowCanvasRichMediaOverlayDragHandlersAreRendererScoped() {
     'onHeaderDragStart={richMediaPanelMoveEnabled ?',
     'onHeaderDrag={richMediaPanelMoveEnabled ?',
     'onHeaderDragEnd={richMediaPanelMoveEnabled ?',
-    'const resizeHandleVisible = resizeInteractionActive',
+    'const resizeHandleVisible = isSelected',
     'onResizeStart={resizeInteractionActive ?',
     'onResize={resizeInteractionActive ?',
     'onResizeEnd={resizeInteractionActive ?',

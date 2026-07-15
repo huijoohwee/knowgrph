@@ -15,6 +15,7 @@ import { coerceWorkspaceDataViewConfig, type WorkspaceDataViewConfig } from '@/f
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { CardMediaAlbum } from '@/lib/cards/CardMediaAlbum'
 import { CardMarkdownPreview } from '@/lib/cards/CardMarkdownPreview'
+import { CardInlineTextProjectedMediaChip } from '@/lib/cards/CardInlineTextProjectedMediaChip'
 import { insertMediaIntoActiveCardInlineTextEditor } from '@/lib/cards/cardInlineTextExternalCommands'
 import { writeCommandMenuMediaNameDraft } from '@/lib/command-menu/commandMenuMediaNameSync'
 import { collectInlineKeywordCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
@@ -356,6 +357,10 @@ export async function testCardMediaSurfacesReuseSharedHoverPreview() {
             items: [{ kind: 'image', url: imageUrl, sourceUrl: imageUrl }],
             title: 'Text Widget',
           }),
+          React.createElement(CardInlineTextProjectedMediaChip, {
+            chip: { mediaKind: 'image', label: '空武.jpg', displayLabel: '@空武.jpg', sourceUrl: imageUrl, thumbnailUrl: imageUrl, virtual: false },
+            index: 0,
+          }),
         ),
       )
       await waitForFrames(dom.window, 4)
@@ -387,6 +392,24 @@ export async function testCardMediaSurfacesReuseSharedHoverPreview() {
     if (!(albumPreview instanceof dom.window.HTMLElement) || albumPreview.getAttribute('data-kg-card-media-hover-preview-kind') !== 'image') {
       throw new Error(`expected album tile to reuse shared media hover preview, body=${dom.window.document.body.innerHTML}`)
     }
+    await act(async () => {
+      albumTile.dispatchEvent(new dom.window.MouseEvent('mouseout', { bubbles: true, cancelable: true, relatedTarget: dom.window.document.body }))
+      await waitForFrames(dom.window, 2)
+    })
+    const projectedChip = container.querySelector('[data-kg-card-inline-display-media-chip="1"]')
+    if (!(projectedChip instanceof dom.window.HTMLElement)) throw new Error(`expected projected Card media chip hover anchor, html=${container.innerHTML}`)
+    await act(async () => {
+      projectedChip.dispatchEvent(new dom.window.MouseEvent('mouseover', { bubbles: true, cancelable: true }))
+      await waitForFrames(dom.window, 4)
+    })
+    const projectedChipPreview = dom.window.document.querySelector('[data-kg-card-media-hover-preview="1"]')
+    if (!(projectedChipPreview instanceof dom.window.HTMLElement) || !projectedChipPreview.querySelector('img[data-kg-card-media-kind="image"]')) {
+      throw new Error(`expected projected Card media chip to reuse the shared hover preview, body=${dom.window.document.body.innerHTML}`)
+    }
+    await act(async () => {
+      projectedChip.dispatchEvent(new dom.window.MouseEvent('mouseout', { bubbles: true, cancelable: true, relatedTarget: dom.window.document.body }))
+      await waitForFrames(dom.window, 2)
+    })
     const directMediaSurfaceText = readUtf8('../components/RichMediaPanelDirectMediaSurface.tsx')
     const albumText = readUtf8('../lib/cards/CardMediaAlbum.tsx')
     const markdownPreviewText = readUtf8('../lib/cards/CardMarkdownPreview.tsx')
@@ -394,6 +417,8 @@ export async function testCardMediaSurfacesReuseSharedHoverPreview() {
       ['Rich Media Panel', directMediaSurfaceText],
       ['Card media album', albumText],
       ['inline media chip', markdownPreviewText],
+      ['projected Card media chip', readUtf8('../lib/cards/CardInlineTextProjectedMediaChip.tsx')],
+      ['Storyboard Card media drop zone', readUtf8('../components/StoryboardWidgetCanvas/StoryboardCardMediaDropSlot2d.tsx')],
     ] as const) {
       if (!source.includes('useCardMediaHoverPreview') || !source.includes('<CardMediaHoverPreview')) {
         throw new Error(`expected ${label} to consume the shared media hover preview owner`)

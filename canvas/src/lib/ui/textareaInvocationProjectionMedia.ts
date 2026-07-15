@@ -17,6 +17,13 @@ export type TextareaInvocationProjectedMediaChip = {
   virtual: boolean
 }
 
+type TextareaInvocationMediaToken = {
+  label: string
+  mediaKind: InlineMediaKind
+  sourceUrl?: string
+  thumbnailUrl?: string
+}
+
 const CHAT_COMPOSER_MEDIA_INVOCATION_PREFIX = '@'
 export const TEXTAREA_INVOCATION_MEDIA_BOUNDARY = ' '
 const TEXTAREA_INVOCATION_MEDIA_REFERENCE_RE = /@[\p{L}\p{N}][\p{L}\p{N}._-]*/gu
@@ -35,6 +42,24 @@ export function readMediaAttachmentLabel(attachment: TextareaInvocationMediaAtta
     return decodeURIComponent(source).trim() || attachment.mediaKind
   } catch {
     return source || attachment.mediaKind
+  }
+}
+
+export function projectTextareaInvocationMediaToken<T extends TextareaInvocationMediaToken>(
+  token: T,
+  attachments: readonly TextareaInvocationMediaAttachment[] | null | undefined,
+): T {
+  const sourceKey = normalizeMediaProjectionUrlKey(token.sourceUrl)
+  const attachment = sourceKey && attachments?.length
+    ? attachments.find(candidate => normalizeMediaProjectionUrlKey(candidate.sourceUrl) === sourceKey) || null
+    : null
+  const authoredLabel = String(token.label || '').trim()
+  return {
+    ...token,
+    mediaKind: attachment?.mediaKind || token.mediaKind,
+    label: authoredLabel && !/\s/u.test(authoredLabel) ? authoredLabel : attachment ? readMediaAttachmentLabel(attachment) : authoredLabel,
+    sourceUrl: attachment?.sourceUrl || token.sourceUrl,
+    thumbnailUrl: attachment?.thumbnailUrl || token.thumbnailUrl,
   }
 }
 

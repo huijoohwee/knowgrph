@@ -70,13 +70,13 @@ export type FlowCanvasMediaOverlayInteractionPolicy = {
 
 export function resolveFlowCanvasMediaOverlayInteractionPolicy(args: {
   rendererInteractionMode: boolean
-  workspaceMutationBlocked: boolean
+  resizeMutationBlocked: boolean
 }): FlowCanvasMediaOverlayInteractionPolicy {
   const rendererInteractionMode = args.rendererInteractionMode === true
   return {
     overlayPanActive: rendererInteractionMode,
     headerDragActive: rendererInteractionMode,
-    resizeActive: rendererInteractionMode && args.workspaceMutationBlocked !== true,
+    resizeActive: rendererInteractionMode && args.resizeMutationBlocked !== true,
     panelPointerEventsClassName: 'pointer-events-auto',
     capturePanelEvents: true,
   }

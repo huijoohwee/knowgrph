@@ -431,11 +431,11 @@ export function testFlowCanvasRichMediaResizeUsesCanonicalSelectionMatch() {
   if (overlayText.includes('isStoryboardWidgetFrontmatterInteractionMode')) {
     throw new Error('expected FlowCanvas rich-media overlay runtime to remove stale frontmatter-only interaction gate references')
   }
-  if (!overlayText.includes('const resizeHandleVisible = resizeInteractionActive')) {
-    throw new Error('expected RichMediaPanel resize affordance to remain visible whenever the shared interaction policy permits resize')
+  if (!overlayText.includes('const resizeHandleVisible = isSelected')) {
+    throw new Error('expected RichMediaPanel resize affordance visibility to follow selected chrome independently of mutation availability')
   }
-  if (!overlayText.includes('resizable={resizeHandleVisible}')) {
-    throw new Error('expected RichMediaPanel resize affordance to be wired through the shared resizeHandleVisible gate')
+  if (!overlayText.includes('resizable={resizeHandleVisible}') || !overlayText.includes('resizeHandleVisible={resizeHandleVisible}')) {
+    throw new Error('expected RichMediaPanel resize interaction and visible selected affordance to share the explicit resizeHandleVisible gate')
   }
 }
 
