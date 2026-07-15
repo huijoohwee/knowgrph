@@ -1,22 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import {
-  Check,
-  ExternalLink,
-  FileText,
-  GitBranch,
-  Heart,
-  Hash,
-  Image as ImageIcon,
-  Link2,
-  Lock,
-  MessageSquare,
-  PanelsTopLeft,
-  Sparkles,
-  Video,
-  Volume2,
-  Wand2,
-} from 'lucide-react'
+import { Check, ExternalLink, FileText, GitBranch, Heart, Hash, Image as ImageIcon, Link2, Lock, MessageSquare, PanelsTopLeft, Sparkles, Video, Volume2, Wand2 } from 'lucide-react'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { emitFloatingPanelOpen, emitMediaLibraryOpenTop } from '@/features/canvas/utils'
@@ -45,7 +29,7 @@ import {
   type StoryboardCardReference,
 } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardHelpToast } from '@/components/StoryboardCanvas/storyboardHelpAction'
-import { runStoryboardClearOutputAction } from '@/components/StoryboardCanvas/storyboardClearOutputAction'
+import { resetStoryboardCardPersistence, runStoryboardCardResetAction } from '@/components/StoryboardCanvas/storyboardCardResetAction'
 import { runStoryboardDuplicateAction } from '@/components/StoryboardCanvas/storyboardDuplicateAction'
 import { runStoryboardConvertLoopAction } from '@/components/StoryboardCanvas/storyboardConvertLoopAction'
 import { runStoryboardOpenSidepaneAction } from '@/components/StoryboardCanvas/storyboardOpenSidepaneAction'
@@ -118,6 +102,7 @@ import { GRAPH_KEYWORD_LANE_PROPERTY_KEYS, collectGraphKeywordTermStats } from '
 import { WorkspaceDataViewNewRecordButton } from '@/features/markdown-workspace/main/viewer/WorkspaceDataViewNewRecordButton'
 import { UI_COPY } from '@/lib/config'
 import { createUniqueId } from '@/lib/ids'
+import { persistStoryboardCardMediaGraphSource } from '@/components/StoryboardWidgetCanvas/runtime/storyboardCardMediaGraphSource'
 import { createStoryboardWidgetWorkflowNodeRunner, resolveStoryboardWidgetBaseGraphKind } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunAction'
 import { resolveStoryboardPaintScale } from '@/components/StoryboardCanvas/storyboardInfiniteZoomMetrics'
 import { openWorkflowManagerMappingForNode } from '@/features/storyboard-widget-manager/openWorkflowManagerMappingForNode'
@@ -314,7 +299,7 @@ function StoryboardCanvasRichMediaPanelNode(props: {
     stopEvent: stopPanelHeaderEvent,
   }), [nodeId, props.flowWidgetPinnedByNodeId, props.flowWidgetStateGraphKey, stopPanelHeaderEvent])
   const handlePanelChange = React.useCallback((next: {
-    activeTab: 'auto' | 'text' | 'image' | 'video' | 'audio' | 'poi'
+    activeTab: 'auto' | 'text' | 'image' | 'video' | 'audio' | 'model' | 'poi'
     freezeConnectedOutput: boolean
     text?: string
   }) => {
@@ -754,6 +739,11 @@ export default function StoryboardCanvas({
     commitDraftGraphDataUpdate: (_currentDraft, nextDraft) => {
       storyboardRunGraphRef.current = nextDraft
       setGraphDataPreservingLayout(nextDraft)
+    },
+    commitPublishedGraphData: nextGraphData => {
+      storyboardRunGraphRef.current = nextGraphData
+      setGraphDataPreservingLayout(nextGraphData)
+      persistStoryboardCardMediaGraphSource(nextGraphData)
     },
     renderGraphDataOverride: graphData,
     markdownDocumentName,
@@ -1309,32 +1299,36 @@ export default function StoryboardCanvas({
     selectNode(nextId)
     addHistory('Storyboard duplicate')
   }, [addHistory, canUseStrybldrStoryboardDuplicatePathForCard, commitStoryboardMarkdownMutation, currentPropertiesByCardId, graphData, markdownDocumentName, markdownDocumentText, resolveStoryboardActionTarget, selectNode, setGraphDataPreservingLayout, setSelectionSource, updateOpenWidgetNodeIds, upsertUiToast])
-  const clearStoryboardCardOutput = React.useCallback((card: StoryboardCardModel) => {
-    const clearResult = runStoryboardClearOutputAction({
-      output: card.output,
-      clearOutput: () => updateStoryboardCanonicalProperty({
+  const resetStoryboardCard = React.useCallback((card: StoryboardCardModel) => {
+    const clearResult = runStoryboardCardResetAction({
+      card,
+      resetCard: () => resetStoryboardCardPersistence({
         cardId: card.id,
-        propertyKeys: STORYBOARD_OUTPUT_PROPERTY_KEYS,
-        canonicalKey: 'output',
-        nextValue: '',
+        markdownDocumentText,
+        commitMarkdownMutation: commitStoryboardMarkdownMutation,
+        currentPropertiesByCardId,
+        graphData,
+        setGraphData: setGraphDataPreservingLayout,
+        addHistory,
+        updateNode,
       }),
     })
     if (clearResult.status === 'empty') {
       upsertUiToast({
-        id: `storyboard-clear-output-${card.id}`,
+        id: `storyboard-reset-${card.id}`,
         kind: 'neutral',
-        message: 'No storyboard output to clear.',
+        message: 'Storyboard card is already clear.',
         ttlMs: 2200,
       })
       return
     }
     upsertUiToast({
-      id: `storyboard-clear-output-${card.id}`,
+      id: `storyboard-reset-${card.id}`,
       kind: 'neutral',
-      message: 'Cleared storyboard output.',
+      message: 'Cleared storyboard card.',
       ttlMs: 2200,
     })
-  }, [updateStoryboardCanonicalProperty, upsertUiToast])
+  }, [addHistory, commitStoryboardMarkdownMutation, currentPropertiesByCardId, graphData, markdownDocumentText, setGraphDataPreservingLayout, updateNode, upsertUiToast])
   const showStoryboardCardHelp = React.useCallback(() => {
     upsertUiToast(buildStoryboardHelpToast({
       message: UI_COPY.flowWidgetHelpToast,
@@ -2075,7 +2069,7 @@ export default function StoryboardCanvas({
                       runCard: runStoryboardCard,
                       openCardInSidepane: openStoryboardCardInSidepane,
                       duplicateCard: duplicateStoryboardCard,
-                      clearCardOutput: clearStoryboardCardOutput,
+                      clearCardOutput: resetStoryboardCard,
                       showCardHelp: showStoryboardCardHelp,
                       removeCard: removeStoryboardCard,
                       openCardWorkflowManagerMapping: openStoryboardCardWorkflowManagerMapping,

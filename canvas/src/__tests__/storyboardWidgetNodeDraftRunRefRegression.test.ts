@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { resolveStoryboardWidgetAutoRunNodeIds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetAutoRunTargets'
 import { resolveStoryboardWidgetNodeMutationTarget } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetNodeDraftActions'
+import { IMAGE_TO_THREEJS_COMMAND_TOKEN } from '@/features/image-to-threejs/imageToThreeJsContract'
 import type { GraphData } from '@/lib/graph/types'
 
 export function testStoryboardWidgetNodeDraftUpdatesRefBeforeRunStoreWriteback() {
@@ -154,6 +155,43 @@ export function testStoryboardWidgetRunTargetResolverPrefersDownstreamRunnableTa
   })
   if (noChangeTargetIds.length !== 0) {
     throw new Error(`expected Auto Run resolver to ignore no-op property commits, got ${JSON.stringify(noChangeTargetIds)}`)
+  }
+
+  const imageToThreeGraph: GraphData = {
+    type: 'flow',
+    nodes: [
+      {
+        id: 'image_to_three_card',
+        type: 'TextGeneration',
+        label: 'Widget Card',
+        x: 0,
+        y: 0,
+        properties: { prompt: `Generate ${IMAGE_TO_THREEJS_COMMAND_TOKEN} from the attached image.` },
+      },
+      {
+        id: 'input_image_panel',
+        type: 'RichMediaPanel',
+        label: 'Rich Media Panel',
+        x: 240,
+        y: 0,
+        properties: { imageUrl: 'workspace:/media/input.jpg' },
+      },
+    ],
+    edges: [{
+      id: 'card_to_input_panel',
+      label: '',
+      source: 'image_to_three_card',
+      target: 'input_image_panel',
+      properties: {},
+    }],
+  }
+  const imageToThreeTargetIds = resolveStoryboardWidgetAutoRunNodeIds({
+    graphData: imageToThreeGraph,
+    nodeId: 'image_to_three_card',
+    resolveRichMediaKind: () => 'image',
+  })
+  if (imageToThreeTargetIds.length !== 1 || imageToThreeTargetIds[0] !== 'image_to_three_card') {
+    throw new Error(`expected inline image-to-threejs Card Run to execute its source card, got ${JSON.stringify(imageToThreeTargetIds)}`)
   }
 }
 

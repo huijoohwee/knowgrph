@@ -17,6 +17,7 @@ import { createSafariGestureZoomController } from '@/lib/canvas/safari-gesture-z
 import { requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
 import { readCanvasLocalPoint } from '@/lib/canvas/canvas-event-coords'
 import { shouldKeepWidgetInnerPanelWheel } from '@/lib/canvas/widgetInnerPanelScrolling'
+import { isLocalWheelOwnerEvent } from 'grph-shared/dom/wheelGuards'
 
 import type { FlowNativeInteractionsContext } from '@/components/FlowCanvas/interactions/context'
 
@@ -31,6 +32,7 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
   ): boolean => {
     if (resolved.kind !== 'overlay') return false
     const overlayRoot = resolved.overlayRoot
+    if (isLocalWheelOwnerEvent(event, overlayRoot)) return false
     const overlayPinnedToNode = readCanvasOverlayPinnedState(overlayRoot)
     const storyboardWidgetMode = opts?.storyboardWidgetMode === true
 
@@ -155,6 +157,7 @@ export function createFlowNativeWheelAndGestureHandlers(ctx: FlowNativeInteracti
       storyboardWidgetSurfaceId: ctx.args.storyboardWidgetSurfaceId,
     })
     if (resolved.kind === 'none') return false
+    if (resolved.kind === 'overlay' && isLocalWheelOwnerEvent(event, resolved.overlayRoot)) return false
     return true
   }
 

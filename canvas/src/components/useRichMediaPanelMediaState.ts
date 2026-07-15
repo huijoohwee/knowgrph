@@ -103,6 +103,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     || props.kind === 'svg'
     || props.kind === 'video'
     || props.kind === 'audio'
+    || props.kind === 'model'
       ? props.kind
       : 'iframe'
   const rawUrl = React.useMemo(() => normalizeRuntimeStorageMediaAccessUrl({
@@ -186,7 +187,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     url: rawUrl,
   }), [kind, normalizedInlineSrcDoc, rawUrl])
   const proxiedUrl = React.useMemo(() => (
-    kind === 'iframe' ? rawUrl : applyImageLikeProxySrc(playableRawUrl)
+    kind === 'iframe' || kind === 'model' ? rawUrl : applyImageLikeProxySrc(playableRawUrl)
   ), [kind, playableRawUrl, rawUrl])
   const [inlineSrcDocContentSize, setInlineSrcDocContentSize] = React.useState<{ width: number; height: number } | null>(null)
   React.useEffect(() => {
@@ -222,6 +223,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     hasImage: panel?.hasImage === true,
     hasVideo: panel?.hasVideo === true,
     hasAudio: panel?.hasAudio === true,
+    hasModel: panel?.hasModel === true,
     hasPoi: panel ? panel.hasPoi : Boolean(grabMapsPoiPreviewSrcDoc.trim() || grabMapsPoiPreviewLabel.trim()),
     renderKind: kind,
     hasRenderableUrl: !!rawUrl,
@@ -247,6 +249,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
     [
       kind === 'image' || kind === 'svg' ? `imageUrl: "${rawUrl}"` : '',
       kind === 'video' ? `videoUrl: "${rawUrl}"` : '',
+      kind === 'model' ? `modelUrl: "${rawUrl}"` : '',
       openUrl && openUrl !== rawUrl ? `sourceUrl: "${openUrl}"` : '',
       effectiveInlineSrcDoc ? `srcDoc: "${title}"` : '',
     ].filter(Boolean).join('\n')

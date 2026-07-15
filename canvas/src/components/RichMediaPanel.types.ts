@@ -3,7 +3,7 @@ import type { RichMediaPanelTab } from '@/lib/render/richMediaPanelState'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import type { ImageToThreeJsRenderMode } from '@/features/image-to-threejs/imageToThreeJsContract'
 
-export type RichMediaKind = 'iframe' | 'image' | 'svg' | 'video' | 'audio'
+export type RichMediaKind = 'iframe' | 'image' | 'svg' | 'video' | 'audio' | 'model'
 
 export type RichMediaPanelProps = {
   overlayId?: string
@@ -66,6 +66,7 @@ export type RichMediaPanelProps = {
     hasImage: boolean
     hasVideo: boolean
     hasAudio?: boolean
+    hasModel?: boolean
     hasPoi: boolean
     text: string
     connectedText: string

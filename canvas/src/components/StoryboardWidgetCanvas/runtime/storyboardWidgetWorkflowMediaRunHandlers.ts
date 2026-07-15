@@ -10,13 +10,26 @@ import { runAnnotationFlowNode, toAnnotationPreviewSrcDoc } from '@/features/vis
 import type { StoryboardWidgetWorkflowNodeResolutionContext } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 import {
   buildImageToThreeJsConversion,
-  isImageToThreeJsSkillNode,
-  resolveImageToThreeJsSourceUrl,
+  resolveImageToThreeJsRunInput,
 } from '@/features/image-to-threejs/imageToThreeJsContract'
+import { resolveImageToGlbRunInput } from '@/features/image-to-glb/imageToGlbContract'
+import {
+  generateReviewedImageToGlbScene,
+  type ReviewedImageToGlbScene,
+} from '@/features/image-to-glb/imageToGlbSceneFactory'
+import {
+  blobToDataUrl,
+  persistImageToGlbArtifacts,
+} from '@/features/image-to-glb/imageToGlbArtifactPipeline'
+import { exportImageToGlbRuntimeArtifacts } from '@/features/image-to-glb/imageToGlbRuntimeExport'
 import { resolveStoryboardWidgetWorkflowConnectedValuesInput } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunInputs'
 import {
   stabilizeHtmlVideoPreviewPatchForExistingProps,
   type StoryboardWidgetAnnotationRunOutputPublisher,
+  type StoryboardWidgetImageToThreeJsInputRecovery,
+  type StoryboardWidgetImageToThreeJsOutputInputResolver,
+  type StoryboardWidgetImageToThreeJsRunOutputPublisher,
+  type StoryboardWidgetImageToGlbRunOutputPublisher,
   type StoryboardWidgetMediaRunOutputPublisher,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPublication'
 
@@ -61,6 +74,11 @@ export async function runStoryboardWidgetMediaWorkflowNode(args: {
   updateRunOutputForKnownNodeIds: WorkflowOutputUpdater
   setRunLoadingStateForKnownNodeIds: WorkflowLoadingStateSetter
   publishMediaRunOutputToRichMediaPanel: StoryboardWidgetMediaRunOutputPublisher
+  publishImageToThreeJsRunOutputToRichMediaPanel: StoryboardWidgetImageToThreeJsRunOutputPublisher
+  publishImageToGlbRunOutputToRichMediaPanel?: StoryboardWidgetImageToGlbRunOutputPublisher
+  generateImageToGlbScene?: (args: { sourceUrl: string }) => Promise<ReviewedImageToGlbScene>
+  restoreImageToThreeJsInputProjection?: StoryboardWidgetImageToThreeJsInputRecovery
+  resolveImageToThreeJsOwnedOutputPanelRunInput?: StoryboardWidgetImageToThreeJsOutputInputResolver
   publishAnnotationRunOutputToRichMediaPanel: StoryboardWidgetAnnotationRunOutputPublisher
   upsertUiToast: WorkflowToastPublisher
   propagateErrors?: boolean
@@ -191,49 +209,140 @@ export async function runStoryboardWidgetMediaWorkflowNode(args: {
     return true
   }
 
-  if (isImageToThreeJsSkillNode(args.node)) {
-    args.setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'image' })
+  const imageToThreeJsNode = {
+    ...args.node,
+    properties: args.rawNodeProperties as GraphNode['properties'],
+  }
+  const connectedValuesInput = resolveStoryboardWidgetWorkflowConnectedValuesInput({
+    context: args.context,
+    graphForRun: args.graphForRun,
+    writableNodeId: args.writableNodeId,
+    registry: args.widgetRegistry,
+  })
+  const imageToGlbRunInput = resolveImageToGlbRunInput({
+    node: imageToThreeJsNode,
+    connectedValuesBySchemaPath: connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId),
+  })
+  if (imageToGlbRunInput) {
+    if (!imageToGlbRunInput.sourceUrl) {
+      args.upsertUiToast({
+        id: `storyboard-widget-run-${args.id}`,
+        kind: 'warning',
+        message: 'Image to GLB requires a PNG, JPG, or SVG source URL.',
+        ttlMs: 3200,
+      })
+      return true
+    }
     try {
-      const connectedValuesInput = resolveStoryboardWidgetWorkflowConnectedValuesInput({
-        context: args.context,
-        graphForRun: args.graphForRun,
-        writableNodeId: args.writableNodeId,
-        registry: args.widgetRegistry,
-      })
-      const sourceUrl = resolveImageToThreeJsSourceUrl({
-        node: args.node,
-        connectedValuesBySchemaPath: connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId),
-      })
-      const result = buildImageToThreeJsConversion(sourceUrl)
-      if (result.ok === false) {
-        args.updateRunOutputForKnownNodeIds(nodeProperties => ({
-          ...clearRichMediaOutputProperties(nodeProperties),
-          renderErrorCode: result.errorCode,
-          renderErrorReason: result.reason,
-          lastRunAt: new Date().toISOString(),
-        }))
-        args.upsertUiToast({
-          id: `storyboard-widget-run-${args.id}`,
-          kind: 'warning',
-          message: result.reason,
-          ttlMs: 3200,
-        })
-        return true
+      const publishImageToGlbOutput = args.publishImageToGlbRunOutputToRichMediaPanel
+      if (!publishImageToGlbOutput) {
+        throw new Error('Image to GLB output publication is unavailable in this canvas runtime.')
       }
-      args.updateRunOutputForKnownNodeIds(nodeProperties => ({
-        ...clearRichMediaOutputProperties(nodeProperties),
-        ...result.patch,
-      }))
-      args.publishMediaRunOutputToRichMediaPanel({ anchorNode: args.node, patch: result.patch })
+      const reconstruction = await (args.generateImageToGlbScene || generateReviewedImageToGlbScene)({
+        sourceUrl: imageToGlbRunInput.sourceUrl,
+      })
+      const { analysis, job, scene } = reconstruction
+      const artifacts = await exportImageToGlbRuntimeArtifacts({
+        job,
+        scene,
+        artifactStem: `${args.node.label || args.node.id || 'image-to-glb'}-procedural`,
+      })
+      const glbDataUrl = await blobToDataUrl(artifacts.glb.blob)
+      const paths = await persistImageToGlbArtifacts({
+        artifactStem: artifacts.glb.fileName.replace(/\.glb$/i, ''),
+        artifacts,
+        workspacePath: args.activeWorkspacePath || null,
+      })
+      const outputPatch = {
+        media_kind: 'model',
+        mediaKind: 'model',
+        media_url: glbDataUrl,
+        mediaUrl: glbDataUrl,
+        media: glbDataUrl,
+        model: glbDataUrl,
+        modelUrl: glbDataUrl,
+        media_interactive: true,
+        imageGlbDataUrl: glbDataUrl,
+        imageGlbJob: job,
+        imageGlbProceduralProgram: job.program,
+        imageGlbVisionReviewPasses: job.visionReviewPasses,
+        imageGlbReferenceAnalysis: analysis,
+        imageGlbGlbInspection: artifacts.glb.inspection,
+        imageGlbEditableGltfInspection: artifacts.gltf.inspection,
+        imageGlbEditableGltf: artifacts.gltf.text,
+        imageGlbExternalBufferCount: artifacts.gltf.externalBuffers.length,
+        imageGlbInvocation: {
+          kind: imageToGlbRunInput.invocation,
+          tokens: imageToGlbRunInput.invocationTokens,
+        },
+        output: JSON.stringify({
+          schema: job.schema,
+          source: job.source,
+          proceduralProgramPath: paths.proceduralProgramPath,
+          reviewLedgerPath: paths.reviewLedgerPath,
+          gltfPath: paths.gltfPath,
+          externalBufferPaths: paths.externalBufferPaths,
+        }, null, 2),
+        outputMimeType: artifacts.glb.mimeType,
+        outputModel: 'native-procedural-threejs',
+        outputSourceUrl: job.source.url,
+        outputPath: paths.glbPath,
+        outputManifestPath: paths.manifestPath,
+        outputGltfPath: paths.gltfPath,
+        outputExternalBufferPaths: paths.externalBufferPaths,
+        richMediaActiveTab: 'model',
+        lastRunAt: new Date().toISOString(),
+      }
+      publishImageToGlbOutput({ anchorNode: args.node, patch: outputPatch })
       args.upsertUiToast({
         id: `storyboard-widget-run-${args.id}`,
         kind: 'success',
-        message: `Converted ${result.manifest.source.extension.toUpperCase()} to a Three.js ${result.manifest.render.primitive}.`,
-        ttlMs: 2600,
+        message: `Generated procedural GLB and editable external-buffer glTF from ${job.source.kind} input.`,
+        ttlMs: 3000,
       })
-    } finally {
-      args.setRunLoadingStateForKnownNodeIds({ loading: false })
+    } catch (error) {
+      const message = error instanceof Error && error.message.trim()
+        ? error.message.trim()
+        : 'Image to GLB could not export the native procedural scene.'
+      args.upsertUiToast({
+        id: `storyboard-widget-run-${args.id}`,
+        kind: 'error',
+        message,
+        ttlMs: 4200,
+      })
     }
+    return true
+  }
+  const imageToThreeJsRunInput = resolveImageToThreeJsRunInput({
+    node: imageToThreeJsNode,
+    connectedValuesBySchemaPath: connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId),
+  }) || args.resolveImageToThreeJsOwnedOutputPanelRunInput?.(args.node)
+  if (imageToThreeJsRunInput) {
+    args.restoreImageToThreeJsInputProjection?.(args.node)
+    const result = buildImageToThreeJsConversion(imageToThreeJsRunInput.sourceUrl)
+    if (result.ok === false) {
+      args.upsertUiToast({
+        id: `storyboard-widget-run-${args.id}`,
+        kind: 'warning',
+        message: result.reason,
+        ttlMs: 3200,
+      })
+      return true
+    }
+    const outputPatch = {
+      ...result.patch,
+      imageThreeJsInvocation: {
+        kind: imageToThreeJsRunInput.invocation,
+        tokens: imageToThreeJsRunInput.invocationTokens,
+      },
+    }
+    args.publishImageToThreeJsRunOutputToRichMediaPanel({ anchorNode: args.node, patch: outputPatch })
+    args.upsertUiToast({
+      id: `storyboard-widget-run-${args.id}`,
+      kind: 'success',
+      message: `${imageToThreeJsRunInput.invocation === 'inline-command' ? 'Ran inline image.to-threejs:' : 'Converted'} ${result.manifest.source.extension.toUpperCase()} to a Three.js ${result.manifest.render.primitive}.`,
+      ttlMs: 2600,
+    })
     return true
   }
 

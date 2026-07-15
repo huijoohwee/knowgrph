@@ -12,6 +12,7 @@ import {
   CANVAS_OVERLAY_DRAG_HANDLE_SELECTOR,
   CANVAS_OVERLAY_PROXY_ROOT_SELECTOR,
   CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR,
+  RICH_MEDIA_LOCAL_INTERACTION_SELECTOR,
   RICH_MEDIA_OVERLAY_ROOT_SELECTOR,
   readStoryboardWidgetElementSurfaceId,
   readCanvasOverlayPinnedState,
@@ -159,6 +160,11 @@ export function bindFlowNativeInteractionListeners(args: {
       canvasEl,
       storyboardWidgetSurfaceId: ctx.args.storyboardWidgetSurfaceId,
     })
+    if (
+      resolved.kind === 'overlay'
+      && spacePanHeld !== true
+      && resolved.targetEl.closest(RICH_MEDIA_LOCAL_INTERACTION_SELECTOR)
+    ) return
     const overlayPinnedToNode = resolved.kind === 'overlay' && readCanvasOverlayPinnedState(resolved.overlayRoot)
     const overlayResizeHandle =
       resolved.kind === 'overlay' && resolved.targetEl.closest(CANVAS_OVERLAY_RESIZE_HANDLE_SELECTOR)

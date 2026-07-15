@@ -313,7 +313,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["canvas.storyboard.duplicateAction.routesMixedBoardBranches","@/__tests__/storyboardDuplicateRouting.test","testStoryboardDuplicateActionRoutesMixedBoardCardsByBranch"],
   ["canvas.storyboard.removeAction.prefersMarkdownCommitBeforeGraphFallback","@/__tests__/storyboardDuplicateRouting.test","testStoryboardRemoveActionPrefersMarkdownCommitBeforeGraphFallback"],
   ["canvas.storyboard.convertLoopAction.classifiesMixedBoardGraphBackedCards","@/__tests__/storyboardDuplicateRouting.test","testStoryboardConvertLoopActionClassifiesMixedBoardGraphBackedCards"],
-  ["canvas.storyboard.clearOutputAction.classifiesEmptyAndClearedStates","@/__tests__/storyboardDuplicateRouting.test","testStoryboardClearOutputActionClassifiesEmptyAndClearedStates"],
+  ["canvas.storyboard.resetAction.clearsAuthoredCardState","@/__tests__/storyboardCardReset.test","testStoryboardResetActionClassifiesEmptyAndClearedStates"],
   ["canvas.storyboard.helpAction.buildsCanonicalToast","@/__tests__/storyboardDuplicateRouting.test","testStoryboardHelpActionBuildsCanonicalToast"],
   ["canvas.storyboard.selectAction.selectsResolvedNodeFromCanvas","@/__tests__/storyboardDuplicateRouting.test","testStoryboardSelectActionSelectsResolvedNodeFromCanvas"],
   ["canvas.storyboard.openSidepaneAction.selectsAndOpensResolvedNode","@/__tests__/storyboardDuplicateRouting.test","testStoryboardOpenSidepaneActionSelectsAndOpensResolvedNode"],

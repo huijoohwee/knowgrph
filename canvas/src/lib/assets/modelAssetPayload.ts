@@ -1,5 +1,6 @@
 import type { GlbAssetDocument } from '@/lib/assets/glbAssetDocument'
 import { readPendingGlbAssetPayload } from '@/lib/assets/glbAssetRuntime'
+import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 
 export type ModelAssetRenderPayload = {
   format: GlbAssetDocument['format']
@@ -12,6 +13,13 @@ const MODEL_ASSET_RENDER_PAYLOAD_CACHE_LIMIT = 3
 const modelAssetRenderPayloadCache = new Map<string, Promise<ModelAssetRenderPayload>>()
 
 function buildModelAssetPayloadCacheKey(asset: GlbAssetDocument): string {
+  const dataUrl = String(asset.dataUrl || '')
+  const dataUrlHash = dataUrl
+    ? hashStringToHexCached(
+      `model-asset-payload:${asset.format}:${asset.name}:${asset.sourceUrl || ''}:${asset.byteLength ?? dataUrl.length}`,
+      dataUrl,
+    )
+    : ''
   return [
     asset.format,
     asset.name,
@@ -19,7 +27,7 @@ function buildModelAssetPayloadCacheKey(asset: GlbAssetDocument): string {
     asset.byteLength ?? '',
     asset.pendingLocalImportPath || '',
     asset.sourceUrl || '',
-    asset.dataUrl ? asset.dataUrl.length : '',
+    dataUrlHash,
     asset.validMagic === false ? 'magic:0' : asset.validMagic === true ? 'magic:1' : '',
     asset.validContainer === false ? 'container:0' : asset.validContainer === true ? 'container:1' : '',
     asset.validJson === false ? 'json:0' : asset.validJson === true ? 'json:1' : '',

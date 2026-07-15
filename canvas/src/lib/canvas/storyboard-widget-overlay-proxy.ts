@@ -5,6 +5,7 @@ export const STORYBOARD_WIDGET_OVERLAY_SURFACE_ATTR = 'data-kg-storyboard-widget
 export const STORYBOARD_WIDGET_OVERLAY_SURFACE_ROOT_ATTR = 'data-kg-storyboard-widget-surface-root'
 export const STORYBOARD_WIDGET_OVERLAY_ROOT_SELECTOR = `[data-kg-widget]${STORYBOARD_WIDGET_OVERLAY_MODE_SELECTOR}`
 export const RICH_MEDIA_OVERLAY_ROOT_SELECTOR = `[data-kg-rich-media-overlay="1"]${STORYBOARD_WIDGET_OVERLAY_MODE_SELECTOR}`
+export const RICH_MEDIA_LOCAL_INTERACTION_SELECTOR = '[data-kg-rich-media-interaction-owner="1"]'
 export const SEMANTIC_FLOW_OVERLAY_ROOT_SELECTOR = `[data-node-id][${STORYBOARD_WIDGET_OVERLAY_SURFACE_ATTR}]`
 export const CANVAS_OVERLAY_PROXY_ROOT_SELECTOR = [
   STORYBOARD_WIDGET_OVERLAY_ROOT_SELECTOR,
@@ -41,6 +42,7 @@ export const RICH_MEDIA_CANVAS_OVERLAY_CONTROL_SELECTOR = [
   '[role="button"]',
   '[contenteditable="true"]',
   '[data-kg-rich-media-inline-edit="1"]',
+  '[data-kg-rich-media-model-surface="1"]',
   '[data-kg-canvas-pointer-ignore="true"]:not([data-kg-media-scroll-surface="1"])',
 ].join(',')
 

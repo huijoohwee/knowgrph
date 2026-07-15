@@ -119,7 +119,9 @@ export default function PreviewPanelView() {
     const isRichMediaPanelKind = activeMedia.kind !== 'mermaid'
 
     if (isRichMediaPanelKind) {
-      const richMediaKind = activeMedia.kind === 'image' || activeMedia.kind === 'video' || activeMedia.kind === 'audio' ? activeMedia.kind : 'iframe'
+      const richMediaKind = activeMedia.kind === 'image' || activeMedia.kind === 'video' || activeMedia.kind === 'audio' || activeMedia.kind === 'model'
+        ? activeMedia.kind
+        : 'iframe'
       const richMediaTitle = activeMedia.panelTitle || activeMedia.alt || activeMedia.label
       const richMediaOpenUrl = activeMedia.openUrl || activeMedia.src
       const richMediaNeedsExplicitLoad = richMediaKind === 'iframe' && !String(activeMedia.srcDoc || '').trim()

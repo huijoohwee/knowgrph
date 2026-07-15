@@ -1,7 +1,21 @@
 import { FLOW_RICH_MEDIA_PANEL_NODE_LABEL, FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config'
+import { createUniqueId } from '@/lib/ids'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
+import {
+  IMAGE_TO_THREEJS_OUTPUT_PANEL_ANCHOR_ID_PROPERTY,
+  IMAGE_TO_THREEJS_OUTPUT_PANEL_LABEL,
+  IMAGE_TO_THREEJS_OUTPUT_PANEL_PROPERTY,
+  isImageToThreeJsOutputPanel,
+} from '@/features/image-to-threejs/imageToThreeJsContract'
+import {
+  IMAGE_TO_GLB_OUTPUT_PANEL_ANCHOR_ID_PROPERTY,
+  IMAGE_TO_GLB_OUTPUT_PANEL_LABEL,
+  IMAGE_TO_GLB_OUTPUT_PANEL_PROPERTY,
+  isImageToGlbOutputPanel,
+} from '@/features/image-to-glb/imageToGlbContract'
 import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
-import type { GraphData, GraphNode } from '@/lib/graph/types'
+import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 
 import {
   listStoryboardWidgetWorkflowNodesAcrossGraphs,
@@ -10,6 +24,23 @@ import {
 import {
   areStoryboardWidgetWorkflowRecordValuesEqual,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowWriteback'
+
+export {
+  IMAGE_TO_THREEJS_OUTPUT_PANEL_ANCHOR_ID_PROPERTY,
+  IMAGE_TO_THREEJS_OUTPUT_PANEL_LABEL,
+  IMAGE_TO_THREEJS_OUTPUT_PANEL_PROPERTY,
+}
+
+export {
+  IMAGE_TO_GLB_OUTPUT_PANEL_ANCHOR_ID_PROPERTY,
+  IMAGE_TO_GLB_OUTPUT_PANEL_LABEL,
+  IMAGE_TO_GLB_OUTPUT_PANEL_PROPERTY,
+}
+
+export const IMAGE_TO_THREEJS_OUTPUT_EDGE_PROPERTY = 'imageThreeJsOutputEdge' as const
+export const IMAGE_TO_THREEJS_OUTPUT_EDGE_LABEL = 'image.to-threejs output' as const
+export const IMAGE_TO_GLB_OUTPUT_EDGE_PROPERTY = 'imageGlbOutputEdge' as const
+export const IMAGE_TO_GLB_OUTPUT_EDGE_LABEL = 'image.to-glb output' as const
 
 function cleanString(value: unknown): string {
   const unwrapped = unwrapGraphCellValue(value)
@@ -78,6 +109,184 @@ export function ensureStoryboardWidgetWorkflowRichMediaPanelNodeId(args: {
     x: (Number.isFinite(args.anchorNode.x) ? args.anchorNode.x : 0) + 520,
     y: Number.isFinite(args.anchorNode.y) ? args.anchorNode.y : 0,
     properties: { media_interactive: true },
+  })
+}
+
+type ImageDerivedOutputPanelArgs = {
+  context: StoryboardWidgetWorkflowNodeResolutionContext
+  graphForRun: GraphData | null
+  anchorNode: GraphNode
+  readLiveDraftGraphData: () => GraphData | null
+}
+
+type ImageDerivedOutputPanelMarker = {
+  anchorIdProperty: string
+  label: string
+  panelProperty: string
+  isOutputPanel: (properties: unknown) => boolean
+}
+
+function resolveStoryboardWidgetImageDerivedOutputPanelNodeId(
+  args: ImageDerivedOutputPanelArgs,
+  marker: ImageDerivedOutputPanelMarker,
+): string | null {
+  const anchorNodeId = cleanString(args.anchorNode.id)
+  if (!anchorNodeId) return null
+  const liveDraft = args.readLiveDraftGraphData()
+  const searchNodes = liveDraft && Array.isArray(liveDraft.nodes)
+    ? liveDraft.nodes
+    : listStoryboardWidgetWorkflowRichMediaPanelSearchNodes(args)
+  const outputPanel = searchNodes.find(node => {
+    if (cleanString(node.type) !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return false
+    const properties = (node.properties || {}) as Record<string, unknown>
+    return marker.isOutputPanel(properties)
+      && cleanString(properties[marker.anchorIdProperty]) === anchorNodeId
+  })
+  return cleanString(outputPanel?.id) || null
+}
+
+type EnsureImageDerivedOutputPanelArgs = ImageDerivedOutputPanelArgs & {
+  allowCreateRichMediaPanel: boolean
+  appendDraftNode: (args: {
+    id?: string | null
+    type: string
+    label?: string | null
+    x: number
+    y: number
+    properties?: Record<string, unknown>
+  }) => string
+}
+
+function ensureStoryboardWidgetImageDerivedOutputPanelNodeId(
+  args: EnsureImageDerivedOutputPanelArgs,
+  marker: ImageDerivedOutputPanelMarker,
+): string | null {
+  const existing = resolveStoryboardWidgetImageDerivedOutputPanelNodeId(args, marker)
+  if (existing) return existing
+  if (!args.allowCreateRichMediaPanel || !args.readLiveDraftGraphData()) return null
+  const anchorNodeId = cleanString(args.anchorNode.id)
+  if (!anchorNodeId) return null
+  return args.appendDraftNode({
+    id: null,
+    type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+    label: marker.label,
+    x: (Number.isFinite(args.anchorNode.x) ? args.anchorNode.x : 0) + 520,
+    y: Number.isFinite(args.anchorNode.y) ? args.anchorNode.y : 0,
+    properties: {
+      media_interactive: true,
+      [marker.panelProperty]: true,
+      [marker.anchorIdProperty]: anchorNodeId,
+    },
+  })
+}
+
+const IMAGE_TO_THREEJS_OUTPUT_MARKER: ImageDerivedOutputPanelMarker = {
+  anchorIdProperty: IMAGE_TO_THREEJS_OUTPUT_PANEL_ANCHOR_ID_PROPERTY,
+  label: IMAGE_TO_THREEJS_OUTPUT_PANEL_LABEL,
+  panelProperty: IMAGE_TO_THREEJS_OUTPUT_PANEL_PROPERTY,
+  isOutputPanel: isImageToThreeJsOutputPanel,
+}
+
+const IMAGE_TO_GLB_OUTPUT_MARKER: ImageDerivedOutputPanelMarker = {
+  anchorIdProperty: IMAGE_TO_GLB_OUTPUT_PANEL_ANCHOR_ID_PROPERTY,
+  label: IMAGE_TO_GLB_OUTPUT_PANEL_LABEL,
+  panelProperty: IMAGE_TO_GLB_OUTPUT_PANEL_PROPERTY,
+  isOutputPanel: isImageToGlbOutputPanel,
+}
+
+export function resolveStoryboardWidgetImageToThreeJsOutputPanelNodeId(args: ImageDerivedOutputPanelArgs): string | null {
+  return resolveStoryboardWidgetImageDerivedOutputPanelNodeId(args, IMAGE_TO_THREEJS_OUTPUT_MARKER)
+}
+
+export function resolveStoryboardWidgetImageToGlbOutputPanelNodeId(args: ImageDerivedOutputPanelArgs): string | null {
+  return resolveStoryboardWidgetImageDerivedOutputPanelNodeId(args, IMAGE_TO_GLB_OUTPUT_MARKER)
+}
+
+export function ensureStoryboardWidgetImageToThreeJsOutputPanelNodeId(args: EnsureImageDerivedOutputPanelArgs): string | null {
+  return ensureStoryboardWidgetImageDerivedOutputPanelNodeId(args, IMAGE_TO_THREEJS_OUTPUT_MARKER)
+}
+
+export function ensureStoryboardWidgetImageToGlbOutputPanelNodeId(args: EnsureImageDerivedOutputPanelArgs): string | null {
+  return ensureStoryboardWidgetImageDerivedOutputPanelNodeId(args, IMAGE_TO_GLB_OUTPUT_MARKER)
+}
+
+type ImageDerivedOutputEdgeMarker = {
+  anchorIdProperty: string
+  edgeLabel: string
+  edgeProperty: string
+  targetIdProperty: string
+}
+
+function ensureStoryboardWidgetImageDerivedOutputEdge(args: {
+  anchorNode: GraphNode
+  outputPanelNodeId: string
+  readLiveDraftGraphData: () => GraphData | null
+  commitDraftGraphDataUpdate: (currentDraft: GraphData, nextDraft: GraphData) => void
+  scheduleWorkflowOutputEdgeRefresh: () => void
+}, marker: ImageDerivedOutputEdgeMarker): GraphEdge | null {
+  const sourceId = cleanString(args.anchorNode.id)
+  const targetId = cleanString(args.outputPanelNodeId)
+  if (!sourceId || !targetId || sourceId === targetId) return null
+
+  const currentDraft = args.readLiveDraftGraphData()
+  if (!currentDraft || !Array.isArray(currentDraft.edges)) return null
+  const existing = currentDraft.edges.find(edge => {
+    const endpoints = readGraphEdgeEndpoints(edge)
+    return endpoints.src === sourceId && endpoints.tgt === targetId
+  }) || null
+  if (existing) return existing
+
+  const usedEdgeIds = new Set(
+    currentDraft.edges
+      .map(edge => cleanString(edge?.id))
+      .filter(Boolean),
+  )
+  const edge: GraphEdge = {
+    id: createUniqueId('e', usedEdgeIds),
+    source: sourceId,
+    target: targetId,
+    label: marker.edgeLabel,
+    properties: {
+      [marker.edgeProperty]: true,
+      [marker.anchorIdProperty]: sourceId,
+      [marker.targetIdProperty]: targetId,
+    },
+  }
+  args.commitDraftGraphDataUpdate(
+    currentDraft,
+    bumpStoryboardWidgetDraftGraphDataRevision({ ...currentDraft, edges: [...currentDraft.edges, edge] }),
+  )
+  args.scheduleWorkflowOutputEdgeRefresh()
+  return edge
+}
+
+export function ensureStoryboardWidgetImageToThreeJsOutputEdge(args: {
+  anchorNode: GraphNode
+  outputPanelNodeId: string
+  readLiveDraftGraphData: () => GraphData | null
+  commitDraftGraphDataUpdate: (currentDraft: GraphData, nextDraft: GraphData) => void
+  scheduleWorkflowOutputEdgeRefresh: () => void
+}): GraphEdge | null {
+  return ensureStoryboardWidgetImageDerivedOutputEdge(args, {
+    anchorIdProperty: IMAGE_TO_THREEJS_OUTPUT_PANEL_ANCHOR_ID_PROPERTY,
+    edgeLabel: IMAGE_TO_THREEJS_OUTPUT_EDGE_LABEL,
+    edgeProperty: IMAGE_TO_THREEJS_OUTPUT_EDGE_PROPERTY,
+    targetIdProperty: 'imageThreeJsOutputPanelNodeId',
+  })
+}
+
+export function ensureStoryboardWidgetImageToGlbOutputEdge(args: {
+  anchorNode: GraphNode
+  outputPanelNodeId: string
+  readLiveDraftGraphData: () => GraphData | null
+  commitDraftGraphDataUpdate: (currentDraft: GraphData, nextDraft: GraphData) => void
+  scheduleWorkflowOutputEdgeRefresh: () => void
+}): GraphEdge | null {
+  return ensureStoryboardWidgetImageDerivedOutputEdge(args, {
+    anchorIdProperty: IMAGE_TO_GLB_OUTPUT_PANEL_ANCHOR_ID_PROPERTY,
+    edgeLabel: IMAGE_TO_GLB_OUTPUT_EDGE_LABEL,
+    edgeProperty: IMAGE_TO_GLB_OUTPUT_EDGE_PROPERTY,
+    targetIdProperty: 'imageGlbOutputPanelNodeId',
   })
 }
 

@@ -7,6 +7,7 @@ import {
 } from '@/features/markdown/ui/dataViewChipStyles'
 import {
   resolveChatInvocationCatalogEntries,
+  resolveChatInvocationCatalogEntryInsertionText,
   type ChatInvocationCatalogEntry,
   type ChatInvocationCatalogPrefixFilter,
 } from '@/features/chat/chatInvocationRegistry'
@@ -174,9 +175,9 @@ export default function SkillsCommandsView({
     })
   }, [setCollapsedGroupKeys])
   const insertCatalogToken = React.useCallback((entry: SkillsCommandsCatalogEntry): boolean => {
-    const token = String(entry.token || '').trim()
-    if (!token) return false
-    return insertTextIntoActiveCardInlineTextEditor(token)
+    const insertionText = resolveChatInvocationCatalogEntryInsertionText(entry)
+    if (!insertionText) return false
+    return insertTextIntoActiveCardInlineTextEditor(insertionText)
   }, [])
 
   return (
@@ -232,10 +233,11 @@ export default function SkillsCommandsView({
                         data-kg-skill-command-grammar-verb={grammar.verb.key}
                         data-kg-skill-command-grammar-object={grammar.object.key}
                         data-kg-skill-command-insert="card-inline-text"
+                        data-kg-skill-command-prompt-preset={option.promptPresetId || undefined}
                         role="button"
                         tabIndex={0}
                         aria-label={`Insert ${option.token}`}
-                        title={`Insert ${option.token}`}
+                        title={option.promptPresetId ? `Load ${option.promptPresetId} prompt preset` : `Insert ${option.token}`}
                         onMouseDown={event => {
                           event.preventDefault()
                         }}

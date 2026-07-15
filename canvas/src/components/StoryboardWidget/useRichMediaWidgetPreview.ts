@@ -113,6 +113,7 @@ export function useRichMediaWidgetPreview(args: {
       hasImage: richMediaPanelState.hasImage,
       hasVideo: richMediaPanelState.hasVideo,
       hasAudio: richMediaPanelState.hasAudio,
+      hasModel: richMediaPanelState.hasModel,
       hasPoi: richMediaPanelState.hasPoi,
       renderKind: richMediaPreview?.kind,
       hasRenderableUrl: !!String(richMediaPreview?.url || '').trim(),
@@ -125,7 +126,7 @@ export function useRichMediaWidgetPreview(args: {
   }, [enabled, richMediaPreview?.openUrl, richMediaPreview?.url])
 
   const handleRichMediaPanelChange = React.useCallback((next: {
-    activeTab: 'auto' | 'text' | 'image' | 'video' | 'audio' | 'poi'
+    activeTab: 'auto' | 'text' | 'image' | 'video' | 'audio' | 'model' | 'poi'
     freezeConnectedOutput: boolean
     text?: string
   }) => {

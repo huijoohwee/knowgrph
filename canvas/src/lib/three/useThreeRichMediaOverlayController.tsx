@@ -29,6 +29,7 @@ import {
   computeOverlayDraggedWorldPos3d,
   computeThreeCameraPoseAfterOverlayPan,
 } from '@/lib/canvas/overlayInteractions3d'
+import { captureRichMediaPanelBoundaryEvent } from '@/components/captureRichMediaPanelBoundaryEvent'
 import {
   createThreeMediaOverlayLayoutScratch,
   updateThreeMediaOverlayLayout,
@@ -363,16 +364,10 @@ export function useThreeRichMediaOverlayController(args: {
     setDraggedNodeId: args.setDraggedNodeId,
   })
 
-  const stopEvent = React.useCallback((event: React.SyntheticEvent) => {
-    try {
-      event.stopPropagation()
-    } catch {
-      void 0
-    }
-  }, [])
+  const stopEvent = React.useCallback(captureRichMediaPanelBoundaryEvent, [])
   const stopPanelChromeSafeEvent = React.useCallback((event: React.SyntheticEvent) => {
     const target = event.target instanceof Element ? event.target : null
-    if (target?.closest('button,a,input,textarea,select,[role="button"],[data-kg-rich-media-resize-handle="1"]')) return
+    if (target?.closest('button,a,input,textarea,select,[role="button"],[data-kg-rich-media-resize-handle="1"],[data-kg-rich-media-interaction-owner="1"]')) return
     try {
       event.stopPropagation()
     } catch {

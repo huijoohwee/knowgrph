@@ -16,26 +16,17 @@ import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGene
 import { inferTextGenerationProviderFamily, resolveEffectiveTextGenerationWidgetProperties } from '@/features/storyboard-widget-manager/registryTemplates'
 import { runSwarmPredictionWidgetProperties } from '@/features/swarm-prediction/swarmPredictionWidget'
 import { FLOW_SHOWRUNNER_NODE_TYPE_ID, runShowrunnerWidgetProperties } from '@/features/ai-showrunner/showrunnerFlowNode'
-import {
-  getCachedStoryboardWidgetWorkflowNodeResolutionContext,
-  resolveStoryboardWidgetWorkflowNodeByIdAcrossGraphs,
-  resolveStoryboardWidgetWorkflowRunTarget,
-} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
+import { getCachedStoryboardWidgetWorkflowNodeResolutionContext, resolveStoryboardWidgetWorkflowNodeByIdAcrossGraphs, resolveStoryboardWidgetWorkflowRunTarget } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 import {
   buildStoryboardWidgetInlineComputeOutputPatch,
   resolveStoryboardWidgetWorkflowConnectedValuesInput,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunInputs'
-import {
-  isStoryboardWidgetWorkflowRunnableNode,
-  resolveStoryboardWidgetWorkflowDownstreamRunTargetIds,
-} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowDownstreamRunTargets'
+import { isStoryboardWidgetWorkflowRunnableNode, resolveStoryboardWidgetWorkflowDownstreamRunTargetIds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowDownstreamRunTargets'
 import { publishStoryboardWidgetSourceBackedRunOutput } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetSourceBackedRunOutput'
-import {
-  setStoryboardWidgetWorkflowRunLoadingStateForKnownNodeIds,
-  updateStoryboardWidgetWorkflowOutputForKnownNodeIds,
-} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowWriteback'
+import { setStoryboardWidgetWorkflowRunLoadingStateForKnownNodeIds, updateStoryboardWidgetWorkflowOutputForKnownNodeIds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowWriteback'
 import { runStoryboardWidgetMediaWorkflowNode } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowMediaRunHandlers'
 import { createStoryboardWidgetWorkflowRichMediaPublishers } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPublication'
+import { materializeStoryboardWidgetWorkflowOutputEdge } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowOutputEdgeMaterialization'
 import { readFlowComputeSource } from '@/lib/storyboardWidget/flowComputeInline'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { resolveStoryboardWidgetTextThinkingOptions } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowTextThinking'
@@ -50,6 +41,7 @@ export type StoryboardWidgetWorkflowNodeRunnerArgs = {
   baseGraphData: GraphData | null
   readDraftGraphData: () => GraphData | null
   commitDraftGraphDataUpdate: (currentDraft: GraphData, nextDraft: GraphData) => void
+  commitPublishedGraphData?: (graphData: GraphData) => void
   renderGraphDataOverride: GraphData | null
   markdownDocumentName: string | null
   markdownDocumentSourceUrl: string | null
@@ -275,18 +267,23 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
       const {
         publishTextRunOutputToRichMediaPanel,
         publishMediaRunOutputToRichMediaPanel,
+        publishImageToThreeJsRunOutputToRichMediaPanel,
+        publishImageToGlbRunOutputToRichMediaPanel,
+        restoreImageToThreeJsInputProjection,
+        resolveImageToThreeJsOwnedOutputPanelRunInput,
         publishAnnotationRunOutputToRichMediaPanel,
       } = createStoryboardWidgetWorkflowRichMediaPublishers({
         context: workflowNodeResolutionContext,
         graphForRun,
         allowCreateRichMediaPanel,
-        suppressLayoutMutation,
         withRunLayoutMutationGuard,
         scheduleWorkflowOutputEdgeRefresh: scheduleRunOutputEdgeRefresh,
         readLiveDraftGraphData: args.readDraftGraphData,
         appendDraftNode: args.appendDraftNode,
         commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
         updateNode: args.updateNode,
+        appendWorkflowOutputEdge: materializeStoryboardWidgetWorkflowOutputEdge,
+        commitPublishedGraphData: args.commitPublishedGraphData,
         resolveNodeByIdAcrossGraphs,
       })
 
@@ -433,6 +430,10 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
         updateRunOutputForKnownNodeIds,
         setRunLoadingStateForKnownNodeIds,
         publishMediaRunOutputToRichMediaPanel,
+        publishImageToThreeJsRunOutputToRichMediaPanel,
+        publishImageToGlbRunOutputToRichMediaPanel,
+        restoreImageToThreeJsInputProjection,
+        resolveImageToThreeJsOwnedOutputPanelRunInput,
         publishAnnotationRunOutputToRichMediaPanel,
         upsertUiToast: args.upsertUiToast,
         propagateErrors: runOptions?.propagateErrors === true,
@@ -594,6 +595,5 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
       args.upsertUiToast({ id: `storyboard-widget-run-failed-${String(nodeId || '')}`, kind: 'error', message: detail || UI_COPY.storyboardWidgetRunFailedToast, ttlMs: 4200 })
     }
   }
-
   return runWorkflowNode
 }

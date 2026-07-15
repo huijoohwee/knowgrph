@@ -17,12 +17,25 @@ import {
 } from '@/lib/config.storyboard-widget'
 import { getWidgetRegistryEntryLabel } from '@/features/storyboard-widget-manager/registryTemplates'
 import { applyConnectedValuesToNodeForRender, hasConnectedValuesBySchemaPath } from '@/lib/render/effectiveMediaNode'
-import { buildRichMediaPanelOverlayState, type RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
+import {
+  buildRichMediaPanelOverlayState,
+  isMarkerOwnedImageDerivedOutputPanel,
+  type RichMediaPanelOverlayState,
+} from '@/lib/render/richMediaPanelState'
 import { shouldUseWebpageAssetPathProxyUrl } from '@/lib/url'
-import type { ImageToThreeJsRenderMode } from '@/features/image-to-threejs/imageToThreeJsContract'
+import {
+  IMAGE_TO_THREEJS_RENDER_MODE,
+  IMAGE_TO_THREEJS_OUTPUT_PANEL_LABEL,
+  isImageToThreeJsOutputPanel,
+  type ImageToThreeJsRenderMode,
+} from '@/features/image-to-threejs/imageToThreeJsContract'
+import {
+  IMAGE_TO_GLB_OUTPUT_PANEL_LABEL,
+  isImageToGlbOutputPanel,
+} from '@/features/image-to-glb/imageToGlbContract'
 import type { NodeMediaSpec } from '@/lib/canvas/graph-elements/mediaSpec'
 
-export type MediaOverlayKind = 'iframe' | 'image' | 'svg' | 'video' | 'audio'
+export type MediaOverlayKind = 'iframe' | 'image' | 'svg' | 'video' | 'audio' | 'model'
 
 export type { RichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 
@@ -124,6 +137,7 @@ function extractStandaloneMarkdownLinkUrlFromText(rawText: unknown): string {
 
 function chooseOpenUrl(node: GraphNode, specUrl: string): string {
   const props = (node.properties || {}) as Record<string, unknown>
+  if (isImageToGlbOutputPanel(props)) return String(specUrl || '').trim()
   const fromOutputSourceUrl = typeof props.outputSourceUrl === 'string' ? String(props.outputSourceUrl || '').trim() : ''
   if (fromOutputSourceUrl) return fromOutputSourceUrl
   const fromUrl = typeof props.url === 'string' ? String(props.url || '').trim() : ''
@@ -161,6 +175,8 @@ function deriveOverlayNodeLabel(node: GraphNode): string {
     })
   }
   if (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+    if (isImageToGlbOutputPanel(properties)) return IMAGE_TO_GLB_OUTPUT_PANEL_LABEL
+    if (isImageToThreeJsOutputPanel(properties)) return IMAGE_TO_THREEJS_OUTPUT_PANEL_LABEL
     return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
   }
   return String(node.label || node.id || '').trim() || nodeTypeId || 'Media node'
@@ -194,6 +210,10 @@ function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }):
     typeof props.audio === 'string' ||
     typeof props.audioUrl === 'string' ||
     typeof props.audio_url === 'string' ||
+    typeof props.model === 'string' ||
+    typeof props.modelUrl === 'string' ||
+    typeof props.glb === 'string' ||
+    typeof props.glbUrl === 'string' ||
     typeof props.media === 'string'
   if (hasExplicit) score += 100
 
@@ -216,6 +236,7 @@ function computeMediaRank(node: GraphNode, spec: { kind: string; url: string }):
   if (kind === 'image' || kind === 'svg') score += 10
   else if (kind === 'video') score += 8
   else if (kind === 'audio') score += 7
+  else if (kind === 'model') score += 9
   else if (kind === 'iframe') score += 6
 
   return score
@@ -226,11 +247,13 @@ function computeRichMediaPanelOverlayRankBonus(candidate: Candidate): number {
   let score = 0
   if (candidate.panel.activeTab === 'video') score += 160
   else if (candidate.panel.activeTab === 'audio') score += 150
+  else if (candidate.panel.activeTab === 'model') score += 145
   else if (candidate.panel.activeTab === 'image') score += 140
   else if (candidate.panel.activeTab === 'text') score += 120
   else if (candidate.panel.activeTab === 'poi') score += 80
   if (candidate.panel.hasVideo) score += 140
   if (candidate.panel.hasAudio) score += 130
+  if (candidate.panel.hasModel) score += 135
   if (candidate.panel.hasImage) score += 120
   if (candidate.panel.hasText) score += 100
   if (candidate.panel.isLoading) score += 80
@@ -239,15 +262,31 @@ function computeRichMediaPanelOverlayRankBonus(candidate: Candidate): number {
   return score
 }
 
-function buildRichMediaPanelFallbackSpec(panel: RichMediaPanelOverlayState | undefined): {
+function buildRichMediaPanelFallbackSpec(args: {
+  node?: GraphNode
+  panel: RichMediaPanelOverlayState | undefined
+}): {
   kind: MediaOverlayKind
   url: string
   interactive: boolean
+  renderMode?: ImageToThreeJsRenderMode
 } | null {
+  const { node, panel } = args
   if (!panel) return null
-  if (panel.activeTab === 'image') return { kind: 'image', url: '', interactive: false }
+  const renderMode = node && isImageToThreeJsOutputPanel(node.properties)
+    ? IMAGE_TO_THREEJS_RENDER_MODE
+    : undefined
+  if (panel.activeTab === 'image') {
+    return {
+      kind: 'image',
+      url: '',
+      interactive: false,
+      ...(renderMode ? { renderMode } : {}),
+    }
+  }
   if (panel.activeTab === 'video') return { kind: 'video', url: '', interactive: false }
   if (panel.activeTab === 'audio') return { kind: 'audio', url: '', interactive: false }
+  if (panel.activeTab === 'model') return { kind: 'model', url: '', interactive: false }
   if (panel.activeTab === 'text' || panel.activeTab === 'poi') return { kind: 'iframe', url: '', interactive: false }
   if (panel.activeTab === 'auto') return { kind: 'iframe', url: '', interactive: false }
   return null
@@ -266,7 +305,7 @@ export function listMediaOverlayNodes(args: {
   if (!args.enabled) return []
   const nodes = Array.isArray(args.nodes) ? args.nodes : []
   const poolMax = Number.isFinite(args.poolMax) ? Math.max(0, Math.floor(args.poolMax)) : 0
-  const kinds = new Set<MediaOverlayKind>((args.kinds || ['iframe', 'image', 'svg', 'video', 'audio']) as MediaOverlayKind[])
+  const kinds = new Set<MediaOverlayKind>((args.kinds || ['iframe', 'image', 'svg', 'video', 'audio', 'model']) as MediaOverlayKind[])
   if (poolMax <= 0) return []
   const preferred = (args.preferredNodeIds || []).map(v => String(v || '').trim()).filter(Boolean)
   const preferredSet = preferred.length ? new Set(preferred) : null
@@ -289,10 +328,19 @@ export function listMediaOverlayNodes(args: {
 
   const candidates: Candidate[] = []
   for (let i = 0; i < nodes.length; i += 1) {
-    const n0 = nodes[i]
-    const id = String(n0?.id || '').trim()
+    const renderNode = nodes[i]
+    const id = String(renderNode?.id || '').trim()
     if (!id) continue
     if (canonicalNodeIdSetHas(exclude, id)) continue
+
+    // FlowCanvas may hand the pool a render projection whose connected-value
+    // pass has already cleared the generated asset URL. Marker-owned image
+    // outputs are authoritative publications, so recover their authored node
+    // from the graph lookup before deriving the media spec.
+    const authoredNode = externalNodeById?.get(id)
+    const n0 = authoredNode && isMarkerOwnedImageDerivedOutputPanel(authoredNode)
+      ? authoredNode
+      : renderNode
 
     const connectedValuesBySchemaPath = connectedValuesByNodeId?.get(id)
     const isRichMediaPanel = String(n0.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
@@ -302,9 +350,10 @@ export function listMediaOverlayNodes(args: {
       connectedValuesBySchemaPath,
       nodeById: panelNodeById,
     })
-    const baseSpec = getNodeMediaSpec(n0) || buildRichMediaPanelFallbackSpec(panel)
+    const baseSpec = getNodeMediaSpec(n0) || buildRichMediaPanelFallbackSpec({ node: n0, panel })
     const nodeForSpec = (() => {
       if (!hasConnectedValuesBySchemaPath(connectedValuesBySchemaPath)) return n0
+      if (isMarkerOwnedImageDerivedOutputPanel(n0)) return n0
       if (!isRichMediaPanel && baseSpec) return n0
       const connectedNode = applyConnectedValuesToNodeForRender({ node: n0, connectedValuesBySchemaPath })
       const connectedPanel = isRichMediaPanel
@@ -315,7 +364,7 @@ export function listMediaOverlayNodes(args: {
             renderNode: connectedNode,
           })
         : undefined
-      const connectedSpec = getNodeMediaSpec(connectedNode) || buildRichMediaPanelFallbackSpec(connectedPanel)
+      const connectedSpec = getNodeMediaSpec(connectedNode) || buildRichMediaPanelFallbackSpec({ node: connectedNode, panel: connectedPanel })
       if (connectedSpec) return connectedNode
       return n0
     })()
@@ -329,7 +378,7 @@ export function listMediaOverlayNodes(args: {
       : panel
     const spec: NodeMediaSpec | null = nodeForSpec === n0
       ? baseSpec
-      : (getNodeMediaSpec(nodeForSpec) || buildRichMediaPanelFallbackSpec(resolvedPanel))
+      : (getNodeMediaSpec(nodeForSpec) || buildRichMediaPanelFallbackSpec({ node: nodeForSpec, panel: resolvedPanel }))
     if (!spec) continue
     const kind = spec.kind as MediaOverlayKind
     if (!kinds.has(kind)) continue

@@ -44,7 +44,7 @@ import { applyImageLikeProxySrc } from '@/lib/url'
 
 const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
-export type CommandMenuRichMediaKind = 'mermaid' | 'image' | 'video' | 'audio' | 'iframe' | 'youtube' | 'vimeo' | 'webpage' | 'tweet'
+export type CommandMenuRichMediaKind = 'mermaid' | 'image' | 'video' | 'audio' | 'model' | 'iframe' | 'youtube' | 'vimeo' | 'webpage' | 'tweet'
 export type CommandMenuRichMediaSource = 'markdown' | 'graph'
 
 export type CommandMenuRichMediaItem = {
@@ -521,7 +521,11 @@ export function useCommandMenuRichMediaInventory(): {
         const node = graphLookup?.nodeById.get(nodeId) || null
         const baseLabel = String(node?.label || nodeId).trim()
         const panelTitle = String(media.title || '').trim() || (baseLabel ? `Node media: ${baseLabel}` : 'Node media')
-        const kind: CommandMenuRichMediaKind = media.kind === 'svg' ? 'image' : media.kind === 'video' || media.kind === 'audio' || media.kind === 'iframe' ? media.kind : 'image'
+        const kind: CommandMenuRichMediaKind = media.kind === 'svg'
+          ? 'image'
+          : media.kind === 'video' || media.kind === 'audio' || media.kind === 'model' || media.kind === 'iframe'
+            ? media.kind
+            : 'image'
         const openUrl = String(media.openUrl || media.url || '').trim()
         const item: CommandMenuRichMediaItem = {
           key: `graph-node-media:${nodeId}:${kind}:${openUrl || src || 'srcdoc'}`,

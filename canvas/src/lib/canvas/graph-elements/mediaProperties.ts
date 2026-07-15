@@ -1,6 +1,6 @@
 import { coerceMediaUrl } from '@/lib/url'
 
-export const NODE_MEDIA_KINDS = ['image', 'svg', 'video', 'audio', 'iframe'] as const
+export const NODE_MEDIA_KINDS = ['image', 'svg', 'video', 'audio', 'iframe', 'model'] as const
 export type NodeMediaKind = typeof NODE_MEDIA_KINDS[number]
 export const DEFAULT_NODE_MEDIA_KIND: NodeMediaKind = NODE_MEDIA_KINDS[0]
 const NODE_MEDIA_COMPATIBILITY_URL_KEYS = [
@@ -14,6 +14,10 @@ const NODE_MEDIA_COMPATIBILITY_URL_KEYS = [
   'audio',
   'audioUrl',
   'audio_url',
+  'model',
+  'modelUrl',
+  'glb',
+  'glbUrl',
   'iframe_url',
 ] as const
 
@@ -76,6 +80,10 @@ export function buildNodeMediaProperties(args: {
   next.media = url
   if (normalizedKind === 'video') next.video = url
   else if (normalizedKind === 'audio') next.audio = url
+  else if (normalizedKind === 'model') {
+    next.model = url
+    next.modelUrl = url
+  }
   else if (normalizedKind === 'iframe') next.iframe_url = url
   else next.image = url
   return next

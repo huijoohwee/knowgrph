@@ -3,8 +3,59 @@ import { Canvas, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js'
 import { resolveImageToThreeJsSourceKind } from './imageToThreeJsContract'
+import {
+  getRasterImageDimensions,
+  readImageReferencePixels,
+  type RasterImageSource,
+} from './imageReferencePixels'
 
 type LoadState = 'loading' | 'ready' | 'error'
+
+function buildRasterReliefGeometry(args: {
+  image: RasterImageSource | undefined
+  height: number
+  width: number
+}) {
+  const segments = 28
+  const geometry = new THREE.PlaneGeometry(args.width, args.height, segments, segments)
+  const positions = geometry.getAttribute('position')
+  let pixels: Uint8ClampedArray | null = null
+  let pixelWidth = 0
+  let pixelHeight = 0
+
+  try {
+    if (args.image) {
+      const reference = readImageReferencePixels({ image: args.image, maxDimension: 96 })
+      pixels = reference.data
+      pixelWidth = reference.width
+      pixelHeight = reference.height
+    }
+  } catch {
+    // A remote source can legitimately taint its canvas. Keep a deterministic
+    // native relief instead of dropping to the raw-image fallback surface.
+  }
+
+  for (let index = 0; index < positions.count; index += 1) {
+    const u = (positions.getX(index) / args.width) + 0.5
+    const v = 0.5 - (positions.getY(index) / args.height)
+    let depth = Math.sin(u * Math.PI * 4) * Math.sin(v * Math.PI * 3) * 0.012
+    if (pixels && pixelWidth > 0 && pixelHeight > 0) {
+      const x = Math.min(pixelWidth - 1, Math.max(0, Math.round(u * (pixelWidth - 1))))
+      const y = Math.min(pixelHeight - 1, Math.max(0, Math.round(v * (pixelHeight - 1))))
+      const pixelIndex = (y * pixelWidth + x) * 4
+      const luminance = (
+        Number(pixels[pixelIndex] || 0) * 0.2126
+        + Number(pixels[pixelIndex + 1] || 0) * 0.7152
+        + Number(pixels[pixelIndex + 2] || 0) * 0.0722
+      ) / 255
+      depth = (luminance - 0.5) * 0.09
+    }
+    positions.setZ(index, depth)
+  }
+  positions.needsUpdate = true
+  geometry.computeVertexNormals()
+  return geometry
+}
 
 export function disposeImageThreeJsObject(root: THREE.Object3D) {
   root.traverse(object => {
@@ -32,16 +83,23 @@ export function buildImageThreeJsSvgGroup(text: string): THREE.Group {
     const style = (path.userData?.style || {}) as Record<string, unknown>
     const fill = String(style.fill || '').trim()
     if (fill && fill.toLowerCase() !== 'none') {
-      const material = new THREE.MeshBasicMaterial({
+      const material = new THREE.MeshStandardMaterial({
         color: path.color,
         opacity: Number.isFinite(Number(style.fillOpacity)) ? Number(style.fillOpacity) : 1,
         side: THREE.DoubleSide,
         transparent: Number(style.fillOpacity) < 1,
-        depthWrite: false,
+        roughness: 0.6,
+        metalness: 0.12,
       })
       SVGLoader.createShapes(path).forEach((shape, shapeIndex) => {
-        const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), material.clone())
-        mesh.position.z = (pathIndex + shapeIndex / 100) * 0.002
+        const mesh = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, {
+          bevelEnabled: true,
+          bevelSegments: 2,
+          bevelSize: 0.008,
+          bevelThickness: 0.012,
+          depth: 0.045,
+        }), material.clone())
+        mesh.position.z = (pathIndex + shapeIndex / 100) * 0.012
         group.add(mesh)
       })
       material.dispose()
@@ -54,15 +112,16 @@ export function buildImageThreeJsSvgGroup(text: string): THREE.Group {
         style as unknown as Parameters<typeof SVGLoader.pointsToStroke>[1],
       )
       if (!geometry) return
-      const material = new THREE.MeshBasicMaterial({
+      const material = new THREE.MeshStandardMaterial({
         color: stroke,
         opacity: Number.isFinite(Number(style.strokeOpacity)) ? Number(style.strokeOpacity) : 1,
         side: THREE.DoubleSide,
         transparent: Number(style.strokeOpacity) < 1,
-        depthWrite: false,
+        roughness: 0.52,
+        metalness: 0.08,
       })
       const mesh = new THREE.Mesh(geometry, material)
-      mesh.position.z = (pathIndex + subPathIndex / 100) * 0.002 + 0.001
+      mesh.position.z = (pathIndex + subPathIndex / 100) * 0.012 + 0.055
       group.add(mesh)
     })
   })
@@ -78,6 +137,7 @@ function RasterImageObject(props: {
   const { sourceUrl, onLoadState } = props
   const [texture, setTexture] = React.useState<THREE.Texture | null>(null)
   const [aspectRatio, setAspectRatio] = React.useState(1)
+  const [reliefGeometry, setReliefGeometry] = React.useState<THREE.BufferGeometry | null>(null)
   const invalidate = useThree(state => state.invalidate)
 
   React.useEffect(() => {
@@ -99,9 +159,8 @@ function RasterImageObject(props: {
           loaded.dispose()
           return
         }
-        const image = loaded.image as { naturalHeight?: number; naturalWidth?: number; height?: number; width?: number } | undefined
-        const width = Number(image?.naturalWidth || image?.width || 1)
-        const height = Number(image?.naturalHeight || image?.height || 1)
+        const image = loaded.image as RasterImageSource | undefined
+        const { width, height } = getRasterImageDimensions(image)
         setAspectRatio(Math.max(0.05, Math.min(20, width / Math.max(1, height))))
         setTexture(loaded)
         onLoadState('ready')
@@ -118,19 +177,33 @@ function RasterImageObject(props: {
     }
   }, [onLoadState, sourceUrl])
 
-  if (!texture) return null
   const width = aspectRatio >= 1 ? 2.25 : 2.25 * aspectRatio
   const height = aspectRatio >= 1 ? 2.25 / aspectRatio : 2.25
+  const sourceImage = texture?.image as RasterImageSource | undefined
+
+  React.useEffect(() => {
+    if (!texture) {
+      setReliefGeometry(null)
+      return undefined
+    }
+    const geometry = buildRasterReliefGeometry({ image: sourceImage, width, height })
+    setReliefGeometry(geometry)
+    return () => geometry.dispose()
+  }, [height, sourceImage, texture, width])
+
+  if (!texture) return null
+
   return (
-    <group rotation={[-0.12, 0.18, 0]}>
-      <mesh position={[0, 0, -0.035]}>
-        <boxGeometry args={[width + 0.08, height + 0.08, 0.06]} />
-        <meshStandardMaterial color="#111827" roughness={0.72} metalness={0.08} />
+    <group rotation={[-0.24, 0.34, 0]}>
+      <mesh position={[0, 0, -0.075]}>
+        <boxGeometry args={[width + 0.1, height + 0.1, 0.14]} />
+        <meshStandardMaterial color="#0f172a" roughness={0.58} metalness={0.18} />
       </mesh>
-      <mesh>
-        <planeGeometry args={[width, height]} />
-        <meshBasicMaterial map={texture} side={THREE.DoubleSide} toneMapped={false} transparent />
-      </mesh>
+      {reliefGeometry ? (
+        <mesh geometry={reliefGeometry}>
+          <meshStandardMaterial map={texture} side={THREE.DoubleSide} roughness={0.54} metalness={0.06} transparent />
+        </mesh>
+      ) : null}
     </group>
   )
 }
@@ -171,7 +244,7 @@ function SvgImageObject(props: {
     }
   }, [onLoadState, sourceUrl])
 
-  return group ? <primitive object={group} rotation={[-0.08, 0.16, 0]} /> : null
+  return group ? <primitive object={group} rotation={[-0.18, 0.28, 0]} /> : null
 }
 
 export function ImageThreeJsSurface(props: {
@@ -217,6 +290,8 @@ export function ImageThreeJsSurface(props: {
       aria-label={`${title} Three.js preview`}
       className={['relative h-full w-full overflow-hidden', className, mediaClassName].filter(Boolean).join(' ')}
       data-kg-card-media-kind={sourceKind === 'svg' ? 'svg' : 'image'}
+      data-kg-image-threejs-renderer="native-three"
+      data-kg-image-threejs-scene={sourceKind === 'svg' ? 'extruded-svg' : 'textured-relief'}
       data-kg-image-threejs-surface="1"
       data-kg-image-threejs-source-kind={sourceKind}
       data-kg-image-threejs-load-state={loadState}
@@ -227,10 +302,13 @@ export function ImageThreeJsSurface(props: {
         dpr={[1, 2]}
         frameloop="demand"
         gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
+        shadows
         style={{ pointerEvents: interactive ? 'auto' : 'none' }}
       >
-        <ambientLight intensity={1.4} />
-        <directionalLight position={[2, 3, 4]} intensity={1.8} />
+        <ambientLight intensity={0.9} />
+        <hemisphereLight args={['#dbeafe', '#0f172a', 1.1]} />
+        <directionalLight castShadow position={[2, 3, 4]} intensity={2.2} />
+        <directionalLight position={[-3, -1, 2]} intensity={0.65} />
         {sourceKind === 'svg'
           ? <SvgImageObject key={`svg:${sourceUrl}`} sourceUrl={sourceUrl} onLoadState={handleLoadState} />
           : <RasterImageObject key={`raster:${sourceUrl}`} sourceUrl={sourceUrl} onLoadState={handleLoadState} />}
@@ -238,6 +316,14 @@ export function ImageThreeJsSurface(props: {
       {loadState === 'loading' ? (
         <span className="absolute inset-x-0 bottom-2 text-center text-[11px] text-slate-500" role="status">
           Converting image to Three.js…
+        </span>
+      ) : null}
+      {loadState === 'ready' ? (
+        <span
+          className="pointer-events-none absolute bottom-2 right-2 rounded-full border border-sky-300/70 bg-slate-950/75 px-2 py-0.5 text-[10px] font-medium tracking-wide text-sky-100"
+          data-kg-image-threejs-native-badge="1"
+        >
+          Native Three.js · {sourceKind === 'svg' ? 'extruded SVG' : 'image relief'}
         </span>
       ) : null}
     </section>
