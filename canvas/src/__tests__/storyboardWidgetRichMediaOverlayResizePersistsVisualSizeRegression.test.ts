@@ -5,8 +5,13 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { projectMediaOverlayResizeWorldSizeToLayout } from '@/lib/render/mediaOverlayResizeProjection'
 import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
 import { WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
+import { resolveFlowCanvasMediaOverlayInteractionPolicy } from '@/components/FlowCanvas/shared'
 
 export function testStoryboardWidgetRichMediaOverlayResizePersistsVisualSize() {
+  if (!resolveFlowCanvasMediaOverlayInteractionPolicy({ rendererInteractionMode: true, resizeMutationBlocked: false }).resizeActive
+    || resolveFlowCanvasMediaOverlayInteractionPolicy({ rendererInteractionMode: true, resizeMutationBlocked: true }).resizeActive) {
+    throw new Error('expected the shared Rich Media interaction policy to enable safe source-backed resize and block unsafe store-only resize')
+  }
   const defaultCardSize = readStoryboardCardSize2d({ id: 'card-default', type: 'Card' } as GraphNode, '16:9')
   const defaultWidgetSize = readStoryboardWidgetPlacementSize2d({ id: 'widget-default', type: 'Widget' } as GraphNode, '16:9')
   if (defaultCardSize.width !== WIDGET_BASE_SIZE.width || defaultCardSize.height !== WIDGET_BASE_SIZE.height
@@ -68,11 +73,12 @@ export function testStoryboardWidgetRichMediaOverlayResizePersistsVisualSize() {
     || !draftActionsText.includes('args.updateNode(storeNodeId || id, patch)')) {
     throw new Error('expected Storyboard source-graph mutations to commit only the canonically resolved node')
   }
-  if (!sharedText.includes('resizeActive: rendererInteractionMode && args.workspaceMutationBlocked !== true')) {
-    throw new Error('expected FlowCanvas rich media overlay resize to stay blocked by shared workspace mutation policy')
+  if (!sharedText.includes('resizeActive: rendererInteractionMode && args.resizeMutationBlocked !== true')
+    || !text.includes("resizeMutationBlocked = workspaceMutationBlocked && typeof onNodePropertiesChange !== 'function'")) {
+    throw new Error('expected FlowCanvas rich media overlay resize to reuse the source-aware shared mutation policy')
   }
-  if (!text.includes('const resizeHandleVisible = resizeInteractionActive')) {
-    throw new Error('expected FlowCanvas rich media overlay resize-handle visibility to stay solely policy gated so iframe content cannot hide its resize control')
+  if (!text.includes('const resizeHandleVisible = isSelected') || !text.includes('resizeHandleVisible={resizeHandleVisible}')) {
+    throw new Error('expected FlowCanvas rich media overlay resize handle to remain visible with selected chrome even when mutation is temporarily blocked')
   }
   if (!text.includes('isStoryboardWidgetFrontmatterDocumentModeRequested')) {
     throw new Error('expected FlowCanvas rich media overlay resize to reuse shared frontmatter-document mode request gate SSOT')

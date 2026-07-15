@@ -5,6 +5,7 @@ import {
   isStoryboardCardMediaDropEdge,
   isStoryboardCardMediaDropOverlayEdge,
 } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
+import { resolveStoryboardCardMediaDropGraphData } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraphData'
 import { readStoryboardInlineMediaConsumerIds } from '@/components/StoryboardWidgetCanvas/storyboardCardInlineMediaConsumers'
 import { getCachedStoryboardWidgetOverlayEdgeGraph } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 import {
@@ -34,7 +35,6 @@ import {
   appendStoryboardMediaAlbumItem,
   STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY,
 } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
-
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
 }
@@ -66,6 +66,27 @@ const videoPayload: MediaDragPayload = {
   label: 'Story reference video',
   sourceKey: 'floating-media:story-reference',
   thumbnailUrl: 'https://example.com/story-reference.jpg',
+}
+
+export function testStoryboardCardMediaDropPrefersGraphThatOwnsCanonicalCard() {
+  const staleGraph: GraphData = { type: 'Graph', nodes: [buildCardNode('ws:other::n3')], edges: [] }
+  const authoritativeCard = buildCardNode('ws:5f7223e3::n3')
+  const authoritativeGraph: GraphData = { type: 'Graph', nodes: [authoritativeCard], edges: [] }
+  const selectedGraph = resolveStoryboardCardMediaDropGraphData({
+    cardId: 'ws:5f7223e3::n3',
+    preferredGraphData: staleGraph,
+    fallbackGraphData: authoritativeGraph,
+  })
+  assert(selectedGraph === authoritativeGraph, 'expected media drop to mutate the overlay graph that owns the selected canonical card')
+  const result = applyStoryboardCardMediaDropGraph({
+    cardId: 'ws:5f7223e3::n3',
+    cardProperties: authoritativeCard.properties as Record<string, unknown>,
+    graphData: selectedGraph,
+    media: videoPayload,
+  })
+  assert(result?.createdPanel === true, 'expected canonical card selection to create a Rich Media Panel')
+  assert(result.createdEdge === true, 'expected canonical card selection to create the panel-to-card edge')
+  assert(result.graphData.edges.some(edge => edge.target === 'ws:5f7223e3::n3'), 'expected the materialized edge to target the selected canonical card')
 }
 
 export function testStoryboardCardMediaDropCreatesInboundRichMediaPanelEdge() {

@@ -19,6 +19,7 @@ export type RichMediaPanelProps = {
   hideUntilReady?: boolean
   headerPassthrough?: boolean
   resizable?: boolean
+  resizeHandleVisible?: boolean
   forwardWheelTo?: () => Element | null
   forwardWheelBeforeScrollableTarget?: boolean
   forwardPointerTo?: () => Element | null

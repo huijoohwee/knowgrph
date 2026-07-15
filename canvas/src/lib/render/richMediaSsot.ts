@@ -32,6 +32,7 @@ export {
   resolveRichMediaPlayableUrl,
 } from '@/lib/render/richMediaPreview'
 export type { ResolvedRichMediaPanelTab, RichMediaPanelPreviewSpec } from '@/lib/render/richMediaPreview'
+export { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanelSrcDoc'
 
 export type RichMediaDisplayMode = 'circle-only' | 'panel-only'
 export type RichMediaPanelDensity = 'default' | 'compact'
@@ -413,9 +414,16 @@ export function listDisplayRichMediaOverlayNodes(args: {
 }): MediaOverlayNode[] {
   const poolMaxRaw = typeof args.poolMax === 'number' && Number.isFinite(args.poolMax) ? args.poolMax : 0
   const poolMax = poolMaxRaw > 0 ? Math.floor(poolMaxRaw) : 24
+  const nodes = Array.isArray(args.nodes) ? args.nodes : []
+  // Storyboard Cards/Widgets own their own media slots. The shared FlowCanvas
+  // overlay pool renders only the semantic Rich Media Panels that connect to
+  // them, preventing a source Widget Card from being rendered a second time.
+  const overlayNodes = isStoryboardCanvas2dRenderer(resolveCanvas2dRendererId(args.canvas2dRenderer))
+    ? nodes.filter(isRichMediaPanelNode)
+    : nodes
   return listMediaOverlayNodes({
     enabled: isRichMediaPanelDisplayEnabled(args),
-    nodes: Array.isArray(args.nodes) ? args.nodes : [],
+    nodes: overlayNodes,
     poolMax,
     preferredNodeIds: args.preferredNodeIds,
     excludeNodeIdSet: args.excludeNodeIdSet,

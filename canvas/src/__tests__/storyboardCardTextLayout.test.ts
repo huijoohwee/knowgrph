@@ -107,11 +107,14 @@ export function testStoryboardCardTextModelDoesNotDuplicatePrimaryPrompt() {
   assert(textOnlyModel.secondaryRaw === '', `expected prompt-only Text Widget not to duplicate into secondary text, got ${JSON.stringify(textOnlyModel.secondaryRaw)}`)
   const promptWithEmbeddedMedia = 'Generate a ![source image](https://media.invalid/source.png) text response for the active request.'
   const mediaPromptModel = buildStoryboardCardTextModel({ prompt: promptWithEmbeddedMedia })
-  assert(mediaPromptModel.primaryRaw === promptWithEmbeddedMedia, 'expected the editable prompt to retain its authored embedded-media reference')
+  assert(mediaPromptModel.primaryRaw === promptWithEmbeddedMedia, 'expected the source model to retain its authored embedded-media reference until an intentional text edit')
   assert(mediaPromptModel.primaryDisplay === 'Generate a text response for the active request.', `expected the card read surface to omit duplicated embedded media, got ${JSON.stringify(mediaPromptModel.primaryDisplay)}`)
   const overlaySource = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
-  assert(!overlaySource.includes('projectedMediaAttachments={projectedMediaAttachments}'), 'expected the Storyboard text column not to duplicate the media album as inline attachment tokens')
-  assert(!overlaySource.includes('buildStoryboardCardMediaTextareaAttachments'), 'expected the Storyboard text column to avoid a second media-attachment projection owner')
+  assert(overlaySource.includes("value={textModel.primaryRaw || card.slugline || ''}"), 'expected the shared Viewer editor to retain source-backed inline chips while editing')
+  assert(overlaySource.includes("displayValue={textModel.primaryDisplay || card.slugline || ''}"), 'expected the shared Viewer read surface to remain media-free')
+  assert(overlaySource.includes('buildStoryboardCardMediaTextareaAttachments([...displayMediaItems, displayMedia], card.title)'), 'expected the Storyboard text column to reuse the shared media attachment projection owner')
+  assert(overlaySource.includes('projectedMediaAttachments={projectedMediaAttachments}'), 'expected the Storyboard Viewer editor to render media as shared virtual @ chips')
+  assert(!overlaySource.includes('sourceContainsInlineMediaUrl'), 'expected the shared Viewer, not the Storyboard overlay, to suppress the edit-only duplicate media chip')
   const nextPrompt = 'Generate an edited /runtime #storyboard @asset response.'
   const promptPatch = buildGraphNodeCanonicalTextPatch({
     currentProperties: { imagePrompt: prompt },

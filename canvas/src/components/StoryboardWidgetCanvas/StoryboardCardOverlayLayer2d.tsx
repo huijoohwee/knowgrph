@@ -17,6 +17,7 @@ import { useStoryboardCardOverlayProjection2d } from '@/components/StoryboardWid
 import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'
 import { runStoryboardRemoveAction } from '@/components/StoryboardCanvas/storyboardRemoveAction'
 import { mergeStoryboardMediaAlbumItems, toStoryboardMediaAlbumItem } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
+import { buildStoryboardCardMediaTextareaAttachments } from '@/components/StoryboardCanvas/storyboardCardMediaProjection'
 import { buildStoryboardBoardModel, buildStoryboardInlineMediaCommandContext, type StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/storyboardToolbarProps'
 import { writeActiveMarkdownDocumentTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
@@ -66,6 +67,9 @@ function StoryboardCardOverlayItem(props: {
     [toStoryboardMediaAlbumItem(card.media)],
     [toStoryboardMediaAlbumItem(pendingMedia)],
   ), [card.media, card.mediaItems, pendingMedia])
+  const projectedMediaAttachments = React.useMemo(() => (
+    buildStoryboardCardMediaTextareaAttachments([...displayMediaItems, displayMedia], card.title)
+  ), [card.title, displayMedia, displayMediaItems])
   const [summaryEditRequestKey, setSummaryEditRequestKey] = React.useState<number | null>(null)
   const storyboardCommandContextText = buildStoryboardInlineMediaCommandContext(
     displayMedia === card.media ? card : { ...card, media: displayMedia },
@@ -201,6 +205,7 @@ function StoryboardCardOverlayItem(props: {
                 inlineChipDensity="compact"
                 openOnPointerDown
                 rows={2}
+                projectedMediaAttachments={projectedMediaAttachments}
                 showCommandLaunchers={false}
                 onCommit={nextValue => onCommitPrimaryText(card, textModel.primaryField, nextValue)}
                 onMediaCommandSelect={applyInlineMediaCommandToCard}

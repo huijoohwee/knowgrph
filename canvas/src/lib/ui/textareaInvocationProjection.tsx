@@ -13,6 +13,7 @@ import { renderTextareaInvocationProjectionMetricText, renderTextareaInvocationV
 import { UI_INLINE_CHIP_SHELL_15CH_CLASSNAME } from '@/lib/ui/textLayout'
 import {
   normalizeMediaProjectionUrlKey,
+  projectTextareaInvocationMediaToken,
   readMediaAttachmentLabel,
   readTextareaInvocationMediaDisplayLabelFromLabel,
   sourceContainsTextareaInvocationMediaReference,
@@ -116,7 +117,11 @@ export function buildFloatingPanelChatComposerMediaParts(
 ): { hasMedia: boolean; parts: ChatComposerMediaProjectionPart[] } {
   const source = String(text || '')
   const matches = [
-    ...collectFloatingPanelChatMediaTokens(source).map(match => ({ ...match, end: match.index + match.raw.length, projectionKind: 'media' as const })),
+    ...collectFloatingPanelChatMediaTokens(source).map(match => ({
+        ...projectTextareaInvocationMediaToken(match, options.mediaAttachments),
+        end: match.index + match.raw.length,
+        projectionKind: 'media' as const,
+      })),
     ...collectTextareaInvocationSourceBindings(source).map(match => ({ ...match, projectionKind: 'source-binding' as const })),
   ].sort((a, b) => a.index - b.index || a.end - b.end)
   const parts: ChatComposerMediaProjectionPart[] = []

@@ -61,21 +61,24 @@ export async function testCardInlineTextEditorViewerSurfaceRendersInvocationAndM
       throw new Error(`expected compact Storyboard card display to keep inline chips on surrounding text metrics, html=${display.outerHTML}`)
     }
     const readMediaChip = display.querySelector('[data-kg-card-inline-display-media-chip="1"]') as HTMLElement | null
-    if (!(readMediaChip instanceof dom.window.HTMLElement) || readMediaChip.textContent !== `@${attachmentLabel}`) {
-      throw new Error(`expected read-mode Card textarea to render source-authored @ media in-place, html=${display.innerHTML}`)
+    if (!(readMediaChip instanceof dom.window.HTMLElement) || readMediaChip.textContent !== attachmentLabel) {
+      throw new Error(`expected read-mode Card textarea to match the edit chip label without a view-only @ prefix, html=${display.innerHTML}`)
+    }
+    if (readMediaChip.getAttribute('data-kg-chat-input-media-token') !== `@${attachmentLabel}`) {
+      throw new Error(`expected read-mode Card textarea to preserve its serialized @ media token metadata, html=${readMediaChip.outerHTML}`)
     }
     const readMediaChipImage = readMediaChip.querySelector('img') as HTMLImageElement | null
     if (!(readMediaChipImage instanceof dom.window.HTMLImageElement)) {
       throw new Error(`expected read-mode projected media chip to render its shared thumbnail image, html=${readMediaChip.outerHTML}`)
     }
     const longReadMediaChip = Array.from(display.querySelectorAll('[data-kg-card-inline-display-media-chip="1"]') as NodeListOf<HTMLElement>)
-      .find(node => node.textContent === longAttachmentToken)
+      .find(node => node.textContent === longAttachmentLabel)
     if (!(longReadMediaChip instanceof dom.window.HTMLElement)) {
       throw new Error(`expected read-mode Card textarea to keep a generated long-form @ media reference visible as a chip before editing, html=${display.innerHTML}`)
     }
     const readDisplayText = String(display.textContent || '')
     const readStoryboardIndex = readDisplayText.indexOf('#storyboard')
-    const readMediaIndex = readDisplayText.indexOf(`@${attachmentLabel}`)
+    const readMediaIndex = readDisplayText.indexOf(attachmentLabel)
     const readSlashIndex = readDisplayText.indexOf('/source.normalize')
     if (!(readStoryboardIndex >= 0 && readMediaIndex > readStoryboardIndex && readSlashIndex > readMediaIndex)) {
       throw new Error(`expected read-mode source-authored @ media chip to stay between #storyboard and /source.normalize, text=${JSON.stringify(readDisplayText)}`)

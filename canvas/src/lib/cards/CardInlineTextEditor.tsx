@@ -12,7 +12,6 @@ import {
   isElementEventTarget,
   normalizeCardInlineTextDisplayClassName,
   normalizeCommittedCardInlineEditorValue,
-  readCardInlineTextMediaCandidateKey,
   shouldIgnoreInlineEditTarget,
   type CardInlineTextCommandExternalState,
   type CardInlineTextEditorProps,
@@ -28,6 +27,7 @@ import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { readDataViewFieldLineClassName, readDataViewMultiLineControlClassName } from '@/lib/ui/dataViewDensity'
 import { useCardInlineTextSelectedDisplayCommand } from '@/lib/cards/cardInlineTextSelectedDisplayCommand'
 import type { InlineMediaCommandCandidate } from '@/lib/command-menu/inlineCommandMenuCatalog'
+import { buildCardInlineTextDisplayMediaCandidateMap, resolveCardInlineTextDisplayProjectionSource } from '@/lib/cards/cardInlineTextDisplayMediaProjection'
 import {
   buildCardInlineTextMediaEmbed,
   clearActiveCardInlineTextExternalCommandTarget,
@@ -45,7 +45,6 @@ import { readInlineCommandMenuSigilFromInsertedText, readInlineCommandMenuSigilF
 import {
   buildFloatingPanelChatComposerDisplayText,
   buildFloatingPanelChatComposerOverlayParts,
-  collectTextareaInvocationMediaAttachmentCandidateChips,
   isFloatingPanelChatComposerProjectedCaretInsideChip,
   mapFloatingPanelChatComposerDisplayIndexToRawIndex,
   mapFloatingPanelChatComposerRawIndexToDisplayIndex,
@@ -275,11 +274,11 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     setEditing(true)
     return true
   }, [beginViewerDraft, canEdit, ownerKey, stopActivationPropagation, updateDraft, useViewerEditSurface, value])
-  const displayMediaCandidateByKey = React.useMemo(() => {
-    if (!multiline || !projectedMediaAttachments?.length) return new Map<string, TextareaInvocationProjectedMediaChip>()
-    const candidates = collectTextareaInvocationMediaAttachmentCandidateChips(projectedMediaAttachments)
-    return new Map(candidates.map(chip => [readCardInlineTextMediaCandidateKey(chip), chip]))
-  }, [multiline, projectedMediaAttachments])
+  const displayProjectionSourceValue = resolveCardInlineTextDisplayProjectionSource({ displayValue: displaySourceValue, multiline, projectedMediaAttachments, value })
+  const displayMediaCandidateByKey = React.useMemo(
+    () => buildCardInlineTextDisplayMediaCandidateMap(displayProjectionSourceValue, multiline ? projectedMediaAttachments : null),
+    [displayProjectionSourceValue, multiline, projectedMediaAttachments],
+  )
   const renderInlineMediaCandidateChip = React.useCallback(({ value }: { value: string; label: string; className: string }) => {
     const key = readTextareaInvocationMediaReferenceKey(value)
     const chip = key ? displayMediaCandidateByKey.get(key) : null
@@ -287,7 +286,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     return <CardInlineTextProjectedMediaChip chip={chip} index={0} />
   }, [displayMediaCandidateByKey])
   const displayProjectionText = multiline && projectedMediaAttachments?.length
-    ? buildFloatingPanelChatComposerDisplayText(displaySourceValue, { mediaAttachments: projectedMediaAttachments })
+    ? buildFloatingPanelChatComposerDisplayText(displayProjectionSourceValue, { mediaAttachments: projectedMediaAttachments })
     : displaySourceValue
   const displaySurfaceText = inlineChipDensity === 'compact'
     ? normalizeCardInlineMediaSoftLineBreaks(displayProjectionText).trim()

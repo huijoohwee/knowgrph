@@ -12,21 +12,24 @@ export function readCardInlineTextProjectedMediaChipPresentation(chip: {
   thumbnailUrl?: string
 }): {
   className: string
+  label: string
   mediaLabel: string
   source: string
   thumbnailUrl: string
   title: string
 } {
   const source = String(chip.sourceUrl || chip.thumbnailUrl || '').trim()
+  const label = String(chip.displayLabel || '').trim().replace(/^@+/, '')
   const thumbnailSource = String(chip.thumbnailUrl || (chip.mediaKind === 'image' ? chip.sourceUrl : '') || '').trim()
   const thumbnailUrl = normalizeRuntimeStorageMediaAccessUrl({ url: thumbnailSource })
   return {
     className: CARD_INLINE_TEXT_PROJECTED_MEDIA_CHIP_CLASS_NAME,
+    label,
     mediaLabel: `${chip.mediaKind} media`,
     source,
     thumbnailUrl,
     title: [
-      `${chip.displayLabel} - ${chip.mediaKind}`,
+      `${label} - ${chip.mediaKind}`,
       source ? `Source: ${source}` : '',
     ].filter(Boolean).join('\n'),
   }

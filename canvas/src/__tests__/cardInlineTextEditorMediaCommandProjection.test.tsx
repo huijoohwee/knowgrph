@@ -140,6 +140,7 @@ export async function testCardInlineTextEditorExternalResolvedMediaKeepsInlineTe
   const root = createRoot(container)
   const committedValues: string[] = []
   const selectedMedia: unknown[] = []
+  const mutationOrder: string[] = []
   const mediaUrl = 'https://media.example.test/buddydrone.png'
   const renderEditor = (value: string) => {
     root.render(
@@ -155,9 +156,11 @@ export async function testCardInlineTextEditorExternalResolvedMediaKeepsInlineTe
         markdownCommandContextText: `imageUrl: "${mediaUrl}"`,
         onCommit: next => {
           committedValues.push(next)
+          mutationOrder.push('text')
         },
         onMediaCommandSelect: candidate => {
           selectedMedia.push(candidate)
+          mutationOrder.push('media')
         },
       }),
     )
@@ -194,6 +197,9 @@ export async function testCardInlineTextEditorExternalResolvedMediaKeepsInlineTe
     })
     if (selectedMedia.length !== 1) {
       throw new Error(`expected resolved external @ media command to still update the card media slot, got ${JSON.stringify(selectedMedia)}`)
+    }
+    if (mutationOrder.join('|') !== 'text|media') {
+      throw new Error(`expected resolved external @ media text commit before graph reconciliation, got ${mutationOrder.join('|')}`)
     }
     const committed = committedValues.at(-1) || ''
     if (!committed.includes(`![Image: imageUrl](${mediaUrl})`)) {

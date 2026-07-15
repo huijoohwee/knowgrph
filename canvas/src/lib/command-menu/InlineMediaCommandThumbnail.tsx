@@ -53,6 +53,7 @@ export function InlineMediaCommandThumbnail(props: {
       <span
         className={readInlineMediaCommandThumbnailClassName({ hasThumbnail: true, kind, variant: 'inline' })}
         aria-label={mediaLabel}
+        role="img"
         data-kg-inline-command-thumbnail={kind}
       >
         {body}
@@ -76,6 +77,7 @@ export function InlineMediaCommandThumbnail(props: {
     <span
       className={readInlineMediaCommandThumbnailClassName({ hasThumbnail: false, kind, variant: 'inline' })}
       aria-label={mediaLabel}
+      role="img"
       data-kg-inline-command-thumbnail={kind}
     >
       {icon}

@@ -924,15 +924,15 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     throw new Error('expected workspace overlay open transition to cancel queued Rich Media overlay writes before they can flush after close')
   }
   const richMediaResizeMoveIndex = text.indexOf('const applyMediaOverlayResizeMove = React.useCallback')
-  const richMediaRuntimeGuardIndex = text.indexOf('if (!mediaOverlayDragInteractionMode || workspaceMutationBlockedRef.current) return', richMediaResizeMoveIndex)
+  const richMediaRuntimeGuardIndex = text.indexOf('if (!mediaOverlayDragInteractionMode || resizeMutationBlockedRef.current) return', richMediaResizeMoveIndex)
   const richMediaResizeWriteIndex = text.indexOf('mediaOverlayPanelSizeOverrideRef.current.set(id', richMediaRuntimeGuardIndex)
   if (richMediaResizeMoveIndex < 0 || richMediaRuntimeGuardIndex < 0 || richMediaResizeWriteIndex < 0 || richMediaRuntimeGuardIndex > richMediaResizeWriteIndex) {
-    throw new Error('expected Rich Media resize runtime writes to remain blocked while workspace mutation blocking is active')
+    throw new Error('expected Rich Media resize runtime writes to use the source-aware shared mutation guard')
   }
-  const resizeGuardIndex = text.indexOf('if (!workspaceMutationBlockedRef.current) {')
+  const resizeGuardIndex = text.indexOf('if (!resizeMutationBlockedRef.current) {')
   const resizeWriteIndex = text.indexOf('const nextProperties = { ...baseProps, \'visual:width\': drag.lastW, \'visual:height\': drag.lastH }')
   if (resizeGuardIndex < 0 || resizeWriteIndex < 0 || resizeGuardIndex > resizeWriteIndex) {
-    throw new Error('expected Rich Media resize persistence to be blocked while workspace overlay is open')
+    throw new Error('expected Rich Media resize persistence to remain blocked only when no canonical source mutation owner is available')
   }
   if (text.includes('workspaceViewLayoutRefreshNonce')) {
     throw new Error('expected FlowCanvas media overlay scheduling to avoid workspace layout refresh nonce coupling')

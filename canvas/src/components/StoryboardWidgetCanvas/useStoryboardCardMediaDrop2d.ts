@@ -4,6 +4,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { writeActiveMarkdownDocumentTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 import { applyStoryboardCardMediaDropGraph } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
+import { resolveStoryboardCardMediaDropGraphData } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraphData'
 import { readStoryboardInlineMediaConsumerIds } from '@/components/StoryboardWidgetCanvas/storyboardCardInlineMediaConsumers'
 import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -72,7 +73,12 @@ export function useStoryboardCardMediaDrop2d(args: {
   const dropCardMedia = React.useCallback((card: StoryboardCardModel, payload: MediaDragPayload) => {
     const url = readStoryboardScalar2d(payload.url)
     if (!url) return
-    const liveGraphData = useGraphStore.getState().graphData || graphData
+    const liveGraphData = resolveStoryboardCardMediaDropGraphData({
+      cardId: card.id,
+      preferredGraphData: useGraphStore.getState().graphData,
+      fallbackGraphData: graphData,
+    })
+    if (!liveGraphData) return
     const node = resolveGraphNodeByCanonicalId(liveGraphData, card.id)
       || nodeById.get(card.id)
       || resolveGraphNodeByCanonicalId(graphData, card.id)
@@ -137,7 +143,7 @@ export function useStoryboardCardMediaDrop2d(args: {
       card.id,
       ...readStoryboardInlineMediaConsumerIds(cards, { ...payload, url }),
     ]
-    let nextGraphData = liveGraphData
+    let nextGraphData: GraphData = liveGraphData
     let nextGraph: ReturnType<typeof applyStoryboardCardMediaDropGraph> = null
     const reconciledConsumerNodeIds = new Set<string>()
     for (const consumerId of sharedConsumerIds) {

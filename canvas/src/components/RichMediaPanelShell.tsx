@@ -57,8 +57,8 @@ export function RichMediaPanelShell(args: {
           </section>
         </>
       ) : children}
-      {model.installResize && model.resizeHandlePlacement === 'root' ? (
-        <RichMediaPanelResizeHandle placement="root" onPointerDown={model.onResizePointerDown} />
+      {model.resizeHandleVisible && model.resizeHandlePlacement === 'root' ? (
+        <RichMediaPanelResizeHandle disabled={!model.installResize} placement="root" onPointerDown={model.onResizePointerDown} />
       ) : null}
     </section>
   )

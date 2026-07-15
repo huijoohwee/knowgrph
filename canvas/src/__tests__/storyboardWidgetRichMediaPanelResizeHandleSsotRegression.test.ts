@@ -65,8 +65,10 @@ export function testSharedRichMediaPanelUsesRootFrameAsResizeSurfaceSsot() {
   if (!surfaceStateText.includes("position: useSurfaceFrame || panelOwnsInlineSrcDocScroll ? 'relative' : (storyboardWidgetInteractionMode ? 'absolute' : 'relative')")) {
     throw new Error('expected shared Rich Media Panel root frame to establish the resize-anchor containing block')
   }
-  if (!shellText.includes('<RichMediaPanelResizeHandle placement="root" onPointerDown={model.onResizePointerDown} />')) {
-    throw new Error('expected shared Rich Media Panel resize handle to stay mounted at the root frame owner')
+  if (!typesText.includes('resizeHandleVisible?: boolean')
+    || !surfaceStateText.includes('const resizeHandleVisible = props.resizeHandleVisible === true || installResize')
+    || !shellText.includes('<RichMediaPanelResizeHandle disabled={!model.installResize} placement="root" onPointerDown={model.onResizePointerDown} />')) {
+    throw new Error('expected shared Rich Media Panel resize handle visibility to stay at the root frame owner independently of resize mutation availability')
   }
   if (!resizeHandleText.includes("event.currentTarget.closest('[data-kg-rich-media-panel=\"1\"]')")
     || !resizeHandleText.includes('target: dragTarget')) {
@@ -85,7 +87,9 @@ export function testSharedRichMediaPanelUsesRootFrameAsResizeSurfaceSsot() {
   ) {
     throw new Error('expected shared Rich Media Panel to expose reusable Storyboard Widget chrome without resurrecting the legacy header contract')
   }
-  if (!surfaceStateText.includes('getStoryboardWidgetPanelChromeClassName(mediaState.uiPanelTextFontClass)')) {
+  if (!surfaceStateText.includes('getStoryboardWidgetPanelSurfaceChromeClassName({')
+    || !surfaceStateText.includes('panelTextClass: mediaState.uiPanelTextFontClass')
+    || !surfaceStateText.includes('selected: props.selected === true')) {
     throw new Error('expected shared Rich Media Panel root to reuse Storyboard Widget panel shell classes for optional chrome')
   }
   for (const snippet of [
@@ -325,7 +329,7 @@ export function testRichMediaPanelResizeDragMaintainsContentAspectFromSharedMath
     'pointerTarget.isSelectableSurface',
     'selectSelf(nativePointerEvent || null)',
     'data-kg-rich-media-video-srcdoc-fallback="1"',
-    'className="relative h-full w-full overflow-hidden"',
+    'className="group relative h-full w-full overflow-hidden"',
     'model.directVideoFallbackSrcDoc',
     'transparentBackground',
     "const directVideoControls = model.kind === 'video' && (props.videoControls !== false || model.contentInteractive)",

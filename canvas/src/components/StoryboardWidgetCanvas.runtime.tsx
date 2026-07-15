@@ -38,7 +38,7 @@ import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storybo
 import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCanvas/storyboardCardOwnership2d'
 import { readCanvasCardWidgetDisplayMode } from '@/lib/canvas/canvasCardWidgetDisplayControls'
 import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
-
+import { persistStoryboardCardMediaGraphSource } from '@/components/StoryboardWidgetCanvas/runtime/storyboardCardMediaGraphSource'
 // #region debug-point A:runtime-storyboard-graph-handoff
 const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'
 const reportStoryboardMediaPanelLoopRuntimeDebug = (args: {
@@ -57,7 +57,6 @@ const reportStoryboardMediaPanelLoopRuntimeDebug = (args: {
   })
 }
 // #endregion
-
 export default function StoryboardWidgetCanvasRuntime(
   {
     active = true,
@@ -280,6 +279,7 @@ export default function StoryboardWidgetCanvasRuntime(
     draftGraphDataRef.current = nextDraft
     setDraftGraphData(nextDraft)
     setGraphDataPreservingLayout(nextDraft)
+    persistStoryboardCardMediaGraphSource(nextDraft)
   }, [baseGraphDataRevision, draftGraphDataRef, draftGraphDataRevision, setDraftGraphData, setGraphDataPreservingLayout])
   const storyboardCanvasGraphDataForDisplay = React.useMemo((): GraphData | null => {
     if (!storyboardCardsMode) return null

@@ -49,8 +49,9 @@ export function testStoryboardWidgetFrontmatterWorkspaceBlockedRichMediaLayoutSt
   if (text.includes('if (!mediaOverlayDragInteractionMode || workspaceOverlayOpenRef.current) return')) {
     throw new Error('expected Rich Media panel pan proxy to avoid workspace-open runtime suppression')
   }
-  if (!text.includes('if (!mediaOverlayDragInteractionMode || workspaceMutationBlockedRef.current) return')) {
-    throw new Error('expected Rich Media resize writes to stay blocked while workspace mutation blocking is active')
+  if (!text.includes("resizeMutationBlocked = workspaceMutationBlocked && typeof onNodePropertiesChange !== 'function'")
+    || !text.includes('if (!mediaOverlayDragInteractionMode || resizeMutationBlockedRef.current) return')) {
+    throw new Error('expected Rich Media resize writes to remain available through the canonical source owner while store-only mutation stays blocked')
   }
   if (!text.includes("const richMediaInfiniteCanvasMode = storyboardWidgetSurfaceRendererMode || storyboardSharedSurfaceRendererMode || canvas2dRenderer === 'flowCanvas'")) {
     throw new Error('expected Storyboard Widget shared surfaces and Flow Canvas Rich Media panel layout to use the shared renderer-level infinite-canvas gate')

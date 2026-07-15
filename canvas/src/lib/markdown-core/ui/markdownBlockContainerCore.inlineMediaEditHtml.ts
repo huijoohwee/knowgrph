@@ -75,7 +75,7 @@ const buildInlineMediaEditTokenHtml = (args: {
     ` ${INLINE_MEDIA_EDIT_TOKEN_ATTR}="1"`,
     ` ${INLINE_MEDIA_EDIT_MARKDOWN_ATTR}="${escapeHtmlAttr(markdown)}"`,
     ' contenteditable="false">',
-    `<span class="${escapeHtmlAttr(thumbnailClassName)}" aria-label="${escapeHtmlAttr(label)}" ${INLINE_MEDIA_COMMAND_THUMBNAIL_ATTR}="${escapeHtmlAttr(args.kind)}">${thumbnailBody}</span>`,
+    `<span class="${escapeHtmlAttr(thumbnailClassName)}" aria-label="${escapeHtmlAttr(label)}" ${INLINE_MEDIA_COMMAND_THUMBNAIL_ATTR}="${escapeHtmlAttr(args.kind)}" role="img">${thumbnailBody}</span>`,
     `<span class="${escapeHtmlAttr(CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_LABEL_CLASS_NAME)}">${escapeHtml(label)}</span>`,
     '</span>',
   ].join('')
