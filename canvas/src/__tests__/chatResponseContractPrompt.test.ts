@@ -95,7 +95,7 @@ export function testChatResponseContractPromptIncludesMarkdownGuidelineAndSurfac
     'root key response:',
     'Tier B keys: product, domain, subject, objective, artifact, owner, version, status.',
     'Table cells: never empty',
-    'TBD (unknown) or — (not applicable)',
+    'TBD (unknown) or — (not applicable)', 'Persist every generated table or multi-dimensional table', 'YAML block scalar (`output: |-`)', 'Never author or persist table HTML', '`tables[]` records with neutral `columns` and `rows` data', 'V-10 generated tables',
     'Every streamed paragraph must remain relevant to the active query',
     'never output placeholder or example links',
     'GitGraph, Gantt, and Geospatial outputs follow the same rule',
@@ -173,7 +173,7 @@ export async function testChatStorybuildingSkillPromptIsModularAndPathNeutral() 
     'source-backed storybuilding runbook',
     'story/card lineage',
     'validation checklist',
-    'existing chat-log/KGC artifact flow',
+    'existing chat-log/KGC artifact flow', 'YAML block scalar (`output: |-`)', 'Never author or persist table HTML',
   ]) {
     if (!prompt.includes(snippet)) throw new Error(`Expected Storybuilding skill prompt to include: ${snippet}`)
   }
@@ -1653,7 +1653,7 @@ export function testChatKgcResponseContractPromptEnforcesComputingFlowShape() {
     'Canvas-preset-only fallback output that omits canonical KGC structural blocks',
     'Parallel grouping channels such as retired `clusters:` or duplicate group registries beside flow.subgraphs',
     'n-trigger, n-pack, n-process, n-validate, n-deliver',
-    'V-07',
+    'V-07', 'V-10', 'Generated tables persist as YAML block-scalar GitHub-flavored Markdown pipe tables.',
     '## Customization Guide',
   ]
   requiredPromptSnippets.forEach(snippet => {

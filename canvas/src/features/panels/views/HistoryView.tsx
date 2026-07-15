@@ -27,6 +27,7 @@ import type { ChatExchangeLogEntry, GraphState, RecentFileEntry, UiLogEntry } fr
 import { downloadBlob } from '@/lib/graph/save'
 import { useShallow } from 'zustand/react/shallow'
 import { hashArrayOfObjectsSignature, hashSignatureParts } from '@/lib/hash/signature'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import { UI_RESPONSIVE_HISTORY_RECENT_FILE_LOCATION_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import {
   uiPrimaryIconInactiveClassName,
@@ -273,18 +274,10 @@ export default function HistoryView({ searchQuery }: { searchQuery: string }) {
   }, [chatExchangeLogs])
 
   const buildLogMarkdown = React.useCallback((rows: readonly UiLogEntry[]) => {
-    const esc = (raw: unknown) =>
-      String(raw ?? '')
-        .replace(/\r?\n/g, ' ')
-        .replace(/\|/g, '\\|')
-        .trim()
-    const lines: string[] = []
-    lines.push('| Timestamp | Message | Source | Kind |')
-    lines.push('|----------|---------|--------|------|')
-    for (const r of rows) {
-      lines.push(`| ${esc(formatTimestamp(r.tsMs))} | ${esc(r.message)} | ${esc(r.source || '')} | ${esc(r.kind)} |`)
-    }
-    return lines.join('\n')
+    return serializeMarkdownPipeTable({
+      columns: ['Timestamp', 'Message', 'Source', 'Kind'],
+      rows: rows.map(r => [formatTimestamp(r.tsMs), r.message, r.source || '', r.kind]),
+    }).join('\n')
   }, [])
 
   const exportLogMarkdown = React.useCallback(() => {

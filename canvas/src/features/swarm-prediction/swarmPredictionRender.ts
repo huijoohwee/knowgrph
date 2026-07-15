@@ -4,6 +4,7 @@ import type {
   SwarmPredictionResult,
   SwarmPredictionWorldState,
 } from '@/features/swarm-prediction/swarmPredictionEngine'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 const round4 = (value: number): number => Math.round(value * 10000) / 10000
 
@@ -55,6 +56,17 @@ export const buildSwarmPredictionOutputMarkdown = (args: {
   events: SwarmPredictionEvent[]
 }): string => {
   const finalState = args.states[args.states.length - 1]
+  const metricTable = serializeMarkdownPipeTable({
+    columns: ['Metric', 'Value'],
+    alignments: [null, 'right'],
+    rows: [
+      ['Agents', args.metrics.agentCount],
+      ['Ticks', args.metrics.tickCount],
+      ['Events', args.metrics.eventCount],
+      ['Final mean belief', finalState?.meanBelief.toFixed(3) || '0.000'],
+      ['Final volatility', args.metrics.volatility.toFixed(3)],
+    ],
+  })
   return [
     `# ${args.title}`,
     '',
@@ -63,61 +75,9 @@ export const buildSwarmPredictionOutputMarkdown = (args: {
     `Consensus: ${args.metrics.consensus.toFixed(3)}`,
     `Stop reason: ${args.metrics.stopReason}`,
     '',
-    '| Metric | Value |',
-    '| --- | ---: |',
-    `| Agents | ${args.metrics.agentCount} |`,
-    `| Ticks | ${args.metrics.tickCount} |`,
-    `| Events | ${args.metrics.eventCount} |`,
-    `| Final mean belief | ${finalState?.meanBelief.toFixed(3) || '0.000'} |`,
-    `| Final volatility | ${args.metrics.volatility.toFixed(3)} |`,
+    ...metricTable,
     '',
     '## Latest Events',
     ...args.events.slice(-6).map(event => `- T${event.tick} ${event.kind}: ${event.label}`),
   ].join('\n')
-}
-
-export const buildSwarmPredictionOutputSrcDoc = (args: {
-  title: string
-  output: string
-  chartSvg: string
-  metrics: SwarmPredictionMetrics
-  prediction: SwarmPredictionResult['prediction']
-}): string => {
-  return [
-    '<!doctype html>',
-    '<html>',
-    '<head>',
-    '<meta charset="utf-8">',
-    '<meta name="viewport" content="width=device-width, initial-scale=1">',
-    '<style>',
-    ':root{color-scheme:light;font-family:Inter,Arial,sans-serif;color:#0f172a;background:#f8fafc}',
-    'body{margin:0;padding:18px;background:#f8fafc}',
-    'main{display:grid;gap:14px;max-width:860px;margin:0 auto}',
-    'section{background:white;border:1px solid #cbd5e1;border-radius:8px;padding:14px}',
-    'h1{font-size:20px;line-height:1.25;margin:0 0 8px}',
-    'pre{white-space:pre-wrap;font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;margin:0}',
-    '.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}',
-    '.metric{border:1px solid #e2e8f0;border-radius:6px;padding:10px;background:#f8fafc}',
-    '.label{font-size:11px;text-transform:uppercase;color:#64748b;margin-bottom:4px}',
-    '.value{font-size:20px;font-weight:700;color:#0f172a}',
-    'svg{max-width:100%;height:auto;display:block}',
-    '</style>',
-    '</head>',
-    '<body>',
-    '<main>',
-    '<section>',
-    `<h1>${escapeHtml(args.title)}</h1>`,
-    '<div class="metrics">',
-    `<div class="metric"><div class="label">Score</div><div class="value">${args.prediction.score.toFixed(3)}</div></div>`,
-    `<div class="metric"><div class="label">Confidence</div><div class="value">${args.prediction.confidence.toFixed(3)}</div></div>`,
-    `<div class="metric"><div class="label">Consensus</div><div class="value">${args.metrics.consensus.toFixed(3)}</div></div>`,
-    `<div class="metric"><div class="label">Ticks</div><div class="value">${args.metrics.tickCount}</div></div>`,
-    '</div>',
-    '</section>',
-    `<section>${args.chartSvg}</section>`,
-    `<section><pre>${escapeHtml(args.output)}</pre></section>`,
-    '</main>',
-    '</body>',
-    '</html>',
-  ].join('')
 }

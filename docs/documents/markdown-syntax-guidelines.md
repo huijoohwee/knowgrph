@@ -23,6 +23,8 @@ Provide a strict, renderer-safe Markdown contract for {{product}} Chat output th
 - Normalized `{key, type, value}` wrappers are reserved for E2E ingestion/parsing/rendering fixtures after parsing; do not mix them into ordinary authored docs or templates.
 - In normalized fixtures, reusable KGC-readable node summaries belong on the owning frontmatter node record, commonly as `kgc:readingSummary`.
 - Switch-sensitive frontmatter-first docs must declare the full Canvas View preset explicitly so file switching stays deterministic: `kgCanvasSurfaceMode`, `kgCanvasRenderMode` when applicable, target renderer/mode key, `kgDocumentSemanticMode`, `kgFrontmatterModeEnabled`, `kgMultiDimTableModeEnabled`, and `kgDocumentStructureBaselineLock`.
+- Persist every generated table or multi-dimensional table in the owning Rich Media Panel `output` property as a YAML block scalar containing a GitHub-flavored Markdown pipe table. Runtime renderers may derive semantic table DOM, but generated artifacts must never persist table HTML, `<br>`, `srcDoc`, or table-shaped `outputSrcDoc`.
+- TypeScript generators must reuse `serializeMarkdownPipeTable`; Python generators must reuse `serialize_markdown_pipe_table`. Do not hand-author table header, delimiter, or row strings in generation code.
 
 ## Syntax Validation Rules
 
@@ -37,6 +39,7 @@ Provide a strict, renderer-safe Markdown contract for {{product}} Chat output th
 | `V-07` | Confidence enum constrained | `confidence:` fields | values are exactly `low`, `medium`, or `high` |
 | `V-08` | Single frontmatter authority | `---` blocks | exactly one opening YAML frontmatter block before body |
 | `V-09` | No parallel Flow/KGC body layer | body text | no body `flow:`, `## KGC Reading Layer`, or line-start `@node:` / `@edge:` mirrors |
+| `V-10` | Generated table source format | authored content outside fenced code | GitHub-flavored Markdown pipe table in a YAML block scalar; no authored `<table>` HTML |
 
 ## Retry Contract
-On first failure, inject `@flag:correction` with `failed_rule: V-0x` into the next AI call. Max retry: `3`. After 3 failures surface `@flag:validation-failed`.
+On first failure, inject `@flag:correction` with `failed_rule: V-nn` into the next AI call. Max retry: `3`. After 3 failures surface `@flag:validation-failed`.

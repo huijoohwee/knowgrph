@@ -10,11 +10,14 @@ import {
   RICH_MEDIA_TIMELINE_TRANSPORT_READY_MESSAGE,
 } from '@/lib/render/richMediaTimelineSync'
 import { resolveCssVarWithKgFallback } from '@/lib/ui/tokens-ssot'
+import { enhanceLegacyWebsiteCrawlTablePanelSrcDoc } from '@/lib/websites/websiteCrawlTablePanel'
 
 export const RICH_MEDIA_PANEL_SRCDOC_ATTR = 'data-kg-rich-media-panel-srcdoc'
 export const RICH_MEDIA_PANEL_SRCDOC_STYLE_ID = 'kg-rich-media-panel-srcdoc-reset'
 export const RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID = 'kg-rich-media-panel-srcdoc-resize'
 export const RICH_MEDIA_PANEL_SRCDOC_TIMELINE_SCRIPT_ID = 'kg-rich-media-panel-srcdoc-timeline-transport'
+export const RICH_MEDIA_PANEL_SRCDOC_THEME_SCRIPT_ID = 'kg-rich-media-panel-srcdoc-theme'
+export const RICH_MEDIA_PANEL_SRCDOC_THEME_MESSAGE = 'kg-rich-media-panel-srcdoc-theme'
 export const RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE = 'kg-rich-media-panel-srcdoc-size'
 export const RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_ATTR = 'data-kg-rich-media-panel-size'
 export const RICH_MEDIA_PANEL_SRCDOC_SIZE_MODE_VIEWPORT = 'viewport'
@@ -30,6 +33,7 @@ const TIMELINE_AWARE_VIDEO_AGENT_SRCDOC_MARKERS = [
   'data-kg-video-agent-source-playback',
   'data-kg-video-agent-stream-panel',
   'data-kg-video-agent-transcript-panel',
+  'data-kg-website-crawl-table-panel="1"',
 ] as const
 
 function escapeHtmlText(raw: unknown): string {
@@ -113,6 +117,26 @@ function buildRichMediaPanelSrcDocResizeScript(args: { preserveDocumentOverflow:
     'window.addEventListener("resize",schedule,{passive:true});',
     'if(document.fonts&&document.fonts.ready){try{document.fonts.ready.then(schedule).catch(function(){});}catch(e){}}',
     'schedule();setTimeout(schedule,60);setTimeout(schedule,240);setTimeout(schedule,900);',
+    '})();',
+    '</script>',
+  ].join('')
+}
+
+function buildRichMediaPanelSrcDocThemeScript(): string {
+  return [
+    `<script id="${RICH_MEDIA_PANEL_SRCDOC_THEME_SCRIPT_ID}">`,
+    '(function(){',
+    `var type=${JSON.stringify(RICH_MEDIA_PANEL_SRCDOC_THEME_MESSAGE)};`,
+    'function apply(raw){',
+    'var theme=raw==="dark"?"dark":"light";',
+    'var root=document.documentElement;if(!root)return;',
+    'root.setAttribute("data-theme",theme);',
+    'if(theme==="dark")root.classList.add("dark");else root.classList.remove("dark");',
+    'try{root.style.colorScheme=theme;}catch(e){}',
+    '}',
+    'var initial="light";try{initial=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}catch(e){}',
+    'apply(initial);',
+    'window.addEventListener("message",function(event){var payload=event&&event.data;if(!payload||payload.type!==type)return;apply(payload.theme);});',
     '})();',
     '</script>',
   ].join('')
@@ -263,13 +287,15 @@ function injectStyleIntoDocument(args: {
   const existingResetStylePattern = new RegExp(`<style\\b(?=[^>]*\\bid=["']${RICH_MEDIA_PANEL_SRCDOC_STYLE_ID}["'])[^>]*>[\\s\\S]*?<\\/style>`, 'i')
   const existingResizeScriptPattern = new RegExp(`<script\\b(?=[^>]*\\bid=["']${RICH_MEDIA_PANEL_SRCDOC_RESIZE_SCRIPT_ID}["'])[^>]*>[\\s\\S]*?<\\/script>`, 'i')
   const existingTimelineScriptPattern = new RegExp(`<script\\b(?=[^>]*\\bid=["']${RICH_MEDIA_PANEL_SRCDOC_TIMELINE_SCRIPT_ID}["'])[^>]*>[\\s\\S]*?<\\/script>`, 'i')
-  const script = `${buildRichMediaPanelSrcDocResizeScript({
+  const existingThemeScriptPattern = new RegExp(`<script\\b(?=[^>]*\\bid=["']${RICH_MEDIA_PANEL_SRCDOC_THEME_SCRIPT_ID}["'])[^>]*>[\\s\\S]*?<\\/script>`, 'i')
+  const script = `${buildRichMediaPanelSrcDocThemeScript()}${buildRichMediaPanelSrcDocResizeScript({
     preserveDocumentOverflow: args.scrollOwner === 'media',
   })}${buildRichMediaPanelSrcDocTimelineTransportScript()}`
   const srcDoc = markedSrcDoc
     .replace(existingResetStylePattern, '')
     .replace(existingResizeScriptPattern, '')
     .replace(existingTimelineScriptPattern, '')
+    .replace(existingThemeScriptPattern, '')
   if (/<\/head\s*>/i.test(srcDoc)) return srcDoc.replace(/<\/head\s*>/i, `${args.style}${script}</head>`)
   if (/<head\b[^>]*>/i.test(srcDoc)) return srcDoc.replace(/<head\b[^>]*>/i, match => `${match}${args.style}${script}`)
   if (/<html\b[^>]*>/i.test(srcDoc)) {
@@ -300,7 +326,7 @@ export function normalizeRichMediaPanelInlineSrcDoc(args: {
   const srcDoc = typeof args.srcDoc === 'string' ? args.srcDoc.trim() : ''
   if (!srcDoc) return ''
   const title = String(args.title || '').trim() || 'Rich Media Panel'
-  const semanticSrcDoc = normalizeSemanticHtmlContainers(srcDoc)
+  const semanticSrcDoc = enhanceLegacyWebsiteCrawlTablePanelSrcDoc(normalizeSemanticHtmlContainers(srcDoc))
   const scrollOwner = args.scrollOwner
     || (usesViewportRichMediaPanelSrcDocSize(semanticSrcDoc) && !requestsPanelOwnedRichMediaPanelSrcDocScroll(semanticSrcDoc) ? 'media' : 'panel')
   const srcDocHash = hashStringToHexCached('rich-media-panel-srcdoc', semanticSrcDoc)

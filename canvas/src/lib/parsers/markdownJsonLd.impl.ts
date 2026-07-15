@@ -33,6 +33,7 @@ import {
 import { extractHtmlAttr, looksLikeSingleTagBlock } from 'grph-shared/markdown/mediaHtml'
 import { sanitizeIframeSrcdoc } from '@/lib/render/sanitizeIframeSrcdoc'
 import { extractMarkdownAppendixMetadataEntries } from '@/lib/markdown/markdownCommentMarker'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 export { slugify } from '@/features/parsers/markdownJsonLdUtils'
 
@@ -52,11 +53,8 @@ const buildMarkdownPipeTable = (args: { header?: string[]; rows?: string[][] }):
   }
 
   const headerRow = header.length ? pad(header) : new Array(colCount).fill('').map((_, i) => `Col ${i + 1}`)
-  const divider = new Array(colCount).fill('---')
   const body = rows.map(pad)
-
-  const render = (cells: string[]) => `| ${cells.map(c => String(c || '').trim()).join(' | ')} |`
-  return [render(headerRow), render(divider), ...body.map(render)].join('\n')
+  return serializeMarkdownPipeTable({ columns: headerRow, rows: body }).join('\n')
 }
 
 export const buildMarkdownJsonLd = (name: string, markdownText: string): Record<string, unknown> => {

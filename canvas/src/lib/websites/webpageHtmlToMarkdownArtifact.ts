@@ -2,6 +2,7 @@ import { renderAsciiFrame } from './webpageMarkdownArtifactAscii'
 import { normalizeInline, stripTrailingPunctuation } from './webpageMarkdownArtifactAsciiPrivate'
 import { convertHtmlToMarkdownUnified } from '../markdown/htmlToMarkdownUnified'
 import { postprocessWebpageMarkdownSsot } from '../markdown/webpageMarkdownPostprocess'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import {
   escapeMarkdownText,
   extractAssets,
@@ -17,7 +18,6 @@ import {
   pickHeroImage,
   pickPrimaryContentRoot,
   resolveUrl,
-  renderAsciiGridTable,
   renderSimpleBox,
   safeText,
   scrapeDate,
@@ -249,14 +249,13 @@ const pickCardTitle = (lines: string[]): { title: string; rest: string[] } => {
 }
 
 const escapeTableCell = (text: string): string => {
-  return escapeMarkdownText(String(text || '').replace(/\|/g, '\\|')).trim()
+  return escapeMarkdownText(String(text || '')).replace(/\\\|/g, '|').trim()
 }
 
 const formatPlainLinesAsBulletsInTableCell = (lines: string[]): string => {
   const items = lines.map(l => String(l || '').trim()).filter(Boolean)
   if (!items.length) return ''
-  const rendered = items.map(it => `- ${escapeTableCell(it)}`).join('<br>')
-  return rendered
+  return items.map(it => `- ${escapeTableCell(it)}`).join(' · ')
 }
 
 const isPlainListBlock = (block: string): boolean => {
@@ -309,12 +308,8 @@ const coalesceCardBlocksToMarkdownTable = (blocks: string[]): string[] => {
     const parsed = group.map(b => splitNonEmptyLines(b))
     const cards = parsed.map(lines => pickCardTitle(lines))
     const headers = cards.map(c => escapeTableCell(c.title))
-    const table: string[] = []
-    table.push(`| ${headers.join(' | ')} |`)
-    table.push(`| ${headers.map(() => '---').join(' | ')} |`)
     const cells = cards.map(c => formatPlainLinesAsBulletsInTableCell(c.rest))
-    table.push(`| ${cells.join(' | ')} |`)
-    out.push(table.join('\n'))
+    out.push(serializeMarkdownPipeTable({ columns: headers, rows: [cells] }).join('\n'))
     i = j
   }
   return out
@@ -513,11 +508,10 @@ export function convertWebpageHtmlToMarkdownArtifact(args: { html: string; url: 
       out.push('')
       const cols = navMenus.filter((m) => m.label).slice(0, 8)
       if (cols.length) {
-        out.push('```')
-        out.push(renderAsciiGridTable([
-          cols.map((c) => `${stripTrailingPunctuation(normalizeInline(c.label))}${c.items?.length ? ' ▼' : ''}`),
-        ]))
-        out.push('```')
+        out.push(serializeMarkdownPipeTable({
+          columns: cols.map((c) => `${stripTrailingPunctuation(normalizeInline(c.label))}${c.items?.length ? ' ▼' : ''}`),
+          rows: [],
+        }).join('\n'))
         out.push('')
       }
     }
@@ -545,15 +539,15 @@ export function convertWebpageHtmlToMarkdownArtifact(args: { html: string; url: 
       out.push(renderAsciiFrame({ title: titleText, width: 62, lines: boxLines }))
       out.push('```')
       out.push('')
-      out.push('| Menu Item | Link |')
-      out.push('|-----------|------|')
+      const menuRows: string[][] = []
       for (const it of items.slice(0, 20)) {
         const label = stripTrailingPunctuation(normalizeInline(it.label))
         const href = it.href
         if (!label || !href) continue
         const rel = formatRelativeHref(href, url)
-        out.push(`| ${escapeMarkdownText(label)} | [${escapeMarkdownText(rel)}](${href}) |`)
+        menuRows.push([escapeTableCell(label), `[${escapeTableCell(rel)}](${href})`])
       }
+      out.push(...serializeMarkdownPipeTable({ columns: ['Menu Item', 'Link'], rows: menuRows }))
       out.push('')
     }
     out.push('---')
@@ -620,9 +614,10 @@ export function convertWebpageHtmlToMarkdownArtifact(args: { html: string; url: 
       if (rows.length >= 24) break
     }
     if (rows.length) {
-      out.push('| Link Text | URL |')
-      out.push('|----------|-----|')
-      for (const r of rows) out.push(`| ${escapeMarkdownText(r.text)} | ${r.href} |`)
+      out.push(...serializeMarkdownPipeTable({
+        columns: ['Link Text', 'URL'],
+        rows: rows.map(r => [escapeTableCell(r.text), r.href]),
+      }))
       out.push('')
     }
     out.push('---')
@@ -635,9 +630,11 @@ export function convertWebpageHtmlToMarkdownArtifact(args: { html: string; url: 
 
   const byKind = (k: AssetKind) => assets.filter((a) => a.kind === k)
   const kinds: AssetKind[] = ['image', 'video', 'audio', 'stylesheet', 'script', 'icon']
-  out.push('| Kind | Count |')
-  out.push('|------|------:|')
-  for (const k of kinds) out.push(`| ${k} | ${byKind(k).length} |`)
+  out.push(...serializeMarkdownPipeTable({
+    columns: ['Kind', 'Count'],
+    alignments: [null, 'right'],
+    rows: kinds.map(k => [k, byKind(k).length]),
+  }))
   out.push('')
 
   const renderAssetTable = (k: AssetKind, title: string) => {
@@ -645,12 +642,11 @@ export function convertWebpageHtmlToMarkdownArtifact(args: { html: string; url: 
     if (!items.length) return
     out.push(`### ${title}`)
     out.push('')
-    out.push('| # | URL | Label |')
-    out.push('|--:|-----|-------|')
-    for (let i = 0; i < Math.min(items.length, 120); i += 1) {
-      const it = items[i]
-      out.push(`| ${i + 1} | ${it.url} | ${escapeMarkdownText(safeText(it.label || ''))} |`)
-    }
+    out.push(...serializeMarkdownPipeTable({
+      columns: ['#', 'URL', 'Label'],
+      alignments: ['right', null, null],
+      rows: items.slice(0, 120).map((it, index) => [index + 1, it.url, escapeTableCell(safeText(it.label || ''))]),
+    }))
     out.push('')
   }
   renderAssetTable('image', 'Images')

@@ -26,6 +26,7 @@ import {
 import { createPdfAssetsHandler, createPdfConvertHandler } from './src/lib/pdf/server/pdfConvertServer'
 import { createPdfWorkspaceHandler } from './src/lib/pdf/server/pdfWorkspaceServer'
 import { createWebsiteImportHandler } from './src/lib/websites/server/websiteImportServer'
+import { serializeMarkdownPipeTable } from './src/features/markdown/ui/markdownDataViewSerialize'
 import { createWebpageMetaHandler } from './src/lib/websites/webpageMetaServer'
 import { createLocalFileRangeHandler } from './src/lib/assets/server/localFileRangeServer'
 import { createRemoteVideoFrameHandler, createRemoteVideoFramePublicAssetHandler, REMOTE_VIDEO_FRAME_PUBLIC_PREFIX } from './src/lib/rich-media/server/videoFrameServer'
@@ -170,7 +171,7 @@ const toLogSafeText = (value: unknown): string => {
 }
 
 const toLogSafeInline = (value: unknown): string => {
-  return toLogSafeText(value).replace(/\n/g, ' ').replace(/\|/g, '\\|')
+  return toLogSafeText(value).replace(/\n/g, ' ')
 }
 
 const toChatLogFileName = (timestampMs: number): string => {
@@ -1791,18 +1792,19 @@ function createChatLogAppendHandler(): import('vite').Connect.NextHandleFunction
       }
       await fs.mkdir(chatLogsDir, { recursive: true })
       const exists = existsSync(filePath)
-      if (!exists) {
-        const header = [
-          '| User Request/AI Response | Snippet | Timestamp | Status |',
-          '|---|---|---|---|',
-        ].join('\n')
-        await fs.writeFile(filePath, `${header}\n`, 'utf8')
-      }
+      if (!exists) await fs.writeFile(filePath, '# Chat log\n', 'utf8')
       const timestampText = new Date(tsMs).toISOString().slice(0, 19).replace('T', ' ')
       const snippet = toLogSafeInline(responseText || requestText).slice(0, 280)
       const pairInline = `User: ${toLogSafeInline(requestText).slice(0, 400)} ↔ AI: ${toLogSafeInline(responseText).slice(0, 400)}`
-      const detail = [
-        `<details><summary>Details</summary>`,
+      const summaryTable = serializeMarkdownPipeTable({
+        columns: ['User Request/AI Response', 'Snippet', 'Timestamp', 'Status'],
+        rows: [[pairInline, snippet, timestampText, toLogSafeInline(status)]],
+      })
+      const entry = [
+        '',
+        `## ${timestampText}`,
+        '',
+        ...summaryTable,
         '',
         `**Model:** ${toLogSafeInline(model || '—')}`,
         '',
@@ -1818,10 +1820,8 @@ function createChatLogAppendHandler(): import('vite').Connect.NextHandleFunction
         responseText || '—',
         '```',
         '',
-        '</details>',
       ].join('\n')
-      const row = `| ${pairInline} | ${snippet}<br/>${detail} | ${timestampText} | ${toLogSafeInline(status)} |`
-      await fs.appendFile(filePath, `${row}\n`, 'utf8')
+      await fs.appendFile(filePath, entry, 'utf8')
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.setHeader('Cache-Control', 'no-store')

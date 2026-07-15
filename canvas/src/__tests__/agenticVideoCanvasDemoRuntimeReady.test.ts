@@ -5,6 +5,7 @@ import { load as parseYaml } from 'js-yaml'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import { parseGenerationInvocation } from '@/features/chat/generationInvocation'
 import { parseChatSkillSlashInvocation } from '@/features/chat/chatSkillRegistry'
+import { parseNativeCrawlerInvocation } from '@/features/chat/nativeCrawlerInvocation'
 import { isVideoAgentDemoPresetInvocation } from '@/features/chat/floatingPanelChat/videoAgentDemoPresetSubmit'
 import { isImageToThreeJsPromptPreset } from '@/features/image-to-threejs/imageToThreeJsPromptPreset'
 import { isImageToGlbPromptPreset } from '@/features/image-to-glb/imageToGlbPromptPreset'
@@ -50,27 +51,32 @@ const nodeById = (nodes: PlainRecord[], id: string): PlainRecord => {
 
 const property = (node: PlainRecord, key: string): unknown => unwrap(node[key])
 
-export function testAgenticPromptPresetCatalogOwnsFiveRuntimeRoutes() {
+export function testAgenticPromptPresetCatalogOwnsSixRuntimeRoutes() {
   const catalogText = fs.readFileSync(PROMPT_CATALOG_PATH, 'utf8')
   const catalog = readFrontmatter(catalogText)
   const presets = Array.isArray(catalog.prompt_presets) ? catalog.prompt_presets.filter(isRecord) : []
-  if (catalog.schema !== 'agentic-os-prompt-preset-catalog/v1' || presets.length !== 5) {
-    throw new Error('expected the centralized five-entry prompt preset catalog')
+  if (catalog.schema !== 'agentic-os-prompt-preset-catalog/v1' || presets.length !== 6) {
+    throw new Error('expected the centralized six-entry prompt preset catalog')
   }
   const routes = presets.map(preset => String(preset.slash_command || ''))
-  if (routes.join(',') !== '/video-agent,/image.to-threejs,/image.to-glb,/sme-care-agent,/investment-research-agent') {
+  if (routes.join(',') !== '/video-prompt-preset,/image.to-threejs,/image.to-glb,/sme-care-prompt-preset,/investment-research-prompt-preset,/crawler-prompt-preset') {
     throw new Error(`unexpected centralized preset routes ${routes.join(',')}`)
   }
   for (const preset of presets) {
     const prompt = String(preset.prompt || '')
-    const valid = preset.slash_command === '/video-agent'
+    const runtimeCommand = String(preset.runtime_command || '')
+    const slashCommand = String(preset.slash_command || '')
+    const isCardInline = slashCommand === '/image.to-threejs' || slashCommand === '/image.to-glb'
+    const valid = slashCommand === '/image.to-threejs'
+      ? isImageToThreeJsPromptPreset(prompt)
+      : slashCommand === '/image.to-glb'
+        ? isImageToGlbPromptPreset(prompt)
+        : runtimeCommand === '/video-agent'
       ? Boolean(parseGenerationInvocation(prompt))
-      : preset.slash_command === '/image.to-threejs'
-        ? isImageToThreeJsPromptPreset(prompt)
-        : preset.slash_command === '/image.to-glb'
-          ? isImageToGlbPromptPreset(prompt)
-          : parseChatSkillSlashInvocation(prompt)?.skill.slashCommand === preset.slash_command
-    if (!valid || !prompt.startsWith(String(preset.slash_command))) {
+      : runtimeCommand === '/crawler-agent'
+        ? parseNativeCrawlerInvocation(prompt)?.command === '/crawler-agent'
+        : parseChatSkillSlashInvocation(prompt)?.skill.slashCommand === runtimeCommand
+    if ((!isCardInline && !slashCommand.endsWith('-prompt-preset')) || !valid || !prompt.startsWith(isCardInline ? slashCommand : runtimeCommand)) {
       throw new Error(`invalid centralized prompt preset ${String(preset.id || '')}`)
     }
   }
@@ -94,7 +100,9 @@ export function testAgenticVideoCanvasDemoIsExecutableAndReplayable() {
   const promptCatalog = readFrontmatter(fs.readFileSync(PROMPT_CATALOG_PATH, 'utf8'))
   const promptPresets = Array.isArray(promptCatalog.prompt_presets) ? promptCatalog.prompt_presets.filter(isRecord) : []
   const videoPromptPreset = promptPresets.find(preset => preset.id === 'video-agent')
-  if (!videoPromptPreset || videoPromptPreset.slash_command !== '/video-agent') throw new Error('expected centralized video-agent prompt preset')
+  if (!videoPromptPreset || videoPromptPreset.slash_command !== '/video-prompt-preset' || videoPromptPreset.runtime_command !== '/video-agent') {
+    throw new Error('expected centralized video prompt preset alias and runtime route')
+  }
   const invocation = parseGenerationInvocation(videoPromptPreset.prompt)
   if (!invocation) throw new Error('expected default /video-agent invocation to resolve')
   if (!isVideoAgentDemoPresetInvocation(String(videoPromptPreset.prompt || ''))) throw new Error('expected the centralized video invocation to bypass generic provider chat')

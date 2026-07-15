@@ -32,6 +32,47 @@ const RICH_MEDIA_CONNECTED_RENDER_PATHS = [
   'properties.modelUrl',
 ] as const
 
+const RICH_MEDIA_ORPHANED_LOADING_BACKFILL_AFTER_MS = 30 * 60 * 1000
+
+function readRunTimestamp(node: GraphNode | null | undefined): number | null {
+  const value = (node?.properties as Record<string, unknown> | undefined)?.lastRunAt
+  if (typeof value !== 'string' || !value.trim()) return null
+  const timestamp = Date.parse(value)
+  return Number.isFinite(timestamp) ? timestamp : null
+}
+
+function isOrphanedLoadingRunStale(node: GraphNode | null | undefined): boolean {
+  const timestamp = readRunTimestamp(node)
+  return timestamp !== null && Date.now() - timestamp >= RICH_MEDIA_ORPHANED_LOADING_BACKFILL_AFTER_MS
+}
+
+function deriveOrphanedRichMediaTextBackfill(args: {
+  node: GraphNode
+  nodeById?: ReadonlyMap<string, GraphNode>
+  localLoading: boolean
+}): string {
+  if (!args.localLoading || !args.nodeById || !isOrphanedLoadingRunStale(args.node)) return ''
+  const panelProps = (args.node.properties || {}) as Record<string, unknown>
+  const panelModel = typeof panelProps.outputModel === 'string' ? panelProps.outputModel.trim() : ''
+  const panelSourceUrl = typeof panelProps.outputSourceUrl === 'string' ? panelProps.outputSourceUrl.trim() : ''
+  const panelOutput = typeof panelProps.output === 'string' ? panelProps.output.trim() : ''
+  if (!panelModel || !panelSourceUrl) return ''
+  let best: { output: string; timestamp: number } | null = null
+  for (const candidate of args.nodeById.values()) {
+    if (!candidate || String(candidate.id || '').trim() === String(args.node.id || '').trim()) continue
+    if (String(candidate.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) continue
+    const props = (candidate.properties || {}) as Record<string, unknown>
+    if (String(props.outputModel || '').trim() !== panelModel || String(props.outputSourceUrl || '').trim() !== panelSourceUrl) continue
+    const output = typeof props.output === 'string' ? props.output.trim() : ''
+    if (!output || output === panelOutput) continue
+    const loading = readLoadingStateFromNode(candidate).loading
+    if (loading && !isOrphanedLoadingRunStale(candidate)) continue
+    const timestamp = readRunTimestamp(candidate) || 0
+    if (!best || timestamp > best.timestamp) best = { output, timestamp }
+  }
+  return best?.output || ''
+}
+
 function readLoadingStateFromNode(node: GraphNode | null | undefined): { loading: boolean; kind: 'text' | 'image' | 'video' | 'audio' | 'model' | '' } {
   if (!node) return { loading: false, kind: '' }
   const props = (node.properties || {}) as Record<string, unknown>
@@ -108,12 +149,13 @@ export function buildStaticRichMediaPanelOverlayState(args: {
 function deriveRichMediaPanelLoadingSourceLabels(args: {
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   nodeById?: ReadonlyMap<string, GraphNode>
-}): { loading: boolean; kind: 'text' | 'image' | 'video' | 'audio' | 'model' | ''; sourceLabels: string[] } {
+}): { hasSources: boolean; loading: boolean; kind: 'text' | 'image' | 'video' | 'audio' | 'model' | ''; sourceLabels: string[] } {
   const connectedValuesBySchemaPath = args.connectedValuesBySchemaPath
   const nodeById = args.nodeById
-  if (!connectedValuesBySchemaPath || !nodeById) return { loading: false, kind: '', sourceLabels: [] }
+  if (!connectedValuesBySchemaPath || !nodeById) return { hasSources: false, loading: false, kind: '', sourceLabels: [] }
   const seenSourceIds = new Set<string>()
   const sourceLabels: string[] = []
+  let hasSources = false
   let kind: 'text' | 'image' | 'video' | 'audio' | 'model' | '' = ''
   let loading = false
   for (let idx = 0; idx < RICH_MEDIA_CONNECTED_RENDER_PATHS.length; idx += 1) {
@@ -125,6 +167,8 @@ function deriveRichMediaPanelLoadingSourceLabels(args: {
       if (!sourceId || seenSourceIds.has(sourceId)) continue
       seenSourceIds.add(sourceId)
       const sourceNode = nodeById.get(sourceId) || null
+      if (!sourceNode) continue
+      hasSources = true
       const next = readLoadingStateFromNode(sourceNode)
       if (!next.loading) continue
       loading = true
@@ -133,7 +177,7 @@ function deriveRichMediaPanelLoadingSourceLabels(args: {
       if (label) sourceLabels.push(label)
     }
   }
-  return { loading, kind, sourceLabels }
+  return { hasSources, loading, kind, sourceLabels }
 }
 
 export function resolveRichMediaPanelRenderNode(args: {
@@ -198,17 +242,23 @@ export function buildRichMediaPanelOverlayState(args: {
       ? (rawTab as RichMediaPanelOverlayState['activeTab'])
       : 'auto'
   const freezeConnectedOutput = readNodeFieldBoolean(nodeForState, props, 'freezeConnectedOutput')
-  const connectedText = normalizeConnectedTextValue(connectedValuesBySchemaPath?.['properties.output']?.value)
   const localLoading = readLoadingStateFromNode(nodeForState)
+  const connectedText = normalizeConnectedTextValue(connectedValuesBySchemaPath?.['properties.output']?.value)
+    || deriveOrphanedRichMediaTextBackfill({ node: nodeForState, nodeById: args.nodeById, localLoading: localLoading.loading })
   const connectedLoading = deriveRichMediaPanelLoadingSourceLabels({
     connectedValuesBySchemaPath,
     nodeById: args.nodeById,
   })
-  const isLoading = localLoading.loading || connectedLoading.loading
+  // Connected producer state is authoritative. This also backfills panels left with a
+  // stale local loading flag after the producer has already committed terminal output.
+  const isLoading = connectedLoading.hasSources
+    ? connectedLoading.loading
+    : localLoading.loading && !connectedText
   const loadingKind = localLoading.kind || connectedLoading.kind
-  const loadingLabel = connectedLoading.sourceLabels.length > 0
+  const customLoadingLabel = typeof props.outputLoadingLabel === 'string' ? props.outputLoadingLabel.trim() : ''
+  const loadingLabel = customLoadingLabel || (connectedLoading.sourceLabels.length > 0
     ? `${loadingLabelFromKind(loadingKind)} (${connectedLoading.sourceLabels.join(', ')})`
-    : loadingLabelFromKind(loadingKind)
+    : loadingLabelFromKind(loadingKind))
   return {
     activeTab,
     freezeConnectedOutput,

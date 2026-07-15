@@ -37,7 +37,7 @@ import {
   resolveMainPanelKtvTypeIconKey,
 } from '@/features/panels/ui/mainPanelHelpIconLibrary'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
-import { FloatingPanelSkillsCommandsView } from '@/features/toolbar/FloatingPanelSkillsCommandsView'
+import { FloatingPanelSkillsCommandsView } from '@/features/toolbar/FloatingPanelSkillsCommandsView'; import { FloatingPanelPromptPresetsView } from '@/features/toolbar/FloatingPanelPromptPresetsView'
 import { DesignFloatingPanelView } from '@/features/design/DesignFloatingPanelView'
 import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTypes'
 import { requestGeospatialTraversalRun, setGeospatialModeEnabled as enableGeospatialMode } from '@/features/geospatial/gympgrphBridge'
@@ -119,7 +119,7 @@ const ArchitectureFloatingPanelViewLazy = React.lazy(() => import('@/features/gi
 const EventModelingFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/EventModelingFloatingPanelView').then(mod => ({ default: mod.EventModelingFloatingPanelView })))
 const StrybldrCameraFloatingPanelViewLazy = React.lazy(() => import('@/features/strybldr/StrybldrCameraFloatingPanelView').then(mod => ({ default: mod.StrybldrCameraFloatingPanelView })))
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'view', 'camera', 'chat', 'geo', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'xr', 'architecture', 'eventModeling'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'promptPresets', 'view', 'camera', 'chat', 'geo', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'xr', 'architecture', 'eventModeling'])
 
 const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
   pipelineStatus: string | null
@@ -491,7 +491,7 @@ export function ToolbarToolMenu({
   const floatingPanelPrimaryViewButtonSpecs = React.useMemo<FloatingPanelViewButtonSpec[]>(
     () => [
       { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.propsPanel },
-      { view: 'skillsCommands', title: UI_LABELS.skillsCommands, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.skillsCommands },
+      { view: 'skillsCommands', title: UI_LABELS.skillsCommands, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.skillsCommands }, { view: 'promptPresets', title: UI_LABELS.promptPresets, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.promptPresets },
       { view: 'view', title: UI_LABELS.view, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.view },
       { view: 'media', title: 'Media', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.media },
       { view: 'camera', title: 'Camera', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.camera },
@@ -695,7 +695,7 @@ export function ToolbarToolMenu({
           <section className={floatingPanelBodyClassName} aria-label={UI_LABELS.floatingPanel}>
             <PanelFormDensityProvider value={panelFormDensity}>
             {floatingPanelView === 'propsPanel' && <FloatingPropsPanel />}
-            {floatingPanelView === 'skillsCommands' && <FloatingPanelSkillsCommandsView />}
+            {floatingPanelView === 'skillsCommands' && <FloatingPanelSkillsCommandsView />} {floatingPanelView === 'promptPresets' && <FloatingPanelPromptPresetsView />}
             {floatingPanelView === 'view' && <WorkspaceDataViewFloatingPanelView />}
             {floatingPanelView === 'media' && (
               <React.Suspense fallback={null}>

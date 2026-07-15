@@ -25,7 +25,7 @@ export const CHAT_BASE_RESPONSE_CONTRACT_PROMPT = [
   '· Use ## headings and - bullets for structure; no manual line-break layout.',
   '· Fenced code blocks: always include a language tag.',
   '· Structured metadata: ONE fenced yaml block with root key response:.',
-  '· For renderable or interactive output, the yaml block MUST include `response.structuredContent` shaped like an MCP tool result: arrays named widgets, panels, cards, media, or nodes; each item may carry id, label, kind, output, imageUrl, videoUrl, audioUrl, outputSrcDoc; declared widgets may also carry nodeTypeId, formId, widgetTypeId, prompt, sourceHandle, targetHandle, and optional safe `flow:compute` data for inline port-derived output; optional edges carry source, target, sourceHandle, targetHandle, label. Plain fields are preferred, and typed {key,type,value} envelopes or properties[] rows are normalized by the shared frontmatter-value path.',
+  '· For renderable or interactive output, the yaml block MUST include `response.structuredContent` shaped like an MCP tool result: arrays named widgets, panels, cards, media, nodes, or tables; each item may carry id, label, kind, output, imageUrl, videoUrl, audioUrl, or non-table interactive outputSrcDoc; table records carry columns and rows. Declared widgets may also carry nodeTypeId, formId, widgetTypeId, prompt, sourceHandle, targetHandle, and optional safe `flow:compute` data for inline port-derived output; optional edges carry source, target, sourceHandle, targetHandle, label. Plain fields are preferred, and typed {key,type,value} envelopes or properties[] rows are normalized by the shared frontmatter-value path.',
   '· GitGraph, Gantt, and Geospatial outputs follow the same rule: diagram source may live in neutral records or typed `flow_diagrams` data (`mermaid_gitgraph`, `mermaid_gantt`), and GeoJSON/FeatureCollection data may live in neutral `geoJson`/`geojson`/coordinate fields, but renderable panels must be source/card/widget -> safe compute -> Rich Media Panel `outputSrcDoc` dataflow with authored edges whenever available.',
   '· D3 Graph, Flow Canvas, Dashboard, 3D Mode, and XR Mode outputs use neutral frontmatter data, not renderer-local instructions: put renderer/surface/model intent in `kgCanvas2dRenderer`, `kgCanvasSurfaceMode`, `kgCanvasRenderMode`, `kgCanvas3dMode`, and `kgAsset*`, then keep generated graph nodes, edges, and panels on the shared dataflow path.',
   '· Strybldr/storytree outputs follow the source-data rule: put portable flags such as `storytree_product` and `kgStrybldrStoryboard` in frontmatter, put branch lineage on card/story records with `parentNodeId` or storytree/candidateRun parent fields, and let shared Strybldr/Storyboard owners derive visible card connectors from graph edges.',
@@ -62,8 +62,8 @@ export const CHAT_BASE_RESPONSE_CONTRACT_PROMPT = [
   '  Canonical base node IDs: n-trigger, n-pack, n-process, n-validate, n-deliver.',
   '  Domain variants rename these after forking. FORBIDDEN: position: on any node.',
   '· structuredContent: MCP-aligned tool result payload for Canvas materialization.',
-  '  Use neutral fields only: widgets/panels/cards/media/nodes arrays plus edges array.',
-  '  Render fields: output/result/response/transcript, imageUrl, videoUrl, audioUrl, outputSrcDoc.',
+  '  Use neutral fields only: widgets/panels/cards/media/nodes/tables arrays plus edges array.',
+  '  Render fields: output/result/response/transcript, imageUrl, videoUrl, audioUrl, and outputSrcDoc only for non-table interactive media.',
   '  Declared widget forms may include nodeTypeId/formId/widgetTypeId/prompt and handle keys; undeclared panels/cards/media/nodes remain neutral Rich Media Panel endpoints.',
   '  Dynamic inline compute is data, not UI glue: a declared widget may carry safe `flow:compute` that reads incoming handle keys from `inputs` and returns output-port values for the shared Storyboard Widget dataflow runtime.',
   '  Diagram and geospatial fields such as `flow_diagrams`, `mermaid_gitgraph`, `mermaid_gantt`, `geoJson`, `FeatureCollection`, and coordinate payloads are data inputs; do not mix them with document version-control GitGraph state, renderer-local Timeline UI, or Geospatial Mode toggles.',
@@ -71,7 +71,7 @@ export const CHAT_BASE_RESPONSE_CONTRACT_PROMPT = [
   '  Strybldr/storytree fields such as `storytree_product`, `kgStrybldrStoryboard`, card `parentNodeId`, `storytree.nodes[].parentNodeId`, and `candidateRuns[].parentNodeId` are card-lineage data inputs; do not replace them with copied connector coordinates or static panel backfill.',
   '  Plain scalar fields are preferred; when KGC-native typed envelopes are necessary, use exact {key,type,value} or properties[] rows with the same neutral keys.',
   '  Do not name renderer-local components or instruct UI placement; shared Storyboard Widget and Rich Media owners materialize it.',
-  '· table: row/column-ready records. Never leave empty cells — use TBD or —.',
+  '· table: row/column-ready records serialized as GitHub-flavored Markdown pipe tables in YAML `output: |-`; never persist table HTML or table-shaped srcDoc/outputSrcDoc. Never leave empty cells — use TBD or —.',
   '  Multi-select: `["A","B"]`. Confidence: low | medium | high only (V-07).',
   '· assumptions: what you are inferring that the user did not state.',
   '· open_questions: items that need resolution; phrased as questions.',
@@ -103,11 +103,12 @@ export const CHAT_BASE_RESPONSE_CONTRACT_PROMPT = [
   '',
 
   // ── VALIDATION ────────────────────────────────────────────────────────────
-  'VALIDATION: V-01–V-07 run on every output. Violations trigger @flag:correction.',
+  'VALIDATION: V-01–V-07 and V-10 run on every output. Violations trigger @flag:correction.',
   '  V-01 sigil HEX 6-digit uppercase  V-02 no quoted span ≥ 15 words',
   '  V-03 {{key}} resolvable (Tier B excepted)  V-04 arrays JSON.parse-safe',
   '  V-05 compute: no fetch/document/window  V-06 no ... in H1–H4 headings',
   '  V-07 confidence: low|medium|high only',
+  '  V-10 generated tables: YAML block-scalar GitHub-flavored Markdown pipe tables only; no authored `<table>` outside fenced code',
   '',
 
   // ── SAFETY + STABILITY ────────────────────────────────────────────────────

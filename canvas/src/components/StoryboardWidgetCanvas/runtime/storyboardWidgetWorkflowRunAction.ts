@@ -9,7 +9,6 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { UI_COPY, FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
-import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { buildTextWidgetOutputPatch, clearRichMediaOutputProperties, resolveRichMediaWidgetKind, writeTextWidgetRunOutputArtifact } from '@/features/chat/richMediaRun'
 import { fetchYouTubeTranscriptMarkdown } from '@/features/transcription/youtubeTranscriptMarkdown'
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
@@ -28,44 +27,11 @@ import { runStoryboardWidgetMediaWorkflowNode } from '@/components/StoryboardWid
 import { createStoryboardWidgetWorkflowRichMediaPublishers } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPublication'
 import { materializeStoryboardWidgetWorkflowOutputEdge } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowOutputEdgeMaterialization'
 import { readFlowComputeSource } from '@/lib/storyboardWidget/flowComputeInline'
-import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { resolveStoryboardWidgetTextThinkingOptions } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowTextThinking'
-export type StoryboardWidgetWorkflowNodeRunner = (nodeId: string, runOptions?: {
-  allowCreateRichMediaPanel?: boolean
-  suppressLayoutMutation?: boolean
-  visitedNodeIds?: Set<string>
-  propagateErrors?: boolean; requireDurableMediaPersistence?: boolean
-}) => Promise<void>
-export type StoryboardWidgetWorkflowNodeRunnerArgs = {
-  baseGraphKind: string
-  baseGraphData: GraphData | null
-  readDraftGraphData: () => GraphData | null
-  commitDraftGraphDataUpdate: (currentDraft: GraphData, nextDraft: GraphData) => void
-  commitPublishedGraphData?: (graphData: GraphData) => void
-  renderGraphDataOverride: GraphData | null
-  markdownDocumentName: string | null
-  markdownDocumentSourceUrl: string | null
-  widgetRegistry: WidgetRegistryEntry[]
-  appendDraftNode: (args: {
-    id?: string | null
-    type: string
-    label?: string | null
-    x: number
-    y: number
-    properties?: Record<string, unknown>
-  }) => string
-  updateNode: (id: string, patch: Partial<GraphNode>) => void
-  upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
-  scheduleOverlayEdgeUpdate: () => void
-}
-
-export function resolveStoryboardWidgetBaseGraphKind(graphData: GraphData | null | undefined): string {
-  if (graphData && isFrontmatterFlowGraph(graphData)) return 'frontmatter-flow'
-  const meta = (graphData?.metadata || {}) as Record<string, unknown>
-  const byKind = String(meta.kind || '').trim()
-  if (byKind) return byKind
-  return String(graphData?.context || '').trim()
-}
+import { runStoryboardWidgetNativeCrawlerInvocation } from './storyboardWidgetWorkflowNativeCrawlerRun'
+import type { StoryboardWidgetWorkflowNodeRunner, StoryboardWidgetWorkflowNodeRunnerArgs } from './storyboardWidgetWorkflowRunTypes'
+export { resolveStoryboardWidgetBaseGraphKind } from './storyboardWidgetWorkflowRunTypes'
+export type { StoryboardWidgetWorkflowNodeRunner, StoryboardWidgetWorkflowNodeRunnerArgs } from './storyboardWidgetWorkflowRunTypes'
 
 export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetWorkflowNodeRunnerArgs): StoryboardWidgetWorkflowNodeRunner {
   const scheduleWorkflowOutputEdgeRefresh = () => {
@@ -353,7 +319,6 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
           updateRunOutputForKnownNodeIds(nodeProps => ({
             ...clearRichMediaOutputProperties(nodeProps),
             output: outputProperties.output,
-            outputSrcDoc: outputProperties.outputSrcDoc,
             imageUrl: outputProperties.imageUrl,
             predictionScore: outputProperties.predictionScore,
             confidenceScore: outputProperties.confidenceScore,
@@ -483,6 +448,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
           reportNodeRunFailure('Add a prompt before running the Widget Card.', 2400)
           return
         }
+        if (await runStoryboardWidgetNativeCrawlerInvocation({ id, prompt, node, nodeProperties: rawNodeProperties, workspacePath: args.markdownDocumentName, recoveryOnly: runOptions?.nativeCrawlerRecovery === true, updateOutput: updateRunOutputForKnownNodeIds, publishOutput: publishTextRunOutputToRichMediaPanel, upsertToast: args.upsertUiToast, reportFailure: reportNodeRunFailure })) return
         setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
         const mirrorTextOutputToRichMediaPanel = isFlowVideoScriptFormId(resolvedTextRegistryEntry?.formId) || providerFamily === 'byteplus'
         const textThinkingOptions = resolveStoryboardWidgetTextThinkingOptions({ formId: resolvedTextRegistryEntry?.formId || rawNodeProperties[FLOW_WIDGET_FORM_ID_KEY], localProperties: rawNodeProperties, resolvedMaxCompletionTokens: properties.chatMaxCompletionTokens ?? store.chatMaxCompletionTokens, resolvedThinkingJson: properties.chatThinkingJson ?? store.chatThinkingJson, resolvedThinkingType: properties.chatThinkingType ?? store.chatThinkingType })
@@ -593,6 +559,24 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
       if (runOptions?.propagateErrors) throw error
       const detail = error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '').trim() : ''
       args.upsertUiToast({ id: `storyboard-widget-run-failed-${String(nodeId || '')}`, kind: 'error', message: detail || UI_COPY.storyboardWidgetRunFailedToast, ttlMs: 4200 })
+    } finally {
+      const durableGraph = args.readDraftGraphData()
+      if (durableGraph) {
+        try {
+          await args.persistDraftGraphData(durableGraph)
+        } catch (error) {
+          const detail = error && typeof error === 'object' && 'message' in error
+            ? String((error as { message?: unknown }).message || '').trim()
+            : ''
+          args.upsertUiToast({
+            id: `storyboard-widget-persistence-failed-${String(nodeId || '')}`,
+            kind: 'error',
+            message: detail || 'Generated output could not be persisted to the workspace.',
+            ttlMs: 5200,
+          })
+          throw error
+        }
+      }
     }
   }
   return runWorkflowNode

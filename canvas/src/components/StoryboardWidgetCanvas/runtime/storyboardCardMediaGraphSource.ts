@@ -2,7 +2,7 @@ import { syncActiveMarkdownDocumentTextFromParsedGraph, writeActiveMarkdownDocum
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 
-export function persistStoryboardCardMediaGraphSource(graphData: GraphData): void {
+export async function persistStoryboardCardMediaGraphSource(graphData: GraphData): Promise<void> {
   const state = useGraphStore.getState()
   const sourceSync = syncActiveMarkdownDocumentTextFromParsedGraph({
     state,
@@ -16,10 +16,11 @@ export function persistStoryboardCardMediaGraphSource(graphData: GraphData): voi
     sourceSync.markdownDocumentText,
     { applyViewPreset: false },
   )
-  writeActiveMarkdownDocumentTextIfPresent({
+  const persisted = await writeActiveMarkdownDocumentTextIfPresent({
     state: useGraphStore.getState(),
     sourceFiles: sourceSync.sourceFiles,
     text: sourceSync.markdownDocumentText,
     label: 'Storyboard media graph',
   })
+  if (!persisted) throw new Error('Unable to persist the generated Canvas document to the workspace.')
 }

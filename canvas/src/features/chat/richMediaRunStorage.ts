@@ -4,6 +4,7 @@ import type { RichMediaWidgetKind } from './richMediaRun'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
 import { registerUploadedMediaPanelStorage } from '@/lib/storage/uploadedMediaPanelItems'
 import { uploadMediaFileToKnowgrphStorage, type UploadedMediaStorageResult } from '@/lib/storage/uploadedMediaStorage'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 const cleanString = (value: unknown): string => typeof value === 'string' ? value.trim() : ''
 
@@ -80,12 +81,6 @@ export const publishGeneratedTextToStorage = async (args: {
   }
 }
 
-const escapeMarkdownTableCell = (value: unknown): string => String(value ?? '')
-  .replace(/\r\n?/g, '\n')
-  .replace(/\|/g, '\\|')
-  .replace(/\n+/g, '<br>')
-  .trim()
-
 const escapeMarkdownAltText = (value: unknown): string => String(value ?? '')
   .replace(/[\[\]\n\r]/g, ' ')
   .replace(/\s+/g, ' ')
@@ -118,7 +113,10 @@ export const buildGeneratedMediaManifestMarkdown = (args: {
   ]
   const rows = rawRows.filter(([, value]) => cleanString(value))
   const dataTable = rows.length
-    ? ['| key | value |', '| --- | --- |', ...rows.map(([key, value]) => `| ${escapeMarkdownTableCell(key)} | ${escapeMarkdownTableCell(value)} |`)].join('\n')
+    ? serializeMarkdownPipeTable({
+        columns: ['key', 'value'],
+        rows: rows.map(([key, value]) => [key, String(value ?? '')]),
+      }).join('\n')
     : ''
   const mediaBlock = args.kind === 'video'
     ? `<video controls src="${relativeAssetPath}"></video>`

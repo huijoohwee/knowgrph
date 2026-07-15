@@ -5,6 +5,7 @@ import {
   UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME,
 } from '@/lib/ui/textLayout'
 import { UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 export { normalizeCardInlineMediaSoftLineBreaks } from '@/lib/cards/cardInlineTextViewerDraftProjection'
 
 const CARD_MARKDOWN_STRUCTURAL_PATTERN = /(^|\n)\s*(?:>+|```|\|[^\n]*\|)|!\[[^\]]*]\([^)]+?\)|(?<!!)\[[^\]]+]\([^)]+?\)|(^|[^\\])\$[^$\n]+\$|<\s*(?:iframe|img|video)\b/i
@@ -112,25 +113,20 @@ export function readCardMarkdownPreviewSourceLineRange(args: {
   return trimBlankMarkdownPreviewLines(lines.slice(startLine - 1, endLine).join('\n'))
 }
 
-const escapeMarkdownTableCell = (raw: unknown): string => String(raw ?? '').replace(/\r?\n/g, ' ').replace(/\|/g, '\\|')
-
 const buildTableMarkdownPreviewText = (table: unknown): string => {
   if (!table || typeof table !== 'object') return ''
   const rec = table as { columns?: unknown; rows?: unknown }
-  const columns = Array.isArray(rec.columns) ? rec.columns.map(escapeMarkdownTableCell) : []
+  const columns = Array.isArray(rec.columns) ? rec.columns.map(value => String(value ?? '')) : []
   const rows = Array.isArray(rec.rows)
     ? rec.rows
       .filter((row): row is unknown[] => Array.isArray(row))
-      .map(row => row.map(escapeMarkdownTableCell))
+      .map(row => row.map(value => String(value ?? '')))
     : []
   const width = Math.max(columns.length, ...rows.map(row => row.length), 0)
   if (width <= 0) return ''
   const paddedColumns = Array.from({ length: width }, (_, index) => columns[index] ?? '')
   const padRow = (row: string[]) => Array.from({ length: width }, (_, index) => row[index] ?? '')
-  const head = `| ${paddedColumns.join(' | ')} |`
-  const sep = `| ${paddedColumns.map(() => '---').join(' | ')} |`
-  const body = rows.map(row => `| ${padRow(row).join(' | ')} |`)
-  return [head, sep, ...body].join('\n')
+  return serializeMarkdownPipeTable({ columns: paddedColumns, rows: rows.map(padRow) }).join('\n')
 }
 
 const buildCodeMarkdownPreviewText = (code: unknown): string => {

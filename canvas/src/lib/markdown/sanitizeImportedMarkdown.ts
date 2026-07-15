@@ -1,6 +1,7 @@
 import { sanitizeImportedMarkdownUnsafeMediaLinks } from './sanitizeImportedMarkdownSafety'
 import { normalizeStandaloneHtmlLayoutBlocksToMarkdown } from './sanitizeImportedMarkdownHtmlLayout'
 import { normalizeLeadingStrongTitleToH1, normalizeMarkdownDecorationResidue, normalizeMarkdownImageProseAdjacency, normalizeVerticalCjkHeadingRuns } from './sanitizeImportedMarkdownStructure'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 export type SanitizeMarkdownResult = { text: string; changed: boolean }
 
@@ -528,12 +529,11 @@ export function sanitizeImportedMarkdownText(raw: string, opts?: SanitizeImporte
         .replace(/<\s*(script|style)\b[\s\S]*?<\/\s*\1\s*>/gi, ' ')
 
       const normalizeCellText = (cellHtml: string): string => {
-        const withBreaks = String(cellHtml || '').replace(/<\s*br\s*\/?>/gi, '\n')
+        const withBreaks = String(cellHtml || '').replace(/<\s*br\s*\/?>/gi, ' ')
         const textOnly = decodeHtmlEntitiesBasic(withBreaks.replace(/<[^>]+>/g, ' '))
-          .replace(/\s*\n\s*/g, ' <br> ')
           .replace(/\s+/g, ' ')
           .trim()
-        return textOnly.replace(/\|/g, '\\|') || ' '
+        return textOnly || ' '
       }
 
       const rows: Array<{ cells: string[]; header: boolean }> = []
@@ -574,12 +574,10 @@ export function sanitizeImportedMarkdownText(raw: string, opts?: SanitizeImporte
           ? rows.slice(1).map(row => padCells(row.cells))
           : rows.map(row => padCells(row.cells))
 
-      const tableLines = [
-        `| ${headerCells.join(' | ')} |`,
-        `| ${headerCells.map(() => '---').join(' | ')} |`,
-        ...bodyRows.map(cells => `| ${cells.join(' | ')} |`),
-      ]
-      return tableLines.join('\n').trim()
+      return serializeMarkdownPipeTable({
+        columns: headerCells,
+        rows: bodyRows,
+      }).join('\n').trim()
     }
 
     const lines = raw.split(/\r?\n/g)

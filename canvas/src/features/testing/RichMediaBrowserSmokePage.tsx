@@ -2,6 +2,7 @@ import React from 'react'
 import RichMediaPanel from '@/components/RichMediaPanel'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
 import { MediaCatalogRichMediaPreview } from '@/features/command-menu/MediaCatalogRichMediaPreview'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import {
   IMAGE_TO_THREEJS_RENDER_MODE,
   buildImageToThreeJsConversion,
@@ -12,9 +13,10 @@ import richMediaBrowserSmokeFixtures from './richMediaBrowserSmokeFixtures.json'
 const SMOKE_MARKDOWN_PREVIEW = [
   '## Rich Media Smoke',
   '',
-  '| Surface | Status |',
-  '| --- | --- |',
-  '| Markdown | Ready |',
+  ...serializeMarkdownPipeTable({
+    columns: ['Surface', 'Status'],
+    rows: [['Markdown', 'Ready']],
+  }),
   '',
   '> Browser smoke preview',
 ].join('\n')

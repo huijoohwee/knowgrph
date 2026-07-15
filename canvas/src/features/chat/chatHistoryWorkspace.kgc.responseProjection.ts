@@ -77,14 +77,6 @@ const normalizeAssistantMarkdownForResponseProjection = (assistantText: string):
   return closeOpenFence(removeTrailingBrokenYamlScalar(firstEnvelope.split('\n')).join('\n'))
 }
 
-const escapeHtml = (value: unknown): string => String(value || '').replace(/[&<>"']/g, ch => {
-  if (ch === '&') return '&amp;'
-  if (ch === '<') return '&lt;'
-  if (ch === '>') return '&gt;'
-  if (ch === '"') return '&quot;'
-  return '&#39;'
-})
-
 export const resolveFallbackCanvas2dRenderer = (_profile: ReturnType<typeof analyzeKgcRequest>): string => 'storyboard'
 
 export const shouldMaterializeHeadlessResponseSurface = (profile: ReturnType<typeof analyzeKgcRequest>): boolean =>
@@ -142,10 +134,6 @@ export const buildResponseMarkdown = (args: {
   assistantText: string
 }): string => buildResponseMarkdownLines(args).join('\n')
 
-const buildResponseSrcDoc = (markdown: string): string => (
-  `<section data-kg-headless-response="1"><h1>Headless response</h1><pre>${escapeHtml(markdown)}</pre></section>`
-)
-
 export const buildHeadlessResponseSurface = (args: {
   profile: ReturnType<typeof analyzeKgcRequest>
   assistantText: string
@@ -153,13 +141,12 @@ export const buildHeadlessResponseSurface = (args: {
   if (!shouldMaterializeHeadlessResponseSurface(args.profile)) return null
   const markdown = buildResponseMarkdown(args)
   const renderer = resolveFallbackCanvas2dRenderer(args.profile)
-  const outputSrcDoc = buildResponseSrcDoc(markdown)
   const commonPanelProperties = {
     'chat:structuredContent': true,
     'flow:widgetFormId': FLOW_RICH_MEDIA_PANEL_FORM_ID,
     'flow:widgetTypeId': FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
-    richMediaActiveTab: 'html',
-    media_interactive: true,
+    richMediaActiveTab: 'text',
+    media_interactive: false,
   } satisfies Record<string, JSONValue>
   return {
     frontmatter: {
@@ -187,7 +174,7 @@ export const buildHeadlessResponseSurface = (args: {
         label: 'Headless Compute',
         nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
         kind: 'text',
-        sourceHandle: 'outputSrcDoc',
+        sourceHandle: 'output',
         targetHandle: 'prompt_in',
         properties: {
           'chat:structuredContent': true,
@@ -202,13 +189,13 @@ export const buildHeadlessResponseSurface = (args: {
         id: 'mcp-response-rich-media-panel',
         label: 'Response Rich Media Panel',
         nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
-        kind: 'html',
-        sourceHandle: 'outputSrcDoc',
-        targetHandle: 'outputSrcDoc',
+        kind: 'text',
+        sourceHandle: 'output',
+        targetHandle: 'output',
         properties: {
           ...commonPanelProperties,
           'chat:structuredRole': 'panel',
-          outputSrcDoc,
+          output: markdown,
         },
       },
     ],
@@ -225,9 +212,9 @@ export const buildHeadlessResponseSurface = (args: {
         id: 'e-mcp-response-compute-to-panel',
         source: 'mcp-response-headless-compute',
         target: 'mcp-response-rich-media-panel',
-        sourceHandle: 'outputSrcDoc',
-        targetHandle: 'outputSrcDoc',
-        label: 'outputSrcDoc->outputSrcDoc',
+        sourceHandle: 'output',
+        targetHandle: 'output',
+        label: 'output->output',
       },
     ],
   }

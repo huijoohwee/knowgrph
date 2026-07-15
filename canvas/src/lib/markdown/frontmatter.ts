@@ -214,6 +214,7 @@ function readFloatingPanelViewPreset(value: unknown): FloatingPanelView | undefi
   if (
     raw === 'propsPanel' ||
     raw === 'skillsCommands' ||
+    raw === 'promptPresets' ||
     raw === 'view' ||
     raw === 'media' ||
     raw === 'camera' ||

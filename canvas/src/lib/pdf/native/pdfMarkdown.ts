@@ -1,4 +1,5 @@
 import type { NativePdfAsset, TextFragment } from './types'
+import { serializeMarkdownPipeTable } from '../../../features/markdown/ui/markdownDataViewSerialize'
 
 type PdfLine = {
   y: number
@@ -10,11 +11,6 @@ type PdfLine = {
 }
 
 type PdfCell = { x: number; text: string }
-
-function escapeMarkdownTableCell(text: string): string {
-  const raw = String(text || '')
-  return raw.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').trim()
-}
 
 function buildCellsFromFragments(args: { parts: TextFragment[]; medianFont: number }): PdfCell[] {
   const parts = args.parts.slice().sort((a, b) => a.x - b.x)
@@ -144,15 +140,9 @@ function maybeExtractMarkdownTable(args: {
   })()
   if (denseRatio < 0.55) return null
 
-  const header = rowsAssigned[0].map(escapeMarkdownTableCell)
-  const body = rowsAssigned.slice(1).map(r => r.map(escapeMarkdownTableCell))
-  const sep = cols.map(() => '---')
-  const linesOut: string[] = []
-  linesOut.push(`| ${header.join(' | ')} |`)
-  linesOut.push(`| ${sep.join(' | ')} |`)
-  for (const r of body) {
-    linesOut.push(`| ${r.join(' | ')} |`)
-  }
+  const header = rowsAssigned[0]
+  const body = rowsAssigned.slice(1)
+  const linesOut = serializeMarkdownPipeTable({ columns: header, rows: body })
   linesOut.push('')
   return { consumed: cellsByRow.length, markdown: linesOut.join('\n') }
 }

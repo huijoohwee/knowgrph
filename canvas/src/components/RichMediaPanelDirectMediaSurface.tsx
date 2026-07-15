@@ -81,6 +81,7 @@ export function RichMediaPanelDirectMediaSurface(args: {
               }}
               onLoad={() => {
                 model.setReady(true)
+                model.syncInlineSrcDocTheme()
                 model.scheduleInlineSrcDocTimelineFrameBurst()
               }}
             />
@@ -122,6 +123,7 @@ export function RichMediaPanelDirectMediaSurface(args: {
               style={{ background: 'transparent', pointerEvents: props.videoControls === true ? 'auto' : 'none' }}
               onLoad={() => {
                 model.setReady(true)
+                model.syncInlineSrcDocTheme()
                 model.scheduleInlineSrcDocTimelineFrameBurst()
               }}
             />

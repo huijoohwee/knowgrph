@@ -1,4 +1,5 @@
 import { stripTrailingPunctuation, truncate } from './webpageMarkdownArtifactAsciiPrivate'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 export type AssetKind = 'image' | 'stylesheet' | 'script' | 'video' | 'audio' | 'icon'
 
@@ -555,11 +556,10 @@ export const htmlTableToMarkdown = (table: HTMLElement): { ascii: string; markdo
     return out
   })
   const header = norm[0] || []
-  const md: string[] = []
-  md.push(`| ${header.map((c) => escapeMarkdownText(c)).join(' | ')} |`)
-  md.push(`| ${header.map(() => '---').join(' | ')} |`)
-  for (let i = 1; i < norm.length; i += 1) md.push(`| ${norm[i].map((c) => escapeMarkdownText(c)).join(' | ')} |`)
-  return { ascii, markdown: md.join('\n') }
+  return {
+    ascii,
+    markdown: serializeMarkdownPipeTable({ columns: header, rows: norm.slice(1) }).join('\n'),
+  }
 }
 
 const blockToMarkdown = (el: HTMLElement, baseUrl: string): string => {
@@ -599,10 +599,7 @@ const blockToMarkdown = (el: HTMLElement, baseUrl: string): string => {
   }
   if (tag === 'table') {
     const rendered = htmlTableToMarkdown(el)
-    const parts: string[] = []
-    if (rendered.ascii) parts.push(['```', rendered.ascii, '```'].join('\n'))
-    if (rendered.markdown) parts.push(rendered.markdown)
-    return parts.join('\n\n')
+    return rendered.markdown || (rendered.ascii ? ['```text', rendered.ascii, '```'].join('\n') : '')
   }
   if (tag === 'blockquote') {
     const t = safeText(el.innerText || el.textContent || '')

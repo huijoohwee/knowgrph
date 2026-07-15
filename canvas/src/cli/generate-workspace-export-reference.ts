@@ -2,18 +2,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import { WORKSPACE_EXPORT_MENU_ITEMS } from '@/lib/toolbar/exportMenuSsot'
 
-function escapeMarkdownCell(value: unknown): string {
-  return String(value ?? '')
-    .replace(/\|/g, '\\|')
-    .replace(/\n/g, '<br />')
-    .trim()
-}
-
-function buildRow(args: { id: string; label: string }): string {
-  const cells = [args.label, `\`${args.id}\``].map(escapeMarkdownCell)
-  return `| ${cells.join(' | ')} |`
+function buildRow(args: { id: string; label: string }): string[] {
+  return [args.label, `\`${args.id}\``]
 }
 
 function buildMarkdown(): string {
@@ -27,9 +20,10 @@ function buildMarkdown(): string {
     '- Export menu entries are SSOT-driven so Launch → Export stays in sync with the codebase reference.',
     "- PNG/SVG prefer DOM capture when `renderMediaAsNodes` is disabled so Rich Media overlays are included.",
     '',
-    '| Export menu label | export action key |',
-    '| --- | --- |',
-    ...WORKSPACE_EXPORT_MENU_ITEMS.map(item => buildRow({ id: item.id, label: item.menuLabel })),
+    ...serializeMarkdownPipeTable({
+      columns: ['Export menu label', 'export action key'],
+      rows: WORKSPACE_EXPORT_MENU_ITEMS.map(item => buildRow({ id: item.id, label: item.menuLabel })),
+    }),
     '',
   ].join('\n')
 }
@@ -43,4 +37,3 @@ function main(): void {
 }
 
 main()
-

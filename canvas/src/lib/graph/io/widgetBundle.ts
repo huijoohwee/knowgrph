@@ -3,6 +3,7 @@ import { FLOW_WIDGET_BUNDLE_KIND, FLOW_WIDGET_BUNDLE_VERSION } from '@/lib/confi
 import { hashArrayOfObjectsSignature, hashSignatureParts } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey, readGraphRevision } from '@/lib/graph/semanticKey'
 import { isPlainObject } from '@/lib/graph/value'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 type JsonRecord = Record<string, JSONValue>
 
@@ -22,21 +23,8 @@ function readPlainObject(v: unknown): JsonLikeRecord | null {
   return isPlainObject(v) ? (v as JsonLikeRecord) : null
 }
 
-function escapeMarkdownTableCell(raw: unknown): string {
-  return String(raw ?? '')
-    .replace(/\|/g, '\\|')
-    .replace(/\r?\n/g, '<br/>')
-    .trim()
-}
-
 function buildMarkdownTable(headers: string[], rows: string[][]): string {
-  const normalizedHeaders = headers.map(escapeMarkdownTableCell)
-  const normalizedRows = rows.map(row => headers.map((_, idx) => escapeMarkdownTableCell(row[idx] ?? '')))
-  return [
-    `| ${normalizedHeaders.join(' | ')} |`,
-    `| ${normalizedHeaders.map(() => '---').join(' | ')} |`,
-    ...normalizedRows.map(row => `| ${row.join(' | ')} |`),
-  ].join('\n')
+  return serializeMarkdownPipeTable({ columns: headers, rows }).join('\n')
 }
 
 function toJsonValueOrNull(v: unknown): JSONValue | null {

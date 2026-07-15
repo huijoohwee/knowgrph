@@ -131,6 +131,8 @@ const STRUCTURED_FRONTMATTER_RESERVED_KEY_TOKENS = new Set([
   'result',
   'richmedia',
   'structuredcontent',
+  'table',
+  'tables',
   'widgets',
 ])
 

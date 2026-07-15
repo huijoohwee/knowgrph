@@ -283,6 +283,7 @@ type StoryboardWidgetOverlayProps = {
   editorSurfaceKind?: WidgetEditorSurfaceKind
   overlayCollectiveCount?: number
   node: GraphNode
+  nodeById?: ReadonlyMap<string, GraphNode>
   graphMetaKind?: string | null
   graphMetaKey?: string | null
   portHandleEdges?: ReadonlyArray<GraphEdge>
@@ -327,6 +328,7 @@ export const StoryboardWidgetOverlay = React.memo(function StoryboardWidgetOverl
       editorSurfaceKind={args.editorSurfaceKind}
       overlayCollectiveCount={args.overlayCollectiveCount}
       node={args.node}
+      nodeById={args.nodeById}
       graphMetaKind={args.graphMetaKind}
       graphMetaKey={args.graphMetaKey}
       portHandleEdges={args.portHandleEdges}

@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import {
   GRABMAPS_DOC_ROWS,
   type GrabMapsApiDocRow,
@@ -17,13 +18,6 @@ const OUTPUT_PATH = path.join(
   'api-reference-codebase-index_202604261230',
   'knowgrph-grabmaps-api-reference-codebase-index.md',
 )
-
-function escapeMarkdownCell(value: unknown): string {
-  return String(value ?? '')
-    .replace(/\r?\n/g, ' ')
-    .replace(/\|/g, '\\|')
-    .trim()
-}
 
 function normalizeScalar(value: unknown): string {
   if (typeof value === 'undefined' || value === null) return ''
@@ -78,8 +72,8 @@ function buildValueDescription(row: GrabMapsApiDocRow): string {
   return parts.join('; ')
 }
 
-function buildRow(row: GrabMapsApiDocRow): string {
-  const cells = [
+function buildRow(row: GrabMapsApiDocRow): string[] {
+  return [
     resolveEndpoint(row),
     resolveKind(row),
     row.key,
@@ -97,17 +91,17 @@ function buildRow(row: GrabMapsApiDocRow): string {
     formatList(row.module),
     formatList(row.className),
     formatList(row.functionName),
-  ].map(escapeMarkdownCell)
-  return `| ${cells.join(' | ')} |`
+  ]
 }
 
 function buildMarkdown(): string {
   return [
     '## Table',
     '',
-    '| endpoint | kind | key | type | value | required | direction | actor | seq-note | location | scope | pattern | key-description | value-description | module | class | function |',
-    '|--------|----|---|----|-----|--------|---------|-----|--------|--------|-----|-------|---------------|-----------------|------|-----|--------|',
-    ...GRABMAPS_DOC_ROWS.map(buildRow),
+    ...serializeMarkdownPipeTable({
+      columns: ['endpoint', 'kind', 'key', 'type', 'value', 'required', 'direction', 'actor', 'seq-note', 'location', 'scope', 'pattern', 'key-description', 'value-description', 'module', 'class', 'function'],
+      rows: GRABMAPS_DOC_ROWS.map(buildRow),
+    }),
     '',
   ].join('\n')
 }

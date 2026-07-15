@@ -2,24 +2,18 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import {
   BYTEPLUS_VIDEO_GENERATION_DOC_ROWS,
   type BytePlusVideoApiDocRow,
 } from '@/features/integrations/byteplusVideoGenerationSsot'
 
-function escapeMarkdownCell(value: unknown): string {
-  return String(value ?? '')
-    .replace(/\|/g, '\\|')
-    .replace(/\n/g, '<br />')
-    .trim()
-}
-
 function buildJoinedCell(values: readonly string[]): string {
   return values.map(value => `\`${value}\``).join('; ')
 }
 
-function buildRow(row: BytePlusVideoApiDocRow): string {
-  const cells = [
+function buildRow(row: BytePlusVideoApiDocRow): string[] {
+  return [
     row.key,
     row.typeLabel,
     row.value,
@@ -29,8 +23,7 @@ function buildRow(row: BytePlusVideoApiDocRow): string {
     buildJoinedCell(row.module),
     buildJoinedCell(row.className),
     buildJoinedCell(row.functionName),
-  ].map(escapeMarkdownCell)
-  return `| ${cells.join(' | ')} |`
+  ]
 }
 
 function getSortedRows(): BytePlusVideoApiDocRow[] {
@@ -51,9 +44,10 @@ function buildMarkdown(): string {
     '- `module | class | function`: where the row is anchored in the knowgrph codebase',
     '- Rows are sorted by `key` in ascending `a-z` order for static-reference scanability.',
     '',
-    '| key | type | value | key-description | value-description | ssot | module | class | function |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
-    ...getSortedRows().map(buildRow),
+    ...serializeMarkdownPipeTable({
+      columns: ['key', 'type', 'value', 'key-description', 'value-description', 'ssot', 'module', 'class', 'function'],
+      rows: getSortedRows().map(buildRow),
+    }),
     '',
   ].join('\n')
 }

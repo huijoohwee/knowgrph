@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import {
   BYTEPLUS_SHARED_TEXT_API_DOC_ROWS,
   BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY,
@@ -22,13 +23,6 @@ function normalizeScalar(value: string | number | boolean | null | undefined): s
   if (value === null) return 'null'
   const text = String(value).trim()
   return text === '—' ? '-' : text
-}
-
-function escapeMarkdownCell(value: string): string {
-  return String(value || '')
-    .replace(/\r?\n/g, ' ')
-    .replace(/\|/g, '\\|')
-    .trim()
 }
 
 function trimTrailingSentencePunctuation(value: string): string {
@@ -67,8 +61,8 @@ function buildSsotCell(row: BytePlusSharedTextApiDocRow): string {
   return refs.join('; ')
 }
 
-function buildRow(row: BytePlusSharedTextApiDocRow): string {
-  const cells = [
+function buildRow(row: BytePlusSharedTextApiDocRow): string[] {
+  return [
     row.key,
     row.typeLabel,
     row.value,
@@ -78,8 +72,7 @@ function buildRow(row: BytePlusSharedTextApiDocRow): string {
     formatList(row.modules),
     formatList(row.classes),
     formatList(row.functions),
-  ].map(escapeMarkdownCell)
-  return `| ${cells.join(' | ')} |`
+  ]
 }
 
 function getSortedRows(): BytePlusSharedTextApiDocRow[] {
@@ -105,9 +98,10 @@ function buildMarkdown(): string {
     '- `module | class | function`: where the row is anchored in the knowgrph codebase',
     '- Rows are sorted by `key` in ascending `a-z` order for static-reference scanability.',
     '',
-    '| key | type | value | key-description | value-description | ssot | module | class | function |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
-    ...getSortedRows().map(buildRow),
+    ...serializeMarkdownPipeTable({
+      columns: ['key', 'type', 'value', 'key-description', 'value-description', 'ssot', 'module', 'class', 'function'],
+      rows: getSortedRows().map(buildRow),
+    }),
     '',
   ].join('\n')
 }

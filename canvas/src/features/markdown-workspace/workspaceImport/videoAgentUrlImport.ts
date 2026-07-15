@@ -4,7 +4,6 @@ import {
   VIDEO_AGENT_SCHEMA_VERSION,
   buildVideoAgentDatasetPanelSrcDoc,
   buildVideoAgentFrameTableMarkdown,
-  buildVideoAgentFrameTablePanelSrcDoc,
   buildVideoAgentPipeline,
   buildVideoAgentTranscriptPanelSrcDoc,
 } from '@/features/video-agent'
@@ -148,10 +147,6 @@ export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocume
   const frameAnalysisSrcDoc = projectVideoAgentFrameAnalysisSrcDoc({
     frameBoundingBoxes: pipeline.frameBoundingBoxes,
     srcDoc: buildFrameAnalysisPanelBaseSrcDoc(pipeline.frameBoundingBoxes),
-  })
-  const frameTablePanelSrcDoc = buildVideoAgentFrameTablePanelSrcDoc({
-    frameBoundingBoxes: pipeline.frameBoundingBoxes,
-    frameByFrameTranscript: transcriptArtifacts.frameByFrameTranscript,
   })
   const frameTableMarkdown = buildVideoAgentFrameTableMarkdown({
     frameBoundingBoxes: pipeline.frameBoundingBoxes,
@@ -439,20 +434,22 @@ export function buildVideoAgentUrlImportMarkdown(args: VideoAgentUrlImportDocume
     '        "frontmatter:primitive": "node"',
     '        "flow:widgetFormId": "richMediaPanel"',
     '        richMediaActiveTab: "text"',
-    '        kind: "iframe"',
+    '        kind: "markdown-table"',
     '        videoAgentKind: "multi-dimensional-table"',
+    '        tableFormat: "markdown-pipe-table"',
+    '        outputMimeType: "text/markdown; charset=utf-8"',
+    '        media_interactive: false',
     '        freezeConnectedOutput: true',
     '        "flow:portTypes":',
     '          in:',
-    '            outputSrcDoc: "rich_media_inline_html"',
     '            frameBoundingBoxes: "annotation_json"',
     '            frameByFrameTranscript: "transcript_json"',
     '          out:',
-    '            outputSrcDoc: "rich_media_inline_html"',
+    '            output: "markdown_table"',
     '            frameBoundingBoxes: "annotation_json"',
     '            frameByFrameTranscript: "transcript_json"',
   )
-  pushBlockScalar(lines, '        ', 'outputSrcDoc', frameTablePanelSrcDoc)
+  pushBlockScalar(lines, '        ', 'output', frameTableMarkdown)
   pushBlockScalar(lines, '        ', 'frameBoundingBoxes', frameBoundingBoxesJson)
   pushBlockScalar(lines, '        ', 'frameByFrameTranscript', frameByFrameTranscriptJson)
   lines.push(

@@ -45,7 +45,6 @@ export {
 export { buildVideoAgentDatasetPanelSrcDoc } from './videoAgentDatasetProjection'
 export {
   buildVideoAgentFrameTableMarkdown,
-  buildVideoAgentFrameTablePanelSrcDoc,
   buildVideoAgentFrameTableRows,
   type VideoAgentFrameTableRow,
 } from './videoAgentFrameTableProjection'

@@ -33,6 +33,7 @@ const FlowWidgetOverlayInner = React.memo(function FlowWidgetOverlayInner({
   storyboardWidgetSurfaceId, editorSurfaceKind,
   overlayCollectiveCount,
   node,
+  nodeById,
   viewportW,
   viewportH,
   canvasWindowOffset,
@@ -230,6 +231,7 @@ const FlowWidgetOverlayInner = React.memo(function FlowWidgetOverlayInner({
     richMediaWidgetPreview,
   } = useWidgetRichMediaToolbar({
     node,
+    nodeById,
     minimized: uiState.minimized,
     hideFields: effectiveHideFields,
     connectedValuesBySchemaPath,

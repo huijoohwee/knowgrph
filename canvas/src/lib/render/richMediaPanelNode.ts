@@ -4,9 +4,17 @@ import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/sto
 import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaProperties'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 
 export function isRichMediaPanelNode(node: { type?: unknown } | null | undefined): boolean {
-  return String(node?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+  if (String(unwrapGraphCellValue(node?.type) || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return true
+  const properties = node && 'properties' in node
+    ? ((node as { properties?: Record<string, unknown> }).properties || {})
+    : {}
+  return Boolean(
+    String(unwrapGraphCellValue(properties.workflowOutputAnchorNodeId) || '').trim()
+    && String(unwrapGraphCellValue(properties.workflowOutputKey) || '').trim(),
+  )
 }
 
 export function buildRichMediaPanelNode(args: {

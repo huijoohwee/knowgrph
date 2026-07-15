@@ -57,6 +57,7 @@ function readNormalizedCanvasWorkspacePreset(meta: Record<string, unknown> | nul
     const raw = String(value || '').trim()
     return raw === 'propsPanel' ||
       raw === 'skillsCommands' ||
+      raw === 'promptPresets' ||
       raw === 'view' ||
       raw === 'media' ||
       raw === 'camera' ||

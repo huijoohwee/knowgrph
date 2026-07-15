@@ -31,7 +31,7 @@ import { UI_TOAST_TTL_MS } from '@/lib/ui/toastTiming'
 import { resolveWorkspaceExplorerDefaultWidthPx } from '@/features/workspace-table/workspaceViewCanvasDefaults'
 import { useSourceFilesPocketBaseYjsCollaborationRuntime } from '@/features/source-files/useSourceFilesPocketBaseYjsCollaborationRuntime'
 import { useMarkdownWorkspaceCollaborationRuntimeBridge } from './useMarkdownWorkspaceCollaborationRuntimeBridge'
-import { useMarkdownWorkspaceStreamingSelectionLock } from './useMarkdownWorkspaceStreamingSelectionLock'
+import { useMarkdownWorkspaceStreamingSelectionLock } from './useMarkdownWorkspaceStreamingSelectionLock'; import { useMarkdownWorkspaceOpenSourceFilesEvent } from './useMarkdownWorkspaceOpenSourceFilesEvent'
 const EMPTY_STRING_ARRAY: string[] = []
 export function MarkdownWorkspace(props: { active?: boolean } = {}) {
   const active = props.active !== false
@@ -195,7 +195,6 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     setExplorerOpen(true)
     setSidebarWidthPx(resolveWorkspaceExplorerDefaultWidthPx({ minPx: SIDEBAR_MIN_PX, maxPx: SIDEBAR_MAX_PX }))
   }, [workspaceEditorOverlayOpen])
-
   const widgetState = useMarkdownWorkspaceWidgetMode({
     active,
     graphNodes,
@@ -236,6 +235,7 @@ export function MarkdownWorkspace(props: { active?: boolean } = {}) {
     setSidebarWidthPx,
     search,
   })
+  useMarkdownWorkspaceOpenSourceFilesEvent({ setExplorerOpen, setSourceFilesCollapsed, setExpandedPaths, refresh: explorerState.refresh })
   const selectionState = useMarkdownWorkspaceSelection(
     buildMarkdownWorkspaceSelectionArgs({
       activePath,

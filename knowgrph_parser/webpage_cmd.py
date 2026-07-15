@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import html as _html
 
 from .common import slugify
-
+from .markdown_tables import serialize_markdown_pipe_table
 
 def _extract_best_title(html_str: str, markdown_hint: str, url: str) -> str:
     import re
@@ -197,8 +197,7 @@ class SimpleMarkdownParser(HTMLParser):
         self.in_pre = False
         self.in_code = False
         self.in_table = False
-        self.table_buffer: List[str] = [] # To capture HTML for tables
-        
+        self.table_buffer: List[str] = [] # Capture source tables before Markdown conversion.
     def handle_starttag(self, tag, attrs):
         if tag in {'script', 'style', 'head'}:
             self.in_script_or_style = True
@@ -207,7 +206,7 @@ class SimpleMarkdownParser(HTMLParser):
         if self.in_script_or_style:
             return
 
-        # Pass-through HTML for tables and complex elements for 100% fidelity
+        # Capture tables as one unit so the shared converter can emit a pipe table.
         if tag == 'table':
             self.in_table = True
             self.flush_line()
@@ -318,8 +317,14 @@ class SimpleMarkdownParser(HTMLParser):
         if tag == 'table':
             self.in_table = False
             self.table_buffer.append('</table>')
-            self.output_lines.append("".join(self.table_buffer))
-            self.output_lines.append("")
+            table_markdown = _table_html_to_markdown(
+                "".join(self.table_buffer),
+                max_rows=None,
+                max_cols=None,
+            )
+            if table_markdown:
+                self.output_lines.append(table_markdown)
+                self.output_lines.append("")
             self.table_buffer = []
             return
         
@@ -446,6 +451,8 @@ class _TableToMarkdownParser(HTMLParser):
             self._cell = []
             if tag == 'th':
                 self._has_th = True
+        if tag == 'br' and self._in_cell:
+            self._cell.append(' ')
 
     def handle_endtag(self, tag):
         if tag in {'td', 'th'}:
@@ -466,11 +473,19 @@ class _TableToMarkdownParser(HTMLParser):
             self._cell.append(data)
 
 
-def _table_html_to_markdown(table_html: str, *, max_rows: int = 12, max_cols: int = 6) -> str:
+def _table_html_to_markdown(
+    table_html: str,
+    *,
+    max_rows: Optional[int] = 12,
+    max_cols: Optional[int] = 6,
+) -> str:
     p = _TableToMarkdownParser()
     p.feed(table_html)
-    rows = [r[:max_cols] for r in p.rows if any((c or '').strip() for c in r)]
-    rows = rows[:max_rows]
+    rows = [r for r in p.rows if any((c or '').strip() for c in r)]
+    if max_cols is not None:
+        rows = [r[:max_cols] for r in rows]
+    if max_rows is not None:
+        rows = rows[:max_rows]
     if not rows:
         return ""
 
@@ -479,15 +494,7 @@ def _table_html_to_markdown(table_html: str, *, max_rows: int = 12, max_cols: in
     header = norm[0]
     body = norm[1:]
 
-    def esc(s: str) -> str:
-        return (s or '').replace('|', '\\|')
-
-    lines: List[str] = []
-    lines.append('| ' + ' | '.join(esc(x) for x in header) + ' |')
-    lines.append('| ' + ' | '.join('---' for _ in header) + ' |')
-    for r in body:
-        lines.append('| ' + ' | '.join(esc(x) for x in r) + ' |')
-    return '\n'.join(lines)
+    return '\n'.join(serialize_markdown_pipe_table(header, body))
 
 
 def _rows_to_markdown_table(rows: List[List[str]]) -> str:
@@ -498,15 +505,7 @@ def _rows_to_markdown_table(rows: List[List[str]]) -> str:
     header = norm[0]
     body = norm[1:]
 
-    def esc(s: str) -> str:
-        return (s or '').replace('|', '\\|')
-
-    lines: List[str] = []
-    lines.append('| ' + ' | '.join(esc(x) for x in header) + ' |')
-    lines.append('| ' + ' | '.join('---' for _ in header) + ' |')
-    for r in body:
-        lines.append('| ' + ' | '.join(esc(x) for x in r) + ' |')
-    return '\n'.join(lines)
+    return '\n'.join(serialize_markdown_pipe_table(header, body))
 
 
 def _strip_html_to_text(fragment: str, *, max_chars: int = 4000) -> str:
@@ -1461,10 +1460,10 @@ def _extract_structured_details_markdown(html_str: str, base_url: str, markdown_
             if price_details_rows:
                 sections.append('## Pricing Details (Extracted)')
                 sections.append('')
-                sections.append('| Price Point | Context | Description |')
-                sections.append('|-------------|---------|-------------|')
-                for pp, ctx, desc in price_details_rows:
-                    sections.append(f'| **{pp}** | {ctx} | {desc} |')
+                sections.append(_rows_to_markdown_table([
+                    ['Price Point', 'Context', 'Description'],
+                    *[[f'**{pp}**', ctx, desc] for pp, ctx, desc in price_details_rows],
+                ]))
                 sections.append('')
 
         # Best-effort comparison table for common 3-tier pricing layouts.
@@ -1482,16 +1481,17 @@ def _extract_structured_details_markdown(html_str: str, base_url: str, markdown_
             editor_included = 'Included' if has('editor starter') and has('included') else '(not detected)'
 
             sections.append('## Pricing Comparison (Extracted)')
-            sections.append('| Feature | Free License | Company License | Enterprise License |')
-            sections.append('|---------|--------------|-----------------|-------------------|')
-            sections.append(f'| **Team Size** | {free_team} | {company_team} | {enterprise_team} |')
-            sections.append('| **Commercial Use** | ✅ Yes | ✅ Yes | ✅ Yes |')
-            sections.append(f'| **Cost** | $0 | {company_cost} | {enterprise_cost} |')
-            sections.append(f'| **Support** | Community | {support_company} | {support_enterprise} |')
-            sections.append(f'| **Mux Credits** | ❌ | {mux} | ✅ Custom |')
-            sections.append(f'| **Editor Starter** | ❌ | ❌ | {editor_included} |')
-            sections.append(f'| **Custom Terms** | ❌ | ❌ | {"✅ Yes" if has("custom") or has("terms") else "(not detected)"} |')
-            sections.append(f'| **Compliance** | ❌ | ❌ | {"✅ Forms available" if has("compliance") or has("forms") else "(not detected)"} |')
+            sections.append(_rows_to_markdown_table([
+                ['Feature', 'Free License', 'Company License', 'Enterprise License'],
+                ['**Team Size**', free_team, company_team, enterprise_team],
+                ['**Commercial Use**', '✅ Yes', '✅ Yes', '✅ Yes'],
+                ['**Cost**', '$0', company_cost, enterprise_cost],
+                ['**Support**', 'Community', support_company, support_enterprise],
+                ['**Mux Credits**', '❌', mux, '✅ Custom'],
+                ['**Editor Starter**', '❌', '❌', editor_included],
+                ['**Custom Terms**', '❌', '❌', '✅ Yes' if has('custom') or has('terms') else '(not detected)'],
+                ['**Compliance**', '❌', '❌', '✅ Forms available' if has('compliance') or has('forms') else '(not detected)'],
+            ]))
             sections.append('')
 
     # --- Rendering options (best-effort) ---
@@ -1502,14 +1502,14 @@ def _extract_structured_details_markdown(html_str: str, base_url: str, markdown_
         has_lambda = 'lambda' in render_text or 'serverless' in render_text
         if has_cli or has_server or has_lambda:
             sections.append('## Rendering Options (Extracted)')
-            sections.append('| Method | Speed | Cost | Best For |')
-            sections.append('|--------|-------|------|----------|')
+            rendering_rows: List[List[str]] = []
             if has_cli:
-                sections.append('| **Local CLI** | Medium | Free | Development, small batches |')
+                rendering_rows.append(['**Local CLI**', 'Medium', 'Free', 'Development, small batches'])
             if has_server:
-                sections.append('| **Server** | Fast | Server costs | Production deployments |')
+                rendering_rows.append(['**Server**', 'Fast', 'Server costs', 'Production deployments'])
             if has_lambda:
-                sections.append('| **Lambda** | Very Fast | Pay-per-render | Massive scale, variable load |')
+                rendering_rows.append(['**Lambda**', 'Very Fast', 'Pay-per-render', 'Massive scale, variable load'])
+            sections.append(_rows_to_markdown_table([['Method', 'Speed', 'Cost', 'Best For'], *rendering_rows]))
             sections.append('')
 
     # --- Pricing / comparison tables ---

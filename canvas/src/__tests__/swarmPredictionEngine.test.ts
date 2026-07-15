@@ -53,8 +53,8 @@ export function testSwarmPredictionEngineProducesDeterministicReplayableReport()
   if (new Set(first.events.map(event => event.id)).size !== first.events.length) throw new Error('expected event ids to be unique')
   if (!first.events.some(event => event.kind === 'intervention_applied')) throw new Error('expected interventions in replay log')
   if (!first.output.includes('Latest Events')) throw new Error('expected text report output')
-  if (!first.outputSrcDoc.includes('<svg') || !first.outputSrcDoc.includes('Prediction score')) {
-    throw new Error('expected HTML srcdoc chart output')
+  if (!first.output.includes('| Metric | Value |') || /<table\b|<br\s*\/?>/i.test(first.output)) {
+    throw new Error('expected canonical Markdown pipe-table report output without authored table HTML')
   }
   if (!first.imageUrl.startsWith('data:image/svg+xml')) throw new Error('expected chart image data URL')
 }
@@ -87,7 +87,6 @@ export function testSwarmPredictionWidgetRegistryExposesRichMediaOutputs() {
     'input:properties.seedSignalsJson',
     'input:properties.agentPopulationJson',
     'output:properties.output',
-    'output:properties.outputSrcDoc',
     'output:properties.imageUrl',
     'output:properties.eventLogJson',
     'output:properties.metricsJson',
@@ -102,7 +101,7 @@ export function testSwarmPredictionWidgetRegistryExposesRichMediaOutputs() {
     randomSeed: 'widget-fixture',
   })
   if (!String(properties.output || '').includes('Prediction score')) throw new Error('expected widget output text')
-  if (!String(properties.outputSrcDoc || '').includes('<svg')) throw new Error('expected widget HTML chart')
+  if (Object.prototype.hasOwnProperty.call(properties, 'outputSrcDoc')) throw new Error('expected table output to avoid persisted HTML srcdoc')
   if (!String(properties.imageUrl || '').startsWith('data:image/svg+xml')) throw new Error('expected widget chart image')
   if (typeof properties.predictionScore !== 'number' || typeof properties.confidenceScore !== 'number') {
     throw new Error('expected numeric widget scores')

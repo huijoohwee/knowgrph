@@ -1,6 +1,7 @@
 import type { Canvas2dRendererId } from '@/lib/config.render'
 import type { WorkspaceUrlImportDocumentModeId } from '@/features/markdown-workspace/workspaceImport/canvasPresets'
 import type { VideoDownloadOptions, VideoDownloadResult } from '@/lib/video-download/types'
+import type { WebsiteImportManifestV1 } from '@/lib/websites/server/websiteImportTypes'
 
 export type WorkspaceImportUrlOpts = {
   canvas2dRenderer?: Canvas2dRendererId | null
@@ -10,9 +11,27 @@ export type WorkspaceImportUrlOpts = {
 export type WorkspaceImportWebsiteOpts = {
   generateArtifactDocs?: boolean
   browserEnhance?: boolean
+  headless?: boolean
+  proxyRotation?: boolean
+  downloadAssets?: boolean
+  applyToCanvas?: boolean
+  preserveActiveDocument?: boolean
+  maxDownloads?: number
+  maxDownloadBytes?: number
   maxPages?: number
   minPages?: number
-  source?: 'import-url' | 'website'
+  generationToken?: string
+  source?: 'import-url' | 'website' | 'invocation'
+  onProgress?: (progress: WorkspaceWebsiteImportProgress) => void
+}
+
+export type WorkspaceWebsiteImportProgress = {
+  stage: string
+  total: number | null
+  processed: number | null
+  ok: number | null
+  error: number | null
+  running: boolean
 }
 
 export type WorkspaceFileSelection = FileList | ReadonlyArray<File> | null
@@ -20,6 +39,16 @@ export type WorkspaceFileSelection = FileList | ReadonlyArray<File> | null
 export type WorkspaceBridgeImportResult = {
   createdPaths?: string[]
   removedPaths?: string[]
+  websiteImportSummary?: WorkspaceWebsiteImportSummary
+  websiteImportManifest?: WebsiteImportManifestV1
+}
+
+export type WorkspaceWebsiteImportSummary = {
+  importId: string
+  processedPages: number
+  successfulPages: number
+  errorPages: number
+  storedFiles: number
 }
 
 type WorkspaceBridgeImportReturn = void | WorkspaceBridgeImportResult | Promise<void | WorkspaceBridgeImportResult>
@@ -29,7 +58,7 @@ export type MarkdownWorkspaceActionBridge = {
   importLocalImages?: (files: WorkspaceFileSelection) => WorkspaceBridgeImportReturn
   importLocalFolder?: (files: WorkspaceFileSelection) => WorkspaceBridgeImportReturn
   importUrl?: (url: string, opts?: WorkspaceImportUrlOpts) => WorkspaceBridgeImportReturn
-  importWebsite?: (url: string, opts?: WorkspaceImportWebsiteOpts) => void
+  importWebsite?: (url: string, opts?: WorkspaceImportWebsiteOpts) => WorkspaceBridgeImportReturn
   downloadVideo?: (url: string, options: VideoDownloadOptions) => Promise<VideoDownloadResult>
   createNewFolder?: () => void
   save?: () => void

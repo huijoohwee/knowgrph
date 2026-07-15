@@ -12,6 +12,7 @@ export type JsonToMarkdownConfig = {
 }
 
 import { JSON_TO_MARKDOWN_COPY } from './markdownCopy'
+import { serializeMarkdownPipeTable } from './ui/markdownDataViewSerialize'
 
 type ResolvedConfig = {
   defaultMode: JsonToMarkdownMode
@@ -72,12 +73,6 @@ function hasNestedStructures(value: JsonLike): boolean {
     if (v && typeof v === 'object') return true
   }
   return false
-}
-
-function escapeTableCell(value: string): string {
-  const withoutNewlines = value.replace(/\r?\n/g, ' ')
-  const escaped = withoutNewlines.replace(/\|/g, '\\|')
-  return escaped.trim()
 }
 
 function formatScalar(value: JsonLike): string {
@@ -148,27 +143,23 @@ function collectTableHeaderKeys(rows: Record<string, JsonLike>[], maxColumns: nu
 function renderTable(rows: Record<string, JsonLike>[], config: ResolvedConfig): string[] {
   if (!rows.length) return [JSON_TO_MARKDOWN_COPY.emptyArrayLabel]
   const headerKeys = collectTableHeaderKeys(rows, config.tableMaxColumns)
-  const headerCells = headerKeys.map(k => escapeTableCell(String(k) || 'key'))
-  const lines: string[] = []
-  lines.push(`| ${headerCells.join(' | ')} |`)
-  lines.push(`| ${headerCells.map(() => '---').join(' | ')} |`)
+  const headerCells = headerKeys.map(k => String(k) || 'key')
   const maxRows = config.tableMaxRows > 0 ? config.tableMaxRows : rows.length
   const visibleRows = rows.slice(0, maxRows)
-  for (const row of visibleRows) {
-    const cells = headerKeys.map(key => {
+  const bodyRows = visibleRows.map(row =>
+    headerKeys.map(key => {
       const value = row[key]
       if (isScalar(value)) {
-        return escapeTableCell(formatScalar(value))
+        return formatScalar(value)
       }
       try {
         const json = JSON.stringify(value)
-        return escapeTableCell(json || '')
+        return json || ''
       } catch {
-        return escapeTableCell(formatScalar(value))
+        return formatScalar(value)
       }
-    })
-    lines.push(`| ${cells.join(' | ')} |`)
-  }
+    }))
+  const lines = serializeMarkdownPipeTable({ columns: headerCells, rows: bodyRows })
   if (rows.length > maxRows) {
     const remaining = rows.length - maxRows
     lines.push('')

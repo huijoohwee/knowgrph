@@ -4,7 +4,6 @@ import { isPlainObject } from '@/lib/graph/value'
 import {
   buildSwarmPredictionChartSvg,
   buildSwarmPredictionOutputMarkdown,
-  buildSwarmPredictionOutputSrcDoc,
 } from '@/features/swarm-prediction/swarmPredictionRender'
 
 export const SWARM_PREDICTION_SCHEMA_VERSION = 'knowgrph-swarm-prediction/v1' as const
@@ -127,7 +126,6 @@ export type SwarmPredictionResult = {
     horizon_ticks: number
   }
   output: string
-  outputSrcDoc: string
   imageUrl: string
   eventLogJson: string
   metricsJson: string
@@ -509,7 +507,6 @@ export function runSwarmPredictionEngine(request: SwarmPredictionRequest): Swarm
   }
   const output = buildSwarmPredictionOutputMarkdown({ title: scenarioTitle, metrics, prediction, states: worldStates, events })
   const chartSvg = buildSwarmPredictionChartSvg(worldStates, scenarioTitle)
-  const outputSrcDoc = buildSwarmPredictionOutputSrcDoc({ title: scenarioTitle, output, chartSvg, metrics, prediction })
   const imageUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(chartSvg)}`
   return {
     schema_version: SWARM_PREDICTION_SCHEMA_VERSION,
@@ -526,7 +523,6 @@ export function runSwarmPredictionEngine(request: SwarmPredictionRequest): Swarm
     metrics: { ...metrics, eventCount: events.length },
     prediction,
     output,
-    outputSrcDoc,
     imageUrl,
     eventLogJson: JSON.stringify(events, null, 2),
     metricsJson: JSON.stringify(metrics, null, 2),

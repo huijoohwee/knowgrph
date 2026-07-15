@@ -26,6 +26,8 @@ import {
   ensureStoryboardWidgetImageToThreeJsOutputEdge,
   ensureStoryboardWidgetImageToThreeJsOutputPanelNodeId,
   ensureStoryboardWidgetWorkflowRichMediaPanelNodeId,
+  ensureStoryboardWidgetWorkflowOutputEdge,
+  mergeStoryboardWidgetWorkflowPropertyPatch,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
 import type { StoryboardWidgetWorkflowNodeResolutionContext } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 import { areStoryboardWidgetWorkflowRecordValuesEqual } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowWriteback'
@@ -70,7 +72,12 @@ export type StoryboardWidgetTextRunOutputPublisher = (args: {
   model?: unknown
   sourceUrl?: string
   outputPath?: string | null
+  srcDoc?: string | null
   loading?: boolean
+  loadingLabel?: string
+  outputKey?: string
+  panelLabel?: string
+  outputIndex?: number
 }) => void
 
 export type StoryboardWidgetMediaRunOutputPublisher = (args: {
@@ -164,7 +171,7 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
       commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
       scheduleWorkflowOutputEdgeRefresh: args.scheduleWorkflowOutputEdgeRefresh,
     })
-    const nextPanelProps = { ...existingPanelProps, ...patch }
+    const nextPanelProps = mergeStoryboardWidgetWorkflowPropertyPatch(existingPanelProps, patch)
     if (!areStoryboardWidgetWorkflowRecordValuesEqual(existingPanelProps, nextPanelProps)) {
       args.updateNode(panelNodeId, { properties: nextPanelProps as never })
     }
@@ -275,17 +282,40 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
         allowCreateRichMediaPanel: args.allowCreateRichMediaPanel,
         anchorNode: panelArgs.anchorNode,
         readLiveDraftGraphData: args.readLiveDraftGraphData,
+        outputKey: panelArgs.outputKey,
+        outputLabel: panelArgs.panelLabel,
+        outputIndex: panelArgs.outputIndex,
         appendDraftNode: args.appendDraftNode,
       })
       if (!panelNodeId) return
+      ensureStoryboardWidgetWorkflowOutputEdge({
+        anchorNodeId: readWorkflowString(panelArgs.anchorNode.id),
+        panelNodeId,
+        outputKey: panelArgs.outputKey,
+        readLiveDraftGraphData: args.readLiveDraftGraphData,
+        commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
+        scheduleWorkflowOutputEdgeRefresh: args.scheduleWorkflowOutputEdgeRefresh,
+      })
       const patch: Record<string, unknown> = {
         ...clearRichMediaOutputProperties({}),
-        ...buildTextWidgetOutputPatch({ output: String(panelArgs.outputText || ''), title: panelArgs.title, model: panelArgs.model, outputPath: panelArgs.outputPath }),
-        richMediaActiveTab: 'text',
+        ...buildTextWidgetOutputPatch({
+          output: String(panelArgs.outputText || ''),
+          title: panelArgs.title,
+          model: panelArgs.model,
+          outputPath: panelArgs.outputPath,
+          materializeSrcDoc: false,
+        }),
+        outputSrcDoc: panelArgs.srcDoc ? panelArgs.srcDoc : undefined,
+        richMediaActiveTab: panelArgs.srcDoc ? 'auto' : 'text',
         outputLoading: panelArgs.loading === true ? true : undefined,
         outputLoadingKind: panelArgs.loading === true ? 'text' : undefined,
+        outputLoadingLabel: panelArgs.loading === true && panelArgs.loadingLabel?.trim() ? panelArgs.loadingLabel.trim() : undefined,
         lastRunAt: panelArgs.loading === true ? new Date().toISOString() : undefined,
         outputSourceUrl: typeof panelArgs.sourceUrl === 'string' && panelArgs.sourceUrl.trim() ? panelArgs.sourceUrl.trim() : undefined,
+        ...(panelArgs.outputKey?.trim() ? {
+          workflowOutputAnchorNodeId: readWorkflowString(panelArgs.anchorNode.id),
+          workflowOutputKey: panelArgs.outputKey.trim(),
+        } : {}),
       }
       applyPublishedPanelPatch(panelNodeId, patch)
     })
@@ -308,6 +338,13 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
           appendDraftNode: args.appendDraftNode,
         })].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
       for (const panelNodeId of panelNodeIds) {
+        ensureStoryboardWidgetWorkflowOutputEdge({
+          anchorNodeId: readWorkflowString(panelArgs.anchorNode.id),
+          panelNodeId,
+          readLiveDraftGraphData: args.readLiveDraftGraphData,
+          commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
+          scheduleWorkflowOutputEdgeRefresh: args.scheduleWorkflowOutputEdgeRefresh,
+        })
         const existingPanelBeforePatchProps = readPanelProperties(panelNodeId)
         const rawPatch = {
           ...panelArgs.patch,
@@ -485,6 +522,13 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
           appendDraftNode: args.appendDraftNode,
         })].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
       for (const panelNodeId of panelNodeIds) {
+        ensureStoryboardWidgetWorkflowOutputEdge({
+          anchorNodeId: readWorkflowString(panelArgs.anchorNode.id),
+          panelNodeId,
+          readLiveDraftGraphData: args.readLiveDraftGraphData,
+          commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
+          scheduleWorkflowOutputEdgeRefresh: args.scheduleWorkflowOutputEdgeRefresh,
+        })
         const patch: Record<string, unknown> = {
           ...clearRichMediaOutputProperties({}),
           ...buildTextWidgetOutputPatch({

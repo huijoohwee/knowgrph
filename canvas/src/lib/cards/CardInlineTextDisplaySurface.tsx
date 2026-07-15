@@ -78,6 +78,7 @@ export function CardInlineTextDisplaySurface(props: CardInlineTextDisplaySurface
       onMouseUp={() => { if (props.canEdit) props.activateExternalCommandTarget() }}
       onClick={event => {
         if (!props.canEdit) return
+        if (props.shouldIgnoreInlineEditTarget(event.target)) return
         props.activateExternalCommandTarget()
         const useMarkdownViewerActivation = props.showMarkdownPreview && shouldOpenMarkdownViewerInlineEditorFromReadClick({ eventDetail: event.detail })
         if (props.editActivation !== 'click' && !useMarkdownViewerActivation) return

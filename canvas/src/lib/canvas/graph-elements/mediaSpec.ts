@@ -12,6 +12,7 @@ import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import { RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY } from '@/lib/render/effectiveMediaNode'
 import { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanelSrcDoc'
 import { buildWebpageHtmlSrcdoc } from '@/lib/websites/webpageIframeSrcdoc'
+import { containsMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import type { NodeMediaKind } from '@/lib/canvas/graph-elements/mediaProperties'
 import { extractMarkdownMediaUrl, normalizeExternalUrl } from '@/lib/canvas/graph-elements/mediaSpecMarkdown'
 import { readNodeFieldBoolean, readNodeFieldString, readNodeFieldValue } from '@/lib/canvas/graph-elements/mediaSpecNodeFields'
@@ -164,6 +165,13 @@ function buildRichMediaPanelTextualIframeSpec(args: {
   }
   const trimmed = args.outputText.trim()
   if (trimmed) {
+    if (containsMarkdownPipeTable(trimmed)) {
+      return {
+        kind: 'iframe',
+        url: '',
+        interactive: args.interactive === true,
+      }
+    }
     return {
       kind: 'iframe',
       url: '',

@@ -6,6 +6,16 @@ import { detectRepoKeyFiles, extractGitHubRoutesFromServerText } from './githubR
 import { inferDecisionLogicNote, extractPythonStructuredOutline } from './githubRepoPythonOutline'
 import { filterToLikelyFilePaths, renderRepoTreeAscii, renderTopLevelDirectoryTreeWithNotes } from './githubRepoTreeRender'
 import { buildTemplateGridFromGroups, detectApiSupportLabel, detectSupportedPlatformsFromReadme, extractGpuTypesFromReadme, extractReadmeSectionBlockAny, extractRepoReadmeFeatureGroups, extractShortcutKeybinds, parseRequirements } from './githubRepoReadmeSignals'
+import { serializeMarkdownPipeTable, type MarkdownPipeTableAlignment, type MarkdownPipeTableScalar } from '@/features/markdown/ui/markdownDataViewSerialize'
+
+const appendMarkdownTable = (
+  lines: string[],
+  columns: readonly MarkdownPipeTableScalar[],
+  rows: readonly (readonly MarkdownPipeTableScalar[])[],
+  alignments?: readonly MarkdownPipeTableAlignment[],
+): void => {
+  lines.push(...serializeMarkdownPipeTable({ columns, rows, alignments }))
+}
 const formatK = (n: number) => {
   if (!Number.isFinite(n) || n < 0) return ''
   if (n >= 100_000) return `${Math.round(n / 1000)}k`
@@ -193,9 +203,7 @@ export const buildGitHubRepoUserJourneyMarkdown = (args: {
     doc.push('')
     doc.push('## ⌨️ Keyboard Shortcuts (Extracted)')
     doc.push('')
-    doc.push('| Keybind | Explanation |')
-    doc.push('|--------|-------------|')
-    for (const s of shortcuts.slice(0, 24)) doc.push(`| ${s.key} | ${s.desc} |`)
+    appendMarkdownTable(doc, ['Keybind', 'Explanation'], shortcuts.slice(0, 24).map(s => [s.key, s.desc]))
     doc.push('')
   }
 
@@ -204,9 +212,7 @@ export const buildGitHubRepoUserJourneyMarkdown = (args: {
     doc.push('')
     doc.push(`## 📌 Key Capabilities Snapshot: ${primaryFeatureGroup.title}`)
     doc.push('')
-    doc.push('| Capability | Notes |')
-    doc.push('|------------|-------|')
-    for (const it of primaryFeatureGroup.items.slice(0, 16)) doc.push(`| **${it}** | Feature |`)
+    appendMarkdownTable(doc, ['Capability', 'Notes'], primaryFeatureGroup.items.slice(0, 16).map(it => [`**${it}**`, 'Feature']))
     doc.push('')
   }
 
@@ -286,37 +292,39 @@ export const buildGitHubRepoSitemapMarkdown = async (args: {
 
   doc.push('## 🔝 Header Navigation')
   doc.push('')
-  doc.push('| Area | Items | Notes |')
-  doc.push('|------|-------|-------|')
-  doc.push('| **Repository** | Code, Issues, Pull requests, Actions, Projects, Wiki, Security, Insights | Derived GitHub UI tabs |')
+  appendMarkdownTable(doc, ['Area', 'Items', 'Notes'], [[
+    '**Repository**',
+    'Code, Issues, Pull requests, Actions, Projects, Wiki, Security, Insights',
+    'Derived GitHub UI tabs',
+  ]])
   doc.push('')
   doc.push('---')
   doc.push('')
 
   doc.push('## 🎯 Hero Section')
   doc.push('')
-  doc.push('| Element | Type | Value |')
-  doc.push('|---------|------|-------|')
-  doc.push(`| **Repository** | Text | ${fullName} |`)
-  doc.push(`| **Description** | Text | ${desc || '(not detected)'} |`)
-  doc.push(`| **Default Ref** | Text | ${args.ref || '(unknown)'} |`)
-  doc.push(`| **Stars** | Metric | ${Number.isFinite(stars) ? formatK(stars) : '(unknown)'} |`)
-  doc.push(`| **Forks** | Metric | ${Number.isFinite(forks) ? formatK(forks) : '(unknown)'} |`)
-  doc.push(`| **License** | Text | ${licenseSpdx || '(unknown)'} |`)
+  appendMarkdownTable(doc, ['Element', 'Type', 'Value'], [
+    ['**Repository**', 'Text', fullName],
+    ['**Description**', 'Text', desc || '(not detected)'],
+    ['**Default Ref**', 'Text', args.ref || '(unknown)'],
+    ['**Stars**', 'Metric', Number.isFinite(stars) ? formatK(stars) : '(unknown)'],
+    ['**Forks**', 'Metric', Number.isFinite(forks) ? formatK(forks) : '(unknown)'],
+    ['**License**', 'Text', licenseSpdx || '(unknown)'],
+  ])
   doc.push('')
   doc.push('---')
   doc.push('')
 
   doc.push('## 📊 Repository Statistics')
   doc.push('')
-  doc.push('| Metric | Value |')
-  doc.push('|--------|-------|')
-  doc.push(`| **Total Folders** | ${folderCount} |`)
-  doc.push(`| **Core Python Files** | ${rootPy.length || 0}${rootPy.length ? '+' : ''} (root level) |`)
-  doc.push(`| **Custom Nodes Support** | ${hasCustomNodes ? 'Yes' : 'Unknown'} |`)
-  doc.push(`| **API Support** | ${apiSupport} |`)
-  doc.push(`| **Supported Platforms** | ${platforms.length ? platforms.join(', ') : 'Unknown'} |`)
-  doc.push(`| **GPU Support** | ${gpuTypes.length ? gpuTypes.join(', ') : 'Unknown'} |`)
+  appendMarkdownTable(doc, ['Metric', 'Value'], [
+    ['**Total Folders**', folderCount],
+    ['**Core Python Files**', `${rootPy.length || 0}${rootPy.length ? '+' : ''} (root level)`],
+    ['**Custom Nodes Support**', hasCustomNodes ? 'Yes' : 'Unknown'],
+    ['**API Support**', apiSupport],
+    ['**Supported Platforms**', platforms.length ? platforms.join(', ') : 'Unknown'],
+    ['**GPU Support**', gpuTypes.length ? gpuTypes.join(', ') : 'Unknown'],
+  ])
   doc.push('')
 
   if (readmeGroups.length) {
@@ -324,11 +332,9 @@ export const buildGitHubRepoSitemapMarkdown = async (args: {
     doc.push('')
     doc.push('## ⚡ Feature Sections (Extracted)')
     doc.push('')
-    doc.push('| Section | Items | Notes |')
-    doc.push('|---------|-------|-------|')
-    for (const g of readmeGroups.slice(0, 10)) {
-      doc.push(`| **${g.title}** | ${g.items.length} | From README list items |`)
-    }
+    appendMarkdownTable(doc, ['Section', 'Items', 'Notes'], readmeGroups.slice(0, 10).map(g => [
+      `**${g.title}**`, g.items.length, 'From README list items',
+    ]))
     doc.push('')
 
     const icons = ['💻', '🧩', '🎬', '⚙️']
@@ -337,7 +343,7 @@ export const buildGitHubRepoSitemapMarkdown = async (args: {
       doc.push('---'); doc.push('');
       doc.push(`## ${(icons[idx - 1] || '⚙️')} Section Statistics: ${g.title}`); doc.push('');
       doc.push(`- **List Items:** ${g.items.length}`); doc.push(`- **Unique Tokens:** ${new Set(g.items.map(x => x.toLowerCase())).size}`); doc.push('');
-      doc.push('| Item |'); doc.push('|------|'); for (const it of g.items.slice(0, 18)) doc.push(`| ${it} |`); doc.push('');
+      appendMarkdownTable(doc, ['Item'], g.items.slice(0, 18).map(it => [it])); doc.push('');
       idx += 1
     }
   }
@@ -365,8 +371,7 @@ export const buildGitHubRepoSitemapMarkdown = async (args: {
     doc.push('')
     doc.push('## 📄 Top-Level Files (Detected)')
     doc.push('')
-    doc.push('| File | Notes |')
-    doc.push('|------|-------|')
+    const rootFileRows: string[][] = []
     for (const f of rootFiles.slice(0, 36)) {
       const lower = f.toLowerCase()
       const note =
@@ -381,8 +386,9 @@ export const buildGitHubRepoSitemapMarkdown = async (args: {
                 : lower.includes('makefile')
                   ? 'Build automation'
                   : '—'
-      doc.push(`| \`${f}\` | ${note} |`)
+      rootFileRows.push([`\`${f}\``, note])
     }
+    appendMarkdownTable(doc, ['File', 'Notes'], rootFileRows)
     doc.push('')
   }
 
@@ -421,18 +427,18 @@ export const buildGitHubRepoSitemapMarkdown = async (args: {
     }
     if (/\.py$/i.test(k.file)) {
       const outline = extractPythonStructuredOutline(fetched.text, { maxTopLevelDefs: 18, maxClasses: 10, maxMethodsPerClass: 14, maxImports: 24 })
-      doc.push('| Module | Class/Object | Function/Method | Input | Output | Decision Logic |')
-      doc.push('|--------|--------------|-----------------|-------|--------|----------------|')
+      const outlineRows: string[][] = []
       for (const d of outline.topLevelDefs) {
         const input = d.args ? d.args.split(',').map(x => x.trim()).filter(Boolean).slice(0, 6).join(', ') : ''
-        doc.push(`| \`${k.file}\` | N/A | \`${d.name}()\` | ${input || '—'} | — | ${d.doc || inferDecisionLogicNote(d.name)} |`)
+        outlineRows.push([`\`${k.file}\``, 'N/A', `\`${d.name}()\``, input || '—', '—', d.doc || inferDecisionLogicNote(d.name)])
       }
       for (const c of outline.classes) {
         for (const m of c.methods.slice(0, 14)) {
           const input = m.args ? m.args.split(',').map(x => x.trim()).filter(Boolean).slice(0, 6).join(', ') : ''
-          doc.push(`| \`${k.file}\` | \`${c.name}\` | \`${m.name}()\` | ${input || '—'} | — | ${m.doc || inferDecisionLogicNote(m.name)} |`)
+          outlineRows.push([`\`${k.file}\``, `\`${c.name}\``, `\`${m.name}()\``, input || '—', '—', m.doc || inferDecisionLogicNote(m.name)])
         }
       }
+      appendMarkdownTable(doc, ['Module', 'Class/Object', 'Function/Method', 'Input', 'Output', 'Decision Logic'], outlineRows)
       doc.push('')
       if (outline.imports.length) {
         doc.push('**Dependencies:**')
@@ -459,9 +465,7 @@ export const buildGitHubRepoSitemapMarkdown = async (args: {
       if (routes.length) {
         doc.push('## 🧭 Key Routes (Heuristic)')
         doc.push('')
-        doc.push('| Route | Notes |')
-        doc.push('|------|-------|')
-        for (const r of routes) doc.push(`| \`${r}\` | Extracted from source strings |`)
+        appendMarkdownTable(doc, ['Route', 'Notes'], routes.map(route => [`\`${route}\``, 'Extracted from source strings']))
         doc.push('')
         doc.push('---')
         doc.push('')
@@ -478,9 +482,7 @@ export const buildGitHubRepoSitemapMarkdown = async (args: {
       if (deps.length) {
         doc.push('## 📚 External Dependencies (requirements.txt)')
         doc.push('')
-        doc.push('| Package | Version/Spec |')
-        doc.push('|---------|--------------|')
-        for (const d of deps) doc.push(`| \`${d.pkg}\` | ${d.spec} |`)
+        appendMarkdownTable(doc, ['Package', 'Version/Spec'], deps.map(dep => [`\`${dep.pkg}\``, dep.spec]))
         doc.push('')
         doc.push('---')
         doc.push('')
@@ -527,18 +529,18 @@ export const buildGitHubRepoSitemapMarkdown = async (args: {
           continue
         }
         const outline = extractPythonStructuredOutline(fetched.text, { maxTopLevelDefs: 10, maxClasses: 6, maxMethodsPerClass: 10, maxImports: 14 })
-        doc.push('| Module | Class/Object | Function/Method | Input | Output | Decision Logic |')
-        doc.push('|--------|--------------|-----------------|-------|--------|----------------|')
+        const outlineRows: string[][] = []
         for (const td of outline.topLevelDefs) {
           const input = td.args ? td.args.split(',').map(x => x.trim()).filter(Boolean).slice(0, 6).join(', ') : ''
-          doc.push(`| \`${file}\` | N/A | \`${td.name}()\` | ${input || '—'} | — | ${td.doc || inferDecisionLogicNote(td.name)} |`)
+          outlineRows.push([`\`${file}\``, 'N/A', `\`${td.name}()\``, input || '—', '—', td.doc || inferDecisionLogicNote(td.name)])
         }
         for (const c of outline.classes) {
           for (const m of c.methods.slice(0, 10)) {
             const input = m.args ? m.args.split(',').map(x => x.trim()).filter(Boolean).slice(0, 6).join(', ') : ''
-            doc.push(`| \`${file}\` | \`${c.name}\` | \`${m.name}()\` | ${input || '—'} | — | ${m.doc || inferDecisionLogicNote(m.name)} |`)
+            outlineRows.push([`\`${file}\``, `\`${c.name}\``, `\`${m.name}()\``, input || '—', '—', m.doc || inferDecisionLogicNote(m.name)])
           }
         }
+        appendMarkdownTable(doc, ['Module', 'Class/Object', 'Function/Method', 'Input', 'Output', 'Decision Logic'], outlineRows)
         doc.push('')
         if (outline.imports.length) {
           doc.push('**Dependencies:**')

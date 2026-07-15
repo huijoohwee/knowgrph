@@ -19,9 +19,17 @@ import { STRUCTURED_SURFACE_INLINE_COMPUTE_NODE_ID, STRUCTURED_SURFACE_INLINE_CO
 import { collectStructuredFrontmatterFields, STRUCTURED_FRONTMATTER_FIELD_KEYS } from './chatResponseStructuredFrontmatter'
 import { buildStructuredCardParentEdges } from './chatResponseStructuredParentEdges'
 import { isRecord, mergeStructuredProperties, readFieldValue, readFirstString, readString, toJsonValue } from './chatResponseStructuredRecord'
+import { containsMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
+import { readStructuredTableMarkdown } from './chatResponseStructuredTables'
+import { readGeospatialStructuredPayload } from './chatResponseStructuredGeospatial'
+import {
+  GENERATED_MARKDOWN_PIPE_TABLE_FORMAT,
+  GENERATED_MARKDOWN_PIPE_TABLE_MIME_TYPE,
+  normalizeGeneratedRichMediaTableProperties,
+} from '@/features/rich-media/richMediaTablePersistence'
 export { projectChatResponseStructuredSurfaceIntoKgcFrontmatter } from './chatResponseStructuredContentProjector'
 
-type ChatResponseStructuredRole = 'widget' | 'panel' | 'card' | 'media' | 'node'
+type ChatResponseStructuredRole = 'widget' | 'panel' | 'card' | 'media' | 'table' | 'node'
 
 export type ChatResponseSurfaceNode = {
   id: string
@@ -92,57 +100,14 @@ const STRUCTURED_NODE_META_KEYS = new Set([
   'outputPort',
   'output_port',
   'properties',
+  'columns',
+  'column',
+  'headers',
+  'header',
+  'rows',
+  'table',
   ...STRUCTURED_FRONTMATTER_FIELD_KEYS,
 ])
-
-const GEOSPATIAL_STRUCTURED_DIRECT_KEYS = [
-  'geoJson',
-  'geojson',
-  'geo_json',
-  'featureCollection',
-  'feature_collection',
-  'features',
-  'coordinates',
-] as const
-
-const GEOSPATIAL_STRUCTURED_BUNDLE_KEYS = [
-  'lat',
-  'lng',
-  'lon',
-  'latitude',
-  'longitude',
-  'location',
-  'geometry',
-  'bbox',
-] as const
-
-const hasMeaningfulStructuredValue = (value: unknown): boolean => {
-  if (value == null) return false
-  if (typeof value === 'string') return value.trim().length > 0
-  if (typeof value === 'number') return Number.isFinite(value)
-  if (typeof value === 'boolean') return true
-  if (Array.isArray(value)) return value.length > 0
-  return isRecord(value) && Object.keys(value).length > 0
-}
-
-const readGeospatialStructuredPayload = (record: Record<string, unknown>): JSONValue | undefined => {
-  for (const key of GEOSPATIAL_STRUCTURED_DIRECT_KEYS) {
-    const raw = readFieldValue(record, key)
-    if (!hasMeaningfulStructuredValue(raw)) continue
-    const normalized = key === 'features' && Array.isArray(raw)
-      ? toJsonValue({ type: 'FeatureCollection', features: raw })
-      : toJsonValue(raw)
-    if (typeof normalized !== 'undefined') return normalized
-  }
-  const bundled: Record<string, JSONValue> = {}
-  for (const key of GEOSPATIAL_STRUCTURED_BUNDLE_KEYS) {
-    const raw = readFieldValue(record, key)
-    if (!hasMeaningfulStructuredValue(raw)) continue
-    const normalized = toJsonValue(raw)
-    if (typeof normalized !== 'undefined') bundled[key] = normalized
-  }
-  return Object.keys(bundled).length > 0 ? bundled : undefined
-}
 
 const slugify = (value: unknown, fallback: string): string => {
   const slug = String(value || '')
@@ -157,6 +122,7 @@ const normalizeNodeId = (value: unknown, fallback: string): string =>
 
 const normalizeKind = (value: unknown, props: Record<string, unknown>): ChatResponseSurfaceNode['kind'] => {
   const explicit = readString(value).toLowerCase()
+  if (explicit === 'table' || explicit === 'markdown-table' || explicit === 'multi-dimensional-table') return 'text'
   if (explicit === 'geo' || explicit === 'geojson' || explicit === 'geospatial' || explicit === 'map') return 'html'
   if (explicit === 'image' || explicit === 'audio' || explicit === 'video' || explicit === 'html' || explicit === 'text') return explicit
   if (readFirstString(props, ['audioUrl', 'audio_url', 'audio'])) return 'audio'
@@ -255,15 +221,24 @@ const normalizeNodeRecord = (value: unknown, index: number, role: ChatResponseSt
   if (!isRecord(value)) return null
   const record = mergeStructuredProperties(value)
   const geospatialPayload = readGeospatialStructuredPayload(record)
-  const kind = normalizeKind(readFieldValue(record, 'kind') || readFieldValue(record, 'type') || readFieldValue(record, 'mediaKind') || readFieldValue(record, 'media_kind'), record)
+  const tableMarkdown = readStructuredTableMarkdown(record, role)
+  const isTableOutput = containsMarkdownPipeTable(tableMarkdown)
+  const inferredKind = normalizeKind(
+    readFieldValue(record, 'kind') || readFieldValue(record, 'type') || readFieldValue(record, 'mediaKind') || readFieldValue(record, 'media_kind'),
+    record,
+  )
+  const hasAuthoredHtml = Boolean(readFirstString(record, ['outputSrcDoc', 'srcDoc', 'srcdoc', 'html']))
+  const kind = isTableOutput || (inferredKind === 'html' && !hasAuthoredHtml && typeof geospatialPayload === 'undefined')
+    ? 'text'
+    : inferredKind
   const nodeTypeId = inferWidgetNodeTypeId(record, role)
   const targetHandle = defaultTargetHandleForNode({ nodeTypeId, kind, record })
   const sourceHandle = defaultSourceHandleForNode({ nodeTypeId, targetHandle: readTargetHandle(kind), record })
-  const output = readFirstString(record, ['output', 'result', 'response', 'transcript', 'text', 'content', 'markdown', 'description'])
+  const output = tableMarkdown || readFirstString(record, ['output', 'result', 'response', 'transcript', 'text', 'content', 'markdown', 'description'])
   const imageUrl = readFirstString(record, ['imageUrl', 'image_url', 'image', 'mediaUrl', 'media_url'])
   const audioUrl = readFirstString(record, ['audioUrl', 'audio_url', 'audio'])
   const videoUrl = readFirstString(record, ['videoUrl', 'video_url', 'video'])
-  const outputSrcDoc = readFirstString(record, ['outputSrcDoc', 'srcDoc', 'srcdoc', 'html'])
+  const outputSrcDoc = isTableOutput ? '' : readFirstString(record, ['outputSrcDoc', 'srcDoc', 'srcdoc', 'html'])
   const hasRenderableContent = Boolean(output || imageUrl || audioUrl || videoUrl || outputSrcDoc || typeof geospatialPayload !== 'undefined')
   const hasDeclaredWidgetInput = nodeTypeId !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
     && Boolean(readWidgetFormId(record) || readFirstString(record, ['prompt', 'input', 'instructions', 'systemPrompt', 'system_prompt']))
@@ -284,6 +259,13 @@ const normalizeNodeRecord = (value: unknown, index: number, role: ChatResponseSt
     properties.media_interactive = kind === 'audio' || kind === 'video' || kind === 'html'
   }
   if (output) properties.output = output
+  if (isTableOutput) {
+    properties.tableFormat = GENERATED_MARKDOWN_PIPE_TABLE_FORMAT
+    properties.outputMimeType = GENERATED_MARKDOWN_PIPE_TABLE_MIME_TYPE
+    properties.richMediaActiveTab = 'text'
+    properties.media_interactive = false
+    properties.kind = 'markdown-table'
+  }
   if (imageUrl) properties.imageUrl = imageUrl
   if (audioUrl) properties.audioUrl = audioUrl
   if (videoUrl) properties.videoUrl = videoUrl
@@ -295,15 +277,21 @@ const normalizeNodeRecord = (value: unknown, index: number, role: ChatResponseSt
     const nextValue = toJsonValue(readFieldValue(record, key))
     if (typeof nextValue !== 'undefined') properties[key] = nextValue
   }
+  const normalizedProperties = normalizeGeneratedRichMediaTableProperties({
+    nodeType: nodeTypeId,
+    nodeLabel: label,
+    properties,
+  }) as Record<string, JSONValue>
+  const normalizedAsTable = containsMarkdownPipeTable(normalizedProperties.output)
 
   return {
     id: nodeId,
     label,
     nodeTypeId,
-    kind,
-    sourceHandle,
-    targetHandle,
-    properties,
+    kind: normalizedAsTable ? 'text' : kind,
+    sourceHandle: normalizedAsTable ? 'output' : sourceHandle,
+    targetHandle: normalizedAsTable ? 'output' : targetHandle,
+    properties: normalizedProperties,
   }
 }
 
@@ -319,6 +307,8 @@ const collectRecords = (value: unknown): Array<{ role: ChatResponseStructuredRol
   pushArray('media', value.media)
   pushArray('media', value.richMedia)
   pushArray('media', value.rich_media)
+  pushArray('table', value.tables)
+  if (isRecord(value.table)) out.push({ role: 'table', value: value.table })
   pushArray('node', value.nodes)
   if (out.length === 0) out.push({ role: 'node', value })
   return out
@@ -342,6 +332,8 @@ const hasStructuredSurfaceLists = (record: Record<string, unknown>): boolean =>
   || Array.isArray(record.media)
   || Array.isArray(record.richMedia)
   || Array.isArray(record.rich_media)
+  || Array.isArray(record.tables)
+  || isRecord(record.table)
   || Array.isArray(record.nodes)
   || Array.isArray(record.edges)
 
@@ -444,7 +436,7 @@ const edgeSignature = (edge: ChatResponseSurfaceEdge): string =>
 const readStructuredNodeRole = (node: ChatResponseSurfaceNode): ChatResponseStructuredRole | '' => {
   const raw = node.properties?.['chat:structuredRole']
   const role = typeof raw === 'string' ? raw.trim() : ''
-  if (role === 'widget' || role === 'panel' || role === 'card' || role === 'media' || role === 'node') return role
+  if (role === 'widget' || role === 'panel' || role === 'card' || role === 'media' || role === 'table' || role === 'node') return role
   return ''
 }
 
@@ -503,7 +495,7 @@ const ensureStructuredSurfaceDataflow = (args: {
     label: 'Structured Compute',
     nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
     kind: 'text',
-    sourceHandle: 'outputSrcDoc',
+    sourceHandle: 'output',
     targetHandle: 'prompt_in',
     properties: {
       'chat:structuredContent': true,

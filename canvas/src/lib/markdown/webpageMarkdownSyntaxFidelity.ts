@@ -1,4 +1,5 @@
 import { expandInlineTranscriptMarkdownLines } from './transcriptMarkdownLines'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 function countUnescapedPipes(line: string): number {
   let count = 0
@@ -52,6 +53,8 @@ const SIMPLE_HTML_WRAPPER_TAGS = new Set([
   'u',
 ])
 
+const CANONICAL_HTML_TABLE_LINE_PREFIX = '\uE000kg-markdown-table:'
+
 function convertHtmlTableToMarkdown(tableHtml: string): string {
   const rows: string[][] = []
   const rowRe = /<tr\b[^>]*>([\s\S]*?)<\/tr>/giu
@@ -63,26 +66,25 @@ function convertHtmlTableToMarkdown(tableHtml: string): string {
     let cellMatch: RegExpExecArray | null
     while ((cellMatch = cellRe.exec(rowHtml))) {
       const cellText = stripHtmlTags(String(cellMatch[1] || ''))
-      cells.push(cellText.replace(/\|/g, '\\|'))
+      cells.push(cellText)
     }
     if (cells.length) rows.push(cells)
   }
-  if (!rows.length) return String(tableHtml || '')
+  if (!rows.length) return stripHtmlTags(tableHtml)
   const header = rows[0]!
   const body = rows.slice(1)
-  const out = [
-    `| ${header.join(' | ')} |`,
-    `| ${header.map(() => '---').join(' | ')} |`,
-  ]
-  for (const row of body) {
-    const padded = header.map((_, index) => row[index] || '')
-    out.push(`| ${padded.join(' | ')} |`)
-  }
-  return out.join('\n')
+  return serializeMarkdownPipeTable({
+    columns: header,
+    rows: body.map(row => header.map((_, index) => row[index] || '')),
+  }).join('\n')
 }
 
 function convertRawHtmlTables(markdown: string): string {
-  return String(markdown || '').replace(/<table\b[\s\S]*?<\/table>/giu, tableHtml => convertHtmlTableToMarkdown(tableHtml))
+  return String(markdown || '').replace(/<table\b[\s\S]*?<\/table>/giu, tableHtml =>
+    convertHtmlTableToMarkdown(tableHtml)
+      .split('\n')
+      .map(line => `${CANONICAL_HTML_TABLE_LINE_PREFIX}${line}`)
+      .join('\n'))
 }
 
 function restoreLinePrefixes(line: string): string {
@@ -198,6 +200,10 @@ export function restoreWebpageMarkdownSyntaxFidelity(markdown: string): string {
   const out: string[] = []
   let inFence = false
   for (const rawLine of lines) {
+    if (rawLine.startsWith(CANONICAL_HTML_TABLE_LINE_PREFIX)) {
+      out.push(rawLine.slice(CANONICAL_HTML_TABLE_LINE_PREFIX.length))
+      continue
+    }
     const trimmed = rawLine.trim()
     if (/^`{3,}/u.test(trimmed) || /^~{3,}/u.test(trimmed)) {
       inFence = !inFence

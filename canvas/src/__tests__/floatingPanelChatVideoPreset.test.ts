@@ -1,7 +1,5 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import React, { act } from 'react'
-import { createRoot } from 'react-dom/client'
 import { createMemoryWorkspaceFs } from '@/features/workspace-fs/workspaceFsMemory'
 import { TEST_VALIDATION_WORKSPACE_SEED_PATH } from '@/features/workspace-fs/workspaceFs'
 import {
@@ -11,7 +9,6 @@ import {
 } from '@/features/chat/videoAgentDemoPreset'
 import {
   isPromptPresetCatalogError,
-  loadPromptPreset,
   loadPromptPresetCatalog,
   PROMPT_PRESET_CATALOG_WORKSPACE_PATH,
 } from '@/features/chat/promptPresetCatalog'
@@ -26,21 +23,27 @@ import { installWorkflowRunAllRunner, requestWorkflowRunAllFromCommittedCanvas }
 import { resolveStoryboardWidgetWorkflowRunGraphSnapshot } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowRunAll'
 import type { ChatMessage } from '@/features/chat/FloatingPanelChatSections'
 import { getChatInvocationOptions } from '@/features/chat/chatInvocationRegistry'
-import { FloatingPanelChatPromptPresetControl } from '@/features/chat/floatingPanelChat/FloatingPanelChatPromptPresetControl'
-import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
-import { adoptLatestChatHistoryTransition, getCachedChatHistory, putChatHistoryCache, publishChatHistoryTransition, resolveChatHistoryPersistenceAction, subscribeToChatHistoryCache, subscribeToChatHistoryTransition } from '@/features/chat/floatingPanelChat/floatingPanelChatRuntime'
+import {
+  adoptLatestChatHistoryTransition,
+  getCachedChatHistory,
+  putChatHistoryCache,
+  publishChatHistoryTransition,
+  resolveChatHistoryPersistenceAction,
+  subscribeToChatHistoryCache,
+  subscribeToChatHistoryTransition,
+} from '@/features/chat/floatingPanelChat/floatingPanelChatRuntime'
 
 const sourcePath = '/docs/video-script.md'
 const invocation = '/video-agent @video-generation-demo-script @provider.byteplus @text @image @audio @video #spec.low #thinking.type.enabled #token-cap.medium [video-script.md](workspace:/docs/video-script.md)'
 
-const promptCatalogMarkdown = [
+export const promptCatalogMarkdown = [
   '---',
   'schema: "agentic-os-prompt-preset-catalog/v1"',
   'prompt_presets:',
   '  - id: "video-agent"',
   '    label: "Video Agent"',
-  '    slash_command: "/video-agent"',
+  '    slash_command: "/video-prompt-preset"',
+  '    runtime_command: "/video-agent"',
   '    description: "Video preset"',
   '    activation: "source-backed-canvas"',
   '    prompt: |-',
@@ -67,7 +70,8 @@ const promptCatalogMarkdown = [
   '      Build a procedural GLB without mutating its source media.',
   '  - id: "sme-care-agent"',
   '    label: "SME Care Agent"',
-  '    slash_command: "/sme-care-agent"',
+  '    slash_command: "/sme-care-prompt-preset"',
+  '    runtime_command: "/sme-care-agent"',
   '    description: "SME preset"',
   '    activation: "chat-agent"',
   '    prompt: |-',
@@ -76,13 +80,24 @@ const promptCatalogMarkdown = [
   '      Assess the active SME sources.',
   '  - id: "investment-research-agent"',
   '    label: "Investment Research Agent"',
-  '    slash_command: "/investment-research-agent"',
+  '    slash_command: "/investment-research-prompt-preset"',
+  '    runtime_command: "/investment-research-agent"',
   '    description: "Investment preset"',
   '    activation: "chat-agent"',
   '    prompt: |-',
   '      /investment-research-agent @source.body @runtime-proof #runtime-ready',
   '',
   '      Research the active investment sources.',
+  '  - id: "crawler-agent"',
+  '    label: "Crawler Agent"',
+  '    slash_command: "/crawler-prompt-preset"',
+  '    runtime_command: "/crawler-agent"',
+  '    description: "Native crawler preset"',
+  '    activation: "chat-agent"',
+  '    prompt: |-',
+  '      /crawler-agent @url:https://example.invalid @reference-policy #canvas',
+  '',
+  '      Crawl the referenced website into Canvas.',
   '---',
   '',
   '# Prompt presets',
@@ -98,7 +113,7 @@ const presetMarkdown = [
   '# Video preset',
 ].join('\n')
 
-const createPresetWorkspace = async () => {
+export const createPresetWorkspace = async () => {
   const workspace = createMemoryWorkspaceFs()
   await workspace.ensureSeed()
   await workspace.writeFileText(TEST_VALIDATION_WORKSPACE_SEED_PATH, presetMarkdown)
@@ -152,99 +167,44 @@ export async function testFloatingPanelChatVideoPresetFailsClosedWithoutSource()
   }
 }
 
-export async function testFloatingPanelChatPromptPresetCatalogLoadsFiveCentralizedPresets() {
-  const workspace = await createPresetWorkspace()
-  const catalog = await loadPromptPresetCatalog(workspace)
-  if (isPromptPresetCatalogError(catalog)) throw new Error(catalog.error)
-  if (catalog.sourcePath !== PROMPT_PRESET_CATALOG_WORKSPACE_PATH) throw new Error(`unexpected catalog source ${catalog.sourcePath}`)
-  if (catalog.presets.map(preset => preset.id).join(',') !== 'video-agent,image-to-threejs,image-to-glb,sme-care-agent,investment-research-agent') {
-    throw new Error(`unexpected centralized prompt presets ${JSON.stringify(catalog.presets)}`)
-  }
-  for (const preset of catalog.presets) {
-    const loaded = await loadPromptPreset(preset.id, workspace)
-    if (isPromptPresetCatalogError(loaded) || !loaded.preset.prompt.startsWith(preset.slashCommand)) {
-      throw new Error(`expected ${preset.id} to load from the centralized catalog, got ${JSON.stringify(loaded)}`)
-    }
-  }
-}
-
 export async function testFloatingPanelChatPromptPresetCatalogFailsClosedOnMissingEntry() {
   const workspace = await createPresetWorkspace()
   await workspace.writeFileText(PROMPT_PRESET_CATALOG_WORKSPACE_PATH, promptCatalogMarkdown.replace('  - id: "investment-research-agent"', '  - id: "sme-care-agent"'))
   const catalog = await loadPromptPresetCatalog(workspace)
-  if (!isPromptPresetCatalogError(catalog) || !catalog.error.includes('5 unique presets')) {
+  if (!isPromptPresetCatalogError(catalog) || !catalog.error.includes('duplicate ids')) {
     throw new Error(`expected duplicate preset ids to fail closed, got ${JSON.stringify(catalog)}`)
   }
 }
 
-export function testFloatingPanelChatVideoPresetRendersAfterNewChat() {
-  const source = fs.readFileSync(path.join(process.cwd(), 'src', 'features', 'chat', 'FloatingPanelChatSections.tsx'), 'utf8')
-  const newChatIndex = source.indexOf('UI_COPY.chatNewChatButtonLabel')
-  const presetIndex = source.indexOf('<FloatingPanelChatPromptPresetControl')
-  if (newChatIndex < 0 || presetIndex <= newChatIndex) {
-    throw new Error('expected the video preset control immediately after New Chat')
+export function testFloatingPanelPromptPresetsIsFirstClassViewAfterSkillsCommands() {
+  const toolbarSource = fs.readFileSync(path.join(process.cwd(), 'src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx'), 'utf8')
+  const chatFooterSource = fs.readFileSync(path.join(process.cwd(), 'src', 'features', 'chat', 'FloatingPanelChatSections.tsx'), 'utf8')
+  const skillsIndex = toolbarSource.indexOf("{ view: 'skillsCommands'")
+  const presetsIndex = toolbarSource.indexOf("{ view: 'promptPresets'")
+  const viewIndex = toolbarSource.indexOf("{ view: 'view'")
+  if (skillsIndex < 0 || presetsIndex <= skillsIndex || viewIndex <= presetsIndex) {
+    throw new Error('expected Prompt Presets immediately after Skills & Commands in FloatingPanel')
+  }
+  if (!toolbarSource.includes("floatingPanelView === 'promptPresets' && <FloatingPanelPromptPresetsView />")) {
+    throw new Error('expected the first-class Prompt Presets FloatingPanel view to render')
+  }
+  if (chatFooterSource.includes('FloatingPanelChatPromptPresetControl')) {
+    throw new Error('Chat footer must not retain the duplicate prompt preset selector')
   }
 }
 
-export function testFloatingPanelChatPromptPresetControlOwnsSelectionAndLoad() {
-  const source = fs.readFileSync(path.join(process.cwd(), 'src', 'features', 'chat', 'floatingPanelChat', 'FloatingPanelChatPromptPresetControl.tsx'), 'utf8')
-  for (const expected of ['loadPromptPresetCatalog()', 'data-kg-chat-prompt-preset-control="true"', 'aria-label={UI_COPY.chatPromptPresetSelectLabel}', 'data-kg-chat-load-preset="true"']) {
-    if (!source.includes(expected)) throw new Error(`prompt preset selector missing ${expected}`)
-  }
-  if (source.includes('FloatingPanelChatVideoPresetButton') || source.includes('data-kg-chat-load-video-preset')) {
-    throw new Error('prompt preset selector must not preserve the stale video-only control')
-  }
-}
-
-export async function testFloatingPanelChatPromptPresetControlRendersAndLoadsAgentChoices() {
-  const workspace = await createPresetWorkspace()
-  const catalog = await loadPromptPresetCatalog(workspace)
-  if (isPromptPresetCatalogError(catalog)) throw new Error(catalog.error)
-  const { dom, restore } = initJsdomHarness()
-  const container = dom.window.document.createElement('section')
-  dom.window.document.body.appendChild(container)
-  const root = createRoot(container as unknown as HTMLElement)
-  let loadedInput = ''
-  const setInput: React.Dispatch<React.SetStateAction<string>> = value => {
-    loadedInput = typeof value === 'function' ? value(loadedInput) : value
-  }
-  try {
-    await mountReactRoot(root, React.createElement(FloatingPanelChatPromptPresetControl, {
-      setInput,
-      disabled: false,
-      textSizeClassName: 'text-xs',
-      runtime: {
-        loadCatalog: async () => catalog,
-        loadPrompt: async id => {
-          const result = await loadPromptPreset(id, workspace)
-          return isPromptPresetCatalogError(result) ? result.error : result.preset.prompt
-        },
-      },
-    }), { window: dom.window as unknown as Window, frames: 4 })
-    const select = container.querySelector('select[aria-label="Prompt preset"]') as HTMLSelectElement | null
-    const loadButton = container.querySelector('button[data-kg-chat-load-preset="true"]') as HTMLButtonElement | null
-    if (!select || !loadButton) throw new Error('expected rendered prompt preset selector and Load preset button')
-    if ([...select.options].map(option => option.value).join(',') !== 'video-agent,image-to-threejs,image-to-glb,sme-care-agent,investment-research-agent') {
-      throw new Error(`unexpected rendered preset choices ${[...select.options].map(option => option.value).join(',')}`)
-    }
-    const expectedSlashCommandByPresetId = {
-      'image-to-threejs': '/image.to-threejs',
-      'image-to-glb': '/image.to-glb',
-      'sme-care-agent': '/sme-care-agent',
-      'investment-research-agent': '/investment-research-agent',
-    } as const
-    for (const id of Object.keys(expectedSlashCommandByPresetId) as Array<keyof typeof expectedSlashCommandByPresetId>) {
-      await act(async () => {
-        select.value = id
-        select.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-      })
-      await act(async () => { loadButton.click() })
-      await waitForFrames(dom.window as unknown as Window, 3)
-      if (!loadedInput.startsWith(expectedSlashCommandByPresetId[id])) throw new Error(`expected ${id} selection to load its centralized prompt, got ${loadedInput}`)
-    }
-  } finally {
-    await unmountReactRoot(root, { window: dom.window as unknown as Window })
-    restore()
+export function testFloatingPanelPromptPresetsViewOwnsCatalogAndChatHandoff() {
+  const source = fs.readFileSync(path.join(process.cwd(), 'src', 'features', 'toolbar', 'FloatingPanelPromptPresetsView.tsx'), 'utf8')
+  for (const expected of [
+    'loadPromptPresetCatalog()',
+    'loadPromptPresetInvocation(id)',
+    'openFloatingPanelChatWithSeedWhenReady({',
+    "mode: 'replace'",
+    "delivery: 'queuedHandoff'",
+    'submit: false',
+    'data-kg-floating-panel-prompt-presets-view="true"',
+  ]) {
+    if (!source.includes(expected)) throw new Error(`Prompt Presets view missing ${expected}`)
   }
 }
 

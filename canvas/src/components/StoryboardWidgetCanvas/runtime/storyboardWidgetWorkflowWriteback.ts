@@ -102,11 +102,19 @@ export function setStoryboardWidgetWorkflowRunLoadingStateForKnownNodeIds(args: 
     updateNode: args.updateNode,
     scheduleWorkflowOutputEdgeRefresh: args.scheduleWorkflowOutputEdgeRefresh,
     suppressStoreGraphWriteback: args.suppressStoreGraphWriteback,
-    buildPatch: nodeProps => ({
-      ...nodeProps,
-      outputLoading: args.loading === true ? true : undefined,
-      outputLoadingKind: args.loading === true ? (args.kind || undefined) : undefined,
-      lastRunAt: args.loading === true ? new Date().toISOString() : nodeProps.lastRunAt,
-    }),
+    buildPatch: nodeProps => {
+      const nextProps = { ...nodeProps }
+      if (args.loading === true) {
+        nextProps.outputLoading = true
+        if (args.kind) nextProps.outputLoadingKind = args.kind
+        else delete nextProps.outputLoadingKind
+        nextProps.lastRunAt = new Date().toISOString()
+      } else {
+        delete nextProps.outputLoading
+        delete nextProps.outputLoadingKind
+        delete nextProps.outputLoadingLabel
+      }
+      return nextProps
+    },
   })
 }

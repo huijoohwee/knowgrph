@@ -7,6 +7,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { EXAMPLES_BY_ID } from '@/features/parsers/examplesCatalog'
 import { LS_KEYS, PUBLIC_FALLBACK_JSON } from '@/lib/config'
 import { getLocalStorage } from '@/lib/persistence'
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 
 declare const workflowPresetIdBrand: unique symbol
 
@@ -170,16 +171,15 @@ export type WorkflowPresetMarkdownRecord = {
 }
 
 export function getWorkflowPresetMarkdownTable(): string {
-  const header = '| Preset ID | Dataset | Schema | Primary use case |'
-  const separator = '|---|---|---|---|'
-  const rows = WORKFLOW_PRESETS.map(preset => {
-    const id = preset.id
-    const dataset = preset.datasetFileName
-    const schema = preset.schemaFileName
-    const useCase = preset.label
-    return `| \`${id}\` | \`${dataset}\` | \`${schema}\` | ${useCase} |`
-  })
-  return [header, separator, ...rows].join('\n')
+  return serializeMarkdownPipeTable({
+    columns: ['Preset ID', 'Dataset', 'Schema', 'Primary use case'],
+    rows: WORKFLOW_PRESETS.map(preset => [
+      `\`${preset.id}\``,
+      `\`${preset.datasetFileName}\``,
+      `\`${preset.schemaFileName}\``,
+      preset.label,
+    ]),
+  }).join('\n')
 }
 
 export function getWorkflowPresetPipeline(presetId: WorkflowPresetId): WorkflowPresetPipeline | null {

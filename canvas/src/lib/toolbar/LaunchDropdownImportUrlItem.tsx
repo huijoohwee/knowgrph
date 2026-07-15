@@ -230,7 +230,7 @@ export function LaunchDropdownImportUrlItem(props: {
                   </button>
                 ) : null}
                 {typeof bridge.importWebsite === 'function' ? (
-                  <button type="button" className={cn(UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME, 'rounded border', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)} title="Import website (sitemap)" aria-label="Import website" onClick={() => {
+                  <button type="button" className={cn(UI_RESPONSIVE_IMPORT_URL_ADDON_ACTION_CLASSNAME, 'rounded border', UI_THEME_TOKENS.input.border, UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)} title="Crawl website headlessly" aria-label="Crawl website headlessly" onClick={() => {
                     const next = String(urlDraft || '').trim()
                     if (!next) return
                     props.onClose()

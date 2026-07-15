@@ -86,7 +86,7 @@ export const createUiInitialState = (
     setFloatingPanelView: (view: GraphState['floatingPanelView']) =>
       set(state => {
         const next =
-          view === 'skillsCommands'
+          view === 'skillsCommands' || view === 'promptPresets'
           || view === 'media'
           || view === 'view'
           || view === 'camera'

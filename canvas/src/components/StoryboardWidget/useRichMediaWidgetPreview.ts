@@ -30,10 +30,11 @@ function readViewportSize(): { viewportWidth: number | null; viewportHeight: num
 export function useRichMediaWidgetPreview(args: {
   enabled: boolean
   node: GraphNode
+  nodeById?: ReadonlyMap<string, GraphNode>
   onPatchProperties: (patch: Record<string, unknown>) => void
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
 }) {
-  const { enabled, node, onPatchProperties, connectedValuesBySchemaPath } = args
+  const { enabled, node, nodeById, onPatchProperties, connectedValuesBySchemaPath } = args
   const rawStoredWidth = node.properties?.['visual:width']
   const rawStoredHeight = node.properties?.['visual:height']
   const richMediaPanelHasStoredWidth = typeof rawStoredWidth === 'number' && Number.isFinite(rawStoredWidth)
@@ -93,9 +94,10 @@ export function useRichMediaWidgetPreview(args: {
     if (!enabled) return null
     return buildRichMediaPanelOverlayState({
       node,
+      nodeById,
       connectedValuesBySchemaPath,
     })
-  }, [connectedValuesBySchemaPath, enabled, node])
+  }, [connectedValuesBySchemaPath, enabled, node, nodeById])
 
   const richMediaPreview = React.useMemo(() => {
     if (!enabled) return null

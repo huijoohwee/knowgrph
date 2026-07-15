@@ -178,6 +178,7 @@ export const testSanitizeImportedMarkdownConvertsStandaloneHtmlTableToMarkdownTa
     '  <tbody>',
     '    <tr><td>Alpha</td><td>One</td></tr>',
     '    <tr><td>Beta</td><td>Two</td></tr>',
+    '    <tr><td>Gamma | Delta</td><td>Line<br>Break</td></tr>',
     '  </tbody>',
     '</table>',
     '',
@@ -189,6 +190,8 @@ export const testSanitizeImportedMarkdownConvertsStandaloneHtmlTableToMarkdownTa
   if (!out.text.includes('| Name | Value |')) throw new Error(`expected markdown table header, got: ${out.text}`)
   if (!out.text.includes('| Alpha | One |')) throw new Error(`expected first markdown table row, got: ${out.text}`)
   if (!out.text.includes('| Beta | Two |')) throw new Error(`expected second markdown table row, got: ${out.text}`)
+  if (!out.text.includes('| Gamma \\| Delta | Line Break |')) throw new Error(`expected shared pipe-table escaping, got: ${out.text}`)
+  if (/<br\s*\/?>/i.test(out.text)) throw new Error(`expected table cell line breaks to persist as Markdown text, got: ${out.text}`)
 }
 
 export const testSanitizeImportedMarkdownConvertsArticleLayoutSectionToMarkdown = () => {

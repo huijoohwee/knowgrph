@@ -1,3 +1,4 @@
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import { settingsRegistry } from '../features/settings/registry'
 import type { SettingMeta } from '../features/settings/types'
 import { LS_KEYS, LS_KEY_OWNERS, type LsKeyId, type LsStorageKey, type LsKeyOwner } from '../lib/config'
@@ -9,10 +10,6 @@ type SettingsMarkdownRecord = {
   docKey: string | undefined
   storageKey: LsStorageKey | null
   owner: LsKeyOwner | null
-}
-
-function escapeTableCell(value: string): string {
-  return value.replace(/\|/g, '\\|')
 }
 
 export function getSettingsMarkdownRecords(): SettingsMarkdownRecord[] {
@@ -39,19 +36,21 @@ export function getSettingsMarkdownRecords(): SettingsMarkdownRecord[] {
 
 export function getSettingsMarkdownTable(): string {
   const records = getSettingsMarkdownRecords()
-  const header = '| Setting key | Type | Source | LS key (if any) | Owner |'
-  const separator = '| --- | --- | --- | --- | --- |'
   const rows = records.map(record => {
-    const keyCell = `\`${escapeTableCell(record.key)}\``
-    const typeCell = escapeTableCell(record.type)
-    const sourceCell = escapeTableCell(record.source)
     const lsKeyRaw = record.storageKey ?? ''
     const ownerRaw = record.owner ?? ''
-    const lsKeyCell = lsKeyRaw ? `\`${escapeTableCell(lsKeyRaw)}\`` : ''
-    const ownerCell = ownerRaw ? `\`${escapeTableCell(ownerRaw)}\`` : ''
-    return `| ${keyCell} | ${typeCell} | ${sourceCell} | ${lsKeyCell} | ${ownerCell} |`
+    return [
+      `\`${record.key}\``,
+      record.type,
+      record.source,
+      lsKeyRaw ? `\`${lsKeyRaw}\`` : '',
+      ownerRaw ? `\`${ownerRaw}\`` : '',
+    ]
   })
-  return [header, separator, ...rows].join('\n')
+  return serializeMarkdownPipeTable({
+    columns: ['Setting key', 'Type', 'Source', 'LS key (if any)', 'Owner'],
+    rows,
+  }).join('\n')
 }
 
 function main() {

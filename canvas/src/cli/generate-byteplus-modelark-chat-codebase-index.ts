@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { serializeMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import {
   BYTEPLUS_SHARED_TEXT_API_DOC_ROWS,
   BYTEPLUS_VALUE_TOOLTIP_BY_ROW_KEY,
@@ -23,13 +24,6 @@ const OUTPUT_PATH = path.join(
 
 const CONFIG_KEYS = new Set(['provider', 'auth_mode', 'endpoint_url', 'api_key'])
 const REQUIRED_KEYS = new Set(['provider', 'auth_mode', 'endpoint_url', 'model', 'messages'])
-
-function escapeMarkdownCell(value: string): string {
-  return String(value || '')
-    .replace(/\r?\n/g, ' ')
-    .replace(/\|/g, '\\|')
-    .trim()
-}
 
 function normalizeScalar(value: string | number | boolean | null | undefined): string {
   if (typeof value === 'undefined') return ''
@@ -80,7 +74,7 @@ function formatList(values: string[] | undefined): string {
   return (values || []).map(value => String(value || '').trim()).filter(Boolean).join('; ')
 }
 
-function buildRow(row: BytePlusSharedTextApiDocRow): string {
+function buildRow(row: BytePlusSharedTextApiDocRow): string[] {
   const isConfig = CONFIG_KEYS.has(row.key)
   const endpoint = isConfig ? 'ALL' : `POST ${CHAT_BYTEPLUS_COMPLETIONS_PATH}`
   const kind = isConfig ? 'config' : 'param'
@@ -94,7 +88,7 @@ function buildRow(row: BytePlusSharedTextApiDocRow): string {
   const keyDescription = row.responsibility
   const valueDescription = buildValueDescription(row)
 
-  const cells = [
+  return [
     endpoint,
     kind,
     row.key,
@@ -112,17 +106,17 @@ function buildRow(row: BytePlusSharedTextApiDocRow): string {
     formatList(row.modules),
     formatList(row.classes),
     formatList(row.functions),
-  ].map(escapeMarkdownCell)
-  return `| ${cells.join(' | ')} |`
+  ]
 }
 
 function buildMarkdown(): string {
   const lines = [
     '## Table',
     '',
-    '| endpoint | kind | key | type | value | required | direction | actor | seq-note | location | scope | pattern | key-description | value-description | module | class | function |',
-    '|----------|------|-----|------|-------|----------|-----------|-------|----------|----------|-------|---------|-----------------|-------------------|--------|-------|----------|',
-    ...BYTEPLUS_SHARED_TEXT_API_DOC_ROWS.map(buildRow),
+    ...serializeMarkdownPipeTable({
+      columns: ['endpoint', 'kind', 'key', 'type', 'value', 'required', 'direction', 'actor', 'seq-note', 'location', 'scope', 'pattern', 'key-description', 'value-description', 'module', 'class', 'function'],
+      rows: BYTEPLUS_SHARED_TEXT_API_DOC_ROWS.map(buildRow),
+    }),
     '',
   ]
   return lines.join('\n')
@@ -135,4 +129,3 @@ function main(): void {
 }
 
 main()
-
