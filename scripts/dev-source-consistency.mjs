@@ -17,7 +17,10 @@ const canonicalRef = source => `${source.canonical_remote}/${source.canonical_br
 
 const requireCanonicalSource = (state, source) => {
   if (source.clean_required && state.status) {
-    throw new Error(`${source.id} source requires a clean worktree; commit, stash, or remove local changes first`)
+    const taskBranchHint = source.task_divergence_allowed && state.branch === source.canonical_branch
+      ? ` Move local work to an agent/<device>/<semantic-scope> branch; npm run dev will select task mode there automatically.`
+      : ''
+    throw new Error(`${source.id} source requires a clean worktree; commit, stash, or remove local changes first.${taskBranchHint}`)
   }
   if (state.headSha !== state.canonicalSha) {
     const recovery = !state.status && state.branch === source.canonical_branch
@@ -29,6 +32,22 @@ const requireCanonicalSource = (state, source) => {
     )
   }
   return `${source.id}=${canonicalRef(source)}@${state.canonicalSha.slice(0, 12)}`
+}
+
+export const resolveDevSourceMode = (sourceStates, contract, environment = process.env) => {
+  const settings = contract.local_development
+  const configuredMode = String(environment[settings.mode_environment_variable] || '').trim()
+  if (configuredMode) return configuredMode
+
+  const applicationSource = settings.canonical_sources.find(source => source.task_divergence_allowed)
+  const applicationState = applicationSource
+    ? sourceStates.find(state => state.id === applicationSource.id)
+    : null
+  const taskBranchPattern = new RegExp(contract.coordination.branch_pattern)
+
+  return applicationState && taskBranchPattern.test(applicationState.branch)
+    ? settings.task_mode
+    : settings.canonical_mode
 }
 
 export const evaluateDevSourceConsistency = (sourceStates, contract, mode) => {
@@ -85,6 +104,6 @@ export const checkDevSourceConsistency = async ({
       worktreeCount: countRegisteredWorktrees(git(['worktree', 'list', '--porcelain'], sourceRoot)),
     })
   }
-  const mode = String(environment[settings.mode_environment_variable] || settings.canonical_mode).trim()
+  const mode = resolveDevSourceMode(sourceStates, contract, environment)
   return evaluateDevSourceConsistency(sourceStates, contract, mode)
 }

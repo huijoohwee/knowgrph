@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import test from 'node:test'
 import { readContract, repoRoot } from '../collaboration-contract.mjs'
-import { checkDevSourceConsistency, evaluateDevSourceConsistency } from '../dev-source-consistency.mjs'
+import { checkDevSourceConsistency, evaluateDevSourceConsistency, resolveDevSourceMode } from '../dev-source-consistency.mjs'
 
 const SHA_A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 const SHA_B = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
@@ -81,6 +81,23 @@ test('task mode allows application divergence but keeps Agentic Canvas OS docs c
     application: { branch: 'agent/macbook/dev-source-consistency' },
     docs: { canonicalSha: SHA_B },
   }), contract, 'task'), /agentic-canvas-os-docs canonical Dev source mismatch/)
+})
+
+test('Dev mode defaults to task only for contract-valid application task branches', async () => {
+  const contract = await readContract()
+  const taskSources = sourceStates({
+    application: {
+      branch: 'agent/macbook/dev-source-consistency',
+      headSha: SHA_B,
+      status: ' M package.json',
+    },
+  })
+
+  assert.equal(resolveDevSourceMode(taskSources, contract, {}), 'task')
+  assert.equal(resolveDevSourceMode(sourceStates({
+    application: { status: ' M package.json' },
+  }), contract, {}), 'canonical')
+  assert.equal(resolveDevSourceMode(taskSources, contract, { KG_DEV_SOURCE_MODE: 'canonical' }), 'canonical')
 })
 
 test('source collection fetches and identifies both repositories from the shared contract', async () => {
