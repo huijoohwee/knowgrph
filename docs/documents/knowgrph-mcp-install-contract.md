@@ -21,7 +21,7 @@ constraints:
 related:
   - README.md
   - docs/documents/knowgrph-next-step-priorities.md
-  - docs/documents/knowgrph-agent-ready-document.md
+  - docs/documents/knowgrph-agent-ready-prd-tad.md
   - docs/documents/markdown-convertible-agent-discovery-document.md
   - docs/documents/knowgrph-mcp/knowgrph-mcp.md
   - docs/documents/knowgrph-superagent-harness.md

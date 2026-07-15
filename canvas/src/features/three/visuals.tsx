@@ -6,6 +6,7 @@ import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js'
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 import type { Vec3 } from './layout'
 import { computeNodeMotion, type NodeMotionState } from './animation'
+import { buildCurvedEdgeTubeGeometry, createCurvedEdgeGeometryScratch } from './curvedEdgeGeometry'
 import type { GraphEdge } from '@/lib/graph/types'
 
 type MotionProps = {
@@ -216,16 +217,14 @@ type CurvedEdgeMeshProps = {
 
 export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolution, rotation, paused, name, sourceId, targetId, sourceRadius, targetRadius, motionIntensity, draggedNodeId, dragOverridesRef }: CurvedEdgeMeshProps & MotionProps & { paused?: boolean }) {
   const ref = useRef<THREE.Mesh>(null!)
-  const geomRef = useRef<THREE.BufferGeometry>(null!)
-  const startRef = useRef(new THREE.Vector3())
-  const endRef = useRef(new THREE.Vector3())
-  const vecRef = useRef(new THREE.Vector3())
-  const dirRef = useRef(new THREE.Vector3())
-  const upRef = useRef(new THREE.Vector3(0, 0, 1))
-  const perpBaseRef = useRef(new THREE.Vector3())
-  const perpRef = useRef(new THREE.Vector3())
-  const ctrlRef = useRef(new THREE.Vector3())
-  const quatRotRef = useRef(new THREE.Quaternion())
+  const geomRef = useRef<THREE.BufferGeometry | null>(null)
+  const geometryScratchRef = useRef(createCurvedEdgeGeometryScratch())
+  React.useEffect(() => {
+    return () => {
+      geomRef.current?.dispose()
+      geomRef.current = null
+    }
+  }, [])
   useFrame(({ clock }) => {
     if (paused) return
     const t = clock.getElapsedTime()
@@ -245,42 +244,25 @@ export function CurvedEdgeMesh({ a, b, color, width, opacity, curvature, resolut
       bx = p[0]; by = p[1]; bz = p[2]
     }
 
-    const start = startRef.current
-    const end = endRef.current
-    start.set(ax, ay, az)
-    end.set(bx, by, bz)
-    const vec = vecRef.current
-    vec.subVectors(end, start)
-    const len = vec.length()
-    if (len < 1e-3) return
-    const dir = dirRef.current
-    dir.copy(vec).normalize()
-    const up = upRef.current
-    if (Math.abs(dir.z) < 0.99) {
-      up.set(0, 0, 1)
-    } else {
-      up.set(0, 1, 0)
+    const tube = buildCurvedEdgeTubeGeometry({
+      start: [ax, ay, az],
+      end: [bx, by, bz],
+      curvature,
+      resolution,
+      rotation,
+      width,
+      scratch: geometryScratchRef.current,
+    })
+    if (!tube) {
+      if (ref.current) ref.current.visible = false
+      return
     }
-    const perpBase = perpBaseRef.current
-    perpBase.crossVectors(dir, up).normalize()
-    const quatRot = quatRotRef.current
-    quatRot.setFromAxisAngle(dir, rotation || 0)
-    const perp = perpRef.current
-    perp.copy(perpBase).applyQuaternion(quatRot).normalize()
-    const offsetMag = Math.max(0, curvature) * (len * 0.5)
-    const ctrl = ctrlRef.current
-    ctrl.copy(start).add(end).multiplyScalar(0.5)
-    ctrl.add(perp.multiplyScalar(offsetMag))
-    const curve = new THREE.QuadraticBezierCurve3(start, ctrl, end)
-    const tubularSegments = Math.max(16, Math.min(64, Math.floor(resolution) * 2 || 32))
-    const radialSegments = Math.max(8, Math.min(32, Math.floor(resolution) || 16))
-    const tubeRadius = Math.max(0.25, width * 0.5)
-    const tube = new THREE.TubeGeometry(curve, tubularSegments, tubeRadius, radialSegments, false)
     if (geomRef.current) {
       geomRef.current.dispose()
     }
     geomRef.current = tube
     if (ref.current) {
+      ref.current.visible = true
       ref.current.geometry = tube
     }
   })

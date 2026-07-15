@@ -6,7 +6,11 @@ import {
   resolveCanvas2dRendererId,
   supportsStoryboardFlowFrontmatterSyntax,
 } from '@/lib/config.render'
-import { parseCanvasWorkspaceFrontmatterPreset } from '@/lib/markdown/frontmatter'
+import {
+  parseCanvasWorkspaceFrontmatterPreset,
+  readBottomSurfaceTabPreset,
+  readFloatingPanelViewPreset,
+} from '@/lib/markdown/frontmatter'
 
 export const testMarkdownFrontmatterReusesSharedPlainObjectGuard = () => {
   const filePath = resolve(process.cwd(), 'src', 'lib', 'markdown', 'frontmatter.ts')
@@ -62,12 +66,27 @@ kgCanvas2dRenderer: "Storyboard"
 }
 
 export const testMarkdownFrontmatterNormalizesXrSurfaceAlias = () => {
+  if (readFloatingPanelViewPreset('camera') !== 'camera' || readFloatingPanelViewPreset('xr') !== 'xr') {
+    throw new Error('expected the canonical FloatingPanel reader to preserve both Camera and XR projections')
+  }
+  if (readBottomSurfaceTabPreset('xr') !== undefined) {
+    throw new Error('expected the canonical BottomPanel reader to reject the removed XR route')
+  }
   const preset = parseCanvasWorkspaceFrontmatterPreset(`---
 kgCanvasSurfaceMode: "XR Mode"
+kgBottomPanelTab: xr
+kgFloatingPanelOpen: true
+kgFloatingPanelView: xr
 ---`)
   if (!preset) throw new Error('expected XR surface alias preset to parse')
   if (preset.canvasSurfaceMode !== 'xr') {
     throw new Error(`expected XR surface alias to normalize to xr, got ${String(preset.canvasSurfaceMode)}`)
+  }
+  if (preset.floatingPanelOpen !== true || preset.floatingPanelView !== 'xr') {
+    throw new Error(`expected XR panel frontmatter to route only to FloatingPanel XR, got ${JSON.stringify(preset)}`)
+  }
+  if (preset.bottomPanelTab !== undefined) {
+    throw new Error(`expected stale BottomPanel XR frontmatter to be rejected without an alias, got ${String(preset.bottomPanelTab)}`)
   }
   const renderPreset = parseCanvasWorkspaceFrontmatterPreset(`---
 kgCanvasRenderMode: "XR Mode"

@@ -22,11 +22,9 @@ import { PanelField, PanelTextarea } from '@/lib/ui/panelFormControls'
 import {
   STRYBLDR_CAMERA_ANGLES,
   STRYBLDR_CAMERA_LEVELS,
-  STRYBLDR_CAMERA_PROPERTY_KEY,
   STRYBLDR_CAMERA_SHOTS,
   formatStrybldrCameraSettings,
   getStrybldrCameraLabel,
-  readStrybldrCameraSettings,
   resolveStrybldrCameraOrbit,
   type StrybldrCameraAngle,
   type StrybldrCameraLevel,
@@ -35,10 +33,10 @@ import {
 } from './strybldrCamera'
 
 type StrybldrCameraPanelProps = {
-  selectedCardId: string
   selectedCardTitle: string
-  selectedCardProperties: Record<string, unknown>
+  settings: StrybldrCameraSettings
   previewImageUrl?: string | null
+  onSettingsChange: (settings: StrybldrCameraSettings) => void
   onReframe: (settings: StrybldrCameraSettings) => void
 }
 
@@ -387,35 +385,26 @@ function StrybldrCameraSphereGraphic({
 }
 
 export function StrybldrCameraPanel({
-  selectedCardId,
   selectedCardTitle,
-  selectedCardProperties,
+  settings,
   previewImageUrl,
+  onSettingsChange,
   onReframe,
 }: StrybldrCameraPanelProps) {
   const previewRef = React.useRef<HTMLElement | null>(null)
   const dragOffsetRef = React.useRef({ x: 0, y: 0 })
   const [draggingCamera, setDraggingCamera] = React.useState(false)
-  const cardCameraSettings = React.useMemo(
-    () => readStrybldrCameraSettings(selectedCardProperties[STRYBLDR_CAMERA_PROPERTY_KEY]),
-    [selectedCardProperties],
-  )
-  const [draft, setDraft] = React.useState<StrybldrCameraSettings>(cardCameraSettings)
 
-  React.useEffect(() => {
-    setDraft(cardCameraSettings)
-  }, [cardCameraSettings, selectedCardId])
-
-  const setDraftFromPreviewPoint = React.useCallback((clientX: number, clientY: number, offset = dragOffsetRef.current) => {
+  const setSettingsFromPreviewPoint = React.useCallback((clientX: number, clientY: number, offset = dragOffsetRef.current) => {
     const preview = previewRef.current
     if (!preview) return
     const point = resolveCameraOrbitPreviewSvgPoint(preview, clientX, clientY, STRYBLDR_CAMERA_PREVIEW_VIEWBOX)
-    const frame = STRYBLDR_CAMERA_SHOT_FRAMES[draft.shot]
+    const frame = STRYBLDR_CAMERA_SHOT_FRAMES[settings.shot]
     const gridPoint = resolveCameraOrbitSphereGridPointFromRenderedPoint(STRYBLDR_CAMERA_ORBIT_SPHERE_CONFIG, { x: point.x - offset.x, y: point.y - offset.y }, frame, STRYBLDR_CAMERA_FRAME_AWARE_OPTIONS)
     const gridOrbit = resolveCameraOrbitSphereOrbitFromGridPoint(STRYBLDR_CAMERA_ORBIT_SPHERE_CONFIG, gridPoint)
     const orbit = resolveStrybldrCameraOrbit(gridOrbit.orbitX, gridOrbit.orbitY)
-    setDraft(current => ({ ...current, ...orbit }))
-  }, [draft.shot])
+    onSettingsChange({ ...settings, ...orbit })
+  }, [onSettingsChange, settings])
 
   return (
     <section
@@ -429,7 +418,7 @@ export function StrybldrCameraPanel({
           <section className="min-w-0 text-xs font-semibold">Camera</section>
         </section>
         <section className={cn('min-w-0 truncate text-[10px] font-semibold uppercase tracking-normal', UI_THEME_TOKENS.text.tertiary)}>
-          {getStrybldrCameraLabel(draft.angle)} · {getStrybldrCameraLabel(draft.level)}
+          {getStrybldrCameraLabel(settings.angle)} · {getStrybldrCameraLabel(settings.level)}
         </section>
       </section>
 
@@ -444,18 +433,18 @@ export function StrybldrCameraPanel({
           role="application"
           onPointerDown={event => {
             const point = resolveCameraOrbitPreviewSvgPoint(event.currentTarget, event.clientX, event.clientY, STRYBLDR_CAMERA_PREVIEW_VIEWBOX)
-            if (!isPointOnStrybldrCameraHandle(point, draft)) return
-            const pose = resolveStrybldrCameraSpherePose(draft.orbitX, draft.orbitY, STRYBLDR_CAMERA_SHOT_FRAMES[draft.shot])
+            if (!isPointOnStrybldrCameraHandle(point, settings)) return
+            const pose = resolveStrybldrCameraSpherePose(settings.orbitX, settings.orbitY, STRYBLDR_CAMERA_SHOT_FRAMES[settings.shot])
             dragOffsetRef.current = { x: point.x - pose.cameraX, y: point.y - pose.cameraY }
             event.currentTarget.setPointerCapture(event.pointerId)
             setDraggingCamera(true)
           }}
           onPointerMove={event => {
             if (!draggingCamera) return
-            setDraftFromPreviewPoint(event.clientX, event.clientY)
+            setSettingsFromPreviewPoint(event.clientX, event.clientY)
           }}
           onPointerUp={event => {
-            if (draggingCamera) setDraftFromPreviewPoint(event.clientX, event.clientY)
+            if (draggingCamera) setSettingsFromPreviewPoint(event.clientX, event.clientY)
             if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
             dragOffsetRef.current = { x: 0, y: 0 }
             setDraggingCamera(false)
@@ -466,44 +455,44 @@ export function StrybldrCameraPanel({
             setDraggingCamera(false)
           }}
         >
-          <StrybldrCameraSphereGraphic orbitX={draft.orbitX} orbitY={draft.orbitY} shot={draft.shot} previewImageUrl={previewImageUrl} />
+          <StrybldrCameraSphereGraphic orbitX={settings.orbitX} orbitY={settings.orbitY} shot={settings.shot} previewImageUrl={previewImageUrl} />
         </section>
       </section>
 
       <CameraSegmentedControl
         ariaLabel="Strybldr camera angle"
-        value={draft.angle}
+        value={settings.angle}
         options={STRYBLDR_CAMERA_ANGLES}
         onChange={angle => {
-          const gridOrbit = resolveStrybldrCameraControlOrbit(angle, draft.level)
+          const gridOrbit = resolveStrybldrCameraControlOrbit(angle, settings.level)
           const orbit = resolveStrybldrCameraOrbit(gridOrbit.orbitX, gridOrbit.orbitY)
-          setDraft(current => ({ ...current, angle, level: orbit.level, orbitX: orbit.orbitX, orbitY: orbit.orbitY }))
+          onSettingsChange({ ...settings, angle, level: orbit.level, orbitX: orbit.orbitX, orbitY: orbit.orbitY })
         }}
       />
       <CameraSegmentedControl
         ariaLabel="Strybldr camera level"
-        value={draft.level}
+        value={settings.level}
         options={STRYBLDR_CAMERA_LEVELS}
         onChange={level => {
-          const gridOrbit = resolveStrybldrCameraControlOrbit(draft.angle, level)
+          const gridOrbit = resolveStrybldrCameraControlOrbit(settings.angle, level)
           const orbit = resolveStrybldrCameraOrbit(gridOrbit.orbitX, gridOrbit.orbitY)
-          setDraft(current => ({ ...current, angle: orbit.angle, level, orbitX: orbit.orbitX, orbitY: orbit.orbitY }))
+          onSettingsChange({ ...settings, angle: orbit.angle, level, orbitX: orbit.orbitX, orbitY: orbit.orbitY })
         }}
       />
       <CameraSegmentedControl
         ariaLabel="Strybldr camera shot size"
-        value={draft.shot}
+        value={settings.shot}
         options={STRYBLDR_CAMERA_SHOTS}
-        onChange={shot => setDraft(current => ({ ...current, shot }))}
+        onChange={shot => onSettingsChange({ ...settings, shot })}
       />
 
       <PanelField label="Note">
         <PanelTextarea
           className="mt-1 min-h-16"
-          value={draft.note}
+          value={settings.note}
           aria-label="Strybldr camera note"
           placeholder="Add a note (optional)"
-          onChange={e => setDraft(current => ({ ...current, note: e.target.value }))}
+          onChange={event => onSettingsChange({ ...settings, note: event.target.value })}
         />
       </PanelField>
       <button
@@ -516,13 +505,13 @@ export function StrybldrCameraPanel({
           UI_THEME_TOKENS.text.primary,
         )}
         title={`Reframe ${selectedCardTitle}`}
-        onClick={() => onReframe({ ...draft, note: draft.note.trim() })}
+        onClick={() => onReframe({ ...settings, note: settings.note.trim() })}
       >
         <Layers className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden={true} />
         Reframe
       </button>
       <section className={cn('sr-only')} aria-live="polite">
-        {formatStrybldrCameraSettings(draft)}. Drag camera around the sphere to reframe.
+        {formatStrybldrCameraSettings(settings)}. Drag camera around the sphere to reframe.
       </section>
     </section>
   )

@@ -7,7 +7,7 @@ SSOT:
 - `docs/documents/knowgrph-byteplus-openark-chat-api-reference-raw.md`
 
 Scope:
-- This static reference is intentionally limited to the BytePlus request-surface rows that knowgrph exposes in `MainPanel Integrations`, `Workflow Manager`, and the `Text Widget` when configured for BytePlus.
+- This static reference is intentionally limited to the BytePlus request-surface rows that knowgrph exposes in `MainPanel Integrations`, `Workflow Manager`, and the `Widget Card` when configured for BytePlus.
 - `provider`, `auth_mode`, `endpoint_url`, and `api_key` are knowgrph integration transport settings aligned to BytePlus ModelArk execution, not raw OpenArk body fields.
 
 Table columns:
@@ -16,7 +16,7 @@ Table columns:
 - Rows are sorted by `key` in ascending `a-z` order for static-reference scanability.
 
 | key | type | value | key-description | value-description | ssot | module | class | function |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| --- | ---- | ----- | ------------ | ------------ | ---- | ------ | ----- | -------- |
 | api_key | string | Integration setting. Empty in serverManaged; required only for explicit BYOK fallback. | Credential manager -> hold caller-supplied BytePlus secret in memory only for BYOK runs -> authorize proxied ModelArk requests without leaking into persistent storage. | Default: -; A memory-only BYOK secret expands explicit caller-authenticated execution; No key narrows execution to server-managed auth only | `canvas/src/features/integrations/byteplusChatApiSsot.rows.ts :: byteplusApi.api_key` | `canvas/src/hooks/store/uiSlice.ts`; `canvas/src/features/settings/registry-ui.ui.ts`; `canvas/src/components/StoryboardWidgetCanvas.tsx` | `GraphState`; `RunGenerationConfig` | `setChatApiKey`; `setChatAuthMode`; `generateRunMarkdownWithProvider` |
 | auth_mode | string | Integration setting. serverManaged \| byok. Default serverManaged uses server-side Cloudflare/dev proxy secrets; BYOK is an explicit user fallback. | Orchestrator -> choose server-managed or memory-only BYOK credential flow -> keep auth policy aligned across Integrations and widget runs. | Default: serverManaged; BYOK expands explicit caller-owned credential control; Server-managed auth narrows credential handling to Cloudflare/dev proxy secrets | `canvas/src/features/integrations/byteplusChatApiSsot.rows.ts :: byteplusApi.auth_mode` | `canvas/src/hooks/store/uiSlice.ts`; `canvas/src/features/settings/registry-ui.ui.ts`; `canvas/src/components/StoryboardWidgetCanvas.tsx` | `GraphState`; `RunGenerationConfig` | `setChatAuthMode`; `setChatApiKey`; `generateRunMarkdownWithProvider` |
 | endpoint_url | string | Integration setting. Base URL by region: ap-southeast-1 or eu-west-1. | Transport -> route BytePlus requests to the correct regional ModelArk base URL -> reconcile provider, endpoint, and model as one selection invariant before widget execution. | Default: https://ark.ap-southeast.bytepluses.com/api/v3; Region-specific endpoints expands deployment locality; One fixed endpoint narrows regional routing flexibility | `canvas/src/features/integrations/byteplusChatApiSsot.rows.ts :: byteplusApi.endpoint_url`; `docs/documents/knowgrph-byteplus-openark-chat-api-reference-raw.md :: Base URL by region` | `canvas/src/lib/chatEndpoint.ts`; `canvas/src/lib/chatProviderSelection.ts`; `canvas/src/hooks/store/uiSlice.ts` | `GraphState`; `RunGenerationConfig` | `normalizeChatEndpointUrlInput`; `resolveChatProviderSelectionValues`; `resolveChatEndpointForRequest` |

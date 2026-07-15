@@ -11,8 +11,9 @@ import { computeLayoutDatasetKey, buildLayoutViewKey, buildLayoutPositionCacheKe
 import { coverageOfPositions, pickSeedFromOtherRendererCache } from '@/lib/canvas/layoutSeed'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { computeLayerOffsetIndices, computePositions3d, computePositionsVoxel, type Vec3 } from '@/lib/three/positions.impl'
+import { asVec3, computeLayerOffsetIndices, computePositions3d, computePositionsVoxel, type Vec3 } from '@/lib/three/positions.impl'
 import { projectPositionsToSphereShell } from './sphereConstraint'
+import { prepareThreePhysicsFrameBuffers } from './threePhysicsBuffers'
 import { quantizeVoxelCoordToCellCenter, quantizeVoxelCoordToGridLine, resolveMinSpacing, resolveSphereEllipsoidAxes, resolveSphereLayerSpacing, resolveSphereRadius, resolveVoxelGridStep } from './threeLayoutConfig'
 import { isRadarFlowEdge, isRadarGraph, isRadarHubNode, isRadarSpokeEdge, readRadarForceConfig } from '@/lib/graph/radarForces'
 import type { Canvas3dModeId } from '@/lib/config'
@@ -159,11 +160,12 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
   const skipProjectionSetRef = useRef<Set<number>>(new Set())
   const radarGraphEnabled = isRadarGraph(nodes)
   const radarForces = readRadarForceConfig(schema)
-  const chargeVal = radarGraphEnabled
+  const chargeRaw = radarGraphEnabled
     ? radarForces.nodeCharge
     : (schema.layout && schema.layout.forces && typeof schema.layout.forces.charge === 'number')
       ? schema.layout.forces.charge!
       : -300
+  const chargeVal = Number.isFinite(chargeRaw) ? chargeRaw : -300
   const effectiveCharge = chargeVal * 2.0
   const sphereRadius = resolveSphereRadius(schema, n)
   const minSpacingCfg = resolveMinSpacing(schema)
@@ -236,8 +238,8 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
         if (isRadarFlowEdge(e)) return radarForces.flowDistancePx * 0.55
         return null
       })()
-      const byLabel =
-        linkDistanceByLabel && typeof linkDistanceByLabel[e.label] === 'number' ? linkDistanceByLabel[e.label]! : null
+      const byLabelRaw = linkDistanceByLabel?.[e.label]
+      const byLabel = typeof byLabelRaw === 'number' && Number.isFinite(byLabelRaw) ? byLabelRaw : null
       const baseDist = radialDist ?? distancePx ?? byLabel ?? Math.max(28, Math.min(140, sphereRadius * 0.5))
       const dist = Math.max(22, Math.min(Math.max(80, sphereRadius * 1.8), baseDist))
       arr.push([si, ti, dist])
@@ -290,7 +292,7 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     }
     return out
   }, [edges, idxById, n, nodes, radarGraphEnabled])
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (posX.current.length !== Math.max(1, n)) {
       posX.current = new Float32Array(Math.max(1, n))
       posY.current = new Float32Array(Math.max(1, n))
@@ -302,11 +304,11 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     const px = posX.current, py = posY.current, pz = posZ.current
     for (let i = 0; i < n; i++) {
       const id = nodes[i].id
-      const p = positions[id] || [0, 0, 0]
+      const p = asVec3(positions[id]) || [targetRByIndex[i] || sphereRadius, 0, 0]
       px[i] = p[0]; py[i] = p[1]; pz[i] = p[2]
     }
     velX.current.fill(0); velY.current.fill(0); velZ.current.fill(0)
-  }, [nodes, positions, n])
+  }, [n, nodes, positions, sphereRadius, targetRByIndex])
 
   const reclaimGrid = () => {
     const grid = gridRef.current
@@ -331,6 +333,15 @@ export function Physics3D({ positions, nodes, edges, schema, dragOverrides, paus
     const dt = Math.max(0.008, Math.min(0.033, delta || 0.016))
     const px = posX.current, py = posY.current, pz = posZ.current
     const vx = velX.current, vy = velY.current, vz = velZ.current
+    if (!prepareThreePhysicsFrameBuffers({
+      nodeCount: n,
+      sphereRadius,
+      buffers: {
+        positionX: px, positionY: py, positionZ: pz,
+        velocityX: vx, velocityY: vy, velocityZ: vz,
+        targetRadiusByIndex: targetRByIndex,
+      },
+    })) return
     const overrides = dragOverrides ? dragOverrides.current : undefined
     const skipProjection = overrides ? skipProjectionSetRef.current : null
     skipProjection?.clear()

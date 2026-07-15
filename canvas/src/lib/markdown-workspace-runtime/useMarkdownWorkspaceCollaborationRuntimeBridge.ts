@@ -2,6 +2,10 @@ import { readKnowgrphStorageCanvasRoomConfig } from '@/lib/storage/knowgrphStora
 import { useKnowgrphStorageCollaborationRuntime } from '@/features/collaboration/useKnowgrphStorageCollaborationRuntime'
 import { useP2PCollaborationRuntime } from '@/features/collaboration/useP2PCollaborationRuntime'
 
+const useConfiguredCollaborationRuntime = readKnowgrphStorageCanvasRoomConfig()
+  ? useKnowgrphStorageCollaborationRuntime
+  : useP2PCollaborationRuntime
+
 type SetActiveMarkdownDocument = (args: {
   name: string
   text: string
@@ -57,8 +61,5 @@ export const useMarkdownWorkspaceCollaborationRuntimeBridge = (args: {
       args.revealLineInEditor(line)
     },
   }
-  if (readKnowgrphStorageCanvasRoomConfig()) {
-    return useKnowgrphStorageCollaborationRuntime(runtimeArgs)
-  }
-  return useP2PCollaborationRuntime(runtimeArgs)
+  return useConfiguredCollaborationRuntime(runtimeArgs)
 }

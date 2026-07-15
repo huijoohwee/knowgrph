@@ -14,7 +14,7 @@ parent: "docs/documents/knowgrph-agentic-os-prd-tad.md"
 parent_version: "0.4.0"
 related:
   - "docs/documents/knowgrph-agentic-os-prd-tad.md"
-  - "docs/documents/knowgrph-agent-ready-document.md"
+  - "docs/documents/knowgrph-agent-ready-prd-tad.md"
   - "docs/documents/knowgrph-mcp/knowgrph-mcp-agentic-os-prd-tad.md"
   - "docs/documents/knowgrph-mcp/knowgrph-mcp-agentic-os-prd-tad.companion.md"
 orientation:

@@ -13,9 +13,10 @@ import { buildAutoFitToScreenSignature, buildAutoZoomSelectionSignature } from '
 import type { Canvas3dModeId } from '@/lib/config'
 import { isD3Like2dRenderer } from '@/lib/config.render'
 import { easeOutCubic01 } from '@/lib/canvas/zoom-smoothing'
-import { readModelAssetCameraPose, type ModelAssetCameraFit } from './modelAssetCameraPose'
+import type { ModelAssetCameraFit } from './modelAssetCameraPose'
+import { resolveCameraControlsOrbitProfile } from './cameraControlsProfile'
+import { applyModelAssetCameraPose, requestCameraFramingControlsReapply, useCameraFramingControlsRuntime } from './cameraFramingControlsRuntime'
 import { buildVoxelCameraIntroPoses, readVoxelCameraConfig } from './voxelCamera'
-
 function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)) }
 
 export function Controls({
@@ -344,33 +345,8 @@ export function Controls({
     const pathEnabled = globeEffectsEnabled && globeCameraEllipseEnabled && layoutMode === 'radial' && d3Like
     const modelAssetMode = !!String(modelAssetRenderKey || '').trim()
     const voxelMode = mode === 'voxel'
-    const topBiasedOrbit = voxelMode || ((mode === '3d' || mode === 'xr') && !modelAssetMode)
-    const orbitProfile = voxelMode
-      ? {
-          rotateFactor: 0.68,
-          zoomFactor: 0.52,
-          minPolar: 0.12,
-          maxPolar: Math.PI * 0.46,
-          minDistance: 16,
-          maxDistance: 1200,
-        }
-      : topBiasedOrbit
-        ? {
-            rotateFactor: 0.74,
-            zoomFactor: 0.6,
-            minPolar: 0.1,
-            maxPolar: Math.PI * 0.44,
-            minDistance: 12,
-            maxDistance: 1400,
-          }
-        : {
-            rotateFactor: 1,
-            zoomFactor: 1,
-            minPolar: 0.03,
-            maxPolar: Math.PI - 0.03,
-            minDistance: 0.05,
-            maxDistance: Infinity,
-          }
+    const orbitProfile = resolveCameraControlsOrbitProfile({ mode, modelAssetMode })
+    const topBiasedOrbit = orbitProfile.topBiased
     const globeAutoRotateSpeed =
       typeof schema.three?.globeAutoRotateSpeed === 'number' && Number.isFinite(schema.three.globeAutoRotateSpeed)
         ? Math.max(0, Math.min(0.4, schema.three.globeAutoRotateSpeed))
@@ -389,7 +365,7 @@ export function Controls({
     try {
       if (mode === 'voxel') {
         camera.up.set(0, 0, 1)
-      } else {
+      } else if (mode !== 'xr') {
         camera.up.set(0, 1, 0)
       }
       controls.enableRotate = true
@@ -419,15 +395,14 @@ export function Controls({
       void 0
     }
   }, [camera, canvas2dRenderer, controls, mode, modelAssetRenderKey, schema, viewPinned])
-  React.useEffect(() => {
-    const key = String(modelAssetRenderKey || '').trim()
-    if (!key || !modelAssetFit) return
-    try {
-      applyModelAssetCameraPose({ camera: perspectiveCamera, controls, fit: modelAssetFit, perspectiveCamera })
-    } catch {
-      void 0
-    }
-  }, [controls, modelAssetFit, modelAssetRenderKey, perspectiveCamera])
+  useCameraFramingControlsRuntime({
+    camera: perspectiveCamera,
+    controls,
+    mode,
+    paused: !!paused,
+    modelAssetRenderKey,
+    modelAssetFit,
+  })
   React.useEffect(() => {
     const wasMode = previousModeRef.current
     previousModeRef.current = mode
@@ -550,7 +525,9 @@ export function Controls({
     }
     if (modelAssetMode && modelAssetFit) {
       if (req.type === 'fit' || req.type === 'reset') {
-        applyModelAssetCameraPose({ camera: perspectiveCamera, controls, fit: modelAssetFit, perspectiveCamera })
+        if (mode !== 'xr' || !requestCameraFramingControlsReapply()) {
+          applyModelAssetCameraPose({ camera: perspectiveCamera, controls, fit: modelAssetFit, perspectiveCamera })
+        }
       }
       useGraphStore.getState().clearThreeCameraRequest()
       selectionPerfEnd('three', t0)
@@ -588,35 +565,11 @@ export function Controls({
     })
     useGraphStore.getState().clearThreeCameraRequest()
     selectionPerfEnd('three', t0)
-  }, [paused, viewPinned, threeCameraRequest, data, selectedNodeId, selectedEdgeId, positions, perspectiveCamera, controls, zoomOnSelectionEnabled, modelAssetFit, modelAssetRenderKey])
+  }, [paused, viewPinned, threeCameraRequest, data, selectedNodeId, selectedEdgeId, selectedGroupId, selectedNodeIds, selectedEdgeIds, selectedGroupIds, positions, perspectiveCamera, controls, zoomOnSelectionEnabled, mode, modelAssetFit, modelAssetRenderKey])
   React.useEffect(() => {
     return () => {
       try { controls.dispose() } catch { void 0 }
     }
   }, [controls])
   return null
-}
-
-function applyModelAssetCameraPose({
-  camera,
-  controls,
-  fit,
-  perspectiveCamera,
-}: {
-  camera: PerspectiveCamera
-  controls: OrbitControls
-  fit: ModelAssetCameraFit
-  perspectiveCamera: PerspectiveCamera
-}) {
-  const pose = readModelAssetCameraPose(fit)
-  camera.up.set(pose.up[0], pose.up[1], pose.up[2])
-  camera.position.set(pose.position[0], pose.position[1], pose.position[2])
-  controls.target.set(pose.target[0], pose.target[1], pose.target[2])
-  perspectiveCamera.fov = 50
-  perspectiveCamera.zoom = 1
-  perspectiveCamera.near = pose.near
-  perspectiveCamera.far = pose.far
-  perspectiveCamera.updateProjectionMatrix()
-  camera.lookAt(controls.target)
-  controls.update()
 }

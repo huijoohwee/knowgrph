@@ -23,10 +23,10 @@ export type PropsPanelOpenEventDetail = {
 export type FloatingPanelOpenEventDetail = {
   tab?:
     | 'inspector'
-    | 'node'
-    | 'view'
-    | 'camera'
-    | 'chat'
+     | 'node'
+     | 'view'
+     | 'camera'
+     | 'chat'
     | 'media'
     | 'geo'
     | 'storyboardWidget'

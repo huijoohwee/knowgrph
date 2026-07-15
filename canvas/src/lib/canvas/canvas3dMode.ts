@@ -63,6 +63,15 @@ export type CanvasSurfaceModeSelectionParams = CanvasSurfaceModeApplicabilityArg
   setSchema: (schema: GraphSchema) => void
 }
 
+export type CanvasGraphSurfaceModeActivationParams = Pick<CanvasSurfaceModeSelectionParams, 'setCanvasRenderMode' | 'setCanvas3dMode'> & {
+  mode: Canvas3dModeId
+}
+
+export function activateCanvasGraphSurfaceMode(params: CanvasGraphSurfaceModeActivationParams): void {
+  params.setCanvas3dMode(params.mode)
+  params.setCanvasRenderMode('3d')
+}
+
 export function normalizeCanvas3dMode(raw: unknown): Canvas3dModeId {
   if (raw === 'xr') return 'xr'
   return raw === 'voxel' ? 'voxel' : '3d'
@@ -206,8 +215,7 @@ export function applyCanvasSurfaceModeSelection(params: CanvasSurfaceModeSelecti
     if (canvas2dRenderer !== 'flowchart') {
       setCanvas2dRenderer('flowchart')
     }
-    setCanvas3dMode('voxel')
-    setCanvasRenderMode('3d')
+    activateCanvasGraphSurfaceMode({ mode: 'voxel', setCanvas3dMode, setCanvasRenderMode })
     return true
   }
   if (geospatialEnabled) {
@@ -215,7 +223,6 @@ export function applyCanvasSurfaceModeSelection(params: CanvasSurfaceModeSelecti
     return false
   }
   if ((params.layoutMode ?? schema?.layout?.mode) === 'radial') return false
-  setCanvas3dMode(mode)
-  setCanvasRenderMode('3d')
+  activateCanvasGraphSurfaceMode({ mode, setCanvas3dMode, setCanvasRenderMode })
   return true
 }

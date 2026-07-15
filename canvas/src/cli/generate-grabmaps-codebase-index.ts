@@ -7,15 +7,12 @@ import {
   GRABMAPS_DOC_ROWS,
   type GrabMapsApiDocRow,
 } from '../features/integrations/grabMapsSsot.rows'
+import { resolveApiReferenceCodebaseIndexOutputPath } from './apiReferenceOutputPaths'
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '../../..')
-const OUTPUT_PATH = path.join(
+const OUTPUT_PATH = resolveApiReferenceCodebaseIndexOutputPath(
   REPO_ROOT,
-  'docs',
-  'documents',
-  'api-reference',
-  'api-reference-codebase-index_202604261230',
   'knowgrph-grabmaps-api-reference-codebase-index.md',
 )
 

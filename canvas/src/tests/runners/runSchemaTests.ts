@@ -6,7 +6,7 @@ const modLayoutDatasetKeyStable = () => import('@/__tests__/layoutDatasetKeyStab
 const modCanvas3dMode = () => import('@/__tests__/canvas3dMode.test')
 const modCanvasXrSessionPolicy = () => import('@/__tests__/canvasXrSessionPolicy.test')
 const modCanvasXrPhysicsPlayground = () => import('@/__tests__/canvasXrPhysicsPlayground.test')
-const modCanvasXrPanelSurfaces = () => import('@/__tests__/canvasXrPanelSurfaces.test')
+const modCanvasXrPanelSurface = () => import('@/__tests__/canvasXrPanelSurface.test')
 const modWorkspaceImportXrSpatialCaptureIngestion = () => import('@/__tests__/workspaceImportXrSpatialCaptureIngestion.test')
 const modWorkspaceImportXrSpatialCaptureLaunchUrl = () => import('@/__tests__/workspaceImportXrSpatialCaptureLaunchUrl.test')
 const modWorkspaceImportXrSpatialCaptureRuntime = () => import('@/__tests__/workspaceImportXrSpatialCaptureRuntime.test')
@@ -81,9 +81,9 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvasXrPhysicsPlayground()
     await mod.testXrPhysicsPlaygroundUsesNativeBoundedInteractionModel()
   })
-  await execTest(results, 'canvas.xrMode.panelSurfaces', async () => {
-    const mod = await modCanvasXrPanelSurfaces()
-    await mod.testXrModeMountsSharedBottomAndFloatingPanels()
+  await execTest(results, 'canvas.xrMode.panelSurface', async () => {
+    const mod = await modCanvasXrPanelSurface()
+    await mod.testXrModeUsesCanonicalFloatingPanel()
   })
   await execTest(results, 'workspace.import.xrSpatialCapture.localPlyManifestCache', async () => {
     const mod = await modWorkspaceImportXrSpatialCaptureIngestion()

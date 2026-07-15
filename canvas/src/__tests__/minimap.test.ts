@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
   computeGraphBounds,
   computeTransformFromCenter,
@@ -87,5 +89,31 @@ export const testComputeViewRect = () => {
   )
   if (edgePath !== 'M5,5L25,5') {
     throw new Error(`expected minimap edges to connect rectangle centers, got ${edgePath}`)
+  }
+}
+
+export const testMinimapSurfaceUsesStableSemanticMarkers = () => {
+  const viewport = readFileSync(resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx'), 'utf8')
+  const minimap = readFileSync(resolve(process.cwd(), 'src', 'features', 'minimap', 'Minimap.tsx'), 'utf8')
+  for (const marker of [
+    'minimapOverlayVisible',
+    "activeSurface === '3d' && effectiveCanvas3dMode === '3d'",
+    'data-kg-minimap-overlay-surface={minimapOverlaySurface}',
+    'data-kg-minimap-overlay-placement="bottom-left"',
+    'data-kg-css-inspector-selectable="minimap-overlay"',
+  ]) {
+    if (!viewport.includes(marker)) throw new Error(`expected CanvasViewport to expose minimap overlay marker ${marker}`)
+  }
+  for (const marker of [
+    'data-kg-minimap-root="1"',
+    'data-kg-minimap-surface="1"',
+    'data-kg-minimap-svg="1"',
+    'data-kg-css-inspector-selectable="minimap"',
+    'data-kg-css-inspector-selectable="minimap-surface"',
+    'relative isolate group kg-minimap-root',
+    'kg-minimap-surface',
+    'kg-minimap-svg',
+  ]) {
+    if (!minimap.includes(marker)) throw new Error(`expected minimap to expose semantic marker ${marker}`)
   }
 }

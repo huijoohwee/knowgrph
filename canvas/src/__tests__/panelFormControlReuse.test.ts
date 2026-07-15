@@ -18,7 +18,7 @@ export function testPanelFormControlsAreSharedAcrossCameraAndDataViewDensity() {
   const threeViewBackgroundFogSectionText = readUtf8('src/features/panels/views/ThreeViewBackgroundFogSection.tsx')
   const threeViewStarfieldSectionText = readUtf8('src/features/panels/views/ThreeViewStarfieldSection.tsx')
   const strybldrCameraPanelText = readUtf8('src/features/strybldr/StrybldrCameraPanel.tsx')
-  const strybldrCameraFloatingText = readUtf8('src/features/strybldr/StrybldrCameraFloatingPanelView.tsx')
+  const strybldrCameraFramingSectionText = readUtf8('src/features/strybldr/StrybldrCameraFramingSection.tsx')
   const dataViewSettingsText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewSettingsPanel.tsx')
   const dataViewFloatingStoreText = readUtf8('src/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore.ts')
   const dataViewSettingsPrimitivesText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewSettingsPrimitives.tsx')
@@ -26,7 +26,11 @@ export function testPanelFormControlsAreSharedAcrossCameraAndDataViewDensity() {
   const dataViewFilterMenuText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewFilterMenu.tsx')
   const dataViewSortSectionText = readUtf8('src/features/markdown-workspace/main/viewer/WorkspaceDataViewSettingsSortSection.tsx')
   const graphTableToolbarText = readUtf8('src/features/graph-data-table/ui/GraphDataTableToolbar.tsx')
-  const cardInlineTextEditorText = readUtf8('src/lib/cards/CardInlineTextEditor.tsx')
+  const cardInlineTextRuntimeText = [
+    'src/lib/cards/CardInlineTextEditor.tsx',
+    'src/lib/cards/CardInlineTextEditingSurface.tsx',
+    'src/lib/cards/CardInlineTextDisplaySurface.tsx',
+  ].map(readUtf8).join('\n')
   const storyboardCanvasText = readUtf8('src/components/StoryboardCanvas.tsx')
   const storyboardWidgetInlineValueEditorText = readUtf8('src/components/StoryboardWidget/StoryboardWidgetInlineValueEditor.tsx')
   const storyboardWidgetInspectorText = readUtf8('src/components/StoryboardWidget/StoryboardWidgetInspector.tsx')
@@ -91,7 +95,6 @@ export function testPanelFormControlsAreSharedAcrossCameraAndDataViewDensity() {
   ) {
     throw new Error('expected PanelKeyTypeColorTextValueRow to centralize the specialized color-swatch-plus-text input row on top of the shared panel text input primitive')
   }
-
   if (
     !panelKeyTypeCheckboxValueRowText.includes('labelNode?: React.ReactNode') ||
     !panelKeyTypeCheckboxValueRowText.includes('{labelNode}')
@@ -194,7 +197,7 @@ export function testPanelFormControlsAreSharedAcrossCameraAndDataViewDensity() {
     !sharedControlsText.includes('w-full min-w-0 max-w-full resize-y rounded-md border') ||
     !sharedControlsText.includes('w-full min-w-0 max-w-full resize-y rounded border bg-transparent') ||
     sharedControlsText.includes('w-full resize rounded') ||
-    !sharedControlsText.includes('h-4 w-4 rounded') ||
+    !sharedControlsText.includes('UI_RESPONSIVE_SELECTION_CONTROL_CLASSNAME') ||
     !sharedControlsText.includes('type="range"')
   ) {
     throw new Error('expected panel form controls to expose shared semantic field, read-only field, fixed single-line, resizable multi-line, select, checkbox, range, transparent-variant, and shared choice-surface utilities')
@@ -208,7 +211,6 @@ export function testPanelFormControlsAreSharedAcrossCameraAndDataViewDensity() {
   ) {
     throw new Error('expected FloatingPanel View density to feed shared panel form primitives through the FloatingPanel shell')
   }
-
   const dataViewTableValueCssSource = responsiveToolbarCssText.match(/\.kg-data-view-table-value\s\{[\s\S]*?\n\s{2}\}/)?.[0] || ''
   if (
     !dataViewTableValueCssSource ||
@@ -218,19 +220,18 @@ export function testPanelFormControlsAreSharedAcrossCameraAndDataViewDensity() {
   ) {
     throw new Error('expected Multi-dimensional Table value density to be owned by shared field-line classes instead of base table CSS')
   }
-
   if (
-    !cardInlineTextEditorText.includes("from '@/lib/ui/panelFormControls'") ||
-    !cardInlineTextEditorText.includes('PanelTextInput') ||
-    !cardInlineTextEditorText.includes('PanelTextarea') ||
-    !cardInlineTextEditorText.includes('useWorkspaceDataViewFloatingDensity') ||
-    !cardInlineTextEditorText.includes('readDataViewFieldLineClassName') ||
-    !cardInlineTextEditorText.includes('rowHeightPreset={editorDensity.rowHeightPreset}') ||
-    !cardInlineTextEditorText.includes('fieldLineMode={editorDensity.fieldLineMode}') ||
-    !cardInlineTextEditorText.includes('density={editorDensity.rowHeightPreset}') ||
-    !cardInlineTextEditorText.includes('readDataViewFieldLineClassName(editorDensity.fieldLineMode)') ||
-    !cardInlineTextEditorText.includes('densityOwnedDisplayClassName') ||
-    cardInlineTextEditorText.includes('PlainTextInputEditor')
+    !cardInlineTextRuntimeText.includes("from '@/lib/ui/panelFormControls'") ||
+    !cardInlineTextRuntimeText.includes('PanelTextInput') ||
+    !cardInlineTextRuntimeText.includes('PanelTextarea') ||
+    !cardInlineTextRuntimeText.includes('useWorkspaceDataViewFloatingDensity') ||
+    !cardInlineTextRuntimeText.includes('readDataViewFieldLineClassName') ||
+    !cardInlineTextRuntimeText.includes('rowHeightPreset={editorDensity.rowHeightPreset}') ||
+    !cardInlineTextRuntimeText.includes('fieldLineMode={editorDensity.fieldLineMode}') ||
+    !cardInlineTextRuntimeText.includes('density={editorDensity.rowHeightPreset}') ||
+    !cardInlineTextRuntimeText.includes('readDataViewFieldLineClassName(editorDensity.fieldLineMode)') ||
+    !cardInlineTextRuntimeText.includes('densityOwnedDisplayClassName') ||
+    cardInlineTextRuntimeText.includes('PlainTextInputEditor')
   ) {
     throw new Error('expected shared CardInlineTextEditor to render density-aware panel text input, textarea, and display-surface primitives')
   }
@@ -282,9 +283,8 @@ export function testPanelFormControlsAreSharedAcrossCameraAndDataViewDensity() {
   ) {
     throw new Error('expected Strybldr camera note field to use the shared semantic field and textarea controls')
   }
-
-  if (!strybldrCameraFloatingText.includes("from '@/lib/ui/panelFormControls'") || !strybldrCameraFloatingText.includes('<PanelSelect')) {
-    throw new Error('expected Strybldr camera floating panel to reuse the shared select control')
+  if (!strybldrCameraFramingSectionText.includes("from '@/lib/ui/panelFormControls'") || !strybldrCameraFramingSectionText.includes('<PanelSelect')) {
+    throw new Error('expected the shared Camera/XR framing owner to reuse the shared select control')
   }
 
   if (
