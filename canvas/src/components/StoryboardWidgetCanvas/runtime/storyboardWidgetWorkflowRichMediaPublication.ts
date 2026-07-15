@@ -276,13 +276,14 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
 
   const publishTextRunOutputToRichMediaPanel: StoryboardWidgetTextRunOutputPublisher = panelArgs => {
     args.withRunLayoutMutationGuard(() => {
+      const outputKey = panelArgs.outputKey?.trim() || 'output'
       const panelNodeId = ensureStoryboardWidgetWorkflowRichMediaPanelNodeId({
         context: args.context,
         graphForRun: args.graphForRun,
         allowCreateRichMediaPanel: args.allowCreateRichMediaPanel,
         anchorNode: panelArgs.anchorNode,
         readLiveDraftGraphData: args.readLiveDraftGraphData,
-        outputKey: panelArgs.outputKey,
+        outputKey,
         outputLabel: panelArgs.panelLabel,
         outputIndex: panelArgs.outputIndex,
         appendDraftNode: args.appendDraftNode,
@@ -291,7 +292,7 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
       ensureStoryboardWidgetWorkflowOutputEdge({
         anchorNodeId: readWorkflowString(panelArgs.anchorNode.id),
         panelNodeId,
-        outputKey: panelArgs.outputKey,
+        outputKey,
         readLiveDraftGraphData: args.readLiveDraftGraphData,
         commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
         scheduleWorkflowOutputEdgeRefresh: args.scheduleWorkflowOutputEdgeRefresh,
@@ -312,10 +313,8 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
         outputLoadingLabel: panelArgs.loading === true && panelArgs.loadingLabel?.trim() ? panelArgs.loadingLabel.trim() : undefined,
         lastRunAt: panelArgs.loading === true ? new Date().toISOString() : undefined,
         outputSourceUrl: typeof panelArgs.sourceUrl === 'string' && panelArgs.sourceUrl.trim() ? panelArgs.sourceUrl.trim() : undefined,
-        ...(panelArgs.outputKey?.trim() ? {
-          workflowOutputAnchorNodeId: readWorkflowString(panelArgs.anchorNode.id),
-          workflowOutputKey: panelArgs.outputKey.trim(),
-        } : {}),
+        workflowOutputAnchorNodeId: readWorkflowString(panelArgs.anchorNode.id),
+        workflowOutputKey: outputKey,
       }
       applyPublishedPanelPatch(panelNodeId, patch)
     })

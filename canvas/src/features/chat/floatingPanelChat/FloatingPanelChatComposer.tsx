@@ -1,9 +1,12 @@
 import React from 'react'
 import { collectMarkdownVariableBrowseRows, buildMarkdownVariableToken } from '@/features/markdown/ui/markdownVariableReferences'
 import {
+  buildPromptPresetChatInvocationCatalogEntries,
   resolveChatInvocationCatalogEntries,
+  resolveChatInvocationCatalogEntryInsertionText,
   type ChatInvocationCatalogPrefixFilter,
 } from '@/features/chat/chatInvocationRegistry'
+import { usePromptPresetCatalog } from '@/features/chat/usePromptPresetCatalog'
 import { fetchAgenticOsRemoteGrammarCatalog, type AgenticOsRemoteGrammarCatalogEntry, useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { buildInlineMediaEmbed, collectInlineKeywordCommandCandidates, collectInlineMediaCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import { mergeInlineMediaCommandCandidates } from '@/lib/command-menu/inlineMediaCommandCandidateMerge'
@@ -89,6 +92,7 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
   const [trigger, setTrigger] = React.useState<ChatComposerTrigger | null>(null)
   const [query, setQuery] = React.useState('')
   const [remoteGrammarEntries, setRemoteGrammarEntries] = React.useState<AgenticOsRemoteGrammarCatalogEntry[]>([])
+  const promptPresets = usePromptPresetCatalog()
   const grammarCatalog = useAgenticOsRemoteGrammarCatalog({
     sigils: trigger ? [REMOTE_GRAMMAR_SIGIL_BY_TRIGGER_KIND[trigger.kind]] : [],
   })
@@ -176,9 +180,22 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
   }, [applyReplacement, remoteGrammarEntries, trigger])
 
   const slashFallbackItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => buildInvocationCatalogItems('slash'), [buildInvocationCatalogItems])
+  const promptPresetItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => (
+    buildPromptPresetChatInvocationCatalogEntries(promptPresets).map(entry => buildInlineCommandMenuItem({
+      id: `chat-prompt-preset-${entry.id}`,
+      label: entry.token,
+      group: entry.group,
+      description: entry.summary,
+      keywords: [entry.label, entry.sourcePath || '', ...entry.keywords].filter(Boolean),
+      onSelect: () => applyReplacement(resolveChatInvocationCatalogEntryInsertionText(entry)),
+    }))
+  ), [applyReplacement, promptPresets])
   const slashItems = React.useMemo(
-    () => mergeMenuItems(remoteGrammarItems.filter(item => item.label.startsWith('/')), slashFallbackItems),
-    [remoteGrammarItems, slashFallbackItems],
+    () => mergeMenuItems(
+      promptPresetItems,
+      mergeMenuItems(remoteGrammarItems.filter(item => item.label.startsWith('/')), slashFallbackItems),
+    ),
+    [promptPresetItems, remoteGrammarItems, slashFallbackItems],
   )
   const variableFallbackItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
     const sourceLines = String(props.markdownText || '').split(/\r?\n/)

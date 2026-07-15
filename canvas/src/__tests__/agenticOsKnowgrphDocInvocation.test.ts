@@ -10,6 +10,10 @@ import {
   buildProbeTreeCardFromGraphNode,
   materializeProbeTreeBranchCardsFromGraphNode,
 } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
+import {
+  materializeStoryboardWidgetProbeTreeInvocation,
+  resolveStoryboardWidgetProbeTreeInvocationToken,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
 import type { GraphData } from '@/lib/graph/types'
 
 export function testKnowgrphProbeTreeInvocationGrammarUsesDocAliasesAndToolIdentity() {
@@ -131,5 +135,52 @@ export function testKnowgrphProbeTreeInvocationGrammarUsesDocAliasesAndToolIdent
     && !Object.prototype.hasOwnProperty.call(node.properties, 'atToken')
   ))) {
     throw new Error(`expected Probe-Tree cards to use the MCP tool identity without invented grammar aliases, got ${JSON.stringify(propsPanelProbeNodes)}`)
+  }
+}
+
+export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation() {
+  const prompt = [
+    '/sme-care-agent @source.frontmatter @source.body',
+    '/knowgrph.probe-tree',
+    'Assess the active SME workspace sources.',
+  ].join('\n')
+  if (resolveStoryboardWidgetProbeTreeInvocationToken(prompt) !== '/knowgrph.probe-tree') {
+    throw new Error('expected Widget Card execution to resolve an embedded Probe-Tree directive after another leading route')
+  }
+  for (const alias of ['#knowgrph.probe-tree', '@knowgrph.probe-tree']) {
+    if (resolveStoryboardWidgetProbeTreeInvocationToken(`Prepare branches ${alias} now`) !== alias) {
+      throw new Error(`expected Widget Card execution to resolve Probe-Tree alias ${alias}`)
+    }
+  }
+
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [{
+      id: 'n1',
+      type: 'TextGeneration',
+      label: 'Widget Card',
+      x: 100,
+      y: 200,
+      properties: { prompt },
+    }],
+    edges: [],
+  }
+  const materialized = materializeStoryboardWidgetProbeTreeInvocation({
+    prompt,
+    graphData,
+    node: graphData.nodes[0],
+  })
+  const probeNodes = (materialized?.graphData?.nodes || []).filter(node => node.type === 'ProbeTreeCandidate')
+  const candidateEdges = (materialized?.graphData?.edges || []).filter(edge => edge.source === 'n1' && edge.label === 'candidateOption')
+  if (!materialized?.changed || materialized.invocationToken !== '/knowgrph.probe-tree' || probeNodes.length !== 3 || candidateEdges.length !== 3) {
+    throw new Error(`expected embedded Widget Card Probe-Tree invocation to materialize three branch cards without provider parsing, got ${JSON.stringify(materialized)}`)
+  }
+
+  const runActionSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
+  const publishIndex = runActionSource.indexOf('publishTextRunOutput(result, false, outputPath)')
+  const materializeIndex = runActionSource.indexOf('const probeTreeOutput = materializeProbeTreeOutput()', publishIndex)
+  const successToastIndex = runActionSource.indexOf('message: probeTreeOutput?.message', materializeIndex)
+  if (publishIndex < 0 || materializeIndex <= publishIndex || successToastIndex <= materializeIndex) {
+    throw new Error('expected successful Widget Card text runs to materialize embedded Probe-Tree directives before reporting completion')
   }
 }

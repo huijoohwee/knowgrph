@@ -196,7 +196,7 @@ export const testNativeCrawlerWidgetRunReusesImportUrlBridgeAndPublishesRichMedi
     if (!isWebsiteCrawlTablePanelMarkdown(result.panelMarkdown)) {
       throw new Error('expected the import bridge manifest to produce the shared Markdown table without a second manifest request')
     }
-    if (!result.panelMarkdown?.includes('| Page | Status | Source URL | HTML | Markdown | Downloads |')) {
+    if (!result.panelMarkdown?.includes('| Page | Status | Source URL | HTML | Markdown | Downloads | Error |')) {
       throw new Error('expected crawl output to reuse the canonical Markdown pipe-table format')
     }
     if (!result.panelMarkdown.includes('kgDoc=%2Fwebsites%2Fexample.invalid%2F20260715T041633Z%2Findex.md')) {
@@ -243,7 +243,7 @@ export const testNativeCrawlerWidgetRunReusesImportUrlBridgeAndPublishesRichMedi
     })
     if (!persistedCanvasMarkdown.includes('type: textarea')
       || !persistedCanvasMarkdown.includes('value: |')
-      || !persistedCanvasMarkdown.includes('| Page | Status | Source URL | HTML | Markdown | Downloads |')) {
+      || !persistedCanvasMarkdown.includes('| Page | Status | Source URL | HTML | Markdown | Downloads | Error |')) {
       throw new Error('expected YAML frontmatter to persist the crawl table through the shared Markdown textarea contract')
     }
     if (persistedCanvasMarkdown.includes('outputSrcDoc:') || persistedCanvasMarkdown.includes('<main')) {
@@ -254,48 +254,49 @@ export const testNativeCrawlerWidgetRunReusesImportUrlBridgeAndPublishesRichMedi
   }
 
   const workflowSource = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunAction.ts'), 'utf8')
-  if (!workflowSource.includes('const crawlerRun = await executeNativeCrawlerInvocation(nativeCrawlerInvocation, {')) {
+  const nativeCrawlerRunSource = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowNativeCrawlerRun.ts'), 'utf8')
+  if (!nativeCrawlerRunSource.includes('const run = await executeNativeCrawlerInvocation(invocation, {')) {
     throw new Error('expected Widget Card Run to execute the shared native crawler invocation')
   }
-  const nativeDispatchIndex = workflowSource.indexOf('const nativeCrawlerInvocation = parseNativeCrawlerInvocation(prompt)')
+  const nativeDispatchIndex = workflowSource.indexOf('await runStoryboardWidgetNativeCrawlerInvocation({')
   const providerDispatchIndex = workflowSource.indexOf('await generateRunMarkdownWithProvider({')
   if (nativeDispatchIndex < 0 || providerDispatchIndex < 0 || nativeDispatchIndex >= providerDispatchIndex) {
     throw new Error('expected Widget Card crawler syntax to dispatch before any chat provider or API-key path')
   }
-  if (!workflowSource.includes('websiteImportGenerationToken: crawlerGenerationToken')) {
+  if (!nativeCrawlerRunSource.includes('websiteImportGenerationToken: generationToken')) {
     throw new Error('expected Widget Card Run to persist its crawl generation token for repeated runs')
   }
-  if (!workflowSource.includes('workflowOutputPanelOnly: true')) {
+  if (!nativeCrawlerRunSource.includes('workflowOutputPanelOnly: true')) {
     throw new Error('expected native crawler Widget Cards to keep their prompt as input while the Rich Media Panel owns the output')
   }
-  if (!workflowSource.includes("workflowRunStatus: 'done'") || !workflowSource.includes("workflowRunStatus: 'error'")) {
+  if (!nativeCrawlerRunSource.includes("updateStatus('done')") || !nativeCrawlerRunSource.includes("updateStatus('error')")) {
     throw new Error('expected terminal crawler runs to persist a non-loading status before refresh or restart')
   }
-  const nativeCrawlerBranchSource = workflowSource.slice(nativeDispatchIndex, workflowSource.indexOf('\n        setRunLoadingStateForKnownNodeIds({ loading: true', nativeDispatchIndex))
+  const nativeCrawlerBranchSource = nativeCrawlerRunSource
   if (nativeCrawlerBranchSource.includes('...buildTextWidgetOutputPatch({') || nativeCrawlerBranchSource.includes('setRunLoadingStateForKnownNodeIds({ loading: true')) {
     throw new Error('native crawler terminal output and loading state must not be mirrored into the source Widget Card')
   }
-  if (!nativeCrawlerBranchSource.includes('...clearRichMediaOutputProperties(nodeProps)') || !nativeCrawlerBranchSource.includes('publishTextRunOutputToRichMediaPanel({')) {
+  if (!nativeCrawlerBranchSource.includes('...clearRichMediaOutputProperties(nodeProps)') || !nativeCrawlerBranchSource.includes('args.publishOutput({')) {
     throw new Error('expected native crawler runs to clear legacy source output while retaining Rich Media Panel publication')
   }
   if (!workflowSource.includes('await args.persistDraftGraphData(durableGraph)')) {
     throw new Error('expected terminal Widget Card workflow state to await the required durable Markdown persistence path')
   }
-  if (!workflowSource.includes("loadingLabel: progressLabel")) {
+  if (!nativeCrawlerRunSource.includes("loadingLabel: progressLabel")) {
     throw new Error('expected Widget Card Run to publish native crawl progress instead of a generic text-generation skeleton')
   }
-  if (!workflowSource.includes('formatMarkdownWorkspaceStatusLabel({')) {
+  if (!nativeCrawlerRunSource.includes('formatMarkdownWorkspaceStatusLabel({')) {
     throw new Error('expected Widget Card crawl progress to reuse the Markdown workspace progress display utility')
   }
-  if (!workflowSource.includes("model: 'native-web-crawler'") || !workflowSource.includes('publishTextRunOutputToRichMediaPanel({')) {
+  if (!nativeCrawlerRunSource.includes("model: 'native-web-crawler'") || !nativeCrawlerRunSource.includes('args.publishOutput({')) {
     throw new Error('expected Widget Card crawler runs to publish a Rich Media Panel')
   }
   if (!nativeCrawlerBranchSource.includes("outputKey: 'crawl-report'") || !nativeCrawlerBranchSource.includes("outputKey: 'crawl-table'")) {
     throw new Error('expected one crawler input Widget Card to publish separate report and multi-dimensional-table Rich Media Panels')
   }
-  if (!nativeCrawlerBranchSource.includes('terminalPanelMarkdown = crawlerRun.panelMarkdown')
-    || !nativeCrawlerBranchSource.includes('outputText: terminalPanelMarkdown')
-    || nativeCrawlerBranchSource.includes('srcDoc: terminalPanelMarkdown')) {
+  if (!nativeCrawlerBranchSource.includes('terminalMarkdown = run.panelMarkdown')
+    || !nativeCrawlerBranchSource.includes('outputText: terminalMarkdown')
+    || nativeCrawlerBranchSource.includes('srcDoc: terminalMarkdown')) {
     throw new Error('expected the crawl table panel to persist Markdown output without HTML srcdoc')
   }
   const cardInlineTextDisplaySource = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/cards/CardInlineTextDisplaySurface.tsx'), 'utf8')
@@ -339,14 +340,15 @@ export const testNativeCrawlerWidgetRunReusesImportUrlBridgeAndPublishesRichMedi
     throw new Error('expected workflow actions to forward terminal graph persistence')
   }
   const canvasRuntimeSource = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
+  const crawlerRecoverySource = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useNativeCrawlerWorkflowRecovery.ts'), 'utf8')
   if (!canvasRuntimeSource.includes('persistDraftGraphData: commitStoryboardCardMediaGraph')) {
     throw new Error('expected workflow completion to reuse the existing durable Canvas Markdown writer')
   }
-  if (!canvasRuntimeSource.includes('listNativeCrawlerRecoveryNodeIds(graph)')) {
+  if (!crawlerRecoverySource.includes('listNativeCrawlerRecoveryNodeIds(args.graphData)')) {
     throw new Error('expected a refreshed Canvas to recover interrupted crawls and backfill missing completed crawl tables')
   }
-  if (canvasRuntimeSource.indexOf('recoveredNativeCrawlerDocumentsRef.current.add(documentKey)')
-    < canvasRuntimeSource.indexOf('if (crawlerRecoveryNodeIds.length === 0) return')) {
+  if (crawlerRecoverySource.indexOf('recoveredDocumentsRef.current.add(documentKey)')
+    < crawlerRecoverySource.indexOf('if (nodeIds.length === 0) return')) {
     throw new Error('expected crawler recovery deduplication to wait until hydrated properties expose an actionable recovery candidate')
   }
   const mediaOverlayPoolSource = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/render/mediaOverlayPool.ts'), 'utf8')
@@ -354,7 +356,7 @@ export const testNativeCrawlerWidgetRunReusesImportUrlBridgeAndPublishesRichMedi
     || !mediaOverlayPoolSource.includes('workflow-output\\n${candidate.id}\\n${candidate.workflowOutputKey}')) {
     throw new Error('expected every persisted typed named output panel to remain visible after a Canvas refresh')
   }
-  if (!canvasRuntimeSource.includes('nativeCrawlerRecovery: true') || !invocationSource.includes("recoveredManifest?.status === 'done'")) {
+  if (!crawlerRecoverySource.includes('nativeCrawlerRecovery: true') || !invocationSource.includes("recoveredManifest?.status === 'done'")) {
     throw new Error('expected restart recovery to read the terminal manifest without rematerializing every page')
   }
   const websiteImportServerSource = fs.readFileSync(path.resolve(process.cwd(), 'src/lib/websites/server/websiteImportServer.ts'), 'utf8')
@@ -399,7 +401,7 @@ export const testNativeCrawlerRecoveryBackfillsMissingCompletedTable = () => {
         value: [
           '## Website crawl multi-dimensional table',
           '',
-          '| Page | Status | Source URL | HTML | Markdown | Downloads |',
+          '| Page | Status | Source URL | HTML | Markdown | Downloads | Error |',
           '| --- | --- | --- | --- | --- | --- |',
           '| Home | **Successful** | [Source](https://example.invalid/) | [HTML](/__website_import/artifact?kind=rawHtml) | [Markdown](/?kgDoc=%2Fwebsites%2Fexample.invalid%2Findex.md) | None |',
         ].join('\n'),
@@ -505,7 +507,7 @@ export const testNativeCrawlerRecoveryUsesManifestTableWithoutRematerializing = 
     const result = await executeNativeCrawlerInvocation(invocation, { generationToken: '20260715T052447Z', recoveryOnly: true })
     if (importCalls !== 0) throw new Error(`expected zero rematerialization calls, received ${importCalls}`)
     if (!result.outputText.includes('Completed with 1 pages: 1 successful, 0 errors, 5 stored files.')) throw new Error('expected manifest summary')
-    for (const token of ['## Website crawl multi-dimensional table', '| Page | Status | Source URL | HTML | Markdown | Downloads |', '[guide.pdf](', '[Markdown](', 'kgCrawlArtifact=']) {
+    for (const token of ['## Website crawl multi-dimensional table', '| Page | Status | Source URL | HTML | Markdown | Downloads | Error |', '[guide.pdf](', '[Markdown](', 'kgCrawlArtifact=']) {
       if (!String(result.panelMarkdown || '').includes(token)) throw new Error(`expected recovered Markdown table token: ${token}`)
     }
     if (/<(?:main|table|a|br)\b/i.test(String(result.panelMarkdown || ''))) {
@@ -514,6 +516,41 @@ export const testNativeCrawlerRecoveryUsesManifestTableWithoutRematerializing = 
   } finally {
     globalThis.fetch = originalFetch
     unregister()
+  }
+}
+
+export const testNativeCrawlerTerminalErrorManifestPublishesReasonWithoutBackfill = async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    ok: true,
+    manifest: {
+      version: 1,
+      importId: '20260715T144607Z',
+      rootUrl: 'https://smecorp.gov.my/',
+      status: 'done',
+      startedAtMs: 1,
+      finishedAtMs: 2,
+      progress: { stage: 'done', total: 1, processed: 1, ok: 0, error: 1, queued: 0, updatedAtMs: 2 },
+      runtime: { engine: 'playwright', headless: true, proxyMode: 'direct', proxyPoolSize: 0, downloadAssets: true, maxDownloads: 120, maxDownloadBytes: 1024 },
+      nodes: [{ nodeId: 'home', url: 'https://smecorp.gov.my/', path: '/', status: 'error', artifacts: {} }],
+      errors: [{ url: 'https://smecorp.gov.my/', error: 'HTTP 403' }],
+    },
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch
+  try {
+    const invocation = parseNativeCrawlerInvocation('/crawler-agent @url:https://smecorp.gov.my/ @reference-policy #canvas')
+    if (!invocation) throw new Error('expected terminal-error crawler invocation')
+    const result = await executeNativeCrawlerInvocation(invocation, { generationToken: '20260715T144607Z', recoveryOnly: true })
+    for (const token of ['0 successful, 1 errors, 1 stored files', 'Proxy routing: direct', 'Page artifacts stored: 0', '## Crawl errors', 'HTTP 403']) {
+      if (!result.outputText.includes(token)) throw new Error(`expected manifest-owned terminal report token: ${token}`)
+    }
+    for (const token of ['| Page | Status | Source URL | HTML | Markdown | Downloads | Error |', '**Error**', 'HTTP 403']) {
+      if (!String(result.panelMarkdown || '').includes(token)) throw new Error(`expected manifest-owned terminal table token: ${token}`)
+    }
+    if (result.outputText.includes('Crawler finished with a terminal workspace error.')) {
+      throw new Error('terminal crawler output must not backfill from a Widget Card')
+    }
+  } finally {
+    globalThis.fetch = originalFetch
   }
 }
 

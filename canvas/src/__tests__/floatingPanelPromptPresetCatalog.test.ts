@@ -8,6 +8,10 @@ import {
   loadPromptPresetCatalog,
   PROMPT_PRESET_CATALOG_WORKSPACE_PATH,
 } from '@/features/chat/promptPresetCatalog'
+import {
+  buildPromptPresetChatInvocationCatalogEntries,
+  resolveChatInvocationCatalogEntryInsertionText,
+} from '@/features/chat/chatInvocationRegistry'
 import { FloatingPanelPromptPresetsView } from '@/features/toolbar/FloatingPanelPromptPresetsView'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
@@ -22,6 +26,15 @@ export async function testFloatingPanelChatPromptPresetCatalogLoadsSixCentralize
     const loaded = await loadPromptPreset(preset.id, workspace)
     if (isPromptPresetCatalogError(loaded) || !loaded.preset.prompt.startsWith(preset.runtimeCommand)) throw new Error(`expected ${preset.id} to load from the centralized catalog, got ${JSON.stringify(loaded)}`)
   }
+  const invocationEntries = buildPromptPresetChatInvocationCatalogEntries(catalog.presets)
+  if (invocationEntries.map(entry => entry.token).join(',') !== '/video-prompt-preset,/image.to-threejs,/image.to-glb,/sme-care-prompt-preset,/investment-research-prompt-preset,/crawler-prompt-preset') {
+    throw new Error(`expected every centralized preset in the slash invocation projection, got ${JSON.stringify(invocationEntries)}`)
+  }
+  for (const [index, entry] of invocationEntries.entries()) {
+    if (resolveChatInvocationCatalogEntryInsertionText(entry) !== catalog.presets[index]?.prompt) {
+      throw new Error(`expected ${entry.token} to insert its complete centralized prompt`)
+    }
+  }
   const extendedCatalogMarkdown = promptCatalogMarkdown.replace('\n---\n\n# Prompt presets', [
     '', '  - id: "crawler-agent-reference"', '    label: "Crawler Agent Reference"',
     '    slash_command: "/crawler-reference-prompt-preset"', '    runtime_command: "/crawler-agent"',
@@ -32,6 +45,10 @@ export async function testFloatingPanelChatPromptPresetCatalogLoadsSixCentralize
   await workspace.writeFileText(PROMPT_PRESET_CATALOG_WORKSPACE_PATH, extendedCatalogMarkdown)
   const extendedCatalog = await loadPromptPresetCatalog(workspace)
   if (isPromptPresetCatalogError(extendedCatalog) || extendedCatalog.presets.length !== 7) throw new Error(`expected the source-backed catalog to accept future presets, got ${JSON.stringify(extendedCatalog)}`)
+  const extendedInvocationEntries = buildPromptPresetChatInvocationCatalogEntries(extendedCatalog.presets)
+  if (extendedInvocationEntries.at(-1)?.token !== '/crawler-reference-prompt-preset') {
+    throw new Error(`expected future source-backed presets to join slash invocation without a local registry edit, got ${JSON.stringify(extendedInvocationEntries)}`)
+  }
 }
 
 export async function testFloatingPanelPromptPresetsViewRendersAndInvokesAgentChoices() {

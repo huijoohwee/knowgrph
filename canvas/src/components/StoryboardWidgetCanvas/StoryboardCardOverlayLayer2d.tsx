@@ -391,10 +391,12 @@ export function StoryboardCardOverlayLayer2d(props: {
       ...args,
       addHistory,
       cardId: String(node?.id || card.id).trim(),
+      commitGraphData,
       currentProperties: (node?.properties || {}) as Record<string, unknown>,
+      graphData: liveGraphData,
       updateNode: (id, patch) => onNodeChange(id, patch, liveGraphData),
     })
-  }, [addHistory, graphData, onNodeChange, readLatestNode])
+  }, [addHistory, commitGraphData, graphData, onNodeChange, readLatestNode])
   const commitTitle = React.useCallback((card: StoryboardCardModel, nextValue: string) => {
     const label = String(nextValue || '').trim()
     const node = readLatestNode(card.id)

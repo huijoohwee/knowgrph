@@ -99,6 +99,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["floatingPanel.media.uploadedRowDragPayload","@/__tests__/uploadedMediaRowDragPayload.test","testUploadedMediaRowStartsSharedPointerDragPayload"],
   ["floatingPanel.media.uploadedCardDragPayload","@/__tests__/uploadedMediaRowDragPayload.test","testUploadedMediaCardStartsSharedPointerDragPayload"],
   ["ui.inlineCardEditor.markdownCommandMenus.contextFromRecord","@/__tests__/cardInlineTextCommandTriggerRegression.test.tsx","testInlineMediaCommandContextFromRecordFindsNestedMediaUrls"],
+  ["ui.inlineCardEditor.markdownCommandMenus.viewerDisplayInvokesEverySigil","@/__tests__/cardInlineTextCommandTriggerRegression.test.tsx","testCardInlineTextViewerDisplayInvokesEveryCommandSigil"],
   ["ui.inlineCardEditor.markdownCommandMenus.shiftedAtKeyOpensVariableCommands","@/__tests__/cardInlineTextCommandTriggerRegression.test.tsx","testCardInlineTextEditorShiftedAtKeyOpensVariableCommands"],
   ["ui.inlineCardEditor.markdownCommandMenus.displaySurfaceSigilOpensVariableCommands","@/__tests__/cardInlineTextCommandTriggerRegression.test.tsx","testCardInlineTextEditorDisplaySurfaceSigilOpensVariableCommands"],
   ["ui.inlineCardEditor.markdownCommandMenus.selectedDisplayTextSigilOpensVariableCommands","@/__tests__/cardInlineTextCommandTriggerRegression.test.tsx","testCardInlineTextEditorSelectedDisplayTextSigilOpensVariableCommands"],

@@ -51,3 +51,24 @@ export function testOrdinaryTextWorkflowPreservesGlobalThinkingMode() {
     throw new Error(`expected ordinary text workflow to preserve the shared token budget, got ${JSON.stringify(resolved)}`)
   }
 }
+
+export function testAgentPromptWorkflowDisablesThinkingForFinalOutput() {
+  const resolved = resolveStoryboardWidgetTextThinkingOptions({
+    formId: 'textGeneration',
+    localProperties: {
+      chatMaxCompletionTokens: 1000,
+      chatReasoningEffort: 'medium',
+      chatThinkingType: 'enabled',
+    },
+    prompt: '/sme-care-agent @source.frontmatter @source.body @local-harness #runtime-ready\n\nAssess the active SME workspace.',
+    resolvedMaxCompletionTokens: 1000,
+    resolvedThinkingJson: '{"type":"enabled"}',
+    resolvedThinkingType: 'enabled',
+  })
+  if (resolved.chatThinkingType !== 'disabled' || resolved.chatThinkingJson !== '') {
+    throw new Error(`expected a final-output agent invocation to disable reasoning-only output, got ${JSON.stringify(resolved)}`)
+  }
+  if (resolved.chatMaxCompletionTokens !== 1000) {
+    throw new Error(`expected the agent invocation to preserve its bounded visible-output budget, got ${JSON.stringify(resolved)}`)
+  }
+}
