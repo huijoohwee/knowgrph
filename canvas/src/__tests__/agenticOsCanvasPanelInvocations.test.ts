@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import {
@@ -161,15 +161,30 @@ export function testCanvasPanelFunctionsAreAgenticOsInvokable() {
   }
 
   const skillsCommandsView = readFileSync(resolve(process.cwd(), 'src/features/panels/views/SkillsCommandsView.tsx'), 'utf8')
+  const chatInvocationRegistry = readFileSync(resolve(process.cwd(), 'src/features/chat/chatInvocationRegistry.ts'), 'utf8')
   const composer = readFileSync(resolve(process.cwd(), 'src/features/chat/floatingPanelChat/FloatingPanelChatComposer.tsx'), 'utf8')
-  for (const registryName of ['getAgenticOsCommandInvocations', 'getAgenticOsSemanticInvocations', 'getAgenticOsBindingInvocations']) {
-    if (!composer.includes(registryName)) {
-      throw new Error(`Expected FloatingPanel Chat composer to consume ${registryName}`)
+  if (!composer.includes('resolveChatInvocationCatalogEntries')) {
+    throw new Error('Expected FloatingPanel Chat composer to consume the shared chat invocation catalog')
+  }
+  if (!skillsCommandsView.includes('resolveChatInvocationCatalogEntries') || !chatInvocationRegistry.includes('buildChatInvocationCatalog') || !chatInvocationRegistry.includes('getAgenticOsCommandInvocations') || !chatInvocationRegistry.includes('getAgenticOsBindingInvocations')) {
+    throw new Error('Expected Skills & Commands to consume the existing chat invocation registry as the shared /, #, and @ catalog')
+  }
+  if (existsSync(resolve(process.cwd(), 'src/features/panels/views/skillsCommandsCatalog.ts'))) {
+    throw new Error('Expected the stale panel-owned Skills & Commands catalog duplicate to be removed')
+  }
+  const sharedChipSurfacePaths = [
+    'src/features/panels/views/SkillsCommandsView.tsx',
+    'src/lib/ui/MarkdownSigilText.tsx',
+    'src/components/StoryboardWidgetCanvas/StoryboardCardInvocationChips.tsx',
+    'src/lib/markdown-core/ui/markdownBlockContainerCore.inlineMediaEditHtml.ts',
+    'src/lib/ui/textareaInvocationProjectionInvocation.ts',
+    'src/features/chat/floatingPanelChat/FloatingPanelChatMessageContent.tsx',
+  ]
+  sharedChipSurfacePaths.forEach(filePath => {
+    if (!readFileSync(resolve(process.cwd(), filePath), 'utf8').includes('resolveInlineInvocationChipClassName')) {
+      throw new Error(`Expected ${filePath} to reuse the shared invocation chip tone resolver`)
     }
-  }
-  if (!skillsCommandsView.includes('getChatInvocationOptions') || !skillsCommandsView.includes('getAgenticOsCommandInvocations') || !skillsCommandsView.includes('getAgenticOsBindingInvocations')) {
-    throw new Error('Expected Skills & Commands to consume shared /, #, and @ invocation registries')
-  }
+  })
 
   const floatingPropsPanel = readFileSync(resolve(process.cwd(), 'src/features/toolbar/FloatingPropsPanel.tsx'), 'utf8')
   for (const staleSnippet of ['useFloatingPropsPanelModel', 'PanelRangeInput', 'Add Media Node', 'Strong spread preset']) {

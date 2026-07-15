@@ -10,10 +10,8 @@ import {
   findAgenticOsInvocationByToken,
 } from '@/features/agentic-os/agenticOsDocInvocations'
 import {
-  DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
   readInlineKeywordChipLabel,
-  readInlineKeywordChipToneValue,
-  resolveDataViewChipClass,
+  resolveInlineInvocationChipClassName,
 } from '@/features/markdown/ui/dataViewChipStyles'
 import { normalizeRuntimeStorageMediaAccessUrl } from '@/lib/storage/runtimeMediaUrl'
 import {
@@ -21,7 +19,7 @@ import {
   AGENTIC_OS_INVOCATION_TOKEN_ATTR,
 } from '@/features/agentic-os/agenticOsInvocationChips'
 import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
-import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME, UI_INLINE_CHIP_SHELL_15CH_CLASSNAME, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
+import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 
 const INLINE_MEDIA_EDIT_TOKEN_ATTR = 'data-kg-inline-media-edit-token'
 const INLINE_MEDIA_EDIT_MARKDOWN_ATTR = 'data-kg-inline-media-markdown'
@@ -104,7 +102,7 @@ const readRenderedMediaPillMarkdown = (node: HTMLElement): string => {
 
 const buildInlineInvocationEditTokenHtml = (token: string): string => {
   const invocation = findAgenticOsInvocationByToken(token)
-  const className = `${DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME} ${UI_INLINE_CHIP_SHELL_15CH_CLASSNAME} ${resolveDataViewChipClass(readInlineKeywordChipToneValue(token))}`
+  const className = resolveInlineInvocationChipClassName({ value: token })
   return [
     `<span class="${escapeHtmlAttr(className)}"`,
     ` title="${escapeHtmlAttr(invocation ? buildAgenticOsInvocationSourceTitle(invocation) : token)}"`,
@@ -118,7 +116,7 @@ const buildInlineInvocationEditTokenHtml = (token: string): string => {
 
 const buildInlineSourceBindingEditTokenHtml = (args: { label: string; markdown: string; source: string }): string => {
   const token = `@${args.label}`
-  const className = `${DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME} ${UI_INLINE_CHIP_SHELL_15CH_CLASSNAME} ${resolveDataViewChipClass(readInlineKeywordChipToneValue(token))}`
+  const className = resolveInlineInvocationChipClassName({ value: token })
   return [
     `<span class="${escapeHtmlAttr(className)}" title="${escapeHtmlAttr(`${token}\nSource: ${args.source}`)}"`,
     ` ${INLINE_INVOCATION_EDIT_TOKEN_ATTR}="1" ${INLINE_INVOCATION_EDIT_MARKDOWN_ATTR}="${escapeHtmlAttr(args.markdown)}"`,

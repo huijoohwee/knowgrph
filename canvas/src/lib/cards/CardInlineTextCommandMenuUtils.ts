@@ -1,3 +1,5 @@
+import { replaceTextRangeWithInvocationBoundary } from '@/lib/markdown/invocationTokens'
+
 export function readCardInlineTextInputSelection(input: HTMLInputElement | HTMLTextAreaElement | null): { start: number; end: number } {
   if (!input) return { start: 0, end: 0 }
   const length = String(input.value || '').length
@@ -16,15 +18,13 @@ export function focusCardInlineTextInputSelectionSoon(input: HTMLInputElement | 
   })
 }
 
-export function replaceDraftRange(args: { input: HTMLInputElement | HTMLTextAreaElement | null; draft: string; setDraft: (next: string) => void; onCommandDraftChange?: (next: string) => void; start: number; end: number; replacement: string; focusSelection?: (start: number, end?: number) => void }) {
+export function replaceDraftRange(args: { input: HTMLInputElement | HTMLTextAreaElement | null; draft: string; setDraft: (next: string) => void; onCommandDraftChange?: (next: string) => void; start: number; end: number; replacement: string; focusSelection?: (start: number, end?: number) => void }): { text: string; cursor: number } {
   const text = String(args.draft || '')
-  const start = Math.max(0, Math.min(text.length, args.start))
-  const end = Math.max(start, Math.min(text.length, args.end))
-  const next = text.slice(0, start) + args.replacement + text.slice(end)
-  const cursor = start + args.replacement.length
-  args.setDraft(next)
-  args.onCommandDraftChange?.(next)
-  focusCardInlineTextInputSelectionSoon(args.input, cursor, cursor, args.focusSelection)
+  const result = replaceTextRangeWithInvocationBoundary({ text, start: args.start, end: args.end, replacement: args.replacement })
+  args.setDraft(result.text)
+  args.onCommandDraftChange?.(result.text)
+  focusCardInlineTextInputSelectionSoon(args.input, result.cursor, result.cursor, args.focusSelection)
+  return result
 }
 
 export function findInlineCommandTokenRange(args: { text: string; selection: { start: number; end: number }; sigil: '@' | '/' | '#' }): { start: number; end: number } {

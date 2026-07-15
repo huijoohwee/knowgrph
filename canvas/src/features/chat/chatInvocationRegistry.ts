@@ -1,7 +1,10 @@
 import { KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES } from '@/features/memory/aiAgentsMemoryLayerContract.mjs'
 import {
+  getAgenticOsBindingInvocations,
+  getAgenticOsCommandInvocations,
   getAgenticOsDocInvocations,
   getAgenticOsSemanticInvocations,
+  type AgenticOsDictionaryInvocationKind,
   type AgenticOsDocInvocationId,
 } from '@/features/agentic-os/agenticOsDocInvocations'
 import {
@@ -10,6 +13,7 @@ import {
   GENERATION_THINKING_INVOCATIONS,
   GENERATION_TOKEN_CAP_INVOCATIONS,
 } from './generationInvocation'
+import { CHAT_SKILL_OPTIONS } from './chatSkillRegistry'
 
 export type ChatInvocationId =
   | 'memory.search'
@@ -35,6 +39,19 @@ export type ChatInvocationOption = {
   sourcePath?: string
   slashCommand?: string
   atToken?: string
+}
+
+export type ChatInvocationCatalogPrefixFilter = 'all' | 'at' | 'hash' | 'slash'
+
+export type ChatInvocationCatalogEntry = {
+  id: string
+  label: string
+  token: string
+  summary: string
+  group: string
+  kind: 'doc' | 'runtime' | 'skill' | AgenticOsDictionaryInvocationKind
+  sourcePath?: string
+  keywords: readonly string[]
 }
 
 const BASE_CHAT_INVOCATION_OPTIONS: readonly ChatInvocationOption[] = [
@@ -85,6 +102,98 @@ export const getChatInvocationOptions = (): readonly ChatInvocationOption[] => {
     ...liveDocOptions,
     ...liveSemanticOptions,
   ]
+}
+
+export const buildChatInvocationCatalog = (): readonly ChatInvocationCatalogEntry[] => [
+  ...CHAT_SKILL_OPTIONS.map(option => ({
+    id: option.id,
+    label: option.label,
+    token: option.slashCommand,
+    summary: option.summary,
+    group: 'Chat skill',
+    kind: 'skill' as const,
+    keywords: option.keywords,
+  })),
+  ...getAgenticOsCommandInvocations().map(invocation => ({
+    id: invocation.id,
+    label: invocation.label,
+    token: invocation.token,
+    summary: invocation.summary,
+    group: invocation.group,
+    kind: invocation.kind,
+    sourcePath: invocation.sourcePath,
+    keywords: invocation.keywords,
+  })),
+  ...getAgenticOsDocInvocations().map(doc => ({
+    id: `doc:${doc.id}:slash`,
+    label: doc.label,
+    token: doc.slashCommand,
+    summary: doc.summary,
+    group: 'Agentic OS docs',
+    kind: 'doc' as const,
+    sourcePath: doc.sourcePath,
+    keywords: [doc.hashToken, doc.atToken, ...doc.keywords],
+  })),
+  ...getChatInvocationOptions().map(option => ({
+    id: `hash:${option.id}`,
+    label: option.label,
+    token: option.token,
+    summary: option.summary,
+    group: option.slashCommand && option.atToken
+      ? 'Agentic OS docs'
+      : option.sourcePath
+        ? 'Agentic OS semantic dictionary'
+        : 'Runtime invocation',
+    kind: option.slashCommand && option.atToken ? 'doc' as const : option.sourcePath ? 'semantic' as const : 'runtime' as const,
+    sourcePath: option.sourcePath,
+    keywords: [option.slashCommand || '', option.atToken || '', option.toolName || '', ...option.keywords],
+  })),
+  ...getAgenticOsBindingInvocations().map(invocation => ({
+    id: invocation.id,
+    label: invocation.label,
+    token: invocation.token,
+    summary: invocation.summary,
+    group: invocation.group,
+    kind: invocation.kind,
+    sourcePath: invocation.sourcePath,
+    keywords: invocation.keywords,
+  })),
+  ...getAgenticOsDocInvocations().map(doc => ({
+    id: `doc:${doc.id}:at`,
+    label: doc.label,
+    token: doc.atToken,
+    summary: doc.summary,
+    group: 'Agentic OS docs',
+    kind: 'doc' as const,
+    sourcePath: doc.sourcePath,
+    keywords: [doc.slashCommand, doc.hashToken, ...doc.keywords],
+  })),
+]
+
+const matchesChatInvocationCatalogPrefix = (
+  entry: ChatInvocationCatalogEntry,
+  prefixFilter: ChatInvocationCatalogPrefixFilter,
+): boolean => prefixFilter === 'all'
+  || (prefixFilter === 'slash' && entry.token.startsWith('/'))
+  || (prefixFilter === 'hash' && entry.token.startsWith('#'))
+  || (prefixFilter === 'at' && entry.token.startsWith('@'))
+
+export function resolveChatInvocationCatalogEntries(
+  prefixFilter: ChatInvocationCatalogPrefixFilter,
+  queryRaw: string,
+): readonly ChatInvocationCatalogEntry[] {
+  const query = String(queryRaw || '').trim().toLowerCase()
+  const entries = buildChatInvocationCatalog().filter(entry => matchesChatInvocationCatalogPrefix(entry, prefixFilter))
+  if (!query) return entries
+  return entries.filter(entry => [
+    entry.label,
+    entry.token,
+    entry.summary,
+    entry.group,
+    entry.kind,
+    entry.sourcePath,
+    ...entry.keywords,
+  ].map(value => String(value || '').trim().toLowerCase()).join(' ').includes(query))
 }
 
 export const isChatInvocationToken = (token: string): boolean => (

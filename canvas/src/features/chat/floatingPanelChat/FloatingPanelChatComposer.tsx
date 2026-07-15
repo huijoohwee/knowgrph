@@ -1,17 +1,9 @@
 import React from 'react'
 import { collectMarkdownVariableBrowseRows, buildMarkdownVariableToken } from '@/features/markdown/ui/markdownVariableReferences'
-import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
-import { getChatInvocationOptions, isChatInvocationToken } from '@/features/chat/chatInvocationRegistry'
 import {
-  buildAgenticOsDictionaryInvocationMarkdown,
-  buildAgenticOsDocBindingInvocationMarkdown,
-  buildAgenticOsDocInvocationMarkdown,
-  buildAgenticOsDocSemanticInvocationMarkdown,
-  getAgenticOsBindingInvocations,
-  getAgenticOsCommandInvocations,
-  getAgenticOsDocInvocations,
-  getAgenticOsSemanticInvocations,
-} from '@/features/agentic-os/agenticOsDocInvocations'
+  resolveChatInvocationCatalogEntries,
+  type ChatInvocationCatalogPrefixFilter,
+} from '@/features/chat/chatInvocationRegistry'
 import { fetchAgenticOsRemoteGrammarCatalog, type AgenticOsRemoteGrammarCatalogEntry, useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { buildInlineMediaEmbed, collectInlineKeywordCommandCandidates, collectInlineMediaCommandCandidates } from '@/lib/command-menu/inlineCommandMenuCatalog'
 import { mergeInlineMediaCommandCandidates } from '@/lib/command-menu/inlineMediaCommandCandidateMerge'
@@ -68,7 +60,7 @@ const mergeMenuItems = (
   const seen = new Set<string>()
   const merged: MarkdownInlineCommandMenuItem[] = []
   for (const item of [...primaryItems, ...fallbackItems]) {
-    const key = `${item.group}::${item.label}`.toLowerCase()
+    const key = item.label.toLowerCase()
     if (seen.has(key)) continue
     seen.add(key)
     merged.push(item)
@@ -97,7 +89,7 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
   const [trigger, setTrigger] = React.useState<ChatComposerTrigger | null>(null)
   const [query, setQuery] = React.useState('')
   const [remoteGrammarEntries, setRemoteGrammarEntries] = React.useState<AgenticOsRemoteGrammarCatalogEntry[]>([])
-  useAgenticOsRemoteGrammarCatalog({
+  const grammarCatalog = useAgenticOsRemoteGrammarCatalog({
     sigils: trigger ? [REMOTE_GRAMMAR_SIGIL_BY_TRIGGER_KIND[trigger.kind]] : [],
   })
   const uploadedMediaItems = useUploadedMediaInlineCommandCandidates()
@@ -124,6 +116,16 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
       focusComposerSelection(next.cursor)
     })
   }, [closeMenu, focusComposerSelection, props, trigger])
+  const buildInvocationCatalogItems = React.useCallback((prefixFilter: ChatInvocationCatalogPrefixFilter): MarkdownInlineCommandMenuItem[] => (
+    resolveChatInvocationCatalogEntries(prefixFilter, '').map(entry => buildInlineCommandMenuItem({
+      id: `chat-invocation-catalog-${prefixFilter}-${entry.id}`,
+      label: entry.token,
+      group: entry.group,
+      description: entry.summary,
+      keywords: [entry.label, entry.sourcePath || '', ...entry.keywords].filter(Boolean),
+      onSelect: () => applyReplacement(`${entry.token} `),
+    }))
+  ), [applyReplacement, grammarCatalog.version])
   React.useEffect(() => {
     if (!trigger) {
       setRemoteGrammarEntries([])
@@ -173,32 +175,7 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
     }))
   }, [applyReplacement, remoteGrammarEntries, trigger])
 
-  const slashFallbackItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => [
-    ...CHAT_SKILL_OPTIONS.map(option => buildInlineCommandMenuItem({
-      id: `skill-${option.id}`,
-      label: option.slashCommand,
-      group: 'Skills',
-      description: option.summary,
-      keywords: [option.label, ...option.keywords],
-      onSelect: () => applyReplacement(`${option.slashCommand} `),
-    })),
-    ...getAgenticOsCommandInvocations().map(invocation => buildInlineCommandMenuItem({
-      id: `agentic-os-command-${invocation.id}`,
-      label: invocation.token,
-      group: invocation.group,
-      description: invocation.summary,
-      keywords: [invocation.label, invocation.sourcePath, ...invocation.keywords],
-      onSelect: () => applyReplacement(`${buildAgenticOsDictionaryInvocationMarkdown(invocation)} `),
-    })),
-    ...getAgenticOsDocInvocations().map(doc => buildInlineCommandMenuItem({
-      id: `agentic-os-doc-slash-${doc.id}`,
-      label: doc.slashCommand,
-      group: 'Agentic OS docs',
-      description: doc.summary,
-      keywords: [doc.label, doc.hashToken, doc.atToken, doc.sourcePath, ...doc.keywords],
-      onSelect: () => applyReplacement(`${buildAgenticOsDocInvocationMarkdown(doc)} `),
-    })),
-  ], [applyReplacement])
+  const slashFallbackItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => buildInvocationCatalogItems('slash'), [buildInvocationCatalogItems])
   const slashItems = React.useMemo(
     () => mergeMenuItems(remoteGrammarItems.filter(item => item.label.startsWith('/')), slashFallbackItems),
     [remoteGrammarItems, slashFallbackItems],
@@ -227,63 +204,26 @@ export function FloatingPanelChatComposer(props: FloatingPanelChatComposerProps)
           selectedText: '',
         })),
       }))
-    const agenticOsDocItems = getAgenticOsDocInvocations().map(doc => buildInlineCommandMenuItem({
-      id: `agentic-os-doc-at-${doc.id}`,
-      label: doc.atToken,
-      group: 'Agentic OS docs',
-      description: doc.summary,
-      keywords: [doc.label, doc.slashCommand, doc.hashToken, doc.sourcePath, ...doc.keywords],
-      onSelect: () => applyReplacement(`${buildAgenticOsDocBindingInvocationMarkdown(doc)} `),
-    }))
-    const agenticOsBindingItems = getAgenticOsBindingInvocations().map(invocation => buildInlineCommandMenuItem({
-      id: `agentic-os-binding-${invocation.id}`,
-      label: invocation.token,
-      group: invocation.group,
-      description: invocation.summary,
-      keywords: [invocation.label, invocation.sourcePath, ...invocation.keywords],
-      onSelect: () => applyReplacement(`${buildAgenticOsDictionaryInvocationMarkdown(invocation)} `),
-    }))
-    return [...mediaItems, ...agenticOsBindingItems, ...agenticOsDocItems, ...workspaceVariables]
-  }, [applyReplacement, props.input, props.markdownText, uploadedMediaItems])
+    return [...mediaItems, ...buildInvocationCatalogItems('at'), ...workspaceVariables]
+  }, [applyReplacement, buildInvocationCatalogItems, props.input, props.markdownText, uploadedMediaItems])
   const variableItems = React.useMemo(
     () => mergeMenuItems(remoteGrammarItems.filter(item => item.label.startsWith('@')), variableFallbackItems),
     [remoteGrammarItems, variableFallbackItems],
   )
-  const keywordFallbackItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => [
-    ...getChatInvocationOptions().map(option => buildInlineCommandMenuItem({
-      id: `invocation-${option.id}`,
-      label: option.token,
-      group: 'Runtime invocations',
-      description: option.summary,
-      keywords: [option.label, ...option.keywords, option.toolName || ''],
-      onSelect: () => applyReplacement(`${option.token} `),
-    })),
-    ...collectInlineKeywordCommandCandidates({
+  const keywordFallbackItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
+    const catalogItems = buildInvocationCatalogItems('hash')
+    const catalogTokens = new Set(catalogItems.map(item => item.label.toLowerCase()))
+    const contextualItems = collectInlineKeywordCommandCandidates({
       draftText: [props.markdownText, props.input].filter(Boolean).join('\n'),
       limit: 20,
-    }).filter(candidate => !isChatInvocationToken(candidate.token)).map(candidate => buildInlineKeywordCommandMenuItem({
+    }).filter(candidate => !catalogTokens.has(candidate.token.toLowerCase())).map(candidate => buildInlineKeywordCommandMenuItem({
       candidate,
       label: candidate.token,
       replacement: `${candidate.token} `,
       onSelect: applyReplacement,
-    })),
-    ...getAgenticOsSemanticInvocations().map(invocation => buildInlineCommandMenuItem({
-      id: `agentic-os-semantic-${invocation.id}`,
-      label: invocation.token,
-      group: invocation.group,
-      description: invocation.summary,
-      keywords: [invocation.label, invocation.sourcePath, ...invocation.keywords],
-      onSelect: () => applyReplacement(`${buildAgenticOsDictionaryInvocationMarkdown(invocation)} `),
-    })),
-    ...getAgenticOsDocInvocations().map(doc => buildInlineCommandMenuItem({
-      id: `agentic-os-doc-hash-${doc.id}`,
-      label: doc.hashToken,
-      group: 'Agentic OS docs',
-      description: doc.summary,
-      keywords: [doc.label, doc.slashCommand, doc.atToken, doc.sourcePath, ...doc.keywords],
-      onSelect: () => applyReplacement(`${buildAgenticOsDocSemanticInvocationMarkdown(doc)} `),
-    })),
-  ], [applyReplacement, props.input, props.markdownText])
+    }))
+    return [...catalogItems, ...contextualItems]
+  }, [applyReplacement, buildInvocationCatalogItems, props.input, props.markdownText])
   const keywordItems = React.useMemo(
     () => mergeMenuItems(remoteGrammarItems.filter(item => item.label.startsWith('#')), keywordFallbackItems),
     [keywordFallbackItems, remoteGrammarItems],

@@ -1,18 +1,14 @@
 import React from 'react'
 import {
-  DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
-  readInlineKeywordChipToneValue,
-  resolveDataViewChipClass,
+  resolveInlineInvocationChipClassName,
 } from '@/features/markdown/ui/dataViewChipStyles'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
-import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME, UI_INLINE_CHIP_SHELL_15CH_CLASSNAME, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
+import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 
-const tokenChipClassName = (token: string): string => [
-  DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
-  UI_INLINE_CHIP_SHELL_15CH_CLASSNAME,
-  resolveDataViewChipClass(readInlineKeywordChipToneValue(token)),
-  'max-w-[7.5rem] text-[8px]',
-].join(' ')
+const tokenChipClassName = (token: string): string => resolveInlineInvocationChipClassName({
+  value: token,
+  extraClassName: 'max-w-[7.5rem] text-[8px]',
+})
 
 export function StoryboardCardInvocationChips(props: { tokens: readonly string[] }) {
   const tokens = props.tokens.filter(token => token.startsWith('/') || token.startsWith('@') || token.startsWith('#'))

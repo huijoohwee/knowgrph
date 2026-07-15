@@ -10,7 +10,7 @@ import { KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "../local-tool-contract.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-test("local stdio MCP discovers and executes SME risk-copilot tools at zero cost", async () => {
+test("local stdio MCP discovers and executes the full SME risk-copilot path at zero cost", async () => {
   const client = new Client({ name: "knowgrph-sme-risk-copilot-e2e", version: "0.0.0" });
   const transport = new StdioClientTransport({
     command: process.execPath,
@@ -41,6 +41,14 @@ test("local stdio MCP discovers and executes SME risk-copilot tools at zero cost
       KNOWGRPH_LOCAL_MCP_TOOL_NAMES.smeCareAgentStatus,
     ]) assert.equal(names.has(name), true, `missing ${name}; stderr=${stderrText}`);
 
+    const normalized = await client.callTool({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.smeSourceNormalize,
+      arguments: { profile: { profile_id: "synthetic-growth", industry: "logistics", size: 12, growth_stage: "growth" } },
+    }, undefined, { timeout: 10_000 });
+    assert.equal(normalized.isError, false, stderrText);
+    assert.equal(normalized.structuredContent?.ok, true);
+    assert.equal(normalized.structuredContent?.cost_log?.estimated_cost_usd, 0);
+
     const trigger = await client.callTool({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.smeTriggerEvaluate,
       arguments: { reg_delta: { changes: [{ element: "node", milestone: "first_hire", source_field: "size", operation: "added" }] } },
@@ -48,6 +56,35 @@ test("local stdio MCP discovers and executes SME risk-copilot tools at zero cost
     assert.equal(trigger.isError, false, stderrText);
     assert.equal(trigger.structuredContent?.trigger_event?.rule_id, "first-hire");
     assert.equal(trigger.structuredContent?.cost_log?.estimated_cost_usd, 0);
+
+    const nudge = await client.callTool({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.smeBrokerDraftNudge,
+      arguments: { trigger_event: trigger.structuredContent?.trigger_event, target_lang: "ms" },
+    }, undefined, { timeout: 10_000 });
+    assert.equal(nudge.isError, false, stderrText);
+    assert.equal(nudge.structuredContent?.approval_state, "pending");
+    assert.deepEqual(nudge.structuredContent?.send_events, []);
+
+    const localized = await client.callTool({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.smeMultilingualAdapt,
+      arguments: { text: nudge.structuredContent?.nudge_draft, target_lang: "ms", adapter_available: false },
+    }, undefined, { timeout: 10_000 });
+    assert.equal(localized.isError, false, stderrText);
+    assert.equal(localized.structuredContent?.lang, "en-SG");
+    assert.ok(localized.structuredContent?.fallback_reason);
+
+    const matched = await client.callTool({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.smeMarketplaceMatch,
+      arguments: {
+        approved_gap_id: "synthetic-first-hire",
+        gap: { domain: trigger.structuredContent?.trigger_event?.domain },
+        approval_token: { gateId: "sme-marketplace-match", issuedAt: Date.now(), consumed: false, verified: true, tokenId: "stdio-e2e" },
+      },
+    }, undefined, { timeout: 10_000 });
+    assert.equal(matched.isError, false, stderrText);
+    assert.equal(matched.structuredContent?.approval_state, "approved");
+    assert.ok(matched.structuredContent?.handoff_packet?.id);
+    assert.equal(matched.structuredContent?.cost_log?.estimated_cost_usd, 0);
 
     const status = await client.callTool({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.smeCareAgentStatus,

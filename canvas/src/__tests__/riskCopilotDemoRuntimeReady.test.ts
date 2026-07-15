@@ -54,6 +54,15 @@ export function testRiskCopilotDemoIsRuntimeReadyFromLocalProof() {
   if (runtimeDefaults.runtime_proof_path !== '' || runtimeDefaults.provider_job_id !== '' || runtimeDefaults.live_result_url !== '') {
     throw new Error('expected live runtime fields to remain blank')
   }
+  const runReadyDemo = asRecord(meta.run_ready_demo, 'run_ready_demo')
+  if (
+    runReadyDemo.id !== RISK_COPILOT_RUN_READY_DEMO_ID
+    || runReadyDemo.source_root !== 'huijoohwee/docs'
+    || runReadyDemo.source_path !== `../huijoohwee/docs/${RISK_COPILOT_DEMO_WORKSPACE_SEED_BASENAME}`
+    || runReadyDemo.validation_seed_path !== `/${RISK_COPILOT_DEMO_WORKSPACE_SEED_BASENAME}`
+  ) {
+    throw new Error(`expected risk-copilot source identity to match the shared seed, got ${JSON.stringify(runReadyDemo)}`)
+  }
   const probe = asRecord(meta.probe_tree_runtime, 'probe_tree_runtime')
   const thread = asRecord(probe.risk_copilot_thread, 'risk_copilot_thread')
   if (thread.option_count !== 3 || thread.token_budget !== 1200) throw new Error('expected bounded three-option, 1200-token probe contract')

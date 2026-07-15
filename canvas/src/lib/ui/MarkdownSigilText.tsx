@@ -2,8 +2,7 @@ import React from 'react'
 import {
   DATA_VIEW_CHIP_ROW_CLASSNAME,
   readInlineKeywordChipLabel,
-  readInlineKeywordChipToneValue,
-  resolveDataViewChipClass,
+  resolveInlineInvocationChipClassName,
   splitInlineKeywordChipTokens,
 } from '@/features/markdown/ui/dataViewChipStyles'
 import {
@@ -13,7 +12,7 @@ import {
   type MarkdownAnnotation,
 } from '@/lib/markdown/markdownSigil'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
-import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME, UI_INLINE_CHIP_SHELL_15CH_CLASSNAME, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
+import { UI_INLINE_CHIP_LABEL_15CH_CLASSNAME, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 import { getSemanticHighlightSurfaceAttributes, getSemanticHighlightSurfaceClassName, resolveSemanticHighlightColors, SEMANTIC_HIGHLIGHT_SURFACES } from '@/lib/ui/semanticHighlight'
 
 type MarkdownSigilTextOptions = {
@@ -56,11 +55,10 @@ export const renderMarkdownSigilInlineText = (
     if (keywordSegments.every(segment => segment.kind === 'text')) return text
     return keywordSegments.map((segment, index) => {
       if (segment.kind === 'text') return <React.Fragment key={`text-${index}`}>{segment.value}</React.Fragment>
-      const className = [
-        options?.keywordChipClassName || DATA_VIEW_CHIP_ROW_CLASSNAME,
-        UI_INLINE_CHIP_SHELL_15CH_CLASSNAME,
-        resolveDataViewChipClass(readInlineKeywordChipToneValue(segment.value)),
-      ].join(' ')
+      const className = resolveInlineInvocationChipClassName({
+        value: segment.value,
+        baseClassName: options?.keywordChipClassName || DATA_VIEW_CHIP_ROW_CLASSNAME,
+      })
       const customChip = options?.renderKeywordChip?.({
         value: segment.value,
         label: readInlineKeywordChipLabel(segment.value),

@@ -1,3 +1,5 @@
+import { replaceTextRangeWithInvocationBoundary } from '@/lib/markdown/invocationTokens'
+
 export const normalizeCardInlineEditorValue = (value: string): string => String(value ?? '').replace(/\r/g, '')
 
 export function readCardInlineEditorInputSelection(input: HTMLInputElement | HTMLTextAreaElement | null): { start: number; end: number } {
@@ -24,8 +26,5 @@ export function focusCardInlineEditorInputSelectionSoon(input: HTMLInputElement 
 
 export function replaceCardInlineEditorTextRange(args: { text: string; start: number; end: number; replacement: string }): { text: string; cursor: number } {
   const text = normalizeCardInlineEditorValue(args.text)
-  const start = Math.max(0, Math.min(text.length, args.start))
-  const end = Math.max(start, Math.min(text.length, args.end))
-  const next = `${text.slice(0, start)}${args.replacement}${text.slice(end)}`
-  return { text: next, cursor: start + args.replacement.length }
+  return replaceTextRangeWithInvocationBoundary({ ...args, text })
 }

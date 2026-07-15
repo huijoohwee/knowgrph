@@ -601,7 +601,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       displayTitle={displayTitle}
       editActivation={editActivation}
       emptyClassName={emptyClassName}
-      enableMarkdownCommandMenus={enableMarkdownCommandMenus}
+      enableMarkdownCommandMenus={enableMarkdownCommandMenus} externalTextTarget={canEdit && multiline}
       id={id}
       inlineChipDensity={inlineChipDensity}
       markdownDocumentPath={markdownDocumentPath}
