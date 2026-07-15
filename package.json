@@ -66,6 +66,7 @@
     "runtime:docs-dependency:resolve": "node ./scripts/resolve-runtime-docs-dependency.mjs",
     "sme-care-agent:canvas-demo": "node ./scripts/build-sme-care-agent-canvas-demo.mjs",
     "sme-care-agent:canvas-demo:check": "node ./scripts/build-sme-care-agent-canvas-demo.mjs --check",
+    "sme-risk-copilot:check": "node ./scripts/check-sme-risk-copilot-readiness.mjs",
     "runtime:verify:deployed": "node ./scripts/verify-deployed-runtime.mjs",
     "runtime:proof": "node ./scripts/capture-runtime-proof.mjs",
     "runtime:demo-pack": "node ./scripts/build-demo-pack-from-proof.mjs",

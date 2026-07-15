@@ -7,9 +7,9 @@ import {
   getAgenticOsCommandInvocations,
 } from '@/features/agentic-os/agenticOsDocInvocations'
 import { getChatInvocationOptions } from '@/features/chat/chatInvocationRegistry'
-import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
 import { FloatingPanelSkillsCommandsView } from '@/features/toolbar/FloatingPanelSkillsCommandsView'
 import SkillsCommandsView from '@/features/panels/views/SkillsCommandsView'
+import { resolveChatInvocationCatalogEntries } from '@/features/chat/chatInvocationRegistry'
 import { setActiveCardInlineTextExternalCommandTarget } from '@/lib/cards/cardInlineTextExternalCommands'
 import { registerAgenticOsRemoteGrammarCatalogEntries, resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -108,9 +108,9 @@ export async function testFloatingPanelSkillsCommandsViewRendersSlashInvokableSk
     const slashEntries = container.querySelectorAll('[data-kg-skill-command-slash]')
     const hashEntries = container.querySelectorAll('[data-kg-skill-command-hash]')
     const atEntries = container.querySelectorAll('[data-kg-skill-command-at]')
-    const expectedSlashCount = CHAT_SKILL_OPTIONS.length + getAgenticOsCommandInvocations().length
-    const expectedHashCount = getChatInvocationOptions().length
-    const expectedAtCount = getAgenticOsBindingInvocations().length
+    const expectedSlashCount = resolveChatInvocationCatalogEntries('slash', '').length
+    const expectedHashCount = resolveChatInvocationCatalogEntries('hash', '').length
+    const expectedAtCount = resolveChatInvocationCatalogEntries('at', '').length
     if (slashEntries.length !== expectedSlashCount || hashEntries.length !== expectedHashCount || atEntries.length !== expectedAtCount) {
       throw new Error(`Expected Skills & Commands to render all / # @ entries, got slash=${slashEntries.length}/${expectedSlashCount} hash=${hashEntries.length}/${expectedHashCount} at=${atEntries.length}/${expectedAtCount}`)
     }

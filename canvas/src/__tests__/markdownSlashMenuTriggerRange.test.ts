@@ -4,8 +4,8 @@ import {
   buildAgenticOsDictionaryInvocationMarkdown,
   getAgenticOsCommandInvocations,
 } from '@/features/agentic-os/agenticOsDocInvocations'
-import { buildAgenticOsSlashInvocationMenuItems } from '@/features/agentic-os/agenticOsInlineCommandItems'
 import { registerAgenticOsRemoteGrammarCatalogEntries, resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
+import { resolveChatInvocationCatalogEntries } from '@/features/chat/chatInvocationRegistry'
 import { toStableSlashMenuState } from '@/lib/markdown-core/ui/markdownBlockContainerCore.menuState'
 
 const readUtf8 = (filePath: string) => readFileSync(filePath, 'utf8')
@@ -48,17 +48,10 @@ export function testMarkdownSlashMenuActionsReuseTriggerRangeAfterMenuFocus() {
   if (buildAgenticOsDictionaryInvocationMarkdown(prdTadInvocation) !== '/prd-tad.create') {
     throw new Error('expected dictionary command insertion to persist the canonical slash token only')
   }
-  const selectedReplacements: string[] = []
-  const prdTadMenuItem = buildAgenticOsSlashInvocationMenuItems({
-    onSelect: replacement => selectedReplacements.push(replacement),
-  }).find(item => item.label === '/prd-tad.create')
-  if (!prdTadMenuItem) throw new Error('expected card slash command menu to expose /prd-tad.create')
-  prdTadMenuItem.onSelect()
-  if (selectedReplacements.join('|') !== '/prd-tad.create') {
-    throw new Error(`expected card slash command menu to insert only /prd-tad.create, got ${JSON.stringify(selectedReplacements)}`)
-  }
-  if (selectedReplacements.some(replacement => /https?:\/\//.test(replacement))) {
-    throw new Error(`expected card slash command menu not to persist invocation source URLs, got ${JSON.stringify(selectedReplacements)}`)
+  const catalogEntry = resolveChatInvocationCatalogEntries('slash', '').find(entry => entry.token === '/prd-tad.create')
+  if (!catalogEntry) throw new Error('expected the shared invocation catalog to expose /prd-tad.create')
+  if (catalogEntry.token !== '/prd-tad.create' || /https?:\/\//.test(catalogEntry.token)) {
+    throw new Error(`expected shared invocation catalog insertion to persist only /prd-tad.create, got ${JSON.stringify(catalogEntry.token)}`)
   }
   resetAgenticOsRemoteGrammarCatalogForTests()
 }

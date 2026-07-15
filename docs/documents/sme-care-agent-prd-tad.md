@@ -8,7 +8,7 @@ frontmatter_contract: "required"
 graphId: "md:sme-care-agent-prd-tad"
 schema: "kgc-prd-tad/v1"
 guidelines_ref: "prd-tad-guidelines.md@1.4.0"
-status: "draft"
+status: "runtime-ready-in-dev"
 parent: ""
 parent_version: ""
 ---
@@ -569,7 +569,7 @@ See Topology diagram above (`flowchart TB`) and per-pipeline flow tables under O
 
 ## Agent-Platform Readiness
 
-This increment scopes **Agentic OS** and **AI Agent** discovery as Must-tier; **MCP Gateway** federation is satisfied by reusing the existing probe-tree MCP transport (no new proxy). Spend safety, live orchestration proof, and operator-UI projection are **Follow-on**.
+This increment is **runtime-ready in Dev**: Agentic OS and AI Agent discovery, local MCP federation, bounded probe-tree intake, deterministic risk orchestration, single-use marketplace approval, and Canvas projection are verified with zero paid calls. A deployed runtime, real broker/insurer integration, and regulated actions remain explicitly out of scope.
 
 ### Agentic OS: SME Care-Agent
 
@@ -593,14 +593,13 @@ No new proxy tier. Existing local-host and control-plane transports already used
 
 | Workstream | Current state | Gap | Priority | Exit criteria (VCC) |
 |---|---|---|---|---|
-| OS Status Surface (local) | Not yet built | Needs `sme_care_agent_status` tool | P0 | Status view returns typed JSON at $0, no state mutation |
-| Gateway discovery | Reuses existing transport | None expected | P1 | Discovery check exits 0 with zero token spend |
-| Spend safety (approval tokens for Broker Copilot / Matcher) | Not yet built | Durable, single-use, TTL-bound approval token store | P1 (Follow-on) | Token survives restart within TTL; reuse fails closed |
-| Live orchestration proof | Not yet built | One golden-path run with all four pipelines chained | P1 (Follow-on) | Run manifest persisted; blocked-run cost == 0 |
-| Operator UI projection | Not yet built | Dashboard doc via existing UI bridge | P2 (Follow-on) | Renders through existing bridge; no duplicate pipeline |
+| OS Status Surface (local) | Implemented and focused-tested | None | P0 | `sme_care_agent_status` returns typed, read-only, exact-zero-cost views |
+| Gateway discovery | Implemented through local stdio MCP | None | P1 | Discovery and the full source → trigger → nudge → matcher → status path pass with zero spend |
+| Spend safety (approval tokens for Broker Copilot / Matcher) | Implemented for marketplace matching | Outbound send remains deliberately unavailable | P1 | Missing, expired, mismatched, forged, or reused marketplace approval fails closed |
+| Live orchestration proof | Implemented as a bounded Dev-local MCP path | No deployed run manifest is claimed | P1 | VCC: Given a clean Dev checkout, when `npm run sme-risk-copilot:check` runs, then all local stages pass at $0 with no quote, bind, contact, Prod, or Cloudflare mutation |
+| Operator UI projection | Implemented through the shared Canvas projection | Dedicated dashboard intentionally out of scope | P2 | Storyboard evidence renders through the shared Canvas owner with no renderer fork |
 
 ---
-
 ## Validation Checklist (applied)
 
 - [x] User journey mapped before stories written; every story anchored to a journey stage.
@@ -645,4 +644,4 @@ PRD-EpicF-Multilingual       ↔ TAD-MultilingualAdapter-Interface
 
 **"CID frames PRD/TAD standards · Flow patterns anchor stories to reality · Agent-platform readiness sequences Must before Follow-on · RAO aligns team responsibilities · SVO clarifies requirement semantics · VCC closes the loop from criterion to verified implementation"**
 
-Applied here: the Scope & Neutrality Contract and CID-style acceptance criteria frame this document; the five flow patterns (journey, workflow, data, orchestration/harness, topology) trace every epic from the SME owner's growth-stage trigger to a rendered REG edge; Agentic OS/AI Agent readiness ship Must-tier this increment while spend safety, live orchestration proof, and operator UI wait for Follow-on; the Role—Action—Outcome table keeps the solo-dev accountability explicit even with one person in every role; every acceptance criterion above is written so its VCC translation is directly evaluable from the harness's own surfaced output — not a narrative claim of completeness.
+Applied here: the Scope & Neutrality Contract and CID-style acceptance criteria frame this document; the five flow patterns (journey, workflow, data, orchestration/harness, topology) trace every epic from the SME owner's growth-stage trigger to a rendered REG edge; Agentic OS/AI Agent readiness, spend safety, bounded Dev-local orchestration proof, and shared Canvas projection are verified through the aggregate VCC, while deployed and regulated actions remain deliberately gated; the Role—Action—Outcome table keeps the solo-dev accountability explicit even with one person in every role; every acceptance criterion above is written so its VCC translation is directly evaluable from the harness's own surfaced output — not a narrative claim of completeness.

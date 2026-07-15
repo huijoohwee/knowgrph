@@ -1,7 +1,6 @@
 import type { InvocationTokenKind } from '@/lib/markdown/invocationTokens'
 import { buildAgenticOsInvocationChipTitle } from '@/features/agentic-os/agenticOsInvocationChips'
-import { DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME, resolveDataViewChipClass } from '@/features/markdown/ui/dataViewChipStyles'
-import { UI_INLINE_CHIP_SHELL_15CH_CLASSNAME } from '@/lib/ui/textLayout'
+import { resolveInlineInvocationChipClassName } from '@/features/markdown/ui/dataViewChipStyles'
 import { getChatInvocationOptions } from '@/features/chat/chatInvocationRegistry'
 import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
 
@@ -23,12 +22,10 @@ const CHAT_COMPOSER_SLASH_INVOCATION_SOURCES = new Map(CHAT_SKILL_OPTIONS.map(op
 ] as const))
 
 export function readComposerInvocationChipClassName(part: Pick<ComposerInvocationSourcePart, 'text'>): string {
-  return [
-    'pointer-events-none cursor-text no-underline',
-    DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
-    UI_INLINE_CHIP_SHELL_15CH_CLASSNAME,
-    resolveDataViewChipClass(part.text),
-  ].join(' ')
+  return resolveInlineInvocationChipClassName({
+    value: part.text,
+    extraClassName: 'pointer-events-none cursor-text no-underline',
+  })
 }
 
 export function readComposerInvocationSourceTitle(part: ComposerInvocationSourcePart): string {

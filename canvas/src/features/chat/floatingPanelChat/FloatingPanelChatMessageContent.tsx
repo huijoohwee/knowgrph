@@ -1,12 +1,12 @@
 import React from 'react'
 import { buildAgenticOsInvocationChipAttrs } from '@/features/agentic-os/agenticOsInvocationChips'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
-import { resolveDataViewChipClass, DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME } from '@/features/markdown/ui/dataViewChipStyles'
+import { resolveInlineInvocationChipClassName } from '@/features/markdown/ui/dataViewChipStyles'
 import { CardPreviewInlineMediaPill } from '@/lib/cards/CardPreviewInlineMediaPill'
 import { InlineMediaCommandThumbnail } from '@/lib/command-menu/InlineMediaCommandThumbnail'
 import { splitInvocationTokenSegments, type InvocationTokenKind } from '@/lib/markdown/invocationTokens'
 import { getUiSectionStatusChipClassName } from '@/lib/ui/sectionChipChrome'
-import { UI_INLINE_CHIP_SHELL_15CH_CLASSNAME, UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
+import { UI_TEXT_TRUNCATE_CHIP } from '@/lib/ui/textLayout'
 import { readComposerInvocationSourceTitle } from '@/lib/ui/textareaInvocationProjectionInvocation'
 import { collectTextareaInvocationSourceBindings } from '@/lib/ui/textareaInvocationSourceBindings'
 import {
@@ -91,12 +91,10 @@ const collectSourceBindingParts = (content: string): FloatingPanelChatSourceBind
     }))
 }
 
-const readMessageInvocationChipClassName = (token: string): string => [
-  DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
-  UI_INLINE_CHIP_SHELL_15CH_CLASSNAME,
-  resolveDataViewChipClass(token),
-  'mx-0.5 inline-flex align-baseline no-underline',
-].join(' ')
+const readMessageInvocationChipClassName = (token: string): string => resolveInlineInvocationChipClassName({
+  value: token,
+  extraClassName: 'mx-0.5 inline-flex align-baseline no-underline',
+})
 
 const renderFloatingPanelChatInvocationChip = (
   token: string,

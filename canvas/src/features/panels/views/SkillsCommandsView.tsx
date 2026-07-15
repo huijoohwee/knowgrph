@@ -1,20 +1,15 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from 'react'
-import {
-  getAgenticOsBindingInvocations,
-  getAgenticOsCommandInvocations,
-  getAgenticOsDocInvocations,
-  type AgenticOsDictionaryInvocationKind,
-} from '@/features/agentic-os/agenticOsDocInvocations'
 import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
-import { getChatInvocationOptions } from '@/features/chat/chatInvocationRegistry'
-import { CHAT_SKILL_OPTIONS } from '@/features/chat/chatSkillRegistry'
 import {
-  DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
-  readInlineKeywordChipToneValue,
-  resolveDataViewChipClass,
+  resolveInlineInvocationChipClassName,
 } from '@/features/markdown/ui/dataViewChipStyles'
+import {
+  resolveChatInvocationCatalogEntries,
+  type ChatInvocationCatalogEntry,
+  type ChatInvocationCatalogPrefixFilter,
+} from '@/features/chat/chatInvocationRegistry'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import { MainPanelTypeIcon, resolveMainPanelInvocationSubjectIconKey } from '@/features/panels/ui/mainPanelHelpIconLibrary'
@@ -34,7 +29,6 @@ import {
   type SkillsCommandsGrammarGroupBy,
   type SkillsCommandsGrammarProjection,
 } from './skillsCommandsGrammar'
-
 type SkillsCommandsViewProps = {
   collapsedGroupKeys?: ReadonlySet<string>
   grammarGroupBy?: SkillsCommandsGrammarGroupBy
@@ -43,21 +37,10 @@ type SkillsCommandsViewProps = {
   searchQuery?: string
 }
 
-const normalize = (value: unknown): string => String(value || '').trim().toLowerCase()
-export type SkillsCommandsPrefixFilter = 'all' | 'at' | 'hash' | 'slash'
+export type SkillsCommandsPrefixFilter = ChatInvocationCatalogPrefixFilter
+type SkillsCommandsCatalogEntry = ChatInvocationCatalogEntry
 const SKILLS_COMMANDS_ICON_SLOT_CLASSNAME = 'kg-skill-command-icon inline-flex h-7 w-7 shrink-0 items-center justify-center'
 const SKILLS_COMMANDS_ICON_GLYPH_CLASSNAME = 'kg-skill-command-icon-glyph'
-
-type SkillsCommandsCatalogEntry = {
-  id: string
-  label: string
-  token: string
-  summary: string
-  group: string
-  kind: 'doc' | 'runtime' | 'skill' | AgenticOsDictionaryInvocationKind
-  sourcePath?: string
-  keywords: readonly string[]
-}
 
 type SkillsCommandsRenderEntry = {
   grammar: SkillsCommandsGrammarProjection
@@ -76,72 +59,6 @@ export type SkillsCommandsGroupKeyModel = {
   label: string
 }
 
-const buildSkillsCommandsCatalog = (): readonly SkillsCommandsCatalogEntry[] => [
-  ...CHAT_SKILL_OPTIONS.map(option => ({
-    id: option.id,
-    label: option.label,
-    token: option.slashCommand,
-    summary: option.summary,
-    group: 'Chat skill',
-    kind: 'skill' as const,
-    keywords: option.keywords,
-  })),
-  ...getAgenticOsCommandInvocations().map(invocation => ({
-    id: invocation.id,
-    label: invocation.label,
-    token: invocation.token,
-    summary: invocation.summary,
-    group: invocation.group,
-    kind: invocation.kind,
-    sourcePath: invocation.sourcePath,
-    keywords: invocation.keywords,
-  })),
-  ...getAgenticOsDocInvocations().map(doc => ({
-    id: `doc:${doc.id}:slash`,
-    label: doc.label,
-    token: doc.slashCommand,
-    summary: doc.summary,
-    group: 'Agentic OS docs',
-    kind: 'doc' as const,
-    sourcePath: doc.sourcePath,
-    keywords: [doc.hashToken, doc.atToken, ...doc.keywords],
-  })),
-  ...getChatInvocationOptions().map(option => ({
-    id: `hash:${option.id}`,
-    label: option.label,
-    token: option.token,
-    summary: option.summary,
-    group: option.slashCommand && option.atToken
-      ? 'Agentic OS docs'
-      : option.sourcePath
-        ? 'Agentic OS semantic dictionary'
-        : 'Runtime invocation',
-    kind: option.slashCommand && option.atToken ? 'doc' as const : option.sourcePath ? 'semantic' as const : 'runtime' as const,
-    sourcePath: option.sourcePath,
-    keywords: [option.slashCommand || '', option.atToken || '', option.toolName || '', ...option.keywords],
-  })),
-  ...getAgenticOsBindingInvocations().map(invocation => ({
-    id: invocation.id,
-    label: invocation.label,
-    token: invocation.token,
-    summary: invocation.summary,
-    group: invocation.group,
-    kind: invocation.kind,
-    sourcePath: invocation.sourcePath,
-    keywords: invocation.keywords,
-  })),
-  ...getAgenticOsDocInvocations().map(doc => ({
-    id: `doc:${doc.id}:at`,
-    label: doc.label,
-    token: doc.atToken,
-    summary: doc.summary,
-    group: 'Agentic OS docs',
-    kind: 'doc' as const,
-    sourcePath: doc.sourcePath,
-    keywords: [doc.slashCommand, doc.hashToken, ...doc.keywords],
-  })),
-]
-
 const tokenPrefixDataAttribute = (entry: SkillsCommandsCatalogEntry): Record<string, string> => {
   if (entry.token.startsWith('/')) return { 'data-kg-skill-command-slash': entry.id }
   if (entry.token.startsWith('#')) return { 'data-kg-skill-command-hash': entry.id }
@@ -149,11 +66,10 @@ const tokenPrefixDataAttribute = (entry: SkillsCommandsCatalogEntry): Record<str
   return {}
 }
 
-const buildSkillsCommandsTokenChipClassName = (token: string): string => cn(
-  DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
-  'max-w-[9.5rem]',
-  resolveDataViewChipClass(readInlineKeywordChipToneValue(token)),
-)
+const buildSkillsCommandsTokenChipClassName = (token: string): string => resolveInlineInvocationChipClassName({
+  value: token,
+  extraClassName: 'max-w-[9.5rem]',
+})
 
 function renderSkillsCommandsTokenChip(entry: SkillsCommandsCatalogEntry): React.ReactNode {
   const attrs = {
@@ -181,33 +97,8 @@ function renderSkillsCommandsTokenChip(entry: SkillsCommandsCatalogEntry): React
   )
 }
 
-function matchesSkillsCommandsPrefixFilter(entry: SkillsCommandsCatalogEntry, prefixFilter: SkillsCommandsPrefixFilter): boolean {
-  if (prefixFilter === 'all') return true
-  if (prefixFilter === 'slash') return entry.token.startsWith('/')
-  if (prefixFilter === 'hash') return entry.token.startsWith('#')
-  return entry.token.startsWith('@')
-}
-
-function resolveSkillsCommandsEntries(prefixFilter: SkillsCommandsPrefixFilter, queryRaw: string): readonly SkillsCommandsCatalogEntry[] {
-  const query = normalize(queryRaw)
-  const prefixEntries = buildSkillsCommandsCatalog().filter(option => matchesSkillsCommandsPrefixFilter(option, prefixFilter))
-  if (!query) return prefixEntries
-  return prefixEntries.filter(option => {
-    const haystack = [
-      option.label,
-      option.token,
-      option.summary,
-      option.group,
-      option.kind,
-      option.sourcePath,
-      ...option.keywords,
-    ].map(normalize).join(' ')
-    return haystack.includes(query)
-  })
-}
-
 function resolveSkillsCommandsRenderEntries(prefixFilter: SkillsCommandsPrefixFilter, queryRaw: string): readonly SkillsCommandsRenderEntry[] {
-  return resolveSkillsCommandsEntries(prefixFilter, queryRaw).map(option => ({
+  return resolveChatInvocationCatalogEntries(prefixFilter, queryRaw).map(option => ({
     grammar: resolveSkillsCommandsGrammarProjection(option),
     option,
   }))

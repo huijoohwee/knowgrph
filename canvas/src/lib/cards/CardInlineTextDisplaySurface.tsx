@@ -22,6 +22,7 @@ type CardInlineTextDisplaySurfaceProps = {
   editActivation: CardInlineTextEditActivation
   emptyClassName?: string
   enableMarkdownCommandMenus: boolean
+  externalTextTarget: boolean
   id?: string
   inlineChipDensity: CardInlineTextChipDensity
   markdownDocumentPath: string
@@ -56,6 +57,7 @@ export function CardInlineTextDisplaySurface(props: CardInlineTextDisplaySurface
       aria-label={props.ariaLabel}
       data-kg-card-inline-edit="1"
       data-kg-card-inline-edit-activation={props.editActivation}
+      data-kg-card-inline-external-text-target={props.externalTextTarget ? '1' : undefined}
       data-kg-card-inline-chip-density={props.inlineChipDensity === 'compact' ? 'compact' : undefined}
       data-kg-card-inline-command-display={props.enableMarkdownCommandMenus ? '1' : undefined}
       {...UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES}

@@ -69,3 +69,31 @@ export const normalizeInvocationTokenSpacing = (text: string): string => {
   })
   return out
 }
+
+const isSingleInvocationToken = (value: string): boolean => {
+  const segments = splitInvocationTokenSegments(value)
+  return segments.length === 1 && segments[0]?.kind === 'token' && segments[0].value === value
+}
+
+export const replaceTextRangeWithInvocationBoundary = (args: {
+  text: string
+  start: number
+  end: number
+  replacement: string
+}): { text: string; cursor: number } => {
+  const text = String(args.text ?? '')
+  const start = Math.max(0, Math.min(text.length, args.start))
+  const end = Math.max(start, Math.min(text.length, args.end))
+  const replacement = String(args.replacement ?? '')
+  const before = text.slice(0, start)
+  const after = text.slice(end)
+  if (!isSingleInvocationToken(replacement)) {
+    return { text: `${before}${replacement}${after}`, cursor: start + replacement.length }
+  }
+  const prefix = before && INVOCATION_TOKEN_PREVIOUS_BOUNDARY_RE.test(before.at(-1) || '') ? ' ' : ''
+  const suffix = after && INVOCATION_TOKEN_NEXT_BOUNDARY_RE.test(after[0] || '') ? ' ' : ''
+  return {
+    text: `${before}${prefix}${replacement}${suffix}${after}`,
+    cursor: start + prefix.length + replacement.length + suffix.length,
+  }
+}

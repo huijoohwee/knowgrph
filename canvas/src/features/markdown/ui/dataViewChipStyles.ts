@@ -2,7 +2,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   UI_RESPONSIVE_INLINE_ELEMENT_ROW_CLASSNAME,
 } from '@/lib/ui/responsiveElementClasses'
-import { UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME } from '@/lib/ui/textLayout'
+import { UI_INLINE_CHIP_SHELL_15CH_CLASSNAME, UI_INLINE_TEXT_PILL_HEIGHT_CLASSNAME } from '@/lib/ui/textLayout'
 import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
 import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
 
@@ -67,3 +67,18 @@ export const readInlineKeywordChipToneValue = (value: string): string => {
 export const readInlineKeywordChipLabel = (value: string): string => {
   return String(value ?? '').trim()
 }
+
+export const resolveInlineInvocationChipClassName = ({
+  value,
+  baseClassName = DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME,
+  extraClassName = '',
+}: {
+  value: string
+  baseClassName?: string
+  extraClassName?: string
+}): string => [
+  baseClassName,
+  UI_INLINE_CHIP_SHELL_15CH_CLASSNAME,
+  resolveDataViewChipClass(readInlineKeywordChipToneValue(value)),
+  extraClassName,
+].filter(Boolean).join(' ')

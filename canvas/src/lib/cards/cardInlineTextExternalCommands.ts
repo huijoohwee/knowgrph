@@ -94,10 +94,32 @@ const readSelectedCardInlineTextExternalCommandTarget = (): CardInlineTextExtern
     const startElement = anchor.nodeType === 1 ? anchor as Element : anchor.parentElement
     const field = startElement?.closest?.('[data-kg-card-inline-edit="1"]') || null
     if (!field) return null
+    const selectedStoryboardCard = ownerDocument.querySelector('[data-kg-storyboard-widget-selected="1"]')
+    if (selectedStoryboardCard && !selectedStoryboardCard.contains(field)) return null
     return readCommandState().targetByElement.get(field) || null
   } catch {
     return null
   }
+}
+
+const insertTextIntoSelectedStoryboardCard = (text: string): CardInlineTextExternalCommandTarget | null => {
+  try {
+    const ownerDocument = globalThis.document
+    if (!ownerDocument) return null
+    const fields = ownerDocument.querySelectorAll('[data-kg-storyboard-widget-selected="1"] [data-kg-card-inline-external-text-target="1"]')
+    for (const field of fields) {
+      let target = readCommandState().targetByElement.get(field)
+      if (target?.insertText?.(text) === true) return target
+      const clickableField = field as HTMLElement
+      if (typeof clickableField.click !== 'function') continue
+      clickableField.click()
+      target = readCommandState().targetByElement.get(field)
+      if (target?.insertText?.(text) === true) return target
+    }
+  } catch {
+    return null
+  }
+  return null
 }
 
 export function insertMediaIntoActiveCardInlineTextEditor(candidate: CardInlineTextExternalMediaCandidate): boolean {
@@ -126,6 +148,11 @@ export function insertTextIntoActiveCardInlineTextEditor(replacement: string): b
   const selectedTarget = readSelectedCardInlineTextExternalCommandTarget()
   if (selectedTarget?.insertText?.(text) === true) {
     setActiveCardInlineTextExternalCommandTarget(selectedTarget)
+    return true
+  }
+  const selectedStoryboardTarget = insertTextIntoSelectedStoryboardCard(text)
+  if (selectedStoryboardTarget) {
+    setActiveCardInlineTextExternalCommandTarget(selectedStoryboardTarget)
     return true
   }
   const activeTarget = readCommandState().activeTarget
