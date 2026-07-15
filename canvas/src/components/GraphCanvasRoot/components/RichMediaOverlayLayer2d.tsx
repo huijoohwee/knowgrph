@@ -228,7 +228,7 @@ export function RichMediaOverlayLayer2d(props: {
       style={{ zIndex: Z_INDEX_GRAPH_MEDIA_LAYER }}
     >
       {mediaOverlayNodes.map(n => {
-        const kind = n.kind === 'iframe' || n.kind === 'image' || n.kind === 'svg' || n.kind === 'video' || n.kind === 'audio' ? n.kind : undefined
+        const kind = n.kind === 'iframe' || n.kind === 'image' || n.kind === 'svg' || n.kind === 'video' || n.kind === 'audio' || n.kind === 'model' ? n.kind : undefined
         const selected = isCanonicalNodeIdEqual(activePanelId, n.id)
           || isCanonicalNodeIdEqual(selectedNodeId, n.id)
           || (Array.isArray(selectedNodeIds) && selectedNodeIds.some(id => isCanonicalNodeIdEqual(id, n.id)))

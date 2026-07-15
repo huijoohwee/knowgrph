@@ -1,4 +1,5 @@
 import type { GraphNode, JSONValue } from '@/lib/graph/types'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import { isPlainObject } from '@/lib/graph/value'
 
 export const GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS = ['title', 'name', 'heading', 'scene', 'shot'] as const
@@ -67,14 +68,15 @@ export const GRAPH_NODE_CARD_TEXT_FIELDS: readonly GraphNodeCardTextFieldSpec[] 
 ] as const
 
 const normalizeCardText = (value: unknown, options?: { preserveFormatting?: boolean }): string => {
+  const scalar = unwrapGraphCellValue(value)
   const preserveFormatting = options?.preserveFormatting === true
-  if (typeof value === 'string') return preserveFormatting ? value.replace(/\r/g, '') : value.replace(/\r/g, '').trim()
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value).trim()
+  if (typeof scalar === 'string') return preserveFormatting ? scalar.replace(/\r/g, '') : scalar.replace(/\r/g, '').trim()
+  if (typeof scalar === 'number' || typeof scalar === 'boolean') return String(scalar).trim()
   return ''
 }
 
 export function readGraphNodeProperties(node: Pick<GraphNode, 'properties'> | null | undefined): Record<string, unknown> {
-  const properties = node?.properties
+  const properties = unwrapGraphCellValue(node?.properties)
   if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return {}
   return properties as Record<string, unknown>
 }
@@ -93,7 +95,7 @@ export function readGraphNodeCanonicalTextProperty(
   propertyKeys: readonly string[],
 ): string {
   for (const key of propertyKeys) {
-    const value = properties[key]
+    const value = unwrapGraphCellValue(properties[key])
     const text = normalizeCardText(value)
     if (text) return text
     if (Array.isArray(value) && value.length > 0) {
@@ -109,7 +111,7 @@ export function readGraphNodeAuthoredTextProperty(
   propertyKeys: readonly string[],
 ): string {
   for (const key of propertyKeys) {
-    const value = properties[key]
+    const value = unwrapGraphCellValue(properties[key])
     const text = normalizeCardText(value, { preserveFormatting: true })
     if (text.trim()) return text
     if (Array.isArray(value) && value.length > 0) {

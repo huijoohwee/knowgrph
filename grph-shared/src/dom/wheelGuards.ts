@@ -1,4 +1,5 @@
 const WHEEL_SCROLLABLE_OVERFLOW_VALUES = new Set(['auto', 'scroll', 'overlay'])
+export const LOCAL_WHEEL_OWNER_SELECTOR = '[data-kg-local-wheel-owner="1"]'
 
 const isDomElement = (value: unknown): value is Element => {
   if (!value || typeof value !== 'object') return false
@@ -46,7 +47,7 @@ const isElementScrollableForWheel = (node: HTMLElement, axis: 'x' | 'y'): boolea
   return false
 }
 
-const readWheelEventTargetElement = (event: WheelEvent): Element | null => {
+const readWheelEventTargetElement = (event: Event): Element | null => {
   try {
     const path = typeof event.composedPath === 'function' ? event.composedPath() : []
     for (const item of path) {
@@ -58,6 +59,17 @@ const readWheelEventTargetElement = (event: WheelEvent): Element | null => {
 
   const target = (event as unknown as { target?: unknown }).target
   return isDomElement(target) ? target : null
+}
+
+export function isLocalWheelOwnerEvent(event: Event, boundary?: Element | null): boolean {
+  let current = readWheelEventTargetElement(event)
+  const maxHops = 30
+  for (let hops = 0; current && hops < maxHops; hops += 1) {
+    if (current.matches(LOCAL_WHEEL_OWNER_SELECTOR)) return true
+    if (boundary && current === boundary) break
+    current = current.parentElement
+  }
+  return false
 }
 
 export type WheelScrollableTargetOptions = {
@@ -191,6 +203,8 @@ export function installWheelForwardingAndBrowserZoomGuards(
       void 0
     }
 
+    if (isLocalWheelOwnerEvent(e, el)) return
+
     if (forwardBeforeScrollableTarget && tryForwardWheel(e)) return
 
     if (shouldKeepWheelOnScrollableTarget(e, el)) return
@@ -213,6 +227,7 @@ export function installWheelForwardingAndBrowserZoomGuards(
   }
 
   const handleGesture = (e: Event) => {
+    if (isLocalWheelOwnerEvent(e, el)) return
     try {
       e.preventDefault()
     } catch {

@@ -14,6 +14,24 @@ import {
   GENERATION_TOKEN_CAP_INVOCATIONS,
 } from './generationInvocation'
 import { CHAT_SKILL_OPTIONS } from './chatSkillRegistry'
+import {
+  IMAGE_TO_THREEJS_PROMPT_PRESET_ID,
+  buildImageToThreeJsPromptPreset,
+} from '@/features/image-to-threejs/imageToThreeJsPromptPreset'
+import {
+  IMAGE_TO_GLB_PROMPT_PRESET_ID,
+  buildImageToGlbPromptPreset,
+} from '@/features/image-to-glb/imageToGlbPromptPreset'
+import {
+  IMAGE_TO_THREEJS_BINDING_TOKEN,
+  IMAGE_TO_THREEJS_COMMAND_TOKEN,
+  IMAGE_TO_THREEJS_SEMANTIC_TOKEN,
+} from '@/features/image-to-threejs/imageToThreeJsContract'
+import {
+  IMAGE_TO_GLB_BINDING_TOKEN,
+  IMAGE_TO_GLB_COMMAND_TOKEN,
+  IMAGE_TO_GLB_SEMANTIC_TOKEN,
+} from '@/features/image-to-glb/imageToGlbContract'
 
 export type ChatInvocationId =
   | 'memory.search'
@@ -52,6 +70,59 @@ export type ChatInvocationCatalogEntry = {
   kind: 'doc' | 'runtime' | 'skill' | AgenticOsDictionaryInvocationKind
   sourcePath?: string
   keywords: readonly string[]
+  promptPresetId?: string
+  insertionText?: string
+}
+
+const IMAGE_TO_THREEJS_PROMPT_PRESET_SOURCE_PATH = 'agentic-canvas-os/docs/PROMPT-PRESETS.md' as const
+const IMAGE_TO_GLB_PROMPT_PRESET_SOURCE_PATH = 'agentic-canvas-os/docs/PROMPT-PRESETS.md' as const
+
+const IMAGE_TO_THREEJS_PROMPT_PRESET_COMMAND_ENTRY: ChatInvocationCatalogEntry = {
+  id: `prompt-preset:${IMAGE_TO_THREEJS_PROMPT_PRESET_ID}`,
+  label: 'Image to Three.js',
+  token: IMAGE_TO_THREEJS_COMMAND_TOKEN,
+  summary: 'Load the native image-to-threejs prompt preset into the selected Widget Card.',
+  group: 'Native prompt preset',
+  kind: 'skill',
+  sourcePath: IMAGE_TO_THREEJS_PROMPT_PRESET_SOURCE_PATH,
+  keywords: ['image', 'three.js', 'threejs', 'widget card', 'prompt preset', IMAGE_TO_THREEJS_SEMANTIC_TOKEN, IMAGE_TO_THREEJS_BINDING_TOKEN],
+  promptPresetId: IMAGE_TO_THREEJS_PROMPT_PRESET_ID,
+  insertionText: buildImageToThreeJsPromptPreset(),
+}
+
+const IMAGE_TO_THREEJS_BINDING_CATALOG_ENTRY: ChatInvocationCatalogEntry = {
+  id: `binding:${IMAGE_TO_THREEJS_PROMPT_PRESET_ID}`,
+  label: 'Image to Three.js source',
+  token: IMAGE_TO_THREEJS_BINDING_TOKEN,
+  summary: 'Bind the selected image source to the native image-to-threejs conversion.',
+  group: 'Native prompt preset',
+  kind: 'binding',
+  sourcePath: IMAGE_TO_THREEJS_PROMPT_PRESET_SOURCE_PATH,
+  keywords: ['image', 'three.js', 'threejs', 'source', 'widget card', IMAGE_TO_THREEJS_COMMAND_TOKEN, IMAGE_TO_THREEJS_SEMANTIC_TOKEN],
+}
+
+const IMAGE_TO_GLB_PROMPT_PRESET_COMMAND_ENTRY: ChatInvocationCatalogEntry = {
+  id: `prompt-preset:${IMAGE_TO_GLB_PROMPT_PRESET_ID}`,
+  label: 'Image to GLB',
+  token: IMAGE_TO_GLB_COMMAND_TOKEN,
+  summary: 'Load the native procedural image-to-glb prompt preset into the selected Widget Card.',
+  group: 'Native prompt preset',
+  kind: 'skill',
+  sourcePath: IMAGE_TO_GLB_PROMPT_PRESET_SOURCE_PATH,
+  keywords: ['image', 'glb', 'gltf', 'three.js', 'threejs', 'procedural', 'widget card', 'prompt preset', IMAGE_TO_GLB_SEMANTIC_TOKEN, IMAGE_TO_GLB_BINDING_TOKEN],
+  promptPresetId: IMAGE_TO_GLB_PROMPT_PRESET_ID,
+  insertionText: buildImageToGlbPromptPreset(),
+}
+
+const IMAGE_TO_GLB_BINDING_CATALOG_ENTRY: ChatInvocationCatalogEntry = {
+  id: `binding:${IMAGE_TO_GLB_PROMPT_PRESET_ID}`,
+  label: 'Image to GLB source',
+  token: IMAGE_TO_GLB_BINDING_TOKEN,
+  summary: 'Bind the selected image source to the native procedural image-to-glb conversion.',
+  group: 'Native prompt preset',
+  kind: 'binding',
+  sourcePath: IMAGE_TO_GLB_PROMPT_PRESET_SOURCE_PATH,
+  keywords: ['image', 'glb', 'gltf', 'three.js', 'threejs', 'procedural', 'source', 'widget card', IMAGE_TO_GLB_COMMAND_TOKEN, IMAGE_TO_GLB_SEMANTIC_TOKEN],
 }
 
 const BASE_CHAT_INVOCATION_OPTIONS: readonly ChatInvocationOption[] = [
@@ -68,6 +139,26 @@ const BASE_CHAT_INVOCATION_OPTIONS: readonly ChatInvocationOption[] = [
   { id: 'agent', token: '#agent', label: 'Agent runtime', summary: 'Route the request through the selected provider-neutral agent capability.', keywords: ['ai', 'orchestration', 'vdeoxpln'] },
   { id: 'mcp', token: '#mcp', label: 'MCP runtime', summary: 'Use only tools exposed by the configured MCP runtime.', keywords: ['tools', 'server', 'protocol'] },
   { id: 'model', token: '#model', label: 'Active model', summary: 'Bind the request to the currently selected provider and model.', keywords: ['llm', 'provider', 'inference'] },
+  {
+    id: IMAGE_TO_THREEJS_PROMPT_PRESET_ID,
+    token: IMAGE_TO_THREEJS_SEMANTIC_TOKEN,
+    label: 'Image to Three.js',
+    summary: 'Use the native image-to-threejs prompt preset for a selected image source.',
+    keywords: ['image', 'three.js', 'threejs', 'prompt preset', 'widget card'],
+    sourcePath: IMAGE_TO_THREEJS_PROMPT_PRESET_SOURCE_PATH,
+    slashCommand: IMAGE_TO_THREEJS_COMMAND_TOKEN,
+    atToken: IMAGE_TO_THREEJS_BINDING_TOKEN,
+  },
+  {
+    id: IMAGE_TO_GLB_PROMPT_PRESET_ID,
+    token: IMAGE_TO_GLB_SEMANTIC_TOKEN,
+    label: 'Image to GLB',
+    summary: 'Use the native procedural image-to-glb prompt preset for a selected image source.',
+    keywords: ['image', 'glb', 'gltf', 'three.js', 'threejs', 'procedural', 'prompt preset', 'widget card'],
+    sourcePath: IMAGE_TO_GLB_PROMPT_PRESET_SOURCE_PATH,
+    slashCommand: IMAGE_TO_GLB_COMMAND_TOKEN,
+    atToken: IMAGE_TO_GLB_BINDING_TOKEN,
+  },
 ] as const
 
 const BASE_CHAT_INVOCATION_TOKENS = new Set(BASE_CHAT_INVOCATION_OPTIONS.map(option => option.token.toLowerCase()))
@@ -104,7 +195,21 @@ export const getChatInvocationOptions = (): readonly ChatInvocationOption[] => {
   ]
 }
 
-export const buildChatInvocationCatalog = (): readonly ChatInvocationCatalogEntry[] => [
+const dedupeCatalogEntriesByToken = (entries: readonly ChatInvocationCatalogEntry[]): readonly ChatInvocationCatalogEntry[] => {
+  const seen = new Set<string>()
+  return entries.filter(entry => {
+    const token = entry.token.toLowerCase()
+    if (seen.has(token)) return false
+    seen.add(token)
+    return true
+  })
+}
+
+export const resolveChatInvocationCatalogEntryInsertionText = (entry: ChatInvocationCatalogEntry): string => (
+  String(entry.insertionText || entry.token || '').trim()
+)
+
+export const buildChatInvocationCatalog = (): readonly ChatInvocationCatalogEntry[] => dedupeCatalogEntriesByToken([
   ...CHAT_SKILL_OPTIONS.map(option => ({
     id: option.id,
     label: option.label,
@@ -114,6 +219,8 @@ export const buildChatInvocationCatalog = (): readonly ChatInvocationCatalogEntr
     kind: 'skill' as const,
     keywords: option.keywords,
   })),
+  IMAGE_TO_THREEJS_PROMPT_PRESET_COMMAND_ENTRY,
+  IMAGE_TO_GLB_PROMPT_PRESET_COMMAND_ENTRY,
   ...getAgenticOsCommandInvocations().map(invocation => ({
     id: invocation.id,
     label: invocation.label,
@@ -158,6 +265,8 @@ export const buildChatInvocationCatalog = (): readonly ChatInvocationCatalogEntr
     sourcePath: invocation.sourcePath,
     keywords: invocation.keywords,
   })),
+  IMAGE_TO_THREEJS_BINDING_CATALOG_ENTRY,
+  IMAGE_TO_GLB_BINDING_CATALOG_ENTRY,
   ...getAgenticOsDocInvocations().map(doc => ({
     id: `doc:${doc.id}:at`,
     label: doc.label,
@@ -168,7 +277,7 @@ export const buildChatInvocationCatalog = (): readonly ChatInvocationCatalogEntr
     sourcePath: doc.sourcePath,
     keywords: [doc.slashCommand, doc.hashToken, ...doc.keywords],
   })),
-]
+])
 
 const matchesChatInvocationCatalogPrefix = (
   entry: ChatInvocationCatalogEntry,

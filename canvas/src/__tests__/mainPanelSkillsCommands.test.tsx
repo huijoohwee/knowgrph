@@ -10,6 +10,7 @@ import { getChatInvocationOptions } from '@/features/chat/chatInvocationRegistry
 import { FloatingPanelSkillsCommandsView } from '@/features/toolbar/FloatingPanelSkillsCommandsView'
 import SkillsCommandsView from '@/features/panels/views/SkillsCommandsView'
 import { resolveChatInvocationCatalogEntries } from '@/features/chat/chatInvocationRegistry'
+import { buildImageToThreeJsPromptPreset } from '@/features/image-to-threejs/imageToThreeJsPromptPreset'
 import { setActiveCardInlineTextExternalCommandTarget } from '@/lib/cards/cardInlineTextExternalCommands'
 import { registerAgenticOsRemoteGrammarCatalogEntries, resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -455,37 +456,37 @@ export async function testFloatingPanelSkillsCommandsRowsInsertActiveCardInvocat
       frames: 2,
     })
 
-    const prdTadRow = container.querySelector('[data-kg-skill-command-token="/prd-tad.create"]') as HTMLElement | null
-    const longHorizonRow = container.querySelector('[data-kg-skill-command-token="#long-horizon-harness"]') as HTMLElement | null
-    const messageGatewayRow = container.querySelector('[data-kg-skill-command-token="@message-gateway"]') as HTMLElement | null
-    const messageGatewayChip = messageGatewayRow?.querySelector('[data-kg-skill-command-token-chip="1"]') as HTMLElement | null
-    if (!prdTadRow || !longHorizonRow || !messageGatewayRow || !messageGatewayChip) {
-      throw new Error('Expected Skills & Commands to expose reusable /, #, and @ insertion rows')
+    const imageToThreeJsCommandRow = container.querySelector('[data-kg-skill-command-token="/image.to-threejs"]') as HTMLElement | null
+    const imageToThreeJsSemanticRow = container.querySelector('[data-kg-skill-command-token="#image-to-threejs"]') as HTMLElement | null
+    const imageToThreeJsBindingRow = container.querySelector('[data-kg-skill-command-token="@image-to-threejs"]') as HTMLElement | null
+    const imageToThreeJsBindingChip = imageToThreeJsBindingRow?.querySelector('[data-kg-skill-command-token-chip="1"]') as HTMLElement | null
+    if (!imageToThreeJsCommandRow || !imageToThreeJsSemanticRow || !imageToThreeJsBindingRow || !imageToThreeJsBindingChip) {
+      throw new Error('Expected Skills & Commands to expose the source-backed image-to-threejs /, #, and @ insertion rows')
     }
     if (
-      prdTadRow.getAttribute('role') !== 'button' ||
-      prdTadRow.getAttribute('tabindex') !== '0' ||
-      prdTadRow.getAttribute('aria-label') !== 'Insert /prd-tad.create' ||
-      prdTadRow.getAttribute('data-kg-skill-command-insert') !== 'card-inline-text'
+      imageToThreeJsCommandRow.getAttribute('role') !== 'button' ||
+      imageToThreeJsCommandRow.getAttribute('tabindex') !== '0' ||
+      imageToThreeJsCommandRow.getAttribute('aria-label') !== 'Insert /image.to-threejs' ||
+      imageToThreeJsCommandRow.getAttribute('data-kg-skill-command-insert') !== 'card-inline-text'
     ) {
       throw new Error('Expected Skills & Commands rows to act as accessible card inline-text insertion controls')
     }
 
     await act(async () => {
-      prdTadRow.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-      prdTadRow.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      imageToThreeJsCommandRow.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      imageToThreeJsCommandRow.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForNextFrame(dom.window)
     })
     await act(async () => {
-      longHorizonRow.dispatchEvent(new dom.window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter' }))
+      imageToThreeJsSemanticRow.dispatchEvent(new dom.window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter' }))
       await waitForNextFrame(dom.window)
     })
     await act(async () => {
-      messageGatewayChip.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
+      imageToThreeJsBindingChip.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }))
       await waitForNextFrame(dom.window)
     })
 
-    const expectedTokens = ['/prd-tad.create', '#long-horizon-harness', '@message-gateway']
+    const expectedTokens = [buildImageToThreeJsPromptPreset(), '#image-to-threejs', '@image-to-threejs']
     if (insertedTokens.join('|') !== expectedTokens.join('|')) {
       throw new Error(`Expected Skills & Commands catalog clicks to insert ${expectedTokens.join(', ')}, got ${insertedTokens.join(', ') || 'nothing'}`)
     }

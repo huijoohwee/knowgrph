@@ -583,7 +583,6 @@ export default function StoryboardWidgetCanvasRuntime(
     workflowContextJson,
     setJsonError,
   })
-
   const { exportWorkflowBundle, runWorkflowNode } = useStoryboardWidgetWorkflowActions({
     storyboardWidgetViewActive,
     baseGraphKind,
@@ -596,6 +595,7 @@ export default function StoryboardWidgetCanvasRuntime(
     widgetRegistry,
     appendDraftNode,
     setDraftGraphData,
+    commitPublishedGraphData: commitStoryboardCardMediaGraph,
     updateNode,
     upsertUiToast,
     scheduleOverlayEdgeUpdate,

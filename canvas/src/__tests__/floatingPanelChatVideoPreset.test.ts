@@ -22,25 +22,14 @@ import {
   resolveVideoAgentPresetExecutionPreflight,
   updateVideoAgentDemoPresetAssistantMessage,
 } from '@/features/chat/floatingPanelChat/videoAgentDemoPresetSubmit'
-import {
-  installWorkflowRunAllRunner,
-  requestWorkflowRunAllFromCommittedCanvas,
-} from '@/features/canvas/workflowRunAllBridge'
+import { installWorkflowRunAllRunner, requestWorkflowRunAllFromCommittedCanvas } from '@/features/canvas/workflowRunAllBridge'
 import { resolveStoryboardWidgetWorkflowRunGraphSnapshot } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowRunAll'
 import type { ChatMessage } from '@/features/chat/FloatingPanelChatSections'
 import { getChatInvocationOptions } from '@/features/chat/chatInvocationRegistry'
 import { FloatingPanelChatPromptPresetControl } from '@/features/chat/floatingPanelChat/FloatingPanelChatPromptPresetControl'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
-import {
-  adoptLatestChatHistoryTransition,
-  getCachedChatHistory,
-  putChatHistoryCache,
-  publishChatHistoryTransition,
-  resolveChatHistoryPersistenceAction,
-  subscribeToChatHistoryCache,
-  subscribeToChatHistoryTransition,
-} from '@/features/chat/floatingPanelChat/floatingPanelChatRuntime'
+import { adoptLatestChatHistoryTransition, getCachedChatHistory, putChatHistoryCache, publishChatHistoryTransition, resolveChatHistoryPersistenceAction, subscribeToChatHistoryCache, subscribeToChatHistoryTransition } from '@/features/chat/floatingPanelChat/floatingPanelChatRuntime'
 
 const sourcePath = '/docs/video-script.md'
 const invocation = '/video-agent @video-generation-demo-script @provider.byteplus @text @image @audio @video #spec.low #thinking.type.enabled #token-cap.medium [video-script.md](workspace:/docs/video-script.md)'
@@ -58,6 +47,24 @@ const promptCatalogMarkdown = [
   `      ${invocation}`,
   '',
   '      Generate the complete source-backed video package.',
+  '  - id: "image-to-threejs"',
+  '    label: "Image to Three.js"',
+  '    slash_command: "/image.to-threejs"',
+  '    description: "Image to Three.js preset"',
+  '    activation: "card-inline"',
+  '    prompt: |-',
+  '      /image.to-threejs @image-to-threejs #image-to-threejs',
+  '',
+  '      Convert the selected image without mutating its source media.',
+  '  - id: "image-to-glb"',
+  '    label: "Image to GLB"',
+  '    slash_command: "/image.to-glb"',
+  '    description: "Image to GLB preset"',
+  '    activation: "card-inline"',
+  '    prompt: |-',
+  '      /image.to-glb @image-to-glb #image-to-glb',
+  '',
+  '      Build a procedural GLB without mutating its source media.',
   '  - id: "sme-care-agent"',
   '    label: "SME Care Agent"',
   '    slash_command: "/sme-care-agent"',
@@ -145,12 +152,12 @@ export async function testFloatingPanelChatVideoPresetFailsClosedWithoutSource()
   }
 }
 
-export async function testFloatingPanelChatPromptPresetCatalogLoadsThreeCentralizedAgents() {
+export async function testFloatingPanelChatPromptPresetCatalogLoadsFiveCentralizedPresets() {
   const workspace = await createPresetWorkspace()
   const catalog = await loadPromptPresetCatalog(workspace)
   if (isPromptPresetCatalogError(catalog)) throw new Error(catalog.error)
   if (catalog.sourcePath !== PROMPT_PRESET_CATALOG_WORKSPACE_PATH) throw new Error(`unexpected catalog source ${catalog.sourcePath}`)
-  if (catalog.presets.map(preset => preset.id).join(',') !== 'video-agent,sme-care-agent,investment-research-agent') {
+  if (catalog.presets.map(preset => preset.id).join(',') !== 'video-agent,image-to-threejs,image-to-glb,sme-care-agent,investment-research-agent') {
     throw new Error(`unexpected centralized prompt presets ${JSON.stringify(catalog.presets)}`)
   }
   for (const preset of catalog.presets) {
@@ -165,7 +172,7 @@ export async function testFloatingPanelChatPromptPresetCatalogFailsClosedOnMissi
   const workspace = await createPresetWorkspace()
   await workspace.writeFileText(PROMPT_PRESET_CATALOG_WORKSPACE_PATH, promptCatalogMarkdown.replace('  - id: "investment-research-agent"', '  - id: "sme-care-agent"'))
   const catalog = await loadPromptPresetCatalog(workspace)
-  if (!isPromptPresetCatalogError(catalog) || !catalog.error.includes('three unique presets')) {
+  if (!isPromptPresetCatalogError(catalog) || !catalog.error.includes('5 unique presets')) {
     throw new Error(`expected duplicate preset ids to fail closed, got ${JSON.stringify(catalog)}`)
   }
 }
@@ -217,17 +224,23 @@ export async function testFloatingPanelChatPromptPresetControlRendersAndLoadsAge
     const select = container.querySelector('select[aria-label="Prompt preset"]') as HTMLSelectElement | null
     const loadButton = container.querySelector('button[data-kg-chat-load-preset="true"]') as HTMLButtonElement | null
     if (!select || !loadButton) throw new Error('expected rendered prompt preset selector and Load preset button')
-    if ([...select.options].map(option => option.value).join(',') !== 'video-agent,sme-care-agent,investment-research-agent') {
+    if ([...select.options].map(option => option.value).join(',') !== 'video-agent,image-to-threejs,image-to-glb,sme-care-agent,investment-research-agent') {
       throw new Error(`unexpected rendered preset choices ${[...select.options].map(option => option.value).join(',')}`)
     }
-    for (const id of ['sme-care-agent', 'investment-research-agent']) {
+    const expectedSlashCommandByPresetId = {
+      'image-to-threejs': '/image.to-threejs',
+      'image-to-glb': '/image.to-glb',
+      'sme-care-agent': '/sme-care-agent',
+      'investment-research-agent': '/investment-research-agent',
+    } as const
+    for (const id of Object.keys(expectedSlashCommandByPresetId) as Array<keyof typeof expectedSlashCommandByPresetId>) {
       await act(async () => {
         select.value = id
         select.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
       })
       await act(async () => { loadButton.click() })
       await waitForFrames(dom.window as unknown as Window, 3)
-      if (!loadedInput.startsWith(`/${id}`)) throw new Error(`expected ${id} selection to load its centralized prompt, got ${loadedInput}`)
+      if (!loadedInput.startsWith(expectedSlashCommandByPresetId[id])) throw new Error(`expected ${id} selection to load its centralized prompt, got ${loadedInput}`)
     }
   } finally {
     await unmountReactRoot(root, { window: dom.window as unknown as Window })

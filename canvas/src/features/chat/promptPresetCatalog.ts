@@ -4,13 +4,21 @@ import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 import { parseChatSkillSlashInvocation } from './chatSkillRegistry'
 import { parseGenerationInvocation } from './generationInvocation'
+import {
+  IMAGE_TO_THREEJS_PROMPT_PRESET_ID,
+  isImageToThreeJsPromptPreset,
+} from '@/features/image-to-threejs/imageToThreeJsPromptPreset'
+import {
+  IMAGE_TO_GLB_PROMPT_PRESET_ID,
+  isImageToGlbPromptPreset,
+} from '@/features/image-to-glb/imageToGlbPromptPreset'
 
 type PlainRecord = Record<string, unknown>
 
 export const PROMPT_PRESET_CATALOG_WORKSPACE_PATH = '/agentic-canvas-os/docs/PROMPT-PRESETS.md' as const
 export const PROMPT_PRESET_CATALOG_SCHEMA = 'agentic-os-prompt-preset-catalog/v1' as const
 
-export type PromptPresetActivation = 'source-backed-canvas' | 'chat-agent'
+export type PromptPresetActivation = 'source-backed-canvas' | 'chat-agent' | 'card-inline'
 
 export type PromptPreset = {
   id: string
@@ -64,9 +72,21 @@ const parsePreset = (value: unknown): PromptPreset | null => {
     || !slashCommand
     || !description
     || !prompt
-    || (activation !== 'source-backed-canvas' && activation !== 'chat-agent')
+    || (activation !== 'source-backed-canvas' && activation !== 'chat-agent' && activation !== 'card-inline')
   ) return null
-  if (slashCommand === '/video-agent') {
+  if (id === IMAGE_TO_THREEJS_PROMPT_PRESET_ID) {
+    if (
+      slashCommand !== '/image.to-threejs'
+      || activation !== 'card-inline'
+      || !isImageToThreeJsPromptPreset(prompt)
+    ) return null
+  } else if (id === IMAGE_TO_GLB_PROMPT_PRESET_ID) {
+    if (
+      slashCommand !== '/image.to-glb'
+      || activation !== 'card-inline'
+      || !isImageToGlbPromptPreset(prompt)
+    ) return null
+  } else if (slashCommand === '/video-agent') {
     const invocation = parseGenerationInvocation(prompt)
     if (!invocation || !prompt.includes('@video-generation-demo-script') || activation !== 'source-backed-canvas') return null
   } else {
@@ -96,10 +116,17 @@ export const loadPromptPresetCatalog = async (fsOverride?: WorkspaceFs): Promise
   if (presets.some(preset => !preset)) return { ok: false, error: 'Prompt preset catalog contains an invalid preset.' }
   const typedPresets = presets.filter((preset): preset is PromptPreset => Boolean(preset))
   const ids = new Set(typedPresets.map(preset => preset.id))
-  if (typedPresets.length !== 3 || ids.size !== 3) {
-    return { ok: false, error: 'Prompt preset catalog must contain three unique presets.' }
+  const requiredPresetIds = [
+    'video-agent',
+    IMAGE_TO_THREEJS_PROMPT_PRESET_ID,
+    IMAGE_TO_GLB_PROMPT_PRESET_ID,
+    'sme-care-agent',
+    'investment-research-agent',
+  ]
+  if (typedPresets.length !== requiredPresetIds.length || ids.size !== requiredPresetIds.length) {
+    return { ok: false, error: `Prompt preset catalog must contain ${requiredPresetIds.length} unique presets.` }
   }
-  for (const id of ['video-agent', 'sme-care-agent', 'investment-research-agent']) {
+  for (const id of requiredPresetIds) {
     if (!ids.has(id)) return { ok: false, error: `Prompt preset catalog is missing ${id}.` }
   }
   return { ok: true, presets: typedPresets, sourcePath: PROMPT_PRESET_CATALOG_WORKSPACE_PATH }

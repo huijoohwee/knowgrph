@@ -16,6 +16,8 @@ import type { NodeMediaKind } from '@/lib/canvas/graph-elements/mediaProperties'
 import { extractMarkdownMediaUrl, normalizeExternalUrl } from '@/lib/canvas/graph-elements/mediaSpecMarkdown'
 import { readNodeFieldBoolean, readNodeFieldString, readNodeFieldValue } from '@/lib/canvas/graph-elements/mediaSpecNodeFields'
 import {
+  IMAGE_TO_THREEJS_RENDER_MODE,
+  isImageToThreeJsOutputPanel,
   readImageToThreeJsRenderMode,
   type ImageToThreeJsRenderMode,
 } from '@/features/image-to-threejs/imageToThreeJsContract'
@@ -176,73 +178,84 @@ function buildRichMediaPanelTextualIframeSpec(args: {
 }
 
 function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
+  const read = (key: string) => readNodeFieldValue(node, props, key)
   return [
     node.id,
     node.type,
     node.label,
-    props.media_kind,
-    props.mediaKind,
-    props.media_url,
-    props.mediaUrl,
-    props.iframe_url,
-    props.image,
-    props.imageUrl,
-    props.video,
-    props.videoUrl,
-    props.audio,
-    props.audioUrl,
-    props.audio_url,
-    props.media,
-    props.url,
-    props.src,
-    props.label,
-    props['dom:tag'],
-    props['dom:attrs:src'],
-    props['dom:attrs:srcdoc'],
-    props.srcDoc,
-    props.inputSrcDoc,
-    props.media_interactive,
-    props.mediaRenderMode,
-    props.outputSrcDoc,
-    props.output,
-    props[RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY],
-    readNodeFieldValue(node, props, 'srcDoc'),
-    readNodeFieldValue(node, props, 'inputSrcDoc'),
-    readNodeFieldValue(node, props, 'outputSrcDoc'),
-    readNodeFieldValue(node, props, 'frameBoundingBoxes'),
-    props.text,
-    props.markdown,
-    props.richMediaActiveTab,
-    props.freezeConnectedOutput,
+    read('media_kind'),
+    read('mediaKind'),
+    read('media_url'),
+    read('mediaUrl'),
+    read('iframe_url'),
+    read('image'),
+    read('imageUrl'),
+    read('video'),
+    read('videoUrl'),
+    read('audio'),
+    read('audioUrl'),
+    read('audio_url'),
+    read('model'),
+    read('modelUrl'),
+    read('glb'),
+    read('glbUrl'),
+    read('media'),
+    read('url'),
+    read('src'),
+    read('label'),
+    read('dom:tag'),
+    read('dom:attrs:src'),
+    read('dom:attrs:srcdoc'),
+    read('srcDoc'),
+    read('inputSrcDoc'),
+    read('media_interactive'),
+    read('mediaRenderMode'),
+    read('outputSrcDoc'),
+    read('output'),
+    read(RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY),
+    read('frameBoundingBoxes'),
+    read('text'),
+    read('markdown'),
+    read('richMediaActiveTab'),
+    read('freezeConnectedOutput'),
   ]
     .map(v => String(v ?? ''))
     .join('\n')
 }
 
 function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
-  const props = node.properties || {}
-  const kindRaw = typeof props.media_kind === 'string'
-    ? props.media_kind.trim().toLowerCase()
-    : typeof props.mediaKind === 'string'
-      ? props.mediaKind.trim().toLowerCase()
-      : ''
+  const props = (node.properties || {}) as Record<string, unknown>
+  const kindRaw = (
+    readNodeFieldString(node, props, 'media_kind')
+    || readNodeFieldString(node, props, 'mediaKind')
+  ).toLowerCase()
   const kindForced: NodeMediaKind | null =
-    kindRaw === 'iframe' || kindRaw === 'video' || kindRaw === 'audio' || kindRaw === 'image' || kindRaw === 'svg' ? (kindRaw as NodeMediaKind) : null
+    kindRaw === 'iframe' || kindRaw === 'video' || kindRaw === 'audio' || kindRaw === 'image' || kindRaw === 'svg' || kindRaw === 'model'
+      ? (kindRaw as NodeMediaKind)
+      : null
 
-  const iframeUrl = coerceMediaUrl((props as Record<string, unknown>).iframe_url)
-  const mediaUrl = coerceMediaUrl((props as Record<string, unknown>).media_url)
-  const mediaUrlCamel = coerceMediaUrl((props as Record<string, unknown>).mediaUrl)
-  const imageUrl = coerceMediaUrl((props as Record<string, unknown>).image)
-  const imageUrlCamel = coerceMediaUrl((props as Record<string, unknown>).imageUrl)
-  const videoUrl = coerceMediaUrl((props as Record<string, unknown>).video)
-  const videoUrlCamel = coerceMediaUrl((props as Record<string, unknown>).videoUrl)
-  const audioUrl = coerceMediaUrl((props as Record<string, unknown>).audio)
-  const audioUrlCamel = coerceMediaUrl((props as Record<string, unknown>).audioUrl)
-  const audioUrlSnake = coerceMediaUrl((props as Record<string, unknown>).audio_url)
-  const generic = coerceMediaUrl((props as Record<string, unknown>).media)
-  const srcUrl = coerceMediaUrl((props as Record<string, unknown>).src)
-  const linkUrl = coerceMediaUrl((props as Record<string, unknown>).url)
-  const linkLabel = String((props as Record<string, unknown>).label || node.label || '').trim()
+  const iframeUrl = coerceMediaUrl(readNodeFieldValue(node, props, 'iframe_url'))
+  const mediaUrl = coerceMediaUrl(readNodeFieldValue(node, props, 'media_url'))
+  const mediaUrlCamel = coerceMediaUrl(readNodeFieldValue(node, props, 'mediaUrl'))
+  const imageUrl = coerceMediaUrl(readNodeFieldValue(node, props, 'image'))
+  const imageUrlCamel = coerceMediaUrl(readNodeFieldValue(node, props, 'imageUrl'))
+  const videoUrl = coerceMediaUrl(readNodeFieldValue(node, props, 'video'))
+  const videoUrlCamel = coerceMediaUrl(readNodeFieldValue(node, props, 'videoUrl'))
+  const audioUrl = coerceMediaUrl(readNodeFieldValue(node, props, 'audio'))
+  const audioUrlCamel = coerceMediaUrl(readNodeFieldValue(node, props, 'audioUrl'))
+  const audioUrlSnake = coerceMediaUrl(readNodeFieldValue(node, props, 'audio_url'))
+  const modelUrl = coerceMediaUrl(readNodeFieldValue(node, props, 'model'))
+  const modelUrlCamel = coerceMediaUrl(readNodeFieldValue(node, props, 'modelUrl'))
+  const glbUrl = coerceMediaUrl(readNodeFieldValue(node, props, 'glb'))
+  const glbUrlCamel = coerceMediaUrl(readNodeFieldValue(node, props, 'glbUrl'))
+  const generic = coerceMediaUrl(readNodeFieldValue(node, props, 'media'))
+  const srcUrl = coerceMediaUrl(readNodeFieldValue(node, props, 'src'))
+  const linkUrl = coerceMediaUrl(readNodeFieldValue(node, props, 'url'))
+  // Only restore marker-owned Three.js output from its persisted source; ordinary outputSourceUrl values retain their routing.
+  const imageToThreeJsOutputSourceUrl = isImageToThreeJsOutputPanel(props)
+    ? coerceMediaUrl(readNodeFieldValue(node, props, 'outputSourceUrl'))
+    : null
+  const linkLabel = readNodeFieldString(node, props, 'label') || String(node.label || '').trim()
 
   const outputText = (() => {
     const s = readNodeFieldValue(node, props, 'output')
@@ -251,7 +264,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
 
   const isRichMediaPanel = isRichMediaPanelNode(node)
   const connectedRenderPathSig = isRichMediaPanel
-    ? String((props as Record<string, unknown>)[RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY] || '').trim()
+    ? readNodeFieldString(node, props, RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY)
     : ''
   const connectedRenderPathSet = connectedRenderPathSig
     ? new Set(connectedRenderPathSig.split('|').map(path => path.trim()).filter(Boolean))
@@ -263,8 +276,8 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   let markdownMedia: { kind: NodeMediaKind; url: string } | null = null
   const getMarkdownMediaOnce = () => {
     if (markdownMedia !== null) return markdownMedia
-    const t = (props as Record<string, unknown>).text
-    const m = (props as Record<string, unknown>).markdown
+    const t = readNodeFieldValue(node, props, 'text')
+    const m = readNodeFieldValue(node, props, 'markdown')
     const rawText =
       typeof t === 'string'
         ? t
@@ -298,25 +311,30 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     || audioUrl
     || audioUrlCamel
     || audioUrlSnake
+    || modelUrl
+    || modelUrlCamel
+    || glbUrl
+    || glbUrlCamel
     || generic
     || srcUrl
+    || imageToThreeJsOutputSourceUrl
     || (inferredLinkKind || inferLinkAsIframe ? linkUrl : null)
 
   if (!url) url = getMarkdownMediaOnce()?.url || null
 
   const domTag = (() => {
-    const t = (props as Record<string, unknown>)['dom:tag']
+    const t = readNodeFieldValue(node, props, 'dom:tag')
     return typeof t === 'string' ? t.trim().toUpperCase() : ''
   })()
   const domSrc = (() => {
-    const s = (props as Record<string, unknown>)['dom:attrs:src']
+    const s = readNodeFieldValue(node, props, 'dom:attrs:src')
     const raw = typeof s === 'string' ? s.trim() : ''
     if (!raw) return ''
     if (raw.startsWith('//')) return `https:${raw}`
     return raw
   })()
   const domSrcDoc = (() => {
-    const s = (props as Record<string, unknown>)['dom:attrs:srcdoc']
+    const s = readNodeFieldValue(node, props, 'dom:attrs:srcdoc')
     return typeof s === 'string' ? s.trim() : ''
   })()
   const outputSrcDoc = (() => {
@@ -346,9 +364,13 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   const explicitInteractive = rawInteractive === true ? true : rawInteractive === false ? false : null
 
   if (isRichMediaPanel) {
-    const selected = richMediaActiveTab === 'video' || richMediaActiveTab === 'audio' || richMediaActiveTab === 'image' || richMediaActiveTab === 'text' || richMediaActiveTab === 'poi'
+    const selected = richMediaActiveTab === 'video' || richMediaActiveTab === 'audio' || richMediaActiveTab === 'image' || richMediaActiveTab === 'model' || richMediaActiveTab === 'text' || richMediaActiveTab === 'poi'
       ? richMediaActiveTab
       : ''
+    if (!selected && connectedRenderPathSet?.has('properties.modelUrl')) {
+      const chosen = modelUrl || modelUrlCamel || glbUrl || glbUrlCamel
+      if (chosen) return { kind: 'model', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : true }
+    }
     if (!selected && connectedRenderPathSet?.has('properties.videoUrl')) {
       const chosen = videoUrl || videoUrlCamel
       if (chosen) return { kind: 'video', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : true }
@@ -358,7 +380,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
       if (chosen) return { kind: 'audio', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : true }
     }
     if (!selected && connectedRenderPathSet?.has('properties.imageUrl')) {
-      const chosen = imageUrl || imageUrlCamel
+      const chosen = imageUrl || imageUrlCamel || imageToThreeJsOutputSourceUrl
       if (chosen) return { kind: 'image', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : false }
     }
     if (selected === 'video') {
@@ -369,8 +391,12 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
       const chosen = audioUrl || audioUrlCamel || audioUrlSnake
       if (chosen) return { kind: 'audio', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : true }
     }
+    if (selected === 'model') {
+      const chosen = modelUrl || modelUrlCamel || glbUrl || glbUrlCamel
+      if (chosen) return { kind: 'model', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : true }
+    }
     if (selected === 'image') {
-      const chosen = imageUrl || imageUrlCamel
+      const chosen = imageUrl || imageUrlCamel || imageToThreeJsOutputSourceUrl
       if (chosen) return { kind: 'image', url: chosen, interactive: explicitInteractive != null ? explicitInteractive : false }
     }
     if (selected === 'text' || selected === 'poi') {
@@ -379,19 +405,20 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
     if (
       !selected
       && connectedRenderPathSet?.has('properties.output')
-      && !(connectedRenderPathSet.has('properties.videoUrl') || connectedRenderPathSet.has('properties.audioUrl') || connectedRenderPathSet.has('properties.imageUrl'))
+      && !(connectedRenderPathSet.has('properties.videoUrl') || connectedRenderPathSet.has('properties.audioUrl') || connectedRenderPathSet.has('properties.imageUrl') || connectedRenderPathSet.has('properties.modelUrl'))
     ) {
       return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc, interactive: explicitInteractive === true })
     }
     if (
       !selected
       && (richMediaSrcDoc || outputText.trim())
-      && !(videoUrl || videoUrlCamel || audioUrl || audioUrlCamel || audioUrlSnake || imageUrl || imageUrlCamel || getMarkdownMediaOnce()?.url)
+      && !(videoUrl || videoUrlCamel || audioUrl || audioUrlCamel || audioUrlSnake || modelUrl || modelUrlCamel || glbUrl || glbUrlCamel || imageUrl || imageUrlCamel || getMarkdownMediaOnce()?.url)
     ) {
       return buildRichMediaPanelTextualIframeSpec({ node, outputText, outputSrcDoc: richMediaSrcDoc, interactive: explicitInteractive === true })
     }
     if (selected === 'video') return { kind: 'video', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
     if (selected === 'audio') return { kind: 'audio', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
+    if (selected === 'model') return { kind: 'model', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
     if (selected === 'image') return { kind: 'image', url: '', interactive: explicitInteractive != null ? explicitInteractive : false }
   }
   const domMediaUrl = (() => {
@@ -438,8 +465,10 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
       ? 'iframe'
     : (videoUrl || videoUrlCamel)
       ? 'video'
-      : (audioUrl || audioUrlCamel || audioUrlSnake)
-        ? 'audio'
+    : (audioUrl || audioUrlCamel || audioUrlSnake)
+      ? 'audio'
+      : (modelUrl || modelUrlCamel || glbUrl || glbUrlCamel)
+        ? 'model'
         : domKindForced
           ? domKindForced
           : inferredLinkKind
@@ -448,7 +477,7 @@ function computeNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
               ? 'iframe'
               : (getMarkdownMediaOnce()?.kind || ((inferMediaKindFromUrl(resolvedUrl) || 'image') as NodeMediaKind))
 
-  const interactive = explicitInteractive != null ? explicitInteractive : kind === 'video' || kind === 'audio' || kind === 'iframe'
+  const interactive = explicitInteractive != null ? explicitInteractive : kind === 'video' || kind === 'audio' || kind === 'iframe' || kind === 'model'
 
   if (kind === 'iframe') {
     const normalized = normalizeIframeUrl(resolvedUrl)
@@ -472,6 +501,7 @@ export function getNodeMediaSpec(node: GraphNode): NodeMediaSpec | null {
   if (cached && cached.cacheKey === cacheKey) return cached.spec
   const computed = computeNodeMediaSpec(node)
   const renderMode = readImageToThreeJsRenderMode(props)
+    || (isImageToThreeJsOutputPanel(props) ? IMAGE_TO_THREEJS_RENDER_MODE : undefined)
   const spec = computed && renderMode && (computed.kind === 'image' || computed.kind === 'svg')
     ? { ...computed, renderMode }
     : computed

@@ -159,6 +159,10 @@ export function coerceMediaUrl(value: unknown): string | null {
   if (!raw) return null
   if (/^https?:\/\//i.test(raw)) return raw
   if (/^data:image\//i.test(raw)) return raw
+  // Model artifacts are a deliberate, narrowly scoped media transport. Keep
+  // arbitrary data URLs blocked while letting the native image-to-GLB output
+  // reach its dedicated Three.js Rich Media surface.
+  if (/^data:(?:model\/gltf-binary|model\/gltf\+json|application\/gltf\+json);base64,/i.test(raw)) return raw
   if (/^blob:/i.test(raw)) return raw
   if (raw.startsWith('/')) return raw
   if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) return null

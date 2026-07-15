@@ -18,6 +18,12 @@ export const testCoerceMediaUrlRejectsExplicitScheme = () => {
   }
 }
 
+export const testCoerceMediaUrlAcceptsNativeGlbDataUrl = () => {
+  const raw = 'data:model/gltf-binary;base64,Z2xURg=='
+  const out = coerceMediaUrl(raw)
+  if (out !== raw) throw new Error(`expected coerceMediaUrl to accept the native GLB data URL, got ${out}`)
+}
+
 export const testNormalizeImportNameDerivesJsonNameFromUrlAndFormat = () => {
   const a = normalizeImportName('https://example.com/data.json?x=1', 'remote.json', 'json', 'json')
   if (a !== 'data.json') throw new Error(`expected data.json, got ${a}`)

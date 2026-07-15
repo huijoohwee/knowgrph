@@ -11,6 +11,7 @@ const RICH_MEDIA_RENDER_SCHEMA_PATHS = new Set([
   'properties.imageUrl',
   'properties.videoUrl',
   'properties.audioUrl',
+  'properties.modelUrl',
 ])
 export const RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY = '__kg:richMediaConnectedRenderPaths' as const
 
@@ -28,6 +29,10 @@ function clearRichMediaGenericRenderDrivers(properties: Record<string, unknown>)
   delete next.mediaUrl
   delete next.iframe_url
   delete next.media
+  delete next.model
+  delete next.modelUrl
+  delete next.glb
+  delete next.glbUrl
   delete next.src
   delete next.url
   delete next['dom:tag']
@@ -59,6 +64,13 @@ function clearRichMediaRenderChannel(args: {
     delete next.audio_url
     return next
   }
+  if (args.renderPath === 'properties.modelUrl') {
+    delete next.model
+    delete next.modelUrl
+    delete next.glb
+    delete next.glbUrl
+    return next
+  }
   if (args.renderPath === 'properties.output' || args.renderPath === 'properties.outputSrcDoc') {
     delete next.image
     delete next.imageUrl
@@ -67,6 +79,10 @@ function clearRichMediaRenderChannel(args: {
     delete next.audio
     delete next.audioUrl
     delete next.audio_url
+    delete next.model
+    delete next.modelUrl
+    delete next.glb
+    delete next.glbUrl
     if (args.renderPath === 'properties.output') {
       delete next.output
       if (args.preserveOutputSrcDoc !== true) delete next.outputSrcDoc
@@ -101,6 +117,10 @@ function baseRenderNodeSignature(node: GraphNode): string {
       audio: props.audio,
       audioUrl: props.audioUrl,
       audio_url: props.audio_url,
+      model: props.model,
+      modelUrl: props.modelUrl,
+      glb: props.glb,
+      glbUrl: props.glbUrl,
       media: props.media,
       src: props.src,
       url: props.url,
@@ -108,6 +128,7 @@ function baseRenderNodeSignature(node: GraphNode): string {
       outputSrcDoc: props.outputSrcDoc,
       text: props.text,
       markdown: props.markdown,
+      mediaRenderMode: props.mediaRenderMode,
       richMediaActiveTab: props.richMediaActiveTab,
       freezeConnectedOutput: props.freezeConnectedOutput,
       domTag: props['dom:tag'],

@@ -237,6 +237,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modModelAssetRenderPayloadCache()
     await mod.testModelAssetRenderPayloadCachesPendingLocalGlbReads()
   })
+  await execTest(results, 'canvas.xrMode.modelAssetRenderPayloadRevisionIdentity', async () => {
+    const mod = await modModelAssetRenderPayloadCache()
+    await mod.testModelAssetRenderPayloadDoesNotReuseSameLengthRevision()
+  })
   await execTest(results, 'canvas.xrAsset.pngToSvgHarness.vtracerZeroToken', async () => {
     const mod = await modXrAssetConversion()
     await mod.testXrPngToSvgHarnessUsesVTracerAndZeroTokenCost()

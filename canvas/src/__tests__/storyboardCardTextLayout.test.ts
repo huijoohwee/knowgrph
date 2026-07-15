@@ -3,7 +3,7 @@ import path from 'node:path'
 import { JSDOM } from 'jsdom'
 
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
-import { handleStoryboardCardMetaWheelEvent } from '@/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail'
+import { handleStoryboardCardMetaWheelEvent, isLegacyTextGenerationCardMetadata } from '@/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail'
 import { commitStoryboardCardCanonicalText2d } from '@/components/StoryboardWidgetCanvas/storyboardCardCanonicalTextCommit2d'
 import { isStoryboardHeaderDragBlockedTarget } from '@/components/StoryboardWidgetCanvas/storyboardCardOverlayInteractions2d'
 import { readStoryboardCardSummaryText } from '@/components/StoryboardWidgetCanvas/storyboardCardSummaryText'
@@ -13,7 +13,11 @@ import { readStoryboardCardSize2d } from '@/components/StoryboardWidgetCanvas/st
 import { shouldStoryboardWidgetHeaderYieldToInteractiveTarget } from '@/components/StoryboardWidget/storyboardWidgetHeaderInteractiveTarget'
 import { getStoryboardWidgetPanelChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { buildGraphNodeCanonicalTextPatch, GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS } from '@/lib/cards/graphNodeCardFields'
+import {
+  buildGraphNodeCanonicalTextPatch,
+  GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS,
+  GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS,
+} from '@/lib/cards/graphNodeCardFields'
 import { computeStoryboardWidgetOverlayScreenBox } from '@/lib/storyboardWidget/overlayWorldDrag'
 import type { GraphData } from '@/lib/graph/types'
 
@@ -70,6 +74,65 @@ export function testStoryboardCardTextLayoutKeepsSemanticLabelsReadable() {
   assert(cards.find(card => card.id === 'frame-card')?.typeLabel === 'Storyboard Frame', 'expected storyboard frame type labels to render as readable semantic words')
   assert(JSON.stringify(cards.find(card => card.id === 'source-card')?.invocationTokens) === JSON.stringify(['/source.normalize', '@source.frontmatter', '#frontmatter']), 'expected Source card to display its bounded /, @, and # invocation chips')
   assert(JSON.stringify(cards.find(card => card.id === 'frame-card')?.invocationTokens) === JSON.stringify(['/canvas.project', '@runtime-proof', '#canvas']), 'expected explicit card invocation to display its bounded /, @, and # invocation chips')
+}
+
+export function testStoryboardCardTypedFrontmatterCellsPreserveAuthoredPromptAndMedia() {
+  const prompt = 'Generate /image.to-glb @source-image.png #image-to-glb.\nPreserve authored spacing.'
+  const editedPrompt = 'Generate /image.to-glb @source-image.png #image-to-glb.\nKeep the edited structure.'
+  const mediaUrl = 'https://media.invalid/source-image.png'
+  const typedProperties = {
+    prompt: { key: 'prompt', type: 'string', value: prompt },
+    mediaKind: { key: 'mediaKind', type: 'string', value: 'image' },
+    mediaUrl: { key: 'mediaUrl', type: 'string', value: mediaUrl },
+  }
+  const buildCard = (properties: Record<string, unknown>) => {
+    const graphData: GraphData = {
+      type: 'application/json',
+      nodes: [{
+        id: 'typed-card',
+        type: 'WidgetCard',
+        label: 'Widget Card',
+        properties: properties as GraphData['nodes'][number]['properties'],
+      }],
+      edges: [],
+    }
+    return buildStoryboardBoardModel({ graphData, graphRevision: 1 }).lanes[0]?.cards[0]
+  }
+
+  const initialCard = buildCard(typedProperties)
+  assert(initialCard?.prompt === prompt, `expected typed frontmatter prompt to preserve authored text, got ${JSON.stringify(initialCard?.prompt)}`)
+  assert(initialCard?.media?.kind === 'image', `expected typed frontmatter media kind to remain image, got ${initialCard?.media?.kind}`)
+  assert(initialCard?.media?.url === mediaUrl, `expected typed frontmatter media URL to remain attached, got ${JSON.stringify(initialCard?.media?.url)}`)
+  const viewEditModel = buildStoryboardCardTextModel({ prompt: initialCard.prompt })
+  assert(viewEditModel.primaryRaw === prompt, 'expected the shared view/edit model to receive the exact unwrapped authored prompt')
+  assert(viewEditModel.primaryDisplay === prompt, 'expected invocation tokens to remain visible in the shared read projection')
+
+  const editedProperties = buildGraphNodeCanonicalTextPatch({
+    currentProperties: typedProperties,
+    propertyKeys: GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS,
+    canonicalKey: 'prompt',
+    nextValue: editedPrompt,
+    preserveFormatting: true,
+  })
+  assert(editedProperties.mediaUrl === typedProperties.mediaUrl, 'expected prompt editing to preserve the typed media attachment cell')
+  const rerenderedCard = buildCard(editedProperties)
+  assert(rerenderedCard?.prompt === editedPrompt, `expected edited prompt to survive rerender, got ${JSON.stringify(rerenderedCard?.prompt)}`)
+  assert(rerenderedCard?.media?.url === mediaUrl, 'expected attached media to survive prompt edit and rerender')
+}
+
+export function testStoryboardCardMetaRailSuppressesLegacyTextGenerationLabels() {
+  assert(
+    isLegacyTextGenerationCardMetadata({ lane: 'Text Generation', typeLabel: 'Text Generation' }),
+    'expected spaced legacy Text Generation metadata to be suppressed',
+  )
+  assert(
+    isLegacyTextGenerationCardMetadata({ lane: 'text-generation', typeLabel: 'TextGeneration' }),
+    'expected persisted compact TextGeneration metadata to be suppressed',
+  )
+  assert(
+    !isLegacyTextGenerationCardMetadata({ lane: 'Text Generation', typeLabel: 'Widget Card' }),
+    'expected public Widget Card metadata to remain visible',
+  )
 }
 
 export function testStoryboardCardSummaryTextStripsInlineMediaEmbeds() {

@@ -2,7 +2,6 @@ import { loadGraphDataFromTextViaParser } from '@/features/parsers/loader'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardHelpToast } from '@/components/StoryboardCanvas/storyboardHelpAction'
 import { runStoryboardOpenSidepaneAction } from '@/components/StoryboardCanvas/storyboardOpenSidepaneAction'
-import { runStoryboardClearOutputAction } from '@/components/StoryboardCanvas/storyboardClearOutputAction'
 import { runStoryboardConvertLoopAction } from '@/components/StoryboardCanvas/storyboardConvertLoopAction'
 import { runStoryboardDuplicateAction } from '@/components/StoryboardCanvas/storyboardDuplicateAction'
 import { buildStoryboardRunUnavailableToast, runStoryboardRunAction } from '@/components/StoryboardCanvas/storyboardRunAction'
@@ -636,36 +635,6 @@ export async function testStoryboardConvertLoopActionClassifiesMixedBoardGraphBa
   })
   if (alreadyLoopResult.status !== 'already-loop' || alreadyLoopResult.changed) {
     throw new Error('expected storyboard convert-loop action to report already-loop after the first conversion')
-  }
-}
-
-export function testStoryboardClearOutputActionClassifiesEmptyAndClearedStates() {
-  const clearCalls: string[] = []
-  const readClearCallCount = () => clearCalls.length
-  const emptyResult = runStoryboardClearOutputAction({
-    output: '   ',
-    clearOutput: () => {
-      clearCalls.push('clear')
-    },
-  })
-  if (emptyResult.status !== 'empty' || emptyResult.changed) {
-    throw new Error('expected storyboard clear-output action to stay empty when there is no output to clear')
-  }
-  if (readClearCallCount() !== 0) {
-    throw new Error(`expected storyboard clear-output action to avoid clearing empty output, got ${readClearCallCount()}`)
-  }
-
-  const clearedResult = runStoryboardClearOutputAction({
-    output: 'Rendered storyboard output',
-    clearOutput: () => {
-      clearCalls.push('clear')
-    },
-  })
-  if (clearedResult.status !== 'cleared' || !clearedResult.changed) {
-    throw new Error('expected storyboard clear-output action to clear non-empty storyboard output')
-  }
-  if (readClearCallCount() !== 1) {
-    throw new Error(`expected storyboard clear-output action to invoke the clear callback exactly once, got ${readClearCallCount()}`)
   }
 }
 

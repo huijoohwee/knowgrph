@@ -81,7 +81,7 @@ type WidgetEditorFormContentProps = {
     url?: string
     srcDoc?: string
     openUrl?: string
-    kind?: 'iframe' | 'image' | 'video' | 'audio' | 'svg'
+    kind?: 'iframe' | 'image' | 'video' | 'audio' | 'svg' | 'model'
     interactive?: boolean
     renderMode?: ImageToThreeJsRenderMode
   } | null

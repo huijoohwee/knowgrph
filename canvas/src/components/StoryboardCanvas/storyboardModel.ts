@@ -1,4 +1,3 @@
-import { splitMultiValues } from '@/features/markdown/ui/markdownDataViewValueUtils'
 import {
   inferMediaKindFromResourceUrl,
   resolveRenderableMediaResource,
@@ -13,6 +12,7 @@ import { computeRichMediaOverlayConnectedValuesByNodeId } from '@/lib/render/ric
 import { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanelSrcDoc'
 import { isRichMediaPanelNode } from '@/lib/render/richMediaPanelNode'
 import { GRAPH_KEYWORD_LANE_PROPERTY_KEYS, readGraphKeywordTermsFromProperties } from '@/lib/graph/keywordTerms'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import {
   GRAPH_NODE_CARD_ACTION_PROPERTY_KEYS,
   GRAPH_NODE_CARD_DIALOGUE_PROPERTY_KEYS,
@@ -26,6 +26,13 @@ import { buildStoryboardInvocationTokensByLane, readStoryboardCardInvocationToke
 import { readImageToThreeJsRenderMode, type ImageToThreeJsRenderMode } from '@/features/image-to-threejs/imageToThreeJsContract'
 import { projectStoryboardMediaAlbumItems, STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY, type StoryboardMediaAlbumItem } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
 import { resolveWidgetNodeTitle } from '@/components/StoryboardWidget/widgetEditorTitle'
+import {
+  normalizeStoryboardText as normalizeText,
+  readStoryboardNumber as readNumber,
+  readStoryboardString as readString,
+  readStoryboardStringList as readStringList,
+  toStoryboardTitleCase as toTitleCase,
+} from '@/components/StoryboardCanvas/storyboardModelScalars'
 export const STORYBOARD_EMPTY_LANE = 'Storyboard'
 export const STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY = 'storyboardCanvasRichMediaPanel' as const
 const STRUCTURAL_NODE_TYPE_RE = /\b(document|root|workspace|group|cluster|section)\b/i
@@ -53,6 +60,37 @@ export const STORYBOARD_PROMPT_PROPERTY_KEYS = GRAPH_NODE_CARD_PROMPT_PROPERTY_K
 const STYLE_PROPERTY_KEYS = ['style', 'look', 'treatment', 'theme', 'preset', 'variant'] as const
 const REFERENCE_PROPERTY_KEYS = ['references', 'referenceUrls', 'reference_urls', 'referenceImages', 'reference_images', 'moodboard', 'referenceLinks', 'reference_links', 'refs', 'assets', 'assetRefs', 'asset_refs'] as const
 type GraphNodeProperties = Record<string, JSONValue>
+export const STORYBOARD_CARD_CLEAN_SLATE_PROPERTY_KEYS = [
+  ...STORYBOARD_SUMMARY_PROPERTY_KEYS,
+  ...STORYBOARD_OUTPUT_PROPERTY_KEYS,
+  ...STORYBOARD_ACTION_PROPERTY_KEYS,
+  ...STORYBOARD_DIALOGUE_PROPERTY_KEYS,
+  ...STORYBOARD_PROMPT_PROPERTY_KEYS,
+  ...MEDIA_PROPERTY_KEYS,
+  ...LINK_PROPERTY_KEYS,
+  ...MEDIA_SOURCE_PROPERTY_KEYS,
+  ...THUMBNAIL_PROPERTY_KEYS,
+  ...REFERENCE_PROPERTY_KEYS,
+  'mediaKind',
+  'media_kind',
+  'outputSrcDoc',
+] as const
+
+export function clearStoryboardCardCleanSlateProperties(
+  properties: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const nextProperties: Record<string, unknown> = { ...(properties || {}) }
+  const nestedProperties = isPlainObject(nextProperties.properties)
+    ? { ...nextProperties.properties }
+    : null
+  for (const key of STORYBOARD_CARD_CLEAN_SLATE_PROPERTY_KEYS) {
+    delete nextProperties[key]
+    if (nestedProperties) delete nestedProperties[key]
+  }
+  if (nestedProperties) nextProperties.properties = nestedProperties
+  return nextProperties
+}
+
 export type StoryboardCardMedia = {
   kind: UrlMediaKind
   url: string
@@ -106,55 +144,14 @@ export type StoryboardBoardModel = {
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
-const normalizeText = (value: unknown): string => {
-  return String(value ?? '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-const toTitleCase = (value: string): string => {
-  const normalized = normalizeText(value)
-  if (!normalized) return ''
-  return normalized
-    .replace(/([a-z\d])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-    .split(/[\s_.:/-]+/)
-    .filter(Boolean)
-    .map(token => /^[A-Z\d]{2,}$/.test(token) ? token : token.charAt(0).toUpperCase() + token.slice(1).toLowerCase())
-    .join(' ')
-}
-const readString = (value: unknown): string => {
-  if (typeof value === 'string') return normalizeText(value)
-  if (typeof value === 'number' || typeof value === 'boolean') return normalizeText(value)
-  return ''
-}
-const readStringList = (value: unknown): string[] => {
-  if (Array.isArray(value)) {
-    const out: string[] = []
-    for (const item of value) {
-      const text = readString(item)
-      if (text) out.push(text)
-    }
-    return out
-  }
-  const text = readString(value)
-  if (!text) return []
-  return splitMultiValues(text)
-}
-const readNumber = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value)
-    if (Number.isFinite(parsed)) return parsed
-  }
-  return null
-}
 const readNodeProperties = (node: GraphNode): GraphNodeProperties => {
-  return isPlainObject(node.properties) ? (node.properties as GraphNodeProperties) : {}
+  const properties = unwrapGraphCellValue(node.properties)
+  return isPlainObject(properties) ? (properties as GraphNodeProperties) : {}
 }
 
 const isStoryboardCanvasRichMediaPanelNode = (node: GraphNode): boolean => {
   const properties = readNodeProperties(node)
-  if (properties[STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY] === true) return true
+  if (unwrapGraphCellValue(properties[STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY]) === true) return true
   return isRichMediaPanelNode(node) && MEDIA_PROPERTY_KEYS.some(key => !!readString(properties[key]))
 }
 
@@ -251,7 +248,7 @@ const readPropertyLists = (properties: GraphNodeProperties, keys: readonly strin
 
 const readStoryboardMedia = (node: GraphNode, properties: GraphNodeProperties): StoryboardCardMedia | null => {
   const renderMode = readImageToThreeJsRenderMode(properties)
-  const outputSrcDoc = typeof properties.outputSrcDoc === 'string' ? properties.outputSrcDoc.trim() : ''
+  const outputSrcDoc = readString(properties.outputSrcDoc)
   if (outputSrcDoc) {
     return {
       kind: 'iframe',
@@ -490,7 +487,10 @@ const buildCardModel = (node: GraphNode, inputIndex: number, stageTokensByLane: 
     sourcePromptLabel: readSourcePromptLabel(properties),
     href: readStoryboardHref(properties, media),
     media,
-    mediaItems: projectStoryboardMediaAlbumItems(properties[STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY], media),
+    mediaItems: projectStoryboardMediaAlbumItems(
+      unwrapGraphCellValue(properties[STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY]),
+      media,
+    ),
     references,
     order: readFirstPropertyNumber(properties, ORDER_PROPERTY_KEYS) ?? inputIndex,
     inputIndex,

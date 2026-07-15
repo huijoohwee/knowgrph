@@ -1,4 +1,5 @@
 import { SharedWebpageSurface } from '@/components/SharedWebpageSurface'
+import { ImageToGlbSurface } from '@/features/image-to-glb/ImageToGlbSurface'
 import ZoomPanViewport from '@/features/panels/views/preview-panel/ui/ZoomPanViewport'
 import { CardMediaHoverPreview, useCardMediaHoverPreview } from '@/lib/cards/CardMediaHoverPreview'
 import { CardMediaPreview } from '@/lib/cards/CardMediaPreview'
@@ -18,6 +19,27 @@ export function RichMediaPanelDirectMediaSurface(args: {
   const hoverPreviewUrl = model.mediaSrc || model.openUrl || model.rawUrl
   const directVideoControls = model.kind === 'video' && (props.videoControls !== false || model.contentInteractive)
   const directVideoPassivePlayback = model.kind === 'video' && !directVideoControls
+  if (model.kind === 'model') {
+    const sourceUrl = model.mediaSrc || model.rawUrl
+    const modelViewerInteractive = model.contentInteractive || props.selected === true
+    return (
+      <section
+        className="relative h-full w-full overflow-hidden"
+        data-kg-rich-media-model-surface="1"
+        style={{ background: 'transparent', pointerEvents: 'auto' }}
+      >
+        <ImageToGlbSurface
+          sourceUrl={sourceUrl}
+          title={model.title}
+          interactive={modelViewerInteractive}
+          onReady={() => model.setReady(true)}
+          onError={() => {
+            if (!model.fallbackToRawSrc()) model.setReady(true)
+          }}
+        />
+      </section>
+    )
+  }
   if (model.kind === 'image' || model.kind === 'svg' || model.kind === 'video') {
     return (
       <section

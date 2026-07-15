@@ -122,21 +122,34 @@ export function computeGlbFit(object: THREE.Object3D | null): GlbFit {
 
 export function GlbAssetModel({
   asset,
+  lightingProfile = 'default',
   paused,
   standalone,
+  onLoad,
+  onError,
   onFitChange,
 }: {
   asset: GlbAssetDocument
+  lightingProfile?: 'default' | 'reference-studio'
   mode?: Canvas3dModeId
   paused?: boolean
   standalone?: boolean
+  onLoad?: (object: THREE.Object3D) => void
+  onError?: (error: unknown) => void
   onFitChange?: (fit: GlbFit | null) => void
 }) {
   const [object, setObject] = React.useState<THREE.Object3D | null>(null)
   const [failed, setFailed] = React.useState(false)
   const mixerRef = React.useRef<THREE.AnimationMixer | null>(null)
   const loadIdRef = React.useRef(0)
+  const onLoadRef = React.useRef(onLoad)
+  const onErrorRef = React.useRef(onError)
   const assetRenderKey = React.useMemo(() => buildGlbAssetRenderKey(asset), [asset])
+
+  React.useEffect(() => {
+    onLoadRef.current = onLoad
+    onErrorRef.current = onError
+  }, [onError, onLoad])
 
   React.useEffect(() => {
     const loadId = loadIdRef.current + 1
@@ -145,6 +158,11 @@ export function GlbAssetModel({
     let loadedObject: THREE.Object3D | null = null
     let loadedMixer: THREE.AnimationMixer | null = null
     const isStaleLoad = () => cancelled || loadIdRef.current !== loadId
+    const failLoad = (error: unknown) => {
+      if (isStaleLoad()) return
+      setFailed(true)
+      onErrorRef.current?.(error)
+    }
     mixerRef.current = null
     setObject(null)
     setFailed(false)
@@ -160,7 +178,7 @@ export function GlbAssetModel({
           gltf => {
             const scene = gltf.scene || gltf.scenes?.[0] || null
             if (!scene) {
-              if (!isStaleLoad()) setFailed(true)
+              failLoad(new Error('GLTFLoader returned no renderable scene.'))
               return
             }
             prepareModelObject(scene, asset.name)
@@ -187,13 +205,12 @@ export function GlbAssetModel({
             loadedObject = scene
             mixerRef.current = loadedMixer
             setObject(scene)
+            onLoadRef.current?.(scene)
           },
-          () => {
-            if (!isStaleLoad()) setFailed(true)
-          },
+          failLoad,
         )
-      } catch {
-        if (!isStaleLoad()) setFailed(true)
+      } catch (error) {
+        failLoad(error)
       }
     }
 
@@ -234,12 +251,21 @@ export function GlbAssetModel({
   return (
     <group name="kg_model_asset_scene">
       {standalone ? (
-        <>
-          <ambientLight intensity={0.82} />
-          <hemisphereLight args={['#ffffff', '#94a3b8', 0.55]} />
-          <directionalLight castShadow position={[96, 130, 160]} intensity={0.96} color="#ffffff" shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
-          <pointLight position={[-120, 80, 120]} intensity={0.35} color="#bfdbfe" />
-        </>
+        lightingProfile === 'reference-studio' ? (
+          <>
+            <ambientLight intensity={0.68} color="#fffaf0" />
+            <hemisphereLight args={['#fff7ed', '#8b735b', 0.78]} />
+            <directionalLight castShadow position={[110, 145, 155]} intensity={1.18} color="#fff1d6" shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+            <pointLight position={[-105, 62, 112]} intensity={0.28} color="#f8fafc" />
+          </>
+        ) : (
+          <>
+            <ambientLight intensity={0.82} />
+            <hemisphereLight args={['#ffffff', '#94a3b8', 0.55]} />
+            <directionalLight castShadow position={[96, 130, 160]} intensity={0.96} color="#ffffff" shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+            <pointLight position={[-120, 80, 120]} intensity={0.35} color="#bfdbfe" />
+          </>
+        )
       ) : null}
       {object ? (
         <group

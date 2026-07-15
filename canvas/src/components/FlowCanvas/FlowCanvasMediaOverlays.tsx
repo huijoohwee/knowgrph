@@ -50,6 +50,7 @@ import { computeBalancedSpreadViewportMargins } from '@/lib/ui/overlayBalancedSp
 import { clampMediaLayoutViewportToFrame16x9, coerceRichMediaPanelSizeForLayoutViewport, resolveFlowCanvasMediaLayoutViewport } from '@/components/FlowCanvas/flowCanvasMediaLayoutViewport'
 import { readMediaLayoutNodePropsSignature } from '@/components/FlowCanvas/flowCanvasMediaLayoutPropsSignature'
 import { buildFlowCanvasRichMediaPanelHeaderToolbar } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
+import { captureRichMediaPanelBoundaryEvent } from '@/components/captureRichMediaPanelBoundaryEvent'
 import { readElementWorldTopLeft2d, readNodeWorldCenterFromTopLeft2d, readNodeWorldTopLeft2d } from '@/components/FlowCanvas/flowCanvasMediaOverlayWorldPoint'
 import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
 import { readFlowWidgetPinnedInCanvas } from '@/lib/storyboardWidget/flowWidgetPinnedState'
@@ -371,13 +372,7 @@ export default function FlowCanvasMediaOverlays(args: {
     registerInteractionFrameLayoutScheduler?.(scheduleLayout)
     return () => registerInteractionFrameLayoutScheduler?.(null)
   }, [storyboardWidgetSurfaceRendererMode, registerInteractionFrameLayoutScheduler])
-  const stopEvent = React.useCallback((event: React.SyntheticEvent) => {
-    try {
-      event.stopPropagation()
-    } catch {
-      void 0
-    }
-  }, [])
+  const stopEvent = React.useCallback(captureRichMediaPanelBoundaryEvent, [])
   React.useEffect(() => {
     storyboardWidgetZoomBaselineKRef.current = null
   }, [canvas2dRenderer, storyboardWidgetSurfaceId, mediaLayoutItemIdsKey])

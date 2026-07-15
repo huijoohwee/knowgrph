@@ -2,8 +2,11 @@ import type { GraphNode } from '@/lib/graph/types'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
 import { applyConnectedValuesToNodeForRender, hasConnectedValuesBySchemaPath } from '@/lib/render/effectiveMediaNode'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import { isImageToThreeJsOutputPanel } from '@/features/image-to-threejs/imageToThreeJsContract'
+import { isImageToGlbOutputPanel } from '@/features/image-to-glb/imageToGlbContract'
+import { readNodeFieldBoolean, readNodeFieldString } from '@/lib/canvas/graph-elements/mediaSpecNodeFields'
 
-export type RichMediaPanelTab = 'auto' | 'text' | 'image' | 'video' | 'audio' | 'poi'
+export type RichMediaPanelTab = 'auto' | 'text' | 'image' | 'video' | 'audio' | 'model' | 'poi'
 
 export type RichMediaPanelOverlayState = {
   activeTab: RichMediaPanelTab
@@ -12,6 +15,7 @@ export type RichMediaPanelOverlayState = {
   hasImage: boolean
   hasVideo: boolean
   hasAudio: boolean
+  hasModel: boolean
   hasPoi: boolean
   text: string
   connectedText: string
@@ -25,25 +29,27 @@ const RICH_MEDIA_CONNECTED_RENDER_PATHS = [
   'properties.imageUrl',
   'properties.videoUrl',
   'properties.audioUrl',
+  'properties.modelUrl',
 ] as const
 
-function readLoadingStateFromNode(node: GraphNode | null | undefined): { loading: boolean; kind: 'text' | 'image' | 'video' | 'audio' | '' } {
+function readLoadingStateFromNode(node: GraphNode | null | undefined): { loading: boolean; kind: 'text' | 'image' | 'video' | 'audio' | 'model' | '' } {
   if (!node) return { loading: false, kind: '' }
   const props = (node.properties || {}) as Record<string, unknown>
-  const loading = Boolean(props.outputLoading)
+  const loading = readNodeFieldBoolean(node, props, 'outputLoading')
   if (!loading) return { loading: false, kind: '' }
-  const runSignal = typeof props.lastRunAt === 'string' ? props.lastRunAt.trim() : ''
+  const runSignal = readNodeFieldString(node, props, 'lastRunAt')
   if (!runSignal) return { loading: false, kind: '' }
-  const kindRaw = String(props.outputLoadingKind || '').trim().toLowerCase()
-  const kind = kindRaw === 'text' || kindRaw === 'image' || kindRaw === 'video' || kindRaw === 'audio' ? kindRaw : ''
+  const kindRaw = readNodeFieldString(node, props, 'outputLoadingKind').toLowerCase()
+  const kind = kindRaw === 'text' || kindRaw === 'image' || kindRaw === 'video' || kindRaw === 'audio' || kindRaw === 'model' ? kindRaw : ''
   return { loading: true, kind }
 }
 
-function loadingLabelFromKind(kind: 'text' | 'image' | 'video' | 'audio' | ''): string {
+function loadingLabelFromKind(kind: 'text' | 'image' | 'video' | 'audio' | 'model' | ''): string {
   if (kind === 'text') return 'Generating text...'
   if (kind === 'image') return 'Generating image...'
   if (kind === 'video') return 'Generating video...'
   if (kind === 'audio') return 'Generating audio...'
+  if (kind === 'model') return 'Generating GLB...'
   return 'Generating output...'
 }
 
@@ -69,7 +75,7 @@ export function buildStaticRichMediaPanelOverlayState(args: {
   const renderKind = String(args.renderKind || '').trim().toLowerCase()
   const requestedTab = String(args.activeTab || '').trim().toLowerCase()
   const activeTab: RichMediaPanelOverlayState['activeTab'] =
-    requestedTab === 'text' || requestedTab === 'image' || requestedTab === 'video' || requestedTab === 'audio' || requestedTab === 'poi' || requestedTab === 'auto'
+    requestedTab === 'text' || requestedTab === 'image' || requestedTab === 'video' || requestedTab === 'audio' || requestedTab === 'model' || requestedTab === 'poi' || requestedTab === 'auto'
       ? (requestedTab as RichMediaPanelOverlayState['activeTab'])
       : renderKind === 'image' || renderKind === 'svg'
         ? 'image'
@@ -77,6 +83,8 @@ export function buildStaticRichMediaPanelOverlayState(args: {
           ? 'video'
           : renderKind === 'audio'
             ? 'audio'
+            : renderKind === 'model'
+              ? 'model'
             : 'auto'
   const text = normalizeConnectedTextValue(args.text)
   const connectedText = normalizeConnectedTextValue(args.connectedText)
@@ -88,6 +96,7 @@ export function buildStaticRichMediaPanelOverlayState(args: {
     hasImage: renderKind === 'image' || renderKind === 'svg',
     hasVideo: renderKind === 'video',
     hasAudio: renderKind === 'audio',
+    hasModel: renderKind === 'model',
     hasPoi: activeTab === 'poi',
     text,
     connectedText,
@@ -99,13 +108,13 @@ export function buildStaticRichMediaPanelOverlayState(args: {
 function deriveRichMediaPanelLoadingSourceLabels(args: {
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
   nodeById?: ReadonlyMap<string, GraphNode>
-}): { loading: boolean; kind: 'text' | 'image' | 'video' | 'audio' | ''; sourceLabels: string[] } {
+}): { loading: boolean; kind: 'text' | 'image' | 'video' | 'audio' | 'model' | ''; sourceLabels: string[] } {
   const connectedValuesBySchemaPath = args.connectedValuesBySchemaPath
   const nodeById = args.nodeById
   if (!connectedValuesBySchemaPath || !nodeById) return { loading: false, kind: '', sourceLabels: [] }
   const seenSourceIds = new Set<string>()
   const sourceLabels: string[] = []
-  let kind: 'text' | 'image' | 'video' | 'audio' | '' = ''
+  let kind: 'text' | 'image' | 'video' | 'audio' | 'model' | '' = ''
   let loading = false
   for (let idx = 0; idx < RICH_MEDIA_CONNECTED_RENDER_PATHS.length; idx += 1) {
     const path = RICH_MEDIA_CONNECTED_RENDER_PATHS[idx]
@@ -132,9 +141,15 @@ export function resolveRichMediaPanelRenderNode(args: {
   connectedValuesBySchemaPath?: FlowConnectedValuesBySchemaPath
 }): GraphNode {
   const baseNode = args.node
+  if (isMarkerOwnedImageDerivedOutputPanel(baseNode)) return baseNode
   const connectedValuesBySchemaPath = args.connectedValuesBySchemaPath
   if (!hasConnectedValuesBySchemaPath(connectedValuesBySchemaPath)) return baseNode
   return applyConnectedValuesToNodeForRender({ node: baseNode, connectedValuesBySchemaPath })
+}
+
+export function isMarkerOwnedImageDerivedOutputPanel(node: GraphNode): boolean {
+  const properties = (node.properties || {}) as Record<string, unknown>
+  return isImageToThreeJsOutputPanel(properties) || isImageToGlbOutputPanel(properties)
 }
 
 export function buildRichMediaPanelOverlayState(args: {
@@ -145,38 +160,44 @@ export function buildRichMediaPanelOverlayState(args: {
 }): RichMediaPanelOverlayState | undefined {
   const baseNode = args.node
   if (String(baseNode.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return undefined
-  const connectedValuesBySchemaPath = args.connectedValuesBySchemaPath
+  const connectedValuesBySchemaPath = isMarkerOwnedImageDerivedOutputPanel(baseNode)
+    ? undefined
+    : args.connectedValuesBySchemaPath
   const nodeForState = args.renderNode || resolveRichMediaPanelRenderNode({ node: baseNode, connectedValuesBySchemaPath })
   const props = (nodeForState.properties || {}) as Record<string, unknown>
-  const output = typeof props.output === 'string' ? props.output : ''
-  const outputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc : ''
+  const output = readNodeFieldString(nodeForState, props, 'output')
+  const outputSrcDoc = readNodeFieldString(nodeForState, props, 'outputSrcDoc')
   const text = outputSrcDoc.trim() ? '' : output
-  const imageUrl = typeof props.imageUrl === 'string' ? props.imageUrl : ''
-  const videoUrl = typeof props.videoUrl === 'string' ? props.videoUrl : ''
-  const audioUrl = typeof props.audioUrl === 'string' ? props.audioUrl : ''
-  const genericMediaUrl = typeof props.mediaUrl === 'string'
-    ? props.mediaUrl
-    : typeof props.media_url === 'string'
-      ? props.media_url
-      : ''
-  const genericMediaKind = typeof props.mediaKind === 'string'
-    ? props.mediaKind.trim().toLowerCase()
-    : typeof props.media_kind === 'string'
-      ? props.media_kind.trim().toLowerCase()
-      : ''
+  const imageUrl = readNodeFieldString(nodeForState, props, 'imageUrl')
+  const imageToThreeJsOutputSourceUrl = isImageToThreeJsOutputPanel(props)
+    ? readNodeFieldString(nodeForState, props, 'outputSourceUrl')
+    : ''
+  const videoUrl = readNodeFieldString(nodeForState, props, 'videoUrl')
+  const audioUrl = readNodeFieldString(nodeForState, props, 'audioUrl')
+  const modelUrl = readNodeFieldString(nodeForState, props, 'modelUrl')
+    || readNodeFieldString(nodeForState, props, 'model')
+    || readNodeFieldString(nodeForState, props, 'glbUrl')
+    || readNodeFieldString(nodeForState, props, 'glb')
+  const genericMediaUrl = readNodeFieldString(nodeForState, props, 'mediaUrl')
+    || readNodeFieldString(nodeForState, props, 'media_url')
+  const genericMediaKind = (
+    readNodeFieldString(nodeForState, props, 'mediaKind')
+    || readNodeFieldString(nodeForState, props, 'media_kind')
+  ).toLowerCase()
   const hasGenericImage = Boolean(genericMediaUrl.trim()) && (genericMediaKind === 'image' || genericMediaKind === 'svg')
   const hasGenericVideo = Boolean(genericMediaUrl.trim()) && genericMediaKind === 'video'
   const hasGenericAudio = Boolean(genericMediaUrl.trim()) && genericMediaKind === 'audio'
-  const poiLabel = typeof props.richMediaPoiLabel === 'string' ? props.richMediaPoiLabel : ''
-  const poiAddress = typeof props.richMediaPoiAddress === 'string' ? props.richMediaPoiAddress : ''
-  const poiCategory = typeof props.richMediaPoiCategory === 'string' ? props.richMediaPoiCategory : ''
-  const poiCoordinates = typeof props.richMediaPoiCoordinates === 'string' ? props.richMediaPoiCoordinates : ''
-  const rawTab = String(props.richMediaActiveTab || '').trim().toLowerCase()
+  const hasGenericModel = Boolean(genericMediaUrl.trim()) && genericMediaKind === 'model'
+  const poiLabel = readNodeFieldString(nodeForState, props, 'richMediaPoiLabel')
+  const poiAddress = readNodeFieldString(nodeForState, props, 'richMediaPoiAddress')
+  const poiCategory = readNodeFieldString(nodeForState, props, 'richMediaPoiCategory')
+  const poiCoordinates = readNodeFieldString(nodeForState, props, 'richMediaPoiCoordinates')
+  const rawTab = readNodeFieldString(nodeForState, props, 'richMediaActiveTab').toLowerCase()
   const activeTab: RichMediaPanelOverlayState['activeTab'] =
-    rawTab === 'text' || rawTab === 'image' || rawTab === 'video' || rawTab === 'audio' || rawTab === 'poi' || rawTab === 'auto'
+    rawTab === 'text' || rawTab === 'image' || rawTab === 'video' || rawTab === 'audio' || rawTab === 'model' || rawTab === 'poi' || rawTab === 'auto'
       ? (rawTab as RichMediaPanelOverlayState['activeTab'])
       : 'auto'
-  const freezeConnectedOutput = Boolean(props.freezeConnectedOutput)
+  const freezeConnectedOutput = readNodeFieldBoolean(nodeForState, props, 'freezeConnectedOutput')
   const connectedText = normalizeConnectedTextValue(connectedValuesBySchemaPath?.['properties.output']?.value)
   const localLoading = readLoadingStateFromNode(nodeForState)
   const connectedLoading = deriveRichMediaPanelLoadingSourceLabels({
@@ -192,9 +213,10 @@ export function buildRichMediaPanelOverlayState(args: {
     activeTab,
     freezeConnectedOutput,
     hasText: Boolean(text.trim() || outputSrcDoc.trim() || connectedText.trim()),
-    hasImage: Boolean(imageUrl.trim()) || hasGenericImage,
+    hasImage: Boolean(imageUrl.trim() || imageToThreeJsOutputSourceUrl.trim()) || hasGenericImage,
     hasVideo: Boolean(videoUrl.trim()) || hasGenericVideo,
     hasAudio: Boolean(audioUrl.trim()) || hasGenericAudio,
+    hasModel: Boolean(modelUrl.trim()) || hasGenericModel,
     hasPoi: Boolean(
       poiLabel.trim()
       || poiAddress.trim()

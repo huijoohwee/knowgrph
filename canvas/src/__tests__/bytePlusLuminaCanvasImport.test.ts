@@ -223,7 +223,11 @@ export async function testWorkspaceImportBytePlusLuminaCanvasJsonBuildsStoryboar
     throw new Error(`expected shared media overlay inventory to preserve media by graph node id without duplicate rows, got ${graphMediaNodeIds.join(', ')}`)
   }
   const graphMediaItems = graphMedia.map((media): CommandMenuRichMediaItem => {
-    const kind = media.kind === 'svg' ? 'image' : media.kind === 'video' || media.kind === 'audio' || media.kind === 'iframe' ? media.kind : 'image'
+    const kind = media.kind === 'svg'
+      ? 'image'
+      : media.kind === 'video' || media.kind === 'audio' || media.kind === 'model' || media.kind === 'iframe'
+        ? media.kind
+        : 'image'
     const openUrl = String(media.openUrl || media.url || '').trim()
     return {
       key: `graph-node-media:${media.id}:${kind}:${openUrl || media.url || 'srcdoc'}`,
@@ -414,7 +418,9 @@ export async function testWorkspaceImportBytePlusLuminaCanvasJsonBuildsStoryboar
   if (localMediaCardsWithoutRenderableUrl.length > 0) {
     throw new Error(`expected local Lumina media cards to expose renderable URLs while retaining source paths, got ${localMediaCardsWithoutRenderableUrl.join('; ')}`)
   }
-  const graphMediaKinds = new Set(graphMedia.map(media => media.kind === 'svg' ? 'image' : media.kind))
+  const graphMediaKinds = new Set(graphMedia
+    .map(media => media.kind === 'svg' ? 'image' : media.kind)
+    .filter((kind): kind is 'image' | 'video' | 'audio' | 'iframe' => kind === 'image' || kind === 'video' || kind === 'audio' || kind === 'iframe'))
   const cardMediaKinds = new Set(mediaCards.map(card => card.media?.kind === 'svg' ? 'image' : card.media?.kind).filter(Boolean))
   for (const mediaKind of graphMediaKinds) {
     if (!cardMediaKinds.has(mediaKind)) {

@@ -42,12 +42,21 @@ export function handleStoryboardCardMetaWheelEvent(event: WheelEvent | React.Whe
   rail.scrollLeft = Math.max(0, Math.min(maxScrollLeft, rail.scrollLeft + delta))
 }
 
+const normalizeCardMetadataLabel = (value: unknown): string => String(value || '').replace(/[^a-z0-9]/gi, '').toLowerCase()
+
+export function isLegacyTextGenerationCardMetadata(card: Pick<StoryboardCardModel, 'lane' | 'typeLabel'>): boolean {
+  return normalizeCardMetadataLabel(card.lane) === 'textgeneration'
+    && normalizeCardMetadataLabel(card.typeLabel) === 'textgeneration'
+}
+
 export function StoryboardCardMetaScrollRail(props: {
   card: StoryboardCardModel
   onCommitLane?: (card: StoryboardCardModel, nextValue: string) => void
   onCommitType?: (card: StoryboardCardModel, nextValue: string) => void
 }) {
   const { card, onCommitLane, onCommitType } = props
+  const hasInvocationTokens = card.invocationTokens.some(token => token.startsWith('/') || token.startsWith('@') || token.startsWith('#'))
+  const hidesLegacyTextGenerationMetadata = isLegacyTextGenerationCardMetadata(card)
   const metaRef = React.useRef<HTMLElement | null>(null)
   React.useEffect(() => {
     const rail = metaRef.current
@@ -59,6 +68,7 @@ export function StoryboardCardMetaScrollRail(props: {
   const handleMetaWheelCapture = React.useCallback((event: React.WheelEvent<HTMLElement>) => {
     handleStoryboardCardMetaWheelEvent(event, event.currentTarget)
   }, [])
+  if (hidesLegacyTextGenerationMetadata && !hasInvocationTokens) return null
   return (
     <header
       ref={metaRef}
@@ -73,27 +83,29 @@ export function StoryboardCardMetaScrollRail(props: {
       onWheelCapture={handleMetaWheelCapture}
       style={{ borderColor: 'var(--kg-border)', touchAction: 'pan-x' }}
     >
-      {card.indexLabel ? <span className="shrink-0">{card.indexLabel}</span> : null}
-      <CardInlineTextEditor
-        value={card.lane || 'Storyboard'}
-        ariaLabel={`Storyboard lane for ${card.id}`}
-        placeholder="Add lane"
-        canEdit={typeof onCommitLane === 'function'}
-        editActivation="click"
-        onCommit={nextValue => onCommitLane?.(card, nextValue)}
-        displayClassName="max-w-[5.75rem] shrink-0 truncate rounded border px-1 py-0.5 text-[8px] font-semibold uppercase tracking-normal text-[color:var(--kg-text-secondary)]"
-        editorClassName="min-w-[4.5rem] rounded border bg-[color:var(--kg-input-bg)] px-1 py-0.5 text-[8px] font-semibold text-[color:var(--kg-text-primary)]"
-      />
-      <CardInlineTextEditor
-        value={card.typeLabel}
-        ariaLabel={`Storyboard type for ${card.id}`}
-        placeholder="Add type"
-        canEdit={typeof onCommitType === 'function'}
-        editActivation="click"
-        onCommit={nextValue => onCommitType?.(card, nextValue)}
-        displayClassName="max-w-[8.75rem] shrink-0 truncate rounded border px-1 py-0.5 text-[8px] font-semibold tracking-normal text-[color:var(--kg-text-secondary)]"
-        editorClassName="min-w-[4.5rem] rounded border bg-[color:var(--kg-input-bg)] px-1 py-0.5 text-[8px] font-semibold text-[color:var(--kg-text-primary)]"
-      />
+      {!hidesLegacyTextGenerationMetadata ? <>
+        {card.indexLabel ? <span className="shrink-0">{card.indexLabel}</span> : null}
+        <CardInlineTextEditor
+          value={card.lane || 'Storyboard'}
+          ariaLabel={`Storyboard lane for ${card.id}`}
+          placeholder="Add lane"
+          canEdit={typeof onCommitLane === 'function'}
+          editActivation="click"
+          onCommit={nextValue => onCommitLane?.(card, nextValue)}
+          displayClassName="max-w-[5.75rem] shrink-0 truncate rounded border px-1 py-0.5 text-[8px] font-semibold uppercase tracking-normal text-[color:var(--kg-text-secondary)]"
+          editorClassName="min-w-[4.5rem] rounded border bg-[color:var(--kg-input-bg)] px-1 py-0.5 text-[8px] font-semibold text-[color:var(--kg-text-primary)]"
+        />
+        <CardInlineTextEditor
+          value={card.typeLabel}
+          ariaLabel={`Storyboard type for ${card.id}`}
+          placeholder="Add type"
+          canEdit={typeof onCommitType === 'function'}
+          editActivation="click"
+          onCommit={nextValue => onCommitType?.(card, nextValue)}
+          displayClassName="max-w-[8.75rem] shrink-0 truncate rounded border px-1 py-0.5 text-[8px] font-semibold tracking-normal text-[color:var(--kg-text-secondary)]"
+          editorClassName="min-w-[4.5rem] rounded border bg-[color:var(--kg-input-bg)] px-1 py-0.5 text-[8px] font-semibold text-[color:var(--kg-text-primary)]"
+        />
+      </> : null}
       <StoryboardCardInvocationChips tokens={card.invocationTokens} />
     </header>
   )
