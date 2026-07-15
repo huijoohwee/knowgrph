@@ -117,6 +117,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["ui.floatingPanelChat.composer.remoteGrammarSharedLookup","@/__tests__/floatingPanelRemoteGrammarCommands.test","testRemoteAgenticOsGrammarHydratesSharedInvocationLookups"],
   ["ui.floatingPanelChat.composer.remoteGrammarBareLocalhostFallback","@/__tests__/floatingPanelRemoteGrammarCommands.test","testRemoteAgenticOsGrammarIgnoresBareLocalhostOriginWithoutConfiguredBaseUrl"],
   ["ui.floatingPanelChat.composer.remoteGrammarTransportFailClosed","@/__tests__/floatingPanelRemoteGrammarCommands.test","testRemoteAgenticOsGrammarPrimeFailsClosedWhenTransportUnavailable"],
+  ["ui.floatingPanelChat.composer.remoteGrammarRevisionIdentity","@/__tests__/floatingPanelRemoteGrammarCommands.test","testRemoteAgenticOsGrammarHydrationIsRevisionKeyedAndBounded"],
   ["util.rafValueScheduler.activeWindowFallback","@/__tests__/rafSchedulerFallback.test","testRafValueSchedulerFallsBackWhenActiveWindowLacksRaf"],
   ["ui.floatingPanelChat.message.mediaChip","@/__tests__/floatingPanelChatSourceFileLink.test","testFloatingPanelChatRendersUserMediaMarkdownAsInlineChip"],
   ["ui.floatingPanelChat.relayStatus.visibleSeparateFromConnectivity","@/__tests__/floatingPanelChatFooterSelect.test","testFloatingPanelChatFooterShowsRelayStatusSeparatelyFromEndpointConnectivity"],

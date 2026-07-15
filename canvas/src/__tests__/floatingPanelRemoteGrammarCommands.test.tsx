@@ -8,7 +8,9 @@ import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsD
 import {
   createAgenticOsRemoteGrammarClient,
   getAgenticOsRemoteGrammarCatalogEntries,
+  getAgenticOsRemoteGrammarCatalogSnapshot,
   primeAgenticOsRemoteGrammarCatalogBySigil,
+  refreshAgenticOsRemoteGrammarCatalog,
   registerAgenticOsRemoteGrammarCatalogEntries,
   resetAgenticOsRemoteGrammarCatalogForTests,
 } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
@@ -48,6 +50,7 @@ export async function testFloatingPanelChatComposerWiresRemoteAgenticOsGrammar()
         result: {
           structuredContent: {
             ok: true,
+            sourceRevision: 'a'.repeat(40),
             catalog: [
               {
                 token: '/remote.only',
@@ -217,6 +220,7 @@ export async function testRemoteAgenticOsGrammarIgnoresBareLocalhostOriginWithou
       result: {
         structuredContent: {
           ok: true,
+          sourceRevision: 'a'.repeat(40),
           catalog: [],
         },
       },
@@ -254,6 +258,55 @@ export async function testRemoteAgenticOsGrammarPrimeFailsClosedWhenTransportUna
     }
     if (getAgenticOsRemoteGrammarCatalogEntries().length !== 0) {
       throw new Error(`expected unavailable remote grammar hydration to avoid mutating the shared catalog, got ${JSON.stringify(getAgenticOsRemoteGrammarCatalogEntries())}`)
+    }
+  } finally {
+    resetAgenticOsRemoteGrammarCatalogForTests()
+    globalThis.fetch = originalFetch
+  }
+}
+
+export async function testRemoteAgenticOsGrammarHydrationIsRevisionKeyedAndBounded() {
+  const originalFetch = globalThis.fetch
+  let sourceRevision = 'a'.repeat(40)
+  resetAgenticOsRemoteGrammarCatalogForTests()
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+    if (body.method === 'initialize') {
+      return new Response(JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { protocolVersion: '2024-11-05' } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'mcp-session-id': 'revision-session' },
+      })
+    }
+    const query = String((body.params as { arguments?: { query?: string } })?.arguments?.query || '')
+    const kind = query === '/' ? 'command' : query === '#' ? 'semantic' : 'binding'
+    return new Response(JSON.stringify({
+      jsonrpc: '2.0',
+      id: body.id,
+      result: {
+        structuredContent: {
+          ok: true,
+          sourceRevision,
+          catalog: [{ token: `${query}revision-${sourceRevision[0]}`, kind, label: `Revision ${sourceRevision[0]}` }],
+        },
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })
+  }) as typeof fetch
+
+  try {
+    const first = await refreshAgenticOsRemoteGrammarCatalog()
+    if (first.hydration.status !== 'fresh' || first.hydration.attempts !== 1 || first.sourceRevision !== sourceRevision) {
+      throw new Error(`expected first revision hydration to become fresh in one bounded attempt, got ${JSON.stringify(first)}`)
+    }
+    if (first.counts.slash !== 1 || first.counts.hash !== 1 || first.counts.at !== 1) {
+      throw new Error(`expected exact sigil counts after hydration, got ${JSON.stringify(first.counts)}`)
+    }
+    sourceRevision = 'b'.repeat(40)
+    const second = await refreshAgenticOsRemoteGrammarCatalog()
+    if (second.sourceRevision !== sourceRevision || second.entries.some(entry => entry.token.endsWith('revision-a'))) {
+      throw new Error(`expected docs revision change to invalidate the prior catalog, got ${JSON.stringify(second)}`)
+    }
+    if (getAgenticOsRemoteGrammarCatalogSnapshot().hydration.attempts > 2) {
+      throw new Error('expected catalog hydration attempts to stay within the two-attempt contract')
     }
   } finally {
     resetAgenticOsRemoteGrammarCatalogForTests()

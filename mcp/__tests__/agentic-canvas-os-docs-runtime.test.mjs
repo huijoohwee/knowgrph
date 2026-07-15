@@ -47,6 +47,7 @@ test("local MCP docs invocation catalogs /, #, and @ entries from source docs", 
   assert.equal(result.ok, true);
   assert.equal(result.docsRoot, AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT);
   assert.equal(result.absoluteDocsRoot, DOCS_ROOT);
+  assert.match(result.sourceRevision, /^[0-9a-f]{40}$/);
   assert.ok(result.counts.command > 0, "slash command entries must be present");
   assert.ok(result.counts.semantic > 0, "hash semantic entries must be present");
   assert.ok(result.counts.binding > 0, "at binding entries must be present");

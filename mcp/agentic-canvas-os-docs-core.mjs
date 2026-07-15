@@ -153,7 +153,12 @@ export const buildAgenticCanvasOsDocsInvokePayload = ({
   includeContent = false,
   limit = 120,
   absoluteDocsRoot = "",
+  sourceRevision = "",
 } = {}) => {
+  const normalizedSourceRevision = normalizeText(sourceRevision);
+  if (!/^[0-9a-f]{40}$/.test(normalizedSourceRevision)) {
+    throw new Error("Agentic Canvas OS docs payload requires an exact source revision SHA");
+  }
   const catalog = buildAgenticCanvasOsDocsCatalog(docsContentByFileName);
   const counts = catalog.reduce((acc, entry) => {
     acc[entry.kind] = (acc[entry.kind] || 0) + 1;
@@ -211,6 +216,7 @@ export const buildAgenticCanvasOsDocsInvokePayload = ({
     ok: !normalizedToken || Boolean(effectiveInvocation),
     docsRoot: AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT,
     sourceRootUrl: AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL,
+    sourceRevision: normalizedSourceRevision,
     ...(absoluteDocsRoot ? { absoluteDocsRoot } : {}),
     ...(normalizedToken ? { token: normalizedToken } : {}),
     invocation: resolvedInvocation,
@@ -241,11 +247,26 @@ export const buildAgenticCanvasOsDocsStaticResolutionPayload = (args = {}) => (
 );
 
 export const buildAgenticCanvasOsDocsDynamicResolutionPayload = async (args = {}) => {
+  const revisionResponse = await fetch("https://api.github.com/repos/huijoohwee/agentic-canvas-os/commits/main", {
+    headers: {
+      accept: "application/vnd.github+json",
+      "user-agent": "knowgrph-agentic-canvas-os-docs-runtime",
+    },
+    cf: { cacheTtl: 0, cacheEverything: false },
+  });
+  if (!revisionResponse.ok) {
+    throw new Error(`Agentic Canvas OS revision lookup failed with status ${revisionResponse.status}`);
+  }
+  const revisionPayload = await revisionResponse.json();
+  const sourceRevision = normalizeText(revisionPayload?.sha);
+  if (!/^[0-9a-f]{40}$/.test(sourceRevision)) {
+    throw new Error("Agentic Canvas OS revision lookup returned an invalid SHA");
+  }
   const fetchDoc = async (fileName) => {
     try {
-      const url = `https://raw.githubusercontent.com/huijoohwee/agentic-canvas-os/main/docs/${fileName}`;
+      const url = `https://raw.githubusercontent.com/huijoohwee/agentic-canvas-os/${sourceRevision}/docs/${fileName}`;
       const res = await fetch(url, {
-        cf: { cacheTtl: 300, cacheEverything: true }
+        cf: { cacheTtl: 86400, cacheEverything: true }
       });
       if (!res.ok) return "";
       return await res.text();
@@ -263,6 +284,7 @@ export const buildAgenticCanvasOsDocsDynamicResolutionPayload = async (args = {}
 
   return buildAgenticCanvasOsDocsInvokePayload({
     ...args,
+    sourceRevision,
     docsContentByFileName: {
       "FACTS.md": facts,
       "DICTIONARY-COMMAND.md": command,
