@@ -214,6 +214,10 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     if (!mediaCatalog.includes(marker)) throw new Error(`expected Media to own the canonical 3D entry through ${marker}`)
   }
   if (!xrMediaLibrary.includes('<SpatialAssetToolsPanel />')) throw new Error('expected Media 3D to retain spatial asset tooling')
+  if ((xrMediaLibrary.match(/<XrLibraryCard/g) || []).length < 2 || !xrMediaLibrary.includes('data-kg-media-xr-card-layout="subjects-props"')) {
+    throw new Error('expected Environment Kits and Subjects & Props to reuse the same XR library card layout owner')
+  }
+  if (xrMediaLibrary.includes('sm:grid-cols-2')) throw new Error('expected Environment Kits to remove the stale two-column tile layout')
 
   if (existsSync(resolve(process.cwd(), 'src', 'components', 'toolbar', 'Canvas3dModeSelect.tsx'))) {
     throw new Error('expected Canvas View Surface Mode to remain the only mounted 3D/XR selector')

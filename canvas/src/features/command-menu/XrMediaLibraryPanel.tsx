@@ -80,6 +80,44 @@ function XrInvocationButton({ invocation, disabled, onInvoke }: { invocation: st
   )
 }
 
+function XrLibraryCard({
+  Icon,
+  color,
+  label,
+  description,
+  metadata,
+  footer,
+  active = false,
+  dataAttributes,
+}: {
+  Icon: LucideIcon
+  color: string
+  label: string
+  description: string
+  metadata: string
+  footer: React.ReactNode
+  active?: boolean
+  dataAttributes?: Record<string, string>
+}) {
+  return (
+    <article
+      className={cn('grid min-w-0 gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, active ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.panel.bg)}
+      data-kg-media-xr-card-layout="subjects-props"
+      {...dataAttributes}
+    >
+      <section className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
+        <XrCatalogThumb Icon={Icon} color={color} />
+        <section className="min-w-0">
+          <h4 className="truncate text-[11px] font-semibold">{label}</h4>
+          <p className={cn('line-clamp-2 text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{description}</p>
+          <p className={cn('truncate text-[9px] uppercase tracking-wide', UI_THEME_TOKENS.text.tertiary)}>{metadata}</p>
+        </section>
+      </section>
+      <footer className="flex min-w-0 items-center gap-1">{footer}</footer>
+    </article>
+  )
+}
+
 function XrAssetRow({
   asset,
   disabled,
@@ -96,37 +134,31 @@ function XrAssetRow({
   const Icon = CATEGORY_ICONS[asset.category]
   const invocation = buildXrPlaceInvocation(asset.id, asset.mobile ? motion : 'hold')
   return (
-    <article
-      className={cn('grid min-w-0 gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}
-      data-kg-media-xr-asset={asset.id}
-      data-kg-media-xr-asset-category={asset.category}
-    >
-      <section className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
-        <XrCatalogThumb Icon={Icon} color={asset.defaultColor} />
-        <section className="min-w-0">
-          <h4 className="truncate text-[11px] font-semibold">{asset.label}</h4>
-          <p className={cn('line-clamp-2 text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{asset.description}</p>
-          <p className={cn('truncate text-[9px] uppercase tracking-wide', UI_THEME_TOKENS.text.tertiary)}>
-            {asset.category} · {asset.dimensionsMeters.join(' × ')} m · {asset.mobile ? 'markable cast' : 'static reference'}
-          </p>
-        </section>
-      </section>
-      <footer className="flex min-w-0 items-center gap-1">
-        {asset.mobile ? (
-          <PanelSelect
-            className="w-20 shrink-0 text-[10px]"
-            aria-label={`Animation for ${asset.label}`}
-            value={motion}
-            onChange={event => onMotionChange(event.target.value as XrSceneAnimation)}
-            data-kg-media-xr-asset-motion={asset.id}
-          >
-            <option value="travel">Travel</option>
-            <option value="hold">Hold</option>
-          </PanelSelect>
-        ) : null}
-        <XrInvocationButton invocation={invocation} disabled={disabled} onInvoke={() => onPlace(asset, motion)} />
-      </footer>
-    </article>
+    <XrLibraryCard
+      Icon={Icon}
+      color={asset.defaultColor}
+      label={asset.label}
+      description={asset.description}
+      metadata={`${asset.category} · ${asset.dimensionsMeters.join(' × ')} m · ${asset.mobile ? 'markable cast' : 'static reference'}`}
+      dataAttributes={{ 'data-kg-media-xr-asset': asset.id, 'data-kg-media-xr-asset-category': asset.category }}
+      footer={(
+        <>
+          {asset.mobile ? (
+            <PanelSelect
+              className="w-20 shrink-0 text-[10px]"
+              aria-label={`Animation for ${asset.label}`}
+              value={motion}
+              onChange={event => onMotionChange(event.target.value as XrSceneAnimation)}
+              data-kg-media-xr-asset-motion={asset.id}
+            >
+              <option value="travel">Travel</option>
+              <option value="hold">Hold</option>
+            </PanelSelect>
+          ) : null}
+          <XrInvocationButton invocation={invocation} disabled={disabled} onInvoke={() => onPlace(asset, motion)} />
+        </>
+      )}
+    />
   )
 }
 
@@ -219,13 +251,23 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
 
       <section className="grid gap-2" aria-label="XR environment kits" data-kg-media-xr-environments="1">
         <header className="flex items-center justify-between gap-2"><h3 className="text-[11px] font-semibold uppercase">Environment Kits</h3><output className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{visibleEnvironments.length}</output></header>
-        <section className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {visibleEnvironments.map(stage => (
-            <article key={stage.id} className={cn('grid gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, runtime.plan.stageId === stage.id ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.panel.bg)} data-kg-media-xr-environment={stage.id}>
-              <section className="flex min-w-0 items-start gap-2"><XrCatalogThumb Icon={stage.id === 'aerial-sky' ? TreePine : Building2} color={stage.id === runtime.plan.stageId ? '#38bdf8' : '#94a3b8'} /><section className="min-w-0"><h4 className="text-[11px] font-semibold">{stage.label}</h4><p className={cn('line-clamp-3 text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{stage.description}</p></section></section>
-              <footer className="flex min-w-0 items-center justify-between gap-2"><span className={cn('text-[9px]', UI_THEME_TOKENS.text.tertiary)}>{stage.sizeMeters.join(' × ')} m</span><XrInvocationButton invocation={buildXrStageInvocation(stage.id)} disabled={!sceneReady} onInvoke={() => selectEnvironment(stage.id)} /></footer>
-            </article>
-          ))}
+        <section className="grid gap-1">
+          {visibleEnvironments.map(stage => {
+            const active = runtime.plan.stageId === stage.id
+            return (
+              <XrLibraryCard
+                key={stage.id}
+                Icon={stage.id === 'aerial-sky' ? TreePine : Building2}
+                color={active ? '#38bdf8' : '#94a3b8'}
+                label={stage.label}
+                description={stage.description}
+                metadata={`environment · ${stage.sizeMeters.join(' × ')} m · grey-box stage`}
+                active={active}
+                dataAttributes={{ 'data-kg-media-xr-environment': stage.id }}
+                footer={<XrInvocationButton invocation={buildXrStageInvocation(stage.id)} disabled={!sceneReady} onInvoke={() => selectEnvironment(stage.id)} />}
+              />
+            )
+          })}
         </section>
       </section>
 
