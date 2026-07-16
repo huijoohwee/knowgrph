@@ -40,11 +40,11 @@ import {
 import { WEBPAGE_SHELL_PATTERN_REGEX_SOURCES } from './src/lib/websites/webpageShellHeuristics'
 import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBase64 } from './src/features/workspace-fs/workspaceSourceMirrorFormats'
 import { DEFAULT_VITE_WATCH_IGNORED, buildWorkspaceMirrorWatchIgnoredRoots, createWorkspaceMirrorWatchPathIgnore } from './viteWorkspaceMirrorWatch'
-import { loadChatProxyServerManagedEnv } from './viteChatProxyEnv'
+import { loadChatProxyServerManagedEnv, resolveViteRuntimeIdentity } from './viteChatProxyEnv'
 import { forwardChatProxyUpstreamHead, forwardChatProxyUpstreamResponse } from './viteChatProxyResponse'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..'), workspaceRoot = path.resolve(repoRoot, '..')
-const siblingDocsRoot = path.resolve(workspaceRoot, 'huijoohwee', 'docs'); loadChatProxyServerManagedEnv({ repoRoot, canvasRoot: __dirname })
+const siblingDocsRoot = path.resolve(workspaceRoot, 'huijoohwee', 'docs'); loadChatProxyServerManagedEnv({ repoRoot, canvasRoot: __dirname }); const runtimeIdentity = resolveViteRuntimeIdentity(repoRoot)
 const liveCanvasHeroDocPath = path.resolve(repoRoot, 'docs', 'documents', 'knowgrph-live-canvas-hero.md')
 const mainPanelSectionDescriptionsDocPath = path.resolve(repoRoot, 'docs', 'documents', 'knowgrph-mainpanel-section-descriptions.md')
 const LIVE_CANVAS_HERO_DISCOVERY_ROUTE_PATH = '/knowgrph-live-canvas-hero.md'
@@ -6853,7 +6853,7 @@ export default defineConfig(({ command }) => {
         return withLeading.endsWith('/') ? withLeading : `${withLeading}/`
       })()
     : '/',
-  define: {
+  define: { __KNOWGRPH_SOURCE_REVISION__: JSON.stringify(runtimeIdentity.sourceRevision), __KNOWGRPH_RUNTIME_DEVICE__: JSON.stringify(runtimeIdentity.device), __KNOWGRPH_SOURCE_BRANCH__: JSON.stringify(runtimeIdentity.branch),
     __KNOWGRPH_LIVE_CANVAS_HERO_MARKDOWN__: JSON.stringify(readLiveCanvasHeroMarkdownSource()),
     __KNOWGRPH_MAIN_PANEL_SECTION_DESCRIPTIONS_MARKDOWN__: JSON.stringify(readMainPanelSectionDescriptionsMarkdownSource()),
   },

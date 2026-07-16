@@ -71,6 +71,9 @@ export async function testFloatingPanelSkillsCommandsViewRendersSlashInvokableSk
     if (!surface || !storybuildingRow || storybuildingSlash?.textContent?.trim() !== '/storybuilding') {
       throw new Error('Expected FloatingPanel Skills & Commands to render Storybuilding as a slash-invokable skill')
     }
+    if (container.querySelector('[data-kg-runtime-identity="knowgrph-runtime-identity/v1"]')) {
+      throw new Error('Expected FloatingPanel Skills & Commands to leave the global runtime identity gate in MainPanel Settings')
+    }
     if (
       storybuildingRow.getAttribute('data-kg-skill-command-icon-key') !== 'invocation.subject.story' ||
       !storybuildingIcon ||

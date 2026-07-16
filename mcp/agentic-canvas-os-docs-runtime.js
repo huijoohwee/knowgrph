@@ -1,5 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 import {
   AGENTIC_CANVAS_OS_DOCS_KIND_FILES,
@@ -12,6 +14,30 @@ const REQUIRED_DOC_FILE_NAMES = Object.freeze([
 ]);
 
 const normalizeText = (value) => String(value || "").trim();
+const execFileAsync = promisify(execFile);
+const SOURCE_REVISION_PATTERN = /^[0-9a-f]{40}$/;
+
+export const resolveAgenticCanvasOsDocsRevision = async ({ absoluteDocsRoot, env = process.env }) => {
+  const configuredRevision = normalizeText(env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_REVISION);
+  if (configuredRevision) {
+    if (!SOURCE_REVISION_PATTERN.test(configuredRevision)) {
+      throw new Error("KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_REVISION must be an exact 40-character SHA");
+    }
+    return configuredRevision;
+  }
+  const repositoryRoot = path.resolve(absoluteDocsRoot, "..");
+  const docsPathspec = path.relative(repositoryRoot, absoluteDocsRoot) || ".";
+  const { stdout: dirtyOutput } = await execFileAsync("git", ["-C", repositoryRoot, "status", "--porcelain", "--", docsPathspec]);
+  if (normalizeText(dirtyOutput)) {
+    throw new Error("Agentic Canvas OS docs checkout has uncommitted content and cannot provide an exact source revision");
+  }
+  const { stdout } = await execFileAsync("git", ["-C", repositoryRoot, "rev-parse", "HEAD"]);
+  const revision = normalizeText(stdout);
+  if (!SOURCE_REVISION_PATTERN.test(revision)) {
+    throw new Error("Agentic Canvas OS docs checkout did not resolve to an exact Git SHA");
+  }
+  return revision;
+};
 
 export const resolveAgenticCanvasOsDocsRoot = ({
   rootDir = process.cwd(),
@@ -27,6 +53,7 @@ export async function runAgenticCanvasOsDocsInvokeTool(args = {}, {
   env = process.env,
 } = {}) {
   const absoluteDocsRoot = resolveAgenticCanvasOsDocsRoot({ rootDir, env });
+  const sourceRevision = await resolveAgenticCanvasOsDocsRevision({ absoluteDocsRoot, env });
   const docsContentByFileName = {};
   const missing = [];
 
@@ -46,6 +73,7 @@ export async function runAgenticCanvasOsDocsInvokeTool(args = {}, {
     includeContent: args.includeContent === true,
     limit: args.limit,
     absoluteDocsRoot,
+    sourceRevision,
   });
 
   if (missing.length) {

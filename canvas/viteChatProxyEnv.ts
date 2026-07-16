@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 
 const CHAT_PROXY_SERVER_ENV_KEYS = new Set([
@@ -18,6 +19,19 @@ const CHAT_PROXY_SERVER_ENV_KEYS = new Set([
   'GOOGLE_OAUTH_ACCESS_TOKEN',
   'KNOWGRPH_CHAT_PROXY_BYTEPLUS_API_KEY',
 ])
+
+const SOURCE_REVISION_PATTERN = /^[0-9a-f]{40}$/
+
+export const resolveViteRuntimeIdentity = (repoRoot: string): { branch: string, device: string, sourceRevision: string } => {
+  const readGitText = (args: string[]): string => String(execFileSync('git', ['-C', repoRoot, ...args], { encoding: 'utf8' }) || '').trim()
+  const configuredRevision = String(process.env.KNOWGRPH_SOURCE_REVISION || '').trim()
+  const sourceRevision = configuredRevision || readGitText(['rev-parse', 'HEAD'])
+  if (!SOURCE_REVISION_PATTERN.test(sourceRevision)) throw new Error('Knowgrph runtime requires an exact 40-character source revision SHA')
+  const branch = readGitText(['branch', '--show-current']) || 'detached'
+  const branchDevice = /^agent\/([^/]+)\//.exec(branch)?.[1] || ''
+  const device = String(process.env.KNOWGRPH_RUNTIME_DEVICE || '').trim() || branchDevice || (branch === 'main' ? 'production' : 'unknown-device')
+  return { branch, device, sourceRevision }
+}
 
 const stripEnvQuotes = (value: string): string => {
   const raw = String(value || '').trim()

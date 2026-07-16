@@ -41,11 +41,12 @@ export const AGENTIC_CANVAS_OS_DOCS_INPUT_SCHEMA = Object.freeze({
 export const AGENTIC_CANVAS_OS_DOCS_OUTPUT_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: true,
-  required: ["ok", "docsRoot", "sourceRootUrl", "catalog"],
+  required: ["ok", "docsRoot", "sourceRootUrl", "sourceRevision", "catalog"],
   properties: {
     ok: { type: "boolean" },
     docsRoot: { type: "string" },
     sourceRootUrl: { type: "string" },
+    sourceRevision: { type: "string", pattern: "^[0-9a-f]{40}$" },
     absoluteDocsRoot: { type: "string" },
     token: { type: "string" },
     invocation: { type: ["object", "null"], additionalProperties: true },

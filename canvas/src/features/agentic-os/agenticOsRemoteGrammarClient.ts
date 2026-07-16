@@ -20,6 +20,7 @@ export type AgenticOsRemoteGrammarCatalogEntry = {
 type AgenticOsRemoteGrammarPayload = {
   ok?: boolean
   catalog?: AgenticOsRemoteGrammarCatalogEntry[]
+  sourceRevision?: string
 }
 
 type AgenticOsRemoteGrammarClientOptions = {
@@ -137,22 +138,65 @@ const normalizeCatalogEntry = (entry: AgenticOsRemoteGrammarCatalogEntry): Agent
   }
 }
 
-type AgenticOsRemoteGrammarSnapshot = {
+export type AgenticOsRemoteGrammarHydrationStatus = 'idle' | 'loading' | 'fresh' | 'stale' | 'blocked'
+
+export type AgenticOsRemoteGrammarCatalogCounts = {
+  slash: number
+  hash: number
+  at: number
+}
+
+export type AgenticOsRemoteGrammarSnapshot = {
   version: number
   entries: readonly AgenticOsRemoteGrammarCatalogEntry[]
+  sourceRevision: string
+  hydration: {
+    status: AgenticOsRemoteGrammarHydrationStatus
+    attempts: number
+    error: string
+  }
+  counts: AgenticOsRemoteGrammarCatalogCounts
 }
 
 let remoteGrammarVersion = 0
 let remoteGrammarEntriesByToken = new Map<string, AgenticOsRemoteGrammarCatalogEntry>()
-let remoteGrammarSnapshot: AgenticOsRemoteGrammarSnapshot = { version: remoteGrammarVersion, entries: [] }
+let remoteGrammarSourceRevision = ''
+let remoteGrammarHydrationStatus: AgenticOsRemoteGrammarHydrationStatus = 'idle'
+let remoteGrammarHydrationAttempts = 0
+let remoteGrammarHydrationError = ''
+let remoteGrammarSuccessfulSigils = new Map<AgenticOsRemoteGrammarSigil, string>()
+const emptyCounts = (): AgenticOsRemoteGrammarCatalogCounts => ({ slash: 0, hash: 0, at: 0 })
+let remoteGrammarSnapshot: AgenticOsRemoteGrammarSnapshot = {
+  version: remoteGrammarVersion,
+  entries: [],
+  sourceRevision: '',
+  hydration: { status: 'idle', attempts: 0, error: '' },
+  counts: emptyCounts(),
+}
 const remoteGrammarListeners = new Set<() => void>()
-const remoteGrammarHydrationPromises = new Map<AgenticOsRemoteGrammarSigil, Promise<readonly AgenticOsRemoteGrammarCatalogEntry[]>>()
+const remoteGrammarHydrationPromises = new Map<string, Promise<readonly AgenticOsRemoteGrammarCatalogEntry[]>>()
+
+const countRemoteGrammarEntries = (entries: readonly AgenticOsRemoteGrammarCatalogEntry[]): AgenticOsRemoteGrammarCatalogCounts => entries.reduce((counts, entry) => {
+  const sigil = normalizeSigil(entry.token)
+  if (sigil === '/') counts.slash += 1
+  if (sigil === '#') counts.hash += 1
+  if (sigil === '@') counts.at += 1
+  return counts
+}, emptyCounts())
 
 const emitRemoteGrammarSnapshot = (): void => {
   remoteGrammarVersion += 1
+  const entries = [...remoteGrammarEntriesByToken.values()].sort((left, right) => left.token.localeCompare(right.token))
   remoteGrammarSnapshot = {
     version: remoteGrammarVersion,
-    entries: [...remoteGrammarEntriesByToken.values()].sort((left, right) => left.token.localeCompare(right.token)),
+    entries,
+    sourceRevision: remoteGrammarSourceRevision,
+    hydration: {
+      status: remoteGrammarHydrationStatus,
+      attempts: remoteGrammarHydrationAttempts,
+      error: remoteGrammarHydrationError,
+    },
+    counts: countRemoteGrammarEntries(entries),
   }
   remoteGrammarListeners.forEach(listener => listener())
 }
@@ -202,6 +246,11 @@ export function registerAgenticOsRemoteGrammarCatalogEntries(
 export function resetAgenticOsRemoteGrammarCatalogForTests(): void {
   remoteGrammarHydrationPromises.clear()
   remoteGrammarEntriesByToken = new Map()
+  remoteGrammarSourceRevision = ''
+  remoteGrammarHydrationStatus = 'idle'
+  remoteGrammarHydrationAttempts = 0
+  remoteGrammarHydrationError = ''
+  remoteGrammarSuccessfulSigils = new Map()
   emitRemoteGrammarSnapshot()
 }
 
@@ -291,10 +340,9 @@ export function createAgenticOsRemoteGrammarClient(options: AgenticOsRemoteGramm
     return sessionPromise
   }
 
-  return {
-    async searchCatalog(query: string, { signal }: { signal?: AbortSignal } = {}): Promise<AgenticOsRemoteGrammarCatalogEntry[]> {
+  const searchCatalogSnapshot = async (query: string, { signal }: { signal?: AbortSignal } = {}): Promise<Required<Pick<AgenticOsRemoteGrammarPayload, 'catalog' | 'sourceRevision'>>> => {
       const normalizedQuery = normalizeString(query)
-      if (!normalizedQuery) return []
+      if (!normalizedQuery) return { catalog: [], sourceRevision: '' }
       const sessionId = await ensureSession({ signal })
       const invoked = await postRpc({
         jsonrpc: '2.0',
@@ -309,7 +357,16 @@ export function createAgenticOsRemoteGrammarClient(options: AgenticOsRemoteGramm
         throw new Error(String((invoked.rpc.error as { message?: unknown }).message || 'Agentic OS remote grammar tools/call failed'))
       }
       const payload = extractStructuredContent(invoked.rpc)
-      return Array.isArray(payload.catalog) ? payload.catalog : []
+      return {
+        catalog: Array.isArray(payload.catalog) ? payload.catalog : [],
+        sourceRevision: normalizeString(payload.sourceRevision),
+      }
+  }
+
+  return {
+    searchCatalogSnapshot,
+    async searchCatalog(query: string, options: { signal?: AbortSignal } = {}): Promise<AgenticOsRemoteGrammarCatalogEntry[]> {
+      return (await searchCatalogSnapshot(query, options)).catalog
     },
   }
 }
@@ -319,21 +376,70 @@ const sharedAgenticOsRemoteGrammarClient = createAgenticOsRemoteGrammarClient()
 export async function fetchAgenticOsRemoteGrammarCatalog(
   args: { query: string, signal?: AbortSignal },
 ): Promise<AgenticOsRemoteGrammarCatalogEntry[]> {
-  const entries = await sharedAgenticOsRemoteGrammarClient.searchCatalog(args.query, { signal: args.signal })
-  return [...registerAgenticOsRemoteGrammarCatalogEntries(entries)]
+  const payload = await sharedAgenticOsRemoteGrammarClient.searchCatalogSnapshot(args.query, { signal: args.signal })
+  if (!/^[0-9a-f]{40}$/.test(payload.sourceRevision)) {
+    throw new Error('Agentic OS remote grammar response is missing an exact docs revision')
+  }
+  if (remoteGrammarSourceRevision && remoteGrammarSourceRevision !== payload.sourceRevision) {
+    remoteGrammarEntriesByToken = new Map()
+    remoteGrammarSuccessfulSigils = new Map()
+  }
+  remoteGrammarSourceRevision = payload.sourceRevision
+  const entries = [...registerAgenticOsRemoteGrammarCatalogEntries(payload.catalog)]
+  const normalizedQuery = normalizeString(args.query)
+  const sigil = REMOTE_GRAMMAR_SIGIL_ORDER.includes(normalizedQuery as AgenticOsRemoteGrammarSigil)
+    ? normalizedQuery as AgenticOsRemoteGrammarSigil
+    : null
+  if (sigil) remoteGrammarSuccessfulSigils.set(sigil, payload.sourceRevision)
+  remoteGrammarHydrationError = ''
+  remoteGrammarHydrationStatus = REMOTE_GRAMMAR_SIGIL_ORDER.every(value => remoteGrammarSuccessfulSigils.get(value) === payload.sourceRevision)
+    ? 'fresh'
+    : 'loading'
+  emitRemoteGrammarSnapshot()
+  return entries
 }
 
 export async function primeAgenticOsRemoteGrammarCatalogBySigil(
   sigil: AgenticOsRemoteGrammarSigil,
+  options: { force?: boolean } = {},
 ): Promise<readonly AgenticOsRemoteGrammarCatalogEntry[]> {
-  if (!remoteGrammarHydrationPromises.has(sigil)) {
-    remoteGrammarHydrationPromises.set(sigil, fetchAgenticOsRemoteGrammarCatalog({ query: sigil })
-      .catch(error => {
-        remoteGrammarHydrationPromises.delete(sigil)
-        if (error instanceof DOMException && error.name === 'AbortError') return []
-        return []
-      }))
+  if (!options.force && remoteGrammarSourceRevision && remoteGrammarSuccessfulSigils.get(sigil) === remoteGrammarSourceRevision) {
+    return remoteGrammarSnapshot.entries.filter(entry => normalizeSigil(entry.token) === sigil)
   }
-  const promise = remoteGrammarHydrationPromises.get(sigil)
+  const cacheKey = `${remoteGrammarSourceRevision || 'unresolved'}:${sigil}`
+  if (!remoteGrammarHydrationPromises.has(cacheKey) || options.force) {
+    const promise = (async () => {
+      remoteGrammarHydrationStatus = 'loading'
+      remoteGrammarHydrationError = ''
+      emitRemoteGrammarSnapshot()
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        remoteGrammarHydrationAttempts = Math.max(remoteGrammarHydrationAttempts, attempt)
+        try {
+          return await fetchAgenticOsRemoteGrammarCatalog({ query: sigil })
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') return []
+          remoteGrammarHydrationError = error instanceof Error ? error.message : 'Agentic OS catalog hydration failed'
+        }
+      }
+      remoteGrammarHydrationStatus = remoteGrammarSnapshot.entries.length > 0 ? 'stale' : 'blocked'
+      emitRemoteGrammarSnapshot()
+      return []
+    })().finally(() => {
+      remoteGrammarHydrationPromises.delete(cacheKey)
+    })
+    remoteGrammarHydrationPromises.set(cacheKey, promise)
+  }
+  const promise = remoteGrammarHydrationPromises.get(cacheKey)
   return promise || Promise.resolve([])
+}
+
+export async function refreshAgenticOsRemoteGrammarCatalog(): Promise<AgenticOsRemoteGrammarSnapshot> {
+  remoteGrammarHydrationPromises.clear()
+  remoteGrammarSuccessfulSigils = new Map()
+  remoteGrammarHydrationAttempts = 0
+  remoteGrammarHydrationError = ''
+  remoteGrammarHydrationStatus = 'loading'
+  emitRemoteGrammarSnapshot()
+  await Promise.all(REMOTE_GRAMMAR_SIGIL_ORDER.map(sigil => primeAgenticOsRemoteGrammarCatalogBySigil(sigil, { force: true })))
+  return remoteGrammarSnapshot
 }

@@ -33,6 +33,7 @@ test("local grammar forwarder projects all three source-backed invocation dictio
     });
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.result.structuredContent.absoluteDocsRoot, undefined);
+    assert.match(response.body.result.structuredContent.sourceRevision, /^[0-9a-f]{40}$/);
     assert.ok(response.body.result.structuredContent.catalog.some(entry => entry.token === expectedToken));
   }
 });

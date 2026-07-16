@@ -186,6 +186,7 @@ test("Agentic Canvas OS docs invocation resolves prefixed tokens remotely", asyn
   });
 
   assert.equal(result.ok, true);
+  assert.match(result.structuredContent?.sourceRevision, /^[0-9a-f]{40}$/);
   assert.equal(result.structuredContent?.invocation?.token, "/query");
   assert.equal(result.structuredContent?.invocation?.sourcePath, "DICTIONARY-COMMAND.md#/query");
 });

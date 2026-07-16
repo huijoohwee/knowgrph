@@ -48,10 +48,18 @@ import {
   CanvasEmbedSettingsRows,
   matchesCanvasEmbedQuery,
 } from './CanvasEmbedSettingsRows'
+import {
+  CrossDeviceIdentitySettingsRows,
+} from './CrossDeviceIdentitySettingsRows'
+import {
+  CROSS_DEVICE_IDENTITY_SETTINGS_ROW_COUNT,
+  matchesCrossDeviceIdentityQuery,
+} from './crossDeviceIdentitySettingsContract'
 
 const WORKSPACE_IMPORT_ACCEPT = [...SOURCE_FILES_FORMATS.import, '.mdx'].join(',')
 const SETTINGS_MAIN_HEADER_STICKY_OFFSET_CLASS = 'top-9'
 const CANVAS_EMBED_SETTINGS_AREA = 'Canvas Embed'
+const CROSS_DEVICE_IDENTITY_SETTINGS_AREA = 'Cross-device Identity Gate'
 
 export default function SettingsView({
   searchQuery,
@@ -301,6 +309,15 @@ export default function SettingsView({
         || MCP_SECTION_META[area],
       showDensityPresets: area === 'UI Density: Panels',
     }))
+    if (mode === 'all' && matchesCrossDeviceIdentityQuery(normalizedQuery)) {
+      descriptors.unshift({
+        area: CROSS_DEVICE_IDENTITY_SETTINGS_AREA,
+        collapsed: normalizedQuery ? false : !!collapsedByArea[CROSS_DEVICE_IDENTITY_SETTINGS_AREA],
+        entries: [],
+        sectionMeta: undefined,
+        showDensityPresets: false,
+      })
+    }
     if (mode === 'all' && matchesCanvasEmbedQuery(normalizedQuery)) {
       descriptors.push({
         area: CANVAS_EMBED_SETTINGS_AREA,
@@ -318,10 +335,12 @@ export default function SettingsView({
       && matchesSourceFileManagementQuery(normalizedQuery)
   }, [mode, normalizedQuery])
   const getSettingsAreaIntroItemCount = React.useCallback((area: string) => {
+    if (area === CROSS_DEVICE_IDENTITY_SETTINGS_AREA) return CROSS_DEVICE_IDENTITY_SETTINGS_ROW_COUNT
     if (area === CANVAS_EMBED_SETTINGS_AREA) return CANVAS_EMBED_SETTINGS_ROW_COUNT
     return shouldRenderSourceFileManagementRows(area) ? SOURCE_FILE_MANAGEMENT_SETTINGS_ROW_COUNT : 0
   }, [shouldRenderSourceFileManagementRows])
   const renderSettingsAreaIntro = React.useCallback((area: string) => {
+    if (area === CROSS_DEVICE_IDENTITY_SETTINGS_AREA) return <CrossDeviceIdentitySettingsRows />
     if (area === CANVAS_EMBED_SETTINGS_AREA) return <CanvasEmbedSettingsRows />
     if (!shouldRenderSourceFileManagementRows(area)) return null
     return (
