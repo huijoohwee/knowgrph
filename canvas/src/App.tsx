@@ -9,6 +9,7 @@ import { resolveRouterBasename } from '@/lib/routing/basePath'
 import { getLocalStorage, resolveBrowserStorageKey } from '@/lib/persistence'
 import { applyThemeMode, getInitialThemeMode } from '@/lib/ui/theme'
 import { ensureWorkspaceLayoutTokensInstalled } from '@/lib/workspace/workspaceLayoutSettings'
+import { KnowgrphRuntimeIdentityRuntime } from '@/features/runtime-identity/KnowgrphRuntimeIdentityRuntime'
 
 const PerformanceAutomationReadoutLazy = lazy(async () => ({
   default: (await import('@/features/canvas/PerformanceAutomationReadout')).PerformanceAutomationReadout,
@@ -185,6 +186,7 @@ export default function App() {
   return (
     <Router basename={basename}>
       <AppThemeRuntime />
+      <KnowgrphRuntimeIdentityRuntime />
       <CanvasRouteRuntime />
       {performanceAutomationReadoutEnabled ? (
         <Suspense fallback={null}>

@@ -138,6 +138,8 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 4. A non-fast-forward update or duplicate active semantic scope halts both tasks for explicit upstream resolution.
 5. GitHub pull-request metadata is the live coordination registry; shared folders and committed lease files are forbidden.
 
+The visible runtime check lives in MainPanel Settings as the `Cross-device Identity Gate` KTV section. `KnowgrphRuntimeIdentityRuntime`, mounted once at the application root, owns the canonical app-wide identity snapshot; Settings is a read/action projection only. Agentic Canvas OS `/`, `#`, and `@` catalog hydration publishes one revision/count facet into that global identity and must never become the identity owner. Operators compare the exact Knowgrph, docs, and catalog SHAs across devices; branch-name equality is insufficient.
+
 ## Local Development Source Identity
 
 - Normal `npm run dev` startup fetches every `local_development.canonical_sources` entry before Vite starts.
