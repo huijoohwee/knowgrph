@@ -177,8 +177,9 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const inspectLocal3dLayoutPositionsTool = registeredTools.get('knowgrph.inspect_local_3d_layout_positions')
     const inspectLocal2dZoomViewportTool = registeredTools.get('knowgrph.inspect_local_2d_zoom_viewport')
     const inspectLocalSourceFilesSnapshotTool = registeredTools.get('knowgrph.inspect_local_source_files_snapshot')
+    const readLocalRuntimeIdentityTool = registeredTools.get('knowgrph.read_local_runtime_identity')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
-    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalSettingsChatReadinessTool || !inspectLocalMainPanelTool || !inspectLocalEditorWorkspaceTool || !inspectLocalChatPipelineTool || !inspectLocalPipelineTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectLocal2dZoomViewportTool || !inspectLocalSourceFilesSnapshotTool || !inspectTool) {
+    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalSettingsChatReadinessTool || !inspectLocalMainPanelTool || !inspectLocalEditorWorkspaceTool || !inspectLocalChatPipelineTool || !inspectLocalPipelineTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectLocal2dZoomViewportTool || !inspectLocalSourceFilesSnapshotTool || !readLocalRuntimeIdentityTool || !inspectTool) {
       throw new Error(`expected all read-only WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
     }
 
@@ -293,6 +294,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     useGraphStore.setState({ canvasRenderMode: '2d' } as never)
     const local2dZoomViewport = await inspectLocal2dZoomViewportTool.execute()
     const localSourceFilesSnapshot = await inspectLocalSourceFilesSnapshotTool.execute()
+    const localRuntimeIdentity = await readLocalRuntimeIdentityTool.execute()
     const inspection = await inspectTool.execute()
 
     if (!fetchCalls.includes('/api/storage/source-files')) {
@@ -464,6 +466,12 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     }
     if (!String((localSourceFilesSnapshot as { storageSyncSignature?: unknown }).storageSyncSignature || '').startsWith('remote-doc:')) {
       throw new Error(`expected inspect_local_source_files_snapshot to report the non-workspace storage sync signature, got ${JSON.stringify(localSourceFilesSnapshot)}`)
+    }
+    if (
+      (localRuntimeIdentity as { identity?: { schema?: unknown } }).identity?.schema !== 'knowgrph-runtime-identity/v1'
+      || (localRuntimeIdentity as { gate?: { schema?: unknown } }).gate?.schema !== 'knowgrph-runtime-identity-gate/v1'
+    ) {
+      throw new Error(`expected read_local_runtime_identity to expose the canonical identity and automatic gate snapshots, got ${JSON.stringify(localRuntimeIdentity)}`)
     }
     if (!fetchCalls.some((url) => url.endsWith('/knowgrph/health'))) {
       throw new Error(`expected inspect_agent_surface to fetch the agent-ready health route, got ${fetchCalls.join(', ')}`)

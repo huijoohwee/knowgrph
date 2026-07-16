@@ -2,7 +2,7 @@
 title: "Knowgrph Collaboration Runtime Contract"
 doc_type: "Runtime Contract"
 status: "active"
-contract_version: 18
+contract_version: 19
 frontmatter_contract: "required"
 ci_command_timeout_ms: 300000
 invocation:
@@ -138,7 +138,11 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 4. A non-fast-forward update or duplicate active semantic scope halts both tasks for explicit upstream resolution.
 5. GitHub pull-request metadata is the live coordination registry; shared folders and committed lease files are forbidden.
 
-The visible runtime check lives in MainPanel Settings as the `Cross-device Identity Gate` KTV section. `KnowgrphRuntimeIdentityRuntime`, mounted once at the application root, owns the canonical app-wide identity snapshot; Settings is a read/action projection only. Agentic Canvas OS `/`, `#`, and `@` catalog hydration publishes one revision/count facet into that global identity and must never become the identity owner. Operators compare the exact Knowgrph, docs, and catalog SHAs across devices; branch-name equality is insufficient.
+The visible runtime check lives in MainPanel Settings as the `Cross-device Identity Gate` KTV section. `KnowgrphRuntimeIdentityRuntime`, mounted once at the application root, owns the canonical app-wide identity snapshot; Settings is a read/action projection only. Agentic Canvas OS `/`, `#`, and `@` catalog hydration publishes one revision/count facet into that global identity and must never become the identity owner.
+
+Automatic compliance uses the authenticated canvas-room transport with the dedicated global room `runtime-identity:knowgrph:main`. The room issues short-lived challenges and relays attestations without building, changing, selecting, or persisting runtime identity; it rejects document/asset traffic and binds one device/runtime identity to each authenticated socket session. The application-root reporter reads the canonical identity store, binds a point-in-time snapshot to the room challenge, runtime instance, timestamps, and SHA-256 digest, then every client verifies the relayed evidence locally. MainPanel Settings projects only the resulting transport and parity state. `Copy diagnostic JSON` copies the current identity and gate snapshots as a troubleshooting fallback and is never required compliance evidence.
+
+The automatic gate passes only with at least two distinct authenticated sessions, live devices, and runtime instances, valid authenticated relay metadata, an unexpired matching challenge, fresh hydration within attempts zero through two, exact Knowgrph/docs/catalog SHA equality, catalog/docs equality, and exact `/`, `#`, and `@` counts. It reports `collecting`, `pass`, `mismatch`, `stale`, or `blocked`; duplicate, replayed, expired, malformed, or mismatched evidence fails closed. Branch names remain informational. No client, room, verifier, WebMCP tool, or Settings action may select a majority winner, refresh the catalog implicitly, mutate Git, or synchronize source. The read-only browser tool `knowgrph.read_local_runtime_identity` exposes the canonical local identity and current automatic gate snapshot without becoming an owner.
 
 ## Local Development Source Identity
 

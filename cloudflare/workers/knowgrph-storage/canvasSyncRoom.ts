@@ -1,4 +1,5 @@
 import {
+  KNOWGRPH_RUNTIME_IDENTITY_ROOM_ID,
   KNOWGRPH_STORAGE_API_VERSION,
   type KnowgrphCanvasRoomPeerRecord,
   type KnowgrphCanvasRoomStatusResponse,
@@ -71,7 +72,21 @@ type CanvasRoomConnectionAttachment = {
   role: KnowgrphStorageChatRole
   joinedAt: number
   caretLine: number | null
+  runtimeDevice: string | null
+  runtimeInstanceId: string | null
 }
+
+type RuntimeIdentityChallenge = {
+  sessionId: string
+  challenge: string
+  issuedAtMs: number
+  expiresAtMs: number
+}
+
+const RUNTIME_IDENTITY_ATTESTATION_SCHEMA = 'knowgrph-runtime-identity-attestation/v1'
+const RUNTIME_IDENTITY_CHALLENGE_TTL_MS = 60_000
+const RUNTIME_IDENTITY_CHALLENGE_RENEWAL_WINDOW_MS = 10_000
+const SHA256_PATTERN = /^[0-9a-f]{64}$/
 
 type CanvasRoomAssetRecord = Record<string, unknown> & {
   workspaceId: string
@@ -96,6 +111,7 @@ type KnowgrphDurableObjectStateLike = {
 
 export class KnowgrphCanvasSyncRoom {
   private readonly state: KnowgrphDurableObjectStateLike
+  private runtimeIdentityChallenge: RuntimeIdentityChallenge | null = null
 
   constructor(state: KnowgrphDurableObjectStateLike) {
     this.state = state
@@ -129,6 +145,22 @@ export class KnowgrphCanvasSyncRoom {
     }
     if (payload.type === 'ping') {
       this.sendJson(ws as KnowgrphCanvasRoomSocketLike, { type: 'pong', ts: Date.now() })
+      return
+    }
+    if (payload.type === 'runtime.identity.challenge.request') {
+      if (attachment.roomId !== KNOWGRPH_RUNTIME_IDENTITY_ROOM_ID) {
+        this.sendJson(ws as KnowgrphCanvasRoomSocketLike, { type: 'error', error: 'runtime identity challenge requires the dedicated identity room' })
+        return
+      }
+      this.broadcastRuntimeIdentityChallenge()
+      return
+    }
+    if (payload.type === 'runtime.identity.attestation') {
+      this.acceptRuntimeIdentityAttestation(ws as KnowgrphCanvasRoomSocketLike, attachment, payload.attestation)
+      return
+    }
+    if (attachment.roomId === KNOWGRPH_RUNTIME_IDENTITY_ROOM_ID) {
+      this.sendJson(ws as KnowgrphCanvasRoomSocketLike, { type: 'error', error: 'identity room accepts attestation messages only' })
       return
     }
     if (payload.type === 'presence.update') {
@@ -185,6 +217,8 @@ export class KnowgrphCanvasSyncRoom {
       this.broadcastJson({
         type: 'peer.left',
         peer: this.toPeerRecord(attachment),
+        runtimeDevice: attachment.runtimeDevice,
+        runtimeInstanceId: attachment.runtimeInstanceId,
       }, ws)
     }
     ws.close(code, reason)
@@ -210,7 +244,9 @@ export class KnowgrphCanvasSyncRoom {
     const server = webSocketPair[1]
     this.state.acceptWebSocket(server)
     this.writeAttachment(server, attachment)
-    const latestAsset = await this.readLatestAsset(attachment.workspaceId, attachment.roomId)
+    const latestAsset = attachment.roomId === KNOWGRPH_RUNTIME_IDENTITY_ROOM_ID
+      ? null
+      : await this.readLatestAsset(attachment.workspaceId, attachment.roomId)
     this.sendJson(server, {
       type: 'room.connected',
       workspaceId: attachment.workspaceId,
@@ -276,6 +312,9 @@ export class KnowgrphCanvasSyncRoom {
     if (!workspaceId || !roomId || !artifactId || !contentHash) {
       return json(400, { ok: false, apiVersion: KNOWGRPH_STORAGE_API_VERSION, error: 'missing canvas room asset identity' })
     }
+    if (roomId === KNOWGRPH_RUNTIME_IDENTITY_ROOM_ID) {
+      return json(409, { ok: false, apiVersion: KNOWGRPH_STORAGE_API_VERSION, error: 'identity room cannot persist assets' })
+    }
     const assetRecord: CanvasRoomAssetRecord = {
       ...body,
       workspaceId,
@@ -316,6 +355,8 @@ export class KnowgrphCanvasSyncRoom {
       role: roleRaw,
       joinedAt: Date.now(),
       caretLine: null,
+      runtimeDevice: null,
+      runtimeInstanceId: null,
     }
   }
 
@@ -341,7 +382,80 @@ export class KnowgrphCanvasSyncRoom {
       role: roleRaw,
       joinedAt: typeof joinedAtRaw === 'number' && Number.isFinite(joinedAtRaw) ? joinedAtRaw : Date.now(),
       caretLine: typeof caretLineRaw === 'number' && Number.isFinite(caretLineRaw) ? caretLineRaw : null,
+      runtimeDevice: readString(value, 'runtimeDevice') || null,
+      runtimeInstanceId: readString(value, 'runtimeInstanceId') || null,
     }
+  }
+
+  private broadcastRuntimeIdentityChallenge(): void {
+    const nowMs = Date.now()
+    if (
+      !this.runtimeIdentityChallenge
+      || this.runtimeIdentityChallenge.expiresAtMs - nowMs <= RUNTIME_IDENTITY_CHALLENGE_RENEWAL_WINDOW_MS
+    ) {
+      this.runtimeIdentityChallenge = {
+        sessionId: KNOWGRPH_RUNTIME_IDENTITY_ROOM_ID,
+        challenge: globalThis.crypto.randomUUID(),
+        issuedAtMs: nowMs,
+        expiresAtMs: nowMs + RUNTIME_IDENTITY_CHALLENGE_TTL_MS,
+      }
+    }
+    this.broadcastJson({
+      type: 'runtime.identity.challenge',
+      ...this.runtimeIdentityChallenge,
+    })
+  }
+
+  private acceptRuntimeIdentityAttestation(
+    socket: KnowgrphCanvasRoomSocketLike,
+    attachment: CanvasRoomConnectionAttachment,
+    value: unknown,
+  ): void {
+    if (attachment.roomId !== KNOWGRPH_RUNTIME_IDENTITY_ROOM_ID) {
+      this.sendJson(socket, { type: 'error', error: 'runtime identity attestation requires the dedicated identity room' })
+      return
+    }
+    if (!this.runtimeIdentityChallenge || this.runtimeIdentityChallenge.expiresAtMs <= Date.now()) {
+      this.sendJson(socket, { type: 'error', error: 'runtime identity challenge is missing or expired' })
+      return
+    }
+    if (!isRecord(value)) {
+      this.sendJson(socket, { type: 'error', error: 'runtime identity attestation payload is invalid' })
+      return
+    }
+    const identity = isRecord(value.identity) ? value.identity : null
+    const runtimeDevice = identity ? readString(identity, 'device') : ''
+    const runtimeInstanceId = readString(value, 'runtimeInstanceId')
+    const identityDigest = readString(value, 'identityDigest')
+    if (
+      readString(value, 'schema') !== RUNTIME_IDENTITY_ATTESTATION_SCHEMA
+      || readString(value, 'sessionId') !== this.runtimeIdentityChallenge.sessionId
+      || readString(value, 'challenge') !== this.runtimeIdentityChallenge.challenge
+      || !runtimeDevice
+      || !runtimeInstanceId
+      || !SHA256_PATTERN.test(identityDigest)
+    ) {
+      this.sendJson(socket, { type: 'error', error: 'runtime identity attestation does not match the active challenge' })
+      return
+    }
+    if (
+      (attachment.runtimeDevice && attachment.runtimeDevice !== runtimeDevice)
+      || (attachment.runtimeInstanceId && attachment.runtimeInstanceId !== runtimeInstanceId)
+    ) {
+      this.sendJson(socket, { type: 'error', error: 'runtime identity cannot change within an authenticated room session' })
+      return
+    }
+    this.writeAttachment(socket, {
+      ...attachment,
+      runtimeDevice,
+      runtimeInstanceId,
+    })
+    this.broadcastJson({
+      type: 'runtime.identity.attested',
+      authenticatedPeerId: attachment.userId,
+      authenticatedSessionId: attachment.sessionId,
+      attestation: value,
+    })
   }
 
   private writeAttachment(socket: KnowgrphCanvasRoomSocketLike, attachment: CanvasRoomConnectionAttachment): void {

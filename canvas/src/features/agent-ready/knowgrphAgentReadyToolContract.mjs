@@ -23,6 +23,7 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   inspectLocal3dLayoutPositions: 'inspect_local_3d_layout_positions',
   inspectLocal2dZoomViewport: 'inspect_local_2d_zoom_viewport',
   inspectLocalSourceFilesSnapshot: 'inspect_local_source_files_snapshot',
+  readLocalRuntimeIdentity: 'read_local_runtime_identity',
   inspectAgentSurface: 'inspect_agent_surface',
 })
 
@@ -78,6 +79,30 @@ const FETCH_OUTPUT_SCHEMA = Object.freeze({
     metadata: {
       type: 'object',
       additionalProperties: true,
+    },
+  },
+})
+
+const RUNTIME_IDENTITY_OUTPUT_SCHEMA = Object.freeze({
+  type: 'object',
+  additionalProperties: false,
+  required: ['identity', 'gate'],
+  properties: {
+    identity: {
+      type: 'object',
+      additionalProperties: true,
+      required: [
+        'schema', 'device', 'branch', 'knowgrphRevision', 'agenticCanvasOsRevision',
+        'catalogRevision', 'catalogHydration', 'catalogCounts',
+      ],
+    },
+    gate: {
+      type: 'object',
+      additionalProperties: true,
+      required: [
+        'schema', 'status', 'transportStatus', 'requiredDeviceCount',
+        'observedDeviceCount', 'expiresAtMs', 'verificationDigest', 'message', 'differences',
+      ],
     },
   },
 })
@@ -264,6 +289,14 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           title: 'Inspect Local Source Files Snapshot',
           description: 'Inspect the active browser-local Knowgrph Source Files runtime snapshot from the app runtime without calling published storage or Pages MCP routes.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.readLocalRuntimeIdentity,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.readLocalRuntimeIdentity),
+          title: 'Read Local Runtime Identity',
+          description: 'Read the application-global canonical Knowgrph runtime identity and automatic cross-device verification status without refreshing catalogs, rebuilding identity, copying clipboard data, or mutating source.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          outputSchema: RUNTIME_IDENTITY_OUTPUT_SCHEMA,
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
         }]
       : []),

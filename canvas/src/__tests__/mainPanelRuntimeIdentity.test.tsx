@@ -4,6 +4,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { CrossDeviceIdentitySettingsRowsContent } from '@/features/panels/views/CrossDeviceIdentitySettingsRows'
 import type { KnowgrphRuntimeIdentity } from '@/features/runtime-identity/knowgrphRuntimeIdentity'
+import type { KnowgrphRuntimeIdentityGateSnapshot } from '@/features/runtime-identity/runtimeIdentityAttestationStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
 
@@ -11,6 +12,7 @@ export async function testMainPanelSettingsOwnsGlobalCrossDeviceIdentityGate() {
   const settingsViewSource = readFileSync(resolve(process.cwd(), 'src/features/panels/views/SettingsView.tsx'), 'utf8')
   const skillsCommandsSource = readFileSync(resolve(process.cwd(), 'src/features/panels/views/SkillsCommandsView.tsx'), 'utf8')
   const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
+  const identityRuntimeSource = readFileSync(resolve(process.cwd(), 'src/features/runtime-identity/KnowgrphRuntimeIdentityRuntime.tsx'), 'utf8')
   const settingsRowsSource = readFileSync(resolve(process.cwd(), 'src/features/panels/views/CrossDeviceIdentitySettingsRows.tsx'), 'utf8')
   if (
     !settingsViewSource.includes("area: CROSS_DEVICE_IDENTITY_SETTINGS_AREA")
@@ -21,8 +23,11 @@ export async function testMainPanelSettingsOwnsGlobalCrossDeviceIdentityGate() {
   }
   if (
     !appSource.includes('<KnowgrphRuntimeIdentityRuntime />')
+    || !identityRuntimeSource.includes('useKnowgrphRuntimeIdentityAttestationRuntime(identity)')
     || !settingsRowsSource.includes('useKnowgrphRuntimeIdentity()')
     || settingsRowsSource.includes('useAgenticOsRemoteGrammarCatalog')
+    || settingsRowsSource.includes('readKnowgrphStorageCanvasRoomConfig')
+    || settingsRowsSource.includes('createKnowgrphRuntimeIdentityAttestation')
     || !settingsRowsSource.includes('<KeyTypeValueStaticRow')
   ) {
     throw new Error('Expected app-global canonical identity ownership with a KTV-only Settings projection')
@@ -41,12 +46,23 @@ export async function testMainPanelSettingsOwnsGlobalCrossDeviceIdentityGate() {
     catalogHydration: { status: 'fresh', attempts: 1 },
     catalogCounts: { slash: 78, hash: 94, at: 95 },
   }
+  const gateSnapshot: KnowgrphRuntimeIdentityGateSnapshot = {
+    schema: 'knowgrph-runtime-identity-gate/v1',
+    status: 'pass',
+    transportStatus: 'connected',
+    requiredDeviceCount: 2,
+    observedDeviceCount: 2,
+    expiresAtMs: Date.now() + 60_000,
+    verificationDigest: 'd'.repeat(64),
+    message: 'Exact runtime identity parity passed across 2 devices.',
+    differences: [],
+  }
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
   const root = createRoot(container as unknown as HTMLElement)
   try {
-    await mountReactRoot(root, React.createElement(CrossDeviceIdentitySettingsRowsContent, { identity }), {
+    await mountReactRoot(root, React.createElement(CrossDeviceIdentitySettingsRowsContent, { identity, gate: gateSnapshot }), {
       window: dom.window as unknown as Window,
       frames: 2,
     })
@@ -58,9 +74,13 @@ export async function testMainPanelSettingsOwnsGlobalCrossDeviceIdentityGate() {
       throw new Error('Expected MainPanel Settings to render the global cross-device identity gate contract')
     }
     const counts = container.querySelector('[data-kg-runtime-catalog-counts="78/94/95"]')
+    const peerGate = container.querySelector('[data-kg-runtime-identity-peer-gate="pass"]')
     const buttons = Array.from<HTMLButtonElement>(container.querySelectorAll('button')).map(button => button.textContent?.trim())
-    if (!counts || !buttons.includes('Refresh identity catalog') || !buttons.includes('Copy identity JSON')) {
-      throw new Error('Expected the identity gate to expose counts, bounded refresh, and JSON export')
+    if (!counts || !peerGate || !buttons.includes('Refresh identity catalog') || !buttons.includes('Copy diagnostic JSON')) {
+      throw new Error('Expected the identity gate to expose automatic peer parity, bounded refresh, and diagnostic export')
+    }
+    if (buttons.includes('Copy identity JSON')) {
+      throw new Error('Expected clipboard export to be diagnostic-only rather than the compliance path')
     }
   } finally {
     await unmountReactRoot(root, { window: dom.window as unknown as Window })

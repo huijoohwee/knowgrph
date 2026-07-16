@@ -36,6 +36,7 @@ import { inspectLocalChatPipelineState } from './localChatPipelineStateInspectio
 import { inspectLocalMainPanelChatCanvasPipeline } from './localMainPanelChatCanvasPipelineInspection'
 import { inspectLocalSettingsChatReadiness } from './localSettingsChatReadinessInspection'
 import { inspectLocalWorkspaceDocument } from './localWorkspaceDocumentInspection'
+import { buildReadLocalRuntimeIdentityTool } from './localRuntimeIdentityWebMcpTool'
 
 type WebMcpToolInput = Record<string, unknown> | undefined
 
@@ -115,6 +116,7 @@ const INSPECT_LOCAL_3D_CAMERA_POSE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_
 const INSPECT_LOCAL_3D_LAYOUT_POSITIONS_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions)
 const INSPECT_LOCAL_2D_ZOOM_VIEWPORT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal2dZoomViewport)
 const INSPECT_LOCAL_SOURCE_FILES_SNAPSHOT_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSourceFilesSnapshot)
+const READ_LOCAL_RUNTIME_IDENTITY_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.readLocalRuntimeIdentity)
 const INSPECT_AGENT_SURFACE_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface)
 const SEARCH_TOOL_NAME = SEARCH_TOOL_CONTRACT.webName
 const FETCH_TOOL_NAME = FETCH_TOOL_CONTRACT.webName
@@ -543,6 +545,7 @@ const WEB_MCP_TOOL_BUILDERS: Record<string, () => WebMcpTool> = {
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions]: buildInspectLocal3dLayoutPositionsTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal2dZoomViewport]: buildInspectLocal2dZoomViewportTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSourceFilesSnapshot]: buildInspectLocalSourceFilesSnapshotTool,
+  [KNOWGRPH_AGENT_READY_TOOL_IDS.readLocalRuntimeIdentity]: () => buildReadLocalRuntimeIdentityTool(READ_LOCAL_RUNTIME_IDENTITY_TOOL_CONTRACT),
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface]: buildInspectAgentSurfaceTool,
 }
 
