@@ -10,21 +10,7 @@ import {
   sanitizeRuntimeInvocationQueryText,
 } from './chatRuntimeInvocationQuery'
 import { CHAT_STORYBOARD_TEMPLATE_AGENTIC_OS_DIRECTIVE_PROMPT } from './chatStoryboardTemplateContract'
-
-const buildProbeTreeCardMaterializationPrompt = (userQuery: string): string => {
-  if (!/\bknowgrph\.probe\.(?:generate|select)\b/i.test(userQuery)) return ''
-  return [
-    'Probe-Tree card materialization contract:',
-    '- Treat the active request or selected card as the current probe node.',
-    '- Produce 2-4 user-selectable next-step branch cards, not only prose.',
-    '- Include one fenced yaml block rooted at `response:` with `response.structuredContent.cards`.',
-    '- Each card must include id, label, kind: text, output, parentNodeId when known, candidateOptionId, rationale, and nextAction.',
-    '- Each card output starts with the proposed next question and ends with the short rationale for selecting it.',
-    '- Use neutral tool handoff fields for `knowgrph.probe.generate` and `knowgrph.probe.select`; do not claim tool execution unless the runtime actually returned tool output.',
-    '- If a parent card/node id is present, include structuredContent.edges from that parent to each candidate card with label `candidateOption`.',
-    '- Keep the cards editable and review-first so the user can select the next branch from the canvas before any `probe.select` mutation.',
-  ].join('\n')
-}
+import { buildProbeTreeCardMaterializationPrompt } from './probeTreeStructuredResponseContract'
 
 export const collectAgenticOsRuntimeInvocations = (userQuery: string): AgenticOsResolvedInvocation[] => {
   const found = new Map<string, AgenticOsResolvedInvocation>()

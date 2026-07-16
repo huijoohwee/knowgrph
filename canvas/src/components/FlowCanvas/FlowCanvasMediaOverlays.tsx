@@ -51,10 +51,17 @@ import { clampMediaLayoutViewportToFrame16x9, coerceRichMediaPanelSizeForLayoutV
 import { readMediaLayoutNodePropsSignature } from '@/components/FlowCanvas/flowCanvasMediaLayoutPropsSignature'
 import { buildFlowCanvasRichMediaPanelHeaderToolbar } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
 import { captureRichMediaPanelBoundaryEvent } from '@/components/captureRichMediaPanelBoundaryEvent'
-import { readElementWorldTopLeft2d, readNodeWorldCenterFromTopLeft2d, readNodeWorldTopLeft2d } from '@/components/FlowCanvas/flowCanvasMediaOverlayWorldPoint'
+import {
+  readElementWorldTopLeft2d,
+  readNodeWorldCenterFromTopLeft2d,
+  readNodeWorldTopLeft2d,
+  resolveFlowCanvasMediaOverlayGraphNode,
+  resolveFlowCanvasMediaOverlayPinnedInCanvas,
+  resolveFlowCanvasMediaOverlayWorldTopLeft2d,
+} from '@/components/FlowCanvas/flowCanvasMediaOverlayWorldPoint'
 import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
-import { readFlowWidgetPinnedInCanvas } from '@/lib/storyboardWidget/flowWidgetPinnedState'
 import { isFlowWidgetHeaderDragAllowedByPin } from '@/lib/storyboardWidget/flowWidgetPinMovement'
+import { useFlowCanvasMediaOverlayDebug } from '@/components/FlowCanvas/useFlowCanvasMediaOverlayDebug'
 function escapeSelectorAttrValue(value: string): string {
   const text = String(value || '')
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(text)
@@ -255,32 +262,6 @@ export default function FlowCanvasMediaOverlays(args: {
     }
     sceneNodePropsByIdRef.current = next
   }, [sceneGraphData, strybldrStoryboardCardAspectMode])
-  React.useEffect(() => {
-    __flowCanvasDebug.sceneNodeIds = Array.isArray(nativeSceneGraphData?.nodes)
-      ? nativeSceneGraphData.nodes.map(node => String(node?.id || '').trim()).filter(Boolean)
-      : []
-    syncFlowCanvasDebugWindow()
-  }, [nativeSceneGraphData])
-  React.useEffect(() => {
-    __flowCanvasDebug.mediaNodeIds = mediaNodes.map(node => String(node.id || '').trim()).filter(Boolean)
-    __flowCanvasDebug.overlayNodeIds = mediaNodes.map(node => String(node.id || '').trim()).filter(Boolean)
-    syncFlowCanvasDebugWindow()
-  }, [mediaNodes])
-  React.useEffect(() => {
-    try {
-      ;(window as unknown as { __flowCanvasDebug?: unknown }).__flowCanvasDebug = __flowCanvasDebug
-      return () => {
-        try {
-          const win = window as unknown as { __flowCanvasDebug?: unknown }
-          if (win.__flowCanvasDebug === __flowCanvasDebug) delete win.__flowCanvasDebug
-        } catch {
-          void 0
-        }
-      }
-    } catch {
-      return () => void 0
-    }
-  }, [])
   const mediaLayoutItemIds = React.useMemo(
     () => {
       const ids = mediaNodes.map(node => String(node.id || '').trim()).filter(Boolean)
@@ -336,25 +317,14 @@ export default function FlowCanvasMediaOverlays(args: {
     [mediaLayoutItemIds, sceneGraphData],
   )
   const sceneGraphDataRevision = React.useMemo(() => readGraphDataRevision(sceneGraphData), [sceneGraphData])
-  React.useEffect(() => {
-    const next: Record<string, { left: number; top: number; width: number; height: number }> = {}
-    for (let i = 0; i < mediaNodes.length; i += 1) {
-      const node = mediaNodes[i]
-      const id = String(node?.id || '').trim()
-      if (!id) continue
-      const el = mediaOverlayElsRef.current.get(id)
-      if (!el) continue
-      const transformMatch = /translate3d\(([-0-9.]+)px,\s*([-0-9.]+)px,\s*0px\)/.exec(String(el.style.transform || ''))
-      const left = transformMatch ? Number.parseFloat(transformMatch[1] || 'NaN') : Number.NaN
-      const top = transformMatch ? Number.parseFloat(transformMatch[2] || 'NaN') : Number.NaN
-      const width = Number.parseFloat(el.style.width || 'NaN')
-      const height = Number.parseFloat(el.style.height || 'NaN')
-      if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) continue
-      next[id] = { left, top, width, height }
-    }
-    __flowCanvasDebug.richMediaRectById = next
-    syncFlowCanvasDebugWindow()
-  }, [mediaNodes, mediaLayoutItemsKey, mediaLayoutPropsSignature, workspaceOverlayOpen])
+  useFlowCanvasMediaOverlayDebug({
+    mediaLayoutItemsKey,
+    mediaLayoutPropsSignature,
+    mediaNodes,
+    mediaOverlayElementsRef: mediaOverlayElsRef,
+    nativeSceneGraphData,
+    workspaceOverlayOpen,
+  })
   const buildDrawArgs = React.useCallback(() => drawArgsRef.current, [drawArgsRef])
   const flushMediaOverlayLayout = React.useCallback(() => {
     mediaOverlayLayoutScheduleRef.current?.()
@@ -661,7 +631,22 @@ export default function FlowCanvasMediaOverlays(args: {
       getElementForId: id => mediaOverlayElsRef.current.get(id) || null,
       getScreenAnchorForId: readMediaDropScreenAnchor,
       onResolvedWorldTopLeftForId: storyboardRichMediaWorldTransformProjectionMode ? persistResolvedMediaOverlayWorldPosition : undefined,
-      getNodeWorldTopLeftForId: storyboardRichMediaWorldTransformProjectionMode ? id => mediaOverlayWorldPositionOverrideRef.current.get(id) || effectiveFlowWidgetWorldPosByNodeId[id] || readNodeWorldTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeWorldTopLeft2d((sceneGraphData?.nodes || []).find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeWorldTopLeft2d(runtimeRef.current?.scene?.nodeById.get(id)) : undefined,
+      getNodeWorldTopLeftForId: storyboardRichMediaWorldTransformProjectionMode ? id => {
+        const graphNode = resolveFlowCanvasMediaOverlayGraphNode(sceneGraphData, id)
+        const pinnedInCanvas = resolveFlowCanvasMediaOverlayPinnedInCanvas({
+          graphMetaKind: storyboardWidgetFrontmatterDocumentModeRequested ? 'frontmatter-flow' : null,
+          node: graphNode,
+          pinnedValue: effectiveFlowWidgetPinnedByNodeId[id],
+        })
+        return resolveFlowCanvasMediaOverlayWorldTopLeft2d({
+          graphNode,
+          pinnedInCanvas,
+          interactionOverride: mediaOverlayWorldPositionOverrideRef.current.get(id),
+          storedWorldPosition: effectiveFlowWidgetWorldPosByNodeId[id],
+          mediaNode: mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id)),
+          runtimeNode: runtimeRef.current?.scene?.nodeById.get(id),
+        })
+      } : undefined,
       getNodeWorldCenterForId: id => readNodeWorldCenterFromTopLeft2d(mediaNodes.find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeWorldCenterFromTopLeft2d((sceneGraphData?.nodes || []).find(node => isCanonicalNodeIdEqual(node?.id, id))) || readNodeCenterWorld2d(runtimeRef.current?.scene?.nodeById.get(id), { coords: 'center' }),
       getCollisionObstacles: () => {
         const obstacles: Array<{ id: string; left: number; top: number; width: number; height: number }> = []
@@ -709,12 +694,14 @@ export default function FlowCanvasMediaOverlays(args: {
     mediaLayoutItemsKey,
     mediaPanelDensity,
     effectiveFlowWidgetWorldPosByNodeId,
+    effectiveFlowWidgetPinnedByNodeId,
     computeOverlaySizingScale,
     persistResolvedMediaOverlayWorldPosition,
     readMediaLayoutViewport,
     writeRichMediaResizeTrace,
     queryActiveStoryboardWidgetOverlays,
     runtimeRef,
+    sceneGraphDataRevision,
     schema,
     overlaySizing,
     storyboardSharedSurfaceRendererMode,
@@ -747,7 +734,11 @@ export default function FlowCanvasMediaOverlays(args: {
         const overlayInteractionEnabled = mediaOverlayInteractionPolicy.overlayPanActive
         const headerDragInteractionActive = mediaOverlayInteractionPolicy.headerDragActive
         const resizeInteractionActive = mediaOverlayInteractionPolicy.resizeActive
-        const richMediaPanelPinned = readFlowWidgetPinnedInCanvas(effectiveFlowWidgetPinnedByNodeId, node.id)
+        const richMediaPanelPinned = resolveFlowCanvasMediaOverlayPinnedInCanvas({
+          graphMetaKind: storyboardWidgetFrontmatterDocumentModeRequested ? 'frontmatter-flow' : null,
+          node: resolveFlowCanvasMediaOverlayGraphNode(sceneGraphData, node.id),
+          pinnedValue: effectiveFlowWidgetPinnedByNodeId[node.id],
+        })
         const richMediaPanelPinAllowsMovement = isFlowWidgetHeaderDragAllowedByPin({
           pinnedInCanvas: richMediaPanelPinned,
         })
@@ -782,7 +773,7 @@ export default function FlowCanvasMediaOverlays(args: {
         }
         const richMediaPanelHeaderToolbar = buildFlowCanvasRichMediaPanelHeaderToolbar({
           enabled: useStoryboardWidgetRichMediaPanelHeaderToolbar, flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId, flowWidgetStateGraphKey, isSelected,
-          node, onBeforePinnedChange: () => preserveMediaOverlayScreenPlacementForPinTransition(node.id), requestCommit,
+          node, onBeforePinnedChange: () => preserveMediaOverlayScreenPlacementForPinTransition(node.id), pinned: richMediaPanelPinned, requestCommit,
           scheduleLayout: flushMediaOverlayLayout, setActiveRichMediaPanelId, stopEvent,
         })
         return (

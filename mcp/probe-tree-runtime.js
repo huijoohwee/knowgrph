@@ -6,6 +6,9 @@ import {
   KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   KNOWGRPH_PROBE_TREE_TOOL_NAMES,
   PROBE_TREE_DEFAULTS,
+  PROBE_TREE_FALLBACK_OPTIONS,
+  buildProbeTreeContextualFallbackOptions,
+  buildProbeTreeStructuredResponse,
 } from "../canvas/src/features/agent-ready/probeTreeContract.mjs";
 import {
   addMemoryLayerMemory,
@@ -186,13 +189,6 @@ function buildProbeTreeStateGraphDefinition() {
   };
 }
 
-const optionTemplates = Object.freeze([
-  { text: "What outcome would make this resolved?", rationale: "Locks the terminal condition before more branching." },
-  { text: "Which constraint matters most right now?", rationale: "Separates blockers from preferences so the next step can narrow quickly." },
-  { text: "What information is still missing?", rationale: "Finds the smallest context gap before handing off to a downstream capability." },
-  { text: "Which path should be ruled out first?", rationale: "Cuts low-value branches before spending more tokens or taps." },
-]);
-
 const exemplarOption = (memory) => {
   const text = normalizeString(memory?.metadata?.recommended_question || memory?.memory);
   if (!text) return null;
@@ -207,7 +203,8 @@ const buildOptions = ({ contextText, generatedOptions = [], memories, k }) => {
   const candidates = [
     ...generatedOptions,
     ...memories.map(exemplarOption).filter(Boolean),
-    ...optionTemplates,
+    ...buildProbeTreeContextualFallbackOptions(contextText),
+    ...PROBE_TREE_FALLBACK_OPTIONS,
   ];
   const seen = new Set();
   const options = [];
@@ -250,7 +247,7 @@ export async function generateProbeOptions(input = {}, options = {}) {
   const currentNodeId = normalizeString(input.current_node_id);
   if (!threadRootId) throw new Error("thread_root_id is required.");
   if (!currentNodeId) throw new Error("current_node_id is required.");
-  const k = boundedInteger({ value: input.k, fallback: PROBE_TREE_DEFAULTS.optionCount, min: 1, max: PROBE_TREE_DEFAULTS.maxOptionCount });
+  const k = boundedInteger({ value: input.k, fallback: PROBE_TREE_DEFAULTS.optionCount, min: PROBE_TREE_DEFAULTS.minOptionCount, max: PROBE_TREE_DEFAULTS.maxOptionCount });
   const recallTopK = boundedInteger({ value: input.recall_top_k, fallback: PROBE_TREE_DEFAULTS.recallTopK, min: 0, max: 20 });
   const tokenBudget = boundedInteger({ value: input.token_budget, fallback: PROBE_TREE_DEFAULTS.tokenBudget, min: 1, max: Number.MAX_SAFE_INTEGER });
   const contextText = normalizeString(input.context_text) || `${threadRootId} ${currentNodeId}`;
@@ -288,6 +285,9 @@ export async function generateProbeOptions(input = {}, options = {}) {
   const resultOptions = buildOptions({ contextText, generatedOptions: modelResult.options, memories: recalledExemplars, k });
   const modelConfigured = modelResult.configured === true;
   const modelSatisfied = modelConfigured && Array.isArray(modelResult.options) && modelResult.options.length > 0;
+  const degraded = !modelSatisfied || resultOptions.length < k;
+  const degradedReason = modelSatisfied ? (resultOptions.length < k ? "model_returned_fewer_than_k_options" : "") : modelResult.reason;
+  const costLog = modelResult.costLog || zeroCostLog("probe-tree-local-heuristic");
   return {
     contractVersion: KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
     ok: true,
@@ -301,11 +301,20 @@ export async function generateProbeOptions(input = {}, options = {}) {
       model: modelResult.model || "",
       configured: modelConfigured,
     },
-    degraded: !modelSatisfied || resultOptions.length < k,
-    degraded_reason: modelSatisfied ? (resultOptions.length < k ? "model_returned_fewer_than_k_options" : "") : modelResult.reason,
+    degraded,
+    degraded_reason: degradedReason,
+    response: buildProbeTreeStructuredResponse({
+      threadRootId,
+      currentNodeId,
+      contextText,
+      options: resultOptions,
+      optionCount: k,
+      probeTreeDepth: input.probe_tree_depth,
+      degraded,
+    }),
     stateGraph: buildProbeTreeStateGraphDefinition(),
     latency_ms: Math.max(0, performance.now() - startedAt),
-    cost_log: modelResult.costLog || zeroCostLog("probe-tree-local-heuristic"),
+    cost_log: costLog,
   };
 }
 

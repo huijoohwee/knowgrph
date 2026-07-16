@@ -1,0 +1,269 @@
+import { buildProbeTreeStoryboardMermaidFlowchart, PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND } from '@/components/StoryboardCanvas/storyboardProbeTreeMermaidFlowchart'
+import { hashText } from '@/features/parsers/hash'
+import { extractChatResponseStructuredSurface, type ChatResponseSurfaceNode } from '@/features/chat/chatResponseStructuredContent'
+import { KNOWGRPH_PROBE_TREE_MAX_DEPTH } from '@/features/agentic-os/probeTreePromptPreset'
+import { PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION, isProbeTreeResponseContextRelevant } from '@/features/agent-ready/probeTreeContract.mjs'
+import type { ProbeTreeMcpInvocationResolution } from '@/features/agent-ready/probeTreeMcpBridgeContract'
+import { resolveStoryboardWidgetProbeTreeBranchPositions } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
+import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
+import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
+import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
+
+const GENERIC_PROBE_CARD_PATTERN = /^(?:clarify probe|generate branches|select handoff)(?::|$)/i
+
+const readString = (value: unknown): string => String(unwrapGraphCellValue(value) ?? '').trim()
+
+const readNodeId = (node?: GraphNode | null): string => readString(node?.id)
+
+const readProbeTreeDepth = (properties: Record<string, unknown>): number => {
+  const value = Number(unwrapGraphCellValue(properties.probeTreeDepth))
+  if (!Number.isFinite(value)) return 0
+  return Math.max(0, Math.min(KNOWGRPH_PROBE_TREE_MAX_DEPTH, Math.floor(value)))
+}
+
+const isProbeTreeCardForAnchor = (node: GraphNode, anchorNodeId: string): boolean => {
+  const properties = readGraphNodeProperties(node)
+  const parentNodeId = readString(properties.parentNodeId || properties.parentGraphNodeId)
+  return parentNodeId === anchorNodeId && readString(properties.cardTypeLabel) === 'Probe-Tree Card'
+}
+
+const collectReplacedProbeTreeNodeIds = (graphData: GraphData, anchorNodeId: string): Set<string> => {
+  const removedNodeIds = new Set(
+    (graphData.nodes || [])
+      .filter(node => isProbeTreeCardForAnchor(node, anchorNodeId))
+      .map(readNodeId)
+      .filter(Boolean),
+  )
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const node of graphData.nodes || []) {
+      const nodeId = readNodeId(node)
+      if (!nodeId || removedNodeIds.has(nodeId)) continue
+      const properties = readGraphNodeProperties(node)
+      const parentNodeId = readString(properties.parentNodeId || properties.parentGraphNodeId)
+      if (!removedNodeIds.has(parentNodeId) || readString(properties.cardTypeLabel) !== 'Probe-Tree Card') continue
+      removedNodeIds.add(nodeId)
+      changed = true
+    }
+  }
+  return removedNodeIds
+}
+
+const isStructuredProbeCard = (node: ChatResponseSurfaceNode): boolean => (
+  node.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID
+  && node.properties.probeTreeResponseMode === 'llm-contract'
+  && node.properties.cardTypeLabel === 'Probe-Tree Card'
+  && !GENERIC_PROBE_CARD_PATTERN.test(String(node.label || '').trim())
+)
+
+const buildCandidateEdge = (source: string, target: string, candidateOptionId: string): GraphEdge => ({
+  id: `probe-tree:edge:${hashText(`${source}:candidateOption:${target}`).slice(0, 12)}`,
+  source,
+  target,
+  label: 'candidateOption',
+  properties: {
+    evidenceKind: 'mcp-structured-response',
+    confidence: 'medium',
+    candidateOptionId,
+  },
+})
+
+const readCardText = (node: ChatResponseSurfaceNode): string => [
+  node.label,
+  node.properties.summary,
+  node.properties.question,
+  node.properties.output,
+  node.properties.rationale,
+  node.properties.evidenceNeeded,
+].map(readString).filter(Boolean).join(' ')
+
+const buildPanelMarkdown = (args: {
+  anchorNodeId: string
+  cards: ChatResponseSurfaceNode[]
+  invocationTokens: readonly string[]
+  invocationResolutions: readonly ProbeTreeMcpInvocationResolution[]
+  mcpInvoked: boolean
+  responseSource: 'provider' | 'mcp' | 'context-fallback'
+  model: string
+}): string => {
+  const resolutionByToken = new Map(args.invocationResolutions.map(item => [item.token.toLowerCase(), item]))
+  const grammarLine = args.invocationTokens.length > 0
+    ? args.invocationTokens.map(token => {
+        const resolved = resolutionByToken.get(token.toLowerCase())
+        if (!resolved) return token
+        return `${token} (${resolved.ok ? 'resolved' : 'forwarded; docs unavailable'})`
+      }).join(' ')
+    : '(none)'
+  const responseMode = args.responseSource === 'provider'
+    ? 'provider refinement over the literal MCP result'
+    : args.responseSource === 'mcp'
+      ? 'literal local MCP structured response'
+      : args.mcpInvoked
+        ? 'bounded contextual fallback after response-contract validation'
+        : 'bounded contextual fallback; MCP was unavailable'
+  return [
+    '# Probe-Tree Branches',
+    '',
+    `Source node: ${args.anchorNodeId}`,
+    `Contract: ${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION}`,
+    `MCP: ${args.mcpInvoked ? 'knowgrph.probe.generate invoked' : 'not invoked'}`,
+    `Response mode: ${responseMode}`,
+    `Model: ${args.model || 'unknown'}`,
+    `Invocation grammar: ${grammarLine}`,
+    '',
+    ...args.cards.flatMap((card, index) => {
+      const question = readString(card.properties.summary || card.properties.question) || card.label
+      const rationale = readString(card.properties.rationale)
+      const evidence = readString(card.properties.evidenceNeeded)
+      return [
+        `${index + 1}. **${card.label}** — ${question}`,
+        ...(rationale ? [`   - Why: ${rationale}`] : []),
+        ...(evidence ? [`   - Evidence: ${evidence}`] : []),
+      ]
+    }),
+  ].join('\n')
+}
+
+export type StoryboardWidgetProbeTreeStructuredMaterialization = {
+  graphData: GraphData
+  materializedNodeIds: string[]
+  panelOutput: string
+  responseSource: 'provider' | 'mcp' | 'context-fallback'
+  model: string
+}
+
+export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
+  graphData: GraphData | null | undefined
+  anchorNode: GraphNode
+  responseText: string
+  contextText: string
+  responseSource: 'provider' | 'mcp' | 'context-fallback'
+  model: string
+  mcpInvoked: boolean
+  threadRootId?: string
+  invocationTokens: readonly string[]
+  invocationResolutions?: readonly ProbeTreeMcpInvocationResolution[]
+}): StoryboardWidgetProbeTreeStructuredMaterialization | null {
+  const graphData = args.graphData
+  const anchorNodeId = readNodeId(args.anchorNode)
+  if (!graphData || !anchorNodeId) return null
+  const surface = extractChatResponseStructuredSurface(String(args.responseText || ''))
+  const surfaceNodes = surface?.nodes || []
+  const sourceWidgets = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'widget')
+  const panels = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'panel')
+  const responseCards = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'card')
+  const cards = responseCards.filter(isStructuredProbeCard)
+  if (
+    sourceWidgets.length !== 1
+    || panels.length !== 1
+    || readString(panels[0]?.label) !== 'Probe-Tree Branches'
+    || responseCards.length < 2
+    || responseCards.length > 4
+    || cards.length !== responseCards.length
+  ) return null
+  if (!isProbeTreeResponseContextRelevant({
+    contextText: args.contextText,
+    responseTexts: cards.map(readCardText),
+  })) return null
+
+  const removedNodeIds = collectReplacedProbeTreeNodeIds(graphData, anchorNodeId)
+  const retainedNodes = (graphData.nodes || []).filter(node => !removedNodeIds.has(readNodeId(node)))
+  const retainedNodeIds = new Set(retainedNodes.map(readNodeId).filter(Boolean))
+  const priorNodeById = new Map((graphData.nodes || []).map(node => [readNodeId(node), node]))
+  const anchorProperties = readGraphNodeProperties(args.anchorNode)
+  const threadRootId = readString(args.threadRootId) || readString(anchorProperties.probeTreeThreadRootId) || anchorNodeId
+  const nextProbeTreeDepth = Math.min(KNOWGRPH_PROBE_TREE_MAX_DEPTH, readProbeTreeDepth(anchorProperties) + 1)
+  const projectedPositions = resolveStoryboardWidgetProbeTreeBranchPositions({
+    graphData,
+    anchorNode: args.anchorNode,
+    removedNodeIds,
+    count: cards.length,
+  })
+  const materializedNodeIds: string[] = []
+  const projectedNodes: GraphNode[] = cards.map((card, index) => {
+    let nodeId = card.id
+    if (retainedNodeIds.has(nodeId) && nodeId !== anchorNodeId) {
+      nodeId = `${nodeId}-${hashText(anchorNodeId).slice(0, 8)}`
+    }
+    materializedNodeIds.push(nodeId)
+    const previous = priorNodeById.get(nodeId)
+    const candidateOptionId = readString(card.properties.probeTreeCandidateKey) || `candidate-${index + 1}`
+    const question = readString(card.properties.summary || card.properties.question) || card.label
+    return {
+      id: nodeId,
+      type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+      label: String(card.label || question).trim().slice(0, 160),
+      x: typeof previous?.x === 'number' && Number.isFinite(previous.x) ? previous.x : projectedPositions[index]!.x,
+      y: typeof previous?.y === 'number' && Number.isFinite(previous.y) ? previous.y : projectedPositions[index]!.y,
+      properties: {
+        ...card.properties,
+        title: String(card.label || question).trim().slice(0, 160),
+        output: '',
+        summary: question,
+        index: `P${index + 1}`,
+        parentNodeId: anchorNodeId,
+        parentGraphNodeId: anchorNodeId,
+        probeTreeCandidateKey: candidateOptionId,
+        probeTreeResponseMode: 'llm-contract',
+        probeTreeThreadRootId: threadRootId,
+        probeTreeCurrentNodeId: nodeId,
+        probeTreeDepth: nextProbeTreeDepth,
+        responseContractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+        responseSource: args.responseSource,
+        mcpInvoked: args.mcpInvoked,
+        outputModel: args.model,
+      } as Record<string, JSONValue>,
+    }
+  })
+
+  const retainedEdges = (graphData.edges || []).filter(edge => {
+    const { src, tgt } = readGraphEdgeEndpoints(edge)
+    const label = readString(edge.label)
+    if ((src && removedNodeIds.has(src)) || (tgt && removedNodeIds.has(tgt))) return false
+    return !(src === anchorNodeId && label === 'candidateOption')
+  })
+  const candidateEdges = projectedNodes.map((node, index) => buildCandidateEdge(
+    anchorNodeId,
+    node.id,
+    readString(node.properties.probeTreeCandidateKey) || `candidate-${index + 1}`,
+  ))
+  let nextGraphData: GraphData = {
+    ...graphData,
+    nodes: [...retainedNodes, ...projectedNodes],
+    edges: [...retainedEdges, ...candidateEdges],
+    metadata: {
+      ...(graphData.metadata || {}),
+      probeTreeMaterializedAtMs: Date.now(),
+      probeTreeInvocation: 'knowgrph.probe.generate',
+      probeTreeResponseContractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+      probeTreeMcpInvoked: args.mcpInvoked,
+      probeTreeResponseSource: args.responseSource,
+    },
+  }
+  nextGraphData = {
+    ...nextGraphData,
+    metadata: {
+      ...(nextGraphData.metadata || {}),
+      probeTreeMermaidFlowchart: buildProbeTreeStoryboardMermaidFlowchart({ graphData: nextGraphData, rootNodeId: anchorNodeId }),
+      probeTreeMermaidFlowchartKind: PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND,
+    },
+  }
+  return {
+    graphData: nextGraphData,
+    materializedNodeIds,
+    panelOutput: buildPanelMarkdown({
+      anchorNodeId,
+      cards,
+      invocationTokens: args.invocationTokens,
+      invocationResolutions: args.invocationResolutions || [],
+      mcpInvoked: args.mcpInvoked,
+      responseSource: args.responseSource,
+      model: args.model,
+    }),
+    responseSource: args.responseSource,
+    model: args.model,
+  }
+}

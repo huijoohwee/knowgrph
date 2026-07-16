@@ -73,9 +73,9 @@ export const buildDeterministicBaseTemplateKgcTurn = (args: BaseFallbackArgs): s
     ? false
     : shouldUseResponseOnlyBaseTemplate({ profile, requestText: args.requestText, assistantText })
   const outputProfile = responseOnly ? projectResponseOnlyProfile(profile, assistantText) : profile
-  const useComputingFlowResponse = (
+  const useComputingFlowResponse = !responseSurface && (
     outputProfile.signals.computingFlow ||
-    (!responseOnly && !responseSurface && !shouldMaterializeHeadlessResponseSurface(outputProfile) && (
+    (!responseOnly && !shouldMaterializeHeadlessResponseSurface(outputProfile) && (
       hasCompleteAssistantMarkdownAnswer(assistantText)
     ))
   )

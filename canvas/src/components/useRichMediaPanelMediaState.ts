@@ -16,6 +16,7 @@ import {
   normalizeRichMediaPanelInlineSrcDoc,
   RICH_MEDIA_PANEL_SRCDOC_SIZE_MESSAGE,
   RICH_MEDIA_PANEL_SRCDOC_THEME_MESSAGE,
+  shouldUseMediaOwnedRichMediaPanelSrcDocScroll,
   shouldUsePanelOwnedRichMediaPanelSrcDocScroll,
   shouldUseViewportRichMediaPanelSrcDocSize,
 } from '@/lib/render/richMediaPanelSrcDoc'
@@ -177,8 +178,9 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
   }, [props.overlayId])
   const effectiveInlineSrcDoc = inlineSrcDoc || grabMapsPoiPreviewSrcDoc
   const inlineSrcDocRequestsPanelScroll = React.useMemo(() => shouldUsePanelOwnedRichMediaPanelSrcDocScroll(effectiveInlineSrcDoc), [effectiveInlineSrcDoc])
+  const inlineSrcDocRequestsMediaScroll = React.useMemo(() => shouldUseMediaOwnedRichMediaPanelSrcDocScroll(effectiveInlineSrcDoc), [effectiveInlineSrcDoc])
   const inlineSrcDocUsesViewportSize = React.useMemo(() => shouldUseViewportRichMediaPanelSrcDocSize(effectiveInlineSrcDoc), [effectiveInlineSrcDoc])
-  const scrollOwner = inlineSrcDocRequestsPanelScroll ? 'panel' : declaredScrollOwner
+  const scrollOwner = inlineSrcDocRequestsPanelScroll ? 'panel' : inlineSrcDocRequestsMediaScroll ? 'media' : declaredScrollOwner
   const normalizedInlineSrcDoc = React.useMemo(() => normalizeRichMediaPanelInlineSrcDoc({
     srcDoc: effectiveInlineSrcDoc,
     title,

@@ -7,9 +7,16 @@ import {
   getWidgetRegistryEntryLabel,
   isPropsPanelWidgetPaletteEntry,
 } from '@/features/storyboard-widget-manager/registryTemplates'
+import {
+  PROBE_TREE_TYPE_ONE_LAYOUT_ID,
+  WIDGET_CARD_TYPE_ZERO_LAYOUT_ID,
+  buildWidgetCardLayoutSeed,
+} from '@/lib/storyboardWidget/widgetCardLayoutVariants'
+import { listWidgetPaletteLayoutVariants } from '@/features/toolbar/widgetPaletteLayoutVariants'
 
 export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel() {
   const paletteText = readFileSync(resolve(process.cwd(), 'src/features/toolbar/WidgetPalette.tsx'), 'utf8')
+  const palettePreviewText = readFileSync(resolve(process.cwd(), 'src/features/toolbar/WidgetPaletteCardLayoutPreview.tsx'), 'utf8')
   const floatingPanelText = readFileSync(resolve(process.cwd(), 'src/features/toolbar/FloatingPropsPanel.tsx'), 'utf8')
   const floatingPanelAddNodeText = readFileSync(resolve(process.cwd(), 'src/lib/toolbar/floatingPropsPanelAddNode.ts'), 'utf8')
   const canvasViewportText = readFileSync(resolve(process.cwd(), 'src/components/CanvasViewport.tsx'), 'utf8')
@@ -23,23 +30,39 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
   const copyText = readFileSync(resolve(process.cwd(), 'src/lib/config-copy/uiMeta.ts'), 'utf8')
 
   const paletteSnippets = [
-    'getWidgetRegistryEntryLabel',
+    'listWidgetPaletteLayoutVariants',
+    '<WidgetPaletteCardLayoutPreview variant={variant} />',
     'beginFlowWidgetPointerDragSession',
     'nodeTypeId: entry.nodeTypeId',
     'widgetTypeId: entry.widgetTypeId',
     'formId: entry.formId',
+    'layoutVariantId: variant.id',
     'markFlowWidgetPointerDragNativeStart',
     'dispatchFlowWidgetPointerDragDropFromSession',
     'eventType: ev.type',
     'clearActiveFlowWidgetPointerDragSession',
     'aria-label="Widget palette"',
     '>Widgets<',
-    'ready-to-Run widget node',
+    'Drag a widget, card, or flow-editor layout into the canvas.',
   ]
   for (const snippet of paletteSnippets) {
     if (!paletteText.includes(snippet)) {
       throw new Error(`expected widget palette contract snippet: ${snippet}`)
     }
+  }
+  if (paletteText.includes('{entry.widgetTypeId}/{entry.formId}')) {
+    throw new Error('expected widget palette entries to render card layouts instead of registry metadata descriptions')
+  }
+  for (const snippet of [
+    'data-kg-widget-palette-layout={variant.id}',
+    'data-kg-widget-palette-aspect-ratio={variant.aspectRatio}',
+    "data-kg-widget-palette-layout-slot={props.output ? 'output' : 'media'}",
+    "props.output ? 'Add output'",
+    '<RichMediaLayout />',
+    '<VideoLayout />',
+    '<FlowEditorLayout />',
+  ]) {
+    if (!palettePreviewText.includes(snippet)) throw new Error(`expected widget palette layout preview snippet: ${snippet}`)
   }
   if (!floatingPanelText.includes('const widgetDragEnabled = widgetPaletteEntries.length > 0')) {
     throw new Error('expected floating props panel widget drag to stay enabled whenever widget palette entries are available')
@@ -88,28 +111,70 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
     || !canvasViewportText.includes('<StoryboardWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled />')) {
     throw new Error('expected normal 2D canvas surfaces to mount the lightweight widget drop bridge used by the Props Panel palette')
   }
-  const seededPalette = ensureDefaultWidgetRegistryEntries([], '2026-07-09T00:00:00.000Z')
-    .entries
+  const defaultRegistryEntries = ensureDefaultWidgetRegistryEntries([], '2026-07-09T00:00:00.000Z').entries
+  const seededPalette = defaultRegistryEntries
     .filter(isPropsPanelWidgetPaletteEntry)
-  const paletteLabels = seededPalette.map(entry => getWidgetRegistryEntryLabel(entry))
-  const expectedLabels = ['Rich Media Panel', 'Widget Card']
-  const actualLabelSet = new Set(paletteLabels)
-  for (const label of expectedLabels) {
-    if (!actualLabelSet.has(label)) throw new Error(`expected neutral Props Panel palette label: ${label}`)
+  const registryLabels = seededPalette.map(entry => getWidgetRegistryEntryLabel(entry))
+  const layoutVariants = listWidgetPaletteLayoutVariants(seededPalette, '16:9')
+  const layoutLabels = layoutVariants.map(variant => variant.label)
+  if (layoutLabels.join('|') !== 'Widget Card Type 0|Probe-Tree Type 1|Rich Media Panel') {
+    throw new Error(`expected Image/Video creation to consolidate into Rich Media Panel, got ${layoutLabels.join(', ')}`)
   }
-  if (paletteLabels.length !== expectedLabels.length) {
-    throw new Error(`expected Props Panel palette to consolidate media creation into Rich Media Panel and Widget Card, got ${paletteLabels.join(', ')}`)
+  const unfilteredLayoutLabels = listWidgetPaletteLayoutVariants(defaultRegistryEntries, '16:9')
+    .map(variant => variant.label)
+  if (unfilteredLayoutLabels.join('|') !== layoutLabels.join('|')) {
+    throw new Error(`expected the shared layout mapper to reject raw Image/Video duplicates, got ${unfilteredLayoutLabels.join(', ')}`)
   }
-  for (const forbidden of ['Image Widget', 'Video Widget', 'BytePlus', 'OpenAI', 'DeerFlow', 'GrabMaps', 'Video Script', 'HTML Video Renderer', 'Video Transcriber', 'Storyboard Element']) {
-    if (paletteLabels.some(label => label.includes(forbidden))) {
-      throw new Error(`expected neutral Props Panel palette to omit ${forbidden}, got ${paletteLabels.join(', ')}`)
-    }
+  if (layoutVariants[0]?.id !== WIDGET_CARD_TYPE_ZERO_LAYOUT_ID || layoutVariants[1]?.id !== PROBE_TREE_TYPE_ONE_LAYOUT_ID) {
+    throw new Error(`expected stable Type 0/Type 1 layout identities, got ${layoutVariants.map(variant => variant.id).join(', ')}`)
+  }
+  if (!layoutVariants.every(variant => variant.aspectRatio === '16:9')) {
+    throw new Error(`expected palette layouts to preserve the selected 16:9 aspect, got ${layoutVariants.map(variant => variant.aspectRatio).join(', ')}`)
+  }
+  const portraitVariants = listWidgetPaletteLayoutVariants(seededPalette, '9:16')
+  if (!portraitVariants.every(variant => variant.aspectRatio === '9:16')) {
+    throw new Error(`expected palette layouts to preserve the selected 9:16 aspect, got ${portraitVariants.map(variant => variant.aspectRatio).join(', ')}`)
+  }
+  const customFlowEntry: typeof seededPalette[number] = {
+    id: 'custom-flow-editor',
+    isEnabled: true,
+    nodeTypeId: 'CustomFlowEditor',
+    widgetTypeId: 'custom',
+    formId: 'customFlowEditor',
+    fields: [],
+    ports: [],
+    updatedAt: '2026-07-09T00:00:00.000Z',
+  }
+  const customFlowVariant = listWidgetPaletteLayoutVariants([...seededPalette, customFlowEntry], '16:9')
+    .find(variant => variant.entry.id === customFlowEntry.id)
+  if (customFlowVariant?.label !== 'CustomFlowEditor' || customFlowVariant.layoutKind !== 'flow-editor') {
+    throw new Error(`expected the palette traversal to retain custom enabled flow editors, got ${JSON.stringify(customFlowVariant)}`)
+  }
+  const legacyWidgetAlias: typeof seededPalette[number] = {
+    ...customFlowEntry,
+    id: 'legacy-widget-card-alias',
+    nodeTypeId: 'TextGeneration',
+    widgetTypeId: 'default',
+    formId: 'textGeneration.openai',
+  }
+  if (isPropsPanelWidgetPaletteEntry(legacyWidgetAlias)) {
+    throw new Error('expected provider-specific Widget Card compatibility aliases to stay out of the palette')
+  }
+  const layoutsWithLegacyAlias = listWidgetPaletteLayoutVariants([...seededPalette, legacyWidgetAlias], '16:9')
+  if (layoutsWithLegacyAlias.some(variant => variant.entry.id === legacyWidgetAlias.id)) {
+    throw new Error('expected the shared layout mapper to remove legacy Widget Card aliases even before palette filtering')
   }
   const mediaPanelEntry = seededPalette.find(entry => getWidgetRegistryEntryLabel(entry) === 'Rich Media Panel')
-  if (!mediaPanelEntry) throw new Error('expected consolidated Props Panel palette to expose Rich Media Panel as the media entry')
-  if (paletteLabels.includes('Text Widget')) throw new Error(`expected Props Panel palette to remove the legacy Text Widget label, got ${paletteLabels.join(', ')}`)
+  if (!mediaPanelEntry) throw new Error('expected the shared registry to retain Rich Media Panel for media materialization')
+  if (registryLabels.includes('Text Widget')) throw new Error(`expected registry to remove the legacy Text Widget label, got ${registryLabels.join(', ')}`)
   const textWidgetEntry = seededPalette.find(entry => getWidgetRegistryEntryLabel(entry) === 'Widget Card')
   if (!textWidgetEntry) throw new Error('expected neutral Props Panel palette to expose Widget Card')
+  const probeTreeSeed = buildWidgetCardLayoutSeed(PROBE_TREE_TYPE_ONE_LAYOUT_ID)
+  if (probeTreeSeed?.label !== 'Probe-Tree Card'
+    || probeTreeSeed.properties.cardTypeLabel !== 'Probe-Tree Card'
+    || probeTreeSeed.properties.prompt !== '/knowgrph.probe-tree') {
+    throw new Error(`expected Probe-Tree Type 1 drag to seed the executable card contract, got ${JSON.stringify(probeTreeSeed)}`)
+  }
   const droppedTextWidgetNode = {
     id: 'dropped-text-widget',
     type: textWidgetEntry.nodeTypeId,
@@ -195,8 +260,10 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
     'readFiniteGeoLatLng',
     'properties.geo = {',
     'setGeospatialModeEnabled(true)',
-    'getWidgetRegistryEntryLabel({',
+    'getWidgetRegistryEntryLabel(entry)',
     'prompt: getFlowTextGenerationSeedPrompt(entry.formId)',
+    'buildWidgetCardLayoutSeed(payload.layoutVariantId)',
+    'if (layoutSeed) Object.assign(properties, layoutSeed.properties)',
     "output: ''",
   ]
   for (const snippet of widgetDropBridgeSnippets) {

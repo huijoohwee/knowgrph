@@ -12,18 +12,22 @@ import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
 import { buildGraphDocumentMetaKey } from '@/lib/graph/graphMetaKey'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { isProbeTreeLayoutOwnedNode } from '@/lib/storyboardWidget/probeTreeLayoutContract'
 
 export const reconcileStableStoryboardCardPlacements2d = (
   previous: ReadonlyMap<string, StoryboardCardPlacement> | null,
   candidate: ReadonlyMap<string, StoryboardCardPlacement>,
+  replaceCandidateIds: ReadonlySet<string> = new Set(),
 ): Map<string, StoryboardCardPlacement> => {
   if (!previous) return new Map(candidate)
   let changed = previous.size !== candidate.size
   const next = new Map<string, StoryboardCardPlacement>()
   for (const [id, candidatePlacement] of candidate) {
     const stablePlacement = previous.get(id)
-    next.set(id, stablePlacement || candidatePlacement)
+    const placement = replaceCandidateIds.has(id) ? candidatePlacement : stablePlacement || candidatePlacement
+    next.set(id, placement)
     if (!stablePlacement) changed = true
+    else if (placement.x !== stablePlacement.x || placement.y !== stablePlacement.y) changed = true
   }
   return changed ? next : previous instanceof Map ? previous : new Map(previous)
 }
@@ -59,11 +63,14 @@ export function useStableStoryboardCardPlacements2d(args: {
       schema: args.schema,
     })
   }, [args.aspectRatioMode, args.graphData, args.graphRevision, args.schema, args.widgetRegistry])
+  const probeTreeLayoutOwnedNodeIds = React.useMemo(() => new Set(
+    (args.graphData?.nodes || []).filter(isProbeTreeLayoutOwnedNode).map(node => String(node.id || '').trim()).filter(Boolean),
+  ), [args.graphData])
   const stableRef = React.useRef<{ identity: string; placements: Map<string, StoryboardCardPlacement> } | null>(null)
   if (!stableRef.current || stableRef.current.identity !== identity) {
     stableRef.current = { identity, placements: new Map(candidate) }
   } else {
-    stableRef.current.placements = reconcileStableStoryboardCardPlacements2d(stableRef.current.placements, candidate)
+    stableRef.current.placements = reconcileStableStoryboardCardPlacements2d(stableRef.current.placements, candidate, probeTreeLayoutOwnedNodeIds)
   }
   return stableRef.current.placements
 }

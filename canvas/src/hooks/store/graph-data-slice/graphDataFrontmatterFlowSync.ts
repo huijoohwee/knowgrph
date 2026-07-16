@@ -21,6 +21,7 @@ import {
   findActiveMarkdownDocumentSourceFile,
   syncStrybldrStoryboardMarkdownFromParsedGraph,
 } from './graphDataFrontmatterFlowSyncSupport'
+import { syncStructuredResponseEnvelopeFromNodeEdit } from './graphDataStructuredResponseSync'
 const FLOW_YAML_PLAIN_KEY_RE = /^[A-Za-z0-9_.-]+$/
 const FLOW_EDGE_SOURCE_PORT_KEY = 'flow:sourcePortKey'
 const FLOW_EDGE_TARGET_PORT_KEY = 'flow:targetPortKey'
@@ -454,12 +455,15 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
   if (!activeName || !activeText) return { sourceFiles: args.sourceFiles }
   if (!isMarkdownLikeFileName(activeName)) return { sourceFiles: args.sourceFiles }
   if (isStrybldrStoryboardMarkdown(activeText)) {
-    const nextText = syncStrybldrStoryboardMarkdownFromParsedGraph({
+    const strybldrText = syncStrybldrStoryboardMarkdownFromParsedGraph({
       text: activeText,
       graphData: args.parsedGraphData,
       previousNode: args.previousNode,
       nextNode: args.nextNode,
-    })
+    }) || activeText
+    const nextText = isFrontmatterFlowGraphData(args.parsedGraphData) && frontmatterTextHasFlowTopology(activeText)
+      ? upsertFrontmatterFlowMarkdownText(strybldrText, args.parsedGraphData)
+      : strybldrText
     if (!nextText || nextText === activeText) return { sourceFiles: args.sourceFiles }
     const activeFileMatch = findActiveMarkdownDocumentSourceFile(args)
     if (!activeFileMatch) {
@@ -486,7 +490,11 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
     }
   }
   if (!isFrontmatterFlowGraphData(args.parsedGraphData)) return { sourceFiles: args.sourceFiles }
-  const nextText = upsertFrontmatterFlowMarkdownText(activeText, args.parsedGraphData)
+  const nextText = syncStructuredResponseEnvelopeFromNodeEdit({
+    rawText: upsertFrontmatterFlowMarkdownText(activeText, args.parsedGraphData),
+    previousNode: args.previousNode,
+    nextNode: args.nextNode,
+  })
   if (nextText === activeText) return { sourceFiles: args.sourceFiles }
   const activeFileMatch = findActiveMarkdownDocumentSourceFile(args)
   if (!activeFileMatch) {

@@ -55,9 +55,19 @@ export function createStoryboardWidgetWorkflowPublicationTransaction(args: {
     updatedNodeIds: readonly string[]
     appendedEdges?: readonly GraphEdge[]
   }): boolean => {
-    if (transactionDraft === initialDraft) return false
-    if (finishArgs.preferPublishedGraphCommit && args.commitPublishedGraphData) {
-      args.commitPublishedGraphData(transactionDraft)
+    const publishCanonicalGraph = finishArgs.preferPublishedGraphCommit
+      ? args.commitPublishedGraphData
+      : undefined
+    if (transactionDraft === initialDraft) {
+      if (!publishCanonicalGraph) return false
+      // An explicit terminal run also repairs a canonical/store authority that
+      // may lag an already-current draft after source reindexing.
+      publishCanonicalGraph(transactionDraft)
+      args.scheduleWorkflowOutputEdgeRefresh()
+      return true
+    }
+    if (publishCanonicalGraph) {
+      publishCanonicalGraph(transactionDraft)
     } else {
       args.commitDraftGraphDataUpdate(initialDraft, transactionDraft)
       for (const nodeId of finishArgs.updatedNodeIds) {

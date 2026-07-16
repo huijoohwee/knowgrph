@@ -533,7 +533,7 @@ export function MarkdownInlineTextEditSurface(props: {
   cardInlineEditInputAttribute: string
 }) {
   const domDirtyRef = React.useRef(false)
-  const lastRenderedHtmlRef = React.useRef('')
+  const hasRenderedRef = React.useRef(false)
   const latestDraftRef = React.useRef(String(props.value || '').replace(/\r/g, ''))
   const initialProjectedSourceRef = React.useRef(String(props.value || '').replace(/\r/g, ''))
   const appendMissingProjectedMediaKeys = React.useMemo(() => new Set(
@@ -599,24 +599,21 @@ export function MarkdownInlineTextEditSurface(props: {
       projectedMediaAttachments: props.projectedMediaAttachments,
       appendMissingProjectedMediaKeys,
     })
-    if (root.innerHTML === html) {
-      domDirtyRef.current = false
-      lastRenderedHtmlRef.current = html
-      return
-    }
-    if (html !== lastRenderedHtmlRef.current || root.innerHTML !== html) {
-      const wasUnrendered = !lastRenderedHtmlRef.current
+    const isFirstRender = !hasRenderedRef.current
+    const htmlMatches = root.innerHTML === html
+    if (!htmlMatches) {
       root.innerHTML = html
-      domDirtyRef.current = false
-      lastRenderedHtmlRef.current = html
-      const pendingPoint = wasUnrendered && !selectionBeforeRender ? props.initialSelectionPointRef?.current || null : null
-      if (pendingPoint && props.initialSelectionPointRef) props.initialSelectionPointRef.current = null
-      const nextSelection = selectionBeforeRender || (!pendingPoint && wasUnrendered ? { start: value.length, end: value.length } : null)
-      if (pendingPoint) {
-        focusMarkdownInlineTextSelectionAtPointSoon(props.editorRef, pendingPoint, value.length, value.length, syncProxySelection)
-      } else if (nextSelection) {
-        focusMarkdownInlineTextSelectionSoon(props.editorRef, nextSelection.start, nextSelection.end)
-      }
+    }
+    domDirtyRef.current = false
+    hasRenderedRef.current = true
+    if (htmlMatches && !isFirstRender) return
+    const pendingPoint = isFirstRender && !selectionBeforeRender ? props.initialSelectionPointRef?.current || null : null
+    if (pendingPoint && props.initialSelectionPointRef) props.initialSelectionPointRef.current = null
+    const nextSelection = selectionBeforeRender || (!pendingPoint && isFirstRender ? { start: value.length, end: value.length } : null)
+    if (pendingPoint) {
+      focusMarkdownInlineTextSelectionAtPointSoon(props.editorRef, pendingPoint, value.length, value.length, syncProxySelection)
+    } else if (nextSelection) {
+      focusMarkdownInlineTextSelectionSoon(props.editorRef, nextSelection.start, nextSelection.end)
     }
   }, [appendMissingProjectedMediaKeys, props.editorRef, props.inlineChipDensity, props.initialSelectionPointRef, props.projectedMediaAttachments, props.value, readSelection, syncProxySelection])
 

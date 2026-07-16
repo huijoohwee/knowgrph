@@ -259,13 +259,16 @@ export const adjustPinnedZoomForViewportChange = (args: {
 export const pickInitialPinnedAwareTransform = (args: {
   transform: ViewportTransform | null
   pinned: boolean
+  preserveAcrossGraphRevisions?: boolean
   graphDataRevision: number
   nextViewportW: number
   nextViewportH: number
 }): { k: number; x: number; y: number } | null => {
   const z = args.transform
   if (!z) return null
-  const sameRevision = z.graphDataRevision == null || z.graphDataRevision === args.graphDataRevision
+  const sameRevision = args.preserveAcrossGraphRevisions === true
+    || z.graphDataRevision == null
+    || z.graphDataRevision === args.graphDataRevision
   if (!args.pinned && !sameRevision) return null
   if (args.pinned) {
     return adjustPinnedTransformForViewportChange({
@@ -283,6 +286,7 @@ export const pickInitialPinnedAwareTransform = (args: {
 export const pickInitialZoomTransform = (args: {
   zoomState: ViewportTransform | null
   pinned: boolean
+  preserveAcrossGraphRevisions?: boolean
   graphDataRevision: number
   nextViewportW: number
   nextViewportH: number
@@ -290,6 +294,7 @@ export const pickInitialZoomTransform = (args: {
   pickInitialPinnedAwareTransform({
     transform: args.zoomState,
     pinned: args.pinned,
+    preserveAcrossGraphRevisions: args.preserveAcrossGraphRevisions,
     graphDataRevision: args.graphDataRevision,
     nextViewportW: args.nextViewportW,
     nextViewportH: args.nextViewportH,

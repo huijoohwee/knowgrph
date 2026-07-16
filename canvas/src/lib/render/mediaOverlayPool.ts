@@ -180,7 +180,7 @@ function deriveOverlayNodeLabel(node: GraphNode): string {
   if (isRichMediaPanelNode(node)) {
     if (isImageToGlbOutputPanel(properties)) return IMAGE_TO_GLB_OUTPUT_PANEL_LABEL
     if (isImageToThreeJsOutputPanel(properties)) return IMAGE_TO_THREEJS_OUTPUT_PANEL_LABEL
-    return FLOW_RICH_MEDIA_PANEL_NODE_LABEL
+    return String(unwrapGraphCellValue(node.label) || '').trim() || FLOW_RICH_MEDIA_PANEL_NODE_LABEL
   }
   return String(node.label || node.id || '').trim() || nodeTypeId || 'Media node'
 }

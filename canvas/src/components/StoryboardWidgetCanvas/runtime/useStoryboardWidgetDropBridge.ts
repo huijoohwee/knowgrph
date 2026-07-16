@@ -56,6 +56,7 @@ import { buildBytePlusVideoWidgetSeedProperties } from '@/features/integrations/
 import { buildRichMediaPanelDroppedMediaProperties } from '@/lib/render/richMediaPanelNode'
 import { RICH_MEDIA_PANEL_DEFAULT_VIEW_SIZE } from '@/lib/render/richMediaPanelDefaults'
 import { setFlowWidgetPinnedById } from '@/lib/storyboardWidget/flowWidgetPinnedState'
+import { buildWidgetCardLayoutSeed } from '@/lib/storyboardWidget/widgetCardLayoutVariants'
 import {
   MEDIA_POINTER_DRAG_DROP_EVENT,
   claimMediaPointerDragDrop,
@@ -228,16 +229,13 @@ export function useStoryboardWidgetDropBridge(args: {
   )
 
   const addNodeFromRegistryAtWorld = React.useCallback(
-    (payload: { entry: WidgetRegistryEntry; x: number; y: number }) => {
+    (payload: { entry: WidgetRegistryEntry; layoutVariantId?: unknown; x: number; y: number }) => {
       disableAutoZoomModesForUserGesture(useGraphStore.getState())
       const entry = payload.entry
       const x = Number.isFinite(payload.x) ? payload.x : 0
       const y = Number.isFinite(payload.y) ? payload.y : 0
-      const label = getWidgetRegistryEntryLabel({
-        nodeTypeId: entry.nodeTypeId,
-        widgetTypeId: entry.widgetTypeId,
-        formId: entry.formId,
-      })
+      const layoutSeed = entry.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID ? buildWidgetCardLayoutSeed(payload.layoutVariantId) : null
+      const label = layoutSeed?.label || getWidgetRegistryEntryLabel(entry)
       const properties: Record<string, unknown> = {
         [FLOW_WIDGET_TYPE_ID_KEY]: entry.widgetTypeId,
         [FLOW_WIDGET_FORM_ID_KEY]: entry.formId,
@@ -294,6 +292,7 @@ export function useStoryboardWidgetDropBridge(args: {
           output: '',
           title: FLOW_TEXT_GENERATION_NODE_LABEL,
         })
+        if (layoutSeed) Object.assign(properties, layoutSeed.properties)
       }
       if (entry.nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
         Object.assign(properties, { output: '', imageUrl: '', videoUrl: '', audioUrl: '', outputSrcDoc: '' })
@@ -521,7 +520,7 @@ export function useStoryboardWidgetDropBridge(args: {
       return appendMediaPanelAtClientPoint(mediaPayload, clientX, clientY, rect, opts)
     }
     const appendDeferredWidgetAtClientPoint = (
-      payload: { entry: WidgetRegistryEntry; registryEntryId: string },
+      payload: { entry: WidgetRegistryEntry; registryEntryId: string; layoutVariantId?: string },
       clientX: number,
       clientY: number,
       opts?: { allowNeutralFallback?: boolean },
@@ -533,11 +532,11 @@ export function useStoryboardWidgetDropBridge(args: {
       const sy = clientY - rect.top
       if (!Number.isFinite(sx) || !Number.isFinite(sy)) return 'rejected'
       if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return 'rejected'
-      const dropKey = `${payload.registryEntryId}:${Math.round(sx)}:${Math.round(sy)}`
+      const dropKey = `${payload.registryEntryId}:${payload.layoutVariantId || 'default'}:${Math.round(sx)}:${Math.round(sy)}`
       if (args.shouldDedupeWidgetDrop(dropKey)) return 'rejected'
       const pos = resolveDropPos(sx, sy, opts)
       if (!pos) return 'await-transform'
-      addNodeFromRegistryAtWorld({ entry: payload.entry, x: pos.x, y: pos.y })
+      addNodeFromRegistryAtWorld({ entry: payload.entry, layoutVariantId: payload.layoutVariantId, x: pos.x, y: pos.y })
       args.upsertUiToast({
         id: 'storyboard-widget-drop-widget',
         kind: 'neutral',
@@ -600,9 +599,9 @@ export function useStoryboardWidgetDropBridge(args: {
       if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
       const entry = resolveWidgetRegistryEntryForDrop(args.widgetRegistryRef.current || [], payload)
       if (!entry) return
-      const status = appendDeferredWidgetAtClientPoint({ entry, registryEntryId: payload.registryEntryId }, release.clientX, release.clientY)
+      const status = appendDeferredWidgetAtClientPoint({ entry, registryEntryId: payload.registryEntryId, layoutVariantId: payload.layoutVariantId }, release.clientX, release.clientY)
       if (status === 'await-transform') {
-        scheduleDeferredDropCommit(retryOpts => appendDeferredWidgetAtClientPoint({ entry, registryEntryId: payload.registryEntryId }, release.clientX, release.clientY, retryOpts))
+        scheduleDeferredDropCommit(retryOpts => appendDeferredWidgetAtClientPoint({ entry, registryEntryId: payload.registryEntryId, layoutVariantId: payload.layoutVariantId }, release.clientX, release.clientY, retryOpts))
       } else if (status !== 'committed') {
         try {
           ev.preventDefault()
@@ -724,7 +723,7 @@ export function useStoryboardWidgetDropBridge(args: {
       return Math.hypot(dx, dy) >= minPointerDragDistancePx
     }
     const commitFlowWidgetPointerDrop = (
-      session: Pick<FlowWidgetPointerDragSession, 'registryEntryId' | 'nodeTypeId' | 'widgetTypeId' | 'formId'>,
+      session: Pick<FlowWidgetPointerDragSession, 'registryEntryId' | 'nodeTypeId' | 'widgetTypeId' | 'formId' | 'layoutVariantId'>,
       clientX: number,
       clientY: number,
       opts?: { allowNeutralFallback?: boolean },
@@ -737,11 +736,11 @@ export function useStoryboardWidgetDropBridge(args: {
       const sx = clientX - rect.left
       const sy = clientY - rect.top
       if (!Number.isFinite(sx) || !Number.isFinite(sy) || sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return 'rejected'
-      const dropKey = `${session.registryEntryId}:${Math.round(sx)}:${Math.round(sy)}`
+      const dropKey = `${session.registryEntryId}:${session.layoutVariantId || 'default'}:${Math.round(sx)}:${Math.round(sy)}`
       if (args.shouldDedupeWidgetDrop(dropKey)) return 'rejected'
       if (!pos) return 'await-transform'
       args.setCanvasWindowOffsetFromRect(rect)
-      addNodeFromRegistryAtWorld({ entry, x: pos.x, y: pos.y })
+      addNodeFromRegistryAtWorld({ entry, layoutVariantId: session.layoutVariantId, x: pos.x, y: pos.y })
       args.upsertUiToast({
         id: 'storyboard-widget-drop-widget',
         kind: 'neutral',

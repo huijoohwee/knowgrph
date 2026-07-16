@@ -31,6 +31,11 @@ import {
 import type { StoryboardWidgetWorkflowNodeResolutionContext } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 import { createStoryboardWidgetWorkflowPublicationTransaction } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowPublicationTransaction'
 import { areStoryboardWidgetWorkflowRecordValuesEqual } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowWriteback'
+import {
+  mergeStoryboardWidgetProbeTreeOutputPanels,
+  normalizeStoryboardWidgetProbeTreeOutputLayout,
+  PROBE_TREE_OUTPUT_KEY,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
 
 const HTML_VIDEO_PREVIEW_STABILITY_KEYS = [
   'output',
@@ -77,9 +82,12 @@ export type StoryboardWidgetTextRunOutputPublisher = (args: {
   loading?: boolean
   loadingLabel?: string
   outputKey?: string
+  outputGroupId?: string
+  outputThreadRootId?: string
   panelLabel?: string
+  panelProperties?: Record<string, unknown>
   outputIndex?: number
-}) => void
+}) => GraphData | null
 
 export type StoryboardWidgetMediaRunOutputPublisher = (args: {
   anchorNode: GraphNode
@@ -276,17 +284,40 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
   }
 
   const publishTextRunOutputToRichMediaPanel: StoryboardWidgetTextRunOutputPublisher = panelArgs => {
-    args.withRunLayoutMutationGuard(() => {
+    return args.withRunLayoutMutationGuard(() => {
+      const outputKey = panelArgs.outputKey?.trim() || 'output'
+      const liveDraftGraphData = args.readLiveDraftGraphData()
+      const baseGraphData = panelArgs.baseGraphData || liveDraftGraphData
+      const graphWithProbeTreePanels = baseGraphData
+        ? [
+            args.context.draftGraph,
+            args.context.baseGraph,
+            args.context.storeGraph,
+            args.context.renderGraph,
+            liveDraftGraphData,
+          ].reduce<GraphData>((graphData, sourceGraphData) => (
+            outputKey === PROBE_TREE_OUTPUT_KEY
+              ? mergeStoryboardWidgetProbeTreeOutputPanels({ graphData, liveGraphData: sourceGraphData })
+              : graphData
+          ), baseGraphData)
+        : null
+      const publicationGraphData = graphWithProbeTreePanels
+        && outputKey === PROBE_TREE_OUTPUT_KEY
+        && panelArgs.outputThreadRootId?.trim()
+        ? normalizeStoryboardWidgetProbeTreeOutputLayout({
+            graphData: graphWithProbeTreePanels,
+            threadRootId: panelArgs.outputThreadRootId.trim(),
+          })
+        : graphWithProbeTreePanels
       const transaction = createStoryboardWidgetWorkflowPublicationTransaction({
-        readLiveDraftGraphData: () => panelArgs.baseGraphData || args.readLiveDraftGraphData(),
+        readLiveDraftGraphData: () => publicationGraphData,
         commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
         commitPublishedGraphData: args.commitPublishedGraphData,
         updateNode: args.updateNode,
         appendWorkflowOutputEdge: args.appendWorkflowOutputEdge,
         scheduleWorkflowOutputEdgeRefresh: args.scheduleWorkflowOutputEdgeRefresh,
       })
-      if (!transaction) return
-      const outputKey = panelArgs.outputKey?.trim() || 'output'
+      if (!transaction) return null
       const panelNodeId = ensureStoryboardWidgetWorkflowRichMediaPanelNodeId({
         context: args.context,
         graphForRun: args.graphForRun,
@@ -294,11 +325,13 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
         anchorNode: panelArgs.anchorNode,
         readLiveDraftGraphData: transaction.readDraftGraphData,
         outputKey,
+        outputGroupId: panelArgs.outputGroupId,
+        outputThreadRootId: panelArgs.outputThreadRootId,
         outputLabel: panelArgs.panelLabel,
         outputIndex: panelArgs.outputIndex,
         appendDraftNode: transaction.appendDraftNode,
       })
-      if (!panelNodeId) return
+      if (!panelNodeId) return null
       const outputEdgeAdded = ensureStoryboardWidgetWorkflowOutputEdge({
         anchorNodeId: readWorkflowString(panelArgs.anchorNode.id),
         panelNodeId,
@@ -314,6 +347,7 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
           )) || null
         : null
       const patch: Record<string, unknown> = {
+        ...(panelArgs.panelProperties || {}),
         ...clearRichMediaOutputProperties({}),
         ...buildTextWidgetOutputPatch({
           output: String(panelArgs.outputText || ''),
@@ -331,6 +365,7 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
         outputSourceUrl: typeof panelArgs.sourceUrl === 'string' && panelArgs.sourceUrl.trim() ? panelArgs.sourceUrl.trim() : undefined,
         workflowOutputAnchorNodeId: readWorkflowString(panelArgs.anchorNode.id),
         workflowOutputKey: outputKey,
+        ...(panelArgs.outputGroupId?.trim() ? { workflowOutputGroupId: panelArgs.outputGroupId.trim() } : {}),
       }
       applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch({
         panelNodeId,
@@ -339,11 +374,12 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
         commitDraftGraphDataUpdate: transaction.commitDraftGraphDataUpdate,
         scheduleWorkflowOutputEdgeRefresh: () => undefined,
       })
-      transaction.finish({
-        preferPublishedGraphCommit: panelArgs.loading !== true,
+      const finished = transaction.finish({
+        preferPublishedGraphCommit: panelArgs.loading !== true && outputKey !== PROBE_TREE_OUTPUT_KEY,
         updatedNodeIds: [panelNodeId],
         appendedEdges: outputEdge ? [outputEdge] : [],
       })
+      return finished ? transaction.readDraftGraphData() : null
     })
   }
 

@@ -1,0 +1,298 @@
+import {
+  normalizeStoryboardWidgetProbeTreeThreadLayout,
+  PROBE_TREE_GRAPH_LAYOUT_VERSION_PROPERTY,
+  resolveStoryboardWidgetProbeTreeBranchPositions,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
+import { materializeStoryboardWidgetProbeTreeStructuredResponse } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeStructuredResponse'
+import { buildProbeTreeStructuredResponse } from '@/features/agent-ready/probeTreeContract.mjs'
+import type { GraphData } from '@/lib/graph/types'
+import {
+  PROBE_TREE_BALANCED_LAYOUT_MODE,
+  PROBE_TREE_BALANCED_LAYOUT_VERSION,
+  PROBE_TREE_LAYOUT_MODE_PROPERTY,
+  PROBE_TREE_LAYOUT_VERSION_PROPERTY,
+  PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY,
+} from '@/lib/storyboardWidget/probeTreeLayoutContract'
+
+const assert = (condition: unknown, message: string): void => {
+  if (!condition) throw new Error(message)
+}
+
+const readPosition = (graphData: GraphData, nodeId: string): { x: number; y: number } => {
+  const node = graphData.nodes.find(candidate => String(candidate.id) === nodeId)
+  const x = Number(node?.x)
+  const y = Number(node?.y)
+  if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error(`expected finite position for ${nodeId}`)
+  return { x, y }
+}
+
+const readThreadLayoutVersion = (graphData: GraphData, threadRootId: string): number => Number(
+  ((graphData.metadata?.[PROBE_TREE_GRAPH_LAYOUT_VERSION_PROPERTY] || {}) as Record<string, Record<string, unknown>>)[threadRootId]?.version,
+)
+
+const assertProbeCardsDoNotOverlap = (graphData: GraphData, nodeIds: readonly string[]): void => {
+  for (let leftIndex = 0; leftIndex < nodeIds.length; leftIndex += 1) {
+    const left = readPosition(graphData, nodeIds[leftIndex]!)
+    for (let rightIndex = leftIndex + 1; rightIndex < nodeIds.length; rightIndex += 1) {
+      const right = readPosition(graphData, nodeIds[rightIndex]!)
+      assert(Math.abs(left.x - right.x) >= 360 || Math.abs(left.y - right.y) >= 640, `expected ${nodeIds[leftIndex]} and ${nodeIds[rightIndex]} to remain disjoint`)
+    }
+  }
+}
+
+export function testProbeTreeInitialSiblingBatchBalancesAroundOccupiedCards() {
+  const outsideNode = { id: 'outside', type: 'TextGeneration', label: 'Outside card', x: 440, y: -340, properties: {} }
+  const graphData: GraphData = {
+    type: 'Graph',
+    metadata: { kind: 'frontmatter-flow', frontmatterFlowSettings: { gridSize: 20 } },
+    nodes: [
+      { id: 'root', type: 'TextGeneration', label: 'Root', x: 0, y: 0, properties: {} },
+      outsideNode,
+      ...['a', 'b', 'c'].map((id, index) => ({
+        id,
+        type: 'TextGeneration',
+        label: id,
+        x: 0,
+        y: 0,
+        properties: { cardTypeLabel: 'Probe-Tree Card', index: `P${index + 1}`, parentNodeId: 'root', probeTreeThreadRootId: 'root' },
+      })),
+    ],
+    edges: ['a', 'b', 'c'].map(id => ({ id: `edge-${id}`, source: 'root', target: id, label: 'candidateOption', properties: {} })),
+  }
+  const normalized = normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData, threadRootId: 'root' })
+  const positions = ['a', 'b', 'c'].map(id => readPosition(normalized, id))
+  assert(new Set(positions.map(position => position.x)).size >= 2, `expected a first three-sibling turn to spread across columns, got ${JSON.stringify(positions)}`)
+  assert(new Set(positions.map(position => position.y)).size >= 2, `expected a first three-sibling turn to retain a top-down waterfall, got ${JSON.stringify(positions)}`)
+  assert(positions.every(position => position.x > 0 && position.x % 20 === 0 && position.y % 20 === 0), `expected forward grid-snapped sibling positions, got ${JSON.stringify(positions)}`)
+  assertProbeCardsDoNotOverlap(normalized, ['a', 'b', 'c'])
+  const outsidePosition = readPosition(normalized, 'outside')
+  assert(positions.every(position => Math.abs(position.x - outsidePosition.x) >= 360 || Math.abs(position.y - outsidePosition.y) >= 640), 'expected full-thread normalization to avoid fixed cards outside the Probe thread')
+  assert(normalized.nodes.find(node => node.id === 'outside') === outsideNode, 'expected external fixed-card authority to remain byte-identical')
+  assert(normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData: normalized, threadRootId: 'root' }) === normalized, 'expected the settled collision-free first turn to remain idempotent')
+}
+
+export function testProbeTreeDenseCascadeKeepsEdgesParentLocal() {
+  const branchSpecs: Array<{ id: string; parentNodeId: string; depth: number; index: string }> = []
+  let parentNodeIds = ['root']
+  const parentExpansionCounts = [1, 3, 3, 3, 2, 1, 1, 1]
+  for (let depthIndex = 0; depthIndex < parentExpansionCounts.length; depthIndex += 1) {
+    const nextParentNodeIds: string[] = []
+    for (const parentNodeId of parentNodeIds.slice(0, parentExpansionCounts[depthIndex])) {
+      for (let optionIndex = 0; optionIndex < 3; optionIndex += 1) {
+        const id = `depth-${depthIndex + 1}-${branchSpecs.length + 1}`
+        branchSpecs.push({ id, parentNodeId, depth: depthIndex + 1, index: `P${optionIndex + 1}` })
+        nextParentNodeIds.push(id)
+      }
+    }
+    parentNodeIds = nextParentNodeIds
+  }
+  const graphData: GraphData = {
+    type: 'Graph',
+    metadata: { kind: 'frontmatter-flow', frontmatterFlowSettings: { gridSize: 20 } },
+    nodes: [
+      { id: 'root', type: 'TextGeneration', label: 'Root', x: 0, y: 0, properties: {} },
+      ...branchSpecs.map(spec => ({
+        id: spec.id,
+        type: 'TextGeneration',
+        label: spec.id,
+        x: 0,
+        y: 0,
+        properties: {
+          cardTypeLabel: 'Probe-Tree Card',
+          index: spec.index,
+          parentNodeId: spec.parentNodeId,
+          probeTreeDepth: spec.depth,
+          probeTreeThreadRootId: 'root',
+        },
+      })),
+    ],
+    edges: branchSpecs.map(spec => ({ id: `edge-${spec.id}`, source: spec.parentNodeId, target: spec.id, label: 'candidateOption', properties: {} })),
+  }
+
+  const normalized = normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData, threadRootId: 'root' })
+  const branchNodeIds = branchSpecs.map(spec => spec.id)
+  assertProbeCardsDoNotOverlap(normalized, branchNodeIds)
+  const edgeSpans = branchSpecs.map(spec => {
+    const parent = readPosition(normalized, spec.parentNodeId)
+    const child = readPosition(normalized, spec.id)
+    return { horizontal: child.x - parent.x, vertical: Math.abs(child.y - parent.y) }
+  })
+  assert(edgeSpans.every(span => span.horizontal >= 360), 'expected every dense-tree candidate edge to remain forward-only')
+  assert(Math.max(...edgeSpans.map(span => span.vertical)) <= 2040, `expected parent-local placement to bound vertical edge spans, got ${JSON.stringify(edgeSpans)}`)
+  assert(edgeSpans.reduce((sum, span) => sum + span.vertical, 0) / edgeSpans.length <= 900, 'expected the dense waterfall to keep average child placement near its parent')
+  const positions = ['root', ...branchNodeIds].map(nodeId => readPosition(normalized, nodeId))
+  const width = Math.max(...positions.map(position => position.x)) - Math.min(...positions.map(position => position.x)) + 360
+  const height = Math.max(...positions.map(position => position.y)) - Math.min(...positions.map(position => position.y)) + 640
+  assert(width / height >= 0.35 && width / height <= 2.75, `expected the parent-local dense cascade to retain a balanced footprint, got ${width / height}`)
+}
+
+export function testProbeTreeIncrementalGrowthPreservesPinnedBranchCoordinates() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    metadata: { kind: 'frontmatter-flow', frontmatterFlowSettings: { gridSize: 20 } },
+    nodes: [
+      { id: 'root', type: 'TextGeneration', label: 'Root', x: 0, y: 0, properties: {} },
+      ...['a', 'b', 'c'].map((id, index) => ({
+        id,
+        type: 'TextGeneration',
+        label: id,
+        x: 0,
+        y: 0,
+        properties: { cardTypeLabel: 'Probe-Tree Card', index: `P${index + 1}`, parentNodeId: 'root', probeTreeThreadRootId: 'root' },
+      })),
+    ],
+    edges: ['a', 'b', 'c'].map(id => ({ id: `edge-${id}`, source: 'root', target: id, label: 'candidateOption', properties: {} })),
+  }
+  const normalized = normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData, threadRootId: 'root' })
+  const parent = normalized.nodes.find(node => node.id === 'b')!
+  const projected = resolveStoryboardWidgetProbeTreeBranchPositions({ graphData: normalized, anchorNode: parent, removedNodeIds: new Set(), count: 3 })
+  assert(new Set(projected.map(position => position.x)).size >= 2, `expected each incremental sibling batch to spill across columns, got ${JSON.stringify(projected)}`)
+  assert(new Set(projected.map(position => position.y)).size >= 2, `expected each incremental sibling batch to retain a top-down waterfall, got ${JSON.stringify(projected)}`)
+  const newNodeIds = ['b-1', 'b-2', 'b-3']
+  const expanded: GraphData = {
+    ...normalized,
+    nodes: [...normalized.nodes, ...newNodeIds.map((id, index) => ({
+      id,
+      type: 'TextGeneration',
+      label: id,
+      x: projected[index]!.x,
+      y: projected[index]!.y,
+      properties: { cardTypeLabel: 'Probe-Tree Card', index: `P${index + 1}`, parentNodeId: 'b', probeTreeThreadRootId: 'root' },
+    }))],
+    edges: [...normalized.edges, ...newNodeIds.map(id => ({ id: `edge-${id}`, source: 'b', target: id, label: 'candidateOption', properties: {} }))],
+  }
+  const grown = normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData: expanded, threadRootId: 'root' })
+  assert(readThreadLayoutVersion(grown, 'root') === PROBE_TREE_BALANCED_LAYOUT_VERSION, 'expected incremental layout authority to survive source round-tripping for its canonical thread')
+  for (const id of ['root', 'a', 'b', 'c']) {
+    assert(readPosition(grown, id).x === readPosition(normalized, id).x && readPosition(grown, id).y === readPosition(normalized, id).y, `expected ${id} to remain fixed during incremental growth`)
+    assert(grown.nodes.find(node => node.id === id) === normalized.nodes.find(node => node.id === id), `expected ${id} to retain byte-identical graph authority`)
+  }
+  assertProbeCardsDoNotOverlap(grown, ['a', 'b', 'c', ...newNodeIds])
+  for (const id of newNodeIds) {
+    const properties = grown.nodes.find(node => node.id === id)?.properties || {}
+    assert(properties[PROBE_TREE_LAYOUT_MODE_PROPERTY] === PROBE_TREE_BALANCED_LAYOUT_MODE, `expected ${id} to receive layout ownership without moving existing cards`)
+    assert(readPosition(grown, id).x > readPosition(grown, 'b').x, `expected ${id} to keep a forward-only parent edge`)
+  }
+
+  let spreadGraph = grown
+  for (const parentId of ['a', 'c']) {
+    const siblingIds = Array.from({ length: 3 }, (_, index) => `${parentId}-${index + 1}`)
+    const siblingPositions = resolveStoryboardWidgetProbeTreeBranchPositions({
+      graphData: spreadGraph,
+      anchorNode: spreadGraph.nodes.find(node => node.id === parentId)!,
+      removedNodeIds: new Set(),
+      count: siblingIds.length,
+    })
+    spreadGraph = normalizeStoryboardWidgetProbeTreeThreadLayout({
+      graphData: {
+        ...spreadGraph,
+        nodes: [...spreadGraph.nodes, ...siblingIds.map((id, index) => ({
+          id,
+          type: 'TextGeneration',
+          label: id,
+          x: siblingPositions[index]!.x,
+          y: siblingPositions[index]!.y,
+          properties: { cardTypeLabel: 'Probe-Tree Card', index: `P${index + 1}`, parentNodeId: parentId, probeTreeThreadRootId: 'root' },
+        }))],
+        edges: [...spreadGraph.edges, ...siblingIds.map(id => ({ id: `edge-${id}`, source: parentId, target: id, label: 'candidateOption', properties: {} }))],
+      },
+      threadRootId: 'root',
+    })
+  }
+  const spreadNodeIds = spreadGraph.nodes.filter(node => node.properties?.cardTypeLabel === 'Probe-Tree Card').map(node => String(node.id))
+  const spreadPositions = ['root', ...spreadNodeIds].map(id => readPosition(spreadGraph, id))
+  const width = Math.max(...spreadPositions.map(position => position.x)) - Math.min(...spreadPositions.map(position => position.x)) + 360
+  const height = Math.max(...spreadPositions.map(position => position.y)) - Math.min(...spreadPositions.map(position => position.y)) + 640
+  const aspect = width / height
+  assert(aspect >= 0.45 && aspect <= 2.75, `expected multi-parent incremental growth to stay balanced, got aspect ${aspect}`)
+  assertProbeCardsDoNotOverlap(spreadGraph, spreadNodeIds)
+  for (const id of [...newNodeIds, 'a-1', 'a-2', 'a-3', 'c-1', 'c-2', 'c-3']) {
+    assert(spreadGraph.nodes.some(node => node.id === id), `expected sibling subtree ${id} to remain materialized`)
+  }
+}
+
+export function testProbeTreeSourceRoundTripGraphMarkerPreservesPinnedBranchCoordinates() {
+  const branchSpecs = [['a', 'root', 'P1'], ['b', 'root', 'P2'], ['c', 'root', 'P3'], ['a-1', 'a', 'P1']] as const
+  const graphData: GraphData = {
+    type: 'Graph',
+    metadata: { kind: 'frontmatter-flow', frontmatterFlowSettings: { gridSize: 20 } },
+    nodes: [
+      { id: 'root', type: 'TextGeneration', label: 'Root', x: 0, y: 0, properties: {} },
+      ...branchSpecs.map(([id, parentNodeId, index]) => ({ id, type: 'TextGeneration', label: id, x: 0, y: 0, properties: { cardTypeLabel: 'Probe-Tree Card', index, parentNodeId, probeTreeThreadRootId: 'root' } })),
+    ],
+    edges: branchSpecs.map(([id, parentNodeId]) => ({ id: `edge-${id}`, source: parentNodeId, target: id, label: 'candidateOption', properties: {} })),
+  }
+  const normalized = normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData, threadRootId: 'root' })
+  const sourceRoundTripped: GraphData = {
+    ...normalized,
+    nodes: normalized.nodes.map(node => {
+      if (node.id === 'root') return node
+      const properties = { ...(node.properties || {}) }
+      delete properties[PROBE_TREE_LAYOUT_MODE_PROPERTY]
+      delete properties[PROBE_TREE_LAYOUT_VERSION_PROPERTY]
+      delete properties[PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY]
+      return { ...node, properties }
+    }),
+  }
+  assert(readThreadLayoutVersion(sourceRoundTripped, 'root') === PROBE_TREE_BALANCED_LAYOUT_VERSION, 'expected the thread-scoped layout marker to survive the source round trip')
+  const parent = sourceRoundTripped.nodes.find(node => node.id === 'b')!
+  const projected = resolveStoryboardWidgetProbeTreeBranchPositions({ graphData: sourceRoundTripped, anchorNode: parent, removedNodeIds: new Set(), count: 3 })
+  const newNodeIds = ['b-1', 'b-2', 'b-3']
+  const expanded: GraphData = {
+    ...sourceRoundTripped,
+    nodes: [...sourceRoundTripped.nodes, ...newNodeIds.map((id, index) => ({ id, type: 'TextGeneration', label: id, x: projected[index]!.x, y: projected[index]!.y, properties: { cardTypeLabel: 'Probe-Tree Card', index: `P${index + 1}`, parentNodeId: 'b', probeTreeThreadRootId: 'root' } }))],
+    edges: [...sourceRoundTripped.edges, ...newNodeIds.map(id => ({ id: `edge-${id}`, source: 'b', target: id, label: 'candidateOption', properties: {} }))],
+  }
+  const grown = normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData: expanded, threadRootId: 'root' })
+  for (const id of ['root', ...branchSpecs.map(([branchId]) => branchId)]) {
+    assert(readPosition(grown, id).x === readPosition(normalized, id).x && readPosition(grown, id).y === readPosition(normalized, id).y, `expected thread layout authority to preserve ${id} across marker-stripping source round trips`)
+  }
+  assertProbeCardsDoNotOverlap(grown, [...branchSpecs.map(([id]) => id), ...newNodeIds])
+  for (const id of [...branchSpecs.map(([branchId]) => branchId), ...newNodeIds]) {
+    const properties = grown.nodes.find(node => node.id === id)?.properties || {}
+    assert(properties[PROBE_TREE_LAYOUT_MODE_PROPERTY] === PROBE_TREE_BALANCED_LAYOUT_MODE, `expected ${id} layout ownership to be restored`)
+    assert(properties[PROBE_TREE_LAYOUT_VERSION_PROPERTY] === PROBE_TREE_BALANCED_LAYOUT_VERSION, `expected ${id} layout version to be restored`)
+    assert(properties[PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY] === true, `expected ${id} default pinning to be restored`)
+  }
+}
+
+export function testProbeTreeStructuredReplacementRemovesDescendantClosure() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [
+      { id: 'root', type: 'TextGeneration', label: 'SME evidence', x: 0, y: 0, properties: {} },
+      { id: 'old-child', type: 'TextGeneration', label: 'Old child', x: 440, y: 0, properties: { cardTypeLabel: 'Probe-Tree Card', parentNodeId: 'root', probeTreeThreadRootId: 'root' } },
+      { id: 'old-grandchild', type: 'TextGeneration', label: 'Old grandchild', x: 880, y: 0, properties: { cardTypeLabel: 'Probe-Tree Card', parentNodeId: 'old-child', probeTreeThreadRootId: 'root' } },
+      { id: 'other-root', type: 'TextGeneration', label: 'Other root', x: 0, y: 1600, properties: {} },
+      { id: 'other-child', type: 'TextGeneration', label: 'Other child', x: 440, y: 1600, properties: { cardTypeLabel: 'Probe-Tree Card', parentNodeId: 'other-root', probeTreeThreadRootId: 'other-root' } },
+    ],
+    edges: [
+      { id: 'old-edge', source: 'root', target: 'old-child', label: 'candidateOption', properties: {} },
+      { id: 'old-descendant-edge', source: 'old-child', target: 'old-grandchild', label: 'candidateOption', properties: {} },
+      { id: 'other-edge', source: 'other-root', target: 'other-child', label: 'candidateOption', properties: {} },
+    ],
+  }
+  const contextText = 'The SME evidence handoff needs an authoritative source and accountable reviewer.'
+  const response = buildProbeTreeStructuredResponse({
+    threadRootId: 'root', currentNodeId: 'root', contextText, optionCount: 2,
+    options: [
+      { id: 'authority', text: 'Which SME evidence source is authoritative for this handoff?', rationale: 'Keeps the branch source-backed.' },
+      { id: 'reviewer', text: 'Which accountable reviewer approves the SME evidence handoff?', rationale: 'Names the review owner.' },
+    ],
+  })
+  const result = materializeStoryboardWidgetProbeTreeStructuredResponse({
+    graphData,
+    anchorNode: graphData.nodes[0]!,
+    responseText: JSON.stringify({ jsonrpc: '2.0', id: 'replace', result: { structuredContent: { ok: true, response } } }),
+    contextText,
+    responseSource: 'mcp',
+    model: 'probe-tree-local-heuristic',
+    mcpInvoked: true,
+    threadRootId: 'root',
+    invocationTokens: [],
+  })
+  assert(result != null, 'expected a relevant structured Probe response to materialize')
+  assert(!result!.graphData.nodes.some(node => node.id === 'old-child' || node.id === 'old-grandchild'), 'expected replacement to remove the complete old descendant closure')
+  assert(!result!.graphData.edges.some(edge => ['old-child', 'old-grandchild'].includes(String(edge.source)) || ['old-child', 'old-grandchild'].includes(String(edge.target))), 'expected replacement to remove every incident descendant edge')
+  assert(result!.graphData.nodes.some(node => node.id === 'other-child') && result!.graphData.edges.some(edge => edge.id === 'other-edge'), 'expected another parent subtree to remain untouched')
+}

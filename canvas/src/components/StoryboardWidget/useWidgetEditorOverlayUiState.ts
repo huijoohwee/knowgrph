@@ -9,9 +9,10 @@ import { readScopedFlowWidgetNodeValue, resolveScopedFlowWidgetNodeMap } from '@
 import { useIsomorphicLayoutEffect } from '@/lib/react/useIsomorphicLayoutEffect'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
+import type { GraphNode } from '@/lib/graph/types'
 
 export function useWidgetEditorOverlayUiState(args: {
-  node: { id?: unknown; type?: unknown }
+  node: { id?: unknown; type?: unknown; properties?: GraphNode['properties'] }
   nodeId: string
   active: boolean
   autoRevealKey?: string | number | null
@@ -66,8 +67,9 @@ export function useWidgetEditorOverlayUiState(args: {
     () => ({
       id: typeof node.id === 'string' ? node.id : '',
       type: typeof node.type === 'string' ? node.type : '',
+      properties: node.properties,
     }),
-    [node.id, node.type],
+    [node.id, node.properties, node.type],
   )
 
   const readPinnedInCanvas = React.useCallback((id: string): boolean => {

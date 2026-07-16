@@ -1,7 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { JSDOM } from 'jsdom'
-
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { handleStoryboardCardMetaWheelEvent, isRedundantWidgetCardMetadata } from '@/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail'
 import { commitStoryboardCardCanonicalText2d } from '@/components/StoryboardWidgetCanvas/storyboardCardCanonicalTextCommit2d'
@@ -21,11 +20,9 @@ import {
 import { applyCardInlineCommandReplacement } from '@/lib/cards/CardInlineTextCommandMenuUtils'
 import { computeStoryboardWidgetOverlayScreenBox } from '@/lib/storyboardWidget/overlayWorldDrag'
 import type { GraphData } from '@/lib/graph/types'
-
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
 }
-
 export function testStoryboardCardTextLayoutKeepsSemanticLabelsReadable() {
   const authoredSummary = [
     'Imported  source evidence for a validation-ready storyboard card.',
@@ -189,7 +186,7 @@ export function testStoryboardCardTextModelDoesNotDuplicatePrimaryPrompt() {
   const mediaPromptModel = buildStoryboardCardTextModel({ prompt: promptWithEmbeddedMedia })
   assert(mediaPromptModel.primaryRaw === promptWithEmbeddedMedia, 'expected the source model to retain its authored embedded-media reference until an intentional text edit')
   assert(mediaPromptModel.primaryDisplay === 'Generate a text response for the active request.', `expected the card read surface to omit duplicated embedded media, got ${JSON.stringify(mediaPromptModel.primaryDisplay)}`)
-  const overlaySource = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8')
+  const overlaySource = [fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8'), fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardTextEditSurface.tsx'), 'utf8')].join('\n')
   assert(overlaySource.includes("value={textModel.primaryRaw || card.slugline || ''}"), 'expected the shared Viewer editor to retain source-backed inline chips while editing')
   assert(overlaySource.includes("displayValue={textModel.primaryDisplay || card.slugline || ''}"), 'expected the shared Viewer read surface to remain media-free')
   assert(overlaySource.includes('buildStoryboardCardMediaTextareaAttachments([...displayMediaItems, displayMedia], card.title)'), 'expected the Storyboard text column to reuse the shared media attachment projection owner')
@@ -214,6 +211,8 @@ export function testStoryboardCardTextModelDoesNotDuplicatePrimaryPrompt() {
   assert(summaryWithDistinctPrompt.primaryField.id === 'summary', `expected summary-backed cards to keep summary as primary edit target, got ${summaryWithDistinctPrompt.primaryField.id}`)
   assert(summaryWithDistinctPrompt.secondaryRaw === prompt, 'expected a distinct prompt to remain available as secondary shared Card text')
   assert(summaryWithDistinctPrompt.secondaryField?.id === 'prompt', 'expected secondary Card text to preserve its prompt semantic label')
+  const probeResponseModel = buildStoryboardCardTextModel({ summary: 'Which evidence should select this branch?', output: '', action: 'Review the answer before selection.', prompt: '/knowgrph.probe-tree', typeLabel: 'Probe-Tree Card' })
+  assert(probeResponseModel.primaryField.id === 'summary' && probeResponseModel.secondaryField?.id === 'output' && probeResponseModel.secondaryRaw === '' && probeResponseModel.secondaryEditable, `expected Summary question plus empty editable Output, got ${JSON.stringify(probeResponseModel)}`)
   const dialogueOnlyModel = buildStoryboardCardTextModel({ dialogue: 'Keep the authored dialogue.' })
   assert(dialogueOnlyModel.primaryField.id === 'dialogue', `expected dialogue-only cards to remain visible and editable, got ${dialogueOnlyModel.primaryField.id}`)
   const styleOnlyModel = buildStoryboardCardTextModel({ style: 'Neutral documentary treatment.' })
@@ -380,7 +379,7 @@ export function testStoryboardWidgetPanelHeaderYieldsToSharedInlineEditors() {
 
 export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
   const source = [
-    fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8'),
+    fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardOverlayLayer2d.tsx'), 'utf8') + fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardTextEditSurface.tsx'), 'utf8'),
     fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/useStoryboardCardOverlayProjection2d.ts'), 'utf8'),
   ].join('\n')
   const surface = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/StoryboardWidgetCanvasSurface.tsx'), 'utf8')
@@ -432,20 +431,26 @@ export function testStoryboardCardOverlayTextLayoutUsesReadableCardChrome() {
     'data-kg-media-scroll-surface="1"',
     'onWheelCapture={event => event.stopPropagation()}',
     'shouldStoryboardCardTextColumnOwnSummaryEditTarget(event.target, event.currentTarget)',
+    'if (target && isStoryboardHeaderDragBlockedTarget(target)) return',
     'React.useState<number | null>(null)',
+    'data-kg-storyboard-card-active-text-field={textModel.primaryField.id}',
     'ariaLabel={`${textModel.primaryField.label} for ${card.id}`}',
     'placeholder={textModel.primaryField.placeholder}',
-    'onCommit={nextValue => onCommitPrimaryText(card, textModel.primaryField, nextValue)}',
+    'onCommit={nextValue => onCommitText(card, textModel.primaryField, nextValue)}',
+    'data-kg-storyboard-card-output-pane="1"',
+    'const outputField = textModel.secondaryEditable ? textModel.secondaryField : null',
     'CARD_TEXT_SURFACE_VIEW_CLASS_NAME',
     'CARD_TEXT_SURFACE_EDIT_CLASS_NAME',
     'CARD_TEXT_SURFACE_TEXT_CLASS_NAME',
     'mediaCommandMode="external"',
     'inlineChipDensity="compact"',
     'showCommandLaunchers={false}',
-    'textModel.secondaryRaw && textModel.secondaryField ? (',
-    'ariaLabel={`${textModel.secondaryField.label} for ${card.id}`}',
+    "textModel.secondaryEditable && textModel.secondaryField?.id === 'output' ? (",
+    '<StoryboardCardOutputEditSurface card={card} textModel={textModel} onActivate={() => onSelect(card)} onCommitText={onCommitPrimaryText} />',
+    'ariaLabel={`${outputField.label} for ${card.id}`}',
+    'placeholder={outputField.placeholder}',
     'markdownCommandMenus={false}',
-    'max-h-[2.625rem] select-none overflow-auto overscroll-contain',
+    'onCommit={nextValue => onCommitText(card, outputField, nextValue)}',
     '<StoryboardCardMetaScrollRail card={card} onCommitLane={onCommitLane} onCommitType={onCommitType} />',
     'card, runCard: onRun',
     'void runWorkflowNode?.(card.id)',

@@ -4,14 +4,14 @@ import { WidgetEditorActionsToolbar } from '@/components/StoryboardWidget/Widget
 import { STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME, StoryboardWidgetPanelChromeHeader } from '@/components/StoryboardWidget/StoryboardWidgetPanelChrome'
 import { getStoryboardWidgetPanelSurfaceChromeClassName } from '@/components/StoryboardWidget/storyboardWidgetPanelChromeClassName'
 import { StoryboardWidgetOverlayPortHandles } from '@/components/StoryboardWidget/StoryboardWidgetOverlayPortHandles'
-import { StoryboardCardMetaScrollRail } from '@/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail'
 import { StoryboardCardMediaDropSlot2d } from '@/components/StoryboardWidgetCanvas/StoryboardCardMediaDropSlot2d'
-import { shouldStoryboardCardTextColumnOwnSummaryEditTarget } from '@/components/StoryboardWidgetCanvas/storyboardCardSummaryEditTarget'
+import { StoryboardCardOutputEditSurface, StoryboardCardTextEditSurface } from '@/components/StoryboardWidgetCanvas/StoryboardCardTextEditSurface'
 import { commitStoryboardCardCanonicalText2d } from '@/components/StoryboardWidgetCanvas/storyboardCardCanonicalTextCommit2d'
 import { buildStoryboardCardTextModel } from '@/components/StoryboardWidgetCanvas/storyboardCardTextModel'
 import { readStoryboardCardCenter2d, readStoryboardCardSize2d, type StoryboardCardPlacement } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
 import { isStoryboardHeaderDragBlockedTarget, StoryboardCardResizeHandle, useStoryboardCardOverlayInteractions2d, useStoryboardCardOverlayWheelForwarding } from '@/components/StoryboardWidgetCanvas/storyboardCardOverlayInteractions2d'
 import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCanvas/storyboardCardOwnership2d'
+import { shouldStoryboardCardOverlayYieldToTextEditTarget } from '@/components/StoryboardWidgetCanvas/storyboardCardSummaryEditTarget'
 import { useStoryboardCardMediaDrop2d } from '@/components/StoryboardWidgetCanvas/useStoryboardCardMediaDrop2d'
 import { useStoryboardCardOverlayProjection2d } from '@/components/StoryboardWidgetCanvas/useStoryboardCardOverlayProjection2d'
 import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'
@@ -28,8 +28,8 @@ import type { StoryboardWidgetOverlayDragTransform } from '@/lib/storyboardWidge
 import type { FlowWidgetPinnedById } from '@/lib/storyboardWidget/flowWidgetPinnedState'
 import { readCanvasBoardLayoutMode } from '@/lib/canvas/canvasBoardLayoutDisplayControls'
 import { isFlowWidgetHeaderDragAllowedByPin } from '@/lib/storyboardWidget/flowWidgetPinMovement'
+import { resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
-import { CARD_TEXT_SURFACE_COLUMN_CLASS_NAME, CARD_TEXT_SURFACE_EDIT_CLASS_NAME, CARD_TEXT_SURFACE_SCROLL_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME, CARD_TEXT_SURFACE_VIEW_CLASS_NAME } from '@/lib/cards/cardTextSurfaceFrame'
 import { buildGraphNodeCanonicalTextPatch, GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS, type GraphNodeCardTextFieldSpec } from '@/lib/cards/graphNodeCardFields'
 import { buildInlineMediaCommandDragPayload } from '@/lib/command-menu/inlineMediaCommandDragPayload'
 import type { InlineMediaCommandCandidate } from '@/lib/command-menu/inlineCommandMenuCatalog'
@@ -43,7 +43,6 @@ import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import { RICH_MEDIA_PANEL_DEFAULT_CSS_VARS } from '@/lib/render/richMediaPanelDefaults'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { screenToWorld } from '@/lib/zoom/viewport'
-import { cn } from '@/lib/utils'
 const STORYBOARD_CARD_OVERLAY_Z_INDEX = 60
 const ignoreStoryboardCardAction = () => void 0
 function StoryboardCardOverlayItem(props: {
@@ -70,7 +69,6 @@ function StoryboardCardOverlayItem(props: {
   const projectedMediaAttachments = React.useMemo(() => (
     buildStoryboardCardMediaTextareaAttachments([...displayMediaItems, displayMedia], card.title)
   ), [card.title, displayMedia, displayMediaItems])
-  const [summaryEditRequestKey, setSummaryEditRequestKey] = React.useState<number | null>(null)
   const storyboardCommandContextText = buildStoryboardInlineMediaCommandContext(
     displayMedia === card.media ? card : { ...card, media: displayMedia },
   )
@@ -79,12 +77,6 @@ function StoryboardCardOverlayItem(props: {
     if (!payload) return
     onDropMedia(card, payload)
   }, [card, onDropMedia])
-  const requestSummaryEditFromTextColumn = React.useCallback((event: React.SyntheticEvent<HTMLElement>) => {
-    if (!shouldStoryboardCardTextColumnOwnSummaryEditTarget(event.target, event.currentTarget)) return
-    event.preventDefault()
-    event.stopPropagation()
-    setSummaryEditRequestKey(key => (key || 0) + 1)
-  }, [])
   const toolbarProps = buildStoryboardToolbarProps({
     active: true,
     duplicateDisabled: headerPinProps.headerPinned === true,
@@ -115,12 +107,16 @@ function StoryboardCardOverlayItem(props: {
       data-node-id={card.id}
       data-kg-storyboard-widget-surface={storyboardWidgetSurfaceId}
       onClickCapture={event => {
-        if (event.target instanceof Element && event.target.closest('[data-kg-port-handle="1"]')) return
+        const target = event.target instanceof Element ? event.target : null
+        if (target && isStoryboardHeaderDragBlockedTarget(target)) return
+        if (shouldStoryboardCardOverlayYieldToTextEditTarget(target)) return
         onSelect(card)
       }}
       onPointerDownCapture={event => {
         const target = event.target instanceof Element ? event.target : null
         if (target?.closest('[data-kg-port-handle="1"],[data-kg-rich-media-resize-handle="1"]')) return
+        if (target && isStoryboardHeaderDragBlockedTarget(target)) return
+        if (shouldStoryboardCardOverlayYieldToTextEditTarget(target)) return
         if (target?.closest('[data-kg-rich-media-storyboard-widget-header="1"]') && !isStoryboardHeaderDragBlockedTarget(target)) {
           onSelect(card)
           if (cardMoveEnabled) onHeaderPointerDown(event, node)
@@ -157,6 +153,7 @@ function StoryboardCardOverlayItem(props: {
               editorSurface="viewer"
               inlineChipDensity="compact"
               onCommit={nextValue => onCommitTitle(card, nextValue)}
+              onEditingChange={editing => { if (editing) onSelect(card) }}
               displayClassName={STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME}
               editorClassName={STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME}
             />
@@ -179,57 +176,22 @@ function StoryboardCardOverlayItem(props: {
           data-kg-widget-body="1"
           data-kg-storyboard-card-body-layout="brief-media"
         >
-          <section
-            className={CARD_TEXT_SURFACE_COLUMN_CLASS_NAME}
-            data-kg-storyboard-card-text-column="1"
-            onPointerDownCapture={requestSummaryEditFromTextColumn}
-            onMouseDownCapture={requestSummaryEditFromTextColumn}
-            style={{ borderColor: 'var(--kg-border)' }}
-          >
-            <StoryboardCardMetaScrollRail card={card} onCommitLane={onCommitLane} onCommitType={onCommitType} />
-            <section className={CARD_TEXT_SURFACE_SCROLL_CLASS_NAME} data-kg-canvas-pointer-ignore="true" data-kg-canvas-wheel-ignore="true" data-kg-media-scroll-surface="1" data-kg-storyboard-card-brief="1" data-kg-storyboard-card-summary-scroll="1" onWheelCapture={event => event.stopPropagation()}>
-              <CardInlineTextEditor
-                value={textModel.primaryRaw || card.slugline || ''}
-                displayValue={textModel.primaryDisplay || card.slugline || ''}
-                ariaLabel={`${textModel.primaryField.label} for ${card.id}`}
-                placeholder={textModel.primaryField.placeholder}
-                canEdit
-                editActivation="click"
-                editRequestKey={summaryEditRequestKey}
-                multiline
-                displayLineClamp="none"
-                markdownPreview="auto"
-                markdownCommandContextText={storyboardCommandContextText}
-                mediaCommandMode="external"
-                editorSurface="viewer"
-                inlineChipDensity="compact"
-                openOnPointerDown
-                rows={2}
-                projectedMediaAttachments={projectedMediaAttachments}
-                showCommandLaunchers={false}
-                onCommit={nextValue => onCommitPrimaryText(card, textModel.primaryField, nextValue)}
-                onMediaCommandSelect={applyInlineMediaCommandToCard}
-                displayClassName={cn(CARD_TEXT_SURFACE_VIEW_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME)}
-                editorClassName={cn(CARD_TEXT_SURFACE_EDIT_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME)}
-              />
-            </section>
-            {textModel.secondaryRaw && textModel.secondaryField ? (
-              <CardInlineTextEditor
-                value={textModel.secondaryRaw}
-                displayValue={textModel.secondaryDisplay || textModel.secondaryRaw}
-                ariaLabel={`${textModel.secondaryField.label} for ${card.id}`}
-                placeholder=""
-                canEdit={false}
-                multiline
-                markdownPreview="auto"
-                markdownCommandMenus={false}
-                inlineChipDensity="compact"
-                showCommandLaunchers={false}
-                displayClassName="m-0 max-h-[2.625rem] select-none overflow-auto overscroll-contain whitespace-pre-wrap break-words text-[9px] leading-[0.875rem] text-[color:var(--kg-text-tertiary)] [scrollbar-gutter:stable]"
-              />
-            ) : null}
-          </section>
-          <StoryboardCardMediaDropSlot2d card={card} displayMedia={displayMedia} displayMediaItems={displayMediaItems} onDropMedia={onDropMedia} />
+          <StoryboardCardTextEditSurface
+            card={card}
+            textModel={textModel}
+            projectedMediaAttachments={projectedMediaAttachments}
+            storyboardCommandContextText={storyboardCommandContextText}
+            onActivate={() => onSelect(card)}
+            onCommitLane={onCommitLane}
+            onCommitText={onCommitPrimaryText}
+            onCommitType={onCommitType}
+            onMediaCommandSelect={applyInlineMediaCommandToCard}
+          />
+          {textModel.secondaryEditable && textModel.secondaryField?.id === 'output' ? (
+            <StoryboardCardOutputEditSurface card={card} textModel={textModel} onActivate={() => onSelect(card)} onCommitText={onCommitPrimaryText} />
+          ) : (
+            <StoryboardCardMediaDropSlot2d card={card} displayMedia={displayMedia} displayMediaItems={displayMediaItems} onDropMedia={onDropMedia} />
+          )}
         </section>
       </section>
       {selected ? <StoryboardCardResizeHandle onPointerDown={event => onResizePointerDown(event, node)} /> : null}
@@ -267,10 +229,18 @@ export function StoryboardCardOverlayLayer2d(props: {
   const selectNode = useGraphStore(s => s.selectNode)
   const selectedNodeId = useGraphStore(s => String(s.selectedNodeId || '').trim())
   const selectedNodeIds = useGraphStore(s => s.selectedNodeIds)
+  const scopedFlowWidgetPinnedByNodeId = useGraphStore(s => resolveScopedFlowWidgetNodeMap({
+    graphMetaKey: props.flowWidgetStateGraphKey,
+    keyedByGraphMetaKey: s.flowWidgetPinnedByNodeIdByGraphMetaKey,
+    globalByNodeId: s.flowWidgetPinnedByNodeId,
+  }))
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
   const updateOpenWidgetNodeIds = useGraphStore(s => s.updateOpenWidgetNodeIds)
   const requestZoom = useGraphStore(s => s.requestZoom)
   const storyboardBoardLayoutMode = readCanvasBoardLayoutMode(strybldrStoryboardBoardLayoutMode)
+  const effectiveFlowWidgetPinnedByNodeId = Object.keys(scopedFlowWidgetPinnedByNodeId).length > 0
+    ? scopedFlowWidgetPinnedByNodeId
+    : props.flowWidgetPinnedByNodeId
   const fixedLayoutEnabled = storyboardBoardLayoutMode === 'fixed'
   const storyboardCardSizing = React.useMemo(() => ({
     aspectRatioMode: strybldrStoryboardCardAspectMode,
@@ -342,7 +312,7 @@ export function StoryboardCardOverlayLayer2d(props: {
     active,
     cards,
     dragWorldOverrideByCardIdRef,
-    effectiveFlowWidgetPinnedByNodeId: props.flowWidgetPinnedByNodeId,
+    effectiveFlowWidgetPinnedByNodeId,
     fixedCardReferencePlacements: props.fixedCardReferencePlacements,
     fixedLayoutEnabled,
     getTransform,
@@ -536,7 +506,7 @@ export function StoryboardCardOverlayLayer2d(props: {
       },
     })
     addHistory('Storyboard remove')
-  }, [addHistory, graphData, markdownDocumentName, markdownDocumentText, nodeById, removeNode, removeNodeById, removePendingNodeById, selectNode, setMarkdownDocument, setSelectionSource, updateOpenWidgetNodeIds])
+  }, [addHistory, graphData, markdownDocumentName, markdownDocumentText, removeNode, removeNodeById, removePendingNodeById, selectNode, setMarkdownDocument, setSelectionSource, updateOpenWidgetNodeIds])
 
   if (!active || cards.length === 0) return null
   return (
@@ -558,7 +528,7 @@ export function StoryboardCardOverlayLayer2d(props: {
           || (Array.isArray(selectedNodeIds) && selectedNodeIds.some(id => isCanonicalNodeIdEqual(id, card.id)))
         const headerPinProps = buildFlowCanvasHeaderPinProps({
           enabled: true,
-          flowWidgetPinnedByNodeId: props.flowWidgetPinnedByNodeId,
+          flowWidgetPinnedByNodeId: effectiveFlowWidgetPinnedByNodeId,
           flowWidgetStateGraphKey: props.flowWidgetStateGraphKey,
           nodeId: card.id,
           onBeforePinnedChange: () => preserveCardScreenPlacementForPinTransition(card.id),

@@ -31,7 +31,7 @@ import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCan
 import { isStoryboardCardMediaDropEdge } from '@/components/StoryboardWidgetCanvas/storyboardCardMediaDropGraph'
 import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
-import { applyCanonicalNodePropertyAuthority } from '@/lib/graph/applyCanonicalNodePropertyAuthority'
+import { applyStoryboardCanvasGraphPropertyAuthority } from '@/components/StoryboardWidgetCanvas/runtime/storyboardCanvasGraphAuthority'
 import { useStableStoryboardCardPlacements2d } from '@/components/StoryboardWidgetCanvas/useStableStoryboardCardPlacements2d'
 import { buildRichMediaPanelOverlayExcludeNodeIdSet } from '@/lib/render/richMediaSsot'
 import { isRichMediaPanelNode } from '@/lib/render/richMediaPanelNode'
@@ -104,7 +104,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
     keyedByGraphMetaKey: flowWidgetPinnedByNodeIdByGraphMetaKey,
     globalByNodeId: flowWidgetPinnedByNodeId,
   }), [flowWidgetPinnedByNodeId, flowWidgetPinnedByNodeIdByGraphMetaKey, flowWidgetStateGraphKey])
-  const storyboardSourceGraphData = React.useMemo(() => applyCanonicalNodePropertyAuthority({
+  const storyboardSourceGraphData = React.useMemo(() => applyStoryboardCanvasGraphPropertyAuthority({
     graphData: props.storyboardSourceGraphData,
     propertyAuthorityGraphData: canonicalGraphData,
   }), [canonicalGraphData, graphContentRevision, graphDataRevision, props.storyboardSourceGraphData])

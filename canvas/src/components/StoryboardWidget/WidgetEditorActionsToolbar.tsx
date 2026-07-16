@@ -170,6 +170,7 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
   const showHelpAction = actionVisibility.help !== false
   const showRemoveAction = actionVisibility.remove !== false
   const importUrlButtonRef = React.useRef<HTMLButtonElement | null>(null)
+  const runCaptureActivatedRef = React.useRef(false)
   const removeCaptureActivatedRef = React.useRef(false)
   const [importUrlOpen, setImportUrlOpen] = React.useState(false)
   const [importUrlDraft, setImportUrlDraft] = React.useState('')
@@ -186,7 +187,16 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
 
   const handleToolbarPointerDownCapture = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     const target = event.target instanceof Element ? event.target : null
+    const runButton = target?.closest('button[data-kg-toolbar-action="run"]') || null
     const removeButton = target?.closest('button[data-kg-toolbar-action="remove"]') || null
+    if (event.button === 0 && runButton) {
+      runCaptureActivatedRef.current = true
+      event.preventDefault()
+      event.stopPropagation()
+      commitActiveCardInlineTextEditor()
+      onRun()
+      return
+    }
     if (event.button === 0 && removeButton) {
       removeCaptureActivatedRef.current = true
       event.preventDefault()
@@ -201,7 +211,15 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
     } catch {
       void 0
     }
-  }, [onRemove])
+  }, [onRemove, onRun])
+  const handleRunClick = React.useCallback(() => {
+    if (runCaptureActivatedRef.current) {
+      runCaptureActivatedRef.current = false
+      return
+    }
+    commitActiveCardInlineTextEditor()
+    onRun()
+  }, [onRun])
   const handleRemoveClick = React.useCallback(() => {
     if (removeCaptureActivatedRef.current) {
       removeCaptureActivatedRef.current = false
@@ -232,10 +250,7 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
             actionId="run"
             title={UI_COPY.flowWidgetRun}
             tooltipContent={UI_COPY.flowWidgetRun}
-            onPointerDown={() => {
-              commitActiveCardInlineTextEditor()
-            }}
-            onClick={onRun}
+            onClick={handleRunClick}
             className="App-toolbar__btn"
             icon={Play}
             iconSizeClass={iconSizeClass}

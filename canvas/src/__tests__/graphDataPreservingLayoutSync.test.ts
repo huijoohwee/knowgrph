@@ -30,6 +30,44 @@ export function testSetGraphDataPreservingLayoutSyncsGraphFields() {
   if (vis['prop:node:foo'] !== true) throw new Error(`expected prop:node:foo visible, got ${String(vis['prop:node:foo'])}`)
 }
 
+export function testSetGraphDataPreservingLayoutCommitsProbeTreeOutputWithoutTopologyChange() {
+  const store = useGraphStore.getState()
+  store.clearGraphData()
+
+  const baseGraph = {
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    nodes: [
+      { id: 'n1', type: 'TextGeneration', label: 'Widget Card', properties: { prompt: '@knowgrph.probe-tree' }, metadata: {} },
+      { id: 'n2', type: 'RichMediaPanel', label: 'Rich Media Panel', properties: { media_interactive: true }, metadata: {} },
+    ],
+    edges: [{ id: 'e1', source: 'n1', target: 'n2', label: 'output', properties: {} }],
+    metadata: { kind: 'frontmatter-flow' },
+  }
+  store.setGraphDataPreservingLayout(baseGraph as never)
+  store.setGraphDataPreservingLayout({
+    ...baseGraph,
+    nodes: [
+      baseGraph.nodes[0],
+      {
+        ...baseGraph.nodes[1],
+        label: 'Probe-Tree Branches',
+        properties: {
+          media_interactive: true,
+          output: '# Probe-Tree Branches',
+          richMediaActiveTab: 'text',
+          workflowOutputKey: 'probe-tree-branches',
+        },
+      },
+    ],
+  } as never)
+
+  const panel = useGraphStore.getState().graphData?.nodes.find(node => node.id === 'n2')
+  if (panel?.label !== 'Probe-Tree Branches' || panel.properties?.output !== '# Probe-Tree Branches') {
+    throw new Error(`expected same-topology Probe-Tree output to reach canonical graph authority, got ${JSON.stringify(panel)}`)
+  }
+}
+
 export function testSetGraphDataPreservingLayoutAppliesWidgetRegistryFromMetadata() {
   const store = useGraphStore.getState()
   store.clearGraphData()

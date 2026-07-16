@@ -28,6 +28,9 @@ export function testStoryboardWidgetOverlayPrefersGraphKeyedWidgetState() {
     || !overlaySurfaceText.includes(': args.renderGraphDataOverride')) {
     throw new Error('expected Storyboard Widget overlay surface to pass the active frontmatter graph authority key into widget overlays')
   }
+  if (!overlaySurfaceText.includes('if (useStableFrontmatterGraphAuthority) {\n      const stableCanonicalMatch = resolveGraphNodeByCanonicalId(args.lastStableRenderGraphDataOverride, id)')) {
+    throw new Error('expected removed current-graph overlays not to be resurrected from stale stable graph authority')
+  }
   if (!overlaySurfaceRuntimeText.includes("import { resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'")) {
     throw new Error('expected Storyboard Widget overlay surface to reuse the shared scoped widget-state helper for auto-pin seeding')
   }

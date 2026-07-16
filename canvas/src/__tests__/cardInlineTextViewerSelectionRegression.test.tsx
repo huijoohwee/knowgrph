@@ -247,6 +247,71 @@ export async function testCardInlineTextEditorViewerBlankPlaceholderSharesInvoca
   }
 }
 
+export async function testCardInlineTextEditorEmptyViewerSurfaceFocusesAndCommits() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const committedValues: string[] = []
+  let focusedElement: EventTarget | null = null
+  container.addEventListener('focusin', event => {
+    focusedElement = event.target
+  })
+  try {
+    await act(async () => {
+      root.render(
+        React.createElement(CardInlineTextEditor, {
+          value: '',
+          ariaLabel: 'Output for probe-option',
+          placeholder: 'Add output',
+          canEdit: true,
+          editActivation: 'click',
+          editorSurface: 'viewer',
+          inlineChipDensity: 'compact',
+          multiline: true,
+          markdownCommandMenus: false,
+          showCommandLaunchers: false,
+          onCommit: next => committedValues.push(next),
+        }),
+      )
+      await waitForFrames(dom.window, 4)
+    })
+    const display = container.querySelector('[aria-label="Output for probe-option"][data-kg-card-inline-edit="1"]')
+    if (!(display instanceof dom.window.HTMLElement)) throw new Error('expected empty Output to use the shared Viewer display surface')
+    await act(async () => {
+      display.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 }))
+      display.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
+    })
+    await act(async () => {
+      await waitForFrames(dom.window, 8)
+    })
+    const editor = container.querySelector('[data-kg-card-inline-viewer-edit-surface="1"][contenteditable="true"]')
+    if (!(editor instanceof dom.window.HTMLElement)) throw new Error(`expected empty Output to enter the shared Viewer editor, html=${container.innerHTML}`)
+    const selection = dom.window.getSelection()
+    const selectionNode = selection?.anchorNode || null
+    if (focusedElement !== editor || !selectionNode || (selectionNode !== editor && !editor.contains(selectionNode))) {
+      throw new Error(`expected empty Output editor to receive focus and own the caret, focused=${(focusedElement as Element | null)?.outerHTML}`)
+    }
+    if (editor.getAttribute('aria-placeholder') !== 'Add output' || editor.textContent) {
+      throw new Error(`expected Add output to remain a non-value placeholder, html=${editor.outerHTML}`)
+    }
+    await act(async () => {
+      editor.textContent = 'Source-backed answer.'
+      Simulate.input(editor)
+      Simulate.keyDown(editor, { key: 'Enter', metaKey: true })
+      await waitForFrames(dom.window, 4)
+    })
+    if (committedValues.at(-1) !== 'Source-backed answer.') {
+      throw new Error(`expected shared Viewer editor to commit the mutated Output, got ${JSON.stringify(committedValues)}`)
+    }
+  } finally {
+    await act(async () => {
+      root.unmount()
+    })
+    restore()
+  }
+}
+
 export async function testCardInlineTextEditorViewerPreservesTypedSpacesAcrossRenders() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')

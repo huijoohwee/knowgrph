@@ -7,11 +7,10 @@ import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { exportWidgetBundleAsJson } from '@/lib/graph/file'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { WORKFLOW_RESET_ALL_EVENT } from '@/features/canvas/utils'
-import { clearRichMediaOutputProperties } from '@/features/chat/richMediaRun'
 import { useStoryboardWidgetWorkflowRunAll } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowRunAll'
 import { createStoryboardWidgetWorkflowNodeRunner } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunAction'
-import { areStoryboardWidgetWorkflowRecordValuesEqual } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowWriteback'
 import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
+import { buildStoryboardWidgetWorkflowResetAllGraphData } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowResetAll'
 
 export function useStoryboardWidgetWorkflowActions(args: {
   storyboardWidgetViewActive: boolean
@@ -25,7 +24,7 @@ export function useStoryboardWidgetWorkflowActions(args: {
   widgetRegistry: WidgetRegistryEntry[]
   appendDraftNode: (args: { id?: string | null; type: string; label?: string | null; x: number; y: number; properties?: Record<string, unknown> }) => string
   setDraftGraphData: React.Dispatch<React.SetStateAction<GraphData | null>>
-  commitPublishedGraphData?: (graphData: GraphData) => void
+  commitPublishedGraphData?: (graphData: GraphData) => void | Promise<void>
   persistDraftGraphData: (graphData: GraphData) => void | Promise<void>
   updateNode: (id: string, patch: Partial<GraphNode>) => void
   upsertUiToast: (args: UiToastInput) => void
@@ -61,7 +60,7 @@ export function useStoryboardWidgetWorkflowActions(args: {
     scheduleOutputEdgeRefresh: args.scheduleOverlayEdgeUpdate,
   })
 
-  const resetWorkflowOutputs = React.useCallback(() => {
+  const resetWorkflowOutputs = React.useCallback(async () => {
     if (!args.storyboardWidgetViewActive) {
       args.upsertUiToast({ id: 'storyboard-widget-reset-all-not-active', kind: 'neutral', message: 'Open Storyboard Widget to reset workflow outputs.', ttlMs: 2200 })
       return
@@ -72,28 +71,39 @@ export function useStoryboardWidgetWorkflowActions(args: {
       args.upsertUiToast({ id: 'storyboard-widget-reset-all-missing', kind: 'neutral', message: UI_COPY.storyboardWidgetNoDraftGraphToast, ttlMs: 2400 })
       return
     }
-    let resetCount = 0
-    const nextNodes = nodes.map(node => {
-      const currentProps = (node.properties || {}) as Record<string, unknown>
-      const nextProps = clearRichMediaOutputProperties(currentProps)
-      if (areStoryboardWidgetWorkflowRecordValuesEqual(currentProps, nextProps)) return node
-      resetCount += 1
-      return { ...node, properties: nextProps as never }
-    })
-    if (resetCount === 0) {
+    const reset = buildStoryboardWidgetWorkflowResetAllGraphData(draft)
+    if (reset.resetCount === 0 && !reset.layoutChanged) {
       args.upsertUiToast({ id: 'storyboard-widget-reset-all-empty', kind: 'neutral', message: 'No stale workflow outputs to reset.', ttlMs: 2200 })
       return
     }
-    const nextDraft = bumpStoryboardWidgetDraftGraphDataRevision({ ...draft, nodes: nextNodes })
-    args.draftGraphDataRef.current = nextDraft
-    args.setDraftGraphData(prev => (prev === draft ? nextDraft : args.draftGraphDataRef.current))
-    args.scheduleOverlayEdgeUpdate()
-    args.upsertUiToast({ id: 'storyboard-widget-reset-all-done', kind: 'neutral', message: `Reset ${resetCount} workflow node${resetCount === 1 ? '' : 's'}.`, ttlMs: 2200 })
+    try {
+      if (args.commitPublishedGraphData) {
+        await args.commitPublishedGraphData(reset.graphData)
+      } else {
+        const nextDraft = bumpStoryboardWidgetDraftGraphDataRevision(reset.graphData)
+        args.draftGraphDataRef.current = nextDraft
+        args.setDraftGraphData(prev => (prev === draft ? nextDraft : args.draftGraphDataRef.current))
+        await args.persistDraftGraphData(nextDraft)
+      }
+      args.scheduleOverlayEdgeUpdate()
+      const nodeLabel = `${reset.resetCount} workflow node${reset.resetCount === 1 ? '' : 's'}`
+      const message = reset.resetCount > 0 && reset.layoutChanged
+        ? `Reset ${nodeLabel} and rebalanced the Probe-Tree layout.`
+        : reset.layoutChanged
+          ? 'Rebalanced the Probe-Tree layout.'
+          : `Reset ${nodeLabel}.`
+      args.upsertUiToast({ id: 'storyboard-widget-reset-all-done', kind: 'neutral', message, ttlMs: 2400 })
+    } catch (error) {
+      const detail = error && typeof error === 'object' && 'message' in error
+        ? String((error as { message?: unknown }).message || '').trim()
+        : ''
+      args.upsertUiToast({ id: 'storyboard-widget-reset-all-failed', kind: 'error', message: detail || 'Reset all could not persist the Canvas graph.', ttlMs: 5200 })
+    }
   }, [args])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
-    const handler = () => resetWorkflowOutputs()
+    const handler = () => void resetWorkflowOutputs()
     window.addEventListener(WORKFLOW_RESET_ALL_EVENT, handler as EventListener)
     return () => window.removeEventListener(WORKFLOW_RESET_ALL_EVENT, handler as EventListener)
   }, [resetWorkflowOutputs])

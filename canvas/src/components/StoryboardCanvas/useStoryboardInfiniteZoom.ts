@@ -373,9 +373,10 @@ export function useStoryboardInfiniteZoom(args: {
     const viewportW = Math.max(1, Math.round(dims.width || 1))
     const viewportH = Math.max(1, Math.round(dims.height || 1))
     if (viewportW <= 1 || viewportH <= 1) return
-    const fitKey = `${zoomViewKey}:${viewportW}x${viewportH}:${metrics.signatureKey}`
+    const fitKey = `${zoomViewKey}:${viewportW}x${viewportH}`
     if (lastInitialFitKeyRef.current === fitKey) return
     lastInitialFitKeyRef.current = fitKey
+    if ((metrics.graphData.nodes || []).length <= 1) return
     const requestState = useGraphStore.getState()
     const resolved = resolveStoryboardInfiniteZoomRequestTransform({
       zoomRequest: { type: 'fit', intent: 'fitToView', at: 0 },

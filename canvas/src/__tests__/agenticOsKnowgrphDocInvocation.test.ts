@@ -58,13 +58,14 @@ export function testKnowgrphProbeTreeInvocationGrammarUsesDocAliasesAndToolIdent
     '        kind: text',
     '        parentNodeId: care_source',
     '        candidateOptionId: ask-safety',
+    '        question: "Any severe, worsening, or urgent symptoms?"',
     '        rationale: Clarifies urgent risk before downstream planning.',
     '        nextAction: knowgrph.probe.select',
-    '        output: "Any severe, worsening, or urgent symptoms?"',
+    '        output: ""',
     '```',
   ].join('\n'))
   const node = surface?.nodes[0]
-  if (node?.properties['chat:structuredRole'] !== 'card' || node.properties.parentNodeId !== 'care_source' || node.properties.nextAction !== 'knowgrph.probe.select') {
+  if (node?.properties['chat:structuredRole'] !== 'card' || node.properties.parentNodeId !== 'care_source' || node.properties.nextAction !== 'knowgrph.probe.select' || node.properties.summary !== 'Any severe, worsening, or urgent symptoms?' || node.properties.output !== '') {
     throw new Error(`expected Probe-Tree structured response cards to project as selectable card nodes, got ${JSON.stringify(surface)}`)
   }
   const candidateEdge = surface?.edges.find(edge => (
@@ -412,9 +413,8 @@ export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation()
     graphForRun: summaryOnlyGraphData,
     nodeIds: ['summary-only'],
     fallbackNode: summaryOnlyNode,
-    commitGraphData: (_current, next) => { summaryOnlyCommit = next },
     onMaterialized: () => undefined,
-    publishOutput: () => undefined,
+    publishOutput: output => { summaryOnlyCommit = output.baseGraphData || null; return summaryOnlyCommit },
   })
   if (!summaryOnlyRunResult?.changed || !summaryOnlyCommit) {
     throw new Error(`expected summary-only typed Widget Card Run to bypass generic empty-prompt handling, got ${JSON.stringify(summaryOnlyRunResult)}`)
@@ -437,18 +437,16 @@ export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation()
     ) throw new Error(`expected every Probe-Tree branch prompt to retain only the slash invocation while alias metadata and bounded depth remain available, got ${JSON.stringify(probeNode.properties)}`)
   }
 
-  let committedGraph: GraphData | null = null
   let selectedNodeIds: readonly string[] = []
   let publishedOutput: Parameters<Parameters<typeof runStoryboardWidgetProbeTreeInvocation>[0]['publishOutput']>[0] | null = null
   const runResult = runStoryboardWidgetProbeTreeInvocation({
     graphForRun: graphData,
     nodeIds: ['n1'],
     fallbackNode: graphData.nodes[0],
-    commitGraphData: (_current, next) => { committedGraph = next },
     onMaterialized: nodeIds => { selectedNodeIds = nodeIds },
-    publishOutput: output => { publishedOutput = output },
+    publishOutput: output => { publishedOutput = output; return output.baseGraphData || null },
   })
-  if (!runResult?.changed || !committedGraph || selectedNodeIds.length !== 3 || !publishedOutput) {
+  if (!runResult?.changed || selectedNodeIds.length !== 3 || !publishedOutput) {
     throw new Error(`expected native Widget Card Run to materialize and select branches before provider execution, got ${JSON.stringify({ runResult, selectedNodeIds, publishedOutput })}`)
   }
   const richMediaMarkdown = buildStoryboardWidgetProbeTreeRichMediaMarkdown(runResult)
@@ -477,17 +475,30 @@ export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation()
   }
 
   const runActionSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
-  const nativeProbeIndex = runActionSource.indexOf('const probeTreeOutput = runStoryboardWidgetProbeTreeInvocation({')
-  const providerIndex = runActionSource.indexOf('generateRunMarkdownWithProvider({')
-  const nativeProbeRunSource = runActionSource.slice(nativeProbeIndex, providerIndex)
+  const probeTreeRunSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowProbeTreeRun.ts'), 'utf8')
+  const textGenerationIndex = runActionSource.indexOf("FLOW_TEXT_GENERATION_NODE_TYPE_ID) {")
+  const probeDispatchIndex = runActionSource.indexOf('const probeTreeOutput = await runStoryboardWidgetProbeTreeTextGenerationInvocation({')
+  const crawlerIndex = runActionSource.indexOf('runStoryboardWidgetNativeCrawlerInvocation({', probeDispatchIndex)
+  const genericProviderIndex = runActionSource.indexOf('const result = await generateRunMarkdownWithProvider({', probeDispatchIndex)
+  const nativeProbeIndex = probeTreeRunSource.indexOf('const result = await runStoryboardWidgetProbeTreeMcpInvocation({')
+  const providerIndex = probeTreeRunSource.indexOf('generateProviderResponse: refinementPrompt => generateRunMarkdownWithProvider({', nativeProbeIndex)
+  const nativeProbeRunSource = probeTreeRunSource.slice(nativeProbeIndex, providerIndex)
   if (
-    nativeProbeIndex < 0
+    textGenerationIndex < 0
+    || probeDispatchIndex <= textGenerationIndex
+    || crawlerIndex <= probeDispatchIndex
+    || genericProviderIndex <= probeDispatchIndex
+    || nativeProbeIndex < 0
     || providerIndex <= nativeProbeIndex
     || runActionSource.includes('materializeProbeTreeOutput')
-    || !nativeProbeRunSource.includes('graphForRun, nodeIds:')
+    || runActionSource.includes('const probeTreeOutput = runStoryboardWidgetProbeTreeInvocation({')
+    || !runActionSource.slice(probeDispatchIndex, crawlerIndex).includes('publishOutput: publishTextRunOutputToRichMediaPanel')
+    || !nativeProbeRunSource.includes('graphForRun: args.graphForRun')
+    || !nativeProbeRunSource.includes('publishOutput: args.publishOutput')
+    || nativeProbeRunSource.includes('commitGraphData:')
     || nativeProbeRunSource.includes('graphData: args.readDraftGraphData()')
   ) {
-    throw new Error('expected native Widget Card Probe-Tree handling to use its resolved owner graph before the generic provider path')
+    throw new Error('expected Widget Card Probe-Tree handling to invoke the MCP-first structured runner inside the TextGeneration owner before generic provider publication')
   }
 }
 
@@ -534,28 +545,25 @@ export function testProbeTreeToolbarAndSlashRunShareOneIdempotentBranchSet() {
   if (!toolbarFirst.changed || !toolbarFirst.graphData) {
     throw new Error(`expected the bubble-toolbar action to materialize the initial branch set, got ${JSON.stringify(toolbarFirst)}`)
   }
-  let toolbarThenRunCommitCount = 0
   let toolbarThenRunSelectedNodeIds: readonly string[] = []
   let toolbarThenRunPublished = false
   const toolbarThenRun = runStoryboardWidgetProbeTreeInvocation({
     graphForRun: toolbarFirst.graphData,
     nodeIds: ['n1'],
     fallbackNode: sourceNode,
-    commitGraphData: () => { toolbarThenRunCommitCount += 1 },
     onMaterialized: nodeIds => { toolbarThenRunSelectedNodeIds = nodeIds },
-    publishOutput: () => { toolbarThenRunPublished = true },
+    publishOutput: output => { toolbarThenRunPublished = true; return output.baseGraphData || null },
   })
   const toolbarThenRunCounts = countMaterializedSet(toolbarThenRun?.graphData)
   if (
     toolbarThenRun?.changed
-    || toolbarThenRunCommitCount !== 0
     || toolbarThenRunSelectedNodeIds.length !== 3
     || !toolbarThenRunPublished
     || toolbarThenRunCounts.nodeCount !== 3
     || toolbarThenRunCounts.uniqueNodeCount !== 3
     || toolbarThenRunCounts.edgeCount !== 3
   ) {
-    throw new Error(`expected slash Run after toolbar materialization to reuse one branch set without another graph commit, got ${JSON.stringify({ toolbarThenRun, toolbarThenRunCommitCount, toolbarThenRunSelectedNodeIds, toolbarThenRunPublished, toolbarThenRunCounts })}`)
+    throw new Error(`expected slash Run after toolbar materialization to reuse one branch set inside one output publication, got ${JSON.stringify({ toolbarThenRun, toolbarThenRunSelectedNodeIds, toolbarThenRunPublished, toolbarThenRunCounts })}`)
   }
 
   let runFirstGraph: GraphData | null = null
@@ -563,9 +571,8 @@ export function testProbeTreeToolbarAndSlashRunShareOneIdempotentBranchSet() {
     graphForRun: graphData,
     nodeIds: ['n1'],
     fallbackNode: sourceNode,
-    commitGraphData: (_current, next) => { runFirstGraph = next },
     onMaterialized: () => undefined,
-    publishOutput: () => undefined,
+    publishOutput: output => { runFirstGraph = output.baseGraphData || null; return runFirstGraph },
   })
   if (!runFirst?.changed || !runFirstGraph) {
     throw new Error(`expected slash Run to materialize the initial branch set, got ${JSON.stringify(runFirst)}`)

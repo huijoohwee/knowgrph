@@ -6,6 +6,13 @@ import {
   resolveEffectiveFlowWidgetPinnedInCanvas,
   stripFrontmatterAutoManagedWidgetPinnedStates,
 } from '@/lib/storyboardWidget/widgetPlacementAuthority'
+import {
+  PROBE_TREE_BALANCED_LAYOUT_MODE,
+  PROBE_TREE_BALANCED_LAYOUT_VERSION,
+  PROBE_TREE_LAYOUT_MODE_PROPERTY,
+  PROBE_TREE_LAYOUT_VERSION_PROPERTY,
+  PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY,
+} from '@/lib/storyboardWidget/probeTreeLayoutContract'
 
 export function testStoryboardWidgetDefaultsUseSharedPinHelper() {
   const innerPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorInner.tsx')
@@ -69,6 +76,35 @@ export function testStoryboardWidgetFrontmatterWidgetsDefaultToFloatingScreenAut
   }
   if (resolveDefaultFlowWidgetPinnedInCanvas({ graphMetaKind: 'default-flow' }) !== true) {
     throw new Error('expected non-frontmatter Storyboard widgets to keep pinned canvas defaults')
+  }
+}
+
+export function testStoryboardWidgetProbeTreeLayoutPinDefaultPreservesExplicitState() {
+  const probeTreeLayoutNode = {
+    id: 'probe-tree-card',
+    type: 'TextGeneration',
+    properties: {
+      [PROBE_TREE_LAYOUT_MODE_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_MODE,
+      [PROBE_TREE_LAYOUT_VERSION_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_VERSION,
+      [PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY]: true,
+    },
+  }
+  const explicitlyUnpinned = resolveEffectiveFlowWidgetPinnedInCanvas({
+    graphMetaKind: 'frontmatter-flow',
+    node: probeTreeLayoutNode,
+    pinnedValue: false,
+  })
+  const explicitlyPinned = resolveEffectiveFlowWidgetPinnedInCanvas({
+    graphMetaKind: 'frontmatter-flow',
+    node: probeTreeLayoutNode,
+    pinnedValue: true,
+  })
+  const defaultPinned = resolveEffectiveFlowWidgetPinnedInCanvas({
+    graphMetaKind: 'frontmatter-flow',
+    node: probeTreeLayoutNode,
+  })
+  if (explicitlyUnpinned !== false || explicitlyPinned !== true || defaultPinned !== true) {
+    throw new Error(`expected Probe-Tree layout pin markers to preserve explicit true/false state and default missing state to pinned, got ${JSON.stringify({ explicitlyUnpinned, explicitlyPinned, defaultPinned })}`)
   }
 }
 

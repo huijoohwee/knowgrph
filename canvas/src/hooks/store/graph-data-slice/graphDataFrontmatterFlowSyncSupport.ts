@@ -5,10 +5,15 @@ import {
   readComposedSourceFilePath,
 } from '@/features/source-files/composedSourceSelection'
 import {
+  appendStrybldrStoryboardMarkdownElement,
   buildStrybldrCardOverridePatchFromGraphNodeChange,
+  parseStrybldrStoryboardMarkdown,
+  removeStrybldrStoryboardMarkdownElement,
   syncStrybldrStoryboardMarkdownWorkflowEdges,
   updateStrybldrStoryboardMarkdownCardOverride,
 } from '@/features/strybldr/strybldrStoryboard'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import {
   appendStrybldrStoryboardNodeSource,
   isStrybldrStoryboardNodeSourceOwned,
@@ -21,6 +26,41 @@ export function syncStrybldrStoryboardMarkdownFromParsedGraph(args: {
   nextNode?: GraphNode | null
 }): string | null {
   let nextText = args.text
+  if (!args.previousNode && !args.nextNode) {
+    const document = parseStrybldrStoryboardMarkdown(nextText)
+    const currentPanels = (args.graphData?.nodes || []).filter(node => (
+      String(unwrapGraphCellValue(node.type) || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    ))
+    const currentPanelIds = new Set(currentPanels.map(node => String(unwrapGraphCellValue(node.id) || '').trim()).filter(Boolean))
+    const sourcePanelIds = (document?.cards || [])
+      .filter(card => String(card.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
+      .map(card => String(card.nodeId || '').trim())
+      .filter(Boolean)
+    for (const sourcePanelId of sourcePanelIds) {
+      if (currentPanelIds.has(sourcePanelId)) continue
+      nextText = removeStrybldrStoryboardMarkdownElement({ text: nextText, nodeId: sourcePanelId }) || nextText
+    }
+    const retainedSourcePanelIds = new Set(sourcePanelIds.filter(id => currentPanelIds.has(id)))
+    for (const panel of currentPanels) {
+      const panelId = String(unwrapGraphCellValue(panel.id) || '').trim()
+      if (!panelId) continue
+      const patch = buildStrybldrCardOverridePatchFromGraphNodeChange({ nextNode: panel })
+      if (!retainedSourcePanelIds.has(panelId)) {
+        nextText = appendStrybldrStoryboardMarkdownElement({
+          text: nextText,
+          nodeId: panelId,
+          title: patch.title,
+          type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+          lane: patch.lane,
+          order: patch.order,
+          summary: patch.summary,
+          action: patch.action,
+          prompt: patch.prompt,
+        }) || nextText
+      }
+      nextText = updateStrybldrStoryboardMarkdownCardOverride({ text: nextText, nodeId: panelId, patch }) || nextText
+    }
+  }
   if (!args.previousNode && args.nextNode) {
     nextText = appendStrybldrStoryboardNodeSource(nextText, args.nextNode)
   }

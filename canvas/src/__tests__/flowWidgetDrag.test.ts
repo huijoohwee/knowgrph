@@ -74,6 +74,7 @@ export function testFlowWidgetDragPayloadCarriesRegistryShape() {
     nodeTypeId: 'ImageGeneration',
     widgetTypeId: 'default',
     formId: 'imageGeneration',
+    layoutVariantId: 'widget-card-type-0',
   })
   if (!payload) throw new Error('expected payload')
   const text = flowWidgetDragPayloadToDataTransferText(payload)
@@ -85,6 +86,7 @@ export function testFlowWidgetDragPayloadCarriesRegistryShape() {
   if (reread.nodeTypeId !== 'ImageGeneration') throw new Error('expected nodeTypeId to round trip')
   if (reread.widgetTypeId !== 'default') throw new Error('expected widgetTypeId to round trip')
   if (reread.formId !== 'imageGeneration') throw new Error('expected formId to round trip')
+  if (reread.layoutVariantId !== 'widget-card-type-0') throw new Error('expected layoutVariantId to round trip')
 }
 
 export function testFlowWidgetPointerDragSessionTracksNativeDragState() {
@@ -94,6 +96,7 @@ export function testFlowWidgetPointerDragSessionTracksNativeDragState() {
     nodeTypeId: 'VideoGeneration',
     widgetTypeId: 'default',
     formId: 'videoGeneration',
+    layoutVariantId: 'probe-tree-type-1',
     label: 'Video Widget',
     pointerId: 7,
     clientX: 10,
@@ -105,6 +108,7 @@ export function testFlowWidgetPointerDragSessionTracksNativeDragState() {
   if (started.nodeTypeId !== 'VideoGeneration') throw new Error('expected pointer drag nodeTypeId')
   if (started.widgetTypeId !== 'default') throw new Error('expected pointer drag widgetTypeId')
   if (started.formId !== 'videoGeneration') throw new Error('expected pointer drag formId')
+  if (started.layoutVariantId !== 'probe-tree-type-1') throw new Error('expected pointer drag layoutVariantId')
   if (started.nativeDragStarted) throw new Error('expected pointer drag session to start without native drag')
   markFlowWidgetPointerDragNativeStart(7)
   const native = readActiveFlowWidgetPointerDragSession()
@@ -142,6 +146,7 @@ export function testFlowWidgetPointerDragDispatchesDropReleaseEvent() {
       nodeTypeId: 'ImageGeneration',
       widgetTypeId: 'default',
       formId: 'imageGeneration',
+      layoutVariantId: 'widget-card-type-0',
       label: 'Image Widget',
       pointerId: 9,
       clientX: 12,
@@ -158,6 +163,7 @@ export function testFlowWidgetPointerDragDispatchesDropReleaseEvent() {
     if (seenDetail.nodeTypeId !== 'ImageGeneration') throw new Error('expected nodeTypeId in pointer drop detail')
     if (seenDetail.widgetTypeId !== 'default') throw new Error('expected widgetTypeId in pointer drop detail')
     if (seenDetail.formId !== 'imageGeneration') throw new Error('expected formId in pointer drop detail')
+    if (seenDetail.layoutVariantId !== 'widget-card-type-0') throw new Error('expected layoutVariantId in pointer drop detail')
     if (seenDetail.pointerId !== 9) throw new Error('expected pointerId in pointer drop detail')
     if (seenDetail.clientX !== 120 || seenDetail.clientY !== 340) throw new Error('expected release coordinates in pointer drop detail')
     if (!seenDetail.nativeDragStarted) throw new Error('expected native drag state in pointer drop detail')

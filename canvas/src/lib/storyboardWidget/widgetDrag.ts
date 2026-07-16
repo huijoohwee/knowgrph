@@ -12,6 +12,7 @@ export type FlowWidgetDragPayloadV1 = {
   nodeTypeId?: string
   widgetTypeId?: string
   formId?: string
+  layoutVariantId?: string
 }
 
 export type FlowWidgetPointerDragSession = {
@@ -19,6 +20,7 @@ export type FlowWidgetPointerDragSession = {
   nodeTypeId?: string
   widgetTypeId?: string
   formId?: string
+  layoutVariantId?: string
   label?: string | null
   pointerId: number
   startClientX: number
@@ -49,12 +51,14 @@ export function buildFlowWidgetDragPayload(args: {
   nodeTypeId?: string | null
   widgetTypeId?: string | null
   formId?: string | null
+  layoutVariantId?: string | null
 }): FlowWidgetDragPayloadV1 | null {
   const registryEntryId = String(args.registryEntryId || '').trim()
   if (!registryEntryId) return null
   const nodeTypeId = readOptionalDragShapeValue(args.nodeTypeId)
   const widgetTypeId = readOptionalDragShapeValue(args.widgetTypeId)
   const formId = readOptionalDragShapeValue(args.formId)
+  const layoutVariantId = readOptionalDragShapeValue(args.layoutVariantId)
   return {
     kind: FLOW_WIDGET_DRAG_KIND,
     version: FLOW_WIDGET_DRAG_VERSION,
@@ -62,6 +66,7 @@ export function buildFlowWidgetDragPayload(args: {
     ...(nodeTypeId ? { nodeTypeId } : {}),
     ...(widgetTypeId ? { widgetTypeId } : {}),
     ...(formId ? { formId } : {}),
+    ...(layoutVariantId ? { layoutVariantId } : {}),
   }
 }
 
@@ -70,6 +75,7 @@ export function beginFlowWidgetPointerDragSession(args: {
   nodeTypeId?: string | null
   widgetTypeId?: string | null
   formId?: string | null
+  layoutVariantId?: string | null
   label?: string | null
   pointerId: number
   clientX: number
@@ -82,11 +88,13 @@ export function beginFlowWidgetPointerDragSession(args: {
   const nodeTypeId = readOptionalDragShapeValue(args.nodeTypeId)
   const widgetTypeId = readOptionalDragShapeValue(args.widgetTypeId)
   const formId = readOptionalDragShapeValue(args.formId)
+  const layoutVariantId = readOptionalDragShapeValue(args.layoutVariantId)
   activePointerDragSession = {
     registryEntryId,
     ...(nodeTypeId ? { nodeTypeId } : {}),
     ...(widgetTypeId ? { widgetTypeId } : {}),
     ...(formId ? { formId } : {}),
+    ...(layoutVariantId ? { layoutVariantId } : {}),
     label: args.label || null,
     pointerId: Number.isFinite(args.pointerId) ? args.pointerId : -1,
     startClientX: args.clientX,
@@ -272,6 +280,7 @@ export function readFlowWidgetDragPayloadFromDataTransfer(args: {
     const nodeTypeId = readOptionalDragShapeValue(rec.nodeTypeId)
     const widgetTypeId = readOptionalDragShapeValue(rec.widgetTypeId)
     const formId = readOptionalDragShapeValue(rec.formId)
+    const layoutVariantId = readOptionalDragShapeValue(rec.layoutVariantId)
     return {
       kind: FLOW_WIDGET_DRAG_KIND,
       version: FLOW_WIDGET_DRAG_VERSION,
@@ -279,6 +288,7 @@ export function readFlowWidgetDragPayloadFromDataTransfer(args: {
       ...(nodeTypeId ? { nodeTypeId } : {}),
       ...(widgetTypeId ? { widgetTypeId } : {}),
       ...(formId ? { formId } : {}),
+      ...(layoutVariantId ? { layoutVariantId } : {}),
     }
   }
   return null

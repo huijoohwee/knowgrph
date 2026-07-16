@@ -97,6 +97,37 @@ function computeRegistrySignature(entries: Array<{ id: string; updatedAt: string
 
 const HASH_CACHE = new WeakMap<object, string>()
 
+const GRAPH_SYNC_VOLATILE_METADATA_KEYS = [
+  'hash',
+  'graphDataRevision',
+  'updatedAt',
+  'modifiedAt',
+  'lastUpdated',
+] as const
+
+function buildGraphDataPreviewSyncComparisonValue(graphData: unknown): unknown {
+  if (!graphData || typeof graphData !== 'object' || Array.isArray(graphData)) return graphData
+  const graphRecord = graphData as Record<string, unknown>
+  const metadata = isRecord(graphRecord.metadata)
+    ? { ...graphRecord.metadata }
+    : graphRecord.metadata
+  if (isRecord(metadata)) {
+    for (const key of GRAPH_SYNC_VOLATILE_METADATA_KEYS) delete metadata[key]
+  }
+  return { ...graphRecord, metadata }
+}
+
+export function areGraphDataPreviewSyncContentsEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true
+  try {
+    return JSON.stringify(buildGraphDataPreviewSyncComparisonValue(left))
+      === JSON.stringify(buildGraphDataPreviewSyncComparisonValue(right))
+  } catch {
+    // Graph commits must continue when an exact comparison cannot be proven.
+    return false
+  }
+}
+
 function sampleHeadTailStrings(
   length: number,
   maxSamples: number,
@@ -144,11 +175,7 @@ export function hashGraphDataForPreviewSync(graphData: unknown): string {
     const metaSansVolatile = (() => {
       if (!meta) return null
       const out: Record<string, unknown> = { ...meta }
-      delete out.hash
-      delete out.graphDataRevision
-      delete out.updatedAt
-      delete out.modifiedAt
-      delete out.lastUpdated
+      for (const key of GRAPH_SYNC_VOLATILE_METADATA_KEYS) delete out[key]
       return out
     })()
 
@@ -183,6 +210,17 @@ export function hashGraphDataForPreviewSync(graphData: unknown): string {
   } catch {
     return ''
   }
+}
+
+export function shouldSkipGraphDataPreviewSync(nextGraphData: unknown, currentGraphData: unknown): boolean {
+  const nextHash = hashGraphDataForPreviewSync(nextGraphData)
+  const currentHash = hashGraphDataForPreviewSync(currentGraphData)
+  return Boolean(
+    nextHash
+    && currentHash
+    && nextHash === currentHash
+    && areGraphDataPreviewSyncContentsEqual(nextGraphData, currentGraphData),
+  )
 }
 
 export function applyLayoutAutosuggestFromMetadata(get: GetGraph, metadata: unknown) {

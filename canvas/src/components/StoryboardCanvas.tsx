@@ -26,7 +26,6 @@ import {
   STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY,
   buildStoryboardInlineMediaCommandContext,
   type StoryboardCardModel,
-  type StoryboardCardReference,
 } from '@/components/StoryboardCanvas/storyboardModel'
 import { buildStoryboardHelpToast } from '@/components/StoryboardCanvas/storyboardHelpAction'
 import { resetStoryboardCardPersistence, runStoryboardCardResetAction } from '@/components/StoryboardCanvas/storyboardCardResetAction'
@@ -44,6 +43,7 @@ import { canUseStrybldrStoryboardDuplicatePath } from '@/components/StoryboardCa
 import { createStoryboardNewRecordId } from '@/components/StoryboardCanvas/storyboardNewRecord'
 import { buildStoryboardGraphBackedNodeLookup } from '@/components/StoryboardCanvas/storyboardNodeLookup'
 import { buildStoryboardCardMediaTextareaAttachment } from '@/components/StoryboardCanvas/storyboardCardMediaProjection'
+import { isStoryboardDisplayReference, isStoryboardImageReference } from '@/components/StoryboardCanvas/storyboardCardMediaReference'
 import { useStoryboardInfiniteZoom } from '@/components/StoryboardCanvas/useStoryboardInfiniteZoom'
 import { StoryboardMediaPreview, StoryboardMediaSelectionPanel, StoryboardReferenceStrip, type StoryboardDisplayMedia, type StoryboardMediaSelectionSlot } from '@/components/StoryboardCanvas/storyboardMediaSelectionPanel'
 import { buildFlowCanvasHeaderPinProps } from '@/components/FlowCanvas/flowCanvasRichMediaPanelHeaderToolbar'
@@ -109,6 +109,7 @@ import { resolveStoryboardPaintScale } from '@/components/StoryboardCanvas/story
 import { openWorkflowManagerMappingForNode } from '@/features/storyboard-widget-manager/openWorkflowManagerMappingForNode'
 import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { resolveFlowWidgetStateGraphKey, resolveScopedFlowWidgetNodeMap } from '@/lib/storyboardWidget/widgetStateScope'
+import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 import { getDocumentLocationFromMetadata } from '@/lib/graph/markdownMetadata'
 import { buildNodeMediaProperties } from '@/lib/canvas/graph-elements/mediaSpec'
 import {
@@ -124,18 +125,6 @@ import {
   FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
 } from '@/lib/config.storyboard-widget'
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
-const isStoryboardDisplayReference = (
-  reference: StoryboardCardReference,
-): reference is StoryboardCardReference & { kind: StoryboardDisplayMedia['kind'] } =>
-  reference.kind === 'image'
-  || reference.kind === 'svg'
-  || reference.kind === 'video'
-  || reference.kind === 'audio'
-  || reference.kind === 'iframe'
-const isStoryboardImageReference = (
-  reference: StoryboardCardReference,
-): reference is StoryboardCardReference & { kind: 'image' | 'svg' } =>
-  reference.kind === 'image' || reference.kind === 'svg'
 type StoryboardRenderedEdge = {
   id: string
   sourceId: string
@@ -731,10 +720,20 @@ export default function StoryboardCanvas({
     updateOpenWidgetNodeIds,
   ])
   const commitStoryboardPublishedGraphData = React.useCallback((nextGraphData: GraphData) => {
-    storyboardRunGraphRef.current = nextGraphData
-    setGraphDataPreservingLayout(nextGraphData); void persistStoryboardCardMediaGraphSource(nextGraphData)
-  }, [setGraphDataPreservingLayout])
-  const materializeStoryboardProbeTree = React.useCallback((card: StoryboardCardModel) => invokeProbeTreeFromStoryboardToolbar({ card, graphData, commitGraphData: commitStoryboardPublishedGraphData, addHistory, upsertUiToast }), [addHistory, commitStoryboardPublishedGraphData, graphData, upsertUiToast])
+    const committedGraphData = bumpStoryboardWidgetDraftGraphDataRevision(nextGraphData, {
+      revisionFloor: graphRevision,
+    })
+    storyboardRunGraphRef.current = committedGraphData
+    setGraphDataPreservingLayout(committedGraphData)
+    void persistStoryboardCardMediaGraphSource(committedGraphData)
+  }, [graphRevision, setGraphDataPreservingLayout])
+  const materializeStoryboardProbeTree = React.useCallback((card: StoryboardCardModel) => invokeProbeTreeFromStoryboardToolbar({
+    card,
+    graphData: storyboardRunGraphRef.current || storeGraphData || graphData,
+    commitGraphData: commitStoryboardPublishedGraphData,
+    addHistory,
+    upsertUiToast,
+  }), [addHistory, commitStoryboardPublishedGraphData, graphData, storeGraphData, upsertUiToast])
   const runStoryboardWorkflowNode = React.useMemo(() => createStoryboardWidgetWorkflowNodeRunner({
     baseGraphKind: storyboardRunBaseGraphKind,
     baseGraphData: storeGraphData || graphData || null,
@@ -744,7 +743,7 @@ export default function StoryboardCanvas({
       setGraphDataPreservingLayout(nextDraft)
     },
     commitPublishedGraphData: commitStoryboardPublishedGraphData,
-    persistDraftGraphData: persistStoryboardCardMediaGraphSource,
+    persistDraftGraphData: async nextGraphData => { await persistStoryboardCardMediaGraphSource(nextGraphData) },
     renderGraphDataOverride: graphData,
     markdownDocumentName,
     markdownDocumentSourceUrl: null,

@@ -23,6 +23,11 @@ import { containsMarkdownPipeTable } from '@/features/markdown/ui/markdownDataVi
 import { readStructuredTableMarkdown } from './chatResponseStructuredTables'
 import { readGeospatialStructuredPayload } from './chatResponseStructuredGeospatial'
 import {
+  buildProbeTreeStructuredResponseProperties,
+  isProbeTreeStructuredResponseCard,
+  resolveProbeTreeStructuredResponseNodeTypeId,
+} from './probeTreeStructuredResponseContract'
+import {
   GENERATED_MARKDOWN_PIPE_TABLE_FORMAT,
   GENERATED_MARKDOWN_PIPE_TABLE_MIME_TYPE,
   normalizeGeneratedRichMediaTableProperties,
@@ -217,11 +222,12 @@ const pickRichMediaTab = (kind: ChatResponseSurfaceNode['kind']): JSONValue => {
   return 'text'
 }
 
-const normalizeNodeRecord = (value: unknown, index: number, role: ChatResponseStructuredRole): ChatResponseSurfaceNode | null => {
+const normalizeNodeRecord = (value: unknown, index: number, role: ChatResponseStructuredRole, roleIndex = index): ChatResponseSurfaceNode | null => {
   if (!isRecord(value)) return null
   const record = mergeStructuredProperties(value)
+  const probeTreeCard = isProbeTreeStructuredResponseCard(record, role)
   const geospatialPayload = readGeospatialStructuredPayload(record)
-  const tableMarkdown = readStructuredTableMarkdown(record, role)
+  const tableMarkdown = probeTreeCard ? '' : readStructuredTableMarkdown(record, role)
   const isTableOutput = containsMarkdownPipeTable(tableMarkdown)
   const inferredKind = normalizeKind(
     readFieldValue(record, 'kind') || readFieldValue(record, 'type') || readFieldValue(record, 'mediaKind') || readFieldValue(record, 'media_kind'),
@@ -231,15 +237,20 @@ const normalizeNodeRecord = (value: unknown, index: number, role: ChatResponseSt
   const kind = isTableOutput || (inferredKind === 'html' && !hasAuthoredHtml && typeof geospatialPayload === 'undefined')
     ? 'text'
     : inferredKind
-  const nodeTypeId = inferWidgetNodeTypeId(record, role)
+  const nodeTypeId = resolveProbeTreeStructuredResponseNodeTypeId({
+    record,
+    role,
+    fallbackNodeTypeId: inferWidgetNodeTypeId(record, role),
+  })
   const targetHandle = defaultTargetHandleForNode({ nodeTypeId, kind, record })
   const sourceHandle = defaultSourceHandleForNode({ nodeTypeId, targetHandle: readTargetHandle(kind), record })
-  const output = tableMarkdown || readFirstString(record, ['output', 'result', 'response', 'transcript', 'text', 'content', 'markdown', 'description'])
+  const output = probeTreeCard ? '' : tableMarkdown || readFirstString(record, ['output', 'result', 'response', 'transcript', 'text', 'content', 'markdown', 'description'])
+  const probeTreeQuestion = probeTreeCard ? readFirstString(record, ['question']) : ''
   const imageUrl = readFirstString(record, ['imageUrl', 'image_url', 'image', 'mediaUrl', 'media_url'])
   const audioUrl = readFirstString(record, ['audioUrl', 'audio_url', 'audio'])
   const videoUrl = readFirstString(record, ['videoUrl', 'video_url', 'video'])
   const outputSrcDoc = isTableOutput ? '' : readFirstString(record, ['outputSrcDoc', 'srcDoc', 'srcdoc', 'html'])
-  const hasRenderableContent = Boolean(output || imageUrl || audioUrl || videoUrl || outputSrcDoc || typeof geospatialPayload !== 'undefined')
+  const hasRenderableContent = Boolean(probeTreeQuestion || output || imageUrl || audioUrl || videoUrl || outputSrcDoc || typeof geospatialPayload !== 'undefined')
   const hasDeclaredWidgetInput = nodeTypeId !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
     && Boolean(readWidgetFormId(record) || readFirstString(record, ['prompt', 'input', 'instructions', 'systemPrompt', 'system_prompt']))
   const hasDeclaredPanelTarget = nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID && (role === 'panel' || role === 'media')
@@ -277,6 +288,8 @@ const normalizeNodeRecord = (value: unknown, index: number, role: ChatResponseSt
     const nextValue = toJsonValue(readFieldValue(record, key))
     if (typeof nextValue !== 'undefined') properties[key] = nextValue
   }
+  if (probeTreeCard) properties.output = ''
+  Object.assign(properties, buildProbeTreeStructuredResponseProperties({ record, role, index: roleIndex }))
   const normalizedProperties = normalizeGeneratedRichMediaTableProperties({
     nodeType: nodeTypeId,
     nodeLabel: label,
@@ -340,7 +353,7 @@ const hasStructuredSurfaceLists = (record: Record<string, unknown>): boolean =>
 const readStructuredRoot = (parsed: unknown, allowFallback = true): Record<string, unknown> | null => {
   if (!isRecord(parsed)) return null
   const direct = readDirectStructuredRecord(parsed)
-  if (direct) return direct
+  if (direct) return hasStructuredSurfaceLists(direct) ? direct : (readStructuredRoot(direct, false) || direct)
   for (const key of STRUCTURED_ENVELOPE_KEYS) {
     const nested = isRecord(parsed[key]) ? readStructuredRoot(parsed[key], false) : null
     if (nested) return nested
@@ -551,7 +564,8 @@ export const extractChatResponseStructuredSurface = (assistantText: string): Cha
     for (let j = 0; j < records.length && nodes.length < MAX_RESPONSE_SURFACE_NODES; j += 1) {
       const record = records[j]
       collectStructuredFrontmatterFields(record.value, frontmatter)
-      const node = normalizeNodeRecord(record.value, nodes.length, record.role)
+      const roleIndex = nodes.filter(node => node.properties['chat:structuredRole'] === record.role).length
+      const node = normalizeNodeRecord(record.value, nodes.length, record.role, roleIndex)
       if (!node || seenIds.has(node.id)) continue
       seenIds.add(node.id)
       nodeSourceHandleById.set(node.id, node.sourceHandle)

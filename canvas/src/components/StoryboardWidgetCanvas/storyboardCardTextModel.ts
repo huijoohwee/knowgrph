@@ -13,8 +13,9 @@ export type StoryboardCardTextModel = {
   secondaryRaw: string
   secondaryDisplay: string
   secondaryField: GraphNodeCardTextFieldSpec | null
+  secondaryEditable: boolean
 }
-type StoryboardCardTextSource = Partial<Pick<StoryboardCardModel, 'summary' | 'output' | 'action' | 'dialogue' | 'prompt' | 'style'>>
+type StoryboardCardTextSource = Partial<Pick<StoryboardCardModel, 'summary' | 'output' | 'action' | 'dialogue' | 'prompt' | 'style' | 'typeLabel'>>
 
 type StoryboardCardPrimaryTextCandidate = {
   raw: string
@@ -28,6 +29,21 @@ const readStoryboardCardTextFieldSpec = (id: GraphNodeCardTextFieldId): GraphNod
 }
 
 export const buildStoryboardCardTextModel = (card: StoryboardCardTextSource): StoryboardCardTextModel => {
+  if (card.typeLabel === 'Probe-Tree Card') {
+    const primaryField = readStoryboardCardTextFieldSpec('summary')
+    const secondaryField = readStoryboardCardTextFieldSpec('output')
+    const primaryRaw = card.summary || ''
+    const secondaryRaw = card.output || ''
+    return {
+      primaryRaw,
+      primaryDisplay: readStoryboardCardSummaryText(primaryRaw),
+      primaryField,
+      secondaryRaw,
+      secondaryDisplay: readStoryboardCardSummaryText(secondaryRaw),
+      secondaryField,
+      secondaryEditable: true,
+    }
+  }
   const candidates: StoryboardCardPrimaryTextCandidate[] = [
     { raw: card.summary || '', field: readStoryboardCardTextFieldSpec('summary') },
     { raw: card.output || '', field: readStoryboardCardTextFieldSpec('output') },
@@ -49,5 +65,6 @@ export const buildStoryboardCardTextModel = (card: StoryboardCardTextSource): St
     secondaryRaw,
     secondaryDisplay: readStoryboardCardSummaryText(secondaryRaw),
     secondaryField: secondaryCandidate?.field || null,
+    secondaryEditable: false,
   }
 }

@@ -52,6 +52,7 @@ import {
   FLOW_STORYBOARD_ELEMENT_FORM_ID,
   FLOW_STORYBOARD_ELEMENT_NODE_TYPE_ID,
   FLOW_STORYBOARD_ELEMENT_WIDGET_TYPE_ID,
+  FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
   FLOW_TEXT_GENERATION_NODE_LABEL,
   FLOW_TEXT_GENERATION_NODE_TYPE_ID,
 } from '@/lib/config.storyboard-widget'
@@ -149,6 +150,62 @@ export function testStrybldrStarterWorkflowGanttStaysSynchronizedWithStoryboardC
   assert(readYamlFrontmatterMermaidDiagramCodes(text, 'gantt').length === 0, 'expected starter template not to keep a duplicate authored mermaid_gantt workflow block')
   assert(!text.includes('video_agent_workflow:'), 'expected starter template to remove the stale static video_agent_workflow diagram')
   assert(text.includes('timelinePolicy: "Gantt-Timeline rows derive from strybldr_storyboard.elements'), 'expected starter template to declare Strybldr-owned Gantt derivation policy')
+}
+
+export async function testStrybldrFullGraphSyncReconcilesRichMediaPanelTopology() {
+  let text = readStrybldrStarterTemplateText()
+  for (const nodeId of ['probe-ledger-a', 'probe-ledger-b']) {
+    text = appendStrybldrStoryboardMarkdownElement({
+      text,
+      nodeId,
+      title: 'Probe-Tree Branches',
+      type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+    }) || text
+  }
+  const document = parseStrybldrStoryboardMarkdown(text)
+  assert(document, 'expected Strybldr payload after appending duplicate Probe-Tree ledgers')
+  const graph = buildStrybldrGraphData(document)
+  const nextOutput = '# Probe-Tree Branches\n\nCanonical ledger'
+  const nextGraphData: GraphData = {
+    ...graph,
+    context: 'frontmatter-flow',
+    nodes: graph.nodes
+      .filter(node => String(node.id || '') !== 'probe-ledger-b')
+      .map(node => String(node.id || '') === 'probe-ledger-a'
+        ? { ...node, properties: { ...(node.properties || {}), output: nextOutput } }
+        : node),
+    edges: graph.edges.filter(edge => String(edge.source || '') !== 'probe-ledger-b' && String(edge.target || '') !== 'probe-ledger-b'),
+  }
+  const sourceFiles = [{
+    id: 'strybldr-probe-ledger-topology',
+    enabled: true,
+    name: STRYBLDR_STARTER_TEMPLATE_NAME,
+    text,
+    source: { path: STRYBLDR_STARTER_TEMPLATE_REFERENCE },
+    parsedGraphData: graph,
+  }] as never
+  const synced = syncActiveMarkdownDocumentTextFromParsedGraph({
+    state: {
+      markdownDocumentName: STRYBLDR_STARTER_TEMPLATE_REFERENCE,
+      markdownDocumentText: text,
+    } as never,
+    sourceFiles,
+    parsedGraphData: nextGraphData,
+  })
+  const nextText = String(synced.markdownDocumentText || '')
+  const reparsed = parseStrybldrStoryboardMarkdown(nextText)
+  const panelCards = (reparsed?.cards || []).filter(card => card.type === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID && card.title === 'Probe-Tree Branches')
+  assert(panelCards.length === 1 && panelCards[0]?.nodeId === 'probe-ledger-a', `expected one canonical Rich Media ledger in source, got ${JSON.stringify(panelCards)}`)
+  assert(panelCards[0]?.output === nextOutput, `expected the canonical ledger output to persist, got ${JSON.stringify(panelCards[0])}`)
+  const reparsedGraph = await loadGraphDataFromTextViaParser(STRYBLDR_STARTER_TEMPLATE_NAME, nextText, {
+    applyToStore: false,
+    syncMarkdownDocument: false,
+  })
+  const flowProbePanels = reparsedGraph.graphData.nodes.filter(node => (
+    String(node.type || '') === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    && String(node.label || '') === 'Probe-Tree Branches'
+  ))
+  assert(flowProbePanels.length === 1, `expected hybrid flow.nodes to retain one Probe-Tree ledger, got ${JSON.stringify(flowProbePanels)}`)
 }
 
 export async function testStrybldrStoryboardSummaryEditSyncPersistsCardOverride() {

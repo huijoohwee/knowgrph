@@ -10,10 +10,11 @@ import {
 import { hashText } from '@/features/parsers/hash'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { UiToastInput } from '@/hooks/store/store-types/core'
+import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
-import { setFlowWidgetPinnedById } from '@/lib/storyboardWidget/flowWidgetPinnedState'
+import { seedMissingFlowWidgetPinnedByIds } from '@/lib/storyboardWidget/flowWidgetPinnedState'
 import {
   readGraphNodeCanonicalTextProperty,
   readGraphNodeCardTitle,
@@ -23,6 +24,10 @@ import {
   buildProbeTreeStoryboardMermaidFlowchart,
   PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND,
 } from '@/components/StoryboardCanvas/storyboardProbeTreeMermaidFlowchart'
+import {
+  normalizeStoryboardWidgetProbeTreeOutputLayout,
+  resolveStoryboardWidgetProbeTreeBranchPositions,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
 import {
   buildKnowgrphProbeTreePromptPreset,
   KNOWGRPH_PROBE_TREE_GENERATE_TOOL_NAME,
@@ -208,17 +213,14 @@ export function revealProbeTreeBranchCardsOnCanvas(nodeIds: readonly string[]): 
   const ids = Array.from(new Set(nodeIds.map(id => String(id || '').trim()).filter(Boolean)))
   if (ids.length === 0) return
   const store = useGraphStore.getState()
-  let pinnedById = store.flowWidgetPinnedByNodeId || {}
-  let pinnedChanged = false
-  for (const id of ids) {
-    const nextPinnedById = setFlowWidgetPinnedById(pinnedById, id, true)
-    if (!nextPinnedById) continue
-    pinnedById = nextPinnedById
-    pinnedChanged = true
-  }
-  if (pinnedChanged) store.setFlowWidgetPinnedByNodeId(pinnedById)
+  disableAutoZoomModesForUserGesture(store)
+  const nextPinnedById = seedMissingFlowWidgetPinnedByIds({
+    pinnedById: store.flowWidgetPinnedByNodeId,
+    nodeIds: ids,
+    pinned: true,
+  })
+  if (nextPinnedById) store.setFlowWidgetPinnedByNodeId(nextPinnedById)
   store.selectNodesExpanded({ nodeIds: ids, activeNodeId: ids[0] })
-  store.requestZoom('fit', { intent: 'fitToView' })
 }
 
 export function materializeProbeTreeBranchCards(args: {
@@ -270,14 +272,19 @@ export function materializeProbeTreeBranchCards(args: {
   const requestSignature = buildProbeTreeRequestSignature(card)
   const parentTitle = cleanPromptValue(card.title || parent.label || card.id, 120)
   const parentSummary = cleanPromptValue(readSelectedCardText(card), 320)
-  const parentX = typeof parent.x === 'number' && Number.isFinite(parent.x) ? parent.x : null
-  const parentY = typeof parent.y === 'number' && Number.isFinite(parent.y) ? parent.y : null
-  const materializedNodeIds: string[] = []
+  const materializedNodeIds = PROBE_TREE_BRANCH_HEURISTICS.map(heuristic => (
+    `probe-tree:${heuristic.key}:${hashText(`${card.id}:${requestSignature}:${heuristic.key}`).slice(0, 12)}`
+  ))
+  const projectedPositions = resolveStoryboardWidgetProbeTreeBranchPositions({
+    graphData,
+    anchorNode: parent,
+    removedNodeIds: new Set(materializedNodeIds),
+    count: materializedNodeIds.length,
+  })
   let changed = false
 
   PROBE_TREE_BRANCH_HEURISTICS.forEach((heuristic, index) => {
-    const nodeId = `probe-tree:${heuristic.key}:${hashText(`${card.id}:${requestSignature}:${heuristic.key}`).slice(0, 12)}`
-    materializedNodeIds.push(nodeId)
+    const nodeId = materializedNodeIds[index]!
     const existingNodeIndex = nodes.findIndex(node => readGraphIdentity(node.id) === nodeId)
     const existingNode = existingNodeIndex >= 0 ? nodes[existingNodeIndex] : null
     if (!existingNode) {
@@ -286,8 +293,8 @@ export function materializeProbeTreeBranchCards(args: {
         id: nodeId,
         label: title,
         type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-        ...(parentX != null ? { x: parentX + 360 + index * 28 } : {}),
-        ...(parentY != null ? { y: parentY + (index - 1) * 150 } : {}),
+        x: projectedPositions[index]!.x,
+        y: projectedPositions[index]!.y,
         properties: {
           title: asJson(title),
           lane: asJson('PROBE'),
@@ -342,25 +349,31 @@ export function materializeProbeTreeBranchCards(args: {
         } as GraphData['metadata'],
       }
     : graphData
-  const probeTreeMermaidFlowchart = buildProbeTreeStoryboardMermaidFlowchart({
+  const laidOutGraphData = normalizeStoryboardWidgetProbeTreeOutputLayout({
     graphData: nextGraphData,
+    threadRootId: parentNodeId,
+    preserveCanonicalOutputEdges: true,
+  })
+  const layoutChanged = laidOutGraphData !== nextGraphData
+  const probeTreeMermaidFlowchart = buildProbeTreeStoryboardMermaidFlowchart({
+    graphData: laidOutGraphData,
     rootNodeId: parentNodeId,
   })
   const metadataChanged = (
-    (nextGraphData.metadata || {}).probeTreeMermaidFlowchart !== probeTreeMermaidFlowchart
-    || (nextGraphData.metadata || {}).probeTreeMermaidFlowchartKind !== PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND
+    (laidOutGraphData.metadata || {}).probeTreeMermaidFlowchart !== probeTreeMermaidFlowchart
+    || (laidOutGraphData.metadata || {}).probeTreeMermaidFlowchartKind !== PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND
   )
   const finalGraphData = metadataChanged
     ? {
-        ...nextGraphData,
+        ...laidOutGraphData,
         metadata: {
-          ...(nextGraphData.metadata || {}),
+          ...(laidOutGraphData.metadata || {}),
           probeTreeMermaidFlowchart,
           probeTreeMermaidFlowchartKind: PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND,
         } as GraphData['metadata'],
       }
-    : nextGraphData
-  const message = changed
+    : laidOutGraphData
+  const message = changed || layoutChanged
     ? 'Probe-Tree branch cards materialized on canvas.'
     : metadataChanged
       ? 'Probe-Tree Mermaid flowchart mapping refreshed.'
@@ -368,8 +381,8 @@ export function materializeProbeTreeBranchCards(args: {
 
   return {
     graphData: finalGraphData,
-    changed: changed || metadataChanged,
-    kind: changed || metadataChanged ? 'success' : 'neutral',
+    changed: changed || layoutChanged || metadataChanged,
+    kind: changed || layoutChanged || metadataChanged ? 'success' : 'neutral',
     message,
     materializedNodeIds,
     invocationText,
@@ -393,6 +406,7 @@ export function invokeProbeTreeFromStoryboardToolbar(args: {
   addHistory: (label: string) => void
   upsertUiToast: (toast: UiToastInput) => void
 }): ProbeTreeBranchCardMaterializationResult {
+  disableAutoZoomModesForUserGesture(useGraphStore.getState())
   const result = materializeProbeTreeBranchCards({ graphData: args.graphData, card: args.card })
   if (result.changed && result.graphData) {
     args.commitGraphData(result.graphData)

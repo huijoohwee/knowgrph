@@ -37,11 +37,14 @@ export function buildFlowCanvasHeaderPinProps(args: {
   onBeforePinnedChange?: (pinned: boolean) => void
   nodeId: string
   onPinnedChange?: (pinned: boolean) => void
+  pinned?: boolean
   stopEvent: (event: React.SyntheticEvent) => void
 }): FlowCanvasHeaderPinProps {
   const nodeId = String(args.nodeId || '').trim()
   if (!args.enabled || !nodeId) return {}
-  const headerPinned = readFlowWidgetPinnedInCanvas(args.flowWidgetPinnedByNodeId, nodeId)
+  const headerPinned = typeof args.pinned === 'boolean'
+    ? args.pinned
+    : readFlowWidgetPinnedInCanvas(args.flowWidgetPinnedByNodeId, nodeId)
   const commitTogglePinned = () => {
     const st = useGraphStore.getState()
     const currentPinnedById = resolveScopedFlowWidgetNodeMap({
@@ -49,7 +52,12 @@ export function buildFlowCanvasHeaderPinProps(args: {
       keyedByGraphMetaKey: (st as unknown as { flowWidgetPinnedByNodeIdByGraphMetaKey?: Record<string, Record<string, boolean>> }).flowWidgetPinnedByNodeIdByGraphMetaKey,
       globalByNodeId: st.flowWidgetPinnedByNodeId,
     })
-    const nextPinnedById = toggleFlowWidgetPinnedById(currentPinnedById, nodeId)
+    const pinnedByIdWithDefault = Object.prototype.hasOwnProperty.call(currentPinnedById, nodeId)
+      ? currentPinnedById
+      : typeof args.pinned === 'boolean'
+        ? { ...currentPinnedById, [nodeId]: args.pinned }
+        : currentPinnedById
+    const nextPinnedById = toggleFlowWidgetPinnedById(pinnedByIdWithDefault, nodeId)
     if (!nextPinnedById) return
     const nextPinned = readFlowWidgetPinnedInCanvas(nextPinnedById, nodeId)
     args.onBeforePinnedChange?.(nextPinned)
@@ -81,6 +89,7 @@ export function buildFlowCanvasRichMediaPanelHeaderToolbar(args: {
   isSelected: boolean
   node: MediaOverlayNode
   onBeforePinnedChange?: (pinned: boolean) => void
+  pinned?: boolean
   requestCommit: () => void
   scheduleLayout: () => void
   setActiveRichMediaPanelId: (id: string) => void
@@ -109,6 +118,7 @@ export function buildFlowCanvasRichMediaPanelHeaderToolbar(args: {
     flowWidgetStateGraphKey: args.flowWidgetStateGraphKey,
     nodeId,
     onBeforePinnedChange: args.onBeforePinnedChange,
+    pinned: args.pinned,
     onPinnedChange: () => {
       args.scheduleLayout()
       args.requestCommit()

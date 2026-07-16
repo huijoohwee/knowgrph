@@ -18,6 +18,56 @@ import { KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS } from '@/features/agentic-os/pro
 import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
+const assertProbeTreeRevealPreservesExplicitPinsAndViewport = (nodeIds: readonly string[]): void => {
+  const [explicitlyUnpinnedNodeId, explicitlyPinnedNodeId, missingPinNodeId] = nodeIds
+  if (!explicitlyUnpinnedNodeId || !explicitlyPinnedNodeId || !missingPinNodeId) {
+    throw new Error(`expected three Probe-Tree output ids for reveal-state coverage, got ${JSON.stringify(nodeIds)}`)
+  }
+  const previousRevealState = useGraphStore.getState()
+  const unchangedZoomRequest = { type: 'reset', at: 4242 } as const
+  try {
+    useGraphStore.setState({
+      flowWidgetPinnedByNodeId: {
+        [explicitlyUnpinnedNodeId]: false,
+        [explicitlyPinnedNodeId]: true,
+      },
+      zoomRequest: unchangedZoomRequest,
+    })
+    revealProbeTreeBranchCardsOnCanvas(nodeIds)
+    const revealedState = useGraphStore.getState()
+    if (
+      revealedState.flowWidgetPinnedByNodeId[explicitlyUnpinnedNodeId] !== false
+      || revealedState.flowWidgetPinnedByNodeId[explicitlyPinnedNodeId] !== true
+      || revealedState.flowWidgetPinnedByNodeId[missingPinNodeId] !== true
+      || !revealedState.selectedNodeIds.includes(explicitlyUnpinnedNodeId)
+      || revealedState.selectedNodeId !== explicitlyUnpinnedNodeId
+      || revealedState.zoomRequest !== unchangedZoomRequest
+    ) {
+      throw new Error(`expected Probe-Tree reveal to preserve explicit pins, seed only missing pins, select output, and keep the viewport unchanged, got ${JSON.stringify({ pinned: revealedState.flowWidgetPinnedByNodeId, selected: revealedState.selectedNodeIds, active: revealedState.selectedNodeId, zoom: revealedState.zoomRequest })}`)
+    }
+  } finally {
+    useGraphStore.setState({
+      flowWidgetPinnedByNodeId: previousRevealState.flowWidgetPinnedByNodeId,
+      flowWidgetPinnedByNodeIdByGraphMetaKey: previousRevealState.flowWidgetPinnedByNodeIdByGraphMetaKey,
+      selectedNodeIds: previousRevealState.selectedNodeIds,
+      selectedNodeId: previousRevealState.selectedNodeId,
+      selectedEdgeIds: previousRevealState.selectedEdgeIds,
+      selectedEdgeId: previousRevealState.selectedEdgeId,
+      selectedGroupIds: previousRevealState.selectedGroupIds,
+      selectedGroupId: previousRevealState.selectedGroupId,
+      zoomRequest: previousRevealState.zoomRequest,
+    })
+  }
+}
+
+export function testStoryboardWidgetProbeTreeRevealPreservesExplicitPinsAndViewport() {
+  assertProbeTreeRevealPreservesExplicitPinsAndViewport([
+    'probe-tree:test:explicitly-unpinned',
+    'probe-tree:test:explicitly-pinned',
+    'probe-tree:test:missing-pin',
+  ])
+}
+
 export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() {
   const toolbarPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorActionsToolbar.tsx')
   const overlayImplementationPaths = [
@@ -61,7 +111,7 @@ export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() 
     'icon={Play}',
     'actionId="probe-tree"',
     'icon={GitBranch}',
-    'onClick={onRun}',
+    'onClick={handleRunClick}',
     'onClick={onProbeTree}',
   ]
   for (const snippet of requiredToolbarSnippets) {
@@ -194,25 +244,7 @@ export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() 
   ))) {
     throw new Error('expected Probe-Tree materialized cards to keep the slash prompt while preserving MCP identity and source-backed aliases as metadata')
   }
-  const previousRevealState = useGraphStore.getState()
-  useGraphStore.setState({ flowWidgetPinnedByNodeId: Object.fromEntries(materialized.materializedNodeIds.map(id => [id, false])), zoomRequest: null })
-  revealProbeTreeBranchCardsOnCanvas(materialized.materializedNodeIds)
-  const revealedState = useGraphStore.getState()
-  if (
-    !materialized.materializedNodeIds.every(id => revealedState.flowWidgetPinnedByNodeId[id] === true)
-    || !revealedState.selectedNodeIds.includes(materialized.materializedNodeIds[0])
-    || revealedState.selectedNodeId !== materialized.materializedNodeIds[0]
-    || revealedState.zoomRequest?.type !== 'fit'
-    || revealedState.zoomRequest.intent !== 'fitToView'
-  ) {
-    throw new Error(`expected Probe-Tree output to be pinned, selected, and fit into the visible canvas, got ${JSON.stringify({ pinned: revealedState.flowWidgetPinnedByNodeId, selected: revealedState.selectedNodeIds, active: revealedState.selectedNodeId, zoom: revealedState.zoomRequest })}`)
-  }
-  useGraphStore.setState({
-    flowWidgetPinnedByNodeId: previousRevealState.flowWidgetPinnedByNodeId,
-    selectedNodeIds: previousRevealState.selectedNodeIds,
-    selectedNodeId: previousRevealState.selectedNodeId,
-    zoomRequest: previousRevealState.zoomRequest,
-  })
+  assertProbeTreeRevealPreservesExplicitPinsAndViewport(materialized.materializedNodeIds)
   const graphMermaid = String((materializedGraph?.metadata || {}).probeTreeMermaidFlowchart || '')
   if (
     !graphMermaid.includes('flowchart TB')

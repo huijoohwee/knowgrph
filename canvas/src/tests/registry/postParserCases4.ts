@@ -470,6 +470,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["markdown.loader.prefersImportedBasenameMatch","@/__tests__/markdownLoaderInterop.test","testMarkdownLoaderPrefersImportedForBasenameMatch"],
   ["policy.hashing.sharedContract","@/__tests__/hashingInterop.test","testHashStringContractIsSharedAcrossRepos"],
   ["preview.sync.hash.ignoresRevisionAndHash","@/__tests__/previewSyncHash.test","testPreviewSyncHashIgnoresRevisionAndHash"],
+  ["preview.sync.contentEquality.rejectsSameTopologyOutputChange","@/__tests__/previewSyncHash.test","testPreviewSyncContentEqualityRejectsSameTopologyOutputChanges"],
   ["markdown.demo.slideMediaAndGeo","@/__tests__/markdownSlideDemo.test","testMarkdownSlideDemoParsesMediaAndGeo"],
   ["markdownDocument.setMarkdownDocument.noAutoFrontmatterWhenDisabled","@/__tests__/markdownDocumentSetAutoFrontmatterGuard.test","testSetMarkdownDocumentDoesNotAutoEnableFrontmatterWhenDisabled"],
   ["markdownDocument.setMarkdownDocument.autoFrontmatterByDefault","@/__tests__/markdownDocumentSetAutoFrontmatterGuard.test","testSetMarkdownDocumentAutoEnablesFrontmatterByDefault"],

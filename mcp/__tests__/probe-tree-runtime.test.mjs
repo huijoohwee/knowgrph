@@ -50,6 +50,13 @@ test("probe.generate recalls scoped exemplars and does not mutate the markdown g
   assert.equal(result.token_budget.within_budget, true);
   assert.equal(result.degraded, true);
   assert.equal(result.stateGraph.checkpointer, "markdown-graph-store");
+  assert.equal(result.response.structuredContent.widgets.length, 1);
+  assert.equal(result.response.structuredContent.widgets[0].id, "root");
+  assert.equal(result.response.structuredContent.cards.length, 2);
+  assert.equal(result.response.structuredContent.cards[0].parentNodeId, "root");
+  assert.equal(result.response.structuredContent.cards[0].nextAction, "knowgrph.probe.select");
+  assert.ok(result.response.structuredContent.cards.every((card) => card.question && card.output === ""));
+  assert.equal(result.response.structuredContent.panels[0].label, "Probe-Tree Branches");
   assert.equal(await fs.readFile(path.join(storeDir, "sentinel.txt"), "utf8"), "before");
 });
 
@@ -82,6 +89,30 @@ test("probe.generate honors explicit zero recall against a seeded memory store",
   assert.equal(result.recalled_exemplars.length, 0);
   assert.equal(result.token_budget.recalled_exemplar_count, 0);
   assert.equal(result.options.some((option) => option.text === "Which legal approver signs off the exception?"), false);
+});
+
+test("probe.generate fallback stays specific to the selected Widget context", async () => {
+  const rootDir = await tempRoot();
+  const result = await generateProbeOptions({
+    thread_root_id: "sme-care-agent",
+    current_node_id: "risk-intake",
+    context_text: "Assess SME cyber coverage gaps, supply-chain exposure, and accountable risk review.",
+    k: 3,
+    recall_top_k: 0,
+  }, { rootDir, env: {} });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.degraded, true);
+  assert.equal(result.degraded_reason, "model_not_configured");
+  assert.equal(result.options.length, 3);
+  const projectedText = result.response.structuredContent.cards
+    .flatMap((card) => [card.question, card.rationale, card.evidenceNeeded])
+    .join(" ");
+  assert.match(projectedText, /SME/i);
+  assert.match(projectedText, /cyber/i);
+  assert.match(projectedText, /coverage|supply chain/i);
+  assert.equal(result.options.some((option) => option.text === "What outcome would make this resolved?"), false);
+  assert.equal(result.options.some((option) => option.text === "What information is still missing?"), false);
 });
 
 test("probe.generate enforces token budget before local model invocation", async () => {
@@ -329,6 +360,8 @@ test("local MCP descriptors expose the probe-tree tools with mutation annotation
   assert.equal(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeGenerate).annotations.readOnlyHint, true);
   assert.equal(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeSelect).annotations.idempotentHint, false);
   assert.equal(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeEvolve).annotations.idempotentHint, false);
+  assert.equal(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeGenerate).inputSchema.properties.k.minimum, 2);
+  assert.ok(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeGenerate).outputSchema.required.includes("response"));
   assert.ok(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeSelect).outputSchema.required.includes("cost_log"));
   assert.ok(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeEvolve).outputSchema.required.includes("cost_log"));
   assert.equal(byName.get(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeEvolve).inputSchema.required[0], "thread_root_id");
