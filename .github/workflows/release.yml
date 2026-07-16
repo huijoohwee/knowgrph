@@ -170,7 +170,7 @@ jobs:
 
       - name: Deploy verified artifact
         working-directory: knowgrph
-        run: npx --yes wrangler@4.110.0 pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true
+        run: npx --no-install wrangler pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true
 
       - name: Verify live agent-ready discovery
         working-directory: knowgrph
