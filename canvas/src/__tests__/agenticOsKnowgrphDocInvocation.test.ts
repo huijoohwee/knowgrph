@@ -481,7 +481,8 @@ export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation()
   const crawlerIndex = runActionSource.indexOf('runStoryboardWidgetNativeCrawlerInvocation({', probeDispatchIndex)
   const genericProviderIndex = runActionSource.indexOf('const result = await generateRunMarkdownWithProvider({', probeDispatchIndex)
   const nativeProbeIndex = probeTreeRunSource.indexOf('const result = await runStoryboardWidgetProbeTreeMcpInvocation({')
-  const providerIndex = probeTreeRunSource.indexOf('generateProviderResponse: refinementPrompt => generateRunMarkdownWithProvider({', nativeProbeIndex)
+  const providerApprovalIndex = probeTreeRunSource.indexOf('generateProviderResponse: providerRefinementApproved ?', nativeProbeIndex)
+  const providerIndex = probeTreeRunSource.indexOf('generateRunMarkdownWithProvider({', providerApprovalIndex)
   const nativeProbeRunSource = probeTreeRunSource.slice(nativeProbeIndex, providerIndex)
   if (
     textGenerationIndex < 0
@@ -489,6 +490,7 @@ export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation()
     || crawlerIndex <= probeDispatchIndex
     || genericProviderIndex <= probeDispatchIndex
     || nativeProbeIndex < 0
+    || providerApprovalIndex <= nativeProbeIndex
     || providerIndex <= nativeProbeIndex
     || runActionSource.includes('materializeProbeTreeOutput')
     || runActionSource.includes('const probeTreeOutput = runStoryboardWidgetProbeTreeInvocation({')
