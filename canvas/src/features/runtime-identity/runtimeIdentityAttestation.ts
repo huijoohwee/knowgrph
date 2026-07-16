@@ -28,6 +28,7 @@ export type KnowgrphRuntimeIdentityAttestation = {
 export type AuthenticatedKnowgrphRuntimeIdentityAttestation = {
   authenticatedPeerId: string
   authenticatedSessionId: string
+  authenticatedDevicePrincipalId: string
   attestation: KnowgrphRuntimeIdentityAttestation
 }
 
@@ -55,6 +56,7 @@ export type KnowgrphRuntimeIdentityVerification = {
     runtimeInstanceId: string
     authenticatedPeerId: string
     authenticatedSessionId: string
+    authenticatedDevicePrincipalId: string
     identityDigest: string
     expiresAtMs: number
   }>
@@ -185,7 +187,7 @@ const buildVerification = (args: {
     ? Math.min(...args.attestations.map(entry => entry.attestation.expiresAtMs))
     : null,
   requiredDeviceCount: args.requiredDeviceCount,
-  observedDeviceCount: new Set(args.attestations.map(entry => entry.attestation.identity.device)).size,
+  observedDeviceCount: new Set(args.attestations.map(entry => entry.authenticatedDevicePrincipalId)).size,
   verificationDigest: args.verificationDigest ?? null,
   message: args.message,
   differences: args.differences,
@@ -194,6 +196,7 @@ const buildVerification = (args: {
     runtimeInstanceId: entry.attestation.runtimeInstanceId,
     authenticatedPeerId: entry.authenticatedPeerId,
     authenticatedSessionId: entry.authenticatedSessionId,
+    authenticatedDevicePrincipalId: entry.authenticatedDevicePrincipalId,
     identityDigest: entry.attestation.identityDigest,
     expiresAtMs: entry.attestation.expiresAtMs,
   })),
@@ -233,6 +236,9 @@ export async function verifyKnowgrphRuntimeIdentityAttestations(
     const attestation = entry.attestation
     if (!normalizeString(entry.authenticatedPeerId)) structuralFailures.push('missing authenticated peer')
     if (!normalizeString(entry.authenticatedSessionId)) structuralFailures.push('missing authenticated session')
+    if (!/^[0-9a-f]{64}$/.test(normalizeString(entry.authenticatedDevicePrincipalId))) {
+      structuralFailures.push('missing authenticated device principal')
+    }
     if (!isRecord(attestation) || attestation.schema !== KNOWGRPH_RUNTIME_IDENTITY_ATTESTATION_SCHEMA) {
       structuralFailures.push('invalid attestation schema')
       continue
@@ -273,10 +279,14 @@ export async function verifyKnowgrphRuntimeIdentityAttestations(
   const devices = args.attestations.map(entry => entry.attestation.identity.device)
   const runtimeInstances = args.attestations.map(entry => entry.attestation.runtimeInstanceId)
   const authenticatedSessions = args.attestations.map(entry => entry.authenticatedSessionId)
+  const authenticatedDevicePrincipals = args.attestations.map(entry => entry.authenticatedDevicePrincipalId)
   if (new Set(devices).size !== devices.length) structuralFailures.push('duplicate runtime device')
   if (new Set(runtimeInstances).size !== runtimeInstances.length) structuralFailures.push('duplicate runtime instance')
   if (new Set(authenticatedSessions).size !== authenticatedSessions.length) {
     structuralFailures.push('duplicate authenticated session')
+  }
+  if (new Set(authenticatedDevicePrincipals).size !== authenticatedDevicePrincipals.length) {
+    structuralFailures.push('duplicate authenticated device principal')
   }
 
   if (structuralFailures.length) {
@@ -293,11 +303,11 @@ export async function verifyKnowgrphRuntimeIdentityAttestations(
       message: 'Automatic identity verification is stale until every runtime reports fresh evidence.',
     })
   }
-  if (new Set(devices).size < requiredDeviceCount) {
+  if (new Set(authenticatedDevicePrincipals).size < requiredDeviceCount) {
     return buildVerification({
       status: 'collecting', sessionId, challenge, nowMs, requiredDeviceCount,
       attestations: args.attestations, differences: [],
-      message: `Waiting for ${requiredDeviceCount - new Set(devices).size} additional device attestation(s).`,
+      message: `Waiting for ${requiredDeviceCount - new Set(authenticatedDevicePrincipals).size} additional authenticated device attestation(s).`,
     })
   }
   const parityDifferences = collectParityDifferences(args.attestations)
@@ -314,6 +324,6 @@ export async function verifyKnowgrphRuntimeIdentityAttestations(
   return buildVerification({
     status: 'pass', sessionId, challenge, nowMs, requiredDeviceCount,
     attestations: args.attestations, differences: [], verificationDigest,
-    message: `Exact runtime identity parity passed across ${new Set(devices).size} devices.`,
+    message: `Exact runtime identity parity passed across ${new Set(authenticatedDevicePrincipals).size} authenticated devices.`,
   })
 }

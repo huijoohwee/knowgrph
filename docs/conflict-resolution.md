@@ -141,7 +141,7 @@ npm run conflict:source
 ```
 
 GitHub Actions runs `npm run ci:integration` through the single `Integration Gate` status on pull requests and pushes to `main`.
-Local Git enforcement also runs it on `git push` through the repo-managed `.githooks/pre-push` hook. The hook installs automatically during `npm install` via `npm run hooks:install`.
+Local Git enforcement routes active-branch pushes through checkout integration and non-current refs through the immutable object gate in `.githooks/pre-push`. The hook installs automatically during `npm install` via `npm run hooks:install`. Manual `--no-verify` is forbidden; when another task owns the checkout, use `npm run release:publish:immutable -- ...`, which records its bounded repository-owned object gate and leaves the worktree untouched.
 For server-side merge gating, see `docs/branch-protection.md`.
 
 ### Collaboration Runtime
@@ -151,6 +151,8 @@ npm run worktree:check
 npm run collaboration:contract:check
 npm run ci:affected
 npm run ci:integration
+npm run release:manifest:create -- --source-sha <sha> --target-ref refs/heads/agent/<device>/<scope> --output <path>
+npm run release:manifest:check -- <path> --source-sha <sha> --docs-sha <sha>
 ```
 
 - `worktree:check` validates the contract's canonical source registry without fetching or starting Dev; `ci:integration` runs it first and the pre-push hook inherits the same fast failure.

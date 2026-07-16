@@ -9,13 +9,14 @@ export const testKnowgrphStorageCanvasRoomClientBuildsAuthenticatedRoomUrls = ()
     baseUrl: 'https://airvio.co/knowgrph',
     workspaceId: 'kgws:test-room',
     sessionToken: 'sess_test_token',
+    deviceId: 'dev:device-a-1234567890',
   }
   const absoluteUrl = buildKnowgrphStorageCanvasRoomAbsoluteUrl(config, 'workspace:/docs/example.md')
   const websocketUrl = buildKnowgrphStorageCanvasRoomWebSocketUrl(config, 'workspace:/docs/example.md')
   if (absoluteUrl !== 'https://airvio.co/api/storage/canvas-room/kgws%3Atest-room/workspace%3A%2Fdocs%2Fexample.md') {
     throw new Error(`expected absolute room URL to resolve against storage origin, got ${absoluteUrl}`)
   }
-  if (websocketUrl !== 'wss://airvio.co/api/storage/canvas-room/kgws%3Atest-room/workspace%3A%2Fdocs%2Fexample.md?kg_session_token=sess_test_token') {
+  if (websocketUrl !== 'wss://airvio.co/api/storage/canvas-room/kgws%3Atest-room/workspace%3A%2Fdocs%2Fexample.md?kg_session_token=sess_test_token&kg_device_id=dev%3Adevice-a-1234567890') {
     throw new Error(`expected websocket room URL to promote to wss and include session token query, got ${websocketUrl}`)
   }
 }
@@ -29,7 +30,7 @@ export const testKnowgrphStorageCanvasRoomClientReadsConfigFromStorageEnv = () =
     process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = 'kgws:test-room'
     process.env.VITE_KNOWGRPH_STORAGE_CHAT_SESSION_TOKEN = 'sess_test_token'
     const config = readKnowgrphStorageCanvasRoomConfig()
-    if (!config || config.baseUrl !== 'https://airvio.co/knowgrph' || config.workspaceId !== 'kgws:test-room' || config.sessionToken !== 'sess_test_token') {
+    if (!config || config.baseUrl !== 'https://airvio.co/knowgrph' || config.workspaceId !== 'kgws:test-room' || config.sessionToken !== 'sess_test_token' || !config.deviceId.startsWith('dev:')) {
       throw new Error(`expected storage canvas room config to hydrate from Vite env, got ${JSON.stringify(config)}`)
     }
   } finally {
@@ -41,4 +42,3 @@ export const testKnowgrphStorageCanvasRoomClientReadsConfigFromStorageEnv = () =
     else delete process.env.VITE_KNOWGRPH_STORAGE_CHAT_SESSION_TOKEN
   }
 }
-

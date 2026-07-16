@@ -4,6 +4,7 @@ import {
   verifyKnowgrphRuntimeIdentityAttestations,
   type AuthenticatedKnowgrphRuntimeIdentityAttestation,
 } from '@/features/runtime-identity/runtimeIdentityAttestation'
+import { consumeKnowgrphRuntimeIdentityReconnectAttempt } from '@/features/runtime-identity/runtimeIdentityReconnectPolicy'
 
 const NOW_MS = 1_750_000_000_000
 const SESSION_ID = 'runtime-identity:knowgrph:main'
@@ -33,6 +34,7 @@ const buildEnvelope = async (args: {
 }): Promise<AuthenticatedKnowgrphRuntimeIdentityAttestation> => ({
   authenticatedPeerId: `peer-${args.device}`,
   authenticatedSessionId: `session-${args.device}`,
+  authenticatedDevicePrincipalId: args.device === 'device-a' ? '1'.repeat(64) : '2'.repeat(64),
   attestation: await createKnowgrphRuntimeIdentityAttestation({
     identity: args.identity || buildIdentity(args.device),
     sessionId: SESSION_ID,
@@ -120,6 +122,21 @@ export async function testRuntimeIdentityAttestationBlocksMismatchReplayAndDupli
   ) {
     throw new Error(`Expected duplicate authenticated session evidence to be blocked, got ${JSON.stringify(duplicateSessionResult)}`)
   }
+
+  const duplicatePrincipal = await buildEnvelope({ device: 'device-b', runtimeInstanceId: 'runtime-b' })
+  duplicatePrincipal.authenticatedDevicePrincipalId = matching.authenticatedDevicePrincipalId
+  const duplicatePrincipalResult = await verifyKnowgrphRuntimeIdentityAttestations({
+    sessionId: SESSION_ID,
+    challenge: CHALLENGE,
+    attestations: [matching, duplicatePrincipal],
+    nowMs: NOW_MS + 1_000,
+  })
+  if (
+    duplicatePrincipalResult.status !== 'blocked'
+    || !duplicatePrincipalResult.differences.includes('duplicate authenticated device principal')
+  ) {
+    throw new Error(`Expected duplicate authenticated device principal evidence to be blocked, got ${JSON.stringify(duplicatePrincipalResult)}`)
+  }
 }
 
 export async function testRuntimeIdentityAttestationExpiresFailClosed(): Promise<void> {
@@ -135,5 +152,20 @@ export async function testRuntimeIdentityAttestationExpiresFailClosed(): Promise
   })
   if (result.status !== 'stale' || !result.differences.includes('attestation expired')) {
     throw new Error(`Expected expired automatic evidence to be stale, got ${JSON.stringify(result)}`)
+  }
+}
+
+export function testRuntimeIdentityReconnectBudgetResetsOnlyAfterStableConnection(): void {
+  const first = consumeKnowgrphRuntimeIdentityReconnectAttempt(0)
+  const second = consumeKnowgrphRuntimeIdentityReconnectAttempt(first?.nextFailureCount ?? -1)
+  const exhausted = consumeKnowgrphRuntimeIdentityReconnectAttempt(second?.nextFailureCount ?? -1)
+  const reset = consumeKnowgrphRuntimeIdentityReconnectAttempt(0)
+  if (
+    first?.attemptIndex !== 0
+    || second?.attemptIndex !== 1
+    || exhausted !== null
+    || reset?.attemptIndex !== 0
+  ) {
+    throw new Error('Expected two bounded reconnects and a stable-window reset to a fresh budget')
   }
 }

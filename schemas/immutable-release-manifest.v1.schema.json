@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://knowgrph.dev/schemas/immutable-release-manifest/v1",
+  "title": "Knowgrph Immutable Release Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "repository",
+    "sourceRevision",
+    "sourceTree",
+    "targetRef",
+    "agenticCanvasOs",
+    "catalogRevision",
+    "expectedRemoteRevision",
+    "publicationMode",
+    "pushHookMode"
+  ],
+  "properties": {
+    "schema": { "const": "knowgrph.immutable-release-manifest/v1" },
+    "repository": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "sourceRevision": { "$ref": "#/$defs/gitSha" },
+    "sourceTree": { "$ref": "#/$defs/gitSha" },
+    "targetRef": {
+      "type": "string",
+      "pattern": "^refs/heads/(?:main|agent/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)$"
+    },
+    "agenticCanvasOs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "revision": { "$ref": "#/$defs/gitSha" }
+      }
+    },
+    "catalogRevision": { "$ref": "#/$defs/gitSha" },
+    "expectedRemoteRevision": {
+      "anyOf": [
+        { "$ref": "#/$defs/gitSha" },
+        { "type": "null" }
+      ]
+    },
+    "publicationMode": {
+      "enum": ["ci", "checkout-free"]
+    },
+    "pushHookMode": {
+      "enum": ["not-applicable", "repository-owned-object-gate"]
+    }
+  },
+  "$defs": {
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    }
+  }
+}

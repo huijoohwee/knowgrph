@@ -19,6 +19,7 @@ const CANVAS_ROOM_INTERNAL_HEADERS = {
   roomId: 'x-knowgrph-room-id',
   userId: 'x-knowgrph-user-id',
   sessionId: 'x-knowgrph-session-id',
+  devicePrincipalId: 'x-knowgrph-device-principal-id',
   displayName: 'x-knowgrph-user-display-name',
   role: 'x-knowgrph-room-role',
 } as const
@@ -68,6 +69,7 @@ type CanvasRoomConnectionAttachment = {
   roomId: string
   userId: string
   sessionId: string
+  devicePrincipalId: string | null
   displayName: string
   role: KnowgrphStorageChatRole
   joinedAt: number
@@ -219,6 +221,8 @@ export class KnowgrphCanvasSyncRoom {
         peer: this.toPeerRecord(attachment),
         runtimeDevice: attachment.runtimeDevice,
         runtimeInstanceId: attachment.runtimeInstanceId,
+        authenticatedDevicePrincipalId: attachment.devicePrincipalId,
+        authenticatedSessionId: attachment.sessionId,
       }, ws)
     }
     ws.close(code, reason)
@@ -237,6 +241,16 @@ export class KnowgrphCanvasSyncRoom {
     const attachment = this.readConnectionAttachment(request)
     if (!attachment) {
       return json(401, { ok: false, apiVersion: KNOWGRPH_STORAGE_API_VERSION, error: 'missing authenticated canvas room identity' })
+    }
+    if (
+      attachment.roomId === KNOWGRPH_RUNTIME_IDENTITY_ROOM_ID
+      && this.listSockets().some(socket => {
+        const existing = this.readAttachment(socket)
+        return existing?.sessionId === attachment.sessionId
+          && existing.devicePrincipalId !== attachment.devicePrincipalId
+      })
+    ) {
+      return json(409, { ok: false, apiVersion: KNOWGRPH_STORAGE_API_VERSION, error: 'authenticated session is already bound to another device principal' })
     }
     const WebSocketPairClass = (globalThis as typeof globalThis & { WebSocketPair: WebSocketPairCtor }).WebSocketPair
     const webSocketPair = new WebSocketPairClass()
@@ -343,14 +357,24 @@ export class KnowgrphCanvasSyncRoom {
     const roomId = readHeaderString(request, CANVAS_ROOM_INTERNAL_HEADERS.roomId)
     const userId = readHeaderString(request, CANVAS_ROOM_INTERNAL_HEADERS.userId)
     const sessionId = readHeaderString(request, CANVAS_ROOM_INTERNAL_HEADERS.sessionId)
+    const devicePrincipalId = readHeaderString(request, CANVAS_ROOM_INTERNAL_HEADERS.devicePrincipalId)
     const displayName = readHeaderString(request, CANVAS_ROOM_INTERNAL_HEADERS.displayName)
     const roleRaw = readHeaderString(request, CANVAS_ROOM_INTERNAL_HEADERS.role)
-    if (!workspaceId || !roomId || !userId || !sessionId || !displayName || !isChatRole(roleRaw)) return null
+    if (
+      !workspaceId
+      || !roomId
+      || !userId
+      || !sessionId
+      || !displayName
+      || !isChatRole(roleRaw)
+      || (roomId === KNOWGRPH_RUNTIME_IDENTITY_ROOM_ID && !SHA256_PATTERN.test(devicePrincipalId))
+    ) return null
     return {
       workspaceId,
       roomId,
       userId,
       sessionId,
+      devicePrincipalId: devicePrincipalId || null,
       displayName,
       role: roleRaw,
       joinedAt: Date.now(),
@@ -369,6 +393,7 @@ export class KnowgrphCanvasSyncRoom {
     const roomId = readString(value, 'roomId')
     const userId = readString(value, 'userId')
     const sessionId = readString(value, 'sessionId')
+    const devicePrincipalId = readString(value, 'devicePrincipalId')
     const displayName = readString(value, 'displayName')
     const joinedAtRaw = value.joinedAt
     const caretLineRaw = value.caretLine
@@ -378,6 +403,7 @@ export class KnowgrphCanvasSyncRoom {
       roomId,
       userId,
       sessionId,
+      devicePrincipalId: SHA256_PATTERN.test(devicePrincipalId) ? devicePrincipalId : null,
       displayName,
       role: roleRaw,
       joinedAt: typeof joinedAtRaw === 'number' && Number.isFinite(joinedAtRaw) ? joinedAtRaw : Date.now(),
@@ -423,6 +449,10 @@ export class KnowgrphCanvasSyncRoom {
       this.sendJson(socket, { type: 'error', error: 'runtime identity attestation payload is invalid' })
       return
     }
+    if (!attachment.devicePrincipalId) {
+      this.sendJson(socket, { type: 'error', error: 'authenticated device principal is unavailable' })
+      return
+    }
     const identity = isRecord(value.identity) ? value.identity : null
     const runtimeDevice = identity ? readString(identity, 'device') : ''
     const runtimeInstanceId = readString(value, 'runtimeInstanceId')
@@ -454,6 +484,7 @@ export class KnowgrphCanvasSyncRoom {
       type: 'runtime.identity.attested',
       authenticatedPeerId: attachment.userId,
       authenticatedSessionId: attachment.sessionId,
+      authenticatedDevicePrincipalId: attachment.devicePrincipalId,
       attestation: value,
     })
   }

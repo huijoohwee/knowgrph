@@ -1,5 +1,9 @@
 import { KnowgrphCanvasSyncRoom } from '../../../cloudflare/workers/knowgrph-storage/canvasSyncRoom'
 import { KNOWGRPH_RUNTIME_IDENTITY_ROOM_ID } from '@/lib/storage/knowgrphRuntimeIdentityRoomContract'
+import {
+  deriveAuthenticatedDevicePrincipalId,
+  normalizeKnowgrphClientDeviceId,
+} from '../../../cloudflare/workers/knowgrph-storage/devicePrincipal'
 
 type SentMessage = Record<string, unknown> & { type?: string }
 
@@ -9,6 +13,7 @@ export async function testRuntimeIdentityCanvasRoomEnforcesAuthenticatedSessionB
     roomId: KNOWGRPH_RUNTIME_IDENTITY_ROOM_ID,
     userId: 'user-a',
     sessionId: 'session-a',
+    devicePrincipalId: '1'.repeat(64),
     displayName: 'Device A',
     role: 'editor',
     joinedAt: Date.now(),
@@ -47,6 +52,7 @@ export async function testRuntimeIdentityCanvasRoomEnforcesAuthenticatedSessionB
   if (
     authenticatedRelay?.authenticatedPeerId !== 'user-a'
     || authenticatedRelay.authenticatedSessionId !== 'session-a'
+    || authenticatedRelay.authenticatedDevicePrincipalId !== '1'.repeat(64)
     || attachment.runtimeDevice !== 'device-a'
     || attachment.runtimeInstanceId !== 'runtime-a'
   ) {
@@ -68,5 +74,33 @@ export async function testRuntimeIdentityCanvasRoomEnforcesAuthenticatedSessionB
     || !errors.includes('identity room accepts attestation messages only')
   ) {
     throw new Error(`Expected identity room to reject socket identity mutation and document traffic, got ${JSON.stringify(errors)}`)
+  }
+}
+
+export async function testRuntimeIdentityDevicePrincipalIsOpaqueAndStable(): Promise<void> {
+  const identityScope = {
+    workspaceId: 'kgws:canonical-docs',
+    userId: 'user-a',
+  }
+  const deviceId = 'dev:device-a-1234567890'
+  const first = await deriveAuthenticatedDevicePrincipalId({ ...identityScope, deviceId })
+  const second = await deriveAuthenticatedDevicePrincipalId({ ...identityScope, deviceId })
+  const different = await deriveAuthenticatedDevicePrincipalId({
+    ...identityScope,
+    deviceId: 'dev:device-b-1234567890',
+  })
+  const differentUser = await deriveAuthenticatedDevicePrincipalId({
+    ...identityScope,
+    userId: 'user-b',
+    deviceId,
+  })
+  if (
+    !/^[0-9a-f]{64}$/.test(first)
+    || first !== second
+    || first === different
+    || first === differentUser
+    || normalizeKnowgrphClientDeviceId('short') !== ''
+  ) {
+    throw new Error('Expected stable opaque principals only for valid persistent client device ids')
   }
 }

@@ -16,10 +16,11 @@ import {
   type KnowgrphRuntimeIdentityGateSnapshot,
 } from './runtimeIdentityAttestationStore'
 import { serializeKnowgrphRuntimeIdentity, type KnowgrphRuntimeIdentity } from './knowgrphRuntimeIdentity'
+import { consumeKnowgrphRuntimeIdentityReconnectAttempt } from './runtimeIdentityReconnectPolicy'
 
-const MAX_RECONNECT_ATTEMPTS = 2
 const RECONNECT_DELAYS_MS = [1_000, 3_000] as const
 const CHALLENGE_RENEWAL_LEAD_MS = 5_000
+const STABLE_CONNECTION_WINDOW_MS = 10_000
 
 type RuntimeIdentityRoomMessage = Record<string, unknown> & {
   type?: string
@@ -110,8 +111,9 @@ export function useKnowgrphRuntimeIdentityAttestationRuntime(identity: KnowgrphR
     }
 
     let disposed = false
-    let reconnectAttempts = 0
+    let reconnectFailureCount = 0
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+    let stableConnectionTimer: ReturnType<typeof setTimeout> | null = null
     let renewalTimer: ReturnType<typeof setTimeout> | null = null
     let expiryTimer: ReturnType<typeof setTimeout> | null = null
     let verificationSequence = 0
@@ -123,6 +125,11 @@ export function useKnowgrphRuntimeIdentityAttestationRuntime(identity: KnowgrphR
       if (expiryTimer) clearTimeout(expiryTimer)
       renewalTimer = null
       expiryTimer = null
+    }
+
+    const clearStableConnectionTimer = () => {
+      if (stableConnectionTimer) clearTimeout(stableConnectionTimer)
+      stableConnectionTimer = null
     }
 
     const sendJson = (body: Record<string, unknown>): boolean => {
@@ -212,9 +219,11 @@ export function useKnowgrphRuntimeIdentityAttestationRuntime(identity: KnowgrphR
       if (!attestation || typeof attestation !== 'object' || Array.isArray(attestation)) return
       const runtimeInstanceIdValue = normalizeString((attestation as { runtimeInstanceId?: unknown }).runtimeInstanceId)
       if (!runtimeInstanceIdValue) return
-      attestations.set(runtimeInstanceIdValue, {
+      const authenticatedSessionId = normalizeString(message.authenticatedSessionId)
+      attestations.set(authenticatedSessionId || runtimeInstanceIdValue, {
         authenticatedPeerId: normalizeString(message.authenticatedPeerId),
-        authenticatedSessionId: normalizeString(message.authenticatedSessionId),
+        authenticatedSessionId,
+        authenticatedDevicePrincipalId: normalizeString(message.authenticatedDevicePrincipalId),
         attestation: attestation as AuthenticatedKnowgrphRuntimeIdentityAttestation['attestation'],
       })
       verifyCurrentAttestations()
@@ -229,7 +238,14 @@ export function useKnowgrphRuntimeIdentityAttestationRuntime(identity: KnowgrphR
       })
       const socket = new WebSocket(socketUrl)
       socketRef.current = socket
-      socket.onopen = () => requestChallenge()
+      socket.onopen = () => {
+        clearStableConnectionTimer()
+        stableConnectionTimer = setTimeout(() => {
+          reconnectFailureCount = 0
+          stableConnectionTimer = null
+        }, STABLE_CONNECTION_WINDOW_MS)
+        requestChallenge()
+      }
       socket.onmessage = event => {
         const message = parseRoomMessage(event.data)
         if (!message) return
@@ -247,8 +263,14 @@ export function useKnowgrphRuntimeIdentityAttestationRuntime(identity: KnowgrphR
           return
         }
         if (message.type === 'peer.left') {
+          const departedSessionId = normalizeString(message.authenticatedSessionId)
           const departedRuntimeInstanceId = normalizeString(message.runtimeInstanceId)
-          if (departedRuntimeInstanceId) attestations.delete(departedRuntimeInstanceId)
+          if (departedSessionId) attestations.delete(departedSessionId)
+          else if (departedRuntimeInstanceId) {
+            for (const [key, entry] of attestations) {
+              if (entry.attestation.runtimeInstanceId === departedRuntimeInstanceId) attestations.delete(key)
+            }
+          }
           verifyCurrentAttestations()
           return
         }
@@ -274,7 +296,9 @@ export function useKnowgrphRuntimeIdentityAttestationRuntime(identity: KnowgrphR
         activeChallenge = null
         attestations.clear()
         clearChallengeTimers()
-        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        clearStableConnectionTimer()
+        const reconnectAttempt = consumeKnowgrphRuntimeIdentityReconnectAttempt(reconnectFailureCount)
+        if (!reconnectAttempt) {
           publishGateState({
             status: 'blocked',
             transportStatus: 'error',
@@ -287,8 +311,8 @@ export function useKnowgrphRuntimeIdentityAttestationRuntime(identity: KnowgrphR
           transportStatus: 'connecting',
           message: 'Automatic identity room disconnected; bounded reconnect is pending.',
         })
-        const delay = RECONNECT_DELAYS_MS[reconnectAttempts] || RECONNECT_DELAYS_MS.at(-1) || 3_000
-        reconnectAttempts += 1
+        const delay = RECONNECT_DELAYS_MS[reconnectAttempt.attemptIndex] || RECONNECT_DELAYS_MS.at(-1) || 3_000
+        reconnectFailureCount = reconnectAttempt.nextFailureCount
         reconnectTimer = setTimeout(connect, delay)
       }
     }
@@ -299,6 +323,7 @@ export function useKnowgrphRuntimeIdentityAttestationRuntime(identity: KnowgrphR
       verificationSequence += 1
       requestChallengeRef.current = null
       clearChallengeTimers()
+      clearStableConnectionTimer()
       if (reconnectTimer) clearTimeout(reconnectTimer)
       const socket = socketRef.current
       socketRef.current = null

@@ -46,6 +46,10 @@ import {
 import { handleCollaborationSave } from './collaborationBridge'
 import { KnowgrphCanvasSyncRoom } from './canvasSyncRoom'
 import {
+  deriveKnowgrphCanvasRoomDevicePrincipalId,
+  readKnowgrphCanvasRoomProxyIdentity,
+} from './canvasRoomProxyIdentity'
+import {
   handleChatAudit,
   handleChatPolicies,
   handleChatRelay,
@@ -117,25 +121,6 @@ const readJsonBody = async (request: Request): Promise<unknown> => {
   }
 }
 
-const isWebSocketUpgrade = (request: Request): boolean =>
-  String(request.headers.get('upgrade') || '').trim().toLowerCase() === 'websocket'
-
-const readCanvasRoomRoute = (
-  pathname: string,
-  prefix: string,
-): { workspaceId: string; roomId: string } | null => {
-  if (!pathname.startsWith(prefix)) return null
-  const segments = pathname.slice(prefix.length).split('/').filter(Boolean)
-  if (segments.length !== 2) return null
-  try {
-    const workspaceId = normalizeString(decodeURIComponent(segments[0] || ''))
-    const roomId = normalizeString(decodeURIComponent(segments[1] || ''))
-    return workspaceId && roomId ? { workspaceId, roomId } : null
-  } catch {
-    return null
-  }
-}
-
 const handleCanvasRoomProxy = async (
   request: Request,
   env: KnowgrphStorageWorkerEnv,
@@ -144,7 +129,7 @@ const handleCanvasRoomProxy = async (
   if (request.method !== 'GET') {
     return errorResponse(405, 'bad_request', 'unsupported canvas room route method')
   }
-  const route = readCanvasRoomRoute(new URL(request.url).pathname, KNOWGRPH_STORAGE_ROUTE_PATHS.canvasRoomPrefix)
+  const route = readKnowgrphCanvasRoomProxyIdentity(request, KNOWGRPH_STORAGE_ROUTE_PATHS.canvasRoomPrefix)
   if (!route) return errorResponse(400, 'bad_request', 'workspaceId and roomId are required')
   const auth = await readAuthenticatedChatContext(request, db)
   if (auth.ok === false) return auth.response
@@ -154,15 +139,20 @@ const handleCanvasRoomProxy = async (
     userId: auth.value.user.id,
   })
   if (membership.ok === false) return membership.response
+  const devicePrincipalId = await deriveKnowgrphCanvasRoomDevicePrincipalId(route, auth.value.user.id)
   const namespace = env.KNOWGRPH_CANVAS_ROOM
   if (!namespace) return errorResponse(500, 'server_error', 'missing Cloudflare Durable Object binding KNOWGRPH_CANVAS_ROOM')
   const roomStub = namespace.get(namespace.idFromName(`${route.workspaceId}:${route.roomId}`))
-  const targetPath = isWebSocketUpgrade(request) ? '/connect' : '/status'
+  if (!route.deviceIdValid) {
+    return errorResponse(400, 'bad_request', 'authenticated canvas room connection requires a valid device id')
+  }
+  const targetPath = route.websocketUpgrade ? '/connect' : '/status'
   const headers = new Headers(request.headers)
   headers.set('x-knowgrph-room-workspace-id', route.workspaceId)
   headers.set('x-knowgrph-room-id', route.roomId)
   headers.set('x-knowgrph-user-id', auth.value.user.id)
   headers.set('x-knowgrph-session-id', auth.value.session.id)
+  if (devicePrincipalId) headers.set('x-knowgrph-device-principal-id', devicePrincipalId)
   headers.set('x-knowgrph-user-display-name', normalizeString(auth.value.user.displayName) || normalizeString(auth.value.user.email) || auth.value.user.id)
   headers.set('x-knowgrph-room-role', membership.membership.role)
   const roomUrl = `https://knowgrph.internal${targetPath}?workspaceId=${encodeURIComponent(route.workspaceId)}&roomId=${encodeURIComponent(route.roomId)}`

@@ -27,6 +27,7 @@ jobs:
       KNOWGRPH_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
       KNOWGRPH_REPOSITORY: ${{ github.repository }}
       KNOWGRPH_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+      KNOWGRPH_TARGET_REF: refs/heads/${{ github.event.pull_request.head.ref || github.ref_name }}
       KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: ${{ github.workspace }}/agentic-canvas-os/docs
 
     steps:
@@ -77,6 +78,33 @@ jobs:
           repository: ${{ steps.agentic_canvas_os_docs.outputs.repository }}
           ref: ${{ steps.agentic_canvas_os_docs.outputs.ref }}
           path: agentic-canvas-os
+
+      - name: Create immutable app docs catalog manifest
+        id: immutable_manifest
+        working-directory: knowgrph
+        run: npm run --silent release:manifest:create -- --source-sha "$KNOWGRPH_SOURCE_REVISION" --target-ref "$KNOWGRPH_TARGET_REF" --output "$RUNNER_TEMP/immutable-release-manifest.json" --github-output
+
+      - name: Validate checked-out Agentic Canvas OS revision
+        working-directory: knowgrph
+        run: test "$(git -C ../agentic-canvas-os rev-parse HEAD)" = "${{ steps.agentic_canvas_os_docs.outputs.ref }}"
+
+      - name: Upload immutable release manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: immutable-release-manifest
+          path: ${{ runner.temp }}/immutable-release-manifest.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Download immutable release manifest proof
+        uses: actions/download-artifact@v8
+        with:
+          name: immutable-release-manifest
+          path: ${{ runner.temp }}/immutable-release-manifest-proof
+
+      - name: Validate immutable release manifest proof
+        working-directory: knowgrph
+        run: npm run --silent release:manifest:check -- "$RUNNER_TEMP/immutable-release-manifest-proof/immutable-release-manifest.json" --source-sha "$KNOWGRPH_SOURCE_REVISION" --docs-sha "${{ steps.agentic_canvas_os_docs.outputs.ref }}" --digest "${{ steps.immutable_manifest.outputs.digest }}"
 
       - name: Validate cross-device scope ownership
         working-directory: knowgrph

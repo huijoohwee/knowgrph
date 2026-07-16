@@ -29,6 +29,7 @@ export function testRuntimeIdentityAttestationKeepsCanonicalOwnership(): void {
     'runtime.identity.attested',
     'authenticatedPeerId',
     'authenticatedSessionId',
+    'authenticatedDevicePrincipalId',
   ]
   const missing = requiredRoomContracts.filter(contract => !room.includes(contract))
   if (missing.length) {
