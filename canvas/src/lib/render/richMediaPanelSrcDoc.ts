@@ -81,6 +81,10 @@ function requestsPanelOwnedRichMediaPanelSrcDocScroll(srcDoc: string): boolean {
   return new RegExp(`${RICH_MEDIA_PANEL_SRCDOC_SCROLL_OWNER_ATTR}=["']${RICH_MEDIA_PANEL_SRCDOC_SCROLL_OWNER_PANEL}["']`, 'i').test(srcDoc)
 }
 
+function requestsMediaOwnedRichMediaPanelSrcDocScroll(srcDoc: string): boolean {
+  return new RegExp(`${RICH_MEDIA_PANEL_SRCDOC_SCROLL_OWNER_ATTR}=["']media["']`, 'i').test(srcDoc)
+}
+
 function buildRichMediaPanelSrcDocResizeScript(args: { preserveDocumentOverflow: boolean }): string {
   const overflowClamp = args.preserveDocumentOverflow
     ? ''
@@ -328,7 +332,11 @@ export function normalizeRichMediaPanelInlineSrcDoc(args: {
   const title = String(args.title || '').trim() || 'Rich Media Panel'
   const semanticSrcDoc = enhanceLegacyWebsiteCrawlTablePanelSrcDoc(normalizeSemanticHtmlContainers(srcDoc))
   const scrollOwner = args.scrollOwner
-    || (usesViewportRichMediaPanelSrcDocSize(semanticSrcDoc) && !requestsPanelOwnedRichMediaPanelSrcDocScroll(semanticSrcDoc) ? 'media' : 'panel')
+    || (requestsPanelOwnedRichMediaPanelSrcDocScroll(semanticSrcDoc)
+      ? 'panel'
+      : requestsMediaOwnedRichMediaPanelSrcDocScroll(semanticSrcDoc) || usesViewportRichMediaPanelSrcDocSize(semanticSrcDoc)
+        ? 'media'
+        : 'panel')
   const srcDocHash = hashStringToHexCached('rich-media-panel-srcdoc', semanticSrcDoc)
   const cacheKey = hashSignatureParts(['rich-media-panel-srcdoc', title, scrollOwner, semanticSrcDoc.length, srcDocHash])
   const cached = richMediaPanelSrcDocCache.get(cacheKey)
@@ -349,6 +357,10 @@ export function shouldUseViewportRichMediaPanelSrcDocSize(srcDoc: string): boole
 
 export function shouldUsePanelOwnedRichMediaPanelSrcDocScroll(srcDoc: string): boolean {
   return requestsPanelOwnedRichMediaPanelSrcDocScroll(srcDoc)
+}
+
+export function shouldUseMediaOwnedRichMediaPanelSrcDocScroll(srcDoc: string): boolean {
+  return requestsMediaOwnedRichMediaPanelSrcDocScroll(srcDoc)
 }
 
 export function shouldUseDirectRichMediaPanelSrcDocSandbox(srcDoc: unknown): boolean {

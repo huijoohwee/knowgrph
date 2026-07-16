@@ -325,7 +325,7 @@ async function main(): Promise<void> {
 
     await waitForPageCondition(ownerPage, 'owner peer roster', snapshot => snapshot.connectedPeerCount >= 2)
     await waitForPageCondition(guestPage, 'guest peer roster', snapshot => snapshot.connectedPeerCount >= 2)
-    await assertRoomStatus(WORKER_URL, basename(DOC_PATH))
+    await assertRoomStatus(WORKER_URL, DOC_PATH)
 
     const applyResult = await applyMarkerToActiveDocument(guestPage, MARKER)
     if (applyResult.applied !== true) {

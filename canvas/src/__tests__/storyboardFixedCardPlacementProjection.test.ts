@@ -3,6 +3,12 @@ import { resolve } from 'node:path'
 
 import { applyFixedStoryboardCardPlacementsToGraphData2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
 import type { GraphData } from '@/lib/graph/types'
+import {
+  PROBE_TREE_BALANCED_LAYOUT_MODE,
+  PROBE_TREE_BALANCED_LAYOUT_VERSION,
+  PROBE_TREE_LAYOUT_MODE_PROPERTY,
+  PROBE_TREE_LAYOUT_VERSION_PROPERTY,
+} from '@/lib/storyboardWidget/probeTreeLayoutContract'
 
 type MutableNodeRecord = {
   id: string
@@ -52,6 +58,72 @@ export function testStoryboardFixedCardPlacementProjectionAvoidsForceLayoutMutat
     for (const key of ['fx', 'fy', 'vx', 'vy'] as const) {
       if (Object.prototype.hasOwnProperty.call(node, key)) throw new Error(`expected projected Storyboard card ${String(node.id || '')} not to leak force-layout field ${key}`)
     }
+  }
+}
+
+export function testStoryboardFixedCardPlacementPreservesProbeTreeAuthoredCoordinates() {
+  const layoutProperties = {
+    lane: 'PROBE',
+    cardTypeLabel: 'Probe-Tree Card',
+    summary: 'Generated probe',
+    [PROBE_TREE_LAYOUT_MODE_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_MODE,
+    [PROBE_TREE_LAYOUT_VERSION_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_VERSION,
+  }
+  const graphData = {
+    type: 'application/json',
+    nodes: [
+      { id: 'probe-a', type: 'TextGeneration', label: 'Probe A', x: 440, y: -260, properties: { ...layoutProperties, order: 1 } },
+      { id: 'probe-b', type: 'TextGeneration', label: 'Probe B', x: 860, y: 140, properties: { ...layoutProperties, order: 2 } },
+      { id: 'ordinary', type: 'TextGeneration', label: 'Ordinary', x: 1000, y: 1000, properties: { lane: 'OTHER', summary: 'Ordinary card', order: 3 } },
+    ],
+    edges: [],
+  } as GraphData
+  const projected = applyFixedStoryboardCardPlacementsToGraphData2d({
+    aspectRatioMode: '16:9',
+    flowWidgetPinnedByNodeId: { 'probe-a': true, 'probe-b': true, ordinary: true },
+    graphData,
+    graphRevision: 1,
+    referencePlacements: new Map([
+      ['probe-a', { x: 0, y: 0 }],
+      ['probe-b', { x: 0, y: 260 }],
+      ['ordinary', { x: 40, y: 40 }],
+    ]),
+    schema: null,
+  })
+  const projectedById = new Map((projected?.nodes || []).map(node => [String(node.id), node]))
+  const probeA = projectedById.get('probe-a')
+  const probeB = projectedById.get('probe-b')
+  const ordinary = projectedById.get('ordinary')
+  if (probeA?.x !== 440 || probeA.y !== -260) {
+    throw new Error(`expected fixed projection to preserve authored Probe A coordinates, got ${String(probeA?.x)},${String(probeA?.y)}`)
+  }
+  if (probeB?.x !== 860 || probeB.y !== 140) {
+    throw new Error(`expected fixed projection to preserve authored Probe B coordinates, got ${String(probeB?.x)},${String(probeB?.y)}`)
+  }
+  if (ordinary?.x !== 40 || ordinary.y !== 40) {
+    throw new Error(`expected non-Probe cards to keep using fixed reference placement, got ${String(ordinary?.x)},${String(ordinary?.y)}`)
+  }
+  if (graphData.nodes[0]?.x !== 440 || graphData.nodes[1]?.x !== 860) {
+    throw new Error('expected fixed projection to leave authored Probe source nodes immutable')
+  }
+
+  const transientGraphData = {
+    ...graphData,
+    nodes: [
+      ...graphData.nodes,
+      { id: 'probe-pending-center', type: 'TextGeneration', label: 'Pending Probe', properties: { ...layoutProperties, order: 4 } },
+    ],
+  } as GraphData
+  const transientProjected = applyFixedStoryboardCardPlacementsToGraphData2d({
+    aspectRatioMode: '16:9',
+    flowWidgetPinnedByNodeId: { 'probe-a': true, 'probe-b': true, ordinary: true, 'probe-pending-center': true },
+    graphData: transientGraphData,
+    graphRevision: 2,
+    schema: null,
+  })
+  const pendingProbe = transientProjected?.nodes.find(node => node.id === 'probe-pending-center')
+  if (!Number.isFinite(pendingProbe?.x) || !Number.isFinite(pendingProbe?.y)) {
+    throw new Error('expected a layout-owned Probe card with a transiently missing authored center to receive a finite fallback placement')
   }
 }
 

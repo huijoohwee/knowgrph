@@ -13,6 +13,19 @@ import { screenToWorld } from '@/lib/zoom/viewport'
 type ProjectedCardBox = { left: number; top: number; scale: number }
 type AppliedCardBox = ProjectedCardBox & { display: string }
 
+const INITIAL_FIT_DOCUMENT_HISTORY_LIMIT = 64
+const initialFitCompletedDocumentKeys = new Set<string>()
+
+const rememberInitialFitDocumentKey = (key: string): void => {
+  if (initialFitCompletedDocumentKeys.has(key)) return
+  initialFitCompletedDocumentKeys.add(key)
+  while (initialFitCompletedDocumentKeys.size > INITIAL_FIT_DOCUMENT_HISTORY_LIMIT) {
+    const oldest = initialFitCompletedDocumentKeys.values().next().value
+    if (typeof oldest !== 'string') break
+    initialFitCompletedDocumentKeys.delete(oldest)
+  }
+}
+
 const isScreenBoxVisible = (
   box: ProjectedCardBox,
   size: { width: number; height: number },
@@ -72,6 +85,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
   React.useEffect(() => {
     if (!active || cards.length === 0) return
     let frame = 0
+    let initialTimer = 0
     const update = () => {
       const currentTransform = getTransform()
       if (fixedLayoutEnabled && shouldFreezeProjectionForFlowPortHandleDrag()) {
@@ -168,15 +182,28 @@ export function useStoryboardCardOverlayProjection2d(args: {
         emitStoryboardWidgetGeometryCommitted()
       }
       const initialFitDocumentKey = `${storyboardWidgetSurfaceId}::${String(markdownDocumentName || '').trim()}`
-      if (initialFitCommitKeyRef.current !== initialFitDocumentKey) {
+      const initialFitCompleted = initialFitCommitKeyRef.current === initialFitDocumentKey
+        || initialFitCompletedDocumentKeys.has(initialFitDocumentKey)
+      if (pending.length > 0 && !initialFitCompleted) {
         initialFitCommitKeyRef.current = initialFitDocumentKey
-        if (visibleCardCount === 0) requestZoom('fit', { intent: 'fitToView' })
+        rememberInitialFitDocumentKey(initialFitDocumentKey)
+        const transformIsIdentity = !currentTransform
+          || (Math.abs(currentTransform.k - 1) < 1e-6 && Math.abs(currentTransform.x) < 1e-6 && Math.abs(currentTransform.y) < 1e-6)
+        if (visibleCardCount === 0 || (pending.length > 1 && transformIsIdentity)) {
+          requestZoom('fit', { intent: 'fitToView' })
+        }
       }
       lastOverlayTransformRef.current = currentTransform ? { k: currentTransform.k, x: currentTransform.x, y: currentTransform.y } : null
       frame = window.requestAnimationFrame(update)
     }
-    frame = window.requestAnimationFrame(update)
-    return () => window.cancelAnimationFrame(frame)
+    initialTimer = window.setTimeout(() => {
+      initialTimer = 0
+      update()
+    }, 0)
+    return () => {
+      if (initialTimer) window.clearTimeout(initialTimer)
+      window.cancelAnimationFrame(frame)
+    }
   }, [
     active,
     cards,

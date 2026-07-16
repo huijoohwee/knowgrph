@@ -34,6 +34,7 @@ import { resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
 import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { appendPendingOverlayNodesToGraphData, resolvePendingOverlayGraphDataBase } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetPendingOverlayGraph'
 import { useNativeCrawlerWorkflowRecovery } from '@/components/StoryboardWidgetCanvas/runtime/useNativeCrawlerWorkflowRecovery'
+import { useTextWidgetOutputArtifactRecovery } from '@/components/StoryboardWidgetCanvas/runtime/useTextWidgetOutputArtifactRecovery'
 import { useStoryboardCardMediaGraphCommit } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardCardMediaGraphCommit'
 import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
@@ -594,9 +595,8 @@ export default function StoryboardWidgetCanvasRuntime(
     scheduleOverlayEdgeUpdate,
   })
   runWorkflowNodeRef.current = runWorkflowNode
-
   useNativeCrawlerWorkflowRecovery({ active: storyboardWidgetViewActive, graphData: draftGraphDataRef.current || draftGraphData, documentName: markdownDocumentName, runNode: runWorkflowNode })
-
+  useTextWidgetOutputArtifactRecovery({ active: storyboardWidgetViewActive, graphData: storyboardCanvasGraphDataForDisplay || draftGraphDataRef.current || draftGraphData, latestGraphDataRef: draftGraphDataRef, documentName: markdownDocumentName, commitGraphData: commitStoryboardCardMediaGraph })
   const { inspectorElement } = useStoryboardWidgetInspectorSurface({
     active,
     baseGraphData,

@@ -1,6 +1,4 @@
 import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
-import { invokeProbeTreeFromStoryboardToolbar } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
-
 export type StoryboardToolbarActionBindings = {
   onRun: () => void
   onOpenInSidepane: () => void
@@ -22,6 +20,7 @@ export function buildStoryboardToolbarActionBindings(args: {
   showCardHelp: () => void
   removeCard: (card: StoryboardCardModel) => void
   openCardWorkflowManagerMapping: (card: StoryboardCardModel) => void
+  probeTreeCard: (card: StoryboardCardModel) => void
   convertCardToLoop: (card: StoryboardCardModel) => void
 }): StoryboardToolbarActionBindings {
   const { card } = args
@@ -33,7 +32,7 @@ export function buildStoryboardToolbarActionBindings(args: {
     onHelp: args.showCardHelp,
     onRemove: () => args.removeCard(card),
     onUpdateKvEntry: () => args.openCardWorkflowManagerMapping(card),
-    onProbeTree: () => invokeProbeTreeFromStoryboardToolbar(card),
+    onProbeTree: () => args.probeTreeCard(card),
     onConvertToLoopNode: () => args.convertCardToLoop(card),
   }
 }

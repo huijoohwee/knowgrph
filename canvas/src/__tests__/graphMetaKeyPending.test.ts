@@ -84,6 +84,42 @@ export function testActive2dZoomViewKeyIgnoresPendingFlag() {
   if (k1 !== k2) throw new Error(`expected zoom view key to ignore pending flag, got ${JSON.stringify({ k1, k2 })}`)
 }
 
+export function testStoryboardActive2dZoomViewKeyStaysStableAcrossSourceRevisions() {
+  const first: GraphData = {
+    type: 'Graph',
+    context: 'frontmatter-flow',
+    metadata: { kind: 'frontmatter-flow', source: 'markdown:workspace.md', sourceLayerHash: 'revision-a' },
+    nodes: [],
+    edges: [],
+  }
+  const second: GraphData = {
+    ...first,
+    metadata: { ...(first.metadata as Record<string, unknown>), sourceLayerHash: 'revision-b' },
+  }
+  const build = (canvas2dRenderer: 'storyboard' | 'flow', graphData: GraphData) => buildActive2dZoomViewKey({
+    canvasRenderMode: '2d',
+    canvas2dRenderer,
+    schema: defaultSchema,
+    graphData,
+    documentSemanticMode: 'document',
+    frontmatterModeEnabled: true,
+    documentStructureBaselineLock: false,
+    renderMediaAsNodes: false,
+    mediaPanelDensity: 'default',
+    collapsedGroupIds: [],
+  })
+  const storyboardFirst = build('storyboard', first)
+  const storyboardSecond = build('storyboard', second)
+  if (!storyboardFirst || storyboardFirst !== storyboardSecond) {
+    throw new Error(`expected Storyboard viewport identity to survive same-document source publication, got ${JSON.stringify({ storyboardFirst, storyboardSecond })}`)
+  }
+  const flowFirst = build('flow', first)
+  const flowSecond = build('flow', second)
+  if (!flowFirst || !flowSecond || flowFirst === flowSecond) {
+    throw new Error('expected non-Storyboard renderers to retain source-revision isolation')
+  }
+}
+
 export function testBaselineGraphMetaKeyUsesMetadataOverrideBeforeFallback() {
   const graph: GraphData = {
     type: 'Graph',

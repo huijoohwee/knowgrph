@@ -100,7 +100,7 @@ export type StoryboardWidgetWorkflowResolvedRunTarget = {
 }
 
 export function readCanonicalStoryboardWidgetOverlayIdentity(rawId: unknown): string {
-  const id = String(rawId || '').trim()
+  const id = String(unwrapGraphCellValue(rawId) ?? '').trim()
   if (!id) return ''
   return splitComposedNodeId(id).inner || id
 }
@@ -489,13 +489,13 @@ export function resolveStoryboardWidgetWorkflowWritableNodeId(args: {
   const requested = splitComposedNodeId(args.requestedNodeId)
   const resolved = splitComposedNodeId(args.resolvedNodeId)
   const exactRequested = requested.full ? args.context.draftNodeById.get(requested.full) || null : null
-  if (exactRequested) return String(exactRequested.id || '').trim()
+  if (exactRequested) return readCanonicalStoryboardWidgetOverlayIdentity(exactRequested.id)
   const exactResolved = resolved.full ? args.context.draftNodeById.get(resolved.full) || null : null
-  if (exactResolved) return String(exactResolved.id || '').trim()
+  if (exactResolved) return readCanonicalStoryboardWidgetOverlayIdentity(exactResolved.id)
   const targetInners = new Set([requested.inner, resolved.inner].filter(Boolean))
   if (targetInners.size === 0) return String(args.resolvedNodeId || '').trim()
   const innerMatches = args.context.draftNodes.filter(node => targetInners.has(splitComposedNodeId(node?.id).inner))
-  if (innerMatches.length === 1) return String(innerMatches[0]?.id || '').trim()
+  if (innerMatches.length === 1) return readCanonicalStoryboardWidgetOverlayIdentity(innerMatches[0]?.id)
   return String(args.resolvedNodeId || '').trim()
 }
 
@@ -516,7 +516,7 @@ export function resolveStoryboardWidgetWorkflowRunTarget(args: {
       ? { graph: args.context.baseGraph, node: args.context.baseNodeById.get(requestedNodeId)! }
       : null)
   if (!resolved) return null
-  const resolvedNodeId = String(resolved.node.id || requestedNodeId).trim()
+  const resolvedNodeId = readCanonicalStoryboardWidgetOverlayIdentity(resolved.node.id) || requestedNodeId
   const writableNodeId = resolveStoryboardWidgetWorkflowWritableNodeId({
     context: args.context,
     requestedNodeId,

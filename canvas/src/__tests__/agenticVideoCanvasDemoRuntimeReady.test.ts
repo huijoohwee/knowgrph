@@ -9,8 +9,8 @@ import { parseNativeCrawlerInvocation } from '@/features/chat/nativeCrawlerInvoc
 import { isVideoAgentDemoPresetInvocation } from '@/features/chat/floatingPanelChat/videoAgentDemoPresetSubmit'
 import { isImageToThreeJsPromptPreset } from '@/features/image-to-threejs/imageToThreeJsPromptPreset'
 import { isImageToGlbPromptPreset } from '@/features/image-to-glb/imageToGlbPromptPreset'
+import { isKnowgrphProbeTreePromptPreset } from '@/features/agentic-os/probeTreePromptPreset'
 import { buildLiveCanvasHeroModel } from '@/features/agentic-os/liveCanvasHeroModel'
-import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
 import { getCachedStoryboardWidgetWorkflowRunPlan } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 
 type PlainRecord = Record<string, unknown>
@@ -67,19 +67,15 @@ export function testAgenticPromptPresetCatalogOwnsSevenRuntimeRoutes() {
     const prompt = String(preset.prompt || '')
     const runtimeCommand = String(preset.runtime_command || '')
     const slashCommand = String(preset.slash_command || '')
-    const isCardInline = slashCommand === '/image.to-threejs' || slashCommand === '/image.to-glb'
-    const valid = slashCommand === '/image.to-threejs'
-      ? isImageToThreeJsPromptPreset(prompt)
-      : slashCommand === '/image.to-glb'
-        ? isImageToGlbPromptPreset(prompt)
-        : runtimeCommand === '/knowgrph.probe-tree'
-          ? findAgenticOsInvocationByToken(runtimeCommand)?.kind === 'doc' && prompt.startsWith(runtimeCommand)
-        : runtimeCommand === '/video-agent'
-      ? Boolean(parseGenerationInvocation(prompt))
-      : runtimeCommand === '/crawler-agent'
-        ? parseNativeCrawlerInvocation(prompt)?.command === '/crawler-agent'
-        : parseChatSkillSlashInvocation(prompt)?.skill.slashCommand === runtimeCommand
-    if ((!isCardInline && !slashCommand.endsWith('-prompt-preset')) || !valid || !prompt.startsWith(isCardInline ? slashCommand : runtimeCommand)) {
+    const isCardInline = slashCommand === '/image.to-threejs' || slashCommand === '/image.to-glb' || runtimeCommand === '/knowgrph.probe-tree'
+    let valid = false
+    if (slashCommand === '/image.to-threejs') valid = isImageToThreeJsPromptPreset(prompt)
+    else if (slashCommand === '/image.to-glb') valid = isImageToGlbPromptPreset(prompt)
+    else if (runtimeCommand === '/knowgrph.probe-tree') valid = isKnowgrphProbeTreePromptPreset(prompt)
+    else if (runtimeCommand === '/video-agent') valid = Boolean(parseGenerationInvocation(prompt))
+    else if (runtimeCommand === '/crawler-agent') valid = parseNativeCrawlerInvocation(prompt)?.command === '/crawler-agent'
+    else valid = parseChatSkillSlashInvocation(prompt)?.skill.slashCommand === runtimeCommand
+    if ((!isCardInline && !slashCommand.endsWith('-prompt-preset')) || !valid || !prompt.startsWith(runtimeCommand)) {
       throw new Error(`invalid centralized prompt preset ${String(preset.id || '')}`)
     }
   }

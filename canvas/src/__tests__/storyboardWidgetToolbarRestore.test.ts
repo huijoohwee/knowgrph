@@ -4,6 +4,8 @@ import { resolve } from 'node:path'
 import { computeViewportSafeInlineCenterShiftPx } from '@/lib/ui/viewportToolbarPlacement'
 import {
   materializeProbeTreeBranchCards,
+  invokeProbeTreeFromStoryboardToolbar,
+  revealProbeTreeBranchCardsOnCanvas,
   resolveProbeTreeCardMaterializationRequestText,
 } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
 import {
@@ -12,6 +14,59 @@ import {
   PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND,
 } from '@/components/StoryboardCanvas/storyboardProbeTreeMermaidFlowchart'
 import type { GraphData } from '@/lib/graph/types'
+import { KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS } from '@/features/agentic-os/probeTreePromptPreset'
+import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import { useGraphStore } from '@/hooks/useGraphStore'
+
+const assertProbeTreeRevealPreservesExplicitPinsAndViewport = (nodeIds: readonly string[]): void => {
+  const [explicitlyUnpinnedNodeId, explicitlyPinnedNodeId, missingPinNodeId] = nodeIds
+  if (!explicitlyUnpinnedNodeId || !explicitlyPinnedNodeId || !missingPinNodeId) {
+    throw new Error(`expected three Probe-Tree output ids for reveal-state coverage, got ${JSON.stringify(nodeIds)}`)
+  }
+  const previousRevealState = useGraphStore.getState()
+  const unchangedZoomRequest = { type: 'reset', at: 4242 } as const
+  try {
+    useGraphStore.setState({
+      flowWidgetPinnedByNodeId: {
+        [explicitlyUnpinnedNodeId]: false,
+        [explicitlyPinnedNodeId]: true,
+      },
+      zoomRequest: unchangedZoomRequest,
+    })
+    revealProbeTreeBranchCardsOnCanvas(nodeIds)
+    const revealedState = useGraphStore.getState()
+    if (
+      revealedState.flowWidgetPinnedByNodeId[explicitlyUnpinnedNodeId] !== false
+      || revealedState.flowWidgetPinnedByNodeId[explicitlyPinnedNodeId] !== true
+      || revealedState.flowWidgetPinnedByNodeId[missingPinNodeId] !== true
+      || !revealedState.selectedNodeIds.includes(explicitlyUnpinnedNodeId)
+      || revealedState.selectedNodeId !== explicitlyUnpinnedNodeId
+      || revealedState.zoomRequest !== unchangedZoomRequest
+    ) {
+      throw new Error(`expected Probe-Tree reveal to preserve explicit pins, seed only missing pins, select output, and keep the viewport unchanged, got ${JSON.stringify({ pinned: revealedState.flowWidgetPinnedByNodeId, selected: revealedState.selectedNodeIds, active: revealedState.selectedNodeId, zoom: revealedState.zoomRequest })}`)
+    }
+  } finally {
+    useGraphStore.setState({
+      flowWidgetPinnedByNodeId: previousRevealState.flowWidgetPinnedByNodeId,
+      flowWidgetPinnedByNodeIdByGraphMetaKey: previousRevealState.flowWidgetPinnedByNodeIdByGraphMetaKey,
+      selectedNodeIds: previousRevealState.selectedNodeIds,
+      selectedNodeId: previousRevealState.selectedNodeId,
+      selectedEdgeIds: previousRevealState.selectedEdgeIds,
+      selectedEdgeId: previousRevealState.selectedEdgeId,
+      selectedGroupIds: previousRevealState.selectedGroupIds,
+      selectedGroupId: previousRevealState.selectedGroupId,
+      zoomRequest: previousRevealState.zoomRequest,
+    })
+  }
+}
+
+export function testStoryboardWidgetProbeTreeRevealPreservesExplicitPinsAndViewport() {
+  assertProbeTreeRevealPreservesExplicitPinsAndViewport([
+    'probe-tree:test:explicitly-unpinned',
+    'probe-tree:test:explicitly-pinned',
+    'probe-tree:test:missing-pin',
+  ])
+}
 
 export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() {
   const toolbarPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorActionsToolbar.tsx')
@@ -19,6 +74,7 @@ export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() 
     resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorInner.tsx'),
     resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'WidgetEditorView.tsx'),
     resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'useWidgetPlacementRuntime.ts'),
+    resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'widgetPlacementRuntimeProjection.ts'),
     resolve(process.cwd(), 'src', 'components', 'StoryboardWidget', 'flowWidgetOverlayShared.ts'),
   ]
   const overlaySurfacePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetOverlaySurface.tsx')
@@ -55,7 +111,7 @@ export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() 
     'icon={Play}',
     'actionId="probe-tree"',
     'icon={GitBranch}',
-    'onClick={onRun}',
+    'onClick={handleRunClick}',
     'onClick={onProbeTree}',
   ]
   for (const snippet of requiredToolbarSnippets) {
@@ -142,7 +198,7 @@ export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() 
       throw new Error(`expected Probe-Tree toolbar action to avoid FloatingPanel Chat route: ${forbidden}`)
     }
   }
-  for (const expected of ['materializeProbeTreeBranchCards({ graphData: store.graphData, card })', 'setGraphDataPreservingLayout(result.graphData)', 'selectNodesExpanded({']) {
+  for (const expected of ['materializeProbeTreeBranchCards({ graphData: args.graphData, card: args.card })', 'args.commitGraphData(result.graphData)', 'revealProbeTreeBranchCardsOnCanvas(result.materializedNodeIds)']) {
     if (!probeTreeActionText.includes(expected)) {
       throw new Error(`expected Probe-Tree toolbar action to materialize selectable cards on canvas: ${expected}`)
     }
@@ -159,15 +215,36 @@ export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() 
   if (materialized.materializedNodeIds.length !== 3) {
     throw new Error(`expected Probe-Tree toolbar materialization to create 3 branch cards, got ${materialized.materializedNodeIds.length}`)
   }
+  let toolbarCommittedGraph: GraphData | null = null
+  const toolbarHistory: string[] = []
+  const toolbarToasts: Array<{ kind?: string; message?: string }> = []
+  const toolbarResult = invokeProbeTreeFromStoryboardToolbar({
+    card: probeTreeCard,
+    graphData: probeTreeGraph,
+    commitGraphData: nextGraphData => { toolbarCommittedGraph = nextGraphData },
+    addHistory: label => { toolbarHistory.push(label) },
+    upsertUiToast: toast => { toolbarToasts.push(toast) },
+  })
+  if (
+    !toolbarResult.changed
+    || (toolbarCommittedGraph as GraphData | null)?.nodes.filter(node => node.type === FLOW_TEXT_GENERATION_NODE_TYPE_ID && node.properties.cardTypeLabel === 'Probe-Tree Card').length !== 3
+    || toolbarHistory[0] !== 'Probe-Tree branch cards'
+    || toolbarToasts[0]?.message !== 'Probe-Tree branch cards materialized on canvas.'
+  ) throw new Error(`expected Probe-Tree toolbar action to commit its supplied active graph owner before success feedback, got ${JSON.stringify({ toolbarResult, toolbarHistory, toolbarToasts })}`)
   const materializedGraph = materialized.graphData
-  const probeNodes = (materializedGraph?.nodes || []).filter(node => node.type === 'ProbeTreeCandidate')
+  const probeNodes = (materializedGraph?.nodes || []).filter(node => node.type === FLOW_TEXT_GENERATION_NODE_TYPE_ID && node.properties.cardTypeLabel === 'Probe-Tree Card')
   const candidateEdges = (materializedGraph?.edges || []).filter(edge => edge.label === 'candidateOption')
   if (probeNodes.length !== 3 || candidateEdges.length !== 3) {
-    throw new Error('expected Probe-Tree toolbar materialization to create ProbeTreeCandidate nodes with candidateOption edges')
+    throw new Error('expected Probe-Tree toolbar materialization to create visible Widget Card nodes with candidateOption edges')
   }
-  if (!probeNodes.every(node => node.properties.invocation === 'knowgrph.probe.generate')) {
-    throw new Error('expected Probe-Tree materialized cards to use the MCP tool identity without local grammar aliases')
+  if (!probeNodes.every(node => (
+    node.properties.invocation === 'knowgrph.probe.generate'
+    && JSON.stringify(node.properties.invocationTokens) === JSON.stringify(KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS)
+    && String(node.properties.prompt || '').startsWith('/knowgrph.probe-tree\n\n')
+  ))) {
+    throw new Error('expected Probe-Tree materialized cards to keep the slash prompt while preserving MCP identity and source-backed aliases as metadata')
   }
+  assertProbeTreeRevealPreservesExplicitPinsAndViewport(materialized.materializedNodeIds)
   const graphMermaid = String((materializedGraph?.metadata || {}).probeTreeMermaidFlowchart || '')
   if (
     !graphMermaid.includes('flowchart TB')
@@ -197,6 +274,14 @@ export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() 
   const repeated = materializeProbeTreeBranchCards({ graphData: materializedGraph, card: probeTreeCard })
   if (repeated.changed) {
     throw new Error('expected Probe-Tree materialization to reselect existing cards instead of duplicating them')
+  }
+  const legacyGraph = {
+    ...materializedGraph!,
+    nodes: materializedGraph!.nodes.map(node => materialized.materializedNodeIds.includes(String(node.id || '')) ? { ...node, type: 'ProbeTreeCandidate' } : node),
+  }
+  const upgraded = materializeProbeTreeBranchCards({ graphData: legacyGraph, card: probeTreeCard })
+  if (!upgraded.changed || !upgraded.materializedNodeIds.every(id => upgraded.graphData?.nodes.find(node => node.id === id)?.type === FLOW_TEXT_GENERATION_NODE_TYPE_ID)) {
+    throw new Error('expected rerun to upgrade hidden legacy ProbeTreeCandidate nodes into visible Widget Cards')
   }
   if (!toolbarText.includes('GRAPH_FIELDS_ENTRY_SHORTCUT_NODE_LABEL')) {
     throw new Error('expected Open sidepane to reuse the shared Graph Fields node entry label instead of a local literal')

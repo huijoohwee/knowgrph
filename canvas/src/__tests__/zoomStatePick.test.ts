@@ -24,3 +24,18 @@ export const testPickInitialZoomTransformRejectsStaleZoomWhenNotPinned = () => {
   })
   if (picked != null) throw new Error('expected null when graph revision differs and not pinned')
 }
+
+export const testPickInitialZoomTransformCanPreserveSameDocumentStoryboardZoom = () => {
+  const z = { k: 0.42, x: 48, y: 96, graphDataRevision: 6, viewportW: 800, viewportH: 600 }
+  const picked = pickInitialZoomTransform({
+    zoomState: z,
+    pinned: false,
+    preserveAcrossGraphRevisions: true,
+    graphDataRevision: 7,
+    nextViewportW: 800,
+    nextViewportH: 600,
+  })
+  if (!picked || picked.k !== z.k || picked.x !== z.x || picked.y !== z.y) {
+    throw new Error(`expected same-document Storyboard publication to preserve its exact transform, got ${JSON.stringify(picked)}`)
+  }
+}

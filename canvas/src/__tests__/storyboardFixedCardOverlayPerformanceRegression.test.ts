@@ -15,6 +15,10 @@ export function testStoryboardFixedCardOverlaySkipsNoopTransformWrites() {
       throw new Error(`expected Storyboard fixed-card overlay to avoid redundant transform writes: ${snippet}`)
     }
   }
+  if (!text.includes('initialTimer = window.setTimeout(() => {')
+    || !text.includes('if (initialTimer) window.clearTimeout(initialTimer)')) {
+    throw new Error('expected Storyboard fixed-card overlay to schedule initial geometry independently of animation frames so hidden canvases receive placement')
+  }
 }
 
 export function testStoryboardCardOverlayRestoresFlexInteractions() {
@@ -39,6 +43,10 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
   const canvasViewMenu = readFileSync(resolve(process.cwd(), 'src/components/toolbar/canvasViewMenu.ts'), 'utf8')
   const canvasGridControls = readFileSync(resolve(process.cwd(), 'src/lib/canvas/canvasGridDisplayControls.ts'), 'utf8')
   const canvasBoardControls = readFileSync(resolve(process.cwd(), 'src/lib/canvas/canvasBoardLayoutDisplayControls.ts'), 'utf8')
+  if (!projection.includes('initialTimer = window.setTimeout(() => {')
+    || !projection.includes('if (initialTimer) window.clearTimeout(initialTimer)')) {
+    throw new Error('expected Storyboard fixed-card overlay to schedule initial geometry independently of animation frames so hidden canvases receive placement')
+  }
   for (const snippet of [
     'data-kg-overlay-pan-owner="canvas"',
     'dragHandle={cardMoveEnabled}',
@@ -106,7 +114,7 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
     'if (cardMoveEnabled) onHeaderPointerDown(event, node)',
     'isFlowWidgetHeaderDragAllowedByPin({',
     'pinnedInCanvas: headerPinProps.headerPinned === true',
-    'flowWidgetPinnedByNodeId: props.flowWidgetPinnedByNodeId',
+    'effectiveFlowWidgetPinnedByNodeId,',
     'fixedCardReferencePlacements: ReadonlyMap<string, StoryboardCardPlacement>',
     'fixedLayoutEnabled ? readStoryboardCardCenter2d(node) || props.fixedCardReferencePlacements.get(id) : props.fixedCardReferencePlacements.get(id) || readStoryboardCardCenter2d(node)',
     'const previousPinned = lastPinnedByCardIdRef.current.get(card.id)',
@@ -136,7 +144,7 @@ export function testStoryboardCardOverlayRestoresFlexInteractions() {
     "from '@/lib/storyboardWidget/flowWidgetPinnedState'",
     'flowWidgetPinnedByNodeId?: FlowWidgetPinnedById | null',
     'includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, card.id)',
-    'const centerOwnsReferenceOrigin = !includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, orderedCards[i]!.id)',
+    'const centerOwnsReferenceOrigin = !includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, packedCards[i]!.id)',
     'flowWidgetPinnedByNodeId: args.flowWidgetPinnedByNodeId',
     'referencePlacements?: ReadonlyMap<string, StoryboardCardPlacement> | null',
     'readPlacementSize?: ReadStoryboardPlacementSize',

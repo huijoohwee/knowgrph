@@ -16,7 +16,8 @@ export function useStoryboardCardMediaGraphCommit(args: {
     args.draftGraphDataRef.current = nextDraft
     args.setDraftGraphData(nextDraft)
     args.setGraphDataPreservingLayout(nextDraft)
-    await persistStoryboardCardMediaGraphSource(nextDraft)
+    const persisted = await persistStoryboardCardMediaGraphSource(nextDraft)
+    if (!persisted) throw new Error('The active Canvas source did not accept the published graph.')
   }, [args.baseRevision, args.draftGraphDataRef, args.draftRevision, args.setDraftGraphData, args.setGraphDataPreservingLayout])
   const commitForSurface = React.useCallback((graphData: GraphData) => {
     void commit(graphData).catch(error => {

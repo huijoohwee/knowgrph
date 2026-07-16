@@ -6,6 +6,7 @@ import { readSnapGridConfigFromSchema, snapPointToGrid } from '@/lib/canvas/grid
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { readFlowWidgetPinnedInCanvas, type FlowWidgetPinnedById } from '@/lib/storyboardWidget/flowWidgetPinnedState'
+import { isProbeTreeLayoutOwnedNode } from '@/lib/storyboardWidget/probeTreeLayoutContract'
 import { RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
 import { readStableRichMediaPanelSize } from '@/lib/render/mediaPanelLayout'
 
@@ -67,15 +68,24 @@ const buildStoryboardCardPlacements2d = (args: {
     .filter(card => includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, card.id))
   if (orderedCards.length === 0) return out
 
+  const packedCards = orderedCards.filter(card => {
+    const node = nodeById.get(card.id)
+    if (!node || !isProbeTreeLayoutOwnedNode(node)) return true
+    const center = readStoryboardCardCenter2d(node)
+    if (center) out.set(card.id, center)
+    return center == null
+  })
+  if (packedCards.length === 0) return out
+
   const centers: StoryboardCardPlacement[] = []
   const defaultSize = readDefaultStoryboardCardSize2d(aspectRatioMode)
   let maxCardWidth: number = defaultSize.width
   let maxCardHeight: number = defaultSize.height
-  for (let i = 0; i < orderedCards.length; i += 1) {
-    const node = nodeById.get(orderedCards[i]!.id)
+  for (let i = 0; i < packedCards.length; i += 1) {
+    const node = nodeById.get(packedCards[i]!.id)
     if (!node) continue
     const center = readStoryboardCardCenter2d(node)
-    const centerOwnsReferenceOrigin = !includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, orderedCards[i]!.id)
+    const centerOwnsReferenceOrigin = !includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, packedCards[i]!.id)
     if (center && centerOwnsReferenceOrigin) centers.push(center)
     const size = readPlacementSize(node)
     maxCardWidth = Math.max(maxCardWidth, size.width)
@@ -96,6 +106,10 @@ const buildStoryboardCardPlacements2d = (args: {
   const visibleLanes = board.lanes
     .map(lane => ({ ...lane, cards: lane.cards
       .filter(card => isStoryboardFixedCardOwnedNode(nodeById.get(card.id)))
+      .filter(card => {
+        const node = nodeById.get(card.id)
+        return !isProbeTreeLayoutOwnedNode(node) || readStoryboardCardCenter2d(node) == null
+      })
       .filter(card => includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, card.id)) }))
     .filter(lane => lane.cards.length > 0)
   const columnCount = Math.max(1, visibleLanes.length)
@@ -180,7 +194,10 @@ export const applyFixedStoryboardCardPlacementsToGraphData2d = (args: {
   let changed = false
   const nextNodes = nodes.map(node => {
     const id = String(node?.id || '').trim()
-    const placement = id ? placements.get(id) : null
+    let placement = id ? placements.get(id) : null
+    if (id && isProbeTreeLayoutOwnedNode(node)) {
+      placement = readStoryboardCardCenter2d(node) || placement
+    }
     if (!placement || !readFlowWidgetPinnedInCanvas(args.flowWidgetPinnedByNodeId, id)) return node
     if (node.x === placement.x && node.y === placement.y) return node
     changed = true

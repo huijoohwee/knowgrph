@@ -13,7 +13,11 @@ import {
   isImageToGlbPromptPreset,
 } from '@/features/image-to-glb/imageToGlbPromptPreset'
 import { parseNativeCrawlerInvocation } from './nativeCrawlerInvocation'
-import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
+import {
+  isKnowgrphProbeTreePromptPreset,
+  KNOWGRPH_PROBE_TREE_DOC_INVOCATION,
+  KNOWGRPH_PROBE_TREE_PROMPT_PRESET_ID,
+} from '@/features/agentic-os/probeTreePromptPreset'
 
 type PlainRecord = Record<string, unknown>
 
@@ -95,21 +99,18 @@ const parsePreset = (value: unknown): PromptPreset | null => {
       || activation !== 'card-inline'
       || !isImageToGlbPromptPreset(prompt)
     ) return null
+  } else if (id === KNOWGRPH_PROBE_TREE_PROMPT_PRESET_ID) {
+    if (
+      runtimeCommand !== KNOWGRPH_PROBE_TREE_DOC_INVOCATION.slashCommand
+      || activation !== 'card-inline'
+      || !isKnowgrphProbeTreePromptPreset(prompt)
+    ) return null
   } else if (runtimeCommand === '/video-agent') {
     const invocation = parseGenerationInvocation(prompt)
     if (!invocation || !prompt.includes('@video-generation-demo-script') || activation !== 'source-backed-canvas') return null
   } else if (runtimeCommand === '/crawler-agent') {
     const invocation = parseNativeCrawlerInvocation(prompt)
     if (!invocation || invocation.command !== runtimeCommand || activation !== 'chat-agent') return null
-  } else if (id === 'knowgrph-probe-tree') {
-    const invocation = findAgenticOsInvocationByToken(runtimeCommand)
-    if (
-      slashCommand !== '/knowgrph-probe-tree-prompt-preset'
-      || activation !== 'card-inline'
-      || invocation?.kind !== 'doc'
-      || invocation.token !== runtimeCommand
-      || !prompt.startsWith(runtimeCommand)
-    ) return null
   } else {
     const invocation = parseChatSkillSlashInvocation(prompt)
     if (!invocation || invocation.skill.slashCommand !== runtimeCommand || activation !== 'chat-agent') return null
@@ -146,7 +147,7 @@ export const loadPromptPresetCatalog = async (fsOverride?: WorkspaceFs): Promise
     'video-agent',
     IMAGE_TO_THREEJS_PROMPT_PRESET_ID,
     IMAGE_TO_GLB_PROMPT_PRESET_ID,
-    'knowgrph-probe-tree',
+    KNOWGRPH_PROBE_TREE_PROMPT_PRESET_ID,
     'sme-care-agent',
     'investment-research-agent',
     'crawler-agent',

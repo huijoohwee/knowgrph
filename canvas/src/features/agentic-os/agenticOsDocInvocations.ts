@@ -31,18 +31,20 @@ export type AgenticOsDictionaryInvocation = {
 export const AGENTIC_OS_CANVAS_INTERACTION_PANEL_KEYWORD = 'canvas interaction panel' as const
 export const AGENTIC_OS_DOCS_GITHUB_ROOT_URL = 'https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs'
 export const KNOWGRPH_DOCS_GITHUB_ROOT_URL = 'https://github.com/huijoohwee/knowgrph/blob/main/docs/documents'
+export const KNOWGRPH_PROBE_TREE_DOC_INVOCATION = {
+  id: 'knowgrph-probe-tree',
+  fileName: 'knowgrph-probe-tree-prd-tad.md',
+  label: 'Knowgrph Probe-Tree',
+  summary: 'Bounded local probe branching that produces user-selectable next-step cards and preserves Markdown graph state as the SSOT.',
+  slashCommand: '/knowgrph.probe-tree',
+  hashToken: '#knowgrph.probe-tree',
+  atToken: '@knowgrph.probe-tree',
+  sourcePath: `${KNOWGRPH_DOCS_GITHUB_ROOT_URL}/knowgrph-probe-tree-prd-tad.md`,
+  keywords: ['probe tree', 'branching', 'clarification', 'candidate options', 'markdown graph'],
+} as const satisfies AgenticOsDocInvocation
+
 export const AGENTIC_OS_DOC_INVOCATIONS: readonly AgenticOsDocInvocation[] = [
-  {
-    id: 'knowgrph-probe-tree',
-    fileName: 'knowgrph-probe-tree-prd-tad.md',
-    label: 'Knowgrph Probe-Tree',
-    summary: 'Bounded local probe branching that produces user-selectable next-step cards and preserves Markdown graph state as the SSOT.',
-    slashCommand: '/knowgrph.probe-tree',
-    hashToken: '#knowgrph.probe-tree',
-    atToken: '@knowgrph.probe-tree',
-    sourcePath: `${KNOWGRPH_DOCS_GITHUB_ROOT_URL}/knowgrph-probe-tree-prd-tad.md`,
-    keywords: ['probe tree', 'branching', 'clarification', 'candidate options', 'markdown graph'],
-  },
+  KNOWGRPH_PROBE_TREE_DOC_INVOCATION,
 ]
 export const AGENTIC_OS_COMMAND_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = []
 export const AGENTIC_OS_SEMANTIC_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = []

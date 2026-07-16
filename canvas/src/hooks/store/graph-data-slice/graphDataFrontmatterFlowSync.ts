@@ -11,13 +11,17 @@ import {
   resolvePreferredComposedSourceFileFromState,
 } from '@/features/source-files/composedSourceSelection'
 import {
-  buildStrybldrCardOverridePatchFromGraphNodeChange,
   isStrybldrStoryboardMarkdown,
-  updateStrybldrStoryboardMarkdownCardOverride,
-  syncStrybldrStoryboardMarkdownWorkflowEdges,
 } from '@/features/strybldr/strybldrStoryboard'
-import { appendStrybldrStoryboardNodeSource, isStrybldrStoryboardNodeSourceOwned } from '@/hooks/store/graph-data-slice/strybldrStoryboardNodeSourceSync'
 import { normalizeGeneratedRichMediaTableProperties } from '@/features/rich-media/richMediaTablePersistence'; import { containsMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'; import { enqueueWorkspaceSourceTextWrite } from './workspaceSourceTextWriteQueue'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
+import { buildUpdatedSourceFileParsedGraphState } from '@/features/source-files/sourceFileParsedState'
+import { hashText } from '@/features/parsers/hash'
+import {
+  findActiveMarkdownDocumentSourceFile,
+  syncStrybldrStoryboardMarkdownFromParsedGraph,
+} from './graphDataFrontmatterFlowSyncSupport'
+import { syncStructuredResponseEnvelopeFromNodeEdit } from './graphDataStructuredResponseSync'
 const FLOW_YAML_PLAIN_KEY_RE = /^[A-Za-z0-9_.-]+$/
 const FLOW_EDGE_SOURCE_PORT_KEY = 'flow:sourcePortKey'
 const FLOW_EDGE_TARGET_PORT_KEY = 'flow:targetPortKey'
@@ -111,29 +115,33 @@ function appendFlowYamlEnvelopeFieldLines(
   value: unknown,
   fieldType?: string,
 ): void {
-  if (typeof value === 'undefined') return
+  const unwrappedValue = unwrapGraphCellValue(value)
+  if (typeof unwrappedValue === 'undefined') return
   const yamlKey = flowYamlKey(key)
-  const normalizedType = String(fieldType || '').trim() || inferFrontmatterFlowFieldType(value)
-  if (typeof value === 'string' && value.includes('\n')) {
-    const blockIndicator = key === 'output' && containsMarkdownPipeTable(value) ? '|-' : '|'
+  const normalizedType = String(fieldType || '').trim() || inferFrontmatterFlowFieldType(unwrappedValue)
+  if (typeof unwrappedValue === 'string' && unwrappedValue.includes('\n')) {
+    const blockIndicator = key === 'output' && containsMarkdownPipeTable(unwrappedValue) ? '|-' : '|'
     lines.push(`${indent}${yamlKey}:`)
     lines.push(`${indent}  key: ${flowYamlInlineStringValue(String(key || '').trim() || key)}`)
     lines.push(`${indent}  type: ${flowYamlInlineStringValue(normalizedType)}`)
     lines.push(`${indent}  value: ${blockIndicator}`)
-    for (const row of value.split('\n')) lines.push(`${indent}    ${row}`)
+    for (const row of unwrappedValue.split('\n')) lines.push(`${indent}    ${row}`)
     return
   }
   lines.push(
-    `${indent}${yamlKey}: {key: ${flowYamlInlineStringValue(String(key || '').trim() || key)}, type: ${flowYamlInlineStringValue(normalizedType)}, value: ${flowYamlInlineValue(value)}}`,
+    `${indent}${yamlKey}: {key: ${flowYamlInlineStringValue(String(key || '').trim() || key)}, type: ${flowYamlInlineStringValue(normalizedType)}, value: ${flowYamlInlineValue(unwrappedValue)}}`,
   )
 }
 function readFlowHandlesFromNode(node: GraphNode): Record<string, unknown> | null {
-  const props = (node.properties || {}) as Record<string, unknown>
-  const explicit = props[FRONTMATTER_HANDLES_PROPERTY_KEY]
+  const rawProperties = unwrapGraphCellValue(node.properties)
+  const props = rawProperties && typeof rawProperties === 'object' && !Array.isArray(rawProperties)
+    ? rawProperties as Record<string, unknown>
+    : {}
+  const explicit = unwrapGraphCellValue(props[FRONTMATTER_HANDLES_PROPERTY_KEY])
   if (explicit && typeof explicit === 'object' && !Array.isArray(explicit)) {
     return explicit as Record<string, unknown>
   }
-  const rawPortTypes = props[FLOW_PORT_TYPES_PROPERTY_KEY]
+  const rawPortTypes = unwrapGraphCellValue(props[FLOW_PORT_TYPES_PROPERTY_KEY])
   if (!rawPortTypes || typeof rawPortTypes !== 'object' || Array.isArray(rawPortTypes)) return null
   const portTypes = rawPortTypes as Record<string, unknown>
   const target = portTypes.in && typeof portTypes.in === 'object' && !Array.isArray(portTypes.in)
@@ -164,19 +172,31 @@ function buildFrontmatterFlowBlockLines(graphData: GraphData): string[] {
   lines.push('  nodes:')
   const nodes = Array.isArray(graphData.nodes) ? graphData.nodes : []
   for (const node of nodes) {
-    const originalProps = (node.properties || {}) as Record<string, unknown>
-    const normalizedProps = normalizeGeneratedRichMediaTableProperties({ nodeType: node.type, nodeLabel: node.label, properties: originalProps })
+    const rawProperties = unwrapGraphCellValue(node.properties)
+    const originalProps = rawProperties && typeof rawProperties === 'object' && !Array.isArray(rawProperties)
+      ? rawProperties as Record<string, unknown>
+      : {}
+    const nodeType = String(unwrapGraphCellValue(node.type) || 'Node')
+    const nodeId = String(unwrapGraphCellValue(node.id) || '')
+    const nodeLabel = String(unwrapGraphCellValue(node.label) || nodeId)
+    const normalizedProps = normalizeGeneratedRichMediaTableProperties({ nodeType, nodeLabel, properties: originalProps })
     const normalizedNode: GraphNode = normalizedProps === originalProps ? node : { ...node, properties: normalizedProps as GraphNode['properties'] }
-    appendFlowYamlEnvelopeFieldLines(lines, '    - ', 'id', String(node.id || ''), 'string')
-    appendFlowYamlEnvelopeFieldLines(lines, '      ', 'type', String(node.type || 'Node'), 'string')
-    appendFlowYamlEnvelopeFieldLines(lines, '      ', 'label', String(node.label || node.id || ''), 'string')
-    const x = typeof node.x === 'number' && Number.isFinite(node.x) ? node.x : null
-    const y = typeof node.y === 'number' && Number.isFinite(node.y) ? node.y : null
+    appendFlowYamlEnvelopeFieldLines(lines, '    - ', 'id', nodeId, 'string')
+    appendFlowYamlEnvelopeFieldLines(lines, '      ', 'type', nodeType, 'string')
+    appendFlowYamlEnvelopeFieldLines(lines, '      ', 'label', nodeLabel, 'string')
+    const positionValue = unwrapGraphCellValue((node as GraphNode & { position?: unknown }).position)
+    const position = positionValue && typeof positionValue === 'object' && !Array.isArray(positionValue)
+      ? positionValue as Record<string, unknown>
+      : null
+    const rawX = unwrapGraphCellValue(node.x ?? position?.x)
+    const rawY = unwrapGraphCellValue(node.y ?? position?.y)
+    const x = typeof rawX === 'number' && Number.isFinite(rawX) ? rawX : null
+    const y = typeof rawY === 'number' && Number.isFinite(rawY) ? rawY : null
     if (x != null || y != null) {
-      const position: Record<string, number> = {}
-      if (x != null) position.x = x
-      if (y != null) position.y = y
-      appendFlowYamlEnvelopeFieldLines(lines, '      ', 'position', position, 'object')
+      const nextPosition: Record<string, number> = {}
+      if (x != null) nextPosition.x = x
+      if (y != null) nextPosition.y = y
+      appendFlowYamlEnvelopeFieldLines(lines, '      ', 'position', nextPosition, 'object')
     }
     const handles = readFlowHandlesFromNode(normalizedNode)
     if (handles) appendFlowYamlEnvelopeFieldLines(lines, '      ', 'handles', handles, 'object')
@@ -191,30 +211,35 @@ function buildFrontmatterFlowBlockLines(graphData: GraphData): string[] {
       })
       .sort(([a], [b]) => a.localeCompare(b))
     for (const [key, value] of propEntries) {
-      appendFlowYamlEnvelopeFieldLines(lines, '      ', key, value, readFrontmatterFlowFieldType(normalizedNode, key, value))
+      const unwrappedValue = unwrapGraphCellValue(value)
+      appendFlowYamlEnvelopeFieldLines(lines, '      ', key, unwrappedValue, readFrontmatterFlowFieldType(normalizedNode, key, unwrappedValue))
     }
-    const compute = typeof props[FLOW_COMPUTE_PROPERTY_KEY] === 'string' ? String(props[FLOW_COMPUTE_PROPERTY_KEY] || '') : ''
+    const computeValue = unwrapGraphCellValue(props[FLOW_COMPUTE_PROPERTY_KEY])
+    const compute = typeof computeValue === 'string' ? computeValue : ''
     if (compute.trim()) appendFlowYamlEnvelopeFieldLines(lines, '      ', 'compute', compute, 'string')
   }
   lines.push('  edges:')
   const edges = Array.isArray(graphData.edges) ? graphData.edges : []
   for (const edge of edges) {
-    const props = (edge.properties || {}) as Record<string, unknown>
-    const source = String(edge.source || '').trim()
-    const target = String(edge.target || '').trim()
-    const sourceHandle = String(props[FLOW_EDGE_SOURCE_PORT_KEY] || '').trim()
-    const targetHandle = String(props[FLOW_EDGE_TARGET_PORT_KEY] || '').trim()
+    const rawProperties = unwrapGraphCellValue(edge.properties)
+    const props = rawProperties && typeof rawProperties === 'object' && !Array.isArray(rawProperties)
+      ? rawProperties as Record<string, unknown>
+      : {}
+    const source = String(unwrapGraphCellValue(edge.source) || '').trim()
+    const target = String(unwrapGraphCellValue(edge.target) || '').trim()
+    const sourceHandle = String(unwrapGraphCellValue(props[FLOW_EDGE_SOURCE_PORT_KEY]) || '').trim()
+    const targetHandle = String(unwrapGraphCellValue(props[FLOW_EDGE_TARGET_PORT_KEY]) || '').trim()
     const row: Record<string, unknown> = {
-      id: String(edge.id || ''),
+      id: String(unwrapGraphCellValue(edge.id) || ''),
       source,
       ...(sourceHandle ? { sourceHandle } : {}),
       target,
       ...(targetHandle ? { targetHandle } : {}),
     }
-    const label = String(edge.label || '').trim()
+    const label = String(unwrapGraphCellValue(edge.label) || '').trim()
     if (label) row.label = label
     if (typeof props.animated === 'boolean') row.animated = props.animated
-    const socketType = String(props['flow:socketType'] || '').trim()
+    const socketType = String(unwrapGraphCellValue(props['flow:socketType']) || '').trim()
     if (socketType) row.type = socketType
     lines.push(`    - ${flowYamlInlineValue(row)}`)
   }
@@ -414,55 +439,6 @@ function isFrontmatterFlowGraphData(graphData: GraphData | null | undefined): bo
   return isFrontmatterFlowGraph(graphData)
 }
 
-function syncStrybldrStoryboardMarkdownFromParsedGraph(args: {
-  text: string
-  graphData: GraphData | null | undefined
-  previousNode?: GraphNode | null
-  nextNode?: GraphNode | null
-}): string | null {
-  let nextText = args.text
-  if (!args.previousNode && args.nextNode) {
-    nextText = appendStrybldrStoryboardNodeSource(nextText, args.nextNode)
-  }
-  const nodeId = String(args.nextNode?.id || args.previousNode?.id || '').trim()
-  const sourceOwnedNode = args.nextNode || args.previousNode
-  if (nodeId && (!args.previousNode || isStrybldrStoryboardNodeSourceOwned(sourceOwnedNode))) {
-    const cardPatch = buildStrybldrCardOverridePatchFromGraphNodeChange({
-      previousNode: args.previousNode,
-      nextNode: args.nextNode,
-    })
-    if (Object.keys(cardPatch).length > 0) {
-      nextText = updateStrybldrStoryboardMarkdownCardOverride({
-        text: nextText,
-        nodeId,
-        patch: cardPatch,
-      }) || nextText
-    }
-  }
-  return syncStrybldrStoryboardMarkdownWorkflowEdges({
-    text: nextText,
-    graphData: args.graphData,
-  }) || nextText
-}
-function findActiveMarkdownDocumentSourceFile(args: {
-  state: GraphState
-  sourceFiles: GraphState['sourceFiles']
-}): { index: number; file: GraphState['sourceFiles'][number] } | null {
-  const activeName = String(args.state.markdownDocumentName || '').trim()
-  if (!activeName) return null
-  const activePath = normalizeComposedSourcePath(activeName)
-  if (!activePath) return null
-  for (let i = 0; i < args.sourceFiles.length; i += 1) {
-    const file = args.sourceFiles[i]
-    if (!file) continue
-    const filePath = normalizeComposedSourcePath(readComposedSourceFilePath(file))
-    if (filePath && filePath === activePath) {
-      return { index: i, file }
-    }
-  }
-  return null
-}
-
 export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
   state: GraphState
   sourceFiles: GraphState['sourceFiles']
@@ -479,12 +455,15 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
   if (!activeName || !activeText) return { sourceFiles: args.sourceFiles }
   if (!isMarkdownLikeFileName(activeName)) return { sourceFiles: args.sourceFiles }
   if (isStrybldrStoryboardMarkdown(activeText)) {
-    const nextText = syncStrybldrStoryboardMarkdownFromParsedGraph({
+    const strybldrText = syncStrybldrStoryboardMarkdownFromParsedGraph({
       text: activeText,
       graphData: args.parsedGraphData,
       previousNode: args.previousNode,
       nextNode: args.nextNode,
-    })
+    }) || activeText
+    const nextText = isFrontmatterFlowGraphData(args.parsedGraphData) && frontmatterTextHasFlowTopology(activeText)
+      ? upsertFrontmatterFlowMarkdownText(strybldrText, args.parsedGraphData)
+      : strybldrText
     if (!nextText || nextText === activeText) return { sourceFiles: args.sourceFiles }
     const activeFileMatch = findActiveMarkdownDocumentSourceFile(args)
     if (!activeFileMatch) {
@@ -497,8 +476,12 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
     const nextSourceFiles = args.sourceFiles.slice()
     nextSourceFiles[activeFileMatch.index] = {
       ...activeFileMatch.file,
+      ...buildUpdatedSourceFileParsedGraphState({
+        previousParsedState: activeFileMatch.file,
+        graphData: args.parsedGraphData,
+      }),
       text: nextText,
-      parsedTextHash: '',
+      parsedTextHash: hashText(nextText),
     }
     return {
       sourceFiles: nextSourceFiles,
@@ -507,7 +490,11 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
     }
   }
   if (!isFrontmatterFlowGraphData(args.parsedGraphData)) return { sourceFiles: args.sourceFiles }
-  const nextText = upsertFrontmatterFlowMarkdownText(activeText, args.parsedGraphData)
+  const nextText = syncStructuredResponseEnvelopeFromNodeEdit({
+    rawText: upsertFrontmatterFlowMarkdownText(activeText, args.parsedGraphData),
+    previousNode: args.previousNode,
+    nextNode: args.nextNode,
+  })
   if (nextText === activeText) return { sourceFiles: args.sourceFiles }
   const activeFileMatch = findActiveMarkdownDocumentSourceFile(args)
   if (!activeFileMatch) {
@@ -520,8 +507,12 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
   const nextSourceFiles = args.sourceFiles.slice()
   nextSourceFiles[activeFileMatch.index] = {
     ...activeFileMatch.file,
+    ...buildUpdatedSourceFileParsedGraphState({
+      previousParsedState: activeFileMatch.file,
+      graphData: args.parsedGraphData,
+    }),
     text: nextText,
-    parsedTextHash: '',
+    parsedTextHash: hashText(nextText),
   }
   return {
     sourceFiles: nextSourceFiles,

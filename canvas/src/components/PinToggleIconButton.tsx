@@ -44,7 +44,7 @@ export function PinToggleIconButton(props: {
       tooltipContent={tooltipContent}
       showTooltip={showTooltip}
       disabled={disabled}
-      onPointerDown={onPointerDown}
+      onPointerDownCapture={onPointerDown}
       onClick={onClick}
       aria-pressed={ariaPressed ?? pinned}
       style={style}

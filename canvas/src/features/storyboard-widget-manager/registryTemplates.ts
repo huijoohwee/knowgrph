@@ -440,14 +440,14 @@ export function getWidgetRegistryEntryLabel(args: {
 
 export function isPropsPanelWidgetPaletteEntry(entry: WidgetRegistryEntry | null | undefined): boolean {
   if (!entry || entry.isEnabled !== true) return false
-  const widgetTypeId = String(entry.widgetTypeId || '').trim()
-  if (widgetTypeId !== 'default') return false
   const nodeTypeId = String(entry.nodeTypeId || '').trim()
+  const widgetTypeId = String(entry.widgetTypeId || '').trim()
   const formId = String(entry.formId || '').trim()
-  return (
-    (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID && formId === 'textGeneration')
-    || (nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID && formId === FLOW_RICH_MEDIA_PANEL_FORM_ID)
-  )
+  if (!nodeTypeId || !widgetTypeId || !formId) return false
+  if (nodeTypeId === FLOW_IMAGE_GENERATION_NODE_TYPE_ID || nodeTypeId === FLOW_VIDEO_GENERATION_NODE_TYPE_ID) return false
+  if (nodeTypeId !== FLOW_TEXT_GENERATION_NODE_TYPE_ID) return true
+  if (widgetTypeId === 'default' && formId === 'textGeneration') return true
+  return getWidgetRegistryEntryLabel(entry) !== FLOW_TEXT_GENERATION_NODE_LABEL
 }
 
 export function normalizeTextGenerationWidgetPropertiesForProviderFamily(args: {

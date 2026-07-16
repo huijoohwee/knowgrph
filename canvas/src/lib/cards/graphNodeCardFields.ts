@@ -76,9 +76,13 @@ const normalizeCardText = (value: unknown, options?: { preserveFormatting?: bool
 }
 
 export function readGraphNodeProperties(node: Pick<GraphNode, 'properties'> | null | undefined): Record<string, unknown> {
-  const properties = unwrapGraphCellValue(node?.properties)
-  if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return {}
-  return properties as Record<string, unknown>
+  const properties = node?.properties
+  if (!isPlainObject(properties)) return {}
+  const typedValues = (Object.prototype.hasOwnProperty.call(properties, 'key')
+    || Object.prototype.hasOwnProperty.call(properties, 'type'))
+    ? unwrapGraphCellValue(properties.value)
+    : null
+  return isPlainObject(typedValues) ? typedValues : properties
 }
 
 export function readGraphNodeCardTitle(node: Pick<GraphNode, 'id' | 'label' | 'properties'> | null | undefined): string {

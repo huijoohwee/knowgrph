@@ -2,7 +2,7 @@ import type { GraphData } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { buildZoomViewKey } from '@/components/GraphCanvas/zoomViewKey'
 import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
-import { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+import { buildGraphDocumentMetaKey, buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 import { buildSchemaLayoutEngineJson2d } from '@/lib/canvas/schema-layout-engine-json'
 import { buildCollapsedGroupIdsKey } from '@/lib/canvas/collapsedGroupIdsKey'
 import { isStoryboardCanvas2dRenderer } from '@/lib/config.render'
@@ -32,6 +32,7 @@ export function buildActive2dZoomViewKey(args: {
   const multiDimTableModeEnabled = args.multiDimTableModeEnabled === true
   const storyboardStandalone = isStoryboardCanvas2dRenderer(canvas2dRenderer as any)
   const graphKind = String(((graphData?.metadata || {}) as Record<string, unknown>).kind || '').trim()
+  const graphSource = String(((graphData?.metadata || {}) as Record<string, unknown>).source || '').trim()
 
   const effectiveFrontmatter = storyboardStandalone
     ? graphKind === 'frontmatter-flow'
@@ -56,13 +57,17 @@ export function buildActive2dZoomViewKey(args: {
     storyboardStandalone,
   }).documentSemanticModeKey
 
+  const graphMetaKey = storyboardStandalone && graphSource
+    ? buildGraphDocumentMetaKey(graphData)
+    : buildGraphMetaKeyIgnoringPending(graphData)
+
   const base = buildZoomViewKey({
     canvasRenderMode,
     canvas2dRenderer,
     schemaLayoutEngineJson,
     frontmatterModeEnabled: effectiveFrontmatter,
     documentSemanticMode: semanticKey,
-    graphMetaKey: buildGraphMetaKeyIgnoringPending(graphData),
+    graphMetaKey,
     renderMediaAsNodes,
     mediaPanelDensity,
     collapsedGroupIdsKey,

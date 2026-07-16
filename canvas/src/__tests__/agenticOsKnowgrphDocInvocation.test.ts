@@ -1,19 +1,29 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import React from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 
 import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
+import { StoryboardCardInvocationChips } from '@/components/StoryboardWidgetCanvas/StoryboardCardInvocationChips'
+import { createStoryboardWidgetWorkflowRichMediaPublishers } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPublication'
+import { recoverStaleTextWidgetOutputsFromArtifacts } from '@/components/StoryboardWidgetCanvas/runtime/useTextWidgetOutputArtifactRecovery'
 import { buildAgenticOsRuntimeInvocationSystemPrompt } from '@/features/chat/chatRuntimeInvocationProfile'
 import { resolveChatRuntimeInvocationQuery } from '@/features/chat/chatRuntimeInvocationQuery'
 import { extractChatResponseStructuredSurface } from '@/features/chat/chatResponseStructuredContent'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import {
   buildProbeTreeCardFromGraphNode,
+  materializeProbeTreeBranchCards,
   materializeProbeTreeBranchCardsFromGraphNode,
 } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
 import {
+  buildStoryboardWidgetProbeTreeRichMediaMarkdown,
   materializeStoryboardWidgetProbeTreeInvocation,
+  readStoryboardWidgetProbeTreeInvocationText,
   resolveStoryboardWidgetProbeTreeInvocationToken,
+  runStoryboardWidgetProbeTreeInvocation,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
+import { KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS } from '@/features/agentic-os/probeTreePromptPreset'
 import type { GraphData } from '@/lib/graph/types'
 
 export function testKnowgrphProbeTreeInvocationGrammarUsesDocAliasesAndToolIdentity() {
@@ -48,13 +58,14 @@ export function testKnowgrphProbeTreeInvocationGrammarUsesDocAliasesAndToolIdent
     '        kind: text',
     '        parentNodeId: care_source',
     '        candidateOptionId: ask-safety',
+    '        question: "Any severe, worsening, or urgent symptoms?"',
     '        rationale: Clarifies urgent risk before downstream planning.',
     '        nextAction: knowgrph.probe.select',
-    '        output: "Any severe, worsening, or urgent symptoms?"',
+    '        output: ""',
     '```',
   ].join('\n'))
   const node = surface?.nodes[0]
-  if (node?.properties['chat:structuredRole'] !== 'card' || node.properties.parentNodeId !== 'care_source' || node.properties.nextAction !== 'knowgrph.probe.select') {
+  if (node?.properties['chat:structuredRole'] !== 'card' || node.properties.parentNodeId !== 'care_source' || node.properties.nextAction !== 'knowgrph.probe.select' || node.properties.summary !== 'Any severe, worsening, or urgent symptoms?' || node.properties.output !== '') {
     throw new Error(`expected Probe-Tree structured response cards to project as selectable card nodes, got ${JSON.stringify(surface)}`)
   }
   const candidateEdge = surface?.edges.find(edge => (
@@ -123,18 +134,227 @@ export function testKnowgrphProbeTreeInvocationGrammarUsesDocAliasesAndToolIdent
   if (!propsPanelMaterialized.changed || propsPanelMaterialized.materializedNodeIds.length !== 3) {
     throw new Error(`expected Props Panel Probe-Tree invocation to materialize three downstream cards, got ${JSON.stringify(propsPanelMaterialized)}`)
   }
-  const propsPanelProbeNodes = (propsPanelMaterialized.graphData?.nodes || []).filter(node => node.type === 'ProbeTreeCandidate')
+  const propsPanelProbeNodes = (propsPanelMaterialized.graphData?.nodes || []).filter(node => node.type === 'TextGeneration' && node.properties.cardTypeLabel === 'Probe-Tree Card')
   const propsPanelCandidateEdges = (propsPanelMaterialized.graphData?.edges || []).filter(edge => edge.source === 'props_source' && edge.label === 'candidateOption')
   if (propsPanelProbeNodes.length !== 3 || propsPanelCandidateEdges.length !== 3) {
     throw new Error(`expected Props Panel Probe-Tree path to produce candidate cards and edges, got ${JSON.stringify(propsPanelMaterialized.graphData)}`)
   }
   if (!propsPanelProbeNodes.every(node => (
     node.properties.invocation === 'knowgrph.probe.generate'
+    && JSON.stringify(node.properties.invocationTokens) === JSON.stringify(KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS)
     && !Object.prototype.hasOwnProperty.call(node.properties, 'slashCommand')
     && !Object.prototype.hasOwnProperty.call(node.properties, 'hashToken')
     && !Object.prototype.hasOwnProperty.call(node.properties, 'atToken')
   ))) {
     throw new Error(`expected Probe-Tree cards to use the MCP tool identity without invented grammar aliases, got ${JSON.stringify(propsPanelProbeNodes)}`)
+  }
+}
+
+export function testStoryboardProbeTreeInvocationChipDoesNotNavigateAwayFromCanvas() {
+  const html = renderToStaticMarkup(React.createElement(StoryboardCardInvocationChips, {
+    tokens: KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS,
+  }))
+  if (html.includes('<a') || html.includes('href=')) {
+    throw new Error(`expected Storyboard Probe-Tree invocation metadata to stay non-navigating, got ${html}`)
+  }
+  if (!html.includes('data-kg-agentic-os-invocation-token="/knowgrph.probe-tree"')) {
+    throw new Error(`expected Storyboard Probe-Tree chip to retain the shared invocation token marker, got ${html}`)
+  }
+  if (!html.includes('knowgrph-probe-tree-prd-tad.md')) {
+    throw new Error(`expected non-navigating Storyboard Probe-Tree chip to retain source provenance in its title, got ${html}`)
+  }
+}
+
+export function testTerminalTextPublicationCommitsWidgetPanelAndEdgeAtomically() {
+  const sourceNode = {
+    id: 'n1',
+    type: 'TextGeneration',
+    label: 'Widget Card',
+    x: 100,
+    y: 200,
+    properties: {
+      prompt: '/knowgrph.probe-tree @knowgrph.probe-tree #knowgrph.probe-tree',
+      output: '#',
+      outputLoading: true,
+      outputLoadingKind: 'text',
+    },
+  } as GraphData['nodes'][number]
+  let draft: GraphData = { type: 'Graph', nodes: [sourceNode], edges: [] }
+  let published: GraphData | null = null
+  let publishedCommitCount = 0
+  const resolveNode = (id: string) => draft.nodes.find(node => node.id === id) || null
+  const context = {
+    graphSemanticKey: 'probe-tree-text-publication',
+    draftGraph: draft,
+    renderGraph: draft,
+    baseGraph: draft,
+    storeGraph: draft,
+    draftNodes: draft.nodes,
+    renderNodes: draft.nodes,
+    baseNodes: draft.nodes,
+    storeNodes: draft.nodes,
+    draftNodeById: new Map(draft.nodes.map(node => [node.id, node])),
+    renderNodeById: new Map(draft.nodes.map(node => [node.id, node])),
+    baseNodeById: new Map(draft.nodes.map(node => [node.id, node])),
+    storeNodeById: new Map(draft.nodes.map(node => [node.id, node])),
+  } as never
+  const publishers = createStoryboardWidgetWorkflowRichMediaPublishers({
+    context,
+    graphForRun: draft,
+    allowCreateRichMediaPanel: true,
+    withRunLayoutMutationGuard: run => run(),
+    scheduleWorkflowOutputEdgeRefresh: () => undefined,
+    readLiveDraftGraphData: () => draft,
+    appendDraftNode: () => { throw new Error('text publication must use the atomic graph transaction') },
+    commitDraftGraphDataUpdate: (_current, next) => { draft = next },
+    commitPublishedGraphData: next => {
+      publishedCommitCount += 1
+      draft = next
+      published = {
+        ...next,
+        nodes: next.nodes.map(node => ({ ...node, properties: { ...(node.properties || {}) } })),
+        edges: next.edges.map(edge => ({ ...edge, properties: { ...(edge.properties || {}) } })),
+      }
+    },
+    updateNode: (id, patch) => {
+      draft = { ...draft, nodes: draft.nodes.map(node => node.id === id ? { ...node, ...patch } : node) }
+    },
+    appendWorkflowOutputEdge: edge => { draft = { ...draft, edges: [...draft.edges, edge] } },
+    resolveNodeByIdAcrossGraphs: resolveNode,
+  })
+
+  publishers.publishTextRunOutputToRichMediaPanel({
+    anchorNode: sourceNode,
+    outputText: '#',
+    title: 'Probe-Tree Branches',
+    model: 'seed-1-8-251228',
+    loading: true,
+  })
+  if (publishedCommitCount !== 0 || !draft.nodes.some(node => node.type === 'RichMediaPanel')) {
+    throw new Error('expected streaming text to remain draft-only while materializing its output panel')
+  }
+
+  const terminalOutput = '# Probe-Tree Branches\n\n1. Safety boundary\n2. Evidence scope'
+  draft = {
+    ...draft,
+    nodes: draft.nodes.map(node => node.id === sourceNode.id ? {
+      ...node,
+      properties: {
+        ...(node.properties || {}),
+        output: terminalOutput,
+        outputPath: 'workspace:/docs/probe-tree-output.md',
+        outputLoading: undefined,
+        outputLoadingKind: undefined,
+      },
+    } : node),
+  }
+  const materializedProbeTreeGraph = materializeStoryboardWidgetProbeTreeInvocation({
+    prompt: String(sourceNode.properties.prompt || ''),
+    graphData: draft,
+    node: draft.nodes.find(node => node.id === sourceNode.id),
+  })?.graphData
+  if (!materializedProbeTreeGraph) throw new Error('expected Probe-Tree branches before terminal Rich Media publication')
+  publishers.publishTextRunOutputToRichMediaPanel({
+    anchorNode: sourceNode,
+    baseGraphData: materializedProbeTreeGraph,
+    outputText: terminalOutput,
+    title: 'Probe-Tree Branches',
+    model: 'seed-1-8-251228',
+    outputPath: 'workspace:/docs/probe-tree-output.md',
+    loading: false,
+  })
+
+  const publishedGraph = published as GraphData | null
+  const publishedSource = publishedGraph?.nodes.find(node => node.id === sourceNode.id)
+  const publishedPanel = publishedGraph?.nodes.find(node => node.type === 'RichMediaPanel')
+  const publishedProbeTreeNodes = publishedGraph?.nodes.filter(node => node.type === 'TextGeneration' && node.properties.cardTypeLabel === 'Probe-Tree Card') || []
+  const panelProperties = (publishedPanel?.properties || {}) as Record<string, unknown>
+  if (
+    Number(publishedCommitCount) !== 1
+    || publishedSource?.properties.output !== terminalOutput
+    || panelProperties.output !== terminalOutput
+    || panelProperties.outputPath !== 'workspace:/docs/probe-tree-output.md'
+    || panelProperties.outputLoading === true
+    || panelProperties.outputLoadingKind === 'text'
+    || publishedProbeTreeNodes.length !== 3
+    || publishedGraph?.edges.filter(edge => edge.source === sourceNode.id && edge.label === 'candidateOption').length !== 3
+    || !publishedGraph?.edges.some(edge => edge.source === sourceNode.id && edge.target === publishedPanel?.id)
+  ) {
+    throw new Error(`expected terminal Widget, Rich Media Panel, and edge to publish atomically, got ${JSON.stringify(publishedGraph)}`)
+  }
+}
+
+export async function testStaleTextPublicationRecoversExistingWorkspaceArtifact() {
+  const nowMs = Date.parse('2026-07-16T05:10:00.000Z')
+  const cell = (key: string, type: string, value: unknown) => ({ key, type, value })
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [
+      {
+        id: cell('id', 'string', 'n1'), type: cell('type', 'string', 'TextGeneration'), label: cell('label', 'string', 'Widget Card'), properties: {
+          prompt: 'Generate a text response for the active request.',
+          output: '#',
+          outputLoading: cell('outputLoading', 'boolean', true),
+          outputLoadingKind: cell('outputLoadingKind', 'string', 'text'),
+          outputModel: cell('outputModel', 'string', 'seed-1-8-251228'),
+          lastRunAt: cell('lastRunAt', 'string', '2026-07-16T05:00:00.000Z'),
+        },
+      } as never,
+      {
+        id: cell('id', 'string', 'n2'), type: cell('type', 'string', 'RichMediaPanel'), label: cell('label', 'string', 'Rich Media Panel'), properties: {
+          media_interactive: true,
+          workflowOutputAnchorNodeId: cell('workflowOutputAnchorNodeId', 'string', 'n1'),
+          workflowOutputKey: cell('workflowOutputKey', 'string', 'output'),
+        },
+      } as never,
+    ],
+    edges: [{
+      id: 'n1-output-n2',
+      source: 'n1',
+      target: 'n2',
+      label: 'output',
+      properties: {},
+    }],
+  }
+  const artifactOutput = '# Recovered output\n\nThe completed workspace artifact is authoritative.'
+  const recovered = await recoverStaleTextWidgetOutputsFromArtifacts({
+    graphData,
+    documentName: 'workspace:/docs/note_20260716T045859Z.md',
+    nowMs,
+    fs: {
+      ensureSeed: async () => undefined,
+      listEntries: async () => [{ path: '/docs/note_20260716t045859z-widget-card-text-output.md', parentPath: '/docs', kind: 'file', name: 'note_20260716t045859z-widget-card-text-output.md', updatedAtMs: nowMs }],
+      readFileText: async path => String(path) === '/docs/note_20260716t045859z-widget-card-text-output.md' ? artifactOutput : null,
+    } as never,
+  })
+  const sourceProperties = (recovered?.nodes[0]?.properties || {}) as Record<string, unknown>
+  const panelProperties = (recovered?.nodes[1]?.properties || {}) as Record<string, unknown>
+  if (
+    !recovered
+    || sourceProperties.output !== artifactOutput
+    || panelProperties.output !== artifactOutput
+    || sourceProperties.outputLoading === true
+    || panelProperties.outputLoading === true
+    || panelProperties.richMediaActiveTab !== 'text'
+    || !String(panelProperties.outputPath || '').endsWith('note_20260716t045859z-widget-card-text-output.md')
+  ) {
+    throw new Error(`expected stale Widget and Rich Media output to recover from the existing artifact, got ${JSON.stringify(recovered)}`)
+  }
+
+  const projectedGraphData = structuredClone(graphData)
+  delete (projectedGraphData.nodes[0].properties as Record<string, unknown>).lastRunAt
+  const recoveredProjectedGraph = await recoverStaleTextWidgetOutputsFromArtifacts({
+    graphData: projectedGraphData,
+    documentName: 'note_20260716T045859Z.md',
+    nowMs,
+    fs: {
+      ensureSeed: async () => undefined,
+      listEntries: async () => [{ path: '/docs/note_20260716t045859z-widget-card-text-output.md', parentPath: '/docs', kind: 'file', name: 'note_20260716t045859z-widget-card-text-output.md', updatedAtMs: nowMs - (10 * 60 * 1000) }],
+      readFileText: async path => String(path) === '/docs/note_20260716t045859z-widget-card-text-output.md' ? artifactOutput : null,
+    } as never,
+  })
+  if ((recoveredProjectedGraph?.nodes[1]?.properties as Record<string, unknown>)?.output !== artifactOutput) {
+    throw new Error(`expected a projected pending node without lastRunAt to recover only from a stale matching artifact, got ${JSON.stringify(recoveredProjectedGraph)}`)
   }
 }
 
@@ -165,22 +385,211 @@ export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation()
     }],
     edges: [],
   }
+
+  const summaryOnlyGraphData: GraphData = {
+    type: 'Graph',
+    nodes: [{
+      id: 'summary-only',
+      type: 'TextGeneration',
+      label: 'Widget Card',
+      properties: {
+        key: 'properties',
+        type: 'object',
+        value: {
+          summary: { key: 'summary', type: 'string', value: prompt },
+          prompt: { key: 'prompt', type: 'string', value: '' },
+        },
+      },
+    } as never],
+    edges: [],
+  }
+  const summaryOnlyNode = summaryOnlyGraphData.nodes[0]
+  const summaryInvocationText = readStoryboardWidgetProbeTreeInvocationText(summaryOnlyNode)
+  if (resolveStoryboardWidgetProbeTreeInvocationToken(summaryInvocationText) !== '/knowgrph.probe-tree') {
+    throw new Error(`expected Widget Card Run to resolve Probe-Tree from a typed Summary when prompt is empty, got ${summaryInvocationText}`)
+  }
+  let summaryOnlyCommit: GraphData | null = null
+  const summaryOnlyRunResult = runStoryboardWidgetProbeTreeInvocation({
+    graphForRun: summaryOnlyGraphData,
+    nodeIds: ['summary-only'],
+    fallbackNode: summaryOnlyNode,
+    onMaterialized: () => undefined,
+    publishOutput: output => { summaryOnlyCommit = output.baseGraphData || null; return summaryOnlyCommit },
+  })
+  if (!summaryOnlyRunResult?.changed || !summaryOnlyCommit) {
+    throw new Error(`expected summary-only typed Widget Card Run to bypass generic empty-prompt handling, got ${JSON.stringify(summaryOnlyRunResult)}`)
+  }
   const materialized = materializeStoryboardWidgetProbeTreeInvocation({
     prompt,
     graphData,
     node: graphData.nodes[0],
   })
-  const probeNodes = (materialized?.graphData?.nodes || []).filter(node => node.type === 'ProbeTreeCandidate')
+  const probeNodes = (materialized?.graphData?.nodes || []).filter(node => node.type === 'TextGeneration' && node.properties.cardTypeLabel === 'Probe-Tree Card')
   const candidateEdges = (materialized?.graphData?.edges || []).filter(edge => edge.source === 'n1' && edge.label === 'candidateOption')
   if (!materialized?.changed || materialized.invocationToken !== '/knowgrph.probe-tree' || probeNodes.length !== 3 || candidateEdges.length !== 3) {
     throw new Error(`expected embedded Widget Card Probe-Tree invocation to materialize three branch cards without provider parsing, got ${JSON.stringify(materialized)}`)
   }
+  for (const probeNode of probeNodes) {
+    if (
+      JSON.stringify(probeNode.properties.invocationTokens) !== JSON.stringify(KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS)
+      || !String(probeNode.properties.prompt || '').startsWith('/knowgrph.probe-tree\n\n')
+      || probeNode.properties.probeTreeDepth !== 1
+    ) throw new Error(`expected every Probe-Tree branch prompt to retain only the slash invocation while alias metadata and bounded depth remain available, got ${JSON.stringify(probeNode.properties)}`)
+  }
+
+  let selectedNodeIds: readonly string[] = []
+  let publishedOutput: Parameters<Parameters<typeof runStoryboardWidgetProbeTreeInvocation>[0]['publishOutput']>[0] | null = null
+  const runResult = runStoryboardWidgetProbeTreeInvocation({
+    graphForRun: graphData,
+    nodeIds: ['n1'],
+    fallbackNode: graphData.nodes[0],
+    onMaterialized: nodeIds => { selectedNodeIds = nodeIds },
+    publishOutput: output => { publishedOutput = output; return output.baseGraphData || null },
+  })
+  if (!runResult?.changed || selectedNodeIds.length !== 3 || !publishedOutput) {
+    throw new Error(`expected native Widget Card Run to materialize and select branches before provider execution, got ${JSON.stringify({ runResult, selectedNodeIds, publishedOutput })}`)
+  }
+  const richMediaMarkdown = buildStoryboardWidgetProbeTreeRichMediaMarkdown(runResult)
+  if (
+    publishedOutput.outputKey !== 'probe-tree-branches'
+    || publishedOutput.baseGraphData !== runResult.graphData
+    || publishedOutput.panelLabel !== 'Probe-Tree Branches'
+    || publishedOutput.model !== 'knowgrph-probe-tree-local-fallback'
+    || publishedOutput.outputText !== richMediaMarkdown
+    || !richMediaMarkdown.includes('0 prompt tokens, 0 completion tokens')
+    || !richMediaMarkdown.includes(KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS.join(' '))
+  ) throw new Error(`expected native Probe-Tree Run to publish the source-backed zero-cost Rich Media summary, got ${JSON.stringify(publishedOutput)}`)
+
+  const depthLimitedGraph: GraphData = {
+    type: 'Graph',
+    nodes: [{ ...graphData.nodes[0], properties: { ...graphData.nodes[0].properties, probeTreeDepth: 8 } }],
+    edges: [],
+  }
+  const depthLimited = materializeStoryboardWidgetProbeTreeInvocation({
+    prompt,
+    graphData: depthLimitedGraph,
+    node: depthLimitedGraph.nodes[0],
+  })
+  if (depthLimited?.changed || depthLimited?.kind !== 'warning' || !depthLimited.message.includes('8-branch depth limit')) {
+    throw new Error(`expected the native multi-turn Probe-Tree to stop at its bounded depth, got ${JSON.stringify(depthLimited)}`)
+  }
 
   const runActionSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
-  const publishIndex = runActionSource.indexOf('publishTextRunOutput(result, false, outputPath)')
-  const materializeIndex = runActionSource.indexOf('const probeTreeOutput = materializeProbeTreeOutput()', publishIndex)
-  const successToastIndex = runActionSource.indexOf('message: probeTreeOutput?.message', materializeIndex)
-  if (publishIndex < 0 || materializeIndex <= publishIndex || successToastIndex <= materializeIndex) {
-    throw new Error('expected successful Widget Card text runs to materialize embedded Probe-Tree directives before reporting completion')
+  const probeTreeRunSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowProbeTreeRun.ts'), 'utf8')
+  const textGenerationIndex = runActionSource.indexOf("FLOW_TEXT_GENERATION_NODE_TYPE_ID) {")
+  const probeDispatchIndex = runActionSource.indexOf('const probeTreeOutput = await runStoryboardWidgetProbeTreeTextGenerationInvocation({')
+  const crawlerIndex = runActionSource.indexOf('runStoryboardWidgetNativeCrawlerInvocation({', probeDispatchIndex)
+  const genericProviderIndex = runActionSource.indexOf('const result = await generateRunMarkdownWithProvider({', probeDispatchIndex)
+  const nativeProbeIndex = probeTreeRunSource.indexOf('const result = await runStoryboardWidgetProbeTreeMcpInvocation({')
+  const providerApprovalIndex = probeTreeRunSource.indexOf('generateProviderResponse: providerRefinementApproved ?', nativeProbeIndex)
+  const providerIndex = probeTreeRunSource.indexOf('generateRunMarkdownWithProvider({', providerApprovalIndex)
+  const nativeProbeRunSource = probeTreeRunSource.slice(nativeProbeIndex, providerIndex)
+  if (
+    textGenerationIndex < 0
+    || probeDispatchIndex <= textGenerationIndex
+    || crawlerIndex <= probeDispatchIndex
+    || genericProviderIndex <= probeDispatchIndex
+    || nativeProbeIndex < 0
+    || providerApprovalIndex <= nativeProbeIndex
+    || providerIndex <= nativeProbeIndex
+    || runActionSource.includes('materializeProbeTreeOutput')
+    || runActionSource.includes('const probeTreeOutput = runStoryboardWidgetProbeTreeInvocation({')
+    || !runActionSource.slice(probeDispatchIndex, crawlerIndex).includes('publishOutput: publishTextRunOutputToRichMediaPanel')
+    || !nativeProbeRunSource.includes('graphForRun: args.graphForRun')
+    || !nativeProbeRunSource.includes('publishOutput: args.publishOutput')
+    || nativeProbeRunSource.includes('commitGraphData:')
+    || nativeProbeRunSource.includes('graphData: args.readDraftGraphData()')
+  ) {
+    throw new Error('expected Widget Card Probe-Tree handling to invoke the MCP-first structured runner inside the TextGeneration owner before generic provider publication')
+  }
+}
+
+export function testProbeTreeToolbarAndSlashRunShareOneIdempotentBranchSet() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [{
+      id: 'n1',
+      type: 'TextGeneration',
+      label: 'Widget Card',
+      x: 100,
+      y: 200,
+      properties: {
+        prompt: [
+          '/sme-care-agent @source.frontmatter @source.body',
+          '/knowgrph.probe-tree',
+          'Generate bounded branches from this Widget Card.',
+        ].join('\n'),
+      },
+    }],
+    edges: [],
+  }
+  const sourceNode = graphData.nodes[0]
+  const countMaterializedSet = (candidate: GraphData | null | undefined) => {
+    const branchNodes = (candidate?.nodes || []).filter(node => (
+      node.type === 'TextGeneration'
+      && node.properties.cardTypeLabel === 'Probe-Tree Card'
+      && node.properties.parentGraphNodeId === 'n1'
+    ))
+    const candidateEdges = (candidate?.edges || []).filter(edge => (
+      edge.source === 'n1' && edge.label === 'candidateOption'
+    ))
+    return {
+      nodeCount: branchNodes.length,
+      uniqueNodeCount: new Set(branchNodes.map(node => node.id)).size,
+      edgeCount: candidateEdges.length,
+    }
+  }
+
+  const toolbarFirst = materializeProbeTreeBranchCards({
+    graphData,
+    card: buildProbeTreeCardFromGraphNode(sourceNode),
+  })
+  if (!toolbarFirst.changed || !toolbarFirst.graphData) {
+    throw new Error(`expected the bubble-toolbar action to materialize the initial branch set, got ${JSON.stringify(toolbarFirst)}`)
+  }
+  let toolbarThenRunSelectedNodeIds: readonly string[] = []
+  let toolbarThenRunPublished = false
+  const toolbarThenRun = runStoryboardWidgetProbeTreeInvocation({
+    graphForRun: toolbarFirst.graphData,
+    nodeIds: ['n1'],
+    fallbackNode: sourceNode,
+    onMaterialized: nodeIds => { toolbarThenRunSelectedNodeIds = nodeIds },
+    publishOutput: output => { toolbarThenRunPublished = true; return output.baseGraphData || null },
+  })
+  const toolbarThenRunCounts = countMaterializedSet(toolbarThenRun?.graphData)
+  if (
+    toolbarThenRun?.changed
+    || toolbarThenRunSelectedNodeIds.length !== 3
+    || !toolbarThenRunPublished
+    || toolbarThenRunCounts.nodeCount !== 3
+    || toolbarThenRunCounts.uniqueNodeCount !== 3
+    || toolbarThenRunCounts.edgeCount !== 3
+  ) {
+    throw new Error(`expected slash Run after toolbar materialization to reuse one branch set inside one output publication, got ${JSON.stringify({ toolbarThenRun, toolbarThenRunSelectedNodeIds, toolbarThenRunPublished, toolbarThenRunCounts })}`)
+  }
+
+  let runFirstGraph: GraphData | null = null
+  const runFirst = runStoryboardWidgetProbeTreeInvocation({
+    graphForRun: graphData,
+    nodeIds: ['n1'],
+    fallbackNode: sourceNode,
+    onMaterialized: () => undefined,
+    publishOutput: output => { runFirstGraph = output.baseGraphData || null; return runFirstGraph },
+  })
+  if (!runFirst?.changed || !runFirstGraph) {
+    throw new Error(`expected slash Run to materialize the initial branch set, got ${JSON.stringify(runFirst)}`)
+  }
+  const toolbarAfterRun = materializeProbeTreeBranchCards({
+    graphData: runFirstGraph,
+    card: buildProbeTreeCardFromGraphNode(sourceNode),
+  })
+  const runThenToolbarCounts = countMaterializedSet(toolbarAfterRun.graphData)
+  if (
+    toolbarAfterRun.changed
+    || runThenToolbarCounts.nodeCount !== 3
+    || runThenToolbarCounts.uniqueNodeCount !== 3
+    || runThenToolbarCounts.edgeCount !== 3
+  ) {
+    throw new Error(`expected the bubble-toolbar action after slash Run to reuse one branch set, got ${JSON.stringify({ toolbarAfterRun, runThenToolbarCounts })}`)
   }
 }

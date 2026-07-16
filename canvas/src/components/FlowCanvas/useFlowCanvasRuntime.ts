@@ -38,7 +38,6 @@ import { isStoryboardWidgetFrontmatterDocumentModeRequested } from '@/lib/graph/
 import { STORYBOARD_WIDGET_INTERACTION_FRAME_EVENT } from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import { isHorizontalOverlayStrip, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
 import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/storyboardWidget/frontmatterOverlayNodeIds'
-import { buildOverlayTopologyLayoutSignature } from '@/lib/storyboardWidget/overlayTopologyLayoutSignature'
 import { readZoomScaleExtent } from '@/lib/graph/layoutDefaults'
 import { measureLayoutRectSet } from '@/lib/canvas/layoutCentroid'
 import {
@@ -743,8 +742,7 @@ export function useFlowCanvasRuntime(args: {
       const meta = (sceneGraphData?.metadata || null) as Record<string, unknown> | null
       if (meta?.pending === true) return
     }
-    const storyboardWidgetLayoutSignature = storyboardWidgetMode ? buildOverlayTopologyLayoutSignature(graphDataForFit) : ''
-    const initKey = storyboardWidgetMode ? `storyboardWidget:${storyboardWidgetLayoutSignature}` : zoomViewKey
+    const initKey = storyboardWidgetMode ? `storyboardWidget:${zoomViewKey}` : zoomViewKey
     const alreadyInitializedForKey = lastInitTransformZoomViewKeyRef.current === initKey
     const current = runtime.transform || d3.zoomIdentity
     const hasNonIdentityTransform = current.k !== 1 || current.x !== 0 || current.y !== 0
@@ -782,6 +780,7 @@ export function useFlowCanvasRuntime(args: {
     const initial = pickInitialZoomTransform({
       zoomState,
       pinned: viewPinned,
+      preserveAcrossGraphRevisions: storyboardWidgetMode,
       graphDataRevision,
       nextViewportW: viewportW,
       nextViewportH: viewportH,

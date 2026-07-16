@@ -1,4 +1,5 @@
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import {
   hashScopedStringArraySignature,
@@ -89,18 +90,18 @@ function buildGraphLookup(cacheKey: string, graphData: GraphData): CachedGraphLo
 
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
-    const id = String(node?.id || '').trim()
+    const id = String(unwrapGraphCellValue(node?.id) ?? '').trim()
     if (!id) continue
     nodeById.set(id, node)
   }
 
   for (let i = 0; i < edges.length; i += 1) {
     const edge = edges[i]
-    const edgeId = String(edge?.id || '').trim()
+    const edgeId = String(unwrapGraphCellValue(edge?.id) ?? '').trim()
     if (edgeId) edgeById.set(edgeId, edge)
 
-    const sourceId = String(edge?.source || '').trim()
-    const targetId = String(edge?.target || '').trim()
+    const sourceId = String(unwrapGraphCellValue(edge?.source) ?? '').trim()
+    const targetId = String(unwrapGraphCellValue(edge?.target) ?? '').trim()
     if (sourceId) {
       const current = incidentEdgesByNodeId.get(sourceId)
       if (current) current.push(edge)

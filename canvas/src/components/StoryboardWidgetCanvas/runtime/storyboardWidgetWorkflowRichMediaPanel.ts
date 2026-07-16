@@ -15,6 +15,7 @@ import {
 } from '@/features/image-to-glb/imageToGlbContract'
 import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
+import { isPlainObject } from '@/lib/graph/value'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { normalizeGeneratedRichMediaTableProperties } from '@/features/rich-media/richMediaTablePersistence'
@@ -26,6 +27,19 @@ import {
 import {
   areStoryboardWidgetWorkflowRecordValuesEqual,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowWriteback'
+import {
+  PROBE_TREE_OUTPUT_KEY,
+  PROBE_TREE_OUTPUT_LAYOUT_VERSION,
+  PROBE_TREE_OUTPUT_RIGHTMOST_X_PROPERTY,
+  resolveStoryboardWidgetProbeTreeOutputPanelPosition,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
+import {
+  PROBE_TREE_BALANCED_LAYOUT_MODE,
+  PROBE_TREE_BALANCED_LAYOUT_VERSION,
+  PROBE_TREE_LAYOUT_MODE_PROPERTY,
+  PROBE_TREE_LAYOUT_VERSION_PROPERTY,
+  PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY,
+} from '@/lib/storyboardWidget/probeTreeLayoutContract'
 
 export {
   IMAGE_TO_THREEJS_OUTPUT_PANEL_ANCHOR_ID_PROPERTY,
@@ -44,19 +58,48 @@ export const IMAGE_TO_THREEJS_OUTPUT_EDGE_LABEL = 'image.to-threejs output' as c
 export const IMAGE_TO_GLB_OUTPUT_EDGE_PROPERTY = 'imageGlbOutputEdge' as const
 export const IMAGE_TO_GLB_OUTPUT_EDGE_LABEL = 'image.to-glb output' as const
 
-export function mergeStoryboardWidgetWorkflowPropertyPatch(
+const isTypedPropertyEnvelope = (value: unknown): value is Record<string, unknown> & { value: unknown } => (
+  isPlainObject(value)
+  && Object.prototype.hasOwnProperty.call(value, 'value')
+  && (Object.prototype.hasOwnProperty.call(value, 'key') || Object.prototype.hasOwnProperty.call(value, 'type'))
+)
+
+const mergeStoryboardWidgetWorkflowPropertyValues = (
   current: Record<string, unknown>,
   patch: Record<string, unknown>,
-): Record<string, unknown> {
+): Record<string, unknown> => {
   const next = { ...current }
   for (const [key, value] of Object.entries(patch)) {
-    if (typeof value === 'undefined') delete next[key]
-    else next[key] = value
+    if (typeof value === 'undefined') {
+      delete next[key]
+      continue
+    }
+    next[key] = isTypedPropertyEnvelope(next[key])
+      ? { ...next[key], value }
+      : value
   }
   return normalizeGeneratedRichMediaTableProperties({
     nodeType: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
     properties: next,
   })
+}
+
+export function mergeStoryboardWidgetWorkflowPropertyPatch(
+  current: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const typedValues = isTypedPropertyEnvelope(current) && isPlainObject(current.value)
+    ? current.value
+    : null
+  const nextValues = mergeStoryboardWidgetWorkflowPropertyValues(typedValues || current, patch)
+  if (!typedValues) return nextValues
+
+  const nextContainer: Record<string, unknown> = { ...current, value: nextValues }
+  for (const key of Object.keys(patch)) {
+    // Clean up values written beside the canonical typed container by older runs.
+    delete nextContainer[key]
+  }
+  return nextContainer
 }
 
 function cleanString(value: unknown): string {
@@ -94,12 +137,22 @@ export function resolveStoryboardWidgetWorkflowRichMediaPanelTargetNodeId(args: 
   readLiveDraftGraphData: () => GraphData | null
   anchorNodeId?: string | null
   outputKey?: string | null
+  outputGroupId?: string | null
 }): string | null {
   const allNodes = listStoryboardWidgetWorkflowRichMediaPanelSearchNodes(args)
   const panels = allNodes.filter(n => cleanString(n.type) === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID)
   if (panels.length === 0) return null
   const anchorNodeId = cleanString(args.anchorNodeId)
   const outputKey = cleanString(args.outputKey)
+  const outputGroupId = cleanString(args.outputGroupId)
+  if (outputGroupId && outputKey) {
+    const groupedPanel = panels.find(node => {
+      const properties = (node.properties || {}) as Record<string, unknown>
+      return cleanString(properties.workflowOutputGroupId) === outputGroupId
+        && cleanString(properties.workflowOutputKey) === outputKey
+    })
+    if (groupedPanel) return cleanString(groupedPanel.id) || null
+  }
   if (anchorNodeId && outputKey) {
     const exactPanel = panels.find(n => {
       const p = (n.properties || {}) as Record<string, unknown>
@@ -133,6 +186,8 @@ export function ensureStoryboardWidgetWorkflowRichMediaPanelNodeId(args: {
   anchorNode: GraphNode
   readLiveDraftGraphData: () => GraphData | null
   outputKey?: string | null
+  outputGroupId?: string | null
+  outputThreadRootId?: string | null
   outputLabel?: string | null
   outputIndex?: number
   appendDraftNode: (args: {
@@ -150,21 +205,43 @@ export function ensureStoryboardWidgetWorkflowRichMediaPanelNodeId(args: {
     readLiveDraftGraphData: args.readLiveDraftGraphData,
     anchorNodeId: cleanString(args.anchorNode.id),
     outputKey: args.outputKey,
+    outputGroupId: args.outputGroupId,
   })
   if (existing) return existing
   if (!args.allowCreateRichMediaPanel) return null
-  if (!args.readLiveDraftGraphData()) return null
+  const liveDraftGraphData = args.readLiveDraftGraphData()
+  if (!liveDraftGraphData) return null
+  const probeTreePanelPosition = cleanString(args.outputKey) === PROBE_TREE_OUTPUT_KEY
+    && cleanString(args.outputThreadRootId)
+    ? resolveStoryboardWidgetProbeTreeOutputPanelPosition({
+        graphData: liveDraftGraphData,
+        threadRootId: cleanString(args.outputThreadRootId),
+      })
+    : null
+  const fallbackPanelX = (Number.isFinite(args.anchorNode.x) ? args.anchorNode.x : 0)
+    + 520
+    + (typeof args.outputIndex === 'number' && Number.isFinite(args.outputIndex) ? Math.max(0, args.outputIndex) * 460 : 0)
+  const fallbackPanelY = Number.isFinite(args.anchorNode.y) ? args.anchorNode.y : 0
   return args.appendDraftNode({
     id: null,
     type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
     label: cleanString(args.outputLabel) || FLOW_RICH_MEDIA_PANEL_NODE_LABEL,
-    x: (Number.isFinite(args.anchorNode.x) ? args.anchorNode.x : 0) + 520 + (typeof args.outputIndex === 'number' && Number.isFinite(args.outputIndex) ? Math.max(0, args.outputIndex) * 460 : 0),
-    y: Number.isFinite(args.anchorNode.y) ? args.anchorNode.y : 0,
+    x: probeTreePanelPosition?.x ?? fallbackPanelX,
+    y: probeTreePanelPosition?.y ?? fallbackPanelY,
     properties: {
       media_interactive: true,
       ...(cleanString(args.outputKey) ? {
         workflowOutputAnchorNodeId: cleanString(args.anchorNode.id),
         workflowOutputKey: cleanString(args.outputKey),
+      } : {}),
+      ...(cleanString(args.outputGroupId) ? { workflowOutputGroupId: cleanString(args.outputGroupId) } : {}),
+      ...(probeTreePanelPosition ? {
+        probeTreeThreadLedger: true,
+        probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION,
+        [PROBE_TREE_OUTPUT_RIGHTMOST_X_PROPERTY]: probeTreePanelPosition.rightmostThreadX,
+        [PROBE_TREE_LAYOUT_MODE_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_MODE,
+        [PROBE_TREE_LAYOUT_VERSION_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_VERSION,
+        [PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY]: true,
       } : {}),
     },
   })

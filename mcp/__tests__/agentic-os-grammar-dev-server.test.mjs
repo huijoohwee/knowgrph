@@ -36,4 +36,23 @@ test("local grammar forwarder projects all three source-backed invocation dictio
     assert.match(response.body.result.structuredContent.sourceRevision, /^[0-9a-f]{40}$/);
     assert.ok(response.body.result.structuredContent.catalog.some(entry => entry.token === expectedToken));
   }
+
+  for (const token of ["/knowgrph.probe-tree", "#knowgrph.probe-tree", "@knowgrph.probe-tree"]) {
+    const response = await handleAgenticOsGrammarDevRpc({
+      jsonrpc: "2.0",
+      id: token,
+      method: "tools/call",
+      params: {
+        name: AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
+        arguments: { query: token, limit: 10 },
+      },
+    }, {
+      rootDir: repoRoot,
+      sessionId: initialized.headers["mcp-session-id"],
+    });
+    const entry = response.body.result.structuredContent.catalog.find(candidate => candidate.token === token);
+    assert.equal(response.statusCode, 200);
+    assert.ok(entry, `expected docs-invoke MCP to resolve ${token}`);
+    assert.match(entry.summary, /Probe-Tree|probe/i);
+  }
 });

@@ -4,6 +4,7 @@ import { setObjectPath } from '@/lib/data/objectPath'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { resolveRichMediaConnectedRenderSchemaPath } from '@/lib/storyboardWidget/widgetAutoRender'
 import { hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
+import { readNodeFieldBoolean, readNodeFieldString } from '@/lib/canvas/graph-elements/mediaSpecNodeFields'
 
 const RICH_MEDIA_RENDER_SCHEMA_PATHS = new Set([
   'properties.output',
@@ -207,25 +208,32 @@ export function applyConnectedValuesToNodeForRender(args: {
   let changed = false
   const connectedPaths = listConnectedSchemaPaths(connectedValuesBySchemaPath)
   const connectedRenderPathsForSpec = new Set<string>()
-  const freezeConnectedOutput =
-    String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
-    && Boolean(((args.node.properties || {}) as Record<string, unknown>).freezeConnectedOutput)
+  const richMediaPanelNode = String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+  const localProperties = (args.node.properties || {}) as Record<string, unknown>
+  const freezeConnectedOutput = richMediaPanelNode
+    && readNodeFieldBoolean(args.node, localProperties, 'freezeConnectedOutput')
   const freezeConnectedOutputActive = (() => {
-    if (!freezeConnectedOutput) return false
-    const props = (args.node.properties || {}) as Record<string, unknown>
-    const output = typeof props.output === 'string' ? props.output.trim() : ''
-    const outputSrcDoc = typeof props.outputSrcDoc === 'string' ? props.outputSrcDoc.trim() : ''
-    return Boolean(output || outputSrcDoc)
+    if (!richMediaPanelNode) return false
+    const output = readNodeFieldString(args.node, localProperties, 'output')
+    const outputSrcDoc = readNodeFieldString(args.node, localProperties, 'outputSrcDoc')
+    if (!output.trim() && !outputSrcDoc.trim()) return false
+    const namedWorkflowPublication = Boolean(
+      readNodeFieldString(args.node, localProperties, 'workflowOutputAnchorNodeId')
+      && readNodeFieldString(args.node, localProperties, 'workflowOutputKey'),
+    )
+    // Workflow-output edges preserve lineage. Their terminal panel publication
+    // remains authoritative when the connected producer currently emits empty.
+    return freezeConnectedOutput || namedWorkflowPublication
   })()
   const richMediaPanelHasConnectedRenderValue =
-    String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    richMediaPanelNode
     && connectedPaths.some(path => {
       if (!RICH_MEDIA_RENDER_SCHEMA_PATHS.has(path)) return false
       const rec = connectedValuesBySchemaPath[path]
       return rec ? hasRenderableConnectedValue(rec.value) : false
     })
   const incomingRichMediaRenderPaths = new Set<string>()
-  if (String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+  if (richMediaPanelNode) {
     for (const [path, connected] of Object.entries(connectedValuesBySchemaPath)) {
       const normalizedPath = String(path || '').trim()
       if (!normalizedPath || !connected || !hasRenderableConnectedValue(connected.value)) continue
@@ -251,7 +259,7 @@ export function applyConnectedValuesToNodeForRender(args: {
     if (!normalizedPath || !connected) continue
     if (typeof connected.value === 'undefined') continue
     const renderPath =
-      String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+      richMediaPanelNode
         ? resolveRichMediaConnectedRenderSchemaPath({
             schemaPath: normalizedPath,
             connectedValue: connected,
@@ -259,10 +267,10 @@ export function applyConnectedValuesToNodeForRender(args: {
         : normalizedPath
     if (!renderPath) continue
     if (freezeConnectedOutputActive && (renderPath === 'properties.output' || renderPath === 'properties.outputSrcDoc')) continue
-    if (String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID && hasRenderableConnectedValue(connected.value)) {
+    if (richMediaPanelNode && hasRenderableConnectedValue(connected.value)) {
       connectedRenderPathsForSpec.add(renderPath)
     }
-    if (String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+    if (richMediaPanelNode) {
       next = {
         ...next,
         properties: clearRichMediaRenderChannel({
@@ -276,7 +284,7 @@ export function applyConnectedValuesToNodeForRender(args: {
     next = setObjectPath(next as unknown as Record<string, unknown>, renderPath, connected.value) as unknown as GraphNode
     changed = true
   }
-  if (String(args.node.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) {
+  if (richMediaPanelNode) {
     const connectedRenderPathsSig = Array.from(connectedRenderPathsForSpec).sort().join('|')
     const props = (next.properties || {}) as Record<string, unknown>
     const prevSig = typeof props[RICH_MEDIA_CONNECTED_RENDER_PATHS_KEY] === 'string'

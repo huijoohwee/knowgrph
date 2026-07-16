@@ -387,7 +387,7 @@ import type { TestCaseTuple } from '../runner/testRunnerTypes'; export const TES
   ["viewport.flow.windowPointerUp.endsDrag","@/__tests__/flowCanvasWindowPointerUpClearsDragRegression.test","testFlowCanvasWindowPointerUpCaptureCanEndActiveDrag"],
   ["viewport.flow.wheel.recoversFromStaleDrag","@/__tests__/flowCanvasWheelCancelsStaleDragRegression.test","testFlowCanvasWheelCanRecoverFromStaleDrag"],
   ["viewport.flow.gesturePinchZoom","@/__tests__/flowCanvasGesturePinchZoomRegression.test","testFlowCanvasHandlesSafariGesturePinchZoom"],
-  ["viewport.storyboardWidget.initTransform.noChurnAfterPan","@/__tests__/storyboardWidgetInitialTransformNoChurn.test","testStoryboardWidgetInitialTransformDoesNotReapplyAfterUserPan"],
+  ["viewport.storyboardWidget.initTransform.noChurnAfterSameDocumentGrowth","@/__tests__/storyboardWidgetInitialTransformNoChurn.test","testStoryboardWidgetInitialTransformDoesNotReapplyAfterSameDocumentGrowth"],
   ["viewport.storyboardWidget.initTransform.waitsForFinitePositions","@/__tests__/storyboardWidgetInitialTransformWaitsForFinitePositions.test","testStoryboardWidgetInitialTransformWaitsForFinitePositions"],
   ["zoom.effective.fallsBackToGlobalWhenKeyMissing","@/__tests__/zoomEffectiveFallback.test","testEffectiveZoomStateForKeyFallsBackToGlobal"],
   ["zoom.viewKey.schemaLayoutEngineJson.includesFlowKey","@/__tests__/schemaLayoutEngineJson2d.test","testSchemaLayoutEngineJson2dIncludesFlowKey"],

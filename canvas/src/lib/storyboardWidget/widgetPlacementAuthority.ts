@@ -10,6 +10,7 @@ import {
   FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID,
 } from '@/lib/config'
 import { isHorizontalOverlayStrip, isVerticalOverlayCluster } from '@/lib/ui/overlayBalancedSpread'
+import { isProbeTreePinnedByDefaultNode } from '@/lib/storyboardWidget/probeTreeLayoutContract'
 
 const FRONTMATTER_AUTO_MANAGED_WIDGET_RESIDUE_GAP_PX = 24
 function hasAutoManagedWidgetOverlap(items: Array<{ left: number; top: number; width: number; height: number }>, gapPx: number): boolean {
@@ -47,10 +48,11 @@ export function resolveDefaultFlowWidgetPinnedInCanvas(args: {
 export function resolveEffectiveFlowWidgetPinnedInCanvas(args: {
   graphMetaKind?: string | null
   geospatialWidgetPanelMode?: boolean
-  node?: Pick<GraphNode, 'id' | 'type'> | null
+  node?: (Pick<GraphNode, 'id' | 'type'> & Partial<Pick<GraphNode, 'properties'>>) | null
   pinnedValue?: boolean | null
 }): boolean {
   if (typeof args.pinnedValue === 'boolean') return args.pinnedValue
+  if (isProbeTreePinnedByDefaultNode(args.node)) return true
   return resolveDefaultFlowWidgetPinnedInCanvas({
     graphMetaKind: args.graphMetaKind,
     geospatialWidgetPanelMode: args.geospatialWidgetPanelMode,
@@ -160,6 +162,7 @@ export function shouldPreserveFrontmatterAutoManagedBalancedCollective(args: {
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
     if (!isCanonicalFrontmatterBuiltInWidgetNode(node)) continue
+    if (isProbeTreePinnedByDefaultNode(node)) continue
     autoManagedNodeCount += 1
     const id = String(node?.id || '').trim()
     const pos = id ? args.posByNodeId?.[id] : undefined
@@ -238,6 +241,7 @@ export function stripFrontmatterAutoManagedWidgetPinnedStates(args: {
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]
     if (!isCanonicalFrontmatterBuiltInWidgetNode(node)) continue
+    if (isProbeTreePinnedByDefaultNode(node)) continue
     const id = String(node?.id || '').trim()
     if (!id || next[id] !== true) continue
     delete next[id]
@@ -247,6 +251,7 @@ export function stripFrontmatterAutoManagedWidgetPinnedStates(args: {
     if (pinned !== true) continue
     const node = resolveGraphNodeByCanonicalId(graphData, rawId)
     if (!isCanonicalFrontmatterBuiltInWidgetNode(node)) continue
+    if (isProbeTreePinnedByDefaultNode(node)) continue
     if (!Object.prototype.hasOwnProperty.call(next, rawId)) continue
     delete next[rawId]
     changed = true

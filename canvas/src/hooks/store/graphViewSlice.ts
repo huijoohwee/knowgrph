@@ -10,7 +10,9 @@ import {
   WORKSPACE_SYNC_TASK_FLOW_WIDGET_VIEW_STATE,
 } from '@/lib/async/workspaceSyncKeys'
 import { hashRecordSignature, hashSignatureParts } from '@/lib/hash/signature'
-import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'
+import {
+  isWorkspaceGraphMutationBlocked,
+} from '@/features/workspace-table/workspaceTableSsot'
 import { stripFrontmatterAutoManagedWidgetPinnedStates } from '@/lib/storyboardWidget/widgetPlacementAuthority'
 import { isFlowWidgetOverlayEligibleNode } from '@/lib/graph/flowWidgetEligibility'
 import { normalizeIds, normalizeOpenWidgetNodeIds } from '@/hooks/store/graphViewIds'
@@ -345,7 +347,6 @@ export const createGraphViewSlice = (set: SetGraph, get: GetGraph) => {
   },
   setFlowWidgetPinnedByNodeIdForGraph: (graphMetaKey: string | null | undefined, pinnedById: Record<string, boolean>) => {
     const state = get()
-    if (isWorkspaceGraphMutationBlocked(state)) return
     const nextPinnedById = normalizePinnedByNodeId(pinnedById)
     const graphKey = String(graphMetaKey || '').trim() || buildGraphDocumentMetaKey(state.graphData)
     const by = state.flowWidgetPinnedByNodeIdByGraphMetaKey || {}

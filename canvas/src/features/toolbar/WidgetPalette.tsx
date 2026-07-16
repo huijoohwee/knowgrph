@@ -14,18 +14,9 @@ import {
   setFlowWidgetDragDataTransfer,
 } from '@/lib/storyboardWidget/widgetDrag'
 import FloatingPropsPanelMenuButton from '@/features/toolbar/FloatingPropsPanelMenuButton'
-import { getWidgetRegistryEntryLabel } from '@/features/storyboard-widget-manager/registryTemplates'
-import { readMarkdownSigilDisplayText } from '@/lib/markdown/markdownSigil'
-import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { uiToolbarColumnMenuListClassName } from '@/features/toolbar/ui/toolbarStyles'
-
-function defaultLabelForEntry(entry: WidgetRegistryEntry): string {
-  return getWidgetRegistryEntryLabel({
-    nodeTypeId: entry.nodeTypeId,
-    widgetTypeId: entry.widgetTypeId,
-    formId: entry.formId,
-  })
-}
+import { WidgetPaletteCardLayoutPreview } from '@/features/toolbar/WidgetPaletteCardLayoutPreview'
+import { listWidgetPaletteLayoutVariants } from '@/features/toolbar/widgetPaletteLayoutVariants'
 
 export default function WidgetPalette(args: {
   entries: ReadonlyArray<WidgetRegistryEntry>
@@ -34,8 +25,13 @@ export default function WidgetPalette(args: {
   const panelTypography = usePanelTypography()
   const uiPanelKeyValueTextSizeClass = useGraphStore(s => s.uiPanelKeyValueTextSizeClass || KTV_ROW_TEXT_SIZE_FALLBACK_CLASS_NAME)
   const uiPanelTextFontClass = useGraphStore(s => s.uiPanelTextFontClass || 'font-sans')
-  const entries = Array.isArray(args.entries) ? args.entries : []
+  const aspectRatio = useGraphStore(s => s.strybldrStoryboardCardAspectMode === '9:16' ? '9:16' : '16:9')
+  const entries = args.entries
   const dragEnabled = args.dragEnabled === true
+  const layoutVariants = React.useMemo(
+    () => listWidgetPaletteLayoutVariants(entries, aspectRatio),
+    [aspectRatio, entries],
+  )
 
   return (
     <aside
@@ -46,23 +42,23 @@ export default function WidgetPalette(args: {
       <header className={`px-3 py-2 border-b ${UI_THEME_TOKENS.panel.border}`} aria-label="Palette header">
         <h4 className={`font-semibold ${UI_THEME_TOKENS.text.primary} ${panelTypography.panelTextClass}`}>Widgets</h4>
         <p className={`${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>
-          Drag into the canvas to create a ready-to-Run widget node.
+          Drag a widget, card, or flow-editor layout into the canvas.
         </p>
       </header>
       <nav className="min-h-0 overflow-auto p-2" aria-label="Palette items">
         <menu className={uiToolbarColumnMenuListClassName} aria-label="Widget entries">
-          {entries.length === 0 ? (
+          {layoutVariants.length === 0 ? (
             <li className={`px-2 py-2 ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>No enabled entries.</li>
           ) : (
-            entries.map(entry => {
-              const rawLabel = defaultLabelForEntry(entry)
-              const label = readMarkdownSigilDisplayText(rawLabel)
+            layoutVariants.map(variant => {
+              const { entry, label } = variant
               const disabled = !dragEnabled
               return (
-                <li key={entry.id}>
+                <li key={variant.id}>
                   <FloatingPropsPanelMenuButton
                     disabled={disabled}
                     draggable={dragEnabled}
+                    className="rounded-md p-0"
                     uiPanelKeyValueTextSizeClass={uiPanelKeyValueTextSizeClass}
                     uiPanelTextFontClass={uiPanelTextFontClass}
                     ariaLabel={`Drag ${label}`}
@@ -74,6 +70,7 @@ export default function WidgetPalette(args: {
                         nodeTypeId: entry.nodeTypeId,
                         widgetTypeId: entry.widgetTypeId,
                         formId: entry.formId,
+                        layoutVariantId: variant.id,
                         label,
                         pointerId: ev.pointerId,
                         clientX: ev.clientX,
@@ -88,6 +85,7 @@ export default function WidgetPalette(args: {
                         nodeTypeId: entry.nodeTypeId,
                         widgetTypeId: entry.widgetTypeId,
                         formId: entry.formId,
+                        layoutVariantId: variant.id,
                       })
                       if (!payload) return
                       setFlowWidgetDragDataTransfer({ dataTransfer: ev.dataTransfer, payload, label })
@@ -103,10 +101,7 @@ export default function WidgetPalette(args: {
                       clearActiveFlowWidgetPointerDragSession()
                     }}
                   >
-                    <span className={`block ${UI_THEME_TOKENS.text.primary}`}>{renderMarkdownSigilInlineText(rawLabel)}</span>
-                    <span className={`block ${panelTypography.microLabelClass} ${UI_THEME_TOKENS.text.secondary}`}>
-                      {entry.widgetTypeId}/{entry.formId}
-                    </span>
+                    <WidgetPaletteCardLayoutPreview variant={variant} />
                   </FloatingPropsPanelMenuButton>
                 </li>
               )

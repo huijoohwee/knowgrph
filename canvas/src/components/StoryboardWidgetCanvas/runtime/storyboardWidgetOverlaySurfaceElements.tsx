@@ -130,8 +130,10 @@ export function buildOverlayEditorElements(args: {
     if (found) return found
     const canonicalMatch = resolveGraphNodeByCanonicalId(args.renderGraphDataOverride, id)
     if (canonicalMatch) return canonicalMatch
-    const stableCanonicalMatch = resolveGraphNodeByCanonicalId(args.lastStableRenderGraphDataOverride, id)
-    if (stableCanonicalMatch) return stableCanonicalMatch
+    if (useStableFrontmatterGraphAuthority) {
+      const stableCanonicalMatch = resolveGraphNodeByCanonicalId(args.lastStableRenderGraphDataOverride, id)
+      if (stableCanonicalMatch) return stableCanonicalMatch
+    }
     return null
   }
   const elements: React.ReactElement[] = []

@@ -17,7 +17,7 @@ import { buildCanonicalNodeLookup, parseCanonicalNodeIds, splitComposedNodeId } 
 import {
   applyLayoutAutosuggestFromMetadata,
   applyWidgetRegistryFromMetadata,
-  hashGraphDataForPreviewSync,
+  shouldSkipGraphDataPreviewSync,
   syncGraphFieldsWithGraphData,
   readGraphRagWorkflowJsonTextFromGraphData,
   withGraphDataRevision,
@@ -228,9 +228,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
 
     try {
       const current = get().graphData
-      const nextHash = hashGraphDataForPreviewSync(nextGraphDataBase)
-      const curHash = hashGraphDataForPreviewSync(current)
-      if (nextHash && curHash && nextHash === curHash) return
+      if (shouldSkipGraphDataPreviewSync(nextGraphDataBase, current)) return
     } catch {
       void 0
     }
@@ -480,9 +478,7 @@ export function createGraphDataCommitActions(set: SetGraph, get: GetGraph) {
 
     try {
       const current = get().graphData
-      const nextHash = hashGraphDataForPreviewSync(nextGraphData)
-      const curHash = hashGraphDataForPreviewSync(current)
-      if (nextHash && curHash && nextHash === curHash) return
+      if (shouldSkipGraphDataPreviewSync(nextGraphData, current)) return
     } catch {
       void 0
     }

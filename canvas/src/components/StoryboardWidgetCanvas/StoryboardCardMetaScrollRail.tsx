@@ -44,9 +44,9 @@ export function handleStoryboardCardMetaWheelEvent(event: WheelEvent | React.Whe
 
 const normalizeCardMetadataLabel = (value: unknown): string => String(value || '').replace(/[^a-z0-9]/gi, '').toLowerCase()
 
-export function isLegacyTextGenerationCardMetadata(card: Pick<StoryboardCardModel, 'lane' | 'typeLabel'>): boolean {
-  return normalizeCardMetadataLabel(card.lane) === 'textgeneration'
-    && normalizeCardMetadataLabel(card.typeLabel) === 'textgeneration'
+export function isRedundantWidgetCardMetadata(card: Pick<StoryboardCardModel, 'lane' | 'typeLabel'>): boolean {
+  return normalizeCardMetadataLabel(card.lane) === 'widgetcard'
+    && normalizeCardMetadataLabel(card.typeLabel) === 'widgetcard'
 }
 
 export function StoryboardCardMetaScrollRail(props: {
@@ -56,7 +56,7 @@ export function StoryboardCardMetaScrollRail(props: {
 }) {
   const { card, onCommitLane, onCommitType } = props
   const hasInvocationTokens = card.invocationTokens.some(token => token.startsWith('/') || token.startsWith('@') || token.startsWith('#'))
-  const hidesLegacyTextGenerationMetadata = isLegacyTextGenerationCardMetadata(card)
+  const hidesRedundantWidgetCardMetadata = isRedundantWidgetCardMetadata(card)
   const metaRef = React.useRef<HTMLElement | null>(null)
   React.useEffect(() => {
     const rail = metaRef.current
@@ -68,7 +68,7 @@ export function StoryboardCardMetaScrollRail(props: {
   const handleMetaWheelCapture = React.useCallback((event: React.WheelEvent<HTMLElement>) => {
     handleStoryboardCardMetaWheelEvent(event, event.currentTarget)
   }, [])
-  if (hidesLegacyTextGenerationMetadata && !hasInvocationTokens) return null
+  if (hidesRedundantWidgetCardMetadata && !hasInvocationTokens) return null
   return (
     <header
       ref={metaRef}
@@ -83,7 +83,7 @@ export function StoryboardCardMetaScrollRail(props: {
       onWheelCapture={handleMetaWheelCapture}
       style={{ borderColor: 'var(--kg-border)', touchAction: 'pan-x' }}
     >
-      {!hidesLegacyTextGenerationMetadata ? <>
+      {!hidesRedundantWidgetCardMetadata ? <>
         {card.indexLabel ? <span className="shrink-0">{card.indexLabel}</span> : null}
         <CardInlineTextEditor
           value={card.lane || 'Storyboard'}

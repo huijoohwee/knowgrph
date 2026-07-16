@@ -1,0 +1,104 @@
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { initWindowHarness } from '@/tests/lib/windowHarness'
+import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import {
+  buildProbeTreeStructuredResponse,
+  PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+} from '@/features/agent-ready/probeTreeContract.mjs'
+import { appendChatHistoryWorkspaceFile } from '@/features/chat/chatHistoryWorkspace'
+import { applyChatKgcWorkspaceDocumentToCanvas } from '@/features/chat/chatKgcCanvasApply'
+import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/storyboardWidget/frontmatterOverlayNodeIds'
+
+export async function testProbeTreeLiteralMcpResultAppliesVisibleWidgetCardPanelTree() {
+  const storage = new MemoryStorage()
+  const { restore: restoreWindow } = initWindowHarness({ storage })
+  const { restore: restoreDom } = initJsdomHarness()
+  const originalFetch = globalThis.fetch
+  try {
+    resetWorkspaceFsForTests()
+    useGraphStore.getState().clearGraphData()
+    globalThis.fetch = (async () => ({ ok: true } as Response)) as typeof fetch
+
+    const response = buildProbeTreeStructuredResponse({
+      threadRootId: 'care-agent',
+      currentNodeId: 'care-source',
+      contextText: 'The selected care source needs an authoritative risk-tier branch.',
+      optionCount: 3,
+      options: [
+        { id: 'source-authority', text: 'Which source system is authoritative for the member risk tier?', rationale: 'Prevents conflicting CRM and claims values from silently selecting a branch.' },
+        { id: 'freshness-window', text: 'What freshness window makes the risk tier actionable?', rationale: 'Separates stale evidence from an actionable signal.' },
+        { id: 'handoff-owner', text: 'Who owns the next care-plan handoff after the tier is confirmed?', rationale: 'Names the accountable downstream owner before selection.' },
+      ],
+    })
+    const assistantText = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'probe-tree-generate',
+      result: {
+        content: [{ type: 'text', text: 'Canvas-ready Probe-Tree MCP result.' }],
+        structuredContent: {
+          contractVersion: 'knowgrph-probe-tree/v0.1',
+          ok: true,
+          response,
+          cost_log: { model: 'probe-tree-local-heuristic', prompt_tokens: 0, completion_tokens: 0, cache_hits: 0, estimated_cost_usd: 0 },
+        },
+      },
+    }, null, 2)
+
+    const workspacePath = await appendChatHistoryWorkspaceFile({
+      requestedPath: '/chat-log/20260716T120000Z/kgc_20260716T120000Z.md',
+      timestampMs: Date.UTC(2026, 6, 16, 12, 0, 0),
+      providerSummary: 'Knowgrph MCP · Probe-Tree',
+      userText: '/knowgrph.probe-tree @knowgrph.probe-tree #knowgrph.probe-tree',
+      assistantText,
+      storageType: 'chatKnowgrph',
+      traceId: 'trace-probe-tree-mcp-apply',
+      title: 'Knowledge Graph Canvas Storage',
+    })
+    const canonicalText = await (await getWorkspaceFs()).readFileText(workspacePath)
+    for (const token of [
+      'mcp-response-care-source',
+      'mcp-response-source-authority',
+      'mcp-response-freshness-window',
+      'mcp-response-handoff-owner',
+      'mcp-response-probe-tree-branches-care-source',
+      PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+    ]) {
+      if (!canonicalText.includes(token)) throw new Error(`expected canonical KGC to contain ${token}`)
+    }
+
+    if (!await applyChatKgcWorkspaceDocumentToCanvas(workspacePath)) {
+      throw new Error('expected the Probe-Tree MCP KGC to apply to the active Canvas')
+    }
+    const graphData = useGraphStore.getState().graphData
+    const source = graphData?.nodes.find(node => node.id === 'mcp-response-care-source')
+    const panel = graphData?.nodes.find(node => node.id === 'mcp-response-probe-tree-branches-care-source')
+    const cards = (graphData?.nodes || []).filter(node => node.properties?.cardTypeLabel === 'Probe-Tree Card')
+    const candidateEdges = (graphData?.edges || []).filter(edge => edge.label === 'candidateOption')
+    if (
+      source?.type !== FLOW_TEXT_GENERATION_NODE_TYPE_ID
+      || panel?.type !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+      || !String(panel.properties?.output || '').includes('# Probe-Tree Branches')
+      || cards.length !== 3
+      || cards.map(card => card.properties?.index).join(',') !== 'P1,P2,P3'
+      || cards.some(card => card.type !== FLOW_TEXT_GENERATION_NODE_TYPE_ID || card.properties?.parentNodeId !== 'care-source')
+      || cards.some(card => card.properties?.output !== '' || !card.properties?.summary)
+      || candidateEdges.length !== 3
+      || candidateEdges.some(edge => edge.source !== source.id || !cards.some(card => card.id === edge.target))
+    ) {
+      throw new Error(`expected one visible source Widget, three inferred candidate branches, and one Rich Media panel, got ${JSON.stringify(graphData)}`)
+    }
+    const overlayIds = new Set(deriveFrontmatterFlowOverlayNodeIds(graphData!))
+    for (const node of [source, ...cards, panel]) {
+      if (!node || !overlayIds.has(String(node.id))) throw new Error(`expected ${String(node?.id || 'missing node')} on the visible overlay tree`)
+    }
+  } finally {
+    useGraphStore.getState().clearGraphData()
+    resetWorkspaceFsForTests()
+    globalThis.fetch = originalFetch
+    restoreDom()
+    restoreWindow()
+  }
+}

@@ -998,13 +998,13 @@ export function testStoryboardWidgetRunButtonPreservation_ResetAllAndWidgetReset
   }
   for (const snippet of [
     'window.addEventListener(WORKFLOW_RESET_ALL_EVENT',
-    'const resetWorkflowOutputs = React.useCallback(() => {',
-    'clearRichMediaOutputProperties(currentProps)',
-    'bumpStoryboardWidgetDraftGraphDataRevision({ ...draft, nodes: nextNodes })',
+    'const resetWorkflowOutputs = React.useCallback(async () => {',
+    'buildStoryboardWidgetWorkflowResetAllGraphData(draft)',
+    'await args.commitPublishedGraphData(reset.graphData)',
+    'const handler = () => void resetWorkflowOutputs()',
   ]) {
     if (!workflowActionsText.includes(snippet)) throw new Error(`expected Storyboard Widget Reset all runtime snippet: ${snippet}`)
   }
-
   const runIndex = nodeToolbarText.indexOf('title={UI_COPY.flowWidgetRun}')
   const resetIndex = nodeToolbarText.indexOf('title={UI_LABELS.clearOutput}')
   const importUrlIndex = nodeToolbarText.indexOf('title="Import URL"')

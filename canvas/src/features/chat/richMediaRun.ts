@@ -320,7 +320,7 @@ export const buildRichMediaWidgetRunRequest = (args: {
   }
 }
 
-const buildSuggestedArtifactFileName = (args: {
+export const buildSuggestedArtifactFileName = (args: {
   workspacePath?: string | null
   node: GraphNode
   kind: string
