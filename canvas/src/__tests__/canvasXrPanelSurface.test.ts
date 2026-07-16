@@ -214,10 +214,18 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     if (!mediaCatalog.includes(marker)) throw new Error(`expected Media to own the canonical 3D entry through ${marker}`)
   }
   if (!xrMediaLibrary.includes('<SpatialAssetToolsPanel />')) throw new Error('expected Media 3D to retain spatial asset tooling')
-  if ((xrMediaLibrary.match(/<XrLibraryCard/g) || []).length < 2 || !xrMediaLibrary.includes('data-kg-media-xr-card-layout="subjects-props"')) {
-    throw new Error('expected Environment Kits and Subjects & Props to reuse the same XR library card layout owner')
+  if (
+    (xrMediaLibrary.match(/<XrLibraryCard/g) || []).length < 2
+    || !xrMediaLibrary.includes('data-kg-media-xr-card-layout="media-3-rows"')
+    || !xrMediaLibrary.includes('mediaListItemClassName()')
+    || !xrMediaLibrary.includes('mediaListThumbnailFrameClassName(')
+  ) {
+    throw new Error('expected Environment Kits and Subjects & Props to reuse the Media three-row card layout owner')
   }
   if (xrMediaLibrary.includes('sm:grid-cols-2')) throw new Error('expected Environment Kits to remove the stale two-column tile layout')
+  for (const marker of ['CollapsibleSection', 'ExpandCollapseAllButton', 'useCollapsibleSectionGroup', 'defaultCollapsed={false}', 'headerClassName="px-0"']) {
+    if (!xrMediaLibrary.includes(marker)) throw new Error(`expected Media 3D sections to reuse shared disclosure behavior through ${marker}`)
+  }
 
   if (existsSync(resolve(process.cwd(), 'src', 'components', 'toolbar', 'Canvas3dModeSelect.tsx'))) {
     throw new Error('expected Canvas View Surface Mode to remain the only mounted 3D/XR selector')
