@@ -1,6 +1,8 @@
 import React from 'react'
 import {
   refreshAgenticOsRemoteGrammarCatalog,
+  useAgenticOsRemoteGrammarCatalog,
+  type AgenticOsRemoteGrammarSigil,
   type AgenticOsRemoteGrammarSnapshot,
 } from './agenticOsRemoteGrammarClient'
 import {
@@ -11,9 +13,10 @@ import {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 
+const KNOWGRPH_RUNTIME_IDENTITY_SIGILS: readonly AgenticOsRemoteGrammarSigil[] = ['/', '#', '@']
 const revisionText = (value: string): string => value || 'unavailable'
 
-export function AgenticOsRuntimeIdentityPanel({ snapshot }: { snapshot: AgenticOsRemoteGrammarSnapshot }) {
+export function KnowgrphRuntimeIdentityPanel({ snapshot }: { snapshot: AgenticOsRemoteGrammarSnapshot }) {
   const [copyStatus, setCopyStatus] = React.useState('')
   const identity = React.useMemo(() => buildKnowgrphRuntimeIdentity(snapshot), [snapshot])
   const fresh = isKnowgrphRuntimeIdentityFresh(identity)
@@ -30,20 +33,25 @@ export function AgenticOsRuntimeIdentityPanel({ snapshot }: { snapshot: AgenticO
 
   return (
     <section
-      className={cn('mb-2 grid min-w-0 gap-1 border-b pb-2 text-xs', UI_THEME_TOKENS.panel.border)}
-      aria-label="Runtime identity"
+      className={cn('grid min-w-0 gap-1 border-b p-2 text-xs', UI_THEME_TOKENS.panel.border)}
+      aria-label="Cross-device Identity Gate"
+      data-kg-main-panel-settings-runtime-identity="1"
       data-kg-runtime-identity="knowgrph-runtime-identity/v1"
+      data-kg-runtime-identity-surface="main-panel-settings"
       data-kg-runtime-identity-status={fresh ? 'fresh' : snapshot.hydration.status}
       data-kg-runtime-knowgrph-revision={identity.knowgrphRevision}
       data-kg-runtime-agentic-canvas-os-revision={identity.agenticCanvasOsRevision}
       data-kg-runtime-catalog-revision={identity.catalogRevision}
     >
       <header className="flex min-w-0 items-center justify-between gap-2">
-        <strong className={UI_THEME_TOKENS.text.primary}>Runtime identity</strong>
+        <strong className={UI_THEME_TOKENS.text.primary}>Cross-device Identity Gate</strong>
         <span className={fresh ? 'text-emerald-400' : 'text-amber-400'} data-kg-runtime-hydration-status={snapshot.hydration.status}>
           {snapshot.hydration.status}
         </span>
       </header>
+      <p className={cn('m-0', UI_THEME_TOKENS.text.tertiary)}>
+        Exact app, docs, catalog revisions, and invocation counts must match on every device.
+      </p>
       <dl className={cn('grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1', UI_THEME_TOKENS.text.secondary)}>
         <dt>Device</dt><dd className="min-w-0 break-all font-mono">{identity.device}</dd>
         <dt>Branch</dt><dd className="min-w-0 break-all font-mono">{identity.branch}</dd>
@@ -64,7 +72,7 @@ export function AgenticOsRuntimeIdentityPanel({ snapshot }: { snapshot: AgenticO
           disabled={snapshot.hydration.status === 'loading'}
           onClick={() => void refreshAgenticOsRemoteGrammarCatalog()}
         >
-          Refresh catalog
+          Refresh identity catalog
         </button>
         <button type="button" className="App-toolbar__btn text-xs" onClick={() => void copyIdentity()}>
           Copy identity JSON
@@ -73,4 +81,9 @@ export function AgenticOsRuntimeIdentityPanel({ snapshot }: { snapshot: AgenticO
       </section>
     </section>
   )
+}
+
+export default function KnowgrphRuntimeIdentityGate() {
+  const snapshot = useAgenticOsRemoteGrammarCatalog({ sigils: KNOWGRPH_RUNTIME_IDENTITY_SIGILS })
+  return <KnowgrphRuntimeIdentityPanel snapshot={snapshot} />
 }

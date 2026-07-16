@@ -1,4 +1,5 @@
 import React from 'react'
+import KnowgrphRuntimeIdentityGate from '@/features/agentic-os/KnowgrphRuntimeIdentityGate'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import {
   KeyTypeValueHeader,
@@ -398,6 +399,7 @@ export default function SettingsView({
         </datalist>
       )}
       <section className="space-y-0">
+        {mode === 'all' && <KnowgrphRuntimeIdentityGate />}
         <KeyTypeValueHeader
           stickyOffsetClassName={headerStickyTopClass}
           keyLabel={ktvHeaderLabels.keyLabel}

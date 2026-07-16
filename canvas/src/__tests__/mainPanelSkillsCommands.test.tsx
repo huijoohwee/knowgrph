@@ -64,15 +64,15 @@ export async function testFloatingPanelSkillsCommandsViewRendersSlashInvokableSk
     })
 
     const surface = container.querySelector('[data-kg-floating-panel-skills-commands="true"]')
-    const runtimeIdentity = container.querySelector('[data-kg-runtime-identity="knowgrph-runtime-identity/v1"]')
-    const refreshIdentity = Array.from<HTMLButtonElement>(container.querySelectorAll('button')).find(button => button.textContent?.trim() === 'Refresh catalog')
-    const copyIdentity = Array.from<HTMLButtonElement>(container.querySelectorAll('button')).find(button => button.textContent?.trim() === 'Copy identity JSON')
     const storybuildingRow = container.querySelector('[data-kg-skill-command-row="storybuilding"]')
     const storybuildingIcon = storybuildingRow?.querySelector('[data-kg-skill-command-icon="1"]') as HTMLElement | null
     const storybuildingIconSvg = storybuildingIcon?.querySelector('svg')
     const storybuildingSlash = container.querySelector('[data-kg-skill-command-slash="storybuilding"]')
-    if (!surface || !runtimeIdentity || !refreshIdentity || !copyIdentity || !storybuildingRow || storybuildingSlash?.textContent?.trim() !== '/storybuilding') {
+    if (!surface || !storybuildingRow || storybuildingSlash?.textContent?.trim() !== '/storybuilding') {
       throw new Error('Expected FloatingPanel Skills & Commands to render Storybuilding as a slash-invokable skill')
+    }
+    if (container.querySelector('[data-kg-runtime-identity="knowgrph-runtime-identity/v1"]')) {
+      throw new Error('Expected FloatingPanel Skills & Commands to leave the global runtime identity gate in MainPanel Settings')
     }
     if (
       storybuildingRow.getAttribute('data-kg-skill-command-icon-key') !== 'invocation.subject.story' ||

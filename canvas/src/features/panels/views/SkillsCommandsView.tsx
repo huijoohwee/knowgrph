@@ -1,7 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from 'react'
 import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
-import { AgenticOsRuntimeIdentityPanel } from '@/features/agentic-os/AgenticOsRuntimeIdentityPanel'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
 import {
   resolveInlineInvocationChipClassName,
@@ -190,7 +189,6 @@ export default function SkillsCommandsView({
       data-kg-floating-panel-skills-commands-grammar-group-by={grammarGroupBy}
       aria-label="Skills & Commands"
     >
-      <AgenticOsRuntimeIdentityPanel snapshot={grammarCatalog} />
       <section className="grid min-w-0 gap-1" data-kg-floating-panel-catalog-list-rows={FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT}>
         {entryGroups.map((group, index) => {
           const groupCollapsed = collapsedGroupKeys.has(group.key)
