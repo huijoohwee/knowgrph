@@ -61,6 +61,8 @@ export function useGanttTimelineTransportSession(args: {
   code: string
   disabledLaneIds?: readonly VideoSequenceTimelineLaneId[]
   mode: GanttTimelineTransportMode
+  runtimeDocumentKey?: string
+  runtimeDurationSeconds?: number
 }): GanttTimelineTransportSession {
   const { markdownDocumentName, markdownText } = useTimelineDocumentStoreBinding()
   const { selectedRowKey, setSelectedRowKey } = useTimelineGanttSelectionStoreBinding()
@@ -81,7 +83,7 @@ export function useGanttTimelineTransportSession(args: {
   )
   const maxMinutes = Math.max(0, timelineModel.durationMinutes)
   const disabled = !args.code || maxMinutes <= 0
-  const documentKey = cleanTimelinePreviewDocumentKey(markdownDocumentName)
+  const documentKey = cleanTimelinePreviewDocumentKey(args.runtimeDocumentKey || markdownDocumentName)
   const {
     playbackPosition: positionMinutes,
     playing,
@@ -119,7 +121,13 @@ export function useGanttTimelineTransportSession(args: {
   const exportPlanError = previewSession.exportPlanError
   const previewPlan = previewSession.previewPlan
   const thumbnailPlan = previewSession.thumbnailPlan
-  const mediaDurationSeconds = useGanttTimelineMediaDuration(exportPlan)
+  const sourceMediaDurationSeconds = useGanttTimelineMediaDuration(exportPlan)
+  const runtimeDurationSeconds = Number(args.runtimeDurationSeconds)
+  const mediaDurationSeconds = sourceMediaDurationSeconds || (
+    Number.isFinite(runtimeDurationSeconds) && runtimeDurationSeconds > 0
+      ? runtimeDurationSeconds
+      : 0
+  )
   const {
     currentLabel,
     displayTicks,

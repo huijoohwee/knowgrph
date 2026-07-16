@@ -541,12 +541,6 @@ The opening YAML frontmatter block remains the machine SSOT for this generated r
 | `three.globe.arcCount` | number | store |  |  |
 | `three.globe.arcTravelerCount` | number | store |  |  |
 | `three.globe.autoRotateSpeed` | number | store |  |  |
-| `three.globe.cameraEllipseEnabled` | boolean | store |  |  |
-| `three.globe.cameraEllipseSpeed` | number | store |  |  |
-| `three.globe.cameraEllipseRadiusXFactor` | number | store |  |  |
-| `three.globe.cameraEllipseRadiusZFactor` | number | store |  |  |
-| `three.globe.cameraEllipseHeightFactor` | number | store |  |  |
-| `three.globe.cameraEllipseFollow` | number | store |  |  |
 | `three.globe.hubOrbitEnabled` | boolean | store |  |  |
 | `three.globe.hubOrbitStrength` | number | store |  |  |
 | `three.globe.hubOrbitSpeed` | number | store |  |  |

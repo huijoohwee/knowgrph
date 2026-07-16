@@ -561,7 +561,7 @@ export function testVideoAgentPipelineProjectsProviderFrameImagesIntoFrameAnalys
   if (
     !rulerSourceText.includes("compactSourceFrameSamples || (compactSourceMedia && lane === 'audio') ? []")
     || !rulerSourceText.includes('<VideoSequenceFrameSampleRail samples={semanticFrameSamples} span={span} />')
-    || !denseFbfCssText.includes('timeline-transport-track-clip--lane-fbf[data-kg-compact-source-media="1"] .timeline-video-sequence-clip-thumbnail-strip')
+    || !denseFbfCssText.includes('timeline-transport-track-clip--lane-fbf[data-kg-timeline-clip-compact="1"] .timeline-video-sequence-clip-thumbnail-strip')
     || !denseFbfCssText.includes('display: none;')
   ) {
     throw new Error('expected compact FBF BottomPanel transport to render the semantic rail while compact audio renders waveform instead of duplicated source thumbnails')

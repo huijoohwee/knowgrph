@@ -9127,114 +9127,6 @@
     ],
     "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L130; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
   },
-  "three.globe.cameraEllipseEnabled": {
-    "area": "—",
-    "responsibility": "camera ellipse enabled",
-    "notes": "",
-    "modules": [
-      "canvas/src/features/settings/registry-three.part3.ts",
-      "canvas/src/hooks/store/schemaSlice.ts",
-      "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts"
-    ],
-    "classes": [],
-    "functions": [
-      "setThreeConfig"
-    ],
-    "imports": [
-      "zustand"
-    ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L142; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
-  },
-  "three.globe.cameraEllipseSpeed": {
-    "area": "—",
-    "responsibility": "camera ellipse speed",
-    "notes": "",
-    "modules": [
-      "canvas/src/features/settings/registry-three.part3.ts",
-      "canvas/src/hooks/store/schemaSlice.ts",
-      "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts"
-    ],
-    "classes": [],
-    "functions": [
-      "setThreeConfig"
-    ],
-    "imports": [
-      "zustand"
-    ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L154; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
-  },
-  "three.globe.cameraEllipseRadiusXFactor": {
-    "area": "—",
-    "responsibility": "camera ellipse radius xfactor",
-    "notes": "",
-    "modules": [
-      "canvas/src/features/settings/registry-three.part3.ts",
-      "canvas/src/hooks/store/schemaSlice.ts",
-      "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts"
-    ],
-    "classes": [],
-    "functions": [
-      "setThreeConfig"
-    ],
-    "imports": [
-      "zustand"
-    ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L166; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
-  },
-  "three.globe.cameraEllipseRadiusZFactor": {
-    "area": "—",
-    "responsibility": "camera ellipse radius zfactor",
-    "notes": "",
-    "modules": [
-      "canvas/src/features/settings/registry-three.part3.ts",
-      "canvas/src/hooks/store/schemaSlice.ts",
-      "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts"
-    ],
-    "classes": [],
-    "functions": [
-      "setThreeConfig"
-    ],
-    "imports": [
-      "zustand"
-    ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L178; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
-  },
-  "three.globe.cameraEllipseHeightFactor": {
-    "area": "—",
-    "responsibility": "camera ellipse height factor",
-    "notes": "",
-    "modules": [
-      "canvas/src/features/settings/registry-three.part3.ts",
-      "canvas/src/hooks/store/schemaSlice.ts",
-      "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts"
-    ],
-    "classes": [],
-    "functions": [
-      "setThreeConfig"
-    ],
-    "imports": [
-      "zustand"
-    ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L190; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
-  },
-  "three.globe.cameraEllipseFollow": {
-    "area": "—",
-    "responsibility": "camera ellipse follow",
-    "notes": "",
-    "modules": [
-      "canvas/src/features/settings/registry-three.part3.ts",
-      "canvas/src/hooks/store/schemaSlice.ts",
-      "canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts"
-    ],
-    "classes": [],
-    "functions": [
-      "setThreeConfig"
-    ],
-    "imports": [
-      "zustand"
-    ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L202; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
-  },
   "three.globe.hubOrbitEnabled": {
     "area": "—",
     "responsibility": "hub orbit enabled",
@@ -9251,7 +9143,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L214; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L142; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
   },
   "three.globe.hubOrbitStrength": {
     "area": "—",
@@ -9269,7 +9161,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L226; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L154; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
   },
   "three.globe.hubOrbitSpeed": {
     "area": "—",
@@ -9287,7 +9179,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L238; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L166; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
   },
   "three.globe.hubOrbitRadiusFactor": {
     "area": "—",
@@ -9305,7 +9197,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L250; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L178; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
   },
   "three.globe.sphereEllipsoidX": {
     "area": "—",
@@ -9323,7 +9215,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L262; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L190; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
   },
   "three.globe.sphereEllipsoidY": {
     "area": "—",
@@ -9341,7 +9233,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L274; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L202; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
   },
   "three.globe.sphereEllipsoidZ": {
     "area": "—",
@@ -9359,7 +9251,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L286; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L214; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
   },
   "three.globe.labelDepthFade": {
     "area": "—",
@@ -9377,7 +9269,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L298; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L226; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
   },
   "three.globe.labelBackfaceCulling": {
     "area": "—",
@@ -9395,7 +9287,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L310; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L238; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
   },
   "three.media.iframeOverlay.poolMax": {
     "area": "—",
@@ -9413,7 +9305,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L322; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L251; canvas/src/hooks/store/uiSettingsSliceRender.ts:L102"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L250; canvas/src/hooks/store/store-types/graph-state-editor-ui.ts:L251; canvas/src/hooks/store/uiSettingsSliceRender.ts:L102"
   },
   "three.media.iframeOverlay.maxVisibleDefault": {
     "area": "—",
@@ -9431,7 +9323,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L331; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L111; canvas/src/hooks/store/uiSettingsSliceRender.ts:L105"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L259; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L111; canvas/src/hooks/store/uiSettingsSliceRender.ts:L105"
   },
   "three.media.iframeOverlay.maxVisibleCompact": {
     "area": "—",
@@ -9449,7 +9341,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L340; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L113; canvas/src/hooks/store/uiSettingsSliceRender.ts:L108"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L268; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L113; canvas/src/hooks/store/uiSettingsSliceRender.ts:L108"
   },
   "three.media.iframeOverlay.maxDistanceDefault": {
     "area": "—",
@@ -9467,7 +9359,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L349; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L115; canvas/src/hooks/store/uiSettingsSliceRender.ts:L111"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L277; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L115; canvas/src/hooks/store/uiSettingsSliceRender.ts:L111"
   },
   "three.media.iframeOverlay.maxDistanceCompact": {
     "area": "—",
@@ -9485,7 +9377,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L358; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L117; canvas/src/hooks/store/uiSettingsSliceRender.ts:L114"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L286; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L117; canvas/src/hooks/store/uiSettingsSliceRender.ts:L114"
   },
   "three.media.iframeOverlay.baseWidthRatioDefault": {
     "area": "—",
@@ -9503,7 +9395,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L367; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L119; canvas/src/hooks/store/uiSettingsSliceRender.ts:L117"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L295; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L119; canvas/src/hooks/store/uiSettingsSliceRender.ts:L117"
   },
   "three.media.iframeOverlay.baseWidthRatioCompact": {
     "area": "—",
@@ -9521,7 +9413,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L376; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L121; canvas/src/hooks/store/uiSettingsSliceRender.ts:L120"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L304; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L121; canvas/src/hooks/store/uiSettingsSliceRender.ts:L120"
   },
   "three.media.iframeOverlay.baseWidthMinPxDefault": {
     "area": "—",
@@ -9539,7 +9431,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L385; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L123; canvas/src/hooks/store/uiSettingsSliceRender.ts:L123"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L313; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L123; canvas/src/hooks/store/uiSettingsSliceRender.ts:L123"
   },
   "three.media.iframeOverlay.baseWidthMinPxCompact": {
     "area": "—",
@@ -9557,7 +9449,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L394; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L125; canvas/src/hooks/store/uiSettingsSliceRender.ts:L126"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L322; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L125; canvas/src/hooks/store/uiSettingsSliceRender.ts:L126"
   },
   "three.media.iframeOverlay.baseWidthMaxPxDefault": {
     "area": "—",
@@ -9575,7 +9467,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L403; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L127; canvas/src/hooks/store/uiSettingsSliceRender.ts:L129"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L331; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L127; canvas/src/hooks/store/uiSettingsSliceRender.ts:L129"
   },
   "three.media.iframeOverlay.baseWidthMaxPxCompact": {
     "area": "—",
@@ -9593,7 +9485,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L412; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L129; canvas/src/hooks/store/uiSettingsSliceRender.ts:L132"
+    "lineRange": "canvas/src/features/settings/registry-three.part3.ts:L340; canvas/src/hooks/store/store-types/graph-state-chat-import.ts:L129; canvas/src/hooks/store/uiSettingsSliceRender.ts:L132"
   },
   "three.preset.presentation3d": {
     "area": "3D Presets",

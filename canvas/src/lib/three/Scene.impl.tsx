@@ -719,7 +719,7 @@ export function Scene({
   })
   return (
     <>
-      {fogColorEffective ? (
+      {mode !== 'xr' && fogColorEffective ? (
         mode === 'voxel'
           ? (
             <fogExp2
@@ -804,7 +804,7 @@ export function Scene({
           <pointLight key={`layer:${light.key}`} position={light.pos} color={light.color} intensity={Math.max(0, Math.min(1.8, voxelClusterLightIntensity * 0.65))} distance={240} decay={2} />
         ))
         : null}
-      {mode !== 'voxel' && starfieldEnabled && starfieldCount > 0 ? (
+      {mode === '3d' && starfieldEnabled && starfieldCount > 0 ? (
         <Starfield
           count={starfieldCount}
           radius={starfieldRadius}
@@ -813,8 +813,8 @@ export function Scene({
           paused={paused}
         />
       ) : null}
-      {mode === 'xr' ? <XrGraphStage data={data} positions={positions} paused={paused} /> : null}
-      <group ref={sceneGroupRef}>
+      {mode === 'xr' ? <XrGraphStage data={data} /> : null}
+      {mode !== 'xr' ? <group ref={sceneGroupRef}>
         <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragRef} paused={paused} mode={mode} />
         {mode === 'voxel' ? (
           <>
@@ -1044,7 +1044,7 @@ export function Scene({
             />
           )
         })}
-      </group>
+      </group> : null}
     </>
   )
 }

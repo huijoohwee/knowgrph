@@ -44,6 +44,8 @@ export function Canvas2dRendererSelect({
       setCanvas2dRenderer: s.setCanvas2dRenderer,
       setCanvasRenderMode: s.setCanvasRenderMode,
       setCanvas3dMode: s.setCanvas3dMode,
+      setFloatingPanelOpen: s.setFloatingPanelOpen,
+      setFloatingPanelView: s.setFloatingPanelView,
       setSchema: s.setSchema,
       setBehavior: s.setBehavior,
       setRenderMediaAsNodes: s.setRenderMediaAsNodes,
@@ -133,6 +135,14 @@ export function Canvas2dRendererSelect({
           ensureBaselineUnlocked,
           geospatialEnabled,
           onOpenGeospatialMode,
+          onOpenShared3dPanel: mode => {
+            state.setFloatingPanelView(mode === '3d' ? 'camera' : 'xr')
+            state.setFloatingPanelOpen(true)
+            if (mode === 'xr') {
+              state.setBottomSurfaceTab('timeline')
+              state.setBottomSurfaceCollapsed(false)
+            }
+          },
           canvas2dRenderer: state.canvas2dRenderer,
           canvas3dMode: state.canvas3dMode,
           canvasRenderMode: state.canvasRenderMode,

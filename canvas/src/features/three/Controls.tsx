@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { PerspectiveCamera, Vector3 } from 'three'
+import { PerspectiveCamera } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { ThreeCameraPose, ThreeCameraSnapshotFns } from '@/hooks/store/types'
@@ -11,13 +11,16 @@ import type { Vec3 } from './layout'
 import { applyZoomStep, fitCameraToPositions, type CameraRequestType, getCameraConfig } from './camera'
 import { buildAutoFitToScreenSignature, buildAutoZoomSelectionSignature } from '@/lib/zoom/autoModeSignatures'
 import type { Canvas3dModeId } from '@/lib/config'
-import { isD3Like2dRenderer } from '@/lib/config.render'
 import { easeOutCubic01 } from '@/lib/canvas/zoom-smoothing'
 import type { ModelAssetCameraFit } from './modelAssetCameraPose'
 import { resolveCameraControlsOrbitProfile } from './cameraControlsProfile'
-import { applyModelAssetCameraPose, requestCameraFramingControlsReapply, useCameraFramingControlsRuntime } from './cameraFramingControlsRuntime'
+import {
+  applyModelAssetCameraPose,
+  isSharedCameraFramingSurfaceMode,
+  requestCameraFramingControlsReapply,
+  useCameraFramingControlsRuntime,
+} from './cameraFramingControlsRuntime'
 import { buildVoxelCameraIntroPoses, readVoxelCameraConfig } from './voxelCamera'
-function clamp(value: number, min: number, max: number): number { return Math.max(min, Math.min(max, value)) }
 
 export function Controls({
   schema,
@@ -26,6 +29,7 @@ export function Controls({
   mode = '3d',
   modelAssetRenderKey,
   modelAssetFit,
+  xrEmptyWorld = false,
   onControlsChange,
 }: {
   schema: GraphSchema
@@ -34,6 +38,7 @@ export function Controls({
   mode?: Canvas3dModeId
   modelAssetRenderKey?: string
   modelAssetFit?: ModelAssetCameraFit | null
+  xrEmptyWorld?: boolean
   onControlsChange?: () => void
 }) {
   const { camera, gl, size } = useThree()
@@ -60,17 +65,13 @@ export function Controls({
   const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds)
   const selectedGroupIds = useGraphStore(s => s.selectedGroupIds)
   const zoomToSelectionMode = useGraphStore(s => s.zoomToSelectionMode)
-  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const workspaceGraphMutationBlockKey = useGraphStore(s => s.workspaceGraphMutationBlockKey)
   const expansionCfg = schema.behavior?.expansion || {}
   const zoomOnSelectionEnabled = expansionCfg.enabled !== false && expansionCfg.zoomOnSelection !== false
-  const cameraPathUserInteractingRef = React.useRef(false)
-  const cameraPathInteractionAtRef = React.useRef(0)
-  const cameraPathPhaseRef = React.useRef(0)
-  const cameraPathDistanceScaleRef = React.useRef(1)
-  const cameraPathDesiredRef = React.useRef(new Vector3())
+  const controlsUserInteractingRef = React.useRef(false)
   const lastInteractionAtRef = React.useRef<number>(Date.now())
-  const previousModeRef = React.useRef<Canvas3dModeId>(mode)
+  const previousModeRef = React.useRef<Canvas3dModeId | null>(null)
+  const previousXrEmptyWorldRef = React.useRef(false)
   const voxelIntroRef = React.useRef<null | {
     startAtMs: number
     delayMs: number
@@ -80,13 +81,11 @@ export function Controls({
   }>(null)
   React.useEffect(() => {
     const handleStart = () => {
-      cameraPathUserInteractingRef.current = true
-      cameraPathInteractionAtRef.current = Date.now()
+      controlsUserInteractingRef.current = true
       lastInteractionAtRef.current = Date.now()
     }
     const handleEnd = () => {
-      cameraPathUserInteractingRef.current = false
-      cameraPathInteractionAtRef.current = Date.now()
+      controlsUserInteractingRef.current = false
       lastInteractionAtRef.current = Date.now()
     }
     try {
@@ -126,11 +125,11 @@ export function Controls({
       }
     }
   }, [controls, onControlsChange])
-  useFrame((_, delta) => {
+  useFrame(() => {
     if (paused) return
     const voxelIntro = voxelIntroRef.current
     if (voxelIntro) {
-      if (cameraPathUserInteractingRef.current) {
+      if (controlsUserInteractingRef.current) {
         voxelIntroRef.current = null
       } else {
         const now = Date.now()
@@ -175,78 +174,6 @@ export function Controls({
         } catch {
           void 0
         }
-      }
-    }
-    const threeCfg = schema.three || {}
-    const globeEffectsEnabled = threeCfg.globeEffectsEnabled !== false
-    const layoutMode = schema.layout?.mode
-    const d3Like = isD3Like2dRenderer(canvas2dRenderer)
-    const cameraPathEnabled = globeEffectsEnabled && threeCfg.globeCameraEllipseEnabled !== false && layoutMode === 'radial' && d3Like && !viewPinned
-    if (cameraPathEnabled) {
-      const sphereRadius = clamp(
-        typeof threeCfg.sphereRadius === 'number' && Number.isFinite(threeCfg.sphereRadius) ? threeCfg.sphereRadius : 120,
-        50,
-        560,
-      )
-      const speed = clamp(
-        typeof threeCfg.globeCameraEllipseSpeed === 'number' && Number.isFinite(threeCfg.globeCameraEllipseSpeed) ? threeCfg.globeCameraEllipseSpeed : 0.09,
-        0,
-        0.4,
-      )
-      const radiusXFactor = clamp(
-        typeof threeCfg.globeCameraEllipseRadiusXFactor === 'number' && Number.isFinite(threeCfg.globeCameraEllipseRadiusXFactor) ? threeCfg.globeCameraEllipseRadiusXFactor : 1.18,
-        0.4,
-        2.2,
-      )
-      const radiusZFactor = clamp(
-        typeof threeCfg.globeCameraEllipseRadiusZFactor === 'number' && Number.isFinite(threeCfg.globeCameraEllipseRadiusZFactor) ? threeCfg.globeCameraEllipseRadiusZFactor : 0.92,
-        0.4,
-        2.2,
-      )
-      const heightFactor = clamp(
-        typeof threeCfg.globeCameraEllipseHeightFactor === 'number' && Number.isFinite(threeCfg.globeCameraEllipseHeightFactor) ? threeCfg.globeCameraEllipseHeightFactor : 0.32,
-        0,
-        1,
-      )
-      const follow = clamp(
-        typeof threeCfg.globeCameraEllipseFollow === 'number' && Number.isFinite(threeCfg.globeCameraEllipseFollow) ? threeCfg.globeCameraEllipseFollow : 0.12,
-        0.02,
-        1,
-      )
-      const rx = Math.max(12, sphereRadius * radiusXFactor)
-      const rz = Math.max(12, sphereRadius * radiusZFactor)
-      const now = Date.now()
-      const target = controls.target
-      const dx = camera.position.x - target.x
-      const dz = camera.position.z - target.z
-      const phaseFromCamera = Math.atan2(dz / Math.max(1e-6, rz), dx / Math.max(1e-6, rx))
-      const inferredScale = Math.sqrt(
-        ((dx / Math.max(1e-6, rx)) * (dx / Math.max(1e-6, rx))) +
-        ((dz / Math.max(1e-6, rz)) * (dz / Math.max(1e-6, rz))),
-      )
-      if (Number.isFinite(inferredScale) && inferredScale > 0) {
-        const scale = clamp(inferredScale, 0.35, 4)
-        if (cameraPathUserInteractingRef.current || now - cameraPathInteractionAtRef.current < 460) {
-          cameraPathDistanceScaleRef.current = scale
-        } else if (!(cameraPathDistanceScaleRef.current > 0)) {
-          cameraPathDistanceScaleRef.current = scale
-        }
-      }
-      if (cameraPathUserInteractingRef.current || now - cameraPathInteractionAtRef.current < 460) {
-        if (Number.isFinite(phaseFromCamera)) cameraPathPhaseRef.current = phaseFromCamera
-      } else if (speed > 0) {
-        cameraPathPhaseRef.current += delta * speed * Math.PI * 2
-        const phase = cameraPathPhaseRef.current
-        const scale = clamp(cameraPathDistanceScaleRef.current || 1, 0.35, 4)
-        const desiredY = target.y + sphereRadius * heightFactor * scale + Math.sin(phase * 0.6) * (sphereRadius * 0.08) * Math.min(1.6, scale)
-        const desired = cameraPathDesiredRef.current.set(
-          target.x + Math.cos(phase) * rx * scale,
-          desiredY,
-          target.z + Math.sin(phase) * rz * scale,
-        )
-        const alpha = clamp(follow * delta * 60, 0, 1)
-        camera.position.lerp(desired, alpha)
-        camera.lookAt(target)
       }
     }
     if (!threeCameraAutoClip) return
@@ -339,10 +266,6 @@ export function Controls({
   React.useEffect(() => {
     const cfg = getCameraConfig(schema)
     const globeEffectsEnabled = schema.three?.globeEffectsEnabled !== false
-    const globeCameraEllipseEnabled = schema.three?.globeCameraEllipseEnabled !== false
-    const d3Like = isD3Like2dRenderer(canvas2dRenderer)
-    const layoutMode = schema.layout?.mode
-    const pathEnabled = globeEffectsEnabled && globeCameraEllipseEnabled && layoutMode === 'radial' && d3Like
     const modelAssetMode = !!String(modelAssetRenderKey || '').trim()
     const voxelMode = mode === 'voxel'
     const orbitProfile = resolveCameraControlsOrbitProfile({ mode, modelAssetMode })
@@ -383,29 +306,41 @@ export function Controls({
     controls.maxDistance = orbitProfile.maxDistance
     const idleMs = Date.now() - lastInteractionAtRef.current
     const voxelIdleAutoRotate = mode === 'voxel' ? idleMs >= voxelIdleDelayMs : true
-    controls.autoRotate = modelAssetMode
+    controls.autoRotate = isSharedCameraFramingSurfaceMode(mode)
+      ? false
+      : modelAssetMode
       ? false
       : mode === 'voxel'
       ? (voxelAnimationEnabled && !viewPinned && voxelIdleAutoRotate)
-      : (!pathEnabled && (cfg.autoRotate || globeEffectsEnabled) && !viewPinned && voxelIdleAutoRotate)
+      : ((cfg.autoRotate || globeEffectsEnabled) && !viewPinned && voxelIdleAutoRotate)
     controls.autoRotateSpeed = mode === 'voxel' ? voxelIdleRotateSpeed : (globeEffectsEnabled ? globeAutoRotateSpeed : cfg.autoRotateSpeed)
     try {
       controls.update()
     } catch {
       void 0
     }
-  }, [camera, canvas2dRenderer, controls, mode, modelAssetRenderKey, schema, viewPinned])
-  useCameraFramingControlsRuntime({
-    camera: perspectiveCamera,
-    controls,
-    mode,
-    paused: !!paused,
-    modelAssetRenderKey,
-    modelAssetFit,
-  })
+  }, [camera, controls, mode, modelAssetRenderKey, schema, viewPinned])
   React.useEffect(() => {
     const wasMode = previousModeRef.current
     previousModeRef.current = mode
+    const enteredEmptyXrWorld = mode === 'xr' && xrEmptyWorld && !previousXrEmptyWorldRef.current
+    previousXrEmptyWorldRef.current = xrEmptyWorld
+    const enteredXr = mode === 'xr' && wasMode !== 'xr'
+    if ((enteredXr || enteredEmptyXrWorld) && !paused && !viewPinned && !String(modelAssetRenderKey || '').trim()) {
+      voxelIntroRef.current = null
+      if (xrEmptyWorld) {
+        camera.up.set(0, 0, 1)
+        camera.position.set(360, -460, 520)
+        controls.target.set(0, 0, -72)
+      } else {
+        camera.up.set(0, 1, 0)
+        camera.position.set(0, 0, 520)
+        controls.target.set(0, 0, -72)
+      }
+      camera.lookAt(controls.target)
+      controls.update()
+      return
+    }
     if (paused || mode !== 'voxel') {
       voxelIntroRef.current = null
       return
@@ -457,7 +392,15 @@ export function Controls({
         tz: poses.end.target.z,
       },
     }
-  }, [camera, controls, mode, paused, positions, schema, viewPinned])
+  }, [camera, controls, mode, modelAssetRenderKey, paused, positions, schema, viewPinned, xrEmptyWorld])
+  useCameraFramingControlsRuntime({
+    camera: perspectiveCamera,
+    controls,
+    mode,
+    paused: !!paused,
+    modelAssetRenderKey,
+    modelAssetFit,
+  })
   React.useEffect(() => {
     controls.enabled = !paused
   }, [controls, paused])
@@ -525,7 +468,7 @@ export function Controls({
     }
     if (modelAssetMode && modelAssetFit) {
       if (req.type === 'fit' || req.type === 'reset') {
-        if (mode !== 'xr' || !requestCameraFramingControlsReapply()) {
+        if (!isSharedCameraFramingSurfaceMode(mode) || !requestCameraFramingControlsReapply()) {
           applyModelAssetCameraPose({ camera: perspectiveCamera, controls, fit: modelAssetFit, perspectiveCamera })
         }
       }

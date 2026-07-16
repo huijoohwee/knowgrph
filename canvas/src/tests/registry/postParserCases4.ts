@@ -13,6 +13,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["ui.videoSequence.previewSync.localSourceOrigin","@/__tests__/videoSequenceTimelineRuntimeMediaUrl.test","testVideoSequenceTimelineSourceUrlUsesCurrentLocalOrigin"],
   ["ui.videoSequence.previewSync.localSourceStable","@/__tests__/videoSequenceTimelineRuntimeMediaUrl.test","testVideoSequenceTimelineSourceUrlIsStableWithinTokenTtl"],
   ["ui.videoSequence.thumbnailStrip.nativeFrameReel","@/__tests__/videoSequenceTimelineSurfaces.test","testVideoSequenceClipThumbnailsKeepNativeVideoFrameReel"],
+  ["ui.videoSequence.thumbnailStrip.videoFilenameAudioToken","@/__tests__/videoSequenceTimelineSurfaces.test","testVideoFilenameAudioTokenKeepsVideoThumbnailLane"],
   ["ui.videoSequence.thumbnailStrip.sparseNativeFrameReel","@/__tests__/videoSequenceClipThumbnailSelection.test","testVideoSequenceClipThumbnailsRestoreNativeReelWhenSourceWindowIsSparse"],
   ["ui.videoSequence.thumbnailStrip.staleWindowNativeFrameReel","@/__tests__/videoSequenceClipThumbnailSelection.test","testVideoSequenceClipThumbnailsRestoreWholeNativeReelWhenSourceWindowIsStale"],
   ["ui.videoSequence.thumbnailStrip.nativeRasterRenderUrl","@/__tests__/videoSequenceClipThumbnailStripRenderUrl.test","testVideoSequenceClipThumbnailStripRendersNativeRasterUrl"],

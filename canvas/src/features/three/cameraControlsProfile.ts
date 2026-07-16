@@ -20,16 +20,6 @@ const VOXEL_ORBIT_PROFILE: CameraControlsOrbitProfile = Object.freeze({
   topBiased: true,
 })
 
-const TOP_BIASED_GRAPH_ORBIT_PROFILE: CameraControlsOrbitProfile = Object.freeze({
-  rotateFactor: 0.74,
-  zoomFactor: 0.6,
-  minPolar: 0.1,
-  maxPolar: Math.PI * 0.44,
-  minDistance: 12,
-  maxDistance: 1400,
-  topBiased: true,
-})
-
 const MODEL_ASSET_ORBIT_PROFILE: CameraControlsOrbitProfile = Object.freeze({
   rotateFactor: 1,
   zoomFactor: 1,
@@ -40,7 +30,7 @@ const MODEL_ASSET_ORBIT_PROFILE: CameraControlsOrbitProfile = Object.freeze({
   topBiased: false,
 })
 
-const XR_CAMERA_FRAMING_ORBIT_PROFILE: CameraControlsOrbitProfile = Object.freeze({
+const SHARED_CAMERA_FRAMING_ORBIT_PROFILE: CameraControlsOrbitProfile = Object.freeze({
   ...MODEL_ASSET_ORBIT_PROFILE,
   minPolar: 0,
   maxPolar: Math.PI,
@@ -54,7 +44,6 @@ export function resolveCameraControlsOrbitProfile({
   modelAssetMode: boolean
 }): CameraControlsOrbitProfile {
   if (mode === 'voxel') return VOXEL_ORBIT_PROFILE
-  if (mode === 'xr') return XR_CAMERA_FRAMING_ORBIT_PROFILE
-  if (mode === '3d' && !modelAssetMode) return TOP_BIASED_GRAPH_ORBIT_PROFILE
+  if (mode === '3d' || mode === 'xr') return SHARED_CAMERA_FRAMING_ORBIT_PROFILE
   return MODEL_ASSET_ORBIT_PROFILE
 }

@@ -1,14 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { activateCanvasGraphSurfaceMode } from '@/lib/canvas/canvas3dMode'
-import { XR_PHYSICS_CONTROLLER_MODES, type XrPhysicsControllerMode } from '@/features/three/xrPhysicsPlaygroundModel'
-import {
-  readXrPhysicsPlaygroundControls,
-  setXrPhysicsPlaygroundMode,
-  subscribeXrPhysicsPlaygroundControls,
-} from '@/features/three/xrPhysicsPlaygroundControls'
 import {
   XR_BROWSER_GRAPHICS_CAPABILITY_DEFAULTS,
   readBrowserXrGraphicsCapabilities,
@@ -33,46 +26,37 @@ import {
   subscribeSpatialCaptureTool,
 } from '@/features/three/xrSpatialCaptureTools'
 import type { SpatialCaptureAxisId, SpatialCaptureCenterActionId, SpatialCapturePrimaryModeId, SpatialCaptureToolId } from '@/features/three/xrSpatialCaptureTools'
-import { XrCameraFramingSection } from '@/features/three/XrCameraFramingSection'
+import { XrGaussianSplatEditorSection } from '@/features/three/XrGaussianSplatEditorSection'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 
-function formatBooleanLabel(value: boolean): string {
-  return value ? 'On' : 'Off'
-}
-
 export function XrPanelView() {
-  const [physicsMode, setPhysicsMode] = React.useState<XrPhysicsControllerMode>(readXrPhysicsPlaygroundControls().activeMode || 'roll')
   const [capabilities, setCapabilities] = React.useState(XR_BROWSER_GRAPHICS_CAPABILITY_DEFAULTS)
   const [spatialTool, setSpatialToolState] = React.useState<SpatialCaptureToolId>(readSpatialCaptureTool())
   const [spatialPrimaryMode, setSpatialPrimaryModeState] = React.useState<SpatialCapturePrimaryModeId>(readSpatialCapturePrimaryMode())
   const [spatialAxis, setSpatialAxisState] = React.useState<SpatialCaptureAxisId>(readSpatialCaptureAxis())
   const [spatialCenterAction, setSpatialCenterActionState] = React.useState<SpatialCaptureCenterActionId>(readSpatialCaptureCenterAction())
-  const activeGraphData = useActiveGraphRenderData(true)
   const {
     canvas3dMode,
     canvasRenderMode,
-    graphData: rawGraphData,
     markdownDocumentName,
     markdownDocumentText,
+    setBottomSurfaceCollapsed,
+    setBottomSurfaceTab,
     setCanvas3dMode,
     setCanvasRenderMode,
   } = useGraphStore(
     useShallow(state => ({
       canvas3dMode: state.canvas3dMode,
       canvasRenderMode: state.canvasRenderMode,
-      graphData: state.graphData,
       markdownDocumentName: state.markdownDocumentName,
       markdownDocumentText: state.markdownDocumentText,
+      setBottomSurfaceCollapsed: state.setBottomSurfaceCollapsed,
+      setBottomSurfaceTab: state.setBottomSurfaceTab,
       setCanvas3dMode: state.setCanvas3dMode,
       setCanvasRenderMode: state.setCanvasRenderMode,
     })),
   )
-  React.useEffect(() => {
-    return subscribeXrPhysicsPlaygroundControls(controls => {
-      setPhysicsMode(controls.activeMode || 'roll')
-    })
-  }, [])
   React.useEffect(() => subscribeSpatialCaptureTool(setSpatialToolState), [])
   React.useEffect(() => subscribeSpatialCapturePrimaryMode(setSpatialPrimaryModeState), [])
   React.useEffect(() => subscribeSpatialCaptureAxis(setSpatialAxisState), [])
@@ -81,17 +65,24 @@ export function XrPanelView() {
     setCapabilities(readBrowserXrGraphicsCapabilities())
   }, [])
 
+  const openXrTimeline = React.useCallback(() => {
+    setBottomSurfaceTab('timeline')
+    setBottomSurfaceCollapsed(false)
+  }, [setBottomSurfaceCollapsed, setBottomSurfaceTab])
+
   const activateXrMode = React.useCallback(() => {
     activateCanvasGraphSurfaceMode({
       mode: 'xr',
       setCanvas3dMode,
       setCanvasRenderMode,
     })
-  }, [setCanvas3dMode, setCanvasRenderMode])
+    openXrTimeline()
+  }, [openXrTimeline, setCanvas3dMode, setCanvasRenderMode])
 
-  const graphData = activeGraphData || rawGraphData
-  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes.length : 0
-  const edges = Array.isArray(graphData?.edges) ? graphData.edges.length : 0
+  const xrDocumentLoaded = Boolean(
+    String(markdownDocumentName || '').trim()
+    && String(markdownDocumentText || '').trim(),
+  )
   const xrActive = canvasRenderMode === '3d' && canvas3dMode === 'xr'
   const sourceProfile = React.useMemo(() => resolveXrPanelSourceProfile(markdownDocumentText || ''), [markdownDocumentText])
   const runtimeStack = React.useMemo(() => resolveXrPanelRuntimeStack({ capabilities, profile: sourceProfile, xrActive }), [capabilities, sourceProfile, xrActive])
@@ -103,6 +94,7 @@ export function XrPanelView() {
       data-kg-xr-panel="1"
       data-kg-xr-panel-surface="floatingPanel"
       data-kg-xr-panel-active={xrActive ? '1' : '0'}
+      data-kg-xr-panel-document-loaded={xrDocumentLoaded ? '1' : '0'}
       data-kg-xr-panel-spatial-status={sourceProfile.kind}
       data-kg-xr-panel-source-format={sourceProfile.format}
       data-kg-xr-panel-ingestion-cache={sourceProfile.ingestionCacheKey ? '1' : '0'}
@@ -113,7 +105,7 @@ export function XrPanelView() {
         <section className="min-w-0">
           <h2 className="truncate text-xs font-semibold">XR</h2>
           <p className={cn('text-[11px]', UI_THEME_TOKENS.text.tertiary)}>
-            {xrActive ? 'Surface Mode active' : 'Native 3D Surface Mode available'}
+            {xrActive ? 'XR Surface Mode active' : 'Native 3D Surface Mode available'}
           </p>
         </section>
         <nav className="flex min-w-0 flex-wrap items-center gap-1" aria-label="XR panel actions">
@@ -125,46 +117,23 @@ export function XrPanelView() {
           >
             Activate
           </button>
+          <button
+            type="button"
+            className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.hoverBg)}
+            onClick={openXrTimeline}
+            data-kg-xr-panel-open-timeline="1"
+          >
+            Timeline
+          </button>
         </nav>
       </header>
 
-      <XrCameraFramingSection />
-
-      <section className="grid min-w-0 gap-2 sm:grid-cols-2" aria-label="XR status">
-        <section className={cn('rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-xr-panel-scene="1">
-          <h3 className="text-[11px] font-semibold uppercase">Scene</h3>
-          <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[11px]">
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Document</dt>
-            <dd className="min-w-0 truncate">{markdownDocumentName || 'Untitled'}</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Nodes</dt>
-            <dd>{nodes}</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Edges</dt>
-            <dd>{edges}</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Capture</dt>
-            <dd>{sourceProfile.kind}</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Format</dt>
-            <dd>{sourceProfile.format}</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Source</dt>
-            <dd>{sourceProfile.renderPath}</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Cache</dt>
-            <dd>{sourceProfile.renderCacheKey ? 'Source keyed' : 'Graph keyed'}</dd>
-          </dl>
-        </section>
-
-        <section className={cn('rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-xr-panel-runtime="1">
-          <h3 className="text-[11px] font-semibold uppercase">Runtime</h3>
-          <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[11px]">
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Native XR</dt>
-            <dd>{formatBooleanLabel(xrActive)}</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Session</dt>
-            <dd>AR first, VR fallback</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>Renderer</dt>
-            <dd>ThreeGraph</dd>
-            <dt className={UI_THEME_TOKENS.text.tertiary}>External runtime</dt>
-            <dd>None</dd>
-          </dl>
-        </section>
-      </section>
+      {sourceProfile.kind === 'spatial-capture' ? (
+        <XrGaussianSplatEditorSection
+          documentName={markdownDocumentName || 'spatial-capture'}
+          sourceFormat={sourceProfile.format}
+        />
+      ) : null}
 
       <section className={cn('rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} aria-label="XR graphics stack" data-kg-xr-panel-graphics-stack="1">
         <h3 className="text-[11px] font-semibold uppercase">Graphics</h3>
@@ -273,25 +242,6 @@ export function XrPanelView() {
         </section>
       ) : null}
 
-      <section className={cn('rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} aria-label="XR physics controls" data-kg-xr-panel-physics="1">
-        <header className="flex items-center justify-between gap-2">
-          <h3 className="text-[11px] font-semibold uppercase">Controls</h3>
-        </header>
-        <nav className="mt-2 flex flex-wrap gap-1" aria-label="XR physics modes">
-          {XR_PHYSICS_CONTROLLER_MODES.map(mode => (
-            <button
-              key={mode}
-              type="button"
-              aria-pressed={physicsMode === mode}
-              className={cn('App-toolbar__btn capitalize', physicsMode === mode ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.button.hoverBg)}
-              onClick={() => setXrPhysicsPlaygroundMode(mode)}
-              data-kg-xr-panel-physics-mode={mode}
-            >
-              {mode}
-            </button>
-          ))}
-        </nav>
-      </section>
     </section>
   )
 }

@@ -31,7 +31,7 @@ export function testVideoSequenceAudioDbControlContract() {
     '.timeline-video-sequence-audio-db-line',
     '.timeline-video-sequence-audio-db-handle',
     '.timeline-video-sequence-audio-db-value',
-    '.timeline-transport-track-clip[data-kg-compact-source-media="1"] .timeline-transport-track-clip-label',
+    '.timeline-transport-track-clip[data-kg-timeline-clip-compact="1"] .timeline-transport-track-clip-label',
     '[data-kg-video-sequence-clip-thumbnail-reel="1"]:not(.timeline-transport-track-clip--lane-fbf) .timeline-transport-track-clip-label',
     'top: var(--kg-video-sequence-audio-db-top, 33.333%)',
     'height: 16px',
@@ -62,7 +62,7 @@ export function testVideoSequenceAudioDbControlContract() {
   }
   if (!denseCssText.includes('font-weight: 400')) throw new Error('compact source bar labels must use normal text weight')
   if (denseCssText.includes('color: #1e40af')) throw new Error('audio label must reuse the play marker accent token')
-  if (denseCssText.includes('.timeline-transport-track-clip--lane-audio[data-kg-compact-source-media="1"] .timeline-transport-track-clip-label')) {
+  if (denseCssText.includes('.timeline-transport-track-clip--lane-audio[data-kg-timeline-clip-compact="1"] .timeline-transport-track-clip-label')) {
     throw new Error('audio label must reuse the shared compact source label rule')
   }
   if (denseCssText.includes('[data-kg-video-sequence-clip-thumbnail-reel="1"]:not(.timeline-transport-track-clip--lane-fbf) .timeline-transport-track-clip-label {\n  display: none;')) throw new Error('compact media thumbnail-reel labels must stay visible')

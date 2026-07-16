@@ -284,7 +284,7 @@ export function testPanelFormControlsAreSharedAcrossCameraAndDataViewDensity() {
     throw new Error('expected Strybldr camera note field to use the shared semantic field and textarea controls')
   }
   if (!strybldrCameraFramingSectionText.includes("from '@/lib/ui/panelFormControls'") || !strybldrCameraFramingSectionText.includes('<PanelSelect')) {
-    throw new Error('expected the shared Camera/XR framing owner to reuse the shared select control')
+    throw new Error('expected the canonical FloatingPanel Camera framing owner to reuse the shared select control')
   }
 
   if (

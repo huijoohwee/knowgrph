@@ -7,10 +7,6 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import {
   GLOBE_ARC_COUNT_TOOLTIP,
   GLOBE_ATMOSPHERE_OPACITY_TOOLTIP,
-  GLOBE_CAMERA_ELLIPSE_HEIGHT_TOOLTIP,
-  GLOBE_CAMERA_ELLIPSE_FOLLOW_TOOLTIP,
-  GLOBE_CAMERA_ELLIPSE_RADIUS_TOOLTIP,
-  GLOBE_CAMERA_ELLIPSE_SPEED_TOOLTIP,
   GLOBE_ELLIPSOID_AXIS_TOOLTIP,
   GLOBE_GRID_DENSITY_TOOLTIP,
   GLOBE_HUB_ORBIT_RADIUS_TOOLTIP,
@@ -79,83 +75,6 @@ export default function ThreeViewGlobeEffectsSection({
           value={Number(schema.three?.globeAutoRotateSpeed ?? 0.08)}
           onChange={next => setThreeConfig({ globeAutoRotateSpeed: next })}
           valueNode={<span className={valueTextClassName}>{String(schema.three?.globeAutoRotateSpeed ?? 0.08)}</span>}
-        />
-        <PanelKeyTypeCheckboxValueRow
-          density="compact"
-          keyNode={<span className={keyLabelClassName}>Ellipse Camera Path</span>}
-          checked={schema.three?.globeCameraEllipseEnabled !== false}
-          onChange={next => setThreeConfig({ globeCameraEllipseEnabled: next })}
-          checkboxClassName={selectionControlClassName}
-        />
-        <PanelKeyTypeRangeValueRow
-          density="compact"
-          keyNode={<span className={keyLabelClassName}>Ellipse Speed</span>}
-          min={0}
-          max={0.4}
-          step={0.01}
-          value={Number(schema.three?.globeCameraEllipseSpeed ?? 0.045)}
-          onChange={next => setThreeConfig({ globeCameraEllipseSpeed: next })}
-          valueNode={(
-            <Tooltip content={GLOBE_CAMERA_ELLIPSE_SPEED_TOOLTIP} maxWidthPx={260}>
-              <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseSpeed ?? 0.045)}</span>
-            </Tooltip>
-          )}
-        />
-        <PanelKeyTypeRangeValueRow
-          density="compact"
-          keyNode={<span className={keyLabelClassName}>Ellipse Radius X</span>}
-          min={0.4}
-          max={2.2}
-          step={0.02}
-          value={Number(schema.three?.globeCameraEllipseRadiusXFactor ?? 1.24)}
-          onChange={next => setThreeConfig({ globeCameraEllipseRadiusXFactor: next })}
-          valueNode={(
-            <Tooltip content={GLOBE_CAMERA_ELLIPSE_RADIUS_TOOLTIP} maxWidthPx={260}>
-              <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseRadiusXFactor ?? 1.24)}</span>
-            </Tooltip>
-          )}
-        />
-        <PanelKeyTypeRangeValueRow
-          density="compact"
-          keyNode={<span className={keyLabelClassName}>Ellipse Radius Z</span>}
-          min={0.4}
-          max={2.2}
-          step={0.02}
-          value={Number(schema.three?.globeCameraEllipseRadiusZFactor ?? 1.02)}
-          onChange={next => setThreeConfig({ globeCameraEllipseRadiusZFactor: next })}
-          valueNode={(
-            <Tooltip content={GLOBE_CAMERA_ELLIPSE_RADIUS_TOOLTIP} maxWidthPx={260}>
-              <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseRadiusZFactor ?? 1.02)}</span>
-            </Tooltip>
-          )}
-        />
-        <PanelKeyTypeRangeValueRow
-          density="compact"
-          keyNode={<span className={keyLabelClassName}>Ellipse Height</span>}
-          min={0}
-          max={1}
-          step={0.02}
-          value={Number(schema.three?.globeCameraEllipseHeightFactor ?? 0.26)}
-          onChange={next => setThreeConfig({ globeCameraEllipseHeightFactor: next })}
-          valueNode={(
-            <Tooltip content={GLOBE_CAMERA_ELLIPSE_HEIGHT_TOOLTIP} maxWidthPx={260}>
-              <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseHeightFactor ?? 0.26)}</span>
-            </Tooltip>
-          )}
-        />
-        <PanelKeyTypeRangeValueRow
-          density="compact"
-          keyNode={<span className={keyLabelClassName}>Ellipse Follow</span>}
-          min={0.02}
-          max={1}
-          step={0.02}
-          value={Number(schema.three?.globeCameraEllipseFollow ?? 0.06)}
-          onChange={next => setThreeConfig({ globeCameraEllipseFollow: next })}
-          valueNode={(
-            <Tooltip content={GLOBE_CAMERA_ELLIPSE_FOLLOW_TOOLTIP} maxWidthPx={260}>
-              <span className={valueTextClassName}>{String(schema.three?.globeCameraEllipseFollow ?? 0.06)}</span>
-            </Tooltip>
-          )}
         />
         <PanelKeyTypeCheckboxValueRow
           density="compact"

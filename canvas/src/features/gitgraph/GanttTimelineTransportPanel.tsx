@@ -5,19 +5,37 @@ import type { GanttTimelineTransportMode } from './ganttTimelineTransportMode'
 
 export function GanttTimelineTransportPanel({
   code,
+  clockActive = false,
   compact,
+  editable = true,
   mode = 'media',
+  publishPlaybackRequest = true,
+  runtimeDocumentKey = '',
+  runtimeDurationSeconds = 0,
+  runtimeFrameRate = 0,
   onSelectedRowKeyChange,
 }: {
   code: string
+  clockActive?: boolean
   compact: boolean
+  editable?: boolean
   mode?: GanttTimelineTransportMode
+  publishPlaybackRequest?: boolean
+  runtimeDocumentKey?: string
+  runtimeDurationSeconds?: number
+  runtimeFrameRate?: number
   onSelectedRowKeyChange?: (rowKey: string | null) => void
 }) {
   const transportRouteModel = useGanttTimelineTransportRouteModel({
     code,
+    clockActive,
     compact,
+    editable,
     mode,
+    publishPlaybackRequest,
+    runtimeDocumentKey,
+    runtimeDurationSeconds,
+    runtimeFrameRate,
     onSelectedRowKeyChange,
   })
   return <GanttTimelineTransportSurface model={transportRouteModel.surfaceModel} />

@@ -66,6 +66,10 @@ const CAMERA_FRAMING_SETTLE_DELAY_MS = 80
 const cameraFramingControlsReapplyListeners = new Set<() => void>()
 let cameraFramingControlsReapplyRevision = 0
 
+export function isSharedCameraFramingSurfaceMode(mode: Canvas3dModeId): boolean {
+  return mode === '3d' || mode === 'xr'
+}
+
 const DEFAULT_CAMERA_FRAMING_SETTLE_SCHEDULER: CameraFramingSettleScheduler = {
   schedule: (callback, delayMs) => globalThis.setTimeout(callback, delayMs),
   cancel: handle => globalThis.clearTimeout(handle as ReturnType<typeof globalThis.setTimeout>),
@@ -283,18 +287,18 @@ export function useCameraFramingControlsRuntime({
   }), [])
 
   React.useEffect(() => {
-    if (mode !== 'xr' || paused) immediateCanvasPublishRef.current = null
+    if (!isSharedCameraFramingSurfaceMode(mode) || paused) immediateCanvasPublishRef.current = null
   }, [mode, paused])
 
   React.useEffect(() => {
     const key = String(modelAssetRenderKey || '').trim()
     if (!key || !modelAssetFit || paused) return
-    if (mode === 'xr' && (axisRequest.axis !== 'free' || framing.revision > 0)) return
+    if (isSharedCameraFramingSurfaceMode(mode) && (axisRequest.axis !== 'free' || framing.revision > 0)) return
     runProgrammaticPose(() => applyModelAssetCameraPose({ camera, controls, fit: modelAssetFit, perspectiveCamera: camera }))
   }, [axisRequest.axis, camera, controls, framing.revision, mode, modelAssetFit, modelAssetRenderKey, paused, runProgrammaticPose])
 
   React.useEffect(() => {
-    if (paused || mode !== 'xr' || !modelAssetFit || axisRequest.axis === 'free') return
+    if (paused || !isSharedCameraFramingSurfaceMode(mode) || !modelAssetFit || axisRequest.axis === 'free') return
     const context = contextFromModelPose(readModelAssetCameraPose(modelAssetFit))
     const current = readCameraFramingRuntime()
     const settings = resolveCameraFramingAxisSettings(
@@ -316,7 +320,7 @@ export function useCameraFramingControlsRuntime({
   }, [axisRequest, camera, controls, mode, modelAssetFit, paused, runProgrammaticPose])
 
   React.useEffect(() => {
-    if (paused || mode !== 'xr' || framing.revision === 0) return
+    if (paused || !isSharedCameraFramingSurfaceMode(mode) || framing.revision === 0) return
     const forcedReapply = handledReapplyRevisionRef.current !== reapplyRevision
     handledReapplyRevisionRef.current = reapplyRevision
     if (framing.source === 'axis' && !forcedReapply) return
@@ -345,7 +349,7 @@ export function useCameraFramingControlsRuntime({
 
   React.useEffect(() => {
     const publishSettledCanvasPose = () => {
-      if (paused || mode !== 'xr') return
+      if (paused || !isSharedCameraFramingSurfaceMode(mode)) return
       const context = readContext()
       const current = readCameraFramingRuntime()
       if (readSpatialCaptureAxis() !== 'free') setSpatialCaptureAxis('free')

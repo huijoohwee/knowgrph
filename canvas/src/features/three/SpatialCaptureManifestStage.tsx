@@ -12,6 +12,17 @@ import type { SpatialCaptureCenterActionId, SpatialCaptureToolId } from '@/featu
 import { loadSpatialCapturePointCloud, loadSpatialCapturePointCloudPreview, type SpatialCapturePointCloudLoad } from '@/lib/assets/spatialCaptureAssetRuntime'
 import type { GlbFit } from '@/lib/three/GlbAssetModel'
 import {
+  DEFAULT_GAUSSIAN_SPLAT_EDIT_SETTINGS,
+  resolveGaussianSplatCropBounds,
+  resolveGaussianSplatScaleCeiling,
+  resolveGaussianSplatVisibleIndices,
+} from './gaussianSplatEditorModel'
+import {
+  hydrateGaussianSplatEditorRuntime,
+  readGaussianSplatEditorRuntime,
+  subscribeGaussianSplatEditorRuntime,
+} from './gaussianSplatEditorRuntime'
+import {
   SPATIAL_CAPTURE_INITIAL_VIEW_DIRECTION,
   SPATIAL_CAPTURE_PROGRESSIVE_INTERVAL_MS,
   SPATIAL_CAPTURE_SORT_DIRECTION_DOT_MIN,
@@ -23,6 +34,7 @@ import {
   dotSortDirection,
   readSpatialCaptureGeometryCount,
   resolveCameraSortDirection,
+  updateGaussianSplatEditorVisibility,
   updateGaussianSplatGeometrySort,
 } from './spatialCaptureGeometryRuntime'
 import { buildGaussianSplatMaterial } from './spatialCaptureGaussianMaterial'
@@ -288,6 +300,14 @@ export function SpatialCaptureManifestStage({
     manifest.sourceKind,
     manifest.sourceIdentity,
   ].join('|')
+  const editorRuntime = React.useSyncExternalStore(
+    subscribeGaussianSplatEditorRuntime,
+    readGaussianSplatEditorRuntime,
+    readGaussianSplatEditorRuntime,
+  )
+  const editorSettings = editorRuntime.sceneKey === loadKey
+    ? editorRuntime.settings
+    : DEFAULT_GAUSSIAN_SPLAT_EDIT_SETTINGS
 
   React.useEffect(() => subscribeSpatialCaptureTool(setSpatialTool), [])
   React.useEffect(() => subscribeSpatialCaptureCenterAction(setSpatialCenterAction), [])
@@ -297,11 +317,13 @@ export function SpatialCaptureManifestStage({
     const loadingState: LoadState = { status: 'loading' }
     setState(loadingState)
     onLoadStateChange?.(loadingState)
+    hydrateGaussianSplatEditorRuntime({ sceneKey: loadKey, load: null, status: 'loading' })
     const promoteLoad = (load: SpatialCapturePointCloudLoad | null) => {
       if (cancelled) return
       const nextState: LoadState = load ? { status: 'ready', load } : { status: 'empty' }
       setState(nextState)
       onLoadStateChange?.(nextState)
+      hydrateGaussianSplatEditorRuntime({ sceneKey: loadKey, load, status: load ? 'ready' : 'empty' })
     }
     loadSpatialCapturePointCloudPreview(manifest)
       .then(async previewLoad => {
@@ -323,6 +345,7 @@ export function SpatialCaptureManifestStage({
             const nextState: LoadState = { status: 'error', message: fullError instanceof Error ? fullError.message : String(fullError || error) }
             setState(nextState)
             onLoadStateChange?.(nextState)
+            hydrateGaussianSplatEditorRuntime({ sceneKey: loadKey, load: null, status: 'error' })
           })
       })
     return () => {
@@ -338,6 +361,17 @@ export function SpatialCaptureManifestStage({
       : buildPointCloudGeometry(state.load)
   }, [fit, state])
   React.useEffect(() => () => geometry?.dispose(), [geometry])
+  const gaussianEditorVisibility = React.useMemo(() => {
+    if (state.status !== 'ready' || state.load.pointCloud.kind !== 'gaussian-splat') return null
+    const pointCloud = state.load.pointCloud
+    const visibility = new Float32Array(pointCloud.pointCount)
+    for (const index of resolveGaussianSplatVisibleIndices(pointCloud, editorSettings)) visibility[index] = 1
+    return visibility
+  }, [editorSettings, state])
+  React.useEffect(() => {
+    if (!(geometry instanceof THREE.InstancedBufferGeometry) || !gaussianEditorVisibility) return
+    updateGaussianSplatEditorVisibility(geometry, gaussianEditorVisibility)
+  }, [gaussianEditorVisibility, geometry])
   const gaussianSplatMaterial = React.useMemo(() => {
     if (
       state.status !== 'ready'
@@ -354,10 +388,19 @@ export function SpatialCaptureManifestStage({
     })
   }, [size.height, size.width, state])
   React.useEffect(() => {
-    if (!gaussianSplatMaterial) return
+    if (!gaussianSplatMaterial || state.status !== 'ready') return
+    const crop = resolveGaussianSplatCropBounds(state.load.pointCloud, editorSettings)
+    const scaleCeiling = resolveGaussianSplatScaleCeiling(state.load.pointCloud, editorSettings)
     gaussianSplatMaterial.uniforms.opacityScale.value = paused ? 0.42 : 1.0
     gaussianSplatMaterial.uniforms.viewportSize.value.set(Math.max(1, size.width), Math.max(1, size.height))
-  }, [gaussianSplatMaterial, paused, size.height, size.width])
+    gaussianSplatMaterial.uniforms.editorVisualization.value = editorSettings.visualization === 'centers' ? 1 : editorSettings.visualization === 'rings' ? 2 : 0
+    gaussianSplatMaterial.uniforms.editorOpacityFloor.value = editorSettings.opacityFloor
+    gaussianSplatMaterial.uniforms.editorScaleCeiling.value = scaleCeiling > 0 ? scaleCeiling : 1e20
+    gaussianSplatMaterial.uniforms.editorCropMin.value.set(...crop.min)
+    gaussianSplatMaterial.uniforms.editorCropMax.value.set(...crop.max)
+    gaussianSplatMaterial.uniforms.editorBrightness.value = editorSettings.brightness
+    gaussianSplatMaterial.uniforms.editorSaturation.value = editorSettings.saturation
+  }, [editorSettings, gaussianSplatMaterial, paused, size.height, size.width, state])
   React.useEffect(() => () => gaussianSplatMaterial?.dispose(), [gaussianSplatMaterial])
   useFrame(({ clock }) => {
     if (

@@ -2,12 +2,6 @@ import React from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { WebGLRenderer } from 'three'
 import {
-  readXrPhysicsPlaygroundControls,
-  setXrPhysicsPlaygroundMode,
-  subscribeXrPhysicsPlaygroundControls,
-} from '@/features/three/xrPhysicsPlaygroundControls'
-import { XR_PHYSICS_CONTROLLER_MODES, type XrPhysicsControllerMode } from '@/features/three/xrPhysicsPlaygroundModel'
-import {
   readSpatialCaptureTool,
   readSpatialCaptureToolLabel,
   subscribeSpatialCaptureTool,
@@ -67,7 +61,6 @@ export function CanvasXrEntryPanel({
   const [status, setStatus] = React.useState<'checking' | 'supported' | 'unsupported' | 'active' | 'error'>('checking')
   const [sessionMode, setSessionMode] = React.useState<XrSessionMode>('immersive-ar')
   const [sessionSupport, setSessionSupport] = React.useState<XrSessionSupport>({})
-  const [physicsMode, setPhysicsMode] = React.useState<XrPhysicsControllerMode>(readXrPhysicsPlaygroundControls().activeMode || 'roll')
   const [spatialTool, setSpatialToolState] = React.useState<SpatialCaptureToolId>(readSpatialCaptureTool())
   const sessionRef = React.useRef<XrSessionLike | null>(null)
   const sessionModeRef = React.useRef<XrSessionMode>(sessionMode)
@@ -75,13 +68,6 @@ export function CanvasXrEntryPanel({
   React.useEffect(() => {
     sessionModeRef.current = sessionMode
   }, [sessionMode])
-
-  React.useEffect(() => {
-    if (!active || surfaceKind !== 'graph') return undefined
-    return subscribeXrPhysicsPlaygroundControls(controls => {
-      setPhysicsMode(controls.activeMode || 'roll')
-    })
-  }, [active, surfaceKind])
 
   React.useEffect(() => {
     if (!active || surfaceKind !== 'spatial-capture') return undefined
@@ -181,92 +167,80 @@ export function CanvasXrEntryPanel({
   }, [rendererRef, sessionMode])
 
   if (!active) return null
-  if (surfaceKind === 'spatial-capture') {
-    const activeSpatialToolLabel = readSpatialCaptureToolLabel(spatialTool)
-    return (
-      <>
-        <section
-          aria-label="XR spatial capture orientation"
-          data-kg-canvas-xr-mode="1"
-          data-kg-canvas-xr-surface-kind="spatial-capture"
-          data-kg-canvas-xr-status={status}
-          data-kg-canvas-xr-spatial-fidelity={spatialRuntimeFidelity}
-          data-kg-canvas-xr-spatial-runtime={spatialRuntimeStatus}
-          className="absolute left-1/2 top-14 z-[90] -translate-x-1/2 rounded-md bg-slate-900/82 px-4 py-1 text-xs font-medium text-slate-100 shadow-sm backdrop-blur"
-        >
-          <output>{activeSpatialToolLabel}</output>
-        </section>
-        <aside
-          aria-label="XR minimap overlay"
-          className="absolute z-[90] pointer-events-auto kg-canvas-minimap-overlay"
-          data-kg-canvas-xr-minimap-overlay="1"
-          data-kg-minimap-overlay-placement="bottom-left"
-        >
-          <MinimapSpatialViewCube />
-        </aside>
-      </>
-    )
-  }
+  const spatialChrome = surfaceKind === 'spatial-capture' ? (
+    <>
+      <section
+        aria-label="XR spatial capture orientation"
+        data-kg-canvas-xr-mode="1"
+        data-kg-canvas-xr-surface-kind="spatial-capture"
+        data-kg-canvas-xr-status={status}
+        data-kg-canvas-xr-spatial-fidelity={spatialRuntimeFidelity}
+        data-kg-canvas-xr-spatial-runtime={spatialRuntimeStatus}
+        className="absolute left-1/2 top-14 z-[90] -translate-x-1/2 rounded-md bg-slate-900/82 px-4 py-1 text-xs font-medium text-slate-100 shadow-sm backdrop-blur"
+      >
+        <output>{readSpatialCaptureToolLabel(spatialTool)}</output>
+      </section>
+      <aside
+        aria-label="XR minimap overlay"
+        className="absolute z-[90] pointer-events-auto kg-canvas-minimap-overlay"
+        data-kg-canvas-xr-minimap-overlay="1"
+        data-kg-minimap-overlay-placement="bottom-left"
+      >
+        <MinimapSpatialViewCube />
+      </aside>
+    </>
+  ) : null
+  if (status === 'checking' || status === 'unsupported') return spatialChrome
   const canStart = status === 'supported' || status === 'active' || status === 'error'
   const bothModesSupported = sessionSupport['immersive-ar'] === true && sessionSupport['immersive-vr'] === true
-  const label = status === 'active' ? 'Exit XR' : status === 'supported' ? 'Enter XR' : status === 'error' ? 'Retry XR' : status === 'unsupported' ? 'XR unavailable' : 'XR check'
+  const label = status === 'active' ? 'Exit XR' : status === 'error' ? 'Retry XR' : 'Enter XR'
   return (
-    <section
-      aria-label="XR Mode"
-      data-kg-canvas-xr-mode="1"
-      data-kg-canvas-xr-status={status}
-      data-kg-canvas-xr-session-mode={sessionMode}
-      data-kg-canvas-xr-ar-supported={sessionSupport['immersive-ar'] === true ? '1' : '0'}
-      data-kg-canvas-xr-vr-supported={sessionSupport['immersive-vr'] === true ? '1' : '0'}
-      className={`absolute right-3 top-3 z-[90] pointer-events-auto rounded-md border border-[var(--kg-border)] bg-[var(--kg-surface)]/90 p-1 shadow-sm backdrop-blur ${UI_RESPONSIVE_CANVAS_FLOATING_ACTION_ROW_CLASSNAME}`}
-    >
-      {bothModesSupported ? (
-        <fieldset className="contents" aria-label="XR session type">
-          <button
-            type="button"
-            data-kg-canvas-xr-session-option="immersive-ar"
-            aria-pressed={sessionMode === 'immersive-ar'}
-            className="rounded px-2 py-1 text-xs font-medium text-[var(--kg-text)] hover:bg-[var(--kg-surface-muted)] aria-pressed:bg-[var(--kg-surface-muted)]"
-            onClick={() => setSessionMode('immersive-ar')}
-          >
-            AR
-          </button>
-          <button
-            type="button"
-            data-kg-canvas-xr-session-option="immersive-vr"
-            aria-pressed={sessionMode === 'immersive-vr'}
-            className="rounded px-2 py-1 text-xs font-medium text-[var(--kg-text)] hover:bg-[var(--kg-surface-muted)] aria-pressed:bg-[var(--kg-surface-muted)]"
-            onClick={() => setSessionMode('immersive-vr')}
-          >
-            VR
-          </button>
-        </fieldset>
-      ) : null}
-      <fieldset className="contents" aria-label="XR physics control mode">
-        {XR_PHYSICS_CONTROLLER_MODES.map(mode => (
-          <button
-            key={mode}
-            type="button"
-            data-kg-canvas-xr-physics-mode-option={mode}
-            aria-pressed={physicsMode === mode}
-            className="rounded px-2 py-1 text-xs font-medium capitalize text-[var(--kg-text)] hover:bg-[var(--kg-surface-muted)] aria-pressed:bg-[var(--kg-surface-muted)]"
-            onClick={() => setXrPhysicsPlaygroundMode(mode)}
-          >
-            {mode}
-          </button>
-        ))}
-      </fieldset>
-      <button
-        type="button"
-        data-kg-canvas-xr-enter="1"
-        className="rounded px-2 py-1 text-xs font-medium text-[var(--kg-text)] hover:bg-[var(--kg-surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={!canStart}
-        onClick={() => {
-          void startOrEndSession()
-        }}
+    <>
+      {spatialChrome}
+      <section
+        aria-label="XR Mode"
+        data-kg-canvas-xr-mode="1"
+        data-kg-canvas-xr-surface-kind={surfaceKind}
+        data-kg-canvas-xr-status={status}
+        data-kg-canvas-xr-session-mode={sessionMode}
+        data-kg-canvas-xr-ar-supported={sessionSupport['immersive-ar'] === true ? '1' : '0'}
+        data-kg-canvas-xr-vr-supported={sessionSupport['immersive-vr'] === true ? '1' : '0'}
+        className={`absolute right-3 top-3 z-[90] pointer-events-auto rounded-md border border-[var(--kg-border)] bg-[var(--kg-surface)]/90 p-1 shadow-sm backdrop-blur ${UI_RESPONSIVE_CANVAS_FLOATING_ACTION_ROW_CLASSNAME}`}
       >
-        {label}
-      </button>
-    </section>
+        {bothModesSupported ? (
+          <fieldset className="contents" aria-label="XR session type">
+            <button
+              type="button"
+              data-kg-canvas-xr-session-option="immersive-ar"
+              aria-pressed={sessionMode === 'immersive-ar'}
+              className="rounded px-2 py-1 text-xs font-medium text-[var(--kg-text)] hover:bg-[var(--kg-surface-muted)] aria-pressed:bg-[var(--kg-surface-muted)]"
+              onClick={() => setSessionMode('immersive-ar')}
+            >
+              AR
+            </button>
+            <button
+              type="button"
+              data-kg-canvas-xr-session-option="immersive-vr"
+              aria-pressed={sessionMode === 'immersive-vr'}
+              className="rounded px-2 py-1 text-xs font-medium text-[var(--kg-text)] hover:bg-[var(--kg-surface-muted)] aria-pressed:bg-[var(--kg-surface-muted)]"
+              onClick={() => setSessionMode('immersive-vr')}
+            >
+              VR
+            </button>
+          </fieldset>
+        ) : null}
+        <button
+          type="button"
+          data-kg-canvas-xr-enter="1"
+          className="rounded px-2 py-1 text-xs font-medium text-[var(--kg-text)] hover:bg-[var(--kg-surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={!canStart}
+          onClick={() => {
+            void startOrEndSession()
+          }}
+        >
+          {label}
+        </button>
+      </section>
+    </>
   )
 }

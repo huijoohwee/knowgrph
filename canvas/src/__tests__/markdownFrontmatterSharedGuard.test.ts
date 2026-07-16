@@ -67,7 +67,7 @@ kgCanvas2dRenderer: "Storyboard"
 
 export const testMarkdownFrontmatterNormalizesXrSurfaceAlias = () => {
   if (readFloatingPanelViewPreset('camera') !== 'camera' || readFloatingPanelViewPreset('xr') !== 'xr') {
-    throw new Error('expected the canonical FloatingPanel reader to preserve both Camera and XR projections')
+    throw new Error('expected the canonical FloatingPanel reader to preserve the distinct Camera and XR panels')
   }
   if (readBottomSurfaceTabPreset('xr') !== undefined) {
     throw new Error('expected the canonical BottomPanel reader to reject the removed XR route')
