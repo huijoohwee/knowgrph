@@ -1,10 +1,10 @@
 ---
 title: "Knowgrph Multi-User Collaboration TAD Companion"
 doc_type: "TAD Companion"
-version: "1.2.1"
-date: "2026-07-11"
+version: "1.3.0"
+date: "2026-07-16"
 status: "Accepted and implemented authenticated room transport"
-scope: "Technical continuation for the authenticated storage-room collaboration baseline with fallback P2P"
+scope: "Technical continuation for authenticated document collaboration and global runtime-identity attestation rooms with fallback P2P"
 lang: "en-US"
 parent: "knowgrph-multi-user-collaboration-prd.tad.md"
 deployment_boundary: "Dev only until explicit Prod or Cloudflare instruction"
@@ -14,15 +14,15 @@ deployment_boundary: "Dev only until explicit Prod or Cloudflare instruction"
 
 Continuation of [knowgrph-multi-user-collaboration-prd.tad.md](knowgrph-multi-user-collaboration-prd.tad.md). Contains the detailed architecture inventory for the shipped authenticated collaboration room baseline plus the retained fallback P2P path.
 
-**Document Version**: 1.2.1
-**Date**: 2026-07-11
+**Document Version**: 1.3.0
+**Date**: 2026-07-16
 **Status**: Accepted and implemented authenticated room transport
 
 ---
 
 ## Architecture Overview
 
-The implemented collaboration surface is an authenticated storage-room baseline backed by the storage Worker and Durable Object room relay. Storage-configured workspaces use the shared collaboration store, authenticated room runtime, and Worker-authenticated canvas-room route for roster, document sync, presence, and peer removal. The browser-to-browser WebRTC pilot remains in the repo as a fallback path when authenticated room transport is not configured.
+The implemented collaboration surface is an authenticated storage-room baseline backed by the storage Worker and Durable Object room relay. Storage-configured workspaces use the shared collaboration store, authenticated room runtime, and Worker-authenticated canvas-room route for roster, document sync, presence, peer removal, and ephemeral runtime-identity attestations. Document rooms remain document-scoped. The dedicated `runtime-identity:knowgrph:main` room is application-global and relays challenge-bound evidence only; it does not own or persist identity. The browser-to-browser WebRTC pilot remains in the repo as a fallback path for document collaboration when authenticated room transport is not configured.
 
 ```mermaid
 flowchart LR
@@ -60,8 +60,19 @@ flowchart LR
 | TAD-MUC-C012 | Type icons | Provides shared Collaboration row icon semantics | `canvas/src/features/panels/ui/mainPanelTypeIcons.tsx` | Shipped |
 | TAD-MUC-C013 | Test harness | Validates protocol, store, view, runtime relay, and runtime lifecycle behavior | `canvas/src/__tests__/mainPanelCollaboration.*` | Shipped |
 | TAD-MUC-C014 | App-level E2E smoke | Opens owner and guest Markdown workspaces, connects the authenticated room, and validates guest-to-owner document propagation | `canvas/scripts/verify-multi-user-collaboration-e2e.ts` | Shipped |
+| TAD-MUC-C015 | Runtime identity attestation | Reads an immutable point-in-time canonical app-root identity snapshot, responds to authenticated room challenges, verifies authenticated-session/TTL/digest/device/SHA/count parity, and projects status in Settings | `canvas/src/features/runtime-identity`, `cloudflare/workers/knowgrph-storage/canvasSyncRoom.ts` | Shipped in Dev |
 
 ## Data Flows
+
+### Automatic Runtime Identity Attestation
+
+| Stage | Owner | Input | Output |
+|---|---|---|---|
+| Challenge | Authenticated room relay | Dedicated identity-room connection | Short-lived session, nonce, and expiry |
+| Attest | Application-root identity reporter | Canonical runtime identity snapshot | Digest-bound runtime/device attestation |
+| Relay | `KnowgrphCanvasSyncRoom` | Authenticated attestation message | Peer/session-bound evidence broadcast without persistence; document/asset traffic and socket identity mutation rejected |
+| Verify | Runtime identity verifier | Two or more live attestations | `collecting`, `pass`, `mismatch`, `stale`, or `blocked` |
+| Project | MainPanel Settings and read-only WebMCP | Verification snapshot | Automatic KTV status and machine-readable inspection |
 
 ### Host Invite Flow
 

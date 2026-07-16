@@ -23,6 +23,9 @@ jobs:
   verify:
     name: Verify Release Candidate
     runs-on: ubuntu-latest
+    outputs:
+      docs_revision: ${{ steps.agentic_canvas_os_docs.outputs.ref }}
+      manifest_digest: ${{ steps.immutable_manifest.outputs.digest }}
     env:
       RELEASE_SHA: ${{ inputs.commit_sha }}
       RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
@@ -93,6 +96,27 @@ jobs:
           ref: ${{ steps.agentic_canvas_os_docs.outputs.ref }}
           path: agentic-canvas-os
 
+      - name: Create immutable release manifest
+        id: immutable_manifest
+        working-directory: knowgrph
+        run: npm run --silent release:manifest:create -- --source-sha "$RELEASE_SHA" --target-ref "refs/heads/main" --output "$RUNNER_TEMP/immutable-release-manifest.json" --github-output
+
+      - name: Validate checked-out Agentic Canvas OS revision
+        working-directory: knowgrph
+        run: test "$(git -C ../agentic-canvas-os rev-parse HEAD)" = "${{ steps.agentic_canvas_os_docs.outputs.ref }}"
+
+      - name: Validate immutable release manifest
+        working-directory: knowgrph
+        run: npm run --silent release:manifest:check -- "$RUNNER_TEMP/immutable-release-manifest.json" --source-sha "$RELEASE_SHA" --docs-sha "${{ steps.agentic_canvas_os_docs.outputs.ref }}" --digest "${{ steps.immutable_manifest.outputs.digest }}"
+
+      - name: Upload immutable release manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: immutable-release-manifest-${{ inputs.commit_sha }}
+          path: ${{ runner.temp }}/immutable-release-manifest.json
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Reverify exact candidate
         working-directory: knowgrph
         run: npm run ci:integration
@@ -162,6 +186,16 @@ jobs:
         with:
           name: production-${{ inputs.commit_sha }}
           path: huijoohwee
+
+      - name: Download immutable release manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: immutable-release-manifest-${{ inputs.commit_sha }}
+          path: ${{ runner.temp }}/immutable-release-manifest-proof
+
+      - name: Revalidate immutable release manifest
+        working-directory: knowgrph
+        run: npm run --silent release:manifest:check -- "$RUNNER_TEMP/immutable-release-manifest-proof/immutable-release-manifest.json" --source-sha "${{ inputs.commit_sha }}" --docs-sha "${{ needs.verify.outputs.docs_revision }}" --digest "${{ needs.verify.outputs.manifest_digest }}"
 
       - name: Require configured deployment credentials
         run: |

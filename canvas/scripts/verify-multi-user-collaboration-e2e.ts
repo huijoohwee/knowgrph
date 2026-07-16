@@ -1,5 +1,5 @@
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { chromium, type Page } from 'playwright'
 import { buildKnowgrphStorageCanvasRoomPath } from '../src/lib/storage/knowgrphStorageSyncContract'
@@ -35,6 +35,22 @@ type BrowserStoreSnapshot = {
   errorText: string
   peerCount: number
   connectedPeerCount: number
+}
+
+type RuntimeIdentityProof = {
+  status: string
+  transportStatus: string
+  requiredDeviceCount: number
+  observedDeviceCount: number
+  verificationDigest: string
+  message: string
+  differences: string[]
+  device: string
+  knowgrphRevision: string
+  agenticCanvasOsRevision: string
+  catalogRevision: string
+  catalogHydrationStatus: string
+  catalogHydrationAttempts: number
 }
 
 function resolveBrowserLaunchOptions(): Parameters<typeof chromium.launch>[0] {
@@ -89,6 +105,54 @@ async function readBrowserStoreSnapshot(page: Page): Promise<BrowserStoreSnapsho
       connectedPeerCount: peers.filter(peer => String(peer?.connectionState || '') === 'connected').length,
     }
   })
+}
+
+async function readRuntimeIdentityProof(page: Page): Promise<RuntimeIdentityProof> {
+  return await page.evaluate(async () => {
+    const gateModule = await import('/src/features/runtime-identity/runtimeIdentityAttestationStore.ts')
+    const identityModule = await import('/src/features/runtime-identity/knowgrphRuntimeIdentity.ts')
+    const gate = gateModule.getKnowgrphRuntimeIdentityGateSnapshot()
+    const identity = identityModule.getKnowgrphRuntimeIdentity()
+    return {
+      status: String(gate.status || ''),
+      transportStatus: String(gate.transportStatus || ''),
+      requiredDeviceCount: Number(gate.requiredDeviceCount || 0),
+      observedDeviceCount: Number(gate.observedDeviceCount || 0),
+      verificationDigest: String(gate.verificationDigest || ''),
+      message: String(gate.message || ''),
+      differences: Array.isArray(gate.differences) ? gate.differences.map(String) : [],
+      device: String(identity.device || ''),
+      knowgrphRevision: String(identity.knowgrphRevision || ''),
+      agenticCanvasOsRevision: String(identity.agenticCanvasOsRevision || ''),
+      catalogRevision: String(identity.catalogRevision || ''),
+      catalogHydrationStatus: String(identity.catalogHydration?.status || ''),
+      catalogHydrationAttempts: Number(identity.catalogHydration?.attempts || 0),
+    }
+  })
+}
+
+async function waitForRuntimeIdentityPass(page: Page, label: string): Promise<RuntimeIdentityProof> {
+  const startedAt = Date.now()
+  let lastProof = await readRuntimeIdentityProof(page)
+  while (Date.now() - startedAt < 60_000) {
+    lastProof = await readRuntimeIdentityProof(page)
+    const revisionsAreExact = /^[0-9a-f]{40}$/.test(lastProof.knowgrphRevision)
+      && /^[0-9a-f]{40}$/.test(lastProof.agenticCanvasOsRevision)
+      && lastProof.catalogRevision === lastProof.agenticCanvasOsRevision
+    const hydrationIsFresh = lastProof.catalogHydrationStatus === 'fresh'
+      && lastProof.catalogHydrationAttempts <= 2
+    if (
+      lastProof.status === 'pass'
+      && lastProof.transportStatus === 'connected'
+      && lastProof.requiredDeviceCount >= 2
+      && lastProof.observedDeviceCount >= lastProof.requiredDeviceCount
+      && /^[0-9a-f]{64}$/.test(lastProof.verificationDigest)
+      && revisionsAreExact
+      && hydrationIsFresh
+    ) return lastProof
+    await page.waitForTimeout(500)
+  }
+  throw new Error(`${label} runtime identity proof timed out: ${JSON.stringify(lastProof)}`)
 }
 
 async function openCollaborationPanel(page: Page): Promise<void> {
@@ -146,11 +210,11 @@ async function connectAuthenticatedRoom(page: Page): Promise<void> {
 }
 
 async function waitForActiveDocumentReady(page: Page): Promise<void> {
-  const expectedDocumentName = DOC_PATH.replace(/^\/+/, '')
+  const expectedDocumentName = basename(DOC_PATH)
   await waitForPageCondition(
     page,
     'active document readiness',
-    snapshot => snapshot.markdownDocumentName === expectedDocumentName && snapshot.markdownDocumentText.trim().length > 0,
+    snapshot => basename(snapshot.markdownDocumentName) === expectedDocumentName && snapshot.markdownDocumentText.trim().length > 0,
   )
 }
 
@@ -210,8 +274,10 @@ async function assertRoomStatus(workerUrl: string, docPath: string): Promise<voi
 
 async function main(): Promise<void> {
   const browser = await chromium.launch(resolveBrowserLaunchOptions())
-  const ownerPage = await browser.newPage({ viewport: { width: 1440, height: 950 } })
-  const guestPage = await browser.newPage({ viewport: { width: 1440, height: 950 } })
+  const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 950 } })
+  const guestContext = await browser.newContext({ viewport: { width: 1440, height: 950 } })
+  const ownerPage = await ownerContext.newPage()
+  const guestPage = await guestContext.newPage()
   const pageErrors: string[] = []
   for (const page of [ownerPage, guestPage]) {
     page.on('pageerror', error => {
@@ -225,6 +291,22 @@ async function main(): Promise<void> {
 
     await ownerPage.goto(buildWorkspaceUrl(OWNER_APP_URL), { waitUntil: 'domcontentloaded', timeout: 60_000 })
     await guestPage.goto(buildWorkspaceUrl(GUEST_APP_URL), { waitUntil: 'domcontentloaded', timeout: 60_000 })
+
+    const [ownerIdentityProof, guestIdentityProof] = await Promise.all([
+      waitForRuntimeIdentityPass(ownerPage, 'owner'),
+      waitForRuntimeIdentityPass(guestPage, 'guest'),
+    ])
+    if (ownerIdentityProof.device === guestIdentityProof.device) {
+      throw new Error(`expected distinct runtime devices, got ${JSON.stringify(ownerIdentityProof.device)}`)
+    }
+    if (ownerIdentityProof.verificationDigest !== guestIdentityProof.verificationDigest) {
+      throw new Error('expected owner and guest runtime identity verification digests to match')
+    }
+    for (const key of ['knowgrphRevision', 'agenticCanvasOsRevision', 'catalogRevision'] as const) {
+      if (ownerIdentityProof[key] !== guestIdentityProof[key]) {
+        throw new Error(`expected owner and guest ${key} to match`)
+      }
+    }
 
     await Promise.all([
       openCollaborationPanel(ownerPage),
@@ -243,7 +325,7 @@ async function main(): Promise<void> {
 
     await waitForPageCondition(ownerPage, 'owner peer roster', snapshot => snapshot.connectedPeerCount >= 2)
     await waitForPageCondition(guestPage, 'guest peer roster', snapshot => snapshot.connectedPeerCount >= 2)
-    await assertRoomStatus(WORKER_URL, DOC_PATH)
+    await assertRoomStatus(WORKER_URL, basename(DOC_PATH))
 
     const applyResult = await applyMarkerToActiveDocument(guestPage, MARKER)
     if (applyResult.applied !== true) {
@@ -283,6 +365,18 @@ async function main(): Promise<void> {
         guestDocumentName: guestSnapshot.markdownDocumentName,
         ownerTextLength: ownerSnapshot.markdownDocumentText.length,
         guestTextLength: guestSnapshot.markdownDocumentText.length,
+        runtimeIdentity: {
+          status: ownerIdentityProof.status,
+          observedDeviceCount: ownerIdentityProof.observedDeviceCount,
+          requiredDeviceCount: ownerIdentityProof.requiredDeviceCount,
+          verificationDigest: ownerIdentityProof.verificationDigest,
+          devices: [ownerIdentityProof.device, guestIdentityProof.device],
+          knowgrphRevision: ownerIdentityProof.knowgrphRevision,
+          agenticCanvasOsRevision: ownerIdentityProof.agenticCanvasOsRevision,
+          catalogRevision: ownerIdentityProof.catalogRevision,
+          catalogHydrationStatus: ownerIdentityProof.catalogHydrationStatus,
+          catalogHydrationAttempts: ownerIdentityProof.catalogHydrationAttempts,
+        },
         ownerScreenshotPath: OWNER_SCREENSHOT_PATH,
         guestScreenshotPath: GUEST_SCREENSHOT_PATH,
       }),

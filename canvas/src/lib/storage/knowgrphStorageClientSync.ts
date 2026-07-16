@@ -1,7 +1,7 @@
 import { scheduleWorkspaceSyncTask, cancelWorkspaceSyncTask } from '@/lib/async/workspaceSyncScheduler'
 import { hashStringToHex } from '@/lib/hash/stringHash'
-import { getLocalStorage } from '@/lib/persistence'
 import { toCloneSafeObject, toCloneSafeObjectOrNull } from '@/lib/storage/cloneSafe'
+import { getKnowgrphStorageDeviceId } from '@/lib/storage/knowgrphStorageDeviceIdentity'
 import {
   buildKnowgrphStoragePullRequest,
   buildKnowgrphStorageCursorId,
@@ -24,7 +24,6 @@ import {
   type KnowgrphStorageDb,
 } from '@/lib/storage/knowgrphStorageDb'
 
-const KNOWGRPH_STORAGE_DEVICE_ID_KEY = 'kg:knowgrph-storage:device-id'
 const KNOWGRPH_STORAGE_SYNC_TASK_PREFIX = 'knowgrph-storage:sync'
 const KNOWGRPH_STORAGE_SYNC_POLL_PREFIX = 'knowgrph-storage:poll'
 const DEFAULT_PUSH_BATCH_SIZE = 50
@@ -436,21 +435,6 @@ export const resolveKnowgrphStorageApiUrl = (path: string, baseUrl?: string | nu
 const getDbState = async (dbState?: KnowgrphStorageDb | null): Promise<KnowgrphStorageDb> => {
   if (dbState) return dbState
   return getKnowgrphStorageDb()
-}
-
-export const getKnowgrphStorageDeviceId = (storage: Storage | null = getLocalStorage()): string => {
-  try {
-    const existing = normalizeString(storage?.getItem(KNOWGRPH_STORAGE_DEVICE_ID_KEY))
-    if (existing) return existing
-    const next =
-      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-        ? `dev:${crypto.randomUUID()}`
-        : `dev:${Date.now()}:${Math.random().toString(16).slice(2)}`
-    storage?.setItem(KNOWGRPH_STORAGE_DEVICE_ID_KEY, next)
-    return next
-  } catch {
-    return `dev:${Date.now()}:${Math.random().toString(16).slice(2)}`
-  }
 }
 
 const readCursorRow = async (
