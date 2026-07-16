@@ -9,6 +9,8 @@ const DEFAULT_WORKER_URL = "http://127.0.0.1:8787";
 const DEFAULT_WORKSPACE_ID = "kgws:test-room";
 const DEFAULT_OWNER_TOKEN = "kg_collaboration_owner_local_token";
 const DEFAULT_GUEST_TOKEN = "kg_collaboration_guest_local_token";
+const DEFAULT_OWNER_RUNTIME_DEVICE = "collaboration-owner-local";
+const DEFAULT_GUEST_RUNTIME_DEVICE = "collaboration-guest-local";
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -169,6 +171,7 @@ function startBrowserService(service, config) {
   if (service.kind === "vite") {
     const serviceEnv = {
       ...config.env,
+      KNOWGRPH_RUNTIME_DEVICE: service.runtimeDevice,
       VITE_KNOWGRPH_STORAGE_BASE_URL: config.normalizedWorkerBaseUrl,
       VITE_KNOWGRPH_STORAGE_WORKSPACE_ID: config.workspaceId,
       VITE_KNOWGRPH_STORAGE_CHAT_SESSION_TOKEN: service.id === "owner-app" ? config.ownerSessionToken : config.guestSessionToken,
@@ -224,6 +227,11 @@ export function resolveLocalCollaborationStackConfig({
   const workspaceId = env.KG_COLLABORATION_E2E_WORKSPACE_ID || DEFAULT_WORKSPACE_ID;
   const ownerSessionToken = env.KG_COLLABORATION_E2E_OWNER_TOKEN || DEFAULT_OWNER_TOKEN;
   const guestSessionToken = env.KG_COLLABORATION_E2E_GUEST_TOKEN || DEFAULT_GUEST_TOKEN;
+  const ownerRuntimeDevice = env.KG_COLLABORATION_E2E_OWNER_DEVICE || DEFAULT_OWNER_RUNTIME_DEVICE;
+  const guestRuntimeDevice = env.KG_COLLABORATION_E2E_GUEST_DEVICE || DEFAULT_GUEST_RUNTIME_DEVICE;
+  if (!ownerRuntimeDevice || !guestRuntimeDevice || ownerRuntimeDevice === guestRuntimeDevice) {
+    throw new Error("local collaboration runtime devices must be distinct non-empty identities");
+  }
   return {
     repoRoot,
     canvasRoot: path.join(repoRoot, "canvas"),
@@ -237,6 +245,8 @@ export function resolveLocalCollaborationStackConfig({
     workspaceId,
     ownerSessionToken,
     guestSessionToken,
+    ownerRuntimeDevice,
+    guestRuntimeDevice,
     services: [
       {
         id: "owner-app",
@@ -244,6 +254,7 @@ export function resolveLocalCollaborationStackConfig({
         envVar: "KG_COLLABORATION_E2E_OWNER_URL",
         startupCommand: "npm --prefix canvas run dev:5173",
         kind: "vite",
+        runtimeDevice: ownerRuntimeDevice,
         local: readLocalServiceConfig(ownerAppUrl, DEFAULT_OWNER_APP_URL),
       },
       {
@@ -252,6 +263,7 @@ export function resolveLocalCollaborationStackConfig({
         envVar: "KG_COLLABORATION_E2E_GUEST_URL",
         startupCommand: "npm --prefix canvas run dev -- --port 5174 --strictPort",
         kind: "vite",
+        runtimeDevice: guestRuntimeDevice,
         local: readLocalServiceConfig(guestAppUrl, DEFAULT_GUEST_APP_URL),
       },
       {
