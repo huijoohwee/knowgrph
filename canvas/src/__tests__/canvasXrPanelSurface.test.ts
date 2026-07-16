@@ -210,7 +210,7 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   if (!floatingPanelPresetSource.includes("raw === 'camera'") || !floatingPanelPresetSource.includes("raw === 'media'") || floatingPanelPresetSource.includes("raw === 'xr'") || !appliedFrontmatter.includes('readFloatingPanelViewPreset')) {
     throw new Error('expected FloatingPanel frontmatter routing to use Camera and Media without the stale XR projection')
   }
-  for (const marker of ['data-kg-media-3d-toggle="1"', "xrSurfaceActive ? 'xr-3d' : 'media'", '<XrMediaLibraryPanel']) {
+  for (const marker of ['data-kg-media-mode-switcher="1"', 'data-kg-media-library-toggle="1"', 'data-kg-media-3d-toggle="1"', '3D for XR', "xrSurfaceActive ? 'xr-3d' : 'media'", '<XrMediaLibraryPanel']) {
     if (!mediaCatalog.includes(marker)) throw new Error(`expected Media to own the canonical 3D entry through ${marker}`)
   }
   if (!xrMediaLibrary.includes('<SpatialAssetToolsPanel />')) throw new Error('expected Media 3D to retain spatial asset tooling')

@@ -188,18 +188,6 @@ export function MediaCatalogPanelView({
         dataAttributes={{ 'data-kg-media-catalog-header': '1' }}
         actions={(
           <>
-            <button
-              type="button"
-              className={cn('inline-flex h-6 items-center gap-1 rounded border px-1.5 text-[10px] font-semibold', UI_THEME_TOKENS.panel.border, catalogMode === 'xr-3d' ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.input.bg)}
-              title={catalogMode === 'xr-3d' ? 'Show media library' : 'Show 3D assets for XR'}
-              aria-label={catalogMode === 'xr-3d' ? 'Show media library' : 'Show 3D assets for XR'}
-              aria-pressed={catalogMode === 'xr-3d'}
-              data-kg-media-3d-toggle="1"
-              onClick={() => setCatalogMode(current => current === 'xr-3d' ? 'media' : 'xr-3d')}
-            >
-              <Box className="size-3" strokeWidth={1.7} aria-hidden />
-              3D
-            </button>
             {catalogMode === 'media' ? <input
               ref={uploadInputRef}
               type="file"
@@ -275,6 +263,33 @@ export function MediaCatalogPanelView({
           />
         )}
       />
+      <nav
+        className={cn('mx-2 mb-1 grid grid-cols-2 overflow-hidden rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+        aria-label="Media catalog mode"
+        data-kg-media-mode-switcher="1"
+      >
+        <button
+          type="button"
+          className={cn('inline-flex h-7 items-center justify-center gap-1 border-0 px-2 text-[11px] font-semibold', catalogMode === 'media' ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.button.hoverBg)}
+          aria-label="Show media library"
+          aria-pressed={catalogMode === 'media'}
+          data-kg-media-library-toggle="1"
+          onClick={() => setCatalogMode('media')}
+        >
+          Media
+        </button>
+        <button
+          type="button"
+          className={cn('inline-flex h-7 items-center justify-center gap-1 border-0 border-l px-2 text-[11px] font-semibold', UI_THEME_TOKENS.panel.border, catalogMode === 'xr-3d' ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.button.hoverBg)}
+          aria-label="Show 3D assets for XR"
+          aria-pressed={catalogMode === 'xr-3d'}
+          data-kg-media-3d-toggle="1"
+          onClick={() => setCatalogMode('xr-3d')}
+        >
+          <Box className="size-3" strokeWidth={1.7} aria-hidden />
+          3D for XR
+        </button>
+      </nav>
       <section ref={panelRef} className={floatingPanelCatalogBodyClassName(catalogMode === 'media' && previewItem ? 'overflow-hidden' : undefined)} data-kg-floating-panel-catalog-body="media">
         {catalogMode === 'xr-3d' ? (
           <XrMediaLibraryPanel searchText={normalizedSearchQuery} />
