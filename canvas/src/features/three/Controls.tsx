@@ -21,6 +21,10 @@ import {
   useCameraFramingControlsRuntime,
 } from './cameraFramingControlsRuntime'
 import { buildVoxelCameraIntroPoses, readVoxelCameraConfig } from './voxelCamera'
+import {
+  XR_MOTION_STAGE_CAMERA_POSITION,
+  XR_MOTION_STAGE_CAMERA_TARGET,
+} from './xrMotionReferenceCoordinates'
 
 export function Controls({
   schema,
@@ -334,8 +338,8 @@ export function Controls({
         controls.target.set(0, 0, -72)
       } else {
         camera.up.set(0, 1, 0)
-        camera.position.set(0, 0, 520)
-        controls.target.set(0, 0, -72)
+        camera.position.set(...XR_MOTION_STAGE_CAMERA_POSITION)
+        controls.target.set(...XR_MOTION_STAGE_CAMERA_TARGET)
       }
       camera.lookAt(controls.target)
       controls.update()
@@ -400,6 +404,7 @@ export function Controls({
     paused: !!paused,
     modelAssetRenderKey,
     modelAssetFit,
+    xrEmptyWorld,
   })
   React.useEffect(() => {
     controls.enabled = !paused

@@ -1,8 +1,12 @@
 import React from 'react'
 import type { GraphData } from '@/lib/graph/types'
 import { XrMotionReferenceStage } from '@/features/three/XrMotionReferenceStage'
+import {
+  XR_MOTION_STAGE_GROUND_Y,
+  XR_MOTION_STAGE_SPAN,
+} from '@/features/three/xrMotionReferenceCoordinates'
 
-export const XR_MOTION_STAGE_SPAN = 520
+export { XR_MOTION_STAGE_SPAN } from '@/features/three/xrMotionReferenceCoordinates'
 export const XR_MOTION_STAGE_FLOOR_DEPTH = -72
 
 export function XrGraphStage({ data }: { data: GraphData }) {
@@ -11,7 +15,7 @@ export function XrGraphStage({ data }: { data: GraphData }) {
       <XrMotionReferenceStage
         graphData={data}
         span={XR_MOTION_STAGE_SPAN}
-        floorDepth={XR_MOTION_STAGE_FLOOR_DEPTH}
+        groundY={XR_MOTION_STAGE_GROUND_Y}
       />
     </group>
   )

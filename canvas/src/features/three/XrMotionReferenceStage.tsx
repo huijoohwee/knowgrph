@@ -5,7 +5,6 @@ import {
   resolveXrMotionReferenceStage,
   sampleXrMotionReferenceMarks,
   xrMotionReferenceSceneKey,
-  type XrMotionReferenceVector,
 } from '@/features/three/xrMotionReferenceModel'
 import {
   hydrateXrMotionReferenceRuntime,
@@ -16,6 +15,7 @@ import { THREE_RENDER_ORDER } from '@/features/three/renderOrder'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { XrSceneLibrarySubject } from '@/features/three/XrSceneLibrarySubject'
+import { xrMotionReferenceWorldPosition } from '@/features/three/xrMotionReferenceCoordinates'
 
 const STRUCTURE_TONES = {
   light: '#94a3b8',
@@ -26,31 +26,23 @@ const STRUCTURE_TONES = {
 
 const EMPTY_XR_WORLD_NODES: readonly GraphNode[] = Object.freeze([])
 
-function stagePosition(
-  position: XrMotionReferenceVector,
-  scale: number,
-  floorDepth: number,
-): [number, number, number] {
-  return [position[0] * scale, position[2] * scale, floorDepth + position[1] * scale]
-}
-
 function PathSegment({
   left,
   right,
   scale,
-  floorDepth,
+  groundY,
   color,
   thickness,
 }: {
-  left: XrMotionReferenceVector
-  right: XrMotionReferenceVector
+  left: readonly [number, number, number]
+  right: readonly [number, number, number]
   scale: number
-  floorDepth: number
+  groundY: number
   color: string
   thickness: number
 }) {
-  const start = stagePosition(left, scale, floorDepth)
-  const end = stagePosition(right, scale, floorDepth)
+  const start = xrMotionReferenceWorldPosition(left, scale, groundY)
+  const end = xrMotionReferenceWorldPosition(right, scale, groundY)
   const dx = end[0] - start[0]
   const dy = end[1] - start[1]
   const dz = end[2] - start[2]
@@ -73,17 +65,17 @@ function CastTrack({
   track,
   playheadSeconds,
   scale,
-  floorDepth,
+  groundY,
   renderLiveActor,
 }: {
   track: ReturnType<typeof readXrMotionReferenceRuntime>['plan']['cast'][number]
   playheadSeconds: number
   scale: number
-  floorDepth: number
+  groundY: number
   renderLiveActor: boolean
 }) {
   const sampled = sampleXrMotionReferenceMarks(track.marks, playheadSeconds)
-  const sampledPosition = stagePosition(sampled, scale, floorDepth)
+  const sampledPosition = xrMotionReferenceWorldPosition(sampled, scale, groundY)
   const markerSize = Math.max(0.7, scale * 0.16)
   return (
     <group name={`kg_xr_motion_cast_${track.actorId}`}>
@@ -93,26 +85,31 @@ function CastTrack({
           left={track.marks[index]!.position}
           right={mark.position}
           scale={scale}
-          floorDepth={floorDepth}
+          groundY={groundY}
           color={track.color}
           thickness={Math.max(0.25, scale * 0.035)}
         />
       ))}
       {track.marks.map((mark, index) => {
-        const position = stagePosition(mark.position, scale, floorDepth)
+        const position = xrMotionReferenceWorldPosition(mark.position, scale, groundY)
         return (
-          <mesh key={mark.id} name={`kg_xr_motion_cast_mark_${track.actorId}_${index + 1}`} position={[position[0], position[1], position[2] + 0.35]}>
+          <mesh
+            key={mark.id}
+            name={`kg_xr_motion_cast_mark_${track.actorId}_${index + 1}`}
+            position={[position[0], position[1] + 0.35, position[2]]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
             <ringGeometry args={[markerSize * 0.72, markerSize, 28]} />
             <meshBasicMaterial color={track.color} transparent opacity={0.9} depthWrite={false} side={THREE.DoubleSide} />
           </mesh>
         )
       })}
       {renderLiveActor ? <group name={`kg_xr_motion_cast_live_${track.actorId}`} position={sampledPosition}>
-        <mesh position={[0, 0, scale * 0.92]}>
-          <boxGeometry args={[scale * 0.54, scale * 0.36, scale * 1.25]} />
+        <mesh position={[0, scale * 0.92, 0]}>
+          <boxGeometry args={[scale * 0.54, scale * 1.25, scale * 0.36]} />
           <meshStandardMaterial color={track.color} roughness={0.92} metalness={0} />
         </mesh>
-        <mesh position={[0, 0, scale * 1.78]}>
+        <mesh position={[0, scale * 1.78, 0]}>
           <sphereGeometry args={[scale * 0.3, 18, 12]} />
           <meshStandardMaterial color={track.color} roughness={0.86} metalness={0} />
         </mesh>
@@ -124,11 +121,11 @@ function CastTrack({
 export function XrMotionReferenceStage({
   graphData,
   span,
-  floorDepth,
+  groundY,
 }: {
   graphData: GraphData | null
   span: number
-  floorDepth: number
+  groundY: number
 }) {
   const documentName = useGraphStore(state => state.markdownDocumentName)
   const canonicalGraphData = useGraphStore(state => state.graphData)
@@ -165,30 +162,29 @@ export function XrMotionReferenceStage({
       renderOrder={THREE_RENDER_ORDER.groups - 10}
       userData={{ schema: runtime.plan.schema, stageId: stage.id, playheadSeconds: runtime.playheadSeconds }}
     >
-      <mesh name="kg_xr_motion_stage_floor" position={[0, 0, floorDepth]}>
-        <boxGeometry args={[floorWidth, floorHeight, floorThickness]} />
+      <mesh name="kg_xr_motion_stage_floor" position={[0, groundY - floorThickness / 2, 0]}>
+        <boxGeometry args={[floorWidth, floorThickness, floorHeight]} />
         <meshStandardMaterial color="#475569" roughness={1} metalness={0} transparent opacity={0.68} />
       </mesh>
       <gridHelper
         name="kg_xr_motion_world_grid"
         args={[floorWidth, Math.max(12, Math.round(stage.sizeMeters[0] * 2)), '#38bdf8', '#334155']}
-        position={[0, 0, floorDepth + floorThickness * 0.7]}
-        rotation={[Math.PI / 2, 0, 0]}
+        position={[0, groundY + 0.08, 0]}
       />
       <axesHelper
         name="kg_xr_motion_world_origin"
         args={[Math.max(4, scale * 2.4)]}
-        position={[0, 0, floorDepth + floorThickness]}
+        position={[0, groundY + 0.12, 0]}
       />
       <group name={`kg_xr_motion_stage_preset_${stage.id}`}>
         {stage.structures.map(structure => {
-          const position = stagePosition(structure.position, scale, floorDepth)
+          const position = xrMotionReferenceWorldPosition(structure.position, scale, groundY)
           return (
             <mesh key={structure.id} name={`kg_xr_motion_structure_${structure.id}`} position={position}>
               <boxGeometry args={[
                 structure.size[0] * scale,
-                structure.size[2] * scale,
                 structure.size[1] * scale,
+                structure.size[2] * scale,
               ]} />
               <meshStandardMaterial color={STRUCTURE_TONES[structure.tone]} roughness={0.95} metalness={0} transparent opacity={0.78} />
             </mesh>
@@ -202,7 +198,7 @@ export function XrMotionReferenceStage({
             track={track}
             playheadSeconds={runtime.playheadSeconds}
             scale={scale}
-            floorDepth={floorDepth + floorThickness}
+            groundY={groundY}
             renderLiveActor={!subjectIds.has(track.actorId)}
           />
         ))}
@@ -217,7 +213,7 @@ export function XrMotionReferenceStage({
             <XrSceneLibrarySubject
               key={subject.id}
               subject={subject}
-              position={stagePosition(subjectPosition, scale, floorDepth + floorThickness)}
+              position={xrMotionReferenceWorldPosition(subjectPosition, scale, groundY)}
               stageScale={scale}
             />
           )
@@ -227,14 +223,13 @@ export function XrMotionReferenceStage({
         {runtime.plan.camera.length === 0 ? (
           <group
             name="kg_xr_motion_default_camera"
-            position={[0, -floorHeight * 0.32, floorDepth + scale * 1.5]}
-            rotation={[Math.PI / 2, 0, 0]}
+            position={[0, groundY + scale * 1.5, floorHeight * 0.32]}
           >
             <mesh>
               <boxGeometry args={[scale * 0.72, scale * 0.42, scale * 0.48]} />
               <meshStandardMaterial color="#e2e8f0" roughness={0.84} metalness={0} />
             </mesh>
-            <mesh position={[0, 0, scale * 0.48]}>
+            <mesh position={[0, 0, -scale * 0.48]} rotation={[-Math.PI / 2, 0, 0]}>
               <coneGeometry args={[scale * 0.3, scale * 0.72, 4]} />
               <meshBasicMaterial color="#f8fafc" transparent opacity={0.88} depthWrite={false} />
             </mesh>
@@ -246,14 +241,14 @@ export function XrMotionReferenceStage({
             left={runtime.plan.camera[index]!.pose.position}
             right={mark.pose.position}
             scale={scale}
-            floorDepth={floorDepth + floorThickness}
+            groundY={groundY}
             color="#f8fafc"
             thickness={Math.max(0.3, scale * 0.045)}
           />
         ))}
         {runtime.plan.camera.map((mark, index) => {
-          const position = stagePosition(mark.pose.position, scale, floorDepth + floorThickness)
-          const target = stagePosition(mark.pose.target, scale, floorDepth + floorThickness)
+          const position = xrMotionReferenceWorldPosition(mark.pose.position, scale, groundY)
+          const target = xrMotionReferenceWorldPosition(mark.pose.target, scale, groundY)
           const direction = new THREE.Vector3(target[0] - position[0], target[1] - position[1], target[2] - position[2])
           const quaternion = direction.lengthSq() > 0.000001
             ? new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize())
@@ -264,7 +259,7 @@ export function XrMotionReferenceStage({
                 <coneGeometry args={[scale * 0.34, scale * 0.8, 4]} />
                 <meshBasicMaterial color="#f8fafc" transparent opacity={0.92} depthWrite={false} />
               </mesh>
-              <mesh position={[0, 0, scale * 0.64]}>
+              <mesh position={[0, scale * 0.64, 0]} rotation={[Math.PI / 2, 0, 0]}>
                 <ringGeometry args={[scale * 0.18, scale * 0.25, 24]} />
                 <meshBasicMaterial color="#f8fafc" transparent opacity={0.8} depthWrite={false} side={THREE.DoubleSide} />
               </mesh>

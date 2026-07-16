@@ -333,7 +333,7 @@ export function testXrModeGraphSceneUsesDistinctSpatialStageInsteadOfPlain3dGlob
     'kg_graph_xr_stage',
     'XrMotionReferenceStage',
     'XR_MOTION_STAGE_SPAN',
-    'XR_MOTION_STAGE_FLOOR_DEPTH',
+    'XR_MOTION_STAGE_GROUND_Y',
   ]) {
     if (!stage.includes(marker)) {
       throw new Error(`Expected XR graph stage to expose ${marker}`)

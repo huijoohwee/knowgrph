@@ -24,6 +24,11 @@ import {
   setXrMotionReferenceSubjectLabel,
 } from '@/features/three/xrMotionReferenceRuntime'
 import { XR_MOTION_REFERENCE_STAGE_PRESETS, XR_SCENE_LIBRARY_ASSETS } from '@/features/three/xrSceneLibrary'
+import {
+  XR_MOTION_STAGE_CAMERA_POSITION,
+  XR_MOTION_STAGE_CAMERA_TARGET,
+  xrMotionReferenceWorldPosition,
+} from '@/features/three/xrMotionReferenceCoordinates'
 import { buildXrMotionReferenceTimelineCode } from '@/features/three/xrMotionReferenceTimeline'
 import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { resolveVideoSequenceTimelineLane } from '@/components/timeline/videoSequenceTimeline'
@@ -48,6 +53,14 @@ function buildGraph(): GraphData {
 
 export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphBacked() {
   const graphData = buildGraph()
+  const worldPosition = xrMotionReferenceWorldPosition([2, 3, -4], 10, 5)
+  if (JSON.stringify(worldPosition) !== JSON.stringify([20, 35, -40])) {
+    throw new Error(`expected meter-based XR XYZ to map directly into a Y-up Three world, got ${JSON.stringify(worldPosition)}`)
+  }
+  if (XR_MOTION_STAGE_CAMERA_POSITION[1] <= XR_MOTION_STAGE_CAMERA_TARGET[1]
+    || XR_MOTION_STAGE_CAMERA_POSITION[2] === XR_MOTION_STAGE_CAMERA_TARGET[2]) {
+    throw new Error('expected XR entry framing to start above and in front of the horizontal stage')
+  }
   let sharedPanelOpenRequests = 0
   const surfaceCalls: string[] = []
   applyCanvasViewSelection({
@@ -337,6 +350,19 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   ]) {
     if (!stageSource.includes(marker)) throw new Error(`expected native grey-box stage to expose ${marker}`)
   }
+  for (const marker of [
+    'xrMotionReferenceWorldPosition',
+    'position={[0, groundY - floorThickness / 2, 0]}',
+    '<boxGeometry args={[floorWidth, floorThickness, floorHeight]}',
+    'position={[position[0], position[1] + 0.35, position[2]]}',
+    'rotation={[-Math.PI / 2, 0, 0]}',
+  ]) {
+    if (!stageSource.includes(marker)) throw new Error(`expected Y-up XR stage orientation to expose ${marker}`)
+  }
+  if (!sceneSubjectSource.includes('rotation={[0, THREE.MathUtils.degToRad(subject.rotationYDegrees), 0]}')
+    || !sceneSubjectSource.includes('<group rotation={[-Math.PI / 2, 0, 0]}>')) {
+    throw new Error('expected Z-up procedural library geometry to be adapted once beneath a Y-up subject transform')
+  }
   if (!timelineBottomPanelSource.includes('<XrTimelineSceneLane')
     || !xrTimelineLaneSource.includes('<GanttTimelineTransportPanel')
     || !xrTimelineLaneSource.includes('clockActive')
@@ -383,7 +409,10 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (!xrEntrySource.includes("if (status === 'checking' || status === 'unsupported') return spatialChrome")) {
     throw new Error('expected unsupported WebXR entry actions to stay absent while preserving spatial-capture orientation chrome')
   }
-  if (!controlsSource.includes('controls.autoRotate = isSharedCameraFramingSurfaceMode(mode)') || !controlsSource.includes('camera.position.set(0, 0, 520)') || !controlsSource.includes('controls.target.set(0, 0, -72)')) {
+  if (!controlsSource.includes('controls.autoRotate = isSharedCameraFramingSurfaceMode(mode)')
+    || !controlsSource.includes('camera.position.set(...XR_MOTION_STAGE_CAMERA_POSITION)')
+    || !controlsSource.includes('controls.target.set(...XR_MOTION_STAGE_CAMERA_TARGET)')
+    || !controlsSource.includes('xrEmptyWorld,')) {
     throw new Error('expected 3D/XR canvas camera ownership to stop stale auto-rotation and preserve deterministic XR entry framing')
   }
   if (!controlsSource.includes('enteredEmptyXrWorld')
@@ -449,7 +478,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (!stageSource.includes('Math.hypot(dx, dy, dz)') || !stageSource.includes('setFromUnitVectors')) {
     throw new Error('expected cast and camera paths to preserve vertical Y-up movement in their 3D segment transform')
   }
-  if (!stageSource.includes('stagePosition(mark.pose.target') || !packageSource.includes('point(mark.pose.target)')) {
+  if (!stageSource.includes('xrMotionReferenceWorldPosition(mark.pose.target') || !packageSource.includes('point(mark.pose.target)')) {
     throw new Error('expected 3D and SVG camera previews to orient markers toward each captured target')
   }
   if (!xrTimelineLaneSource.includes('readCameraFramingRuntime') || !xrTimelineLaneSource.includes('Capture camera')) {

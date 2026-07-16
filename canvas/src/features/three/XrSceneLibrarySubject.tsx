@@ -186,12 +186,14 @@ export function XrSceneLibrarySubject({
     <group
       name={`kg_xr_scene_subject_${subject.id}`}
       position={position}
-      rotation={[0, 0, THREE.MathUtils.degToRad(subject.rotationYDegrees)]}
+      rotation={[0, THREE.MathUtils.degToRad(subject.rotationYDegrees), 0]}
       scale={stageScale * subject.scale}
       userData={{ subjectId: subject.id, assetId: subject.assetId, category: subject.category, label: subject.label }}
     >
-      <SubjectGeometry subject={subject} />
-      <SubjectLabel label={subject.label} heightMeters={asset.dimensionsMeters[1]} />
+      <group rotation={[-Math.PI / 2, 0, 0]}>
+        <SubjectGeometry subject={subject} />
+        <SubjectLabel label={subject.label} heightMeters={asset.dimensionsMeters[1]} />
+      </group>
     </group>
   )
 }
