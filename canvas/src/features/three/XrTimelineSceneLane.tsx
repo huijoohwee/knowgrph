@@ -9,15 +9,13 @@ import { readCameraFramingRuntime } from '@/features/strybldr/cameraFramingRunti
 import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
   XR_MOTION_REFERENCE_STAGE_PRESETS,
-  buildXrMotionReferencePackage,
   sampleXrMotionReferenceMarks,
   serializeXrMotionReferencePlan,
-  xrMotionReferencePackageBlob,
-  xrMotionReferencePackageFilename,
   xrMotionReferenceSceneKey,
   type XrMotionReferenceStageId,
   type XrMotionReferenceTransition,
 } from './xrMotionReferenceModel'
+import { buildXrMotionReferencePackage, xrMotionReferencePackageBlob, xrMotionReferencePackageFilename } from './xrMotionReferencePackage'
 import {
   hydrateXrMotionReferenceRuntime,
   markXrMotionReferenceSaved,
@@ -80,7 +78,12 @@ export function XrTimelineSceneLane() {
     && String(markdownDocumentText || '').trim(),
   )
   const graphData = documentLoaded ? activeGraphData || rawGraphData : null
-  const persistedValue = graphData?.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]
+  // Render from the composed graph, but hydrate persisted choreography from the
+  // canonical document graph. Composed render data can lag a metadata-only write
+  // by one render when XR Mode and Timeline are opened together.
+  const persistedValue = rawGraphData
+    ? rawGraphData.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]
+    : graphData?.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]
   const sceneKey = React.useMemo(
     () => xrMotionReferenceSceneKey(markdownDocumentName || 'Untitled', graphData),
     [graphData, markdownDocumentName],
@@ -180,7 +183,6 @@ export function XrTimelineSceneLane() {
   }, [graphData, markdownDocumentName, pushUiToast])
 
   const xrActive = canvasRenderMode === '3d' && canvas3dMode === 'xr'
-  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes.length : 0
   const edges = Array.isArray(graphData?.edges) ? graphData.edges.length : 0
 
   return (
@@ -202,7 +204,7 @@ export function XrTimelineSceneLane() {
         <section className="mr-auto min-w-32 self-center">
           <h3 className="text-[11px] font-semibold uppercase">XR stage &amp; motion</h3>
           <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>
-            {documentLoaded ? `${nodes} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks
+            {documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks
           </p>
         </section>
 

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Grid2X2, List, Plus, Rows3 } from 'lucide-react'
+import { Box, Grid2X2, List, Plus, Rows3 } from 'lucide-react'
 import type { CommandMenuRichMediaItem } from '@/lib/command-menu/commandMenuRichMediaInventory'
 import { readCommandMenuMediaNameDraft, type CommandMenuMediaNameDrafts } from '@/lib/command-menu/commandMenuMediaNameSync'
 import type { UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
@@ -25,6 +25,7 @@ import { MediaActionListRow, MediaCandidateListRow, MediaSourceMetadataListRow, 
 import { UploadedMediaCard, UploadedMediaRow } from './mediaCatalogUploadedItems'
 import { buildUploadedMediaInfoLabel, readUploadedMediaDescription, readUploadedMediaFieldText } from './mediaCatalogUploadedFields'
 import { MediaCatalogRichMediaPreview } from './MediaCatalogRichMediaPreview'
+import { XrMediaLibraryPanel } from './XrMediaLibraryPanel'
 
 type MediaCatalogPanelViewProps = {
   catalogLayout: MediaCatalogLayout
@@ -120,6 +121,7 @@ export function MediaCatalogPanelView({
   onUploadMediaFiles,
 }: MediaCatalogPanelViewProps) {
   const search = useFloatingPanelCatalogSearch()
+  const [catalogMode, setCatalogMode] = React.useState<'media' | 'xr-3d'>('media')
   const mediaItemCount = uploadedMediaItems.length + mediaItems.length + mediaActions.length + (sourceMetadataItem ? 1 : 0)
   const normalizedSearchQuery = search.normalizedSearchQuery
   const visibleSourceMetadataItem = sourceMetadataItem && matchesMediaSourceMetadataSearch(sourceMetadataItem, normalizedSearchQuery) ? sourceMetadataItem : null
@@ -140,7 +142,7 @@ export function MediaCatalogPanelView({
     itemCount: mediaItemCount,
     progress: mediaItemCount > 0 ? Math.min(1, mediaItemCount / 12) : 0,
     surface: 'floating-media',
-  }), [mediaActions.length, mediaItemCount])
+  }), [mediaItemCount])
   const { style: animationStyle, ...animationAttributes } = animationState.attributes
   return (
     <section
@@ -152,6 +154,7 @@ export function MediaCatalogPanelView({
       data-kg-media-card-layout={catalogLayout === 'card' ? '3-rows' : undefined}
       data-kg-media-grid-layout={catalogLayout === 'grid' ? '1' : undefined}
       data-kg-media-panel="1"
+      data-kg-media-catalog-mode={catalogMode}
       data-kg-media-image-format-preference={MEDIA_IMAGE_FORMAT_PREFERENCE_ATTR}
       data-kg-media-video-format-preference={MEDIA_VIDEO_FORMAT_PREFERENCE_ATTR}
       {...animationAttributes}
@@ -175,12 +178,24 @@ export function MediaCatalogPanelView({
       />
       <FloatingPanelCatalogHeader
         title="Media"
-        subtitle="@ image, audio, video, and rich media"
+        subtitle={catalogMode === 'xr-3d' ? '3D for XR · environments, subjects, and props' : '@ image, audio, video, and rich media'}
         actionsLabel="Media actions"
         dataAttributes={{ 'data-kg-media-catalog-header': '1' }}
         actions={(
           <>
-            <input
+            <button
+              type="button"
+              className={cn('inline-flex h-6 items-center gap-1 rounded border px-1.5 text-[10px] font-semibold', UI_THEME_TOKENS.panel.border, catalogMode === 'xr-3d' ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.input.bg)}
+              title={catalogMode === 'xr-3d' ? 'Show media library' : 'Show 3D for XR'}
+              aria-label={catalogMode === 'xr-3d' ? 'Show media library' : 'Show 3D for XR'}
+              aria-pressed={catalogMode === 'xr-3d'}
+              data-kg-media-xr-3d-toggle="1"
+              onClick={() => setCatalogMode(current => current === 'xr-3d' ? 'media' : 'xr-3d')}
+            >
+              <Box className="size-3" strokeWidth={1.7} aria-hidden />
+              3D
+            </button>
+            {catalogMode === 'media' ? <input
               ref={uploadInputRef}
               type="file"
               accept="image/*,audio/*,video/*"
@@ -192,8 +207,8 @@ export function MediaCatalogPanelView({
                 void onUploadMediaFiles(event.currentTarget.files)
                 event.currentTarget.value = ''
               }}
-            />
-            <button
+            /> : null}
+            {catalogMode === 'media' ? <button
               type="button"
               className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded border px-1 text-xs font-semibold', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
               title="New Media"
@@ -202,8 +217,8 @@ export function MediaCatalogPanelView({
               onClick={onNewMedia}
             >
               <Plus className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
-            </button>
-            <section className={cn('inline-flex h-6 items-center overflow-hidden rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)} role="group" aria-label="Media layout" data-kg-media-layout-selector="1">
+            </button> : null}
+            {catalogMode === 'media' ? <section className={cn('inline-flex h-6 items-center overflow-hidden rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)} role="group" aria-label="Media layout" data-kg-media-layout-selector="1">
               {([
                 { layout: 'list' as const, label: 'List layout', Icon: List },
                 { layout: 'card' as const, label: 'Card layout', Icon: Rows3 },
@@ -229,7 +244,7 @@ export function MediaCatalogPanelView({
                   </button>
                 )
               })}
-            </section>
+            </section> : null}
           </>
         )}
         searchControl={(
@@ -238,7 +253,7 @@ export function MediaCatalogPanelView({
             id="kg-media-catalog-search"
             buttonLabel="Search media"
             panelLabel="Search media catalog"
-            placeholder="Search media"
+            placeholder={catalogMode === 'xr-3d' ? 'Search 3D XR library' : 'Search media'}
             affordanceDataAttributes={{
               'data-kg-media-search-affordance': '1',
               'data-kg-media-search-overlay-anchor': '1',
@@ -255,8 +270,10 @@ export function MediaCatalogPanelView({
           />
         )}
       />
-      <section ref={panelRef} className={floatingPanelCatalogBodyClassName(previewItem ? 'overflow-hidden' : undefined)} data-kg-floating-panel-catalog-body="media">
-        {previewItem ? (
+      <section ref={panelRef} className={floatingPanelCatalogBodyClassName(catalogMode === 'media' && previewItem ? 'overflow-hidden' : undefined)} data-kg-floating-panel-catalog-body="media">
+        {catalogMode === 'xr-3d' ? (
+          <XrMediaLibraryPanel searchText={normalizedSearchQuery} />
+        ) : previewItem ? (
           <MediaCatalogRichMediaPreview
             item={previewItem}
             items={visibleUploadedMediaItems}

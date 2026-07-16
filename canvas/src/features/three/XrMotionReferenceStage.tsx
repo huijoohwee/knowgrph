@@ -15,6 +15,7 @@ import {
 import { THREE_RENDER_ORDER } from '@/features/three/renderOrder'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { XrSceneLibrarySubject } from '@/features/three/XrSceneLibrarySubject'
 
 const STRUCTURE_TONES = {
   light: '#94a3b8',
@@ -73,11 +74,13 @@ function CastTrack({
   playheadSeconds,
   scale,
   floorDepth,
+  renderLiveActor,
 }: {
   track: ReturnType<typeof readXrMotionReferenceRuntime>['plan']['cast'][number]
   playheadSeconds: number
   scale: number
   floorDepth: number
+  renderLiveActor: boolean
 }) {
   const sampled = sampleXrMotionReferenceMarks(track.marks, playheadSeconds)
   const sampledPosition = stagePosition(sampled, scale, floorDepth)
@@ -104,7 +107,7 @@ function CastTrack({
           </mesh>
         )
       })}
-      <group name={`kg_xr_motion_cast_live_${track.actorId}`} position={sampledPosition}>
+      {renderLiveActor ? <group name={`kg_xr_motion_cast_live_${track.actorId}`} position={sampledPosition}>
         <mesh position={[0, 0, scale * 0.92]}>
           <boxGeometry args={[scale * 0.54, scale * 0.36, scale * 1.25]} />
           <meshStandardMaterial color={track.color} roughness={0.92} metalness={0} />
@@ -113,7 +116,7 @@ function CastTrack({
           <sphereGeometry args={[scale * 0.3, 18, 12]} />
           <meshStandardMaterial color={track.color} roughness={0.86} metalness={0} />
         </mesh>
-      </group>
+      </group> : null}
     </group>
   )
 }
@@ -128,6 +131,10 @@ export function XrMotionReferenceStage({
   floorDepth: number
 }) {
   const documentName = useGraphStore(state => state.markdownDocumentName)
+  const canonicalGraphData = useGraphStore(state => state.graphData)
+  const persistedValue = canonicalGraphData
+    ? canonicalGraphData.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]
+    : graphData?.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]
   const runtime = React.useSyncExternalStore(
     subscribeXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
@@ -142,14 +149,15 @@ export function XrMotionReferenceStage({
     hydrateXrMotionReferenceRuntime({
       sceneKey,
       nodes,
-      persistedValue: graphData?.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY],
+      persistedValue,
     })
-  }, [graphData?.metadata, nodes, sceneKey])
+  }, [graphData?.metadata, nodes, persistedValue, sceneKey])
   const stage = resolveXrMotionReferenceStage(runtime.plan.stageId)
   const scale = span / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
   const floorWidth = stage.sizeMeters[0] * scale
   const floorHeight = stage.sizeMeters[1] * scale
   const floorThickness = Math.max(0.5, scale * 0.08)
+  const subjectIds = React.useMemo(() => new Set(runtime.plan.subjects.map(subject => subject.id)), [runtime.plan.subjects])
 
   return (
     <group
@@ -195,8 +203,25 @@ export function XrMotionReferenceStage({
             playheadSeconds={runtime.playheadSeconds}
             scale={scale}
             floorDepth={floorDepth + floorThickness}
+            renderLiveActor={!subjectIds.has(track.actorId)}
           />
         ))}
+      </group>
+      <group name="kg_xr_scene_library_subjects">
+        {runtime.plan.subjects.map(subject => {
+          const track = runtime.plan.cast.find(candidate => candidate.actorId === subject.id)
+          const subjectPosition = track
+            ? sampleXrMotionReferenceMarks(track.marks, runtime.playheadSeconds)
+            : subject.position
+          return (
+            <XrSceneLibrarySubject
+              key={subject.id}
+              subject={subject}
+              position={stagePosition(subjectPosition, scale, floorDepth + floorThickness)}
+              stageScale={scale}
+            />
+          )
+        })}
       </group>
       <group name="kg_xr_motion_camera_track">
         {runtime.plan.camera.length === 0 ? (

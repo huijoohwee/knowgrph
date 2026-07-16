@@ -5,23 +5,25 @@ import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions
 import {
   XR_MOTION_REFERENCE_PACKAGE_SCHEMA,
   XR_MOTION_REFERENCE_SCHEMA,
-  buildXrMotionReferencePackage,
   readXrMotionReferencePlan,
   sampleXrMotionReferenceMarks,
   serializeXrMotionReferencePlan,
-  xrMotionReferencePackageBlob,
-  xrMotionReferencePackageFilename,
 } from '@/features/three/xrMotionReferenceModel'
+import { buildXrMotionReferencePackage, xrMotionReferencePackageBlob, xrMotionReferencePackageFilename } from '@/features/three/xrMotionReferencePackage'
 import {
+  addXrMotionReferenceSubject,
   hydrateXrMotionReferenceRuntime,
   readXrMotionReferenceRuntime,
+  removeXrMotionReferenceSubject,
   setXrMotionReferenceCameraMark,
   setXrMotionReferenceCastMark,
   setXrMotionReferenceDuration,
   setXrMotionReferenceFps,
   setXrMotionReferencePlayhead,
   setXrMotionReferenceStage,
+  setXrMotionReferenceSubjectLabel,
 } from '@/features/three/xrMotionReferenceRuntime'
+import { XR_MOTION_REFERENCE_STAGE_PRESETS, XR_SCENE_LIBRARY_ASSETS } from '@/features/three/xrSceneLibrary'
 import { buildXrMotionReferenceTimelineCode } from '@/features/three/xrMotionReferenceTimeline'
 import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { resolveVideoSequenceTimelineLane } from '@/components/timeline/videoSequenceTimeline'
@@ -241,11 +243,48 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     throw new Error('expected motion identity to change with choreography while graph identity remains stable')
   }
 
+  const requiredEnvironmentIds = ['downtown', 'residential-street', 'supermarket', 'movie-theater', 'train-car', 'backyard-pool', 'aerial-sky']
+  if (!requiredEnvironmentIds.every(id => XR_MOTION_REFERENCE_STAGE_PRESETS.some(stage => stage.id === id))) {
+    throw new Error('expected the native XR library to include every requested environment kit')
+  }
+  const categories = new Set(XR_SCENE_LIBRARY_ASSETS.map(asset => asset.category))
+  if (!['people', 'animals', 'vehicles', 'furniture', 'props'].every(category => categories.has(category as never))) {
+    throw new Error(`expected a complete native XR subject library, got ${[...categories].join(',')}`)
+  }
+  hydrateXrMotionReferenceRuntime({ sceneKey: 'library-scene', nodes: [], persistedValue: null })
+  setXrMotionReferenceStage('downtown')
+  addXrMotionReferenceSubject({ assetId: 'person-adult', label: 'THIEF' })
+  addXrMotionReferenceSubject({ assetId: 'furniture-chair', label: 'GETAWAY CHAIR' })
+  let libraryPlan = readXrMotionReferenceRuntime().plan
+  const mobileSubject = libraryPlan.subjects.find(subject => subject.label === 'THIEF')
+  const staticSubject = libraryPlan.subjects.find(subject => subject.label === 'GETAWAY CHAIR')
+  if (libraryPlan.stageId !== 'downtown' || !mobileSubject || !staticSubject || !libraryPlan.cast.some(track => track.actorId === mobileSubject.id) || libraryPlan.cast.some(track => track.actorId === staticSubject.id)) {
+    throw new Error(`expected mobile library subjects to become markable cast while furniture stays static, got ${JSON.stringify(libraryPlan)}`)
+  }
+  setXrMotionReferenceSubjectLabel(mobileSubject.id, 'RUNNER')
+  libraryPlan = readXrMotionReferenceRuntime().plan
+  if (libraryPlan.subjects.find(subject => subject.id === mobileSubject.id)?.label !== 'RUNNER' || libraryPlan.cast.find(track => track.actorId === mobileSubject.id)?.label !== 'RUNNER') {
+    throw new Error('expected subject labels and cast labels to remain synchronized')
+  }
+  const libraryBundle = buildXrMotionReferencePackage({ plan: libraryPlan, graphData: { ...graphData, nodes: [] }, documentName: 'Downtown chase.md' })
+  const subjectFile = libraryBundle.files.find(file => file.path === 'reference/subjects.json')
+  const libraryManifest = JSON.parse(libraryBundle.files.find(file => file.path === 'reference/manifest.json')!.text) as { placedSubjects?: number }
+  if (!subjectFile || libraryManifest.placedSubjects !== 2 || !libraryBundle.files.find(file => file.path === 'reference/frame-samples.json')?.text.includes('RUNNER')) {
+    throw new Error('expected placed and labeled XR subjects in the deterministic export package')
+  }
+  removeXrMotionReferenceSubject(staticSubject.id)
+  if (readXrMotionReferenceRuntime().plan.subjects.length !== 1) throw new Error('expected placed static subjects to be removable')
+
   const stageSource = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
   const emptyWorldSource = readSource('features', 'three', 'XrEmptyWorldStage.tsx')
   const emptyWorldHudSource = readSource('features', 'three', 'XrEmptyWorldHud.tsx')
   const modelSource = readSource('features', 'three', 'xrMotionReferenceModel.ts')
+  const packageSource = readSource('features', 'three', 'xrMotionReferencePackage.ts')
   const runtimeSource = readSource('features', 'three', 'xrMotionReferenceRuntime.ts')
+  const sceneLibrarySource = readSource('features', 'three', 'xrSceneLibrary.ts')
+  const sceneSubjectSource = readSource('features', 'three', 'XrSceneLibrarySubject.tsx')
+  const mediaCatalogViewSource = readSource('features', 'command-menu', 'MediaCatalogPanelView.tsx')
+  const xrMediaLibrarySource = readSource('features', 'command-menu', 'XrMediaLibraryPanel.tsx')
   const xrPanelSource = readSource('features', 'three', 'XrPanelView.tsx')
   const timelineBottomPanelSource = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
   const xrTimelineLaneSource = readSource('features', 'three', 'XrTimelineSceneLane.tsx')
@@ -271,12 +310,21 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     'data-kg-xr-motion-add-camera-mark="1"',
     'data-kg-xr-motion-save="1"',
     'data-kg-xr-motion-export="1"',
-    "documentLoaded ? `${nodes} cast · ${edges} links` : 'World ready'",
+    "documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'",
     'updateGraphMetadata',
     'readCameraFramingRuntime',
     'downloadBlob',
   ]) {
     if (!xrTimelineLaneSource.includes(marker)) throw new Error(`expected XR Timeline player controls to expose ${marker}`)
+  }
+  for (const marker of ['data-kg-media-xr-3d-toggle="1"', '<XrMediaLibraryPanel', '3D for XR']) {
+    if (!mediaCatalogViewSource.includes(marker)) throw new Error(`expected FloatingPanel Media to expose ${marker}`)
+  }
+  for (const marker of ['data-kg-media-xr-environments="1"', 'data-kg-media-xr-subject-library="1"', 'data-kg-media-xr-next-label="1"', 'addXrMotionReferenceSubject', 'setXrMotionReferenceSubjectLabel']) {
+    if (!xrMediaLibrarySource.includes(marker)) throw new Error(`expected the native XR Media library to expose ${marker}`)
+  }
+  if (!sceneLibrarySource.includes("id: 'downtown'") || !sceneLibrarySource.includes("id: 'backyard-pool'") || !sceneSubjectSource.includes('kg_xr_scene_subject_') || !packageSource.includes("reference/subjects.json")) {
+    throw new Error('expected environment, procedural subject, and package owners to remain source-backed')
   }
   for (const marker of [
     'kg_xr_motion_reference_stage',
@@ -401,7 +449,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (!stageSource.includes('Math.hypot(dx, dy, dz)') || !stageSource.includes('setFromUnitVectors')) {
     throw new Error('expected cast and camera paths to preserve vertical Y-up movement in their 3D segment transform')
   }
-  if (!stageSource.includes('stagePosition(mark.pose.target') || !modelSource.includes('point(mark.pose.target)')) {
+  if (!stageSource.includes('stagePosition(mark.pose.target') || !packageSource.includes('point(mark.pose.target)')) {
     throw new Error('expected 3D and SVG camera previews to orient markers toward each captured target')
   }
   if (!xrTimelineLaneSource.includes('readCameraFramingRuntime') || !xrTimelineLaneSource.includes('Capture camera')) {
@@ -417,7 +465,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     throw new Error('expected package export to retain the shared blob-download owner')
   }
 
-  const implementation = [xrTimelineLaneSource, xrTimelineProjectionSource, stageSource, emptyWorldSource, emptyWorldHudSource, modelSource, runtimeSource].join('\n').toLowerCase()
+  const implementation = [xrTimelineLaneSource, xrTimelineProjectionSource, stageSource, emptyWorldSource, emptyWorldHudSource, modelSource, packageSource, runtimeSource, sceneLibrarySource, sceneSubjectSource, xrMediaLibrarySource].join('\n').toLowerCase()
   for (const forbidden of ['wassermanproductions', 'blockout', 'ffmpeg', 'electron-vite']) {
     if (implementation.includes(forbidden)) {
       throw new Error(`expected clean-room XR implementation to avoid external runtime token ${forbidden}`)
@@ -429,6 +477,8 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     throw new Error('expected package manifests to forbid external repository dependency')
   }
 
+  hydrateXrMotionReferenceRuntime({ sceneKey: 'test-scene', nodes: graphData.nodes, persistedValue: serialized })
+  setXrMotionReferenceStage('street-grid')
   hydrateXrMotionReferenceRuntime({
     sceneKey: 'test-scene',
     nodes: [{ ...graphData.nodes[1]!, label: 'Partner renamed' }],

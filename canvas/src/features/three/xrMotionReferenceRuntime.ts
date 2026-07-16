@@ -2,14 +2,18 @@ import type { GraphNode } from '@/lib/graph/types'
 import type { StrybldrCameraSettings } from '@/features/strybldr/strybldrCamera'
 import {
   readXrMotionReferencePlan,
+  resolveXrMotionReferenceStage,
   serializeXrMotionReferencePlan,
   XR_MOTION_REFERENCE_MAX_CAMERA_MARKS,
+  XR_MOTION_REFERENCE_MAX_CAST_TRACKS,
   XR_MOTION_REFERENCE_MAX_CAST_MARKS,
+  XR_MOTION_REFERENCE_MAX_SUBJECTS,
   type XrMotionReferencePlan,
   type XrMotionReferenceStageId,
   type XrMotionReferenceTransition,
   type XrMotionReferenceVector,
 } from '@/features/three/xrMotionReferenceModel'
+import { resolveXrSceneLibraryAsset } from '@/features/three/xrSceneLibrary'
 
 export type XrMotionReferenceRuntimeSnapshot = Readonly<{
   sceneKey: string
@@ -139,6 +143,75 @@ export function setXrMotionReferenceDuration(durationSeconds: number): XrMotionR
 
 export function setXrMotionReferenceFps(fps: number): XrMotionReferenceRuntimeSnapshot {
   return updatePlan({ ...planRecord(snapshot.plan), fps })
+}
+
+function nextSubjectPlacement(index: number): XrMotionReferenceVector {
+  const stage = resolveXrMotionReferenceStage(snapshot.plan.stageId)
+  const columns = Math.max(2, Math.min(6, Math.floor(stage.sizeMeters[0] / 4)))
+  const column = index % columns
+  const row = Math.floor(index / columns)
+  const xStep = Math.min(3.2, stage.sizeMeters[0] / Math.max(columns + 1, 1))
+  const zStep = Math.min(3.2, stage.sizeMeters[1] / 5)
+  return [
+    Number(((column - (columns - 1) / 2) * xStep).toFixed(3)),
+    0,
+    Number((Math.min(stage.sizeMeters[1] * 0.32, row * zStep) - stage.sizeMeters[1] * 0.16).toFixed(3)),
+  ]
+}
+
+function nextSubjectId(assetId: string): string {
+  const prefix = `xr-subject:${assetId}:`
+  const used = new Set(snapshot.plan.subjects.map(subject => subject.id))
+  let ordinal = 1
+  while (used.has(`${prefix}${ordinal}`) && ordinal <= XR_MOTION_REFERENCE_MAX_SUBJECTS) ordinal += 1
+  return `${prefix}${ordinal}`
+}
+
+export function addXrMotionReferenceSubject(args: {
+  assetId: string
+  label?: string
+}): XrMotionReferenceRuntimeSnapshot {
+  if (snapshot.plan.subjects.length >= XR_MOTION_REFERENCE_MAX_SUBJECTS) return snapshot
+  const asset = resolveXrSceneLibraryAsset(args.assetId)
+  const plan = planRecord(snapshot.plan)
+  const id = nextSubjectId(asset.id)
+  const label = String(args.label || asset.label).trim().slice(0, 80) || asset.label
+  const position = nextSubjectPlacement(snapshot.plan.subjects.length)
+  const subjects = Array.isArray(plan.subjects) ? plan.subjects.slice() : []
+  subjects.push({ id, assetId: asset.id, label, color: asset.defaultColor, position: [...position], rotationYDegrees: 0, scale: 1 })
+  const cast = Array.isArray(plan.cast) ? plan.cast.slice() : []
+  if (asset.mobile && cast.length < XR_MOTION_REFERENCE_MAX_CAST_TRACKS) {
+    cast.push({ actorId: id, label, marks: [{ timeSeconds: 0, position: [...position], transition: 'linear' }] })
+  }
+  return updatePlan({ ...plan, subjects, cast })
+}
+
+export function setXrMotionReferenceSubjectLabel(subjectIdValue: string, nextLabelValue: string): XrMotionReferenceRuntimeSnapshot {
+  const subjectId = String(subjectIdValue || '').trim()
+  const nextLabel = String(nextLabelValue || '').trim().slice(0, 80)
+  if (!subjectId || !nextLabel) return snapshot
+  const plan = planRecord(snapshot.plan)
+  const subjects = snapshot.plan.subjects.map(subject => (
+    subject.id === subjectId ? { ...subject, label: nextLabel } : subject
+  ))
+  if (!subjects.some(subject => subject.id === subjectId)) return snapshot
+  const cast = snapshot.plan.cast.map(track => (
+    track.actorId === subjectId
+      ? { actorId: track.actorId, label: nextLabel, marks: track.marks.map(mark => ({ timeSeconds: mark.timeSeconds, position: [...mark.position], transition: mark.transition })) }
+      : { actorId: track.actorId, label: track.label, marks: track.marks.map(mark => ({ timeSeconds: mark.timeSeconds, position: [...mark.position], transition: mark.transition })) }
+  ))
+  return updatePlan({ ...plan, subjects, cast })
+}
+
+export function removeXrMotionReferenceSubject(subjectIdValue: string): XrMotionReferenceRuntimeSnapshot {
+  const subjectId = String(subjectIdValue || '').trim()
+  if (!snapshot.plan.subjects.some(subject => subject.id === subjectId)) return snapshot
+  const plan = planRecord(snapshot.plan)
+  const subjects = snapshot.plan.subjects.filter(subject => subject.id !== subjectId)
+  const cast = snapshot.plan.cast
+    .filter(track => track.actorId !== subjectId)
+    .map(track => ({ actorId: track.actorId, label: track.label, marks: track.marks.map(mark => ({ timeSeconds: mark.timeSeconds, position: [...mark.position], transition: mark.transition })) }))
+  return updatePlan({ ...plan, subjects, cast })
 }
 
 export function setXrMotionReferencePlayhead(timeSeconds: number): XrMotionReferenceRuntimeSnapshot {

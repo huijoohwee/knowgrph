@@ -5,29 +5,31 @@ import {
   serializeStrybldrCameraSettings,
   type StrybldrCameraSettings,
 } from '@/features/strybldr/strybldrCamera'
+import {
+  XR_MOTION_REFERENCE_STAGE_PRESETS,
+  isXrSceneLibraryAssetId,
+  resolveXrMotionReferenceStage,
+  resolveXrSceneLibraryAsset,
+  type XrMotionReferenceStageId,
+  type XrMotionReferenceVector,
+} from '@/features/three/xrSceneLibrary'
+
+export {
+  XR_MOTION_REFERENCE_STAGE_PRESETS,
+  resolveXrMotionReferenceStage,
+} from '@/features/three/xrSceneLibrary'
+export type {
+  XrGreyBoxStructure,
+  XrMotionReferenceStageId,
+  XrMotionReferenceStagePreset,
+  XrMotionReferenceVector,
+} from '@/features/three/xrSceneLibrary'
 
 export const XR_MOTION_REFERENCE_GRAPH_METADATA_KEY = 'kgXrMotionReference'
 export const XR_MOTION_REFERENCE_SCHEMA = 'knowgrph-xr-motion-reference/v1'
 export const XR_MOTION_REFERENCE_PACKAGE_SCHEMA = 'knowgrph-xr-motion-reference-package/v1'
 
-export type XrMotionReferenceStageId = 'neutral-volume' | 'street-grid' | 'loading-bay'
 export type XrMotionReferenceTransition = 'linear' | 'hold'
-export type XrMotionReferenceVector = readonly [number, number, number]
-
-export type XrGreyBoxStructure = Readonly<{
-  id: string
-  position: XrMotionReferenceVector
-  size: XrMotionReferenceVector
-  tone: 'light' | 'mid' | 'dark' | 'accent'
-}>
-
-export type XrMotionReferenceStagePreset = Readonly<{
-  id: XrMotionReferenceStageId
-  label: string
-  description: string
-  sizeMeters: readonly [number, number]
-  structures: readonly XrGreyBoxStructure[]
-}>
 
 export type XrMotionReferenceMark = Readonly<{
   id: string
@@ -51,11 +53,23 @@ export type XrMotionReferenceCameraMark = Readonly<{
   pose: CameraFramingPose
 }>
 
+export type XrMotionReferenceSubject = Readonly<{
+  id: string
+  assetId: string
+  category: 'people' | 'animals' | 'vehicles' | 'furniture' | 'props'
+  label: string
+  color: string
+  position: XrMotionReferenceVector
+  rotationYDegrees: number
+  scale: number
+}>
+
 export type XrMotionReferencePlan = Readonly<{
   schema: typeof XR_MOTION_REFERENCE_SCHEMA
   stageId: XrMotionReferenceStageId
   durationSeconds: number
   fps: number
+  subjects: readonly XrMotionReferenceSubject[]
   cast: readonly XrMotionReferenceCastTrack[]
   camera: readonly XrMotionReferenceCameraMark[]
 }>
@@ -98,7 +112,8 @@ export type XrMotionReferencePackage = Readonly<{
   files: readonly XrMotionReferencePackageFile[]
 }>
 
-const MAX_CAST_TRACKS = 12
+export const XR_MOTION_REFERENCE_MAX_CAST_TRACKS = 12
+export const XR_MOTION_REFERENCE_MAX_SUBJECTS = 48
 export const XR_MOTION_REFERENCE_MAX_CAST_MARKS = 32
 export const XR_MOTION_REFERENCE_MAX_CAMERA_MARKS = 32
 const MIN_DURATION_SECONDS = 1
@@ -112,48 +127,6 @@ const CAST_COLORS = [
   '#38bdf8', '#f97316', '#a78bfa', '#22c55e', '#f43f5e', '#eab308',
   '#14b8a6', '#ec4899', '#60a5fa', '#84cc16', '#fb7185', '#c084fc',
 ] as const
-
-export const XR_MOTION_REFERENCE_STAGE_PRESETS: readonly XrMotionReferenceStagePreset[] = [
-  {
-    id: 'neutral-volume',
-    label: 'Neutral Volume',
-    description: 'Open rehearsal floor with framing flats and a raised focus deck.',
-    sizeMeters: [16, 12],
-    structures: [
-      { id: 'back-flat', position: [0, 2.4, -5.7], size: [16, 4.8, 0.3], tone: 'mid' },
-      { id: 'left-flat', position: [-7.7, 1.8, 0], size: [0.3, 3.6, 12], tone: 'dark' },
-      { id: 'right-flat', position: [7.7, 1.8, 0], size: [0.3, 3.6, 12], tone: 'dark' },
-      { id: 'focus-deck', position: [0, 0.2, 2.7], size: [5.2, 0.4, 2.4], tone: 'light' },
-    ],
-  },
-  {
-    id: 'street-grid',
-    label: 'Street Grid',
-    description: 'Road channel, walkable edges, and neutral building masses for exterior blocking.',
-    sizeMeters: [20, 14],
-    structures: [
-      { id: 'west-block', position: [-7.6, 2.8, 0], size: [4.2, 5.6, 13], tone: 'mid' },
-      { id: 'east-block', position: [7.6, 3.4, 0], size: [4.2, 6.8, 13], tone: 'dark' },
-      { id: 'west-walk', position: [-4.8, 0.15, 0], size: [1.4, 0.3, 13], tone: 'light' },
-      { id: 'east-walk', position: [4.8, 0.15, 0], size: [1.4, 0.3, 13], tone: 'light' },
-      { id: 'crossing', position: [0, 0.04, 1.8], size: [8.2, 0.08, 1.4], tone: 'accent' },
-    ],
-  },
-  {
-    id: 'loading-bay',
-    label: 'Loading Bay',
-    description: 'Deep industrial floor with columns, dock, and movable grey-box obstacles.',
-    sizeMeters: [18, 14],
-    structures: [
-      { id: 'rear-wall', position: [0, 3, -6.7], size: [18, 6, 0.3], tone: 'dark' },
-      { id: 'dock', position: [0, 0.65, -4.8], size: [8, 1.3, 3], tone: 'mid' },
-      { id: 'column-a', position: [-5.4, 2.2, 0], size: [0.6, 4.4, 0.6], tone: 'light' },
-      { id: 'column-b', position: [5.4, 2.2, 0], size: [0.6, 4.4, 0.6], tone: 'light' },
-      { id: 'crate-a', position: [-2.8, 0.75, 2.4], size: [1.5, 1.5, 1.5], tone: 'accent' },
-      { id: 'crate-b', position: [3.1, 1.1, 1.4], size: [2.2, 2.2, 2.2], tone: 'mid' },
-    ],
-  },
-]
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -284,35 +257,71 @@ function normalizeCameraMarks(
     .map(({ index: _index, ...mark }) => Object.freeze(mark)))
 }
 
-function resolveCast(nodes: readonly GraphNode[], value: unknown, durationSeconds: number): readonly XrMotionReferenceCastTrack[] {
-  const savedById = new Map(
-    (Array.isArray(value) ? value : [])
-      .map(item => asRecord(item))
-      .map(item => [String(item.actorId || '').trim(), item] as const)
-      .filter(([actorId]) => actorId),
-  )
-  return Object.freeze(nodes.slice(0, MAX_CAST_TRACKS).map((node, index) => {
-    const actorId = String(node.id || '').trim() || `actor-${index + 1}`
+function resolveCast(
+  nodes: readonly GraphNode[],
+  value: unknown,
+  durationSeconds: number,
+  preservedActorIds: ReadonlySet<string>,
+): readonly XrMotionReferenceCastTrack[] {
+  const savedRecords = (Array.isArray(value) ? value : [])
+    .map(item => asRecord(item))
+    .filter(item => String(item.actorId || '').trim())
+  const savedById = new Map(savedRecords.map(item => [String(item.actorId || '').trim(), item] as const))
+  const graphActors = nodes.map(node => ({
+    actorId: String(node.id || '').trim(),
+    label: String(node.label || '').trim(),
+  }))
+  const graphActorIds = new Set(graphActors.map(actor => actor.actorId))
+  const savedActors = savedRecords
+    .map(saved => ({ actorId: String(saved.actorId || '').trim(), label: String(saved.label || '').trim() }))
+    .filter(actor => actor.actorId && !graphActorIds.has(actor.actorId) && preservedActorIds.has(actor.actorId))
+  return Object.freeze([...graphActors, ...savedActors].slice(0, XR_MOTION_REFERENCE_MAX_CAST_TRACKS).map((actor, index) => {
+    const actorId = actor.actorId || `actor-${index + 1}`
     const saved = savedById.get(actorId) || {}
     const fallbackPosition = defaultActorPosition(index)
     return Object.freeze({
       actorId,
-      label: String(node.label || saved.label || actorId).trim().slice(0, 80) || actorId,
+      label: String(actor.label || saved.label || actorId).trim().slice(0, 80) || actorId,
       color: CAST_COLORS[index % CAST_COLORS.length],
       marks: normalizeMarks(saved.marks, actorId, durationSeconds, fallbackPosition),
     })
   }))
 }
 
+function normalizeSubjects(value: unknown): readonly XrMotionReferenceSubject[] {
+  const byId = new Map<string, XrMotionReferenceSubject>()
+  const source = Array.isArray(value) ? value.slice(0, XR_MOTION_REFERENCE_MAX_SUBJECTS) : []
+  source.forEach((item, index) => {
+    const record = asRecord(item)
+    if (!isXrSceneLibraryAssetId(record.assetId)) return
+    const asset = resolveXrSceneLibraryAsset(String(record.assetId || ''))
+    const id = String(record.id || '').trim().slice(0, 96) || `xr-subject:${asset.id}:${index + 1}`
+    const rawColor = String(record.color || '').trim()
+    byId.set(id, Object.freeze({
+      id,
+      assetId: asset.id,
+      category: asset.category,
+      label: String(record.label || asset.label).trim().slice(0, 80) || asset.label,
+      color: /^#[0-9a-f]{6}$/i.test(rawColor) ? rawColor.toLowerCase() : asset.defaultColor,
+      position: normalizeVector(record.position),
+      rotationYDegrees: round(clamp(finiteNumber(record.rotationYDegrees, 0), -180, 180), 2),
+      scale: round(clamp(finiteNumber(record.scale, 1), 0.25, 4), 3),
+    }))
+  })
+  return Object.freeze([...byId.values()])
+}
+
 export function readXrMotionReferencePlan(value: unknown, nodes: readonly GraphNode[] = []): XrMotionReferencePlan {
   const record = asRecord(value)
   const durationSeconds = normalizeDuration(record.durationSeconds)
-  const cast = resolveCast(nodes, record.cast, durationSeconds)
+  const subjects = normalizeSubjects(record.subjects)
+  const cast = resolveCast(nodes, record.cast, durationSeconds, new Set(subjects.map(subject => subject.id)))
   return Object.freeze({
     schema: XR_MOTION_REFERENCE_SCHEMA,
     stageId: normalizeStageId(record.stageId),
     durationSeconds,
     fps: normalizeFps(record.fps),
+    subjects,
     cast,
     camera: normalizeCameraMarks(record.camera, durationSeconds, cast),
   })
@@ -328,6 +337,15 @@ export function serializeXrMotionReferencePlan(plan: XrMotionReferencePlan): JSO
     stageId: plan.stageId,
     durationSeconds: plan.durationSeconds,
     fps: plan.fps,
+    subjects: plan.subjects.map(subject => ({
+      id: subject.id,
+      assetId: subject.assetId,
+      label: subject.label,
+      color: subject.color,
+      position: [...subject.position],
+      rotationYDegrees: subject.rotationYDegrees,
+      scale: subject.scale,
+    })),
     cast: plan.cast.map(track => ({
       actorId: track.actorId,
       label: track.label,
@@ -343,10 +361,6 @@ export function serializeXrMotionReferencePlan(plan: XrMotionReferencePlan): JSO
       settings: serializeStrybldrCameraSettings(mark.settings),
     })),
   } as JSONValue
-}
-
-export function resolveXrMotionReferenceStage(stageId: XrMotionReferenceStageId): XrMotionReferenceStagePreset {
-  return XR_MOTION_REFERENCE_STAGE_PRESETS.find(preset => preset.id === stageId) || XR_MOTION_REFERENCE_STAGE_PRESETS[0]!
 }
 
 function interpolateVector(left: XrMotionReferenceVector, right: XrMotionReferenceVector, progress: number): XrMotionReferenceVector {
@@ -380,7 +394,7 @@ export function sampleXrMotionReferenceMarks(marks: readonly XrMotionReferenceMa
   return last.position
 }
 
-function sampleCameraPose(marks: readonly XrMotionReferenceCameraMark[], timeSeconds: number): CameraFramingPose | null {
+export function sampleXrMotionReferenceCameraPose(marks: readonly XrMotionReferenceCameraMark[], timeSeconds: number): CameraFramingPose | null {
   if (marks.length === 0) return null
   if (timeSeconds <= marks[0]!.timeSeconds) return marks[0]!.pose
   const last = marks[marks.length - 1]!
@@ -398,200 +412,4 @@ function sampleCameraPose(marks: readonly XrMotionReferenceCameraMark[], timeSec
     })
   }
   return last.pose
-}
-
-function hashText(value: string): string {
-  let hash = 0x811c9dc5
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index)
-    hash = Math.imul(hash, 0x01000193)
-  }
-  return (hash >>> 0).toString(16).padStart(8, '0')
-}
-
-function graphFingerprint(graphData: GraphData): string {
-  const nodes = graphData.nodes.map(node => [node.id, node.label, node.type]).sort((a, b) => a[0].localeCompare(b[0]))
-  const edges = graphData.edges.map(edge => [edge.id, edge.source, edge.target, edge.type || '']).sort((a, b) => a[0].localeCompare(b[0]))
-  return hashText(JSON.stringify({ type: graphData.type, nodes, edges }))
-}
-
-function safeFilenameStem(value: string): string {
-  const stem = value.trim().replace(/\.[a-z0-9]+$/i, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()
-  return stem.slice(0, 56) || 'scene'
-}
-
-function escapeXml(value: string): string {
-  return value.replace(/[&<>"']/g, token => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[token] || token)
-}
-
-function buildTopDownSvg(plan: XrMotionReferencePlan): string {
-  const stage = resolveXrMotionReferenceStage(plan.stageId)
-  const width = 1000
-  const height = 700
-  const scaleX = width / stage.sizeMeters[0]
-  const scaleZ = height / stage.sizeMeters[1]
-  const point = (position: XrMotionReferenceVector) => ({
-    x: round(width / 2 + position[0] * scaleX, 2),
-    y: round(height / 2 + position[2] * scaleZ, 2),
-  })
-  const structureRows = stage.structures.map(structure => {
-    const p = point(structure.position)
-    const boxWidth = round(structure.size[0] * scaleX, 2)
-    const boxHeight = round(structure.size[2] * scaleZ, 2)
-    return `<rect x="${round(p.x - boxWidth / 2, 2)}" y="${round(p.y - boxHeight / 2, 2)}" width="${boxWidth}" height="${boxHeight}" class="${structure.tone}"/>`
-  })
-  const castRows = plan.cast.flatMap(track => {
-    const points = track.marks.map(mark => point(mark.position))
-    const path = points.map(item => `${item.x},${item.y}`).join(' ')
-    return [
-      `<polyline points="${path}" fill="none" stroke="${track.color}" stroke-width="4"/>`,
-      ...points.map((item, index) => `<g><circle cx="${item.x}" cy="${item.y}" r="10" fill="${track.color}"/><text x="${item.x + 14}" y="${item.y - 12}">${escapeXml(track.label)} ${index + 1}</text></g>`),
-    ]
-  })
-  const cameraRows = plan.camera.map((mark, index) => {
-    const p = point(mark.pose.position)
-    const target = point(mark.pose.target)
-    const angle = round(Math.atan2(target.y - p.y, target.x - p.x) * 180 / Math.PI, 2)
-    return `<g transform="translate(${p.x} ${p.y}) rotate(${angle})"><path d="M 14 0 L -10 10 L -10 -10 Z" class="camera"/></g><text x="${p.x + 14}" y="${p.y}">C${index + 1} ${mark.timeSeconds}s</text>`
-  })
-  return [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" viewBox="0 0 1000 700">',
-    '<style>text{font:16px system-ui;fill:#e2e8f0}.light{fill:#64748b}.mid{fill:#475569}.dark{fill:#1e293b}.accent{fill:#0f766e}.camera{fill:#f8fafc}</style>',
-    '<rect width="1000" height="700" fill="#0f172a"/>',
-    ...structureRows,
-    ...castRows,
-    ...cameraRows,
-    '</svg>',
-    '',
-  ].join('\n')
-}
-
-function buildGeneratorBrief(plan: XrMotionReferencePlan): string {
-  const stage = resolveXrMotionReferenceStage(plan.stageId)
-  const castLines = plan.cast.map(track => {
-    const marks = track.marks.map(mark => `${mark.timeSeconds}s (${mark.position.join(', ')}) [${mark.transition}]`).join(' → ')
-    return `- ${track.label}: ${marks}`
-  })
-  const cameraLines = plan.camera.map(mark => (
-    `- ${mark.timeSeconds}s: ${mark.settings.shot}, ${mark.settings.angle}, ${mark.settings.level}; position (${mark.pose.position.join(', ')})`
-  ))
-  return [
-    'Use the attached Knowgrph XR data as the motion and spatial reference for one continuous shot.',
-    `Stage: ${stage.label}. ${stage.description}`,
-    `Duration: ${plan.durationSeconds}s at ${plan.fps} fps.`,
-    'Preserve subject identities, mark order, timing, screen direction, and camera path. Treat grey boxes as spatial constraints rather than final art direction.',
-    '',
-    'Cast blocking:',
-    ...(castLines.length ? castLines : ['- No cast tracks.']),
-    '',
-    'Camera choreography:',
-    ...(cameraLines.length ? cameraLines : ['- No camera marks; use a locked neutral camera.']),
-    '',
-  ].join('\n')
-}
-
-function buildMotionSamples(plan: XrMotionReferencePlan): unknown[] {
-  const frameCount = Math.floor(plan.durationSeconds * plan.fps) + 1
-  return Array.from({ length: frameCount }, (_item, frame) => {
-    const timeSeconds = round(Math.min(plan.durationSeconds, frame / plan.fps), 4)
-    return {
-      frame,
-      timeSeconds,
-      camera: sampleCameraPose(plan.camera, timeSeconds),
-      cast: plan.cast.map(track => ({
-        actorId: track.actorId,
-        position: sampleXrMotionReferenceMarks(track.marks, timeSeconds),
-      })),
-    }
-  })
-}
-
-function jsonFile(path: string, value: unknown): XrMotionReferencePackageFile {
-  return Object.freeze({ path, mimeType: 'application/json', text: `${JSON.stringify(value, null, 2)}\n` })
-}
-
-export function buildXrMotionReferencePackage(args: {
-  plan: XrMotionReferencePlan
-  graphData: GraphData
-  documentName: string
-}): XrMotionReferencePackage {
-  const plan = readXrMotionReferencePlan(serializeXrMotionReferencePlan(args.plan), args.graphData.nodes)
-  const stage = resolveXrMotionReferenceStage(plan.stageId)
-  const fingerprint = graphFingerprint(args.graphData)
-  const motionFingerprint = hashText(JSON.stringify({
-    graphFingerprint: fingerprint,
-    plan: serializeXrMotionReferencePlan(plan),
-  }))
-  const title = safeFilenameStem(args.documentName)
-  const timeline = Object.freeze({
-    durationSeconds: plan.durationSeconds,
-    fps: plan.fps,
-    frameCount: Math.floor(plan.durationSeconds * plan.fps) + 1,
-  })
-  const manifest = {
-    schema: XR_MOTION_REFERENCE_SCHEMA,
-    stage: { id: stage.id, label: stage.label, sizeMeters: stage.sizeMeters },
-    timeline,
-    castTracks: plan.cast.length,
-    cameraMarks: plan.camera.length,
-    coordinateSystem: 'right-handed-y-up-meters',
-    interpolation: 'bounded-linear-with-holds',
-    graphFingerprint: fingerprint,
-    motionFingerprint,
-    cameraSemanticMapping: {
-      baselineMeters: XR_MOTION_REFERENCE_CAMERA_BASELINE_METERS,
-      anchorFallback: 'stage-origin',
-    },
-    referenceBoundary: {
-      implementation: 'native-knowgrph',
-      inspirationCitation: 'documentation-only',
-      copyPolicy: 'no-external-code-assets-or-schemas',
-      dependencyPolicy: 'no-external-runtime',
-      runtimeDependency: false,
-    },
-  }
-  const files = Object.freeze([
-    jsonFile('reference/manifest.json', manifest),
-    jsonFile('reference/cast-tracks.json', plan.cast),
-    jsonFile('reference/camera-track.json', plan.camera),
-    jsonFile('reference/frame-samples.json', buildMotionSamples(plan)),
-    Object.freeze({ path: 'reference/stage-map.svg', mimeType: 'image/svg+xml', text: buildTopDownSvg(plan) }),
-    Object.freeze({ path: 'handoff/video-generator-brief.txt', mimeType: 'text/plain', text: buildGeneratorBrief(plan) }),
-    Object.freeze({
-      path: 'README.txt',
-      mimeType: 'text/plain',
-      text: 'Knowgrph XR motion-reference package\n\nAttach the generator brief and stage map to a video-generation workflow. The frame samples are deterministic, meter-based motion data; grey-box structures define spatial constraints, not final visual styling.\n',
-    }),
-  ])
-  return Object.freeze({
-    schema: XR_MOTION_REFERENCE_PACKAGE_SCHEMA,
-    packageId: `kg-xr-${motionFingerprint}`,
-    title,
-    referenceBoundary: Object.freeze({
-      implementation: 'native-knowgrph',
-      inspirationCitation: 'documentation-only',
-      copyPolicy: 'no-external-code-assets-or-schemas',
-      dependencyPolicy: 'no-external-runtime',
-      runtimeDependency: false,
-    }),
-    source: Object.freeze({
-      documentName: String(args.documentName || 'Untitled'),
-      graphFingerprint: fingerprint,
-      motionFingerprint,
-      graphType: String(args.graphData.type || 'Graph'),
-      nodeCount: args.graphData.nodes.length,
-      edgeCount: args.graphData.edges.length,
-    }),
-    stage: Object.freeze({ id: stage.id, label: stage.label, sizeMeters: stage.sizeMeters }),
-    timeline,
-    files,
-  })
-}
-
-export function xrMotionReferencePackageFilename(bundle: XrMotionReferencePackage): string {
-  return `${bundle.title}.xr-motion-reference.${bundle.source.motionFingerprint}.json`
-}
-
-export function xrMotionReferencePackageBlob(bundle: XrMotionReferencePackage): Blob {
-  return new Blob([`${JSON.stringify(bundle, null, 2)}\n`], { type: 'application/json;charset=utf-8' })
 }
