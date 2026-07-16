@@ -43,8 +43,11 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
   const sharedWorkspaceWriteText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'chatWorkspaceFsWrite.ts'), 'utf8')
   const graphSourceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardCardMediaGraphSource.ts'), 'utf8')
   const graphFlowSyncText = readFileSync(resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataFrontmatterFlowSync.ts'), 'utf8')
+  const graphSourceWriteQueueText = readFileSync(resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'workspaceSourceTextWriteQueue.ts'), 'utf8')
   const workflowRunText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
+  const workflowRunTypesText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunTypes.ts'), 'utf8')
   const canvasRuntimeText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
+  const graphCommitText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardCardMediaGraphCommit.ts'), 'utf8')
 
   if (!workspaceOutputText.includes('await writeWorkspaceFileTextEnsuringFile({')
     || !sharedWorkspaceWriteText.includes('const persistedText = await fs.readFileText(normalized)')
@@ -59,19 +62,22 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
   }
   if (!graphSourceText.includes('export async function persistStoryboardCardMediaGraphSource')
     || !graphSourceText.includes('const persisted = await writeActiveMarkdownDocumentTextIfPresent({')
+    || !graphSourceText.includes('markdownDocumentApplyViewPreset: false')
     || !graphSourceText.includes('if (!persisted) throw new Error(')) {
-    throw new Error('expected generated Canvas documents to fail closed when their canonical Markdown write is unavailable')
+    throw new Error('expected generated Canvas documents to persist without treating same-document graph publication as a viewport-resetting document switch')
   }
-  if (!graphFlowSyncText.includes('pendingWorkspaceSourceTextWrites.get(workspacePath)')
-    || !graphFlowSyncText.includes('return enqueueWorkspaceSourceTextWrite(activePath, args.text)')) {
+  if (!graphFlowSyncText.includes('return enqueueWorkspaceSourceTextWrite(activePath, args.text)')
+    || !graphSourceWriteQueueText.includes('pendingWorkspaceSourceTextWrites.get(workspacePath)')
+    || !graphSourceWriteQueueText.includes('pendingWorkspaceSourceTextWrites.set(workspacePath, next)')) {
     throw new Error('expected shared Canvas document writes to serialize by workspace path and preserve generation order')
   }
-  if (!workflowRunText.includes('persistDraftGraphData: (graphData: GraphData) => void | Promise<void>')
+  if (!workflowRunTypesText.includes('persistDraftGraphData: (graphData: GraphData) => void | Promise<void>')
     || !workflowRunText.includes('await args.persistDraftGraphData(durableGraph)')) {
     throw new Error('expected every workflow generator to await the required shared graph-document persistence contract')
   }
-  if (!canvasRuntimeText.includes('const commitStoryboardCardMediaGraph = React.useCallback(async (graphData: GraphData) => {')
-    || !canvasRuntimeText.includes('await persistStoryboardCardMediaGraphSource(nextDraft)')) {
+  if (!canvasRuntimeText.includes('useStoryboardCardMediaGraphCommit({')
+    || !graphCommitText.includes('const commit = React.useCallback(async (graphData: GraphData) => {')
+    || !graphCommitText.includes('await persistStoryboardCardMediaGraphSource(nextDraft)')) {
     throw new Error('expected the Canvas runtime persistence adapter to return the durable document commit promise')
   }
 }

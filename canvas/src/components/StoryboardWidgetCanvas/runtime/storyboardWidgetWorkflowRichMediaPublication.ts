@@ -16,7 +16,6 @@ import { toAnnotationPreviewSrcDoc, toMarkdownSummary, type AnnotationRunResult 
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
-import { createUniqueId } from '@/lib/ids'
 import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 import { resolveStoryboardWidgetWorkflowDownstreamRunTargetIds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowDownstreamRunTargets'
 import {
@@ -30,6 +29,7 @@ import {
   mergeStoryboardWidgetWorkflowPropertyPatch,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
 import type { StoryboardWidgetWorkflowNodeResolutionContext } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
+import { createStoryboardWidgetWorkflowPublicationTransaction } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowPublicationTransaction'
 import { areStoryboardWidgetWorkflowRecordValuesEqual } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowWriteback'
 
 const HTML_VIDEO_PREVIEW_STABILITY_KEYS = [
@@ -67,6 +67,7 @@ export function stabilizeHtmlVideoPreviewPatchForExistingProps(
 
 export type StoryboardWidgetTextRunOutputPublisher = (args: {
   anchorNode: GraphNode
+  baseGraphData?: GraphData | null
   outputText: string
   title: string
   model?: unknown
@@ -276,27 +277,42 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
 
   const publishTextRunOutputToRichMediaPanel: StoryboardWidgetTextRunOutputPublisher = panelArgs => {
     args.withRunLayoutMutationGuard(() => {
+      const transaction = createStoryboardWidgetWorkflowPublicationTransaction({
+        readLiveDraftGraphData: () => panelArgs.baseGraphData || args.readLiveDraftGraphData(),
+        commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
+        commitPublishedGraphData: args.commitPublishedGraphData,
+        updateNode: args.updateNode,
+        appendWorkflowOutputEdge: args.appendWorkflowOutputEdge,
+        scheduleWorkflowOutputEdgeRefresh: args.scheduleWorkflowOutputEdgeRefresh,
+      })
+      if (!transaction) return
       const outputKey = panelArgs.outputKey?.trim() || 'output'
       const panelNodeId = ensureStoryboardWidgetWorkflowRichMediaPanelNodeId({
         context: args.context,
         graphForRun: args.graphForRun,
         allowCreateRichMediaPanel: args.allowCreateRichMediaPanel,
         anchorNode: panelArgs.anchorNode,
-        readLiveDraftGraphData: args.readLiveDraftGraphData,
+        readLiveDraftGraphData: transaction.readDraftGraphData,
         outputKey,
         outputLabel: panelArgs.panelLabel,
         outputIndex: panelArgs.outputIndex,
-        appendDraftNode: args.appendDraftNode,
+        appendDraftNode: transaction.appendDraftNode,
       })
       if (!panelNodeId) return
-      ensureStoryboardWidgetWorkflowOutputEdge({
+      const outputEdgeAdded = ensureStoryboardWidgetWorkflowOutputEdge({
         anchorNodeId: readWorkflowString(panelArgs.anchorNode.id),
         panelNodeId,
         outputKey,
-        readLiveDraftGraphData: args.readLiveDraftGraphData,
-        commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
-        scheduleWorkflowOutputEdgeRefresh: args.scheduleWorkflowOutputEdgeRefresh,
+        readLiveDraftGraphData: transaction.readDraftGraphData,
+        commitDraftGraphDataUpdate: transaction.commitDraftGraphDataUpdate,
+        scheduleWorkflowOutputEdgeRefresh: () => undefined,
       })
+      const outputEdge = outputEdgeAdded
+        ? (transaction.readDraftGraphData().edges || []).find(edge => (
+            readWorkflowString(edge?.source) === readWorkflowString(panelArgs.anchorNode.id)
+            && readWorkflowString(edge?.target) === panelNodeId
+          )) || null
+        : null
       const patch: Record<string, unknown> = {
         ...clearRichMediaOutputProperties({}),
         ...buildTextWidgetOutputPatch({
@@ -316,7 +332,18 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
         workflowOutputAnchorNodeId: readWorkflowString(panelArgs.anchorNode.id),
         workflowOutputKey: outputKey,
       }
-      applyPublishedPanelPatch(panelNodeId, patch)
+      applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch({
+        panelNodeId,
+        patch,
+        readLiveDraftGraphData: transaction.readDraftGraphData,
+        commitDraftGraphDataUpdate: transaction.commitDraftGraphDataUpdate,
+        scheduleWorkflowOutputEdgeRefresh: () => undefined,
+      })
+      transaction.finish({
+        preferPublishedGraphCommit: panelArgs.loading !== true,
+        updatedNodeIds: [panelNodeId],
+        appendedEdges: outputEdge ? [outputEdge] : [],
+      })
     })
   }
 
@@ -385,55 +412,25 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
     onPublished?: (anchorNode: GraphNode) => void
   }): void => {
     args.withRunLayoutMutationGuard(() => {
-      const currentDraft = args.readLiveDraftGraphData()
-      if (!currentDraft) return
-      let transactionDraft = currentDraft
-      const appendTransactionNode = (nodeArgs: {
-        id?: string | null
-        type: string
-        label?: string | null
-        x: number
-        y: number
-        properties?: Record<string, unknown>
-      }): string => {
-        const usedNodeIds = new Set(
-          (transactionDraft.nodes || [])
-            .map(node => String(node?.id || '').trim())
-            .filter(Boolean),
-        )
-        const requestedId = String(nodeArgs.id || '').trim()
-        const nodeId = requestedId && !usedNodeIds.has(requestedId)
-          ? requestedId
-          : createUniqueId('n', usedNodeIds)
-        const node: GraphNode = {
-          id: nodeId,
-          type: String(nodeArgs.type || '').trim() || FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
-          label: String(nodeArgs.label || '').trim() || nodeId,
-          x: Number.isFinite(nodeArgs.x) ? nodeArgs.x : 0,
-          y: Number.isFinite(nodeArgs.y) ? nodeArgs.y : 0,
-          properties: { ...(nodeArgs.properties || {}) } as never,
-        }
-        transactionDraft = bumpStoryboardWidgetDraftGraphDataRevision({
-          ...transactionDraft,
-          nodes: [...(transactionDraft.nodes || []), node],
-          edges: Array.isArray(transactionDraft.edges) ? transactionDraft.edges : [],
-        })
-        return nodeId
-      }
-      const commitTransactionStep = (_current: GraphData, next: GraphData) => {
-        transactionDraft = next
-      }
-      const readTransactionDraft = () => transactionDraft
+      const transaction = createStoryboardWidgetWorkflowPublicationTransaction({
+        readLiveDraftGraphData: args.readLiveDraftGraphData,
+        commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
+        commitPublishedGraphData: args.commitPublishedGraphData,
+        updateNode: args.updateNode,
+        appendWorkflowOutputEdge: args.appendWorkflowOutputEdge,
+        scheduleWorkflowOutputEdgeRefresh: args.scheduleWorkflowOutputEdgeRefresh,
+      })
+      if (!transaction) return
       const panelNodeId = params.ensureOutputPanelNodeId({
         context: args.context,
         graphForRun: args.graphForRun,
         allowCreateRichMediaPanel: args.allowCreateRichMediaPanel,
         anchorNode: params.panelArgs.anchorNode,
-        readLiveDraftGraphData: readTransactionDraft,
-        appendDraftNode: appendTransactionNode,
+        readLiveDraftGraphData: transaction.readDraftGraphData,
+        appendDraftNode: transaction.appendDraftNode,
       })
       if (!panelNodeId) return
-      const existingPanelBeforePatch = transactionDraft.nodes.find(node => String(node?.id || '').trim() === panelNodeId) || null
+      const existingPanelBeforePatch = transaction.readDraftGraphData().nodes.find(node => String(node?.id || '').trim() === panelNodeId) || null
       const existingPanelBeforePatchProps = (existingPanelBeforePatch?.properties || {}) as Record<string, unknown>
       const rawPatch = {
         ...params.panelArgs.patch,
@@ -446,28 +443,22 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
       applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch({
         panelNodeId,
         patch,
-        readLiveDraftGraphData: readTransactionDraft,
-        commitDraftGraphDataUpdate: commitTransactionStep,
+        readLiveDraftGraphData: transaction.readDraftGraphData,
+        commitDraftGraphDataUpdate: transaction.commitDraftGraphDataUpdate,
         scheduleWorkflowOutputEdgeRefresh: () => undefined,
       })
       const outputEdge = params.ensureOutputEdge({
         anchorNode: params.panelArgs.anchorNode,
         outputPanelNodeId: panelNodeId,
-        readLiveDraftGraphData: readTransactionDraft,
-        commitDraftGraphDataUpdate: commitTransactionStep,
+        readLiveDraftGraphData: transaction.readDraftGraphData,
+        commitDraftGraphDataUpdate: transaction.commitDraftGraphDataUpdate,
         scheduleWorkflowOutputEdgeRefresh: () => undefined,
       })
-      if (transactionDraft !== currentDraft) {
-        if (args.commitPublishedGraphData) {
-          args.commitPublishedGraphData(transactionDraft)
-        } else {
-          args.commitDraftGraphDataUpdate(currentDraft, transactionDraft)
-          const outputPanel = transactionDraft.nodes.find(node => String(node?.id || '').trim() === panelNodeId) || null
-          if (outputPanel) args.updateNode(panelNodeId, { properties: outputPanel.properties })
-          if (outputEdge) args.appendWorkflowOutputEdge?.(outputEdge)
-        }
-        args.scheduleWorkflowOutputEdgeRefresh()
-      }
+      transaction.finish({
+        preferPublishedGraphCommit: true,
+        updatedNodeIds: [panelNodeId],
+        appendedEdges: outputEdge ? [outputEdge] : [],
+      })
       params.onPublished?.(params.panelArgs.anchorNode)
     })
   }

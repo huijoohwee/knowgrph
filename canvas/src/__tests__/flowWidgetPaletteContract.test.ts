@@ -120,6 +120,8 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
       prompt: 'Generate a text response for the active request.',
       output: '',
       title: 'Widget Card',
+      lane: 'Text Generation',
+      typeLabel: 'Text Generation',
     },
   }
   const cardBoard = buildStoryboardBoardModel({
@@ -140,7 +142,9 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
   }
   if (!textWidgetCard) throw new Error('expected dropped Widget Card to project into the Storyboard Card board')
   if (textWidgetCard.title !== 'Widget Card') throw new Error(`expected dropped Widget Card title, got ${textWidgetCard.title}`)
-  if (textWidgetCard.lane !== 'Text Generation') throw new Error(`expected dropped Widget Card lane from node type, got ${textWidgetCard.lane}`)
+  if (textWidgetCard.lane !== 'Widget Card' || textWidgetCard.typeLabel !== 'Widget Card') {
+    throw new Error(`expected legacy Text Generation projection to normalize to Widget Card, got ${JSON.stringify({ lane: textWidgetCard.lane, typeLabel: textWidgetCard.typeLabel })}`)
+  }
 
   const canvasRuntimeSnippets = [
     'useStoryboardWidgetDropBridge',

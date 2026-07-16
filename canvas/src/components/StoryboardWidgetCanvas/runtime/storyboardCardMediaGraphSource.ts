@@ -10,12 +10,17 @@ export async function persistStoryboardCardMediaGraphSource(graphData: GraphData
     parsedGraphData: graphData,
   })
   if (typeof sourceSync.markdownDocumentText !== 'string') return
-  state.setSourceFiles(sourceSync.sourceFiles)
-  state.setMarkdownDocument(
-    sourceSync.markdownDocumentName ?? state.markdownDocumentName,
-    sourceSync.markdownDocumentText,
-    { applyViewPreset: false },
-  )
+  useGraphStore.setState(current => ({
+    sourceFiles: sourceSync.sourceFiles,
+    markdownDocumentName: sourceSync.markdownDocumentName ?? current.markdownDocumentName,
+    markdownDocumentText: sourceSync.markdownDocumentText,
+    markdownDocumentApplyViewPreset: false,
+    markdownTokens: null,
+    markdownTokensPath: null,
+    markdownTokensKey: null,
+    markdownTokensMeta: null,
+    markdownTokensStartLineOffset: null,
+  }))
   const persisted = await writeActiveMarkdownDocumentTextIfPresent({
     state: useGraphStore.getState(),
     sourceFiles: sourceSync.sourceFiles,

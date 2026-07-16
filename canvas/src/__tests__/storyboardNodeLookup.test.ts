@@ -23,6 +23,12 @@ export function testStoryboardGraphBackedNodeLookupIncludesStoreAndComposedIds()
         type: 'Text',
         properties: {},
       } as GraphNode,
+      {
+        id: { key: 'id', type: 'string', value: 'typed-frontmatter-card' } as unknown as string,
+        label: 'Typed frontmatter card',
+        type: { key: 'type', type: 'string', value: 'TextGeneration' } as unknown as string,
+        properties: {},
+      } as GraphNode,
     ],
     edges: [],
   }
@@ -31,9 +37,10 @@ export function testStoryboardGraphBackedNodeLookupIncludesStoreAndComposedIds()
   const composedNode = nodeById.get('workspace:/docs/demo.md::storyboard-card-1') || null
   const innerNode = nodeById.get('storyboard-card-1') || null
   const renderNode = nodeById.get('render-card-1') || null
+  const typedFrontmatterNode = nodeById.get('typed-frontmatter-card') || null
 
-  if (!composedNode || !innerNode || !renderNode) {
-    throw new Error('expected storyboard node lookup to expose store, composed-inner, and render ids')
+  if (!composedNode || !innerNode || !renderNode || !typedFrontmatterNode) {
+    throw new Error('expected storyboard node lookup to expose store, composed-inner, render, and typed frontmatter ids')
   }
   if (composedNode !== innerNode) {
     throw new Error('expected composed storyboard node lookup to reuse the same backing node for inner ids')

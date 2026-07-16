@@ -1,7 +1,12 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
+
+function readCanonicalNodeIdValue(rawId: unknown): string {
+  return String(unwrapGraphCellValue(rawId) || '').trim()
+}
 
 export function splitComposedNodeId(rawId: unknown): { full: string; inner: string } {
-  const full = String(rawId || '').trim()
+  const full = readCanonicalNodeIdValue(rawId)
   if (!full) return { full: '', inner: '' }
   const sep = full.indexOf('::')
   if (sep <= 0) return { full, inner: full }
@@ -10,7 +15,7 @@ export function splitComposedNodeId(rawId: unknown): { full: string; inner: stri
 }
 
 export function parseCanonicalNodeIds(raw: unknown): string[] {
-  const idValue = String(raw || '').trim()
+  const idValue = readCanonicalNodeIdValue(raw)
   if (!idValue) return []
   const out = [idValue]
   const leaf = idValue.includes('::') ? String(idValue.split('::').pop() || '').trim() : ''
@@ -111,7 +116,7 @@ export function resolveGraphNodeIdsByCanonicalIds(
   const out: string[] = []
   const seen = new Set<string>()
   for (let i = 0; i < rawIds.length; i += 1) {
-    const resolvedId = String(resolveGraphNodeByCanonicalId(graph, rawIds[i])?.id || '').trim()
+    const resolvedId = readCanonicalNodeIdValue(resolveGraphNodeByCanonicalId(graph, rawIds[i])?.id)
     if (!resolvedId || seen.has(resolvedId)) continue
     seen.add(resolvedId)
     out.push(resolvedId)
@@ -120,8 +125,8 @@ export function resolveGraphNodeIdsByCanonicalIds(
 }
 
 export function isCanonicalNodeIdEqual(a: unknown, b: unknown): boolean {
-  const aFull = String(a || '').trim()
-  const bFull = String(b || '').trim()
+  const aFull = readCanonicalNodeIdValue(a)
+  const bFull = readCanonicalNodeIdValue(b)
   if (!aFull || !bFull) return false
   if (aFull === bFull) return true
   const aCandidates = parseCanonicalNodeIds(aFull)

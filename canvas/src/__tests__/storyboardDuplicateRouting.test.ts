@@ -853,7 +853,7 @@ export function testStoryboardToolbarActionBindingsForwardCardScopedCallbacks() 
     openCardWorkflowManagerMapping: nextCard => {
       calls.push(`mapping:${nextCard.id}`)
     },
-    convertCardToLoop: nextCard => {
+    probeTreeCard: nextCard => { calls.push(`probe:${nextCard.id}`) }, convertCardToLoop: nextCard => {
       calls.push(`loop:${nextCard.id}`)
     },
   })
@@ -867,7 +867,7 @@ export function testStoryboardToolbarActionBindingsForwardCardScopedCallbacks() 
   bindings.onHelp()
   bindings.onRemove()
   bindings.onUpdateKvEntry(); bindings.onProbeTree(); bindings.onConvertToLoopNode()
-  if (calls.join(',') !== 'run:card-bind,sidepane:card-bind,duplicate:card-bind,clear:card-bind,help,remove:card-bind,mapping:card-bind,loop:card-bind') {
+  if (calls.join(',') !== 'run:card-bind,sidepane:card-bind,duplicate:card-bind,clear:card-bind,help,remove:card-bind,mapping:card-bind,probe:card-bind,loop:card-bind') {
     throw new Error(`expected storyboard toolbar bindings to forward the card-scoped callbacks in order, got ${JSON.stringify(calls)}`)
   }
 }

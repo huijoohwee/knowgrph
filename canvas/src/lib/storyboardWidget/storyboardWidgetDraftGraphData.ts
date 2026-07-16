@@ -1,13 +1,14 @@
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'
-import { readNodeProperties } from '@/lib/graph/nodeProperties'
+import { readNodeProperties, unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
+import { splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import { hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 
 function readNodeIds(graphData: GraphData | null | undefined): string[] {
   return (Array.isArray(graphData?.nodes) ? graphData.nodes : [])
-    .map(node => String(node?.id || '').trim())
+    .map(node => splitComposedNodeId(node?.id).full)
     .filter(Boolean)
 }
 
@@ -19,7 +20,16 @@ function hasCompatibleDraftNodeIdentity(currentDraft: GraphData | null, baseGrap
   return sharedCount >= Math.max(1, Math.min(draftNodeIds.length, baseNodeIds.size) * 0.8)
 }
 
-const cleanSignatureText = (value: unknown): string => String(value ?? '').trim()
+function hasDraftNodeIdentitySuperset(currentDraft: GraphData | null, baseGraphData: GraphData | null): boolean {
+  const draftNodeIds = new Set(readNodeIds(currentDraft))
+  const baseNodeIds = readNodeIds(baseGraphData)
+  if (draftNodeIds.size <= baseNodeIds.length || baseNodeIds.length === 0) return false
+  return baseNodeIds.every(id => draftNodeIds.has(id))
+}
+
+const cleanSignatureText = (value: unknown): string => String(unwrapGraphCellValue(value) ?? '').trim()
+
+const readGraphEntityId = (entity: GraphNode | GraphEdge): string => splitComposedNodeId(entity?.id).full
 
 const readGraphMetadataIdentity = (graphData: GraphData | null | undefined): string => {
   const metadata = graphData?.metadata
@@ -119,12 +129,12 @@ function mergeChangedGraphEntities<T extends GraphNode | GraphEdge>(
   currentEntities: readonly T[],
   nextEntities: readonly T[],
 ): T[] {
-  const previousById = new Map(previousEntities.map(entity => [String(entity.id || ''), entity]))
-  const nextById = new Map(nextEntities.map(entity => [String(entity.id || ''), entity]))
+  const previousById = new Map(previousEntities.map(entity => [readGraphEntityId(entity), entity]))
+  const nextById = new Map(nextEntities.map(entity => [readGraphEntityId(entity), entity]))
   const merged = currentEntities
-    .filter(entity => !previousById.has(String(entity.id || '')) || nextById.has(String(entity.id || '')))
+    .filter(entity => !previousById.has(readGraphEntityId(entity)) || nextById.has(readGraphEntityId(entity)))
     .map(current => {
-      const id = String(current.id || '')
+      const id = readGraphEntityId(current)
       const next = nextById.get(id)
       if (!next) return current
       const previous = previousById.get(id)
@@ -135,9 +145,9 @@ function mergeChangedGraphEntities<T extends GraphNode | GraphEdge>(
         properties: { ...((current.properties || {}) as Record<string, unknown>), ...((next.properties || {}) as Record<string, unknown>) },
       } as T
     })
-  const mergedIds = new Set(merged.map(entity => String(entity.id || '')))
+  const mergedIds = new Set(merged.map(readGraphEntityId))
   for (const next of nextEntities) {
-    if (!mergedIds.has(String(next.id || ''))) merged.push(next)
+    if (!mergedIds.has(readGraphEntityId(next))) merged.push(next)
   }
   return merged
 }
@@ -215,6 +225,14 @@ export function resolveStoryboardWidgetDraftGraphDataForBaseReset(args: {
   }
   const currentRevision = readGraphDataRevision(current)
   const baseRevision = readGraphDataRevision(base)
+  const previousBaseRevision = readGraphDataRevision(previousBase)
+  const baseStillMatchesPrevious = previousBase
+    && buildStoryboardWidgetDraftGraphBaseSignature(previousBase) === buildStoryboardWidgetDraftGraphBaseSignature(base)
+  if (
+    baseStillMatchesPrevious
+    && currentRevision >= previousBaseRevision
+    && hasDraftNodeIdentitySuperset(current, base)
+  ) return current
   if (currentRevision < baseRevision) return base
   return hasCompatibleDraftNodeIdentity(current, base) ? current : base
 }

@@ -15,6 +15,7 @@ import { isStoryboardFixedCardOwnedNode } from '@/components/StoryboardWidgetCan
 import { useStoryboardCardMediaDrop2d } from '@/components/StoryboardWidgetCanvas/useStoryboardCardMediaDrop2d'
 import { useStoryboardCardOverlayProjection2d } from '@/components/StoryboardWidgetCanvas/useStoryboardCardOverlayProjection2d'
 import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'
+import { invokeProbeTreeFromStoryboardToolbar } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
 import { runStoryboardRemoveAction } from '@/components/StoryboardCanvas/storyboardRemoveAction'
 import { mergeStoryboardMediaAlbumItems, toStoryboardMediaAlbumItem } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
 import { buildStoryboardCardMediaTextareaAttachments } from '@/components/StoryboardCanvas/storyboardCardMediaProjection'
@@ -45,12 +46,11 @@ import { screenToWorld } from '@/lib/zoom/viewport'
 import { cn } from '@/lib/utils'
 const STORYBOARD_CARD_OVERLAY_Z_INDEX = 60
 const ignoreStoryboardCardAction = () => void 0
-
 function StoryboardCardOverlayItem(props: {
   card: StoryboardCardModel; node: GraphNode; pendingMedia: StoryboardCardModel['media']; storyboardWidgetSurfaceId: string
   cardMoveEnabled: boolean
   register: (id: string, el: HTMLElement | null) => void; selected: boolean
-  onDuplicate: (card: StoryboardCardModel) => void; onOpenInSidepane: (card: StoryboardCardModel) => void; onRemove: (card: StoryboardCardModel) => void; onRun: (card: StoryboardCardModel) => void; onSelect: (card: StoryboardCardModel) => void
+  onDuplicate: (card: StoryboardCardModel) => void; onOpenInSidepane: (card: StoryboardCardModel) => void; onProbeTree: (card: StoryboardCardModel) => void; onRemove: (card: StoryboardCardModel) => void; onRun: (card: StoryboardCardModel) => void; onSelect: (card: StoryboardCardModel) => void
   onCommitLane: (card: StoryboardCardModel, nextValue: string) => void; onCommitPrimaryText: (card: StoryboardCardModel, field: GraphNodeCardTextFieldSpec, nextValue: string) => void; onCommitTitle: (card: StoryboardCardModel, nextValue: string) => void; onCommitType: (card: StoryboardCardModel, nextValue: string) => void
   onDropMedia: (card: StoryboardCardModel, payload: MediaDragPayload) => void
   headerPinProps: FlowCanvasHeaderPinProps
@@ -58,7 +58,7 @@ function StoryboardCardOverlayItem(props: {
   onHeaderPointerDown: (event: React.PointerEvent<HTMLElement>, node: GraphNode) => void
   onResizePointerDown: (event: React.PointerEvent<HTMLButtonElement>, node: GraphNode) => void
 }) {
-  const { card, cardMoveEnabled, storyboardWidgetSurfaceId, headerPinProps, node, onCommitLane, onCommitPrimaryText, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onHeaderPointerDown, onOpenInSidepane, onRemove, onResizePointerDown, onRun, onSelect, pendingMedia, readCardSize, register, selected } = props
+  const { card, cardMoveEnabled, storyboardWidgetSurfaceId, headerPinProps, node, onCommitLane, onCommitPrimaryText, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onHeaderPointerDown, onOpenInSidepane, onProbeTree, onRemove, onResizePointerDown, onRun, onSelect, pendingMedia, readCardSize, register, selected } = props
   const { width, height } = readCardSize(node)
   const textModel = buildStoryboardCardTextModel(card)
   const displayMedia = pendingMedia || card.media
@@ -93,7 +93,7 @@ function StoryboardCardOverlayItem(props: {
   const toolbarActionBindings = buildStoryboardToolbarActionBindings({
     card, runCard: onRun, openCardInSidepane: onOpenInSidepane, duplicateCard: onDuplicate,
     clearCardOutput: ignoreStoryboardCardAction, showCardHelp: ignoreStoryboardCardAction, removeCard: onRemove,
-    openCardWorkflowManagerMapping: ignoreStoryboardCardAction, convertCardToLoop: ignoreStoryboardCardAction,
+    openCardWorkflowManagerMapping: ignoreStoryboardCardAction, probeTreeCard: onProbeTree, convertCardToLoop: ignoreStoryboardCardAction,
   })
   return (
     <article
@@ -262,7 +262,7 @@ export function StoryboardCardOverlayLayer2d(props: {
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName || null)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText || null)
   const addNode = useGraphStore(s => s.addNode)
-  const addHistory = useGraphStore(s => s.addHistory)
+  const addHistory = useGraphStore(s => s.addHistory); const upsertUiToast = useGraphStore(s => s.upsertUiToast)
   const removeNode = useGraphStore(s => s.removeNode)
   const selectNode = useGraphStore(s => s.selectNode)
   const selectedNodeId = useGraphStore(s => String(s.selectedNodeId || '').trim())
@@ -439,6 +439,18 @@ export function StoryboardCardOverlayLayer2d(props: {
     selectCard(card)
     void runWorkflowNode?.(card.id)
   }, [runWorkflowNode, selectCard])
+  const materializeProbeTree = React.useCallback((card: StoryboardCardModel) => {
+    invokeProbeTreeFromStoryboardToolbar({
+      card,
+      graphData,
+      commitGraphData: nextGraphData => {
+        if (commitGraphData) commitGraphData(nextGraphData)
+        else useGraphStore.getState().setGraphDataPreservingLayout(nextGraphData)
+      },
+      addHistory,
+      upsertUiToast,
+    })
+  }, [addHistory, commitGraphData, graphData, upsertUiToast])
   const openCardInSidepane = React.useCallback((card: StoryboardCardModel) => {
     selectCard(card)
     updateOpenWidgetNodeIds(prev => (prev.includes(card.id) ? prev : [...prev, card.id]))
@@ -572,6 +584,7 @@ export function StoryboardCardOverlayLayer2d(props: {
             onDropMedia={dropCardMedia}
             onHeaderPointerDown={interactions.beginHeaderDrag}
             onOpenInSidepane={openCardInSidepane}
+            onProbeTree={materializeProbeTree}
             onRemove={removeCard}
             onResizePointerDown={interactions.beginResize}
             onRun={runCard}

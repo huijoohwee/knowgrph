@@ -133,6 +133,7 @@ Canonical local tool inventory owner:
    - Selected Storyboard card Run reuses the shared Storyboard workflow runner; cards without a provider or inline-compute handler generate a local-zero-cost, source-backed Rich Media Panel output from authored node fields
    - Probe-Tree chat/model responses that return `response.structuredContent.cards` with `parentNodeId` materialize selectable downstream cards and infer `candidateOption` edges through the shared structured-response projector
    - Probe-Tree Storyboard branch materialization stores a deterministic Mermaid `flowchart TB` bridge through `storyboardProbeTreeMermaidFlowchart.ts`, and the same subset parses back through the frontmatter-flow graph path
+   - A Widget Card containing `/knowgrph.probe-tree`, `@knowgrph.probe-tree`, or `#knowgrph.probe-tree` uses the native bounded fallback before generic provider generation, preserves the canonical invocation trio on editable descendants, and publishes the same zero-cost branch ledger through the shared Rich Media output-panel owner
 8. Visual annotation tools
    - `knowgrph.annotate.image` accepts `asset_url`, 1-6 annotation `tasks`, and optional `model_hint`
    - `knowgrph.annotate.video_frame` also requires `frame_timestamp_ms` and keeps frame extraction browser-local

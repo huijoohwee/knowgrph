@@ -9,6 +9,7 @@ import { parseNativeCrawlerInvocation } from '@/features/chat/nativeCrawlerInvoc
 import { isVideoAgentDemoPresetInvocation } from '@/features/chat/floatingPanelChat/videoAgentDemoPresetSubmit'
 import { isImageToThreeJsPromptPreset } from '@/features/image-to-threejs/imageToThreeJsPromptPreset'
 import { isImageToGlbPromptPreset } from '@/features/image-to-glb/imageToGlbPromptPreset'
+import { isKnowgrphProbeTreePromptPreset } from '@/features/agentic-os/probeTreePromptPreset'
 import { buildLiveCanvasHeroModel } from '@/features/agentic-os/liveCanvasHeroModel'
 import { getCachedStoryboardWidgetWorkflowRunPlan } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 
@@ -51,32 +52,30 @@ const nodeById = (nodes: PlainRecord[], id: string): PlainRecord => {
 
 const property = (node: PlainRecord, key: string): unknown => unwrap(node[key])
 
-export function testAgenticPromptPresetCatalogOwnsSixRuntimeRoutes() {
+export function testAgenticPromptPresetCatalogOwnsSevenRuntimeRoutes() {
   const catalogText = fs.readFileSync(PROMPT_CATALOG_PATH, 'utf8')
   const catalog = readFrontmatter(catalogText)
   const presets = Array.isArray(catalog.prompt_presets) ? catalog.prompt_presets.filter(isRecord) : []
-  if (catalog.schema !== 'agentic-os-prompt-preset-catalog/v1' || presets.length !== 6) {
-    throw new Error('expected the centralized six-entry prompt preset catalog')
+  if (catalog.schema !== 'agentic-os-prompt-preset-catalog/v1' || presets.length !== 7) {
+    throw new Error('expected the centralized seven-entry prompt preset catalog')
   }
   const routes = presets.map(preset => String(preset.slash_command || ''))
-  if (routes.join(',') !== '/video-prompt-preset,/image.to-threejs,/image.to-glb,/sme-care-prompt-preset,/investment-research-prompt-preset,/crawler-prompt-preset') {
+  if (routes.join(',') !== '/video-prompt-preset,/image.to-threejs,/image.to-glb,/knowgrph-probe-tree-prompt-preset,/sme-care-prompt-preset,/investment-research-prompt-preset,/crawler-prompt-preset') {
     throw new Error(`unexpected centralized preset routes ${routes.join(',')}`)
   }
   for (const preset of presets) {
     const prompt = String(preset.prompt || '')
     const runtimeCommand = String(preset.runtime_command || '')
     const slashCommand = String(preset.slash_command || '')
-    const isCardInline = slashCommand === '/image.to-threejs' || slashCommand === '/image.to-glb'
-    const valid = slashCommand === '/image.to-threejs'
-      ? isImageToThreeJsPromptPreset(prompt)
-      : slashCommand === '/image.to-glb'
-        ? isImageToGlbPromptPreset(prompt)
-        : runtimeCommand === '/video-agent'
-      ? Boolean(parseGenerationInvocation(prompt))
-      : runtimeCommand === '/crawler-agent'
-        ? parseNativeCrawlerInvocation(prompt)?.command === '/crawler-agent'
-        : parseChatSkillSlashInvocation(prompt)?.skill.slashCommand === runtimeCommand
-    if ((!isCardInline && !slashCommand.endsWith('-prompt-preset')) || !valid || !prompt.startsWith(isCardInline ? slashCommand : runtimeCommand)) {
+    const isCardInline = slashCommand === '/image.to-threejs' || slashCommand === '/image.to-glb' || runtimeCommand === '/knowgrph.probe-tree'
+    let valid = false
+    if (slashCommand === '/image.to-threejs') valid = isImageToThreeJsPromptPreset(prompt)
+    else if (slashCommand === '/image.to-glb') valid = isImageToGlbPromptPreset(prompt)
+    else if (runtimeCommand === '/knowgrph.probe-tree') valid = isKnowgrphProbeTreePromptPreset(prompt)
+    else if (runtimeCommand === '/video-agent') valid = Boolean(parseGenerationInvocation(prompt))
+    else if (runtimeCommand === '/crawler-agent') valid = parseNativeCrawlerInvocation(prompt)?.command === '/crawler-agent'
+    else valid = parseChatSkillSlashInvocation(prompt)?.skill.slashCommand === runtimeCommand
+    if ((!isCardInline && !slashCommand.endsWith('-prompt-preset')) || !valid || !prompt.startsWith(runtimeCommand)) {
       throw new Error(`invalid centralized prompt preset ${String(preset.id || '')}`)
     }
   }

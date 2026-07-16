@@ -13,6 +13,11 @@ import {
   isImageToGlbPromptPreset,
 } from '@/features/image-to-glb/imageToGlbPromptPreset'
 import { parseNativeCrawlerInvocation } from './nativeCrawlerInvocation'
+import {
+  isKnowgrphProbeTreePromptPreset,
+  KNOWGRPH_PROBE_TREE_DOC_INVOCATION,
+  KNOWGRPH_PROBE_TREE_PROMPT_PRESET_ID,
+} from '@/features/agentic-os/probeTreePromptPreset'
 
 type PlainRecord = Record<string, unknown>
 
@@ -94,6 +99,12 @@ const parsePreset = (value: unknown): PromptPreset | null => {
       || activation !== 'card-inline'
       || !isImageToGlbPromptPreset(prompt)
     ) return null
+  } else if (id === KNOWGRPH_PROBE_TREE_PROMPT_PRESET_ID) {
+    if (
+      runtimeCommand !== KNOWGRPH_PROBE_TREE_DOC_INVOCATION.slashCommand
+      || activation !== 'card-inline'
+      || !isKnowgrphProbeTreePromptPreset(prompt)
+    ) return null
   } else if (runtimeCommand === '/video-agent') {
     const invocation = parseGenerationInvocation(prompt)
     if (!invocation || !prompt.includes('@video-generation-demo-script') || activation !== 'source-backed-canvas') return null
@@ -136,6 +147,7 @@ export const loadPromptPresetCatalog = async (fsOverride?: WorkspaceFs): Promise
     'video-agent',
     IMAGE_TO_THREEJS_PROMPT_PRESET_ID,
     IMAGE_TO_GLB_PROMPT_PRESET_ID,
+    KNOWGRPH_PROBE_TREE_PROMPT_PRESET_ID,
     'sme-care-agent',
     'investment-research-agent',
     'crawler-agent',

@@ -64,8 +64,25 @@ export function renderAgenticOsInvocationAnchor(args: {
 export function renderAgenticOsInvocationKeywordChip(args: {
   value: string
   className: string
+  sourceLink?: boolean
 }): React.ReactNode | null {
   const token = String(args.value || '').trim()
+  if (args.sourceLink === false) {
+    const resolved = resolveAgenticOsInvocationToken(token)
+    if (!resolved) return null
+    const attrs = buildAgenticOsInvocationChipAttrs(resolved.token)
+    if (!attrs) return null
+    return (
+      <span
+        className={`${args.className} ${UI_INLINE_CHIP_SHELL_15CH_CLASSNAME}`}
+        title={buildAgenticOsInvocationSourceTitle(resolved.invocation)}
+        data-kg-card-inline-keyword-pill="1"
+        {...attrs}
+      >
+        <span className={`${UI_TEXT_TRUNCATE_CHIP} ${UI_INLINE_CHIP_LABEL_15CH_CLASSNAME}`}>{token}</span>
+      </span>
+    )
+  }
   return renderAgenticOsInvocationAnchor({
     token,
     className: `${args.className} ${UI_INLINE_CHIP_SHELL_15CH_CLASSNAME} cursor-pointer no-underline hover:underline`,

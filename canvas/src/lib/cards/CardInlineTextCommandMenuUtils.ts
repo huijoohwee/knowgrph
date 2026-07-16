@@ -27,6 +27,30 @@ export function replaceDraftRange(args: { input: HTMLInputElement | HTMLTextArea
   return result
 }
 
+export function applyCardInlineCommandReplacement(args: {
+  text: string
+  selection: { start: number; end: number }
+  sigil: '@' | '/' | '#'
+  query: string
+  replacement: string
+  insertAsBlock?: boolean
+}): { text: string; cursor: number } {
+  const text = String(args.text || '')
+  const selectionStart = Math.max(0, Math.min(text.length, args.selection.start))
+  const selectionEnd = Math.max(selectionStart, Math.min(text.length, args.selection.end))
+  const selectedRange = { start: selectionStart, end: selectionEnd }
+  const tokenRange = findInlineCommandTokenRange({ text, selection: selectedRange, sigil: args.sigil })
+  const activeQueryToken = `${args.sigil}${String(args.query || '')}`
+  const range = selectionStart !== selectionEnd
+    ? selectedRange
+    : text.slice(tokenRange.start, tokenRange.end) === activeQueryToken
+      ? tokenRange
+      : selectedRange
+  return args.insertAsBlock
+    ? insertMarkdownBlockRange({ text, start: range.start, end: range.end, block: args.replacement })
+    : replaceTextRangeWithInvocationBoundary({ text, start: range.start, end: range.end, replacement: args.replacement })
+}
+
 export function findInlineCommandTokenRange(args: { text: string; selection: { start: number; end: number }; sigil: '@' | '/' | '#' }): { start: number; end: number } {
   const text = String(args.text || '')
   const start = Math.max(0, Math.min(text.length, args.selection.start))

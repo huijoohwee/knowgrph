@@ -27,16 +27,19 @@ import { readImageToThreeJsRenderMode, type ImageToThreeJsRenderMode } from '@/f
 import { projectStoryboardMediaAlbumItems, STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY, type StoryboardMediaAlbumItem } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
 import { resolveWidgetNodeTitle } from '@/components/StoryboardWidget/widgetEditorTitle'
 import {
+  isStructuralStoryboardNodeType,
+  isStoryboardCardNodeType,
+  resolveStoryboardCardLaneLabel,
+  resolveStoryboardCardTypeLabel,
+} from '@/components/StoryboardCanvas/storyboardCardIdentity'
+import {
   normalizeStoryboardText as normalizeText,
   readStoryboardNumber as readNumber,
   readStoryboardString as readString,
   readStoryboardStringList as readStringList,
-  toStoryboardTitleCase as toTitleCase,
 } from '@/components/StoryboardCanvas/storyboardModelScalars'
 export const STORYBOARD_EMPTY_LANE = 'Storyboard'
 export const STORYBOARD_CANVAS_RICH_MEDIA_PANEL_PROPERTY = 'storyboardCanvasRichMediaPanel' as const
-const STRUCTURAL_NODE_TYPE_RE = /\b(document|root|workspace|group|cluster|section)\b/i
-const STORYBOARD_NODE_TYPE_RE = /\b(scene|shot|frame|panel|story|beat|sequence)\b/i
 const LANE_PROPERTY_KEYS = GRAPH_KEYWORD_LANE_PROPERTY_KEYS
 export const STORYBOARD_TITLE_PROPERTY_KEYS = GRAPH_NODE_CARD_TITLE_PROPERTY_KEYS
 export const STORYBOARD_SUMMARY_PROPERTY_KEYS = GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS
@@ -328,11 +331,8 @@ const readStoryboardHref = (properties: GraphNodeProperties, media: StoryboardCa
 
 const readLaneLabel = (node: GraphNode, properties: GraphNodeProperties): string => {
   const explicit = readFirstPropertyString(properties, LANE_PROPERTY_KEYS)
-  if (explicit) return explicit
-  const typeLabel = readString(node.type)
-  if (STORYBOARD_NODE_TYPE_RE.test(typeLabel)) return toTitleCase(typeLabel)
-  if (typeLabel && !STRUCTURAL_NODE_TYPE_RE.test(typeLabel)) return toTitleCase(typeLabel)
-  return STORYBOARD_EMPTY_LANE
+  const nodeType = readString(node.type)
+  return resolveStoryboardCardLaneLabel(nodeType, explicit, STORYBOARD_EMPTY_LANE)
 }
 
 const readLanePropertyKey = (properties: GraphNodeProperties): string => {
@@ -350,9 +350,8 @@ const readLanePropertyKey = (properties: GraphNodeProperties): string => {
 
 const readTypeLabel = (node: GraphNode, properties: GraphNodeProperties): string => {
   const explicit = readFirstPropertyString(properties, TYPE_LABEL_PROPERTY_KEYS)
-  if (explicit) return explicit
-  const typeLabel = readString(node.type)
-  return typeLabel ? toTitleCase(typeLabel) : 'Node'
+  const nodeType = readString(node.type)
+  return resolveStoryboardCardTypeLabel(nodeType, explicit)
 }
 
 const readSourceModelLabel = (properties: GraphNodeProperties): string => {
@@ -446,7 +445,7 @@ const computeCandidateScore = (args: {
   if (args.references.length > 0) score += 2
   if (args.lane !== STORYBOARD_EMPTY_LANE) score += 2
   const nodeType = readString(args.node.type)
-  if (STORYBOARD_NODE_TYPE_RE.test(nodeType)) score += 2
+  if (isStoryboardCardNodeType(nodeType)) score += 2
   return score
 }
 
@@ -509,7 +508,7 @@ const buildCardModel = (node: GraphNode, inputIndex: number, stageTokensByLane: 
       media,
       references,
     }),
-    structural: STRUCTURAL_NODE_TYPE_RE.test(nodeType),
+    structural: isStructuralStoryboardNodeType(nodeType),
   }
 }
 

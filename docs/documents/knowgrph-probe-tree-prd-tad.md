@@ -1,8 +1,8 @@
 ---
 title: "Knowgrph Probe-Tree — Combined PRD/TAD"
 doc_type: "PRD/TAD"
-version: "1.0.0"
-date: "2026-07-07"
+version: "1.1.0"
+date: "2026-07-16"
 lang: "en-US"
 frontmatter_contract: "required"
 status: "runtime-ready"
@@ -18,6 +18,11 @@ kgCanvasRenderMode: "2d"
 kgCanvas2dRenderer: "storyboard"
 kgFrontmatterModeEnabled: true
 storyboardDisplay: "2D Renderer: Storyboard"
+promptPreset:
+  id: "knowgrph-probe-tree"
+  alias: "/knowgrph-probe-tree-prompt-preset"
+  source: "agentic-canvas-os/docs/PROMPT-PRESETS.md"
+  activation: "card-inline"
 storyboardMermaidMapping:
   kind: "storyboard-probe-tree-flowchart/v1"
   direction: "TB"
@@ -42,7 +47,7 @@ This document is written per the Scope & Neutrality Contract in `prd-tad-guideli
 
 ## Overview
 
-**From** a single unstructured help-seeking turn **to** a branching, self-improving question tree: the system generates candidate probing questions, lets the user select a path, persists the selection as a graph edge, and — once a thread resolves — writes a score back so future generations on similar topics are informed by what previously worked. No new persistent datastore, no new orchestration engine, no new sync layer: every capability is an additional entry point into infrastructure the product already runs.
+**From** a single unstructured help-seeking turn **to** a branching, self-improving question tree: the system generates candidate probing questions, lets the user select a path, persists the selection as a graph edge, publishes one separate Rich Media branch ledger, and — once a thread resolves — writes a score back so future generations on similar topics are informed by what previously worked. No new persistent datastore, orchestration engine, sync layer, or provider-only Canvas path is introduced.
 
 ---
 
@@ -81,6 +86,13 @@ Discover → Engage stages of the Journey above: this feature *is* the branching
 
 **As a** solo builder, **I want** the branching tree, the generation calls, and the scoring loop to run on infrastructure already deployed, **so that** this feature adds no new monthly cost or new component to operate.
 
+#### Widget Card entrypoint coexistence
+
+- The Widget Card bubble-toolbar **Probe-Tree** action immediately runs the deterministic local branch materializer against the active Storyboard graph. It does not rewrite authored Prompt, Summary, or Action text and does not call a provider.
+- `/knowgrph.probe-tree` remains editable invocation metadata inside the Widget Card. Selecting its chip may open its command/source detail, but branch materialization begins only when the Widget Card **Run** action executes.
+- Both entrypoints use the same request signature, deterministic branch IDs, `candidateOption` edges, depth limit, and active-graph commit owner. Toolbar then Run, or Run then toolbar, reselects and reveals the same branch cards without duplicating nodes or edges.
+- Widget Card Run may additionally publish the zero-cost branch ledger to its owned Rich Media Panel; that publication preserves the already materialized branch graph.
+
 ### Acceptance Criteria
 
 **Given** an active thread with a current node, **When** `probe.generate` is called, **Then** it returns at most `k` typed candidate next-questions, generated with the top-N recalled prior successful branches on a similar topic included as context, within the stated token budget.
@@ -94,6 +106,16 @@ Discover → Engage stages of the Journey above: this feature *is* the branching
 **Given** a thread reaches a terminal/resolved node, **When** `probe.evolve` is invoked, **Then** every traversed node's frontmatter score is updated and the full path is written to the recall layer as a reusable exemplar for future `probe.generate` calls on similar root topics.
 
 > **VCC translation**: `Verify score field is present and updated on every node along the resolved path, and a new exemplar record is retrievable from the recall layer keyed to the thread's topic`
+
+**Given** a Storyboard Widget Card containing `/knowgrph.probe-tree`, `@knowgrph.probe-tree`, or `#knowgrph.probe-tree` in an authored Prompt, Summary, or Action field, including typed frontmatter cells, **When** the user runs the card, **Then** the native Canvas handler materializes editable candidate Widget Cards with only `/knowgrph.probe-tree` in each generated Prompt, retains all three aliases as invocation metadata, pins and selects the children, fits them into the visible canvas, connects them with `candidateOption` edges, and publishes the same zero-cost branch ledger into a separate Rich Media Panel before generic prompt validation or any provider call.
+
+**Given** a Widget Card backed by the internal `TextGeneration` runtime type or persisted legacy `Text Generation` lane/type metadata, **When** Storyboard projection renders the card, **Then** its public lane and type identity is `Widget Card`; the runtime type remains internal and duplicate `Widget Card` metadata chrome is omitted.
+
+**Given** the invocation trio rendered in a Storyboard card's metadata rail, **When** the user clicks a token chip, **Then** the canvas remains active and no browser navigation occurs; the card toolbar **Run** action is the sole execution boundary, while each chip retains source provenance in its hover title.
+
+**Given** a Widget text run has produced its workspace output artifact, **When** terminal publication completes or the Canvas reopens a stale partial stream, **Then** the source Widget output, owned Rich Media Panel, and connecting edge are committed as one published graph revision; a stale local artifact may complete that revision without another provider call.
+
+> **VCC translation**: `Verify the source Widget Card remains unchanged, 2-4 child cards and one connected Rich Media branch ledger are present, every child can continue the tree, cost is $0 in fallback mode, and depth 8 stops visibly`
 
 ### Success Metrics
 
@@ -393,6 +415,8 @@ score: 0.86"])
 | Schema | `type: probe` node + `branches-to` edge | `canvas/src/features/agent-ready/probeTreeContract.mjs` | Implemented — selected branches persist as markdown graph nodes under `data/probe-tree` |
 | Integration | MCP tool registration | `mcp/local-tool-contract.js`, `mcp/probe-tree-tool-contract.js`, `mcp/server.js` | Implemented — local stdio only |
 | Canvas bridge | Storyboard ↔ Mermaid flowchart mapping | `canvas/src/components/StoryboardCanvas/storyboardProbeTreeMermaidFlowchart.ts` | Implemented — selected Storyboard graph serializes to `flowchart TB` and parses back through frontmatter-flow |
+| Canvas runtime | Widget Card → branch cards + Rich Media ledger | `canvas/src/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun.ts` | Implemented — native zero-cost fallback precedes generic provider generation and stops at depth 8 |
+| Prompt catalog | Source-backed Probe-Tree preset | `agentic-canvas-os/docs/PROMPT-PRESETS.md` | Implemented — one card-inline preset expands to the canonical `/`, `@`, and `#` trio |
 
 ---
 
@@ -490,8 +514,13 @@ Min-viable-max-value favors the option that ships this sprint without violating 
 - [x] Observable local economics proof: `probe.generate`, `probe.select`, and `probe.evolve` return cost logs, with zero-token local paths reporting `$0`
 - [x] Invocation routing proof: `/knowgrph.probe-tree`, `#knowgrph.probe-tree`, and `@knowgrph.probe-tree` resolve through the shared FloatingPanel Chat invocation catalog to this source document
 - [x] AI/LLM response projection proof: `response.structuredContent.cards` with `parentNodeId` materializes selectable downstream cards and infers `candidateOption` edges even when the model omits a duplicate explicit edge list
-- [x] Individual Storyboard card Run proof: a selected card toolbar Run invokes the shared Storyboard workflow runner and materializes a source-backed Rich Media Panel output when no provider or inline-compute handler is configured
+- [x] Individual Storyboard card Run proof: a selected card toolbar Run resolves Probe-Tree tokens from authored Prompt, Summary, or Action fields, including typed frontmatter cells with an empty Prompt, then materializes branch cards and a source-backed Rich Media Panel without falling through to generic empty-prompt validation
 - [x] Storyboard ↔ Mermaid proof: Probe-Tree Storyboard materialization stores a deterministic `flowchart TB`, and the same Mermaid subset parses back to canvas graph data with stable node IDs and `candidateOption` edges
+- [x] Multi-turn card proof: every materialized branch uses only the canonical `/knowgrph.probe-tree` prompt, retains the `@` and `#` aliases as metadata rather than auto-inserting them, and increments a bounded depth that stops visibly at 8
+- [x] Rich Media output proof: native Widget Run leaves the source card unchanged, bypasses generic provider generation, and publishes the branch ledger through the shared Rich Media output owner
+- [x] Canvas navigation safety proof: Storyboard invocation chips retain shared `/`, `@`, and `#` metadata and source provenance without rendering navigation anchors; the card Run action remains the execution owner
+- [x] Atomic text-publication proof: terminal Widget output, owned Rich Media Panel content, and their edge publish in one graph transaction; a stale partial stream can recover from its existing workspace artifact without a second provider run
+- [x] Prompt-library proof: the centralized Agentic Canvas OS catalog exposes one zero-submit Probe-Tree preset whose runtime route resolves to this document contract
 - [x] TTV validated on a clean environment: the MCP runtime suite runs a temp-root generate→select→evolve smoke without seeded repo state, deployment, or paid calls
 - [x] Token budget actuals vs. estimates: Dev-local proof covers request budget estimates, returned prompt/completion actuals from the optional local Ollama adapter, and `$0` local select/evolve cost logs; production usage actuals remain an operating metric outside this Dev-only contract
 
@@ -504,3 +533,11 @@ The native LangGraph/StateGraph checkpointer is still intentionally deferred per
 The Storyboard clean-canvas surface is run-ready at individual-card granularity: selected fixed Storyboard cards reuse the same workflow runner as Storyboard Widget and Run All. If the selected node has a provider, inline compute, or downstream runnable target, the runner follows that shared path; if it is a source/proof card with no configured compute handler, it generates a local-zero-cost, source-backed Rich Media Panel output from the node's authored frontmatter fields. This keeps Care Source and similar cards demoable without hardcoded fixtures, browser-only state, provider calls, or a second execution path.
 
 The AI/LLM response path is source-backed at the shared response-projector layer: `/knowgrph.probe-tree`, `#knowgrph.probe-tree`, and `@knowgrph.probe-tree` prompt for `response.structuredContent.cards`, and cards carrying `parentNodeId` materialize as selectable downstream cards with inferred `candidateOption` edges. The Storyboard/Mermaid bridge is now source-backed instead of illustrative-only. The PRD/TAD frontmatter selects `2D Renderer: Storyboard` and provides an `index.mermaid` `flowchart TB` seed; the runtime Probe-Tree toolbar stores the generated Storyboard graph as Mermaid metadata and verifies that the same stable-ID subset parses back to graph nodes and `candidateOption` edges.
+
+The 2026-07-16 Canvas enhancement adds the same contract to the centralized Prompt Presets library and the native Widget Run boundary. Selecting the preset loads the canonical `/`, `@`, and `#` trio without submitting. Running the Widget materializes bounded editable descendants, preserves that trio for the next turn, and publishes a zero-cost Rich Media branch ledger through the shared workflow-output panel owner before generic provider generation. The deterministic local branch set is explicitly marked as fallback evidence; the local MCP `probe.generate` tool remains the owner of model-backed generation and recalled-exemplar output.
+
+Text workflow publication now treats the source Widget output, owned Rich Media Panel, and connecting edge as one terminal graph transaction. Streaming updates remain draft-only. If a prior run wrote its workspace output artifact but the document retained a stale loading revision, the Canvas reads that same artifact and completes the terminal transaction locally after the staleness guard; it does not repeat the provider request.
+
+Probe-Tree publication is a same-document source write, not a document switch. It therefore preserves the active viewport and published draft while frontmatter reparses, and any delayed stale-output artifact recovery is reconciled into the latest draft instead of replacing newly materialized branch cards with the previously scanned one-node graph.
+
+Storyboard card invocation chips are deliberately non-navigating metadata. They keep the shared invocation token and source-title attributes for inspection, but only the card toolbar Run control starts Probe-Tree execution. This prevents embedded-browser navigation or new-tab failure from being coupled to the canvas command surface.

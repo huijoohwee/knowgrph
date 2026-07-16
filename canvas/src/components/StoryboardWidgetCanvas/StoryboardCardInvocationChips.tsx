@@ -17,7 +17,7 @@ export function StoryboardCardInvocationChips(props: { tokens: readonly string[]
     <ul className="m-0 flex shrink-0 list-none items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-contain p-0 [scrollbar-gutter:stable]" aria-label="Storyboard card invocation chips" data-kg-canvas-pointer-ignore="true" data-kg-canvas-wheel-ignore="true" data-kg-media-scroll-surface="1" data-kg-storyboard-card-invocation-chips="1">
       {tokens.map(token => {
         const className = tokenChipClassName(token)
-        const chip = renderAgenticOsInvocationKeywordChip({ value: token, className })
+        const chip = renderAgenticOsInvocationKeywordChip({ value: token, className, sourceLink: false })
         return (
           <li key={token} className="shrink-0 list-none">
             {chip || (

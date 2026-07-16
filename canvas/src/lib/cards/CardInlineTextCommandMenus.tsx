@@ -50,7 +50,7 @@ import { uploadFilesToUploadedMediaPanel } from '@/lib/storage/uploadedMediaPane
 import { UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { sourceContainsInlineMediaUrl } from '@/lib/command-menu/inlineMediaUrlIdentity'
-import { findInlineCommandTokenRange, focusCardInlineTextInputSelectionSoon, insertMarkdownBlockRange, readCardInlineTextInputSelection, replaceCurrentLine, replaceDraftRange } from '@/lib/cards/CardInlineTextCommandMenuUtils'
+import { applyCardInlineCommandReplacement, findInlineCommandTokenRange, focusCardInlineTextInputSelectionSoon, insertMarkdownBlockRange, readCardInlineTextInputSelection, replaceCurrentLine, replaceDraftRange } from '@/lib/cards/CardInlineTextCommandMenuUtils'
 const CARD_INLINE_TEXT_COMMAND_MENU_ATTRIBUTE = 'data-kg-card-inline-command-menu'
 const CARD_INLINE_TEXT_COMMAND_SIGILS = ['/', '#', '@'] as const
 export type CardInlineTextCommandMenuMode = 'slash' | 'variable' | 'keyword'
@@ -176,24 +176,24 @@ export function CardInlineTextCommandMenus(props: {
       window.removeEventListener('scroll', updateFrame, true)
     }
   }, [commandMode, inputRef, menuAnchorRef])
-  const replaceCommandSelection = React.useCallback((replacement: string, options?: { closeAfterApply?: boolean; replaceAll?: boolean }) => {
+  const replaceCommandSelection = React.useCallback((replacement: string, options?: { closeAfterApply?: boolean; insertAsBlock?: boolean }) => {
     const text = String(draft || '')
-    const start = options?.replaceAll === true ? 0 : Math.max(0, Math.min(text.length, commandSelectionRef.current.start))
-    const end = options?.replaceAll === true ? text.length : Math.max(start, Math.min(text.length, commandSelectionRef.current.end))
-    const next = replaceDraftRange({
-      input: inputRef.current,
-      draft,
-      setDraft,
-      onCommandDraftChange,
-      start,
-      end,
+    const sigil = commandMode === 'slash' ? '/' : commandMode === 'variable' ? '@' : '#'
+    const next = applyCardInlineCommandReplacement({
+      text,
+      selection: commandSelectionRef.current,
+      sigil,
+      query: commandQuery,
       replacement,
-      focusSelection,
+      insertAsBlock: options?.insertAsBlock,
     })
+    setDraft(next.text)
+    onCommandDraftChange?.(next.text)
+    focusCardInlineTextInputSelectionSoon(inputRef.current, next.cursor, next.cursor, focusSelection)
     setCommandMode(null)
     setCommandQuery('')
     if (options?.closeAfterApply === true) onCommandDraftApplied?.(next.text)
-  }, [commandSelectionRef, draft, focusSelection, inputRef, onCommandDraftApplied, onCommandDraftChange, setCommandMode, setCommandQuery, setDraft])
+  }, [commandMode, commandQuery, commandSelectionRef, draft, focusSelection, inputRef, onCommandDraftApplied, onCommandDraftChange, setCommandMode, setCommandQuery, setDraft])
   const skillsCommandsInvocationItems = React.useMemo(() => {
     const buildItems = (prefixFilter: ChatInvocationCatalogPrefixFilter): MarkdownInlineCommandMenuItem[] => {
       const fallbackEntries = resolveChatInvocationCatalogEntries(prefixFilter, '')
@@ -206,7 +206,7 @@ export function CardInlineTextCommandMenus(props: {
         group: entry.group,
         description: entry.summary,
         keywords: [entry.label, entry.sourcePath || '', ...entry.keywords].filter(Boolean),
-        onSelect: () => replaceCommandSelection(resolveChatInvocationCatalogEntryInsertionText(entry), { closeAfterApply: Boolean(entry.promptPresetId), replaceAll: Boolean(entry.promptPresetId) }),
+        onSelect: () => replaceCommandSelection(resolveChatInvocationCatalogEntryInsertionText(entry), { closeAfterApply: Boolean(entry.promptPresetId), insertAsBlock: Boolean(entry.promptPresetId) }),
       }))
     }
     return { slash: buildItems('slash'), variable: buildItems('at'), keyword: buildItems('hash') }

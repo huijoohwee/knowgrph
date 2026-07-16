@@ -3,7 +3,7 @@ import path from 'node:path'
 import { JSDOM } from 'jsdom'
 
 import { buildStoryboardBoardModel } from '@/components/StoryboardCanvas/storyboardModel'
-import { handleStoryboardCardMetaWheelEvent, isLegacyTextGenerationCardMetadata } from '@/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail'
+import { handleStoryboardCardMetaWheelEvent, isRedundantWidgetCardMetadata } from '@/components/StoryboardWidgetCanvas/StoryboardCardMetaScrollRail'
 import { commitStoryboardCardCanonicalText2d } from '@/components/StoryboardWidgetCanvas/storyboardCardCanonicalTextCommit2d'
 import { isStoryboardHeaderDragBlockedTarget } from '@/components/StoryboardWidgetCanvas/storyboardCardOverlayInteractions2d'
 import { readStoryboardCardSummaryText } from '@/components/StoryboardWidgetCanvas/storyboardCardSummaryText'
@@ -18,6 +18,7 @@ import {
   GRAPH_NODE_CARD_PROMPT_PROPERTY_KEYS,
   GRAPH_NODE_CARD_SUMMARY_PROPERTY_KEYS,
 } from '@/lib/cards/graphNodeCardFields'
+import { applyCardInlineCommandReplacement } from '@/lib/cards/CardInlineTextCommandMenuUtils'
 import { computeStoryboardWidgetOverlayScreenBox } from '@/lib/storyboardWidget/overlayWorldDrag'
 import type { GraphData } from '@/lib/graph/types'
 
@@ -120,19 +121,35 @@ export function testStoryboardCardTypedFrontmatterCellsPreserveAuthoredPromptAnd
   assert(rerenderedCard?.media?.url === mediaUrl, 'expected attached media to survive prompt edit and rerender')
 }
 
-export function testStoryboardCardMetaRailSuppressesLegacyTextGenerationLabels() {
+export function testStoryboardCardMetaRailSuppressesRedundantWidgetCardLabels() {
   assert(
-    isLegacyTextGenerationCardMetadata({ lane: 'Text Generation', typeLabel: 'Text Generation' }),
-    'expected spaced legacy Text Generation metadata to be suppressed',
+    isRedundantWidgetCardMetadata({ lane: 'Widget Card', typeLabel: 'Widget Card' }),
+    'expected duplicate Widget Card metadata to be suppressed',
   )
   assert(
-    isLegacyTextGenerationCardMetadata({ lane: 'text-generation', typeLabel: 'TextGeneration' }),
-    'expected persisted compact TextGeneration metadata to be suppressed',
+    !isRedundantWidgetCardMetadata({ lane: 'Approval', typeLabel: 'Widget Card' }),
+    'expected a distinct authored lane to remain visible',
   )
-  assert(
-    !isLegacyTextGenerationCardMetadata({ lane: 'Text Generation', typeLabel: 'Widget Card' }),
-    'expected public Widget Card metadata to remain visible',
-  )
+}
+
+export function testStoryboardCardPromptPresetInsertionPreservesAuthoredPrompt() {
+  const authoredPrompt = '/sme-care-agent @source.frontmatter @source.body\n\nAssess the active SME workspace sources.'
+  const typedQuery = '/knowgrph-probe'
+  const text = `${authoredPrompt}\n\n${typedQuery}`
+  const preset = '/knowgrph.probe-tree\n\nGenerate 2-4 bounded, editable next-question cards.'
+  const result = applyCardInlineCommandReplacement({
+    text,
+    selection: { start: text.length, end: text.length },
+    sigil: '/',
+    query: 'knowgrph-probe',
+    replacement: preset,
+    insertAsBlock: true,
+  })
+  assert(result.text.startsWith(authoredPrompt), 'expected the authored SME prompt to remain unchanged')
+  assert(result.text.endsWith(preset), 'expected the Probe-Tree preset to replace only the active slash query')
+  assert(!result.text.includes(typedQuery), 'expected the typed slash query to be removed')
+  assert(!result.text.includes('@knowgrph.probe-tree'), 'expected slash preset insertion not to add the at-token alias')
+  assert(!result.text.includes('#knowgrph.probe-tree'), 'expected slash preset insertion not to add the hash-token alias')
 }
 
 export function testStoryboardCardSummaryTextStripsInlineMediaEmbeds() {
@@ -534,9 +551,9 @@ export function testStoryboardCardOverlayLayoutKeepsSharedAspectRatioSizing() {
 export function testStoryboardCardInvocationChipsReuseSharedInvocationRenderer() {
   const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/StoryboardCardInvocationChips.tsx'), 'utf8')
   for (const snippet of [
-    'DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME',
+    'resolveInlineInvocationChipClassName',
     'renderAgenticOsInvocationKeywordChip',
-    'UI_INLINE_CHIP_SHELL_15CH_CLASSNAME',
+    'sourceLink: false',
     'UI_INLINE_CHIP_LABEL_15CH_CLASSNAME',
     'data-kg-storyboard-card-invocation-chips="1"',
     'overflow-x-auto overflow-y-hidden',

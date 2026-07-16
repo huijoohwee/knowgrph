@@ -37,6 +37,7 @@ import { runStoryboardRemoveAction } from '@/components/StoryboardCanvas/storybo
 import { runStoryboardRunAction } from '@/components/StoryboardCanvas/storyboardRunAction'
 import { runStoryboardSelectAction } from '@/components/StoryboardCanvas/storyboardSelectAction'
 import { buildStoryboardToolbarActionBindings } from '@/components/StoryboardCanvas/storyboardToolbarActionBindings'
+import { invokeProbeTreeFromStoryboardToolbar } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
 import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/storyboardToolbarProps'
 import { runStoryboardUpdateKvEntryAction } from '@/components/StoryboardCanvas/storyboardUpdateKvEntryAction'
 import { canUseStrybldrStoryboardDuplicatePath } from '@/components/StoryboardCanvas/storyboardDuplicateRouting'
@@ -135,7 +136,6 @@ const isStoryboardImageReference = (
   reference: StoryboardCardReference,
 ): reference is StoryboardCardReference & { kind: 'image' | 'svg' } =>
   reference.kind === 'image' || reference.kind === 'svg'
-
 type StoryboardRenderedEdge = {
   id: string
   sourceId: string
@@ -145,13 +145,11 @@ type StoryboardRenderedEdge = {
   label: string
   d: string
 }
-
 type StoryboardEdgeLayer = {
   width: number
   height: number
   edges: StoryboardRenderedEdge[]
 }
-
 const STORYBOARD_RENDERED_EDGE_LABELS = new Set(['parent_node_id', 'rootBranch', 'candidateOption', 'candidateScorecard', 'publishedCandidate'])
 const EMPTY_STORYBOARD_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 const STORYBOARD_BRANCH_ACTION_GRID_CLASS_NAME = 'grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-4'
@@ -732,6 +730,11 @@ export default function StoryboardCanvas({
     storeGraphData,
     updateOpenWidgetNodeIds,
   ])
+  const commitStoryboardPublishedGraphData = React.useCallback((nextGraphData: GraphData) => {
+    storyboardRunGraphRef.current = nextGraphData
+    setGraphDataPreservingLayout(nextGraphData); void persistStoryboardCardMediaGraphSource(nextGraphData)
+  }, [setGraphDataPreservingLayout])
+  const materializeStoryboardProbeTree = React.useCallback((card: StoryboardCardModel) => invokeProbeTreeFromStoryboardToolbar({ card, graphData, commitGraphData: commitStoryboardPublishedGraphData, addHistory, upsertUiToast }), [addHistory, commitStoryboardPublishedGraphData, graphData, upsertUiToast])
   const runStoryboardWorkflowNode = React.useMemo(() => createStoryboardWidgetWorkflowNodeRunner({
     baseGraphKind: storyboardRunBaseGraphKind,
     baseGraphData: storeGraphData || graphData || null,
@@ -740,11 +743,7 @@ export default function StoryboardCanvas({
       storyboardRunGraphRef.current = nextDraft
       setGraphDataPreservingLayout(nextDraft)
     },
-    commitPublishedGraphData: nextGraphData => {
-      storyboardRunGraphRef.current = nextGraphData
-      setGraphDataPreservingLayout(nextGraphData)
-      persistStoryboardCardMediaGraphSource(nextGraphData)
-    },
+    commitPublishedGraphData: commitStoryboardPublishedGraphData,
     persistDraftGraphData: persistStoryboardCardMediaGraphSource,
     renderGraphDataOverride: graphData,
     markdownDocumentName,
@@ -754,7 +753,7 @@ export default function StoryboardCanvas({
     updateNode,
     upsertUiToast,
     scheduleOverlayEdgeUpdate: () => {},
-  }), [appendStoryboardRunNode, graphData, markdownDocumentName, setGraphDataPreservingLayout, storyboardRunBaseGraphKind, storeGraphData, updateNode, upsertUiToast, widgetRegistry])
+  }), [appendStoryboardRunNode, commitStoryboardPublishedGraphData, graphData, markdownDocumentName, setGraphDataPreservingLayout, storyboardRunBaseGraphKind, storeGraphData, updateNode, upsertUiToast, widgetRegistry])
   const storyboardKeywordCommandContextText = React.useMemo(() => {
     return collectGraphKeywordTermStats(graphData)
       .map(entry => `#${entry.term}`)
@@ -2074,6 +2073,7 @@ export default function StoryboardCanvas({
                       showCardHelp: showStoryboardCardHelp,
                       removeCard: removeStoryboardCard,
                       openCardWorkflowManagerMapping: openStoryboardCardWorkflowManagerMapping,
+                      probeTreeCard: materializeStoryboardProbeTree,
                       convertCardToLoop: convertStoryboardCardToLoop,
                     })
                     const visualBriefReference = card.references.find(isStoryboardImageReference) || null
