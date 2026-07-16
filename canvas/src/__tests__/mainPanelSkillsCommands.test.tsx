@@ -552,6 +552,7 @@ export function testSkillsCommandsMovedFromMainPanelIntoFloatingPanelTab() {
     !skillsCommandsView.includes('data-kg-skill-command-token-chip') ||
     !skillsCommandsView.includes("from '@/features/panels/ui/CollapsibleSection'") ||
     !floatingSkillsPanel.includes("from '@/features/panels/ui/ExpandCollapseAllButton'") ||
+    !floatingSkillsPanel.includes("from '@/features/panels/ui/useCollapsibleSectionGroup'") ||
     !floatingSkillsPanel.includes('data-kg-skills-commands-disclosure-actions="header"') ||
     !skillsCommandsView.includes('headerClassName="px-0"') ||
     skillsCommandsView.includes('stickyHeader={false}') ||

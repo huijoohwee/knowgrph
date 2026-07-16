@@ -61,6 +61,7 @@ import {
   claimMediaPointerDragDrop,
   clearMediaPointerDragPayload,
   hasMediaDragPayload,
+  isMediaPointerDragDistanceAccepted,
   isMediaPointerDragDropClaimed,
   isMediaDropClaimedByNestedTarget,
   readMediaDragPayload,
@@ -494,12 +495,6 @@ export function useStoryboardWidgetDropBridge(args: {
       clearMediaPointerDragPayload()
       return 'committed'
     }
-    const isMediaPointerDropDistanceAccepted = (detail: MediaPointerDragDropDetail) => {
-      if (!Number.isFinite(detail.startClientX) || !Number.isFinite(detail.startClientY)) return true
-      const dx = detail.clientX - Number(detail.startClientX)
-      const dy = detail.clientY - Number(detail.startClientY)
-      return Math.hypot(dx, dy) >= 6
-    }
     const appendMediaPanelFromDrop = (ev: DragEvent, rect: DOMRect, opts?: { allowNeutralFallback?: boolean }): 'committed' | 'await-transform' | 'rejected' => {
       const release = resolveMediaDragEventReleaseClientPoint(ev)
       return appendMediaPanelAtClientPoint(
@@ -625,7 +620,7 @@ export function useStoryboardWidgetDropBridge(args: {
     const onMediaPointerDragDropCapture = (event: Event) => {
       if (!args.widgetDropBridgeOnly) return
       const detail = (event as CustomEvent<MediaPointerDragDropDetail>).detail
-      if (!detail?.payload || !isMediaPointerDropDistanceAccepted(detail)) return
+      if (!detail?.payload || !isMediaPointerDragDistanceAccepted(detail)) return
       if (isMediaPointerDragDropClaimed(detail)) return
       if (isMediaDropClaimedByNestedTarget(Number(detail.clientX), Number(detail.clientY))) return
       const rect = readDropRect()

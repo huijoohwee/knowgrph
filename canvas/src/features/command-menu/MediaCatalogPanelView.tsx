@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Grid2X2, List, Plus, Rows3 } from 'lucide-react'
+import { Box, Grid2X2, Image as ImageIcon, List, Plus, Rows3 } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { CommandMenuRichMediaItem } from '@/lib/command-menu/commandMenuRichMediaInventory'
 import { readCommandMenuMediaNameDraft, type CommandMenuMediaNameDrafts } from '@/lib/command-menu/commandMenuMediaNameSync'
@@ -211,6 +211,34 @@ export function MediaCatalogPanelView({
             >
               <Plus className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
             </button> : null}
+            <nav
+              className={cn('ml-1 inline-flex h-6 items-center overflow-hidden rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
+              aria-label="Media catalog mode"
+              data-kg-media-mode-switcher="header-icons"
+            >
+              <button
+                type="button"
+                className={cn('inline-flex h-full w-6 items-center justify-center border-0 px-0', catalogMode === 'media' ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.button.hoverBg)}
+                title="Media"
+                aria-label="Show media library"
+                aria-pressed={catalogMode === 'media'}
+                data-kg-media-library-toggle="1"
+                onClick={() => setCatalogMode('media')}
+              >
+                <ImageIcon className="size-3.5" strokeWidth={1.7} aria-hidden />
+              </button>
+              <button
+                type="button"
+                className={cn('inline-flex h-full w-6 items-center justify-center border-0 border-l px-0', UI_THEME_TOKENS.panel.border, catalogMode === 'xr-3d' ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.button.hoverBg)}
+                title="3D for XR"
+                aria-label="Show 3D assets for XR"
+                aria-pressed={catalogMode === 'xr-3d'}
+                data-kg-media-3d-toggle="1"
+                onClick={() => setCatalogMode('xr-3d')}
+              >
+                <Box className="size-3.5" strokeWidth={1.7} aria-hidden />
+              </button>
+            </nav>
             {catalogMode === 'media' ? <section className={cn('inline-flex h-6 items-center overflow-hidden rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)} role="group" aria-label="Media layout" data-kg-media-layout-selector="1">
               {([
                 { layout: 'list' as const, label: 'List layout', Icon: List },
@@ -263,33 +291,6 @@ export function MediaCatalogPanelView({
           />
         )}
       />
-      <nav
-        className={cn('mx-2 mb-1 grid grid-cols-2 overflow-hidden rounded border', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.input.bg)}
-        aria-label="Media catalog mode"
-        data-kg-media-mode-switcher="1"
-      >
-        <button
-          type="button"
-          className={cn('inline-flex h-7 items-center justify-center gap-1 border-0 px-2 text-[11px] font-semibold', catalogMode === 'media' ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.button.hoverBg)}
-          aria-label="Show media library"
-          aria-pressed={catalogMode === 'media'}
-          data-kg-media-library-toggle="1"
-          onClick={() => setCatalogMode('media')}
-        >
-          Media
-        </button>
-        <button
-          type="button"
-          className={cn('inline-flex h-7 items-center justify-center gap-1 border-0 border-l px-2 text-[11px] font-semibold', UI_THEME_TOKENS.panel.border, catalogMode === 'xr-3d' ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.button.hoverBg)}
-          aria-label="Show 3D assets for XR"
-          aria-pressed={catalogMode === 'xr-3d'}
-          data-kg-media-3d-toggle="1"
-          onClick={() => setCatalogMode('xr-3d')}
-        >
-          <Box className="size-3" strokeWidth={1.7} aria-hidden />
-          3D for XR
-        </button>
-      </nav>
       <section ref={panelRef} className={floatingPanelCatalogBodyClassName(catalogMode === 'media' && previewItem ? 'overflow-hidden' : undefined)} data-kg-floating-panel-catalog-body="media">
         {catalogMode === 'xr-3d' ? (
           <XrMediaLibraryPanel searchText={normalizedSearchQuery} />

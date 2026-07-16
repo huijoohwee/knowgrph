@@ -4,6 +4,17 @@ export const MEDIA_DRAG_PAYLOAD_MIME = 'application/x-knowgrph-media+json'
 export const MEDIA_POINTER_DRAG_PAYLOAD_CHANGE_EVENT = 'kg:media-pointer-drag-payload-change'
 export const MEDIA_POINTER_DRAG_DROP_EVENT = 'kg:media-pointer-drag-drop'
 export const MEDIA_DROP_CONSUMES_CANVAS_DROP_ATTRIBUTE = 'data-kg-media-drop-consumes-canvas-drop'
+export const XR_SCENE_MEDIA_DRAG_SCHEMA = 'knowgrph-xr-scene-media/v1'
+
+export type XrSceneMediaDragProjection = Readonly<{
+  schema: typeof XR_SCENE_MEDIA_DRAG_SCHEMA
+  entityKind: 'environment' | 'asset'
+  entityId: string
+  label: string
+  description?: string
+  category?: string
+  motion?: 'travel' | 'hold'
+}>
 
 export type MediaDragPayload = {
   kind: 'image' | 'audio' | 'video'
@@ -17,6 +28,7 @@ export type MediaDragPayload = {
   mimeHint?: string
   thumbnailUrl?: string
   sourceKey?: string
+  xrScene?: XrSceneMediaDragProjection
 }
 
 const normalizeText = (value: unknown): string => String(value || '').trim()
@@ -58,6 +70,16 @@ export function isMediaPointerDragDropClaimed(detail: MediaPointerDragDropDetail
 export function claimMediaPointerDragDrop(detail: MediaPointerDragDropDetail | null | undefined): void {
   if (!detail) return
   detail.__kgMediaPointerDropClaimed = true
+}
+
+export function isMediaPointerDragDistanceAccepted(
+  detail: Pick<MediaPointerDragDropDetail, 'clientX' | 'clientY' | 'startClientX' | 'startClientY'>,
+  minimumDistancePx = 6,
+): boolean {
+  if (!Number.isFinite(detail.startClientX) || !Number.isFinite(detail.startClientY)) return true
+  const dx = detail.clientX - Number(detail.startClientX)
+  const dy = detail.clientY - Number(detail.startClientY)
+  return Math.hypot(dx, dy) >= minimumDistancePx
 }
 
 export function isMediaDropClaimedByNestedTarget(clientX: number, clientY: number): boolean {
@@ -103,6 +125,28 @@ const buildFallbackMediaDragPayload = (url: string): MediaDragPayload | null => 
   }
 }
 
+export function normalizeXrSceneMediaDragProjection(value: unknown): XrSceneMediaDragProjection | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const record = value as Partial<XrSceneMediaDragProjection>
+  const schema = normalizeText(record.schema)
+  const entityKind = normalizeText(record.entityKind)
+  const entityId = normalizeText(record.entityId)
+  const label = normalizeText(record.label)
+  if (schema !== XR_SCENE_MEDIA_DRAG_SCHEMA) return undefined
+  if (entityKind !== 'environment' && entityKind !== 'asset') return undefined
+  if (!entityId || !label) return undefined
+  const motion = normalizeText(record.motion)
+  return {
+    schema: XR_SCENE_MEDIA_DRAG_SCHEMA,
+    entityKind,
+    entityId,
+    label,
+    description: normalizeText(record.description) || undefined,
+    category: normalizeText(record.category) || undefined,
+    motion: motion === 'hold' || motion === 'travel' ? motion : undefined,
+  }
+}
+
 export function normalizeMediaDragPayload(value: unknown): MediaDragPayload | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const record = value as Partial<MediaDragPayload>
@@ -122,6 +166,7 @@ export function normalizeMediaDragPayload(value: unknown): MediaDragPayload | nu
     mimeHint: normalizeText(record.mimeHint) || undefined,
     thumbnailUrl: normalizeText(record.thumbnailUrl) || undefined,
     sourceKey: normalizeText(record.sourceKey) || undefined,
+    xrScene: normalizeXrSceneMediaDragProjection(record.xrScene),
   }
 }
 

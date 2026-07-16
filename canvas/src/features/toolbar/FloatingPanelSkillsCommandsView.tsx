@@ -7,6 +7,7 @@ import {
 import type { SkillsCommandsGrammarGroupBy } from '@/features/panels/views/skillsCommandsGrammar'
 import { AtSign, Hash, Slash } from 'lucide-react'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
+import { useCollapsibleSectionGroup } from '@/features/panels/ui/useCollapsibleSectionGroup'
 import { usePanelTypography } from '@/lib/ui/panelTypography'
 import {
   FloatingPanelCatalogHeader,
@@ -35,27 +36,19 @@ export function FloatingPanelSkillsCommandsView() {
   const search = useFloatingPanelCatalogSearch()
   const [prefixFilter, setPrefixFilter] = React.useState<SkillsCommandsPrefixFilter>('all')
   const [grammarGroupBy, setGrammarGroupBy] = React.useState<SkillsCommandsGrammarGroupBy>('subject')
-  const [collapsedGroupKeys, setCollapsedGroupKeys] = React.useState<ReadonlySet<string>>(() => new Set())
   const visibleGroupKeys = React.useMemo(() => resolveSkillsCommandsGroupKeys({
     grammarGroupBy,
     prefixFilter,
     searchQuery: search.searchQuery,
   }), [grammarGroupBy, prefixFilter, search.searchQuery])
   const visibleGroupKeyValues = React.useMemo(() => visibleGroupKeys.map(group => group.key), [visibleGroupKeys])
-  const allGroupsCollapsed = visibleGroupKeyValues.length > 0 && visibleGroupKeyValues.every(groupKey => collapsedGroupKeys.has(groupKey))
-  const expandAllGroups = React.useCallback(() => {
-    setCollapsedGroupKeys(prev => {
-      if (prev.size === 0) return prev
-      return new Set<string>()
-    })
-  }, [])
-  const collapseAllGroups = React.useCallback(() => {
-    setCollapsedGroupKeys(prev => {
-      const next = new Set(visibleGroupKeyValues)
-      if (next.size === prev.size && visibleGroupKeyValues.every(groupKey => prev.has(groupKey))) return prev
-      return next
-    })
-  }, [visibleGroupKeyValues])
+  const {
+    allCollapsed: allGroupsCollapsed,
+    collapseAll: collapseAllGroups,
+    collapsedKeys: collapsedGroupKeys,
+    expandAll: expandAllGroups,
+    setCollapsedKeys: setCollapsedGroupKeys,
+  } = useCollapsibleSectionGroup(visibleGroupKeyValues)
 
   return (
     <section
