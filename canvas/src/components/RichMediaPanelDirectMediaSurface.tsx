@@ -9,6 +9,7 @@ import { resolveIframeSandbox } from 'grph-shared/rich-media/iframe'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
 import type { RichMediaPanelModel } from './useRichMediaPanelModel'
 import { MediaDownloadOverlay } from '@/lib/ui/MediaKindOverlay'
+import { XrSceneMediaSurface } from '@/features/three/XrSceneMediaSurface'
 
 export function RichMediaPanelDirectMediaSurface(args: {
   model: RichMediaPanelModel
@@ -19,6 +20,15 @@ export function RichMediaPanelDirectMediaSurface(args: {
   const hoverPreviewUrl = model.mediaSrc || model.openUrl || model.rawUrl
   const directVideoControls = model.kind === 'video' && (props.videoControls !== false || model.contentInteractive)
   const directVideoPassivePlayback = model.kind === 'video' && !directVideoControls
+  if (props.panel?.xrScene) {
+    return (
+      <XrSceneMediaSurface
+        projection={props.panel.xrScene}
+        title={model.title}
+        onReady={() => model.setReady(true)}
+      />
+    )
+  }
   if (model.kind === 'model') {
     const sourceUrl = model.mediaSrc || model.rawUrl
     const modelViewerInteractive = model.contentInteractive || props.selected === true

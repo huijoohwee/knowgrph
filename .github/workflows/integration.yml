@@ -41,12 +41,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: huijoohwee/huijoohwee
+          ref: main
           path: huijoohwee
 
       - name: Checkout schema mirror for drift verification
         uses: actions/checkout@v4
         with:
           repository: huijoohwee/huijoohwee.github.io
+          ref: main
           path: huijoohwee.github.io
 
       - name: Setup Node

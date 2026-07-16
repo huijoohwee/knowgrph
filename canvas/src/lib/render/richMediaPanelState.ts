@@ -5,6 +5,8 @@ import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widg
 import { isImageToThreeJsOutputPanel } from '@/features/image-to-threejs/imageToThreeJsContract'
 import { isImageToGlbOutputPanel } from '@/features/image-to-glb/imageToGlbContract'
 import { readNodeFieldBoolean, readNodeFieldString } from '@/lib/canvas/graph-elements/mediaSpecNodeFields'
+import { normalizeXrSceneMediaDragProjection, type XrSceneMediaDragProjection } from '@/lib/ui/mediaDragPayload'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 
 export type RichMediaPanelTab = 'auto' | 'text' | 'image' | 'video' | 'audio' | 'model' | 'poi'
 
@@ -21,6 +23,7 @@ export type RichMediaPanelOverlayState = {
   connectedText: string
   isLoading: boolean
   loadingLabel: string
+  xrScene?: XrSceneMediaDragProjection
 }
 
 const RICH_MEDIA_CONNECTED_RENDER_PATHS = [
@@ -217,6 +220,7 @@ export function buildRichMediaPanelOverlayState(args: {
   const loadingLabel = customLoadingLabel || (connectedLoading.sourceLabels.length > 0
     ? `${loadingLabelFromKind(loadingKind)} (${connectedLoading.sourceLabels.join(', ')})`
     : loadingLabelFromKind(loadingKind))
+  const xrScene = normalizeXrSceneMediaDragProjection(unwrapGraphCellValue(props.kgXrSceneMedia))
   return {
     activeTab,
     freezeConnectedOutput,
@@ -236,5 +240,6 @@ export function buildRichMediaPanelOverlayState(args: {
     connectedText,
     isLoading,
     loadingLabel,
+    ...(xrScene ? { xrScene } : {}),
   }
 }

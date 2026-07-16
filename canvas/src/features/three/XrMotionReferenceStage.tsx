@@ -16,13 +16,7 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { XrSceneLibrarySubject } from '@/features/three/XrSceneLibrarySubject'
 import { xrMotionReferenceWorldPosition } from '@/features/three/xrMotionReferenceCoordinates'
-
-const STRUCTURE_TONES = {
-  light: '#94a3b8',
-  mid: '#64748b',
-  dark: '#334155',
-  accent: '#0f766e',
-} as const
+import { XrStagePresetGeometry } from '@/features/three/XrStagePresetGeometry'
 
 const EMPTY_XR_WORLD_NODES: readonly GraphNode[] = Object.freeze([])
 
@@ -151,9 +145,7 @@ export function XrMotionReferenceStage({
   }, [graphData?.metadata, nodes, persistedValue, sceneKey])
   const stage = resolveXrMotionReferenceStage(runtime.plan.stageId)
   const scale = span / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
-  const floorWidth = stage.sizeMeters[0] * scale
   const floorHeight = stage.sizeMeters[1] * scale
-  const floorThickness = Math.max(0.5, scale * 0.08)
   const subjectIds = React.useMemo(() => new Set(runtime.plan.subjects.map(subject => subject.id)), [runtime.plan.subjects])
 
   return (
@@ -162,35 +154,7 @@ export function XrMotionReferenceStage({
       renderOrder={THREE_RENDER_ORDER.groups - 10}
       userData={{ schema: runtime.plan.schema, stageId: stage.id, playheadSeconds: runtime.playheadSeconds }}
     >
-      <mesh name="kg_xr_motion_stage_floor" position={[0, groundY - floorThickness / 2, 0]}>
-        <boxGeometry args={[floorWidth, floorThickness, floorHeight]} />
-        <meshStandardMaterial color="#475569" roughness={1} metalness={0} transparent opacity={0.68} />
-      </mesh>
-      <gridHelper
-        name="kg_xr_motion_world_grid"
-        args={[floorWidth, Math.max(12, Math.round(stage.sizeMeters[0] * 2)), '#38bdf8', '#334155']}
-        position={[0, groundY + 0.08, 0]}
-      />
-      <axesHelper
-        name="kg_xr_motion_world_origin"
-        args={[Math.max(4, scale * 2.4)]}
-        position={[0, groundY + 0.12, 0]}
-      />
-      <group name={`kg_xr_motion_stage_preset_${stage.id}`}>
-        {stage.structures.map(structure => {
-          const position = xrMotionReferenceWorldPosition(structure.position, scale, groundY)
-          return (
-            <mesh key={structure.id} name={`kg_xr_motion_structure_${structure.id}`} position={position}>
-              <boxGeometry args={[
-                structure.size[0] * scale,
-                structure.size[1] * scale,
-                structure.size[2] * scale,
-              ]} />
-              <meshStandardMaterial color={STRUCTURE_TONES[structure.tone]} roughness={0.95} metalness={0} transparent opacity={0.78} />
-            </mesh>
-          )
-        })}
-      </group>
+      <XrStagePresetGeometry stage={stage} span={span} groundY={groundY} />
       <group name="kg_xr_motion_cast_tracks">
         {runtime.plan.cast.map(track => (
           <CastTrack

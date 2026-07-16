@@ -145,21 +145,28 @@ function Umbrella({ color, size }: { color: string; size: readonly [number, numb
   )
 }
 
-function SubjectGeometry({ subject }: { subject: XrMotionReferenceSubject }) {
-  const asset = resolveXrSceneLibraryAsset(subject.assetId)
+export function XrSceneLibraryAssetGeometry({
+  assetId,
+  color,
+}: {
+  assetId: string
+  color?: string
+}) {
+  const asset = resolveXrSceneLibraryAsset(assetId)
   const size = asset.dimensionsMeters
-  if (asset.shape === 'humanoid') return <Humanoid color={subject.color} size={size} />
-  if (asset.shape === 'quadruped') return <Quadruped color={subject.color} size={size} />
-  if (asset.shape === 'car') return <Car color={subject.color} size={size} />
-  if (asset.shape === 'bicycle') return <Bicycle color={subject.color} size={size} />
-  if (asset.shape === 'chair') return <Chair color={subject.color} size={size} />
-  if (asset.shape === 'table') return <Table color={subject.color} size={size} />
-  if (asset.shape === 'sofa') return <Sofa color={subject.color} size={size} />
-  if (asset.shape === 'cart') return <Cart color={subject.color} size={size} />
-  if (asset.shape === 'tree') return <Tree color={subject.color} size={size} />
-  if (asset.shape === 'lamp') return <Lamp color={subject.color} size={size} />
-  if (asset.shape === 'umbrella') return <Umbrella color={subject.color} size={size} />
-  return <mesh position={[0, 0, size[1] * 0.5]}><boxGeometry args={[size[0], size[2], size[1]]} /><Material color={subject.color} /></mesh>
+  const effectiveColor = color || asset.defaultColor
+  if (asset.shape === 'humanoid') return <Humanoid color={effectiveColor} size={size} />
+  if (asset.shape === 'quadruped') return <Quadruped color={effectiveColor} size={size} />
+  if (asset.shape === 'car') return <Car color={effectiveColor} size={size} />
+  if (asset.shape === 'bicycle') return <Bicycle color={effectiveColor} size={size} />
+  if (asset.shape === 'chair') return <Chair color={effectiveColor} size={size} />
+  if (asset.shape === 'table') return <Table color={effectiveColor} size={size} />
+  if (asset.shape === 'sofa') return <Sofa color={effectiveColor} size={size} />
+  if (asset.shape === 'cart') return <Cart color={effectiveColor} size={size} />
+  if (asset.shape === 'tree') return <Tree color={effectiveColor} size={size} />
+  if (asset.shape === 'lamp') return <Lamp color={effectiveColor} size={size} />
+  if (asset.shape === 'umbrella') return <Umbrella color={effectiveColor} size={size} />
+  return <mesh position={[0, 0, size[1] * 0.5]}><boxGeometry args={[size[0], size[2], size[1]]} /><Material color={effectiveColor} /></mesh>
 }
 
 function SubjectLabel({ label, heightMeters }: { label: string; heightMeters: number }) {
@@ -191,7 +198,7 @@ export function XrSceneLibrarySubject({
       userData={{ subjectId: subject.id, assetId: subject.assetId, category: subject.category, label: subject.label }}
     >
       <group rotation={[-Math.PI / 2, 0, 0]}>
-        <SubjectGeometry subject={subject} />
+        <XrSceneLibraryAssetGeometry assetId={subject.assetId} color={subject.color} />
         <SubjectLabel label={subject.label} heightMeters={asset.dimensionsMeters[1]} />
       </group>
     </group>

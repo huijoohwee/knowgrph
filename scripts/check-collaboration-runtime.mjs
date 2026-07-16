@@ -16,6 +16,7 @@ import {
   resolveCollaborationRuntimeSourceRevision,
   validateCollaborationRuntimeReport,
 } from './collaboration-runtime-report.mjs'
+import { fetchOpenPullRequests } from './github-active-scope-client.mjs'
 
 const workflowTriggers = workflow => {
   const trigger = workflow.on
@@ -64,24 +65,6 @@ const assertBaseShaIsAncestor = baseSha => {
     encoding: 'utf8',
   })
   if (result.status !== 0) throw new Error(`declared base_sha is not an ancestor of HEAD: ${baseSha}`)
-}
-
-const fetchOpenPullRequests = async (repository, token) => {
-  const pullRequests = []
-  for (let page = 1; ; page += 1) {
-    const response = await fetch(`https://api.github.com/repos/${repository}/pulls?state=open&per_page=100&page=${page}`, {
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${token}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-    })
-    if (!response.ok) throw new Error(`GitHub active-scope query failed with HTTP ${response.status}`)
-    const pageItems = await response.json()
-    if (!Array.isArray(pageItems)) throw new Error('GitHub active-scope query returned a non-array payload')
-    pullRequests.push(...pageItems)
-    if (pageItems.length < 100) return pullRequests
-  }
 }
 
 const validatePullRequestCoordination = async contract => {

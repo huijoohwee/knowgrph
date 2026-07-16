@@ -23,6 +23,7 @@ import { parseStandaloneSpatialCaptureManifest } from '@/features/markdown-works
 import { SpatialCaptureManifestStage } from '@/features/three/SpatialCaptureManifestStage'
 import { XrEmptyWorldStage } from '@/features/three/XrEmptyWorldStage'
 import { XrEmptyWorldHud } from '@/features/three/XrEmptyWorldHud'
+import { useXrSceneMediaDrop } from '@/features/three/useXrSceneMediaDrop'
 
 const SceneLazy = React.lazy(() =>
   import('@/lib/three/Scene.impl').then(mod => ({
@@ -177,6 +178,10 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   const positions3d = positions as unknown as Record<string, [number, number, number]>
   positionsRef.current = positions3d
   const containerRef = React.useRef<HTMLElement | null>(null)
+  const xrSceneMediaDrop = useXrSceneMediaDrop({
+    active: active && mode === 'xr',
+    targetRef: containerRef,
+  })
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null)
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null)
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null)
@@ -313,8 +318,12 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   if (!hasRenderableScene || webglSupported === false) {
     return (
       <section
+        ref={containerRef}
         className="absolute inset-0 w-full h-full z-0"
         data-kg-xr-document-loaded={mode === 'xr' ? (xrDocumentLoaded ? '1' : '0') : undefined}
+        data-kg-xr-scene-media-drop={mode === 'xr' ? '1' : undefined}
+        onDragOver={xrSceneMediaDrop.onDragOver}
+        onDrop={xrSceneMediaDrop.onDrop}
       />
     )
   }
@@ -325,6 +334,9 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       data-kg-xr-document-loaded={mode === 'xr' ? (xrDocumentLoaded ? '1' : '0') : undefined}
       data-kg-xr-exclusive-stage={mode === 'xr' && (hasGraph || hasXrEmptyWorld) ? '1' : undefined}
       data-kg-xr-empty-world={hasXrEmptyWorld ? '1' : undefined}
+      data-kg-xr-scene-media-drop={mode === 'xr' ? '1' : undefined}
+      onDragOver={xrSceneMediaDrop.onDragOver}
+      onDrop={xrSceneMediaDrop.onDrop}
     >
       <Canvas
         key={hasXrEmptyWorld ? 'xr-empty-world-canvas' : 'scene-canvas'}
