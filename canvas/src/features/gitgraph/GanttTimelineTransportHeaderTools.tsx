@@ -125,7 +125,7 @@ export function GanttTimelineTransportHeaderTools(args: GanttTimelineTransportHe
 
   return (
     <section className="timeline-transport-header-tools" aria-label="Timeline tools">
-      <nav className="timeline-video-sequence-tool-strip" aria-label="Video sequence editing tools">
+      {!args.model.runtimeOnly ? <nav className="timeline-video-sequence-tool-strip" aria-label="Video sequence editing tools">
         {renderMediaPlayerButton()}
         {renderTimingSyncButton()}
         <details className="timeline-tool-menu timeline-tool-menu--edit">
@@ -157,7 +157,7 @@ export function GanttTimelineTransportHeaderTools(args: GanttTimelineTransportHe
             {args.model.clipActionButtons.map(button => renderClipActionButton(button))}
           </nav>
         </details>
-      </nav>
+      </nav> : null}
       <nav
         className="timeline-transport-zoom-controls"
         aria-label="Timeline zoom controls"
@@ -178,7 +178,7 @@ export function GanttTimelineTransportHeaderTools(args: GanttTimelineTransportHe
           </nav>
         </details>
       </nav>
-      <details className="timeline-tool-menu timeline-tool-menu--utilities">
+      {!args.model.runtimeOnly ? <details className="timeline-tool-menu timeline-tool-menu--utilities">
         <summary aria-label="Timeline utility tools" title="Timeline utility tools">
           <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={2} aria-hidden={true} />
         </summary>
@@ -223,7 +223,7 @@ export function GanttTimelineTransportHeaderTools(args: GanttTimelineTransportHe
             </button>
           ))}
         </nav>
-      </details>
+      </details> : null}
     </section>
   )
 }

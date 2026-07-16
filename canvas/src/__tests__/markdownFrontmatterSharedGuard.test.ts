@@ -66,8 +66,8 @@ kgCanvas2dRenderer: "Storyboard"
 }
 
 export const testMarkdownFrontmatterNormalizesXrSurfaceAlias = () => {
-  if (readFloatingPanelViewPreset('camera') !== 'camera' || readFloatingPanelViewPreset('xr') !== 'xr') {
-    throw new Error('expected the canonical FloatingPanel reader to preserve both Camera and XR projections')
+  if (readFloatingPanelViewPreset('camera') !== 'camera' || readFloatingPanelViewPreset('media') !== 'media' || readFloatingPanelViewPreset('xr') !== undefined) {
+    throw new Error('expected the canonical FloatingPanel reader to preserve Camera and Media while rejecting the removed XR panel')
   }
   if (readBottomSurfaceTabPreset('xr') !== undefined) {
     throw new Error('expected the canonical BottomPanel reader to reject the removed XR route')
@@ -82,8 +82,8 @@ kgFloatingPanelView: xr
   if (preset.canvasSurfaceMode !== 'xr') {
     throw new Error(`expected XR surface alias to normalize to xr, got ${String(preset.canvasSurfaceMode)}`)
   }
-  if (preset.floatingPanelOpen !== true || preset.floatingPanelView !== 'xr') {
-    throw new Error(`expected XR panel frontmatter to route only to FloatingPanel XR, got ${JSON.stringify(preset)}`)
+  if (preset.floatingPanelOpen !== true || preset.floatingPanelView !== undefined) {
+    throw new Error(`expected stale FloatingPanel XR frontmatter to be rejected without an alias, got ${JSON.stringify(preset)}`)
   }
   if (preset.bottomPanelTab !== undefined) {
     throw new Error(`expected stale BottomPanel XR frontmatter to be rejected without an alias, got ${String(preset.bottomPanelTab)}`)

@@ -5,13 +5,15 @@ const modLayoutPositioning = () => import('@/__tests__/layoutPositioning.test')
 const modLayoutDatasetKeyStable = () => import('@/__tests__/layoutDatasetKeyStable.test')
 const modCanvas3dMode = () => import('@/__tests__/canvas3dMode.test')
 const modCanvasXrSessionPolicy = () => import('@/__tests__/canvasXrSessionPolicy.test')
-const modCanvasXrPhysicsPlayground = () => import('@/__tests__/canvasXrPhysicsPlayground.test')
 const modCanvasXrPanelSurface = () => import('@/__tests__/canvasXrPanelSurface.test')
+const modXrMotionReferencePackage = () => import('@/__tests__/xrMotionReferencePackage.test')
 const modWorkspaceImportXrSpatialCaptureIngestion = () => import('@/__tests__/workspaceImportXrSpatialCaptureIngestion.test')
 const modWorkspaceImportXrSpatialCaptureLaunchUrl = () => import('@/__tests__/workspaceImportXrSpatialCaptureLaunchUrl.test')
 const modWorkspaceImportXrSpatialCaptureRuntime = () => import('@/__tests__/workspaceImportXrSpatialCaptureRuntime.test')
 const modModelAssetRenderPayloadCache = () => import('@/__tests__/modelAssetRenderPayloadCache.test')
 const modSpatialCaptureRenderPerformance = () => import('@/__tests__/spatialCaptureRenderPerformance.test')
+const modGaussianSplatEditorModel = () => import('@/__tests__/gaussianSplatEditorModel.test')
+const modGaussianSplatEditorSurface = () => import('@/__tests__/gaussianSplatEditorSurface.test')
 const modVideoSequenceTimelinePreset = () => import('@/__tests__/videoSequenceTimelinePreset.test')
 const modCanvasViewDisplayControls = () => import('@/__tests__/canvasViewDisplayControls.test')
 const modCanvasViewCardWidgetDisplayControls = () => import('@/__tests__/canvasViewCardWidgetDisplayControls.test')
@@ -77,13 +79,13 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvasXrSessionPolicy()
     await mod.testXrSessionPolicyPrefersNativeArWithoutProviderDependency()
   })
-  await execTest(results, 'canvas.xrMode.physicsPlaygroundModel', async () => {
-    const mod = await modCanvasXrPhysicsPlayground()
-    await mod.testXrPhysicsPlaygroundUsesNativeBoundedInteractionModel()
-  })
   await execTest(results, 'canvas.xrMode.panelSurface', async () => {
     const mod = await modCanvasXrPanelSurface()
     await mod.testXrModeUsesCanonicalFloatingPanel()
+  })
+  await execTest(results, 'canvas.xrMode.motionReferencePackage', async () => {
+    const mod = await modXrMotionReferencePackage()
+    await mod.testXrMotionReferencePackageIsNativeDeterministicAndGraphBacked()
   })
   await execTest(results, 'workspace.import.xrSpatialCapture.localPlyManifestCache', async () => {
     const mod = await modWorkspaceImportXrSpatialCaptureIngestion()
@@ -168,6 +170,22 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'workspace.import.xrSpatialCapture.boundedGaussianSortCadence', async () => {
     const mod = await modSpatialCaptureRenderPerformance()
     await mod.testSpatialCaptureRenderStageUsesBoundedGaussianSortCadence()
+  })
+  await execTest(results, 'canvas.xrMode.gaussianSplatEditorModel', async () => {
+    const mod = await modGaussianSplatEditorModel()
+    await mod.testGaussianSplatEditorModelInspectsFiltersAndExports()
+  })
+  await execTest(results, 'canvas.xrMode.gaussianSplatEditorRuntime', async () => {
+    const mod = await modGaussianSplatEditorModel()
+    await mod.testGaussianSplatEditorRuntimePreservesSceneDrafts()
+  })
+  await execTest(results, 'canvas.xrMode.gaussianSplatEditorVisibilitySortParity', async () => {
+    const mod = await modGaussianSplatEditorModel()
+    await mod.testGaussianSplatEditorVisibilityPreservesSourceOrderAfterDegenerateSort()
+  })
+  await execTest(results, 'canvas.xrMode.gaussianSplatEditorSurface', async () => {
+    const mod = await modGaussianSplatEditorSurface()
+    await mod.testGaussianSplatEditorSurfaceIsWiredAndCleanRoom()
   })
   await execTest(results, 'workspace.import.xrSpatialCapture.workerParserTransfer', async () => {
     const mod = await modWorkspaceImportXrSpatialCaptureRuntime()

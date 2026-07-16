@@ -1,6 +1,7 @@
 import { useGanttTimelineTransportPlaybackModel } from './useGanttTimelineTransportPlaybackModel'
 import { useGanttTimelineTransportSession } from './useGanttTimelineTransportSession'
 import { useMermaidGanttDocument } from './useMermaidGanttDocument'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function GanttTimelineTransportPlaybackRuntime({
   active = true,
@@ -8,7 +9,8 @@ export function GanttTimelineTransportPlaybackRuntime({
   active?: boolean
 }) {
   const { code } = useMermaidGanttDocument({ purpose: 'media' })
-  if (!active || !code) return null
+  const xrTimelineOwnsClock = useGraphStore(state => state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr')
+  if (!active || xrTimelineOwnsClock || !code) return null
   return <GanttTimelineTransportPlaybackRuntimeController code={code} />
 }
 

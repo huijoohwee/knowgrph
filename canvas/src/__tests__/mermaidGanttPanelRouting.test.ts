@@ -444,7 +444,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
   const timelinePreviewSyncText = readSource('components', 'timeline', 'timelinePreviewSync.ts')
   const timelinePreviewVideoBindingText = readSource('components', 'timeline', 'useTimelinePreviewVideoBinding.ts')
   const videoSequenceSourceRegistryText = readSource('components', 'timeline', 'videoSequenceSourceRegistry.ts')
-  const localImportText = readSource('features', 'markdown-workspace', 'workspaceImport', 'localImport.ts')
+  const localImportText = [readSource('features', 'markdown-workspace', 'workspaceImport', 'localImport.ts'), readSource('features', 'markdown-workspace', 'workspaceImport', 'localImportShared.ts')].join('\n')
   const importActionsText = readSource('features', 'markdown-workspace', 'useWorkspaceFileActions', 'importActions.ts')
   const launchFallbackText = readSource('features', 'toolbar', 'launchDropdownFallbacks.ts')
   const urlImportText = readSource('features', 'markdown-workspace', 'workspaceImport', 'urlImport.ts')
@@ -949,7 +949,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttTransportSurfaceModelText.includes('const thumbnailSourceUrl = React.useMemo') ||
     !ganttTransportSurfaceModelText.includes('resolveTimelinePlanSourceUrl') ||
     !ganttTransportSurfaceModelText.includes('playbackUnitsPerMs: transportClockDisplayModel.playbackUnitsPerMs') ||
-    !ganttTransportSurfaceModelText.includes('const selectedPreviewEmpty = !!transportSession.selectedRowKey && !transportSession.previewPlan') ||
+    !ganttTransportSurfaceModelText.includes('const selectedPreviewEmpty = !!transportSession.selectedSpan && !transportSession.previewPlan') ||
     ganttTransportSurfaceModelText.includes('transportSession.disabled || selectedPreviewEmpty') ||
     ganttTransportSurfaceModelText.includes('transportSession.setTransportPlaying(false)') ||
     !ganttTransportSurfaceModelText.includes('transportClockDisplayModel') ||
@@ -975,15 +975,14 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !ganttDocumentActionsText.includes('downloadVideoSequenceExport') ||
     !ganttDocumentActionsText.includes('useTimelineTransportTimingSyncStoreBinding') ||
     !ganttDocumentActionsText.includes('setTimelineTransportTimingSyncMode(timingSyncMode ===') ||
-    !ganttDocumentActionsText.includes('splitMermaidGanttVideoSequenceClipAtOffset') ||
+    !ganttDocumentActionsText.includes('resolveGanttTimelineVideoSequenceSplitAction') ||
     !ganttDocumentActionsText.includes('insertMermaidGanttVideoSequenceOperationRow') ||
     !ganttDocumentActionsText.includes('useTimelineDocumentSnapshotReader') ||
     !ganttDocumentActionsText.includes('handleCommittedDragUpdate') ||
-    !ganttDocumentActionsText.includes('updateMermaidGanttVideoSequenceClipTiming') ||
+    !ganttDocumentActionsText.includes('updateGanttTimelineVideoSequenceClipTimingWithRipple') ||
     !ganttDocumentActionsText.includes('handleToggleVideoSequenceTimingSyncMode') ||
-    !ganttDocumentActionsText.includes('resolveDirectEditTimingSyncMode') ||
-    !["const SOURCE_BACKED_TIMING_SYNC_LANES = new Set(['video', 'image', 'scene', 'audio'])", 'return SOURCE_BACKED_TIMING_SYNC_LANES.has(resolveVideoSequenceTimelineLane(args.span))'].every(token => ganttDocumentActionsText.includes(token)) ||
-    !ganttDocumentActionsText.includes('syncMode: resolveDirectEditTimingSyncMode({ span: input.dragState.span, timingSyncMode })') ||
+    !ganttDocumentActionsText.includes('resolveGanttTimelineVideoSequenceTimingSyncMode') ||
+    !ganttDocumentActionsText.includes('syncMode: resolveGanttTimelineVideoSequenceTimingSyncMode({ span: actionContext.selectedSpan, timingSyncMode })') ||
     ganttDocumentActionsText.includes('const nextCode = updateMermaidGanttCodeRowTiming') ||
     !ganttDocumentActionsText.includes('replaceFirstMermaidGanttFrontmatterCode') ||
     !ganttDocumentActionsText.includes('upsertUiToast') ||
@@ -1410,9 +1409,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !urlContentText.includes('buildCorpusMediaMetadataMarkdown') ||
     !urlContentText.includes("sourceMediaKind: 'video'") ||
     !videoSequenceImportText.includes('kgVideoSequenceTimeline: true') ||
-    !videoSequenceImportText.includes('type: mermaid_gantt') ||
-    !videoSequenceImportText.includes('section Mask') ||
-    !videoSequenceImportText.includes('section Grade')
+    !videoSequenceImportText.includes('type: mermaid_gantt')
   ) {
     throw new Error('expected local-file and URL video imports to materialize a shared source-backed video sequence Timeline document')
   }
@@ -1511,7 +1508,7 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     deltaMinutes: 1,
   })
   if (
-    !groupedMovedCode?.includes('Opening shot : clip_opening, kgsrc_0_6, 09:01, 6m') ||
+    !groupedMovedCode?.includes('Opening shot : clip_opening, 09:01, 6m') ||
     !groupedMovedCode.includes('Opening shot mask : clip_opening_mask, kgsrc_0_6, 09:01, 6m') ||
     !groupedMovedCode.includes('Opening shot grade : clip_opening_grade, kgsrc_0_6, 09:01, 6m') ||
     !groupedMovedCode.includes('Opening shot audio : clip_opening_audio, kgsrc_0_6, 09:01, 6m')
@@ -1596,14 +1593,14 @@ export async function testGanttPanelRoutingUsesSharedGitGraphMermaidUtilities() 
     !importedSequenceMarkdown.includes('kgCanvas2dRenderer: "media"') ||
     !importedSequenceMarkdown.includes('kgVideoSequenceTimeline: true') ||
     !importedSequenceCode.includes('section Video') ||
-    !importedSequenceCode.includes('section Mask') ||
-    !importedSequenceCode.includes('section Grade') ||
     !importedSequenceCode.includes('section Audio') ||
-    !/clip-alpha\.mp4\s*:\s*clip_[a-z0-9]+,\s*00:00,\s*5m/.test(importedSequenceCode) ||
-    !/clip-beta\.webm grade\s*:\s*clip_[a-z0-9]+_grade,\s*00:05,\s*5m/.test(importedSequenceCode) ||
+    importedSequenceCode.includes('section Mask') ||
+    importedSequenceCode.includes('section Grade') ||
+    !/clip-alpha\.mp4\s*:\s*clip_[a-z0-9]+,\s*kgsrc_0_300,\s*00:00,\s*5m/.test(importedSequenceCode) ||
+    !/clip-beta\.webm audio\s*:\s*clip_[a-z0-9]+_audio,\s*kgsrc_0_300,\s*00:02,\s*5m/.test(importedSequenceCode) ||
     /\s:\s(?:video|mask|grade|audio|splice),/.test(importedSequenceCode) ||
-    importedSequenceModel.durationMinutes !== 10 ||
-    importedSequenceModel.taskSpans.length !== 8 ||
+    importedSequenceModel.durationMinutes !== 7 ||
+    importedSequenceModel.taskSpans.length !== 4 ||
     importedSequencePreset?.canvas2dRenderer !== 'media' ||
     importedSequencePreset?.videoSequenceTimelineEnabled !== true ||
     legacySequencePreset?.canvas2dRenderer !== 'media'

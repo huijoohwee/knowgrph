@@ -22,6 +22,7 @@ export function useGanttTimelineTransportPlaybackModel(args: {
   playbackUnitsPerMs: number
   playing: boolean
   positionMinutes: number
+  publishPlaybackRequest?: boolean
   setTransportPlaying: (nextPlaying: boolean) => void
   onPositionChange: (position: number) => void
 }): GanttTimelineTransportPlaybackModel {
@@ -32,6 +33,7 @@ export function useGanttTimelineTransportPlaybackModel(args: {
     playbackUnitsPerMs: args.playbackUnitsPerMs,
     playing: args.playing,
     positionMinutes: args.positionMinutes,
+    publishPlaybackRequest: args.publishPlaybackRequest,
     setTransportPlaybackPosition: args.onPositionChange,
     setTransportPlaying: args.setTransportPlaying,
   })

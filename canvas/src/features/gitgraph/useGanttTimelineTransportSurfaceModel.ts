@@ -99,8 +99,14 @@ const collectTimelineTransportThumbnailSourceItems = (plans: readonly (ReturnTyp
 
 export function useGanttTimelineTransportSurfaceModel(args: {
   code: string
+  clockActive?: boolean
   compact: boolean
+  editable?: boolean
   mode: GanttTimelineTransportMode
+  publishPlaybackRequest?: boolean
+  runtimeDocumentKey?: string
+  runtimeDurationSeconds?: number
+  runtimeFrameRate?: number
   onSelectedRowKeyChange?: (rowKey: string | null) => void
 }): GanttTimelineTransportSurfaceModel {
   const rulerContentRef = React.useRef<HTMLElement | null>(null)
@@ -117,6 +123,8 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     code: args.code,
     disabledLaneIds,
     mode: args.mode,
+    runtimeDocumentKey: args.runtimeDocumentKey,
+    runtimeDurationSeconds: args.runtimeDurationSeconds,
   })
   const handleSelectedRowKeyChange = React.useCallback((rowKey: string) => {
     const nextRowKey = clean(rowKey)
@@ -133,7 +141,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
       ? (transportSession.timelineModel.taskSpans.length ? 1 : 0)
       : resolveVisibleVideoSequenceTimelineLaneCount(transportSession.timelineModel.taskSpans, { disabledLaneIds })
   ), [disabledLaneIds, transportSession.timelineModel.taskSpans, workflowMode])
-  const selectedPreviewEmpty = !!transportSession.selectedRowKey && !transportSession.previewPlan
+  const selectedPreviewEmpty = !!transportSession.selectedSpan && !transportSession.previewPlan
   const mediaPreviewSourceUrl = React.useMemo(() => {
     if (selectedPreviewEmpty) return ''
     const source = transportSession.previewPlan?.segments.find(segment => resolveTimelinePlanSourceUrl(segment.source))?.source
@@ -339,7 +347,8 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     timelineModel: transportSession.timelineModel,
     onCommitDrag: transportCommandModel.handleCommittedDragUpdate,
   })
-  const chromeModel = useGanttTimelineTransportChromeModel({
+  const editable = args.editable !== false
+  const baseChromeModel = useGanttTimelineTransportChromeModel({
     canFitTimeline: transportInteractionModel.canFitTimeline,
     canZoomIn: transportInteractionModel.canZoomIn,
     canZoomOut: transportInteractionModel.canZoomOut,
@@ -362,6 +371,21 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     toolStatus: transportSession.toolStatus,
     ...transportCommandModel.chromeModelCommands,
   })
+  const chromeModel = React.useMemo<GanttTimelineTransportChromeModel>(() => {
+    if (editable) return baseChromeModel
+    return {
+      ...baseChromeModel,
+      headerTools: {
+        ...baseChromeModel.headerTools,
+        runtimeOnly: true,
+        actionButtons: baseChromeModel.headerTools.actionButtons.map(button => ({ ...button, disabled: true })),
+        clipActionButtons: baseChromeModel.headerTools.clipActionButtons.map(button => ({ ...button, disabled: true })),
+        mediaPlayerButton: { ...baseChromeModel.headerTools.mediaPlayerButton, disabled: true },
+        syncModeButton: { ...baseChromeModel.headerTools.syncModeButton, disabled: true },
+        toolButtons: baseChromeModel.headerTools.toolButtons.map(button => ({ ...button, disabled: true })),
+      },
+    }
+  }, [baseChromeModel, editable])
   const rulerModel = useGanttTimelineTransportRulerModel({
     compact: args.compact,
     contentRef: rulerContentRef,
@@ -370,11 +394,14 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     dragPreview: transportInteractionModel.dragPreview,
     draggingMode: transportInteractionModel.draggingMode,
     draggingRowKey: transportInteractionModel.draggingRowKey,
+    editable,
     maxMinutes: transportSession.maxMinutes,
     mediaDurationSeconds: rulerMediaDurationSeconds,
-    mediaFrameRate: selectedPreviewEmpty ? 0 : (timelinePlanSourceFrameRate || thumbnailSummary.averageVideoFrameRate),
+    mediaFrameRate: Number(args.runtimeFrameRate) > 0
+      ? Number(args.runtimeFrameRate)
+      : selectedPreviewEmpty ? 0 : (timelinePlanSourceFrameRate || thumbnailSummary.averageVideoFrameRate),
     mode: args.mode,
-    onDropMedia: workflowMode ? () => false : transportCommandModel.handleMediaDrop,
+    onDropMedia: workflowMode || !editable ? () => false : transportCommandModel.handleMediaDrop,
     onRulerWheel: transportInteractionModel.handleRulerWheelZoom,
     onRulerPointerDown: transportInteractionModel.handleRulerPointerScrub,
     onSelectRowKey: handleSelectedRowKeyChange,
@@ -382,7 +409,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
       transportSession.setTransportPlaybackPosition(positionMinutes)
       handleSelectedRowKeyChange(rowKey)
     },
-    onTrackPointerStart: transportInteractionModel.handleTrackPointerStart,
+    onTrackPointerStart: editable ? transportInteractionModel.handleTrackPointerStart : () => {},
     playheadPercent: transportInteractionModel.playheadPercent,
     positionMinutes: transportSession.positionMinutes,
     scopes: compactSourceTimeline || workflowMode ? [] : transportSession.monitorScopes,
@@ -397,7 +424,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     visibleLaneCount: rulerVisibleLaneCount,
   })
   const transportPlaybackModel = useGanttTimelineTransportPlaybackModel({
-    clockActive: false,
+    clockActive: args.clockActive === true,
     disabled: transportSession.disabled,
     documentKey: transportSession.documentKey,
     maxMinutes: transportSession.maxMinutes,
@@ -406,6 +433,7 @@ export function useGanttTimelineTransportSurfaceModel(args: {
     playbackUnitsPerMs: transportClockDisplayModel.playbackUnitsPerMs,
     playing: transportSession.playing,
     positionMinutes: transportSession.positionMinutes,
+    publishPlaybackRequest: args.publishPlaybackRequest !== false,
     setTransportPlaying: transportSession.setTransportPlaying,
   })
   const shellModel = useGanttTimelineTransportShellModel({

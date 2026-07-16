@@ -271,7 +271,8 @@ export function testWorkspaceImportXrStandalonePlyUsesSpatialRendererInsteadOfGr
   const threeGraph = readFileSync(resolve(process.cwd(), 'src', 'lib', 'three', 'ThreeGraph.impl.tsx'), 'utf8')
   const threeGraphXr = readFileSync(resolve(process.cwd(), 'src', 'lib', 'three', 'ThreeGraphXr.tsx'), 'utf8')
   const minimapSpatialViewCube = readFileSync(resolve(process.cwd(), 'src', 'features', 'minimap', 'MinimapSpatialViewCube.tsx'), 'utf8')
-  const controls = readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'Controls.tsx'), 'utf8')
+  const controls = ['Controls.tsx', 'cameraFramingControlsRuntime.ts']
+    .map(file => readFileSync(resolve(process.cwd(), 'src', 'features', 'three', file), 'utf8')).join('\n')
   const modelAssetCameraPose = readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'modelAssetCameraPose.ts'), 'utf8')
   const stage = [readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'SpatialCaptureManifestStage.tsx'), 'utf8'), readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'spatialCaptureGeometryRuntime.ts'), 'utf8')].join('\n')
   const gaussianMaterial = readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'spatialCaptureGaussianMaterial.ts'), 'utf8')
@@ -290,20 +291,19 @@ export function testWorkspaceImportXrStandalonePlyUsesSpatialRendererInsteadOfGr
   ]) {
     if (!threeGraph.includes(marker)) throw new Error(`expected ThreeGraph to route standalone PLY manifests through spatial stage marker ${marker}`)
   }
-	  for (const marker of [
-	    "surfaceKind === 'spatial-capture'",
-	    'data-kg-canvas-xr-surface-kind="spatial-capture"',
-	    'data-kg-canvas-xr-spatial-runtime={spatialRuntimeStatus}', 'data-kg-canvas-xr-spatial-fidelity={spatialRuntimeFidelity}',
-	    'XR spatial capture orientation', 'readSpatialCaptureToolLabel(spatialTool)',
-	    'const [spatialTool, setSpatialToolState]',
-	    'subscribeSpatialCaptureTool(setSpatialToolState)',
-	    'data-kg-canvas-xr-minimap-overlay="1"', '<MinimapSpatialViewCube />',
-	  ]) {
-	    if (!threeGraphXr.includes(marker)) throw new Error(`expected XR entry panel to expose spatial-capture HUD marker ${marker}`)
-	  }
-		  for (const staleMarker of ['{mode.slice(0, 1)}', '{tool.slice(0, 1)}', 'data-kg-canvas-xr-center-controls="1"', 'data-kg-canvas-xr-bottom-toolbar="1"', 'data-kg-canvas-xr-left-rail="1"', 'data-kg-canvas-xr-spatial-tool-rail="1"', 'data-kg-canvas-xr-axis-widget="1"', 'data-kg-canvas-xr-axis-gizmo="1"', 'data-kg-canvas-xr-view-cube="1"', 'data-kg-canvas-xr-view-cube-guide="1"']) {
-	    if (threeGraphXr.includes(staleMarker)) throw new Error(`expected XR spatial chrome to avoid placeholder letter marker ${staleMarker}`)
-	  }
+  for (const marker of [
+    "surfaceKind === 'spatial-capture'", 'data-kg-canvas-xr-surface-kind="spatial-capture"',
+    'data-kg-canvas-xr-spatial-runtime={spatialRuntimeStatus}', 'data-kg-canvas-xr-spatial-fidelity={spatialRuntimeFidelity}',
+    'XR spatial capture orientation', 'readSpatialCaptureToolLabel(spatialTool)', 'const [spatialTool, setSpatialToolState]',
+    'subscribeSpatialCaptureTool(setSpatialToolState)', 'data-kg-canvas-xr-minimap-overlay="1"', '<MinimapSpatialViewCube />',
+    "const spatialChrome = surfaceKind === 'spatial-capture'", "if (status === 'checking' || status === 'unsupported') return spatialChrome",
+    '{spatialChrome}', 'data-kg-canvas-xr-enter="1"',
+  ]) {
+    if (!threeGraphXr.includes(marker)) throw new Error(`expected XR entry panel to expose spatial-capture HUD marker ${marker}`)
+  }
+  for (const staleMarker of ['{mode.slice(0, 1)}', '{tool.slice(0, 1)}', 'data-kg-canvas-xr-center-controls="1"', 'data-kg-canvas-xr-bottom-toolbar="1"', 'data-kg-canvas-xr-left-rail="1"', 'data-kg-canvas-xr-spatial-tool-rail="1"', 'data-kg-canvas-xr-axis-widget="1"', 'data-kg-canvas-xr-axis-gizmo="1"', 'data-kg-canvas-xr-view-cube="1"', 'data-kg-canvas-xr-view-cube-guide="1"']) {
+    if (threeGraphXr.includes(staleMarker)) throw new Error(`expected XR spatial chrome to avoid placeholder letter marker ${staleMarker}`)
+  }
   for (const marker of [
     'data-kg-minimap-xr-view-cube="1"',
     'data-kg-minimap-xr-view-cube-axis={spatialAxis}',
@@ -380,12 +380,12 @@ export function testWorkspaceImportXrStandalonePlyUsesSpatialRendererInsteadOfGr
     'onFitChange?.(fit)',
     'fit.stageSpan / fit.scale',
     'subscribeSpatialCaptureTool(setSpatialTool)',
-    'subscribeSpatialCaptureAxis(setSpatialAxis)',
+    'subscribeSpatialCaptureCenterAction(setSpatialCenterAction)',
     'kg_spatial_capture_sphere_select_volume',
     'ringGeometry args={[radius * 0.994, radius, 144]}',
     'kg_spatial_capture_box_select_volume',
-    'resolveAxisCameraPosition(spatialAxis, fit)',
-    'camera.lookAt(0, 0, 0)',
+    'hydrateGaussianSplatEditorRuntime',
+    'updateGaussianSplatEditorVisibility',
   ]) {
     if (!stage.includes(marker)) throw new Error(`expected parsed spatial capture stage marker ${marker}`)
   }

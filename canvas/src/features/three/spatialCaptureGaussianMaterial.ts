@@ -17,6 +17,13 @@ export function buildGaussianSplatMaterial(args: {
       splatAlphaPower: { value: 1.08 },
       splatRadiusScale: { value: 2.8284271 },
       viewportSize: { value: new THREE.Vector2(Math.max(1, args.viewportWidth), Math.max(1, args.viewportHeight)) },
+      editorVisualization: { value: 0 },
+      editorOpacityFloor: { value: 0 },
+      editorScaleCeiling: { value: 1e20 },
+      editorCropMin: { value: new THREE.Vector3(-1e20, -1e20, -1e20) },
+      editorCropMax: { value: new THREE.Vector3(1e20, 1e20, 1e20) },
+      editorBrightness: { value: 1 },
+      editorSaturation: { value: 1 },
     },
     vertexShader: `
       precision highp float;
@@ -25,12 +32,20 @@ export function buildGaussianSplatMaterial(args: {
       attribute float splatOpacity;
       attribute vec3 splatScale;
       attribute vec4 splatRotation;
+      attribute float splatEditorVisible;
       uniform float splatRadiusScale;
       uniform vec2 viewportSize;
+      uniform float editorVisualization;
+      uniform float editorOpacityFloor;
+      uniform float editorScaleCeiling;
+      uniform vec3 editorCropMin;
+      uniform vec3 editorCropMax;
       varying vec3 vSplatColor;
       varying float vSplatAlpha;
       varying vec3 vSplatConic;
       varying vec2 vSplatPixel;
+      varying vec2 vSplatCorner;
+      varying float vSplatVisible;
 
       mat3 quatToMatrix(vec4 q) {
         vec4 n = normalize(q);
@@ -66,6 +81,9 @@ export function buildGaussianSplatMaterial(args: {
       void main() {
         vSplatColor = splatColor;
         vSplatAlpha = clamp(splatOpacity, 0.0, 1.0);
+        float largestScale = max(splatScale.x, max(splatScale.y, splatScale.z));
+        bool insideCrop = all(greaterThanEqual(splatCenter, editorCropMin)) && all(lessThanEqual(splatCenter, editorCropMax));
+        vSplatVisible = splatEditorVisible > 0.5 && vSplatAlpha >= editorOpacityFloor && largestScale <= editorScaleCeiling && insideCrop ? 1.0 : 0.0;
         vec4 mvPosition = modelViewMatrix * vec4(splatCenter, 1.0);
         vec4 centerClip = projectionMatrix * mvPosition;
         float centerW = abs(centerClip.w) > 0.000001 ? centerClip.w : 0.000001;
@@ -85,6 +103,8 @@ export function buildGaussianSplatMaterial(args: {
         vSplatConic = vec3(covC / det, -covB / det, covA / det);
         float splatExtent = clamp(sqrt(lambda) * splatRadiusScale, 0.5, 96.0);
         vec2 corner = position.xy;
+        vSplatCorner = corner;
+        if (editorVisualization > 0.5 && editorVisualization < 1.5) splatExtent = 3.0;
         vSplatPixel = corner * splatExtent;
         vec2 clipOffset = corner * splatExtent * 2.0 / viewportSize * centerW;
         gl_Position = centerClip + vec4(clipOffset, 0.0, 0.0);
@@ -94,19 +114,36 @@ export function buildGaussianSplatMaterial(args: {
       precision highp float;
       uniform float opacityScale;
       uniform float splatAlphaPower;
+      uniform float editorVisualization;
+      uniform float editorBrightness;
+      uniform float editorSaturation;
       varying vec3 vSplatColor;
       varying float vSplatAlpha;
       varying vec3 vSplatConic;
       varying vec2 vSplatPixel;
+      varying vec2 vSplatCorner;
+      varying float vSplatVisible;
       const float EXP4 = exp(-4.0);
       const float INV_EXP4 = 1.0 / (1.0 - EXP4);
       void main() {
+        if (vSplatVisible < 0.5) discard;
         float power = 0.5 * (vSplatConic.x * vSplatPixel.x * vSplatPixel.x + 2.0 * vSplatConic.y * vSplatPixel.x * vSplatPixel.y + vSplatConic.z * vSplatPixel.y * vSplatPixel.y);
-        if (power > 4.0) discard;
-        float norm = pow(max(0.0, (exp(-power) - EXP4) * INV_EXP4), splatAlphaPower);
+        float radius = length(vSplatCorner);
+        float norm;
+        if (editorVisualization > 1.5) {
+          if (radius < 0.72 || radius > 0.98) discard;
+          norm = smoothstep(0.72, 0.8, radius) * (1.0 - smoothstep(0.9, 0.98, radius));
+        } else if (editorVisualization > 0.5) {
+          if (radius > 0.82) discard;
+          norm = 1.0 - smoothstep(0.42, 0.82, radius);
+        } else {
+          if (power > 4.0) discard;
+          norm = pow(max(0.0, (exp(-power) - EXP4) * INV_EXP4), splatAlphaPower);
+        }
         float alpha = min(0.96, norm * vSplatAlpha * opacityScale);
         if (alpha < 0.003921569) discard;
-        vec3 color = clamp(vSplatColor, 0.0, 1.0);
+        float luminance = dot(vSplatColor, vec3(0.2126, 0.7152, 0.0722));
+        vec3 color = clamp(mix(vec3(luminance), vSplatColor, editorSaturation) * editorBrightness, 0.0, 1.0);
         gl_FragColor = vec4(color * alpha, alpha);
       }
     `,

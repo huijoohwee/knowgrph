@@ -215,6 +215,15 @@ export function testCameraFramingOrbitControlsPreserveOverheadPose() {
   ) / directionLength
   assertCondition(settledSettings.orbitY < -0.99999, `expected OrbitControls to preserve the overhead pose, got ${settledSettings.orbitY}`)
   assertCondition(Math.abs(upDotDirection) < 0.995, `expected OrbitControls to preserve a stable overhead up vector, got dot ${upDotDirection}`)
+
+  const lowAnglePose = resolveCameraFramingPose({
+    settings: { angle: 'left-side', level: 'low-angle', shot: 'medium' },
+    target: [0, 42, 0],
+    baseDistance: 590,
+    up: [0, 1, 0],
+  })
+  applyCameraFramingPose({ camera, controls, pose: lowAnglePose, minimumY: 8 })
+  assertCondition(Math.abs(camera.position.y - 8) < 1e-9, `expected staged low-angle framing to remain above its ground plane, got ${camera.position.y}`)
 }
 
 export function testCameraFramingPublishesAfterDampingSettles() {
