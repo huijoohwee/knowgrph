@@ -10,6 +10,7 @@ import {
 } from '../collaboration-contract.mjs'
 import { findProtectedPushes, parsePrePushEntries } from '../check-pre-push-refs.mjs'
 import { classifyPrePushGate } from '../run-pre-push-gate.mjs'
+import { fetchOpenPullRequests } from '../github-active-scope-client.mjs'
 
 test('device end delegates to the canonical Agentic Canvas OS checkout wrapper', () => {
   const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
@@ -117,6 +118,58 @@ base_sha: "0123456789abcdef0123456789abcdef01234567"
     url: '',
   }])
   assert.deepEqual(findActiveScopeConflicts(pullRequests, 13, contract), [])
+})
+
+test('active scope query retries bounded transient GitHub failures', async () => {
+  const statuses = [503, 502, 504, 200]
+  const delays = []
+  const pullRequests = await fetchOpenPullRequests('owner/repository', 'token', {
+    fetchImpl: async () => {
+      const status = statuses.shift()
+      return {
+        ok: status === 200,
+        status,
+        json: async () => [{ number: 96 }],
+      }
+    },
+    retryDelaysMs: [10, 20, 40],
+    sleepImpl: async delayMs => delays.push(delayMs),
+  })
+
+  assert.deepEqual(delays, [10, 20, 40])
+  assert.deepEqual(pullRequests, [{ number: 96 }])
+})
+
+test('active scope query remains fail-closed after transient retries', async () => {
+  let calls = 0
+  await assert.rejects(
+    fetchOpenPullRequests('owner/repository', 'token', {
+      fetchImpl: async () => {
+        calls += 1
+        return { ok: false, status: 503 }
+      },
+      retryDelaysMs: [0, 0],
+      sleepImpl: async () => {},
+    }),
+    /GitHub active-scope query failed with HTTP 503 after 3 attempts/,
+  )
+  assert.equal(calls, 3)
+})
+
+test('active scope query does not retry non-transient GitHub failures', async () => {
+  let calls = 0
+  await assert.rejects(
+    fetchOpenPullRequests('owner/repository', 'token', {
+      fetchImpl: async () => {
+        calls += 1
+        return { ok: false, status: 401 }
+      },
+      retryDelaysMs: [0, 0],
+      sleepImpl: async () => {},
+    }),
+    /GitHub active-scope query failed with HTTP 401$/,
+  )
+  assert.equal(calls, 1)
 })
 
 test('pre-push protection is derived from canonical refs', async () => {
