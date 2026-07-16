@@ -249,6 +249,42 @@ export function setXrMotionReferenceCastMark(args: {
   return updatePlan({ ...plan, cast })
 }
 
+export function setXrMotionReferenceCastMotion(
+  actorIdValue: string,
+  transition: XrMotionReferenceTransition,
+): XrMotionReferenceRuntimeSnapshot {
+  const actorId = String(actorIdValue || '').trim()
+  const sourceTrack = snapshot.plan.cast.find(track => track.actorId === actorId)
+  if (!sourceTrack) return snapshot
+  const plan = planRecord(snapshot.plan)
+  const cast = snapshot.plan.cast.map(track => {
+    if (track.actorId !== actorId) {
+      return {
+        actorId: track.actorId,
+        label: track.label,
+        marks: track.marks.map(mark => ({ timeSeconds: mark.timeSeconds, position: [...mark.position], transition: mark.transition })),
+      }
+    }
+    const marks = track.marks.map(mark => ({
+      timeSeconds: mark.timeSeconds,
+      position: [...mark.position],
+      transition,
+    }))
+    if (transition === 'linear' && marks.length === 1) {
+      const start = marks[0]!
+      const stage = resolveXrMotionReferenceStage(snapshot.plan.stageId)
+      const travelMeters = Math.min(2, Math.max(0.5, stage.sizeMeters[0] * 0.08))
+      marks.push({
+        timeSeconds: snapshot.plan.durationSeconds,
+        position: [start.position[0] + travelMeters, start.position[1], start.position[2]],
+        transition: 'linear',
+      })
+    }
+    return { actorId: track.actorId, label: track.label, marks }
+  })
+  return updatePlan({ ...plan, cast })
+}
+
 export function removeXrMotionReferenceCastMark(actorIdValue: string, markId: string): XrMotionReferenceRuntimeSnapshot {
   const actorId = String(actorIdValue || '').trim()
   const plan = planRecord(snapshot.plan)

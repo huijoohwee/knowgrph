@@ -16,6 +16,7 @@ import {
   readXrMotionReferenceRuntime,
   removeXrMotionReferenceSubject,
   setXrMotionReferenceCameraMark,
+  setXrMotionReferenceCastMotion,
   setXrMotionReferenceCastMark,
   setXrMotionReferenceDuration,
   setXrMotionReferenceFps,
@@ -274,6 +275,16 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (libraryPlan.stageId !== 'downtown' || !mobileSubject || !staticSubject || !libraryPlan.cast.some(track => track.actorId === mobileSubject.id) || libraryPlan.cast.some(track => track.actorId === staticSubject.id)) {
     throw new Error(`expected mobile library subjects to become markable cast while furniture stays static, got ${JSON.stringify(libraryPlan)}`)
   }
+  setXrMotionReferenceCastMotion(mobileSubject.id, 'linear')
+  libraryPlan = readXrMotionReferenceRuntime().plan
+  const travelingTrack = libraryPlan.cast.find(track => track.actorId === mobileSubject.id)
+  if (!travelingTrack || travelingTrack.marks.length !== 2 || travelingTrack.marks[0]?.transition !== 'linear') {
+    throw new Error(`expected #travel to materialize a bounded cast endpoint, got ${JSON.stringify(travelingTrack)}`)
+  }
+  setXrMotionReferenceCastMotion(mobileSubject.id, 'hold')
+  if (readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === mobileSubject.id)?.marks[0]?.transition !== 'hold') {
+    throw new Error('expected #hold to control the cast track transition')
+  }
   setXrMotionReferenceSubjectLabel(mobileSubject.id, 'RUNNER')
   libraryPlan = readXrMotionReferenceRuntime().plan
   if (libraryPlan.subjects.find(subject => subject.id === mobileSubject.id)?.label !== 'RUNNER' || libraryPlan.cast.find(track => track.actorId === mobileSubject.id)?.label !== 'RUNNER') {
@@ -298,6 +309,8 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   const sceneSubjectSource = readSource('features', 'three', 'XrSceneLibrarySubject.tsx')
   const mediaCatalogViewSource = readSource('features', 'command-menu', 'MediaCatalogPanelView.tsx')
   const xrMediaLibrarySource = readSource('features', 'command-menu', 'XrMediaLibraryPanel.tsx')
+  const xrSceneMcpContractSource = readSource('features', 'three', 'xrSceneMcpContract.mjs')
+  const xrSceneMcpRuntimeSource = readSource('features', 'three', 'xrSceneMcpRuntime.ts')
   const xrPanelSource = readSource('features', 'three', 'XrPanelView.tsx')
   const timelineBottomPanelSource = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
   const xrTimelineLaneSource = readSource('features', 'three', 'XrTimelineSceneLane.tsx')
@@ -333,8 +346,17 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   for (const marker of ['data-kg-media-xr-3d-toggle="1"', '<XrMediaLibraryPanel', '3D for XR']) {
     if (!mediaCatalogViewSource.includes(marker)) throw new Error(`expected FloatingPanel Media to expose ${marker}`)
   }
-  for (const marker of ['data-kg-media-xr-environments="1"', 'data-kg-media-xr-subject-library="1"', 'data-kg-media-xr-next-label="1"', 'addXrMotionReferenceSubject', 'setXrMotionReferenceSubjectLabel']) {
+  for (const marker of ['data-kg-media-xr-environments="1"', 'data-kg-media-xr-subject-library="1"', 'data-kg-media-xr-next-label="1"', 'data-kg-media-xr-assets-mcp=', 'data-kg-media-xr-invocation=', 'data-kg-media-xr-asset-motion=', 'data-kg-media-xr-subject-motion=', 'controlLocalXrScene']) {
     if (!xrMediaLibrarySource.includes(marker)) throw new Error(`expected the native XR Media library to expose ${marker}`)
+  }
+  for (const marker of ['/xr.stage', '/xr.place', '/xr.animate', '#travel', '#hold']) {
+    if (!xrSceneMcpContractSource.includes(marker)) throw new Error(`expected XR MCP invocation grammar to expose ${marker}`)
+  }
+  for (const marker of ['inspectLocalXrSceneAssets', 'controlLocalXrScene', 'serializeXrMotionReferencePlan', 'activateCanvasGraphSurfaceMode']) {
+    if (!xrSceneMcpRuntimeSource.includes(marker)) throw new Error(`expected browser-local XR MCP control runtime to expose ${marker}`)
+  }
+  if (!runtimeSource.includes('setXrMotionReferenceCastMotion') || !runtimeSource.includes('travelMeters')) {
+    throw new Error('expected XR animation controls to own real bounded cast-track motion')
   }
   if (!sceneLibrarySource.includes("id: 'downtown'") || !sceneLibrarySource.includes("id: 'backyard-pool'") || !sceneSubjectSource.includes('kg_xr_scene_subject_') || !packageSource.includes("reference/subjects.json")) {
     throw new Error('expected environment, procedural subject, and package owners to remain source-backed')

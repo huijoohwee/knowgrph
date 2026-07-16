@@ -101,6 +101,8 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
   const previousThreeCameraSnapshotFns = useGraphStore.getState().threeCameraSnapshotFns
   const previousThreeLayoutSnapshotFns = useGraphStore.getState().threeLayoutSnapshotFns
   const previousCanvas3dMode = useGraphStore.getState().canvas3dMode
+  const previousBottomSurfaceTab = useGraphStore.getState().bottomSurfaceTab
+  const previousBottomSurfaceCollapsed = useGraphStore.getState().bottomSurfaceCollapsed
   const previousViewPinned = useGraphStore.getState().viewPinned
   const previousFitToScreenMode = useGraphStore.getState().fitToScreenMode
   const previousZoomToSelectionMode = useGraphStore.getState().zoomToSelectionMode
@@ -175,11 +177,13 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const inspectLocalCanvasSnapshotTool = registeredTools.get('knowgrph.inspect_local_canvas_snapshot')
     const inspectLocal3dCameraPoseTool = registeredTools.get('knowgrph.inspect_local_3d_camera_pose')
     const inspectLocal3dLayoutPositionsTool = registeredTools.get('knowgrph.inspect_local_3d_layout_positions')
+    const inspectLocalXrSceneAssetsTool = registeredTools.get('knowgrph.inspect_local_xr_scene_assets')
+    const controlLocalXrSceneTool = registeredTools.get('knowgrph.control_local_xr_scene')
     const inspectLocal2dZoomViewportTool = registeredTools.get('knowgrph.inspect_local_2d_zoom_viewport')
     const inspectLocalSourceFilesSnapshotTool = registeredTools.get('knowgrph.inspect_local_source_files_snapshot')
     const readLocalRuntimeIdentityTool = registeredTools.get('knowgrph.read_local_runtime_identity')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
-    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalSettingsChatReadinessTool || !inspectLocalMainPanelTool || !inspectLocalEditorWorkspaceTool || !inspectLocalChatPipelineTool || !inspectLocalPipelineTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectLocal2dZoomViewportTool || !inspectLocalSourceFilesSnapshotTool || !readLocalRuntimeIdentityTool || !inspectTool) {
+    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalSettingsChatReadinessTool || !inspectLocalMainPanelTool || !inspectLocalEditorWorkspaceTool || !inspectLocalChatPipelineTool || !inspectLocalPipelineTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectLocalXrSceneAssetsTool || !controlLocalXrSceneTool || !inspectLocal2dZoomViewportTool || !inspectLocalSourceFilesSnapshotTool || !readLocalRuntimeIdentityTool || !inspectTool) {
       throw new Error(`expected all read-only WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
     }
 
@@ -288,6 +292,8 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const localStructure = await inspectLocalDocumentTool.execute()
     const localCanvasTopology = await inspectLocalCanvasTool.execute()
     const localCanvasSnapshot = await inspectLocalCanvasSnapshotTool.execute()
+    const localXrSceneAssets = await inspectLocalXrSceneAssetsTool.execute()
+    const localXrSceneControl = await controlLocalXrSceneTool.execute({ invocation: '/xr.place @person-adult #travel', label: 'MCP CAST' })
     useGraphStore.setState({ canvasRenderMode: '3d' } as never)
     const localThreeCameraPose = await inspectLocal3dCameraPoseTool.execute()
     const localThreeLayoutPositions = await inspectLocal3dLayoutPositionsTool.execute()
@@ -425,6 +431,12 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if ((localThreeLayoutPositions as { samplePositions?: Array<{ id?: unknown }> }).samplePositions?.[0]?.id !== 'alpha') {
       throw new Error(`expected inspect_local_3d_layout_positions to sort sampled positions deterministically, got ${JSON.stringify(localThreeLayoutPositions)}`)
     }
+    if ((localXrSceneAssets as { assets?: unknown[] }).assets?.length !== 15 || (localXrSceneAssets as { environments?: unknown[] }).environments?.length !== 10) {
+      throw new Error(`expected XR WebMCP inspection to list native environments and assets, got ${JSON.stringify(localXrSceneAssets)}`)
+    }
+    if ((localXrSceneControl as { ok?: unknown }).ok !== true || (localXrSceneControl as { scene?: { runtime?: { subjects?: Array<{ label?: unknown; motion?: unknown }> } } }).scene?.runtime?.subjects?.at(-1)?.label !== 'MCP CAST' || (localXrSceneControl as { scene?: { runtime?: { subjects?: Array<{ label?: unknown; motion?: unknown }> } } }).scene?.runtime?.subjects?.at(-1)?.motion !== 'travel') {
+      throw new Error(`expected / @ # XR WebMCP control to place animated cast, got ${JSON.stringify(localXrSceneControl)}`)
+    }
     if ((local2dZoomViewport as { available?: unknown }).available !== true) {
       throw new Error(`expected inspect_local_2d_zoom_viewport to report available zoom state, got ${JSON.stringify(local2dZoomViewport)}`)
     }
@@ -506,6 +518,8 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       threeCameraSnapshotFns: previousThreeCameraSnapshotFns,
       threeLayoutSnapshotFns: previousThreeLayoutSnapshotFns,
       canvas3dMode: previousCanvas3dMode,
+      bottomSurfaceTab: previousBottomSurfaceTab,
+      bottomSurfaceCollapsed: previousBottomSurfaceCollapsed,
       viewPinned: previousViewPinned,
       fitToScreenMode: previousFitToScreenMode,
       zoomToSelectionMode: previousZoomToSelectionMode,

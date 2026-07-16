@@ -2,15 +2,13 @@ import React from 'react'
 import { Armchair, Box, Building2, Car, PawPrint, Trash2, TreePine, UserRound, UsersRound } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
-import { activateCanvasGraphSurfaceMode } from '@/lib/canvas/canvas3dMode'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { PanelTextInput } from '@/lib/ui/panelFormControls'
+import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
   XR_MOTION_REFERENCE_STAGE_PRESETS,
-  serializeXrMotionReferencePlan,
   xrMotionReferenceSceneKey,
   type XrMotionReferenceStageId,
 } from '@/features/three/xrMotionReferenceModel'
@@ -21,15 +19,19 @@ import {
   type XrSceneLibraryCategory,
 } from '@/features/three/xrSceneLibrary'
 import {
-  addXrMotionReferenceSubject,
   hydrateXrMotionReferenceRuntime,
-  markXrMotionReferenceSaved,
   readXrMotionReferenceRuntime,
-  removeXrMotionReferenceSubject,
-  setXrMotionReferenceStage,
-  setXrMotionReferenceSubjectLabel,
   subscribeXrMotionReferenceRuntime,
 } from '@/features/three/xrMotionReferenceRuntime'
+import {
+  buildXrPlaceInvocation,
+  buildXrStageInvocation,
+} from '@/features/three/xrSceneMcpContract.mjs'
+import {
+  controlLocalXrScene,
+  type XrSceneAnimation,
+  type XrSceneControlInput,
+} from '@/features/three/xrSceneMcpRuntime'
 
 type XrSceneLibraryFilter = 'all' | XrSceneLibraryCategory
 
@@ -61,25 +63,68 @@ function XrCatalogThumb({ Icon, color }: { Icon: LucideIcon; color: string }) {
   )
 }
 
-function XrAssetRow({ asset, disabled, onPlace }: { asset: XrSceneLibraryAsset; disabled: boolean; onPlace: (asset: XrSceneLibraryAsset) => void }) {
+function XrInvocationButton({ invocation, disabled, onInvoke }: { invocation: string; disabled: boolean; onInvoke: () => void }) {
+  return (
+    <button
+      type="button"
+      className="App-toolbar__btn flex min-w-0 max-w-full items-center gap-1 overflow-hidden"
+      disabled={disabled}
+      title={`Invoke ${invocation}`}
+      aria-label={`Invoke ${invocation}`}
+      onClick={onInvoke}
+      data-kg-media-xr-invocation={invocation}
+    >
+      {invocation.split(/\s+/).map(token => <code key={token} className="truncate text-[9px]">{token}</code>)}
+    </button>
+  )
+}
+
+function XrAssetRow({
+  asset,
+  disabled,
+  motion,
+  onMotionChange,
+  onPlace,
+}: {
+  asset: XrSceneLibraryAsset
+  disabled: boolean
+  motion: XrSceneAnimation
+  onMotionChange: (motion: XrSceneAnimation) => void
+  onPlace: (asset: XrSceneLibraryAsset, motion: XrSceneAnimation) => void
+}) {
   const Icon = CATEGORY_ICONS[asset.category]
+  const invocation = buildXrPlaceInvocation(asset.id, asset.mobile ? motion : 'hold')
   return (
     <article
-      className={cn('grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}
+      className={cn('grid min-w-0 gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}
       data-kg-media-xr-asset={asset.id}
       data-kg-media-xr-asset-category={asset.category}
     >
-      <XrCatalogThumb Icon={Icon} color={asset.defaultColor} />
-      <section className="min-w-0">
-        <h4 className="truncate text-[11px] font-semibold">{asset.label}</h4>
-        <p className={cn('line-clamp-2 text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{asset.description}</p>
-        <p className={cn('truncate text-[9px] uppercase tracking-wide', UI_THEME_TOKENS.text.tertiary)}>
-          {asset.category} · {asset.dimensionsMeters.join(' × ')} m · {asset.mobile ? 'markable cast' : 'static reference'}
-        </p>
+      <section className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
+        <XrCatalogThumb Icon={Icon} color={asset.defaultColor} />
+        <section className="min-w-0">
+          <h4 className="truncate text-[11px] font-semibold">{asset.label}</h4>
+          <p className={cn('line-clamp-2 text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{asset.description}</p>
+          <p className={cn('truncate text-[9px] uppercase tracking-wide', UI_THEME_TOKENS.text.tertiary)}>
+            {asset.category} · {asset.dimensionsMeters.join(' × ')} m · {asset.mobile ? 'markable cast' : 'static reference'}
+          </p>
+        </section>
       </section>
-      <button type="button" className="App-toolbar__btn" disabled={disabled} onClick={() => onPlace(asset)} data-kg-media-xr-place={asset.id}>
-        Place
-      </button>
+      <footer className="flex min-w-0 items-center gap-1">
+        {asset.mobile ? (
+          <PanelSelect
+            className="w-20 shrink-0 text-[10px]"
+            aria-label={`Animation for ${asset.label}`}
+            value={motion}
+            onChange={event => onMotionChange(event.target.value as XrSceneAnimation)}
+            data-kg-media-xr-asset-motion={asset.id}
+          >
+            <option value="travel">Travel</option>
+            <option value="hold">Hold</option>
+          </PanelSelect>
+        ) : null}
+        <XrInvocationButton invocation={invocation} disabled={disabled} onInvoke={() => onPlace(asset, motion)} />
+      </footer>
     </article>
   )
 }
@@ -90,25 +135,16 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
     markdownDocumentName,
     markdownDocumentText,
     pushUiToast,
-    setBottomSurfaceCollapsed,
-    setBottomSurfaceTab,
-    setCanvas3dMode,
-    setCanvasRenderMode,
-    updateGraphMetadata,
   } = useGraphStore(useShallow(state => ({
     graphData: state.graphData,
     markdownDocumentName: state.markdownDocumentName,
     markdownDocumentText: state.markdownDocumentText,
     pushUiToast: state.pushUiToast,
-    setBottomSurfaceCollapsed: state.setBottomSurfaceCollapsed,
-    setBottomSurfaceTab: state.setBottomSurfaceTab,
-    setCanvas3dMode: state.setCanvas3dMode,
-    setCanvasRenderMode: state.setCanvasRenderMode,
-    updateGraphMetadata: state.updateGraphMetadata,
   })))
   const runtime = React.useSyncExternalStore(subscribeXrMotionReferenceRuntime, readXrMotionReferenceRuntime, readXrMotionReferenceRuntime)
   const [categoryFilter, setCategoryFilter] = React.useState<XrSceneLibraryFilter>('all')
   const [nextLabel, setNextLabel] = React.useState('')
+  const [assetMotions, setAssetMotions] = React.useState<Record<string, XrSceneAnimation>>({})
   const [subjectLabelDrafts, setSubjectLabelDrafts] = React.useState<Record<string, string>>({})
   const sceneReady = Boolean(graphData && String(markdownDocumentName || '').trim() && String(markdownDocumentText || '').trim())
   const sceneKey = React.useMemo(() => xrMotionReferenceSceneKey(markdownDocumentName || 'Untitled', graphData), [graphData, markdownDocumentName])
@@ -122,68 +158,38 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
     })
   }, [graphData, sceneKey, sceneReady])
 
-  const activateXr = React.useCallback(() => {
-    activateCanvasGraphSurfaceMode({ mode: 'xr', setCanvas3dMode, setCanvasRenderMode })
-    setBottomSurfaceTab('timeline')
-    setBottomSurfaceCollapsed(false)
-  }, [setBottomSurfaceCollapsed, setBottomSurfaceTab, setCanvas3dMode, setCanvasRenderMode])
-
-  const persistPlan = React.useCallback((message: string) => {
-    if (!sceneReady) {
-      pushUiToast({ id: 'media:xr-library:document-required', kind: 'warning', message: 'Open or create a graph document before staging 3D XR media.' })
-      return false
-    }
-    const serialized = serializeXrMotionReferencePlan(readXrMotionReferenceRuntime().plan)
-    updateGraphMetadata({ [XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]: serialized })
-    const savedValue = useGraphStore.getState().graphData?.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]
-    if (savedValue !== serialized) {
-      pushUiToast({ id: 'media:xr-library:save-error', kind: 'error', message: 'The XR scene could not be written to graph metadata.' })
-      return false
-    }
-    markXrMotionReferenceSaved(serialized)
-    activateXr()
-    pushUiToast({ id: 'media:xr-library:updated', kind: 'success', message })
-    return true
-  }, [activateXr, pushUiToast, sceneReady, updateGraphMetadata])
+  const runControl = React.useCallback((input: XrSceneControlInput) => {
+    const result = controlLocalXrScene(input)
+    pushUiToast({
+      id: result.ok ? 'media:xr-library:updated' : 'media:xr-library:error',
+      kind: result.ok ? 'success' : sceneReady ? 'error' : 'warning',
+      message: result.message,
+    })
+    return result
+  }, [pushUiToast, sceneReady])
 
   const selectEnvironment = React.useCallback((stageId: XrMotionReferenceStageId) => {
-    if (!sceneReady || !graphData) {
-      persistPlan('')
-      return
-    }
-    hydrateXrMotionReferenceRuntime({ sceneKey, nodes: graphData.nodes, persistedValue: graphData.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY] })
-    const next = setXrMotionReferenceStage(stageId)
-    const stage = XR_MOTION_REFERENCE_STAGE_PRESETS.find(candidate => candidate.id === next.plan.stageId)
-    persistPlan(`${stage?.label || 'XR environment'} staged in XR Mode.`)
-  }, [graphData, persistPlan, sceneKey, sceneReady])
+    runControl({ action: 'stage', stageId })
+  }, [runControl])
 
-  const placeAsset = React.useCallback((asset: XrSceneLibraryAsset) => {
-    if (!sceneReady || !graphData) {
-      persistPlan('')
-      return
-    }
-    hydrateXrMotionReferenceRuntime({ sceneKey, nodes: graphData.nodes, persistedValue: graphData.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY] })
-    const beforeCount = readXrMotionReferenceRuntime().plan.subjects.length
-    const next = addXrMotionReferenceSubject({ assetId: asset.id, label: nextLabel })
-    if (next.plan.subjects.length === beforeCount) {
-      pushUiToast({ id: 'media:xr-library:capacity', kind: 'warning', message: 'The XR subject library has reached its bounded scene capacity.' })
-      return
-    }
-    setNextLabel('')
-    persistPlan(`${next.plan.subjects.at(-1)?.label || asset.label} placed in XR Mode.`)
-  }, [graphData, nextLabel, persistPlan, pushUiToast, sceneKey, sceneReady])
+  const placeAsset = React.useCallback((asset: XrSceneLibraryAsset, motion: XrSceneAnimation) => {
+    const result = runControl({ action: 'place', assetId: asset.id, label: nextLabel, motion })
+    if (result.ok) setNextLabel('')
+  }, [nextLabel, runControl])
 
   const commitSubjectLabel = React.useCallback((subjectId: string) => {
     const nextValue = String(subjectLabelDrafts[subjectId] || '').trim()
     if (!nextValue) return
-    setXrMotionReferenceSubjectLabel(subjectId, nextValue)
-    persistPlan(`XR subject relabeled ${nextValue}.`)
-  }, [persistPlan, subjectLabelDrafts])
+    runControl({ action: 'label', subjectId, label: nextValue })
+  }, [runControl, subjectLabelDrafts])
 
-  const removeSubject = React.useCallback((subjectId: string, label: string) => {
-    removeXrMotionReferenceSubject(subjectId)
-    persistPlan(`${label} removed from the XR stage.`)
-  }, [persistPlan])
+  const removeSubject = React.useCallback((subjectId: string) => {
+    runControl({ action: 'remove', subjectId })
+  }, [runControl])
+
+  const setSubjectMotion = React.useCallback((subjectId: string, motion: XrSceneAnimation) => {
+    runControl({ action: 'animate', subjectId, motion })
+  }, [runControl])
 
   const visibleEnvironments = React.useMemo(() => XR_MOTION_REFERENCE_STAGE_PRESETS.filter(stage => matchesSearch(searchText, [stage.label, stage.description, 'environment kit xr 3d'])), [searchText])
   const visibleAssets = React.useMemo(() => XR_SCENE_LIBRARY_ASSETS.filter(asset => (
@@ -192,13 +198,14 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
   )), [categoryFilter, searchText])
 
   return (
-    <section className="grid min-w-0 gap-3" aria-label="3D for XR library" data-kg-media-xr-library="1" data-kg-media-xr-scene-ready={sceneReady ? '1' : '0'}>
+    <section className="grid min-w-0 gap-3" aria-label="3D for XR library" data-kg-media-xr-library="1" data-kg-media-xr-assets-mcp="knowgrph.control_local_xr_scene" data-kg-media-xr-scene-ready={sceneReady ? '1' : '0'}>
       <header className={cn('grid gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}>
         <section className="flex items-start gap-2">
           <XrCatalogThumb Icon={Building2} color="#38bdf8" />
           <section className="min-w-0 flex-1">
             <h3 className="text-xs font-semibold">3D for XR</h3>
             <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Native grey-box kits and procedural subjects. No external assets or runtime dependency.</p>
+            <p className={cn('mt-0.5 truncate font-mono text-[9px]', UI_THEME_TOKENS.text.tertiary)} title="Browser WebMCP control tool">WebMCP · knowgrph.control_local_xr_scene</p>
           </section>
           <output className={cn('shrink-0 text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{runtime.plan.subjects.length} placed</output>
         </section>
@@ -215,7 +222,7 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
           {visibleEnvironments.map(stage => (
             <article key={stage.id} className={cn('grid gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, runtime.plan.stageId === stage.id ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.panel.bg)} data-kg-media-xr-environment={stage.id}>
               <section className="flex min-w-0 items-start gap-2"><XrCatalogThumb Icon={stage.id === 'aerial-sky' ? TreePine : Building2} color={stage.id === runtime.plan.stageId ? '#38bdf8' : '#94a3b8'} /><section className="min-w-0"><h4 className="text-[11px] font-semibold">{stage.label}</h4><p className={cn('line-clamp-3 text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{stage.description}</p></section></section>
-              <footer className="flex items-center justify-between gap-2"><span className={cn('text-[9px]', UI_THEME_TOKENS.text.tertiary)}>{stage.sizeMeters.join(' × ')} m</span><button type="button" className="App-toolbar__btn" disabled={!sceneReady} onClick={() => selectEnvironment(stage.id)} data-kg-media-xr-stage={stage.id}>{runtime.plan.stageId === stage.id ? 'Staged' : 'Stage'}</button></footer>
+              <footer className="flex min-w-0 items-center justify-between gap-2"><span className={cn('text-[9px]', UI_THEME_TOKENS.text.tertiary)}>{stage.sizeMeters.join(' × ')} m</span><XrInvocationButton invocation={buildXrStageInvocation(stage.id)} disabled={!sceneReady} onInvoke={() => selectEnvironment(stage.id)} /></footer>
             </article>
           ))}
         </section>
@@ -231,17 +238,18 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
             })}
           </nav>
         </header>
-        <section className="grid gap-1">{visibleAssets.map(asset => <XrAssetRow key={asset.id} asset={asset} disabled={!sceneReady} onPlace={placeAsset} />)}</section>
+        <section className="grid gap-1">{visibleAssets.map(asset => <XrAssetRow key={asset.id} asset={asset} disabled={!sceneReady} motion={assetMotions[asset.id] || 'travel'} onMotionChange={motion => setAssetMotions(current => ({ ...current, [asset.id]: motion }))} onPlace={placeAsset} />)}</section>
       </section>
 
       {runtime.plan.subjects.length ? (
         <section className="grid gap-2" aria-label="Placed XR subjects" data-kg-media-xr-placed-subjects="1">
           <h3 className="text-[11px] font-semibold uppercase">Placed Subjects</h3>
           {runtime.plan.subjects.map(subject => (
-            <article key={subject.id} className={cn('grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}>
+            <article key={subject.id} className={cn('grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-media-xr-placed-subject={subject.id}>
               <XrCatalogThumb Icon={CATEGORY_ICONS[subject.category]} color={subject.color} />
               <label className="grid min-w-0 gap-0.5 text-[10px]"><span className={UI_THEME_TOKENS.text.tertiary}>{subject.assetId}</span><PanelTextInput value={subjectLabelDrafts[subject.id] ?? subject.label} maxLength={80} onChange={event => setSubjectLabelDrafts(current => ({ ...current, [subject.id]: event.target.value }))} onBlur={() => commitSubjectLabel(subject.id)} aria-label={`Label ${subject.label}`} data-kg-media-xr-subject-label={subject.id} /></label>
-              <button type="button" className="App-toolbar__btn" aria-label={`Remove ${subject.label}`} title={`Remove ${subject.label}`} onClick={() => removeSubject(subject.id, subject.label)} data-kg-media-xr-remove-subject={subject.id}><Trash2 className="size-3.5" aria-hidden /></button>
+              {runtime.plan.cast.some(track => track.actorId === subject.id) ? <PanelSelect className="w-20 text-[10px]" aria-label={`Animation for ${subject.label}`} value={runtime.plan.cast.find(track => track.actorId === subject.id)?.marks[0]?.transition === 'hold' ? 'hold' : 'travel'} onChange={event => setSubjectMotion(subject.id, event.target.value as XrSceneAnimation)} data-kg-media-xr-subject-motion={subject.id}><option value="travel">Travel</option><option value="hold">Hold</option></PanelSelect> : <span className={cn('text-[9px]', UI_THEME_TOKENS.text.tertiary)}>Static</span>}
+              <button type="button" className="App-toolbar__btn" aria-label={`Remove ${subject.label}`} title={`Remove ${subject.label}`} onClick={() => removeSubject(subject.id)} data-kg-media-xr-remove-subject={subject.id}><Trash2 className="size-3.5" aria-hidden /></button>
             </article>
           ))}
         </section>
