@@ -8,7 +8,8 @@ import {
   validatePullRequestMetadata,
   validateTaskBranch,
 } from '../collaboration-contract.mjs'
-import { findProtectedPushes } from '../check-pre-push-refs.mjs'
+import { findProtectedPushes, parsePrePushEntries } from '../check-pre-push-refs.mjs'
+import { classifyPrePushGate } from '../run-pre-push-gate.mjs'
 
 test('device end delegates to the canonical Agentic Canvas OS checkout wrapper', () => {
   const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
@@ -125,4 +126,16 @@ test('pre-push protection is derived from canonical refs', async () => {
     'refs/heads/main c refs/heads/main d',
   ].join('\n')
   assert.deepEqual(findProtectedPushes(input, contract.coordination.protected_push_refs), ['refs/heads/main'])
+  const entries = parsePrePushEntries(input)
+  assert.equal(entries.length, 2)
+  assert.equal(classifyPrePushGate({
+    entries: [entries[0]],
+    headRevision: 'a',
+    headRef: 'refs/heads/agent/macbook/canvas-render',
+  }), 'checkout')
+  assert.equal(classifyPrePushGate({
+    entries: [entries[0]],
+    headRevision: 'different',
+    headRef: 'refs/heads/agent/macbook/canvas-render',
+  }), 'object')
 })

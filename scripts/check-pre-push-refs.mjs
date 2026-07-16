@@ -1,13 +1,25 @@
 import { pathToFileURL } from 'node:url'
 import { readContract } from './collaboration-contract.mjs'
 
-export const findProtectedPushes = (input, protectedRefs) => {
-  const protectedSet = new Set(protectedRefs)
-  const violations = []
+export const parsePrePushEntries = input => {
+  const entries = []
   for (const line of String(input || '').split('\n')) {
     const fields = line.trim().split(/\s+/)
     if (fields.length !== 4) continue
-    const remoteRef = fields[2]
+    entries.push({
+      localRef: fields[0],
+      localSha: fields[1],
+      remoteRef: fields[2],
+      remoteSha: fields[3],
+    })
+  }
+  return entries
+}
+
+export const findProtectedPushes = (input, protectedRefs) => {
+  const protectedSet = new Set(protectedRefs)
+  const violations = []
+  for (const { remoteRef } of parsePrePushEntries(input)) {
     if (protectedSet.has(remoteRef)) violations.push(remoteRef)
   }
   return [...new Set(violations)].sort()

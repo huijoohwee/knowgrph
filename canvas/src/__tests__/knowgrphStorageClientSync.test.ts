@@ -6,10 +6,10 @@ import {
 } from '@/lib/storage/knowgrphStorageDb'
 import {
   exportKnowgrphStorageWorkspace,
-  getKnowgrphStorageDeviceId,
   queueKnowgrphStorageMutation,
   syncKnowgrphStorageNow,
 } from '@/lib/storage/knowgrphStorageClientSync'
+import { getKnowgrphStorageDeviceId } from '@/lib/storage/knowgrphStorageDeviceIdentity'
 import { applyPulledKnowgrphStorageChangesToSourceFiles } from '@/features/source-files/sourceFilesInboundStorageApply'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { KNOWGRPH_STORAGE_API_VERSION } from '@/lib/storage/knowgrphStorageSyncContract'

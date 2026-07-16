@@ -62,10 +62,13 @@ test('standalone preflight checks every canonical source without fetching or sta
   ])
 })
 
-test('Git pre-push integration runs the standalone policy before expensive validation', () => {
+test('Git pre-push delegates current and object refs to the repository-owned gate', () => {
   const packageJson = JSON.parse(readFileSync(path.resolve(repoRoot, 'package.json'), 'utf8'))
   const prePushHook = readFileSync(path.resolve(repoRoot, '.githooks/pre-push'), 'utf8')
+  const prePushGate = readFileSync(path.resolve(repoRoot, 'scripts/run-pre-push-gate.mjs'), 'utf8')
   assert.equal(packageJson.scripts['worktree:check'], 'node ./scripts/check-worktree-policy.mjs')
   assert.ok(packageJson.scripts['ci:integration'].startsWith('npm run worktree:check &&'))
-  assert.match(prePushHook, /npm run ci:integration/)
+  assert.match(prePushHook, /run-pre-push-gate\.mjs/)
+  assert.match(prePushGate, /runCheckoutIntegration/)
+  assert.match(prePushGate, /buildImmutableReleaseManifest/)
 })

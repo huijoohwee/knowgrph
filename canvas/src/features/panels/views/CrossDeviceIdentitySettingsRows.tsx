@@ -2,10 +2,13 @@ import React from 'react'
 import { refreshAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import {
   isKnowgrphRuntimeIdentityFresh,
-  serializeKnowgrphRuntimeIdentity,
   useKnowgrphRuntimeIdentity,
   type KnowgrphRuntimeIdentity,
 } from '@/features/runtime-identity/knowgrphRuntimeIdentity'
+import {
+  useKnowgrphRuntimeIdentityGate,
+  type KnowgrphRuntimeIdentityGateSnapshot,
+} from '@/features/runtime-identity/runtimeIdentityAttestationStore'
 import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import { getUiSectionActionClassName } from '@/lib/ui/sectionChipChrome'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -13,19 +16,26 @@ import { KeyTypeValueStaticRow } from 'grph-shared/react/keyTypeValueRow'
 
 const revisionText = (value: string): string => value || 'unavailable'
 
-export function CrossDeviceIdentitySettingsRowsContent({ identity }: { identity: KnowgrphRuntimeIdentity }) {
+export function CrossDeviceIdentitySettingsRowsContent({
+  identity,
+  gate,
+}: {
+  identity: KnowgrphRuntimeIdentity
+  gate: KnowgrphRuntimeIdentityGateSnapshot
+}) {
   const [copyStatus, setCopyStatus] = React.useState('')
   const staticRowProps = useCanvasKeyTypeValueStaticRowProps('default')
   const fresh = isKnowgrphRuntimeIdentityFresh(identity)
-  const serializedIdentity = React.useMemo(() => serializeKnowgrphRuntimeIdentity(identity), [identity])
+  const gatePassed = gate.status === 'pass'
+  const serializedDiagnostic = React.useMemo(() => `${JSON.stringify({ identity, gate }, null, 2)}\n`, [gate, identity])
   const copyIdentity = React.useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(serializedIdentity)
+      await navigator.clipboard.writeText(serializedDiagnostic)
       setCopyStatus('Copied')
     } catch {
       setCopyStatus('Copy unavailable')
     }
-  }, [serializedIdentity])
+  }, [serializedDiagnostic])
   const revisionValue = (value: string) => <code className="min-w-0 break-all">{revisionText(value)}</code>
 
   return (
@@ -66,6 +76,42 @@ export function CrossDeviceIdentitySettingsRowsContent({ identity }: { identity:
       />
       <KeyTypeValueStaticRow
         {...staticRowProps}
+        keyNode={<span className="font-semibold">Peer gate</span>}
+        typeNode={<code>attestation/v1</code>}
+        valueNode={(
+          <span
+            className={gatePassed ? 'text-emerald-400' : 'text-amber-400'}
+            data-kg-runtime-identity-peer-gate={gate.status}
+            data-kg-runtime-identity-peer-count={`${gate.observedDeviceCount}/${gate.requiredDeviceCount}`}
+          >
+            {gate.status} · {gate.observedDeviceCount}/{gate.requiredDeviceCount} devices
+          </span>
+        )}
+      />
+      <KeyTypeValueStaticRow
+        {...staticRowProps}
+        keyNode="Attestation"
+        typeNode="authenticated room"
+        valueNode={<code>{gate.transportStatus}</code>}
+      />
+      <KeyTypeValueStaticRow
+        {...staticRowProps}
+        keyNode="Parity"
+        typeNode="exact SHA/counts"
+        valueNode={<span className="min-w-0 break-words">{gate.message}</span>}
+      />
+      <KeyTypeValueStaticRow
+        {...staticRowProps}
+        keyNode="Proof"
+        typeNode="SHA-256"
+        valueNode={(
+          <code className="min-w-0 break-all" data-kg-runtime-identity-verification-digest={gate.verificationDigest || ''}>
+            {gate.verificationDigest || 'unavailable'}
+          </code>
+        )}
+      />
+      <KeyTypeValueStaticRow
+        {...staticRowProps}
         keyNode="Actions"
         typeNode="control"
         valueNode={(
@@ -79,7 +125,7 @@ export function CrossDeviceIdentitySettingsRowsContent({ identity }: { identity:
               Refresh identity catalog
             </button>
             <button type="button" className={getUiSectionActionClassName('primary')} onClick={() => void copyIdentity()}>
-              Copy identity JSON
+              Copy diagnostic JSON
             </button>
             {copyStatus ? <output className={UI_THEME_TOKENS.text.tertiary}>{copyStatus}</output> : null}
           </section>
@@ -91,5 +137,6 @@ export function CrossDeviceIdentitySettingsRowsContent({ identity }: { identity:
 
 export function CrossDeviceIdentitySettingsRows() {
   const identity = useKnowgrphRuntimeIdentity()
-  return <CrossDeviceIdentitySettingsRowsContent identity={identity} />
+  const gate = useKnowgrphRuntimeIdentityGate()
+  return <CrossDeviceIdentitySettingsRowsContent identity={identity} gate={gate} />
 }

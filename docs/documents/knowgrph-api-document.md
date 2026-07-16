@@ -111,6 +111,7 @@ API and MCP contracts are owned upstream in Dev. Production mirrors should recei
 - Safety: execution forwards `dry_run=true` by default, rejects non-loopback runtime URLs unless explicitly enabled by server environment, normalizes browser target URLs to credential-free `http`/`https`, requires `confirm_unsafe` for live route execution/native browser mutations, and requires `confirm_cookie_import` before cookie storage access.
 - Configuration: MainPanel MCP owns `browser.apiNative.mcp.*` rows, direct browser-MCP `mcpServers` JSON using `UNBROWSE_URL`, and a separate local bridge config using `KNOWGRPH_BROWSER_API_RUNTIME_URL`. Target URLs are caller- or setting-supplied, validated before forwarding, and never injected from a default site.
 - Contract source: [README.md](../../mcp/README.md), [local-tool-contract.js](../../mcp/local-tool-contract.js), and [knowgrph-mcp-service-prd-tad.companion.md](knowgrph-mcp/knowgrph-mcp-service-prd-tad.companion.md)
+- Browser-local read-only WebMCP: `knowgrph.read_local_runtime_identity` returns the application-global canonical identity plus automatic gate snapshot without refreshing, copying, or mutating either owner.
 
 Responsive output contract:
 
@@ -264,6 +265,7 @@ Canonical public/browser URL space stays on `https://airvio.co/api/storage/*`. S
 | GET | `/api/storage/chat/policies/{workspaceId}` | Return workspace-scoped provider policy for the authenticated caller |
 | POST | `/api/storage/chat/relay` | Authenticate the browser caller, authorize provider access, append audit rows, then delegate internally to `__chat_proxy` |
 | GET | `/api/storage/chat/audit/{workspaceId}` | Return bounded workspace-scoped chat relay audit rows for owner/provider-admin |
+| GET upgrade | `/api/storage/canvas-room/{workspaceId}/{roomId}` | Join an authenticated room; `roomId=runtime-identity:knowgrph:main` is application-global and permits only ping, challenge, attestation, and server peer-lifecycle messages, with no identity or asset persistence |
 
 Crawler access is read-only. It reads existing D1 document rows and doc-view links; it does not import, parse, render, mutate storage, or emulate Cloudflare Pay Per Crawl.
 
@@ -273,7 +275,7 @@ Browser chat relay opt-in is Dev-scoped and fail-closed. The current client only
 |---|---|
 | `VITE_KNOWGRPH_STORAGE_BASE_URL` | Absolute origin for storage Worker browser calls |
 | `VITE_KNOWGRPH_STORAGE_WORKSPACE_ID` | Workspace identity resolved by the browser storage/chat client |
-| `VITE_KNOWGRPH_STORAGE_CHAT_SESSION_TOKEN` | Authenticated chat session token forwarded as `Authorization: Bearer ...` to `/api/storage/chat/*` |
+| `VITE_KNOWGRPH_STORAGE_CHAT_SESSION_TOKEN` | Authenticated session token forwarded as `Authorization: Bearer ...` to chat routes and `kg_session_token` on the canvas-room WebSocket upgrade |
 
 When any of the three values is absent, unsupported, or invalid, the browser falls back to the existing direct `__chat_proxy` submit path. When the env is present but the authenticated workspace policy is still loading or explicitly blocks the selected provider/auth mode, submit fails closed in the browser instead of bypassing policy with a direct proxy POST. The current storage relay path is non-streaming and unwraps the upstream JSON body back into the existing chat response parser contract.
 
