@@ -20,6 +20,10 @@ type GaussianSortScratch = {
 }
 
 const gaussianSortScratchByGeometry = new WeakMap<THREE.InstancedBufferGeometry, GaussianSortScratch>()
+const gaussianActiveSortOrderByGeometry = new WeakMap<
+  THREE.InstancedBufferGeometry,
+  Uint16Array | Uint32Array | null
+>()
 
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
@@ -144,6 +148,10 @@ function syncGaussianSplatGeometryAttributeViews(
   if (load.pointCloud.opacities) geometry.setAttribute('splatOpacity', new THREE.InstancedBufferAttribute(sliceSpatialCaptureFloatAttribute(load.pointCloud.opacities, 1, count), 1))
   if (load.pointCloud.splatScales) geometry.setAttribute('splatScale', new THREE.InstancedBufferAttribute(sliceSpatialCaptureFloatAttribute(load.pointCloud.splatScales, 3, count), 3))
   if (load.pointCloud.splatRotations) geometry.setAttribute('splatRotation', new THREE.InstancedBufferAttribute(sliceSpatialCaptureFloatAttribute(load.pointCloud.splatRotations, 4, count), 4))
+  const editorVisibility = geometry.userData.kgGaussianSplatEditorVisibility
+  if (editorVisibility instanceof Float32Array) {
+    geometry.setAttribute('splatEditorVisible', new THREE.InstancedBufferAttribute(sliceSpatialCaptureFloatAttribute(editorVisibility, 1, count), 1))
+  }
   writeSpatialCaptureAttributeCount(geometry, count)
 }
 
@@ -266,16 +274,38 @@ export function updateGaussianSplatGeometrySort(
   const count = Math.min(load.pointCloud.pointCount, Math.floor(load.pointCloud.positions.length / 3))
   const bucketCount = Math.min(SPATIAL_CAPTURE_SORT_BUCKETS, Math.max(64, count))
   const order = buildDepthSortedIndex(load.pointCloud.positions, direction, resolveGaussianSortScratch(geometry, count, bucketCount))
+  gaussianActiveSortOrderByGeometry.set(geometry, order)
   updateReorderedFloatAttribute(geometry, 'splatCenter', load.pointCloud.positions, 3, order)
   updateReorderedFloatAttribute(geometry, 'splatColor', load.pointCloud.colors, 3, order)
   updateReorderedFloatAttribute(geometry, 'splatOpacity', load.pointCloud.opacities, 1, order)
   updateReorderedFloatAttribute(geometry, 'splatScale', load.pointCloud.splatScales, 3, order)
   updateReorderedFloatAttribute(geometry, 'splatRotation', load.pointCloud.splatRotations, 4, order)
+  const editorVisibility = geometry.userData.kgGaussianSplatEditorVisibility
+  if (editorVisibility instanceof Float32Array) {
+    updateReorderedFloatAttribute(geometry, 'splatEditorVisible', editorVisibility, 1, order)
+  }
+}
+
+export function updateGaussianSplatEditorVisibility(
+  geometry: THREE.InstancedBufferGeometry,
+  visibility: Float32Array,
+): void {
+  geometry.userData.kgGaussianSplatEditorVisibility = visibility
+  const order = gaussianActiveSortOrderByGeometry.get(geometry) || null
+  const count = order?.length || Math.min(visibility.length, Math.max(1, readSpatialCaptureAttributeCount(geometry)))
+  const values = count >= visibility.length ? visibility : visibility.subarray(0, count)
+  const attribute = new THREE.InstancedBufferAttribute(new Float32Array(count), 1)
+  writeReorderedFloatAttribute(attribute.array as Float32Array, values, 1, order)
+  attribute.needsUpdate = true
+  geometry.setAttribute('splatEditorVisible', attribute)
 }
 
 export function buildGaussianSplatGeometry(load: SpatialCapturePointCloudLoad): THREE.InstancedBufferGeometry {
   const geometry = new THREE.InstancedBufferGeometry()
   const initialCount = resolveSpatialCaptureInitialInstanceCount(load)
+  const editorVisibility = new Float32Array(load.pointCloud.pointCount)
+  editorVisibility.fill(1)
+  geometry.userData.kgGaussianSplatEditorVisibility = editorVisibility
   geometry.setIndex(new THREE.BufferAttribute(new Uint16Array([0, 1, 2, 0, 2, 3]), 1))
   geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
     -1, -1, 0,

@@ -10,6 +10,7 @@ import { isVideoAgentDemoPresetInvocation } from '@/features/chat/floatingPanelC
 import { isImageToThreeJsPromptPreset } from '@/features/image-to-threejs/imageToThreeJsPromptPreset'
 import { isImageToGlbPromptPreset } from '@/features/image-to-glb/imageToGlbPromptPreset'
 import { buildLiveCanvasHeroModel } from '@/features/agentic-os/liveCanvasHeroModel'
+import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
 import { getCachedStoryboardWidgetWorkflowRunPlan } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 
 type PlainRecord = Record<string, unknown>
@@ -51,15 +52,15 @@ const nodeById = (nodes: PlainRecord[], id: string): PlainRecord => {
 
 const property = (node: PlainRecord, key: string): unknown => unwrap(node[key])
 
-export function testAgenticPromptPresetCatalogOwnsSixRuntimeRoutes() {
+export function testAgenticPromptPresetCatalogOwnsSevenRuntimeRoutes() {
   const catalogText = fs.readFileSync(PROMPT_CATALOG_PATH, 'utf8')
   const catalog = readFrontmatter(catalogText)
   const presets = Array.isArray(catalog.prompt_presets) ? catalog.prompt_presets.filter(isRecord) : []
-  if (catalog.schema !== 'agentic-os-prompt-preset-catalog/v1' || presets.length !== 6) {
-    throw new Error('expected the centralized six-entry prompt preset catalog')
+  if (catalog.schema !== 'agentic-os-prompt-preset-catalog/v1' || presets.length !== 7) {
+    throw new Error('expected the centralized seven-entry prompt preset catalog')
   }
   const routes = presets.map(preset => String(preset.slash_command || ''))
-  if (routes.join(',') !== '/video-prompt-preset,/image.to-threejs,/image.to-glb,/sme-care-prompt-preset,/investment-research-prompt-preset,/crawler-prompt-preset') {
+  if (routes.join(',') !== '/video-prompt-preset,/image.to-threejs,/image.to-glb,/knowgrph-probe-tree-prompt-preset,/sme-care-prompt-preset,/investment-research-prompt-preset,/crawler-prompt-preset') {
     throw new Error(`unexpected centralized preset routes ${routes.join(',')}`)
   }
   for (const preset of presets) {
@@ -71,6 +72,8 @@ export function testAgenticPromptPresetCatalogOwnsSixRuntimeRoutes() {
       ? isImageToThreeJsPromptPreset(prompt)
       : slashCommand === '/image.to-glb'
         ? isImageToGlbPromptPreset(prompt)
+        : runtimeCommand === '/knowgrph.probe-tree'
+          ? findAgenticOsInvocationByToken(runtimeCommand)?.kind === 'doc' && prompt.startsWith(runtimeCommand)
         : runtimeCommand === '/video-agent'
       ? Boolean(parseGenerationInvocation(prompt))
       : runtimeCommand === '/crawler-agent'

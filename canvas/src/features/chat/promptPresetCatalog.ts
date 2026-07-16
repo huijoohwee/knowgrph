@@ -13,6 +13,7 @@ import {
   isImageToGlbPromptPreset,
 } from '@/features/image-to-glb/imageToGlbPromptPreset'
 import { parseNativeCrawlerInvocation } from './nativeCrawlerInvocation'
+import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
 
 type PlainRecord = Record<string, unknown>
 
@@ -100,6 +101,15 @@ const parsePreset = (value: unknown): PromptPreset | null => {
   } else if (runtimeCommand === '/crawler-agent') {
     const invocation = parseNativeCrawlerInvocation(prompt)
     if (!invocation || invocation.command !== runtimeCommand || activation !== 'chat-agent') return null
+  } else if (id === 'knowgrph-probe-tree') {
+    const invocation = findAgenticOsInvocationByToken(runtimeCommand)
+    if (
+      slashCommand !== '/knowgrph-probe-tree-prompt-preset'
+      || activation !== 'card-inline'
+      || invocation?.kind !== 'doc'
+      || invocation.token !== runtimeCommand
+      || !prompt.startsWith(runtimeCommand)
+    ) return null
   } else {
     const invocation = parseChatSkillSlashInvocation(prompt)
     if (!invocation || invocation.skill.slashCommand !== runtimeCommand || activation !== 'chat-agent') return null
@@ -136,6 +146,7 @@ export const loadPromptPresetCatalog = async (fsOverride?: WorkspaceFs): Promise
     'video-agent',
     IMAGE_TO_THREEJS_PROMPT_PRESET_ID,
     IMAGE_TO_GLB_PROMPT_PRESET_ID,
+    'knowgrph-probe-tree',
     'sme-care-agent',
     'investment-research-agent',
     'crawler-agent',

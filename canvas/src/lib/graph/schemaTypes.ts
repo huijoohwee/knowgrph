@@ -384,12 +384,6 @@ export interface GraphSchema {
     globeCorePulseStrength?: number;
     globeRippleStrength?: number;
     globeAutoRotateSpeed?: number;
-    globeCameraEllipseEnabled?: boolean;
-    globeCameraEllipseSpeed?: number;
-    globeCameraEllipseRadiusXFactor?: number;
-    globeCameraEllipseRadiusZFactor?: number;
-    globeCameraEllipseHeightFactor?: number;
-    globeCameraEllipseFollow?: number;
     globeHubOrbitEnabled?: boolean;
     globeHubOrbitStrength?: number;
     globeHubOrbitSpeed?: number;

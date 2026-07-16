@@ -51,7 +51,7 @@ const defaultFloatingPanelPromptPresetsRuntime: FloatingPanelPromptPresetsRuntim
 function renderPromptPresetTokenChip(preset: PromptPreset): React.ReactNode {
   const className = resolveInlineInvocationChipClassName({
     value: preset.slashCommand,
-    extraClassName: 'max-w-[9.5rem]',
+    extraClassName: 'max-w-[7.5rem]',
   })
   const chip = renderAgenticOsInvocationKeywordChip({ value: preset.slashCommand, className })
   if (React.isValidElement<{ className?: string }>(chip)) {

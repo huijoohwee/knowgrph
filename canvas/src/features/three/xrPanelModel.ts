@@ -1,6 +1,6 @@
 export type XrPanelSourceKind = 'graph-scene' | 'model-asset' | 'spatial-capture'
 export type XrPanelSourceFormat = 'graph' | 'glb' | 'gltf' | 'ply' | 'spz' | 'unknown'
-export type XrPanelCapabilityState = 'active' | 'available' | 'fallback' | 'inline-only' | 'source-ready' | 'unavailable'
+export type XrPanelCapabilityState = 'active' | 'available' | 'fallback' | 'inline-only' | 'source-ready' | 'unavailable' | 'unsupported'
 
 export type XrBrowserGraphicsCapabilities = {
   webgl: boolean
@@ -21,7 +21,7 @@ export type XrPanelSourceProfile = {
 }
 
 export type XrPanelRuntimeStackItem = {
-  id: 'webgl' | 'webgpu' | 'webxr' | 'gltf' | 'ply'
+  id: 'threejs' | 'webgl' | 'webgpu' | 'webxr' | 'gltf' | 'glb' | 'ply' | 'spz'
   label: string
   state: XrPanelCapabilityState
   value: string
@@ -90,37 +90,56 @@ export function resolveXrPanelRuntimeStack(args: {
   profile: XrPanelSourceProfile
   xrActive: boolean
 }): XrPanelRuntimeStackItem[] {
-  const { capabilities, profile, xrActive } = args
+  const { capabilities, profile } = args
+  const webglActive = capabilities.webgl2 || capabilities.webgl
   return [
+    {
+      id: 'threejs',
+      label: 'Three.js',
+      state: 'active',
+      value: 'Scene runtime',
+    },
     {
       id: 'webgl',
       label: 'WebGL',
-      state: capabilities.webgl2 ? 'available' : capabilities.webgl ? 'fallback' : 'unavailable',
-      value: capabilities.webgl2 ? 'WebGL2' : capabilities.webgl ? 'WebGL' : 'Unavailable',
+      state: webglActive ? 'active' : 'unavailable',
+      value: capabilities.webgl2 ? 'WebGL2 renderer' : capabilities.webgl ? 'WebGL renderer' : 'Unavailable',
     },
     {
       id: 'webgpu',
       label: 'WebGPU',
-      state: capabilities.webgpu ? 'available' : 'fallback',
-      value: capabilities.webgpu ? 'Available' : 'Optional',
+      state: capabilities.webgpu ? 'available' : 'unavailable',
+      value: capabilities.webgpu ? 'Experimental · available, not active' : 'Experimental · unavailable, not active',
     },
     {
       id: 'webxr',
       label: 'WebXR',
-      state: xrActive ? 'active' : capabilities.webxr ? 'available' : 'inline-only',
-      value: xrActive ? 'Active' : capabilities.webxr ? 'Available' : 'Inline',
+      state: capabilities.webxr ? 'available' : 'inline-only',
+      value: capabilities.webxr ? 'Session available' : 'Inline surface only',
     },
     {
       id: 'gltf',
       label: 'glTF',
-      state: profile.format === 'glb' || profile.format === 'gltf' ? 'source-ready' : 'available',
-      value: profile.format === 'glb' || profile.format === 'gltf' ? profile.label : 'Ready',
+      state: profile.format === 'gltf' ? 'source-ready' : 'available',
+      value: profile.format === 'gltf' ? profile.label : 'Supported',
+    },
+    {
+      id: 'glb',
+      label: 'GLB',
+      state: profile.format === 'glb' ? 'source-ready' : 'available',
+      value: profile.format === 'glb' ? profile.label : 'Supported',
     },
     {
       id: 'ply',
-      label: 'PLY',
-      state: profile.format === 'ply' ? 'source-ready' : 'available',
-      value: profile.format === 'ply' ? 'Source' : 'Optional',
+      label: 'Gaussian PLY',
+      state: profile.format === 'ply' ? 'active' : 'available',
+      value: profile.format === 'ply' ? 'Active source' : 'Supported',
+    },
+    {
+      id: 'spz',
+      label: 'SPZ',
+      state: 'unsupported',
+      value: profile.format === 'spz' ? 'Recognized source · unsupported' : 'Recognized · unsupported',
     },
   ]
 }

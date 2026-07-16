@@ -9,6 +9,7 @@ import {
   formatVideoSequenceTimelineSecondsOffset,
   resolveRenderableVideoSequenceTimelineSpans,
   resolveVideoSequenceTimelineMediaSeconds,
+  resolveVideoSequenceTimelineLane,
   resolveVideoSequenceTimelinePositionMinutes,
   resolveVideoSequenceTimelineUnitsPerMs,
   resolveVideoSequenceTimelineDisplayLaneId,
@@ -49,17 +50,15 @@ function readSource(...parts: string[]): string {
   return readFileSync(resolve(root, 'src', ...parts), 'utf8')
 }
 function buildTestThumbnail(timestampSeconds: number, rasterDataUrl: string): TimelineMediaReaderThumbnail {
-  return {
-    dataUrl: rasterDataUrl,
-    format: 'png',
-    height: 90,
-    mimeType: 'image/png',
-    rasterDataUrl,
-    rasterFormat: 'png',
-    rasterMimeType: 'image/png',
-    timestampSeconds,
-    width: 160,
-  }
+  return { dataUrl: rasterDataUrl, format: 'png', height: 90, mimeType: 'image/png', rasterDataUrl, rasterFormat: 'png', rasterMimeType: 'image/png', timestampSeconds, width: 160 }
+}
+
+export function testVideoFilenameAudioTokenKeepsVideoThumbnailLane() {
+  const [sourceVideo, derivedAudio] = buildMermaidGanttTimelineModel(['gantt', '  title Video Sequence Timeline', '  dateFormat HH:mm', '  section Source video',
+    '  kgc_20260713t142754z-video-audio-45-second-master.mp4 : clip_master, kgsrc_0_45, kgpos_0, 45m',
+    '  kgc_20260713t142754z-video-audio-45-second-master.mp4 audio : clip_master_audio, kgsrc_0_45, kgpos_0, 45m'].join('\n')).taskSpans
+  if (!sourceVideo || resolveVideoSequenceTimelineLane(sourceVideo) !== 'video') throw new Error('expected a video filename containing an audio token to remain in the thumbnail-backed Video lane')
+  if (!derivedAudio || resolveVideoSequenceTimelineLane(derivedAudio) !== 'audio') throw new Error('expected an explicit derived audio track to remain in the waveform-backed Audio lane')
 }
 export function testVideoSequenceClipThumbnailsKeepNativeVideoFrameReel() {
   const duplicateNativeFrames = [
@@ -363,7 +362,6 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !graphStateTypeText.includes('setVideoSequenceTimelineLaneVisibility: (laneId: string, visible: boolean) => void') ||
     !uiInitialStateText.includes('videoSequenceTimelineLaneVisibility: {') ||
     !uiInitialStateText.includes('setVideoSequenceTimelineLaneVisibility: (laneId: string, visible: boolean)') ||
-    !rulerText.includes('VIDEO_SEQUENCE_BOTTOM_PANEL_PROJECTION_OPTIONS') ||
     !rulerText.includes('disabledLaneIds = VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS') ||
     !rulerText.includes('const projectionOptions = React.useMemo<VideoSequenceTimelineProjectionOptions>') ||
     !rulerText.includes('resolveVisibleVideoSequenceTimelineDisplayLanes(taskSpans, projectionOptions)') ||
@@ -619,14 +617,11 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !transportCommandModelText.includes('handleVideoSequenceClipEdit: documentActions.handleVideoSequenceClipEdit') ||
     !transportDocumentActionsText.includes('useTimelineTransportTimingSyncStoreBinding') ||
     !transportDocumentActionsText.includes('setTimelineTransportTimingSyncMode(timingSyncMode ===') ||
-    !transportDocumentActionsText.includes('splitMermaidGanttVideoSequenceClipAtOffset') ||
-    !transportDocumentActionsText.includes('updateMermaidGanttVideoSequenceClipTiming') ||
+    !transportDocumentActionsText.includes('resolveGanttTimelineVideoSequenceSplitAction') ||
+    !transportDocumentActionsText.includes('updateGanttTimelineVideoSequenceClipTimingWithRipple') ||
     !transportDocumentActionsText.includes('handleToggleVideoSequenceTimingSyncMode') ||
-    !transportDocumentActionsText.includes('resolveDirectEditTimingSyncMode') ||
-    !transportDocumentActionsText.includes("const SOURCE_BACKED_TIMING_SYNC_LANES = new Set(['video', 'image', 'scene', 'audio'])") ||
-    !transportDocumentActionsText.includes('return SOURCE_BACKED_TIMING_SYNC_LANES.has(resolveVideoSequenceTimelineLane(args.span))') ||
-    !transportDocumentActionsText.includes("    : 'selected'") ||
-    !transportDocumentActionsText.includes('syncMode: resolveDirectEditTimingSyncMode({ span: input.dragState.span, timingSyncMode })') ||
+    !transportDocumentActionsText.includes('resolveGanttTimelineVideoSequenceTimingSyncMode') ||
+    !transportDocumentActionsText.includes('syncMode: resolveGanttTimelineVideoSequenceTimingSyncMode({ span: actionContext.selectedSpan, timingSyncMode })') ||
     transportDocumentActionsText.includes('const nextCode = updateMermaidGanttCodeRowTiming') ||
     !transportRulerModelText.includes('useGanttTimelineTransportRulerModel') ||
     !transportRulerModelText.includes('clampTimelineTransportValue') ||
@@ -967,7 +962,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !mediaDurationText.includes('resolveTimelinePlanDurationSeconds') ||
     !transportShellModelText.includes("'data-kg-video-sequence-media-duration': args.mediaDurationSeconds > 0 ? args.mediaDurationSeconds : undefined") ||
     !transportShellModelText.includes("'data-kg-video-sequence-media-duration-scale': args.hasMediaDurationScale ? '1' : undefined") ||
-    !transportSurfaceModelText.includes('const selectedPreviewEmpty = !!transportSession.selectedRowKey && !transportSession.previewPlan') ||
+    !transportSurfaceModelText.includes('const selectedPreviewEmpty = !!transportSession.selectedSpan && !transportSession.previewPlan') ||
     transportSurfaceModelText.includes('transportSession.disabled || selectedPreviewEmpty') ||
     transportSurfaceModelText.includes('selectedPreviewEmpty || !transportSession.playing') ||
     transportSurfaceModelText.includes('transportSession.setTransportPlaying(false)') ||
@@ -1150,7 +1145,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     deltaMinutes: 1,
   })
   if (
-    !movedFullWidthSequenceCode?.includes('source-clip.mp4 : clip_hk, kgsrc_0_15, 00:03, 15m') ||
+    !movedFullWidthSequenceCode?.includes('source-clip.mp4 : clip_hk, 00:03, 15m') ||
     !movedFullWidthSequenceCode.includes('source-clip.mp4 mask : clip_hk_mask, kgsrc_0_15, 00:03, 15m') ||
     !movedFullWidthSequenceCode.includes('source-clip.mp4 grade : clip_hk_grade, kgsrc_0_15, 00:03, 15m') ||
     !movedFullWidthSequenceCode.includes('source-clip.mp4 audio : clip_hk_audio, kgsrc_0_15, 00:03, 15m') ||
@@ -1180,11 +1175,11 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
     !selectedOnlyMovedFullWidthSequenceCode?.includes('source-clip.mp4 : clip_hk, 00:00, 15m') ||
     !selectedOnlyMovedFullWidthSequenceCode.includes('source-clip.mp4 mask : clip_hk_mask, 00:00, 15m') ||
     !selectedOnlyMovedFullWidthSequenceCode.includes('source-clip.mp4 grade : clip_hk_grade, 00:00, 15m') ||
-    !selectedOnlyMovedFullWidthSequenceCode.includes('source-clip.mp4 audio : clip_hk_audio, kgsrc_0_15, 00:03, 15m') ||
+    !selectedOnlyMovedFullWidthSequenceCode.includes('source-clip.mp4 audio : clip_hk_audio, 00:03, 15m') ||
     !groupedModeMovedFullWidthSequenceCode?.includes('source-clip.mp4 : clip_hk, kgsrc_0_15, 00:03, 15m') ||
     !groupedModeMovedFullWidthSequenceCode.includes('source-clip.mp4 mask : clip_hk_mask, kgsrc_0_15, 00:03, 15m') ||
     !groupedModeMovedFullWidthSequenceCode.includes('source-clip.mp4 grade : clip_hk_grade, kgsrc_0_15, 00:03, 15m') ||
-    !groupedModeMovedFullWidthSequenceCode.includes('source-clip.mp4 audio : clip_hk_audio, kgsrc_0_15, 00:03, 15m')
+    !groupedModeMovedFullWidthSequenceCode.includes('source-clip.mp4 audio : clip_hk_audio, 00:03, 15m')
   ) {
     throw new Error(`expected group/ungroup timing sync modes to choose between companion-lane sync and selected-lane edits, got ${JSON.stringify({ groupedModeMovedFullWidthSequenceCode, selectedOnlyMovedFullWidthSequenceCode })}`)
   }
@@ -1256,7 +1251,7 @@ export function testVideoSequenceTimelineSurfacesAreRuntimeReady() {
   })
   if (
     !splitSpliceSpan ||
-    !movedSplitSequenceCode?.includes('source-clip.mp4 splice : clip_hk_splice, kgsrc_1_5, 00:02, 4m') ||
+    !movedSplitSequenceCode?.includes('source-clip.mp4 splice : clip_hk_splice, 00:02, 4m') ||
     !movedSplitSequenceCode.includes('source-clip.mp4 mask splice : clip_hk_mask_splice, kgsrc_1_5, 00:02, 4m') ||
     !movedSplitSequenceCode.includes('source-clip.mp4 grade splice : clip_hk_grade_splice, kgsrc_1_5, 00:02, 4m') ||
     !movedSplitSequenceCode.includes('source-clip.mp4 audio splice : clip_hk_audio_splice, kgsrc_1_5, 00:02, 4m') ||

@@ -27,6 +27,7 @@ export type GanttTimelineTransportRulerModel = {
     dragPreview: MermaidGanttTimelineDragPreview | null
     draggingMode: MermaidGanttBarDragMode | null
     draggingRowKey: string
+    editable: boolean
     maxMinutes: number
     mediaDurationSeconds: number
     mediaFrameRate: number
@@ -56,6 +57,7 @@ export function useGanttTimelineTransportRulerModel(args: {
   dragPreview: MermaidGanttTimelineDragPreview | null
   draggingMode: MermaidGanttBarDragMode | null
   draggingRowKey: string
+  editable: boolean
   maxMinutes: number
   mediaDurationSeconds: number
   mediaFrameRate: number
@@ -103,6 +105,7 @@ export function useGanttTimelineTransportRulerModel(args: {
       dragPreview: args.dragPreview,
       draggingMode: args.draggingMode,
       draggingRowKey: args.draggingRowKey,
+      editable: args.editable,
       maxMinutes: args.maxMinutes,
       mediaDurationSeconds: args.mediaDurationSeconds,
       mediaFrameRate: args.mediaFrameRate,
@@ -130,6 +133,7 @@ export function useGanttTimelineTransportRulerModel(args: {
     args.dragPreview,
     args.draggingMode,
     args.draggingRowKey,
+    args.editable,
     args.maxMinutes,
     args.mediaDurationSeconds,
     args.mediaFrameRate,

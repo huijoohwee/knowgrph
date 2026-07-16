@@ -21,6 +21,8 @@ import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import { shouldRenderCanvasAppliedModelAsset } from '@/lib/three/modelAssetActivePathGuard'
 import { parseStandaloneSpatialCaptureManifest } from '@/features/markdown-workspace/workspaceImport/spatialCaptureFileset'
 import { SpatialCaptureManifestStage } from '@/features/three/SpatialCaptureManifestStage'
+import { XrEmptyWorldStage } from '@/features/three/XrEmptyWorldStage'
+import { XrEmptyWorldHud } from '@/features/three/XrEmptyWorldHud'
 
 const SceneLazy = React.lazy(() =>
   import('@/lib/three/Scene.impl').then(mod => ({
@@ -72,14 +74,22 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   }, [])
   const paused = !active
   const graph = useActiveGraphRenderData() as GraphData | null
+  const xrDocumentLoaded = mode !== 'xr' || Boolean(
+    String(markdownDocumentName || '').trim()
+    && String(markdownDocumentText || '').trim(),
+  )
   const s = schema as GraphSchema | null
   const effectiveSchema = useMemo<GraphSchema>(() => s || defaultSchema, [s])
   const renderGraphRef = useRef<GraphData | null>(null)
   const renderGraph = useMemo(() => {
+    if (!xrDocumentLoaded) {
+      renderGraphRef.current = null
+      return null
+    }
     if (paused && renderGraphRef.current) return renderGraphRef.current
     renderGraphRef.current = graph
     return graph
-  }, [paused, graph])
+  }, [graph, paused, xrDocumentLoaded])
   const canvasMarkdownDocument = useCanvasAppliedMarkdownDocument({
     name: markdownDocumentName,
     sourceUrl: markdownDocumentSourceUrl,
@@ -154,7 +164,8 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   const hasGraph = !!sceneGraphForRender
   const hasGlbAsset = !!glbAsset && shouldRenderGlbAsset
   const hasSpatialCaptureManifest = !!spatialCaptureManifest
-  const hasRenderableScene = hasGraph || hasGlbAsset || hasSpatialCaptureManifest
+  const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded
+  const hasRenderableScene = hasGraph || hasGlbAsset || hasSpatialCaptureManifest || hasXrEmptyWorld
   const hoverEnabled = (effectiveSchema as GraphSchema).behavior?.hover?.enabled !== false
   const positions = usePositions(
     hasGraph ? sceneGraphForRender!.nodes : [],
@@ -288,8 +299,8 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   }, [])
 
   const { dragOverridesRef, overlayHiddenNodeIdSet, overlayLayer, requestSchedule, scheduleRef } = useThreeRichMediaOverlayController({
-    active,
-    sceneGraph: sceneGraphForRender,
+    active: active && mode !== 'xr',
+    sceneGraph: mode === 'xr' ? null : sceneGraphForRender,
     effectiveSchema,
     positions: positions3d,
     glCanvasRef,
@@ -303,6 +314,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     return (
       <section
         className="absolute inset-0 w-full h-full z-0"
+        data-kg-xr-document-loaded={mode === 'xr' ? (xrDocumentLoaded ? '1' : '0') : undefined}
       />
     )
   }
@@ -310,14 +322,20 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     <section
       ref={containerRef}
       className="absolute inset-0 w-full h-full z-0"
+      data-kg-xr-document-loaded={mode === 'xr' ? (xrDocumentLoaded ? '1' : '0') : undefined}
+      data-kg-xr-exclusive-stage={mode === 'xr' && (hasGraph || hasXrEmptyWorld) ? '1' : undefined}
+      data-kg-xr-empty-world={hasXrEmptyWorld ? '1' : undefined}
     >
       <Canvas
+        key={hasXrEmptyWorld ? 'xr-empty-world-canvas' : 'scene-canvas'}
         frameloop={paused ? 'demand' : 'always'}
-        camera={{ position: [0, 0, 220], fov: 50 }}
+        camera={hasXrEmptyWorld
+          ? { position: [360, -460, 520], fov: 50, up: [0, 0, 1] }
+          : { position: [0, 0, 220], fov: 50 }}
         shadows
         gl={{ antialias: true, alpha: true }}
         onCreated={({ gl, scene, camera }) => {
-          gl.setClearColor('#000000', 0)
+          gl.setClearColor(hasXrEmptyWorld ? '#0b2f4a' : '#000000', hasXrEmptyWorld ? 1 : 0)
           try {
             gl.toneMapping = ACESFilmicToneMapping
             gl.toneMappingExposure = 1
@@ -355,6 +373,13 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
         }}
       >
         <React.Suspense fallback={null}>
+          {hasXrEmptyWorld ? (
+            <group name="kg_xr_empty_world">
+              <ambientLight intensity={0.78} />
+              <directionalLight position={[180, -160, 320]} intensity={1.25} castShadow />
+              <XrEmptyWorldStage />
+            </group>
+          ) : null}
           {hasGraph ? (
             <SceneLazy
               data={sceneGraphForRender as GraphData}
@@ -399,6 +424,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
             mode={mode}
             modelAssetRenderKey={spatialCaptureRenderKey || glbAssetRenderKey}
             modelAssetFit={spatialCaptureRenderKey ? spatialCaptureFit : glbAssetFit}
+            xrEmptyWorld={hasXrEmptyWorld}
             onControlsChange={() => {
               try {
                 scheduleRef.current?.()
@@ -407,9 +433,10 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
               }
             }}
           />
-          <OverlayFrameSync enabled={active} scheduleRef={scheduleRef} />
+          <OverlayFrameSync enabled={active && mode !== 'xr'} scheduleRef={scheduleRef} />
         </React.Suspense>
       </Canvas>
+      {hasXrEmptyWorld ? <XrEmptyWorldHud /> : null}
       <CanvasXrEntryPanel
         active={active && mode === 'xr'}
         rendererRef={threeGlRef}
@@ -417,15 +444,15 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
         spatialRuntimeStatus={spatialRuntimeStatus}
         spatialRuntimeFidelity={spatialRuntimeFidelity}
       />
-      {overlayLayer}
-      <GraphHoverTooltip
+      {mode !== 'xr' ? overlayLayer : null}
+      {mode !== 'xr' ? <GraphHoverTooltip
         hoverInfo={hoverInfo}
         containerRef={containerRef as unknown as React.RefObject<HTMLElement | null>}
         nodes={sceneGraphForRender?.nodes as GraphNode[] | undefined}
         edges={sceneGraphForRender?.edges as GraphEdge[] | undefined}
         schema={effectiveSchema as GraphSchema | null}
         tooltipInteractive
-      />
+      /> : null}
     </section>
   )
 }

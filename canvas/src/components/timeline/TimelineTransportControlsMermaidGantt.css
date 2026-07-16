@@ -380,24 +380,3 @@
   color: var(--kg-canvas-accent, rgb(37 99 235 / 1));
   filter: drop-shadow(0 1px 1px rgb(15 23 42 / 0.16));
 }
-
-.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-media="1"].timeline-transport-track-clip--selected:not(.timeline-transport-track-clip--lane-fbf):not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]),
-.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-media="1"][data-kg-video-sequence-active-track="1"]:not(.timeline-transport-track-clip--lane-fbf):not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]) {
-  border-width: 2px;
-  border-color: var(--kg-canvas-accent, rgb(59 130 246 / 1));
-  box-shadow: none;
-}
-
-.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-placeholder="1"].timeline-transport-track-clip--selected:not(.timeline-transport-track-clip--lane-fbf):not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]),
-.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-placeholder="1"][data-kg-video-sequence-active-track="1"]:not(.timeline-transport-track-clip--lane-fbf):not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]) {
-  border-color: color-mix(in srgb, var(--kg-canvas-accent, #2563eb) 28%, var(--kg-border, #cbd5e1) 72%);
-  box-shadow: none;
-}
-
-.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle-grip,
-.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle:hover .timeline-transport-track-handle-grip,
-.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"] .timeline-transport-track-handle:focus-visible .timeline-transport-track-handle-grip,
-.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"].timeline-transport-track-clip--selected .timeline-transport-track-handle-grip,
-.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content [data-kg-compact-source-media="1"].timeline-transport-track-clip--dragging .timeline-transport-track-handle-grip {
-  display: none;
-}

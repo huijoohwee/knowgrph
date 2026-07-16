@@ -333,6 +333,11 @@ export function updateMermaidGanttVideoSequenceClipGroupTiming(args: {
   mode: MermaidGanttBarDragMode
   deltaMinutes: number
 }): string | null {
+  const initialSelectedLine = String(args.code || '').split('\n')[args.rowLineIndex]
+  const initialSelectedSpan = buildMermaidGanttTimelineModel(args.code).taskSpans.find(span => span.lineIndex === args.rowLineIndex)
+  const initialSourceRange = typeof initialSelectedLine === 'string' && initialSelectedSpan
+    ? readMermaidGanttLineSourceRange(initialSelectedLine) || { endSeconds: initialSelectedSpan.startMinutes + initialSelectedSpan.durationMinutes, startSeconds: initialSelectedSpan.startMinutes }
+    : null
   const nextCode = updateMermaidGanttCodeRowTiming(args)
   if (!nextCode) return null
   const groupLineIndexes = readVideoSequenceClipGroupLineIndexes(args)
@@ -346,7 +351,7 @@ export function updateMermaidGanttVideoSequenceClipGroupTiming(args: {
     span: selectedSpan,
   })
   if (selectedAbsoluteStartMinutes == null) return nextCode
-  const selectedSourceRange = readMermaidGanttLineSourceRange(selectedLine) || {
+  const selectedSourceRange = readMermaidGanttLineSourceRange(selectedLine) || initialSourceRange || {
     endSeconds: selectedSpan.startMinutes + selectedSpan.durationMinutes,
     startSeconds: selectedSpan.startMinutes,
   }

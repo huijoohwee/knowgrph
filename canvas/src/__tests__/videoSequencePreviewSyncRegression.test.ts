@@ -387,7 +387,7 @@ export function testVideoSequenceMediaCanvasUsesTransportPositionForPreviewSync(
     readSource('components', 'RichMediaPanelIframeSurface.tsx'),
     readSource('components', 'useRichMediaPanelMediaState.ts'),
   ].join('\n')
-  const widgetEditorFormText = readSource('components', 'StoryboardWidget', 'WidgetEditorForm.tsx')
+  const widgetEditorFormText = [readSource('components', 'StoryboardWidget', 'WidgetEditorForm.tsx'), readSource('components', 'StoryboardWidget', 'WidgetEditorFormContent.tsx'), readSource('components', 'StoryboardWidget', 'useWidgetEditorCompactPreviewTimelineSync.ts')].join('\n')
   const richMediaTimelineSyncText = readSource('lib', 'render', 'richMediaTimelineSync.ts')
   const ganttPlaybackControlsText = readSource('features', 'gitgraph', 'useGanttTimelinePlaybackControls.ts')
   const ganttTransportPlaybackModelText = readSource('features', 'gitgraph', 'useGanttTimelineTransportPlaybackModel.ts')
@@ -567,7 +567,7 @@ export function testVideoSequenceTransportReadoutUsesPreviewSourceTime() {
     !surfaceModelText.includes('transportClockDisplayModel') ||
     !timelinePlanSyncText.includes('source?.durationSeconds || 0') ||
     !timelinePlanSyncText.includes('segment.sourceRangeSeconds.endSeconds') ||
-    !surfaceModelText.includes('const selectedPreviewEmpty = !!transportSession.selectedRowKey && !transportSession.previewPlan') ||
+    !surfaceModelText.includes('const selectedPreviewEmpty = !!transportSession.selectedSpan && !transportSession.previewPlan') ||
     !surfaceModelText.includes("if (selectedPreviewEmpty) return ''") ||
     surfaceModelText.includes('transportSession.disabled || selectedPreviewEmpty') ||
     surfaceModelText.includes('selectedPreviewEmpty || !transportSession.playing') ||

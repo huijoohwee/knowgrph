@@ -80,7 +80,6 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'floatingPanel.gitGraph',
   'floatingPanel.gantt',
   'floatingPanel.timeline',
-  'floatingPanel.xr',
   'floatingPanel.architecture',
   'floatingPanel.eventModeling',
   'floatingPanel.graphTraversal',
@@ -366,7 +365,6 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
   'floatingPanel.gitGraph': { category: 'FloatingPanel surface', label: 'GitGraph', Icon: GitBranch },
   'floatingPanel.gantt': { category: 'FloatingPanel surface', label: 'Gantt', Icon: ChartGantt },
   'floatingPanel.timeline': { category: 'FloatingPanel surface', label: 'Timeline', Icon: HistoryIcon },
-  'floatingPanel.xr': { category: 'FloatingPanel surface', label: 'XR', Icon: Cuboid },
   'floatingPanel.architecture': { category: 'FloatingPanel surface', label: 'Architecture', Icon: Network },
   'floatingPanel.eventModeling': { category: 'FloatingPanel surface', label: 'Event Model', Icon: Workflow },
   'floatingPanel.graphTraversal': {
@@ -421,7 +419,6 @@ export type FloatingPanelTypeIconView =
   | 'gitGraph'
   | 'gantt'
   | 'timeline'
-  | 'xr'
   | 'architecture'
   | 'eventModeling'
   | 'graphTraversal'
@@ -442,7 +439,6 @@ export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   gitGraph: 'floatingPanel.gitGraph',
   gantt: 'floatingPanel.gantt',
   timeline: 'floatingPanel.timeline',
-  xr: 'floatingPanel.xr',
   architecture: 'floatingPanel.architecture',
   eventModeling: 'floatingPanel.eventModeling',
   graphTraversal: 'floatingPanel.graphTraversal',

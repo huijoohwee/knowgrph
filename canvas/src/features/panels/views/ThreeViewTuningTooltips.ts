@@ -437,38 +437,6 @@ export const GLOBE_ARC_COUNT_TOOLTIP = buildNumericTooltip({
   impact: 'Higher values draw more data-flow great-circle arcs; lower values reduce motion complexity.',
 })
 
-export const GLOBE_CAMERA_ELLIPSE_SPEED_TOOLTIP = buildNumericTooltip({
-  defaultValue: 0.045,
-  min: 0,
-  max: 0.4,
-  interval: 0.01,
-  impact: 'Higher speed moves camera around the ellipse faster; lower speed keeps cinematic motion gentle.',
-})
-
-export const GLOBE_CAMERA_ELLIPSE_RADIUS_TOOLTIP = buildNumericTooltip({
-  defaultValue: 1,
-  min: 0.4,
-  max: 2.2,
-  interval: 0.02,
-  impact: 'Larger factors widen the camera ellipse around the globe; smaller factors keep the path tighter.',
-})
-
-export const GLOBE_CAMERA_ELLIPSE_HEIGHT_TOOLTIP = buildNumericTooltip({
-  defaultValue: 0.26,
-  min: 0,
-  max: 1,
-  interval: 0.02,
-  impact: 'Higher values elevate the camera orbit path; lower values keep travel closer to equatorial view.',
-})
-
-export const GLOBE_CAMERA_ELLIPSE_FOLLOW_TOOLTIP = buildNumericTooltip({
-  defaultValue: 0.06,
-  min: 0.02,
-  max: 1,
-  interval: 0.02,
-  impact: 'Lower follow gives slower cinematic easing; higher follow tracks the ellipse path more tightly.',
-})
-
 export const GLOBE_HUB_ORBIT_STRENGTH_TOOLTIP = buildNumericTooltip({
   defaultValue: 0.22,
   min: 0,

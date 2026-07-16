@@ -10,6 +10,7 @@ import { readGeospatialOverlayEnabledPreference, writeGeospatialOverlayEnabledPr
 import { parseGlbAssetDocument } from '@/lib/assets/glbAssetDocument'
 import { loadModelAssetRenderPayload } from '@/lib/assets/modelAssetPayload'
 import { buildGltfAssetMarkdown } from '@/features/markdown-workspace/workspaceImport/glbAsset'
+import { resolveCameraControlsOrbitProfile } from '@/features/three/cameraControlsProfile'
 import type { GraphSchema } from '@/lib/graph/schema'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -114,7 +115,7 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
 }
 
 export function testCanvasSurfaceMode3dSelectionUsesSharedOwner() {
-  const canvasViewActionsText = readFileSync(resolve(process.cwd(), 'src/components/toolbar/canvasViewActions.ts'), 'utf8')
+  const canvasViewActionsText = readFileSync(resolve(process.cwd(), 'src/components/toolbar/canvasViewActions.ts'), 'utf8') + readFileSync(resolve(process.cwd(), 'src/components/toolbar/Canvas2dRendererSelect.tsx'), 'utf8')
   const canvasViewMenuText = readFileSync(resolve(process.cwd(), 'src/components/toolbar/canvasViewMenu.ts'), 'utf8')
   if (!canvasViewActionsText.includes('applyCanvasSurfaceModeSelection')) {
     throw new Error('Expected Canvas View Surface Mode actions to reuse the shared surface-mode selection owner')
@@ -125,8 +126,8 @@ export function testCanvasSurfaceMode3dSelectionUsesSharedOwner() {
   if (canvasViewMenuText.includes('view:geospatial')) {
     throw new Error('Expected Geospatial Mode to be owned by Surface Mode, not a stale view-scoped option id')
   }
-  if (canvasViewActionsText.includes("setCanvas3dMode('3d')")) {
-    throw new Error('Expected UI surfaces to avoid local direct 3D-mode setter sequences outside the shared owner')
+  if (canvasViewActionsText.includes("setCanvas3dMode('3d')") || !canvasViewActionsText.includes('onOpenShared3dPanel?.(mode)') || !canvasViewActionsText.includes("mode === '3d' ? 'camera' : 'media'") || !canvasViewActionsText.includes("setBottomSurfaceTab('timeline')") || !canvasViewActionsText.includes('setBottomSurfaceCollapsed(false)')) {
+    throw new Error('Expected 3D to open Camera while XR opens Media 3D plus the canonical BottomPanel Timeline lane')
   }
 
   const calls: string[] = []
@@ -322,24 +323,24 @@ export function testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate() {
 export function testXrModeGraphSceneUsesDistinctSpatialStageInsteadOfPlain3dGlobe() {
   const scene = readFileSync(resolve(process.cwd(), 'src/lib/three/Scene.impl.tsx'), 'utf8')
   const stage = readFileSync(resolve(process.cwd(), 'src/features/three/XrGraphStage.tsx'), 'utf8')
-  if (!scene.includes("{mode === 'xr' ? <XrGraphStage data={data} positions={positions} paused={paused} /> : null}")) {
-    throw new Error('Expected XR Mode graph scenes to mount a distinct XR spatial stage')
+  if (!scene.includes("{mode === 'xr' ? <XrGraphStage data={data} /> : null}")) {
+    throw new Error('Expected XR Mode graph scenes to mount the native motion-reference stage')
   }
   if (!scene.includes("mode === '3d' ? (\n          <GlobeEffects")) {
     throw new Error('Expected plain 3D globe effects to stay out of XR Mode')
   }
   for (const marker of [
     'kg_graph_xr_stage',
-    'kg_graph_xr_depth_grid',
-    'kg_graph_xr_boundary_frame',
-    'kg_graph_xr_orientation_ring',
-    'kg_graph_xr_focus_reticle',
-    'kg_graph_xr_controller_rays',
-    'kg_graph_xr_status_beacons',
+    'XrMotionReferenceStage',
+    'XR_MOTION_STAGE_SPAN',
+    'XR_MOTION_STAGE_GROUND_Y',
   ]) {
     if (!stage.includes(marker)) {
       throw new Error(`Expected XR graph stage to expose ${marker}`)
     }
+  }
+  for (const staleMarker of ['physics_playground', 'orientation_ring', 'controller_rays', 'depth_grid']) {
+    if (stage.includes(staleMarker)) throw new Error(`Expected XR graph stage to remove stale ${staleMarker} rendering`)
   }
 }
 
@@ -471,8 +472,7 @@ export function testXrModeModelAssetSwitchResetsCameraXyzCoordinates() {
     throw new Error('Expected ThreeGraph to route loaded GLB/GLTF bounds into 3D controls for XYZ camera framing')
   }
 
-  const controls = readFileSync(resolve(process.cwd(), 'src/features/three/Controls.tsx'), 'utf8')
-  const modelAssetCameraPose = readFileSync(resolve(process.cwd(), 'src/features/three/modelAssetCameraPose.ts'), 'utf8')
+  const [controls, cameraFramingControlsRuntime, modelAssetCameraPose] = ['Controls.tsx', 'cameraFramingControlsRuntime.ts', 'modelAssetCameraPose.ts'].map(file => readFileSync(resolve(process.cwd(), 'src/features/three', file), 'utf8'))
   if (!controls.includes('modelAssetRenderKey?: string')) {
     throw new Error('Expected 3D Controls to accept model asset render identity')
   }
@@ -485,10 +485,10 @@ export function testXrModeModelAssetSwitchResetsCameraXyzCoordinates() {
   if (!controls.includes("const modelAssetMode = !!String(modelAssetRenderKey || '').trim()")) {
     throw new Error('Expected 3D Controls to identify model-asset render sessions')
   }
-  if (!controls.includes("const topBiasedOrbit = voxelMode || ((mode === '3d' || mode === 'xr') && !modelAssetMode)")) {
+  if (!controls.includes('resolveCameraControlsOrbitProfile({ mode, modelAssetMode })') || (['3d', 'xr'] as const).some(mode => resolveCameraControlsOrbitProfile({ mode, modelAssetMode: true }).topBiased)) {
     throw new Error('Expected model-asset sessions to avoid graph-biased orbit clamping')
   }
-  if (!controls.includes('applyModelAssetCameraPose({ camera: perspectiveCamera, controls, fit: modelAssetFit, perspectiveCamera })') || !controls.includes('camera.position.set(pose.position[0], pose.position[1], pose.position[2])')) {
+  if (!controls.includes('applyModelAssetCameraPose({ camera: perspectiveCamera, controls, fit: modelAssetFit, perspectiveCamera })') || !cameraFramingControlsRuntime.includes('camera.position.set(pose.position[0], pose.position[1], pose.position[2])')) {
     throw new Error('Expected GLB/GLTF model switches to reset camera XYZ from loaded model bounds')
   }
   if (controls.includes('if (paused || viewPinned || !key) return')) {
@@ -500,13 +500,13 @@ export function testXrModeModelAssetSwitchResetsCameraXyzCoordinates() {
   if (!modelAssetCameraPose.includes('verticalSpan <= lateralSpan * 0.22') || !modelAssetCameraPose.includes('position: [0, span * 2.65, span * 0.02]')) {
     throw new Error('Expected low-height horizontal GLB/GLTF scenes to use a top-down camera instead of a side-on camera')
   }
-  if (!controls.includes('controls.autoRotate = modelAssetMode') || !controls.includes('? false')) {
+  if (!controls.includes('controls.autoRotate = isSharedCameraFramingSurfaceMode(mode)') || !controls.includes(': modelAssetMode') || !controls.includes('? false')) {
     throw new Error('Expected GLB/GLTF model sessions to disable camera auto-rotation mutations')
   }
-  if (!controls.includes('camera.up.set(pose.up[0], pose.up[1], pose.up[2])')) {
+  if (!cameraFramingControlsRuntime.includes('camera.up.set(pose.up[0], pose.up[1], pose.up[2])')) {
     throw new Error('Expected model-asset camera reset to apply pose-specific camera up vectors for horizontal planes')
   }
-  if (!controls.includes('perspectiveCamera.near = pose.near') || !controls.includes('perspectiveCamera.far = pose.far')) {
+  if (!cameraFramingControlsRuntime.includes('perspectiveCamera.near = pose.near') || !cameraFramingControlsRuntime.includes('perspectiveCamera.far = pose.far')) {
     throw new Error('Expected model-asset camera reset to set a safe clipping range for generated planes and imported models')
   }
 }

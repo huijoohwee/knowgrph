@@ -255,7 +255,10 @@ export function readVideoSequenceSourcePlayableUrl(source: VideoSequenceTimeline
     || resolvePlayableSourceCandidate(source.relativePath)
 }
 export function resolveVideoSequenceTimelineLane(span: MermaidGanttTimelineTaskSpan): VideoSequenceTimelineLaneId {
+  const label = String(span.label || '').trim()
   const signature = `${span.label} ${span.raw}`.toLowerCase()
+  if (/\.(?:3g2|3gp|avi|m4v|mkv|mov|mp4|mpeg|mpg|ogv|webm|wmv)$/i.test(label)) return 'video'
+  if (/\.(?:aac|aif|aiff|flac|m4a|mp3|oga|ogg|opus|wav)$/i.test(label)) return 'audio'
   if (/\baudio|sound|voice|music\b/.test(signature)) return 'audio'
   if (/\bimage\b/.test(signature) && /\b(?:frame|still|photo|plate)\b/.test(signature)) return 'image'
   if (/\bsource[-_\s]?video\b/.test(signature) || /\bvideo_agent_source_video\b/.test(signature)) return 'video'

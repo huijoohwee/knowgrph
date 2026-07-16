@@ -26,6 +26,7 @@ import {
   type ModelAssetCameraFit,
   type ModelAssetCameraPose,
 } from './modelAssetCameraPose'
+import { XR_MOTION_STAGE_MIN_CAMERA_Y } from './xrMotionReferenceCoordinates'
 
 type CameraFramingControlsRuntimeArgs = {
   camera: PerspectiveCamera
@@ -34,6 +35,7 @@ type CameraFramingControlsRuntimeArgs = {
   paused: boolean
   modelAssetRenderKey?: string
   modelAssetFit?: ModelAssetCameraFit | null
+  xrEmptyWorld?: boolean
 }
 
 type CameraFramingContext = {
@@ -65,6 +67,10 @@ export type ImmediateCanvasPublish = Readonly<{
 const CAMERA_FRAMING_SETTLE_DELAY_MS = 80
 const cameraFramingControlsReapplyListeners = new Set<() => void>()
 let cameraFramingControlsReapplyRevision = 0
+
+export function isSharedCameraFramingSurfaceMode(mode: Canvas3dModeId): boolean {
+  return mode === '3d' || mode === 'xr'
+}
 
 const DEFAULT_CAMERA_FRAMING_SETTLE_SCHEDULER: CameraFramingSettleScheduler = {
   schedule: (callback, delayMs) => globalThis.setTimeout(callback, delayMs),
@@ -170,15 +176,20 @@ export function applyCameraFramingPose({
   pose,
   near,
   far,
+  minimumY,
 }: {
   camera: PerspectiveCamera
   controls: OrbitControls
   pose: CameraFramingPose
   near?: number
   far?: number
+  minimumY?: number
 }) {
   camera.up.set(pose.up[0], pose.up[1], pose.up[2])
   camera.position.set(pose.position[0], pose.position[1], pose.position[2])
+  if (typeof minimumY === 'number' && Number.isFinite(minimumY) && camera.position.y < minimumY) {
+    camera.position.y = minimumY
+  }
   controls.target.set(pose.target[0], pose.target[1], pose.target[2])
   if (typeof near === 'number' && Number.isFinite(near) && near > 0) camera.near = near
   if (typeof far === 'number' && Number.isFinite(far) && far > camera.near) camera.far = far
@@ -231,6 +242,7 @@ export function useCameraFramingControlsRuntime({
   paused,
   modelAssetRenderKey,
   modelAssetFit,
+  xrEmptyWorld = false,
 }: CameraFramingControlsRuntimeArgs) {
   const framing = React.useSyncExternalStore(
     subscribeCameraFramingRuntime,
@@ -252,6 +264,9 @@ export function useCameraFramingControlsRuntime({
   const handledReapplyRevisionRef = React.useRef(reapplyRevision)
   const immediateCanvasPublishRef = React.useRef<ImmediateCanvasPublish | null>(null)
   const contextKey = String(modelAssetRenderKey || '').trim() || 'graph'
+  const minimumY = mode === 'xr' && !xrEmptyWorld && !modelAssetFit
+    ? XR_MOTION_STAGE_MIN_CAMERA_Y
+    : undefined
 
   const runProgrammaticPose = React.useCallback((apply: () => void) => {
     applyingPoseRef.current = true
@@ -283,18 +298,18 @@ export function useCameraFramingControlsRuntime({
   }), [])
 
   React.useEffect(() => {
-    if (mode !== 'xr' || paused) immediateCanvasPublishRef.current = null
+    if (!isSharedCameraFramingSurfaceMode(mode) || paused) immediateCanvasPublishRef.current = null
   }, [mode, paused])
 
   React.useEffect(() => {
     const key = String(modelAssetRenderKey || '').trim()
     if (!key || !modelAssetFit || paused) return
-    if (mode === 'xr' && (axisRequest.axis !== 'free' || framing.revision > 0)) return
+    if (isSharedCameraFramingSurfaceMode(mode) && (axisRequest.axis !== 'free' || framing.revision > 0)) return
     runProgrammaticPose(() => applyModelAssetCameraPose({ camera, controls, fit: modelAssetFit, perspectiveCamera: camera }))
   }, [axisRequest.axis, camera, controls, framing.revision, mode, modelAssetFit, modelAssetRenderKey, paused, runProgrammaticPose])
 
   React.useEffect(() => {
-    if (paused || mode !== 'xr' || !modelAssetFit || axisRequest.axis === 'free') return
+    if (paused || !isSharedCameraFramingSurfaceMode(mode) || !modelAssetFit || axisRequest.axis === 'free') return
     const context = contextFromModelPose(readModelAssetCameraPose(modelAssetFit))
     const current = readCameraFramingRuntime()
     const settings = resolveCameraFramingAxisSettings(
@@ -307,16 +322,16 @@ export function useCameraFramingControlsRuntime({
       baseDistance: context.baseDistance,
       up: context.up,
     })
-    runProgrammaticPose(() => applyCameraFramingPose({ camera, controls, pose, near: context.near, far: context.far }))
+    runProgrammaticPose(() => applyCameraFramingPose({ camera, controls, pose, near: context.near, far: context.far, minimumY }))
     publishCameraFramingRuntime({
       anchorId: current.anchorId,
       settings,
       source: 'axis',
     })
-  }, [axisRequest, camera, controls, mode, modelAssetFit, paused, runProgrammaticPose])
+  }, [axisRequest, camera, controls, minimumY, mode, modelAssetFit, paused, runProgrammaticPose])
 
   React.useEffect(() => {
-    if (paused || mode !== 'xr' || framing.revision === 0) return
+    if (paused || !isSharedCameraFramingSurfaceMode(mode) || framing.revision === 0) return
     const forcedReapply = handledReapplyRevisionRef.current !== reapplyRevision
     handledReapplyRevisionRef.current = reapplyRevision
     if (framing.source === 'axis' && !forcedReapply) return
@@ -340,12 +355,12 @@ export function useCameraFramingControlsRuntime({
       baseDistance: context.baseDistance,
       up: context.up,
     })
-    runProgrammaticPose(() => applyCameraFramingPose({ camera, controls, pose, near: context.near, far: context.far }))
-  }, [camera, contextKey, controls, framing, mode, modelAssetFit, paused, readContext, reapplyRevision, runProgrammaticPose])
+    runProgrammaticPose(() => applyCameraFramingPose({ camera, controls, pose, near: context.near, far: context.far, minimumY }))
+  }, [camera, contextKey, controls, framing, minimumY, mode, modelAssetFit, paused, readContext, reapplyRevision, runProgrammaticPose])
 
   React.useEffect(() => {
     const publishSettledCanvasPose = () => {
-      if (paused || mode !== 'xr') return
+      if (paused || !isSharedCameraFramingSurfaceMode(mode)) return
       const context = readContext()
       const current = readCameraFramingRuntime()
       if (readSpatialCaptureAxis() !== 'free') setSpatialCaptureAxis('free')

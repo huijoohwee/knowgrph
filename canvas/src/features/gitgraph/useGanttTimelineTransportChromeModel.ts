@@ -46,6 +46,7 @@ export type GanttTimelineTransportChromeModel = {
     }
   }
   headerTools: {
+    runtimeOnly: boolean
     mediaPlayerButton: {
       active: boolean
       ariaLabel: string
@@ -193,6 +194,7 @@ export function useGanttTimelineTransportChromeModel(args: {
         },
       },
       headerTools: {
+        runtimeOnly: false,
         mediaPlayerButton: {
           active: args.mediaPlayerEnabled,
           ariaLabel: args.mediaPlayerEnabled ? 'Hide BottomPanel media player' : 'Show BottomPanel media player',

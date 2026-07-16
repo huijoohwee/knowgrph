@@ -3,6 +3,7 @@ import {
   buildKnowgrphMcpNoauthSecuritySchemes,
   buildKnowgrphMcpAppsToolMeta,
 } from './mcpAppsReadyContract.mjs'
+import { XR_SCENE_WEB_MCP_TOOL_IDS } from '../three/xrSceneMcpContract.mjs'
 
 export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   search: 'search',
@@ -21,6 +22,8 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   inspectLocalCanvasSnapshot: 'inspect_local_canvas_snapshot',
   inspectLocal3dCameraPose: 'inspect_local_3d_camera_pose',
   inspectLocal3dLayoutPositions: 'inspect_local_3d_layout_positions',
+  inspectLocalXrSceneAssets: XR_SCENE_WEB_MCP_TOOL_IDS.inspect,
+  controlLocalXrScene: XR_SCENE_WEB_MCP_TOOL_IDS.control,
   inspectLocal2dZoomViewport: 'inspect_local_2d_zoom_viewport',
   inspectLocalSourceFilesSnapshot: 'inspect_local_source_files_snapshot',
   readLocalRuntimeIdentity: 'read_local_runtime_identity',
@@ -37,6 +40,12 @@ const buildReadOnlyToolAnnotations = () => Object.freeze({
   idempotentHint: true,
 })
 const READ_ONLY_TOOL_ANNOTATIONS = buildReadOnlyToolAnnotations()
+const LOCAL_MUTATION_TOOL_ANNOTATIONS = Object.freeze({
+  readOnlyHint: false,
+  destructiveHint: false,
+  openWorldHint: false,
+  idempotentHint: false,
+})
 
 const SEARCH_OUTPUT_SCHEMA = Object.freeze({
   type: 'object',
@@ -276,6 +285,35 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           description: 'Inspect the active browser-local Knowgrph 3D layout positions from the app runtime without calling published storage or Pages MCP routes.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalXrSceneAssets,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalXrSceneAssets),
+          title: 'Inspect Local XR Scene Assets',
+          description: 'Inspect the browser-local XR environment kits, procedural 3D asset library, / @ # invocation grammar, placed subjects, and animation state without mutating the scene.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          outputSchema: { type: 'object', additionalProperties: true, required: ['schema', 'webMcpTools', 'sceneReady', 'invocationGrammar', 'environments', 'assets', 'runtime'] },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalXrScene,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalXrScene),
+          title: 'Control Local XR Scene',
+          description: 'Control the open browser-local XR scene through structured actions or /xr.stage, /xr.place, and /xr.animate invocations with @ targets and #travel or #hold animation tokens.',
+          inputSchema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              invocation: { type: 'string', description: 'Invocation such as /xr.place @person-adult #travel.' },
+              action: { type: 'string', enum: ['stage', 'place', 'animate', 'label', 'remove'] },
+              stageId: { type: 'string' },
+              assetId: { type: 'string' },
+              subjectId: { type: 'string' },
+              label: { type: 'string', maxLength: 80 },
+              motion: { type: 'string', enum: ['travel', 'hold'] },
+            },
+            anyOf: [{ required: ['invocation'] }, { required: ['action'] }],
+          },
+          outputSchema: { type: 'object', additionalProperties: true, required: ['ok', 'message'] },
+          annotations: LOCAL_MUTATION_TOOL_ANNOTATIONS,
         }, {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal2dZoomViewport,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal2dZoomViewport),

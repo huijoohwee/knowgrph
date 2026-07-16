@@ -255,13 +255,13 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   expectSourceIncludes(editRailCssText, [
     '--kg-compact-source-media-bar-height: calc(var(--kg-main-toolbar-height, 38px) * 1.5)',
     '--kg-compact-source-placeholder-bar-height: var(--kg-compact-source-media-bar-height)',
-    '.timeline-transport-track-clip[data-kg-compact-source-media="1"]:not(.timeline-transport-track-clip--lane-fbf)',
+    '.timeline-transport-track-clip[data-kg-timeline-clip-compact="1"]:not(.timeline-transport-track-clip--lane-fbf)',
     'height: var(--kg-compact-source-media-bar-height)',
     'translate: 0 calc((var(--kg-video-sequence-lane-height, 61px) - var(--kg-compact-source-media-bar-height)) / 2)',
     'border-color: var(--kg-border, rgb(226 232 240 / 1))',
     'border-radius: 6px',
     'background: color-mix(in srgb, var(--kg-panel-bg, #fff) 94%, var(--kg-canvas-accent, #2563eb) 3%)',
-    '.timeline-transport-track-clip--lane-image[data-kg-compact-source-media="1"]', 'var(--kg-canvas-accent, #2563eb) 36%', 'max-width: 100%', 'color-mix(in srgb, var(--kg-canvas-accent, rgb(37 99 235 / 1)) 78%, var(--kg-text-primary, #0f172a) 22%)', 'font-weight: 400', 'background: color-mix(in srgb, var(--kg-panel-bg, #fff) 86%, transparent)', 'backdrop-filter: blur(2px)',
+    '.timeline-transport-track-clip--lane-image[data-kg-timeline-clip-compact="1"]', 'var(--kg-canvas-accent, #2563eb) 36%', 'max-width: 100%', 'color-mix(in srgb, var(--kg-canvas-accent, rgb(37 99 235 / 1)) 78%, var(--kg-text-primary, #0f172a) 22%)', 'font-weight: 400', 'background: color-mix(in srgb, var(--kg-panel-bg, #fff) 86%, transparent)', 'backdrop-filter: blur(2px)',
     'border-width: 2px',
     'border-color: var(--kg-canvas-accent, rgb(59 130 246 / 1))',
     'box-shadow: none',
@@ -314,7 +314,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     '.timeline-transport-track-handle-grip',
     'display: none',
   ], 'expected edit rail style')
-  if (denseFbfCssText.includes('[data-kg-compact-source-media="1"] .timeline-transport-track-handle {\n  display: none;')) {
+  if (denseFbfCssText.includes('[data-kg-timeline-clip-compact="1"] .timeline-transport-track-handle {\n  display: none;')) {
     throw new Error('expected compact media resize handles to stay interactive while their grips stay hidden')
   }
   if (denseFbfCssText.includes('border-color: rgb(0 153 255')) {
@@ -376,8 +376,8 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   if (mermaidTransportCssText.includes('0 0 0 2px rgb(37 99 235 / 0.44)')) {
     throw new Error('expected scoped compact media selected chrome to avoid the heavy outer ring')
   }
-  if (!mermaidTransportCssText.includes('var(--kg-canvas-accent, #2563eb) 28%')) {
-    throw new Error('expected scoped placeholder selected chrome to keep the soft dashed border tone')
+  if (!denseFbfCssText.includes('var(--kg-canvas-accent, #2563eb) 28%')) {
+    throw new Error('expected canonical placeholder selected chrome to keep the soft dashed border tone')
   }
   if (
     denseFbfCssText.includes('inset 0 0 0 1px color-mix(in srgb, var(--kg-canvas-accent') ||
@@ -388,12 +388,12 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   if (mermaidTransportCssText.includes('linear-gradient(180deg, color-mix(in srgb, var(--kg-panel-bg, #fff) 76%, var(--kg-canvas-accent, #2563eb) 24%), var(--kg-canvas-accent, rgb(37 99 235 / 1)))')) {
     throw new Error('expected compact source handles to stay removed under scoped transport styling')
   }
-  if (denseFbfCssText.includes('.timeline-transport-track-clip--lane-audio[data-kg-compact-source-media="1"]')) {
+  if (denseFbfCssText.includes('.timeline-transport-track-clip--lane-audio[data-kg-timeline-clip-compact="1"]')) {
     throw new Error('expected compact source audio to reuse the shared source bar chrome')
   }
   if (
     !denseFbfCssText.includes('[data-kg-video-sequence-dense-fbf="1"] .timeline-video-sequence-clip-meta') ||
-    !denseFbfCssText.includes('[data-kg-compact-source-media="1"] .timeline-video-sequence-clip-meta')
+    !denseFbfCssText.includes('[data-kg-timeline-clip-compact="1"] .timeline-video-sequence-clip-meta')
   ) {
     throw new Error('expected dense and compact media lanes to suppress clip metadata')
   }
@@ -452,7 +452,6 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-surface',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-ruler-tick:not([data-kg-video-sequence-major-tick="1"]) .timeline-transport-ruler-tick-label',
     'color-mix(in srgb, var(--kg-panel-bg-hover, #f9fafb) 62%, var(--kg-panel-bg, #fff))',
-    '.timeline-transport-chrome--mermaid-gantt .timeline-video-sequence-ruler-content .timeline-transport-track-clip[data-kg-compact-source-media="1"].timeline-transport-track-clip--selected:not(.timeline-transport-track-clip--lane-fbf)',
     '.timeline-transport-chrome--mermaid-gantt .timeline-tool-menu:not([open]) > .timeline-tool-menu-panel',
     '.timeline-transport-chrome--mermaid-gantt .timeline-player-context:empty',
     '.timeline-transport-chrome--mermaid-gantt .timeline-transport-status-bar',
@@ -465,6 +464,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
     'color-mix(in srgb, var(--kg-canvas-accent',
     'background: color-mix(in srgb, var(--kg-panel-bg-hover',
   ], 'expected transport chrome tokenized finetune')
+  if (mermaidTransportCssText.includes('data-kg-timeline-clip-compact') || mermaidTransportCssText.includes('data-kg-compact-source-placeholder')) throw new Error('expected canonical Timeline clip styling to have one owner outside the transport chrome shell')
   if (
     mermaidTransportCssText.includes('aspect-ratio: 16 / 9') ||
     mermaidTransportCssText.includes('width: min(100%, 640px)') ||
@@ -522,7 +522,7 @@ export function testVideoSequenceTimelineEditorEnhancementContracts() {
   ], 'expected zoom control model token')
   expectSourceIncludes(transportSurfaceModelText, [
     'const timelinePlanSourceFrameRate = React.useMemo',
-    'mediaFrameRate: selectedPreviewEmpty ? 0 : (timelinePlanSourceFrameRate || thumbnailSummary.averageVideoFrameRate)',
+    ': selectedPreviewEmpty ? 0 : (timelinePlanSourceFrameRate || thumbnailSummary.averageVideoFrameRate)',
     'const [mediaPlayerVisible, setMediaPlayerVisible] = React.useState(false)',
     'const mediaPlayerSourceSegment = React.useMemo',
     'readTimelineTransportMediaPreviewKind',

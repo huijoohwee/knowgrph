@@ -227,7 +227,6 @@ export function readFloatingPanelViewPreset(value: unknown): FloatingPanelView |
     raw === 'gitGraph' ||
     raw === 'gantt' ||
     raw === 'timeline' ||
-    raw === 'xr' ||
     raw === 'architecture' ||
     raw === 'eventModeling' ||
     raw === 'graphTraversal'

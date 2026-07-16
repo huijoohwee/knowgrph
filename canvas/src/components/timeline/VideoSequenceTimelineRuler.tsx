@@ -184,6 +184,7 @@ export function VideoSequenceTimelineRuler({
   dragPreview,
   draggingMode,
   draggingRowKey,
+  editable = true,
   maxMinutes,
   mediaDurationSeconds = 0,
   mediaFrameRate = 0,
@@ -208,7 +209,7 @@ export function VideoSequenceTimelineRuler({
   displayTicks: readonly MermaidGanttTimelineTick[]
   dragPreview: MermaidGanttTimelineDragPreview | null
   draggingMode: MermaidGanttBarDragMode | null
-  draggingRowKey: string
+  draggingRowKey: string; editable?: boolean
   maxMinutes: number
   mediaDurationSeconds?: number
   mediaFrameRate?: number
@@ -371,7 +372,7 @@ export function VideoSequenceTimelineRuler({
           const media = clipMediaByRowKey.get(span.rowKey)
           if (!media) return null
           const { compactSourceMedia, compactSourcePlaceholder, lane, semanticFrameSamples, showMediaCues, sourceAudioWaveformSamples, thumbnailOrigin, thumbnailSamples, thumbnailWindow, verticalMarker } = media
-          const compactTimelineBar = workflowProjection || compactSourceMedia
+          const compactTimelineBar = workflowProjection || compactSourceMedia || !editable
           const previewSpan = dragPreview?.rowKey === span.rowKey ? dragPreview : null
           const startMinutes = previewSpan?.startMinutes ?? span.startMinutes
           const durationMinutes = previewSpan?.durationMinutes ?? span.durationMinutes
@@ -383,7 +384,7 @@ export function VideoSequenceTimelineRuler({
           const selected = selectedRowKey === span.rowKey
           const dragging = draggingRowKey === span.rowKey
           const activeResizeMode = resolveActiveVideoSequenceResizeMode({ dragging, draggingMode, previewSpan, span })
-          const cueSamples = showMediaCues
+          const cueSamples = showMediaCues && editable
             ? buildVideoSequenceTimelineCueSamples({
                 sampleCount: Math.max(6, Math.round(durationMinutes * 2)),
                 seedText: `${span.label} ${span.raw}`,
@@ -437,9 +438,9 @@ export function VideoSequenceTimelineRuler({
               data-kg-gantt-timeline-track-row-key={span.rowKey}
               data-kg-video-sequence-active-resize-mode={activeResizeMode || undefined}
               data-kg-video-sequence-active-track={selected ? '1' : undefined}
-              data-kg-compact-source-media={compactTimelineBar ? '1' : undefined}
+              data-kg-timeline-clip-compact={compactTimelineBar ? '1' : undefined}
+              data-kg-timeline-clip-select-surface={compactTimelineBar && !thumbnailSamples.length ? '1' : undefined}
               data-kg-compact-source-placeholder={compactSourcePlaceholder ? '1' : undefined}
-              data-kg-workflow-timeline-bar={workflowProjection ? '1' : undefined}
               data-kg-video-sequence-clip-thumbnail-origin={thumbnailOrigin}
               data-kg-video-sequence-clip-thumbnail-reel={thumbnailSamples.length ? '1' : undefined}
               data-kg-video-sequence-dense-fbf={denseFbfClip ? '1' : undefined}
@@ -552,23 +553,22 @@ export function VideoSequenceTimelineRuler({
                   ))}
                 </section>
               ) : null}
-              <button type="button" className="timeline-transport-track-handle timeline-transport-track-handle--start" aria-label={`Resize ${span.label} start`} data-kg-gantt-timeline-track-drag-mode="resize-start" title={`Trim ${span.label} start`} onPointerDown={event => onTrackPointerStart(event, span, 'resize-start')}>
+              {editable ? <button type="button" className="timeline-transport-track-handle timeline-transport-track-handle--start" aria-label={`Resize ${span.label} start`} data-kg-gantt-timeline-track-drag-mode="resize-start" title={`Trim ${span.label} start`} onPointerDown={event => onTrackPointerStart(event, span, 'resize-start')}>
                 <span className="timeline-transport-track-handle-grip" aria-hidden="true" />
                 {activeResizeMode === 'resize-start' ? <span className="timeline-video-sequence-trim-guide">{VIDEO_SEQUENCE_RESIZE_MODE_LABELS[activeResizeMode]}</span> : null}
-              </button>
-              <button type="button" className="timeline-transport-track-clip-move" aria-label={`Move ${span.label}`} data-kg-gantt-timeline-track-drag-mode="move" onClick={() => onSelectRowKey(span.rowKey)} onPointerDown={event => onTrackPointerStart(event, span, 'move')}>
+              </button> : null}
+              <button type="button" className="timeline-transport-track-clip-move" aria-label={`${editable ? 'Move' : 'Select'} ${span.label}`} data-kg-gantt-timeline-track-drag-mode={editable ? 'move' : undefined} onClick={() => onSelectRowKey(span.rowKey)} onPointerDown={editable ? event => onTrackPointerStart(event, span, 'move') : undefined}>
                 <span className="timeline-transport-track-clip-label">{span.label}</span>
                 {!verticalMarker && !compactTimelineBar ? (
                   <time className="timeline-video-sequence-clip-timecode" dateTime={`PT${Math.max(0, Math.round(durationMinutes))}S`}>
                     {clipStartLabel}-{clipEndLabel}
                   </time>
                 ) : null}
-                {!verticalMarker && !workflowProjection ? <VideoSequenceTimelineClipMeta compact={compactSourceMedia} durationLabel={formatClipTime(durationMinutes)} durationMinutes={durationMinutes} sourceWindow={thumbnailWindow} /> : null}
+                {!verticalMarker && !workflowProjection ? <VideoSequenceTimelineClipMeta compact={compactTimelineBar} durationLabel={formatClipTime(durationMinutes)} durationMinutes={durationMinutes} sourceWindow={thumbnailWindow} /> : null}
               </button>
-              <button type="button" className="timeline-transport-track-handle timeline-transport-track-handle--end" aria-label={`Resize ${span.label} end`} data-kg-gantt-timeline-track-drag-mode="resize-end" title={`Trim ${span.label} end`} onPointerDown={event => onTrackPointerStart(event, span, 'resize-end')}>
-                <span className="timeline-transport-track-handle-grip" aria-hidden="true" />
+              {editable ? <button type="button" className="timeline-transport-track-handle timeline-transport-track-handle--end" aria-label={`Resize ${span.label} end`} data-kg-gantt-timeline-track-drag-mode="resize-end" title={`Trim ${span.label} end`} onPointerDown={event => onTrackPointerStart(event, span, 'resize-end')}><span className="timeline-transport-track-handle-grip" aria-hidden="true" />
                 {activeResizeMode === 'resize-end' ? <span className="timeline-video-sequence-trim-guide">{VIDEO_SEQUENCE_RESIZE_MODE_LABELS[activeResizeMode]}</span> : null}
-              </button>
+              </button> : null}
             </article>
           )
         })}

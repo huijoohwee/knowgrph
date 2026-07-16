@@ -31,6 +31,7 @@ export function useGanttTimelinePlaybackControls(args: {
   playbackUnitsPerMs: number
   playing: boolean
   positionMinutes: number
+  publishPlaybackRequest?: boolean
   setTransportPlaybackPosition: (position: number) => void
   setTransportPlaying: (nextPlaying: boolean) => void
 }) {
@@ -48,6 +49,7 @@ export function useGanttTimelinePlaybackControls(args: {
   }, [args.documentKey, args.playing, args.positionMinutes])
 
   const requestTimelineTransportPlayback = React.useCallback((nextPlaying: boolean, positionMinutes = args.positionMinutes) => {
+    if (args.publishPlaybackRequest === false) return
     dispatchTimelineTransportPlaybackRequest({
       documentKey: args.documentKey,
       playbackRate: args.playbackRate,
@@ -58,7 +60,7 @@ export function useGanttTimelinePlaybackControls(args: {
         positionMinutes,
       }),
     })
-  }, [args.documentKey, args.playbackRate, args.playbackUnitsPerMs, args.positionMinutes])
+  }, [args.documentKey, args.playbackRate, args.playbackUnitsPerMs, args.positionMinutes, args.publishPlaybackRequest])
 
   const handleTogglePlayback = React.useCallback(() => {
     const current = readCurrentTransportPlaybackState()
