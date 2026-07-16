@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
+import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import {
@@ -33,10 +34,25 @@ import {
   type XrSceneControlInput,
 } from '@/features/three/xrSceneMcpRuntime'
 import { SpatialAssetToolsPanel } from '@/features/three/SpatialAssetToolsPanel'
+import { buildXrAssetMediaDragPayload, buildXrStageMediaDragPayload } from '@/features/three/xrSceneMediaDrag'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 import { useCollapsibleSectionGroup } from '@/features/panels/ui/useCollapsibleSectionGroup'
-import { mediaListItemClassName, mediaListThumbnailFrameClassName } from './mediaCatalogShared'
+import {
+  continueMediaMouseDrag,
+  continueMediaPointerDrag,
+  finishMediaDrag,
+  isMediaRowControlTarget,
+  mediaListItemClassName,
+  mediaListThumbnailFrameClassName,
+  primeMediaMouseDrag,
+  primeMediaPointerDrag,
+  shouldHandleMediaRowPointer,
+  shouldPrimeMediaRowDragPayload,
+  startMediaDrag,
+  startMediaMouseDrag,
+  startMediaPointerDrag,
+} from './mediaCatalogShared'
 
 type XrSceneLibraryFilter = 'all' | XrSceneLibraryCategory
 
@@ -73,7 +89,7 @@ function XrCatalogThumb({ Icon, color }: { Icon: LucideIcon; color: string }) {
 function XrMediaCatalogThumb({ Icon, color, label }: { Icon: LucideIcon; color: string; label: string }) {
   return (
     <span
-      className={mediaListThumbnailFrameClassName('items-center justify-center cursor-default')}
+      className={mediaListThumbnailFrameClassName('items-center justify-center cursor-grab active:cursor-grabbing')}
       style={{ color }}
       role="img"
       aria-label={`${label} procedural grey-box preview`}
@@ -107,6 +123,7 @@ function XrLibraryCard({
   description,
   metadata,
   footer,
+  dragPayload,
   active = false,
   dataAttributes,
 }: {
@@ -116,14 +133,47 @@ function XrLibraryCard({
   description: string
   metadata: string
   footer: React.ReactNode
+  dragPayload: MediaDragPayload
   active?: boolean
   dataAttributes?: Record<string, string>
 }) {
   return (
     <article
-      className={cn(mediaListItemClassName(), 'cursor-default active:cursor-default', active ? UI_THEME_TOKENS.button.activeBg : '')}
+      draggable={true}
+      className={cn(mediaListItemClassName(), active ? UI_THEME_TOKENS.button.activeBg : '')}
+      title={`Drag ${label} onto the Canvas`}
+      aria-label={`${label}. Drag onto the Canvas.`}
+      data-kg-media-draggable="1"
+      data-kg-media-drag-affordance="frame"
+      data-kg-media-xr-draggable="1"
       data-kg-media-list-row-layout="3-rows"
       data-kg-media-xr-card-layout="media-3-rows"
+      onDragStart={event => startMediaDrag(event, dragPayload)}
+      onDragEnd={finishMediaDrag}
+      onPointerDownCapture={event => {
+        if (!shouldPrimeMediaRowDragPayload(event)) return
+        primeMediaPointerDrag(event, dragPayload)
+      }}
+      onPointerDown={event => {
+        if (!shouldHandleMediaRowPointer(event)) return
+        startMediaPointerDrag(event, dragPayload)
+      }}
+      onPointerMove={event => {
+        if (isMediaRowControlTarget(event.target)) return
+        continueMediaPointerDrag(event, dragPayload)
+      }}
+      onMouseDownCapture={event => {
+        if (!shouldPrimeMediaRowDragPayload(event)) return
+        primeMediaMouseDrag(event, dragPayload)
+      }}
+      onMouseDown={event => {
+        if (isMediaRowControlTarget(event.target)) return
+        startMediaMouseDrag(event, dragPayload)
+      }}
+      onMouseMove={event => {
+        if (isMediaRowControlTarget(event.target)) return
+        continueMediaMouseDrag(event, dragPayload)
+      }}
       {...dataAttributes}
     >
       <XrMediaCatalogThumb Icon={Icon} color={color} label={label} />
@@ -163,6 +213,7 @@ function XrAssetRow({
       label={asset.label}
       description={asset.description}
       metadata={`${asset.category} · ${asset.dimensionsMeters.join(' × ')} m · ${asset.mobile ? 'markable cast' : 'static reference'}`}
+      dragPayload={buildXrAssetMediaDragPayload(asset, motion)}
       dataAttributes={{ 'data-kg-media-xr-asset': asset.id, 'data-kg-media-xr-asset-category': asset.category }}
       footer={(
         <>
@@ -310,6 +361,7 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
                   label={stage.label}
                   description={stage.description}
                   metadata={`environment · ${stage.sizeMeters.join(' × ')} m · grey-box stage`}
+                  dragPayload={buildXrStageMediaDragPayload(stage)}
                   active={active}
                   dataAttributes={{ 'data-kg-media-xr-environment': stage.id }}
                   footer={<XrInvocationButton invocation={buildXrStageInvocation(stage.id)} disabled={!sceneReady} onInvoke={() => selectEnvironment(stage.id)} />}

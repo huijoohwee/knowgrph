@@ -55,6 +55,7 @@ export function buildRichMediaPanelDroppedMediaProperties(payload: MediaDragPayl
       outputSrcDoc: '',
       ...(payload.thumbnailUrl ? { thumbnailUrl: payload.thumbnailUrl } : {}),
       ...(payload.sourceKey ? { mediaSourceKey: payload.sourceKey } : {}),
+      ...(payload.xrScene ? { kgXrSceneMedia: payload.xrScene } : {}),
     },
   })
   if (payload.kind === 'image') properties.imageUrl = mediaUrl
