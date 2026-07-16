@@ -7,7 +7,9 @@ import {
 import { XR_MOTION_REFERENCE_STAGE_PRESETS, XR_SCENE_LIBRARY_ASSETS } from '@/features/three/xrSceneLibrary'
 import { buildXrAssetMediaDragPayload, buildXrStageMediaDragPayload } from '@/features/three/xrSceneMediaDrag'
 import { buildRichMediaPanelDroppedMediaProperties } from '@/lib/render/richMediaPanelNode'
+import { buildRichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 import { normalizeMediaDragPayload, XR_SCENE_MEDIA_DRAG_SCHEMA } from '@/lib/ui/mediaDragPayload'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/storyboardWidget/richMediaPanelConfig'
 
 function readSource(...parts: string[]): string {
   return readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
@@ -21,6 +23,12 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   const xrSceneMediaDrop = readSource('features', 'three', 'useXrSceneMediaDrop.ts')
   const threeGraph = readSource('lib', 'three', 'ThreeGraph.impl.tsx')
   const richMediaPanelNode = readSource('lib', 'render', 'richMediaPanelNode.ts')
+  const richMediaPanelState = readSource('lib', 'render', 'richMediaPanelState.ts')
+  const richMediaPanelDirectSurface = readSource('components', 'RichMediaPanelDirectMediaSurface.tsx')
+  const xrSceneMediaSurface = readSource('features', 'three', 'XrSceneMediaSurface.tsx')
+  const xrStagePresetGeometry = readSource('features', 'three', 'XrStagePresetGeometry.tsx')
+  const xrMotionReferenceStage = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
+  const xrSceneLibrarySubject = readSource('features', 'three', 'XrSceneLibrarySubject.tsx')
   const mediaDragPayload = readSource('lib', 'ui', 'mediaDragPayload.ts')
   const xrCameraFramingPath = resolve(process.cwd(), 'src', 'features', 'three', 'XrCameraFramingSection.tsx')
   const xrPanelModel = readSource('features', 'three', 'xrPanelModel.ts')
@@ -257,6 +265,35 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   if (!richMediaPanelNode.includes('kgXrSceneMedia: payload.xrScene') || !mediaDragPayload.includes("XR_SCENE_MEDIA_DRAG_SCHEMA = 'knowgrph-xr-scene-media/v1'")) {
     throw new Error('expected 2D Rich Media Panels to persist the canonical typed XR Media projection')
   }
+  for (const marker of [
+    'normalizeXrSceneMediaDragProjection(unwrapGraphCellValue(props.kgXrSceneMedia))',
+    '...(xrScene ? { xrScene } : {})',
+  ]) {
+    if (!richMediaPanelState.includes(marker)) throw new Error(`expected Rich Media Panel state to preserve live XR media through ${marker}`)
+  }
+  if (!richMediaPanelDirectSurface.includes('if (props.panel?.xrScene)') || !richMediaPanelDirectSurface.includes('<XrSceneMediaSurface')) {
+    throw new Error('expected Rich Media Panel direct media to route XR projections to the native Three.js surface before the image fallback')
+  }
+  for (const marker of [
+    '<Canvas',
+    'new OrbitControls',
+    'data-kg-rich-media-xr-scene="native-three"',
+    'data-kg-card-media-interactive="1"',
+    '<XrStagePresetGeometry',
+    '<XrSceneLibraryAssetGeometry',
+    'Native Three.js · XR',
+  ]) {
+    if (!xrSceneMediaSurface.includes(marker)) throw new Error(`expected live Rich Media XR renderer to expose ${marker}`)
+  }
+  if (xrSceneMediaSurface.includes('<img') || xrSceneMediaSurface.includes('buildXrMediaPreviewDataUrl')) {
+    throw new Error('expected the live Rich Media XR renderer to avoid the static SVG/image placeholder path')
+  }
+  if (!xrMotionReferenceStage.includes('<XrStagePresetGeometry') || !xrStagePresetGeometry.includes('stage.structures.map')) {
+    throw new Error('expected XR Mode and Rich Media previews to share the canonical procedural stage geometry')
+  }
+  if (!xrSceneLibrarySubject.includes('export function XrSceneLibraryAssetGeometry') || !xrSceneLibrarySubject.includes('<XrSceneLibraryAssetGeometry')) {
+    throw new Error('expected XR Mode and Rich Media previews to share the canonical procedural subject/prop geometry')
+  }
   for (const marker of ['CollapsibleSection', 'ExpandCollapseAllButton', 'useCollapsibleSectionGroup', 'defaultCollapsed={false}', 'headerClassName="px-0"']) {
     if (!xrMediaLibrary.includes(marker)) throw new Error(`expected Media 3D sections to reuse shared disclosure behavior through ${marker}`)
   }
@@ -314,6 +351,21 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   const richMediaProperties = buildRichMediaPanelDroppedMediaProperties(assetPayload!)
   if (richMediaProperties.kgXrSceneMedia !== assetPayload?.xrScene || richMediaProperties.media_kind !== 'image') {
     throw new Error(`expected 2D Rich Media Panel projection to persist XR metadata, got ${JSON.stringify(richMediaProperties)}`)
+  }
+  const richMediaState = buildRichMediaPanelOverlayState({
+    node: {
+      id: 'xr-rich-media-panel',
+      type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      label: '3D for XR',
+      properties: richMediaProperties as never,
+    },
+  })
+  if (
+    richMediaState?.xrScene?.schema !== XR_SCENE_MEDIA_DRAG_SCHEMA
+    || richMediaState.xrScene.entityKind !== 'asset'
+    || richMediaState.xrScene.entityId !== XR_SCENE_LIBRARY_ASSETS[0]!.id
+  ) {
+    throw new Error(`expected persisted XR metadata to hydrate the live Rich Media renderer, got ${JSON.stringify(richMediaState?.xrScene)}`)
   }
 
   const implementationText = [spatialAssetTools, mediaCatalog, xrMediaLibrary, xrSceneMediaDrag, xrSceneMediaDrop, sharedCameraFraming, cameraFramingRuntime, cameraFramingPose, cameraFramingControls, xrPanelModel, cameraPanel, cameraModel, floatingPanel].join('\n')
