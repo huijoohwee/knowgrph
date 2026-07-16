@@ -4,6 +4,7 @@ import test from 'node:test'
 import { repoRoot } from '../collaboration-contract.mjs'
 import {
   buildImmutableReleaseManifest,
+  resolveGitHubRepository,
   serializeImmutableReleaseManifest,
   validateImmutableReleaseManifestSource,
 } from '../immutable-release-manifest.mjs'
@@ -13,6 +14,12 @@ const sourceRevision = execFileSync('git', ['rev-parse', 'HEAD'], {
   encoding: 'utf8',
 }).trim()
 const targetRef = 'refs/heads/agent/test-device/runtime-revision-identity'
+
+test('immutable release manifest accepts canonical GitHub repository slugs and remote URLs', () => {
+  assert.equal(resolveGitHubRepository('huijoohwee/knowgrph'), 'huijoohwee/knowgrph')
+  assert.equal(resolveGitHubRepository('https://github.com/huijoohwee/knowgrph.git'), 'huijoohwee/knowgrph')
+  assert.equal(resolveGitHubRepository('git@github.com:huijoohwee/knowgrph.git'), 'huijoohwee/knowgrph')
+})
 
 test('immutable release manifest binds one exact source tree to the pinned docs and catalog revision', async () => {
   const manifest = await buildImmutableReleaseManifest({ sourceRevision, targetRef })

@@ -34,8 +34,10 @@ const requireSha = (value, label, { allowZero = false } = {}) => {
   return revision
 }
 
-const resolveGitHubRepository = value => {
+export const resolveGitHubRepository = value => {
   const remote = String(value || '').trim()
+  const slugMatch = remote.match(/^([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)$/)
+  if (slugMatch) return slugMatch[1]
   const match = remote.match(/^(?:https:\/\/github\.com\/|git@github\.com:)([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+?)(?:\.git)?$/)
   if (!match) throw new Error('origin must identify one GitHub repository')
   return match[1]
