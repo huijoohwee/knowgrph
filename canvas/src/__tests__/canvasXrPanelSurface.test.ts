@@ -10,7 +10,9 @@ function readSource(...parts: string[]): string {
 }
 
 export function testXrModeUsesCanonicalFloatingPanel() {
-  const xrPanel = readSource('features', 'three', 'XrPanelView.tsx')
+  const spatialAssetTools = readSource('features', 'three', 'SpatialAssetToolsPanel.tsx')
+  const mediaCatalog = readSource('features', 'command-menu', 'MediaCatalogPanelView.tsx')
+  const xrMediaLibrary = readSource('features', 'command-menu', 'XrMediaLibraryPanel.tsx')
   const xrCameraFramingPath = resolve(process.cwd(), 'src', 'features', 'three', 'XrCameraFramingSection.tsx')
   const xrPanelModel = readSource('features', 'three', 'xrPanelModel.ts')
   const cameraFloatingProjection = readSource('features', 'strybldr', 'StrybldrCameraFloatingPanelView.tsx')
@@ -37,34 +39,36 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   const floatingBridge = readSource('features', 'canvas', 'utils.ts')
   const toolbarLauncher = readSource('features', 'toolbar', 'ToolbarMenuLauncher.tsx')
   const iconLibrary = readSource('features', 'panels', 'ui', 'mainPanelHelpIconLibrary.tsx')
+  const floatingPanelPresetSource = canonicalFrontmatter.slice(
+    canonicalFrontmatter.indexOf('export function readFloatingPanelViewPreset'),
+    canonicalFrontmatter.indexOf('function coerceCanvasWorkspaceFrontmatterPreset'),
+  )
 
   for (const marker of [
-    'data-kg-xr-panel="1"',
-    'data-kg-xr-panel-surface="floatingPanel"',
-    'activateCanvasGraphSurfaceMode',
-    'data-kg-xr-panel-open-timeline="1"',
-    'data-kg-xr-panel-source-format',
-    'data-kg-xr-panel-ingestion-cache',
-    'data-kg-xr-panel-render-cache',
-    'data-kg-xr-panel-graphics-stack="1"',
-    'data-kg-xr-panel-capability={item.id}',
-    'data-kg-xr-panel-spatial-tools="1"',
-    'data-kg-xr-panel-center-controls="1"',
-    'data-kg-xr-panel-axis-widget="1"',
+    'data-kg-media-3d-spatial-tools="1"',
+    'data-kg-media-3d-spatial-format',
+    'data-kg-media-3d-ingestion-cache',
+    'data-kg-media-3d-render-cache',
+    'data-kg-media-3d-runtime-stack',
+    'data-kg-media-3d-capability={item.id}',
+    'data-kg-media-3d-spatial-controls="1"',
+    'data-kg-media-3d-center-controls="1"',
+    'data-kg-media-3d-axis-widget="1"',
     'setSpatialCaptureAxis(axis)',
-    'data-kg-xr-panel-primary-modes="1"',
+    'data-kg-media-3d-primary-modes="1"',
     'setSpatialCapturePrimaryMode(id)',
-    'data-kg-xr-panel-bottom-toolbar="1"',
+    'data-kg-media-3d-spatial-toolbar="1"',
     'setSpatialCaptureTool(id)',
   ]) {
-    if (!xrPanel.includes(marker)) throw new Error(`expected canonical FloatingPanel XR to expose ${marker}`)
+    if (!spatialAssetTools.includes(marker)) throw new Error(`expected Media 3D spatial tools to expose ${marker}`)
   }
-  for (const staleMarker of ['XrPhysicsPlayground', 'data-kg-xr-panel-physics', 'XR_PHYSICS_CONTROLLER_MODES', 'XrCameraFramingSection', 'StrybldrCameraFramingSection', 'data-kg-xr-camera-framing', 'data-kg-xr-panel-camera-surface-active', 'XrMotionReferenceSection', 'data-kg-xr-panel-scene="1"', 'data-kg-xr-panel-runtime="1"']) {
-    if (xrPanel.includes(staleMarker)) throw new Error(`expected canonical FloatingPanel XR to remove stale ${staleMarker}`)
+  for (const staleMarker of ['FloatingPanel XR', 'activateCanvasGraphSurfaceMode', 'data-kg-xr-panel-open-timeline', 'XrPhysicsPlayground', 'data-kg-xr-panel-physics', 'XR_PHYSICS_CONTROLLER_MODES', 'XrCameraFramingSection', 'StrybldrCameraFramingSection']) {
+    if (spatialAssetTools.includes(staleMarker)) throw new Error(`expected Media 3D spatial tools to remove stale ${staleMarker}`)
   }
-  for (const marker of ['XrTimelineSceneLane', "state.floatingPanelView === 'xr'", "state.canvas3dMode === 'xr'"]) {
+  for (const marker of ['XrTimelineSceneLane', "state.canvas3dMode === 'xr'"]) {
     if (!timelineBottomPanel.includes(marker)) throw new Error(`expected BottomPanel Timeline to route XR context through ${marker}`)
   }
+  if (timelineBottomPanel.includes("state.floatingPanelView === 'xr'")) throw new Error('expected XR Timeline ownership to derive only from Surface Mode')
   for (const marker of ['data-kg-xr-timeline-player="1"', 'data-kg-xr-timeline-lane="scene"', '<GanttTimelineTransportPanel', 'data-kg-xr-timeline-scene="player"', 'data-kg-xr-timeline-runtime=', 'data-kg-xr-timeline-transport="reused-gantt-player"']) {
     if (!xrTimelineLane.includes(marker)) throw new Error(`expected XR to project into the canonical Timeline player through ${marker}`)
   }
@@ -88,7 +92,7 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   if (!cameraFloatingProjection.includes('StrybldrCameraFramingSection') || !cameraFloatingProjection.includes('aria-label="Camera panel"')) {
     throw new Error('expected FloatingPanel Camera to remain a thin shell over the shared camera framing owner')
   }
-  const thinCameraProjectionSources = [cameraFloatingProjection, xrPanel]
+  const thinCameraProjectionSources = [cameraFloatingProjection, spatialAssetTools]
   for (const forbiddenOwnerToken of ['buildStoryboardBoardModel', 'updateNode', 'STRYBLDR_CAMERA_PROPERTY_KEY', 'serializeStrybldrCameraSettings']) {
     if (thinCameraProjectionSources.some(source => source.includes(forbiddenOwnerToken))) {
       throw new Error(`expected panel projections to avoid duplicate ${forbiddenOwnerToken} ownership`)
@@ -154,8 +158,8 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   if (!cameraPanel.includes('data-kg-strybldr-camera-panel="1"') || !cameraModel.includes("STRYBLDR_CAMERA_PROPERTY_KEY = 'strybldrCamera'")) {
     throw new Error('expected FloatingPanel Camera to preserve the storyboard metadata editor and property contract')
   }
-  if (xrPanel.includes('data-kg-xr-panel-open-bottom') || xrPanel.includes('data-kg-xr-panel-open-floating') || xrPanel.includes('XrPanelSurface')) {
-    throw new Error('expected XR controls to have one FloatingPanel projection with no cross-shell route')
+  if (spatialAssetTools.includes('data-kg-xr-panel-open-bottom') || spatialAssetTools.includes('data-kg-xr-panel-open-floating') || spatialAssetTools.includes('XrPanelSurface')) {
+    throw new Error('expected Media 3D spatial tools to have no cross-shell route')
   }
   for (const marker of [
     'resolveXrPanelSourceProfile',
@@ -179,32 +183,37 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   if (bottomTypes.includes("| 'xr'") || bottomPanel.includes('XrPanelViewLazy') || bottomPanel.includes("view === 'xr'") || viewport.includes('xrBottomPanelVisible')) {
     throw new Error('expected legacy BottomPanel XR types, toggle, mount, and viewport routing to be removed')
   }
-  if (!floatingTypes.includes("| 'camera'") || !floatingTypes.includes("| 'xr'") || !uiInitialState.includes("view === 'camera'") || !uiInitialState.includes("view === 'xr'")) {
-    throw new Error('expected Camera and XR to remain distinct first-class FloatingPanel panels')
+  if (!floatingTypes.includes("| 'camera'") || !floatingTypes.includes("| 'media'") || floatingTypes.includes("| 'xr'") || !uiInitialState.includes("view === 'camera'") || !uiInitialState.includes("view === 'media'") || uiInitialState.includes("view === 'xr'")) {
+    throw new Error('expected Camera and Media to remain first-class FloatingPanel panels with the duplicate XR route removed')
   }
   if (
     !floatingPanel.includes('StrybldrCameraFloatingPanelViewLazy') ||
     !floatingPanel.includes("floatingPanelView === 'camera'") ||
     !floatingPanel.includes("{ view: 'camera'") ||
-    !floatingPanel.includes('XrPanelViewLazy') ||
-    !floatingPanel.includes('<XrPanelViewLazy />') ||
-    !floatingPanel.includes("{ view: 'xr'")
+    !floatingPanel.includes("floatingPanelView === 'media'") ||
+    floatingPanel.includes('XrPanelViewLazy') ||
+    floatingPanel.includes("{ view: 'xr'")
   ) {
-    throw new Error('expected FloatingPanel Camera and XR to mount their distinct canonical panels')
+    throw new Error('expected FloatingPanel Camera and Media to own the canonical projections without a duplicate XR panel')
   }
   if (
     !floatingBridge.includes("| 'camera'") ||
-    !floatingBridge.includes("| 'xr'") ||
+    !floatingBridge.includes("| 'media'") ||
+    floatingBridge.includes("| 'xr'") ||
     !toolbarLauncher.includes("tab === 'camera'") ||
-    !toolbarLauncher.includes("tab === 'xr'") ||
+    toolbarLauncher.includes("tab === 'xr'") ||
     !iconLibrary.includes("'floatingPanel.camera'") ||
-    !iconLibrary.includes("'floatingPanel.xr'")
+    iconLibrary.includes("'floatingPanel.xr'")
   ) {
-    throw new Error('expected the FloatingPanel bridge, launcher, and help registry to support Camera and XR without aliases')
+    throw new Error('expected the FloatingPanel bridge, launcher, and help registry to remove the duplicate XR route without aliases')
   }
-  if (!canonicalFrontmatter.includes("raw === 'camera'") || !canonicalFrontmatter.includes("raw === 'xr'") || !appliedFrontmatter.includes('readFloatingPanelViewPreset')) {
-    throw new Error('expected Camera and XR FloatingPanel frontmatter routing to use the canonical shared reader')
+  if (!floatingPanelPresetSource.includes("raw === 'camera'") || !floatingPanelPresetSource.includes("raw === 'media'") || floatingPanelPresetSource.includes("raw === 'xr'") || !appliedFrontmatter.includes('readFloatingPanelViewPreset')) {
+    throw new Error('expected FloatingPanel frontmatter routing to use Camera and Media without the stale XR projection')
   }
+  for (const marker of ['data-kg-media-3d-toggle="1"', "xrSurfaceActive ? 'xr-3d' : 'media'", '<XrMediaLibraryPanel']) {
+    if (!mediaCatalog.includes(marker)) throw new Error(`expected Media to own the canonical 3D entry through ${marker}`)
+  }
+  if (!xrMediaLibrary.includes('<SpatialAssetToolsPanel />')) throw new Error('expected Media 3D to retain spatial asset tooling')
 
   if (existsSync(resolve(process.cwd(), 'src', 'components', 'toolbar', 'Canvas3dModeSelect.tsx'))) {
     throw new Error('expected Canvas View Surface Mode to remain the only mounted 3D/XR selector')
@@ -243,7 +252,7 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     throw new Error(`expected SPZ to be recognized without claiming runtime support, got ${JSON.stringify({ spzProfile, spzItem })}`)
   }
 
-  const implementationText = [xrPanel, sharedCameraFraming, cameraFramingRuntime, cameraFramingPose, cameraFramingControls, xrPanelModel, cameraPanel, cameraModel, floatingPanel].join('\n')
+  const implementationText = [spatialAssetTools, mediaCatalog, xrMediaLibrary, sharedCameraFraming, cameraFramingRuntime, cameraFramingPose, cameraFramingControls, xrPanelModel, cameraPanel, cameraModel, floatingPanel].join('\n')
   for (const token of [['super', 'splat'].join(''), ['play', 'canvas'].join(''), ['pc', 'ui'].join(''), ['splat', 'Data'].join('')]) {
     if (implementationText.toLowerCase().includes(token.toLowerCase())) {
       throw new Error(`expected XR panel implementation to avoid copied external runtime token ${token}`)

@@ -6,8 +6,8 @@ function source(...parts: string[]): string {
 }
 
 export function testGaussianSplatEditorSurfaceIsWiredAndCleanRoom() {
-  const panel = source('features', 'three', 'XrPanelView.tsx')
-  const editor = source('features', 'three', 'XrGaussianSplatEditorSection.tsx')
+  const panel = source('features', 'three', 'SpatialAssetToolsPanel.tsx')
+  const editor = source('features', 'three', 'GaussianSplatEditorSection.tsx')
   const stage = source('features', 'three', 'SpatialCaptureManifestStage.tsx')
   const geometry = source('features', 'three', 'spatialCaptureGeometryRuntime.ts')
   const material = source('features', 'three', 'spatialCaptureGaussianMaterial.ts')
@@ -16,12 +16,13 @@ export function testGaussianSplatEditorSurfaceIsWiredAndCleanRoom() {
   const panelModel = source('features', 'three', 'xrPanelModel.ts')
 
   for (const marker of [
-    'XrGaussianSplatEditorSection',
-    'sourceProfile.kind === \'spatial-capture\'',
-    'aria-label="XR graphics stack"',
-    'data-kg-xr-panel-capability={item.id}',
+    'GaussianSplatEditorSection',
+    "sourceProfile.kind !== 'spatial-capture'",
+    'data-kg-media-3d-spatial-tools="1"',
+    'aria-label="3D graphics stack"',
+    'data-kg-media-3d-capability={item.id}',
   ]) {
-    if (!panel.includes(marker)) throw new Error(`expected XR FloatingPanel to mount Gaussian editor marker ${marker}`)
+    if (!panel.includes(marker)) throw new Error(`expected Media 3D spatial tools to mount Gaussian editor marker ${marker}`)
   }
   for (const marker of [
     'data-kg-xr-gaussian-editor="1"',

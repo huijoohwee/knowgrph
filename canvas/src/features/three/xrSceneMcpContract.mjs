@@ -36,4 +36,3 @@ export const buildXrAnimateInvocation = (subjectId, motion = 'travel') => {
   const motionToken = XR_SCENE_MOTION_TOKENS[cleanMotion(motion)]
   return `${XR_SCENE_INVOCATION_COMMANDS.animate} ${target} ${motionToken}`
 }
-

@@ -129,6 +129,8 @@ function persistAndActivateXrScene(): boolean {
     setCanvas3dMode: nextState.setCanvas3dMode,
     setCanvasRenderMode: nextState.setCanvasRenderMode,
   })
+  nextState.setFloatingPanelView('media')
+  nextState.setFloatingPanelOpen(true)
   nextState.setBottomSurfaceTab('timeline')
   nextState.setBottomSurfaceCollapsed(false)
   return true
@@ -235,4 +237,3 @@ export function controlLocalXrScene(input: XrSceneControlInput): XrSceneControlR
   if (!persistAndActivateXrScene()) return { ok: false, message: 'The XR scene could not be written to graph metadata.' }
   return { ok: true, message, action: control.action, ...(subjectId ? { subjectId } : {}), scene: inspectLocalXrSceneAssets() }
 }
-

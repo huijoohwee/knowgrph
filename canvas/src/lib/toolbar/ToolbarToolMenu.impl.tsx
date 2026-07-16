@@ -114,12 +114,11 @@ const FlowchartFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgr
 const GitGraphFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/GitGraphFloatingPanelView').then(mod => ({ default: mod.GitGraphFloatingPanelView })))
 const GanttFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/GanttFloatingPanelView').then(mod => ({ default: mod.GanttFloatingPanelView })))
 const TimelineFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/TimelineFloatingPanelView').then(mod => ({ default: mod.TimelineFloatingPanelView })))
-const XrPanelViewLazy = React.lazy(() => import('@/features/three/XrPanelView').then(mod => ({ default: mod.XrPanelView })))
 const ArchitectureFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/ArchitectureFloatingPanelView').then(mod => ({ default: mod.ArchitectureFloatingPanelView })))
 const EventModelingFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/EventModelingFloatingPanelView').then(mod => ({ default: mod.EventModelingFloatingPanelView })))
 const StrybldrCameraFloatingPanelViewLazy = React.lazy(() => import('@/features/strybldr/StrybldrCameraFloatingPanelView').then(mod => ({ default: mod.StrybldrCameraFloatingPanelView })))
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'promptPresets', 'view', 'camera', 'chat', 'geo', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'xr', 'architecture', 'eventModeling'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'promptPresets', 'view', 'camera', 'chat', 'geo', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'architecture', 'eventModeling'])
 
 const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
   pipelineStatus: string | null
@@ -504,7 +503,6 @@ export function ToolbarToolMenu({
       { view: 'gitGraph', title: UI_LABELS.gitGraph, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gitGraph },
       { view: 'gantt', title: UI_LABELS.gantt, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gantt },
       { view: 'timeline', title: UI_LABELS.timeline, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.timeline },
-      { view: 'xr', title: UI_LABELS.xr, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.xr },
       { view: 'architecture', title: 'Architecture', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.architecture },
       { view: 'eventModeling', title: 'Event Model', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.eventModeling },
     ],
@@ -749,7 +747,6 @@ export function ToolbarToolMenu({
                 <TimelineFloatingPanelViewLazy />
               </React.Suspense>
             )}
-            {floatingPanelView === 'xr' && <React.Suspense fallback={null}><XrPanelViewLazy /></React.Suspense>}
             {floatingPanelView === 'architecture' && (
               <React.Suspense fallback={null}>
                 <ArchitectureFloatingPanelViewLazy />

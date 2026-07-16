@@ -47,7 +47,7 @@ function setting<K extends keyof GaussianSplatEditSettings>(key: K, value: Gauss
   updateGaussianSplatEditorSettings({ [key]: value } as Pick<GaussianSplatEditSettings, K>)
 }
 
-export function XrGaussianSplatEditorSection({
+export function GaussianSplatEditorSection({
   documentName,
   sourceFormat,
 }: {

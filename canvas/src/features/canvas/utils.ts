@@ -34,7 +34,6 @@ export type FloatingPanelOpenEventDetail = {
     | 'gitGraph'
     | 'gantt'
     | 'timeline'
-    | 'xr'
     | 'architecture'
     | 'eventModeling'
   open?: boolean

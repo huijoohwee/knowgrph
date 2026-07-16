@@ -38,7 +38,7 @@ Runtime modules and dependency manifests must not contain reference-project iden
 | Gaussian decode | `plyPointCloud.ts` | Normalizes degree-zero color, sigmoid opacity, exponential scale, quaternion, position, and bounds. |
 | Draft model | `gaussianSplatEditorModel.ts` | Normalizes edit settings, computes inspection data, selects visible indices, serializes optimized PLY, and builds a provider-neutral manifest. |
 | Draft runtime | `gaussianSplatEditorRuntime.ts` | Holds one scene-keyed external-store snapshot shared by the stage and FloatingPanel. |
-| Panel projection | `XrGaussianSplatEditorSection.tsx` | Projects inspect, edit, optimize, download, reset, and explicit publish actions. |
+| Panel projection | `GaussianSplatEditorSection.tsx` inside Media 3D `SpatialAssetToolsPanel.tsx` | Projects inspect, edit, optimize, download, reset, and explicit publish actions without a separate XR FloatingPanel route. |
 | Geometry | `spatialCaptureGeometryRuntime.ts` | Reuses source arrays, progressive attribute views, adaptive budgets, and bounded direction sorting. |
 | Material | `spatialCaptureGaussianMaterial.ts` | Applies crop, opacity, scale, appearance, center, and footprint draft settings without mutating source arrays. |
 | Stage | `SpatialCaptureManifestStage.tsx` | Hydrates the draft runtime, consumes its settings, and preserves camera/stage ownership. |

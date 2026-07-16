@@ -1,5 +1,6 @@
 import React from 'react'
 import { Box, Grid2X2, List, Plus, Rows3 } from 'lucide-react'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import type { CommandMenuRichMediaItem } from '@/lib/command-menu/commandMenuRichMediaInventory'
 import { readCommandMenuMediaNameDraft, type CommandMenuMediaNameDrafts } from '@/lib/command-menu/commandMenuMediaNameSync'
 import type { UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
@@ -121,7 +122,11 @@ export function MediaCatalogPanelView({
   onUploadMediaFiles,
 }: MediaCatalogPanelViewProps) {
   const search = useFloatingPanelCatalogSearch()
-  const [catalogMode, setCatalogMode] = React.useState<'media' | 'xr-3d'>('media')
+  const xrSurfaceActive = useGraphStore(state => state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr')
+  const [catalogMode, setCatalogMode] = React.useState<'media' | 'xr-3d'>(() => xrSurfaceActive ? 'xr-3d' : 'media')
+  React.useEffect(() => {
+    if (xrSurfaceActive) setCatalogMode('xr-3d')
+  }, [xrSurfaceActive])
   const mediaItemCount = uploadedMediaItems.length + mediaItems.length + mediaActions.length + (sourceMetadataItem ? 1 : 0)
   const normalizedSearchQuery = search.normalizedSearchQuery
   const visibleSourceMetadataItem = sourceMetadataItem && matchesMediaSourceMetadataSearch(sourceMetadataItem, normalizedSearchQuery) ? sourceMetadataItem : null
@@ -186,10 +191,10 @@ export function MediaCatalogPanelView({
             <button
               type="button"
               className={cn('inline-flex h-6 items-center gap-1 rounded border px-1.5 text-[10px] font-semibold', UI_THEME_TOKENS.panel.border, catalogMode === 'xr-3d' ? UI_THEME_TOKENS.button.activeBg : UI_THEME_TOKENS.input.bg)}
-              title={catalogMode === 'xr-3d' ? 'Show media library' : 'Show 3D for XR'}
-              aria-label={catalogMode === 'xr-3d' ? 'Show media library' : 'Show 3D for XR'}
+              title={catalogMode === 'xr-3d' ? 'Show media library' : 'Show 3D assets for XR'}
+              aria-label={catalogMode === 'xr-3d' ? 'Show media library' : 'Show 3D assets for XR'}
               aria-pressed={catalogMode === 'xr-3d'}
-              data-kg-media-xr-3d-toggle="1"
+              data-kg-media-3d-toggle="1"
               onClick={() => setCatalogMode(current => current === 'xr-3d' ? 'media' : 'xr-3d')}
             >
               <Box className="size-3" strokeWidth={1.7} aria-hidden />

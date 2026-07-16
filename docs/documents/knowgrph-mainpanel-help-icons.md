@@ -67,7 +67,6 @@ Keep `Key` aligned to the Help icon text key in source. Keep `Type` aligned to t
 | floatingPanel.gitGraph | floatingPanel.gitGraph | Git history graph | FloatingPanel view for GitGraph history, branch topology, and commit inspection. |
 | floatingPanel.gantt | floatingPanel.gantt | Gantt planning | FloatingPanel view for Gantt-timeline inspection and planning controls. |
 | floatingPanel.timeline | floatingPanel.timeline | Timeline playback | FloatingPanel view for timeline playback and review controls. |
-| floatingPanel.xr | floatingPanel.xr | XR scene controls | FloatingPanel XR projection for activation, graphics, Gaussian splats, and spatial tools; stage, cast, camera, Scene, and Runtime cues reuse the existing BottomPanel Timeline player and shared playhead, camera editing remains exclusively in FloatingPanel Camera, and no standalone XR player or dedicated BottomPanel XR route exists. |
 | floatingPanel.architecture | floatingPanel.architecture | Architecture diagram | FloatingPanel view for architecture diagram inspection and structured rows. |
 | floatingPanel.eventModeling | floatingPanel.eventModeling | Event modeling | FloatingPanel view for event-modeling diagram inspection and structured rows. |
 | floatingPanel.strybldr | floatingPanel.strybldr | Image storyboard orchestration | FloatingPanel view for image reverse engineering, element cards, and video handoff. |

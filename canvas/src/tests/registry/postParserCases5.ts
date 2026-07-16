@@ -157,7 +157,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["videoAgent.pipeline.renderableSemanticHtmlSpec","@/__tests__/videoAgentPipeline.test","testVideoAgentPipelineCompilesRenderableSemanticHtmlSpec"],
   ["videoAgent.pipeline.providerFrameImagesIntoFrameAnalysis","@/__tests__/videoAgentPipeline.test","testVideoAgentPipelineProjectsProviderFrameImagesIntoFrameAnalysis"],
   ["videoAgent.pipeline.invalidInputAndDependencyGuard","@/__tests__/videoAgentPipeline.test","testVideoAgentPipelineRejectsInvalidInputsAndAvoidsExternalDependencyImports"],
-  ["promptPreset.catalog.sixRuntimeRoutes","@/__tests__/agenticVideoCanvasDemoRuntimeReady.test","testAgenticPromptPresetCatalogOwnsSixRuntimeRoutes"],
+  ["promptPreset.catalog.sevenRuntimeRoutes","@/__tests__/agenticVideoCanvasDemoRuntimeReady.test","testAgenticPromptPresetCatalogOwnsSevenRuntimeRoutes"],
   ["videoAgent.demo.executableReplayContract","@/__tests__/agenticVideoCanvasDemoRuntimeReady.test","testAgenticVideoCanvasDemoIsExecutableAndReplayable"],
   ["videoAgent.demo.sharedCloudflarePersistenceOwners","@/__tests__/agenticVideoCanvasDemoRuntimeReady.test","testAgenticVideoCanvasDemoUsesSharedCloudflarePersistenceOwners"],
   ["videoAgent.demo.textArtifactPublishesForReplay","@/__tests__/chatHistoryWorkspaceOutput.test","testWriteTextWidgetRunOutputArtifactPublishesForReplayWhenRuntimeSyncEnabled"],

@@ -14,10 +14,7 @@ export function TimelineBottomPanelView({
 }: {
   compact?: boolean
 }) {
-  const xrTimelineContext = useGraphStore(state => (
-    (state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr')
-    || (state.floatingPanelOpen === true && state.floatingPanelView === 'xr')
-  ))
+  const xrTimelineContext = useGraphStore(state => state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr')
 
   if (xrTimelineContext) return <XrTimelineSceneLane />
 

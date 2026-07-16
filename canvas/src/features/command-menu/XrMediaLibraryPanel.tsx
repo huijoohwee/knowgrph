@@ -32,6 +32,7 @@ import {
   type XrSceneAnimation,
   type XrSceneControlInput,
 } from '@/features/three/xrSceneMcpRuntime'
+import { SpatialAssetToolsPanel } from '@/features/three/SpatialAssetToolsPanel'
 
 type XrSceneLibraryFilter = 'all' | XrSceneLibraryCategory
 
@@ -254,6 +255,8 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
           ))}
         </section>
       ) : null}
+
+      <SpatialAssetToolsPanel />
     </section>
   )
 }

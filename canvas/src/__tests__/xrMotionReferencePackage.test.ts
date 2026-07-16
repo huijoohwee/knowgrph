@@ -311,7 +311,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   const xrMediaLibrarySource = readSource('features', 'command-menu', 'XrMediaLibraryPanel.tsx')
   const xrSceneMcpContractSource = readSource('features', 'three', 'xrSceneMcpContract.mjs')
   const xrSceneMcpRuntimeSource = readSource('features', 'three', 'xrSceneMcpRuntime.ts')
-  const xrPanelSource = readSource('features', 'three', 'XrPanelView.tsx')
+  const spatialAssetToolsSource = readSource('features', 'three', 'SpatialAssetToolsPanel.tsx')
   const timelineBottomPanelSource = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
   const xrTimelineLaneSource = readSource('features', 'three', 'XrTimelineSceneLane.tsx')
   const xrTimelineProjectionSource = readSource('features', 'three', 'xrMotionReferenceTimeline.ts')
@@ -343,7 +343,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   ]) {
     if (!xrTimelineLaneSource.includes(marker)) throw new Error(`expected XR Timeline player controls to expose ${marker}`)
   }
-  for (const marker of ['data-kg-media-xr-3d-toggle="1"', '<XrMediaLibraryPanel', '3D for XR']) {
+  for (const marker of ['data-kg-media-3d-toggle="1"', '<XrMediaLibraryPanel', '3D for XR', "xrSurfaceActive ? 'xr-3d' : 'media'"]) {
     if (!mediaCatalogViewSource.includes(marker)) throw new Error(`expected FloatingPanel Media to expose ${marker}`)
   }
   for (const marker of ['data-kg-media-xr-environments="1"', 'data-kg-media-xr-subject-library="1"', 'data-kg-media-xr-next-label="1"', 'data-kg-media-xr-assets-mcp=', 'data-kg-media-xr-invocation=', 'data-kg-media-xr-asset-motion=', 'data-kg-media-xr-subject-motion=', 'controlLocalXrScene']) {
@@ -352,7 +352,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   for (const marker of ['/xr.stage', '/xr.place', '/xr.animate', '#travel', '#hold']) {
     if (!xrSceneMcpContractSource.includes(marker)) throw new Error(`expected XR MCP invocation grammar to expose ${marker}`)
   }
-  for (const marker of ['inspectLocalXrSceneAssets', 'controlLocalXrScene', 'serializeXrMotionReferencePlan', 'activateCanvasGraphSurfaceMode']) {
+  for (const marker of ['inspectLocalXrSceneAssets', 'controlLocalXrScene', 'serializeXrMotionReferencePlan', 'activateCanvasGraphSurfaceMode', "setFloatingPanelView('media')"]) {
     if (!xrSceneMcpRuntimeSource.includes(marker)) throw new Error(`expected browser-local XR MCP control runtime to expose ${marker}`)
   }
   if (!runtimeSource.includes('setXrMotionReferenceCastMotion') || !runtimeSource.includes('travelMeters')) {
@@ -414,8 +414,8 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (existsSync(resolve(process.cwd(), 'src', 'features', 'three', 'XrMotionReferenceSection.tsx'))) {
     throw new Error('expected the standalone XR motion-reference form component to be removed')
   }
-  if (xrPanelSource.includes('<XrMotionReferenceSection') || xrPanelSource.includes('data-kg-xr-panel-scene="1"') || xrPanelSource.includes('data-kg-xr-panel-runtime="1"')) {
-    throw new Error('expected FloatingPanel XR to delegate motion, Scene, and Runtime projections to BottomPanel Timeline')
+  if (spatialAssetToolsSource.includes('<XrMotionReferenceSection') || spatialAssetToolsSource.includes('data-kg-xr-panel-scene="1"') || spatialAssetToolsSource.includes('data-kg-xr-panel-runtime="1"')) {
+    throw new Error('expected Media 3D spatial tools to delegate motion, Scene, and Runtime projections to BottomPanel Timeline')
   }
   const staleCanvasMarkers = [
     'physics_playground',
@@ -424,7 +424,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     'data-kg-xr-panel-physics',
     'XR unavailable',
   ]
-  const cleanedXrSurfaces = `${xrGraphStageSource}\n${xrEntrySource}\n${xrPanelSource}`
+  const cleanedXrSurfaces = `${xrGraphStageSource}\n${xrEntrySource}\n${spatialAssetToolsSource}`
   for (const marker of staleCanvasMarkers) {
     if (cleanedXrSurfaces.includes(marker)) throw new Error(`expected XR canvas cleanup to remove stale ${marker}`)
   }
@@ -491,7 +491,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     || !sceneSource.includes("{mode !== 'xr' && fogColorEffective")) {
     throw new Error('expected XR motion reference to own the graph scene without nodes, edges, starfield, or graph fog interference')
   }
-  for (const marker of ['onOpenShared3dPanel', "mode === '3d' ? 'camera' : 'xr'", 'setFloatingPanelOpen(true)', "setBottomSurfaceTab('timeline')", 'setBottomSurfaceCollapsed(false)']) {
+  for (const marker of ['onOpenShared3dPanel', "mode === '3d' ? 'camera' : 'media'", 'setFloatingPanelOpen(true)', "setBottomSurfaceTab('timeline')", 'setBottomSurfaceCollapsed(false)']) {
     if (!canvasViewSelectSource.includes(marker)) throw new Error(`expected 3D/XR Surface Mode to open its canonical panel via ${marker}`)
   }
   if (!stageSource.includes('hydrateXrMotionReferenceRuntime') || !stageSource.includes('xrMotionReferenceSceneKey')) {
