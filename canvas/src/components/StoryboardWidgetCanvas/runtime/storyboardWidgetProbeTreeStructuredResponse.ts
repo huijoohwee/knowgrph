@@ -2,7 +2,13 @@ import { buildProbeTreeStoryboardMermaidFlowchart, PROBE_TREE_STORYBOARD_MERMAID
 import { hashText } from '@/features/parsers/hash'
 import { extractChatResponseStructuredSurface, type ChatResponseSurfaceNode } from '@/features/chat/chatResponseStructuredContent'
 import { KNOWGRPH_PROBE_TREE_MAX_DEPTH } from '@/features/agentic-os/probeTreePromptPreset'
-import { PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION, isProbeTreeResponseContextRelevant } from '@/features/agent-ready/probeTreeContract.mjs'
+import {
+  PROBE_TREE_CARD_VARIANTS,
+  PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+  isProbeTreeCardUserInputRelevant,
+  normalizeProbeTreeContextAnchors,
+  normalizeProbeTreeSelectionOptions,
+} from '@/features/agent-ready/probeTreeContract.mjs'
 import type { ProbeTreeMcpInvocationResolution } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import { resolveStoryboardWidgetProbeTreeBranchPositions } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
 import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
@@ -13,12 +19,14 @@ import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/typ
 
 const GENERIC_PROBE_CARD_PATTERN = /^(?:clarify probe|generate branches|select handoff)(?::|$)/i
 
-export type StoryboardWidgetProbeTreeContextFallbackOption = {
+export type StoryboardWidgetProbeTreeInputDerivedOption = {
   id?: string
   text?: string
   question?: string
   rationale?: string
   evidenceNeeded?: string
+  selectionOptions?: readonly (string | { id?: string; label?: string; text?: string })[]
+  contextAnchors?: readonly string[]
 }
 
 const readString = (value: unknown): string => String(unwrapGraphCellValue(value) ?? '').trim()
@@ -64,6 +72,11 @@ const isStructuredProbeCard = (node: ChatResponseSurfaceNode): boolean => (
   node.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID
   && node.properties.probeTreeResponseMode === 'llm-contract'
   && node.properties.cardTypeLabel === 'Probe-Tree Card'
+  && node.properties.probeTreeCardVariant === PROBE_TREE_CARD_VARIANTS.boundedMultiSelect
+  && node.properties.selectionMode === 'multiple'
+  && normalizeProbeTreeSelectionOptions(node.properties.selectionOptions).length >= 2
+  && normalizeProbeTreeContextAnchors(node.properties.contextAnchors || node.properties.probeTreeUserInputAnchors).length >= 2
+  && node.properties.allowOther === true
   && !GENERIC_PROBE_CARD_PATTERN.test(String(node.label || '').trim())
 )
 
@@ -79,21 +92,15 @@ const buildCandidateEdge = (source: string, target: string, candidateOptionId: s
   },
 })
 
-const readCardText = (node: ChatResponseSurfaceNode): string => [
-  node.label,
-  node.properties.summary,
-  node.properties.question,
-  node.properties.output,
-  node.properties.rationale,
-  node.properties.evidenceNeeded,
-].map(readString).filter(Boolean).join(' ')
-
-const buildContextFallbackCards = (
-  options: readonly StoryboardWidgetProbeTreeContextFallbackOption[],
+const buildInputDerivedCards = (
+  options: readonly StoryboardWidgetProbeTreeInputDerivedOption[],
   anchorNodeId: string,
+  contextText: string,
 ): ChatResponseSurfaceNode[] => options.slice(0, 4).map((option, index) => {
   const question = readString(option.text || option.question)
-  const candidateOptionId = readString(option.id) || `context-fallback-${hashText(question).slice(0, 12)}`
+  const candidateOptionId = readString(option.id) || `input-derived-${hashText(question).slice(0, 12)}`
+  const selectionOptions = normalizeProbeTreeSelectionOptions(option.selectionOptions)
+  const contextAnchors = normalizeProbeTreeContextAnchors(option.contextAnchors)
   return {
     id: `probe-tree:${candidateOptionId}`,
     label: question,
@@ -105,6 +112,13 @@ const buildContextFallbackCards = (
       'chat:structuredContent': true,
       'chat:structuredRole': 'card',
       cardTypeLabel: 'Probe-Tree Card',
+      probeTreeTypeLabel: 'Probe-Tree Type 2',
+      probeTreeCardVariant: PROBE_TREE_CARD_VARIANTS.boundedMultiSelect,
+      selectionMode: 'multiple',
+      selectionOptions,
+      contextAnchors,
+      probeTreeUserInputAnchors: contextAnchors,
+      allowOther: true,
       probeTreeResponseMode: 'llm-contract',
       responseContractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
       parentNodeId: anchorNodeId,
@@ -115,14 +129,19 @@ const buildContextFallbackCards = (
       summary: question,
       question,
       output: '',
-      rationale: readString(option.rationale) || 'Keeps the next probe bounded and selectable.',
-      evidenceNeeded: readString(option.evidenceNeeded) || 'An explicit, source-backed answer for this question.',
+      rationale: readString(option.rationale),
+      evidenceNeeded: readString(option.evidenceNeeded),
       confidence: 'low',
       index: `P${index + 1}`,
-      tags: ['probe-tree', 'candidateOption', 'context-fallback'],
+      tags: ['probe-tree', 'candidateOption', 'input-derived'],
     },
   }
-}).filter(card => Boolean(card.label))
+}).filter(card => Boolean(card.label) && isProbeTreeCardUserInputRelevant({
+  contextText,
+  question: card.properties.question,
+  selectionOptions: card.properties.selectionOptions,
+  contextAnchors: card.properties.contextAnchors,
+}))
 
 const buildPanelMarkdown = (args: {
   anchorNodeId: string
@@ -130,7 +149,7 @@ const buildPanelMarkdown = (args: {
   invocationTokens: readonly string[]
   invocationResolutions: readonly ProbeTreeMcpInvocationResolution[]
   mcpInvoked: boolean
-  responseSource: 'provider' | 'mcp' | 'context-fallback'
+  responseSource: 'provider' | 'mcp' | 'input-derived'
   model: string
 }): string => {
   const resolutionByToken = new Map(args.invocationResolutions.map(item => [item.token.toLowerCase(), item]))
@@ -146,8 +165,8 @@ const buildPanelMarkdown = (args: {
     : args.responseSource === 'mcp'
       ? 'literal local MCP structured response'
       : args.mcpInvoked
-        ? 'bounded contextual fallback after response-contract validation'
-        : 'bounded contextual fallback; MCP was unavailable'
+        ? 'bounded user-input-derived fallback after response-contract validation'
+        : 'bounded user-input-derived fallback; MCP was unavailable'
   return [
     '# Probe-Tree Branches',
     '',
@@ -162,8 +181,11 @@ const buildPanelMarkdown = (args: {
       const question = readString(card.properties.summary || card.properties.question) || card.label
       const rationale = readString(card.properties.rationale)
       const evidence = readString(card.properties.evidenceNeeded)
+      const selectionOptions = normalizeProbeTreeSelectionOptions(card.properties.selectionOptions)
       return [
         `${index + 1}. **${card.label}** — ${question}`,
+        ...selectionOptions.map((option, optionIndex) => `   ${optionIndex + 1}. ${option.label}`),
+        ...(card.properties.allowOther === true ? ['   - Other (author a different answer)'] : []),
         ...(rationale ? [`   - Why: ${rationale}`] : []),
         ...(evidence ? [`   - Evidence: ${evidence}`] : []),
       ]
@@ -175,7 +197,7 @@ export type StoryboardWidgetProbeTreeStructuredMaterialization = {
   graphData: GraphData
   materializedNodeIds: string[]
   panelOutput: string
-  responseSource: 'provider' | 'mcp' | 'context-fallback'
+  responseSource: 'provider' | 'mcp' | 'input-derived'
   model: string
 }
 
@@ -184,29 +206,29 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
   anchorNode: GraphNode
   responseText: string
   contextText: string
-  responseSource: 'provider' | 'mcp' | 'context-fallback'
+  responseSource: 'provider' | 'mcp' | 'input-derived'
   model: string
   mcpInvoked: boolean
   threadRootId?: string
   invocationTokens: readonly string[]
   invocationResolutions?: readonly ProbeTreeMcpInvocationResolution[]
-  contextFallbackOptions?: readonly StoryboardWidgetProbeTreeContextFallbackOption[]
+  inputDerivedOptions?: readonly StoryboardWidgetProbeTreeInputDerivedOption[]
 }): StoryboardWidgetProbeTreeStructuredMaterialization | null {
   const graphData = args.graphData
   const anchorNodeId = readNodeId(args.anchorNode)
   if (!graphData || !anchorNodeId) return null
-  const contextFallbackCards = buildContextFallbackCards(args.contextFallbackOptions || [], anchorNodeId)
-  const surface = contextFallbackCards.length >= 2
+  const inputDerivedCards = buildInputDerivedCards(args.inputDerivedOptions || [], anchorNodeId, args.contextText)
+  const surface = inputDerivedCards.length >= 2
     ? null
     : extractChatResponseStructuredSurface(String(args.responseText || ''))
   const surfaceNodes = surface?.nodes || []
   const sourceWidgets = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'widget')
   const panels = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'panel')
   const responseCards = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'card')
-  const cards = contextFallbackCards.length >= 2
-    ? contextFallbackCards
+  const cards = inputDerivedCards.length >= 2
+    ? inputDerivedCards
     : responseCards.filter(isStructuredProbeCard)
-  if (contextFallbackCards.length < 2 && (
+  if (inputDerivedCards.length < 2 && (
     sourceWidgets.length !== 1
     || panels.length !== 1
     || readString(panels[0]?.label) !== 'Probe-Tree Branches'
@@ -214,10 +236,12 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
     || responseCards.length > 4
     || cards.length !== responseCards.length
   )) return null
-  if (!isProbeTreeResponseContextRelevant({
+  if (!cards.every(card => isProbeTreeCardUserInputRelevant({
     contextText: args.contextText,
-    responseTexts: cards.map(readCardText),
-  })) return null
+    question: card.properties.question || card.properties.summary || card.label,
+    selectionOptions: card.properties.selectionOptions,
+    contextAnchors: card.properties.contextAnchors || card.properties.probeTreeUserInputAnchors,
+  }))) return null
 
   const removedNodeIds = collectReplacedProbeTreeNodeIds(graphData, anchorNodeId)
   const retainedNodes = (graphData.nodes || []).filter(node => !removedNodeIds.has(readNodeId(node)))

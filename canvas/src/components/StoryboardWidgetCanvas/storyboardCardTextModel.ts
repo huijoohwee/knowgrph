@@ -15,7 +15,7 @@ export type StoryboardCardTextModel = {
   secondaryField: GraphNodeCardTextFieldSpec | null
   secondaryEditable: boolean
 }
-type StoryboardCardTextSource = Partial<Pick<StoryboardCardModel, 'summary' | 'output' | 'action' | 'dialogue' | 'prompt' | 'style' | 'typeLabel'>>
+type StoryboardCardTextSource = Partial<Pick<StoryboardCardModel, 'summary' | 'output' | 'action' | 'dialogue' | 'prompt' | 'style' | 'typeLabel' | 'probeTreeMultiSelect'>>
 
 type StoryboardCardPrimaryTextCandidate = {
   raw: string
@@ -29,7 +29,7 @@ const readStoryboardCardTextFieldSpec = (id: GraphNodeCardTextFieldId): GraphNod
 }
 
 export const buildStoryboardCardTextModel = (card: StoryboardCardTextSource): StoryboardCardTextModel => {
-  if (card.typeLabel === 'Probe-Tree Card') {
+  if (card.typeLabel === 'Probe-Tree Card' || card.probeTreeMultiSelect) {
     const primaryField = readStoryboardCardTextFieldSpec('summary')
     const secondaryField = readStoryboardCardTextFieldSpec('output')
     const primaryRaw = card.summary || ''

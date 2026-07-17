@@ -4,7 +4,7 @@ import {
   resolveStoryboardWidgetProbeTreeBranchPositions,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
 import { materializeStoryboardWidgetProbeTreeStructuredResponse } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeStructuredResponse'
-import { buildProbeTreeStructuredResponse } from '@/features/agent-ready/probeTreeContract.mjs'
+import { buildProbeTreeInputDerivedOptions, buildProbeTreeStructuredResponse } from '@/features/agent-ready/probeTreeContract.mjs'
 import type { GraphData } from '@/lib/graph/types'
 import {
   PROBE_TREE_BALANCED_LAYOUT_MODE,
@@ -272,13 +272,15 @@ export function testProbeTreeStructuredReplacementRemovesDescendantClosure() {
       { id: 'other-edge', source: 'other-root', target: 'other-child', label: 'candidateOption', properties: {} },
     ],
   }
-  const contextText = 'The SME evidence handoff needs an authoritative source and accountable reviewer.'
+  const contextText = [
+    'Authored request:',
+    'Compare SME evidence across coverage source, claims record, policy schedule, and handoff owner.',
+    'Prioritize accountable review across evidence freshness, coverage gap, adviser boundary, and approval status.',
+    'Selected Widget id: root',
+  ].join('\n')
   const response = buildProbeTreeStructuredResponse({
     threadRootId: 'root', currentNodeId: 'root', contextText, optionCount: 2,
-    options: [
-      { id: 'authority', text: 'Which SME evidence source is authoritative for this handoff?', rationale: 'Keeps the branch source-backed.' },
-      { id: 'reviewer', text: 'Which accountable reviewer approves the SME evidence handoff?', rationale: 'Names the review owner.' },
-    ],
+    options: buildProbeTreeInputDerivedOptions(contextText).slice(0, 2).map((option, index) => ({ ...option, id: index === 0 ? 'authority' : 'reviewer' })),
   })
   const result = materializeStoryboardWidgetProbeTreeStructuredResponse({
     graphData,
@@ -286,7 +288,7 @@ export function testProbeTreeStructuredReplacementRemovesDescendantClosure() {
     responseText: JSON.stringify({ jsonrpc: '2.0', id: 'replace', result: { structuredContent: { ok: true, response } } }),
     contextText,
     responseSource: 'mcp',
-    model: 'probe-tree-local-heuristic',
+    model: 'probe-tree-input-derived',
     mcpInvoked: true,
     threadRootId: 'root',
     invocationTokens: [],

@@ -1,8 +1,4 @@
-import {
-  inferMediaKindFromResourceUrl,
-  resolveRenderableMediaResource,
-  type UrlMediaKind,
-} from '@/lib/graph/mediaUrlKind'
+import { inferMediaKindFromResourceUrl, resolveRenderableMediaResource, type UrlMediaKind } from '@/lib/graph/mediaUrlKind'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
@@ -24,6 +20,7 @@ import {
 } from '@/lib/cards/graphNodeCardFields'
 import { buildStoryboardInvocationTokensByLane, readStoryboardCardInvocationTokens } from '@/components/StoryboardCanvas/storyboardInvocationTokens'
 import { readImageToThreeJsRenderMode, type ImageToThreeJsRenderMode } from '@/features/image-to-threejs/imageToThreeJsContract'
+import { readStoryboardProbeTreeMultiSelectModel, type StoryboardProbeTreeMultiSelectModel } from '@/components/StoryboardCanvas/storyboardProbeTreeMultiSelectModel'
 import { projectStoryboardMediaAlbumItems, STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY, type StoryboardMediaAlbumItem } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
 import { resolveWidgetNodeTitle } from '@/components/StoryboardWidget/widgetEditorTitle'
 import {
@@ -133,6 +130,7 @@ export type StoryboardCardModel = {
   inputIndex: number
   candidateScore: number
   structural: boolean
+  probeTreeMultiSelect?: StoryboardProbeTreeMultiSelectModel | null
 }
 export type StoryboardLaneModel = {
   id: string
@@ -509,6 +507,7 @@ const buildCardModel = (node: GraphNode, inputIndex: number, stageTokensByLane: 
       references,
     }),
     structural: isStructuralStoryboardNodeType(nodeType),
+    probeTreeMultiSelect: readStoryboardProbeTreeMultiSelectModel(properties),
   }
 }
 

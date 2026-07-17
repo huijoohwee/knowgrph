@@ -42,7 +42,7 @@ test("local stdio MCP emits a Canvas-ready bounded Probe-Tree response", async (
       arguments: {
         thread_root_id: "care-agent",
         current_node_id: "widget-card",
-        context_text: "The selected care card needs source-backed next questions.",
+        context_text: "Compare the selected care card across member goal, caregiver need, source evidence, and unresolved gap.",
         k: 3,
         recall_top_k: 0,
         token_budget: 1200,
@@ -59,6 +59,8 @@ test("local stdio MCP emits a Canvas-ready bounded Probe-Tree response", async (
     assert.ok(surface.cards.every((card) => card.parentNodeId === "widget-card"));
     assert.ok(surface.cards.every((card) => card.nextAction === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeSelect));
     assert.ok(surface.cards.every((card) => card.question && card.output === ""));
+    assert.ok(surface.cards.every((card) => card.selectionOptions.length >= 2));
+    assert.ok(surface.cards.every((card) => card.contextAnchors.length >= 2));
     assert.equal(payload?.cost_log?.estimated_cost_usd, 0);
   } finally {
     await client.close().catch(() => undefined);

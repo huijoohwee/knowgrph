@@ -6,9 +6,11 @@ import {
   KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   KNOWGRPH_PROBE_TREE_TOOL_NAMES,
   PROBE_TREE_DEFAULTS,
-  PROBE_TREE_FALLBACK_OPTIONS,
-  buildProbeTreeContextualFallbackOptions,
+  buildProbeTreeInputDerivedOptions,
   buildProbeTreeStructuredResponse,
+  isProbeTreeCardUserInputRelevant,
+  normalizeProbeTreeContextAnchors,
+  normalizeProbeTreeSelectionOptions,
 } from "../canvas/src/features/agent-ready/probeTreeContract.mjs";
 import {
   addMemoryLayerMemory,
@@ -189,33 +191,28 @@ function buildProbeTreeStateGraphDefinition() {
   };
 }
 
-const exemplarOption = (memory) => {
-  const text = normalizeString(memory?.metadata?.recommended_question || memory?.memory);
-  if (!text) return null;
-  return {
-    text: text.length > 160 ? `${text.slice(0, 157)}...` : text,
-    rationale: "Reuses a prior resolved probe-tree path recalled for a similar topic.",
-  };
-};
-
-const buildOptions = ({ contextText, generatedOptions = [], memories, k }) => {
+const buildOptions = ({ contextText, generatedOptions = [], k }) => {
   const topic = normalizeString(contextText).slice(0, 220);
   const candidates = [
     ...generatedOptions,
-    ...memories.map(exemplarOption).filter(Boolean),
-    ...buildProbeTreeContextualFallbackOptions(contextText),
-    ...PROBE_TREE_FALLBACK_OPTIONS,
+    ...buildProbeTreeInputDerivedOptions(contextText),
   ];
   const seen = new Set();
   const options = [];
   for (const candidate of candidates) {
     const text = normalizeString(candidate.text);
     if (!text || seen.has(text.toLowerCase())) continue;
+    const selectionOptions = normalizeProbeTreeSelectionOptions(candidate.selectionOptions);
+    const contextAnchors = normalizeProbeTreeContextAnchors(candidate.contextAnchors);
+    if (!isProbeTreeCardUserInputRelevant({ contextText, question: text, selectionOptions, contextAnchors })) continue;
     seen.add(text.toLowerCase());
     options.push({
       id: hashParts("probe_option", [topic, text, options.length]),
       text,
       rationale: normalizeString(candidate.rationale),
+      evidenceNeeded: normalizeString(candidate.evidenceNeeded),
+      selectionOptions,
+      contextAnchors,
     });
     if (options.length >= k) break;
   }
@@ -282,15 +279,22 @@ export async function generateProbeOptions(input = {}, options = {}) {
   } else {
     modelResult = { configured: false, reason: "token_budget_ceiling", options: [], costLog: null };
   }
-  const resultOptions = buildOptions({ contextText, generatedOptions: modelResult.options, memories: recalledExemplars, k });
+  const resultOptions = buildOptions({ contextText, generatedOptions: modelResult.options, k });
   const modelConfigured = modelResult.configured === true;
   const modelSatisfied = modelConfigured && Array.isArray(modelResult.options) && modelResult.options.length > 0;
   const degraded = !modelSatisfied || resultOptions.length < k;
-  const degradedReason = modelSatisfied ? (resultOptions.length < k ? "model_returned_fewer_than_k_options" : "") : modelResult.reason;
-  const costLog = modelResult.costLog || zeroCostLog("probe-tree-local-heuristic");
+  const hasBoundedOptions = resultOptions.length >= PROBE_TREE_DEFAULTS.minOptionCount;
+  const degradedReason = !budgetedRecall.report.within_budget
+    ? "token_budget_ceiling"
+    : !hasBoundedOptions
+      ? "insufficient_user_input_context"
+      : modelSatisfied
+        ? (resultOptions.length < k ? "model_returned_fewer_than_k_options" : "")
+        : modelResult.reason;
+  const costLog = modelResult.costLog || zeroCostLog("probe-tree-input-derived");
   return {
     contractVersion: KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
-    ok: true,
+    ok: hasBoundedOptions,
     thread_root_id: threadRootId,
     current_node_id: currentNodeId,
     options: resultOptions,

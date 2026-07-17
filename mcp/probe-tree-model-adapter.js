@@ -1,3 +1,5 @@
+import { extractProbeTreeUserInputText } from "../canvas/src/features/agent-ready/probeTreeUserInputRelevance.mjs";
+
 const PROVIDER_OLLAMA = "ollama";
 const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434";
 const DEFAULT_TIMEOUT_MS = 20000;
@@ -54,8 +56,11 @@ const optionFormatSchema = Object.freeze({
         properties: {
           text: { type: "string" },
           rationale: { type: "string" },
+          evidenceNeeded: { type: "string" },
+          selectionOptions: { type: "array", minItems: 2, maxItems: 4, items: { type: "string" } },
+          contextAnchors: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
         },
-        required: ["text", "rationale"],
+        required: ["text", "rationale", "evidenceNeeded", "selectionOptions", "contextAnchors"],
       },
     },
   },
@@ -63,15 +68,18 @@ const optionFormatSchema = Object.freeze({
 });
 
 export const buildProbeModelPrompt = ({ contextText, recalledExemplars, k }) => [
-  "Generate concise candidate next questions for a branching probe-tree.",
-  "Return JSON only with shape {\"options\":[{\"text\":\"...\",\"rationale\":\"...\"}]}",
+  "Generate concise candidate next questions and bounded answers for a branching probe-tree.",
+  "Return JSON only with shape {\"options\":[{\"text\":\"...\",\"rationale\":\"...\",\"evidenceNeeded\":\"...\",\"selectionOptions\":[\"...\",\"...\"],\"contextAnchors\":[\"...\",\"...\"]}]}",
   `Return at most ${k} options.`,
+  "Use the current user input as the only content source. Do not use stock evidence, process, policy, reviewer, or system-of-record choices unless those concepts appear in that input.",
+  "Each question must resolve a concrete choice named by the user; each selectionOptions array must contain 2-4 concise answers to that exact question.",
+  "Each contextAnchors array must copy 2-6 short phrases verbatim from the current user input. Never invent an anchor and never copy wording from an exemplar.",
   "Questions must ask for missing context or user-selected direction, not answer the user's problem.",
   "Avoid medical advice, diagnosis, medication instructions, PHI, credentials, URLs, or provider claims.",
   "",
-  `Current context: ${normalizeString(contextText)}`,
+  `Current user input: ${normalizeString(extractProbeTreeUserInputText(contextText))}`,
   recalledExemplars.length
-    ? `Resolved exemplars:\n${recalledExemplars.map((entry) => `- ${normalizeString(entry.memory)}`).join("\n")}`
+    ? `Resolved structural exemplars (structure only; never reuse their content):\n${recalledExemplars.map((entry) => `- ${normalizeString(entry.memory)}`).join("\n")}`
     : "Resolved exemplars: none",
 ].join("\n");
 
@@ -94,7 +102,16 @@ const parseOptionsJson = (text) => {
   return options.map((option) => ({
     text: normalizeString(option?.text),
     rationale: normalizeString(option?.rationale),
-  })).filter((option) => option.text && option.rationale);
+    evidenceNeeded: normalizeString(option?.evidenceNeeded),
+    selectionOptions: Array.isArray(option?.selectionOptions) ? option.selectionOptions.map(normalizeString).filter(Boolean) : [],
+    contextAnchors: Array.isArray(option?.contextAnchors) ? option.contextAnchors.map(normalizeString).filter(Boolean) : [],
+  })).filter((option) => (
+    option.text
+    && option.rationale
+    && option.evidenceNeeded
+    && option.selectionOptions.length >= 2
+    && option.contextAnchors.length >= 2
+  ));
 };
 
 export async function generateProbeOptionsWithLocalModel({ contextText, recalledExemplars = [], k, env = process.env, fetchImpl = fetch }) {
