@@ -41,6 +41,7 @@ import {
 import {
   buildXrAnimationInvocation,
   controlLocalAnimation,
+  inspectLocalAnimation,
 } from './xrAnimationMcpRuntime'
 import {
   readXrMotionReferenceRuntime,
@@ -185,6 +186,7 @@ export function XrAnimationFloatingPanelView() {
   const runtime = React.useSyncExternalStore(subscribeXrMotionReferenceRuntime, readXrMotionReferenceRuntime, readXrMotionReferenceRuntime)
   const selectedActorId = React.useMemo(() => readBoundXrSelectedActorId(), [runtime, selectedNodeId])
   const grammar = useAgenticOsRemoteGrammarCatalog({ sigils: ['/', '#', '@'] })
+  const animationInspection = inspectLocalAnimation()
   const search = useFloatingPanelCatalogSearch()
   const sceneReady = Boolean(graphData && String(markdownDocumentName || '').trim() && String(markdownDocumentText || '').trim())
   const visiblePresets = React.useMemo(() => XR_ANIMATION_PRESETS.filter(preset => matchesFloatingPanelCatalogSearch(search.normalizedSearchQuery, [preset.id, preset.label, preset.kind, preset.description, ...preset.keywords])), [search.normalizedSearchQuery])
@@ -221,7 +223,7 @@ export function XrAnimationFloatingPanelView() {
       markId: update.markId,
       targetId: update.kind === 'cast' ? update.actorId : 'camera',
       easing: update.easing,
-      ...(update.kind === 'cast' ? { gait: update.gait } : {}),
+      ...(update.kind === 'cast' ? { gait: update.gait, position: update.position } : {}),
     }))
   }, [toastResult])
 
@@ -250,7 +252,13 @@ export function XrAnimationFloatingPanelView() {
         {grammar.hydration.status !== 'fresh' ? <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Invocation catalog: {grammar.hydration.status} ({grammar.counts.slash}/{grammar.counts.hash}/{grammar.counts.at})</p> : null}
       </section>
       <section className={floatingPanelCatalogBodyClassName('grid content-start gap-3')}>
-        <XrChoreographyInspector runtime={runtime} selectedActorId={selectedActorId} onChange={configureMark} />
+        <XrChoreographyInspector
+          controlTool={animationInspection.webMcpTools.control}
+          invocationReady={animationInspection.catalog.canonical && grammar.hydration.status === 'fresh'}
+          runtime={runtime}
+          selectedActorId={selectedActorId}
+          onChange={configureMark}
+        />
         {visibleCharacter.length ? <section className="grid gap-2" aria-label="Character motions" data-kg-animation-group="character-motion"><header className="flex items-center justify-between"><h2 className="text-[11px] font-semibold uppercase">Character motions</h2><output className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{visibleCharacter.length}</output></header><PresetGroup collapsedKeys={collapsedKeys} disabled={panelDisabled} onApply={applyPreset} onToggle={setCollapsed} presets={visibleCharacter} runtime={runtime} selectedActorId={selectedActorId} /></section> : null}
         {visiblePaths.length ? <section className="grid gap-2" aria-label="Action paths" data-kg-animation-group="action-path"><header className="flex items-center justify-between"><h2 className="text-[11px] font-semibold uppercase">Action paths</h2><output className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{visiblePaths.length}</output></header><PresetGroup collapsedKeys={collapsedKeys} disabled={panelDisabled} onApply={applyPreset} onToggle={setCollapsed} presets={visiblePaths} runtime={runtime} selectedActorId={selectedActorId} /></section> : null}
         {!visiblePresets.length ? <p className={cn('p-3 text-xs', UI_THEME_TOKENS.text.tertiary)}>No animation presets match this search.</p> : null}

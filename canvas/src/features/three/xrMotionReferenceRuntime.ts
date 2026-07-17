@@ -579,6 +579,7 @@ export function setXrMotionReferenceCastMarkChoreography(args: {
   markId: string
   easing?: XrChoreographyEasing
   gait?: XrChoreographyGait
+  position?: XrMotionReferenceVector
 }): XrMotionReferenceRuntimeSnapshot {
   const edit = buildCastMarkChoreographyEdit(snapshot.plan, args)
   return edit ? updatePlan(edit) : snapshot

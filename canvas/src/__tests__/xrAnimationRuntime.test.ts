@@ -266,19 +266,19 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   for (const marker of ['FloatingPanelCatalogHeader', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'ExpandCollapseAllButton', 'useCollapsibleSectionGroup', 'data-kg-animation-card-toggle', 'data-kg-animation-clear="selected-actor"', 'data-kg-animation-mcp="knowgrph.control_local_animation"']) {
     if (!panelSource.includes(marker)) throw new Error(`expected first-class Animation cards to reuse shared disclosure/catalog UI through ${marker}`)
   }
-  for (const marker of ['XrChoreographyInspector', "operation: 'configure-mark'", 'Shared cast and camera choreography, playback, and export']) {
+  for (const marker of ['XrChoreographyInspector', "operation: 'configure-mark'", 'position: update.position', 'inspectLocalAnimation', 'Shared cast and camera choreography, playback, and export']) {
     if (!panelSource.includes(marker)) throw new Error(`expected FloatingPanel Animation to project the shared choreography runtime through ${marker}`)
   }
-  for (const marker of ['data-kg-xr-choreography-inspector="shared-runtime"', 'One mark model for cast and camera · Timeline owns time', 'resolveXrChoreographySpeedWarnings', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'data-kg-xr-choreography-card={target}', 'data-kg-xr-choreography-card-layout={FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT}', 'data-kg-xr-choreography-card-row="controls"']) {
+  for (const marker of ['data-kg-xr-choreography-inspector="shared-runtime"', 'One mark model for cast and camera · Timeline owns time', 'resolveXrChoreographySpeedWarnings', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'data-kg-xr-choreography-card={target}', 'data-kg-xr-choreography-card-layout={FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT}', 'data-kg-xr-choreography-card-row="controls"', 'data-kg-xr-choreography-runtime-ready', 'MCP · / @ # ready']) {
     if (!inspectorSource.includes(marker)) throw new Error(`expected Animation choreography inspection to expose ${marker}`)
   }
-  for (const marker of ['data-kg-xr-mark-easing', 'data-kg-xr-mark-gait', 'XR_CHOREOGRAPHY_EASINGS', 'XR_CHOREOGRAPHY_GAITS']) {
+  for (const marker of ['data-kg-xr-mark-easing', 'data-kg-xr-mark-gait', 'data-kg-xr-mark-position', 'data-kg-xr-mark-position-axis', 'Mark position · meters', 'XR_CHOREOGRAPHY_EASINGS', 'XR_CHOREOGRAPHY_GAITS']) {
     if (!choreographyControlsSource.includes(marker)) throw new Error(`expected Animation and Timeline to reuse mark controls through ${marker}`)
   }
-  for (const marker of ["'configure-mark'", 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkEasing', 'resolveXrChoreographySpeedWarnings']) {
+  for (const marker of ["'configure-mark'", 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkEasing', 'position: control.position', 'resolveXrChoreographySpeedWarnings']) {
     if (!animationMcpSource.includes(marker)) throw new Error(`expected Animation MCP to control and inspect choreography through ${marker}`)
   }
-  for (const marker of ["'configure-mark'", "enum: ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'hold']", "enum: ['hold', 'walk', 'jog', 'run', 'wheeled', 'flight', 'drop']"]) {
+  for (const marker of ["'configure-mark'", "enum: ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'hold']", "enum: ['hold', 'walk', 'jog', 'run', 'wheeled', 'flight', 'drop']", "Cast mark [x, y, z] position in stage meters"]) {
     if (!agentReadyContractSource.includes(marker)) throw new Error(`expected Web MCP schema to expose typed choreography fields through ${marker}`)
   }
   const mediaIndex = toolbarSource.indexOf("{ view: 'media'")
@@ -337,13 +337,17 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
       throw new Error(`expected upstream / @ # animation invocation to persist and reveal the canonical runtime, got ${JSON.stringify(applied)}`)
     }
     const configuredMarkId = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === 'actor-a')!.marks[0]!.id
-    const configured = controlLocalAnimation({ operation: 'configure-mark', markKind: 'cast', markId: configuredMarkId, targetId: 'actor-a', easing: 'ease-in-out', gait: 'run' })
+    const configured = controlLocalAnimation({ operation: 'configure-mark', markKind: 'cast', markId: configuredMarkId, targetId: 'actor-a', easing: 'ease-in-out', gait: 'run', position: [2, 0, -1] })
     const configuredMark = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === 'actor-a')!.marks.find(mark => mark.id === configuredMarkId)
-    if (!configured.ok || configuredMark?.transition !== 'ease-in-out' || configuredMark.gait !== 'run' || readXrMotionReferenceRuntime().dirty) {
+    if (!configured.ok || configuredMark?.transition !== 'ease-in-out' || configuredMark.gait !== 'run' || configuredMark.position.join('|') !== '2|0|-1' || readXrMotionReferenceRuntime().dirty) {
       throw new Error(`expected structured MCP to persist per-mark cast choreography atomically, got ${JSON.stringify(configured)}`)
     }
     const invalidMarkConfig = controlLocalAnimation({ operation: 'configure-mark', markKind: 'cast', markId: 'missing-mark', targetId: 'actor-a', easing: 'ease-in' })
     if (invalidMarkConfig.ok) throw new Error('expected structured MCP to reject an unknown choreography mark')
+    const invalidPositionConfig = controlLocalAnimation({ operation: 'configure-mark', markKind: 'cast', markId: configuredMarkId, targetId: 'actor-a', position: [1, 2] as never })
+    if (invalidPositionConfig.ok) throw new Error('expected structured MCP to reject a malformed cast mark position')
+    const unboundedPositionConfig = controlLocalAnimation({ operation: 'configure-mark', markKind: 'cast', markId: configuredMarkId, targetId: 'actor-a', position: [1001, 0, 0] })
+    if (unboundedPositionConfig.ok) throw new Error('expected structured MCP to reject an out-of-bounds cast mark position')
     const scrubbed = controlLocalAnimation({ invocation: '/animation.control @canvas operation=scrub time=1.250' })
     const exported = controlLocalAnimation({ operation: 'export' })
     const inspection = inspectLocalAnimation()
@@ -362,6 +366,7 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
       || !inspection.catalog.canonical
       || inspection.presets.length !== 11
       || inspection.runtime.cast.find(track => track.actorId === 'actor-a')?.marks[0]?.transition !== 'ease-in-out'
+      || inspection.runtime.cast.find(track => track.actorId === 'actor-a')?.marks[0]?.position.join('|') !== '2|0|-1'
       || !Array.isArray(inspection.runtime.speedWarnings)) {
       throw new Error('expected Animation MCP inspect/control to share invocation, scrub, and export runtime state')
     }

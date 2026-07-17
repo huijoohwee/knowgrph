@@ -68,10 +68,14 @@ function ChoreographyCard({
 }
 
 export function XrChoreographyInspector({
+  controlTool,
+  invocationReady,
   runtime,
   selectedActorId,
   onChange,
 }: {
+  controlTool: string
+  invocationReady: boolean
   runtime: XrMotionReferenceRuntimeSnapshot
   selectedActorId: string
   onChange: (update: XrChoreographyMarkUpdate) => void
@@ -95,7 +99,17 @@ export function XrChoreographyInspector({
           <h2 className="text-[11px] font-semibold uppercase">Choreography</h2>
           <p className={cn('m-0 text-[9px]', UI_THEME_TOKENS.text.tertiary)}>One mark model for cast and camera · Timeline owns time</p>
         </section>
-        <output className={cn('text-[9px]', warnings.length ? 'text-amber-700 dark:text-amber-300' : UI_THEME_TOKENS.text.tertiary)} data-kg-xr-speed-warning-count={warnings.length}>{warnings.length ? `${warnings.length} speed warning${warnings.length === 1 ? '' : 's'}` : 'Speed sane'}</output>
+        <section className="grid shrink-0 justify-items-end gap-0.5">
+          <output className={cn('text-[9px]', warnings.length ? 'text-amber-700 dark:text-amber-300' : UI_THEME_TOKENS.text.tertiary)} data-kg-xr-speed-warning-count={warnings.length}>{warnings.length ? `${warnings.length} speed warning${warnings.length === 1 ? '' : 's'}` : 'Speed sane'}</output>
+          <output
+            className={cn('text-[9px]', invocationReady ? 'text-emerald-700 dark:text-emerald-300' : UI_THEME_TOKENS.text.tertiary)}
+            title={controlTool}
+            data-kg-xr-choreography-runtime-ready={invocationReady ? '1' : '0'}
+            data-kg-xr-choreography-mcp={controlTool}
+          >
+            {invocationReady ? 'MCP · / @ # ready' : 'Invocation catalog hydrating'}
+          </output>
+        </section>
       </header>
       {track && castMark ? (
         <ChoreographyCard
@@ -122,7 +136,7 @@ export function XrChoreographyInspector({
           Icon={Camera}
           target="camera"
           title="Camera path"
-          description="Editable shot path. Select a mark, then tune its easing."
+          description="Select a camera mark and tune easing here; edit framing in Camera → SHOOT."
           metadata={`${runtime.plan.camera.length} mark${runtime.plan.camera.length === 1 ? '' : 's'} · ${cameraMark.rig} · mark ${cameraMarkIndex + 1} · ${cameraMark.timeSeconds}s`}
           footer={(
             <>

@@ -343,6 +343,13 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
               markId: { type: 'string' },
               easing: { type: 'string', enum: ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'hold'] },
               gait: { type: 'string', enum: ['hold', 'walk', 'jog', 'run', 'wheeled', 'flight', 'drop'] },
+              position: {
+                type: 'array',
+                description: 'Cast mark [x, y, z] position in stage meters. Timing remains owned by BottomPanel Timeline.',
+                minItems: 3,
+                maxItems: 3,
+                items: { type: 'number', minimum: -1000, maximum: 1000 },
+              },
             },
             anyOf: [{ required: ['invocation'] }, { required: ['operation'] }],
           },

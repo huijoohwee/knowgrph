@@ -18,6 +18,7 @@ import {
   type XrChoreographyEasing,
   type XrChoreographyGait,
   type XrMotionReferencePackage,
+  type XrMotionReferenceVector,
 } from './xrMotionReferenceModel'
 import {
   clearXrMotionReferenceCastAnimation,
@@ -52,6 +53,7 @@ export type XrAnimationControlInput = Readonly<{
   markId?: string
   easing?: XrChoreographyEasing
   gait?: XrChoreographyGait
+  position?: XrMotionReferenceVector
 }>
 
 export type XrAnimationControlResult = Readonly<{
@@ -82,6 +84,7 @@ type NormalizedAnimationControl = Readonly<{
   markId: string
   easing?: XrChoreographyEasing
   gait?: XrChoreographyGait
+  position?: XrMotionReferenceVector
 }>
 
 function resolveCanonicalInvocationTokens(): CanonicalInvocationTokens | null {
@@ -183,6 +186,8 @@ function normalizeControl(input: XrAnimationControlInput): NormalizedAnimationCo
   if (input.markKind !== undefined && input.markKind !== 'cast' && input.markKind !== 'camera') return null
   if (input.easing !== undefined && !XR_CHOREOGRAPHY_EASINGS.includes(input.easing)) return null
   if (input.gait !== undefined && !XR_CHOREOGRAPHY_GAITS.includes(input.gait)) return null
+  if (input.position !== undefined && (input.position.length !== 3 || input.position.some(value => !Number.isFinite(value) || Math.abs(value) > 1000))) return null
+  if (input.markKind === 'camera' && (input.gait !== undefined || input.position !== undefined)) return null
   const trackKind = parsed?.trackKind || input.trackKind
   const timeSeconds = parsed ? parsed.timeSeconds : input.timeSeconds
   if (operation === 'scrub' && (!Number.isFinite(timeSeconds) || Number(timeSeconds) < 0)) return null
@@ -197,6 +202,7 @@ function normalizeControl(input: XrAnimationControlInput): NormalizedAnimationCo
     markId: String(input.markId || '').trim(),
     ...(input.easing ? { easing: input.easing } : {}),
     ...(input.gait ? { gait: input.gait } : {}),
+    ...(input.position ? { position: [...input.position] as XrMotionReferenceVector } : {}),
   }
 }
 
@@ -292,7 +298,7 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
   const targetId = resolvedTargetId(control)
 
   if (control.operation === 'configure-mark') {
-    if (!control.markId || (!control.easing && !control.gait)) return { ok: false, message: 'Configure-mark requires markId and easing or gait.' }
+    if (!control.markId || (!control.easing && !control.gait && !control.position)) return { ok: false, message: 'Configure-mark requires markId and easing, gait, or position.' }
     const previousRuntime = readXrMotionReferenceRuntime()
     if (control.markKind === 'camera') {
       if (!control.easing || !previousRuntime.plan.camera.some(mark => mark.id === control.markId)) return { ok: false, message: 'Select a valid camera mark and easing.' }
@@ -301,7 +307,7 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
     } else {
       const track = previousRuntime.plan.cast.find(candidate => candidate.actorId === targetId)
       if (!track?.marks.some(mark => mark.id === control.markId)) return { ok: false, message: 'Select a valid cast mark before configuring choreography.' }
-      setXrMotionReferenceCastMarkChoreography({ actorId: targetId, markId: control.markId, easing: control.easing, gait: control.gait })
+      setXrMotionReferenceCastMarkChoreography({ actorId: targetId, markId: control.markId, easing: control.easing, gait: control.gait, position: control.position })
       selectXrMotionReferenceCastMark(targetId, control.markId)
     }
     if (!persistPlan()) {

@@ -1,6 +1,6 @@
 import React from 'react'
 import { TriangleAlert } from 'lucide-react'
-import { PanelSelect } from '@/lib/ui/panelFormControls'
+import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import {
@@ -10,11 +10,12 @@ import {
   type XrChoreographyGait,
   type XrMotionReferenceCameraMark,
   type XrMotionReferenceMark,
+  type XrMotionReferenceVector,
 } from './xrMotionReferenceModel'
 import type { XrChoreographySpeedWarning } from './xrChoreographyDiagnostics'
 
 export type XrChoreographyMarkUpdate =
-  | Readonly<{ kind: 'cast'; actorId: string; markId: string; easing?: XrChoreographyEasing; gait?: XrChoreographyGait }>
+  | Readonly<{ kind: 'cast'; actorId: string; markId: string; easing?: XrChoreographyEasing; gait?: XrChoreographyGait; position?: XrMotionReferenceVector }>
   | Readonly<{ kind: 'camera'; markId: string; easing?: XrChoreographyEasing }>
 
 type Props = Readonly<{
@@ -64,6 +65,33 @@ export function XrChoreographyMarkControls({ target, warning, compact = false, o
             {XR_CHOREOGRAPHY_GAITS.map(value => <option key={value} value={value}>{value}</option>)}
           </PanelSelect>
         </label>
+      ) : null}
+      {!compact && target.kind === 'cast' ? (
+        <fieldset className="grid min-w-[180px] flex-1 grid-cols-3 gap-1 border-0 p-0" data-kg-xr-mark-position={target.mark.id}>
+          <legend className={cn('col-span-3 text-[9px]', UI_THEME_TOKENS.text.tertiary)}>Mark position · meters</legend>
+          {(['X', 'Y', 'Z'] as const).map((axis, index) => (
+            <label key={axis} className="grid min-w-0 gap-0.5 text-[9px]">
+              <span className={UI_THEME_TOKENS.text.tertiary}>{axis}</span>
+              <PanelTextInput
+                className="h-7 min-w-0 px-1 text-[10px]"
+                type="number"
+                min={-1000}
+                max={1000}
+                step={0.1}
+                value={target.mark.position[index]}
+                aria-label={`Cast mark ${axis} position in meters`}
+                data-kg-xr-mark-position-axis={axis.toLowerCase()}
+                onChange={event => {
+                  const value = Number(event.target.value)
+                  if (!Number.isFinite(value)) return
+                  const position = [...target.mark.position] as [number, number, number]
+                  position[index] = value
+                  onChange({ kind: 'cast', actorId: target.actorId, markId: target.mark.id, position })
+                }}
+              />
+            </label>
+          ))}
+        </fieldset>
       ) : null}
       {warning ? (
         <output className="flex min-w-0 items-center gap-1 text-[9px] text-amber-700 dark:text-amber-300" title={warning.message} data-kg-xr-speed-warning={warning.code}>
