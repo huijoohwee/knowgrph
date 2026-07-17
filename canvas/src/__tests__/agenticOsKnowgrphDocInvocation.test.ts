@@ -50,6 +50,7 @@ export function testKnowgrphProbeTreeInvocationGrammarUsesDocAliasesAndToolIdent
     '        candidateOptionId: ask-safety',
     '        question: "Any severe, worsening, or urgent symptoms?"',
     '        rationale: Clarifies urgent risk before downstream planning.',
+    '        evidenceNeeded: Current symptom severity and trajectory.',
     '        selectionMode: multiple',
     '        probeTreeCardVariant: probe-tree-type-2',
     '        selectionOptions: [{ id: severe-symptoms, label: severe symptoms }, { id: worsening-symptoms, label: worsening symptoms }]',

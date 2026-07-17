@@ -73,6 +73,21 @@ const isStructuredProbeCard = (node: ChatResponseSurfaceNode): boolean => (
   && !GENERIC_PROBE_CARD_PATTERN.test(String(node.label || '').trim())
 )
 
+const selectLargestDistinctProbeCardSet = (cards: ChatResponseSurfaceNode[]): ChatResponseSurfaceNode[] => {
+  let selected: ChatResponseSurfaceNode[] = []
+  const combinationCount = 1 << cards.length
+  for (let mask = 1; mask < combinationCount; mask += 1) {
+    const candidate = cards.filter((_, index) => (mask & (1 << index)) !== 0)
+    if (candidate.length <= selected.length) continue
+    if (!areProbeTreeCardsMutuallyDistinct(candidate.map(card => ({
+      question: card.properties.question || card.properties.summary || card.label,
+      selectionOptions: card.properties.selectionOptions,
+    })))) continue
+    selected = candidate
+  }
+  return selected
+}
+
 const buildCandidateEdge = (source: string, target: string, candidateOptionId: string): GraphEdge => ({
   id: `probe-tree:edge:${hashText(`${source}:candidateOption:${target}`).slice(0, 12)}`,
   source,
@@ -164,25 +179,22 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
   const sourceWidgets = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'widget')
   const panels = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'panel')
   const responseCards = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'card')
-  const cards = responseCards.filter(isStructuredProbeCard)
+  const sourceEnvelopeAccepted = args.responseSource === 'provider'
+    ? sourceWidgets.length === 0 && panels.length === 0
+    : sourceWidgets.length === 1 && panels.length === 1 && readString(panels[0]?.label) === 'Probe-Tree Branches'
   if (
-    sourceWidgets.length !== 1
-    || panels.length !== 1
-    || readString(panels[0]?.label) !== 'Probe-Tree Branches'
+    !sourceEnvelopeAccepted
     || responseCards.length < 2
     || responseCards.length > 4
-    || cards.length !== responseCards.length
   ) return null
-  if (!cards.every(card => isProbeTreeCardUserInputRelevant({
+  const relevantCards = responseCards.filter(isStructuredProbeCard).filter(card => isProbeTreeCardUserInputRelevant({
     contextText: args.contextText,
     question: card.properties.question || card.properties.summary || card.label,
     selectionOptions: card.properties.selectionOptions,
     contextAnchors: card.properties.contextAnchors || card.properties.probeTreeUserInputAnchors,
-  }))) return null
-  if (!areProbeTreeCardsMutuallyDistinct(cards.map(card => ({
-    question: card.properties.question || card.properties.summary || card.label,
-    selectionOptions: card.properties.selectionOptions,
-  })))) return null
+  }))
+  const cards = selectLargestDistinctProbeCardSet(relevantCards)
+  if (cards.length < 2) return null
 
   const removedNodeIds = collectReplacedProbeTreeNodeIds(graphData, anchorNodeId)
   const retainedNodes = (graphData.nodes || []).filter(node => !removedNodeIds.has(readNodeId(node)))
@@ -210,12 +222,12 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
     return {
       id: nodeId,
       type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-      label: String(card.label || question).trim().slice(0, 160),
+      label: question.slice(0, 160),
       x: typeof previous?.x === 'number' && Number.isFinite(previous.x) ? previous.x : projectedPositions[index]!.x,
       y: typeof previous?.y === 'number' && Number.isFinite(previous.y) ? previous.y : projectedPositions[index]!.y,
       properties: {
         ...card.properties,
-        title: String(card.label || question).trim().slice(0, 160),
+        title: question.slice(0, 160),
         output: '',
         summary: question,
         index: `P${index + 1}`,
