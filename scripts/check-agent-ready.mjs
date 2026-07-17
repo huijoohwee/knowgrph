@@ -24,8 +24,8 @@ import { buildAgentReadyDiscoveryExpectations } from '../cloudflare/pages/knowgr
 import { buildAgentReadyCommerceChecks } from './agent-ready-commerce-checks.mjs'
 const canonicalOriginUrl = 'https://airvio.co'
 const canonicalBaseUrl = `${canonicalOriginUrl}/knowgrph`
-const baseUrl = (process.env.KNOWGRPH_AGENT_READY_BASE_URL || canonicalBaseUrl).replace(/\/+$/, '')
-const originUrl = new URL(baseUrl).origin
+const baseUrl = canonicalBaseUrl
+const originUrl = canonicalOriginUrl
 const rootA2aAgentCardUrl = `${originUrl}/.well-known/agent-card.json`
 const appBasePath = new URL(baseUrl).pathname.replace(/\/+$/, '') || '/'
 const defaultWorkspaceId = KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID
@@ -1128,7 +1128,7 @@ const checks = [
 let failed = 0
 for (const check of checks) {
   try {
-    const response = await fetch(check.url, {
+    const response = await fetch(check.url.replace(canonicalOriginUrl, new URL(process.env.KNOWGRPH_AGENT_READY_BASE_URL || canonicalBaseUrl).origin), {
       method: check.method || 'GET',
       headers: { accept: check.accept },
       body: check.body,
