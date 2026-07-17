@@ -11,6 +11,7 @@ import { useStoryboardWidgetWorkflowRunAll } from '@/components/StoryboardWidget
 import { createStoryboardWidgetWorkflowNodeRunner } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunAction'
 import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 import { buildStoryboardWidgetWorkflowResetAllGraphData } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowResetAll'
+import type { StoryboardWidgetWorkflowNodeRunnerArgs } from './storyboardWidgetWorkflowRunTypes'
 
 export function useStoryboardWidgetWorkflowActions(args: {
   storyboardWidgetViewActive: boolean
@@ -24,8 +25,8 @@ export function useStoryboardWidgetWorkflowActions(args: {
   widgetRegistry: WidgetRegistryEntry[]
   appendDraftNode: (args: { id?: string | null; type: string; label?: string | null; x: number; y: number; properties?: Record<string, unknown> }) => string
   setDraftGraphData: React.Dispatch<React.SetStateAction<GraphData | null>>
-  commitPublishedGraphData?: (graphData: GraphData) => void | Promise<void>
-  persistDraftGraphData: (graphData: GraphData) => void | Promise<void>
+  commitPublishedGraphData?: (graphData: GraphData) => void
+  persistDraftGraphData: StoryboardWidgetWorkflowNodeRunnerArgs['persistDraftGraphData']
   updateNode: (id: string, patch: Partial<GraphNode>) => void
   upsertUiToast: (args: UiToastInput) => void
   scheduleOverlayEdgeUpdate: () => void
@@ -77,14 +78,12 @@ export function useStoryboardWidgetWorkflowActions(args: {
       return
     }
     try {
-      if (args.commitPublishedGraphData) {
-        await args.commitPublishedGraphData(reset.graphData)
-      } else {
+      if (!args.commitPublishedGraphData) {
         const nextDraft = bumpStoryboardWidgetDraftGraphDataRevision(reset.graphData)
         args.draftGraphDataRef.current = nextDraft
         args.setDraftGraphData(prev => (prev === draft ? nextDraft : args.draftGraphDataRef.current))
-        await args.persistDraftGraphData(nextDraft)
       }
+      await args.persistDraftGraphData(reset.graphData, { label: 'Reset All', source: 'gitGraph' })
       args.scheduleOverlayEdgeUpdate()
       const nodeLabel = `${reset.resetCount} workflow node${reset.resetCount === 1 ? '' : 's'}`
       const message = reset.resetCount > 0 && reset.layoutChanged

@@ -586,7 +586,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
     const currentDurableGraph = publishedRunGraphData || args.readDraftGraphData()
     const durableGraph = currentDurableGraph && runAnchorNode ? preserveStoryboardWidgetWorkflowInputTopology({ graphData: currentDurableGraph, anchorNode: runAnchorNode }) : currentDurableGraph
     try {
-      if (durableGraph) await args.persistDraftGraphData(durableGraph)
+      if (durableGraph) await args.persistDraftGraphData(durableGraph, runOptions?.sourcePersistence)
     } catch (error) {
       const detail = error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '').trim() : ''
       args.upsertUiToast({ id: `storyboard-widget-persistence-failed-${String(nodeId || '')}`, kind: 'error', message: detail || 'Generated output could not be persisted to the workspace.', ttlMs: 5200 })

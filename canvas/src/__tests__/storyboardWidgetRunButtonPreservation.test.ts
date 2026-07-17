@@ -1000,7 +1000,7 @@ export function testStoryboardWidgetRunButtonPreservation_ResetAllAndWidgetReset
     'window.addEventListener(WORKFLOW_RESET_ALL_EVENT',
     'const resetWorkflowOutputs = React.useCallback(async () => {',
     'buildStoryboardWidgetWorkflowResetAllGraphData(draft)',
-    'await args.commitPublishedGraphData(reset.graphData)',
+    "await args.persistDraftGraphData(reset.graphData, { label: 'Reset All', source: 'gitGraph' })",
     'const handler = () => void resetWorkflowOutputs()',
   ]) {
     if (!workflowActionsText.includes(snippet)) throw new Error(`expected Storyboard Widget Reset all runtime snippet: ${snippet}`)

@@ -279,7 +279,7 @@ export const testNativeCrawlerWidgetRunReusesImportUrlBridgeAndPublishesRichMedi
   if (!nativeCrawlerBranchSource.includes('...clearRichMediaOutputProperties(nodeProps)') || !nativeCrawlerBranchSource.includes('args.publishOutput({')) {
     throw new Error('expected native crawler runs to clear legacy source output while retaining Rich Media Panel publication')
   }
-  if (!workflowSource.includes('await args.persistDraftGraphData(durableGraph)')) {
+  if (!workflowSource.includes('await args.persistDraftGraphData(durableGraph, runOptions?.sourcePersistence)')) {
     throw new Error('expected terminal Widget Card workflow state to await the required durable Markdown persistence path')
   }
   if (!nativeCrawlerRunSource.includes("loadingLabel: progressLabel")) {

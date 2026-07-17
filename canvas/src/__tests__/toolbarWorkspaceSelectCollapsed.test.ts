@@ -30,8 +30,8 @@ export function testToolbarAlwaysExpandedWithoutCollapseControls() {
   if (text.includes('getToolbarRunAllFloatingPanelTab') || text.includes('runAllFloatingPanelTab')) {
     throw new Error('expected Toolbar Run all not to route through a floating-panel tab helper')
   }
-  if (!text.includes('createStrybldrLocalVideoArtifactFromGraphData') || !text.includes("canvas2dRenderer === 'storyboard'")) {
-    throw new Error('expected Toolbar Run all to use the headless Strybldr local video artifact owner for Storyboard')
+  if (!text.includes('createStrybldrLocalVideoArtifactFromGraphData') || !text.includes('isStrybldrStoryboardGraphData(toolbarRunAllGraphData')) {
+    throw new Error('expected Toolbar Run all to reserve the headless video handoff for graph-identified Strybldr Storyboards')
   }
   if (!launcherText.includes('window.addEventListener(FLOATING_PANEL_OPEN_EVENT, handleFloatingPanelOpenEvent)')) {
     throw new Error('expected Toolbar launcher to wake renderer-owned floating panels from the shared open event')
@@ -42,5 +42,8 @@ export function testToolbarAlwaysExpandedWithoutCollapseControls() {
   }
   if (!text.includes('emitWorkflowRunAll({ source: \'toolbar\' })')) {
     throw new Error('expected Run all button to emit the toolbar workflow-run event')
+  }
+  if (!text.includes('if (shouldRouteToStrybldrRunAll) {') || !text.includes('primeStoryboardWidgetRunAllLayoutLockFromToolbar()\n          emitToolbarRunAll()')) {
+    throw new Error('expected multi-Widget Storyboards to dispatch through the shared workflow runner instead of the Strybldr handoff')
   }
 }

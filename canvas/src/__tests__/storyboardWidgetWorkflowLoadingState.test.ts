@@ -23,8 +23,12 @@ export function testStoryboardWidgetCanvasRunSetsSharedOutputLoadingState() {
   if (!renderGraph.includes('export function getCachedStoryboardWidgetWorkflowRunPlan(args: {')) throw new Error('expected centralized workflow plan derivation')
   const runAll = readFileSync(runtime('useStoryboardWidgetWorkflowRunAll.ts'), 'utf8')
   if (!runAll.includes('const runPlan = getCachedStoryboardWidgetWorkflowRunPlan({') || !runAll.includes("import type { UiToastInput } from '@/hooks/store/types'")) throw new Error('expected Run all to reuse the workflow plan and toast input contract')
+  if (!runAll.includes('isStoryboardWidgetProbeTreeLineageOnlyRootNode(draft, node)')) throw new Error('expected Run all to keep a generated Probe-Tree root as lineage while selected children own continuation runs')
   for (const snippet of ["const toastId = 'storyboard-widget-run-all'", "const upsertRunAllStatus = (status: WorkflowRunAllStatus, toast: Omit<UiToastInput, 'id'>) => {", 'ttlMs: null', 'dismissible: false', 'busy: true', '`Run All starting: 0/${ids.length} nodes. ${phaseSummary}`', '`Run All running ${index + 1}/${ids.length}: ${label}`', '`Run All completed ${index + 1}/${ids.length}: ${label}`', "`Run All complete: ran ${ids.length} node${ids.length === 1 ? '' : 's'}.`"]) {
     if (!runAll.includes(snippet)) throw new Error(`expected Run all progress toast contract snippet: ${snippet}`)
+  }
+  for (const snippet of ['sourcePersistence: {', "detail.source === 'chat' ? 'Chat Run All' : 'Run All'", "source: 'gitGraph'"]) {
+    if (!runAll.includes(snippet)) throw new Error(`expected Run all Git-style source tracking contract snippet: ${snippet}`)
   }
   if (runAll.includes("args.upsertUiToast({ id: 'storyboard-widget-run-all-done'")) throw new Error('expected Run all completion to resolve its shared progress toast')
 }

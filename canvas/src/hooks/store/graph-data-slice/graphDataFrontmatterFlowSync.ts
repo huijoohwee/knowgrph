@@ -447,13 +447,14 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
   nextNode?: GraphNode | null
 }): {
   sourceFiles: GraphState['sourceFiles']
+  accepted: boolean
   markdownDocumentText?: string | null
   markdownDocumentName?: string | null
 } {
   const activeName = String(args.state.markdownDocumentName || '').trim()
   const activeText = String(args.state.markdownDocumentText || '')
-  if (!activeName || !activeText) return { sourceFiles: args.sourceFiles }
-  if (!isMarkdownLikeFileName(activeName)) return { sourceFiles: args.sourceFiles }
+  if (!activeName || !activeText) return { sourceFiles: args.sourceFiles, accepted: false }
+  if (!isMarkdownLikeFileName(activeName)) return { sourceFiles: args.sourceFiles, accepted: false }
   if (isStrybldrStoryboardMarkdown(activeText)) {
     const strybldrText = syncStrybldrStoryboardMarkdownFromParsedGraph({
       text: activeText,
@@ -464,11 +465,12 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
     const nextText = isFrontmatterFlowGraphData(args.parsedGraphData) && frontmatterTextHasFlowTopology(activeText)
       ? upsertFrontmatterFlowMarkdownText(strybldrText, args.parsedGraphData)
       : strybldrText
-    if (!nextText || nextText === activeText) return { sourceFiles: args.sourceFiles }
+    if (!nextText || nextText === activeText) return { sourceFiles: args.sourceFiles, accepted: true }
     const activeFileMatch = findActiveMarkdownDocumentSourceFile(args)
     if (!activeFileMatch) {
       return {
         sourceFiles: args.sourceFiles,
+        accepted: true,
         markdownDocumentText: nextText,
         markdownDocumentName: activeName,
       }
@@ -485,21 +487,23 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
     }
     return {
       sourceFiles: nextSourceFiles,
+      accepted: true,
       markdownDocumentText: nextText,
       markdownDocumentName: activeName,
     }
   }
-  if (!isFrontmatterFlowGraphData(args.parsedGraphData)) return { sourceFiles: args.sourceFiles }
+  if (!isFrontmatterFlowGraphData(args.parsedGraphData)) return { sourceFiles: args.sourceFiles, accepted: false }
   const nextText = syncStructuredResponseEnvelopeFromNodeEdit({
     rawText: upsertFrontmatterFlowMarkdownText(activeText, args.parsedGraphData),
     previousNode: args.previousNode,
     nextNode: args.nextNode,
   })
-  if (nextText === activeText) return { sourceFiles: args.sourceFiles }
+  if (nextText === activeText) return { sourceFiles: args.sourceFiles, accepted: true }
   const activeFileMatch = findActiveMarkdownDocumentSourceFile(args)
   if (!activeFileMatch) {
     return {
       sourceFiles: args.sourceFiles,
+      accepted: true,
       markdownDocumentText: nextText,
       markdownDocumentName: activeName,
     }
@@ -516,6 +520,7 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
   }
   return {
     sourceFiles: nextSourceFiles,
+    accepted: true,
     markdownDocumentText: nextText,
     markdownDocumentName: activeName,
   }
