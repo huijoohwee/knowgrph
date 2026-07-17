@@ -151,8 +151,8 @@ export const testFlowWidgetOutputPortHandleDomOrderPrefersCenterLane = () => {
   if (!registrySection.includes('if (!portHandlesVisible) return null') || !registrySection.includes('const visiblePortRows = showPortRows && portHandlesVisible ? portRows : []')) {
     throw new Error('expected registry handle visibility to be independent from interaction enablement')
   }
-  if (!overlayHandles.includes('!props.selected') || overlayHandles.includes('const visible =')) {
-    throw new Error('expected Card and Rich Media overlay handles to mount only with selection chrome')
+  if (!overlayHandles.includes('(!props.selected && !isPendingTarget)') || !overlayHandles.includes('inputOnly={isPendingTarget && !props.selected}')) {
+    throw new Error('expected Card and Rich Media overlay handles to mount input-only targets during explicit edge drag')
   }
   if (!panel.includes('forceEnabled')) {
     throw new Error('expected the Rich Media outer pair to remain visible independently from schema interaction state')
