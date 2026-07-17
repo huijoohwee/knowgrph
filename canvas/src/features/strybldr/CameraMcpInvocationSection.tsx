@@ -10,6 +10,8 @@ import {
   floatingPanelCatalogThreeRowClassName,
   floatingPanelCatalogThreeRowThumbnailFrameClassName,
 } from '@/lib/ui/floatingPanelCatalogLayout'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { inspectLocalCamera } from './cameraMcpRuntime'
@@ -47,6 +49,7 @@ function CameraCatalogCard({
   footer,
   dataAttributes,
 }: CameraCatalogCardProps) {
+  const invocationTitle = /^[#/@]/.test(title)
   return (
     <article
       className={floatingPanelCatalogThreeRowClassName('cursor-default')}
@@ -62,7 +65,13 @@ function CameraCatalogCard({
       </span>
       <section className="grid min-w-0 grid-rows-[auto_auto_auto] gap-1" aria-label={`${title} Camera runtime summary`}>
         <header className="flex min-w-0 items-center justify-between gap-2" data-kg-floating-panel-card-row="title">
-          <h4 className="truncate text-xs font-semibold" title={title}>{title}</h4>
+          <h4
+            className={cn(invocationTitle ? UI_INLINE_CHIP_GROUP_CLASSNAME : 'truncate', 'text-xs font-semibold')}
+            title={title}
+            data-kg-camera-invocation-chip-renderer={invocationTitle ? 'shared-markdown-sigil' : undefined}
+          >
+            {renderMarkdownSigilInlineText(title)}
+          </h4>
         </header>
         <section className="grid min-w-0 gap-0.5" data-kg-floating-panel-card-row="meta">
           <p className={cn('m-0 line-clamp-2 text-[11px]', UI_THEME_TOKENS.text.secondary)} title={description}>{description}</p>

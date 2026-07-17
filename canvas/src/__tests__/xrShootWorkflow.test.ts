@@ -136,10 +136,10 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   for (const marker of ['<StrybldrCameraFramingSection', '<XrShootCameraSection']) {
     if (!cameraPanelSource.includes(marker)) throw new Error(`expected canonical FloatingPanel Camera ownership through ${marker}`)
   }
-  for (const marker of ['<CollapsibleSection', '<ExpandCollapseAllButton', '<CameraMcpInvocationSection', 'useCollapsibleSectionGroup', 'Expand All Camera sections', 'Collapse All Camera sections']) {
+  for (const marker of ['<CollapsibleSection', '<ExpandCollapseAllButton', '<CameraMcpInvocationSection', 'useCollapsibleSectionGroup', 'Expand All Camera sections', 'Collapse All Camera sections', 'renderMarkdownSigilInlineText', 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'data-kg-camera-runtime-invocation-chip-renderer="shared-markdown-sigil"', '/camera.frame #camera-shot @camera']) {
     if (!cameraPanelSource.includes(marker)) throw new Error(`expected Camera to reuse the 3D-for-XR disclosure owner through ${marker}`)
   }
-  for (const marker of ['useAgenticOsRemoteGrammarCatalog', 'inspectLocalCamera', 'data-kg-camera-webmcp-tool', 'data-kg-camera-invocation-token', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName']) {
+  for (const marker of ['useAgenticOsRemoteGrammarCatalog', 'inspectLocalCamera', 'data-kg-camera-webmcp-tool', 'data-kg-camera-invocation-token', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'renderMarkdownSigilInlineText(title)', 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'data-kg-camera-invocation-chip-renderer=', "const invocationTitle = /^[#/@]/.test(title)"]) {
     if (!cameraMcpInvocationSource.includes(marker)) throw new Error(`expected Camera MCP cards to project the shared catalog through ${marker}`)
   }
   if (!floatingPanelCatalogLayoutSource.includes('FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT')) {

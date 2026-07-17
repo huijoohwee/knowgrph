@@ -1,7 +1,9 @@
 import { Camera } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { FloatingPanelCatalogHeader } from '@/lib/ui/floatingPanelCatalogLayout'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
+import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
@@ -50,7 +52,14 @@ export function StrybldrCameraFloatingPanelView() {
             <section className="min-w-0 flex-1">
               <h3 className="text-xs font-semibold">Camera Runtime</h3>
               <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>One shared Camera owner across 2D, 3D, and XR.</p>
-              <p className={cn('mt-0.5 truncate font-mono text-[9px]', UI_THEME_TOKENS.text.tertiary)}>WebMCP · inspect + control · `/` `#` `@`</p>
+              <section
+                className={cn(UI_INLINE_CHIP_GROUP_CLASSNAME, 'mt-0.5 font-mono text-[9px]', UI_THEME_TOKENS.text.tertiary)}
+                aria-label="Camera Runtime invocation tokens"
+                data-kg-camera-runtime-invocation-chip-renderer="shared-markdown-sigil"
+              >
+                <span>WebMCP · inspect + control</span>
+                {renderMarkdownSigilInlineText('/camera.frame #camera-shot @camera')}
+              </section>
             </section>
             <section className="flex shrink-0 items-center gap-1">
               <output className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{visibleSectionKeys.length} sections</output>
