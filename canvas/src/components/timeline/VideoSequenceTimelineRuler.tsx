@@ -196,7 +196,7 @@ export function VideoSequenceTimelineRuler({
   sourceThumbnailWindows = [],
   sourceThumbnailSets = [],
   scopes = [],
-  taskSpans, timeAxisControls, timelineZoom,
+  taskSpans, timeAxisControls, timeRulerOverlay, timelineZoom,
   disabledLaneIds = VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
   onRulerPointerDown,
   onSelectRowKey,
@@ -220,7 +220,7 @@ export function VideoSequenceTimelineRuler({
   sourceThumbnailWindows?: readonly VideoSequenceTimelineThumbnailWindow[]
   sourceThumbnailSets?: readonly VideoSequenceTimelineSourceThumbnailSet[]
   scopes?: readonly VideoSequenceTimelineScope[]
-  taskSpans: readonly MermaidGanttTimelineTaskSpan[]; timeAxisControls?: React.ReactNode; timelineZoom: number
+  taskSpans: readonly MermaidGanttTimelineTaskSpan[]; timeAxisControls?: React.ReactNode; timeRulerOverlay?: React.ReactNode; timelineZoom: number
   disabledLaneIds?: VideoSequenceTimelineProjectionOptions['disabledLaneIds']
   onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
   onSelectRowKey: (rowKey: string) => void
@@ -331,6 +331,7 @@ export function VideoSequenceTimelineRuler({
         >
         <section className="timeline-video-sequence-ruler-axis" aria-label="Timeline time ruler" data-kg-video-sequence-ruler-axis="1" onPointerDown={onRulerPointerDown}>
           <VideoSequenceTimelineRulerTicks displayTicks={timelineAxisTicks} />
+          {timeRulerOverlay}
           <span
             className="timeline-transport-playhead-marker timeline-video-sequence-ruler-playhead-marker"
             style={{ left: resolveVideoSequenceRulerInsetLeft(timelineScaleMaxMinutes > 0 ? playheadPercent * (maxMinutes / timelineScaleMaxMinutes) : playheadPercent) }}

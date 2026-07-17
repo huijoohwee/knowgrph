@@ -23,6 +23,7 @@ function ChoreographyCard({
   children,
   description,
   footer,
+  invocation,
   metadata,
   target,
   title,
@@ -31,6 +32,7 @@ function ChoreographyCard({
   children?: React.ReactNode
   description: string
   footer: React.ReactNode
+  invocation: string
   metadata: string
   target: 'cast' | 'camera'
   title: string
@@ -58,22 +60,32 @@ function ChoreographyCard({
         </section>
         <footer className="flex min-w-0 items-center gap-1 overflow-x-auto" data-kg-xr-choreography-card-row="action">{footer}</footer>
       </section>
-      {children ? (
-        <section className={cn('col-span-2 grid gap-1 border-t pt-2', UI_THEME_TOKENS.panel.border)} data-kg-xr-choreography-card-row="controls">
-          {children}
-        </section>
-      ) : null}
+      <section className={cn('col-span-2 grid gap-1 border-t pt-2', UI_THEME_TOKENS.panel.border)} data-kg-xr-choreography-card-row="controls">
+        {children}
+        <output
+          className={cn('truncate font-mono text-[9px]', UI_THEME_TOKENS.text.tertiary)}
+          title={invocation}
+          data-kg-xr-choreography-card-row="invocation"
+          data-kg-xr-choreography-invocation={target}
+        >
+          {invocation}
+        </output>
+      </section>
     </article>
   )
 }
 
 export function XrChoreographyInspector({
+  cameraInvocation,
+  castInvocation,
   controlTool,
   invocationReady,
   runtime,
   selectedActorId,
   onChange,
 }: {
+  cameraInvocation: string
+  castInvocation: string
   controlTool: string
   invocationReady: boolean
   runtime: XrMotionReferenceRuntimeSnapshot
@@ -91,6 +103,18 @@ export function XrChoreographyInspector({
   const cameraWarning = cameraMark ? warnings.find(warning => warning.targetKind === 'camera' && warning.fromMarkId === cameraMark.id) : undefined
   const castMarkIndex = castMark ? track?.marks.findIndex(mark => mark.id === castMark.id) ?? -1 : -1
   const cameraMarkIndex = cameraMark ? runtime.plan.camera.findIndex(mark => mark.id === cameraMark.id) : -1
+  const projectedCastInvocation = castMark
+    ? castInvocation
+      .replace('<typed-id>', castMark.id)
+      .replace('<typed-easing>', castMark.transition)
+      .replace('<typed-gait>', castMark.gait)
+      .replace('<x,y,z>', castMark.position.join(','))
+    : castInvocation
+  const projectedCameraInvocation = cameraMark
+    ? cameraInvocation
+      .replace('<typed-id>', cameraMark.id)
+      .replace('<typed-easing>', cameraMark.easing)
+    : cameraInvocation
 
   return (
     <section className="grid gap-2" aria-label="Choreography" data-kg-xr-choreography-inspector="shared-runtime">
@@ -117,6 +141,7 @@ export function XrChoreographyInspector({
           target="cast"
           title={track.label}
           description="Editable cast path. Select a mark, then tune easing and gait."
+          invocation={projectedCastInvocation}
           metadata={`${track.marks.length} mark${track.marks.length === 1 ? '' : 's'} · mark ${castMarkIndex + 1} · ${castMark.timeSeconds}s`}
           footer={(
             <>
@@ -129,7 +154,7 @@ export function XrChoreographyInspector({
           <XrChoreographyMarkControls target={{ kind: 'cast', actorId: track.actorId, mark: castMark }} warning={castWarning} onChange={onChange} />
         </ChoreographyCard>
       ) : (
-        <ChoreographyCard Icon={Footprints} target="cast" title="Cast path" description="Select a cast actor to edit its path choreography." metadata="No cast target selected" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Choose a cast target above.</span>} />
+        <ChoreographyCard Icon={Footprints} target="cast" title="Cast path" description="Select a cast actor to edit its path choreography." invocation={castInvocation || controlTool} metadata="No cast target selected" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Choose a cast target above.</span>} />
       )}
       {cameraMark ? (
         <ChoreographyCard
@@ -137,6 +162,7 @@ export function XrChoreographyInspector({
           target="camera"
           title="Camera path"
           description="Select a camera mark and tune easing here; edit framing in Camera → SHOOT."
+          invocation={projectedCameraInvocation}
           metadata={`${runtime.plan.camera.length} mark${runtime.plan.camera.length === 1 ? '' : 's'} · ${cameraMark.rig} · mark ${cameraMarkIndex + 1} · ${cameraMark.timeSeconds}s`}
           footer={(
             <>
@@ -149,7 +175,7 @@ export function XrChoreographyInspector({
           <XrChoreographyMarkControls target={{ kind: 'camera', mark: cameraMark }} warning={cameraWarning} onChange={onChange} />
         </ChoreographyCard>
       ) : (
-        <ChoreographyCard Icon={Camera} target="camera" title="Camera path" description="Add camera marks in Camera → SHOOT; they share this easing model." metadata="0 marks · Timeline owns time" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>No camera marks yet.</span>} />
+        <ChoreographyCard Icon={Camera} target="camera" title="Camera path" description="Add camera marks in Camera → SHOOT; they share this easing model." invocation={cameraInvocation || controlTool} metadata="0 marks · Timeline owns time" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>No camera marks yet.</span>} />
       )}
     </section>
   )

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { TimelineTransportInlineClip, TimelineTransportTimeAxisClip } from '@/components/timeline/TimelineTransportControls'
+import { TimelineTransportInlineClip } from '@/components/timeline/TimelineTransportControls'
 import { GanttTimelineTransportPanel } from '@/features/gitgraph/GanttTimelineTransportPanel'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -118,12 +118,6 @@ export function XrCameraMotionSection() {
   }, [graphData, markdownDocumentName, pushUiToast])
 
   const edges = Array.isArray(graphData?.edges) ? graphData.edges.length : 0
-  const retimeRowCount = Math.max(1, runtime.plan.cast.length) + 1
-  const supplementalLaneStyle = {
-    '--kg-xr-retime-row-count': retimeRowCount,
-    '--kg-xr-timeline-marks-height': `${retimeRowCount * 26}px`,
-  } as React.CSSProperties
-
   if (!xrActive) return null
 
   return (
@@ -148,6 +142,7 @@ export function XrCameraMotionSection() {
           runtimeDocumentKey={xrTransportDocumentKey}
           runtimeDurationSeconds={runtime.plan.durationSeconds}
           runtimeFrameRate={runtime.plan.fps}
+          timeRulerOverlay={<CameraMotionMarkRetime layout="ruler" />}
           timeAxisControls={(
             <section className="flex min-w-0 items-center gap-2" aria-label="XR timeline scale controls" data-kg-timeline-axis-controls-layout="duration-fps">
               <label className="flex min-w-0 items-center gap-1 text-[9px]" data-kg-xr-timeline-seconds-control="time-axis">
@@ -182,16 +177,12 @@ export function XrCameraMotionSection() {
             <section
               className="timeline-transport-supplemental-lane"
               aria-label="XR Timeline player controls"
-              data-kg-xr-timeline-consolidated-lane="stage-output-retime"
+              data-kg-xr-timeline-consolidated-lane="stage-output-ruler"
               data-kg-xr-timeline-player-controls="1"
               data-kg-xr-timeline-cast-row-count={runtime.plan.cast.length}
-              style={supplementalLaneStyle}
             >
-              <header className="timeline-transport-supplemental-lane-label timeline-transport-supplemental-lane-label--stacked">
-                <span>XR control</span>
-                <span>Marks</span>
-              </header>
-              <section className="timeline-transport-supplemental-lane-content timeline-transport-supplemental-lane-content--time-axis">
+              <header className="timeline-transport-supplemental-lane-label">XR control</header>
+              <section className="timeline-transport-supplemental-lane-content">
                 <TimelineTransportInlineClip
                   laneStyle="video"
                   label="Stage & output"
@@ -201,6 +192,8 @@ export function XrCameraMotionSection() {
                   <p className={cn('mr-2 whitespace-nowrap text-[9px]', UI_THEME_TOKENS.text.tertiary)}>
                     {documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks · {speedWarnings.length ? `${speedWarnings.length} speed warnings` : 'speed sane'}
                   </p>
+
+                  <CameraMotionMarkRetime layout="controls" />
 
                   <label className="flex shrink-0 items-center gap-1 text-[10px]">
                     <span className={UI_THEME_TOKENS.text.tertiary}>Stage</span>
@@ -224,15 +217,6 @@ export function XrCameraMotionSection() {
                     Export package
                   </button>
                 </TimelineTransportInlineClip>
-
-                <TimelineTransportTimeAxisClip
-                  laneStyle="audio"
-                  aria-label="XR marks control bar"
-                  data-kg-xr-timeline-control-bar="marks"
-                  data-kg-xr-timeline-retime-axis="shared-ruler-scale"
-                >
-                  <CameraMotionMarkRetime layout="time-axis" />
-                </TimelineTransportTimeAxisClip>
               </section>
             </section>
           )}

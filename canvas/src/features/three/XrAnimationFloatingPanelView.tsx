@@ -253,6 +253,8 @@ export function XrAnimationFloatingPanelView() {
       </section>
       <section className={floatingPanelCatalogBodyClassName('grid content-start gap-3')}>
         <XrChoreographyInspector
+          cameraInvocation={animationInspection.invocationGrammar?.configureCameraMark || animationInspection.webMcpTools.control}
+          castInvocation={animationInspection.invocationGrammar?.configureCastMark || animationInspection.webMcpTools.control}
           controlTool={animationInspection.webMcpTools.control}
           invocationReady={animationInspection.catalog.canonical && grammar.hydration.status === 'fresh'}
           runtime={runtime}

@@ -270,6 +270,8 @@ export function inspectLocalAnimation() {
     invocationGrammar: canonical ? {
       applyCharacterMotion: `${canonical.command} ${canonical.characterMotion} ${canonical.selectedActor} operation=apply preset=<typed-id>`,
       applyActionPath: `${canonical.command} ${canonical.actionPath} ${canonical.selectedActor} operation=apply preset=<typed-id>`,
+      configureCastMark: `${canonical.command} ${canonical.actionPath} ${canonical.selectedActor} operation=configure-mark markKind=cast markId=<typed-id> easing=<typed-easing> gait=<typed-gait> position=<x,y,z>`,
+      configureCameraMark: `${canonical.command} ${canonical.canvas} operation=configure-mark markKind=camera markId=<typed-id> easing=<typed-easing>`,
       transport: `${canonical.command} ${canonical.canvas} operation=play|pause|scrub|export`,
     } : null,
     presets: XR_ANIMATION_PRESETS.map(preset => ({

@@ -5,6 +5,7 @@ import { type GanttTimelineTransportRulerModel } from './useGanttTimelineTranspo
 export type GanttTimelineTransportRulerProps = {
   model: GanttTimelineTransportRulerModel['ruler']
   timeAxisControls?: React.ReactNode
+  timeRulerOverlay?: React.ReactNode
 }
 
 export function GanttTimelineTransportRuler(args: GanttTimelineTransportRulerProps) {
@@ -30,6 +31,7 @@ export function GanttTimelineTransportRuler(args: GanttTimelineTransportRulerPro
       sourceThumbnailSets={args.model.sourceThumbnailSets}
       taskSpans={args.model.taskSpans}
       timeAxisControls={args.timeAxisControls}
+      timeRulerOverlay={args.timeRulerOverlay}
       timelineZoom={args.model.timelineZoom}
       onDropMedia={args.model.onDropMedia}
       onRulerPointerDown={args.model.onRulerPointerDown}

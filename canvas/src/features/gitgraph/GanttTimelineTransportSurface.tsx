@@ -7,6 +7,7 @@ export type GanttTimelineTransportSurfaceProps = {
   model: GanttTimelineTransportSurfaceModel
   supplementalLanes?: React.ReactNode
   timeAxisControls?: React.ReactNode
+  timeRulerOverlay?: React.ReactNode
 }
 
 export function GanttTimelineTransportSurface(args: GanttTimelineTransportSurfaceProps) {
@@ -19,6 +20,7 @@ export function GanttTimelineTransportSurface(args: GanttTimelineTransportSurfac
         shellModel={args.model.shellModel}
         supplementalLanes={args.supplementalLanes}
         timeAxisControls={args.timeAxisControls}
+        timeRulerOverlay={args.timeRulerOverlay}
       />
       <GanttTimelineTransportAudioPlaybackBridge model={args.model.audioPlaybackBridgeModel} />
     </>
