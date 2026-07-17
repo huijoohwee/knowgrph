@@ -218,29 +218,25 @@ async function waitForActiveDocumentReady(page: Page): Promise<void> {
   )
 }
 
-async function applyMarkerToActiveDocument(page: Page, marker: string) {
-  return await page.evaluate(async (inputMarker: string) => {
-    const graphStoreModule = await import('/src/hooks/useGraphStore.ts')
-    const graphState = graphStoreModule.useGraphStore.getState()
-    const name = String(graphState.markdownDocumentName || '').trim()
-    const currentText = String(graphState.markdownDocumentText || '')
-    const nextText = currentText.includes(inputMarker)
-      ? currentText
-      : `${currentText.replace(/\s*$/, '')}\n${inputMarker}\n`
-    const applied = await graphState.setActiveMarkdownDocument({
-      name,
-      text: nextText,
-      normalizeMermaidMmd: false,
-      autoEnableFrontmatter: false,
-      applyViewPreset: false,
-    })
-    const nextState = graphStoreModule.useGraphStore.getState()
-    return {
-      applied,
-      markdownDocumentName: String(nextState.markdownDocumentName || ''),
-      markdownDocumentText: String(nextState.markdownDocumentText || ''),
-    }
-  }, marker)
+async function appendMarkerThroughActiveEditor(page: Page, marker: string): Promise<void> {
+  const mainPanel = page.getByRole('complementary', { name: 'Main panel', exact: true })
+  await mainPanel.getByRole('button', { name: 'Close', exact: true }).click()
+  await mainPanel.waitFor({ state: 'hidden', timeout: 30_000 })
+
+  const editorSurface = page.locator('.kg-markdown-editor-pane .view-lines')
+  const editorSurfaceCount = await editorSurface.count()
+  if (editorSurfaceCount !== 1) {
+    throw new Error(`expected one active Markdown editor surface, got ${editorSurfaceCount}`)
+  }
+  await editorSurface.waitFor({ state: 'visible', timeout: 30_000 })
+  await editorSurface.click()
+  const editorFocused = await page.evaluate(() => {
+    const editorRoot = document.querySelector('.kg-markdown-editor-pane .monaco-editor')
+    return Boolean(document.activeElement && editorRoot?.contains(document.activeElement))
+  })
+  if (!editorFocused) throw new Error('active Markdown editor did not acquire keyboard focus')
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End')
+  await page.keyboard.insertText(`\n${marker}\n`)
 }
 
 async function assertSession(workerUrl: string, token: string, label: string): Promise<void> {
@@ -327,10 +323,7 @@ async function main(): Promise<void> {
     await waitForPageCondition(guestPage, 'guest peer roster', snapshot => snapshot.connectedPeerCount >= 2)
     await assertRoomStatus(WORKER_URL, DOC_PATH)
 
-    const applyResult = await applyMarkerToActiveDocument(guestPage, MARKER)
-    if (applyResult.applied !== true) {
-      throw new Error(`expected guest document apply to succeed, got ${JSON.stringify(applyResult)}`)
-    }
+    await appendMarkerThroughActiveEditor(guestPage, MARKER)
 
     const guestSnapshot = await waitForPageCondition(
       guestPage,
@@ -342,6 +335,7 @@ async function main(): Promise<void> {
       'owner marker propagation',
       snapshot => snapshot.markdownDocumentText.includes(MARKER),
     )
+    await openCollaborationPanel(guestPage)
 
     const ownerPanelText = await readMainPanelText(ownerPage)
     const guestPanelText = await readMainPanelText(guestPage)

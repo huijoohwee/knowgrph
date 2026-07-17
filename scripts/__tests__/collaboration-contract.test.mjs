@@ -12,9 +12,21 @@ import { findProtectedPushes, parsePrePushEntries } from '../check-pre-push-refs
 import { classifyPrePushGate } from '../run-pre-push-gate.mjs'
 import { fetchOpenPullRequests } from '../github-active-scope-client.mjs'
 
-test('device end delegates to the canonical Agentic Canvas OS checkout wrapper', () => {
+test('device lifecycle commands delegate to the canonical Agentic Canvas OS checkout wrapper', () => {
   const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
+  assert.equal(pkg.scripts?.['device:complete'], 'node ../agentic-canvas-os/scripts/device-branch.mjs complete')
   assert.equal(pkg.scripts?.['device:end'], 'node ../agentic-canvas-os/scripts/device-branch.mjs end')
+  assert.equal(pkg.scripts?.['device:park'], 'node ../agentic-canvas-os/scripts/device-branch.mjs park')
+})
+
+test('collaboration browser gate edits through the canonical active editor owner', () => {
+  const smoke = fs.readFileSync(new URL('../../canvas/scripts/verify-multi-user-collaboration-e2e.ts', import.meta.url), 'utf8')
+
+  assert.match(smoke, /\.kg-markdown-editor-pane \.view-lines/)
+  assert.match(smoke, /editorSurfaceCount !== 1/)
+  assert.match(smoke, /editorRoot\?\.contains\(document\.activeElement\)/)
+  assert.match(smoke, /keyboard\.insertText/)
+  assert.doesNotMatch(smoke, /graphState\.setActiveMarkdownDocument/)
 })
 
 test('collaboration smoke preparation builds grph-shared before readiness checks', () => {
