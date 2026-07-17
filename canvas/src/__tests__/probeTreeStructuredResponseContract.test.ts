@@ -255,20 +255,36 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
     'Authored request:',
     'Compare regulatory changes across Indonesia, Singapore, and Malaysia.',
     'Selected continuation question:',
-    'Which market should lead the regulatory review?',
-    'Selected continuation answer: Compare regulatory changes across Indonesia, Singapore, and Malaysia.',
+    'Which requested items should guide the next branch: provider-neutral protection guidance, evidence-needed fields, rationale, a review-ready licensed-adviser handoff?',
+    'Selected continuation answer:',
+    '1. provider-neutral protection guidance',
+    '4. a review-ready licensed-adviser handoff',
+    'Other: evidence confidence and urgency',
   ].join('\n')
-  const continuationKeywords = collectProbeTreeContextKeywords(extractProbeTreeUserInputText(continuationContext), 10)
+  const continuationInput = extractProbeTreeUserInputText(continuationContext)
+  const continuationKeywords = collectProbeTreeContextKeywords(continuationInput, 12)
+  const continuationOptions = buildProbeTreeInputDerivedOptions(continuationContext)
+  const questionOnlyContinuationContext = [
+    'Selected continuation question:',
+    'Which requested items should guide the next branch: coverage authority, claims freshness, adviser handoff?',
+  ].join('\n')
+  const questionOnlyContinuationInput = extractProbeTreeUserInputText(questionOnlyContinuationContext)
   const firstOption = options[0]
   if (
     forbiddenMetadata.some(keyword => keywords.includes(keyword))
     || !['sme', 'cyber', 'supply-chain', 'physical-asset', 'growth-stage'].every(keyword => keywords.includes(keyword))
     || !firstOption
     || !isProbeTreeCardUserInputRelevant({ contextText, question: firstOption.text, selectionOptions: firstOption.selectionOptions, contextAnchors: firstOption.contextAnchors })
-    || !['market', 'regulatory', 'indonesia', 'singapore', 'malaysia'].every(keyword => continuationKeywords.includes(keyword))
+    || continuationInput !== 'provider-neutral protection guidance, a review-ready licensed-adviser handoff, evidence confidence and urgency'
+    || !['protection', 'licensed-adviser', 'evidence', 'confidence', 'urgency'].every(keyword => continuationKeywords.includes(keyword))
+    || continuationOptions.length < 2
+    || continuationOptions.some(option => option.text.includes('Which requested items should guide the next branch: Which requested items'))
+    || !continuationOptions.some(option => option.selectionOptions.some(selection => selection.label === 'evidence confidence and urgency'))
+    || continuationOptions.some(option => option.selectionOptions.some(selection => selection.label === 'urgency'))
+    || questionOnlyContinuationInput !== 'coverage authority, claims freshness, adviser handoff'
     || JSON.stringify(options).includes('Current primary source for')
     || JSON.stringify(options).includes('Verified system-of-record fact for')
   ) {
-    throw new Error(`expected invocation scaffolding to yield only user-input-derived choices, got ${JSON.stringify({ keywords, continuationKeywords, options })}`)
+    throw new Error(`expected invocation scaffolding to yield only user-input-derived choices, got ${JSON.stringify({ keywords, continuationInput, continuationKeywords, continuationOptions, questionOnlyContinuationInput, options })}`)
   }
 }

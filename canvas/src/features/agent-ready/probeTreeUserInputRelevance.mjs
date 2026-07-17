@@ -24,6 +24,7 @@ const PROBE_TREE_RUNTIME_META_WORDS = new Set([
 
 const GENERIC_RESPONSE_CONTENT_PATTERN = /^(?:current (?:primary )?source for|verified system-of-record fact for|accountable reviewer confirmation for|which authoritative evidence confirms the current facts)/i;
 const PROBE_TREE_GUARD_CLAUSE_PATTERN = /^(?:do not|don't|never|stop|without)\b/i;
+const PROBE_TREE_GENERATED_QUESTION_SCAFFOLD_PATTERN = /^(?:which requested items should guide the next branch)\s*:\s*/i;
 
 export const cleanProbeTreeResponseText = (value, maxLength = 320) => (
   String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength)
@@ -85,11 +86,28 @@ const readContextMarker = (contextText, marker) => {
 export function extractProbeTreeUserInputText(contextText) {
   const continuationQuestion = readContextMarker(contextText, "Selected continuation question");
   const continuationAnswer = readContextMarker(contextText, "Selected continuation answer");
-  if (continuationQuestion || continuationAnswer) {
-    return [continuationQuestion, continuationAnswer].filter(Boolean).join("\n");
-  }
+  if (continuationAnswer) return normalizeProbeTreeContinuationAnswer(continuationAnswer);
+  if (continuationQuestion) return normalizeProbeTreeContinuationQuestion(continuationQuestion);
   return readContextMarker(contextText, "Authored request") || cleanProbeTreeResponseText(contextText, 8_000);
 }
+
+const normalizeProbeTreeContinuationQuestion = value => cleanProbeTreeResponseText(value, 8_000)
+  .replace(PROBE_TREE_GENERATED_QUESTION_SCAFFOLD_PATTERN, "")
+  .replace(/[?]+$/g, "")
+  .trim();
+
+const normalizeProbeTreeContinuationAnswer = value => {
+  const normalized = cleanProbeTreeResponseText(value, 8_000);
+  const numberedSelections = [...normalized.matchAll(
+    /(?:^|\s)\d+\.\s*(.+?)(?=(?:\s+\d+\.\s*)|(?:\s+Other(?:\s*:|$))|$)/gi,
+  )].map(match => cleanProbeTreeResponseText(match[1], 240)).filter(Boolean);
+  const otherSelection = cleanProbeTreeResponseText(
+    normalized.match(/(?:^|\s)Other\s*:\s*(.+)$/i)?.[1],
+    240,
+  );
+  const selections = [...numberedSelections, otherSelection].filter(Boolean);
+  return selections.length > 0 ? [...new Set(selections)].join(", ") : normalized;
+};
 
 const escapeProbeTreePattern = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -136,9 +154,12 @@ const stripLeadingDirectiveVerb = value => String(value || "").replace(
 );
 
 const splitEnumeratedPhrases = source => {
-  const phrases = String(source || "")
+  const authoredSource = String(source || "");
+  const enumeratedSource = /[,;]/.test(authoredSource)
+    ? authoredSource
+    : authoredSource.replace(/\b(?:and|or)\b(?=\s+(?:an?\s+)?[a-z0-9])/gi, ",");
+  const phrases = enumeratedSource
     .replace(/[.!?]+$/g, "")
-    .replace(/\b(?:and|or)\b(?=\s+(?:an?\s+)?[a-z0-9])/gi, ",")
     .split(/[,;]+/)
     .map((value, index) => cleanProbeTreeResponseText(index === 0 ? stripLeadingDirectiveVerb(value) : value, 160))
     .map(value => value.replace(/^(?:and|or)\s+/i, "").trim())
