@@ -29,6 +29,9 @@ import {
   useFloatingPanelCatalogSearch,
 } from '@/lib/ui/floatingPanelCatalogLayout'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
+import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
 import { cn } from '@/lib/utils'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 import { useCollapsibleSectionGroup } from '@/features/panels/ui/useCollapsibleSectionGroup'
@@ -41,6 +44,7 @@ import {
 import {
   buildXrAnimationInvocation,
   controlLocalAnimation,
+  inspectLocalAnimation,
 } from './xrAnimationMcpRuntime'
 import {
   readXrMotionReferenceRuntime,
@@ -51,6 +55,7 @@ import {
   xrMotionReferencePackageBlob,
   xrMotionReferencePackageFilename,
 } from './xrMotionReferencePackage'
+import { XrChoreographyInspector } from './XrChoreographyInspector'
 
 const PRESET_ICON_BY_ID: Readonly<Record<XrAnimationPreset['id'], LucideIcon>> = {
   fight: Swords,
@@ -64,6 +69,39 @@ const PRESET_ICON_BY_ID: Readonly<Record<XrAnimationPreset['id'], LucideIcon>> =
   'helicopter-orbit': CircleDot,
   'car-chase': Car,
   'collapsing-debris': Boxes,
+}
+
+function AnimationInvocationChips({
+  active = true,
+  invocation,
+  surface,
+}: {
+  active?: boolean
+  invocation: string
+  surface: 'action' | 'details'
+}) {
+  const displayInvocation = invocation || 'Catalog hydrating…'
+  const compactInvocation = invocation
+    ? splitInvocationTokenSegments(invocation)
+      .filter(segment => segment.kind === 'token')
+      .map(segment => segment.value)
+      .join(' ')
+    : displayInvocation
+  return (
+    <code
+      className={cn(
+        UI_INLINE_CHIP_GROUP_CLASSNAME,
+        'min-w-0 overflow-hidden font-mono text-[9px]',
+        surface === 'action' ? 'max-h-11 basis-full' : '',
+        active ? UI_THEME_TOKENS.text.secondary : UI_THEME_TOKENS.text.tertiary,
+      )}
+      title={invocation || 'Waiting for the upstream invocation catalog'}
+      data-kg-animation-invocation-chips={surface}
+      data-kg-animation-invocation-chip-renderer="shared-markdown-sigil"
+    >
+      {renderMarkdownSigilInlineText(surface === 'action' ? compactInvocation : displayInvocation)}
+    </code>
+  )
 }
 
 function AnimationPresetCard({
@@ -116,9 +154,9 @@ function AnimationPresetCard({
           <p className={cn('m-0 line-clamp-2 text-[11px]', UI_THEME_TOKENS.text.secondary)}>{preset.description}</p>
           <p className={cn('m-0 truncate text-[10px] uppercase tracking-wide', UI_THEME_TOKENS.text.tertiary)}>{preset.kind.replace('-', ' ')} · {preset.cycleSeconds}s · {preset.loop ? 'loop' : 'one shot'}</p>
         </section>
-        <footer className="flex min-w-0 items-center gap-1" data-kg-animation-card-row="action">
+        <footer className="flex min-w-0 flex-wrap items-center gap-1" data-kg-animation-card-row="action">
           <button type="button" className="App-toolbar__btn shrink-0" disabled={disabled || !compatible} onClick={onApply} data-kg-animation-card-apply={preset.id}>Apply</button>
-          <code className={cn('min-w-0 flex-1 truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)} title={invocation || 'Waiting for the upstream invocation catalog'}>{invocation || 'Catalog hydrating…'}</code>
+          <AnimationInvocationChips invocation={invocation} surface="action" />
         </footer>
       </section>
       <section
@@ -129,7 +167,7 @@ function AnimationPresetCard({
         <p className={UI_THEME_TOKENS.text.secondary}>Compatible: {preset.compatibleAssetIds.length ? preset.compatibleAssetIds.join(', ') : preset.compatibleCategories.join(', ') || 'graph cast'}</p>
         <p className={UI_THEME_TOKENS.text.tertiary}>Deterministic procedural pose/path · native Knowgrph runtime · no external animation asset.</p>
         {!compatible ? <p className="text-amber-700 dark:text-amber-300">Choose a compatible cast target to apply this preset.</p> : null}
-        <output className={cn('truncate font-mono text-[9px]', active ? UI_THEME_TOKENS.text.secondary : UI_THEME_TOKENS.text.tertiary)}>{invocation || 'Upstream / @ # tokens are not hydrated.'}</output>
+        <AnimationInvocationChips active={active} invocation={invocation} surface="details" />
       </section>
     </article>
   )
@@ -183,6 +221,7 @@ export function XrAnimationFloatingPanelView() {
   const runtime = React.useSyncExternalStore(subscribeXrMotionReferenceRuntime, readXrMotionReferenceRuntime, readXrMotionReferenceRuntime)
   const selectedActorId = React.useMemo(() => readBoundXrSelectedActorId(), [runtime, selectedNodeId])
   const grammar = useAgenticOsRemoteGrammarCatalog({ sigils: ['/', '#', '@'] })
+  const animationInspection = inspectLocalAnimation()
   const search = useFloatingPanelCatalogSearch()
   const sceneReady = Boolean(graphData && String(markdownDocumentName || '').trim() && String(markdownDocumentText || '').trim())
   const visiblePresets = React.useMemo(() => XR_ANIMATION_PRESETS.filter(preset => matchesFloatingPanelCatalogSearch(search.normalizedSearchQuery, [preset.id, preset.label, preset.kind, preset.description, ...preset.keywords])), [search.normalizedSearchQuery])
@@ -217,7 +256,7 @@ export function XrAnimationFloatingPanelView() {
     <section className={floatingPanelCatalogSurfaceClassName()} aria-label="Animation" data-kg-animation-floating-panel="1" data-kg-animation-mcp="knowgrph.control_local_animation" data-kg-animation-catalog-hydration={grammar.hydration.status}>
       <FloatingPanelCatalogHeader
         title="Animation"
-        subtitle="Native XR character motions, action paths, playback, and export"
+        subtitle="Shared cast and camera choreography, playback, and export"
         actionsLabel="Animation actions"
         dataAttributes={{ 'data-kg-animation-header': '1' }}
         actions={(
@@ -237,6 +276,14 @@ export function XrAnimationFloatingPanelView() {
         {grammar.hydration.status !== 'fresh' ? <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Invocation catalog: {grammar.hydration.status} ({grammar.counts.slash}/{grammar.counts.hash}/{grammar.counts.at})</p> : null}
       </section>
       <section className={floatingPanelCatalogBodyClassName('grid content-start gap-3')}>
+        <XrChoreographyInspector
+          cameraInvocation={animationInspection.invocationGrammar?.configureCameraMark || animationInspection.webMcpTools.control}
+          castInvocation={animationInspection.invocationGrammar?.configureCastMark || animationInspection.webMcpTools.control}
+          controlTool={animationInspection.webMcpTools.control}
+          invocationReady={animationInspection.catalog.canonical && grammar.hydration.status === 'fresh'}
+          runtime={runtime}
+          selectedActorId={selectedActorId}
+        />
         {visibleCharacter.length ? <section className="grid gap-2" aria-label="Character motions" data-kg-animation-group="character-motion"><header className="flex items-center justify-between"><h2 className="text-[11px] font-semibold uppercase">Character motions</h2><output className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{visibleCharacter.length}</output></header><PresetGroup collapsedKeys={collapsedKeys} disabled={panelDisabled} onApply={applyPreset} onToggle={setCollapsed} presets={visibleCharacter} runtime={runtime} selectedActorId={selectedActorId} /></section> : null}
         {visiblePaths.length ? <section className="grid gap-2" aria-label="Action paths" data-kg-animation-group="action-path"><header className="flex items-center justify-between"><h2 className="text-[11px] font-semibold uppercase">Action paths</h2><output className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{visiblePaths.length}</output></header><PresetGroup collapsedKeys={collapsedKeys} disabled={panelDisabled} onApply={applyPreset} onToggle={setCollapsed} presets={visiblePaths} runtime={runtime} selectedActorId={selectedActorId} /></section> : null}
         {!visiblePresets.length ? <p className={cn('p-3 text-xs', UI_THEME_TOKENS.text.tertiary)}>No animation presets match this search.</p> : null}

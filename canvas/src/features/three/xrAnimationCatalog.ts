@@ -1,4 +1,5 @@
 import type { XrMotionReferenceVector, XrSceneLibraryCategory } from './xrSceneLibrary'
+import type { XrChoreographyEasing, XrChoreographyGait } from './xrChoreographyEasing'
 
 export const XR_CHARACTER_MOTION_PRESET_IDS = [
   'fight',
@@ -69,7 +70,8 @@ export type XrAnimationPoseSample = Readonly<{
 export type XrAnimationPathMark = Readonly<{
   timeSeconds: number
   position: XrMotionReferenceVector
-  transition: 'linear' | 'hold'
+  transition: XrChoreographyEasing
+  gait: XrChoreographyGait
 }>
 
 const PEOPLE = ['people'] as const
@@ -191,13 +193,23 @@ export function buildXrAnimationActionPath(args: {
 }): readonly XrAnimationPathMark[] {
   const duration = Math.max(1, Number(args.durationSeconds) || 1)
   const [width, depth] = args.stageSizeMeters
-  const mark = (progress: number, position: XrMotionReferenceVector, transition: 'linear' | 'hold' = 'linear'): XrAnimationPathMark => ({ timeSeconds: round(duration * progress, 3), position: boundedPosition(position, args.stageSizeMeters), transition })
+  const defaultGait: XrChoreographyGait = args.presetId === 'car-chase'
+    ? 'wheeled'
+    : args.presetId === 'collapsing-debris'
+      ? 'drop'
+      : 'flight'
+  const mark = (
+    progress: number,
+    position: XrMotionReferenceVector,
+    transition: XrChoreographyEasing = 'ease-in-out',
+    gait: XrChoreographyGait = defaultGait,
+  ): XrAnimationPathMark => ({ timeSeconds: round(duration * progress, 3), position: boundedPosition(position, args.stageSizeMeters), transition, gait })
   if (args.presetId === 'plane-landing') return [
     mark(0, [-width * 0.44, Math.max(7, args.origin[1]), depth * 0.28]),
     mark(0.38, [-width * 0.12, 3.8, depth * 0.12]),
     mark(0.62, [width * 0.12, 0.35, 0]),
-    mark(0.76, [width * 0.24, 0, -depth * 0.05]),
-    mark(1, [width * 0.43, 0, -depth * 0.08], 'hold'),
+    mark(0.76, [width * 0.24, 0, -depth * 0.05], 'ease-out', 'wheeled'),
+    mark(1, [width * 0.43, 0, -depth * 0.08], 'hold', 'hold'),
   ]
   if (args.presetId === 'helicopter-orbit') {
     const radiusX = Math.max(2.5, width * 0.28)
@@ -205,7 +217,7 @@ export function buildXrAnimationActionPath(args: {
     const altitude = Math.max(4.5, args.origin[1])
     return Array.from({ length: 9 }, (_item, index) => {
       const angle = index / 8 * Math.PI * 2
-      return mark(index / 8, [Math.cos(angle) * radiusX, altitude + Math.sin(angle * 2) * 0.35, Math.sin(angle) * radiusZ])
+      return mark(index / 8, [Math.cos(angle) * radiusX, altitude + Math.sin(angle * 2) * 0.35, Math.sin(angle) * radiusZ], 'linear')
     })
   }
   if (args.presetId === 'car-chase') return [
@@ -219,10 +231,10 @@ export function buildXrAnimationActionPath(args: {
   const originX = clamp(args.origin[0], -width * 0.25, width * 0.25)
   const originZ = clamp(args.origin[2], -depth * 0.25, depth * 0.25)
   return [
-    mark(0, [originX, Math.max(8, args.origin[1]), originZ], 'hold'),
+    mark(0, [originX, Math.max(8, args.origin[1]), originZ], 'ease-in', 'drop'),
     mark(0.28, [originX + 0.2, Math.max(7.5, args.origin[1] - 0.5), originZ - 0.1]),
     mark(0.68, [originX - 0.45, 0.3, originZ + 0.55]),
     mark(0.82, [originX + 0.35, 0.85, originZ + 0.9]),
-    mark(1, [originX + 0.8, 0, originZ + 1.25], 'hold'),
+    mark(1, [originX + 0.8, 0, originZ + 1.25], 'hold', 'hold'),
   ]
 }

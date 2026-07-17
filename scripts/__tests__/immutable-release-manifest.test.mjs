@@ -14,6 +14,7 @@ const sourceRevision = execFileSync('git', ['rev-parse', 'HEAD'], {
   encoding: 'utf8',
 }).trim()
 const targetRef = 'refs/heads/agent/test-device/runtime-revision-identity'
+const localHostnameTargetRef = 'refs/heads/agent/katrinas-macbook-pro.local/runtime-revision-identity'
 
 test('immutable release manifest accepts canonical GitHub repository slugs and remote URLs', () => {
   assert.equal(resolveGitHubRepository('huijoohwee/knowgrph'), 'huijoohwee/knowgrph')
@@ -34,6 +35,14 @@ test('immutable release manifest binds one exact source tree to the pinned docs 
     },
   )
   assert.match(result.digest, /^[0-9a-f]{64}$/)
+})
+
+test('immutable release manifest accepts workflow-generated local hostname branches', async () => {
+  const manifest = await buildImmutableReleaseManifest({
+    sourceRevision,
+    targetRef: localHostnameTargetRef,
+  })
+  assert.equal(manifest.targetRef, localHostnameTargetRef)
 })
 
 test('immutable release manifest rejects mutable target refs and cross-commit replay', async () => {

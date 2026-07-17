@@ -6,16 +6,21 @@ import {
   XR_MOTION_REFERENCE_PACKAGE_SCHEMA,
   XR_MOTION_REFERENCE_SCHEMA,
   readXrMotionReferencePlan,
+  sampleXrMotionReferenceCameraPose,
+  sampleXrMotionReferenceCameraSettings,
   sampleXrMotionReferenceMarks,
   serializeXrMotionReferencePlan,
 } from '@/features/three/xrMotionReferenceModel'
 import { buildXrMotionReferencePackage, xrMotionReferencePackageBlob, xrMotionReferencePackageFilename } from '@/features/three/xrMotionReferencePackage'
+import { resolveXrChoreographySpeedWarnings } from '@/features/three/xrChoreographyDiagnostics'
 import {
   addXrMotionReferenceSubject,
   hydrateXrMotionReferenceRuntime,
   readXrMotionReferenceRuntime,
   removeXrMotionReferenceSubject,
+  setXrMotionReferenceCameraMarkEasing,
   setXrMotionReferenceCameraMark,
+  setXrMotionReferenceCastMarkChoreography,
   setXrMotionReferenceCastTransition,
   setXrMotionReferenceCastMark,
   setXrMotionReferenceDuration,
@@ -139,6 +144,9 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     settings: { angle: 'right-side', level: 'high-angle', shot: 'close-up', note: 'Arrival', orbitX: 0.4, orbitY: -0.35, focalLengthMm: 85 },
     rig: 'drone',
   })
+  const authored = readXrMotionReferenceRuntime().plan
+  setXrMotionReferenceCastMarkChoreography({ actorId: 'cast-a', markId: authored.cast.find(track => track.actorId === 'cast-a')!.marks[0]!.id, easing: 'ease-in', gait: 'walk' })
+  setXrMotionReferenceCameraMarkEasing(authored.camera[0]!.id, 'ease-in-out')
   setXrMotionReferencePlayhead(2.5)
   runtime = readXrMotionReferenceRuntime()
   if (runtime.plan.stageId !== 'loading-bay' || runtime.plan.durationSeconds !== 5 || runtime.plan.fps !== 10 || !runtime.dirty) {
@@ -150,11 +158,35 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     throw new Error(`expected cast sampling to land on authored mark, got ${sampled.join('|')}`)
   }
   const holdMarks = [
-    { id: 'hold:0', timeSeconds: 0, position: [0, 0, 0] as const, transition: 'hold' as const },
-    { id: 'hold:2', timeSeconds: 2, position: [2, 0, 0] as const, transition: 'linear' as const },
+    { id: 'hold:0', timeSeconds: 0, position: [0, 0, 0] as const, transition: 'hold' as const, gait: 'hold' as const },
+    { id: 'hold:2', timeSeconds: 2, position: [2, 0, 0] as const, transition: 'linear' as const, gait: 'walk' as const },
   ]
   if (sampleXrMotionReferenceMarks(holdMarks, 1).join('|') !== '0|0|0' || sampleXrMotionReferenceMarks(holdMarks, 2).join('|') !== '2|0|0') {
     throw new Error('expected hold motion to jump onto the exact destination keyframe')
+  }
+  const holdCameraMarks = runtime.plan.camera.map((mark, index) => ({ ...mark, easing: index === 0 ? 'hold' as const : mark.easing }))
+  if (sampleXrMotionReferenceCameraPose(holdCameraMarks, 2.5).position.join('|') !== holdCameraMarks[0]!.pose.position.join('|')
+    || sampleXrMotionReferenceCameraPose(holdCameraMarks, 5).position.join('|') !== holdCameraMarks[1]!.pose.position.join('|')
+    || sampleXrMotionReferenceCameraSettings(holdCameraMarks, 5).focalLengthMm !== 85) {
+    throw new Error('expected camera hold easing to land on the exact destination mark for pose and settings')
+  }
+  const easedMarks = [
+    { id: 'ease:0', timeSeconds: 0, position: [0, 0, 0] as const, transition: 'ease-in' as const, gait: 'walk' as const },
+    { id: 'ease:2', timeSeconds: 2, position: [2, 0, 0] as const, transition: 'linear' as const, gait: 'walk' as const },
+  ]
+  if (sampleXrMotionReferenceMarks(easedMarks, 1).join('|') !== '0.5|0|0') {
+    throw new Error('expected deterministic per-mark easing to shape path sampling')
+  }
+  const warningPlan = readXrMotionReferencePlan({
+    durationSeconds: 2,
+    cast: [{ actorId: 'cast-a', marks: [
+      { timeSeconds: 0, position: [0, 0, 0], easing: 'linear', gait: 'walk' },
+      { timeSeconds: 1, position: [8, 0, 0], easing: 'linear', gait: 'walk' },
+    ] }],
+  }, graphData.nodes)
+  const warnings = resolveXrChoreographySpeedWarnings(warningPlan)
+  if (warnings[0]?.code !== 'cast-speed' || warnings[0]?.speedMetersPerSecond !== 8) {
+    throw new Error(`expected a typed gait speed warning for implausible motion, got ${JSON.stringify(warnings)}`)
   }
 
   const saturatedPlan = readXrMotionReferencePlan({
@@ -187,6 +219,11 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (JSON.stringify(serializeXrMotionReferencePlan(roundTrip)) !== JSON.stringify(serialized)) {
     throw new Error('expected XR motion-reference graph metadata to round-trip deterministically')
   }
+  if (roundTrip.cast.find(track => track.actorId === 'cast-a')?.marks[0]?.transition !== 'ease-in'
+    || roundTrip.cast.find(track => track.actorId === 'cast-a')?.marks[0]?.gait !== 'walk'
+    || roundTrip.camera[0]?.easing !== 'ease-in-out') {
+    throw new Error('expected cast gait plus cast/camera easing to survive deterministic graph metadata round-trip')
+  }
   if (roundTrip.camera[0]?.pose.target.join('|') !== '-3.6|0|-1.4' || roundTrip.camera[1]?.pose.target.join('|') !== '4|0|-3') {
     throw new Error(`expected camera marks to resolve around their timed graph-cast anchor positions, got ${JSON.stringify(roundTrip.camera.map(mark => mark.pose.target))}`)
   }
@@ -218,6 +255,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     'reference/manifest.json',
     'reference/cast-tracks.json',
     'reference/camera-track.json',
+    'reference/choreography-diagnostics.json',
     'reference/frame-samples.json',
     'reference/stage-map.svg',
     'handoff/video-generator-brief.txt',
@@ -226,9 +264,12 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     if (!paths.includes(expected)) throw new Error(`expected package virtual file ${expected}`)
   }
   const manifestFile = first.files.find(file => file.path === 'reference/manifest.json')!
-  const manifest = JSON.parse(manifestFile.text) as { cameraSemanticMapping?: { baselineMeters?: number; anchorFallback?: string } }
+  const manifest = JSON.parse(manifestFile.text) as { cameraSemanticMapping?: { baselineMeters?: number; anchorFallback?: string }; interpolation?: string; speedWarnings?: number }
   if (manifest.cameraSemanticMapping?.baselineMeters !== 8 || manifest.cameraSemanticMapping.anchorFallback !== 'stage-origin') {
     throw new Error(`expected explicit semantic camera meter mapping, got ${JSON.stringify(manifest.cameraSemanticMapping)}`)
+  }
+  if (manifest.interpolation !== 'per-mark-easing-with-gait-profiles' || typeof manifest.speedWarnings !== 'number') {
+    throw new Error(`expected the package manifest to declare choreography interpolation and diagnostics, got ${JSON.stringify(manifest)}`)
   }
   const missingAnchorPlan = readXrMotionReferencePlan({
     ...serialized as Record<string, unknown>,
@@ -349,7 +390,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   for (const marker of ['data-kg-media-3d-toggle="1"', '<XrMediaLibraryPanel', '3D for XR', "xrSurfaceActive ? 'xr-3d' : 'media'"]) {
     if (!mediaCatalogViewSource.includes(marker)) throw new Error(`expected FloatingPanel Media to expose ${marker}`)
   }
-  for (const marker of ['data-kg-media-xr-environments="1"', 'data-kg-media-xr-subject-library="1"', 'data-kg-media-xr-next-label="1"', 'data-kg-media-xr-assets-mcp=', 'data-kg-media-xr-invocation=', 'data-kg-media-xr-asset-transition=', 'data-kg-media-xr-subject-transition=', 'controlLocalXrScene']) {
+  for (const marker of ['data-kg-media-xr-environments="1"', 'data-kg-media-xr-subject-library="1"', 'data-kg-media-xr-next-label="1"', 'data-kg-media-xr-assets-mcp=', 'data-kg-media-xr-invocation=', 'data-kg-media-xr-invocation-chip-renderer="shared-markdown-sigil"', 'renderMarkdownSigilInlineText', 'renderAgenticOsInvocationKeywordChip', 'sourceLink: false', 'splitInvocationTokenSegments(invocation)', 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'data-kg-media-xr-asset-transition=', 'data-kg-media-xr-subject-transition=', 'controlLocalXrScene']) {
     if (!xrMediaLibrarySource.includes(marker)) throw new Error(`expected the native XR Media library to expose ${marker}`)
   }
   for (const marker of ['/xr.stage', '/xr.place', 'transition=']) {

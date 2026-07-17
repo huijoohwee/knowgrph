@@ -316,6 +316,23 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
     const modThreeGroupResizeUnstick = await import('../../__tests__/threeGroupResizeUnstickRegression.test')
     await execTest(results, 'ui.three.groupResize.globalFailsafe', modThreeGroupResizeUnstick.testThreeGroupResizeHasGlobalPointerFailsafe)
 
+    const modXrViewportControlsOwnership = await import('../../__tests__/xrViewportControlsOwnership.test')
+    await execTest(
+      results,
+      'ui.three.xrObjectDrag.synchronousViewportOwnership',
+      modXrViewportControlsOwnership.testXrViewportControlsOwnershipPublishesSynchronously,
+    )
+    await execTest(
+      results,
+      'ui.three.xrObjectDrag.suppressesOrbitControls',
+      modXrViewportControlsOwnership.testXrObjectDragSuppressesOrbitControlsBeforePointerMove,
+    )
+    await execTest(
+      results,
+      'ui.three.xrObjectDrag.pointerOwnership',
+      modXrViewportControlsOwnership.testXrViewportDragTerminationHonorsPointerOwnership,
+    )
+
     const modSelectionNoDup = await import('../../__tests__/selectionNoDuplicateTocFocusRegression.test')
     await execTest(results, 'ui.selection.noDuplicateTocFocusOnRepeatedSelect', modSelectionNoDup.testSelectingSameNodeDoesNotDispatchDuplicateTocFocus)
 

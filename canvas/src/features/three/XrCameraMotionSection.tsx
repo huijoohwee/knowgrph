@@ -24,6 +24,7 @@ import {
 import { buildXrMotionReferenceTimelineCode, xrMotionReferenceTimelineDocumentKey } from './xrMotionReferenceTimeline'
 import { CameraMotionMarkRetime } from './CameraMotionMarkRetime'
 import { resolveXrPanelSourceProfile } from './xrPanelModel'
+import { resolveXrChoreographySpeedWarnings } from './xrChoreographyDiagnostics'
 import { downloadBlob } from '@/lib/graph/save'
 import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -69,9 +70,10 @@ export function XrCameraMotionSection() {
   )
   const xrTransportDocumentKey = xrMotionReferenceTimelineDocumentKey(markdownDocumentName)
   const timelineCode = React.useMemo(
-    () => buildXrMotionReferenceTimelineCode(runtime.plan),
+    () => buildXrMotionReferenceTimelineCode(runtime.plan, { includeChoreographyCues: false }),
     [runtime.plan],
   )
+  const speedWarnings = React.useMemo(() => resolveXrChoreographySpeedWarnings(runtime.plan), [runtime.plan])
 
   React.useEffect(() => {
     if (!xrActive) return
@@ -116,12 +118,6 @@ export function XrCameraMotionSection() {
   }, [graphData, markdownDocumentName, pushUiToast])
 
   const edges = Array.isArray(graphData?.edges) ? graphData.edges.length : 0
-  const retimeRowCount = Math.max(1, runtime.plan.cast.length) + 1
-  const supplementalLaneStyle = {
-    '--kg-xr-retime-row-count': retimeRowCount,
-    '--kg-xr-timeline-marks-height': `${retimeRowCount * 26}px`,
-  } as React.CSSProperties
-
   if (!xrActive) return null
 
   return (
@@ -146,6 +142,50 @@ export function XrCameraMotionSection() {
           runtimeDocumentKey={xrTransportDocumentKey}
           runtimeDurationSeconds={runtime.plan.durationSeconds}
           runtimeFrameRate={runtime.plan.fps}
+          timelineInsertedLanes={[
+            ...runtime.plan.cast.map(track => ({
+              id: `xr-cast:${track.actorId}`,
+              insertAfterLaneId: 'scene',
+              label: (
+                <span className="xr-camera-motion-retime-lane-label" data-kg-xr-choreography-cast-lane-label={track.actorId}>
+                  <i aria-hidden style={{ backgroundColor: track.color }} />
+                  <b title={track.label}>{track.label}</b>
+                  <small>{track.marks.length}</small>
+                </span>
+              ),
+              content: (
+                <TimelineTransportTimeAxisClip
+                  laneStyle="video"
+                  className="xr-camera-motion-retime-time-axis-rail"
+                  aria-label={`${track.label} choreography time rail`}
+                  data-kg-xr-choreography-shared-axis-rail="cast"
+                >
+                  <CameraMotionMarkRetime layout="lane" laneTarget={{ kind: 'cast', actorId: track.actorId }} />
+                </TimelineTransportTimeAxisClip>
+              ),
+            })),
+            {
+              id: 'xr-camera',
+              insertAfterLaneId: 'scene',
+              label: (
+                <span className="xr-camera-motion-retime-lane-label" data-kg-xr-choreography-camera-lane-label="1">
+                  <i aria-hidden className="xr-camera-motion-retime-camera-swatch" />
+                  <b>Camera</b>
+                  <small>{runtime.plan.camera.length}</small>
+                </span>
+              ),
+              content: (
+                <TimelineTransportTimeAxisClip
+                  laneStyle="audio"
+                  className="xr-camera-motion-retime-time-axis-rail"
+                  aria-label="Camera choreography time rail"
+                  data-kg-xr-choreography-shared-axis-rail="camera"
+                >
+                  <CameraMotionMarkRetime layout="lane" laneTarget={{ kind: 'camera' }} />
+                </TimelineTransportTimeAxisClip>
+              ),
+            },
+          ]}
           timeAxisControls={(
             <section className="flex min-w-0 items-center gap-2" aria-label="XR timeline scale controls" data-kg-timeline-axis-controls-layout="duration-fps">
               <label className="flex min-w-0 items-center gap-1 text-[9px]" data-kg-xr-timeline-seconds-control="time-axis">
@@ -180,16 +220,12 @@ export function XrCameraMotionSection() {
             <section
               className="timeline-transport-supplemental-lane"
               aria-label="XR Timeline player controls"
-              data-kg-xr-timeline-consolidated-lane="stage-output-retime"
+              data-kg-xr-timeline-consolidated-lane="stage-output-ruler"
               data-kg-xr-timeline-player-controls="1"
               data-kg-xr-timeline-cast-row-count={runtime.plan.cast.length}
-              style={supplementalLaneStyle}
             >
-              <header className="timeline-transport-supplemental-lane-label timeline-transport-supplemental-lane-label--stacked">
-                <span>XR control</span>
-                <span>Marks</span>
-              </header>
-              <section className="timeline-transport-supplemental-lane-content timeline-transport-supplemental-lane-content--time-axis">
+              <header className="timeline-transport-supplemental-lane-label">XR control</header>
+              <section className="timeline-transport-supplemental-lane-content">
                 <TimelineTransportInlineClip
                   laneStyle="video"
                   label="Stage & output"
@@ -197,7 +233,7 @@ export function XrCameraMotionSection() {
                   data-kg-xr-timeline-control-bar="stage-output"
                 >
                   <p className={cn('mr-2 whitespace-nowrap text-[9px]', UI_THEME_TOKENS.text.tertiary)}>
-                    {documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks
+                    {documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks · {speedWarnings.length ? `${speedWarnings.length} speed warnings` : 'speed sane'}
                   </p>
 
                   <label className="flex shrink-0 items-center gap-1 text-[10px]">
@@ -222,15 +258,6 @@ export function XrCameraMotionSection() {
                     Export package
                   </button>
                 </TimelineTransportInlineClip>
-
-                <TimelineTransportTimeAxisClip
-                  laneStyle="audio"
-                  aria-label="XR marks control bar"
-                  data-kg-xr-timeline-control-bar="marks"
-                  data-kg-xr-timeline-retime-axis="shared-ruler-scale"
-                >
-                  <CameraMotionMarkRetime layout="time-axis" />
-                </TimelineTransportTimeAxisClip>
               </section>
             </section>
           )}

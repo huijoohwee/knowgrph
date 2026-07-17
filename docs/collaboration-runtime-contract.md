@@ -2,7 +2,7 @@
 title: "Knowgrph Collaboration Runtime Contract"
 doc_type: "Runtime Contract"
 status: "active"
-contract_version: 20
+contract_version: 21
 frontmatter_contract: "required"
 ci_command_timeout_ms: 300000
 invocation:
@@ -13,7 +13,7 @@ invocation:
   base_sha_pattern: "^[0-9a-f]{40}$"
 coordination:
   base_branch: "main"
-  branch_pattern: "^agent/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+  branch_pattern: "^agent/[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
   unique_active_scope: true
   protected_push_refs: ["refs/heads/main"]
 local_development:

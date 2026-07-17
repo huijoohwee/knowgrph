@@ -2,6 +2,7 @@ import React from 'react'
 import { GanttTimelineTransportSurface } from './GanttTimelineTransportSurface'
 import { useGanttTimelineTransportRouteModel } from './useGanttTimelineTransportRouteModel'
 import type { GanttTimelineTransportMode } from './ganttTimelineTransportMode'
+import type { VideoSequenceTimelineInsertedLane } from '@/components/timeline/VideoSequenceTimelineRuler'
 
 export function GanttTimelineTransportPanel({
   code,
@@ -15,6 +16,8 @@ export function GanttTimelineTransportPanel({
   runtimeFrameRate = 0,
   supplementalLanes,
   timeAxisControls,
+  timeRulerOverlay,
+  timelineInsertedLanes,
   onSelectedRowKeyChange,
 }: {
   code: string
@@ -28,6 +31,8 @@ export function GanttTimelineTransportPanel({
   runtimeFrameRate?: number
   supplementalLanes?: React.ReactNode
   timeAxisControls?: React.ReactNode
+  timeRulerOverlay?: React.ReactNode
+  timelineInsertedLanes?: readonly VideoSequenceTimelineInsertedLane[]
   onSelectedRowKeyChange?: (rowKey: string | null) => void
 }) {
   const transportRouteModel = useGanttTimelineTransportRouteModel({
@@ -42,5 +47,5 @@ export function GanttTimelineTransportPanel({
     runtimeFrameRate,
     onSelectedRowKeyChange,
   })
-  return <GanttTimelineTransportSurface model={transportRouteModel.surfaceModel} supplementalLanes={supplementalLanes} timeAxisControls={timeAxisControls} />
+  return <GanttTimelineTransportSurface model={transportRouteModel.surfaceModel} supplementalLanes={supplementalLanes} timeAxisControls={timeAxisControls} timeRulerOverlay={timeRulerOverlay} timelineInsertedLanes={timelineInsertedLanes} />
 }

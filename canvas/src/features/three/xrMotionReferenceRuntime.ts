@@ -4,7 +4,6 @@ import {
   readXrMotionReferencePlan,
   resolveXrMotionReferenceStage,
   sampleXrMotionReferenceMarks,
-  serializeXrMotionReferencePlan,
   XR_MOTION_REFERENCE_MAX_CAMERA_MARKS,
   XR_MOTION_REFERENCE_MAX_CAST_TRACKS,
   XR_MOTION_REFERENCE_MAX_CAST_MARKS,
@@ -15,6 +14,22 @@ import {
   type XrMotionReferenceTransition,
   type XrMotionReferenceVector,
 } from '@/features/three/xrMotionReferenceModel'
+import {
+  defaultXrCameraEasing,
+  defaultXrChoreographyGait,
+  type XrChoreographyEasing,
+  type XrChoreographyGait,
+} from './xrChoreographyEasing'
+import {
+  xrMotionReferenceCastTrackRecord as castTrackRecord,
+  xrMotionReferencePlanRecord as planRecord,
+  xrMotionReferenceSourceSignature as sourceSignature,
+} from './xrMotionReferenceRuntimeRecords'
+import {
+  buildCameraMarkChoreographyEdit,
+  buildCastMarkChoreographyEdit,
+} from './xrMotionReferenceChoreographyEdits'
+import { resolveExistingXrMotionReferenceMarkSelection, resolveRetimedCameraMarkSelection, resolveRetimedCastMarkSelection, type XrMotionReferenceMarkSelection } from './xrMotionReferenceSelection'
 import { resolveXrSceneLibraryAsset } from '@/features/three/xrSceneLibrary'
 import {
   buildXrAnimationActionPath,
@@ -24,12 +39,7 @@ import {
   type XrAnimationAssignment,
   type XrAnimationPresetId,
 } from '@/features/three/xrAnimationCatalog'
-
-export type XrMotionReferenceMarkSelection =
-  | Readonly<{ kind: 'cast'; actorId: string; markId: string }>
-  | Readonly<{ kind: 'camera'; markId: string }>
-  | null
-
+export type { XrMotionReferenceMarkSelection } from './xrMotionReferenceSelection'
 export type XrMotionReferenceRuntimeSnapshot = Readonly<{
   sceneKey: string
   sourceSignature: string
@@ -38,29 +48,18 @@ export type XrMotionReferenceRuntimeSnapshot = Readonly<{
   selectedCameraRig: XrMotionReferenceCameraRig
   selectedMark: XrMotionReferenceMarkSelection
   castMarkArmed: boolean
+  viewportControlActive: boolean
   playheadSeconds: number
   dirty: boolean
   revision: number
 }>
-
 type RuntimeListener = () => void
-
 const listeners = new Set<RuntimeListener>()
 let activeNodes: readonly GraphNode[] = []
 const dirtyCastArchive = new Map<string, Record<string, unknown>>()
-
-function sourceSignature(sceneKey: string, nodes: readonly GraphNode[], persistedValue: unknown): string {
-  return JSON.stringify({
-    sceneKey: String(sceneKey || ''),
-    nodes: nodes.map(node => [node.id, node.label]),
-    persistedValue: persistedValue ?? null,
-  })
-}
-
 function freezeSnapshot(value: Omit<XrMotionReferenceRuntimeSnapshot, 'revision'> & { revision: number }): XrMotionReferenceRuntimeSnapshot {
   return Object.freeze({ ...value })
 }
-
 let snapshot = freezeSnapshot({
   sceneKey: '',
   sourceSignature: '',
@@ -69,38 +68,19 @@ let snapshot = freezeSnapshot({
   selectedCameraRig: 'dolly',
   selectedMark: null,
   castMarkArmed: false,
+  viewportControlActive: false,
   playheadSeconds: 0,
   dirty: false,
   revision: 0,
 })
-
 function publish(next: Omit<XrMotionReferenceRuntimeSnapshot, 'revision'>): XrMotionReferenceRuntimeSnapshot {
   snapshot = freezeSnapshot({ ...next, revision: snapshot.revision + 1 })
   for (const listener of [...listeners]) listener()
   return snapshot
 }
-
-function planRecord(plan: XrMotionReferencePlan): Record<string, unknown> {
-  return serializeXrMotionReferencePlan(plan) as Record<string, unknown>
-}
-
-function castTrackRecord(track: XrMotionReferencePlan['cast'][number]): Record<string, unknown> {
-  return {
-    actorId: track.actorId,
-    label: track.label,
-    animation: track.animation ? { ...track.animation } : null,
-    marks: track.marks.map(mark => ({
-      timeSeconds: mark.timeSeconds,
-      position: [...mark.position],
-      transition: mark.transition,
-    })),
-  }
-}
-
 function normalizePlan(value: Record<string, unknown>): XrMotionReferencePlan {
   return readXrMotionReferencePlan(value, activeNodes)
 }
-
 function archiveCast(plan: XrMotionReferencePlan): void {
   const cast = planRecord(plan).cast
   if (!Array.isArray(cast)) return
@@ -110,21 +90,10 @@ function archiveCast(plan: XrMotionReferencePlan): void {
     if (actorId) dirtyCastArchive.set(actorId, record)
   }
 }
-
-function resolveSelectedMark(
-  plan: XrMotionReferencePlan,
-  selection: XrMotionReferenceMarkSelection,
-): XrMotionReferenceMarkSelection {
-  if (!selection) return null
-  if (selection.kind === 'cast') {
-    return plan.cast.some(track => (
-      track.actorId === selection.actorId && track.marks.some(mark => mark.id === selection.markId)
-    )) ? selection : null
-  }
-  return plan.camera.some(mark => mark.id === selection.markId) ? selection : null
-}
-
-function updatePlan(value: Record<string, unknown>): XrMotionReferenceRuntimeSnapshot {
+function updatePlan(
+  value: Record<string, unknown>,
+  resolveSelection?: (plan: XrMotionReferencePlan) => XrMotionReferenceMarkSelection,
+): XrMotionReferenceRuntimeSnapshot {
   const plan = normalizePlan(value)
   archiveCast(plan)
   const selectedActorId = plan.cast.some(track => track.actorId === snapshot.selectedActorId)
@@ -134,12 +103,11 @@ function updatePlan(value: Record<string, unknown>): XrMotionReferenceRuntimeSna
     ...snapshot,
     plan,
     selectedActorId,
-    selectedMark: resolveSelectedMark(plan, snapshot.selectedMark),
+    selectedMark: resolveExistingXrMotionReferenceMarkSelection(plan, resolveSelection ? resolveSelection(plan) : snapshot.selectedMark),
     playheadSeconds: Math.min(snapshot.playheadSeconds, plan.durationSeconds),
     dirty: true,
   })
 }
-
 export function readXrMotionReferenceRuntime(): XrMotionReferenceRuntimeSnapshot {
   return snapshot
 }
@@ -178,7 +146,7 @@ export function hydrateXrMotionReferenceRuntime(args: {
       sourceSignature: nextSourceSignature,
       plan,
       selectedActorId,
-      selectedMark: resolveSelectedMark(plan, snapshot.selectedMark),
+      selectedMark: resolveExistingXrMotionReferenceMarkSelection(plan, snapshot.selectedMark),
       dirty: true,
     })
   }
@@ -195,6 +163,7 @@ export function hydrateXrMotionReferenceRuntime(args: {
     selectedCameraRig: snapshot.selectedCameraRig,
     selectedMark: null,
     castMarkArmed: false,
+    viewportControlActive: false,
     playheadSeconds: 0,
     dirty: false,
   })
@@ -278,7 +247,7 @@ export function addXrMotionReferenceSubject(args: {
   subjects.push({ id, assetId: asset.id, label, color: asset.defaultColor, position: [...position], rotationYDegrees: 0, scale: 1 })
   const cast = Array.isArray(plan.cast) ? plan.cast.slice() : []
   if (asset.mobile && cast.length < XR_MOTION_REFERENCE_MAX_CAST_TRACKS) {
-    cast.push({ actorId: id, label, animation: null, marks: [{ timeSeconds: 0, position: [...position], transition: 'linear' }] })
+    cast.push({ actorId: id, label, animation: null, marks: [{ timeSeconds: 0, position: [...position], transition: 'linear', gait: defaultXrChoreographyGait(asset.category, asset.id) }] })
   }
   return updatePlan({ ...plan, subjects, cast })
 }
@@ -366,13 +335,23 @@ export function toggleXrMotionReferenceCastMarkArmed(): XrMotionReferenceRuntime
   return setXrMotionReferenceCastMarkArmed(!snapshot.castMarkArmed)
 }
 
+export function setXrMotionReferenceViewportControlActive(active: boolean): XrMotionReferenceRuntimeSnapshot {
+  const viewportControlActive = active === true
+  if (viewportControlActive === snapshot.viewportControlActive) return snapshot
+  return publish({ ...snapshot, viewportControlActive })
+}
+
 export function setXrMotionReferenceCastMark(args: {
   actorId: string
   timeSeconds: number
   position: XrMotionReferenceVector
   transition?: XrMotionReferenceTransition
+  gait?: XrChoreographyGait
 }): XrMotionReferenceRuntimeSnapshot {
   const actorId = String(args.actorId || '').trim()
+  const sourceTrack = snapshot.plan.cast.find(candidate => candidate.actorId === actorId)
+  if (!sourceTrack) return snapshot
+  const subject = snapshot.plan.subjects.find(candidate => candidate.id === actorId)
   const plan = planRecord(snapshot.plan)
   const cast = Array.isArray(plan.cast) ? plan.cast.map(item => ({ ...(item as Record<string, unknown>) })) : []
   const track = cast.find(item => item.actorId === actorId)
@@ -384,6 +363,7 @@ export function setXrMotionReferenceCastMark(args: {
     timeSeconds: args.timeSeconds,
     position: [...args.position],
     transition: args.transition || 'linear',
+    gait: args.gait || sourceTrack.marks[0]?.gait || defaultXrChoreographyGait(subject?.category, subject?.assetId),
   })
   track.marks = marks
   if ((track.animation as { kind?: unknown } | null)?.kind === 'action-path') track.animation = null
@@ -397,6 +377,7 @@ export function dropXrMotionReferenceCastMark(position: XrMotionReferenceVector)
     timeSeconds: snapshot.playheadSeconds,
     position,
     transition: 'linear',
+    gait: snapshot.plan.cast.find(track => track.actorId === snapshot.selectedActorId)?.marks[0]?.gait || 'walk',
   })
 }
 
@@ -416,6 +397,7 @@ export function setXrMotionReferenceCastTransition(
       timeSeconds: mark.timeSeconds,
       position: [...mark.position],
       transition,
+      gait: mark.gait,
     }))
     if (transition === 'linear' && marks.length === 1) {
       const start = marks[0]!
@@ -425,6 +407,7 @@ export function setXrMotionReferenceCastTransition(
         timeSeconds: snapshot.plan.durationSeconds,
         position: [start.position[0] + travelMeters, start.position[1], start.position[2]],
         transition: 'linear',
+        gait: start.gait,
       })
     }
     return {
@@ -497,7 +480,7 @@ export function clearXrMotionReferenceCastAnimation(actorIdValue: string): XrMot
     return {
       ...castTrackRecord(track),
       animation: null,
-      marks: [{ timeSeconds: 0, position: [...position], transition: 'hold' }],
+      marks: [{ timeSeconds: 0, position: [...position], transition: 'hold', gait: 'hold' }],
     }
   })
   return updatePlan({ ...plan, cast })
@@ -513,7 +496,7 @@ export function removeXrMotionReferenceCastMark(actorIdValue: string, markId: st
     animation: track.actorId === actorId && track.animation?.kind === 'action-path' ? null : track.animation,
     marks: track.marks
       .filter(mark => track.actorId !== actorId || mark.id !== markId)
-      .map(mark => ({ timeSeconds: mark.timeSeconds, position: [...mark.position], transition: mark.transition })),
+      .map(mark => ({ timeSeconds: mark.timeSeconds, position: [...mark.position], transition: mark.transition, gait: mark.gait })),
   }))
   return updatePlan({ ...plan, cast })
 }
@@ -526,6 +509,10 @@ export function retimeXrMotionReferenceCastMark(
   const actorId = String(actorIdValue || '').trim()
   const sourceTrack = snapshot.plan.cast.find(track => track.actorId === actorId)
   if (!sourceTrack || !sourceTrack.marks.some(mark => mark.id === markId)) return snapshot
+  const preserveSelection = snapshot.selectedMark?.kind === 'cast'
+    && snapshot.selectedMark.actorId === actorId
+    && snapshot.selectedMark.markId === markId
+  const targetTimeSeconds = Math.min(snapshot.plan.durationSeconds, Math.max(0, Number(timeSeconds) || 0))
   const plan = planRecord(snapshot.plan)
   const cast = snapshot.plan.cast.map(track => ({
     ...castTrackRecord(track),
@@ -534,9 +521,10 @@ export function retimeXrMotionReferenceCastMark(
       timeSeconds: track.actorId === actorId && mark.id === markId ? timeSeconds : mark.timeSeconds,
       position: [...mark.position],
       transition: mark.transition,
+      gait: mark.gait,
     })),
   }))
-  return updatePlan({ ...plan, cast })
+  return updatePlan({ ...plan, cast }, preserveSelection ? nextPlan => resolveRetimedCastMarkSelection(nextPlan, actorId, targetTimeSeconds) : undefined)
 }
 
 export function setXrMotionReferenceCameraMark(args: {
@@ -544,15 +532,18 @@ export function setXrMotionReferenceCameraMark(args: {
   anchorId: string
   settings: StrybldrCameraSettings
   rig?: XrMotionReferenceCameraRig
+  easing?: XrChoreographyEasing
 }): XrMotionReferenceRuntimeSnapshot {
   const plan = planRecord(snapshot.plan)
   const camera = Array.isArray(plan.camera) ? plan.camera.slice() : []
   const replacing = camera.some(mark => Math.abs(Number((mark as Record<string, unknown>).timeSeconds) - args.timeSeconds) < 0.0005)
   if (camera.length >= XR_MOTION_REFERENCE_MAX_CAMERA_MARKS && !replacing) return snapshot
+  const rig = args.rig || snapshot.selectedCameraRig
   camera.push({
     timeSeconds: args.timeSeconds,
     anchorId: String(args.anchorId || '').trim(),
-    rig: args.rig || snapshot.selectedCameraRig,
+    rig,
+    easing: args.easing || defaultXrCameraEasing(rig),
     settings: { ...args.settings },
   })
   return updatePlan({ ...plan, camera })
@@ -566,6 +557,7 @@ export function removeXrMotionReferenceCameraMark(markId: string): XrMotionRefer
       timeSeconds: mark.timeSeconds,
       anchorId: mark.anchorId,
       rig: mark.rig,
+      easing: mark.easing,
       settings: { ...mark.settings },
     }))
   return updatePlan({ ...plan, camera })
@@ -573,14 +565,33 @@ export function removeXrMotionReferenceCameraMark(markId: string): XrMotionRefer
 
 export function retimeXrMotionReferenceCameraMark(markId: string, timeSeconds: number): XrMotionReferenceRuntimeSnapshot {
   if (!snapshot.plan.camera.some(mark => mark.id === markId)) return snapshot
+  const preserveSelection = snapshot.selectedMark?.kind === 'camera' && snapshot.selectedMark.markId === markId
+  const targetTimeSeconds = Math.min(snapshot.plan.durationSeconds, Math.max(0, Number(timeSeconds) || 0))
   const plan = planRecord(snapshot.plan)
   const camera = snapshot.plan.camera.map(mark => ({
     timeSeconds: mark.id === markId ? timeSeconds : mark.timeSeconds,
     anchorId: mark.anchorId,
     rig: mark.rig,
+    easing: mark.easing,
     settings: { ...mark.settings },
   }))
-  return updatePlan({ ...plan, camera })
+  return updatePlan({ ...plan, camera }, preserveSelection ? nextPlan => resolveRetimedCameraMarkSelection(nextPlan, targetTimeSeconds) : undefined)
+}
+
+export function setXrMotionReferenceCastMarkChoreography(args: {
+  actorId: string
+  markId: string
+  easing?: XrChoreographyEasing
+  gait?: XrChoreographyGait
+  position?: XrMotionReferenceVector
+}): XrMotionReferenceRuntimeSnapshot {
+  const edit = buildCastMarkChoreographyEdit(snapshot.plan, args)
+  return edit ? updatePlan(edit) : snapshot
+}
+
+export function setXrMotionReferenceCameraMarkEasing(markId: string, easing: XrChoreographyEasing): XrMotionReferenceRuntimeSnapshot {
+  const edit = buildCameraMarkChoreographyEdit(snapshot.plan, markId, easing)
+  return edit ? updatePlan(edit) : snapshot
 }
 
 export function markXrMotionReferenceSaved(persistedValue: unknown): XrMotionReferenceRuntimeSnapshot {

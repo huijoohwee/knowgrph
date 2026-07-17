@@ -46,7 +46,11 @@ function stableToken(value: string): string {
  * the consolidated BottomPanel Timeline player. Seconds stay authoritative;
  * only the transport projection uses fractional minute units.
  */
-export function buildXrMotionReferenceTimelineCode(plan: XrMotionReferencePlan): string {
+export function buildXrMotionReferenceTimelineCode(
+  plan: XrMotionReferencePlan,
+  options: { includeChoreographyCues?: boolean } = {},
+): string {
+  const includeChoreographyCues = options.includeChoreographyCues !== false
   const stage = resolveXrMotionReferenceStage(plan.stageId)
   const lines = [
     'gantt',
@@ -64,14 +68,14 @@ export function buildXrMotionReferenceTimelineCode(plan: XrMotionReferencePlan):
         `  ${track.label} ${track.animation.presetId} ${track.animation.kind} effect : xr_animation_effect_${actorToken}, ${positionToken(track.animation.startTimeSeconds)}, ${durationToken(plan.durationSeconds - track.animation.startTimeSeconds)}`,
       )
     }
-    track.marks.forEach((mark, index) => {
+    if (includeChoreographyCues) track.marks.forEach((mark, index) => {
       lines.push(
         `  ${track.label} cast mark ${index + 1} scene : vert, xr_cast_scene_${actorToken}_${index + 1}, ${cuePositionToken(mark.timeSeconds, plan.durationSeconds)}, ${durationToken(0)}`,
       )
       const nextMark = track.marks[index + 1]
       if (!nextMark || nextMark.timeSeconds <= mark.timeSeconds) return
       lines.push(
-        `  ${track.label} ${mark.transition === 'hold' ? 'hold' : 'travel'} scene : xr_cast_scene_${actorToken}_move_${index + 1}, ${positionToken(mark.timeSeconds)}, ${durationToken(nextMark.timeSeconds - mark.timeSeconds)}`,
+        `  ${track.label} ${mark.gait} ${mark.transition} scene : xr_cast_scene_${actorToken}_move_${index + 1}, ${positionToken(mark.timeSeconds)}, ${durationToken(nextMark.timeSeconds - mark.timeSeconds)}`,
       )
     })
   }
@@ -80,7 +84,7 @@ export function buildXrMotionReferenceTimelineCode(plan: XrMotionReferencePlan):
     '  section XR Runtime',
     `  XR runtime effect : xr_runtime_effect, ${positionToken(0)}, ${durationToken(plan.durationSeconds)}`,
   )
-  plan.camera.forEach((mark, index) => {
+  if (includeChoreographyCues) plan.camera.forEach((mark, index) => {
     lines.push(
       `  Camera mark ${index + 1} effect (${mark.rig}) : vert, xr_camera_effect_${index + 1}, ${cuePositionToken(mark.timeSeconds, plan.durationSeconds)}, ${durationToken(0)}`,
     )
