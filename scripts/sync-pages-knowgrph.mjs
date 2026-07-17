@@ -383,8 +383,8 @@ const fileExists = async (filePath) => {
 const agentReadyRuntimeCopies = [
   [agentReadyCommerceSource, agentReadyCommerceTarget], [agentReadyAppShellSource, agentReadyAppShellTarget],
   [semanticKeyContractSource, semanticKeyContractTarget],
-  [xrSceneMcpContractSource, xrSceneMcpContractTarget],
-  ...['mcpAppsContractText.mjs', 'mcpAppsOnboarding.mjs'].map(filename => [agentReadyFeatureSource(filename), agentReadyFeatureTarget(filename)]),
+  [xrSceneMcpContractSource, xrSceneMcpContractTarget], [path.resolve(knowgrphRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs'), path.resolve(githubRoot, 'huijoohwee/canvas/src/features/strybldr/cameraMcpContract.mjs')],
+  ...['mcpAppsContractText.mjs', 'mcpAppsOnboarding.mjs', 'probeTreeUserInputRelevance.mjs'].map(filename => [agentReadyFeatureSource(filename), agentReadyFeatureTarget(filename)]),
   ...(await collectGrphSharedRuntimeCopies(agentReadyRuntimeSharedEntries)),
 ]
 const removeEmptyDirs = async (rootDir) => {
