@@ -29,6 +29,13 @@ const runStep = ({ name, command, args, cwd, env = process.env }) => {
 };
 
 runStep({
+  name: 'shared smoke preparation',
+  command: npmCommand,
+  args: ['run', 'smoke:prepare'],
+  cwd: repoRoot,
+});
+
+runStep({
   name: 'docs guard',
   command: npmCommand,
   args: ['--prefix', 'canvas', 'run', 'test:ci:unit', '--', 'multiUserCollaboration.docs'],

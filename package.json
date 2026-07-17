@@ -31,6 +31,7 @@
     "demo:risk-copilot": "npm run dev:risk-copilot --workspace=@knowgrph/canvas --",
     "dev:all": "bash scripts/dev-all.sh",
     "build": "npm run build --workspace=@knowgrph/canvas",
+    "smoke:prepare": "npm run build --workspace=grph-shared",
     "pages:build": "KG_SKIP_DOCS_UPDATE=1 VITE_BASE_PATH=/knowgrph/ npm run build --workspace=@knowgrph/canvas",
     "pages:check-sync": "node ./scripts/sync-pages-knowgrph.mjs --check",
     "pages:sync": "node ./scripts/sync-pages-knowgrph.mjs",
