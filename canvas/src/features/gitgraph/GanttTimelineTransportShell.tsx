@@ -1,3 +1,4 @@
+import React from 'react'
 import { TimelineTransportChrome } from '@/components/timeline/TimelineTransportControls'
 import { type GanttTimelineTransportChromeModel } from './useGanttTimelineTransportChromeModel'
 import { type GanttTimelineTransportRulerModel } from './useGanttTimelineTransportRulerModel'
@@ -12,6 +13,8 @@ export type GanttTimelineTransportShellProps = {
   mediaPlayerModel: GanttTimelineTransportMediaPlayerModel
   rulerModel: GanttTimelineTransportRulerModel
   shellModel: GanttTimelineTransportShellModel
+  supplementalLanes?: React.ReactNode
+  timeAxisControls?: React.ReactNode
 }
 
 export function GanttTimelineTransportShell(args: GanttTimelineTransportShellProps) {
@@ -35,9 +38,10 @@ export function GanttTimelineTransportShell(args: GanttTimelineTransportShellPro
       rootProps={args.shellModel.rootProps}
       headerAside={<GanttTimelineTransportHeaderTools model={args.chromeModel.headerTools} />}
       mediaPlayer={args.mediaPlayerModel.active ? <GanttTimelineTransportMediaPlayer model={args.mediaPlayerModel} /> : null}
-      ruler={<GanttTimelineTransportRuler model={args.rulerModel.ruler} />}
+      ruler={<GanttTimelineTransportRuler model={args.rulerModel.ruler} timeAxisControls={args.timeAxisControls} />}
       rulerClassName={args.rulerModel.chrome.rulerClassName}
       rulerProps={args.rulerModel.chrome.rulerProps}
+      supplementalLanes={args.supplementalLanes}
       step={args.shellModel.step}
       showInlineProgress={args.shellModel.showInlineProgress}
       showRange={args.shellModel.showRange}

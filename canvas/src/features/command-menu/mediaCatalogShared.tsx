@@ -9,8 +9,12 @@ import { resolveMediaKindOverlayIcon } from '@/lib/ui/mediaKindOverlayIcon'
 import {
   FLOATING_PANEL_CATALOG_COMPACT_ICON_FRAME_CLASSNAME,
   FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT,
+  FLOATING_PANEL_CATALOG_THREE_ROW_GRID_CLASSNAME,
+  FLOATING_PANEL_CATALOG_THREE_ROW_THUMBNAIL_FRAME_CLASSNAME,
   floatingPanelCatalogCompactIconFrameClassName,
   floatingPanelCatalogCompactRowClassName,
+  floatingPanelCatalogThreeRowClassName,
+  floatingPanelCatalogThreeRowThumbnailFrameClassName,
 } from '@/lib/ui/floatingPanelCatalogLayout'
 import { isPreferredRasterImageFormat, readPreferredImageFormat } from '@/lib/media/mediaFormatPreference'
 import { buildRuntimeStorageMediaAccessUrl, normalizeRuntimeStorageMediaUrl } from '@/lib/storage/runtimeMediaUrl'
@@ -163,18 +167,13 @@ const readNativeVideoMediaThumbnailMetadataAttrs = (thumbnail: ReturnType<typeof
   'data-kg-command-menu-media-metadata-video-tracks': thumbnail.videoTrackCount > 0 ? thumbnail.videoTrackCount : undefined,
 }) as React.ImgHTMLAttributes<HTMLImageElement>
 
-export const MEDIA_LIST_THUMBNAIL_COLUMN_CLASSNAME = 'grid-cols-[6.875rem_minmax(0,1fr)]'
-export const MEDIA_LIST_THUMBNAIL_FRAME_CLASSNAME = 'group relative inline-flex h-[4.625rem] w-[6.475rem] shrink-0 overflow-visible rounded border p-[2px] shadow-sm'
+export const MEDIA_LIST_THUMBNAIL_COLUMN_CLASSNAME = FLOATING_PANEL_CATALOG_THREE_ROW_GRID_CLASSNAME
+export const MEDIA_LIST_THUMBNAIL_FRAME_CLASSNAME = FLOATING_PANEL_CATALOG_THREE_ROW_THUMBNAIL_FRAME_CLASSNAME
 export const MEDIA_COMPACT_LIST_ROW_LAYOUT = FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT
 export const MEDIA_COMPACT_LIST_ICON_FRAME_CLASSNAME = FLOATING_PANEL_CATALOG_COMPACT_ICON_FRAME_CLASSNAME
 
 export function mediaListThumbnailFrameClassName(extraClassName?: string): string {
-  return cn(
-    MEDIA_LIST_THUMBNAIL_FRAME_CLASSNAME,
-    UI_THEME_TOKENS.panel.border,
-    UI_THEME_TOKENS.input.bg,
-    extraClassName,
-  )
+  return floatingPanelCatalogThreeRowThumbnailFrameClassName(extraClassName)
 }
 
 export function mediaCompactListIconFrameClassName(extraClassName?: string): string {
@@ -428,13 +427,7 @@ export function mediaCardClassName(): string {
 }
 
 export function mediaListItemClassName(): string {
-  return cn(
-    'grid min-w-0 cursor-grab gap-2 rounded border p-2 text-left shadow-sm transition-colors active:cursor-grabbing',
-    MEDIA_LIST_THUMBNAIL_COLUMN_CLASSNAME,
-    UI_THEME_TOKENS.panel.border,
-    UI_THEME_TOKENS.panel.bg,
-    UI_THEME_TOKENS.button.hoverBg,
-  )
+  return floatingPanelCatalogThreeRowClassName('cursor-grab active:cursor-grabbing')
 }
 
 export function mediaCompactListItemClassName(): string {

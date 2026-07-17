@@ -42,8 +42,101 @@ export type TimelineTransportChromeProps = TimelineTransportControlsProps & {
   ruler?: React.ReactNode
   rulerClassName?: string
   rulerProps?: Omit<React.HTMLAttributes<HTMLElement>, 'children' | 'className'>
+  supplementalLanes?: React.ReactNode
   subtitleLabel?: React.ReactNode
   titleLabel?: React.ReactNode
+}
+
+export type TimelineTransportInlineClipProps = Omit<React.HTMLAttributes<HTMLElement>, 'children'> & {
+  children: React.ReactNode
+  label: string
+  laneStyle: 'video' | 'audio'
+}
+
+export type TimelineTransportTimeAxisClipProps = Omit<React.HTMLAttributes<HTMLElement>, 'children'> & {
+  children: React.ReactNode
+  laneStyle: 'video' | 'audio'
+}
+
+export type TimelineTransportTimeAxisMarkProps = Omit<React.HTMLAttributes<HTMLElement>, 'children'> & {
+  children: React.ReactNode
+  laneStyle: 'video' | 'audio'
+}
+
+export function TimelineTransportInlineClip({
+  children,
+  className,
+  label,
+  laneStyle,
+  ...rootProps
+}: TimelineTransportInlineClipProps) {
+  return (
+    <article
+      {...rootProps}
+      className={cn(
+        'timeline-transport-track-clip',
+        `timeline-transport-track-clip--lane-${laneStyle}`,
+        'timeline-transport-inline-clip',
+        className,
+      )}
+      aria-label={rootProps['aria-label'] || `${label} timeline control bar`}
+      data-kg-timeline-clip-compact="1"
+      data-kg-timeline-inline-clip={laneStyle}
+    >
+      <span className="timeline-transport-track-clip-label timeline-transport-inline-clip-label">{label}</span>
+      <section className="timeline-transport-inline-clip-content">{children}</section>
+    </article>
+  )
+}
+
+export function TimelineTransportTimeAxisClip({
+  children,
+  className,
+  laneStyle,
+  ...rootProps
+}: TimelineTransportTimeAxisClipProps) {
+  return (
+    <article
+      {...rootProps}
+      className={cn(
+        'timeline-transport-track-clip',
+        `timeline-transport-track-clip--lane-${laneStyle}`,
+        'timeline-transport-inline-clip',
+        'timeline-transport-time-axis-clip',
+        className,
+      )}
+      aria-label={rootProps['aria-label'] || 'Timeline time-axis control lane'}
+      data-kg-timeline-clip-compact="1"
+      data-kg-timeline-time-axis-clip={laneStyle}
+    >
+      <section className="timeline-transport-inline-clip-content timeline-transport-time-axis-clip-content">
+        {children}
+      </section>
+    </article>
+  )
+}
+
+export function TimelineTransportTimeAxisMark({
+  children,
+  className,
+  laneStyle,
+  ...rootProps
+}: TimelineTransportTimeAxisMarkProps) {
+  return (
+    <article
+      {...rootProps}
+      className={cn(
+        'timeline-transport-track-clip',
+        `timeline-transport-track-clip--lane-${laneStyle}`,
+        'timeline-transport-time-axis-mark',
+        className,
+      )}
+      data-kg-timeline-clip-compact="1"
+      data-kg-timeline-time-axis-mark={laneStyle}
+    >
+      {children}
+    </article>
+  )
 }
 
 export function TimelineTransportControls(props: TimelineTransportControlsProps) {
@@ -170,6 +263,7 @@ export function TimelineTransportChrome(props: TimelineTransportChromeProps) {
     ruler,
     rulerClassName,
     rulerProps,
+    supplementalLanes,
     subtitleLabel,
     titleLabel,
     ...transportProps
@@ -197,6 +291,11 @@ export function TimelineTransportChrome(props: TimelineTransportChromeProps) {
         </header>
       ) : null}
       <TimelineTransportControls {...transportProps} toolbarControls={inlineHeaderAside} />
+      {supplementalLanes ? (
+        <section className="timeline-transport-supplemental-lanes" aria-label="Timeline supplemental lanes">
+          {supplementalLanes}
+        </section>
+      ) : null}
       {mediaPlayer ? (
         <section className="timeline-transport-media-player-slot" aria-label="Timeline media player slot">
           {mediaPlayer}

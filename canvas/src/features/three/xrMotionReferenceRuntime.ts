@@ -16,12 +16,18 @@ import {
 } from '@/features/three/xrMotionReferenceModel'
 import { resolveXrSceneLibraryAsset } from '@/features/three/xrSceneLibrary'
 
+export type XrMotionReferenceMarkSelection =
+  | Readonly<{ kind: 'cast'; actorId: string; markId: string }>
+  | Readonly<{ kind: 'camera'; markId: string }>
+  | null
+
 export type XrMotionReferenceRuntimeSnapshot = Readonly<{
   sceneKey: string
   sourceSignature: string
   plan: XrMotionReferencePlan
   selectedActorId: string
   selectedCameraRig: XrMotionReferenceCameraRig
+  selectedMark: XrMotionReferenceMarkSelection
   castMarkArmed: boolean
   playheadSeconds: number
   dirty: boolean
@@ -52,6 +58,7 @@ let snapshot = freezeSnapshot({
   plan: readXrMotionReferencePlan(null, []),
   selectedActorId: '',
   selectedCameraRig: 'dolly',
+  selectedMark: null,
   castMarkArmed: false,
   playheadSeconds: 0,
   dirty: false,
@@ -82,6 +89,19 @@ function archiveCast(plan: XrMotionReferencePlan): void {
   }
 }
 
+function resolveSelectedMark(
+  plan: XrMotionReferencePlan,
+  selection: XrMotionReferenceMarkSelection,
+): XrMotionReferenceMarkSelection {
+  if (!selection) return null
+  if (selection.kind === 'cast') {
+    return plan.cast.some(track => (
+      track.actorId === selection.actorId && track.marks.some(mark => mark.id === selection.markId)
+    )) ? selection : null
+  }
+  return plan.camera.some(mark => mark.id === selection.markId) ? selection : null
+}
+
 function updatePlan(value: Record<string, unknown>): XrMotionReferenceRuntimeSnapshot {
   const plan = normalizePlan(value)
   archiveCast(plan)
@@ -92,6 +112,7 @@ function updatePlan(value: Record<string, unknown>): XrMotionReferenceRuntimeSna
     ...snapshot,
     plan,
     selectedActorId,
+    selectedMark: resolveSelectedMark(plan, snapshot.selectedMark),
     playheadSeconds: Math.min(snapshot.playheadSeconds, plan.durationSeconds),
     dirty: true,
   })
@@ -121,7 +142,14 @@ export function hydrateXrMotionReferenceRuntime(args: {
     const selectedActorId = plan.cast.some(track => track.actorId === snapshot.selectedActorId)
       ? snapshot.selectedActorId
       : plan.cast[0]?.actorId || ''
-    return publish({ ...snapshot, sourceSignature: nextSourceSignature, plan, selectedActorId, dirty: true })
+    return publish({
+      ...snapshot,
+      sourceSignature: nextSourceSignature,
+      plan,
+      selectedActorId,
+      selectedMark: resolveSelectedMark(plan, snapshot.selectedMark),
+      dirty: true,
+    })
   }
   dirtyCastArchive.clear()
   const plan = readXrMotionReferencePlan(args.persistedValue, activeNodes)
@@ -134,6 +162,7 @@ export function hydrateXrMotionReferenceRuntime(args: {
     plan,
     selectedActorId,
     selectedCameraRig: snapshot.selectedCameraRig,
+    selectedMark: null,
     castMarkArmed: false,
     playheadSeconds: 0,
     dirty: false,
@@ -230,7 +259,36 @@ export function setXrMotionReferencePlayhead(timeSeconds: number): XrMotionRefer
 export function selectXrMotionReferenceActor(actorId: string): XrMotionReferenceRuntimeSnapshot {
   const normalized = String(actorId || '').trim()
   if (!snapshot.plan.cast.some(track => track.actorId === normalized) || normalized === snapshot.selectedActorId) return snapshot
-  return publish({ ...snapshot, selectedActorId: normalized })
+  const selectedMark = snapshot.selectedMark?.kind === 'cast' && snapshot.selectedMark.actorId !== normalized
+    ? null
+    : snapshot.selectedMark
+  return publish({ ...snapshot, selectedActorId: normalized, selectedMark })
+}
+
+export function selectXrMotionReferenceCastMark(
+  actorIdValue: string,
+  markIdValue: string,
+): XrMotionReferenceRuntimeSnapshot {
+  const actorId = String(actorIdValue || '').trim()
+  const markId = String(markIdValue || '').trim()
+  const track = snapshot.plan.cast.find(candidate => candidate.actorId === actorId)
+  if (!track?.marks.some(mark => mark.id === markId)) return snapshot
+  if (snapshot.selectedMark?.kind === 'cast'
+    && snapshot.selectedMark.actorId === actorId
+    && snapshot.selectedMark.markId === markId
+    && snapshot.selectedActorId === actorId) return snapshot
+  return publish({
+    ...snapshot,
+    selectedActorId: actorId,
+    selectedMark: Object.freeze({ kind: 'cast', actorId, markId }),
+  })
+}
+
+export function selectXrMotionReferenceCameraMark(markIdValue: string): XrMotionReferenceRuntimeSnapshot {
+  const markId = String(markIdValue || '').trim()
+  if (!snapshot.plan.camera.some(mark => mark.id === markId)) return snapshot
+  if (snapshot.selectedMark?.kind === 'camera' && snapshot.selectedMark.markId === markId) return snapshot
+  return publish({ ...snapshot, selectedMark: Object.freeze({ kind: 'camera', markId }) })
 }
 
 export function setXrMotionReferenceCameraRig(rig: XrMotionReferenceCameraRig): XrMotionReferenceRuntimeSnapshot {

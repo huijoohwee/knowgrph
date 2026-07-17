@@ -1,8 +1,12 @@
 import React from 'react'
 import * as THREE from 'three'
 import { getVoxelLabelTexture } from '@/features/three/voxelLabelTexture'
+import { THREE_RENDER_ORDER } from '@/features/three/renderOrder'
 import { resolveXrSceneLibraryAsset } from '@/features/three/xrSceneLibrary'
-import type { XrMotionReferenceSubject } from '@/features/three/xrMotionReferenceModel'
+import {
+  XR_MOTION_REFERENCE_SELECTION_COLOR,
+  type XrMotionReferenceSubject,
+} from '@/features/three/xrMotionReferenceModel'
 
 function Material({ color }: { color: string }) {
   return <meshStandardMaterial color={color} roughness={0.9} metalness={0.02} />
@@ -169,12 +173,30 @@ export function XrSceneLibraryAssetGeometry({
   return <mesh position={[0, 0, size[1] * 0.5]}><boxGeometry args={[size[0], size[2], size[1]]} /><Material color={effectiveColor} /></mesh>
 }
 
-function SubjectLabel({ label, heightMeters }: { label: string; heightMeters: number }) {
-  const labelTexture = React.useMemo(() => getVoxelLabelTexture({ text: label, fontSizePx: 18, textColor: '#f8fafc', bgColor: '#0f172a', bgOpacity: 0.88 }), [label])
+function SubjectLabel({
+  heightMeters,
+  label,
+  selected,
+}: {
+  heightMeters: number
+  label: string
+  selected: boolean
+}) {
+  const labelTexture = React.useMemo(() => getVoxelLabelTexture({
+    text: label,
+    fontSizePx: 18,
+    textColor: selected ? '#0f172a' : '#f8fafc',
+    bgColor: selected ? XR_MOTION_REFERENCE_SELECTION_COLOR : '#0f172a',
+    bgOpacity: selected ? 1 : 0.88,
+  }), [label, selected])
   const aspect = labelTexture.widthPx / Math.max(1, labelTexture.heightPx)
   return (
-    <sprite position={[0, 0, heightMeters + 0.45]} scale={[Math.min(3.2, Math.max(1.2, aspect * 0.5)), 0.5, 1]}>
-      <spriteMaterial map={labelTexture.texture} transparent depthWrite={false} sizeAttenuation />
+    <sprite
+      position={[0, 0, heightMeters + 0.45]}
+      scale={[Math.min(3.2, Math.max(1.2, aspect * 0.5)), 0.5, 1]}
+      renderOrder={selected ? THREE_RENDER_ORDER.overlays : undefined}
+    >
+      <spriteMaterial map={labelTexture.texture} transparent depthTest={!selected} depthWrite={false} sizeAttenuation />
     </sprite>
   )
 }
@@ -183,23 +205,51 @@ export function XrSceneLibrarySubject({
   subject,
   position,
   stageScale,
+  selected = false,
+  onSelect,
 }: {
   subject: XrMotionReferenceSubject
   position: readonly [number, number, number]
   stageScale: number
+  selected?: boolean
+  onSelect?: () => void
 }) {
   const asset = resolveXrSceneLibraryAsset(subject.assetId)
+  const selectionRadius = Math.max(asset.dimensionsMeters[0], asset.dimensionsMeters[2], 0.8) * 0.72
   return (
     <group
       name={`kg_xr_scene_subject_${subject.id}`}
       position={position}
       rotation={[0, THREE.MathUtils.degToRad(subject.rotationYDegrees), 0]}
       scale={stageScale * subject.scale}
-      userData={{ subjectId: subject.id, assetId: subject.assetId, category: subject.category, label: subject.label }}
+      userData={{ subjectId: subject.id, assetId: subject.assetId, category: subject.category, label: subject.label, selectable: true, selected }}
+      onClick={event => {
+        event.stopPropagation()
+        onSelect?.()
+      }}
     >
+      {selected ? (
+        <mesh
+          name={`kg_xr_scene_subject_selected_${subject.id}`}
+          position={[0, 0.04, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          renderOrder={THREE_RENDER_ORDER.overlays}
+          userData={{ subjectId: subject.id, selected: true }}
+        >
+          <ringGeometry args={[selectionRadius * 0.72, selectionRadius, 32]} />
+          <meshBasicMaterial
+            color={XR_MOTION_REFERENCE_SELECTION_COLOR}
+            transparent
+            opacity={0.98}
+            depthTest={false}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      ) : null}
       <group rotation={[-Math.PI / 2, 0, 0]}>
         <XrSceneLibraryAssetGeometry assetId={subject.assetId} color={subject.color} />
-        <SubjectLabel label={subject.label} heightMeters={asset.dimensionsMeters[1]} />
+        <SubjectLabel label={subject.label} heightMeters={asset.dimensionsMeters[1]} selected={selected} />
       </group>
     </group>
   )

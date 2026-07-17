@@ -10,6 +10,9 @@ export const FLOATING_PANEL_CATALOG_COMPACT_ICON_FRAME_CLASSNAME = 'inline-flex 
 export const FLOATING_PANEL_CATALOG_COMPACT_ROW_TITLE_CLASSNAME = 'm-0 truncate text-xs font-semibold'
 export const FLOATING_PANEL_CATALOG_COMPACT_ROW_META_CLASSNAME = 'm-0 mt-0.5 truncate text-[11px]'
 export const FLOATING_PANEL_CATALOG_COMPACT_ROW_TOKEN_CLASSNAME = 'shrink-0 truncate font-mono text-[10px]'
+export const FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT = 'media-3-rows'
+export const FLOATING_PANEL_CATALOG_THREE_ROW_GRID_CLASSNAME = 'grid-cols-[6.875rem_minmax(0,1fr)]'
+export const FLOATING_PANEL_CATALOG_THREE_ROW_THUMBNAIL_FRAME_CLASSNAME = 'group relative inline-flex h-[4.625rem] w-[6.475rem] shrink-0 overflow-visible rounded border p-[2px] shadow-sm'
 
 export function floatingPanelCatalogSurfaceClassName(extraClassName?: string): string {
   return cn('flex h-full min-h-0 flex-col overflow-hidden px-1 pb-2', extraClassName)
@@ -47,6 +50,26 @@ export function floatingPanelCatalogCompactRowMetaClassName(extraClassName?: str
 
 export function floatingPanelCatalogCompactRowTokenClassName(extraClassName?: string): string {
   return cn(FLOATING_PANEL_CATALOG_COMPACT_ROW_TOKEN_CLASSNAME, UI_THEME_TOKENS.text.tertiary, extraClassName)
+}
+
+export function floatingPanelCatalogThreeRowClassName(extraClassName?: string): string {
+  return cn(
+    'grid min-w-0 gap-2 rounded border p-2 text-left shadow-sm transition-colors',
+    FLOATING_PANEL_CATALOG_THREE_ROW_GRID_CLASSNAME,
+    UI_THEME_TOKENS.panel.border,
+    UI_THEME_TOKENS.panel.bg,
+    UI_THEME_TOKENS.button.hoverBg,
+    extraClassName,
+  )
+}
+
+export function floatingPanelCatalogThreeRowThumbnailFrameClassName(extraClassName?: string): string {
+  return cn(
+    FLOATING_PANEL_CATALOG_THREE_ROW_THUMBNAIL_FRAME_CLASSNAME,
+    UI_THEME_TOKENS.panel.border,
+    UI_THEME_TOKENS.input.bg,
+    extraClassName,
+  )
 }
 
 export function normalizeFloatingPanelCatalogSearchText(value: string): string {

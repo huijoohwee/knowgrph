@@ -22,6 +22,8 @@ import {
   retimeXrMotionReferenceCameraMark,
   retimeXrMotionReferenceCastMark,
   selectXrMotionReferenceActor,
+  selectXrMotionReferenceCameraMark,
+  selectXrMotionReferenceCastMark,
   setXrMotionReferenceCameraMark,
   setXrMotionReferenceCameraRig,
   setXrMotionReferenceCastMarkArmed,
@@ -78,11 +80,22 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   const sharedCameraSource = readSource('features', 'strybldr', 'StrybldrCameraFramingSection.tsx')
   const retimeSource = readSource('features', 'three', 'CameraMotionMarkRetime.tsx')
   const timelineSource = readSource('features', 'three', 'XrCameraMotionSection.tsx')
+  const timelineChromeSource = readSource('components', 'timeline', 'TimelineTransportControls.tsx')
+  const timelineChromeGanttCssSource = readSource('components', 'timeline', 'TimelineTransportControlsMermaidGantt.css')
+  const timelineRulerSource = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx')
+  const timelineTimeAxisControlsSource = readSource('components', 'timeline', 'VideoSequenceTimeAxisControls.tsx')
+  const ganttTransportSource = readSource('features', 'gitgraph', 'GanttTimelineTransportPanel.tsx')
   const bottomTimelineSource = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
   const cameraMcpContractSource = readSource('features', 'strybldr', 'cameraMcpContract.mjs')
   const cameraMcpRuntimeSource = readSource('features', 'strybldr', 'cameraMcpRuntime.ts')
+  const cameraMcpInvocationSource = readSource('features', 'strybldr', 'CameraMcpInvocationSection.tsx')
   const cameraWebMcpSource = readSource('features', 'agent-ready', 'cameraWebMcpTools.ts')
+  const floatingPanelCatalogLayoutSource = readSource('lib', 'ui', 'floatingPanelCatalogLayout.tsx')
+  const mediaCatalogSharedSource = readSource('features', 'command-menu', 'mediaCatalogShared.tsx')
   const stageSource = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
+  const subjectSource = readSource('features', 'three', 'XrSceneLibrarySubject.tsx')
+  const retimeCssSource = readSource('features', 'three', 'CameraMotionMarkRetime.css')
+  const runtimeSource = readSource('features', 'three', 'xrMotionReferenceRuntime.ts')
   const stageGeometrySource = readSource('features', 'three', 'XrStagePresetGeometry.tsx')
   const controlsSource = readSource('features', 'three', 'Controls.tsx')
   const playbackSource = readSource('features', 'three', 'xrCameraPlaybackControlsRuntime.ts')
@@ -101,15 +114,69 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   for (const marker of ['<StrybldrCameraFramingSection', '<XrShootCameraSection']) {
     if (!cameraPanelSource.includes(marker)) throw new Error(`expected canonical FloatingPanel Camera ownership through ${marker}`)
   }
+  for (const marker of ['<CollapsibleSection', '<ExpandCollapseAllButton', '<CameraMcpInvocationSection', 'useCollapsibleSectionGroup', 'Expand All Camera sections', 'Collapse All Camera sections']) {
+    if (!cameraPanelSource.includes(marker)) throw new Error(`expected Camera to reuse the 3D-for-XR disclosure owner through ${marker}`)
+  }
+  for (const marker of ['useAgenticOsRemoteGrammarCatalog', 'inspectLocalCamera', 'data-kg-camera-webmcp-tool', 'data-kg-camera-invocation-token', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName']) {
+    if (!cameraMcpInvocationSource.includes(marker)) throw new Error(`expected Camera MCP cards to project the shared catalog through ${marker}`)
+  }
+  if (!floatingPanelCatalogLayoutSource.includes('FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT')) {
+    throw new Error('expected the shared floating-panel catalog owner to name the three-row layout')
+  }
+  for (const marker of ['floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName']) {
+    if (!floatingPanelCatalogLayoutSource.includes(marker) || !mediaCatalogSharedSource.includes(marker)) {
+      throw new Error(`expected Camera and Media 3D to share the three-row catalog layout through ${marker}`)
+    }
+  }
   if (cameraPanelSource.includes('<XrCameraMotionSection')) throw new Error('expected FloatingPanel Camera to leave motion transport in BottomPanel Timeline')
   if (cameraPanelSource.indexOf('<StrybldrCameraFramingSection') > cameraPanelSource.indexOf('<XrShootCameraSection')) {
     throw new Error('expected the shared globe Camera utilities to remain first in every surface mode')
   }
-  for (const marker of ['data-kg-xr-timeline-retime="1"', 'retimeXrMotionReferenceCastMark', 'retimeXrMotionReferenceCameraMark']) {
+  for (const marker of ['data-kg-xr-timeline-retime="1"', 'retimeXrMotionReferenceCastMark', 'retimeXrMotionReferenceCameraMark', '<TimelineTransportTimeAxisMark', 'laneStyle="video"', 'laneStyle="audio"', 'data-kg-xr-retime-lane-ui="video"', 'data-kg-xr-retime-lane-ui="audio"', 'selectXrMotionReferenceCastMark', 'aria-pressed={selected}', 'data-kg-xr-stage-highlight-target']) {
     if (!retimeSource.includes(marker)) throw new Error(`expected Camera animation retiming to expose ${marker}`)
   }
-  for (const marker of ['<CameraMotionMarkRetime', 'data-kg-xr-timeline-transport="reused-gantt-player"', '<GanttTimelineTransportPanel']) {
+  for (const marker of ['runtime.plan.cast.map(track', 'data-kg-xr-retime-cast-track', 'selectXrMotionReferenceActor', 'setXrMotionReferenceCastMotion', 'data-kg-xr-retime-cast-animation', '<option value="linear">Travel</option>', '<option value="hold">Hold</option>']) {
+    if (!retimeSource.includes(marker)) throw new Error(`expected each cast to own a selectable animation bar through ${marker}`)
+  }
+  for (const marker of ['--kg-xr-retime-row-count', 'xr-camera-motion-retime-cast-bar', '[aria-pressed="true"]']) {
+    if (!retimeCssSource.includes(marker)) throw new Error(`expected cast timeline bars to share the expandable marks lane through ${marker}`)
+  }
+  for (const marker of ['<CameraMotionMarkRetime', 'layout="time-axis"', '<TimelineTransportInlineClip', '<TimelineTransportTimeAxisClip', 'laneStyle="video"', 'laneStyle="audio"', 'data-kg-xr-timeline-consolidated-lane="stage-output-retime"', 'data-kg-xr-timeline-control-bar="stage-output"', 'data-kg-xr-timeline-control-bar="marks"', 'data-kg-xr-timeline-retime-axis="shared-ruler-scale"', 'data-kg-xr-timeline-seconds-control="time-axis"', 'aria-label="XR timeline seconds"', 'data-kg-xr-timeline-fps-control="time-axis"', 'aria-label="XR timeline FPS"', 'runtimeDurationSeconds={runtime.plan.durationSeconds}', 'runtimeFrameRate={runtime.plan.fps}', 'data-kg-xr-timeline-transport="reused-gantt-player"', '<GanttTimelineTransportPanel', 'supplementalLanes={', 'timeAxisControls={']) {
     if (!timelineSource.includes(marker)) throw new Error(`expected BottomPanel Timeline to own consolidated XR motion through ${marker}`)
+  }
+  for (const marker of ['retimeRowCount = Math.max(1, runtime.plan.cast.length) + 1', '--kg-xr-timeline-marks-height', 'data-kg-xr-timeline-cast-row-count']) {
+    if (!timelineSource.includes(marker)) throw new Error(`expected the shared marks lane to size itself for every cast through ${marker}`)
+  }
+  if (timelineSource.indexOf('<CameraMotionMarkRetime') < timelineSource.indexOf('<GanttTimelineTransportPanel')) {
+    throw new Error('expected XR Stage/Output and mark retiming to live inside the Gantt transport lane')
+  }
+  for (const marker of ['timeline-transport-supplemental-lanes', 'TimelineTransportInlineClip', 'TimelineTransportTimeAxisClip', 'TimelineTransportTimeAxisMark', 'timeline-transport-track-clip--lane-${laneStyle}', 'timeline-transport-track-clip-label', 'timeline-transport-time-axis-clip', 'timeline-transport-time-axis-mark']) {
+    if (!timelineChromeSource.includes(marker)) throw new Error(`expected shared Gantt clip UI reuse through ${marker}`)
+  }
+  if (!ganttTransportSource.includes('supplementalLanes') || !ganttTransportSource.includes('timeAxisControls')) {
+    throw new Error('expected the shared Gantt transport to own optional supplemental-lane and time-axis control slots')
+  }
+  for (const marker of ['timeAxisControls?: React.ReactNode', '<VideoSequenceTimeAxisControls>{timeAxisControls}</VideoSequenceTimeAxisControls>']) {
+    if (!timelineRulerSource.includes(marker)) throw new Error(`expected the shared time ruler to expose ${marker}`)
+  }
+  for (const marker of ['aria-label="Timeline time-axis controls"', 'data-kg-video-sequence-time-axis-controls="1"']) {
+    if (!timelineTimeAxisControlsSource.includes(marker)) throw new Error(`expected the shared time-axis control owner to expose ${marker}`)
+  }
+  if (!timelineChromeGanttCssSource.includes(':has(.timeline-video-sequence-time-axis-controls)') || !timelineChromeGanttCssSource.includes('--kg-video-sequence-lane-sidebar-width: 184px')) {
+    throw new Error('expected time-axis controls and supplemental lanes to share one widened sidebar column')
+  }
+  if (!timelineChromeGanttCssSource.includes('var(--kg-xr-timeline-marks-height, 52px)')) {
+    throw new Error('expected the shared Gantt marks lane and sidebar label to expand for all cast bars')
+  }
+  for (const marker of ['resolveVideoSequenceRulerInsetLeft', 'resolveVideoSequenceTimelineScaleDurationSeconds', 'data-kg-xr-timeline-retime-scale-seconds']) {
+    if (!retimeSource.includes(marker)) throw new Error(`expected mark retiming to share ruler geometry through ${marker}`)
+  }
+  const stageOutputBarSource = timelineSource.slice(
+    timelineSource.indexOf('data-kg-xr-timeline-control-bar="stage-output"'),
+    timelineSource.indexOf('data-kg-xr-timeline-control-bar="marks"'),
+  )
+  if (stageOutputBarSource.includes('>FPS</span>') || stageOutputBarSource.includes('>Seconds</span>')) {
+    throw new Error('expected Seconds and FPS to leave the Stage/Output bar and align with the shared time axis')
   }
   if (!bottomTimelineSource.includes('XrCameraMotionSection') || !bottomTimelineSource.includes('canvas3dMode')) {
     throw new Error('expected BottomPanel Timeline to restore its XR motion owner')
@@ -117,8 +184,17 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   if (sharedCameraSource.includes('No storyboard card loaded.') || !sharedCameraSource.includes("data-kg-camera-framing-mode={selectedCard ? 'storyboard' : 'shared'}")) {
     throw new Error('expected globe-like shared Camera utilities to remain available without a storyboard card')
   }
-  for (const marker of ['onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}', 'dropXrMotionReferenceCastMark', 'MarkNumberSprite', 'markNumber: index + 1']) {
+  for (const marker of ['onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}', 'dropXrMotionReferenceCastMark', 'MarkNumberSprite', 'markNumber: index + 1', 'kg_xr_motion_cast_mark_highlight_', 'runtime.selectedMark?.kind === \'cast\'', 'XR_MOTION_REFERENCE_SELECTION_COLOR']) {
     if (!stageSource.includes(marker)) throw new Error(`expected direct numbered XR floor marking to expose ${marker}`)
+  }
+  for (const marker of ['<XrSceneLibrarySubject', 'selected={runtime.selectedActorId === subject.id}', 'selectXrMotionReferenceActor(subject.id)']) {
+    if (!stageSource.includes(marker)) throw new Error(`expected timeline and stage asset selection to share actor state through ${marker}`)
+  }
+  for (const marker of ['kg_xr_scene_subject_selected_', 'onSelect?.()', 'event.stopPropagation()', 'XR_MOTION_REFERENCE_SELECTION_COLOR']) {
+    if (!subjectSource.includes(marker)) throw new Error(`expected selectable XR assets to expose a visible stage highlight through ${marker}`)
+  }
+  for (const marker of ['selectedMark: XrMotionReferenceMarkSelection', 'selectXrMotionReferenceCastMark', 'selectXrMotionReferenceCameraMark', 'resolveSelectedMark']) {
+    if (!runtimeSource.includes(marker)) throw new Error(`expected XR mark highlight selection runtime to expose ${marker}`)
   }
   if (!stageGeometrySource.includes('onFloorPoint([event.point.x, groundY, event.point.z])')) {
     throw new Error('expected the native stage floor to own the bounded Three pointer projection')
@@ -142,7 +218,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     if (!cameraMcpRuntimeSource.includes(marker) && !cameraWebMcpSource.includes(marker)) throw new Error(`expected Camera MCP runtime to expose ${marker}`)
   }
 
-  const implementation = [shootCameraSource, cameraPanelSource, sharedCameraSource, retimeSource, timelineSource, stageSource, stageGeometrySource, playbackSource, packageSource, cameraMcpContractSource, cameraMcpRuntimeSource].join('\n').toLowerCase()
+  const implementation = [shootCameraSource, cameraPanelSource, sharedCameraSource, retimeSource, timelineSource, stageSource, stageGeometrySource, playbackSource, packageSource, cameraMcpContractSource, cameraMcpRuntimeSource, cameraMcpInvocationSource].join('\n').toLowerCase()
   for (const forbidden of ['wassermanproductions', 'blockout', 'ffmpeg', 'electron-vite']) {
     if (implementation.includes(forbidden)) throw new Error(`expected the native SHOOT implementation to avoid external runtime token ${forbidden}`)
   }
@@ -158,9 +234,17 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   if (!droppedMark || !readXrMotionReferenceRuntime().castMarkArmed) {
     throw new Error('expected M-armed floor placement to create a cast mark at the shared playhead')
   }
+  selectXrMotionReferenceCastMark('actor-a', droppedMark.id)
+  const selectedCastMark = readXrMotionReferenceRuntime().selectedMark
+  if (selectedCastMark?.kind !== 'cast' || selectedCastMark.actorId !== 'actor-a' || selectedCastMark.markId !== droppedMark.id) {
+    throw new Error('expected a timeline cast mark selection to target its matching XR stage mark')
+  }
   retimeXrMotionReferenceCastMark('actor-a', droppedMark.id, 2.25)
   if (!readXrMotionReferenceRuntime().plan.cast[0]?.marks.some(mark => mark.timeSeconds === 2.25)) {
     throw new Error('expected cast mark retiming to update the native plan')
+  }
+  if (readXrMotionReferenceRuntime().selectedMark !== null) {
+    throw new Error('expected retiming to clear a stale XR stage mark highlight')
   }
 
   setXrMotionReferenceCameraRig('handheld')
@@ -179,6 +263,13 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   if (!finalCameraMark) throw new Error('expected SHOOT to drop a second camera mark')
   retimeXrMotionReferenceCameraMark(finalCameraMark.id, 5.5)
   const shootPlan = readXrMotionReferenceRuntime().plan
+  const retimedCameraMark = shootPlan.camera.find(mark => mark.timeSeconds === 5.5)
+  if (!retimedCameraMark) throw new Error('expected a retimed camera mark for stage selection')
+  selectXrMotionReferenceCameraMark(retimedCameraMark.id)
+  const selectedCameraMark = readXrMotionReferenceRuntime().selectedMark
+  if (selectedCameraMark?.kind !== 'camera' || selectedCameraMark.markId !== retimedCameraMark.id) {
+    throw new Error('expected a timeline camera mark selection to target its matching XR stage camera')
+  }
   const sampledLens = sampleXrMotionReferenceCameraSettings(shootPlan.camera, 2.75)?.focalLengthMm
   if (shootPlan.camera[0]?.rig !== 'handheld'
     || shootPlan.camera[1]?.rig !== 'drone'
