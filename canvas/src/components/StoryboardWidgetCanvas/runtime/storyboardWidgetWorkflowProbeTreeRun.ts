@@ -434,7 +434,7 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
       invocationResolutions: bridge?.invocationResolutions,
     })
   }
-  if (!materialized) throw new Error('Probe-Tree refused generic or hardcoded fallback cards. Configure the local Probe-Tree model or set probeTreeProviderRefinementApproved: true on this card to generate 2-4 query-specific clarifications.')
+  if (!materialized) throw new Error('Probe-Tree found neither 2-4 query-specific model cards nor a literal authored 2-4 choice list. Author explicit alternatives, configure the local Probe-Tree model, or set probeTreeProviderRefinementApproved: true on this card.')
 
   const outputGroupId = buildStoryboardWidgetProbeTreeOutputGroupId(threadRootId)
   const normalizedGraphData = normalizeStoryboardWidgetProbeTreeOutputLayout({
