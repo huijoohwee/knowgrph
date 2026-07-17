@@ -110,6 +110,32 @@ test("probe.generate refuses generic wrappers when no model is configured", asyn
   assert.doesNotMatch(JSON.stringify(result), /which relationship between|compare current evidence|resolve the dependency|choose the decision order/i);
 });
 
+test("probe.generate projects a literal authored choice list without a model", async () => {
+  const rootDir = await tempRoot();
+  const contextText = "/knowgrph.probe-tree recommend invest in India, China, or SE Asia";
+  const result = await generateProbeOptions({
+    thread_root_id: "investment-comparison",
+    current_node_id: "root",
+    context_text: contextText,
+    k: 3,
+    recall_top_k: 0,
+  }, { rootDir, env: {} });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.degraded, true);
+  assert.equal(result.degraded_reason, "authored_choice_projection");
+  assert.equal(result.options.length, 1);
+  assert.equal(result.options[0].text, "recommend invest in India, China, or SE Asia");
+  assert.equal(result.options[0].derivation, "authored-choices");
+  assert.deepEqual(result.options[0].selectionOptions.map((option) => option.label), ["India", "China", "SE Asia"]);
+  assert.deepEqual(result.options[0].contextAnchors, ["India", "China", "SE Asia"]);
+  assert.equal(result.response.structuredContent.cards.length, 1);
+  assert.equal(result.response.structuredContent.cards[0].probeTreeDerivation, "authored-choices");
+  assert.equal(result.cost_log.model, "probe-tree-authored-choices");
+  assert.equal(result.cost_log.estimated_cost_usd, 0);
+  assert.doesNotMatch(JSON.stringify(result), /which relationship between|scope choice|priority choice|compare current evidence|resolve the dependency|choose the decision order/i);
+});
+
 test("probe model prompt keeps selected child input primary and ancestors lineage-only", () => {
   const prompt = buildProbeModelPrompt({
     contextText: [

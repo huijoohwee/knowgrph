@@ -294,7 +294,7 @@ export async function testProbeTreeWidgetRunRefusesGenericNoModelFallback() {
   }
   if (
     published
-    || !errorMessage.includes('refused generic or hardcoded fallback cards')
+    || !errorMessage.includes('neither 2-4 query-specific model cards nor a literal authored 2-4 choice list')
     || !errorMessage.includes('probeTreeProviderRefinementApproved: true')
   ) {
     throw new Error(`expected no-model investment clarification to fail closed without publishing canned cards, got ${JSON.stringify({ published, errorMessage })}`)

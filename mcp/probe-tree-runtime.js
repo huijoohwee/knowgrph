@@ -5,8 +5,10 @@ import { createHash } from "node:crypto";
 import {
   KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   KNOWGRPH_PROBE_TREE_TOOL_NAMES,
+  PROBE_TREE_AUTHORED_CHOICE_DERIVATION,
   PROBE_TREE_DEFAULTS,
   buildProbeTreeStructuredResponse,
+  extractProbeTreeAuthoredChoiceOption,
   isProbeTreeCardUserInputRelevant,
   normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
@@ -208,6 +210,9 @@ const buildOptions = ({ contextText, generatedOptions = [], k }) => {
       evidenceNeeded: normalizeString(candidate.evidenceNeeded),
       selectionOptions,
       contextAnchors,
+      ...(candidate.derivation === PROBE_TREE_AUTHORED_CHOICE_DERIVATION
+        ? { derivation: PROBE_TREE_AUTHORED_CHOICE_DERIVATION }
+        : {}),
     });
     if (options.length >= k) break;
   }
@@ -274,19 +279,32 @@ export async function generateProbeOptions(input = {}, options = {}) {
   } else {
     modelResult = { configured: false, reason: "token_budget_ceiling", options: [], costLog: null };
   }
-  const resultOptions = buildOptions({ contextText, generatedOptions: modelResult.options, k });
+  const modelOptions = buildOptions({ contextText, generatedOptions: modelResult.options, k });
+  const authoredChoiceOption = extractProbeTreeAuthoredChoiceOption(contextText);
+  const authoredChoiceOptions = authoredChoiceOption
+    ? buildOptions({ contextText, generatedOptions: [authoredChoiceOption], k: 1 })
+    : [];
+  const usesAuthoredChoiceProjection = (
+    modelOptions.length < PROBE_TREE_DEFAULTS.minOptionCount
+    && authoredChoiceOptions.length === 1
+  );
+  const resultOptions = usesAuthoredChoiceProjection ? authoredChoiceOptions : modelOptions;
   const modelConfigured = modelResult.configured === true;
   const modelSatisfied = modelConfigured && Array.isArray(modelResult.options) && modelResult.options.length > 0;
-  const degraded = !modelSatisfied || resultOptions.length < k;
-  const hasBoundedOptions = resultOptions.length >= PROBE_TREE_DEFAULTS.minOptionCount;
-  const degradedReason = !budgetedRecall.report.within_budget
-    ? "token_budget_ceiling"
+  const degraded = usesAuthoredChoiceProjection || !modelSatisfied || resultOptions.length < k;
+  const hasBoundedOptions = usesAuthoredChoiceProjection
+    || resultOptions.length >= PROBE_TREE_DEFAULTS.minOptionCount;
+  const degradedReason = usesAuthoredChoiceProjection
+    ? "authored_choice_projection"
+    : !budgetedRecall.report.within_budget
+      ? "token_budget_ceiling"
     : !hasBoundedOptions
       ? "insufficient_user_input_context"
       : modelSatisfied
         ? (resultOptions.length < k ? "model_returned_fewer_than_k_options" : "")
         : modelResult.reason;
-  const costLog = modelResult.costLog || zeroCostLog("none");
+  const costLog = modelResult.costLog
+    || zeroCostLog(usesAuthoredChoiceProjection ? "probe-tree-authored-choices" : "none");
   return {
     contractVersion: KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
     ok: hasBoundedOptions,

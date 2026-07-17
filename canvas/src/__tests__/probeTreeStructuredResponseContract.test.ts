@@ -5,8 +5,10 @@ import {
   areProbeTreeContinuationChoicesSuggested,
   areProbeTreeCardsMutuallyDistinct,
   collectProbeTreeContextKeywords,
+  extractProbeTreeAuthoredChoiceOption,
   extractProbeTreeUserInputText,
   isProbeTreeCardUserInputRelevant,
+  PROBE_TREE_AUTHORED_CHOICE_DERIVATION,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS } from '@/features/agentic-os/probeTreePromptPreset'
@@ -260,6 +262,64 @@ export function testProbeTreeNoModelCardsFailClosed() {
   })
   if (result !== null) {
     throw new Error(`expected the no-model path to fail closed without generic or hardcoded cards, got ${JSON.stringify(result)}`)
+  }
+}
+
+export function testProbeTreeAuthoredChoicesProjectLiteralZeroModelCard() {
+  const authoredRequest = '/knowgrph.probe-tree recommend invest in India, China, or SE Asia'
+  const contextText = ['Authored request:', authoredRequest, 'Selected Widget id: investment-root'].join('\n')
+  const authoredOption = extractProbeTreeAuthoredChoiceOption(contextText)
+  if (
+    !authoredOption
+    || authoredOption.text !== 'recommend invest in India, China, or SE Asia'
+    || authoredOption.derivation !== PROBE_TREE_AUTHORED_CHOICE_DERIVATION
+    || JSON.stringify(authoredOption.selectionOptions.map(option => option.label)) !== JSON.stringify(['India', 'China', 'SE Asia'])
+    || JSON.stringify(extractProbeTreeAuthoredChoiceOption('choose India or China')?.selectionOptions.map(option => option.label)) !== JSON.stringify(['India', 'China'])
+    || extractProbeTreeAuthoredChoiceOption('/knowgrph.probe-tree invest in China, India, SE Asia?') !== null
+    || extractProbeTreeAuthoredChoiceOption('Selected continuation answer: India, SE Asia') !== null
+    || extractProbeTreeAuthoredChoiceOption('Summarize revenue, costs, or operating margin') !== null
+    || extractProbeTreeAuthoredChoiceOption('choose India, China, Singapore, Japan, or SE Asia') !== null
+  ) {
+    throw new Error(`expected only a literal authored alternative list to project, got ${JSON.stringify(authoredOption)}`)
+  }
+
+  const anchorNode: GraphNode = {
+    id: 'investment-root',
+    type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+    label: 'Widget Card',
+    properties: { prompt: authoredRequest },
+  }
+  const graphData: GraphData = { type: 'Graph', nodes: [anchorNode], edges: [] }
+  const response = buildProbeTreeStructuredResponse({
+    threadRootId: 'investment-root',
+    currentNodeId: 'investment-root',
+    contextText,
+    options: [authoredOption],
+    degraded: true,
+  })
+  const materialized = materializeStoryboardWidgetProbeTreeStructuredResponse({
+    graphData,
+    anchorNode,
+    responseText: JSON.stringify({ result: { structuredContent: { response } } }, null, 2),
+    contextText,
+    responseSource: 'mcp',
+    model: 'probe-tree-authored-choices',
+    mcpInvoked: true,
+    threadRootId: 'investment-root',
+    invocationTokens: ['/knowgrph.probe-tree'],
+  })
+  const card = materialized?.graphData.nodes.find(node => node.properties.probeTreeResponseMode === 'llm-contract')
+  const labels = Array.isArray(card?.properties.selectionOptions)
+    ? card.properties.selectionOptions.map(option => String((option as { label?: unknown }).label || ''))
+    : []
+  if (
+    materialized?.materializedNodeIds.length !== 1
+    || card?.properties.summary !== 'recommend invest in India, China, or SE Asia'
+    || card?.properties.probeTreeDerivation !== PROBE_TREE_AUTHORED_CHOICE_DERIVATION
+    || JSON.stringify(labels) !== JSON.stringify(['India', 'China', 'SE Asia'])
+    || /scope choice|priority choice|relationship between|compare current evidence|resolve the dependency/i.test(JSON.stringify(materialized))
+  ) {
+    throw new Error(`expected one literal zero-model authored-choice card, got ${JSON.stringify(materialized)}`)
   }
 }
 
