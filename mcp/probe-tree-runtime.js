@@ -6,7 +6,6 @@ import {
   KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   KNOWGRPH_PROBE_TREE_TOOL_NAMES,
   PROBE_TREE_DEFAULTS,
-  buildProbeTreeInputDerivedOptions,
   buildProbeTreeStructuredResponse,
   isProbeTreeCardUserInputRelevant,
   normalizeProbeTreeContextAnchors,
@@ -193,13 +192,9 @@ function buildProbeTreeStateGraphDefinition() {
 
 const buildOptions = ({ contextText, generatedOptions = [], k }) => {
   const topic = normalizeString(contextText).slice(0, 220);
-  const candidates = [
-    ...generatedOptions,
-    ...buildProbeTreeInputDerivedOptions(contextText),
-  ];
   const seen = new Set();
   const options = [];
-  for (const candidate of candidates) {
+  for (const candidate of generatedOptions) {
     const text = normalizeString(candidate.text);
     if (!text || seen.has(text.toLowerCase())) continue;
     const selectionOptions = normalizeProbeTreeSelectionOptions(candidate.selectionOptions);
@@ -291,7 +286,7 @@ export async function generateProbeOptions(input = {}, options = {}) {
       : modelSatisfied
         ? (resultOptions.length < k ? "model_returned_fewer_than_k_options" : "")
         : modelResult.reason;
-  const costLog = modelResult.costLog || zeroCostLog("probe-tree-input-derived");
+  const costLog = modelResult.costLog || zeroCostLog("none");
   return {
     contractVersion: KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
     ok: hasBoundedOptions,

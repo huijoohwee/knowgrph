@@ -2,7 +2,6 @@ import { buildProbeTreeCardFromGraphNode } from '@/components/StoryboardCanvas/s
 import { materializeStoryboardWidgetProbeTreeStructuredResponse } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeStructuredResponse'
 import {
   buildProbeTreeStructuredResponse,
-  buildProbeTreeInputDerivedOptions,
   areProbeTreeContinuationChoicesSuggested,
   areProbeTreeCardsMutuallyDistinct,
   collectProbeTreeContextKeywords,
@@ -27,9 +26,8 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     'probeTreeCardVariant: probe-tree-type-2',
     '2-4 selectionOptions',
     'allowOther: true',
-    'at most one clarification card',
     'parentNodeId as the lineage SSOT',
-    'never substitute canned response content or fixtures',
+    'local no-model path never synthesizes clarification cards',
     'different user-named focus',
     'reused choice labels',
     'suggested clarification answer',
@@ -39,13 +37,17 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     'result.structuredContent.response.structuredContent',
     'card renders it as Summary',
     'leave output empty for the user-owned selection',
-    'Reject generic wrappers',
+    'Reject every canned wrapper',
+    'pairwise relationship questions',
     'imperative generation request',
     'do not continue Probe-Tree',
   ]) {
     if (!prompt.includes(expected)) {
       throw new Error(`expected Probe-Tree LLM prompt to include ${expected}, got ${prompt}`)
     }
+  }
+  if (prompt.includes('at most one clarification card')) {
+    throw new Error(`expected the 2-4-card contract to avoid contradictory one-card guidance, got ${prompt}`)
   }
   for (const token of KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS) {
     const aliasPrompt = buildAgenticOsRuntimeInvocationSystemPrompt(`${token} Generate the next evidence branches.`)
@@ -237,7 +239,7 @@ export function testProbeTreeCrossCardDiversityRejectsRepeatedAndSubsetChoiceSet
   }
 }
 
-export function testProbeTreeInputDerivedCardsProjectWithoutStructuredTextParsing() {
+export function testProbeTreeNoModelCardsFailClosed() {
   const anchorNode: GraphNode = {
     id: { key: 'id', type: 'string', value: 'sme-source' },
     type: { key: 'type', type: 'string', value: 'TextGeneration' },
@@ -245,35 +247,19 @@ export function testProbeTreeInputDerivedCardsProjectWithoutStructuredTextParsin
     properties: {},
   } as unknown as GraphNode
   const graphData: GraphData = { type: 'Graph', nodes: [anchorNode], edges: [] }
-  const contextText = [
-    'Authored request:',
-    'Assess SME exposure across cyber, supply-chain, physical-asset, and growth-stage risks.',
-    'Keep exposure, current coverage, apparent gaps, and unknown risks distinct.',
-    'Produce provider-neutral guidance, evidence-needed fields, rationale, and adviser handoff.',
-    'Selected Widget id: sme-source',
-  ].join('\n')
-  const inputDerivedOptions = buildProbeTreeInputDerivedOptions(contextText)
+  const contextText = ['Authored request:', '/knowgrph.probe-tree invest in China, India, SE Asia?', 'Selected Widget id: sme-source'].join('\n')
   const result = materializeStoryboardWidgetProbeTreeStructuredResponse({
     graphData,
     anchorNode,
     responseText: 'unstructured upstream output',
     contextText,
-    responseSource: 'input-derived',
-    model: 'knowgrph-probe-tree-input-derived',
+    responseSource: 'mcp',
+    model: 'none',
     mcpInvoked: false,
     invocationTokens: ['/knowgrph.probe-tree'],
-    inputDerivedOptions,
   })
-  const cards = result?.graphData.nodes.filter(node => node.properties.probeTreeResponseMode === 'llm-contract') || []
-  if (
-    result?.responseSource !== 'input-derived'
-    || cards.length !== 3
-    || cards.some(card => card.properties.parentNodeId !== 'sme-source')
-    || cards.some(card => card.properties.output !== '' || !card.properties.summary)
-    || cards.some(card => card.properties.probeTreeCardVariant !== 'probe-tree-type-2' || card.properties.selectionMode !== 'multiple' || card.properties.allowOther !== true)
-    || !result.panelOutput.includes('SME')
-  ) {
-    throw new Error(`expected direct user-input-derived cards without generic response parsing, got ${JSON.stringify(result)}`)
+  if (result !== null) {
+    throw new Error(`expected the no-model path to fail closed without generic or hardcoded cards, got ${JSON.stringify(result)}`)
   }
 }
 
@@ -292,7 +278,6 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
   ].join('\n')
   const keywords = collectProbeTreeContextKeywords(contextText, 8)
   const forbiddenMetadata = ['local-harness', 'cost-log', 'runtime-proof', 'token-economics', 'runtime-ready', 'approval-gate', 'probe-tree']
-  const options = buildProbeTreeInputDerivedOptions(contextText)
   const continuationContext = [
     'Authored request:',
     'Compare regulatory changes across Indonesia, Singapore, and Malaysia.',
@@ -305,14 +290,22 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
   ].join('\n')
   const continuationInput = extractProbeTreeUserInputText(continuationContext)
   const continuationKeywords = collectProbeTreeContextKeywords(continuationInput, 12)
-  const continuationOptions = buildProbeTreeInputDerivedOptions(continuationContext)
   const questionOnlyContinuationContext = [
     'Selected continuation question:',
     'Which requested items should guide the next branch: coverage authority, claims freshness, adviser handoff?',
   ].join('\n')
   const questionOnlyContinuationInput = extractProbeTreeUserInputText(questionOnlyContinuationContext)
-  const questionOnlyContinuationOptions = buildProbeTreeInputDerivedOptions(questionOnlyContinuationContext)
-  const continuationChoiceLabels = continuationOptions.flatMap(option => option.selectionOptions.map(selection => selection.label.toLowerCase()))
+  const investmentChoiceContext = ['Authored request:', '/knowgrph.probe-tree invest in China, India, SE Asia?'].join('\n')
+  const relationshipWrapperAccepted = isProbeTreeCardUserInputRelevant({
+    contextText: investmentChoiceContext,
+    question: 'Which relationship between "India" and "SE Asia" should the next answer establish?',
+    selectionOptions: [
+      'Compare current evidence for India with SE Asia',
+      'Resolve the dependency between India and SE Asia',
+      'Choose the decision order for India and SE Asia',
+    ],
+    contextAnchors: ['India', 'SE Asia'],
+  })
   const investmentReportAnswer = 'Generate report on China investment in SE Asia in USD trillion'
   const investmentReportContext = [
     'Authored request:',
@@ -322,7 +315,6 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
     'Selected continuation answer:',
     investmentReportAnswer,
   ].join('\n')
-  const investmentReportOptions = buildProbeTreeInputDerivedOptions(investmentReportContext)
   const genericWrapperAccepted = isProbeTreeCardUserInputRelevant({
     contextText: investmentReportContext,
     question: `Which scope choice should clarify "${investmentReportAnswer}"?`,
@@ -337,34 +329,16 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
     question: 'Which parts of "provider-neutral protection guidance" need separate follow-up?',
     selectionOptions: ['provider-neutral', 'protection guidance'],
   })
-  const firstOption = options[0]
   if (
     forbiddenMetadata.some(keyword => keywords.includes(keyword))
     || !['sme', 'cyber', 'supply-chain', 'physical-asset', 'growth-stage'].every(keyword => keywords.includes(keyword))
-    || !firstOption
-    || !isProbeTreeCardUserInputRelevant({ contextText, question: firstOption.text, selectionOptions: firstOption.selectionOptions, contextAnchors: firstOption.contextAnchors })
     || continuationInput !== 'provider-neutral protection guidance, a review-ready licensed-adviser handoff, evidence confidence and urgency'
     || !['protection', 'licensed-adviser', 'evidence', 'confidence', 'urgency'].every(keyword => continuationKeywords.includes(keyword))
-    || continuationOptions.length !== 3
-    || !areProbeTreeCardsMutuallyDistinct(continuationOptions)
-    || continuationOptions.some(option => !areProbeTreeContinuationChoicesSuggested({
-      contextText: continuationContext,
-      question: option.text,
-      selectionOptions: option.selectionOptions,
-    }))
     || fragmentOnlyChoicesAccepted
-    || continuationOptions.some(option => option.selectionOptions.some(selection => !selection.label.toLowerCase().includes(option.contextAnchors[0].toLowerCase())))
-    || new Set(continuationChoiceLabels).size !== continuationChoiceLabels.length
-    || continuationOptions.some(option => option.text.includes('Which parts of'))
-    || !continuationOptions.some(option => option.text.includes('"evidence confidence and urgency"'))
     || questionOnlyContinuationInput !== 'coverage authority, claims freshness, adviser handoff'
-    || questionOnlyContinuationOptions.length !== 3
-    || !areProbeTreeCardsMutuallyDistinct(questionOnlyContinuationOptions)
-    || investmentReportOptions.length !== 0
     || genericWrapperAccepted
-    || JSON.stringify(options).includes('Current primary source for')
-    || JSON.stringify(options).includes('Verified system-of-record fact for')
+    || relationshipWrapperAccepted
   ) {
-    throw new Error(`expected invocation scaffolding to yield only query-parameter-specific choices, got ${JSON.stringify({ keywords, continuationInput, continuationKeywords, continuationOptions, questionOnlyContinuationInput, investmentReportOptions, options })}`)
+    throw new Error(`expected relevance validation to reject canned wrappers while keeping the selected child input primary, got ${JSON.stringify({ keywords, continuationInput, continuationKeywords, questionOnlyContinuationInput })}`)
   }
 }

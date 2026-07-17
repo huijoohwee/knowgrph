@@ -17,7 +17,6 @@ export {
   PROBE_TREE_MULTI_SELECT_LIMITS,
   areProbeTreeContinuationChoicesSuggested,
   areProbeTreeCardsMutuallyDistinct,
-  buildProbeTreeInputDerivedOptions,
   collectProbeTreeContextKeywords,
   extractProbeTreeClarificationContextText,
   extractProbeTreeUserInputText,

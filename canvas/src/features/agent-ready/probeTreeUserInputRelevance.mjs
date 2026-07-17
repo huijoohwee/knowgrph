@@ -24,9 +24,8 @@ const PROBE_TREE_RUNTIME_META_WORDS = new Set([
 ]);
 
 const GENERIC_RESPONSE_CONTENT_PATTERN = /^(?:current (?:primary )?source for|verified system-of-record fact for|accountable reviewer confirmation for|which authoritative evidence confirms the current facts)/i;
-const GENERIC_CLARIFICATION_QUESTION_PATTERN = /^which (?:scope|priority|constraint) choice should clarify\b/i;
-const GENERIC_CLARIFICATION_CHOICE_PATTERN = /^(?:define the exact boundary|identify adjacent concerns|set what is outside|set the immediate priority|identify the next sequence|define when to defer|identify mandatory constraints|define acceptable tradeoffs|set unresolved limits)\b/i;
-const PROBE_TREE_GUARD_CLAUSE_PATTERN = /^(?:do not|don't|never|stop|without)\b/i;
+const GENERIC_CLARIFICATION_QUESTION_PATTERN = /^(?:which (?:scope|priority|constraint) choice should clarify\b|which relationship between\b.+\bshould the next answer establish\b|which (?:evidence|decision) basis should resolve\b|which deliverable should resolve\b|what should the next clarification resolve about\b)/i;
+const GENERIC_CLARIFICATION_CHOICE_PATTERN = /^(?:define the exact boundary|identify adjacent concerns|set what is outside|set the immediate priority|identify the next sequence|define when to defer|identify mandatory constraints|define acceptable tradeoffs|set unresolved limits|compare current evidence for|resolve the dependency between|choose the decision order for|use current evidence for|set a decision threshold for|choose a deliverable for|current authoritative evidence for|corroborating evidence for|known evidence gaps for|most conservative basis for|balanced basis for|most current basis for|comparison for|evidence ledger for|recommendation for)\b/i;
 const PROBE_TREE_GENERATED_QUESTION_SCAFFOLD_PATTERN = /^(?:which requested items should guide the next branch)\s*:\s*/i;
 const PROBE_TREE_TERMINAL_GENERATION_PATTERN = /^(?:please\s+)?(?:build|compose|create|draft|generate|prepare|produce|render|write)\b/i;
 
@@ -146,12 +145,6 @@ const buildProbeTreeKeywordPattern = keyword => keyword.split("-")
   .map(escapeProbeTreePattern)
   .join("(?:-|\\s)+");
 
-const readProbeTreeKeywordLabel = (contextText, keyword) => {
-  const pattern = buildProbeTreeKeywordPattern(keyword);
-  const match = String(contextText || "").match(new RegExp(`(?:^|[^a-z0-9-])(${pattern})(?=$|[^a-z0-9-])`, "i"));
-  return String(match?.[1] || keyword);
-};
-
 export function collectProbeTreeContextKeywords(value, maxCount = 8) {
   const seen = new Set();
   const words = String(value || "")
@@ -169,207 +162,6 @@ export function collectProbeTreeContextKeywords(value, maxCount = 8) {
     if (out.length >= Math.max(1, Math.min(128, Number(maxCount) || 8))) break;
   }
   return out;
-}
-
-const splitAuthoredClauses = userInput => (
-  String(userInput || "")
-    .replace(/(^|\s)[/#@][A-Za-z0-9_.-]+/g, " ")
-    .match(/[^.!?\n]+[.!?]?/g) || []
-).map(value => cleanProbeTreeResponseText(value, 480)).filter(value => (
-  value.length >= 24 && !PROBE_TREE_GUARD_CLAUSE_PATTERN.test(value)
-));
-
-const stripLeadingDirectiveVerb = value => String(value || "").replace(
-  /^(?:assess|choose|compare|confirm|evaluate|identify|keep|prioritize|prioritise|produce|provide|require|review|select|use)\s+/i,
-  "",
-);
-
-const splitEnumeratedPhrases = source => {
-  const authoredSource = String(source || "");
-  const enumeratedSource = /[,;]/.test(authoredSource)
-    ? authoredSource
-    : authoredSource.replace(/\b(?:and|or)\b(?=\s+(?:an?\s+)?[a-z0-9])/gi, ",");
-  const phrases = enumeratedSource
-    .replace(/[.!?]+$/g, "")
-    .split(/[,;]+/)
-    .map((value, index) => cleanProbeTreeResponseText(index === 0 ? stripLeadingDirectiveVerb(value) : value, 160))
-    .map(value => value.replace(/^(?:and|or)\s+/i, "").trim())
-    .filter(value => value.length >= 3 && collectProbeTreeContextKeywords(value, 4).length > 0);
-  return normalizeProbeTreeSelectionOptions(phrases);
-};
-
-const extractEnumeratedPhraseGroups = clause => {
-  const relationPattern = /\b(?:across|among|between|covering|for|includes?|including|such as|using)\b\s*/ig;
-  const relationMatches = [...clause.matchAll(relationPattern)];
-  const lastRelation = relationMatches.at(-1);
-  const sources = lastRelation
-    ? [
-        clause.slice(Number(lastRelation.index) + lastRelation[0].length),
-        clause.slice(0, Number(lastRelation.index)),
-        clause,
-      ]
-    : [clause];
-  const seen = new Set();
-  return sources.flatMap(source => {
-    const options = splitEnumeratedPhrases(source);
-    const key = options.map(option => option.label.toLowerCase()).join("\u0000");
-    if (options.length < PROBE_TREE_MULTI_SELECT_LIMITS.min || seen.has(key)) return [];
-    seen.add(key);
-    return [options];
-  });
-};
-
-const scoreInputClause = (clause, selectionOptions) => {
-  const keywords = collectProbeTreeContextKeywords(clause, 20);
-  const runtimeWords = keywords.filter(keyword => PROBE_TREE_RUNTIME_META_WORDS.has(keyword)).length;
-  return (keywords.length - runtimeWords) * 3 + selectionOptions.length * 2 - runtimeWords * 4;
-};
-
-const buildProbeTreeClarificationSuggestions = (phrase, peerPhrase) => normalizeProbeTreeSelectionOptions(peerPhrase
-  ? [
-      `Compare current evidence for ${phrase} with ${peerPhrase}`,
-      `Resolve the dependency between ${phrase} and ${peerPhrase}`,
-      `Choose the decision order for ${phrase} and ${peerPhrase}`,
-    ]
-  : [
-      `Use current evidence for ${phrase}`,
-      `Set a decision threshold for ${phrase}`,
-      `Choose a deliverable for ${phrase}`,
-    ]);
-
-const PROBE_TREE_SINGLE_FOCUS_FACETS = Object.freeze([
-  {
-    id: "evidence-basis",
-    question: phrase => `Which evidence basis should resolve "${phrase}"?`,
-    choices: phrase => [`Current authoritative evidence for ${phrase}`, `Corroborating evidence for ${phrase}`, `Known evidence gaps for ${phrase}`],
-  },
-  {
-    id: "decision-basis",
-    question: phrase => `Which decision basis should resolve "${phrase}"?`,
-    choices: phrase => [`Most conservative basis for ${phrase}`, `Balanced basis for ${phrase}`, `Most current basis for ${phrase}`],
-  },
-  {
-    id: "deliverable",
-    question: phrase => `Which deliverable should resolve "${phrase}"?`,
-    choices: phrase => [`Comparison for ${phrase}`, `Evidence ledger for ${phrase}`, `Recommendation for ${phrase}`],
-  },
-]);
-
-const buildProbeTreeFocusAnchors = (phrase, peerPhrase, contextText) => {
-  const groundingText = extractProbeTreeGroundingText(contextText);
-  const phraseKeywords = collectProbeTreeContextKeywords([phrase, peerPhrase].filter(Boolean).join(" "), 6);
-  const groundingKeywords = collectProbeTreeContextKeywords(groundingText, 12);
-  const labels = [...phraseKeywords, ...groundingKeywords]
-    .map(keyword => readProbeTreeKeywordLabel(groundingText, keyword));
-  return normalizeProbeTreeContextAnchors([phrase, peerPhrase, ...labels]);
-};
-
-const buildProbeTreeSingleFocusOptions = ({ phrase, idPrefix, contextText }) => PROBE_TREE_SINGLE_FOCUS_FACETS.map((facet, index) => {
-  const selectionOptions = normalizeProbeTreeSelectionOptions(facet.choices(phrase));
-  const contextAnchors = buildProbeTreeFocusAnchors(phrase, "", contextText);
-  return {
-    id: `${idPrefix}-${facet.id}-${safeProbeTreeResponseId(phrase, String(index + 1)).slice(0, 64)}`,
-    text: cleanProbeTreeResponseText(facet.question(phrase)),
-    rationale: cleanProbeTreeResponseText(`Suggests ${facet.id} clarification directions for the selected child focus: ${phrase}`),
-    evidenceNeeded: cleanProbeTreeResponseText(`User selection among suggested ${facet.id} directions: ${selectionOptions.map(option => option.label).join("; ")}`),
-    selectionOptions,
-    contextAnchors,
-    score: scoreInputClause(phrase, selectionOptions),
-    clauseIndex: index,
-    sourceOrder: index,
-  };
-}).filter(candidate => candidate.score >= 8);
-
-const buildProbeTreeFocusedOptions = ({ phrases, idPrefix, contextText }) => (phrases.length === 1
-  ? buildProbeTreeSingleFocusOptions({ phrase: phrases[0], idPrefix, contextText })
-  : phrases.flatMap((phrase, index) => {
-  const peerPhrase = phrases.length > 1 ? phrases[(index + 1) % phrases.length] : "";
-  const selectionOptions = buildProbeTreeClarificationSuggestions(phrase, peerPhrase);
-  const contextAnchors = buildProbeTreeFocusAnchors(phrase, peerPhrase, contextText);
-  if (selectionOptions.length < PROBE_TREE_MULTI_SELECT_LIMITS.min || contextAnchors.length < 2) return [];
-  const labels = selectionOptions.map(option => option.label);
-  return [{
-    id: `${idPrefix}-${index + 1}-${safeProbeTreeResponseId(phrase, String(index + 1)).slice(0, 64)}`,
-    text: cleanProbeTreeResponseText(peerPhrase
-      ? `Which relationship between "${phrase}" and "${peerPhrase}" should the next answer establish?`
-      : `What should the next clarification resolve about "${phrase}"?`),
-    rationale: cleanProbeTreeResponseText(`Suggests bounded clarification directions for the selected child focus: ${phrase}`),
-    evidenceNeeded: cleanProbeTreeResponseText(`User selection among suggested directions: ${labels.join("; ")}`),
-    selectionOptions,
-    contextAnchors,
-    score: scoreInputClause(phrase, selectionOptions),
-    clauseIndex: index,
-    sourceOrder: index,
-  }];
-})).filter(candidate => candidate.score >= 8).reduce((accepted, candidate) => (
-  areProbeTreeCardsMutuallyDistinct([...accepted, candidate]) ? [...accepted, candidate] : accepted
-), []).slice(0, 3);
-
-const readProbeTreeContinuationPhrases = contextText => {
-  const continuationAnswer = readContextMarker(contextText, "Selected continuation answer");
-  if (continuationAnswer) {
-    const selected = readProbeTreeContinuationSelections(continuationAnswer);
-    if (selected.length > 0) return selected;
-    const normalizedAnswer = normalizeProbeTreeContinuationAnswer(continuationAnswer);
-    const enumerated = splitEnumeratedPhrases(normalizedAnswer).map(option => option.label);
-    return enumerated.length > 0 ? enumerated : [normalizedAnswer].filter(Boolean);
-  }
-  const continuationQuestion = readContextMarker(contextText, "Selected continuation question");
-  if (!continuationQuestion) return [];
-  return splitEnumeratedPhrases(normalizeProbeTreeContinuationQuestion(continuationQuestion)).map(option => option.label);
-};
-
-export function buildProbeTreeInputDerivedOptions(contextText) {
-  const userInput = extractProbeTreeUserInputText(contextText);
-  const continuationAnswer = readContextMarker(contextText, "Selected continuation answer");
-  if (continuationAnswer && isProbeTreeTerminalGenerationRequest(userInput)) return [];
-  const continuationPhrases = readProbeTreeContinuationPhrases(contextText);
-  if (continuationPhrases.length > 0) {
-    return buildProbeTreeFocusedOptions({
-      phrases: continuationPhrases,
-      idPrefix: "input-derived-continuation",
-      contextText,
-    }).map(({ score: _score, clauseIndex: _clauseIndex, sourceOrder: _sourceOrder, ...candidate }) => candidate);
-  }
-  const candidates = splitAuthoredClauses(userInput).flatMap((clause, sourceIndex) => {
-    return extractEnumeratedPhraseGroups(clause).map((selectionOptions, groupIndex) => {
-      const score = scoreInputClause(clause, selectionOptions) - groupIndex;
-      const labels = selectionOptions.map(option => option.label);
-      const question = `Which requested items should guide the next branch: ${labels.join(", ")}?`;
-      return {
-        id: `input-derived-${sourceIndex + 1}-${groupIndex + 1}-${safeProbeTreeResponseId(clause, String(sourceIndex + 1)).slice(0, 60)}`,
-        text: cleanProbeTreeResponseText(question),
-        rationale: cleanProbeTreeResponseText(`Derived only from the authored request: ${clause}`),
-        evidenceNeeded: cleanProbeTreeResponseText(`User selection among: ${labels.join("; ")}`),
-        selectionOptions,
-        contextAnchors: normalizeProbeTreeContextAnchors([clause, ...labels]),
-        score,
-        clauseIndex: sourceIndex,
-        sourceOrder: sourceIndex * 100 + groupIndex,
-      };
-    }).filter(candidate => candidate.score >= 8);
-  });
-  const ranked = candidates.sort((left, right) => right.score - left.score || left.sourceOrder - right.sourceOrder);
-  const selected = [];
-  const selectedClauses = new Set();
-  for (const candidate of ranked) {
-    if (selectedClauses.has(candidate.clauseIndex)) continue;
-    if (!areProbeTreeCardsMutuallyDistinct([...selected, candidate])) continue;
-    selected.push(candidate);
-    selectedClauses.add(candidate.clauseIndex);
-    if (selected.length >= 3) break;
-  }
-  if (selected.length < 2 && selected[0]) {
-    const focused = buildProbeTreeFocusedOptions({
-      phrases: selected[0].selectionOptions.map(option => option.label),
-      idPrefix: "input-derived-focus",
-      contextText,
-    });
-    if (focused.length >= 2) {
-      return focused.map(({ score: _score, clauseIndex: _clauseIndex, sourceOrder: _sourceOrder, ...candidate }) => candidate);
-    }
-  }
-  return selected.map(({ score: _score, clauseIndex: _clauseIndex, sourceOrder: _sourceOrder, ...candidate }) => candidate);
 }
 
 export function areProbeTreeCardsMutuallyDistinct(cards) {
@@ -440,9 +232,4 @@ export function isProbeTreeCardUserInputRelevant({ contextText, question, select
   }
   if (questionMatches.size < 2 || optionMatches.size < 2) return false;
   return options.every(option => matchedContextKeywords(contextKeywords, option.label).length > 0);
-}
-
-export function readProbeTreeContextKeywordLabels(contextText, maxCount = 8) {
-  const userInput = extractProbeTreeUserInputText(contextText);
-  return collectProbeTreeContextKeywords(userInput, maxCount).map(keyword => readProbeTreeKeywordLabel(userInput, keyword));
 }

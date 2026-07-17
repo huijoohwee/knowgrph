@@ -1,6 +1,6 @@
 import { isStoryboardWidgetProbeTreeProviderRefinementApproved, PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY, readStoryboardWidgetProbeTreeInvocationText, resolveStoryboardWidgetProbeTreeInvocationTokenForNode, runStoryboardWidgetProbeTreeMcpInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
 import { resolveStoryboardWidgetProbeTreeSelectedRunNode } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeRunNode'
-import { buildProbeTreeInputDerivedOptions, buildProbeTreeStructuredResponse, KNOWGRPH_PROBE_TREE_TOOL_NAMES, PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION } from '@/features/agent-ready/probeTreeContract.mjs'
+import { buildProbeTreeStructuredResponse, KNOWGRPH_PROBE_TREE_TOOL_NAMES, PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION } from '@/features/agent-ready/probeTreeContract.mjs'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
@@ -11,6 +11,32 @@ const prompt = [
   'Assess SME cyber and ICT supply-chain risk, current coverage gaps, unresolved unknowns, and the adviser handoff.',
 ].join('\n')
 const mcpContextText = ['Authored request:', prompt, 'Selected Widget id: n1'].join('\n')
+const mcpRelevantOptions = [
+  {
+    id: 'mcp-cyber-coverage',
+    text: 'Which SME cyber coverage gaps should guide the next branch?',
+    rationale: 'Clarifies the authored SME cyber coverage request.',
+    evidenceNeeded: 'User-selected SME cyber coverage gap.',
+    selectionOptions: ['SME cyber', 'current coverage gaps'],
+    contextAnchors: ['SME cyber', 'current coverage gaps'],
+  },
+  {
+    id: 'mcp-supply-chain',
+    text: 'Which ICT supply-chain risk should guide the next branch?',
+    rationale: 'Clarifies the authored ICT supply-chain request.',
+    evidenceNeeded: 'User-selected ICT supply-chain risk.',
+    selectionOptions: ['ICT supply-chain risk', 'unresolved unknowns'],
+    contextAnchors: ['ICT supply-chain risk', 'unresolved unknowns'],
+  },
+  {
+    id: 'mcp-adviser-handoff',
+    text: 'Which adviser handoff outcome should guide the next branch?',
+    rationale: 'Clarifies the authored adviser handoff request.',
+    evidenceNeeded: 'User-selected adviser handoff outcome.',
+    selectionOptions: ['adviser handoff outcome', 'adviser handoff sequence'],
+    contextAnchors: ['the adviser handoff', 'SME cyber'],
+  },
+]
 
 export function testProbeTreeProviderRefinementRequiresExplicitCardApproval() {
   if (isStoryboardWidgetProbeTreeProviderRefinementApproved({})
@@ -49,10 +75,10 @@ const mcpCallResult = (): Record<string, unknown> => ({
       threadRootId: 'n1',
       currentNodeId: 'n1',
       contextText: mcpContextText,
-      options: buildProbeTreeInputDerivedOptions(mcpContextText),
+      options: mcpRelevantOptions,
     }),
     degraded: false,
-    cost_log: { model: 'probe-tree-input-derived', prompt_tokens: 41, completion_tokens: 96, cache_hits: 0, estimated_cost_usd: 0 },
+    cost_log: { model: 'qwen-local', prompt_tokens: 41, completion_tokens: 96, cache_hits: 0, estimated_cost_usd: 0 },
   },
 })
 
@@ -224,6 +250,57 @@ export async function testProbeTreeWidgetRunRejectsOverboundedProviderCardsAndUs
   }
 }
 
+export async function testProbeTreeWidgetRunRefusesGenericNoModelFallback() {
+  const authoredRequest = '/knowgrph.probe-tree invest in China, India, SE Asia?'
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'investment-root', type: 'TextGeneration', label: 'Widget Card', properties: { prompt: authoredRequest } }],
+    edges: [],
+  }
+  const contextText = ['Authored request:', authoredRequest, 'Selected Widget id: investment-root'].join('\n')
+  const insufficientResult = {
+    isError: false,
+    content: [{ type: 'text', text: 'No query-specific cards without a configured model.' }],
+    structuredContent: {
+      contractVersion: 'knowgrph-probe-tree/v0.1',
+      ok: false,
+      degraded: true,
+      degraded_reason: 'insufficient_user_input_context',
+      response: buildProbeTreeStructuredResponse({
+        threadRootId: 'investment-root',
+        currentNodeId: 'investment-root',
+        contextText,
+        options: [],
+      }),
+      cost_log: { model: 'none', prompt_tokens: 0, completion_tokens: 0, cache_hits: 0, estimated_cost_usd: 0 },
+    },
+  }
+  let published = false
+  let errorMessage = ''
+  try {
+    await runStoryboardWidgetProbeTreeMcpInvocation({
+      graphForRun: graphData,
+      nodeIds: ['investment-root'],
+      fallbackNode: graphData.nodes[0],
+      invokeMcp: async () => ({ ...bridgeResult(), result: insufficientResult }),
+      onMaterialized: () => undefined,
+      publishOutput: output => {
+        published = true
+        return output.baseGraphData || null
+      },
+    })
+  } catch (error) {
+    errorMessage = error instanceof Error ? error.message : String(error || '')
+  }
+  if (
+    published
+    || !errorMessage.includes('refused generic or hardcoded fallback cards')
+    || !errorMessage.includes('probeTreeProviderRefinementApproved: true')
+  ) {
+    throw new Error(`expected no-model investment clarification to fail closed without publishing canned cards, got ${JSON.stringify({ published, errorMessage })}`)
+  }
+}
+
 export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderContext() {
   const userAnswer = 'Require current policy, regulator, and licensed-adviser evidence for Singapore and Malaysia cyber and supply-chain coverage gaps.'
   const graphData: GraphData = {
@@ -267,7 +344,47 @@ export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderCo
     },
     generateProviderResponse: async promptText => {
       providerPrompt = promptText
-      return null
+      return providerStructuredText([
+        {
+          id: 'country-cyber-coverage',
+          label: 'Which Singapore or Malaysia cyber coverage gap should guide the next branch?',
+          kind: 'text',
+          parentNodeId: 'probe-answer',
+          candidateOptionId: 'country-cyber-coverage',
+          question: 'Which Singapore or Malaysia cyber coverage gap should guide the next branch?',
+          output: '',
+          rationale: 'Uses the selected child country and cyber coverage request.',
+          evidenceNeeded: 'User-selected country coverage gap.',
+          selectionOptions: [
+            { id: 'singapore-cyber', label: 'Singapore cyber coverage gaps' },
+            { id: 'malaysia-cyber', label: 'Malaysia cyber coverage gaps' },
+          ],
+          contextAnchors: ['Singapore', 'Malaysia', 'cyber', 'coverage gaps'],
+          confidence: 'medium',
+          probeTreeDepth: 4,
+          nextAction: 'knowgrph.probe.select',
+        },
+        {
+          id: 'supply-chain-evidence',
+          label: 'Which supply-chain evidence should guide the licensed-adviser review?',
+          kind: 'text',
+          parentNodeId: 'probe-answer',
+          candidateOptionId: 'supply-chain-evidence',
+          question: 'Which supply-chain evidence should guide the licensed-adviser review?',
+          output: '',
+          rationale: 'Uses the selected child evidence and adviser request.',
+          evidenceNeeded: 'User-selected evidence source.',
+          selectionOptions: [
+            { id: 'current-policy', label: 'current policy evidence' },
+            { id: 'regulator', label: 'regulator evidence' },
+            { id: 'licensed-adviser', label: 'licensed-adviser evidence' },
+          ],
+          contextAnchors: ['supply-chain', 'current policy', 'regulator', 'licensed-adviser evidence'],
+          confidence: 'medium',
+          probeTreeDepth: 4,
+          nextAction: 'knowgrph.probe.select',
+        },
+      ])
     },
     onMaterialized: () => undefined,
     publishOutput: output => output.baseGraphData || null,

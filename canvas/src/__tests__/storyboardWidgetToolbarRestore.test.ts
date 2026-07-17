@@ -8,14 +8,7 @@ import {
   revealProbeTreeBranchCardsOnCanvas,
   resolveProbeTreeCardMaterializationRequestText,
 } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
-import {
-  buildProbeTreeStoryboardMermaidFlowchart,
-  parseProbeTreeStoryboardMermaidFlowchart,
-  PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND,
-} from '@/components/StoryboardCanvas/storyboardProbeTreeMermaidFlowchart'
 import type { GraphData } from '@/lib/graph/types'
-import { KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS } from '@/features/agentic-os/probeTreePromptPreset'
-import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 const assertProbeTreeRevealPreservesExplicitPinsAndViewport = (nodeIds: readonly string[]): void => {
@@ -208,13 +201,13 @@ export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() 
     nodes: [{ id: 'care_source', label: 'Care Source', type: 'Node', properties: { title: 'Care Source' } }],
     edges: [],
   }
-  const materialized = materializeProbeTreeBranchCards({ graphData: probeTreeGraph, card: probeTreeCard })
-  if (!materialized.changed || materialized.kind !== 'success') {
-    throw new Error('expected Probe-Tree toolbar materialization to create selectable branch cards')
-  }
-  if (materialized.materializedNodeIds.length !== 3) {
-    throw new Error(`expected Probe-Tree toolbar materialization to create 3 branch cards, got ${materialized.materializedNodeIds.length}`)
-  }
+  const noModelBranches = materializeProbeTreeBranchCards({ graphData: probeTreeGraph, card: probeTreeCard })
+  if (
+    noModelBranches.changed
+    || noModelBranches.kind !== 'warning'
+    || noModelBranches.materializedNodeIds.length !== 0
+    || !noModelBranches.message.includes('does not create hardcoded preview branches')
+  ) throw new Error(`expected the Probe-Tree toolbar to fail closed without accepted model cards, got ${JSON.stringify(noModelBranches)}`)
   let toolbarCommittedGraph: GraphData | null = null
   const toolbarHistory: string[] = []
   const toolbarToasts: Array<{ kind?: string; message?: string }> = []
@@ -226,63 +219,45 @@ export function testStoryboardWidgetToolbarRestoresTinyFloatingActionsWithRun() 
     upsertUiToast: toast => { toolbarToasts.push(toast) },
   })
   if (
-    !toolbarResult.changed
-    || (toolbarCommittedGraph as GraphData | null)?.nodes.filter(node => node.type === FLOW_TEXT_GENERATION_NODE_TYPE_ID && node.properties.cardTypeLabel === 'Probe-Tree Card').length !== 3
-    || toolbarHistory[0] !== 'Probe-Tree branch cards'
-    || toolbarToasts[0]?.message !== 'Probe-Tree branch cards materialized on canvas.'
-  ) throw new Error(`expected Probe-Tree toolbar action to commit its supplied active graph owner before success feedback, got ${JSON.stringify({ toolbarResult, toolbarHistory, toolbarToasts })}`)
-  const materializedGraph = materialized.graphData
-  const probeNodes = (materializedGraph?.nodes || []).filter(node => node.type === FLOW_TEXT_GENERATION_NODE_TYPE_ID && node.properties.cardTypeLabel === 'Probe-Tree Card')
-  const candidateEdges = (materializedGraph?.edges || []).filter(edge => edge.label === 'candidateOption')
-  if (probeNodes.length !== 3 || candidateEdges.length !== 3) {
-    throw new Error('expected Probe-Tree toolbar materialization to create visible Widget Card nodes with candidateOption edges')
+    toolbarResult.changed
+    || toolbarCommittedGraph !== null
+    || toolbarHistory.length !== 0
+    || !toolbarToasts[0]?.message?.includes('does not create hardcoded preview branches')
+  ) throw new Error(`expected Probe-Tree toolbar action to leave the graph unchanged before model-backed Run, got ${JSON.stringify({ toolbarResult, toolbarHistory, toolbarToasts })}`)
+
+  const acceptedGraph: GraphData = {
+    ...probeTreeGraph,
+    nodes: [
+      ...probeTreeGraph.nodes,
+      ...['market-horizon', 'investment-evidence', 'regional-scope'].map((id, index) => ({
+        id: `accepted-${id}`,
+        type: 'TextGeneration',
+        label: `Accepted ${id}`,
+        properties: {
+          cardTypeLabel: 'Probe-Tree Card',
+          probeTreeResponseMode: 'llm-contract',
+          parentNodeId: 'care_source',
+          parentGraphNodeId: 'care_source',
+          summary: `Accepted model question ${index + 1}`,
+        },
+      })),
+    ],
+    edges: ['market-horizon', 'investment-evidence', 'regional-scope'].map((id, index) => ({
+      id: `accepted-edge-${index + 1}`,
+      source: 'care_source',
+      target: `accepted-${id}`,
+      label: 'candidateOption',
+      properties: {},
+    })),
   }
-  if (!probeNodes.every(node => (
-    node.properties.invocation === 'knowgrph.probe.generate'
-    && JSON.stringify(node.properties.invocationTokens) === JSON.stringify(KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS)
-    && String(node.properties.prompt || '').startsWith('/knowgrph.probe-tree\n\n')
-  ))) {
-    throw new Error('expected Probe-Tree materialized cards to keep the slash prompt while preserving MCP identity and source-backed aliases as metadata')
-  }
-  assertProbeTreeRevealPreservesExplicitPinsAndViewport(materialized.materializedNodeIds)
-  const graphMermaid = String((materializedGraph?.metadata || {}).probeTreeMermaidFlowchart || '')
+  const materialized = materializeProbeTreeBranchCards({ graphData: acceptedGraph, card: probeTreeCard })
   if (
-    !graphMermaid.includes('flowchart TB')
-    || !graphMermaid.includes('care_source["Care Source"]')
-    || !graphMermaid.includes('-->|candidateOption|')
-    || (materializedGraph?.metadata || {}).probeTreeMermaidFlowchartKind !== PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND
-  ) {
-    throw new Error(`expected Probe-Tree materialization to store the Storyboard to Mermaid flowchart mapping, got ${graphMermaid}`)
-  }
-  const rebuiltMermaid = buildProbeTreeStoryboardMermaidFlowchart({ graphData: materializedGraph, rootNodeId: 'care_source' })
-  if (rebuiltMermaid !== graphMermaid) {
-    throw new Error('expected Probe-Tree Mermaid mapping to be deterministic from graph data')
-  }
-  const roundTrippedGraph = parseProbeTreeStoryboardMermaidFlowchart(graphMermaid)
-  const roundTripIds = new Set((roundTrippedGraph?.nodes || []).map(node => String(node.id || '')))
-  if (!roundTripIds.has('care_source') || !materialized.materializedNodeIds.every(id => roundTripIds.has(id))) {
-    throw new Error(`expected Mermaid flowchart to parse back into Storyboard graph node ids, got ${Array.from(roundTripIds).join(',')}`)
-  }
-  const roundTripCandidateEdges = (roundTrippedGraph?.edges || []).filter(edge => (
-    edge.source === 'care_source'
-    && edge.label === 'candidateOption'
-    && materialized.materializedNodeIds.includes(String(edge.target || ''))
-  ))
-  if (roundTripCandidateEdges.length !== 3) {
-    throw new Error(`expected Mermaid flowchart to parse back into 3 candidateOption edges, got ${JSON.stringify(roundTrippedGraph?.edges || [])}`)
-  }
-  const repeated = materializeProbeTreeBranchCards({ graphData: materializedGraph, card: probeTreeCard })
-  if (repeated.changed) {
-    throw new Error('expected Probe-Tree materialization to reselect existing cards instead of duplicating them')
-  }
-  const legacyGraph = {
-    ...materializedGraph!,
-    nodes: materializedGraph!.nodes.map(node => materialized.materializedNodeIds.includes(String(node.id || '')) ? { ...node, type: 'ProbeTreeCandidate' } : node),
-  }
-  const upgraded = materializeProbeTreeBranchCards({ graphData: legacyGraph, card: probeTreeCard })
-  if (!upgraded.changed || !upgraded.materializedNodeIds.every(id => upgraded.graphData?.nodes.find(node => node.id === id)?.type === FLOW_TEXT_GENERATION_NODE_TYPE_ID)) {
-    throw new Error('expected rerun to upgrade hidden legacy ProbeTreeCandidate nodes into visible Widget Cards')
-  }
+    materialized.changed
+    || materialized.kind !== 'neutral'
+    || materialized.materializedNodeIds.length !== 3
+    || materialized.graphData !== acceptedGraph
+  ) throw new Error(`expected Probe-Tree toolbar to reveal only accepted model-backed branch cards, got ${JSON.stringify(materialized)}`)
+  assertProbeTreeRevealPreservesExplicitPinsAndViewport(materialized.materializedNodeIds)
   if (!toolbarText.includes('GRAPH_FIELDS_ENTRY_SHORTCUT_NODE_LABEL')) {
     throw new Error('expected Open sidepane to reuse the shared Graph Fields node entry label instead of a local literal')
   }

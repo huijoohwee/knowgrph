@@ -7,12 +7,10 @@ import {
   STORYBOARD_SUMMARY_PROPERTY_KEYS,
   STORYBOARD_TITLE_PROPERTY_KEYS,
 } from '@/components/StoryboardCanvas/storyboardModel'
-import { hashText } from '@/features/parsers/hash'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { UiToastInput } from '@/hooks/store/store-types/core'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
-import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
-import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import { seedMissingFlowWidgetPinnedByIds } from '@/lib/storyboardWidget/flowWidgetPinnedState'
 import {
@@ -21,19 +19,8 @@ import {
   readGraphNodeProperties,
 } from '@/lib/cards/graphNodeCardFields'
 import {
-  buildProbeTreeStoryboardMermaidFlowchart,
-  PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND,
-} from '@/components/StoryboardCanvas/storyboardProbeTreeMermaidFlowchart'
-import {
-  normalizeStoryboardWidgetProbeTreeOutputLayout,
-  resolveStoryboardWidgetProbeTreeBranchPositions,
-} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
-import {
-  buildKnowgrphProbeTreePromptPreset,
   KNOWGRPH_PROBE_TREE_GENERATE_TOOL_NAME,
   KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS,
-  KNOWGRPH_PROBE_TREE_MAX_DEPTH,
-  KNOWGRPH_PROBE_TREE_SELECT_TOOL_NAME,
 } from '@/features/agentic-os/probeTreePromptPreset'
 
 type ProbeTreeResultKind = 'success' | 'neutral' | 'warning'
@@ -47,37 +34,11 @@ export type ProbeTreeBranchCardMaterializationResult = {
   invocationText: string
 }
 
-const PROBE_TREE_EDGE_LABEL = 'candidateOption'
-const PROBE_TREE_LEGACY_NODE_TYPE = 'ProbeTreeCandidate'
-
-const PROBE_TREE_BRANCH_HEURISTICS = [
-  {
-    key: 'clarify',
-    title: 'Clarify probe',
-    summary: 'Resolve missing intent, source, or constraint context before selecting a branch.',
-    action: 'Select when the next step needs one bounded clarification before tool execution.',
-  },
-  {
-    key: 'generate',
-    title: 'Generate branches',
-    summary: 'Run the Probe-Tree contract against the selected card and produce bounded next-step options.',
-    action: 'Select when the card is ready for branch generation through the Probe-Tree harness.',
-  },
-  {
-    key: 'select',
-    title: 'Select handoff',
-    summary: 'Promote the strongest branch into the canvas as the next editable step.',
-    action: 'Select after comparing branch cards and approving one next step for execution.',
-  },
-] as const
-
 const cleanPromptValue = (value: unknown, maxLength = 180): string => (
   String(unwrapGraphCellValue(value) ?? '').replace(/\s+/g, ' ').trim().slice(0, maxLength)
 )
 
 const readGraphIdentity = (value: unknown): string => cleanPromptValue(value, 240)
-
-const asJson = (value: unknown): JSONValue => value as JSONValue
 
 const readCardTextProperty = (properties: Record<string, unknown>, keys: readonly string[]): string => (
   cleanPromptValue(readGraphNodeCanonicalTextProperty(properties, keys), 320)
@@ -101,54 +62,6 @@ const readCardStringArrayProperty = (value: unknown): string[] => {
   const text = cleanPromptValue(scalar, 160)
   return text ? [text] : []
 }
-
-const cloneGraphNodes = (graphData: GraphData): GraphNode[] => (
-  (Array.isArray(graphData.nodes) ? graphData.nodes : []).map(node => ({
-    ...node,
-    properties: { ...(node.properties || {}) },
-  }))
-)
-
-const cloneGraphEdges = (graphData: GraphData): GraphEdge[] => (
-  (Array.isArray(graphData.edges) ? graphData.edges : []).map(edge => ({
-    ...edge,
-    properties: { ...(edge.properties || {}) },
-  }))
-)
-
-const makeProbeTreeEdge = (source: string, target: string): GraphEdge => ({
-  id: `probe-tree:edge:${hashText(`${source}:${PROBE_TREE_EDGE_LABEL}:${target}`).slice(0, 12)}`,
-  source,
-  target,
-  label: PROBE_TREE_EDGE_LABEL,
-  properties: {
-    evidenceKind: asJson('runtime-action'),
-    confidence: asJson('medium'),
-  },
-})
-
-const readSelectedCardText = (card: StoryboardCardModel): string => (
-  [
-    card.title,
-    card.summary,
-    card.action,
-    card.prompt,
-    card.lane,
-    card.typeLabel,
-  ].map(value => cleanPromptValue(value, 240)).filter(Boolean).join(' ')
-)
-
-const buildProbeTreeRequestSignature = (card: StoryboardCardModel): string => (
-  hashText([
-    card.id,
-    card.title,
-    card.summary,
-    card.action,
-    card.prompt,
-    card.lane,
-    card.typeLabel,
-  ].map(value => cleanPromptValue(value, 240)).join('\n')).slice(0, 12)
-)
 
 const buildSelectedCardPromptContext = (card?: StoryboardCardModel | null): string => {
   if (!card) return 'Generate selectable Probe-Tree next-step cards for the active canvas context.'
@@ -241,9 +154,7 @@ export function materializeProbeTreeBranchCards(args: {
 
   const graphData = args.graphData
   const card = args.card
-  const nodes = cloneGraphNodes(graphData)
-  const edges = cloneGraphEdges(graphData)
-  const parent = nodes.find(node => readGraphIdentity(node.id) === card.id) || null
+  const parent = (graphData.nodes || []).find(node => readGraphIdentity(node.id) === card.id) || null
   if (!parent) {
     return {
       graphData,
@@ -255,135 +166,22 @@ export function materializeProbeTreeBranchCards(args: {
     }
   }
 
-  const parentProperties = readGraphNodeProperties(parent)
   const parentNodeId = readGraphIdentity(parent.id) || card.id
-  const parentDepth = readCardNumberProperty(parentProperties, ['probeTreeDepth'])
-  if (parentDepth >= KNOWGRPH_PROBE_TREE_MAX_DEPTH) {
-    return {
-      graphData,
-      changed: false,
-      kind: 'warning',
-      message: `Probe-Tree stopped at the ${KNOWGRPH_PROBE_TREE_MAX_DEPTH}-branch depth limit.`,
-      materializedNodeIds: [],
-      invocationText,
-    }
-  }
-
-  const requestSignature = buildProbeTreeRequestSignature(card)
-  const parentTitle = cleanPromptValue(card.title || parent.label || card.id, 120)
-  const parentSummary = cleanPromptValue(readSelectedCardText(card), 320)
-  const materializedNodeIds = PROBE_TREE_BRANCH_HEURISTICS.map(heuristic => (
-    `probe-tree:${heuristic.key}:${hashText(`${card.id}:${requestSignature}:${heuristic.key}`).slice(0, 12)}`
-  ))
-  const projectedPositions = resolveStoryboardWidgetProbeTreeBranchPositions({
-    graphData,
-    anchorNode: parent,
-    removedNodeIds: new Set(materializedNodeIds),
-    count: materializedNodeIds.length,
-  })
-  let changed = false
-
-  PROBE_TREE_BRANCH_HEURISTICS.forEach((heuristic, index) => {
-    const nodeId = materializedNodeIds[index]!
-    const existingNodeIndex = nodes.findIndex(node => readGraphIdentity(node.id) === nodeId)
-    const existingNode = existingNodeIndex >= 0 ? nodes[existingNodeIndex] : null
-    if (!existingNode) {
-      const title = `${heuristic.title}: ${parentTitle}`
-      nodes.push({
-        id: nodeId,
-        label: title,
-        type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-        x: projectedPositions[index]!.x,
-        y: projectedPositions[index]!.y,
-        properties: {
-          title: asJson(title),
-          lane: asJson('PROBE'),
-          order: asJson((Number.isFinite(card.order) ? card.order : index) + 0.1 + index / 100),
-          index: asJson(`P${index + 1}`),
-          cardTypeLabel: asJson('Probe-Tree Card'),
-          summary: asJson(`${heuristic.summary} Source card: ${parentSummary || parentTitle}.`),
-          action: asJson(heuristic.action),
-          prompt: asJson(buildKnowgrphProbeTreePromptPreset(`${heuristic.action} Parent card: ${parentTitle}. ${parentSummary}`.trim())),
-          invocationTokens: asJson([...KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS]),
-          invocation: asJson(KNOWGRPH_PROBE_TREE_GENERATE_TOOL_NAME),
-          responseStructuredContentKind: asJson('cards'),
-          responseMaterialization: asJson('response.structuredContent.cards'),
-          probeTreeCandidateKey: asJson(heuristic.key),
-          probeTreeRequestSignature: asJson(requestSignature),
-          probeTreeTool: asJson(heuristic.key === 'select' ? KNOWGRPH_PROBE_TREE_SELECT_TOOL_NAME : KNOWGRPH_PROBE_TREE_GENERATE_TOOL_NAME),
-          nextAction: asJson(heuristic.key === 'select' ? KNOWGRPH_PROBE_TREE_SELECT_TOOL_NAME : KNOWGRPH_PROBE_TREE_GENERATE_TOOL_NAME),
-          probeTreeDepth: asJson(parentDepth + 1),
-          parentGraphNodeId: asJson(parentNodeId),
-          parentNodeId: asJson(parentNodeId),
-          candidateStatus: asJson('selectable'),
-          branchStatus: asJson('candidate'),
-          tags: asJson(['probe-tree', 'candidateOption', heuristic.key]),
-        },
-      })
-      changed = true
-    } else if (readGraphIdentity(existingNode.type) === PROBE_TREE_LEGACY_NODE_TYPE) {
-      nodes[existingNodeIndex] = { ...existingNode, type: FLOW_TEXT_GENERATION_NODE_TYPE_ID }
-      changed = true
-    }
-
-    const edge = makeProbeTreeEdge(parentNodeId, nodeId)
-    if (!edges.some(existing => existing.id === edge.id || (
-      existing.source === edge.source &&
-      existing.target === edge.target &&
-      existing.label === edge.label
-    ))) {
-      edges.push(edge)
-      changed = true
-    }
-  })
-
-  const nextGraphData = changed
-    ? {
-        ...graphData,
-        nodes,
-        edges,
-        metadata: {
-          ...(graphData.metadata || {}),
-          probeTreeMaterializedAtMs: Date.now(),
-          probeTreeInvocation: KNOWGRPH_PROBE_TREE_GENERATE_TOOL_NAME,
-        } as GraphData['metadata'],
-      }
-    : graphData
-  const laidOutGraphData = normalizeStoryboardWidgetProbeTreeOutputLayout({
-    graphData: nextGraphData,
-    threadRootId: parentNodeId,
-    preserveCanonicalOutputEdges: true,
-  })
-  const layoutChanged = laidOutGraphData !== nextGraphData
-  const probeTreeMermaidFlowchart = buildProbeTreeStoryboardMermaidFlowchart({
-    graphData: laidOutGraphData,
-    rootNodeId: parentNodeId,
-  })
-  const metadataChanged = (
-    (laidOutGraphData.metadata || {}).probeTreeMermaidFlowchart !== probeTreeMermaidFlowchart
-    || (laidOutGraphData.metadata || {}).probeTreeMermaidFlowchartKind !== PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND
-  )
-  const finalGraphData = metadataChanged
-    ? {
-        ...laidOutGraphData,
-        metadata: {
-          ...(laidOutGraphData.metadata || {}),
-          probeTreeMermaidFlowchart,
-          probeTreeMermaidFlowchartKind: PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND,
-        } as GraphData['metadata'],
-      }
-    : laidOutGraphData
-  const message = changed || layoutChanged
-    ? 'Probe-Tree branch cards materialized on canvas.'
-    : metadataChanged
-      ? 'Probe-Tree Mermaid flowchart mapping refreshed.'
-      : 'Probe-Tree branch cards already exist for this selected card.'
+  const materializedNodeIds = (graphData.nodes || []).filter(node => {
+    const properties = readGraphNodeProperties(node)
+    return readGraphIdentity(properties.parentNodeId || properties.parentGraphNodeId) === parentNodeId
+      && readGraphIdentity(properties.cardTypeLabel) === 'Probe-Tree Card'
+      && readGraphIdentity(properties.probeTreeResponseMode) === 'llm-contract'
+  }).map(node => readGraphIdentity(node.id)).filter(Boolean)
+  const hasAcceptedCards = materializedNodeIds.length > 0
 
   return {
-    graphData: finalGraphData,
-    changed: changed || layoutChanged || metadataChanged,
-    kind: changed || layoutChanged || metadataChanged ? 'success' : 'neutral',
-    message,
+    graphData,
+    changed: false,
+    kind: hasAcceptedCards ? 'neutral' : 'warning',
+    message: hasAcceptedCards
+      ? 'Probe-Tree revealed the accepted model-backed branches for this card.'
+      : 'Probe-Tree does not create hardcoded preview branches. Run the selected Widget Card to generate 2-4 context-specific branches.',
     materializedNodeIds,
     invocationText,
   }
