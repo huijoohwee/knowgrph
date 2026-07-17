@@ -279,6 +279,8 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
     || !['protection', 'licensed-adviser', 'evidence', 'confidence', 'urgency'].every(keyword => continuationKeywords.includes(keyword))
     || continuationOptions.length < 2
     || continuationOptions.some(option => option.text.includes('Which requested items should guide the next branch: Which requested items'))
+    || !continuationOptions.some(option => option.selectionOptions.some(selection => selection.label === 'evidence confidence and urgency'))
+    || continuationOptions.some(option => option.selectionOptions.some(selection => selection.label === 'urgency'))
     || questionOnlyContinuationInput !== 'coverage authority, claims freshness, adviser handoff'
     || JSON.stringify(options).includes('Current primary source for')
     || JSON.stringify(options).includes('Verified system-of-record fact for')
