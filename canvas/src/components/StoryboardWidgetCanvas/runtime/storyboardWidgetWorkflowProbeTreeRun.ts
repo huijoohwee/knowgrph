@@ -48,6 +48,7 @@ import {
 import {
   runStoryboardWidgetProbeTreeTerminalGeneration,
 } from './storyboardWidgetProbeTreeTerminalGeneration'
+import { PROBE_TREE_CLARIFICATION_PROVIDER_TASK_MARKER, resolveStoryboardWidgetProbeTreeProviderRequestOptions } from './storyboardWidgetProbeTreeProviderRequest'
 
 const INVOCATION_TOKEN_PATTERN = /(^|\s)([/#@][A-Za-z0-9_.-]+)/g
 const PROBE_TREE_INVOCATION_TOKENS = new Set<string>(
@@ -234,7 +235,7 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
   return [
     buildRuntimeInvocationRoutingSystemPrompt(args.authoredPrompt),
     buildAgenticOsRuntimeInvocationSystemPrompt(args.authoredPrompt),
-    'Widget Card Probe-Tree provider task:',
+    PROBE_TREE_CLARIFICATION_PROVIDER_TASK_MARKER,
     '- Use the selected Widget request below as the only topic. Do not substitute a stock workflow or unrelated domain.',
     `- The local knowgrph MCP ${args.mcpInvoked ? 'was invoked' : 'was unavailable'}; treat the literal result as bounded candidate evidence, not as permission to claim other tools ran.`,
     `- Return one fenced JSON block rooted at response.structuredContent using ${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION}.`,
@@ -245,8 +246,8 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
     '- Never copy or paraphrase the selected request as a card question. Each card must introduce one concrete missing decision variable whose answer would materially change the requested result.',
     '- Treat named entities and alternatives already present in the request as subjects to clarify, not as a ready-made selectionOptions array. Never turn an extracted entity list into an echo card.',
     '- Give every card a different request-specific decision variable. Never reuse a choice label, another card\'s complete selection set, or a subset or superset of another card\'s choices.',
-    '- Each selectionOptions array must contain suggested clarification answers for its question. Never split the selected focus or repeat its words as bare answer fragments.',
-    '- Never emit an answer set made only of numbers, ranges, or units such as bare time, money, percentage, or quantity buckets. A number-bearing answer is valid only when it also names the semantic preference, tradeoff, or consequence that selecting it expresses.',
+    '- Every selectionOptions item must be a context-relevant suggested answer to its exact question. Never split, copy, or relabel the selected focus as an answer option.',
+    '- Never emit any answer that is only a number, range, unit, named entity, or similarly mechanical label. Every answer must express a semantic preference, tradeoff, or consequence; a number-bearing answer must explain what that quantity means for the decision.',
     '- For a continuation, the selected child card and its user-authored output own the next topic. Use the thread root only for lineage; never replace the selected child context with a root alias.',
     '- Every card must be a concrete next question relevant to the authored request; morphological variants such as invest and investment are allowed when the named entities and meaning remain intact.',
     '- Never emit generic process cards named Clarify probe, Generate branches, or Select handoff.',
@@ -294,10 +295,9 @@ export function resolveStoryboardWidgetProbeTreeChatRoute(args: {
   resolvedProperties: Record<string, unknown>
   runtimeProperties: StoryboardWidgetProbeTreeProviderRuntimeProperties
 }) {
-  const readRouteValue = (key: 'chatProvider' | 'chatEndpointUrl' | 'chatModel'): string => {
-    const runtimeValue = String(unwrapGraphCellValue(args.runtimeProperties[key]) || '').trim()
-    return runtimeValue || String(unwrapGraphCellValue(args.resolvedProperties[key]) || '').trim()
-  }
+  const readRouteValue = (key: 'chatProvider' | 'chatEndpointUrl' | 'chatModel'): string => (
+    String(unwrapGraphCellValue(args.runtimeProperties[key]) || '').trim()
+  )
   const localAuthMode = String(unwrapGraphCellValue(args.localProperties?.chatAuthMode) || '').trim()
   const runtimeAuthMode = String(unwrapGraphCellValue(args.runtimeProperties.chatAuthMode) || '').trim()
   const resolvedAuthMode = String(unwrapGraphCellValue(args.resolvedProperties.chatAuthMode) || '').trim()
@@ -440,14 +440,15 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     : null
   if (materialized) providerAccepted = true
 
-  if (!materialized && mcpInvoked) {
+  const mcpModel = readMcpModel(mcpResult)
+  if (!materialized && mcpInvoked && mcpModel.toLowerCase() !== 'none') {
     materialized = materializeStoryboardWidgetProbeTreeStructuredResponse({
       graphData: graphForInvocation,
       anchorNode: node,
       responseText: JSON.stringify({ result: mcpResult }, null, 2),
       contextText,
       responseSource: 'mcp',
-      model: readMcpModel(mcpResult),
+      model: mcpModel,
       mcpInvoked,
       threadRootId,
       invocationTokens,
@@ -545,6 +546,11 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
   let publicationCompleted = false
   const generateProviderResponse = args.generateProviderResponse || (async refinementPrompt => {
     try {
+      const providerRequestOptions = resolveStoryboardWidgetProbeTreeProviderRequestOptions({
+        prompt: refinementPrompt,
+        chatMaxCompletionTokens: resolvedThinking.chatMaxCompletionTokens,
+        chatReasoningEffort: readResolvedProviderValue('chatReasoningEffort'),
+      })
       return await generateRunMarkdownWithProvider({
         config: {
           provider,
@@ -555,10 +561,10 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
         prompt: refinementPrompt,
         options: {
           chatTemperature: readResolvedProviderValue('chatTemperature'),
-          chatMaxCompletionTokens: resolvedThinking.chatMaxCompletionTokens,
+          chatMaxCompletionTokens: providerRequestOptions.chatMaxCompletionTokens,
           chatServiceTier: readResolvedProviderValue('chatServiceTier'),
           chatStream: false,
-          chatReasoningEffort: readResolvedProviderValue('chatReasoningEffort'),
+          chatReasoningEffort: providerRequestOptions.chatReasoningEffort,
           chatThinkingType: resolvedThinking.chatThinkingType,
           chatThinkingJson: resolvedThinking.chatThinkingJson,
           chatFrequencyPenalty: readResolvedProviderValue('chatFrequencyPenalty'),

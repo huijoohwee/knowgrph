@@ -17,6 +17,7 @@ import {
 import { buildProviderChatRequestOptions } from './floatingPanelChat/floatingPanelChatProviderOptions'
 import { extractAssistantDelta } from './floatingPanelChat/floatingPanelChatStreamParsing'
 import { readRunTextEventStream } from './runTextEventStream'
+import { readRunTextProviderResponse } from './runTextProviderResponse'
 import { resolveBytePlusVideoReferenceImage } from './byteplusVideoReferenceImage'
 import { loadAvailableModelIds, parseErrorBody, parseJsonResponseBody, shouldRetryWithActivationFallback } from './floatingPanelChat/floatingPanelChatHttp'
 import { readBytePlusImageWidgetDefaults } from '@/features/integrations/byteplusImageGenerationDefaults'
@@ -809,9 +810,7 @@ export async function generateRunMarkdownWithProvider(args: {
     })
   }
   const data = await parseJsonResponseBody(res, 'Run text generation')
-  const text = extractChatText(data)
-  if (text) args.options?.onText?.(text)
-  return text || null
+  return readRunTextProviderResponse({ payload: data, extractText: extractChatText, onText: args.options?.onText })
 }
 
 export async function generateRunImageWithBytePlus(args: {

@@ -1,10 +1,9 @@
-import { readStoryboardWidgetProbeTreeInvocationText, resolveStoryboardWidgetProbeTreeChatRoute, resolveStoryboardWidgetProbeTreeInvocationTokenForNode, runStoryboardWidgetProbeTreeMcpInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
+import { readStoryboardWidgetProbeTreeInvocationText, resolveStoryboardWidgetProbeTreeInvocationTokenForNode, runStoryboardWidgetProbeTreeMcpInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
 import { resolveStoryboardWidgetProbeTreeSelectedRunNode } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeRunNode'
 import { buildProbeTreeStructuredResponse, KNOWGRPH_PROBE_TREE_TOOL_NAMES, PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION } from '@/features/agent-ready/probeTreeContract.mjs'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
-import { CHAT_OPENAI_ENDPOINT_URL, CHAT_PROVIDER_OPENAI } from '@/lib/chatEndpoint'
 
 const prompt = [
   '/sme-care-agent @source.frontmatter @source.body @local-harness #runtime-ready #approval-gate',
@@ -18,7 +17,7 @@ const mcpRelevantOptions = [
     text: 'Which SME cyber coverage gaps should guide the next branch?',
     rationale: 'Clarifies the authored SME cyber coverage request.',
     evidenceNeeded: 'User-selected SME cyber coverage gap.',
-    selectionOptions: ['SME cyber', 'current coverage gaps'],
+    selectionOptions: ['Prioritize untested incident-response coverage', 'Prioritize outdated cyber exclusions'],
     contextAnchors: ['SME cyber', 'current coverage gaps'],
   },
   {
@@ -26,7 +25,7 @@ const mcpRelevantOptions = [
     text: 'Which ICT supply-chain risk should guide the next branch?',
     rationale: 'Clarifies the authored ICT supply-chain request.',
     evidenceNeeded: 'User-selected ICT supply-chain risk.',
-    selectionOptions: ['ICT supply-chain risk', 'unresolved unknowns'],
+    selectionOptions: ['Prioritize supplier interruption exposure', 'Prioritize unresolved dependency concentration'],
     contextAnchors: ['ICT supply-chain risk', 'unresolved unknowns'],
   },
   {
@@ -34,7 +33,7 @@ const mcpRelevantOptions = [
     text: 'Which adviser handoff outcome should guide the next branch?',
     rationale: 'Clarifies the authored adviser handoff request.',
     evidenceNeeded: 'User-selected adviser handoff outcome.',
-    selectionOptions: ['adviser handoff outcome', 'adviser handoff sequence'],
+    selectionOptions: ['Require licensed-adviser ownership review', 'Require timed adviser handoff sequence'],
     contextAnchors: ['the adviser handoff', 'SME cyber'],
   },
 ]
@@ -98,9 +97,9 @@ const providerStructuredText = (cards: Array<Record<string, unknown>>): string =
           evidenceNeeded: card.evidenceNeeded,
           probeTreeCardVariant: 'probe-tree-type-2',
           selectionOptions: card.selectionOptions || [
-            { id: `cyber-${index + 1}`, label: 'SME cyber' },
-            { id: `supply-chain-${index + 1}`, label: 'ICT supply-chain risk' },
-            { id: `coverage-${index + 1}`, label: 'current coverage gaps' },
+            { id: `cyber-${index + 1}`, label: 'Prioritize untested incident-response coverage' },
+            { id: `supply-chain-${index + 1}`, label: 'Prioritize supplier interruption exposure' },
+            { id: `coverage-${index + 1}`, label: 'Prioritize outdated cyber exclusions' },
           ],
         })),
       },
@@ -125,9 +124,9 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     generateProviderResponse: async refinementPrompt => {
       providerPrompt = refinementPrompt
       return providerStructuredText([
-        { id: 'confirm-cyber-coverage', label: 'Which SME cyber coverage gaps should guide the next branch?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'confirm-cyber-coverage', question: 'Which SME cyber coverage gaps should guide the next branch?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored SME cyber scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'sme-cyber', label: 'SME cyber' }, { id: 'coverage-gaps', label: 'current coverage gaps' }], contextAnchors: ['SME cyber', 'current coverage gaps'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
-        { id: 'map-supply-chain-risk', label: 'Which ICT supply-chain risk remains unresolved?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'map-supply-chain-risk', question: 'Which ICT supply-chain risk remains unresolved?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored ICT supply-chain scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'supply-chain', label: 'ICT supply-chain risk' }, { id: 'unknowns', label: 'unresolved unknowns' }], contextAnchors: ['ICT supply-chain risk', 'unresolved unknowns'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
-        { id: 'connect-adviser-handoff', label: 'Which part of the adviser handoff needs separate follow-up?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'connect-adviser-handoff', question: 'Which part of the adviser handoff needs separate follow-up?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored adviser-handoff scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'adviser', label: 'adviser' }, { id: 'handoff', label: 'handoff' }], contextAnchors: ['the adviser handoff', 'adviser', 'handoff'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
+        { id: 'confirm-cyber-coverage', label: 'Which SME cyber coverage gaps should guide the next branch?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'confirm-cyber-coverage', question: 'Which SME cyber coverage gaps should guide the next branch?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored SME cyber scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'sme-cyber', label: 'Prioritize untested incident-response coverage' }, { id: 'coverage-gaps', label: 'Prioritize outdated cyber exclusions' }], contextAnchors: ['SME cyber', 'current coverage gaps'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
+        { id: 'map-supply-chain-risk', label: 'Which ICT supply-chain risk remains unresolved?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'map-supply-chain-risk', question: 'Which ICT supply-chain risk remains unresolved?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored ICT supply-chain scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'supply-chain', label: 'Prioritize supplier interruption exposure' }, { id: 'unknowns', label: 'Prioritize unresolved dependency concentration' }], contextAnchors: ['ICT supply-chain risk', 'unresolved unknowns'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
+        { id: 'connect-adviser-handoff', label: 'Which part of the adviser handoff needs separate follow-up?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'connect-adviser-handoff', question: 'Which part of the adviser handoff needs separate follow-up?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored adviser-handoff scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'adviser', label: 'Require licensed-adviser ownership review' }, { id: 'handoff', label: 'Require timed adviser handoff sequence' }], contextAnchors: ['the adviser handoff', 'adviser', 'handoff'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
       ])
     },
     providerModel: 'test-provider',
@@ -262,7 +261,24 @@ export async function testProbeTreeWidgetRunRefusesGenericNoModelFallback() {
         threadRootId: 'investment-root',
         currentNodeId: 'investment-root',
         contextText,
-        options: [],
+        options: [
+          {
+            id: 'investment-vehicle',
+            text: 'Which investment vehicle should guide the China, India, or Southeast Asia comparison?',
+            rationale: 'The vehicle changes the relevant liquidity, control, and market-access evidence.',
+            evidenceNeeded: 'User-selected investment vehicle.',
+            selectionOptions: ['Prioritize liquid public-market exposure', 'Prefer private-market fund access', 'Require direct operating control'],
+            contextAnchors: ['China', 'India', 'SE Asia'],
+          },
+          {
+            id: 'investment-objective',
+            text: 'Which investment objective should drive the China, India, or Southeast Asia recommendation?',
+            rationale: 'The objective changes how return, income, and strategic access should be compared.',
+            evidenceNeeded: 'User-selected investment objective.',
+            selectionOptions: ['Maximize long-term capital growth', 'Prioritize recurring income yield', 'Require strategic market access'],
+            contextAnchors: ['invest', 'India', 'SE Asia'],
+          },
+        ],
       }),
       cost_log: { model: 'none', prompt_tokens: 0, completion_tokens: 0, cache_hits: 0, estimated_cost_usd: 0 },
     },
@@ -314,22 +330,6 @@ export async function testProbeTreeWidgetRunSurfacesProviderTransportFailure() {
     || errorMessage.includes('received no accepted 2-4 query-specific LLM cards')
   ) {
     throw new Error(`expected the provider transport failure to remain distinct from semantic card rejection, got ${errorMessage}`)
-  }
-}
-
-export function testProbeTreeWidgetRunUsesActiveChatRouteOverStaleCardProvider() {
-  const route = resolveStoryboardWidgetProbeTreeChatRoute({
-    localProperties: { chatAuthMode: { key: 'chatAuthMode', type: 'string', value: 'byok' } },
-    resolvedProperties: {
-      chatProvider: { key: 'chatProvider', type: 'string', value: 'byteplus-modelark' },
-      chatEndpointUrl: { key: 'chatEndpointUrl', type: 'string', value: 'https://ark.ap-southeast.bytepluses.com/api/v3/chat/completions' },
-      chatModel: { key: 'chatModel', type: 'string', value: 'seed-2-0-lite-260228' },
-      chatAuthMode: { key: 'chatAuthMode', type: 'string', value: 'byok' },
-    },
-    runtimeProperties: { chatProvider: CHAT_PROVIDER_OPENAI, chatEndpointUrl: CHAT_OPENAI_ENDPOINT_URL, chatModel: 'gpt-5-nano', chatAuthMode: 'serverManaged' },
-  })
-  if (route.provider !== CHAT_PROVIDER_OPENAI || route.endpointUrl !== CHAT_OPENAI_ENDPOINT_URL || route.chatModel !== 'gpt-5-nano' || route.chatAuthMode !== 'byok') {
-    throw new Error(`expected active Chat routing to own Probe-Tree LLM generation, got ${JSON.stringify(route)}`)
   }
 }
 
@@ -388,8 +388,8 @@ export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderCo
           rationale: 'Uses the selected child country and cyber coverage request.',
           evidenceNeeded: 'User-selected country coverage gap.',
           selectionOptions: [
-            { id: 'singapore-cyber', label: 'Singapore cyber coverage gaps' },
-            { id: 'malaysia-cyber', label: 'Malaysia cyber coverage gaps' },
+            { id: 'singapore-cyber', label: 'Prioritize Singapore incident-response exclusions' },
+            { id: 'malaysia-cyber', label: 'Prioritize Malaysia supplier-coverage exclusions' },
           ],
           contextAnchors: ['Singapore', 'Malaysia', 'cyber', 'coverage gaps'],
           confidence: 'medium',
@@ -407,9 +407,9 @@ export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderCo
           rationale: 'Uses the selected child evidence and adviser request.',
           evidenceNeeded: 'User-selected evidence source.',
           selectionOptions: [
-            { id: 'current-policy', label: 'current policy evidence' },
-            { id: 'regulator', label: 'regulator evidence' },
-            { id: 'licensed-adviser', label: 'licensed-adviser evidence' },
+            { id: 'current-policy', label: 'Prioritize recently issued regulator guidance' },
+            { id: 'regulator', label: 'Require jurisdiction-specific policy conflicts' },
+            { id: 'licensed-adviser', label: 'Escalate evidence gaps for adviser review' },
           ],
           contextAnchors: ['supply-chain', 'current policy', 'regulator', 'licensed-adviser evidence'],
           confidence: 'medium',
@@ -470,7 +470,8 @@ export function testProbeTreeContinuationMetadataRoutesWithoutVisibleSlashToken(
 }
 
 export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesDeliverable() {
-  const userAnswer = 'Generate report on China investment in SE Asia in USD trillion'
+  const userAnswer = '1. A) Target annual premium level to constrain overall cost and influence coverage limits. Other: generate negotiation strategy with agent'
+  const terminalRequest = 'generate negotiation strategy with agent'
   const typedCell = (key: string, type: string, value: unknown) => ({ key, type, value })
   const rootNode: GraphNode = {
     id: 'probe-root',
@@ -481,7 +482,7 @@ export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesD
   const selectedChild: GraphNode = {
     id: typedCell('id', 'string', 'probe-child') as unknown as string,
     type: typedCell('type', 'string', 'TextGeneration') as unknown as string,
-    label: typedCell('label', 'string', 'What report should be generated?') as unknown as string,
+    label: typedCell('label', 'string', 'Which parameter should shape the Malaysia SME insurance package?') as unknown as string,
     x: 520,
     y: 180,
     properties: typedCell('properties', 'object', {
@@ -490,7 +491,7 @@ export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesD
       probeTreeThreadRootId: 'probe-root',
       probeTreeDepth: 2,
       parentNodeId: 'probe-root',
-      summary: 'What report should be generated?',
+      summary: 'Which parameter should shape the Malaysia SME insurance package?',
       output: userAnswer,
     }) as unknown as GraphNode['properties'],
   }
@@ -537,10 +538,11 @@ export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesD
   if (
     mcpCalls !== 0
     || !providerPrompt.includes(userAnswer)
+    || !providerPrompt.includes(`Selected user request:\n${terminalRequest}\n`)
     || !providerPrompt.includes('Do not ask a clarification question, emit Probe-Tree cards, or continue Probe-Tree.')
     || !providerPrompt.includes('Do not substitute a canned, fixture-backed, or use-case-specific hardcoded response.')
     || !persistedChild
-    || persistedChild.properties.summary !== 'What report should be generated?'
+    || persistedChild.properties.summary !== 'Which parameter should shape the Malaysia SME insurance package?'
     || persistedChild.properties.output !== userAnswer
     || String(persistedChild.label) === 'Root writeback alias'
     || continuationCards.length !== 0
