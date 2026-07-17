@@ -7,6 +7,7 @@ const modCanvas3dMode = () => import('@/__tests__/canvas3dMode.test')
 const modCanvasXrSessionPolicy = () => import('@/__tests__/canvasXrSessionPolicy.test')
 const modCanvasXrPanelSurface = () => import('@/__tests__/canvasXrPanelSurface.test')
 const modXrMotionReferencePackage = () => import('@/__tests__/xrMotionReferencePackage.test')
+const modXrCameraMoves = () => import('@/__tests__/xrCameraMoves.test')
 const modXrShootWorkflow = () => import('@/__tests__/xrShootWorkflow.test')
 const modXrAnimationRuntime = () => import('@/__tests__/xrAnimationRuntime.test')
 const modWorkspaceImportXrSpatialCaptureIngestion = () => import('@/__tests__/workspaceImportXrSpatialCaptureIngestion.test')
@@ -88,6 +89,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'canvas.xrMode.motionReferencePackage', async () => {
     const mod = await modXrMotionReferencePackage()
     await mod.testXrMotionReferencePackageIsNativeDeterministicAndGraphBacked()
+  })
+  await execTest(results, 'canvas.xrMode.cameraMoves', async () => {
+    const mod = await modXrCameraMoves()
+    await mod.testXrCameraMovesRideSubjectsAndExport()
   })
   await execTest(results, 'canvas.xrMode.shootWorkflow', async () => {
     const mod = await modXrShootWorkflow()

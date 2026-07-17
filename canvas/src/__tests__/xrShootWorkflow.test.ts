@@ -361,6 +361,17 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     || !animatedState.graphData?.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]) {
     throw new Error(`expected /camera.animate to persist and reveal BottomPanel XR choreography, got ${JSON.stringify(animateResult)}`)
   }
+  const moveResult = controlLocalCamera({ invocation: '/camera.animate @selected-actor #camera-motion move=orbit-clockwise time=0.5 duration=2' })
+  const moveMarks = readXrMotionReferenceRuntime().plan.camera.filter(mark => mark.moveId === 'orbit-clockwise')
+  if (!moveResult.ok
+    || moveResult.action !== 'animate'
+    || moveMarks.length !== 2
+    || moveMarks.some(mark => mark.anchorId !== 'actor-a' || mark.rig !== 'dolly')
+    || moveMarks[0]?.timeSeconds !== 0.5
+    || moveMarks[1]?.timeSeconds !== 2.5
+    || useGraphStore.getState().bottomSurfaceTab !== 'timeline') {
+    throw new Error(`expected /camera.animate move= to author a subject-bound preset in the canonical Timeline, got ${JSON.stringify(moveResult)}`)
+  }
   const scrubResult = controlLocalCamera({ invocation: '/camera.scrub @camera #camera-motion time=1.5' })
   const playResult = controlLocalCamera({ invocation: '/camera.play @camera #camera-motion state=play' })
   const playbackFramingRevision = readCameraFramingRuntime().revision
@@ -372,6 +383,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   const invalidAngleResult = controlLocalCamera({ invocation: '/camera.frame @camera #camera-shot angle=garbage' })
   const invalidPlaybackResult = controlLocalCamera({ invocation: '/camera.play @camera #camera-motion state=banana' })
   const invalidScrubResult = controlLocalCamera({ invocation: '/camera.scrub @camera #camera-motion time=banana' })
+  const invalidMoveResult = controlLocalCamera({ invocation: '/camera.animate @selected-actor #camera-motion move=teleport time=1 duration=2' })
   const invalidStructuredAngle = controlLocalCamera({ action: 'frame', targetId: 'camera', angle: 'garbage' as never })
   const invalidStructuredLens = controlLocalCamera({ action: 'frame', targetId: 'camera', focalLengthMm: 999 })
   const missingStructuredTarget = controlLocalCamera({ action: 'frame', targetId: 'missing-cast' })
@@ -387,6 +399,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     || invalidAngleResult.ok
     || invalidPlaybackResult.ok
     || invalidScrubResult.ok
+    || invalidMoveResult.ok
     || invalidStructuredAngle.ok
     || invalidStructuredLens.ok
     || missingStructuredTarget.ok

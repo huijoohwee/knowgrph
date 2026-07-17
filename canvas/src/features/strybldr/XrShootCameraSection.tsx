@@ -28,6 +28,7 @@ import {
   toggleXrMotionReferenceCastMarkArmed,
 } from '@/features/three/xrMotionReferenceRuntime'
 import { readBoundXrSelectedActorId, selectBoundXrActor } from '@/features/three/xrSelectedActorBinding'
+import { XrCameraMovePresetControl } from './XrCameraMovePresetControl'
 
 const RIG_LABELS: Readonly<Record<XrMotionReferenceCameraRig, string>> = {
   dolly: 'Dolly',
@@ -208,6 +209,12 @@ export function XrShootCameraSection() {
           Drop camera mark
         </button>
       </section>
+
+      <XrCameraMovePresetControl
+        anchorId={selectedTrack?.actorId || ''}
+        anchorLabel={selectedTrack?.label || ''}
+        disabled={!selectedTrack || cameraPlaybackActive}
+      />
     </section>
   )
 }

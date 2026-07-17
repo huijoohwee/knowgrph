@@ -8,6 +8,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { XR_MOTION_REFERENCE_SELECTION_COLOR } from './xrMotionReferenceModel'
+import { resolveXrCameraMoveLabel } from './xrCameraMoveCatalog'
 import {
   readXrMotionReferenceRuntime,
   removeXrMotionReferenceCameraMark,
@@ -234,8 +235,8 @@ export function CameraMotionMarkRetime({
               laneStyle="audio"
               className="xr-camera-motion-retime-lane-mark xr-camera-motion-retime-lane-mark--camera"
               style={markAxisStyle(mark.timeSeconds, scaleDurationSeconds)}
-              title={`${mark.rig} · ${mark.timeSeconds}s · drag to retime`}
-              aria-label={`Camera mark ${index + 1} at ${mark.timeSeconds} seconds · ${mark.rig}`}
+              title={`${resolveXrCameraMoveLabel(mark.moveId)} · ${mark.rig} · ${mark.timeSeconds}s · drag to retime`}
+              aria-label={`Camera mark ${index + 1} at ${mark.timeSeconds} seconds · ${resolveXrCameraMoveLabel(mark.moveId)} · ${mark.rig}`}
               aria-pressed={selected}
               role="button"
               tabIndex={0}
@@ -286,7 +287,7 @@ export function CameraMotionMarkRetime({
           <article key={mark.id} className={cn('flex items-center gap-1 rounded border px-1 py-0.5', UI_THEME_TOKENS.panel.border)} data-kg-xr-retime-camera-mark={index + 1}>
             <span className="text-[9px] font-bold">C{index + 1}</span>
             <TimeEditor label={`Camera mark ${index + 1} time`} value={mark.timeSeconds} max={runtime.plan.durationSeconds} onChange={value => retimeXrMotionReferenceCameraMark(mark.id, value)} />
-            <span className={cn('max-w-16 truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)} title={mark.rig}>{mark.rig}</span>
+            <span className={cn('max-w-24 truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)} title={`${resolveXrCameraMoveLabel(mark.moveId)} · ${mark.rig}`}>{resolveXrCameraMoveLabel(mark.moveId)}</span>
             <button type="button" className="App-toolbar__btn p-1" aria-label={`Remove camera mark ${index + 1}`} onClick={() => removeXrMotionReferenceCameraMark(mark.id)}>
               <Trash2 className="size-3" aria-hidden />
             </button>
