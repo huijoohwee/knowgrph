@@ -112,14 +112,25 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
   // Mirror the live rerun: toolbar materialization already created the branch
   // nodes, while the legacy Rich Media panel still has no branch ledger.
   let runnerDraft = structuredClone(resultGraph)
+  const staleRunnerDraft = structuredClone(runnerDraft)
+  let terminalPublishedGraph: GraphData | null = null
+  let terminalPersistedGraph: GraphData | null = null
   const runnerToasts: Array<{ message: string }> = []
   const runWorkflowNode = createStoryboardWidgetWorkflowNodeRunner({
     baseGraphKind: 'frontmatter-flow',
     baseGraphData: runnerDraft,
     readDraftGraphData: () => runnerDraft,
-    commitDraftGraphDataUpdate: (_current, next) => { runnerDraft = next },
-    commitPublishedGraphData: next => { runnerDraft = next },
-    persistDraftGraphData: next => { runnerDraft = next },
+    commitDraftGraphDataUpdate: (_current, next) => {
+      runnerDraft = next
+      const panel = next.nodes.find(node => unwrapGraphCellValue(node.type) === 'RichMediaPanel') || null
+      const output = String(unwrapGraphCellValue(readGraphNodeProperties(panel).output) || '')
+      if (output.includes('Model: probe-tree-local-heuristic')) void Promise.resolve().then(() => { runnerDraft = staleRunnerDraft })
+    },
+    commitPublishedGraphData: next => {
+      terminalPublishedGraph = next
+      runnerDraft = next
+    },
+    persistDraftGraphData: next => { terminalPersistedGraph = next; runnerDraft = next },
     renderGraphDataOverride: null,
     markdownDocumentName: null,
     markdownDocumentSourceUrl: null,
@@ -146,6 +157,8 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
   const runnerPanel = runnerDraft.nodes.find(node => unwrapGraphCellValue(node.type) === 'RichMediaPanel') || null
   const runnerPanelProperties = readGraphNodeProperties(runnerPanel)
   const runnerPanelOutput = String(unwrapGraphCellValue(runnerPanelProperties.output) || '')
+  const persistedPanel = terminalPersistedGraph?.nodes.find(node => unwrapGraphCellValue(node.type) === 'RichMediaPanel') || null
+  const persistedPanelOutput = String(unwrapGraphCellValue(readGraphNodeProperties(persistedPanel).output) || '')
   const runnerPanelContainer = (runnerPanel?.properties || {}) as Record<string, unknown>
   const runnerCandidateEdges = runnerDraft.edges.filter(edge => edge.source === 'n1' && edge.label === 'candidateOption')
   if (
@@ -154,6 +167,9 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
     || !runnerPanelOutput.includes('# Probe-Tree Branches')
     || runnerPanelProperties.workflowOutputKey !== 'probe-tree-branches'
     || Object.prototype.hasOwnProperty.call(runnerPanelContainer, 'output')
+    || !persistedPanelOutput.includes('# Probe-Tree Branches')
+    || terminalPersistedGraph === staleRunnerDraft
+    || terminalPublishedGraph !== null
   ) {
     throw new Error(`expected the full Widget Card Run dispatcher to publish typed Probe-Tree branches and Rich Media output, got ${JSON.stringify({ runnerDraft, runnerToasts })}`)
   }

@@ -504,6 +504,14 @@ export function testProbeTreeOutputLayoutMergesLiveLedgersBeforeNormalization() 
   const panels = normalized.nodes.filter(node => node.type === 'RichMediaPanel')
   assert(panels.length === 1, `expected one live ledger after terminal normalization, got ${JSON.stringify(panels)}`)
   assert(panels[0]?.properties.workflowOutputGroupId === buildStoryboardWidgetProbeTreeOutputGroupId('root'), 'expected the live ledger to adopt the thread group')
+
+  const freshPanel = { id: 'panel-root', type: 'RichMediaPanel', label: 'Probe-Tree Branches', x: 520, y: 0, properties: { workflowOutputAnchorNodeId: 'child', workflowOutputKey: PROBE_TREE_OUTPUT_KEY, output: 'fresh child continuation' } }
+  const stalePanel = { ...freshPanel, properties: { ...freshPanel.properties, output: 'stale live ledger' } }
+  const freshMaterializedGraph: GraphData = { ...materializedGraph, nodes: [...materializedGraph.nodes, freshPanel] }
+  const staleLiveGraph: GraphData = { ...materializedGraph, nodes: [...materializedGraph.nodes, stalePanel] }
+  const sameIdMerged = mergeStoryboardWidgetProbeTreeOutputPanels({ graphData: freshMaterializedGraph, liveGraphData: staleLiveGraph })
+  const retainedPanel = sameIdMerged.nodes.find(node => node.id === 'panel-root')
+  assert(retainedPanel?.properties.output === 'fresh child continuation', `expected same-id fresh run ledger to outrank stale live bytes, got ${JSON.stringify(retainedPanel)}`)
 }
 
 export function testProbeTreeOutputMarkdownKeepsScrollingInsideCanonicalPanel() {

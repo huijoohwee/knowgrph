@@ -219,15 +219,17 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
   const responseTexts = options.flatMap(option => [option.text, option.rationale, option.evidenceNeeded])
   const continuationKeywords = collectProbeTreeContextKeywords([
     'Authored request:',
-    'changes',
+    'regulatory changes on indonesia',
+    'Selected continuation question:',
     'Which authoritative evidence confirms the current facts for the SME / cyber / supply-chain scope?',
+    'Selected continuation answer: regulatory changes on indonesia',
   ].join('\n'), 6)
   if (
     forbiddenMetadata.some(keyword => keywords.includes(keyword))
     || JSON.stringify(keywords.slice(0, 3)) !== JSON.stringify(['sme', 'cyber', 'supply-chain'])
     || !String(options[0]?.text || '').includes('SME / cyber / supply chain')
     || !isProbeTreeResponseContextRelevant({ contextText, responseTexts })
-    || JSON.stringify(continuationKeywords.slice(0, 3)) !== JSON.stringify(['sme', 'cyber', 'supply-chain'])
+    || JSON.stringify(continuationKeywords.slice(0, 4)) !== JSON.stringify(['indonesia', 'sme', 'cyber', 'supply-chain'])
   ) {
     throw new Error(`expected invocation and question scaffolding to yield context-relevant SME fallback terms, got ${JSON.stringify({ keywords, continuationKeywords, options })}`)
   }

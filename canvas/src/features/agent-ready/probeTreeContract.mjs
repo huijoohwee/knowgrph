@@ -27,9 +27,9 @@ export const PROBE_TREE_FALLBACK_OPTIONS = Object.freeze([
 
 const PROBE_TREE_CONTEXT_STOP_WORDS = new Set([
   "about", "across", "active", "agent", "agentic", "against", "also", "and", "answer", "approval", "assess", "author", "authored", "body", "bounded", "branch", "branches",
-  "canvas", "card", "cards", "care", "change", "changes", "command", "confirm", "confirms", "context", "contract", "cost", "current", "depth", "editable", "economics", "fact", "facts", "for", "from", "frontmatter", "gate", "generate", "generated",
+  "canvas", "card", "cards", "care", "change", "changes", "command", "confirm", "confirms", "context", "continuation", "contract", "cost", "current", "depth", "editable", "economics", "fact", "facts", "for", "from", "frontmatter", "gate", "generate", "generated",
   "adviser", "advisor", "approved", "authoritative", "before", "call", "candidate", "confirm", "connect", "directive", "directives", "do", "each", "evidence", "fallback", "generation", "generic", "guidance", "harness", "into", "invocation", "keep", "knowgrph", "label", "licensed", "local", "log", "make", "media", "next", "node", "not", "output", "panel", "policies", "policy", "probe", "proof", "provider", "publish", "question", "questions",
-  "id", "os", "ready", "regulator", "regulatory", "request", "require", "required", "requires", "response", "review", "rich", "route", "run", "runtime", "selected", "separate", "separately", "sme-care-agent", "smes", "source", "sources", "stop", "storyboard", "structured", "summary", "text", "the", "this", "title", "token", "tree", "unchanged", "unless",
+  "id", "os", "ready", "regulator", "regulatory", "request", "require", "required", "requires", "response", "review", "rich", "route", "run", "runtime", "scope", "selected", "separate", "separately", "sme-care-agent", "smes", "source", "sources", "stop", "storyboard", "structured", "summary", "text", "the", "this", "title", "token", "tree", "unchanged", "unless",
   "what", "when", "where", "which", "who", "why", "using", "visibly", "widget", "with", "workspace", "would", "zero-cost",
 ]);
 
