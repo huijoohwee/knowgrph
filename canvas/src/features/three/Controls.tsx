@@ -454,8 +454,8 @@ export function Controls({
     xrEmptyWorld,
   })
   React.useEffect(() => {
-    controls.enabled = !paused && !choreographyOwnsCamera
-  }, [choreographyOwnsCamera, controls, paused])
+    controls.enabled = !paused && !choreographyOwnsCamera && !xrRuntime.viewportControlActive
+  }, [choreographyOwnsCamera, controls, paused, xrRuntime.viewportControlActive])
   React.useEffect(() => {
     const fns: ThreeCameraSnapshotFns = {
       capturePose: (): ThreeCameraPose | null => {
