@@ -61,9 +61,8 @@ const optionFormatSchema = Object.freeze({
           rationale: { type: "string" },
           evidenceNeeded: { type: "string" },
           selectionOptions: { type: "array", minItems: 2, maxItems: 4, items: { type: "string" } },
-          contextAnchors: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
         },
-        required: ["text", "rationale", "evidenceNeeded", "selectionOptions", "contextAnchors"],
+        required: ["text", "rationale", "evidenceNeeded", "selectionOptions"],
       },
     },
   },
@@ -72,7 +71,7 @@ const optionFormatSchema = Object.freeze({
 
 export const buildProbeModelPrompt = ({ contextText, recalledExemplars, k }) => [
   "Generate concise candidate next questions and bounded answers for a branching probe-tree.",
-  "Return JSON only with shape {\"options\":[{\"text\":\"...\",\"rationale\":\"...\",\"evidenceNeeded\":\"...\",\"selectionOptions\":[\"...\",\"...\"],\"contextAnchors\":[\"...\",\"...\"]}]}",
+  "Return JSON only with shape {\"options\":[{\"text\":\"...\",\"rationale\":\"...\",\"evidenceNeeded\":\"...\",\"selectionOptions\":[\"...\",\"...\"]}]}",
   `Return at most ${k} options.`,
   "Use the current user input as the only topic source. Do not use stock evidence, process, policy, reviewer, or system-of-record choices unless those concepts appear in that input.",
   "Each question must introduce one concrete missing decision variable whose answer would materially change the requested result; each selectionOptions array must contain 2-4 concise suggested answers to that exact question.",
@@ -81,9 +80,9 @@ export const buildProbeModelPrompt = ({ contextText, recalledExemplars, k }) => 
   "Ask about missing parameters that materially change the requested answer. Never pair copied nouns inside canned relationship/evidence/dependency/decision-order questions or wrap the whole query in scope, priority, constraint, basis, or deliverable templates.",
   "Every selectionOptions item must be a suggested clarification answer. Never split the selected focus or repeat its words as bare answer fragments.",
   "Give every card a different request-specific decision variable. Never reuse a choice label, another card's complete selection set, or a subset or superset of another card's choices.",
-  "Each contextAnchors array must copy 2-6 short phrases verbatim from the current user input. Never invent an anchor and never copy wording from an exemplar.",
+  "Mention the request subject plus at least one named entity or distinctive request term in every question. The runtime derives source-verbatim context anchors after semantic acceptance.",
   "Questions must ask for missing context or user-selected direction, not answer the user's problem.",
-  "Every question must reuse at least two substantive terms from the current user input. If the selected input does not support 2-4 distinct query-specific cards without invented facts, return {\"options\":[]} instead of restating the query or emitting generic or hardcoded filler.",
+  "Morphological variants such as invest and investment are allowed when the named entities and meaning remain intact. If the selected input does not support 2-4 distinct query-specific cards without invented facts, return {\"options\":[]} instead of restating the query or emitting generic or hardcoded filler.",
   "Avoid medical advice, diagnosis, medication instructions, PHI, credentials, URLs, or provider claims.",
   "",
   `Current selected child input: ${normalizeString(extractProbeTreeUserInputText(contextText))}`,
@@ -114,13 +113,11 @@ const parseOptionsJson = (text) => {
     rationale: normalizeString(option?.rationale),
     evidenceNeeded: normalizeString(option?.evidenceNeeded),
     selectionOptions: Array.isArray(option?.selectionOptions) ? option.selectionOptions.map(normalizeString).filter(Boolean) : [],
-    contextAnchors: Array.isArray(option?.contextAnchors) ? option.contextAnchors.map(normalizeString).filter(Boolean) : [],
   })).filter((option) => (
     option.text
     && option.rationale
     && option.evidenceNeeded
     && option.selectionOptions.length >= 2
-    && option.contextAnchors.length >= 2
   ));
 };
 

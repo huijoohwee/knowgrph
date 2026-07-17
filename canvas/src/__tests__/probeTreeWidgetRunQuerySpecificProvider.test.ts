@@ -8,7 +8,7 @@ import {
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import type { GraphData } from '@/lib/graph/types'
 
-const AUTHORED_REQUEST = '/knowgrph.probe-tree recommend invest in India, China, or SE Asia'
+const AUTHORED_REQUEST = '/sme-care-agent @source.frontmatter @source.body @local-harness @cost-log @runtime-proof #frontmatter #harness #token-economics #runtime-ready #approval-gate /knowgrph.probe-tree invest in India, or SE Asia?'
 
 export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContract() {
   const graphData: GraphData = {
@@ -55,31 +55,28 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
           contractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
           cards: [
             {
-              id: 'investment-objective',
-              question: 'Which investment objective should drive the India, China, or SE Asia recommendation?',
-              rationale: 'The preferred outcome changes how the three markets should be compared.',
-              evidenceNeeded: 'User-selected investment objective.',
+              id: 'investment-horizon',
+              question: 'Which investment horizon should guide the India or Southeast Asia recommendation?',
+              rationale: 'The holding period changes how the two locations should be compared.',
+              evidenceNeeded: 'User-selected investment horizon.',
               probeTreeCardVariant: 'probe-tree-type-2',
-              selectionOptions: ['Long-term capital growth', 'Recurring income yield', 'Strategic market access'],
-              contextAnchors: ['India', 'China', 'SE Asia'],
+              selectionOptions: ['One to three years', 'Three to seven years', 'More than seven years'],
             },
             {
               id: 'investment-vehicle',
-              question: 'Which investment vehicle should the India, China, and SE Asia comparison evaluate?',
+              question: 'Which investment vehicle should the India or Southeast Asia comparison evaluate?',
               rationale: 'The investment vehicle changes the relevant risk and return evidence.',
               evidenceNeeded: 'User-selected investment vehicle.',
               probeTreeCardVariant: 'probe-tree-type-2',
               selectionOptions: ['Public-market securities', 'Private-market funds', 'Direct operating investment'],
-              contextAnchors: ['India', 'China', 'SE Asia'],
             },
             {
               id: 'restated-market-list',
-              question: 'Invest in India, China, or SE Asia?',
+              question: 'Invest in India, or SE Asia?',
               rationale: 'Repeats the source query instead of introducing a decision variable.',
               evidenceNeeded: 'User-selected market.',
               probeTreeCardVariant: 'probe-tree-type-2',
-              selectionOptions: ['India', 'China', 'SE Asia'],
-              contextAnchors: ['India', 'China', 'SE Asia'],
+              selectionOptions: ['India', 'SE Asia'],
             },
           ],
         },
@@ -112,15 +109,18 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     || !providerPrompt.includes('Never copy or paraphrase the selected request as a card question')
     || !providerPrompt.includes('not as a ready-made selectionOptions array')
     || !providerPrompt.includes('runtime owns source Widget investment-root')
+    || !providerPrompt.includes('source-verbatim contextAnchors')
+    || !providerPrompt.includes('Do not emit contextAnchors')
     || !providerPrompt.includes('Do not emit widgets, panels, edges')
     || !result?.providerAccepted
     || result.responseSource !== 'provider'
     || cards.length !== 2
-    || cards.some(card => card.properties.summary === 'recommend invest in India, China, or SE Asia')
+    || cards.some(card => card.properties.summary === 'invest in India, or SE Asia')
     || cards.some(card => String(card.label).startsWith('Response '))
-    || /"label":"(?:India|China|SE Asia)"/.test(serializedCards)
-    || !serializedCards.includes('investment objective')
+    || /"label":"(?:India|SE Asia)"/.test(serializedCards)
+    || !serializedCards.includes('investment horizon')
     || !serializedCards.includes('investment vehicle')
+    || cards.some(card => !Array.isArray(card.properties.probeTreeUserInputAnchors) || !card.properties.probeTreeUserInputAnchors.includes('SE Asia'))
   ) {
     throw new Error(`expected Widget Run to send the source context to the configured LLM and accept only new query-specific decision variables, got ${JSON.stringify({ providerCalls, mcpRequest, providerPrompt, result })}`)
   }

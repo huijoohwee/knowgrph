@@ -8,6 +8,7 @@ import {
   extractProbeTreeUserInputText,
   isProbeTreeCardUserInputRelevant,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+  resolveProbeTreeContextAnchors,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS } from '@/features/agentic-os/probeTreePromptPreset'
 import { extractChatResponseStructuredSurface } from '@/features/chat/chatResponseStructuredContent'
@@ -71,7 +72,6 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
             question,
             probeTreeCardVariant: 'probe-tree-type-2',
             selectionOptions: ['member risk tier', 'care-plan handoff'],
-            contextAnchors: ['member risk tier', 'care-plan handoff'],
             rationale: 'Keeps the next branch within the authored care priorities.',
             evidenceNeeded: 'User selection among the authored priorities',
           }],
@@ -106,8 +106,8 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     }
   }
   if (
-    JSON.stringify(node.properties.contextAnchors) !== JSON.stringify(['member risk tier', 'care-plan handoff'])
-    || JSON.stringify(node.properties.probeTreeUserInputAnchors) !== JSON.stringify(['member risk tier', 'care-plan handoff'])
+    JSON.stringify(node.properties.contextAnchors) !== JSON.stringify([])
+    || JSON.stringify(node.properties.probeTreeUserInputAnchors) !== JSON.stringify([])
     || node.nodeTypeId !== FLOW_TEXT_GENERATION_NODE_TYPE_ID
     || node.targetHandle !== 'prompt_in'
     || !String(node.properties.prompt || '').startsWith('/knowgrph.probe-tree')
@@ -271,12 +271,30 @@ export function testProbeTreeRestatedSourceQueryIsRejected() {
     selectionOptions: ['Long-term capital growth', 'Recurring income yield', 'Strategic market access'],
     contextAnchors: ['India', 'China', 'SE Asia'],
   })
+  const sparseContextText = [
+    'Authored request:',
+    '/sme-care-agent @source.frontmatter @runtime-proof #runtime-ready /knowgrph.probe-tree invest in India, or SE Asia?',
+  ].join('\n')
+  const sparseQuestion = 'Which investment horizon should guide the India or Southeast Asia recommendation?'
+  const derivedSparseAnchors = resolveProbeTreeContextAnchors({
+    contextText: sparseContextText,
+    question: sparseQuestion,
+    contextAnchors: ['Southeast Asia'],
+  })
+  const sparseQuestionAccepted = isProbeTreeCardUserInputRelevant({
+    contextText: sparseContextText,
+    question: sparseQuestion,
+    selectionOptions: ['One to three years', 'Three to seven years', 'More than seven years'],
+  })
   if (
     restatedQuestionAccepted
     || entityListParaphraseAccepted
     || !querySpecificQuestionAccepted
+    || !sparseQuestionAccepted
+    || !['invest', 'India', 'SE Asia'].every(anchor => derivedSparseAnchors.includes(anchor))
+    || derivedSparseAnchors.includes('Southeast Asia')
   ) {
-    throw new Error(`expected source-query echoes to fail while a new investment decision variable passes, got ${JSON.stringify({ restatedQuestionAccepted, entityListParaphraseAccepted, querySpecificQuestionAccepted })}`)
+    throw new Error(`expected source-query echoes to fail while sparse semantic grounding derives source-verbatim anchors, got ${JSON.stringify({ restatedQuestionAccepted, entityListParaphraseAccepted, querySpecificQuestionAccepted, sparseQuestionAccepted, derivedSparseAnchors })}`)
   }
 }
 

@@ -1,5 +1,5 @@
 export const KNOWGRPH_PROBE_TREE_CONTRACT_VERSION = "knowgrph-probe-tree/v0.1";
-export const PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION = "probe-tree-llm-response/v4";
+export const PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION = "probe-tree-llm-response/v5";
 
 import {
   PROBE_TREE_MULTI_SELECT_LIMITS,
@@ -7,8 +7,8 @@ import {
   cleanProbeTreeResponseText,
   isProbeTreeCardUserInputRelevant,
   isProbeTreeTerminalGenerationRequest,
-  normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
+  resolveProbeTreeContextAnchors,
   safeProbeTreeResponseId,
 } from "./probeTreeUserInputRelevance.mjs";
 import { buildRichMediaTextMarkdownDocument } from "../rich-media/richMediaTextMarkdownContract.mjs";
@@ -24,6 +24,7 @@ export {
   isProbeTreeTerminalGenerationRequest,
   normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
+  resolveProbeTreeContextAnchors,
 } from "./probeTreeUserInputRelevance.mjs";
 
 export const PROBE_TREE_CARD_VARIANTS = Object.freeze({
@@ -65,7 +66,11 @@ const buildStructuredResponseOptions = ({ options, optionCount, degraded, contex
     const candidateOptionId = cleanProbeTreeResponseText(candidate?.id, 160)
       || `probe-option-${safeProbeTreeResponseId(question, String(index + 1)).slice(0, 72)}-${index + 1}`;
     const selectionOptions = normalizeProbeTreeSelectionOptions(candidate?.selectionOptions);
-    const contextAnchors = normalizeProbeTreeContextAnchors(candidate?.contextAnchors || candidate?.context_anchors);
+    const contextAnchors = resolveProbeTreeContextAnchors({
+      contextText,
+      question,
+      contextAnchors: candidate?.contextAnchors || candidate?.context_anchors,
+    });
     if (!isProbeTreeCardUserInputRelevant({ contextText, question, selectionOptions, contextAnchors })) continue;
     if (!areProbeTreeCardsMutuallyDistinct([
       ...out.map(card => ({ question: card.question, selectionOptions: card.selectionOptions })),
