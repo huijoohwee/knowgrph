@@ -461,18 +461,20 @@ export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation()
   const probeDispatchIndex = runActionSource.indexOf('const probeTreeOutput = await runStoryboardWidgetProbeTreeTextGenerationInvocation({')
   const crawlerIndex = runActionSource.indexOf('runStoryboardWidgetNativeCrawlerInvocation({', probeDispatchIndex)
   const genericProviderIndex = runActionSource.indexOf('const result = await generateRunMarkdownWithProvider({', probeDispatchIndex)
+  const providerFactoryIndex = probeTreeRunSource.indexOf('const generateProviderResponse = args.generateProviderResponse ||')
   const nativeProbeIndex = probeTreeRunSource.indexOf('const result = await runStoryboardWidgetProbeTreeMcpInvocation({')
-  const providerApprovalIndex = probeTreeRunSource.indexOf('generateProviderResponse: providerRefinementApproved || terminalGenerationRequested ?', nativeProbeIndex)
-  const providerIndex = probeTreeRunSource.indexOf('generateRunMarkdownWithProvider({', providerApprovalIndex)
-  const nativeProbeRunSource = probeTreeRunSource.slice(nativeProbeIndex, providerIndex)
+  const providerForwardIndex = probeTreeRunSource.indexOf('generateProviderResponse,', nativeProbeIndex)
+  const nativeProbeRunSource = probeTreeRunSource.slice(nativeProbeIndex, providerForwardIndex)
   if (
     textGenerationIndex < 0
     || probeDispatchIndex <= textGenerationIndex
     || crawlerIndex <= probeDispatchIndex
     || genericProviderIndex <= probeDispatchIndex
+    || providerFactoryIndex < 0
+    || providerFactoryIndex >= nativeProbeIndex
     || nativeProbeIndex < 0
-    || providerApprovalIndex <= nativeProbeIndex
-    || providerIndex <= nativeProbeIndex
+    || providerForwardIndex <= nativeProbeIndex
+    || probeTreeRunSource.includes('providerRefinementApproved')
     || runActionSource.includes('materializeProbeTreeOutput')
     || runActionSource.includes('const probeTreeOutput = runStoryboardWidgetProbeTreeInvocation({')
     || !runActionSource.slice(probeDispatchIndex, crawlerIndex).includes('publishOutput: publishTextRunOutputToRichMediaPanel')

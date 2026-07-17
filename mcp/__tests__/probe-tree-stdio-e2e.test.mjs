@@ -67,8 +67,8 @@ test("local stdio MCP fails closed with a Canvas-ready empty Probe-Tree response
   }
 });
 
-test("local stdio MCP projects literal authored alternatives without a model", async () => {
-  const client = new Client({ name: "knowgrph-probe-tree-authored-choices-e2e", version: "0.0.0" });
+test("local stdio MCP does not echo authored alternatives without a model", async () => {
+  const client = new Client({ name: "knowgrph-probe-tree-no-echo-e2e", version: "0.0.0" });
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [path.join(repoRoot, "mcp", "server.js")],
@@ -102,14 +102,11 @@ test("local stdio MCP projects literal authored alternatives without a model", a
     assert.equal(result.isError, false, stderrText);
     const payload = result.structuredContent;
     const cards = payload?.response?.structuredContent?.cards;
-    assert.equal(payload?.ok, true);
-    assert.equal(payload?.degraded_reason, "authored_choice_projection");
-    assert.equal(cards?.length, 1);
-    assert.equal(cards?.[0]?.question, "recommend invest in India, China, or SE Asia");
-    assert.equal(cards?.[0]?.probeTreeDerivation, "authored-choices");
-    assert.deepEqual(cards?.[0]?.selectionOptions?.map((option) => option.label), ["India", "China", "SE Asia"]);
-    assert.equal(payload?.cost_log?.model, "probe-tree-authored-choices");
-    assert.doesNotMatch(JSON.stringify(payload), /which relationship between|scope choice|priority choice|compare current evidence|resolve the dependency|choose the decision order/i);
+    assert.equal(payload?.ok, false);
+    assert.equal(payload?.degraded_reason, "insufficient_user_input_context");
+    assert.equal(cards?.length, 0);
+    assert.equal(payload?.cost_log?.model, "none");
+    assert.doesNotMatch(JSON.stringify(cards), /recommend invest|which relationship between|scope choice|priority choice|compare current evidence|resolve the dependency|choose the decision order/i);
   } finally {
     await client.close().catch(() => undefined);
   }

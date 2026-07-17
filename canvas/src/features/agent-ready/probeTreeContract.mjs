@@ -3,7 +3,6 @@ export const PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION = "probe-tree-llm-response
 
 import {
   PROBE_TREE_MULTI_SELECT_LIMITS,
-  PROBE_TREE_AUTHORED_CHOICE_DERIVATION,
   areProbeTreeCardsMutuallyDistinct,
   cleanProbeTreeResponseText,
   isProbeTreeCardUserInputRelevant,
@@ -16,12 +15,10 @@ import { buildRichMediaTextMarkdownDocument } from "../rich-media/richMediaTextM
 
 export {
   PROBE_TREE_MULTI_SELECT_LIMITS,
-  PROBE_TREE_AUTHORED_CHOICE_DERIVATION,
   areProbeTreeContinuationChoicesSuggested,
   areProbeTreeCardsMutuallyDistinct,
   collectProbeTreeContextKeywords,
   extractProbeTreeClarificationContextText,
-  extractProbeTreeAuthoredChoiceOption,
   extractProbeTreeUserInputText,
   isProbeTreeCardUserInputRelevant,
   isProbeTreeTerminalGenerationRequest,
@@ -90,9 +87,6 @@ const buildStructuredResponseOptions = ({ options, optionCount, degraded, contex
       evidenceNeeded: cleanProbeTreeResponseText(candidate?.evidenceNeeded || candidate?.evidence_needed),
       confidence: cleanProbeTreeResponseText(candidate?.confidence, 32) || (degraded ? "low" : "medium"),
       nextAction: KNOWGRPH_PROBE_TREE_TOOL_NAMES.select,
-      ...(candidate?.derivation === PROBE_TREE_AUTHORED_CHOICE_DERIVATION
-        ? { probeTreeDerivation: PROBE_TREE_AUTHORED_CHOICE_DERIVATION }
-        : {}),
     });
     if (out.length >= optionCount) break;
   }

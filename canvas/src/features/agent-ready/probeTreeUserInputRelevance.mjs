@@ -1,5 +1,4 @@
 export const PROBE_TREE_MULTI_SELECT_LIMITS = Object.freeze({ min: 2, max: 4 });
-export const PROBE_TREE_AUTHORED_CHOICE_DERIVATION = "authored-choices";
 
 const PROBE_TREE_CONTEXT_MARKERS = Object.freeze([
   "Authored request",
@@ -29,8 +28,6 @@ const GENERIC_CLARIFICATION_QUESTION_PATTERN = /^(?:which (?:scope|priority|cons
 const GENERIC_CLARIFICATION_CHOICE_PATTERN = /^(?:define the exact boundary|identify adjacent concerns|set what is outside|set the immediate priority|identify the next sequence|define when to defer|identify mandatory constraints|define acceptable tradeoffs|set unresolved limits|compare current evidence for|resolve the dependency between|choose the decision order for|use current evidence for|set a decision threshold for|choose a deliverable for|current authoritative evidence for|corroborating evidence for|known evidence gaps for|most conservative basis for|balanced basis for|most current basis for|comparison for|evidence ledger for|recommendation for)\b/i;
 const PROBE_TREE_GENERATED_QUESTION_SCAFFOLD_PATTERN = /^(?:which requested items should guide the next branch)\s*:\s*/i;
 const PROBE_TREE_TERMINAL_GENERATION_PATTERN = /^(?:please\s+)?(?:build|compose|create|draft|generate|prepare|produce|render|write)\b/i;
-const PROBE_TREE_INVOCATION_TOKEN_PATTERN = /(^|\s)[/#@][a-z0-9_.-]+(?=\s|$)/gi;
-const PROBE_TREE_AUTHORED_CHOICE_CUE_PATTERN = /(?:\b(?:between|among|from|in|choose|select|prefer|compare)\s+|:\s*)/gi;
 
 export const cleanProbeTreeResponseText = (value, maxLength = 320) => (
   String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength)
@@ -167,64 +164,6 @@ export function collectProbeTreeContextKeywords(value, maxCount = 8) {
   return out;
 }
 
-const cleanAuthoredChoiceLabel = value => cleanProbeTreeResponseText(value, 80)
-  .replace(/^(?:or|and\/or)\s+/i, "")
-  .replace(/[?!.]+$/g, "")
-  .trim();
-
-const readFirstAuthoredChoice = value => {
-  const text = cleanProbeTreeResponseText(value, 2_000);
-  const cues = [...text.matchAll(PROBE_TREE_AUTHORED_CHOICE_CUE_PATTERN)];
-  const lastCue = cues.at(-1);
-  return lastCue
-    ? cleanAuthoredChoiceLabel(text.slice((lastCue.index || 0) + lastCue[0].length))
-    : "";
-};
-
-export function extractProbeTreeAuthoredChoiceOption(contextText) {
-  const userInput = extractProbeTreeUserInputText(contextText);
-  const authoredQuestion = cleanProbeTreeResponseText(
-    userInput.replace(PROBE_TREE_INVOCATION_TOKEN_PATTERN, " "),
-    2_000,
-  );
-  const normalizedQuestion = authoredQuestion.replace(/[?!.]+$/g, "").trim();
-  const finalChoiceMatch = normalizedQuestion.match(/(?:,\s*)?(?:or|and\/or)\s+([^,]+)$/i);
-  if (!finalChoiceMatch || finalChoiceMatch.index == null) return null;
-
-  const beforeFinalChoice = normalizedQuestion.slice(0, finalChoiceMatch.index);
-  const firstCommaIndex = beforeFinalChoice.indexOf(",");
-  const firstChoice = readFirstAuthoredChoice(
-    firstCommaIndex >= 0 ? beforeFinalChoice.slice(0, firstCommaIndex) : beforeFinalChoice,
-  );
-  if (!firstChoice) return null;
-  const middleChoices = firstCommaIndex >= 0
-    ? beforeFinalChoice.slice(firstCommaIndex + 1).split(",").map(cleanAuthoredChoiceLabel)
-    : [];
-  const finalChoice = cleanAuthoredChoiceLabel(finalChoiceMatch[1]);
-  const authoredChoices = [firstChoice, ...middleChoices, finalChoice].filter(Boolean);
-  if (
-    authoredChoices.length < PROBE_TREE_MULTI_SELECT_LIMITS.min
-    || authoredChoices.length > PROBE_TREE_MULTI_SELECT_LIMITS.max
-  ) return null;
-  const selectionOptions = normalizeProbeTreeSelectionOptions(authoredChoices);
-  if (
-    selectionOptions.length !== authoredChoices.length
-    || selectionOptions.some(option => option.label.split(/\s+/).length > 8)
-    || selectionOptions.some(option => !normalizedQuestion.toLowerCase().includes(option.label.toLowerCase()))
-  ) return null;
-
-  const choiceSummary = selectionOptions.map(option => option.label).join(", ");
-  return {
-    id: `authored-choices-${safeProbeTreeResponseId(choiceSummary, "choices").slice(0, 72)}`,
-    text: authoredQuestion,
-    rationale: `Authored options: ${choiceSummary}`,
-    evidenceNeeded: "",
-    selectionOptions,
-    contextAnchors: selectionOptions.map(option => option.label),
-    derivation: PROBE_TREE_AUTHORED_CHOICE_DERIVATION,
-  };
-}
-
 export function areProbeTreeCardsMutuallyDistinct(cards) {
   const candidates = Array.isArray(cards) ? cards : [];
   const seenQuestions = new Set();
@@ -245,6 +184,29 @@ export function areProbeTreeCardsMutuallyDistinct(cards) {
 const matchedContextKeywords = (contextKeywords, value) => {
   const text = String(value || "").toLowerCase();
   return contextKeywords.filter(keyword => new RegExp(`(^|[^a-z0-9-])${buildProbeTreeKeywordPattern(keyword)}([^a-z0-9-]|$)`, "i").test(text));
+};
+
+const normalizeProbeTreeComparableText = value => cleanProbeTreeResponseText(value, 8_000)
+  .toLowerCase()
+  .replace(/(^|\s)[/#@][a-z0-9_.-]+(?=\s|$)/g, " ")
+  .replace(/[^a-z0-9]+/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
+
+const isProbeTreeSourceQueryRestatement = ({ userInput, question, selectionOptions }) => {
+  const comparableInput = normalizeProbeTreeComparableText(userInput);
+  const comparableQuestion = normalizeProbeTreeComparableText(question);
+  if (!comparableInput || !comparableQuestion) return true;
+  if (comparableInput === comparableQuestion) return true;
+
+  const inputKeywords = collectProbeTreeContextKeywords(userInput, 96)
+    .filter(keyword => !PROBE_TREE_RUNTIME_META_WORDS.has(keyword));
+  const matchedKeywords = matchedContextKeywords(inputKeywords, question);
+  const copiedOptions = normalizeProbeTreeSelectionOptions(selectionOptions)
+    .every(option => comparableInput.includes(normalizeProbeTreeComparableText(option.label)));
+  return inputKeywords.length >= 3
+    && matchedKeywords.length / inputKeywords.length >= 0.75
+    && copiedOptions;
 };
 
 export function areProbeTreeContinuationChoicesSuggested({ contextText, question, selectionOptions } = {}) {
@@ -271,6 +233,7 @@ export function isProbeTreeCardUserInputRelevant({ contextText, question, select
     || (continuationAnswer && isProbeTreeTerminalGenerationRequest(userInput))
     || anchors.length < 2
     || options.length < 2
+    || isProbeTreeSourceQueryRestatement({ userInput, question, selectionOptions: options })
     || GENERIC_RESPONSE_CONTENT_PATTERN.test(String(question || "").trim())
     || GENERIC_CLARIFICATION_QUESTION_PATTERN.test(String(question || "").trim())
     || options.some(option => GENERIC_CLARIFICATION_CHOICE_PATTERN.test(option.label))
@@ -280,17 +243,12 @@ export function isProbeTreeCardUserInputRelevant({ contextText, question, select
   const contextKeywords = collectProbeTreeContextKeywords(groundingInput, 96).filter(keyword => !PROBE_TREE_RUNTIME_META_WORDS.has(keyword));
   if (contextKeywords.length < 2) return false;
   const questionMatches = new Set(matchedContextKeywords(contextKeywords, question));
-  const optionMatches = new Set(options.flatMap(option => matchedContextKeywords(contextKeywords, option.label)));
   if (continuationAnswer) {
     const primaryKeywords = collectProbeTreeContextKeywords(userInput, 96).filter(keyword => !PROBE_TREE_RUNTIME_META_WORDS.has(keyword));
     const requiredPrimaryMatches = Math.min(2, primaryKeywords.length);
-    const primaryMatches = new Set([
-      ...matchedContextKeywords(primaryKeywords, question),
-      ...options.flatMap(option => matchedContextKeywords(primaryKeywords, option.label)),
-    ]);
+    const primaryMatches = new Set(matchedContextKeywords(primaryKeywords, question));
     if (requiredPrimaryMatches < 1 || primaryMatches.size < requiredPrimaryMatches) return false;
-    return options.every(option => matchedContextKeywords(primaryKeywords, option.label).length > 0);
+    return true;
   }
-  if (questionMatches.size < 2 || optionMatches.size < 2) return false;
-  return options.every(option => matchedContextKeywords(contextKeywords, option.label).length > 0);
+  return questionMatches.size >= 2;
 }
