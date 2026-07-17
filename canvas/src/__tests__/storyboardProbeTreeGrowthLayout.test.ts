@@ -4,7 +4,7 @@ import {
   resolveStoryboardWidgetProbeTreeBranchPositions,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
 import { materializeStoryboardWidgetProbeTreeStructuredResponse } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeStructuredResponse'
-import { buildProbeTreeInputDerivedOptions, buildProbeTreeStructuredResponse } from '@/features/agent-ready/probeTreeContract.mjs'
+import { buildProbeTreeStructuredResponse } from '@/features/agent-ready/probeTreeContract.mjs'
 import type { GraphData } from '@/lib/graph/types'
 import {
   PROBE_TREE_BALANCED_LAYOUT_MODE,
@@ -280,7 +280,24 @@ export function testProbeTreeStructuredReplacementRemovesDescendantClosure() {
   ].join('\n')
   const response = buildProbeTreeStructuredResponse({
     threadRootId: 'root', currentNodeId: 'root', contextText, optionCount: 2,
-    options: buildProbeTreeInputDerivedOptions(contextText).slice(0, 2).map((option, index) => ({ ...option, id: index === 0 ? 'authority' : 'reviewer' })),
+    options: [
+      {
+        id: 'authority',
+        text: 'Which coverage source should establish SME evidence authority?',
+        rationale: 'Clarifies the authored SME evidence authority question.',
+        evidenceNeeded: 'User-selected coverage authority.',
+        selectionOptions: ['coverage source', 'claims record'],
+        contextAnchors: ['SME evidence', 'coverage source', 'claims record'],
+      },
+      {
+        id: 'reviewer',
+        text: 'Which adviser boundary or approval status should guide review?',
+        rationale: 'Clarifies the authored accountable review question.',
+        evidenceNeeded: 'User-selected review boundary.',
+        selectionOptions: ['adviser boundary', 'approval status'],
+        contextAnchors: ['accountable review', 'adviser boundary', 'approval status'],
+      },
+    ],
   })
   const result = materializeStoryboardWidgetProbeTreeStructuredResponse({
     graphData,
@@ -288,7 +305,7 @@ export function testProbeTreeStructuredReplacementRemovesDescendantClosure() {
     responseText: JSON.stringify({ jsonrpc: '2.0', id: 'replace', result: { structuredContent: { ok: true, response } } }),
     contextText,
     responseSource: 'mcp',
-    model: 'probe-tree-input-derived',
+    model: 'qwen-local',
     mcpInvoked: true,
     threadRootId: 'root',
     invocationTokens: [],

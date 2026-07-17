@@ -25,8 +25,6 @@ import {
   KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   PROBE_TREE_DEFAULTS,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
-  buildProbeTreeInputDerivedOptions,
-  buildProbeTreeStructuredResponse,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { invokeProbeTreeMcpBridge } from '@/features/agent-ready/probeTreeMcpClient'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
@@ -57,8 +55,7 @@ const PROBE_TREE_INVOCATION_TOKENS = new Set<string>(
   KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS.map(token => token.toLowerCase()),
 )
 const PROBE_TREE_RICH_MEDIA_PANEL_LABEL = 'Probe-Tree Branches'
-const PROBE_TREE_LOCAL_MODEL = 'knowgrph-probe-tree-local-fallback'
-const PROBE_TREE_INPUT_DERIVED_MODEL = 'knowgrph-probe-tree-input-derived'
+const PROBE_TREE_GRAPH_PROJECTION_MODEL = 'knowgrph-probe-tree-graph-projection'
 export const PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY = 'probeTreeProviderRefinementApproved' as const
 
 export function isStoryboardWidgetProbeTreeProviderRefinementApproved(properties: Record<string, unknown>): boolean {
@@ -183,6 +180,7 @@ export function runStoryboardWidgetProbeTreeInvocation(args: {
   const prompt = readStoryboardWidgetProbeTreeInvocationText(args.fallbackNode)
   const materialized = materializeStoryboardWidgetProbeTreeInvocation({ prompt, graphData: current, node })
   if (!materialized) return null
+  if (materialized.materializedNodeIds.length === 0) return materialized
   const threadRootId = resolveStoryboardWidgetProbeTreeThreadRootId(current, node)
   const outputGroupId = buildStoryboardWidgetProbeTreeOutputGroupId(threadRootId)
   const panelOutput = buildStoryboardWidgetProbeTreeRichMediaMarkdown(materialized)
@@ -192,7 +190,7 @@ export function runStoryboardWidgetProbeTreeInvocation(args: {
     baseGraphData: graphData || current,
     outputText: panelOutput,
     title: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
-    model: PROBE_TREE_LOCAL_MODEL,
+    model: PROBE_TREE_GRAPH_PROJECTION_MODEL,
     loading: false,
     outputKey: PROBE_TREE_OUTPUT_KEY,
     outputGroupId,
@@ -219,38 +217,6 @@ const collectInvocationTokens = (value: string): string[] => {
   }
   return out
 }
-
-const buildInputDerivedCallResult = (args: {
-  threadRootId: string
-  currentNodeId: string
-  contextText: string
-  probeTreeDepth: number
-  options: ReturnType<typeof buildProbeTreeInputDerivedOptions>
-}): Record<string, unknown> => ({
-  isError: false,
-  content: [{ type: 'text', text: 'Bounded user-input-derived Probe-Tree fallback.' }],
-  structuredContent: {
-    contractVersion: 'knowgrph-probe-tree/v0.1',
-    ok: true,
-    degraded: true,
-    response: buildProbeTreeStructuredResponse({
-      threadRootId: args.threadRootId,
-      currentNodeId: args.currentNodeId,
-      contextText: args.contextText,
-      optionCount: 3,
-      options: args.options,
-      probeTreeDepth: args.probeTreeDepth,
-      degraded: true,
-    }),
-    cost_log: {
-      model: PROBE_TREE_INPUT_DERIVED_MODEL,
-      prompt_tokens: 0,
-      completion_tokens: 0,
-      cache_hits: 0,
-      estimated_cost_usd: 0,
-    },
-  },
-})
 
 const readMcpModel = (result: Record<string, unknown>): string => {
   const structured = result.structuredContent && typeof result.structuredContent === 'object'
@@ -286,7 +252,8 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
     '- For a continuation, the selected child card and its user-authored output own the next topic. Use the thread root only for lineage; never replace the selected child context with a root alias.',
     '- Every card must be a concrete next question relevant to the authored request and the set must reuse at least two substantive request terms.',
     '- Never emit generic process cards named Clarify probe, Generate branches, or Select handoff.',
-    '- Reject generic wrappers such as "Which scope/priority/constraint choice should clarify <entire query>?" and choices such as "Define the exact boundary". Resolve missing parameters that materially change the answer.',
+    '- Reject every canned wrapper: scope/priority/constraint over the whole query, pairwise relationship questions, evidence/decision-basis/deliverable templates, and choices such as compare current evidence, resolve the dependency, or choose the decision order. Ask only about concrete missing parameters that materially change this request.',
+    '- If 2-4 distinct query-specific cards cannot be produced without invented facts, return an empty cards array so the runtime fails closed; never fill the quota with generic or hardcoded text.',
     '- If the selected user input is an imperative generation request, fulfill that deliverable through normal generation. Do not emit clarification cards and do not continue Probe-Tree.',
     '- Do not add prose before or after the fenced YAML block.',
     '',
@@ -297,7 +264,6 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
     literalMcpResult,
   ].filter(Boolean).join('\n')
 }
-
 export type StoryboardWidgetProbeTreeMcpRunResult = StoryboardWidgetProbeTreeStructuredMaterialization & {
   invocationToken: string
   mcpInvoked: boolean
@@ -381,8 +347,8 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
       graphData: graphForInvocation,
       materializedNodeIds: [],
       panelOutput: '',
-      responseSource: 'input-derived',
-      model: PROBE_TREE_INPUT_DERIVED_MODEL,
+      responseSource: 'runtime',
+      model: 'none',
       invocationToken,
       mcpInvoked: false,
       providerAccepted: false,
@@ -392,14 +358,6 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   }
   const nextProbeTreeDepth = currentProbeTreeDepth + 1
   const invocationTokens = collectInvocationTokens(prompt)
-  const inputDerivedOptions = buildProbeTreeInputDerivedOptions(contextText).slice(0, PROBE_TREE_DEFAULTS.optionCount)
-  const localFallbackResult = buildInputDerivedCallResult({
-    threadRootId,
-    currentNodeId,
-    contextText,
-    probeTreeDepth: nextProbeTreeDepth,
-    options: inputDerivedOptions,
-  })
   let bridge: ProbeTreeMcpBridgeSuccess | null = null
   let mcpError = ''
   try {
@@ -417,7 +375,16 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     mcpError = error instanceof Error ? error.message : String(error || '')
   }
 
-  const mcpResult = bridge?.result || localFallbackResult
+  const mcpResult = bridge?.result || {
+    isError: true,
+    content: [],
+    structuredContent: {
+      contractVersion: KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
+      ok: false,
+      degraded: true,
+      degraded_reason: mcpError || 'mcp_unavailable',
+    },
+  }
   const mcpInvoked = bridge?.mcpInvoked === true
   let providerText = ''
   let providerError = ''
@@ -453,37 +420,21 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     : null
   if (materialized) providerAccepted = true
 
-  if (!materialized) {
+  if (!materialized && mcpInvoked) {
     materialized = materializeStoryboardWidgetProbeTreeStructuredResponse({
       graphData: graphForInvocation,
       anchorNode: node,
       responseText: JSON.stringify({ result: mcpResult }, null, 2),
       contextText,
-      responseSource: mcpInvoked ? 'mcp' : 'input-derived',
-      model: mcpInvoked ? readMcpModel(mcpResult) : PROBE_TREE_INPUT_DERIVED_MODEL,
+      responseSource: 'mcp',
+      model: readMcpModel(mcpResult),
       mcpInvoked,
       threadRootId,
       invocationTokens,
       invocationResolutions: bridge?.invocationResolutions,
-      ...(!mcpInvoked ? { inputDerivedOptions } : {}),
     })
   }
-  if (!materialized && mcpInvoked) {
-    materialized = materializeStoryboardWidgetProbeTreeStructuredResponse({
-      graphData: graphForInvocation,
-      anchorNode: node,
-      responseText: JSON.stringify({ result: localFallbackResult }, null, 2),
-      contextText,
-      responseSource: 'input-derived',
-      model: PROBE_TREE_INPUT_DERIVED_MODEL,
-      mcpInvoked,
-      threadRootId,
-      invocationTokens,
-      invocationResolutions: bridge?.invocationResolutions,
-      inputDerivedOptions,
-    })
-  }
-  if (!materialized) throw new Error('Probe-Tree needs 2-4 cards whose questions, choices, and verbatim context anchors come from the selected user input.')
+  if (!materialized) throw new Error('Probe-Tree refused generic or hardcoded fallback cards. Configure the local Probe-Tree model or set probeTreeProviderRefinementApproved: true on this card to generate 2-4 query-specific clarifications.')
 
   const outputGroupId = buildStoryboardWidgetProbeTreeOutputGroupId(threadRootId)
   const normalizedGraphData = normalizeStoryboardWidgetProbeTreeOutputLayout({
@@ -514,10 +465,10 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     invocationToken,
     mcpInvoked,
     providerAccepted,
-    kind: mcpInvoked ? 'success' : 'warning',
+    kind: 'success',
     message: mcpInvoked
       ? `Generated ${count} context-specific Probe-Tree card${count === 1 ? '' : 's'} through knowgrph MCP.`
-      : `Generated ${count} user-input-derived Probe-Tree card${count === 1 ? '' : 's'} without canned fallback content; knowgrph MCP was unavailable.`,
+      : `Generated ${count} context-specific Probe-Tree card${count === 1 ? '' : 's'} through the explicitly approved provider; knowgrph MCP was unavailable.`,
     ...(mcpError ? { mcpError } : {}),
     ...(providerError ? { providerError } : {}),
   }

@@ -3,7 +3,6 @@ import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import {
   buildProbeTreeStructuredResponse,
-  buildProbeTreeInputDerivedOptions,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { appendChatHistoryWorkspaceFile } from '@/features/chat/chatHistoryWorkspace'
@@ -30,8 +29,32 @@ export async function testProbeTreeLiteralMcpResultAppliesVisibleWidgetCardPanel
       'Review member evidence across claims values, coverage tier, care-plan owner, and current status.',
       'Selected Widget id: care-source',
     ].join('\n')
-    const optionIds = ['source-authority', 'freshness-window', 'handoff-owner']
-    const options = buildProbeTreeInputDerivedOptions(contextText).map((option, index) => ({ ...option, id: optionIds[index] }))
+    const options = [
+      {
+        id: 'source-authority',
+        text: 'Which CRM or claims source should determine member risk tier?',
+        rationale: 'Clarifies the authored member risk source question.',
+        evidenceNeeded: 'User-selected member risk source.',
+        selectionOptions: ['CRM authority', 'claims freshness'],
+        contextAnchors: ['member risk tier', 'CRM authority', 'claims freshness'],
+      },
+      {
+        id: 'freshness-window',
+        text: 'Which policy or care-plan status should guide the member review?',
+        rationale: 'Clarifies the authored member status question.',
+        evidenceNeeded: 'User-selected member status.',
+        selectionOptions: ['policy status', 'care-plan status'],
+        contextAnchors: ['policy status', 'care-plan status', 'member'],
+      },
+      {
+        id: 'handoff-owner',
+        text: 'Which source authority or handoff owner should guide the next review?',
+        rationale: 'Clarifies the authored source and handoff ownership question.',
+        evidenceNeeded: 'User-selected review owner.',
+        selectionOptions: ['source authority', 'handoff owner'],
+        contextAnchors: ['source authority', 'handoff owner', 'Review member evidence'],
+      },
+    ]
     const response = buildProbeTreeStructuredResponse({
       threadRootId: 'care-agent',
       currentNodeId: 'care-source',
@@ -48,7 +71,7 @@ export async function testProbeTreeLiteralMcpResultAppliesVisibleWidgetCardPanel
           contractVersion: 'knowgrph-probe-tree/v0.1',
           ok: true,
           response,
-          cost_log: { model: 'probe-tree-input-derived', prompt_tokens: 0, completion_tokens: 0, cache_hits: 0, estimated_cost_usd: 0 },
+          cost_log: { model: 'qwen-local', prompt_tokens: 24, completion_tokens: 18, cache_hits: 0, estimated_cost_usd: 0 },
         },
       },
     }, null, 2)

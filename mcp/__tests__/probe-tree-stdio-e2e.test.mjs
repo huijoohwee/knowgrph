@@ -11,7 +11,7 @@ import { KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "../local-tool-contract.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-test("local stdio MCP emits a Canvas-ready bounded Probe-Tree response", async () => {
+test("local stdio MCP fails closed with a Canvas-ready empty Probe-Tree response when no model is configured", async () => {
   const client = new Client({ name: "knowgrph-probe-tree-e2e", version: "0.0.0" });
   const transport = new StdioClientTransport({
     command: process.execPath,
@@ -54,14 +54,14 @@ test("local stdio MCP emits a Canvas-ready bounded Probe-Tree response", async (
     const surface = payload?.response?.structuredContent;
     assert.equal(surface?.contractVersion, PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION);
     assert.equal(surface?.widgets?.[0]?.id, "widget-card");
-    assert.equal(surface?.cards?.length, 3);
+    assert.equal(payload?.ok, false);
+    assert.equal(payload?.degraded, true);
+    assert.equal(payload?.degraded_reason, "insufficient_user_input_context");
+    assert.equal(surface?.cards?.length, 0);
     assert.equal(surface?.panels?.length, 1);
-    assert.ok(surface.cards.every((card) => card.parentNodeId === "widget-card"));
-    assert.ok(surface.cards.every((card) => card.nextAction === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.probeSelect));
-    assert.ok(surface.cards.every((card) => card.question && card.output === ""));
-    assert.ok(surface.cards.every((card) => card.selectionOptions.length >= 2));
-    assert.ok(surface.cards.every((card) => card.contextAnchors.length >= 2));
+    assert.equal(payload?.cost_log?.model, "none");
     assert.equal(payload?.cost_log?.estimated_cost_usd, 0);
+    assert.doesNotMatch(JSON.stringify(payload), /which relationship between|compare current evidence|resolve the dependency|choose the decision order/i);
   } finally {
     await client.close().catch(() => undefined);
   }

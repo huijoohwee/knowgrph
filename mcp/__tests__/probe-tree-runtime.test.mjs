@@ -44,21 +44,17 @@ test("probe.generate recalls scoped exemplars and does not mutate the markdown g
     k: 2,
   }, { rootDir, env: {} });
 
-  assert.equal(result.ok, true);
-  assert.equal(result.options.length, 2);
+  assert.equal(result.ok, false);
+  assert.equal(result.options.length, 0);
   assert.equal(result.options.some((option) => option.text === "What information is still missing?"), false);
-  assert.ok(result.options.every((option) => option.selectionOptions.length >= 2));
-  assert.ok(result.options.every((option) => option.contextAnchors.length >= 2));
   assert.equal(result.recalled_exemplars.length, 1);
   assert.equal(result.token_budget.within_budget, true);
   assert.equal(result.degraded, true);
   assert.equal(result.stateGraph.checkpointer, "markdown-graph-store");
   assert.equal(result.response.structuredContent.widgets.length, 1);
   assert.equal(result.response.structuredContent.widgets[0].id, "root");
-  assert.equal(result.response.structuredContent.cards.length, 2);
-  assert.equal(result.response.structuredContent.cards[0].parentNodeId, "root");
-  assert.equal(result.response.structuredContent.cards[0].nextAction, "knowgrph.probe.select");
-  assert.ok(result.response.structuredContent.cards.every((card) => card.question && card.output === ""));
+  assert.equal(result.degraded_reason, "insufficient_user_input_context");
+  assert.equal(result.response.structuredContent.cards.length, 0);
   assert.equal(result.response.structuredContent.panels[0].label, "Probe-Tree Branches");
   assert.equal(await fs.readFile(path.join(storeDir, "sentinel.txt"), "utf8"), "before");
 });
@@ -88,34 +84,30 @@ test("probe.generate honors explicit zero recall against a seeded memory store",
     recall_top_k: 0,
   }, { rootDir, env: {} });
 
-  assert.equal(result.ok, true);
+  assert.equal(result.ok, false);
+  assert.equal(result.degraded_reason, "insufficient_user_input_context");
   assert.equal(result.recalled_exemplars.length, 0);
   assert.equal(result.token_budget.recalled_exemplar_count, 0);
   assert.equal(result.options.some((option) => option.text === "Which legal approver signs off the exception?"), false);
 });
 
-test("probe.generate input-derived response stays specific to the selected Widget context", async () => {
+test("probe.generate refuses generic wrappers when no model is configured", async () => {
   const rootDir = await tempRoot();
+  const contextText = "/knowgrph.probe-tree invest in China, India, SE Asia?";
   const result = await generateProbeOptions({
-    thread_root_id: "sme-care-agent",
-    current_node_id: "risk-intake",
-    context_text: "Assess SME cyber coverage gaps, supply-chain exposure, and accountable risk review.",
+    thread_root_id: "investment-comparison",
+    current_node_id: "root",
+    context_text: contextText,
     k: 3,
     recall_top_k: 0,
   }, { rootDir, env: {} });
 
-  assert.equal(result.ok, true);
+  assert.equal(result.ok, false);
   assert.equal(result.degraded, true);
-  assert.equal(result.degraded_reason, "model_not_configured");
-  assert.equal(result.options.length, 3);
-  const projectedText = result.response.structuredContent.cards
-    .flatMap((card) => [card.question, card.rationale, card.evidenceNeeded])
-    .join(" ");
-  assert.match(projectedText, /SME/i);
-  assert.match(projectedText, /cyber/i);
-  assert.match(projectedText, /coverage|supply chain/i);
-  assert.equal(result.options.some((option) => option.text === "What outcome would make this resolved?"), false);
-  assert.equal(result.options.some((option) => option.text === "What information is still missing?"), false);
+  assert.equal(result.degraded_reason, "insufficient_user_input_context");
+  assert.equal(result.options.length, 0);
+  assert.equal(result.response.structuredContent.cards.length, 0);
+  assert.doesNotMatch(JSON.stringify(result), /which relationship between|compare current evidence|resolve the dependency|choose the decision order/i);
 });
 
 test("probe model prompt keeps selected child input primary and ancestors lineage-only", () => {
@@ -136,6 +128,8 @@ test("probe model prompt keeps selected child input primary and ancestors lineag
   assert.match(prompt, /probe-root: question=Assess the global logistics root/);
   assert.match(prompt, /suggested clarification answer/);
   assert.match(prompt, /Never split the selected focus/);
+  assert.match(prompt, /Never pair copied nouns inside canned relationship\/evidence\/dependency\/decision-order questions/);
+  assert.match(prompt, /return \{"options":\[\]\}/);
 });
 
 test("probe.generate enforces token budget before local model invocation", async () => {
@@ -199,7 +193,7 @@ test("probe.generate uses host-owned Ollama adapter when configured and keeps co
                   contextAnchors: ["care-plan coaching", "English", "Mandarin"],
                 },
                 {
-                  text: "Which summary should guide the next branch?",
+                  text: "Which caregiver or member summary should guide the next branch?",
                   rationale: "Uses only the requested summary scope.",
                   evidenceNeeded: "User selection",
                   selectionOptions: ["caregiver summary", "member summary"],
@@ -339,7 +333,43 @@ test("probe-tree clean-room smoke completes generate-select-evolve with observab
     k: 2,
     recall_top_k: 0,
     token_budget: 1200,
-  }, { rootDir, env: {} });
+  }, {
+    rootDir,
+    env: {
+      KNOWGRPH_PROBE_TREE_MODEL: "qwen-local",
+      KNOWGRPH_PROBE_TREE_MODEL_URL: "http://127.0.0.1:11434",
+    },
+    fetchImpl: async () => ({
+      ok: true,
+      async json() {
+        return {
+          model: "qwen-local",
+          message: {
+            content: JSON.stringify({
+              options: [
+                {
+                  text: "Which clean-room completion status should the readiness review use?",
+                  rationale: "Clarifies the requested clean-room readiness decision.",
+                  evidenceNeeded: "User-selected completion status.",
+                  selectionOptions: ["current clean-room readiness status", "target clean-room readiness status"],
+                  contextAnchors: ["clean-room readiness", "completion status"],
+                },
+                {
+                  text: "Which unresolved clean-room gap should the readiness review prioritize?",
+                  rationale: "Clarifies the requested unresolved clean-room gap.",
+                  evidenceNeeded: "User-selected unresolved gap.",
+                  selectionOptions: ["unresolved runtime trace gap", "unresolved source evidence gap"],
+                  contextAnchors: ["runtime trace", "source evidence", "unresolved gap"],
+                },
+              ],
+            }),
+          },
+          prompt_eval_count: 24,
+          eval_count: 18,
+        };
+      },
+    }),
+  });
   const selected = await selectProbeOption({
     thread_root_id: "thread-smoke",
     parent_node_id: "root",
