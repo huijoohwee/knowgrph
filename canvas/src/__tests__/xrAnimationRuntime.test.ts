@@ -263,7 +263,7 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
     readSource('features', 'three', 'xrSceneMcpRuntime.ts'),
     stageSource,
   ]
-  for (const marker of ['FloatingPanelCatalogHeader', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'ExpandCollapseAllButton', 'useCollapsibleSectionGroup', 'data-kg-animation-card-toggle', 'data-kg-animation-clear="selected-actor"', 'data-kg-animation-mcp="knowgrph.control_local_animation"']) {
+  for (const marker of ['FloatingPanelCatalogHeader', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'ExpandCollapseAllButton', 'useCollapsibleSectionGroup', 'data-kg-animation-card-toggle', 'data-kg-animation-clear="selected-actor"', 'data-kg-animation-mcp="knowgrph.control_local_animation"', 'AnimationInvocationChips', 'splitInvocationTokenSegments(invocation)', "segment.kind === 'token'", "surface === 'action' ? compactInvocation : displayInvocation", 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'data-kg-animation-invocation-chips={surface}', 'data-kg-animation-invocation-chip-renderer="shared-markdown-sigil"', '<AnimationInvocationChips invocation={invocation} surface="action" />', '<AnimationInvocationChips active={active} invocation={invocation} surface="details" />']) {
     if (!panelSource.includes(marker)) throw new Error(`expected first-class Animation cards to reuse shared disclosure/catalog UI through ${marker}`)
   }
   for (const marker of ['XrChoreographyInspector', 'inspectLocalAnimation', 'Shared cast and camera choreography, playback, and export']) {

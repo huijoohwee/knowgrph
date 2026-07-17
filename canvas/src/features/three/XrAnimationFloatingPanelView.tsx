@@ -29,6 +29,9 @@ import {
   useFloatingPanelCatalogSearch,
 } from '@/lib/ui/floatingPanelCatalogLayout'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
+import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
 import { cn } from '@/lib/utils'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 import { useCollapsibleSectionGroup } from '@/features/panels/ui/useCollapsibleSectionGroup'
@@ -66,6 +69,39 @@ const PRESET_ICON_BY_ID: Readonly<Record<XrAnimationPreset['id'], LucideIcon>> =
   'helicopter-orbit': CircleDot,
   'car-chase': Car,
   'collapsing-debris': Boxes,
+}
+
+function AnimationInvocationChips({
+  active = true,
+  invocation,
+  surface,
+}: {
+  active?: boolean
+  invocation: string
+  surface: 'action' | 'details'
+}) {
+  const displayInvocation = invocation || 'Catalog hydrating…'
+  const compactInvocation = invocation
+    ? splitInvocationTokenSegments(invocation)
+      .filter(segment => segment.kind === 'token')
+      .map(segment => segment.value)
+      .join(' ')
+    : displayInvocation
+  return (
+    <code
+      className={cn(
+        UI_INLINE_CHIP_GROUP_CLASSNAME,
+        'min-w-0 overflow-hidden font-mono text-[9px]',
+        surface === 'action' ? 'max-h-11 basis-full' : '',
+        active ? UI_THEME_TOKENS.text.secondary : UI_THEME_TOKENS.text.tertiary,
+      )}
+      title={invocation || 'Waiting for the upstream invocation catalog'}
+      data-kg-animation-invocation-chips={surface}
+      data-kg-animation-invocation-chip-renderer="shared-markdown-sigil"
+    >
+      {renderMarkdownSigilInlineText(surface === 'action' ? compactInvocation : displayInvocation)}
+    </code>
+  )
 }
 
 function AnimationPresetCard({
@@ -118,9 +154,9 @@ function AnimationPresetCard({
           <p className={cn('m-0 line-clamp-2 text-[11px]', UI_THEME_TOKENS.text.secondary)}>{preset.description}</p>
           <p className={cn('m-0 truncate text-[10px] uppercase tracking-wide', UI_THEME_TOKENS.text.tertiary)}>{preset.kind.replace('-', ' ')} · {preset.cycleSeconds}s · {preset.loop ? 'loop' : 'one shot'}</p>
         </section>
-        <footer className="flex min-w-0 items-center gap-1" data-kg-animation-card-row="action">
+        <footer className="flex min-w-0 flex-wrap items-center gap-1" data-kg-animation-card-row="action">
           <button type="button" className="App-toolbar__btn shrink-0" disabled={disabled || !compatible} onClick={onApply} data-kg-animation-card-apply={preset.id}>Apply</button>
-          <code className={cn('min-w-0 flex-1 truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)} title={invocation || 'Waiting for the upstream invocation catalog'}>{invocation || 'Catalog hydrating…'}</code>
+          <AnimationInvocationChips invocation={invocation} surface="action" />
         </footer>
       </section>
       <section
@@ -131,7 +167,7 @@ function AnimationPresetCard({
         <p className={UI_THEME_TOKENS.text.secondary}>Compatible: {preset.compatibleAssetIds.length ? preset.compatibleAssetIds.join(', ') : preset.compatibleCategories.join(', ') || 'graph cast'}</p>
         <p className={UI_THEME_TOKENS.text.tertiary}>Deterministic procedural pose/path · native Knowgrph runtime · no external animation asset.</p>
         {!compatible ? <p className="text-amber-700 dark:text-amber-300">Choose a compatible cast target to apply this preset.</p> : null}
-        <output className={cn('truncate font-mono text-[9px]', active ? UI_THEME_TOKENS.text.secondary : UI_THEME_TOKENS.text.tertiary)}>{invocation || 'Upstream / @ # tokens are not hydrated.'}</output>
+        <AnimationInvocationChips active={active} invocation={invocation} surface="details" />
       </section>
     </article>
   )
