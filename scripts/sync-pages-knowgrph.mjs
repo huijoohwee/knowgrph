@@ -24,6 +24,8 @@ const agentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages
 const agentReadyFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', '[[path]].js')
 const agentReadyFeatureSource = filename => path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'agent-ready', filename)
 const agentReadyFeatureTarget = filename => path.resolve(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'agent-ready', filename)
+const xrSceneMcpContractSource = path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'three', 'xrSceneMcpContract.mjs')
+const xrSceneMcpContractTarget = path.resolve(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'three', 'xrSceneMcpContract.mjs')
 const youtubeTranscriptFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'youtube-transcript.mjs')
 const youtubeTranscriptFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', '__youtube_transcript.js')
 const videoFrameFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'video-frame.mjs')
@@ -381,6 +383,7 @@ const fileExists = async (filePath) => {
 const agentReadyRuntimeCopies = [
   [agentReadyCommerceSource, agentReadyCommerceTarget], [agentReadyAppShellSource, agentReadyAppShellTarget],
   [semanticKeyContractSource, semanticKeyContractTarget],
+  [xrSceneMcpContractSource, xrSceneMcpContractTarget],
   ...['mcpAppsContractText.mjs', 'mcpAppsOnboarding.mjs'].map(filename => [agentReadyFeatureSource(filename), agentReadyFeatureTarget(filename)]),
   ...(await collectGrphSharedRuntimeCopies(agentReadyRuntimeSharedEntries)),
 ]

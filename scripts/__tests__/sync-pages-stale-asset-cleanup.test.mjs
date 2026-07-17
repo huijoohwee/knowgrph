@@ -42,6 +42,12 @@ test("publish sync includes the cross-root semantic-key dependency", () => {
   assert.match(syncScript, /\[semanticKeyContractSource, semanticKeyContractTarget\]/);
 });
 
+test("publish sync includes the XR scene tool contract dependency", () => {
+  assert.match(syncScript, /xrSceneMcpContractSource = path\.resolve\(knowgrphRoot, 'canvas', 'src', 'features', 'three', 'xrSceneMcpContract\.mjs'\)/);
+  assert.match(syncScript, /xrSceneMcpContractTarget = path\.resolve\(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'three', 'xrSceneMcpContract\.mjs'\)/);
+  assert.match(syncScript, /\[xrSceneMcpContractSource, xrSceneMcpContractTarget\]/);
+});
+
 test("publish sync keeps the live canvas hero markdown route in the root-managed file set", () => {
   assert.match(syncScript, /'knowgrph-live-canvas-hero\.md'/);
 });
