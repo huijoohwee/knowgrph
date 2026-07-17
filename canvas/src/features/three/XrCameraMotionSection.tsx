@@ -142,7 +142,6 @@ export function XrCameraMotionSection() {
           runtimeDocumentKey={xrTransportDocumentKey}
           runtimeDurationSeconds={runtime.plan.durationSeconds}
           runtimeFrameRate={runtime.plan.fps}
-          timeRulerOverlay={<CameraMotionMarkRetime layout="ruler" />}
           timeAxisControls={(
             <section className="flex min-w-0 items-center gap-2" aria-label="XR timeline scale controls" data-kg-timeline-axis-controls-layout="duration-fps">
               <label className="flex min-w-0 items-center gap-1 text-[9px]" data-kg-xr-timeline-seconds-control="time-axis">
@@ -173,7 +172,7 @@ export function XrCameraMotionSection() {
               </label>
             </section>
           )}
-          supplementalLanes={(
+          supplementalLanes={(<>
             <section
               className="timeline-transport-supplemental-lane"
               aria-label="XR Timeline player controls"
@@ -219,7 +218,31 @@ export function XrCameraMotionSection() {
                 </TimelineTransportInlineClip>
               </section>
             </section>
-          )}
+            <section
+              className="timeline-transport-supplemental-lane xr-camera-motion-choreography-tracks"
+              aria-label="Cast and camera choreography tracks"
+              data-kg-xr-timeline-choreography-lanes="per-track"
+              style={{ '--kg-xr-choreography-lane-count': runtime.plan.cast.length + 1 } as React.CSSProperties}
+            >
+              <header className="timeline-transport-supplemental-lane-label xr-camera-motion-retime-lane-labels">
+                {runtime.plan.cast.map(track => (
+                  <span key={track.actorId} data-kg-xr-choreography-cast-lane-label={track.actorId}>
+                    <i aria-hidden style={{ backgroundColor: track.color }} />
+                    <b title={track.label}>{track.label}</b>
+                    <small>{track.marks.length}</small>
+                  </span>
+                ))}
+                <span data-kg-xr-choreography-camera-lane-label="1">
+                  <i aria-hidden className="xr-camera-motion-retime-camera-swatch" />
+                  <b>Camera</b>
+                  <small>{runtime.plan.camera.length}</small>
+                </span>
+              </header>
+              <section className="timeline-transport-supplemental-lane-content timeline-transport-supplemental-lane-content--time-axis xr-camera-motion-retime-lane-content">
+                <CameraMotionMarkRetime layout="lanes" />
+              </section>
+            </section>
+          </>)}
         />
       </section>
     </section>

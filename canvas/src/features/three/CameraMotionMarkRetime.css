@@ -1,13 +1,80 @@
-.xr-camera-motion-retime-ruler {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
+.xr-camera-motion-choreography-tracks {
+  border-top: 1px solid color-mix(in srgb, var(--kg-border, #e5e7eb) 72%, transparent);
 }
 
-.xr-camera-motion-retime-ruler-mark.timeline-transport-time-axis-mark {
+.xr-camera-motion-retime-lane-labels,
+.xr-camera-motion-retime-lanes {
+  display: grid;
+  grid-template-rows: repeat(var(--kg-xr-choreography-lane-count, 1), 28px);
+}
+
+.xr-camera-motion-retime-lane-labels.timeline-transport-supplemental-lane-label {
+  align-items: stretch;
+  padding: 0;
+}
+
+.xr-camera-motion-retime-lane-labels > span {
+  display: grid;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  border-bottom: 1px solid color-mix(in srgb, var(--kg-border, #e5e7eb) 55%, transparent);
+  padding-inline: 12px 8px;
+}
+
+.xr-camera-motion-retime-lane-labels > span:last-child {
+  border-bottom: 0;
+}
+
+.xr-camera-motion-retime-lane-labels i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+}
+
+.xr-camera-motion-retime-lane-labels b {
+  overflow: hidden;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xr-camera-motion-retime-lane-labels small {
+  color: var(--kg-text-tertiary, #64748b);
+  font-size: 8px;
+}
+
+.xr-camera-motion-retime-camera-swatch {
+  border: 1px solid #64748b;
+  background: #f8fafc;
+}
+
+.xr-camera-motion-retime-lane-content.timeline-transport-supplemental-lane-content {
+  overflow: hidden;
+  padding-block: 0;
+}
+
+.xr-camera-motion-retime-lanes {
+  position: relative;
+  min-width: 100%;
+}
+
+.xr-camera-motion-retime-lane {
+  position: relative;
+  min-width: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--kg-border, #e5e7eb) 55%, transparent);
+  background:
+    repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), color-mix(in srgb, var(--kg-border, #cbd5e1) 28%, transparent) calc(10% - 1px), color-mix(in srgb, var(--kg-border, #cbd5e1) 28%, transparent) 10%);
+}
+
+.xr-camera-motion-retime-lane:last-child {
+  border-bottom: 0;
+}
+
+.xr-camera-motion-retime-lane-mark.timeline-transport-time-axis-mark {
   position: absolute;
-  top: 8px;
+  top: 6px;
   left: var(--kg-xr-retime-mark-left);
   z-index: 1;
   display: grid;
@@ -26,7 +93,7 @@
   user-select: none;
 }
 
-.xr-camera-motion-retime-ruler-mark > span {
+.xr-camera-motion-retime-lane-mark > span {
   display: grid;
   width: 14px;
   height: 14px;
@@ -41,15 +108,19 @@
   line-height: 1;
 }
 
-.xr-camera-motion-retime-ruler-mark--camera.timeline-transport-time-axis-mark {
-  top: 0;
+.xr-camera-motion-retime-lane-empty {
+  position: absolute;
+  top: 8px;
+  left: 14px;
+  color: var(--kg-text-tertiary, #64748b);
+  font-size: 8px;
 }
 
-.xr-camera-motion-retime-ruler-mark[aria-pressed="true"] {
+.xr-camera-motion-retime-lane-mark[aria-pressed="true"] {
   z-index: 4;
 }
 
-.xr-camera-motion-retime-ruler-mark[aria-pressed="true"] > span {
+.xr-camera-motion-retime-lane-mark[aria-pressed="true"] > span {
   box-shadow: 0 0 0 2px #facc15, 0 1px 4px rgb(15 23 42 / 0.28);
   color: #0f172a;
 }

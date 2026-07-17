@@ -72,7 +72,8 @@ function beginRulerMarkDrag(
   selectMark: () => void,
   retimeMark: (value: number) => void,
 ): void {
-  const axis = event.currentTarget.closest<HTMLElement>('[data-kg-video-sequence-ruler-axis="1"]')
+  const axis = event.currentTarget.closest<HTMLElement>('[data-kg-xr-choreography-lane-axis="1"]')
+    || document.querySelector<HTMLElement>('[data-kg-video-sequence-ruler-axis="1"]')
   if (!axis) return
   event.preventDefault()
   event.stopPropagation()
@@ -97,7 +98,7 @@ function beginRulerMarkDrag(
   window.addEventListener('pointercancel', finish)
 }
 
-export function CameraMotionMarkRetime({ layout = 'panel' }: { layout?: 'controls' | 'panel' | 'ruler' }) {
+export function CameraMotionMarkRetime({ layout = 'panel' }: { layout?: 'controls' | 'lanes' | 'panel' }) {
   const selectedNodeId = useGraphStore(state => state.selectedNodeId)
   const runtime = React.useSyncExternalStore(
     subscribeXrMotionReferenceRuntime,
@@ -117,54 +118,69 @@ export function CameraMotionMarkRetime({ layout = 'panel' }: { layout?: 'control
     : null
   const selectedCastMark = selectedCastTrack?.marks.find(mark => selectedRuntimeMark?.kind === 'cast' && selectedRuntimeMark.markId === mark.id) || null
 
-  if (layout === 'ruler') {
+  if (layout === 'lanes') {
     return (
       <section
-        className="xr-camera-motion-retime-ruler"
-        aria-label="XR cast and camera marks on timeline time ruler"
+        className="xr-camera-motion-retime-lanes"
+        aria-label="XR cast and camera choreography lanes"
         data-kg-xr-timeline-retime="1"
         data-kg-xr-timeline-retime-layout={layout}
         data-kg-xr-timeline-retime-scale-seconds={scaleDurationSeconds}
         data-kg-xr-speed-warning-count={warnings.length}
+        data-kg-xr-choreography-lane-axis="1"
       >
-        {runtime.plan.cast.flatMap(track => track.marks.map((mark, index) => {
-          const selected = runtime.selectedMark?.kind === 'cast'
-            && runtime.selectedMark.actorId === track.actorId
-            && runtime.selectedMark.markId === mark.id
-          const selectMark = () => selectXrMotionReferenceCastMark(track.actorId, mark.id)
-          return (
-            <TimelineTransportTimeAxisMark
-              key={`${track.actorId}:${mark.id}`}
-              laneStyle="video"
-              className="xr-camera-motion-retime-ruler-mark"
-              style={{ ...markAxisStyle(mark.timeSeconds, scaleDurationSeconds), '--kg-xr-ruler-mark-color': track.color } as React.CSSProperties}
-              title={`${track.label} · ${mark.timeSeconds}s · drag to retime`}
-              aria-label={`${track.label} mark ${index + 1} at ${mark.timeSeconds} seconds`}
-              aria-pressed={selected}
-              role="button"
-              tabIndex={0}
-              onClick={event => { event.stopPropagation(); selectMark() }}
-              onKeyDown={event => selectMarkOnKeyDown(event, selectMark)}
-              onPointerDown={event => beginRulerMarkDrag(event, scaleDurationSeconds, selectMark, value => {
-                const selection = readXrMotionReferenceRuntime().selectedMark
-                const activeMarkId = selection?.kind === 'cast' && selection.actorId === track.actorId ? selection.markId : mark.id
-                retimeXrMotionReferenceCastMark(track.actorId, activeMarkId, value)
-              })}
-              data-kg-xr-ruler-cast-mark={index + 1}
-              data-kg-xr-stage-highlight-target={selected ? 'cast-mark' : undefined}
-            >
-              <span style={{ backgroundColor: selected ? XR_MOTION_REFERENCE_SELECTION_COLOR : track.color }}>{index + 1}</span>
-            </TimelineTransportTimeAxisMark>
-          )
-        }))}
-        {runtime.plan.camera.map((mark, index) => {
+        {runtime.plan.cast.map(track => (
+          <section
+            key={track.actorId}
+            className="xr-camera-motion-retime-lane xr-camera-motion-retime-lane--cast"
+            aria-label={`${track.label} choreography lane`}
+            data-kg-xr-choreography-cast-lane={track.actorId}
+          >
+            {track.marks.map((mark, index) => {
+              const selected = runtime.selectedMark?.kind === 'cast'
+                && runtime.selectedMark.actorId === track.actorId
+                && runtime.selectedMark.markId === mark.id
+              const selectMark = () => selectXrMotionReferenceCastMark(track.actorId, mark.id)
+              return (
+                <TimelineTransportTimeAxisMark
+                  key={`${track.actorId}:${mark.id}`}
+                  laneStyle="video"
+                  className="xr-camera-motion-retime-lane-mark"
+                  style={{ ...markAxisStyle(mark.timeSeconds, scaleDurationSeconds), '--kg-xr-ruler-mark-color': track.color } as React.CSSProperties}
+                  title={`${track.label} · ${mark.timeSeconds}s · drag to retime`}
+                  aria-label={`${track.label} mark ${index + 1} at ${mark.timeSeconds} seconds`}
+                  aria-pressed={selected}
+                  role="button"
+                  tabIndex={0}
+                  onClick={event => { event.stopPropagation(); selectMark() }}
+                  onKeyDown={event => selectMarkOnKeyDown(event, selectMark)}
+                  onPointerDown={event => beginRulerMarkDrag(event, scaleDurationSeconds, selectMark, value => {
+                    const selection = readXrMotionReferenceRuntime().selectedMark
+                    const activeMarkId = selection?.kind === 'cast' && selection.actorId === track.actorId ? selection.markId : mark.id
+                    retimeXrMotionReferenceCastMark(track.actorId, activeMarkId, value)
+                  })}
+                  data-kg-xr-lane-cast-mark={index + 1}
+                  data-kg-xr-stage-highlight-target={selected ? 'cast-mark' : undefined}
+                >
+                  <span style={{ backgroundColor: selected ? XR_MOTION_REFERENCE_SELECTION_COLOR : track.color }}>{index + 1}</span>
+                </TimelineTransportTimeAxisMark>
+              )
+            })}
+          </section>
+        ))}
+        <section
+          className="xr-camera-motion-retime-lane xr-camera-motion-retime-lane--camera"
+          aria-label="Camera choreography lane"
+          data-kg-xr-choreography-camera-lane="1"
+        >
+          {runtime.plan.camera.map((mark, index) => {
             const selected = runtime.selectedMark?.kind === 'camera' && runtime.selectedMark.markId === mark.id
             const selectMark = () => selectXrMotionReferenceCameraMark(mark.id)
             return (
               <TimelineTransportTimeAxisMark
                 key={mark.id}
                 laneStyle="audio"
-                className="xr-camera-motion-retime-ruler-mark xr-camera-motion-retime-ruler-mark--camera"
+                className="xr-camera-motion-retime-lane-mark xr-camera-motion-retime-lane-mark--camera"
                 style={markAxisStyle(mark.timeSeconds, scaleDurationSeconds)}
                 title={`${mark.rig} · ${mark.timeSeconds}s · drag to retime`}
                 aria-label={`Camera mark ${index + 1} at ${mark.timeSeconds} seconds · ${mark.rig}`}
@@ -177,13 +193,15 @@ export function CameraMotionMarkRetime({ layout = 'panel' }: { layout?: 'control
                   const selection = readXrMotionReferenceRuntime().selectedMark
                   retimeXrMotionReferenceCameraMark(selection?.kind === 'camera' ? selection.markId : mark.id, value)
                 })}
-                data-kg-xr-ruler-camera-mark={index + 1}
+                data-kg-xr-lane-camera-mark={index + 1}
                 data-kg-xr-stage-highlight-target={selected ? 'camera-mark' : undefined}
               >
                 <span style={selected ? { backgroundColor: XR_MOTION_REFERENCE_SELECTION_COLOR } : undefined}>C{index + 1}</span>
               </TimelineTransportTimeAxisMark>
             )
           })}
+          {runtime.plan.camera.length === 0 ? <span className="xr-camera-motion-retime-lane-empty">Camera → SHOOT adds marks</span> : null}
+        </section>
       </section>
     )
   }

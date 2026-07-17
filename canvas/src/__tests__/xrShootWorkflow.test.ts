@@ -153,22 +153,22 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   if (cameraPanelSource.indexOf('<StrybldrCameraFramingSection') > cameraPanelSource.indexOf('<XrShootCameraSection')) {
     throw new Error('expected the shared globe Camera utilities to remain first in every surface mode')
   }
-  for (const marker of ['data-kg-xr-timeline-retime="1"', 'retimeXrMotionReferenceCastMark', 'retimeXrMotionReferenceCameraMark', '<TimelineTransportTimeAxisMark', 'laneStyle="video"', 'laneStyle="audio"', 'data-kg-xr-ruler-cast-mark', 'data-kg-xr-ruler-camera-mark', 'selectXrMotionReferenceCastMark', 'aria-pressed={selected}', 'data-kg-xr-stage-highlight-target']) {
+  for (const marker of ['data-kg-xr-timeline-retime="1"', 'retimeXrMotionReferenceCastMark', 'retimeXrMotionReferenceCameraMark', '<TimelineTransportTimeAxisMark', 'laneStyle="video"', 'laneStyle="audio"', 'data-kg-xr-lane-cast-mark', 'data-kg-xr-lane-camera-mark', 'selectXrMotionReferenceCastMark', 'aria-pressed={selected}', 'data-kg-xr-stage-highlight-target']) {
     if (!retimeSource.includes(marker)) throw new Error(`expected Camera choreography retiming to expose ${marker}`)
   }
-  for (const marker of ['runtime.plan.cast.flatMap(track', 'beginRulerMarkDrag', 'resolveVideoSequenceRulerInsetPixelMetrics', 'XrChoreographyMarkControls', 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkEasing', 'data-kg-xr-ruler-mark-editor', 'data-kg-xr-speed-warning-count']) {
+  for (const marker of ['runtime.plan.cast.map(track', 'data-kg-xr-choreography-cast-lane', 'data-kg-xr-choreography-camera-lane', 'data-kg-xr-choreography-lane-axis', 'beginRulerMarkDrag', 'resolveVideoSequenceRulerInsetPixelMetrics', 'XrChoreographyMarkControls', 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkEasing', 'data-kg-xr-ruler-mark-editor', 'data-kg-xr-speed-warning-count']) {
     if (!retimeSource.includes(marker)) throw new Error(`expected each cast and Camera track to expose the shared per-mark choreography model through ${marker}`)
   }
   for (const marker of ['XR_CHOREOGRAPHY_EASINGS', 'XR_CHOREOGRAPHY_GAITS', 'data-kg-xr-mark-easing', 'data-kg-xr-mark-gait', 'data-kg-xr-speed-warning']) {
     if (!choreographyControlsSource.includes(marker)) throw new Error(`expected shared choreography controls to expose ${marker}`)
   }
-  for (const marker of ['xr-camera-motion-retime-ruler', 'xr-camera-motion-retime-ruler-mark', 'cursor: ew-resize', 'xr-camera-motion-mark-selection-controls', '[aria-pressed="true"]']) {
-    if (!retimeCssSource.includes(marker)) throw new Error(`expected cast and Camera marks to consolidate onto the shared ruler through ${marker}`)
+  for (const marker of ['xr-camera-motion-retime-lanes', 'xr-camera-motion-retime-lane-labels', 'xr-camera-motion-retime-lane-mark', 'cursor: ew-resize', 'xr-camera-motion-mark-selection-controls', '[aria-pressed="true"]']) {
+    if (!retimeCssSource.includes(marker)) throw new Error(`expected cast and Camera marks to use dedicated shared-scale lanes through ${marker}`)
   }
-  for (const marker of ['<CameraMotionMarkRetime', 'layout="ruler"', 'layout="controls"', '<TimelineTransportInlineClip', 'data-kg-xr-timeline-consolidated-lane="stage-output-ruler"', 'data-kg-xr-timeline-control-bar="stage-output"', 'data-kg-xr-timeline-seconds-control="time-axis"', 'aria-label="XR timeline seconds"', 'data-kg-xr-timeline-fps-control="time-axis"', 'aria-label="XR timeline FPS"', 'runtimeDurationSeconds={runtime.plan.durationSeconds}', 'runtimeFrameRate={runtime.plan.fps}', 'data-kg-xr-timeline-transport="reused-gantt-player"', '<GanttTimelineTransportPanel', 'supplementalLanes={', 'timeAxisControls={', 'timeRulerOverlay={']) {
+  for (const marker of ['<CameraMotionMarkRetime', 'layout="lanes"', 'layout="controls"', '<TimelineTransportInlineClip', 'data-kg-xr-timeline-consolidated-lane="stage-output-ruler"', 'data-kg-xr-timeline-choreography-lanes="per-track"', 'data-kg-xr-choreography-cast-lane-label', 'data-kg-xr-choreography-camera-lane-label', 'data-kg-xr-timeline-control-bar="stage-output"', 'data-kg-xr-timeline-seconds-control="time-axis"', 'aria-label="XR timeline seconds"', 'data-kg-xr-timeline-fps-control="time-axis"', 'aria-label="XR timeline FPS"', 'runtimeDurationSeconds={runtime.plan.durationSeconds}', 'runtimeFrameRate={runtime.plan.fps}', 'data-kg-xr-timeline-transport="reused-gantt-player"', '<GanttTimelineTransportPanel', 'supplementalLanes={', 'timeAxisControls={']) {
     if (!timelineSource.includes(marker)) throw new Error(`expected BottomPanel Timeline to own consolidated XR motion through ${marker}`)
   }
-  for (const forbidden of ['layout="time-axis"', '<TimelineTransportTimeAxisClip', 'data-kg-xr-timeline-control-bar="marks"', '--kg-xr-timeline-marks-height', '>Marks</span>']) {
+  for (const forbidden of ['layout="ruler"', 'layout="time-axis"', '<TimelineTransportTimeAxisClip', 'data-kg-xr-timeline-control-bar="marks"', 'timeRulerOverlay={<CameraMotionMarkRetime', '--kg-xr-timeline-marks-height', '>Marks</span>']) {
     if (timelineSource.includes(forbidden)) throw new Error(`expected BottomPanel Timeline to remove the duplicate marks lane, found ${forbidden}`)
   }
   if (timelineSource.indexOf('<CameraMotionMarkRetime') < timelineSource.indexOf('<GanttTimelineTransportPanel')) {
