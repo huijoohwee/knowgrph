@@ -50,6 +50,12 @@ test("publish sync includes the XR scene tool contract dependency", () => {
   assert.match(syncScript, /\[xrSceneMcpContractSource, xrSceneMcpContractTarget\]/);
 });
 
+test("publish sync includes the XR animation tool contract dependency", () => {
+  assert.match(syncScript, /xrAnimationMcpContractSource = path\.resolve\(knowgrphRoot, 'canvas', 'src', 'features', 'three', 'xrAnimationMcpContract\.mjs'\)/);
+  assert.match(syncScript, /xrAnimationMcpContractTarget = path\.resolve\(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'three', 'xrAnimationMcpContract\.mjs'\)/);
+  assert.match(syncScript, /\[xrAnimationMcpContractSource, xrAnimationMcpContractTarget\]/);
+});
+
 test("publish sync keeps the live canvas hero markdown route in the root-managed file set", () => {
   assert.match(syncScript, /'knowgrph-live-canvas-hero\.md'/);
 });
