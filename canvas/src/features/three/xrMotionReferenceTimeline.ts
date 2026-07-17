@@ -1,5 +1,6 @@
 import { cleanTimelinePreviewDocumentKey } from '@/components/timeline/useTimelinePreviewBootstrap'
 import { resolveXrMotionReferenceStage, type XrMotionReferencePlan } from './xrMotionReferenceModel'
+import { resolveXrCameraMoveLabel } from './xrCameraMoveCatalog'
 
 const XR_TIMELINE_MIN_CUE_MINUTES = 0.000001
 
@@ -86,7 +87,7 @@ export function buildXrMotionReferenceTimelineCode(
   )
   if (includeChoreographyCues) plan.camera.forEach((mark, index) => {
     lines.push(
-      `  Camera mark ${index + 1} effect (${mark.rig}) : vert, xr_camera_effect_${index + 1}, ${cuePositionToken(mark.timeSeconds, plan.durationSeconds)}, ${durationToken(0)}`,
+      `  Camera mark ${index + 1} effect (${resolveXrCameraMoveLabel(mark.moveId)} · ${mark.rig}) : vert, xr_camera_effect_${index + 1}, ${cuePositionToken(mark.timeSeconds, plan.durationSeconds)}, ${durationToken(0)}`,
     )
   })
 

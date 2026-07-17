@@ -130,7 +130,7 @@ export function CameraMcpInvocationSection() {
         <CameraCatalogCard
           Icon={SlidersHorizontal}
           title="Control Local Camera"
-          description="Frame, animate, play, pause, and scrub through structured input or canonical invocation tokens."
+          description="Frame, apply subject-bound moves, play, pause, and scrub through structured input or canonical invocation tokens."
           metadata="WebMCP · local mutation"
           footer={<code className="block min-w-0 truncate text-[9px]" title={camera.webMcpTools.control}>{camera.webMcpTools.control}</code>}
           dataAttributes={{ 'data-kg-camera-webmcp-tool': camera.webMcpTools.control }}

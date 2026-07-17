@@ -296,12 +296,12 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalCamera,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalCamera),
           title: 'Control Local Camera',
-          description: 'Control shared Camera framing and XR camera choreography through structured actions or upstream Camera commands, bindings, semantic routes, and typed key=value parameters.',
+          description: 'Control shared Camera framing, subject-bound XR moves, and camera choreography through structured actions or upstream Camera commands, bindings, semantic routes, and typed key=value parameters.',
           inputSchema: {
             type: 'object',
             additionalProperties: false,
             properties: {
-              invocation: { type: 'string', description: 'Invocation such as /camera.animate @camera #camera-motion rig=handheld time=2.5.' },
+              invocation: { type: 'string', description: 'Invocation such as /camera.animate @selected-actor #camera-motion move=drone-follow time=1 duration=4.' },
               action: { type: 'string', enum: ['frame', 'animate', 'playback', 'scrub'] },
               targetId: { type: 'string' },
               angle: { type: 'string', enum: ['front', 'left-side', 'right-side', 'overhead'] },
@@ -309,6 +309,8 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
               shot: { type: 'string', enum: ['wide', 'medium', 'close-up'] },
               focalLengthMm: { type: 'number', minimum: 14, maximum: 200 },
               rig: { type: 'string', enum: ['dolly', 'steadicam', 'handheld', 'crane', 'drone', 'car-mount'] },
+              moveId: { type: 'string', enum: ['orbit-clockwise', 'orbit-counterclockwise', 'crane-rise', 'crane-descend', 'drone-follow', 'vertigo-dolly-zoom'] },
+              moveDurationSeconds: { type: 'number', minimum: 0.25, maximum: 30 },
               timeSeconds: { type: 'number', minimum: 0 },
               playing: { type: 'boolean' },
             },

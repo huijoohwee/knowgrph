@@ -38,6 +38,7 @@ export function buildCameraMarkChoreographyEdit(
   const camera = plan.camera.map(mark => ({
     timeSeconds: mark.timeSeconds,
     anchorId: mark.anchorId,
+    moveId: mark.moveId,
     rig: mark.rig,
     easing: mark.id === markId ? readXrChoreographyEasing(easing) : mark.easing,
     settings: { ...mark.settings },

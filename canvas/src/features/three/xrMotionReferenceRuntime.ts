@@ -20,6 +20,7 @@ import {
   type XrChoreographyEasing,
   type XrChoreographyGait,
 } from './xrChoreographyEasing'
+import type { XrCameraMoveId } from './xrCameraMoveCatalog'
 import {
   xrMotionReferenceCastTrackRecord as castTrackRecord,
   xrMotionReferencePlanRecord as planRecord,
@@ -39,6 +40,10 @@ import {
   type XrAnimationAssignment,
   type XrAnimationPresetId,
 } from '@/features/three/xrAnimationCatalog'
+import {
+  resolveNextXrSubjectId,
+  resolveNextXrSubjectPlacement,
+} from './xrMotionReferenceSubjectPlacement'
 export type { XrMotionReferenceMarkSelection } from './xrMotionReferenceSelection'
 export type XrMotionReferenceRuntimeSnapshot = Readonly<{
   sceneKey: string
@@ -211,28 +216,6 @@ export function setXrMotionReferenceFps(fps: number): XrMotionReferenceRuntimeSn
   return updatePlan({ ...planRecord(snapshot.plan), fps })
 }
 
-function nextSubjectPlacement(index: number): XrMotionReferenceVector {
-  const stage = resolveXrMotionReferenceStage(snapshot.plan.stageId)
-  const columns = Math.max(2, Math.min(6, Math.floor(stage.sizeMeters[0] / 4)))
-  const column = index % columns
-  const row = Math.floor(index / columns)
-  const xStep = Math.min(3.2, stage.sizeMeters[0] / Math.max(columns + 1, 1))
-  const zStep = Math.min(3.2, stage.sizeMeters[1] / 5)
-  return [
-    Number(((column - (columns - 1) / 2) * xStep).toFixed(3)),
-    0,
-    Number((Math.min(stage.sizeMeters[1] * 0.32, row * zStep) - stage.sizeMeters[1] * 0.16).toFixed(3)),
-  ]
-}
-
-function nextSubjectId(assetId: string): string {
-  const prefix = `xr-subject:${assetId}:`
-  const used = new Set(snapshot.plan.subjects.map(subject => subject.id))
-  let ordinal = 1
-  while (used.has(`${prefix}${ordinal}`) && ordinal <= XR_MOTION_REFERENCE_MAX_SUBJECTS) ordinal += 1
-  return `${prefix}${ordinal}`
-}
-
 export function addXrMotionReferenceSubject(args: {
   assetId: string
   label?: string
@@ -240,9 +223,9 @@ export function addXrMotionReferenceSubject(args: {
   if (snapshot.plan.subjects.length >= XR_MOTION_REFERENCE_MAX_SUBJECTS) return snapshot
   const asset = resolveXrSceneLibraryAsset(args.assetId)
   const plan = planRecord(snapshot.plan)
-  const id = nextSubjectId(asset.id)
+  const id = resolveNextXrSubjectId(asset.id, snapshot.plan.subjects)
   const label = String(args.label || asset.label).trim().slice(0, 80) || asset.label
-  const position = nextSubjectPlacement(snapshot.plan.subjects.length)
+  const position = resolveNextXrSubjectPlacement(resolveXrMotionReferenceStage(snapshot.plan.stageId), snapshot.plan.subjects.length)
   const subjects = Array.isArray(plan.subjects) ? plan.subjects.slice() : []
   subjects.push({ id, assetId: asset.id, label, color: asset.defaultColor, position: [...position], rotationYDegrees: 0, scale: 1 })
   const cast = Array.isArray(plan.cast) ? plan.cast.slice() : []
@@ -531,6 +514,7 @@ export function setXrMotionReferenceCameraMark(args: {
   timeSeconds: number
   anchorId: string
   settings: StrybldrCameraSettings
+  moveId?: XrCameraMoveId
   rig?: XrMotionReferenceCameraRig
   easing?: XrChoreographyEasing
 }): XrMotionReferenceRuntimeSnapshot {
@@ -542,6 +526,7 @@ export function setXrMotionReferenceCameraMark(args: {
   camera.push({
     timeSeconds: args.timeSeconds,
     anchorId: String(args.anchorId || '').trim(),
+    moveId: args.moveId || 'custom',
     rig,
     easing: args.easing || defaultXrCameraEasing(rig),
     settings: { ...args.settings },
@@ -556,6 +541,7 @@ export function removeXrMotionReferenceCameraMark(markId: string): XrMotionRefer
     .map(mark => ({
       timeSeconds: mark.timeSeconds,
       anchorId: mark.anchorId,
+      moveId: mark.moveId,
       rig: mark.rig,
       easing: mark.easing,
       settings: { ...mark.settings },
@@ -571,6 +557,7 @@ export function retimeXrMotionReferenceCameraMark(markId: string, timeSeconds: n
   const camera = snapshot.plan.camera.map(mark => ({
     timeSeconds: mark.id === markId ? timeSeconds : mark.timeSeconds,
     anchorId: mark.anchorId,
+    moveId: mark.moveId,
     rig: mark.rig,
     easing: mark.easing,
     settings: { ...mark.settings },

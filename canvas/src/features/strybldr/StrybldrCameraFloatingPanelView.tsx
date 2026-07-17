@@ -40,7 +40,7 @@ export function StrybldrCameraFloatingPanelView() {
     <section className="flex h-full flex-col" aria-label="Camera panel" data-kg-camera-panel-surface="floatingPanel">
       <FloatingPanelCatalogHeader
         title="Camera"
-        subtitle="Shared framing, XR SHOOT, WebMCP, and invocation tokens"
+        subtitle="Shared framing, subject-bound XR moves, WebMCP, and invocation tokens"
         actionsLabel="Camera actions"
       />
       <section className={`${UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME} px-1 pb-2`} data-kg-camera-catalog-layout="3d-for-xr-shared">
