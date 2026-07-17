@@ -53,6 +53,28 @@ function CardLayout(props: { output: boolean }) {
   )
 }
 
+function MultiSelectCardLayout() {
+  return (
+    <section className="grid h-full grid-cols-[minmax(0,1fr)_minmax(4.25rem,36%)] gap-1.5 p-1.5">
+      <section className={`${MINI_SURFACE_CLASS_NAME} p-1.5`}>
+        <span className="flex items-center gap-1 text-[8px] leading-none text-[color:var(--kg-text-secondary)]">
+          <span>P1</span>
+          <span className="rounded border border-[color:var(--kg-border)] px-1 py-0.5">PROBE</span>
+          <span>TYPE 2</span>
+        </span>
+        <span className="mt-1.5 grid gap-1 text-[8px] text-[color:var(--kg-text-secondary)]" aria-hidden="true">
+          <span>☑ 1. Option</span>
+          <span>☐ 2. Option</span>
+          <span>☐ Other</span>
+        </span>
+      </section>
+      <section className={`${MINI_SURFACE_CLASS_NAME} flex items-center justify-center text-[10px] italic text-[color:var(--kg-text-secondary)]`}>
+        Add output
+      </section>
+    </section>
+  )
+}
+
 function RichMediaLayout() {
   return (
     <section className="grid h-full grid-rows-[auto_minmax(0,1fr)] p-1.5">
@@ -102,6 +124,7 @@ function FlowEditorLayout() {
 function LayoutByKind(props: { layoutKind: WidgetPaletteLayoutKind }) {
   if (props.layoutKind === 'card-media') return <CardLayout output={false} />
   if (props.layoutKind === 'card-output') return <CardLayout output={true} />
+  if (props.layoutKind === 'card-multi-select') return <MultiSelectCardLayout />
   if (props.layoutKind === 'rich-media') return <RichMediaLayout />
   if (props.layoutKind === 'video') return <VideoLayout />
   return <FlowEditorLayout />

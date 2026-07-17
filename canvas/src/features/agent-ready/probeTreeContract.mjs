@@ -1,5 +1,12 @@
 export const KNOWGRPH_PROBE_TREE_CONTRACT_VERSION = "knowgrph-probe-tree/v0.1";
-export const PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION = "probe-tree-llm-response/v1";
+export const PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION = "probe-tree-llm-response/v2";
+
+export const PROBE_TREE_CARD_VARIANTS = Object.freeze({
+  openAnswer: "probe-tree-type-1",
+  boundedMultiSelect: "probe-tree-type-2",
+});
+
+export const PROBE_TREE_MULTI_SELECT_LIMITS = Object.freeze({ min: 2, max: 4 });
 
 export const KNOWGRPH_PROBE_TREE_TOOL_NAMES = Object.freeze({
   generate: "knowgrph.probe.generate",
@@ -19,10 +26,10 @@ export const PROBE_TREE_DEFAULTS = Object.freeze({
 });
 
 export const PROBE_TREE_FALLBACK_OPTIONS = Object.freeze([
-  { text: "What outcome would make this resolved?", rationale: "Locks the terminal condition before more branching." },
-  { text: "Which constraint matters most right now?", rationale: "Separates blockers from preferences so the next step can narrow quickly." },
-  { text: "What information is still missing?", rationale: "Finds the smallest context gap before handing off to a downstream capability." },
-  { text: "Which path should be ruled out first?", rationale: "Cuts low-value branches before spending more tokens or taps." },
+  { text: "What outcome would make this resolved?", rationale: "Locks the terminal condition before more branching.", selectionOptions: ["Required outcome", "Acceptable partial outcome", "Explicit stop condition"] },
+  { text: "Which constraint matters most right now?", rationale: "Separates blockers from preferences so the next step can narrow quickly.", selectionOptions: ["Time or urgency", "Cost or capacity", "Policy or approval boundary"] },
+  { text: "What information is still missing?", rationale: "Finds the smallest context gap before handing off to a downstream capability.", selectionOptions: ["Current source evidence", "Named scope or entity", "Decision threshold"] },
+  { text: "Which path should be ruled out first?", rationale: "Cuts low-value branches before spending more tokens or taps.", selectionOptions: ["Unsupported by current evidence", "Outside the approved scope", "Blocked by a required dependency"] },
 ]);
 
 const PROBE_TREE_CONTEXT_STOP_WORDS = new Set([
@@ -40,6 +47,35 @@ const safeResponseId = (value, fallback) => {
   const normalized = cleanResponseText(value, 160).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
   return normalized || fallback;
 };
+
+export function normalizeProbeTreeSelectionOptions(value) {
+  const candidates = Array.isArray(value) ? value : [];
+  const seen = new Set();
+  const options = [];
+  for (const candidate of candidates) {
+    const record = candidate && typeof candidate === "object" && !Array.isArray(candidate) ? candidate : null;
+    const label = cleanResponseText(record?.label || record?.text || candidate, 160);
+    if (!label || seen.has(label.toLowerCase())) continue;
+    seen.add(label.toLowerCase());
+    options.push({
+      id: cleanResponseText(record?.id, 80) || `option-${options.length + 1}-${safeResponseId(label, String(options.length + 1)).slice(0, 48)}`,
+      label,
+    });
+    if (options.length >= PROBE_TREE_MULTI_SELECT_LIMITS.max) break;
+  }
+  return options.length >= PROBE_TREE_MULTI_SELECT_LIMITS.min ? options : [];
+}
+
+export function buildProbeTreeDefaultSelectionOptions(contextText) {
+  const scope = collectProbeTreeContextKeywords(contextText, 3)
+    .map(keyword => readProbeTreeKeywordLabel(contextText, keyword))
+    .join(" / ") || "selected scope";
+  return normalizeProbeTreeSelectionOptions([
+    `Current primary source for ${scope}`,
+    `Verified system-of-record fact for ${scope}`,
+    `Accountable reviewer confirmation for ${scope}`,
+  ]);
+}
 
 const escapeProbeTreePattern = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -88,21 +124,41 @@ export function buildProbeTreeContextualFallbackOptions(contextText) {
       text: `Which authoritative evidence confirms the current facts for the ${scope} scope?`,
       rationale: `Grounds the ${scope} decision in named, current source evidence instead of an inferred assumption.`,
       evidenceNeeded: `A dated system-of-record source for the ${scope} facts.`,
+      selectionOptions: [
+        `Current regulator or policy source for ${scope}`,
+        `Current system-of-record facts for ${scope}`,
+        `Licensed adviser or accountable reviewer evidence`,
+      ],
     },
     {
       text: `Which unresolved assumption in the ${scope} scope would materially change the recommended next action?`,
       rationale: `Surfaces the highest-impact unknown in the ${scope} request before a recommendation is promoted.`,
       evidenceNeeded: `The missing ${scope} fact plus the decision rule it changes.`,
+      selectionOptions: [
+        `Scope or eligibility assumption for ${scope}`,
+        `Risk or exposure threshold for ${scope}`,
+        `Timing or jurisdiction constraint for ${scope}`,
+      ],
     },
     {
       text: `What evidence and accountable reviewer are required before the ${scope} handoff?`,
       rationale: `Keeps the ${scope} branch reviewable and prevents an unapproved tool or adviser handoff.`,
       evidenceNeeded: `Acceptance evidence, reviewer identity, and the explicit approval boundary.`,
+      selectionOptions: [
+        `Named accountable owner for ${scope}`,
+        `Required acceptance evidence for ${scope}`,
+        `Explicit approval boundary for ${scope}`,
+      ],
     },
     {
       text: `Which option in the ${scope} scope can be ruled out now, and what source supports that decision?`,
       rationale: `Prunes one low-value ${scope} path without spending another model turn on an unsupported option.`,
       evidenceNeeded: `A source-backed exclusion criterion for the rejected ${scope} option.`,
+      selectionOptions: [
+        `Rule out an unsupported ${scope} path`,
+        `Defer a ${scope} path pending named evidence`,
+        `Escalate the ${scope} decision to an accountable reviewer`,
+      ],
     },
   ];
 }
@@ -133,6 +189,10 @@ const buildStructuredResponseOptions = ({ options, optionCount, degraded, contex
     const index = out.length;
     const candidateOptionId = cleanResponseText(candidate?.id, 160)
       || `probe-option-${safeResponseId(question, String(index + 1)).slice(0, 72)}-${index + 1}`;
+    const authoredSelectionOptions = normalizeProbeTreeSelectionOptions(candidate?.selectionOptions);
+    const selectionOptions = authoredSelectionOptions.length > 0
+      ? authoredSelectionOptions
+      : buildProbeTreeDefaultSelectionOptions(`${question} ${contextText}`);
     out.push({
       id: candidateOptionId,
       label: cleanResponseText(candidate?.label, 120) || question,
@@ -140,6 +200,10 @@ const buildStructuredResponseOptions = ({ options, optionCount, degraded, contex
       candidateOptionId,
       question,
       output: "",
+      probeTreeCardVariant: PROBE_TREE_CARD_VARIANTS.boundedMultiSelect,
+      selectionMode: "multiple",
+      selectionOptions,
+      allowOther: true,
       rationale: cleanResponseText(candidate?.rationale) || "Keeps the next probe bounded and selectable.",
       evidenceNeeded: cleanResponseText(candidate?.evidenceNeeded || candidate?.evidence_needed)
         || "An explicit, source-backed answer for this question.",
@@ -171,7 +235,11 @@ export function buildProbeTreeStructuredResponse(args = {}) {
     `Source node: ${currentNodeId}`,
     `Contract: ${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION}`,
     "",
-    ...cards.map((card, index) => `${index + 1}. **${card.label}** — ${card.rationale}`),
+    ...cards.flatMap((card, index) => [
+      `${index + 1}. **${card.label}** — ${card.rationale}`,
+      ...card.selectionOptions.map((option, optionIndex) => `   ${optionIndex + 1}. ${option.label}`),
+      "   - Other (author a different answer)",
+    ]),
   ].join("\n");
   return {
     structuredContent: {

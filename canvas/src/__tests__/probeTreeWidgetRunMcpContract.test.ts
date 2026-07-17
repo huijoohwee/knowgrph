@@ -77,7 +77,16 @@ const providerStructuredText = (cards: Array<Record<string, unknown>>): string =
       structuredContent: {
         contractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
         widgets: [{ id: 'n1', label: 'Widget Card', kind: 'text', prompt, output: prompt, probeTreeCurrentNodeId: 'n1' }],
-        cards,
+        cards: cards.map((card, index) => ({
+          ...card,
+          probeTreeCardVariant: 'probe-tree-type-2',
+          selectionMode: 'multiple',
+          selectionOptions: [
+            { id: `primary-${index + 1}`, label: `Primary answer ${index + 1}` },
+            { id: `secondary-${index + 1}`, label: `Secondary answer ${index + 1}` },
+          ],
+          allowOther: true,
+        })),
         panels: [{ id: 'provider-probe-tree-branches', label: 'Probe-Tree Branches', kind: 'text', output: '# Probe-Tree Branches' }],
       },
     },

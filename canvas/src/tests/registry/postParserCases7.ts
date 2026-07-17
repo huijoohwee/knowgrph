@@ -115,6 +115,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["ui.inlineCardEditor.viewerSurface.emptyFocusAndCommit","@/__tests__/cardInlineTextViewerSelectionRegression.test.tsx","testCardInlineTextEditorEmptyViewerSurfaceFocusesAndCommits"],
   ["ui.storyboard.probeTree.outputCommit.durableDraftAndCanonicalStore","@/__tests__/storyboardProbeTreeOutputCommit.test.ts","testStoryboardProbeTreeOutputCommitUpdatesDurableDraftAndCanonicalStore"],
   ["ui.storyboard.probeTree.output.replacesMediaSlot","@/__tests__/storyboardProbeTreeSharedTextSurface.test.tsx","testStoryboardProbeTreeOutputReplacesMediaSlotWithEditableViewer"],
+  ["ui.storyboard.probeTree.typeTwo.numberedMultiSelectOther","@/__tests__/storyboardProbeTreeSharedTextSurface.test.tsx","testStoryboardProbeTreeTypeTwoCommitsNumberedMultiSelectAndOther"],
   ["ui.storyboard.pinControl.editorIndexingInteraction","@/__tests__/flowWidgetPinControlRegression.test","testStoryboardPinControlRemainsViewLocalDuringGraphMutationGuards"],
   ["ui.storyboard.pinControl.defaultPinnedFirstToggle","@/__tests__/flowWidgetPinControlRegression.test","testStoryboardPinControlTogglesDefaultPinnedToExplicitUnpinned"],
   ["ui.inlineCardEditor.viewerSurface.preservesTypedSpacesAcrossRenders","@/__tests__/cardInlineTextViewerSelectionRegression.test.tsx","testCardInlineTextEditorViewerPreservesTypedSpacesAcrossRenders"],

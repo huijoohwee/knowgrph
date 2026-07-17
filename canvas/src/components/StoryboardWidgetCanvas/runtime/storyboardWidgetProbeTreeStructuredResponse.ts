@@ -2,7 +2,13 @@ import { buildProbeTreeStoryboardMermaidFlowchart, PROBE_TREE_STORYBOARD_MERMAID
 import { hashText } from '@/features/parsers/hash'
 import { extractChatResponseStructuredSurface, type ChatResponseSurfaceNode } from '@/features/chat/chatResponseStructuredContent'
 import { KNOWGRPH_PROBE_TREE_MAX_DEPTH } from '@/features/agentic-os/probeTreePromptPreset'
-import { PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION, isProbeTreeResponseContextRelevant } from '@/features/agent-ready/probeTreeContract.mjs'
+import {
+  PROBE_TREE_CARD_VARIANTS,
+  PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+  buildProbeTreeDefaultSelectionOptions,
+  isProbeTreeResponseContextRelevant,
+  normalizeProbeTreeSelectionOptions,
+} from '@/features/agent-ready/probeTreeContract.mjs'
 import type { ProbeTreeMcpInvocationResolution } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import { resolveStoryboardWidgetProbeTreeBranchPositions } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
 import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
@@ -19,6 +25,7 @@ export type StoryboardWidgetProbeTreeContextFallbackOption = {
   question?: string
   rationale?: string
   evidenceNeeded?: string
+  selectionOptions?: readonly (string | { id?: string; label?: string; text?: string })[]
 }
 
 const readString = (value: unknown): string => String(unwrapGraphCellValue(value) ?? '').trim()
@@ -64,6 +71,10 @@ const isStructuredProbeCard = (node: ChatResponseSurfaceNode): boolean => (
   node.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID
   && node.properties.probeTreeResponseMode === 'llm-contract'
   && node.properties.cardTypeLabel === 'Probe-Tree Card'
+  && node.properties.probeTreeCardVariant === PROBE_TREE_CARD_VARIANTS.boundedMultiSelect
+  && node.properties.selectionMode === 'multiple'
+  && normalizeProbeTreeSelectionOptions(node.properties.selectionOptions).length >= 2
+  && node.properties.allowOther === true
   && !GENERIC_PROBE_CARD_PATTERN.test(String(node.label || '').trim())
 )
 
@@ -86,14 +97,20 @@ const readCardText = (node: ChatResponseSurfaceNode): string => [
   node.properties.output,
   node.properties.rationale,
   node.properties.evidenceNeeded,
+  ...normalizeProbeTreeSelectionOptions(node.properties.selectionOptions).map(option => option.label),
 ].map(readString).filter(Boolean).join(' ')
 
 const buildContextFallbackCards = (
   options: readonly StoryboardWidgetProbeTreeContextFallbackOption[],
   anchorNodeId: string,
+  contextText: string,
 ): ChatResponseSurfaceNode[] => options.slice(0, 4).map((option, index) => {
   const question = readString(option.text || option.question)
   const candidateOptionId = readString(option.id) || `context-fallback-${hashText(question).slice(0, 12)}`
+  const authoredSelectionOptions = normalizeProbeTreeSelectionOptions(option.selectionOptions)
+  const selectionOptions = authoredSelectionOptions.length > 0
+    ? authoredSelectionOptions
+    : buildProbeTreeDefaultSelectionOptions(`${question} ${contextText}`)
   return {
     id: `probe-tree:${candidateOptionId}`,
     label: question,
@@ -105,6 +122,11 @@ const buildContextFallbackCards = (
       'chat:structuredContent': true,
       'chat:structuredRole': 'card',
       cardTypeLabel: 'Probe-Tree Card',
+      probeTreeTypeLabel: 'Probe-Tree Type 2',
+      probeTreeCardVariant: PROBE_TREE_CARD_VARIANTS.boundedMultiSelect,
+      selectionMode: 'multiple',
+      selectionOptions,
+      allowOther: true,
       probeTreeResponseMode: 'llm-contract',
       responseContractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
       parentNodeId: anchorNodeId,
@@ -122,7 +144,7 @@ const buildContextFallbackCards = (
       tags: ['probe-tree', 'candidateOption', 'context-fallback'],
     },
   }
-}).filter(card => Boolean(card.label))
+}).filter(card => Boolean(card.label) && normalizeProbeTreeSelectionOptions(card.properties.selectionOptions).length >= 2)
 
 const buildPanelMarkdown = (args: {
   anchorNodeId: string
@@ -162,8 +184,11 @@ const buildPanelMarkdown = (args: {
       const question = readString(card.properties.summary || card.properties.question) || card.label
       const rationale = readString(card.properties.rationale)
       const evidence = readString(card.properties.evidenceNeeded)
+      const selectionOptions = normalizeProbeTreeSelectionOptions(card.properties.selectionOptions)
       return [
         `${index + 1}. **${card.label}** — ${question}`,
+        ...selectionOptions.map((option, optionIndex) => `   ${optionIndex + 1}. ${option.label}`),
+        ...(card.properties.allowOther === true ? ['   - Other (author a different answer)'] : []),
         ...(rationale ? [`   - Why: ${rationale}`] : []),
         ...(evidence ? [`   - Evidence: ${evidence}`] : []),
       ]
@@ -195,7 +220,7 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
   const graphData = args.graphData
   const anchorNodeId = readNodeId(args.anchorNode)
   if (!graphData || !anchorNodeId) return null
-  const contextFallbackCards = buildContextFallbackCards(args.contextFallbackOptions || [], anchorNodeId)
+  const contextFallbackCards = buildContextFallbackCards(args.contextFallbackOptions || [], anchorNodeId, args.contextText)
   const surface = contextFallbackCards.length >= 2
     ? null
     : extractChatResponseStructuredSurface(String(args.responseText || ''))
