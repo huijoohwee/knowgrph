@@ -1,7 +1,4 @@
-import {
-  materializeProbeTreeBranchCardsFromGraphNode,
-  type ProbeTreeBranchCardMaterializationResult,
-} from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
+import { materializeProbeTreeBranchCardsFromGraphNode, type ProbeTreeBranchCardMaterializationResult } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
 import {
   STORYBOARD_ACTION_PROPERTY_KEYS,
   STORYBOARD_OUTPUT_PROPERTY_KEYS,
@@ -25,14 +22,14 @@ import {
   KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS,
 } from '@/features/agentic-os/probeTreePromptPreset'
 import {
+  KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   PROBE_TREE_DEFAULTS,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
-  buildProbeTreeInputDerivedOptions,
-  buildProbeTreeStructuredResponse,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { invokeProbeTreeMcpBridge } from '@/features/agent-ready/probeTreeMcpClient'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
+import { buildRichMediaTextMarkdownDocument } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
 import { buildAgenticOsRuntimeInvocationSystemPrompt, buildRuntimeInvocationRoutingSystemPrompt } from '@/features/chat/chatRuntimeInvocationProfile'
 import {
   readGraphNodeCanonicalTextProperty,
@@ -41,7 +38,6 @@ import {
 } from '@/lib/cards/graphNodeCardFields'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import type { StoryboardWidgetWorkflowNodeResolutionContext } from './storyboardWidgetRenderGraph'
 import { buildStoryboardWidgetProbeTreeContextText } from './storyboardWidgetProbeTreeContext'
 import {
@@ -49,19 +45,16 @@ import {
   reconcileStoryboardWidgetProbeTreeSelectedRunNode,
   resolveStoryboardWidgetProbeTreeSelectedRunNodeFromContext,
 } from './storyboardWidgetProbeTreeRunNode'
+import {
+  runStoryboardWidgetProbeTreeTerminalGeneration,
+} from './storyboardWidgetProbeTreeTerminalGeneration'
 
 const INVOCATION_TOKEN_PATTERN = /(^|\s)([/#@][A-Za-z0-9_.-]+)/g
 const PROBE_TREE_INVOCATION_TOKENS = new Set<string>(
   KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS.map(token => token.toLowerCase()),
 )
 const PROBE_TREE_RICH_MEDIA_PANEL_LABEL = 'Probe-Tree Branches'
-const PROBE_TREE_LOCAL_MODEL = 'knowgrph-probe-tree-local-fallback'
-const PROBE_TREE_INPUT_DERIVED_MODEL = 'knowgrph-probe-tree-input-derived'
-export const PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY = 'probeTreeProviderRefinementApproved' as const
-
-export function isStoryboardWidgetProbeTreeProviderRefinementApproved(properties: Record<string, unknown>): boolean {
-  return unwrapGraphCellValue(properties[PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY]) === true
-}
+const PROBE_TREE_GRAPH_PROJECTION_MODEL = 'knowgrph-probe-tree-graph-projection'
 
 const readGraphIdentity = (value: unknown): string => String(unwrapGraphCellValue(value) ?? '').trim()
 
@@ -134,7 +127,7 @@ export function buildStoryboardWidgetProbeTreeRichMediaMarkdown(
     const summary = readGraphNodeCanonicalTextProperty(properties, ['summary', 'action'])
     return `${index + 1}. **${readGraphNodeCardTitle(node)}**${summary ? ` — ${summary}` : ''}`
   })
-  return [
+  const body = [
     '# Probe-Tree Branches',
     '',
     `Invocation: ${KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS.join(' ')}`,
@@ -144,6 +137,11 @@ export function buildStoryboardWidgetProbeTreeRichMediaMarkdown(
     '',
     ...(branchLines.length > 0 ? branchLines : [`- ${materialized.message}`]),
   ].join('\n')
+  return buildRichMediaTextMarkdownDocument({
+    body,
+    title: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
+    sourceContract: KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
+  })
 }
 
 export function materializeStoryboardWidgetProbeTreeInvocation(args: {
@@ -176,6 +174,7 @@ export function runStoryboardWidgetProbeTreeInvocation(args: {
   const prompt = readStoryboardWidgetProbeTreeInvocationText(args.fallbackNode)
   const materialized = materializeStoryboardWidgetProbeTreeInvocation({ prompt, graphData: current, node })
   if (!materialized) return null
+  if (materialized.materializedNodeIds.length === 0) return materialized
   const threadRootId = resolveStoryboardWidgetProbeTreeThreadRootId(current, node)
   const outputGroupId = buildStoryboardWidgetProbeTreeOutputGroupId(threadRootId)
   const panelOutput = buildStoryboardWidgetProbeTreeRichMediaMarkdown(materialized)
@@ -185,8 +184,7 @@ export function runStoryboardWidgetProbeTreeInvocation(args: {
     baseGraphData: graphData || current,
     outputText: panelOutput,
     title: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
-    model: PROBE_TREE_LOCAL_MODEL,
-    srcDoc: buildTextWidgetOutputSrcDoc({ title: PROBE_TREE_RICH_MEDIA_PANEL_LABEL, text: panelOutput, scrollOwner: 'media' }),
+    model: PROBE_TREE_GRAPH_PROJECTION_MODEL,
     loading: false,
     outputKey: PROBE_TREE_OUTPUT_KEY,
     outputGroupId,
@@ -214,38 +212,6 @@ const collectInvocationTokens = (value: string): string[] => {
   return out
 }
 
-const buildInputDerivedCallResult = (args: {
-  threadRootId: string
-  currentNodeId: string
-  contextText: string
-  probeTreeDepth: number
-  options: ReturnType<typeof buildProbeTreeInputDerivedOptions>
-}): Record<string, unknown> => ({
-  isError: false,
-  content: [{ type: 'text', text: 'Bounded user-input-derived Probe-Tree fallback.' }],
-  structuredContent: {
-    contractVersion: 'knowgrph-probe-tree/v0.1',
-    ok: true,
-    degraded: true,
-    response: buildProbeTreeStructuredResponse({
-      threadRootId: args.threadRootId,
-      currentNodeId: args.currentNodeId,
-      contextText: args.contextText,
-      optionCount: 3,
-      options: args.options,
-      probeTreeDepth: args.probeTreeDepth,
-      degraded: true,
-    }),
-    cost_log: {
-      model: PROBE_TREE_INPUT_DERIVED_MODEL,
-      prompt_tokens: 0,
-      completion_tokens: 0,
-      cache_hits: 0,
-      estimated_cost_usd: 0,
-    },
-  },
-})
-
 const readMcpModel = (result: Record<string, unknown>): string => {
   const structured = result.structuredContent && typeof result.structuredContent === 'object'
     ? result.structuredContent as Record<string, unknown>
@@ -271,16 +237,22 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
     'Widget Card Probe-Tree provider task:',
     '- Use the selected Widget request below as the only topic. Do not substitute a stock workflow or unrelated domain.',
     `- The local knowgrph MCP ${args.mcpInvoked ? 'was invoked' : 'was unavailable'}; treat the literal result as bounded candidate evidence, not as permission to claim other tools ran.`,
-    `- Return one fenced YAML block rooted at response.structuredContent using ${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION}.`,
-    `- Emit exactly 2-4 cards, set every parentNodeId to ${args.currentNodeId}, set every probeTreeDepth to ${args.probeTreeDepth}, and include candidateOptionId, question, output, rationale, evidenceNeeded, confidence, nextAction: knowgrph.probe.select, probeTreeCardVariant: probe-tree-type-2, selectionMode: multiple, 2-4 selectionOptions with unique id and label, 2-6 contextAnchors copied verbatim from the selected user input, and allowOther: true.`,
-    '- Put each generated probe in question for the card Summary, make every numbered selection option a concise answer to that exact question, and set output exactly to an empty string for the user-owned multi-selection or Other response; never copy question or rationale into output.',
-    '- Ground every question and every numbered choice in the selected user input. Do not emit stock evidence, policy, reviewer, approval, or system-of-record choices unless the user actually named those concepts.',
-    '- Give every card a different user-named focus. Never reuse a choice label, another card\'s complete selection set, or a subset or superset of another card\'s choices.',
+    `- Return one fenced JSON block rooted at response.structuredContent using ${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION}.`,
+    '- Emit exactly 2-4 records in cards. Each record must contain only id, question, rationale, evidenceNeeded, probeTreeCardVariant: probe-tree-type-2, and 2-4 concise string selectionOptions.',
+    `- The runtime owns source Widget ${args.currentNodeId}, source-verbatim contextAnchors, parentNodeId, candidateOptionId, depth ${args.probeTreeDepth}, selectionMode, allowOther, nextAction, empty user Output, candidate edges, and the Rich Media ledger. Do not emit contextAnchors or those runtime fields. Do not emit widgets, panels, edges, or copied source records.`,
+    '- Put each generated probe in question for the card Summary and make every selection option a concise answer to that exact question. Do not pre-answer the user-owned multi-selection or Other response.',
+    '- Ground every question in the selected user input. Mention the request subject plus at least one named entity or distinctive request term so the runtime can derive source-verbatim anchors. Suggested answers may introduce plausible user preferences for the new decision variable, but must never assert invented facts.',
+    '- Never copy or paraphrase the selected request as a card question. Each card must introduce one concrete missing decision variable whose answer would materially change the requested result.',
+    '- Treat named entities and alternatives already present in the request as subjects to clarify, not as a ready-made selectionOptions array. Never turn an extracted entity list into an echo card.',
+    '- Give every card a different request-specific decision variable. Never reuse a choice label, another card\'s complete selection set, or a subset or superset of another card\'s choices.',
     '- Each selectionOptions array must contain suggested clarification answers for its question. Never split the selected focus or repeat its words as bare answer fragments.',
     '- For a continuation, the selected child card and its user-authored output own the next topic. Use the thread root only for lineage; never replace the selected child context with a root alias.',
-    '- Every card must be a concrete next question relevant to the authored request and the set must reuse at least two substantive request terms.',
+    '- Every card must be a concrete next question relevant to the authored request; morphological variants such as invest and investment are allowed when the named entities and meaning remain intact.',
     '- Never emit generic process cards named Clarify probe, Generate branches, or Select handoff.',
-    '- Do not add prose before or after the fenced YAML block.',
+    '- Reject every canned wrapper: scope/priority/constraint over the whole query, pairwise relationship questions, evidence/decision-basis/deliverable templates, and choices such as compare current evidence, resolve the dependency, or choose the decision order. Ask only about concrete missing parameters that materially change this request.',
+    '- If 2-4 distinct query-specific cards cannot be produced without invented facts, return an empty cards array so the runtime fails closed; never fill the quota by restating the query or applying generic or hardcoded templates.',
+    '- If the selected user input is an imperative generation request, fulfill that deliverable through normal generation. Do not emit clarification cards and do not continue Probe-Tree.',
+    '- Do not add prose before or after the fenced JSON block.',
     '',
     'Selected Widget context:',
     args.contextText,
@@ -289,7 +261,6 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
     literalMcpResult,
   ].filter(Boolean).join('\n')
 }
-
 export type StoryboardWidgetProbeTreeMcpRunResult = StoryboardWidgetProbeTreeStructuredMaterialization & {
   invocationToken: string
   mcpInvoked: boolean
@@ -350,14 +321,31 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   })
   const properties = readGraphNodeProperties(node)
   const threadRootId = resolveStoryboardWidgetProbeTreeThreadRootId(graphForInvocation, node)
+  const contextText = buildStoryboardWidgetProbeTreeContextText({
+    graphData: graphForInvocation,
+    node,
+    prompt,
+  })
+  const terminalGeneration = await runStoryboardWidgetProbeTreeTerminalGeneration({
+    node,
+    graphData: graphForInvocation,
+    threadRootId,
+    invocationToken,
+    contextText,
+    providerModel: args.providerModel,
+    generateProviderResponse: args.generateProviderResponse,
+    publishOutput: args.publishOutput,
+    onMaterialized: args.onMaterialized,
+  })
+  if (terminalGeneration) return terminalGeneration
   const currentProbeTreeDepth = readProbeTreeDepth(properties)
   if (currentProbeTreeDepth >= PROBE_TREE_DEFAULTS.maxDepth) {
     return {
       graphData: graphForInvocation,
       materializedNodeIds: [],
       panelOutput: '',
-      responseSource: 'input-derived',
-      model: PROBE_TREE_INPUT_DERIVED_MODEL,
+      responseSource: 'runtime',
+      model: 'none',
       invocationToken,
       mcpInvoked: false,
       providerAccepted: false,
@@ -366,20 +354,7 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     }
   }
   const nextProbeTreeDepth = currentProbeTreeDepth + 1
-  const contextText = buildStoryboardWidgetProbeTreeContextText({
-    graphData: graphForInvocation,
-    node,
-    prompt,
-  })
   const invocationTokens = collectInvocationTokens(prompt)
-  const inputDerivedOptions = buildProbeTreeInputDerivedOptions(contextText).slice(0, PROBE_TREE_DEFAULTS.optionCount)
-  const localFallbackResult = buildInputDerivedCallResult({
-    threadRootId,
-    currentNodeId,
-    contextText,
-    probeTreeDepth: nextProbeTreeDepth,
-    options: inputDerivedOptions,
-  })
   let bridge: ProbeTreeMcpBridgeSuccess | null = null
   let mcpError = ''
   try {
@@ -397,7 +372,16 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     mcpError = error instanceof Error ? error.message : String(error || '')
   }
 
-  const mcpResult = bridge?.result || localFallbackResult
+  const mcpResult = bridge?.result || {
+    isError: true,
+    content: [],
+    structuredContent: {
+      contractVersion: KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
+      ok: false,
+      degraded: true,
+      degraded_reason: mcpError || 'mcp_unavailable',
+    },
+  }
   const mcpInvoked = bridge?.mcpInvoked === true
   let providerText = ''
   let providerError = ''
@@ -433,37 +417,21 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     : null
   if (materialized) providerAccepted = true
 
-  if (!materialized) {
+  if (!materialized && mcpInvoked) {
     materialized = materializeStoryboardWidgetProbeTreeStructuredResponse({
       graphData: graphForInvocation,
       anchorNode: node,
       responseText: JSON.stringify({ result: mcpResult }, null, 2),
       contextText,
-      responseSource: mcpInvoked ? 'mcp' : 'input-derived',
-      model: mcpInvoked ? readMcpModel(mcpResult) : PROBE_TREE_INPUT_DERIVED_MODEL,
+      responseSource: 'mcp',
+      model: readMcpModel(mcpResult),
       mcpInvoked,
       threadRootId,
       invocationTokens,
       invocationResolutions: bridge?.invocationResolutions,
-      ...(!mcpInvoked ? { inputDerivedOptions } : {}),
     })
   }
-  if (!materialized && mcpInvoked) {
-    materialized = materializeStoryboardWidgetProbeTreeStructuredResponse({
-      graphData: graphForInvocation,
-      anchorNode: node,
-      responseText: JSON.stringify({ result: localFallbackResult }, null, 2),
-      contextText,
-      responseSource: 'input-derived',
-      model: PROBE_TREE_INPUT_DERIVED_MODEL,
-      mcpInvoked,
-      threadRootId,
-      invocationTokens,
-      invocationResolutions: bridge?.invocationResolutions,
-      inputDerivedOptions,
-    })
-  }
-  if (!materialized) throw new Error('Probe-Tree needs 2-4 cards whose questions, choices, and verbatim context anchors come from the selected user input.')
+  if (!materialized) throw new Error('Probe-Tree received no accepted 2-4 query-specific LLM cards. Check the configured chat model and ensure its questions introduce missing decision variables instead of restating the source query; the zero-model MCP path does not synthesize fallback cards.')
 
   const outputGroupId = buildStoryboardWidgetProbeTreeOutputGroupId(threadRootId)
   const normalizedGraphData = normalizeStoryboardWidgetProbeTreeOutputLayout({
@@ -477,7 +445,6 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     outputText: materialized.panelOutput,
     title: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
     model: materialized.model,
-    srcDoc: buildTextWidgetOutputSrcDoc({ title: PROBE_TREE_RICH_MEDIA_PANEL_LABEL, text: materialized.panelOutput, scrollOwner: 'media' }),
     loading: false,
     outputKey: PROBE_TREE_OUTPUT_KEY,
     outputGroupId,
@@ -495,10 +462,10 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     invocationToken,
     mcpInvoked,
     providerAccepted,
-    kind: mcpInvoked ? 'success' : 'warning',
+    kind: 'success',
     message: mcpInvoked
       ? `Generated ${count} context-specific Probe-Tree card${count === 1 ? '' : 's'} through knowgrph MCP.`
-      : `Generated ${count} user-input-derived Probe-Tree card${count === 1 ? '' : 's'} without canned fallback content; knowgrph MCP was unavailable.`,
+      : `Generated ${count} context-specific Probe-Tree card${count === 1 ? '' : 's'} through the explicitly approved provider; knowgrph MCP was unavailable.`,
     ...(mcpError ? { mcpError } : {}),
     ...(providerError ? { providerError } : {}),
   }
@@ -521,6 +488,8 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
   onInvocationStart?: () => void
   publishOutput: StoryboardWidgetTextRunOutputPublisher
   setLoading: (loading: boolean) => void
+  invokeMcp?: typeof invokeProbeTreeMcpBridge
+  generateProviderResponse?: (prompt: string) => Promise<string | null>
 }): Promise<StoryboardWidgetProbeTreeMcpRunResult | null> {
   const fallbackNode = args.resolutionContext && args.requestedNodeId
     ? resolveStoryboardWidgetProbeTreeSelectedRunNodeFromContext({ context: args.resolutionContext, requestedNodeId: args.requestedNodeId, fallbackNode: args.fallbackNode })
@@ -529,7 +498,6 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
   if (!resolveStoryboardWidgetProbeTreeInvocationTokenForNode(fallbackNode, invocationText)) return null
   args.onInvocationStart?.()
   const { prompt, formId, localProperties, resolvedProperties, runtimeProperties } = args.textGeneration
-  const providerRefinementApproved = isStoryboardWidgetProbeTreeProviderRefinementApproved(readGraphNodeProperties(fallbackNode))
   const resolvedThinking = resolveStoryboardWidgetTextThinkingOptions({
     formId,
     localProperties,
@@ -540,6 +508,27 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
   })
   args.setLoading(true)
   let publicationCompleted = false
+  const generateProviderResponse = args.generateProviderResponse || (refinementPrompt => generateRunMarkdownWithProvider({
+    config: {
+      provider: resolvedProperties.chatProvider || runtimeProperties.chatProvider,
+      endpointUrl: resolvedProperties.chatEndpointUrl || runtimeProperties.chatEndpointUrl,
+      apiKey: (resolvedProperties.chatAuthMode || runtimeProperties.chatAuthMode) === 'byok' ? runtimeProperties.chatApiKey : '',
+      chatModel: resolvedProperties.chatModel || runtimeProperties.chatModel,
+    },
+    prompt: refinementPrompt,
+    options: {
+      chatTemperature: resolvedProperties.chatTemperature ?? runtimeProperties.chatTemperature,
+      chatMaxCompletionTokens: resolvedThinking.chatMaxCompletionTokens,
+      chatServiceTier: resolvedProperties.chatServiceTier ?? runtimeProperties.chatServiceTier,
+      chatStream: false,
+      chatReasoningEffort: resolvedProperties.chatReasoningEffort ?? runtimeProperties.chatReasoningEffort,
+      chatThinkingType: resolvedThinking.chatThinkingType,
+      chatThinkingJson: resolvedThinking.chatThinkingJson,
+      chatFrequencyPenalty: resolvedProperties.chatFrequencyPenalty ?? runtimeProperties.chatFrequencyPenalty,
+      chatPresencePenalty: resolvedProperties.chatPresencePenalty ?? runtimeProperties.chatPresencePenalty,
+      chatTopP: resolvedProperties.chatTopP ?? runtimeProperties.chatTopP,
+    },
+  }))
   try {
     const result = await runStoryboardWidgetProbeTreeMcpInvocation({
       graphForRun: args.graphForRun,
@@ -548,27 +537,8 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
       onMaterialized: args.onMaterialized,
       publishOutput: args.publishOutput,
       providerModel: String(resolvedProperties.chatModel || runtimeProperties.chatModel || ''),
-      generateProviderResponse: providerRefinementApproved ? refinementPrompt => generateRunMarkdownWithProvider({
-        config: {
-          provider: resolvedProperties.chatProvider || runtimeProperties.chatProvider,
-          endpointUrl: resolvedProperties.chatEndpointUrl || runtimeProperties.chatEndpointUrl,
-          apiKey: (resolvedProperties.chatAuthMode || runtimeProperties.chatAuthMode) === 'byok' ? runtimeProperties.chatApiKey : '',
-          chatModel: resolvedProperties.chatModel || runtimeProperties.chatModel,
-        },
-        prompt: refinementPrompt,
-        options: {
-          chatTemperature: resolvedProperties.chatTemperature ?? runtimeProperties.chatTemperature,
-          chatMaxCompletionTokens: resolvedThinking.chatMaxCompletionTokens,
-          chatServiceTier: resolvedProperties.chatServiceTier ?? runtimeProperties.chatServiceTier,
-          chatStream: false,
-          chatReasoningEffort: resolvedProperties.chatReasoningEffort ?? runtimeProperties.chatReasoningEffort,
-          chatThinkingType: resolvedThinking.chatThinkingType,
-          chatThinkingJson: resolvedThinking.chatThinkingJson,
-          chatFrequencyPenalty: resolvedProperties.chatFrequencyPenalty ?? runtimeProperties.chatFrequencyPenalty,
-          chatPresencePenalty: resolvedProperties.chatPresencePenalty ?? runtimeProperties.chatPresencePenalty,
-          chatTopP: resolvedProperties.chatTopP ?? runtimeProperties.chatTopP,
-        },
-      }) : undefined,
+      invokeMcp: args.invokeMcp,
+      generateProviderResponse,
     })
     if (!result) throw new Error('Probe-Tree did not recognize the Widget Card invocation.')
     publicationCompleted = true

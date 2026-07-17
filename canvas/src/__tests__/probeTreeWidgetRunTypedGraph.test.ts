@@ -13,6 +13,7 @@ import { hashText } from '@/features/parsers/hash'
 import { mergeRecoveredTextWidgetOutputGraphData } from '@/components/StoryboardWidgetCanvas/runtime/useTextWidgetOutputArtifactRecovery'
 import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
+import { isStoryboardWidgetProbeTreeLineageOnlyRootNode } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeRunNode'
 
 const cell = (key: string, type: string, value: unknown) => ({ key, type, value })
 
@@ -42,16 +43,43 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
       media_interactive: cell('media_interactive', 'boolean', true),
     }),
   } as unknown as GraphNode
+  const acceptedBranches: GraphNode[] = [
+    ['branch-market', 'Which market horizon should guide the comparison?'],
+    ['branch-evidence', 'Which investment evidence should the comparison prioritize?'],
+    ['branch-region', 'Which SE Asia economies should the comparison include?'],
+  ].map(([id, summary], index) => ({
+    id,
+    type: 'TextGeneration',
+    label: summary,
+    x: 760,
+    y: 80 + index * 180,
+    properties: {
+      cardTypeLabel: 'Probe-Tree Card',
+      probeTreeResponseMode: 'llm-contract',
+      parentNodeId: 'n1',
+      parentGraphNodeId: 'n1',
+      summary,
+    },
+  }))
   const graphData = {
     type: 'Graph',
-    nodes: [typedNode, typedPanel],
-    edges: [{
-      id: cell('id', 'string', 'e1'),
-      source: cell('source', 'string', 'n1'),
-      target: cell('target', 'string', 'n2'),
-      label: cell('label', 'string', 'output'),
-      properties: cell('properties', 'object', {}),
-    }],
+    nodes: [typedNode, typedPanel, ...acceptedBranches],
+    edges: [
+      {
+        id: cell('id', 'string', 'e1'),
+        source: cell('source', 'string', 'n1'),
+        target: cell('target', 'string', 'n2'),
+        label: cell('label', 'string', 'output'),
+        properties: cell('properties', 'object', {}),
+      },
+      ...acceptedBranches.map((branch, index) => ({
+        id: `candidate-${index + 1}`,
+        source: 'n1',
+        target: String(branch.id),
+        label: 'candidateOption',
+        properties: {},
+      })),
+    ],
   } as unknown as GraphData
 
   const resolutionContext = getCachedStoryboardWidgetWorkflowNodeResolutionContext({
@@ -99,7 +127,7 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
   const branchNodes = (resultGraph?.nodes || []).filter(node => node.properties.cardTypeLabel === 'Probe-Tree Card')
   const candidateEdges = (resultGraph?.edges || []).filter(edge => edge.source === 'n1' && edge.label === 'candidateOption')
   if (
-    !result?.changed
+    result?.changed
     || !committedGraph
     || publishedBaseGraph !== resultGraph
     || branchNodes.length !== 3
@@ -108,13 +136,13 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
   ) {
     throw new Error(`expected typed frontmatter Widget Card Run to publish one visible Probe-Tree branch set, got ${JSON.stringify({ result, committedGraph, publishedBaseGraph, branchNodes, candidateEdges })}`)
   }
-
+  if (!isStoryboardWidgetProbeTreeLineageOnlyRootNode(resultGraph!, typedNode) || branchNodes.some(node => isStoryboardWidgetProbeTreeLineageOnlyRootNode(resultGraph!, node))) {
+    throw new Error('expected Run All to treat only the superseded Probe-Tree root as lineage while each selected child owns its continuation')
+  }
   // Mirror the live rerun: toolbar materialization already created the branch
   // nodes, while the legacy Rich Media panel still has no branch ledger.
   let runnerDraft = structuredClone(resultGraph)
-  const staleRunnerDraft = structuredClone(runnerDraft)
   let terminalPublishedGraph: GraphData | null = null
-  let terminalPersistedGraph: GraphData | null = null
   const runnerToasts: Array<{ message: string }> = []
   const runWorkflowNode = createStoryboardWidgetWorkflowNodeRunner({
     baseGraphKind: 'frontmatter-flow',
@@ -122,15 +150,12 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
     readDraftGraphData: () => runnerDraft,
     commitDraftGraphDataUpdate: (_current, next) => {
       runnerDraft = next
-      const panel = next.nodes.find(node => unwrapGraphCellValue(node.type) === 'RichMediaPanel') || null
-      const output = String(unwrapGraphCellValue(readGraphNodeProperties(panel).output) || '')
-      if (output.includes('Model: probe-tree-input-derived')) void Promise.resolve().then(() => { runnerDraft = staleRunnerDraft })
     },
     commitPublishedGraphData: next => {
       terminalPublishedGraph = next
       runnerDraft = next
     },
-    persistDraftGraphData: next => { terminalPersistedGraph = next; runnerDraft = next },
+    persistDraftGraphData: next => { runnerDraft = next },
     renderGraphDataOverride: null,
     markdownDocumentName: null,
     markdownDocumentSourceUrl: null,
@@ -152,26 +177,21 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
     upsertUiToast: toast => { runnerToasts.push(toast) },
     scheduleOverlayEdgeUpdate: () => undefined,
   })
-  await runWorkflowNode('n1', { propagateErrors: true })
+  let runErrorMessage = ''
+  try {
+    await runWorkflowNode('n1', { propagateErrors: true })
+  } catch (error) {
+    runErrorMessage = error instanceof Error ? error.message : String(error || '')
+  }
   const runnerBranches = runnerDraft.nodes.filter(node => node.properties.cardTypeLabel === 'Probe-Tree Card')
-  const runnerPanel = runnerDraft.nodes.find(node => unwrapGraphCellValue(node.type) === 'RichMediaPanel') || null
-  const runnerPanelProperties = readGraphNodeProperties(runnerPanel)
-  const runnerPanelOutput = String(unwrapGraphCellValue(runnerPanelProperties.output) || '')
-  const persistedPanel = terminalPersistedGraph?.nodes.find(node => unwrapGraphCellValue(node.type) === 'RichMediaPanel') || null
-  const persistedPanelOutput = String(unwrapGraphCellValue(readGraphNodeProperties(persistedPanel).output) || '')
-  const runnerPanelContainer = (runnerPanel?.properties || {}) as Record<string, unknown>
   const runnerCandidateEdges = runnerDraft.edges.filter(edge => edge.source === 'n1' && edge.label === 'candidateOption')
   if (
-    runnerBranches.length !== 3
+    !runErrorMessage.includes('received no accepted 2-4 query-specific LLM cards')
+    || runnerBranches.length !== 3
     || runnerCandidateEdges.length !== 3
-    || !runnerPanelOutput.includes('# Probe-Tree Branches')
-    || runnerPanelProperties.workflowOutputKey !== 'probe-tree-branches'
-    || Object.prototype.hasOwnProperty.call(runnerPanelContainer, 'output')
-    || !persistedPanelOutput.includes('# Probe-Tree Branches')
-    || terminalPersistedGraph === staleRunnerDraft
     || terminalPublishedGraph !== null
   ) {
-    throw new Error(`expected the full Widget Card Run dispatcher to publish typed Probe-Tree branches and Rich Media output, got ${JSON.stringify({ runnerDraft, runnerToasts })}`)
+    throw new Error(`expected the no-model Widget Run to fail closed while preserving the typed preview graph, got ${JSON.stringify({ runErrorMessage, runnerDraft, runnerToasts })}`)
   }
 
   const publishedGraph = {
@@ -223,15 +243,22 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
   if (!publishedText || publishedText.includes('[object Object]')) {
     throw new Error(`expected typed frontmatter cells to serialize as canonical values, got ${publishedText}`)
   }
+  const idempotentSourceSync = syncActiveMarkdownDocumentTextFromParsedGraph({
+    state: { markdownDocumentName: 'docs/run.md', markdownDocumentText: publishedText } as never,
+    sourceFiles: sourceSync.sourceFiles,
+    parsedGraphData: publishedGraph,
+  })
+  if (!idempotentSourceSync.accepted || Object.prototype.hasOwnProperty.call(idempotentSourceSync, 'markdownDocumentText')) {
+    throw new Error(`expected an already-published Probe-Tree graph to remain an accepted no-op, got ${JSON.stringify(idempotentSourceSync)}`)
+  }
   const reparsedGraph = tryParseMarkdownFrontmatterFlowGraph('run.md', publishedText)?.graphData || null
   const reparsedIds = new Set((reparsedGraph?.nodes || []).map(node => String(node.id || '')))
   const reparsedPanel = reparsedGraph?.nodes.find(node => unwrapGraphCellValue(node.type) === 'RichMediaPanel') || null
-  const reparsedPanelOutput = String(unwrapGraphCellValue(readGraphNodeProperties(reparsedPanel).output) || '')
   if (
     !reparsedGraph
     || !reparsedIds.has('n1')
     || runnerBranches.some(node => !reparsedIds.has(String(node.id || '')))
-    || !reparsedPanelOutput.includes('# Probe-Tree Branches')
+    || !reparsedPanel
   ) {
     throw new Error(`expected persisted Probe-Tree output to remain visible after frontmatter reparse, got ${JSON.stringify(reparsedGraph)}`)
   }

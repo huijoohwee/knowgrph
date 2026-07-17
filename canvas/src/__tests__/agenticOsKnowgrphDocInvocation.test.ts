@@ -11,18 +11,8 @@ import { buildAgenticOsRuntimeInvocationSystemPrompt } from '@/features/chat/cha
 import { resolveChatRuntimeInvocationQuery } from '@/features/chat/chatRuntimeInvocationQuery'
 import { extractChatResponseStructuredSurface } from '@/features/chat/chatResponseStructuredContent'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
-import {
-  buildProbeTreeCardFromGraphNode,
-  materializeProbeTreeBranchCards,
-  materializeProbeTreeBranchCardsFromGraphNode,
-} from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
-import {
-  buildStoryboardWidgetProbeTreeRichMediaMarkdown,
-  materializeStoryboardWidgetProbeTreeInvocation,
-  readStoryboardWidgetProbeTreeInvocationText,
-  resolveStoryboardWidgetProbeTreeInvocationToken,
-  runStoryboardWidgetProbeTreeInvocation,
-} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
+import { buildProbeTreeCardFromGraphNode, materializeProbeTreeBranchCards, materializeProbeTreeBranchCardsFromGraphNode } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
+import { materializeStoryboardWidgetProbeTreeInvocation, readStoryboardWidgetProbeTreeInvocationText, resolveStoryboardWidgetProbeTreeInvocationToken, runStoryboardWidgetProbeTreeInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
 import { KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS } from '@/features/agentic-os/probeTreePromptPreset'
 import type { GraphData } from '@/lib/graph/types'
 
@@ -60,6 +50,12 @@ export function testKnowgrphProbeTreeInvocationGrammarUsesDocAliasesAndToolIdent
     '        candidateOptionId: ask-safety',
     '        question: "Any severe, worsening, or urgent symptoms?"',
     '        rationale: Clarifies urgent risk before downstream planning.',
+    '        evidenceNeeded: Current symptom severity and trajectory.',
+    '        selectionMode: multiple',
+    '        probeTreeCardVariant: probe-tree-type-2',
+    '        selectionOptions: [{ id: severe-symptoms, label: severe symptoms }, { id: worsening-symptoms, label: worsening symptoms }]',
+    '        contextAnchors: [severe symptoms, worsening symptoms]',
+    '        allowOther: true',
     '        nextAction: knowgrph.probe.select',
     '        output: ""',
     '```',
@@ -131,22 +127,14 @@ export function testKnowgrphProbeTreeInvocationGrammarUsesDocAliasesAndToolIdent
     throw new Error(`expected Props Panel graph node to adapt into a Storyboard card, got ${JSON.stringify(propsPanelCard)}`)
   }
   const propsPanelMaterialized = materializeProbeTreeBranchCardsFromGraphNode({ graphData: propsPanelGraph, node: propsPanelNode })
-  if (!propsPanelMaterialized.changed || propsPanelMaterialized.materializedNodeIds.length !== 3) {
-    throw new Error(`expected Props Panel Probe-Tree invocation to materialize three downstream cards, got ${JSON.stringify(propsPanelMaterialized)}`)
-  }
-  const propsPanelProbeNodes = (propsPanelMaterialized.graphData?.nodes || []).filter(node => node.type === 'TextGeneration' && node.properties.cardTypeLabel === 'Probe-Tree Card')
-  const propsPanelCandidateEdges = (propsPanelMaterialized.graphData?.edges || []).filter(edge => edge.source === 'props_source' && edge.label === 'candidateOption')
-  if (propsPanelProbeNodes.length !== 3 || propsPanelCandidateEdges.length !== 3) {
-    throw new Error(`expected Props Panel Probe-Tree path to produce candidate cards and edges, got ${JSON.stringify(propsPanelMaterialized.graphData)}`)
-  }
-  if (!propsPanelProbeNodes.every(node => (
-    node.properties.invocation === 'knowgrph.probe.generate'
-    && JSON.stringify(node.properties.invocationTokens) === JSON.stringify(KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS)
-    && !Object.prototype.hasOwnProperty.call(node.properties, 'slashCommand')
-    && !Object.prototype.hasOwnProperty.call(node.properties, 'hashToken')
-    && !Object.prototype.hasOwnProperty.call(node.properties, 'atToken')
-  ))) {
-    throw new Error(`expected Probe-Tree cards to use the MCP tool identity without invented grammar aliases, got ${JSON.stringify(propsPanelProbeNodes)}`)
+  if (
+    propsPanelMaterialized.changed
+    || propsPanelMaterialized.materializedNodeIds.length !== 0
+    || propsPanelMaterialized.kind !== 'warning'
+    || !propsPanelMaterialized.message.includes('does not create hardcoded preview branches')
+    || propsPanelMaterialized.graphData !== propsPanelGraph
+  ) {
+    throw new Error(`expected the Props Panel Probe-Tree action to fail closed without model-backed branches, got ${JSON.stringify(propsPanelMaterialized)}`)
   }
 }
 
@@ -416,25 +404,26 @@ export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation()
     onMaterialized: () => undefined,
     publishOutput: output => { summaryOnlyCommit = output.baseGraphData || null; return summaryOnlyCommit },
   })
-  if (!summaryOnlyRunResult?.changed || !summaryOnlyCommit) {
-    throw new Error(`expected summary-only typed Widget Card Run to bypass generic empty-prompt handling, got ${JSON.stringify(summaryOnlyRunResult)}`)
+  if (
+    summaryOnlyRunResult?.changed
+    || summaryOnlyCommit !== null
+    || summaryOnlyRunResult?.invocationToken !== '/knowgrph.probe-tree'
+    || !summaryOnlyRunResult?.message.includes('does not create hardcoded preview branches')
+  ) {
+    throw new Error(`expected summary-only typed Widget Card routing to refuse hardcoded preview cards, got ${JSON.stringify(summaryOnlyRunResult)}`)
   }
   const materialized = materializeStoryboardWidgetProbeTreeInvocation({
     prompt,
     graphData,
     node: graphData.nodes[0],
   })
-  const probeNodes = (materialized?.graphData?.nodes || []).filter(node => node.type === 'TextGeneration' && node.properties.cardTypeLabel === 'Probe-Tree Card')
-  const candidateEdges = (materialized?.graphData?.edges || []).filter(edge => edge.source === 'n1' && edge.label === 'candidateOption')
-  if (!materialized?.changed || materialized.invocationToken !== '/knowgrph.probe-tree' || probeNodes.length !== 3 || candidateEdges.length !== 3) {
-    throw new Error(`expected embedded Widget Card Probe-Tree invocation to materialize three branch cards without provider parsing, got ${JSON.stringify(materialized)}`)
-  }
-  for (const probeNode of probeNodes) {
-    if (
-      JSON.stringify(probeNode.properties.invocationTokens) !== JSON.stringify(KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS)
-      || !String(probeNode.properties.prompt || '').startsWith('/knowgrph.probe-tree\n\n')
-      || probeNode.properties.probeTreeDepth !== 1
-    ) throw new Error(`expected every Probe-Tree branch prompt to retain only the slash invocation while alias metadata and bounded depth remain available, got ${JSON.stringify(probeNode.properties)}`)
+  if (
+    materialized?.changed
+    || materialized?.invocationToken !== '/knowgrph.probe-tree'
+    || materialized?.materializedNodeIds.length !== 0
+    || !materialized?.message.includes('does not create hardcoded preview branches')
+  ) {
+    throw new Error(`expected embedded Widget Card Probe-Tree routing to wait for a model-backed Run response, got ${JSON.stringify(materialized)}`)
   }
 
   let selectedNodeIds: readonly string[] = []
@@ -446,19 +435,12 @@ export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation()
     onMaterialized: nodeIds => { selectedNodeIds = nodeIds },
     publishOutput: output => { publishedOutput = output; return output.baseGraphData || null },
   })
-  if (!runResult?.changed || selectedNodeIds.length !== 3 || !publishedOutput) {
-    throw new Error(`expected native Widget Card Run to materialize and select branches before provider execution, got ${JSON.stringify({ runResult, selectedNodeIds, publishedOutput })}`)
-  }
-  const richMediaMarkdown = buildStoryboardWidgetProbeTreeRichMediaMarkdown(runResult)
   if (
-    publishedOutput.outputKey !== 'probe-tree-branches'
-    || publishedOutput.baseGraphData !== runResult.graphData
-    || publishedOutput.panelLabel !== 'Probe-Tree Branches'
-    || publishedOutput.model !== 'knowgrph-probe-tree-local-fallback'
-    || publishedOutput.outputText !== richMediaMarkdown
-    || !richMediaMarkdown.includes('0 prompt tokens, 0 completion tokens')
-    || !richMediaMarkdown.includes(KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS.join(' '))
-  ) throw new Error(`expected native Probe-Tree Run to publish the source-backed zero-cost Rich Media summary, got ${JSON.stringify(publishedOutput)}`)
+    runResult?.changed
+    || selectedNodeIds.length !== 0
+    || publishedOutput !== null
+    || !runResult?.message.includes('does not create hardcoded preview branches')
+  ) throw new Error(`expected the legacy synchronous projection path to refuse branch synthesis before provider execution, got ${JSON.stringify({ runResult, selectedNodeIds, publishedOutput })}`)
 
   const depthLimitedGraph: GraphData = {
     type: 'Graph',
@@ -470,8 +452,8 @@ export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation()
     graphData: depthLimitedGraph,
     node: depthLimitedGraph.nodes[0],
   })
-  if (depthLimited?.changed || depthLimited?.kind !== 'warning' || !depthLimited.message.includes('8-branch depth limit')) {
-    throw new Error(`expected the native multi-turn Probe-Tree to stop at its bounded depth, got ${JSON.stringify(depthLimited)}`)
+  if (depthLimited?.changed || depthLimited?.kind !== 'warning' || !depthLimited.message.includes('does not create hardcoded preview branches')) {
+    throw new Error(`expected the reveal-only projection path to avoid synthesizing depth-limit response cards, got ${JSON.stringify(depthLimited)}`)
   }
 
   const runActionSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
@@ -480,18 +462,20 @@ export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation()
   const probeDispatchIndex = runActionSource.indexOf('const probeTreeOutput = await runStoryboardWidgetProbeTreeTextGenerationInvocation({')
   const crawlerIndex = runActionSource.indexOf('runStoryboardWidgetNativeCrawlerInvocation({', probeDispatchIndex)
   const genericProviderIndex = runActionSource.indexOf('const result = await generateRunMarkdownWithProvider({', probeDispatchIndex)
+  const providerFactoryIndex = probeTreeRunSource.indexOf('const generateProviderResponse = args.generateProviderResponse ||')
   const nativeProbeIndex = probeTreeRunSource.indexOf('const result = await runStoryboardWidgetProbeTreeMcpInvocation({')
-  const providerApprovalIndex = probeTreeRunSource.indexOf('generateProviderResponse: providerRefinementApproved ?', nativeProbeIndex)
-  const providerIndex = probeTreeRunSource.indexOf('generateRunMarkdownWithProvider({', providerApprovalIndex)
-  const nativeProbeRunSource = probeTreeRunSource.slice(nativeProbeIndex, providerIndex)
+  const providerForwardIndex = probeTreeRunSource.indexOf('generateProviderResponse,', nativeProbeIndex)
+  const nativeProbeRunSource = probeTreeRunSource.slice(nativeProbeIndex, providerForwardIndex)
   if (
     textGenerationIndex < 0
     || probeDispatchIndex <= textGenerationIndex
     || crawlerIndex <= probeDispatchIndex
     || genericProviderIndex <= probeDispatchIndex
+    || providerFactoryIndex < 0
+    || providerFactoryIndex >= nativeProbeIndex
     || nativeProbeIndex < 0
-    || providerApprovalIndex <= nativeProbeIndex
-    || providerIndex <= nativeProbeIndex
+    || providerForwardIndex <= nativeProbeIndex
+    || probeTreeRunSource.includes('providerRefinementApproved')
     || runActionSource.includes('materializeProbeTreeOutput')
     || runActionSource.includes('const probeTreeOutput = runStoryboardWidgetProbeTreeInvocation({')
     || !runActionSource.slice(probeDispatchIndex, crawlerIndex).includes('publishOutput: publishTextRunOutputToRichMediaPanel')
@@ -524,72 +508,72 @@ export function testProbeTreeToolbarAndSlashRunShareOneIdempotentBranchSet() {
     edges: [],
   }
   const sourceNode = graphData.nodes[0]
-  const countMaterializedSet = (candidate: GraphData | null | undefined) => {
-    const branchNodes = (candidate?.nodes || []).filter(node => (
-      node.type === 'TextGeneration'
-      && node.properties.cardTypeLabel === 'Probe-Tree Card'
-      && node.properties.parentGraphNodeId === 'n1'
-    ))
-    const candidateEdges = (candidate?.edges || []).filter(edge => (
-      edge.source === 'n1' && edge.label === 'candidateOption'
-    ))
-    return {
-      nodeCount: branchNodes.length,
-      uniqueNodeCount: new Set(branchNodes.map(node => node.id)).size,
-      edgeCount: candidateEdges.length,
-    }
-  }
-
   const toolbarFirst = materializeProbeTreeBranchCards({
     graphData,
     card: buildProbeTreeCardFromGraphNode(sourceNode),
   })
-  if (!toolbarFirst.changed || !toolbarFirst.graphData) {
-    throw new Error(`expected the bubble-toolbar action to materialize the initial branch set, got ${JSON.stringify(toolbarFirst)}`)
-  }
-  let toolbarThenRunSelectedNodeIds: readonly string[] = []
-  let toolbarThenRunPublished = false
-  const toolbarThenRun = runStoryboardWidgetProbeTreeInvocation({
-    graphForRun: toolbarFirst.graphData,
-    nodeIds: ['n1'],
-    fallbackNode: sourceNode,
-    onMaterialized: nodeIds => { toolbarThenRunSelectedNodeIds = nodeIds },
-    publishOutput: output => { toolbarThenRunPublished = true; return output.baseGraphData || null },
-  })
-  const toolbarThenRunCounts = countMaterializedSet(toolbarThenRun?.graphData)
   if (
-    toolbarThenRun?.changed
-    || toolbarThenRunSelectedNodeIds.length !== 3
-    || !toolbarThenRunPublished
-    || toolbarThenRunCounts.nodeCount !== 3
-    || toolbarThenRunCounts.uniqueNodeCount !== 3
-    || toolbarThenRunCounts.edgeCount !== 3
+    toolbarFirst.changed
+    || toolbarFirst.materializedNodeIds.length !== 0
+    || !toolbarFirst.message.includes('does not create hardcoded preview branches')
   ) {
-    throw new Error(`expected slash Run after toolbar materialization to reuse one branch set inside one output publication, got ${JSON.stringify({ toolbarThenRun, toolbarThenRunSelectedNodeIds, toolbarThenRunPublished, toolbarThenRunCounts })}`)
+    throw new Error(`expected the bubble-toolbar action to refuse an initial hardcoded branch set, got ${JSON.stringify(toolbarFirst)}`)
   }
-
-  let runFirstGraph: GraphData | null = null
-  const runFirst = runStoryboardWidgetProbeTreeInvocation({
+  let emptyRunPublished = false
+  const emptyRun = runStoryboardWidgetProbeTreeInvocation({
     graphForRun: graphData,
     nodeIds: ['n1'],
     fallbackNode: sourceNode,
     onMaterialized: () => undefined,
-    publishOutput: output => { runFirstGraph = output.baseGraphData || null; return runFirstGraph },
+    publishOutput: output => { emptyRunPublished = true; return output.baseGraphData || null },
   })
-  if (!runFirst?.changed || !runFirstGraph) {
-    throw new Error(`expected slash Run to materialize the initial branch set, got ${JSON.stringify(runFirst)}`)
+  if (
+    emptyRun?.changed
+    || emptyRunPublished
+    || emptyRun?.materializedNodeIds.length !== 0
+    || !emptyRun?.message.includes('does not create hardcoded preview branches')
+  ) {
+    throw new Error(`expected the legacy synchronous Run projection to refuse hardcoded branches, got ${JSON.stringify(emptyRun)}`)
   }
-  const toolbarAfterRun = materializeProbeTreeBranchCards({
-    graphData: runFirstGraph,
+
+  const acceptedGraph: GraphData = {
+    ...graphData,
+    nodes: [
+      ...graphData.nodes,
+      { id: 'model-card-1', type: 'TextGeneration', label: 'Which market horizon should the China comparison use?', properties: { cardTypeLabel: 'Probe-Tree Card', probeTreeResponseMode: 'llm-contract', parentNodeId: 'n1', parentGraphNodeId: 'n1', summary: 'Which market horizon should the China comparison use?' } },
+      { id: 'model-card-2', type: 'TextGeneration', label: 'Which SE Asia economies should the comparison include?', properties: { cardTypeLabel: 'Probe-Tree Card', probeTreeResponseMode: 'llm-contract', parentNodeId: 'n1', parentGraphNodeId: 'n1', summary: 'Which SE Asia economies should the comparison include?' } },
+    ],
+    edges: [
+      { id: 'model-edge-1', source: 'n1', target: 'model-card-1', label: 'candidateOption', properties: {} },
+      { id: 'model-edge-2', source: 'n1', target: 'model-card-2', label: 'candidateOption', properties: {} },
+    ],
+  }
+  const toolbarAfterModel = materializeProbeTreeBranchCards({
+    graphData: acceptedGraph,
     card: buildProbeTreeCardFromGraphNode(sourceNode),
   })
-  const runThenToolbarCounts = countMaterializedSet(toolbarAfterRun.graphData)
   if (
-    toolbarAfterRun.changed
-    || runThenToolbarCounts.nodeCount !== 3
-    || runThenToolbarCounts.uniqueNodeCount !== 3
-    || runThenToolbarCounts.edgeCount !== 3
+    toolbarAfterModel.changed
+    || toolbarAfterModel.kind !== 'neutral'
+    || toolbarAfterModel.materializedNodeIds.join(',') !== 'model-card-1,model-card-2'
   ) {
-    throw new Error(`expected the bubble-toolbar action after slash Run to reuse one branch set, got ${JSON.stringify({ toolbarAfterRun, runThenToolbarCounts })}`)
+    throw new Error(`expected the bubble toolbar to reveal only accepted model-backed cards, got ${JSON.stringify(toolbarAfterModel)}`)
+  }
+
+  let selectedNodeIds: readonly string[] = []
+  let projectedGraph: GraphData | null = null
+  const projected = runStoryboardWidgetProbeTreeInvocation({
+    graphForRun: acceptedGraph,
+    nodeIds: ['n1'],
+    fallbackNode: sourceNode,
+    onMaterialized: ids => { selectedNodeIds = ids },
+    publishOutput: output => { projectedGraph = output.baseGraphData || null; return projectedGraph },
+  })
+  if (
+    projected?.changed
+    || !projectedGraph
+    || selectedNodeIds.join(',') !== 'model-card-1,model-card-2'
+  ) {
+    throw new Error(`expected synchronous projection to publish only pre-accepted branches, got ${JSON.stringify({ projected, selectedNodeIds })}`)
   }
 }

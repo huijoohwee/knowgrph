@@ -1,27 +1,30 @@
 export const KNOWGRPH_PROBE_TREE_CONTRACT_VERSION = "knowgrph-probe-tree/v0.1";
-export const PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION = "probe-tree-llm-response/v3";
+export const PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION = "probe-tree-llm-response/v5";
 
 import {
   PROBE_TREE_MULTI_SELECT_LIMITS,
   areProbeTreeCardsMutuallyDistinct,
   cleanProbeTreeResponseText,
   isProbeTreeCardUserInputRelevant,
-  normalizeProbeTreeContextAnchors,
+  isProbeTreeTerminalGenerationRequest,
   normalizeProbeTreeSelectionOptions,
+  resolveProbeTreeContextAnchors,
   safeProbeTreeResponseId,
 } from "./probeTreeUserInputRelevance.mjs";
+import { buildRichMediaTextMarkdownDocument } from "../rich-media/richMediaTextMarkdownContract.mjs";
 
 export {
   PROBE_TREE_MULTI_SELECT_LIMITS,
   areProbeTreeContinuationChoicesSuggested,
   areProbeTreeCardsMutuallyDistinct,
-  buildProbeTreeInputDerivedOptions,
   collectProbeTreeContextKeywords,
   extractProbeTreeClarificationContextText,
   extractProbeTreeUserInputText,
   isProbeTreeCardUserInputRelevant,
+  isProbeTreeTerminalGenerationRequest,
   normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
+  resolveProbeTreeContextAnchors,
 } from "./probeTreeUserInputRelevance.mjs";
 
 export const PROBE_TREE_CARD_VARIANTS = Object.freeze({
@@ -63,7 +66,11 @@ const buildStructuredResponseOptions = ({ options, optionCount, degraded, contex
     const candidateOptionId = cleanProbeTreeResponseText(candidate?.id, 160)
       || `probe-option-${safeProbeTreeResponseId(question, String(index + 1)).slice(0, 72)}-${index + 1}`;
     const selectionOptions = normalizeProbeTreeSelectionOptions(candidate?.selectionOptions);
-    const contextAnchors = normalizeProbeTreeContextAnchors(candidate?.contextAnchors || candidate?.context_anchors);
+    const contextAnchors = resolveProbeTreeContextAnchors({
+      contextText,
+      question,
+      contextAnchors: candidate?.contextAnchors || candidate?.context_anchors,
+    });
     if (!isProbeTreeCardUserInputRelevant({ contextText, question, selectionOptions, contextAnchors })) continue;
     if (!areProbeTreeCardsMutuallyDistinct([
       ...out.map(card => ({ question: card.question, selectionOptions: card.selectionOptions })),
@@ -105,7 +112,7 @@ export function buildProbeTreeStructuredResponse(args = {}) {
   const cards = buildStructuredResponseOptions({ options: args.options, optionCount, degraded: args.degraded === true, contextText })
     .map(card => ({ ...card, parentNodeId: currentNodeId, probeTreeDepth }));
   const panelId = `probe-tree-branches-${safeProbeTreeResponseId(currentNodeId, "current-node")}`;
-  const panelOutput = [
+  const panelBody = [
     "# Probe-Tree Branches",
     "",
     `Source node: ${currentNodeId}`,
@@ -117,6 +124,11 @@ export function buildProbeTreeStructuredResponse(args = {}) {
       "   - Other (author a different answer)",
     ]),
   ].join("\n");
+  const panelOutput = buildRichMediaTextMarkdownDocument({
+    body: panelBody,
+    title: "Probe-Tree Branches",
+    sourceContract: KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
+  });
   return {
     structuredContent: {
       contractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,

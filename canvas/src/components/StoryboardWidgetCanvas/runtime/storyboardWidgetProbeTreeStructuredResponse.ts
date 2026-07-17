@@ -1,14 +1,16 @@
 import { buildProbeTreeStoryboardMermaidFlowchart, PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND } from '@/components/StoryboardCanvas/storyboardProbeTreeMermaidFlowchart'
 import { hashText } from '@/features/parsers/hash'
 import { extractChatResponseStructuredSurface, type ChatResponseSurfaceNode } from '@/features/chat/chatResponseStructuredContent'
+import { buildRichMediaTextMarkdownDocument } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
 import { KNOWGRPH_PROBE_TREE_MAX_DEPTH } from '@/features/agentic-os/probeTreePromptPreset'
 import {
+  KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   PROBE_TREE_CARD_VARIANTS,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
   areProbeTreeCardsMutuallyDistinct,
   isProbeTreeCardUserInputRelevant,
-  normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
+  resolveProbeTreeContextAnchors,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import type { ProbeTreeMcpInvocationResolution } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import { resolveStoryboardWidgetProbeTreeBranchPositions } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
@@ -19,16 +21,6 @@ import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/types'
 
 const GENERIC_PROBE_CARD_PATTERN = /^(?:clarify probe|generate branches|select handoff)(?::|$)/i
-
-export type StoryboardWidgetProbeTreeInputDerivedOption = {
-  id?: string
-  text?: string
-  question?: string
-  rationale?: string
-  evidenceNeeded?: string
-  selectionOptions?: readonly (string | { id?: string; label?: string; text?: string })[]
-  contextAnchors?: readonly string[]
-}
 
 const readString = (value: unknown): string => String(unwrapGraphCellValue(value) ?? '').trim()
 
@@ -76,10 +68,24 @@ const isStructuredProbeCard = (node: ChatResponseSurfaceNode): boolean => (
   && node.properties.probeTreeCardVariant === PROBE_TREE_CARD_VARIANTS.boundedMultiSelect
   && node.properties.selectionMode === 'multiple'
   && normalizeProbeTreeSelectionOptions(node.properties.selectionOptions).length >= 2
-  && normalizeProbeTreeContextAnchors(node.properties.contextAnchors || node.properties.probeTreeUserInputAnchors).length >= 2
   && node.properties.allowOther === true
   && !GENERIC_PROBE_CARD_PATTERN.test(String(node.label || '').trim())
 )
+
+const selectLargestDistinctProbeCardSet = (cards: ChatResponseSurfaceNode[]): ChatResponseSurfaceNode[] => {
+  let selected: ChatResponseSurfaceNode[] = []
+  const combinationCount = 1 << cards.length
+  for (let mask = 1; mask < combinationCount; mask += 1) {
+    const candidate = cards.filter((_, index) => (mask & (1 << index)) !== 0)
+    if (candidate.length <= selected.length) continue
+    if (!areProbeTreeCardsMutuallyDistinct(candidate.map(card => ({
+      question: card.properties.question || card.properties.summary || card.label,
+      selectionOptions: card.properties.selectionOptions,
+    })))) continue
+    selected = candidate
+  }
+  return selected
+}
 
 const buildCandidateEdge = (source: string, target: string, candidateOptionId: string): GraphEdge => ({
   id: `probe-tree:edge:${hashText(`${source}:candidateOption:${target}`).slice(0, 12)}`,
@@ -93,64 +99,13 @@ const buildCandidateEdge = (source: string, target: string, candidateOptionId: s
   },
 })
 
-const buildInputDerivedCards = (
-  options: readonly StoryboardWidgetProbeTreeInputDerivedOption[],
-  anchorNodeId: string,
-  contextText: string,
-): ChatResponseSurfaceNode[] => options.slice(0, 4).map((option, index) => {
-  const question = readString(option.text || option.question)
-  const candidateOptionId = readString(option.id) || `input-derived-${hashText(question).slice(0, 12)}`
-  const selectionOptions = normalizeProbeTreeSelectionOptions(option.selectionOptions)
-  const contextAnchors = normalizeProbeTreeContextAnchors(option.contextAnchors)
-  return {
-    id: `probe-tree:${candidateOptionId}`,
-    label: question,
-    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-    kind: 'text' as const,
-    sourceHandle: 'text_out',
-    targetHandle: 'prompt_in',
-    properties: {
-      'chat:structuredContent': true,
-      'chat:structuredRole': 'card',
-      cardTypeLabel: 'Probe-Tree Card',
-      probeTreeTypeLabel: 'Probe-Tree Type 2',
-      probeTreeCardVariant: PROBE_TREE_CARD_VARIANTS.boundedMultiSelect,
-      selectionMode: 'multiple',
-      selectionOptions,
-      contextAnchors,
-      probeTreeUserInputAnchors: contextAnchors,
-      allowOther: true,
-      probeTreeResponseMode: 'llm-contract',
-      responseContractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
-      parentNodeId: anchorNodeId,
-      parentGraphNodeId: anchorNodeId,
-      probeTreeCandidateKey: candidateOptionId,
-      probeTreeTool: 'knowgrph.probe.select',
-      nextAction: 'knowgrph.probe.select',
-      summary: question,
-      question,
-      output: '',
-      rationale: readString(option.rationale),
-      evidenceNeeded: readString(option.evidenceNeeded),
-      confidence: 'low',
-      index: `P${index + 1}`,
-      tags: ['probe-tree', 'candidateOption', 'input-derived'],
-    },
-  }
-}).filter(card => Boolean(card.label) && isProbeTreeCardUserInputRelevant({
-  contextText,
-  question: card.properties.question,
-  selectionOptions: card.properties.selectionOptions,
-  contextAnchors: card.properties.contextAnchors,
-}))
-
 const buildPanelMarkdown = (args: {
   anchorNodeId: string
   cards: ChatResponseSurfaceNode[]
   invocationTokens: readonly string[]
   invocationResolutions: readonly ProbeTreeMcpInvocationResolution[]
   mcpInvoked: boolean
-  responseSource: 'provider' | 'mcp' | 'input-derived'
+  responseSource: 'provider' | 'mcp'
   model: string
 }): string => {
   const resolutionByToken = new Map(args.invocationResolutions.map(item => [item.token.toLowerCase(), item]))
@@ -163,12 +118,8 @@ const buildPanelMarkdown = (args: {
     : '(none)'
   const responseMode = args.responseSource === 'provider'
     ? 'provider refinement over the literal MCP result'
-    : args.responseSource === 'mcp'
-      ? 'literal local MCP structured response'
-      : args.mcpInvoked
-        ? 'bounded user-input-derived fallback after response-contract validation'
-        : 'bounded user-input-derived fallback; MCP was unavailable'
-  return [
+    : 'literal local MCP structured response'
+  const body = [
     '# Probe-Tree Branches',
     '',
     `Source node: ${args.anchorNodeId}`,
@@ -192,13 +143,18 @@ const buildPanelMarkdown = (args: {
       ]
     }),
   ].join('\n')
+  return buildRichMediaTextMarkdownDocument({
+    body,
+    title: 'Probe-Tree Branches',
+    sourceContract: KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
+  })
 }
 
 export type StoryboardWidgetProbeTreeStructuredMaterialization = {
   graphData: GraphData
   materializedNodeIds: string[]
   panelOutput: string
-  responseSource: 'provider' | 'mcp' | 'input-derived'
+  responseSource: 'provider' | 'mcp' | 'runtime'
   model: string
 }
 
@@ -207,46 +163,49 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
   anchorNode: GraphNode
   responseText: string
   contextText: string
-  responseSource: 'provider' | 'mcp' | 'input-derived'
+  responseSource: 'provider' | 'mcp'
   model: string
   mcpInvoked: boolean
   threadRootId?: string
   invocationTokens: readonly string[]
   invocationResolutions?: readonly ProbeTreeMcpInvocationResolution[]
-  inputDerivedOptions?: readonly StoryboardWidgetProbeTreeInputDerivedOption[]
 }): StoryboardWidgetProbeTreeStructuredMaterialization | null {
   const graphData = args.graphData
   const anchorNodeId = readNodeId(args.anchorNode)
   if (!graphData || !anchorNodeId) return null
-  const inputDerivedCards = buildInputDerivedCards(args.inputDerivedOptions || [], anchorNodeId, args.contextText)
-  const surface = inputDerivedCards.length >= 2
-    ? null
-    : extractChatResponseStructuredSurface(String(args.responseText || ''))
+  const surface = extractChatResponseStructuredSurface(String(args.responseText || ''))
   const surfaceNodes = surface?.nodes || []
   const sourceWidgets = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'widget')
   const panels = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'panel')
   const responseCards = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'card')
-  const cards = inputDerivedCards.length >= 2
-    ? inputDerivedCards
-    : responseCards.filter(isStructuredProbeCard)
-  if (inputDerivedCards.length < 2 && (
-    sourceWidgets.length !== 1
-    || panels.length !== 1
-    || readString(panels[0]?.label) !== 'Probe-Tree Branches'
+  const sourceEnvelopeAccepted = args.responseSource === 'provider'
+    ? sourceWidgets.length === 0 && panels.length === 0
+    : sourceWidgets.length === 1 && panels.length === 1 && readString(panels[0]?.label) === 'Probe-Tree Branches'
+  if (
+    !sourceEnvelopeAccepted
     || responseCards.length < 2
     || responseCards.length > 4
-    || cards.length !== responseCards.length
-  )) return null
-  if (!cards.every(card => isProbeTreeCardUserInputRelevant({
-    contextText: args.contextText,
-    question: card.properties.question || card.properties.summary || card.label,
-    selectionOptions: card.properties.selectionOptions,
-    contextAnchors: card.properties.contextAnchors || card.properties.probeTreeUserInputAnchors,
-  }))) return null
-  if (!areProbeTreeCardsMutuallyDistinct(cards.map(card => ({
-    question: card.properties.question || card.properties.summary || card.label,
-    selectionOptions: card.properties.selectionOptions,
-  })))) return null
+  ) return null
+  const relevantCards = responseCards.filter(isStructuredProbeCard).map(card => {
+    const question = card.properties.question || card.properties.summary || card.label
+    const contextAnchors = resolveProbeTreeContextAnchors({
+      contextText: args.contextText,
+      question,
+      contextAnchors: card.properties.contextAnchors || card.properties.probeTreeUserInputAnchors,
+    })
+    if (!isProbeTreeCardUserInputRelevant({
+      contextText: args.contextText,
+      question,
+      selectionOptions: card.properties.selectionOptions,
+      contextAnchors,
+    })) return null
+    return {
+      ...card,
+      properties: { ...card.properties, contextAnchors, probeTreeUserInputAnchors: contextAnchors },
+    }
+  }).filter(card => card != null)
+  const cards = selectLargestDistinctProbeCardSet(relevantCards)
+  if (cards.length < 2) return null
 
   const removedNodeIds = collectReplacedProbeTreeNodeIds(graphData, anchorNodeId)
   const retainedNodes = (graphData.nodes || []).filter(node => !removedNodeIds.has(readNodeId(node)))
@@ -274,12 +233,12 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
     return {
       id: nodeId,
       type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-      label: String(card.label || question).trim().slice(0, 160),
+      label: question.slice(0, 160),
       x: typeof previous?.x === 'number' && Number.isFinite(previous.x) ? previous.x : projectedPositions[index]!.x,
       y: typeof previous?.y === 'number' && Number.isFinite(previous.y) ? previous.y : projectedPositions[index]!.y,
       properties: {
         ...card.properties,
-        title: String(card.label || question).trim().slice(0, 160),
+        title: question.slice(0, 160),
         output: '',
         summary: question,
         index: `P${index + 1}`,

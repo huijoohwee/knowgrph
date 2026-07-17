@@ -725,8 +725,8 @@ export default function StoryboardCanvas({
     })
     storyboardRunGraphRef.current = committedGraphData
     setGraphDataPreservingLayout(committedGraphData)
-    void persistStoryboardCardMediaGraphSource(committedGraphData)
-  }, [graphRevision, setGraphDataPreservingLayout])
+    void persistStoryboardCardMediaGraphSource(committedGraphData, { sourceOwner: { documentName: markdownDocumentName, documentText: markdownDocumentText } })
+  }, [graphRevision, markdownDocumentName, markdownDocumentText, setGraphDataPreservingLayout])
   const materializeStoryboardProbeTree = React.useCallback((card: StoryboardCardModel) => invokeProbeTreeFromStoryboardToolbar({
     card,
     graphData: storyboardRunGraphRef.current || storeGraphData || graphData,
@@ -743,7 +743,7 @@ export default function StoryboardCanvas({
       setGraphDataPreservingLayout(nextDraft)
     },
     commitPublishedGraphData: commitStoryboardPublishedGraphData,
-    persistDraftGraphData: async nextGraphData => { await persistStoryboardCardMediaGraphSource(nextGraphData) },
+    persistDraftGraphData: async (nextGraphData, options) => { await persistStoryboardCardMediaGraphSource(nextGraphData, { ...options, sourceOwner: options?.sourceOwner || { documentName: markdownDocumentName, documentText: markdownDocumentText } }) },
     renderGraphDataOverride: graphData,
     markdownDocumentName,
     markdownDocumentSourceUrl: null,
@@ -752,7 +752,7 @@ export default function StoryboardCanvas({
     updateNode,
     upsertUiToast,
     scheduleOverlayEdgeUpdate: () => {},
-  }), [appendStoryboardRunNode, commitStoryboardPublishedGraphData, graphData, markdownDocumentName, setGraphDataPreservingLayout, storyboardRunBaseGraphKind, storeGraphData, updateNode, upsertUiToast, widgetRegistry])
+  }), [appendStoryboardRunNode, commitStoryboardPublishedGraphData, graphData, markdownDocumentName, markdownDocumentText, setGraphDataPreservingLayout, storyboardRunBaseGraphKind, storeGraphData, updateNode, upsertUiToast, widgetRegistry])
   const storyboardKeywordCommandContextText = React.useMemo(() => {
     return collectGraphKeywordTermStats(graphData)
       .map(entry => `#${entry.term}`)

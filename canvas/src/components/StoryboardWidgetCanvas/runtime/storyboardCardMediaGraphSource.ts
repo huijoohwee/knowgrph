@@ -1,31 +1,66 @@
 import { syncActiveMarkdownDocumentTextFromParsedGraph, writeActiveMarkdownDocumentTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
+import {
+  resolveStoryboardCardMediaGraphSourceGraph,
+  resolveStoryboardCardMediaGraphSourceOwner,
+  shouldUpdateStoryboardCardMediaGraphActiveDocument,
+  type StoryboardCardMediaGraphSourceOwner,
+} from './storyboardCardMediaGraphSourceOwner'
 
-export async function persistStoryboardCardMediaGraphSource(graphData: GraphData): Promise<boolean> {
-  const state = useGraphStore.getState()
+export type StoryboardCardMediaGraphPersistenceOptions = {
+  label?: string
+  source?: 'sourceFiles' | 'gitGraph'
+  sourceOwner?: StoryboardCardMediaGraphSourceOwner
+}
+
+export async function persistStoryboardCardMediaGraphSource(graphData: GraphData, options?: StoryboardCardMediaGraphPersistenceOptions): Promise<boolean> {
+  const ownerResolution = resolveStoryboardCardMediaGraphSourceOwner({
+    state: useGraphStore.getState(),
+    sourceOwner: options?.sourceOwner,
+  })
+  const state = ownerResolution.state
+  const sourceGraphData = resolveStoryboardCardMediaGraphSourceGraph({
+    graphData,
+    ownerFile: ownerResolution.ownerFile,
+    ownerText: String(state.markdownDocumentText || ''),
+  })
   const sourceSync = syncActiveMarkdownDocumentTextFromParsedGraph({
     state,
     sourceFiles: state.sourceFiles || [],
-    parsedGraphData: graphData,
+    parsedGraphData: sourceGraphData,
   })
-  if (typeof sourceSync.markdownDocumentText !== 'string') return false
-  useGraphStore.setState(current => ({
+  if (!sourceSync.accepted) return false
+  if (typeof sourceSync.markdownDocumentText !== 'string') return true
+  const persistenceState = {
+    ...state,
     sourceFiles: sourceSync.sourceFiles,
-    markdownDocumentName: sourceSync.markdownDocumentName ?? current.markdownDocumentName,
+    markdownDocumentName: sourceSync.markdownDocumentName ?? state.markdownDocumentName,
     markdownDocumentText: sourceSync.markdownDocumentText,
-    markdownDocumentApplyViewPreset: false,
-    markdownTokens: null,
-    markdownTokensPath: null,
-    markdownTokensKey: null,
-    markdownTokensMeta: null,
-    markdownTokensStartLineOffset: null,
-  }))
+  }
+  useGraphStore.setState(current => {
+    if (!shouldUpdateStoryboardCardMediaGraphActiveDocument({
+      currentDocumentName: current.markdownDocumentName,
+      ownerPath: ownerResolution.ownerPath,
+    })) return { sourceFiles: sourceSync.sourceFiles }
+    return {
+      sourceFiles: sourceSync.sourceFiles,
+      markdownDocumentName: sourceSync.markdownDocumentName ?? current.markdownDocumentName,
+      markdownDocumentText: sourceSync.markdownDocumentText,
+      markdownDocumentApplyViewPreset: false,
+      markdownTokens: null,
+      markdownTokensPath: null,
+      markdownTokensKey: null,
+      markdownTokensMeta: null,
+      markdownTokensStartLineOffset: null,
+    }
+  })
   const persisted = await writeActiveMarkdownDocumentTextIfPresent({
-    state: useGraphStore.getState(),
+    state: persistenceState,
     sourceFiles: sourceSync.sourceFiles,
     text: sourceSync.markdownDocumentText,
-    label: 'Storyboard media graph',
+    label: options?.label || 'Storyboard media graph',
+    source: options?.source,
   })
   if (!persisted) throw new Error('Unable to persist the generated Canvas document to the workspace.')
   return true

@@ -1,6 +1,6 @@
-import { isStoryboardWidgetProbeTreeProviderRefinementApproved, PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY, readStoryboardWidgetProbeTreeInvocationText, resolveStoryboardWidgetProbeTreeInvocationTokenForNode, runStoryboardWidgetProbeTreeMcpInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
+import { readStoryboardWidgetProbeTreeInvocationText, resolveStoryboardWidgetProbeTreeInvocationTokenForNode, runStoryboardWidgetProbeTreeMcpInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
 import { resolveStoryboardWidgetProbeTreeSelectedRunNode } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeRunNode'
-import { buildProbeTreeInputDerivedOptions, buildProbeTreeStructuredResponse, KNOWGRPH_PROBE_TREE_TOOL_NAMES, PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION } from '@/features/agent-ready/probeTreeContract.mjs'
+import { buildProbeTreeStructuredResponse, KNOWGRPH_PROBE_TREE_TOOL_NAMES, PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION } from '@/features/agent-ready/probeTreeContract.mjs'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
@@ -11,16 +11,32 @@ const prompt = [
   'Assess SME cyber and ICT supply-chain risk, current coverage gaps, unresolved unknowns, and the adviser handoff.',
 ].join('\n')
 const mcpContextText = ['Authored request:', prompt, 'Selected Widget id: n1'].join('\n')
-
-export function testProbeTreeProviderRefinementRequiresExplicitCardApproval() {
-  if (isStoryboardWidgetProbeTreeProviderRefinementApproved({})
-    || isStoryboardWidgetProbeTreeProviderRefinementApproved({ [PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY]: false })
-    || isStoryboardWidgetProbeTreeProviderRefinementApproved({ [PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY]: 'true' })
-    || isStoryboardWidgetProbeTreeProviderRefinementApproved({ [PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY]: 1 })
-    || !isStoryboardWidgetProbeTreeProviderRefinementApproved({ [PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY]: true })) {
-    throw new Error('expected Probe-Tree provider refinement to remain disabled unless the card explicitly approves it')
-  }
-}
+const mcpRelevantOptions = [
+  {
+    id: 'mcp-cyber-coverage',
+    text: 'Which SME cyber coverage gaps should guide the next branch?',
+    rationale: 'Clarifies the authored SME cyber coverage request.',
+    evidenceNeeded: 'User-selected SME cyber coverage gap.',
+    selectionOptions: ['SME cyber', 'current coverage gaps'],
+    contextAnchors: ['SME cyber', 'current coverage gaps'],
+  },
+  {
+    id: 'mcp-supply-chain',
+    text: 'Which ICT supply-chain risk should guide the next branch?',
+    rationale: 'Clarifies the authored ICT supply-chain request.',
+    evidenceNeeded: 'User-selected ICT supply-chain risk.',
+    selectionOptions: ['ICT supply-chain risk', 'unresolved unknowns'],
+    contextAnchors: ['ICT supply-chain risk', 'unresolved unknowns'],
+  },
+  {
+    id: 'mcp-adviser-handoff',
+    text: 'Which adviser handoff outcome should guide the next branch?',
+    rationale: 'Clarifies the authored adviser handoff request.',
+    evidenceNeeded: 'User-selected adviser handoff outcome.',
+    selectionOptions: ['adviser handoff outcome', 'adviser handoff sequence'],
+    contextAnchors: ['the adviser handoff', 'SME cyber'],
+  },
+]
 
 const makeGraph = (): GraphData => ({
   type: 'Graph',
@@ -49,10 +65,10 @@ const mcpCallResult = (): Record<string, unknown> => ({
       threadRootId: 'n1',
       currentNodeId: 'n1',
       contextText: mcpContextText,
-      options: buildProbeTreeInputDerivedOptions(mcpContextText),
+      options: mcpRelevantOptions,
     }),
     degraded: false,
-    cost_log: { model: 'probe-tree-input-derived', prompt_tokens: 41, completion_tokens: 96, cache_hits: 0, estimated_cost_usd: 0 },
+    cost_log: { model: 'qwen-local', prompt_tokens: 41, completion_tokens: 96, cache_hits: 0, estimated_cost_usd: 0 },
   },
 })
 
@@ -69,25 +85,23 @@ const bridgeResult = (): ProbeTreeMcpBridgeSuccess => ({
 })
 
 const providerStructuredText = (cards: Array<Record<string, unknown>>): string => [
-  '```yaml',
+  '```json',
   JSON.stringify({
     response: {
       structuredContent: {
         contractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
-        widgets: [{ id: 'n1', label: 'Widget Card', kind: 'text', prompt, output: prompt, probeTreeCurrentNodeId: 'n1' }],
         cards: cards.map((card, index) => ({
-          ...card,
+          id: card.id,
+          question: card.question,
+          rationale: card.rationale,
+          evidenceNeeded: card.evidenceNeeded,
           probeTreeCardVariant: 'probe-tree-type-2',
-          selectionMode: 'multiple',
           selectionOptions: card.selectionOptions || [
             { id: `cyber-${index + 1}`, label: 'SME cyber' },
             { id: `supply-chain-${index + 1}`, label: 'ICT supply-chain risk' },
             { id: `coverage-${index + 1}`, label: 'current coverage gaps' },
           ],
-          contextAnchors: card.contextAnchors || ['SME cyber', 'ICT supply-chain risk', 'current coverage gaps'],
-          allowOther: true,
         })),
-        panels: [{ id: 'provider-probe-tree-branches', label: 'Probe-Tree Branches', kind: 'text', output: '# Probe-Tree Branches' }],
       },
     },
   }, null, 2),
@@ -109,7 +123,6 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     },
     generateProviderResponse: async refinementPrompt => {
       providerPrompt = refinementPrompt
-      // Deliberately duplicate provider output to prove the user-owned answer field is cleared at ingestion.
       return providerStructuredText([
         { id: 'confirm-cyber-coverage', label: 'Which SME cyber coverage gaps should guide the next branch?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'confirm-cyber-coverage', question: 'Which SME cyber coverage gaps should guide the next branch?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored SME cyber scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'sme-cyber', label: 'SME cyber' }, { id: 'coverage-gaps', label: 'current coverage gaps' }], contextAnchors: ['SME cyber', 'current coverage gaps'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
         { id: 'map-supply-chain-risk', label: 'Which ICT supply-chain risk remains unresolved?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'map-supply-chain-risk', question: 'Which ICT supply-chain risk remains unresolved?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored ICT supply-chain scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'supply-chain', label: 'ICT supply-chain risk' }, { id: 'unknowns', label: 'unresolved unknowns' }], contextAnchors: ['ICT supply-chain risk', 'unresolved unknowns'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
@@ -133,9 +146,13 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     || !['/sme-care-agent', '@source.frontmatter', '#runtime-ready', '/knowgrph.probe-tree'].every(token => (mcpRequest!.invocationTokens as string[]).includes(token))
     || !providerPrompt.includes('Literal MCP CallToolResult')
     || !providerPrompt.includes('knowgrph.probe.generate')
-    || !providerPrompt.includes('set output exactly to an empty string')
-    || !providerPrompt.includes('2-6 contextAnchors copied verbatim')
-    || !providerPrompt.includes('Do not emit stock evidence')
+    || !providerPrompt.includes('Do not pre-answer the user-owned multi-selection')
+    || !providerPrompt.includes('Do not emit widgets, panels, edges')
+    || !providerPrompt.includes('source-verbatim contextAnchors')
+    || !providerPrompt.includes('Do not emit contextAnchors')
+    || !providerPrompt.includes('Never copy or paraphrase the selected request as a card question')
+    || !providerPrompt.includes('not as a ready-made selectionOptions array')
+    || !providerPrompt.includes('different request-specific decision variable')
     || !providerPrompt.includes('Never reuse a choice label')
     || cards.length !== 3
     || edges.length !== 3
@@ -143,6 +160,10 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     || cards.some(card => /Clarify probe|Generate branches|Select handoff/i.test(card.label))
     || (finalGraph?.nodes || []).some(node => String(node.id).startsWith('old-'))
     || published?.baseGraphData !== finalGraph
+    || published.srcDoc != null
+    || !published.outputText.startsWith('---\nschema: "knowgrph-rich-media-text/v1"\n')
+    || !published.outputText.includes('\ncontent_type: "text/markdown"\n')
+    || /<!doctype|<html\b/i.test(published.outputText)
     || !published.outputText.includes('SME')
     || !published.outputText.includes('MCP: knowgrph.probe.generate invoked')
   ) {
@@ -220,6 +241,57 @@ export async function testProbeTreeWidgetRunRejectsOverboundedProviderCardsAndUs
   }
 }
 
+export async function testProbeTreeWidgetRunRefusesGenericNoModelFallback() {
+  const authoredRequest = '/knowgrph.probe-tree invest in China, India, SE Asia?'
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'investment-root', type: 'TextGeneration', label: 'Widget Card', properties: { prompt: authoredRequest } }],
+    edges: [],
+  }
+  const contextText = ['Authored request:', authoredRequest, 'Selected Widget id: investment-root'].join('\n')
+  const insufficientResult = {
+    isError: false,
+    content: [{ type: 'text', text: 'No query-specific cards without a configured model.' }],
+    structuredContent: {
+      contractVersion: 'knowgrph-probe-tree/v0.1',
+      ok: false,
+      degraded: true,
+      degraded_reason: 'insufficient_user_input_context',
+      response: buildProbeTreeStructuredResponse({
+        threadRootId: 'investment-root',
+        currentNodeId: 'investment-root',
+        contextText,
+        options: [],
+      }),
+      cost_log: { model: 'none', prompt_tokens: 0, completion_tokens: 0, cache_hits: 0, estimated_cost_usd: 0 },
+    },
+  }
+  let published = false
+  let errorMessage = ''
+  try {
+    await runStoryboardWidgetProbeTreeMcpInvocation({
+      graphForRun: graphData,
+      nodeIds: ['investment-root'],
+      fallbackNode: graphData.nodes[0],
+      invokeMcp: async () => ({ ...bridgeResult(), result: insufficientResult }),
+      onMaterialized: () => undefined,
+      publishOutput: output => {
+        published = true
+        return output.baseGraphData || null
+      },
+    })
+  } catch (error) {
+    errorMessage = error instanceof Error ? error.message : String(error || '')
+  }
+  if (
+    published
+    || !errorMessage.includes('received no accepted 2-4 query-specific LLM cards')
+    || !errorMessage.includes('zero-model MCP path does not synthesize fallback cards')
+  ) {
+    throw new Error(`expected no-model investment clarification to fail closed without publishing canned cards, got ${JSON.stringify({ published, errorMessage })}`)
+  }
+}
+
 export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderContext() {
   const userAnswer = 'Require current policy, regulator, and licensed-adviser evidence for Singapore and Malaysia cyber and supply-chain coverage gaps.'
   const graphData: GraphData = {
@@ -263,7 +335,47 @@ export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderCo
     },
     generateProviderResponse: async promptText => {
       providerPrompt = promptText
-      return null
+      return providerStructuredText([
+        {
+          id: 'country-cyber-coverage',
+          label: 'Which Singapore or Malaysia cyber coverage gap should guide the next branch?',
+          kind: 'text',
+          parentNodeId: 'probe-answer',
+          candidateOptionId: 'country-cyber-coverage',
+          question: 'Which Singapore or Malaysia cyber coverage gap should guide the next branch?',
+          output: '',
+          rationale: 'Uses the selected child country and cyber coverage request.',
+          evidenceNeeded: 'User-selected country coverage gap.',
+          selectionOptions: [
+            { id: 'singapore-cyber', label: 'Singapore cyber coverage gaps' },
+            { id: 'malaysia-cyber', label: 'Malaysia cyber coverage gaps' },
+          ],
+          contextAnchors: ['Singapore', 'Malaysia', 'cyber', 'coverage gaps'],
+          confidence: 'medium',
+          probeTreeDepth: 4,
+          nextAction: 'knowgrph.probe.select',
+        },
+        {
+          id: 'supply-chain-evidence',
+          label: 'Which supply-chain evidence should guide the licensed-adviser review?',
+          kind: 'text',
+          parentNodeId: 'probe-answer',
+          candidateOptionId: 'supply-chain-evidence',
+          question: 'Which supply-chain evidence should guide the licensed-adviser review?',
+          output: '',
+          rationale: 'Uses the selected child evidence and adviser request.',
+          evidenceNeeded: 'User-selected evidence source.',
+          selectionOptions: [
+            { id: 'current-policy', label: 'current policy evidence' },
+            { id: 'regulator', label: 'regulator evidence' },
+            { id: 'licensed-adviser', label: 'licensed-adviser evidence' },
+          ],
+          contextAnchors: ['supply-chain', 'current policy', 'regulator', 'licensed-adviser evidence'],
+          confidence: 'medium',
+          probeTreeDepth: 4,
+          nextAction: 'knowgrph.probe.select',
+        },
+      ])
     },
     onMaterialized: () => undefined,
     publishOutput: output => output.baseGraphData || null,
@@ -284,7 +396,7 @@ export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderCo
     || mcpRequest?.probeTreeDepth !== 4
     || mcpRequest?.recallTopK !== 0
     || !providerPrompt.includes(userAnswer)
-    || !providerPrompt.includes('set every probeTreeDepth to 4')
+    || !providerPrompt.includes('depth 4')
     || childCards.length < 2
     || childCards.some(card => card.properties.parentNodeId !== 'probe-answer')
     || childCards.some(card => card.properties.probeTreeThreadRootId !== 'probe-root')
@@ -316,8 +428,8 @@ export function testProbeTreeContinuationMetadataRoutesWithoutVisibleSlashToken(
   }
 }
 
-export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() {
-  const userAnswer = 'Compare selected Singapore cyber exclusions across policy wording, endorsed schedule, adviser review, and coverage gap.'
+export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesDeliverable() {
+  const userAnswer = 'Generate report on China investment in SE Asia in USD trillion'
   const typedCell = (key: string, type: string, value: unknown) => ({ key, type, value })
   const rootNode: GraphNode = {
     id: 'probe-root',
@@ -328,7 +440,7 @@ export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() 
   const selectedChild: GraphNode = {
     id: typedCell('id', 'string', 'probe-child') as unknown as string,
     type: typedCell('type', 'string', 'TextGeneration') as unknown as string,
-    label: typedCell('label', 'string', 'Which Singapore cyber exclusions remain?') as unknown as string,
+    label: typedCell('label', 'string', 'What report should be generated?') as unknown as string,
     x: 520,
     y: 180,
     properties: typedCell('properties', 'object', {
@@ -337,7 +449,7 @@ export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() 
       probeTreeThreadRootId: 'probe-root',
       probeTreeDepth: 2,
       parentNodeId: 'probe-root',
-      summary: 'Which Singapore cyber exclusions remain?',
+      summary: 'What report should be generated?',
       output: userAnswer,
     }) as unknown as GraphNode['properties'],
   }
@@ -356,44 +468,52 @@ export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() 
     candidates: [staleChildAlias, selectedChild],
   })
   const rootAliasGraph: GraphData = { type: 'Graph', nodes: [rootNode, staleChildAlias], edges: [] }
-  let mcpRequest: Record<string, unknown> | null = null
+  let mcpCalls = 0
   let providerPrompt = ''
+  let publishedOutput: Record<string, unknown> | null = null
   const result = await runStoryboardWidgetProbeTreeMcpInvocation({
     graphForRun: rootAliasGraph,
     nodeIds: ['probe-root', 'probe-child'],
     fallbackNode: selectedRunNode,
-    invokeMcp: async request => {
-      mcpRequest = request as unknown as Record<string, unknown>
-      throw new Error('exercise selected-child fallback')
+    invokeMcp: async () => {
+      mcpCalls += 1
+      throw new Error('terminal generation must not invoke Probe-Tree MCP')
     },
     generateProviderResponse: async promptText => {
       providerPrompt = promptText
-      return null
+      return '# Generated deliverable\n\nThe requested report is now the terminal output.'
     },
     onMaterialized: () => undefined,
-    publishOutput: output => output.baseGraphData || null,
+    publishOutput: output => {
+      publishedOutput = output as unknown as Record<string, unknown>
+      return output.baseGraphData || null
+    },
   })
   const nodes = result?.graphData.nodes || []
   const persistedChild = nodes.find(node => String(unwrapGraphCellValue(node.id) || '') === 'probe-child')
   const continuationCards = nodes.filter(node => node.properties.parentNodeId === 'probe-child')
+  const publishedText = String(publishedOutput?.outputText || '')
   if (
-    mcpRequest?.currentNodeId !== 'probe-child'
-    || mcpRequest?.threadRootId !== 'probe-root'
-    || mcpRequest?.recallTopK !== 0
-    || !String(mcpRequest?.contextText || '').startsWith(`Authored request:\n${userAnswer}`)
-    || !String(mcpRequest?.contextText || '').includes('Selected continuation question: Which Singapore cyber exclusions remain?')
-    || !String(mcpRequest?.contextText || '').includes(`Selected continuation answer: ${userAnswer}`)
-    || !String(mcpRequest?.contextText || '').includes('Probe lineage context: probe-root: question=/knowgrph.probe-tree Assess the root SME risk scope.')
-    || !providerPrompt.includes('selected child card and its user-authored output own the next topic')
-    || !providerPrompt.includes('suggested clarification answers')
+    mcpCalls !== 0
+    || !providerPrompt.includes(userAnswer)
+    || !providerPrompt.includes('Do not ask a clarification question, emit Probe-Tree cards, or continue Probe-Tree.')
+    || !providerPrompt.includes('Do not substitute a canned, fixture-backed, or use-case-specific hardcoded response.')
     || !persistedChild
-    || persistedChild.properties.summary !== 'Which Singapore cyber exclusions remain?'
+    || persistedChild.properties.summary !== 'What report should be generated?'
     || persistedChild.properties.output !== userAnswer
     || String(persistedChild.label) === 'Root writeback alias'
-    || continuationCards.length < 2
-    || continuationCards.some(node => node.properties.probeTreeDepth !== 3)
+    || continuationCards.length !== 0
+    || result?.mcpInvoked !== false
+    || result?.providerAccepted !== true
+    || result?.materializedNodeIds.length !== 0
+    || !result?.message.includes('without continuing Probe-Tree')
+    || publishedOutput?.panelLabel !== 'Generated Result'
+    || publishedOutput?.outputKey !== 'probe-tree-generated-result'
+    || !publishedText.startsWith('---\nschema: "knowgrph-rich-media-text/v1"\n')
+    || !publishedText.includes('# Generated deliverable')
+    || /<!doctype|<html\b/i.test(publishedText)
   ) {
-    throw new Error(`expected selected child to own continuation while root remains lineage only, got ${JSON.stringify({ mcpRequest, providerPrompt, nodes })}`)
+    throw new Error(`expected imperative generation to publish the deliverable without continuing Probe-Tree, got ${JSON.stringify({ mcpCalls, providerPrompt, publishedOutput, result, nodes })}`)
   }
 }
 

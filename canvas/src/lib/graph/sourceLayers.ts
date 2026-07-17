@@ -387,3 +387,103 @@ export function composeGraphFromSourceLayers(args: {
     orderKey,
   }
 }
+
+const COMPOSED_ENTITY_METADATA_KEYS = ['sourceLayerId', 'sourceLayerLabel', 'documentPath', 'documentUrl'] as const
+
+function readComposedEntityLayerId(entity: GraphNode | GraphEdge): string {
+  const metadata = readRecord((entity as { metadata?: unknown }).metadata)
+  const explicitLayerId = String(metadata.sourceLayerId || '').trim()
+  if (explicitLayerId) return explicitLayerId
+  const id = String(entity.id || '').trim()
+  const separatorIndex = id.indexOf('::')
+  return separatorIndex > 0 ? id.slice(0, separatorIndex).trim() : ''
+}
+
+function projectComposedEntityId(rawId: unknown, layerId: string): string {
+  const id = String(rawId || '').trim()
+  if (!id) return ''
+  const separatorIndex = id.indexOf('::')
+  if (separatorIndex <= 0) return id
+  if (id.slice(0, separatorIndex).trim() !== layerId) return ''
+  return id.slice(separatorIndex + 2).trim()
+}
+
+function restoreSourceEntityMetadata<T extends GraphNode | GraphEdge>(
+  entity: T,
+  original: T | null,
+): T {
+  const currentMetadata = readRecord((entity as { metadata?: unknown }).metadata)
+  const originalMetadata = readRecord((original as { metadata?: unknown } | null)?.metadata)
+  if (Object.keys(currentMetadata).length === 0) return entity
+  const metadata = { ...currentMetadata }
+  for (const key of COMPOSED_ENTITY_METADATA_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(originalMetadata, key)) metadata[key] = originalMetadata[key]
+    else delete metadata[key]
+  }
+  return {
+    ...entity,
+    ...(Object.keys(metadata).length > 0 ? { metadata: metadata as T['metadata'] } : { metadata: undefined }),
+  }
+}
+
+/**
+ * Projects an aggregate source-layer graph back to one writable document.
+ * Scoped entities from other documents are excluded; unscoped entities are
+ * retained because they were authored after composition and belong to the
+ * active publication transaction.
+ */
+export function projectComposedGraphToSourceLayer(args: {
+  graphData: GraphData
+  layer: SourceLayerInput
+}): GraphData {
+  const graphMetadata = readSourceLayerGraphMetadata(args.graphData)
+  if (String(graphMetadata.sourceLayerComposition || '').trim() !== 'compose') return args.graphData
+  const layerId = String(args.layer.id || '').trim()
+  if (!layerId) return args.graphData
+
+  const sourceGraph = args.layer.parsedGraphData || { type: 'Graph', nodes: [], edges: [], metadata: {} }
+  const originalNodesById = new Map((sourceGraph.nodes || []).map(node => [String(node.id || '').trim(), node] as const))
+  const projectedNodes: GraphNode[] = []
+  const includedNodeIds = new Set<string>()
+  for (const node of args.graphData.nodes || []) {
+    const entityLayerId = readComposedEntityLayerId(node)
+    if (entityLayerId && entityLayerId !== layerId) continue
+    const projectedId = projectComposedEntityId(node.id, layerId)
+    if (!projectedId || includedNodeIds.has(projectedId)) continue
+    includedNodeIds.add(projectedId)
+    projectedNodes.push(restoreSourceEntityMetadata(
+      { ...node, id: projectedId },
+      originalNodesById.get(projectedId) || null,
+    ))
+  }
+
+  const originalEdgesById = new Map((sourceGraph.edges || []).map(edge => [String(edge.id || '').trim(), edge] as const))
+  const projectedEdges: GraphEdge[] = []
+  const includedEdgeIds = new Set<string>()
+  for (const edge of args.graphData.edges || []) {
+    const entityLayerId = readComposedEntityLayerId(edge)
+    if (entityLayerId && entityLayerId !== layerId) continue
+    const projectedId = projectComposedEntityId(edge.id, layerId)
+    const source = projectComposedEntityId(edge.source, layerId)
+    const target = projectComposedEntityId(edge.target, layerId)
+    if (!projectedId || includedEdgeIds.has(projectedId) || !includedNodeIds.has(source) || !includedNodeIds.has(target)) continue
+    includedEdgeIds.add(projectedId)
+    projectedEdges.push(restoreSourceEntityMetadata(
+      { ...edge, id: projectedId, source, target },
+      originalEdgesById.get(projectedId) || null,
+    ))
+  }
+
+  const sourceMetadata = readSourceLayerGraphMetadata(sourceGraph)
+  const graphDataRevision = graphMetadata.graphDataRevision
+  return {
+    ...sourceGraph,
+    type: sourceGraph.type || args.graphData.type || 'Graph',
+    nodes: projectedNodes,
+    edges: projectedEdges,
+    metadata: {
+      ...sourceMetadata,
+      ...(typeof graphDataRevision === 'number' && Number.isFinite(graphDataRevision) ? { graphDataRevision } : {}),
+    } as GraphData['metadata'],
+  }
+}

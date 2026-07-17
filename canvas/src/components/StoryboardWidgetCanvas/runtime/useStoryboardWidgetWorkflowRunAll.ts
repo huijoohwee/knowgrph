@@ -11,6 +11,8 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { FLOW_RUN_ALL_PHASES } from '@/lib/storyboardWidget/runAllSequenceSsot'
 import { getCachedStoryboardWidgetWorkflowRunPlan } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import type { StoryboardWidgetWorkflowNodeRunner } from './storyboardWidgetWorkflowRunTypes'
+import { isStoryboardWidgetProbeTreeLineageOnlyRootNode } from './storyboardWidgetProbeTreeRunNode'
 
 const waitForRunAllLayoutReleaseFrame = async (): Promise<void> => {
   if (typeof requestAnimationFrame !== 'function') return
@@ -53,7 +55,7 @@ export function useStoryboardWidgetWorkflowRunAll(args: {
   draftGraphDataRef: React.MutableRefObject<GraphData | null>
   setDraftGraphData: React.Dispatch<React.SetStateAction<GraphData | null>>
   upsertUiToast: (args: UiToastInput) => void
-  runWorkflowNode: (nodeId: string, runOptions?: { allowCreateRichMediaPanel?: boolean; suppressLayoutMutation?: boolean; visitedNodeIds?: Set<string>; propagateErrors?: boolean; requireDurableMediaPersistence?: boolean }) => Promise<void>
+  runWorkflowNode: StoryboardWidgetWorkflowNodeRunner
   scheduleOutputEdgeRefresh: () => void
 }) {
   const runWorkflowAllInFlightRef = React.useRef(false)
@@ -103,7 +105,10 @@ export function useStoryboardWidgetWorkflowRunAll(args: {
         graphRevision: readGraphDataRevision(draft),
         preferCurrentGraphDataRefs: true,
       })
-      const ids = runPlan?.orderedNodeIds || []
+      const ids = (runPlan?.orderedNodeIds || []).filter(nodeId => {
+        const node = resolveGraphNodeByCanonicalId(draft, nodeId)
+        return !node || !isStoryboardWidgetProbeTreeLineageOnlyRootNode(draft, node)
+      })
       if (ids.length === 0) {
         upsertRunAllStatus({ phase: 'error', message: 'No runnable workflow nodes found.' }, {
           kind: 'neutral', message: 'No runnable workflow nodes found.', ttlMs: 2400,
@@ -138,6 +143,10 @@ export function useStoryboardWidgetWorkflowRunAll(args: {
           suppressLayoutMutation: true,
           propagateErrors: true,
           requireDurableMediaPersistence: detail.source === 'chat',
+          sourcePersistence: {
+            label: `${detail.source === 'chat' ? 'Chat Run All' : 'Run All'} ${index + 1}/${ids.length}: ${label}`,
+            source: 'gitGraph',
+          },
         })
         const completedMessage = `Run All completed ${index + 1}/${ids.length}: ${label}`
         upsertRunAllStatus({ phase: 'completed', message: completedMessage, current: index + 1, total: ids.length, nodeId, label }, {

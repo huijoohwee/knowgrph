@@ -21,6 +21,7 @@ import { getMarkdownWorkspaceActionBridge } from '@/features/markdown-explorer/w
 import { importUrlFallback } from '@/features/toolbar/launchDropdownFallbacks'
 import { importStrybldrRunAllSource } from '@/features/strybldr/strybldrRunAllSourceImport'
 import { createStrybldrLocalVideoArtifactFromGraphData } from '@/features/strybldr/strybldrVideoHandoffArtifact'
+import { isStrybldrStoryboardGraphData } from '@/features/strybldr/strybldrStoryboard'
 import { getDeferredInstallPrompt, promptPwaInstall } from '@/lib/pwa/runtime'
 import { setRunAllLayoutMutationLock } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowRunAll'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
@@ -87,10 +88,12 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
   const [isInstallable, setIsInstallable] = useState(() => getDeferredInstallPrompt() !== null);
   const canRunAll = supportsToolbarRunAll(canvas2dRenderer)
   const canResetAll = canvas2dRenderer === 'storyboard'
-  const strybldrRunAllGraphData = useActiveGraphRenderData(canRunAll && canvas2dRenderer === 'storyboard')
+  const toolbarRunAllGraphData = useActiveGraphRenderData(canRunAll && canvas2dRenderer === 'storyboard')
+  const shouldRouteToStrybldrRunAll = canvas2dRenderer === 'storyboard'
+    && isStrybldrStoryboardGraphData(toolbarRunAllGraphData || useGraphStore.getState().graphData)
   const [strybldrToolbarRunAllRunning, setStrybldrToolbarRunAllRunning] = useState(false)
   const primeStoryboardWidgetRunAllLayoutLockFromToolbar = React.useCallback(() => {
-    if (canvas2dRenderer !== 'storyboard') return
+    if (canvas2dRenderer !== 'storyboard' || shouldRouteToStrybldrRunAll) return
     const state = useGraphStore.getState()
     disableAutoZoomModesForUserGesture({
       viewPinned: state.viewPinned,
@@ -100,12 +103,12 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
       setZoomToSelectionMode: state.setZoomToSelectionMode,
     })
     setRunAllLayoutMutationLock(true)
-  }, [canvas2dRenderer])
+  }, [canvas2dRenderer, shouldRouteToStrybldrRunAll])
   const runStrybldrToolbarRunAll = React.useCallback(async () => {
     if (strybldrToolbarRunAllRunning) return
     setStrybldrToolbarRunAllRunning(true)
     try {
-      const graphData = strybldrRunAllGraphData || useGraphStore.getState().graphData
+      const graphData = toolbarRunAllGraphData || useGraphStore.getState().graphData
       const workspaceBridge = getMarkdownWorkspaceActionBridge()
       const sourceImport = await importStrybldrRunAllSource({
         graphData,
@@ -146,7 +149,7 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
     } finally {
       setStrybldrToolbarRunAllRunning(false)
     }
-  }, [pushUiToast, strybldrRunAllGraphData, strybldrToolbarRunAllRunning])
+  }, [pushUiToast, toolbarRunAllGraphData, strybldrToolbarRunAllRunning])
 
   useEffect(() => {
     const root = document.documentElement
@@ -325,11 +328,11 @@ export default function Toolbar({ onZoomSelection }: ToolbarProps) {
             pushUiToast({ id: 'toolbar-run-all-disabled', kind: 'neutral', message: 'Open Storyboard to run all.', ttlMs: 2200 })
             return
           }
-          if (canvas2dRenderer === 'storyboard') {
-            primeStoryboardWidgetRunAllLayoutLockFromToolbar()
+          if (shouldRouteToStrybldrRunAll) {
             void runStrybldrToolbarRunAll()
             return
           }
+          primeStoryboardWidgetRunAllLayoutLockFromToolbar()
           emitToolbarRunAll()
         }}
         showTooltip

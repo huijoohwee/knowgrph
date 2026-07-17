@@ -42,6 +42,8 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
   const workspaceOutputText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'chatHistoryWorkspace.output.ts'), 'utf8')
   const sharedWorkspaceWriteText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'chatWorkspaceFsWrite.ts'), 'utf8')
   const graphSourceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardCardMediaGraphSource.ts'), 'utf8')
+  const graphSourceOwnerText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardCardMediaGraphSourceOwner.ts'), 'utf8')
+  const sourceLayersText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'graph', 'sourceLayers.ts'), 'utf8')
   const graphFlowSyncText = readFileSync(resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataFrontmatterFlowSync.ts'), 'utf8')
   const graphSourceWriteQueueText = readFileSync(resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'workspaceSourceTextWriteQueue.ts'), 'utf8')
   const workflowRunText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
@@ -61,7 +63,14 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
     throw new Error('generated binary artifacts must expose a path only after the host persistence endpoint succeeds')
   }
   if (!graphSourceText.includes('export async function persistStoryboardCardMediaGraphSource')
+    || !graphSourceText.includes('resolveStoryboardCardMediaGraphSourceOwner({')
+    || !graphSourceText.includes('resolveStoryboardCardMediaGraphSourceGraph({')
+    || !graphSourceOwnerText.includes('projectComposedGraphToSourceLayer({')
+    || !sourceLayersText.includes('export function projectComposedGraphToSourceLayer(args: {')
+    || !graphSourceText.includes('shouldUpdateStoryboardCardMediaGraphActiveDocument({')
     || !graphSourceText.includes('const persisted = await writeActiveMarkdownDocumentTextIfPresent({')
+    || !graphSourceText.includes('if (!sourceSync.accepted) return false')
+    || !graphSourceText.includes("if (typeof sourceSync.markdownDocumentText !== 'string') return true")
     || !graphSourceText.includes('markdownDocumentApplyViewPreset: false')
     || !graphSourceText.includes('if (!persisted) throw new Error(')) {
     throw new Error('expected generated Canvas documents to persist without treating same-document graph publication as a viewport-resetting document switch')
@@ -71,13 +80,15 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
     || !graphSourceWriteQueueText.includes('pendingWorkspaceSourceTextWrites.set(workspacePath, next)')) {
     throw new Error('expected shared Canvas document writes to serialize by workspace path and preserve generation order')
   }
-  if (!workflowRunTypesText.includes('persistDraftGraphData: (graphData: GraphData) => void | Promise<void>')
-    || !workflowRunText.includes('await args.persistDraftGraphData(durableGraph)')) {
+  if (!workflowRunTypesText.includes('options?: StoryboardCardMediaGraphPersistenceOptions')
+    || !workflowRunText.includes('await args.persistDraftGraphData(durableGraph, runOptions?.sourcePersistence)')) {
     throw new Error('expected every workflow generator to await the required shared graph-document persistence contract')
   }
   if (!canvasRuntimeText.includes('useStoryboardCardMediaGraphCommit({')
-    || !graphCommitText.includes('const commit = React.useCallback(async (graphData: GraphData) => {')
-    || !graphCommitText.includes('await persistStoryboardCardMediaGraphSource(nextDraft)')) {
-    throw new Error('expected the Canvas runtime persistence adapter to return the durable document commit promise')
+    || !canvasRuntimeText.includes('sourceOwner: { documentName: markdownDocumentName, documentText: markdownDocumentText }')
+    || !canvasRuntimeText.includes('commitPublishedGraphData: publishStoryboardCardMediaGraph')
+    || !graphCommitText.includes('const publish = React.useCallback((graphData: GraphData): GraphData => {')
+    || !graphCommitText.includes('sourceOwner: options?.sourceOwner || sourceOwner')) {
+    throw new Error('expected live graph publication to stay synchronous while the Canvas persistence adapter returns the durable document commit promise')
   }
 }
