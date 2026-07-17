@@ -181,10 +181,49 @@ export function areProbeTreeCardsMutuallyDistinct(cards) {
   return true;
 }
 
+const normalizeProbeTreeKeywordStem = value => {
+  const word = String(value || "").toLowerCase();
+  if (!/^[a-z][a-z0-9]*$/.test(word) || word.length < 5) return word;
+  for (const suffix of ["ations", "ation", "ments", "ment", "ings", "ing", "ed", "es", "s"]) {
+    if (word.endsWith(suffix) && word.length - suffix.length >= 4) return word.slice(0, -suffix.length);
+  }
+  return word;
+};
+
+const collectProbeTreeComparableStems = value => new Set(
+  (String(value || "").toLowerCase().match(/[a-z][a-z0-9]*/g) || []).map(normalizeProbeTreeKeywordStem),
+);
+
 const matchedContextKeywords = (contextKeywords, value) => {
   const text = String(value || "").toLowerCase();
-  return contextKeywords.filter(keyword => new RegExp(`(^|[^a-z0-9-])${buildProbeTreeKeywordPattern(keyword)}([^a-z0-9-]|$)`, "i").test(text));
+  const comparableStems = collectProbeTreeComparableStems(text);
+  return contextKeywords.filter(keyword => (
+    new RegExp(`(^|[^a-z0-9-])${buildProbeTreeKeywordPattern(keyword)}([^a-z0-9-]|$)`, "i").test(text)
+    || (!keyword.includes("-") && comparableStems.has(normalizeProbeTreeKeywordStem(keyword)))
+  ));
 };
+
+const findProbeTreeSourceAnchor = (groundingText, keyword) => {
+  const sourceText = cleanProbeTreeResponseText(groundingText, 12_000);
+  const match = new RegExp(`(^|[^a-z0-9-])(${buildProbeTreeKeywordPattern(keyword)})(?=[^a-z0-9-]|$)`, "i").exec(sourceText);
+  if (!match) return "";
+  const keywordStart = match.index + String(match[1] || "").length;
+  const uppercasePrefix = sourceText.slice(Math.max(0, keywordStart - 8), keywordStart).match(/\b[A-Z]{2,5}\s+$/)?.[0] || "";
+  return cleanProbeTreeResponseText(`${uppercasePrefix}${match[2]}`, 240);
+};
+
+export function resolveProbeTreeContextAnchors({ contextText, question, contextAnchors } = {}) {
+  const groundingInput = extractProbeTreeGroundingText(contextText);
+  const normalizedInput = cleanProbeTreeResponseText(groundingInput, 12_000).toLowerCase();
+  const providedAnchors = normalizeProbeTreeContextAnchors(contextAnchors)
+    .filter(anchor => normalizedInput.includes(anchor.toLowerCase()));
+  const contextKeywords = collectProbeTreeContextKeywords(groundingInput, 96)
+    .filter(keyword => !PROBE_TREE_RUNTIME_META_WORDS.has(keyword));
+  const derivedAnchors = matchedContextKeywords(contextKeywords, question)
+    .map(keyword => findProbeTreeSourceAnchor(groundingInput, keyword))
+    .filter(Boolean);
+  return normalizeProbeTreeContextAnchors([...providedAnchors, ...derivedAnchors]);
+}
 
 const normalizeProbeTreeComparableText = value => cleanProbeTreeResponseText(value, 8_000)
   .toLowerCase()
@@ -226,7 +265,7 @@ export function isProbeTreeCardUserInputRelevant({ contextText, question, select
   const continuationAnswer = readContextMarker(contextText, "Selected continuation answer");
   const groundingInput = extractProbeTreeGroundingText(contextText);
   const normalizedInput = cleanProbeTreeResponseText(groundingInput, 12_000).toLowerCase();
-  const anchors = normalizeProbeTreeContextAnchors(contextAnchors);
+  const anchors = resolveProbeTreeContextAnchors({ contextText, question, contextAnchors });
   const options = normalizeProbeTreeSelectionOptions(selectionOptions);
   if (
     !normalizedInput
@@ -239,7 +278,6 @@ export function isProbeTreeCardUserInputRelevant({ contextText, question, select
     || options.some(option => GENERIC_CLARIFICATION_CHOICE_PATTERN.test(option.label))
     || !areProbeTreeContinuationChoicesSuggested({ contextText, question, selectionOptions: options })
   ) return false;
-  if (anchors.some(anchor => !normalizedInput.includes(anchor.toLowerCase()))) return false;
   const contextKeywords = collectProbeTreeContextKeywords(groundingInput, 96).filter(keyword => !PROBE_TREE_RUNTIME_META_WORDS.has(keyword));
   if (contextKeywords.length < 2) return false;
   const questionMatches = new Set(matchedContextKeywords(contextKeywords, question));

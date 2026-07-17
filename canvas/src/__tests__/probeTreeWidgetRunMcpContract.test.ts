@@ -101,7 +101,6 @@ const providerStructuredText = (cards: Array<Record<string, unknown>>): string =
             { id: `supply-chain-${index + 1}`, label: 'ICT supply-chain risk' },
             { id: `coverage-${index + 1}`, label: 'current coverage gaps' },
           ],
-          contextAnchors: card.contextAnchors || ['SME cyber', 'ICT supply-chain risk', 'current coverage gaps'],
         })),
       },
     },
@@ -149,7 +148,8 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     || !providerPrompt.includes('knowgrph.probe.generate')
     || !providerPrompt.includes('Do not pre-answer the user-owned multi-selection')
     || !providerPrompt.includes('Do not emit widgets, panels, edges')
-    || !providerPrompt.includes('2-6 contextAnchors copied verbatim')
+    || !providerPrompt.includes('source-verbatim contextAnchors')
+    || !providerPrompt.includes('Do not emit contextAnchors')
     || !providerPrompt.includes('Never copy or paraphrase the selected request as a card question')
     || !providerPrompt.includes('not as a ready-made selectionOptions array')
     || !providerPrompt.includes('different request-specific decision variable')

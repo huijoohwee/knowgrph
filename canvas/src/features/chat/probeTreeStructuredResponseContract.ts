@@ -39,14 +39,15 @@ export function buildProbeTreeCardMaterializationPrompt(userQuery: string): stri
     '- Accept a literal MCP result at result.structuredContent.response.structuredContent; otherwise produce the same response.structuredContent shape without claiming that a tool ran.',
     '- Return 2-4 concrete, context-specific next questions; do not emit generic process cards such as "Clarify probe", "Generate branches", or "Select handoff".',
     '- Reject every canned wrapper: scope/priority/constraint over the whole query, pairwise relationship questions, evidence/decision-basis/deliverable templates, and choices such as compare current evidence, resolve the dependency, or choose the decision order. Ask only about concrete missing parameters that materially change this request.',
-    '- Never copy or paraphrase the active request as a card question. Each question must introduce a concrete missing decision variable and reuse at least two substantive request terms.',
+    '- Never copy or paraphrase the active request as a card question. Each question must introduce a concrete missing decision variable while keeping the request subject and named entities intact; conservative morphological variants are allowed.',
     '- Treat named entities and alternatives already supplied by the user as subjects to clarify, not as a ready-made answer list. Suggested answers may introduce plausible user preferences for the missing variable but must not assert invented facts.',
     '- A selected or active imperative generation request (for example a request beginning with generate, create, draft, or produce) is terminal: fulfill the requested deliverable through normal generation, do not emit Probe-Tree cards, and do not continue Probe-Tree. This rule takes precedence over the card contract below.',
     '- The local no-model MCP path never synthesizes clarification cards or restates the source query. Widget Run sends the selected context and literal MCP result to the configured chat LLM; if no configured model yields 2-4 distinct cards, fail closed as insufficient context.',
     '- Give every card a different request-specific decision variable; reject reused choice labels, repeated selection sets, and subset or superset variants of another card.',
     '- Make every selectionOptions item a suggested clarification answer to its card question; never split the focus phrase into bare word fragments.',
     '- For a provider-authored response, include one fenced JSON block rooted at `response.structuredContent` with `contractVersion` and only 2-4 records in `response.structuredContent.cards`; the runtime owns the source Widget, Rich Media ledger, edges, lineage ids, depth, selection mode, Other, and empty user Output.',
-    '- Each provider card must include id, question, rationale, evidenceNeeded, probeTreeCardVariant: probe-tree-type-2, 2-4 concise string selectionOptions, and 2-6 contextAnchors copied verbatim from the user input. Do not emit widgets, panels, edges, parentNodeId, candidateOptionId, probeTreeDepth, selectionMode, allowOther, nextAction, or output.',
+    '- Each provider card must include only id, question, rationale, evidenceNeeded, probeTreeCardVariant: probe-tree-type-2, and 2-4 concise string selectionOptions. The runtime derives source-verbatim contextAnchors from semantic overlap between each accepted question and the selected user input.',
+    '- Mention the request subject plus at least one named entity or distinctive request term in every question. Do not emit contextAnchors. Do not emit widgets, panels, edges, parentNodeId, candidateOptionId, probeTreeDepth, selectionMode, allowOther, nextAction, or output.',
     '- A literal MCP result retains its complete source Widget, cards, Rich Media ledger, and edge envelope; the runtime validates that envelope but never asks the configured provider to reproduce it.',
     `- Put the model-generated probe question in question so the card renders it as Summary; the runtime derives bounded depth at or below ${KNOWGRPH_PROBE_TREE_MAX_DEPTH}, leaves output empty for the user-owned selection, and makes every numbered choice a concise answer to that card's question.`,
     '- On continuation, the selected child card and its committed multi-selection own the next topic. The runtime persists that commitment through knowgrph.probe.select; the provider must not emit the action. Use preceding cards only as lineage context and never substitute the thread root or a same-id root alias.',
@@ -63,7 +64,6 @@ export function isProbeTreeStructuredResponseCard(
   if (!readFirstString(record, ['question'])) return false
   if (readFirstString(record, ['probeTreeCardVariant']) !== PROBE_TREE_CARD_VARIANTS.boundedMultiSelect) return false
   if (normalizeProbeTreeSelectionOptions(readFieldValue(record, 'selectionOptions')).length < 2) return false
-  if (normalizeProbeTreeContextAnchors(readFieldValue(record, 'contextAnchors')).length < 2) return false
   if (!readFirstString(record, ['rationale'])) return false
   if (!readFirstString(record, ['evidenceNeeded', 'evidence_needed'])) return false
   return true

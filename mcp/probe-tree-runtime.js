@@ -8,8 +8,8 @@ import {
   PROBE_TREE_DEFAULTS,
   buildProbeTreeStructuredResponse,
   isProbeTreeCardUserInputRelevant,
-  normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
+  resolveProbeTreeContextAnchors,
 } from "../canvas/src/features/agent-ready/probeTreeContract.mjs";
 import {
   addMemoryLayerMemory,
@@ -198,7 +198,11 @@ const buildOptions = ({ contextText, generatedOptions = [], k }) => {
     const text = normalizeString(candidate.text);
     if (!text || seen.has(text.toLowerCase())) continue;
     const selectionOptions = normalizeProbeTreeSelectionOptions(candidate.selectionOptions);
-    const contextAnchors = normalizeProbeTreeContextAnchors(candidate.contextAnchors);
+    const contextAnchors = resolveProbeTreeContextAnchors({
+      contextText,
+      question: text,
+      contextAnchors: candidate.contextAnchors,
+    });
     if (!isProbeTreeCardUserInputRelevant({ contextText, question: text, selectionOptions, contextAnchors })) continue;
     seen.add(text.toLowerCase());
     options.push({

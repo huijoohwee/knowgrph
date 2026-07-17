@@ -9,8 +9,8 @@ import {
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
   areProbeTreeCardsMutuallyDistinct,
   isProbeTreeCardUserInputRelevant,
-  normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
+  resolveProbeTreeContextAnchors,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import type { ProbeTreeMcpInvocationResolution } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import { resolveStoryboardWidgetProbeTreeBranchPositions } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
@@ -68,7 +68,6 @@ const isStructuredProbeCard = (node: ChatResponseSurfaceNode): boolean => (
   && node.properties.probeTreeCardVariant === PROBE_TREE_CARD_VARIANTS.boundedMultiSelect
   && node.properties.selectionMode === 'multiple'
   && normalizeProbeTreeSelectionOptions(node.properties.selectionOptions).length >= 2
-  && normalizeProbeTreeContextAnchors(node.properties.contextAnchors || node.properties.probeTreeUserInputAnchors).length >= 2
   && node.properties.allowOther === true
   && !GENERIC_PROBE_CARD_PATTERN.test(String(node.label || '').trim())
 )
@@ -187,12 +186,24 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
     || responseCards.length < 2
     || responseCards.length > 4
   ) return null
-  const relevantCards = responseCards.filter(isStructuredProbeCard).filter(card => isProbeTreeCardUserInputRelevant({
-    contextText: args.contextText,
-    question: card.properties.question || card.properties.summary || card.label,
-    selectionOptions: card.properties.selectionOptions,
-    contextAnchors: card.properties.contextAnchors || card.properties.probeTreeUserInputAnchors,
-  }))
+  const relevantCards = responseCards.filter(isStructuredProbeCard).map(card => {
+    const question = card.properties.question || card.properties.summary || card.label
+    const contextAnchors = resolveProbeTreeContextAnchors({
+      contextText: args.contextText,
+      question,
+      contextAnchors: card.properties.contextAnchors || card.properties.probeTreeUserInputAnchors,
+    })
+    if (!isProbeTreeCardUserInputRelevant({
+      contextText: args.contextText,
+      question,
+      selectionOptions: card.properties.selectionOptions,
+      contextAnchors,
+    })) return null
+    return {
+      ...card,
+      properties: { ...card.properties, contextAnchors, probeTreeUserInputAnchors: contextAnchors },
+    }
+  }).filter(card => card != null)
   const cards = selectLargestDistinctProbeCardSet(relevantCards)
   if (cards.length < 2) return null
 
