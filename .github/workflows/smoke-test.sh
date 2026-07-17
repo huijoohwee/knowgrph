@@ -6,7 +6,7 @@ npm run smoke:prepare
 # Release readiness excludes the operator-owned x402 wallet gate while the
 # default agent-ready check continues to enforce it for commerce readiness.
 for attempt in 1 2 3 4 5; do
-  if KNOWGRPH_AGENT_READY_BASE_URL="${KNOWGRPH_AGENT_READY_BASE_URL:-https://airvio.co/knowgrph}" \
+  if KNOWGRPH_AGENT_READY_BASE_URL="${KNOWGRPH_AGENT_READY_BASE_URL:-https://joohwee.pages.dev/knowgrph}" \
     KNOWGRPH_AGENT_READY_INCLUDE_X402=false \
     npm run agent-ready:check; then
     exit 0
