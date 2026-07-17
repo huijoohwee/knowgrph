@@ -13,7 +13,7 @@ export type XrSceneMediaDragProjection = Readonly<{
   label: string
   description?: string
   category?: string
-  motion?: 'travel' | 'hold'
+  transition?: 'linear' | 'hold'
 }>
 
 export type MediaDragPayload = {
@@ -135,7 +135,7 @@ export function normalizeXrSceneMediaDragProjection(value: unknown): XrSceneMedi
   if (schema !== XR_SCENE_MEDIA_DRAG_SCHEMA) return undefined
   if (entityKind !== 'environment' && entityKind !== 'asset') return undefined
   if (!entityId || !label) return undefined
-  const motion = normalizeText(record.motion)
+  const transition = normalizeText(record.transition)
   return {
     schema: XR_SCENE_MEDIA_DRAG_SCHEMA,
     entityKind,
@@ -143,7 +143,7 @@ export function normalizeXrSceneMediaDragProjection(value: unknown): XrSceneMedi
     label,
     description: normalizeText(record.description) || undefined,
     category: normalizeText(record.category) || undefined,
-    motion: motion === 'hold' || motion === 'travel' ? motion : undefined,
+    transition: transition === 'hold' || transition === 'linear' ? transition : undefined,
   }
 }
 

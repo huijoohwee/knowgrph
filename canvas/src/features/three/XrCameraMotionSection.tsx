@@ -9,12 +9,10 @@ import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
   XR_MOTION_REFERENCE_STAGE_PRESETS,
   serializeXrMotionReferencePlan,
-  xrMotionReferenceSceneKey,
   type XrMotionReferenceStageId,
 } from './xrMotionReferenceModel'
 import { buildXrMotionReferencePackage, xrMotionReferencePackageBlob, xrMotionReferencePackageFilename } from './xrMotionReferencePackage'
 import {
-  hydrateXrMotionReferenceRuntime,
   markXrMotionReferenceSaved,
   readXrMotionReferenceRuntime,
   setXrMotionReferenceDuration,
@@ -65,16 +63,6 @@ export function XrCameraMotionSection() {
     && String(markdownDocumentText || '').trim(),
   )
   const graphData = documentLoaded ? activeGraphData || rawGraphData : null
-  // Render from the composed graph, but hydrate persisted choreography from the
-  // canonical document graph. Composed render data can lag a metadata-only write
-  // by one render when XR Mode and Timeline are opened together.
-  const persistedValue = rawGraphData
-    ? rawGraphData.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]
-    : graphData?.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]
-  const sceneKey = React.useMemo(
-    () => xrMotionReferenceSceneKey(markdownDocumentName || 'Untitled', graphData),
-    [graphData, markdownDocumentName],
-  )
   const sourceProfile = React.useMemo(
     () => resolveXrPanelSourceProfile(markdownDocumentText || ''),
     [markdownDocumentText],
@@ -84,15 +72,6 @@ export function XrCameraMotionSection() {
     () => buildXrMotionReferenceTimelineCode(runtime.plan),
     [runtime.plan],
   )
-
-  React.useEffect(() => {
-    if (!xrActive) return
-    hydrateXrMotionReferenceRuntime({
-      sceneKey,
-      nodes: graphData?.nodes || [],
-      persistedValue,
-    })
-  }, [graphData?.nodes, persistedValue, sceneKey, xrActive])
 
   React.useEffect(() => {
     if (!xrActive) return

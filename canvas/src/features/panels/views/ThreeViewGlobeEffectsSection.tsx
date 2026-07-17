@@ -66,16 +66,6 @@ export default function ThreeViewGlobeEffectsSection({
           onChange={next => setThreeConfig({ globeLabelBackfaceCulling: next })}
           checkboxClassName={selectionControlClassName}
         />
-        <PanelKeyTypeRangeValueRow
-          density="compact"
-          keyNode={<span className={keyLabelClassName}>Auto Rotate Speed</span>}
-          min={0}
-          max={0.4}
-          step={0.01}
-          value={Number(schema.three?.globeAutoRotateSpeed ?? 0.08)}
-          onChange={next => setThreeConfig({ globeAutoRotateSpeed: next })}
-          valueNode={<span className={valueTextClassName}>{String(schema.three?.globeAutoRotateSpeed ?? 0.08)}</span>}
-        />
         <PanelKeyTypeCheckboxValueRow
           density="compact"
           keyNode={<span className={keyLabelClassName}>Hub Orbit</span>}

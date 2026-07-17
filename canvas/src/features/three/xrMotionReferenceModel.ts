@@ -6,6 +6,13 @@ import {
   type StrybldrCameraSettings,
 } from '@/features/strybldr/strybldrCamera'
 import {
+  buildXrAnimationActionPath,
+  isXrAnimationPresetId,
+  resolveXrAnimationPreset,
+  xrAnimationPresetCompatible,
+  type XrAnimationAssignment,
+} from '@/features/three/xrAnimationCatalog'
+import {
   XR_MOTION_REFERENCE_STAGE_PRESETS,
   isXrSceneLibraryAssetId,
   resolveXrMotionReferenceStage,
@@ -45,6 +52,7 @@ export type XrMotionReferenceCastTrack = Readonly<{
   actorId: string
   label: string
   color: string
+  animation: XrAnimationAssignment | null
   marks: readonly XrMotionReferenceMark[]
 }>
 
@@ -184,6 +192,29 @@ function normalizeTransition(value: unknown): XrMotionReferenceTransition {
   return value === 'hold' ? 'hold' : 'linear'
 }
 
+function normalizeAnimationAssignment(
+  value: unknown,
+  durationSeconds: number,
+  subject: XrMotionReferenceSubject | null,
+): XrAnimationAssignment | null {
+  const record = asRecord(value)
+  if (!isXrAnimationPresetId(record.presetId)) return null
+  const preset = resolveXrAnimationPreset(record.presetId)
+  if (!xrAnimationPresetCompatible({
+    preset,
+    assetId: subject?.assetId,
+    category: subject?.category,
+    graphActor: !subject,
+  })) return null
+  const timing = {
+    startTimeSeconds: normalizeTime(record.startTimeSeconds, durationSeconds),
+    loop: typeof record.loop === 'boolean' ? record.loop : preset.loop,
+  }
+  return preset.kind === 'action-path'
+    ? Object.freeze({ ...timing, kind: preset.kind, presetId: preset.id })
+    : Object.freeze({ ...timing, kind: preset.kind, presetId: preset.id })
+}
+
 function normalizeCameraRig(value: unknown): XrMotionReferenceCameraRig {
   const normalized = String(value || '').trim().toLowerCase()
   return XR_MOTION_REFERENCE_CAMERA_RIGS.includes(normalized as XrMotionReferenceCameraRig)
@@ -273,7 +304,7 @@ function resolveCast(
   nodes: readonly GraphNode[],
   value: unknown,
   durationSeconds: number,
-  preservedActorIds: ReadonlySet<string>,
+  subjects: readonly XrMotionReferenceSubject[],
 ): readonly XrMotionReferenceCastTrack[] {
   const savedRecords = (Array.isArray(value) ? value : [])
     .map(item => asRecord(item))
@@ -286,15 +317,17 @@ function resolveCast(
   const graphActorIds = new Set(graphActors.map(actor => actor.actorId))
   const savedActors = savedRecords
     .map(saved => ({ actorId: String(saved.actorId || '').trim(), label: String(saved.label || '').trim() }))
-    .filter(actor => actor.actorId && !graphActorIds.has(actor.actorId) && preservedActorIds.has(actor.actorId))
+    .filter(actor => actor.actorId && !graphActorIds.has(actor.actorId) && subjects.some(subject => subject.id === actor.actorId))
   return Object.freeze([...graphActors, ...savedActors].slice(0, XR_MOTION_REFERENCE_MAX_CAST_TRACKS).map((actor, index) => {
     const actorId = actor.actorId || `actor-${index + 1}`
     const saved = savedById.get(actorId) || {}
     const fallbackPosition = defaultActorPosition(index)
+    const subject = subjects.find(candidate => candidate.id === actorId) || null
     return Object.freeze({
       actorId,
       label: String(actor.label || saved.label || actorId).trim().slice(0, 80) || actorId,
       color: CAST_COLORS[index % CAST_COLORS.length],
+      animation: normalizeAnimationAssignment(saved.animation, durationSeconds, subject),
       marks: normalizeMarks(saved.marks, actorId, durationSeconds, fallbackPosition),
     })
   }))
@@ -325,12 +358,27 @@ function normalizeSubjects(value: unknown): readonly XrMotionReferenceSubject[] 
 
 export function readXrMotionReferencePlan(value: unknown, nodes: readonly GraphNode[] = []): XrMotionReferencePlan {
   const record = asRecord(value)
+  const stageId = normalizeStageId(record.stageId)
   const durationSeconds = normalizeDuration(record.durationSeconds)
   const subjects = normalizeSubjects(record.subjects)
-  const cast = resolveCast(nodes, record.cast, durationSeconds, new Set(subjects.map(subject => subject.id)))
+  const sourceCast = resolveCast(nodes, record.cast, durationSeconds, subjects)
+  const stage = resolveXrMotionReferenceStage(stageId)
+  const cast = Object.freeze(sourceCast.map(track => {
+    if (track.animation?.kind !== 'action-path') return track
+    const marks = buildXrAnimationActionPath({
+      presetId: track.animation.presetId,
+      durationSeconds,
+      origin: track.marks[0]?.position || [0, 0, 0],
+      stageSizeMeters: stage.sizeMeters,
+    })
+    return Object.freeze({
+      ...track,
+      marks: normalizeMarks(marks, track.actorId, durationSeconds, marks[0]?.position || [0, 0, 0]),
+    })
+  }))
   return Object.freeze({
     schema: XR_MOTION_REFERENCE_SCHEMA,
-    stageId: normalizeStageId(record.stageId),
+    stageId,
     durationSeconds,
     fps: normalizeFps(record.fps),
     subjects,
@@ -340,7 +388,13 @@ export function readXrMotionReferencePlan(value: unknown, nodes: readonly GraphN
 }
 
 export function xrMotionReferenceSceneKey(documentName: string, graphData: GraphData | null): string {
-  return `${String(documentName || 'Untitled')}|${graphData?.type || 'Graph'}`
+  const metadata = graphData?.metadata && typeof graphData.metadata === 'object' && !Array.isArray(graphData.metadata)
+    ? graphData.metadata as Record<string, unknown>
+    : {}
+  const sourceIdentity = ['documentId', 'graphId', 'canonicalPath', 'documentPath', 'sourcePath', 'source']
+    .map(key => String(metadata[key] || '').trim())
+    .find(Boolean) || 'local'
+  return `${String(documentName || 'Untitled')}|${graphData?.type || 'Graph'}|${sourceIdentity}`
 }
 
 export function serializeXrMotionReferencePlan(plan: XrMotionReferencePlan): JSONValue {
@@ -361,6 +415,12 @@ export function serializeXrMotionReferencePlan(plan: XrMotionReferencePlan): JSO
     cast: plan.cast.map(track => ({
       actorId: track.actorId,
       label: track.label,
+      animation: track.animation ? {
+        kind: track.animation.kind,
+        presetId: track.animation.presetId,
+        startTimeSeconds: track.animation.startTimeSeconds,
+        loop: track.animation.loop,
+      } : null,
       marks: track.marks.map(mark => ({
         timeSeconds: mark.timeSeconds,
         position: [...mark.position],
@@ -405,6 +465,27 @@ export function sampleXrMotionReferenceMarks(marks: readonly XrMotionReferenceMa
     return interpolateVector(left.position, right.position, clamp((timeSeconds - left.timeSeconds) / span, 0, 1))
   }
   return last.position
+}
+
+export function sampleXrMotionReferenceFacingY(
+  marks: readonly XrMotionReferenceMark[],
+  timeSeconds: number,
+): number {
+  if (marks.length < 2) return 0
+  let rightIndex = marks.findIndex(mark => mark.timeSeconds > timeSeconds)
+  if (rightIndex < 0) rightIndex = marks.length - 1
+  if (rightIndex === 0) rightIndex = 1
+  let leftIndex = rightIndex - 1
+  while (leftIndex >= 0 && rightIndex < marks.length) {
+    const left = marks[leftIndex]!
+    const right = marks[rightIndex]!
+    const deltaX = right.position[0] - left.position[0]
+    const deltaZ = right.position[2] - left.position[2]
+    if (Math.hypot(deltaX, deltaZ) > 0.001) return Math.atan2(deltaX, deltaZ)
+    if (rightIndex < marks.length - 1) rightIndex += 1
+    else leftIndex -= 1
+  }
+  return 0
 }
 
 export function sampleXrMotionReferenceCameraPose(marks: readonly XrMotionReferenceCameraMark[], timeSeconds: number): CameraFramingPose | null {

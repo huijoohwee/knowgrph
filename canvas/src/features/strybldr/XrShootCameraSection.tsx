@@ -21,13 +21,13 @@ import {
 } from '@/features/three/xrMotionReferenceModel'
 import {
   readXrMotionReferenceRuntime,
-  selectXrMotionReferenceActor,
   setXrMotionReferenceCameraMark,
   setXrMotionReferenceCameraRig,
   setXrMotionReferenceCastMarkArmed,
   subscribeXrMotionReferenceRuntime,
   toggleXrMotionReferenceCastMarkArmed,
 } from '@/features/three/xrMotionReferenceRuntime'
+import { readBoundXrSelectedActorId, selectBoundXrActor } from '@/features/three/xrSelectedActorBinding'
 
 const RIG_LABELS: Readonly<Record<XrMotionReferenceCameraRig, string>> = {
   dolly: 'Dolly',
@@ -44,18 +44,22 @@ function isTextEditingTarget(target: EventTarget | null): boolean {
 }
 
 export function XrShootCameraSection() {
-  const { xrActive, pushUiToast } = useGraphStore(useShallow(state => ({
+  const { xrActive, pushUiToast, selectedNodeId, timelinePlaying } = useGraphStore(useShallow(state => ({
     xrActive: state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr',
     pushUiToast: state.pushUiToast,
+    selectedNodeId: state.selectedNodeId,
+    timelinePlaying: state.timelineTransportPlaying,
   })))
   const runtime = React.useSyncExternalStore(
     subscribeXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
   )
-  const selectedTrack = runtime.plan.cast.find(track => track.actorId === runtime.selectedActorId)
+  const selectedActorId = React.useMemo(() => readBoundXrSelectedActorId(), [runtime, selectedNodeId])
+  const selectedTrack = runtime.plan.cast.find(track => track.actorId === selectedActorId)
     || runtime.plan.cast[0]
     || null
+  const cameraPlaybackActive = xrActive && timelinePlaying && runtime.plan.camera.length > 0
   const framing = React.useSyncExternalStore(
     subscribeCameraFramingRuntime,
     readCameraFramingRuntime,
@@ -78,13 +82,13 @@ export function XrShootCameraSection() {
   }, [runtime.castMarkArmed, selectedTrack, xrActive])
 
   const publishActorFraming = React.useCallback((settingsValue: unknown) => {
-    if (!selectedTrack) return
+    if (!selectedTrack || cameraPlaybackActive) return
     publishCameraFramingRuntime({
       anchorId: selectedTrack.actorId,
       settings: readStrybldrCameraSettings(settingsValue),
       source: 'panel',
     })
-  }, [selectedTrack])
+  }, [cameraPlaybackActive, selectedTrack])
 
   const autoFrameMedium = React.useCallback(() => {
     if (!selectedTrack) return
@@ -141,7 +145,7 @@ export function XrShootCameraSection() {
           aria-label="SHOOT actor"
           value={selectedTrack?.actorId || ''}
           disabled={!selectedTrack}
-          onChange={event => selectXrMotionReferenceActor(event.target.value)}
+          onChange={event => selectBoundXrActor(event.target.value)}
           data-kg-xr-shoot-actor="1"
         >
           {runtime.plan.cast.length
@@ -188,6 +192,7 @@ export function XrShootCameraSection() {
             max={STRYBLDR_CAMERA_MAX_FOCAL_LENGTH_MM}
             step={1}
             value={framing.settings.focalLengthMm}
+            disabled={cameraPlaybackActive}
             onChange={event => publishActorFraming({ ...readCameraFramingRuntime().settings, focalLengthMm: Number(event.target.value) })}
             data-kg-xr-shoot-lens="1"
           />
@@ -195,10 +200,10 @@ export function XrShootCameraSection() {
       </section>
 
       <section className="grid grid-cols-2 gap-2">
-        <button type="button" className="App-toolbar__btn font-bold" disabled={!selectedTrack} onClick={autoFrameMedium} data-kg-xr-shoot-medium-shot="1">
+        <button type="button" className="App-toolbar__btn font-bold" disabled={!selectedTrack || cameraPlaybackActive} onClick={autoFrameMedium} data-kg-xr-shoot-medium-shot="1">
           MS · Medium shot
         </button>
-        <button type="button" className="App-toolbar__btn flex items-center justify-center gap-1 font-bold" disabled={!selectedTrack} onClick={dropCameraMark} data-kg-xr-shoot-camera-mark="1">
+        <button type="button" className="App-toolbar__btn flex items-center justify-center gap-1 font-bold" disabled={!selectedTrack || cameraPlaybackActive} onClick={dropCameraMark} data-kg-xr-shoot-camera-mark="1">
           <Video className="size-3.5" aria-hidden />
           Drop camera mark
         </button>

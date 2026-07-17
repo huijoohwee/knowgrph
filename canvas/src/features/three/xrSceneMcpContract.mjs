@@ -8,31 +8,18 @@ export const XR_SCENE_WEB_MCP_TOOL_IDS = Object.freeze({
 export const XR_SCENE_INVOCATION_COMMANDS = Object.freeze({
   stage: '/xr.stage',
   place: '/xr.place',
-  animate: '/xr.animate',
   label: '/xr.label',
   remove: '/xr.remove',
 })
 
-export const XR_SCENE_MOTION_TOKENS = Object.freeze({
-  travel: '#travel',
-  hold: '#hold',
-})
-
 const cleanTarget = value => String(value || '').trim().replace(/^@+/, '')
-const cleanMotion = value => String(value || '').trim().replace(/^#+/, '') === 'hold' ? 'hold' : 'travel'
+const cleanTransition = value => String(value || '').trim() === 'hold' ? 'hold' : 'linear'
 
 export const buildXrStageInvocation = stageId => (
   `${XR_SCENE_INVOCATION_COMMANDS.stage} @${cleanTarget(stageId)}`
 )
 
-export const buildXrPlaceInvocation = (assetId, motion = 'travel') => {
+export const buildXrPlaceInvocation = (assetId, transition = 'linear') => {
   const target = `@${cleanTarget(assetId)}`
-  const motionToken = XR_SCENE_MOTION_TOKENS[cleanMotion(motion)]
-  return `${XR_SCENE_INVOCATION_COMMANDS.place} ${target} ${motionToken}`
-}
-
-export const buildXrAnimateInvocation = (subjectId, motion = 'travel') => {
-  const target = `@${cleanTarget(subjectId)}`
-  const motionToken = XR_SCENE_MOTION_TOKENS[cleanMotion(motion)]
-  return `${XR_SCENE_INVOCATION_COMMANDS.animate} ${target} ${motionToken}`
+  return `${XR_SCENE_INVOCATION_COMMANDS.place} ${target} transition=${cleanTransition(transition)}`
 }

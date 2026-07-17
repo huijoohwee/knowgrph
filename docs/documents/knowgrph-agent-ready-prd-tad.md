@@ -56,8 +56,8 @@ The active work is therefore not "add the first agent-ready surface." The active
 
 - keep deployed discovery owned upstream in `knowgrph`
 - keep `/knowgrph/` as the canonical service homepage for agent discovery
-- preserve the shipped read-only Pages MCP and browser WebMCP contracts as the truthful
-  implementation baseline
+- preserve the shipped seven-tool read-only Pages MCP contract and the app-installed browser
+  WebMCP contract with 23 inspectors/reads plus three guarded browser-local controls
 - publish DNS-AID service-binding records under `_agents.airvio.co` so agent discovery can start
   from DNS before falling through to HTTP `.well-known` artifacts
 - keep crawler-visible Markdown reads pinned to the published D1-backed Source Files and doc-view
@@ -128,7 +128,8 @@ Knowgrph must:
   under the Cloudflare-managed `airvio.co` zone
 - keep HTML as the default human response on `/knowgrph/`
 - return Markdown for agent requests on `/knowgrph/` when `Accept: text/markdown`
-- expose read-only WebMCP and HTTP MCP tools that resolve to real storage-backed documents
+- expose seven read-only published HTTP/HTML MCP tools, plus bounded app-installed browser tools
+  that inspect or explicitly control only the open local Camera, Animation, and XR scene runtimes
 - keep the default published workspace readable without requiring a caller-supplied `workspaceId`
 - keep MainPanel `mcp` and MainPanel `integrations` aligned to the same upstream settings and chat
   routing owners instead of diverging into duplicate surfaces
@@ -145,7 +146,7 @@ Knowgrph must:
 
 Knowgrph does not currently aim to:
 
-- expose write-capable browser or HTTP MCP tools
+- expose write-capable published HTTP/HTML MCP tools or unbounded browser mutation tools
 - expose the user's unsaved local browser draft directly as a deployed Cloudflare document
 - move full Knowgrph route ownership or app identity onto the apex homepage `https://airvio.co/`
 - introduce a second agent-ready implementation path outside `knowgrph`
@@ -164,7 +165,7 @@ Knowgrph does not currently aim to:
 | Markdown negotiation on shared published docs | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/workers/knowgrph-storage/wrangler.toml` + `scripts/sync-pages-knowgrph.mjs` | Pages server-side shared-doc and MCP storage reads use the storage worker `workers.dev` origin to avoid custom-domain self-fetch rewrites |
 | Knowgrph health endpoint | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | App-scoped route stays the canonical status surface |
 | A2A Agent Card | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Card advertises current machine interfaces; it does not imply a full new task runtime |
-| Browser WebMCP tool registration | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | App runtime installs seventeen read-only tools, including browser-local MainPanel, chat, workspace, canvas, 3d, 2d viewport, and Source Files snapshot inspectors |
+| Browser WebMCP tool registration | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | App runtime installs 26 tools: 23 read-only retrieval/inspection tools plus guarded `control_local_camera`, `control_local_animation`, and `control_local_xr_scene` mutations of the open browser-local runtime |
 | Browser WebMCP lifecycle hardening | Implemented | `canvas/src/features/agent-ready/webMcpLifecycle.mjs` + `canvas/src/features/agent-ready/webMcpRuntime.ts` | Runtime and fallback expose `provideContext`, `registerTool`, readable `tools`, and paired `document.modelContext`/`navigator.modelContext` late binding; contexts with both APIs receive one canonical `provideContext({ tools })` publication instead of duplicate registration |
 | Browser-local workspace document inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/hooks/useGraphStore.ts` | Exposed only in the app-installed browser runtime; not part of the shared deployed Pages HTTP/HTML tool contract |
 | Browser-local canvas topology inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/localCanvasTopologyInspection.ts` | Reuses active-view derivation and graph-topology helpers in the app runtime only; not part of the shared deployed Pages HTTP/HTML tool contract |
@@ -173,7 +174,7 @@ Knowgrph does not currently aim to:
 | Browser-local 3d layout-position inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/localThreeLayoutPositionsInspection.ts` | Reuses the store-owned 3d layout-position seam in the app runtime only, with a bounded sampled payload; not part of the shared deployed Pages HTTP/HTML tool contract |
 | Browser-local 2d zoom/viewport inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/local2dZoomViewportInspection.ts` | Reuses the keyed 2d zoom-state seam in the app runtime only, with renderer-aware active-view key resolution; not part of the shared deployed Pages HTTP/HTML tool contract |
 | Browser-local Source Files snapshot inspector | Implemented | `canvas/src/features/agent-ready/webMcpRuntime.ts` + `canvas/src/features/agent-ready/localSourceFilesSnapshotInspection.ts` | Reuses the in-memory Source Files runtime snapshot, active workspace path, and existing composition/storage signatures in the app runtime only; not part of the shared deployed Pages HTTP/HTML tool contract |
-| HTML fallback WebMCP injection | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/pages/root-agent-ready-index.mjs` | Inline fallback stays contract-equal with the shared published tool contract; root `/` no longer meta-refreshes during scanner execution and external WebMCP scan passes with five unique published tools |
+| HTML fallback WebMCP injection | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` + `cloudflare/pages/root-agent-ready-index.mjs` | Inline fallback stays contract-equal with the seven-tool read-only published contract; root `/` no longer meta-refreshes during scanner execution |
 | HTTP MCP transport | Implemented | `cloudflare/pages/knowgrph-agent-ready.mjs` | Tool surface is read-only only, by design |
 | Shared tool-schema contract | Implemented | `canvas/src/features/agent-ready/knowgrphAgentReadyToolContract.mjs` | Future published tools must extend this shared upstream contract; browser-only tools may opt in explicitly without leaking into Pages MCP |
 | MainPanel Integrations hub | Implemented | `canvas/src/features/panels/MainPanel.tsx` + `canvas/src/features/panels/views/IntegrationsHubView.tsx` + `canvas/src/features/panels/views/SettingsView.tsx` | Integrations is a thin `SettingsView` specialization, not a second routing owner |

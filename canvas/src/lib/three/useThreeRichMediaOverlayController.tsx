@@ -34,6 +34,7 @@ import {
   createThreeMediaOverlayLayoutScratch,
   updateThreeMediaOverlayLayout,
 } from './threeRichMediaOverlayLayout'
+import { commitCameraFramingCanvasPose } from '@/features/three/cameraFramingControlsRuntime'
 
 type StoreSlice = {
   renderMediaAsNodes: boolean
@@ -532,12 +533,17 @@ export function useThreeRichMediaOverlayController(args: {
           onOverlayPan={({ pointerId, dx, dy, shiftKey }) => {
             const st = overlayPanRef.current
             if (!st || st.pointerId !== pointerId) return
-            useGraphStore.getState().restoreThreeCameraPose(computeThreeCameraPoseAfterOverlayPan({
+            const nextPose = computeThreeCameraPoseAfterOverlayPan({
               pose: st.pose,
               dxClientPx: dx,
               dyClientPx: dy,
               shiftKey: shiftKey === true,
-            }))
+            })
+            useGraphStore.getState().restoreThreeCameraPose(nextPose)
+            commitCameraFramingCanvasPose({
+              position: [nextPose.position.x, nextPose.position.y, nextPose.position.z],
+              target: [nextPose.target.x, nextPose.target.y, nextPose.target.z],
+            })
           }}
           onOverlayPanEnd={({ pointerId }) => {
             const st = overlayPanRef.current

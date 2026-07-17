@@ -56,8 +56,6 @@ export const threePresetCatalog: ThreePresetCatalogEntry[] = [
       cameraRotateSpeed: 0.4,
       cameraZoomSpeed: 0.7,
       cameraPanSpeed: 0.4,
-      cameraAutoRotate: true,
-      cameraAutoRotateSpeed: 0.18,
       nodeSizingFormula: 'schema',
       edgeWidthFormula: 'schema',
       selection: {
@@ -98,8 +96,6 @@ export const threePresetCatalog: ThreePresetCatalogEntry[] = [
       cameraRotateSpeed: 0.3,
       cameraZoomSpeed: 0.6,
       cameraPanSpeed: 0.35,
-      cameraAutoRotate: true,
-      cameraAutoRotateSpeed: 0.12,
       nodeSizingFormula: 'schema',
       edgeWidthFormula: 'schema',
       selection: {
@@ -130,8 +126,6 @@ export const threePresetCatalog: ThreePresetCatalogEntry[] = [
       cameraRotateSpeed: 0.38,
       cameraZoomSpeed: 0.65,
       cameraPanSpeed: 0.45,
-      cameraAutoRotate: false,
-      cameraAutoRotateSpeed: 0.0,
       selection: {
         selectedNodeGlowIntensity: 1.15,
         dimmedNodeOpacity: 0.32,
@@ -165,8 +159,6 @@ export const threePresetCatalog: ThreePresetCatalogEntry[] = [
       cameraRotateSpeed: 0.45,
       cameraZoomSpeed: 0.75,
       cameraPanSpeed: 0.5,
-      cameraAutoRotate: false,
-      cameraAutoRotateSpeed: 0.0,
       nodeSizingFormula: 'importance',
       edgeWidthFormula: 'weight',
       layerOpacityByLayer: {
@@ -207,8 +199,6 @@ export const threePresetCatalog: ThreePresetCatalogEntry[] = [
       cameraRotateSpeed: 0.35,
       cameraZoomSpeed: 0.6,
       cameraPanSpeed: 0.45,
-      cameraAutoRotate: false,
-      cameraAutoRotateSpeed: 0.0,
       nodeSizingFormula: 'schema',
       edgeWidthFormula: 'schema',
       selection: {
@@ -244,8 +234,6 @@ export const threePresetCatalog: ThreePresetCatalogEntry[] = [
       cameraRotateSpeed: 0.38,
       cameraZoomSpeed: 0.65,
       cameraPanSpeed: 0.45,
-      cameraAutoRotate: false,
-      cameraAutoRotateSpeed: 0.0,
       nodeSizingFormula: 'importance',
       edgeWidthFormula: 'weight',
       layerOpacityByLayer: {

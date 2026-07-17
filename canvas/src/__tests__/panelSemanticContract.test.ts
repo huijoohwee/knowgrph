@@ -1536,14 +1536,22 @@ export const testFloatingPanelRemovesDesignLayersViewAfterWorkflowManagerConsoli
   if (!text.includes("floatingPanelView === 'media'") || !text.includes('<MediaCatalogPanelLazy />')) {
     throw new Error('Expected FloatingPanel to render the Media view')
   }
-  if (!iconLibraryText.includes('floatingPanel.media') || !iconLibraryText.includes('media: \'floatingPanel.media\'')) {
-    throw new Error('Expected FloatingPanel icon SSOT to include Media')
+  const mediaViewIndex = text.indexOf("view: 'media'")
+  const animationViewIndex = text.indexOf("view: 'animation'")
+  const cameraViewIndex = text.indexOf("view: 'camera'")
+  if (!(mediaViewIndex >= 0 && mediaViewIndex < animationViewIndex && animationViewIndex < cameraViewIndex)
+    || !text.includes("floatingPanelView === 'animation'")
+    || !text.includes('<XrAnimationFloatingPanelViewLazy />')) {
+    throw new Error('Expected FloatingPanel Animation immediately after Media and before Camera with a lazy first-class render branch')
   }
-  if (!floatingPanelTypesText.includes("| 'media'")) {
-    throw new Error('Expected FloatingPanel view type to include Media')
+  if (!iconLibraryText.includes('floatingPanel.media') || !iconLibraryText.includes('media: \'floatingPanel.media\'') || !iconLibraryText.includes('floatingPanel.animation') || !iconLibraryText.includes('animation: \'floatingPanel.animation\'')) {
+    throw new Error('Expected FloatingPanel icon SSOT to include Media and Animation')
   }
-  if (!uiSliceInitialStateText.includes("view === 'media'")) {
-    throw new Error('Expected FloatingPanel view setter whitelist to accept Media')
+  if (!floatingPanelTypesText.includes("| 'media'") || !floatingPanelTypesText.includes("| 'animation'")) {
+    throw new Error('Expected FloatingPanel view type to include Media and Animation')
+  }
+  if (!uiSliceInitialStateText.includes("view === 'media'") || !uiSliceInitialStateText.includes("view === 'animation'")) {
+    throw new Error('Expected FloatingPanel view setter whitelist to accept Media and Animation')
   }
   if (!helpSectionsText.includes('<HelpCommandMenuSection') || !helpCommandMenuSectionText.includes('<CommandMenuReferenceCatalog')) {
     throw new Error('Expected MainPanel Help to own the shared Command Menu reference catalog section')

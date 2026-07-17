@@ -26,6 +26,8 @@ const agentReadyFeatureSource = filename => path.resolve(knowgrphRoot, 'canvas',
 const agentReadyFeatureTarget = filename => path.resolve(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'agent-ready', filename)
 const xrSceneMcpContractSource = path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'three', 'xrSceneMcpContract.mjs')
 const xrSceneMcpContractTarget = path.resolve(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'three', 'xrSceneMcpContract.mjs')
+const xrAnimationMcpContractSource = path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'three', 'xrAnimationMcpContract.mjs')
+const xrAnimationMcpContractTarget = path.resolve(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'three', 'xrAnimationMcpContract.mjs')
 const youtubeTranscriptFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'youtube-transcript.mjs')
 const youtubeTranscriptFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', '__youtube_transcript.js')
 const videoFrameFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'video-frame.mjs')
@@ -383,7 +385,7 @@ const fileExists = async (filePath) => {
 const agentReadyRuntimeCopies = [
   [agentReadyCommerceSource, agentReadyCommerceTarget], [agentReadyAppShellSource, agentReadyAppShellTarget],
   [semanticKeyContractSource, semanticKeyContractTarget],
-  [xrSceneMcpContractSource, xrSceneMcpContractTarget], [path.resolve(knowgrphRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs'), path.resolve(githubRoot, 'huijoohwee/canvas/src/features/strybldr/cameraMcpContract.mjs')],
+  [xrSceneMcpContractSource, xrSceneMcpContractTarget], [xrAnimationMcpContractSource, xrAnimationMcpContractTarget], [path.resolve(knowgrphRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs'), path.resolve(githubRoot, 'huijoohwee/canvas/src/features/strybldr/cameraMcpContract.mjs')],
   ...['mcpAppsContractText.mjs', 'mcpAppsOnboarding.mjs', 'probeTreeUserInputRelevance.mjs'].map(filename => [agentReadyFeatureSource(filename), agentReadyFeatureTarget(filename)]),
   ...(await collectGrphSharedRuntimeCopies(agentReadyRuntimeSharedEntries)),
 ]

@@ -66,8 +66,8 @@ kgCanvas2dRenderer: "Storyboard"
 }
 
 export const testMarkdownFrontmatterNormalizesXrSurfaceAlias = () => {
-  if (readFloatingPanelViewPreset('camera') !== 'camera' || readFloatingPanelViewPreset('media') !== 'media' || readFloatingPanelViewPreset('xr') !== undefined) {
-    throw new Error('expected the canonical FloatingPanel reader to preserve Camera and Media while rejecting the removed XR panel')
+  if (readFloatingPanelViewPreset('camera') !== 'camera' || readFloatingPanelViewPreset('animation') !== 'animation' || readFloatingPanelViewPreset('media') !== 'media' || readFloatingPanelViewPreset('xr') !== undefined) {
+    throw new Error('expected the canonical FloatingPanel reader to preserve Media, Animation, and Camera while rejecting the removed XR panel')
   }
   if (readBottomSurfaceTabPreset('xr') !== undefined) {
     throw new Error('expected the canonical BottomPanel reader to reject the removed XR route')

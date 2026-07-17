@@ -211,32 +211,45 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   if (bottomTypes.includes("| 'xr'") || bottomPanel.includes('XrPanelViewLazy') || bottomPanel.includes("view === 'xr'") || viewport.includes('xrBottomPanelVisible')) {
     throw new Error('expected legacy BottomPanel XR types, toggle, mount, and viewport routing to be removed')
   }
-  if (!floatingTypes.includes("| 'camera'") || !floatingTypes.includes("| 'media'") || floatingTypes.includes("| 'xr'") || !uiInitialState.includes("view === 'camera'") || !uiInitialState.includes("view === 'media'") || uiInitialState.includes("view === 'xr'")) {
-    throw new Error('expected Camera and Media to remain first-class FloatingPanel panels with the duplicate XR route removed')
+  if (!floatingTypes.includes("| 'camera'") || !floatingTypes.includes("| 'animation'") || !floatingTypes.includes("| 'media'") || floatingTypes.includes("| 'xr'") || !uiInitialState.includes("view === 'camera'") || !uiInitialState.includes("view === 'animation'") || !uiInitialState.includes("view === 'media'") || uiInitialState.includes("view === 'xr'")) {
+    throw new Error('expected Media, Animation, and Camera to remain first-class FloatingPanel panels with the duplicate XR route removed')
   }
   if (
     !floatingPanel.includes('StrybldrCameraFloatingPanelViewLazy') ||
     !floatingPanel.includes("floatingPanelView === 'camera'") ||
     !floatingPanel.includes("{ view: 'camera'") ||
+    !floatingPanel.includes("floatingPanelView === 'animation'") ||
+    !floatingPanel.includes("{ view: 'animation'") ||
+    !floatingPanel.includes('XrAnimationFloatingPanelViewLazy') ||
     !floatingPanel.includes("floatingPanelView === 'media'") ||
     floatingPanel.includes('XrPanelViewLazy') ||
     floatingPanel.includes("{ view: 'xr'")
   ) {
-    throw new Error('expected FloatingPanel Camera and Media to own the canonical projections without a duplicate XR panel')
+    throw new Error('expected FloatingPanel Media, Animation, and Camera to own canonical projections without a duplicate XR panel')
+  }
+  const mediaViewIndex = floatingPanel.indexOf("{ view: 'media'")
+  const animationViewIndex = floatingPanel.indexOf("{ view: 'animation'")
+  const cameraViewIndex = floatingPanel.indexOf("{ view: 'camera'")
+  if (!(mediaViewIndex >= 0 && mediaViewIndex < animationViewIndex && animationViewIndex < cameraViewIndex)
+    || !floatingPanel.includes("'animation', 'camera'")) {
+    throw new Error('expected full-height Animation immediately to the right of Media and before Camera')
   }
   if (
     !floatingBridge.includes("| 'camera'") ||
+    !floatingBridge.includes("| 'animation'") ||
     !floatingBridge.includes("| 'media'") ||
     floatingBridge.includes("| 'xr'") ||
     !toolbarLauncher.includes("tab === 'camera'") ||
+    !toolbarLauncher.includes("tab === 'animation'") ||
     toolbarLauncher.includes("tab === 'xr'") ||
     !iconLibrary.includes("'floatingPanel.camera'") ||
+    !iconLibrary.includes("'floatingPanel.animation'") ||
     iconLibrary.includes("'floatingPanel.xr'")
   ) {
     throw new Error('expected the FloatingPanel bridge, launcher, and help registry to remove the duplicate XR route without aliases')
   }
-  if (!floatingPanelPresetSource.includes("raw === 'camera'") || !floatingPanelPresetSource.includes("raw === 'media'") || floatingPanelPresetSource.includes("raw === 'xr'") || !appliedFrontmatter.includes('readFloatingPanelViewPreset')) {
-    throw new Error('expected FloatingPanel frontmatter routing to use Camera and Media without the stale XR projection')
+  if (!floatingPanelPresetSource.includes("raw === 'camera'") || !floatingPanelPresetSource.includes("raw === 'animation'") || !floatingPanelPresetSource.includes("raw === 'media'") || floatingPanelPresetSource.includes("raw === 'xr'") || !appliedFrontmatter.includes('readFloatingPanelViewPreset')) {
+    throw new Error('expected FloatingPanel frontmatter routing to use Media, Animation, and Camera without the stale XR projection')
   }
   for (const marker of ['data-kg-media-mode-switcher="header-icons"', 'data-kg-media-library-toggle="1"', 'data-kg-media-3d-toggle="1"', 'title="Media"', 'title="3D for XR"', "xrSurfaceActive ? 'xr-3d' : 'media'", '<XrMediaLibraryPanel']) {
     if (!mediaCatalog.includes(marker)) throw new Error(`expected Media to own the canonical 3D entry through ${marker}`)
@@ -260,7 +273,7 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     'continueMediaPointerDrag(event, dragPayload)',
     'continueMediaMouseDrag(event, dragPayload)',
     'buildXrStageMediaDragPayload(stage)',
-    'buildXrAssetMediaDragPayload(asset, motion)',
+    'buildXrAssetMediaDragPayload(asset, transition)',
   ]) {
     if (!xrMediaLibrary.includes(marker)) throw new Error(`expected Media 3D cards to reuse shared Media drag behavior through ${marker}`)
   }
@@ -355,8 +368,8 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   ) {
     throw new Error(`expected environment drag payload to project into canonical Media, got ${JSON.stringify(stagePayload)}`)
   }
-  const assetPayload = normalizeMediaDragPayload(buildXrAssetMediaDragPayload(XR_SCENE_LIBRARY_ASSETS[0]!, 'travel'))
-  if (assetPayload?.xrScene?.entityKind !== 'asset' || assetPayload.xrScene.entityId !== XR_SCENE_LIBRARY_ASSETS[0]!.id || assetPayload.xrScene.motion !== 'travel') {
+  const assetPayload = normalizeMediaDragPayload(buildXrAssetMediaDragPayload(XR_SCENE_LIBRARY_ASSETS[0]!, 'linear'))
+  if (assetPayload?.xrScene?.entityKind !== 'asset' || assetPayload.xrScene.entityId !== XR_SCENE_LIBRARY_ASSETS[0]!.id || assetPayload.xrScene.transition !== 'linear') {
     throw new Error(`expected asset drag payload to retain typed XR placement metadata, got ${JSON.stringify(assetPayload)}`)
   }
   const richMediaProperties = buildRichMediaPanelDroppedMediaProperties(assetPayload!)

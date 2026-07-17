@@ -66,6 +66,7 @@ export const testMainPanelHelpIconLibraryReusesSharedSsot = () => {
     'mainPanel.maps',
     'mainPanel.commerce',
     'mainPanel.settings',
+    'floatingPanel.animation',
     'floatingPanel.chat',
     'floatingPanel.graphTraversal',
     'invocation.subject.agent',
@@ -90,6 +91,9 @@ export const testMainPanelHelpIconLibraryReusesSharedSsot = () => {
       throw new Error(`Expected MainPanel Help Icon Library to include ${token}`)
     }
   })
+  if (!rootLibraryText.includes("animation: 'floatingPanel.animation'")) {
+    throw new Error('Expected FloatingPanel Animation to reuse its Help Icon Library semantic key')
+  }
   ;[
     {
       input: { label: 'Video Agent', token: '/video-agent', summary: 'Chat skill', group: 'Chat skill', kind: 'skill' },

@@ -217,6 +217,7 @@ export function readFloatingPanelViewPreset(value: unknown): FloatingPanelView |
     raw === 'promptPresets' ||
     raw === 'view' ||
     raw === 'media' ||
+    raw === 'animation' ||
     raw === 'camera' ||
     raw === 'design' ||
     raw === 'chat' ||

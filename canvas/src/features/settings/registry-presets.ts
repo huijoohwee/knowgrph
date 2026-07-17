@@ -30,8 +30,6 @@ export const presetAndEnvSettingsRegistry: SettingMeta[] = [
         cameraRotateSpeed: 0.38,
         cameraZoomSpeed: 0.65,
         cameraPanSpeed: 0.45,
-        cameraAutoRotate: false,
-        cameraAutoRotateSpeed: 0.0,
         selection: {
           selectedNodeGlowIntensity: 1.15,
           dimmedNodeOpacity: 0.32,

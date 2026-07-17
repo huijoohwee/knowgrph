@@ -1214,12 +1214,12 @@ export const testMainPanelKtvRowsUseSharedEditableValueCell = () => {
     throw new Error('Expected the shared panel KTV range-value row owner to bridge root KTV runtime props with the shared range primitive')
   }
   if (
-    !threeViewCameraSection.includes("from '@/features/panels/ui/PanelKeyTypeCheckboxValueRow'") ||
     !threeViewCameraSection.includes("from '@/features/panels/ui/PanelKeyTypeRangeValueRow'") ||
-    !threeViewCameraSection.includes('PanelKeyTypeCheckboxValueRow') ||
-    !threeViewCameraSection.includes('PanelKeyTypeRangeValueRow')
+    !threeViewCameraSection.includes('PanelKeyTypeRangeValueRow') ||
+    threeViewCameraSection.includes('PanelKeyTypeCheckboxValueRow') ||
+    threeViewCameraSection.includes('Auto Rotate')
   ) {
-    throw new Error('Expected three-view camera rows to consume the shared panel KTV checkbox and range-value row owners')
+    throw new Error('Expected live three-view navigation rows to consume the shared range owner and omit dead auto-rotate controls')
   }
   if (
     !threeViewGlobeEffectsSection.includes("from '@/features/panels/ui/PanelKeyTypeCheckboxValueRow'") ||

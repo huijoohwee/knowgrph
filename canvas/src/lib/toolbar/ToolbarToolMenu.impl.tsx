@@ -109,6 +109,7 @@ const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.Co
 
 const FloatingPanelChatLazy = React.lazy(() => import('@/features/chat/FloatingPanelChat'))
 const MediaCatalogPanelLazy = React.lazy(() => import('@/features/command-menu/CommandMenuCatalogPanel'))
+const XrAnimationFloatingPanelViewLazy = React.lazy(() => import('@/features/three/XrAnimationFloatingPanelView'))
 const StoryboardWidgetFloatingPanelViewLazy = React.lazy(() => import('@/features/storyboard-widget-manager/StoryboardWidgetFloatingPanelView').then(mod => ({ default: mod.StoryboardWidgetFloatingPanelView })))
 const FlowchartFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/FlowchartFloatingPanelView').then(mod => ({ default: mod.FlowchartFloatingPanelView })))
 const GitGraphFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/GitGraphFloatingPanelView').then(mod => ({ default: mod.GitGraphFloatingPanelView })))
@@ -118,7 +119,7 @@ const ArchitectureFloatingPanelViewLazy = React.lazy(() => import('@/features/gi
 const EventModelingFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/EventModelingFloatingPanelView').then(mod => ({ default: mod.EventModelingFloatingPanelView })))
 const StrybldrCameraFloatingPanelViewLazy = React.lazy(() => import('@/features/strybldr/StrybldrCameraFloatingPanelView').then(mod => ({ default: mod.StrybldrCameraFloatingPanelView })))
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'promptPresets', 'view', 'camera', 'chat', 'geo', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'architecture', 'eventModeling'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'promptPresets', 'view', 'animation', 'camera', 'chat', 'geo', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'architecture', 'eventModeling'])
 
 const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
   pipelineStatus: string | null
@@ -493,6 +494,7 @@ export function ToolbarToolMenu({
       { view: 'skillsCommands', title: UI_LABELS.skillsCommands, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.skillsCommands }, { view: 'promptPresets', title: UI_LABELS.promptPresets, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.promptPresets },
       { view: 'view', title: UI_LABELS.view, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.view },
       { view: 'media', title: 'Media', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.media },
+      { view: 'animation', title: 'Animation', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.animation },
       { view: 'camera', title: 'Camera', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.camera },
       { view: 'design', title: 'Design', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.design },
       { view: 'chat', title: UI_LABELS.chat, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.chat },
@@ -698,6 +700,11 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'media' && (
               <React.Suspense fallback={null}>
                 <MediaCatalogPanelLazy />
+              </React.Suspense>
+            )}
+            {floatingPanelView === 'animation' && (
+              <React.Suspense fallback={null}>
+                <XrAnimationFloatingPanelViewLazy />
               </React.Suspense>
             )}
             {floatingPanelView === 'camera' && (

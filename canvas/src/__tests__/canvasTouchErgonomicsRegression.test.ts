@@ -329,7 +329,6 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   const threeViewBackgroundFogSectionText = readUtf8(path.resolve(root, 'src/features/panels/views/ThreeViewBackgroundFogSection.tsx'))
   const threeViewStarfieldSectionText = readUtf8(path.resolve(root, 'src/features/panels/views/ThreeViewStarfieldSection.tsx'))
   const panelKeyTypeColorTextValueRowText = readUtf8(path.resolve(root, 'src/features/panels/ui/PanelKeyTypeColorTextValueRow.tsx'))
-  const threeViewCameraSectionText = readUtf8(path.resolve(root, 'src/features/panels/views/ThreeViewCameraSection.tsx'))
   const threeViewGlobeEffectsSectionText = readUtf8(path.resolve(root, 'src/features/panels/views/ThreeViewGlobeEffectsSection.tsx'))
   const iconHelpersText = readUtf8(path.resolve(root, 'src/lib/ui/icons.ts'))
   const responsiveElementClassesText = readUtf8(path.resolve(root, 'src/lib/ui/responsiveElementClasses.ts'))
@@ -1681,7 +1680,6 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
     toolbarSettingsAreaText,
   ]
   const smallSelectionControlConsumerTexts = [
-    threeViewCameraSectionText,
     threeViewGlobeEffectsSectionText,
     graphDataTableSortPanelText,
   ]
@@ -1700,7 +1698,6 @@ export function testToolbarTouchErgonomicsStaySourceDriven() {
   }
   const compactSelectionControlsUseSharedOwner = Object.values(compactSelectionControlOwnerChecks).every(Boolean)
   const smallSelectionControlOwnerChecks = {
-    threeViewCamera: threeViewCameraSectionText.includes('UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME'),
     threeViewGlobeEffects: threeViewGlobeEffectsSectionText.includes('UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME'),
     graphDataTableSort: graphDataTableSortPanelText.includes('UI_RESPONSIVE_SMALL_SELECTION_CONTROL_CLASSNAME'),
   }

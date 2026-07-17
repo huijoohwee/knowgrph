@@ -214,6 +214,13 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       } catch {
         void 0
       }
+      const renderer = threeGlRef.current
+      if (renderer) {
+        try { renderer.xr.enabled = false } catch { void 0 }
+      }
+      threeGlRef.current = null
+      threeCameraRef.current = null
+      threeSceneRef.current = null
     }
   }, [registerCanvasSnapshotFns, registerThreeGlbSnapshotFns, registerThreeLayoutSnapshotFns])
 
@@ -341,12 +348,11 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       <Canvas
         key={hasXrEmptyWorld ? 'xr-empty-world-canvas' : 'scene-canvas'}
         frameloop={paused ? 'demand' : 'always'}
-        camera={hasXrEmptyWorld
-          ? { position: [360, -460, 520], fov: 50, up: [0, 0, 1] }
-          : { position: [0, 0, 220], fov: 50 }}
+        camera={{ position: [0, 0, 220], fov: 50 }}
         shadows
         gl={{ antialias: true, alpha: true }}
         onCreated={({ gl, scene, camera }) => {
+          gl.xr.enabled = mode === 'xr'
           gl.setClearColor(hasXrEmptyWorld ? '#0b2f4a' : '#000000', hasXrEmptyWorld ? 1 : 0)
           try {
             gl.toneMapping = ACESFilmicToneMapping

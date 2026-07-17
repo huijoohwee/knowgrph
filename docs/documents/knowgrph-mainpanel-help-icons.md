@@ -56,6 +56,7 @@ Keep `Key` aligned to the Help icon text key in source. Keep `Type` aligned to t
 | floatingPanel.skillsCommands | floatingPanel.skillsCommands | Skills and commands | FloatingPanel view for skill discovery, command references, and guided operator actions. |
 | floatingPanel.view | floatingPanel.view | Data view controls | FloatingPanel view for workspace data-view settings. |
 | floatingPanel.media | floatingPanel.media | Media list | FloatingPanel view and SSOT for current `@` image, audio, video, webpage, iframe, YouTube, and graph rich-media candidates; the full `/`, `@`, and `#` command catalog lives in MainPanel Help → Command Menu. |
+| floatingPanel.animation | floatingPanel.animation | XR choreography | FloatingPanel view for native character motions, action paths, shared Timeline transport, upstream `/animation.control` invocation, and deterministic motion-reference export. |
 | floatingPanel.camera | floatingPanel.camera | Camera framing | The sole FloatingPanel camera editor over the shared storyboard and live Three camera owner; it owns no duplicate board model or graph update path. |
 | floatingPanel.interaction | floatingPanel.interaction | Canvas controls | FloatingPanel view for pointer, pan, zoom, and interaction settings. |
 | floatingPanel.design | floatingPanel.design | Design controls | FloatingPanel view for design layers, inspector, tokens, and DOM views. |

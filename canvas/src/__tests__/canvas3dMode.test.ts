@@ -126,8 +126,8 @@ export function testCanvasSurfaceMode3dSelectionUsesSharedOwner() {
   if (canvasViewMenuText.includes('view:geospatial')) {
     throw new Error('Expected Geospatial Mode to be owned by Surface Mode, not a stale view-scoped option id')
   }
-  if (canvasViewActionsText.includes("setCanvas3dMode('3d')") || !canvasViewActionsText.includes('onOpenShared3dPanel?.(mode)') || !canvasViewActionsText.includes("setFloatingPanelView('camera')") || !canvasViewActionsText.includes("setBottomSurfaceTab('timeline')") || !canvasViewActionsText.includes('setBottomSurfaceCollapsed(false)')) {
-    throw new Error('Expected 3D/XR to open shared Camera and XR to restore BottomPanel Timeline')
+  if (canvasViewActionsText.includes("setCanvas3dMode('3d')") || !canvasViewActionsText.includes('onOpenShared3dPanel?.(mode)') || !canvasViewActionsText.includes("mode === 'xr' ? 'animation' : 'camera'") || !canvasViewActionsText.includes('if (!state.floatingPanelOpen)') || !canvasViewActionsText.includes("setBottomSurfaceTab('timeline')") || !canvasViewActionsText.includes('setBottomSurfaceCollapsed(false)')) {
+    throw new Error('Expected 3D/XR to preserve an open panel, default XR to Animation, and restore BottomPanel Timeline')
   }
 
   const calls: string[] = []
@@ -500,8 +500,8 @@ export function testXrModeModelAssetSwitchResetsCameraXyzCoordinates() {
   if (!modelAssetCameraPose.includes('verticalSpan <= lateralSpan * 0.22') || !modelAssetCameraPose.includes('position: [0, span * 2.65, span * 0.02]')) {
     throw new Error('Expected low-height horizontal GLB/GLTF scenes to use a top-down camera instead of a side-on camera')
   }
-  if (!controls.includes('controls.autoRotate = isSharedCameraFramingSurfaceMode(mode)') || !controls.includes(': modelAssetMode') || !controls.includes('? false')) {
-    throw new Error('Expected GLB/GLTF model sessions to disable camera auto-rotation mutations')
+  if (!controls.includes("const voxelIdleAutoRotate = mode === 'voxel'") || !controls.includes('controls.autoRotate = voxelIdleAutoRotate')) {
+    throw new Error('Expected live 3D/XR and GLB/GLTF model sessions to disable camera auto-rotation mutations')
   }
   if (!cameraFramingControlsRuntime.includes('camera.up.set(pose.up[0], pose.up[1], pose.up[2])')) {
     throw new Error('Expected model-asset camera reset to apply pose-specific camera up vectors for horizontal planes')

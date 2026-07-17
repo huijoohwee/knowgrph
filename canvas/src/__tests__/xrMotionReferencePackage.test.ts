@@ -16,7 +16,7 @@ import {
   readXrMotionReferenceRuntime,
   removeXrMotionReferenceSubject,
   setXrMotionReferenceCameraMark,
-  setXrMotionReferenceCastMotion,
+  setXrMotionReferenceCastTransition,
   setXrMotionReferenceCastMark,
   setXrMotionReferenceDuration,
   setXrMotionReferenceFps,
@@ -277,15 +277,15 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (libraryPlan.stageId !== 'downtown' || !mobileSubject || !staticSubject || !libraryPlan.cast.some(track => track.actorId === mobileSubject.id) || libraryPlan.cast.some(track => track.actorId === staticSubject.id)) {
     throw new Error(`expected mobile library subjects to become markable cast while furniture stays static, got ${JSON.stringify(libraryPlan)}`)
   }
-  setXrMotionReferenceCastMotion(mobileSubject.id, 'linear')
+  setXrMotionReferenceCastTransition(mobileSubject.id, 'linear')
   libraryPlan = readXrMotionReferenceRuntime().plan
   const travelingTrack = libraryPlan.cast.find(track => track.actorId === mobileSubject.id)
   if (!travelingTrack || travelingTrack.marks.length !== 2 || travelingTrack.marks[0]?.transition !== 'linear') {
-    throw new Error(`expected #travel to materialize a bounded cast endpoint, got ${JSON.stringify(travelingTrack)}`)
+    throw new Error(`expected linear path interpolation to materialize a bounded cast endpoint, got ${JSON.stringify(travelingTrack)}`)
   }
-  setXrMotionReferenceCastMotion(mobileSubject.id, 'hold')
+  setXrMotionReferenceCastTransition(mobileSubject.id, 'hold')
   if (readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === mobileSubject.id)?.marks[0]?.transition !== 'hold') {
-    throw new Error('expected #hold to control the cast track transition')
+    throw new Error('expected hold path interpolation to control the cast track transition')
   }
   setXrMotionReferenceSubjectLabel(mobileSubject.id, 'RUNNER')
   libraryPlan = readXrMotionReferenceRuntime().plan
@@ -302,6 +302,8 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (readXrMotionReferenceRuntime().plan.subjects.length !== 1) throw new Error('expected placed static subjects to be removable')
 
   const stageSource = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
+  const runtimeBridgeSource = readSource('features', 'three', 'XrMotionReferenceRuntimeBridge.tsx')
+  const appSource = readSource('App.tsx')
   const stagePresetGeometrySource = readSource('features', 'three', 'XrStagePresetGeometry.tsx')
   const emptyWorldSource = readSource('features', 'three', 'XrEmptyWorldStage.tsx')
   const emptyWorldHudSource = readSource('features', 'three', 'XrEmptyWorldHud.tsx')
@@ -347,17 +349,23 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   for (const marker of ['data-kg-media-3d-toggle="1"', '<XrMediaLibraryPanel', '3D for XR', "xrSurfaceActive ? 'xr-3d' : 'media'"]) {
     if (!mediaCatalogViewSource.includes(marker)) throw new Error(`expected FloatingPanel Media to expose ${marker}`)
   }
-  for (const marker of ['data-kg-media-xr-environments="1"', 'data-kg-media-xr-subject-library="1"', 'data-kg-media-xr-next-label="1"', 'data-kg-media-xr-assets-mcp=', 'data-kg-media-xr-invocation=', 'data-kg-media-xr-asset-motion=', 'data-kg-media-xr-subject-motion=', 'controlLocalXrScene']) {
+  for (const marker of ['data-kg-media-xr-environments="1"', 'data-kg-media-xr-subject-library="1"', 'data-kg-media-xr-next-label="1"', 'data-kg-media-xr-assets-mcp=', 'data-kg-media-xr-invocation=', 'data-kg-media-xr-asset-transition=', 'data-kg-media-xr-subject-transition=', 'controlLocalXrScene']) {
     if (!xrMediaLibrarySource.includes(marker)) throw new Error(`expected the native XR Media library to expose ${marker}`)
   }
-  for (const marker of ['/xr.stage', '/xr.place', '/xr.animate', '#travel', '#hold']) {
+  for (const marker of ['/xr.stage', '/xr.place', 'transition=']) {
     if (!xrSceneMcpContractSource.includes(marker)) throw new Error(`expected XR MCP invocation grammar to expose ${marker}`)
   }
-  for (const marker of ['inspectLocalXrSceneAssets', 'controlLocalXrScene', 'serializeXrMotionReferencePlan', 'activateCanvasGraphSurfaceMode', "setFloatingPanelView('camera')"]) {
+  for (const marker of ['/xr.animate', '#travel', '#hold']) {
+    if (xrSceneMcpContractSource.includes(marker) || xrSceneMcpRuntimeSource.includes(marker)) throw new Error(`expected first-class Animation to retire legacy XR scene token ${marker}`)
+  }
+  for (const marker of ['inspectLocalXrSceneAssets', 'controlLocalXrScene', 'serializeXrMotionReferencePlan', 'activateCanvasGraphSurfaceMode', 'hydrateCanonicalXrMotionReferenceRuntime']) {
     if (!xrSceneMcpRuntimeSource.includes(marker)) throw new Error(`expected browser-local XR MCP control runtime to expose ${marker}`)
   }
-  if (!runtimeSource.includes('setXrMotionReferenceCastMotion') || !runtimeSource.includes('travelMeters')) {
-    throw new Error('expected XR animation controls to own real bounded cast-track motion')
+  if (xrSceneMcpRuntimeSource.includes("setFloatingPanelView('camera')")) {
+    throw new Error('expected XR scene control to preserve the operator-selected FloatingPanel view')
+  }
+  if (!runtimeSource.includes('setXrMotionReferenceCastTransition') || !runtimeSource.includes('travelMeters')) {
+    throw new Error('expected XR path interpolation controls to own real bounded cast-track motion')
   }
   if (!sceneLibrarySource.includes("id: 'downtown'") || !sceneLibrarySource.includes("id: 'backyard-pool'") || !sceneSubjectSource.includes('kg_xr_scene_subject_') || !packageSource.includes("reference/subjects.json")) {
     throw new Error('expected environment, procedural subject, and package owners to remain source-backed')
@@ -367,11 +375,13 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     'kg_xr_motion_stage_floor',
     'kg_xr_motion_world_grid',
     'kg_xr_motion_world_origin',
-    'kg_xr_motion_default_camera',
     'kg_xr_motion_cast_tracks',
     'kg_xr_motion_camera_track',
   ]) {
     if (!`${stageSource}\n${stagePresetGeometrySource}`.includes(marker)) throw new Error(`expected native grey-box stage to expose ${marker}`)
+  }
+  if (stageSource.includes('kg_xr_motion_default_camera')) {
+    throw new Error('expected camera marks to be authoritative with no decorative fake default Camera')
   }
   for (const marker of [
     'xrMotionReferenceWorldPosition',
@@ -382,7 +392,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   ]) {
     if (!`${stageSource}\n${stagePresetGeometrySource}`.includes(marker)) throw new Error(`expected Y-up XR stage orientation to expose ${marker}`)
   }
-  if (!sceneSubjectSource.includes('rotation={[0, THREE.MathUtils.degToRad(subject.rotationYDegrees), 0]}')
+  if (!sceneSubjectSource.includes('rotation={[0, THREE.MathUtils.degToRad(subject.rotationYDegrees) + facingYRadians, 0]}')
     || !sceneSubjectSource.includes('<group rotation={[-Math.PI / 2, 0, 0]}>')) {
     throw new Error('expected Z-up procedural library geometry to be adapted once beneath a Y-up subject transform')
   }
@@ -433,7 +443,10 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (!xrEntrySource.includes("if (status === 'checking' || status === 'unsupported') return spatialChrome")) {
     throw new Error('expected unsupported WebXR entry actions to stay absent while preserving spatial-capture orientation chrome')
   }
-  if (!controlsSource.includes('controls.autoRotate = isSharedCameraFramingSurfaceMode(mode)')
+  if (!controlsSource.includes("const voxelIdleAutoRotate = mode === 'voxel'")
+    || !controlsSource.includes('controls.autoRotate = voxelIdleAutoRotate')
+    || !controlsSource.includes('xrChoreographyCanDriveCamera')
+    || !controlsSource.includes('xrChoreographyOwnsCamera')
     || !controlsSource.includes('camera.position.set(...XR_MOTION_STAGE_CAMERA_POSITION)')
     || !controlsSource.includes('controls.target.set(...XR_MOTION_STAGE_CAMERA_TARGET)')
     || !controlsSource.includes('xrEmptyWorld,')) {
@@ -462,13 +475,16 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     'kg_xr_empty_world_center_target',
     'kg_xr_empty_world_vertical_axis',
     'kg_xr_empty_world_axes',
-    'kg_xr_empty_world_camera',
     "schema: 'knowgrph-xr-empty-world/v1'",
   ]) {
     if (!emptyWorldSource.includes(marker)) throw new Error(`expected source-free XR world to expose ${marker}`)
   }
+  if (emptyWorldSource.includes('kg_xr_empty_world_camera') || emptyWorldSource.includes('EmptyWorldCamera')) {
+    throw new Error('expected the source-free XR stage to avoid a fake Camera prop')
+  }
   if (!threeGraphSource.includes("key={hasXrEmptyWorld ? 'xr-empty-world-canvas' : 'scene-canvas'}")
-    || !threeGraphSource.includes("gl.setClearColor(hasXrEmptyWorld ? '#0b2f4a' : '#000000'")) {
+    || !threeGraphSource.includes("gl.setClearColor(hasXrEmptyWorld ? '#0b2f4a' : '#000000'")
+    || !threeGraphSource.includes("gl.xr.enabled = mode === 'xr'")) {
     throw new Error('expected the empty XR world to remount with an opaque navy camera environment')
   }
   for (const marker of ['data-kg-xr-empty-world-hud="1"', 'Centers Mode', 'XR world axes X Y Z']) {
@@ -493,14 +509,17 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     || !sceneSource.includes("{mode !== 'xr' && fogColorEffective")) {
     throw new Error('expected XR motion reference to own the graph scene without nodes, edges, starfield, or graph fog interference')
   }
-  for (const marker of ['onOpenShared3dPanel', "setFloatingPanelView('camera')", 'setFloatingPanelOpen(true)', "setBottomSurfaceTab('timeline')", 'setBottomSurfaceCollapsed(false)']) {
+  for (const marker of ['onOpenShared3dPanel', 'if (!state.floatingPanelOpen)', "mode === 'xr' ? 'animation' : 'camera'", 'setFloatingPanelOpen(true)', "setBottomSurfaceTab('timeline')", 'setBottomSurfaceCollapsed(false)']) {
     if (!canvasViewSelectSource.includes(marker)) throw new Error(`expected 3D/XR Surface Mode to open its canonical panel via ${marker}`)
   }
-  if (canvasViewSelectSource.includes("mode === '3d' ? 'camera' : 'media'")) {
-    throw new Error('expected both 3D and XR to use the always-visible shared Camera panel')
+  if (canvasViewSelectSource.includes("state.setFloatingPanelView('camera')")) {
+    throw new Error('expected Surface Mode to preserve an already-open panel instead of forcing Camera')
   }
-  if (!stageSource.includes('hydrateXrMotionReferenceRuntime') || !stageSource.includes('xrMotionReferenceSceneKey')) {
-    throw new Error('expected ThreeGraph XR stage to hydrate choreography independently of floating-panel visibility')
+  if (!runtimeBridgeSource.includes('hydrateXrMotionReferenceRuntime({')
+    || !runtimeBridgeSource.includes('xrMotionReferenceSceneKey')
+    || !appSource.includes('<XrMotionReferenceRuntimeBridge />')
+    || stageSource.includes('hydrateXrMotionReferenceRuntime')) {
+    throw new Error('expected one app-root XR choreography hydration owner independent of stage and panel visibility')
   }
   if (!stageSource.includes('Math.hypot(dx, dy, dz)') || !stageSource.includes('setFromUnitVectors')) {
     throw new Error('expected cast and camera paths to preserve vertical Y-up movement in their 3D segment transform')
@@ -521,7 +540,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     throw new Error('expected package export to retain the shared blob-download owner')
   }
 
-  const implementation = [xrCameraMotionSource, xrTimelineProjectionSource, stageSource, stagePresetGeometrySource, emptyWorldSource, emptyWorldHudSource, modelSource, packageSource, runtimeSource, sceneLibrarySource, sceneSubjectSource, xrMediaLibrarySource].join('\n').toLowerCase()
+  const implementation = [xrCameraMotionSource, xrTimelineProjectionSource, stageSource, stagePresetGeometrySource, emptyWorldSource, emptyWorldHudSource, modelSource, packageSource, runtimeSource, runtimeBridgeSource, sceneLibrarySource, sceneSubjectSource, xrMediaLibrarySource, readSource('features', 'three', 'xrAnimationCatalog.ts'), readSource('features', 'three', 'xrAnimationMcpRuntime.ts'), readSource('features', 'three', 'XrAnimationFloatingPanelView.tsx')].join('\n').toLowerCase()
   for (const forbidden of ['wassermanproductions', 'blockout', 'ffmpeg', 'electron-vite']) {
     if (implementation.includes(forbidden)) {
       throw new Error(`expected clean-room XR implementation to avoid external runtime token ${forbidden}`)

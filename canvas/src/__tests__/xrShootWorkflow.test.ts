@@ -3,12 +3,21 @@ import { resolve } from 'node:path'
 import type { GraphData } from '@/lib/graph/types'
 import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
+  XR_MOTION_REFERENCE_MAX_CAMERA_MARKS,
   sampleXrMotionReferenceCameraRig,
   sampleXrMotionReferenceCameraSettings,
+  serializeXrMotionReferencePlan,
 } from '@/features/three/xrMotionReferenceModel'
 import { buildXrMotionReferencePackage } from '@/features/three/xrMotionReferencePackage'
-import { controlLocalCamera } from '@/features/strybldr/cameraMcpRuntime'
-import { publishCameraFramingRuntime, readCameraFramingRuntime } from '@/features/strybldr/cameraFramingRuntime'
+import { xrChoreographyCanDriveCamera, xrChoreographyOwnsCamera } from '@/features/three/xrCameraControlOwnership'
+import { controlLocalCamera, inspectLocalCamera } from '@/features/strybldr/cameraMcpRuntime'
+import {
+  publishCameraFramingRuntime,
+  readCameraFramingRuntime,
+  readCameraFramingRuntimeDocumentKey,
+} from '@/features/strybldr/cameraFramingRuntime'
+import { shouldApplySharedCameraFramingRevision } from '@/features/three/cameraFramingControlsRuntime'
+import { hydrateCanonicalXrMotionReferenceRuntime } from '@/features/three/XrMotionReferenceRuntimeBridge'
 import {
   registerAgenticOsRemoteGrammarCatalogEntries,
   resetAgenticOsRemoteGrammarCatalogForTests,
@@ -75,6 +84,17 @@ function registerCanonicalCameraGrammar() {
 
 export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   registerCanonicalCameraGrammar()
+  const ownershipArgs = { mode: 'xr', xrEmptyWorld: false, cameraMarkCount: 1 } as const
+  if (!xrChoreographyCanDriveCamera(ownershipArgs)
+    || xrChoreographyOwnsCamera({ ...ownershipArgs, timelinePlaying: false })
+    || !xrChoreographyOwnsCamera({ ...ownershipArgs, timelinePlaying: true })) {
+    throw new Error('expected Camera choreography to drive scrub previews while reserving exclusive ownership for active playback')
+  }
+  if (shouldApplySharedCameraFramingRevision({ appliedRevision: 4, appliedContextKey: 'xr:graph', revision: 4, contextKey: 'xr:graph', forcedReapply: false })
+    || !shouldApplySharedCameraFramingRevision({ appliedRevision: 4, appliedContextKey: 'xr:graph', revision: 5, contextKey: 'xr:graph', forcedReapply: false })
+    || !shouldApplySharedCameraFramingRevision({ appliedRevision: 4, appliedContextKey: 'xr:graph', revision: 4, contextKey: 'xr:graph', forcedReapply: true })) {
+    throw new Error('expected pausing at the same playhead to preserve its track pose until a new frame or forced reapply arrives')
+  }
   const shootCameraSource = readSource('features', 'strybldr', 'XrShootCameraSection.tsx')
   const cameraPanelSource = readSource('features', 'strybldr', 'StrybldrCameraFloatingPanelView.tsx')
   const sharedCameraSource = readSource('features', 'strybldr', 'StrybldrCameraFramingSection.tsx')
@@ -133,10 +153,10 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     throw new Error('expected the shared globe Camera utilities to remain first in every surface mode')
   }
   for (const marker of ['data-kg-xr-timeline-retime="1"', 'retimeXrMotionReferenceCastMark', 'retimeXrMotionReferenceCameraMark', '<TimelineTransportTimeAxisMark', 'laneStyle="video"', 'laneStyle="audio"', 'data-kg-xr-retime-lane-ui="video"', 'data-kg-xr-retime-lane-ui="audio"', 'selectXrMotionReferenceCastMark', 'aria-pressed={selected}', 'data-kg-xr-stage-highlight-target']) {
-    if (!retimeSource.includes(marker)) throw new Error(`expected Camera animation retiming to expose ${marker}`)
+    if (!retimeSource.includes(marker)) throw new Error(`expected Camera choreography retiming to expose ${marker}`)
   }
-  for (const marker of ['runtime.plan.cast.map(track', 'data-kg-xr-retime-cast-track', 'selectXrMotionReferenceActor', 'setXrMotionReferenceCastMotion', 'data-kg-xr-retime-cast-animation', '<option value="linear">Travel</option>', '<option value="hold">Hold</option>']) {
-    if (!retimeSource.includes(marker)) throw new Error(`expected each cast to own a selectable animation bar through ${marker}`)
+  for (const marker of ['runtime.plan.cast.map(track', 'data-kg-xr-retime-cast-track', 'selectBoundXrActor', 'setXrMotionReferenceCastTransition', 'data-kg-xr-retime-cast-transition', '<option value="linear">Travel</option>', '<option value="hold">Hold</option>']) {
+    if (!retimeSource.includes(marker)) throw new Error(`expected each cast to own selectable path interpolation through ${marker}`)
   }
   for (const marker of ['--kg-xr-retime-row-count', 'xr-camera-motion-retime-cast-bar', '[aria-pressed="true"]']) {
     if (!retimeCssSource.includes(marker)) throw new Error(`expected cast timeline bars to share the expandable marks lane through ${marker}`)
@@ -187,7 +207,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   for (const marker of ['onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}', 'dropXrMotionReferenceCastMark', 'MarkNumberSprite', 'markNumber: index + 1', 'kg_xr_motion_cast_mark_highlight_', 'runtime.selectedMark?.kind === \'cast\'', 'XR_MOTION_REFERENCE_SELECTION_COLOR']) {
     if (!stageSource.includes(marker)) throw new Error(`expected direct numbered XR floor marking to expose ${marker}`)
   }
-  for (const marker of ['<XrSceneLibrarySubject', 'selected={runtime.selectedActorId === subject.id}', 'selectXrMotionReferenceActor(subject.id)']) {
+  for (const marker of ['<XrSceneLibrarySubject', 'selected={runtime.selectedActorId === subject.id}', 'selectBoundXrActor(subject.id)']) {
     if (!stageSource.includes(marker)) throw new Error(`expected timeline and stage asset selection to share actor state through ${marker}`)
   }
   for (const marker of ['kg_xr_scene_subject_selected_', 'onSelect?.()', 'event.stopPropagation()', 'XR_MOTION_REFERENCE_SELECTION_COLOR']) {
@@ -201,7 +221,10 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   }
   if (!controlsSource.includes('useXrMotionReferenceCameraPlayback({')
     || !playbackSource.includes('sampleXrMotionReferenceCameraPose')
-    || !playbackSource.includes('resolveCameraVerticalFovDegrees')) {
+    || !playbackSource.includes('resolveCameraVerticalFovDegrees')
+    || !playbackSource.includes('requestXrMotionReferenceCameraPlaybackReapply')
+    || !controlsSource.includes('pendingCameraSceneResetRef')
+    || !controlsSource.includes("if (mode === 'xr')")) {
     throw new Error('expected scrub/play camera choreography to use the XR camera playback owner')
   }
   if (!packageSource.includes('cameraRig:') || !packageSource.includes('cameraLensMm:')) {
@@ -286,7 +309,8 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
 
   const priorCamera = readCameraFramingRuntime()
   const priorGraphState = useGraphStore.getState()
-  const cameraResult = controlLocalCamera({ invocation: '/camera.frame @camera #right-side #high-angle #close-up #85mm' })
+  useGraphStore.setState({ floatingPanelOpen: false, floatingPanelView: 'animation' } as never)
+  const cameraResult = controlLocalCamera({ invocation: '/camera.frame @camera #camera-shot angle=right-side level=high-angle shot=close-up lens=85' })
   const controlledCamera = readCameraFramingRuntime()
   if (!cameraResult.ok
     || controlledCamera.settings.angle !== 'right-side'
@@ -300,17 +324,19 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     markdownDocumentName: 'Shoot scene.md',
     markdownDocumentText: '# Shoot scene',
     graphData,
+    selectedNodeId: 'actor-a',
     canvasRenderMode: '2d',
     canvas3dMode: '3d',
     bottomSurfaceTab: 'gitGraph',
     bottomSurfaceCollapsed: true,
   } as never)
-  const animateResult = controlLocalCamera({ invocation: '/camera.animate @actor-a #crane #3.25s #medium #50mm' })
+  const animateResult = controlLocalCamera({ invocation: '/camera.animate @selected-actor #camera-motion rig=crane time=3.25 shot=medium lens=50' })
   const animatedState = useGraphStore.getState()
   const animatedRuntime = readXrMotionReferenceRuntime()
   if (!animateResult.ok
     || animateResult.action !== 'animate'
     || animatedRuntime.plan.camera.at(-1)?.timeSeconds !== 3.25
+    || animatedRuntime.plan.camera.at(-1)?.anchorId !== 'actor-a'
     || animatedRuntime.plan.camera.at(-1)?.rig !== 'crane'
     || animatedRuntime.plan.camera.at(-1)?.settings.focalLengthMm !== 50
     || animatedState.canvasRenderMode !== '3d'
@@ -320,23 +346,98 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     || !animatedState.graphData?.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]) {
     throw new Error(`expected /camera.animate to persist and reveal BottomPanel XR choreography, got ${JSON.stringify(animateResult)}`)
   }
-  const scrubResult = controlLocalCamera({ invocation: '/camera.scrub @camera #1.5s' })
-  const playResult = controlLocalCamera({ invocation: '/camera.play @camera #play' })
-  const pauseResult = controlLocalCamera({ invocation: '/camera.play @camera #pause' })
+  const scrubResult = controlLocalCamera({ invocation: '/camera.scrub @camera #camera-motion time=1.5' })
+  const playResult = controlLocalCamera({ invocation: '/camera.play @camera #camera-motion state=play' })
+  const playbackFramingRevision = readCameraFramingRuntime().revision
+  const frameDuringPlaybackResult = controlLocalCamera({ action: 'frame', targetId: 'actor-a', shot: 'wide' })
+  const pauseResult = controlLocalCamera({ invocation: '/camera.play @camera #camera-motion state=pause' })
+  const legacyCameraResult = controlLocalCamera({ invocation: '/camera.frame @camera #right-side #high-angle #close-up #85mm' })
+  const wrongSemanticResult = controlLocalCamera({ invocation: '/camera.animate @selected-actor #camera-shot rig=crane time=1' })
+  const unknownPairResult = controlLocalCamera({ invocation: '/camera.frame @camera #camera-shot angle=front foo=bar' })
+  const invalidAngleResult = controlLocalCamera({ invocation: '/camera.frame @camera #camera-shot angle=garbage' })
+  const invalidPlaybackResult = controlLocalCamera({ invocation: '/camera.play @camera #camera-motion state=banana' })
+  const invalidScrubResult = controlLocalCamera({ invocation: '/camera.scrub @camera #camera-motion time=banana' })
+  const invalidStructuredAngle = controlLocalCamera({ action: 'frame', targetId: 'camera', angle: 'garbage' as never })
+  const invalidStructuredLens = controlLocalCamera({ action: 'frame', targetId: 'camera', focalLengthMm: 999 })
+  const missingStructuredTarget = controlLocalCamera({ action: 'frame', targetId: 'missing-cast' })
+  const missingStructuredScrubTime = controlLocalCamera({ action: 'scrub', targetId: 'camera' })
   if (!scrubResult.ok
     || !playResult.ok
     || !pauseResult.ok
+    || frameDuringPlaybackResult.ok
+    || readCameraFramingRuntime().revision !== playbackFramingRevision
+    || legacyCameraResult.ok
+    || wrongSemanticResult.ok
+    || unknownPairResult.ok
+    || invalidAngleResult.ok
+    || invalidPlaybackResult.ok
+    || invalidScrubResult.ok
+    || invalidStructuredAngle.ok
+    || invalidStructuredLens.ok
+    || missingStructuredTarget.ok
+    || missingStructuredScrubTime.ok
     || readXrMotionReferenceRuntime().playheadSeconds !== 1.5
     || useGraphStore.getState().timelineTransportPosition !== 1.5 / 60
     || useGraphStore.getState().timelineTransportPlaying !== false) {
     throw new Error(`expected Camera scrub/play/pause invocations to control the shared Timeline runtime, got ${JSON.stringify({ scrubResult, playResult, pauseResult })}`)
+  }
+  if (!inspectLocalCamera().invocationGrammar) throw new Error('expected Camera inspection to expose grammar while the upstream catalog is hydrated')
+  const originalUpdateGraphMetadata = useGraphStore.getState().updateGraphMetadata
+  const planBeforeFailedWrite = JSON.stringify(serializeXrMotionReferencePlan(readXrMotionReferenceRuntime().plan))
+  const framingBeforeFailedWrite = readCameraFramingRuntime()
+  let failedWriteResult: ReturnType<typeof controlLocalCamera>
+  useGraphStore.setState({ updateGraphMetadata: () => undefined } as never)
+  try {
+    failedWriteResult = controlLocalCamera({ action: 'animate', targetId: 'actor-a', rig: 'dolly', timeSeconds: 4.75, shot: 'wide' })
+  } finally {
+    useGraphStore.setState({ updateGraphMetadata: originalUpdateGraphMetadata } as never)
+  }
+  if (failedWriteResult!.ok
+    || JSON.stringify(serializeXrMotionReferencePlan(readXrMotionReferenceRuntime().plan)) !== planBeforeFailedWrite
+    || readCameraFramingRuntime().revision !== framingBeforeFailedWrite.revision) {
+    throw new Error('expected a failed Camera metadata write to roll back choreography without publishing framing')
+  }
+  let fillIndex = 0
+  while (readXrMotionReferenceRuntime().plan.camera.length < XR_MOTION_REFERENCE_MAX_CAMERA_MARKS && fillIndex < 100) {
+    setXrMotionReferenceCameraMark({
+      timeSeconds: Number((0.017 + fillIndex * 0.173).toFixed(3)),
+      anchorId: 'actor-a',
+      rig: 'dolly',
+      settings: readCameraFramingRuntime().settings,
+    })
+    fillIndex += 1
+  }
+  const capacityPlan = readXrMotionReferenceRuntime().plan
+  const capacityFraming = readCameraFramingRuntime()
+  const capacityResult = controlLocalCamera({ invocation: '/camera.animate @selected-actor #camera-motion rig=crane time=5.99 shot=wide lens=24' })
+  if (capacityResult.ok
+    || capacityPlan.camera.length !== XR_MOTION_REFERENCE_MAX_CAMERA_MARKS
+    || readXrMotionReferenceRuntime().plan.camera.length !== XR_MOTION_REFERENCE_MAX_CAMERA_MARKS
+    || readXrMotionReferenceRuntime().plan.camera.some(mark => Math.abs(mark.timeSeconds - 5.99) < 0.0005)
+    || readCameraFramingRuntime().revision !== capacityFraming.revision) {
+    throw new Error('expected a full Camera track to fail closed without a false-success mark or framing mutation')
+  }
+  publishCameraFramingRuntime({ anchorId: 'actor-a', settings: { ...readCameraFramingRuntime().settings, shot: 'wide' }, source: 'panel' })
+  const previousFramingDocumentKey = readCameraFramingRuntimeDocumentKey()
+  useGraphStore.setState({
+    markdownDocumentName: 'Second scene.md',
+    markdownDocumentText: '# Second scene',
+    graphData: { type: 'Graph', nodes: [{ id: 'actor-b', label: 'Second lead', type: 'Person', properties: {} }], edges: [], metadata: {} },
+    selectedNodeId: 'actor-b',
+  } as never)
+  hydrateCanonicalXrMotionReferenceRuntime()
+  if (readCameraFramingRuntimeDocumentKey() === previousFramingDocumentKey
+    || readCameraFramingRuntime().anchorId !== 'canvas-camera'
+    || readCameraFramingRuntime().source !== 'document'
+    || readXrMotionReferenceRuntime().plan.camera.length !== 0) {
+    throw new Error('expected an app-root document switch to clear stale Camera framing and choreography before a closed panel can reapply it')
   }
   const cameraCatalogTokens = new Set(resolveChatInvocationCatalogEntries('all', 'camera').map(entry => entry.token))
   for (const token of ['/camera.frame', '/camera.animate', '/camera.play', '/camera.scrub', '@camera', '#camera']) {
     if (!cameraCatalogTokens.has(token)) throw new Error(`expected shared invocation catalog to expose ${token}`)
   }
   resetAgenticOsRemoteGrammarCatalogForTests()
-  publishCameraFramingRuntime({ anchorId: priorCamera.anchorId, settings: priorCamera.settings, source: priorCamera.source })
+  if (inspectLocalCamera().invocationGrammar !== null) throw new Error('expected Camera inspection to fail closed when the upstream invocation catalog is absent')
   useGraphStore.setState({
     markdownDocumentName: priorGraphState.markdownDocumentName,
     markdownDocumentText: priorGraphState.markdownDocumentText,
@@ -351,4 +452,6 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     timelineTransportPosition: priorGraphState.timelineTransportPosition,
     timelineTransportPlaying: priorGraphState.timelineTransportPlaying,
   } as never)
+  hydrateCanonicalXrMotionReferenceRuntime()
+  publishCameraFramingRuntime({ anchorId: priorCamera.anchorId, settings: priorCamera.settings, source: priorCamera.source })
 }

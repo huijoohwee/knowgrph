@@ -481,8 +481,6 @@ The opening YAML frontmatter block remains the machine SSOT for this generated r
 | `three.camera.rotateSpeed` | number | store |  |  |
 | `three.camera.zoomSpeed` | number | store |  |  |
 | `three.camera.panSpeed` | number | store |  |  |
-| `three.camera.autoRotate` | boolean | store |  |  |
-| `three.camera.autoRotateSpeed` | number | store |  |  |
 | `three.graph.linkDirectionalArrowLength` | number | store |  |  |
 | `three.graph.linkOpacity` | number | store |  |  |
 | `three.graph.linkCurvature` | number | store |  |  |
@@ -540,7 +538,6 @@ The opening YAML frontmatter block remains the machine SSOT for this generated r
 | `three.globe.toolNodeCount` | number | store |  |  |
 | `three.globe.arcCount` | number | store |  |  |
 | `three.globe.arcTravelerCount` | number | store |  |  |
-| `three.globe.autoRotateSpeed` | number | store |  |  |
 | `three.globe.hubOrbitEnabled` | boolean | store |  |  |
 | `three.globe.hubOrbitStrength` | number | store |  |  |
 | `three.globe.hubOrbitSpeed` | number | store |  |  |

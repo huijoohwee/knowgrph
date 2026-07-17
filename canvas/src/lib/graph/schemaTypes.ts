@@ -383,7 +383,6 @@ export interface GraphSchema {
     globeArcTravelerCount?: number;
     globeCorePulseStrength?: number;
     globeRippleStrength?: number;
-    globeAutoRotateSpeed?: number;
     globeHubOrbitEnabled?: boolean;
     globeHubOrbitStrength?: number;
     globeHubOrbitSpeed?: number;
