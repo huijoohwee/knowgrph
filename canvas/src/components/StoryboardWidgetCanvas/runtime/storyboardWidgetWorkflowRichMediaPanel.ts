@@ -57,6 +57,8 @@ export const IMAGE_TO_THREEJS_OUTPUT_EDGE_PROPERTY = 'imageThreeJsOutputEdge' as
 export const IMAGE_TO_THREEJS_OUTPUT_EDGE_LABEL = 'image.to-threejs output' as const
 export const IMAGE_TO_GLB_OUTPUT_EDGE_PROPERTY = 'imageGlbOutputEdge' as const
 export const IMAGE_TO_GLB_OUTPUT_EDGE_LABEL = 'image.to-glb output' as const
+export const WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY = 'workflowOutputEdgeMode' as const
+export const WORKFLOW_OUTPUT_EDGE_MODE_MANUAL = 'manual' as const
 
 const isTypedPropertyEnvelope = (value: unknown): value is Record<string, unknown> & { value: unknown } => (
   isPlainObject(value)
@@ -145,7 +147,7 @@ export function resolveStoryboardWidgetWorkflowRichMediaPanelTargetNodeId(args: 
   const anchorNodeId = cleanString(args.anchorNodeId)
   const outputKey = cleanString(args.outputKey)
   const outputGroupId = cleanString(args.outputGroupId)
-  if (outputGroupId && outputKey) {
+  if (outputGroupId && outputKey === PROBE_TREE_OUTPUT_KEY) {
     const groupedPanel = panels.find(node => {
       const properties = (node.properties || {}) as Record<string, unknown>
       return cleanString(properties.workflowOutputGroupId) === outputGroupId
@@ -159,18 +161,7 @@ export function resolveStoryboardWidgetWorkflowRichMediaPanelTargetNodeId(args: 
       return cleanString(p.workflowOutputAnchorNodeId) === anchorNodeId && cleanString(p.workflowOutputKey) === outputKey
     })
     if (exactPanel) return cleanString(exactPanel.id) || null
-
-    // Adopt one legacy, unowned panel for the first named output. Once adopted,
-    // every additional output key receives its own stable Rich Media Panel.
-    const legacyPanels = panels.filter(n => {
-      const p = (n.properties || {}) as Record<string, unknown>
-      return !cleanString(p.workflowOutputAnchorNodeId) && !cleanString(p.workflowOutputKey)
-    })
-    const activeLegacyPanel = legacyPanels.find(n => {
-      const p = (n.properties || {}) as Record<string, unknown>
-      return (typeof p.outputSrcDoc === 'string' && p.outputSrcDoc.trim()) || (typeof p.output === 'string' && p.output.trim())
-    })
-    return cleanString((activeLegacyPanel || legacyPanels[0])?.id) || null
+    return null
   }
   const activePanel = panels.find(n => {
     const p = (n.properties || {}) as Record<string, unknown>
@@ -461,6 +452,7 @@ export function preserveStoryboardWidgetWorkflowInputTopology(args: {
     const panelNodeId = cleanString(panel.id)
     const properties = (panel.properties || {}) as Record<string, unknown>
     if (!panelNodeId || !isCanonicalNodeIdEqual(properties.workflowOutputAnchorNodeId, anchorNodeId)) continue
+    if (cleanString(properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]) === WORKFLOW_OUTPUT_EDGE_MODE_MANUAL) continue
     const exists = edges.some(edge => {
       const endpoints = readGraphEdgeEndpoints(edge)
       return isCanonicalNodeIdEqual(endpoints.src, anchorNodeId) && isCanonicalNodeIdEqual(endpoints.tgt, panelNodeId)

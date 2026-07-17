@@ -4,7 +4,7 @@ import { WidgetEditorPortHandles } from '@/components/StoryboardWidget/WidgetEdi
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
-import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import {
   FLOW_PORT_HANDLE_CANCEL_EVENT,
   FLOW_PORT_HANDLE_FINALIZE_EVENT,
@@ -98,7 +98,11 @@ export function StoryboardWidgetOverlayPortHandles(props: {
   const interaction = React.useContext(PortHandleInteractionContext)
   const nodeId = String(props.node?.id || props.nodeId || '').trim()
   const node = props.node || resolveGraphNodeByCanonicalId(interaction?.graphData, nodeId)
-  if (!interaction || !interaction.active || !props.selected || !node) return null
+  const pendingSourceId = String(interaction?.pendingEdgeSourceId || '').trim()
+  const isPendingTarget = interaction?.toolMode === 'addEdge'
+    && Boolean(pendingSourceId)
+    && !isCanonicalNodeIdEqual(pendingSourceId, nodeId)
+  if (!interaction || !interaction.active || (!props.selected && !isPendingTarget) || !node) return null
 
   return (
     <WidgetEditorPortHandles
@@ -108,6 +112,7 @@ export function StoryboardWidgetOverlayPortHandles(props: {
       registryEntries={interaction.registryEntries}
       edges={interaction.graphData?.edges || []}
       forceEnabled
+      inputOnly={isPendingTarget && !props.selected}
       toolMode={interaction.toolMode}
       pendingEdgeSourceId={interaction.pendingEdgeSourceId}
       onBeginAddEdgeFromNode={interaction.beginEdge}

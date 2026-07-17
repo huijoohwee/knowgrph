@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
 import { StoryboardCardInvocationChips } from '@/components/StoryboardWidgetCanvas/StoryboardCardInvocationChips'
 import { createStoryboardWidgetWorkflowRichMediaPublishers } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPublication'
+import { WORKFLOW_OUTPUT_EDGE_MODE_MANUAL, WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
 import { recoverStaleTextWidgetOutputsFromArtifacts } from '@/components/StoryboardWidgetCanvas/runtime/useTextWidgetOutputArtifactRecovery'
 import { buildAgenticOsRuntimeInvocationSystemPrompt } from '@/features/chat/chatRuntimeInvocationProfile'
 import { resolveChatRuntimeInvocationQuery } from '@/features/chat/chatRuntimeInvocationQuery'
@@ -153,7 +154,7 @@ export function testStoryboardProbeTreeInvocationChipDoesNotNavigateAwayFromCanv
   }
 }
 
-export function testTerminalTextPublicationCommitsWidgetPanelAndEdgeAtomically() {
+export function testTerminalTextPublicationKeepsStandalonePanelAtomic() {
   const sourceNode = {
     id: 'n1',
     type: 'TextGeneration',
@@ -255,7 +256,6 @@ export function testTerminalTextPublicationCommitsWidgetPanelAndEdgeAtomically()
   const publishedGraph = published as GraphData | null
   const publishedSource = publishedGraph?.nodes.find(node => node.id === sourceNode.id)
   const publishedPanel = publishedGraph?.nodes.find(node => node.type === 'RichMediaPanel')
-  const publishedProbeTreeNodes = publishedGraph?.nodes.filter(node => node.type === 'TextGeneration' && node.properties.cardTypeLabel === 'Probe-Tree Card') || []
   const panelProperties = (publishedPanel?.properties || {}) as Record<string, unknown>
   if (
     Number(publishedCommitCount) !== 1
@@ -264,11 +264,12 @@ export function testTerminalTextPublicationCommitsWidgetPanelAndEdgeAtomically()
     || panelProperties.outputPath !== 'workspace:/docs/probe-tree-output.md'
     || panelProperties.outputLoading === true
     || panelProperties.outputLoadingKind === 'text'
-    || publishedProbeTreeNodes.length !== 3
-    || publishedGraph?.edges.filter(edge => edge.source === sourceNode.id && edge.label === 'candidateOption').length !== 3
-    || !publishedGraph?.edges.some(edge => edge.source === sourceNode.id && edge.target === publishedPanel?.id)
+    || publishedGraph?.nodes.some(node => node.type === 'TextGeneration' && node.properties.cardTypeLabel === 'Probe-Tree Card')
+    || publishedGraph?.edges.some(edge => edge.source === sourceNode.id && edge.label === 'candidateOption')
+    || publishedGraph?.edges.some(edge => edge.source === sourceNode.id && edge.target === publishedPanel?.id)
+    || panelProperties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY] !== WORKFLOW_OUTPUT_EDGE_MODE_MANUAL
   ) {
-    throw new Error(`expected terminal Widget, Rich Media Panel, and edge to publish atomically, got ${JSON.stringify(publishedGraph)}`)
+    throw new Error(`expected terminal Widget and standalone Rich Media Panel to publish atomically without an inferred edge, got ${JSON.stringify(publishedGraph)}`)
   }
 }
 

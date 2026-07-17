@@ -83,6 +83,7 @@ export const WidgetEditorPortHandles = React.memo(function WidgetEditorPortHandl
   registryEntries?: ReadonlyArray<WidgetRegistryEntry>
   edges: ReadonlyArray<GraphEdge>
   forceEnabled?: boolean
+  inputOnly?: boolean
   strictHandleSet?: boolean
   toolMode?: StoryboardWidgetToolMode
   pendingEdgeSourceId?: string | null
@@ -372,7 +373,7 @@ export const WidgetEditorPortHandles = React.memo(function WidgetEditorPortHandl
   }
 
   const inputHandles = selectCenteredFlowPortHandle(handles.in)
-  const outputHandles = selectCenteredFlowPortHandle(handles.out)
+  const outputHandles = args.inputOnly === true ? [] : selectCenteredFlowPortHandle(handles.out)
   const hasAny = (inputHandles?.length || 0) + (outputHandles?.length || 0) > 0
   if (!hasAny) return null
   const outputHandlesByCenterPriority = orderFlowPortHandlesByCenterPriority(outputHandles)

@@ -1,7 +1,11 @@
-import { preserveStoryboardWidgetWorkflowInputTopology } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
+import {
+  preserveStoryboardWidgetWorkflowInputTopology,
+  WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
+  WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
-export function testTextRunPersistenceRestoresMissingInputAndOutputEdge() {
+export function testTextRunPersistenceKeepsManualOutputStandalone() {
   const anchorNode: GraphNode = {
     id: 'n1',
     type: 'TextGeneration',
@@ -18,6 +22,7 @@ export function testTextRunPersistenceRestoresMissingInputAndOutputEdge() {
         output: '# SME Workspace Assessment',
         workflowOutputAnchorNodeId: 'n1',
         workflowOutputKey: 'output',
+        [WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]: WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
       },
     }],
     edges: [],
@@ -27,12 +32,11 @@ export function testTextRunPersistenceRestoresMissingInputAndOutputEdge() {
   if (!nodeIds.includes('n1') || !nodeIds.includes('n2')) {
     throw new Error(`expected text Run persistence to retain input and output nodes, got ${JSON.stringify(nodeIds)}`)
   }
-  const outputEdge = (repaired.edges || []).find(edge => edge.source === 'n1' && edge.target === 'n2')
-  if (!outputEdge || outputEdge.label !== 'output') {
-    throw new Error(`expected text Run persistence to restore the n1 -> n2 output edge, got ${JSON.stringify(repaired.edges)}`)
+  if (repaired.edges.length !== 0) {
+    throw new Error(`expected manual text output to remain standalone until an authored edge exists, got ${JSON.stringify(repaired.edges)}`)
   }
   const stable = preserveStoryboardWidgetWorkflowInputTopology({ graphData: repaired, anchorNode })
-  if (stable !== repaired || stable.edges.length !== 1) {
-    throw new Error('expected topology preservation to be idempotent after the input node and output edge exist')
+  if (stable !== repaired || stable.edges.length !== 0) {
+    throw new Error('expected manual output topology preservation to be idempotent without synthesizing an edge')
   }
 }
