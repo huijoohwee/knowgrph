@@ -61,6 +61,8 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
     throw new Error('generated binary artifacts must expose a path only after the host persistence endpoint succeeds')
   }
   if (!graphSourceText.includes('export async function persistStoryboardCardMediaGraphSource')
+    || !graphSourceText.includes('resolveStoryboardCardMediaGraphSourceOwner({')
+    || !graphSourceText.includes('shouldUpdateStoryboardCardMediaGraphActiveDocument({')
     || !graphSourceText.includes('const persisted = await writeActiveMarkdownDocumentTextIfPresent({')
     || !graphSourceText.includes('if (!sourceSync.accepted) return false')
     || !graphSourceText.includes("if (typeof sourceSync.markdownDocumentText !== 'string') return true")
@@ -78,9 +80,10 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
     throw new Error('expected every workflow generator to await the required shared graph-document persistence contract')
   }
   if (!canvasRuntimeText.includes('useStoryboardCardMediaGraphCommit({')
+    || !canvasRuntimeText.includes('sourceOwner: { documentName: markdownDocumentName, documentText: markdownDocumentText }')
     || !canvasRuntimeText.includes('commitPublishedGraphData: publishStoryboardCardMediaGraph')
     || !graphCommitText.includes('const publish = React.useCallback((graphData: GraphData): GraphData => {')
-    || !graphCommitText.includes('persistStoryboardCardMediaGraphSource(publish(graphData), options)')) {
+    || !graphCommitText.includes('sourceOwner: options?.sourceOwner || sourceOwner')) {
     throw new Error('expected live graph publication to stay synchronous while the Canvas persistence adapter returns the durable document commit promise')
   }
 }
