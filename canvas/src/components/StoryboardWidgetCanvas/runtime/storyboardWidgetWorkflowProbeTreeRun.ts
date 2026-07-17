@@ -246,6 +246,7 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
     '- Treat named entities and alternatives already present in the request as subjects to clarify, not as a ready-made selectionOptions array. Never turn an extracted entity list into an echo card.',
     '- Give every card a different request-specific decision variable. Never reuse a choice label, another card\'s complete selection set, or a subset or superset of another card\'s choices.',
     '- Each selectionOptions array must contain suggested clarification answers for its question. Never split the selected focus or repeat its words as bare answer fragments.',
+    '- Never emit an answer set made only of numbers, ranges, or units such as bare time, money, percentage, or quantity buckets. A number-bearing answer is valid only when it also names the semantic preference, tradeoff, or consequence that selecting it expresses.',
     '- For a continuation, the selected child card and its user-authored output own the next topic. Use the thread root only for lineage; never replace the selected child context with a root alias.',
     '- Every card must be a concrete next question relevant to the authored request; morphological variants such as invest and investment are allowed when the named entities and meaning remain intact.',
     '- Never emit generic process cards named Clarify probe, Generate branches, or Select handoff.',

@@ -192,7 +192,6 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["markdown.dataView.inlineEditor.sharedAtMediaCommands","@/__tests__/markdownDataViewInlineEditParity.test","testMarkdownDataViewTableInlineEditorReusesSharedAtMediaCommands"],
   ["videoAgent.importUrl.transcriptUnavailableNotCue","@/__tests__/videoAgentTranscriptUnavailableImport.test","testVideoAgentImportUrlKeepsTranscriptStatusOutOfCueContent"],
   ["htmlVideoRenderer.validationInput.vdeoxplnAnimatedMp4","@/__tests__/htmlVideoRendererValidationInput.test","testHtmlVideoRendererIngestsVdeoxplnDemoAnimatedMp4SpecWithoutHardcodedRuntimeArtifacts"],
-  ["mcp.server.agenticCanvasOsRuntime.dryRunPrdTad","@/__tests__/mcpLocalToolContract.test","testKnowgrphAgenticCanvasOsRuntimeCoversDryRunPrdTad"],
   ["mcp.server.videoRemixRuntime.prdTadAcceptanceShape","@/__tests__/mcpLocalToolContract.test","testKnowgrphVideoRemixRuntimeCoversPrdTadAcceptanceShape"],
   ["mcp.server.resourceTemplateContract.sharedAndStable","@/__tests__/mcpLocalToolContract.test","testKnowgrphMcpResourceTemplateContractStaysSharedAndStable"],
   ["mcp.server.browserApiBridge.blocksRemoteRuntimeByDefault","@/__tests__/mcpBrowserApiRuntime.test","testKnowgrphMcpBrowserBridgeBlocksRemoteRuntimeByDefault"],

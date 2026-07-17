@@ -250,7 +250,7 @@ export function testProbeTreeNoModelCardsFailClosed() {
   }
 }
 
-export function testProbeTreeRestatedSourceQueryIsRejected() {
+export function testProbeTreeRestatedQueryAndMechanicalBucketsAreRejected() {
   const authoredRequest = '/knowgrph.probe-tree recommend invest in India, China, or SE Asia'
   const contextText = ['Authored request:', authoredRequest, 'Selected Widget id: investment-root'].join('\n')
   const restatedQuestionAccepted = isProbeTreeCardUserInputRelevant({
@@ -281,20 +281,30 @@ export function testProbeTreeRestatedSourceQueryIsRejected() {
     question: sparseQuestion,
     contextAnchors: ['Southeast Asia'],
   })
-  const sparseQuestionAccepted = isProbeTreeCardUserInputRelevant({
+  const mechanicalBucketQuestionAccepted = isProbeTreeCardUserInputRelevant({
     contextText: sparseContextText,
     question: sparseQuestion,
-    selectionOptions: ['One to three years', 'Three to seven years', 'More than seven years'],
+    selectionOptions: ['1-2 years', '3-5 years', '6-7 years', '7-10 years'],
+  })
+  const semanticBucketQuestionAccepted = isProbeTreeCardUserInputRelevant({
+    contextText: sparseContextText,
+    question: sparseQuestion,
+    selectionOptions: [
+      '1-3 years for near-term liquidity and policy-cycle alignment',
+      '3-7 years for balanced growth and execution risk',
+      '7+ years for long-horizon market access',
+    ],
   })
   if (
     restatedQuestionAccepted
     || entityListParaphraseAccepted
     || !querySpecificQuestionAccepted
-    || !sparseQuestionAccepted
+    || mechanicalBucketQuestionAccepted
+    || !semanticBucketQuestionAccepted
     || !['invest', 'India', 'SE Asia'].every(anchor => derivedSparseAnchors.includes(anchor))
     || derivedSparseAnchors.includes('Southeast Asia')
   ) {
-    throw new Error(`expected source-query echoes to fail while sparse semantic grounding derives source-verbatim anchors, got ${JSON.stringify({ restatedQuestionAccepted, entityListParaphraseAccepted, querySpecificQuestionAccepted, sparseQuestionAccepted, derivedSparseAnchors })}`)
+    throw new Error(`expected source-query echoes and bare numeric buckets to fail while semantic number-bearing choices and sparse source-verbatim anchors survive, got ${JSON.stringify({ restatedQuestionAccepted, entityListParaphraseAccepted, querySpecificQuestionAccepted, mechanicalBucketQuestionAccepted, semanticBucketQuestionAccepted, derivedSparseAnchors })}`)
   }
 }
 
