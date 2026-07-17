@@ -2,9 +2,10 @@ import { buildProbeTreeCardFromGraphNode } from '@/components/StoryboardCanvas/s
 import { materializeStoryboardWidgetProbeTreeStructuredResponse } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeStructuredResponse'
 import {
   buildProbeTreeStructuredResponse,
-  buildProbeTreeContextualFallbackOptions,
+  buildProbeTreeInputDerivedOptions,
   collectProbeTreeContextKeywords,
-  isProbeTreeResponseContextRelevant,
+  extractProbeTreeUserInputText,
+  isProbeTreeCardUserInputRelevant,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS } from '@/features/agentic-os/probeTreePromptPreset'
@@ -26,7 +27,8 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     'allowOther: true',
     'at most one clarification card',
     'parentNodeId as the lineage SSOT',
-    'deterministic fallback UI only',
+    'never substitute canned response content or fixtures',
+    'contextAnchors',
     'knowgrph.agentic_canvas_os.docs.invoke',
     'result.structuredContent.response.structuredContent',
     'card renders it as Summary',
@@ -43,7 +45,7 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     }
   }
 
-  const question = 'Which source system is authoritative for the member risk tier?'
+  const question = 'Which member risk tier or care-plan handoff should guide the next branch?'
   const surface = extractChatResponseStructuredSurface([
     '```yaml',
     'response:',
@@ -60,13 +62,16 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     '        probeTreeCardVariant: probe-tree-type-2',
     '        selectionMode: multiple',
     '        selectionOptions:',
-    '          - id: current-policy',
-    '            label: Current policy source',
-    '          - id: system-record',
-    '            label: Verified system-of-record fact',
+    '          - id: risk-tier',
+    '            label: member risk tier',
+    '          - id: care-plan-handoff',
+    '            label: care-plan handoff',
+    '        contextAnchors:',
+    '          - member risk tier',
+    '          - care-plan handoff',
     '        allowOther: true',
-    '        rationale: Prevents conflicting CRM and claims values from silently selecting the branch.',
-    '        evidenceNeeded: Named system of record and freshness timestamp',
+    '        rationale: Keeps the next branch within the authored care priorities.',
+    '        evidenceNeeded: User selection among the authored priorities',
     '        confidence: medium',
     '        probeTreeDepth: 2',
     '        nextAction: knowgrph.probe.select',
@@ -85,7 +90,7 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     probeTreeResponseMode: 'llm-contract',
     parentNodeId: 'care_source',
     probeTreeCandidateKey: 'verify-source-authority',
-    evidenceNeeded: 'Named system of record and freshness timestamp',
+    evidenceNeeded: 'User selection among the authored priorities',
     confidence: 'medium',
     nextAction: 'knowgrph.probe.select',
     probeTreeCardVariant: 'probe-tree-type-2',
@@ -98,7 +103,9 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     }
   }
   if (
-    node.nodeTypeId !== FLOW_TEXT_GENERATION_NODE_TYPE_ID
+    JSON.stringify(node.properties.contextAnchors) !== JSON.stringify(['member risk tier', 'care-plan handoff'])
+    || JSON.stringify(node.properties.probeTreeUserInputAnchors) !== JSON.stringify(['member risk tier', 'care-plan handoff'])
+    || node.nodeTypeId !== FLOW_TEXT_GENERATION_NODE_TYPE_ID
     || node.targetHandle !== 'prompt_in'
     || !String(node.properties.prompt || '').startsWith('/knowgrph.probe-tree')
   ) {
@@ -126,23 +133,28 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     || card.lane !== 'PROBE'
     || card.summary !== question
     || card.output !== ''
-    || !card.action.includes('Named system of record')
+    || !card.action.includes('User selection')
   ) {
     throw new Error(`expected structured output to render as a visible Probe-Tree card, got ${JSON.stringify(card)}`)
   }
 }
 
 export function testProbeTreeMcpResponseAdapterBoundsWidgetCardsAndPanel() {
+  const contextText = 'Authored request: Prioritize care evidence across member risk tier, CRM authority, claims freshness, and care-plan handoff. Selected Widget id: care-source'
+  const selectionOptions = ['member risk tier', 'CRM authority', 'claims freshness', 'care-plan handoff']
   const response = buildProbeTreeStructuredResponse({
     threadRootId: 'care-agent',
     currentNodeId: 'care-source',
-    contextText: 'The selected care source needs an authoritative risk-tier branch.',
+    contextText,
     optionCount: 9,
     probeTreeDepth: 99,
     options: Array.from({ length: 6 }, (_, index) => ({
       id: `care-option-${index + 1}`,
-      text: `Which care evidence source should branch ${index + 1} use?`,
+      text: `Which member risk tier and CRM authority priority should care evidence branch ${index + 1} use?`,
       rationale: `Keeps branch ${index + 1} source-backed.`,
+      evidenceNeeded: 'User selection among the authored care evidence priorities.',
+      selectionOptions,
+      contextAnchors: ['member risk tier', 'CRM authority'],
     })),
   })
   const structured = response.structuredContent
@@ -183,7 +195,7 @@ export function testProbeTreeMcpResponseAdapterBoundsWidgetCardsAndPanel() {
   }
 }
 
-export function testProbeTreeContextFallbackProjectsWithoutStructuredTextParsing() {
+export function testProbeTreeInputDerivedCardsProjectWithoutStructuredTextParsing() {
   const anchorNode: GraphNode = {
     id: { key: 'id', type: 'string', value: 'sme-source' },
     type: { key: 'type', type: 'string', value: 'TextGeneration' },
@@ -191,31 +203,35 @@ export function testProbeTreeContextFallbackProjectsWithoutStructuredTextParsing
     properties: {},
   } as unknown as GraphNode
   const graphData: GraphData = { type: 'Graph', nodes: [anchorNode], edges: [] }
+  const contextText = [
+    'Authored request:',
+    'Assess SME exposure across cyber, supply-chain, physical-asset, and growth-stage risks.',
+    'Keep exposure, current coverage, apparent gaps, and unknown risks distinct.',
+    'Produce provider-neutral guidance, evidence-needed fields, rationale, and adviser handoff.',
+    'Selected Widget id: sme-source',
+  ].join('\n')
+  const inputDerivedOptions = buildProbeTreeInputDerivedOptions(contextText)
   const result = materializeStoryboardWidgetProbeTreeStructuredResponse({
     graphData,
     anchorNode,
     responseText: 'unstructured upstream output',
-    contextText: 'SME cyber supply-chain coverage gaps and adviser handoff',
-    responseSource: 'context-fallback',
-    model: 'knowgrph-probe-tree-context-fallback',
+    contextText,
+    responseSource: 'input-derived',
+    model: 'knowgrph-probe-tree-input-derived',
     mcpInvoked: false,
     invocationTokens: ['/knowgrph.probe-tree'],
-    contextFallbackOptions: [
-      { id: 'coverage-evidence', text: 'Which SME cyber coverage evidence is authoritative?', rationale: 'Keeps the gap source-backed.' },
-      { id: 'supply-chain-risk', text: 'Which SME supply-chain risk remains unresolved?', rationale: 'Keeps the next branch context-specific.' },
-      { id: 'adviser-handoff', text: 'What evidence is required for the SME adviser handoff?', rationale: 'Preserves the review boundary.' },
-    ],
+    inputDerivedOptions,
   })
   const cards = result?.graphData.nodes.filter(node => node.properties.probeTreeResponseMode === 'llm-contract') || []
   if (
-    result?.responseSource !== 'context-fallback'
+    result?.responseSource !== 'input-derived'
     || cards.length !== 3
     || cards.some(card => card.properties.parentNodeId !== 'sme-source')
     || cards.some(card => card.properties.output !== '' || !card.properties.summary)
     || cards.some(card => card.properties.probeTreeCardVariant !== 'probe-tree-type-2' || card.properties.selectionMode !== 'multiple' || card.properties.allowOther !== true)
     || !result.panelOutput.includes('SME')
   ) {
-    throw new Error(`expected direct bounded context fallback cards without generic response parsing, got ${JSON.stringify(result)}`)
+    throw new Error(`expected direct user-input-derived cards without generic response parsing, got ${JSON.stringify(result)}`)
   }
 }
 
@@ -234,22 +250,25 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
   ].join('\n')
   const keywords = collectProbeTreeContextKeywords(contextText, 8)
   const forbiddenMetadata = ['local-harness', 'cost-log', 'runtime-proof', 'token-economics', 'runtime-ready', 'approval-gate', 'probe-tree']
-  const options = buildProbeTreeContextualFallbackOptions(contextText)
-  const responseTexts = options.flatMap(option => [option.text, option.rationale, option.evidenceNeeded])
-  const continuationKeywords = collectProbeTreeContextKeywords([
+  const options = buildProbeTreeInputDerivedOptions(contextText)
+  const continuationContext = [
     'Authored request:',
-    'regulatory changes on indonesia',
+    'Compare regulatory changes across Indonesia, Singapore, and Malaysia.',
     'Selected continuation question:',
-    'Which authoritative evidence confirms the current facts for the SME / cyber / supply-chain scope?',
-    'Selected continuation answer: regulatory changes on indonesia',
-  ].join('\n'), 6)
+    'Which market should lead the regulatory review?',
+    'Selected continuation answer: Compare regulatory changes across Indonesia, Singapore, and Malaysia.',
+  ].join('\n')
+  const continuationKeywords = collectProbeTreeContextKeywords(extractProbeTreeUserInputText(continuationContext), 10)
+  const firstOption = options[0]
   if (
     forbiddenMetadata.some(keyword => keywords.includes(keyword))
-    || JSON.stringify(keywords.slice(0, 3)) !== JSON.stringify(['sme', 'cyber', 'supply-chain'])
-    || !String(options[0]?.text || '').includes('SME / cyber / supply chain')
-    || !isProbeTreeResponseContextRelevant({ contextText, responseTexts })
-    || JSON.stringify(continuationKeywords.slice(0, 4)) !== JSON.stringify(['indonesia', 'sme', 'cyber', 'supply-chain'])
+    || !['sme', 'cyber', 'supply-chain', 'physical-asset', 'growth-stage'].every(keyword => keywords.includes(keyword))
+    || !firstOption
+    || !isProbeTreeCardUserInputRelevant({ contextText, question: firstOption.text, selectionOptions: firstOption.selectionOptions, contextAnchors: firstOption.contextAnchors })
+    || !['market', 'regulatory', 'indonesia', 'singapore', 'malaysia'].every(keyword => continuationKeywords.includes(keyword))
+    || JSON.stringify(options).includes('Current primary source for')
+    || JSON.stringify(options).includes('Verified system-of-record fact for')
   ) {
-    throw new Error(`expected invocation and question scaffolding to yield context-relevant SME fallback terms, got ${JSON.stringify({ keywords, continuationKeywords, options })}`)
+    throw new Error(`expected invocation scaffolding to yield only user-input-derived choices, got ${JSON.stringify({ keywords, continuationKeywords, options })}`)
   }
 }

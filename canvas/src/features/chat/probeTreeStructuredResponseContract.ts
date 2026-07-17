@@ -8,6 +8,7 @@ import {
 import {
   PROBE_TREE_CARD_VARIANTS,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+  normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
@@ -38,9 +39,9 @@ export function buildProbeTreeCardMaterializationPrompt(userQuery: string): stri
     '- When the local knowgrph MCP tools are connected, invoke knowgrph.probe.generate once with thread_root_id, current_node_id, context_text, k between 2 and 4, and the bounded token_budget.',
     '- Accept a literal MCP result at result.structuredContent.response.structuredContent; otherwise produce the same response.structuredContent shape without claiming that a tool ran.',
     '- Return 2-4 concrete, context-specific next questions; do not emit generic process cards such as "Clarify probe", "Generate branches", or "Select handoff".',
-    '- Those generic process cards are deterministic fallback UI only, never valid LLM contract output.',
+    '- The local no-model path may derive choices only from the current user input; never substitute canned response content or fixtures.',
     '- Include one fenced yaml block rooted at `response.structuredContent`: put `contractVersion` at that root, exactly one copied source record in `response.structuredContent.widgets`, 2-4 branch records in `response.structuredContent.cards`, and one Probe-Tree Branches record in `response.structuredContent.panels`.',
-    '- Each card must include id, label, kind: text, parentNodeId, candidateOptionId, question, output: "", rationale, evidenceNeeded, confidence, probeTreeDepth, nextAction: knowgrph.probe.select, probeTreeCardVariant: probe-tree-type-2, selectionMode: multiple, 2-4 selectionOptions with unique id and label, and allowOther: true.',
+    '- Each card must include id, label, kind: text, parentNodeId, candidateOptionId, question, output: "", rationale, evidenceNeeded, confidence, probeTreeDepth, nextAction: knowgrph.probe.select, probeTreeCardVariant: probe-tree-type-2, selectionMode: multiple, 2-4 selectionOptions with unique id and label, 2-6 contextAnchors copied verbatim from the user input, and allowOther: true.',
     `- Put the model-generated probe question in question so the card renders it as Summary; keep probeTreeDepth at or below ${KNOWGRPH_PROBE_TREE_MAX_DEPTH}, leave output empty for the user-owned selection, and make every numbered choice a concise answer to that card's question.`,
     '- Use at most one clarification card, and only when a named missing fact materially changes branch selection.',
     '- Treat parentNodeId as the lineage SSOT and set every parentNodeId to the source widget id; omit duplicate candidateOption edges because the shared projector infers them into the visible tree.',
@@ -57,6 +58,7 @@ export function isProbeTreeStructuredResponseCard(
   if (readFirstString(record, ['probeTreeCardVariant']) !== PROBE_TREE_CARD_VARIANTS.boundedMultiSelect) return false
   if (readFirstString(record, ['selectionMode']) !== 'multiple') return false
   if (normalizeProbeTreeSelectionOptions(readFieldValue(record, 'selectionOptions')).length < 2) return false
+  if (normalizeProbeTreeContextAnchors(readFieldValue(record, 'contextAnchors')).length < 2) return false
   if (readFieldValue(record, 'allowOther') !== true) return false
   const nextAction = readFirstString(record, ['nextAction', 'next_action', 'probeTreeTool', 'probe_tree_tool'])
   if (PROBE_TREE_TOOL_PATTERN.test(nextAction)) return true
@@ -98,6 +100,7 @@ export function buildProbeTreeStructuredResponseProperties(args: {
   const confidence = readFirstString(args.record, ['confidence']) || 'unspecified'
   const nextAction = readFirstString(args.record, ['nextAction', 'next_action']) || KNOWGRPH_PROBE_TREE_SELECT_TOOL_NAME
   const selectionOptions = normalizeProbeTreeSelectionOptions(readFieldValue(args.record, 'selectionOptions'))
+  const contextAnchors = normalizeProbeTreeContextAnchors(readFieldValue(args.record, 'contextAnchors'))
   const action = evidenceNeeded
     ? `Verify ${evidenceNeeded}, then review ${nextAction}.`
     : `Review this branch, then ${nextAction}.`
@@ -107,6 +110,8 @@ export function buildProbeTreeStructuredResponseProperties(args: {
     probeTreeCardVariant: PROBE_TREE_CARD_VARIANTS.boundedMultiSelect,
     selectionMode: 'multiple',
     selectionOptions,
+    contextAnchors,
+    probeTreeUserInputAnchors: contextAnchors,
     allowOther: true,
     lane: 'PROBE',
     index: `P${args.index + 1}`,

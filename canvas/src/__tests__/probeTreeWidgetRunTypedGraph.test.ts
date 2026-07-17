@@ -20,7 +20,7 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
   const prompt = [
     '/sme-care-agent @source.frontmatter @source.body',
     '/knowgrph.probe-tree',
-    'Generate bounded branches without using the bubble-toolbar action.',
+    'Compare bounded branch priorities across user goal, source evidence, unresolved gap, and next decision without using the bubble-toolbar action.',
   ].join('\n')
   const typedNode = {
     id: cell('id', 'string', 'n1'),
@@ -124,7 +124,7 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
       runnerDraft = next
       const panel = next.nodes.find(node => unwrapGraphCellValue(node.type) === 'RichMediaPanel') || null
       const output = String(unwrapGraphCellValue(readGraphNodeProperties(panel).output) || '')
-      if (output.includes('Model: probe-tree-local-heuristic')) void Promise.resolve().then(() => { runnerDraft = staleRunnerDraft })
+      if (output.includes('Model: probe-tree-input-derived')) void Promise.resolve().then(() => { runnerDraft = staleRunnerDraft })
     },
     commitPublishedGraphData: next => {
       terminalPublishedGraph = next

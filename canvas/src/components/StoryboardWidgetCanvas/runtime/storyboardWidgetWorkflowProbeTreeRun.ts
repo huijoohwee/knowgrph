@@ -26,9 +26,8 @@ import {
 } from '@/features/agentic-os/probeTreePromptPreset'
 import {
   PROBE_TREE_DEFAULTS,
-  PROBE_TREE_FALLBACK_OPTIONS,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
-  buildProbeTreeContextualFallbackOptions,
+  buildProbeTreeInputDerivedOptions,
   buildProbeTreeStructuredResponse,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { invokeProbeTreeMcpBridge } from '@/features/agent-ready/probeTreeMcpClient'
@@ -53,7 +52,7 @@ const PROBE_TREE_INVOCATION_TOKENS = new Set<string>(
 )
 const PROBE_TREE_RICH_MEDIA_PANEL_LABEL = 'Probe-Tree Branches'
 const PROBE_TREE_LOCAL_MODEL = 'knowgrph-probe-tree-local-fallback'
-const PROBE_TREE_CONTEXT_FALLBACK_MODEL = 'knowgrph-probe-tree-context-fallback'
+const PROBE_TREE_INPUT_DERIVED_MODEL = 'knowgrph-probe-tree-input-derived'
 export const PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY = 'probeTreeProviderRefinementApproved' as const
 
 export function isStoryboardWidgetProbeTreeProviderRefinementApproved(properties: Record<string, unknown>): boolean {
@@ -235,15 +234,15 @@ const buildProbeTreeContextText = (node: GraphNode, prompt: string): string => {
   ].filter(Boolean).join('\n').slice(0, 12_000)
 }
 
-const buildLocalFallbackCallResult = (args: {
+const buildInputDerivedCallResult = (args: {
   threadRootId: string
   currentNodeId: string
   contextText: string
   probeTreeDepth: number
-  options: ReturnType<typeof buildProbeTreeContextualFallbackOptions>
+  options: ReturnType<typeof buildProbeTreeInputDerivedOptions>
 }): Record<string, unknown> => ({
   isError: false,
-  content: [{ type: 'text', text: 'Bounded contextual Probe-Tree fallback.' }],
+  content: [{ type: 'text', text: 'Bounded user-input-derived Probe-Tree fallback.' }],
   structuredContent: {
     contractVersion: 'knowgrph-probe-tree/v0.1',
     ok: true,
@@ -258,7 +257,7 @@ const buildLocalFallbackCallResult = (args: {
       degraded: true,
     }),
     cost_log: {
-      model: PROBE_TREE_CONTEXT_FALLBACK_MODEL,
+      model: PROBE_TREE_INPUT_DERIVED_MODEL,
       prompt_tokens: 0,
       completion_tokens: 0,
       cache_hits: 0,
@@ -293,8 +292,9 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
     '- Use the selected Widget request below as the only topic. Do not substitute a stock workflow or unrelated domain.',
     `- The local knowgrph MCP ${args.mcpInvoked ? 'was invoked' : 'was unavailable'}; treat the literal result as bounded candidate evidence, not as permission to claim other tools ran.`,
     `- Return one fenced YAML block rooted at response.structuredContent using ${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION}.`,
-    `- Emit exactly 2-4 cards, set every parentNodeId to ${args.currentNodeId}, set every probeTreeDepth to ${args.probeTreeDepth}, and include candidateOptionId, question, output, rationale, evidenceNeeded, confidence, nextAction: knowgrph.probe.select, probeTreeCardVariant: probe-tree-type-2, selectionMode: multiple, 2-4 selectionOptions with unique id and label, and allowOther: true.`,
+    `- Emit exactly 2-4 cards, set every parentNodeId to ${args.currentNodeId}, set every probeTreeDepth to ${args.probeTreeDepth}, and include candidateOptionId, question, output, rationale, evidenceNeeded, confidence, nextAction: knowgrph.probe.select, probeTreeCardVariant: probe-tree-type-2, selectionMode: multiple, 2-4 selectionOptions with unique id and label, 2-6 contextAnchors copied verbatim from the selected user input, and allowOther: true.`,
     '- Put each generated probe in question for the card Summary, make every numbered selection option a concise answer to that exact question, and set output exactly to an empty string for the user-owned multi-selection or Other response; never copy question or rationale into output.',
+    '- Ground every question and every numbered choice in the selected user input. Do not emit stock evidence, policy, reviewer, approval, or system-of-record choices unless the user actually named those concepts.',
     '- For a continuation, the selected child card and its user-authored output own the next topic. Use the thread root only for lineage; never replace the selected child context with a root alias.',
     '- Every card must be a concrete next question relevant to the authored request and the set must reuse at least two substantive request terms.',
     '- Never emit generic process cards named Clarify probe, Generate branches, or Select handoff.',
@@ -373,8 +373,8 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
       graphData: graphForInvocation,
       materializedNodeIds: [],
       panelOutput: '',
-      responseSource: 'context-fallback',
-      model: PROBE_TREE_CONTEXT_FALLBACK_MODEL,
+      responseSource: 'input-derived',
+      model: PROBE_TREE_INPUT_DERIVED_MODEL,
       invocationToken,
       mcpInvoked: false,
       providerAccepted: false,
@@ -385,16 +385,13 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   const nextProbeTreeDepth = currentProbeTreeDepth + 1
   const contextText = buildProbeTreeContextText(node, prompt)
   const invocationTokens = collectInvocationTokens(prompt)
-  const contextualFallbackOptions = buildProbeTreeContextualFallbackOptions(contextText)
-  const contextFallbackOptions = (contextualFallbackOptions.length >= PROBE_TREE_DEFAULTS.minOptionCount
-    ? contextualFallbackOptions
-    : PROBE_TREE_FALLBACK_OPTIONS).slice(0, PROBE_TREE_DEFAULTS.optionCount)
-  const localFallbackResult = buildLocalFallbackCallResult({
+  const inputDerivedOptions = buildProbeTreeInputDerivedOptions(contextText).slice(0, PROBE_TREE_DEFAULTS.optionCount)
+  const localFallbackResult = buildInputDerivedCallResult({
     threadRootId,
     currentNodeId,
     contextText,
     probeTreeDepth: nextProbeTreeDepth,
-    options: contextFallbackOptions,
+    options: inputDerivedOptions,
   })
   let bridge: ProbeTreeMcpBridgeSuccess | null = null
   let mcpError = ''
@@ -455,13 +452,13 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
       anchorNode: node,
       responseText: JSON.stringify({ result: mcpResult }, null, 2),
       contextText,
-      responseSource: mcpInvoked ? 'mcp' : 'context-fallback',
-      model: mcpInvoked ? readMcpModel(mcpResult) : PROBE_TREE_CONTEXT_FALLBACK_MODEL,
+      responseSource: mcpInvoked ? 'mcp' : 'input-derived',
+      model: mcpInvoked ? readMcpModel(mcpResult) : PROBE_TREE_INPUT_DERIVED_MODEL,
       mcpInvoked,
       threadRootId,
       invocationTokens,
       invocationResolutions: bridge?.invocationResolutions,
-      ...(!mcpInvoked ? { contextFallbackOptions } : {}),
+      ...(!mcpInvoked ? { inputDerivedOptions } : {}),
     })
   }
   if (!materialized && mcpInvoked) {
@@ -470,16 +467,16 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
       anchorNode: node,
       responseText: JSON.stringify({ result: localFallbackResult }, null, 2),
       contextText,
-      responseSource: 'context-fallback',
-      model: PROBE_TREE_CONTEXT_FALLBACK_MODEL,
+      responseSource: 'input-derived',
+      model: PROBE_TREE_INPUT_DERIVED_MODEL,
       mcpInvoked,
       threadRootId,
       invocationTokens,
       invocationResolutions: bridge?.invocationResolutions,
-      contextFallbackOptions,
+      inputDerivedOptions,
     })
   }
-  if (!materialized) throw new Error('Probe-Tree returned no bounded, context-relevant structured cards.')
+  if (!materialized) throw new Error('Probe-Tree needs 2-4 cards whose questions, choices, and verbatim context anchors come from the selected user input.')
 
   const outputGroupId = buildStoryboardWidgetProbeTreeOutputGroupId(threadRootId)
   const normalizedGraphData = normalizeStoryboardWidgetProbeTreeOutputLayout({
@@ -514,7 +511,7 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     kind: mcpInvoked ? 'success' : 'warning',
     message: mcpInvoked
       ? `Generated ${count} context-specific Probe-Tree card${count === 1 ? '' : 's'} through knowgrph MCP.`
-      : `Generated ${count} context-specific Probe-Tree card${count === 1 ? '' : 's'} with the bounded local fallback; knowgrph MCP was unavailable.`,
+      : `Generated ${count} user-input-derived Probe-Tree card${count === 1 ? '' : 's'} without canned fallback content; knowgrph MCP was unavailable.`,
     ...(mcpError ? { mcpError } : {}),
     ...(providerError ? { providerError } : {}),
   }
