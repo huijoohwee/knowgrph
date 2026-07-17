@@ -80,7 +80,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["mainPanel.storyboardWidgetManager.registry.storageRoundTrip","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerRegistryStorageRoundTrip"],
   ["mainPanel.storyboardWidgetManager.registry.seedWidgetMappings","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerSeedsDefaultRegistryEntriesAndConsolidatesPropsPanelMedia"],
   ["mainPanel.storyboardWidgetManager.registry.reconcilesStaleBuiltInTextEntry","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerReconcilesStaleBuiltInTextRegistryEntry"],
-  ["mainPanel.storyboardWidgetManager.registry.normalizesBytePlusTextDefaults","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerNormalizesBytePlusTextWidgetProviderDefaults"],
+  ["mainPanel.storyboardWidgetManager.registry.reconcilesTextProviderFromSelectedModel","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerReconcilesTextWidgetProviderFromSelectedModel"],
   ["mainPanel.storyboardWidgetManager.registry.reusableTextDrafts","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerBuildsReusableTextRegistryDrafts"],
   ["mainPanel.storyboardWidgetManager.registry.omitsOpenAiTextDefault","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerDoesNotSeedOpenAiTextRegistryEntry"],
   ["mainPanel.storyboardWidgetManager.registry.omitsDeerFlowTextDefault","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerDoesNotSeedDeerFlowTextRegistryEntry"],

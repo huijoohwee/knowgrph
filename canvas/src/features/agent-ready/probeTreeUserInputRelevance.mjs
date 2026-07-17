@@ -28,6 +28,15 @@ const GENERIC_CLARIFICATION_QUESTION_PATTERN = /^(?:which (?:scope|priority|cons
 const GENERIC_CLARIFICATION_CHOICE_PATTERN = /^(?:define the exact boundary|identify adjacent concerns|set what is outside|set the immediate priority|identify the next sequence|define when to defer|identify mandatory constraints|define acceptable tradeoffs|set unresolved limits|compare current evidence for|resolve the dependency between|choose the decision order for|use current evidence for|set a decision threshold for|choose a deliverable for|current authoritative evidence for|corroborating evidence for|known evidence gaps for|most conservative basis for|balanced basis for|most current basis for|comparison for|evidence ledger for|recommendation for)\b/i;
 const PROBE_TREE_GENERATED_QUESTION_SCAFFOLD_PATTERN = /^(?:which requested items should guide the next branch)\s*:\s*/i;
 const PROBE_TREE_TERMINAL_GENERATION_PATTERN = /^(?:please\s+)?(?:build|compose|create|draft|generate|prepare|produce|render|write)\b/i;
+const PROBE_TREE_BUCKET_NUMBER_WORDS = new Set([
+  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand", "million", "billion", "trillion",
+]);
+const PROBE_TREE_BUCKET_SYNTAX_WORDS = new Set([
+  "and", "approx", "approximately", "around", "at", "between", "below", "fewer", "from", "greater", "least", "less", "maximum", "minimum", "more", "over", "per", "than", "through", "to", "under", "up", "versus",
+]);
+const PROBE_TREE_BUCKET_UNIT_WORDS = new Set([
+  "bps", "cent", "cents", "day", "days", "dollar", "dollars", "eur", "gbp", "hour", "hours", "k", "m", "minute", "minutes", "month", "months", "percent", "percentage", "percentages", "quarter", "quarters", "second", "seconds", "sgd", "usd", "week", "weeks", "year", "years", "yr", "yrs",
+]);
 
 export const cleanProbeTreeResponseText = (value, maxLength = 320) => (
   String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength)
@@ -58,6 +67,25 @@ export function normalizeProbeTreeSelectionOptions(value) {
     if (options.length >= PROBE_TREE_MULTI_SELECT_LIMITS.max) break;
   }
   return options.length >= PROBE_TREE_MULTI_SELECT_LIMITS.min ? options : [];
+}
+
+const isProbeTreeMechanicalBucketLabel = value => {
+  const tokens = cleanProbeTreeResponseText(value, 160).toLowerCase().match(/[a-z]+|\d+(?:\.\d+)?[a-z]*/g) || [];
+  const hasQuantity = tokens.some(token => /^\d/.test(token) || PROBE_TREE_BUCKET_NUMBER_WORDS.has(token));
+  if (!hasQuantity) return false;
+  const semanticTokens = tokens.filter(token => (
+    !/^\d+(?:\.\d+)?(?:k|m|bn|b)?$/.test(token)
+    && !PROBE_TREE_BUCKET_NUMBER_WORDS.has(token)
+    && !PROBE_TREE_BUCKET_SYNTAX_WORDS.has(token)
+    && !PROBE_TREE_BUCKET_UNIT_WORDS.has(token)
+  ));
+  return semanticTokens.length === 0;
+};
+
+export function areProbeTreeSelectionOptionsOnlyMechanicalBuckets(value) {
+  const options = normalizeProbeTreeSelectionOptions(value);
+  return options.length >= PROBE_TREE_MULTI_SELECT_LIMITS.min
+    && options.every(option => isProbeTreeMechanicalBucketLabel(option.label));
 }
 
 export function normalizeProbeTreeContextAnchors(value) {
@@ -272,6 +300,7 @@ export function isProbeTreeCardUserInputRelevant({ contextText, question, select
     || (continuationAnswer && isProbeTreeTerminalGenerationRequest(userInput))
     || anchors.length < 2
     || options.length < 2
+    || areProbeTreeSelectionOptionsOnlyMechanicalBuckets(options)
     || isProbeTreeSourceQueryRestatement({ userInput, question, selectionOptions: options })
     || GENERIC_RESPONSE_CONTENT_PATTERN.test(String(question || "").trim())
     || GENERIC_CLARIFICATION_QUESTION_PATTERN.test(String(question || "").trim())

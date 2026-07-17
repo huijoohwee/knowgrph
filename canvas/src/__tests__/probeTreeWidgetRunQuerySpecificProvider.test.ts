@@ -60,7 +60,11 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
               rationale: 'The holding period changes how the two locations should be compared.',
               evidenceNeeded: 'User-selected investment horizon.',
               probeTreeCardVariant: 'probe-tree-type-2',
-              selectionOptions: ['One to three years', 'Three to seven years', 'More than seven years'],
+              selectionOptions: [
+                '1-3 years for near-term liquidity and policy-cycle alignment',
+                '3-7 years for balanced growth and execution risk',
+                '7+ years for long-horizon market access',
+              ],
             },
             {
               id: 'investment-vehicle',
@@ -108,6 +112,7 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     || !String(mcpRequest?.contextText || '').includes(AUTHORED_REQUEST)
     || !providerPrompt.includes('Never copy or paraphrase the selected request as a card question')
     || !providerPrompt.includes('not as a ready-made selectionOptions array')
+    || !providerPrompt.includes('made only of numbers, ranges, or units')
     || !providerPrompt.includes('runtime owns source Widget investment-root')
     || !providerPrompt.includes('source-verbatim contextAnchors')
     || !providerPrompt.includes('Do not emit contextAnchors')

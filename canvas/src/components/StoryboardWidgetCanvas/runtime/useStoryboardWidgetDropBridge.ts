@@ -36,10 +36,10 @@ import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/w
 import { FLOW_WIDGET_FORM_ID_KEY, FLOW_WIDGET_TYPE_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import {
   getWidgetRegistryEntryLabel,
-  inferTextGenerationProviderFamily,
   resolveEffectiveTextGenerationWidgetProperties,
   resolveTextGenerationGlobalDefaultsForProviderFamily,
 } from '@/features/storyboard-widget-manager/registryTemplates'
+import { inferTextGenerationProviderFamily } from '@/features/storyboard-widget-manager/textGenerationProviderFamily'
 import { resolveCanvasViewportMeasureElement } from '@/lib/canvas/viewportMeasureElement'
 import { screenToWorld } from '@/lib/zoom/viewport'
 import { requestGeospatialCurrentLocation, setGeospatialModeEnabled } from '@/features/geospatial/gympgrphBridge'
@@ -250,7 +250,7 @@ export function useStoryboardWidgetDropBridge(args: {
       if (entry.nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
         const store = useGraphStore.getState()
         const providerFamily = inferTextGenerationProviderFamily({
-          provider: store.chatProvider,
+          provider: store.chatProvider, endpointUrl: store.chatEndpointUrl, model: store.chatModel,
           widgetTypeId: entry.widgetTypeId,
           formId: entry.formId,
         })

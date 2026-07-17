@@ -5,7 +5,8 @@ import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/w
 import { FLOW_IMAGE_GENERATION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import { resolveEffectiveBytePlusImageWidgetProperties } from '@/features/integrations/byteplusImageGenerationDefaults'
 import { resolveEffectiveBytePlusVideoWidgetProperties } from '@/features/integrations/byteplusVideoGenerationDefaults'
-import { inferTextGenerationProviderFamily, resolveEffectiveTextGenerationWidgetProperties } from '@/features/storyboard-widget-manager/registryTemplates'
+import { resolveEffectiveTextGenerationWidgetProperties } from '@/features/storyboard-widget-manager/registryTemplates'
+import { inferTextGenerationProviderFamily } from '@/features/storyboard-widget-manager/textGenerationProviderFamily'
 
 export type RegistryPortRowModel = {
   port: WidgetRegistryEntry['ports'][number]
@@ -66,7 +67,9 @@ export function useWidgetEditorRegistryEffectiveProperties(args: {
     }
     if (String(registryEntry.nodeTypeId || '').trim() !== FLOW_TEXT_GENERATION_NODE_TYPE_ID) return properties
     const providerFamily = inferTextGenerationProviderFamily({
-      provider: properties.chatProvider,
+      provider: properties.chatProvider || globalTextDefaults.chatProvider,
+      endpointUrl: properties.chatEndpointUrl || globalTextDefaults.chatEndpointUrl,
+      model: properties.chatModel || globalTextDefaults.chatModel,
       widgetTypeId: registryEntry.widgetTypeId,
       formId: registryEntry.formId,
     })

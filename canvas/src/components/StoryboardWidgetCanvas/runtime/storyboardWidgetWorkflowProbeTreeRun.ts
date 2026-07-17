@@ -246,6 +246,7 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
     '- Treat named entities and alternatives already present in the request as subjects to clarify, not as a ready-made selectionOptions array. Never turn an extracted entity list into an echo card.',
     '- Give every card a different request-specific decision variable. Never reuse a choice label, another card\'s complete selection set, or a subset or superset of another card\'s choices.',
     '- Each selectionOptions array must contain suggested clarification answers for its question. Never split the selected focus or repeat its words as bare answer fragments.',
+    '- Never emit an answer set made only of numbers, ranges, or units such as bare time, money, percentage, or quantity buckets. A number-bearing answer is valid only when it also names the semantic preference, tradeoff, or consequence that selecting it expresses.',
     '- For a continuation, the selected child card and its user-authored output own the next topic. Use the thread root only for lineage; never replace the selected child context with a root alias.',
     '- Every card must be a concrete next question relevant to the authored request; morphological variants such as invest and investment are allowed when the named entities and meaning remain intact.',
     '- Never emit generic process cards named Clarify probe, Generate branches, or Select handoff.',
@@ -286,6 +287,28 @@ type StoryboardWidgetProbeTreeProviderRuntimeProperties = {
   chatFrequencyPenalty?: unknown
   chatPresencePenalty?: unknown
   chatTopP?: unknown
+}
+
+export function resolveStoryboardWidgetProbeTreeChatRoute(args: {
+  localProperties?: Record<string, unknown>
+  resolvedProperties: Record<string, unknown>
+  runtimeProperties: StoryboardWidgetProbeTreeProviderRuntimeProperties
+}) {
+  const readRouteValue = (key: 'chatProvider' | 'chatEndpointUrl' | 'chatModel'): string => {
+    const runtimeValue = String(unwrapGraphCellValue(args.runtimeProperties[key]) || '').trim()
+    return runtimeValue || String(unwrapGraphCellValue(args.resolvedProperties[key]) || '').trim()
+  }
+  const localAuthMode = String(unwrapGraphCellValue(args.localProperties?.chatAuthMode) || '').trim()
+  const runtimeAuthMode = String(unwrapGraphCellValue(args.runtimeProperties.chatAuthMode) || '').trim()
+  const resolvedAuthMode = String(unwrapGraphCellValue(args.resolvedProperties.chatAuthMode) || '').trim()
+  return {
+    provider: readRouteValue('chatProvider'),
+    endpointUrl: readRouteValue('chatEndpointUrl'),
+    chatModel: readRouteValue('chatModel'),
+    chatAuthMode: localAuthMode === 'byok' || runtimeAuthMode === 'byok'
+      ? 'byok'
+      : runtimeAuthMode || resolvedAuthMode || localAuthMode,
+  }
 }
 
 export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
@@ -431,7 +454,10 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
       invocationResolutions: bridge?.invocationResolutions,
     })
   }
-  if (!materialized) throw new Error('Probe-Tree received no accepted 2-4 query-specific LLM cards. Check the configured chat model and ensure its questions introduce missing decision variables instead of restating the source query; the zero-model MCP path does not synthesize fallback cards.')
+  if (!materialized) {
+    if (providerError) throw new Error(`Probe-Tree LLM request failed: ${providerError}`)
+    throw new Error('Probe-Tree received no accepted 2-4 query-specific LLM cards. Check the configured chat model and ensure its questions introduce missing decision variables instead of restating the source query; the zero-model MCP path does not synthesize fallback cards.')
+  }
 
   const outputGroupId = buildStoryboardWidgetProbeTreeOutputGroupId(threadRootId)
   const normalizedGraphData = normalizeStoryboardWidgetProbeTreeOutputLayout({
@@ -498,37 +524,53 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
   if (!resolveStoryboardWidgetProbeTreeInvocationTokenForNode(fallbackNode, invocationText)) return null
   args.onInvocationStart?.()
   const { prompt, formId, localProperties, resolvedProperties, runtimeProperties } = args.textGeneration
+  const readResolvedProviderValue = (key: keyof StoryboardWidgetProbeTreeProviderRuntimeProperties): unknown => {
+    const localValue = unwrapGraphCellValue(resolvedProperties[key])
+    return localValue == null || localValue === '' ? unwrapGraphCellValue(runtimeProperties[key]) : localValue
+  }
   const resolvedThinking = resolveStoryboardWidgetTextThinkingOptions({
     formId,
     localProperties,
     prompt: prompt || invocationText,
-    resolvedMaxCompletionTokens: resolvedProperties.chatMaxCompletionTokens ?? runtimeProperties.chatMaxCompletionTokens,
-    resolvedThinkingJson: resolvedProperties.chatThinkingJson ?? runtimeProperties.chatThinkingJson,
-    resolvedThinkingType: resolvedProperties.chatThinkingType ?? runtimeProperties.chatThinkingType,
+    resolvedMaxCompletionTokens: readResolvedProviderValue('chatMaxCompletionTokens'),
+    resolvedThinkingJson: readResolvedProviderValue('chatThinkingJson'),
+    resolvedThinkingType: readResolvedProviderValue('chatThinkingType'),
+  })
+  const { provider, endpointUrl, chatModel, chatAuthMode } = resolveStoryboardWidgetProbeTreeChatRoute({
+    localProperties,
+    resolvedProperties,
+    runtimeProperties,
   })
   args.setLoading(true)
   let publicationCompleted = false
-  const generateProviderResponse = args.generateProviderResponse || (refinementPrompt => generateRunMarkdownWithProvider({
-    config: {
-      provider: resolvedProperties.chatProvider || runtimeProperties.chatProvider,
-      endpointUrl: resolvedProperties.chatEndpointUrl || runtimeProperties.chatEndpointUrl,
-      apiKey: (resolvedProperties.chatAuthMode || runtimeProperties.chatAuthMode) === 'byok' ? runtimeProperties.chatApiKey : '',
-      chatModel: resolvedProperties.chatModel || runtimeProperties.chatModel,
-    },
-    prompt: refinementPrompt,
-    options: {
-      chatTemperature: resolvedProperties.chatTemperature ?? runtimeProperties.chatTemperature,
-      chatMaxCompletionTokens: resolvedThinking.chatMaxCompletionTokens,
-      chatServiceTier: resolvedProperties.chatServiceTier ?? runtimeProperties.chatServiceTier,
-      chatStream: false,
-      chatReasoningEffort: resolvedProperties.chatReasoningEffort ?? runtimeProperties.chatReasoningEffort,
-      chatThinkingType: resolvedThinking.chatThinkingType,
-      chatThinkingJson: resolvedThinking.chatThinkingJson,
-      chatFrequencyPenalty: resolvedProperties.chatFrequencyPenalty ?? runtimeProperties.chatFrequencyPenalty,
-      chatPresencePenalty: resolvedProperties.chatPresencePenalty ?? runtimeProperties.chatPresencePenalty,
-      chatTopP: resolvedProperties.chatTopP ?? runtimeProperties.chatTopP,
-    },
-  }))
+  const generateProviderResponse = args.generateProviderResponse || (async refinementPrompt => {
+    try {
+      return await generateRunMarkdownWithProvider({
+        config: {
+          provider,
+          endpointUrl,
+          apiKey: chatAuthMode === 'byok' ? String(unwrapGraphCellValue(runtimeProperties.chatApiKey) || '') : '',
+          chatModel,
+        },
+        prompt: refinementPrompt,
+        options: {
+          chatTemperature: readResolvedProviderValue('chatTemperature'),
+          chatMaxCompletionTokens: resolvedThinking.chatMaxCompletionTokens,
+          chatServiceTier: readResolvedProviderValue('chatServiceTier'),
+          chatStream: false,
+          chatReasoningEffort: readResolvedProviderValue('chatReasoningEffort'),
+          chatThinkingType: resolvedThinking.chatThinkingType,
+          chatThinkingJson: resolvedThinking.chatThinkingJson,
+          chatFrequencyPenalty: readResolvedProviderValue('chatFrequencyPenalty'),
+          chatPresencePenalty: readResolvedProviderValue('chatPresencePenalty'),
+          chatTopP: readResolvedProviderValue('chatTopP'),
+        },
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error || '')
+      throw new Error(`${provider || 'unknown provider'} / ${chatModel || 'unknown model'}: ${message}`)
+    }
+  })
   try {
     const result = await runStoryboardWidgetProbeTreeMcpInvocation({
       graphForRun: args.graphForRun,
@@ -536,7 +578,7 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
       fallbackNode,
       onMaterialized: args.onMaterialized,
       publishOutput: args.publishOutput,
-      providerModel: String(resolvedProperties.chatModel || runtimeProperties.chatModel || ''),
+      providerModel: chatModel,
       invokeMcp: args.invokeMcp,
       generateProviderResponse,
     })

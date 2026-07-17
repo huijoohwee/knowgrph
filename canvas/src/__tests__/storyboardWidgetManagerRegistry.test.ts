@@ -10,12 +10,12 @@ import {
 import {
   buildTextGenerationRegistryDraft,
   getWidgetRegistryEntryLabel,
-  inferTextGenerationProviderFamily,
   isPropsPanelWidgetPaletteEntry,
   listVisibleWidgetRegistryPortsForPropsEditor,
   normalizeTextGenerationWidgetPropertiesForProviderFamily,
   resolveEffectiveTextGenerationWidgetProperties,
 } from '@/features/storyboard-widget-manager/registryTemplates'
+import { inferTextGenerationProviderFamily } from '@/features/storyboard-widget-manager/textGenerationProviderFamily'
 import {
   FLOW_GRABMAPS_DISCOVERY_FORM_ID,
   FLOW_GRABMAPS_DISCOVERY_NODE_TYPE_ID,
@@ -35,8 +35,10 @@ import {
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
   CHAT_DEERFLOW_ENDPOINT_URL,
+  CHAT_OPENAI_ENDPOINT_URL,
   CHAT_PROVIDER_DEERFLOW,
   CHAT_PROVIDER_BYTEPLUS,
+  CHAT_PROVIDER_OPENAI,
 } from '@/lib/chatEndpoint'
 export {
   testStoryboardWidgetManagerResolvesWidgetRegistryApiDocRefs,
@@ -495,33 +497,35 @@ export function testStoryboardWidgetManagerCanonicalizesConflictingBuiltInWidget
   })
 }
 
-export function testStoryboardWidgetManagerNormalizesBytePlusTextWidgetProviderDefaults() {
+export function testStoryboardWidgetManagerReconcilesTextWidgetProviderFromSelectedModel() {
   const family = inferTextGenerationProviderFamily({
-    provider: 'openai',
+    provider: { key: 'chatProvider', type: 'string', value: CHAT_PROVIDER_BYTEPLUS },
+    endpointUrl: { key: 'chatEndpointUrl', type: 'string', value: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL },
+    model: { key: 'chatModel', type: 'string', value: 'gpt-5-nano' },
     widgetTypeId: 'default',
     formId: 'textGeneration',
   })
-  if (family !== 'byteplus') {
-    throw new Error(`expected default textGeneration form to stay BytePlus, got ${String(family)}`)
+  if (family !== 'openai') {
+    throw new Error(`expected the selected GPT model to repair a stale BytePlus Widget tuple, got ${String(family)}`)
   }
 
   const normalized = normalizeTextGenerationWidgetPropertiesForProviderFamily({
     providerFamily: family,
     properties: {
-      chatProvider: 'openai',
-      chatEndpointUrl: 'https://api.openai.com/v1/responses',
+      chatProvider: CHAT_PROVIDER_BYTEPLUS,
+      chatEndpointUrl: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
       chatModel: 'gpt-5-nano',
       prompt: 'hello',
     },
   })
-  if (String(normalized.chatProvider || '') !== CHAT_PROVIDER_BYTEPLUS) {
-    throw new Error(`expected BytePlus normalization to force provider ${CHAT_PROVIDER_BYTEPLUS}`)
+  if (String(normalized.chatProvider || '') !== CHAT_PROVIDER_OPENAI) {
+    throw new Error(`expected model-derived provider ${CHAT_PROVIDER_OPENAI}`)
   }
-  if (String(normalized.chatEndpointUrl || '') !== CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL) {
-    throw new Error(`expected BytePlus normalization to force endpoint ${CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL}`)
+  if (String(normalized.chatEndpointUrl || '') !== CHAT_OPENAI_ENDPOINT_URL) {
+    throw new Error(`expected model-derived endpoint ${CHAT_OPENAI_ENDPOINT_URL}`)
   }
-  if (String(normalized.chatModel || '') !== CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT) {
-    throw new Error(`expected BytePlus normalization to force model ${CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT}`)
+  if (String(normalized.chatModel || '') !== 'gpt-5-nano') {
+    throw new Error(`expected selected model gpt-5-nano, got ${String(normalized.chatModel)}`)
   }
 
   const effective = resolveEffectiveTextGenerationWidgetProperties({

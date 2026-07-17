@@ -12,7 +12,8 @@ import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY } from '@/features/
 import { buildTextWidgetOutputPatch, clearRichMediaOutputProperties, resolveRichMediaWidgetKind, writeTextWidgetRunOutputArtifact } from '@/features/chat/richMediaRun'
 import { fetchYouTubeTranscriptMarkdown } from '@/features/transcription/youtubeTranscriptMarkdown'
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
-import { inferTextGenerationProviderFamily, resolveEffectiveTextGenerationWidgetProperties } from '@/features/storyboard-widget-manager/registryTemplates'
+import { resolveEffectiveTextGenerationWidgetProperties } from '@/features/storyboard-widget-manager/registryTemplates'
+import { inferTextGenerationProviderFamily } from '@/features/storyboard-widget-manager/textGenerationProviderFamily'
 import { runSwarmPredictionWidgetProperties } from '@/features/swarm-prediction/swarmPredictionWidget'
 import { FLOW_SHOWRUNNER_NODE_TYPE_ID, runShowrunnerWidgetProperties } from '@/features/ai-showrunner/showrunnerFlowNode'
 import { getCachedStoryboardWidgetWorkflowNodeResolutionContext, resolveStoryboardWidgetWorkflowNodeByIdAcrossGraphs, resolveStoryboardWidgetWorkflowRunTarget } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
@@ -29,6 +30,7 @@ import { revealProbeTreeBranchCardsOnCanvas } from '@/components/StoryboardCanva
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { readFlowComputeSource } from '@/lib/storyboardWidget/flowComputeInline'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
+import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
 import { resolveStoryboardWidgetTextThinkingOptions } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowTextThinking'
 import { runStoryboardWidgetNativeCrawlerInvocation } from './storyboardWidgetWorkflowNativeCrawlerRun'
 import type { StoryboardWidgetWorkflowNodeRunner, StoryboardWidgetWorkflowNodeRunnerArgs } from './storyboardWidgetWorkflowRunTypes'
@@ -198,8 +200,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
           suppressStoreGraphWriteback: suppressLayoutMutation,
         }))
       }
-
-      const rawNodeProperties = (node.properties || {}) as Record<string, unknown>
+      const rawNodeProperties = readGraphNodeProperties(node)
       if (readFlowComputeSource(node)) {
         const inlineRegistryEntry = resolveWidgetRegistryEntry({ node, registry: args.widgetRegistry, graphMetaKind: args.baseGraphKind })
         const connectedValuesInput = resolveStoryboardWidgetWorkflowConnectedValuesInput({
@@ -409,8 +410,8 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
       if (String(unwrapGraphCellValue(node.type) || '').trim() === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
         const resolvedTextRegistryEntry = resolveWidgetRegistryEntry({ node, registry: args.widgetRegistry, graphMetaKind: args.baseGraphKind })
         const providerFamily = inferTextGenerationProviderFamily({
-          provider: rawNodeProperties.chatProvider,
-          widgetTypeId: resolvedTextRegistryEntry?.widgetTypeId,
+          provider: unwrapGraphCellValue(rawNodeProperties.chatProvider) || store.chatProvider, endpointUrl: unwrapGraphCellValue(rawNodeProperties.chatEndpointUrl) || store.chatEndpointUrl,
+          model: unwrapGraphCellValue(rawNodeProperties.chatModel) || store.chatModel, widgetTypeId: resolvedTextRegistryEntry?.widgetTypeId,
           formId: resolvedTextRegistryEntry?.formId || rawNodeProperties[FLOW_WIDGET_FORM_ID_KEY],
         })
         const properties = resolveEffectiveTextGenerationWidgetProperties({
