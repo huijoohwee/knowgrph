@@ -11,6 +11,7 @@ import {
   parseProbeMarkdown,
   selectProbeOption,
 } from "../probe-tree-runtime.js";
+import { buildProbeModelPrompt } from "../probe-tree-model-adapter.js";
 
 async function tempRoot() {
   return fs.mkdtemp(path.join(os.tmpdir(), "knowgrph-probe-tree-"));
@@ -115,6 +116,26 @@ test("probe.generate input-derived response stays specific to the selected Widge
   assert.match(projectedText, /coverage|supply chain/i);
   assert.equal(result.options.some((option) => option.text === "What outcome would make this resolved?"), false);
   assert.equal(result.options.some((option) => option.text === "What information is still missing?"), false);
+});
+
+test("probe model prompt keeps selected child input primary and ancestors lineage-only", () => {
+  const prompt = buildProbeModelPrompt({
+    contextText: [
+      "Authored request:",
+      "1. SE Asia logistics",
+      "Selected continuation question: Which region and workflow should guide the next branch?",
+      "Selected continuation answer: 1. SE Asia logistics",
+      "Probe lineage context: probe-root: question=Assess the global logistics root.",
+    ].join("\n"),
+    recalledExemplars: [],
+    k: 3,
+  });
+
+  assert.match(prompt, /Current selected child input: SE Asia logistics/);
+  assert.match(prompt, /Preceding probe context \(lineage only\): Which region and workflow should guide the next branch\?/);
+  assert.match(prompt, /probe-root: question=Assess the global logistics root/);
+  assert.match(prompt, /suggested clarification answer/);
+  assert.match(prompt, /Never split the selected focus/);
 });
 
 test("probe.generate enforces token budget before local model invocation", async () => {
