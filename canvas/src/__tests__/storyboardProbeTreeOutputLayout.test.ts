@@ -330,8 +330,10 @@ export function testProbeTreeGenerationDoesNotRearmStoryboardInitialFit() {
   assert(workflowProbeSource.indexOf('args.onInvocationStart?.()') < workflowProbeSource.indexOf('args.setLoading(true)'), 'expected async Probe-Tree generation to lock the viewport before loading or publication can enqueue a fit')
   assert(workflowRunSource.includes('onInvocationStart: () => disableAutoZoomModesForUserGesture(useGraphStore.getState())'), 'expected the native Storyboard Probe-Tree runner to disable persistent auto-fit at invocation start')
   assert(projectionSource.includes('const initialFitCompletedDocumentKeys = new Set<string>()'), 'expected same-document projection remounts to share one session-scoped initial-fit commitment')
-  assert(projectionSource.includes('if (pending.length > 0 && !initialFitCompleted)'), 'expected a clean initial fit to wait for measurable cards')
+  assert(projectionSource.includes('(pending.length > 0 && !initialFitCompleted) || recoverOffscreenRemount'), 'expected a clean initial fit to wait for measurable cards while allowing one offscreen remount recovery')
   assert(projectionSource.includes('visibleCardCount === 0 || (pending.length > 1 && transformIsIdentity)'), 'expected a clean identity multi-card load to fit once without relying on an empty registration frame')
+  assert(projectionSource.includes('recoverOffscreenRemount'), 'expected a restarted or refreshed Storyboard projection to recover when every measurable card is outside the viewport')
+  assert(projectionSource.includes('!hadProjectedCardsBeforeFrame'), 'expected offscreen recovery to remain a remount-only gate rather than continuous auto-fit after user pan')
 }
 
 export function testProbeTreeToolbarPublicationVersionsOneCanonicalGraph() {

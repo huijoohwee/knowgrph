@@ -1,13 +1,17 @@
 import { buildProbeTreeCardFromGraphNode } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
+import { materializeStoryboardWidgetProbeTreeStructuredResponse } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeStructuredResponse'
 import {
   buildProbeTreeStructuredResponse,
+  buildProbeTreeContextualFallbackOptions,
+  collectProbeTreeContextKeywords,
+  isProbeTreeResponseContextRelevant,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS } from '@/features/agentic-os/probeTreePromptPreset'
 import { extractChatResponseStructuredSurface } from '@/features/chat/chatResponseStructuredContent'
 import { buildAgenticOsRuntimeInvocationSystemPrompt } from '@/features/chat/chatRuntimeInvocationProfile'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
-import type { GraphNode } from '@/lib/graph/types'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
 
 export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
   const prompt = buildAgenticOsRuntimeInvocationSystemPrompt(
@@ -158,5 +162,73 @@ export function testProbeTreeMcpResponseAdapterBoundsWidgetCardsAndPanel() {
     || candidateEdges.some(edge => edge.source !== source.id || !cards.some(card => card.id === edge.target))
   ) {
     throw new Error(`expected literal MCP structured response to project a visible Widget/Card/Panel tree, got ${JSON.stringify(surface)}`)
+  }
+}
+
+export function testProbeTreeContextFallbackProjectsWithoutStructuredTextParsing() {
+  const anchorNode: GraphNode = {
+    id: { key: 'id', type: 'string', value: 'sme-source' },
+    type: { key: 'type', type: 'string', value: 'TextGeneration' },
+    label: { key: 'label', type: 'string', value: 'SME coverage review' },
+    properties: {},
+  } as unknown as GraphNode
+  const graphData: GraphData = { type: 'Graph', nodes: [anchorNode], edges: [] }
+  const result = materializeStoryboardWidgetProbeTreeStructuredResponse({
+    graphData,
+    anchorNode,
+    responseText: 'unstructured upstream output',
+    contextText: 'SME cyber supply-chain coverage gaps and adviser handoff',
+    responseSource: 'context-fallback',
+    model: 'knowgrph-probe-tree-context-fallback',
+    mcpInvoked: false,
+    invocationTokens: ['/knowgrph.probe-tree'],
+    contextFallbackOptions: [
+      { id: 'coverage-evidence', text: 'Which SME cyber coverage evidence is authoritative?', rationale: 'Keeps the gap source-backed.' },
+      { id: 'supply-chain-risk', text: 'Which SME supply-chain risk remains unresolved?', rationale: 'Keeps the next branch context-specific.' },
+      { id: 'adviser-handoff', text: 'What evidence is required for the SME adviser handoff?', rationale: 'Preserves the review boundary.' },
+    ],
+  })
+  const cards = result?.graphData.nodes.filter(node => node.properties.probeTreeResponseMode === 'llm-contract') || []
+  if (
+    result?.responseSource !== 'context-fallback'
+    || cards.length !== 3
+    || cards.some(card => card.properties.parentNodeId !== 'sme-source')
+    || cards.some(card => card.properties.output !== '' || !card.properties.summary)
+    || !result.panelOutput.includes('SME')
+  ) {
+    throw new Error(`expected direct bounded context fallback cards without generic response parsing, got ${JSON.stringify(result)}`)
+  }
+}
+
+export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() {
+  const contextText = [
+    'Authored request:',
+    '/sme-care-agent @source.frontmatter @local-harness @cost-log @runtime-proof #token-economics #runtime-ready #approval-gate',
+    '/knowgrph.probe-tree',
+    'Generate 2-4 bounded editable next-question cards. Keep the source card unchanged, connect each candidate branch, and publish a separate Rich Media Panel.',
+    'Run the zero-cost local fallback before generic provider generation; do not make a provider call unless separately approved.',
+    'Assess the active SME workspace sources across cyber, supply-chain, physical-asset, growth-stage exposure, coverage gaps, and adviser handoff.',
+    'Selected Widget title: Widget Card',
+    'Selected Widget id: n1',
+    'Invocation route: /knowgrph.probe-tree — Probe-Tree. Route summary: Generate bounded branches at depth 8.',
+    'Agentic OS directives: @source.frontmatter — Source frontmatter | #runtime-ready — Runtime ready',
+  ].join('\n')
+  const keywords = collectProbeTreeContextKeywords(contextText, 8)
+  const forbiddenMetadata = ['local-harness', 'cost-log', 'runtime-proof', 'token-economics', 'runtime-ready', 'approval-gate', 'probe-tree']
+  const options = buildProbeTreeContextualFallbackOptions(contextText)
+  const responseTexts = options.flatMap(option => [option.text, option.rationale, option.evidenceNeeded])
+  const continuationKeywords = collectProbeTreeContextKeywords([
+    'Authored request:',
+    'changes',
+    'Which authoritative evidence confirms the current facts for the SME / cyber / supply-chain scope?',
+  ].join('\n'), 6)
+  if (
+    forbiddenMetadata.some(keyword => keywords.includes(keyword))
+    || JSON.stringify(keywords.slice(0, 3)) !== JSON.stringify(['sme', 'cyber', 'supply-chain'])
+    || !String(options[0]?.text || '').includes('SME / cyber / supply chain')
+    || !isProbeTreeResponseContextRelevant({ contextText, responseTexts })
+    || JSON.stringify(continuationKeywords.slice(0, 3)) !== JSON.stringify(['sme', 'cyber', 'supply-chain'])
+  ) {
+    throw new Error(`expected invocation and question scaffolding to yield context-relevant SME fallback terms, got ${JSON.stringify({ keywords, continuationKeywords, options })}`)
   }
 }

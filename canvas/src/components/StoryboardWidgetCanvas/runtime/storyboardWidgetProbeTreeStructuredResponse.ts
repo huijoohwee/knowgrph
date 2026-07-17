@@ -13,6 +13,14 @@ import type { GraphData, GraphEdge, GraphNode, JSONValue } from '@/lib/graph/typ
 
 const GENERIC_PROBE_CARD_PATTERN = /^(?:clarify probe|generate branches|select handoff)(?::|$)/i
 
+export type StoryboardWidgetProbeTreeContextFallbackOption = {
+  id?: string
+  text?: string
+  question?: string
+  rationale?: string
+  evidenceNeeded?: string
+}
+
 const readString = (value: unknown): string => String(unwrapGraphCellValue(value) ?? '').trim()
 
 const readNodeId = (node?: GraphNode | null): string => readString(node?.id)
@@ -80,6 +88,42 @@ const readCardText = (node: ChatResponseSurfaceNode): string => [
   node.properties.evidenceNeeded,
 ].map(readString).filter(Boolean).join(' ')
 
+const buildContextFallbackCards = (
+  options: readonly StoryboardWidgetProbeTreeContextFallbackOption[],
+  anchorNodeId: string,
+): ChatResponseSurfaceNode[] => options.slice(0, 4).map((option, index) => {
+  const question = readString(option.text || option.question)
+  const candidateOptionId = readString(option.id) || `context-fallback-${hashText(question).slice(0, 12)}`
+  return {
+    id: `probe-tree:${candidateOptionId}`,
+    label: question,
+    nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
+    kind: 'text' as const,
+    sourceHandle: 'text_out',
+    targetHandle: 'prompt_in',
+    properties: {
+      'chat:structuredContent': true,
+      'chat:structuredRole': 'card',
+      cardTypeLabel: 'Probe-Tree Card',
+      probeTreeResponseMode: 'llm-contract',
+      responseContractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+      parentNodeId: anchorNodeId,
+      parentGraphNodeId: anchorNodeId,
+      probeTreeCandidateKey: candidateOptionId,
+      probeTreeTool: 'knowgrph.probe.select',
+      nextAction: 'knowgrph.probe.select',
+      summary: question,
+      question,
+      output: '',
+      rationale: readString(option.rationale) || 'Keeps the next probe bounded and selectable.',
+      evidenceNeeded: readString(option.evidenceNeeded) || 'An explicit, source-backed answer for this question.',
+      confidence: 'low',
+      index: `P${index + 1}`,
+      tags: ['probe-tree', 'candidateOption', 'context-fallback'],
+    },
+  }
+}).filter(card => Boolean(card.label))
+
 const buildPanelMarkdown = (args: {
   anchorNodeId: string
   cards: ChatResponseSurfaceNode[]
@@ -146,24 +190,30 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
   threadRootId?: string
   invocationTokens: readonly string[]
   invocationResolutions?: readonly ProbeTreeMcpInvocationResolution[]
+  contextFallbackOptions?: readonly StoryboardWidgetProbeTreeContextFallbackOption[]
 }): StoryboardWidgetProbeTreeStructuredMaterialization | null {
   const graphData = args.graphData
   const anchorNodeId = readNodeId(args.anchorNode)
   if (!graphData || !anchorNodeId) return null
-  const surface = extractChatResponseStructuredSurface(String(args.responseText || ''))
+  const contextFallbackCards = buildContextFallbackCards(args.contextFallbackOptions || [], anchorNodeId)
+  const surface = contextFallbackCards.length >= 2
+    ? null
+    : extractChatResponseStructuredSurface(String(args.responseText || ''))
   const surfaceNodes = surface?.nodes || []
   const sourceWidgets = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'widget')
   const panels = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'panel')
   const responseCards = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'card')
-  const cards = responseCards.filter(isStructuredProbeCard)
-  if (
+  const cards = contextFallbackCards.length >= 2
+    ? contextFallbackCards
+    : responseCards.filter(isStructuredProbeCard)
+  if (contextFallbackCards.length < 2 && (
     sourceWidgets.length !== 1
     || panels.length !== 1
     || readString(panels[0]?.label) !== 'Probe-Tree Branches'
     || responseCards.length < 2
     || responseCards.length > 4
     || cards.length !== responseCards.length
-  ) return null
+  )) return null
   if (!isProbeTreeResponseContextRelevant({
     contextText: args.contextText,
     responseTexts: cards.map(readCardText),
