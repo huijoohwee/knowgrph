@@ -8,6 +8,7 @@ import {
 import { buildRichMediaTextMarkdownDocument } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
 import { readGraphNodeCanonicalTextProperty, readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { PROBE_TREE_TERMINAL_PROVIDER_TASK_MARKER } from './storyboardWidgetProbeTreeProviderRequest'
 import { isStoryboardWidgetProbeTreeContinuationNode } from './storyboardWidgetProbeTreeRunNode'
 
 const GENERATED_RESULT_PANEL_LABEL = 'Generated Result'
@@ -24,7 +25,7 @@ export function buildStoryboardWidgetProbeTreeTerminalGenerationPrompt(args: {
   contextText: string
 }): string {
   return [
-    'Terminal generation task:',
+    PROBE_TREE_TERMINAL_PROVIDER_TASK_MARKER,
     '- Fulfill the selected user request now as the requested deliverable.',
     '- Do not ask a clarification question, emit Probe-Tree cards, or continue Probe-Tree.',
     '- Do not substitute a canned, fixture-backed, or use-case-specific hardcoded response.',

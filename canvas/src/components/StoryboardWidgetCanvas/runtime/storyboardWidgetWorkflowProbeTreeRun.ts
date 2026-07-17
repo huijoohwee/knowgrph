@@ -48,7 +48,7 @@ import {
 import {
   runStoryboardWidgetProbeTreeTerminalGeneration,
 } from './storyboardWidgetProbeTreeTerminalGeneration'
-import { resolveStoryboardWidgetProbeTreeProviderRequestOptions } from './storyboardWidgetProbeTreeProviderRequest'
+import { PROBE_TREE_CLARIFICATION_PROVIDER_TASK_MARKER, resolveStoryboardWidgetProbeTreeProviderRequestOptions } from './storyboardWidgetProbeTreeProviderRequest'
 
 const INVOCATION_TOKEN_PATTERN = /(^|\s)([/#@][A-Za-z0-9_.-]+)/g
 const PROBE_TREE_INVOCATION_TOKENS = new Set<string>(
@@ -235,7 +235,7 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
   return [
     buildRuntimeInvocationRoutingSystemPrompt(args.authoredPrompt),
     buildAgenticOsRuntimeInvocationSystemPrompt(args.authoredPrompt),
-    'Widget Card Probe-Tree provider task:',
+    PROBE_TREE_CLARIFICATION_PROVIDER_TASK_MARKER,
     '- Use the selected Widget request below as the only topic. Do not substitute a stock workflow or unrelated domain.',
     `- The local knowgrph MCP ${args.mcpInvoked ? 'was invoked' : 'was unavailable'}; treat the literal result as bounded candidate evidence, not as permission to claim other tools ran.`,
     `- Return one fenced JSON block rooted at response.structuredContent using ${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION}.`,

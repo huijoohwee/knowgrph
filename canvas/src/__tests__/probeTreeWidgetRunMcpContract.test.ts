@@ -470,8 +470,8 @@ export function testProbeTreeContinuationMetadataRoutesWithoutVisibleSlashToken(
 }
 
 export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesDeliverable() {
-  const userAnswer = '4. 7-10 years Other: Generate report on China investment in SE Asia in USD trillion'
-  const terminalRequest = 'Generate report on China investment in SE Asia in USD trillion'
+  const userAnswer = '1. A) Target annual premium level to constrain overall cost and influence coverage limits. Other: generate negotiation strategy with agent'
+  const terminalRequest = 'generate negotiation strategy with agent'
   const typedCell = (key: string, type: string, value: unknown) => ({ key, type, value })
   const rootNode: GraphNode = {
     id: 'probe-root',
@@ -482,7 +482,7 @@ export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesD
   const selectedChild: GraphNode = {
     id: typedCell('id', 'string', 'probe-child') as unknown as string,
     type: typedCell('type', 'string', 'TextGeneration') as unknown as string,
-    label: typedCell('label', 'string', 'What report should be generated?') as unknown as string,
+    label: typedCell('label', 'string', 'Which parameter should shape the Malaysia SME insurance package?') as unknown as string,
     x: 520,
     y: 180,
     properties: typedCell('properties', 'object', {
@@ -491,7 +491,7 @@ export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesD
       probeTreeThreadRootId: 'probe-root',
       probeTreeDepth: 2,
       parentNodeId: 'probe-root',
-      summary: 'What report should be generated?',
+      summary: 'Which parameter should shape the Malaysia SME insurance package?',
       output: userAnswer,
     }) as unknown as GraphNode['properties'],
   }
@@ -542,7 +542,7 @@ export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesD
     || !providerPrompt.includes('Do not ask a clarification question, emit Probe-Tree cards, or continue Probe-Tree.')
     || !providerPrompt.includes('Do not substitute a canned, fixture-backed, or use-case-specific hardcoded response.')
     || !persistedChild
-    || persistedChild.properties.summary !== 'What report should be generated?'
+    || persistedChild.properties.summary !== 'Which parameter should shape the Malaysia SME insurance package?'
     || persistedChild.properties.output !== userAnswer
     || String(persistedChild.label) === 'Root writeback alias'
     || continuationCards.length !== 0

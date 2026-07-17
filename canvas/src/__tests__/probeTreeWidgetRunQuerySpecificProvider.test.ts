@@ -1,5 +1,9 @@
 import { runStoryboardWidgetProbeTreeTextGenerationInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
-import { PROBE_TREE_PROVIDER_MIN_OUTPUT_TOKENS, resolveStoryboardWidgetProbeTreeProviderRequestOptions } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeProviderRequest'
+import {
+  PROBE_TREE_PROVIDER_MIN_OUTPUT_TOKENS,
+  PROBE_TREE_TERMINAL_PROVIDER_TASK_MARKER,
+  resolveStoryboardWidgetProbeTreeProviderRequestOptions,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeProviderRequest'
 import {
   buildProbeTreeStructuredResponse,
   KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
@@ -149,7 +153,12 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     ? providerRequestBody.reasoning as Record<string, unknown>
     : {}
   const terminalProviderOptions = resolveStoryboardWidgetProbeTreeProviderRequestOptions({
-    prompt: 'Terminal generation task:\nGenerate the selected report.',
+    prompt: `${PROBE_TREE_TERMINAL_PROVIDER_TASK_MARKER}\nGenerate the selected report.`,
+    chatMaxCompletionTokens: 1000,
+    chatReasoningEffort: 'medium',
+  })
+  const ordinaryProviderOptions = resolveStoryboardWidgetProbeTreeProviderRequestOptions({
+    prompt: 'Generate an ordinary markdown report.',
     chatMaxCompletionTokens: 1000,
     chatReasoningEffort: 'medium',
   })
@@ -181,8 +190,10 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     || !serializedCards.includes('investment horizon')
     || !serializedCards.includes('investment vehicle')
     || cards.some(card => !Array.isArray(card.properties.probeTreeUserInputAnchors) || !card.properties.probeTreeUserInputAnchors.includes('SE Asia'))
-    || terminalProviderOptions.chatMaxCompletionTokens !== 1000
-    || terminalProviderOptions.chatReasoningEffort !== 'medium'
+    || Number(terminalProviderOptions.chatMaxCompletionTokens) < PROBE_TREE_PROVIDER_MIN_OUTPUT_TOKENS
+    || terminalProviderOptions.chatReasoningEffort !== 'minimal'
+    || ordinaryProviderOptions.chatMaxCompletionTokens !== 1000
+    || ordinaryProviderOptions.chatReasoningEffort !== 'medium'
   ) {
     throw new Error(`expected Widget Run to use the active Chat Responses route and accept only new query-specific decision variables, got ${JSON.stringify({ providerCalls, providerRequestUrl, providerRequestBody, mcpRequest, providerPrompt, result })}`)
   }
