@@ -167,6 +167,14 @@ export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
           hasPoi: false,
           text: '',
           connectedText: [
+            '---',
+            'schema: "knowgrph-rich-media-text/v1"',
+            'title: "Rich Media Panel"',
+            'media_kind: "text"',
+            'content_type: "text/markdown"',
+            'source_contract: "test/v1"',
+            '---',
+            '',
             '# Hello',
             '',
             '> Storyboard quote stays structured.',
@@ -237,6 +245,9 @@ export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
     })
     const cardMarkdownViewer = container.querySelector('[data-kg-card-markdown-viewer="1"]')
     if (!cardMarkdownViewer) throw new Error(`expected RichMediaPanel text mode to use the chrome-free Card markdown viewer, html=${container.innerHTML}`)
+    if (container.querySelector('[data-kg-rich-media-embedded-preview="1"], iframe')) {
+      throw new Error(`expected frontmatter Markdown text to stay on the shared Viewer surface instead of the HTML srcdoc iframe path, html=${container.innerHTML}`)
+    }
     const cardMarkdownViewerClassName = String((cardMarkdownViewer as HTMLElement).getAttribute('class') || '')
     if (cardMarkdownViewerClassName.includes('overflow-auto')) {
       throw new Error(`expected outer RichMediaPanel text surface to own scrolling instead of nested Card markdown viewer, class=${cardMarkdownViewerClassName}`)
@@ -273,7 +284,7 @@ export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
     if (!/x\+y|x\s*\+\s*y/.test(container.textContent || '')) {
       throw new Error(`expected card markdown preview to preserve inline math syntax, text=${JSON.stringify(container.textContent || '')}`)
     }
-    const table = container.querySelector('table')
+    const table = article.querySelector('table')
     if (!table || !/Data freshness/i.test(table.textContent || '')) {
       throw new Error(`expected Card markdown preview to render markdown tables as a full-width plain table, html=${container.innerHTML}`)
     }

@@ -6,11 +6,13 @@ import {
   buildKnowgrphProbeTreePromptPreset,
 } from '@/features/agentic-os/probeTreePromptPreset'
 import {
+  KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   PROBE_TREE_CARD_VARIANTS,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
   normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
 } from '@/features/agent-ready/probeTreeContract.mjs'
+import { RICH_MEDIA_TEXT_MARKDOWN_SCHEMA } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
 import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import type { JSONValue } from '@/lib/graph/types'
 import { readFieldValue, readFirstString } from './chatResponseStructuredRecord'
@@ -39,10 +41,13 @@ export function buildProbeTreeCardMaterializationPrompt(userQuery: string): stri
     '- When the local knowgrph MCP tools are connected, invoke knowgrph.probe.generate once with thread_root_id, current_node_id, context_text, k between 2 and 4, and the bounded token_budget.',
     '- Accept a literal MCP result at result.structuredContent.response.structuredContent; otherwise produce the same response.structuredContent shape without claiming that a tool ran.',
     '- Return 2-4 concrete, context-specific next questions; do not emit generic process cards such as "Clarify probe", "Generate branches", or "Select handoff".',
+    '- Reject generic wrappers such as "Which scope/priority/constraint choice should clarify <entire query>?" and choices such as "Define the exact boundary". Resolve parameters that materially change the requested answer instead.',
+    '- A selected or active imperative generation request (for example a request beginning with generate, create, draft, or produce) is terminal: fulfill the requested deliverable through normal generation, do not emit Probe-Tree cards, and do not continue Probe-Tree. This rule takes precedence over the card contract below.',
     '- The local no-model path may derive choices only from the current user input; never substitute canned response content or fixtures.',
     '- Give every card a different user-named focus; reject reused choice labels, repeated selection sets, and subset or superset variants of another card.',
     '- Make every selectionOptions item a suggested clarification answer to its card question; never split the focus phrase into bare word fragments.',
     '- Include one fenced yaml block rooted at `response.structuredContent`: put `contractVersion` at that root, exactly one copied source record in `response.structuredContent.widgets`, 2-4 branch records in `response.structuredContent.cards`, and one Probe-Tree Branches record in `response.structuredContent.panels`.',
+    `- The Probe-Tree Branches panel must use \`kind: text\` and an \`output: |-\` Markdown document whose scalar begins with YAML frontmatter declaring \`schema: ${RICH_MEDIA_TEXT_MARKDOWN_SCHEMA}\`, \`media_kind: text\`, \`content_type: text/markdown\`, and \`source_contract: ${KNOWGRPH_PROBE_TREE_CONTRACT_VERSION}\`; never put text in \`html\`, \`srcDoc\`, or \`outputSrcDoc\`.`,
     '- Each card must include id, label, kind: text, parentNodeId, candidateOptionId, question, output: "", rationale, evidenceNeeded, confidence, probeTreeDepth, nextAction: knowgrph.probe.select, probeTreeCardVariant: probe-tree-type-2, selectionMode: multiple, 2-4 selectionOptions with unique id and label, 2-6 contextAnchors copied verbatim from the user input, and allowOther: true.',
     `- Put the model-generated probe question in question so the card renders it as Summary; keep probeTreeDepth at or below ${KNOWGRPH_PROBE_TREE_MAX_DEPTH}, leave output empty for the user-owned selection, and make every numbered choice a concise answer to that card's question.`,
     '- On continuation, the selected child card and its committed multi-selection own the next topic. Use preceding cards only as lineage context and never substitute the thread root or a same-id root alias.',

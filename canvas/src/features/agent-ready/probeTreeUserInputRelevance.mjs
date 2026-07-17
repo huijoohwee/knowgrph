@@ -24,11 +24,18 @@ const PROBE_TREE_RUNTIME_META_WORDS = new Set([
 ]);
 
 const GENERIC_RESPONSE_CONTENT_PATTERN = /^(?:current (?:primary )?source for|verified system-of-record fact for|accountable reviewer confirmation for|which authoritative evidence confirms the current facts)/i;
+const GENERIC_CLARIFICATION_QUESTION_PATTERN = /^which (?:scope|priority|constraint) choice should clarify\b/i;
+const GENERIC_CLARIFICATION_CHOICE_PATTERN = /^(?:define the exact boundary|identify adjacent concerns|set what is outside|set the immediate priority|identify the next sequence|define when to defer|identify mandatory constraints|define acceptable tradeoffs|set unresolved limits)\b/i;
 const PROBE_TREE_GUARD_CLAUSE_PATTERN = /^(?:do not|don't|never|stop|without)\b/i;
 const PROBE_TREE_GENERATED_QUESTION_SCAFFOLD_PATTERN = /^(?:which requested items should guide the next branch)\s*:\s*/i;
+const PROBE_TREE_TERMINAL_GENERATION_PATTERN = /^(?:please\s+)?(?:build|compose|create|draft|generate|prepare|produce|render|write)\b/i;
 
 export const cleanProbeTreeResponseText = (value, maxLength = 320) => (
   String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength)
+);
+
+export const isProbeTreeTerminalGenerationRequest = value => (
+  PROBE_TREE_TERMINAL_GENERATION_PATTERN.test(cleanProbeTreeResponseText(value, 8_000))
 );
 
 export const safeProbeTreeResponseId = (value, fallback) => {
@@ -220,31 +227,31 @@ const scoreInputClause = (clause, selectionOptions) => {
 
 const buildProbeTreeClarificationSuggestions = (phrase, peerPhrase) => normalizeProbeTreeSelectionOptions(peerPhrase
   ? [
-      `Define the scope for ${phrase} relative to ${peerPhrase}`,
-      `Set the priority between ${phrase} and ${peerPhrase}`,
-      `Identify constraints linking ${phrase} with ${peerPhrase}`,
+      `Compare current evidence for ${phrase} with ${peerPhrase}`,
+      `Resolve the dependency between ${phrase} and ${peerPhrase}`,
+      `Choose the decision order for ${phrase} and ${peerPhrase}`,
     ]
   : [
-      `Define the scope for ${phrase}`,
-      `Set the priority within ${phrase}`,
-      `Identify constraints affecting ${phrase}`,
+      `Use current evidence for ${phrase}`,
+      `Set a decision threshold for ${phrase}`,
+      `Choose a deliverable for ${phrase}`,
     ]);
 
 const PROBE_TREE_SINGLE_FOCUS_FACETS = Object.freeze([
   {
-    id: "scope",
-    question: phrase => `Which scope choice should clarify "${phrase}"?`,
-    choices: phrase => [`Define the exact boundary of ${phrase}`, `Identify adjacent concerns around ${phrase}`, `Set what is outside ${phrase}`],
+    id: "evidence-basis",
+    question: phrase => `Which evidence basis should resolve "${phrase}"?`,
+    choices: phrase => [`Current authoritative evidence for ${phrase}`, `Corroborating evidence for ${phrase}`, `Known evidence gaps for ${phrase}`],
   },
   {
-    id: "priority",
-    question: phrase => `Which priority choice should clarify "${phrase}"?`,
-    choices: phrase => [`Set the immediate priority for ${phrase}`, `Identify the next sequence for ${phrase}`, `Define when to defer ${phrase}`],
+    id: "decision-basis",
+    question: phrase => `Which decision basis should resolve "${phrase}"?`,
+    choices: phrase => [`Most conservative basis for ${phrase}`, `Balanced basis for ${phrase}`, `Most current basis for ${phrase}`],
   },
   {
-    id: "constraints",
-    question: phrase => `Which constraint choice should clarify "${phrase}"?`,
-    choices: phrase => [`Identify mandatory constraints on ${phrase}`, `Define acceptable tradeoffs for ${phrase}`, `Set unresolved limits affecting ${phrase}`],
+    id: "deliverable",
+    question: phrase => `Which deliverable should resolve "${phrase}"?`,
+    choices: phrase => [`Comparison for ${phrase}`, `Evidence ledger for ${phrase}`, `Recommendation for ${phrase}`],
   },
 ]);
 
@@ -284,7 +291,7 @@ const buildProbeTreeFocusedOptions = ({ phrases, idPrefix, contextText }) => (ph
   return [{
     id: `${idPrefix}-${index + 1}-${safeProbeTreeResponseId(phrase, String(index + 1)).slice(0, 64)}`,
     text: cleanProbeTreeResponseText(peerPhrase
-      ? `What should the next clarification resolve about "${phrase}" in relation to "${peerPhrase}"?`
+      ? `Which relationship between "${phrase}" and "${peerPhrase}" should the next answer establish?`
       : `What should the next clarification resolve about "${phrase}"?`),
     rationale: cleanProbeTreeResponseText(`Suggests bounded clarification directions for the selected child focus: ${phrase}`),
     evidenceNeeded: cleanProbeTreeResponseText(`User selection among suggested directions: ${labels.join("; ")}`),
@@ -303,7 +310,9 @@ const readProbeTreeContinuationPhrases = contextText => {
   if (continuationAnswer) {
     const selected = readProbeTreeContinuationSelections(continuationAnswer);
     if (selected.length > 0) return selected;
-    return splitEnumeratedPhrases(normalizeProbeTreeContinuationAnswer(continuationAnswer)).map(option => option.label);
+    const normalizedAnswer = normalizeProbeTreeContinuationAnswer(continuationAnswer);
+    const enumerated = splitEnumeratedPhrases(normalizedAnswer).map(option => option.label);
+    return enumerated.length > 0 ? enumerated : [normalizedAnswer].filter(Boolean);
   }
   const continuationQuestion = readContextMarker(contextText, "Selected continuation question");
   if (!continuationQuestion) return [];
@@ -312,6 +321,8 @@ const readProbeTreeContinuationPhrases = contextText => {
 
 export function buildProbeTreeInputDerivedOptions(contextText) {
   const userInput = extractProbeTreeUserInputText(contextText);
+  const continuationAnswer = readContextMarker(contextText, "Selected continuation answer");
+  if (continuationAnswer && isProbeTreeTerminalGenerationRequest(userInput)) return [];
   const continuationPhrases = readProbeTreeContinuationPhrases(contextText);
   if (continuationPhrases.length > 0) {
     return buildProbeTreeFocusedOptions({
@@ -397,15 +408,19 @@ export function areProbeTreeContinuationChoicesSuggested({ contextText, question
 
 export function isProbeTreeCardUserInputRelevant({ contextText, question, selectionOptions, contextAnchors } = {}) {
   const userInput = extractProbeTreeUserInputText(contextText);
+  const continuationAnswer = readContextMarker(contextText, "Selected continuation answer");
   const groundingInput = extractProbeTreeGroundingText(contextText);
   const normalizedInput = cleanProbeTreeResponseText(groundingInput, 12_000).toLowerCase();
   const anchors = normalizeProbeTreeContextAnchors(contextAnchors);
   const options = normalizeProbeTreeSelectionOptions(selectionOptions);
   if (
     !normalizedInput
+    || (continuationAnswer && isProbeTreeTerminalGenerationRequest(userInput))
     || anchors.length < 2
     || options.length < 2
     || GENERIC_RESPONSE_CONTENT_PATTERN.test(String(question || "").trim())
+    || GENERIC_CLARIFICATION_QUESTION_PATTERN.test(String(question || "").trim())
+    || options.some(option => GENERIC_CLARIFICATION_CHOICE_PATTERN.test(option.label))
     || !areProbeTreeContinuationChoicesSuggested({ contextText, question, selectionOptions: options })
   ) return false;
   if (anchors.some(anchor => !normalizedInput.includes(anchor.toLowerCase()))) return false;
@@ -413,7 +428,6 @@ export function isProbeTreeCardUserInputRelevant({ contextText, question, select
   if (contextKeywords.length < 2) return false;
   const questionMatches = new Set(matchedContextKeywords(contextKeywords, question));
   const optionMatches = new Set(options.flatMap(option => matchedContextKeywords(contextKeywords, option.label)));
-  const continuationAnswer = readContextMarker(contextText, "Selected continuation answer");
   if (continuationAnswer) {
     const primaryKeywords = collectProbeTreeContextKeywords(userInput, 96).filter(keyword => !PROBE_TREE_RUNTIME_META_WORDS.has(keyword));
     const requiredPrimaryMatches = Math.min(2, primaryKeywords.length);

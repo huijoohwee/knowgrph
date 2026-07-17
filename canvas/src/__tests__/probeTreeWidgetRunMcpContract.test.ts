@@ -143,6 +143,10 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     || cards.some(card => /Clarify probe|Generate branches|Select handoff/i.test(card.label))
     || (finalGraph?.nodes || []).some(node => String(node.id).startsWith('old-'))
     || published?.baseGraphData !== finalGraph
+    || published.srcDoc != null
+    || !published.outputText.startsWith('---\nschema: "knowgrph-rich-media-text/v1"\n')
+    || !published.outputText.includes('\ncontent_type: "text/markdown"\n')
+    || /<!doctype|<html\b/i.test(published.outputText)
     || !published.outputText.includes('SME')
     || !published.outputText.includes('MCP: knowgrph.probe.generate invoked')
   ) {
@@ -316,8 +320,8 @@ export function testProbeTreeContinuationMetadataRoutesWithoutVisibleSlashToken(
   }
 }
 
-export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() {
-  const userAnswer = 'Compare selected Singapore cyber exclusions across policy wording, endorsed schedule, adviser review, and coverage gap.'
+export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesDeliverable() {
+  const userAnswer = 'Generate report on China investment in SE Asia in USD trillion'
   const typedCell = (key: string, type: string, value: unknown) => ({ key, type, value })
   const rootNode: GraphNode = {
     id: 'probe-root',
@@ -328,7 +332,7 @@ export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() 
   const selectedChild: GraphNode = {
     id: typedCell('id', 'string', 'probe-child') as unknown as string,
     type: typedCell('type', 'string', 'TextGeneration') as unknown as string,
-    label: typedCell('label', 'string', 'Which Singapore cyber exclusions remain?') as unknown as string,
+    label: typedCell('label', 'string', 'What report should be generated?') as unknown as string,
     x: 520,
     y: 180,
     properties: typedCell('properties', 'object', {
@@ -337,7 +341,7 @@ export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() 
       probeTreeThreadRootId: 'probe-root',
       probeTreeDepth: 2,
       parentNodeId: 'probe-root',
-      summary: 'Which Singapore cyber exclusions remain?',
+      summary: 'What report should be generated?',
       output: userAnswer,
     }) as unknown as GraphNode['properties'],
   }
@@ -356,44 +360,52 @@ export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() 
     candidates: [staleChildAlias, selectedChild],
   })
   const rootAliasGraph: GraphData = { type: 'Graph', nodes: [rootNode, staleChildAlias], edges: [] }
-  let mcpRequest: Record<string, unknown> | null = null
+  let mcpCalls = 0
   let providerPrompt = ''
+  let publishedOutput: Record<string, unknown> | null = null
   const result = await runStoryboardWidgetProbeTreeMcpInvocation({
     graphForRun: rootAliasGraph,
     nodeIds: ['probe-root', 'probe-child'],
     fallbackNode: selectedRunNode,
-    invokeMcp: async request => {
-      mcpRequest = request as unknown as Record<string, unknown>
-      throw new Error('exercise selected-child fallback')
+    invokeMcp: async () => {
+      mcpCalls += 1
+      throw new Error('terminal generation must not invoke Probe-Tree MCP')
     },
     generateProviderResponse: async promptText => {
       providerPrompt = promptText
-      return null
+      return '# Generated deliverable\n\nThe requested report is now the terminal output.'
     },
     onMaterialized: () => undefined,
-    publishOutput: output => output.baseGraphData || null,
+    publishOutput: output => {
+      publishedOutput = output as unknown as Record<string, unknown>
+      return output.baseGraphData || null
+    },
   })
   const nodes = result?.graphData.nodes || []
   const persistedChild = nodes.find(node => String(unwrapGraphCellValue(node.id) || '') === 'probe-child')
   const continuationCards = nodes.filter(node => node.properties.parentNodeId === 'probe-child')
+  const publishedText = String(publishedOutput?.outputText || '')
   if (
-    mcpRequest?.currentNodeId !== 'probe-child'
-    || mcpRequest?.threadRootId !== 'probe-root'
-    || mcpRequest?.recallTopK !== 0
-    || !String(mcpRequest?.contextText || '').startsWith(`Authored request:\n${userAnswer}`)
-    || !String(mcpRequest?.contextText || '').includes('Selected continuation question: Which Singapore cyber exclusions remain?')
-    || !String(mcpRequest?.contextText || '').includes(`Selected continuation answer: ${userAnswer}`)
-    || !String(mcpRequest?.contextText || '').includes('Probe lineage context: probe-root: question=/knowgrph.probe-tree Assess the root SME risk scope.')
-    || !providerPrompt.includes('selected child card and its user-authored output own the next topic')
-    || !providerPrompt.includes('suggested clarification answers')
+    mcpCalls !== 0
+    || !providerPrompt.includes(userAnswer)
+    || !providerPrompt.includes('Do not ask a clarification question, emit Probe-Tree cards, or continue Probe-Tree.')
+    || !providerPrompt.includes('Do not substitute a canned, fixture-backed, or use-case-specific hardcoded response.')
     || !persistedChild
-    || persistedChild.properties.summary !== 'Which Singapore cyber exclusions remain?'
+    || persistedChild.properties.summary !== 'What report should be generated?'
     || persistedChild.properties.output !== userAnswer
     || String(persistedChild.label) === 'Root writeback alias'
-    || continuationCards.length < 2
-    || continuationCards.some(node => node.properties.probeTreeDepth !== 3)
+    || continuationCards.length !== 0
+    || result?.mcpInvoked !== false
+    || result?.providerAccepted !== true
+    || result?.materializedNodeIds.length !== 0
+    || !result?.message.includes('without continuing Probe-Tree')
+    || publishedOutput?.panelLabel !== 'Generated Result'
+    || publishedOutput?.outputKey !== 'probe-tree-generated-result'
+    || !publishedText.startsWith('---\nschema: "knowgrph-rich-media-text/v1"\n')
+    || !publishedText.includes('# Generated deliverable')
+    || /<!doctype|<html\b/i.test(publishedText)
   ) {
-    throw new Error(`expected selected child to own continuation while root remains lineage only, got ${JSON.stringify({ mcpRequest, providerPrompt, nodes })}`)
+    throw new Error(`expected imperative generation to publish the deliverable without continuing Probe-Tree, got ${JSON.stringify({ mcpCalls, providerPrompt, publishedOutput, result, nodes })}`)
   }
 }
 

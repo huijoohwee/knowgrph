@@ -11,18 +11,8 @@ import { buildAgenticOsRuntimeInvocationSystemPrompt } from '@/features/chat/cha
 import { resolveChatRuntimeInvocationQuery } from '@/features/chat/chatRuntimeInvocationQuery'
 import { extractChatResponseStructuredSurface } from '@/features/chat/chatResponseStructuredContent'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
-import {
-  buildProbeTreeCardFromGraphNode,
-  materializeProbeTreeBranchCards,
-  materializeProbeTreeBranchCardsFromGraphNode,
-} from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
-import {
-  buildStoryboardWidgetProbeTreeRichMediaMarkdown,
-  materializeStoryboardWidgetProbeTreeInvocation,
-  readStoryboardWidgetProbeTreeInvocationText,
-  resolveStoryboardWidgetProbeTreeInvocationToken,
-  runStoryboardWidgetProbeTreeInvocation,
-} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
+import { buildProbeTreeCardFromGraphNode, materializeProbeTreeBranchCards, materializeProbeTreeBranchCardsFromGraphNode } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
+import { buildStoryboardWidgetProbeTreeRichMediaMarkdown, materializeStoryboardWidgetProbeTreeInvocation, readStoryboardWidgetProbeTreeInvocationText, resolveStoryboardWidgetProbeTreeInvocationToken, runStoryboardWidgetProbeTreeInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
 import { KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS } from '@/features/agentic-os/probeTreePromptPreset'
 import type { GraphData } from '@/lib/graph/types'
 
@@ -60,6 +50,11 @@ export function testKnowgrphProbeTreeInvocationGrammarUsesDocAliasesAndToolIdent
     '        candidateOptionId: ask-safety',
     '        question: "Any severe, worsening, or urgent symptoms?"',
     '        rationale: Clarifies urgent risk before downstream planning.',
+    '        selectionMode: multiple',
+    '        probeTreeCardVariant: probe-tree-type-2',
+    '        selectionOptions: [{ id: severe-symptoms, label: severe symptoms }, { id: worsening-symptoms, label: worsening symptoms }]',
+    '        contextAnchors: [severe symptoms, worsening symptoms]',
+    '        allowOther: true',
     '        nextAction: knowgrph.probe.select',
     '        output: ""',
     '```',
@@ -456,6 +451,10 @@ export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation()
     || publishedOutput.panelLabel !== 'Probe-Tree Branches'
     || publishedOutput.model !== 'knowgrph-probe-tree-local-fallback'
     || publishedOutput.outputText !== richMediaMarkdown
+    || publishedOutput.srcDoc != null
+    || !richMediaMarkdown.startsWith('---\nschema: "knowgrph-rich-media-text/v1"\n')
+    || !richMediaMarkdown.includes('\ncontent_type: "text/markdown"\n')
+    || /<!doctype|<html\b/i.test(richMediaMarkdown)
     || !richMediaMarkdown.includes('0 prompt tokens, 0 completion tokens')
     || !richMediaMarkdown.includes(KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS.join(' '))
   ) throw new Error(`expected native Probe-Tree Run to publish the source-backed zero-cost Rich Media summary, got ${JSON.stringify(publishedOutput)}`)
@@ -481,7 +480,7 @@ export function testStoryboardWidgetRunMaterializesEmbeddedProbeTreeInvocation()
   const crawlerIndex = runActionSource.indexOf('runStoryboardWidgetNativeCrawlerInvocation({', probeDispatchIndex)
   const genericProviderIndex = runActionSource.indexOf('const result = await generateRunMarkdownWithProvider({', probeDispatchIndex)
   const nativeProbeIndex = probeTreeRunSource.indexOf('const result = await runStoryboardWidgetProbeTreeMcpInvocation({')
-  const providerApprovalIndex = probeTreeRunSource.indexOf('generateProviderResponse: providerRefinementApproved ?', nativeProbeIndex)
+  const providerApprovalIndex = probeTreeRunSource.indexOf('generateProviderResponse: providerRefinementApproved || terminalGenerationRequested ?', nativeProbeIndex)
   const providerIndex = probeTreeRunSource.indexOf('generateRunMarkdownWithProvider({', providerApprovalIndex)
   const nativeProbeRunSource = probeTreeRunSource.slice(nativeProbeIndex, providerIndex)
   if (

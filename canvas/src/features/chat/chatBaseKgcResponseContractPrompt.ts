@@ -23,6 +23,7 @@
 //   declared frontmatter or be declared inline as {{key:value}} before first use.
 
 import { CHAT_STORYBOARD_TEMPLATE_CONTRACT_PROMPT } from './chatStoryboardTemplateContract'
+import { RICH_MEDIA_TEXT_MARKDOWN_SCHEMA } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
 
 export const CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT = [
   // ── ROLE + OUTPUT ─────────────────────────────────────────────────────────
@@ -40,7 +41,9 @@ export const CHAT_BASE_KGC_RESPONSE_CONTRACT_PROMPT = [
   'Keep the response headless and renderer-neutral: author portable frontmatter plus Markdown data, never surface-specific UI instructions.',
   'Declare text, image, audio, video, card, widget, and edge semantics as data so Editor Workspace, Storyboard, Strybldr, Rich Media Panels, Cards, and Edges can render and inline-edit through shared owners.',
   CHAT_STORYBOARD_TEMPLATE_CONTRACT_PROMPT,
+  'An imperative generation request (for example one beginning with generate, create, draft, or produce) must produce the requested deliverable. Do not replace it with generic scope/priority/constraint wrappers, canned use-case output, or another Probe-Tree round unless the user explicitly requests questions or branches.',
   'When the answer is not already a complete KGC document but includes renderable or interactive output, mirror MCP tool-result semantics in `response.structuredContent`: text lives in output/result/response/transcript fields; media lives in imageUrl/videoUrl/audioUrl fields, with outputSrcDoc reserved for non-table interactive media; panels/cards/media/nodes are neutral render records; tables are neutral columns/rows records; widgets may be neutral render records or declared Storyboard Widget records with nodeTypeId/formId/widgetTypeId/prompt; optional safe `flow:compute` data may derive output ports from incoming handles; edges are structural source/target/handle records. Plain fields are preferred; Knowgrph typed {key,type,value} envelopes and properties[] rows are accepted when preserving frontmatter-native data.',
+  `Rich Media Panel text records must use \`kind: text\` and \`output\` containing a byte-zero YAML-frontmatter Markdown document with \`schema: ${RICH_MEDIA_TEXT_MARKDOWN_SCHEMA}\`, \`media_kind: text\`, and \`content_type: text/markdown\`; never place text in \`html\`, \`srcDoc\`, or \`outputSrcDoc\`. Reserve \`outputSrcDoc\` for genuinely interactive non-text media.`,
   'When a structured response needs document/demo/capability metadata, put portable top-level frontmatter fields in `response.structuredContent.frontmatter`; keep graph records in nodes/edges/cards/panels/media/widgets so metadata projection never becomes a graph backfill channel.',
   'For Storyboard or Strybldr requests that should render widgets, cards, storytree branches, or Rich Media Panels, materialize a neutral dataflow: input/card/story output handles feed a compute widget, compute emits output/imageUrl/audioUrl/videoUrl/outputSrcDoc handles, and Rich Media Panels consume those handles through explicit edges so inline edits recompute downstream panels.',
   'For Storyboard Widget computing-flow requests, emit `schema: "kgc-computing-flow/v1"`, typed KTV input rows as `{key,type,value}` envelopes, and semantic input keys `input_query`, `input_context`, `input_audience`, `input_format`, `input_constraints`, `input_evidence`, `input_tone`, `input_metric_label`, and `input_metric_target` connected through explicit `sourceHandle` and `targetHandle` edges from `source_input` into `compute_summary`.',

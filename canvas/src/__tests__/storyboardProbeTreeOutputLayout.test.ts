@@ -21,9 +21,8 @@ import {
   resolveFlowCanvasMediaOverlayWorldTopLeft2d,
 } from '@/components/FlowCanvas/flowCanvasMediaOverlayWorldPoint'
 import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
+import { buildRichMediaTextMarkdownDocument } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
 import type { GraphData } from '@/lib/graph/types'
-import { shouldUseMediaOwnedRichMediaPanelSrcDocScroll } from '@/lib/render/richMediaPanelSrcDoc'
-import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import {
   PROBE_TREE_BALANCED_LAYOUT_MODE,
   PROBE_TREE_BALANCED_LAYOUT_VERSION,
@@ -514,12 +513,14 @@ export function testProbeTreeOutputLayoutMergesLiveLedgersBeforeNormalization() 
   assert(retainedPanel?.properties.output === 'fresh child continuation', `expected same-id fresh run ledger to outrank stale live bytes, got ${JSON.stringify(retainedPanel)}`)
 }
 
-export function testProbeTreeOutputMarkdownKeepsScrollingInsideCanonicalPanel() {
-  const srcDoc = buildTextWidgetOutputSrcDoc({
+export function testProbeTreeOutputMarkdownUsesFrontmatterSharedViewerContract() {
+  const markdown = buildRichMediaTextMarkdownDocument({
     title: 'Probe-Tree Branches',
-    text: '# Probe-Tree Branches\n\n1. Evidence\n2. Assumption\n3. Reviewer',
-    scrollOwner: 'media',
+    body: '# Probe-Tree Branches\n\n1. Evidence\n2. Assumption\n3. Reviewer',
+    sourceContract: 'knowgrph-probe-tree/v0.1',
   })
-  assert(shouldUseMediaOwnedRichMediaPanelSrcDocScroll(srcDoc), 'expected Probe-Tree Markdown to request media-owned scrolling')
-  assert(srcDoc.includes('data-kg-rich-media-panel-size="viewport"'), 'expected media-owned Markdown to keep the canonical panel viewport size')
+  assert(markdown.startsWith('---\nschema: "knowgrph-rich-media-text/v1"\n'), 'expected Probe-Tree Markdown to start with the Rich Media text frontmatter contract')
+  assert(markdown.includes('\nmedia_kind: "text"\ncontent_type: "text/markdown"\n'), 'expected Probe-Tree frontmatter to declare Markdown text media')
+  assert(markdown.endsWith('# Probe-Tree Branches\n\n1. Evidence\n2. Assumption\n3. Reviewer'), 'expected the authored Markdown body to remain intact')
+  assert(!/<!doctype|<html\b|<body\b/i.test(markdown), 'expected Probe-Tree text output to forbid HTML document materialization')
 }
