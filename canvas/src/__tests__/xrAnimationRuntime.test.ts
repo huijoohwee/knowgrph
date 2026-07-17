@@ -269,7 +269,7 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   for (const marker of ['XrChoreographyInspector', "operation: 'configure-mark'", 'Shared cast and camera choreography, playback, and export']) {
     if (!panelSource.includes(marker)) throw new Error(`expected FloatingPanel Animation to project the shared choreography runtime through ${marker}`)
   }
-  for (const marker of ['data-kg-xr-choreography-inspector="shared-runtime"', 'One mark model for cast and camera · Timeline owns time', 'resolveXrChoreographySpeedWarnings']) {
+  for (const marker of ['data-kg-xr-choreography-inspector="shared-runtime"', 'One mark model for cast and camera · Timeline owns time', 'resolveXrChoreographySpeedWarnings', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'data-kg-xr-choreography-card={target}', 'data-kg-xr-choreography-card-layout={FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT}', 'data-kg-xr-choreography-card-row="controls"']) {
     if (!inspectorSource.includes(marker)) throw new Error(`expected Animation choreography inspection to expose ${marker}`)
   }
   for (const marker of ['data-kg-xr-mark-easing', 'data-kg-xr-mark-gait', 'XR_CHOREOGRAPHY_EASINGS', 'XR_CHOREOGRAPHY_GAITS']) {
