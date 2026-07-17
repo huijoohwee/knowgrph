@@ -8,6 +8,7 @@ import {
   isProbeTreeCardUserInputRelevant,
   isProbeTreeTerminalGenerationRequest,
   normalizeProbeTreeSelectionOptions,
+  resolveProbeTreeTerminalGenerationRequest,
   resolveProbeTreeContextAnchors,
   safeProbeTreeResponseId,
 } from "./probeTreeUserInputRelevance.mjs";
@@ -24,6 +25,7 @@ export {
   isProbeTreeTerminalGenerationRequest,
   normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
+  resolveProbeTreeTerminalGenerationRequest,
   resolveProbeTreeContextAnchors,
 } from "./probeTreeUserInputRelevance.mjs";
 

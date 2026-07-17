@@ -1,11 +1,23 @@
 import { runStoryboardWidgetProbeTreeTextGenerationInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
 import {
+  PROBE_TREE_PROVIDER_MIN_OUTPUT_TOKENS,
+  PROBE_TREE_TERMINAL_PROVIDER_TASK_MARKER,
+  resolveStoryboardWidgetProbeTreeProviderRequestOptions,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeProviderRequest'
+import {
   buildProbeTreeStructuredResponse,
   KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   KNOWGRPH_PROBE_TREE_TOOL_NAMES,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
+import {
+  CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
+  CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
+  CHAT_OPENAI_ENDPOINT_URL,
+  CHAT_PROVIDER_BYTEPLUS,
+  CHAT_PROVIDER_OPENAI,
+} from '@/lib/chatEndpoint'
 import type { GraphData } from '@/lib/graph/types'
 
 const AUTHORED_REQUEST = '/sme-care-agent @source.frontmatter @source.body @local-harness @cost-log @runtime-proof #frontmatter #harness #token-economics #runtime-ready #approval-gate /knowgrph.probe-tree invest in India, or SE Asia?'
@@ -19,6 +31,9 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
   let mcpRequest: Record<string, unknown> | null = null
   let providerPrompt = ''
   let providerCalls = 0
+  let providerRequestUrl = ''
+  let providerRequestHeaders: Headers | null = null
+  let providerRequestBody: Record<string, unknown> = {}
   const invokeMcp = async (request: Parameters<NonNullable<Parameters<typeof runStoryboardWidgetProbeTreeTextGenerationInvocation>[0]['invokeMcp']>>[0]): Promise<ProbeTreeMcpBridgeSuccess> => {
     mcpRequest = request as unknown as Record<string, unknown>
     const contextText = String(request.contextText || '')
@@ -46,10 +61,7 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
       },
     }
   }
-  const generateProviderResponse = async (prompt: string): Promise<string> => {
-    providerCalls += 1
-    providerPrompt = prompt
-    return JSON.stringify({
+  const providerResponseText = JSON.stringify({
       response: {
         structuredContent: {
           contractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
@@ -86,33 +98,85 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
         },
       },
     }, null, 2)
+  const originalFetch = globalThis.fetch
+  let result: Awaited<ReturnType<typeof runStoryboardWidgetProbeTreeTextGenerationInvocation>> = null
+  try {
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      providerCalls += 1
+      providerRequestUrl = String(input)
+      providerRequestHeaders = new Headers(init?.headers)
+      providerRequestBody = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+      providerPrompt = String(providerRequestBody.input || '')
+      return new Response(JSON.stringify({
+        output: [{
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: providerResponseText }],
+        }],
+      }), { headers: { 'content-type': 'application/json' } })
+    }) as typeof fetch
+    result = await runStoryboardWidgetProbeTreeTextGenerationInvocation({
+      graphForRun: graphData,
+      nodeIds: ['investment-root'],
+      fallbackNode: graphData.nodes[0],
+      textGeneration: {
+        prompt: AUTHORED_REQUEST,
+        formId: 'textGeneration',
+        localProperties: {},
+        resolvedProperties: {
+          chatProvider: CHAT_PROVIDER_BYTEPLUS,
+          chatEndpointUrl: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
+          chatModel: CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
+          chatMaxCompletionTokens: 1000,
+          chatReasoningEffort: 'medium',
+        },
+        runtimeProperties: {
+          chatProvider: CHAT_PROVIDER_OPENAI,
+          chatEndpointUrl: CHAT_OPENAI_ENDPOINT_URL,
+          chatModel: 'gpt-5-nano',
+          chatAuthMode: 'serverManaged',
+          chatMaxCompletionTokens: 1000,
+          chatReasoningEffort: 'medium',
+        },
+      },
+      invokeMcp,
+      onMaterialized: () => undefined,
+      publishOutput: output => output.baseGraphData || null,
+      setLoading: () => undefined,
+    })
+  } finally {
+    globalThis.fetch = originalFetch
   }
-
-  const result = await runStoryboardWidgetProbeTreeTextGenerationInvocation({
-    graphForRun: graphData,
-    nodeIds: ['investment-root'],
-    fallbackNode: graphData.nodes[0],
-    textGeneration: {
-      prompt: AUTHORED_REQUEST,
-      formId: 'textGeneration',
-      localProperties: {},
-      resolvedProperties: { chatModel: 'query-specific-test-llm' },
-      runtimeProperties: {},
-    },
-    invokeMcp,
-    generateProviderResponse,
-    onMaterialized: () => undefined,
-    publishOutput: output => output.baseGraphData || null,
-    setLoading: () => undefined,
-  })
   const cards = result?.graphData.nodes.filter(node => node.properties.probeTreeResponseMode === 'llm-contract') || []
   const serializedCards = JSON.stringify(cards)
+  const providerReasoning = providerRequestBody.reasoning && typeof providerRequestBody.reasoning === 'object'
+    ? providerRequestBody.reasoning as Record<string, unknown>
+    : {}
+  const terminalProviderOptions = resolveStoryboardWidgetProbeTreeProviderRequestOptions({
+    prompt: `${PROBE_TREE_TERMINAL_PROVIDER_TASK_MARKER}\nGenerate the selected report.`,
+    chatMaxCompletionTokens: 1000,
+    chatReasoningEffort: 'medium',
+  })
+  const ordinaryProviderOptions = resolveStoryboardWidgetProbeTreeProviderRequestOptions({
+    prompt: 'Generate an ordinary markdown report.',
+    chatMaxCompletionTokens: 1000,
+    chatReasoningEffort: 'medium',
+  })
   if (
     providerCalls !== 1
+    || providerRequestUrl !== '/__chat_proxy/v1/responses'
+    || providerRequestHeaders?.get('X-KG-Chat-Provider') !== CHAT_PROVIDER_OPENAI
+    || providerRequestHeaders?.get('X-KG-Chat-Upstream') !== 'https://api.openai.com'
+    || providerRequestBody.model !== 'gpt-5-nano'
+    || Number(providerRequestBody.max_output_tokens) < PROBE_TREE_PROVIDER_MIN_OUTPUT_TOKENS
+    || providerReasoning.effort !== 'minimal'
+    || providerRequestBody.stream !== false
+    || 'messages' in providerRequestBody
+    || 'max_completion_tokens' in providerRequestBody
     || !String(mcpRequest?.contextText || '').includes(AUTHORED_REQUEST)
     || !providerPrompt.includes('Never copy or paraphrase the selected request as a card question')
     || !providerPrompt.includes('not as a ready-made selectionOptions array')
-    || !providerPrompt.includes('made only of numbers, ranges, or units')
+    || !providerPrompt.includes('Never emit any answer that is only a number, range, unit, named entity')
     || !providerPrompt.includes('runtime owns source Widget investment-root')
     || !providerPrompt.includes('source-verbatim contextAnchors')
     || !providerPrompt.includes('Do not emit contextAnchors')
@@ -126,7 +190,11 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     || !serializedCards.includes('investment horizon')
     || !serializedCards.includes('investment vehicle')
     || cards.some(card => !Array.isArray(card.properties.probeTreeUserInputAnchors) || !card.properties.probeTreeUserInputAnchors.includes('SE Asia'))
+    || Number(terminalProviderOptions.chatMaxCompletionTokens) < PROBE_TREE_PROVIDER_MIN_OUTPUT_TOKENS
+    || terminalProviderOptions.chatReasoningEffort !== 'minimal'
+    || ordinaryProviderOptions.chatMaxCompletionTokens !== 1000
+    || ordinaryProviderOptions.chatReasoningEffort !== 'medium'
   ) {
-    throw new Error(`expected Widget Run to send the source context to the configured LLM and accept only new query-specific decision variables, got ${JSON.stringify({ providerCalls, mcpRequest, providerPrompt, result })}`)
+    throw new Error(`expected Widget Run to use the active Chat Responses route and accept only new query-specific decision variables, got ${JSON.stringify({ providerCalls, providerRequestUrl, providerRequestBody, mcpRequest, providerPrompt, result })}`)
   }
 }

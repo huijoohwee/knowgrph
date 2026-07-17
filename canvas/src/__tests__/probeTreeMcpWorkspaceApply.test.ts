@@ -35,7 +35,7 @@ export async function testProbeTreeLiteralMcpResultAppliesVisibleWidgetCardPanel
         text: 'Which CRM or claims source should determine member risk tier?',
         rationale: 'Clarifies the authored member risk source question.',
         evidenceNeeded: 'User-selected member risk source.',
-        selectionOptions: ['CRM authority', 'claims freshness'],
+        selectionOptions: ['Prefer verified CRM system authority', 'Require recently refreshed claims evidence'],
         contextAnchors: ['member risk tier', 'CRM authority', 'claims freshness'],
       },
       {
@@ -43,7 +43,7 @@ export async function testProbeTreeLiteralMcpResultAppliesVisibleWidgetCardPanel
         text: 'Which policy or care-plan status should guide the member review?',
         rationale: 'Clarifies the authored member status question.',
         evidenceNeeded: 'User-selected member status.',
-        selectionOptions: ['policy status', 'care-plan status'],
+        selectionOptions: ['Prioritize currently effective policy status', 'Require confirmed care-plan status'],
         contextAnchors: ['policy status', 'care-plan status', 'member'],
       },
       {
@@ -51,7 +51,7 @@ export async function testProbeTreeLiteralMcpResultAppliesVisibleWidgetCardPanel
         text: 'Which source authority or handoff owner should guide the next review?',
         rationale: 'Clarifies the authored source and handoff ownership question.',
         evidenceNeeded: 'User-selected review owner.',
-        selectionOptions: ['source authority', 'handoff owner'],
+        selectionOptions: ['Require documented source authority', 'Assign named handoff owner accountability'],
         contextAnchors: ['source authority', 'handoff owner', 'Review member evidence'],
       },
     ]
