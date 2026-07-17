@@ -3,6 +3,7 @@ import { materializeStoryboardWidgetProbeTreeStructuredResponse } from '@/compon
 import {
   buildProbeTreeStructuredResponse,
   buildProbeTreeInputDerivedOptions,
+  areProbeTreeCardsMutuallyDistinct,
   collectProbeTreeContextKeywords,
   extractProbeTreeUserInputText,
   isProbeTreeCardUserInputRelevant,
@@ -28,6 +29,8 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     'at most one clarification card',
     'parentNodeId as the lineage SSOT',
     'never substitute canned response content or fixtures',
+    'different user-named focus',
+    'reused choice labels',
     'contextAnchors',
     'knowgrph.agentic_canvas_os.docs.invoke',
     'result.structuredContent.response.structuredContent',
@@ -140,21 +143,27 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
 }
 
 export function testProbeTreeMcpResponseAdapterBoundsWidgetCardsAndPanel() {
-  const contextText = 'Authored request: Prioritize care evidence across member risk tier, CRM authority, claims freshness, and care-plan handoff. Selected Widget id: care-source'
-  const selectionOptions = ['member risk tier', 'CRM authority', 'claims freshness', 'care-plan handoff']
+  const contextText = 'Authored request: Prioritize care evidence across member risk tier, CRM authority, claims freshness, care-plan handoff, consent status, escalation owner, review deadline, and approval state. Selected Widget id: care-source'
+  const optionSets = [
+    ['member risk tier', 'CRM authority'],
+    ['member risk tier', 'CRM authority'],
+    ['claims freshness', 'care-plan handoff'],
+    ['consent status', 'escalation owner'],
+    ['review deadline', 'approval state'],
+  ]
   const response = buildProbeTreeStructuredResponse({
     threadRootId: 'care-agent',
     currentNodeId: 'care-source',
     contextText,
     optionCount: 9,
     probeTreeDepth: 99,
-    options: Array.from({ length: 6 }, (_, index) => ({
+    options: optionSets.map((selectionOptions, index) => ({
       id: `care-option-${index + 1}`,
-      text: `Which member risk tier and CRM authority priority should care evidence branch ${index + 1} use?`,
+      text: `Which ${selectionOptions[0]} and ${selectionOptions[1]} priority should care evidence use?`,
       rationale: `Keeps branch ${index + 1} source-backed.`,
       evidenceNeeded: 'User selection among the authored care evidence priorities.',
       selectionOptions,
-      contextAnchors: ['member risk tier', 'CRM authority'],
+      contextAnchors: selectionOptions,
     })),
   })
   const structured = response.structuredContent
@@ -192,6 +201,33 @@ export function testProbeTreeMcpResponseAdapterBoundsWidgetCardsAndPanel() {
     || candidateEdges.some(edge => edge.source !== source.id || !cards.some(card => card.id === edge.target))
   ) {
     throw new Error(`expected literal MCP structured response to project a visible Widget/Card/Panel tree, got ${JSON.stringify(surface)}`)
+  }
+}
+
+export function testProbeTreeCrossCardDiversityRejectsRepeatedAndSubsetChoiceSets() {
+  const distinctCards = [
+    { question: 'Which member risk tier needs follow-up?', selectionOptions: ['member risk', 'risk tier'] },
+    { question: 'Which claims freshness needs follow-up?', selectionOptions: ['claims', 'freshness'] },
+  ]
+  const repeatedQuestionCards = [
+    distinctCards[0],
+    { question: distinctCards[0].question, selectionOptions: ['care plan', 'handoff'] },
+  ]
+  const subsetChoiceCards = [
+    { question: 'Which care priorities need follow-up?', selectionOptions: ['member risk tier', 'CRM authority', 'claims freshness'] },
+    { question: 'Which care authority needs follow-up?', selectionOptions: ['member risk tier', 'CRM authority'] },
+  ]
+  const overlappingChoiceCards = [
+    { question: 'Which risk tier needs follow-up?', selectionOptions: ['member risk tier', 'CRM authority'] },
+    { question: 'Which handoff needs follow-up?', selectionOptions: ['member risk tier', 'care-plan handoff'] },
+  ]
+  if (
+    !areProbeTreeCardsMutuallyDistinct(distinctCards)
+    || areProbeTreeCardsMutuallyDistinct(repeatedQuestionCards)
+    || areProbeTreeCardsMutuallyDistinct(subsetChoiceCards)
+    || areProbeTreeCardsMutuallyDistinct(overlappingChoiceCards)
+  ) {
+    throw new Error('expected Probe-Tree batch diversity to reject repeated questions and reused choice labels')
   }
 }
 
@@ -269,6 +305,8 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
     'Which requested items should guide the next branch: coverage authority, claims freshness, adviser handoff?',
   ].join('\n')
   const questionOnlyContinuationInput = extractProbeTreeUserInputText(questionOnlyContinuationContext)
+  const questionOnlyContinuationOptions = buildProbeTreeInputDerivedOptions(questionOnlyContinuationContext)
+  const continuationChoiceLabels = continuationOptions.flatMap(option => option.selectionOptions.map(selection => selection.label.toLowerCase()))
   const firstOption = options[0]
   if (
     forbiddenMetadata.some(keyword => keywords.includes(keyword))
@@ -277,11 +315,14 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
     || !isProbeTreeCardUserInputRelevant({ contextText, question: firstOption.text, selectionOptions: firstOption.selectionOptions, contextAnchors: firstOption.contextAnchors })
     || continuationInput !== 'provider-neutral protection guidance, a review-ready licensed-adviser handoff, evidence confidence and urgency'
     || !['protection', 'licensed-adviser', 'evidence', 'confidence', 'urgency'].every(keyword => continuationKeywords.includes(keyword))
-    || continuationOptions.length < 2
+    || continuationOptions.length !== 3
+    || !areProbeTreeCardsMutuallyDistinct(continuationOptions)
+    || new Set(continuationChoiceLabels).size !== continuationChoiceLabels.length
     || continuationOptions.some(option => option.text.includes('Which requested items should guide the next branch: Which requested items'))
-    || !continuationOptions.some(option => option.selectionOptions.some(selection => selection.label === 'evidence confidence and urgency'))
-    || continuationOptions.some(option => option.selectionOptions.some(selection => selection.label === 'urgency'))
+    || !continuationOptions.some(option => option.text.includes('"evidence confidence and urgency"'))
     || questionOnlyContinuationInput !== 'coverage authority, claims freshness, adviser handoff'
+    || questionOnlyContinuationOptions.length !== 3
+    || !areProbeTreeCardsMutuallyDistinct(questionOnlyContinuationOptions)
     || JSON.stringify(options).includes('Current primary source for')
     || JSON.stringify(options).includes('Verified system-of-record fact for')
   ) {
