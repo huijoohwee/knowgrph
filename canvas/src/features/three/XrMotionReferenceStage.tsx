@@ -11,6 +11,7 @@ import {
   dropXrMotionReferenceCastMark,
   hydrateXrMotionReferenceRuntime,
   readXrMotionReferenceRuntime,
+  selectXrMotionReferenceActor,
   subscribeXrMotionReferenceRuntime,
 } from '@/features/three/xrMotionReferenceRuntime'
 import { THREE_RENDER_ORDER } from '@/features/three/renderOrder'
@@ -271,6 +272,8 @@ export function XrMotionReferenceStage({
               subject={subject}
               position={xrMotionReferenceWorldPosition(subjectPosition, scale, groundY)}
               stageScale={scale}
+              selected={runtime.selectedActorId === subject.id}
+              onSelect={() => selectXrMotionReferenceActor(subject.id)}
             />
           )
         })}

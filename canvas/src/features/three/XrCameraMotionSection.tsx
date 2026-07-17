@@ -137,6 +137,11 @@ export function XrCameraMotionSection() {
   }, [graphData, markdownDocumentName, pushUiToast])
 
   const edges = Array.isArray(graphData?.edges) ? graphData.edges.length : 0
+  const retimeRowCount = Math.max(1, runtime.plan.cast.length) + 1
+  const supplementalLaneStyle = {
+    '--kg-xr-retime-row-count': retimeRowCount,
+    '--kg-xr-timeline-marks-height': `${retimeRowCount * 26}px`,
+  } as React.CSSProperties
 
   if (!xrActive) return null
 
@@ -198,6 +203,8 @@ export function XrCameraMotionSection() {
               aria-label="XR Timeline player controls"
               data-kg-xr-timeline-consolidated-lane="stage-output-retime"
               data-kg-xr-timeline-player-controls="1"
+              data-kg-xr-timeline-cast-row-count={runtime.plan.cast.length}
+              style={supplementalLaneStyle}
             >
               <header className="timeline-transport-supplemental-lane-label timeline-transport-supplemental-lane-label--stacked">
                 <span>XR control</span>

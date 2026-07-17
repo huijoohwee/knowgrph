@@ -3,7 +3,7 @@ import { Trash2 } from 'lucide-react'
 import { TimelineTransportTimeAxisMark } from '@/components/timeline/TimelineTransportControls'
 import { resolveVideoSequenceRulerInsetLeft } from '@/components/timeline/videoSequenceTimelineRulerGeometry'
 import { resolveVideoSequenceTimelineScaleDurationSeconds } from '@/components/timeline/videoSequenceTimelineZoom'
-import { PanelTextInput } from '@/lib/ui/panelFormControls'
+import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { XR_MOTION_REFERENCE_SELECTION_COLOR } from './xrMotionReferenceModel'
@@ -13,8 +13,10 @@ import {
   removeXrMotionReferenceCastMark,
   retimeXrMotionReferenceCameraMark,
   retimeXrMotionReferenceCastMark,
+  selectXrMotionReferenceActor,
   selectXrMotionReferenceCameraMark,
   selectXrMotionReferenceCastMark,
+  setXrMotionReferenceCastMotion,
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
 import './CameraMotionMarkRetime.css'
@@ -60,6 +62,91 @@ function markAxisStyle(timeSeconds: number, scaleDurationSeconds: number): React
   return { '--kg-xr-retime-mark-left': resolveVideoSequenceRulerInsetLeft(percent) } as React.CSSProperties
 }
 
+type XrCastTrack = ReturnType<typeof readXrMotionReferenceRuntime>['plan']['cast'][number]
+
+function CastTrackTimeAxisRow({
+  durationSeconds,
+  runtime,
+  scaleDurationSeconds,
+  track,
+}: {
+  durationSeconds: number
+  runtime: ReturnType<typeof readXrMotionReferenceRuntime>
+  scaleDurationSeconds: number
+  track: XrCastTrack
+}) {
+  const actorSelected = runtime.selectedActorId === track.actorId
+  const trackMotion = track.marks[0]?.transition === 'hold' ? 'hold' : 'linear'
+  return (
+    <section
+      className="xr-camera-motion-retime-axis-row xr-camera-motion-retime-cast-row"
+      aria-label={`${track.label} cast mark times`}
+      data-kg-xr-retime-cast-track={track.actorId}
+      data-kg-xr-retime-cast-track-selected={actorSelected ? '1' : '0'}
+      data-kg-xr-retime-lane-ui="video"
+      style={{ '--kg-xr-cast-track-color': track.color } as React.CSSProperties}
+    >
+      <button
+        type="button"
+        className="xr-camera-motion-retime-cast-bar"
+        aria-label={`Select ${track.label} cast track`}
+        aria-pressed={actorSelected}
+        onClick={() => selectXrMotionReferenceActor(track.actorId)}
+      >
+        <span className="xr-camera-motion-retime-cast-swatch" aria-hidden />
+        <span className="xr-camera-motion-retime-cast-label" title={track.label}>{track.label}</span>
+        <span className="xr-camera-motion-retime-cast-count">{track.marks.length} mark{track.marks.length === 1 ? '' : 's'}</span>
+      </button>
+      <PanelSelect
+        className="xr-camera-motion-retime-cast-motion h-5 w-[70px] px-1 py-0 text-[9px]"
+        aria-label={`Animation for ${track.label}`}
+        value={trackMotion}
+        onChange={event => {
+          selectXrMotionReferenceActor(track.actorId)
+          setXrMotionReferenceCastMotion(track.actorId, event.target.value === 'hold' ? 'hold' : 'linear')
+        }}
+        data-kg-xr-retime-cast-animation={track.actorId}
+      >
+        <option value="linear">Travel</option>
+        <option value="hold">Hold</option>
+      </PanelSelect>
+      {track.marks.map((mark, index) => {
+        const percent = scaleDurationSeconds > 0 ? (mark.timeSeconds / scaleDurationSeconds) * 100 : 0
+        const selected = runtime.selectedMark?.kind === 'cast'
+          && runtime.selectedMark.actorId === track.actorId
+          && runtime.selectedMark.markId === mark.id
+        const selectMark = () => selectXrMotionReferenceCastMark(track.actorId, mark.id)
+        return (
+          <TimelineTransportTimeAxisMark
+            key={mark.id}
+            laneStyle="video"
+            className="xr-camera-motion-retime-axis-mark"
+            style={markAxisStyle(mark.timeSeconds, scaleDurationSeconds)}
+            aria-label={`${track.label} mark ${index + 1} at ${mark.timeSeconds} seconds`}
+            aria-pressed={selected}
+            role="button"
+            tabIndex={0}
+            onClick={selectMark}
+            onKeyDown={event => selectMarkOnKeyDown(event, selectMark)}
+            data-kg-xr-retime-cast-mark={index + 1}
+            data-kg-xr-retime-edge={percent > 72 ? 'end' : 'start'}
+            data-kg-xr-stage-highlight-target={selected ? 'cast-mark' : undefined}
+          >
+            <span className="timeline-transport-track-clip-label xr-camera-motion-retime-axis-mark-label" style={{ backgroundColor: selected ? XR_MOTION_REFERENCE_SELECTION_COLOR : track.color }}>{index + 1}</span>
+            <TimeEditor compact label={`${track.label} mark ${index + 1} time`} value={mark.timeSeconds} max={durationSeconds} onChange={value => retimeXrMotionReferenceCastMark(track.actorId, mark.id, value)} />
+            <button type="button" className="App-toolbar__btn p-0.5" disabled={track.marks.length <= 1} aria-label={`Remove ${track.label} mark ${index + 1}`} onClick={event => {
+              event.stopPropagation()
+              removeXrMotionReferenceCastMark(track.actorId, mark.id)
+            }}>
+              <Trash2 className="size-3" aria-hidden />
+            </button>
+          </TimelineTransportTimeAxisMark>
+        )
+      })}
+    </section>
+  )
+}
+
 export function CameraMotionMarkRetime({ layout = 'panel' }: { layout?: 'panel' | 'time-axis' }) {
   const runtime = React.useSyncExternalStore(
     subscribeXrMotionReferenceRuntime,
@@ -81,42 +168,16 @@ export function CameraMotionMarkRetime({ layout = 'panel' }: { layout?: 'panel' 
         data-kg-xr-timeline-retime-layout={layout}
         data-kg-xr-timeline-retime-scale-seconds={scaleDurationSeconds}
       >
-        <section className="xr-camera-motion-retime-axis-row" aria-label="Cast mark times" data-kg-xr-retime-lane-ui="video">
-          {selectedTrack?.marks.map((mark, index) => {
-            const percent = scaleDurationSeconds > 0 ? (mark.timeSeconds / scaleDurationSeconds) * 100 : 0
-            const selected = runtime.selectedMark?.kind === 'cast'
-              && runtime.selectedMark.actorId === selectedTrack.actorId
-              && runtime.selectedMark.markId === mark.id
-            const selectMark = () => selectXrMotionReferenceCastMark(selectedTrack.actorId, mark.id)
-            return (
-              <TimelineTransportTimeAxisMark
-                key={mark.id}
-                laneStyle="video"
-                className="xr-camera-motion-retime-axis-mark"
-                style={markAxisStyle(mark.timeSeconds, scaleDurationSeconds)}
-                aria-label={`${selectedTrack.label} mark ${index + 1} at ${mark.timeSeconds} seconds`}
-                aria-pressed={selected}
-                role="button"
-                tabIndex={0}
-                onClick={selectMark}
-                onKeyDown={event => selectMarkOnKeyDown(event, selectMark)}
-                data-kg-xr-retime-cast-mark={index + 1}
-                data-kg-xr-retime-edge={percent > 72 ? 'end' : 'start'}
-                data-kg-xr-stage-highlight-target={selected ? 'cast-mark' : undefined}
-              >
-                <span className="timeline-transport-track-clip-label xr-camera-motion-retime-axis-mark-label" style={{ backgroundColor: selected ? XR_MOTION_REFERENCE_SELECTION_COLOR : selectedTrack.color }}>{index + 1}</span>
-                <TimeEditor compact label={`${selectedTrack.label} mark ${index + 1} time`} value={mark.timeSeconds} max={runtime.plan.durationSeconds} onChange={value => retimeXrMotionReferenceCastMark(selectedTrack.actorId, mark.id, value)} />
-                <button type="button" className="App-toolbar__btn p-0.5" disabled={selectedTrack.marks.length <= 1} aria-label={`Remove ${selectedTrack.label} mark ${index + 1}`} onClick={event => {
-                  event.stopPropagation()
-                  removeXrMotionReferenceCastMark(selectedTrack.actorId, mark.id)
-                }}>
-                  <Trash2 className="size-3" aria-hidden />
-                </button>
-              </TimelineTransportTimeAxisMark>
-            )
-          })}
-          {!selectedTrack ? <p className="xr-camera-motion-retime-axis-empty">No cast track.</p> : null}
-        </section>
+        {runtime.plan.cast.map(track => (
+          <CastTrackTimeAxisRow
+            key={track.actorId}
+            durationSeconds={runtime.plan.durationSeconds}
+            runtime={runtime}
+            scaleDurationSeconds={scaleDurationSeconds}
+            track={track}
+          />
+        ))}
+        {runtime.plan.cast.length === 0 ? <section className="xr-camera-motion-retime-axis-row" aria-label="Cast mark times" data-kg-xr-retime-lane-ui="video"><p className="xr-camera-motion-retime-axis-empty">No cast track.</p></section> : null}
         <section className="xr-camera-motion-retime-axis-row" aria-label="Camera mark times" data-kg-xr-retime-lane-ui="audio">
           {runtime.plan.camera.map((mark, index) => {
             const percent = scaleDurationSeconds > 0 ? (mark.timeSeconds / scaleDurationSeconds) * 100 : 0

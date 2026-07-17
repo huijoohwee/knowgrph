@@ -349,7 +349,7 @@
 
 .timeline-transport-chrome--mermaid-gantt .timeline-transport-supplemental-lane-label--stacked {
   display: grid;
-  grid-template-rows: 34px 52px;
+  grid-template-rows: 34px var(--kg-xr-timeline-marks-height, 52px);
   align-items: stretch;
   gap: 3px;
   padding: 4px 0;
@@ -444,7 +444,7 @@
 .timeline-transport-chrome--mermaid-gantt .timeline-transport-time-axis-clip {
   width: 100%;
   min-width: 100%;
-  height: 52px;
+  height: var(--kg-xr-timeline-marks-height, 52px);
   overflow: hidden;
   padding: 0;
 }
