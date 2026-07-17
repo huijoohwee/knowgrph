@@ -291,6 +291,14 @@ Prepare linked packages directly when working inside the canvas app:
 npm --prefix canvas run prepare:linked-packages
 ```
 
+Prepare the shared runtime required by repository smoke checks:
+
+```bash
+npm run smoke:prepare
+```
+
+The collaboration readiness gate runs this preparation automatically before its focused and browser smoke checks.
+
 ## Local development
 
 ```bash

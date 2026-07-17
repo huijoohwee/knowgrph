@@ -17,6 +17,17 @@ test('device end delegates to the canonical Agentic Canvas OS checkout wrapper',
   assert.equal(pkg.scripts?.['device:end'], 'node ../agentic-canvas-os/scripts/device-branch.mjs end')
 })
 
+test('collaboration smoke preparation builds grph-shared before readiness checks', () => {
+  const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
+  const readiness = fs.readFileSync(new URL('../check-collaboration-readiness.mjs', import.meta.url), 'utf8')
+  const preparationIndex = readiness.indexOf("args: ['run', 'smoke:prepare']")
+  const docsGuardIndex = readiness.indexOf("name: 'docs guard'")
+
+  assert.equal(pkg.scripts?.['smoke:prepare'], 'npm run build --workspace=grph-shared')
+  assert.ok(preparationIndex >= 0)
+  assert.ok(preparationIndex < docsGuardIndex)
+})
+
 test('canonical contract is valid and selects deduplicated affected checks', async () => {
   const contract = await readContract()
   const plan = selectAffectedCommands([
