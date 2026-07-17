@@ -37,6 +37,18 @@ const buildProbeTreeCard = (): StoryboardCardModel => ({
   structural: false,
 })
 
+const buildProbeTreeTypeTwoCard = (): StoryboardCardModel => ({
+  ...buildProbeTreeCard(),
+  id: 'probe-option-type-2',
+  probeTreeMultiSelect: {
+    options: [
+      { id: 'current-policy', label: 'Current policy source' },
+      { id: 'system-record', label: 'Verified system-of-record fact' },
+    ],
+    allowOther: true,
+  },
+})
+
 export async function testStoryboardProbeTreeOutputReplacesMediaSlotWithEditableViewer() {
   const { dom, restore } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
@@ -113,6 +125,71 @@ export async function testStoryboardProbeTreeOutputReplacesMediaSlotWithEditable
     await act(async () => {
       root.unmount()
     })
+    restore()
+  }
+}
+
+export async function testStoryboardProbeTreeTypeTwoCommitsNumberedMultiSelectAndOther() {
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container)
+  const card = buildProbeTreeTypeTwoCard()
+  const commits: Array<{ field: GraphNodeCardTextFieldSpec; value: string }> = []
+  try {
+    await act(async () => {
+      root.render(
+        <StoryboardCardTextEditSurface
+          card={card}
+          textModel={buildStoryboardCardTextModel(card)}
+          projectedMediaAttachments={null}
+          storyboardCommandContextText=""
+          onActivate={() => void 0}
+          onCommitLane={() => void 0}
+          onCommitText={(_card, field, value) => commits.push({ field, value })}
+          onCommitType={() => void 0}
+          onMediaCommandSelect={() => void 0}
+        />,
+      )
+      await waitForFrames(dom.window, 4)
+    })
+    const summary = container.querySelector('[data-kg-probe-tree-type="2"][aria-label="Summary for probe-option-type-2"]')
+    const optionOne = container.querySelector('[aria-label="Select option 1 for probe-option-type-2"]')
+    const optionTwo = container.querySelector('[aria-label="Select option 2 for probe-option-type-2"]')
+    const otherInput = container.querySelector('[aria-label="Other response for probe-option-type-2"]')
+    if (!(summary instanceof dom.window.HTMLElement)
+      || !(optionOne instanceof dom.window.HTMLInputElement)
+      || !(optionTwo instanceof dom.window.HTMLInputElement)
+      || !(otherInput instanceof dom.window.HTMLInputElement)
+      || !summary.textContent?.includes('1. Current policy source')
+      || !summary.textContent?.includes('2. Verified system-of-record fact')
+      || !summary.textContent?.includes('Other')) {
+      throw new Error(`expected Probe-Tree Type 2 Summary to render numbered choices plus Other, html=${container.innerHTML}`)
+    }
+    await act(async () => {
+      Simulate.change(optionOne)
+      await waitForFrames(dom.window, 2)
+      Simulate.change(optionTwo)
+      await waitForFrames(dom.window, 2)
+    })
+    await act(async () => {
+      Simulate.change(otherInput, { target: { value: 'Regional regulator notice' } })
+      await waitForFrames(dom.window, 2)
+    })
+    await act(async () => {
+      Simulate.blur(otherInput)
+      await waitForFrames(dom.window, 2)
+    })
+    const outputCommit = commits.filter(commit => commit.field.id === 'output').at(-1)
+    if (outputCommit?.value !== [
+      '1. Current policy source',
+      '2. Verified system-of-record fact',
+      'Other: Regional regulator notice',
+    ].join('\n')) {
+      throw new Error(`expected Type 2 controls to commit one canonical numbered Output, got ${JSON.stringify(commits)}`)
+    }
+  } finally {
+    await act(async () => root.unmount())
     restore()
   }
 }

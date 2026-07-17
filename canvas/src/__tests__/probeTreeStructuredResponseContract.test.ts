@@ -21,13 +21,16 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
     '2-4 concrete, context-specific next questions',
     'evidenceNeeded',
+    'probeTreeCardVariant: probe-tree-type-2',
+    '2-4 selectionOptions',
+    'allowOther: true',
     'at most one clarification card',
     'parentNodeId as the lineage SSOT',
     'deterministic fallback UI only',
     'knowgrph.agentic_canvas_os.docs.invoke',
     'result.structuredContent.response.structuredContent',
     'card renders it as Summary',
-    'leave output empty for the editable user answer',
+    'leave output empty for the user-owned selection',
   ]) {
     if (!prompt.includes(expected)) {
       throw new Error(`expected Probe-Tree LLM prompt to include ${expected}, got ${prompt}`)
@@ -54,6 +57,14 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     '        candidateOptionId: verify-source-authority',
     `        question: "${question}"`,
     '        output: ""',
+    '        probeTreeCardVariant: probe-tree-type-2',
+    '        selectionMode: multiple',
+    '        selectionOptions:',
+    '          - id: current-policy',
+    '            label: Current policy source',
+    '          - id: system-record',
+    '            label: Verified system-of-record fact',
+    '        allowOther: true',
     '        rationale: Prevents conflicting CRM and claims values from silently selecting the branch.',
     '        evidenceNeeded: Named system of record and freshness timestamp',
     '        confidence: medium',
@@ -77,6 +88,9 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     evidenceNeeded: 'Named system of record and freshness timestamp',
     confidence: 'medium',
     nextAction: 'knowgrph.probe.select',
+    probeTreeCardVariant: 'probe-tree-type-2',
+    selectionMode: 'multiple',
+    allowOther: true,
   } as const
   for (const [key, expected] of Object.entries(expectedProperties)) {
     if (node.properties[key] !== expected) {
@@ -139,6 +153,8 @@ export function testProbeTreeMcpResponseAdapterBoundsWidgetCardsAndPanel() {
     || structured.panels.length !== 1
     || structured.cards.some(card => card.parentNodeId !== 'care-source' || card.probeTreeDepth !== 8)
     || structured.cards.some(card => card.output !== '' || !card.question)
+    || structured.cards.some(card => card.probeTreeCardVariant !== 'probe-tree-type-2' || card.selectionMode !== 'multiple' || card.allowOther !== true)
+    || structured.cards.some(card => !Array.isArray(card.selectionOptions) || card.selectionOptions.length < 2 || card.selectionOptions.length > 4)
   ) {
     throw new Error(`expected the shared MCP adapter to emit one Widget, four bounded cards, and one panel, got ${JSON.stringify(response)}`)
   }
@@ -158,6 +174,8 @@ export function testProbeTreeMcpResponseAdapterBoundsWidgetCardsAndPanel() {
     || cards.length !== 4
     || cards.map(card => card.properties.index).join(',') !== 'P1,P2,P3,P4'
     || cards.some(card => card.properties.output !== '' || !card.properties.summary)
+    || cards.some(card => card.properties.probeTreeCardVariant !== 'probe-tree-type-2' || card.properties.selectionMode !== 'multiple' || card.properties.allowOther !== true)
+    || cards.some(card => !Array.isArray(card.properties.selectionOptions) || card.properties.selectionOptions.length < 2)
     || candidateEdges.length !== 4
     || candidateEdges.some(edge => edge.source !== source.id || !cards.some(card => card.id === edge.target))
   ) {
@@ -194,6 +212,7 @@ export function testProbeTreeContextFallbackProjectsWithoutStructuredTextParsing
     || cards.length !== 3
     || cards.some(card => card.properties.parentNodeId !== 'sme-source')
     || cards.some(card => card.properties.output !== '' || !card.properties.summary)
+    || cards.some(card => card.properties.probeTreeCardVariant !== 'probe-tree-type-2' || card.properties.selectionMode !== 'multiple' || card.properties.allowOther !== true)
     || !result.panelOutput.includes('SME')
   ) {
     throw new Error(`expected direct bounded context fallback cards without generic response parsing, got ${JSON.stringify(result)}`)

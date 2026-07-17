@@ -29,7 +29,7 @@ const readStoryboardCardTextFieldSpec = (id: GraphNodeCardTextFieldId): GraphNod
 }
 
 export const buildStoryboardCardTextModel = (card: StoryboardCardTextSource): StoryboardCardTextModel => {
-  if (card.typeLabel === 'Probe-Tree Card') {
+  if (card.typeLabel === 'Probe-Tree Card' || card.probeTreeMultiSelect) {
     const primaryField = readStoryboardCardTextFieldSpec('summary')
     const secondaryField = readStoryboardCardTextFieldSpec('output')
     const primaryRaw = card.summary || ''

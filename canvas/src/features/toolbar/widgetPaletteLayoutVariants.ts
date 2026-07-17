@@ -14,11 +14,12 @@ import {
 } from '@/lib/config.storyboard-widget'
 import {
   PROBE_TREE_TYPE_ONE_LAYOUT_ID,
+  PROBE_TREE_TYPE_TWO_LAYOUT_ID,
   WIDGET_CARD_TYPE_ZERO_LAYOUT_ID,
 } from '@/lib/storyboardWidget/widgetCardLayoutVariants'
 
 export type WidgetPaletteAspectRatio = '16:9' | '9:16'
-export type WidgetPaletteLayoutKind = 'card-media' | 'card-output' | 'flow-editor' | 'rich-media' | 'video'
+export type WidgetPaletteLayoutKind = 'card-media' | 'card-output' | 'card-multi-select' | 'flow-editor' | 'rich-media' | 'video'
 
 export type WidgetPaletteLayoutVariant = {
   id: string
@@ -151,6 +152,13 @@ export function listWidgetPaletteLayoutVariants(
           entry,
           aspectRatio,
           layoutKind: 'card-output',
+        },
+        {
+          id: PROBE_TREE_TYPE_TWO_LAYOUT_ID,
+          label: 'Probe-Tree Type 2',
+          entry,
+          aspectRatio,
+          layoutKind: 'card-multi-select',
         },
       )
       continue
