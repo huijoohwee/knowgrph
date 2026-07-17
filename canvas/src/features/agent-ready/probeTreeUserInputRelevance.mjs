@@ -96,7 +96,7 @@ const normalizeProbeTreeContinuationQuestion = value => cleanProbeTreeResponseTe
   .replace(/[?]+$/g, "")
   .trim();
 
-const normalizeProbeTreeContinuationAnswer = value => {
+const readProbeTreeContinuationSelections = value => {
   const normalized = cleanProbeTreeResponseText(value, 8_000);
   const numberedSelections = [...normalized.matchAll(
     /(?:^|\s)\d+\.\s*(.+?)(?=(?:\s+\d+\.\s*)|(?:\s+Other(?:\s*:|$))|$)/gi,
@@ -105,8 +105,19 @@ const normalizeProbeTreeContinuationAnswer = value => {
     normalized.match(/(?:^|\s)Other\s*:\s*(.+)$/i)?.[1],
     240,
   );
-  const selections = [...numberedSelections, otherSelection].filter(Boolean);
-  return selections.length > 0 ? [...new Set(selections)].join(", ") : normalized;
+  const seen = new Set();
+  return [...numberedSelections, otherSelection].filter(selection => {
+    const key = selection.toLowerCase();
+    if (!selection || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const normalizeProbeTreeContinuationAnswer = value => {
+  const normalized = cleanProbeTreeResponseText(value, 8_000);
+  const selections = readProbeTreeContinuationSelections(normalized);
+  return selections.length > 0 ? selections.join(", ") : normalized;
 };
 
 const escapeProbeTreePattern = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -188,62 +199,129 @@ const extractEnumeratedPhraseGroups = clause => {
   });
 };
 
-const expandProbeTreeSelectionGroups = selectionOptions => {
-  if (selectionOptions.length < 3) return [selectionOptions];
-  const windowSize = selectionOptions.length === 3 ? 2 : 3;
-  return [
-    selectionOptions,
-    selectionOptions.slice(0, windowSize),
-    selectionOptions.slice(-windowSize),
-  ];
-};
-
 const scoreInputClause = (clause, selectionOptions) => {
   const keywords = collectProbeTreeContextKeywords(clause, 20);
   const runtimeWords = keywords.filter(keyword => PROBE_TREE_RUNTIME_META_WORDS.has(keyword)).length;
   return (keywords.length - runtimeWords) * 3 + selectionOptions.length * 2 - runtimeWords * 4;
 };
 
+const splitProbeTreeFocusPhrase = value => {
+  const phrase = cleanProbeTreeResponseText(value, 240);
+  const conjunctionParts = phrase.split(/\s+(?:and|or)\s+/i).map(part => cleanProbeTreeResponseText(part, 160));
+  const conjunctionOptions = normalizeProbeTreeSelectionOptions(conjunctionParts.filter(part => (
+    collectProbeTreeContextKeywords(part, 4).length > 0
+  )));
+  if (conjunctionOptions.length >= PROBE_TREE_MULTI_SELECT_LIMITS.min) return conjunctionOptions;
+
+  const words = phrase.split(/\s+/).filter(Boolean);
+  const midpoint = words.length / 2;
+  const splitIndexes = Array.from({ length: Math.max(0, words.length - 1) }, (_, index) => index + 1)
+    .sort((left, right) => Math.abs(left - midpoint) - Math.abs(right - midpoint));
+  for (const splitIndex of splitIndexes) {
+    const parts = [words.slice(0, splitIndex).join(" "), words.slice(splitIndex).join(" ")]
+      .map(part => part.replace(/^(?:a|an|the)\s+/i, ""));
+    if (parts.some(part => collectProbeTreeContextKeywords(part, 4).length === 0)) continue;
+    const options = normalizeProbeTreeSelectionOptions(parts);
+    if (options.length >= PROBE_TREE_MULTI_SELECT_LIMITS.min) return options;
+  }
+  return [];
+};
+
+const buildProbeTreeFocusedOptions = ({ phrases, idPrefix }) => phrases.flatMap((phrase, index) => {
+  const selectionOptions = splitProbeTreeFocusPhrase(phrase);
+  if (selectionOptions.length < PROBE_TREE_MULTI_SELECT_LIMITS.min) return [];
+  const labels = selectionOptions.map(option => option.label);
+  return [{
+    id: `${idPrefix}-${index + 1}-${safeProbeTreeResponseId(phrase, String(index + 1)).slice(0, 64)}`,
+    text: cleanProbeTreeResponseText(`Which parts of "${phrase}" need separate follow-up?`),
+    rationale: cleanProbeTreeResponseText(`Derived only from the selected input: ${phrase}`),
+    evidenceNeeded: cleanProbeTreeResponseText(`User selection within: ${labels.join("; ")}`),
+    selectionOptions,
+    contextAnchors: normalizeProbeTreeContextAnchors([phrase, ...labels]),
+    score: scoreInputClause(phrase, selectionOptions),
+    clauseIndex: index,
+    sourceOrder: index,
+  }];
+}).filter(candidate => candidate.score >= 8).reduce((accepted, candidate) => (
+  areProbeTreeCardsMutuallyDistinct([...accepted, candidate]) ? [...accepted, candidate] : accepted
+), []).slice(0, 3);
+
+const readProbeTreeContinuationPhrases = contextText => {
+  const continuationAnswer = readContextMarker(contextText, "Selected continuation answer");
+  if (continuationAnswer) {
+    const selected = readProbeTreeContinuationSelections(continuationAnswer);
+    if (selected.length > 0) return selected;
+    return splitEnumeratedPhrases(normalizeProbeTreeContinuationAnswer(continuationAnswer)).map(option => option.label);
+  }
+  const continuationQuestion = readContextMarker(contextText, "Selected continuation question");
+  if (!continuationQuestion) return [];
+  return splitEnumeratedPhrases(normalizeProbeTreeContinuationQuestion(continuationQuestion)).map(option => option.label);
+};
+
 export function buildProbeTreeInputDerivedOptions(contextText) {
   const userInput = extractProbeTreeUserInputText(contextText);
+  const continuationPhrases = readProbeTreeContinuationPhrases(contextText);
+  if (continuationPhrases.length > 0) {
+    return buildProbeTreeFocusedOptions({
+      phrases: continuationPhrases,
+      idPrefix: "input-derived-continuation",
+    }).map(({ score: _score, clauseIndex: _clauseIndex, sourceOrder: _sourceOrder, ...candidate }) => candidate);
+  }
   const candidates = splitAuthoredClauses(userInput).flatMap((clause, sourceIndex) => {
-    return extractEnumeratedPhraseGroups(clause).flatMap((selectionOptions, groupIndex) => {
-      return expandProbeTreeSelectionGroups(selectionOptions).map((selectionGroup, variantIndex) => {
-        const score = scoreInputClause(clause, selectionGroup) - groupIndex - variantIndex;
-        const labels = selectionGroup.map(option => option.label);
-        const question = `Which requested items should guide the next branch: ${labels.join(", ")}?`;
-        return {
-          id: `input-derived-${sourceIndex + 1}-${groupIndex + 1}-${variantIndex + 1}-${safeProbeTreeResponseId(clause, String(sourceIndex + 1)).slice(0, 54)}`,
-          text: cleanProbeTreeResponseText(question),
-          rationale: cleanProbeTreeResponseText(`Derived only from the authored request: ${clause}`),
-          evidenceNeeded: cleanProbeTreeResponseText(`User selection among: ${labels.join("; ")}`),
-          selectionOptions: selectionGroup,
-          contextAnchors: normalizeProbeTreeContextAnchors([clause, ...labels]),
-          score,
-          clauseIndex: sourceIndex,
-          sourceOrder: sourceIndex * 100 + groupIndex * 10 + variantIndex,
-        };
-      }).filter(candidate => candidate.score >= 8);
-    });
+    return extractEnumeratedPhraseGroups(clause).map((selectionOptions, groupIndex) => {
+      const score = scoreInputClause(clause, selectionOptions) - groupIndex;
+      const labels = selectionOptions.map(option => option.label);
+      const question = `Which requested items should guide the next branch: ${labels.join(", ")}?`;
+      return {
+        id: `input-derived-${sourceIndex + 1}-${groupIndex + 1}-${safeProbeTreeResponseId(clause, String(sourceIndex + 1)).slice(0, 60)}`,
+        text: cleanProbeTreeResponseText(question),
+        rationale: cleanProbeTreeResponseText(`Derived only from the authored request: ${clause}`),
+        evidenceNeeded: cleanProbeTreeResponseText(`User selection among: ${labels.join("; ")}`),
+        selectionOptions,
+        contextAnchors: normalizeProbeTreeContextAnchors([clause, ...labels]),
+        score,
+        clauseIndex: sourceIndex,
+        sourceOrder: sourceIndex * 100 + groupIndex,
+      };
+    }).filter(candidate => candidate.score >= 8);
   });
   const ranked = candidates.sort((left, right) => right.score - left.score || left.sourceOrder - right.sourceOrder);
   const selected = [];
-  const selectedIds = new Set();
   const selectedClauses = new Set();
   for (const candidate of ranked) {
     if (selectedClauses.has(candidate.clauseIndex)) continue;
+    if (!areProbeTreeCardsMutuallyDistinct([...selected, candidate])) continue;
     selected.push(candidate);
-    selectedIds.add(candidate.id);
     selectedClauses.add(candidate.clauseIndex);
     if (selected.length >= 3) break;
   }
-  for (const candidate of ranked) {
-    if (selected.length >= 3) break;
-    if (selectedIds.has(candidate.id)) continue;
-    selected.push(candidate);
-    selectedIds.add(candidate.id);
+  if (selected.length < 2 && selected[0]) {
+    const focused = buildProbeTreeFocusedOptions({
+      phrases: selected[0].selectionOptions.map(option => option.label),
+      idPrefix: "input-derived-focus",
+    });
+    if (focused.length >= 2) {
+      return focused.map(({ score: _score, clauseIndex: _clauseIndex, sourceOrder: _sourceOrder, ...candidate }) => candidate);
+    }
   }
   return selected.map(({ score: _score, clauseIndex: _clauseIndex, sourceOrder: _sourceOrder, ...candidate }) => candidate);
+}
+
+export function areProbeTreeCardsMutuallyDistinct(cards) {
+  const candidates = Array.isArray(cards) ? cards : [];
+  const seenQuestions = new Set();
+  const acceptedOptionSets = [];
+  for (const candidate of candidates) {
+    const question = cleanProbeTreeResponseText(candidate?.question || candidate?.text).toLowerCase();
+    const optionSet = new Set(normalizeProbeTreeSelectionOptions(candidate?.selectionOptions).map(option => option.label.toLowerCase()));
+    if (!question || optionSet.size < PROBE_TREE_MULTI_SELECT_LIMITS.min || seenQuestions.has(question)) return false;
+    for (const accepted of acceptedOptionSets) {
+      if ([...optionSet].some(label => accepted.has(label))) return false;
+    }
+    seenQuestions.add(question);
+    acceptedOptionSets.push(optionSet);
+  }
+  return true;
 }
 
 const matchedContextKeywords = (contextKeywords, value) => {

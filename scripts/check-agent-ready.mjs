@@ -1091,7 +1091,7 @@ const checks = [
     accept: 'application/json',
     assert: async (response, body) => response.ok && Array.isArray(JSON.parse(body).skills),
   },
-  ...buildAgentReadyCommerceChecks({ originUrl }),
+  ...buildAgentReadyCommerceChecks({ originUrl, includeX402: process.env.KNOWGRPH_AGENT_READY_INCLUDE_X402 !== 'false' }),
   {
     name: 'webmcp-html-marker',
     url: `${baseUrl}/?agentReadySmoke=1`,

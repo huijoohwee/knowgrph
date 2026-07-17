@@ -28,6 +28,18 @@ test('collaboration smoke preparation builds grph-shared before readiness checks
   assert.ok(preparationIndex < docsGuardIndex)
 })
 
+test('release smoke prepares shared modules and defers only the x402 wallet gate', () => {
+  const smoke = fs.readFileSync(new URL('../../.github/workflows/smoke-test.sh', import.meta.url), 'utf8')
+  const preparationIndex = smoke.indexOf('npm run smoke:prepare')
+  const readinessIndex = smoke.indexOf('npm run agent-ready:check')
+
+  assert.ok(preparationIndex >= 0)
+  assert.ok(preparationIndex < readinessIndex)
+  assert.match(smoke, /KNOWGRPH_AGENT_READY_INCLUDE_X402=false/)
+  assert.match(smoke, /for attempt in 1 2 3 4 5/)
+  assert.match(smoke, /sleep 15/)
+})
+
 test('canonical contract is valid and selects deduplicated affected checks', async () => {
   const contract = await readContract()
   const plan = selectAffectedCommands([

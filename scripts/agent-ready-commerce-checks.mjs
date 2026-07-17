@@ -47,7 +47,7 @@ export const assertAuthoritativeX402PaymentRequired = (payload, context = 'x402 
   return true
 }
 
-export const buildAgentReadyCommerceChecks = ({ originUrl }) => [
+export const buildAgentReadyCommerceChecks = ({ originUrl, includeX402 = true }) => [
   {
     name: 'commerce-acp-discovery',
     url: `${originUrl}${AGENTIC_COMMERCE_ROUTE_PATHS.acpDiscovery}`,
@@ -116,4 +116,4 @@ export const buildAgentReadyCommerceChecks = ({ originUrl }) => [
         && assertAuthoritativeX402PaymentRequired(payload, 'commerce x402 API-root probe')
     },
   },
-]
+].filter(({ name }) => includeX402 || !name.startsWith('commerce-x402-'))

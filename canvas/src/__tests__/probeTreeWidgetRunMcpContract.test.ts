@@ -112,7 +112,7 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
       return providerStructuredText([
         { id: 'confirm-cyber-coverage', label: 'Which SME cyber coverage gaps should guide the next branch?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'confirm-cyber-coverage', question: 'Which SME cyber coverage gaps should guide the next branch?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored SME cyber scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'sme-cyber', label: 'SME cyber' }, { id: 'coverage-gaps', label: 'current coverage gaps' }], contextAnchors: ['SME cyber', 'current coverage gaps'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
         { id: 'map-supply-chain-risk', label: 'Which ICT supply-chain risk remains unresolved?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'map-supply-chain-risk', question: 'Which ICT supply-chain risk remains unresolved?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored ICT supply-chain scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'supply-chain', label: 'ICT supply-chain risk' }, { id: 'unknowns', label: 'unresolved unknowns' }], contextAnchors: ['ICT supply-chain risk', 'unresolved unknowns'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
-        { id: 'connect-adviser-handoff', label: 'Which coverage gaps belong in the adviser handoff?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'connect-adviser-handoff', question: 'Which coverage gaps belong in the adviser handoff?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored coverage and adviser scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'coverage', label: 'current coverage gaps' }, { id: 'handoff', label: 'the adviser handoff' }], contextAnchors: ['current coverage gaps', 'the adviser handoff'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
+        { id: 'connect-adviser-handoff', label: 'Which part of the adviser handoff needs separate follow-up?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'connect-adviser-handoff', question: 'Which part of the adviser handoff needs separate follow-up?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored adviser-handoff scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'adviser', label: 'adviser' }, { id: 'handoff', label: 'handoff' }], contextAnchors: ['the adviser handoff', 'adviser', 'handoff'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
       ])
     },
     providerModel: 'test-provider',
@@ -135,6 +135,7 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     || !providerPrompt.includes('set output exactly to an empty string')
     || !providerPrompt.includes('2-6 contextAnchors copied verbatim')
     || !providerPrompt.includes('Do not emit stock evidence')
+    || !providerPrompt.includes('Never reuse a choice label')
     || cards.length !== 3
     || edges.length !== 3
     || cards.some(card => card.properties.output !== '' || !card.properties.summary)

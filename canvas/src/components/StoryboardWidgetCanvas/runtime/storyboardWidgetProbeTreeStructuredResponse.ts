@@ -5,6 +5,7 @@ import { KNOWGRPH_PROBE_TREE_MAX_DEPTH } from '@/features/agentic-os/probeTreePr
 import {
   PROBE_TREE_CARD_VARIANTS,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+  areProbeTreeCardsMutuallyDistinct,
   isProbeTreeCardUserInputRelevant,
   normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
@@ -242,6 +243,10 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
     selectionOptions: card.properties.selectionOptions,
     contextAnchors: card.properties.contextAnchors || card.properties.probeTreeUserInputAnchors,
   }))) return null
+  if (!areProbeTreeCardsMutuallyDistinct(cards.map(card => ({
+    question: card.properties.question || card.properties.summary || card.label,
+    selectionOptions: card.properties.selectionOptions,
+  })))) return null
 
   const removedNodeIds = collectReplacedProbeTreeNodeIds(graphData, anchorNodeId)
   const retainedNodes = (graphData.nodes || []).filter(node => !removedNodeIds.has(readNodeId(node)))
