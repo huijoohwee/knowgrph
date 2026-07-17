@@ -3,8 +3,12 @@ import { Armchair, Box, Building2, Car, PawPrint, Trash2, TreePine, UserRound, U
 import type { LucideIcon } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
+import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
+import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import {
@@ -95,17 +99,24 @@ function XrMediaCatalogThumb({ Icon, color, label }: { Icon: LucideIcon; color: 
 }
 
 function XrInvocationButton({ invocation, disabled, onInvoke }: { invocation: string; disabled: boolean; onInvoke: () => void }) {
+  const compactInvocation = splitInvocationTokenSegments(invocation)
+    .filter(segment => segment.kind === 'token')
+    .map(segment => segment.value)
+    .join(' ')
   return (
     <button
       type="button"
-      className="App-toolbar__btn flex min-w-0 max-w-full items-center gap-1 overflow-hidden"
+      className={cn('App-toolbar__btn', UI_INLINE_CHIP_GROUP_CLASSNAME, 'max-w-full overflow-hidden')}
       disabled={disabled}
       title={`Invoke ${invocation}`}
       aria-label={`Invoke ${invocation}`}
       onClick={onInvoke}
       data-kg-media-xr-invocation={invocation}
+      data-kg-media-xr-invocation-chip-renderer="shared-markdown-sigil"
     >
-      {invocation.split(/\s+/).map(token => <code key={token} className="truncate text-[9px]">{token}</code>)}
+      {renderMarkdownSigilInlineText(compactInvocation || invocation, {
+        renderKeywordChip: ({ value, className }) => renderAgenticOsInvocationKeywordChip({ value, className, sourceLink: false }),
+      })}
     </button>
   )
 }
