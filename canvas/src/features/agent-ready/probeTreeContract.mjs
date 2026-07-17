@@ -3,6 +3,7 @@ export const PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION = "probe-tree-llm-response
 
 import {
   PROBE_TREE_MULTI_SELECT_LIMITS,
+  areProbeTreeCardsMutuallyDistinct,
   cleanProbeTreeResponseText,
   isProbeTreeCardUserInputRelevant,
   normalizeProbeTreeContextAnchors,
@@ -12,6 +13,7 @@ import {
 
 export {
   PROBE_TREE_MULTI_SELECT_LIMITS,
+  areProbeTreeCardsMutuallyDistinct,
   buildProbeTreeInputDerivedOptions,
   collectProbeTreeContextKeywords,
   extractProbeTreeUserInputText,
@@ -61,6 +63,10 @@ const buildStructuredResponseOptions = ({ options, optionCount, degraded, contex
     const selectionOptions = normalizeProbeTreeSelectionOptions(candidate?.selectionOptions);
     const contextAnchors = normalizeProbeTreeContextAnchors(candidate?.contextAnchors || candidate?.context_anchors);
     if (!isProbeTreeCardUserInputRelevant({ contextText, question, selectionOptions, contextAnchors })) continue;
+    if (!areProbeTreeCardsMutuallyDistinct([
+      ...out.map(card => ({ question: card.question, selectionOptions: card.selectionOptions })),
+      { question, selectionOptions },
+    ])) continue;
     out.push({
       id: candidateOptionId,
       label: cleanProbeTreeResponseText(candidate?.label, 120) || question,
