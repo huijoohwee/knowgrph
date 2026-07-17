@@ -114,8 +114,17 @@ base_sha: "replace-with-40-character-origin-main-sha"
 test('task branches encode one device and semantic scope', async () => {
   const contract = await readContract()
   assert.equal(validateTaskBranch('agent/macbook/canvas-render', contract, '#canvas.render'), 'agent/macbook/canvas-render')
+  assert.equal(
+    validateTaskBranch('agent/katrinas-macbook-pro.local/canvas-render', contract, '#canvas.render'),
+    'agent/katrinas-macbook-pro.local/canvas-render',
+  )
+  assert.equal(
+    validateTaskBranch('agent/build_host/canvas-render', contract, '#canvas.render'),
+    'agent/build_host/canvas-render',
+  )
   assert.throws(() => validateTaskBranch('feature/canvas-render', contract), /branch must satisfy/)
   assert.throws(() => validateTaskBranch('agent/macbook/canvas/render', contract), /branch must satisfy/)
+  assert.throws(() => validateTaskBranch('agent/.local/canvas-render', contract), /branch must satisfy/)
   assert.throws(() => validateTaskBranch('agent/macbook/runtime-contract', contract, '#canvas.render'), /branch scope must be/)
 })
 
