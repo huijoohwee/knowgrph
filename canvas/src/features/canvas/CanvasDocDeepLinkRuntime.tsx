@@ -1,6 +1,7 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { UiToastInput } from '@/hooks/store/store-types/core'
+import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
 import { buildDefaultDocViewUrl, buildDocViewUrl, consumeDeepLinkParams, parseDocDeepLink } from './canvasDocDeepLink'
 import type { DefaultRemoteDocDeepLink } from './canvasDocDeepLink'
 import type { RemoteDocDeepLink } from './canvasDocDeepLink'
@@ -147,8 +148,10 @@ async function handleRemoteDeepLink(
 export function CanvasDocDeepLinkRuntime(props: { search: string }) {
   const { search } = props
   const pushUiToast = useGraphStore(s => s.pushUiToast)
+  const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
 
   React.useEffect(() => {
+    if (!sourceFilesBootstrapReady) return
     const currentSearch = typeof window !== 'undefined' ? String(window.location.search || '') : String(search || '')
     const link = parseDocDeepLink(currentSearch)
     if (!link) return
@@ -171,7 +174,7 @@ export function CanvasDocDeepLinkRuntime(props: { search: string }) {
         pushUiToast({ id: 'deep-link:doc-import', kind: 'error', message, ttlMs: 5000, dismissible: true })
       })
     }
-  }, [search, pushUiToast])
+  }, [search, pushUiToast, sourceFilesBootstrapReady])
 
   return null
 }
