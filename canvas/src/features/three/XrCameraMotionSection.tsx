@@ -1,6 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { TimelineTransportInlineClip } from '@/components/timeline/TimelineTransportControls'
+import { TimelineTransportInlineClip, TimelineTransportTimeAxisClip } from '@/components/timeline/TimelineTransportControls'
 import { GanttTimelineTransportPanel } from '@/features/gitgraph/GanttTimelineTransportPanel'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -153,7 +153,16 @@ export function XrCameraMotionSection() {
                   <small>{track.marks.length}</small>
                 </span>
               ),
-              content: <CameraMotionMarkRetime layout="lane" laneTarget={{ kind: 'cast', actorId: track.actorId }} />,
+              content: (
+                <TimelineTransportTimeAxisClip
+                  laneStyle="video"
+                  className="xr-camera-motion-retime-time-axis-rail"
+                  aria-label={`${track.label} choreography time rail`}
+                  data-kg-xr-choreography-shared-axis-rail="cast"
+                >
+                  <CameraMotionMarkRetime layout="lane" laneTarget={{ kind: 'cast', actorId: track.actorId }} />
+                </TimelineTransportTimeAxisClip>
+              ),
             })),
             {
               id: 'xr-camera',
@@ -165,7 +174,16 @@ export function XrCameraMotionSection() {
                   <small>{runtime.plan.camera.length}</small>
                 </span>
               ),
-              content: <CameraMotionMarkRetime layout="lane" laneTarget={{ kind: 'camera' }} />,
+              content: (
+                <TimelineTransportTimeAxisClip
+                  laneStyle="audio"
+                  className="xr-camera-motion-retime-time-axis-rail"
+                  aria-label="Camera choreography time rail"
+                  data-kg-xr-choreography-shared-axis-rail="camera"
+                >
+                  <CameraMotionMarkRetime layout="lane" laneTarget={{ kind: 'camera' }} />
+                </TimelineTransportTimeAxisClip>
+              ),
             },
           ]}
           timeAxisControls={(
