@@ -42,6 +42,8 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
   const workspaceOutputText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'chatHistoryWorkspace.output.ts'), 'utf8')
   const sharedWorkspaceWriteText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'chatWorkspaceFsWrite.ts'), 'utf8')
   const graphSourceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardCardMediaGraphSource.ts'), 'utf8')
+  const graphSourceOwnerText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardCardMediaGraphSourceOwner.ts'), 'utf8')
+  const sourceLayersText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'graph', 'sourceLayers.ts'), 'utf8')
   const graphFlowSyncText = readFileSync(resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataFrontmatterFlowSync.ts'), 'utf8')
   const graphSourceWriteQueueText = readFileSync(resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'workspaceSourceTextWriteQueue.ts'), 'utf8')
   const workflowRunText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
@@ -61,6 +63,11 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
     throw new Error('generated binary artifacts must expose a path only after the host persistence endpoint succeeds')
   }
   if (!graphSourceText.includes('export async function persistStoryboardCardMediaGraphSource')
+    || !graphSourceText.includes('resolveStoryboardCardMediaGraphSourceOwner({')
+    || !graphSourceText.includes('resolveStoryboardCardMediaGraphSourceGraph({')
+    || !graphSourceOwnerText.includes('projectComposedGraphToSourceLayer({')
+    || !sourceLayersText.includes('export function projectComposedGraphToSourceLayer(args: {')
+    || !graphSourceText.includes('shouldUpdateStoryboardCardMediaGraphActiveDocument({')
     || !graphSourceText.includes('const persisted = await writeActiveMarkdownDocumentTextIfPresent({')
     || !graphSourceText.includes('if (!sourceSync.accepted) return false')
     || !graphSourceText.includes("if (typeof sourceSync.markdownDocumentText !== 'string') return true")
@@ -78,9 +85,10 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
     throw new Error('expected every workflow generator to await the required shared graph-document persistence contract')
   }
   if (!canvasRuntimeText.includes('useStoryboardCardMediaGraphCommit({')
+    || !canvasRuntimeText.includes('sourceOwner: { documentName: markdownDocumentName, documentText: markdownDocumentText }')
     || !canvasRuntimeText.includes('commitPublishedGraphData: publishStoryboardCardMediaGraph')
     || !graphCommitText.includes('const publish = React.useCallback((graphData: GraphData): GraphData => {')
-    || !graphCommitText.includes('persistStoryboardCardMediaGraphSource(publish(graphData), options)')) {
+    || !graphCommitText.includes('sourceOwner: options?.sourceOwner || sourceOwner')) {
     throw new Error('expected live graph publication to stay synchronous while the Canvas persistence adapter returns the durable document commit promise')
   }
 }

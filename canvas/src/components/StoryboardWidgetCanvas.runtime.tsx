@@ -273,7 +273,7 @@ export default function StoryboardWidgetCanvasRuntime(
     historyIndex,
     preferDraftGraphData: storyboardCardsMode,
   })
-  const { publishStoryboardCardMediaGraph, commitStoryboardCardMediaGraph, commitStoryboardCardMediaGraphForSurface } = useStoryboardCardMediaGraphCommit({ baseRevision: baseGraphDataRevision, draftRevision: draftGraphDataRevision, draftGraphDataRef, setDraftGraphData, setGraphDataPreservingLayout, upsertUiToast })
+  const { publishStoryboardCardMediaGraph, commitStoryboardCardMediaGraph, commitStoryboardCardMediaGraphForSurface } = useStoryboardCardMediaGraphCommit({ baseRevision: baseGraphDataRevision, draftRevision: draftGraphDataRevision, draftGraphDataRef, setDraftGraphData, setGraphDataPreservingLayout, sourceOwner: { documentName: markdownDocumentName, documentText: markdownDocumentText }, upsertUiToast })
   const storyboardCanvasGraphDataForDisplay = React.useMemo((): GraphData | null => {
     if (!storyboardCardsMode) return null
     return resolveStoryboardCanvasGraphDataAuthority({
