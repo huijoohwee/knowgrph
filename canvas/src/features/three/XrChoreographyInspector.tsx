@@ -5,6 +5,8 @@ import {
   floatingPanelCatalogThreeRowClassName,
   floatingPanelCatalogThreeRowThumbnailFrameClassName,
 } from '@/lib/ui/floatingPanelCatalogLayout'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { resolveXrChoreographySpeedWarnings } from './xrChoreographyDiagnostics'
@@ -14,37 +16,8 @@ import {
   type XrMotionReferenceRuntimeSnapshot,
 } from './xrMotionReferenceRuntime'
 
-function MarkParameterChips({ target }: { target: 'cast' | 'camera' }) {
-  const chips = [
-    { sigil: '/', label: 'Command parameter' },
-    { sigil: '#', label: target === 'cast' ? 'Action-path parameter' : 'Camera parameter' },
-    { sigil: '@', label: target === 'cast' ? 'Selected-actor parameter' : 'Camera target parameter' },
-  ] as const
-  return (
-    <section
-      className="flex min-w-0 items-center gap-1"
-      aria-label={`${target === 'cast' ? 'Cast' : 'Camera'} mark parameters supported in BottomPanel Timeline`}
-      data-kg-xr-mark-parameter-chips={target}
-    >
-      <span className={cn('mr-auto truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)}>Edit parameters in Timeline</span>
-      {chips.map(chip => (
-        <span
-          key={chip.sigil}
-          className={cn('grid size-5 shrink-0 place-items-center rounded border font-mono text-[10px] font-semibold', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary)}
-          title={`${chip.label} · supported by BottomPanel Timeline mark control`}
-          aria-label={chip.label}
-          data-kg-xr-mark-parameter-sigil={chip.sigil}
-        >
-          {chip.sigil}
-        </span>
-      ))}
-    </section>
-  )
-}
-
 function ChoreographyCard({
   Icon,
-  children,
   description,
   footer,
   invocation,
@@ -53,7 +26,6 @@ function ChoreographyCard({
   title,
 }: {
   Icon: LucideIcon
-  children?: React.ReactNode
   description: string
   footer: React.ReactNode
   invocation: string
@@ -85,14 +57,17 @@ function ChoreographyCard({
         <footer className="flex min-w-0 items-center gap-1 overflow-x-auto" data-kg-xr-choreography-card-row="action">{footer}</footer>
       </section>
       <section className={cn('col-span-2 grid gap-1 border-t pt-2', UI_THEME_TOKENS.panel.border)} data-kg-xr-choreography-card-row="controls">
-        {children}
+        <span className={cn('text-[9px]', UI_THEME_TOKENS.text.tertiary)}>Edit parameters in BottomPanel Timeline</span>
         <output
-          className={cn('truncate font-mono text-[9px]', UI_THEME_TOKENS.text.tertiary)}
+          className={cn(UI_INLINE_CHIP_GROUP_CLASSNAME, 'font-mono text-[9px]', UI_THEME_TOKENS.text.tertiary)}
           title={invocation}
+          aria-label={`${title} invocation parameters`}
           data-kg-xr-choreography-card-row="invocation"
           data-kg-xr-choreography-invocation={target}
+          data-kg-xr-mark-parameter-chips={target}
+          data-kg-xr-mark-parameter-chip-renderer="shared-markdown-sigil"
         >
-          {invocation}
+          {renderMarkdownSigilInlineText(invocation)}
         </output>
       </section>
     </article>
@@ -170,13 +145,9 @@ export function XrChoreographyInspector({
               ))}
             </>
           )}
-        >
-          <MarkParameterChips target="cast" />
-        </ChoreographyCard>
+        />
       ) : (
-        <ChoreographyCard Icon={Footprints} target="cast" title="Cast path" description="Select a cast actor to edit its path choreography." invocation={castInvocation || controlTool} metadata="No cast target selected" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Choose a cast target above.</span>}>
-          <MarkParameterChips target="cast" />
-        </ChoreographyCard>
+        <ChoreographyCard Icon={Footprints} target="cast" title="Cast path" description="Select a cast actor to edit its path choreography." invocation={castInvocation || controlTool} metadata="No cast target selected" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Choose a cast target above.</span>} />
       )}
       {cameraMark ? (
         <ChoreographyCard
@@ -193,13 +164,9 @@ export function XrChoreographyInspector({
               ))}
             </>
           )}
-        >
-          <MarkParameterChips target="camera" />
-        </ChoreographyCard>
+        />
       ) : (
-        <ChoreographyCard Icon={Camera} target="camera" title="Camera path" description="Add camera marks in Camera → SHOOT; edit them in BottomPanel Timeline." invocation={cameraInvocation || controlTool} metadata="0 marks · Timeline owns time" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>No camera marks yet.</span>}>
-          <MarkParameterChips target="camera" />
-        </ChoreographyCard>
+        <ChoreographyCard Icon={Camera} target="camera" title="Camera path" description="Add camera marks in Camera → SHOOT; edit them in BottomPanel Timeline." invocation={cameraInvocation || controlTool} metadata="0 marks · Timeline owns time" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>No camera marks yet.</span>} />
       )}
     </section>
   )
