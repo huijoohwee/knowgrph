@@ -26,6 +26,7 @@ import {
 } from '@/features/agentic-os/probeTreePromptPreset'
 import {
   PROBE_TREE_DEFAULTS,
+  PROBE_TREE_FALLBACK_OPTIONS,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
   buildProbeTreeContextualFallbackOptions,
   buildProbeTreeStructuredResponse,
@@ -236,6 +237,7 @@ const buildLocalFallbackCallResult = (args: {
   currentNodeId: string
   contextText: string
   probeTreeDepth: number
+  options: ReturnType<typeof buildProbeTreeContextualFallbackOptions>
 }): Record<string, unknown> => ({
   isError: false,
   content: [{ type: 'text', text: 'Bounded contextual Probe-Tree fallback.' }],
@@ -248,7 +250,7 @@ const buildLocalFallbackCallResult = (args: {
       currentNodeId: args.currentNodeId,
       contextText: args.contextText,
       optionCount: 3,
-      options: buildProbeTreeContextualFallbackOptions(args.contextText),
+      options: args.options,
       probeTreeDepth: args.probeTreeDepth,
       degraded: true,
     }),
@@ -342,7 +344,10 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   const current = args.graphForRun
   if (!current) return null
   const nodeIds = new Set(args.nodeIds.map(id => String(id || '').trim()).filter(Boolean))
-  const node = current.nodes.find(candidate => nodeIds.has(readGraphIdentity(candidate?.id))) || args.fallbackNode
+  const fallbackNodeId = readGraphIdentity(args.fallbackNode.id)
+  const node = current.nodes.find(candidate => readGraphIdentity(candidate?.id) === fallbackNodeId)
+    || current.nodes.find(candidate => nodeIds.has(readGraphIdentity(candidate?.id)))
+    || args.fallbackNode
   const prompt = readStoryboardWidgetProbeTreeInvocationText(args.fallbackNode)
   const invocationToken = resolveStoryboardWidgetProbeTreeInvocationTokenForNode(node, prompt)
   if (!invocationToken) return null
@@ -368,11 +373,16 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   const nextProbeTreeDepth = currentProbeTreeDepth + 1
   const contextText = buildProbeTreeContextText(node, prompt)
   const invocationTokens = collectInvocationTokens(prompt)
+  const contextualFallbackOptions = buildProbeTreeContextualFallbackOptions(contextText)
+  const contextFallbackOptions = (contextualFallbackOptions.length >= PROBE_TREE_DEFAULTS.minOptionCount
+    ? contextualFallbackOptions
+    : PROBE_TREE_FALLBACK_OPTIONS).slice(0, PROBE_TREE_DEFAULTS.optionCount)
   const localFallbackResult = buildLocalFallbackCallResult({
     threadRootId,
     currentNodeId,
     contextText,
     probeTreeDepth: nextProbeTreeDepth,
+    options: contextFallbackOptions,
   })
   let bridge: ProbeTreeMcpBridgeSuccess | null = null
   let mcpError = ''
@@ -439,6 +449,7 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
       threadRootId,
       invocationTokens,
       invocationResolutions: bridge?.invocationResolutions,
+      ...(!mcpInvoked ? { contextFallbackOptions } : {}),
     })
   }
   if (!materialized && mcpInvoked) {
@@ -453,6 +464,7 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
       threadRootId,
       invocationTokens,
       invocationResolutions: bridge?.invocationResolutions,
+      contextFallbackOptions,
     })
   }
   if (!materialized) throw new Error('Probe-Tree returned no bounded, context-relevant structured cards.')

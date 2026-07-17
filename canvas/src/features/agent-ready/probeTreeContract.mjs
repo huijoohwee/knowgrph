@@ -26,11 +26,11 @@ export const PROBE_TREE_FALLBACK_OPTIONS = Object.freeze([
 ]);
 
 const PROBE_TREE_CONTEXT_STOP_WORDS = new Set([
-  "about", "across", "active", "agent", "against", "also", "and", "answer", "approval", "assess", "author", "authored", "body", "bounded", "branch", "branches",
-  "canvas", "card", "cards", "care", "command", "context", "contract", "cost", "current", "editable", "economics", "for", "from", "frontmatter", "gate", "generate", "generated",
-  "directive", "directives", "generation", "guidance", "harness", "into", "invocation", "knowgrph", "label", "local", "log", "next", "node", "output", "panel", "probe", "proof", "question", "questions",
-  "ready", "request", "response", "route", "runtime", "selected", "sme-care-agent", "smes", "source", "storyboard", "structured", "summary", "text", "this", "title", "token", "tree",
-  "using", "widget", "with", "would",
+  "about", "across", "active", "agent", "agentic", "against", "also", "and", "answer", "approval", "assess", "author", "authored", "body", "bounded", "branch", "branches",
+  "canvas", "card", "cards", "care", "command", "context", "contract", "cost", "current", "depth", "editable", "economics", "for", "from", "frontmatter", "gate", "generate", "generated",
+  "adviser", "advisor", "approved", "authoritative", "before", "call", "candidate", "confirm", "connect", "directive", "directives", "do", "each", "evidence", "fallback", "generation", "generic", "guidance", "harness", "into", "invocation", "keep", "knowgrph", "label", "licensed", "local", "log", "make", "media", "next", "node", "not", "output", "panel", "policies", "policy", "probe", "proof", "provider", "publish", "question", "questions",
+  "id", "os", "ready", "regulator", "regulatory", "request", "require", "required", "requires", "response", "review", "rich", "route", "run", "runtime", "selected", "separate", "separately", "sme-care-agent", "smes", "source", "sources", "stop", "storyboard", "structured", "summary", "text", "the", "this", "title", "token", "tree", "unchanged", "unless",
+  "using", "visibly", "widget", "with", "workspace", "would", "zero-cost",
 ]);
 
 const cleanResponseText = (value, maxLength = 320) =>
@@ -39,6 +39,18 @@ const cleanResponseText = (value, maxLength = 320) =>
 const safeResponseId = (value, fallback) => {
   const normalized = cleanResponseText(value, 160).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
   return normalized || fallback;
+};
+
+const escapeProbeTreePattern = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const buildProbeTreeKeywordPattern = keyword => keyword.split("-")
+  .map(escapeProbeTreePattern)
+  .join("(?:-|\\s)+");
+
+const readProbeTreeKeywordLabel = (contextText, keyword) => {
+  const pattern = buildProbeTreeKeywordPattern(keyword);
+  const match = String(contextText || "").match(new RegExp(`(?:^|[^a-z0-9-])(${pattern})(?=$|[^a-z0-9-])`, "i"));
+  return String(match?.[1] || keyword).replace(/-/g, " ");
 };
 
 const boundedResponseInteger = (value, fallback, min, max) => {
@@ -55,7 +67,9 @@ export function collectProbeTreeContextKeywords(value, maxCount = 8) {
     .match(/[a-z][a-z0-9]*(?:-[a-z0-9]+)*/g) || [];
   const out = [];
   for (const word of words) {
-    if (word.length < 3 || PROBE_TREE_CONTEXT_STOP_WORDS.has(word) || seen.has(word)) continue;
+    const compoundStopWord = word.includes("-")
+      && word.split("-").every(part => PROBE_TREE_CONTEXT_STOP_WORDS.has(part));
+    if (word.length < 3 || PROBE_TREE_CONTEXT_STOP_WORDS.has(word) || compoundStopWord || seen.has(word)) continue;
     seen.add(word);
     out.push(word);
     if (out.length >= Math.max(1, Math.min(12, Number(maxCount) || 8))) break;
@@ -66,11 +80,9 @@ export function collectProbeTreeContextKeywords(value, maxCount = 8) {
 export function buildProbeTreeContextualFallbackOptions(contextText) {
   const keywords = collectProbeTreeContextKeywords(contextText, 6);
   if (keywords.length < 2) return [];
-  const scope = keywords.slice(0, 5).map(keyword => {
-    if (keyword === "sme") return "SME";
-    if (keyword === "ict") return "ICT";
-    return keyword.replace(/-/g, " ");
-  }).join(" / ");
+  const scope = keywords.slice(0, 6)
+    .map(keyword => readProbeTreeKeywordLabel(contextText, keyword))
+    .join(" / ");
   return [
     {
       text: `Which authoritative evidence confirms the current facts for the ${scope} scope?`,
@@ -99,7 +111,10 @@ export function isProbeTreeResponseContextRelevant({ contextText, responseTexts 
   const keywords = collectProbeTreeContextKeywords(contextText, 8);
   if (keywords.length < 2) return true;
   const response = String(Array.isArray(responseTexts) ? responseTexts.join(" ") : responseTexts || "").toLowerCase();
-  const matched = keywords.filter(keyword => new RegExp(`(^|[^a-z0-9])${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`, "i").test(response));
+  const matched = keywords.filter(keyword => {
+    const pattern = buildProbeTreeKeywordPattern(keyword);
+    return new RegExp(`(^|[^a-z0-9-])${pattern}([^a-z0-9-]|$)`, "i").test(response);
+  });
   return matched.length >= Math.min(2, keywords.length);
 }
 

@@ -208,31 +208,42 @@ export async function testProbeTreeWidgetRunRejectsOverboundedProviderCardsAndUs
 }
 
 export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderContext() {
-  const userAnswer = 'The current endorsed cyber schedule dated 2026-06-30 is authoritative.'
+  const userAnswer = 'Require current policy, regulator, and licensed-adviser evidence for Singapore and Malaysia cyber and supply-chain coverage gaps.'
   const graphData: GraphData = {
     type: 'Graph',
-    nodes: [{
-      id: 'probe-answer',
-      type: 'TextGeneration',
-      label: 'Which cyber schedule is authoritative?',
-      properties: {
-        cardTypeLabel: 'Probe-Tree Card',
-        summary: 'Which cyber schedule is authoritative?',
-        output: userAnswer,
-        action: 'Use the answer to generate the next bounded branch.',
-        parentNodeId: 'probe-root',
-        probeTreeResponseMode: 'llm-contract',
-        probeTreeDepth: 3,
+    nodes: [
+      {
+        id: 'probe-root',
+        type: 'TextGeneration',
+        label: 'SME risk review',
+        properties: {
+          summary: '/knowgrph.probe-tree Assess SME cyber and supply-chain coverage.',
+          probeTreeDepth: 0,
+        },
       },
-    }],
-    edges: [],
+      {
+        id: 'probe-answer',
+        type: 'TextGeneration',
+        label: 'Which cyber schedule is authoritative?',
+        properties: {
+          cardTypeLabel: 'Probe-Tree Card',
+          summary: 'Which cyber schedule is authoritative?',
+          output: userAnswer,
+          action: 'Use the answer to generate the next bounded branch.',
+          parentNodeId: 'probe-root',
+          probeTreeResponseMode: 'llm-contract',
+          probeTreeDepth: 3,
+        },
+      },
+    ],
+    edges: [{ id: 'probe-root-answer', source: 'probe-root', target: 'probe-answer', label: 'candidateOption', properties: {} }],
   }
   let mcpRequest: Record<string, unknown> | null = null
   let providerPrompt = ''
   const result = await runStoryboardWidgetProbeTreeMcpInvocation({
     graphForRun: graphData,
-    nodeIds: ['probe-answer'],
-    fallbackNode: graphData.nodes[0],
+    nodeIds: ['probe-root', 'probe-answer'],
+    fallbackNode: graphData.nodes[1],
     invokeMcp: async request => {
       mcpRequest = request as unknown as Record<string, unknown>
       throw new Error('exercise bounded local fallback')
@@ -245,6 +256,9 @@ export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderCo
     publishOutput: output => output.baseGraphData || null,
   })
   const childCards = (result?.graphData.nodes || []).filter(node => node.properties.parentNodeId === 'probe-answer')
+  const childCardLabels = childCards.map(card => String(card.label || '').toLowerCase().replace(/-/g, ' '))
+  const childCardDisplayLabels = childCards.map(card => String(card.label || ''))
+  const expectedOutputTopics = ['singapore', 'malaysia', 'cyber', 'supply chain', 'coverage', 'gaps']
   if (
     !result
     || !String(mcpRequest?.contextText || '').includes(userAnswer)
@@ -259,7 +273,9 @@ export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderCo
     || childCards.some(card => card.properties.parentNodeId !== 'probe-answer')
     || childCards.some(card => card.properties.probeTreeThreadRootId !== 'probe-root')
     || childCards.some(card => card.properties.probeTreeDepth !== 4)
-    || childCards.some(card => !`${card.label} ${card.properties.summary || ''}`.toLowerCase().includes('cyber'))
+    || childCardLabels.some(label => expectedOutputTopics.some(topic => !label.includes(topic)))
+    || childCardLabels.some(label => label.includes('require / policy / regulator'))
+    || childCardDisplayLabels.some(label => !label.includes('Singapore / Malaysia'))
   ) {
     throw new Error(`expected Output -> Run to preserve thread root, increment depth, and materialize child branches, got ${JSON.stringify({ result, mcpRequest, providerPrompt })}`)
   }
