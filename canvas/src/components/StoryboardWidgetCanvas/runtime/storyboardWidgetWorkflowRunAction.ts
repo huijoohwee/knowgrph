@@ -37,14 +37,12 @@ export type { StoryboardWidgetWorkflowNodeRunner, StoryboardWidgetWorkflowNodeRu
 export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetWorkflowNodeRunnerArgs): StoryboardWidgetWorkflowNodeRunner {
   const scheduleWorkflowOutputEdgeRefresh = () => {
     const run = () => args.scheduleOverlayEdgeUpdate()
-    if (typeof requestAnimationFrame === 'function') {
-      requestAnimationFrame(() => run())
-      return
-    }
+    if (typeof requestAnimationFrame === 'function') return void requestAnimationFrame(run)
     run()
   }
   const runWorkflowNode: StoryboardWidgetWorkflowNodeRunner = async (nodeId, runOptions) => {
     let runAnchorNode: GraphNode | null = null
+    let publishedRunGraphData: GraphData | null = null
     const executeWorkflowNode = async () => {
       const id = String(nodeId || '').trim()
       const allowCreateRichMediaPanel = runOptions?.allowCreateRichMediaPanel !== false
@@ -447,7 +445,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
         })
         const prompt = typeof properties.prompt === 'string' ? properties.prompt.trim() : ''
         const probeTreeOutput = await runStoryboardWidgetProbeTreeTextGenerationInvocation({
-          graphForRun, nodeIds: [writableNodeId, resolvedNodeId, id, String(node.id || '')], fallbackNode: node,
+          graphForRun, nodeIds: [writableNodeId, resolvedNodeId, id, String(node.id || '')], requestedNodeId: id, fallbackNode: node, resolutionContext: workflowNodeResolutionContext,
           textGeneration: { prompt, formId: resolvedTextRegistryEntry?.formId || rawNodeProperties[FLOW_WIDGET_FORM_ID_KEY], localProperties: rawNodeProperties, resolvedProperties: properties, runtimeProperties: store },
           onInvocationStart: () => disableAutoZoomModesForUserGesture(useGraphStore.getState()),
           onMaterialized: nodeIds => { revealProbeTreeBranchCardsOnCanvas(nodeIds); scheduleRunOutputEdgeRefresh() },
@@ -455,6 +453,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
           setLoading: loading => setRunLoadingStateForKnownNodeIds(loading ? { loading: true, kind: 'text' } : { loading: false }),
         })
         if (probeTreeOutput) {
+          publishedRunGraphData = probeTreeOutput.graphData
           args.upsertUiToast({ id: `storyboard-widget-run-${id}`, kind: probeTreeOutput.kind, message: probeTreeOutput.message, ttlMs: probeTreeOutput.kind === 'success' ? 3000 : 4200 })
           return
         }
@@ -584,7 +583,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
     } catch (error) {
       deferredError = { value: error }
     }
-    const currentDurableGraph = args.readDraftGraphData()
+    const currentDurableGraph = publishedRunGraphData || args.readDraftGraphData()
     const durableGraph = currentDurableGraph && runAnchorNode ? preserveStoryboardWidgetWorkflowInputTopology({ graphData: currentDurableGraph, anchorNode: runAnchorNode }) : currentDurableGraph
     try {
       if (durableGraph) await args.persistDraftGraphData(durableGraph)

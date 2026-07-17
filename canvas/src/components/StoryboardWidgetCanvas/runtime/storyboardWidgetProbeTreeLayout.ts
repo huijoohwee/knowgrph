@@ -150,25 +150,23 @@ export function mergeStoryboardWidgetProbeTreeOutputPanels(args: {
       || readString(node.label) === PROBE_TREE_OUTPUT_LABEL
   })
   if (liveOutputPanels.length === 0) return args.graphData
-  const livePanelIds = new Set(liveOutputPanels.map(node => readString(node.id)).filter(Boolean))
   const baseNodeIds = new Set((args.graphData.nodes || []).map(node => readString(node.id)).filter(Boolean))
+  const liveOutputPanelIds = new Set(liveOutputPanels.map(node => readString(node.id)).filter(Boolean))
+  const missingLiveOutputPanels = liveOutputPanels.filter(node => !baseNodeIds.has(readString(node.id)))
   const nodes = [
-    ...(args.graphData.nodes || []).filter(node => !livePanelIds.has(readString(node.id))),
-    ...liveOutputPanels,
+    ...(args.graphData.nodes || []),
+    ...missingLiveOutputPanels,
   ]
   const edgeIds = new Set((args.graphData.edges || []).map(edge => readString(edge.id)).filter(Boolean))
   const livePanelEdges = (args.liveGraphData?.edges || []).filter(edge => {
     const { src, tgt } = readGraphEdgeEndpoints(edge)
-    return livePanelIds.has(src) || livePanelIds.has(tgt)
+    return liveOutputPanelIds.has(src) || liveOutputPanelIds.has(tgt)
   }).filter(edge => {
     const edgeId = readString(edge.id)
     return !edgeId || !edgeIds.has(edgeId)
   })
-  const graphChanged = liveOutputPanels.some(node => !baseNodeIds.has(readString(node.id)))
-    || livePanelEdges.length > 0
-  if (!graphChanged && liveOutputPanels.every(node => (
-    (args.graphData.nodes || []).find(candidate => readString(candidate.id) === readString(node.id)) === node
-  ))) return args.graphData
+  const graphChanged = missingLiveOutputPanels.length > 0 || livePanelEdges.length > 0
+  if (!graphChanged) return args.graphData
   return bumpStoryboardWidgetDraftGraphDataRevision({
     ...args.graphData,
     nodes,

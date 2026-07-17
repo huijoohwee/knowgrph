@@ -1,4 +1,5 @@
 import { isStoryboardWidgetProbeTreeProviderRefinementApproved, PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY, readStoryboardWidgetProbeTreeInvocationText, resolveStoryboardWidgetProbeTreeInvocationTokenForNode, runStoryboardWidgetProbeTreeMcpInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
+import { resolveStoryboardWidgetProbeTreeSelectedRunNode } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeRunNode'
 import { buildProbeTreeStructuredResponse, KNOWGRPH_PROBE_TREE_TOOL_NAMES, PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION } from '@/features/agent-ready/probeTreeContract.mjs'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -301,6 +302,7 @@ export function testProbeTreeContinuationMetadataRoutesWithoutVisibleSlashToken(
 
 export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() {
   const userAnswer = 'Continue from the selected Singapore cyber exclusions answer.'
+  const typedCell = (key: string, type: string, value: unknown) => ({ key, type, value })
   const rootNode: GraphNode = {
     id: 'probe-root',
     type: 'TextGeneration',
@@ -308,12 +310,12 @@ export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() 
     properties: { summary: '/knowgrph.probe-tree Assess the root SME risk scope.' },
   }
   const selectedChild: GraphNode = {
-    id: 'probe-child',
-    type: 'TextGeneration',
-    label: 'Which Singapore cyber exclusions remain?',
+    id: typedCell('id', 'string', 'probe-child') as unknown as string,
+    type: typedCell('type', 'string', 'TextGeneration') as unknown as string,
+    label: typedCell('label', 'string', 'Which Singapore cyber exclusions remain?') as unknown as string,
     x: 520,
     y: 180,
-    properties: {
+    properties: typedCell('properties', 'object', {
       cardTypeLabel: 'Probe-Tree Card',
       probeTreeResponseMode: 'llm-contract',
       probeTreeThreadRootId: 'probe-root',
@@ -321,15 +323,29 @@ export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() 
       parentNodeId: 'probe-root',
       summary: 'Which Singapore cyber exclusions remain?',
       output: userAnswer,
+    }) as unknown as GraphNode['properties'],
+  }
+  const staleChildAlias: GraphNode = {
+    id: 'probe-child',
+    type: 'TextGeneration',
+    label: 'Root writeback alias',
+    properties: {
+      summary: 'Root alias should not own the continuation.',
+      output: 'stale alias output',
     },
   }
-  const rootOnlyGraph: GraphData = { type: 'Graph', nodes: [rootNode], edges: [] }
+  const selectedRunNode = resolveStoryboardWidgetProbeTreeSelectedRunNode({
+    requestedNodeId: 'probe-child',
+    fallbackNode: staleChildAlias,
+    candidates: [staleChildAlias, selectedChild],
+  })
+  const rootAliasGraph: GraphData = { type: 'Graph', nodes: [rootNode, staleChildAlias], edges: [] }
   let mcpRequest: Record<string, unknown> | null = null
   let providerPrompt = ''
   const result = await runStoryboardWidgetProbeTreeMcpInvocation({
-    graphForRun: rootOnlyGraph,
+    graphForRun: rootAliasGraph,
     nodeIds: ['probe-root', 'probe-child'],
-    fallbackNode: selectedChild,
+    fallbackNode: selectedRunNode,
     invokeMcp: async request => {
       mcpRequest = request as unknown as Record<string, unknown>
       throw new Error('exercise selected-child fallback')
@@ -346,6 +362,7 @@ export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() 
   if (
     mcpRequest?.currentNodeId !== 'probe-child'
     || mcpRequest?.threadRootId !== 'probe-root'
+    || mcpRequest?.recallTopK !== 0
     || !String(mcpRequest?.contextText || '').startsWith(`Authored request:\n${userAnswer}`)
     || !String(mcpRequest?.contextText || '').includes('Selected continuation question: Which Singapore cyber exclusions remain?')
     || !String(mcpRequest?.contextText || '').includes(`Selected continuation answer: ${userAnswer}`)

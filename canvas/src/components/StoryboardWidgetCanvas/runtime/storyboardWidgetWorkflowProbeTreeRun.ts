@@ -44,6 +44,8 @@ import {
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
+import type { StoryboardWidgetWorkflowNodeResolutionContext } from './storyboardWidgetRenderGraph'
+import { isStoryboardWidgetProbeTreeContinuationNode, resolveStoryboardWidgetProbeTreeSelectedRunNodeFromContext } from './storyboardWidgetProbeTreeRunNode'
 
 const INVOCATION_TOKEN_PATTERN = /(^|\s)([/#@][A-Za-z0-9_.-]+)/g
 const PROBE_TREE_INVOCATION_TOKENS = new Set<string>(
@@ -77,14 +79,6 @@ export function resolveStoryboardWidgetProbeTreeInvocationToken(prompt: string):
     if (PROBE_TREE_INVOCATION_TOKENS.has(token.toLowerCase())) return token
   }
   return ''
-}
-
-const isStoryboardWidgetProbeTreeContinuationNode = (node: GraphNode): boolean => {
-  const properties = readGraphNodeProperties(node)
-  const parentNodeId = readGraphIdentity(properties.parentNodeId || properties.parentGraphNodeId)
-  const responseOwned = readGraphIdentity(properties.probeTreeResponseMode) === 'llm-contract'
-    || readGraphIdentity(properties.cardTypeLabel) === 'Probe-Tree Card'
-  return parentNodeId.length > 0 && responseOwned
 }
 
 const resolveStoryboardWidgetProbeTreeThreadRootId = (graphData: GraphData, node: GraphNode): string => {
@@ -359,8 +353,8 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   const selectedContinuationNode = isStoryboardWidgetProbeTreeContinuationNode(args.fallbackNode)
     ? args.fallbackNode
     : null
-  const node = currentFallbackNode
-    || selectedContinuationNode
+  const node = selectedContinuationNode
+    || currentFallbackNode
     || current.nodes.find(candidate => nodeIds.has(readGraphIdentity(candidate?.id)))
     || args.fallbackNode
   const prompt = readStoryboardWidgetProbeTreeInvocationText(args.fallbackNode)
@@ -529,7 +523,9 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
 export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args: {
   graphForRun: GraphData | null | undefined
   nodeIds: readonly string[]
+  requestedNodeId?: string
   fallbackNode: GraphNode
+  resolutionContext?: StoryboardWidgetWorkflowNodeResolutionContext
   textGeneration: {
     prompt: string
     formId: unknown
@@ -542,11 +538,14 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
   publishOutput: StoryboardWidgetTextRunOutputPublisher
   setLoading: (loading: boolean) => void
 }): Promise<StoryboardWidgetProbeTreeMcpRunResult | null> {
-  const invocationText = readStoryboardWidgetProbeTreeInvocationText(args.fallbackNode)
-  if (!resolveStoryboardWidgetProbeTreeInvocationTokenForNode(args.fallbackNode, invocationText)) return null
+  const fallbackNode = args.resolutionContext && args.requestedNodeId
+    ? resolveStoryboardWidgetProbeTreeSelectedRunNodeFromContext({ context: args.resolutionContext, requestedNodeId: args.requestedNodeId, fallbackNode: args.fallbackNode })
+    : args.fallbackNode
+  const invocationText = readStoryboardWidgetProbeTreeInvocationText(fallbackNode)
+  if (!resolveStoryboardWidgetProbeTreeInvocationTokenForNode(fallbackNode, invocationText)) return null
   args.onInvocationStart?.()
   const { prompt, formId, localProperties, resolvedProperties, runtimeProperties } = args.textGeneration
-  const providerRefinementApproved = isStoryboardWidgetProbeTreeProviderRefinementApproved(localProperties)
+  const providerRefinementApproved = isStoryboardWidgetProbeTreeProviderRefinementApproved(readGraphNodeProperties(fallbackNode))
   const resolvedThinking = resolveStoryboardWidgetTextThinkingOptions({
     formId,
     localProperties,
@@ -561,7 +560,7 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
     const result = await runStoryboardWidgetProbeTreeMcpInvocation({
       graphForRun: args.graphForRun,
       nodeIds: args.nodeIds,
-      fallbackNode: args.fallbackNode,
+      fallbackNode,
       onMaterialized: args.onMaterialized,
       publishOutput: args.publishOutput,
       providerModel: String(resolvedProperties.chatModel || runtimeProperties.chatModel || ''),
