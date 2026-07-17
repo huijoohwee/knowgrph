@@ -5,6 +5,7 @@ import {
   XR_MOTION_REFERENCE_SCHEMA,
   readXrMotionReferencePlan,
   resolveXrMotionReferenceStage,
+  sampleXrMotionReferenceCameraMoveId,
   sampleXrMotionReferenceCameraPose,
   sampleXrMotionReferenceCameraRig,
   sampleXrMotionReferenceCameraSettings,
@@ -16,6 +17,7 @@ import {
   type XrMotionReferenceVector,
 } from '@/features/three/xrMotionReferenceModel'
 import { resolveXrAnimationPreset, sampleXrAnimationPose } from '@/features/three/xrAnimationCatalog'
+import { resolveXrCameraMoveLabel } from './xrCameraMoveCatalog'
 import { resolveXrChoreographySpeedWarnings } from './xrChoreographyDiagnostics'
 
 function round(value: number, places = 4): number {
@@ -102,7 +104,7 @@ function buildGeneratorBrief(plan: XrMotionReferencePlan): string {
     const animation = track.animation ? `; performance ${resolveXrAnimationPreset(track.animation.presetId).label} [${track.animation.kind}]` : ''
     return `- ${track.label}: ${marks}${animation}`
   })
-  const cameraLines = plan.camera.map(mark => `- ${mark.timeSeconds}s: ${mark.rig} rig, ${mark.easing} easing, ${mark.settings.focalLengthMm}mm, ${mark.settings.shot}, ${mark.settings.angle}, ${mark.settings.level}; position (${mark.pose.position.join(', ')})`)
+  const cameraLines = plan.camera.map(mark => `- ${mark.timeSeconds}s: ${resolveXrCameraMoveLabel(mark.moveId)}, ${mark.rig} rig, ${mark.easing} easing, ${mark.settings.focalLengthMm}mm, ${mark.settings.shot}, ${mark.settings.angle}, ${mark.settings.level}; position (${mark.pose.position.join(', ')})`)
   const subjectLines = plan.subjects.map(subject => `- ${subject.label} [${subject.category}/${subject.assetId}] at (${subject.position.join(', ')})`)
   return [
     'Use the attached Knowgrph XR data as the motion and spatial reference for one continuous shot.',
@@ -132,7 +134,8 @@ function buildMotionSamples(plan: XrMotionReferencePlan): unknown[] {
     return {
       frame,
       timeSeconds,
-      camera: sampleXrMotionReferenceCameraPose(plan.camera, timeSeconds),
+      camera: sampleXrMotionReferenceCameraPose(plan.camera, timeSeconds, plan.cast),
+      cameraMove: sampleXrMotionReferenceCameraMoveId(plan.camera, timeSeconds),
       cameraRig: sampleXrMotionReferenceCameraRig(plan.camera, timeSeconds),
       cameraLensMm: sampleXrMotionReferenceCameraSettings(plan.camera, timeSeconds)?.focalLengthMm || 50,
       cast: plan.cast.map(track => ({ actorId: track.actorId, position: sampleXrMotionReferenceMarks(track.marks, timeSeconds), animation: track.animation, pose: sampleXrAnimationPose(track.animation, timeSeconds) })),
@@ -172,6 +175,7 @@ export function buildXrMotionReferencePackage(args: { plan: XrMotionReferencePla
     motionFingerprint,
     cameraSemanticMapping: { baselineMeters: XR_MOTION_REFERENCE_CAMERA_BASELINE_METERS, anchorFallback: 'stage-origin' },
     cameraRigs: [...new Set(plan.camera.map(mark => mark.rig))],
+    cameraMoves: [...new Set(plan.camera.map(mark => mark.moveId).filter(moveId => moveId !== 'custom'))],
     referenceBoundary,
   }
   const files = Object.freeze([

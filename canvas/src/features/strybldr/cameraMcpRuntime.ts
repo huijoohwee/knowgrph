@@ -19,6 +19,13 @@ import {
 import { hydrateCanonicalXrMotionReferenceRuntime } from '@/features/three/XrMotionReferenceRuntimeBridge'
 import { readBoundXrSelectedActorId } from '@/features/three/xrSelectedActorBinding'
 import { requestXrMotionReferenceCameraPlaybackReapply } from '@/features/three/xrCameraPlaybackControlsRuntime'
+import { applyXrCameraMove } from '@/features/three/xrCameraMoveRuntime'
+import {
+  XR_CAMERA_MOVE_PRESETS,
+  isXrCameraMovePresetId,
+  resolveXrCameraMovePreset,
+  type XrCameraMovePresetId,
+} from '@/features/three/xrCameraMoveCatalog'
 import { xrMotionReferenceTimelineDocumentKey } from '@/features/three/xrMotionReferenceTimeline'
 import {
   CAMERA_INVOCATION_COMMANDS,
@@ -53,6 +60,8 @@ export type CameraControlInput = Readonly<{
   shot?: StrybldrCameraShot
   focalLengthMm?: number
   rig?: XrMotionReferenceCameraRig
+  moveId?: XrCameraMovePresetId
+  moveDurationSeconds?: number
   timeSeconds?: number
   playing?: boolean
 }>
@@ -65,6 +74,8 @@ type NormalizedCameraControl = Readonly<{
   shot?: StrybldrCameraShot
   focalLengthMm?: number
   rig?: XrMotionReferenceCameraRig
+  moveId?: XrCameraMovePresetId
+  moveDurationSeconds?: number
   timeSeconds?: number
   playing?: boolean
   invocation: string
@@ -162,7 +173,7 @@ function parseCameraInvocation(invocationValue: unknown): Partial<NormalizedCame
   const allowedPairKeys = action === 'frame'
     ? ['angle', 'level', 'shot', 'lens']
     : action === 'animate'
-      ? ['angle', 'level', 'shot', 'lens', 'rig', 'time']
+      ? ['angle', 'level', 'shot', 'lens', 'rig', 'move', 'duration', 'time']
       : action === 'playback'
         ? ['state']
         : ['time']
@@ -176,6 +187,10 @@ function parseCameraInvocation(invocationValue: unknown): Partial<NormalizedCame
   if (pairs.shot !== undefined && !STRYBLDR_CAMERA_SHOTS.includes(pairs.shot as StrybldrCameraShot)) return null
   if (pairs.lens !== undefined && (!Number.isFinite(Number(pairs.lens)) || Number(pairs.lens) < 14 || Number(pairs.lens) > 200)) return null
   if (pairs.rig !== undefined && !XR_MOTION_REFERENCE_CAMERA_RIGS.includes(pairs.rig as XrMotionReferenceCameraRig)) return null
+  if (pairs.move !== undefined && !isXrCameraMovePresetId(pairs.move)) return null
+  if (pairs.duration !== undefined && (!Number.isFinite(Number(pairs.duration)) || Number(pairs.duration) < 0.25 || Number(pairs.duration) > 30)) return null
+  if (pairs.duration !== undefined && pairs.move === undefined) return null
+  if (pairs.move !== undefined && pairs.rig !== undefined) return null
   if (pairs.time !== undefined && (!Number.isFinite(Number(pairs.time)) || Number(pairs.time) < 0)) return null
   if (action === 'playback' && pairs.state !== 'play' && pairs.state !== 'pause') return null
   if (action === 'scrub' && pairs.time === undefined) return null
@@ -187,6 +202,8 @@ function parseCameraInvocation(invocationValue: unknown): Partial<NormalizedCame
     shot: STRYBLDR_CAMERA_SHOTS.includes(pairs.shot as StrybldrCameraShot) ? pairs.shot as StrybldrCameraShot : undefined,
     focalLengthMm: Number.isFinite(Number(pairs.lens)) ? Number(pairs.lens) : undefined,
     rig: XR_MOTION_REFERENCE_CAMERA_RIGS.includes(pairs.rig as XrMotionReferenceCameraRig) ? pairs.rig as XrMotionReferenceCameraRig : undefined,
+    moveId: isXrCameraMovePresetId(pairs.move) ? pairs.move : undefined,
+    moveDurationSeconds: Number.isFinite(Number(pairs.duration)) ? Number(pairs.duration) : undefined,
     timeSeconds: Number.isFinite(Number(pairs.time)) ? Number(pairs.time) : undefined,
     invocation,
   }
@@ -198,6 +215,10 @@ function normalizeCameraControl(input: CameraControlInput): NormalizedCameraCont
   if (input.level !== undefined && !STRYBLDR_CAMERA_LEVELS.includes(input.level as StrybldrCameraLevel)) return null
   if (input.shot !== undefined && !STRYBLDR_CAMERA_SHOTS.includes(input.shot as StrybldrCameraShot)) return null
   if (input.rig !== undefined && !XR_MOTION_REFERENCE_CAMERA_RIGS.includes(input.rig as XrMotionReferenceCameraRig)) return null
+  if (input.moveId !== undefined && !isXrCameraMovePresetId(input.moveId)) return null
+  if (input.moveDurationSeconds !== undefined && (!Number.isFinite(input.moveDurationSeconds)
+    || input.moveDurationSeconds < 0.25
+    || input.moveDurationSeconds > 30)) return null
   if (input.focalLengthMm !== undefined && (!Number.isFinite(input.focalLengthMm)
     || Number(input.focalLengthMm) < STRYBLDR_CAMERA_MIN_FOCAL_LENGTH_MM
     || Number(input.focalLengthMm) > STRYBLDR_CAMERA_MAX_FOCAL_LENGTH_MM)) return null
@@ -208,6 +229,13 @@ function normalizeCameraControl(input: CameraControlInput): NormalizedCameraCont
   if (invocation && !parsed) return null
   const action = parsed?.action || input.action
   if (!action || !['frame', 'animate', 'playback', 'scrub'].includes(action)) return null
+  const moveId = parsed?.moveId || (isXrCameraMovePresetId(input.moveId) ? input.moveId : undefined)
+  const moveDurationSeconds = Number.isFinite(parsed?.moveDurationSeconds)
+    ? parsed?.moveDurationSeconds
+    : Number.isFinite(input.moveDurationSeconds) ? Number(input.moveDurationSeconds) : undefined
+  if (action !== 'animate' && (moveId || moveDurationSeconds !== undefined)) return null
+  if (moveDurationSeconds !== undefined && !moveId) return null
+  if (moveId && (parsed?.rig || input.rig)) return null
   if (!parsed && action === 'scrub' && input.timeSeconds === undefined) return null
   const angle = parsed?.angle || (STRYBLDR_CAMERA_ANGLES.includes(input.angle as StrybldrCameraAngle) ? input.angle : undefined)
   const level = parsed?.level || (STRYBLDR_CAMERA_LEVELS.includes(input.level as StrybldrCameraLevel) ? input.level : undefined)
@@ -223,6 +251,8 @@ function normalizeCameraControl(input: CameraControlInput): NormalizedCameraCont
     shot,
     focalLengthMm,
     rig,
+    moveId,
+    moveDurationSeconds,
     timeSeconds,
     playing: parsed?.playing ?? input.playing,
     invocation: String(parsed?.invocation || input.invocation || '').trim(),
@@ -242,9 +272,15 @@ function openCameraChoreographyTimeline(): void {
   state.setBottomSurfaceCollapsed(false)
 }
 
-function resolveCameraAnchor(targetId: string): string {
+function resolveCameraAnchor(targetId: string, requireSubject = false): string {
   if (targetId === 'selected-actor') return readBoundXrSelectedActorId()
   if (targetId && targetId !== 'camera') return targetId
+  if (requireSubject) {
+    const runtime = readXrMotionReferenceRuntime()
+    const framingAnchor = readCameraFramingRuntime().anchorId
+    if (runtime.plan.cast.some(track => track.actorId === framingAnchor)) return framingAnchor
+    return readBoundXrSelectedActorId()
+  }
   return 'canvas-camera'
 }
 
@@ -317,6 +353,7 @@ export function inspectLocalCamera() {
       source: 'agentic-canvas-os/docs/DICTIONARY-{COMMAND,SEMANTIC,BINDING}.md',
       frame: `${canonical.frame} ${canonical.camera}|${canonical.selectedActor} ${canonical.cameraShot} angle=front level=eye-level shot=medium lens=50`,
       animate: `${canonical.animate} ${canonical.camera}|${canonical.selectedActor} ${canonical.cameraMotion} rig=dolly time=2.5`,
+      move: `${canonical.animate} ${canonical.selectedActor} ${canonical.cameraMotion} move=orbit-clockwise time=1 duration=3`,
       playback: `${canonical.playback} ${canonical.camera} ${canonical.cameraMotion} state=play|pause`,
       scrub: `${canonical.scrub} ${canonical.camera} ${canonical.cameraMotion} time=2.5`,
     } : null,
@@ -339,6 +376,8 @@ export function inspectLocalCamera() {
       fps: motion.plan.fps,
       selectedRig: motion.selectedCameraRig,
       cameraMarks: motion.plan.camera.length,
+      cameraMoves: motion.plan.camera.filter(mark => mark.moveId !== 'custom').map(mark => mark.moveId),
+      availableMoves: XR_CAMERA_MOVE_PRESETS.map(preset => ({ id: preset.id, label: preset.label, rig: preset.rig, defaultDurationSeconds: preset.defaultDurationSeconds })),
       playing: state.timelineTransportPlaying === true,
       transportDocumentKey: state.timelineTransportDocumentKey || '',
     },
@@ -356,8 +395,8 @@ export function controlLocalCamera(input: CameraControlInput): CameraControlResu
     return { ok: false, action: control.action, message: 'Open or create a graph document before controlling Camera choreography.' }
   }
   const runtime = readXrMotionReferenceRuntime()
-  const anchorId = resolveCameraAnchor(control.targetId)
-  if (control.targetId === 'selected-actor' && !anchorId) {
+  const anchorId = resolveCameraAnchor(control.targetId, Boolean(control.moveId))
+  if ((control.targetId === 'selected-actor' || control.moveId) && !anchorId) {
     return { ok: false, action: control.action, message: 'Select a cast actor before targeting @selected-actor.' }
   }
   if (anchorId !== 'canvas-camera' && !runtime.plan.cast.some(track => track.actorId === anchorId)) {
@@ -389,33 +428,50 @@ export function controlLocalCamera(input: CameraControlInput): CameraControlResu
 
   if (control.action === 'animate') {
     const replacesExistingMark = runtime.plan.camera.some(mark => Math.abs(mark.timeSeconds - timeSeconds) < 0.0005)
-    if (runtime.plan.camera.length >= XR_MOTION_REFERENCE_MAX_CAMERA_MARKS && !replacesExistingMark) {
+    if (!control.moveId && runtime.plan.camera.length >= XR_MOTION_REFERENCE_MAX_CAMERA_MARKS && !replacesExistingMark) {
       return { ok: false, action: control.action, message: `Camera choreography already has the maximum ${XR_MOTION_REFERENCE_MAX_CAMERA_MARKS} marks.` }
     }
     const previousRuntime = runtime
     const framing = resolveCameraFrame(control, anchorId)
-    const rig = control.rig || runtime.selectedCameraRig
     setXrMotionReferencePlayhead(timeSeconds)
-    setXrMotionReferenceCameraRig(rig)
-    setXrMotionReferenceCameraMark({
-      timeSeconds,
+    const moveResult = control.moveId ? applyXrCameraMove({
+      moveId: control.moveId,
       anchorId: framing.anchorId,
-      settings: { ...framing.settings },
-      rig,
-    })
+      playheadSeconds: timeSeconds,
+      moveDurationSeconds: control.moveDurationSeconds,
+      settings: framing.settings,
+    }) : null
+    const rig = control.moveId ? resolveXrCameraMovePreset(control.moveId).rig : control.rig || runtime.selectedCameraRig
+    if (moveResult && !moveResult.applied) {
+      restoreXrMotionReferenceRuntimeSnapshot(previousRuntime)
+      return { ok: false, action: control.action, message: moveResult.message }
+    }
+    if (!control.moveId) {
+      setXrMotionReferenceCameraRig(rig)
+      setXrMotionReferenceCameraMark({
+        timeSeconds,
+        anchorId: framing.anchorId,
+        settings: { ...framing.settings },
+        rig,
+      })
+    }
     if (!persistMotionReference()) {
       restoreXrMotionReferenceRuntimeSnapshot(previousRuntime)
       return { ok: false, action: control.action, message: 'Camera choreography could not be written to graph metadata.' }
     }
     publishCameraFramingRuntime(framing)
-    setCameraTimelineState({ timeSeconds, playing: false })
+    const timelineTimeSeconds = moveResult?.startTimeSeconds ?? timeSeconds
+    setXrMotionReferencePlayhead(timelineTimeSeconds)
+    setCameraTimelineState({ timeSeconds: timelineTimeSeconds, playing: false })
     activateCameraChoreographySurface()
     ensureSharedCameraPanel()
     openCameraChoreographyTimeline()
     return {
       ok: true,
       action: control.action,
-      message: `${rig} Camera choreography mark dropped at ${timeSeconds.toFixed(2)}s.`,
+      message: control.moveId
+        ? `${resolveXrCameraMovePreset(control.moveId).label} Camera move applied around ${framing.anchorId}.`
+        : `${rig} Camera choreography mark dropped at ${timeSeconds.toFixed(2)}s.`,
       camera: inspectLocalCamera(),
     }
   }

@@ -19,7 +19,7 @@ Toolbar → Surface Mode → XR Mode opens one graph-native previs workflow in t
 3. Open first-class FloatingPanel → **Animation** to apply native character motions or compatible action paths to the selected cast identity.
 4. Treat bounded graph nodes and mobile library subjects as cast identities synchronized through the graph/XR selected-actor binding.
 5. Place timed cast marks in right-handed, Y-up meter coordinates.
-6. Capture timed camera marks from the shared Camera Framing owner.
+6. Capture timed camera marks or apply an original subject-bound Orbit, Crane, Drone Follow, or Vertigo move from the shared Camera Framing owner.
 7. Preview any deterministic playhead instant in the ThreeGraph XR stage.
 8. Save the normalized plan to `graphData.metadata.kgXrMotionReference`.
 9. Export one deterministic `.xr-motion-reference.<fingerprint>.json` package for a video-generation workflow.
@@ -52,6 +52,7 @@ Reference evidence remains documentation-only. Runtime modules and dependency ma
 | Scene isolation | `Scene.impl.tsx` and `ThreeGraph.impl.tsx` | Graph XR renders the motion stage exclusively; standard node/edge meshes, graph fog/starfield, Rich Media overlays, and hover UI remain unmounted. |
 | Empty-world bootstrap | `ThreeGraph.impl.tsx`, `XrEmptyWorldStage.tsx`, and `XrEmptyWorldHud.tsx` | No-file XR rejects retained graph data and mounts a source-free navy world grid, center target, XYZ axes/HUD, neutral runtime camera framing, and zero cast; no decorative Camera prop or grey-box set geometry is mounted. |
 | Camera authority | `cameraFramingRuntime.ts`, `cameraFramingControlsRuntime.ts`, `xrCameraPlaybackControlsRuntime.ts`, `xrCameraControlOwnership.ts`, `cameraFramingPose.ts`, and `Controls.tsx` | Canvas 3D and XR publish one shared framing draft to FloatingPanel Camera. Paused choreography permits an explicit framing preview; scrub/playback reasserts camera marks; active playback blocks competing orbit/zoom writers; BottomPanel Timeline remains the transport owner. |
+| Camera moves | `xrCameraMoveCatalog.ts`, `xrCameraMoveRuntime.ts`, `xrMotionReferenceSampling.ts`, and `XrCameraMovePresetControl.tsx` | FloatingPanel Camera selects original typed move presets; pose sampling resolves the selected cast anchor at every frame; only the canonical BottomPanel Timeline owns the resulting mark track, retiming, playhead, and transport. |
 | Persistence | `updateGraphMetadata` | Writes one versioned `kgXrMotionReference` value through the canonical graph owner. |
 | Download | `downloadBlob` | Reuses the repository-owned delayed-revoke browser download path. |
 
@@ -62,7 +63,8 @@ Reference evidence remains documentation-only. Runtime modules and dependency ma
 | Graph nodes | At most 12 cast tracks; source ids and labels remain authoritative. |
 | 3D library subjects | At most 48 placed subjects across people, animals, vehicles, furniture, and props; mobile subjects use available cast capacity while static subjects remain spatial references. |
 | Cast marks | At most 32 per actor; duplicate times replace; coordinates clamp to ±50 m and nonnegative Y. |
-| Camera marks | At most 32; shared semantic framing maps around the timed cast anchor on an 8 m stage-meter baseline, with stage origin as the explicit missing-anchor fallback. |
+| Camera marks | At most 32; a move atomically requires up to two free mark times; shared semantic framing maps around the timed cast anchor on an 8 m stage-meter baseline, with stage origin as the explicit missing-anchor fallback. |
+| Camera moves | Six original presets: clockwise/counterclockwise orbit, crane rise/descend, drone follow, and vertigo dolly-zoom. Duration clamps to 0.25–30 seconds and the selected cast track is resampled for every camera frame. |
 | Timeline | Duration clamps to 1–30 seconds; FPS clamps to 6–30; export emits at most 901 inclusive frame samples. |
 | Stage | One of ten original Knowgrph presets, including Downtown, Residential Street, Supermarket, Movie Theater, Train Car, Backyard with Pool, and Sky for Aerials. |
 
@@ -77,8 +79,8 @@ The download is a single versioned JSON envelope because Knowgrph has no first-p
 | `reference/manifest.json` | Coordinate system, stage, timeline, and bounded counts. |
 | `reference/subjects.json` | Placed asset identities, categories, editable labels, colors, transforms, and static positions. |
 | `reference/cast-tracks.json` | Source-backed cast identities, animation assignments, and timed spatial marks. |
-| `reference/camera-track.json` | Timed shared-camera settings and independently derived poses. |
-| `reference/frame-samples.json` | Deterministic camera/cast samples, action paths, procedural character poses, prop cues, and event cues for every inclusive frame. |
+| `reference/camera-track.json` | Timed shared-camera settings, typed move ids, rigs, anchors, and independently derived poses. |
+| `reference/frame-samples.json` | Deterministic subject-bound camera/move samples, cast samples, action paths, procedural character poses, prop cues, and event cues for every inclusive frame. |
 | `reference/stage-map.svg` | Original top-down grey-box map with cast and camera cues. |
 | `handoff/video-generator-brief.txt` | Provider-neutral instruction compiled from the actual plan. |
 | `README.txt` | Consumer guidance and the grey-box/non-final-art boundary. |
@@ -97,6 +99,6 @@ Separate graph-topology and normalized-motion fingerprints, stable property orde
 
 ## VCC
 
-Given an active graph, when the operator opens Media → 3D, chooses an environment kit, places and labels mobile and static subjects, applies a compatible character motion or action path from first-class Animation, adds cast marks, captures shared-camera marks, moves the playhead, and exports, then XR Mode shows the selected grey-box stage and procedural choreography; graph metadata contains one normalized plan; and the downloaded package contains the eight virtual files with exact inclusive frame count `floor(duration × fps) + 1`.
+Given an active graph, when the operator opens Media → 3D, chooses an environment kit, places and labels mobile and static subjects, applies a compatible character motion or action path from first-class Animation, adds cast marks, applies a subject-bound Camera move, moves the canonical Timeline playhead, and exports, then XR Mode shows the selected grey-box stage and procedural choreography; camera samples remain aimed at the moving subject; graph metadata contains one normalized plan; and the downloaded package contains the eight virtual files with exact inclusive frame count `floor(duration × fps) + 1`.
 
 VCC: Verify the focused XR package test, Canvas TypeScript check, dependency/source scan, and local browser flow; stop without deployment or external runtime installation.
