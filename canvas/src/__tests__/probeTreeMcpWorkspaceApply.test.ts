@@ -3,6 +3,7 @@ import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import {
   buildProbeTreeStructuredResponse,
+  buildProbeTreeInputDerivedOptions,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { appendChatHistoryWorkspaceFile } from '@/features/chat/chatHistoryWorkspace'
@@ -22,16 +23,21 @@ export async function testProbeTreeLiteralMcpResultAppliesVisibleWidgetCardPanel
     useGraphStore.getState().clearGraphData()
     globalThis.fetch = (async () => ({ ok: true } as Response)) as typeof fetch
 
+    const contextText = [
+      'Authored request:',
+      'Compare member risk tier across CRM authority, claims freshness, policy status, and care-plan sources.',
+      'Prioritize source authority, freshness window, handoff owner, and care-plan status.',
+      'Review member evidence across claims values, coverage tier, care-plan owner, and current status.',
+      'Selected Widget id: care-source',
+    ].join('\n')
+    const optionIds = ['source-authority', 'freshness-window', 'handoff-owner']
+    const options = buildProbeTreeInputDerivedOptions(contextText).map((option, index) => ({ ...option, id: optionIds[index] }))
     const response = buildProbeTreeStructuredResponse({
       threadRootId: 'care-agent',
       currentNodeId: 'care-source',
-      contextText: 'The selected care source needs an authoritative risk-tier branch.',
+      contextText,
       optionCount: 3,
-      options: [
-        { id: 'source-authority', text: 'Which source system is authoritative for the member risk tier?', rationale: 'Prevents conflicting CRM and claims values from silently selecting a branch.' },
-        { id: 'freshness-window', text: 'What freshness window makes the risk tier actionable?', rationale: 'Separates stale evidence from an actionable signal.' },
-        { id: 'handoff-owner', text: 'Who owns the next care-plan handoff after the tier is confirmed?', rationale: 'Names the accountable downstream owner before selection.' },
-      ],
+      options,
     })
     const assistantText = JSON.stringify({
       jsonrpc: '2.0',
@@ -42,7 +48,7 @@ export async function testProbeTreeLiteralMcpResultAppliesVisibleWidgetCardPanel
           contractVersion: 'knowgrph-probe-tree/v0.1',
           ok: true,
           response,
-          cost_log: { model: 'probe-tree-local-heuristic', prompt_tokens: 0, completion_tokens: 0, cache_hits: 0, estimated_cost_usd: 0 },
+          cost_log: { model: 'probe-tree-input-derived', prompt_tokens: 0, completion_tokens: 0, cache_hits: 0, estimated_cost_usd: 0 },
         },
       },
     }, null, 2)

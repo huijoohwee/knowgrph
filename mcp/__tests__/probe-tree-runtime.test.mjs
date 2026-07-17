@@ -39,13 +39,15 @@ test("probe.generate recalls scoped exemplars and does not mutate the markdown g
   const result = await generateProbeOptions({
     thread_root_id: "onboarding",
     current_node_id: "root",
-    context_text: "onboarding missing information",
+    context_text: "Compare onboarding across identity proof, account owner, required documents, and completion status.",
     k: 2,
   }, { rootDir, env: {} });
 
   assert.equal(result.ok, true);
   assert.equal(result.options.length, 2);
-  assert.equal(result.options[0].text, "What information is still missing?");
+  assert.equal(result.options.some((option) => option.text === "What information is still missing?"), false);
+  assert.ok(result.options.every((option) => option.selectionOptions.length >= 2));
+  assert.ok(result.options.every((option) => option.contextAnchors.length >= 2));
   assert.equal(result.recalled_exemplars.length, 1);
   assert.equal(result.token_budget.within_budget, true);
   assert.equal(result.degraded, true);
@@ -80,7 +82,7 @@ test("probe.generate honors explicit zero recall against a seeded memory store",
   const result = await generateProbeOptions({
     thread_root_id: "procurement",
     current_node_id: "root",
-    context_text: "procurement legal approver exception",
+    context_text: "Compare procurement exceptions across contract owner, risk owner, legal review, and expiry date.",
     k: 2,
     recall_top_k: 0,
   }, { rootDir, env: {} });
@@ -91,7 +93,7 @@ test("probe.generate honors explicit zero recall against a seeded memory store",
   assert.equal(result.options.some((option) => option.text === "Which legal approver signs off the exception?"), false);
 });
 
-test("probe.generate fallback stays specific to the selected Widget context", async () => {
+test("probe.generate input-derived response stays specific to the selected Widget context", async () => {
   const rootDir = await tempRoot();
   const result = await generateProbeOptions({
     thread_root_id: "sme-care-agent",
@@ -168,8 +170,20 @@ test("probe.generate uses host-owned Ollama adapter when configured and keeps co
           message: {
             content: JSON.stringify({
               options: [
-                { text: "What language should the care-plan coach use first?", rationale: "Localizes the first branch without collecting PHI." },
-                { text: "Who needs the handoff summary?", rationale: "Separates patient and caregiver paths." },
+                {
+                  text: "Which care-plan coaching language should guide the next branch?",
+                  rationale: "Uses only the requested care-plan coaching scope.",
+                  evidenceNeeded: "User selection",
+                  selectionOptions: ["English", "Mandarin"],
+                  contextAnchors: ["care-plan coaching", "English", "Mandarin"],
+                },
+                {
+                  text: "Which summary should guide the next branch?",
+                  rationale: "Uses only the requested summary scope.",
+                  evidenceNeeded: "User selection",
+                  selectionOptions: ["caregiver summary", "member summary"],
+                  contextAnchors: ["caregiver summary", "member summary"],
+                },
               ],
             }),
           },
@@ -183,7 +197,7 @@ test("probe.generate uses host-owned Ollama adapter when configured and keeps co
   const result = await generateProbeOptions({
     thread_root_id: "care-agent",
     current_node_id: "root",
-    context_text: "care plan coach needs branching questions",
+    context_text: "Choose care-plan coaching across English, Mandarin, caregiver summary, and member summary.",
     k: 2,
     recall_top_k: 0,
   }, {
@@ -198,7 +212,7 @@ test("probe.generate uses host-owned Ollama adapter when configured and keeps co
   assert.equal(result.ok, true);
   assert.equal(result.degraded, false);
   assert.equal(result.model_adapter.configured, true);
-  assert.equal(result.options[0].text, "What language should the care-plan coach use first?");
+  assert.equal(result.options[0].text, "Which care-plan coaching language should guide the next branch?");
   assert.equal(result.cost_log.model, "qwen-local");
   assert.equal(result.cost_log.prompt_tokens, 42);
   assert.equal(result.cost_log.completion_tokens, 24);
@@ -300,7 +314,7 @@ test("probe-tree clean-room smoke completes generate-select-evolve with observab
   const generated = await generateProbeOptions({
     thread_root_id: "thread-smoke",
     current_node_id: "root",
-    context_text: "runtime-ready probe-tree clean-room smoke",
+    context_text: "Compare clean-room readiness across runtime trace, source evidence, completion status, and unresolved gap.",
     k: 2,
     recall_top_k: 0,
     token_budget: 1200,

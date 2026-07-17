@@ -1,12 +1,29 @@
 export const KNOWGRPH_PROBE_TREE_CONTRACT_VERSION = "knowgrph-probe-tree/v0.1";
-export const PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION = "probe-tree-llm-response/v2";
+export const PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION = "probe-tree-llm-response/v3";
+
+import {
+  PROBE_TREE_MULTI_SELECT_LIMITS,
+  cleanProbeTreeResponseText,
+  isProbeTreeCardUserInputRelevant,
+  normalizeProbeTreeContextAnchors,
+  normalizeProbeTreeSelectionOptions,
+  safeProbeTreeResponseId,
+} from "./probeTreeUserInputRelevance.mjs";
+
+export {
+  PROBE_TREE_MULTI_SELECT_LIMITS,
+  buildProbeTreeInputDerivedOptions,
+  collectProbeTreeContextKeywords,
+  extractProbeTreeUserInputText,
+  isProbeTreeCardUserInputRelevant,
+  normalizeProbeTreeContextAnchors,
+  normalizeProbeTreeSelectionOptions,
+} from "./probeTreeUserInputRelevance.mjs";
 
 export const PROBE_TREE_CARD_VARIANTS = Object.freeze({
   openAnswer: "probe-tree-type-1",
   boundedMultiSelect: "probe-tree-type-2",
 });
-
-export const PROBE_TREE_MULTI_SELECT_LIMITS = Object.freeze({ min: 2, max: 4 });
 
 export const KNOWGRPH_PROBE_TREE_TOOL_NAMES = Object.freeze({
   generate: "knowgrph.probe.generate",
@@ -25,177 +42,28 @@ export const PROBE_TREE_DEFAULTS = Object.freeze({
   appMemoryScope: "knowgrph-probe-tree",
 });
 
-export const PROBE_TREE_FALLBACK_OPTIONS = Object.freeze([
-  { text: "What outcome would make this resolved?", rationale: "Locks the terminal condition before more branching.", selectionOptions: ["Required outcome", "Acceptable partial outcome", "Explicit stop condition"] },
-  { text: "Which constraint matters most right now?", rationale: "Separates blockers from preferences so the next step can narrow quickly.", selectionOptions: ["Time or urgency", "Cost or capacity", "Policy or approval boundary"] },
-  { text: "What information is still missing?", rationale: "Finds the smallest context gap before handing off to a downstream capability.", selectionOptions: ["Current source evidence", "Named scope or entity", "Decision threshold"] },
-  { text: "Which path should be ruled out first?", rationale: "Cuts low-value branches before spending more tokens or taps.", selectionOptions: ["Unsupported by current evidence", "Outside the approved scope", "Blocked by a required dependency"] },
-]);
-
-const PROBE_TREE_CONTEXT_STOP_WORDS = new Set([
-  "about", "across", "active", "agent", "agentic", "against", "also", "and", "answer", "approval", "assess", "author", "authored", "body", "bounded", "branch", "branches",
-  "canvas", "card", "cards", "care", "change", "changes", "command", "confirm", "confirms", "context", "continuation", "contract", "cost", "current", "depth", "editable", "economics", "fact", "facts", "for", "from", "frontmatter", "gate", "generate", "generated",
-  "adviser", "advisor", "approved", "authoritative", "before", "call", "candidate", "confirm", "connect", "directive", "directives", "do", "each", "evidence", "fallback", "generation", "generic", "guidance", "harness", "into", "invocation", "keep", "knowgrph", "label", "licensed", "local", "log", "make", "media", "next", "node", "not", "output", "panel", "policies", "policy", "probe", "proof", "provider", "publish", "question", "questions",
-  "id", "os", "ready", "regulator", "regulatory", "request", "require", "required", "requires", "response", "review", "rich", "route", "run", "runtime", "scope", "selected", "separate", "separately", "sme-care-agent", "smes", "source", "sources", "stop", "storyboard", "structured", "summary", "text", "the", "this", "title", "token", "tree", "unchanged", "unless",
-  "what", "when", "where", "which", "who", "why", "using", "visibly", "widget", "with", "workspace", "would", "zero-cost",
-]);
-
-const cleanResponseText = (value, maxLength = 320) =>
-  String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength);
-
-const safeResponseId = (value, fallback) => {
-  const normalized = cleanResponseText(value, 160).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
-  return normalized || fallback;
-};
-
-export function normalizeProbeTreeSelectionOptions(value) {
-  const candidates = Array.isArray(value) ? value : [];
-  const seen = new Set();
-  const options = [];
-  for (const candidate of candidates) {
-    const record = candidate && typeof candidate === "object" && !Array.isArray(candidate) ? candidate : null;
-    const label = cleanResponseText(record?.label || record?.text || candidate, 160);
-    if (!label || seen.has(label.toLowerCase())) continue;
-    seen.add(label.toLowerCase());
-    options.push({
-      id: cleanResponseText(record?.id, 80) || `option-${options.length + 1}-${safeResponseId(label, String(options.length + 1)).slice(0, 48)}`,
-      label,
-    });
-    if (options.length >= PROBE_TREE_MULTI_SELECT_LIMITS.max) break;
-  }
-  return options.length >= PROBE_TREE_MULTI_SELECT_LIMITS.min ? options : [];
-}
-
-export function buildProbeTreeDefaultSelectionOptions(contextText) {
-  const scope = collectProbeTreeContextKeywords(contextText, 3)
-    .map(keyword => readProbeTreeKeywordLabel(contextText, keyword))
-    .join(" / ") || "selected scope";
-  return normalizeProbeTreeSelectionOptions([
-    `Current primary source for ${scope}`,
-    `Verified system-of-record fact for ${scope}`,
-    `Accountable reviewer confirmation for ${scope}`,
-  ]);
-}
-
-const escapeProbeTreePattern = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-const buildProbeTreeKeywordPattern = keyword => keyword.split("-")
-  .map(escapeProbeTreePattern)
-  .join("(?:-|\\s)+");
-
-const readProbeTreeKeywordLabel = (contextText, keyword) => {
-  const pattern = buildProbeTreeKeywordPattern(keyword);
-  const match = String(contextText || "").match(new RegExp(`(?:^|[^a-z0-9-])(${pattern})(?=$|[^a-z0-9-])`, "i"));
-  return String(match?.[1] || keyword).replace(/-/g, " ");
-};
-
 const boundedResponseInteger = (value, fallback, min, max) => {
   const parsed = Number.isFinite(Number(value)) ? Math.floor(Number(value)) : fallback;
   return Math.max(min, Math.min(max, parsed));
 };
 
-export function collectProbeTreeContextKeywords(value, maxCount = 8) {
-  const seen = new Set();
-  const words = String(value || "")
-    .toLowerCase()
-    .replace(/https?:\/\/\S+/g, " ")
-    .replace(/\b(?:response\.)?structuredcontent\b/g, " ")
-    .match(/[a-z][a-z0-9]*(?:-[a-z0-9]+)*/g) || [];
-  const out = [];
-  for (const word of words) {
-    const compoundStopWord = word.includes("-")
-      && word.split("-").every(part => PROBE_TREE_CONTEXT_STOP_WORDS.has(part));
-    if (word.length < 3 || PROBE_TREE_CONTEXT_STOP_WORDS.has(word) || compoundStopWord || seen.has(word)) continue;
-    seen.add(word);
-    out.push(word);
-    if (out.length >= Math.max(1, Math.min(12, Number(maxCount) || 8))) break;
-  }
-  return out;
-}
-
-export function buildProbeTreeContextualFallbackOptions(contextText) {
-  const keywords = collectProbeTreeContextKeywords(contextText, 6);
-  if (keywords.length < 2) return [];
-  const scope = keywords.slice(0, 6)
-    .map(keyword => readProbeTreeKeywordLabel(contextText, keyword))
-    .join(" / ");
-  return [
-    {
-      text: `Which authoritative evidence confirms the current facts for the ${scope} scope?`,
-      rationale: `Grounds the ${scope} decision in named, current source evidence instead of an inferred assumption.`,
-      evidenceNeeded: `A dated system-of-record source for the ${scope} facts.`,
-      selectionOptions: [
-        `Current regulator or policy source for ${scope}`,
-        `Current system-of-record facts for ${scope}`,
-        `Licensed adviser or accountable reviewer evidence`,
-      ],
-    },
-    {
-      text: `Which unresolved assumption in the ${scope} scope would materially change the recommended next action?`,
-      rationale: `Surfaces the highest-impact unknown in the ${scope} request before a recommendation is promoted.`,
-      evidenceNeeded: `The missing ${scope} fact plus the decision rule it changes.`,
-      selectionOptions: [
-        `Scope or eligibility assumption for ${scope}`,
-        `Risk or exposure threshold for ${scope}`,
-        `Timing or jurisdiction constraint for ${scope}`,
-      ],
-    },
-    {
-      text: `What evidence and accountable reviewer are required before the ${scope} handoff?`,
-      rationale: `Keeps the ${scope} branch reviewable and prevents an unapproved tool or adviser handoff.`,
-      evidenceNeeded: `Acceptance evidence, reviewer identity, and the explicit approval boundary.`,
-      selectionOptions: [
-        `Named accountable owner for ${scope}`,
-        `Required acceptance evidence for ${scope}`,
-        `Explicit approval boundary for ${scope}`,
-      ],
-    },
-    {
-      text: `Which option in the ${scope} scope can be ruled out now, and what source supports that decision?`,
-      rationale: `Prunes one low-value ${scope} path without spending another model turn on an unsupported option.`,
-      evidenceNeeded: `A source-backed exclusion criterion for the rejected ${scope} option.`,
-      selectionOptions: [
-        `Rule out an unsupported ${scope} path`,
-        `Defer a ${scope} path pending named evidence`,
-        `Escalate the ${scope} decision to an accountable reviewer`,
-      ],
-    },
-  ];
-}
-
-export function isProbeTreeResponseContextRelevant({ contextText, responseTexts } = {}) {
-  const keywords = collectProbeTreeContextKeywords(contextText, 8);
-  if (keywords.length < 2) return true;
-  const response = String(Array.isArray(responseTexts) ? responseTexts.join(" ") : responseTexts || "").toLowerCase();
-  const matched = keywords.filter(keyword => {
-    const pattern = buildProbeTreeKeywordPattern(keyword);
-    return new RegExp(`(^|[^a-z0-9-])${pattern}([^a-z0-9-]|$)`, "i").test(response);
-  });
-  return matched.length >= Math.min(2, keywords.length);
-}
-
 const buildStructuredResponseOptions = ({ options, optionCount, degraded, contextText }) => {
-  const candidates = [
-    ...(Array.isArray(options) ? options : []),
-    ...buildProbeTreeContextualFallbackOptions(contextText),
-    ...PROBE_TREE_FALLBACK_OPTIONS,
-  ];
+  const candidates = Array.isArray(options) ? options : [];
   const seen = new Set();
   const out = [];
   for (const candidate of candidates) {
-    const question = cleanResponseText(candidate?.text || candidate?.question);
+    const question = cleanProbeTreeResponseText(candidate?.text || candidate?.question);
     if (!question || seen.has(question.toLowerCase())) continue;
     seen.add(question.toLowerCase());
     const index = out.length;
-    const candidateOptionId = cleanResponseText(candidate?.id, 160)
-      || `probe-option-${safeResponseId(question, String(index + 1)).slice(0, 72)}-${index + 1}`;
-    const authoredSelectionOptions = normalizeProbeTreeSelectionOptions(candidate?.selectionOptions);
-    const selectionOptions = authoredSelectionOptions.length > 0
-      ? authoredSelectionOptions
-      : buildProbeTreeDefaultSelectionOptions(`${question} ${contextText}`);
+    const candidateOptionId = cleanProbeTreeResponseText(candidate?.id, 160)
+      || `probe-option-${safeProbeTreeResponseId(question, String(index + 1)).slice(0, 72)}-${index + 1}`;
+    const selectionOptions = normalizeProbeTreeSelectionOptions(candidate?.selectionOptions);
+    const contextAnchors = normalizeProbeTreeContextAnchors(candidate?.contextAnchors || candidate?.context_anchors);
+    if (!isProbeTreeCardUserInputRelevant({ contextText, question, selectionOptions, contextAnchors })) continue;
     out.push({
       id: candidateOptionId,
-      label: cleanResponseText(candidate?.label, 120) || question,
+      label: cleanProbeTreeResponseText(candidate?.label, 120) || question,
       kind: "text",
       candidateOptionId,
       question,
@@ -203,11 +71,11 @@ const buildStructuredResponseOptions = ({ options, optionCount, degraded, contex
       probeTreeCardVariant: PROBE_TREE_CARD_VARIANTS.boundedMultiSelect,
       selectionMode: "multiple",
       selectionOptions,
+      contextAnchors,
       allowOther: true,
-      rationale: cleanResponseText(candidate?.rationale) || "Keeps the next probe bounded and selectable.",
-      evidenceNeeded: cleanResponseText(candidate?.evidenceNeeded || candidate?.evidence_needed)
-        || "An explicit, source-backed answer for this question.",
-      confidence: cleanResponseText(candidate?.confidence, 32) || (degraded ? "low" : "medium"),
+      rationale: cleanProbeTreeResponseText(candidate?.rationale),
+      evidenceNeeded: cleanProbeTreeResponseText(candidate?.evidenceNeeded || candidate?.evidence_needed),
+      confidence: cleanProbeTreeResponseText(candidate?.confidence, 32) || (degraded ? "low" : "medium"),
       nextAction: KNOWGRPH_PROBE_TREE_TOOL_NAMES.select,
     });
     if (out.length >= optionCount) break;
@@ -216,9 +84,9 @@ const buildStructuredResponseOptions = ({ options, optionCount, degraded, contex
 };
 
 export function buildProbeTreeStructuredResponse(args = {}) {
-  const currentNodeId = cleanResponseText(args.currentNodeId || args.current_node_id, 160) || "n-deliver";
-  const threadRootId = cleanResponseText(args.threadRootId || args.thread_root_id, 160) || currentNodeId;
-  const contextText = cleanResponseText(args.contextText || args.context_text, 1200) || `Probe source ${currentNodeId}`;
+  const currentNodeId = cleanProbeTreeResponseText(args.currentNodeId || args.current_node_id, 160) || "n-deliver";
+  const threadRootId = cleanProbeTreeResponseText(args.threadRootId || args.thread_root_id, 160) || currentNodeId;
+  const contextText = cleanProbeTreeResponseText(args.contextText || args.context_text, 12_000);
   const optionCount = boundedResponseInteger(
     args.optionCount,
     Array.isArray(args.options) ? args.options.length : PROBE_TREE_DEFAULTS.optionCount,
@@ -228,7 +96,7 @@ export function buildProbeTreeStructuredResponse(args = {}) {
   const probeTreeDepth = boundedResponseInteger(args.probeTreeDepth || args.probe_tree_depth, 1, 1, PROBE_TREE_DEFAULTS.maxDepth);
   const cards = buildStructuredResponseOptions({ options: args.options, optionCount, degraded: args.degraded === true, contextText })
     .map(card => ({ ...card, parentNodeId: currentNodeId, probeTreeDepth }));
-  const panelId = `probe-tree-branches-${safeResponseId(currentNodeId, "current-node")}`;
+  const panelId = `probe-tree-branches-${safeProbeTreeResponseId(currentNodeId, "current-node")}`;
   const panelOutput = [
     "# Probe-Tree Branches",
     "",
@@ -286,11 +154,14 @@ export function buildProbeTreeStructuredResponse(args = {}) {
 const optionSchema = Object.freeze({
   type: "object",
   additionalProperties: true,
-  required: ["id", "text", "rationale"],
+  required: ["id", "text", "rationale", "evidenceNeeded", "selectionOptions", "contextAnchors"],
   properties: {
     id: { type: "string" },
     text: { type: "string" },
     rationale: { type: "string" },
+    evidenceNeeded: { type: "string" },
+    selectionOptions: { type: "array", minItems: 2, maxItems: 4 },
+    contextAnchors: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
   },
 });
 
@@ -358,7 +229,7 @@ export const PROBE_GENERATE_OUTPUT_SCHEMA = Object.freeze({
   properties: {
     contractVersion: { type: "string" },
     ok: { type: "boolean" },
-    options: { type: "array", minItems: PROBE_TREE_DEFAULTS.minOptionCount, maxItems: PROBE_TREE_DEFAULTS.maxOptionCount, items: optionSchema },
+    options: { type: "array", maxItems: PROBE_TREE_DEFAULTS.maxOptionCount, items: optionSchema },
     response: {
       type: "object",
       additionalProperties: false,
@@ -371,7 +242,7 @@ export const PROBE_GENERATE_OUTPUT_SCHEMA = Object.freeze({
           properties: {
             contractVersion: { const: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION },
             widgets: { type: "array", minItems: 1, maxItems: 1, items: { type: "object", additionalProperties: true } },
-            cards: { type: "array", minItems: PROBE_TREE_DEFAULTS.minOptionCount, maxItems: PROBE_TREE_DEFAULTS.maxOptionCount, items: { type: "object", additionalProperties: true } },
+            cards: { type: "array", maxItems: PROBE_TREE_DEFAULTS.maxOptionCount, items: { type: "object", additionalProperties: true } },
             panels: { type: "array", minItems: 1, maxItems: 1, items: { type: "object", additionalProperties: true } },
             edges: { type: "array", items: { type: "object", additionalProperties: true } },
           },
