@@ -3,6 +3,7 @@ import { resolveStoryboardWidgetProbeTreeSelectedRunNode } from '@/components/St
 import { buildProbeTreeInputDerivedOptions, buildProbeTreeStructuredResponse, KNOWGRPH_PROBE_TREE_TOOL_NAMES, PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION } from '@/features/agent-ready/probeTreeContract.mjs'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 
 const prompt = [
   '/sme-care-agent @source.frontmatter @source.body @local-harness #runtime-ready #approval-gate',
@@ -373,6 +374,7 @@ export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() 
     publishOutput: output => output.baseGraphData || null,
   })
   const nodes = result?.graphData.nodes || []
+  const persistedChild = nodes.find(node => String(unwrapGraphCellValue(node.id) || '') === 'probe-child')
   const continuationCards = nodes.filter(node => node.properties.parentNodeId === 'probe-child')
   if (
     mcpRequest?.currentNodeId !== 'probe-child'
@@ -381,8 +383,13 @@ export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() 
     || !String(mcpRequest?.contextText || '').startsWith(`Authored request:\n${userAnswer}`)
     || !String(mcpRequest?.contextText || '').includes('Selected continuation question: Which Singapore cyber exclusions remain?')
     || !String(mcpRequest?.contextText || '').includes(`Selected continuation answer: ${userAnswer}`)
+    || !String(mcpRequest?.contextText || '').includes('Probe lineage context: probe-root: question=/knowgrph.probe-tree Assess the root SME risk scope.')
     || !providerPrompt.includes('selected child card and its user-authored output own the next topic')
-    || !nodes.some(node => String(node.id) === 'probe-child')
+    || !providerPrompt.includes('suggested clarification answers')
+    || !persistedChild
+    || persistedChild.properties.summary !== 'Which Singapore cyber exclusions remain?'
+    || persistedChild.properties.output !== userAnswer
+    || String(persistedChild.label) === 'Root writeback alias'
     || continuationCards.length < 2
     || continuationCards.some(node => node.properties.probeTreeDepth !== 3)
   ) {

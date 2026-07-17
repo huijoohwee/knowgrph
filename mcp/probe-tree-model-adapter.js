@@ -1,4 +1,7 @@
-import { extractProbeTreeUserInputText } from "../canvas/src/features/agent-ready/probeTreeUserInputRelevance.mjs";
+import {
+  extractProbeTreeClarificationContextText,
+  extractProbeTreeUserInputText,
+} from "../canvas/src/features/agent-ready/probeTreeUserInputRelevance.mjs";
 
 const PROVIDER_OLLAMA = "ollama";
 const DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434";
@@ -73,12 +76,14 @@ export const buildProbeModelPrompt = ({ contextText, recalledExemplars, k }) => 
   `Return at most ${k} options.`,
   "Use the current user input as the only content source. Do not use stock evidence, process, policy, reviewer, or system-of-record choices unless those concepts appear in that input.",
   "Each question must resolve a concrete choice named by the user; each selectionOptions array must contain 2-4 concise answers to that exact question.",
+  "Every selectionOptions item must be a suggested clarification answer. Never split the selected focus or repeat its words as bare answer fragments.",
   "Give every card a different user-named focus. Never reuse a choice label, another card's complete selection set, or a subset or superset of another card's choices.",
   "Each contextAnchors array must copy 2-6 short phrases verbatim from the current user input. Never invent an anchor and never copy wording from an exemplar.",
   "Questions must ask for missing context or user-selected direction, not answer the user's problem.",
   "Avoid medical advice, diagnosis, medication instructions, PHI, credentials, URLs, or provider claims.",
   "",
-  `Current user input: ${normalizeString(extractProbeTreeUserInputText(contextText))}`,
+  `Current selected child input: ${normalizeString(extractProbeTreeUserInputText(contextText))}`,
+  `Preceding probe context (lineage only): ${normalizeString(extractProbeTreeClarificationContextText(contextText)) || "none"}`,
   recalledExemplars.length
     ? `Resolved structural exemplars (structure only; never reuse their content):\n${recalledExemplars.map((entry) => `- ${normalizeString(entry.memory)}`).join("\n")}`
     : "Resolved exemplars: none",

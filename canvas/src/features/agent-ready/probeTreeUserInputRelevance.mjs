@@ -4,6 +4,7 @@ const PROBE_TREE_CONTEXT_MARKERS = Object.freeze([
   "Authored request",
   "Selected continuation question",
   "Selected continuation answer",
+  "Probe lineage context",
   "Selected Widget title",
   "Selected Widget id",
   "Invocation route",
@@ -91,6 +92,18 @@ export function extractProbeTreeUserInputText(contextText) {
   return readContextMarker(contextText, "Authored request") || cleanProbeTreeResponseText(contextText, 8_000);
 }
 
+export function extractProbeTreeClarificationContextText(contextText) {
+  const continuationQuestion = readContextMarker(contextText, "Selected continuation question");
+  const lineageContext = readContextMarker(contextText, "Probe lineage context");
+  return [continuationQuestion, lineageContext].filter(Boolean).join(" | ");
+}
+
+const extractProbeTreeGroundingText = contextText => {
+  const userInput = extractProbeTreeUserInputText(contextText);
+  const clarificationContext = extractProbeTreeClarificationContextText(contextText);
+  return [userInput, clarificationContext].filter(Boolean).join(" | ");
+};
+
 const normalizeProbeTreeContinuationQuestion = value => cleanProbeTreeResponseText(value, 8_000)
   .replace(PROBE_TREE_GENERATED_QUESTION_SCAFFOLD_PATTERN, "")
   .replace(/[?]+$/g, "")
@@ -129,7 +142,7 @@ const buildProbeTreeKeywordPattern = keyword => keyword.split("-")
 const readProbeTreeKeywordLabel = (contextText, keyword) => {
   const pattern = buildProbeTreeKeywordPattern(keyword);
   const match = String(contextText || "").match(new RegExp(`(?:^|[^a-z0-9-])(${pattern})(?=$|[^a-z0-9-])`, "i"));
-  return String(match?.[1] || keyword).replace(/-/g, " ");
+  return String(match?.[1] || keyword);
 };
 
 export function collectProbeTreeContextKeywords(value, maxCount = 8) {
@@ -205,39 +218,42 @@ const scoreInputClause = (clause, selectionOptions) => {
   return (keywords.length - runtimeWords) * 3 + selectionOptions.length * 2 - runtimeWords * 4;
 };
 
-const splitProbeTreeFocusPhrase = value => {
-  const phrase = cleanProbeTreeResponseText(value, 240);
-  const conjunctionParts = phrase.split(/\s+(?:and|or)\s+/i).map(part => cleanProbeTreeResponseText(part, 160));
-  const conjunctionOptions = normalizeProbeTreeSelectionOptions(conjunctionParts.filter(part => (
-    collectProbeTreeContextKeywords(part, 4).length > 0
-  )));
-  if (conjunctionOptions.length >= PROBE_TREE_MULTI_SELECT_LIMITS.min) return conjunctionOptions;
+const buildProbeTreeClarificationSuggestions = (phrase, peerPhrase) => normalizeProbeTreeSelectionOptions(peerPhrase
+  ? [
+      `Define the scope for ${phrase} relative to ${peerPhrase}`,
+      `Set the priority between ${phrase} and ${peerPhrase}`,
+      `Identify constraints linking ${phrase} with ${peerPhrase}`,
+    ]
+  : [
+      `Define the scope for ${phrase}`,
+      `Set the priority within ${phrase}`,
+      `Identify constraints affecting ${phrase}`,
+    ]);
 
-  const words = phrase.split(/\s+/).filter(Boolean);
-  const midpoint = words.length / 2;
-  const splitIndexes = Array.from({ length: Math.max(0, words.length - 1) }, (_, index) => index + 1)
-    .sort((left, right) => Math.abs(left - midpoint) - Math.abs(right - midpoint));
-  for (const splitIndex of splitIndexes) {
-    const parts = [words.slice(0, splitIndex).join(" "), words.slice(splitIndex).join(" ")]
-      .map(part => part.replace(/^(?:a|an|the)\s+/i, ""));
-    if (parts.some(part => collectProbeTreeContextKeywords(part, 4).length === 0)) continue;
-    const options = normalizeProbeTreeSelectionOptions(parts);
-    if (options.length >= PROBE_TREE_MULTI_SELECT_LIMITS.min) return options;
-  }
-  return [];
+const buildProbeTreeFocusAnchors = (phrase, peerPhrase, contextText) => {
+  const groundingText = extractProbeTreeGroundingText(contextText);
+  const phraseKeywords = collectProbeTreeContextKeywords([phrase, peerPhrase].filter(Boolean).join(" "), 6);
+  const groundingKeywords = collectProbeTreeContextKeywords(groundingText, 12);
+  const labels = [...phraseKeywords, ...groundingKeywords]
+    .map(keyword => readProbeTreeKeywordLabel(groundingText, keyword));
+  return normalizeProbeTreeContextAnchors([phrase, peerPhrase, ...labels]);
 };
 
-const buildProbeTreeFocusedOptions = ({ phrases, idPrefix }) => phrases.flatMap((phrase, index) => {
-  const selectionOptions = splitProbeTreeFocusPhrase(phrase);
-  if (selectionOptions.length < PROBE_TREE_MULTI_SELECT_LIMITS.min) return [];
+const buildProbeTreeFocusedOptions = ({ phrases, idPrefix, contextText }) => phrases.flatMap((phrase, index) => {
+  const peerPhrase = phrases.length > 1 ? phrases[(index + 1) % phrases.length] : "";
+  const selectionOptions = buildProbeTreeClarificationSuggestions(phrase, peerPhrase);
+  const contextAnchors = buildProbeTreeFocusAnchors(phrase, peerPhrase, contextText);
+  if (selectionOptions.length < PROBE_TREE_MULTI_SELECT_LIMITS.min || contextAnchors.length < 2) return [];
   const labels = selectionOptions.map(option => option.label);
   return [{
     id: `${idPrefix}-${index + 1}-${safeProbeTreeResponseId(phrase, String(index + 1)).slice(0, 64)}`,
-    text: cleanProbeTreeResponseText(`Which parts of "${phrase}" need separate follow-up?`),
-    rationale: cleanProbeTreeResponseText(`Derived only from the selected input: ${phrase}`),
-    evidenceNeeded: cleanProbeTreeResponseText(`User selection within: ${labels.join("; ")}`),
+    text: cleanProbeTreeResponseText(peerPhrase
+      ? `What should the next clarification resolve about "${phrase}" in relation to "${peerPhrase}"?`
+      : `What should the next clarification resolve about "${phrase}"?`),
+    rationale: cleanProbeTreeResponseText(`Suggests bounded clarification directions for the selected child focus: ${phrase}`),
+    evidenceNeeded: cleanProbeTreeResponseText(`User selection among suggested directions: ${labels.join("; ")}`),
     selectionOptions,
-    contextAnchors: normalizeProbeTreeContextAnchors([phrase, ...labels]),
+    contextAnchors,
     score: scoreInputClause(phrase, selectionOptions),
     clauseIndex: index,
     sourceOrder: index,
@@ -265,6 +281,7 @@ export function buildProbeTreeInputDerivedOptions(contextText) {
     return buildProbeTreeFocusedOptions({
       phrases: continuationPhrases,
       idPrefix: "input-derived-continuation",
+      contextText,
     }).map(({ score: _score, clauseIndex: _clauseIndex, sourceOrder: _sourceOrder, ...candidate }) => candidate);
   }
   const candidates = splitAuthoredClauses(userInput).flatMap((clause, sourceIndex) => {
@@ -299,6 +316,7 @@ export function buildProbeTreeInputDerivedOptions(contextText) {
     const focused = buildProbeTreeFocusedOptions({
       phrases: selected[0].selectionOptions.map(option => option.label),
       idPrefix: "input-derived-focus",
+      contextText,
     });
     if (focused.length >= 2) {
       return focused.map(({ score: _score, clauseIndex: _clauseIndex, sourceOrder: _sourceOrder, ...candidate }) => candidate);
@@ -329,17 +347,47 @@ const matchedContextKeywords = (contextKeywords, value) => {
   return contextKeywords.filter(keyword => new RegExp(`(^|[^a-z0-9-])${buildProbeTreeKeywordPattern(keyword)}([^a-z0-9-]|$)`, "i").test(text));
 };
 
+export function areProbeTreeContinuationChoicesSuggested({ contextText, question, selectionOptions } = {}) {
+  const continuationQuestion = readContextMarker(contextText, "Selected continuation question");
+  const continuationAnswer = readContextMarker(contextText, "Selected continuation answer");
+  if (!continuationQuestion && !continuationAnswer) return true;
+  const options = normalizeProbeTreeSelectionOptions(selectionOptions);
+  if (options.length < PROBE_TREE_MULTI_SELECT_LIMITS.min) return false;
+  const quotedFocus = cleanProbeTreeResponseText(String(question || "").match(/"([^"]+)"/)?.[1], 480);
+  const focus = cleanProbeTreeResponseText(quotedFocus || normalizeProbeTreeContinuationAnswer(continuationAnswer), 8_000).toLowerCase();
+  if (!focus) return true;
+  return !options.every(option => focus.includes(option.label.toLowerCase()));
+}
+
 export function isProbeTreeCardUserInputRelevant({ contextText, question, selectionOptions, contextAnchors } = {}) {
   const userInput = extractProbeTreeUserInputText(contextText);
-  const normalizedInput = cleanProbeTreeResponseText(userInput, 8_000).toLowerCase();
+  const groundingInput = extractProbeTreeGroundingText(contextText);
+  const normalizedInput = cleanProbeTreeResponseText(groundingInput, 12_000).toLowerCase();
   const anchors = normalizeProbeTreeContextAnchors(contextAnchors);
   const options = normalizeProbeTreeSelectionOptions(selectionOptions);
-  if (!normalizedInput || anchors.length < 2 || options.length < 2 || GENERIC_RESPONSE_CONTENT_PATTERN.test(String(question || "").trim())) return false;
+  if (
+    !normalizedInput
+    || anchors.length < 2
+    || options.length < 2
+    || GENERIC_RESPONSE_CONTENT_PATTERN.test(String(question || "").trim())
+    || !areProbeTreeContinuationChoicesSuggested({ contextText, question, selectionOptions: options })
+  ) return false;
   if (anchors.some(anchor => !normalizedInput.includes(anchor.toLowerCase()))) return false;
-  const contextKeywords = collectProbeTreeContextKeywords(userInput, 96).filter(keyword => !PROBE_TREE_RUNTIME_META_WORDS.has(keyword));
+  const contextKeywords = collectProbeTreeContextKeywords(groundingInput, 96).filter(keyword => !PROBE_TREE_RUNTIME_META_WORDS.has(keyword));
   if (contextKeywords.length < 2) return false;
   const questionMatches = new Set(matchedContextKeywords(contextKeywords, question));
   const optionMatches = new Set(options.flatMap(option => matchedContextKeywords(contextKeywords, option.label)));
+  const continuationAnswer = readContextMarker(contextText, "Selected continuation answer");
+  if (continuationAnswer) {
+    const primaryKeywords = collectProbeTreeContextKeywords(userInput, 96).filter(keyword => !PROBE_TREE_RUNTIME_META_WORDS.has(keyword));
+    const requiredPrimaryMatches = Math.min(2, primaryKeywords.length);
+    const primaryMatches = new Set([
+      ...matchedContextKeywords(primaryKeywords, question),
+      ...options.flatMap(option => matchedContextKeywords(primaryKeywords, option.label)),
+    ]);
+    if (requiredPrimaryMatches < 1 || primaryMatches.size < requiredPrimaryMatches) return false;
+    return options.every(option => matchedContextKeywords(primaryKeywords, option.label).length > 0);
+  }
   if (questionMatches.size < 2 || optionMatches.size < 2) return false;
   return options.every(option => matchedContextKeywords(contextKeywords, option.label).length > 0);
 }

@@ -4,7 +4,7 @@ import {
 } from '@/lib/cards/graphNodeCardFields'
 import { STORYBOARD_OUTPUT_PROPERTY_KEYS, STORYBOARD_SUMMARY_PROPERTY_KEYS } from '@/components/StoryboardCanvas/storyboardModel'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
-import type { GraphNode } from '@/lib/graph/types'
+import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { StoryboardWidgetWorkflowNodeResolutionContext } from './storyboardWidgetRenderGraph'
 
 const readGraphIdentity = (value: unknown): string => String(unwrapGraphCellValue(value) ?? '').trim()
@@ -15,6 +15,26 @@ export const isStoryboardWidgetProbeTreeContinuationNode = (node: GraphNode): bo
   const responseOwned = readGraphIdentity(properties.probeTreeResponseMode) === 'llm-contract'
     || readGraphIdentity(properties.cardTypeLabel) === 'Probe-Tree Card'
   return parentNodeId.length > 0 && responseOwned
+}
+
+export function reconcileStoryboardWidgetProbeTreeSelectedRunNode(args: {
+  graphData: GraphData
+  selectedNode: GraphNode
+}): GraphData {
+  const { graphData, selectedNode } = args
+  if (!isStoryboardWidgetProbeTreeContinuationNode(selectedNode)) return graphData
+  const selectedNodeId = readGraphIdentity(selectedNode.id)
+  if (!selectedNodeId) return graphData
+  let replaced = false
+  const nodes = graphData.nodes.map(node => {
+    if (readGraphIdentity(node.id) !== selectedNodeId) return node
+    replaced = true
+    return selectedNode
+  })
+  return {
+    ...graphData,
+    nodes: replaced ? nodes : [...nodes, selectedNode],
+  }
 }
 
 export function resolveStoryboardWidgetProbeTreeSelectedRunNode(args: {
