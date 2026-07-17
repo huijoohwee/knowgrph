@@ -146,6 +146,23 @@
   padding-left: 8px;
 }
 
+.xr-camera-motion-mark-selection-controls--lane {
+  position: absolute;
+  top: 50%;
+  left: var(--kg-xr-retime-mark-left);
+  z-index: 8;
+  min-width: max-content;
+  max-width: calc(100% - 28px);
+  transform: translate(var(--kg-xr-mark-editor-translate-x, 12px), -50%);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--kg-canvas-accent, #2563eb) 42%, var(--kg-border, #cbd5e1));
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--kg-panel-bg, #fff) 96%, var(--kg-canvas-accent, #2563eb) 4%);
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.16);
+  padding: 3px 4px;
+  pointer-events: auto;
+}
+
 .xr-camera-motion-mark-selection-label {
   max-width: 92px;
   overflow: hidden;

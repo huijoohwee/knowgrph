@@ -66,6 +66,14 @@ function markAxisStyle(timeSeconds: number, scaleDurationSeconds: number): React
   return { '--kg-xr-retime-mark-left': resolveVideoSequenceRulerInsetLeft(percent) } as React.CSSProperties
 }
 
+function markEditorAxisStyle(timeSeconds: number, scaleDurationSeconds: number): React.CSSProperties {
+  const placeBeforeMark = scaleDurationSeconds > 0 && timeSeconds / scaleDurationSeconds > 0.58
+  return {
+    ...markAxisStyle(timeSeconds, scaleDurationSeconds),
+    '--kg-xr-mark-editor-translate-x': placeBeforeMark ? 'calc(-100% - 12px)' : '12px',
+  } as React.CSSProperties
+}
+
 function beginRulerMarkDrag(
   event: React.PointerEvent<HTMLElement>,
   scaleDurationSeconds: number,
@@ -105,7 +113,7 @@ export function CameraMotionMarkRetime({
   layout = 'panel',
 }: {
   laneTarget?: CameraMotionTimelineLaneTarget
-  layout?: 'controls' | 'lane' | 'panel'
+  layout?: 'lane' | 'panel'
 }) {
   const selectedNodeId = useGraphStore(state => state.selectedNodeId)
   const runtime = React.useSyncExternalStore(
@@ -125,6 +133,36 @@ export function CameraMotionMarkRetime({
     ? runtime.plan.cast.find(track => track.actorId === selectedRuntimeMark.actorId) || null
     : null
   const selectedCastMark = selectedCastTrack?.marks.find(mark => selectedRuntimeMark?.kind === 'cast' && selectedRuntimeMark.markId === mark.id) || null
+  const selectedCastMarkIndex = selectedCastMark ? selectedCastTrack!.marks.findIndex(mark => mark.id === selectedCastMark.id) : -1
+  const selectedCameraMarkIndex = selectedCameraMark ? runtime.plan.camera.findIndex(mark => mark.id === selectedCameraMark.id) : -1
+  const renderSelectedMarkControls = (timeSeconds: number) => (
+    <section
+      className="xr-camera-motion-mark-selection-controls xr-camera-motion-mark-selection-controls--lane"
+      style={markEditorAxisStyle(timeSeconds, scaleDurationSeconds)}
+      aria-label="Selected choreography mark controls"
+      data-kg-xr-ruler-mark-editor={selectedCastMark ? 'cast' : 'camera'}
+      data-kg-xr-lane-mark-editor="anchored"
+      onPointerDown={event => event.stopPropagation()}
+      onClick={event => event.stopPropagation()}
+    >
+      <span className="xr-camera-motion-mark-selection-label">
+        {selectedCastMark ? `${selectedCastTrack!.label} · ${selectedCastMarkIndex + 1}` : `Camera · C${selectedCameraMarkIndex + 1}`}
+      </span>
+      {selectedCastMark ? (
+        <>
+          <TimeEditor compact label={`${selectedCastTrack!.label} mark ${selectedCastMarkIndex + 1} time`} value={selectedCastMark.timeSeconds} max={runtime.plan.durationSeconds} onChange={value => retimeXrMotionReferenceCastMark(selectedCastTrack!.actorId, selectedCastMark.id, value)} />
+          <XrChoreographyMarkControls compact target={{ kind: 'cast', actorId: selectedCastTrack!.actorId, mark: selectedCastMark }} warning={warnings.find(warning => warning.targetKind === 'cast' && warning.fromMarkId === selectedCastMark.id)} onChange={update => update.kind === 'cast' && setXrMotionReferenceCastMarkChoreography(update)} />
+          <button type="button" className="App-toolbar__btn p-0.5" disabled={selectedCastTrack!.marks.length <= 1} aria-label={`Remove ${selectedCastTrack!.label} mark ${selectedCastMarkIndex + 1}`} onClick={() => removeXrMotionReferenceCastMark(selectedCastTrack!.actorId, selectedCastMark.id)}><Trash2 className="size-3" aria-hidden /></button>
+        </>
+      ) : selectedCameraMark ? (
+        <>
+          <TimeEditor compact label={`Camera mark ${selectedCameraMarkIndex + 1} time`} value={selectedCameraMark.timeSeconds} max={runtime.plan.durationSeconds} onChange={value => retimeXrMotionReferenceCameraMark(selectedCameraMark.id, value)} />
+          <XrChoreographyMarkControls compact target={{ kind: 'camera', mark: selectedCameraMark }} warning={warnings.find(warning => warning.targetKind === 'camera' && warning.fromMarkId === selectedCameraMark.id)} onChange={update => update.easing && setXrMotionReferenceCameraMarkEasing(update.markId, update.easing)} />
+          <button type="button" className="App-toolbar__btn p-0.5" aria-label={`Remove camera mark ${selectedCameraMarkIndex + 1}`} onClick={() => removeXrMotionReferenceCameraMark(selectedCameraMark.id)}><Trash2 className="size-3" aria-hidden /></button>
+        </>
+      ) : null}
+    </section>
+  )
 
   if (layout === 'lane' && laneTarget?.kind === 'cast') {
     const track = runtime.plan.cast.find(candidate => candidate.actorId === laneTarget.actorId)
@@ -170,6 +208,7 @@ export function CameraMotionMarkRetime({
             </TimelineTransportTimeAxisMark>
           )
         })}
+        {selectedCastTrack?.actorId === track.actorId && selectedCastMark ? renderSelectedMarkControls(selectedCastMark.timeSeconds) : null}
       </section>
     )
   }
@@ -213,35 +252,8 @@ export function CameraMotionMarkRetime({
             </TimelineTransportTimeAxisMark>
           )
         })}
+        {selectedCameraMark ? renderSelectedMarkControls(selectedCameraMark.timeSeconds) : null}
         {runtime.plan.camera.length === 0 ? <span className="xr-camera-motion-retime-lane-empty">Camera → SHOOT adds marks</span> : null}
-      </section>
-    )
-  }
-
-  if (layout === 'controls') {
-    if (!selectedCastTrack && !selectedCameraMark) {
-      return <p className={cn('m-0 whitespace-nowrap text-[9px]', UI_THEME_TOKENS.text.tertiary)} data-kg-xr-ruler-mark-editor="empty">Select a ruler mark to edit.</p>
-    }
-    const castMarkIndex = selectedCastMark ? selectedCastTrack!.marks.findIndex(mark => mark.id === selectedCastMark.id) : -1
-    const cameraMarkIndex = selectedCameraMark ? runtime.plan.camera.findIndex(mark => mark.id === selectedCameraMark.id) : -1
-    return (
-      <section className="xr-camera-motion-mark-selection-controls" aria-label="Selected ruler mark controls" data-kg-xr-ruler-mark-editor={selectedCastMark ? 'cast' : 'camera'}>
-        <span className="xr-camera-motion-mark-selection-label">
-          {selectedCastMark ? `${selectedCastTrack!.label} · ${castMarkIndex + 1}` : `Camera · C${cameraMarkIndex + 1}`}
-        </span>
-        {selectedCastMark ? (
-          <>
-            <TimeEditor compact label={`${selectedCastTrack!.label} mark ${castMarkIndex + 1} time`} value={selectedCastMark.timeSeconds} max={runtime.plan.durationSeconds} onChange={value => retimeXrMotionReferenceCastMark(selectedCastTrack!.actorId, selectedCastMark.id, value)} />
-            <XrChoreographyMarkControls compact target={{ kind: 'cast', actorId: selectedCastTrack!.actorId, mark: selectedCastMark }} warning={warnings.find(warning => warning.targetKind === 'cast' && warning.fromMarkId === selectedCastMark.id)} onChange={update => update.kind === 'cast' && setXrMotionReferenceCastMarkChoreography(update)} />
-            <button type="button" className="App-toolbar__btn p-0.5" disabled={selectedCastTrack!.marks.length <= 1} aria-label={`Remove ${selectedCastTrack!.label} mark ${castMarkIndex + 1}`} onClick={() => removeXrMotionReferenceCastMark(selectedCastTrack!.actorId, selectedCastMark.id)}><Trash2 className="size-3" aria-hidden /></button>
-          </>
-        ) : selectedCameraMark ? (
-          <>
-            <TimeEditor compact label={`Camera mark ${cameraMarkIndex + 1} time`} value={selectedCameraMark.timeSeconds} max={runtime.plan.durationSeconds} onChange={value => retimeXrMotionReferenceCameraMark(selectedCameraMark.id, value)} />
-            <XrChoreographyMarkControls compact target={{ kind: 'camera', mark: selectedCameraMark }} warning={warnings.find(warning => warning.targetKind === 'camera' && warning.fromMarkId === selectedCameraMark.id)} onChange={update => update.easing && setXrMotionReferenceCameraMarkEasing(update.markId, update.easing)} />
-            <button type="button" className="App-toolbar__btn p-0.5" aria-label={`Remove camera mark ${cameraMarkIndex + 1}`} onClick={() => removeXrMotionReferenceCameraMark(selectedCameraMark.id)}><Trash2 className="size-3" aria-hidden /></button>
-          </>
-        ) : null}
       </section>
     )
   }

@@ -236,8 +236,6 @@ export function XrCameraMotionSection() {
                     {documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks · {speedWarnings.length ? `${speedWarnings.length} speed warnings` : 'speed sane'}
                   </p>
 
-                  <CameraMotionMarkRetime layout="controls" />
-
                   <label className="flex shrink-0 items-center gap-1 text-[10px]">
                     <span className={UI_THEME_TOKENS.text.tertiary}>Stage</span>
                     <PanelSelect
