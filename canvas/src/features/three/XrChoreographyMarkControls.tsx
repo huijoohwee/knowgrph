@@ -23,10 +23,11 @@ type Props = Readonly<{
     | Readonly<{ kind: 'camera'; mark: XrMotionReferenceCameraMark }>
   warning?: XrChoreographySpeedWarning
   compact?: boolean
+  showPosition?: boolean
   onChange: (update: XrChoreographyMarkUpdate) => void
 }>
 
-export function XrChoreographyMarkControls({ target, warning, compact = false, onChange }: Props) {
+export function XrChoreographyMarkControls({ target, warning, compact = false, showPosition = !compact, onChange }: Props) {
   const easing = target.kind === 'cast' ? target.mark.transition : target.mark.easing
   const selectClass = compact ? 'h-5 w-[76px] px-1 py-0 text-[9px]' : 'h-7 min-w-0 text-[10px]'
   return (
@@ -66,7 +67,33 @@ export function XrChoreographyMarkControls({ target, warning, compact = false, o
           </PanelSelect>
         </label>
       ) : null}
-      {!compact && target.kind === 'cast' ? (
+      {showPosition && target.kind === 'cast' ? compact ? (
+        <section className="flex min-w-0 items-center gap-1" aria-label="Cast mark position in meters" data-kg-xr-mark-position={target.mark.id} data-kg-xr-mark-position-layout="compact-timeline">
+          <span className={cn('whitespace-nowrap text-[8px]', UI_THEME_TOKENS.text.tertiary)}>XYZ m</span>
+          {(['X', 'Y', 'Z'] as const).map((axis, index) => (
+            <label key={axis} className="flex min-w-0 items-center gap-0.5 text-[8px]">
+              <span className={UI_THEME_TOKENS.text.tertiary}>{axis}</span>
+              <PanelTextInput
+                className="h-5 w-11 min-w-0 px-1 py-0 text-[9px]"
+                type="number"
+                min={-1000}
+                max={1000}
+                step={0.1}
+                value={target.mark.position[index]}
+                aria-label={`Cast mark ${axis} position in meters`}
+                data-kg-xr-mark-position-axis={axis.toLowerCase()}
+                onChange={event => {
+                  const value = Number(event.target.value)
+                  if (!Number.isFinite(value)) return
+                  const position = [...target.mark.position] as [number, number, number]
+                  position[index] = value
+                  onChange({ kind: 'cast', actorId: target.actorId, markId: target.mark.id, position })
+                }}
+              />
+            </label>
+          ))}
+        </section>
+      ) : (
         <fieldset className="grid min-w-[180px] flex-1 grid-cols-3 gap-1 border-0 p-0" data-kg-xr-mark-position={target.mark.id}>
           <legend className={cn('col-span-3 text-[9px]', UI_THEME_TOKENS.text.tertiary)}>Mark position · meters</legend>
           {(['X', 'Y', 'Z'] as const).map((axis, index) => (

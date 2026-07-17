@@ -53,7 +53,6 @@ import {
   xrMotionReferencePackageFilename,
 } from './xrMotionReferencePackage'
 import { XrChoreographyInspector } from './XrChoreographyInspector'
-import type { XrChoreographyMarkUpdate } from './XrChoreographyMarkControls'
 
 const PRESET_ICON_BY_ID: Readonly<Record<XrAnimationPreset['id'], LucideIcon>> = {
   fight: Swords,
@@ -216,17 +215,6 @@ export function XrAnimationFloatingPanelView() {
     downloadBlob(xrMotionReferencePackageBlob(result.package), xrMotionReferencePackageFilename(result.package))
   }, [toastResult])
 
-  const configureMark = React.useCallback((update: XrChoreographyMarkUpdate) => {
-    toastResult(controlLocalAnimation({
-      operation: 'configure-mark',
-      markKind: update.kind,
-      markId: update.markId,
-      targetId: update.kind === 'cast' ? update.actorId : 'camera',
-      easing: update.easing,
-      ...(update.kind === 'cast' ? { gait: update.gait, position: update.position } : {}),
-    }))
-  }, [toastResult])
-
   const panelDisabled = !sceneReady || !selectedActorId
   return (
     <section className={floatingPanelCatalogSurfaceClassName()} aria-label="Animation" data-kg-animation-floating-panel="1" data-kg-animation-mcp="knowgrph.control_local_animation" data-kg-animation-catalog-hydration={grammar.hydration.status}>
@@ -259,7 +247,6 @@ export function XrAnimationFloatingPanelView() {
           invocationReady={animationInspection.catalog.canonical && grammar.hydration.status === 'fresh'}
           runtime={runtime}
           selectedActorId={selectedActorId}
-          onChange={configureMark}
         />
         {visibleCharacter.length ? <section className="grid gap-2" aria-label="Character motions" data-kg-animation-group="character-motion"><header className="flex items-center justify-between"><h2 className="text-[11px] font-semibold uppercase">Character motions</h2><output className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{visibleCharacter.length}</output></header><PresetGroup collapsedKeys={collapsedKeys} disabled={panelDisabled} onApply={applyPreset} onToggle={setCollapsed} presets={visibleCharacter} runtime={runtime} selectedActorId={selectedActorId} /></section> : null}
         {visiblePaths.length ? <section className="grid gap-2" aria-label="Action paths" data-kg-animation-group="action-path"><header className="flex items-center justify-between"><h2 className="text-[11px] font-semibold uppercase">Action paths</h2><output className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{visiblePaths.length}</output></header><PresetGroup collapsedKeys={collapsedKeys} disabled={panelDisabled} onApply={applyPreset} onToggle={setCollapsed} presets={visiblePaths} runtime={runtime} selectedActorId={selectedActorId} /></section> : null}

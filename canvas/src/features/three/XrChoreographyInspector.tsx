@@ -13,10 +13,34 @@ import {
   selectXrMotionReferenceCastMark,
   type XrMotionReferenceRuntimeSnapshot,
 } from './xrMotionReferenceRuntime'
-import {
-  XrChoreographyMarkControls,
-  type XrChoreographyMarkUpdate,
-} from './XrChoreographyMarkControls'
+
+function MarkParameterChips({ target }: { target: 'cast' | 'camera' }) {
+  const chips = [
+    { sigil: '/', label: 'Command parameter' },
+    { sigil: '#', label: target === 'cast' ? 'Action-path parameter' : 'Camera parameter' },
+    { sigil: '@', label: target === 'cast' ? 'Selected-actor parameter' : 'Camera target parameter' },
+  ] as const
+  return (
+    <section
+      className="flex min-w-0 items-center gap-1"
+      aria-label={`${target === 'cast' ? 'Cast' : 'Camera'} mark parameters supported in BottomPanel Timeline`}
+      data-kg-xr-mark-parameter-chips={target}
+    >
+      <span className={cn('mr-auto truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)}>Edit parameters in Timeline</span>
+      {chips.map(chip => (
+        <span
+          key={chip.sigil}
+          className={cn('grid size-5 shrink-0 place-items-center rounded border font-mono text-[10px] font-semibold', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.secondary)}
+          title={`${chip.label} · supported by BottomPanel Timeline mark control`}
+          aria-label={chip.label}
+          data-kg-xr-mark-parameter-sigil={chip.sigil}
+        >
+          {chip.sigil}
+        </span>
+      ))}
+    </section>
+  )
+}
 
 function ChoreographyCard({
   Icon,
@@ -82,7 +106,6 @@ export function XrChoreographyInspector({
   invocationReady,
   runtime,
   selectedActorId,
-  onChange,
 }: {
   cameraInvocation: string
   castInvocation: string
@@ -90,7 +113,6 @@ export function XrChoreographyInspector({
   invocationReady: boolean
   runtime: XrMotionReferenceRuntimeSnapshot
   selectedActorId: string
-  onChange: (update: XrChoreographyMarkUpdate) => void
 }) {
   const warnings = React.useMemo(() => resolveXrChoreographySpeedWarnings(runtime.plan), [runtime.plan])
   const track = runtime.plan.cast.find(candidate => candidate.actorId === selectedActorId) || null
@@ -99,8 +121,6 @@ export function XrChoreographyInspector({
     && runtime.selectedMark.markId === mark.id) || track?.marks[0]
   const cameraMark = runtime.plan.camera.find(mark => runtime.selectedMark?.kind === 'camera'
     && runtime.selectedMark.markId === mark.id) || runtime.plan.camera[0]
-  const castWarning = castMark ? warnings.find(warning => warning.targetKind === 'cast' && warning.fromMarkId === castMark.id) : undefined
-  const cameraWarning = cameraMark ? warnings.find(warning => warning.targetKind === 'camera' && warning.fromMarkId === cameraMark.id) : undefined
   const castMarkIndex = castMark ? track?.marks.findIndex(mark => mark.id === castMark.id) ?? -1 : -1
   const cameraMarkIndex = cameraMark ? runtime.plan.camera.findIndex(mark => mark.id === cameraMark.id) : -1
   const projectedCastInvocation = castMark
@@ -140,7 +160,7 @@ export function XrChoreographyInspector({
           Icon={Footprints}
           target="cast"
           title={track.label}
-          description="Editable cast path. Select a mark, then tune easing and gait."
+          description="Select a mark here; edit time, easing, gait, and XYZ in BottomPanel Timeline."
           invocation={projectedCastInvocation}
           metadata={`${track.marks.length} mark${track.marks.length === 1 ? '' : 's'} · mark ${castMarkIndex + 1} · ${castMark.timeSeconds}s`}
           footer={(
@@ -151,17 +171,19 @@ export function XrChoreographyInspector({
             </>
           )}
         >
-          <XrChoreographyMarkControls target={{ kind: 'cast', actorId: track.actorId, mark: castMark }} warning={castWarning} onChange={onChange} />
+          <MarkParameterChips target="cast" />
         </ChoreographyCard>
       ) : (
-        <ChoreographyCard Icon={Footprints} target="cast" title="Cast path" description="Select a cast actor to edit its path choreography." invocation={castInvocation || controlTool} metadata="No cast target selected" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Choose a cast target above.</span>} />
+        <ChoreographyCard Icon={Footprints} target="cast" title="Cast path" description="Select a cast actor to edit its path choreography." invocation={castInvocation || controlTool} metadata="No cast target selected" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Choose a cast target above.</span>}>
+          <MarkParameterChips target="cast" />
+        </ChoreographyCard>
       )}
       {cameraMark ? (
         <ChoreographyCard
           Icon={Camera}
           target="camera"
           title="Camera path"
-          description="Select a camera mark and tune easing here; edit framing in Camera → SHOOT."
+          description="Select a mark here; edit time and easing in BottomPanel Timeline. Frame in Camera → SHOOT."
           invocation={projectedCameraInvocation}
           metadata={`${runtime.plan.camera.length} mark${runtime.plan.camera.length === 1 ? '' : 's'} · ${cameraMark.rig} · mark ${cameraMarkIndex + 1} · ${cameraMark.timeSeconds}s`}
           footer={(
@@ -172,10 +194,12 @@ export function XrChoreographyInspector({
             </>
           )}
         >
-          <XrChoreographyMarkControls target={{ kind: 'camera', mark: cameraMark }} warning={cameraWarning} onChange={onChange} />
+          <MarkParameterChips target="camera" />
         </ChoreographyCard>
       ) : (
-        <ChoreographyCard Icon={Camera} target="camera" title="Camera path" description="Add camera marks in Camera → SHOOT; they share this easing model." invocation={cameraInvocation || controlTool} metadata="0 marks · Timeline owns time" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>No camera marks yet.</span>} />
+        <ChoreographyCard Icon={Camera} target="camera" title="Camera path" description="Add camera marks in Camera → SHOOT; edit them in BottomPanel Timeline." invocation={cameraInvocation || controlTool} metadata="0 marks · Timeline owns time" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>No camera marks yet.</span>}>
+          <MarkParameterChips target="camera" />
+        </ChoreographyCard>
       )}
     </section>
   )
