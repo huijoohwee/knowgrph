@@ -10,6 +10,7 @@ import { getLocalStorage, resolveBrowserStorageKey } from '@/lib/persistence'
 import { applyThemeMode, getInitialThemeMode } from '@/lib/ui/theme'
 import { ensureWorkspaceLayoutTokensInstalled } from '@/lib/workspace/workspaceLayoutSettings'
 import { KnowgrphRuntimeIdentityRuntime } from '@/features/runtime-identity/KnowgrphRuntimeIdentityRuntime'
+import { XrMotionReferenceRuntimeBridge } from '@/features/three/XrMotionReferenceRuntimeBridge'
 
 const PerformanceAutomationReadoutLazy = lazy(async () => ({
   default: (await import('@/features/canvas/PerformanceAutomationReadout')).PerformanceAutomationReadout,
@@ -187,6 +188,7 @@ export default function App() {
     <Router basename={basename}>
       <AppThemeRuntime />
       <KnowgrphRuntimeIdentityRuntime />
+      <XrMotionReferenceRuntimeBridge />
       <CanvasRouteRuntime />
       {performanceAutomationReadoutEnabled ? (
         <Suspense fallback={null}>

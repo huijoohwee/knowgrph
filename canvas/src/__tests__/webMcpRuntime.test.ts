@@ -101,6 +101,8 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
   const previousThreeCameraSnapshotFns = useGraphStore.getState().threeCameraSnapshotFns
   const previousThreeLayoutSnapshotFns = useGraphStore.getState().threeLayoutSnapshotFns
   const previousCanvas3dMode = useGraphStore.getState().canvas3dMode
+  const previousFloatingPanelOpen = useGraphStore.getState().floatingPanelOpen
+  const previousFloatingPanelView = useGraphStore.getState().floatingPanelView
   const previousBottomSurfaceTab = useGraphStore.getState().bottomSurfaceTab
   const previousBottomSurfaceCollapsed = useGraphStore.getState().bottomSurfaceCollapsed
   const previousViewPinned = useGraphStore.getState().viewPinned
@@ -181,11 +183,13 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const controlLocalXrSceneTool = registeredTools.get('knowgrph.control_local_xr_scene')
     const inspectLocalCameraTool = registeredTools.get('knowgrph.inspect_local_camera')
     const controlLocalCameraTool = registeredTools.get('knowgrph.control_local_camera')
+    const inspectLocalAnimationTool = registeredTools.get('knowgrph.inspect_local_animation')
+    const controlLocalAnimationTool = registeredTools.get('knowgrph.control_local_animation')
     const inspectLocal2dZoomViewportTool = registeredTools.get('knowgrph.inspect_local_2d_zoom_viewport')
     const inspectLocalSourceFilesSnapshotTool = registeredTools.get('knowgrph.inspect_local_source_files_snapshot')
     const readLocalRuntimeIdentityTool = registeredTools.get('knowgrph.read_local_runtime_identity')
     const inspectTool = registeredTools.get('knowgrph.inspect_agent_surface')
-    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalSettingsChatReadinessTool || !inspectLocalMainPanelTool || !inspectLocalEditorWorkspaceTool || !inspectLocalChatPipelineTool || !inspectLocalPipelineTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectLocalXrSceneAssetsTool || !controlLocalXrSceneTool || !inspectLocalCameraTool || !controlLocalCameraTool || !inspectLocal2dZoomViewportTool || !inspectLocalSourceFilesSnapshotTool || !readLocalRuntimeIdentityTool || !inspectTool) {
+    if (!listTool || !readTool || !readSharedTool || !inspectSharedDocumentTool || !inspectLocalSettingsChatReadinessTool || !inspectLocalMainPanelTool || !inspectLocalEditorWorkspaceTool || !inspectLocalChatPipelineTool || !inspectLocalPipelineTool || !inspectLocalDocumentTool || !inspectLocalCanvasTool || !inspectLocalCanvasSnapshotTool || !inspectLocal3dCameraPoseTool || !inspectLocal3dLayoutPositionsTool || !inspectLocalXrSceneAssetsTool || !controlLocalXrSceneTool || !inspectLocalCameraTool || !controlLocalCameraTool || !inspectLocalAnimationTool || !controlLocalAnimationTool || !inspectLocal2dZoomViewportTool || !inspectLocalSourceFilesSnapshotTool || !readLocalRuntimeIdentityTool || !inspectTool) {
       throw new Error(`expected all WebMCP tools to be registered, got ${Array.from(registeredTools.keys()).join(', ')}`)
     }
 
@@ -223,6 +227,8 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       selectedNodeId: 'start',
       selectedEdgeId: 'edge-1',
       canvas3dMode: 'xr',
+      floatingPanelOpen: false,
+      floatingPanelView: 'media',
       viewPinned: true,
       fitToScreenMode: false,
       zoomToSelectionMode: false,
@@ -295,9 +301,14 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const localCanvasTopology = await inspectLocalCanvasTool.execute()
     const localCanvasSnapshot = await inspectLocalCanvasSnapshotTool.execute()
     const localXrSceneAssets = await inspectLocalXrSceneAssetsTool.execute()
-    const localXrSceneControl = await controlLocalXrSceneTool.execute({ invocation: '/xr.place @person-adult #travel', label: 'MCP CAST' })
+    const invalidXrSceneBinding = await controlLocalXrSceneTool.execute({ invocation: '/xr.place @person-adult @vehicle-sedan transition=linear' })
+    const invalidXrSceneTransition = await controlLocalXrSceneTool.execute({ invocation: '/xr.place @person-adult transition=teleport' })
+    const invalidXrScenePair = await controlLocalXrSceneTool.execute({ invocation: '/xr.stage @neutral-volume foo=bar' })
+    const localXrSceneControl = await controlLocalXrSceneTool.execute({ action: 'place', assetId: 'person-adult', transition: 'linear', label: 'MCP CAST' })
     const localCamera = await inspectLocalCameraTool.execute()
-    const localCameraControl = await controlLocalCameraTool.execute({ invocation: '/camera.frame @camera #right-side #high-angle #close-up #85mm' })
+    const localCameraControl = await controlLocalCameraTool.execute({ action: 'frame', targetId: 'camera', angle: 'right-side', level: 'high-angle', shot: 'close-up', focalLengthMm: 85 })
+    const localAnimationControl = await controlLocalAnimationTool.execute({ operation: 'apply', trackKind: 'character-motion', presetId: 'dance', targetId: 'start' })
+    const localAnimation = await inspectLocalAnimationTool.execute()
     useGraphStore.setState({ canvasRenderMode: '3d' } as never)
     const localThreeCameraPose = await inspectLocal3dCameraPoseTool.execute()
     const localThreeLayoutPositions = await inspectLocal3dLayoutPositionsTool.execute()
@@ -435,18 +446,38 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if ((localThreeLayoutPositions as { samplePositions?: Array<{ id?: unknown }> }).samplePositions?.[0]?.id !== 'alpha') {
       throw new Error(`expected inspect_local_3d_layout_positions to sort sampled positions deterministically, got ${JSON.stringify(localThreeLayoutPositions)}`)
     }
-    if ((localXrSceneAssets as { assets?: unknown[] }).assets?.length !== 15 || (localXrSceneAssets as { environments?: unknown[] }).environments?.length !== 10) {
+    if ((localXrSceneAssets as { assets?: unknown[] }).assets?.length !== 18 || (localXrSceneAssets as { environments?: unknown[] }).environments?.length !== 10) {
       throw new Error(`expected XR WebMCP inspection to list native environments and assets, got ${JSON.stringify(localXrSceneAssets)}`)
     }
-    if ((localXrSceneControl as { ok?: unknown }).ok !== true || (localXrSceneControl as { scene?: { runtime?: { subjects?: Array<{ label?: unknown; motion?: unknown }> } } }).scene?.runtime?.subjects?.at(-1)?.label !== 'MCP CAST' || (localXrSceneControl as { scene?: { runtime?: { subjects?: Array<{ label?: unknown; motion?: unknown }> } } }).scene?.runtime?.subjects?.at(-1)?.motion !== 'travel') {
-      throw new Error(`expected / @ # XR WebMCP control to place animated cast, got ${JSON.stringify(localXrSceneControl)}`)
+    if ((localXrSceneControl as { ok?: unknown }).ok !== true || (localXrSceneControl as { scene?: { runtime?: { subjects?: Array<{ label?: unknown; transition?: unknown }> } } }).scene?.runtime?.subjects?.at(-1)?.label !== 'MCP CAST' || (localXrSceneControl as { scene?: { runtime?: { subjects?: Array<{ label?: unknown; transition?: unknown }> } } }).scene?.runtime?.subjects?.at(-1)?.transition !== 'linear') {
+      throw new Error(`expected structured XR WebMCP control to place cast with typed interpolation, got ${JSON.stringify(localXrSceneControl)}`)
+    }
+    if ((invalidXrSceneBinding as { ok?: unknown }).ok !== false
+      || (invalidXrSceneTransition as { ok?: unknown }).ok !== false
+      || (invalidXrScenePair as { ok?: unknown }).ok !== false) {
+      throw new Error('expected XR invocation parsing to reject duplicate bindings, invalid transitions, and unknown fields')
     }
     if ((localCamera as { schema?: unknown }).schema !== 'knowgrph-shared-camera-mcp/v1') {
       throw new Error(`expected Camera WebMCP inspection to expose the shared Camera schema, got ${JSON.stringify(localCamera)}`)
     }
     const controlledCamera = localCameraControl as { ok?: unknown; action?: unknown; camera?: { framing?: { settings?: { angle?: unknown; level?: unknown; shot?: unknown; focalLengthMm?: unknown } }; surface?: { cameraPanelOpen?: unknown } } }
-    if (controlledCamera.ok !== true || controlledCamera.action !== 'frame' || controlledCamera.camera?.framing?.settings?.angle !== 'right-side' || controlledCamera.camera.framing.settings.level !== 'high-angle' || controlledCamera.camera.framing.settings.shot !== 'close-up' || controlledCamera.camera.framing.settings.focalLengthMm !== 85 || controlledCamera.camera.surface?.cameraPanelOpen !== true) {
-      throw new Error(`expected / @ # Camera WebMCP control to frame and open the shared Camera surface, got ${JSON.stringify(localCameraControl)}`)
+    if (controlledCamera.ok !== true || controlledCamera.action !== 'frame' || controlledCamera.camera?.framing?.settings?.angle !== 'right-side' || controlledCamera.camera.framing.settings.level !== 'high-angle' || controlledCamera.camera.framing.settings.shot !== 'close-up' || controlledCamera.camera.framing.settings.focalLengthMm !== 85 || controlledCamera.camera.surface?.cameraPanelOpen !== false) {
+      throw new Error(`expected structured Camera WebMCP control to frame without ejecting the active panel, got ${JSON.stringify(localCameraControl)}`)
+    }
+    const animationInspection = localAnimation as { schema?: unknown; presets?: unknown[]; runtime?: { cast?: Array<{ actorId?: unknown; animation?: { presetId?: unknown } }> } }
+    const animationControl = localAnimationControl as { ok?: unknown; targetId?: unknown; scene?: { runtime?: { cast?: Array<{ actorId?: unknown; animation?: { presetId?: unknown } }> } } }
+    const animationState = useGraphStore.getState()
+    if (animationInspection.schema !== 'knowgrph-xr-animation-mcp/v1'
+      || animationInspection.presets?.length !== 11
+      || animationInspection.runtime?.cast?.find(track => track.actorId === 'start')?.animation?.presetId !== 'dance'
+      || animationControl.ok !== true
+      || animationControl.targetId !== 'start'
+      || animationControl.scene?.runtime?.cast?.find(track => track.actorId === 'start')?.animation?.presetId !== 'dance'
+      || animationState.floatingPanelOpen !== true
+      || animationState.floatingPanelView !== 'animation'
+      || animationState.bottomSurfaceCollapsed !== false
+      || animationState.bottomSurfaceTab !== 'timeline') {
+      throw new Error(`expected Animation WebMCP inspect/control to apply native dance choreography and reveal its runtime, got ${JSON.stringify({ localAnimation, localAnimationControl })}`)
     }
     if ((local2dZoomViewport as { available?: unknown }).available !== true) {
       throw new Error(`expected inspect_local_2d_zoom_viewport to report available zoom state, got ${JSON.stringify(local2dZoomViewport)}`)
@@ -529,6 +560,8 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       threeCameraSnapshotFns: previousThreeCameraSnapshotFns,
       threeLayoutSnapshotFns: previousThreeLayoutSnapshotFns,
       canvas3dMode: previousCanvas3dMode,
+      floatingPanelOpen: previousFloatingPanelOpen,
+      floatingPanelView: previousFloatingPanelView,
       bottomSurfaceTab: previousBottomSurfaceTab,
       bottomSurfaceCollapsed: previousBottomSurfaceCollapsed,
       viewPinned: previousViewPinned,

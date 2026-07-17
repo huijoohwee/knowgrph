@@ -15,6 +15,7 @@ import {
   type XrMotionReferencePlan,
   type XrMotionReferenceVector,
 } from '@/features/three/xrMotionReferenceModel'
+import { resolveXrAnimationPreset, sampleXrAnimationPose } from '@/features/three/xrAnimationCatalog'
 
 function round(value: number, places = 4): number {
   const scale = 10 ** places
@@ -96,7 +97,8 @@ function buildGeneratorBrief(plan: XrMotionReferencePlan): string {
   const stage = resolveXrMotionReferenceStage(plan.stageId)
   const castLines = plan.cast.map(track => {
     const marks = track.marks.map(mark => `${mark.timeSeconds}s (${mark.position.join(', ')}) [${mark.transition}]`).join(' → ')
-    return `- ${track.label}: ${marks}`
+    const animation = track.animation ? `; performance ${resolveXrAnimationPreset(track.animation.presetId).label} [${track.animation.kind}]` : ''
+    return `- ${track.label}: ${marks}${animation}`
   })
   const cameraLines = plan.camera.map(mark => `- ${mark.timeSeconds}s: ${mark.rig} rig, ${mark.settings.focalLengthMm}mm, ${mark.settings.shot}, ${mark.settings.angle}, ${mark.settings.level}; position (${mark.pose.position.join(', ')})`)
   const subjectLines = plan.subjects.map(subject => `- ${subject.label} [${subject.category}/${subject.assetId}] at (${subject.position.join(', ')})`)
@@ -128,10 +130,10 @@ function buildMotionSamples(plan: XrMotionReferencePlan): unknown[] {
       camera: sampleXrMotionReferenceCameraPose(plan.camera, timeSeconds),
       cameraRig: sampleXrMotionReferenceCameraRig(plan.camera, timeSeconds),
       cameraLensMm: sampleXrMotionReferenceCameraSettings(plan.camera, timeSeconds)?.focalLengthMm || 50,
-      cast: plan.cast.map(track => ({ actorId: track.actorId, position: sampleXrMotionReferenceMarks(track.marks, timeSeconds) })),
+      cast: plan.cast.map(track => ({ actorId: track.actorId, position: sampleXrMotionReferenceMarks(track.marks, timeSeconds), animation: track.animation, pose: sampleXrAnimationPose(track.animation, timeSeconds) })),
       subjects: plan.subjects.map(subject => {
         const track = plan.cast.find(candidate => candidate.actorId === subject.id)
-        return { id: subject.id, assetId: subject.assetId, label: subject.label, position: track ? sampleXrMotionReferenceMarks(track.marks, timeSeconds) : subject.position }
+        return { id: subject.id, assetId: subject.assetId, label: subject.label, position: track ? sampleXrMotionReferenceMarks(track.marks, timeSeconds) : subject.position, animation: track?.animation || null, pose: sampleXrAnimationPose(track?.animation || null, timeSeconds) }
       }),
     }
   })
@@ -156,6 +158,7 @@ export function buildXrMotionReferencePackage(args: { plan: XrMotionReferencePla
     castTracks: plan.cast.length,
     placedSubjects: plan.subjects.length,
     cameraMarks: plan.camera.length,
+    animationTracks: plan.cast.filter(track => track.animation).length,
     coordinateSystem: 'right-handed-y-up-meters',
     interpolation: 'bounded-linear-with-holds',
     graphFingerprint: fingerprint,

@@ -18,18 +18,37 @@ import {
   readXrMotionReferenceRuntime,
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
+import { xrChoreographyCanDriveCamera } from './xrCameraControlOwnership'
+
+type CameraPlaybackReapplyListener = () => void
+const cameraPlaybackReapplyListeners = new Set<CameraPlaybackReapplyListener>()
+let cameraPlaybackReapplyRevision = 0
+
+const subscribeCameraPlaybackReapply = (listener: CameraPlaybackReapplyListener): (() => void) => {
+  cameraPlaybackReapplyListeners.add(listener)
+  return () => cameraPlaybackReapplyListeners.delete(listener)
+}
+
+const readCameraPlaybackReapplyRevision = (): number => cameraPlaybackReapplyRevision
+
+export function requestXrMotionReferenceCameraPlaybackReapply(): void {
+  cameraPlaybackReapplyRevision += 1
+  for (const listener of [...cameraPlaybackReapplyListeners]) listener()
+}
 
 export function useXrMotionReferenceCameraPlayback({
   camera,
   controls,
   mode,
   paused,
+  playing,
   xrEmptyWorld,
 }: {
   camera: PerspectiveCamera
   controls: OrbitControls
   mode: Canvas3dModeId
   paused: boolean
+  playing: boolean
   xrEmptyWorld: boolean
 }) {
   const runtime = React.useSyncExternalStore(
@@ -37,9 +56,15 @@ export function useXrMotionReferenceCameraPlayback({
     readXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
   )
+  const reapplyRevision = React.useSyncExternalStore(
+    subscribeCameraPlaybackReapply,
+    readCameraPlaybackReapplyRevision,
+    readCameraPlaybackReapplyRevision,
+  )
+  const previousPlayingRef = React.useRef(playing)
 
-  React.useEffect(() => {
-    if (paused || mode !== 'xr' || xrEmptyWorld || runtime.plan.camera.length === 0) return
+  const applyTrackedPose = React.useCallback(() => {
+    if (paused || !xrChoreographyCanDriveCamera({ mode, xrEmptyWorld, cameraMarkCount: runtime.plan.camera.length })) return
     const pose = sampleXrMotionReferenceCameraPose(runtime.plan.camera, runtime.playheadSeconds)
     const settings = sampleXrMotionReferenceCameraSettings(runtime.plan.camera, runtime.playheadSeconds)
     if (!pose || !settings) return
@@ -57,4 +82,14 @@ export function useXrMotionReferenceCameraPlayback({
       minimumY: XR_MOTION_STAGE_MIN_CAMERA_Y,
     })
   }, [camera, controls, mode, paused, runtime.plan.camera, runtime.plan.stageId, runtime.playheadSeconds, xrEmptyWorld])
+
+  React.useEffect(() => {
+    applyTrackedPose()
+  }, [applyTrackedPose, reapplyRevision])
+
+  React.useEffect(() => {
+    const playbackStarted = playing && !previousPlayingRef.current
+    previousPlayingRef.current = playing
+    if (playbackStarted) applyTrackedPose()
+  }, [applyTrackedPose, playing])
 }

@@ -88,6 +88,7 @@ export const createUiInitialState = (
         const next =
           view === 'skillsCommands' || view === 'promptPresets'
           || view === 'media'
+          || view === 'animation'
           || view === 'view'
           || view === 'camera'
           || view === 'design'

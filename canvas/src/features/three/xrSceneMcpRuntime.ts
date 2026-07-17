@@ -3,7 +3,6 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
   serializeXrMotionReferencePlan,
-  xrMotionReferenceSceneKey,
   type XrMotionReferenceTransition,
 } from './xrMotionReferenceModel'
 import {
@@ -14,25 +13,24 @@ import {
 } from './xrSceneLibrary'
 import {
   addXrMotionReferenceSubject,
-  hydrateXrMotionReferenceRuntime,
   markXrMotionReferenceSaved,
   readXrMotionReferenceRuntime,
   removeXrMotionReferenceSubject,
-  setXrMotionReferenceCastMotion,
+  setXrMotionReferenceCastTransition,
   setXrMotionReferenceStage,
   setXrMotionReferenceSubjectLabel,
 } from './xrMotionReferenceRuntime'
+import { hydrateCanonicalXrMotionReferenceRuntime } from './XrMotionReferenceRuntimeBridge'
 import {
   XR_SCENE_INVOCATION_COMMANDS,
   XR_SCENE_MCP_SCHEMA,
   XR_SCENE_WEB_MCP_TOOL_IDS,
-  buildXrAnimateInvocation,
   buildXrPlaceInvocation,
   buildXrStageInvocation,
 } from './xrSceneMcpContract.mjs'
 
-export type XrSceneAnimation = 'travel' | 'hold'
-export type XrSceneControlAction = 'stage' | 'place' | 'animate' | 'label' | 'remove'
+export type XrSceneTransition = XrMotionReferenceTransition
+export type XrSceneControlAction = 'stage' | 'place' | 'transition' | 'label' | 'remove'
 
 export type XrSceneControlInput = Readonly<{
   invocation?: string
@@ -41,7 +39,7 @@ export type XrSceneControlInput = Readonly<{
   assetId?: string
   subjectId?: string
   label?: string
-  motion?: XrSceneAnimation
+  transition?: XrSceneTransition
 }>
 
 type NormalizedXrSceneControl = Readonly<{
@@ -50,7 +48,7 @@ type NormalizedXrSceneControl = Readonly<{
   assetId: string
   subjectId: string
   label: string
-  motion: XrSceneAnimation
+  transition: XrSceneTransition
   invocation: string
 }>
 
@@ -62,36 +60,73 @@ export type XrSceneControlResult = Readonly<{
   scene?: ReturnType<typeof inspectLocalXrSceneAssets>
 }>
 
-const asMotion = (value: unknown): XrSceneAnimation => String(value || '').trim().replace(/^#+/, '') === 'hold' ? 'hold' : 'travel'
-const asTransition = (motion: XrSceneAnimation): XrMotionReferenceTransition => motion === 'hold' ? 'hold' : 'linear'
+const asTransition = (value: unknown): XrSceneTransition | null => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return 'linear'
+  return normalized === 'linear' || normalized === 'hold' ? normalized : null
+}
 const cleanTarget = (value: unknown): string => String(value || '').trim().replace(/^@+/, '')
+
+function parsePairs(tokens: readonly string[], allowedKeys: readonly string[]): Readonly<Record<string, string>> | null {
+  const entries: Array<readonly [string, string]> = []
+  const seen = new Set<string>()
+  for (const token of tokens) {
+    const separator = token.indexOf('=')
+    if (separator <= 0 || separator === token.length - 1) return null
+    const key = token.slice(0, separator)
+    const value = token.slice(separator + 1)
+    if (!allowedKeys.includes(key) || seen.has(key)) return null
+    seen.add(key)
+    entries.push([key, value])
+  }
+  return Object.freeze(Object.fromEntries(entries))
+}
 
 function parseXrSceneInvocation(invocationValue: unknown): Partial<NormalizedXrSceneControl> | null {
   const invocation = String(invocationValue || '').trim()
   if (!invocation) return null
   const tokens = invocation.split(/\s+/).filter(Boolean)
   const command = tokens[0]
-  const target = cleanTarget(tokens.find(token => token.startsWith('@')) || '')
-  const motion = asMotion(tokens.find(token => token === '#hold' || token === '#travel'))
-  if (command === XR_SCENE_INVOCATION_COMMANDS.stage) return { action: 'stage', stageId: target, invocation, motion }
-  if (command === XR_SCENE_INVOCATION_COMMANDS.place) return { action: 'place', assetId: target, invocation, motion }
-  if (command === XR_SCENE_INVOCATION_COMMANDS.animate) return { action: 'animate', subjectId: target, invocation, motion }
-  if (command === XR_SCENE_INVOCATION_COMMANDS.label) return { action: 'label', subjectId: target, invocation, motion }
-  if (command === XR_SCENE_INVOCATION_COMMANDS.remove) return { action: 'remove', subjectId: target, invocation, motion }
-  return null
+  const action = command === XR_SCENE_INVOCATION_COMMANDS.stage
+    ? 'stage'
+    : command === XR_SCENE_INVOCATION_COMMANDS.place
+      ? 'place'
+      : command === XR_SCENE_INVOCATION_COMMANDS.label
+        ? 'label'
+        : command === XR_SCENE_INVOCATION_COMMANDS.remove
+          ? 'remove'
+          : null
+  if (!action || tokens.slice(1).some(token => token.startsWith('/') || token.startsWith('#'))) return null
+  const bindings = tokens.slice(1).filter(token => token.startsWith('@'))
+  if (bindings.length !== 1) return null
+  const target = cleanTarget(bindings[0])
+  if (!target) return null
+  const allowedPairKeys = action === 'place' ? ['transition', 'label'] : action === 'label' ? ['label'] : []
+  const pairs = parsePairs(tokens.slice(1).filter(token => !token.startsWith('@')), allowedPairKeys)
+  if (!pairs) return null
+  const transition = asTransition(pairs.transition)
+  if (!transition || (action === 'label' && !String(pairs.label || '').trim())) return null
+  const label = String(pairs.label || '').trim().slice(0, 80)
+  if (action === 'stage') return { action, stageId: target, invocation, transition }
+  if (action === 'place') return { action, assetId: target, invocation, transition, label }
+  return { action, subjectId: target, invocation, transition, label }
 }
 
 function normalizeXrSceneControl(input: XrSceneControlInput): NormalizedXrSceneControl | null {
-  const parsed = parseXrSceneInvocation(input.invocation)
+  const invocation = String(input.invocation || '').trim()
+  const parsed = parseXrSceneInvocation(invocation)
+  if (invocation && !parsed) return null
   const action = (parsed?.action || input.action) as XrSceneControlAction | undefined
-  if (!action || !['stage', 'place', 'animate', 'label', 'remove'].includes(action)) return null
+  if (!action || !['stage', 'place', 'transition', 'label', 'remove'].includes(action)) return null
+  const transition = asTransition(parsed?.transition ?? input.transition)
+  if (!transition) return null
   return {
     action,
     stageId: cleanTarget(parsed?.stageId || input.stageId),
     assetId: cleanTarget(parsed?.assetId || input.assetId),
     subjectId: cleanTarget(parsed?.subjectId || input.subjectId),
-    label: String(input.label || '').trim().slice(0, 80),
-    motion: asMotion(parsed?.motion || input.motion),
+    label: String(parsed?.label || input.label || '').trim().slice(0, 80),
+    transition,
     invocation: String(parsed?.invocation || input.invocation || '').trim(),
   }
 }
@@ -106,14 +141,7 @@ function sceneDocumentReady(): boolean {
 }
 
 function hydrateActiveXrScene(): boolean {
-  const state = useGraphStore.getState()
-  if (!sceneDocumentReady() || !state.graphData) return false
-  hydrateXrMotionReferenceRuntime({
-    sceneKey: xrMotionReferenceSceneKey(state.markdownDocumentName || 'Untitled', state.graphData),
-    nodes: state.graphData.nodes,
-    persistedValue: state.graphData.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY],
-  })
-  return true
+  return sceneDocumentReady() && hydrateCanonicalXrMotionReferenceRuntime()
 }
 
 function persistAndActivateXrScene(): boolean {
@@ -129,8 +157,10 @@ function persistAndActivateXrScene(): boolean {
     setCanvas3dMode: nextState.setCanvas3dMode,
     setCanvasRenderMode: nextState.setCanvasRenderMode,
   })
-  nextState.setFloatingPanelView('camera')
-  nextState.setFloatingPanelOpen(true)
+  if (!nextState.floatingPanelOpen) {
+    nextState.setFloatingPanelView('media')
+    nextState.setFloatingPanelOpen(true)
+  }
   nextState.setBottomSurfaceTab('timeline')
   nextState.setBottomSurfaceCollapsed(false)
   return true
@@ -147,8 +177,9 @@ export function inspectLocalXrSceneAssets() {
     sceneReady: sceneDocumentReady(),
     invocationGrammar: {
       stage: `${XR_SCENE_INVOCATION_COMMANDS.stage} @environment`,
-      place: `${XR_SCENE_INVOCATION_COMMANDS.place} @asset #travel|#hold`,
-      animate: `${XR_SCENE_INVOCATION_COMMANDS.animate} @subject #travel|#hold`,
+      place: `${XR_SCENE_INVOCATION_COMMANDS.place} @asset transition=linear|hold label=<optional-id>`,
+      label: `${XR_SCENE_INVOCATION_COMMANDS.label} @subject label=<required-id>`,
+      remove: `${XR_SCENE_INVOCATION_COMMANDS.remove} @subject`,
     },
     environments: XR_MOTION_REFERENCE_STAGE_PRESETS.map(stage => ({
       id: stage.id,
@@ -164,7 +195,7 @@ export function inspectLocalXrSceneAssets() {
       description: asset.description,
       dimensionsMeters: [...asset.dimensionsMeters],
       mobile: asset.mobile,
-      invocation: buildXrPlaceInvocation(asset.id, asset.mobile ? 'travel' : 'hold'),
+      invocation: buildXrPlaceInvocation(asset.id, asset.mobile ? 'linear' : 'hold'),
     })),
     runtime: {
       stageId: runtime.plan.stageId,
@@ -172,15 +203,14 @@ export function inspectLocalXrSceneAssets() {
       fps: runtime.plan.fps,
       subjects: runtime.plan.subjects.map(subject => {
         const track = runtime.plan.cast.find(candidate => candidate.actorId === subject.id)
-        const motion: XrSceneAnimation | 'static' = track ? (track.marks[0]?.transition === 'hold' ? 'hold' : 'travel') : 'static'
+        const transition: XrSceneTransition | 'static' = track ? track.marks[0]?.transition || 'linear' : 'static'
         return {
           id: subject.id,
           assetId: subject.assetId,
           label: subject.label,
           category: subject.category,
           position: [...subject.position],
-          motion,
-          invocation: track ? buildXrAnimateInvocation(subject.id, motion) : '',
+          transition,
         }
       }),
       cameraMarks: runtime.plan.camera.length,
@@ -192,7 +222,7 @@ export function inspectLocalXrSceneAssets() {
 
 export function controlLocalXrScene(input: XrSceneControlInput): XrSceneControlResult {
   const control = normalizeXrSceneControl(input)
-  if (!control) return { ok: false, message: 'Use a supported XR action or invocation such as /xr.place @person-adult #travel.' }
+  if (!control) return { ok: false, message: 'Use a supported XR action or an invocation such as /xr.place @person-adult transition=linear.' }
   if (!hydrateActiveXrScene()) return { ok: false, message: 'Open or create a graph document before controlling the XR scene.' }
 
   let message = ''
@@ -209,15 +239,15 @@ export function controlLocalXrScene(input: XrSceneControlInput): XrSceneControlR
     const next = addXrMotionReferenceSubject({ assetId: asset.id, label: control.label })
     if (next.plan.subjects.length === before) return { ok: false, message: 'The bounded XR scene subject capacity has been reached.' }
     subjectId = next.plan.subjects.at(-1)?.id || ''
-    if (asset.mobile && subjectId) setXrMotionReferenceCastMotion(subjectId, asTransition(control.motion))
-    message = `${next.plan.subjects.at(-1)?.label || asset.label} placed with ${asset.mobile ? control.motion : 'static'} motion.`
-  } else if (control.action === 'animate') {
+    if (asset.mobile && subjectId) setXrMotionReferenceCastTransition(subjectId, control.transition)
+    message = `${next.plan.subjects.at(-1)?.label || asset.label} placed with ${asset.mobile ? control.transition : 'static'} path interpolation.`
+  } else if (control.action === 'transition') {
     subjectId = control.subjectId
     if (!readXrMotionReferenceRuntime().plan.cast.some(track => track.actorId === subjectId)) {
       return { ok: false, message: `XR subject ${subjectId || '(empty)'} is not a markable cast track.` }
     }
-    setXrMotionReferenceCastMotion(subjectId, asTransition(control.motion))
-    message = `XR subject animation set to ${control.motion}.`
+    setXrMotionReferenceCastTransition(subjectId, control.transition)
+    message = `XR subject path interpolation set to ${control.transition}.`
   } else if (control.action === 'label') {
     subjectId = control.subjectId
     if (!control.label) return { ok: false, message: 'XR subject labels must not be empty.' }

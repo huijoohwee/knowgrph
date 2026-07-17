@@ -48,7 +48,7 @@ It answers five questions:
 | MCP Apps-ready inspection payload | Shipped | `canvas/src/features/agent-ready/agentSurfaceInspection.mjs` | adds `mcpAppsServerReadiness` to `inspect_agent_surface.structuredContent` |
 | MCP Apps static artifact | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | publishes `.well-known/mcp/apps/knowgrph-agent-ready.html` from the shared resource contract |
 | Pages HTML WebMCP fallback | Shipped | `cloudflare/pages/knowgrph-agent-ready.mjs` | injects shared seven-tool WebMCP into `/knowgrph` HTML surfaces and delegates `inspect_agent_surface` through `/knowgrph/mcp` |
-| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | app runtime registers descriptor-complete read-only tools including `knowgrph.inspect_local_settings_chat_readiness`, `knowgrph.inspect_local_mainpanel_state`, `knowgrph.inspect_local_editor_workspace_state`, `knowgrph.inspect_local_chat_pipeline_state`, `knowgrph.inspect_local_mainpanel_chat_canvas_pipeline`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, and `knowgrph.inspect_local_source_files_snapshot` |
+| Browser WebMCP | Shipped | `canvas/src/features/agent-ready/webMcpRuntime.ts` | app runtime registers 26 descriptor-complete tools: 23 read-only retrieval/inspection tools and three guarded local controls for Camera, Animation, and XR scene |
 | Browser-local WebMCP state snapshots | Shipped | `canvas/src/features/agent-ready/browserLocalSurfaceSnapshots.ts` | shared browser-local Settings chat readiness, MainPanel, Editor Workspace, and chat pipeline state publication for app-runtime inspection tools, including KGC validation, MCP structured-surface acceptance, and finalize/apply diagnostics |
 | Browser WebMCP lifecycle | Shipped | `canvas/src/features/agent-ready/webMcpLifecycle.mjs` | `provideContext({ tools })`, `registerTool(tool, { signal })`, late binding, duplicate registration tolerance |
 | Browser WebMCP bootstrap | Shipped | `canvas/src/main.tsx` | installs app-runtime WebMCP on page load |
@@ -115,11 +115,11 @@ It answers five questions:
 - Runtime installation occurs on page load, not after a user manually opens a separate MCP panel.
 - Lifecycle cleanup uses `AbortController` so tool registration can be released cleanly.
 - Shared deployed WebMCP stays on the published seven-tool read-only contract.
-- Browser-local inspect tools remain app-runtime only unless a future shared contract explicitly promotes them.
+- Sixteen browser-local inspect tools and three guarded local controls remain app-runtime only unless a future shared contract explicitly promotes them.
 - Local SuperAgent execution remains CLI/local-stdio MCP only unless a future source-owned deployed route and live validation prove otherwise.
 - Agentic Canvas OS remains a planned control-plane contract until source-owned tool contracts, focused tests, and live dry-run proof exist; docs must not imply arbitrary cross-repo writes, deploys, paid model calls, or financial actions are shipped.
 - DeerFlow-inspired SuperAgent language is conceptual-reference-only; do not copy DeerFlow code, clone its architecture, or add DeerFlow-owned parser, renderer, memory, or graph-apply stacks.
-- Public retrieval and discovery tools stay read-only, non-destructive, non-open-world, and idempotent; browser-local inspectors stay read-only, non-destructive, non-open-world, and idempotent.
+- Public retrieval/discovery tools and browser-local inspectors stay read-only, non-destructive, non-open-world, and idempotent; the three browser-local controls stay bounded to the open Camera, Animation, and XR scene state and are never published remotely.
 - MCP Apps-ready resource delivery stays server-owned through `resources/list` and `resources/read`; do not inline app HTML in tool results as a second resource path.
 - MCP prompt delivery stays server-owned through `prompts/list` and `prompts/get`; prompts may guide hosts to call existing tools, but must not define a second execution path or mutate state.
 - Source Files resource-template delivery stays server-owned through `resources/templates/list`; `resources/read` for `kgdoc://source-file/{id}` must reuse the existing `fetch` executor and must not introduce a second storage reader.

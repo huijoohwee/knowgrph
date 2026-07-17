@@ -28,6 +28,8 @@ const CAMERA_FRAMING_RUNTIME_SOURCES = new Set<CameraFramingRuntimeSource>([
 ])
 
 const listeners = new Set<CameraFramingRuntimeListener>()
+const SHARED_CANVAS_CAMERA_ANCHOR_ID = 'canvas-camera'
+let activeDocumentKey = ''
 
 function normalizeAnchorId(value: unknown): string {
   try {
@@ -88,6 +90,24 @@ let snapshot = createSnapshot({
 })
 
 export function readCameraFramingRuntime(): CameraFramingRuntimeSnapshot {
+  return snapshot
+}
+
+export function readCameraFramingRuntimeDocumentKey(): string {
+  return activeDocumentKey
+}
+
+export function resetCameraFramingRuntimeForDocument(documentKeyValue: unknown): CameraFramingRuntimeSnapshot {
+  const documentKey = normalizeAnchorId(documentKeyValue)
+  if (documentKey === activeDocumentKey) return snapshot
+  activeDocumentKey = documentKey
+  snapshot = createSnapshot({
+    anchorId: SHARED_CANVAS_CAMERA_ANCHOR_ID,
+    settings: null,
+    source: 'document',
+    revision: snapshot.revision + 1,
+  })
+  for (const listener of [...listeners]) listener()
   return snapshot
 }
 

@@ -11,34 +11,6 @@ const WORLD_GRID_DIVISIONS = 52
 const CENTER_RING_INNER_RADIUS = 34
 const CENTER_RING_OUTER_RADIUS = 43
 
-function EmptyWorldCamera() {
-  const position: [number, number, number] = [210, -280, 42]
-  const target: [number, number, number] = [0, 0, XR_MOTION_STAGE_FLOOR_DEPTH]
-  const direction = new THREE.Vector3(
-    target[0] - position[0],
-    target[1] - position[1],
-    target[2] - position[2],
-  ).normalize()
-  const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction)
-
-  return (
-    <group name="kg_xr_empty_world_camera" position={position} quaternion={quaternion}>
-      <mesh>
-        <boxGeometry args={[18, 11, 13]} />
-        <meshStandardMaterial color="#cbd5e1" roughness={0.82} metalness={0.08} />
-      </mesh>
-      <mesh position={[0, 11, 0]}>
-        <coneGeometry args={[7, 20, 4]} />
-        <meshBasicMaterial color="#f8fafc" transparent opacity={0.9} depthWrite={false} />
-      </mesh>
-      <mesh position={[0, -10, 0]}>
-        <ringGeometry args={[5, 7, 32]} />
-        <meshBasicMaterial color="#7dd3fc" transparent opacity={0.9} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-    </group>
-  )
-}
-
 export function XrEmptyWorldStage() {
   const floorDepth = XR_MOTION_STAGE_FLOOR_DEPTH
   return (
@@ -70,7 +42,6 @@ export function XrEmptyWorldStage() {
         <meshBasicMaterial color="#5eead4" transparent opacity={0.68} depthWrite={false} />
       </mesh>
       <axesHelper name="kg_xr_empty_world_axes" args={[70]} position={[0, 0, floorDepth + 1]} />
-      <EmptyWorldCamera />
     </group>
   )
 }

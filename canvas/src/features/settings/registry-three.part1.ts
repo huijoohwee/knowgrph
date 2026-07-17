@@ -295,30 +295,6 @@ export const threeSettingsRegistryPart1: SettingMeta[] = [
     default: () => 0.5,
   },
   {
-    key: 'three.camera.autoRotate',
-    type: 'boolean',
-    source: 'store',
-    read: () => {
-      const schema = s().schema
-      return !!schema.three?.cameraAutoRotate
-    },
-    write: (v) => s().setThreeConfig({ cameraAutoRotate: Boolean(v) }),
-    docKey: 'three.camera.autoRotate',
-    default: () => false,
-  },
-  {
-    key: 'three.camera.autoRotateSpeed',
-    type: 'number',
-    source: 'store',
-    read: () => {
-      const schema = s().schema
-      return typeof schema.three?.cameraAutoRotateSpeed === 'number' ? schema.three.cameraAutoRotateSpeed : 0.4
-    },
-    write: (v) => s().setThreeConfig({ cameraAutoRotateSpeed: Number(v) }),
-    docKey: 'three.camera.autoRotateSpeed',
-    default: () => 0.4,
-  },
-  {
     key: 'three.graph.linkDirectionalArrowLength',
     type: 'number',
     source: 'store',

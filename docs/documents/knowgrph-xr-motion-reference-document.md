@@ -4,7 +4,7 @@ doc_type: "Runtime Design and Clean-Room Boundary"
 status: "runtime-ready"
 lang: "en-US"
 frontmatter_contract: "required"
-runtime_scope: "Toolbar Surface Mode XR with BottomPanel Timeline stage blocking, camera choreography, cast marks, and generator handoff"
+runtime_scope: "Toolbar Surface Mode XR with BottomPanel Timeline stage blocking, first-class Animation, camera choreography, cast marks, and generator handoff"
 deploy_boundary: "Dev-only"
 ---
 
@@ -16,12 +16,13 @@ Toolbar → Surface Mode → XR Mode opens one graph-native previs workflow in t
 
 1. Open FloatingPanel → Media → **3D** and select an original procedural grey-box environment kit.
 2. Place people, animals, vehicles, furniture, and props from the native library; assign editable subject labels.
-3. Treat bounded graph nodes and mobile library subjects as cast identities.
-4. Place timed cast marks in right-handed, Y-up meter coordinates.
-5. Capture timed camera marks from the shared Camera Framing owner.
-6. Preview any deterministic playhead instant in the ThreeGraph XR stage.
-7. Save the normalized plan to `graphData.metadata.kgXrMotionReference`.
-8. Export one deterministic `.xr-motion-reference.<fingerprint>.json` package for a video-generation workflow.
+3. Open first-class FloatingPanel → **Animation** to apply native character motions or compatible action paths to the selected cast identity.
+4. Treat bounded graph nodes and mobile library subjects as cast identities synchronized through the graph/XR selected-actor binding.
+5. Place timed cast marks in right-handed, Y-up meter coordinates.
+6. Capture timed camera marks from the shared Camera Framing owner.
+7. Preview any deterministic playhead instant in the ThreeGraph XR stage.
+8. Save the normalized plan to `graphData.metadata.kgXrMotionReference`.
+9. Export one deterministic `.xr-motion-reference.<fingerprint>.json` package for a video-generation workflow.
 
 The fidelity target is clear motion and spatial intent. This feature does not become a general 3D asset editor, video renderer, or provider-specific prompt surface.
 
@@ -40,14 +41,17 @@ Reference evidence remains documentation-only. Runtime modules and dependency ma
 | Surface activation | `canvas3dMode` and `activateCanvasGraphSurfaceMode` | XR remains the existing 3D Surface Mode. |
 | 3D media catalog | `MediaCatalogPanelView.tsx` and `XrMediaLibraryPanel.tsx` | Adds one Media-owned 3D view for environment selection, subject placement, labels, and removal; successful edits activate XR and persist through the canonical graph metadata owner. |
 | Scene library | `xrSceneLibrary.ts` | Owns the original environment and procedural asset catalog without downloaded meshes, copied presets, or runtime egress. |
+| Animation catalog | `xrAnimationCatalog.ts` | Owns typed native character-motion and action-path presets, compatibility, deterministic procedural pose sampling, and bounded path generation without external animation assets. |
+| Animation projection | `XrAnimationFloatingPanelView.tsx` | First-class FloatingPanel view immediately after Media; reuses the Media 3D three-row cards, per-card disclosure, Expand All/Collapse All, selected cast target, shared transport, clear, and export controls. |
+| Animation control | `xrAnimationMcpRuntime.ts`, `xrAnimationWebMcpTools.ts`, and `xrSelectedActorBinding.ts` | Structured WebMCP and hydrated `/animation.control` + `@selected-actor`/`@canvas` + `#character-motion`/`#action-path` invocations fail closed and update the same graph-persisted runtime. |
 | Plan model | `xrMotionReferenceModel.ts` | Normalizes stages, placed subjects, tracks, marks, and graph metadata. |
 | Package compiler | `xrMotionReferencePackage.ts` | Compiles deterministic subject, cast, camera, frame-sample, map, and generator-handoff virtual files. |
 | Draft runtime | `xrMotionReferenceRuntime.ts` | One bounded external-store snapshot shared by panel and ThreeGraph stage. |
 | Timeline projection | `TimelineBottomPanelView.tsx`, `XrTimelineSceneLane.tsx`, `xrMotionReferenceTimeline.ts`, and `GanttTimelineTransportPanel.tsx` | XR reuses the canonical Timeline player, shared playhead, and Scene/Effect lane renderer. A compact control strip authors stage/cast/camera cues while generated fractional-minute tasks project native seconds into the player without mutating Markdown source. |
 | Stage projection | `XrMotionReferenceStage.tsx` and `XrSceneLibrarySubject.tsx` | Renders original procedural boxes, labeled subject silhouettes, cast paths, marks, and camera path. |
 | Scene isolation | `Scene.impl.tsx` and `ThreeGraph.impl.tsx` | Graph XR renders the motion stage exclusively; standard node/edge meshes, graph fog/starfield, Rich Media overlays, and hover UI remain unmounted. |
-| Empty-world bootstrap | `ThreeGraph.impl.tsx`, `XrEmptyWorldStage.tsx`, and `XrEmptyWorldHud.tsx` | No-file XR rejects retained graph data and mounts a source-free navy world grid, center target, XYZ axes/HUD, camera prop, and zero cast; grey-box set geometry remains document-only. |
-| Camera authority | `cameraFramingRuntime.ts`, `cameraFramingControlsRuntime.ts`, `cameraFramingPose.ts`, and `Controls.tsx` | Canvas 3D and XR publish one shared framing draft to the sole editor in FloatingPanel Camera; BottomPanel Timeline consumes captured camera marks, FloatingPanel XR mounts no camera or motion editor, and the retired 3D ellipse path never becomes a competing writer. |
+| Empty-world bootstrap | `ThreeGraph.impl.tsx`, `XrEmptyWorldStage.tsx`, and `XrEmptyWorldHud.tsx` | No-file XR rejects retained graph data and mounts a source-free navy world grid, center target, XYZ axes/HUD, neutral runtime camera framing, and zero cast; no decorative Camera prop or grey-box set geometry is mounted. |
+| Camera authority | `cameraFramingRuntime.ts`, `cameraFramingControlsRuntime.ts`, `xrCameraPlaybackControlsRuntime.ts`, `xrCameraControlOwnership.ts`, `cameraFramingPose.ts`, and `Controls.tsx` | Canvas 3D and XR publish one shared framing draft to FloatingPanel Camera. Paused choreography permits an explicit framing preview; scrub/playback reasserts camera marks; active playback blocks competing orbit/zoom writers; BottomPanel Timeline remains the transport owner. |
 | Persistence | `updateGraphMetadata` | Writes one versioned `kgXrMotionReference` value through the canonical graph owner. |
 | Download | `downloadBlob` | Reuses the repository-owned delayed-revoke browser download path. |
 
@@ -72,9 +76,9 @@ The download is a single versioned JSON envelope because Knowgrph has no first-p
 |---|---|
 | `reference/manifest.json` | Coordinate system, stage, timeline, and bounded counts. |
 | `reference/subjects.json` | Placed asset identities, categories, editable labels, colors, transforms, and static positions. |
-| `reference/cast-tracks.json` | Source-backed cast identities and timed spatial marks. |
+| `reference/cast-tracks.json` | Source-backed cast identities, animation assignments, and timed spatial marks. |
 | `reference/camera-track.json` | Timed shared-camera settings and independently derived poses. |
-| `reference/frame-samples.json` | Deterministic piecewise-linear camera/cast samples for every inclusive frame. |
+| `reference/frame-samples.json` | Deterministic camera/cast samples, action paths, procedural character poses, prop cues, and event cues for every inclusive frame. |
 | `reference/stage-map.svg` | Original top-down grey-box map with cast and camera cues. |
 | `handoff/video-generator-brief.txt` | Provider-neutral instruction compiled from the actual plan. |
 | `README.txt` | Consumer guidance and the grey-box/non-final-art boundary. |
@@ -85,6 +89,7 @@ Separate graph-topology and normalized-motion fingerprints, stable property orde
 
 - Timeline stage and mark edits remain in the local draft runtime until **Save**; the canonical Timeline transport is the only playhead.
 - Media → 3D environment, placement, label, and removal actions persist immediately through `updateGraphMetadata`, then activate XR Mode and open the canonical Timeline.
+- Animation apply/clear actions persist through the same graph metadata owner; play/pause/scrub reuse the canonical Timeline transport, and export reads the current native plan.
 - Save writes only the canonical graph metadata field and schedules normal graph history.
 - Export reads current graph and draft state, creates one local blob, and invokes the shared browser download helper.
 - No model, paid API, provider profile, network egress, asset upload, Prod mirror, or Cloudflare mutation occurs.
@@ -92,6 +97,6 @@ Separate graph-topology and normalized-motion fingerprints, stable property orde
 
 ## VCC
 
-Given an active graph, when the operator opens Media → 3D, chooses an environment kit, places and labels mobile and static subjects, adds cast marks, captures shared-camera marks, moves the playhead, and exports, then XR Mode shows the selected grey-box stage and labeled procedural subjects with sampled cast/camera paths; graph metadata contains one normalized plan; and the downloaded package contains the eight virtual files with exact inclusive frame count `floor(duration × fps) + 1`.
+Given an active graph, when the operator opens Media → 3D, chooses an environment kit, places and labels mobile and static subjects, applies a compatible character motion or action path from first-class Animation, adds cast marks, captures shared-camera marks, moves the playhead, and exports, then XR Mode shows the selected grey-box stage and procedural choreography; graph metadata contains one normalized plan; and the downloaded package contains the eight virtual files with exact inclusive frame count `floor(duration × fps) + 1`.
 
 VCC: Verify the focused XR package test, Canvas TypeScript check, dependency/source scan, and local browser flow; stop without deployment or external runtime installation.

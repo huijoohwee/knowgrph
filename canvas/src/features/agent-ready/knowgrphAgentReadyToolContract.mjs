@@ -5,6 +5,7 @@ import {
 } from './mcpAppsReadyContract.mjs'
 import { XR_SCENE_WEB_MCP_TOOL_IDS } from '../three/xrSceneMcpContract.mjs'
 import { CAMERA_WEB_MCP_TOOL_IDS } from '../strybldr/cameraMcpContract.mjs'
+import { XR_ANIMATION_WEB_MCP_TOOL_IDS } from '../three/xrAnimationMcpContract.mjs'
 
 export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   search: 'search',
@@ -24,6 +25,8 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   inspectLocal3dCameraPose: 'inspect_local_3d_camera_pose',
   inspectLocalCamera: CAMERA_WEB_MCP_TOOL_IDS.inspect,
   controlLocalCamera: CAMERA_WEB_MCP_TOOL_IDS.control,
+  inspectLocalAnimation: XR_ANIMATION_WEB_MCP_TOOL_IDS.inspect,
+  controlLocalAnimation: XR_ANIMATION_WEB_MCP_TOOL_IDS.control,
   inspectLocal3dLayoutPositions: 'inspect_local_3d_layout_positions',
   inspectLocalXrSceneAssets: XR_SCENE_WEB_MCP_TOOL_IDS.inspect,
   controlLocalXrScene: XR_SCENE_WEB_MCP_TOOL_IDS.control,
@@ -285,20 +288,20 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCamera,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCamera),
           title: 'Inspect Local Camera',
-          description: 'Inspect the always-visible shared Camera framing and XR animation runtime, including its MCP and / @ # invocation grammar.',
+          description: 'Inspect the first-class shared Camera framing and XR camera choreography, including its hydrated MCP and / @ # invocation grammar.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
-          outputSchema: { type: 'object', additionalProperties: true, required: ['schema', 'webMcpTools', 'invocationGrammar', 'surface', 'framing', 'animation'] },
+          outputSchema: { type: 'object', additionalProperties: true, required: ['schema', 'webMcpTools', 'invocationGrammar', 'surface', 'framing', 'choreography'] },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
         }, {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalCamera,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalCamera),
           title: 'Control Local Camera',
-          description: 'Control shared Camera framing and XR animation through structured actions or /camera.frame, /camera.animate, /camera.play, and /camera.scrub invocations with @ targets and # tokens.',
+          description: 'Control shared Camera framing and XR camera choreography through structured actions or upstream Camera commands, bindings, semantic routes, and typed key=value parameters.',
           inputSchema: {
             type: 'object',
             additionalProperties: false,
             properties: {
-              invocation: { type: 'string', description: 'Invocation such as /camera.animate @camera #handheld #2.5s.' },
+              invocation: { type: 'string', description: 'Invocation such as /camera.animate @camera #camera-motion rig=handheld time=2.5.' },
               action: { type: 'string', enum: ['frame', 'animate', 'playback', 'scrub'] },
               targetId: { type: 'string' },
               angle: { type: 'string', enum: ['front', 'left-side', 'right-side', 'overhead'] },
@@ -314,6 +317,34 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           outputSchema: { type: 'object', additionalProperties: true, required: ['ok', 'message'] },
           annotations: LOCAL_MUTATION_TOOL_ANNOTATIONS,
         }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalAnimation,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalAnimation),
+          title: 'Inspect Local Animation',
+          description: 'Inspect native XR character-motion and action-path presets, selected cast state, deterministic package capability, and hydrated upstream invocation grammar.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          outputSchema: { type: 'object', additionalProperties: true, required: ['schema', 'webMcpTools', 'sceneReady', 'catalog', 'invocationGrammar', 'presets', 'runtime'] },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalAnimation,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalAnimation),
+          title: 'Control Local Animation',
+          description: 'Apply, clear, play, pause, scrub, or export native XR choreography through structured fields or the upstream /animation.control, #character-motion, #action-path, @selected-actor, and @canvas grammar.',
+          inputSchema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              invocation: { type: 'string', description: 'Upstream invocation such as /animation.control #character-motion @selected-actor operation=apply preset=dance.' },
+              operation: { type: 'string', enum: ['apply', 'clear', 'play', 'pause', 'scrub', 'export'] },
+              trackKind: { type: 'string', enum: ['character-motion', 'action-path'] },
+              presetId: { type: 'string' },
+              targetId: { type: 'string' },
+              timeSeconds: { type: 'number', minimum: 0 },
+            },
+            anyOf: [{ required: ['invocation'] }, { required: ['operation'] }],
+          },
+          outputSchema: { type: 'object', additionalProperties: true, required: ['ok', 'message'] },
+          annotations: LOCAL_MUTATION_TOOL_ANNOTATIONS,
+        }, {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions),
           title: 'Inspect Local 3D Layout Positions',
@@ -324,7 +355,7 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalXrSceneAssets,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalXrSceneAssets),
           title: 'Inspect Local XR Scene Assets',
-          description: 'Inspect the browser-local XR environment kits, procedural 3D asset library, / @ # invocation grammar, placed subjects, and animation state without mutating the scene.',
+          description: 'Inspect the browser-local XR environment kits, procedural 3D asset library, typed placement grammar, placed subjects, and path interpolation without mutating the scene.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
           outputSchema: { type: 'object', additionalProperties: true, required: ['schema', 'webMcpTools', 'sceneReady', 'invocationGrammar', 'environments', 'assets', 'runtime'] },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
@@ -332,18 +363,18 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalXrScene,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalXrScene),
           title: 'Control Local XR Scene',
-          description: 'Control the open browser-local XR scene through structured actions or /xr.stage, /xr.place, and /xr.animate invocations with @ targets and #travel or #hold animation tokens.',
+          description: 'Control the open browser-local XR scene through structured stage, placement, path-interpolation, label, and removal actions. Animation is owned separately by /animation.control.',
           inputSchema: {
             type: 'object',
             additionalProperties: false,
             properties: {
-              invocation: { type: 'string', description: 'Invocation such as /xr.place @person-adult #travel.' },
-              action: { type: 'string', enum: ['stage', 'place', 'animate', 'label', 'remove'] },
+              invocation: { type: 'string', description: 'Invocation such as /xr.place @person-adult transition=linear.' },
+              action: { type: 'string', enum: ['stage', 'place', 'transition', 'label', 'remove'] },
               stageId: { type: 'string' },
               assetId: { type: 'string' },
               subjectId: { type: 'string' },
               label: { type: 'string', maxLength: 80 },
-              motion: { type: 'string', enum: ['travel', 'hold'] },
+              transition: { type: 'string', enum: ['linear', 'hold'] },
             },
             anyOf: [{ required: ['invocation'] }, { required: ['action'] }],
           },

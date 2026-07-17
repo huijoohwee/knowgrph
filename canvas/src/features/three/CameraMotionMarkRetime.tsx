@@ -6,6 +6,7 @@ import { resolveVideoSequenceTimelineScaleDurationSeconds } from '@/components/t
 import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { XR_MOTION_REFERENCE_SELECTION_COLOR } from './xrMotionReferenceModel'
 import {
   readXrMotionReferenceRuntime,
@@ -13,12 +14,12 @@ import {
   removeXrMotionReferenceCastMark,
   retimeXrMotionReferenceCameraMark,
   retimeXrMotionReferenceCastMark,
-  selectXrMotionReferenceActor,
   selectXrMotionReferenceCameraMark,
   selectXrMotionReferenceCastMark,
-  setXrMotionReferenceCastMotion,
+  setXrMotionReferenceCastTransition,
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
+import { readBoundXrSelectedActorId, selectBoundXrActor } from './xrSelectedActorBinding'
 import './CameraMotionMarkRetime.css'
 
 function TimeEditor({
@@ -68,15 +69,17 @@ function CastTrackTimeAxisRow({
   durationSeconds,
   runtime,
   scaleDurationSeconds,
+  selectedActorId,
   track,
 }: {
   durationSeconds: number
   runtime: ReturnType<typeof readXrMotionReferenceRuntime>
   scaleDurationSeconds: number
+  selectedActorId: string
   track: XrCastTrack
 }) {
-  const actorSelected = runtime.selectedActorId === track.actorId
-  const trackMotion = track.marks[0]?.transition === 'hold' ? 'hold' : 'linear'
+  const actorSelected = selectedActorId === track.actorId
+  const trackTransition = track.marks[0]?.transition === 'hold' ? 'hold' : 'linear'
   return (
     <section
       className="xr-camera-motion-retime-axis-row xr-camera-motion-retime-cast-row"
@@ -91,21 +94,21 @@ function CastTrackTimeAxisRow({
         className="xr-camera-motion-retime-cast-bar"
         aria-label={`Select ${track.label} cast track`}
         aria-pressed={actorSelected}
-        onClick={() => selectXrMotionReferenceActor(track.actorId)}
+        onClick={() => selectBoundXrActor(track.actorId)}
       >
         <span className="xr-camera-motion-retime-cast-swatch" aria-hidden />
         <span className="xr-camera-motion-retime-cast-label" title={track.label}>{track.label}</span>
         <span className="xr-camera-motion-retime-cast-count">{track.marks.length} mark{track.marks.length === 1 ? '' : 's'}</span>
       </button>
       <PanelSelect
-        className="xr-camera-motion-retime-cast-motion h-5 w-[70px] px-1 py-0 text-[9px]"
-        aria-label={`Animation for ${track.label}`}
-        value={trackMotion}
+        className="xr-camera-motion-retime-cast-transition h-5 w-[70px] px-1 py-0 text-[9px]"
+        aria-label={`Path interpolation for ${track.label}`}
+        value={trackTransition}
         onChange={event => {
-          selectXrMotionReferenceActor(track.actorId)
-          setXrMotionReferenceCastMotion(track.actorId, event.target.value === 'hold' ? 'hold' : 'linear')
+          selectBoundXrActor(track.actorId)
+          setXrMotionReferenceCastTransition(track.actorId, event.target.value === 'hold' ? 'hold' : 'linear')
         }}
-        data-kg-xr-retime-cast-animation={track.actorId}
+        data-kg-xr-retime-cast-transition={track.actorId}
       >
         <option value="linear">Travel</option>
         <option value="hold">Hold</option>
@@ -148,12 +151,14 @@ function CastTrackTimeAxisRow({
 }
 
 export function CameraMotionMarkRetime({ layout = 'panel' }: { layout?: 'panel' | 'time-axis' }) {
+  const selectedNodeId = useGraphStore(state => state.selectedNodeId)
   const runtime = React.useSyncExternalStore(
     subscribeXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
   )
-  const selectedTrack = runtime.plan.cast.find(track => track.actorId === runtime.selectedActorId)
+  const selectedActorId = React.useMemo(() => readBoundXrSelectedActorId(), [runtime, selectedNodeId])
+  const selectedTrack = runtime.plan.cast.find(track => track.actorId === selectedActorId)
     || runtime.plan.cast[0]
     || null
   const timeAxis = layout === 'time-axis'
@@ -174,6 +179,7 @@ export function CameraMotionMarkRetime({ layout = 'panel' }: { layout?: 'panel' 
             durationSeconds={runtime.plan.durationSeconds}
             runtime={runtime}
             scaleDurationSeconds={scaleDurationSeconds}
+            selectedActorId={selectedActorId}
             track={track}
           />
         ))}

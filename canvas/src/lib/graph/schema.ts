@@ -343,7 +343,6 @@ export const defaultSchema: GraphSchema = {
     globeArcTravelerCount: 1,
     globeCorePulseStrength: 0.38,
     globeRippleStrength: 0.32,
-    globeAutoRotateSpeed: 0.08,
     globeHubOrbitEnabled: true,
     globeHubOrbitStrength: 0.22,
     globeHubOrbitSpeed: 0.24,

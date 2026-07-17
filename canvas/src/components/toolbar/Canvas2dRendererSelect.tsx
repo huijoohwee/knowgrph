@@ -44,6 +44,7 @@ export function Canvas2dRendererSelect({
       setCanvas2dRenderer: s.setCanvas2dRenderer,
       setCanvasRenderMode: s.setCanvasRenderMode,
       setCanvas3dMode: s.setCanvas3dMode,
+      floatingPanelOpen: s.floatingPanelOpen === true,
       setFloatingPanelOpen: s.setFloatingPanelOpen,
       setFloatingPanelView: s.setFloatingPanelView,
       setSchema: s.setSchema,
@@ -136,8 +137,10 @@ export function Canvas2dRendererSelect({
           geospatialEnabled,
           onOpenGeospatialMode,
           onOpenShared3dPanel: mode => {
-            state.setFloatingPanelView('camera')
-            state.setFloatingPanelOpen(true)
+            if (!state.floatingPanelOpen) {
+              state.setFloatingPanelView(mode === 'xr' ? 'animation' : 'camera')
+              state.setFloatingPanelOpen(true)
+            }
             if (mode === 'xr') {
               state.setBottomSurfaceTab('timeline')
               state.setBottomSurfaceCollapsed(false)

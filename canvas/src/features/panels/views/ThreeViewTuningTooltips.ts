@@ -365,14 +365,6 @@ export const PAN_SPEED_TOOLTIP = buildNumericTooltip({
   impact: 'Higher pan speed moves the camera faster; lower speed helps precise positioning.',
 })
 
-export const AUTO_ROTATE_SPEED_TOOLTIP = buildNumericTooltip({
-  defaultValue: 0.4,
-  min: 0,
-  max: 3,
-  interval: 0.1,
-  impact: 'Higher values spin auto-rotation faster; lower values keep idle motion gentle.',
-})
-
 export const SELECTED_NODE_GLOW_TOOLTIP = buildNumericTooltip({
   defaultValue: 0.8,
   min: 0,

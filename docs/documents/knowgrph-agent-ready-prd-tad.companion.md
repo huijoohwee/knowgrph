@@ -209,13 +209,13 @@ Knowgrph supports Markdown for Agents on the service homepage and published docu
 
 #### Requirement
 
-As a browser-based agent, I want a WebMCP surface exposed through `document.modelContext` and `navigator.modelContext` so I can discover real Knowgrph read-only tools inside the browser context.
+As a browser-based agent, I want a WebMCP surface exposed through `document.modelContext` and `navigator.modelContext` so I can discover real Knowgrph inspection tools and bounded controls for the open local runtime.
 
 #### Implemented acceptance
 
 - app bootstrap installs WebMCP at startup through `installKnowgrphWebMcpRuntime()`
-- the app runtime registers `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, `knowgrph.inspect_local_workspace_document`, `knowgrph.inspect_local_canvas_topology`, `knowgrph.inspect_local_canvas_snapshot`, `knowgrph.inspect_local_3d_camera_pose`, `knowgrph.inspect_local_3d_layout_positions`, `knowgrph.inspect_local_2d_zoom_viewport`, `knowgrph.inspect_local_source_files_snapshot`, and `knowgrph.inspect_agent_surface`
-- the Pages HTML fallback registers the shared published tool set only: `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, and `knowgrph.inspect_agent_surface`
+- the app runtime registers 26 tools: 23 read-only retrieval/inspection tools plus guarded local controls for Camera, Animation, and XR scene; the Animation pair is `knowgrph.inspect_local_animation` and `knowgrph.control_local_animation`
+- the Pages HTML fallback registers only the seven published read-only tools: `knowgrph.search`, `knowgrph.fetch`, `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, and `knowgrph.inspect_agent_surface`
 - registration uses one canonical publication per context: `provideContext({ tools })` when available, `registerTool(tool, { signal })` when `provideContext` is unavailable, then a readable fallback `modelContext.tools` store with imperative fallback API parity
 - tool names are canonical and deduplicated by name through
   `knowgrphAgentReadyToolContract.mjs`
@@ -240,8 +240,8 @@ canonical `/knowgrph/` surface. The repo contains both:
 - app runtime WebMCP install in `canvas/src/features/agent-ready/webMcpRuntime.ts`
 - HTML injection fallback in `cloudflare/pages/knowgrph-agent-ready.mjs`
 
-The current shipped runtime is therefore not "missing WebMCP". It already exposes the read-only
-browser tools and now ships bounded late-binding, single-publication `provideContext`/`registerTool`
+The current shipped runtime is therefore not "missing WebMCP". It exposes 23 read-only browser
+tools and three guarded local controls, and ships bounded late-binding, single-publication `provideContext`/`registerTool`
 fallback parity, `AbortController` registration lifecycle, root no-navigation scan stability, and
 same-origin/current-origin storage-resolution hardening needed for preview, localhost, and prod.
 
@@ -282,8 +282,8 @@ UI owners or stale downstream panel logic.
 
 #### Requirement
 
-As a remote agent, I want a simple HTTP MCP transport that exposes the same read-only document
-tools as the browser surface.
+As a remote agent, I want a simple HTTP MCP transport that exposes the seven published read-only
+document tools, a strict subset of the app-installed browser surface.
 
 #### Implemented acceptance
 
@@ -291,7 +291,8 @@ tools as the browser surface.
 - `initialize`, `tools/list`, and `tools/call` execute successfully
 - `tools/call` resolves live storage lookups for `list_source_files` and `read_source_file`
 - tool execution returns structured content without advertising write capabilities
-- HTTP MCP tool schema matches the shared upstream contract used by browser WebMCP
+- HTTP MCP tool schema matches the seven published entries in the shared upstream contract; the 19
+  browser-only tools are intentionally absent
 
 #### Enhancement target
 

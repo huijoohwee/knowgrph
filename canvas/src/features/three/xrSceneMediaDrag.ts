@@ -6,7 +6,7 @@ import {
 import type { XrMotionReferenceStagePreset, XrSceneLibraryAsset } from './xrSceneLibrary'
 import {
   controlLocalXrScene,
-  type XrSceneAnimation,
+  type XrSceneTransition,
   type XrSceneControlResult,
 } from './xrSceneMcpRuntime'
 
@@ -59,8 +59,8 @@ export function buildXrStageMediaDragPayload(stage: XrMotionReferenceStagePreset
   }
 }
 
-export function buildXrAssetMediaDragPayload(asset: XrSceneLibraryAsset, motion: XrSceneAnimation): MediaDragPayload {
-  const effectiveMotion: XrSceneAnimation = asset.mobile ? motion : 'hold'
+export function buildXrAssetMediaDragPayload(asset: XrSceneLibraryAsset, transition: XrSceneTransition): MediaDragPayload {
+  const effectiveTransition: XrSceneTransition = asset.mobile ? transition : 'hold'
   const previewUrl = buildXrMediaPreviewDataUrl({
     entityKind: 'asset',
     label: asset.label,
@@ -80,7 +80,7 @@ export function buildXrAssetMediaDragPayload(asset: XrSceneLibraryAsset, motion:
       label: asset.label,
       description: asset.description,
       category: asset.category,
-      motion: effectiveMotion,
+      transition: effectiveTransition,
     },
   }
 }
@@ -94,6 +94,6 @@ export function controlXrSceneMediaDrop(payload: MediaDragPayload): XrSceneContr
   return controlLocalXrScene({
     action: 'place',
     assetId: projection.entityId,
-    motion: projection.motion || 'travel',
+    transition: projection.transition || 'linear',
   })
 }

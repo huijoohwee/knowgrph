@@ -53,6 +53,7 @@ export type FloatingPanelView =
   | 'promptPresets'
   | 'view'
   | 'media'
+  | 'animation'
   | 'camera'
   | 'design'
   | 'chat'

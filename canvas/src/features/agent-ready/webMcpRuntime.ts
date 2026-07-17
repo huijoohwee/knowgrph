@@ -39,6 +39,7 @@ import { inspectLocalWorkspaceDocument } from './localWorkspaceDocumentInspectio
 import { buildReadLocalRuntimeIdentityTool } from './localRuntimeIdentityWebMcpTool'
 import { buildXrSceneWebMcpToolBuilders } from './xrSceneWebMcpTools'
 import { buildCameraWebMcpToolBuilders } from './cameraWebMcpTools'
+import { buildXrAnimationWebMcpToolBuilders } from './xrAnimationWebMcpTools'
 type WebMcpToolInput = Record<string, unknown> | undefined
 type WebMcpTool = {
   name: string
@@ -98,6 +99,7 @@ const findWebToolContract = (name: string): AgentReadyToolContract => {
 }
 const XR_SCENE_WEB_MCP_TOOL_BUILDERS = buildXrSceneWebMcpToolBuilders(findWebToolContract)
 const CAMERA_WEB_MCP_TOOL_BUILDERS = buildCameraWebMcpToolBuilders(findWebToolContract)
+const XR_ANIMATION_WEB_MCP_TOOL_BUILDERS = buildXrAnimationWebMcpToolBuilders(findWebToolContract)
 const SEARCH_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.search)
 const FETCH_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.fetch)
 const SOURCE_FILES_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles)
@@ -544,6 +546,7 @@ const WEB_MCP_TOOL_BUILDERS: Record<string, () => WebMcpTool> = {
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dCameraPose]: buildInspectLocal3dCameraPoseTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions]: buildInspectLocal3dLayoutPositionsTool,
   ...CAMERA_WEB_MCP_TOOL_BUILDERS,
+  ...XR_ANIMATION_WEB_MCP_TOOL_BUILDERS,
   ...XR_SCENE_WEB_MCP_TOOL_BUILDERS,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal2dZoomViewport]: buildInspectLocal2dZoomViewportTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSourceFilesSnapshot]: buildInspectLocalSourceFilesSnapshotTool,

@@ -20,8 +20,6 @@ export type CameraConfig = {
   rotateSpeed: number;
   zoomSpeed: number;
   panSpeed: number;
-  autoRotate: boolean;
-  autoRotateSpeed: number;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -42,8 +40,6 @@ export function getCameraConfig(schema: GraphSchema): CameraConfig {
   const rotateSpeed = typeof threeCfg.cameraRotateSpeed === 'number' ? threeCfg.cameraRotateSpeed : 0.6
   const zoomSpeed = typeof threeCfg.cameraZoomSpeed === 'number' ? threeCfg.cameraZoomSpeed : 0.8
   const panSpeed = typeof threeCfg.cameraPanSpeed === 'number' ? threeCfg.cameraPanSpeed : 0.5
-  const autoRotate = !!threeCfg.cameraAutoRotate
-  const autoRotateSpeed = typeof threeCfg.cameraAutoRotateSpeed === 'number' ? threeCfg.cameraAutoRotateSpeed : 0.4
   return {
     fogColor: fogColorRaw,
     fogNear,
@@ -52,8 +48,6 @@ export function getCameraConfig(schema: GraphSchema): CameraConfig {
     rotateSpeed,
     zoomSpeed,
     panSpeed,
-    autoRotate,
-    autoRotateSpeed,
   }
 }
 

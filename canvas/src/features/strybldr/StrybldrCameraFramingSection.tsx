@@ -78,7 +78,7 @@ export function StrybldrCameraFramingSection() {
     return elementCards.length > 0 ? elementCards : cards
   }, [cards])
   const selectedCard = React.useMemo(
-    () => editableCards.find(card => card.id === selectedNodeId) || editableCards[0] || null,
+    () => editableCards.find(card => card.id === selectedNodeId) || null,
     [editableCards, selectedNodeId],
   )
   const selectedCardProperties = React.useMemo(() => {
@@ -92,7 +92,7 @@ export function StrybldrCameraFramingSection() {
     () => readStrybldrCameraSettings(selectedCardProperties[STRYBLDR_CAMERA_PROPERTY_KEY]),
     [selectedCardProperties],
   )
-  const cameraAnchorId = selectedCard?.id || runtime.anchorId || SHARED_CANVAS_CAMERA_ANCHOR_ID
+  const cameraAnchorId = selectedCard?.id || SHARED_CANVAS_CAMERA_ANCHOR_ID
   const settings = selectedCard
     ? runtime.anchorId === selectedCard.id
       ? runtime.settings
@@ -102,12 +102,6 @@ export function StrybldrCameraFramingSection() {
     () => resolveStrybldrCameraPreviewImageUrl(selectedCard),
     [selectedCard],
   )
-
-  React.useEffect(() => {
-    if (!selectedCard) return
-    if (selectedNodeId && selectedNodeId === selectedCard.id) return
-    selectNode(selectedCard.id)
-  }, [selectNode, selectedCard, selectedNodeId])
 
   React.useEffect(() => {
     if (!selectedCard) return
@@ -127,7 +121,7 @@ export function StrybldrCameraFramingSection() {
 
   const changeSettings = React.useCallback((nextSettings: StrybldrCameraSettings) => {
     publishCameraFramingRuntime({
-      anchorId: selectedCard?.id || readCameraFramingRuntime().anchorId || SHARED_CANVAS_CAMERA_ANCHOR_ID,
+      anchorId: selectedCard?.id || SHARED_CANVAS_CAMERA_ANCHOR_ID,
       settings: nextSettings,
       source: 'panel',
     })
@@ -136,7 +130,7 @@ export function StrybldrCameraFramingSection() {
   const reframeSelectedCardCamera = React.useCallback((nextSettings: StrybldrCameraSettings) => {
     if (!selectedCard) {
       publishCameraFramingRuntime({
-        anchorId: readCameraFramingRuntime().anchorId || SHARED_CANVAS_CAMERA_ANCHOR_ID,
+        anchorId: SHARED_CANVAS_CAMERA_ANCHOR_ID,
         settings: nextSettings,
         source: 'panel',
       })
@@ -183,12 +177,23 @@ export function StrybldrCameraFramingSection() {
       data-kg-camera-framing-source={selectedCard && runtime.anchorId !== selectedCard.id ? 'document' : runtime.source}
       data-kg-camera-framing-revision={runtime.revision}
     >
-      {selectedCard ? (
+      {editableCards.length ? (
         <PanelSelect
-          value={selectedCard.id}
+          value={selectedCard?.id || ''}
           aria-label="Camera card"
-          onChange={event => selectNode(event.target.value)}
+          onChange={event => {
+            const cardId = event.target.value
+            selectNode(cardId || null)
+            if (cardId) return
+            const current = readCameraFramingRuntime()
+            publishCameraFramingRuntime({
+              anchorId: SHARED_CANVAS_CAMERA_ANCHOR_ID,
+              settings: current.settings,
+              source: 'panel',
+            })
+          }}
         >
+          <option value="">Canvas camera</option>
           {editableCards.map(card => (
             <option key={card.id} value={card.id}>
               {card.lane}: {card.title}

@@ -59,6 +59,11 @@ export function buildXrMotionReferenceTimelineCode(plan: XrMotionReferencePlan):
 
   for (const track of plan.cast) {
     const actorToken = stableToken(track.actorId)
+    if (track.animation) {
+      lines.push(
+        `  ${track.label} ${track.animation.presetId} ${track.animation.kind} effect : xr_animation_effect_${actorToken}, ${positionToken(track.animation.startTimeSeconds)}, ${durationToken(plan.durationSeconds - track.animation.startTimeSeconds)}`,
+      )
+    }
     track.marks.forEach((mark, index) => {
       lines.push(
         `  ${track.label} cast mark ${index + 1} scene : vert, xr_cast_scene_${actorToken}_${index + 1}, ${cuePositionToken(mark.timeSeconds, plan.durationSeconds)}, ${durationToken(0)}`,

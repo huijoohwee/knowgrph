@@ -127,18 +127,6 @@ export const threeSettingsRegistryPart3: SettingMeta[] = [
     default: () => 1,
   },
   {
-    key: 'three.globe.autoRotateSpeed',
-    type: 'number',
-    source: 'store',
-    read: () => {
-      const schema = s().schema
-      return typeof schema.three?.globeAutoRotateSpeed === 'number' ? schema.three.globeAutoRotateSpeed : 0.08
-    },
-    write: (v) => s().setThreeConfig({ globeAutoRotateSpeed: Number(v) }),
-    docKey: 'three.globe.autoRotateSpeed',
-    default: () => 0.08,
-  },
-  {
     key: 'three.globe.hubOrbitEnabled',
     type: 'boolean',
     source: 'store',

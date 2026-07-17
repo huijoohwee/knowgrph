@@ -167,7 +167,7 @@ export const XR_MOTION_REFERENCE_STAGE_PRESETS: readonly XrMotionReferenceStageP
 ]
 
 export type XrSceneLibraryCategory = 'people' | 'animals' | 'vehicles' | 'furniture' | 'props'
-export type XrSceneLibraryShape = 'humanoid' | 'quadruped' | 'car' | 'bicycle' | 'chair' | 'table' | 'sofa' | 'cart' | 'tree' | 'lamp' | 'crate' | 'umbrella'
+export type XrSceneLibraryShape = 'humanoid' | 'quadruped' | 'car' | 'bicycle' | 'airplane' | 'helicopter' | 'debris' | 'chair' | 'table' | 'sofa' | 'cart' | 'tree' | 'lamp' | 'crate' | 'umbrella'
 
 export type XrSceneLibraryAsset = Readonly<{
   id: string
@@ -197,6 +197,8 @@ export const XR_SCENE_LIBRARY_ASSETS: readonly XrSceneLibraryAsset[] = [
   { id: 'vehicle-sedan', label: 'Sedan', category: 'vehicles', description: 'Four-seat road vehicle at practical scale.', shape: 'car', dimensionsMeters: [1.82, 1.45, 4.55], defaultColor: '#60a5fa', mobile: true, keywords: ['car', 'traffic'] },
   { id: 'vehicle-van', label: 'Van', category: 'vehicles', description: 'Tall cargo or passenger vehicle.', shape: 'car', dimensionsMeters: [2, 2.35, 5.1], defaultColor: '#f8fafc', mobile: true, keywords: ['car', 'traffic', 'delivery'] },
   { id: 'vehicle-bicycle', label: 'Bicycle', category: 'vehicles', description: 'Two-wheel silhouette for rider and street marks.', shape: 'bicycle', dimensionsMeters: [0.55, 1.1, 1.8], defaultColor: '#22c55e', mobile: true, keywords: ['bike', 'cycle'] },
+  { id: 'vehicle-airplane', label: 'Airplane', category: 'vehicles', description: 'Twin-wing procedural aircraft for approach and landing paths.', shape: 'airplane', dimensionsMeters: [12, 3.2, 11], defaultColor: '#cbd5e1', mobile: true, keywords: ['plane', 'aircraft', 'aerial', 'landing'] },
+  { id: 'vehicle-helicopter', label: 'Helicopter', category: 'vehicles', description: 'Rotorcraft silhouette for hover and orbit choreography.', shape: 'helicopter', dimensionsMeters: [3.2, 3, 9], defaultColor: '#f59e0b', mobile: true, keywords: ['helicopter', 'rotorcraft', 'aerial', 'orbit'] },
   { id: 'furniture-chair', label: 'Chair', category: 'furniture', description: 'Single upright chair with readable seat direction.', shape: 'chair', dimensionsMeters: [0.52, 0.92, 0.55], defaultColor: '#c084fc', mobile: false, keywords: ['seat', 'interior'] },
   { id: 'furniture-table', label: 'Table', category: 'furniture', description: 'Four-seat rectangular table.', shape: 'table', dimensionsMeters: [1.6, 0.76, 0.9], defaultColor: '#94a3b8', mobile: false, keywords: ['dining', 'desk', 'interior'] },
   { id: 'furniture-sofa', label: 'Sofa', category: 'furniture', description: 'Three-seat sofa with clear front and back.', shape: 'sofa', dimensionsMeters: [2.1, 0.9, 0.9], defaultColor: '#14b8a6', mobile: false, keywords: ['couch', 'seat', 'interior'] },
@@ -204,6 +206,7 @@ export const XR_SCENE_LIBRARY_ASSETS: readonly XrSceneLibraryAsset[] = [
   { id: 'prop-tree', label: 'Tree', category: 'props', description: 'Simple trunk and canopy spatial marker.', shape: 'tree', dimensionsMeters: [2.8, 5.5, 2.8], defaultColor: '#84cc16', mobile: false, keywords: ['outdoor', 'landscape'] },
   { id: 'prop-streetlight', label: 'Streetlight', category: 'props', description: 'Tall street fixture and pool-of-light marker.', shape: 'lamp', dimensionsMeters: [0.55, 4.5, 0.55], defaultColor: '#facc15', mobile: false, keywords: ['exterior', 'lamp'] },
   { id: 'prop-crate', label: 'Crate', category: 'props', description: 'Meter-scale obstacle and practical hand prop.', shape: 'crate', dimensionsMeters: [1, 1, 1], defaultColor: '#fb7185', mobile: false, keywords: ['box', 'obstacle'] },
+  { id: 'prop-debris-cluster', label: 'Debris Cluster', category: 'props', description: 'Procedural loose fragments for collapse, impact, and settle paths.', shape: 'debris', dimensionsMeters: [2.4, 2.2, 2.2], defaultColor: '#94a3b8', mobile: true, keywords: ['debris', 'collapse', 'impact', 'fragments'] },
   { id: 'prop-pool-umbrella', label: 'Pool Umbrella', category: 'props', description: 'Patio umbrella with a wide overhead footprint.', shape: 'umbrella', dimensionsMeters: [2.6, 2.5, 2.6], defaultColor: '#f43f5e', mobile: false, keywords: ['backyard', 'patio', 'shade'] },
 ]
 
