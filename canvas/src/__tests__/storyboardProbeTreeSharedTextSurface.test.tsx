@@ -173,7 +173,8 @@ export async function testStoryboardProbeTreeTypeTwoCommitsNumberedMultiSelectAn
       await waitForFrames(dom.window, 2)
     })
     await act(async () => {
-      Simulate.change(otherInput, { target: { value: 'Regional regulator notice' } })
+      otherInput.value = 'Regional regulator notice'
+      Simulate.change(otherInput)
       await waitForFrames(dom.window, 2)
     })
     await act(async () => {

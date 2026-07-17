@@ -15,7 +15,7 @@ export type StoryboardCardTextModel = {
   secondaryField: GraphNodeCardTextFieldSpec | null
   secondaryEditable: boolean
 }
-type StoryboardCardTextSource = Partial<Pick<StoryboardCardModel, 'summary' | 'output' | 'action' | 'dialogue' | 'prompt' | 'style' | 'typeLabel'>>
+type StoryboardCardTextSource = Partial<Pick<StoryboardCardModel, 'summary' | 'output' | 'action' | 'dialogue' | 'prompt' | 'style' | 'typeLabel' | 'probeTreeMultiSelect'>>
 
 type StoryboardCardPrimaryTextCandidate = {
   raw: string
