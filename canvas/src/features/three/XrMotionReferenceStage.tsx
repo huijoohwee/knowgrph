@@ -2,6 +2,7 @@ import React from 'react'
 import * as THREE from 'three'
 import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
+  XR_MOTION_REFERENCE_SELECTION_COLOR,
   resolveXrMotionReferenceStage,
   sampleXrMotionReferenceMarks,
   xrMotionReferenceSceneKey,
@@ -63,12 +64,14 @@ function CastTrack({
   scale,
   groundY,
   renderLiveActor,
+  selectedMarkId,
 }: {
   track: ReturnType<typeof readXrMotionReferenceRuntime>['plan']['cast'][number]
   playheadSeconds: number
   scale: number
   groundY: number
   renderLiveActor: boolean
+  selectedMarkId: string
 }) {
   const sampled = sampleXrMotionReferenceMarks(track.marks, playheadSeconds)
   const sampledPosition = xrMotionReferenceWorldPosition(sampled, scale, groundY)
@@ -96,18 +99,37 @@ function CastTrack({
       ))}
       {track.marks.map((mark, index) => {
         const position = xrMotionReferenceWorldPosition(mark.position, scale, groundY)
+        const selected = mark.id === selectedMarkId
         return (
           <React.Fragment key={mark.id}>
             <mesh
               name={`kg_xr_motion_cast_mark_${track.actorId}_${index + 1}`}
               position={[position[0], position[1] + 0.35, position[2]]}
               rotation={[-Math.PI / 2, 0, 0]}
-              userData={{ actorId: track.actorId, markNumber: index + 1, timeSeconds: mark.timeSeconds }}
+              userData={{ actorId: track.actorId, markId: mark.id, markNumber: index + 1, timeSeconds: mark.timeSeconds, selected }}
             >
               <ringGeometry args={[markerSize * 0.72, markerSize, 28]} />
               <meshBasicMaterial color={track.color} transparent opacity={0.9} depthWrite={false} side={THREE.DoubleSide} />
             </mesh>
-            <MarkNumberSprite number={index + 1} color={track.color} position={[position[0], position[1] + markerSize * 1.9, position[2]]} size={markerSize} />
+            {selected ? (
+              <mesh
+                name={`kg_xr_motion_cast_mark_highlight_${track.actorId}_${index + 1}`}
+                position={[position[0], position[1] + 0.39, position[2]]}
+                rotation={[-Math.PI / 2, 0, 0]}
+                renderOrder={THREE_RENDER_ORDER.overlays}
+                userData={{ actorId: track.actorId, markId: mark.id, selected: true }}
+              >
+                <ringGeometry args={[markerSize * 1.08, markerSize * 1.48, 32]} />
+                <meshBasicMaterial color={XR_MOTION_REFERENCE_SELECTION_COLOR} transparent opacity={0.98} depthTest={false} depthWrite={false} side={THREE.DoubleSide} />
+              </mesh>
+            ) : null}
+            <MarkNumberSprite
+              number={index + 1}
+              color={track.color}
+              position={[position[0], position[1] + markerSize * 1.9, position[2]]}
+              selected={selected}
+              size={markerSize}
+            />
           </React.Fragment>
         )
       })}
@@ -137,11 +159,13 @@ function MarkNumberSprite({
   number,
   color,
   position,
+  selected,
   size,
 }: {
   number: number
   color: string
   position: readonly [number, number, number]
+  selected: boolean
   size: number
 }) {
   const label = React.useMemo(() => {
@@ -149,15 +173,15 @@ function MarkNumberSprite({
     return getVoxelLabelTexture({
       text: String(number),
       fontSizePx: 24,
-      textColor: '#ffffff',
-      bgColor: color,
-      bgOpacity: 0.96,
+      textColor: selected ? '#0f172a' : '#ffffff',
+      bgColor: selected ? XR_MOTION_REFERENCE_SELECTION_COLOR : color,
+      bgOpacity: selected ? 1 : 0.96,
     })
-  }, [color, number])
+  }, [color, number, selected])
   if (!label) return null
   const aspect = label.widthPx / Math.max(1, label.heightPx)
   return (
-    <sprite position={position} scale={[size * 1.45 * aspect, size * 1.45, 1]} renderOrder={THREE_RENDER_ORDER.overlays}>
+    <sprite position={position} scale={[size * (selected ? 1.9 : 1.45) * aspect, size * (selected ? 1.9 : 1.45), 1]} renderOrder={THREE_RENDER_ORDER.overlays}>
       <spriteMaterial map={label.texture} transparent depthTest={false} depthWrite={false} />
     </sprite>
   )
@@ -212,7 +236,7 @@ export function XrMotionReferenceStage({
     <group
       name="kg_xr_motion_reference_stage"
       renderOrder={THREE_RENDER_ORDER.groups - 10}
-      userData={{ schema: runtime.plan.schema, stageId: stage.id, playheadSeconds: runtime.playheadSeconds }}
+      userData={{ schema: runtime.plan.schema, stageId: stage.id, playheadSeconds: runtime.playheadSeconds, selectedMark: runtime.selectedMark }}
     >
       <XrStagePresetGeometry
         stage={stage}
@@ -229,6 +253,9 @@ export function XrMotionReferenceStage({
             scale={scale}
             groundY={groundY}
             renderLiveActor={!subjectIds.has(track.actorId)}
+            selectedMarkId={runtime.selectedMark?.kind === 'cast' && runtime.selectedMark.actorId === track.actorId
+              ? runtime.selectedMark.markId
+              : ''}
           />
         ))}
       </group>
@@ -276,6 +303,7 @@ export function XrMotionReferenceStage({
           />
         ))}
         {runtime.plan.camera.map((mark, index) => {
+          const selected = runtime.selectedMark?.kind === 'camera' && runtime.selectedMark.markId === mark.id
           const position = xrMotionReferenceWorldPosition(mark.pose.position, scale, groundY)
           const target = xrMotionReferenceWorldPosition(mark.pose.target, scale, groundY)
           const direction = new THREE.Vector3(target[0] - position[0], target[1] - position[1], target[2] - position[2])
@@ -283,7 +311,7 @@ export function XrMotionReferenceStage({
             ? new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize())
             : new THREE.Quaternion()
           return (
-            <group key={mark.id} name={`kg_xr_motion_camera_mark_${index + 1}`} position={position} quaternion={quaternion} userData={{ rig: mark.rig, lensMm: mark.settings.focalLengthMm }}>
+            <group key={mark.id} name={`kg_xr_motion_camera_mark_${index + 1}`} position={position} quaternion={quaternion} userData={{ markId: mark.id, rig: mark.rig, lensMm: mark.settings.focalLengthMm, selected }}>
               <mesh>
                 <coneGeometry args={[scale * 0.34, scale * 0.8, 4]} />
                 <meshBasicMaterial color="#f8fafc" transparent opacity={0.92} depthWrite={false} />
@@ -292,6 +320,18 @@ export function XrMotionReferenceStage({
                 <ringGeometry args={[scale * 0.18, scale * 0.25, 24]} />
                 <meshBasicMaterial color="#f8fafc" transparent opacity={0.8} depthWrite={false} side={THREE.DoubleSide} />
               </mesh>
+              {selected ? (
+                <mesh
+                  name={`kg_xr_motion_camera_mark_highlight_${index + 1}`}
+                  position={[0, scale * 0.64, 0]}
+                  rotation={[Math.PI / 2, 0, 0]}
+                  renderOrder={THREE_RENDER_ORDER.overlays}
+                  userData={{ markId: mark.id, selected: true }}
+                >
+                  <ringGeometry args={[scale * 0.32, scale * 0.45, 28]} />
+                  <meshBasicMaterial color={XR_MOTION_REFERENCE_SELECTION_COLOR} transparent opacity={0.98} depthTest={false} depthWrite={false} side={THREE.DoubleSide} />
+                </mesh>
+              ) : null}
             </group>
           )
         })}

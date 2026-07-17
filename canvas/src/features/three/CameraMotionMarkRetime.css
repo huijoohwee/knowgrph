@@ -1,0 +1,80 @@
+.xr-camera-motion-retime-axis {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+}
+
+.xr-camera-motion-retime-axis-row {
+  position: relative;
+  min-width: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--kg-border, #e5e7eb) 62%, transparent);
+}
+
+.xr-camera-motion-retime-axis-row:last-child {
+  border-bottom: 0;
+}
+
+.xr-camera-motion-retime-axis-mark.timeline-transport-time-axis-mark {
+  position: absolute;
+  top: 1px;
+  left: var(--kg-xr-retime-mark-left);
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  height: 23px;
+  align-items: center;
+  gap: 3px;
+  overflow: visible;
+  transform: translateX(-9px);
+  border-radius: 5px;
+  padding: 1px 3px;
+  touch-action: auto;
+  user-select: auto;
+  white-space: nowrap;
+}
+
+.xr-camera-motion-retime-axis-mark[data-kg-xr-retime-edge="end"] {
+  transform: translateX(calc(-100% + 9px));
+}
+
+.xr-camera-motion-retime-axis-mark[aria-pressed="true"] {
+  z-index: 3;
+  border-color: #eab308;
+  background: color-mix(in srgb, #facc15 18%, var(--kg-panel-bg, #ffffff));
+  box-shadow: 0 0 0 2px color-mix(in srgb, #facc15 42%, transparent), 0 2px 8px rgb(15 23 42 / 18%);
+}
+
+.xr-camera-motion-retime-axis-mark-label.timeline-transport-track-clip-label {
+  position: static;
+  display: grid;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  place-items: center;
+  overflow: visible;
+  border-radius: 999px;
+  padding: 0;
+  color: white;
+  font-size: 8px;
+  line-height: 16px;
+}
+
+.xr-camera-motion-retime-axis-mark[aria-pressed="true"] .xr-camera-motion-retime-axis-mark-label {
+  color: #0f172a;
+}
+
+.xr-camera-motion-retime-axis-empty {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  overflow: hidden;
+  max-width: calc(100% - 28px);
+  transform: translateY(-50%);
+  color: var(--kg-text-tertiary, #6b7280);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

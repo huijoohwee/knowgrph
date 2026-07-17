@@ -11,6 +11,20 @@
   contain: layout paint;
 }
 
+.timeline-video-sequence-time-axis-controls {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  display: flex;
+  height: 24px;
+  min-width: 0;
+  align-items: center;
+  padding-inline: 8px;
+  border-bottom: 1px solid rgb(226 232 240 / 1);
+  background: rgb(255 255 255 / 0.96);
+  pointer-events: auto;
+}
+
 .timeline-transport-ruler--video-sequence .timeline-video-sequence-ruler-append-space {
   flex: 0 0 auto;
   border-top: 1px dashed color-mix(in srgb, var(--kg-border, #e5e7eb) 72%, transparent);
