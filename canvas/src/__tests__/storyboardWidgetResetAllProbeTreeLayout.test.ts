@@ -143,7 +143,7 @@ export function testProbeTreeResetAllReflowsASettledLayoutWithoutStaleOutputOrNa
   assertBalancedThread(layoutOnlyReset.graphData, 'root', ['a', 'b', 'c'])
 
   const actionSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetWorkflowActions.ts'), 'utf8')
-  assert(actionSource.includes('await args.commitPublishedGraphData(reset.graphData)'), 'expected Reset all to publish the atomic normalized graph through the canonical commit')
+  assert(actionSource.includes("await args.persistDraftGraphData(reset.graphData, { label: 'Reset All', source: 'gitGraph' })"), 'expected Reset all to publish and version the atomic normalized graph through the durable commit')
   assert(actionSource.includes('const handler = () => void resetWorkflowOutputs()'), 'expected the toolbar event to run the asynchronous in-document reset transaction')
   assert(!actionSource.includes('location.reload') && !actionSource.includes('window.location'), 'expected Reset all to avoid browser navigation and page refresh APIs')
 }

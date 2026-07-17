@@ -230,6 +230,24 @@ const buildProbeTreeClarificationSuggestions = (phrase, peerPhrase) => normalize
       `Identify constraints affecting ${phrase}`,
     ]);
 
+const PROBE_TREE_SINGLE_FOCUS_FACETS = Object.freeze([
+  {
+    id: "scope",
+    question: phrase => `Which scope choice should clarify "${phrase}"?`,
+    choices: phrase => [`Define the exact boundary of ${phrase}`, `Identify adjacent concerns around ${phrase}`, `Set what is outside ${phrase}`],
+  },
+  {
+    id: "priority",
+    question: phrase => `Which priority choice should clarify "${phrase}"?`,
+    choices: phrase => [`Set the immediate priority for ${phrase}`, `Identify the next sequence for ${phrase}`, `Define when to defer ${phrase}`],
+  },
+  {
+    id: "constraints",
+    question: phrase => `Which constraint choice should clarify "${phrase}"?`,
+    choices: phrase => [`Identify mandatory constraints on ${phrase}`, `Define acceptable tradeoffs for ${phrase}`, `Set unresolved limits affecting ${phrase}`],
+  },
+]);
+
 const buildProbeTreeFocusAnchors = (phrase, peerPhrase, contextText) => {
   const groundingText = extractProbeTreeGroundingText(contextText);
   const phraseKeywords = collectProbeTreeContextKeywords([phrase, peerPhrase].filter(Boolean).join(" "), 6);
@@ -239,7 +257,25 @@ const buildProbeTreeFocusAnchors = (phrase, peerPhrase, contextText) => {
   return normalizeProbeTreeContextAnchors([phrase, peerPhrase, ...labels]);
 };
 
-const buildProbeTreeFocusedOptions = ({ phrases, idPrefix, contextText }) => phrases.flatMap((phrase, index) => {
+const buildProbeTreeSingleFocusOptions = ({ phrase, idPrefix, contextText }) => PROBE_TREE_SINGLE_FOCUS_FACETS.map((facet, index) => {
+  const selectionOptions = normalizeProbeTreeSelectionOptions(facet.choices(phrase));
+  const contextAnchors = buildProbeTreeFocusAnchors(phrase, "", contextText);
+  return {
+    id: `${idPrefix}-${facet.id}-${safeProbeTreeResponseId(phrase, String(index + 1)).slice(0, 64)}`,
+    text: cleanProbeTreeResponseText(facet.question(phrase)),
+    rationale: cleanProbeTreeResponseText(`Suggests ${facet.id} clarification directions for the selected child focus: ${phrase}`),
+    evidenceNeeded: cleanProbeTreeResponseText(`User selection among suggested ${facet.id} directions: ${selectionOptions.map(option => option.label).join("; ")}`),
+    selectionOptions,
+    contextAnchors,
+    score: scoreInputClause(phrase, selectionOptions),
+    clauseIndex: index,
+    sourceOrder: index,
+  };
+}).filter(candidate => candidate.score >= 8);
+
+const buildProbeTreeFocusedOptions = ({ phrases, idPrefix, contextText }) => (phrases.length === 1
+  ? buildProbeTreeSingleFocusOptions({ phrase: phrases[0], idPrefix, contextText })
+  : phrases.flatMap((phrase, index) => {
   const peerPhrase = phrases.length > 1 ? phrases[(index + 1) % phrases.length] : "";
   const selectionOptions = buildProbeTreeClarificationSuggestions(phrase, peerPhrase);
   const contextAnchors = buildProbeTreeFocusAnchors(phrase, peerPhrase, contextText);
@@ -258,7 +294,7 @@ const buildProbeTreeFocusedOptions = ({ phrases, idPrefix, contextText }) => phr
     clauseIndex: index,
     sourceOrder: index,
   }];
-}).filter(candidate => candidate.score >= 8).reduce((accepted, candidate) => (
+})).filter(candidate => candidate.score >= 8).reduce((accepted, candidate) => (
   areProbeTreeCardsMutuallyDistinct([...accepted, candidate]) ? [...accepted, candidate] : accepted
 ), []).slice(0, 3);
 

@@ -17,6 +17,17 @@ export const isStoryboardWidgetProbeTreeContinuationNode = (node: GraphNode): bo
   return parentNodeId.length > 0 && responseOwned
 }
 
+export const isStoryboardWidgetProbeTreeLineageOnlyRootNode = (graphData: GraphData, node: GraphNode): boolean => {
+  if (isStoryboardWidgetProbeTreeContinuationNode(node)) return false
+  const rootNodeId = readGraphIdentity(node.id)
+  if (!rootNodeId) return false
+  return graphData.nodes.some(candidate => {
+    if (!isStoryboardWidgetProbeTreeContinuationNode(candidate)) return false
+    const properties = readGraphNodeProperties(candidate)
+    return readGraphIdentity(properties.probeTreeThreadRootId || properties.parentNodeId || properties.parentGraphNodeId) === rootNodeId
+  })
+}
+
 export function reconcileStoryboardWidgetProbeTreeSelectedRunNode(args: {
   graphData: GraphData
   selectedNode: GraphNode

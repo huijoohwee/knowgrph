@@ -1,6 +1,7 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
+import type { StoryboardCardMediaGraphPersistenceOptions } from './storyboardCardMediaGraphSource'
 
 export type StoryboardWidgetWorkflowNodeRunner = (nodeId: string, runOptions?: {
   allowCreateRichMediaPanel?: boolean
@@ -9,6 +10,7 @@ export type StoryboardWidgetWorkflowNodeRunner = (nodeId: string, runOptions?: {
   propagateErrors?: boolean
   requireDurableMediaPersistence?: boolean
   nativeCrawlerRecovery?: boolean
+  sourcePersistence?: StoryboardCardMediaGraphPersistenceOptions
 }) => Promise<void>
 
 export type StoryboardWidgetWorkflowNodeRunnerArgs = {
@@ -17,7 +19,7 @@ export type StoryboardWidgetWorkflowNodeRunnerArgs = {
   readDraftGraphData: () => GraphData | null
   commitDraftGraphDataUpdate: (currentDraft: GraphData, nextDraft: GraphData) => void
   commitPublishedGraphData?: (graphData: GraphData) => void
-  persistDraftGraphData: (graphData: GraphData) => void | Promise<void>
+  persistDraftGraphData: (graphData: GraphData, options?: StoryboardCardMediaGraphPersistenceOptions) => void | Promise<void>
   renderGraphDataOverride: GraphData | null
   markdownDocumentName: string | null
   markdownDocumentSourceUrl: string | null

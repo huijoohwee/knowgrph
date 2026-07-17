@@ -62,6 +62,8 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
   }
   if (!graphSourceText.includes('export async function persistStoryboardCardMediaGraphSource')
     || !graphSourceText.includes('const persisted = await writeActiveMarkdownDocumentTextIfPresent({')
+    || !graphSourceText.includes('if (!sourceSync.accepted) return false')
+    || !graphSourceText.includes("if (typeof sourceSync.markdownDocumentText !== 'string') return true")
     || !graphSourceText.includes('markdownDocumentApplyViewPreset: false')
     || !graphSourceText.includes('if (!persisted) throw new Error(')) {
     throw new Error('expected generated Canvas documents to persist without treating same-document graph publication as a viewport-resetting document switch')
@@ -71,13 +73,14 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
     || !graphSourceWriteQueueText.includes('pendingWorkspaceSourceTextWrites.set(workspacePath, next)')) {
     throw new Error('expected shared Canvas document writes to serialize by workspace path and preserve generation order')
   }
-  if (!workflowRunTypesText.includes('persistDraftGraphData: (graphData: GraphData) => void | Promise<void>')
-    || !workflowRunText.includes('await args.persistDraftGraphData(durableGraph)')) {
+  if (!workflowRunTypesText.includes('options?: StoryboardCardMediaGraphPersistenceOptions')
+    || !workflowRunText.includes('await args.persistDraftGraphData(durableGraph, runOptions?.sourcePersistence)')) {
     throw new Error('expected every workflow generator to await the required shared graph-document persistence contract')
   }
   if (!canvasRuntimeText.includes('useStoryboardCardMediaGraphCommit({')
-    || !graphCommitText.includes('const commit = React.useCallback(async (graphData: GraphData) => {')
-    || !graphCommitText.includes('await persistStoryboardCardMediaGraphSource(nextDraft)')) {
-    throw new Error('expected the Canvas runtime persistence adapter to return the durable document commit promise')
+    || !canvasRuntimeText.includes('commitPublishedGraphData: publishStoryboardCardMediaGraph')
+    || !graphCommitText.includes('const publish = React.useCallback((graphData: GraphData): GraphData => {')
+    || !graphCommitText.includes('persistStoryboardCardMediaGraphSource(publish(graphData), options)')) {
+    throw new Error('expected live graph publication to stay synchronous while the Canvas persistence adapter returns the durable document commit promise')
   }
 }

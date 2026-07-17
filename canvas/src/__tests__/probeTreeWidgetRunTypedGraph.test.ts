@@ -13,6 +13,8 @@ import { hashText } from '@/features/parsers/hash'
 import { mergeRecoveredTextWidgetOutputGraphData } from '@/components/StoryboardWidgetCanvas/runtime/useTextWidgetOutputArtifactRecovery'
 import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
+import { isStoryboardWidgetProbeTreeLineageOnlyRootNode } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeRunNode'
+import { areProbeTreeCardsMutuallyDistinct, buildProbeTreeInputDerivedOptions, isProbeTreeCardUserInputRelevant } from '@/features/agent-ready/probeTreeContract.mjs'
 
 const cell = (key: string, type: string, value: unknown) => ({ key, type, value })
 
@@ -107,6 +109,28 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
     || branchNodes.some(node => node.properties.parentNodeId !== 'n1')
   ) {
     throw new Error(`expected typed frontmatter Widget Card Run to publish one visible Probe-Tree branch set, got ${JSON.stringify({ result, committedGraph, publishedBaseGraph, branchNodes, candidateEdges })}`)
+  }
+  if (!isStoryboardWidgetProbeTreeLineageOnlyRootNode(resultGraph!, typedNode) || branchNodes.some(node => isStoryboardWidgetProbeTreeLineageOnlyRootNode(resultGraph!, node))) {
+    throw new Error('expected Run All to treat only the superseded Probe-Tree root as lineage while each selected child owns its continuation')
+  }
+  const singleSelectionContext = [
+    'Authored request:',
+    prompt,
+    'Selected continuation question:',
+    'Which requested items should guide the next branch: attach 2-6 short context anchors copied verbatim from that input?',
+    'Selected continuation answer:',
+    '3. attach 2-6 short context anchors copied verbatim from that input',
+  ].join('\n')
+  const singleSelectionOptions = buildProbeTreeInputDerivedOptions(singleSelectionContext)
+  if (singleSelectionOptions.length !== 3
+    || !areProbeTreeCardsMutuallyDistinct(singleSelectionOptions)
+    || singleSelectionOptions.some(option => !isProbeTreeCardUserInputRelevant({
+      contextText: singleSelectionContext,
+      question: option.text,
+      selectionOptions: option.selectionOptions,
+      contextAnchors: option.contextAnchors,
+    }))) {
+    throw new Error(`expected one selected child answer to expand into three context-relevant clarification cards, got ${JSON.stringify(singleSelectionOptions)}`)
   }
 
   // Mirror the live rerun: toolbar materialization already created the branch
@@ -222,6 +246,14 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
   }
   if (!publishedText || publishedText.includes('[object Object]')) {
     throw new Error(`expected typed frontmatter cells to serialize as canonical values, got ${publishedText}`)
+  }
+  const idempotentSourceSync = syncActiveMarkdownDocumentTextFromParsedGraph({
+    state: { markdownDocumentName: 'docs/run.md', markdownDocumentText: publishedText } as never,
+    sourceFiles: sourceSync.sourceFiles,
+    parsedGraphData: publishedGraph,
+  })
+  if (!idempotentSourceSync.accepted || Object.prototype.hasOwnProperty.call(idempotentSourceSync, 'markdownDocumentText')) {
+    throw new Error(`expected an already-published Probe-Tree graph to remain an accepted no-op, got ${JSON.stringify(idempotentSourceSync)}`)
   }
   const reparsedGraph = tryParseMarkdownFrontmatterFlowGraph('run.md', publishedText)?.graphData || null
   const reparsedIds = new Set((reparsedGraph?.nodes || []).map(node => String(node.id || '')))
