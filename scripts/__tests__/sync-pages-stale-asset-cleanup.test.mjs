@@ -30,9 +30,11 @@ test("publish sync removes stale generated assets from both mirror trees", () =>
   );
 });
 
-test("publish sync includes the MCP Apps contract dependency closure", () => {
+test("publish sync includes the published agent-ready dependency closure", () => {
   assert.match(syncScript, /'mcpAppsContractText\.mjs'/);
   assert.match(syncScript, /'mcpAppsOnboarding\.mjs'/);
+  assert.match(syncScript, /'probeTreeUserInputRelevance\.mjs'/);
+  assert.match(syncScript, /cameraMcpContract\.mjs/);
   assert.match(syncScript, /\.map\(filename => \[agentReadyFeatureSource\(filename\), agentReadyFeatureTarget\(filename\)\]\)/);
 });
 
