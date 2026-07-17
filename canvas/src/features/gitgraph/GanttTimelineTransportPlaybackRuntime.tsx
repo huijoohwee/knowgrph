@@ -9,8 +9,8 @@ export function GanttTimelineTransportPlaybackRuntime({
   active?: boolean
 }) {
   const { code } = useMermaidGanttDocument({ purpose: 'media' })
-  const xrTimelineOwnsClock = useGraphStore(state => state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr')
-  if (!active || xrTimelineOwnsClock || !code) return null
+  const xrBottomTimelineOwnsClock = useGraphStore(state => state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr')
+  if (!active || xrBottomTimelineOwnsClock || !code) return null
   return <GanttTimelineTransportPlaybackRuntimeController code={code} />
 }
 

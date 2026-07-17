@@ -7,6 +7,7 @@ const modCanvas3dMode = () => import('@/__tests__/canvas3dMode.test')
 const modCanvasXrSessionPolicy = () => import('@/__tests__/canvasXrSessionPolicy.test')
 const modCanvasXrPanelSurface = () => import('@/__tests__/canvasXrPanelSurface.test')
 const modXrMotionReferencePackage = () => import('@/__tests__/xrMotionReferencePackage.test')
+const modXrShootWorkflow = () => import('@/__tests__/xrShootWorkflow.test')
 const modWorkspaceImportXrSpatialCaptureIngestion = () => import('@/__tests__/workspaceImportXrSpatialCaptureIngestion.test')
 const modWorkspaceImportXrSpatialCaptureLaunchUrl = () => import('@/__tests__/workspaceImportXrSpatialCaptureLaunchUrl.test')
 const modWorkspaceImportXrSpatialCaptureRuntime = () => import('@/__tests__/workspaceImportXrSpatialCaptureRuntime.test')
@@ -86,6 +87,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'canvas.xrMode.motionReferencePackage', async () => {
     const mod = await modXrMotionReferencePackage()
     await mod.testXrMotionReferencePackageIsNativeDeterministicAndGraphBacked()
+  })
+  await execTest(results, 'canvas.xrMode.shootWorkflow', async () => {
+    const mod = await modXrShootWorkflow()
+    await mod.testXrShootWorkflowMarksRigsRetimeAndExports()
   })
   await execTest(results, 'workspace.import.xrSpatialCapture.localPlyManifestCache', async () => {
     const mod = await modWorkspaceImportXrSpatialCaptureIngestion()

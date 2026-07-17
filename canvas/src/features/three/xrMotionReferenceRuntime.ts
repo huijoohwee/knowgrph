@@ -9,6 +9,7 @@ import {
   XR_MOTION_REFERENCE_MAX_CAST_MARKS,
   XR_MOTION_REFERENCE_MAX_SUBJECTS,
   type XrMotionReferencePlan,
+  type XrMotionReferenceCameraRig,
   type XrMotionReferenceStageId,
   type XrMotionReferenceTransition,
   type XrMotionReferenceVector,
@@ -20,6 +21,8 @@ export type XrMotionReferenceRuntimeSnapshot = Readonly<{
   sourceSignature: string
   plan: XrMotionReferencePlan
   selectedActorId: string
+  selectedCameraRig: XrMotionReferenceCameraRig
+  castMarkArmed: boolean
   playheadSeconds: number
   dirty: boolean
   revision: number
@@ -48,6 +51,8 @@ let snapshot = freezeSnapshot({
   sourceSignature: '',
   plan: readXrMotionReferencePlan(null, []),
   selectedActorId: '',
+  selectedCameraRig: 'dolly',
+  castMarkArmed: false,
   playheadSeconds: 0,
   dirty: false,
   revision: 0,
@@ -128,6 +133,8 @@ export function hydrateXrMotionReferenceRuntime(args: {
     sourceSignature: nextSourceSignature,
     plan,
     selectedActorId,
+    selectedCameraRig: snapshot.selectedCameraRig,
+    castMarkArmed: false,
     playheadSeconds: 0,
     dirty: false,
   })
@@ -226,6 +233,21 @@ export function selectXrMotionReferenceActor(actorId: string): XrMotionReference
   return publish({ ...snapshot, selectedActorId: normalized })
 }
 
+export function setXrMotionReferenceCameraRig(rig: XrMotionReferenceCameraRig): XrMotionReferenceRuntimeSnapshot {
+  if (rig === snapshot.selectedCameraRig) return snapshot
+  return publish({ ...snapshot, selectedCameraRig: rig })
+}
+
+export function setXrMotionReferenceCastMarkArmed(armed: boolean): XrMotionReferenceRuntimeSnapshot {
+  const nextArmed = armed === true && Boolean(snapshot.selectedActorId)
+  if (nextArmed === snapshot.castMarkArmed) return snapshot
+  return publish({ ...snapshot, castMarkArmed: nextArmed })
+}
+
+export function toggleXrMotionReferenceCastMarkArmed(): XrMotionReferenceRuntimeSnapshot {
+  return setXrMotionReferenceCastMarkArmed(!snapshot.castMarkArmed)
+}
+
 export function setXrMotionReferenceCastMark(args: {
   actorId: string
   timeSeconds: number
@@ -247,6 +269,16 @@ export function setXrMotionReferenceCastMark(args: {
   })
   track.marks = marks
   return updatePlan({ ...plan, cast })
+}
+
+export function dropXrMotionReferenceCastMark(position: XrMotionReferenceVector): XrMotionReferenceRuntimeSnapshot {
+  if (!snapshot.castMarkArmed || !snapshot.selectedActorId) return snapshot
+  return setXrMotionReferenceCastMark({
+    actorId: snapshot.selectedActorId,
+    timeSeconds: snapshot.playheadSeconds,
+    position,
+    transition: 'linear',
+  })
 }
 
 export function setXrMotionReferenceCastMotion(
@@ -300,10 +332,32 @@ export function removeXrMotionReferenceCastMark(actorIdValue: string, markId: st
   return updatePlan({ ...plan, cast })
 }
 
+export function retimeXrMotionReferenceCastMark(
+  actorIdValue: string,
+  markId: string,
+  timeSeconds: number,
+): XrMotionReferenceRuntimeSnapshot {
+  const actorId = String(actorIdValue || '').trim()
+  const sourceTrack = snapshot.plan.cast.find(track => track.actorId === actorId)
+  if (!sourceTrack || !sourceTrack.marks.some(mark => mark.id === markId)) return snapshot
+  const plan = planRecord(snapshot.plan)
+  const cast = snapshot.plan.cast.map(track => ({
+    actorId: track.actorId,
+    label: track.label,
+    marks: track.marks.map(mark => ({
+      timeSeconds: track.actorId === actorId && mark.id === markId ? timeSeconds : mark.timeSeconds,
+      position: [...mark.position],
+      transition: mark.transition,
+    })),
+  }))
+  return updatePlan({ ...plan, cast })
+}
+
 export function setXrMotionReferenceCameraMark(args: {
   timeSeconds: number
   anchorId: string
   settings: StrybldrCameraSettings
+  rig?: XrMotionReferenceCameraRig
 }): XrMotionReferenceRuntimeSnapshot {
   const plan = planRecord(snapshot.plan)
   const camera = Array.isArray(plan.camera) ? plan.camera.slice() : []
@@ -312,6 +366,7 @@ export function setXrMotionReferenceCameraMark(args: {
   camera.push({
     timeSeconds: args.timeSeconds,
     anchorId: String(args.anchorId || '').trim(),
+    rig: args.rig || snapshot.selectedCameraRig,
     settings: { ...args.settings },
   })
   return updatePlan({ ...plan, camera })
@@ -324,8 +379,21 @@ export function removeXrMotionReferenceCameraMark(markId: string): XrMotionRefer
     .map(mark => ({
       timeSeconds: mark.timeSeconds,
       anchorId: mark.anchorId,
+      rig: mark.rig,
       settings: { ...mark.settings },
     }))
+  return updatePlan({ ...plan, camera })
+}
+
+export function retimeXrMotionReferenceCameraMark(markId: string, timeSeconds: number): XrMotionReferenceRuntimeSnapshot {
+  if (!snapshot.plan.camera.some(mark => mark.id === markId)) return snapshot
+  const plan = planRecord(snapshot.plan)
+  const camera = snapshot.plan.camera.map(mark => ({
+    timeSeconds: mark.id === markId ? timeSeconds : mark.timeSeconds,
+    anchorId: mark.anchorId,
+    rig: mark.rig,
+    settings: { ...mark.settings },
+  }))
   return updatePlan({ ...plan, camera })
 }
 

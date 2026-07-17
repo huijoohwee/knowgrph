@@ -1,6 +1,12 @@
+import { cleanTimelinePreviewDocumentKey } from '@/components/timeline/useTimelinePreviewBootstrap'
 import { resolveXrMotionReferenceStage, type XrMotionReferencePlan } from './xrMotionReferenceModel'
 
 const XR_TIMELINE_MIN_CUE_MINUTES = 0.000001
+
+export function xrMotionReferenceTimelineDocumentKey(documentName: unknown): string {
+  const documentKey = cleanTimelinePreviewDocumentKey(String(documentName || ''))
+  return `${documentKey || 'Untitled'}#xr-motion`
+}
 
 function timelineMinutes(timeSeconds: number): number {
   return Math.max(0, Number(timeSeconds) || 0) / 60
@@ -37,7 +43,7 @@ function stableToken(value: string): string {
 
 /**
  * Projects the native XR plan into the same Mermaid-Gantt vocabulary used by
- * the BottomPanel Timeline player. Seconds stay authoritative in the XR plan;
+ * the consolidated BottomPanel Timeline player. Seconds stay authoritative;
  * only the transport projection uses fractional minute units.
  */
 export function buildXrMotionReferenceTimelineCode(plan: XrMotionReferencePlan): string {
@@ -71,7 +77,7 @@ export function buildXrMotionReferenceTimelineCode(plan: XrMotionReferencePlan):
   )
   plan.camera.forEach((mark, index) => {
     lines.push(
-      `  Camera mark ${index + 1} effect : vert, xr_camera_effect_${index + 1}, ${cuePositionToken(mark.timeSeconds, plan.durationSeconds)}, ${durationToken(0)}`,
+      `  Camera mark ${index + 1} effect (${mark.rig}) : vert, xr_camera_effect_${index + 1}, ${cuePositionToken(mark.timeSeconds, plan.durationSeconds)}, ${durationToken(0)}`,
     )
   })
 

@@ -4,44 +4,33 @@ import { GanttTimelineTransportPanel } from '@/features/gitgraph/GanttTimelineTr
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useTimelineTransportStoreBinding } from '@/components/timeline/timelineTransport'
-import { cleanTimelinePreviewDocumentKey } from '@/components/timeline/useTimelinePreviewBootstrap'
-import { readCameraFramingRuntime } from '@/features/strybldr/cameraFramingRuntime'
 import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
   XR_MOTION_REFERENCE_STAGE_PRESETS,
-  sampleXrMotionReferenceMarks,
   serializeXrMotionReferencePlan,
   xrMotionReferenceSceneKey,
   type XrMotionReferenceStageId,
-  type XrMotionReferenceTransition,
 } from './xrMotionReferenceModel'
 import { buildXrMotionReferencePackage, xrMotionReferencePackageBlob, xrMotionReferencePackageFilename } from './xrMotionReferencePackage'
 import {
   hydrateXrMotionReferenceRuntime,
   markXrMotionReferenceSaved,
   readXrMotionReferenceRuntime,
-  selectXrMotionReferenceActor,
-  setXrMotionReferenceCameraMark,
-  setXrMotionReferenceCastMark,
   setXrMotionReferenceDuration,
   setXrMotionReferenceFps,
   setXrMotionReferencePlayhead,
   setXrMotionReferenceStage,
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
-import { buildXrMotionReferenceTimelineCode } from './xrMotionReferenceTimeline'
+import { buildXrMotionReferenceTimelineCode, xrMotionReferenceTimelineDocumentKey } from './xrMotionReferenceTimeline'
+import { CameraMotionMarkRetime } from './CameraMotionMarkRetime'
 import { resolveXrPanelSourceProfile } from './xrPanelModel'
 import { downloadBlob } from '@/lib/graph/save'
 import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 
-function finiteInput(value: string, fallback: number): number {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : fallback
-}
-
-export function XrTimelineSceneLane() {
+export function XrCameraMotionSection() {
   const activeGraphData = useActiveGraphRenderData(true)
   const {
     canvas3dMode,
@@ -68,10 +57,7 @@ export function XrTimelineSceneLane() {
     readXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
   )
-  const [markX, setMarkX] = React.useState('0')
-  const [markY, setMarkY] = React.useState('0')
-  const [markZ, setMarkZ] = React.useState('0')
-  const [markTransition, setMarkTransition] = React.useState<XrMotionReferenceTransition>('linear')
+  const xrActive = canvasRenderMode === '3d' && canvas3dMode === 'xr'
 
   const documentLoaded = Boolean(
     String(markdownDocumentName || '').trim()
@@ -92,59 +78,26 @@ export function XrTimelineSceneLane() {
     () => resolveXrPanelSourceProfile(markdownDocumentText || ''),
     [markdownDocumentText],
   )
-  const documentKey = cleanTimelinePreviewDocumentKey(markdownDocumentName || '')
-  const xrTransportDocumentKey = `${documentKey || 'Untitled'}#xr-motion`
-  const selectedTrack = runtime.plan.cast.find(track => track.actorId === runtime.selectedActorId)
-    || runtime.plan.cast[0]
-    || null
+  const xrTransportDocumentKey = xrMotionReferenceTimelineDocumentKey(markdownDocumentName)
   const timelineCode = React.useMemo(
     () => buildXrMotionReferenceTimelineCode(runtime.plan),
     [runtime.plan],
   )
 
   React.useEffect(() => {
+    if (!xrActive) return
     hydrateXrMotionReferenceRuntime({
       sceneKey,
       nodes: graphData?.nodes || [],
       persistedValue,
     })
-  }, [graphData?.nodes, persistedValue, sceneKey])
+  }, [graphData?.nodes, persistedValue, sceneKey, xrActive])
 
   React.useEffect(() => {
+    if (!xrActive) return
     if (transportDocumentKey !== xrTransportDocumentKey) return
     setXrMotionReferencePlayhead(transportPosition * 60)
-  }, [transportDocumentKey, transportPosition, xrTransportDocumentKey])
-
-  React.useEffect(() => {
-    if (!selectedTrack) return
-    const position = sampleXrMotionReferenceMarks(selectedTrack.marks, runtime.playheadSeconds)
-    setMarkX(String(position[0]))
-    setMarkY(String(position[1]))
-    setMarkZ(String(position[2]))
-  }, [runtime.playheadSeconds, selectedTrack])
-
-  const addCastMark = React.useCallback(() => {
-    if (!selectedTrack) return
-    setXrMotionReferenceCastMark({
-      actorId: selectedTrack.actorId,
-      timeSeconds: runtime.playheadSeconds,
-      position: [
-        finiteInput(markX, 0),
-        finiteInput(markY, 0),
-        finiteInput(markZ, 0),
-      ],
-      transition: markTransition,
-    })
-  }, [markTransition, markX, markY, markZ, runtime.playheadSeconds, selectedTrack])
-
-  const captureCameraMark = React.useCallback(() => {
-    const framing = readCameraFramingRuntime()
-    setXrMotionReferenceCameraMark({
-      timeSeconds: runtime.playheadSeconds,
-      anchorId: framing.anchorId,
-      settings: { ...framing.settings },
-    })
-  }, [runtime.playheadSeconds])
+  }, [transportDocumentKey, transportPosition, xrActive, xrTransportDocumentKey])
 
   const savePlan = React.useCallback(() => {
     if (!graphData) return
@@ -182,8 +135,9 @@ export function XrTimelineSceneLane() {
     })
   }, [graphData, markdownDocumentName, pushUiToast])
 
-  const xrActive = canvasRenderMode === '3d' && canvas3dMode === 'xr'
   const edges = Array.isArray(graphData?.edges) ? graphData.edges.length : 0
+
+  if (!xrActive) return null
 
   return (
     <section
@@ -202,7 +156,7 @@ export function XrTimelineSceneLane() {
         data-kg-xr-timeline-player-controls="1"
       >
         <section className="mr-auto min-w-32 self-center">
-          <h3 className="text-[11px] font-semibold uppercase">XR stage &amp; motion</h3>
+          <h3 className="text-[11px] font-semibold uppercase">XR stage &amp; output</h3>
           <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>
             {documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks
           </p>
@@ -222,39 +176,6 @@ export function XrTimelineSceneLane() {
           </PanelSelect>
         </label>
 
-        <label className="grid min-w-28 gap-0.5 text-[10px]">
-          <span className={UI_THEME_TOKENS.text.tertiary}>Cast</span>
-          <PanelSelect
-            aria-label="XR cast member"
-            value={selectedTrack?.actorId || ''}
-            disabled={!selectedTrack}
-            onChange={event => selectXrMotionReferenceActor(event.target.value)}
-          >
-            {runtime.plan.cast.length ? runtime.plan.cast.map(track => (
-              <option key={track.actorId} value={track.actorId}>{track.label}</option>
-            )) : <option value="">No cast</option>}
-          </PanelSelect>
-        </label>
-
-        {([
-          ['X', markX, setMarkX],
-          ['Y', markY, setMarkY],
-          ['Z', markZ, setMarkZ],
-        ] as const).map(([label, value, setter]) => (
-          <label key={label} className="grid w-14 gap-0.5 text-[10px]">
-            <span className={UI_THEME_TOKENS.text.tertiary}>{label} m</span>
-            <PanelTextInput aria-label={`XR cast ${label} coordinate`} type="number" step={0.1} value={value} onChange={event => setter(event.target.value)} />
-          </label>
-        ))}
-
-        <label className="grid w-20 gap-0.5 text-[10px]">
-          <span className={UI_THEME_TOKENS.text.tertiary}>Motion</span>
-          <PanelSelect value={markTransition} onChange={event => setMarkTransition(event.target.value as XrMotionReferenceTransition)}>
-            <option value="linear">Travel</option>
-            <option value="hold">Hold</option>
-          </PanelSelect>
-        </label>
-
         <label className="grid w-16 gap-0.5 text-[10px]">
           <span className={UI_THEME_TOKENS.text.tertiary}>Seconds</span>
           <PanelTextInput type="number" min={1} max={30} step={0.5} value={runtime.plan.durationSeconds} onChange={event => setXrMotionReferenceDuration(Number(event.target.value))} />
@@ -264,12 +185,6 @@ export function XrTimelineSceneLane() {
           <PanelTextInput type="number" min={6} max={30} step={1} value={runtime.plan.fps} onChange={event => setXrMotionReferenceFps(Number(event.target.value))} />
         </label>
 
-        <button type="button" className="App-toolbar__btn" disabled={!selectedTrack} onClick={addCastMark} data-kg-xr-motion-add-cast-mark="1">
-          Mark cast @ {runtime.playheadSeconds.toFixed(2)}s
-        </button>
-        <button type="button" className="App-toolbar__btn" onClick={captureCameraMark} data-kg-xr-motion-add-camera-mark="1">
-          Capture camera
-        </button>
         <button type="button" className="App-toolbar__btn" disabled={!graphData || !runtime.dirty} onClick={savePlan} data-kg-xr-motion-save="1">
           Save
         </button>
@@ -278,7 +193,9 @@ export function XrTimelineSceneLane() {
         </button>
       </header>
 
-      <section aria-label="XR motion lanes" data-kg-xr-timeline-transport="reused-gantt-player">
+      <CameraMotionMarkRetime />
+
+      <section aria-label="XR animation timeline" data-kg-xr-timeline-transport="reused-gantt-player">
         <GanttTimelineTransportPanel
           code={timelineCode}
           clockActive

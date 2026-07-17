@@ -12,6 +12,7 @@ import {
   resolveCameraFramingAxisSettings,
   resolveCameraFramingPose,
   resolveCameraFramingSettingsFromPose,
+  resolveCameraVerticalFovDegrees,
   type CameraFramingPose,
 } from '@/lib/camera/cameraFramingPose'
 import {
@@ -26,7 +27,19 @@ import {
   type ModelAssetCameraFit,
   type ModelAssetCameraPose,
 } from './modelAssetCameraPose'
-import { XR_MOTION_STAGE_MIN_CAMERA_Y } from './xrMotionReferenceCoordinates'
+import {
+  XR_MOTION_STAGE_MIN_CAMERA_Y,
+  XR_MOTION_STAGE_SPAN,
+  xrMotionReferenceWorldPosition,
+} from './xrMotionReferenceCoordinates'
+import {
+  XR_MOTION_REFERENCE_CAMERA_BASELINE_METERS,
+  resolveXrMotionReferenceStage,
+  sampleXrMotionReferenceMarks,
+} from './xrMotionReferenceModel'
+import {
+  readXrMotionReferenceRuntime,
+} from './xrMotionReferenceRuntime'
 
 type CameraFramingControlsRuntimeArgs = {
   camera: PerspectiveCamera
@@ -279,6 +292,21 @@ export function useCameraFramingControlsRuntime({
 
   const readContext = React.useCallback((): CameraFramingContext => {
     if (modelAssetFit) return contextFromModelPose(readModelAssetCameraPose(modelAssetFit))
+    if (mode === 'xr' && framing.anchorId) {
+      const track = readXrMotionReferenceRuntime().plan.cast.find(candidate => candidate.actorId === framing.anchorId)
+      if (track) {
+        const runtime = readXrMotionReferenceRuntime()
+        const stage = resolveXrMotionReferenceStage(runtime.plan.stageId)
+        const scale = XR_MOTION_STAGE_SPAN / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
+        const sampled = sampleXrMotionReferenceMarks(track.marks, runtime.playheadSeconds)
+        const target = xrMotionReferenceWorldPosition([sampled[0], sampled[1] + 1.2, sampled[2]], scale)
+        return {
+          target,
+          up: [0, 1, 0],
+          baseDistance: XR_MOTION_REFERENCE_CAMERA_BASELINE_METERS * scale,
+        }
+      }
+    }
     const key = String(modelAssetRenderKey || 'graph')
     const target: [number, number, number] = [controls.target.x, controls.target.y, controls.target.z]
     const position: [number, number, number] = [camera.position.x, camera.position.y, camera.position.z]
@@ -291,7 +319,7 @@ export function useCameraFramingControlsRuntime({
       up: [camera.up.x, camera.up.y, camera.up.z],
       baseDistance: graphBaseDistanceRef.current,
     }
-  }, [camera, controls, modelAssetFit, modelAssetRenderKey])
+  }, [camera, controls, framing.anchorId, mode, modelAssetFit, modelAssetRenderKey])
 
   React.useEffect(() => subscribeSpatialCaptureAxis(axis => {
     setAxisRequest(current => ({ axis, revision: current.revision + 1 }))
@@ -355,6 +383,7 @@ export function useCameraFramingControlsRuntime({
       baseDistance: context.baseDistance,
       up: context.up,
     })
+    camera.fov = resolveCameraVerticalFovDegrees(framing.settings.focalLengthMm)
     runProgrammaticPose(() => applyCameraFramingPose({ camera, controls, pose, near: context.near, far: context.far, minimumY }))
   }, [camera, contextKey, controls, framing, minimumY, mode, modelAssetFit, paused, readContext, reapplyRevision, runProgrammaticPose])
 

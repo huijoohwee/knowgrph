@@ -6,6 +6,8 @@ import {
   readXrMotionReferencePlan,
   resolveXrMotionReferenceStage,
   sampleXrMotionReferenceCameraPose,
+  sampleXrMotionReferenceCameraRig,
+  sampleXrMotionReferenceCameraSettings,
   sampleXrMotionReferenceMarks,
   serializeXrMotionReferencePlan,
   type XrMotionReferencePackage,
@@ -75,7 +77,7 @@ function buildTopDownSvg(plan: XrMotionReferencePlan): string {
     const p = point(mark.pose.position)
     const target = point(mark.pose.target)
     const angle = round(Math.atan2(target.y - p.y, target.x - p.x) * 180 / Math.PI, 2)
-    return `<g transform="translate(${p.x} ${p.y}) rotate(${angle})"><path d="M 14 0 L -10 10 L -10 -10 Z" class="camera"/></g><text x="${p.x + 14}" y="${p.y}">C${index + 1} ${mark.timeSeconds}s</text>`
+    return `<g transform="translate(${p.x} ${p.y}) rotate(${angle})"><path d="M 14 0 L -10 10 L -10 -10 Z" class="camera"/></g><text x="${p.x + 14}" y="${p.y}">C${index + 1} ${mark.timeSeconds}s ${escapeXml(mark.rig)}</text>`
   })
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" viewBox="0 0 1000 700">',
@@ -96,7 +98,7 @@ function buildGeneratorBrief(plan: XrMotionReferencePlan): string {
     const marks = track.marks.map(mark => `${mark.timeSeconds}s (${mark.position.join(', ')}) [${mark.transition}]`).join(' → ')
     return `- ${track.label}: ${marks}`
   })
-  const cameraLines = plan.camera.map(mark => `- ${mark.timeSeconds}s: ${mark.settings.shot}, ${mark.settings.angle}, ${mark.settings.level}; position (${mark.pose.position.join(', ')})`)
+  const cameraLines = plan.camera.map(mark => `- ${mark.timeSeconds}s: ${mark.rig} rig, ${mark.settings.focalLengthMm}mm, ${mark.settings.shot}, ${mark.settings.angle}, ${mark.settings.level}; position (${mark.pose.position.join(', ')})`)
   const subjectLines = plan.subjects.map(subject => `- ${subject.label} [${subject.category}/${subject.assetId}] at (${subject.position.join(', ')})`)
   return [
     'Use the attached Knowgrph XR data as the motion and spatial reference for one continuous shot.',
@@ -124,6 +126,8 @@ function buildMotionSamples(plan: XrMotionReferencePlan): unknown[] {
       frame,
       timeSeconds,
       camera: sampleXrMotionReferenceCameraPose(plan.camera, timeSeconds),
+      cameraRig: sampleXrMotionReferenceCameraRig(plan.camera, timeSeconds),
+      cameraLensMm: sampleXrMotionReferenceCameraSettings(plan.camera, timeSeconds)?.focalLengthMm || 50,
       cast: plan.cast.map(track => ({ actorId: track.actorId, position: sampleXrMotionReferenceMarks(track.marks, timeSeconds) })),
       subjects: plan.subjects.map(subject => {
         const track = plan.cast.find(candidate => candidate.actorId === subject.id)
@@ -157,6 +161,7 @@ export function buildXrMotionReferencePackage(args: { plan: XrMotionReferencePla
     graphFingerprint: fingerprint,
     motionFingerprint,
     cameraSemanticMapping: { baselineMeters: XR_MOTION_REFERENCE_CAMERA_BASELINE_METERS, anchorFallback: 'stage-origin' },
+    cameraRigs: [...new Set(plan.camera.map(mark => mark.rig))],
     referenceBoundary,
   }
   const files = Object.freeze([

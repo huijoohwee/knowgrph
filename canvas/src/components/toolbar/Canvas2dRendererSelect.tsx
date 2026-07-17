@@ -136,7 +136,7 @@ export function Canvas2dRendererSelect({
           geospatialEnabled,
           onOpenGeospatialMode,
           onOpenShared3dPanel: mode => {
-            state.setFloatingPanelView(mode === '3d' ? 'camera' : 'media')
+            state.setFloatingPanelView('camera')
             state.setFloatingPanelOpen(true)
             if (mode === 'xr') {
               state.setBottomSurfaceTab('timeline')
