@@ -10,11 +10,7 @@ import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { resolveXrChoreographySpeedWarnings } from './xrChoreographyDiagnostics'
-import {
-  selectXrMotionReferenceCameraMark,
-  selectXrMotionReferenceCastMark,
-  type XrMotionReferenceRuntimeSnapshot,
-} from './xrMotionReferenceRuntime'
+import { type XrMotionReferenceRuntimeSnapshot } from './xrMotionReferenceRuntime'
 
 function ChoreographyCard({
   Icon,
@@ -135,16 +131,10 @@ export function XrChoreographyInspector({
           Icon={Footprints}
           target="cast"
           title={track.label}
-          description="Select a mark here; edit time, easing, gait, and XYZ in BottomPanel Timeline."
+          description="The selected Timeline mark is reflected here; edit time, easing, gait, and XYZ in its cast lane."
           invocation={projectedCastInvocation}
           metadata={`${track.marks.length} mark${track.marks.length === 1 ? '' : 's'} · mark ${castMarkIndex + 1} · ${castMark.timeSeconds}s`}
-          footer={(
-            <>
-              {track.marks.map((mark, index) => (
-                <button key={mark.id} type="button" className="App-toolbar__btn size-6 shrink-0 p-0 text-[9px]" aria-pressed={castMark.id === mark.id} aria-label={`Select ${track.label} mark ${index + 1}`} onClick={() => selectXrMotionReferenceCastMark(track.actorId, mark.id)}>{index + 1}</button>
-              ))}
-            </>
-          )}
+          footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)} data-kg-xr-choreography-selection-owner="timeline-cast">Select marks in the {track.label} Timeline lane.</span>}
         />
       ) : (
         <ChoreographyCard Icon={Footprints} target="cast" title="Cast path" description="Select a cast actor to edit its path choreography." invocation={castInvocation || controlTool} metadata="No cast target selected" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Choose a cast target above.</span>} />
@@ -154,16 +144,10 @@ export function XrChoreographyInspector({
           Icon={Camera}
           target="camera"
           title="Camera path"
-          description="Select a mark here; edit time and easing in BottomPanel Timeline. Frame in Camera → SHOOT."
+          description="The selected Timeline mark is reflected here; edit time and easing in its camera lane. Frame in Camera → SHOOT."
           invocation={projectedCameraInvocation}
           metadata={`${runtime.plan.camera.length} mark${runtime.plan.camera.length === 1 ? '' : 's'} · ${cameraMark.rig} · mark ${cameraMarkIndex + 1} · ${cameraMark.timeSeconds}s`}
-          footer={(
-            <>
-              {runtime.plan.camera.map((mark, index) => (
-                <button key={mark.id} type="button" className="App-toolbar__btn size-6 shrink-0 p-0 text-[9px]" aria-pressed={cameraMark.id === mark.id} aria-label={`Select camera mark ${index + 1}`} onClick={() => selectXrMotionReferenceCameraMark(mark.id)}>C{index + 1}</button>
-              ))}
-            </>
-          )}
+          footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)} data-kg-xr-choreography-selection-owner="timeline-camera">Select marks in the Camera Timeline lane.</span>}
         />
       ) : (
         <ChoreographyCard Icon={Camera} target="camera" title="Camera path" description="Add camera marks in Camera → SHOOT; edit them in BottomPanel Timeline." invocation={cameraInvocation || controlTool} metadata="0 marks · Timeline owns time" footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>No camera marks yet.</span>} />
