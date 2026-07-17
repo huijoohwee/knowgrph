@@ -8,6 +8,7 @@ import {
   extractProbeTreeUserInputText,
   isProbeTreeCardUserInputRelevant,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+  resolveProbeTreeTerminalGenerationRequest,
   resolveProbeTreeContextAnchors,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS } from '@/features/agentic-os/probeTreePromptPreset'
@@ -291,6 +292,18 @@ export function testProbeTreeRestatedQueryAndSemanticallyThinChoicesAreRejected(
     selectionOptions: ['Long-term capital growth', 'Recurring income yield', 'Strategic market access'],
     contextAnchors: ['India', 'China', 'SE Asia'],
   })
+  const conciseSemanticQuestionAccepted = isProbeTreeCardUserInputRelevant({
+    contextText,
+    question: 'Which investment objective should drive the India, China, or SE Asia recommendation?',
+    selectionOptions: ['Maximize returns', 'Protect capital value', 'Prioritize strategic access'],
+    contextAnchors: ['India', 'China', 'SE Asia'],
+  })
+  const uncuedTwoWordChoicesAccepted = isProbeTreeCardUserInputRelevant({
+    contextText,
+    question: 'Which risk posture should drive the India, China, or SE Asia recommendation?',
+    selectionOptions: ['Higher risk', 'Lower risk'],
+    contextAnchors: ['India', 'China', 'SE Asia'],
+  })
   const sparseContextText = [
     'Authored request:',
     '/sme-care-agent @source.frontmatter @runtime-proof #runtime-ready /knowgrph.probe-tree invest in India, or SE Asia?',
@@ -355,6 +368,8 @@ export function testProbeTreeRestatedQueryAndSemanticallyThinChoicesAreRejected(
     restatedQuestionAccepted
     || entityListParaphraseAccepted
     || !querySpecificQuestionAccepted
+    || !conciseSemanticQuestionAccepted
+    || uncuedTwoWordChoicesAccepted
     || mechanicalBucketQuestionAccepted
     || mixedMechanicalBucketQuestionAccepted
     || mixedEntityLabelQuestionAccepted
@@ -363,7 +378,7 @@ export function testProbeTreeRestatedQueryAndSemanticallyThinChoicesAreRejected(
     || !['invest', 'India', 'SE Asia'].every(anchor => derivedSparseAnchors.includes(anchor))
     || derivedSparseAnchors.includes('Southeast Asia')
   ) {
-    throw new Error(`expected source-query echoes, every semantically thin choice, and repeated continuation answers to fail while semantic number-bearing choices and sparse source-verbatim anchors survive, got ${JSON.stringify({ restatedQuestionAccepted, entityListParaphraseAccepted, querySpecificQuestionAccepted, mechanicalBucketQuestionAccepted, mixedMechanicalBucketQuestionAccepted, mixedEntityLabelQuestionAccepted, semanticBucketQuestionAccepted, repeatedContinuationChoiceAccepted, derivedSparseAnchors })}`)
+    throw new Error(`expected source-query echoes, every semantically thin choice, and repeated continuation answers to fail while concise semantic preferences, semantic number-bearing choices, and sparse source-verbatim anchors survive, got ${JSON.stringify({ restatedQuestionAccepted, entityListParaphraseAccepted, querySpecificQuestionAccepted, conciseSemanticQuestionAccepted, uncuedTwoWordChoicesAccepted, mechanicalBucketQuestionAccepted, mixedMechanicalBucketQuestionAccepted, mixedEntityLabelQuestionAccepted, semanticBucketQuestionAccepted, repeatedContinuationChoiceAccepted, derivedSparseAnchors })}`)
   }
 }
 
@@ -433,6 +448,8 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
     question: 'Which parts of "provider-neutral protection guidance" need separate follow-up?',
     selectionOptions: ['provider-neutral', 'protection guidance'],
   })
+  const mixedTerminalRequest = resolveProbeTreeTerminalGenerationRequest('4. 7-10 years Other: Generate the report')
+  const clarificationChoiceRequest = resolveProbeTreeTerminalGenerationRequest('1. Generate recurring income 2. Protect capital value')
   if (
     forbiddenMetadata.some(keyword => keywords.includes(keyword))
     || !['sme', 'cyber', 'supply-chain', 'physical-asset', 'growth-stage'].every(keyword => keywords.includes(keyword))
@@ -442,6 +459,8 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
     || questionOnlyContinuationInput !== 'coverage authority, claims freshness, adviser handoff'
     || genericWrapperAccepted
     || relationshipWrapperAccepted
+    || mixedTerminalRequest !== 'Generate the report'
+    || clarificationChoiceRequest
   ) {
     throw new Error(`expected relevance validation to reject canned wrappers while keeping the selected child input primary, got ${JSON.stringify({ keywords, continuationInput, continuationKeywords, questionOnlyContinuationInput })}`)
   }

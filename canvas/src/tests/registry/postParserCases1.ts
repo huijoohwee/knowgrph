@@ -607,7 +607,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["byteplus.defaults.exposeSeedTextImageVideoModels","@/__tests__/byteplusRunGeneration.test","testBytePlusDefaultCatalogExposesSeedTextImageVideoModels"],
   ["chatAssetProxy.viteRoutesSharedRemoteFetchHandler","@/__tests__/chatAssetProxyIntegration.test","testViteConfigRoutesChatAssetProxyThroughSharedRemoteFetchHandler"],
   ["byteplus.run.markdownUsesSharedChatProxyResponse","@/__tests__/byteplusRunGeneration.test","testGenerateRunMarkdownWithProviderUsesChatProxyResponse"],
-  ["openai.run.markdownSupportsResponsesApi","@/__tests__/byteplusRunGeneration.test","testGenerateRunMarkdownWithProviderSupportsOpenAiResponsesApi"],
+  ["openai.run.markdownSupportsResponsesApi","@/__tests__/openAiRunGeneration.test","testGenerateRunMarkdownWithProviderSupportsOpenAiResponsesApi"],
   ["byteplus.run.imageDecodesBase64Payload","@/__tests__/byteplusRunGeneration.test","testGenerateRunImageWithBytePlusAcceptsBase64Payload"],
   ["byteplus.run.imageUrlDownloadsThroughAssetProxy","@/__tests__/byteplusRunGeneration.test","testGenerateRunImageWithBytePlusDownloadsUrlThroughAssetProxy"],
   ["byteplus.run.imageExplicitModelDisablesFallback","@/__tests__/byteplusRunGeneration.test","testGenerateRunImageWithBytePlusDoesNotFallbackWhenModelExplicit"],

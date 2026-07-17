@@ -1,10 +1,9 @@
-import { readStoryboardWidgetProbeTreeInvocationText, resolveStoryboardWidgetProbeTreeChatRoute, resolveStoryboardWidgetProbeTreeInvocationTokenForNode, runStoryboardWidgetProbeTreeMcpInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
+import { readStoryboardWidgetProbeTreeInvocationText, resolveStoryboardWidgetProbeTreeInvocationTokenForNode, runStoryboardWidgetProbeTreeMcpInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
 import { resolveStoryboardWidgetProbeTreeSelectedRunNode } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeRunNode'
 import { buildProbeTreeStructuredResponse, KNOWGRPH_PROBE_TREE_TOOL_NAMES, PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION } from '@/features/agent-ready/probeTreeContract.mjs'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
-import { CHAT_OPENAI_ENDPOINT_URL, CHAT_PROVIDER_OPENAI } from '@/lib/chatEndpoint'
 
 const prompt = [
   '/sme-care-agent @source.frontmatter @source.body @local-harness #runtime-ready #approval-gate',
@@ -262,7 +261,24 @@ export async function testProbeTreeWidgetRunRefusesGenericNoModelFallback() {
         threadRootId: 'investment-root',
         currentNodeId: 'investment-root',
         contextText,
-        options: [],
+        options: [
+          {
+            id: 'investment-vehicle',
+            text: 'Which investment vehicle should guide the China, India, or Southeast Asia comparison?',
+            rationale: 'The vehicle changes the relevant liquidity, control, and market-access evidence.',
+            evidenceNeeded: 'User-selected investment vehicle.',
+            selectionOptions: ['Prioritize liquid public-market exposure', 'Prefer private-market fund access', 'Require direct operating control'],
+            contextAnchors: ['China', 'India', 'SE Asia'],
+          },
+          {
+            id: 'investment-objective',
+            text: 'Which investment objective should drive the China, India, or Southeast Asia recommendation?',
+            rationale: 'The objective changes how return, income, and strategic access should be compared.',
+            evidenceNeeded: 'User-selected investment objective.',
+            selectionOptions: ['Maximize long-term capital growth', 'Prioritize recurring income yield', 'Require strategic market access'],
+            contextAnchors: ['invest', 'India', 'SE Asia'],
+          },
+        ],
       }),
       cost_log: { model: 'none', prompt_tokens: 0, completion_tokens: 0, cache_hits: 0, estimated_cost_usd: 0 },
     },
@@ -314,22 +330,6 @@ export async function testProbeTreeWidgetRunSurfacesProviderTransportFailure() {
     || errorMessage.includes('received no accepted 2-4 query-specific LLM cards')
   ) {
     throw new Error(`expected the provider transport failure to remain distinct from semantic card rejection, got ${errorMessage}`)
-  }
-}
-
-export function testProbeTreeWidgetRunUsesActiveChatRouteOverStaleCardProvider() {
-  const route = resolveStoryboardWidgetProbeTreeChatRoute({
-    localProperties: { chatAuthMode: { key: 'chatAuthMode', type: 'string', value: 'byok' } },
-    resolvedProperties: {
-      chatProvider: { key: 'chatProvider', type: 'string', value: 'byteplus-modelark' },
-      chatEndpointUrl: { key: 'chatEndpointUrl', type: 'string', value: 'https://ark.ap-southeast.bytepluses.com/api/v3/chat/completions' },
-      chatModel: { key: 'chatModel', type: 'string', value: 'seed-2-0-lite-260228' },
-      chatAuthMode: { key: 'chatAuthMode', type: 'string', value: 'byok' },
-    },
-    runtimeProperties: { chatProvider: CHAT_PROVIDER_OPENAI, chatEndpointUrl: CHAT_OPENAI_ENDPOINT_URL, chatModel: 'gpt-5-nano', chatAuthMode: 'serverManaged' },
-  })
-  if (route.provider !== CHAT_PROVIDER_OPENAI || route.endpointUrl !== CHAT_OPENAI_ENDPOINT_URL || route.chatModel !== 'gpt-5-nano' || route.chatAuthMode !== 'byok') {
-    throw new Error(`expected active Chat routing to own Probe-Tree LLM generation, got ${JSON.stringify(route)}`)
   }
 }
 
@@ -470,7 +470,8 @@ export function testProbeTreeContinuationMetadataRoutesWithoutVisibleSlashToken(
 }
 
 export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesDeliverable() {
-  const userAnswer = 'Generate report on China investment in SE Asia in USD trillion'
+  const userAnswer = '4. 7-10 years Other: Generate report on China investment in SE Asia in USD trillion'
+  const terminalRequest = 'Generate report on China investment in SE Asia in USD trillion'
   const typedCell = (key: string, type: string, value: unknown) => ({ key, type, value })
   const rootNode: GraphNode = {
     id: 'probe-root',
@@ -537,6 +538,7 @@ export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesD
   if (
     mcpCalls !== 0
     || !providerPrompt.includes(userAnswer)
+    || !providerPrompt.includes(`Selected user request:\n${terminalRequest}\n`)
     || !providerPrompt.includes('Do not ask a clarification question, emit Probe-Tree cards, or continue Probe-Tree.')
     || !providerPrompt.includes('Do not substitute a canned, fixture-backed, or use-case-specific hardcoded response.')
     || !persistedChild

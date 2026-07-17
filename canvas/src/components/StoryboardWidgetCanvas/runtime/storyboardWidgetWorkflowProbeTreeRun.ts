@@ -48,6 +48,7 @@ import {
 import {
   runStoryboardWidgetProbeTreeTerminalGeneration,
 } from './storyboardWidgetProbeTreeTerminalGeneration'
+import { resolveStoryboardWidgetProbeTreeProviderRequestOptions } from './storyboardWidgetProbeTreeProviderRequest'
 
 const INVOCATION_TOKEN_PATTERN = /(^|\s)([/#@][A-Za-z0-9_.-]+)/g
 const PROBE_TREE_INVOCATION_TOKENS = new Set<string>(
@@ -294,10 +295,9 @@ export function resolveStoryboardWidgetProbeTreeChatRoute(args: {
   resolvedProperties: Record<string, unknown>
   runtimeProperties: StoryboardWidgetProbeTreeProviderRuntimeProperties
 }) {
-  const readRouteValue = (key: 'chatProvider' | 'chatEndpointUrl' | 'chatModel'): string => {
-    const runtimeValue = String(unwrapGraphCellValue(args.runtimeProperties[key]) || '').trim()
-    return runtimeValue || String(unwrapGraphCellValue(args.resolvedProperties[key]) || '').trim()
-  }
+  const readRouteValue = (key: 'chatProvider' | 'chatEndpointUrl' | 'chatModel'): string => (
+    String(unwrapGraphCellValue(args.runtimeProperties[key]) || '').trim()
+  )
   const localAuthMode = String(unwrapGraphCellValue(args.localProperties?.chatAuthMode) || '').trim()
   const runtimeAuthMode = String(unwrapGraphCellValue(args.runtimeProperties.chatAuthMode) || '').trim()
   const resolvedAuthMode = String(unwrapGraphCellValue(args.resolvedProperties.chatAuthMode) || '').trim()
@@ -440,14 +440,15 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     : null
   if (materialized) providerAccepted = true
 
-  if (!materialized && mcpInvoked) {
+  const mcpModel = readMcpModel(mcpResult)
+  if (!materialized && mcpInvoked && mcpModel.toLowerCase() !== 'none') {
     materialized = materializeStoryboardWidgetProbeTreeStructuredResponse({
       graphData: graphForInvocation,
       anchorNode: node,
       responseText: JSON.stringify({ result: mcpResult }, null, 2),
       contextText,
       responseSource: 'mcp',
-      model: readMcpModel(mcpResult),
+      model: mcpModel,
       mcpInvoked,
       threadRootId,
       invocationTokens,
@@ -545,6 +546,11 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
   let publicationCompleted = false
   const generateProviderResponse = args.generateProviderResponse || (async refinementPrompt => {
     try {
+      const providerRequestOptions = resolveStoryboardWidgetProbeTreeProviderRequestOptions({
+        prompt: refinementPrompt,
+        chatMaxCompletionTokens: resolvedThinking.chatMaxCompletionTokens,
+        chatReasoningEffort: readResolvedProviderValue('chatReasoningEffort'),
+      })
       return await generateRunMarkdownWithProvider({
         config: {
           provider,
@@ -555,10 +561,10 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
         prompt: refinementPrompt,
         options: {
           chatTemperature: readResolvedProviderValue('chatTemperature'),
-          chatMaxCompletionTokens: resolvedThinking.chatMaxCompletionTokens,
+          chatMaxCompletionTokens: providerRequestOptions.chatMaxCompletionTokens,
           chatServiceTier: readResolvedProviderValue('chatServiceTier'),
           chatStream: false,
-          chatReasoningEffort: readResolvedProviderValue('chatReasoningEffort'),
+          chatReasoningEffort: providerRequestOptions.chatReasoningEffort,
           chatThinkingType: resolvedThinking.chatThinkingType,
           chatThinkingJson: resolvedThinking.chatThinkingJson,
           chatFrequencyPenalty: readResolvedProviderValue('chatFrequencyPenalty'),

@@ -3,7 +3,7 @@ import type { StoryboardWidgetTextRunOutputPublisher } from '@/components/Storyb
 import { buildStoryboardWidgetProbeTreeOutputGroupId } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
 import {
   KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
-  isProbeTreeTerminalGenerationRequest,
+  resolveProbeTreeTerminalGenerationRequest,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { buildRichMediaTextMarkdownDocument } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
 import { readGraphNodeCanonicalTextProperty, readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
@@ -16,7 +16,7 @@ const GENERATED_RESULT_OUTPUT_KEY = 'probe-tree-generated-result'
 export function readStoryboardWidgetProbeTreeTerminalGenerationRequest(node: GraphNode): string {
   if (!isStoryboardWidgetProbeTreeContinuationNode(node)) return ''
   const output = readGraphNodeCanonicalTextProperty(readGraphNodeProperties(node), STORYBOARD_OUTPUT_PROPERTY_KEYS)
-  return isProbeTreeTerminalGenerationRequest(output) ? output : ''
+  return resolveProbeTreeTerminalGenerationRequest(output)
 }
 
 export function buildStoryboardWidgetProbeTreeTerminalGenerationPrompt(args: {
