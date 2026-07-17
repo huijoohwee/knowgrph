@@ -85,25 +85,24 @@ const bridgeResult = (): ProbeTreeMcpBridgeSuccess => ({
 })
 
 const providerStructuredText = (cards: Array<Record<string, unknown>>): string => [
-  '```yaml',
+  '```json',
   JSON.stringify({
     response: {
       structuredContent: {
         contractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
-        widgets: [{ id: 'n1', label: 'Widget Card', kind: 'text', prompt, output: prompt, probeTreeCurrentNodeId: 'n1' }],
         cards: cards.map((card, index) => ({
-          ...card,
+          id: card.id,
+          question: card.question,
+          rationale: card.rationale,
+          evidenceNeeded: card.evidenceNeeded,
           probeTreeCardVariant: 'probe-tree-type-2',
-          selectionMode: 'multiple',
           selectionOptions: card.selectionOptions || [
             { id: `cyber-${index + 1}`, label: 'SME cyber' },
             { id: `supply-chain-${index + 1}`, label: 'ICT supply-chain risk' },
             { id: `coverage-${index + 1}`, label: 'current coverage gaps' },
           ],
           contextAnchors: card.contextAnchors || ['SME cyber', 'ICT supply-chain risk', 'current coverage gaps'],
-          allowOther: true,
         })),
-        panels: [{ id: 'provider-probe-tree-branches', label: 'Probe-Tree Branches', kind: 'text', output: '# Probe-Tree Branches' }],
       },
     },
   }, null, 2),
@@ -125,7 +124,6 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     },
     generateProviderResponse: async refinementPrompt => {
       providerPrompt = refinementPrompt
-      // Deliberately duplicate provider output to prove the user-owned answer field is cleared at ingestion.
       return providerStructuredText([
         { id: 'confirm-cyber-coverage', label: 'Which SME cyber coverage gaps should guide the next branch?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'confirm-cyber-coverage', question: 'Which SME cyber coverage gaps should guide the next branch?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored SME cyber scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'sme-cyber', label: 'SME cyber' }, { id: 'coverage-gaps', label: 'current coverage gaps' }], contextAnchors: ['SME cyber', 'current coverage gaps'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
         { id: 'map-supply-chain-risk', label: 'Which ICT supply-chain risk remains unresolved?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'map-supply-chain-risk', question: 'Which ICT supply-chain risk remains unresolved?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored ICT supply-chain scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'supply-chain', label: 'ICT supply-chain risk' }, { id: 'unknowns', label: 'unresolved unknowns' }], contextAnchors: ['ICT supply-chain risk', 'unresolved unknowns'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
@@ -149,7 +147,8 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     || !['/sme-care-agent', '@source.frontmatter', '#runtime-ready', '/knowgrph.probe-tree'].every(token => (mcpRequest!.invocationTokens as string[]).includes(token))
     || !providerPrompt.includes('Literal MCP CallToolResult')
     || !providerPrompt.includes('knowgrph.probe.generate')
-    || !providerPrompt.includes('set output exactly to an empty string')
+    || !providerPrompt.includes('Do not pre-answer the user-owned multi-selection')
+    || !providerPrompt.includes('Do not emit widgets, panels, edges')
     || !providerPrompt.includes('2-6 contextAnchors copied verbatim')
     || !providerPrompt.includes('Never copy or paraphrase the selected request as a card question')
     || !providerPrompt.includes('not as a ready-made selectionOptions array')
@@ -397,7 +396,7 @@ export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderCo
     || mcpRequest?.probeTreeDepth !== 4
     || mcpRequest?.recallTopK !== 0
     || !providerPrompt.includes(userAnswer)
-    || !providerPrompt.includes('set every probeTreeDepth to 4')
+    || !providerPrompt.includes('depth 4')
     || childCards.length < 2
     || childCards.some(card => card.properties.parentNodeId !== 'probe-answer')
     || childCards.some(card => card.properties.probeTreeThreadRootId !== 'probe-root')

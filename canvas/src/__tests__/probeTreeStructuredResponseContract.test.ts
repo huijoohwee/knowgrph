@@ -24,9 +24,9 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     '2-4 concrete, context-specific next questions',
     'evidenceNeeded',
     'probeTreeCardVariant: probe-tree-type-2',
-    '2-4 selectionOptions',
-    'allowOther: true',
-    'parentNodeId as the lineage SSOT',
+    '2-4 concise string selectionOptions',
+    'runtime owns the source Widget',
+    'Do not emit widgets, panels, edges, parentNodeId',
     'local no-model MCP path never synthesizes clarification cards or restates the source query',
     'configured chat LLM',
     'Never copy or paraphrase the active request as a card question',
@@ -39,7 +39,7 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     'knowgrph.agentic_canvas_os.docs.invoke',
     'result.structuredContent.response.structuredContent',
     'card renders it as Summary',
-    'leave output empty for the user-owned selection',
+    'leaves output empty for the user-owned selection',
     'Reject every canned wrapper',
     'pairwise relationship questions',
     'imperative generation request',
@@ -61,34 +61,23 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
 
   const question = 'Which member risk tier or care-plan handoff should guide the next branch?'
   const surface = extractChatResponseStructuredSurface([
-    '```yaml',
-    'response:',
-    '  structuredContent:',
-    `    contractVersion: ${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION}`,
-    '    cards:',
-    '      - id: source-authority',
-    '        label: Verify source authority',
-    '        kind: text',
-    '        parentNodeId: care_source',
-    '        candidateOptionId: verify-source-authority',
-    `        question: "${question}"`,
-    '        output: ""',
-    '        probeTreeCardVariant: probe-tree-type-2',
-    '        selectionMode: multiple',
-    '        selectionOptions:',
-    '          - id: risk-tier',
-    '            label: member risk tier',
-    '          - id: care-plan-handoff',
-    '            label: care-plan handoff',
-    '        contextAnchors:',
-    '          - member risk tier',
-    '          - care-plan handoff',
-    '        allowOther: true',
-    '        rationale: Keeps the next branch within the authored care priorities.',
-    '        evidenceNeeded: User selection among the authored priorities',
-    '        confidence: medium',
-    '        probeTreeDepth: 2',
-    '        nextAction: knowgrph.probe.select',
+    '```json',
+    JSON.stringify({
+      response: {
+        structuredContent: {
+          contractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+          cards: [{
+            id: 'source-authority',
+            question,
+            probeTreeCardVariant: 'probe-tree-type-2',
+            selectionOptions: ['member risk tier', 'care-plan handoff'],
+            contextAnchors: ['member risk tier', 'care-plan handoff'],
+            rationale: 'Keeps the next branch within the authored care priorities.',
+            evidenceNeeded: 'User selection among the authored priorities',
+          }],
+        },
+      },
+    }, null, 2),
     '```',
   ].join('\n'))
 
@@ -102,10 +91,10 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     output: '',
     responseContractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
     probeTreeResponseMode: 'llm-contract',
-    parentNodeId: 'care_source',
-    probeTreeCandidateKey: 'verify-source-authority',
+    parentNodeId: '',
+    probeTreeCandidateKey: 'candidate-1',
     evidenceNeeded: 'User selection among the authored priorities',
-    confidence: 'medium',
+    confidence: 'unspecified',
     nextAction: 'knowgrph.probe.select',
     probeTreeCardVariant: 'probe-tree-type-2',
     selectionMode: 'multiple',
@@ -126,14 +115,9 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     throw new Error(`expected an editable TextGeneration Probe-Tree card, got ${JSON.stringify(node)}`)
   }
 
-  const candidateEdge = surface?.edges.find(edge => (
-    edge.source === 'care_source'
-    && edge.target === node.id
-    && edge.label === 'candidateOption'
-    && edge.targetHandle === 'prompt_in'
-  ))
-  if (!candidateEdge) {
-    throw new Error(`expected parentNodeId to infer one candidateOption edge, got ${JSON.stringify(surface?.edges || [])}`)
+  const candidateEdge = surface?.edges.find(edge => edge.label === 'candidateOption')
+  if (candidateEdge) {
+    throw new Error(`expected the provider card to leave lineage edge ownership to the runtime projector, got ${JSON.stringify(surface?.edges || [])}`)
   }
 
   const card = buildProbeTreeCardFromGraphNode({

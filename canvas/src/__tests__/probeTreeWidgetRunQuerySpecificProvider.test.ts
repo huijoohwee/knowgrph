@@ -3,6 +3,7 @@ import {
   buildProbeTreeStructuredResponse,
   KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   KNOWGRPH_PROBE_TREE_TOOL_NAMES,
+  PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import type { GraphData } from '@/lib/graph/types'
@@ -48,31 +49,42 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
   const generateProviderResponse = async (prompt: string): Promise<string> => {
     providerCalls += 1
     providerPrompt = prompt
-    const contextText = String(mcpRequest?.contextText || '')
-    const response = buildProbeTreeStructuredResponse({
-      threadRootId: 'investment-root',
-      currentNodeId: 'investment-root',
-      contextText,
-      options: [
-        {
-          id: 'investment-objective',
-          text: 'Which investment objective should drive the India, China, or SE Asia recommendation?',
-          rationale: 'The preferred outcome changes how the three markets should be compared.',
-          evidenceNeeded: 'User-selected investment objective.',
-          selectionOptions: ['Long-term capital growth', 'Recurring income yield', 'Strategic market access'],
-          contextAnchors: ['India', 'China', 'SE Asia'],
+    return JSON.stringify({
+      response: {
+        structuredContent: {
+          contractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+          cards: [
+            {
+              id: 'investment-objective',
+              question: 'Which investment objective should drive the India, China, or SE Asia recommendation?',
+              rationale: 'The preferred outcome changes how the three markets should be compared.',
+              evidenceNeeded: 'User-selected investment objective.',
+              probeTreeCardVariant: 'probe-tree-type-2',
+              selectionOptions: ['Long-term capital growth', 'Recurring income yield', 'Strategic market access'],
+              contextAnchors: ['India', 'China', 'SE Asia'],
+            },
+            {
+              id: 'investment-vehicle',
+              question: 'Which investment vehicle should the India, China, and SE Asia comparison evaluate?',
+              rationale: 'The investment vehicle changes the relevant risk and return evidence.',
+              evidenceNeeded: 'User-selected investment vehicle.',
+              probeTreeCardVariant: 'probe-tree-type-2',
+              selectionOptions: ['Public-market securities', 'Private-market funds', 'Direct operating investment'],
+              contextAnchors: ['India', 'China', 'SE Asia'],
+            },
+            {
+              id: 'restated-market-list',
+              question: 'Invest in India, China, or SE Asia?',
+              rationale: 'Repeats the source query instead of introducing a decision variable.',
+              evidenceNeeded: 'User-selected market.',
+              probeTreeCardVariant: 'probe-tree-type-2',
+              selectionOptions: ['India', 'China', 'SE Asia'],
+              contextAnchors: ['India', 'China', 'SE Asia'],
+            },
+          ],
         },
-        {
-          id: 'investment-vehicle',
-          text: 'Which investment vehicle should the India, China, and SE Asia comparison evaluate?',
-          rationale: 'The investment vehicle changes the relevant risk and return evidence.',
-          evidenceNeeded: 'User-selected investment vehicle.',
-          selectionOptions: ['Public-market securities', 'Private-market funds', 'Direct operating investment'],
-          contextAnchors: ['India', 'China', 'SE Asia'],
-        },
-      ],
-    })
-    return JSON.stringify({ response }, null, 2)
+      },
+    }, null, 2)
   }
 
   const result = await runStoryboardWidgetProbeTreeTextGenerationInvocation({
@@ -99,10 +111,13 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     || !String(mcpRequest?.contextText || '').includes(AUTHORED_REQUEST)
     || !providerPrompt.includes('Never copy or paraphrase the selected request as a card question')
     || !providerPrompt.includes('not as a ready-made selectionOptions array')
+    || !providerPrompt.includes('runtime owns source Widget investment-root')
+    || !providerPrompt.includes('Do not emit widgets, panels, edges')
     || !result?.providerAccepted
     || result.responseSource !== 'provider'
     || cards.length !== 2
     || cards.some(card => card.properties.summary === 'recommend invest in India, China, or SE Asia')
+    || cards.some(card => String(card.label).startsWith('Response '))
     || /"label":"(?:India|China|SE Asia)"/.test(serializedCards)
     || !serializedCards.includes('investment objective')
     || !serializedCards.includes('investment vehicle')

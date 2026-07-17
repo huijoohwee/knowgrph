@@ -256,7 +256,7 @@ const normalizeNodeRecord = (value: unknown, index: number, role: ChatResponseSt
   const hasDeclaredPanelTarget = nodeTypeId === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID && (role === 'panel' || role === 'media')
   if (!hasRenderableContent && !hasDeclaredWidgetInput && !hasDeclaredPanelTarget) return null
 
-  const label = readFirstString(record, ['label', 'title', 'name']) || `Response ${index + 1}`
+  const label = probeTreeQuestion || readFirstString(record, ['label', 'title', 'name']) || `Response ${index + 1}`
   const rawId = readFirstString(record, ['id', 'nodeId', 'node_id']) || label
   const nodeId = normalizeNodeId(rawId, String(index + 1))
   const properties: Record<string, JSONValue> = {

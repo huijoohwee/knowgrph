@@ -6,20 +6,17 @@ import {
   buildKnowgrphProbeTreePromptPreset,
 } from '@/features/agentic-os/probeTreePromptPreset'
 import {
-  KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   PROBE_TREE_CARD_VARIANTS,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
   normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
 } from '@/features/agent-ready/probeTreeContract.mjs'
-import { RICH_MEDIA_TEXT_MARKDOWN_SCHEMA } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
 import { FLOW_TEXT_GENERATION_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 import type { JSONValue } from '@/lib/graph/types'
 import { readFieldValue, readFirstString } from './chatResponseStructuredRecord'
 
 export { PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION } from '@/features/agent-ready/probeTreeContract.mjs'
 
-const PROBE_TREE_TOOL_PATTERN = /^knowgrph\.probe\.(?:generate|select)$/i
 const PROBE_TREE_DIRECT_TOOL_PATTERN = /\bknowgrph\.probe\.(?:generate|select)\b/i
 
 const hasProbeTreeInvocation = (userQuery: string): boolean => {
@@ -48,12 +45,12 @@ export function buildProbeTreeCardMaterializationPrompt(userQuery: string): stri
     '- The local no-model MCP path never synthesizes clarification cards or restates the source query. Widget Run sends the selected context and literal MCP result to the configured chat LLM; if no configured model yields 2-4 distinct cards, fail closed as insufficient context.',
     '- Give every card a different request-specific decision variable; reject reused choice labels, repeated selection sets, and subset or superset variants of another card.',
     '- Make every selectionOptions item a suggested clarification answer to its card question; never split the focus phrase into bare word fragments.',
-    '- Include one fenced yaml block rooted at `response.structuredContent`: put `contractVersion` at that root, exactly one copied source record in `response.structuredContent.widgets`, 2-4 branch records in `response.structuredContent.cards`, and one Probe-Tree Branches record in `response.structuredContent.panels`.',
-    `- The Probe-Tree Branches panel must use \`kind: text\` and an \`output: |-\` Markdown document whose scalar begins with YAML frontmatter declaring \`schema: ${RICH_MEDIA_TEXT_MARKDOWN_SCHEMA}\`, \`media_kind: text\`, \`content_type: text/markdown\`, and \`source_contract: ${KNOWGRPH_PROBE_TREE_CONTRACT_VERSION}\`; never put text in \`html\`, \`srcDoc\`, or \`outputSrcDoc\`.`,
-    '- Each card must include id, label, kind: text, parentNodeId, candidateOptionId, question, output: "", rationale, evidenceNeeded, confidence, probeTreeDepth, nextAction: knowgrph.probe.select, probeTreeCardVariant: probe-tree-type-2, selectionMode: multiple, 2-4 selectionOptions with unique id and label, 2-6 contextAnchors copied verbatim from the user input, and allowOther: true.',
-    `- Put the model-generated probe question in question so the card renders it as Summary; keep probeTreeDepth at or below ${KNOWGRPH_PROBE_TREE_MAX_DEPTH}, leave output empty for the user-owned selection, and make every numbered choice a concise answer to that card's question.`,
-    '- On continuation, the selected child card and its committed multi-selection own the next topic. Use preceding cards only as lineage context and never substitute the thread root or a same-id root alias.',
-    '- Treat parentNodeId as the lineage SSOT and set every parentNodeId to the source widget id; omit duplicate candidateOption edges because the shared projector infers them into the visible tree.',
+    '- For a provider-authored response, include one fenced JSON block rooted at `response.structuredContent` with `contractVersion` and only 2-4 records in `response.structuredContent.cards`; the runtime owns the source Widget, Rich Media ledger, edges, lineage ids, depth, selection mode, Other, and empty user Output.',
+    '- Each provider card must include id, question, rationale, evidenceNeeded, probeTreeCardVariant: probe-tree-type-2, 2-4 concise string selectionOptions, and 2-6 contextAnchors copied verbatim from the user input. Do not emit widgets, panels, edges, parentNodeId, candidateOptionId, probeTreeDepth, selectionMode, allowOther, nextAction, or output.',
+    '- A literal MCP result retains its complete source Widget, cards, Rich Media ledger, and edge envelope; the runtime validates that envelope but never asks the configured provider to reproduce it.',
+    `- Put the model-generated probe question in question so the card renders it as Summary; the runtime derives bounded depth at or below ${KNOWGRPH_PROBE_TREE_MAX_DEPTH}, leaves output empty for the user-owned selection, and makes every numbered choice a concise answer to that card's question.`,
+    '- On continuation, the selected child card and its committed multi-selection own the next topic. The runtime persists that commitment through knowgrph.probe.select; the provider must not emit the action. Use preceding cards only as lineage context and never substitute the thread root or a same-id root alias.',
+    '- The runtime assigns the selected child as parentNodeId and infers candidateOption edges after acceptance; the provider supplies semantic card content only.',
     '- Describe proposed tool handoffs without claiming execution, persistence, paid calls, approval, or MCP invocation unless a real tool result is present.',
   ].join('\n')
 }
@@ -65,17 +62,11 @@ export function isProbeTreeStructuredResponseCard(
   if (role !== 'card') return false
   if (!readFirstString(record, ['question'])) return false
   if (readFirstString(record, ['probeTreeCardVariant']) !== PROBE_TREE_CARD_VARIANTS.boundedMultiSelect) return false
-  if (readFirstString(record, ['selectionMode']) !== 'multiple') return false
   if (normalizeProbeTreeSelectionOptions(readFieldValue(record, 'selectionOptions')).length < 2) return false
   if (normalizeProbeTreeContextAnchors(readFieldValue(record, 'contextAnchors')).length < 2) return false
-  if (readFieldValue(record, 'allowOther') !== true) return false
-  const nextAction = readFirstString(record, ['nextAction', 'next_action', 'probeTreeTool', 'probe_tree_tool'])
-  if (PROBE_TREE_TOOL_PATTERN.test(nextAction)) return true
-  return Boolean(
-    readFirstString(record, ['candidateOptionId', 'candidate_option_id'])
-    && readFirstString(record, ['parentNodeId', 'parent_node_id', 'parentId', 'parent_id'])
-    && readFirstString(record, ['rationale']),
-  )
+  if (!readFirstString(record, ['rationale'])) return false
+  if (!readFirstString(record, ['evidenceNeeded', 'evidence_needed'])) return false
+  return true
 }
 
 export function resolveProbeTreeStructuredResponseNodeTypeId(args: {
