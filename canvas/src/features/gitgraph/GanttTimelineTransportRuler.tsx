@@ -1,11 +1,12 @@
 import type React from 'react'
-import { VideoSequenceTimelineRuler } from '@/components/timeline/VideoSequenceTimelineRuler'
+import { VideoSequenceTimelineRuler, type VideoSequenceTimelineInsertedLane } from '@/components/timeline/VideoSequenceTimelineRuler'
 import { type GanttTimelineTransportRulerModel } from './useGanttTimelineTransportRulerModel'
 
 export type GanttTimelineTransportRulerProps = {
   model: GanttTimelineTransportRulerModel['ruler']
   timeAxisControls?: React.ReactNode
   timeRulerOverlay?: React.ReactNode
+  timelineInsertedLanes?: readonly VideoSequenceTimelineInsertedLane[]
 }
 
 export function GanttTimelineTransportRuler(args: GanttTimelineTransportRulerProps) {
@@ -32,6 +33,7 @@ export function GanttTimelineTransportRuler(args: GanttTimelineTransportRulerPro
       taskSpans={args.model.taskSpans}
       timeAxisControls={args.timeAxisControls}
       timeRulerOverlay={args.timeRulerOverlay}
+      timelineInsertedLanes={args.timelineInsertedLanes}
       timelineZoom={args.model.timelineZoom}
       onDropMedia={args.model.onDropMedia}
       onRulerPointerDown={args.model.onRulerPointerDown}

@@ -156,16 +156,16 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   for (const marker of ['data-kg-xr-timeline-retime="1"', 'retimeXrMotionReferenceCastMark', 'retimeXrMotionReferenceCameraMark', '<TimelineTransportTimeAxisMark', 'laneStyle="video"', 'laneStyle="audio"', 'data-kg-xr-lane-cast-mark', 'data-kg-xr-lane-camera-mark', 'selectXrMotionReferenceCastMark', 'aria-pressed={selected}', 'data-kg-xr-stage-highlight-target']) {
     if (!retimeSource.includes(marker)) throw new Error(`expected Camera choreography retiming to expose ${marker}`)
   }
-  for (const marker of ['runtime.plan.cast.map(track', 'data-kg-xr-choreography-cast-lane', 'data-kg-xr-choreography-camera-lane', 'data-kg-xr-choreography-lane-axis', 'beginRulerMarkDrag', 'resolveVideoSequenceRulerInsetPixelMetrics', 'XrChoreographyMarkControls', 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkEasing', 'data-kg-xr-ruler-mark-editor', 'data-kg-xr-speed-warning-count']) {
+  for (const marker of ["laneTarget?.kind === 'cast'", "laneTarget?.kind === 'camera'", 'data-kg-xr-choreography-cast-lane', 'data-kg-xr-choreography-camera-lane', 'data-kg-xr-choreography-lane-axis', 'beginRulerMarkDrag', 'resolveVideoSequenceRulerInsetPixelMetrics', 'XrChoreographyMarkControls', 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkEasing', 'data-kg-xr-ruler-mark-editor', 'data-kg-xr-speed-warning-count']) {
     if (!retimeSource.includes(marker)) throw new Error(`expected each cast and Camera track to expose the shared per-mark choreography model through ${marker}`)
   }
   for (const marker of ['XR_CHOREOGRAPHY_EASINGS', 'XR_CHOREOGRAPHY_GAITS', 'data-kg-xr-mark-easing', 'data-kg-xr-mark-gait', 'data-kg-xr-speed-warning']) {
     if (!choreographyControlsSource.includes(marker)) throw new Error(`expected shared choreography controls to expose ${marker}`)
   }
-  for (const marker of ['xr-camera-motion-retime-lanes', 'xr-camera-motion-retime-lane-labels', 'xr-camera-motion-retime-lane-mark', 'cursor: ew-resize', 'xr-camera-motion-mark-selection-controls', '[aria-pressed="true"]']) {
+  for (const marker of ['xr-camera-motion-retime-lane-label', 'xr-camera-motion-retime-lane-mark', 'cursor: ew-resize', 'xr-camera-motion-mark-selection-controls', '[aria-pressed="true"]']) {
     if (!retimeCssSource.includes(marker)) throw new Error(`expected cast and Camera marks to use dedicated shared-scale lanes through ${marker}`)
   }
-  for (const marker of ['<CameraMotionMarkRetime', 'layout="lanes"', 'layout="controls"', '<TimelineTransportInlineClip', 'data-kg-xr-timeline-consolidated-lane="stage-output-ruler"', 'data-kg-xr-timeline-choreography-lanes="per-track"', 'data-kg-xr-choreography-cast-lane-label', 'data-kg-xr-choreography-camera-lane-label', 'data-kg-xr-timeline-control-bar="stage-output"', 'data-kg-xr-timeline-seconds-control="time-axis"', 'aria-label="XR timeline seconds"', 'data-kg-xr-timeline-fps-control="time-axis"', 'aria-label="XR timeline FPS"', 'runtimeDurationSeconds={runtime.plan.durationSeconds}', 'runtimeFrameRate={runtime.plan.fps}', 'data-kg-xr-timeline-transport="reused-gantt-player"', '<GanttTimelineTransportPanel', 'supplementalLanes={', 'timeAxisControls={']) {
+  for (const marker of ['<CameraMotionMarkRetime', 'layout="lane"', 'layout="controls"', 'laneTarget={{ kind:', 'timelineInsertedLanes={[', "insertAfterLaneId: 'scene'", 'includeChoreographyCues: false', '<TimelineTransportInlineClip', 'data-kg-xr-timeline-consolidated-lane="stage-output-ruler"', 'data-kg-xr-choreography-cast-lane-label', 'data-kg-xr-choreography-camera-lane-label', 'data-kg-xr-timeline-control-bar="stage-output"', 'data-kg-xr-timeline-seconds-control="time-axis"', 'aria-label="XR timeline seconds"', 'data-kg-xr-timeline-fps-control="time-axis"', 'aria-label="XR timeline FPS"', 'runtimeDurationSeconds={runtime.plan.durationSeconds}', 'runtimeFrameRate={runtime.plan.fps}', 'data-kg-xr-timeline-transport="reused-gantt-player"', '<GanttTimelineTransportPanel', 'supplementalLanes={', 'timeAxisControls={']) {
     if (!timelineSource.includes(marker)) throw new Error(`expected BottomPanel Timeline to own consolidated XR motion through ${marker}`)
   }
   for (const forbidden of ['layout="ruler"', 'layout="time-axis"', '<TimelineTransportTimeAxisClip', 'data-kg-xr-timeline-control-bar="marks"', 'timeRulerOverlay={<CameraMotionMarkRetime', '--kg-xr-timeline-marks-height', '>Marks</span>']) {
@@ -177,10 +177,10 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   for (const marker of ['timeline-transport-supplemental-lanes', 'TimelineTransportInlineClip', 'TimelineTransportTimeAxisClip', 'TimelineTransportTimeAxisMark', 'timeline-transport-track-clip--lane-${laneStyle}', 'timeline-transport-track-clip-label', 'timeline-transport-time-axis-clip', 'timeline-transport-time-axis-mark']) {
     if (!timelineChromeSource.includes(marker)) throw new Error(`expected shared Gantt clip UI reuse through ${marker}`)
   }
-  if (!ganttTransportSource.includes('supplementalLanes') || !ganttTransportSource.includes('timeAxisControls') || !ganttTransportSource.includes('timeRulerOverlay')) {
-    throw new Error('expected the shared Gantt transport to own supplemental-lane, time-axis control, and ruler-overlay slots')
+  if (!ganttTransportSource.includes('supplementalLanes') || !ganttTransportSource.includes('timeAxisControls') || !ganttTransportSource.includes('timeRulerOverlay') || !ganttTransportSource.includes('timelineInsertedLanes')) {
+    throw new Error('expected the shared Gantt transport to own supplemental-lane, time-axis, ruler-overlay, and inserted-lane slots')
   }
-  for (const marker of ['timeAxisControls?: React.ReactNode', 'timeRulerOverlay?: React.ReactNode', '<VideoSequenceTimeAxisControls>{timeAxisControls}</VideoSequenceTimeAxisControls>', '{timeRulerOverlay}']) {
+  for (const marker of ['timeAxisControls?: React.ReactNode', 'timeRulerOverlay?: React.ReactNode', 'timelineInsertedLanes?: readonly VideoSequenceTimelineInsertedLane[]', '<VideoSequenceTimeAxisControls>{timeAxisControls}</VideoSequenceTimeAxisControls>', '{timeRulerOverlay}', 'visibleLanes.flatMap(lane', 'data-kg-video-sequence-inserted-lane-content']) {
     if (!timelineRulerSource.includes(marker)) throw new Error(`expected the shared time ruler to expose ${marker}`)
   }
   for (const marker of ['aria-label="Timeline time-axis controls"', 'data-kg-video-sequence-time-axis-controls="1"']) {
