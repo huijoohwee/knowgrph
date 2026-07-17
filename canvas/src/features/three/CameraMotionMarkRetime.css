@@ -72,7 +72,7 @@
     repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), color-mix(in srgb, var(--kg-border, #cbd5e1) 20%, transparent) calc(10% - 1px), color-mix(in srgb, var(--kg-border, #cbd5e1) 20%, transparent) 10%);
 }
 
-.xr-camera-motion-retime-lane-mark.timeline-transport-time-axis-mark {
+.timeline-video-sequence-inserted-lane .xr-camera-motion-retime-lane-mark.timeline-transport-time-axis-mark {
   position: absolute;
   top: 22px;
   left: var(--kg-xr-retime-mark-left);
@@ -86,11 +86,19 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
+  box-shadow: none;
+  contain: none;
   padding: 0;
   cursor: ew-resize;
   pointer-events: auto;
   touch-action: none;
   user-select: none;
+}
+
+.timeline-video-sequence-inserted-lane .xr-camera-motion-retime-lane-mark.timeline-transport-time-axis-mark::before,
+.timeline-video-sequence-inserted-lane .xr-camera-motion-retime-lane-mark.timeline-transport-time-axis-mark::after {
+  display: none;
+  content: none;
 }
 
 .xr-camera-motion-retime-lane-mark > span {

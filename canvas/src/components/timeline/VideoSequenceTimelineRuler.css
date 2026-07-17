@@ -35,7 +35,7 @@
   background: rgb(20 184 166 / 0.86);
 }
 
-.timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone):not([data-kg-video-sequence-dense-fbf="1"]) {
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone):not(.timeline-transport-time-axis-clip):not(.timeline-transport-time-axis-mark):not([data-kg-video-sequence-dense-fbf="1"]) {
   contain: layout paint style; height: var(--kg-timeline-bar-height, calc(var(--kg-main-toolbar-height, 38px) * 1.5));
   overflow: visible;
   border-radius: 6px; will-change: transform;
@@ -84,8 +84,8 @@
     color 140ms ease-out;
 }
 
-.timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone)::before,
-.timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone)::after {
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone):not(.timeline-transport-time-axis-clip):not(.timeline-transport-time-axis-mark)::before,
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone):not(.timeline-transport-time-axis-clip):not(.timeline-transport-time-axis-mark)::after {
   position: absolute;
   top: 1px;
   bottom: 1px;
@@ -98,11 +98,11 @@
   pointer-events: none;
 }
 
-.timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone)::before {
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone):not(.timeline-transport-time-axis-clip):not(.timeline-transport-time-axis-mark)::before {
   left: 8px;
 }
 
-.timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone)::after {
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip:not(.timeline-transport-track-clip--milestone):not(.timeline-transport-time-axis-clip):not(.timeline-transport-time-axis-mark)::after {
   right: 8px;
 }
 
@@ -114,11 +114,11 @@
   bottom: 24px;
 }
 
-.timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-video {
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-video:not(.timeline-transport-time-axis-clip):not(.timeline-transport-time-axis-mark) {
   background: color-mix(in srgb, var(--kg-panel-bg, #fff) 92%, var(--kg-canvas-accent, #2563eb) 4%);
 }
 
-.timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-audio {
+.timeline-video-sequence-ruler-content .timeline-transport-track-clip--lane-audio:not(.timeline-transport-time-axis-clip):not(.timeline-transport-time-axis-mark) {
   background:
     linear-gradient(180deg, rgb(34 211 238 / 0.96), rgb(8 145 178 / 0.9)),
     rgb(6 182 212 / 0.9);

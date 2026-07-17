@@ -103,6 +103,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   const timelineChromeSource = readSource('components', 'timeline', 'TimelineTransportControls.tsx')
   const timelineChromeGanttCssSource = readSource('components', 'timeline', 'TimelineTransportControlsMermaidGantt.css')
   const timelineRulerSource = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.tsx')
+  const timelineRulerCssSource = readSource('components', 'timeline', 'VideoSequenceTimelineRuler.css')
   const timelineTimeAxisControlsSource = readSource('components', 'timeline', 'VideoSequenceTimeAxisControls.tsx')
   const ganttTransportSource = readSource('features', 'gitgraph', 'GanttTimelineTransportPanel.tsx')
   const bottomTimelineSource = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
@@ -182,6 +183,9 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   }
   for (const marker of ['timeAxisControls?: React.ReactNode', 'timeRulerOverlay?: React.ReactNode', 'timelineInsertedLanes?: readonly VideoSequenceTimelineInsertedLane[]', '<VideoSequenceTimeAxisControls>{timeAxisControls}</VideoSequenceTimeAxisControls>', '{timeRulerOverlay}', 'visibleLanes.flatMap(lane', 'data-kg-video-sequence-inserted-lane-content']) {
     if (!timelineRulerSource.includes(marker)) throw new Error(`expected the shared time ruler to expose ${marker}`)
+  }
+  for (const marker of [':not(.timeline-transport-time-axis-clip)', ':not(.timeline-transport-time-axis-mark)']) {
+    if (!timelineRulerCssSource.includes(marker)) throw new Error(`expected nested shared time-axis primitives to opt out of full clip chrome through ${marker}`)
   }
   for (const marker of ['aria-label="Timeline time-axis controls"', 'data-kg-video-sequence-time-axis-controls="1"']) {
     if (!timelineTimeAxisControlsSource.includes(marker)) throw new Error(`expected the shared time-axis control owner to expose ${marker}`)
