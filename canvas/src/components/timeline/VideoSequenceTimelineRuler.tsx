@@ -7,6 +7,7 @@ import { VideoSequenceAudioDbControl } from './VideoSequenceAudioDbControl'
 import { buildVideoSequenceGeneratedFrameThumbnails, type VideoSequenceGeneratedFrameThumbnailOrigin } from './videoSequenceGeneratedFrameThumbnails'
 import { VideoSequenceTimelineClipMeta, resolveVideoSequenceSourceWindowLabel } from './VideoSequenceTimelineClipMeta'
 import { VideoSequenceTimelineRulerTicks } from './VideoSequenceTimelineRulerTicks'
+import { VideoSequenceTimeAxisControls } from './VideoSequenceTimeAxisControls'
 import { resolveVideoSequenceRulerInsetLeft, resolveVideoSequenceRulerInsetWidth } from './videoSequenceTimelineRulerGeometry'
 import { buildVideoSequenceSourceImageThumbnail } from './videoSequenceSourceImageThumbnail'
 import { resolveVideoSequenceSourceThumbnailSet } from './videoSequenceSourceThumbnailSet'
@@ -195,8 +196,7 @@ export function VideoSequenceTimelineRuler({
   sourceThumbnailWindows = [],
   sourceThumbnailSets = [],
   scopes = [],
-  taskSpans,
-  timelineZoom,
+  taskSpans, timeAxisControls, timelineZoom,
   disabledLaneIds = VIDEO_SEQUENCE_BOTTOM_PANEL_DISABLED_LANE_IDS,
   onRulerPointerDown,
   onSelectRowKey,
@@ -220,8 +220,7 @@ export function VideoSequenceTimelineRuler({
   sourceThumbnailWindows?: readonly VideoSequenceTimelineThumbnailWindow[]
   sourceThumbnailSets?: readonly VideoSequenceTimelineSourceThumbnailSet[]
   scopes?: readonly VideoSequenceTimelineScope[]
-  taskSpans: readonly MermaidGanttTimelineTaskSpan[]
-  timelineZoom: number
+  taskSpans: readonly MermaidGanttTimelineTaskSpan[]; timeAxisControls?: React.ReactNode; timelineZoom: number
   disabledLaneIds?: VideoSequenceTimelineProjectionOptions['disabledLaneIds']
   onRulerPointerDown: (event: React.PointerEvent<HTMLElement>) => void
   onSelectRowKey: (rowKey: string) => void
@@ -306,6 +305,7 @@ export function VideoSequenceTimelineRuler({
       data-kg-video-sequence-projection-mode={projectionMode}
     >
       <aside className="timeline-video-sequence-lane-sidebar" aria-label={workflowProjection ? 'Workflow lane labels' : 'Video sequence lane labels'}>
+        <VideoSequenceTimeAxisControls>{timeAxisControls}</VideoSequenceTimeAxisControls>
         <section
           ref={laneSidebarScrollRef}
           className="timeline-video-sequence-lane-sidebar-scroll"

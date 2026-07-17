@@ -1,5 +1,6 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { TimelineTransportInlineClip, TimelineTransportTimeAxisClip } from '@/components/timeline/TimelineTransportControls'
 import { GanttTimelineTransportPanel } from '@/features/gitgraph/GanttTimelineTransportPanel'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -136,6 +137,11 @@ export function XrCameraMotionSection() {
   }, [graphData, markdownDocumentName, pushUiToast])
 
   const edges = Array.isArray(graphData?.edges) ? graphData.edges.length : 0
+  const retimeRowCount = Math.max(1, runtime.plan.cast.length) + 1
+  const supplementalLaneStyle = {
+    '--kg-xr-retime-row-count': retimeRowCount,
+    '--kg-xr-timeline-marks-height': `${retimeRowCount * 26}px`,
+  } as React.CSSProperties
 
   if (!xrActive) return null
 
@@ -150,51 +156,6 @@ export function XrCameraMotionSection() {
       data-kg-xr-timeline-scene="player"
       data-kg-xr-timeline-runtime={xrActive ? 'active' : 'available'}
     >
-      <header
-        className={cn('flex flex-wrap items-end gap-1 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}
-        aria-label="XR Timeline player controls"
-        data-kg-xr-timeline-player-controls="1"
-      >
-        <section className="mr-auto min-w-32 self-center">
-          <h3 className="text-[11px] font-semibold uppercase">XR stage &amp; output</h3>
-          <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>
-            {documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks
-          </p>
-        </section>
-
-        <label className="grid min-w-36 gap-0.5 text-[10px]">
-          <span className={UI_THEME_TOKENS.text.tertiary}>Stage</span>
-          <PanelSelect
-            aria-label="XR grey-box stage"
-            value={runtime.plan.stageId}
-            onChange={event => setXrMotionReferenceStage(event.target.value as XrMotionReferenceStageId)}
-            data-kg-xr-motion-stage-select="1"
-          >
-            {XR_MOTION_REFERENCE_STAGE_PRESETS.map(preset => (
-              <option key={preset.id} value={preset.id}>{preset.label}</option>
-            ))}
-          </PanelSelect>
-        </label>
-
-        <label className="grid w-16 gap-0.5 text-[10px]">
-          <span className={UI_THEME_TOKENS.text.tertiary}>Seconds</span>
-          <PanelTextInput type="number" min={1} max={30} step={0.5} value={runtime.plan.durationSeconds} onChange={event => setXrMotionReferenceDuration(Number(event.target.value))} />
-        </label>
-        <label className="grid w-14 gap-0.5 text-[10px]">
-          <span className={UI_THEME_TOKENS.text.tertiary}>FPS</span>
-          <PanelTextInput type="number" min={6} max={30} step={1} value={runtime.plan.fps} onChange={event => setXrMotionReferenceFps(Number(event.target.value))} />
-        </label>
-
-        <button type="button" className="App-toolbar__btn" disabled={!graphData || !runtime.dirty} onClick={savePlan} data-kg-xr-motion-save="1">
-          Save
-        </button>
-        <button type="button" className="App-toolbar__btn" disabled={!graphData} onClick={exportPackage} data-kg-xr-motion-export="1">
-          Export package
-        </button>
-      </header>
-
-      <CameraMotionMarkRetime />
-
       <section aria-label="XR animation timeline" data-kg-xr-timeline-transport="reused-gantt-player">
         <GanttTimelineTransportPanel
           code={timelineCode}
@@ -206,6 +167,94 @@ export function XrCameraMotionSection() {
           runtimeDocumentKey={xrTransportDocumentKey}
           runtimeDurationSeconds={runtime.plan.durationSeconds}
           runtimeFrameRate={runtime.plan.fps}
+          timeAxisControls={(
+            <section className="flex min-w-0 items-center gap-2" aria-label="XR timeline scale controls" data-kg-timeline-axis-controls-layout="duration-fps">
+              <label className="flex min-w-0 items-center gap-1 text-[9px]" data-kg-xr-timeline-seconds-control="time-axis">
+                <span className={UI_THEME_TOKENS.text.tertiary}>Seconds</span>
+                <PanelTextInput
+                  aria-label="XR timeline seconds"
+                  className="h-5 w-12 px-1 py-0 text-[10px]"
+                  type="number"
+                  min={1}
+                  max={30}
+                  step={0.5}
+                  value={runtime.plan.durationSeconds}
+                  onChange={event => setXrMotionReferenceDuration(Number(event.target.value))}
+                />
+              </label>
+              <label className="flex min-w-0 items-center gap-1 text-[9px]" data-kg-xr-timeline-fps-control="time-axis">
+                <span className={UI_THEME_TOKENS.text.tertiary}>FPS</span>
+                <PanelTextInput
+                  aria-label="XR timeline FPS"
+                  className="h-5 w-12 px-1 py-0 text-[10px]"
+                  type="number"
+                  min={6}
+                  max={30}
+                  step={1}
+                  value={runtime.plan.fps}
+                  onChange={event => setXrMotionReferenceFps(Number(event.target.value))}
+                />
+              </label>
+            </section>
+          )}
+          supplementalLanes={(
+            <section
+              className="timeline-transport-supplemental-lane"
+              aria-label="XR Timeline player controls"
+              data-kg-xr-timeline-consolidated-lane="stage-output-retime"
+              data-kg-xr-timeline-player-controls="1"
+              data-kg-xr-timeline-cast-row-count={runtime.plan.cast.length}
+              style={supplementalLaneStyle}
+            >
+              <header className="timeline-transport-supplemental-lane-label timeline-transport-supplemental-lane-label--stacked">
+                <span>XR control</span>
+                <span>Marks</span>
+              </header>
+              <section className="timeline-transport-supplemental-lane-content timeline-transport-supplemental-lane-content--time-axis">
+                <TimelineTransportInlineClip
+                  laneStyle="video"
+                  label="Stage & output"
+                  aria-label="XR stage and output control bar"
+                  data-kg-xr-timeline-control-bar="stage-output"
+                >
+                  <p className={cn('mr-2 whitespace-nowrap text-[9px]', UI_THEME_TOKENS.text.tertiary)}>
+                    {documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks
+                  </p>
+
+                  <label className="flex shrink-0 items-center gap-1 text-[10px]">
+                    <span className={UI_THEME_TOKENS.text.tertiary}>Stage</span>
+                    <PanelSelect
+                      className="w-36"
+                      aria-label="XR grey-box stage"
+                      value={runtime.plan.stageId}
+                      onChange={event => setXrMotionReferenceStage(event.target.value as XrMotionReferenceStageId)}
+                      data-kg-xr-motion-stage-select="1"
+                    >
+                      {XR_MOTION_REFERENCE_STAGE_PRESETS.map(preset => (
+                        <option key={preset.id} value={preset.id}>{preset.label}</option>
+                      ))}
+                    </PanelSelect>
+                  </label>
+
+                  <button type="button" className="App-toolbar__btn" disabled={!graphData || !runtime.dirty} onClick={savePlan} data-kg-xr-motion-save="1">
+                    Save
+                  </button>
+                  <button type="button" className="App-toolbar__btn" disabled={!graphData} onClick={exportPackage} data-kg-xr-motion-export="1">
+                    Export package
+                  </button>
+                </TimelineTransportInlineClip>
+
+                <TimelineTransportTimeAxisClip
+                  laneStyle="audio"
+                  aria-label="XR marks control bar"
+                  data-kg-xr-timeline-control-bar="marks"
+                  data-kg-xr-timeline-retime-axis="shared-ruler-scale"
+                >
+                  <CameraMotionMarkRetime layout="time-axis" />
+                </TimelineTransportTimeAxisClip>
+              </section>
+            </section>
+          )}
         />
       </section>
     </section>

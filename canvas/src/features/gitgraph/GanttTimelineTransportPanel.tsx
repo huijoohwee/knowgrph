@@ -13,6 +13,8 @@ export function GanttTimelineTransportPanel({
   runtimeDocumentKey = '',
   runtimeDurationSeconds = 0,
   runtimeFrameRate = 0,
+  supplementalLanes,
+  timeAxisControls,
   onSelectedRowKeyChange,
 }: {
   code: string
@@ -24,6 +26,8 @@ export function GanttTimelineTransportPanel({
   runtimeDocumentKey?: string
   runtimeDurationSeconds?: number
   runtimeFrameRate?: number
+  supplementalLanes?: React.ReactNode
+  timeAxisControls?: React.ReactNode
   onSelectedRowKeyChange?: (rowKey: string | null) => void
 }) {
   const transportRouteModel = useGanttTimelineTransportRouteModel({
@@ -38,5 +42,5 @@ export function GanttTimelineTransportPanel({
     runtimeFrameRate,
     onSelectedRowKeyChange,
   })
-  return <GanttTimelineTransportSurface model={transportRouteModel.surfaceModel} />
+  return <GanttTimelineTransportSurface model={transportRouteModel.surfaceModel} supplementalLanes={supplementalLanes} timeAxisControls={timeAxisControls} />
 }

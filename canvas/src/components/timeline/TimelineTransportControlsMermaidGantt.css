@@ -316,6 +316,145 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--kg-text-tertiary, #6b7280) 28%, transparent);
 }
 
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-supplemental-lanes {
+  display: grid;
+  min-width: 0;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--kg-border, #e5e7eb) 72%, transparent);
+  background: color-mix(in srgb, var(--kg-panel-bg-hover, #f9fafb) 76%, var(--kg-panel-bg, #fff));
+}
+
+.timeline-transport-chrome--mermaid-gantt:has(.timeline-video-sequence-time-axis-controls) {
+  --kg-video-sequence-lane-sidebar-width: 184px;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-supplemental-lane {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: var(--kg-video-sequence-lane-sidebar-width, 112px) minmax(0, 1fr);
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-supplemental-lane-label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  border-right: 1px solid color-mix(in srgb, var(--kg-border, #e5e7eb) 72%, transparent);
+  padding: 6px 12px;
+  color: color-mix(in srgb, var(--kg-text-secondary, #475569) 86%, transparent);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-supplemental-lane-label--stacked {
+  display: grid;
+  grid-template-rows: 34px var(--kg-xr-timeline-marks-height, 52px);
+  align-items: stretch;
+  gap: 3px;
+  padding: 4px 0;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-supplemental-lane-label--stacked > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  padding-inline: 12px;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-supplemental-lane-content {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 6px;
+  scrollbar-width: thin;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-supplemental-lane-content--time-axis {
+  padding-inline: 0;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-supplemental-lane-content--time-axis > .timeline-transport-inline-clip:not(.timeline-transport-time-axis-clip) {
+  width: calc(100% - 12px);
+  min-width: calc(100% - 12px);
+  margin-inline: 6px;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-inline-clip {
+  --kg-timeline-inline-clip-accent: var(--kg-canvas-accent, #2563eb);
+  position: relative;
+  inset: auto;
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  height: 34px;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--kg-timeline-inline-clip-accent) 34%, var(--kg-border, #cbd5e1) 66%);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.56), transparent 52%),
+    color-mix(in srgb, var(--kg-timeline-inline-clip-accent) 6%, var(--kg-panel-bg-hover, #f9fafb));
+  box-shadow: none;
+  padding: 3px 7px 3px 12px;
+  touch-action: auto;
+  user-select: auto;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-inline-clip::before {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 7px;
+  background: var(--kg-timeline-inline-clip-accent);
+  content: '';
+  pointer-events: none;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-inline-clip.timeline-transport-track-clip--lane-audio {
+  --kg-timeline-inline-clip-accent: rgb(8 145 178 / 1);
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-inline-clip-label {
+  position: static;
+  z-index: 1;
+  max-width: none;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--kg-panel-bg, #fff) 88%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--kg-panel-bg, #fff) 86%, transparent);
+  color: color-mix(in srgb, var(--kg-timeline-inline-clip-accent) 76%, var(--kg-text-primary, #0f172a) 24%);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 16px;
+  padding-inline: 5px;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-inline-clip-content {
+  display: flex;
+  min-width: max-content;
+  flex: 1 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-time-axis-clip {
+  width: 100%;
+  min-width: 100%;
+  height: var(--kg-xr-timeline-marks-height, 52px);
+  overflow: hidden;
+  padding: 0;
+}
+
+.timeline-transport-chrome--mermaid-gantt .timeline-transport-time-axis-clip-content {
+  min-width: 0;
+  align-self: stretch;
+  overflow: hidden;
+}
+
 .timeline-transport-chrome--mermaid-gantt .timeline-transport-ruler-layout {
   flex: 1 1 auto;
   min-height: 0;

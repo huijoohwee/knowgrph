@@ -29,6 +29,7 @@ export const XR_MOTION_REFERENCE_GRAPH_METADATA_KEY = 'kgXrMotionReference'
 export const XR_MOTION_REFERENCE_SCHEMA = 'knowgrph-xr-motion-reference/v1'
 export const XR_MOTION_REFERENCE_PACKAGE_SCHEMA = 'knowgrph-xr-motion-reference-package/v1'
 export const XR_MOTION_REFERENCE_CAMERA_RIGS = ['dolly', 'steadicam', 'handheld', 'crane', 'drone', 'car-mount'] as const
+export const XR_MOTION_REFERENCE_SELECTION_COLOR = '#facc15'
 
 export type XrMotionReferenceTransition = 'linear' | 'hold'
 export type XrMotionReferenceCameraRig = (typeof XR_MOTION_REFERENCE_CAMERA_RIGS)[number]
