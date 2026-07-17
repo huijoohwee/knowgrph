@@ -154,9 +154,12 @@ const stripLeadingDirectiveVerb = value => String(value || "").replace(
 );
 
 const splitEnumeratedPhrases = source => {
-  const phrases = String(source || "")
+  const authoredSource = String(source || "");
+  const enumeratedSource = /[,;]/.test(authoredSource)
+    ? authoredSource
+    : authoredSource.replace(/\b(?:and|or)\b(?=\s+(?:an?\s+)?[a-z0-9])/gi, ",");
+  const phrases = enumeratedSource
     .replace(/[.!?]+$/g, "")
-    .replace(/\b(?:and|or)\b(?=\s+(?:an?\s+)?[a-z0-9])/gi, ",")
     .split(/[,;]+/)
     .map((value, index) => cleanProbeTreeResponseText(index === 0 ? stripLeadingDirectiveVerb(value) : value, 160))
     .map(value => value.replace(/^(?:and|or)\s+/i, "").trim())
