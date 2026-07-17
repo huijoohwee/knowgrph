@@ -38,7 +38,13 @@ export function RichMediaPanelTextSurface(args: {
         data-kg-canvas-wheel-ignore="true"
         data-kg-media-scroll-surface="1"
         className={CARD_TEXT_SURFACE_COLUMN_CLASS_NAME}
-        style={{ borderColor: 'var(--kg-border)', pointerEvents: 'auto', touchAction: 'pan-y' }}
+        style={{
+          borderColor: 'var(--kg-border)',
+          overscrollBehaviorX: 'none',
+          overscrollBehaviorY: 'contain',
+          pointerEvents: 'auto',
+          touchAction: 'pan-y',
+        }}
         {...UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES}
         onPointerDownCapture={model.panelTextEditable ? event => event.stopPropagation() : undefined}
         onWheelCapture={model.panelTextEditable ? event => event.stopPropagation() : undefined}

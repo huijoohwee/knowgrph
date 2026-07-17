@@ -39,6 +39,9 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     'result.structuredContent.response.structuredContent',
     'card renders it as Summary',
     'leave output empty for the user-owned selection',
+    'Reject generic wrappers',
+    'imperative generation request',
+    'do not continue Probe-Tree',
   ]) {
     if (!prompt.includes(expected)) {
       throw new Error(`expected Probe-Tree LLM prompt to include ${expected}, got ${prompt}`)
@@ -310,6 +313,25 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
   const questionOnlyContinuationInput = extractProbeTreeUserInputText(questionOnlyContinuationContext)
   const questionOnlyContinuationOptions = buildProbeTreeInputDerivedOptions(questionOnlyContinuationContext)
   const continuationChoiceLabels = continuationOptions.flatMap(option => option.selectionOptions.map(selection => selection.label.toLowerCase()))
+  const investmentReportAnswer = 'Generate report on China investment in SE Asia in USD trillion'
+  const investmentReportContext = [
+    'Authored request:',
+    'Research cross-border investment activity.',
+    'Selected continuation question:',
+    'What report should be generated?',
+    'Selected continuation answer:',
+    investmentReportAnswer,
+  ].join('\n')
+  const investmentReportOptions = buildProbeTreeInputDerivedOptions(investmentReportContext)
+  const genericWrapperAccepted = isProbeTreeCardUserInputRelevant({
+    contextText: investmentReportContext,
+    question: `Which scope choice should clarify "${investmentReportAnswer}"?`,
+    selectionOptions: [
+      `Define the exact boundary of ${investmentReportAnswer}`,
+      `Identify adjacent concerns around ${investmentReportAnswer}`,
+    ],
+    contextAnchors: [investmentReportAnswer, 'China investment'],
+  })
   const fragmentOnlyChoicesAccepted = areProbeTreeContinuationChoicesSuggested({
     contextText: continuationContext,
     question: 'Which parts of "provider-neutral protection guidance" need separate follow-up?',
@@ -331,16 +353,18 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
       selectionOptions: option.selectionOptions,
     }))
     || fragmentOnlyChoicesAccepted
-    || continuationOptions.some(option => option.selectionOptions.some(selection => !/^(?:Define|Set|Identify)\b/.test(selection.label)))
+    || continuationOptions.some(option => option.selectionOptions.some(selection => !selection.label.toLowerCase().includes(option.contextAnchors[0].toLowerCase())))
     || new Set(continuationChoiceLabels).size !== continuationChoiceLabels.length
     || continuationOptions.some(option => option.text.includes('Which parts of'))
     || !continuationOptions.some(option => option.text.includes('"evidence confidence and urgency"'))
     || questionOnlyContinuationInput !== 'coverage authority, claims freshness, adviser handoff'
     || questionOnlyContinuationOptions.length !== 3
     || !areProbeTreeCardsMutuallyDistinct(questionOnlyContinuationOptions)
+    || investmentReportOptions.length !== 0
+    || genericWrapperAccepted
     || JSON.stringify(options).includes('Current primary source for')
     || JSON.stringify(options).includes('Verified system-of-record fact for')
   ) {
-    throw new Error(`expected invocation scaffolding to yield only user-input-derived choices, got ${JSON.stringify({ keywords, continuationInput, continuationKeywords, continuationOptions, questionOnlyContinuationInput, options })}`)
+    throw new Error(`expected invocation scaffolding to yield only query-parameter-specific choices, got ${JSON.stringify({ keywords, continuationInput, continuationKeywords, continuationOptions, questionOnlyContinuationInput, investmentReportOptions, options })}`)
   }
 }

@@ -6,10 +6,12 @@ import {
   areProbeTreeCardsMutuallyDistinct,
   cleanProbeTreeResponseText,
   isProbeTreeCardUserInputRelevant,
+  isProbeTreeTerminalGenerationRequest,
   normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
   safeProbeTreeResponseId,
 } from "./probeTreeUserInputRelevance.mjs";
+import { buildRichMediaTextMarkdownDocument } from "../rich-media/richMediaTextMarkdownContract.mjs";
 
 export {
   PROBE_TREE_MULTI_SELECT_LIMITS,
@@ -20,6 +22,7 @@ export {
   extractProbeTreeClarificationContextText,
   extractProbeTreeUserInputText,
   isProbeTreeCardUserInputRelevant,
+  isProbeTreeTerminalGenerationRequest,
   normalizeProbeTreeContextAnchors,
   normalizeProbeTreeSelectionOptions,
 } from "./probeTreeUserInputRelevance.mjs";
@@ -105,7 +108,7 @@ export function buildProbeTreeStructuredResponse(args = {}) {
   const cards = buildStructuredResponseOptions({ options: args.options, optionCount, degraded: args.degraded === true, contextText })
     .map(card => ({ ...card, parentNodeId: currentNodeId, probeTreeDepth }));
   const panelId = `probe-tree-branches-${safeProbeTreeResponseId(currentNodeId, "current-node")}`;
-  const panelOutput = [
+  const panelBody = [
     "# Probe-Tree Branches",
     "",
     `Source node: ${currentNodeId}`,
@@ -117,6 +120,11 @@ export function buildProbeTreeStructuredResponse(args = {}) {
       "   - Other (author a different answer)",
     ]),
   ].join("\n");
+  const panelOutput = buildRichMediaTextMarkdownDocument({
+    body: panelBody,
+    title: "Probe-Tree Branches",
+    sourceContract: KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
+  });
   return {
     structuredContent: {
       contractVersion: PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,

@@ -1,8 +1,10 @@
 import { buildProbeTreeStoryboardMermaidFlowchart, PROBE_TREE_STORYBOARD_MERMAID_FLOWCHART_KIND } from '@/components/StoryboardCanvas/storyboardProbeTreeMermaidFlowchart'
 import { hashText } from '@/features/parsers/hash'
 import { extractChatResponseStructuredSurface, type ChatResponseSurfaceNode } from '@/features/chat/chatResponseStructuredContent'
+import { buildRichMediaTextMarkdownDocument } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
 import { KNOWGRPH_PROBE_TREE_MAX_DEPTH } from '@/features/agentic-os/probeTreePromptPreset'
 import {
+  KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   PROBE_TREE_CARD_VARIANTS,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
   areProbeTreeCardsMutuallyDistinct,
@@ -168,7 +170,7 @@ const buildPanelMarkdown = (args: {
       : args.mcpInvoked
         ? 'bounded user-input-derived fallback after response-contract validation'
         : 'bounded user-input-derived fallback; MCP was unavailable'
-  return [
+  const body = [
     '# Probe-Tree Branches',
     '',
     `Source node: ${args.anchorNodeId}`,
@@ -192,6 +194,11 @@ const buildPanelMarkdown = (args: {
       ]
     }),
   ].join('\n')
+  return buildRichMediaTextMarkdownDocument({
+    body,
+    title: 'Probe-Tree Branches',
+    sourceContract: KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
+  })
 }
 
 export type StoryboardWidgetProbeTreeStructuredMaterialization = {

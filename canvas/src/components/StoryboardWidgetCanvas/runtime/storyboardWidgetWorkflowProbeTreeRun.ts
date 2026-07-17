@@ -1,7 +1,4 @@
-import {
-  materializeProbeTreeBranchCardsFromGraphNode,
-  type ProbeTreeBranchCardMaterializationResult,
-} from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
+import { materializeProbeTreeBranchCardsFromGraphNode, type ProbeTreeBranchCardMaterializationResult } from '@/components/StoryboardCanvas/storyboardProbeTreeInvocationAction'
 import {
   STORYBOARD_ACTION_PROPERTY_KEYS,
   STORYBOARD_OUTPUT_PROPERTY_KEYS,
@@ -25,6 +22,7 @@ import {
   KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS,
 } from '@/features/agentic-os/probeTreePromptPreset'
 import {
+  KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   PROBE_TREE_DEFAULTS,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
   buildProbeTreeInputDerivedOptions,
@@ -33,6 +31,7 @@ import {
 import { invokeProbeTreeMcpBridge } from '@/features/agent-ready/probeTreeMcpClient'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
+import { buildRichMediaTextMarkdownDocument } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
 import { buildAgenticOsRuntimeInvocationSystemPrompt, buildRuntimeInvocationRoutingSystemPrompt } from '@/features/chat/chatRuntimeInvocationProfile'
 import {
   readGraphNodeCanonicalTextProperty,
@@ -41,7 +40,6 @@ import {
 } from '@/lib/cards/graphNodeCardFields'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import type { StoryboardWidgetWorkflowNodeResolutionContext } from './storyboardWidgetRenderGraph'
 import { buildStoryboardWidgetProbeTreeContextText } from './storyboardWidgetProbeTreeContext'
 import {
@@ -49,6 +47,10 @@ import {
   reconcileStoryboardWidgetProbeTreeSelectedRunNode,
   resolveStoryboardWidgetProbeTreeSelectedRunNodeFromContext,
 } from './storyboardWidgetProbeTreeRunNode'
+import {
+  readStoryboardWidgetProbeTreeTerminalGenerationRequest,
+  runStoryboardWidgetProbeTreeTerminalGeneration,
+} from './storyboardWidgetProbeTreeTerminalGeneration'
 
 const INVOCATION_TOKEN_PATTERN = /(^|\s)([/#@][A-Za-z0-9_.-]+)/g
 const PROBE_TREE_INVOCATION_TOKENS = new Set<string>(
@@ -134,7 +136,7 @@ export function buildStoryboardWidgetProbeTreeRichMediaMarkdown(
     const summary = readGraphNodeCanonicalTextProperty(properties, ['summary', 'action'])
     return `${index + 1}. **${readGraphNodeCardTitle(node)}**${summary ? ` — ${summary}` : ''}`
   })
-  return [
+  const body = [
     '# Probe-Tree Branches',
     '',
     `Invocation: ${KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS.join(' ')}`,
@@ -144,6 +146,11 @@ export function buildStoryboardWidgetProbeTreeRichMediaMarkdown(
     '',
     ...(branchLines.length > 0 ? branchLines : [`- ${materialized.message}`]),
   ].join('\n')
+  return buildRichMediaTextMarkdownDocument({
+    body,
+    title: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
+    sourceContract: KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
+  })
 }
 
 export function materializeStoryboardWidgetProbeTreeInvocation(args: {
@@ -186,7 +193,6 @@ export function runStoryboardWidgetProbeTreeInvocation(args: {
     outputText: panelOutput,
     title: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
     model: PROBE_TREE_LOCAL_MODEL,
-    srcDoc: buildTextWidgetOutputSrcDoc({ title: PROBE_TREE_RICH_MEDIA_PANEL_LABEL, text: panelOutput, scrollOwner: 'media' }),
     loading: false,
     outputKey: PROBE_TREE_OUTPUT_KEY,
     outputGroupId,
@@ -280,6 +286,8 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
     '- For a continuation, the selected child card and its user-authored output own the next topic. Use the thread root only for lineage; never replace the selected child context with a root alias.',
     '- Every card must be a concrete next question relevant to the authored request and the set must reuse at least two substantive request terms.',
     '- Never emit generic process cards named Clarify probe, Generate branches, or Select handoff.',
+    '- Reject generic wrappers such as "Which scope/priority/constraint choice should clarify <entire query>?" and choices such as "Define the exact boundary". Resolve missing parameters that materially change the answer.',
+    '- If the selected user input is an imperative generation request, fulfill that deliverable through normal generation. Do not emit clarification cards and do not continue Probe-Tree.',
     '- Do not add prose before or after the fenced YAML block.',
     '',
     'Selected Widget context:',
@@ -350,6 +358,23 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   })
   const properties = readGraphNodeProperties(node)
   const threadRootId = resolveStoryboardWidgetProbeTreeThreadRootId(graphForInvocation, node)
+  const contextText = buildStoryboardWidgetProbeTreeContextText({
+    graphData: graphForInvocation,
+    node,
+    prompt,
+  })
+  const terminalGeneration = await runStoryboardWidgetProbeTreeTerminalGeneration({
+    node,
+    graphData: graphForInvocation,
+    threadRootId,
+    invocationToken,
+    contextText,
+    providerModel: args.providerModel,
+    generateProviderResponse: args.generateProviderResponse,
+    publishOutput: args.publishOutput,
+    onMaterialized: args.onMaterialized,
+  })
+  if (terminalGeneration) return terminalGeneration
   const currentProbeTreeDepth = readProbeTreeDepth(properties)
   if (currentProbeTreeDepth >= PROBE_TREE_DEFAULTS.maxDepth) {
     return {
@@ -366,11 +391,6 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     }
   }
   const nextProbeTreeDepth = currentProbeTreeDepth + 1
-  const contextText = buildStoryboardWidgetProbeTreeContextText({
-    graphData: graphForInvocation,
-    node,
-    prompt,
-  })
   const invocationTokens = collectInvocationTokens(prompt)
   const inputDerivedOptions = buildProbeTreeInputDerivedOptions(contextText).slice(0, PROBE_TREE_DEFAULTS.optionCount)
   const localFallbackResult = buildInputDerivedCallResult({
@@ -477,7 +497,6 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     outputText: materialized.panelOutput,
     title: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
     model: materialized.model,
-    srcDoc: buildTextWidgetOutputSrcDoc({ title: PROBE_TREE_RICH_MEDIA_PANEL_LABEL, text: materialized.panelOutput, scrollOwner: 'media' }),
     loading: false,
     outputKey: PROBE_TREE_OUTPUT_KEY,
     outputGroupId,
@@ -530,6 +549,7 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
   args.onInvocationStart?.()
   const { prompt, formId, localProperties, resolvedProperties, runtimeProperties } = args.textGeneration
   const providerRefinementApproved = isStoryboardWidgetProbeTreeProviderRefinementApproved(readGraphNodeProperties(fallbackNode))
+  const terminalGenerationRequested = Boolean(readStoryboardWidgetProbeTreeTerminalGenerationRequest(fallbackNode))
   const resolvedThinking = resolveStoryboardWidgetTextThinkingOptions({
     formId,
     localProperties,
@@ -548,7 +568,7 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
       onMaterialized: args.onMaterialized,
       publishOutput: args.publishOutput,
       providerModel: String(resolvedProperties.chatModel || runtimeProperties.chatModel || ''),
-      generateProviderResponse: providerRefinementApproved ? refinementPrompt => generateRunMarkdownWithProvider({
+      generateProviderResponse: providerRefinementApproved || terminalGenerationRequested ? refinementPrompt => generateRunMarkdownWithProvider({
         config: {
           provider: resolvedProperties.chatProvider || runtimeProperties.chatProvider,
           endpointUrl: resolvedProperties.chatEndpointUrl || runtimeProperties.chatEndpointUrl,
