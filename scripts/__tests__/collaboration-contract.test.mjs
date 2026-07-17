@@ -36,6 +36,8 @@ test('release smoke prepares shared modules and defers only the x402 wallet gate
   assert.ok(preparationIndex >= 0)
   assert.ok(preparationIndex < readinessIndex)
   assert.match(smoke, /KNOWGRPH_AGENT_READY_INCLUDE_X402=false/)
+  assert.match(smoke, /for attempt in 1 2 3 4 5/)
+  assert.match(smoke, /sleep 15/)
 })
 
 test('canonical contract is valid and selects deduplicated affected checks', async () => {
