@@ -69,23 +69,26 @@ export function normalizeProbeTreeSelectionOptions(value) {
   return options.length >= PROBE_TREE_MULTI_SELECT_LIMITS.min ? options : [];
 }
 
-const isProbeTreeMechanicalBucketLabel = value => {
+const collectProbeTreeChoiceSemanticTokens = value => {
   const tokens = cleanProbeTreeResponseText(value, 160).toLowerCase().match(/[a-z]+|\d+(?:\.\d+)?[a-z]*/g) || [];
-  const hasQuantity = tokens.some(token => /^\d/.test(token) || PROBE_TREE_BUCKET_NUMBER_WORDS.has(token));
-  if (!hasQuantity) return false;
-  const semanticTokens = tokens.filter(token => (
+  return tokens.filter(token => (
     !/^\d+(?:\.\d+)?(?:k|m|bn|b)?$/.test(token)
     && !PROBE_TREE_BUCKET_NUMBER_WORDS.has(token)
     && !PROBE_TREE_BUCKET_SYNTAX_WORDS.has(token)
     && !PROBE_TREE_BUCKET_UNIT_WORDS.has(token)
   ));
-  return semanticTokens.length === 0;
 };
 
-export function areProbeTreeSelectionOptionsOnlyMechanicalBuckets(value) {
+const isProbeTreeSemanticallyThinChoice = value => {
+  const normalized = cleanProbeTreeResponseText(value, 160).toLowerCase();
+  const semanticTokenCount = collectProbeTreeChoiceSemanticTokens(normalized).length;
+  return semanticTokenCount < 3;
+};
+
+export function doProbeTreeSelectionOptionsContainSemanticallyThinChoices(value) {
   const options = normalizeProbeTreeSelectionOptions(value);
   return options.length >= PROBE_TREE_MULTI_SELECT_LIMITS.min
-    && options.every(option => isProbeTreeMechanicalBucketLabel(option.label));
+    && options.some(option => isProbeTreeSemanticallyThinChoice(option.label));
 }
 
 export function normalizeProbeTreeContextAnchors(value) {
@@ -285,7 +288,7 @@ export function areProbeTreeContinuationChoicesSuggested({ contextText, question
   const quotedFocus = cleanProbeTreeResponseText(String(question || "").match(/"([^"]+)"/)?.[1], 480);
   const focus = cleanProbeTreeResponseText(quotedFocus || normalizeProbeTreeContinuationAnswer(continuationAnswer), 8_000).toLowerCase();
   if (!focus) return true;
-  return !options.every(option => focus.includes(option.label.toLowerCase()));
+  return options.every(option => !focus.includes(option.label.toLowerCase()));
 }
 
 export function isProbeTreeCardUserInputRelevant({ contextText, question, selectionOptions, contextAnchors } = {}) {
@@ -300,7 +303,7 @@ export function isProbeTreeCardUserInputRelevant({ contextText, question, select
     || (continuationAnswer && isProbeTreeTerminalGenerationRequest(userInput))
     || anchors.length < 2
     || options.length < 2
-    || areProbeTreeSelectionOptionsOnlyMechanicalBuckets(options)
+    || doProbeTreeSelectionOptionsContainSemanticallyThinChoices(options)
     || isProbeTreeSourceQueryRestatement({ userInput, question, selectionOptions: options })
     || GENERIC_RESPONSE_CONTENT_PATTERN.test(String(question || "").trim())
     || GENERIC_CLARIFICATION_QUESTION_PATTERN.test(String(question || "").trim())

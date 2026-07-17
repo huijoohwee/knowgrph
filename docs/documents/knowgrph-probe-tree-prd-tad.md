@@ -88,6 +88,7 @@ Discover → Engage stages of the Journey above: this feature *is* the branching
 
 #### Widget Card entrypoint coexistence
 
+- Every generated multi-selection option is accepted or rejected independently at the shared semantic validator. A single bare range, unit, named entity, thin phrase, or recycled selected-child answer invalidates its complete card even if the other options are valid. Every surviving option must express a context-relevant preference, tradeoff, or consequence; number-bearing options must also explain what that quantity means for the active decision.
 - The Widget Card bubble-toolbar **Probe-Tree** action reveals already accepted model-backed branches. If none exist, it stops with an actionable Run instruction; it never creates heuristic preview cards, rewrites authored text, or calls MCP/provider by itself.
 - `/knowgrph.probe-tree` remains editable, non-navigating invocation metadata inside the Widget Card. Selecting its chip never opens or leaves the active Canvas; branch materialization begins only when the Widget Card **Run** action executes.
 - Widget Card Run resolves the card's `/`, `@`, and `#` metadata and authored context, invokes local stdio `knowgrph.probe.generate` through one shared 20-second Dev-bridge deadline, and always asks the active Chat LLM to author the 2–4 typed clarification cards from that context and the literal MCP result. The active Chat provider, endpoint, and selected model own the Probe-Tree transport rather than stale card-local routing fields. The selected model is also the final provider-family signal when generic TextGeneration metadata disagrees, preventing a GPT model and OpenAI credential from being sent to a stale BytePlus endpoint; transport failures remain distinct from semantic card rejection. Representative invocation evidence resolves in parallel under a shorter sub-budget so it cannot serialize three full timeouts ahead of generation. The zero-model MCP path emits no cards; source-query restatements, extracted named-entity lists presented as choices, generic wrappers, and context-mismatched provider output are rejected.
@@ -564,6 +565,8 @@ Min-viable-max-value favors the option that ships this sprint without violating 
 - [x] Prompt-library proof: the centralized Agentic Canvas OS catalog exposes one zero-submit Probe-Tree preset whose runtime route resolves to this document contract
 - [x] TTV validated on a clean environment: the MCP runtime suite runs a temp-root generate→select→evolve smoke without seeded repo state, deployment, or paid calls
 - [x] Token budget actuals vs. estimates: Dev-local proof covers request budget estimates, returned prompt/completion actuals from the optional local Ollama adapter, and `$0` local select/evolve cost logs; production usage actuals remain an operating metric outside this Dev-only contract
+
+The selected child and its committed Output are the continuation authority. The root and bounded ancestors provide lineage only; a same-ID root alias cannot replace the selected child. Provider transport resolves the active Chat provider, endpoint, and model, fails closed when that tuple cannot produce at least two accepted cards, and never fills rejected output with hardcoded or zero-model cards.
 
 ## Implementation Snapshot — 2026-07-07
 

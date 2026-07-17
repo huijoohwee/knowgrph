@@ -112,7 +112,7 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     || !String(mcpRequest?.contextText || '').includes(AUTHORED_REQUEST)
     || !providerPrompt.includes('Never copy or paraphrase the selected request as a card question')
     || !providerPrompt.includes('not as a ready-made selectionOptions array')
-    || !providerPrompt.includes('made only of numbers, ranges, or units')
+    || !providerPrompt.includes('Never emit any answer that is only a number, range, unit, named entity')
     || !providerPrompt.includes('runtime owns source Widget investment-root')
     || !providerPrompt.includes('source-verbatim contextAnchors')
     || !providerPrompt.includes('Do not emit contextAnchors')

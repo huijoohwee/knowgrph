@@ -18,7 +18,7 @@ const mcpRelevantOptions = [
     text: 'Which SME cyber coverage gaps should guide the next branch?',
     rationale: 'Clarifies the authored SME cyber coverage request.',
     evidenceNeeded: 'User-selected SME cyber coverage gap.',
-    selectionOptions: ['SME cyber', 'current coverage gaps'],
+    selectionOptions: ['Prioritize untested incident-response coverage', 'Prioritize outdated cyber exclusions'],
     contextAnchors: ['SME cyber', 'current coverage gaps'],
   },
   {
@@ -26,7 +26,7 @@ const mcpRelevantOptions = [
     text: 'Which ICT supply-chain risk should guide the next branch?',
     rationale: 'Clarifies the authored ICT supply-chain request.',
     evidenceNeeded: 'User-selected ICT supply-chain risk.',
-    selectionOptions: ['ICT supply-chain risk', 'unresolved unknowns'],
+    selectionOptions: ['Prioritize supplier interruption exposure', 'Prioritize unresolved dependency concentration'],
     contextAnchors: ['ICT supply-chain risk', 'unresolved unknowns'],
   },
   {
@@ -34,7 +34,7 @@ const mcpRelevantOptions = [
     text: 'Which adviser handoff outcome should guide the next branch?',
     rationale: 'Clarifies the authored adviser handoff request.',
     evidenceNeeded: 'User-selected adviser handoff outcome.',
-    selectionOptions: ['adviser handoff outcome', 'adviser handoff sequence'],
+    selectionOptions: ['Require licensed-adviser ownership review', 'Require timed adviser handoff sequence'],
     contextAnchors: ['the adviser handoff', 'SME cyber'],
   },
 ]
@@ -98,9 +98,9 @@ const providerStructuredText = (cards: Array<Record<string, unknown>>): string =
           evidenceNeeded: card.evidenceNeeded,
           probeTreeCardVariant: 'probe-tree-type-2',
           selectionOptions: card.selectionOptions || [
-            { id: `cyber-${index + 1}`, label: 'SME cyber' },
-            { id: `supply-chain-${index + 1}`, label: 'ICT supply-chain risk' },
-            { id: `coverage-${index + 1}`, label: 'current coverage gaps' },
+            { id: `cyber-${index + 1}`, label: 'Prioritize untested incident-response coverage' },
+            { id: `supply-chain-${index + 1}`, label: 'Prioritize supplier interruption exposure' },
+            { id: `coverage-${index + 1}`, label: 'Prioritize outdated cyber exclusions' },
           ],
         })),
       },
@@ -125,9 +125,9 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     generateProviderResponse: async refinementPrompt => {
       providerPrompt = refinementPrompt
       return providerStructuredText([
-        { id: 'confirm-cyber-coverage', label: 'Which SME cyber coverage gaps should guide the next branch?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'confirm-cyber-coverage', question: 'Which SME cyber coverage gaps should guide the next branch?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored SME cyber scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'sme-cyber', label: 'SME cyber' }, { id: 'coverage-gaps', label: 'current coverage gaps' }], contextAnchors: ['SME cyber', 'current coverage gaps'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
-        { id: 'map-supply-chain-risk', label: 'Which ICT supply-chain risk remains unresolved?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'map-supply-chain-risk', question: 'Which ICT supply-chain risk remains unresolved?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored ICT supply-chain scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'supply-chain', label: 'ICT supply-chain risk' }, { id: 'unknowns', label: 'unresolved unknowns' }], contextAnchors: ['ICT supply-chain risk', 'unresolved unknowns'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
-        { id: 'connect-adviser-handoff', label: 'Which part of the adviser handoff needs separate follow-up?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'connect-adviser-handoff', question: 'Which part of the adviser handoff needs separate follow-up?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored adviser-handoff scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'adviser', label: 'adviser' }, { id: 'handoff', label: 'handoff' }], contextAnchors: ['the adviser handoff', 'adviser', 'handoff'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
+        { id: 'confirm-cyber-coverage', label: 'Which SME cyber coverage gaps should guide the next branch?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'confirm-cyber-coverage', question: 'Which SME cyber coverage gaps should guide the next branch?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored SME cyber scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'sme-cyber', label: 'Prioritize untested incident-response coverage' }, { id: 'coverage-gaps', label: 'Prioritize outdated cyber exclusions' }], contextAnchors: ['SME cyber', 'current coverage gaps'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
+        { id: 'map-supply-chain-risk', label: 'Which ICT supply-chain risk remains unresolved?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'map-supply-chain-risk', question: 'Which ICT supply-chain risk remains unresolved?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored ICT supply-chain scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'supply-chain', label: 'Prioritize supplier interruption exposure' }, { id: 'unknowns', label: 'Prioritize unresolved dependency concentration' }], contextAnchors: ['ICT supply-chain risk', 'unresolved unknowns'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
+        { id: 'connect-adviser-handoff', label: 'Which part of the adviser handoff needs separate follow-up?', kind: 'text', parentNodeId: 'n1', candidateOptionId: 'connect-adviser-handoff', question: 'Which part of the adviser handoff needs separate follow-up?', output: 'duplicate provider text must be cleared', rationale: 'Uses the authored adviser-handoff scope.', evidenceNeeded: 'User selection', selectionOptions: [{ id: 'adviser', label: 'Require licensed-adviser ownership review' }, { id: 'handoff', label: 'Require timed adviser handoff sequence' }], contextAnchors: ['the adviser handoff', 'adviser', 'handoff'], confidence: 'medium', probeTreeDepth: 1, nextAction: 'knowgrph.probe.select' },
       ])
     },
     providerModel: 'test-provider',
@@ -388,8 +388,8 @@ export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderCo
           rationale: 'Uses the selected child country and cyber coverage request.',
           evidenceNeeded: 'User-selected country coverage gap.',
           selectionOptions: [
-            { id: 'singapore-cyber', label: 'Singapore cyber coverage gaps' },
-            { id: 'malaysia-cyber', label: 'Malaysia cyber coverage gaps' },
+            { id: 'singapore-cyber', label: 'Prioritize Singapore incident-response exclusions' },
+            { id: 'malaysia-cyber', label: 'Prioritize Malaysia supplier-coverage exclusions' },
           ],
           contextAnchors: ['Singapore', 'Malaysia', 'cyber', 'coverage gaps'],
           confidence: 'medium',
@@ -407,9 +407,9 @@ export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderCo
           rationale: 'Uses the selected child evidence and adviser request.',
           evidenceNeeded: 'User-selected evidence source.',
           selectionOptions: [
-            { id: 'current-policy', label: 'current policy evidence' },
-            { id: 'regulator', label: 'regulator evidence' },
-            { id: 'licensed-adviser', label: 'licensed-adviser evidence' },
+            { id: 'current-policy', label: 'Prioritize recently issued regulator guidance' },
+            { id: 'regulator', label: 'Require jurisdiction-specific policy conflicts' },
+            { id: 'licensed-adviser', label: 'Escalate evidence gaps for adviser review' },
           ],
           contextAnchors: ['supply-chain', 'current policy', 'regulator', 'licensed-adviser evidence'],
           confidence: 'medium',

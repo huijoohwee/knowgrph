@@ -108,7 +108,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["canvas.probeTree.llmResponseContract.projectsEditableBranches","@/__tests__/probeTreeStructuredResponseContract.test","testProbeTreeLlmResponseContractProjectsEditableBranches"],
   ["canvas.probeTree.mcpResponseAdapter.projectsWidgetCardsPanelTree","@/__tests__/probeTreeStructuredResponseContract.test","testProbeTreeMcpResponseAdapterBoundsWidgetCardsAndPanel"],
   ["canvas.probeTree.noModel.failsClosed","@/__tests__/probeTreeStructuredResponseContract.test","testProbeTreeNoModelCardsFailClosed"],
-  ["canvas.probeTree.response.rejectsRestatementAndMechanicalBuckets","@/__tests__/probeTreeStructuredResponseContract.test","testProbeTreeRestatedQueryAndMechanicalBucketsAreRejected"],
+  ["canvas.probeTree.response.rejectsRestatementAndSemanticallyThinChoices","@/__tests__/probeTreeStructuredResponseContract.test","testProbeTreeRestatedQueryAndSemanticallyThinChoicesAreRejected"],
   ["canvas.probeTree.contextKeywords.ignoreInvocationMetadataCompounds","@/__tests__/probeTreeStructuredResponseContract.test","testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds"],
   ["canvas.probeTree.literalMcpResult.appliesVisibleWidgetCardPanelTree","@/__tests__/probeTreeMcpWorkspaceApply.test","testProbeTreeLiteralMcpResultAppliesVisibleWidgetCardPanelTree"],
   ["canvas.probeTree.widgetRun.mcpProjectsRelevantProviderCards","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProviderCards"],

@@ -286,7 +286,7 @@ export function testProbeTreeStructuredReplacementRemovesDescendantClosure() {
         text: 'Which coverage source should establish SME evidence authority?',
         rationale: 'Clarifies the authored SME evidence authority question.',
         evidenceNeeded: 'User-selected coverage authority.',
-        selectionOptions: ['coverage source', 'claims record'],
+        selectionOptions: ['Require verified coverage source authority', 'Require recently refreshed claims record'],
         contextAnchors: ['SME evidence', 'coverage source', 'claims record'],
       },
       {
@@ -294,7 +294,7 @@ export function testProbeTreeStructuredReplacementRemovesDescendantClosure() {
         text: 'Which adviser boundary or approval status should guide review?',
         rationale: 'Clarifies the authored accountable review question.',
         evidenceNeeded: 'User-selected review boundary.',
-        selectionOptions: ['adviser boundary', 'approval status'],
+        selectionOptions: ['Require explicit adviser boundary', 'Require current approval status'],
         contextAnchors: ['accountable review', 'adviser boundary', 'approval status'],
       },
     ],
