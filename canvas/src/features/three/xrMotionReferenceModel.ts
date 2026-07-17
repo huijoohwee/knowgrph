@@ -28,8 +28,10 @@ export type {
 export const XR_MOTION_REFERENCE_GRAPH_METADATA_KEY = 'kgXrMotionReference'
 export const XR_MOTION_REFERENCE_SCHEMA = 'knowgrph-xr-motion-reference/v1'
 export const XR_MOTION_REFERENCE_PACKAGE_SCHEMA = 'knowgrph-xr-motion-reference-package/v1'
+export const XR_MOTION_REFERENCE_CAMERA_RIGS = ['dolly', 'steadicam', 'handheld', 'crane', 'drone', 'car-mount'] as const
 
 export type XrMotionReferenceTransition = 'linear' | 'hold'
+export type XrMotionReferenceCameraRig = (typeof XR_MOTION_REFERENCE_CAMERA_RIGS)[number]
 
 export type XrMotionReferenceMark = Readonly<{
   id: string
@@ -49,6 +51,7 @@ export type XrMotionReferenceCameraMark = Readonly<{
   id: string
   timeSeconds: number
   anchorId: string
+  rig: XrMotionReferenceCameraRig
   settings: Readonly<StrybldrCameraSettings>
   pose: CameraFramingPose
 }>
@@ -180,6 +183,13 @@ function normalizeTransition(value: unknown): XrMotionReferenceTransition {
   return value === 'hold' ? 'hold' : 'linear'
 }
 
+function normalizeCameraRig(value: unknown): XrMotionReferenceCameraRig {
+  const normalized = String(value || '').trim().toLowerCase()
+  return XR_MOTION_REFERENCE_CAMERA_RIGS.includes(normalized as XrMotionReferenceCameraRig)
+    ? normalized as XrMotionReferenceCameraRig
+    : 'dolly'
+}
+
 function defaultActorPosition(index: number): XrMotionReferenceVector {
   const column = index % 4
   const row = Math.floor(index / 4)
@@ -244,6 +254,7 @@ function normalizeCameraMarks(
       id: stableMarkId('camera', timeSeconds),
       timeSeconds,
       anchorId,
+      rig: normalizeCameraRig(record.rig),
       settings,
       pose: resolveCameraFramingPose({ settings, target, baseDistance: XR_MOTION_REFERENCE_CAMERA_BASELINE_METERS }),
       index,
@@ -358,6 +369,7 @@ export function serializeXrMotionReferencePlan(plan: XrMotionReferencePlan): JSO
     camera: plan.camera.map(mark => ({
       timeSeconds: mark.timeSeconds,
       anchorId: mark.anchorId,
+      rig: mark.rig,
       settings: serializeStrybldrCameraSettings(mark.settings),
     })),
   } as JSONValue
@@ -404,12 +416,64 @@ export function sampleXrMotionReferenceCameraPose(marks: readonly XrMotionRefere
     if (timeSeconds > right.timeSeconds) continue
     const left = marks[index - 1]!
     const span = Math.max(0.001, right.timeSeconds - left.timeSeconds)
-    const progress = clamp((timeSeconds - left.timeSeconds) / span, 0, 1)
+    const linearProgress = clamp((timeSeconds - left.timeSeconds) / span, 0, 1)
+    const progress = left.rig === 'drone'
+      ? linearProgress * linearProgress * linearProgress * (linearProgress * (linearProgress * 6 - 15) + 10)
+      : left.rig === 'steadicam' || left.rig === 'crane'
+        ? linearProgress * linearProgress * (3 - 2 * linearProgress)
+        : linearProgress
+    let position = interpolateVector(left.pose.position, right.pose.position, progress)
+    let target = interpolateVector(left.pose.target, right.pose.target, progress)
+    if (left.rig === 'handheld') {
+      const envelope = Math.sin(Math.PI * linearProgress)
+      const phase = timeSeconds * Math.PI * 2
+      position = [
+        round(position[0] + Math.sin(phase * 2.13) * 0.035 * envelope),
+        round(position[1] + Math.sin(phase * 2.87) * 0.02 * envelope),
+        position[2],
+      ]
+      target = [
+        round(target[0] + Math.sin(phase * 1.71) * 0.018 * envelope),
+        target[1],
+        target[2],
+      ]
+    }
     return Object.freeze({
-      position: interpolateVector(left.pose.position, right.pose.position, progress),
-      target: interpolateVector(left.pose.target, right.pose.target, progress),
+      position,
+      target,
       up: normalizeDirection(interpolateVector(left.pose.up, right.pose.up, progress)),
     })
   }
   return last.pose
+}
+
+export function sampleXrMotionReferenceCameraRig(
+  marks: readonly XrMotionReferenceCameraMark[],
+  timeSeconds: number,
+): XrMotionReferenceCameraRig {
+  if (marks.length === 0) return 'dolly'
+  for (let index = 1; index < marks.length; index += 1) {
+    if (timeSeconds <= marks[index]!.timeSeconds) return marks[index - 1]!.rig
+  }
+  return marks[marks.length - 1]!.rig
+}
+
+export function sampleXrMotionReferenceCameraSettings(
+  marks: readonly XrMotionReferenceCameraMark[],
+  timeSeconds: number,
+): Readonly<StrybldrCameraSettings> | null {
+  if (marks.length === 0) return null
+  if (timeSeconds <= marks[0]!.timeSeconds) return marks[0]!.settings
+  for (let index = 1; index < marks.length; index += 1) {
+    const right = marks[index]!
+    if (timeSeconds > right.timeSeconds) continue
+    const left = marks[index - 1]!
+    const span = Math.max(0.001, right.timeSeconds - left.timeSeconds)
+    const progress = clamp((timeSeconds - left.timeSeconds) / span, 0, 1)
+    return Object.freeze(readStrybldrCameraSettings({
+      ...left.settings,
+      focalLengthMm: left.settings.focalLengthMm + (right.settings.focalLengthMm - left.settings.focalLengthMm) * progress,
+    }))
+  }
+  return marks[marks.length - 1]!.settings
 }

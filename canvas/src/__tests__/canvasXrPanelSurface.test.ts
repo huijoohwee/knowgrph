@@ -45,7 +45,7 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   const spatialCaptureTools = readSource('features', 'three', 'xrSpatialCaptureTools.ts')
   const bottomPanel = readSource('features', 'strybldr', 'StrybldrTimelineBottomPanel.tsx')
   const timelineBottomPanel = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
-  const xrTimelineLane = readSource('features', 'three', 'XrTimelineSceneLane.tsx')
+  const xrCameraMotion = readSource('features', 'three', 'XrCameraMotionSection.tsx')
   const floatingPanel = readSource('lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
   const viewport = readSource('components', 'CanvasViewport.tsx')
   const floatingTypes = readSource('hooks', 'store', 'store-types', 'graph-state-chat-import.ts')
@@ -82,12 +82,17 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   for (const staleMarker of ['FloatingPanel XR', 'activateCanvasGraphSurfaceMode', 'data-kg-xr-panel-open-timeline', 'XrPhysicsPlayground', 'data-kg-xr-panel-physics', 'XR_PHYSICS_CONTROLLER_MODES', 'XrCameraFramingSection', 'StrybldrCameraFramingSection']) {
     if (spatialAssetTools.includes(staleMarker)) throw new Error(`expected Media 3D spatial tools to remove stale ${staleMarker}`)
   }
-  for (const marker of ['XrTimelineSceneLane', "state.canvas3dMode === 'xr'"]) {
-    if (!timelineBottomPanel.includes(marker)) throw new Error(`expected BottomPanel Timeline to route XR context through ${marker}`)
+  for (const marker of ['XrCameraMotionSection', 'canvas3dMode']) {
+    if (!timelineBottomPanel.includes(marker)) throw new Error(`expected BottomPanel Timeline to own XR motion through ${marker}`)
   }
-  if (timelineBottomPanel.includes("state.floatingPanelView === 'xr'")) throw new Error('expected XR Timeline ownership to derive only from Surface Mode')
-  for (const marker of ['data-kg-xr-timeline-player="1"', 'data-kg-xr-timeline-lane="scene"', '<GanttTimelineTransportPanel', 'data-kg-xr-timeline-scene="player"', 'data-kg-xr-timeline-runtime=', 'data-kg-xr-timeline-transport="reused-gantt-player"']) {
-    if (!xrTimelineLane.includes(marker)) throw new Error(`expected XR to project into the canonical Timeline player through ${marker}`)
+  for (const marker of ['<StrybldrCameraFramingSection />', '<XrShootCameraSection />']) {
+    if (!cameraFloatingProjection.includes(marker)) throw new Error(`expected FloatingPanel Camera to expose ${marker}`)
+  }
+  if (cameraFloatingProjection.includes('<XrCameraMotionSection')) {
+    throw new Error('expected FloatingPanel Camera to leave XR motion and transport in BottomPanel Timeline')
+  }
+  for (const marker of ['data-kg-xr-timeline-player="1"', 'data-kg-xr-timeline-player-controls="1"', '<CameraMotionMarkRetime', '<GanttTimelineTransportPanel', 'data-kg-xr-timeline-transport="reused-gantt-player"']) {
+    if (!xrCameraMotion.includes(marker)) throw new Error(`expected BottomPanel XR Timeline to expose ${marker}`)
   }
   if (existsSync(xrCameraFramingPath)) {
     throw new Error('expected the duplicate FloatingPanel XR Camera projection to be deleted')
@@ -103,8 +108,14 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     'readCameraFramingRuntime',
     'publishCameraFramingRuntime',
     'subscribeCameraFramingRuntime',
+    "SHARED_CANVAS_CAMERA_ANCHOR_ID = 'canvas-camera'",
+    "selectedCard?.title || 'Canvas camera'",
+    "data-kg-camera-framing-mode={selectedCard ? 'storyboard' : 'shared'}",
   ]) {
     if (!sharedCameraFraming.includes(marker)) throw new Error(`expected the canonical FloatingPanel Camera framing owner to expose ${marker}`)
+  }
+  if (sharedCameraFraming.includes('No storyboard card loaded.')) {
+    throw new Error('expected the globe-like shared Camera utilities to remain available without a storyboard card')
   }
   if (!cameraFloatingProjection.includes('StrybldrCameraFramingSection') || !cameraFloatingProjection.includes('aria-label="Camera panel"')) {
     throw new Error('expected FloatingPanel Camera to remain a thin shell over the shared camera framing owner')

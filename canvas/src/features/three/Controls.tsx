@@ -25,6 +25,7 @@ import {
   XR_MOTION_STAGE_CAMERA_POSITION,
   XR_MOTION_STAGE_CAMERA_TARGET,
 } from './xrMotionReferenceCoordinates'
+import { useXrMotionReferenceCameraPlayback } from './xrCameraPlaybackControlsRuntime'
 
 export function Controls({
   schema,
@@ -404,6 +405,13 @@ export function Controls({
     paused: !!paused,
     modelAssetRenderKey,
     modelAssetFit,
+    xrEmptyWorld,
+  })
+  useXrMotionReferenceCameraPlayback({
+    camera: perspectiveCamera,
+    controls,
+    mode,
+    paused: !!paused,
     xrEmptyWorld,
   })
   React.useEffect(() => {

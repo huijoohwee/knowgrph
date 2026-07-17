@@ -1,4 +1,5 @@
 import React from 'react'
+import type { ThreeEvent } from '@react-three/fiber'
 import type { XrMotionReferenceStagePreset } from './xrSceneLibrary'
 import { xrMotionReferenceWorldPosition } from './xrMotionReferenceCoordinates'
 
@@ -18,6 +19,7 @@ export function XrStagePresetGeometry({
   shadows = false,
   minAxesSize = 4,
   minFloorThickness = 0.5,
+  onFloorPoint,
 }: {
   stage: XrMotionReferenceStagePreset
   span: number
@@ -27,6 +29,7 @@ export function XrStagePresetGeometry({
   shadows?: boolean
   minAxesSize?: number
   minFloorThickness?: number
+  onFloorPoint?: (point: readonly [number, number, number]) => void
 }) {
   const scale = span / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
   const floorWidth = stage.sizeMeters[0] * scale
@@ -38,6 +41,11 @@ export function XrStagePresetGeometry({
         name="kg_xr_motion_stage_floor"
         position={[0, groundY - floorThickness / 2, 0]}
         receiveShadow={shadows}
+        userData={{ kgXrMarkFloor: true, interactive: Boolean(onFloorPoint) }}
+        onClick={onFloorPoint ? (event: ThreeEvent<MouseEvent>) => {
+          event.stopPropagation()
+          onFloorPoint([event.point.x, groundY, event.point.z])
+        } : undefined}
       >
         <boxGeometry args={[floorWidth, floorThickness, floorHeight]} />
         <meshStandardMaterial color="#475569" roughness={1} metalness={0} transparent opacity={0.68} />

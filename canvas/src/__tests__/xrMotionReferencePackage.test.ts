@@ -130,12 +130,14 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   setXrMotionReferenceCameraMark({
     timeSeconds: 0,
     anchorId: 'cast-a',
-    settings: { angle: 'front', level: 'eye-level', shot: 'wide', note: 'Opening', orbitX: 0, orbitY: 0 },
+    settings: { angle: 'front', level: 'eye-level', shot: 'wide', note: 'Opening', orbitX: 0, orbitY: 0, focalLengthMm: 35 },
+    rig: 'dolly',
   })
   setXrMotionReferenceCameraMark({
     timeSeconds: 5,
     anchorId: 'cast-a',
-    settings: { angle: 'right-side', level: 'high-angle', shot: 'close-up', note: 'Arrival', orbitX: 0.4, orbitY: -0.35 },
+    settings: { angle: 'right-side', level: 'high-angle', shot: 'close-up', note: 'Arrival', orbitX: 0.4, orbitY: -0.35, focalLengthMm: 85 },
+    rig: 'drone',
   })
   setXrMotionReferencePlayhead(2.5)
   runtime = readXrMotionReferenceRuntime()
@@ -300,6 +302,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (readXrMotionReferenceRuntime().plan.subjects.length !== 1) throw new Error('expected placed static subjects to be removable')
 
   const stageSource = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
+  const stagePresetGeometrySource = readSource('features', 'three', 'XrStagePresetGeometry.tsx')
   const emptyWorldSource = readSource('features', 'three', 'XrEmptyWorldStage.tsx')
   const emptyWorldHudSource = readSource('features', 'three', 'XrEmptyWorldHud.tsx')
   const modelSource = readSource('features', 'three', 'xrMotionReferenceModel.ts')
@@ -313,7 +316,8 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   const xrSceneMcpRuntimeSource = readSource('features', 'three', 'xrSceneMcpRuntime.ts')
   const spatialAssetToolsSource = readSource('features', 'three', 'SpatialAssetToolsPanel.tsx')
   const timelineBottomPanelSource = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
-  const xrTimelineLaneSource = readSource('features', 'three', 'XrTimelineSceneLane.tsx')
+  const cameraFloatingSource = readSource('features', 'strybldr', 'StrybldrCameraFloatingPanelView.tsx')
+  const xrCameraMotionSource = readSource('features', 'three', 'XrCameraMotionSection.tsx')
   const xrTimelineProjectionSource = readSource('features', 'three', 'xrMotionReferenceTimeline.ts')
   const ganttTransportPanelSource = readSource('features', 'gitgraph', 'GanttTimelineTransportPanel.tsx')
   const ganttTransportSurfaceSource = readSource('features', 'gitgraph', 'useGanttTimelineTransportSurfaceModel.ts')
@@ -332,16 +336,13 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     'data-kg-xr-timeline-player="1"',
     'data-kg-xr-timeline-transport="reused-gantt-player"',
     'data-kg-xr-motion-stage-select="1"',
-    'data-kg-xr-motion-add-cast-mark="1"',
-    'data-kg-xr-motion-add-camera-mark="1"',
     'data-kg-xr-motion-save="1"',
     'data-kg-xr-motion-export="1"',
     "documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'",
     'updateGraphMetadata',
-    'readCameraFramingRuntime',
     'downloadBlob',
   ]) {
-    if (!xrTimelineLaneSource.includes(marker)) throw new Error(`expected XR Timeline player controls to expose ${marker}`)
+    if (!xrCameraMotionSource.includes(marker)) throw new Error(`expected consolidated BottomPanel XR motion controls to expose ${marker}`)
   }
   for (const marker of ['data-kg-media-3d-toggle="1"', '<XrMediaLibraryPanel', '3D for XR', "xrSurfaceActive ? 'xr-3d' : 'media'"]) {
     if (!mediaCatalogViewSource.includes(marker)) throw new Error(`expected FloatingPanel Media to expose ${marker}`)
@@ -352,7 +353,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   for (const marker of ['/xr.stage', '/xr.place', '/xr.animate', '#travel', '#hold']) {
     if (!xrSceneMcpContractSource.includes(marker)) throw new Error(`expected XR MCP invocation grammar to expose ${marker}`)
   }
-  for (const marker of ['inspectLocalXrSceneAssets', 'controlLocalXrScene', 'serializeXrMotionReferencePlan', 'activateCanvasGraphSurfaceMode', "setFloatingPanelView('media')"]) {
+  for (const marker of ['inspectLocalXrSceneAssets', 'controlLocalXrScene', 'serializeXrMotionReferencePlan', 'activateCanvasGraphSurfaceMode', "setFloatingPanelView('camera')"]) {
     if (!xrSceneMcpRuntimeSource.includes(marker)) throw new Error(`expected browser-local XR MCP control runtime to expose ${marker}`)
   }
   if (!runtimeSource.includes('setXrMotionReferenceCastMotion') || !runtimeSource.includes('travelMeters')) {
@@ -370,7 +371,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     'kg_xr_motion_cast_tracks',
     'kg_xr_motion_camera_track',
   ]) {
-    if (!stageSource.includes(marker)) throw new Error(`expected native grey-box stage to expose ${marker}`)
+    if (!`${stageSource}\n${stagePresetGeometrySource}`.includes(marker)) throw new Error(`expected native grey-box stage to expose ${marker}`)
   }
   for (const marker of [
     'xrMotionReferenceWorldPosition',
@@ -379,23 +380,24 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     'position={[position[0], position[1] + 0.35, position[2]]}',
     'rotation={[-Math.PI / 2, 0, 0]}',
   ]) {
-    if (!stageSource.includes(marker)) throw new Error(`expected Y-up XR stage orientation to expose ${marker}`)
+    if (!`${stageSource}\n${stagePresetGeometrySource}`.includes(marker)) throw new Error(`expected Y-up XR stage orientation to expose ${marker}`)
   }
   if (!sceneSubjectSource.includes('rotation={[0, THREE.MathUtils.degToRad(subject.rotationYDegrees), 0]}')
     || !sceneSubjectSource.includes('<group rotation={[-Math.PI / 2, 0, 0]}>')) {
     throw new Error('expected Z-up procedural library geometry to be adapted once beneath a Y-up subject transform')
   }
-  if (!timelineBottomPanelSource.includes('<XrTimelineSceneLane')
-    || !xrTimelineLaneSource.includes('<GanttTimelineTransportPanel')
-    || !xrTimelineLaneSource.includes('clockActive')
-    || !xrTimelineLaneSource.includes('editable={false}')
-    || !xrTimelineLaneSource.includes('publishPlaybackRequest={false}')
-    || !xrTimelineLaneSource.includes('runtimeDocumentKey={xrTransportDocumentKey}')
-    || !xrTimelineLaneSource.includes('runtimeDurationSeconds={runtime.plan.durationSeconds}')
+  if (!timelineBottomPanelSource.includes('XrCameraMotionSection')
+    || cameraFloatingSource.includes('<XrCameraMotionSection')
+    || !xrCameraMotionSource.includes('<GanttTimelineTransportPanel')
+    || !xrCameraMotionSource.includes('clockActive')
+    || !xrCameraMotionSource.includes('editable={false}')
+    || !xrCameraMotionSource.includes('publishPlaybackRequest={false}')
+    || !xrCameraMotionSource.includes('runtimeDocumentKey={xrTransportDocumentKey}')
+    || !xrCameraMotionSource.includes('runtimeDurationSeconds={runtime.plan.durationSeconds}')
     || !xrTimelineProjectionSource.includes('buildXrMotionReferenceTimelineCode')
     || !ganttTransportPanelSource.includes('runtimeDurationSeconds')
     || !xrGraphStageSource.includes('<XrMotionReferenceStage')) {
-    throw new Error('expected BottomPanel XR to reuse the canonical Timeline player and ThreeGraph motion-reference stage')
+    throw new Error('expected BottomPanel Timeline to own the canonical XR motion projection while FloatingPanel Camera owns framing and SHOOT')
   }
   if (!ganttTransportSurfaceSource.includes('runtimeOnly: true')
     || !ganttHeaderToolsSource.includes('!args.model.runtimeOnly')
@@ -405,7 +407,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     || !videoSequenceRulerSource.includes("const compactTimelineBar = workflowProjection || compactSourceMedia || !editable")
     || !videoSequenceRulerSource.includes("{editable ? <button type=\"button\" className=\"timeline-transport-track-handle")
     || !ganttPlaybackControlsSource.includes('args.publishPlaybackRequest === false')
-    || !ganttPlaybackRuntimeSource.includes('xrTimelineOwnsClock')) {
+    || !ganttPlaybackRuntimeSource.includes('xrBottomTimelineOwnsClock')) {
     throw new Error('expected the reused XR player to retain one clock and the canonical compact read-only bars while isolating media playback requests')
   }
   if (!ganttTransportSurfaceSource.includes('const selectedPreviewEmpty = !!transportSession.selectedSpan && !transportSession.previewPlan')) {
@@ -475,9 +477,9 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (!threeGraphSource.includes('<XrEmptyWorldHud')) {
     throw new Error('expected the empty XR world to mount its center and XYZ orientation projection')
   }
-  if (!xrTimelineLaneSource.includes('const graphData = documentLoaded ? activeGraphData || rawGraphData : null')
-    || !xrTimelineLaneSource.includes('data-kg-xr-timeline-document-loaded=')) {
-    throw new Error('expected the XR Timeline player to reject retained graph data when no document is loaded')
+  if (!xrCameraMotionSource.includes('const graphData = documentLoaded ? activeGraphData || rawGraphData : null')
+    || !xrCameraMotionSource.includes('data-kg-xr-timeline-document-loaded=')) {
+    throw new Error('expected the Camera motion projection to reject retained graph data when no document is loaded')
   }
   if (!threeGraphSource.includes("active: active && mode !== 'xr'")
     || !threeGraphSource.includes("sceneGraph: mode === 'xr' ? null : sceneGraphForRender")
@@ -491,8 +493,11 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     || !sceneSource.includes("{mode !== 'xr' && fogColorEffective")) {
     throw new Error('expected XR motion reference to own the graph scene without nodes, edges, starfield, or graph fog interference')
   }
-  for (const marker of ['onOpenShared3dPanel', "mode === '3d' ? 'camera' : 'media'", 'setFloatingPanelOpen(true)', "setBottomSurfaceTab('timeline')", 'setBottomSurfaceCollapsed(false)']) {
+  for (const marker of ['onOpenShared3dPanel', "setFloatingPanelView('camera')", 'setFloatingPanelOpen(true)', "setBottomSurfaceTab('timeline')", 'setBottomSurfaceCollapsed(false)']) {
     if (!canvasViewSelectSource.includes(marker)) throw new Error(`expected 3D/XR Surface Mode to open its canonical panel via ${marker}`)
+  }
+  if (canvasViewSelectSource.includes("mode === '3d' ? 'camera' : 'media'")) {
+    throw new Error('expected both 3D and XR to use the always-visible shared Camera panel')
   }
   if (!stageSource.includes('hydrateXrMotionReferenceRuntime') || !stageSource.includes('xrMotionReferenceSceneKey')) {
     throw new Error('expected ThreeGraph XR stage to hydrate choreography independently of floating-panel visibility')
@@ -503,20 +508,20 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (!stageSource.includes('xrMotionReferenceWorldPosition(mark.pose.target') || !packageSource.includes('point(mark.pose.target)')) {
     throw new Error('expected 3D and SVG camera previews to orient markers toward each captured target')
   }
-  if (!xrTimelineLaneSource.includes('readCameraFramingRuntime') || !xrTimelineLaneSource.includes('Capture camera')) {
-    throw new Error('expected XR Timeline camera capture to read the sole FloatingPanel Camera owner')
+  if (xrCameraMotionSource.includes('Capture camera') || xrCameraMotionSource.includes('Mark cast @')) {
+    throw new Error('expected stale manual camera/cast capture controls to be removed in favor of canonical Camera SHOOT')
   }
-  if (!xrTimelineLaneSource.includes('disabled={!graphData || !runtime.dirty}')) {
+  if (!xrCameraMotionSource.includes('disabled={!graphData || !runtime.dirty}')) {
     throw new Error('expected XR plan persistence to fail closed when no graph is available')
   }
-  if (!xrTimelineLaneSource.includes('savedValue !== serialized') || !xrTimelineLaneSource.includes('save-error')) {
+  if (!xrCameraMotionSource.includes('savedValue !== serialized') || !xrCameraMotionSource.includes('save-error')) {
     throw new Error('expected XR plan persistence to verify the canonical graph write before clearing dirty state')
   }
   if (!saveSource.includes('export function downloadBlob')) {
     throw new Error('expected package export to retain the shared blob-download owner')
   }
 
-  const implementation = [xrTimelineLaneSource, xrTimelineProjectionSource, stageSource, emptyWorldSource, emptyWorldHudSource, modelSource, packageSource, runtimeSource, sceneLibrarySource, sceneSubjectSource, xrMediaLibrarySource].join('\n').toLowerCase()
+  const implementation = [xrCameraMotionSource, xrTimelineProjectionSource, stageSource, stagePresetGeometrySource, emptyWorldSource, emptyWorldHudSource, modelSource, packageSource, runtimeSource, sceneLibrarySource, sceneSubjectSource, xrMediaLibrarySource].join('\n').toLowerCase()
   for (const forbidden of ['wassermanproductions', 'blockout', 'ffmpeg', 'electron-vite']) {
     if (implementation.includes(forbidden)) {
       throw new Error(`expected clean-room XR implementation to avoid external runtime token ${forbidden}`)
@@ -552,4 +557,5 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (!reconciled.dirty || reconciled.plan.cast[0]?.actorId !== 'cast-b' || reconciledLead?.label !== 'Lead renamed' || reconciledLead.marks.length !== 2) {
     throw new Error('expected a dirty draft to survive graph label/order refresh while reconciling cast identity')
   }
+
 }

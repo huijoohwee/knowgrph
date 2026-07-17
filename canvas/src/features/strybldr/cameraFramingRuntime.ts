@@ -77,6 +77,7 @@ function settingsEqual(
     && left.note === right.note
     && left.orbitX === right.orbitX
     && left.orbitY === right.orbitY
+    && left.focalLengthMm === right.focalLengthMm
 }
 
 let snapshot = createSnapshot({

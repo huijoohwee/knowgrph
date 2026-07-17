@@ -4,6 +4,7 @@ import {
   buildKnowgrphMcpAppsToolMeta,
 } from './mcpAppsReadyContract.mjs'
 import { XR_SCENE_WEB_MCP_TOOL_IDS } from '../three/xrSceneMcpContract.mjs'
+import { CAMERA_WEB_MCP_TOOL_IDS } from '../strybldr/cameraMcpContract.mjs'
 
 export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   search: 'search',
@@ -21,6 +22,8 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   inspectLocalCanvasTopology: 'inspect_local_canvas_topology',
   inspectLocalCanvasSnapshot: 'inspect_local_canvas_snapshot',
   inspectLocal3dCameraPose: 'inspect_local_3d_camera_pose',
+  inspectLocalCamera: CAMERA_WEB_MCP_TOOL_IDS.inspect,
+  controlLocalCamera: CAMERA_WEB_MCP_TOOL_IDS.control,
   inspectLocal3dLayoutPositions: 'inspect_local_3d_layout_positions',
   inspectLocalXrSceneAssets: XR_SCENE_WEB_MCP_TOOL_IDS.inspect,
   controlLocalXrScene: XR_SCENE_WEB_MCP_TOOL_IDS.control,
@@ -278,6 +281,38 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           description: 'Inspect the active browser-local Knowgrph 3D camera pose from the app runtime without calling published storage or Pages MCP routes.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCamera,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCamera),
+          title: 'Inspect Local Camera',
+          description: 'Inspect the always-visible shared Camera framing and XR animation runtime, including its MCP and / @ # invocation grammar.',
+          inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+          outputSchema: { type: 'object', additionalProperties: true, required: ['schema', 'webMcpTools', 'invocationGrammar', 'surface', 'framing', 'animation'] },
+          annotations: READ_ONLY_TOOL_ANNOTATIONS,
+        }, {
+          name: KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalCamera,
+          webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalCamera),
+          title: 'Control Local Camera',
+          description: 'Control shared Camera framing and XR animation through structured actions or /camera.frame, /camera.animate, /camera.play, and /camera.scrub invocations with @ targets and # tokens.',
+          inputSchema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              invocation: { type: 'string', description: 'Invocation such as /camera.animate @camera #handheld #2.5s.' },
+              action: { type: 'string', enum: ['frame', 'animate', 'playback', 'scrub'] },
+              targetId: { type: 'string' },
+              angle: { type: 'string', enum: ['front', 'left-side', 'right-side', 'overhead'] },
+              level: { type: 'string', enum: ['eye-level', 'high-angle', 'low-angle'] },
+              shot: { type: 'string', enum: ['wide', 'medium', 'close-up'] },
+              focalLengthMm: { type: 'number', minimum: 14, maximum: 200 },
+              rig: { type: 'string', enum: ['dolly', 'steadicam', 'handheld', 'crane', 'drone', 'car-mount'] },
+              timeSeconds: { type: 'number', minimum: 0 },
+              playing: { type: 'boolean' },
+            },
+            anyOf: [{ required: ['invocation'] }, { required: ['action'] }],
+          },
+          outputSchema: { type: 'object', additionalProperties: true, required: ['ok', 'message'] },
+          annotations: LOCAL_MUTATION_TOOL_ANNOTATIONS,
         }, {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions),

@@ -129,7 +129,7 @@ function persistAndActivateXrScene(): boolean {
     setCanvas3dMode: nextState.setCanvas3dMode,
     setCanvasRenderMode: nextState.setCanvasRenderMode,
   })
-  nextState.setFloatingPanelView('media')
+  nextState.setFloatingPanelView('camera')
   nextState.setFloatingPanelOpen(true)
   nextState.setBottomSurfaceTab('timeline')
   nextState.setBottomSurfaceCollapsed(false)

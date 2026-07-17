@@ -7,6 +7,7 @@ import {
   xrMotionReferenceSceneKey,
 } from '@/features/three/xrMotionReferenceModel'
 import {
+  dropXrMotionReferenceCastMark,
   hydrateXrMotionReferenceRuntime,
   readXrMotionReferenceRuntime,
   subscribeXrMotionReferenceRuntime,
@@ -17,6 +18,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { XrSceneLibrarySubject } from '@/features/three/XrSceneLibrarySubject'
 import { xrMotionReferenceWorldPosition } from '@/features/three/xrMotionReferenceCoordinates'
 import { XrStagePresetGeometry } from '@/features/three/XrStagePresetGeometry'
+import { getVoxelLabelTexture } from '@/features/three/voxelLabelTexture'
 
 const EMPTY_XR_WORLD_NODES: readonly GraphNode[] = Object.freeze([])
 
@@ -71,6 +73,14 @@ function CastTrack({
   const sampled = sampleXrMotionReferenceMarks(track.marks, playheadSeconds)
   const sampledPosition = xrMotionReferenceWorldPosition(sampled, scale, groundY)
   const markerSize = Math.max(0.7, scale * 0.16)
+  const nextMark = track.marks.find(mark => mark.timeSeconds > playheadSeconds)
+  const previousMark = [...track.marks].reverse().find(mark => mark.timeSeconds <= playheadSeconds) || track.marks[0]
+  const facingDelta = nextMark && previousMark
+    ? [nextMark.position[0] - previousMark.position[0], nextMark.position[2] - previousMark.position[2]] as const
+    : [0, 0] as const
+  const moving = Math.hypot(facingDelta[0], facingDelta[1]) > 0.001
+  const facingY = moving ? Math.atan2(facingDelta[0], facingDelta[1]) : 0
+  const walkSwing = moving ? Math.sin(playheadSeconds * Math.PI * 4) * 0.42 : 0
   return (
     <group name={`kg_xr_motion_cast_${track.actorId}`}>
       {track.marks.slice(1).map((mark, index) => (
@@ -87,18 +97,21 @@ function CastTrack({
       {track.marks.map((mark, index) => {
         const position = xrMotionReferenceWorldPosition(mark.position, scale, groundY)
         return (
-          <mesh
-            key={mark.id}
-            name={`kg_xr_motion_cast_mark_${track.actorId}_${index + 1}`}
-            position={[position[0], position[1] + 0.35, position[2]]}
-            rotation={[-Math.PI / 2, 0, 0]}
-          >
-            <ringGeometry args={[markerSize * 0.72, markerSize, 28]} />
-            <meshBasicMaterial color={track.color} transparent opacity={0.9} depthWrite={false} side={THREE.DoubleSide} />
-          </mesh>
+          <React.Fragment key={mark.id}>
+            <mesh
+              name={`kg_xr_motion_cast_mark_${track.actorId}_${index + 1}`}
+              position={[position[0], position[1] + 0.35, position[2]]}
+              rotation={[-Math.PI / 2, 0, 0]}
+              userData={{ actorId: track.actorId, markNumber: index + 1, timeSeconds: mark.timeSeconds }}
+            >
+              <ringGeometry args={[markerSize * 0.72, markerSize, 28]} />
+              <meshBasicMaterial color={track.color} transparent opacity={0.9} depthWrite={false} side={THREE.DoubleSide} />
+            </mesh>
+            <MarkNumberSprite number={index + 1} color={track.color} position={[position[0], position[1] + markerSize * 1.9, position[2]]} size={markerSize} />
+          </React.Fragment>
         )
       })}
-      {renderLiveActor ? <group name={`kg_xr_motion_cast_live_${track.actorId}`} position={sampledPosition}>
+      {renderLiveActor ? <group name={`kg_xr_motion_cast_live_${track.actorId}`} position={sampledPosition} rotation={[0, facingY, 0]}>
         <mesh position={[0, scale * 0.92, 0]}>
           <boxGeometry args={[scale * 0.54, scale * 1.25, scale * 0.36]} />
           <meshStandardMaterial color={track.color} roughness={0.92} metalness={0} />
@@ -107,8 +120,46 @@ function CastTrack({
           <sphereGeometry args={[scale * 0.3, 18, 12]} />
           <meshStandardMaterial color={track.color} roughness={0.86} metalness={0} />
         </mesh>
+        <mesh position={[-scale * 0.16, scale * 0.3, 0]} rotation={[walkSwing, 0, 0]}>
+          <boxGeometry args={[scale * 0.18, scale * 0.72, scale * 0.2]} />
+          <meshStandardMaterial color={track.color} roughness={0.92} metalness={0} />
+        </mesh>
+        <mesh position={[scale * 0.16, scale * 0.3, 0]} rotation={[-walkSwing, 0, 0]}>
+          <boxGeometry args={[scale * 0.18, scale * 0.72, scale * 0.2]} />
+          <meshStandardMaterial color={track.color} roughness={0.92} metalness={0} />
+        </mesh>
       </group> : null}
     </group>
+  )
+}
+
+function MarkNumberSprite({
+  number,
+  color,
+  position,
+  size,
+}: {
+  number: number
+  color: string
+  position: readonly [number, number, number]
+  size: number
+}) {
+  const label = React.useMemo(() => {
+    if (typeof document === 'undefined') return null
+    return getVoxelLabelTexture({
+      text: String(number),
+      fontSizePx: 24,
+      textColor: '#ffffff',
+      bgColor: color,
+      bgOpacity: 0.96,
+    })
+  }, [color, number])
+  if (!label) return null
+  const aspect = label.widthPx / Math.max(1, label.heightPx)
+  return (
+    <sprite position={position} scale={[size * 1.45 * aspect, size * 1.45, 1]} renderOrder={THREE_RENDER_ORDER.overlays}>
+      <spriteMaterial map={label.texture} transparent depthTest={false} depthWrite={false} />
+    </sprite>
   )
 }
 
@@ -147,6 +198,15 @@ export function XrMotionReferenceStage({
   const scale = span / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
   const floorHeight = stage.sizeMeters[1] * scale
   const subjectIds = React.useMemo(() => new Set(runtime.plan.subjects.map(subject => subject.id)), [runtime.plan.subjects])
+  const placeCastMark = React.useCallback((point: readonly [number, number, number]) => {
+    const halfWidth = stage.sizeMeters[0] / 2
+    const halfDepth = stage.sizeMeters[1] / 2
+    dropXrMotionReferenceCastMark([
+      Math.max(-halfWidth, Math.min(halfWidth, point[0] / scale)),
+      0,
+      Math.max(-halfDepth, Math.min(halfDepth, point[2] / scale)),
+    ])
+  }, [scale, stage.sizeMeters])
 
   return (
     <group
@@ -154,7 +214,12 @@ export function XrMotionReferenceStage({
       renderOrder={THREE_RENDER_ORDER.groups - 10}
       userData={{ schema: runtime.plan.schema, stageId: stage.id, playheadSeconds: runtime.playheadSeconds }}
     >
-      <XrStagePresetGeometry stage={stage} span={span} groundY={groundY} />
+      <XrStagePresetGeometry
+        stage={stage}
+        span={span}
+        groundY={groundY}
+        onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}
+      />
       <group name="kg_xr_motion_cast_tracks">
         {runtime.plan.cast.map(track => (
           <CastTrack
@@ -218,7 +283,7 @@ export function XrMotionReferenceStage({
             ? new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize())
             : new THREE.Quaternion()
           return (
-            <group key={mark.id} name={`kg_xr_motion_camera_mark_${index + 1}`} position={position} quaternion={quaternion}>
+            <group key={mark.id} name={`kg_xr_motion_camera_mark_${index + 1}`} position={position} quaternion={quaternion} userData={{ rig: mark.rig, lensMm: mark.settings.focalLengthMm }}>
               <mesh>
                 <coneGeometry args={[scale * 0.34, scale * 0.8, 4]} />
                 <meshBasicMaterial color="#f8fafc" transparent opacity={0.92} depthWrite={false} />

@@ -18,9 +18,11 @@ import {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_PANEL_TEXT_ACTION_BUTTON_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { cn } from '@/lib/utils'
-import { PanelField, PanelTextarea } from '@/lib/ui/panelFormControls'
+import { PanelField, PanelTextarea, PanelTextInput } from '@/lib/ui/panelFormControls'
 import {
   STRYBLDR_CAMERA_ANGLES,
+  STRYBLDR_CAMERA_MAX_FOCAL_LENGTH_MM,
+  STRYBLDR_CAMERA_MIN_FOCAL_LENGTH_MM,
   STRYBLDR_CAMERA_LEVELS,
   STRYBLDR_CAMERA_SHOTS,
   formatStrybldrCameraSettings,
@@ -485,6 +487,22 @@ export function StrybldrCameraPanel({
         options={STRYBLDR_CAMERA_SHOTS}
         onChange={shot => onSettingsChange({ ...settings, shot })}
       />
+
+      <PanelField label="Lens">
+        <section className="mt-1 flex items-center gap-2">
+          <PanelTextInput
+            type="number"
+            min={STRYBLDR_CAMERA_MIN_FOCAL_LENGTH_MM}
+            max={STRYBLDR_CAMERA_MAX_FOCAL_LENGTH_MM}
+            step={1}
+            value={settings.focalLengthMm}
+            aria-label="Camera focal length in millimeters"
+            onChange={event => onSettingsChange({ ...settings, focalLengthMm: Number(event.target.value) })}
+            data-kg-strybldr-camera-lens="1"
+          />
+          <span className={cn('shrink-0 text-[10px] font-semibold', UI_THEME_TOKENS.text.tertiary)}>mm</span>
+        </section>
+      </PanelField>
 
       <PanelField label="Note">
         <PanelTextarea

@@ -5,6 +5,9 @@ export const STRYBLDR_CAMERA_PROPERTY_KEY = 'strybldrCamera'
 export const STRYBLDR_CAMERA_ANGLES = ['front', 'left-side', 'right-side', 'overhead'] as const
 export const STRYBLDR_CAMERA_LEVELS = ['eye-level', 'high-angle', 'low-angle'] as const
 export const STRYBLDR_CAMERA_SHOTS = ['wide', 'medium', 'close-up'] as const
+export const STRYBLDR_CAMERA_MIN_FOCAL_LENGTH_MM = 14
+export const STRYBLDR_CAMERA_MAX_FOCAL_LENGTH_MM = 200
+export const STRYBLDR_CAMERA_DEFAULT_FOCAL_LENGTH_MM = 50
 
 export type StrybldrCameraAngle = (typeof STRYBLDR_CAMERA_ANGLES)[number]
 export type StrybldrCameraLevel = (typeof STRYBLDR_CAMERA_LEVELS)[number]
@@ -17,6 +20,7 @@ export type StrybldrCameraSettings = {
   note: string
   orbitX: number
   orbitY: number
+  focalLengthMm: number
 }
 
 export const STRYBLDR_DEFAULT_CAMERA_SETTINGS: StrybldrCameraSettings = {
@@ -26,6 +30,7 @@ export const STRYBLDR_DEFAULT_CAMERA_SETTINGS: StrybldrCameraSettings = {
   note: '',
   orbitX: 0,
   orbitY: 0,
+  focalLengthMm: STRYBLDR_CAMERA_DEFAULT_FOCAL_LENGTH_MM,
 }
 
 const STRYBLDR_CAMERA_LABELS: Record<StrybldrCameraAngle | StrybldrCameraLevel | StrybldrCameraShot, string> = {
@@ -58,6 +63,12 @@ const clampCameraOrbit = (value: unknown): number => {
   const numberValue = Number(value)
   if (!Number.isFinite(numberValue)) return 0
   return Math.max(-1, Math.min(1, numberValue))
+}
+
+const clampFocalLengthMm = (value: unknown): number => {
+  const numberValue = Number(value)
+  if (!Number.isFinite(numberValue)) return STRYBLDR_CAMERA_DEFAULT_FOCAL_LENGTH_MM
+  return Math.round(Math.max(STRYBLDR_CAMERA_MIN_FOCAL_LENGTH_MM, Math.min(STRYBLDR_CAMERA_MAX_FOCAL_LENGTH_MM, numberValue)) * 10) / 10
 }
 
 export const resolveStrybldrCameraOrbit = (
@@ -100,11 +111,12 @@ export const readStrybldrCameraSettings = (value: unknown): StrybldrCameraSettin
     note: String(record.note || '').trim(),
     orbitX: record.orbitX === undefined ? fallbackOrbit.orbitX : clampCameraOrbit(record.orbitX),
     orbitY: record.orbitY === undefined ? fallbackOrbit.orbitY : clampCameraOrbit(record.orbitY),
+    focalLengthMm: clampFocalLengthMm(record.focalLengthMm),
   }
 }
 
 export const serializeStrybldrCameraSettings = (
-  settings: Omit<StrybldrCameraSettings, 'orbitX' | 'orbitY'> & Partial<Pick<StrybldrCameraSettings, 'orbitX' | 'orbitY'>>,
+  settings: Omit<StrybldrCameraSettings, 'orbitX' | 'orbitY' | 'focalLengthMm'> & Partial<Pick<StrybldrCameraSettings, 'orbitX' | 'orbitY' | 'focalLengthMm'>>,
 ): JSONValue => {
   return {
     angle: settings.angle,
@@ -113,6 +125,7 @@ export const serializeStrybldrCameraSettings = (
     note: settings.note.trim(),
     orbitX: clampCameraOrbit(settings.orbitX),
     orbitY: clampCameraOrbit(settings.orbitY),
+    focalLengthMm: clampFocalLengthMm(settings.focalLengthMm),
   } as JSONValue
 }
 

@@ -34,6 +34,7 @@ const MIN_CAMERA_FRAMING_DISTANCE = 0.001
 const MAX_CAMERA_FRAMING_DISTANCE = 1_000_000
 const MAX_CAMERA_FRAMING_COORDINATE = 1_000_000_000
 const VERTICAL_UP_DOT_LIMIT = 0.995
+const FULL_FRAME_SENSOR_HEIGHT_MM = 24
 
 const CAMERA_FRAMING_SHOT_DISTANCE_SCALE: Record<StrybldrCameraShot, number> = {
   wide: 1.4,
@@ -124,8 +125,8 @@ function freezeVector(vector: CameraFramingVector): CameraFramingVector {
   return Object.freeze([...vector]) as unknown as CameraFramingVector
 }
 
-function resolveShot(distance: number, baseDistance: number): StrybldrCameraShot {
-  const ratio = distance / baseDistance
+function resolveShot(distance: number, baseDistance: number, focalLengthMm: number): StrybldrCameraShot {
+  const ratio = distance / baseDistance / Math.max(0.001, focalLengthMm / 50)
   return (Object.keys(CAMERA_FRAMING_SHOT_DISTANCE_SCALE) as StrybldrCameraShot[])
     .reduce((nearest, shot) => (
       Math.abs(CAMERA_FRAMING_SHOT_DISTANCE_SCALE[shot] - ratio)
@@ -145,7 +146,7 @@ export function resolveCameraFramingPose({
   const target = readVector(targetValue, [0, 0, 0])
   const baseDistance = readBaseDistance(baseDistanceValue)
   const distance = clamp(
-    baseDistance * CAMERA_FRAMING_SHOT_DISTANCE_SCALE[settings.shot],
+    baseDistance * CAMERA_FRAMING_SHOT_DISTANCE_SCALE[settings.shot] * (settings.focalLengthMm / 50),
     MIN_CAMERA_FRAMING_DISTANCE,
     MAX_CAMERA_FRAMING_DISTANCE,
   )
@@ -167,6 +168,11 @@ export function resolveCameraFramingPose({
     target: freezeVector(target),
     up: freezeVector(resolveStableUp(requestedUp, direction)),
   })
+}
+
+export function resolveCameraVerticalFovDegrees(focalLengthMmValue: unknown): number {
+  const focalLengthMm = readStrybldrCameraSettings({ focalLengthMm: focalLengthMmValue }).focalLengthMm
+  return 2 * Math.atan(FULL_FRAME_SENSOR_HEIGHT_MM / (2 * focalLengthMm)) * 180 / Math.PI
 }
 
 export function resolveCameraFramingSettingsFromPose({
@@ -195,6 +201,7 @@ export function resolveCameraFramingSettingsFromPose({
     shot: resolveShot(
       Number.isFinite(distance) && distance >= MIN_CAMERA_FRAMING_DISTANCE ? distance : baseDistance,
       baseDistance,
+      previousSettings.focalLengthMm,
     ),
   })
 }

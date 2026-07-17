@@ -3,6 +3,7 @@ import { UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME } from '@/lib/ui/responsi
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { StrybldrCameraFramingSection } from './StrybldrCameraFramingSection'
+import { XrShootCameraSection } from './XrShootCameraSection'
 
 export function StrybldrCameraFloatingPanelView() {
   return (
@@ -17,6 +18,7 @@ export function StrybldrCameraFloatingPanelView() {
         <section className="py-1">
           <StrybldrCameraFramingSection />
         </section>
+        <XrShootCameraSection />
       </section>
     </section>
   )

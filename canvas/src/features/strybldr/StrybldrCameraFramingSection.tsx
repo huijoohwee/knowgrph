@@ -20,6 +20,8 @@ import {
 
 type StrybldrCameraStoryboardCard = ReturnType<typeof buildStoryboardBoardModel>['lanes'][number]['cards'][number]
 
+const SHARED_CANVAS_CAMERA_ANCHOR_ID = 'canvas-camera'
+
 const resolveStrybldrCameraPreviewImageUrl = (card: StrybldrCameraStoryboardCard | null): string | null => {
   if (!card) return null
   const media = card.media
@@ -36,6 +38,7 @@ const cameraSettingsEqual = (left: StrybldrCameraSettings, right: StrybldrCamera
   && left.note === right.note
   && left.orbitX === right.orbitX
   && left.orbitY === right.orbitY
+  && left.focalLengthMm === right.focalLengthMm
 )
 
 export function StrybldrCameraFramingSection() {
@@ -89,9 +92,12 @@ export function StrybldrCameraFramingSection() {
     () => readStrybldrCameraSettings(selectedCardProperties[STRYBLDR_CAMERA_PROPERTY_KEY]),
     [selectedCardProperties],
   )
-  const settings = selectedCard && runtime.anchorId === selectedCard.id
-    ? runtime.settings
-    : persistedSettings
+  const cameraAnchorId = selectedCard?.id || runtime.anchorId || SHARED_CANVAS_CAMERA_ANCHOR_ID
+  const settings = selectedCard
+    ? runtime.anchorId === selectedCard.id
+      ? runtime.settings
+      : persistedSettings
+    : runtime.settings
   const previewImageUrl = React.useMemo(
     () => resolveStrybldrCameraPreviewImageUrl(selectedCard),
     [selectedCard],
@@ -120,16 +126,28 @@ export function StrybldrCameraFramingSection() {
   }, [persistedSettings, selectedCard])
 
   const changeSettings = React.useCallback((nextSettings: StrybldrCameraSettings) => {
-    if (!selectedCard) return
     publishCameraFramingRuntime({
-      anchorId: selectedCard.id,
+      anchorId: selectedCard?.id || readCameraFramingRuntime().anchorId || SHARED_CANVAS_CAMERA_ANCHOR_ID,
       settings: nextSettings,
       source: 'panel',
     })
   }, [selectedCard])
 
   const reframeSelectedCardCamera = React.useCallback((nextSettings: StrybldrCameraSettings) => {
-    if (!selectedCard) return
+    if (!selectedCard) {
+      publishCameraFramingRuntime({
+        anchorId: readCameraFramingRuntime().anchorId || SHARED_CANVAS_CAMERA_ANCHOR_ID,
+        settings: nextSettings,
+        source: 'panel',
+      })
+      addHistory('Shared camera reframe')
+      pushUiToast({
+        id: 'strybldr:camera:reframe',
+        kind: 'success',
+        message: 'Shared camera reframed.',
+      })
+      return
+    }
     const currentGraphData = useGraphStore.getState().graphData || graphData
     const currentNode = (Array.isArray(currentGraphData?.nodes) ? currentGraphData.nodes : []).find(node => node.id === selectedCard.id) || null
     const currentProperties = currentNode?.properties && typeof currentNode.properties === 'object' && !Array.isArray(currentNode.properties)
@@ -156,31 +174,30 @@ export function StrybldrCameraFramingSection() {
     })
   }, [addHistory, graphData, pushUiToast, selectedCard, updateNode])
 
-  if (!selectedCard) {
-    return <p className="py-1 text-xs text-[var(--kg-text-secondary)]">No storyboard card loaded.</p>
-  }
-
   return (
     <section
       className="space-y-2"
       aria-label="Shared camera framing"
-      data-kg-camera-framing-anchor={selectedCard.id}
-      data-kg-camera-framing-source={runtime.anchorId === selectedCard.id ? runtime.source : 'document'}
-      data-kg-camera-framing-revision={runtime.anchorId === selectedCard.id ? runtime.revision : 0}
+      data-kg-camera-framing-anchor={cameraAnchorId}
+      data-kg-camera-framing-mode={selectedCard ? 'storyboard' : 'shared'}
+      data-kg-camera-framing-source={selectedCard && runtime.anchorId !== selectedCard.id ? 'document' : runtime.source}
+      data-kg-camera-framing-revision={runtime.revision}
     >
-      <PanelSelect
-        value={selectedCard.id}
-        aria-label="Camera card"
-        onChange={event => selectNode(event.target.value)}
-      >
-        {editableCards.map(card => (
-          <option key={card.id} value={card.id}>
-            {card.lane}: {card.title}
-          </option>
-        ))}
-      </PanelSelect>
+      {selectedCard ? (
+        <PanelSelect
+          value={selectedCard.id}
+          aria-label="Camera card"
+          onChange={event => selectNode(event.target.value)}
+        >
+          {editableCards.map(card => (
+            <option key={card.id} value={card.id}>
+              {card.lane}: {card.title}
+            </option>
+          ))}
+        </PanelSelect>
+      ) : null}
       <StrybldrCameraPanel
-        selectedCardTitle={selectedCard.title}
+        selectedCardTitle={selectedCard?.title || 'Canvas camera'}
         settings={settings}
         previewImageUrl={previewImageUrl}
         onSettingsChange={changeSettings}
