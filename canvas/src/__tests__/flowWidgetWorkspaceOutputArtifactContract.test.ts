@@ -42,6 +42,8 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
   const workspaceOutputText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'chatHistoryWorkspace.output.ts'), 'utf8')
   const sharedWorkspaceWriteText = readFileSync(resolve(process.cwd(), 'src', 'features', 'chat', 'chatWorkspaceFsWrite.ts'), 'utf8')
   const graphSourceText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardCardMediaGraphSource.ts'), 'utf8')
+  const graphSourceOwnerText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardCardMediaGraphSourceOwner.ts'), 'utf8')
+  const sourceLayersText = readFileSync(resolve(process.cwd(), 'src', 'lib', 'graph', 'sourceLayers.ts'), 'utf8')
   const graphFlowSyncText = readFileSync(resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'graphDataFrontmatterFlowSync.ts'), 'utf8')
   const graphSourceWriteQueueText = readFileSync(resolve(process.cwd(), 'src', 'hooks', 'store', 'graph-data-slice', 'workspaceSourceTextWriteQueue.ts'), 'utf8')
   const workflowRunText = readFileSync(resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'storyboardWidgetWorkflowRunAction.ts'), 'utf8')
@@ -62,6 +64,9 @@ export function testGeneratedArtifactsAndCanvasDocumentsUseDurablePersistenceCon
   }
   if (!graphSourceText.includes('export async function persistStoryboardCardMediaGraphSource')
     || !graphSourceText.includes('resolveStoryboardCardMediaGraphSourceOwner({')
+    || !graphSourceText.includes('resolveStoryboardCardMediaGraphSourceGraph({')
+    || !graphSourceOwnerText.includes('projectComposedGraphToSourceLayer({')
+    || !sourceLayersText.includes('export function projectComposedGraphToSourceLayer(args: {')
     || !graphSourceText.includes('shouldUpdateStoryboardCardMediaGraphActiveDocument({')
     || !graphSourceText.includes('const persisted = await writeActiveMarkdownDocumentTextIfPresent({')
     || !graphSourceText.includes('if (!sourceSync.accepted) return false')

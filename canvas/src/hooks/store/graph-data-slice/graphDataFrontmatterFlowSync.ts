@@ -453,7 +453,7 @@ export function syncActiveMarkdownDocumentTextFromParsedGraph(args: {
 } {
   const activeName = String(args.state.markdownDocumentName || '').trim()
   const activeText = String(args.state.markdownDocumentText || '')
-  if (!activeName || !activeText) return { sourceFiles: args.sourceFiles, accepted: false }
+  if (!activeName) return { sourceFiles: args.sourceFiles, accepted: false }
   if (!isMarkdownLikeFileName(activeName)) return { sourceFiles: args.sourceFiles, accepted: false }
   if (isStrybldrStoryboardMarkdown(activeText)) {
     const strybldrText = syncStrybldrStoryboardMarkdownFromParsedGraph({

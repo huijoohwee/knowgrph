@@ -2,6 +2,7 @@ import { syncActiveMarkdownDocumentTextFromParsedGraph, writeActiveMarkdownDocum
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData } from '@/lib/graph/types'
 import {
+  resolveStoryboardCardMediaGraphSourceGraph,
   resolveStoryboardCardMediaGraphSourceOwner,
   shouldUpdateStoryboardCardMediaGraphActiveDocument,
   type StoryboardCardMediaGraphSourceOwner,
@@ -19,10 +20,15 @@ export async function persistStoryboardCardMediaGraphSource(graphData: GraphData
     sourceOwner: options?.sourceOwner,
   })
   const state = ownerResolution.state
+  const sourceGraphData = resolveStoryboardCardMediaGraphSourceGraph({
+    graphData,
+    ownerFile: ownerResolution.ownerFile,
+    ownerText: String(state.markdownDocumentText || ''),
+  })
   const sourceSync = syncActiveMarkdownDocumentTextFromParsedGraph({
     state,
     sourceFiles: state.sourceFiles || [],
-    parsedGraphData: graphData,
+    parsedGraphData: sourceGraphData,
   })
   if (!sourceSync.accepted) return false
   if (typeof sourceSync.markdownDocumentText !== 'string') return true
