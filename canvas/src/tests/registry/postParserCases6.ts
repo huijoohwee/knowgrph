@@ -115,6 +115,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["canvas.probeTree.widgetRun.rejectsOverboundedProviderCards","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunRejectsOverboundedProviderCardsAndUsesMcpResult"],
   ["canvas.probeTree.widgetRun.userOutputFeedsResponseContext","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderContext"],
   ["canvas.probeTree.widgetRun.metadataRoutesContinuation","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeContinuationMetadataRoutesWithoutVisibleSlashToken"],
+  ["canvas.probeTree.widgetRun.selectedChildOwnsContinuation","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeSelectedChildOwnsContinuationOverRootAlias"],
   ["canvas.probeTree.widgetRun.depthLimitStopsBeforeSpend","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunStopsBeforeMcpAtDepthLimit"],
   ["canvas.probeTree.widgetRun.providerRefinementRequiresCardApproval","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeProviderRefinementRequiresExplicitCardApproval"],
   ["canvas.probeTree.outputLayout.collisionFreeContinuationBands","@/__tests__/storyboardProbeTreeOutputLayout.test","testProbeTreeBranchLayoutAvoidsOccupiedContinuationSlots"],

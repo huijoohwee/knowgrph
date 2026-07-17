@@ -98,6 +98,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
       const devicePixelRatio = Number.isFinite(window.devicePixelRatio) ? Math.max(1, window.devicePixelRatio) : 1
       const viewportRect = rootRef.current?.getBoundingClientRect() || null
       const viewport = { width: Math.max(1, Math.floor(viewportRect?.width || 1)), height: Math.max(1, Math.floor(viewportRect?.height || 1)) }
+      const hadProjectedCardsBeforeFrame = lastAppliedBoxByCardIdRef.current.size > 0
       let visibleCardCount = 0
       let rawCenterXSum = 0
       let rawCenterYSum = 0
@@ -184,12 +185,18 @@ export function useStoryboardCardOverlayProjection2d(args: {
       const initialFitDocumentKey = `${storyboardWidgetSurfaceId}::${String(markdownDocumentName || '').trim()}`
       const initialFitCompleted = initialFitCommitKeyRef.current === initialFitDocumentKey
         || initialFitCompletedDocumentKeys.has(initialFitDocumentKey)
-      if (pending.length > 0 && !initialFitCompleted) {
-        initialFitCommitKeyRef.current = initialFitDocumentKey
-        rememberInitialFitDocumentKey(initialFitDocumentKey)
+      const recoverOffscreenRemount = pending.length > 0
+        && initialFitCompleted
+        && !hadProjectedCardsBeforeFrame
+        && visibleCardCount === 0
+      if ((pending.length > 0 && !initialFitCompleted) || recoverOffscreenRemount) {
+        if (!initialFitCompleted) {
+          initialFitCommitKeyRef.current = initialFitDocumentKey
+          rememberInitialFitDocumentKey(initialFitDocumentKey)
+        }
         const transformIsIdentity = !currentTransform
           || (Math.abs(currentTransform.k - 1) < 1e-6 && Math.abs(currentTransform.x) < 1e-6 && Math.abs(currentTransform.y) < 1e-6)
-        if (visibleCardCount === 0 || (pending.length > 1 && transformIsIdentity)) {
+        if (recoverOffscreenRemount || visibleCardCount === 0 || (pending.length > 1 && transformIsIdentity)) {
           requestZoom('fit', { intent: 'fitToView' })
         }
       }

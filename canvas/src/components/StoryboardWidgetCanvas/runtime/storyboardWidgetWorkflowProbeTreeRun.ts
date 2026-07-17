@@ -220,9 +220,18 @@ const collectInvocationTokens = (value: string): string[] => {
 const buildProbeTreeContextText = (node: GraphNode, prompt: string): string => {
   const route = resolveChatRuntimeInvocationQuery(prompt).leadingRoute
   const agenticInvocations = collectAgenticOsRuntimeInvocations(prompt)
+  const properties = readGraphNodeProperties(node)
+  const continuationQuestion = isStoryboardWidgetProbeTreeContinuationNode(node)
+    ? readGraphNodeCanonicalTextProperty(properties, STORYBOARD_SUMMARY_PROPERTY_KEYS)
+    : ''
+  const continuationAnswer = isStoryboardWidgetProbeTreeContinuationNode(node)
+    ? readGraphNodeCanonicalTextProperty(properties, STORYBOARD_OUTPUT_PROPERTY_KEYS)
+    : ''
   return [
     'Authored request:',
     prompt,
+    continuationQuestion ? `Selected continuation question: ${continuationQuestion}` : '',
+    continuationAnswer ? `Selected continuation answer: ${continuationAnswer}` : '',
     `Selected Widget title: ${readGraphNodeCardTitle(node)}`,
     `Selected Widget id: ${readGraphIdentity(node.id)}`,
     route ? `Invocation route: ${route.token} — ${route.label}. Route summary: ${route.summary}` : '',
@@ -292,6 +301,7 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
     `- Return one fenced YAML block rooted at response.structuredContent using ${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION}.`,
     `- Emit exactly 2-4 cards, set every parentNodeId to ${args.currentNodeId}, set every probeTreeDepth to ${args.probeTreeDepth}, and include candidateOptionId, question, output, rationale, evidenceNeeded, confidence, and nextAction: knowgrph.probe.select.`,
     '- Put each generated probe in question for the card Summary, and set output exactly to an empty string for the editable user answer; never copy question or rationale into output.',
+    '- For a continuation, the selected child card and its user-authored output own the next topic. Use the thread root only for lineage; never replace the selected child context with a root alias.',
     '- Every card must be a concrete next question relevant to the authored request and the set must reuse at least two substantive request terms.',
     '- Never emit generic process cards named Clarify probe, Generate branches, or Select handoff.',
     '- Do not add prose before or after the fenced YAML block.',
@@ -345,7 +355,12 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   if (!current) return null
   const nodeIds = new Set(args.nodeIds.map(id => String(id || '').trim()).filter(Boolean))
   const fallbackNodeId = readGraphIdentity(args.fallbackNode.id)
-  const node = current.nodes.find(candidate => readGraphIdentity(candidate?.id) === fallbackNodeId)
+  const currentFallbackNode = current.nodes.find(candidate => readGraphIdentity(candidate?.id) === fallbackNodeId)
+  const selectedContinuationNode = isStoryboardWidgetProbeTreeContinuationNode(args.fallbackNode)
+    ? args.fallbackNode
+    : null
+  const node = currentFallbackNode
+    || selectedContinuationNode
     || current.nodes.find(candidate => nodeIds.has(readGraphIdentity(candidate?.id)))
     || args.fallbackNode
   const prompt = readStoryboardWidgetProbeTreeInvocationText(args.fallbackNode)
@@ -353,12 +368,15 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   if (!invocationToken) return null
 
   const currentNodeId = readGraphIdentity(node.id) || readGraphIdentity(args.fallbackNode.id)
+  const graphForInvocation = current.nodes.some(candidate => readGraphIdentity(candidate.id) === currentNodeId)
+    ? current
+    : { ...current, nodes: [...current.nodes, node] }
   const properties = readGraphNodeProperties(node)
-  const threadRootId = resolveStoryboardWidgetProbeTreeThreadRootId(current, node)
+  const threadRootId = resolveStoryboardWidgetProbeTreeThreadRootId(graphForInvocation, node)
   const currentProbeTreeDepth = readProbeTreeDepth(properties)
   if (currentProbeTreeDepth >= PROBE_TREE_DEFAULTS.maxDepth) {
     return {
-      graphData: current,
+      graphData: graphForInvocation,
       materializedNodeIds: [],
       panelOutput: '',
       responseSource: 'context-fallback',
@@ -423,7 +441,7 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   let providerAccepted = false
   let materialized = providerText
     ? materializeStoryboardWidgetProbeTreeStructuredResponse({
-        graphData: current,
+        graphData: graphForInvocation,
         anchorNode: node,
         responseText: providerText,
         contextText,
@@ -439,7 +457,7 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
 
   if (!materialized) {
     materialized = materializeStoryboardWidgetProbeTreeStructuredResponse({
-      graphData: current,
+      graphData: graphForInvocation,
       anchorNode: node,
       responseText: JSON.stringify({ result: mcpResult }, null, 2),
       contextText,
@@ -454,7 +472,7 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   }
   if (!materialized && mcpInvoked) {
     materialized = materializeStoryboardWidgetProbeTreeStructuredResponse({
-      graphData: current,
+      graphData: graphForInvocation,
       anchorNode: node,
       responseText: JSON.stringify({ result: localFallbackResult }, null, 2),
       contextText,

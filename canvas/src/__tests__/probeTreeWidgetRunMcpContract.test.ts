@@ -299,6 +299,65 @@ export function testProbeTreeContinuationMetadataRoutesWithoutVisibleSlashToken(
   }
 }
 
+export async function testProbeTreeSelectedChildOwnsContinuationOverRootAlias() {
+  const userAnswer = 'Continue from the selected Singapore cyber exclusions answer.'
+  const rootNode: GraphNode = {
+    id: 'probe-root',
+    type: 'TextGeneration',
+    label: 'SME risk review',
+    properties: { summary: '/knowgrph.probe-tree Assess the root SME risk scope.' },
+  }
+  const selectedChild: GraphNode = {
+    id: 'probe-child',
+    type: 'TextGeneration',
+    label: 'Which Singapore cyber exclusions remain?',
+    x: 520,
+    y: 180,
+    properties: {
+      cardTypeLabel: 'Probe-Tree Card',
+      probeTreeResponseMode: 'llm-contract',
+      probeTreeThreadRootId: 'probe-root',
+      probeTreeDepth: 2,
+      parentNodeId: 'probe-root',
+      summary: 'Which Singapore cyber exclusions remain?',
+      output: userAnswer,
+    },
+  }
+  const rootOnlyGraph: GraphData = { type: 'Graph', nodes: [rootNode], edges: [] }
+  let mcpRequest: Record<string, unknown> | null = null
+  let providerPrompt = ''
+  const result = await runStoryboardWidgetProbeTreeMcpInvocation({
+    graphForRun: rootOnlyGraph,
+    nodeIds: ['probe-root', 'probe-child'],
+    fallbackNode: selectedChild,
+    invokeMcp: async request => {
+      mcpRequest = request as unknown as Record<string, unknown>
+      throw new Error('exercise selected-child fallback')
+    },
+    generateProviderResponse: async promptText => {
+      providerPrompt = promptText
+      return null
+    },
+    onMaterialized: () => undefined,
+    publishOutput: output => output.baseGraphData || null,
+  })
+  const nodes = result?.graphData.nodes || []
+  const continuationCards = nodes.filter(node => node.properties.parentNodeId === 'probe-child')
+  if (
+    mcpRequest?.currentNodeId !== 'probe-child'
+    || mcpRequest?.threadRootId !== 'probe-root'
+    || !String(mcpRequest?.contextText || '').startsWith(`Authored request:\n${userAnswer}`)
+    || !String(mcpRequest?.contextText || '').includes('Selected continuation question: Which Singapore cyber exclusions remain?')
+    || !String(mcpRequest?.contextText || '').includes(`Selected continuation answer: ${userAnswer}`)
+    || !providerPrompt.includes('selected child card and its user-authored output own the next topic')
+    || !nodes.some(node => String(node.id) === 'probe-child')
+    || continuationCards.length < 2
+    || continuationCards.some(node => node.properties.probeTreeDepth !== 3)
+  ) {
+    throw new Error(`expected selected child to own continuation while root remains lineage only, got ${JSON.stringify({ mcpRequest, providerPrompt, nodes })}`)
+  }
+}
+
 export async function testProbeTreeWidgetRunStopsBeforeMcpAtDepthLimit() {
   const graphData: GraphData = {
     type: 'Graph',

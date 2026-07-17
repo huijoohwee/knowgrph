@@ -98,7 +98,7 @@ const buildContextFallbackCards = (
     id: `probe-tree:${candidateOptionId}`,
     label: question,
     nodeTypeId: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-    kind: 'text',
+    kind: 'text' as const,
     sourceHandle: 'text_out',
     targetHandle: 'prompt_in',
     properties: {
