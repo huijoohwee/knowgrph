@@ -119,6 +119,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   const retimeCssSource = readSource('features', 'three', 'CameraMotionMarkRetime.css')
   const choreographyControlsSource = readSource('features', 'three', 'XrChoreographyMarkControls.tsx')
   const runtimeSource = readSource('features', 'three', 'xrMotionReferenceRuntime.ts')
+  const viewportControlsOwnershipSource = readSource('features', 'three', 'xrViewportControlsOwnership.ts')
   const stageGeometrySource = readSource('features', 'three', 'XrStagePresetGeometry.tsx')
   const controlsSource = readSource('features', 'three', 'Controls.tsx')
   const playbackSource = readSource('features', 'three', 'xrCameraPlaybackControlsRuntime.ts')
@@ -208,7 +209,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   if (sharedCameraSource.includes('No storyboard card loaded.') || !sharedCameraSource.includes("data-kg-camera-framing-mode={selectedCard ? 'storyboard' : 'shared'}")) {
     throw new Error('expected globe-like shared Camera utilities to remain available without a storyboard card')
   }
-  for (const marker of ['onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}', 'dropXrMotionReferenceCastMark', 'MarkNumberSprite', 'markNumber: index + 1', 'kg_xr_motion_cast_mark_highlight_', 'runtime.selectedMark?.kind === \'cast\'', 'XR_MOTION_REFERENCE_SELECTION_COLOR', 'CastMarkControl', 'resolveCastControlMark', 'controlSurface="actor"', 'kgXrAnimationControl: true', 'event.ray.intersectPlane', 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceViewportControlActive(true)', 'setPointerCapture(event.pointerId)', "draggableAxes: 'xz'", 'onClick={event => {', 'selectXrMotionReferenceCameraMark(mark.id)', "window.addEventListener('pointercancel', finishWindowDrag)"]) {
+  for (const marker of ['onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}', 'dropXrMotionReferenceCastMark', 'MarkNumberSprite', 'markNumber: index + 1', 'kg_xr_motion_cast_mark_highlight_', 'runtime.selectedMark?.kind === \'cast\'', 'XR_MOTION_REFERENCE_SELECTION_COLOR', 'CastMarkControl', 'resolveCastControlMark', 'controlSurface="actor"', 'kgXrAnimationControl: true', 'event.ray.intersectPlane', 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceViewportControlActive(true)', 'setPointerCapture(event.pointerId)', 'activePointerIdRef.current = event.pointerId', "window.addEventListener('lostpointercapture', finishWindowDrag, true)", "window.addEventListener('blur', finishWindowDrag)", "document.addEventListener('visibilitychange', finishWindowDrag)", "draggableAxes: 'xz'", 'onClick={event => {', 'selectXrMotionReferenceCameraMark(mark.id)', "window.addEventListener('pointercancel', finishWindowDrag)"]) {
     if (!stageSource.includes(marker)) throw new Error(`expected direct numbered XR floor marking to expose ${marker}`)
   }
   for (const marker of ['<XrSceneLibrarySubject', 'selected={runtime.selectedActorId === subject.id}', 'selectBoundXrActor(subject.id)']) {
@@ -231,8 +232,10 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     || !controlsSource.includes("if (mode === 'xr')")) {
     throw new Error('expected scrub/play camera choreography to use the XR camera playback owner')
   }
-  if (!controlsSource.includes('!xrRuntime.viewportControlActive')) {
-    throw new Error('expected direct stage animation control to suspend Orbit controls during mark dragging')
+  if (!controlsSource.includes('bindXrViewportControlsOwnership({')
+    || !viewportControlsOwnershipSource.includes('subscribeXrMotionReferenceRuntime(sync)')
+    || !viewportControlsOwnershipSource.includes('!readXrMotionReferenceRuntime().viewportControlActive')) {
+    throw new Error('expected direct stage animation control to synchronously suspend Orbit controls during mark dragging')
   }
   if (!packageSource.includes('cameraRig:') || !packageSource.includes('cameraLensMm:')) {
     throw new Error('expected deterministic frame samples to carry rig and lens data')

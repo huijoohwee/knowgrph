@@ -260,7 +260,7 @@ export function VideoSequenceTimelineRuler({
       : resolveRenderableVideoSequenceTimelineSpans(taskSpans, projectionOptions)
   ), [projectionOptions, taskSpans, workflowProjection])
   const clipMediaByRowKey = React.useMemo(() => buildVideoSequenceClipMediaCache({ renderableSpans, sourceThumbnailSets, sourceThumbnailWindows, sourceThumbnails }), [renderableSpans, sourceThumbnailSets, sourceThumbnailWindows, sourceThumbnails])
-  const visibleLaneIndexById = React.useMemo(() => new Map<string, number>(timelineLanes.map((lane, index) => [lane.id, index])), [timelineLanes])
+  const visibleLaneIndexById = React.useMemo(() => new Map<string, number>(timelineLanes.map((lane, index): [string, number] => [lane.id, index])), [timelineLanes])
   const displayLaneIdByRowKey = React.useMemo(() => new Map(renderableSpans.map(span => [
     span.rowKey,
     workflowProjection ? 'workflow' : resolveVideoSequenceTimelineDisplayLaneId(span, renderableSpans, projectionOptions),

@@ -24,6 +24,7 @@ import { xrMotionReferenceWorldPosition } from '@/features/three/xrMotionReferen
 import { XrStagePresetGeometry } from '@/features/three/XrStagePresetGeometry'
 import { getVoxelLabelTexture } from '@/features/three/voxelLabelTexture'
 import { sampleXrAnimationPose } from '@/features/three/xrAnimationCatalog'
+import { xrViewportDragTerminationMatchesPointer } from '@/features/three/xrViewportControlsOwnership'
 
 type XrCastTrack = ReturnType<typeof readXrMotionReferenceRuntime>['plan']['cast'][number]
 type XrCastMark = XrCastTrack['marks'][number]
@@ -51,7 +52,9 @@ function CastMarkControl({
   stageSizeMeters: readonly [number, number]
 }) {
   const draggingRef = React.useRef(false)
-  const windowFinishRef = React.useRef<(() => void) | null>(null)
+  const activePointerIdRef = React.useRef<number | null>(null)
+  const dragCursorTargetRef = React.useRef<HTMLElement | null>(null)
+  const windowFinishRef = React.useRef<EventListener | null>(null)
   const dragPlane = React.useMemo(
     () => new THREE.Plane(new THREE.Vector3(0, 1, 0), -(groundY + mark.position[1] * scale)),
     [groundY, mark.position, scale],
@@ -61,8 +64,17 @@ function CastMarkControl({
     if (windowFinish && typeof window !== 'undefined') {
       window.removeEventListener('pointerup', windowFinish)
       window.removeEventListener('pointercancel', windowFinish)
+      window.removeEventListener('lostpointercapture', windowFinish, true)
+      window.removeEventListener('blur', windowFinish)
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', windowFinish)
+      }
     }
     windowFinishRef.current = null
+    activePointerIdRef.current = null
+    const cursorTarget = dragCursorTargetRef.current
+    dragCursorTargetRef.current = null
+    if (cursorTarget?.style) cursorTarget.style.cursor = 'default'
     if (!draggingRef.current) return
     draggingRef.current = false
     setXrMotionReferenceViewportControlActive(false)
@@ -102,14 +114,28 @@ function CastMarkControl({
       onPointerDown={event => {
         if (event.button > 0) return
         event.stopPropagation()
+        if (draggingRef.current) return
         selectBoundXrActor(actorId)
         selectXrMotionReferenceCastMark(actorId, mark.id)
         draggingRef.current = true
+        activePointerIdRef.current = event.pointerId
+        dragCursorTargetRef.current = event.nativeEvent.target as HTMLElement | null
         setXrMotionReferenceViewportControlActive(true)
-        const finishWindowDrag = () => clearDrag()
+        const finishWindowDrag: EventListener = nativeEvent => {
+          if (nativeEvent.type === 'visibilitychange'
+            && typeof document !== 'undefined'
+            && document.visibilityState !== 'hidden') return
+          if (!xrViewportDragTerminationMatchesPointer(nativeEvent as PointerEvent, activePointerIdRef.current)) return
+          clearDrag()
+        }
         windowFinishRef.current = finishWindowDrag
         window.addEventListener('pointerup', finishWindowDrag)
         window.addEventListener('pointercancel', finishWindowDrag)
+        window.addEventListener('lostpointercapture', finishWindowDrag, true)
+        window.addEventListener('blur', finishWindowDrag)
+        if (typeof document !== 'undefined') {
+          document.addEventListener('visibilitychange', finishWindowDrag)
+        }
         setStagePointerCursor(event, 'grabbing')
         try {
           const captureTarget = event.nativeEvent.target as Element

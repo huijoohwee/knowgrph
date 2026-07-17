@@ -31,6 +31,7 @@ import {
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
 import { xrChoreographyCanDriveCamera, xrChoreographyOwnsCamera } from './xrCameraControlOwnership'
+import { bindXrViewportControlsOwnership } from './xrViewportControlsOwnership'
 
 export function Controls({
   schema,
@@ -453,9 +454,10 @@ export function Controls({
     playing: timelineTransportPlaying,
     xrEmptyWorld,
   })
-  React.useEffect(() => {
-    controls.enabled = !paused && !choreographyOwnsCamera && !xrRuntime.viewportControlActive
-  }, [choreographyOwnsCamera, controls, paused, xrRuntime.viewportControlActive])
+  React.useLayoutEffect(() => bindXrViewportControlsOwnership({
+    controls,
+    baseEnabled: !paused && !choreographyOwnsCamera,
+  }), [choreographyOwnsCamera, controls, paused])
   React.useEffect(() => {
     const fns: ThreeCameraSnapshotFns = {
       capturePose: (): ThreeCameraPose | null => {
