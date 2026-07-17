@@ -3,7 +3,7 @@ import { Trash2 } from 'lucide-react'
 import { TimelineTransportTimeAxisMark } from '@/components/timeline/TimelineTransportControls'
 import { resolveVideoSequenceRulerInsetLeft } from '@/components/timeline/videoSequenceTimelineRulerGeometry'
 import { resolveVideoSequenceTimelineScaleDurationSeconds } from '@/components/timeline/videoSequenceTimelineZoom'
-import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
+import { PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -16,10 +16,13 @@ import {
   retimeXrMotionReferenceCastMark,
   selectXrMotionReferenceCameraMark,
   selectXrMotionReferenceCastMark,
-  setXrMotionReferenceCastTransition,
+  setXrMotionReferenceCameraMarkEasing,
+  setXrMotionReferenceCastMarkChoreography,
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
 import { readBoundXrSelectedActorId, selectBoundXrActor } from './xrSelectedActorBinding'
+import { resolveXrChoreographySpeedWarnings, type XrChoreographySpeedWarning } from './xrChoreographyDiagnostics'
+import { XrChoreographyMarkControls } from './XrChoreographyMarkControls'
 import './CameraMotionMarkRetime.css'
 
 function TimeEditor({
@@ -70,16 +73,21 @@ function CastTrackTimeAxisRow({
   runtime,
   scaleDurationSeconds,
   selectedActorId,
+  warnings,
   track,
 }: {
   durationSeconds: number
   runtime: ReturnType<typeof readXrMotionReferenceRuntime>
   scaleDurationSeconds: number
   selectedActorId: string
+  warnings: readonly XrChoreographySpeedWarning[]
   track: XrCastTrack
 }) {
   const actorSelected = selectedActorId === track.actorId
-  const trackTransition = track.marks[0]?.transition === 'hold' ? 'hold' : 'linear'
+  const selectedMark = track.marks.find(mark => runtime.selectedMark?.kind === 'cast'
+    && runtime.selectedMark.actorId === track.actorId
+    && runtime.selectedMark.markId === mark.id) || track.marks[0]
+  const selectedWarning = selectedMark ? warnings.find(warning => warning.targetKind === 'cast' && warning.fromMarkId === selectedMark.id) : undefined
   return (
     <section
       className="xr-camera-motion-retime-axis-row xr-camera-motion-retime-cast-row"
@@ -100,19 +108,16 @@ function CastTrackTimeAxisRow({
         <span className="xr-camera-motion-retime-cast-label" title={track.label}>{track.label}</span>
         <span className="xr-camera-motion-retime-cast-count">{track.marks.length} mark{track.marks.length === 1 ? '' : 's'}</span>
       </button>
-      <PanelSelect
-        className="xr-camera-motion-retime-cast-transition h-5 w-[70px] px-1 py-0 text-[9px]"
-        aria-label={`Path interpolation for ${track.label}`}
-        value={trackTransition}
-        onChange={event => {
-          selectBoundXrActor(track.actorId)
-          setXrMotionReferenceCastTransition(track.actorId, event.target.value === 'hold' ? 'hold' : 'linear')
-        }}
-        data-kg-xr-retime-cast-transition={track.actorId}
-      >
-        <option value="linear">Travel</option>
-        <option value="hold">Hold</option>
-      </PanelSelect>
+      {actorSelected && selectedMark ? (
+        <section className="xr-camera-motion-retime-choreography" data-kg-xr-retime-cast-choreography={track.actorId}>
+          <XrChoreographyMarkControls
+            compact
+            target={{ kind: 'cast', actorId: track.actorId, mark: selectedMark }}
+            warning={selectedWarning}
+            onChange={update => update.kind === 'cast' && setXrMotionReferenceCastMarkChoreography(update)}
+          />
+        </section>
+      ) : null}
       {track.marks.map((mark, index) => {
         const percent = scaleDurationSeconds > 0 ? (mark.timeSeconds / scaleDurationSeconds) * 100 : 0
         const selected = runtime.selectedMark?.kind === 'cast'
@@ -163,6 +168,8 @@ export function CameraMotionMarkRetime({ layout = 'panel' }: { layout?: 'panel' 
     || null
   const timeAxis = layout === 'time-axis'
   const scaleDurationSeconds = resolveVideoSequenceTimelineScaleDurationSeconds(runtime.plan.durationSeconds)
+  const warnings = React.useMemo(() => resolveXrChoreographySpeedWarnings(runtime.plan), [runtime.plan])
+  const selectedCameraMark = runtime.plan.camera.find(mark => runtime.selectedMark?.kind === 'camera' && runtime.selectedMark.markId === mark.id)
 
   if (timeAxis) {
     return (
@@ -172,6 +179,7 @@ export function CameraMotionMarkRetime({ layout = 'panel' }: { layout?: 'panel' 
         data-kg-xr-timeline-retime="1"
         data-kg-xr-timeline-retime-layout={layout}
         data-kg-xr-timeline-retime-scale-seconds={scaleDurationSeconds}
+        data-kg-xr-speed-warning-count={warnings.length}
       >
         {runtime.plan.cast.map(track => (
           <CastTrackTimeAxisRow
@@ -180,11 +188,22 @@ export function CameraMotionMarkRetime({ layout = 'panel' }: { layout?: 'panel' 
             runtime={runtime}
             scaleDurationSeconds={scaleDurationSeconds}
             selectedActorId={selectedActorId}
+            warnings={warnings}
             track={track}
           />
         ))}
         {runtime.plan.cast.length === 0 ? <section className="xr-camera-motion-retime-axis-row" aria-label="Cast mark times" data-kg-xr-retime-lane-ui="video"><p className="xr-camera-motion-retime-axis-empty">No cast track.</p></section> : null}
         <section className="xr-camera-motion-retime-axis-row" aria-label="Camera mark times" data-kg-xr-retime-lane-ui="audio">
+          {selectedCameraMark ? (
+            <section className="xr-camera-motion-retime-choreography" data-kg-xr-retime-camera-choreography={selectedCameraMark.id}>
+              <XrChoreographyMarkControls
+                compact
+                target={{ kind: 'camera', mark: selectedCameraMark }}
+                warning={warnings.find(warning => warning.targetKind === 'camera' && warning.fromMarkId === selectedCameraMark.id)}
+                onChange={update => update.easing && setXrMotionReferenceCameraMarkEasing(update.markId, update.easing)}
+              />
+            </section>
+          ) : null}
           {runtime.plan.camera.map((mark, index) => {
             const percent = scaleDurationSeconds > 0 ? (mark.timeSeconds / scaleDurationSeconds) * 100 : 0
             const selected = runtime.selectedMark?.kind === 'camera' && runtime.selectedMark.markId === mark.id

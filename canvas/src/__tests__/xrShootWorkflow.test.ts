@@ -115,6 +115,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   const stageSource = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
   const subjectSource = readSource('features', 'three', 'XrSceneLibrarySubject.tsx')
   const retimeCssSource = readSource('features', 'three', 'CameraMotionMarkRetime.css')
+  const choreographyControlsSource = readSource('features', 'three', 'XrChoreographyMarkControls.tsx')
   const runtimeSource = readSource('features', 'three', 'xrMotionReferenceRuntime.ts')
   const stageGeometrySource = readSource('features', 'three', 'XrStagePresetGeometry.tsx')
   const controlsSource = readSource('features', 'three', 'Controls.tsx')
@@ -155,10 +156,13 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   for (const marker of ['data-kg-xr-timeline-retime="1"', 'retimeXrMotionReferenceCastMark', 'retimeXrMotionReferenceCameraMark', '<TimelineTransportTimeAxisMark', 'laneStyle="video"', 'laneStyle="audio"', 'data-kg-xr-retime-lane-ui="video"', 'data-kg-xr-retime-lane-ui="audio"', 'selectXrMotionReferenceCastMark', 'aria-pressed={selected}', 'data-kg-xr-stage-highlight-target']) {
     if (!retimeSource.includes(marker)) throw new Error(`expected Camera choreography retiming to expose ${marker}`)
   }
-  for (const marker of ['runtime.plan.cast.map(track', 'data-kg-xr-retime-cast-track', 'selectBoundXrActor', 'setXrMotionReferenceCastTransition', 'data-kg-xr-retime-cast-transition', '<option value="linear">Travel</option>', '<option value="hold">Hold</option>']) {
-    if (!retimeSource.includes(marker)) throw new Error(`expected each cast to own selectable path interpolation through ${marker}`)
+  for (const marker of ['runtime.plan.cast.map(track', 'data-kg-xr-retime-cast-track', 'selectBoundXrActor', 'XrChoreographyMarkControls', 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkEasing', 'data-kg-xr-retime-cast-choreography', 'data-kg-xr-retime-camera-choreography', 'data-kg-xr-speed-warning-count']) {
+    if (!retimeSource.includes(marker)) throw new Error(`expected each cast and Camera track to expose the shared per-mark choreography model through ${marker}`)
   }
-  for (const marker of ['--kg-xr-retime-row-count', 'xr-camera-motion-retime-cast-bar', '[aria-pressed="true"]']) {
+  for (const marker of ['XR_CHOREOGRAPHY_EASINGS', 'XR_CHOREOGRAPHY_GAITS', 'data-kg-xr-mark-easing', 'data-kg-xr-mark-gait', 'data-kg-xr-speed-warning']) {
+    if (!choreographyControlsSource.includes(marker)) throw new Error(`expected shared choreography controls to expose ${marker}`)
+  }
+  for (const marker of ['--kg-xr-retime-row-count', 'xr-camera-motion-retime-cast-bar', 'xr-camera-motion-retime-choreography', '[aria-pressed="true"]']) {
     if (!retimeCssSource.includes(marker)) throw new Error(`expected cast timeline bars to share the expandable marks lane through ${marker}`)
   }
   for (const marker of ['<CameraMotionMarkRetime', 'layout="time-axis"', '<TimelineTransportInlineClip', '<TimelineTransportTimeAxisClip', 'laneStyle="video"', 'laneStyle="audio"', 'data-kg-xr-timeline-consolidated-lane="stage-output-retime"', 'data-kg-xr-timeline-control-bar="stage-output"', 'data-kg-xr-timeline-control-bar="marks"', 'data-kg-xr-timeline-retime-axis="shared-ruler-scale"', 'data-kg-xr-timeline-seconds-control="time-axis"', 'aria-label="XR timeline seconds"', 'data-kg-xr-timeline-fps-control="time-axis"', 'aria-label="XR timeline FPS"', 'runtimeDurationSeconds={runtime.plan.durationSeconds}', 'runtimeFrameRate={runtime.plan.fps}', 'data-kg-xr-timeline-transport="reused-gantt-player"', '<GanttTimelineTransportPanel', 'supplementalLanes={', 'timeAxisControls={']) {
@@ -303,8 +307,8 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   }
   const bundle = buildXrMotionReferencePackage({ plan: shootPlan, graphData, documentName: 'Shoot scene.md' })
   const brief = bundle.files.find(file => file.path === 'handoff/video-generator-brief.txt')?.text || ''
-  if (!brief.includes('handheld rig, 35mm') || !brief.includes('drone rig, 85mm')) {
-    throw new Error('expected the exported package to preserve camera rig and lens choreography')
+  if (!brief.includes('handheld rig, linear easing, 35mm') || !brief.includes('drone rig, ease-in-out easing, 85mm')) {
+    throw new Error('expected the exported package to preserve camera rig, easing, and lens choreography')
   }
 
   const priorCamera = readCameraFramingRuntime()

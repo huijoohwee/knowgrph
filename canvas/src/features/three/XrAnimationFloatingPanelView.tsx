@@ -51,6 +51,8 @@ import {
   xrMotionReferencePackageBlob,
   xrMotionReferencePackageFilename,
 } from './xrMotionReferencePackage'
+import { XrChoreographyInspector } from './XrChoreographyInspector'
+import type { XrChoreographyMarkUpdate } from './XrChoreographyMarkControls'
 
 const PRESET_ICON_BY_ID: Readonly<Record<XrAnimationPreset['id'], LucideIcon>> = {
   fight: Swords,
@@ -212,12 +214,23 @@ export function XrAnimationFloatingPanelView() {
     downloadBlob(xrMotionReferencePackageBlob(result.package), xrMotionReferencePackageFilename(result.package))
   }, [toastResult])
 
+  const configureMark = React.useCallback((update: XrChoreographyMarkUpdate) => {
+    toastResult(controlLocalAnimation({
+      operation: 'configure-mark',
+      markKind: update.kind,
+      markId: update.markId,
+      targetId: update.kind === 'cast' ? update.actorId : 'camera',
+      easing: update.easing,
+      ...(update.kind === 'cast' ? { gait: update.gait } : {}),
+    }))
+  }, [toastResult])
+
   const panelDisabled = !sceneReady || !selectedActorId
   return (
     <section className={floatingPanelCatalogSurfaceClassName()} aria-label="Animation" data-kg-animation-floating-panel="1" data-kg-animation-mcp="knowgrph.control_local_animation" data-kg-animation-catalog-hydration={grammar.hydration.status}>
       <FloatingPanelCatalogHeader
         title="Animation"
-        subtitle="Native XR character motions, action paths, playback, and export"
+        subtitle="Shared cast and camera choreography, playback, and export"
         actionsLabel="Animation actions"
         dataAttributes={{ 'data-kg-animation-header': '1' }}
         actions={(
@@ -236,6 +249,7 @@ export function XrAnimationFloatingPanelView() {
         {!sceneReady ? <p className="rounded bg-amber-100 px-2 py-1 text-[10px] text-amber-900 dark:bg-amber-950/60 dark:text-amber-100">Open or create a graph document to persist animation.</p> : null}
         {grammar.hydration.status !== 'fresh' ? <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Invocation catalog: {grammar.hydration.status} ({grammar.counts.slash}/{grammar.counts.hash}/{grammar.counts.at})</p> : null}
       </section>
+      <XrChoreographyInspector runtime={runtime} selectedActorId={selectedActorId} onChange={configureMark} />
       <section className={floatingPanelCatalogBodyClassName('grid content-start gap-3')}>
         {visibleCharacter.length ? <section className="grid gap-2" aria-label="Character motions" data-kg-animation-group="character-motion"><header className="flex items-center justify-between"><h2 className="text-[11px] font-semibold uppercase">Character motions</h2><output className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{visibleCharacter.length}</output></header><PresetGroup collapsedKeys={collapsedKeys} disabled={panelDisabled} onApply={applyPreset} onToggle={setCollapsed} presets={visibleCharacter} runtime={runtime} selectedActorId={selectedActorId} /></section> : null}
         {visiblePaths.length ? <section className="grid gap-2" aria-label="Action paths" data-kg-animation-group="action-path"><header className="flex items-center justify-between"><h2 className="text-[11px] font-semibold uppercase">Action paths</h2><output className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{visiblePaths.length}</output></header><PresetGroup collapsedKeys={collapsedKeys} disabled={panelDisabled} onApply={applyPreset} onToggle={setCollapsed} presets={visiblePaths} runtime={runtime} selectedActorId={selectedActorId} /></section> : null}

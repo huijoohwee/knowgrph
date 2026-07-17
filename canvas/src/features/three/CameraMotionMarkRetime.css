@@ -32,9 +32,13 @@
   border-radius: 5px;
   background: color-mix(in srgb, var(--kg-xr-cast-track-color) 7%, var(--kg-panel-bg, #fff));
   color: var(--kg-text-secondary, #475569);
-  padding: 1px 82px 1px 8px;
+  padding: 1px 8px;
   font-size: 9px;
   text-align: left;
+}
+
+.xr-camera-motion-retime-cast-row[data-kg-xr-retime-cast-track-selected="1"] .xr-camera-motion-retime-cast-bar {
+  padding-right: 176px;
 }
 
 .xr-camera-motion-retime-cast-bar:hover,
@@ -67,11 +71,12 @@
   white-space: nowrap;
 }
 
-.xr-camera-motion-retime-cast-transition {
+.xr-camera-motion-retime-choreography {
   position: absolute;
   top: 2px;
   right: 4px;
   z-index: 4;
+  max-width: calc(100% - 12px);
 }
 
 .xr-camera-motion-retime-axis-mark.timeline-transport-time-axis-mark {

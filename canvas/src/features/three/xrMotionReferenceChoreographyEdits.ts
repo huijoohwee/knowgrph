@@ -1,0 +1,46 @@
+import type { XrMotionReferencePlan } from './xrMotionReferenceModel'
+import {
+  readXrChoreographyEasing,
+  readXrChoreographyGait,
+  type XrChoreographyEasing,
+  type XrChoreographyGait,
+} from './xrChoreographyEasing'
+import {
+  xrMotionReferenceCastTrackRecord,
+  xrMotionReferencePlanRecord,
+} from './xrMotionReferenceRuntimeRecords'
+
+export function buildCastMarkChoreographyEdit(
+  plan: XrMotionReferencePlan,
+  args: { actorId: string; markId: string; easing?: XrChoreographyEasing; gait?: XrChoreographyGait },
+): Record<string, unknown> | null {
+  const sourceTrack = plan.cast.find(track => track.actorId === args.actorId)
+  if (!sourceTrack?.marks.some(mark => mark.id === args.markId)) return null
+  const cast = plan.cast.map(track => ({
+    ...xrMotionReferenceCastTrackRecord(track),
+    animation: track.actorId === args.actorId && track.animation?.kind === 'action-path' ? null : track.animation,
+    marks: track.marks.map(mark => ({
+      timeSeconds: mark.timeSeconds,
+      position: [...mark.position],
+      transition: track.actorId === args.actorId && mark.id === args.markId ? readXrChoreographyEasing(args.easing || mark.transition) : mark.transition,
+      gait: track.actorId === args.actorId && mark.id === args.markId ? readXrChoreographyGait(args.gait, mark.gait) : mark.gait,
+    })),
+  }))
+  return { ...xrMotionReferencePlanRecord(plan), cast }
+}
+
+export function buildCameraMarkChoreographyEdit(
+  plan: XrMotionReferencePlan,
+  markId: string,
+  easing: XrChoreographyEasing,
+): Record<string, unknown> | null {
+  if (!plan.camera.some(mark => mark.id === markId)) return null
+  const camera = plan.camera.map(mark => ({
+    timeSeconds: mark.timeSeconds,
+    anchorId: mark.anchorId,
+    rig: mark.rig,
+    easing: mark.id === markId ? readXrChoreographyEasing(easing) : mark.easing,
+    settings: { ...mark.settings },
+  }))
+  return { ...xrMotionReferencePlanRecord(plan), camera }
+}

@@ -11,8 +11,12 @@ import {
   type XrAnimationTrackKind,
 } from './xrAnimationCatalog'
 import {
+  XR_CHOREOGRAPHY_EASINGS,
+  XR_CHOREOGRAPHY_GAITS,
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
   serializeXrMotionReferencePlan,
+  type XrChoreographyEasing,
+  type XrChoreographyGait,
   type XrMotionReferencePackage,
 } from './xrMotionReferenceModel'
 import {
@@ -20,7 +24,11 @@ import {
   markXrMotionReferenceSaved,
   readXrMotionReferenceRuntime,
   restoreXrMotionReferenceRuntimeSnapshot,
+  selectXrMotionReferenceCameraMark,
+  selectXrMotionReferenceCastMark,
   setXrMotionReferenceCastAnimation,
+  setXrMotionReferenceCameraMarkEasing,
+  setXrMotionReferenceCastMarkChoreography,
   setXrMotionReferencePlayhead,
 } from './xrMotionReferenceRuntime'
 import { readBoundXrSelectedActorId, selectBoundXrActor } from './xrSelectedActorBinding'
@@ -29,8 +37,9 @@ import { hydrateCanonicalXrMotionReferenceRuntime } from './XrMotionReferenceRun
 import { buildXrMotionReferencePackage } from './xrMotionReferencePackage'
 import { xrMotionReferenceTimelineDocumentKey } from './xrMotionReferenceTimeline'
 import { XR_ANIMATION_MCP_SCHEMA, XR_ANIMATION_WEB_MCP_TOOL_IDS } from './xrAnimationMcpContract.mjs'
+import { resolveXrChoreographySpeedWarnings } from './xrChoreographyDiagnostics'
 
-export type XrAnimationControlOperation = 'apply' | 'clear' | 'play' | 'pause' | 'scrub' | 'export'
+export type XrAnimationControlOperation = 'apply' | 'clear' | 'configure-mark' | 'play' | 'pause' | 'scrub' | 'export'
 
 export type XrAnimationControlInput = Readonly<{
   invocation?: string
@@ -39,6 +48,10 @@ export type XrAnimationControlInput = Readonly<{
   presetId?: string
   targetId?: string
   timeSeconds?: number
+  markKind?: 'cast' | 'camera'
+  markId?: string
+  easing?: XrChoreographyEasing
+  gait?: XrChoreographyGait
 }>
 
 export type XrAnimationControlResult = Readonly<{
@@ -65,6 +78,10 @@ type NormalizedAnimationControl = Readonly<{
   targetId: string
   timeSeconds: number
   invocation: string
+  markKind: 'cast' | 'camera'
+  markId: string
+  easing?: XrChoreographyEasing
+  gait?: XrChoreographyGait
 }>
 
 function resolveCanonicalInvocationTokens(): CanonicalInvocationTokens | null {
@@ -161,8 +178,11 @@ function normalizeControl(input: XrAnimationControlInput): NormalizedAnimationCo
   const parsed = parseInvocation(invocation)
   if (invocation && !parsed) return null
   const operation = (parsed?.operation || input.operation) as XrAnimationControlOperation | undefined
-  if (!operation || !['apply', 'clear', 'play', 'pause', 'scrub', 'export'].includes(operation)) return null
+  if (!operation || !['apply', 'clear', 'configure-mark', 'play', 'pause', 'scrub', 'export'].includes(operation)) return null
   if (input.trackKind !== undefined && input.trackKind !== 'character-motion' && input.trackKind !== 'action-path') return null
+  if (input.markKind !== undefined && input.markKind !== 'cast' && input.markKind !== 'camera') return null
+  if (input.easing !== undefined && !XR_CHOREOGRAPHY_EASINGS.includes(input.easing)) return null
+  if (input.gait !== undefined && !XR_CHOREOGRAPHY_GAITS.includes(input.gait)) return null
   const trackKind = parsed?.trackKind || input.trackKind
   const timeSeconds = parsed ? parsed.timeSeconds : input.timeSeconds
   if (operation === 'scrub' && (!Number.isFinite(timeSeconds) || Number(timeSeconds) < 0)) return null
@@ -173,6 +193,10 @@ function normalizeControl(input: XrAnimationControlInput): NormalizedAnimationCo
     targetId: String(parsed?.targetId || input.targetId || '').trim().replace(/^@+/, ''),
     timeSeconds: Number.isFinite(timeSeconds) ? Number(timeSeconds) : 0,
     invocation: String(parsed?.invocation || input.invocation || '').trim(),
+    markKind: input.markKind === 'camera' ? 'camera' : 'cast',
+    markId: String(input.markId || '').trim(),
+    ...(input.easing ? { easing: input.easing } : {}),
+    ...(input.gait ? { gait: input.gait } : {}),
   }
 }
 
@@ -222,6 +246,7 @@ function updateTransport(operation: 'play' | 'pause' | 'scrub', timeSeconds: num
 
 export function inspectLocalAnimation() {
   const runtime = readXrMotionReferenceRuntime()
+  const speedWarnings = resolveXrChoreographySpeedWarnings(runtime.plan)
   const catalog = getAgenticOsRemoteGrammarCatalogSnapshot()
   const canonical = resolveCanonicalInvocationTokens()
   return {
@@ -251,8 +276,9 @@ export function inspectLocalAnimation() {
       fps: runtime.plan.fps,
       selectedActorId: readBoundXrSelectedActorId(),
       playheadSeconds: runtime.playheadSeconds,
-      cast: runtime.plan.cast.map(track => ({ actorId: track.actorId, label: track.label, animation: track.animation, marks: track.marks.length })),
-      cameraMarks: runtime.plan.camera.length,
+      cast: runtime.plan.cast.map(track => ({ actorId: track.actorId, label: track.label, animation: track.animation, marks: track.marks })),
+      cameraMarks: runtime.plan.camera,
+      speedWarnings,
       dirty: runtime.dirty,
       revision: runtime.revision,
     },
@@ -264,6 +290,29 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
   if (!control) return { ok: false, message: 'Use a supported structured animation operation or a hydrated /animation.control invocation.' }
   if (!sceneReady() || !hydrateCanonicalXrMotionReferenceRuntime()) return { ok: false, message: 'Open or create a graph document before controlling XR animation.' }
   const targetId = resolvedTargetId(control)
+
+  if (control.operation === 'configure-mark') {
+    if (!control.markId || (!control.easing && !control.gait)) return { ok: false, message: 'Configure-mark requires markId and easing or gait.' }
+    const previousRuntime = readXrMotionReferenceRuntime()
+    if (control.markKind === 'camera') {
+      if (!control.easing || !previousRuntime.plan.camera.some(mark => mark.id === control.markId)) return { ok: false, message: 'Select a valid camera mark and easing.' }
+      setXrMotionReferenceCameraMarkEasing(control.markId, control.easing)
+      selectXrMotionReferenceCameraMark(control.markId)
+    } else {
+      const track = previousRuntime.plan.cast.find(candidate => candidate.actorId === targetId)
+      if (!track?.marks.some(mark => mark.id === control.markId)) return { ok: false, message: 'Select a valid cast mark before configuring choreography.' }
+      setXrMotionReferenceCastMarkChoreography({ actorId: targetId, markId: control.markId, easing: control.easing, gait: control.gait })
+      selectXrMotionReferenceCastMark(targetId, control.markId)
+    }
+    if (!persistPlan()) {
+      restoreXrMotionReferenceRuntimeSnapshot(previousRuntime)
+      return { ok: false, message: 'The choreography mark could not be written to graph metadata.' }
+    }
+    if (control.markKind === 'cast') selectBoundXrActor(targetId)
+    activateAnimationSurface()
+    const warnings = resolveXrChoreographySpeedWarnings(readXrMotionReferenceRuntime().plan)
+    return { ok: true, message: `Updated ${control.markKind} mark choreography${warnings.length ? ` with ${warnings.length} speed warning${warnings.length === 1 ? '' : 's'}` : ''}.`, operation: control.operation, targetId: control.markKind === 'cast' ? targetId : 'camera', scene: inspectLocalAnimation() }
+  }
 
   if (control.operation === 'export') {
     const state = useGraphStore.getState()

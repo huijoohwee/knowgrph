@@ -36,8 +36,8 @@ import {
   retimeXrMotionReferenceCastMark,
   selectXrMotionReferenceActor,
   setXrMotionReferenceCastAnimation,
+  setXrMotionReferenceCastMarkChoreography,
   setXrMotionReferenceCastMark,
-  setXrMotionReferenceCastTransition,
   setXrMotionReferenceDuration,
   setXrMotionReferenceStage,
 } from '@/features/three/xrMotionReferenceRuntime'
@@ -191,10 +191,18 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
     throw new Error(`expected plane landing to replace the cast path with deterministic arrival marks, got ${JSON.stringify(airplaneTrack)}`)
   }
   const bundle = buildXrMotionReferencePackage({ plan, graphData, documentName: 'Animation reference.md' })
-  const manifest = JSON.parse(bundle.files.find(file => file.path === 'reference/manifest.json')?.text || '{}') as { animationTracks?: number }
+  const manifest = JSON.parse(bundle.files.find(file => file.path === 'reference/manifest.json')?.text || '{}') as { animationTracks?: number; interpolation?: string; speedWarnings?: number }
   const samplesText = bundle.files.find(file => file.path === 'reference/frame-samples.json')?.text || ''
   const brief = bundle.files.find(file => file.path === 'handoff/video-generator-brief.txt')?.text || ''
-  if (manifest.animationTracks !== 1 || !samplesText.includes('plane-landing') || !samplesText.includes('rootRotationDegrees') || !brief.includes('Plane landing [action-path]')) {
+  if (manifest.animationTracks !== 1
+    || manifest.interpolation !== 'per-mark-easing-with-gait-profiles'
+    || typeof manifest.speedWarnings !== 'number'
+    || !bundle.files.some(file => file.path === 'reference/choreography-diagnostics.json')
+    || !samplesText.includes('plane-landing')
+    || !samplesText.includes('rootRotationDegrees')
+    || !brief.includes('Plane landing [action-path]')
+    || !brief.includes('easing=')
+    || !brief.includes('gait=flight')) {
     throw new Error('expected the motion-reference package to carry animation assignments, poses, paths, and generator briefing')
   }
   setXrMotionReferenceDuration(20)
@@ -233,12 +241,17 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
     throw new Error('expected manual mark placement to clear a stale action-path assignment')
   }
   setXrMotionReferenceCastAnimation(airplane.id, 'plane-landing')
-  setXrMotionReferenceCastTransition(airplane.id, 'linear')
+  const editablePath = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === airplane.id)
+  setXrMotionReferenceCastMarkChoreography({ actorId: airplane.id, markId: editablePath!.marks[0]!.id, easing: 'ease-in-out', gait: 'flight' })
   if (readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === airplane.id)?.animation !== null) {
-    throw new Error('expected manual path interpolation edits to clear a stale action-path assignment')
+    throw new Error('expected manual per-mark choreography edits to clear a stale action-path assignment')
   }
 
   const panelSource = readSource('features', 'three', 'XrAnimationFloatingPanelView.tsx')
+  const inspectorSource = readSource('features', 'three', 'XrChoreographyInspector.tsx')
+  const choreographyControlsSource = readSource('features', 'three', 'XrChoreographyMarkControls.tsx')
+  const animationMcpSource = readSource('features', 'three', 'xrAnimationMcpRuntime.ts')
+  const agentReadyContractSource = readSource('features', 'agent-ready', 'knowgrphAgentReadyToolContract.mjs')
   const toolbarSource = readSource('lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
   const bridgeSource = readSource('features', 'three', 'XrMotionReferenceRuntimeBridge.tsx')
   const appSource = readSource('App.tsx')
@@ -252,6 +265,21 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   ]
   for (const marker of ['FloatingPanelCatalogHeader', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'ExpandCollapseAllButton', 'useCollapsibleSectionGroup', 'data-kg-animation-card-toggle', 'data-kg-animation-clear="selected-actor"', 'data-kg-animation-mcp="knowgrph.control_local_animation"']) {
     if (!panelSource.includes(marker)) throw new Error(`expected first-class Animation cards to reuse shared disclosure/catalog UI through ${marker}`)
+  }
+  for (const marker of ['XrChoreographyInspector', "operation: 'configure-mark'", 'Shared cast and camera choreography, playback, and export']) {
+    if (!panelSource.includes(marker)) throw new Error(`expected FloatingPanel Animation to project the shared choreography runtime through ${marker}`)
+  }
+  for (const marker of ['data-kg-xr-choreography-inspector="shared-runtime"', 'One mark model for cast and camera · Timeline owns time', 'resolveXrChoreographySpeedWarnings']) {
+    if (!inspectorSource.includes(marker)) throw new Error(`expected Animation choreography inspection to expose ${marker}`)
+  }
+  for (const marker of ['data-kg-xr-mark-easing', 'data-kg-xr-mark-gait', 'XR_CHOREOGRAPHY_EASINGS', 'XR_CHOREOGRAPHY_GAITS']) {
+    if (!choreographyControlsSource.includes(marker)) throw new Error(`expected Animation and Timeline to reuse mark controls through ${marker}`)
+  }
+  for (const marker of ["'configure-mark'", 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkEasing', 'resolveXrChoreographySpeedWarnings']) {
+    if (!animationMcpSource.includes(marker)) throw new Error(`expected Animation MCP to control and inspect choreography through ${marker}`)
+  }
+  for (const marker of ["'configure-mark'", "enum: ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'hold']", "enum: ['hold', 'walk', 'jog', 'run', 'wheeled', 'flight', 'drop']"]) {
+    if (!agentReadyContractSource.includes(marker)) throw new Error(`expected Web MCP schema to expose typed choreography fields through ${marker}`)
   }
   const mediaIndex = toolbarSource.indexOf("{ view: 'media'")
   const animationIndex = toolbarSource.indexOf("{ view: 'animation'")
@@ -308,6 +336,14 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
       || activeState.bottomSurfaceCollapsed !== false) {
       throw new Error(`expected upstream / @ # animation invocation to persist and reveal the canonical runtime, got ${JSON.stringify(applied)}`)
     }
+    const configuredMarkId = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === 'actor-a')!.marks[0]!.id
+    const configured = controlLocalAnimation({ operation: 'configure-mark', markKind: 'cast', markId: configuredMarkId, targetId: 'actor-a', easing: 'ease-in-out', gait: 'run' })
+    const configuredMark = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === 'actor-a')!.marks.find(mark => mark.id === configuredMarkId)
+    if (!configured.ok || configuredMark?.transition !== 'ease-in-out' || configuredMark.gait !== 'run' || readXrMotionReferenceRuntime().dirty) {
+      throw new Error(`expected structured MCP to persist per-mark cast choreography atomically, got ${JSON.stringify(configured)}`)
+    }
+    const invalidMarkConfig = controlLocalAnimation({ operation: 'configure-mark', markKind: 'cast', markId: 'missing-mark', targetId: 'actor-a', easing: 'ease-in' })
+    if (invalidMarkConfig.ok) throw new Error('expected structured MCP to reject an unknown choreography mark')
     const scrubbed = controlLocalAnimation({ invocation: '/animation.control @canvas operation=scrub time=1.250' })
     const exported = controlLocalAnimation({ operation: 'export' })
     const inspection = inspectLocalAnimation()
@@ -324,7 +360,9 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
       || !exported.package?.files.some(file => file.path === 'reference/frame-samples.json')
       || inspection.schema !== 'knowgrph-xr-animation-mcp/v1'
       || !inspection.catalog.canonical
-      || inspection.presets.length !== 11) {
+      || inspection.presets.length !== 11
+      || inspection.runtime.cast.find(track => track.actorId === 'actor-a')?.marks[0]?.transition !== 'ease-in-out'
+      || !Array.isArray(inspection.runtime.speedWarnings)) {
       throw new Error('expected Animation MCP inspect/control to share invocation, scrub, and export runtime state')
     }
     if (invalidInvocation.ok || unknownPairInvocation.ok || invalidTimeInvocation.ok || missingTimeInvocation.ok || extraCommandInvocation.ok || wrongBindingInvocation.ok || missingSemanticInvocation.ok) {

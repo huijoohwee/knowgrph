@@ -71,7 +71,7 @@ export function buildXrMotionReferenceTimelineCode(plan: XrMotionReferencePlan):
       const nextMark = track.marks[index + 1]
       if (!nextMark || nextMark.timeSeconds <= mark.timeSeconds) return
       lines.push(
-        `  ${track.label} ${mark.transition === 'hold' ? 'hold' : 'travel'} scene : xr_cast_scene_${actorToken}_move_${index + 1}, ${positionToken(mark.timeSeconds)}, ${durationToken(nextMark.timeSeconds - mark.timeSeconds)}`,
+        `  ${track.label} ${mark.gait} ${mark.transition} scene : xr_cast_scene_${actorToken}_move_${index + 1}, ${positionToken(mark.timeSeconds)}, ${durationToken(nextMark.timeSeconds - mark.timeSeconds)}`,
       )
     })
   }

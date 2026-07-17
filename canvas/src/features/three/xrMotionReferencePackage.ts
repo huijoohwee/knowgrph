@@ -16,6 +16,7 @@ import {
   type XrMotionReferenceVector,
 } from '@/features/three/xrMotionReferenceModel'
 import { resolveXrAnimationPreset, sampleXrAnimationPose } from '@/features/three/xrAnimationCatalog'
+import { resolveXrChoreographySpeedWarnings } from './xrChoreographyDiagnostics'
 
 function round(value: number, places = 4): number {
   const scale = 10 ** places
@@ -95,12 +96,13 @@ function buildTopDownSvg(plan: XrMotionReferencePlan): string {
 
 function buildGeneratorBrief(plan: XrMotionReferencePlan): string {
   const stage = resolveXrMotionReferenceStage(plan.stageId)
+  const warnings = resolveXrChoreographySpeedWarnings(plan)
   const castLines = plan.cast.map(track => {
-    const marks = track.marks.map(mark => `${mark.timeSeconds}s (${mark.position.join(', ')}) [${mark.transition}]`).join(' → ')
+    const marks = track.marks.map(mark => `${mark.timeSeconds}s (${mark.position.join(', ')}) [easing=${mark.transition}; gait=${mark.gait}]`).join(' → ')
     const animation = track.animation ? `; performance ${resolveXrAnimationPreset(track.animation.presetId).label} [${track.animation.kind}]` : ''
     return `- ${track.label}: ${marks}${animation}`
   })
-  const cameraLines = plan.camera.map(mark => `- ${mark.timeSeconds}s: ${mark.rig} rig, ${mark.settings.focalLengthMm}mm, ${mark.settings.shot}, ${mark.settings.angle}, ${mark.settings.level}; position (${mark.pose.position.join(', ')})`)
+  const cameraLines = plan.camera.map(mark => `- ${mark.timeSeconds}s: ${mark.rig} rig, ${mark.easing} easing, ${mark.settings.focalLengthMm}mm, ${mark.settings.shot}, ${mark.settings.angle}, ${mark.settings.level}; position (${mark.pose.position.join(', ')})`)
   const subjectLines = plan.subjects.map(subject => `- ${subject.label} [${subject.category}/${subject.assetId}] at (${subject.position.join(', ')})`)
   return [
     'Use the attached Knowgrph XR data as the motion and spatial reference for one continuous shot.',
@@ -116,6 +118,9 @@ function buildGeneratorBrief(plan: XrMotionReferencePlan): string {
     '',
     'Camera choreography:',
     ...(cameraLines.length ? cameraLines : ['- No camera marks; use a locked neutral camera.']),
+    '',
+    'Speed sanity warnings:',
+    ...(warnings.length ? warnings.map(warning => `- ${warning.message}`) : ['- None.']),
     '',
   ].join('\n')
 }
@@ -151,6 +156,7 @@ export function buildXrMotionReferencePackage(args: { plan: XrMotionReferencePla
   const title = safeFilenameStem(args.documentName)
   const timeline = Object.freeze({ durationSeconds: plan.durationSeconds, fps: plan.fps, frameCount: Math.floor(plan.durationSeconds * plan.fps) + 1 })
   const referenceBoundary = Object.freeze({ implementation: 'native-knowgrph' as const, inspirationCitation: 'documentation-only' as const, copyPolicy: 'no-external-code-assets-or-schemas' as const, dependencyPolicy: 'no-external-runtime' as const, runtimeDependency: false as const })
+  const speedWarnings = resolveXrChoreographySpeedWarnings(plan)
   const manifest = {
     schema: XR_MOTION_REFERENCE_SCHEMA,
     stage: { id: stage.id, label: stage.label, sizeMeters: stage.sizeMeters },
@@ -160,7 +166,8 @@ export function buildXrMotionReferencePackage(args: { plan: XrMotionReferencePla
     cameraMarks: plan.camera.length,
     animationTracks: plan.cast.filter(track => track.animation).length,
     coordinateSystem: 'right-handed-y-up-meters',
-    interpolation: 'bounded-linear-with-holds',
+    interpolation: 'per-mark-easing-with-gait-profiles',
+    speedWarnings: speedWarnings.length,
     graphFingerprint: fingerprint,
     motionFingerprint,
     cameraSemanticMapping: { baselineMeters: XR_MOTION_REFERENCE_CAMERA_BASELINE_METERS, anchorFallback: 'stage-origin' },
@@ -172,6 +179,7 @@ export function buildXrMotionReferencePackage(args: { plan: XrMotionReferencePla
     jsonFile('reference/subjects.json', plan.subjects),
     jsonFile('reference/cast-tracks.json', plan.cast),
     jsonFile('reference/camera-track.json', plan.camera),
+    jsonFile('reference/choreography-diagnostics.json', speedWarnings),
     jsonFile('reference/frame-samples.json', buildMotionSamples(plan)),
     Object.freeze({ path: 'reference/stage-map.svg', mimeType: 'image/svg+xml', text: buildTopDownSvg(plan) }),
     Object.freeze({ path: 'handoff/video-generator-brief.txt', mimeType: 'text/plain', text: buildGeneratorBrief(plan) }),

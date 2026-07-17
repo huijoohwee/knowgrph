@@ -20,6 +20,15 @@ import {
   type XrMotionReferenceStageId,
   type XrMotionReferenceVector,
 } from '@/features/three/xrSceneLibrary'
+import {
+  defaultXrCameraEasing,
+  defaultXrChoreographyGait,
+  readXrChoreographyEasing,
+  readXrChoreographyGait,
+  sampleXrChoreographyEasing,
+  type XrChoreographyEasing,
+  type XrChoreographyGait,
+} from './xrChoreographyEasing'
 
 export {
   XR_MOTION_REFERENCE_STAGE_PRESETS,
@@ -31,6 +40,11 @@ export type {
   XrMotionReferenceStagePreset,
   XrMotionReferenceVector,
 } from '@/features/three/xrSceneLibrary'
+export {
+  XR_CHOREOGRAPHY_EASINGS,
+  XR_CHOREOGRAPHY_GAITS,
+} from './xrChoreographyEasing'
+export type { XrChoreographyEasing, XrChoreographyGait } from './xrChoreographyEasing'
 
 export const XR_MOTION_REFERENCE_GRAPH_METADATA_KEY = 'kgXrMotionReference'
 export const XR_MOTION_REFERENCE_SCHEMA = 'knowgrph-xr-motion-reference/v1'
@@ -45,7 +59,8 @@ export type XrMotionReferenceMark = Readonly<{
   id: string
   timeSeconds: number
   position: XrMotionReferenceVector
-  transition: XrMotionReferenceTransition
+  transition: XrChoreographyEasing
+  gait: XrChoreographyGait
 }>
 
 export type XrMotionReferenceCastTrack = Readonly<{
@@ -61,6 +76,7 @@ export type XrMotionReferenceCameraMark = Readonly<{
   timeSeconds: number
   anchorId: string
   rig: XrMotionReferenceCameraRig
+  easing: XrChoreographyEasing
   settings: Readonly<StrybldrCameraSettings>
   pose: CameraFramingPose
 }>
@@ -188,10 +204,6 @@ function normalizeStageId(value: unknown): XrMotionReferenceStageId {
     : 'neutral-volume'
 }
 
-function normalizeTransition(value: unknown): XrMotionReferenceTransition {
-  return value === 'hold' ? 'hold' : 'linear'
-}
-
 function normalizeAnimationAssignment(
   value: unknown,
   durationSeconds: number,
@@ -237,7 +249,13 @@ function boundedSourceWithLatest(value: unknown, max: number): unknown[] {
   return source.length > max ? [...source.slice(0, max), source[source.length - 1]] : source
 }
 
-function normalizeMarks(value: unknown, actorId: string, durationSeconds: number, fallbackPosition: XrMotionReferenceVector): readonly XrMotionReferenceMark[] {
+function normalizeMarks(
+  value: unknown,
+  actorId: string,
+  durationSeconds: number,
+  fallbackPosition: XrMotionReferenceVector,
+  defaultGait: XrChoreographyGait = 'walk',
+): readonly XrMotionReferenceMark[] {
   const source = boundedSourceWithLatest(value, XR_MOTION_REFERENCE_MAX_CAST_MARKS)
   const marks = source.map((item, index) => {
     const record = asRecord(item)
@@ -246,7 +264,8 @@ function normalizeMarks(value: unknown, actorId: string, durationSeconds: number
       id: stableMarkId(`cast:${actorId}`, timeSeconds),
       timeSeconds,
       position: normalizeVector(record.position, fallbackPosition),
-      transition: normalizeTransition(record.transition),
+      transition: readXrChoreographyEasing(record.easing ?? record.transition),
+      gait: readXrChoreographyGait(record.gait, defaultGait),
       index,
     })
   })
@@ -256,6 +275,7 @@ function normalizeMarks(value: unknown, actorId: string, durationSeconds: number
       timeSeconds: 0,
       position: fallbackPosition,
       transition: 'linear' as const,
+      gait: defaultGait,
       index: 0,
     }))
   }
@@ -282,11 +302,13 @@ function normalizeCameraMarks(
       ? sampleXrMotionReferenceMarks(anchorTrack.marks, timeSeconds)
       : [0, 0, 0] as const
     const settings = Object.freeze(readStrybldrCameraSettings(record.settings))
+    const rig = normalizeCameraRig(record.rig)
     return {
       id: stableMarkId('camera', timeSeconds),
       timeSeconds,
       anchorId,
-      rig: normalizeCameraRig(record.rig),
+      rig,
+      easing: readXrChoreographyEasing(record.easing || defaultXrCameraEasing(rig)),
       settings,
       pose: resolveCameraFramingPose({ settings, target, baseDistance: XR_MOTION_REFERENCE_CAMERA_BASELINE_METERS }),
       index,
@@ -328,7 +350,7 @@ function resolveCast(
       label: String(actor.label || saved.label || actorId).trim().slice(0, 80) || actorId,
       color: CAST_COLORS[index % CAST_COLORS.length],
       animation: normalizeAnimationAssignment(saved.animation, durationSeconds, subject),
-      marks: normalizeMarks(saved.marks, actorId, durationSeconds, fallbackPosition),
+      marks: normalizeMarks(saved.marks, actorId, durationSeconds, fallbackPosition, defaultXrChoreographyGait(subject?.category, subject?.assetId)),
     })
   }))
 }
@@ -425,12 +447,14 @@ export function serializeXrMotionReferencePlan(plan: XrMotionReferencePlan): JSO
         timeSeconds: mark.timeSeconds,
         position: [...mark.position],
         transition: mark.transition,
+        gait: mark.gait,
       })),
     })),
     camera: plan.camera.map(mark => ({
       timeSeconds: mark.timeSeconds,
       anchorId: mark.anchorId,
       rig: mark.rig,
+      easing: mark.easing,
       settings: serializeStrybldrCameraSettings(mark.settings),
     })),
   } as JSONValue
@@ -460,9 +484,9 @@ export function sampleXrMotionReferenceMarks(marks: readonly XrMotionReferenceMa
     if (timeSeconds > right.timeSeconds) continue
     const left = marks[index - 1]!
     if (Math.abs(timeSeconds - right.timeSeconds) < 0.000001) return right.position
-    if (left.transition === 'hold') return left.position
     const span = Math.max(0.001, right.timeSeconds - left.timeSeconds)
-    return interpolateVector(left.position, right.position, clamp((timeSeconds - left.timeSeconds) / span, 0, 1))
+    const progress = sampleXrChoreographyEasing(left.transition, (timeSeconds - left.timeSeconds) / span)
+    return interpolateVector(left.position, right.position, progress)
   }
   return last.position
 }
@@ -497,13 +521,10 @@ export function sampleXrMotionReferenceCameraPose(marks: readonly XrMotionRefere
     const right = marks[index]!
     if (timeSeconds > right.timeSeconds) continue
     const left = marks[index - 1]!
+    if (Math.abs(timeSeconds - right.timeSeconds) < 0.000001) return right.pose
     const span = Math.max(0.001, right.timeSeconds - left.timeSeconds)
     const linearProgress = clamp((timeSeconds - left.timeSeconds) / span, 0, 1)
-    const progress = left.rig === 'drone'
-      ? linearProgress * linearProgress * linearProgress * (linearProgress * (linearProgress * 6 - 15) + 10)
-      : left.rig === 'steadicam' || left.rig === 'crane'
-        ? linearProgress * linearProgress * (3 - 2 * linearProgress)
-        : linearProgress
+    const progress = sampleXrChoreographyEasing(left.easing, linearProgress)
     let position = interpolateVector(left.pose.position, right.pose.position, progress)
     let target = interpolateVector(left.pose.target, right.pose.target, progress)
     if (left.rig === 'handheld') {
@@ -550,8 +571,9 @@ export function sampleXrMotionReferenceCameraSettings(
     const right = marks[index]!
     if (timeSeconds > right.timeSeconds) continue
     const left = marks[index - 1]!
+    if (Math.abs(timeSeconds - right.timeSeconds) < 0.000001) return right.settings
     const span = Math.max(0.001, right.timeSeconds - left.timeSeconds)
-    const progress = clamp((timeSeconds - left.timeSeconds) / span, 0, 1)
+    const progress = sampleXrChoreographyEasing(left.easing, (timeSeconds - left.timeSeconds) / span)
     return Object.freeze(readStrybldrCameraSettings({
       ...left.settings,
       focalLengthMm: left.settings.focalLengthMm + (right.settings.focalLengthMm - left.settings.focalLengthMm) * progress,

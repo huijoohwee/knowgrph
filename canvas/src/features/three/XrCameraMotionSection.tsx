@@ -24,6 +24,7 @@ import {
 import { buildXrMotionReferenceTimelineCode, xrMotionReferenceTimelineDocumentKey } from './xrMotionReferenceTimeline'
 import { CameraMotionMarkRetime } from './CameraMotionMarkRetime'
 import { resolveXrPanelSourceProfile } from './xrPanelModel'
+import { resolveXrChoreographySpeedWarnings } from './xrChoreographyDiagnostics'
 import { downloadBlob } from '@/lib/graph/save'
 import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -72,6 +73,7 @@ export function XrCameraMotionSection() {
     () => buildXrMotionReferenceTimelineCode(runtime.plan),
     [runtime.plan],
   )
+  const speedWarnings = React.useMemo(() => resolveXrChoreographySpeedWarnings(runtime.plan), [runtime.plan])
 
   React.useEffect(() => {
     if (!xrActive) return
@@ -197,7 +199,7 @@ export function XrCameraMotionSection() {
                   data-kg-xr-timeline-control-bar="stage-output"
                 >
                   <p className={cn('mr-2 whitespace-nowrap text-[9px]', UI_THEME_TOKENS.text.tertiary)}>
-                    {documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks
+                    {documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks · {speedWarnings.length ? `${speedWarnings.length} speed warnings` : 'speed sane'}
                   </p>
 
                   <label className="flex shrink-0 items-center gap-1 text-[10px]">

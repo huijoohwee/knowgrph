@@ -203,7 +203,7 @@ export function inspectLocalXrSceneAssets() {
       fps: runtime.plan.fps,
       subjects: runtime.plan.subjects.map(subject => {
         const track = runtime.plan.cast.find(candidate => candidate.actorId === subject.id)
-        const transition: XrSceneTransition | 'static' = track ? track.marks[0]?.transition || 'linear' : 'static'
+        const transition: XrSceneTransition | 'static' = track ? track.marks[0]?.transition === 'hold' ? 'hold' : 'linear' : 'static'
         return {
           id: subject.id,
           assetId: subject.assetId,
