@@ -186,7 +186,7 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
   const runnerBranches = runnerDraft.nodes.filter(node => node.properties.cardTypeLabel === 'Probe-Tree Card')
   const runnerCandidateEdges = runnerDraft.edges.filter(edge => edge.source === 'n1' && edge.label === 'candidateOption')
   if (
-    !runErrorMessage.includes('neither 2-4 query-specific model cards nor a literal authored 2-4 choice list')
+    !runErrorMessage.includes('received no accepted 2-4 query-specific LLM cards')
     || runnerBranches.length !== 3
     || runnerCandidateEdges.length !== 3
     || terminalPublishedGraph !== null

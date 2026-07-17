@@ -5,7 +5,6 @@ import { buildRichMediaTextMarkdownDocument } from '@/features/rich-media/richMe
 import { KNOWGRPH_PROBE_TREE_MAX_DEPTH } from '@/features/agentic-os/probeTreePromptPreset'
 import {
   KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
-  PROBE_TREE_AUTHORED_CHOICE_DERIVATION,
   PROBE_TREE_CARD_VARIANTS,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
   areProbeTreeCardsMutuallyDistinct,
@@ -166,16 +165,11 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
   const panels = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'panel')
   const responseCards = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'card')
   const cards = responseCards.filter(isStructuredProbeCard)
-  const authoredChoiceProjection = (
-    responseCards.length === 1
-    && cards.length === 1
-    && cards[0]?.properties.probeTreeDerivation === PROBE_TREE_AUTHORED_CHOICE_DERIVATION
-  )
   if (
     sourceWidgets.length !== 1
     || panels.length !== 1
     || readString(panels[0]?.label) !== 'Probe-Tree Branches'
-    || (!authoredChoiceProjection && responseCards.length < 2)
+    || responseCards.length < 2
     || responseCards.length > 4
     || cards.length !== responseCards.length
   ) return null

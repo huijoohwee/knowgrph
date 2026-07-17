@@ -5,10 +5,8 @@ import {
   areProbeTreeContinuationChoicesSuggested,
   areProbeTreeCardsMutuallyDistinct,
   collectProbeTreeContextKeywords,
-  extractProbeTreeAuthoredChoiceOption,
   extractProbeTreeUserInputText,
   isProbeTreeCardUserInputRelevant,
-  PROBE_TREE_AUTHORED_CHOICE_DERIVATION,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS } from '@/features/agentic-os/probeTreePromptPreset'
@@ -29,8 +27,11 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     '2-4 selectionOptions',
     'allowOther: true',
     'parentNodeId as the lineage SSOT',
-    'local no-model path never synthesizes clarification cards',
-    'different user-named focus',
+    'local no-model MCP path never synthesizes clarification cards or restates the source query',
+    'configured chat LLM',
+    'Never copy or paraphrase the active request as a card question',
+    'named entities and alternatives already supplied by the user',
+    'different request-specific decision variable',
     'reused choice labels',
     'suggested clarification answer',
     'selected child card and its committed multi-selection own the next topic',
@@ -265,61 +266,33 @@ export function testProbeTreeNoModelCardsFailClosed() {
   }
 }
 
-export function testProbeTreeAuthoredChoicesProjectLiteralZeroModelCard() {
+export function testProbeTreeRestatedSourceQueryIsRejected() {
   const authoredRequest = '/knowgrph.probe-tree recommend invest in India, China, or SE Asia'
   const contextText = ['Authored request:', authoredRequest, 'Selected Widget id: investment-root'].join('\n')
-  const authoredOption = extractProbeTreeAuthoredChoiceOption(contextText)
-  if (
-    !authoredOption
-    || authoredOption.text !== 'recommend invest in India, China, or SE Asia'
-    || authoredOption.derivation !== PROBE_TREE_AUTHORED_CHOICE_DERIVATION
-    || JSON.stringify(authoredOption.selectionOptions.map(option => option.label)) !== JSON.stringify(['India', 'China', 'SE Asia'])
-    || JSON.stringify(extractProbeTreeAuthoredChoiceOption('choose India or China')?.selectionOptions.map(option => option.label)) !== JSON.stringify(['India', 'China'])
-    || extractProbeTreeAuthoredChoiceOption('/knowgrph.probe-tree invest in China, India, SE Asia?') !== null
-    || extractProbeTreeAuthoredChoiceOption('Selected continuation answer: India, SE Asia') !== null
-    || extractProbeTreeAuthoredChoiceOption('Summarize revenue, costs, or operating margin') !== null
-    || extractProbeTreeAuthoredChoiceOption('choose India, China, Singapore, Japan, or SE Asia') !== null
-  ) {
-    throw new Error(`expected only a literal authored alternative list to project, got ${JSON.stringify(authoredOption)}`)
-  }
-
-  const anchorNode: GraphNode = {
-    id: 'investment-root',
-    type: FLOW_TEXT_GENERATION_NODE_TYPE_ID,
-    label: 'Widget Card',
-    properties: { prompt: authoredRequest },
-  }
-  const graphData: GraphData = { type: 'Graph', nodes: [anchorNode], edges: [] }
-  const response = buildProbeTreeStructuredResponse({
-    threadRootId: 'investment-root',
-    currentNodeId: 'investment-root',
+  const restatedQuestionAccepted = isProbeTreeCardUserInputRelevant({
     contextText,
-    options: [authoredOption],
-    degraded: true,
+    question: 'recommend invest in India, China, or SE Asia',
+    selectionOptions: ['India', 'China', 'SE Asia'],
+    contextAnchors: ['India', 'China', 'SE Asia'],
   })
-  const materialized = materializeStoryboardWidgetProbeTreeStructuredResponse({
-    graphData,
-    anchorNode,
-    responseText: JSON.stringify({ result: { structuredContent: { response } } }, null, 2),
+  const entityListParaphraseAccepted = isProbeTreeCardUserInputRelevant({
     contextText,
-    responseSource: 'mcp',
-    model: 'probe-tree-authored-choices',
-    mcpInvoked: true,
-    threadRootId: 'investment-root',
-    invocationTokens: ['/knowgrph.probe-tree'],
+    question: 'Which of India, China, or SE Asia should the user invest in?',
+    selectionOptions: ['India', 'China', 'SE Asia'],
+    contextAnchors: ['India', 'China', 'SE Asia'],
   })
-  const card = materialized?.graphData.nodes.find(node => node.properties.probeTreeResponseMode === 'llm-contract')
-  const labels = Array.isArray(card?.properties.selectionOptions)
-    ? card.properties.selectionOptions.map(option => String((option as { label?: unknown }).label || ''))
-    : []
+  const querySpecificQuestionAccepted = isProbeTreeCardUserInputRelevant({
+    contextText,
+    question: 'Which investment objective should drive the India, China, or SE Asia recommendation?',
+    selectionOptions: ['Long-term capital growth', 'Recurring income yield', 'Strategic market access'],
+    contextAnchors: ['India', 'China', 'SE Asia'],
+  })
   if (
-    materialized?.materializedNodeIds.length !== 1
-    || card?.properties.summary !== 'recommend invest in India, China, or SE Asia'
-    || card?.properties.probeTreeDerivation !== PROBE_TREE_AUTHORED_CHOICE_DERIVATION
-    || JSON.stringify(labels) !== JSON.stringify(['India', 'China', 'SE Asia'])
-    || /scope choice|priority choice|relationship between|compare current evidence|resolve the dependency/i.test(JSON.stringify(materialized))
+    restatedQuestionAccepted
+    || entityListParaphraseAccepted
+    || !querySpecificQuestionAccepted
   ) {
-    throw new Error(`expected one literal zero-model authored-choice card, got ${JSON.stringify(materialized)}`)
+    throw new Error(`expected source-query echoes to fail while a new investment decision variable passes, got ${JSON.stringify({ restatedQuestionAccepted, entityListParaphraseAccepted, querySpecificQuestionAccepted })}`)
   }
 }
 

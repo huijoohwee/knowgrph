@@ -1,4 +1,4 @@
-import { isStoryboardWidgetProbeTreeProviderRefinementApproved, PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY, readStoryboardWidgetProbeTreeInvocationText, resolveStoryboardWidgetProbeTreeInvocationTokenForNode, runStoryboardWidgetProbeTreeMcpInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
+import { readStoryboardWidgetProbeTreeInvocationText, resolveStoryboardWidgetProbeTreeInvocationTokenForNode, runStoryboardWidgetProbeTreeMcpInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
 import { resolveStoryboardWidgetProbeTreeSelectedRunNode } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeRunNode'
 import { buildProbeTreeStructuredResponse, KNOWGRPH_PROBE_TREE_TOOL_NAMES, PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION } from '@/features/agent-ready/probeTreeContract.mjs'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
@@ -37,16 +37,6 @@ const mcpRelevantOptions = [
     contextAnchors: ['the adviser handoff', 'SME cyber'],
   },
 ]
-
-export function testProbeTreeProviderRefinementRequiresExplicitCardApproval() {
-  if (isStoryboardWidgetProbeTreeProviderRefinementApproved({})
-    || isStoryboardWidgetProbeTreeProviderRefinementApproved({ [PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY]: false })
-    || isStoryboardWidgetProbeTreeProviderRefinementApproved({ [PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY]: 'true' })
-    || isStoryboardWidgetProbeTreeProviderRefinementApproved({ [PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY]: 1 })
-    || !isStoryboardWidgetProbeTreeProviderRefinementApproved({ [PROBE_TREE_PROVIDER_REFINEMENT_APPROVAL_PROPERTY]: true })) {
-    throw new Error('expected Probe-Tree provider refinement to remain disabled unless the card explicitly approves it')
-  }
-}
 
 const makeGraph = (): GraphData => ({
   type: 'Graph',
@@ -161,7 +151,9 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     || !providerPrompt.includes('knowgrph.probe.generate')
     || !providerPrompt.includes('set output exactly to an empty string')
     || !providerPrompt.includes('2-6 contextAnchors copied verbatim')
-    || !providerPrompt.includes('Do not emit stock evidence')
+    || !providerPrompt.includes('Never copy or paraphrase the selected request as a card question')
+    || !providerPrompt.includes('not as a ready-made selectionOptions array')
+    || !providerPrompt.includes('different request-specific decision variable')
     || !providerPrompt.includes('Never reuse a choice label')
     || cards.length !== 3
     || edges.length !== 3
@@ -294,8 +286,8 @@ export async function testProbeTreeWidgetRunRefusesGenericNoModelFallback() {
   }
   if (
     published
-    || !errorMessage.includes('neither 2-4 query-specific model cards nor a literal authored 2-4 choice list')
-    || !errorMessage.includes('probeTreeProviderRefinementApproved: true')
+    || !errorMessage.includes('received no accepted 2-4 query-specific LLM cards')
+    || !errorMessage.includes('zero-model MCP path does not synthesize fallback cards')
   ) {
     throw new Error(`expected no-model investment clarification to fail closed without publishing canned cards, got ${JSON.stringify({ published, errorMessage })}`)
   }
