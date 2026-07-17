@@ -16,8 +16,8 @@ import {
   buildGenerateVideoRegistryDraft,
   buildTextGenerationRegistryDraft,
   buildWidgetDraftFromSmartFields,
-  inferTextGenerationProviderFamily,
 } from '@/features/storyboard-widget-manager/registryTemplates'
+import { inferTextGenerationProviderFamily } from '@/features/storyboard-widget-manager/textGenerationProviderFamily'
 import {
   FLOW_WIDGET_FORM_ID_KEY,
   FLOW_WIDGET_TYPE_ID_KEY,
@@ -248,7 +248,7 @@ export default function StoryboardWidgetMappingTab({ searchQuery, onRegisterActi
         : nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID
           ? buildTextGenerationRegistryDraft({
               providerFamily: inferTextGenerationProviderFamily({
-                provider: props.chatProvider,
+                provider: props.chatProvider, endpointUrl: props.chatEndpointUrl, model: props.chatModel,
                 widgetTypeId: widgetIdentity.widgetTypeId,
                 formId: widgetIdentity.formId,
               }),
@@ -332,7 +332,7 @@ export default function StoryboardWidgetMappingTab({ searchQuery, onRegisterActi
         : baseType === FLOW_TEXT_GENERATION_NODE_TYPE_ID
           ? buildTextGenerationRegistryDraft({
               providerFamily: inferTextGenerationProviderFamily({
-                provider: props.chatProvider,
+                provider: props.chatProvider, endpointUrl: props.chatEndpointUrl, model: props.chatModel,
                 widgetTypeId: widgetIdentity.widgetTypeId,
                 formId: widgetIdentity.formId,
               }),

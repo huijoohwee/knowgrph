@@ -115,6 +115,8 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["canvas.probeTree.widgetRun.rejectsUnrelatedProviderCards","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunRejectsUnrelatedProviderCardsAndUsesMcpResult"],
   ["canvas.probeTree.widgetRun.rejectsOverboundedProviderCards","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunRejectsOverboundedProviderCardsAndUsesMcpResult"],
   ["canvas.probeTree.widgetRun.refusesGenericNoModelFallback","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunRefusesGenericNoModelFallback"],
+  ["canvas.probeTree.widgetRun.surfacesProviderTransportFailure","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunSurfacesProviderTransportFailure"],
+  ["canvas.probeTree.widgetRun.usesActiveChatRoute","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunUsesActiveChatRouteOverStaleCardProvider"],
   ["canvas.probeTree.widgetRun.sendsConfiguredLlmQuerySpecificContract","@/__tests__/probeTreeWidgetRunQuerySpecificProvider.test","testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContract"],
   ["canvas.probeTree.widgetRun.userOutputFeedsResponseContext","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderContext"],
   ["canvas.probeTree.widgetRun.metadataRoutesContinuation","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeContinuationMetadataRoutesWithoutVisibleSlashToken"],

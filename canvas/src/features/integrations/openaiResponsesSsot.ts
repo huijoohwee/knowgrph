@@ -210,7 +210,7 @@ const OPENAI_DOC_ROW_BY_ROW_KEY: Readonly<Record<string, OpenAiApiDocRow>> = {
     responsibility: 'Orchestrator -> pin OpenAI provider routing -> keep Integrations, Workflow Manager, and the Widget Card configured for OpenAI on the same provider family.',
     notes: 'Integration transport setting reused by the Widget Card when configured for OpenAI.',
     searchHints: ['chatProvider provider profile openai responses api'],
-    modules: ['canvas/src/lib/chatEndpoint.ts', 'canvas/src/hooks/store/uiSlice.ts', 'canvas/src/features/storyboard-widget-manager/registryTemplates.ts'],
+    modules: ['canvas/src/lib/chatEndpoint.ts', 'canvas/src/hooks/store/uiSlice.ts', 'canvas/src/features/storyboard-widget-manager/textGenerationProviderFamily.ts', 'canvas/src/features/storyboard-widget-manager/registryTemplates.ts'],
     classes: ['GraphState', 'WidgetRegistryEntry'],
     functions: ['normalizeChatProviderId', 'setChatProvider', 'inferTextGenerationProviderFamily'],
   },

@@ -7,8 +7,8 @@ import {
 } from '@/lib/config.storyboard-widget'
 import {
   buildCanonicalWidgetRegistryDraft,
-  inferTextGenerationProviderFamily,
 } from '@/features/storyboard-widget-manager/registryTemplates'
+import { inferTextGenerationProviderFamily } from '@/features/storyboard-widget-manager/textGenerationProviderFamily'
 import type { ChatResponseStructuredSurface } from './chatResponseStructuredContent'
 
 const yamlScalar = (value: unknown): string => JSON.stringify(String(value ?? ''))
@@ -118,6 +118,8 @@ const buildChatResponseWidgetRegistryEntries = (surface: ChatResponseStructuredS
             formId,
             widgetTypeId,
             provider: properties.chatProvider,
+            endpointUrl: properties.chatEndpointUrl,
+            model: properties.chatModel,
           })
         : undefined,
     })

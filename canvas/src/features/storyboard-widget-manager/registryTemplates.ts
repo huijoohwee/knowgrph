@@ -93,7 +93,11 @@ import {
   getSealionApiRowAnchorId,
   mapOpenAiRowKeyToDeerFlowRowKey,
 } from '@/features/panels/views/chatApiDocAnchors'
-export type TextGenerationProviderFamily = 'byteplus' | 'openai' | 'deerflow' | 'miromind' | 'agnes' | 'sealion' | 'qwen' | 'google-cloud'
+import {
+  inferTextGenerationProviderFamily,
+  normalizeTextGenerationProviderFamily,
+  type TextGenerationProviderFamily,
+} from '@/features/storyboard-widget-manager/textGenerationProviderFamily'
 export type WidgetRegistryApiDocRef = {
   rowKey: string
   apiKey: string
@@ -172,11 +176,6 @@ const OPENAI_COMPATIBLE_PROVIDER_ROW_SUFFIX_BY_OPENAI_SUFFIX: Readonly<Record<st
   max_output_tokens: 'max_tokens',
 }
 
-const normalizeTextGenerationProviderFamily = (value: unknown): TextGenerationProviderFamily =>
-  value === 'openai' || value === 'deerflow' || value === 'miromind' || value === 'agnes' || value === 'sealion' || value === 'qwen' || value === 'google-cloud'
-    ? value
-    : 'byteplus'
-
 function isFrontmatterOwnedWidgetFormId(formId: unknown): boolean {
   return String(formId || '').trim().startsWith('fm:')
 }
@@ -214,34 +213,6 @@ function getTextGenerationProviderProfile(providerFamily?: TextGenerationProvide
   return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.byteplus
 }
 
-export function inferTextGenerationProviderFamily(args: {
-  provider?: unknown
-  widgetTypeId?: unknown
-  formId?: unknown
-}): TextGenerationProviderFamily {
-  const provider = String(args.provider || '').trim().toLowerCase()
-  const widgetTypeId = String(args.widgetTypeId || '').trim().toLowerCase()
-  const formId = String(args.formId || '').trim().toLowerCase()
-  if (widgetTypeId.includes('deerflow') || widgetTypeId.includes('deer-flow') || formId.includes('deerflow') || formId.includes('deer-flow')) return 'deerflow'
-  if (widgetTypeId.includes('miromind') || widgetTypeId.includes('miro-mind') || formId.includes('miromind') || formId.includes('miro-mind')) return 'miromind'
-  if (widgetTypeId.includes('agnes') || formId.includes('agnes')) return 'agnes'
-  if (widgetTypeId.includes('sealion') || widgetTypeId.includes('sea-lion') || formId.includes('sealion') || formId.includes('sea-lion')) return 'sealion'
-  if (widgetTypeId.includes('qwen') || widgetTypeId.includes('dashscope') || formId.includes('qwen') || formId.includes('dashscope')) return 'qwen'
-  if (widgetTypeId.includes('google-cloud') || widgetTypeId.includes('googlecloud') || widgetTypeId.includes('vertex') || formId.includes('google-cloud') || formId.includes('googlecloud') || formId.includes('vertex')) return 'google-cloud'
-  if (widgetTypeId.includes('openai') || formId.includes('openai')) return 'openai'
-  if (formId === FLOW_VIDEO_SCRIPT_FORM_ID.toLowerCase()) return 'byteplus'
-  if (widgetTypeId.includes('byteplus') || formId.includes('byteplus') || formId === 'textgeneration') return 'byteplus'
-  if (provider.includes('deerflow') || provider.includes('deer-flow')) return 'deerflow'
-  if (provider.includes('miromind') || provider.includes('miro-mind')) return 'miromind'
-  if (provider.includes('agnes')) return 'agnes'
-  if (provider.includes('sealion') || provider.includes('sea-lion') || provider.includes('aisingapore')) return 'sealion'
-  if (provider.includes('qwen') || provider.includes('dashscope') || provider.includes('modelstudio') || provider.includes('model-studio')) return 'qwen'
-  if (provider.includes('google-cloud') || provider.includes('googlecloud') || provider.includes('vertex') || provider.includes('gcp')) return 'google-cloud'
-  if (provider.includes('openai')) return 'openai'
-  if (provider.includes('byteplus') || provider.includes('modelark')) return 'byteplus'
-  return 'byteplus'
-}
-
 export function listVisibleWidgetRegistryPortsForPropsEditor(args: {
   registryEntry?: Pick<WidgetRegistryEntry, 'nodeTypeId' | 'widgetTypeId' | 'formId' | 'ports'> | null | undefined
   properties?: Record<string, unknown> | null | undefined
@@ -251,8 +222,10 @@ export function listVisibleWidgetRegistryPortsForPropsEditor(args: {
   const nodeTypeId = String(args.registryEntry?.nodeTypeId || '').trim()
   const formId = String(args.registryEntry?.formId || '').trim()
   const providerFamily = nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID && !isFrontmatterOwnedWidgetFormId(formId)
-    ? inferTextGenerationProviderFamily({
+      ? inferTextGenerationProviderFamily({
         provider: args.properties?.chatProvider,
+        endpointUrl: args.properties?.chatEndpointUrl,
+        model: args.properties?.chatModel,
         widgetTypeId: args.registryEntry?.widgetTypeId,
         formId,
       })
@@ -288,6 +261,8 @@ export function resolveWidgetRegistryApiDocRef(args: {
   if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
     const providerFamily = inferTextGenerationProviderFamily({
       provider: args.properties?.chatProvider,
+      endpointUrl: args.properties?.chatEndpointUrl,
+      model: args.properties?.chatModel,
       widgetTypeId: args.registryEntry?.widgetTypeId,
       formId: args.registryEntry?.formId,
     })
@@ -360,6 +335,8 @@ export function resolveWidgetRegistryMainPanelLink(args: {
   if (nodeTypeId === FLOW_TEXT_GENERATION_NODE_TYPE_ID) {
     const providerFamily = inferTextGenerationProviderFamily({
       provider: args.properties?.chatProvider,
+      endpointUrl: args.properties?.chatEndpointUrl,
+      model: args.properties?.chatModel,
       widgetTypeId: args.registryEntry?.widgetTypeId,
       formId: args.registryEntry?.formId,
     })

@@ -186,7 +186,7 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
   const runnerBranches = runnerDraft.nodes.filter(node => node.properties.cardTypeLabel === 'Probe-Tree Card')
   const runnerCandidateEdges = runnerDraft.edges.filter(edge => edge.source === 'n1' && edge.label === 'candidateOption')
   if (
-    !runErrorMessage.includes('received no accepted 2-4 query-specific LLM cards')
+    !runErrorMessage.includes('Probe-Tree LLM request failed:')
     || runnerBranches.length !== 3
     || runnerCandidateEdges.length !== 3
     || terminalPublishedGraph !== null
