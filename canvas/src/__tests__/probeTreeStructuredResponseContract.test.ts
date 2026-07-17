@@ -3,6 +3,7 @@ import { materializeStoryboardWidgetProbeTreeStructuredResponse } from '@/compon
 import {
   buildProbeTreeStructuredResponse,
   buildProbeTreeInputDerivedOptions,
+  areProbeTreeContinuationChoicesSuggested,
   areProbeTreeCardsMutuallyDistinct,
   collectProbeTreeContextKeywords,
   extractProbeTreeUserInputText,
@@ -31,6 +32,8 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     'never substitute canned response content or fixtures',
     'different user-named focus',
     'reused choice labels',
+    'suggested clarification answer',
+    'selected child card and its committed multi-selection own the next topic',
     'contextAnchors',
     'knowgrph.agentic_canvas_os.docs.invoke',
     'result.structuredContent.response.structuredContent',
@@ -307,6 +310,11 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
   const questionOnlyContinuationInput = extractProbeTreeUserInputText(questionOnlyContinuationContext)
   const questionOnlyContinuationOptions = buildProbeTreeInputDerivedOptions(questionOnlyContinuationContext)
   const continuationChoiceLabels = continuationOptions.flatMap(option => option.selectionOptions.map(selection => selection.label.toLowerCase()))
+  const fragmentOnlyChoicesAccepted = areProbeTreeContinuationChoicesSuggested({
+    contextText: continuationContext,
+    question: 'Which parts of "provider-neutral protection guidance" need separate follow-up?',
+    selectionOptions: ['provider-neutral', 'protection guidance'],
+  })
   const firstOption = options[0]
   if (
     forbiddenMetadata.some(keyword => keywords.includes(keyword))
@@ -317,8 +325,15 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
     || !['protection', 'licensed-adviser', 'evidence', 'confidence', 'urgency'].every(keyword => continuationKeywords.includes(keyword))
     || continuationOptions.length !== 3
     || !areProbeTreeCardsMutuallyDistinct(continuationOptions)
+    || continuationOptions.some(option => !areProbeTreeContinuationChoicesSuggested({
+      contextText: continuationContext,
+      question: option.text,
+      selectionOptions: option.selectionOptions,
+    }))
+    || fragmentOnlyChoicesAccepted
+    || continuationOptions.some(option => option.selectionOptions.some(selection => !/^(?:Define|Set|Identify)\b/.test(selection.label)))
     || new Set(continuationChoiceLabels).size !== continuationChoiceLabels.length
-    || continuationOptions.some(option => option.text.includes('Which requested items should guide the next branch: Which requested items'))
+    || continuationOptions.some(option => option.text.includes('Which parts of'))
     || !continuationOptions.some(option => option.text.includes('"evidence confidence and urgency"'))
     || questionOnlyContinuationInput !== 'coverage authority, claims freshness, adviser handoff'
     || questionOnlyContinuationOptions.length !== 3

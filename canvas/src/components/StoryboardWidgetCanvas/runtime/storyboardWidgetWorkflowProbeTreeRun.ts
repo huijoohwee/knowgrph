@@ -33,8 +33,7 @@ import {
 import { invokeProbeTreeMcpBridge } from '@/features/agent-ready/probeTreeMcpClient'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
-import { buildAgenticOsRuntimeInvocationSystemPrompt, buildRuntimeInvocationRoutingSystemPrompt, collectAgenticOsRuntimeInvocations } from '@/features/chat/chatRuntimeInvocationProfile'
-import { resolveChatRuntimeInvocationQuery } from '@/features/chat/chatRuntimeInvocationQuery'
+import { buildAgenticOsRuntimeInvocationSystemPrompt, buildRuntimeInvocationRoutingSystemPrompt } from '@/features/chat/chatRuntimeInvocationProfile'
 import {
   readGraphNodeCanonicalTextProperty,
   readGraphNodeCardTitle,
@@ -44,7 +43,12 @@ import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 import type { StoryboardWidgetWorkflowNodeResolutionContext } from './storyboardWidgetRenderGraph'
-import { isStoryboardWidgetProbeTreeContinuationNode, resolveStoryboardWidgetProbeTreeSelectedRunNodeFromContext } from './storyboardWidgetProbeTreeRunNode'
+import { buildStoryboardWidgetProbeTreeContextText } from './storyboardWidgetProbeTreeContext'
+import {
+  isStoryboardWidgetProbeTreeContinuationNode,
+  reconcileStoryboardWidgetProbeTreeSelectedRunNode,
+  resolveStoryboardWidgetProbeTreeSelectedRunNodeFromContext,
+} from './storyboardWidgetProbeTreeRunNode'
 
 const INVOCATION_TOKEN_PATTERN = /(^|\s)([/#@][A-Za-z0-9_.-]+)/g
 const PROBE_TREE_INVOCATION_TOKENS = new Set<string>(
@@ -210,30 +214,6 @@ const collectInvocationTokens = (value: string): string[] => {
   return out
 }
 
-const buildProbeTreeContextText = (node: GraphNode, prompt: string): string => {
-  const route = resolveChatRuntimeInvocationQuery(prompt).leadingRoute
-  const agenticInvocations = collectAgenticOsRuntimeInvocations(prompt)
-  const properties = readGraphNodeProperties(node)
-  const continuationQuestion = isStoryboardWidgetProbeTreeContinuationNode(node)
-    ? readGraphNodeCanonicalTextProperty(properties, STORYBOARD_SUMMARY_PROPERTY_KEYS)
-    : ''
-  const continuationAnswer = isStoryboardWidgetProbeTreeContinuationNode(node)
-    ? readGraphNodeCanonicalTextProperty(properties, STORYBOARD_OUTPUT_PROPERTY_KEYS)
-    : ''
-  return [
-    'Authored request:',
-    prompt,
-    continuationQuestion ? `Selected continuation question: ${continuationQuestion}` : '',
-    continuationAnswer ? `Selected continuation answer: ${continuationAnswer}` : '',
-    `Selected Widget title: ${readGraphNodeCardTitle(node)}`,
-    `Selected Widget id: ${readGraphIdentity(node.id)}`,
-    route ? `Invocation route: ${route.token} — ${route.label}. Route summary: ${route.summary}` : '',
-    agenticInvocations.length > 0
-      ? `Agentic OS directives: ${agenticInvocations.map(invocation => `${invocation.token} — ${invocation.label}: ${invocation.summary}`).join(' | ')}`
-      : '',
-  ].filter(Boolean).join('\n').slice(0, 12_000)
-}
-
 const buildInputDerivedCallResult = (args: {
   threadRootId: string
   currentNodeId: string
@@ -296,6 +276,7 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
     '- Put each generated probe in question for the card Summary, make every numbered selection option a concise answer to that exact question, and set output exactly to an empty string for the user-owned multi-selection or Other response; never copy question or rationale into output.',
     '- Ground every question and every numbered choice in the selected user input. Do not emit stock evidence, policy, reviewer, approval, or system-of-record choices unless the user actually named those concepts.',
     '- Give every card a different user-named focus. Never reuse a choice label, another card\'s complete selection set, or a subset or superset of another card\'s choices.',
+    '- Each selectionOptions array must contain suggested clarification answers for its question. Never split the selected focus or repeat its words as bare answer fragments.',
     '- For a continuation, the selected child card and its user-authored output own the next topic. Use the thread root only for lineage; never replace the selected child context with a root alias.',
     '- Every card must be a concrete next question relevant to the authored request and the set must reuse at least two substantive request terms.',
     '- Never emit generic process cards named Clarify probe, Generate branches, or Select handoff.',
@@ -363,9 +344,10 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   if (!invocationToken) return null
 
   const currentNodeId = readGraphIdentity(node.id) || readGraphIdentity(args.fallbackNode.id)
-  const graphForInvocation = current.nodes.some(candidate => readGraphIdentity(candidate.id) === currentNodeId)
-    ? current
-    : { ...current, nodes: [...current.nodes, node] }
+  const graphForInvocation = reconcileStoryboardWidgetProbeTreeSelectedRunNode({
+    graphData: current,
+    selectedNode: node,
+  })
   const properties = readGraphNodeProperties(node)
   const threadRootId = resolveStoryboardWidgetProbeTreeThreadRootId(graphForInvocation, node)
   const currentProbeTreeDepth = readProbeTreeDepth(properties)
@@ -384,7 +366,11 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     }
   }
   const nextProbeTreeDepth = currentProbeTreeDepth + 1
-  const contextText = buildProbeTreeContextText(node, prompt)
+  const contextText = buildStoryboardWidgetProbeTreeContextText({
+    graphData: graphForInvocation,
+    node,
+    prompt,
+  })
   const invocationTokens = collectInvocationTokens(prompt)
   const inputDerivedOptions = buildProbeTreeInputDerivedOptions(contextText).slice(0, PROBE_TREE_DEFAULTS.optionCount)
   const localFallbackResult = buildInputDerivedCallResult({
