@@ -341,7 +341,7 @@ export function testProbeTreeToolbarPublicationVersionsOneCanonicalGraph() {
   assert(source.includes('revisionFloor: graphRevision'), 'expected toolbar publication to advance from the active graph revision')
   assert(source.includes('storyboardRunGraphRef.current = committedGraphData'), 'expected the next toolbar run to read the revisioned graph')
   assert(source.includes('setGraphDataPreservingLayout(committedGraphData)'), 'expected the live Canvas to receive the same revisioned graph')
-  assert(source.includes('persistStoryboardCardMediaGraphSource(committedGraphData)'), 'expected source persistence to receive the same revisioned graph')
+  assert(source.includes('persistStoryboardCardMediaGraphSource(committedGraphData, { sourceOwner:'), 'expected source persistence to receive the same revisioned graph with its semantic Markdown owner')
 }
 
 export function testProbeTreePinnedOutputPanelUsesGrowingGraphPositionOverStaleOverlayState() {
