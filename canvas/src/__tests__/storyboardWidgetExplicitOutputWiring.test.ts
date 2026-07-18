@@ -5,6 +5,7 @@ import {
   WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
   WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
+import { PROBE_TREE_OUTPUT_KEY } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
 function createTextOutputHarness(
@@ -119,6 +120,52 @@ export function testGeneratedOutputsStayStandaloneUntilExplicitlyWired() {
     || published.nodes.find(node => node.id === 'empty-panel')?.properties.output
   ) {
     throw new Error(`expected one standalone manual output per selected child, got ${JSON.stringify(published)}`)
+  }
+}
+
+export function testProbeTreeBranchesLedgerConnectsSourceIdempotently() {
+  const source: GraphNode = { id: 'n1', type: 'TextGeneration', label: 'Widget Card', properties: {} }
+  const disconnectedLedger: GraphNode = {
+    id: 'n2',
+    type: 'RichMediaPanel',
+    label: 'Probe-Tree Branches',
+    properties: {
+      workflowOutputAnchorNodeId: 'n1',
+      workflowOutputKey: PROBE_TREE_OUTPUT_KEY,
+      workflowOutputGroupId: 'probe-tree:n1',
+      [WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]: WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
+      probeTreeThreadLedger: true,
+    },
+  }
+  const graph: GraphData = { type: 'Graph', nodes: [source, disconnectedLedger], edges: [] }
+  const harness = createTextOutputHarness(graph)
+
+  for (let index = 0; index < 2; index += 1) harness.publishers.publishTextRunOutputToRichMediaPanel({
+    anchorNode: source,
+    outputText: '# Probe-Tree Branches\n\nConnected ledger.',
+    title: 'Probe-Tree Branches',
+    model: 'test-model',
+    outputKey: PROBE_TREE_OUTPUT_KEY,
+    outputGroupId: 'probe-tree:n1',
+    outputThreadRootId: 'n1',
+    panelLabel: 'Probe-Tree Branches',
+    panelProperties: { probeTreeThreadLedger: true },
+    connectCreatedOutputToAnchor: true,
+  })
+
+  const published = harness.readGraph()
+  const ledgers = published.nodes.filter(node => node.label === 'Probe-Tree Branches')
+  const ledgerEdges = published.edges.filter(edge => edge.properties?.workflowOutputEdge === true)
+  if (
+    published.nodes.length !== 2
+    || ledgers.length !== 1
+    || ledgerEdges.length !== 1
+    || ledgerEdges[0]?.source !== 'n1'
+    || ledgerEdges[0]?.target !== 'n2'
+    || ledgerEdges[0]?.label !== PROBE_TREE_OUTPUT_KEY
+    || ledgers[0]?.properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]
+  ) {
+    throw new Error(`expected the source Widget Card and owned Probe-Tree Branches ledger to share one typed edge, got ${JSON.stringify(published)}`)
   }
 }
 

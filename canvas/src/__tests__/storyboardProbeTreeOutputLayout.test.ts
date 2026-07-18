@@ -31,6 +31,10 @@ import {
   PROBE_TREE_LAYOUT_VERSION_PROPERTY,
   PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY,
 } from '@/lib/storyboardWidget/probeTreeLayoutContract'
+import {
+  WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
+  WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowOutputEdge'
 
 const assert = (condition: unknown, message: string): void => {
   if (!condition) throw new Error(message)
@@ -514,6 +518,30 @@ export function testProbeTreeOutputLayoutCollapsesDuplicateThreadLedgers() {
     outputGroupId,
   })
   assert(resolved === 'panel-root', `expected a later continuation to reuse the thread ledger, got ${String(resolved)}`)
+}
+
+export function testProbeTreeOutputLayoutRepairsDisconnectedCanonicalLedger() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [
+      { id: 'n1', type: 'TextGeneration', label: 'Source', x: 0, y: 0, properties: {} },
+      { id: 'n2', type: 'RichMediaPanel', label: 'Probe-Tree Branches', x: 520, y: 0,
+        properties: {
+          workflowOutputAnchorNodeId: 'n1',
+          workflowOutputKey: PROBE_TREE_OUTPUT_KEY,
+          [WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]: WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
+        },
+      },
+    ],
+    edges: [],
+  }
+  const normalized = normalizeAllStoryboardWidgetProbeTreeOutputLayouts(graphData)
+  const repairedPanel = normalized.nodes.find(node => node.id === 'n2')
+  const outputEdges = normalized.edges.filter(edge => edge.properties?.workflowOutputEdge === true)
+  assert(outputEdges.length === 1, `expected one repaired ledger edge, got ${JSON.stringify(outputEdges)}`)
+  assert(outputEdges[0]?.source === 'n1' && outputEdges[0]?.target === 'n2', `expected source-to-ledger topology, got ${JSON.stringify(outputEdges[0])}`)
+  assert(repairedPanel?.properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY] == null, 'expected passive authority to clear the stale manual-disconnect marker')
+  assert(normalizeAllStoryboardWidgetProbeTreeOutputLayouts(normalized) === normalized, 'expected repaired ledger authority to be idempotent')
 }
 
 export function testProbeTreeOutputLayoutMergesLiveLedgersBeforeNormalization() {

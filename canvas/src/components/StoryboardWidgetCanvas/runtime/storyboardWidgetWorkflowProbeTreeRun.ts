@@ -192,6 +192,7 @@ export function runStoryboardWidgetProbeTreeInvocation(args: {
     outputIndex: 1,
     panelLabel: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
     panelProperties: { probeTreeThreadLedger: true, probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION },
+    connectCreatedOutputToAnchor: true,
   })
   if (!publishedGraphData) throw new Error('Probe-Tree could not publish its Rich Media ledger.')
   if (materialized.materializedNodeIds.length > 0) args.onMaterialized(materialized.materializedNodeIds)
@@ -437,6 +438,7 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     outputIndex: 1,
     panelLabel: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
     panelProperties: { probeTreeThreadLedger: true, probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION },
+    connectCreatedOutputToAnchor: true,
   })
   if (!publishedGraphData) throw new Error('Probe-Tree could not publish its Rich Media ledger.')
   materialized = { ...materialized, graphData: publishedGraphData }
