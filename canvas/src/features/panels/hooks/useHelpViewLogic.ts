@@ -5,6 +5,12 @@ import { emitMainPanelOpen } from '@/features/panels/utils/useMainPanelRect';
 import { HELP_SCROLL_TO_ANCHOR_EVENT } from '@/features/panels/utils/helpPanelEvents';
 import { normalized as normalizeText } from '@/features/panels/utils/json';
 import { useGraphStore } from '@/hooks/useGraphStore';
+import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient';
+import {
+  buildThreeKeyboardShortcutCatalog,
+  formatThreeKeyboardShortcutCopyLine,
+  THREE_KEYBOARD_SHORTCUT_GRAMMAR_SIGILS,
+} from '@/features/three/threeKeyboardShortcutCatalog';
 
 interface UseHelpViewLogicProps {
   searchQuery: string;
@@ -12,7 +18,18 @@ interface UseHelpViewLogicProps {
 
 export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
   // 1. Filter shortcuts
-  const items = HELP_SHORTCUT_ITEMS;
+  const grammar = useAgenticOsRemoteGrammarCatalog({ sigils: THREE_KEYBOARD_SHORTCUT_GRAMMAR_SIGILS });
+  const threeKeyboardShortcuts = React.useMemo(
+    () => buildThreeKeyboardShortcutCatalog(),
+    [grammar.entries, grammar.hydration.status, grammar.sourceRevision],
+  );
+  const items = React.useMemo(
+    () => [
+      ...HELP_SHORTCUT_ITEMS,
+      ...threeKeyboardShortcuts.map(formatThreeKeyboardShortcutCopyLine),
+    ],
+    [threeKeyboardShortcuts],
+  );
   const normalizedQuery = normalizeText(searchQuery).trim();
 
   const filteredShortcuts = React.useMemo(
@@ -151,6 +168,7 @@ export function useHelpViewLogic({ searchQuery }: UseHelpViewLogicProps) {
 
   return {
     filteredShortcuts,
+    threeKeyboardShortcuts,
     applyShortcutsCopy,
     scrollRef,
     launch,

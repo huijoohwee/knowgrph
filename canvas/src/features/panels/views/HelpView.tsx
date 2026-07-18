@@ -33,6 +33,7 @@ const EMPTY_HELP_DEV_TEXT: MainPanelHelpDevText = {
 export default function HelpView({ searchQuery }: HelpViewProps) {
   const {
     filteredShortcuts,
+    threeKeyboardShortcuts,
     applyShortcutsCopy,
     scrollRef,
     launch,
@@ -93,6 +94,7 @@ export default function HelpView({ searchQuery }: HelpViewProps) {
           onToggleSection={handleToggleSection}
           searchQuery={searchQuery}
           shortcuts={filteredShortcuts}
+          threeKeyboardShortcuts={threeKeyboardShortcuts}
           onCopyAllShortcuts={applyShortcutsCopy}
           onLaunchSpotlight={launch}
           onOpenStoryboardWidgetManagerTab={handleOpenStoryboardWidgetManagerTab}
