@@ -18,7 +18,7 @@ import {
   hydrateXrMotionReferenceRuntime,
   readXrMotionReferenceRuntime,
   removeXrMotionReferenceSubject,
-  setXrMotionReferenceCameraMarkEasing,
+  setXrMotionReferenceCameraMarkChoreography,
   setXrMotionReferenceCameraMark,
   setXrMotionReferenceCastMarkChoreography,
   setXrMotionReferenceCastTransition,
@@ -146,7 +146,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   })
   const authored = readXrMotionReferenceRuntime().plan
   setXrMotionReferenceCastMarkChoreography({ actorId: 'cast-a', markId: authored.cast.find(track => track.actorId === 'cast-a')!.marks[0]!.id, easing: 'ease-in', gait: 'walk' })
-  setXrMotionReferenceCameraMarkEasing(authored.camera[0]!.id, 'ease-in-out')
+  setXrMotionReferenceCameraMarkChoreography({ markId: authored.camera[0]!.id, easing: 'ease-in-out' })
   setXrMotionReferencePlayhead(2.5)
   runtime = readXrMotionReferenceRuntime()
   if (runtime.plan.stageId !== 'loading-bay' || runtime.plan.durationSeconds !== 5 || runtime.plan.fps !== 10 || !runtime.dirty) {

@@ -17,7 +17,7 @@ import {
   retimeXrMotionReferenceCastMark,
   selectXrMotionReferenceCameraMark,
   selectXrMotionReferenceCastMark,
-  setXrMotionReferenceCameraMarkEasing,
+  setXrMotionReferenceCameraMarkChoreography,
   setXrMotionReferenceCastMarkChoreography,
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
@@ -165,7 +165,7 @@ export function CameraMotionMarkRetime({
       ) : selectedCameraMark ? (
         <>
           <TimeEditor compact label={`Camera mark ${selectedCameraMarkIndex + 1} time`} value={selectedCameraMark.timeSeconds} max={runtime.plan.durationSeconds} onChange={value => retimeXrMotionReferenceCameraMark(selectedCameraMark.id, value)} />
-          <XrChoreographyMarkControls compact target={{ kind: 'camera', mark: selectedCameraMark }} warning={warnings.find(warning => warning.targetKind === 'camera' && warning.fromMarkId === selectedCameraMark.id)} onChange={update => update.easing && setXrMotionReferenceCameraMarkEasing(update.markId, update.easing)} />
+          <XrChoreographyMarkControls compact target={{ kind: 'camera', mark: selectedCameraMark }} warning={warnings.find(warning => warning.targetKind === 'camera' && warning.fromMarkId === selectedCameraMark.id)} onChange={update => update.easing && setXrMotionReferenceCameraMarkChoreography({ markId: update.markId, easing: update.easing })} />
           <button type="button" className="App-toolbar__btn p-0.5" aria-label={`Remove camera mark ${selectedCameraMarkIndex + 1}`} onClick={() => removeXrMotionReferenceCameraMark(selectedCameraMark.id)}><Trash2 className="size-3" aria-hidden /></button>
         </>
       ) : null}

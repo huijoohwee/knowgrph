@@ -29,7 +29,7 @@ import {
   selectXrMotionReferenceCameraMark,
   selectXrMotionReferenceCastMark,
   setXrMotionReferenceCastAnimation,
-  setXrMotionReferenceCameraMarkEasing,
+  setXrMotionReferenceCameraMarkChoreography,
   setXrMotionReferenceCastMarkChoreography,
   setXrMotionReferencePlayhead,
 } from './xrMotionReferenceRuntime'
@@ -44,10 +44,10 @@ import {
   THREE_OBJECT_KEYBOARD_FINE_STEP_METERS,
   THREE_OBJECT_KEYBOARD_MAX_COMMAND_DISTANCE_METERS,
   THREE_OBJECT_KEYBOARD_STEP_METERS,
-  readThreeObjectKeyboardMovementKeys,
+  readThreeKeyboardMovementKeys,
   resolveThreeObjectKeyboardMotionPosition,
-  type ThreeObjectKeyboardMovementKey,
-} from './threeObjectKeyboardMotion'
+  type ThreeKeyboardMovementKey,
+} from './threeKeyboardChoreography'
 
 const XR_ANIMATION_CONTROL_OPERATIONS = Object.freeze([
   'apply',
@@ -108,7 +108,7 @@ type NormalizedAnimationControl = Readonly<{
   easing?: XrChoreographyEasing
   gait?: XrChoreographyGait
   position?: XrMotionReferenceVector
-  keys: readonly ThreeObjectKeyboardMovementKey[]
+  keys: readonly ThreeKeyboardMovementKey[]
   distanceMeters: number
   fine: boolean
 }>
@@ -148,7 +148,7 @@ export function buildXrAnimationObjectMoveInvocation(input: Readonly<{
   markId?: string
 }>): string {
   const tokens = resolveCanonicalInvocationTokens()
-  const keys = readThreeObjectKeyboardMovementKeys(input.keys)
+  const keys = readThreeKeyboardMovementKeys(input.keys)
   const markId = String(input.markId || '').trim()
   if (!tokens || !keys || (markId && !/^[a-zA-Z0-9:._-]+$/.test(markId))) return ''
   if (input.fine !== undefined && typeof input.fine !== 'boolean') return ''
@@ -220,7 +220,7 @@ function parseInvocation(value: unknown): Partial<NormalizedAnimationControl> | 
   if (Object.keys(pairs).some(key => !allowedPairKeys.includes(key))) return null
   if (operation === 'apply' && !pairs.preset) return null
   const movementKeys = operation === 'move-object'
-    ? readThreeObjectKeyboardMovementKeys(String(pairs.keys || '').split('+'))
+    ? readThreeKeyboardMovementKeys(String(pairs.keys || '').split('+'))
     : Object.freeze([])
   if (operation === 'move-object' && !movementKeys) return null
   const movementDistance = pairs.distance === undefined ? undefined : Number(pairs.distance)
@@ -262,7 +262,7 @@ function normalizeControl(input: XrAnimationControlInput): NormalizedAnimationCo
   if (input.markKind === 'camera' && (input.gait !== undefined || input.position !== undefined)) return null
   if (input.fine !== undefined && typeof input.fine !== 'boolean') return null
   if (input.keys !== undefined && (!Array.isArray(input.keys) || input.keys.some(key => typeof key !== 'string'))) return null
-  const movementKeys = parsed?.keys || (input.keys ? readThreeObjectKeyboardMovementKeys(input.keys) : null)
+  const movementKeys = parsed?.keys || (input.keys ? readThreeKeyboardMovementKeys(input.keys) : null)
   const movementDistanceInput = parsed ? parsed.distanceMeters : input.distanceMeters
   const fine = parsed?.fine ?? input.fine ?? false
   const hasMovementFields = input.keys !== undefined || input.distanceMeters !== undefined || input.fine !== undefined
@@ -446,7 +446,7 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
     const previousRuntime = readXrMotionReferenceRuntime()
     if (control.markKind === 'camera') {
       if (!control.easing || !previousRuntime.plan.camera.some(mark => mark.id === control.markId)) return { ok: false, message: 'Select a valid camera mark and easing.' }
-      setXrMotionReferenceCameraMarkEasing(control.markId, control.easing)
+      setXrMotionReferenceCameraMarkChoreography({ markId: control.markId, easing: control.easing })
       selectXrMotionReferenceCameraMark(control.markId)
     } else {
       const track = previousRuntime.plan.cast.find(candidate => candidate.actorId === targetId)
