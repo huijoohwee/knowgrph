@@ -15,7 +15,7 @@ import {
   setXrMotionReferenceCastMarkChoreography,
   subscribeXrMotionReferenceRuntime,
 } from '@/features/three/xrMotionReferenceRuntime'
-import { selectBoundXrActor } from '@/features/three/xrSelectedActorBinding'
+import { selectBoundXrActor, selectBoundXrShotTarget } from '@/features/three/xrSelectedActorBinding'
 import { THREE_RENDER_ORDER } from '@/features/three/renderOrder'
 import type { GraphData } from '@/lib/graph/types'
 import { XrSceneLibrarySubject } from '@/features/three/XrSceneLibrarySubject'
@@ -471,8 +471,8 @@ export function XrMotionReferenceStage({
               subject={subject}
               position={xrMotionReferenceWorldPosition(subjectPosition, scale, groundY)}
               stageScale={scale}
-              selected={runtime.selectedActorId === subject.id}
-              onSelect={() => selectBoundXrActor(subject.id)}
+              selected={runtime.selectedShotTargetId === subject.id}
+              onSelect={() => selectBoundXrShotTarget(subject.id)}
             />
           )
           return actorControlMark ? (

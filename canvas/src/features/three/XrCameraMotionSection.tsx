@@ -26,7 +26,11 @@ import { CameraMotionMarkRetime } from './CameraMotionMarkRetime'
 import { controlLocalAnimation } from './xrAnimationMcpRuntime'
 import { resolveXrPanelSourceProfile } from './xrPanelModel'
 import { resolveXrChoreographySpeedWarnings } from './xrChoreographyDiagnostics'
-import { readBoundXrSelectedActorId, selectBoundXrActor } from './xrSelectedActorBinding'
+import { selectBoundXrShotTarget } from './xrSelectedActorBinding'
+import {
+  buildXrShotTargets,
+  XR_MOTION_REFERENCE_SCENE_SHOT_TARGET_ID,
+} from './xrShotTargets'
 import { downloadBlob } from '@/lib/graph/save'
 import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -78,7 +82,9 @@ export function XrCameraMotionSection() {
     [runtime.plan],
   )
   const speedWarnings = React.useMemo(() => resolveXrChoreographySpeedWarnings(runtime.plan), [runtime.plan])
-  const selectedActorId = readBoundXrSelectedActorId()
+  const shotTargets = React.useMemo(() => buildXrShotTargets(runtime.plan), [runtime.plan])
+  const objectTargets = shotTargets.filter(target => target.kind === 'object')
+  const selectedShotTarget = shotTargets.find(target => target.id === runtime.selectedShotTargetId) || shotTargets[0]!
 
   React.useEffect(() => {
     if (!xrActive) return
@@ -145,6 +151,13 @@ export function XrCameraMotionSection() {
       data-kg-xr-timeline-source-format={sourceProfile.format}
       data-kg-xr-timeline-scene="player"
       data-kg-xr-timeline-runtime={xrActive ? 'active' : 'available'}
+      data-kg-xr-timeline-shot-target={selectedShotTarget.id}
+      onClickCapture={event => {
+        const target = event.target instanceof HTMLElement ? event.target : null
+        if (target?.closest('[data-kg-gantt-timeline-track-row-key*="xr_stage_scene"]')) {
+          selectBoundXrShotTarget(XR_MOTION_REFERENCE_SCENE_SHOT_TARGET_ID)
+        }
+      }}
     >
       <section aria-label="XR animation timeline" data-kg-xr-timeline-transport="reused-gantt-player">
         <GanttTimelineTransportPanel
@@ -157,28 +170,64 @@ export function XrCameraMotionSection() {
           runtimeDocumentKey={xrTransportDocumentKey}
           runtimeDurationSeconds={runtime.plan.durationSeconds}
           runtimeFrameRate={runtime.plan.fps}
+          onSelectedRowKeyChange={rowKey => {
+            if (rowKey?.includes('xr_stage_scene')) {
+              selectBoundXrShotTarget(XR_MOTION_REFERENCE_SCENE_SHOT_TARGET_ID)
+            }
+          }}
           timelineInsertedLanes={[
-            ...runtime.plan.cast.map(track => ({
-              id: `xr-cast:${track.actorId}`,
-              insertAfterLaneId: 'scene',
-              label: (
-                <span className="xr-camera-motion-retime-lane-label" data-kg-xr-choreography-cast-lane-label={track.actorId}>
-                  <i aria-hidden style={{ backgroundColor: track.color }} />
-                  <b title={track.label}>{track.label}</b>
-                  <small>{track.marks.length}</small>
-                </span>
-              ),
-              content: (
-                <TimelineTransportTimeAxisClip
-                  laneStyle="video"
-                  className="xr-camera-motion-retime-time-axis-rail"
-                  aria-label={`${track.label} choreography time rail`}
-                  data-kg-xr-choreography-shared-axis-rail="cast"
-                >
-                  <CameraMotionMarkRetime layout="lane" laneTarget={{ kind: 'cast', actorId: track.actorId }} />
-                </TimelineTransportTimeAxisClip>
-              ),
-            })),
+            ...objectTargets.map(target => {
+              const track = target.castActorId
+                ? runtime.plan.cast.find(candidate => candidate.actorId === target.castActorId) || null
+                : null
+              const selected = selectedShotTarget.id === target.id
+              return {
+                id: `xr-object:${target.id}`,
+                insertAfterLaneId: 'scene',
+                label: (
+                  <button
+                    type="button"
+                    className="xr-camera-motion-retime-lane-label xr-shot-target-lane-label"
+                    aria-label={`Link SHOOT to 3D Object ${target.label}`}
+                    aria-pressed={selected}
+                    onClick={() => selectBoundXrShotTarget(target.id)}
+                    data-kg-xr-shot-target-lane-label={target.id}
+                    data-kg-xr-choreography-cast-lane-label={track?.actorId}
+                  >
+                    <i aria-hidden style={{ backgroundColor: target.color }} />
+                    <b title={target.label}>{target.label}</b>
+                    <small>{track?.marks.length || 'shot'}</small>
+                  </button>
+                ),
+                content: (
+                  <TimelineTransportTimeAxisClip
+                    laneStyle="video"
+                    className="xr-camera-motion-retime-time-axis-rail"
+                    aria-label={`${target.label} linked SHOOT time rail`}
+                    data-kg-xr-choreography-shared-axis-rail={track ? 'cast' : 'object'}
+                  >
+                    <section
+                      className="xr-shot-target-timeline-lane"
+                      data-kg-xr-shot-target-lane={target.id}
+                      data-kg-xr-shot-target-selected={selected ? '1' : undefined}
+                    >
+                      <button
+                        type="button"
+                        className="xr-shot-target-timeline-bar"
+                        style={{ '--kg-xr-shot-target-color': target.color } as React.CSSProperties}
+                        aria-label={`Link SHOOT to ${target.label} for the full scene`}
+                        aria-pressed={selected}
+                        onClick={() => selectBoundXrShotTarget(target.id)}
+                        data-kg-xr-shot-target-bar={target.id}
+                      >
+                        <span>{target.label}</span>
+                      </button>
+                      {track ? <CameraMotionMarkRetime layout="lane" laneTarget={{ kind: 'cast', actorId: track.actorId }} /> : null}
+                    </section>
+                  </TimelineTransportTimeAxisClip>
+                ),
+              }
+            }),
             {
               id: 'xr-camera',
               insertAfterLaneId: 'scene',
@@ -238,29 +287,28 @@ export function XrCameraMotionSection() {
               data-kg-xr-timeline-consolidated-lane="stage-output-ruler"
               data-kg-xr-timeline-player-controls="1"
               data-kg-xr-timeline-cast-row-count={runtime.plan.cast.length}
+              data-kg-xr-timeline-shot-target-count={shotTargets.length}
             >
               <header className="timeline-transport-supplemental-lane-label">XR control</header>
               <section className="timeline-transport-supplemental-lane-content">
                 <TimelineTransportInlineClip
                   laneStyle="video"
-                  label="Cast, stage & output"
-                  aria-label="XR cast, stage, and output control bar"
+                  label="Shot target, stage & output"
+                  aria-label="XR shot target, stage, and output control bar"
                   data-kg-xr-timeline-control-bar="stage-output"
                 >
-                  <label className="flex shrink-0 items-center gap-1 text-[10px]" data-kg-xr-timeline-cast-target="1">
-                    <span className={UI_THEME_TOKENS.text.tertiary}>Cast target</span>
+                  <label className="flex shrink-0 items-center gap-1 text-[10px]" data-kg-xr-timeline-shot-target="1">
+                    <span className={UI_THEME_TOKENS.text.tertiary}>Shot target</span>
                     <PanelSelect
                       className="w-32"
-                      value={selectedActorId}
-                      disabled={!runtime.plan.cast.length}
-                      onChange={event => selectBoundXrActor(event.target.value)}
-                      aria-label="XR timeline cast target"
-                      data-kg-animation-target="selected-actor"
+                      value={selectedShotTarget.id}
+                      onChange={event => selectBoundXrShotTarget(event.target.value)}
+                      aria-label="XR timeline scene or 3D object shot target"
+                      data-kg-camera-target="scene-or-object"
                     >
-                      <option value="">Select cast…</option>
-                      {runtime.plan.cast.map(track => (
-                        <option key={track.actorId} value={track.actorId}>
-                          {track.label}{track.animation ? ` · ${track.animation.presetId}` : ''}
+                      {shotTargets.map(target => (
+                        <option key={target.id} value={target.id}>
+                          {target.kind === 'scene' ? 'SCENE' : '3D OBJECT'} · {target.label}
                         </option>
                       ))}
                     </PanelSelect>
@@ -303,7 +351,7 @@ export function XrCameraMotionSection() {
                     Export package
                   </button>
                   <p className={cn('ml-1 whitespace-nowrap text-[9px]', UI_THEME_TOKENS.text.tertiary)}>
-                    {documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks · {speedWarnings.length ? `${speedWarnings.length} speed warnings` : 'speed sane'}
+                    {documentLoaded ? `${objectTargets.length} objects · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks · {speedWarnings.length ? `${speedWarnings.length} speed warnings` : 'speed sane'}
                   </p>
                 </TimelineTransportInlineClip>
               </section>

@@ -6,6 +6,7 @@ import type {
   XrMotionReferenceCameraRig,
   XrMotionReferenceCastTrack,
   XrMotionReferenceMark,
+  XrMotionReferenceSubject,
   XrMotionReferenceVector,
 } from './xrMotionReferenceModel'
 import type { XrCameraMoveId } from './xrCameraMoveCatalog'
@@ -110,6 +111,7 @@ export function sampleXrMotionReferenceCameraPose(
   marks: readonly XrMotionReferenceCameraMark[],
   timeSeconds: number,
   cast: readonly XrMotionReferenceCastTrack[] = [],
+  subjects: readonly XrMotionReferenceSubject[] = [],
 ): CameraFramingPose | null {
   if (marks.length === 0) return null
   if (timeSeconds <= marks[0]!.timeSeconds) return marks[0]!.pose
@@ -126,10 +128,16 @@ export function sampleXrMotionReferenceCameraPose(
   const anchorTrack = left.anchorId === right.anchorId
     ? cast.find(track => track.actorId === left.anchorId)
     : undefined
-  let pose = anchorTrack
+  const anchorSubject = left.anchorId === right.anchorId
+    ? subjects.find(subject => subject.id === left.anchorId)
+    : undefined
+  const anchorTarget = anchorTrack
+    ? sampleXrMotionReferenceMarks(anchorTrack.marks, timeSeconds)
+    : anchorSubject?.position
+  let pose = anchorTarget
     ? resolveCameraFramingPose({
         settings: sampleCameraSettingsBetween(left, right, progress),
-        target: sampleXrMotionReferenceMarks(anchorTrack.marks, timeSeconds),
+        target: anchorTarget,
         baseDistance: XR_MOTION_REFERENCE_CAMERA_BASELINE_METERS,
       })
     : Object.freeze({
