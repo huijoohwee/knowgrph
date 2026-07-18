@@ -19,6 +19,7 @@ import { isPlainObject } from '@/lib/graph/value'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { normalizeGeneratedRichMediaTableProperties } from '@/features/rich-media/richMediaTablePersistence'
+import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
 
 import {
   listStoryboardWidgetWorkflowNodesAcrossGraphs,
@@ -149,7 +150,7 @@ export function resolveStoryboardWidgetWorkflowRichMediaPanelTargetNodeId(args: 
   const outputGroupId = cleanString(args.outputGroupId)
   if (outputGroupId && outputKey === PROBE_TREE_OUTPUT_KEY) {
     const groupedPanel = panels.find(node => {
-      const properties = (node.properties || {}) as Record<string, unknown>
+      const properties = readGraphNodeProperties(node)
       return cleanString(properties.workflowOutputGroupId) === outputGroupId
         && cleanString(properties.workflowOutputKey) === outputKey
     })
@@ -157,14 +158,14 @@ export function resolveStoryboardWidgetWorkflowRichMediaPanelTargetNodeId(args: 
   }
   if (anchorNodeId && outputKey) {
     const exactPanel = panels.find(n => {
-      const p = (n.properties || {}) as Record<string, unknown>
+      const p = readGraphNodeProperties(n)
       return cleanString(p.workflowOutputAnchorNodeId) === anchorNodeId && cleanString(p.workflowOutputKey) === outputKey
     })
     if (exactPanel) return cleanString(exactPanel.id) || null
     return null
   }
   const activePanel = panels.find(n => {
-    const p = (n.properties || {}) as Record<string, unknown>
+    const p = readGraphNodeProperties(n)
     return (typeof p.outputSrcDoc === 'string' && p.outputSrcDoc.trim()) || (typeof p.output === 'string' && p.output.trim())
   })
   return cleanString((activePanel || panels[0])?.id) || null
