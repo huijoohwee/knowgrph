@@ -18,7 +18,6 @@ import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 import {
-  mergeStoryboardWidgetExplicitRunTargetTopology,
   resolveStoryboardWidgetWorkflowDownstreamRunTargetIds,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowDownstreamRunTargets'
 import {
@@ -36,11 +35,8 @@ import {
 import type { StoryboardWidgetWorkflowNodeResolutionContext } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
 import { createStoryboardWidgetWorkflowPublicationTransaction } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowPublicationTransaction'
 import { areStoryboardWidgetWorkflowRecordValuesEqual } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowWriteback'
-import {
-  mergeStoryboardWidgetProbeTreeOutputPanels,
-  normalizeStoryboardWidgetProbeTreeOutputLayout,
-  PROBE_TREE_OUTPUT_KEY,
-} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
+import { PROBE_TREE_OUTPUT_KEY } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
+import { buildStoryboardWidgetTextPublicationGraph } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetTextPublicationGraph'
 
 const HTML_VIDEO_PREVIEW_STABILITY_KEYS = [
   'output',
@@ -294,40 +290,14 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
       const outputKey = panelArgs.outputKey?.trim() || 'output'
       const liveDraftGraphData = args.readLiveDraftGraphData()
       const baseGraphData = panelArgs.baseGraphData || liveDraftGraphData
-      const graphWithExplicitRunTargets = baseGraphData
-        ? [
-            args.context.draftGraph,
-            args.context.baseGraph,
-            args.context.storeGraph,
-            args.context.renderGraph,
-            liveDraftGraphData,
-          ].reduce<GraphData>((graphData, sourceGraphData) => mergeStoryboardWidgetExplicitRunTargetTopology({
-            graphData,
-            liveGraphData: sourceGraphData,
-            sourceNodeId: readWorkflowString(panelArgs.anchorNode.id),
-          }), baseGraphData)
-        : null
-      const graphWithProbeTreePanels = graphWithExplicitRunTargets
-        ? [
-            args.context.draftGraph,
-            args.context.baseGraph,
-            args.context.storeGraph,
-            args.context.renderGraph,
-            liveDraftGraphData,
-          ].reduce<GraphData>((graphData, sourceGraphData) => (
-            outputKey === PROBE_TREE_OUTPUT_KEY
-              ? mergeStoryboardWidgetProbeTreeOutputPanels({ graphData, liveGraphData: sourceGraphData })
-              : graphData
-          ), graphWithExplicitRunTargets)
-        : null
-      const publicationGraphData = graphWithProbeTreePanels
-        && outputKey === PROBE_TREE_OUTPUT_KEY
-        && panelArgs.outputThreadRootId?.trim()
-        ? normalizeStoryboardWidgetProbeTreeOutputLayout({
-            graphData: graphWithProbeTreePanels,
-            threadRootId: panelArgs.outputThreadRootId.trim(),
-          })
-        : graphWithProbeTreePanels
+      const publicationGraphData = buildStoryboardWidgetTextPublicationGraph({
+        context: args.context,
+        baseGraphData,
+        liveDraftGraphData,
+        anchorNodeId: readWorkflowString(panelArgs.anchorNode.id),
+        outputKey,
+        outputThreadRootId: panelArgs.outputThreadRootId,
+      })
       const transaction = createStoryboardWidgetWorkflowPublicationTransaction({
         readLiveDraftGraphData: () => publicationGraphData,
         commitDraftGraphDataUpdate: args.commitDraftGraphDataUpdate,
