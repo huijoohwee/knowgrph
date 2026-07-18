@@ -7,6 +7,8 @@ import { createRoot } from 'react-dom/client'
 import { defaultSchema } from '@/lib/graph/schema'
 import { WidgetEditorPortHandles, orderFlowPortHandlesByCenterPriority, selectCenteredFlowPortHandle } from '@/components/StoryboardWidget/WidgetEditorPortHandles'
 import { PORT_HANDLE_MIN_VISUAL_SIZE_PX, readPortHandleUiMetrics } from '@/components/StoryboardWidget/portHandleUi'
+import { buildRichMediaPanelRegistryDraft } from '@/features/storyboard-widget-manager/richMediaPanelRegistryDraft'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
 
 export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
@@ -106,6 +108,65 @@ export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
   }
 
   overlayRoot.unmount()
+
+  const richMediaHost = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(richMediaHost)
+  const richMediaRoot = createRoot(richMediaHost)
+  const richMediaRegistryEntry = {
+    ...buildRichMediaPanelRegistryDraft(),
+    id: 'rich-media-panel',
+    updatedAt: '2026-07-19T00:00:00.000Z',
+  }
+  const renderRichMediaHandles = (richMediaActiveTab: 'text' | 'image') => {
+    richMediaRoot.render(
+      React.createElement(
+        'div',
+        { style: { position: 'relative', width: 360, height: 320 } },
+        React.createElement(WidgetEditorPortHandles, {
+          active: true,
+          node: {
+            id: 'rich-media-source',
+            type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+            properties: { richMediaActiveTab },
+          },
+          schema,
+          edges: [],
+          registryEntries: [richMediaRegistryEntry],
+          forceEnabled: true,
+          strictHandleSet: true,
+          toolMode: 'select',
+          pendingEdgeSourceId: null,
+        }),
+      ),
+    )
+  }
+
+  renderRichMediaHandles('text')
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const textInput = richMediaHost.querySelector('button[data-kg-port-dir="in"]') as HTMLButtonElement | null
+  const textOutput = richMediaHost.querySelector('button[data-kg-port-dir="out"]') as HTMLButtonElement | null
+  if (!textInput || !textOutput) throw new Error('expected text Rich Media to render one input and one output rail')
+  if (textInput.dataset.kgPortKey !== 'output' || textOutput.dataset.kgPortKey !== 'output') {
+    throw new Error(`expected text Rich Media rails to expose output, got ${textInput.dataset.kgPortKey}/${textOutput.dataset.kgPortKey}`)
+  }
+  if (textInput.style.top !== '50%' || textOutput.style.top !== '50%') {
+    throw new Error(`expected text Rich Media rails at vertical middle, got ${textInput.style.top}/${textOutput.style.top}`)
+  }
+  if (!textInput.disabled || textOutput.disabled) {
+    throw new Error('expected text Rich Media input disabled and output enabled before edge drag')
+  }
+
+  renderRichMediaHandles('image')
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const imageInput = richMediaHost.querySelector('button[data-kg-port-dir="in"]') as HTMLButtonElement | null
+  const imageOutput = richMediaHost.querySelector('button[data-kg-port-dir="out"]') as HTMLButtonElement | null
+  if (imageInput?.dataset.kgPortKey !== 'imageUrl' || imageOutput?.dataset.kgPortKey !== 'imageUrl') {
+    throw new Error(`expected image Rich Media rails to expose imageUrl, got ${imageInput?.dataset.kgPortKey}/${imageOutput?.dataset.kgPortKey}`)
+  }
+
+  richMediaRoot.unmount()
 }
 
 export const testFlowWidgetOutputPortHandleDomOrderPrefersCenterLane = () => {
