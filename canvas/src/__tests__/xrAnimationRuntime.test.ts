@@ -43,8 +43,14 @@ import {
   setXrMotionReferenceStage,
 } from '@/features/three/xrMotionReferenceRuntime'
 import {
+  XR_OBJECT_KEYBOARD_FINE_SPEED_METERS_PER_SECOND,
   XR_OBJECT_KEYBOARD_FINE_STEP_METERS,
+  XR_OBJECT_KEYBOARD_MAX_FRAME_DELTA_MS,
+  XR_OBJECT_KEYBOARD_SPEED_METERS_PER_SECOND,
   XR_OBJECT_KEYBOARD_STEP_METERS,
+  resolveXrObjectKeyboardMotionDirection,
+  resolveXrObjectKeyboardMotionFrameDistance,
+  resolveXrObjectKeyboardMotionFrameTarget,
   resolveXrObjectKeyboardMotionTarget,
 } from '@/features/three/XrObjectKeyboardMotionRuntime'
 import { hydrateCanonicalXrMotionReferenceRuntime } from '@/features/three/XrMotionReferenceRuntimeBridge'
@@ -206,10 +212,26 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
       && target.nextPosition[2] === keyboardMark.position[2] + deltaZ
   })
   const keyboardFineRight = resolveXrObjectKeyboardMotionTarget(keyboardRuntime, { key: 'ArrowRight', shiftKey: true })
+  const diagonalDirection = resolveXrObjectKeyboardMotionDirection(['w', 'd'])
+  const diagonalFrame = resolveXrObjectKeyboardMotionFrameTarget(keyboardRuntime, ['w', 'd'], 1)
+  const boundedRightFrame = resolveXrObjectKeyboardMotionFrameTarget(keyboardRuntime, ['d'], 1000)
+  const keyboardStage = resolveXrMotionReferenceStage(keyboardRuntime.plan.stageId)
+  const expectedDiagonalComponent = Math.SQRT1_2
+  const closeTo = (left: number | undefined, right: number) => typeof left === 'number' && Math.abs(left - right) < 0.000001
   if (!keyboardDirectionsMatch
     || keyboardFineRight?.nextPosition[0] !== keyboardMark.position[0] + XR_OBJECT_KEYBOARD_FINE_STEP_METERS
-    || resolveXrObjectKeyboardMotionTarget(keyboardRuntime, { key: 'ArrowLeft', ctrlKey: true }) !== null) {
-    throw new Error('expected WASD and arrow keys to resolve standard and fine selected-mark choreography steps without shortcut modifiers')
+    || resolveXrObjectKeyboardMotionTarget(keyboardRuntime, { key: 'ArrowLeft', ctrlKey: true }) !== null
+    || !closeTo(diagonalDirection?.[0], expectedDiagonalComponent)
+    || !closeTo(diagonalDirection?.[1], -expectedDiagonalComponent)
+    || !closeTo(diagonalFrame?.nextPosition[0], keyboardMark.position[0] + expectedDiagonalComponent)
+    || !closeTo(diagonalFrame?.nextPosition[2], keyboardMark.position[2] - expectedDiagonalComponent)
+    || boundedRightFrame?.nextPosition[0] !== keyboardStage.sizeMeters[0] / 2
+    || boundedRightFrame?.nextPosition[1] !== keyboardMark.position[1]
+    || resolveXrObjectKeyboardMotionDirection(['a', 'd']) !== null
+    || resolveXrObjectKeyboardMotionDirection(['w', 'ArrowUp'])?.[1] !== -1
+    || resolveXrObjectKeyboardMotionFrameDistance(1000, false) !== XR_OBJECT_KEYBOARD_SPEED_METERS_PER_SECOND * XR_OBJECT_KEYBOARD_MAX_FRAME_DELTA_MS / 1000
+    || resolveXrObjectKeyboardMotionFrameDistance(1000, true) !== XR_OBJECT_KEYBOARD_FINE_SPEED_METERS_PER_SECOND * XR_OBJECT_KEYBOARD_MAX_FRAME_DELTA_MS / 1000) {
+    throw new Error('expected keyboard taps and frame-timed holds to provide bounded, normalized selected-mark choreography without shortcut modifiers')
   }
 
   addXrMotionReferenceSubject({ assetId: 'vehicle-airplane', label: 'Picture plane' })
@@ -350,7 +372,7 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   for (const marker of ['<XrObjectKeyboardMotionRuntime />', 'WASD or arrow keys', 'Shift for 0.05 m']) {
     if (!`${stageSource}\n${inspectorSource}`.includes(marker)) throw new Error(`expected XR object choreography to expose keyboard motion through ${marker}`)
   }
-  for (const marker of ['resolveXrObjectKeyboardMotionTarget', 'claimThreeObjectKeyboardInputOwnership', '[data-kg-xr-lane-cast-mark][aria-pressed="true"]', "window.addEventListener('keydown', handleKeyDown, { capture: true })", 'event.stopImmediatePropagation()', 'setXrMotionReferenceCastMarkChoreography', 'releaseThreeObjectKeyboardInputOwnership']) {
+  for (const marker of ['resolveXrObjectKeyboardMotionTarget', 'resolveXrObjectKeyboardMotionDirection', 'resolveXrObjectKeyboardMotionFrameDistance', 'window.requestAnimationFrame(runAnimationFrame)', 'XR_OBJECT_KEYBOARD_HOLD_DELAY_MS', 'activeKeysRef.current.has(key)', 'claimThreeObjectKeyboardInputOwnership', '[data-kg-xr-lane-cast-mark][aria-pressed="true"]', "window.addEventListener('keydown', handleKeyDown, { capture: true })", 'event.stopImmediatePropagation()', 'setXrMotionReferenceCastMarkChoreography', 'releaseThreeObjectKeyboardInputOwnership']) {
     if (!keyboardMotionSource.includes(marker)) throw new Error(`expected XR keyboard motion to isolate object choreography through ${marker}`)
   }
   const implementation = `${panelSource}\n${stageSource}\n${readSource('features', 'three', 'xrAnimationCatalog.ts')}\n${readSource('features', 'three', 'xrAnimationMcpRuntime.ts')}`.toLowerCase()
