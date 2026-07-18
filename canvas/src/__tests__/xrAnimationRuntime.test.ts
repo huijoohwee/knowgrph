@@ -35,12 +35,18 @@ import {
   readXrMotionReferenceRuntime,
   retimeXrMotionReferenceCastMark,
   selectXrMotionReferenceActor,
+  selectXrMotionReferenceCastMark,
   setXrMotionReferenceCastAnimation,
   setXrMotionReferenceCastMarkChoreography,
   setXrMotionReferenceCastMark,
   setXrMotionReferenceDuration,
   setXrMotionReferenceStage,
 } from '@/features/three/xrMotionReferenceRuntime'
+import {
+  XR_OBJECT_KEYBOARD_FINE_STEP_METERS,
+  XR_OBJECT_KEYBOARD_STEP_METERS,
+  resolveXrObjectKeyboardMotionTarget,
+} from '@/features/three/XrObjectKeyboardMotionRuntime'
 import { hydrateCanonicalXrMotionReferenceRuntime } from '@/features/three/XrMotionReferenceRuntimeBridge'
 import { selectBoundXrActor } from '@/features/three/xrSelectedActorBinding'
 import { buildXrMotionReferenceTimelineCode } from '@/features/three/xrMotionReferenceTimeline'
@@ -180,6 +186,31 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   if (readXrMotionReferenceRuntime().plan.cast[0]?.animation !== null) {
     throw new Error('expected native cast animation to clear without deleting cast marks')
   }
+  const keyboardMark = readXrMotionReferenceRuntime().plan.cast[0]!.marks[0]!
+  selectXrMotionReferenceCastMark('actor-a', keyboardMark.id)
+  const keyboardRuntime = readXrMotionReferenceRuntime()
+  const keyboardDirections = [
+    ['w', 0, -XR_OBJECT_KEYBOARD_STEP_METERS],
+    ['ArrowUp', 0, -XR_OBJECT_KEYBOARD_STEP_METERS],
+    ['s', 0, XR_OBJECT_KEYBOARD_STEP_METERS],
+    ['ArrowDown', 0, XR_OBJECT_KEYBOARD_STEP_METERS],
+    ['a', -XR_OBJECT_KEYBOARD_STEP_METERS, 0],
+    ['ArrowLeft', -XR_OBJECT_KEYBOARD_STEP_METERS, 0],
+    ['d', XR_OBJECT_KEYBOARD_STEP_METERS, 0],
+    ['ArrowRight', XR_OBJECT_KEYBOARD_STEP_METERS, 0],
+  ] as const
+  const keyboardDirectionsMatch = keyboardDirections.every(([key, deltaX, deltaZ]) => {
+    const target = resolveXrObjectKeyboardMotionTarget(keyboardRuntime, { key })
+    return target?.changed === true
+      && target.nextPosition[0] === keyboardMark.position[0] + deltaX
+      && target.nextPosition[2] === keyboardMark.position[2] + deltaZ
+  })
+  const keyboardFineRight = resolveXrObjectKeyboardMotionTarget(keyboardRuntime, { key: 'ArrowRight', shiftKey: true })
+  if (!keyboardDirectionsMatch
+    || keyboardFineRight?.nextPosition[0] !== keyboardMark.position[0] + XR_OBJECT_KEYBOARD_FINE_STEP_METERS
+    || resolveXrObjectKeyboardMotionTarget(keyboardRuntime, { key: 'ArrowLeft', ctrlKey: true }) !== null) {
+    throw new Error('expected WASD and arrow keys to resolve standard and fine selected-mark choreography steps without shortcut modifiers')
+  }
 
   addXrMotionReferenceSubject({ assetId: 'vehicle-airplane', label: 'Picture plane' })
   const airplane = readXrMotionReferenceRuntime().plan.subjects.find(subject => subject.assetId === 'vehicle-airplane')
@@ -257,6 +288,7 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   const bridgeSource = readSource('features', 'three', 'XrMotionReferenceRuntimeBridge.tsx')
   const appSource = readSource('App.tsx')
   const stageSource = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
+  const keyboardMotionSource = readSource('features', 'three', 'XrObjectKeyboardMotionRuntime.tsx')
   const priorHydrationOwners = [
     readSource('features', 'three', 'XrCameraMotionSection.tsx'),
     readSource('features', 'command-menu', 'XrMediaLibraryPanel.tsx'),
@@ -314,6 +346,12 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   }
   if (stageSource.includes('kg_xr_motion_default_camera') || !stageSource.includes('<GraphCastPropCue')) {
     throw new Error('expected the XR stage to remove its fake Camera and render native cast prop cues')
+  }
+  for (const marker of ['<XrObjectKeyboardMotionRuntime />', 'WASD or arrow keys', 'Shift for 0.05 m']) {
+    if (!`${stageSource}\n${inspectorSource}`.includes(marker)) throw new Error(`expected XR object choreography to expose keyboard motion through ${marker}`)
+  }
+  for (const marker of ['resolveXrObjectKeyboardMotionTarget', 'claimThreeObjectKeyboardInputOwnership', '[data-kg-xr-lane-cast-mark][aria-pressed="true"]', "window.addEventListener('keydown', handleKeyDown, { capture: true })", 'event.stopImmediatePropagation()', 'setXrMotionReferenceCastMarkChoreography', 'releaseThreeObjectKeyboardInputOwnership']) {
+    if (!keyboardMotionSource.includes(marker)) throw new Error(`expected XR keyboard motion to isolate object choreography through ${marker}`)
   }
   const implementation = `${panelSource}\n${stageSource}\n${readSource('features', 'three', 'xrAnimationCatalog.ts')}\n${readSource('features', 'three', 'xrAnimationMcpRuntime.ts')}`.toLowerCase()
   for (const forbidden of ['wassermanproductions', 'blockout', 'electron-vite', 'ffmpeg']) {

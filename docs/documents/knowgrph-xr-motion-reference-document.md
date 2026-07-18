@@ -18,7 +18,7 @@ Toolbar → Surface Mode → XR Mode opens one graph-native previs workflow in t
 2. Place people, animals, vehicles, furniture, and props from the native library; assign editable subject labels.
 3. Open first-class FloatingPanel → **Animation** to apply native character motions or compatible action paths to the selected cast identity.
 4. Treat bounded graph nodes and mobile library subjects as cast identities synchronized through the graph/XR selected-actor binding.
-5. Place timed cast marks in right-handed, Y-up meter coordinates.
+5. Place timed cast marks in right-handed, Y-up meter coordinates; select a cast mark and nudge it on the stage plane with WASD or arrow keys, using Shift for a 0.05 m fine step.
 6. Bind FloatingPanel Camera → SHOOT to the Scene or any 3D Object, then capture timed camera marks or apply an original target-bound Orbit, Crane, Drone Follow, or Vertigo move.
 7. Preview any deterministic playhead instant in the ThreeGraph XR stage.
 8. Save the normalized plan to `graphData.metadata.kgXrMotionReference`.
@@ -50,6 +50,7 @@ Reference evidence remains documentation-only. Runtime modules and dependency ma
 | Shot targets | `xrShotTargets.ts`, `xrSelectedActorBinding.ts`, and `XrShootCameraSection.tsx` | One runtime-only selection resolves the active Scene or 3D Object without changing camera framing during object selection or drag. SHOOT actions publish framing and camera marks only when explicitly invoked. |
 | Timeline projection | `TimelineBottomPanelView.tsx`, `XrCameraMotionSection.tsx`, `xrMotionReferenceTimeline.ts`, and `GanttTimelineTransportPanel.tsx` | XR reuses the canonical Timeline player and shared playhead. The Scene bar, every 3D Object lane label/full-duration bar, and linked Camera marks select the same SHOOT target; cast marks retain their own choreography controls. |
 | Stage projection | `XrMotionReferenceStage.tsx` and `XrSceneLibrarySubject.tsx` | Renders original procedural boxes, labeled subject silhouettes, cast paths, marks, and camera path. |
+| Selected-object keyboard motion | `XrObjectKeyboardMotionRuntime.tsx` and `threeObjectInputOwnership.ts` | WASD and arrow keys move only the selected cast mark on X/Z by 0.25 m; Shift uses 0.05 m. Editable controls and ordinary toolbar/menu controls ignore the binding. The shared object-input owner synchronously pauses OrbitControls and framing writes, preserves the exact camera pose, and restores camera navigation on key release. |
 | Scene isolation | `Scene.impl.tsx` and `ThreeGraph.impl.tsx` | Graph XR renders the motion stage exclusively; standard node/edge meshes, graph fog/starfield, Rich Media overlays, and hover UI remain unmounted. |
 | Empty-world bootstrap | `ThreeGraph.impl.tsx`, `XrEmptyWorldStage.tsx`, and `XrEmptyWorldHud.tsx` | No-file XR rejects retained graph data and mounts a source-free navy world grid, center target, XYZ axes/HUD, neutral runtime camera framing, and zero cast; no decorative Camera prop or grey-box set geometry is mounted. |
 | Camera authority | `cameraFramingRuntime.ts`, `cameraFramingControlsRuntime.ts`, `xrCameraPlaybackControlsRuntime.ts`, `xrCameraControlOwnership.ts`, `cameraFramingPose.ts`, and `Controls.tsx` | Canvas 3D and XR publish one shared framing draft to FloatingPanel Camera. Paused choreography permits an explicit framing preview; scrub/playback reasserts camera marks; active playback blocks competing orbit/zoom writers; BottomPanel Timeline remains the transport owner. |
@@ -91,6 +92,7 @@ Separate graph-topology and normalized-motion fingerprints, stable property orde
 ## Mutation and Cost Boundaries
 
 - Timeline stage and mark edits remain in the local draft runtime until **Save**; the canonical Timeline transport is the only playhead.
+- Pointer drag, WASD, and arrow-key cast-mark motion update that same bounded draft and never invoke Camera framing, SHOOT, or camera-mark mutation; stage bounds clamp X/Z and preserve Y.
 - Media → 3D environment, placement, label, and removal actions persist immediately through `updateGraphMetadata`, then activate XR Mode and open the canonical Timeline.
 - Animation apply/clear actions persist through the same graph metadata owner; play/pause/scrub reuse the canonical Timeline transport, and export reads the current native plan.
 - Save writes only the canonical graph metadata field and schedules normal graph history.
@@ -100,6 +102,6 @@ Separate graph-topology and normalized-motion fingerprints, stable property orde
 
 ## VCC
 
-Given an active graph, when the operator opens Media → 3D, chooses an environment kit, places and labels mobile and static subjects, links SHOOT through the Scene bar or a 3D Object lane/bar, adds camera/cast marks, applies a target-bound Camera move, moves the canonical Timeline playhead, and exports, then XR Mode shows the selected grey-box stage and procedural choreography; selecting an object does not itself move the camera; camera samples remain aimed at the linked target; graph metadata contains one normalized plan; and the downloaded package contains the eight virtual files with exact inclusive frame count `floor(duration × fps) + 1`.
+Given an active graph, when the operator opens Media → 3D, chooses an environment kit, places and labels mobile and static subjects, links SHOOT through the Scene bar or a 3D Object lane/bar, adds camera/cast marks, nudges the selected cast mark with WASD/arrows and the Shift fine step, applies a target-bound Camera move, moves the canonical Timeline playhead, and exports, then XR Mode shows the selected grey-box stage and procedural choreography; object keys change only bounded X/Z choreography while the shared camera pose remains invariant; camera samples remain aimed at the linked target; graph metadata contains one normalized plan; and the downloaded package contains the eight virtual files with exact inclusive frame count `floor(duration × fps) + 1`.
 
 VCC: Verify the focused XR package test, Canvas TypeScript check, dependency/source scan, and local browser flow; stop without deployment or external runtime installation.
