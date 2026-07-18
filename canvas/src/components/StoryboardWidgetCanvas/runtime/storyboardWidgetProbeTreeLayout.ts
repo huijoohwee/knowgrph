@@ -19,6 +19,10 @@ import {
   readProbeTreeFootprintAspect,
   resolveBalancedProbeTreeBatchPositions,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeBalancedPositions'
+import {
+  buildStoryboardWidgetWorkflowOutputEdgeId,
+  WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowOutputEdge'
 
 export const PROBE_TREE_OUTPUT_KEY = 'probe-tree-branches'
 export const PROBE_TREE_OUTPUT_LABEL = 'Probe-Tree Branches'
@@ -474,6 +478,9 @@ export function normalizeStoryboardWidgetProbeTreeOutputLayout(args: {
   const canonicalPanelId = readString(canonicalPanel.id)
   const redundantPanelIds = new Set(outputPanels.map(node => readString(node.id)).filter(id => id && id !== canonicalPanelId))
   const canonicalProperties = readProperties(canonicalPanel.properties)
+  const declaredCanonicalOwnerId = readString(canonicalProperties.workflowOutputAnchorNodeId)
+  const canonicalOwnerId = (threadGraphData.nodes || []).some(node => readString(node.id) === declaredCanonicalOwnerId)
+    ? declaredCanonicalOwnerId : threadRootId
   const rootNode = (threadGraphData.nodes || []).find(node => readString(node.id) === threadRootId) || canonicalPanel
   const rootPosition = readNodePosition(rootNode)
   const outputPanelPosition = resolveStoryboardWidgetProbeTreeOutputPanelPosition({
@@ -506,6 +513,8 @@ export function normalizeStoryboardWidgetProbeTreeOutputLayout(args: {
         properties: {
           ...readProperties(node.properties),
           workflowOutputGroupId: outputGroupId,
+          workflowOutputAnchorNodeId: canonicalOwnerId,
+          ...(args.preserveCanonicalOutputEdges === true ? { [WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]: undefined } : {}),
           probeTreeThreadLedger: true,
           probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION,
           [PROBE_TREE_OUTPUT_RIGHTMOST_X_PROPERTY]: rightmostThreadX,
@@ -515,7 +524,7 @@ export function normalizeStoryboardWidgetProbeTreeOutputLayout(args: {
         } as Record<string, JSONValue>,
       }
     })
-  const edges = (threadGraphData.edges || []).filter(edge => {
+  const retainedEdges = (threadGraphData.edges || []).filter(edge => {
     const { src, tgt } = readGraphEdgeEndpoints(edge)
     if (redundantPanelIds.has(src) || redundantPanelIds.has(tgt)) return false
     if (tgt !== canonicalPanelId) return true
@@ -523,10 +532,35 @@ export function normalizeStoryboardWidgetProbeTreeOutputLayout(args: {
     const properties = readProperties(edge.properties)
     return !(properties.workflowOutputEdge === true || readString(edge.label) === PROBE_TREE_OUTPUT_KEY)
   })
+  const canonicalEdgeExists = retainedEdges.some(edge => {
+    const { src, tgt } = readGraphEdgeEndpoints(edge)
+    return src === canonicalOwnerId && tgt === canonicalPanelId
+  })
+  const shouldRepairCanonicalEdge = args.preserveCanonicalOutputEdges === true && !canonicalEdgeExists
+  const edges = !shouldRepairCanonicalEdge ? retainedEdges : [...retainedEdges, {
+    id: buildStoryboardWidgetWorkflowOutputEdgeId({
+      sourceNodeId: canonicalOwnerId,
+      targetNodeId: canonicalPanelId,
+      outputKey: PROBE_TREE_OUTPUT_KEY,
+      usedEdgeIds: new Set(retainedEdges.map(edge => readString(edge.id)).filter(Boolean)),
+    }),
+    source: canonicalOwnerId,
+    target: canonicalPanelId,
+    label: PROBE_TREE_OUTPUT_KEY,
+    properties: {
+      workflowOutputEdge: true,
+      workflowOutputAnchorNodeId: canonicalOwnerId,
+      workflowOutputKey: PROBE_TREE_OUTPUT_KEY,
+    } as never,
+  }]
   const canonicalNodeChanged = requiresCanonicalPlacement
     || readString(canonicalProperties.workflowOutputGroupId) !== outputGroupId
+    || readString(canonicalProperties.workflowOutputAnchorNodeId) !== canonicalOwnerId
     || canonicalProperties.probeTreeThreadLedger !== true
-  if (!canonicalNodeChanged && redundantPanelIds.size === 0 && edges.length === (threadGraphData.edges || []).length) return threadGraphData
+  if (!canonicalNodeChanged
+    && redundantPanelIds.size === 0
+    && edges.length === (threadGraphData.edges || []).length
+    && (args.preserveCanonicalOutputEdges !== true || canonicalProperties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY] == null)) return threadGraphData
   return bumpStoryboardWidgetDraftGraphDataRevision({ ...threadGraphData, nodes, edges })
 }
 

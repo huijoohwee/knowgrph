@@ -41,6 +41,11 @@ import {
   PROBE_TREE_LAYOUT_VERSION_PROPERTY,
   PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY,
 } from '@/lib/storyboardWidget/probeTreeLayoutContract'
+import {
+  buildStoryboardWidgetWorkflowOutputEdgeId,
+  WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
+  WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowOutputEdge'
 
 export {
   IMAGE_TO_THREEJS_OUTPUT_PANEL_ANCHOR_ID_PROPERTY,
@@ -58,8 +63,7 @@ export const IMAGE_TO_THREEJS_OUTPUT_EDGE_PROPERTY = 'imageThreeJsOutputEdge' as
 export const IMAGE_TO_THREEJS_OUTPUT_EDGE_LABEL = 'image.to-threejs output' as const
 export const IMAGE_TO_GLB_OUTPUT_EDGE_PROPERTY = 'imageGlbOutputEdge' as const
 export const IMAGE_TO_GLB_OUTPUT_EDGE_LABEL = 'image.to-glb output' as const
-export const WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY = 'workflowOutputEdgeMode' as const
-export const WORKFLOW_OUTPUT_EDGE_MODE_MANUAL = 'manual' as const
+export { WORKFLOW_OUTPUT_EDGE_MODE_MANUAL, WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY }
 
 const isTypedPropertyEnvelope = (value: unknown): value is Record<string, unknown> & { value: unknown } => (
   isPlainObject(value)
@@ -417,24 +421,6 @@ export function ensureStoryboardWidgetImageToGlbOutputEdge(args: {
   })
 }
 
-function buildWorkflowOutputEdgeId(args: {
-  sourceNodeId: string
-  targetNodeId: string
-  outputKey?: string | null
-  usedEdgeIds: ReadonlySet<string>
-}): string {
-  const slug = ['workflow-output', args.sourceNodeId, cleanString(args.outputKey) || 'output', args.targetNodeId]
-    .join('-')
-    .replace(/[^A-Za-z0-9_-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 180) || 'workflow-output-edge'
-  if (!args.usedEdgeIds.has(slug)) return slug
-  let suffix = 2
-  while (args.usedEdgeIds.has(`${slug}-${suffix}`)) suffix += 1
-  return `${slug}-${suffix}`
-}
-
 export function preserveStoryboardWidgetWorkflowInputTopology(args: {
   graphData: GraphData
   anchorNode: GraphNode
@@ -460,7 +446,7 @@ export function preserveStoryboardWidgetWorkflowInputTopology(args: {
     })
     if (exists) continue
     const outputKey = cleanString(properties.workflowOutputKey) || 'output'
-    const edgeId = buildWorkflowOutputEdgeId({ sourceNodeId: anchorNodeId, targetNodeId: panelNodeId, outputKey, usedEdgeIds })
+    const edgeId = buildStoryboardWidgetWorkflowOutputEdgeId({ sourceNodeId: anchorNodeId, targetNodeId: panelNodeId, outputKey, usedEdgeIds })
     usedEdgeIds.add(edgeId)
     edges.push({
       id: edgeId,
@@ -491,7 +477,7 @@ export function ensureStoryboardWidgetWorkflowOutputEdge(args: {
   const edges = Array.isArray(currentDraft.edges) ? currentDraft.edges : []
   const existing = edges.some(edge => cleanString(edge?.source) === sourceNodeId && cleanString(edge?.target) === targetNodeId)
   if (existing) return false
-  const edgeId = buildWorkflowOutputEdgeId({
+  const edgeId = buildStoryboardWidgetWorkflowOutputEdgeId({
     sourceNodeId,
     targetNodeId,
     outputKey: args.outputKey,

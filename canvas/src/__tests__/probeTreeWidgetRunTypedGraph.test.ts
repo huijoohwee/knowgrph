@@ -112,6 +112,7 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
 
   let committedGraph: GraphData | null = null
   let publishedBaseGraph: GraphData | null | undefined
+  let publishedLedgerConnection = false
   const result = runStoryboardWidgetProbeTreeInvocation({
     graphForRun: resolvedRunTarget.graphForRun,
     nodeIds: ['n1'],
@@ -120,6 +121,7 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
     publishOutput: output => {
       committedGraph = output.baseGraphData || null
       publishedBaseGraph = output.baseGraphData
+      publishedLedgerConnection = output.connectCreatedOutputToAnchor === true
       return committedGraph
     },
   })
@@ -130,11 +132,12 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
     result?.changed
     || !committedGraph
     || publishedBaseGraph !== resultGraph
+    || !publishedLedgerConnection
     || branchNodes.length !== 3
     || candidateEdges.length !== 3
     || branchNodes.some(node => node.properties.parentNodeId !== 'n1')
   ) {
-    throw new Error(`expected typed frontmatter Widget Card Run to publish one visible Probe-Tree branch set, got ${JSON.stringify({ result, committedGraph, publishedBaseGraph, branchNodes, candidateEdges })}`)
+    throw new Error(`expected typed frontmatter Widget Card Run to publish one visible Probe-Tree branch set and connected ledger, got ${JSON.stringify({ result, committedGraph, publishedBaseGraph, publishedLedgerConnection, branchNodes, candidateEdges })}`)
   }
   if (!isStoryboardWidgetProbeTreeLineageOnlyRootNode(resultGraph!, typedNode) || branchNodes.some(node => isStoryboardWidgetProbeTreeLineageOnlyRootNode(resultGraph!, node))) {
     throw new Error('expected Run All to treat only the superseded Probe-Tree root as lineage while each selected child owns its continuation')

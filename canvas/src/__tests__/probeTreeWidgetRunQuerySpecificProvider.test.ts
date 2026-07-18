@@ -101,6 +101,7 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     }, null, 2)
   const originalFetch = globalThis.fetch
   let result: Awaited<ReturnType<typeof runStoryboardWidgetProbeTreeTextGenerationInvocation>> = null
+  let publishedLedgerConnection = false
   try {
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       providerCalls += 1
@@ -142,7 +143,10 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
       },
       invokeMcp,
       onMaterialized: () => undefined,
-      publishOutput: output => output.baseGraphData || null,
+      publishOutput: output => {
+        publishedLedgerConnection = output.connectCreatedOutputToAnchor === true
+        return output.baseGraphData || null
+      },
       setLoading: () => undefined,
     })
   } finally {
@@ -194,6 +198,7 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     || !providerPrompt.includes('Do not emit contextAnchors')
     || !providerPrompt.includes('Do not emit widgets, panels, edges')
     || !result?.providerAccepted
+    || !publishedLedgerConnection
     || result.responseSource !== 'provider'
     || cards.length !== 2
     || cards.some(card => card.properties.summary === 'invest in India, or SE Asia')
@@ -207,7 +212,7 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     || ordinaryProviderOptions.chatMaxCompletionTokens !== 1000
     || ordinaryProviderOptions.chatReasoningEffort !== 'medium'
   ) {
-    throw new Error(`expected Widget Run to use the active Chat Responses route and accept only new query-specific decision variables, got ${JSON.stringify({ providerCalls, providerRequestUrl, providerRequestBody, mcpRequest, providerPrompt, result })}`)
+    throw new Error(`expected Widget Run to use the active Chat Responses route, accept only new query-specific decision variables, and request one connected branch ledger, got ${JSON.stringify({ providerCalls, providerRequestUrl, providerRequestBody, mcpRequest, providerPrompt, publishedLedgerConnection, result })}`)
   }
 }
 
