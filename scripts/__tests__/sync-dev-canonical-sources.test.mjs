@@ -41,7 +41,7 @@ test('dev latest plans only clean canonical branches with fast-forward ancestry'
   assert.equal(plan[0].canonicalRef, 'refs/remotes/origin/main')
 })
 
-test('dev latest rejects dirt, task branches, divergence, and redundant worktrees', async () => {
+test('dev latest rejects dirt, task branches, divergence, and unsafe worktree registrations', async () => {
   const contract = await readContract()
   assert.throws(() => planDevCanonicalSourceFastForwards(sourceStates({
     application: { status: ' M package.json' },
@@ -53,8 +53,14 @@ test('dev latest rejects dirt, task branches, divergence, and redundant worktree
     application: { mergeBaseSha: 'cccccccccccccccccccccccccccccccccccccccc' },
   }), contract), /cannot fast-forward/)
   assert.throws(() => planDevCanonicalSourceFastForwards(sourceStates({
-    docs: { worktreeCount: 2 },
-  }), contract), /requires exactly 1 registered worktree/)
+    docs: {
+      worktreeCount: 2,
+      worktrees: [
+        { path: '/docs', head: SHA_A, branch: 'refs/heads/main' },
+        { path: '/docs-copy', head: SHA_B, branch: 'refs/heads/main' },
+      ],
+    },
+  }), contract), /one branch checked out in multiple worktrees/)
 })
 
 test('dev latest inspects every source before applying any fast-forward', async () => {
