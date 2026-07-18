@@ -11,7 +11,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["storyboardWidget.outputWiring.explicitMultiTargets","@/__tests__/storyboardWidgetExplicitOutputWiring.test","testExplicitMultiEdgesTargetWidgetCardAndRichMediaPanels"],
   ["storyboardWidget.outputWiring.standaloneUntilExplicit","@/__tests__/storyboardWidgetExplicitOutputWiring.test","testGeneratedOutputsStayStandaloneUntilExplicitlyWired"],
   ["storyboardWidget.outputWiring.selectedChildCanonicalTarget","@/__tests__/storyboardWidgetExplicitOutputWiring.test","testSelectedChildRunRestoresExplicitTargetFromCanonicalGraph"],
-  ["storyboardWidget.outputWiring.runAllStandaloneTerminal","@/__tests__/storyboardWidgetExplicitOutputWiring.test","testSelectedGenerationCreatesStandaloneResultDuringRunAll"],
+  ["storyboardWidget.outputWiring.runAllConnectedTerminal","@/__tests__/storyboardWidgetExplicitOutputWiring.test","testSelectedGenerationConnectsResultDuringRunAll"],
   ["storyboardWidget.outputWiring.runAllTypedPersistedTerminal","@/__tests__/storyboardWidgetExplicitOutputWiring.test","testRunAllReconcilesTypedPersistedStandaloneResult"],
   ["byteplus.run.text.reasoningOnlyLengthIsTyped","@/__tests__/byteplusRunTextTerminal.test","testBytePlusRunTextReportsReasoningOnlyLengthTerminal"],
   ["byteplus.run.text.missingEndpointFailsBeforeFetch","@/__tests__/byteplusRunTextTerminal.test","testBytePlusRunTextRejectsMissingEndpointBeforeFetch"],

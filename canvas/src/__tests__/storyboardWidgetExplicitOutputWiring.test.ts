@@ -197,20 +197,24 @@ export function testSelectedChildRunRestoresExplicitTargetFromCanonicalGraph() {
   }
 }
 
-export function testSelectedGenerationCreatesStandaloneResultDuringRunAll() {
+export function testSelectedGenerationConnectsResultDuringRunAll() {
   const selectedChild: GraphNode = {
     id: 'mcp-response-n1-qa1',
     type: 'TextGeneration',
     label: 'Selected Probe child',
     properties: { parentNodeId: 'n1', probeTreeThreadRootId: 'n1', cardTypeLabel: 'Probe-Tree Card' },
   }
-  const graph: GraphData = { type: 'Graph', nodes: [selectedChild], edges: [] }
+  const secondSelectedChild: GraphNode = {
+    ...selectedChild,
+    id: 'mcp-response-n1-qa2',
+    label: 'Second selected Probe child',
+  }
+  const graph: GraphData = { type: 'Graph', nodes: [selectedChild, secondSelectedChild], edges: [] }
   const harness = createTextOutputHarness(graph, graph, false)
 
-  const published = harness.publishers.publishTextRunOutputToRichMediaPanel({
-    anchorNode: selectedChild,
-    baseGraphData: graph,
-    outputText: '# Generated result\n\nStandalone until the user wires it.',
+  for (const [index, anchorNode] of [selectedChild, secondSelectedChild].entries()) harness.publishers.publishTextRunOutputToRichMediaPanel({
+    anchorNode,
+    outputText: `# Generated result ${index + 1}`,
     title: 'Generated Result',
     model: 'test-model',
     outputKey: 'probe-tree-generated-result',
@@ -218,19 +222,22 @@ export function testSelectedGenerationCreatesStandaloneResultDuringRunAll() {
     panelLabel: 'Generated Result',
     panelProperties: { probeTreeTerminalGeneration: true },
     allowCreateStandaloneOutput: true,
+    connectCreatedOutputToAnchor: true,
   })
 
-  const resultPanel = published?.nodes.find(node => node.label === 'Generated Result')
+  const published = harness.readGraph()
+  const resultPanels = published.nodes.filter(node => node.label === 'Generated Result')
+  const resultEdges = published.edges.filter(edge => edge.properties?.workflowOutputEdge === true)
   if (
-    !published
-    || published.nodes.length !== 2
-    || published.edges.length !== 0
-    || resultPanel?.properties.output !== '# Generated result\n\nStandalone until the user wires it.'
-    || resultPanel?.properties.workflowOutputAnchorNodeId !== 'mcp-response-n1-qa1'
-    || resultPanel?.properties.workflowOutputKey !== 'probe-tree-generated-result'
-    || resultPanel?.properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY] !== WORKFLOW_OUTPUT_EDGE_MODE_MANUAL
+    published.nodes.length !== 4
+    || resultPanels.length !== 2
+    || resultEdges.length !== 2
+    || resultEdges.some(edge => edge.label !== 'probe-tree-generated-result')
+    || resultPanels.some(panel => panel.properties.workflowOutputKey !== 'probe-tree-generated-result')
+    || resultPanels.some(panel => panel.properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY])
+    || ![selectedChild.id, secondSelectedChild.id].every(sourceId => resultEdges.some(edge => edge.source === sourceId))
   ) {
-    throw new Error(`expected Run All terminal generation to publish one standalone manual result, got ${JSON.stringify(published)}`)
+    throw new Error(`expected Run All terminal generation to publish one connected result per selected child, got ${JSON.stringify(published)}`)
   }
 }
 
@@ -273,9 +280,25 @@ export function testRunAllReconcilesTypedPersistedStandaloneResult() {
     panelLabel: 'Generated Result',
     panelProperties: { probeTreeTerminalGeneration: true },
     allowCreateStandaloneOutput: true,
+    connectCreatedOutputToAnchor: true,
+  })
+  harness.publishers.publishTextRunOutputToRichMediaPanel({
+    anchorNode: selectedChild,
+    baseGraphData: runGraph,
+    outputText: '# Refreshed generated result',
+    title: 'Generated Result',
+    model: 'test-model',
+    outputKey: 'probe-tree-generated-result',
+    outputGroupId: 'probe-tree:n2',
+    panelLabel: 'Generated Result',
+    panelProperties: { probeTreeTerminalGeneration: true },
+    allowCreateStandaloneOutput: true,
+    connectCreatedOutputToAnchor: true,
   })
 
-  const resultPanels = published?.nodes.filter(node => node.label === 'Generated Result') || []
+  const reconciled = harness.readGraph()
+  const resultPanels = reconciled.nodes.filter(node => node.label === 'Generated Result')
+  const resultEdge = reconciled.edges.find(edge => edge.source === selectedChild.id && edge.target === persistedResult.id)
   const resultProperties = resultPanels[0]?.properties as unknown as {
     key?: unknown
     type?: unknown
@@ -283,15 +306,18 @@ export function testRunAllReconcilesTypedPersistedStandaloneResult() {
   }
   if (
     !published
-    || published.nodes.length !== 2
-    || published.edges.length !== 0
+    || reconciled.nodes.length !== 2
+    || reconciled.edges.length !== 1
+    || resultEdge?.label !== 'probe-tree-generated-result'
+    || resultEdge?.properties?.workflowOutputEdge !== true
     || resultPanels.length !== 1
     || resultPanels[0]?.id !== 'persisted-generated-result'
     || resultProperties.key !== 'properties'
     || resultProperties.type !== 'object'
     || resultProperties.value?.output !== '# Refreshed generated result'
     || resultProperties.value?.workflowOutputAnchorNodeId !== 'mcp-response-card-01'
+    || resultProperties.value?.[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]
   ) {
-    throw new Error(`expected Run All to atomically reuse the typed persisted standalone result, got ${JSON.stringify(published)}`)
+    throw new Error(`expected Run All to atomically reconnect the typed persisted result without duplicates, got ${JSON.stringify(reconciled)}`)
   }
 }
