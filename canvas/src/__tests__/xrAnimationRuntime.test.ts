@@ -46,16 +46,16 @@ import {
 import {
   resolveXrObjectKeyboardMotionFrameTarget,
   resolveXrObjectKeyboardMotionTarget,
-} from '@/features/three/XrObjectKeyboardMotionRuntime'
+} from '@/features/three/XrKeyboardChoreographyRuntime'
 import {
   THREE_OBJECT_KEYBOARD_FINE_SPEED_METERS_PER_SECOND,
   THREE_OBJECT_KEYBOARD_FINE_STEP_METERS,
-  THREE_OBJECT_KEYBOARD_MAX_FRAME_DELTA_MS,
+  THREE_KEYBOARD_MAX_FRAME_DELTA_MS,
   THREE_OBJECT_KEYBOARD_SPEED_METERS_PER_SECOND,
   THREE_OBJECT_KEYBOARD_STEP_METERS,
-  resolveThreeObjectKeyboardMotionDirection,
-  resolveThreeObjectKeyboardMotionFrameDistance,
-} from '@/features/three/threeObjectKeyboardMotion'
+  resolveThreeKeyboardFrameAmount,
+  resolveThreeKeyboardMotionDirection,
+} from '@/features/three/threeKeyboardChoreography'
 import { hydrateCanonicalXrMotionReferenceRuntime } from '@/features/three/XrMotionReferenceRuntimeBridge'
 import { selectBoundXrActor } from '@/features/three/xrSelectedActorBinding'
 import { buildXrMotionReferenceTimelineCode } from '@/features/three/xrMotionReferenceTimeline'
@@ -215,7 +215,7 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
       && target.nextPosition[2] === keyboardMark.position[2] + deltaZ
   })
   const keyboardFineRight = resolveXrObjectKeyboardMotionTarget(keyboardRuntime, { key: 'ArrowRight', shiftKey: true })
-  const diagonalDirection = resolveThreeObjectKeyboardMotionDirection(['w', 'd'])
+  const diagonalDirection = resolveThreeKeyboardMotionDirection(['w', 'd'])
   const diagonalFrame = resolveXrObjectKeyboardMotionFrameTarget(keyboardRuntime, ['w', 'd'], 1)
   const boundedRightFrame = resolveXrObjectKeyboardMotionFrameTarget(keyboardRuntime, ['d'], 1000)
   const keyboardStage = resolveXrMotionReferenceStage(keyboardRuntime.plan.stageId)
@@ -230,10 +230,10 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
     || !closeTo(diagonalFrame?.nextPosition[2], keyboardMark.position[2] - expectedDiagonalComponent)
     || boundedRightFrame?.nextPosition[0] !== keyboardStage.sizeMeters[0] / 2
     || boundedRightFrame?.nextPosition[1] !== keyboardMark.position[1]
-    || resolveThreeObjectKeyboardMotionDirection(['a', 'd']) !== null
-    || resolveThreeObjectKeyboardMotionDirection(['w', 'ArrowUp'])?.[1] !== -1
-    || resolveThreeObjectKeyboardMotionFrameDistance(1000, false) !== THREE_OBJECT_KEYBOARD_SPEED_METERS_PER_SECOND * THREE_OBJECT_KEYBOARD_MAX_FRAME_DELTA_MS / 1000
-    || resolveThreeObjectKeyboardMotionFrameDistance(1000, true) !== THREE_OBJECT_KEYBOARD_FINE_SPEED_METERS_PER_SECOND * THREE_OBJECT_KEYBOARD_MAX_FRAME_DELTA_MS / 1000) {
+    || resolveThreeKeyboardMotionDirection(['a', 'd']) !== null
+    || resolveThreeKeyboardMotionDirection(['w', 'ArrowUp'])?.[1] !== -1
+    || resolveThreeKeyboardFrameAmount({ deltaMs: 1000, fine: false, target: 'object' }) !== THREE_OBJECT_KEYBOARD_SPEED_METERS_PER_SECOND * THREE_KEYBOARD_MAX_FRAME_DELTA_MS / 1000
+    || resolveThreeKeyboardFrameAmount({ deltaMs: 1000, fine: true, target: 'object' }) !== THREE_OBJECT_KEYBOARD_FINE_SPEED_METERS_PER_SECOND * THREE_KEYBOARD_MAX_FRAME_DELTA_MS / 1000) {
     throw new Error('expected keyboard taps and frame-timed holds to provide bounded, normalized selected-mark choreography without shortcut modifiers')
   }
 
@@ -314,8 +314,8 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   const bridgeSource = readSource('features', 'three', 'XrMotionReferenceRuntimeBridge.tsx')
   const appSource = readSource('App.tsx')
   const stageSource = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
-  const keyboardMotionSource = readSource('features', 'three', 'XrObjectKeyboardMotionRuntime.tsx')
-  const keyboardMotionUtilitySource = readSource('features', 'three', 'threeObjectKeyboardMotion.ts')
+  const keyboardMotionSource = readSource('features', 'three', 'XrKeyboardChoreographyRuntime.tsx')
+  const keyboardMotionUtilitySource = readSource('features', 'three', 'threeKeyboardChoreography.ts')
   const priorHydrationOwners = [
     readSource('features', 'three', 'XrCameraMotionSection.tsx'),
     readSource('features', 'command-menu', 'XrMediaLibraryPanel.tsx'),
@@ -347,7 +347,7 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   for (const marker of ['data-kg-xr-mark-easing', 'data-kg-xr-mark-gait', 'data-kg-xr-mark-position', 'data-kg-xr-mark-position-axis', 'Mark position · meters', 'XR_CHOREOGRAPHY_EASINGS', 'XR_CHOREOGRAPHY_GAITS', 'showPosition', 'data-kg-xr-mark-position-layout="compact-timeline"', 'XYZ m']) {
     if (!choreographyControlsSource.includes(marker)) throw new Error(`expected Timeline mark controls to expose ${marker}`)
   }
-  for (const marker of ["'configure-mark'", "'move-object'", 'buildXrAnimationObjectMoveInvocation', 'resolveThreeObjectKeyboardMotionPosition', 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkEasing', 'position: control.position', 'resolveXrChoreographySpeedWarnings', 'configureCastMark', 'configureCameraMark', 'moveObject']) {
+  for (const marker of ["'configure-mark'", "'move-object'", 'buildXrAnimationObjectMoveInvocation', 'resolveThreeObjectKeyboardMotionPosition', 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkChoreography', 'position: control.position', 'resolveXrChoreographySpeedWarnings', 'configureCastMark', 'configureCameraMark', 'moveObject']) {
     if (!animationMcpSource.includes(marker)) throw new Error(`expected Animation MCP to control and inspect choreography through ${marker}`)
   }
   for (const marker of ["'configure-mark'", "'move-object'", "enum: ['w', 'a', 's', 'd', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']", 'distanceMeters', 'Use the shared 0.05 m precision step', "enum: ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'hold']", "enum: ['hold', 'walk', 'jog', 'run', 'wheeled', 'flight', 'drop']", "Cast mark [x, y, z] position in stage meters"]) {
@@ -377,13 +377,13 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   if (stageSource.includes('kg_xr_motion_default_camera') || !stageSource.includes('<GraphCastPropCue')) {
     throw new Error('expected the XR stage to remove its fake Camera and render native cast prop cues')
   }
-  for (const marker of ['<XrObjectKeyboardMotionRuntime />', 'WASD or arrow keys', 'Shift for 0.05 m']) {
+  for (const marker of ['<XrKeyboardChoreographyRuntime />', 'WASD or arrow keys', 'Shift for 0.05 m']) {
     if (!`${stageSource}\n${inspectorSource}`.includes(marker)) throw new Error(`expected XR object choreography to expose keyboard motion through ${marker}`)
   }
-  for (const marker of ['resolveXrObjectKeyboardMotionTarget', 'resolveThreeObjectKeyboardMotionPosition', 'window.requestAnimationFrame(runAnimationFrame)', 'THREE_OBJECT_KEYBOARD_HOLD_DELAY_MS', 'activeKeysRef.current.has(key)', 'claimThreeObjectKeyboardInputOwnership', '[data-kg-xr-lane-cast-mark][aria-pressed="true"]', "window.addEventListener('keydown', handleKeyDown, { capture: true })", 'event.stopImmediatePropagation()', 'setXrMotionReferenceCastMarkChoreography', 'releaseThreeObjectKeyboardInputOwnership']) {
+  for (const marker of ['resolveXrObjectKeyboardMotionTarget', 'resolveThreeObjectKeyboardMotionPosition', 'window.requestAnimationFrame(runAnimationFrame)', 'THREE_KEYBOARD_HOLD_DELAY_MS', 'activeKeysRef.current.has(tap.key)', 'claimThreeObjectKeyboardInputOwnership', '[data-kg-xr-lane-cast-mark][aria-pressed="true"]', "window.addEventListener('keydown', handleKeyDown, { capture: true })", 'event.stopImmediatePropagation()', 'setXrMotionReferenceCastMarkChoreography', 'releaseThreeObjectKeyboardInputOwnership']) {
     if (!keyboardMotionSource.includes(marker)) throw new Error(`expected XR keyboard motion to isolate object choreography through ${marker}`)
   }
-  for (const marker of ['THREE_OBJECT_KEYBOARD_MOVEMENT_KEYS', 'resolveThreeObjectKeyboardTapDelta', 'resolveThreeObjectKeyboardMotionDirection', 'resolveThreeObjectKeyboardMotionFrameDistance', 'resolveThreeObjectKeyboardMotionPosition', 'clampThreeObjectPlanarPosition']) {
+  for (const marker of ['THREE_KEYBOARD_MOVEMENT_KEYS', 'resolveThreeKeyboardTap', 'resolveThreeKeyboardMotionDirection', 'resolveThreeKeyboardFrameAmount', 'resolveThreeObjectKeyboardMotionPosition', 'resolveThreeCameraKeyboardFraming', 'clampThreeObjectPlanarPosition']) {
     if (!keyboardMotionUtilitySource.includes(marker)) throw new Error(`expected shared Three keyboard motion to own ${marker}`)
   }
   for (const forbidden of ['XR_OBJECT_KEYBOARD_STEP_METERS', 'resolveXrObjectKeyboardMotionDirection', 'resolveXrObjectKeyboardMotionFrameDistance']) {

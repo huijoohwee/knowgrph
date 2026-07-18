@@ -214,7 +214,7 @@ As a browser-based agent, I want a WebMCP surface exposed through `document.mode
 #### Implemented acceptance
 
 - app bootstrap installs WebMCP at startup through `installKnowgrphWebMcpRuntime()`
-- the app runtime registers 26 tools: 23 read-only retrieval/inspection tools plus guarded local controls for Camera, Animation, and XR scene; the Animation pair is `knowgrph.inspect_local_animation` and `knowgrph.control_local_animation`, whose bounded `move-object` operation shares the native WASD/arrow normalization and stage clamp
+- the app runtime registers 26 tools: 23 read-only retrieval/inspection tools plus guarded local controls for Camera, Animation, and XR scene; `control_local_camera` framing/mark movement and `control_local_animation` `move-object` share the native WASD/arrow normalization while applying Camera orbit bounds or object stage bounds respectively
 - the Pages HTML fallback registers only the seven published read-only tools: `knowgrph.search`, `knowgrph.fetch`, `knowgrph.list_source_files`, `knowgrph.read_source_file`, `knowgrph.read_shared_document`, `knowgrph.inspect_shared_document_structure`, and `knowgrph.inspect_agent_surface`
 - registration uses one canonical publication per context: `provideContext({ tools })` when available, `registerTool(tool, { signal })` when `provideContext` is unavailable, then a readable fallback `modelContext.tools` store with imperative fallback API parity
 - tool names are canonical and deduplicated by name through
