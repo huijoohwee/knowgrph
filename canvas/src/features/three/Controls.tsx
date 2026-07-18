@@ -31,11 +31,8 @@ import {
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
 import { xrChoreographyCanDriveCamera, xrChoreographyOwnsCamera } from './xrCameraControlOwnership'
-import {
-  bindThreeViewportControlsOwnership,
-  readThreeObjectInputOwnership,
-  useThreeObjectInputOwnership,
-} from './threeObjectInputOwnership'
+import { readThreeObjectInputOwnership, useThreeObjectInputOwnership } from './threeObjectInputOwnership'
+import { useThreeObjectCameraInputOwnership } from './useThreeObjectCameraInputOwnership'
 
 export function Controls({
   schema,
@@ -95,6 +92,11 @@ export function Controls({
   }
   const choreographyCanDriveCamera = xrChoreographyCanDriveCamera(cameraOwnershipArgs)
   const choreographyOwnsCamera = xrChoreographyOwnsCamera({ ...cameraOwnershipArgs, timelinePlaying: timelineTransportPlaying })
+  useThreeObjectCameraInputOwnership({
+    camera: perspectiveCamera,
+    controls,
+    baseEnabled: !paused && !choreographyOwnsCamera,
+  })
   const expansionCfg = schema.behavior?.expansion || {}
   const zoomOnSelectionEnabled = expansionCfg.enabled !== false && expansionCfg.zoomOnSelection !== false
   const controlsUserInteractingRef = React.useRef(false)
@@ -174,6 +176,7 @@ export function Controls({
   }, [controls, onControlsChange])
   useFrame(() => {
     const objectDragActive = readThreeObjectInputOwnership().active
+    if (objectDragActive) return
     const voxelIdleAutoRotate = mode === 'voxel'
       && !paused
       && !modelAssetMode
@@ -184,7 +187,7 @@ export function Controls({
       && Date.now() - lastInteractionAtRef.current >= voxelIdleAutoRotateConfig.delayMs
     controls.autoRotate = voxelIdleAutoRotate
     controls.autoRotateSpeed = mode === 'voxel' ? voxelIdleAutoRotateConfig.speed : 0
-    if (paused || objectDragActive) return
+    if (paused) return
     const voxelIntro = voxelIntroRef.current
     if (voxelIntro) {
       if (controlsUserInteractingRef.current) {
@@ -471,10 +474,6 @@ export function Controls({
     playing: timelineTransportPlaying,
     xrEmptyWorld,
   })
-  React.useLayoutEffect(() => bindThreeViewportControlsOwnership({
-    controls,
-    baseEnabled: !paused && !choreographyOwnsCamera,
-  }), [choreographyOwnsCamera, controls, paused])
   React.useEffect(() => {
     const fns: ThreeCameraSnapshotFns = {
       capturePose: (): ThreeCameraPose | null => {
