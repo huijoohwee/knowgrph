@@ -32,9 +32,10 @@ import {
   KNOWGRPH_MCP_STAGE_GATES,
   KNOWGRPH_MCP_STAGE_TOOL_NAMES,
   KNOWGRPH_OS_STATUS_TOOL_NAME,
+  RUN_NOTE_TOOL_NAME,
 } from "../tool-registry.mjs";
 
-test("tool surface lists the generic agent runtime, Director, all five stage tools, OS status, and docs invocation", () => {
+test("tool surface lists the agent runtime, Director, stage tools, run note, OS status, and docs", () => {
   const definitions = buildKnowgrphMcpToolDefinitions();
   const names = definitions.map((tool) => tool.name);
   assert.ok(names.includes(KNOWGRPH_MCP_DIRECTOR_TOOL_NAME));
@@ -43,8 +44,9 @@ test("tool surface lists the generic agent runtime, Director, all five stage too
     assert.ok(names.includes(stageName), `missing stage tool: ${stageName}`);
   }
   assert.ok(names.includes(KNOWGRPH_OS_STATUS_TOOL_NAME));
+  assert.ok(names.includes(RUN_NOTE_TOOL_NAME));
   assert.ok(names.includes(AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME));
-  assert.equal(definitions.length, 9);
+  assert.equal(definitions.length, 10);
 });
 
 test("Property 26 / R14.4: every listed tool exposes a non-empty input schema AND output schema", () => {
@@ -55,6 +57,7 @@ test("Property 26 / R14.4: every listed tool exposes a non-empty input schema AN
     KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
     AGENT_RUNTIME_TOOL_NAME,
     ...Object.values(KNOWGRPH_MCP_STAGE_TOOL_NAMES),
+    RUN_NOTE_TOOL_NAME,
     KNOWGRPH_OS_STATUS_TOOL_NAME,
     AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
   ];

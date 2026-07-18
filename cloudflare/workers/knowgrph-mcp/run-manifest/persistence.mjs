@@ -13,6 +13,10 @@ import {
   defaultPersistenceDiagnosticEmitter,
   buildPersistenceFailureResponse,
 } from "./persistence-failure.mjs";
+import {
+  RunNoteExecutionStore,
+  handleRunNoteExecutionRequest,
+} from "../run-note-execution.mjs";
 
 /**
  * Strip transient/circular fields and produce a JSON-serializable copy of
@@ -230,6 +234,12 @@ export class RunManifestStore {
     const method = request.method.toUpperCase();
     const pathname = url.pathname.replace(/\/+$/, "") || "/";
 
+    if (pathname === "/run-note" && method === "POST") {
+      const store = new RunNoteExecutionStore({ storage: this.state.storage });
+      const result = await handleRunNoteExecutionRequest(store, request);
+      return jsonResponse(result.body, result.status);
+    }
+
     if (pathname === "/manifest" && method === "PUT") {
       let body;
       try {
@@ -276,4 +286,3 @@ export class RunManifestStore {
     );
   }
 }
-
