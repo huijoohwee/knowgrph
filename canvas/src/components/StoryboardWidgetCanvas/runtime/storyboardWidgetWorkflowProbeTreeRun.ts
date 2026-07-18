@@ -534,6 +534,7 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
     localProperties,
     prompt: prompt || invocationText,
     resolvedMaxCompletionTokens: readResolvedProviderValue('chatMaxCompletionTokens'),
+    resolvedReasoningEffort: readResolvedProviderValue('chatReasoningEffort'),
     resolvedThinkingJson: readResolvedProviderValue('chatThinkingJson'),
     resolvedThinkingType: readResolvedProviderValue('chatThinkingType'),
   })
@@ -549,7 +550,7 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
       const providerRequestOptions = resolveStoryboardWidgetProbeTreeProviderRequestOptions({
         prompt: refinementPrompt,
         chatMaxCompletionTokens: resolvedThinking.chatMaxCompletionTokens,
-        chatReasoningEffort: readResolvedProviderValue('chatReasoningEffort'),
+        chatReasoningEffort: resolvedThinking.chatReasoningEffort,
       })
       return await generateRunMarkdownWithProvider({
         config: {

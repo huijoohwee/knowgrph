@@ -16,6 +16,7 @@ export async function testGenerateRunMarkdownWithProviderSupportsOpenAiResponses
         input?: unknown
         instructions?: unknown
         messages?: unknown
+        reasoning?: { effort?: unknown }
       }
       if (!body.model) throw new Error('expected responses request to include model')
       if (typeof body.instructions !== 'string' || !body.instructions.trim()) {
@@ -26,6 +27,9 @@ export async function testGenerateRunMarkdownWithProviderSupportsOpenAiResponses
       }
       if (typeof body.messages !== 'undefined') {
         throw new Error('expected responses request to omit messages field')
+      }
+      if (body.reasoning?.effort !== 'minimal') {
+        throw new Error(`expected final-output run to forward minimal Responses reasoning effort, got ${JSON.stringify(body.reasoning)}`)
       }
       return new Response(JSON.stringify({
         output: [{
@@ -44,7 +48,7 @@ export async function testGenerateRunMarkdownWithProviderSupportsOpenAiResponses
         chatModel: OPENAI_TEST_MODEL,
       },
       prompt: 'Generate markdown',
-      options: { chatMaxCompletionTokens: 120 },
+      options: { chatMaxCompletionTokens: 120, chatReasoningEffort: 'minimal' },
     })
     if (text !== '# Final Output\n\nSpecific answer.') {
       throw new Error(`unexpected generated markdown from responses: ${String(text)}`)

@@ -49,7 +49,23 @@ export function useStoryboardWidgetWorkflowActions(args: {
     updateNode: args.updateNode,
     upsertUiToast: args.upsertUiToast,
     scheduleOverlayEdgeUpdate: args.scheduleOverlayEdgeUpdate,
-  }), [args])
+  }), [
+    args.appendDraftNode,
+    args.baseGraphData,
+    args.baseGraphKind,
+    args.commitPublishedGraphData,
+    args.draftGraphData,
+    args.draftGraphDataRef,
+    args.markdownDocumentName,
+    args.markdownDocumentSourceUrl,
+    args.persistDraftGraphData,
+    args.renderGraphDataOverride,
+    args.scheduleOverlayEdgeUpdate,
+    args.setDraftGraphData,
+    args.updateNode,
+    args.upsertUiToast,
+    args.widgetRegistry,
+  ])
 
   useStoryboardWidgetWorkflowRunAll({
     storyboardWidgetViewActive: args.storyboardWidgetViewActive,
