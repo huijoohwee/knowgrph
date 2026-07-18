@@ -25,6 +25,7 @@ type CardInlineTextDisplaySurfaceProps = {
   externalTextTarget: boolean
   id?: string
   inlineChipDensity: CardInlineTextChipDensity
+  markdownPresentationMode: boolean
   markdownDocumentPath: string
   onOpenEditorFromDisplayEvent: (event: React.MouseEvent<HTMLElement>, options?: { useMarkdownViewerActivation?: boolean }) => boolean
   openDisplayCommandMenuForSigil: (sigil: '/' | '@' | '#') => boolean
@@ -87,7 +88,7 @@ export function CardInlineTextDisplaySurface(props: CardInlineTextDisplaySurface
       onDragStart={event => { event.preventDefault(); event.stopPropagation() }}
     >
       {props.showPlaceholder ? props.placeholder : props.showMarkdownPreview ? (
-        <CardMarkdownPreview markdownText={props.displaySourceValue} activeDocumentPath={props.markdownDocumentPath} className="min-w-0" uiPanelTextFontClass="font-sans" uiPanelMonospaceTextClass="font-mono text-xs" inlineChipDensity={props.inlineChipDensity} />
+        <CardMarkdownPreview markdownText={props.displaySourceValue} activeDocumentPath={props.markdownDocumentPath} className="min-w-0" uiPanelTextFontClass="font-sans" uiPanelMonospaceTextClass="font-mono text-xs" inlineChipDensity={props.inlineChipDensity} markdownPresentationMode={props.markdownPresentationMode} />
       ) : props.displayText ? renderMarkdownSigilInlineText(props.displayText, { keywordChipClassName: DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME, renderKeywordChip: props.renderInlineMediaCandidateChip }) : null}
     </section>
   )

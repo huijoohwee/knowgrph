@@ -60,6 +60,7 @@ export function RichMediaPanelTextSurface(args: {
             displayLineClamp="none"
             rows={8}
             markdownPreview="auto"
+            markdownPresentationMode={props.panel?.markdownPresentationMode === true}
             markdownDocumentPath={model.panelMarkdownDocumentPath}
             markdownCommandMenus={model.panelTextEditable}
             editorSurface="viewer"

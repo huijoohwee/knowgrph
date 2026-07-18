@@ -90,6 +90,8 @@ export type StoryboardWidgetTextRunOutputPublisher = (args: {
   outputIndex?: number
   allowCreateStandaloneOutput?: boolean
   connectCreatedOutputToAnchor?: boolean
+  ownedOutputOnly?: boolean
+  deferPublishedGraphCommit?: boolean
 }) => GraphData | null
 
 export type StoryboardWidgetMediaRunOutputPublisher = (args: {
@@ -308,14 +310,16 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
         scheduleWorkflowOutputEdgeRefresh: args.scheduleWorkflowOutputEdgeRefresh,
       })
       if (!transaction) return null
-      const explicitPanelNodeIds = resolveStoryboardWidgetWorkflowDownstreamRunTargetIds({
-        node: panelArgs.anchorNode,
-        graphData: publicationGraphData,
-      }).filter(targetId => {
-        const targetNode = args.resolveNodeByIdAcrossGraphs(targetId)
-          || publicationGraphData?.nodes.find(node => readWorkflowString(node.id) === targetId)
-        return isRichMediaOutputTargetNode(targetNode)
-      })
+      const explicitPanelNodeIds = panelArgs.ownedOutputOnly === true
+        ? []
+        : resolveStoryboardWidgetWorkflowDownstreamRunTargetIds({
+            node: panelArgs.anchorNode,
+            graphData: publicationGraphData,
+          }).filter(targetId => {
+            const targetNode = args.resolveNodeByIdAcrossGraphs(targetId)
+              || publicationGraphData?.nodes.find(node => readWorkflowString(node.id) === targetId)
+            return isRichMediaOutputTargetNode(targetNode)
+          })
       const createdPanelNodeId = explicitPanelNodeIds.length > 0 ? null : ensureStoryboardWidgetWorkflowRichMediaPanelNodeId({
         context: args.context, graphForRun: args.graphForRun,
         allowCreateRichMediaPanel: args.allowCreateRichMediaPanel || panelArgs.allowCreateStandaloneOutput === true,
@@ -368,7 +372,9 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
         })
       }
       const finished = transaction.finish({
-        preferPublishedGraphCommit: panelArgs.loading !== true && outputKey !== PROBE_TREE_OUTPUT_KEY,
+        preferPublishedGraphCommit: panelArgs.deferPublishedGraphCommit !== true
+          && panelArgs.loading !== true
+          && outputKey !== PROBE_TREE_OUTPUT_KEY,
         updatedNodeIds: panelNodeIds,
       })
       return finished ? transaction.readDraftGraphData() : null

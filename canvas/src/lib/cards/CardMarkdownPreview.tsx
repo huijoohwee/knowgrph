@@ -158,6 +158,7 @@ export function CardMarkdownPreview({
   richMediaDataAttrs = false,
   previewScrollable = false,
   inlineChipDensity = 'regular',
+  markdownPresentationMode = false,
 }: {
   markdownText: string
   activeDocumentPath: string
@@ -168,6 +169,7 @@ export function CardMarkdownPreview({
   richMediaDataAttrs?: boolean
   previewScrollable?: boolean
   inlineChipDensity?: 'regular' | 'compact'
+  markdownPresentationMode?: boolean
 }) {
   const sourceText = inlineChipDensity === 'compact'
     ? normalizeCardInlineMediaSoftLineBreaks(String(markdownText || '')).trim()
@@ -200,7 +202,7 @@ export function CardMarkdownPreview({
             markdownTokenStoreSync={false}
             highlightedLineRange={null}
             markdownWordWrap
-            markdownPresentationMode={false}
+            markdownPresentationMode={markdownPresentationMode}
             markdownTextHighlight={false}
             uiPanelTextFontClass={uiPanelTextFontClass}
             uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
@@ -210,7 +212,7 @@ export function CardMarkdownPreview({
             showSidebar={false}
             markdownViewerWidthMode="wide"
             contentClassName={CARD_MARKDOWN_CONTENT_CLASS_NAME}
-            markdownCardPreviewMode
+            markdownCardPreviewMode={!markdownPresentationMode}
             markdownForcePlainTables
           />
         </React.Suspense>

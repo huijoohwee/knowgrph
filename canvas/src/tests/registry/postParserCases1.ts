@@ -428,6 +428,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["flow.dataflow.transforms.reusesSharedPlainObjectGuard","@/__tests__/flowDataflowTransforms.test","testFlowDataflowTransformsReusesSharedPlainObjectGuard"],
   ["flow.dataflow.transforms.rgbCssSupportsObjectInput","@/__tests__/flowDataflowTransforms.test","testFlowDataflowTransformsRgbCssSupportsObjectInput"],
   ["flow.dataflow.connectedValues.reusesSharedReaders","@/__tests__/flowDataflowConnectedValues.test","testFlowDataflowConnectedValuesReusesSharedReaders"],
+  ["flow.dataflow.connectedValues.unwrapsPersistedRichMediaOutput","@/__tests__/flowDataflowConnectedValues.test","testFlowDataflowConnectedValuesUnwrapsPersistedRichMediaOutput"],
   ["flow.dataflow.connectedValues.bySchemaPath","@/__tests__/flowDataflowConnectedValues.test","testFlowDataflowConnectedValuesBySchemaPath"],
   ["flow.dataflow.connectedValues.cacheReusesEquivalentRegistryShapes","@/__tests__/flowDataflowConnectedValues.test","testFlowDataflowConnectedValuesCacheReusesEquivalentRegistryShapes"],
   ["flow.dataflow.connectedValues.transformsAndPropagation","@/__tests__/flowDataflowConnectedValues.test","testFlowDataflowConnectedValuesTransformsAndPropagation"],

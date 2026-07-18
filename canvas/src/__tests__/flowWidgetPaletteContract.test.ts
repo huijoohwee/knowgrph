@@ -10,6 +10,7 @@ import {
 import {
   PROBE_TREE_TYPE_ONE_LAYOUT_ID,
   PROBE_TREE_TYPE_TWO_LAYOUT_ID,
+  RICH_MEDIA_DELIVERABLES_LAYOUT_ID,
   WIDGET_CARD_TYPE_ZERO_LAYOUT_ID,
   buildWidgetCardLayoutSeed,
 } from '@/lib/storyboardWidget/widgetCardLayoutVariants'
@@ -119,7 +120,7 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
   const registryLabels = seededPalette.map(entry => getWidgetRegistryEntryLabel(entry))
   const layoutVariants = listWidgetPaletteLayoutVariants(seededPalette, '16:9')
   const layoutLabels = layoutVariants.map(variant => variant.label)
-  if (layoutLabels.join('|') !== 'Widget Card Type 0|Probe-Tree Type 1|Probe-Tree Type 2|Rich Media Panel') {
+  if (layoutLabels.join('|') !== 'Widget Card Type 0|Probe-Tree Type 1|Probe-Tree Type 2|Deliverables Widget Card|Rich Media Panel') {
     throw new Error(`expected Image/Video creation to consolidate into Rich Media Panel, got ${layoutLabels.join(', ')}`)
   }
   const unfilteredLayoutLabels = listWidgetPaletteLayoutVariants(defaultRegistryEntries, '16:9')
@@ -129,8 +130,9 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
   }
   if (layoutVariants[0]?.id !== WIDGET_CARD_TYPE_ZERO_LAYOUT_ID
     || layoutVariants[1]?.id !== PROBE_TREE_TYPE_ONE_LAYOUT_ID
-    || layoutVariants[2]?.id !== PROBE_TREE_TYPE_TWO_LAYOUT_ID) {
-    throw new Error(`expected stable Type 0/Type 1/Type 2 layout identities, got ${layoutVariants.map(variant => variant.id).join(', ')}`)
+    || layoutVariants[2]?.id !== PROBE_TREE_TYPE_TWO_LAYOUT_ID
+    || layoutVariants[3]?.id !== RICH_MEDIA_DELIVERABLES_LAYOUT_ID) {
+    throw new Error(`expected stable Type 0/Type 1/Type 2/Deliverables layout identities, got ${layoutVariants.map(variant => variant.id).join(', ')}`)
   }
   if (!layoutVariants.every(variant => variant.aspectRatio === '16:9')) {
     throw new Error(`expected palette layouts to preserve the selected 16:9 aspect, got ${layoutVariants.map(variant => variant.aspectRatio).join(', ')}`)
@@ -186,6 +188,13 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
     || !Array.isArray(probeTreeMultiSelectSeed.properties.selectionOptions)
     || probeTreeMultiSelectSeed.properties.selectionOptions.length !== 2) {
     throw new Error(`expected Probe-Tree Type 2 drag to seed bounded multi-select plus Other, got ${JSON.stringify(probeTreeMultiSelectSeed)}`)
+  }
+  const deliverablesSeed = buildWidgetCardLayoutSeed(RICH_MEDIA_DELIVERABLES_LAYOUT_ID)
+  if (deliverablesSeed?.label !== 'Deliverables Widget Card'
+    || deliverablesSeed.properties.richMediaDeliverablesMode !== true
+    || !String(deliverablesSeed.properties.prompt || '').includes('/investment-research-agent')
+    || !String(deliverablesSeed.properties.prompt || '').includes('Markdown slide deck')) {
+    throw new Error(`expected Deliverables Widget Card to seed the typed MCP-backed two-output route, got ${JSON.stringify(deliverablesSeed)}`)
   }
   const droppedTextWidgetNode = {
     id: 'dropped-text-widget',

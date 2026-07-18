@@ -8,12 +8,18 @@ import {
   normalizeProbeTreeMcpBridgeRequest,
   type ProbeTreeMcpInvocationResolution,
 } from './src/features/agent-ready/probeTreeMcpBridgeContract'
+import {
+  AGENTIC_OS_DOCS_MCP_BRIDGE_PATH,
+  AGENTIC_OS_DOCS_MCP_TOOL_NAME,
+  normalizeAgenticOsDocsMcpBridgeRequest,
+} from './src/features/agent-ready/agenticOsDocsMcpBridgeContract'
 import { KNOWGRPH_PROBE_TREE_TOOL_NAMES } from './src/features/agent-ready/probeTreeContract.mjs'
 
 const MAX_REQUEST_BYTES = 32 * 1024
 export const PROBE_TREE_MCP_BRIDGE_TIMEOUT_MS = 20_000
 export const PROBE_TREE_MCP_INVOCATION_RESOLUTION_TIMEOUT_MS = 3_000
-const DOCS_TOOL_NAME = 'knowgrph.agentic_canvas_os.docs.invoke'
+export const AGENTIC_OS_DOCS_MCP_BRIDGE_TIMEOUT_MS = 8_000
+const DOCS_TOOL_NAME = AGENTIC_OS_DOCS_MCP_TOOL_NAME
 
 export const createProbeTreeMcpRequestOptions = (
   deadlineAt: number,
@@ -132,11 +138,90 @@ export const resolveProbeTreeMcpInvocationTokens = async (args: {
   }),
 )
 
+export const resolveAgenticOsDocsMcpInvocationTokens = async (args: {
+  client: Client
+  tokens: readonly string[]
+  requestOptions: { timeout: number; maxTotalTimeout: number; signal?: AbortSignal }
+}): Promise<ProbeTreeMcpInvocationResolution[]> => Promise.all(
+  args.tokens.map(async token => {
+    try {
+      return await resolveInvocationToken(args.client, token, args.requestOptions)
+    } catch (error) {
+      return {
+        token,
+        ok: false,
+        kind: token[0] || '',
+        error: (error instanceof Error ? error.message : String(error)).slice(0, 320),
+      }
+    }
+  }),
+)
+
 export function createProbeTreeMcpBridgePlugin({ repoRoot }: { repoRoot: string }): Plugin {
   return {
     name: 'knowgrph-probe-tree-mcp-bridge',
     apply: 'serve',
     configureServer(server) {
+      server.middlewares.use(AGENTIC_OS_DOCS_MCP_BRIDGE_PATH, async (request, response) => {
+        if (request.method !== 'POST') {
+          writeJson(response, 405, { ok: false, error: 'Method not allowed.' })
+          return
+        }
+        const fetchSite = String(request.headers['sec-fetch-site'] || '').trim().toLowerCase()
+        if (fetchSite && !['same-origin', 'same-site', 'none'].includes(fetchSite)) {
+          writeJson(response, 403, { ok: false, error: 'Cross-site Agentic OS docs MCP requests are forbidden.' })
+          return
+        }
+        if (!String(request.headers['content-type'] || '').toLowerCase().includes('application/json')) {
+          writeJson(response, 415, { ok: false, error: 'Content-Type must be application/json.' })
+          return
+        }
+
+        let client: Client | null = null
+        const deadlineSignal = AbortSignal.timeout(AGENTIC_OS_DOCS_MCP_BRIDGE_TIMEOUT_MS)
+        try {
+          const parsed = normalizeAgenticOsDocsMcpBridgeRequest(await readRequestJson(request))
+          if (!parsed) {
+            writeJson(response, 400, { ok: false, error: 'Agentic OS docs MCP request requires invocation tokens.' })
+            return
+          }
+          client = new Client({ name: 'knowgrph-canvas-agentic-os-docs', version: '0.1.0' })
+          const transport = new StdioClientTransport({
+            command: process.execPath,
+            args: [path.join(repoRoot, 'mcp', 'server.js')],
+            cwd: repoRoot,
+            env: buildChildEnv(repoRoot),
+            stderr: 'pipe',
+          })
+          const requestOptions = {
+            timeout: AGENTIC_OS_DOCS_MCP_BRIDGE_TIMEOUT_MS,
+            maxTotalTimeout: AGENTIC_OS_DOCS_MCP_BRIDGE_TIMEOUT_MS,
+            signal: deadlineSignal,
+          }
+          await client.connect(transport, requestOptions)
+          const invocations = await resolveAgenticOsDocsMcpInvocationTokens({
+            client,
+            tokens: parsed.invocationTokens,
+            requestOptions,
+          })
+          writeJson(response, 200, {
+            ok: true,
+            tool: AGENTIC_OS_DOCS_MCP_TOOL_NAME,
+            mcpInvoked: true,
+            invocations,
+          })
+        } catch (error) {
+          writeJson(response, 502, {
+            ok: false,
+            error: (deadlineSignal.aborted
+              ? 'Agentic OS docs MCP bridge exceeded its 8 second deadline.'
+              : error instanceof Error ? error.message : String(error || 'Agentic OS docs MCP bridge failed.')
+            ).slice(0, 640),
+          })
+        } finally {
+          await client?.close().catch(() => undefined)
+        }
+      })
       server.middlewares.use(PROBE_TREE_MCP_BRIDGE_PATH, async (request, response) => {
         if (request.method !== 'POST') {
           writeJson(response, 405, { ok: false, error: 'Method not allowed.' })

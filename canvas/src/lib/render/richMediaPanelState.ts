@@ -13,6 +13,7 @@ export type RichMediaPanelTab = 'auto' | 'text' | 'image' | 'video' | 'audio' | 
 export type RichMediaPanelOverlayState = {
   activeTab: RichMediaPanelTab
   freezeConnectedOutput: boolean
+  markdownPresentationMode: boolean
   hasText: boolean
   hasImage: boolean
   hasVideo: boolean
@@ -67,6 +68,16 @@ export function normalizeConnectedTextValue(value: unknown): string {
   return ''
 }
 
+export function resolveRichMediaPanelDisplayText(
+  panel: Pick<RichMediaPanelOverlayState, 'freezeConnectedOutput' | 'text' | 'connectedText'> | null | undefined,
+  draftText = '',
+): string {
+  if (!panel) return ''
+  return panel.freezeConnectedOutput
+    ? draftText || panel.text || panel.connectedText || ''
+    : panel.connectedText || panel.text || ''
+}
+
 export function buildStaticRichMediaPanelOverlayState(args: {
   renderKind?: unknown
   activeTab?: unknown
@@ -95,6 +106,7 @@ export function buildStaticRichMediaPanelOverlayState(args: {
   return {
     activeTab,
     freezeConnectedOutput: false,
+    markdownPresentationMode: false,
     hasText: Boolean(text || connectedText),
     hasImage: renderKind === 'image' || renderKind === 'svg',
     hasVideo: renderKind === 'video',
@@ -204,6 +216,7 @@ export function buildRichMediaPanelOverlayState(args: {
       ? (rawTab as RichMediaPanelOverlayState['activeTab'])
       : 'auto'
   const freezeConnectedOutput = readNodeFieldBoolean(nodeForState, props, 'freezeConnectedOutput')
+  const markdownPresentationMode = readNodeFieldBoolean(nodeForState, props, 'markdownPresentationMode')
   const localLoading = readLoadingStateFromNode(nodeForState)
   const connectedText = normalizeConnectedTextValue(connectedValuesBySchemaPath?.['properties.output']?.value)
   const connectedLoading = deriveRichMediaPanelLoadingSourceLabels({
@@ -224,6 +237,7 @@ export function buildRichMediaPanelOverlayState(args: {
   return {
     activeTab,
     freezeConnectedOutput,
+    markdownPresentationMode,
     hasText: Boolean(text.trim() || outputSrcDoc.trim() || connectedText.trim()),
     hasImage: Boolean(imageUrl.trim() || imageToThreeJsOutputSourceUrl.trim()) || hasGenericImage,
     hasVideo: Boolean(videoUrl.trim()) || hasGenericVideo,
