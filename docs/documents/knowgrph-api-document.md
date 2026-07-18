@@ -38,16 +38,9 @@ API and MCP contracts are owned upstream in Dev. Production mirrors should recei
 - Security: generated markup accepts HTTP(S) only and includes `sandbox="allow-scripts allow-same-origin"` plus `referrerpolicy="no-referrer"`. Cloudflare permits external `frame-ancestors` only for the apex/embed owner and opaque published-document HTML routes.
 - Home and MainPanel import: **Import canvas embed** is available on Home and under **MainPanel Settings → Canvas Embed**. Both entry points reuse the shared canvas-embed import panel and accept the generated iframe HTML or a JSON `postMessage` envelope with `type: "knowgrph.canvas-embed.select"`, `version: 1`, and either `embedUrl` or `iframe`. The optional `sourcePath` preserves source identity. Generic imports normalize `kgPreview=1&kgLiveHero=1`; the Workspace README preset preserves its direct remote iframe and selects the `2d` / `storyboard` renderer through the shared canvas query contract.
 - Host control: the same v1 envelope is accepted only from the embedding parent or opening window; direct host mutation of internal renderer state remains forbidden.
-
 ## Endpoints
 
-### Registered agent model runtime
-
-- Contract owners: `contracts/agent-model-runtime.js`, `contracts/agent-runtime.schema.js`, and `data/config/agents/agent-definitions.json`.
-- `POST /knowgrph/control-plane/agents/runs` keeps dry-runs deterministic. Live `/sme-care-agent` requests require bearer authentication and `paid-model-call` approval before model resolution or adapter dispatch.
-- The prepared SME Care definition declares text plus complete/per-run transport requirements. The Worker resolver reads the operator-selected `KNOWGRPH_AGENT_MODEL_ID`, emits a versioned provider/model/transport packet, and dispatches only to the packet's exact registered adapter id. The adapter consumes the prepared instructions and resolved model; it does not reread or override model selection.
-- The repository intentionally carries no default model id. Missing or incompatible configuration returns a typed blocked result. Focused tests use injected resolvers and adapters and make zero provider calls; a live-provider claim remains false until separately approved and evidenced.
-
+- Registered agent model runtime: `POST /knowgrph/control-plane/agents/runs` keeps dry-runs deterministic; live `/sme-care-agent` requests require bearer authentication and `paid-model-call` approval. `contracts/agent-model-runtime.js`, `contracts/agent-runtime.schema.js`, and `data/config/agents/agent-definitions.json` own the contract. The prepared definition requires text plus complete/per-run transport; the Worker resolves operator-selected `KNOWGRPH_AGENT_MODEL_ID` into an exact provider/model/transport packet and registered adapter without rereading selection. No default model id exists; missing or incompatible configuration is typed and blocked, focused tests inject zero-call resolvers/adapters, and live-provider proof remains separately gated.
 ### Remote media fetch proxy
 
 - Path: `/__fetch_remote?url=<encoded>`
