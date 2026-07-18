@@ -22,6 +22,10 @@ import {
   resolveThreeKeyboardMotionDirection,
 } from '@/features/three/threeKeyboardChoreography'
 import {
+  buildThreeKeyboardShortcutCatalog,
+  formatThreeKeyboardShortcutCopyLine,
+} from '@/features/three/threeKeyboardShortcutCatalog'
+import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
   readXrMotionReferencePlan,
   serializeXrMotionReferencePlan,
@@ -33,15 +37,15 @@ import {
 import { hydrateCanonicalXrMotionReferenceRuntime } from '@/features/three/XrMotionReferenceRuntimeBridge'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
-const CAMERA_DICTIONARY_TOKENS = {
-  command: ['/camera.frame', '/camera.animate', '/camera.play', '/camera.scrub'],
-  semantic: ['#camera-shot', '#camera-motion'],
-  binding: ['@camera', '@selected-actor'],
+const KEYBOARD_DICTIONARY_TOKENS = {
+  command: ['/camera.frame', '/camera.animate', '/camera.play', '/camera.scrub', '/animation.control'],
+  semantic: ['#camera-shot', '#camera-motion', '#action-path', '#character-motion'],
+  binding: ['@camera', '@selected-actor', '@canvas'],
 } as const
 
 function registerCanonicalCameraGrammar(): void {
   resetAgenticOsRemoteGrammarCatalogForTests()
-  for (const [kind, tokens] of Object.entries(CAMERA_DICTIONARY_TOKENS)) {
+  for (const [kind, tokens] of Object.entries(KEYBOARD_DICTIONARY_TOKENS)) {
     const fileName = kind === 'command'
       ? 'DICTIONARY-COMMAND.md'
       : kind === 'semantic'
@@ -98,6 +102,23 @@ export function testXrKeyboardChoreographySharesBrowserAndMcpMotion(): void {
   const invocation = buildCameraKeyboardInvocation({ action: 'frame', keys: ['w', 'd'], amount: 0.08 })
   if (invocation !== '/camera.frame @camera #camera-shot keys=w+d amount=0.08') {
     throw new Error(`expected a canonical source-backed keyboard invocation, got ${invocation}`)
+  }
+
+  const shortcutCatalog = buildThreeKeyboardShortcutCatalog()
+  const shortcutsById = new Map(shortcutCatalog.map(shortcut => [shortcut.id, shortcut]))
+  const objectShortcut = shortcutsById.get('xr-object-choreography')
+  const frameShortcut = shortcutsById.get('xr-camera-framing')
+  const cameraMarkShortcut = shortcutsById.get('xr-camera-choreography')
+  if (shortcutCatalog.length !== 3
+    || new Set(shortcutCatalog.map(shortcut => shortcut.id)).size !== shortcutCatalog.length
+    || objectShortcut?.invocation !== '/animation.control #action-path @selected-actor operation=move-object keys=w+d distance=0.25'
+    || frameShortcut?.invocation !== '/camera.frame @camera #camera-shot keys=w+d amount=0.08'
+    || cameraMarkShortcut?.invocation !== '/camera.animate @camera #camera-motion keys=ArrowRight fine=true'
+    || objectShortcut?.mcpTool !== 'knowgrph.control_local_animation'
+    || frameShortcut?.mcpTool !== 'knowgrph.control_local_camera'
+    || shortcutCatalog.some(shortcut => !shortcut.invocation.includes('/') || !shortcut.invocation.includes('#') || !shortcut.invocation.includes('@'))
+    || shortcutCatalog.some(shortcut => !formatThreeKeyboardShortcutCopyLine(shortcut).includes(`MCP ${shortcut.mcpTool}`))) {
+    throw new Error(`expected Help shortcuts to derive canonical / @ # and MCP examples from shared choreography builders, got ${JSON.stringify(shortcutCatalog)}`)
   }
 
   const graphData = buildKeyboardCameraGraph()
@@ -158,11 +179,22 @@ export function testXrKeyboardChoreographySharesBrowserAndMcpMotion(): void {
 
   const browserAdapter = readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'XrKeyboardChoreographyRuntime.tsx'), 'utf8')
   const cameraWebMcp = readFileSync(resolve(process.cwd(), 'src', 'features', 'agent-ready', 'cameraWebMcpTools.ts'), 'utf8')
+  const shortcutCatalogSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'threeKeyboardShortcutCatalog.ts'), 'utf8')
+  const helpShortcutSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'panels', 'views', 'HelpShortcutsSection.tsx'), 'utf8')
+  const helpLogicSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'panels', 'hooks', 'useHelpViewLogic.ts'), 'utf8')
   if (!browserAdapter.includes('resolveThreeCameraKeyboardFraming')
     || !browserAdapter.includes('resolveThreeObjectKeyboardMotionPosition')
     || !browserAdapter.includes('[data-kg-floating-panel-view-trigger="camera"]')
     || !readFileSync(resolve(process.cwd(), 'src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx'), 'utf8').includes('data-kg-floating-panel-view-trigger={spec.view}')
-    || !cameraWebMcp.includes('async input => controlLocalCamera(input || {})')) {
+    || !cameraWebMcp.includes('async input => controlLocalCamera(input || {})')
+    || !shortcutCatalogSource.includes('buildCameraKeyboardInvocation')
+    || !shortcutCatalogSource.includes('buildXrAnimationObjectMoveInvocation')
+    || !shortcutCatalogSource.includes('CAMERA_WEB_MCP_TOOL_IDS')
+    || !shortcutCatalogSource.includes('XR_ANIMATION_WEB_MCP_TOOL_IDS')
+    || !helpShortcutSource.includes('data-kg-help-xr-shortcuts="1"')
+    || !helpShortcutSource.includes('renderMarkdownSigilInlineText(shortcut.invocation)')
+    || !helpLogicSource.includes('THREE_KEYBOARD_SHORTCUT_GRAMMAR_SIGILS')
+    || !helpLogicSource.includes('formatThreeKeyboardShortcutCopyLine')) {
     throw new Error('expected browser keys and WebMCP to delegate to the shared choreography owners')
   }
 }

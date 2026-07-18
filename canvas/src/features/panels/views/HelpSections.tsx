@@ -12,12 +12,14 @@ import { HelpIconsSection } from './HelpIconsSection';
 import { HelpPanelTourSection } from './HelpPanelTourSection';
 import { HelpShortcutsSection } from './HelpShortcutsSection';
 import { HelpWorkflowLinksSection } from './HelpWorkflowLinksSection';
+import type { ThreeKeyboardShortcut } from '@/features/three/threeKeyboardShortcutCatalog';
 
 interface HelpSectionsProps {
   collapsedBySection: Record<HelpStepKey, boolean>;
   onToggleSection: (key: HelpStepKey, next: boolean) => void;
   searchQuery: string;
   shortcuts: string[];
+  threeKeyboardShortcuts: readonly ThreeKeyboardShortcut[];
   onCopyAllShortcuts: () => void;
   onLaunchSpotlight: () => void;
   onOpenStoryboardWidgetManagerTab: () => void;
@@ -29,6 +31,7 @@ export function HelpSections({
   onToggleSection,
   searchQuery,
   shortcuts,
+  threeKeyboardShortcuts,
   onCopyAllShortcuts,
   onLaunchSpotlight,
   onOpenStoryboardWidgetManagerTab,
@@ -43,6 +46,7 @@ export function HelpSections({
           onToggle={next => onToggleSection('shortcuts', next)}
           searchQuery={searchQuery}
           shortcuts={shortcuts}
+          threeKeyboardShortcuts={threeKeyboardShortcuts}
           onCopyAllShortcuts={onCopyAllShortcuts}
           onLaunchSpotlight={onLaunchSpotlight}
           flushTop={shouldFlushKeyTypeValueSectionTop(0)}
