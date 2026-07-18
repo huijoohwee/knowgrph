@@ -24,7 +24,7 @@ The source edge must persist `flow:sourcePortKey: output` and `flow:targetPortKe
 - Rich Media source and output panels remain read/render/edit surfaces; they do not gain a Run action.
 - The shared Rich Media rail unwraps typed property containers and active-tab cells, then exposes supported text/image/video/audio semantic ports at the panel midpoint; text panels therefore expose `output`, not an unrelated media URL port. Auto/model/POI and missing-tab surfaces retain the established center-rail fallback.
 - The card retains its authored instructions while the connected `prompt_in` value is the source material supplied to generation.
-- A newly dropped card adopts the committed composed source graph before it becomes runnable. Ordinary debounced history snapshots must not reset that draft; only explicit Restore, Undo, or Redo may force history authority. Canonical `workspace::node` and source-local `node` identities reconcile only when the inner identity is unique across source layers.
+- A newly dropped card adopts the committed composed source graph before it becomes runnable. Consecutive append transactions use a live-first canonical union plus bounded pending-append authority so draft-only cards and authored edges survive while source reparse catches up; the guard clears when the source base contains the full draft. Ordinary debounced history snapshots must not reset that draft; only explicit Restore, Undo, or Redo may force history authority. Canonical `workspace::node` and source-local `node` identities reconcile only when the inner identity is unique across source layers.
 
 ## Bounded MCP invocation
 

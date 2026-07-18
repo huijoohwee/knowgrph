@@ -8,7 +8,11 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { pickDefaultFlowPortKey } from '@/lib/graph/flowPorts'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
-import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
+import {
+  bumpStoryboardWidgetDraftGraphDataRevision,
+  hasStoryboardWidgetDraftGraphDataCanonicalSuperset,
+  mergeStoryboardWidgetDraftGraphDataWithLiveAdditions,
+} from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { FLOW_PORT_HANDLE_PREVIEW_EVENT, type FlowPortHandlePreviewDetail } from '@/components/StoryboardWidget/flowPortHandlePointerDrag'
 import {
@@ -51,16 +55,24 @@ export function appendStoryboardWidgetDraftNode(graphData: GraphData, node: Grap
 export function resolveStoryboardWidgetPostCommitDraftGraphData(args: {
   liveGraphData: GraphData | null
   draftGraphData: GraphData | null
-  baseGraphData: GraphData
+  fallbackGraphData: GraphData
   committedNode: GraphNode
   revisionFloor?: number | null
 }): GraphData {
   const liveContainsCommittedNode = Boolean(
     resolveGraphNodeByCanonicalId(args.liveGraphData, args.committedNode.id),
   )
-  const authoritativeGraphData = liveContainsCommittedNode
-    ? args.liveGraphData!
-    : args.draftGraphData || args.baseGraphData
+  const liveGraphData = liveContainsCommittedNode ? args.liveGraphData! : null
+  const liveContainsWholeDraft = hasStoryboardWidgetDraftGraphDataCanonicalSuperset(
+    liveGraphData,
+    args.draftGraphData,
+  )
+  const authoritativeGraphData = liveGraphData && args.draftGraphData && !liveContainsWholeDraft
+    ? mergeStoryboardWidgetDraftGraphDataWithLiveAdditions({
+        liveGraphData,
+        draftGraphData: args.draftGraphData,
+      })
+    : liveGraphData || args.draftGraphData || args.fallbackGraphData
   return appendStoryboardWidgetDraftNode(authoritativeGraphData, args.committedNode, {
     revisionFloor: args.revisionFloor,
   })
@@ -368,7 +380,7 @@ export function useStoryboardWidgetGraphActions(args: {
       const nextDraftGraphData = resolveStoryboardWidgetPostCommitDraftGraphData({
         liveGraphData,
         draftGraphData: args.draftGraphDataRef.current,
-        baseGraphData: base,
+        fallbackGraphData: base,
         committedNode: draftNode,
         revisionFloor,
       })
