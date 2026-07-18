@@ -19,6 +19,7 @@ import {
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
 import { xrChoreographyCanDriveCamera } from './xrCameraControlOwnership'
+import { useThreeViewportInputOwnership } from './threeViewportInputOwnership'
 
 type CameraPlaybackReapplyListener = () => void
 const cameraPlaybackReapplyListeners = new Set<CameraPlaybackReapplyListener>()
@@ -61,10 +62,11 @@ export function useXrMotionReferenceCameraPlayback({
     readCameraPlaybackReapplyRevision,
     readCameraPlaybackReapplyRevision,
   )
+  const viewportInputOwnership = useThreeViewportInputOwnership()
   const previousPlayingRef = React.useRef(playing)
 
   const applyTrackedPose = React.useCallback(() => {
-    if (paused || !xrChoreographyCanDriveCamera({ mode, xrEmptyWorld, cameraMarkCount: runtime.plan.camera.length })) return
+    if (paused || viewportInputOwnership.active || !xrChoreographyCanDriveCamera({ mode, xrEmptyWorld, cameraMarkCount: runtime.plan.camera.length })) return
     const pose = sampleXrMotionReferenceCameraPose(runtime.plan.camera, runtime.playheadSeconds, runtime.plan.cast)
     const settings = sampleXrMotionReferenceCameraSettings(runtime.plan.camera, runtime.playheadSeconds)
     if (!pose || !settings) return
@@ -81,7 +83,7 @@ export function useXrMotionReferenceCameraPlayback({
       },
       minimumY: XR_MOTION_STAGE_MIN_CAMERA_Y,
     })
-  }, [camera, controls, mode, paused, runtime.plan.camera, runtime.plan.cast, runtime.plan.stageId, runtime.playheadSeconds, xrEmptyWorld])
+  }, [camera, controls, mode, paused, runtime.plan.camera, runtime.plan.cast, runtime.plan.stageId, runtime.playheadSeconds, viewportInputOwnership.active, xrEmptyWorld])
 
   React.useEffect(() => {
     applyTrackedPose()

@@ -347,6 +347,16 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
       'ui.three.objectDrag.locksCameraPoseUntilRelease',
       modXrViewportControlsOwnership.testThreeObjectCameraPoseRemainsLockedUntilRelease,
     )
+    await execTest(
+      results,
+      'ui.three.viewportGesture.synchronousOwnership',
+      modXrViewportControlsOwnership.testThreeViewportGestureOwnershipPublishesSynchronously,
+    )
+    await execTest(
+      results,
+      'ui.three.viewportGesture.ownershipSpansSettledCommit',
+      modXrViewportControlsOwnership.testThreeViewportOwnershipSpansSettledCameraCommit,
+    )
 
     const modSelectionNoDup = await import('../../__tests__/selectionNoDuplicateTocFocusRegression.test')
     await execTest(results, 'ui.selection.noDuplicateTocFocusOnRepeatedSelect', modSelectionNoDup.testSelectingSameNodeDoesNotDispatchDuplicateTocFocus)

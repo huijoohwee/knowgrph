@@ -1,6 +1,7 @@
 import { PerspectiveCamera } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import { createCameraFramingSettledInteraction } from '@/features/three/cameraFramingControlsRuntime'
 import {
   bindThreeViewportControlsOwnership,
   canStartThreeObjectDrag,
@@ -14,6 +15,13 @@ import {
   releaseThreeObjectInputOwnership,
   threeObjectDragTerminationMatchesPointer,
 } from '@/features/three/threeObjectInputOwnership'
+import {
+  claimThreeViewportInputOwnership,
+  readThreeViewportInputOwnership,
+  releaseThreeViewportInputOwnership,
+  shouldDeferThreeCameraProgrammaticInput,
+  subscribeThreeViewportInputOwnership,
+} from '@/features/three/threeViewportInputOwnership'
 
 function assertCondition(condition: unknown, message: string): void {
   if (!condition) throw new Error(message)
@@ -181,6 +189,67 @@ export function testThreeObjectCameraPoseRemainsLockedUntilRelease() {
   } finally {
     releaseThreeObjectInputOwnership('xr:actor:actor-a:mark-a')
     unsubscribe()
+  }
+}
+
+export function testThreeViewportGestureOwnershipPublishesSynchronously() {
+  const ownerId = 'orbit-controls:test'
+  releaseThreeViewportInputOwnership(ownerId)
+  let notificationCount = 0
+  const unsubscribe = subscribeThreeViewportInputOwnership(() => { notificationCount += 1 })
+  try {
+    assertCondition(claimThreeViewportInputOwnership(ownerId), 'expected OrbitControls to claim the manual camera gesture')
+    assertCondition(readThreeViewportInputOwnership().ownerId === ownerId, 'expected viewport ownership to identify the camera gesture owner')
+    assertCondition(!claimThreeViewportInputOwnership('orbit-controls:other'), 'expected another viewport to be unable to steal the camera gesture')
+    assertCondition(
+      shouldDeferThreeCameraProgrammaticInput({ objectInputActive: false, viewportInputActive: true }),
+      'expected framing and playback camera writes to defer during manual viewport input',
+    )
+    releaseThreeViewportInputOwnership('orbit-controls:other')
+    assertCondition(readThreeViewportInputOwnership().active, 'expected a non-owner release to preserve manual viewport input')
+    releaseThreeViewportInputOwnership(ownerId)
+    assertCondition(!readThreeViewportInputOwnership().active, 'expected the owning viewport to release camera input')
+    assertCondition(notificationCount === 2, 'expected synchronous claim and release notifications only')
+  } finally {
+    unsubscribe()
+    releaseThreeViewportInputOwnership(ownerId)
+  }
+}
+
+export function testThreeViewportOwnershipSpansSettledCameraCommit() {
+  const ownerId = 'orbit-controls:settled'
+  releaseThreeViewportInputOwnership(ownerId)
+  const pending: Array<() => void> = []
+  let published = 0
+  const settled = createCameraFramingSettledInteraction({
+    delayMs: 80,
+    scheduler: {
+      schedule: callback => {
+        pending.push(callback)
+        return callback
+      },
+      cancel: handle => {
+        const index = pending.indexOf(handle as () => void)
+        if (index >= 0) pending.splice(index, 1)
+      },
+    },
+    publish: () => {
+      published += 1
+      releaseThreeViewportInputOwnership(ownerId)
+    },
+  })
+  try {
+    claimThreeViewportInputOwnership(ownerId)
+    settled.start()
+    settled.end()
+    assertCondition(readThreeViewportInputOwnership().active, 'expected damping settle to retain manual camera ownership')
+    assertCondition(published === 0 && pending.length === 1, 'expected the camera pose commit to remain pending')
+    pending.shift()?.()
+    assertCondition(published === 1, 'expected one settled camera pose commit')
+    assertCondition(!readThreeViewportInputOwnership().active, 'expected camera ownership to release only after the settled commit')
+  } finally {
+    settled.cancel()
+    releaseThreeViewportInputOwnership(ownerId)
   }
 }
 
