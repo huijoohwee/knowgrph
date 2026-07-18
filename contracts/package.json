@@ -16,6 +16,7 @@
     "./demo-pack": "./demo-pack.schema.js",
     "./media-artifact": "./media-artifact.schema.js",
     "./agent-runtime": "./agent-runtime.schema.js",
+    "./agent-model-runtime": "./agent-model-runtime.js",
     "./semantic-key": "./semantic-key.js",
     "./sme-profile": "./sme-profile.schema.js",
     "./sme-risk-coverage": "./sme-risk-coverage.schema.js"

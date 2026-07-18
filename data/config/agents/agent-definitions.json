@@ -1,7 +1,8 @@
 {
   "schemaVersion": "knowgrph.agent-definition-registry/v1",
-  "registryVersion": "2026-07-13",
-  "invocationAuthority": "agentic-canvas-os/docs/SKILLS.md",
+  "registryVersion": "2026-07-18",
+  "invocationAuthority": "contracts/agent-runtime.schema.js",
+  "variantGovernance": "agentic-canvas-os/docs/SKILLS.md#skill_variants",
   "invocationConvention": "/<agent-domain>-agent",
   "profiles": {
     "superagent.full.v1": {
@@ -61,6 +62,7 @@
       "skillVariant": "agent.sme",
       "skillId": "sme.risk.profile",
       "runtimeKernel": "sme.risk.profile",
+      "modelRequirements": { "providerId": "cloudflare-workers-ai", "features": ["text"], "transport": { "delivery": "complete", "connection": "per-run" } },
       "skillInputSchemaRef": "knowgrph-sme-profile/v1",
       "skillOutputSchemaRef": "knowgrph-sme-risk-run/v1",
       "topology": { "pattern": "fan-out/fan-in", "domains": ["cyber", "supply_chain", "asset_physical"], "maxIterations": 1, "circuitBreakers": ["schema_error", "approval_denial", "token_budget_breach", "verification_failure"] },
