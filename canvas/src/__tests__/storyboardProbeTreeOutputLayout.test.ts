@@ -22,6 +22,7 @@ import {
   resolveFlowCanvasMediaOverlayWorldTopLeft2d,
 } from '@/components/FlowCanvas/flowCanvasMediaOverlayWorldPoint'
 import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
+import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { buildRichMediaTextMarkdownDocument } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
 import type { GraphData } from '@/lib/graph/types'
 import {
@@ -540,6 +541,8 @@ export function testProbeTreeOutputLayoutRepairsDisconnectedCanonicalLedger() {
   const outputEdges = normalized.edges.filter(edge => edge.properties?.workflowOutputEdge === true)
   assert(outputEdges.length === 1, `expected one repaired ledger edge, got ${JSON.stringify(outputEdges)}`)
   assert(outputEdges[0]?.source === 'n1' && outputEdges[0]?.target === 'n2', `expected source-to-ledger topology, got ${JSON.stringify(outputEdges[0])}`)
+  assert(outputEdges[0]?.properties?.[FLOW_EDGE_SOURCE_PORT_KEY] === 'text_out', `expected repaired ledger source port text_out, got ${JSON.stringify(outputEdges[0])}`)
+  assert(outputEdges[0]?.properties?.[FLOW_EDGE_TARGET_PORT_KEY] === 'output', `expected repaired ledger target port output, got ${JSON.stringify(outputEdges[0])}`)
   assert(repairedPanel?.properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY] == null, 'expected passive authority to clear the stale manual-disconnect marker')
   assert(normalizeAllStoryboardWidgetProbeTreeOutputLayouts(normalized) === normalized, 'expected repaired ledger authority to be idempotent')
 }

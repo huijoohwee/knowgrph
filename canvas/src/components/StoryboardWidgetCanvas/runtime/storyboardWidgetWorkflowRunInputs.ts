@@ -18,6 +18,22 @@ function cleanString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+export function normalizeStoryboardWidgetConnectedTextValue(value: unknown): string {
+  if (typeof value === 'string') return value.trim()
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string').join('\n').trim()
+    : ''
+}
+
+export function resolveStoryboardWidgetTextGenerationPrompts(args: {
+  authoredPrompt: unknown
+  connectedValue: unknown
+}): { authoredPrompt: string; connectedPrompt: string; prompt: string } {
+  const authoredPrompt = normalizeStoryboardWidgetConnectedTextValue(args.authoredPrompt)
+  const connectedPrompt = normalizeStoryboardWidgetConnectedTextValue(args.connectedValue)
+  return { authoredPrompt, connectedPrompt, prompt: connectedPrompt || authoredPrompt }
+}
+
 function normalizeWorkflowSchemaPath(schemaPath: unknown, fallbackKey = ''): string {
   const raw = cleanString(schemaPath) || cleanString(fallbackKey)
   if (!raw) return ''

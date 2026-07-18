@@ -94,6 +94,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
     editorClassName,
     emptyClassName,
     markdownPreview = false,
+    markdownPresentationMode = false,
     markdownDocumentPath = '/__card_inline_text_editor/preview.md',
     markdownCommandMenus = true,
     markdownCommandContextText = '',
@@ -591,6 +592,7 @@ export const CardInlineTextEditor = React.memo(function CardInlineTextEditor(pro
       enableMarkdownCommandMenus={enableMarkdownCommandMenus} externalTextTarget={canEdit && multiline}
       id={id}
       inlineChipDensity={inlineChipDensity}
+      markdownPresentationMode={markdownPresentationMode}
       markdownDocumentPath={markdownDocumentPath}
       onOpenEditorFromDisplayEvent={openEditorFromDisplayEvent}
       openDisplayCommandMenuForSigil={openDisplayCommandMenuForSigil}

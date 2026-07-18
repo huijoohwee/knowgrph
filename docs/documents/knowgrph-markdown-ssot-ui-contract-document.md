@@ -67,6 +67,7 @@ This document defines the Single Source of Truth (SSOT) contract for Markdown UI
   - Forbid absolute in-repo filesystem paths in Markdown content; use repo-relative or logical identifiers instead, and rely on runtime helpers to resolve them.
   - Preserve wikilinks and `{{}}` templates as plain Markdown syntax; Canvas/Graph parsers may interpret them structurally but must not require non-standard Markdown or mode-specific link syntax.
   - Reusable pitchdeck frontmatter templates must keep YAML frontmatter as machine SSOT and Markdown body as human projection; see `docs/documents/knowgrph-pitchdeck-frontmatter-template-contract.md`.
+  - Deliverables Widget Card output must remain Markdown SSOT: slide decks reuse `---` slide boundaries and the shared presentation renderer; financial models reuse Markdown pipe tables and the shared DataView renderer. HTML/`srcDoc` is not a financial-model persistence format. See `docs/documents/knowgrph-rich-media-deliverables-contract.md`.
 
 ### Active Graph Render View (SSOT)
 

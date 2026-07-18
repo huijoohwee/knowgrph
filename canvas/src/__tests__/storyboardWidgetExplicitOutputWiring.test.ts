@@ -2,10 +2,13 @@ import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
 import { createStoryboardWidgetWorkflowRichMediaPublishers } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPublication'
 import { resolveStoryboardWidgetWorkflowDownstreamRunTargetIds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowDownstreamRunTargets'
 import {
+  ensureStoryboardWidgetWorkflowOutputEdge,
   WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
   WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
 import { PROBE_TREE_OUTPUT_KEY } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
+import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
 function createTextOutputHarness(
@@ -47,6 +50,50 @@ function createTextOutputHarness(
     resolveNodeByIdAcrossGraphs: resolveNode,
   })
   return { publishers, readGraph: () => draft }
+}
+
+export function testWorkflowOwnedOutputEdgeRepairsCanonicalPortMetadata() {
+  const source: GraphNode = { id: 'source', type: 'TextGeneration', label: 'Widget Card', properties: {} }
+  const panel: GraphNode = { id: 'panel', type: 'RichMediaPanel', label: 'Generated Result', properties: {} }
+  let draft: GraphData = {
+    type: 'Graph',
+    nodes: [source, panel],
+    edges: [{
+      id: 'legacy-workflow-output',
+      source: source.id,
+      target: panel.id,
+      label: 'generated-result',
+      properties: {
+        key: 'properties',
+        type: 'object',
+        value: {
+          workflowOutputEdge: { key: 'workflowOutputEdge', type: 'boolean', value: true },
+          workflowOutputAnchorNodeId: { key: 'workflowOutputAnchorNodeId', type: 'string', value: source.id },
+          workflowOutputKey: { key: 'workflowOutputKey', type: 'string', value: 'generated-result' },
+        },
+      } as never,
+    }],
+  }
+  const ensure = () => ensureStoryboardWidgetWorkflowOutputEdge({
+    anchorNodeId: source.id,
+    panelNodeId: panel.id,
+    outputKey: 'generated-result',
+    readLiveDraftGraphData: () => draft,
+    commitDraftGraphDataUpdate: (_current, next) => { draft = next },
+    scheduleWorkflowOutputEdgeRefresh: () => undefined,
+  })
+
+  if (!ensure()) throw new Error('expected legacy workflow output edge to be repaired')
+  if (ensure()) throw new Error('expected canonical workflow output edge repair to be idempotent')
+  const rawProperties = draft.edges[0]?.properties as unknown as { value?: Record<string, unknown> }
+  const properties = rawProperties?.value || (rawProperties as unknown as Record<string, unknown>)
+  if (
+    properties[FLOW_EDGE_SOURCE_PORT_KEY] !== 'text_out'
+    || properties[FLOW_EDGE_TARGET_PORT_KEY] !== 'output'
+    || unwrapGraphCellValue(properties.workflowOutputEdge) !== true
+  ) {
+    throw new Error(`expected canonical text_out -> output metadata in the persisted edge container, got ${JSON.stringify(draft.edges[0])}`)
+  }
 }
 
 export function testExplicitMultiEdgesTargetWidgetCardAndRichMediaPanels() {
@@ -123,6 +170,66 @@ export function testGeneratedOutputsStayStandaloneUntilExplicitlyWired() {
   }
 }
 
+export function testDeliverablesOwnedOutputsStayDistinctAndIdempotent() {
+  const source: GraphNode = { id: 'deliverables-card', type: 'TextGeneration', label: 'Deliverables Widget Card', properties: {} }
+  const authoredPanel: GraphNode = { id: 'authored-panel', type: 'RichMediaPanel', label: 'Authored target', properties: {} }
+  const graph: GraphData = {
+    type: 'Graph',
+    nodes: [source, authoredPanel],
+    edges: [{
+      id: 'authored-edge',
+      source: source.id,
+      target: authoredPanel.id,
+      label: 'output',
+      properties: { [FLOW_EDGE_SOURCE_PORT_KEY]: 'text_out', [FLOW_EDGE_TARGET_PORT_KEY]: 'output' },
+    }],
+  }
+  const harness = createTextOutputHarness(graph)
+  for (let run = 1; run <= 2; run += 1) {
+    const deckGraph = harness.publishers.publishTextRunOutputToRichMediaPanel({
+      anchorNode: source,
+      outputText: `# Deck ${run}\n\n---\n\n# Risks`,
+      title: 'Slide Deck',
+      outputKey: 'markdown-slide-deck',
+      panelLabel: 'Slide Deck',
+      outputIndex: 0,
+      allowCreateStandaloneOutput: true,
+      connectCreatedOutputToAnchor: true,
+      ownedOutputOnly: true,
+    })
+    if (!deckGraph) throw new Error('expected owned Slide Deck publication')
+    const modelGraph = harness.publishers.publishTextRunOutputToRichMediaPanel({
+      anchorNode: source,
+      baseGraphData: deckGraph,
+      outputText: `| Metric | Run |\n| --- | ---: |\n| Revenue | ${run} |`,
+      title: 'Financial Model',
+      outputKey: 'financial-model-spreadsheet',
+      panelLabel: 'Financial Model',
+      outputIndex: 1,
+      allowCreateStandaloneOutput: true,
+      connectCreatedOutputToAnchor: true,
+      ownedOutputOnly: true,
+    })
+    if (!modelGraph) throw new Error('expected owned Financial Model publication')
+  }
+  const published = harness.readGraph()
+  const ownedPanels = published.nodes.filter(node => node.properties.workflowOutputAnchorNodeId === source.id)
+  const ownedKeys = ownedPanels.map(node => String(node.properties.workflowOutputKey || '')).sort()
+  const ownedEdges = published.edges.filter(edge => edge.properties?.workflowOutputEdge === true)
+  if (
+    published.nodes.length !== 4
+    || published.edges.length !== 3
+    || published.nodes.find(node => node.id === authoredPanel.id)?.properties.output
+    || ownedPanels.length !== 2
+    || ownedKeys.join(',') !== 'financial-model-spreadsheet,markdown-slide-deck'
+    || ownedEdges.length !== 2
+    || !ownedPanels.some(panel => String(panel.properties.output || '').includes('# Deck 2'))
+    || !ownedPanels.some(panel => String(panel.properties.output || '').includes('| Revenue | 2 |'))
+  ) {
+    throw new Error(`expected two distinct idempotent owned outputs without overwriting the authored target, got ${JSON.stringify(published)}`)
+  }
+}
+
 export function testProbeTreeBranchesLedgerConnectsSourceIdempotently() {
   const source: GraphNode = { id: 'n1', type: 'TextGeneration', label: 'Widget Card', properties: {} }
   const disconnectedLedger: GraphNode = {
@@ -163,6 +270,8 @@ export function testProbeTreeBranchesLedgerConnectsSourceIdempotently() {
     || ledgerEdges[0]?.source !== 'n1'
     || ledgerEdges[0]?.target !== 'n2'
     || ledgerEdges[0]?.label !== PROBE_TREE_OUTPUT_KEY
+    || ledgerEdges[0]?.properties?.[FLOW_EDGE_SOURCE_PORT_KEY] !== 'text_out'
+    || ledgerEdges[0]?.properties?.[FLOW_EDGE_TARGET_PORT_KEY] !== 'output'
     || ledgers[0]?.properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]
   ) {
     throw new Error(`expected the source Widget Card and owned Probe-Tree Branches ledger to share one typed edge, got ${JSON.stringify(published)}`)
@@ -280,6 +389,8 @@ export function testSelectedGenerationConnectsResultDuringRunAll() {
     || resultPanels.length !== 2
     || resultEdges.length !== 2
     || resultEdges.some(edge => edge.label !== 'probe-tree-generated-result')
+    || resultEdges.some(edge => edge.properties?.[FLOW_EDGE_SOURCE_PORT_KEY] !== 'text_out')
+    || resultEdges.some(edge => edge.properties?.[FLOW_EDGE_TARGET_PORT_KEY] !== 'output')
     || resultPanels.some(panel => panel.properties.workflowOutputKey !== 'probe-tree-generated-result')
     || resultPanels.some(panel => panel.properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY])
     || ![selectedChild.id, secondSelectedChild.id].every(sourceId => resultEdges.some(edge => edge.source === sourceId))

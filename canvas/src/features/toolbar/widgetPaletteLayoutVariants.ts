@@ -15,6 +15,7 @@ import {
 import {
   PROBE_TREE_TYPE_ONE_LAYOUT_ID,
   PROBE_TREE_TYPE_TWO_LAYOUT_ID,
+  RICH_MEDIA_DELIVERABLES_LAYOUT_ID,
   WIDGET_CARD_TYPE_ZERO_LAYOUT_ID,
 } from '@/lib/storyboardWidget/widgetCardLayoutVariants'
 
@@ -159,6 +160,13 @@ export function listWidgetPaletteLayoutVariants(
           entry,
           aspectRatio,
           layoutKind: 'card-multi-select',
+        },
+        {
+          id: RICH_MEDIA_DELIVERABLES_LAYOUT_ID,
+          label: 'Deliverables Widget Card',
+          entry,
+          aspectRatio,
+          layoutKind: 'card-output',
         },
       )
       continue

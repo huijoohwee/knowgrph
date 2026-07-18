@@ -21,6 +21,7 @@ import {
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeBalancedPositions'
 import {
   buildStoryboardWidgetWorkflowOutputEdgeId,
+  mergeStoryboardWidgetWorkflowOutputEdgeProperties,
   WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowOutputEdge'
 
@@ -547,11 +548,10 @@ export function normalizeStoryboardWidgetProbeTreeOutputLayout(args: {
     source: canonicalOwnerId,
     target: canonicalPanelId,
     label: PROBE_TREE_OUTPUT_KEY,
-    properties: {
-      workflowOutputEdge: true,
-      workflowOutputAnchorNodeId: canonicalOwnerId,
-      workflowOutputKey: PROBE_TREE_OUTPUT_KEY,
-    } as never,
+    properties: mergeStoryboardWidgetWorkflowOutputEdgeProperties({}, {
+      sourceNodeId: canonicalOwnerId,
+      outputKey: PROBE_TREE_OUTPUT_KEY,
+    }) as never,
   }]
   const canonicalNodeChanged = requiresCanonicalPlacement
     || readString(canonicalProperties.workflowOutputGroupId) !== outputGroupId

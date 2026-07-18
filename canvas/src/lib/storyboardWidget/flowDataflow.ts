@@ -4,7 +4,7 @@ import {
   FLOW_EDGE_TARGET_PORT_KEY,
 } from '@/lib/graph/flowPorts'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
-import { readNodeProperties } from '@/lib/graph/nodeProperties'
+import { readRecordPathValue, unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort, WidgetRegistrySchemaMapping } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import { resolveWidgetRegistryEntry } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
@@ -17,6 +17,7 @@ import { hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { isPlainObject } from '@/lib/graph/value'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
 
 export type FlowConnectedValueSource = {
   edgeId: string
@@ -30,7 +31,10 @@ export type FlowConnectedValue = {
 export type FlowConnectedValuesBySchemaPath = Record<string, FlowConnectedValue>
 const CONNECTED_VALUES_RESULT_CACHE_LIMIT = 64
 const connectedValuesResultCache = new Map<string, Map<string, Map<string, Map<string, FlowConnectedValuesBySchemaPath>>>>()
-function cleanString(v: unknown): string { return typeof v === 'string' ? v.trim() : '' }
+function cleanString(v: unknown): string {
+  const scalar = unwrapGraphCellValue(v)
+  return typeof scalar === 'string' ? scalar.trim() : ''
+}
 
 function registryCollectionKey(registry: ReadonlyArray<WidgetRegistryEntry>): string {
   if (!Array.isArray(registry) || registry.length === 0) return ''
@@ -59,6 +63,15 @@ function registryCollectionKey(registry: ReadonlyArray<WidgetRegistryEntry>): st
 }
 const readPlainObject = (value: unknown): Record<string, unknown> | null => {
   return isPlainObject(value) ? (value as Record<string, unknown>) : null
+}
+const readPersistedPropertyObject = (value: unknown): Record<string, unknown> | null => {
+  const raw = readPlainObject(value)
+  if (!raw) return null
+  const logical = Object.prototype.hasOwnProperty.call(raw, 'value')
+    && (Object.prototype.hasOwnProperty.call(raw, 'key') || Object.prototype.hasOwnProperty.call(raw, 'type'))
+    ? unwrapGraphCellValue(raw)
+    : raw
+  return readPlainObject(logical)
 }
 function isStoppedFlowValue(value: unknown): boolean { return value == null }
 
@@ -109,7 +122,7 @@ function buildConnectedValuesGraphKey(args: {
     parts.push(
       cleanString(node?.id),
       cleanString(node?.type),
-      hashRecordSignature32(readNodeProperties(node), { maxEntries: 80, maxDepth: 3 }),
+      hashRecordSignature32(readGraphNodeProperties(node), { maxEntries: 80, maxDepth: 3 }),
     )
   }
   parts.push('edges', edges.length)
@@ -120,7 +133,7 @@ function buildConnectedValuesGraphKey(args: {
       cleanString((edge as unknown as { id?: unknown })?.id),
       src || '',
       tgt || '',
-      hashRecordSignature32(readPlainObject(edge?.properties) || {}, { maxEntries: 40, maxDepth: 2 }),
+      hashRecordSignature32(readPersistedPropertyObject(edge?.properties) || {}, { maxEntries: 40, maxDepth: 2 }),
     )
   }
   return hashSignatureParts(parts)
@@ -168,8 +181,18 @@ function normalizeSchemaPath(schemaPath: string | undefined, fallbackKey: string
   return `properties.${raw}`
 }
 
+function readNodeSchemaPathValue(node: GraphNode, pathRaw: string): unknown {
+  const path = cleanString(pathRaw)
+  if (!path) return undefined
+  if (path === 'properties') return readGraphNodeProperties(node)
+  if (path.startsWith('properties.')) {
+    return readRecordPathValue(readGraphNodeProperties(node), path)
+  }
+  return unwrapGraphCellValue(getObjectPath(node, path))
+}
+
 function readFlowEdgePortKey(edge: GraphEdge, key: string): string {
-  const props = readPlainObject(edge?.properties)
+  const props = readPersistedPropertyObject(edge?.properties)
   return cleanString(props?.[key])
 }
 
@@ -342,15 +365,15 @@ function computeOutputPortValue(args: {
   }
   const computed = args.computedByNodeId.get(args.nodeId)?.[path]
   if (computed) return computed.value
-  const direct = getObjectPath(args.node, path)
+  const direct = readNodeSchemaPathValue(args.node, path)
   const emptyOutputSrcDoc = path === 'properties.outputSrcDoc' && typeof direct === 'string' && !direct.trim()
   if (typeof direct !== 'undefined' && !emptyOutputSrcDoc) return direct
   if (!args.outputPortPaths.has(args.portKey)) {
-    const directData = getObjectPath(args.node, computedDataPath)
+    const directData = readNodeSchemaPathValue(args.node, computedDataPath)
     if (typeof directData !== 'undefined') return directData
   }
   if (path === 'properties.outputSrcDoc') {
-    const output = getObjectPath(args.node, 'properties.output')
+    const output = readNodeSchemaPathValue(args.node, 'properties.output')
     if (typeof output === 'string' && output.trim()) {
       return buildTextWidgetOutputSrcDoc({
         title: args.node.label,
@@ -391,7 +414,7 @@ function buildConnectedValuesForNode(args: {
       node: {
         label: args.node.label,
         type: args.node.type,
-        properties: args.node.properties || {},
+        properties: readGraphNodeProperties(args.node),
         metadata: args.node.metadata || {},
       },
     }
@@ -416,7 +439,7 @@ function buildConnectedValuesForNode(args: {
     .map(it => ({ edgeId: it.edgeId, nodeId: it.sourceId, portKey: it.sourcePortKey }))
   const hasMaterializedOutputPort = args.preserveMaterializedOutputs
     && Array.from(args.outputPortPaths.values()).some(path =>
-      isMaterializedFlowOutputValue(getObjectPath(args.node, path)),
+      isMaterializedFlowOutputValue(readNodeSchemaPathValue(args.node, path)),
     )
 
   const applyComputedOutputs = (computed: Record<string, unknown>, allowUnregisteredOutputs: boolean): void => {
@@ -427,14 +450,14 @@ function buildConnectedValuesForNode(args: {
       const toPath = args.outputPortPaths.get(portKey) || normalizeSchemaPath(`properties.data.${portKey}`, portKey)
       if (!toPath) continue
       if (typeof value === 'undefined') continue
-      const materialized = getObjectPath(args.node, toPath)
+      const materialized = readNodeSchemaPathValue(args.node, toPath)
       if (args.preserveMaterializedOutputs && isMaterializedFlowOutputValue(materialized)) continue
       byPath[toPath] = { value, sources: allSources }
     }
   }
 
   if (args.computeEnabled && !hasMaterializedOutputPort) {
-    let effectiveProperties = { ...readNodeProperties(args.node) }
+    let effectiveProperties = { ...readGraphNodeProperties(args.node) }
     for (const [schemaPath, connected] of Object.entries(byPath)) {
       const normalizedPath = normalizeSchemaPath(schemaPath, schemaPath)
       if (!normalizedPath.startsWith('properties.')) continue
@@ -462,7 +485,7 @@ function buildConnectedValuesForNode(args: {
         id: args.node.id,
         type: args.node.type,
         label: args.node.label,
-        properties: { ...readNodeProperties(args.node) },
+        properties: { ...readGraphNodeProperties(args.node) },
         metadata: args.node.metadata && typeof args.node.metadata === 'object' && !Array.isArray(args.node.metadata)
           ? { ...(args.node.metadata as Record<string, unknown>) }
           : {},
