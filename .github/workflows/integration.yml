@@ -153,4 +153,6 @@ jobs:
 
       - name: Run canonical integration gate
         working-directory: knowgrph
+        env:
+          KNOWGRPH_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run ci:integration
