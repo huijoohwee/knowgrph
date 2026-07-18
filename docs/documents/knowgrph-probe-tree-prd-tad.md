@@ -153,7 +153,7 @@ Provider generation is fail-closed and owned by the explicit Widget Run gesture.
 
 **Given** the invocation trio rendered in a Storyboard card's metadata rail, **When** the user clicks a token chip, **Then** the canvas remains active and no browser navigation occurs; the card toolbar **Run** action is the sole execution boundary, while each chip retains source provenance in its hover title.
 
-**Given** a Widget text run has produced its workspace output artifact, **When** terminal publication completes or the Canvas reopens a stale partial stream, **Then** the source Widget output, owned Rich Media Panel, and connecting edge are committed as one published graph revision; a stale local artifact may complete that revision without another provider call.
+**Given** a selected Probe-Tree child has produced its terminal workspace output artifact, **When** publication completes or the Canvas reopens a stale partial stream, **Then** the selected child, owned `Generated Result` Rich Media Panel, and typed connecting edge are committed as one published graph revision; a stale local artifact may complete or repair that revision without another provider call.
 
 > **VCC translation**: `Verify the source Widget Card remains unchanged, an accepted configured-model response produces 2-4 child cards and one connected Rich Media branch ledger, every child can continue the tree, a zero-model run produces no fallback cards, and depth 8 stops visibly`
 
