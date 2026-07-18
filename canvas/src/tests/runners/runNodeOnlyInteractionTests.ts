@@ -325,7 +325,12 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
     await execTest(
       results,
       'ui.three.xrObjectDrag.suppressesOrbitControls',
-      modXrViewportControlsOwnership.testXrObjectDragSuppressesOrbitControlsBeforePointerMove,
+      modXrViewportControlsOwnership.testThreeObjectDragSuppressesOrbitControlsBeforePointerMove,
+    )
+    await execTest(
+      results,
+      'ui.three.objectDrag.synchronousViewportOwnership',
+      modXrViewportControlsOwnership.testThreeObjectInputOwnershipPublishesSynchronously,
     )
     await execTest(
       results,

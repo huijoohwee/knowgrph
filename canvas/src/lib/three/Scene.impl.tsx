@@ -230,6 +230,7 @@ export function Scene({
   const selectedEdgeIds = useGraphStore(s => s.selectedEdgeIds)
   const selectEdge = useGraphStore(s => s.selectEdge)
   const setSelectionSource = useGraphStore(s => s.setSelectionSource)
+  const updateNode = useGraphStore(s => s.updateNode)
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const threeEdgeRenderer = useGraphStore(s => s.threeEdgeRenderer)
   const threeShaderLineWidthPx = useGraphStore(s => s.threeShaderLineWidthPx)
@@ -372,6 +373,7 @@ export function Scene({
   }, [threeCfg.starfieldColor, palette, theme])
   const localDragOverridesRef = React.useRef<Record<string, Vec3>>({})
   const dragRef = dragOverridesRef || localDragOverridesRef
+  const dragProjectionRef = React.useRef<Record<string, { plane: THREE.Plane; offset: THREE.Vector3 }>>({})
   const voxelGridStep = resolveVoxelGridStep(schema)
   const voxelLayerSpacing = resolveVoxelLayerSpacing(schema)
   const voxelSnapEnabled = schema?.behavior?.snapGrid?.enabled === true
@@ -387,70 +389,57 @@ export function Scene({
     const z = p ? Number(p[2]) : 0
     return Number.isFinite(z) ? z : 0
   }, [positions])
+  const resolveDraggedPosition = React.useCallback((id: string, e: ThreeEvent<PointerEvent>): Vec3 => {
+    if (mode === 'voxel') {
+      const z = resolveVoxelDragPlaneZ(id)
+      const hit = intersectRayWithZPlane(e.ray, z) || e.point
+      return snapVoxelDragPoint(hit.x, hit.y, z)
+    }
+    let projection = dragProjectionRef.current[id]
+    if (!projection) {
+      const base = dragRef.current[id] || positions[id] || [e.point.x, e.point.y, e.point.z]
+      const center = new THREE.Vector3(base[0], base[1], base[2])
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(e.ray.direction.clone().normalize(), e.point)
+      projection = { plane, offset: center.sub(e.point) }
+      dragProjectionRef.current[id] = projection
+    }
+    const hit = e.ray.intersectPlane(projection.plane, new THREE.Vector3()) || e.point.clone()
+    const p = hit.add(projection.offset)
+    const rect = explicitGroupRectByNodeId.get(String(id)) || null
+    const n = nodeById.get(String(id)) || null
+    if (rect && n) {
+      const r = getRenderNodeRadius2d(n, schema)
+      const clamped = clampNodeCenterToRect({ cx: p.x, cy: p.y, halfW: r, halfH: r, rect })
+      p.x = clamped.cx
+      p.y = clamped.cy
+    }
+    return [p.x, p.y, p.z]
+  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, resolveVoxelDragPlaneZ, schema, snapVoxelDragPoint])
   const handleDragStart = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
-    if (mode === 'voxel') {
-      const z = resolveVoxelDragPlaneZ(id)
-      const hit = intersectRayWithZPlane(e.ray, z)
-      const p = hit || e.point
-      dragRef.current[id] = snapVoxelDragPoint(p.x, p.y, z)
-      return
-    }
-    const p = e.point.clone()
-    const rect = explicitGroupRectByNodeId.get(String(id)) || null
-    const n = nodeById.get(String(id)) || null
-    if (rect && n) {
-      const r = getRenderNodeRadius2d(n, schema)
-      const clamped = clampNodeCenterToRect({ cx: p.x, cy: p.y, halfW: r, halfH: r, rect })
-      p.x = clamped.cx
-      p.y = clamped.cy
-    }
-    dragRef.current[id] = [p.x, p.y, p.z]
-  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, resolveVoxelDragPlaneZ, schema, snapVoxelDragPoint])
+    delete dragProjectionRef.current[id]
+    dragRef.current[id] = resolveDraggedPosition(id, e)
+  }, [dragRef, resolveDraggedPosition])
   const handleDrag = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
-    if (mode === 'voxel') {
-      const z = resolveVoxelDragPlaneZ(id)
-      const hit = intersectRayWithZPlane(e.ray, z)
-      const p = hit || e.point
-      dragRef.current[id] = snapVoxelDragPoint(p.x, p.y, z)
-      return
-    }
-    const p = e.point.clone()
-    const rect = explicitGroupRectByNodeId.get(String(id)) || null
-    const n = nodeById.get(String(id)) || null
-    if (rect && n) {
-      const r = getRenderNodeRadius2d(n, schema)
-      const clamped = clampNodeCenterToRect({ cx: p.x, cy: p.y, halfW: r, halfH: r, rect })
-      p.x = clamped.cx
-      p.y = clamped.cy
-    }
-    dragRef.current[id] = [p.x, p.y, p.z]
-  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, resolveVoxelDragPlaneZ, schema, snapVoxelDragPoint])
+    dragRef.current[id] = resolveDraggedPosition(id, e)
+  }, [dragRef, resolveDraggedPosition])
   const handleDragEnd = React.useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
-    if (mode === 'voxel') {
-      const z = resolveVoxelDragPlaneZ(id)
-      const hit = intersectRayWithZPlane(e.ray, z)
-      const p = hit || e.point
-      dragRef.current[id] = snapVoxelDragPoint(p.x, p.y, z)
-      requestAnimationFrame(() => {
-        delete dragRef.current[id]
-      })
-      return
-    }
-    const p = e.point.clone()
-    const rect = explicitGroupRectByNodeId.get(String(id)) || null
-    const n = nodeById.get(String(id)) || null
-    if (rect && n) {
-      const r = getRenderNodeRadius2d(n, schema)
-      const clamped = clampNodeCenterToRect({ cx: p.x, cy: p.y, halfW: r, halfH: r, rect })
-      p.x = clamped.cx
-      p.y = clamped.cy
-    }
-    dragRef.current[id] = [p.x, p.y, p.z]
-    delete dragRef.current[id]
-  }, [dragRef, explicitGroupRectByNodeId, mode, nodeById, positions, resolveVoxelDragPlaneZ, schema, snapVoxelDragPoint])
+    const position = resolveDraggedPosition(id, e)
+    dragRef.current[id] = position
+    delete dragProjectionRef.current[id]
+    const node = nodeById.get(String(id))
+    updateNode(id, {
+      properties: {
+        ...(node?.properties || {}),
+        pos3d: [...position],
+      },
+    } as Partial<GraphNode>)
+    requestAnimationFrame(() => {
+      delete dragRef.current[id]
+    })
+  }, [dragRef, nodeById, resolveDraggedPosition, updateNode])
   const allowNodeDrag = schema.behavior ? schema.behavior.allowNodeDrag !== false : true
   const voxelClusterLightIntensity = (() => {
     const raw = schema.three?.voxelClusterLightIntensity
