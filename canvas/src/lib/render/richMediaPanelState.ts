@@ -68,6 +68,16 @@ export function normalizeConnectedTextValue(value: unknown): string {
   return ''
 }
 
+export function resolveRichMediaPanelDisplayText(
+  panel: Pick<RichMediaPanelOverlayState, 'freezeConnectedOutput' | 'text' | 'connectedText'> | null | undefined,
+  draftText = '',
+): string {
+  if (!panel) return ''
+  return panel.freezeConnectedOutput
+    ? draftText || panel.text || panel.connectedText || ''
+    : panel.connectedText || panel.text || ''
+}
+
 export function buildStaticRichMediaPanelOverlayState(args: {
   renderKind?: unknown
   activeTab?: unknown

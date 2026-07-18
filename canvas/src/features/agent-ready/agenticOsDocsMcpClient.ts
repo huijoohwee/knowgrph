@@ -1,5 +1,6 @@
 import {
   AGENTIC_OS_DOCS_MCP_BRIDGE_PATH,
+  isAgenticOsDocsMcpBridgeSuccessForTokens,
   normalizeAgenticOsDocsMcpBridgeRequest,
   type AgenticOsDocsMcpBridgeRequest,
   type AgenticOsDocsMcpBridgeSuccess,
@@ -28,9 +29,12 @@ export async function invokeAgenticOsDocsMcpBridge(
   if (!response.ok) {
     throw new Error(await readFailureMessage(response) || `Agentic OS docs MCP bridge failed (${response.status}).`)
   }
-  const payload = await response.json() as Partial<AgenticOsDocsMcpBridgeSuccess> & { error?: unknown }
-  if (payload.ok !== true || payload.mcpInvoked !== true || !Array.isArray(payload.invocations)) {
-    throw new Error(String(payload.error || '').trim() || 'Agentic OS docs MCP bridge returned an invalid response.')
+  const payload = await response.json() as unknown
+  if (!isAgenticOsDocsMcpBridgeSuccessForTokens(payload, boundedRequest.invocationTokens)) {
+    const error = payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? String((payload as { error?: unknown }).error || '').trim()
+      : ''
+    throw new Error(error || 'Agentic OS docs MCP bridge did not cover every requested invocation token.')
   }
-  return payload as AgenticOsDocsMcpBridgeSuccess
+  return payload
 }

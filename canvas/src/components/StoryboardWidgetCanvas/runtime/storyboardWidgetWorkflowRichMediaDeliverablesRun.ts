@@ -55,6 +55,7 @@ export async function runStoryboardWidgetRichMediaDeliverables(args: {
     if (!generated) throw new Error('Deliverables generation returned no output.')
     const deliverables = parseRichMediaDeliverablesResponse(generated)
     const commonPanelProperties = {
+      freezeConnectedOutput: true,
       richMediaDeliverablesMode: true,
       richMediaDeliverablesSourceNodeId: args.connectedSourceNodeId,
       mcpInvoked: mcpResponse?.mcpInvoked === true,
@@ -79,6 +80,8 @@ export async function runStoryboardWidgetRichMediaDeliverables(args: {
       allowCreateStandaloneOutput: true,
       connectCreatedOutputToAnchor: true,
       ownedOutputOnly: true,
+      // Stage both artifacts before the outer Run persists one complete graph.
+      deferPublishedGraphCommit: true,
     })
     if (!slideDeckGraph) throw new Error('Slide Deck Rich Media panel could not be published.')
     const financialModelGraph = args.publishOutput({
@@ -102,6 +105,7 @@ export async function runStoryboardWidgetRichMediaDeliverables(args: {
       allowCreateStandaloneOutput: true,
       connectCreatedOutputToAnchor: true,
       ownedOutputOnly: true,
+      deferPublishedGraphCommit: true,
     })
     if (!financialModelGraph) throw new Error('Financial Model Rich Media panel could not be published.')
     args.updateOutput(properties => ({

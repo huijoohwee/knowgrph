@@ -138,6 +138,25 @@ export const resolveProbeTreeMcpInvocationTokens = async (args: {
   }),
 )
 
+export const resolveAgenticOsDocsMcpInvocationTokens = async (args: {
+  client: Client
+  tokens: readonly string[]
+  requestOptions: { timeout: number; maxTotalTimeout: number; signal?: AbortSignal }
+}): Promise<ProbeTreeMcpInvocationResolution[]> => Promise.all(
+  args.tokens.map(async token => {
+    try {
+      return await resolveInvocationToken(args.client, token, args.requestOptions)
+    } catch (error) {
+      return {
+        token,
+        ok: false,
+        kind: token[0] || '',
+        error: (error instanceof Error ? error.message : String(error)).slice(0, 320),
+      }
+    }
+  }),
+)
+
 export function createProbeTreeMcpBridgePlugin({ repoRoot }: { repoRoot: string }): Plugin {
   return {
     name: 'knowgrph-probe-tree-mcp-bridge',
@@ -180,7 +199,7 @@ export function createProbeTreeMcpBridgePlugin({ repoRoot }: { repoRoot: string 
             signal: deadlineSignal,
           }
           await client.connect(transport, requestOptions)
-          const invocations = await resolveProbeTreeMcpInvocationTokens({
+          const invocations = await resolveAgenticOsDocsMcpInvocationTokens({
             client,
             tokens: parsed.invocationTokens,
             requestOptions,

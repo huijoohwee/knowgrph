@@ -23,6 +23,43 @@ export type AgenticOsDocsMcpBridgeSuccess = {
   invocations: AgenticOsDocsMcpInvocationResolution[]
 }
 
+const isAgenticOsDocsMcpInvocationResolution = (
+  value: unknown,
+): value is AgenticOsDocsMcpInvocationResolution => Boolean(
+  value
+  && typeof value === 'object'
+  && !Array.isArray(value)
+  && typeof (value as { token?: unknown }).token === 'string'
+  && typeof (value as { ok?: unknown }).ok === 'boolean',
+)
+
+export const isAgenticOsDocsMcpBridgeSuccessForTokens = (
+  value: unknown,
+  invocationTokens: readonly string[],
+): value is AgenticOsDocsMcpBridgeSuccess => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const response = value as Partial<AgenticOsDocsMcpBridgeSuccess>
+  if (
+    response.ok !== true
+    || response.tool !== AGENTIC_OS_DOCS_MCP_TOOL_NAME
+    || response.mcpInvoked !== true
+    || !Array.isArray(response.invocations)
+    || response.invocations.length !== invocationTokens.length
+  ) return false
+
+  const requestedTokens = new Set(invocationTokens)
+  const resolvedTokens = new Set<string>()
+  for (const invocation of response.invocations) {
+    if (
+      !isAgenticOsDocsMcpInvocationResolution(invocation)
+      || !requestedTokens.has(invocation.token)
+      || resolvedTokens.has(invocation.token)
+    ) return false
+    resolvedTokens.add(invocation.token)
+  }
+  return resolvedTokens.size === requestedTokens.size
+}
+
 export const normalizeAgenticOsDocsMcpInvocationTokens = (value: unknown): string[] => {
   if (!Array.isArray(value)) return []
   const seen = new Set<string>()

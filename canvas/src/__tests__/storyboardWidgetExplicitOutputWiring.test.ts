@@ -18,6 +18,8 @@ function createTextOutputHarness(
   options: { commitPublishedGraphData?: boolean } = {},
 ) {
   let draft = initialGraph
+  let draftCommitCount = 0
+  let publishedCommitCount = 0
   const resolveNode = (nodeId: string) => draft.nodes.find(node => String(node.id) === nodeId)
     || storeGraph.nodes.find(node => String(node.id) === nodeId)
     || null
@@ -42,14 +44,24 @@ function createTextOutputHarness(
     scheduleWorkflowOutputEdgeRefresh: () => undefined,
     readLiveDraftGraphData: () => draft,
     appendDraftNode: () => { throw new Error('text publication must use its atomic transaction') },
-    commitDraftGraphDataUpdate: (_current, next) => { draft = next },
-    ...(options.commitPublishedGraphData === false ? {} : { commitPublishedGraphData: (next: GraphData) => { draft = next } }),
+    commitDraftGraphDataUpdate: (_current, next) => {
+      draftCommitCount += 1
+      draft = next
+    },
+    ...(options.commitPublishedGraphData === false ? {} : { commitPublishedGraphData: (next: GraphData) => {
+      publishedCommitCount += 1
+      draft = next
+    } }),
     updateNode: (id, patch) => {
       draft = { ...draft, nodes: draft.nodes.map(node => String(node.id) === id ? { ...node, ...patch } : node) }
     },
     resolveNodeByIdAcrossGraphs: resolveNode,
   })
-  return { publishers, readGraph: () => draft }
+  return {
+    publishers,
+    readGraph: () => draft,
+    readCommitCounts: () => ({ draft: draftCommitCount, published: publishedCommitCount }),
+  }
 }
 
 export function testWorkflowOwnedOutputEdgeRepairsCanonicalPortMetadata() {
@@ -196,6 +208,7 @@ export function testDeliverablesOwnedOutputsStayDistinctAndIdempotent() {
       allowCreateStandaloneOutput: true,
       connectCreatedOutputToAnchor: true,
       ownedOutputOnly: true,
+      deferPublishedGraphCommit: true,
     })
     if (!deckGraph) throw new Error('expected owned Slide Deck publication')
     const modelGraph = harness.publishers.publishTextRunOutputToRichMediaPanel({
@@ -209,6 +222,7 @@ export function testDeliverablesOwnedOutputsStayDistinctAndIdempotent() {
       allowCreateStandaloneOutput: true,
       connectCreatedOutputToAnchor: true,
       ownedOutputOnly: true,
+      deferPublishedGraphCommit: true,
     })
     if (!modelGraph) throw new Error('expected owned Financial Model publication')
   }
@@ -216,6 +230,7 @@ export function testDeliverablesOwnedOutputsStayDistinctAndIdempotent() {
   const ownedPanels = published.nodes.filter(node => node.properties.workflowOutputAnchorNodeId === source.id)
   const ownedKeys = ownedPanels.map(node => String(node.properties.workflowOutputKey || '')).sort()
   const ownedEdges = published.edges.filter(edge => edge.properties?.workflowOutputEdge === true)
+  const commitCounts = harness.readCommitCounts()
   if (
     published.nodes.length !== 4
     || published.edges.length !== 3
@@ -225,8 +240,10 @@ export function testDeliverablesOwnedOutputsStayDistinctAndIdempotent() {
     || ownedEdges.length !== 2
     || !ownedPanels.some(panel => String(panel.properties.output || '').includes('# Deck 2'))
     || !ownedPanels.some(panel => String(panel.properties.output || '').includes('| Revenue | 2 |'))
+    || commitCounts.published !== 0
+    || commitCounts.draft !== 4
   ) {
-    throw new Error(`expected two distinct idempotent owned outputs without overwriting the authored target, got ${JSON.stringify(published)}`)
+    throw new Error(`expected staged, distinct, idempotent owned outputs without intermediate durable publication, got ${JSON.stringify({ published, commitCounts })}`)
   }
 }
 

@@ -7,12 +7,17 @@ import { invokeAgenticOsDocsMcpBridge } from '@/features/agent-ready/agenticOsDo
 import {
   buildRichMediaDeliverablesGenerationPrompt,
   collectRichMediaDeliverablesInvocationTokens,
+  isRichMediaDeliverablesWidget,
   parseRichMediaDeliverablesResponse,
 } from '@/features/rich-media/richMediaDeliverablesRun'
 import { containsMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
-import { buildRichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
+import {
+  buildRichMediaPanelOverlayState,
+  resolveRichMediaPanelDisplayText,
+} from '@/lib/render/richMediaPanelState'
 import { resolveStoryboardWidgetTextGenerationPrompts } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunInputs'
+import { runStoryboardWidgetRichMediaDeliverables } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaDeliverablesRun'
 
 const structuredDeliverablesResponse = JSON.stringify({
   structuredContent: {
@@ -95,6 +100,104 @@ export function testRichMediaDeliverablesRunUsesConnectedSourceAndKeepsAuthoredI
   }
 }
 
+export function testRichMediaDeliverablesTypedTargetKeepsMarkerPromptAndInvocationTokens() {
+  const persistedTargetProperties = {
+    richMediaDeliverablesMode: {
+      key: 'richMediaDeliverablesMode',
+      type: 'boolean',
+      value: true,
+    },
+    prompt: {
+      key: 'prompt',
+      type: 'textarea',
+      value: '/investment-research-agent @source.body #runtime-ready\nGenerate both deliverables.',
+    },
+  }
+  const prompts = resolveStoryboardWidgetTextGenerationPrompts({
+    authoredPrompt: persistedTargetProperties.prompt,
+    connectedValue: {
+      key: 'prompt',
+      type: 'textarea',
+      value: '# Persisted Generated Result\n\nBudget: RM100,000.',
+    },
+  })
+  const invocationTokens = collectRichMediaDeliverablesInvocationTokens(prompts.authoredPrompt)
+  if (!isRichMediaDeliverablesWidget(persistedTargetProperties)) {
+    throw new Error('expected the typed persisted deliverables marker to survive reload')
+  }
+  if (prompts.connectedPrompt !== '# Persisted Generated Result\n\nBudget: RM100,000.') {
+    throw new Error(`expected the typed connected target prompt to unwrap, got ${JSON.stringify(prompts)}`)
+  }
+  if (invocationTokens.join(' ') !== '/investment-research-agent @source.body #runtime-ready') {
+    throw new Error(`expected typed authored / # @ instructions to survive reload, got ${invocationTokens.join(' ')}`)
+  }
+}
+
+export async function testRichMediaDeliverablesOwnedPanelsDisplayLocalArtifactsAcrossConnectedEdges() {
+  const graphData = { type: 'GraphData', nodes: [], edges: [] }
+  const published: Array<{
+    outputText: string
+    title: string
+    panelProperties?: Record<string, unknown>
+  }> = []
+  await runStoryboardWidgetRichMediaDeliverables({
+    id: 'deliverables-card',
+    node: {
+      id: 'deliverables-card',
+      type: 'TextGeneration',
+      label: 'Deliverables Widget Card',
+      properties: { richMediaDeliverablesMode: true },
+    },
+    graphForRun: graphData,
+    rawNodeProperties: { richMediaDeliverablesMode: true },
+    authoredPrompt: 'Generate both deliverables.',
+    connectedPrompt: '# Generated Result\n\nBudget: RM100,000.',
+    connectedSourceNodeId: 'generated-result',
+    model: 'test-model',
+    generateText: async () => structuredDeliverablesResponse,
+    publishOutput: panelArgs => {
+      published.push(panelArgs)
+      return panelArgs.baseGraphData || graphData
+    },
+    readGraph: () => graphData,
+    updateOutput: () => void 0,
+    setLoading: () => void 0,
+    reportFailure: message => { throw new Error(message) },
+    upsertToast: () => void 0,
+  })
+  if (published.length !== 2) {
+    throw new Error(`expected two owned Rich Media publications, got ${published.length}`)
+  }
+  for (let index = 0; index < published.length; index += 1) {
+    const artifact = published[index]!
+    if (artifact.panelProperties?.freezeConnectedOutput !== true) {
+      throw new Error(`expected ${artifact.title} to freeze its generated local artifact across the lineage edge`)
+    }
+    const panel = buildRichMediaPanelOverlayState({
+      node: {
+        id: `deliverable-panel-${index}`,
+        type: 'RichMediaPanel',
+        label: artifact.title,
+        properties: {
+          ...artifact.panelProperties,
+          output: artifact.outputText,
+          richMediaActiveTab: 'text',
+        },
+      },
+      connectedValuesBySchemaPath: {
+        'properties.output': {
+          value: 'Generated Slide Deck and Financial Model.',
+          sources: [{ edgeId: `deliverable-edge-${index}`, nodeId: 'deliverables-card', portKey: 'text_out' }],
+        },
+      },
+    })
+    const displayedText = resolveRichMediaPanelDisplayText(panel)
+    if (!panel?.freezeConnectedOutput || displayedText !== artifact.outputText) {
+      throw new Error(`expected ${artifact.title} display state to keep its local Markdown artifact, got ${JSON.stringify({ panel, displayedText })}`)
+    }
+  }
+}
+
 export function testRichMediaDeliverablesRejectsPartialStructuredOutput() {
   let rejected = false
   try {
@@ -122,7 +225,11 @@ export async function testAgenticOsDocsMcpClientPostsAllowlistedInvocationTokens
       ok: true,
       tool: AGENTIC_OS_DOCS_MCP_TOOL_NAME,
       mcpInvoked: true,
-      invocations: [{ token: '/investment-research-agent', ok: true }],
+      invocations: [
+        { token: '/investment-research-agent', ok: true },
+        { token: '@source.body', ok: true },
+        { token: '#runtime-ready', ok: true },
+      ],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }) as typeof fetch)
   const body = JSON.parse(String(requestInit?.body || '{}')) as { invocationTokens?: unknown }

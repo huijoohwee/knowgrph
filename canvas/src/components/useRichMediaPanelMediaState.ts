@@ -7,6 +7,7 @@ import {
   resolveRichMediaPlayableUrl,
   resolveRichMediaPanelSelectedTab,
 } from '@/lib/render/richMediaSsot'
+import { resolveRichMediaPanelDisplayText } from '@/lib/render/richMediaPanelState'
 import { normalizeRuntimeStorageMediaAccessUrl } from '@/lib/storage/runtimeMediaUrl'
 import {
   readLatestGrabMapsPoiRichMediaPreview,
@@ -245,9 +246,7 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
   }, [panel, panelSelectedTab])
   const panelDisplayText = React.useMemo(() => {
     if (!panel || panelSelectedTab !== 'text') return ''
-    return panel.freezeConnectedOutput
-      ? panelDraftText || panel.text || panel.connectedText || ''
-      : panel.connectedText || panel.text || ''
+    return resolveRichMediaPanelDisplayText(panel, panelDraftText)
   }, [panel, panelDraftText, panelSelectedTab])
   const panelMarkdownCommandContextText = React.useMemo(() => (
     [

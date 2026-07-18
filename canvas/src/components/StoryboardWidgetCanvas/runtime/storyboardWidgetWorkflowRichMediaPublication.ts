@@ -91,6 +91,7 @@ export type StoryboardWidgetTextRunOutputPublisher = (args: {
   allowCreateStandaloneOutput?: boolean
   connectCreatedOutputToAnchor?: boolean
   ownedOutputOnly?: boolean
+  deferPublishedGraphCommit?: boolean
 }) => GraphData | null
 
 export type StoryboardWidgetMediaRunOutputPublisher = (args: {
@@ -371,7 +372,9 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
         })
       }
       const finished = transaction.finish({
-        preferPublishedGraphCommit: panelArgs.loading !== true && outputKey !== PROBE_TREE_OUTPUT_KEY,
+        preferPublishedGraphCommit: panelArgs.deferPublishedGraphCommit !== true
+          && panelArgs.loading !== true
+          && outputKey !== PROBE_TREE_OUTPUT_KEY,
         updatedNodeIds: panelNodeIds,
       })
       return finished ? transaction.readDraftGraphData() : null

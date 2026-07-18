@@ -2,6 +2,7 @@ import { computeFlowConnectedValuesBySchemaPath, type FlowConnectedValuesBySchem
 import { setObjectPath } from '@/lib/data/objectPath'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import { readFlowComputeSource } from '@/lib/storyboardWidget/flowComputeInline'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { WidgetRegistryEntry, WidgetRegistryPort } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
@@ -19,9 +20,10 @@ function cleanString(value: unknown): string {
 }
 
 export function normalizeStoryboardWidgetConnectedTextValue(value: unknown): string {
-  if (typeof value === 'string') return value.trim()
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string').join('\n').trim()
+  const scalar = unwrapGraphCellValue(value)
+  if (typeof scalar === 'string') return scalar.trim()
+  return Array.isArray(scalar)
+    ? scalar.map(item => normalizeStoryboardWidgetConnectedTextValue(item)).filter(Boolean).join('\n').trim()
     : ''
 }
 
