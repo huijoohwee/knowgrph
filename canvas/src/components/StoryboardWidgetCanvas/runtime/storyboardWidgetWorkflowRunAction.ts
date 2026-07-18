@@ -465,7 +465,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
         if (await runStoryboardWidgetNativeCrawlerInvocation({ id, prompt, node, nodeProperties: rawNodeProperties, workspacePath: args.markdownDocumentName, recoveryOnly: runOptions?.nativeCrawlerRecovery === true, updateOutput: updateRunOutputForKnownNodeIds, publishOutput: publishTextRunOutputToRichMediaPanel, upsertToast: args.upsertUiToast, reportFailure: reportNodeRunFailure })) return
         setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
         const mirrorTextOutputToRichMediaPanel = isFlowVideoScriptFormId(resolvedTextRegistryEntry?.formId) || providerFamily === 'byteplus'
-        const textThinkingOptions = resolveStoryboardWidgetTextThinkingOptions({ formId: resolvedTextRegistryEntry?.formId || rawNodeProperties[FLOW_WIDGET_FORM_ID_KEY], localProperties: rawNodeProperties, prompt, resolvedMaxCompletionTokens: properties.chatMaxCompletionTokens ?? store.chatMaxCompletionTokens, resolvedThinkingJson: properties.chatThinkingJson ?? store.chatThinkingJson, resolvedThinkingType: properties.chatThinkingType ?? store.chatThinkingType })
+        const textThinkingOptions = resolveStoryboardWidgetTextThinkingOptions({ formId: resolvedTextRegistryEntry?.formId || rawNodeProperties[FLOW_WIDGET_FORM_ID_KEY], localProperties: rawNodeProperties, prompt, resolvedMaxCompletionTokens: properties.chatMaxCompletionTokens ?? store.chatMaxCompletionTokens, resolvedReasoningEffort: properties.chatReasoningEffort ?? store.chatReasoningEffort, resolvedThinkingJson: properties.chatThinkingJson ?? store.chatThinkingJson, resolvedThinkingType: properties.chatThinkingType ?? store.chatThinkingType })
         if (mirrorTextOutputToRichMediaPanel) {
           updateRunOutputForKnownNodeIds(nodeProps => ({ ...clearRichMediaOutputProperties(nodeProps), outputLoading: true, outputLoadingKind: 'text', lastRunAt: new Date().toISOString() }))
         }
@@ -505,7 +505,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
               chatServiceTier: properties.chatServiceTier ?? store.chatServiceTier,
               chatStream: properties.chatStream ?? store.chatStream,
               chatMessagesJson: properties.chatMessagesJson ?? store.chatMessagesJson,
-              chatReasoningEffort: properties.chatReasoningEffort ?? store.chatReasoningEffort,
+              chatReasoningEffort: textThinkingOptions.chatReasoningEffort,
               chatThinkingType: textThinkingOptions.chatThinkingType,
               chatThinkingJson: textThinkingOptions.chatThinkingJson,
               chatFrequencyPenalty: properties.chatFrequencyPenalty ?? store.chatFrequencyPenalty,

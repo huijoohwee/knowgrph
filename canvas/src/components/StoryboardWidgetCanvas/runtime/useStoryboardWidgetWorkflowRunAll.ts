@@ -183,7 +183,15 @@ export function useStoryboardWidgetWorkflowRunAll(args: {
       setRunAllLayoutMutationLock(false)
       runWorkflowAllInFlightRef.current = false
     }
-  }, [args])
+  }, [
+    args.draftGraphData,
+    args.draftGraphDataRef,
+    args.runWorkflowNode,
+    args.scheduleOutputEdgeRefresh,
+    args.setDraftGraphData,
+    args.storyboardWidgetViewActive,
+    args.upsertUiToast,
+  ])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return

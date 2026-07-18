@@ -5,10 +5,11 @@ export function testVideoScriptWorkflowDefaultsToEnabledThinkingMode() {
     formId: 'videoScript',
     localProperties: {},
     resolvedMaxCompletionTokens: 1000,
+    resolvedReasoningEffort: 'medium',
     resolvedThinkingJson: '{"type":"enabled"}',
     resolvedThinkingType: 'enabled',
   })
-  if (resolved.chatThinkingType !== 'enabled' || resolved.chatThinkingJson !== '') {
+  if (resolved.chatThinkingType !== 'enabled' || resolved.chatThinkingJson !== '' || resolved.chatReasoningEffort !== 'medium') {
     throw new Error(`expected videoScript to use the typed enabled thinking mode, got ${JSON.stringify(resolved)}`)
   }
   if (resolved.chatMaxCompletionTokens !== 4096) {
@@ -25,10 +26,11 @@ export function testVideoScriptWorkflowPreservesTypedThinkingOverride() {
       chatThinkingType: 'auto',
     },
     resolvedMaxCompletionTokens: 2048,
+    resolvedReasoningEffort: 'high',
     resolvedThinkingJson: '{"type":"auto"}',
     resolvedThinkingType: 'auto',
   })
-  if (resolved.chatThinkingType !== 'auto' || resolved.chatThinkingJson !== '') {
+  if (resolved.chatThinkingType !== 'auto' || resolved.chatThinkingJson !== '' || resolved.chatReasoningEffort !== 'high') {
     throw new Error(`expected videoScript to preserve its typed thinking override without a conflicting JSON payload, got ${JSON.stringify(resolved)}`)
   }
   if (resolved.chatMaxCompletionTokens !== 2048) {
@@ -41,10 +43,11 @@ export function testOrdinaryTextWorkflowPreservesGlobalThinkingMode() {
     formId: 'textGeneration',
     localProperties: {},
     resolvedMaxCompletionTokens: 1000,
+    resolvedReasoningEffort: 'medium',
     resolvedThinkingJson: '{"type":"enabled"}',
     resolvedThinkingType: 'enabled',
   })
-  if (resolved.chatThinkingType !== 'enabled' || resolved.chatThinkingJson !== '{"type":"enabled"}') {
+  if (resolved.chatThinkingType !== 'enabled' || resolved.chatThinkingJson !== '{"type":"enabled"}' || resolved.chatReasoningEffort !== 'medium') {
     throw new Error(`expected non-video text workflows to preserve shared settings, got ${JSON.stringify(resolved)}`)
   }
   if (resolved.chatMaxCompletionTokens !== 1000) {
@@ -60,12 +63,13 @@ export function testAgentPromptWorkflowDisablesThinkingForFinalOutput() {
       chatReasoningEffort: 'medium',
       chatThinkingType: 'enabled',
     },
-    prompt: '/sme-care-agent @source.frontmatter @source.body @local-harness #runtime-ready\n\nAssess the active SME workspace.',
+    prompt: '/sme-care-agent\n\n/another.workflow Assess the active workspace opportunity.',
     resolvedMaxCompletionTokens: 1000,
+    resolvedReasoningEffort: 'medium',
     resolvedThinkingJson: '{"type":"enabled"}',
     resolvedThinkingType: 'enabled',
   })
-  if (resolved.chatThinkingType !== 'disabled' || resolved.chatThinkingJson !== '') {
+  if (resolved.chatThinkingType !== 'disabled' || resolved.chatThinkingJson !== '' || resolved.chatReasoningEffort !== 'minimal') {
     throw new Error(`expected a final-output agent invocation to disable reasoning-only output, got ${JSON.stringify(resolved)}`)
   }
   if (resolved.chatMaxCompletionTokens !== 1000) {
