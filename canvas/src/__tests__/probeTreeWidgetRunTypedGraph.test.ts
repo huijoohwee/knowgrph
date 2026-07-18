@@ -17,6 +17,45 @@ import { isStoryboardWidgetProbeTreeLineageOnlyRootNode } from '@/components/Sto
 
 const cell = (key: string, type: string, value: unknown) => ({ key, type, value })
 
+export function testStoryboardWidgetWorkflowRunTargetResolvesComposedOverlayIdAgainstInnerDraftNode() {
+  const innerNode: GraphNode = {
+    id: 'n18',
+    type: 'TextGeneration',
+    label: 'Deliverables Widget Card',
+    properties: {},
+  }
+  const draftGraph: GraphData = {
+    type: 'Graph',
+    nodes: [innerNode],
+    edges: [],
+    metadata: { graphDataRevision: 18 },
+  }
+  const storeGraph: GraphData = {
+    type: 'Graph',
+    nodes: [{ ...innerNode, id: 'ws:caca068a::n18' }],
+    edges: [],
+    metadata: { graphDataRevision: 19, sourceLayerComposition: 'compose' },
+  }
+  const context = getCachedStoryboardWidgetWorkflowNodeResolutionContext({
+    draftGraph,
+    draftGraphRevision: 18,
+    renderGraph: draftGraph,
+    renderGraphRevision: 18,
+    baseGraph: draftGraph,
+    baseGraphRevision: 18,
+    storeGraph,
+    storeGraphRevision: 19,
+    preferCurrentGraphDataRefs: true,
+  })
+  const resolved = resolveStoryboardWidgetWorkflowRunTarget({
+    context,
+    requestedNodeId: 'ws:caca068a::n18',
+  })
+  if (resolved?.node !== innerNode || resolved.resolvedNodeId !== 'n18' || resolved.writableNodeId !== 'n18') {
+    throw new Error(`expected composed overlay Run identity to resolve the unique writable inner draft node, got ${JSON.stringify(resolved)}`)
+  }
+}
+
 export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity() {
   const prompt = [
     '/sme-care-agent @source.frontmatter @source.body',

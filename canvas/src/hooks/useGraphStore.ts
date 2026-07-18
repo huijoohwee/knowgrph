@@ -4,7 +4,7 @@ import { defaultSchema } from '@/lib/graph/schema';
 import { createGraphDataSlice } from '@/hooks/store/graphDataSlice';
 import { createMinimapSlice } from '@/features/minimap/store';
 import { createSelectionSlice } from '@/hooks/store/selectionSlice';
-import { createHistorySlice } from '@/hooks/store/historySlice';
+import { cancelScheduledHistoryCommit, createHistorySlice } from '@/hooks/store/historySlice';
 import { createUiSlice } from '@/hooks/store/uiSlice';
 import { createCanvasSlice } from '@/hooks/store/canvasSlice';
 import { createGraphViewSlice } from '@/hooks/store/graphViewSlice';
@@ -187,6 +187,7 @@ export const useGraphStore = create<GraphState>()(
   lifecycleStage: 'idle',
   setLifecycleStage: (v) => set({ lifecycleStage: v }),
   resetAll: () => {
+    cancelScheduledHistoryCommit()
     const schema = applyCanvasDefaultInitSchema(defaultSchema)
     const keywordSchema = buildKeywordSchemaPreset(schema)
     set({
@@ -199,6 +200,7 @@ export const useGraphStore = create<GraphState>()(
       layoutPositionCacheByMode: {},
       history: [],
       historyIndex: -1,
+      historyRestoreRevision: (get().historyRestoreRevision || 0) + 1,
       selectedNodeId: null,
       selectedEdgeId: null,
       selectedGroupId: null,

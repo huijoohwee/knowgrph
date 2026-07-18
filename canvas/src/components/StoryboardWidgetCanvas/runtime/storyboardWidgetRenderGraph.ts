@@ -1,4 +1,4 @@
-import { canonicalNodeIdSetHas, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
+import { canonicalNodeIdSetHas, getCanonicalNodeLookupValue, splitComposedNodeId } from '@/lib/graph/canonicalNodeIds'
 import { buildOverlayTopologyLayoutSignature } from '@/lib/storyboardWidget/overlayTopologyLayoutSignature'
 import { FLOW_HANDLE_DEFAULT_EDGE_ID } from '@/components/FlowCanvas/handles'
 import { pickDefaultFlowPortKey, readFlowEdgePortKey } from '@/lib/graph/flowPorts'
@@ -505,15 +505,18 @@ export function resolveStoryboardWidgetWorkflowRunTarget(args: {
 }): StoryboardWidgetWorkflowResolvedRunTarget | null {
   const requestedNodeId = String(args.requestedNodeId || '').trim()
   if (!requestedNodeId) return null
+  const draftNode = getCanonicalNodeLookupValue(args.context.draftNodeById, requestedNodeId)
+  const renderNode = getCanonicalNodeLookupValue(args.context.renderNodeById, requestedNodeId)
+  const baseNode = getCanonicalNodeLookupValue(args.context.baseNodeById, requestedNodeId)
   const resolved =
-    (args.context.draftGraph && args.context.draftNodeById.get(requestedNodeId)
-      ? { graph: args.context.draftGraph, node: args.context.draftNodeById.get(requestedNodeId)! }
+    (args.context.draftGraph && draftNode
+      ? { graph: args.context.draftGraph, node: draftNode }
       : null)
-    || (args.context.renderGraph && args.context.renderNodeById.get(requestedNodeId)
-      ? { graph: args.context.renderGraph, node: args.context.renderNodeById.get(requestedNodeId)! }
+    || (args.context.renderGraph && renderNode
+      ? { graph: args.context.renderGraph, node: renderNode }
       : null)
-    || (args.context.baseGraph && args.context.baseNodeById.get(requestedNodeId)
-      ? { graph: args.context.baseGraph, node: args.context.baseNodeById.get(requestedNodeId)! }
+    || (args.context.baseGraph && baseNode
+      ? { graph: args.context.baseGraph, node: baseNode }
       : null)
   if (!resolved) return null
   const resolvedNodeId = readCanonicalStoryboardWidgetOverlayIdentity(resolved.node.id) || requestedNodeId

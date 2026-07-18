@@ -135,8 +135,70 @@ export function testStoryboardWidgetBaseResetReconcilesCanonicalContentIntoNewer
   if (readGraphDataRevision(resolved) <= readGraphDataRevision(currentDraft)) throw new Error('expected reconciled draft revision to outrank both authorities')
 }
 
+export function testStoryboardWidgetBaseResetPreservesComposedSupersetAcrossNormalHistoryAppend() {
+  const base = graph(7, ['n2'])
+  const composedDraft = graph(8, ['ws:caca068a::n2', 'ws:caca068a::n18'])
+  composedDraft.metadata = { ...composedDraft.metadata, sourceLayerComposition: 'compose' }
+  const resolved = resolveStoryboardWidgetDraftGraphDataForBaseReset({
+    activeDocumentKey: 'knowgrph.md::',
+    previousDocumentKey: 'knowgrph.md::',
+    currentDraftGraphData: composedDraft,
+    nextBaseGraphData: { ...base, nodes: [...base.nodes] },
+    previousBaseGraphData: base,
+  })
+  if (resolved !== composedDraft) {
+    throw new Error('expected an ordinary history append with a stale inner-id base to preserve the newer composed draft superset')
+  }
+}
+
+export function testStoryboardWidgetBaseReparseKeepsOneCanonicalIdentityPerNode() {
+  const previousBase = graph(7, ['n2'])
+  const composedDraft = graph(9, ['ws:caca068a::n2', 'ws:caca068a::n18'])
+  composedDraft.metadata = { ...composedDraft.metadata, sourceLayerComposition: 'compose' }
+  const reparsedBase = graph(8, ['n2', 'n18'])
+  const resolved = resolveStoryboardWidgetDraftGraphDataForBaseReset({
+    activeDocumentKey: 'knowgrph.md::',
+    previousDocumentKey: 'knowgrph.md::',
+    currentDraftGraphData: composedDraft,
+    nextBaseGraphData: reparsedBase,
+    previousBaseGraphData: previousBase,
+  })
+  const ids = (resolved?.nodes || []).map(node => String(node.id || '')).sort()
+  if (JSON.stringify(ids) !== JSON.stringify(['ws:caca068a::n18', 'ws:caca068a::n2'])) {
+    throw new Error(`expected source reparse reconciliation to retain exactly one composed identity per node, got ${JSON.stringify(ids)}`)
+  }
+}
+
+export function testStoryboardWidgetBaseResetDoesNotConflateAmbiguousInnerIdsAcrossLayers() {
+  const base = graph(4, ['n1'])
+  const ambiguousDraft = graph(5, ['ws:a::n1', 'ws:b::n1'])
+  ambiguousDraft.metadata = { ...ambiguousDraft.metadata, sourceLayerComposition: 'compose' }
+  const resolved = resolveStoryboardWidgetDraftGraphDataForBaseReset({
+    activeDocumentKey: 'knowgrph.md::',
+    previousDocumentKey: 'knowgrph.md::',
+    currentDraftGraphData: ambiguousDraft,
+    nextBaseGraphData: base,
+  })
+  if (resolved !== base) {
+    throw new Error('expected an unscoped inner id to remain incompatible with ambiguous same-inner nodes from multiple source layers')
+  }
+  const ambiguousBase = graph(6, ['ws:a::n1', 'ws:b::n1'])
+  const unscopedDraft = graph(7, ['n1', 'n2', 'n3'])
+  const reverseResolved = resolveStoryboardWidgetDraftGraphDataForBaseReset({
+    activeDocumentKey: 'knowgrph.md::',
+    previousDocumentKey: 'knowgrph.md::',
+    currentDraftGraphData: unscopedDraft,
+    nextBaseGraphData: ambiguousBase,
+    previousBaseGraphData: ambiguousBase,
+  })
+  if (reverseResolved !== ambiguousBase) {
+    throw new Error('expected one unscoped inner id not to satisfy multiple same-inner base identities across source layers')
+  }
+}
+
 export function testStoryboardWidgetBaseResetEffectKeysOffRevisionInsteadOfDerivedGraphIdentity() {
   const source = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetRenderState.ts'), 'utf8')
+  const storeSource = readFileSync(resolve(process.cwd(), 'src/hooks/useGraphStore.ts'), 'utf8')
   if (!source.includes('const storyboardWidgetBaseGraphDataRef = React.useRef(args.storyboardWidgetBaseGraphData)')) {
     throw new Error('expected the draft reset effect to read the latest derived base graph through a stable ref')
   }
@@ -146,7 +208,16 @@ export function testStoryboardWidgetBaseResetEffectKeysOffRevisionInsteadOfDeriv
   if (!source.includes('storyboardWidgetBaseContentSignature')) {
     throw new Error('expected derived base content changes to retrigger draft reconciliation without object-identity churn')
   }
-  if (!source.includes('forceBaseReset: historyIndexChanged') || !source.includes('args.historyIndex')) {
-    throw new Error('expected every reactive history index transition to reset the Storyboard draft authority')
+  if (!source.includes('forceBaseReset: historyRestoreRevisionChanged') || !source.includes('args.historyRestoreRevision')) {
+    throw new Error('expected only explicit history restoration to reset the Storyboard draft authority')
+  }
+  if (source.includes('forceBaseReset: historyIndexChanged') || source.includes('args.historyIndex')) {
+    throw new Error('expected ordinary history snapshot recording to stop forcing a Storyboard draft reset')
+  }
+  if (!storeSource.includes('historyRestoreRevision: (get().historyRestoreRevision || 0) + 1')) {
+    throw new Error('expected full store reset to advance the same monotonic restore revision used by Storyboard draft authority')
+  }
+  if (!storeSource.includes('resetAll: () => {\n    cancelScheduledHistoryCommit()')) {
+    throw new Error('expected full store reset to cancel pending debounced history commits before clearing history')
   }
 }

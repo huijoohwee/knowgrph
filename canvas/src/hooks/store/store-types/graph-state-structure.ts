@@ -111,6 +111,7 @@ export interface GraphStateStructure {
   setDocumentStructureBaselineLock: (enabled: boolean) => void;
   history: VersionHistoryEntry[];
   historyIndex: number;
+  historyRestoreRevision: number;
   recentFiles: RecentFileEntry[];
   historyDebounceMs: number;
   schema: GraphSchema;

@@ -30,6 +30,17 @@ export function buildCanvasAppliedMarkdownDocumentSemanticKey(args: {
   return buildScopedGraphSemanticKey('canvas-applied-markdown-document', { graphSemanticKey })
 }
 
+export function buildCanvasAppliedMarkdownDocumentIdentityKey(args: {
+  name?: unknown
+  sourceUrl?: unknown
+}): string {
+  const graphSemanticKey = hashSignatureParts([
+    String(args.name || '').trim(),
+    String(args.sourceUrl || '').trim(),
+  ])
+  return buildScopedGraphSemanticKey('canvas-applied-markdown-document-identity', { graphSemanticKey })
+}
+
 export function shouldRefreshCanvasAppliedMarkdownDocument(args: {
   latest: CanvasAppliedMarkdownDocument
   next: CanvasAppliedMarkdownDocument
