@@ -1,4 +1,5 @@
 import { runStoryboardWidgetProbeTreeTextGenerationInvocation } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowProbeTreeRun'
+import { buildStoryboardWidgetProbeTreeProviderPrompt } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeProviderPrompt'
 import {
   PROBE_TREE_PROVIDER_MIN_OUTPUT_TOKENS,
   PROBE_TREE_TERMINAL_PROVIDER_TASK_MARKER,
@@ -174,11 +175,19 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     || 'messages' in providerRequestBody
     || 'max_completion_tokens' in providerRequestBody
     || !String(mcpRequest?.contextText || '').includes(AUTHORED_REQUEST)
-    || !providerPrompt.includes('Never copy or paraphrase the selected request as a card question')
+    || !String(mcpRequest?.contextText || '').includes('Invocation route: /sme-care-agent')
+    || !providerPrompt.includes('Never copy or paraphrase the active selected input as a card question')
     || !providerPrompt.includes('not as a ready-made selectionOptions array')
     || !providerPrompt.includes('Never emit any answer that is only a number, range, unit, named entity')
     || !providerPrompt.includes('explicit Probe-Tree invocation requests 2-4 clarification cards')
     || !providerPrompt.includes('action verb such as recommend, compare, assess, or plan')
+    || !providerPrompt.includes('Active selected input: recommend an investment strategy for India or SE Asia?')
+    || providerPrompt.includes('/sme-care-agent')
+    || providerPrompt.includes('Coverage-gap and risk-exposure guidance')
+    || providerPrompt.includes('Agentic OS invocation contract:')
+    || providerPrompt.includes('"widgets":')
+    || providerPrompt.includes('"panels":')
+    || providerPrompt.includes('"edges":')
     || providerPrompt.includes('imperative generation request, fulfill that deliverable through normal generation')
     || !providerPrompt.includes('runtime owns source Widget investment-root')
     || !providerPrompt.includes('source-verbatim contextAnchors')
@@ -199,5 +208,82 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     || ordinaryProviderOptions.chatReasoningEffort !== 'medium'
   ) {
     throw new Error(`expected Widget Run to use the active Chat Responses route and accept only new query-specific decision variables, got ${JSON.stringify({ providerCalls, providerRequestUrl, providerRequestBody, mcpRequest, providerPrompt, result })}`)
+  }
+}
+
+export function testProbeTreeProviderPromptProjectsOnlySelectedSemanticContext() {
+  const prompt = buildStoryboardWidgetProbeTreeProviderPrompt({
+    contextText: [
+      'Authored request:',
+      '/unrelated-agent @source.body /knowgrph.probe-tree assess a workspace expansion in Region Alpha or Region Beta',
+      'Invocation route: /unrelated-agent — Unrelated agent. Route summary: Stock route subject that must not steer clarification.',
+      'Agentic OS directives: @source.body — Source body description that must remain routing metadata.',
+    ].join('\n'),
+    currentNodeId: 'selected-node',
+    mcpInvoked: true,
+    probeTreeDepth: 2,
+    mcpResult: {
+      isError: false,
+      structuredContent: {
+        contractVersion: 'knowgrph-probe-tree/v0.1',
+        ok: true,
+        response: {
+          structuredContent: {
+            widgets: [{ prompt: 'Stock route subject that must not steer clarification.' }],
+            cards: [{
+              question: 'Which operating timeline should guide the Region Alpha or Region Beta expansion?',
+              rationale: 'The timeline changes the implementation tradeoff.',
+              evidenceNeeded: 'User-selected operating timeline.',
+              selectionOptions: [
+                'Prefer an earlier launch with less implementation buffer',
+                'Delay launch to retain more implementation buffer',
+              ],
+              parentNodeId: 'root-alias',
+            }],
+            panels: [{ output: 'stock panel output' }],
+            edges: [{ source: 'root-alias', target: 'selected-node' }],
+          },
+        },
+        recalled_exemplars: [{ memory: 'stock exemplar content' }],
+        cost_log: { model: 'local-model' },
+      },
+    },
+  })
+  const zeroModelPrompt = buildStoryboardWidgetProbeTreeProviderPrompt({
+    contextText: 'Authored request:\nassess a workspace expansion in Region Alpha or Region Beta',
+    currentNodeId: 'selected-node',
+    mcpInvoked: true,
+    probeTreeDepth: 2,
+    mcpResult: {
+      structuredContent: {
+        cost_log: { model: 'none' },
+        response: {
+          structuredContent: {
+            cards: [{
+              question: 'Poisoned zero-model fallback question',
+              selectionOptions: ['Poisoned fallback answer one', 'Poisoned fallback answer two'],
+            }],
+          },
+        },
+      },
+    },
+  })
+  if (
+    !prompt.includes('Active selected input: assess a workspace expansion in Region Alpha or Region Beta')
+    || !prompt.includes('Which operating timeline should guide the Region Alpha or Region Beta expansion?')
+    || !prompt.includes('Prefer an earlier launch with less implementation buffer')
+    || prompt.includes('/unrelated-agent')
+    || prompt.includes('Stock route subject that must not steer clarification.')
+    || prompt.includes('Source body description that must remain routing metadata.')
+    || prompt.includes('stock panel output')
+    || prompt.includes('stock exemplar content')
+    || prompt.includes('root-alias')
+    || prompt.includes('"widgets":')
+    || prompt.includes('"panels":')
+    || prompt.includes('"edges":')
+    || zeroModelPrompt.includes('Poisoned zero-model fallback question')
+    || zeroModelPrompt.includes('Poisoned fallback answer')
+  ) {
+    throw new Error(`expected provider prompt to retain only selected semantic context and projected MCP cards, got ${prompt}`)
   }
 }
