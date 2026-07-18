@@ -42,6 +42,15 @@ export function testCanvasHelpShortcutsSsotHasUniqueIdsAndLines() {
     const detail = String(shortcutTextByKey.get(`precedence.${r.id}`) || '').trim()
     if (!rule || !detail) throw new Error('expected precedence rules to have rule and docs-backed detail')
   }
+  for (const shortcutTextKey of [
+    'xr.object-choreography',
+    'xr.camera-framing',
+    'xr.camera-choreography',
+  ]) {
+    if (!String(shortcutTextByKey.get(shortcutTextKey) || '').trim()) {
+      throw new Error(`expected MainPanel Help docs to describe shared XR shortcut ${shortcutTextKey}`)
+    }
+  }
 }
 
 export function testHelpTabSearchAndCopyIncludesCanvasShortcutLines() {
