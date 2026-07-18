@@ -29,7 +29,7 @@ import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { isFrontmatterOnlyPolicyActive } from '@/lib/config.render'
 import { buildOverlayTopologyLayoutSignature } from '@/lib/storyboardWidget/overlayTopologyLayoutSignature'
 import { hashSignatureParts } from '@/lib/hash/signature'
-import { useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
+import { buildCanvasAppliedMarkdownDocumentIdentityKey, useCanvasAppliedMarkdownDocument } from '@/features/canvas/useCanvasAppliedMarkdownDocument'
 import { resolveRichMediaWidgetKind } from '@/features/chat/richMediaRun'
 import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { appendPendingOverlayNodesToGraphData, resolvePendingOverlayGraphDataBase } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetPendingOverlayGraph'
@@ -102,7 +102,7 @@ export default function StoryboardWidgetCanvasRuntime(
     updateOpenWidgetNodeIds, updateUserSubgraph, upsertUiToast, workspaceMutationBlocked,
   } = useStoryboardWidgetRuntimeStoreState()
   const strybldrStoryboardDisplayMode = useGraphStore(s => s.strybldrStoryboardDisplayMode)
-  const historyIndex = useGraphStore(s => s.historyIndex)
+  const historyRestoreRevision = useGraphStore(s => s.historyRestoreRevision)
   const storyboardDisplayMode = readCanvasCardWidgetDisplayMode(strybldrStoryboardDisplayMode)
   const storyboardCardDisplayActive = storyboardCardsMode && storyboardDisplayMode === 'card'
   const storyboardWidgetDisplayActive = storyboardCardsMode && storyboardDisplayMode === 'widget'
@@ -136,8 +136,8 @@ export default function StoryboardWidgetCanvasRuntime(
     applyViewPreset: markdownDocumentApplyViewPreset !== false,
   })
   const activeDocumentKey = React.useMemo(() => {
-    return [String(canvasMarkdownDocument.semanticKey || '').trim(), String(markdownDocumentApplyRevision || 0)].join('::')
-  }, [canvasMarkdownDocument.semanticKey, markdownDocumentApplyRevision])
+    return [buildCanvasAppliedMarkdownDocumentIdentityKey({ name: canvasMarkdownDocument.name, sourceUrl: canvasMarkdownDocument.sourceUrl }), String(markdownDocumentApplyRevision || 0)].join('::')
+  }, [canvasMarkdownDocument.name, canvasMarkdownDocument.sourceUrl, markdownDocumentApplyRevision])
   const storyboardWidgetViewActive = editorRuntimeActive
   const canInteract = editorRuntimeActive
   const canEdit = editorRuntimeActive && !documentStructureBaselineLock
@@ -270,7 +270,7 @@ export default function StoryboardWidgetCanvasRuntime(
     frontmatterOnlyPolicyActive,
     activeDocumentKey,
     selectedEdgeId,
-    historyIndex,
+    historyRestoreRevision,
     preferDraftGraphData: storyboardCardsMode,
   })
   const { publishStoryboardCardMediaGraph, commitStoryboardCardMediaGraph, commitStoryboardCardMediaGraphForSurface } = useStoryboardCardMediaGraphCommit({ baseRevision: baseGraphDataRevision, draftRevision: draftGraphDataRevision, draftGraphDataRef, setDraftGraphData, setGraphDataPreservingLayout, sourceOwner: { documentName: markdownDocumentName, documentText: markdownDocumentText }, upsertUiToast })

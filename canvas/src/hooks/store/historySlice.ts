@@ -16,6 +16,18 @@ import {
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
 
+const HISTORY_COMMITTER_KEY = '__KG_HISTORY_COMMITTER__'
+
+export const cancelScheduledHistoryCommit = (): void => {
+  try {
+    const global = globalThis as unknown as Record<string, unknown>
+    const state = global[HISTORY_COMMITTER_KEY] as { fn?: { cancel?: () => void } } | undefined
+    state?.fn?.cancel?.()
+  } catch {
+    void 0
+  }
+}
+
 const readActiveSourceFileSnapshot = (
   sourceFiles: readonly SourceFile[],
   markdownDocumentName: string | null | undefined,
@@ -95,6 +107,7 @@ const restoreHistoryEntry = (set: SetGraph, get: GetGraph, entry: VersionHistory
     graphDataRevision: nextRevision,
     graphFieldSettingsById: fieldSettingsCopy,
     historyIndex,
+    historyRestoreRevision: (state.historyRestoreRevision || 0) + 1,
     markdownDocumentName: entry.markdownDocumentName ?? null,
     markdownDocumentText: entry.markdownDocumentText ?? null,
     markdownDocumentApplyRevision: (state.markdownDocumentApplyRevision || 0) + 1,
@@ -139,6 +152,7 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
   
   history: [] as VersionHistoryEntry[],
   historyIndex: -1,
+  historyRestoreRevision: 0,
   recentFiles: [] as RecentFileEntry[],
   historyDebounceMs: 500,
 
@@ -211,8 +225,9 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
   scheduleHistory: (label: string) => {
     const global = globalThis as unknown as Record<string, unknown>
     type Committer = ((label: string) => void) & { cancel: () => void }
-    const key = '__KG_HISTORY_COMMITTER__'
-    const state = (global[key] && typeof global[key] === 'object') ? (global[key] as { waitMs: number; fn: Committer }) : null
+    const state = (global[HISTORY_COMMITTER_KEY] && typeof global[HISTORY_COMMITTER_KEY] === 'object')
+      ? (global[HISTORY_COMMITTER_KEY] as { waitMs: number; fn: Committer })
+      : null
     const waitMs = Math.max(0, Math.floor(get().historyDebounceMs || 0))
     const fn: Committer = (() => {
       if (state && state.waitMs === waitMs) return state.fn
@@ -248,7 +263,7 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
           void 0
         }
       }, waitMs) as Committer
-      global[key] = { waitMs, fn: next }
+      global[HISTORY_COMMITTER_KEY] = { waitMs, fn: next }
       return next
     })()
     fn(label)
@@ -264,13 +279,7 @@ export const createHistorySlice = (set: SetGraph, get: GetGraph) => ({
     historyIndex: number,
   ) => {
     const { graphData } = get();
-    try {
-      const global = globalThis as unknown as Record<string, unknown>
-      const st = global['__KG_HISTORY_COMMITTER__'] as { fn?: { cancel?: () => void } } | undefined
-      st?.fn?.cancel?.()
-    } catch {
-      void 0
-    }
+    cancelScheduledHistoryCommit()
 
     const safeHistory = Array.isArray(history)
       ? history

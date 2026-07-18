@@ -155,4 +155,6 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["camera.framing.controls.resetReapplyCommand","@/__tests__/cameraFramingRuntime.test","testCameraFramingResetUsesDedicatedReapplyCommand"],
   ["camera.framing.controls.contextScopedFeedback","@/__tests__/cameraFramingRuntime.test","testCameraFramingCanvasFeedbackIsContextScoped"],
   ["markdown.frontmatter.normalizesXrFloatingPanelRoute","@/__tests__/markdownFrontmatterSharedGuard.test","testMarkdownFrontmatterNormalizesXrSurfaceAlias"],
+  ["history.restoreRevision.explicitNavigationOnly","@/__tests__/graphFieldsSyncChurn.test","testHistorySliceOnlyAdvancesRestoreRevisionForExplicitNavigation"],
+  ["history.scheduledCommit.cancelBeforeReset","@/__tests__/graphFieldsSyncChurn.test","testHistorySliceCanCancelPendingScheduledCommitBeforeReset"],
 ]

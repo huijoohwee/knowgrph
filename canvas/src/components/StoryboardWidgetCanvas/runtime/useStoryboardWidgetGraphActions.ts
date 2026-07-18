@@ -48,6 +48,24 @@ export function appendStoryboardWidgetDraftNode(graphData: GraphData, node: Grap
   )
 }
 
+export function resolveStoryboardWidgetPostCommitDraftGraphData(args: {
+  liveGraphData: GraphData | null
+  draftGraphData: GraphData | null
+  baseGraphData: GraphData
+  committedNode: GraphNode
+  revisionFloor?: number | null
+}): GraphData {
+  const liveContainsCommittedNode = Boolean(
+    resolveGraphNodeByCanonicalId(args.liveGraphData, args.committedNode.id),
+  )
+  const authoritativeGraphData = liveContainsCommittedNode
+    ? args.liveGraphData!
+    : args.draftGraphData || args.baseGraphData
+  return appendStoryboardWidgetDraftNode(authoritativeGraphData, args.committedNode, {
+    revisionFloor: args.revisionFloor,
+  })
+}
+
 export function appendStoryboardWidgetAuthoredEdge(graphData: GraphData, edge: GraphData['edges'][number], opts?: { revisionFloor?: number | null }): GraphData {
   const edges = Array.isArray(graphData.edges) ? graphData.edges : []
   if (edges.some(candidate => String(candidate.id || '') === String(edge.id || ''))) return graphData
@@ -247,7 +265,7 @@ export function useStoryboardWidgetGraphActions(args: {
         args.setToolMode('select')
       }
     },
-    [args, materializeConnectedMediaValue, readAuthoringGraphData, readCommittedNodeIds],
+    [args, materializeConnectedMediaValue, readAuthoringGraphData, readCommittedNodeIds, readLiveGraphData],
   )
 
   const cancelPendingEdge = React.useCallback(() => {
@@ -347,11 +365,13 @@ export function useStoryboardWidgetGraphActions(args: {
         readDraftRevisionFloor(args.baseGraphData),
       )
       const draftNode: GraphNode = { ...nextNode, id: actualId }
-      const nextDraftGraphData = appendStoryboardWidgetDraftNode(
-        (args.draftGraphDataRef.current || liveGraphData || base) as GraphData,
-        draftNode,
-        { revisionFloor },
-      )
+      const nextDraftGraphData = resolveStoryboardWidgetPostCommitDraftGraphData({
+        liveGraphData,
+        draftGraphData: args.draftGraphDataRef.current,
+        baseGraphData: base,
+        committedNode: draftNode,
+        revisionFloor,
+      })
       if (nextDraftGraphData !== args.draftGraphDataRef.current) {
         args.draftGraphDataRef.current = nextDraftGraphData
         args.setDraftGraphData(nextDraftGraphData)
