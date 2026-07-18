@@ -19,6 +19,12 @@ import {
 import { resolveXrAnimationPreset, sampleXrAnimationPose } from '@/features/three/xrAnimationCatalog'
 import { resolveXrCameraMoveLabel } from './xrCameraMoveCatalog'
 import { resolveXrChoreographySpeedWarnings } from './xrChoreographyDiagnostics'
+import {
+  resolveCameraHorizontalFovDegreesForOptics,
+  resolveCameraSensorFormat,
+  resolveCameraVerticalFovDegreesForOptics,
+  resolveFullFrameEquivalentFocalLengthMm,
+} from '@/features/strybldr/cameraOptics'
 
 function round(value: number, places = 4): number {
   const scale = 10 ** places
@@ -104,7 +110,10 @@ function buildGeneratorBrief(plan: XrMotionReferencePlan): string {
     const animation = track.animation ? `; performance ${resolveXrAnimationPreset(track.animation.presetId).label} [${track.animation.kind}]` : ''
     return `- ${track.label}: ${marks}${animation}`
   })
-  const cameraLines = plan.camera.map(mark => `- ${mark.timeSeconds}s: ${resolveXrCameraMoveLabel(mark.moveId)}, ${mark.rig} rig, ${mark.easing} easing, ${mark.settings.focalLengthMm}mm, ${mark.settings.shot}, ${mark.settings.angle}, ${mark.settings.level}; position (${mark.pose.position.join(', ')})`)
+  const cameraLines = plan.camera.map(mark => {
+    const sensor = resolveCameraSensorFormat(mark.settings.sensorId)
+    return `- ${mark.timeSeconds}s: ${resolveXrCameraMoveLabel(mark.moveId)}, ${mark.rig} rig, ${mark.easing} easing, ${sensor.label} ${sensor.widthMm}x${sensor.heightMm}mm, ${mark.settings.focalLengthMm}mm, focus ${mark.settings.focusDistanceMeters}m, ${mark.settings.aspectRatio} delivery mask, ${mark.settings.shot}, ${mark.settings.angle}, ${mark.settings.level}; position (${mark.pose.position.join(', ')})`
+  })
   const subjectLines = plan.subjects.map(subject => `- ${subject.label} [${subject.category}/${subject.assetId}] at (${subject.position.join(', ')})`)
   return [
     'Use the attached Knowgrph XR data as the motion and spatial reference for one continuous shot.',
@@ -131,13 +140,26 @@ function buildMotionSamples(plan: XrMotionReferencePlan): unknown[] {
   const frameCount = Math.floor(plan.durationSeconds * plan.fps) + 1
   return Array.from({ length: frameCount }, (_item, frame) => {
     const timeSeconds = round(Math.min(plan.durationSeconds, frame / plan.fps), 4)
+    const cameraSettings = sampleXrMotionReferenceCameraSettings(plan.camera, timeSeconds)
+    const cameraSensor = resolveCameraSensorFormat(cameraSettings?.sensorId)
     return {
       frame,
       timeSeconds,
       camera: sampleXrMotionReferenceCameraPose(plan.camera, timeSeconds, plan.cast, plan.subjects),
       cameraMove: sampleXrMotionReferenceCameraMoveId(plan.camera, timeSeconds),
       cameraRig: sampleXrMotionReferenceCameraRig(plan.camera, timeSeconds),
-      cameraLensMm: sampleXrMotionReferenceCameraSettings(plan.camera, timeSeconds)?.focalLengthMm || 50,
+      cameraLensMm: cameraSettings?.focalLengthMm || 50,
+      cameraOptics: cameraSettings ? {
+        sensorId: cameraSettings.sensorId,
+        sensorLabel: cameraSensor.label,
+        sensorDimensionsMm: [cameraSensor.widthMm, cameraSensor.heightMm],
+        focalLengthMm: cameraSettings.focalLengthMm,
+        fullFrameEquivalentFocalLengthMm: resolveFullFrameEquivalentFocalLengthMm(cameraSettings.sensorId, cameraSettings.focalLengthMm),
+        focusDistanceMeters: cameraSettings.focusDistanceMeters,
+        aspectRatio: cameraSettings.aspectRatio,
+        horizontalFovDegrees: round(resolveCameraHorizontalFovDegreesForOptics(cameraSettings.sensorId, cameraSettings.focalLengthMm), 3),
+        verticalFovDegrees: round(resolveCameraVerticalFovDegreesForOptics(cameraSettings.sensorId, cameraSettings.focalLengthMm), 3),
+      } : null,
       cast: plan.cast.map(track => ({ actorId: track.actorId, position: sampleXrMotionReferenceMarks(track.marks, timeSeconds), animation: track.animation, pose: sampleXrAnimationPose(track.animation, timeSeconds) })),
       subjects: plan.subjects.map(subject => {
         const track = plan.cast.find(candidate => candidate.actorId === subject.id)
@@ -176,6 +198,13 @@ export function buildXrMotionReferencePackage(args: { plan: XrMotionReferencePla
     cameraSemanticMapping: { baselineMeters: XR_MOTION_REFERENCE_CAMERA_BASELINE_METERS, anchorFallback: 'stage-origin' },
     cameraRigs: [...new Set(plan.camera.map(mark => mark.rig))],
     cameraMoves: [...new Set(plan.camera.map(mark => mark.moveId).filter(moveId => moveId !== 'custom'))],
+    cameraOptics: {
+      sensors: [...new Set(plan.camera.map(mark => mark.settings.sensorId))],
+      focalLengthsMm: [...new Set(plan.camera.map(mark => mark.settings.focalLengthMm))],
+      focusDistancesMeters: [...new Set(plan.camera.map(mark => mark.settings.focusDistanceMeters))],
+      aspectMasks: [...new Set(plan.camera.map(mark => mark.settings.aspectRatio))],
+      interpolation: { focalLengthMm: 'per-mark-easing', focusDistanceMeters: 'per-mark-easing', sensorId: 'cut-at-mark', aspectRatio: 'cut-at-mark' },
+    },
     referenceBoundary,
   }
   const files = Object.freeze([
@@ -187,7 +216,7 @@ export function buildXrMotionReferencePackage(args: { plan: XrMotionReferencePla
     jsonFile('reference/frame-samples.json', buildMotionSamples(plan)),
     Object.freeze({ path: 'reference/stage-map.svg', mimeType: 'image/svg+xml', text: buildTopDownSvg(plan) }),
     Object.freeze({ path: 'handoff/video-generator-brief.txt', mimeType: 'text/plain', text: buildGeneratorBrief(plan) }),
-    Object.freeze({ path: 'README.txt', mimeType: 'text/plain', text: 'Knowgrph XR motion-reference package\n\nAttach the generator brief and stage map to a video-generation workflow. The frame samples are deterministic, meter-based motion data; grey-box structures define spatial constraints, not final visual styling.\n' }),
+    Object.freeze({ path: 'README.txt', mimeType: 'text/plain', text: 'Knowgrph XR motion-reference package\n\nAttach the generator brief and stage map to a video-generation workflow. The frame samples are deterministic, meter-based motion data with sensor-aware field of view, zoom, rack-focus distance, and aspect-mask metadata; grey-box structures define spatial constraints, not final visual styling.\n' }),
   ])
   return Object.freeze({
     schema: XR_MOTION_REFERENCE_PACKAGE_SCHEMA,

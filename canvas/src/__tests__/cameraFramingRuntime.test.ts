@@ -64,6 +64,7 @@ export function testCameraFramingRuntimePublishesImmutableNormalizedSnapshots() 
   assertCondition(published.settings.shot === 'close-up', 'expected runtime to normalize the camera shot')
   assertCondition(published.settings.note === 'Hold the lens.', 'expected runtime to trim the camera note')
   assertCondition(published.settings.orbitX === 1 && published.settings.orbitY === 0, 'expected runtime to clamp finite orbit values')
+  assertCondition(published.settings.sensorId === 'full-frame' && published.settings.focusDistanceMeters === 5 && published.settings.aspectRatio === '16:9', 'expected runtime to hydrate backward-compatible real-optics defaults')
   assertCondition(Object.isFrozen(published) && Object.isFrozen(published.settings), 'expected runtime snapshots and settings to be immutable')
   assertCondition(notifications === 1, 'expected one external-store notification')
 
@@ -75,20 +76,28 @@ export function testCameraFramingRuntimePublishesImmutableNormalizedSnapshots() 
   assertCondition(duplicate === published, 'expected identical publishes to retain snapshot identity')
   assertCondition(notifications === 1, 'expected identical publishes not to notify subscribers')
 
+  const opticsPublish = publishCameraFramingRuntime({
+    anchorId: 'card-1052',
+    settings: { ...published.settings, sensorId: 'super-35', focusDistanceMeters: 2.4, aspectRatio: '2.39:1' },
+    source: 'panel',
+  })
+  assertCondition(opticsPublish.revision === published.revision + 1, 'expected sensor, focus, and aspect changes to advance the shared revision')
+  assertCondition(notifications === 2, 'expected real-optics changes to notify subscribers')
+
   const canvasPublish = publishCameraFramingRuntime({
     anchorId: 'card-1052',
-    settings: published.settings,
+    settings: opticsPublish.settings,
     source: 'canvas',
   })
-  assertCondition(canvasPublish.revision === published.revision + 1, 'expected source changes to advance the revision')
-  assertCondition(notifications === 2, 'expected source changes to notify subscribers')
+  assertCondition(canvasPublish.revision === opticsPublish.revision + 1, 'expected source changes to advance the revision')
+  assertCondition(notifications === 3, 'expected source changes to notify subscribers')
   unsubscribe()
   publishCameraFramingRuntime({
     anchorId: 'card-1052',
     settings: { ...published.settings, note: 'After unsubscribe' },
     source: 'document',
   })
-  assertCondition(notifications === 2, 'expected unsubscribe to detach the conventional store listener')
+  assertCondition(notifications === 3, 'expected unsubscribe to detach the conventional store listener')
 }
 
 export function testCameraFramingPoseConversionsStayFiniteAndConventional() {

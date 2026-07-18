@@ -493,7 +493,8 @@ export function useCameraFramingControlsRuntime({
       baseDistance: context.baseDistance,
       up: context.up,
     })
-    camera.fov = resolveCameraVerticalFovDegrees(framing.settings.focalLengthMm)
+    camera.fov = resolveCameraVerticalFovDegrees(framing.settings.focalLengthMm, framing.settings.sensorId)
+    camera.focus = framing.settings.focusDistanceMeters
     runProgrammaticPose(() => applyCameraFramingPose({ camera, controls, pose, near: context.near, far: context.far, minimumY }))
     appliedFramingRef.current = { revision: framing.revision, contextKey: framingContextKey }
   }, [camera, choreographyOwnsCamera, contextKey, controls, framing, framingContextKey, minimumY, mode, modelAssetFit, paused, programmaticCameraInputBlocked, readContext, reapplyRevision, runProgrammaticPose])

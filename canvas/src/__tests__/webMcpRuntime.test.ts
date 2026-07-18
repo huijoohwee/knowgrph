@@ -306,7 +306,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const invalidXrScenePair = await controlLocalXrSceneTool.execute({ invocation: '/xr.stage @neutral-volume foo=bar' })
     const localXrSceneControl = await controlLocalXrSceneTool.execute({ action: 'place', assetId: 'person-adult', transition: 'linear', label: 'MCP CAST' })
     const localCamera = await inspectLocalCameraTool.execute()
-    const localCameraControl = await controlLocalCameraTool.execute({ action: 'frame', targetId: 'camera', angle: 'right-side', level: 'high-angle', shot: 'close-up', focalLengthMm: 85 })
+    const localCameraControl = await controlLocalCameraTool.execute({ action: 'frame', targetId: 'camera', angle: 'right-side', level: 'high-angle', shot: 'close-up', sensorId: '65mm', focalLengthMm: 85, focusDistanceMeters: 3.5, aspectRatio: '2.39:1' })
     const localAnimationControl = await controlLocalAnimationTool.execute({ operation: 'apply', trackKind: 'character-motion', presetId: 'dance', targetId: 'start' })
     const localAnimation = await inspectLocalAnimationTool.execute()
     useGraphStore.setState({ canvasRenderMode: '3d' } as never)
@@ -457,11 +457,13 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       || (invalidXrScenePair as { ok?: unknown }).ok !== false) {
       throw new Error('expected XR invocation parsing to reject duplicate bindings, invalid transitions, and unknown fields')
     }
-    if ((localCamera as { schema?: unknown }).schema !== 'knowgrph-shared-camera-mcp/v1') {
+    if ((localCamera as { schema?: unknown; optics?: { stateOwner?: unknown; sensors?: unknown[] } }).schema !== 'knowgrph-shared-camera-mcp/v1'
+      || (localCamera as { optics?: { stateOwner?: unknown } }).optics?.stateOwner !== 'FloatingPanel.Camera'
+      || (localCamera as { optics?: { sensors?: unknown[] } }).optics?.sensors?.length !== 4) {
       throw new Error(`expected Camera WebMCP inspection to expose the shared Camera schema, got ${JSON.stringify(localCamera)}`)
     }
-    const controlledCamera = localCameraControl as { ok?: unknown; action?: unknown; camera?: { framing?: { settings?: { angle?: unknown; level?: unknown; shot?: unknown; focalLengthMm?: unknown } }; surface?: { cameraPanelOpen?: unknown } } }
-    if (controlledCamera.ok !== true || controlledCamera.action !== 'frame' || controlledCamera.camera?.framing?.settings?.angle !== 'right-side' || controlledCamera.camera.framing.settings.level !== 'high-angle' || controlledCamera.camera.framing.settings.shot !== 'close-up' || controlledCamera.camera.framing.settings.focalLengthMm !== 85 || controlledCamera.camera.surface?.cameraPanelOpen !== false) {
+    const controlledCamera = localCameraControl as { ok?: unknown; action?: unknown; camera?: { framing?: { settings?: { angle?: unknown; level?: unknown; shot?: unknown; sensorId?: unknown; focalLengthMm?: unknown; focusDistanceMeters?: unknown; aspectRatio?: unknown } }; surface?: { cameraPanelOpen?: unknown } } }
+    if (controlledCamera.ok !== true || controlledCamera.action !== 'frame' || controlledCamera.camera?.framing?.settings?.angle !== 'right-side' || controlledCamera.camera.framing.settings.level !== 'high-angle' || controlledCamera.camera.framing.settings.shot !== 'close-up' || controlledCamera.camera.framing.settings.sensorId !== '65mm' || controlledCamera.camera.framing.settings.focalLengthMm !== 85 || controlledCamera.camera.framing.settings.focusDistanceMeters !== 3.5 || controlledCamera.camera.framing.settings.aspectRatio !== '2.39:1' || controlledCamera.camera.surface?.cameraPanelOpen !== false) {
       throw new Error(`expected structured Camera WebMCP control to frame without ejecting the active panel, got ${JSON.stringify(localCameraControl)}`)
     }
     const animationInspection = localAnimation as { schema?: unknown; presets?: unknown[]; runtime?: { cast?: Array<{ actorId?: unknown; animation?: { presetId?: unknown } }> } }

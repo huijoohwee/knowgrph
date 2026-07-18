@@ -2,14 +2,11 @@ import React from 'react'
 import { Clapperboard, MapPin, Video } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
+import { PanelSelect } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import {
-  STRYBLDR_CAMERA_MAX_FOCAL_LENGTH_MM,
-  STRYBLDR_CAMERA_MIN_FOCAL_LENGTH_MM,
-  readStrybldrCameraSettings,
-} from './strybldrCamera'
+import { readStrybldrCameraSettings } from './strybldrCamera'
+import { formatCameraOptics } from './cameraOptics'
 import {
   publishCameraFramingRuntime,
   readCameraFramingRuntime,
@@ -135,7 +132,7 @@ export function XrShootCameraSection() {
           <Clapperboard className="size-4 shrink-0" strokeWidth={1.8} aria-hidden />
           <section>
             <h3 className="text-xs font-black tracking-[0.16em]">SHOOT</h3>
-            <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Scene/object links, cast marks, lens, rig, camera track.</p>
+            <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Scene/object links, cast marks, rig, camera track.</p>
           </section>
         </section>
         <output className={cn('text-right text-[10px]', UI_THEME_TOKENS.text.tertiary)}>
@@ -178,7 +175,7 @@ export function XrShootCameraSection() {
           : `${selectedShotTarget?.label || 'Scene'} · camera target only; select a mobile 3D Object to place cast marks.`}
       </p>
 
-      <section className="grid grid-cols-[minmax(0,1fr)_5.5rem] gap-2">
+      <section className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] gap-2">
         <label className="grid gap-1 text-[10px]">
           <span className={UI_THEME_TOKENS.text.tertiary}>Rig</span>
           <PanelSelect
@@ -190,19 +187,12 @@ export function XrShootCameraSection() {
             {XR_MOTION_REFERENCE_CAMERA_RIGS.map(rig => <option key={rig} value={rig}>{RIG_LABELS[rig]}</option>)}
           </PanelSelect>
         </label>
-        <label className="grid gap-1 text-[10px]">
-          <span className={UI_THEME_TOKENS.text.tertiary}>Lens mm</span>
-          <PanelTextInput
-            type="number"
-            min={STRYBLDR_CAMERA_MIN_FOCAL_LENGTH_MM}
-            max={STRYBLDR_CAMERA_MAX_FOCAL_LENGTH_MM}
-            step={1}
-            value={framing.settings.focalLengthMm}
-            disabled={cameraPlaybackActive}
-            onChange={event => publishShotFraming({ ...readCameraFramingRuntime().settings, focalLengthMm: Number(event.target.value) })}
-            data-kg-xr-shoot-lens="1"
-          />
-        </label>
+        <section className="grid gap-1 text-[10px]" aria-label="SHOOT camera optics projection" data-kg-camera-optics-projection="xr-shoot">
+          <span className={UI_THEME_TOKENS.text.tertiary}>Optics · edit in Camera</span>
+          <output className={cn('min-w-0 rounded border px-2 py-1.5 font-semibold', UI_THEME_TOKENS.panel.border)}>
+            {formatCameraOptics(framing.settings)}
+          </output>
+        </section>
       </section>
 
       <section className="grid grid-cols-2 gap-2">

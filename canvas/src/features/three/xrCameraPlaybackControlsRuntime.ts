@@ -72,7 +72,8 @@ export function useXrMotionReferenceCameraPlayback({
     if (!pose || !settings) return
     const stage = resolveXrMotionReferenceStage(runtime.plan.stageId)
     const scale = XR_MOTION_STAGE_SPAN / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
-    camera.fov = resolveCameraVerticalFovDegrees(settings.focalLengthMm)
+    camera.fov = resolveCameraVerticalFovDegrees(settings.focalLengthMm, settings.sensorId)
+    camera.focus = settings.focusDistanceMeters
     applyCameraFramingPose({
       camera,
       controls,

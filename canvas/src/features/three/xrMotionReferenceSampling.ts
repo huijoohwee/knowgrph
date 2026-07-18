@@ -86,6 +86,8 @@ function sampleCameraSettingsBetween(
     orbitX: left.settings.orbitX + (right.settings.orbitX - left.settings.orbitX) * progress,
     orbitY: left.settings.orbitY + (right.settings.orbitY - left.settings.orbitY) * progress,
     focalLengthMm: left.settings.focalLengthMm + (right.settings.focalLengthMm - left.settings.focalLengthMm) * progress,
+    focusDistanceMeters: left.settings.focusDistanceMeters
+      + (right.settings.focusDistanceMeters - left.settings.focusDistanceMeters) * progress,
   })
 }
 

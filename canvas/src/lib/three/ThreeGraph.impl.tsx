@@ -24,6 +24,7 @@ import { SpatialCaptureManifestStage } from '@/features/three/SpatialCaptureMani
 import { XrEmptyWorldStage } from '@/features/three/XrEmptyWorldStage'
 import { XrEmptyWorldHud } from '@/features/three/XrEmptyWorldHud'
 import { useXrSceneMediaDrop } from '@/features/three/useXrSceneMediaDrop'
+import { XrCameraAspectMask } from '@/features/three/XrCameraAspectMask'
 
 const SceneLazy = React.lazy(() =>
   import('@/lib/three/Scene.impl').then(mod => ({
@@ -459,6 +460,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
           <OverlayFrameSync enabled={active && mode !== 'xr'} scheduleRef={scheduleRef} />
         </React.Suspense>
       </Canvas>
+      {mode === 'xr' && xrDocumentLoaded ? <XrCameraAspectMask /> : null}
       {hasXrEmptyWorld ? <XrEmptyWorldHud /> : null}
       <CanvasXrEntryPanel
         active={active && mode === 'xr'}
