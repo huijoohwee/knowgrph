@@ -131,7 +131,7 @@ export function XrChoreographyInspector({
           Icon={Footprints}
           target="cast"
           title={track.label}
-          description="Drag its numbered stage mark, or edit time, easing, gait, and XYZ in its Timeline cast lane."
+          description="Drag its numbered stage mark, nudge it with WASD or arrow keys (Shift for 0.05 m), or edit XYZ in its Timeline lane."
           invocation={projectedCastInvocation}
           metadata={`${track.marks.length} mark${track.marks.length === 1 ? '' : 's'} · mark ${castMarkIndex + 1} · ${castMark.timeSeconds}s`}
           footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)} data-kg-xr-choreography-selection-owner="timeline-cast">Select marks in the {track.label} Timeline lane.</span>}

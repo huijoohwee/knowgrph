@@ -18,6 +18,7 @@ export type ThreeObjectCameraPoseLock<Pose> = Readonly<{
 }>
 
 const listeners = new Set<() => void>()
+const THREE_OBJECT_KEYBOARD_INPUT_POINTER_ID = -1
 let ownership: ThreeObjectInputOwnership = Object.freeze({
   active: false,
   objectId: null,
@@ -134,6 +135,10 @@ export function claimThreeObjectInputOwnership(objectId: string, pointerId: numb
   return true
 }
 
+export function claimThreeObjectKeyboardInputOwnership(objectId: string): boolean {
+  return claimThreeObjectInputOwnership(objectId, THREE_OBJECT_KEYBOARD_INPUT_POINTER_ID)
+}
+
 export function releaseThreeObjectInputOwnership(objectId: string, pointerId?: number): void {
   if (!ownership.active || ownership.objectId !== String(objectId || '').trim()) return
   if (typeof pointerId === 'number' && pointerId !== ownership.pointerId) return
@@ -144,6 +149,10 @@ export function releaseThreeObjectInputOwnership(objectId: string, pointerId?: n
     revision: ownership.revision + 1,
   })
   publishOwnershipChange()
+}
+
+export function releaseThreeObjectKeyboardInputOwnership(objectId: string): void {
+  releaseThreeObjectInputOwnership(objectId, THREE_OBJECT_KEYBOARD_INPUT_POINTER_ID)
 }
 
 export function bindThreeViewportControlsOwnership(args: {

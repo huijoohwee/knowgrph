@@ -6,12 +6,14 @@ import {
   bindThreeViewportControlsOwnership,
   canStartThreeObjectDrag,
   captureThreeObjectPointer,
+  claimThreeObjectKeyboardInputOwnership,
   claimThreeObjectInputOwnership,
   createThreeObjectCameraPoseLock,
   hasThreeObjectDragMoved,
   isolateThreeObjectPointerEvent,
   readThreeObjectInputOwnership,
   releaseThreeObjectPointerCapture,
+  releaseThreeObjectKeyboardInputOwnership,
   releaseThreeObjectInputOwnership,
   threeObjectDragTerminationMatchesPointer,
 } from '@/features/three/threeObjectInputOwnership'
@@ -63,6 +65,11 @@ export function testXrObjectInputOwnershipPublishesSynchronously() {
     assertCondition(!controls.enabled, 'expected XR object ownership to disable viewport controls before the setter returns')
     releaseThreeObjectInputOwnership('xr:actor:actor-a:mark-a', 7)
     assertCondition(controls.enabled, 'expected releasing XR object ownership to restore available viewport controls')
+    claimThreeObjectKeyboardInputOwnership('xr:keyboard:actor-a:mark-a')
+    assertCondition(!controls.enabled, 'expected XR keyboard motion to disable viewport controls synchronously')
+    assertCondition(readThreeObjectInputOwnership().pointerId === -1, 'expected keyboard motion to use the non-pointer ownership channel')
+    releaseThreeObjectKeyboardInputOwnership('xr:keyboard:actor-a:mark-a')
+    assertCondition(controls.enabled, 'expected XR keyboard release to restore viewport controls')
     unsubscribe()
     claimThreeObjectInputOwnership('xr:actor:actor-a:mark-a', 7)
     assertCondition(controls.enabled, 'expected disposal to detach the viewport ownership subscriber')
@@ -186,8 +193,18 @@ export function testThreeObjectCameraPoseRemainsLockedUntilRelease() {
     assertCondition(cameraPose === 10, 'expected object release to restore the exact pre-drag camera pose')
     assertCondition(controls.enabled, 'expected camera navigation to resume after the pose is restored')
     assertCondition(restoredPoses.length === 2, 'expected one active enforcement and one release restoration')
+    claimThreeObjectKeyboardInputOwnership('xr:keyboard:actor-a:mark-a')
+    cameraPose = 24
+    poseLock.enforce()
+    assertCondition(cameraPose === 10, 'expected keyboard object motion to preserve the camera pose captured on claim')
+    cameraPose = 37
+    releaseThreeObjectKeyboardInputOwnership('xr:keyboard:actor-a:mark-a')
+    assertCondition(cameraPose === 10, 'expected keyboard release to restore the exact pre-motion camera pose')
+    assertCondition(controls.enabled, 'expected camera navigation to resume after keyboard motion releases ownership')
+    assertCondition(restoredPoses.length === 4, 'expected pointer and keyboard motion to enforce and restore the camera pose')
   } finally {
     releaseThreeObjectInputOwnership('xr:actor:actor-a:mark-a')
+    releaseThreeObjectKeyboardInputOwnership('xr:keyboard:actor-a:mark-a')
     unsubscribe()
   }
 }

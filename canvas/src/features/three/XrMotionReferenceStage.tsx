@@ -23,6 +23,7 @@ import { xrMotionReferenceWorldPosition } from '@/features/three/xrMotionReferen
 import { XrStagePresetGeometry } from '@/features/three/XrStagePresetGeometry'
 import { getVoxelLabelTexture } from '@/features/three/voxelLabelTexture'
 import { sampleXrAnimationPose } from '@/features/three/xrAnimationCatalog'
+import { XrObjectKeyboardMotionRuntime } from '@/features/three/XrObjectKeyboardMotionRuntime'
 import {
   canStartThreeObjectDrag,
   captureThreeObjectPointer,
@@ -430,6 +431,7 @@ export function XrMotionReferenceStage({
       renderOrder={THREE_RENDER_ORDER.groups - 10}
       userData={{ schema: runtime.plan.schema, stageId: stage.id, playheadSeconds: runtime.playheadSeconds, selectedMark: runtime.selectedMark }}
     >
+      <XrObjectKeyboardMotionRuntime />
       <XrStagePresetGeometry
         stage={stage}
         span={span}
