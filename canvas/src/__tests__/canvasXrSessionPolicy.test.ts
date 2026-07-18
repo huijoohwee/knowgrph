@@ -135,7 +135,8 @@ export async function testXrSessionPolicyPrefersNativeArWithoutProviderDependenc
     || graphSceneSource.includes('setClearColor(')) {
     throw new Error('expected one canvas-level renderer clear owner to preserve AR passthrough for graph and empty XR worlds')
   }
-  if ((worldSource.match(/key=\{rendererLifecycleKey\}/g) || []).length !== 2) {
-    throw new Error('expected the native session panel to remount and release its session whenever the XR renderer is replaced')
+  if ((worldSource.match(/key=\{rendererLifecycleKey\}/g) || []).length !== 1
+    || worldSource.split('key={`${rendererLifecycleKey}-session-panel`}').length !== 2) {
+    throw new Error('expected the native session panel to remount with a distinct sibling key whenever the XR renderer is replaced')
   }
 }

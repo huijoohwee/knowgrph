@@ -546,13 +546,12 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     throw new Error('expected the source-free XR stage to avoid a fake Camera prop')
   }
   if (!threeGraphSource.includes("const rendererLifecycleKey = hasXrEmptyWorld ? 'xr-empty-world-canvas' : 'scene-canvas'")
-    || (threeGraphSource.match(/key=\{rendererLifecycleKey\}/g) || []).length !== 2
     || !threeGraphSource.includes("const rendererClearColor = hasXrEmptyWorld")
     || !threeGraphSource.includes("? '#0b2f4a'")
     || !threeGraphSource.includes('const rendererDefaultClearAlpha = hasXrEmptyWorld || hasGraph ? 1 : 0')
     || !threeGraphSource.includes('<XrRendererClearController')
     || !threeGraphSource.includes("gl.xr.enabled = mode === 'xr'")) {
-    throw new Error('expected the empty XR world and session panel to remount with the shared navy renderer environment')
+    throw new Error('expected the empty XR world to remount with the shared navy renderer environment')
   }
   for (const marker of ['data-kg-xr-empty-world-hud="1"', 'Centers Mode', 'XR world axes X Y Z']) {
     if (!emptyWorldHudSource.includes(marker)) throw new Error(`expected source-free XR orientation HUD to expose ${marker}`)

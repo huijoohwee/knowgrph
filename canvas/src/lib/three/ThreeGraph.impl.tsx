@@ -583,7 +583,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       {mode === 'xr' && xrDocumentLoaded ? <XrCameraAspectMask /> : null}
       {hasXrEmptyWorld ? <XrEmptyWorldHud /> : null}
       <CanvasXrEntryPanel
-        key={rendererLifecycleKey}
+        key={`${rendererLifecycleKey}-session-panel`}
         active={active && mode === 'xr'}
         rendererRef={threeGlRef}
         surfaceKind={spatialCaptureManifest ? 'spatial-capture' : 'graph'}
