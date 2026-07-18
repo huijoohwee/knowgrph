@@ -6,7 +6,18 @@ import { parseCanonicalNodeIds, splitComposedNodeId } from '@/lib/graph/canonica
 import { hashRecordSignature32, hashSignatureParts } from '@/lib/hash/signature'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 
+const STORYBOARD_WIDGET_PENDING_APPEND_NODE_IDS = 'storyboardWidgetPendingAppendNodeIds'
+const STORYBOARD_WIDGET_PENDING_APPEND_EDGE_IDS = 'storyboardWidgetPendingAppendEdgeIds'
+
 const readGraphEntityId = (entity: GraphNode | GraphEdge): string => splitComposedNodeId(entity?.id).full
+
+function readPendingAppendEntityIds(graphData: GraphData, key: string): string[] {
+  const metadata = graphData.metadata
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return []
+  const raw = (metadata as Record<string, unknown>)[key]
+  if (!Array.isArray(raw)) return []
+  return [...new Set(raw.map(value => splitComposedNodeId(value).full).filter(Boolean))]
+}
 
 function resolveGraphEntityByCanonicalId<T extends GraphNode | GraphEdge>(
   entities: readonly T[],
@@ -49,6 +60,88 @@ function hasDraftNodeIdentitySuperset(currentDraft: GraphData | null, baseGraphD
   const baseNodes = Array.isArray(baseGraphData?.nodes) ? baseGraphData.nodes : []
   if (draftNodes.length <= baseNodes.length || baseNodes.length === 0) return false
   return baseNodes.every(node => resolveUniqueCanonicalGraphEntityPair(baseNodes, node, draftNodes))
+}
+
+export function hasStoryboardWidgetDraftGraphDataCanonicalSuperset(
+  candidateGraphData: GraphData | null | undefined,
+  requiredGraphData: GraphData | null | undefined,
+): boolean {
+  if (!candidateGraphData || !requiredGraphData) return false
+  const candidateNodes = Array.isArray(candidateGraphData.nodes) ? candidateGraphData.nodes : []
+  const requiredNodes = Array.isArray(requiredGraphData.nodes) ? requiredGraphData.nodes : []
+  const candidateEdges = Array.isArray(candidateGraphData.edges) ? candidateGraphData.edges : []
+  const requiredEdges = Array.isArray(requiredGraphData.edges) ? requiredGraphData.edges : []
+  return requiredNodes.every(node => resolveUniqueCanonicalGraphEntityPair(requiredNodes, node, candidateNodes))
+    && requiredEdges.every(edge => resolveUniqueCanonicalGraphEntityPair(requiredEdges, edge, candidateEdges))
+}
+
+function mergeStoryboardWidgetLiveFirstGraphEntities<T extends GraphNode | GraphEdge>(
+  liveEntities: readonly T[],
+  draftEntities: readonly T[],
+): T[] {
+  const merged = liveEntities.slice()
+  for (const draftEntity of draftEntities) {
+    if (!resolveUniqueCanonicalGraphEntityPair(draftEntities, draftEntity, merged)) merged.push(draftEntity)
+  }
+  return merged
+}
+
+function collectPendingAppendEntityIds<T extends GraphNode | GraphEdge>(args: {
+  liveEntities: readonly T[]
+  draftEntities: readonly T[]
+  previousPendingIds: readonly string[]
+}): string[] {
+  const pendingIds = new Set<string>()
+  for (const pendingId of args.previousPendingIds) {
+    if (!resolveGraphEntityByCanonicalId(args.liveEntities, pendingId)) pendingIds.add(pendingId)
+  }
+  for (const draftEntity of args.draftEntities) {
+    if (resolveUniqueCanonicalGraphEntityPair(args.draftEntities, draftEntity, args.liveEntities)) continue
+    const id = readGraphEntityId(draftEntity)
+    if (id) pendingIds.add(id)
+  }
+  return [...pendingIds]
+}
+
+export function mergeStoryboardWidgetDraftGraphDataWithLiveAdditions(args: {
+  liveGraphData: GraphData
+  draftGraphData: GraphData
+}): GraphData {
+  const liveNodes = args.liveGraphData.nodes || []
+  const draftNodes = args.draftGraphData.nodes || []
+  const liveEdges = args.liveGraphData.edges || []
+  const draftEdges = args.draftGraphData.edges || []
+  const pendingNodeIds = collectPendingAppendEntityIds({
+    liveEntities: liveNodes,
+    draftEntities: draftNodes,
+    previousPendingIds: readPendingAppendEntityIds(args.draftGraphData, STORYBOARD_WIDGET_PENDING_APPEND_NODE_IDS),
+  })
+  const pendingEdgeIds = collectPendingAppendEntityIds({
+    liveEntities: liveEdges,
+    draftEntities: draftEdges,
+    previousPendingIds: readPendingAppendEntityIds(args.draftGraphData, STORYBOARD_WIDGET_PENDING_APPEND_EDGE_IDS),
+  })
+  const metadata = {
+    ...((args.draftGraphData.metadata || {}) as Record<string, unknown>),
+    ...((args.liveGraphData.metadata || {}) as Record<string, unknown>),
+  }
+  if (pendingNodeIds.length > 0) metadata[STORYBOARD_WIDGET_PENDING_APPEND_NODE_IDS] = pendingNodeIds
+  else delete metadata[STORYBOARD_WIDGET_PENDING_APPEND_NODE_IDS]
+  if (pendingEdgeIds.length > 0) metadata[STORYBOARD_WIDGET_PENDING_APPEND_EDGE_IDS] = pendingEdgeIds
+  else delete metadata[STORYBOARD_WIDGET_PENDING_APPEND_EDGE_IDS]
+  const mergedGraph: GraphData = {
+    ...args.draftGraphData,
+    ...args.liveGraphData,
+    metadata,
+    nodes: mergeStoryboardWidgetLiveFirstGraphEntities(liveNodes, draftNodes),
+    edges: mergeStoryboardWidgetLiveFirstGraphEntities(liveEdges, draftEdges),
+  }
+  return bumpStoryboardWidgetDraftGraphDataRevision(mergedGraph, {
+    revisionFloor: Math.max(
+      readGraphDataRevision(args.liveGraphData),
+      readGraphDataRevision(args.draftGraphData),
+    ),
+  })
 }
 
 const cleanSignatureText = (value: unknown): string => String(unwrapGraphCellValue(value) ?? '').trim()
@@ -236,6 +329,15 @@ export function resolveStoryboardWidgetDraftGraphDataForBaseReset(args: {
   const current = args.currentDraftGraphData
   if (!current || current === base) return base
   if (args.previousDocumentKey !== args.activeDocumentKey) return base
+  const hasPendingAppendAuthority = readPendingAppendEntityIds(current, STORYBOARD_WIDGET_PENDING_APPEND_NODE_IDS).length > 0
+    || readPendingAppendEntityIds(current, STORYBOARD_WIDGET_PENDING_APPEND_EDGE_IDS).length > 0
+  if (hasPendingAppendAuthority) {
+    if (hasStoryboardWidgetDraftGraphDataCanonicalSuperset(base, current)) return base
+    return mergeStoryboardWidgetDraftGraphDataWithLiveAdditions({
+      liveGraphData: base,
+      draftGraphData: current,
+    })
+  }
   if (hasSameDraftGraphBaseSignature(current, base)) return current
   const previousBase = args.previousBaseGraphData || null
   if (
