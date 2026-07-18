@@ -144,13 +144,14 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     || !String(mcpRequest.contextText || '').includes('SME cyber')
     || !Array.isArray(mcpRequest.invocationTokens)
     || !['/sme-care-agent', '@source.frontmatter', '#runtime-ready', '/knowgrph.probe-tree'].every(token => (mcpRequest!.invocationTokens as string[]).includes(token))
-    || !providerPrompt.includes('Literal MCP CallToolResult')
-    || !providerPrompt.includes('knowgrph.probe.generate')
+    || !providerPrompt.includes('Projected MCP semantic evidence')
+    || !providerPrompt.includes('"model": "qwen-local"')
+    || !providerPrompt.includes('Which SME cyber coverage gaps should guide the next branch?')
     || !providerPrompt.includes('Do not pre-answer the user-owned multi-selection')
     || !providerPrompt.includes('Do not emit widgets, panels, edges')
     || !providerPrompt.includes('source-verbatim contextAnchors')
     || !providerPrompt.includes('Do not emit contextAnchors')
-    || !providerPrompt.includes('Never copy or paraphrase the selected request as a card question')
+    || !providerPrompt.includes('Never copy or paraphrase the active selected input as a card question')
     || !providerPrompt.includes('not as a ready-made selectionOptions array')
     || !providerPrompt.includes('different request-specific decision variable')
     || !providerPrompt.includes('Never reuse a choice label')
@@ -437,6 +438,8 @@ export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderCo
     || mcpRequest?.probeTreeDepth !== 4
     || mcpRequest?.recallTopK !== 0
     || !providerPrompt.includes(userAnswer)
+    || !providerPrompt.includes(`Active selected input: ${userAnswer}`) || !providerPrompt.includes('Preceding selected-child question and lineage: Which cyber schedule is authoritative?')
+    || providerPrompt.includes('Selected Widget id:') || providerPrompt.includes('Agentic OS directives:')
     || !providerPrompt.includes('depth 4')
     || childCards.length < 2
     || childCards.some(card => card.properties.parentNodeId !== 'probe-answer')
