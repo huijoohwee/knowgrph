@@ -25,6 +25,7 @@ import { readBoundXrSelectedActorId } from './xrSelectedActorBinding'
 import { resolveXrChoreographySpeedWarnings } from './xrChoreographyDiagnostics'
 import { XrChoreographyMarkControls } from './XrChoreographyMarkControls'
 import { buildXrShotTargets } from './xrShotTargets'
+import { formatCameraOptics } from '@/features/strybldr/cameraOptics'
 import './CameraMotionMarkRetime.css'
 
 function TimeEditor({
@@ -154,7 +155,7 @@ export function CameraMotionMarkRetime({
       <span className="xr-camera-motion-mark-selection-label">
         {selectedCastMark
           ? `${selectedCastTrack!.label} · ${selectedCastMarkIndex + 1}`
-          : `Camera · C${selectedCameraMarkIndex + 1} · ${shotTargetLabelById.get(selectedCameraMark?.anchorId || '') || 'Unbound'}`}
+          : `Camera · C${selectedCameraMarkIndex + 1} · ${shotTargetLabelById.get(selectedCameraMark?.anchorId || '') || 'Unbound'} · ${selectedCameraMark ? formatCameraOptics(selectedCameraMark.settings) : ''}`}
       </span>
       {selectedCastMark ? (
         <>
@@ -243,8 +244,8 @@ export function CameraMotionMarkRetime({
               laneStyle="audio"
               className="xr-camera-motion-retime-lane-mark xr-camera-motion-retime-lane-mark--camera"
               style={markAxisStyle(mark.timeSeconds, scaleDurationSeconds)}
-              title={`${targetLabel} · ${resolveXrCameraMoveLabel(mark.moveId)} · ${mark.rig} · ${mark.timeSeconds}s · drag to retime`}
-              aria-label={`Camera mark ${index + 1} linked to ${targetLabel} at ${mark.timeSeconds} seconds · ${resolveXrCameraMoveLabel(mark.moveId)} · ${mark.rig}`}
+              title={`${targetLabel} · ${resolveXrCameraMoveLabel(mark.moveId)} · ${mark.rig} · ${formatCameraOptics(mark.settings)} · ${mark.timeSeconds}s · drag to retime`}
+              aria-label={`Camera mark ${index + 1} linked to ${targetLabel} at ${mark.timeSeconds} seconds · ${resolveXrCameraMoveLabel(mark.moveId)} · ${mark.rig} · ${formatCameraOptics(mark.settings)}`}
               aria-pressed={selected}
               role="button"
               tabIndex={0}
@@ -256,6 +257,11 @@ export function CameraMotionMarkRetime({
               })}
               data-kg-xr-lane-camera-mark={index + 1}
               data-kg-xr-camera-mark-target={mark.anchorId}
+              data-kg-camera-optics-projection="timeline-mark"
+              data-kg-camera-sensor={mark.settings.sensorId}
+              data-kg-camera-focal-length-mm={mark.settings.focalLengthMm}
+              data-kg-camera-focus-distance-m={mark.settings.focusDistanceMeters}
+              data-kg-camera-aspect-ratio={mark.settings.aspectRatio}
               data-kg-xr-stage-highlight-target={selected ? 'camera-mark' : undefined}
             >
               <span style={selected ? { backgroundColor: XR_MOTION_REFERENCE_SELECTION_COLOR } : undefined}>C{index + 1}</span>
@@ -296,7 +302,7 @@ export function CameraMotionMarkRetime({
           <article key={mark.id} className={cn('flex items-center gap-1 rounded border px-1 py-0.5', UI_THEME_TOKENS.panel.border)} data-kg-xr-retime-camera-mark={index + 1}>
             <span className="text-[9px] font-bold">C{index + 1}</span>
             <TimeEditor label={`Camera mark ${index + 1} time`} value={mark.timeSeconds} max={runtime.plan.durationSeconds} onChange={value => retimeXrMotionReferenceCameraMark(mark.id, value)} />
-            <span className={cn('max-w-24 truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)} title={`${resolveXrCameraMoveLabel(mark.moveId)} · ${mark.rig}`}>{resolveXrCameraMoveLabel(mark.moveId)}</span>
+            <span className={cn('max-w-40 truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)} title={`${resolveXrCameraMoveLabel(mark.moveId)} · ${mark.rig} · ${formatCameraOptics(mark.settings)}`} data-kg-camera-optics-projection="timeline-mark">{resolveXrCameraMoveLabel(mark.moveId)} · {mark.settings.focalLengthMm}mm · {mark.settings.focusDistanceMeters}m</span>
             <button type="button" className="App-toolbar__btn p-1" aria-label={`Remove camera mark ${index + 1}`} onClick={() => removeXrMotionReferenceCameraMark(mark.id)}>
               <Trash2 className="size-3" aria-hidden />
             </button>

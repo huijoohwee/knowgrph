@@ -518,7 +518,7 @@ export function XrMotionReferenceStage({
               name={`kg_xr_motion_camera_mark_${index + 1}`}
               position={position}
               quaternion={quaternion}
-              userData={{ markId: mark.id, moveId: mark.moveId, rig: mark.rig, lensMm: mark.settings.focalLengthMm, selected, kgXrAnimationControl: true }}
+              userData={{ markId: mark.id, moveId: mark.moveId, rig: mark.rig, sensorId: mark.settings.sensorId, lensMm: mark.settings.focalLengthMm, focusDistanceMeters: mark.settings.focusDistanceMeters, aspectRatio: mark.settings.aspectRatio, selected, kgXrAnimationControl: true }}
               onClick={event => {
                 event.stopPropagation()
                 selectXrMotionReferenceCameraMark(mark.id)

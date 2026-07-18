@@ -38,7 +38,10 @@ const cameraSettingsEqual = (left: StrybldrCameraSettings, right: StrybldrCamera
   && left.note === right.note
   && left.orbitX === right.orbitX
   && left.orbitY === right.orbitY
+  && left.sensorId === right.sensorId
   && left.focalLengthMm === right.focalLengthMm
+  && left.focusDistanceMeters === right.focusDistanceMeters
+  && left.aspectRatio === right.aspectRatio
 )
 
 export function StrybldrCameraFramingSection() {

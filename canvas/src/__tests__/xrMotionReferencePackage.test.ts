@@ -38,6 +38,11 @@ import {
 import { buildXrMotionReferenceTimelineCode } from '@/features/three/xrMotionReferenceTimeline'
 import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { resolveVideoSequenceTimelineLane } from '@/components/timeline/videoSequenceTimeline'
+import {
+  CAMERA_SENSOR_FORMATS,
+  resolveCameraVerticalFovDegreesForOptics,
+  resolveFullFrameEquivalentFocalLengthMm,
+} from '@/features/strybldr/cameraOptics'
 
 function readSource(...parts: string[]): string {
   return readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
@@ -135,13 +140,13 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   setXrMotionReferenceCameraMark({
     timeSeconds: 0,
     anchorId: 'cast-a',
-    settings: { angle: 'front', level: 'eye-level', shot: 'wide', note: 'Opening', orbitX: 0, orbitY: 0, focalLengthMm: 35 },
+    settings: { angle: 'front', level: 'eye-level', shot: 'wide', note: 'Opening', orbitX: 0, orbitY: 0, sensorId: 'super-35', focalLengthMm: 35, focusDistanceMeters: 6, aspectRatio: '1.85:1' },
     rig: 'dolly',
   })
   setXrMotionReferenceCameraMark({
     timeSeconds: 5,
     anchorId: 'cast-a',
-    settings: { angle: 'right-side', level: 'high-angle', shot: 'close-up', note: 'Arrival', orbitX: 0.4, orbitY: -0.35, focalLengthMm: 85 },
+    settings: { angle: 'right-side', level: 'high-angle', shot: 'close-up', note: 'Arrival', orbitX: 0.4, orbitY: -0.35, sensorId: 'full-frame', focalLengthMm: 85, focusDistanceMeters: 1.2, aspectRatio: '2.39:1' },
     rig: 'drone',
   })
   const authored = readXrMotionReferenceRuntime().plan
@@ -221,7 +226,10 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   }
   if (roundTrip.cast.find(track => track.actorId === 'cast-a')?.marks[0]?.transition !== 'ease-in'
     || roundTrip.cast.find(track => track.actorId === 'cast-a')?.marks[0]?.gait !== 'walk'
-    || roundTrip.camera[0]?.easing !== 'ease-in-out') {
+    || roundTrip.camera[0]?.easing !== 'ease-in-out'
+    || roundTrip.camera[0]?.settings.sensorId !== 'super-35'
+    || roundTrip.camera[1]?.settings.focusDistanceMeters !== 1.2
+    || roundTrip.camera[1]?.settings.aspectRatio !== '2.39:1') {
     throw new Error('expected cast gait plus cast/camera easing to survive deterministic graph metadata round-trip')
   }
   if (roundTrip.camera[0]?.pose.target.join('|') !== '-3.6|0|-1.4' || roundTrip.camera[1]?.pose.target.join('|') !== '4|0|-3') {
@@ -264,12 +272,17 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     if (!paths.includes(expected)) throw new Error(`expected package virtual file ${expected}`)
   }
   const manifestFile = first.files.find(file => file.path === 'reference/manifest.json')!
-  const manifest = JSON.parse(manifestFile.text) as { cameraSemanticMapping?: { baselineMeters?: number; anchorFallback?: string }; interpolation?: string; speedWarnings?: number }
+  const manifest = JSON.parse(manifestFile.text) as { cameraSemanticMapping?: { baselineMeters?: number; anchorFallback?: string }; cameraOptics?: { sensors?: string[]; interpolation?: { focalLengthMm?: string; focusDistanceMeters?: string } }; interpolation?: string; speedWarnings?: number }
   if (manifest.cameraSemanticMapping?.baselineMeters !== 8 || manifest.cameraSemanticMapping.anchorFallback !== 'stage-origin') {
     throw new Error(`expected explicit semantic camera meter mapping, got ${JSON.stringify(manifest.cameraSemanticMapping)}`)
   }
   if (manifest.interpolation !== 'per-mark-easing-with-gait-profiles' || typeof manifest.speedWarnings !== 'number') {
     throw new Error(`expected the package manifest to declare choreography interpolation and diagnostics, got ${JSON.stringify(manifest)}`)
+  }
+  if (manifest.cameraOptics?.sensors?.join('|') !== 'super-35|full-frame'
+    || manifest.cameraOptics.interpolation?.focalLengthMm !== 'per-mark-easing'
+    || manifest.cameraOptics.interpolation.focusDistanceMeters !== 'per-mark-easing') {
+    throw new Error(`expected the package manifest to declare sensor-aware zoom and rack-focus semantics, got ${JSON.stringify(manifest.cameraOptics)}`)
   }
   const missingAnchorPlan = readXrMotionReferencePlan({
     ...serialized as Record<string, unknown>,
@@ -279,9 +292,18 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     throw new Error('expected a missing semantic camera anchor to fall back to stage origin')
   }
   const samplesFile = first.files.find(file => file.path === 'reference/frame-samples.json')!
-  const samples = JSON.parse(samplesFile.text) as Array<{ cast?: unknown[]; camera?: unknown }>
-  if (samples.length !== 51 || !Array.isArray(samples[25]?.cast) || !samples[25]?.camera) {
-    throw new Error('expected deterministic per-frame camera and cast samples')
+  const samples = JSON.parse(samplesFile.text) as Array<{ cast?: unknown[]; camera?: unknown; cameraOptics?: { sensorId?: string; focalLengthMm?: number; focusDistanceMeters?: number; aspectRatio?: string } }>
+  if (samples.length !== 51 || !Array.isArray(samples[25]?.cast) || !samples[25]?.camera
+    || samples[25]?.cameraOptics?.sensorId !== 'super-35'
+    || samples[25]?.cameraOptics?.focalLengthMm !== 60
+    || samples[25]?.cameraOptics?.focusDistanceMeters !== 3.6
+    || samples[25]?.cameraOptics?.aspectRatio !== '1.85:1') {
+    throw new Error(`expected deterministic per-frame camera, optics, and cast samples, got ${JSON.stringify(samples[25])}`)
+  }
+  if (CAMERA_SENSOR_FORMATS.map(sensor => sensor.id).join('|') !== 'super-16|super-35|full-frame|65mm'
+    || Math.abs(resolveCameraVerticalFovDegreesForOptics('full-frame', 50) - 26.991) > 0.01
+    || resolveFullFrameEquivalentFocalLengthMm('super-16', 16) !== 46.5) {
+    throw new Error('expected the native optics catalog to preserve four real sensor gates and deterministic field-of-view math')
   }
   const blob = xrMotionReferencePackageBlob(first)
   if (blob.type !== 'application/json;charset=utf-8' || !(await blob.text()).endsWith('\n')) {
@@ -381,7 +403,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     'data-kg-xr-motion-stage-select="1"',
     'data-kg-xr-motion-save="1"',
     'data-kg-xr-motion-export="1"',
-    "documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'",
+    "documentLoaded ? `${objectTargets.length} objects · ${edges} links` : 'World ready'",
     'updateGraphMetadata',
     'downloadBlob',
   ]) {
