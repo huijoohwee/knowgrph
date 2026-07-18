@@ -7,6 +7,8 @@ import {
   checkWorktreePolicy,
   countRegisteredWorktrees,
   evaluateWorktreePolicy,
+  parseRegisteredWorktrees,
+  resolveCanonicalSourceRoots,
 } from '../worktree-policy.mjs'
 
 const canonicalStates = [
@@ -27,20 +29,55 @@ test('porcelain worktree records are counted without path parsing', () => {
   ].join('\n')), 2)
 })
 
-test('contract worktree policy accepts one source checkout and rejects zero or multiple', async () => {
+test('contract worktree policy accepts multiple isolated worktrees and rejects missing registrations', async () => {
   const contract = await readContract()
   const result = evaluateWorktreePolicy(canonicalStates, contract)
   assert.equal(result.message, (
-    'single-device-single-worktree sources knowgrph=1; agentic-canvas-os-docs=1'
+    'same-device-multi-worktree sources knowgrph=1; agentic-canvas-os-docs=1'
   ))
-  assert.throws(() => evaluateWorktreePolicy([
+  const parallel = evaluateWorktreePolicy([
     { id: 'knowgrph', worktreeCount: 2 },
     canonicalStates[1],
-  ], contract), /requires exactly 1 registered worktree/)
+  ], contract)
+  assert.match(parallel.message, /knowgrph=2/)
   assert.throws(() => evaluateWorktreePolicy([
     { id: 'knowgrph', worktreeCount: 0 },
     canonicalStates[1],
-  ], contract), /requires exactly 1 registered worktree/)
+  ], contract), /requires at least 1 registered worktree/)
+})
+
+test('registry policy rejects prunable worktrees and duplicate checked-out branches', async () => {
+  const contract = await readContract()
+  const main = { path: '/repo', head: 'a', branch: 'refs/heads/main', prunable: false, bare: false }
+  assert.throws(() => evaluateWorktreePolicy([
+    { id: 'knowgrph', worktreeCount: 2, worktrees: [main, { ...main, path: '/repo-task' }] },
+    canonicalStates[1],
+  ], contract), /one branch checked out in multiple worktrees/)
+  assert.throws(() => evaluateWorktreePolicy([
+    { id: 'knowgrph', worktreeCount: 1, worktrees: [{ ...main, prunable: true }] },
+    canonicalStates[1],
+  ], contract), /invalid, bare, or prunable/)
+})
+
+test('linked task worktrees resolve sibling sources beside the registered main worktree', async () => {
+  const contract = await readContract()
+  const taskRoot = '/workspace/.worktrees/knowgrph/three-object-input'
+  const result = resolveCanonicalSourceRoots({
+    cwd: taskRoot,
+    contract,
+    git: () => [
+      'worktree /workspace/knowgrph',
+      'HEAD a',
+      'branch refs/heads/main',
+      '',
+      `worktree ${taskRoot}`,
+      'HEAD b',
+      'branch refs/heads/agent/device/three-object-input',
+    ].join('\n'),
+  })
+  assert.equal(result.roots.get('knowgrph'), taskRoot)
+  assert.equal(result.roots.get('agentic-canvas-os-docs'), '/workspace/agentic-canvas-os')
+  assert.equal(parseRegisteredWorktrees(result.applicationPorcelain).length, 2)
 })
 
 test('standalone preflight checks every canonical source without fetching or starting Dev', async () => {

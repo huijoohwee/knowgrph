@@ -78,11 +78,11 @@ export const validateContract = contract => {
   if (!worktreePolicy || typeof worktreePolicy !== 'object' || Array.isArray(worktreePolicy)) {
     throw new Error('local_development.worktree_policy mapping is required')
   }
-  if (worktreePolicy.mode !== 'single-device-single-worktree') {
-    throw new Error('local_development.worktree_policy.mode must be single-device-single-worktree')
+  if (worktreePolicy.mode !== 'same-device-multi-worktree') {
+    throw new Error('local_development.worktree_policy.mode must be same-device-multi-worktree')
   }
-  if (worktreePolicy.maximum_registered_per_repository !== 1) {
-    throw new Error('local_development.worktree_policy.maximum_registered_per_repository must be 1')
+  if (worktreePolicy.minimum_registered_per_repository !== 1) {
+    throw new Error('local_development.worktree_policy.minimum_registered_per_repository must be 1')
   }
   const canonicalSources = localDevelopment.canonical_sources
   if (!Array.isArray(canonicalSources) || canonicalSources.length === 0) {

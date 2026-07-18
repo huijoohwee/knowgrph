@@ -2,7 +2,12 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { readContract, repoRoot, validateTaskBranch } from './collaboration-contract.mjs'
-import { countRegisteredWorktrees, evaluateWorktreePolicy } from './worktree-policy.mjs'
+import {
+  countRegisteredWorktrees,
+  evaluateWorktreePolicy,
+  parseRegisteredWorktrees,
+  resolveCanonicalSourceRoots,
+} from './worktree-policy.mjs'
 
 const runGit = (args, cwd) => {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
@@ -86,22 +91,27 @@ export const checkDevSourceConsistency = async ({
 } = {}) => {
   const contract = await readContract()
   const settings = contract.local_development
+  const resolved = resolveCanonicalSourceRoots({ cwd, contract, git })
   const sourceStates = []
   for (const source of settings.canonical_sources) {
-    const sourceRoot = path.resolve(cwd, source.repository_path)
+    const sourceRoot = resolved.roots.get(source.id)
     try {
       await pathCheck(path.resolve(sourceRoot, source.required_path))
     } catch {
       throw new Error(`${source.id} required path is unavailable at ${path.resolve(sourceRoot, source.required_path)}`)
     }
     if (source.fetch_required) git(['fetch', '--quiet', source.canonical_remote, source.canonical_branch], sourceRoot)
+    const porcelain = source.id === resolved.applicationSourceId
+      ? resolved.applicationPorcelain
+      : git(['worktree', 'list', '--porcelain'], sourceRoot)
     sourceStates.push({
       id: source.id,
       branch: git(['branch', '--show-current'], sourceRoot),
       headSha: git(['rev-parse', 'HEAD'], sourceRoot),
       canonicalSha: git(['rev-parse', `refs/remotes/${source.canonical_remote}/${source.canonical_branch}`], sourceRoot),
       status: git(['status', '--porcelain'], sourceRoot),
-      worktreeCount: countRegisteredWorktrees(git(['worktree', 'list', '--porcelain'], sourceRoot)),
+      worktreeCount: countRegisteredWorktrees(porcelain),
+      worktrees: parseRegisteredWorktrees(porcelain),
     })
   }
   const mode = resolveDevSourceMode(sourceStates, contract, environment)
