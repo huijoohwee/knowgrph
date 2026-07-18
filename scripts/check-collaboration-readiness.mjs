@@ -6,15 +6,31 @@ import {
   ensureLocalCollaborationStack,
   resolveLocalCollaborationStackConfig,
 } from './lib/collaboration-local-stack.js';
+import { readContract } from './collaboration-contract.mjs';
+import { resolveCanonicalSourceRoots } from './worktree-policy.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const scriptsDir = path.dirname(__filename);
 const repoRoot = path.resolve(scriptsDir, '..');
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const skipBrowser = process.argv.includes('--skip-browser');
+const collaborationContract = await readContract();
+const canonicalSourceRoots = resolveCanonicalSourceRoots({ cwd: repoRoot, contract: collaborationContract });
+const agenticCanvasOsDocsSource = collaborationContract.local_development.canonical_sources
+  .find((source) => source.id === 'agentic-canvas-os-docs');
+if (!agenticCanvasOsDocsSource) {
+  throw new Error('collaboration contract has no Agentic Canvas OS docs source');
+}
+const collaborationEnvironment = {
+  ...process.env,
+  VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT: path.resolve(
+    canonicalSourceRoots.roots.get(agenticCanvasOsDocsSource.id),
+    agenticCanvasOsDocsSource.required_path,
+  ),
+};
 const localCollaborationStackConfig = resolveLocalCollaborationStackConfig({
   repoRoot,
-  env: process.env,
+  env: collaborationEnvironment,
   npmCommand,
 });
 
