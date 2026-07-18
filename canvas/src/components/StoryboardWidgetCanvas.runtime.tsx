@@ -385,6 +385,7 @@ export default function StoryboardWidgetCanvasRuntime(
     rootRef,
     draftGraphDataRef,
     renderGraphDataOverride: overlayRenderGraphDataOverride,
+    fixedCardsOwnGraphAuthority: storyboardCardsMode,
     overlayEditorNodeIdsRef,
     openWidgetNodeIdsRef,
     pendingOverlayNodeIdRef,

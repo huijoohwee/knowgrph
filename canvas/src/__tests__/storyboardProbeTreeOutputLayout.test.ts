@@ -15,6 +15,7 @@ import {
 import { normalizeProbeTreeCandidateEdges } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeCandidateEdges'
 import { resolveStoryboardWidgetWorkflowRichMediaPanelTargetNodeId } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
 import { applyStoryboardCanvasGraphPropertyAuthority } from '@/components/StoryboardWidgetCanvas/runtime/storyboardCanvasGraphAuthority'
+import { resolveStoryboardWidgetOverlayEdgeGraphAuthority } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayEdgeGraphAuthority'
 import {
   resolveFlowCanvasMediaOverlayGraphNode,
   resolveFlowCanvasMediaOverlayPinnedInCanvas,
@@ -275,6 +276,48 @@ export function testProbeTreeLayoutOwnershipSurvivesCanonicalPropertyProjection(
   const candidateEdges = canonicalized.edges.filter(edge => edge.label === 'candidateOption')
   assert(candidateEdges.length === 1 && candidateEdges[0]?.source === 'root' && candidateEdges[0]?.target === 'branch', `expected graph authority to rebuild one declared-parent candidate edge, got ${JSON.stringify(candidateEdges)}`)
   assert(readPosition(canonicalized, String(candidateEdges[0]!.target)).x > readPosition(canonicalized, String(candidateEdges[0]!.source)).x, 'expected canonical candidate edge geometry to stay forward-only')
+}
+
+export function testProbeTreeOverlayEdgesUseNormalizedStoryboardGraphAuthority() {
+  const sourceGraph: GraphData = {
+    type: 'Graph',
+    nodes: [
+      { id: 'root', type: 'TextGeneration', label: 'Root', x: 0, y: 0, properties: {} },
+      {
+        id: 'branch',
+        type: 'TextGeneration',
+        label: 'Branch',
+        x: 440,
+        y: 0,
+        properties: {
+          cardTypeLabel: 'Probe-Tree Card',
+          parentNodeId: 'root',
+          probeTreeThreadRootId: 'root',
+        },
+      },
+    ],
+    edges: [],
+  }
+  const renderedGraph = applyStoryboardCanvasGraphPropertyAuthority({
+    graphData: sourceGraph,
+    propertyAuthorityGraphData: sourceGraph,
+  })!
+  assert(renderedGraph.edges.some(edge => edge.source === 'root' && edge.target === 'branch'), 'expected Storyboard graph authority to restore the declared Probe-Tree route after a source round trip')
+
+  const fixedCardEdgeGraph = resolveStoryboardWidgetOverlayEdgeGraphAuthority({
+    draftGraphData: sourceGraph,
+    renderedGraphData: renderedGraph,
+    fixedCardsOwnGraphAuthority: true,
+  })
+  assert(fixedCardEdgeGraph === renderedGraph, 'expected fixed-card edges to use the same normalized graph authority as their rendered cards')
+  assert(fixedCardEdgeGraph?.edges.length === 1, 'expected the fixed-card overlay renderer to retain the restored Probe-Tree edge')
+
+  const interactiveEdgeGraph = resolveStoryboardWidgetOverlayEdgeGraphAuthority({
+    draftGraphData: sourceGraph,
+    renderedGraphData: renderedGraph,
+    fixedCardsOwnGraphAuthority: false,
+  })
+  assert(interactiveEdgeGraph === sourceGraph, 'expected interactive editor edges to keep live draft authority')
 }
 
 export function testProbeTreeCandidateEdgesRejectParentlessAndCyclicRoutes() {

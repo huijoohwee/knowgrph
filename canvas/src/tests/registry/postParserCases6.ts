@@ -137,6 +137,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["canvas.probeTree.outputLayout.structuredReplacementRemovesDescendants","@/__tests__/storyboardProbeTreeGrowthLayout.test","testProbeTreeStructuredReplacementRemovesDescendantClosure"],
   ["canvas.probeTree.outputLayout.panelTracksRightmostIdempotently","@/__tests__/storyboardProbeTreeOutputLayout.test","testProbeTreeOutputPanelTracksGrowingRightmostColumnIdempotently"],
   ["canvas.probeTree.outputLayout.propertyAuthorityOrder","@/__tests__/storyboardProbeTreeOutputLayout.test","testProbeTreeLayoutOwnershipSurvivesCanonicalPropertyProjection"],
+  ["canvas.probeTree.outputLayout.fixedCardEdgesUseRenderedGraphAuthority","@/__tests__/storyboardProbeTreeOutputLayout.test","testProbeTreeOverlayEdgesUseNormalizedStoryboardGraphAuthority"],
   ["canvas.probeTree.outputLayout.rejectsParentlessAndCyclicCandidateRoutes","@/__tests__/storyboardProbeTreeOutputLayout.test","testProbeTreeCandidateEdgesRejectParentlessAndCyclicRoutes"],
   ["canvas.probeTree.outputLayout.generationPreservesViewport","@/__tests__/storyboardProbeTreeOutputLayout.test","testProbeTreeGenerationDoesNotRearmStoryboardInitialFit"],
   ["canvas.probeTree.outputLayout.toolbarPublicationVersionsGraph","@/__tests__/storyboardProbeTreeOutputLayout.test","testProbeTreeToolbarPublicationVersionsOneCanonicalGraph"],
