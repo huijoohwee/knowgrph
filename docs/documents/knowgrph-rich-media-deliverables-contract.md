@@ -22,6 +22,7 @@ The source edge must persist `flow:sourcePortKey: output` and `flow:targetPortKe
 - Registry identity: canonical Widget Card (`TextGeneration/default/textGeneration`).
 - Run owner: the downstream Deliverables Widget Card.
 - Rich Media source and output panels remain read/render/edit surfaces; they do not gain a Run action.
+- The shared Rich Media rail unwraps typed property containers and active-tab cells, then exposes supported text/image/video/audio semantic ports at the panel midpoint; text panels therefore expose `output`, not an unrelated media URL port. Auto/model/POI and missing-tab surfaces retain the established center-rail fallback.
 - The card retains its authored instructions while the connected `prompt_in` value is the source material supplied to generation.
 
 ## Bounded MCP invocation
@@ -64,6 +65,7 @@ Publication uses the owned-output policy, so an existing authored downstream pan
 Focused contracts cover:
 
 - typed persisted Rich Media output crossing `output -> prompt_in` as a string;
+- active text Rich Media panels exposing the authorable midpoint `output` rail, image panels exposing `imageUrl`, typed video cells exposing `videoUrl`, and auto mode retaining its center fallback;
 - connected source precedence with authored instruction retention;
 - bounded same-origin MCP invocation with exact all-token response coverage;
 - structured deck/table parsing and fail-closed partial output;

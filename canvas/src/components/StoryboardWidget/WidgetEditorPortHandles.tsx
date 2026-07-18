@@ -4,7 +4,7 @@ import type { GraphEdge } from '@/lib/graph/types'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
-import { FLOW_HANDLE_DEFAULT_EDGE_ID, computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults, parseFlowHandleKey } from '@/components/FlowCanvas/handles'
+import { FLOW_HANDLE_DEFAULT_EDGE_ID, computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults, parseFlowHandleKey, resolveRichMediaFlowPortPriority } from '@/components/FlowCanvas/handles'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
@@ -19,6 +19,8 @@ import { hashArrayOfObjectsSignature, hashRecordSignature32, hashSignatureParts 
 import { startFlowPortHandleMouseDrag, startFlowPortHandlePointerDrag } from '@/components/StoryboardWidget/flowPortHandlePointerDrag'
 import { Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
 
 type StoryboardWidgetToolMode = 'select' | 'addEdge'
 
@@ -62,6 +64,13 @@ export function selectCenteredFlowPortHandle<T extends { topPct: number; id?: st
 ): T[] {
   const centered = orderFlowPortHandlesByCenterPriority(handles)[0]
   return centered ? [{ ...centered, topPct: 50 }] : []
+}
+
+function selectPreferredFlowPortHandle<T extends { topPct: number; id?: string }>(
+  handles: ReadonlyArray<T> | null | undefined,
+): T[] {
+  const preferred = Array.isArray(handles) ? handles.find(Boolean) : null
+  return preferred ? [{ ...preferred, topPct: 50 }] : []
 }
 
 function coerceEdgeEndpoints(raw: ReadonlyArray<GraphEdge>): Array<{ id: string; source: string; target: string; properties?: unknown }> {
@@ -372,8 +381,14 @@ export const WidgetEditorPortHandles = React.memo(function WidgetEditorPortHandl
     )
   }
 
-  const inputHandles = selectCenteredFlowPortHandle(handles.in)
-  const outputHandles = args.inputOnly === true ? [] : selectCenteredFlowPortHandle(handles.out)
+  const richMediaProperties = readGraphNodeProperties(args.node)
+  const hasSemanticRichMediaPort = String(args.node?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    && resolveRichMediaFlowPortPriority(richMediaProperties?.richMediaActiveTab).length > 0
+  const selectOuterHandle = hasSemanticRichMediaPort
+    ? selectPreferredFlowPortHandle
+    : selectCenteredFlowPortHandle
+  const inputHandles = selectOuterHandle(handles.in)
+  const outputHandles = args.inputOnly === true ? [] : selectOuterHandle(handles.out)
   const hasAny = (inputHandles?.length || 0) + (outputHandles?.length || 0) > 0
   if (!hasAny) return null
   const outputHandlesByCenterPriority = orderFlowPortHandlesByCenterPriority(outputHandles)
