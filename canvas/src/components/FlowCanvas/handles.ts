@@ -15,6 +15,7 @@ import {
   hashSignatureParts,
 } from '@/lib/hash/signature'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
+import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
 
 export type FlowHandleDir = 'in' | 'out'
 
@@ -279,9 +280,7 @@ export function computeFlowHandlesByNode(args: {
     handles: FlowPortHandle[],
   ): FlowPortHandle[] => {
     if (String(node?.type || '').trim() !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) return handles
-    const props = node?.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
-      ? (node.properties as Record<string, unknown>)
-      : null
+    const props = readGraphNodeProperties({ properties: node?.properties as never })
     const preferredKeys = resolveRichMediaFlowPortPriority(props?.richMediaActiveTab)
     if (preferredKeys.length === 0 || handles.length <= 1) return handles
     const handleById = new Map(handles.map(handle => [handle.id, handle] as const))

@@ -20,6 +20,7 @@ import { startFlowPortHandleMouseDrag, startFlowPortHandlePointerDrag } from '@/
 import { Z_INDEX_GRAPH_OVERLAY_SELECTED } from '@/lib/ui/zIndex'
 import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
 
 type StoryboardWidgetToolMode = 'select' | 'addEdge'
 
@@ -380,7 +381,7 @@ export const WidgetEditorPortHandles = React.memo(function WidgetEditorPortHandl
     )
   }
 
-  const richMediaProperties = isRecord(args.node?.properties) ? args.node.properties : null
+  const richMediaProperties = readGraphNodeProperties(args.node)
   const hasSemanticRichMediaPort = String(args.node?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
     && resolveRichMediaFlowPortPriority(richMediaProperties?.richMediaActiveTab).length > 0
   const selectOuterHandle = hasSemanticRichMediaPort

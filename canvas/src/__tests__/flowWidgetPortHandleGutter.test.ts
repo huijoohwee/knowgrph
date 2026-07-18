@@ -117,7 +117,14 @@ export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
     id: 'rich-media-panel',
     updatedAt: '2026-07-19T00:00:00.000Z',
   }
-  const renderRichMediaHandles = (richMediaActiveTab: unknown) => {
+  const renderRichMediaHandles = (richMediaActiveTab: unknown, wrapProperties = false) => {
+    const properties = wrapProperties
+      ? {
+          key: 'properties',
+          type: 'object',
+          value: { richMediaActiveTab },
+        }
+      : { richMediaActiveTab }
     richMediaRoot.render(
       React.createElement(
         'div',
@@ -127,7 +134,7 @@ export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
           node: {
             id: 'rich-media-source',
             type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
-            properties: { richMediaActiveTab },
+            properties,
           },
           schema,
           edges: [],
@@ -182,6 +189,15 @@ export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
   const autoOutput = richMediaHost.querySelector('button[data-kg-port-dir="out"]') as HTMLButtonElement | null
   if (autoInput?.dataset.kgPortKey !== 'videoUrl' || autoOutput?.dataset.kgPortKey !== 'videoUrl') {
     throw new Error(`expected auto Rich Media rails to retain centered videoUrl fallback, got ${autoInput?.dataset.kgPortKey}/${autoOutput?.dataset.kgPortKey}`)
+  }
+
+  renderRichMediaHandles({ key: 'richMediaActiveTab', type: 'string', value: 'text' }, true)
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const wrappedTextInput = richMediaHost.querySelector('button[data-kg-port-dir="in"]') as HTMLButtonElement | null
+  const wrappedTextOutput = richMediaHost.querySelector('button[data-kg-port-dir="out"]') as HTMLButtonElement | null
+  if (wrappedTextInput?.dataset.kgPortKey !== 'output' || wrappedTextOutput?.dataset.kgPortKey !== 'output') {
+    throw new Error(`expected outer-wrapped text Rich Media rails to expose output, got ${wrappedTextInput?.dataset.kgPortKey}/${wrappedTextOutput?.dataset.kgPortKey}`)
   }
 
   richMediaRoot.unmount()
