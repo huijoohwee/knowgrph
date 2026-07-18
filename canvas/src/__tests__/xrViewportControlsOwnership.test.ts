@@ -4,9 +4,13 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import {
   bindThreeViewportControlsOwnership,
   canStartThreeObjectDrag,
+  captureThreeObjectPointer,
   claimThreeObjectInputOwnership,
+  createThreeObjectCameraPoseLock,
   hasThreeObjectDragMoved,
+  isolateThreeObjectPointerEvent,
   readThreeObjectInputOwnership,
+  releaseThreeObjectPointerCapture,
   releaseThreeObjectInputOwnership,
   threeObjectDragTerminationMatchesPointer,
 } from '@/features/three/threeObjectInputOwnership'
@@ -110,6 +114,74 @@ export function testXrViewportDragTerminationHonorsPointerOwnership() {
     threeObjectDragTerminationMatchesPointer({}, 7),
     'expected non-pointer cancellation such as blur or hidden visibility to finish the XR object drag',
   )
+}
+
+export function testThreeObjectPointerEventsBlockNativeCameraHandlers() {
+  const target = new EventTarget()
+  let r3fPropagationStopped = false
+  let cameraHandlerCalls = 0
+  target.addEventListener('pointerdown', nativeEvent => {
+    isolateThreeObjectPointerEvent({
+      stopPropagation: () => { r3fPropagationStopped = true },
+      nativeEvent,
+    })
+  })
+  target.addEventListener('pointerdown', () => { cameraHandlerCalls += 1 })
+  const event = new Event('pointerdown', { cancelable: true })
+  target.dispatchEvent(event)
+  assertCondition(r3fPropagationStopped, 'expected owned object gestures to stop R3F selection bubbling')
+  assertCondition(event.defaultPrevented, 'expected owned object gestures to prevent the native canvas default')
+  assertCondition(cameraHandlerCalls === 0, 'expected owned object gestures to stop later native OrbitControls handlers')
+
+  const captured: number[] = []
+  const released: number[] = []
+  const pointerEvent = {
+    pointerId: 7,
+    target: {
+      setPointerCapture: (pointerId: number) => captured.push(pointerId),
+      releasePointerCapture: (pointerId: number) => released.push(pointerId),
+    },
+    nativeEvent: { target: new EventTarget() },
+  }
+  captureThreeObjectPointer(pointerEvent)
+  releaseThreeObjectPointerCapture(pointerEvent)
+  assertCondition(captured[0] === 7, 'expected R3F event target to retain the active object pointer stream')
+  assertCondition(released[0] === 7, 'expected R3F event target to release the owned pointer stream')
+}
+
+export function testThreeObjectCameraPoseRemainsLockedUntilRelease() {
+  let cameraPose = 10
+  const restoredPoses: number[] = []
+  const poseLock = createThreeObjectCameraPoseLock({
+    capture: () => cameraPose,
+    restore: pose => {
+      cameraPose = pose
+      restoredPoses.push(pose)
+    },
+  })
+  const controls = { enabled: true }
+  const unsubscribe = bindThreeViewportControlsOwnership({
+    controls,
+    baseEnabled: true,
+    onActiveChange: active => {
+      if (active) poseLock.start()
+      else poseLock.finish()
+    },
+  })
+  try {
+    claimThreeObjectInputOwnership('xr:actor:actor-a:mark-a', 7)
+    cameraPose = 42
+    poseLock.enforce()
+    assertCondition(cameraPose === 10, 'expected an owned object gesture to preserve the camera pose captured on claim')
+    cameraPose = 84
+    releaseThreeObjectInputOwnership('xr:actor:actor-a:mark-a', 7)
+    assertCondition(cameraPose === 10, 'expected object release to restore the exact pre-drag camera pose')
+    assertCondition(controls.enabled, 'expected camera navigation to resume after the pose is restored')
+    assertCondition(restoredPoses.length === 2, 'expected one active enforcement and one release restoration')
+  } finally {
+    releaseThreeObjectInputOwnership('xr:actor:actor-a:mark-a')
+    unsubscribe()
+  }
 }
 
 export function testThreeObjectDragSuppressesOrbitControlsBeforePointerMove() {
