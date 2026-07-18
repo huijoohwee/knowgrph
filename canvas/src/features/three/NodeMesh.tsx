@@ -22,8 +22,11 @@ import { truncateTextWithEllipsis } from '@/components/GraphCanvas/layout/utils'
 import { isRichMediaPanelDisplayEnabled } from '@/lib/render/richMediaSsot'
 import {
   canStartThreeObjectDrag,
+  captureThreeObjectPointer,
   claimThreeObjectInputOwnership,
   hasThreeObjectDragMoved,
+  isolateThreeObjectPointerEvent,
+  releaseThreeObjectPointerCapture,
   releaseThreeObjectInputOwnership,
   threeObjectDragTerminationMatchesPointer,
 } from './threeObjectInputOwnership'
@@ -343,20 +346,15 @@ export function NodeMesh({
     const dragMoved = dragMovedRef.current
     clearDrag()
     if (!wasDragging || !e) return
-    e.stopPropagation()
+    isolateThreeObjectPointerEvent(e)
     if (dragMoved) onDragEnd?.(node.id, e)
-    try {
-      const captureTarget = e.nativeEvent.target as Element
-      captureTarget.releasePointerCapture(e.pointerId)
-    } catch {
-      void 0
-    }
+    releaseThreeObjectPointerCapture(e)
   }, [clearDrag, node.id, onDragEnd])
   React.useEffect(() => clearDrag, [clearDrag])
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
     if (!canStartThreeObjectDrag(e.button) || draggingRef.current) return
-    e.stopPropagation()
     if (!claimThreeObjectInputOwnership(node.id, e.pointerId)) return
+    isolateThreeObjectPointerEvent(e)
     draggingRef.current = true
     activePointerIdRef.current = e.pointerId
     dragStartClientRef.current = { x: e.clientX, y: e.clientY }
@@ -377,12 +375,7 @@ export function NodeMesh({
     window.addEventListener('blur', finishWindowDrag)
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', finishWindowDrag)
     if (dragCursorTargetRef.current?.style) dragCursorTargetRef.current.style.cursor = 'grabbing'
-    try {
-      const captureTarget = e.nativeEvent.target as Element
-      captureTarget.setPointerCapture(e.pointerId)
-    } catch {
-      void 0
-    }
+    captureThreeObjectPointer(e)
     onDragStart?.(node.id, e)
   }
   const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
@@ -390,6 +383,7 @@ export function NodeMesh({
       onHoverChange({ id: node.id, clientX: e.clientX, clientY: e.clientY })
     }
     if (!draggingRef.current || e.pointerId !== activePointerIdRef.current) return
+    isolateThreeObjectPointerEvent(e)
     const dragStart = dragStartClientRef.current
     if (!dragMovedRef.current && dragStart) {
       dragMovedRef.current = hasThreeObjectDragMoved(dragStart, { x: e.clientX, y: e.clientY })

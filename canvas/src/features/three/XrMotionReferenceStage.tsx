@@ -25,8 +25,11 @@ import { getVoxelLabelTexture } from '@/features/three/voxelLabelTexture'
 import { sampleXrAnimationPose } from '@/features/three/xrAnimationCatalog'
 import {
   canStartThreeObjectDrag,
+  captureThreeObjectPointer,
   claimThreeObjectInputOwnership,
   hasThreeObjectDragMoved,
+  isolateThreeObjectPointerEvent,
+  releaseThreeObjectPointerCapture,
   releaseThreeObjectInputOwnership,
   threeObjectDragTerminationMatchesPointer,
 } from '@/features/three/threeObjectInputOwnership'
@@ -97,14 +100,9 @@ function CastMarkControl({
     clearDrag()
     if (!wasDragging) return
     if (event) {
-      event.stopPropagation()
+      isolateThreeObjectPointerEvent(event)
       setStagePointerCursor(event, 'grab')
-      try {
-        const captureTarget = event.nativeEvent.target as Element
-        captureTarget.releasePointerCapture(event.pointerId)
-      } catch {
-        void 0
-      }
+      releaseThreeObjectPointerCapture(event)
     }
   }, [clearDrag])
   React.useEffect(() => clearDrag, [clearDrag])
@@ -131,6 +129,7 @@ function CastMarkControl({
         const grabPoint = event.ray.intersectPlane(dragPlane, new THREE.Vector3())
         if (!grabPoint) return
         if (!claimThreeObjectInputOwnership(inputOwnerId, event.pointerId)) return
+        isolateThreeObjectPointerEvent(event)
         const markWorldPosition = xrMotionReferenceWorldPosition(mark.position, scale, groundY)
         dragOffsetRef.current.set(...markWorldPosition).sub(grabPoint)
         selectBoundXrActor(actorId)
@@ -156,16 +155,11 @@ function CastMarkControl({
           document.addEventListener('visibilitychange', finishWindowDrag)
         }
         setStagePointerCursor(event, 'grabbing')
-        try {
-          const captureTarget = event.nativeEvent.target as Element
-          captureTarget.setPointerCapture(event.pointerId)
-        } catch {
-          void 0
-        }
+        captureThreeObjectPointer(event)
       }}
       onPointerMove={event => {
         if (!draggingRef.current || event.pointerId !== activePointerIdRef.current) return
-        event.stopPropagation()
+        isolateThreeObjectPointerEvent(event)
         const dragStart = dragStartClientRef.current
         if (!dragMovedRef.current && dragStart) {
           dragMovedRef.current = hasThreeObjectDragMoved(dragStart, { x: event.clientX, y: event.clientY })
