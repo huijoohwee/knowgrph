@@ -342,8 +342,13 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       data-kg-xr-exclusive-stage={mode === 'xr' && (hasGraph || hasXrEmptyWorld) ? '1' : undefined}
       data-kg-xr-empty-world={hasXrEmptyWorld ? '1' : undefined}
       data-kg-xr-scene-media-drop={mode === 'xr' ? '1' : undefined}
+      data-kg-three-viewport-gestures="orbit-pan-cursor-zoom"
       onDragOver={xrSceneMediaDrop.onDragOver}
       onDrop={xrSceneMediaDrop.onDrop}
+      onContextMenu={event => {
+        event.preventDefault()
+        event.stopPropagation()
+      }}
     >
       <Canvas
         key={hasXrEmptyWorld ? 'xr-empty-world-canvas' : 'scene-canvas'}
