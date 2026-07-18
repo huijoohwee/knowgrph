@@ -89,6 +89,7 @@ export type StoryboardWidgetTextRunOutputPublisher = (args: {
   panelProperties?: Record<string, unknown>
   outputIndex?: number
   allowCreateStandaloneOutput?: boolean
+  connectCreatedOutputToAnchor?: boolean
 }) => GraphData | null
 
 export type StoryboardWidgetMediaRunOutputPublisher = (args: {
@@ -347,13 +348,25 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
         } : {
           workflowOutputAnchorNodeId: readWorkflowString(panelArgs.anchorNode.id), workflowOutputKey: outputKey,
           ...(panelArgs.outputGroupId?.trim() ? { workflowOutputGroupId: panelArgs.outputGroupId.trim() } : {}),
-          [WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]: WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
+          [WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]: panelArgs.connectCreatedOutputToAnchor === true
+            ? undefined
+            : WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
         }),
       }
       for (const panelNodeId of panelNodeIds) applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch({
         panelNodeId, patch, readLiveDraftGraphData: transaction.readDraftGraphData,
         commitDraftGraphDataUpdate: transaction.commitDraftGraphDataUpdate, scheduleWorkflowOutputEdgeRefresh: () => undefined,
       })
+      if (explicitPanelNodeIds.length === 0 && panelArgs.connectCreatedOutputToAnchor === true) {
+        for (const panelNodeId of panelNodeIds) ensureStoryboardWidgetWorkflowOutputEdge({
+          anchorNodeId: readWorkflowString(panelArgs.anchorNode.id),
+          panelNodeId,
+          outputKey,
+          readLiveDraftGraphData: transaction.readDraftGraphData,
+          commitDraftGraphDataUpdate: transaction.commitDraftGraphDataUpdate,
+          scheduleWorkflowOutputEdgeRefresh: () => undefined,
+        })
+      }
       const finished = transaction.finish({
         preferPublishedGraphCommit: panelArgs.loading !== true && outputKey !== PROBE_TREE_OUTPUT_KEY,
         updatedNodeIds: panelNodeIds,
