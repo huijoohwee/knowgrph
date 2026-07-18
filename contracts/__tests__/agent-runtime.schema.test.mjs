@@ -9,6 +9,10 @@ import {
   resolveAgentDefinition,
   validateAgentDefinitionRegistry,
 } from "../agent-runtime.schema.js";
+import {
+  AGENT_MODEL_RUNTIME_SCHEMA,
+  createRunningAgentAdapterRegistry,
+} from "../agent-model-runtime.js";
 
 test("registry exposes the three exact agent invocations without broad aliases", () => {
   assert.deepEqual(
@@ -68,7 +72,20 @@ test("unknown agents fail with a typed validation error", () => {
   assert.equal(result.error.code, "invalid_agent_run_input");
 });
 
-test("live execution requires approval and an adapter", async () => {
+test("live prepared-agent execution rejects conflicting legacy provider routing", () => {
+  const result = compileAgentRun({
+    invocation: "/sme-care-agent",
+    brief: "Assess the protection gap.",
+    mode: "live",
+    providerMode: "mock",
+    approvals: ["paid-model-call"],
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "invalid_agent_run_input");
+  assert.equal(result.error.details[0].path, "providerMode");
+});
+
+test("live execution requires approval, model resolution, and an exact registered adapter", async () => {
   const input = {
     invocation: "/sme-care-agent",
     brief: "Assess the protection gap.",
@@ -81,13 +98,35 @@ test("live execution requires approval and an adapter", async () => {
 
   const blocked = await executeAgentRun({ ...input, approvals: ["paid-model-call"] });
   assert.equal(blocked.payload.status, "blocked");
-  assert.equal(blocked.payload.error.code, "execution_adapter_unavailable");
+  assert.equal(blocked.payload.error.code, "model_resolver_unavailable");
+
+  const modelResolver = async () => ({
+    status: "ready",
+    packet: {
+      schemaVersion: AGENT_MODEL_RUNTIME_SCHEMA,
+      provider: { id: "cloudflare-workers-ai", revision: "test/v1", adapterId: "cloudflare-workers-ai" },
+      model: { id: "operator-selected-model", features: ["text"] },
+      transport: { id: "test-binding", delivery: "complete", connection: "per-run" },
+    },
+  });
+  const adapterBlocked = await executeAgentRun(
+    { ...input, approvals: ["paid-model-call"] },
+    { modelResolver, runningAgentAdapters: createRunningAgentAdapterRegistry() },
+  );
+  assert.equal(adapterBlocked.payload.error.code, "running_agent_adapter_unavailable");
+  assert.equal(adapterBlocked.payload.error.adapterId, "cloudflare-workers-ai");
 
   const completed = await executeAgentRun(
     { ...input, approvals: ["paid-model-call"] },
-    { adapter: { execute: async () => ({ text: "review-ready result" }) } },
+    {
+      modelResolver,
+      runningAgentAdapters: createRunningAgentAdapterRegistry([
+        { id: "cloudflare-workers-ai", execute: async () => ({ text: "review-ready result" }) },
+      ]),
+    },
   );
   assert.equal(completed.ok, true);
   assert.equal(completed.payload.status, "completed");
   assert.equal(completed.payload.result.text, "review-ready result");
+  assert.equal(completed.payload.modelRuntime.model.id, "operator-selected-model");
 });
