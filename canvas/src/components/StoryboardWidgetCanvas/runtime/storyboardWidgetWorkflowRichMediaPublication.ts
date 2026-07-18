@@ -17,7 +17,10 @@ import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
-import { resolveStoryboardWidgetWorkflowDownstreamRunTargetIds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowDownstreamRunTargets'
+import {
+  mergeStoryboardWidgetExplicitRunTargetTopology,
+  resolveStoryboardWidgetWorkflowDownstreamRunTargetIds,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowDownstreamRunTargets'
 import {
   applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch,
   ensureStoryboardWidgetImageToGlbOutputEdge,
@@ -290,7 +293,20 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
       const outputKey = panelArgs.outputKey?.trim() || 'output'
       const liveDraftGraphData = args.readLiveDraftGraphData()
       const baseGraphData = panelArgs.baseGraphData || liveDraftGraphData
-      const graphWithProbeTreePanels = baseGraphData
+      const graphWithExplicitRunTargets = baseGraphData
+        ? [
+            args.context.draftGraph,
+            args.context.baseGraph,
+            args.context.storeGraph,
+            args.context.renderGraph,
+            liveDraftGraphData,
+          ].reduce<GraphData>((graphData, sourceGraphData) => mergeStoryboardWidgetExplicitRunTargetTopology({
+            graphData,
+            liveGraphData: sourceGraphData,
+            sourceNodeId: readWorkflowString(panelArgs.anchorNode.id),
+          }), baseGraphData)
+        : null
+      const graphWithProbeTreePanels = graphWithExplicitRunTargets
         ? [
             args.context.draftGraph,
             args.context.baseGraph,
@@ -301,7 +317,7 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
             outputKey === PROBE_TREE_OUTPUT_KEY
               ? mergeStoryboardWidgetProbeTreeOutputPanels({ graphData, liveGraphData: sourceGraphData })
               : graphData
-          ), baseGraphData)
+          ), graphWithExplicitRunTargets)
         : null
       const publicationGraphData = graphWithProbeTreePanels
         && outputKey === PROBE_TREE_OUTPUT_KEY
