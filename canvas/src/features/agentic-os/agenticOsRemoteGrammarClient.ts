@@ -4,6 +4,11 @@ import {
   AGENTIC_CANVAS_OS_DOCS_CONTROL_PLANE_PATH,
   AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
 } from '../../../../mcp/agentic-canvas-os-docs-contract.mjs'
+import {
+  emptyProgressiveAgentsReadiness,
+  normalizeProgressiveAgentsReadiness,
+  type AgenticOsProgressiveAgentsReadinessSummary,
+} from './agenticOsProgressiveAgentsReadiness'
 
 export type AgenticOsRemoteGrammarCatalogEntry = {
   token: string
@@ -22,6 +27,7 @@ type AgenticOsRemoteGrammarPayload = {
   catalog?: AgenticOsRemoteGrammarCatalogEntry[]
   sourceRevision?: string
   liveAgentProviderProof?: unknown
+  progressiveAgentsReadiness?: unknown
 }
 
 type AgenticOsRemoteGrammarClientOptions = {
@@ -182,6 +188,7 @@ export type AgenticOsRemoteGrammarSnapshot = {
   }
   counts: AgenticOsRemoteGrammarCatalogCounts
   liveAgentProviderProof: AgenticOsLiveProviderProofSummary
+  progressiveAgentsReadiness: AgenticOsProgressiveAgentsReadinessSummary
 }
 
 const emptyLiveProviderProof = (sourceRevision = ''): AgenticOsLiveProviderProofSummary => ({
@@ -277,6 +284,7 @@ let remoteGrammarHydrationAttempts = 0
 let remoteGrammarHydrationError = ''
 let remoteGrammarSuccessfulSigils = new Map<AgenticOsRemoteGrammarSigil, string>()
 let remoteGrammarLiveAgentProviderProof = emptyLiveProviderProof()
+let remoteGrammarProgressiveAgentsReadiness = emptyProgressiveAgentsReadiness()
 const emptyCounts = (): AgenticOsRemoteGrammarCatalogCounts => ({ slash: 0, hash: 0, at: 0 })
 let remoteGrammarSnapshot: AgenticOsRemoteGrammarSnapshot = {
   version: remoteGrammarVersion,
@@ -285,6 +293,7 @@ let remoteGrammarSnapshot: AgenticOsRemoteGrammarSnapshot = {
   hydration: { status: 'idle', attempts: 0, error: '' },
   counts: emptyCounts(),
   liveAgentProviderProof: remoteGrammarLiveAgentProviderProof,
+  progressiveAgentsReadiness: remoteGrammarProgressiveAgentsReadiness,
 }
 const remoteGrammarListeners = new Set<() => void>()
 const remoteGrammarHydrationPromises = new Map<string, Promise<readonly AgenticOsRemoteGrammarCatalogEntry[]>>()
@@ -311,6 +320,7 @@ const emitRemoteGrammarSnapshot = (): void => {
     },
     counts: countRemoteGrammarEntries(entries),
     liveAgentProviderProof: remoteGrammarLiveAgentProviderProof,
+    progressiveAgentsReadiness: remoteGrammarProgressiveAgentsReadiness,
   }
   remoteGrammarListeners.forEach(listener => listener())
 }
@@ -366,6 +376,7 @@ export function resetAgenticOsRemoteGrammarCatalogForTests(): void {
   remoteGrammarHydrationError = ''
   remoteGrammarSuccessfulSigils = new Map()
   remoteGrammarLiveAgentProviderProof = emptyLiveProviderProof()
+  remoteGrammarProgressiveAgentsReadiness = emptyProgressiveAgentsReadiness()
   emitRemoteGrammarSnapshot()
 }
 
@@ -459,9 +470,15 @@ export function createAgenticOsRemoteGrammarClient(options: AgenticOsRemoteGramm
     catalog: AgenticOsRemoteGrammarCatalogEntry[]
     sourceRevision: string
     liveAgentProviderProof: unknown
+    progressiveAgentsReadiness: unknown
   }> => {
       const normalizedQuery = normalizeString(query)
-      if (!normalizedQuery) return { catalog: [], sourceRevision: '', liveAgentProviderProof: null }
+      if (!normalizedQuery) return {
+        catalog: [],
+        sourceRevision: '',
+        liveAgentProviderProof: null,
+        progressiveAgentsReadiness: null,
+      }
       const sessionId = await ensureSession({ signal })
       const invoked = await postRpc({
         jsonrpc: '2.0',
@@ -480,6 +497,7 @@ export function createAgenticOsRemoteGrammarClient(options: AgenticOsRemoteGramm
         catalog: Array.isArray(payload.catalog) ? payload.catalog : [],
         sourceRevision: normalizeString(payload.sourceRevision),
         liveAgentProviderProof: payload.liveAgentProviderProof,
+        progressiveAgentsReadiness: payload.progressiveAgentsReadiness,
       }
   }
 
@@ -504,9 +522,14 @@ export async function fetchAgenticOsRemoteGrammarCatalog(
     remoteGrammarEntriesByToken = new Map()
     remoteGrammarSuccessfulSigils = new Map()
     remoteGrammarLiveAgentProviderProof = emptyLiveProviderProof(payload.sourceRevision)
+    remoteGrammarProgressiveAgentsReadiness = emptyProgressiveAgentsReadiness(payload.sourceRevision)
   }
   remoteGrammarSourceRevision = payload.sourceRevision
   remoteGrammarLiveAgentProviderProof = normalizeLiveProviderProof(payload.liveAgentProviderProof, payload.sourceRevision)
+  remoteGrammarProgressiveAgentsReadiness = normalizeProgressiveAgentsReadiness(
+    payload.progressiveAgentsReadiness,
+    payload.sourceRevision,
+  )
   const entries = [...registerAgenticOsRemoteGrammarCatalogEntries(payload.catalog)]
   const normalizedQuery = normalizeString(args.query)
   const sigil = REMOTE_GRAMMAR_SIGIL_ORDER.includes(normalizedQuery as AgenticOsRemoteGrammarSigil)
