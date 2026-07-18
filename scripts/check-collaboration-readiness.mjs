@@ -21,12 +21,14 @@ const agenticCanvasOsDocsSource = collaborationContract.local_development.canoni
 if (!agenticCanvasOsDocsSource) {
   throw new Error('collaboration contract has no Agentic Canvas OS docs source');
 }
+const agenticCanvasOsDocsRoot = path.resolve(
+  canonicalSourceRoots.roots.get(agenticCanvasOsDocsSource.id),
+  agenticCanvasOsDocsSource.required_path,
+);
 const collaborationEnvironment = {
   ...process.env,
-  VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT: path.resolve(
-    canonicalSourceRoots.roots.get(agenticCanvasOsDocsSource.id),
-    agenticCanvasOsDocsSource.required_path,
-  ),
+  KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: agenticCanvasOsDocsRoot,
+  VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT: agenticCanvasOsDocsRoot,
 };
 const localCollaborationStackConfig = resolveLocalCollaborationStackConfig({
   repoRoot,

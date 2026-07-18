@@ -40,6 +40,7 @@ test('collaboration smoke preparation builds grph-shared before readiness checks
   assert.ok(preparationIndex >= 0)
   assert.ok(preparationIndex < docsGuardIndex)
   assert.match(readiness, /resolveCanonicalSourceRoots/)
+  assert.match(readiness, /KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT/)
   assert.match(readiness, /VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT/)
   assert.match(viteConfig, /optimizeDeps:[\s\S]*include:[\s\S]*'yjs'/)
 })
