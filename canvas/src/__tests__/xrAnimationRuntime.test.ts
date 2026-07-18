@@ -17,6 +17,7 @@ import {
 } from '@/features/three/xrAnimationCatalog'
 import {
   buildXrAnimationInvocation,
+  buildXrAnimationObjectMoveInvocation,
   controlLocalAnimation,
   inspectLocalAnimation,
 } from '@/features/three/xrAnimationMcpRuntime'
@@ -43,16 +44,18 @@ import {
   setXrMotionReferenceStage,
 } from '@/features/three/xrMotionReferenceRuntime'
 import {
-  XR_OBJECT_KEYBOARD_FINE_SPEED_METERS_PER_SECOND,
-  XR_OBJECT_KEYBOARD_FINE_STEP_METERS,
-  XR_OBJECT_KEYBOARD_MAX_FRAME_DELTA_MS,
-  XR_OBJECT_KEYBOARD_SPEED_METERS_PER_SECOND,
-  XR_OBJECT_KEYBOARD_STEP_METERS,
-  resolveXrObjectKeyboardMotionDirection,
-  resolveXrObjectKeyboardMotionFrameDistance,
   resolveXrObjectKeyboardMotionFrameTarget,
   resolveXrObjectKeyboardMotionTarget,
 } from '@/features/three/XrObjectKeyboardMotionRuntime'
+import {
+  THREE_OBJECT_KEYBOARD_FINE_SPEED_METERS_PER_SECOND,
+  THREE_OBJECT_KEYBOARD_FINE_STEP_METERS,
+  THREE_OBJECT_KEYBOARD_MAX_FRAME_DELTA_MS,
+  THREE_OBJECT_KEYBOARD_SPEED_METERS_PER_SECOND,
+  THREE_OBJECT_KEYBOARD_STEP_METERS,
+  resolveThreeObjectKeyboardMotionDirection,
+  resolveThreeObjectKeyboardMotionFrameDistance,
+} from '@/features/three/threeObjectKeyboardMotion'
 import { hydrateCanonicalXrMotionReferenceRuntime } from '@/features/three/XrMotionReferenceRuntimeBridge'
 import { selectBoundXrActor } from '@/features/three/xrSelectedActorBinding'
 import { buildXrMotionReferenceTimelineCode } from '@/features/three/xrMotionReferenceTimeline'
@@ -196,14 +199,14 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   selectXrMotionReferenceCastMark('actor-a', keyboardMark.id)
   const keyboardRuntime = readXrMotionReferenceRuntime()
   const keyboardDirections = [
-    ['w', 0, -XR_OBJECT_KEYBOARD_STEP_METERS],
-    ['ArrowUp', 0, -XR_OBJECT_KEYBOARD_STEP_METERS],
-    ['s', 0, XR_OBJECT_KEYBOARD_STEP_METERS],
-    ['ArrowDown', 0, XR_OBJECT_KEYBOARD_STEP_METERS],
-    ['a', -XR_OBJECT_KEYBOARD_STEP_METERS, 0],
-    ['ArrowLeft', -XR_OBJECT_KEYBOARD_STEP_METERS, 0],
-    ['d', XR_OBJECT_KEYBOARD_STEP_METERS, 0],
-    ['ArrowRight', XR_OBJECT_KEYBOARD_STEP_METERS, 0],
+    ['w', 0, -THREE_OBJECT_KEYBOARD_STEP_METERS],
+    ['ArrowUp', 0, -THREE_OBJECT_KEYBOARD_STEP_METERS],
+    ['s', 0, THREE_OBJECT_KEYBOARD_STEP_METERS],
+    ['ArrowDown', 0, THREE_OBJECT_KEYBOARD_STEP_METERS],
+    ['a', -THREE_OBJECT_KEYBOARD_STEP_METERS, 0],
+    ['ArrowLeft', -THREE_OBJECT_KEYBOARD_STEP_METERS, 0],
+    ['d', THREE_OBJECT_KEYBOARD_STEP_METERS, 0],
+    ['ArrowRight', THREE_OBJECT_KEYBOARD_STEP_METERS, 0],
   ] as const
   const keyboardDirectionsMatch = keyboardDirections.every(([key, deltaX, deltaZ]) => {
     const target = resolveXrObjectKeyboardMotionTarget(keyboardRuntime, { key })
@@ -212,14 +215,14 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
       && target.nextPosition[2] === keyboardMark.position[2] + deltaZ
   })
   const keyboardFineRight = resolveXrObjectKeyboardMotionTarget(keyboardRuntime, { key: 'ArrowRight', shiftKey: true })
-  const diagonalDirection = resolveXrObjectKeyboardMotionDirection(['w', 'd'])
+  const diagonalDirection = resolveThreeObjectKeyboardMotionDirection(['w', 'd'])
   const diagonalFrame = resolveXrObjectKeyboardMotionFrameTarget(keyboardRuntime, ['w', 'd'], 1)
   const boundedRightFrame = resolveXrObjectKeyboardMotionFrameTarget(keyboardRuntime, ['d'], 1000)
   const keyboardStage = resolveXrMotionReferenceStage(keyboardRuntime.plan.stageId)
   const expectedDiagonalComponent = Math.SQRT1_2
-  const closeTo = (left: number | undefined, right: number) => typeof left === 'number' && Math.abs(left - right) < 0.000001
+  const closeTo = (left: number | undefined, right: number, tolerance = 0.000001) => typeof left === 'number' && Math.abs(left - right) < tolerance
   if (!keyboardDirectionsMatch
-    || keyboardFineRight?.nextPosition[0] !== keyboardMark.position[0] + XR_OBJECT_KEYBOARD_FINE_STEP_METERS
+    || keyboardFineRight?.nextPosition[0] !== keyboardMark.position[0] + THREE_OBJECT_KEYBOARD_FINE_STEP_METERS
     || resolveXrObjectKeyboardMotionTarget(keyboardRuntime, { key: 'ArrowLeft', ctrlKey: true }) !== null
     || !closeTo(diagonalDirection?.[0], expectedDiagonalComponent)
     || !closeTo(diagonalDirection?.[1], -expectedDiagonalComponent)
@@ -227,10 +230,10 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
     || !closeTo(diagonalFrame?.nextPosition[2], keyboardMark.position[2] - expectedDiagonalComponent)
     || boundedRightFrame?.nextPosition[0] !== keyboardStage.sizeMeters[0] / 2
     || boundedRightFrame?.nextPosition[1] !== keyboardMark.position[1]
-    || resolveXrObjectKeyboardMotionDirection(['a', 'd']) !== null
-    || resolveXrObjectKeyboardMotionDirection(['w', 'ArrowUp'])?.[1] !== -1
-    || resolveXrObjectKeyboardMotionFrameDistance(1000, false) !== XR_OBJECT_KEYBOARD_SPEED_METERS_PER_SECOND * XR_OBJECT_KEYBOARD_MAX_FRAME_DELTA_MS / 1000
-    || resolveXrObjectKeyboardMotionFrameDistance(1000, true) !== XR_OBJECT_KEYBOARD_FINE_SPEED_METERS_PER_SECOND * XR_OBJECT_KEYBOARD_MAX_FRAME_DELTA_MS / 1000) {
+    || resolveThreeObjectKeyboardMotionDirection(['a', 'd']) !== null
+    || resolveThreeObjectKeyboardMotionDirection(['w', 'ArrowUp'])?.[1] !== -1
+    || resolveThreeObjectKeyboardMotionFrameDistance(1000, false) !== THREE_OBJECT_KEYBOARD_SPEED_METERS_PER_SECOND * THREE_OBJECT_KEYBOARD_MAX_FRAME_DELTA_MS / 1000
+    || resolveThreeObjectKeyboardMotionFrameDistance(1000, true) !== THREE_OBJECT_KEYBOARD_FINE_SPEED_METERS_PER_SECOND * THREE_OBJECT_KEYBOARD_MAX_FRAME_DELTA_MS / 1000) {
     throw new Error('expected keyboard taps and frame-timed holds to provide bounded, normalized selected-mark choreography without shortcut modifiers')
   }
 
@@ -306,11 +309,13 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   const choreographyControlsSource = readSource('features', 'three', 'XrChoreographyMarkControls.tsx')
   const animationMcpSource = readSource('features', 'three', 'xrAnimationMcpRuntime.ts')
   const agentReadyContractSource = readSource('features', 'agent-ready', 'knowgrphAgentReadyToolContract.mjs')
+  const animationWebMcpSource = readSource('features', 'agent-ready', 'xrAnimationWebMcpTools.ts')
   const toolbarSource = readSource('lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
   const bridgeSource = readSource('features', 'three', 'XrMotionReferenceRuntimeBridge.tsx')
   const appSource = readSource('App.tsx')
   const stageSource = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
   const keyboardMotionSource = readSource('features', 'three', 'XrObjectKeyboardMotionRuntime.tsx')
+  const keyboardMotionUtilitySource = readSource('features', 'three', 'threeObjectKeyboardMotion.ts')
   const priorHydrationOwners = [
     readSource('features', 'three', 'XrCameraMotionSection.tsx'),
     readSource('features', 'command-menu', 'XrMediaLibraryPanel.tsx'),
@@ -342,11 +347,14 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   for (const marker of ['data-kg-xr-mark-easing', 'data-kg-xr-mark-gait', 'data-kg-xr-mark-position', 'data-kg-xr-mark-position-axis', 'Mark position · meters', 'XR_CHOREOGRAPHY_EASINGS', 'XR_CHOREOGRAPHY_GAITS', 'showPosition', 'data-kg-xr-mark-position-layout="compact-timeline"', 'XYZ m']) {
     if (!choreographyControlsSource.includes(marker)) throw new Error(`expected Timeline mark controls to expose ${marker}`)
   }
-  for (const marker of ["'configure-mark'", 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkEasing', 'position: control.position', 'resolveXrChoreographySpeedWarnings', 'configureCastMark', 'configureCameraMark']) {
+  for (const marker of ["'configure-mark'", "'move-object'", 'buildXrAnimationObjectMoveInvocation', 'resolveThreeObjectKeyboardMotionPosition', 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkEasing', 'position: control.position', 'resolveXrChoreographySpeedWarnings', 'configureCastMark', 'configureCameraMark', 'moveObject']) {
     if (!animationMcpSource.includes(marker)) throw new Error(`expected Animation MCP to control and inspect choreography through ${marker}`)
   }
-  for (const marker of ["'configure-mark'", "enum: ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'hold']", "enum: ['hold', 'walk', 'jog', 'run', 'wheeled', 'flight', 'drop']", "Cast mark [x, y, z] position in stage meters"]) {
+  for (const marker of ["'configure-mark'", "'move-object'", "enum: ['w', 'a', 's', 'd', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']", 'distanceMeters', 'Use the shared 0.05 m precision step', "enum: ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'hold']", "enum: ['hold', 'walk', 'jog', 'run', 'wheeled', 'flight', 'drop']", "Cast mark [x, y, z] position in stage meters"]) {
     if (!agentReadyContractSource.includes(marker)) throw new Error(`expected Web MCP schema to expose typed choreography fields through ${marker}`)
+  }
+  for (const marker of ['KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalAnimation', 'controlLocalAnimation(input || {})']) {
+    if (!animationWebMcpSource.includes(marker)) throw new Error(`expected WebMCP to execute the shared animation control through ${marker}`)
   }
   const mediaIndex = toolbarSource.indexOf("{ view: 'media'")
   const animationIndex = toolbarSource.indexOf("{ view: 'animation'")
@@ -372,8 +380,14 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   for (const marker of ['<XrObjectKeyboardMotionRuntime />', 'WASD or arrow keys', 'Shift for 0.05 m']) {
     if (!`${stageSource}\n${inspectorSource}`.includes(marker)) throw new Error(`expected XR object choreography to expose keyboard motion through ${marker}`)
   }
-  for (const marker of ['resolveXrObjectKeyboardMotionTarget', 'resolveXrObjectKeyboardMotionDirection', 'resolveXrObjectKeyboardMotionFrameDistance', 'window.requestAnimationFrame(runAnimationFrame)', 'XR_OBJECT_KEYBOARD_HOLD_DELAY_MS', 'activeKeysRef.current.has(key)', 'claimThreeObjectKeyboardInputOwnership', '[data-kg-xr-lane-cast-mark][aria-pressed="true"]', "window.addEventListener('keydown', handleKeyDown, { capture: true })", 'event.stopImmediatePropagation()', 'setXrMotionReferenceCastMarkChoreography', 'releaseThreeObjectKeyboardInputOwnership']) {
+  for (const marker of ['resolveXrObjectKeyboardMotionTarget', 'resolveThreeObjectKeyboardMotionPosition', 'window.requestAnimationFrame(runAnimationFrame)', 'THREE_OBJECT_KEYBOARD_HOLD_DELAY_MS', 'activeKeysRef.current.has(key)', 'claimThreeObjectKeyboardInputOwnership', '[data-kg-xr-lane-cast-mark][aria-pressed="true"]', "window.addEventListener('keydown', handleKeyDown, { capture: true })", 'event.stopImmediatePropagation()', 'setXrMotionReferenceCastMarkChoreography', 'releaseThreeObjectKeyboardInputOwnership']) {
     if (!keyboardMotionSource.includes(marker)) throw new Error(`expected XR keyboard motion to isolate object choreography through ${marker}`)
+  }
+  for (const marker of ['THREE_OBJECT_KEYBOARD_MOVEMENT_KEYS', 'resolveThreeObjectKeyboardTapDelta', 'resolveThreeObjectKeyboardMotionDirection', 'resolveThreeObjectKeyboardMotionFrameDistance', 'resolveThreeObjectKeyboardMotionPosition', 'clampThreeObjectPlanarPosition']) {
+    if (!keyboardMotionUtilitySource.includes(marker)) throw new Error(`expected shared Three keyboard motion to own ${marker}`)
+  }
+  for (const forbidden of ['XR_OBJECT_KEYBOARD_STEP_METERS', 'resolveXrObjectKeyboardMotionDirection', 'resolveXrObjectKeyboardMotionFrameDistance']) {
+    if (keyboardMotionSource.includes(forbidden)) throw new Error(`expected XR runtime to remove duplicate keyboard math ${forbidden}`)
   }
   const implementation = `${panelSource}\n${stageSource}\n${readSource('features', 'three', 'xrAnimationCatalog.ts')}\n${readSource('features', 'three', 'xrAnimationMcpRuntime.ts')}`.toLowerCase()
   for (const forbidden of ['wassermanproductions', 'blockout', 'electron-vite', 'ffmpeg']) {
@@ -415,6 +429,16 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
     if (!configured.ok || configuredMark?.transition !== 'ease-in-out' || configuredMark.gait !== 'run' || configuredMark.position.join('|') !== '2|0|-1' || readXrMotionReferenceRuntime().dirty) {
       throw new Error(`expected structured MCP to persist per-mark cast choreography atomically, got ${JSON.stringify(configured)}`)
     }
+    const moveInvocation = buildXrAnimationObjectMoveInvocation({ keys: ['w', 'd'], distanceMeters: 1, markId: configuredMarkId })
+    const moved = controlLocalAnimation({ invocation: moveInvocation })
+    const movedMark = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === 'actor-a')!.marks.find(mark => mark.id === configuredMarkId)
+    if (moveInvocation !== `/animation.control #action-path @selected-actor operation=move-object keys=w+d distance=1 markId=${configuredMarkId}`
+      || !moved.ok
+      || !closeTo(movedMark?.position[0], 2 + Math.SQRT1_2, 0.0001)
+      || !closeTo(movedMark?.position[2], -1 - Math.SQRT1_2, 0.0001)
+      || readXrMotionReferenceRuntime().dirty) {
+      throw new Error(`expected / @ # object movement to reuse normalized keyboard motion and persist atomically, got ${JSON.stringify(moved)}`)
+    }
     const invalidMarkConfig = controlLocalAnimation({ operation: 'configure-mark', markKind: 'cast', markId: 'missing-mark', targetId: 'actor-a', easing: 'ease-in' })
     if (invalidMarkConfig.ok) throw new Error('expected structured MCP to reject an unknown choreography mark')
     const invalidPositionConfig = controlLocalAnimation({ operation: 'configure-mark', markKind: 'cast', markId: configuredMarkId, targetId: 'actor-a', position: [1, 2] as never })
@@ -431,6 +455,9 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
     const extraCommandInvocation = controlLocalAnimation({ invocation: '/animation.control /camera.play @canvas operation=play' })
     const wrongBindingInvocation = controlLocalAnimation({ invocation: '/animation.control #character-motion @canvas operation=apply preset=dance' })
     const missingSemanticInvocation = controlLocalAnimation({ invocation: '/animation.control @selected-actor operation=apply preset=dance' })
+    const invalidMoveSemantic = controlLocalAnimation({ invocation: `/animation.control #character-motion @selected-actor operation=move-object keys=w markId=${configuredMarkId}` })
+    const invalidMoveKeys = controlLocalAnimation({ operation: 'move-object', targetId: 'actor-a', markId: configuredMarkId, keys: ['PageUp'] })
+    const invalidMoveDistance = controlLocalAnimation({ operation: 'move-object', targetId: 'actor-a', markId: configuredMarkId, keys: ['w'], distanceMeters: 11 })
     if (!scrubbed.ok
       || readXrMotionReferenceRuntime().playheadSeconds !== 1.25
       || !exported.ok
@@ -439,11 +466,12 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
       || !inspection.catalog.canonical
       || inspection.presets.length !== 11
       || inspection.runtime.cast.find(track => track.actorId === 'actor-a')?.marks[0]?.transition !== 'ease-in-out'
-      || inspection.runtime.cast.find(track => track.actorId === 'actor-a')?.marks[0]?.position.join('|') !== '2|0|-1'
+      || !closeTo(inspection.runtime.cast.find(track => track.actorId === 'actor-a')?.marks[0]?.position[0], 2 + Math.SQRT1_2, 0.0001)
+      || !inspection.invocationGrammar?.moveObject.includes('operation=move-object')
       || !Array.isArray(inspection.runtime.speedWarnings)) {
       throw new Error('expected Animation MCP inspect/control to share invocation, scrub, and export runtime state')
     }
-    if (invalidInvocation.ok || unknownPairInvocation.ok || invalidTimeInvocation.ok || missingTimeInvocation.ok || extraCommandInvocation.ok || wrongBindingInvocation.ok || missingSemanticInvocation.ok) {
+    if (invalidInvocation.ok || unknownPairInvocation.ok || invalidTimeInvocation.ok || missingTimeInvocation.ok || extraCommandInvocation.ok || wrongBindingInvocation.ok || missingSemanticInvocation.ok || invalidMoveSemantic.ok || invalidMoveKeys.ok || invalidMoveDistance.ok) {
       throw new Error('expected Animation invocation parsing to reject noncanonical commands, semantics, bindings, fields, and scrub values')
     }
     useGraphStore.getState().selectNode('actor-b')
