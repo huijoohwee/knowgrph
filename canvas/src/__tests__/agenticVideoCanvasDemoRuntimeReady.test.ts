@@ -12,6 +12,12 @@ import { isImageToGlbPromptPreset } from '@/features/image-to-glb/imageToGlbProm
 import { isKnowgrphProbeTreePromptPreset } from '@/features/agentic-os/probeTreePromptPreset'
 import { buildLiveCanvasHeroModel } from '@/features/agentic-os/liveCanvasHeroModel'
 import { getCachedStoryboardWidgetWorkflowRunPlan } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
+import {
+  PROMPT_PRESET_ACTIVE_LLM_CHAT_ROUTE,
+  PROMPT_PRESET_ACTIVE_NATIVE_CHAT_ROUTE,
+  PROMPT_PRESET_REQUIRED_IDS,
+} from '@/features/chat/promptPresetCatalog'
+import { AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME } from '../../../mcp/agentic-canvas-os-docs-contract.mjs'
 
 type PlainRecord = Record<string, unknown>
 
@@ -52,21 +58,30 @@ const nodeById = (nodes: PlainRecord[], id: string): PlainRecord => {
 
 const property = (node: PlainRecord, key: string): unknown => unwrap(node[key])
 
-export function testAgenticPromptPresetCatalogOwnsSevenRuntimeRoutes() {
+export function testAgenticPromptPresetCatalogOwnsChatAndMcpRuntimeRoutes() {
   const catalogText = fs.readFileSync(PROMPT_CATALOG_PATH, 'utf8')
   const catalog = readFrontmatter(catalogText)
   const presets = Array.isArray(catalog.prompt_presets) ? catalog.prompt_presets.filter(isRecord) : []
-  if (catalog.schema !== 'agentic-os-prompt-preset-catalog/v1' || presets.length !== 7) {
-    throw new Error('expected the centralized seven-entry prompt preset catalog')
+  if (catalog.schema !== 'agentic-os-prompt-preset-catalog/v1') {
+    throw new Error('expected the centralized prompt preset catalog')
   }
-  const routes = presets.map(preset => String(preset.slash_command || ''))
-  if (routes.join(',') !== '/video-prompt-preset,/image.to-threejs,/image.to-glb,/knowgrph-probe-tree-prompt-preset,/sme-care-prompt-preset,/investment-research-prompt-preset,/crawler-prompt-preset') {
-    throw new Error(`unexpected centralized preset routes ${routes.join(',')}`)
+  const presetIds = new Set(presets.map(preset => String(preset.id || '')))
+  for (const id of PROMPT_PRESET_REQUIRED_IDS) {
+    if (!presetIds.has(id)) throw new Error(`centralized prompt preset catalog missing ${id}`)
+  }
+  const slashRoutes = presets.map(preset => String(preset.slash_command || ''))
+  if (new Set(slashRoutes).size !== slashRoutes.length) {
+    throw new Error(`centralized prompt preset routes must be unique: ${slashRoutes.join(',')}`)
   }
   for (const preset of presets) {
     const prompt = String(preset.prompt || '')
     const runtimeCommand = String(preset.runtime_command || '')
     const slashCommand = String(preset.slash_command || '')
+    const invocationModes = Array.isArray(preset.invocation_modes) ? preset.invocation_modes.map(String) : []
+    const responseMode = invocationModes[0]
+    const chatRoute = String(preset.chat_route || '')
+    const mcpTool = String(preset.mcp_tool || '')
+    const mcpToken = String(preset.mcp_token || '')
     const isCardInline = slashCommand === '/image.to-threejs' || slashCommand === '/image.to-glb' || runtimeCommand === '/knowgrph.probe-tree'
     let valid = false
     if (slashCommand === '/image.to-threejs') valid = isImageToThreeJsPromptPreset(prompt)
@@ -75,7 +90,18 @@ export function testAgenticPromptPresetCatalogOwnsSevenRuntimeRoutes() {
     else if (runtimeCommand === '/video-agent') valid = Boolean(parseGenerationInvocation(prompt))
     else if (runtimeCommand === '/crawler-agent') valid = parseNativeCrawlerInvocation(prompt)?.command === '/crawler-agent'
     else valid = parseChatSkillSlashInvocation(prompt)?.skill.slashCommand === runtimeCommand
-    if ((!isCardInline && !slashCommand.endsWith('-prompt-preset')) || !valid || !prompt.startsWith(runtimeCommand)) {
+    if (
+      (!isCardInline && !slashCommand.endsWith('-prompt-preset'))
+      || !valid
+      || !prompt.startsWith(runtimeCommand)
+      || invocationModes.length !== 2
+      || (responseMode !== 'llm-chat-response' && responseMode !== 'native-chat-response')
+      || invocationModes[1] !== 'mcp-invocation'
+      || (responseMode === 'llm-chat-response' && chatRoute !== PROMPT_PRESET_ACTIVE_LLM_CHAT_ROUTE)
+      || (responseMode === 'native-chat-response' && chatRoute !== PROMPT_PRESET_ACTIVE_NATIVE_CHAT_ROUTE)
+      || mcpTool !== AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME
+      || mcpToken !== runtimeCommand
+    ) {
       throw new Error(`invalid centralized prompt preset ${String(preset.id || '')}`)
     }
   }

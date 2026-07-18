@@ -73,6 +73,10 @@ export type ChatInvocationCatalogEntry = {
   keywords: readonly string[]
   promptPresetId?: string
   insertionText?: string
+  invocationModes?: PromptPreset['invocationModes']
+  chatRoute?: PromptPreset['chatRoute']
+  mcpTool?: PromptPreset['mcpTool']
+  mcpToken?: PromptPreset['mcpToken']
 }
 
 const PROMPT_PRESET_CATALOG_SOURCE_PATH = 'agentic-canvas-os/docs/PROMPT-PRESETS.md' as const
@@ -87,9 +91,21 @@ export const buildPromptPresetChatInvocationCatalogEntries = (
   group: 'Prompt preset',
   kind: 'skill' as const,
   sourcePath: PROMPT_PRESET_CATALOG_SOURCE_PATH,
-  keywords: [preset.runtimeCommand, preset.activation, 'prompt preset'],
+  keywords: [
+    preset.runtimeCommand,
+    preset.activation,
+    ...preset.invocationModes,
+    preset.chatRoute,
+    preset.mcpTool,
+    preset.mcpToken,
+    'prompt preset',
+  ],
   promptPresetId: preset.id,
   insertionText: preset.prompt,
+  invocationModes: preset.invocationModes,
+  chatRoute: preset.chatRoute,
+  mcpTool: preset.mcpTool,
+  mcpToken: preset.mcpToken,
 }))
 
 const IMAGE_TO_THREEJS_PROMPT_PRESET_COMMAND_ENTRY: ChatInvocationCatalogEntry = {

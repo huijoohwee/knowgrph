@@ -18,6 +18,7 @@ import {
   KNOWGRPH_PROBE_TREE_DOC_INVOCATION,
   KNOWGRPH_PROBE_TREE_PROMPT_PRESET_ID,
 } from '@/features/agentic-os/probeTreePromptPreset'
+import { AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME } from '../../../../mcp/agentic-canvas-os-docs-contract.mjs'
 
 type PlainRecord = Record<string, unknown>
 
@@ -25,6 +26,24 @@ export const PROMPT_PRESET_CATALOG_WORKSPACE_PATH = '/agentic-canvas-os/docs/PRO
 export const PROMPT_PRESET_CATALOG_SCHEMA = 'agentic-os-prompt-preset-catalog/v1' as const
 
 export type PromptPresetActivation = 'source-backed-canvas' | 'chat-agent' | 'card-inline'
+export type PromptPresetResponseMode = 'llm-chat-response' | 'native-chat-response'
+export type PromptPresetInvocationMode = PromptPresetResponseMode | 'mcp-invocation'
+
+export const PROMPT_PRESET_ACTIVE_LLM_CHAT_ROUTE = 'active Chat provider, endpoint, and model' as const
+export const PROMPT_PRESET_ACTIVE_NATIVE_CHAT_ROUTE = 'active native shared runtime' as const
+export const PROMPT_PRESET_REQUIRED_IDS = [
+  'video-agent',
+  IMAGE_TO_THREEJS_PROMPT_PRESET_ID,
+  IMAGE_TO_GLB_PROMPT_PRESET_ID,
+  KNOWGRPH_PROBE_TREE_PROMPT_PRESET_ID,
+  'sme-care-agent',
+  'investment-research-agent',
+  'crawler-agent',
+  'sme-risk-assessment',
+  'sme-protection-comparison',
+  'investment-options-comparison',
+  'investment-plan-assessment',
+] as const
 
 export type PromptPreset = {
   id: string
@@ -33,6 +52,10 @@ export type PromptPreset = {
   runtimeCommand: `/${string}`
   description: string
   activation: PromptPresetActivation
+  invocationModes: readonly [PromptPresetResponseMode, 'mcp-invocation']
+  chatRoute: typeof PROMPT_PRESET_ACTIVE_LLM_CHAT_ROUTE | typeof PROMPT_PRESET_ACTIVE_NATIVE_CHAT_ROUTE
+  mcpTool: typeof AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME
+  mcpToken: `/${string}`
   prompt: string
 }
 
@@ -76,6 +99,13 @@ const parsePreset = (value: unknown): PromptPreset | null => {
   )
   const description = String(value.description || '').trim()
   const activation = String(value.activation || '').trim()
+  const invocationModes = Array.isArray(value.invocation_modes)
+    ? value.invocation_modes.map(mode => String(mode || '').trim())
+    : []
+  const responseMode = invocationModes[0]
+  const chatRoute = String(value.chat_route || '').trim()
+  const mcpTool = String(value.mcp_tool || '').trim()
+  const mcpToken = normalizeSlashCommand(value.mcp_token)
   const prompt = String(value.prompt || '').trim()
   if (
     !id
@@ -86,6 +116,13 @@ const parsePreset = (value: unknown): PromptPreset | null => {
     || !description
     || !prompt
     || (activation !== 'source-backed-canvas' && activation !== 'chat-agent' && activation !== 'card-inline')
+    || invocationModes.length !== 2
+    || (responseMode !== 'llm-chat-response' && responseMode !== 'native-chat-response')
+    || invocationModes[1] !== 'mcp-invocation'
+    || (responseMode === 'llm-chat-response' && chatRoute !== PROMPT_PRESET_ACTIVE_LLM_CHAT_ROUTE)
+    || (responseMode === 'native-chat-response' && chatRoute !== PROMPT_PRESET_ACTIVE_NATIVE_CHAT_ROUTE)
+    || mcpTool !== AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME
+    || mcpToken !== runtimeCommand
   ) return null
   if (id === IMAGE_TO_THREEJS_PROMPT_PRESET_ID) {
     if (
@@ -115,7 +152,22 @@ const parsePreset = (value: unknown): PromptPreset | null => {
     const invocation = parseChatSkillSlashInvocation(prompt)
     if (!invocation || invocation.skill.slashCommand !== runtimeCommand || activation !== 'chat-agent') return null
   }
-  return { id, label, slashCommand, runtimeCommand, description, activation, prompt }
+  const typedChatRoute = responseMode === 'llm-chat-response'
+    ? PROMPT_PRESET_ACTIVE_LLM_CHAT_ROUTE
+    : PROMPT_PRESET_ACTIVE_NATIVE_CHAT_ROUTE
+  return {
+    id,
+    label,
+    slashCommand,
+    runtimeCommand,
+    description,
+    activation,
+    invocationModes: [responseMode, 'mcp-invocation'],
+    chatRoute: typedChatRoute,
+    mcpTool: AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
+    mcpToken,
+    prompt,
+  }
 }
 
 const readCatalogText = async (fs: WorkspaceFs, preferAuthoritativeMirror: boolean): Promise<string> => {
@@ -143,15 +195,6 @@ export const loadPromptPresetCatalog = async (fsOverride?: WorkspaceFs): Promise
   if (presets.some(preset => !preset)) return { ok: false, error: 'Prompt preset catalog contains an invalid preset.' }
   const typedPresets = presets.filter((preset): preset is PromptPreset => Boolean(preset))
   const ids = new Set(typedPresets.map(preset => preset.id))
-  const requiredPresetIds = [
-    'video-agent',
-    IMAGE_TO_THREEJS_PROMPT_PRESET_ID,
-    IMAGE_TO_GLB_PROMPT_PRESET_ID,
-    KNOWGRPH_PROBE_TREE_PROMPT_PRESET_ID,
-    'sme-care-agent',
-    'investment-research-agent',
-    'crawler-agent',
-  ]
   const slashCommands = new Set(typedPresets.map(preset => preset.slashCommand))
   if (ids.size !== typedPresets.length) {
     return { ok: false, error: 'Prompt preset catalog contains duplicate ids.' }
@@ -159,7 +202,7 @@ export const loadPromptPresetCatalog = async (fsOverride?: WorkspaceFs): Promise
   if (slashCommands.size !== typedPresets.length) {
     return { ok: false, error: 'Prompt preset catalog contains duplicate slash commands.' }
   }
-  for (const id of requiredPresetIds) {
+  for (const id of PROMPT_PRESET_REQUIRED_IDS) {
     if (!ids.has(id)) return { ok: false, error: `Prompt preset catalog is missing ${id}.` }
   }
   return { ok: true, presets: typedPresets, sourcePath: PROMPT_PRESET_CATALOG_WORKSPACE_PATH }
