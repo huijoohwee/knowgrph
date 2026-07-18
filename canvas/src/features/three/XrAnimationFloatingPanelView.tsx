@@ -17,7 +17,6 @@ import {
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { downloadBlob } from '@/lib/graph/save'
-import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import {
   FloatingPanelCatalogHeader,
   FloatingPanelCatalogSearchControl,
@@ -50,7 +49,7 @@ import {
   readXrMotionReferenceRuntime,
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
-import { readBoundXrSelectedActorId, selectBoundXrActor } from './xrSelectedActorBinding'
+import { readBoundXrSelectedActorId } from './xrSelectedActorBinding'
 import {
   xrMotionReferencePackageBlob,
   xrMotionReferencePackageFilename,
@@ -219,7 +218,7 @@ export function XrAnimationFloatingPanelView() {
     timelinePlaying: state.timelineTransportPlaying,
   })))
   const runtime = React.useSyncExternalStore(subscribeXrMotionReferenceRuntime, readXrMotionReferenceRuntime, readXrMotionReferenceRuntime)
-  const selectedActorId = React.useMemo(() => readBoundXrSelectedActorId(), [runtime, selectedNodeId])
+  const selectedActorId = readBoundXrSelectedActorId()
   const grammar = useAgenticOsRemoteGrammarCatalog({ sigils: ['/', '#', '@'] })
   const animationInspection = inspectLocalAnimation()
   const search = useFloatingPanelCatalogSearch()
@@ -269,12 +268,10 @@ export function XrAnimationFloatingPanelView() {
         )}
         searchControl={<FloatingPanelCatalogSearchControl id="xr-animation-search" buttonLabel="Search animation presets" panelLabel="Animation preset search" placeholder="Search motions and paths" state={search} />}
       />
-      <section className={cn('mb-2 grid gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-animation-runtime-controls="shared-xr">
-        <label className="grid min-w-0 gap-1 text-[10px]"><span className={UI_THEME_TOKENS.text.tertiary}>Cast target</span><PanelSelect value={selectedActorId} disabled={!runtime.plan.cast.length} onChange={event => selectBoundXrActor(event.target.value)} aria-label="Animation cast target" data-kg-animation-target="selected-actor"><option value="">Select cast…</option>{runtime.plan.cast.map(track => <option key={track.actorId} value={track.actorId}>{track.label}{track.animation ? ` · ${track.animation.presetId}` : ''}</option>)}</PanelSelect></label>
-        <label className="flex min-w-0 items-center gap-2 text-[10px]"><span className={UI_THEME_TOKENS.text.tertiary}>Playhead</span><PanelTextInput className="w-20" type="number" min={0} max={runtime.plan.durationSeconds} step={1 / runtime.plan.fps} value={runtime.playheadSeconds} onChange={event => toastResult(controlLocalAnimation({ operation: 'scrub', timeSeconds: Number(event.target.value) }))} aria-label="Animation playhead seconds" /><span className={UI_THEME_TOKENS.text.tertiary}>/ {runtime.plan.durationSeconds}s · {runtime.plan.fps}fps</span></label>
+      {!sceneReady || grammar.hydration.status !== 'fresh' ? <section className={cn('mb-2 grid gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-animation-runtime-status="shared-xr">
         {!sceneReady ? <p className="rounded bg-amber-100 px-2 py-1 text-[10px] text-amber-900 dark:bg-amber-950/60 dark:text-amber-100">Open or create a graph document to persist animation.</p> : null}
         {grammar.hydration.status !== 'fresh' ? <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Invocation catalog: {grammar.hydration.status} ({grammar.counts.slash}/{grammar.counts.hash}/{grammar.counts.at})</p> : null}
-      </section>
+      </section> : null}
       <section className={floatingPanelCatalogBodyClassName('grid content-start gap-3')}>
         <XrChoreographyInspector
           cameraInvocation={animationInspection.invocationGrammar?.configureCameraMark || animationInspection.webMcpTools.control}
