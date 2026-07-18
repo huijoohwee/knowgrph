@@ -44,8 +44,9 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     'leaves output empty for the user-owned selection',
     'Reject every canned wrapper',
     'pairwise relationship questions',
-    'imperative generation request',
-    'do not continue Probe-Tree',
+    'explicit Probe-Tree invocation',
+    'begins with an action verb',
+    'runtime resolves terminal continuation answers',
   ]) {
     if (!prompt.includes(expected)) {
       throw new Error(`expected Probe-Tree LLM prompt to include ${expected}, got ${prompt}`)

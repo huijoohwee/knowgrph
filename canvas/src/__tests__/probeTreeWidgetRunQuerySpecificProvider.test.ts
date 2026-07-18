@@ -20,7 +20,7 @@ import {
 } from '@/lib/chatEndpoint'
 import type { GraphData } from '@/lib/graph/types'
 
-const AUTHORED_REQUEST = '/sme-care-agent @source.frontmatter @source.body @local-harness @cost-log @runtime-proof #frontmatter #harness #token-economics #runtime-ready #approval-gate /knowgrph.probe-tree invest in India, or SE Asia?'
+const AUTHORED_REQUEST = '/sme-care-agent @source.frontmatter @source.body @local-harness @cost-log @runtime-proof #frontmatter #harness #token-economics #runtime-ready #approval-gate /knowgrph.probe-tree recommend an investment strategy for India or SE Asia?'
 
 export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContract() {
   const graphData: GraphData = {
@@ -177,6 +177,9 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     || !providerPrompt.includes('Never copy or paraphrase the selected request as a card question')
     || !providerPrompt.includes('not as a ready-made selectionOptions array')
     || !providerPrompt.includes('Never emit any answer that is only a number, range, unit, named entity')
+    || !providerPrompt.includes('explicit Probe-Tree invocation requests 2-4 clarification cards')
+    || !providerPrompt.includes('action verb such as recommend, compare, assess, or plan')
+    || providerPrompt.includes('imperative generation request, fulfill that deliverable through normal generation')
     || !providerPrompt.includes('runtime owns source Widget investment-root')
     || !providerPrompt.includes('source-verbatim contextAnchors')
     || !providerPrompt.includes('Do not emit contextAnchors')
