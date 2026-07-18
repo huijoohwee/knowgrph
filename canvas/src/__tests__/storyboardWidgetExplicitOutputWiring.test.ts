@@ -7,7 +7,7 @@ import {
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
-function createTextOutputHarness(initialGraph: GraphData) {
+function createTextOutputHarness(initialGraph: GraphData, storeGraph: GraphData = initialGraph) {
   let draft = initialGraph
   const resolveNode = (nodeId: string) => draft.nodes.find(node => String(node.id) === nodeId) || null
   const publishers = createStoryboardWidgetWorkflowRichMediaPublishers({
@@ -15,15 +15,15 @@ function createTextOutputHarness(initialGraph: GraphData) {
       draftGraph: initialGraph,
       renderGraph: initialGraph,
       baseGraph: initialGraph,
-      storeGraph: initialGraph,
+      storeGraph,
       draftNodes: initialGraph.nodes,
       renderNodes: initialGraph.nodes,
       baseNodes: initialGraph.nodes,
-      storeNodes: initialGraph.nodes,
+      storeNodes: storeGraph.nodes,
       draftNodeById: new Map(initialGraph.nodes.map(node => [String(node.id), node])),
       renderNodeById: new Map(initialGraph.nodes.map(node => [String(node.id), node])),
       baseNodeById: new Map(initialGraph.nodes.map(node => [String(node.id), node])),
-      storeNodeById: new Map(initialGraph.nodes.map(node => [String(node.id), node])),
+      storeNodeById: new Map(storeGraph.nodes.map(node => [String(node.id), node])),
     } as never,
     graphForRun: initialGraph,
     allowCreateRichMediaPanel: true,
@@ -112,5 +112,67 @@ export function testGeneratedOutputsStayStandaloneUntilExplicitlyWired() {
     || published.nodes.find(node => node.id === 'empty-panel')?.properties.output
   ) {
     throw new Error(`expected one standalone manual output per selected child, got ${JSON.stringify(published)}`)
+  }
+}
+
+export function testSelectedChildRunRestoresExplicitTargetFromCanonicalGraph() {
+  const root: GraphNode = { id: 'n1', type: 'TextGeneration', label: 'Root', properties: {} }
+  const selectedChild: GraphNode = {
+    id: 'mcp-response-n1-qa1',
+    type: 'TextGeneration',
+    label: 'Selected Probe child',
+    properties: { parentNodeId: 'n1', probeTreeThreadRootId: 'n1', cardTypeLabel: 'Probe-Tree Card' },
+  }
+  const generatedPanel: GraphNode = {
+    id: 'generated-result',
+    type: 'RichMediaPanel',
+    label: 'Generated Result',
+    properties: {
+      workflowOutputAnchorNodeId: 'n1',
+      workflowOutputKey: 'probe-tree-branches',
+      workflowOutputGroupId: 'probe-tree:n1',
+      [WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]: WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
+    },
+  }
+  const runGraph: GraphData = {
+    type: 'Graph',
+    nodes: [root, selectedChild],
+    edges: [{ id: 'candidate', source: 'n1', target: 'mcp-response-n1-qa1', label: 'candidateOption', properties: {} }],
+  }
+  const canonicalGraph: GraphData = {
+    ...runGraph,
+    nodes: [...runGraph.nodes, generatedPanel],
+    edges: [
+      ...runGraph.edges,
+      { id: 'explicit-output', source: 'mcp-response-n1-qa1', target: 'generated-result', label: 'output', properties: {} },
+    ],
+  }
+  const harness = createTextOutputHarness(runGraph, canonicalGraph)
+
+  harness.publishers.publishTextRunOutputToRichMediaPanel({
+    anchorNode: selectedChild,
+    baseGraphData: runGraph,
+    outputText: '# Generated result\n\nOwned by the selected child.',
+    title: 'Generated Result',
+    model: 'test-model',
+    outputKey: 'probe-tree-generated-result',
+    outputGroupId: 'probe-tree:n1',
+    panelProperties: { probeTreeTerminalGeneration: true },
+  })
+
+  const published = harness.readGraph()
+  const panel = published.nodes.find(node => node.id === 'generated-result')
+  const explicitEdge = published.edges.find(edge => edge.id === 'explicit-output')
+  if (
+    published.nodes.length !== 3
+    || published.edges.length !== 2
+    || explicitEdge?.source !== 'mcp-response-n1-qa1'
+    || explicitEdge?.target !== 'generated-result'
+    || panel?.properties.output !== '# Generated result\n\nOwned by the selected child.'
+    || panel?.properties.workflowOutputAnchorNodeId
+    || panel?.properties.workflowOutputKey
+    || panel?.properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]
+  ) {
+    throw new Error(`expected Run to restore only the selected child's explicit target edge, got ${JSON.stringify(published)}`)
   }
 }
