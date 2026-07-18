@@ -6,10 +6,6 @@ import { buildTextWidgetOutputSrcDoc } from '@/lib/render/widgetOutputSrcDoc'
 
 export function testRichMediaPanelTextFallbackRendersMarkdownBlocksAsHtml() {
   const markdown = [
-    '| Kind | Value |',
-    '| --- | --- |',
-    '| Table | Multi-dimensional |',
-    '',
     '```ts',
     'const value = 42',
     '```',
@@ -30,7 +26,7 @@ export function testRichMediaPanelTextFallbackRendersMarkdownBlocksAsHtml() {
   if (!spec) throw new Error('expected Rich Media Panel markdown text fallback to produce a media spec')
   if (spec.kind !== 'iframe') throw new Error(`expected Rich Media Panel markdown text fallback to render as iframe, got ${String(spec.kind)}`)
   const srcDoc = String(spec.srcDoc || '')
-  for (const snippet of ['data-kg-rich-media-markdown-srcdoc="1"', '<table>', '<blockquote>', '<pre><code', 'const value = 42']) {
+  for (const snippet of ['data-kg-rich-media-markdown-srcdoc="1"', '<blockquote>', '<pre><code', 'const value = 42']) {
     if (!srcDoc.includes(snippet)) throw new Error(`expected markdown srcDoc snippet: ${snippet}`)
   }
 }

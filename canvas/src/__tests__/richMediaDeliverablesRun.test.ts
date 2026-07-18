@@ -12,6 +12,7 @@ import {
 } from '@/features/rich-media/richMediaDeliverablesRun'
 import { containsMarkdownPipeTable } from '@/features/markdown/ui/markdownDataViewSerialize'
 import { splitSlides } from '@/features/markdown/ui/markdownPreviewSlides'
+import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import {
   buildRichMediaPanelOverlayState,
   resolveRichMediaPanelDisplayText,
@@ -61,6 +62,33 @@ export function testRichMediaDeliverablesParsesReusableMarkdownDeckAndFinancialM
   })
   if (!panel?.hasText || panel.markdownPresentationMode !== true) {
     throw new Error(`expected Rich Media deck to reuse presentation mode, got ${JSON.stringify(panel)}`)
+  }
+  const mediaSpec = getNodeMediaSpec({
+    id: 'deck-panel',
+    type: 'RichMediaPanel',
+    label: 'Slide Deck',
+    properties: {
+      output: result.slideDeckMarkdown,
+      richMediaActiveTab: 'text',
+      markdownPresentationMode: true,
+    },
+  })
+  if (!mediaSpec || mediaSpec.kind !== 'iframe' || mediaSpec.srcDoc) {
+    throw new Error(`expected presentation Markdown to stay on the native text surface, got ${JSON.stringify(mediaSpec)}`)
+  }
+  const explicitHtmlSpec = getNodeMediaSpec({
+    id: 'deck-html-panel',
+    type: 'RichMediaPanel',
+    label: 'HTML Deck',
+    properties: {
+      output: result.slideDeckMarkdown,
+      outputSrcDoc: '<main>Explicit HTML deck</main>',
+      richMediaActiveTab: 'text',
+      markdownPresentationMode: true,
+    },
+  })
+  if (!explicitHtmlSpec?.srcDoc?.includes('Explicit HTML deck')) {
+    throw new Error(`expected explicit outputSrcDoc to retain iframe priority, got ${JSON.stringify(explicitHtmlSpec)}`)
   }
 }
 

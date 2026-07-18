@@ -56,7 +56,7 @@ The two outputs use distinct workflow-owned identities:
 
 | Output | `workflowOutputKey` | Render contract |
 | --- | --- | --- |
-| Slide Deck | `markdown-slide-deck` | `text/markdown`, `markdownPresentationMode: true`, existing Markdown presentation renderer |
+| Slide Deck | `markdown-slide-deck` | `text/markdown`, `markdownPresentationMode: true`, existing Markdown presentation renderer; generated iframe `srcDoc` stays disabled |
 | Financial Model | `financial-model-spreadsheet` | `text/markdown`, `tableFormat: markdown-pipe-table`, existing Markdown DataView/table renderer |
 
 Publication uses the owned-output policy, so an existing authored downstream panel is not overwritten. Repeated Run upserts the same two panels and typed edges by anchor plus output key. Both panels freeze their generated local Markdown for display, so the lineage edge cannot replace the deck or table with the card's status summary. The two artifacts are staged in the draft graph and the outer Run performs one final durable persistence after both exist. Financial-model persistence removes HTML/`srcDoc`; Markdown remains the source of truth.
@@ -71,7 +71,7 @@ Focused contracts cover:
 - bounded same-origin MCP invocation with exact all-token response coverage;
 - structured deck/table parsing and fail-closed partial output;
 - two distinct idempotent output panels without authored-target overwrite;
-- presentation-mode and Markdown-only financial-table rendering;
+- native presentation-mode rendering without the generic iframe fallback, plus Markdown-only financial-table rendering;
 - local-artifact display precedence across connected output edges and one final durable graph write.
 - palette-drop persistence across composed-store commit, source reparse, and ordinary history append, with no canonical duplicate or double-prefixed node identity;
 - Run lookup from a composed overlay id to its unique source-local draft node.

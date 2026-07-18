@@ -156,6 +156,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["canvas.probeTree.mcpClient.boundedSameOriginContract","@/__tests__/probeTreeMcpClient.test","testProbeTreeMcpClientPostsBoundedSameOriginContract"],
   ["canvas.probeTree.mcpBridge.oneDeadlineParallelDocs","@/__tests__/probeTreeMcpClient.test","testProbeTreeMcpBridgeUsesOneDeadlineAndParallelInvocationResolution"],
   ["richMedia.deliverables.markdownDeckAndFinancialModel","@/__tests__/richMediaDeliverablesRun.test","testRichMediaDeliverablesParsesReusableMarkdownDeckAndFinancialModel"],
+  ["richMedia.deliverables.nativeMarkdownPresentationSurface","@/__tests__/richMediaPanelTextModeRegression.test.tsx","testRichMediaPanelPresentationMarkdownUsesNativeDeckSurface"],
   ["richMedia.deliverables.mcpBackedPrompt","@/__tests__/richMediaDeliverablesRun.test","testRichMediaDeliverablesBuildsBoundedMcpBackedGenerationPrompt"],
   ["richMedia.deliverables.connectedSourceRunInput","@/__tests__/richMediaDeliverablesRun.test","testRichMediaDeliverablesRunUsesConnectedSourceAndKeepsAuthoredInstructions"],
   ["richMedia.deliverables.typedTargetPrompt","@/__tests__/richMediaDeliverablesRun.test","testRichMediaDeliverablesTypedTargetKeepsMarkerPromptAndInvocationTokens"],
