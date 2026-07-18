@@ -87,7 +87,7 @@ Canonical local tool inventory owner:
 
 - `search` — searches published Knowgrph Source Files and returns stable `kgdoc:` ids with citation-ready result URLs
 - `fetch` — fetches the complete published Source File markdown for an id returned by `search`, returning both `content` and `text`
-- `knowgrph.agentic_canvas_os.docs.invoke` — resolves Agentic Canvas OS docs invocation tokens (`/`, `#`, `@`) from the sibling `agentic-canvas-os/docs` SSOT; local stdio reads `FACTS.md` and the three dictionary files from disk, while the Worker registry exposes the same read-only tool identity for source-resolution metadata
+- `knowgrph.agentic_canvas_os.docs.invoke` — resolves Agentic Canvas OS docs invocation tokens (`/`, `#`, `@`) from the sibling `agentic-canvas-os/docs` SSOT; prompt presets declare this tool through `mcp_tool` and pass their executable `runtime_command` unchanged as `mcp_token`. Local stdio reads `FACTS.md` and the three dictionary files from disk, while the Worker registry exposes the same read-only tool identity for source-resolution metadata. This lookup does not submit the loaded Chat prompt, execute its runtime command, or authorize provider spend or mutation.
 - `prompts/list` / `prompts/get` — expose read-only prompt templates that guide MCP hosts to use `search`/`fetch` or `inspect_agent_surface`; prompts do not introduce a second execution path
 - `resources/templates/list` — exposes the shared `kgdoc://source-file/{id}` template for Source Files returned by `search`
 - `resources/read` — reads either `ui://knowgrph/agent-ready` as MCP Apps HTML or `kgdoc://source-file/{id}` as Source Files `text/markdown` through the existing `fetch` executor
