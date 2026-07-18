@@ -92,6 +92,7 @@ export type StoryboardWidgetTextRunOutputPublisher = (args: {
   panelLabel?: string
   panelProperties?: Record<string, unknown>
   outputIndex?: number
+  allowCreateStandaloneOutput?: boolean
 }) => GraphData | null
 
 export type StoryboardWidgetMediaRunOutputPublisher = (args: {
@@ -345,7 +346,8 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
         return isRichMediaOutputTargetNode(targetNode)
       })
       const createdPanelNodeId = explicitPanelNodeIds.length > 0 ? null : ensureStoryboardWidgetWorkflowRichMediaPanelNodeId({
-        context: args.context, graphForRun: args.graphForRun, allowCreateRichMediaPanel: args.allowCreateRichMediaPanel,
+        context: args.context, graphForRun: args.graphForRun,
+        allowCreateRichMediaPanel: args.allowCreateRichMediaPanel || panelArgs.allowCreateStandaloneOutput === true,
         anchorNode: panelArgs.anchorNode, readLiveDraftGraphData: transaction.readDraftGraphData, outputKey,
         outputGroupId: panelArgs.outputGroupId, outputThreadRootId: panelArgs.outputThreadRootId,
         outputLabel: panelArgs.panelLabel, outputIndex: panelArgs.outputIndex, appendDraftNode: transaction.appendDraftNode,
