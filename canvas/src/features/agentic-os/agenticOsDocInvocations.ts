@@ -1,4 +1,9 @@
 import { createAgenticOsInvocationCatalogRuntime } from './agenticOsInvocationCatalogRuntime'
+import {
+  XR_SCENE_INVOCATION_BINDINGS,
+  XR_SCENE_INVOCATION_COMMANDS,
+  XR_SCENE_INVOCATION_SEMANTICS,
+} from '@/features/three/xrSceneMcpContract.mjs'
 
 export type AgenticOsDocInvocationId = string
 
@@ -46,10 +51,6 @@ export const KNOWGRPH_PROBE_TREE_DOC_INVOCATION = {
 export const AGENTIC_OS_DOC_INVOCATIONS: readonly AgenticOsDocInvocation[] = [
   KNOWGRPH_PROBE_TREE_DOC_INVOCATION,
 ]
-export const AGENTIC_OS_COMMAND_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = []
-export const AGENTIC_OS_SEMANTIC_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = []
-export const AGENTIC_OS_BINDING_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = []
-export const AGENTIC_OS_DICTIONARY_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = []
 
 export const AGENTIC_OS_DOC_INVOCATION_ACTION_ID_PREFIX = 'agentic-os-doc:'
 export const AGENTIC_OS_DICTIONARY_INVOCATION_ACTION_ID_PREFIX = 'agentic-os-invocation:'
@@ -86,6 +87,61 @@ const buildAgenticOsDictionaryInvocation = (args: {
   id: `${args.kind}:${sanitizeInvocationId(args.token)}`,
   sourcePath: dictionaryPath(args.dictionaryFileName),
 })
+
+const XR_SCENE_COMMAND_FALLBACKS = [
+  { token: XR_SCENE_INVOCATION_COMMANDS.stage, label: 'Stage XR environment', summary: 'Select the native XR environment for the active canvas scene.' },
+  { token: XR_SCENE_INVOCATION_COMMANDS.place, label: 'Place XR asset', summary: 'Place a native 3D asset into the active XR scene.' },
+  { token: XR_SCENE_INVOCATION_COMMANDS.label, label: 'Label XR subject', summary: 'Update the label of a placed XR scene subject.' },
+  { token: XR_SCENE_INVOCATION_COMMANDS.remove, label: 'Remove XR subject', summary: 'Remove a placed subject from the active XR scene.' },
+  { token: XR_SCENE_INVOCATION_COMMANDS.physics, label: 'Control XR physics', summary: 'Control native fixed-step XR world, body, and impulse operations.' },
+  { token: XR_SCENE_INVOCATION_COMMANDS.present, label: 'Present XR scene', summary: 'Place the active XR scene at the current immersive reticle.' },
+] as const
+
+const XR_SCENE_SEMANTIC_FALLBACKS = [
+  { token: XR_SCENE_INVOCATION_SEMANTICS.world, label: 'XR physics world', summary: 'Route an XR physics operation to world and transport settings.' },
+  { token: XR_SCENE_INVOCATION_SEMANTICS.body, label: 'XR physics body', summary: 'Route an XR physics operation to one placed subject body.' },
+  { token: XR_SCENE_INVOCATION_SEMANTICS.impulse, label: 'XR physics impulse', summary: 'Route a finite impulse to one dynamic XR body.' },
+  { token: XR_SCENE_INVOCATION_SEMANTICS.reticle, label: 'XR placement reticle', summary: 'Route immersive placement to the current tracked reticle.' },
+] as const
+
+const XR_SCENE_BINDING_FALLBACKS = [
+  { token: XR_SCENE_INVOCATION_BINDINGS.canvas, label: 'Active canvas', summary: 'Bind the invocation to the active Knowgrph canvas.' },
+  { token: XR_SCENE_INVOCATION_BINDINGS.scene, label: 'Active XR scene', summary: 'Bind the invocation to the active immersive XR scene.' },
+] as const
+
+const buildXrSceneFallbackInvocation = (
+  kind: AgenticOsDictionaryInvocationKind,
+  definition: Readonly<{ token: AgenticOsDictionaryInvocation['token']; label: string; summary: string }>,
+): AgenticOsDictionaryInvocation => buildAgenticOsDictionaryInvocation({
+  kind,
+  token: definition.token,
+  label: definition.label,
+  summary: definition.summary,
+  group: 'XR scene control',
+  dictionaryFileName: dictionaryFileNameByKind[kind],
+  keywords: [
+    AGENTIC_OS_CANVAS_INTERACTION_PANEL_KEYWORD,
+    'xr scene control',
+    'xr mode',
+    'immersive scene',
+    'webmcp',
+  ],
+})
+
+export const AGENTIC_OS_COMMAND_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = Object.freeze(
+  XR_SCENE_COMMAND_FALLBACKS.map(definition => buildXrSceneFallbackInvocation('command', definition)),
+)
+export const AGENTIC_OS_SEMANTIC_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = Object.freeze(
+  XR_SCENE_SEMANTIC_FALLBACKS.map(definition => buildXrSceneFallbackInvocation('semantic', definition)),
+)
+export const AGENTIC_OS_BINDING_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = Object.freeze(
+  XR_SCENE_BINDING_FALLBACKS.map(definition => buildXrSceneFallbackInvocation('binding', definition)),
+)
+export const AGENTIC_OS_DICTIONARY_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = Object.freeze([
+  ...AGENTIC_OS_COMMAND_INVOCATIONS,
+  ...AGENTIC_OS_SEMANTIC_INVOCATIONS,
+  ...AGENTIC_OS_BINDING_INVOCATIONS,
+])
 
 const invocationCatalogRuntime = createAgenticOsInvocationCatalogRuntime({
   docs: AGENTIC_OS_DOC_INVOCATIONS,

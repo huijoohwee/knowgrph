@@ -53,6 +53,87 @@ const LOCAL_MUTATION_TOOL_ANNOTATIONS = Object.freeze({
   idempotentHint: false,
 })
 
+const XR_PHYSICS_CONTROL_FIELDS = Object.freeze({
+  subjectId: { type: 'string', minLength: 1, maxLength: 160, pattern: '\\S' },
+  bodyMode: { type: 'string', enum: ['static', 'dynamic', 'kinematic', 'trigger'] },
+  massKg: { type: 'number', minimum: 0.001, maximum: 10000 },
+  friction: { type: 'number', minimum: 0, maximum: 1 },
+  restitution: { type: 'number', minimum: 0, maximum: 1 },
+  linearDamping: { type: 'number', minimum: 0, maximum: 20 },
+  collisionGroup: { type: 'integer', minimum: 1, maximum: 65535 },
+  collisionMask: { type: 'integer', minimum: 0, maximum: 65535 },
+  gravity: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number', minimum: -100, maximum: 100 } },
+  fixedStepSeconds: { type: 'number', minimum: 1 / 240, maximum: 1 / 30 },
+  maxSubsteps: { type: 'integer', minimum: 1, maximum: 8 },
+  impulse: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number', minimum: -10000, maximum: 10000 } },
+  ticks: { type: 'integer', minimum: 1, maximum: 240 },
+})
+const XR_PHYSICS_BODY_FIELD_NAMES = Object.freeze([
+  'bodyMode', 'massKg', 'friction', 'restitution', 'linearDamping', 'collisionGroup', 'collisionMask',
+])
+const buildXrPhysicsOperationSchema = ({ scope, operation, fields = [], required = [], requireOneOf = [] }) => ({
+  type: 'object',
+  additionalProperties: false,
+  required: ['scope', 'operation', ...required],
+  properties: {
+    scope: { const: scope },
+    operation: { const: operation },
+    ...Object.fromEntries(fields.map(field => [field, XR_PHYSICS_CONTROL_FIELDS[field]])),
+  },
+  ...(requireOneOf.length ? { minProperties: 3 + required.length } : {}),
+})
+const XR_PHYSICS_CONTROL_INPUT_SCHEMA = Object.freeze({
+  oneOf: [
+    ...['play', 'pause', 'stop', 'reset'].map(operation => buildXrPhysicsOperationSchema({ scope: 'world', operation })),
+    buildXrPhysicsOperationSchema({ scope: 'world', operation: 'step', fields: ['ticks'] }),
+    buildXrPhysicsOperationSchema({ scope: 'world', operation: 'configure', fields: ['gravity', 'fixedStepSeconds', 'maxSubsteps'], requireOneOf: ['gravity', 'fixedStepSeconds', 'maxSubsteps'] }),
+    buildXrPhysicsOperationSchema({ scope: 'body', operation: 'attach', fields: ['subjectId', ...XR_PHYSICS_BODY_FIELD_NAMES], required: ['subjectId', 'bodyMode'] }),
+    buildXrPhysicsOperationSchema({ scope: 'body', operation: 'configure', fields: ['subjectId', ...XR_PHYSICS_BODY_FIELD_NAMES], required: ['subjectId'], requireOneOf: XR_PHYSICS_BODY_FIELD_NAMES }),
+    buildXrPhysicsOperationSchema({ scope: 'body', operation: 'detach', fields: ['subjectId'], required: ['subjectId'] }),
+    buildXrPhysicsOperationSchema({ scope: 'impulse', operation: 'impulse', fields: ['subjectId', 'impulse'], required: ['subjectId', 'impulse'] }),
+  ],
+})
+
+const XR_SCENE_CONTROL_FIELDS = Object.freeze({
+  invocation: { type: 'string', minLength: 1, pattern: '\\S', description: 'Invocation such as /xr.place @person-adult transition=linear, /xr.physics @canvas #world operation=play, or /xr.present @scene #reticle.' },
+  action: { type: 'string', enum: ['stage', 'place', 'transition', 'label', 'remove', 'physics', 'present'] },
+  stageId: { type: 'string', minLength: 1, pattern: '\\S' },
+  assetId: { type: 'string', minLength: 1, pattern: '\\S' },
+  subjectId: { type: 'string', minLength: 1, maxLength: 160, pattern: '\\S' },
+  label: { type: 'string', minLength: 1, maxLength: 80, pattern: '\\S' },
+  transition: { type: 'string', enum: ['linear', 'hold'] },
+  physics: XR_PHYSICS_CONTROL_INPUT_SCHEMA,
+})
+const buildXrSceneStructuredActionSchema = ({ action, fields = [], required = fields }) => ({
+  type: 'object',
+  additionalProperties: false,
+  required: ['action', ...required],
+  properties: {
+    action: { const: action },
+    ...Object.fromEntries(fields.map(field => [field, XR_SCENE_CONTROL_FIELDS[field]])),
+  },
+})
+const XR_SCENE_CONTROL_INPUT_SCHEMA = Object.freeze({
+  type: 'object',
+  additionalProperties: false,
+  properties: XR_SCENE_CONTROL_FIELDS,
+  oneOf: [
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['invocation'],
+      properties: { invocation: XR_SCENE_CONTROL_FIELDS.invocation },
+    },
+    buildXrSceneStructuredActionSchema({ action: 'stage', fields: ['stageId'] }),
+    buildXrSceneStructuredActionSchema({ action: 'place', fields: ['assetId', 'label', 'transition'], required: ['assetId'] }),
+    buildXrSceneStructuredActionSchema({ action: 'transition', fields: ['subjectId', 'transition'], required: ['subjectId'] }),
+    buildXrSceneStructuredActionSchema({ action: 'label', fields: ['subjectId', 'label'] }),
+    buildXrSceneStructuredActionSchema({ action: 'remove', fields: ['subjectId'] }),
+    buildXrSceneStructuredActionSchema({ action: 'physics', fields: ['physics'] }),
+    buildXrSceneStructuredActionSchema({ action: 'present' }),
+  ],
+})
+
 const SEARCH_OUTPUT_SCHEMA = Object.freeze({
   type: 'object',
   additionalProperties: true,
@@ -393,29 +474,16 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalXrSceneAssets,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalXrSceneAssets),
           title: 'Inspect Local XR Scene Assets',
-          description: 'Inspect the browser-local XR environment kits, procedural 3D asset library, typed placement grammar, placed subjects, and path interpolation without mutating the scene.',
+          description: 'Inspect the browser-local XR environment kits, procedural 3D asset library, native dynamics, immersive AR placement, typed invocation grammar, placed subjects, and path interpolation without mutating the scene.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
-          outputSchema: { type: 'object', additionalProperties: true, required: ['schema', 'webMcpTools', 'sceneReady', 'invocationGrammar', 'environments', 'assets', 'runtime'] },
+          outputSchema: { type: 'object', additionalProperties: true, required: ['schema', 'webMcpTools', 'sceneReady', 'invocationGrammar', 'environments', 'assets', 'runtime', 'physics', 'immersivePlacement'] },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
         }, {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalXrScene,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalXrScene),
           title: 'Control Local XR Scene',
-          description: 'Control the open browser-local XR scene through structured stage, placement, path-interpolation, label, and removal actions. Animation is owned separately by /animation.control.',
-          inputSchema: {
-            type: 'object',
-            additionalProperties: false,
-            properties: {
-              invocation: { type: 'string', description: 'Invocation such as /xr.place @person-adult transition=linear.' },
-              action: { type: 'string', enum: ['stage', 'place', 'transition', 'label', 'remove'] },
-              stageId: { type: 'string' },
-              assetId: { type: 'string' },
-              subjectId: { type: 'string' },
-              label: { type: 'string', maxLength: 80 },
-              transition: { type: 'string', enum: ['linear', 'hold'] },
-            },
-            anyOf: [{ required: ['invocation'] }, { required: ['action'] }],
-          },
+          description: 'Control the open browser-local XR scene through structured stage, placement, native dynamics, immersive AR reticle placement, path-interpolation, label, and removal actions. Animation is owned separately by /animation.control.',
+          inputSchema: XR_SCENE_CONTROL_INPUT_SCHEMA,
           outputSchema: { type: 'object', additionalProperties: true, required: ['ok', 'message'] },
           annotations: LOCAL_MUTATION_TOOL_ANNOTATIONS,
         }, {

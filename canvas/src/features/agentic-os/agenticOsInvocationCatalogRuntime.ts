@@ -55,7 +55,7 @@ export function createAgenticOsInvocationCatalogRuntime(options: CatalogRuntimeO
       const fallbackInvocation = fallbackByToken.get(token.toLowerCase())
       const merged = options.buildDictionaryInvocation({
         kind,
-        token,
+        token: fallbackInvocation?.token || token,
         label: entry.label || fallbackInvocation?.label || token,
         summary: entry.summary || fallbackInvocation?.summary || '',
         group: fallbackInvocation?.group || `Agentic OS ${kind} dictionary`,

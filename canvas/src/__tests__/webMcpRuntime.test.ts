@@ -20,6 +20,7 @@ import {
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID } from '@/lib/storage/knowgrphStorageSyncContract'
 import { AGENTIC_COMMERCE_MAIN_PANEL_READINESS } from 'grph-shared/payments/agenticCommerceSsot'
+import { assertXrScenePhysicsWebMcpLifecycle, testXrSceneMcpContractCatalogSchemasAndCleanRoom } from '@/__tests__/xrSceneMcpContract.test'
 
 type RegisteredTool = {
   name: string
@@ -78,6 +79,7 @@ const assertWebMcpRuntimeToolParity = (tools: RegisteredTool[], label: string): 
 }
 
 export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths(): Promise<void> {
+  testXrSceneMcpContractCatalogSchemasAndCleanRoom()
   const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
   const previousFetch = globalThis.fetch
   const { restore } = initJsdomHarness()
@@ -305,6 +307,12 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const invalidXrSceneTransition = await controlLocalXrSceneTool.execute({ invocation: '/xr.place @person-adult transition=teleport' })
     const invalidXrScenePair = await controlLocalXrSceneTool.execute({ invocation: '/xr.stage @neutral-volume foo=bar' })
     const localXrSceneControl = await controlLocalXrSceneTool.execute({ action: 'place', assetId: 'person-adult', transition: 'linear', label: 'MCP CAST' })
+    const placedXrSubjectId = String((localXrSceneControl as { subjectId?: unknown }).subjectId || '')
+    await assertXrScenePhysicsWebMcpLifecycle({
+      control: input => controlLocalXrSceneTool.execute(input),
+      inspect: () => inspectLocalXrSceneAssetsTool.execute(),
+      subjectId: placedXrSubjectId,
+    })
     const localCamera = await inspectLocalCameraTool.execute()
     const localCameraControl = await controlLocalCameraTool.execute({ action: 'frame', targetId: 'camera', angle: 'right-side', level: 'high-angle', shot: 'close-up', sensorId: '65mm', focalLengthMm: 85, focusDistanceMeters: 3.5, aspectRatio: '2.39:1' })
     const localAnimationControl = await controlLocalAnimationTool.execute({ operation: 'apply', trackKind: 'character-motion', presetId: 'dance', targetId: 'start' })

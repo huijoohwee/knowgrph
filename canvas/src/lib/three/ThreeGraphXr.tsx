@@ -13,10 +13,22 @@ import {
   XR_SESSION_MODE_ORDER,
   buildXrSessionInit,
   chooseXrSessionMode,
+  requestPreferredXrReferenceSpace,
   resolveXrDomOverlayRoot,
+  type XrSessionReferenceSpaceKind,
   type XrSessionMode,
   type XrSessionSupport,
 } from '@/lib/three/ThreeGraphXrSessionPolicy'
+import {
+  activateXrImmersiveSession,
+  beginXrArPlacementSession,
+  endXrArPlacementSession,
+  readXrArPlacementRuntime,
+  resetXrArPlacement,
+  subscribeXrArPlacementRuntime,
+  type XrArSessionLike,
+  type XrArSpaceLike,
+} from '@/features/three/xrArPlacementRuntime'
 
 export function OverlayFrameSync({ enabled, scheduleRef }: { enabled: boolean; scheduleRef: React.MutableRefObject<(() => void) | null> }) {
   useFrame(() => {
@@ -32,11 +44,44 @@ export function OverlayFrameSync({ enabled, scheduleRef }: { enabled: boolean; s
 
 type XrSessionLike = {
   end?: () => Promise<void>
+  requestReferenceSpace?: (kind: 'viewer' | XrSessionReferenceSpaceKind) => Promise<XrArSpaceLike>
   addEventListener?: (type: string, listener: () => void) => void
   removeEventListener?: (type: string, listener: () => void) => void
 }
 
 type ThreeWebXrSession = Parameters<WebGLRenderer['xr']['setSession']>[0]
+type ThreeWebXrReferenceSpace = Parameters<WebGLRenderer['xr']['setReferenceSpace']>[0]
+
+async function releaseXrSession(args: {
+  renderer: WebGLRenderer | null
+  session: XrSessionLike
+  endListener?: (() => void) | null
+}): Promise<void> {
+  const { renderer, session, endListener } = args
+  if (endListener) {
+    try {
+      session.removeEventListener?.('end', endListener)
+    } catch {
+      void 0
+    }
+  }
+  endXrArPlacementSession(session as XrArSessionLike)
+  try {
+    await session.end?.()
+  } catch {
+    void 0
+  }
+  if (renderer) {
+    try {
+      const rendererSession = renderer.xr.getSession()
+      if (!rendererSession || rendererSession === (session as unknown as ThreeWebXrSession)) {
+        await renderer.xr.setSession(null as ThreeWebXrSession)
+      }
+    } catch {
+      void 0
+    }
+  }
+}
 
 type NavigatorWithXr = Navigator & {
   xr?: {
@@ -58,12 +103,39 @@ export function CanvasXrEntryPanel({
   spatialRuntimeFidelity?: 'idle' | 'preview' | 'full'
   spatialRuntimeStatus?: 'idle' | 'loading' | 'ready' | 'empty' | 'error'
 }) {
-  const [status, setStatus] = React.useState<'checking' | 'supported' | 'unsupported' | 'active' | 'error'>('checking')
+  const [status, setStatus] = React.useState<'checking' | 'supported' | 'unsupported' | 'requesting' | 'active' | 'ending' | 'error'>('checking')
   const [sessionMode, setSessionMode] = React.useState<XrSessionMode>('immersive-ar')
   const [sessionSupport, setSessionSupport] = React.useState<XrSessionSupport>({})
   const [spatialTool, setSpatialToolState] = React.useState<SpatialCaptureToolId>(readSpatialCaptureTool())
   const sessionRef = React.useRef<XrSessionLike | null>(null)
+  const pendingSessionRef = React.useRef<XrSessionLike | null>(null)
   const sessionModeRef = React.useRef<XrSessionMode>(sessionMode)
+  const controlsRef = React.useRef<HTMLElement | null>(null)
+  const sessionRequestGenerationRef = React.useRef(0)
+  const sessionEndListenerRef = React.useRef<(() => void) | null>(null)
+  const pendingSessionEndListenerRef = React.useRef<(() => void) | null>(null)
+  const [placementCommitted, setPlacementCommitted] = React.useState(false)
+
+  React.useEffect(() => {
+    const controls = controlsRef.current
+    if (!controls) return undefined
+    const preventOverlaySelect = (event: Event) => event.preventDefault()
+    const synchronizePlacementState = () => {
+      const placement = readXrArPlacementRuntime()
+      controls.dataset.kgCanvasXrHitTest = placement.phase
+      controls.dataset.kgCanvasXrReticle = placement.reticleVisible ? 'tracking' : 'hidden'
+      controls.dataset.kgCanvasXrScenePlacement = placement.placementMatrix ? 'placed' : 'unplaced'
+      const nextPlacementCommitted = Boolean(placement.placementMatrix)
+      setPlacementCommitted(current => current === nextPlacementCommitted ? current : nextPlacementCommitted)
+    }
+    controls.addEventListener('beforexrselect', preventOverlaySelect)
+    synchronizePlacementState()
+    const unsubscribe = subscribeXrArPlacementRuntime(synchronizePlacementState)
+    return () => {
+      controls.removeEventListener('beforexrselect', preventOverlaySelect)
+      unsubscribe()
+    }
+  }, [status])
 
   React.useEffect(() => {
     sessionModeRef.current = sessionMode
@@ -113,24 +185,46 @@ export function CanvasXrEntryPanel({
     void checkSupport()
     return () => {
       cancelled = true
+      sessionRequestGenerationRef.current += 1
       const activeSession = sessionRef.current
+      const activeEndListener = sessionEndListenerRef.current
+      const pendingSession = pendingSessionRef.current
+      const pendingEndListener = pendingSessionEndListenerRef.current
       sessionRef.current = null
-      try {
-        void activeSession?.end?.()
-      } catch {
-        void 0
+      sessionEndListenerRef.current = null
+      pendingSessionRef.current = null
+      pendingSessionEndListenerRef.current = null
+      if (activeSession) {
+        void releaseXrSession({ renderer, session: activeSession, endListener: activeEndListener })
+      }
+      if (pendingSession && pendingSession !== activeSession) {
+        void releaseXrSession({ renderer, session: pendingSession, endListener: pendingEndListener })
+      }
+      if (!activeSession && !pendingSession) {
+        endXrArPlacementSession()
       }
       if (renderer) renderer.xr.enabled = false
     }
   }, [active, rendererRef])
 
   const startOrEndSession = React.useCallback(async () => {
-    const existing = sessionRef.current
+    const requestGeneration = ++sessionRequestGenerationRef.current
+    const existing = sessionRef.current || pendingSessionRef.current
     if (existing) {
-      try {
-        await existing.end?.()
-      } finally {
+      setStatus('ending')
+      const existingIsPending = existing === pendingSessionRef.current
+      const existingEndListener = existingIsPending
+        ? pendingSessionEndListenerRef.current
+        : sessionEndListenerRef.current
+      if (existingIsPending) {
+        pendingSessionRef.current = null
+        pendingSessionEndListenerRef.current = null
+      } else {
         sessionRef.current = null
+        sessionEndListenerRef.current = null
+      }
+      await releaseXrSession({ renderer: rendererRef.current, session: existing, endListener: existingEndListener })
+      if (requestGeneration === sessionRequestGenerationRef.current) {
         setStatus('supported')
       }
       return
@@ -141,10 +235,31 @@ export function CanvasXrEntryPanel({
       setStatus('unsupported')
       return
     }
+    setStatus('requesting')
+    let requestedSession: XrSessionLike | null = null
+    let requestedSessionEndListener: (() => void) | null = null
     try {
       const session = await xr.requestSession(sessionMode, buildXrSessionInit(sessionMode, resolveXrDomOverlayRoot(renderer)))
+      requestedSession = session
+      pendingSessionRef.current = session
       const handleEnd = () => {
-        sessionRef.current = null
+        const ownsRequest = requestGeneration === sessionRequestGenerationRef.current
+        const ownsSession = sessionRef.current === session
+        const ownsPendingSession = pendingSessionRef.current === session
+        if (!ownsRequest && !ownsSession && !ownsPendingSession) {
+          try {
+            session.removeEventListener?.('end', handleEnd)
+          } catch {
+            void 0
+          }
+          return
+        }
+        sessionRequestGenerationRef.current += 1
+        endXrArPlacementSession(session as XrArSessionLike)
+        if (ownsSession) sessionRef.current = null
+        if (ownsPendingSession) pendingSessionRef.current = null
+        if (sessionEndListenerRef.current === handleEnd) sessionEndListenerRef.current = null
+        if (pendingSessionEndListenerRef.current === handleEnd) pendingSessionEndListenerRef.current = null
         setStatus('supported')
         try {
           session.removeEventListener?.('end', handleEnd)
@@ -152,17 +267,90 @@ export function CanvasXrEntryPanel({
           void 0
         }
       }
+      requestedSessionEndListener = handleEnd
+      pendingSessionEndListenerRef.current = handleEnd
       try {
         session.addEventListener?.('end', handleEnd)
       } catch {
         void 0
       }
+      if (requestGeneration !== sessionRequestGenerationRef.current) {
+        if (pendingSessionRef.current === session) {
+          pendingSessionRef.current = null
+          pendingSessionEndListenerRef.current = null
+          await releaseXrSession({ renderer, session, endListener: handleEnd })
+        }
+        return
+      }
+      const referenceSpace = await requestPreferredXrReferenceSpace<XrArSpaceLike>(session)
+      if (requestGeneration !== sessionRequestGenerationRef.current) {
+        if (pendingSessionRef.current === session) {
+          pendingSessionRef.current = null
+          pendingSessionEndListenerRef.current = null
+          await releaseXrSession({ renderer, session, endListener: handleEnd })
+        }
+        return
+      }
       renderer.xr.enabled = true
+      renderer.xr.setReferenceSpaceType(referenceSpace.kind)
       await renderer.xr.setSession(session as ThreeWebXrSession)
+      if (requestGeneration !== sessionRequestGenerationRef.current) {
+        if (pendingSessionRef.current === session) {
+          pendingSessionRef.current = null
+          pendingSessionEndListenerRef.current = null
+          await releaseXrSession({ renderer, session, endListener: handleEnd })
+        }
+        return
+      }
+      renderer.xr.setReferenceSpace(referenceSpace.space as ThreeWebXrReferenceSpace)
+      pendingSessionRef.current = null
+      pendingSessionEndListenerRef.current = null
       sessionRef.current = session
+      sessionEndListenerRef.current = handleEnd
+      if (sessionMode === 'immersive-ar') {
+        await beginXrArPlacementSession(session as XrArSessionLike, referenceSpace)
+      } else {
+        activateXrImmersiveSession(session as XrArSessionLike, sessionMode)
+      }
+      if (requestGeneration !== sessionRequestGenerationRef.current) {
+        if (sessionRef.current === session) {
+          sessionRef.current = null
+          sessionEndListenerRef.current = null
+          await releaseXrSession({ renderer, session, endListener: handleEnd })
+        }
+        return
+      }
       setStatus('active')
     } catch {
-      setStatus('error')
+      if (requestedSession) {
+        const ownsPendingSession = pendingSessionRef.current === requestedSession
+        const ownsActiveSession = sessionRef.current === requestedSession
+        if (!ownsPendingSession && !ownsActiveSession) {
+          if (requestGeneration === sessionRequestGenerationRef.current) setStatus('error')
+          return
+        }
+        if (ownsPendingSession) pendingSessionRef.current = null
+        if (pendingSessionEndListenerRef.current === requestedSessionEndListener) {
+          pendingSessionEndListenerRef.current = null
+        }
+        if (sessionRef.current === requestedSession) sessionRef.current = null
+        if (sessionEndListenerRef.current === requestedSessionEndListener) {
+          sessionEndListenerRef.current = null
+        }
+        await releaseXrSession({
+          renderer,
+          session: requestedSession,
+          endListener: requestedSessionEndListener,
+        })
+      } else {
+        endXrArPlacementSession()
+        try {
+          await renderer.xr.setSession(null as ThreeWebXrSession)
+        } catch {
+          void 0
+        }
+      }
+      if (requestGeneration === sessionRequestGenerationRef.current) setStatus('error')
     }
   }, [rendererRef, sessionMode])
 
@@ -193,11 +381,12 @@ export function CanvasXrEntryPanel({
   if (status === 'checking' || status === 'unsupported') return spatialChrome
   const canStart = status === 'supported' || status === 'active' || status === 'error'
   const bothModesSupported = sessionSupport['immersive-ar'] === true && sessionSupport['immersive-vr'] === true
-  const label = status === 'active' ? 'Exit XR' : status === 'error' ? 'Retry XR' : 'Enter XR'
+  const label = status === 'active' ? 'Exit XR' : status === 'ending' ? 'Exiting XR…' : status === 'requesting' ? 'Entering XR…' : status === 'error' ? 'Retry XR' : 'Enter XR'
   return (
     <>
       {spatialChrome}
       <section
+        ref={controlsRef}
         aria-label="XR Mode"
         data-kg-canvas-xr-mode="1"
         data-kg-canvas-xr-surface-kind={surfaceKind}
@@ -213,6 +402,7 @@ export function CanvasXrEntryPanel({
               type="button"
               data-kg-canvas-xr-session-option="immersive-ar"
               aria-pressed={sessionMode === 'immersive-ar'}
+              disabled={status === 'active' || status === 'requesting' || status === 'ending'}
               className="rounded px-2 py-1 text-xs font-medium text-[var(--kg-text)] hover:bg-[var(--kg-surface-muted)] aria-pressed:bg-[var(--kg-surface-muted)]"
               onClick={() => setSessionMode('immersive-ar')}
             >
@@ -222,12 +412,25 @@ export function CanvasXrEntryPanel({
               type="button"
               data-kg-canvas-xr-session-option="immersive-vr"
               aria-pressed={sessionMode === 'immersive-vr'}
+              disabled={status === 'active' || status === 'requesting' || status === 'ending'}
               className="rounded px-2 py-1 text-xs font-medium text-[var(--kg-text)] hover:bg-[var(--kg-surface-muted)] aria-pressed:bg-[var(--kg-surface-muted)]"
               onClick={() => setSessionMode('immersive-vr')}
             >
               VR
             </button>
           </fieldset>
+        ) : null}
+        {status === 'active' && sessionMode === 'immersive-ar' && placementCommitted ? (
+          <button
+            type="button"
+            data-kg-canvas-xr-reposition="1"
+            className="rounded px-2 py-1 text-xs font-medium text-[var(--kg-text)] hover:bg-[var(--kg-surface-muted)]"
+            onClick={() => {
+              resetXrArPlacement()
+            }}
+          >
+            Reposition scene
+          </button>
         ) : null}
         <button
           type="button"

@@ -5,20 +5,38 @@ import {
   XR_MOTION_STAGE_FLOOR_DEPTH,
   XR_MOTION_STAGE_SPAN,
 } from '@/features/three/XrGraphStage'
+import {
+  readXrArPlacementRuntime,
+  subscribeXrArPlacementRuntime,
+} from '@/features/three/xrArPlacementRuntime'
 
 const WORLD_SPAN = XR_MOTION_STAGE_SPAN * 2.6
 const WORLD_GRID_DIVISIONS = 52
 const CENTER_RING_INNER_RADIUS = 34
 const CENTER_RING_OUTER_RADIUS = 43
+const readXrImmersiveSessionActive = () => readXrArPlacementRuntime().immersiveSessionActive
 
 export function XrEmptyWorldStage() {
   const floorDepth = XR_MOTION_STAGE_FLOOR_DEPTH
+  const immersiveSessionActive = React.useSyncExternalStore(
+    subscribeXrArPlacementRuntime,
+    readXrImmersiveSessionActive,
+    readXrImmersiveSessionActive,
+  )
   return (
     <group
       name="kg_xr_empty_world_stage"
+      position={immersiveSessionActive ? [0, -floorDepth, 0] : [0, 0, 0]}
+      rotation={immersiveSessionActive ? [-Math.PI / 2, 0, 0] : [0, 0, 0]}
       renderOrder={THREE_RENDER_ORDER.groups - 12}
-      userData={{ schema: 'knowgrph-xr-empty-world/v1', source: 'no-document' }}
+      userData={{
+        schema: 'knowgrph-xr-empty-world/v1',
+        source: 'no-document',
+        kgXrImmersiveFloorAligned: immersiveSessionActive,
+      }}
     >
+      <ambientLight intensity={0.78} />
+      <directionalLight position={[180, -160, 320]} intensity={1.25} castShadow />
       <mesh name="kg_xr_empty_world_floor" position={[0, 0, floorDepth - 1]} receiveShadow>
         <boxGeometry args={[WORLD_SPAN, WORLD_SPAN, 2]} />
         <meshStandardMaterial color="#0b2f4a" roughness={1} metalness={0} />

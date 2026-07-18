@@ -242,7 +242,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   if (sharedCameraSource.includes('No storyboard card loaded.') || !sharedCameraSource.includes("data-kg-camera-framing-mode={selectedCard ? 'storyboard' : 'shared'}")) {
     throw new Error('expected globe-like shared Camera utilities to remain available without a storyboard card')
   }
-  for (const marker of ['onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}', 'dropXrMotionReferenceCastMark', 'MarkNumberSprite', 'markNumber: index + 1', 'kg_xr_motion_cast_mark_highlight_', 'runtime.selectedMark?.kind === \'cast\'', 'XR_MOTION_REFERENCE_SELECTION_COLOR', 'CastMarkControl', 'resolveCastControlMark', 'controlSurface="actor"', 'kgXrAnimationControl: true', 'event.ray.intersectPlane', 'setXrMotionReferenceCastMarkChoreography', 'claimThreeObjectInputOwnership(inputOwnerId, event.pointerId)', 'releaseThreeObjectInputOwnership(inputOwnerId', 'captureThreeObjectPointer(event)', 'hasThreeObjectDragMoved', 'dragOffsetRef.current.set(...markWorldPosition).sub(grabPoint)', 'point.add(dragOffsetRef.current)', 'activePointerIdRef.current = event.pointerId', "window.addEventListener('lostpointercapture', finishWindowDrag, true)", "window.addEventListener('blur', finishWindowDrag)", "document.addEventListener('visibilitychange', finishWindowDrag)", "draggableAxes: 'xz'", 'onClick={event => {', 'selectXrMotionReferenceCameraMark(mark.id)', "window.addEventListener('pointercancel', finishWindowDrag)"]) {
+  for (const marker of ['onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}', 'dropXrMotionReferenceCastMark', 'MarkNumberSprite', 'markNumber: index + 1', 'kg_xr_motion_cast_mark_highlight_', 'runtime.selectedMark?.kind === \'cast\'', 'XR_MOTION_REFERENCE_SELECTION_COLOR', 'CastMarkControl', 'resolveCastControlMark', 'controlSurface="actor"', 'kgXrAnimationControl: true', 'rayInCoordinateRoot(event.ray, coordinateRootRef).intersectPlane', 'setXrMotionReferenceCastMarkChoreography', 'claimThreeObjectInputOwnership(inputOwnerId, event.pointerId)', 'releaseThreeObjectInputOwnership(inputOwnerId', 'captureThreeObjectPointer(event)', 'hasThreeObjectDragMoved', 'dragOffsetRef.current.set(...markWorldPosition).sub(grabPoint)', 'point.add(dragOffsetRef.current)', 'activePointerIdRef.current = event.pointerId', "window.addEventListener('lostpointercapture', finishWindowDrag, true)", "window.addEventListener('blur', finishWindowDrag)", "document.addEventListener('visibilitychange', finishWindowDrag)", "draggableAxes: 'xz'", 'onClick={event => {', 'selectXrMotionReferenceCameraMark(mark.id)', "window.addEventListener('pointercancel', finishWindowDrag)"]) {
     if (!stageSource.includes(marker)) throw new Error(`expected direct numbered XR floor marking to expose ${marker}`)
   }
   for (const marker of ['<XrSceneLibrarySubject', 'selected={runtime.selectedShotTargetId === subject.id}', 'selectBoundXrShotTarget(subject.id)']) {
@@ -265,8 +265,10 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   if (xrClaimIndex < 0 || xrSelectionIndex < 0 || xrClaimIndex > xrSelectionIndex) {
     throw new Error('expected XR object input to suspend camera framing before actor selection can publish')
   }
-  if (!stageGeometrySource.includes('onFloorPoint([event.point.x, groundY, event.point.z])')) {
-    throw new Error('expected the native stage floor to own the bounded Three pointer projection')
+  if (!stageGeometrySource.includes('const point = event.point.clone()')
+    || !stageGeometrySource.includes('coordinateRoot.worldToLocal(point)')
+    || !stageGeometrySource.includes('onFloorPoint([point.x, groundY, point.z])')) {
+    throw new Error('expected the native stage floor to own the bounded placed-stage pointer projection')
   }
   if (!controlsSource.includes('useXrMotionReferenceCameraPlayback({')
     || !playbackSource.includes('sampleXrMotionReferenceCameraPose')

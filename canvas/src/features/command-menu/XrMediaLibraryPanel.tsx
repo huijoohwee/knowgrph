@@ -32,6 +32,7 @@ import {
   type XrSceneControlInput,
 } from '@/features/three/xrSceneMcpRuntime'
 import { SpatialAssetToolsPanel } from '@/features/three/SpatialAssetToolsPanel'
+import { XrSimulationWorkbench } from './XrSimulationWorkbench'
 import { buildXrAssetMediaDragPayload, buildXrStageMediaDragPayload } from '@/features/three/xrSceneMediaDrag'
 import CollapsibleSection from '@/features/panels/ui/CollapsibleSection'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
@@ -62,7 +63,7 @@ const CATEGORY_ICONS: Readonly<Record<XrSceneLibraryCategory, LucideIcon>> = {
   props: Box,
 }
 
-const XR_LIBRARY_SECTION_KEYS = ['environments', 'subjects-props'] as const
+const XR_LIBRARY_SECTION_KEYS = ['environments', 'subjects-props', 'simulation'] as const
 
 function matchesSearch(searchText: string, values: readonly string[]): boolean {
   const tokens = String(searchText || '').trim().toLowerCase().split(/\s+/).filter(Boolean)
@@ -387,6 +388,18 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
           </header>
           <section className="grid gap-1">{visibleAssets.map(asset => <XrAssetRow key={asset.id} asset={asset} disabled={!sceneReady} transition={assetTransitions[asset.id] || 'linear'} onTransitionChange={transition => setAssetTransitions(current => ({ ...current, [asset.id]: transition }))} onPlace={placeAsset} />)}</section>
         </section>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title={<span className="flex min-w-0 items-center justify-between gap-2"><span className="truncate text-[11px] font-semibold uppercase">Simulation</span><output className={cn('shrink-0 text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{runtime.plan.subjects.length} subjects</output></span>}
+        collapsed={collapsedLibrarySectionKeys.has('simulation')}
+        onToggle={collapsed => setLibrarySectionCollapsed('simulation', collapsed)}
+        defaultCollapsed={false}
+        headerClassName="px-0"
+        className="mt-1 border-t pt-1"
+        id="xr-media-simulation"
+      >
+        <XrSimulationWorkbench sceneReady={sceneReady} runControl={runControl} />
       </CollapsibleSection>
 
       {runtime.plan.subjects.length ? (
