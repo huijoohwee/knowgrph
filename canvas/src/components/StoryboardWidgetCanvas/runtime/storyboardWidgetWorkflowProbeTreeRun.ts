@@ -253,7 +253,7 @@ export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
     '- Never emit generic process cards named Clarify probe, Generate branches, or Select handoff.',
     '- Reject every canned wrapper: scope/priority/constraint over the whole query, pairwise relationship questions, evidence/decision-basis/deliverable templates, and choices such as compare current evidence, resolve the dependency, or choose the decision order. Ask only about concrete missing parameters that materially change this request.',
     '- If 2-4 distinct query-specific cards cannot be produced without invented facts, return an empty cards array so the runtime fails closed; never fill the quota by restating the query or applying generic or hardcoded templates.',
-    '- If the selected user input is an imperative generation request, fulfill that deliverable through normal generation. Do not emit clarification cards and do not continue Probe-Tree.',
+    '- This clarification task runs only after the runtime has ruled out a terminal continuation. An explicit Probe-Tree invocation requests 2-4 clarification cards even when its topic begins with an action verb such as recommend, compare, assess, or plan. Never return an empty cards array merely because that topic is phrased imperatively.',
     '- Do not add prose before or after the fenced JSON block.',
     '',
     'Selected Widget context:',
