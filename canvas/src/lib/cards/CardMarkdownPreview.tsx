@@ -176,8 +176,8 @@ export function CardMarkdownPreview({
     : String(markdownText || '')
   const splitPreview = React.useMemo(() => splitCardMarkdownPreviewInlineParts(sourceText), [sourceText])
   const previewText = splitPreview.text
-  const renderPlainPreviewText = previewText && !hasCardMarkdownPreviewSyntax(previewText)
-  const renderInlineMediaPreview = splitPreview.hasMedia && !hasCardMarkdownPreviewSyntax(previewText)
+  const renderPlainPreviewText = !markdownPresentationMode && previewText && !hasCardMarkdownPreviewSyntax(previewText)
+  const renderInlineMediaPreview = !markdownPresentationMode && splitPreview.hasMedia && !hasCardMarkdownPreviewSyntax(previewText)
   const rootTextMetricsClassName = inlineChipDensity === 'compact'
     ? 'min-w-0 w-full [font-size:inherit] [line-height:inherit]'
     : 'min-w-0 w-full text-xs leading-5'

@@ -3,7 +3,9 @@ import { resolve } from 'node:path'
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import RichMediaPanel from '@/components/RichMediaPanel'
+import { getNodeMediaSpec } from '@/components/GraphCanvas/helpers'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { buildRichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 import { writeMediaDragPayload, type MediaDragPayload } from '@/lib/ui/mediaDragPayload'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames, waitForNextFrame, waitForTasks } from '@/tests/lib/reactRootHarness'
@@ -294,6 +296,66 @@ export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
     const cardDownloadLink = cardMarkdownPreview.querySelector('a[download][aria-label="Download media"]')
     if (cardDownloadLink) {
       throw new Error(`expected Card markdown preview to move media download affordance out of inline @ thumbnail pills, html=${container.innerHTML}`)
+    }
+
+    await unmountReactRoot(root, { window: dom.window })
+  } finally {
+    restoreDom()
+  }
+}
+
+export async function testRichMediaPanelPresentationMarkdownUsesNativeDeckSurface() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    await import('@/features/markdown/ui/MarkdownPreview')
+    resetRichMediaPanelTestStoreState()
+    const container = dom.window.document.createElement('section')
+    dom.window.document.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+    const node = {
+      id: 'deliverables-slide-deck',
+      type: 'RichMediaPanel',
+      label: 'Slide Deck',
+      properties: {
+        output: '# Investment case\n\nSource-grounded thesis.\n\n---\n\n# Risks\n\nExplicit downside risks.',
+        richMediaActiveTab: 'text',
+        markdownPresentationMode: true,
+        freezeConnectedOutput: true,
+      },
+    }
+    const mediaSpec = getNodeMediaSpec(node)
+    const panel = buildRichMediaPanelOverlayState({ node })
+    if (!mediaSpec || !panel) throw new Error('expected generated Slide Deck Rich Media projection')
+
+    await mountReactRoot(root,
+      React.createElement(RichMediaPanel, {
+        overlayId: node.id,
+        title: node.label,
+        url: mediaSpec.url,
+        kind: mediaSpec.kind,
+        srcDoc: mediaSpec.srcDoc,
+        interactive: mediaSpec.interactive,
+        panel,
+      }),
+    { window: dom.window, frames: 20 })
+    await act(async () => {
+      for (let attempt = 0; attempt < 8 && !container.querySelector('[data-testid="markdown-presentation-root"]'); attempt += 1) {
+        await waitForTasks(2)
+        await waitForFrames(dom.window, 2)
+      }
+    })
+
+    if (!container.querySelector('[data-kg-rich-media-markdown-preview="1"]')) {
+      throw new Error(`expected Slide Deck to reuse the Rich Media Markdown surface, html=${container.innerHTML}`)
+    }
+    if (!container.querySelector('[data-testid="markdown-presentation-root"]')) {
+      throw new Error(`expected Slide Deck to reuse the native Markdown presentation renderer, html=${container.innerHTML}`)
+    }
+    if (container.querySelector('iframe')) {
+      throw new Error(`expected presentation Markdown to avoid the generic iframe path, html=${container.innerHTML}`)
+    }
+    if (!/Investment case/.test(container.textContent || '')) {
+      throw new Error(`expected the active Markdown slide to remain visible, text=${JSON.stringify(container.textContent || '')}`)
     }
 
     await unmountReactRoot(root, { window: dom.window })
