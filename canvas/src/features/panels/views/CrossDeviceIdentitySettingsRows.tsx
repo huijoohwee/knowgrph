@@ -27,6 +27,8 @@ export function CrossDeviceIdentitySettingsRowsContent({
   const staticRowProps = useCanvasKeyTypeValueStaticRowProps('default')
   const fresh = isKnowgrphRuntimeIdentityFresh(identity)
   const gatePassed = gate.status === 'pass'
+  const agentProof = identity.agentLiveProviderProof
+  const agentProofVerified = agentProof.status === 'verified-bounded-live'
   const serializedDiagnostic = React.useMemo(() => `${JSON.stringify({ identity, gate }, null, 2)}\n`, [gate, identity])
   const copyIdentity = React.useCallback(async () => {
     try {
@@ -64,6 +66,53 @@ export function CrossDeviceIdentitySettingsRowsContent({
       <KeyTypeValueStaticRow {...staticRowProps} keyNode="Knowgrph SHA" typeNode="git SHA" valueNode={revisionValue(identity.knowgrphRevision)} />
       <KeyTypeValueStaticRow {...staticRowProps} keyNode="Docs SHA" typeNode="git SHA" valueNode={revisionValue(identity.agenticCanvasOsRevision)} />
       <KeyTypeValueStaticRow {...staticRowProps} keyNode="Catalog SHA" typeNode="git SHA" valueNode={revisionValue(identity.catalogRevision)} />
+      <KeyTypeValueStaticRow
+        {...staticRowProps}
+        keyNode={<span className="font-semibold">Agent proof</span>}
+        typeNode={<code>provider-proof/v1</code>}
+        valueNode={(
+          <span
+            className={agentProofVerified ? 'text-emerald-400' : 'text-amber-400'}
+            data-kg-agent-live-provider-proof={agentProof.status}
+            data-kg-agent-live-provider-proof-revision={agentProof.proofRevision}
+            data-kg-agent-live-provider-proof-calls={agentProof.providerCalls}
+          >
+            {agentProof.status} · {agentProofVerified
+              ? `${agentProof.providerCalls} bounded calls · Worker ${agentProof.defaultWorkerConfigured ? 'configured' : 'unchanged'}`
+              : 'source evidence unavailable'}
+          </span>
+        )}
+      />
+      <KeyTypeValueStaticRow
+        {...staticRowProps}
+        keyNode="Agent proof SHA"
+        typeNode="git SHA"
+        valueNode={agentProof.sourceUrl ? (
+          <a className="min-w-0 break-all underline" href={agentProof.sourceUrl} target="_blank" rel="noreferrer">
+            <code>{revisionText(agentProof.proofRevision)}</code>
+          </a>
+        ) : revisionValue(agentProof.proofRevision)}
+      />
+      <KeyTypeValueStaticRow
+        {...staticRowProps}
+        keyNode="Provider usage"
+        typeNode={agentProof.model || 'provider'}
+        valueNode={(
+          <code data-kg-agent-live-provider-proof-usage={`${agentProof.inputTokens}/${agentProof.outputTokens}/${agentProof.cachedInputTokens}`}>
+            {agentProof.inputTokens} in · {agentProof.outputTokens} out · {agentProof.cachedInputTokens} cached · USD {agentProof.estimatedCostUsd.toFixed(5)}
+          </code>
+        )}
+      />
+      <KeyTypeValueStaticRow
+        {...staticRowProps}
+        keyNode="Agent ownership"
+        typeNode={agentProof.continuationContext || 'continuation'}
+        valueNode={(
+          <span className="min-w-0 break-words">
+            delegation: {agentProof.finalAnswerOwners.delegation || 'unavailable'} · handoff: {agentProof.finalAnswerOwners.handoff || 'unavailable'}
+          </span>
+        )}
+      />
       <KeyTypeValueStaticRow
         {...staticRowProps}
         keyNode="Catalog"

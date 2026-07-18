@@ -286,6 +286,24 @@ export async function testRemoteAgenticOsGrammarHydrationIsRevisionKeyedAndBound
         structuredContent: {
           ok: true,
           sourceRevision,
+          liveAgentProviderProof: {
+            schema: 'agent-live-provider-proof-summary/v1',
+            status: 'verified-bounded-live',
+            evidenceSchema: 'agent-live-provider-proof-contract/v1',
+            sourceStatus: 'runtime-ready-dev',
+            sourceRevision,
+            proofRevision: 'd'.repeat(40),
+            model: 'test-model',
+            reasoningEffort: 'low',
+            providerCalls: 3,
+            inputTokens: 10,
+            outputTokens: 5,
+            cachedInputTokens: 0,
+            estimatedCostUsd: 0.001,
+            finalAnswerOwners: { delegation: 'manager', handoff: 'specialist' },
+            continuationContext: 'all_turns',
+            defaultWorkerConfigured: false,
+          },
           catalog: [{ token: `${query}revision-${sourceRevision[0]}`, kind, label: `Revision ${sourceRevision[0]}` }],
         },
       },
@@ -299,6 +317,9 @@ export async function testRemoteAgenticOsGrammarHydrationIsRevisionKeyedAndBound
     }
     if (first.counts.slash !== 1 || first.counts.hash !== 1 || first.counts.at !== 1) {
       throw new Error(`expected exact sigil counts after hydration, got ${JSON.stringify(first.counts)}`)
+    }
+    if (first.liveAgentProviderProof.status !== 'verified-bounded-live' || first.liveAgentProviderProof.proofRevision !== 'd'.repeat(40)) {
+      throw new Error(`expected source-backed live provider proof to hydrate with the catalog revision, got ${JSON.stringify(first.liveAgentProviderProof)}`)
     }
     sourceRevision = 'b'.repeat(40)
     const second = await refreshAgenticOsRemoteGrammarCatalog()

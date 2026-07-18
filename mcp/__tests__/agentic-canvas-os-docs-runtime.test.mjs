@@ -12,6 +12,7 @@ import {
   resolveAgenticCanvasOsDocsRoot,
   runAgenticCanvasOsDocsInvokeTool,
 } from "../agentic-canvas-os-docs-runtime.js";
+import { buildAgentLiveProviderProofSummary } from "../agentic-canvas-os-docs-core.mjs";
 import { buildKnowgrphLocalMcpToolDefinitions, KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "../local-tool-contract.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -38,6 +39,17 @@ test("local MCP descriptor exposes Agentic Canvas OS docs invocation as read-onl
   assert.equal(descriptor.inputSchema.properties.token.type, "string");
 });
 
+test("live provider proof summary fails closed when canonical evidence is incomplete", () => {
+  const result = buildAgentLiveProviderProofSummary({
+    markdown: "---\nschema: agent-live-provider-proof-contract/v1\nstatus: runtime-ready-dev\n---\n",
+    sourceRevision: "a".repeat(40),
+    proofRevision: "b".repeat(40),
+  });
+  assert.equal(result.status, "unavailable");
+  assert.equal(result.providerCalls, 0);
+  assert.equal(result.sourceUrl.includes("b".repeat(40)), true);
+});
+
 test("local MCP docs invocation catalogs /, #, and @ entries from source docs", { skip: !DOCS_AVAILABLE }, async () => {
   const result = await runAgenticCanvasOsDocsInvokeTool({ limit: 500 }, {
     rootDir: KNOWGRPH_ROOT,
@@ -48,6 +60,26 @@ test("local MCP docs invocation catalogs /, #, and @ entries from source docs", 
   assert.equal(result.docsRoot, AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT);
   assert.equal(result.absoluteDocsRoot, DOCS_ROOT);
   assert.match(result.sourceRevision, /^[0-9a-f]{40}$/);
+  assert.deepEqual(result.liveAgentProviderProof, {
+    schema: "agent-live-provider-proof-summary/v1",
+    status: "verified-bounded-live",
+    evidenceSchema: "agent-live-provider-proof-contract/v1",
+    sourceStatus: "runtime-ready-dev",
+    sourceRevision: result.sourceRevision,
+    proofRevision: "dae927d40f3e8e55687334ed47c2be5dffe14b36",
+    sourcePath: "docs/LIVE-AGENT-PROVIDER-PROOF.md",
+    sourceUrl: "https://github.com/huijoohwee/agentic-canvas-os/blob/dae927d40f3e8e55687334ed47c2be5dffe14b36/docs/LIVE-AGENT-PROVIDER-PROOF.md",
+    model: "gpt-5.6-sol",
+    reasoningEffort: "low",
+    providerCalls: 3,
+    inputTokens: 576,
+    outputTokens: 53,
+    cachedInputTokens: 0,
+    estimatedCostUsd: 0.00447,
+    finalAnswerOwners: { delegation: "manager", handoff: "specialist" },
+    continuationContext: "all_turns",
+    defaultWorkerConfigured: false,
+  });
   assert.ok(result.counts.command > 0, "slash command entries must be present");
   assert.ok(result.counts.semantic > 0, "hash semantic entries must be present");
   assert.ok(result.counts.binding > 0, "at binding entries must be present");

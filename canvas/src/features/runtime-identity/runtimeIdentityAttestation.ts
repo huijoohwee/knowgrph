@@ -84,6 +84,10 @@ const snapshotRuntimeIdentity = (identity: KnowgrphRuntimeIdentity): KnowgrphRun
   catalogRevision: identity.catalogRevision,
   catalogHydration: { ...identity.catalogHydration },
   catalogCounts: { ...identity.catalogCounts },
+  agentLiveProviderProof: {
+    ...identity.agentLiveProviderProof,
+    finalAnswerOwners: { ...identity.agentLiveProviderProof.finalAnswerOwners },
+  },
 })
 
 const isRuntimeIdentity = (value: unknown): value is KnowgrphRuntimeIdentity => {
@@ -96,12 +100,31 @@ const isRuntimeIdentity = (value: unknown): value is KnowgrphRuntimeIdentity => 
     || typeof value.catalogRevision !== 'string'
     || !isRecord(value.catalogHydration)
     || !isRecord(value.catalogCounts)
+    || !isRecord(value.agentLiveProviderProof)
+    || !isRecord(value.agentLiveProviderProof.finalAnswerOwners)
   ) return false
   return typeof value.catalogHydration.status === 'string'
     && Number.isInteger(value.catalogHydration.attempts)
     && Number.isInteger(value.catalogCounts.slash)
     && Number.isInteger(value.catalogCounts.hash)
     && Number.isInteger(value.catalogCounts.at)
+    && value.agentLiveProviderProof.schema === 'agent-live-provider-proof-summary/v1'
+    && typeof value.agentLiveProviderProof.status === 'string'
+    && typeof value.agentLiveProviderProof.sourceRevision === 'string'
+    && typeof value.agentLiveProviderProof.proofRevision === 'string'
+    && typeof value.agentLiveProviderProof.sourcePath === 'string'
+    && typeof value.agentLiveProviderProof.sourceUrl === 'string'
+    && typeof value.agentLiveProviderProof.model === 'string'
+    && typeof value.agentLiveProviderProof.reasoningEffort === 'string'
+    && Number.isInteger(value.agentLiveProviderProof.providerCalls)
+    && Number.isInteger(value.agentLiveProviderProof.inputTokens)
+    && Number.isInteger(value.agentLiveProviderProof.outputTokens)
+    && Number.isInteger(value.agentLiveProviderProof.cachedInputTokens)
+    && typeof value.agentLiveProviderProof.estimatedCostUsd === 'number'
+    && typeof value.agentLiveProviderProof.finalAnswerOwners.delegation === 'string'
+    && typeof value.agentLiveProviderProof.finalAnswerOwners.handoff === 'string'
+    && typeof value.agentLiveProviderProof.continuationContext === 'string'
+    && typeof value.agentLiveProviderProof.defaultWorkerConfigured === 'boolean'
 }
 
 const toHex = (bytes: ArrayBuffer): string =>
@@ -218,6 +241,9 @@ const collectParityDifferences = (
     if (new Set(identities.map(identity => identity.catalogCounts[field])).size !== 1) {
       differences.push(`catalogCounts.${field}`)
     }
+  }
+  if (new Set(identities.map(identity => JSON.stringify(identity.agentLiveProviderProof))).size !== 1) {
+    differences.push('agentLiveProviderProof')
   }
   return differences
 }
