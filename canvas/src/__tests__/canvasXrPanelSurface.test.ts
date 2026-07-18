@@ -46,6 +46,7 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   const bottomPanel = readSource('features', 'strybldr', 'StrybldrTimelineBottomPanel.tsx')
   const timelineBottomPanel = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
   const xrCameraMotion = readSource('features', 'three', 'XrCameraMotionSection.tsx')
+  const xrAnimationPanel = readSource('features', 'three', 'XrAnimationFloatingPanelView.tsx')
   const floatingPanel = readSource('lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
   const viewport = readSource('components', 'CanvasViewport.tsx')
   const floatingTypes = readSource('hooks', 'store', 'store-types', 'graph-state-chat-import.ts')
@@ -91,8 +92,11 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   if (cameraFloatingProjection.includes('<XrCameraMotionSection')) {
     throw new Error('expected FloatingPanel Camera to leave XR motion and transport in BottomPanel Timeline')
   }
-  for (const marker of ['data-kg-xr-timeline-player="1"', 'data-kg-xr-timeline-player-controls="1"', 'data-kg-xr-timeline-consolidated-lane="stage-output-ruler"', 'data-kg-xr-timeline-control-bar="stage-output"', 'data-kg-xr-timeline-seconds-control="time-axis"', 'aria-label="XR timeline seconds"', 'data-kg-xr-timeline-fps-control="time-axis"', 'aria-label="XR timeline FPS"', '<TimelineTransportInlineClip', '<TimelineTransportTimeAxisClip', '<CameraMotionMarkRetime', 'layout="lane"', '<GanttTimelineTransportPanel', 'timelineInsertedLanes={[', 'supplementalLanes={', 'timeAxisControls={', 'data-kg-xr-choreography-shared-axis-rail="camera"', 'data-kg-xr-timeline-transport="reused-gantt-player"']) {
+  for (const marker of ['data-kg-xr-timeline-player="1"', 'data-kg-xr-timeline-player-controls="1"', 'data-kg-xr-timeline-consolidated-lane="stage-output-ruler"', 'data-kg-xr-timeline-control-bar="stage-output"', 'data-kg-xr-timeline-cast-target="1"', 'aria-label="XR timeline cast target"', 'data-kg-xr-timeline-playhead-control="1"', 'aria-label="XR timeline playhead seconds"', 'data-kg-xr-timeline-seconds-control="time-axis"', 'aria-label="XR timeline seconds"', 'data-kg-xr-timeline-fps-control="time-axis"', 'aria-label="XR timeline FPS"', '<TimelineTransportInlineClip', '<TimelineTransportTimeAxisClip', '<CameraMotionMarkRetime', 'layout="lane"', '<GanttTimelineTransportPanel', 'timelineInsertedLanes={[', 'supplementalLanes={', 'timeAxisControls={', 'data-kg-xr-choreography-shared-axis-rail="camera"', 'data-kg-xr-timeline-transport="reused-gantt-player"']) {
     if (!xrCameraMotion.includes(marker)) throw new Error(`expected BottomPanel XR Timeline to expose ${marker}`)
+  }
+  for (const duplicate of ['data-kg-animation-runtime-controls="shared-xr"', 'aria-label="Animation cast target"', 'aria-label="Animation playhead seconds"']) {
+    if (xrAnimationPanel.includes(duplicate)) throw new Error(`expected FloatingPanel Animation to remove duplicate Timeline control ${duplicate}`)
   }
   if (existsSync(xrCameraFramingPath)) {
     throw new Error('expected the duplicate FloatingPanel XR Camera projection to be deleted')

@@ -248,6 +248,7 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   }
 
   const panelSource = readSource('features', 'three', 'XrAnimationFloatingPanelView.tsx')
+  const timelineSource = readSource('features', 'three', 'XrCameraMotionSection.tsx')
   const inspectorSource = readSource('features', 'three', 'XrChoreographyInspector.tsx')
   const choreographyControlsSource = readSource('features', 'three', 'XrChoreographyMarkControls.tsx')
   const animationMcpSource = readSource('features', 'three', 'xrAnimationMcpRuntime.ts')
@@ -271,6 +272,12 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   }
   for (const forbidden of ["operation: 'configure-mark'", 'position: update.position', 'onChange={configureMark}']) {
     if (panelSource.includes(forbidden)) throw new Error(`expected FloatingPanel Animation to defer mark parameter editing to Timeline, found ${forbidden}`)
+  }
+  for (const marker of ['data-kg-xr-timeline-cast-target="1"', 'aria-label="XR timeline cast target"', 'data-kg-xr-timeline-playhead-control="1"', 'aria-label="XR timeline playhead seconds"', "controlLocalAnimation({ operation: 'scrub'"]) {
+    if (!timelineSource.includes(marker)) throw new Error(`expected BottomPanel Timeline to own shared animation control ${marker}`)
+  }
+  for (const duplicate of ['data-kg-animation-runtime-controls="shared-xr"', 'aria-label="Animation cast target"', 'aria-label="Animation playhead seconds"']) {
+    if (panelSource.includes(duplicate)) throw new Error(`expected FloatingPanel Animation to remove duplicate Timeline control ${duplicate}`)
   }
   for (const marker of ['data-kg-xr-choreography-inspector="shared-runtime"', 'One mark model for cast and camera · Timeline owns time', 'resolveXrChoreographySpeedWarnings', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'data-kg-xr-choreography-card={target}', 'data-kg-xr-choreography-card-layout={FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT}', 'data-kg-xr-choreography-card-row="controls"', 'data-kg-xr-choreography-card-row="invocation"', 'data-kg-xr-choreography-invocation={target}', 'projectedCastInvocation', 'projectedCameraInvocation', 'data-kg-xr-choreography-runtime-ready', 'MCP · / @ # ready', 'renderMarkdownSigilInlineText', 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'renderMarkdownSigilInlineText(invocation)', 'BottomPanel Timeline', 'data-kg-xr-mark-parameter-chips={target}', 'data-kg-xr-mark-parameter-chip-renderer="shared-markdown-sigil"', 'data-kg-xr-choreography-selection-owner="timeline-cast"', 'data-kg-xr-choreography-selection-owner="timeline-camera"', 'Select marks in the']) {
     if (!inspectorSource.includes(marker)) throw new Error(`expected Animation choreography inspection to expose ${marker}`)
