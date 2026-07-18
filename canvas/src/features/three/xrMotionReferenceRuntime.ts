@@ -53,7 +53,6 @@ export type XrMotionReferenceRuntimeSnapshot = Readonly<{
   selectedCameraRig: XrMotionReferenceCameraRig
   selectedMark: XrMotionReferenceMarkSelection
   castMarkArmed: boolean
-  viewportControlActive: boolean
   playheadSeconds: number
   dirty: boolean
   revision: number
@@ -73,7 +72,6 @@ let snapshot = freezeSnapshot({
   selectedCameraRig: 'dolly',
   selectedMark: null,
   castMarkArmed: false,
-  viewportControlActive: false,
   playheadSeconds: 0,
   dirty: false,
   revision: 0,
@@ -168,7 +166,6 @@ export function hydrateXrMotionReferenceRuntime(args: {
     selectedCameraRig: snapshot.selectedCameraRig,
     selectedMark: null,
     castMarkArmed: false,
-    viewportControlActive: false,
     playheadSeconds: 0,
     dirty: false,
   })
@@ -316,12 +313,6 @@ export function setXrMotionReferenceCastMarkArmed(armed: boolean): XrMotionRefer
 
 export function toggleXrMotionReferenceCastMarkArmed(): XrMotionReferenceRuntimeSnapshot {
   return setXrMotionReferenceCastMarkArmed(!snapshot.castMarkArmed)
-}
-
-export function setXrMotionReferenceViewportControlActive(active: boolean): XrMotionReferenceRuntimeSnapshot {
-  const viewportControlActive = active === true
-  if (viewportControlActive === snapshot.viewportControlActive) return snapshot
-  return publish({ ...snapshot, viewportControlActive })
 }
 
 export function setXrMotionReferenceCastMark(args: {
