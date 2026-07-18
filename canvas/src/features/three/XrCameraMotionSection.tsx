@@ -23,8 +23,10 @@ import {
 } from './xrMotionReferenceRuntime'
 import { buildXrMotionReferenceTimelineCode, xrMotionReferenceTimelineDocumentKey } from './xrMotionReferenceTimeline'
 import { CameraMotionMarkRetime } from './CameraMotionMarkRetime'
+import { controlLocalAnimation } from './xrAnimationMcpRuntime'
 import { resolveXrPanelSourceProfile } from './xrPanelModel'
 import { resolveXrChoreographySpeedWarnings } from './xrChoreographyDiagnostics'
+import { readBoundXrSelectedActorId, selectBoundXrActor } from './xrSelectedActorBinding'
 import { downloadBlob } from '@/lib/graph/save'
 import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -39,6 +41,7 @@ export function XrCameraMotionSection() {
     markdownDocumentName,
     markdownDocumentText,
     pushUiToast,
+    selectedNodeId,
     updateGraphMetadata,
   } = useGraphStore(
     useShallow(state => ({
@@ -48,6 +51,7 @@ export function XrCameraMotionSection() {
       markdownDocumentName: state.markdownDocumentName,
       markdownDocumentText: state.markdownDocumentText,
       pushUiToast: state.pushUiToast,
+      selectedNodeId: state.selectedNodeId,
       updateGraphMetadata: state.updateGraphMetadata,
     })),
   )
@@ -74,6 +78,7 @@ export function XrCameraMotionSection() {
     [runtime.plan],
   )
   const speedWarnings = React.useMemo(() => resolveXrChoreographySpeedWarnings(runtime.plan), [runtime.plan])
+  const selectedActorId = readBoundXrSelectedActorId()
 
   React.useEffect(() => {
     if (!xrActive) return
@@ -116,6 +121,16 @@ export function XrCameraMotionSection() {
       message: `Exported ${bundle.timeline.frameCount} deterministic motion samples.`,
     })
   }, [graphData, markdownDocumentName, pushUiToast])
+
+  const scrubPlayhead = React.useCallback((timeSeconds: number) => {
+    const result = controlLocalAnimation({ operation: 'scrub', timeSeconds })
+    if (result.ok) return
+    pushUiToast({
+      id: 'xr:animation:error',
+      kind: documentLoaded ? 'error' : 'warning',
+      message: result.message,
+    })
+  }, [documentLoaded, pushUiToast])
 
   const edges = Array.isArray(graphData?.edges) ? graphData.edges.length : 0
   if (!xrActive) return null
@@ -228,13 +243,43 @@ export function XrCameraMotionSection() {
               <section className="timeline-transport-supplemental-lane-content">
                 <TimelineTransportInlineClip
                   laneStyle="video"
-                  label="Stage & output"
-                  aria-label="XR stage and output control bar"
+                  label="Cast, stage & output"
+                  aria-label="XR cast, stage, and output control bar"
                   data-kg-xr-timeline-control-bar="stage-output"
                 >
-                  <p className={cn('mr-2 whitespace-nowrap text-[9px]', UI_THEME_TOKENS.text.tertiary)}>
-                    {documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks · {speedWarnings.length ? `${speedWarnings.length} speed warnings` : 'speed sane'}
-                  </p>
+                  <label className="flex shrink-0 items-center gap-1 text-[10px]" data-kg-xr-timeline-cast-target="1">
+                    <span className={UI_THEME_TOKENS.text.tertiary}>Cast target</span>
+                    <PanelSelect
+                      className="w-32"
+                      value={selectedActorId}
+                      disabled={!runtime.plan.cast.length}
+                      onChange={event => selectBoundXrActor(event.target.value)}
+                      aria-label="XR timeline cast target"
+                      data-kg-animation-target="selected-actor"
+                    >
+                      <option value="">Select cast…</option>
+                      {runtime.plan.cast.map(track => (
+                        <option key={track.actorId} value={track.actorId}>
+                          {track.label}{track.animation ? ` · ${track.animation.presetId}` : ''}
+                        </option>
+                      ))}
+                    </PanelSelect>
+                  </label>
+
+                  <label className="flex shrink-0 items-center gap-1 text-[10px]" data-kg-xr-timeline-playhead-control="1">
+                    <span className={UI_THEME_TOKENS.text.tertiary}>Playhead</span>
+                    <PanelTextInput
+                      className="h-5 w-16 px-1 py-0 text-[10px]"
+                      type="number"
+                      min={0}
+                      max={runtime.plan.durationSeconds}
+                      step={1 / runtime.plan.fps}
+                      value={runtime.playheadSeconds}
+                      onChange={event => scrubPlayhead(Number(event.target.value))}
+                      aria-label="XR timeline playhead seconds"
+                    />
+                    <span className={cn('whitespace-nowrap', UI_THEME_TOKENS.text.tertiary)}>/ {runtime.plan.durationSeconds}s · {runtime.plan.fps}fps</span>
+                  </label>
 
                   <label className="flex shrink-0 items-center gap-1 text-[10px]">
                     <span className={UI_THEME_TOKENS.text.tertiary}>Stage</span>
@@ -257,6 +302,9 @@ export function XrCameraMotionSection() {
                   <button type="button" className="App-toolbar__btn" disabled={!graphData} onClick={exportPackage} data-kg-xr-motion-export="1">
                     Export package
                   </button>
+                  <p className={cn('ml-1 whitespace-nowrap text-[9px]', UI_THEME_TOKENS.text.tertiary)}>
+                    {documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'} · {runtime.plan.camera.length} camera marks · {speedWarnings.length ? `${speedWarnings.length} speed warnings` : 'speed sane'}
+                  </p>
                 </TimelineTransportInlineClip>
               </section>
             </section>
