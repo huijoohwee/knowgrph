@@ -344,6 +344,9 @@ export function Controls({
         camera.up.set(0, 1, 0)
       }
       controls.enableRotate = true
+      controls.enablePan = true
+      controls.enableZoom = true
+      controls.zoomToCursor = true
     } catch {
       void 0
     }
