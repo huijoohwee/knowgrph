@@ -9,6 +9,7 @@ import { WidgetEditorPortHandles, orderFlowPortHandlesByCenterPriority, selectCe
 import { PORT_HANDLE_MIN_VISUAL_SIZE_PX, readPortHandleUiMetrics } from '@/components/StoryboardWidget/portHandleUi'
 import { buildRichMediaPanelRegistryDraft } from '@/features/storyboard-widget-manager/richMediaPanelRegistryDraft'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import type { JSONValue } from '@/lib/graph/types'
 
 export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
@@ -117,7 +118,7 @@ export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
     id: 'rich-media-panel',
     updatedAt: '2026-07-19T00:00:00.000Z',
   }
-  const renderRichMediaHandles = (richMediaActiveTab: unknown, wrapProperties = false) => {
+  const renderRichMediaHandles = (richMediaActiveTab: JSONValue, wrapProperties = false) => {
     const properties = wrapProperties
       ? {
           key: 'properties',
