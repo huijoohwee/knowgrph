@@ -42,6 +42,25 @@ const buildIdentity = (
     continuationContext: 'all_turns',
     defaultWorkerConfigured: false,
   },
+  progressiveAgentsReadiness: {
+    schema: 'progressive-agents-readiness-summary/v1',
+    status: 'runtime-ready-dev',
+    sourceRevision: 'a'.repeat(40),
+    sourcePath: 'docs/PROGRESSIVE-AGENTS.md',
+    sourceUrl: `https://github.com/huijoohwee/agentic-canvas-os/blob/${'a'.repeat(40)}/docs/PROGRESSIVE-AGENTS.md`,
+    contractSchema: 'progressive-agents-runtime-contract/v1',
+    runtimeScope: 'single-agent execution, tool-bearing agent execution, and explicit specialist workflow delegation',
+    runtimeOwner: '../agent-api/src/progressive-agents.js',
+    runtimeProof: '../__tests__/progressive-agents.test.mjs',
+    contractReady: true,
+    configured: false,
+    progressionPolicy: 'single-agent-then-tools-then-specialists',
+    growthStages: ['single-agent', 'tool-enabled-agent', 'specialist-workflow'],
+    externalSdkDependency: false,
+    providerExecutionStatus: 'unverified',
+    defaultWorkerConfigured: false,
+    deployPolicy: 'Dev-only until explicit operator approval',
+  },
   ...overrides,
 })
 
@@ -124,6 +143,29 @@ export async function testRuntimeIdentityAttestationBlocksMismatchReplayAndDupli
     || !proofMismatchResult.differences.includes('agentLiveProviderProof')
   ) {
     throw new Error(`Expected exact provider-proof SHA mismatch to fail closed, got ${JSON.stringify(proofMismatchResult)}`)
+  }
+
+  const readinessMismatch = await buildEnvelope({
+    device: 'device-b',
+    runtimeInstanceId: 'runtime-readiness',
+    identity: buildIdentity('device-b', {
+      progressiveAgentsReadiness: {
+        ...buildIdentity('device-b').progressiveAgentsReadiness,
+        runtimeScope: 'changed specialist workflow scope',
+      },
+    }),
+  })
+  const readinessMismatchResult = await verifyKnowgrphRuntimeIdentityAttestations({
+    sessionId: SESSION_ID,
+    challenge: CHALLENGE,
+    attestations: [matching, readinessMismatch],
+    nowMs: NOW_MS + 1_000,
+  })
+  if (
+    readinessMismatchResult.status !== 'mismatch'
+    || !readinessMismatchResult.differences.includes('progressiveAgentsReadiness')
+  ) {
+    throw new Error(`Expected progressive Agents readiness mismatch to fail closed, got ${JSON.stringify(readinessMismatchResult)}`)
   }
 
   const replayed = await buildEnvelope({

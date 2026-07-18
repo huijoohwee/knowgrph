@@ -10,7 +10,7 @@ import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
 
 export async function testMainPanelSettingsOwnsGlobalCrossDeviceIdentityGate() {
-  if (CROSS_DEVICE_IDENTITY_SETTINGS_ROW_COUNT !== 16) {
+  if (CROSS_DEVICE_IDENTITY_SETTINGS_ROW_COUNT !== 19) {
     throw new Error('Expected the Settings area count to include all runtime identity and agent-proof KTV rows')
   }
   const settingsViewSource = readFileSync(resolve(process.cwd(), 'src/features/panels/views/SettingsView.tsx'), 'utf8')
@@ -69,6 +69,25 @@ export async function testMainPanelSettingsOwnsGlobalCrossDeviceIdentityGate() {
       continuationContext: 'all_turns',
       defaultWorkerConfigured: false,
     },
+    progressiveAgentsReadiness: {
+      schema: 'progressive-agents-readiness-summary/v1',
+      status: 'runtime-ready-dev',
+      sourceRevision: 'a'.repeat(40),
+      sourcePath: 'docs/PROGRESSIVE-AGENTS.md',
+      sourceUrl: `https://github.com/huijoohwee/agentic-canvas-os/blob/${'a'.repeat(40)}/docs/PROGRESSIVE-AGENTS.md`,
+      contractSchema: 'progressive-agents-runtime-contract/v1',
+      runtimeScope: 'single-agent execution, tool-bearing agent execution, and explicit specialist workflow delegation',
+      runtimeOwner: '../agent-api/src/progressive-agents.js',
+      runtimeProof: '../__tests__/progressive-agents.test.mjs',
+      contractReady: true,
+      configured: false,
+      progressionPolicy: 'single-agent-then-tools-then-specialists',
+      growthStages: ['single-agent', 'tool-enabled-agent', 'specialist-workflow'],
+      externalSdkDependency: false,
+      providerExecutionStatus: 'unverified',
+      defaultWorkerConfigured: false,
+      deployPolicy: 'Dev-only until explicit operator approval',
+    },
   }
   const gateSnapshot: KnowgrphRuntimeIdentityGateSnapshot = {
     schema: 'knowgrph-runtime-identity-gate/v1',
@@ -101,9 +120,12 @@ export async function testMainPanelSettingsOwnsGlobalCrossDeviceIdentityGate() {
     const peerGate = container.querySelector('[data-kg-runtime-identity-peer-gate="pass"]')
     const agentProof = container.querySelector('[data-kg-agent-live-provider-proof="verified-bounded-live"]')
     const proofUsage = container.querySelector('[data-kg-agent-live-provider-proof-usage="576/53/0"]')
+    const progressiveAgents = container.querySelector('[data-kg-progressive-agents-readiness="runtime-ready-dev"]')
+    const progressiveBoundary = container.querySelector('[data-kg-progressive-agents-provider="unverified"][data-kg-progressive-agents-worker="false"]')
     const buttons = Array.from<HTMLButtonElement>(container.querySelectorAll('button')).map(button => button.textContent?.trim())
-    if (!counts || !peerGate || !agentProof || !proofUsage || !buttons.includes('Refresh identity catalog') || !buttons.includes('Copy diagnostic JSON')) {
-      throw new Error('Expected Settings to expose source-backed agent proof, automatic peer parity, bounded refresh, and diagnostic export')
+    if (!counts || !peerGate || !agentProof || !proofUsage || !progressiveAgents || !progressiveBoundary
+      || !buttons.includes('Refresh identity catalog') || !buttons.includes('Copy diagnostic JSON')) {
+      throw new Error('Expected Settings to expose source-backed agent proof and progressive readiness, automatic peer parity, bounded refresh, and diagnostic export')
     }
     if (buttons.includes('Copy identity JSON')) {
       throw new Error('Expected clipboard export to be diagnostic-only rather than the compliance path')

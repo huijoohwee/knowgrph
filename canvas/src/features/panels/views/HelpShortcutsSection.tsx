@@ -21,6 +21,11 @@ import {
   getCanvasShortcutSearchText,
 } from '@/lib/canvas/interaction-ssot'
 import { normalized as normalizeText } from '@/features/panels/utils/json'
+import {
+  getThreeKeyboardShortcutSearchText,
+  type ThreeKeyboardShortcut,
+} from '@/features/three/threeKeyboardShortcutCatalog'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   HelpKtvActionGroup,
@@ -38,6 +43,7 @@ interface HelpShortcutsSectionProps {
   onToggle: (next: boolean) => void;
   searchQuery: string;
   shortcuts: string[];
+  threeKeyboardShortcuts: readonly ThreeKeyboardShortcut[];
   onCopyAllShortcuts: () => void;
   onLaunchSpotlight: () => void;
   flushTop?: boolean;
@@ -53,6 +59,7 @@ export function HelpShortcutsSection({
   onToggle,
   searchQuery,
   shortcuts,
+  threeKeyboardShortcuts,
   onCopyAllShortcuts,
   onLaunchSpotlight,
   flushTop = false,
@@ -99,6 +106,13 @@ export function HelpShortcutsSection({
     const canvasSet = new Set(CANVAS_SHORTCUT_COPY_LINES)
     return shortcuts.filter(s => !canvasSet.has(s))
   }, [shortcuts])
+
+  const filteredThreeKeyboardShortcuts = React.useMemo(() => {
+    if (!normalizedQuery) return threeKeyboardShortcuts
+    return threeKeyboardShortcuts.filter(shortcut => (
+      normalizeText(getThreeKeyboardShortcutSearchText(shortcut)).includes(normalizedQuery)
+    ))
+  }, [normalizedQuery, threeKeyboardShortcuts])
 
   return (
     <CollapsibleSection
@@ -195,6 +209,52 @@ export function HelpShortcutsSection({
                   <HelpKtvMutedText>{UI_COPY.helpNoShortcutsMatched}</HelpKtvMutedText>
                 </HelpKtvValueStack>
               )}
+            />
+          )}
+        </HelpKtvRows>
+      </section>
+
+      <section aria-label="3D and XR shortcuts" className="mb-3" data-kg-help-xr-shortcuts="1">
+        <header className="mb-2">
+          <p className={`${uiPanelKeyValueTextSizeClass} ${uiPanelTextFontClass} ${UI_THEME_TOKENS.text.secondary}`}>
+            3D / XR shortcuts
+          </p>
+        </header>
+        <HelpKtvRows aria-label="3D and XR shortcut rows">
+          {filteredThreeKeyboardShortcuts.map(shortcut => (
+            <HelpKtvRow
+              key={shortcut.id}
+              keyNode={shortcut.action}
+              iconKey={shortcut.category === '3D animation' ? 'floatingPanel.animation' : 'floatingPanel.camera'}
+              valueNode={(
+                <HelpKtvValueStack>
+                  <HelpKtvInlineGroup>
+                    <HelpKtvCode className="font-mono">{shortcut.input}</HelpKtvCode>
+                    <HelpKtvPill>{shortcut.category}</HelpKtvPill>
+                  </HelpKtvInlineGroup>
+                  {getShortcutText(shortcut.textKey).value ? (
+                    <HelpKtvMutedText>{getShortcutText(shortcut.textKey).value}</HelpKtvMutedText>
+                  ) : null}
+                  <HelpKtvMutedText>{shortcut.context}</HelpKtvMutedText>
+                  <HelpKtvCode className="font-mono" data-kg-help-xr-shortcut-invocation={shortcut.id}>
+                    {shortcut.invocation
+                      ? renderMarkdownSigilInlineText(shortcut.invocation)
+                      : 'Invocation grammar hydrating…'}
+                  </HelpKtvCode>
+                  <HelpKtvMutedText>
+                    MCP <code data-kg-help-xr-shortcut-mcp={shortcut.id}>{shortcut.mcpTool}</code>
+                  </HelpKtvMutedText>
+                  <HelpKtvCode className="font-mono">{JSON.stringify(shortcut.mcpInput)}</HelpKtvCode>
+                </HelpKtvValueStack>
+              )}
+              dataKgAnchor={`shortcut.${shortcut.id}`}
+            />
+          ))}
+          {filteredThreeKeyboardShortcuts.length === 0 && (
+            <HelpKtvRow
+              keyNode="No 3D / XR shortcuts matched"
+              iconKey="mainPanel.help"
+              valueNode={<HelpKtvMutedText>{UI_COPY.helpNoShortcutsMatched}</HelpKtvMutedText>}
             />
           )}
         </HelpKtvRows>

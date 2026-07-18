@@ -14,6 +14,7 @@ import {
 } from "../agentic-canvas-os-docs-runtime.js";
 import {
   buildAgentLiveProviderProofSummary,
+  buildProgressiveAgentsReadinessSummary,
   resolveAgentLiveProviderProofRevisionFromGitHub,
 } from "../agentic-canvas-os-docs-core.mjs";
 import { buildKnowgrphLocalMcpToolDefinitions, KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "../local-tool-contract.js";
@@ -40,6 +41,7 @@ test("local MCP descriptor exposes Agentic Canvas OS docs invocation as read-onl
   assert.equal(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.agenticCanvasOsDocsInvoke, AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME);
   assert.equal(descriptor.annotations.readOnlyHint, true);
   assert.equal(descriptor.inputSchema.properties.token.type, "string");
+  assert.equal(descriptor.outputSchema.properties.progressiveAgentsReadiness.additionalProperties, false);
 });
 
 test("live provider proof summary fails closed when canonical evidence is incomplete", () => {
@@ -51,6 +53,16 @@ test("live provider proof summary fails closed when canonical evidence is incomp
   assert.equal(result.status, "unavailable");
   assert.equal(result.providerCalls, 0);
   assert.equal(result.sourceUrl.includes("b".repeat(40)), true);
+});
+
+test("progressive Agents readiness fails closed when source evidence is incomplete", () => {
+  const result = buildProgressiveAgentsReadinessSummary({
+    markdown: "---\nschema: progressive-agents-runtime-contract/v1\nstatus: runtime-ready-dev\n---\n",
+    sourceRevision: "a".repeat(40),
+  });
+  assert.equal(result.status, "unavailable");
+  assert.equal(result.contractReady, false);
+  assert.equal(result.configured, null);
 });
 
 test("live provider proof revision falls back to exact read-only remote history", async () => {
@@ -101,6 +113,25 @@ test("local MCP docs invocation catalogs /, #, and @ entries from source docs", 
     finalAnswerOwners: { delegation: "manager", handoff: "specialist" },
     continuationContext: "all_turns",
     defaultWorkerConfigured: false,
+  });
+  assert.deepEqual(result.progressiveAgentsReadiness, {
+    schema: "progressive-agents-readiness-summary/v1",
+    status: "runtime-ready-dev",
+    sourceRevision: result.sourceRevision,
+    sourcePath: "docs/PROGRESSIVE-AGENTS.md",
+    sourceUrl: `https://github.com/huijoohwee/agentic-canvas-os/blob/${result.sourceRevision}/docs/PROGRESSIVE-AGENTS.md`,
+    contractSchema: "progressive-agents-runtime-contract/v1",
+    runtimeScope: "single-agent execution, tool-bearing agent execution, and explicit specialist workflow delegation",
+    runtimeOwner: "../agent-api/src/progressive-agents.js",
+    runtimeProof: "../__tests__/progressive-agents.test.mjs",
+    contractReady: true,
+    configured: false,
+    progressionPolicy: "single-agent-then-tools-then-specialists",
+    growthStages: ["single-agent", "tool-enabled-agent", "specialist-workflow"],
+    externalSdkDependency: false,
+    providerExecutionStatus: "unverified",
+    defaultWorkerConfigured: false,
+    deployPolicy: "Dev-only until explicit operator approval",
   });
   assert.ok(result.counts.command > 0, "slash command entries must be present");
   assert.ok(result.counts.semantic > 0, "hash semantic entries must be present");

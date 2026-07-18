@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import {
   AGENTIC_CANVAS_OS_DOCS_KIND_FILES,
   AGENTIC_CANVAS_OS_LIVE_AGENT_PROOF_FILE,
+  AGENTIC_CANVAS_OS_PROGRESSIVE_AGENTS_FILE,
 } from "./agentic-canvas-os-docs-contract.mjs";
 import {
   buildAgenticCanvasOsDocsInvokePayload,
@@ -16,6 +17,7 @@ const REQUIRED_DOC_FILE_NAMES = Object.freeze([
   "FACTS.md",
   ...Object.values(AGENTIC_CANVAS_OS_DOCS_KIND_FILES),
   AGENTIC_CANVAS_OS_LIVE_AGENT_PROOF_FILE,
+  AGENTIC_CANVAS_OS_PROGRESSIVE_AGENTS_FILE,
 ]);
 
 const normalizeText = (value) => String(value || "").trim();

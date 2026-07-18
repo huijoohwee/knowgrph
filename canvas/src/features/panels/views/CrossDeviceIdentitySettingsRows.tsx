@@ -2,6 +2,7 @@ import React from 'react'
 import { refreshAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import {
   isKnowgrphRuntimeIdentityFresh,
+  isProgressiveAgentsReadinessVerified,
   useKnowgrphRuntimeIdentity,
   type KnowgrphRuntimeIdentity,
 } from '@/features/runtime-identity/knowgrphRuntimeIdentity'
@@ -29,6 +30,11 @@ export function CrossDeviceIdentitySettingsRowsContent({
   const gatePassed = gate.status === 'pass'
   const agentProof = identity.agentLiveProviderProof
   const agentProofVerified = agentProof.status === 'verified-bounded-live'
+  const progressiveAgents = identity.progressiveAgentsReadiness
+  const progressiveAgentsVerified = isProgressiveAgentsReadinessVerified(
+    progressiveAgents,
+    identity.agenticCanvasOsRevision,
+  )
   const serializedDiagnostic = React.useMemo(() => `${JSON.stringify({ identity, gate }, null, 2)}\n`, [gate, identity])
   const copyIdentity = React.useCallback(async () => {
     try {
@@ -110,6 +116,46 @@ export function CrossDeviceIdentitySettingsRowsContent({
         valueNode={(
           <span className="min-w-0 break-words">
             delegation: {agentProof.finalAnswerOwners.delegation || 'unavailable'} · handoff: {agentProof.finalAnswerOwners.handoff || 'unavailable'}
+          </span>
+        )}
+      />
+      <KeyTypeValueStaticRow
+        {...staticRowProps}
+        keyNode={<span className="font-semibold">Progressive agents</span>}
+        typeNode={<code>readiness/v1</code>}
+        valueNode={(
+          <span
+            className={progressiveAgentsVerified ? 'text-emerald-400' : 'text-amber-400'}
+            data-kg-progressive-agents-readiness={progressiveAgents.status}
+            data-kg-progressive-agents-stages={progressiveAgents.growthStages.join('/')}
+          >
+            {progressiveAgents.status} · {progressiveAgentsVerified
+              ? 'single agent → tools → specialists'
+              : 'source evidence unavailable'}
+          </span>
+        )}
+      />
+      <KeyTypeValueStaticRow
+        {...staticRowProps}
+        keyNode="Agents contract"
+        typeNode={progressiveAgents.contractSchema || 'contract'}
+        valueNode={progressiveAgents.sourceUrl ? (
+          <a className="min-w-0 break-all underline" href={progressiveAgents.sourceUrl} target="_blank" rel="noreferrer">
+            <code>{progressiveAgents.runtimeOwner || progressiveAgents.sourcePath}</code>
+          </a>
+        ) : <code>{progressiveAgents.sourcePath}</code>}
+      />
+      <KeyTypeValueStaticRow
+        {...staticRowProps}
+        keyNode="Agents boundary"
+        typeNode="provider / Worker / SDK"
+        valueNode={(
+          <span
+            className="min-w-0 break-words"
+            data-kg-progressive-agents-provider={progressiveAgents.providerExecutionStatus}
+            data-kg-progressive-agents-worker={String(progressiveAgents.defaultWorkerConfigured)}
+          >
+            provider {progressiveAgents.providerExecutionStatus} · Worker {progressiveAgents.defaultWorkerConfigured === false ? 'unconfigured' : 'unavailable'} · external SDK {progressiveAgents.externalSdkDependency === false ? 'none' : 'unavailable'}
           </span>
         )}
       />

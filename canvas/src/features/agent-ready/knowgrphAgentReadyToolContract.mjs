@@ -109,6 +109,7 @@ const RUNTIME_IDENTITY_OUTPUT_SCHEMA = Object.freeze({
       required: [
         'schema', 'device', 'branch', 'knowgrphRevision', 'agenticCanvasOsRevision',
         'catalogRevision', 'catalogHydration', 'catalogCounts', 'agentLiveProviderProof',
+        'progressiveAgentsReadiness',
       ],
     },
     gate: {
