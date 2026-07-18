@@ -124,7 +124,7 @@ export function mergeStoryboardWidgetDraftGraphDataWithLiveAdditions(args: {
   const metadata = {
     ...((args.draftGraphData.metadata || {}) as Record<string, unknown>),
     ...((args.liveGraphData.metadata || {}) as Record<string, unknown>),
-  }
+  } as NonNullable<GraphData['metadata']>
   if (pendingNodeIds.length > 0) metadata[STORYBOARD_WIDGET_PENDING_APPEND_NODE_IDS] = pendingNodeIds
   else delete metadata[STORYBOARD_WIDGET_PENDING_APPEND_NODE_IDS]
   if (pendingEdgeIds.length > 0) metadata[STORYBOARD_WIDGET_PENDING_APPEND_EDGE_IDS] = pendingEdgeIds
