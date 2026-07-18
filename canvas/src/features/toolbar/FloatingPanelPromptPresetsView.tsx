@@ -105,7 +105,17 @@ export function FloatingPanelPromptPresetsView({
 
   const visiblePresets = React.useMemo(() => presets.filter(preset => matchesFloatingPanelCatalogSearch(
     search.normalizedSearchQuery,
-    [preset.id, preset.label, preset.slashCommand, preset.description, preset.activation],
+    [
+      preset.id,
+      preset.label,
+      preset.slashCommand,
+      preset.description,
+      preset.activation,
+      ...preset.invocationModes,
+      preset.chatRoute,
+      preset.mcpTool,
+      preset.mcpToken,
+    ],
   )), [presets, search.normalizedSearchQuery])
 
   const invokePreset = React.useCallback(async (preset: PromptPreset) => {
@@ -136,7 +146,7 @@ export function FloatingPanelPromptPresetsView({
     >
       <FloatingPanelCatalogHeader
         title="Prompt Presets"
-        subtitle="Source-backed Chat invocation catalog"
+        subtitle="Source-backed Chat response and MCP invocation catalog"
         actionsLabel="Prompt Presets actions"
         dataAttributes={{ 'data-kg-floating-panel-prompt-presets-header': '1' }}
         searchControl={(
