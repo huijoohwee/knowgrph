@@ -4,6 +4,7 @@ export const AGENTIC_CANVAS_OS_DOCS_CONTROL_PLANE_PATH = "/knowgrph/control-plan
 export const AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT = "agentic-canvas-os/docs";
 export const AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL =
   "https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs";
+export const AGENTIC_CANVAS_OS_LIVE_AGENT_PROOF_FILE = "LIVE-AGENT-PROVIDER-PROOF.md";
 
 export const AGENTIC_CANVAS_OS_DOCS_KIND_FILES = Object.freeze({
   command: "DICTIONARY-COMMAND.md",
@@ -41,12 +42,13 @@ export const AGENTIC_CANVAS_OS_DOCS_INPUT_SCHEMA = Object.freeze({
 export const AGENTIC_CANVAS_OS_DOCS_OUTPUT_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: true,
-  required: ["ok", "docsRoot", "sourceRootUrl", "sourceRevision", "catalog"],
+  required: ["ok", "docsRoot", "sourceRootUrl", "sourceRevision", "liveAgentProviderProof", "catalog"],
   properties: {
     ok: { type: "boolean" },
     docsRoot: { type: "string" },
     sourceRootUrl: { type: "string" },
     sourceRevision: { type: "string", pattern: "^[0-9a-f]{40}$" },
+    liveAgentProviderProof: { type: "object", additionalProperties: true },
     absoluteDocsRoot: { type: "string" },
     token: { type: "string" },
     invocation: { type: ["object", "null"], additionalProperties: true },

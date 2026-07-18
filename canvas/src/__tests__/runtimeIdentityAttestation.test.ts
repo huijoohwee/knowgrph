@@ -22,6 +22,26 @@ const buildIdentity = (
   catalogRevision: 'a'.repeat(40),
   catalogHydration: { status: 'fresh', attempts: 1 },
   catalogCounts: { slash: 78, hash: 94, at: 95 },
+  agentLiveProviderProof: {
+    schema: 'agent-live-provider-proof-summary/v1',
+    status: 'verified-bounded-live',
+    evidenceSchema: 'agent-live-provider-proof-contract/v1',
+    sourceStatus: 'runtime-ready-dev',
+    sourceRevision: 'a'.repeat(40),
+    proofRevision: 'd'.repeat(40),
+    sourcePath: 'docs/LIVE-AGENT-PROVIDER-PROOF.md',
+    sourceUrl: `https://github.com/huijoohwee/agentic-canvas-os/blob/${'d'.repeat(40)}/docs/LIVE-AGENT-PROVIDER-PROOF.md`,
+    model: 'gpt-5.6-sol',
+    reasoningEffort: 'low',
+    providerCalls: 3,
+    inputTokens: 576,
+    outputTokens: 53,
+    cachedInputTokens: 0,
+    estimatedCostUsd: 0.00447,
+    finalAnswerOwners: { delegation: 'manager', handoff: 'specialist' },
+    continuationContext: 'all_turns',
+    defaultWorkerConfigured: false,
+  },
   ...overrides,
 })
 
@@ -80,6 +100,30 @@ export async function testRuntimeIdentityAttestationBlocksMismatchReplayAndDupli
   })
   if (mismatchResult.status !== 'mismatch' || !mismatchResult.differences.includes('knowgrphRevision')) {
     throw new Error(`Expected exact SHA mismatch to fail closed, got ${JSON.stringify(mismatchResult)}`)
+  }
+
+  const proofMismatch = await buildEnvelope({
+    device: 'device-b',
+    runtimeInstanceId: 'runtime-proof',
+    identity: buildIdentity('device-b', {
+      agentLiveProviderProof: {
+        ...buildIdentity('device-b').agentLiveProviderProof,
+        proofRevision: 'e'.repeat(40),
+        sourceUrl: `https://github.com/huijoohwee/agentic-canvas-os/blob/${'e'.repeat(40)}/docs/LIVE-AGENT-PROVIDER-PROOF.md`,
+      },
+    }),
+  })
+  const proofMismatchResult = await verifyKnowgrphRuntimeIdentityAttestations({
+    sessionId: SESSION_ID,
+    challenge: CHALLENGE,
+    attestations: [matching, proofMismatch],
+    nowMs: NOW_MS + 1_000,
+  })
+  if (
+    proofMismatchResult.status !== 'mismatch'
+    || !proofMismatchResult.differences.includes('agentLiveProviderProof')
+  ) {
+    throw new Error(`Expected exact provider-proof SHA mismatch to fail closed, got ${JSON.stringify(proofMismatchResult)}`)
   }
 
   const replayed = await buildEnvelope({
