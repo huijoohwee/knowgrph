@@ -1,5 +1,4 @@
-//   * the tool list exposed at airvio.co/knowgrph/control-plane/mcp (Director + 5 stage
-//     tools) with both inputSchema and outputSchema (Property 26 / R14.4),
+//   * the tool list exposed at airvio.co/knowgrph/control-plane/mcp,
 //   * approval-gate enforcement at the McpAgent boundary so a remote
 //     invocation of an approval-gated stage tool before approval is withheld
 //     and leaves Run_Manifest state unchanged (Property 1 / R14.6).
@@ -14,9 +13,10 @@ import { AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, AGENTIC_CANVAS_OS_DOCS_TOOL_DEFIN
 import { buildAgenticCanvasOsDocsStaticResolutionPayload, buildAgenticCanvasOsDocsDynamicResolutionPayload } from "../../../mcp/agentic-canvas-os-docs-core.mjs";
 import { executeCloudflareOsStatusTool, KNOWGRPH_OS_STATUS_TOOL_NAME, OS_STATUS_TOOL_DEFINITION } from "./os-status-tool.mjs";
 import { AGENT_RUNTIME_TOOL_DEFINITION, AGENT_RUNTIME_TOOL_NAME, executeAgentRuntimeTool, executeAgentRuntimeToolAsync } from "./agent-runtime-tool.mjs";
+import { RUN_NOTE_TOOL_DEFINITION, RUN_NOTE_TOOL_NAME } from "./run-note-execution.mjs";
 
 export const KNOWGRPH_MCP_CONTRACT_VERSION = "knowgrph.mcp.video_remix/v0.1";
-export { AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, AGENT_RUNTIME_TOOL_NAME, KNOWGRPH_OS_STATUS_TOOL_NAME };
+export { AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, AGENT_RUNTIME_TOOL_NAME, KNOWGRPH_OS_STATUS_TOOL_NAME, RUN_NOTE_TOOL_NAME };
 export const KNOWGRPH_MCP_DIRECTOR_TOOL_NAME = "knowgrph.video_remix.run";
 
 export const KNOWGRPH_MCP_STAGE_TOOL_NAMES = Object.freeze({
@@ -450,7 +450,7 @@ export function buildKnowgrphMcpToolDefinitions() {
       gateId: KNOWGRPH_MCP_STAGE_GATES[tool.name] ?? null,
     },
   });
-  return [AGENT_RUNTIME_TOOL_DEFINITION, DIRECTOR_TOOL_DEFINITION, ...STAGE_TOOL_DEFINITIONS, OS_STATUS_TOOL_DEFINITION, AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION].map((tool) => {
+  return [AGENT_RUNTIME_TOOL_DEFINITION, DIRECTOR_TOOL_DEFINITION, ...STAGE_TOOL_DEFINITIONS, RUN_NOTE_TOOL_DEFINITION, OS_STATUS_TOOL_DEFINITION, AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION].map((tool) => {
     const decorated = decorate(tool);
     return tool.name === KNOWGRPH_OS_STATUS_TOOL_NAME || tool.name === AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME
       ? { ...decorated, annotations: { ...decorated.annotations, readOnlyHint: true } }

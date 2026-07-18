@@ -27,6 +27,10 @@ import {
   persistRunManifestThroughNamespace,
   readRunManifestThroughNamespace,
 } from "./persistence.mjs";
+import {
+  RUN_NOTE_TOOL_NAME,
+  executeRunNoteThroughNamespace,
+} from "../run-note-execution.mjs";
 
 /**
  * Run the Director and persist the resulting Run_Manifest in one step,
@@ -194,6 +198,8 @@ async function persistDirectorManifestThroughNamespace(
  *   readBackPathPrefix?: string,
  *   resolveLiveArgs?: (toolName: string, args: object) => Promise<object>|object,
  *   runtimeDeps?: object,
+ *   execution?: object,
+ *   idempotencyHeader?: string,
  * }} options
  */
 export async function dispatchKnowgrphMcpToolCall({
@@ -205,7 +211,24 @@ export async function dispatchKnowgrphMcpToolCall({
   readBackPathPrefix = RUN_MANIFEST_READBACK_PATH_PREFIX,
   resolveLiveArgs,
   runtimeDeps = {},
+  execution,
+  idempotencyHeader,
 } = {}) {
+  if (toolName === RUN_NOTE_TOOL_NAME) {
+    const structuredContent = await executeRunNoteThroughNamespace(namespace, {
+      args,
+      execution,
+      idempotencyHeader,
+    });
+    return {
+      ok: structuredContent?.ok === true,
+      structuredContent,
+      text: structuredContent?.ok === true
+        ? JSON.stringify(structuredContent, null, 2)
+        : String(structuredContent?.error?.message ?? "Run note execution failed."),
+    };
+  }
+
   // Env-gated live/mock pre-resolution (task 12.5). Default is the identity
   // function, so behavior is UNCHANGED unless the Worker injects a resolver
   // built from `resolveStageClients(env)`. When live, the Director's `args`

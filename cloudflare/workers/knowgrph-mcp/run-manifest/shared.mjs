@@ -11,6 +11,7 @@ export const RUN_MANIFEST_STORAGE_KEYS = Object.freeze({
   persistedAt: "persistedAt",
   runId: "runId",
   contractVersion: "contractVersion",
+  runNoteReceipts: "runNoteReceipts",
 });
 
 /**
