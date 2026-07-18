@@ -163,6 +163,10 @@ function isKeyboardMotionSurface(target: EventTarget | null): boolean {
   if (isEditableTarget(target)) return false
   const element = target instanceof Element ? target : null
   if (element?.closest('[data-kg-xr-lane-cast-mark][aria-pressed="true"], [data-kg-xr-lane-camera-mark][aria-pressed="true"]')) return true
+  const state = useGraphStore.getState()
+  if (state.floatingPanelOpen === true
+    && state.floatingPanelView === 'camera'
+    && element?.closest('[data-kg-floating-panel-view-trigger="camera"]')) return true
   return !element?.closest('button, a, summary, [role="button"], [role="menuitem"], [role="option"], [role="slider"], [role="tab"]')
 }
 

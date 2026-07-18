@@ -548,7 +548,7 @@ export function ToolbarToolMenu({
               floatingPanelView === spec.view ? uiPrimaryPillActiveClassName : UI_THEME_TOKENS.text.secondary
             }`}
             showTooltip
-            data-kg-spotlight-view={spec.spotlightView}
+            data-kg-floating-panel-view-trigger={spec.view} data-kg-spotlight-view={spec.spotlightView}
           >
             <Icon className={iconSizeClass} strokeWidth={uiIconStrokeWidth} aria-hidden={true} />
           </IconButton>

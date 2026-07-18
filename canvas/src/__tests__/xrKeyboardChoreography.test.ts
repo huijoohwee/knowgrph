@@ -160,6 +160,8 @@ export function testXrKeyboardChoreographySharesBrowserAndMcpMotion(): void {
   const cameraWebMcp = readFileSync(resolve(process.cwd(), 'src', 'features', 'agent-ready', 'cameraWebMcpTools.ts'), 'utf8')
   if (!browserAdapter.includes('resolveThreeCameraKeyboardFraming')
     || !browserAdapter.includes('resolveThreeObjectKeyboardMotionPosition')
+    || !browserAdapter.includes('[data-kg-floating-panel-view-trigger="camera"]')
+    || !readFileSync(resolve(process.cwd(), 'src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx'), 'utf8').includes('data-kg-floating-panel-view-trigger={spec.view}')
     || !cameraWebMcp.includes('async input => controlLocalCamera(input || {})')) {
     throw new Error('expected browser keys and WebMCP to delegate to the shared choreography owners')
   }
