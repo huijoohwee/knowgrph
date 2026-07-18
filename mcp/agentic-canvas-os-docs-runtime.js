@@ -7,7 +7,10 @@ import {
   AGENTIC_CANVAS_OS_DOCS_KIND_FILES,
   AGENTIC_CANVAS_OS_LIVE_AGENT_PROOF_FILE,
 } from "./agentic-canvas-os-docs-contract.mjs";
-import { buildAgenticCanvasOsDocsInvokePayload } from "./agentic-canvas-os-docs-core.mjs";
+import {
+  buildAgenticCanvasOsDocsInvokePayload,
+  resolveAgentLiveProviderProofRevisionFromGitHub,
+} from "./agentic-canvas-os-docs-core.mjs";
 
 const REQUIRED_DOC_FILE_NAMES = Object.freeze([
   "FACTS.md",
@@ -41,7 +44,11 @@ export const resolveAgenticCanvasOsDocsRevision = async ({ absoluteDocsRoot, env
   return revision;
 };
 
-export const resolveAgenticCanvasOsLiveProofRevision = async ({ absoluteDocsRoot, env = process.env }) => {
+export const resolveAgenticCanvasOsLiveProofRevision = async ({
+  absoluteDocsRoot,
+  sourceRevision,
+  env = process.env,
+}) => {
   const configuredRevision = normalizeText(env.KNOWGRPH_AGENTIC_CANVAS_OS_LIVE_PROOF_REVISION);
   if (configuredRevision) {
     if (!SOURCE_REVISION_PATTERN.test(configuredRevision)) {
@@ -55,9 +62,14 @@ export const resolveAgenticCanvasOsLiveProofRevision = async ({ absoluteDocsRoot
     "-C", repositoryRoot, "log", "--follow", "--diff-filter=A", "--format=%H", "--", proofPath,
   ]);
   const revisions = normalizeText(stdout).split(/\r?\n/).filter(Boolean);
-  const revision = revisions.at(-1) || "";
+  const localRevision = revisions.at(-1) || "";
+  if (SOURCE_REVISION_PATTERN.test(localRevision)) return localRevision;
+  const revision = await resolveAgentLiveProviderProofRevisionFromGitHub({
+    sourceRevision,
+    token: env.KNOWGRPH_GITHUB_TOKEN,
+  });
   if (!SOURCE_REVISION_PATTERN.test(revision)) {
-    throw new Error("Agentic Canvas OS live proof did not resolve to an exact introduction SHA");
+    throw new Error("Agentic Canvas OS live proof did not resolve to an exact introduction SHA from local or remote history");
   }
   return revision;
 };
@@ -77,7 +89,11 @@ export async function runAgenticCanvasOsDocsInvokeTool(args = {}, {
 } = {}) {
   const absoluteDocsRoot = resolveAgenticCanvasOsDocsRoot({ rootDir, env });
   const sourceRevision = await resolveAgenticCanvasOsDocsRevision({ absoluteDocsRoot, env });
-  const liveAgentProviderProofRevision = await resolveAgenticCanvasOsLiveProofRevision({ absoluteDocsRoot, env });
+  const liveAgentProviderProofRevision = await resolveAgenticCanvasOsLiveProofRevision({
+    absoluteDocsRoot,
+    sourceRevision,
+    env,
+  });
   const docsContentByFileName = {};
   const missing = [];
 

@@ -12,7 +12,10 @@ import {
   resolveAgenticCanvasOsDocsRoot,
   runAgenticCanvasOsDocsInvokeTool,
 } from "../agentic-canvas-os-docs-runtime.js";
-import { buildAgentLiveProviderProofSummary } from "../agentic-canvas-os-docs-core.mjs";
+import {
+  buildAgentLiveProviderProofSummary,
+  resolveAgentLiveProviderProofRevisionFromGitHub,
+} from "../agentic-canvas-os-docs-core.mjs";
 import { buildKnowgrphLocalMcpToolDefinitions, KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from "../local-tool-contract.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -48,6 +51,25 @@ test("live provider proof summary fails closed when canonical evidence is incomp
   assert.equal(result.status, "unavailable");
   assert.equal(result.providerCalls, 0);
   assert.equal(result.sourceUrl.includes("b".repeat(40)), true);
+});
+
+test("live provider proof revision falls back to exact read-only remote history", async () => {
+  const requests = [];
+  const revision = await resolveAgentLiveProviderProofRevisionFromGitHub({
+    sourceRevision: "a".repeat(40),
+    token: "test-token",
+    fetchImpl: async (url, init) => {
+      requests.push({ url, init });
+      return new Response(JSON.stringify([{ sha: "c".repeat(40) }, { sha: "b".repeat(40) }]), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    },
+  });
+  assert.equal(revision, "b".repeat(40));
+  assert.equal(requests.length, 1);
+  assert.match(requests[0].url, /sha=a{40}.*LIVE-AGENT-PROVIDER-PROOF\.md/);
+  assert.equal(requests[0].init.headers.authorization, "Bearer test-token");
 });
 
 test("local MCP docs invocation catalogs /, #, and @ entries from source docs", { skip: !DOCS_AVAILABLE }, async () => {

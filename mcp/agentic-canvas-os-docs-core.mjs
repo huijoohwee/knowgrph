@@ -111,6 +111,33 @@ export const buildAgentLiveProviderProofSummary = ({
   };
 };
 
+export const resolveAgentLiveProviderProofRevisionFromGitHub = async ({
+  sourceRevision = "",
+  fetchImpl = globalThis.fetch,
+  token = "",
+  requestInit = {},
+} = {}) => {
+  const normalizedSourceRevision = normalizeText(sourceRevision);
+  if (!SHA_PATTERN.test(normalizedSourceRevision) || typeof fetchImpl !== "function") return "";
+  const response = await fetchImpl(
+    `https://api.github.com/repos/huijoohwee/agentic-canvas-os/commits?sha=${normalizedSourceRevision}&path=docs/${AGENTIC_CANVAS_OS_LIVE_AGENT_PROOF_FILE}&per_page=100`,
+    {
+      ...requestInit,
+      headers: {
+        accept: "application/vnd.github+json",
+        "user-agent": "knowgrph-agentic-canvas-os-docs-runtime",
+        ...(normalizeText(token) ? { authorization: `Bearer ${normalizeText(token)}` } : {}),
+        ...(requestInit.headers || {}),
+      },
+    },
+  );
+  if (!response.ok) return "";
+  const proofCommits = await response.json();
+  return Array.isArray(proofCommits) && proofCommits.length > 0 && proofCommits.length < 100
+    ? normalizeText(proofCommits.at(-1)?.sha)
+    : "";
+};
+
 const parseDictionaryEntriesFromFrontmatter = (frontmatter) => {
   const entries = [];
   const lines = String(frontmatter || "").split(/\r?\n/);
@@ -365,30 +392,16 @@ export const buildAgenticCanvasOsDocsDynamicResolutionPayload = async (args = {}
     }
   };
 
-  const fetchLiveProofRevision = async () => {
-    const response = await fetch(
-      `https://api.github.com/repos/huijoohwee/agentic-canvas-os/commits?sha=${sourceRevision}&path=docs/${AGENTIC_CANVAS_OS_LIVE_AGENT_PROOF_FILE}&per_page=100`,
-      {
-        headers: {
-          accept: "application/vnd.github+json",
-          "user-agent": "knowgrph-agentic-canvas-os-docs-runtime",
-        },
-        cf: { cacheTtl: 86400, cacheEverything: true },
-      },
-    );
-    const proofCommits = response.ok ? await response.json() : [];
-    return Array.isArray(proofCommits) && proofCommits.length < 100
-      ? normalizeText(proofCommits.at(-1)?.sha)
-      : "";
-  };
-
   const [facts, command, semantic, binding, liveAgentProviderProof, liveAgentProviderProofRevision] = await Promise.all([
     fetchDoc("FACTS.md"),
     fetchDoc("DICTIONARY-COMMAND.md"),
     fetchDoc("DICTIONARY-SEMANTIC.md"),
     fetchDoc("DICTIONARY-BINDING.md"),
     fetchDoc(AGENTIC_CANVAS_OS_LIVE_AGENT_PROOF_FILE),
-    fetchLiveProofRevision(),
+    resolveAgentLiveProviderProofRevisionFromGitHub({
+      sourceRevision,
+      requestInit: { cf: { cacheTtl: 86400, cacheEverything: true } },
+    }),
   ]);
 
   return buildAgenticCanvasOsDocsInvokePayload({
