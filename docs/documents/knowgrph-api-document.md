@@ -41,6 +41,13 @@ API and MCP contracts are owned upstream in Dev. Production mirrors should recei
 
 ## Endpoints
 
+### Registered agent model runtime
+
+- Contract owners: `contracts/agent-model-runtime.js`, `contracts/agent-runtime.schema.js`, and `data/config/agents/agent-definitions.json`.
+- `POST /knowgrph/control-plane/agents/runs` keeps dry-runs deterministic. Live `/sme-care-agent` requests require bearer authentication and `paid-model-call` approval before model resolution or adapter dispatch.
+- The prepared SME Care definition declares text plus complete/per-run transport requirements. The Worker resolver reads the operator-selected `KNOWGRPH_AGENT_MODEL_ID`, emits a versioned provider/model/transport packet, and dispatches only to the packet's exact registered adapter id. The adapter consumes the prepared instructions and resolved model; it does not reread or override model selection.
+- The repository intentionally carries no default model id. Missing or incompatible configuration returns a typed blocked result. Focused tests use injected resolvers and adapters and make zero provider calls; a live-provider claim remains false until separately approved and evidenced.
+
 ### Remote media fetch proxy
 
 - Path: `/__fetch_remote?url=<encoded>`

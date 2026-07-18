@@ -309,6 +309,7 @@ function normalizeCameraMarks(
   value: unknown,
   durationSeconds: number,
   cast: readonly XrMotionReferenceCastTrack[],
+  subjects: readonly XrMotionReferenceSubject[],
 ): readonly XrMotionReferenceCameraMark[] {
   const source = boundedSourceWithLatest(value, XR_MOTION_REFERENCE_MAX_CAMERA_MARKS)
   const marks = source.map((item, index) => {
@@ -316,9 +317,10 @@ function normalizeCameraMarks(
     const timeSeconds = normalizeTime(record.timeSeconds, durationSeconds)
     const anchorId = String(record.anchorId || '').trim()
     const anchorTrack = cast.find(track => track.actorId === anchorId)
+    const anchorSubject = subjects.find(subject => subject.id === anchorId)
     const target = anchorTrack
       ? sampleXrMotionReferenceMarks(anchorTrack.marks, timeSeconds)
-      : [0, 0, 0] as const
+      : anchorSubject?.position || [0, 0, 0] as const
     const settings = Object.freeze(readStrybldrCameraSettings(record.settings))
     const rig = normalizeCameraRig(record.rig)
     return {
@@ -424,7 +426,7 @@ export function readXrMotionReferencePlan(value: unknown, nodes: readonly GraphN
     fps: normalizeFps(record.fps),
     subjects,
     cast,
-    camera: normalizeCameraMarks(record.camera, durationSeconds, cast),
+    camera: normalizeCameraMarks(record.camera, durationSeconds, cast, subjects),
   })
 }
 

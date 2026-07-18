@@ -16,6 +16,10 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import {
+  AGENT_MODEL_RUNTIME_SCHEMA,
+  createRunningAgentAdapterRegistry,
+} from "../../../../contracts/agent-model-runtime.js";
 
 import {
   buildKnowgrphMcpToolDefinitions,
@@ -96,6 +100,46 @@ test("generic agent runtime compiles each registered invocation through one zero
     assert.equal(result.structuredContent.status, "planned");
     assert.equal(result.structuredContent.budgetMeters.paidProviderCalls, 0);
   }
+});
+
+test("approved SME Care execution prepares a model packet and dispatches through its exact registered adapter", async () => {
+  let adapterCalls = 0;
+  const result = await executeKnowgrphMcpToolAsync(
+    AGENT_RUNTIME_TOOL_NAME,
+    {
+      invocation: "/sme-care-agent",
+      brief: "Assess the protection gap.",
+      mode: "live",
+      runId: "registered-adapter-proof",
+      approvals: ["paid-model-call"],
+    },
+    {
+      agentModelResolver: async () => ({
+        status: "ready",
+        packet: {
+          schemaVersion: AGENT_MODEL_RUNTIME_SCHEMA,
+          provider: { id: "cloudflare-workers-ai", revision: "test/v1", adapterId: "cloudflare-workers-ai" },
+          model: { id: "operator-selected-model", features: ["text"] },
+          transport: { id: "test-binding", delivery: "complete", connection: "per-run" },
+        },
+      }),
+      runningAgentAdapters: createRunningAgentAdapterRegistry([
+        {
+          id: "cloudflare-workers-ai",
+          execute: async ({ preparedAgent }) => {
+            adapterCalls += 1;
+            assert.equal(preparedAgent.id, "agent.sme-care");
+            assert.equal(preparedAgent.modelRuntime.model.id, "operator-selected-model");
+            return { text: "review-ready result" };
+          },
+        },
+      ]),
+    },
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.structuredContent.status, "completed");
+  assert.equal(result.structuredContent.result.text, "review-ready result");
+  assert.equal(adapterCalls, 1);
 });
 
 test("collectApprovedGateIds normalizes string and object entries", () => {

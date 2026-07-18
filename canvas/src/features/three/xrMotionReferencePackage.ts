@@ -134,7 +134,7 @@ function buildMotionSamples(plan: XrMotionReferencePlan): unknown[] {
     return {
       frame,
       timeSeconds,
-      camera: sampleXrMotionReferenceCameraPose(plan.camera, timeSeconds, plan.cast),
+      camera: sampleXrMotionReferenceCameraPose(plan.camera, timeSeconds, plan.cast, plan.subjects),
       cameraMove: sampleXrMotionReferenceCameraMoveId(plan.camera, timeSeconds),
       cameraRig: sampleXrMotionReferenceCameraRig(plan.camera, timeSeconds),
       cameraLensMm: sampleXrMotionReferenceCameraSettings(plan.camera, timeSeconds)?.focalLengthMm || 50,

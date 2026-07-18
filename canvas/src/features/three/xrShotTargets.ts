@@ -1,0 +1,73 @@
+import type {
+  XrMotionReferencePlan,
+  XrMotionReferenceVector,
+} from './xrMotionReferenceModel'
+import { sampleXrMotionReferenceMarks } from './xrMotionReferenceSampling'
+import { resolveXrMotionReferenceStage } from './xrSceneLibrary'
+
+export const XR_MOTION_REFERENCE_SCENE_SHOT_TARGET_ID = 'xr-shot:scene'
+
+export type XrShotTarget = Readonly<{
+  id: string
+  kind: 'scene' | 'object'
+  label: string
+  color: string
+  castActorId: string | null
+}>
+
+export function buildXrShotTargets(plan: XrMotionReferencePlan): readonly XrShotTarget[] {
+  const stagePreset = resolveXrMotionReferenceStage(plan.stageId)
+  const stage = Object.freeze<XrShotTarget>({
+    id: XR_MOTION_REFERENCE_SCENE_SHOT_TARGET_ID,
+    kind: 'scene',
+    label: `${stagePreset.label} scene`,
+    color: '#64748b',
+    castActorId: null,
+  })
+  const subjects = plan.subjects.map(subject => Object.freeze<XrShotTarget>({
+    id: subject.id,
+    kind: 'object',
+    label: subject.label,
+    color: subject.color,
+    castActorId: plan.cast.some(track => track.actorId === subject.id) ? subject.id : null,
+  }))
+  const subjectIds = new Set(plan.subjects.map(subject => subject.id))
+  const graphObjects = plan.cast
+    .filter(track => !subjectIds.has(track.actorId))
+    .map(track => Object.freeze<XrShotTarget>({
+      id: track.actorId,
+      kind: 'object',
+      label: track.label,
+      color: track.color,
+      castActorId: track.actorId,
+    }))
+  return Object.freeze([stage, ...subjects, ...graphObjects])
+}
+
+export function resolveXrShotTarget(plan: XrMotionReferencePlan, targetIdValue: string): XrShotTarget | null {
+  const targetId = String(targetIdValue || '').trim()
+  return buildXrShotTargets(plan).find(target => target.id === targetId) || null
+}
+
+export function resolveDefaultXrShotTargetId(
+  plan: XrMotionReferencePlan,
+  currentTargetId = '',
+  preferredActorId = '',
+): string {
+  if (resolveXrShotTarget(plan, currentTargetId)) return currentTargetId
+  if (resolveXrShotTarget(plan, preferredActorId)) return preferredActorId
+  return plan.cast[0]?.actorId
+    || plan.subjects[0]?.id
+    || XR_MOTION_REFERENCE_SCENE_SHOT_TARGET_ID
+}
+
+export function resolveXrShotTargetPosition(
+  plan: XrMotionReferencePlan,
+  targetIdValue: string,
+  timeSeconds: number,
+): XrMotionReferenceVector {
+  const targetId = String(targetIdValue || '').trim()
+  const track = plan.cast.find(candidate => candidate.actorId === targetId)
+  if (track) return sampleXrMotionReferenceMarks(track.marks, timeSeconds)
+  return plan.subjects.find(subject => subject.id === targetId)?.position || [0, 0, 0]
+}

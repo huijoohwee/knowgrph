@@ -1,7 +1,19 @@
+import { createRunningAgentAdapterRegistry } from "../../../contracts/agent-model-runtime.js";
+import {
+  createWorkersAiModelResolver,
+  WORKERS_AI_AGENT_ADAPTER_ID,
+} from "./agent-runtime-model-resolver.mjs";
+
 type AgentExecutionContext = {
   input: { brief?: unknown; context?: unknown };
-  run: { runId: string; agentDefinitionId: string; promptContract: string[] };
-  definition: { title: string; fallback: string } | null;
+  run: { runId: string; agentDefinitionId: string };
+  preparedAgent: {
+    instructions: string[];
+    modelRuntime: {
+      provider: { id: string; adapterId: string };
+      model: { id: string };
+    };
+  };
 };
 
 const readTextResult = (result: Record<string, unknown>): string => {
@@ -19,18 +31,14 @@ const readTextResult = (result: Record<string, unknown>): string => {
 
 export function createWorkersAiAgentAdapter(env: Env) {
   return {
+    id: WORKERS_AI_AGENT_ADAPTER_ID,
     async execute(context: AgentExecutionContext): Promise<Record<string, unknown>> {
-      const model = String(env.KNOWGRPH_AGENT_MODEL || "").trim();
-      if (!env.AI || !model) {
-        throw new Error("Workers AI binding or KNOWGRPH_AGENT_MODEL is not configured.");
+      const model = String(context.preparedAgent.modelRuntime.model.id || "").trim();
+      const provider = context.preparedAgent.modelRuntime.provider;
+      if (!env.AI || !model || provider.id !== WORKERS_AI_AGENT_ADAPTER_ID || provider.adapterId !== WORKERS_AI_AGENT_ADAPTER_ID) {
+        throw new Error("Prepared Workers AI model runtime is unavailable or incompatible.");
       }
-      const definition = context.definition;
-      const system = [
-        `You are the ${definition?.title || context.run.agentDefinitionId}.`,
-        ...(context.run.promptContract || []),
-        `Fallback: ${definition?.fallback || "Return a structured evidence-gap response."}`,
-        "Return source-grounded Markdown. Keep unknowns explicit and never invent citations, prices, policy coverage, or media URLs.",
-      ].join("\n");
+      const system = context.preparedAgent.instructions.join("\n");
       const result = await env.AI.run(model, {
         messages: [
           { role: "system", content: system },
@@ -41,11 +49,20 @@ export function createWorkersAiAgentAdapter(env: Env) {
         tags: ["knowgrph", context.run.agentDefinitionId, context.run.runId].map((tag) => tag.slice(0, 50)),
       });
       return {
-        provider: "cloudflare-workers-ai",
+        provider: WORKERS_AI_AGENT_ADAPTER_ID,
         model,
         text: readTextResult(result),
         ...("usage" in result && result.usage && typeof result.usage === "object" ? { usage: result.usage } : {}),
       };
     },
+  };
+}
+
+export function createWorkersAiRunningAgentRuntime(env: Env) {
+  return {
+    modelResolver: createWorkersAiModelResolver(env),
+    runningAgentAdapters: createRunningAgentAdapterRegistry([
+      createWorkersAiAgentAdapter(env),
+    ]),
   };
 }
