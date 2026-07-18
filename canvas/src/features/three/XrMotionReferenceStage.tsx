@@ -13,7 +13,6 @@ import {
   selectXrMotionReferenceCameraMark,
   selectXrMotionReferenceCastMark,
   setXrMotionReferenceCastMarkChoreography,
-  setXrMotionReferenceViewportControlActive,
   subscribeXrMotionReferenceRuntime,
 } from '@/features/three/xrMotionReferenceRuntime'
 import { selectBoundXrActor } from '@/features/three/xrSelectedActorBinding'
@@ -24,7 +23,13 @@ import { xrMotionReferenceWorldPosition } from '@/features/three/xrMotionReferen
 import { XrStagePresetGeometry } from '@/features/three/XrStagePresetGeometry'
 import { getVoxelLabelTexture } from '@/features/three/voxelLabelTexture'
 import { sampleXrAnimationPose } from '@/features/three/xrAnimationCatalog'
-import { xrViewportDragTerminationMatchesPointer } from '@/features/three/xrViewportControlsOwnership'
+import {
+  canStartThreeObjectDrag,
+  claimThreeObjectInputOwnership,
+  hasThreeObjectDragMoved,
+  releaseThreeObjectInputOwnership,
+  threeObjectDragTerminationMatchesPointer,
+} from '@/features/three/threeObjectInputOwnership'
 
 type XrCastTrack = ReturnType<typeof readXrMotionReferenceRuntime>['plan']['cast'][number]
 type XrCastMark = XrCastTrack['marks'][number]
@@ -53,13 +58,18 @@ function CastMarkControl({
 }) {
   const draggingRef = React.useRef(false)
   const activePointerIdRef = React.useRef<number | null>(null)
+  const dragStartClientRef = React.useRef<{ x: number; y: number } | null>(null)
+  const dragMovedRef = React.useRef(false)
+  const dragOffsetRef = React.useRef(new THREE.Vector3())
   const dragCursorTargetRef = React.useRef<HTMLElement | null>(null)
   const windowFinishRef = React.useRef<EventListener | null>(null)
+  const inputOwnerId = `xr:${controlSurface}:${actorId}:${mark.id}`
   const dragPlane = React.useMemo(
     () => new THREE.Plane(new THREE.Vector3(0, 1, 0), -(groundY + mark.position[1] * scale)),
     [groundY, mark.position, scale],
   )
   const clearDrag = React.useCallback(() => {
+    const activePointerId = activePointerIdRef.current
     const windowFinish = windowFinishRef.current
     if (windowFinish && typeof window !== 'undefined') {
       window.removeEventListener('pointerup', windowFinish)
@@ -72,13 +82,16 @@ function CastMarkControl({
     }
     windowFinishRef.current = null
     activePointerIdRef.current = null
+    dragStartClientRef.current = null
+    dragMovedRef.current = false
+    dragOffsetRef.current.set(0, 0, 0)
     const cursorTarget = dragCursorTargetRef.current
     dragCursorTargetRef.current = null
     if (cursorTarget?.style) cursorTarget.style.cursor = 'default'
     if (!draggingRef.current) return
     draggingRef.current = false
-    setXrMotionReferenceViewportControlActive(false)
-  }, [])
+    releaseThreeObjectInputOwnership(inputOwnerId, activePointerId ?? undefined)
+  }, [inputOwnerId])
   const finishDrag = React.useCallback((event?: ThreeEvent<PointerEvent>) => {
     const wasDragging = draggingRef.current
     clearDrag()
@@ -112,20 +125,26 @@ function CastMarkControl({
         selectXrMotionReferenceCastMark(actorId, mark.id)
       }}
       onPointerDown={event => {
-        if (event.button > 0) return
+        if (!canStartThreeObjectDrag(event.button)) return
         event.stopPropagation()
         if (draggingRef.current) return
+        const grabPoint = event.ray.intersectPlane(dragPlane, new THREE.Vector3())
+        if (!grabPoint) return
+        if (!claimThreeObjectInputOwnership(inputOwnerId, event.pointerId)) return
+        const markWorldPosition = xrMotionReferenceWorldPosition(mark.position, scale, groundY)
+        dragOffsetRef.current.set(...markWorldPosition).sub(grabPoint)
         selectBoundXrActor(actorId)
         selectXrMotionReferenceCastMark(actorId, mark.id)
         draggingRef.current = true
         activePointerIdRef.current = event.pointerId
+        dragStartClientRef.current = { x: event.clientX, y: event.clientY }
+        dragMovedRef.current = false
         dragCursorTargetRef.current = event.nativeEvent.target as HTMLElement | null
-        setXrMotionReferenceViewportControlActive(true)
         const finishWindowDrag: EventListener = nativeEvent => {
           if (nativeEvent.type === 'visibilitychange'
             && typeof document !== 'undefined'
             && document.visibilityState !== 'hidden') return
-          if (!xrViewportDragTerminationMatchesPointer(nativeEvent as PointerEvent, activePointerIdRef.current)) return
+          if (!threeObjectDragTerminationMatchesPointer(nativeEvent as PointerEvent, activePointerIdRef.current)) return
           clearDrag()
         }
         windowFinishRef.current = finishWindowDrag
@@ -145,10 +164,16 @@ function CastMarkControl({
         }
       }}
       onPointerMove={event => {
-        if (!draggingRef.current) return
+        if (!draggingRef.current || event.pointerId !== activePointerIdRef.current) return
         event.stopPropagation()
+        const dragStart = dragStartClientRef.current
+        if (!dragMovedRef.current && dragStart) {
+          dragMovedRef.current = hasThreeObjectDragMoved(dragStart, { x: event.clientX, y: event.clientY })
+        }
+        if (!dragMovedRef.current) return
         const point = event.ray.intersectPlane(dragPlane, new THREE.Vector3())
         if (!point) return
+        point.add(dragOffsetRef.current)
         const halfWidth = stageSizeMeters[0] / 2
         const halfDepth = stageSizeMeters[1] / 2
         const nextPosition = [
@@ -409,7 +434,7 @@ export function XrMotionReferenceStage({
     <group
       name="kg_xr_motion_reference_stage"
       renderOrder={THREE_RENDER_ORDER.groups - 10}
-      userData={{ schema: runtime.plan.schema, stageId: stage.id, playheadSeconds: runtime.playheadSeconds, selectedMark: runtime.selectedMark, viewportControlActive: runtime.viewportControlActive }}
+      userData={{ schema: runtime.plan.schema, stageId: stage.id, playheadSeconds: runtime.playheadSeconds, selectedMark: runtime.selectedMark }}
     >
       <XrStagePresetGeometry
         stage={stage}

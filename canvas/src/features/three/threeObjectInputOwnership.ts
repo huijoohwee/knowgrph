@@ -1,12 +1,8 @@
 import React from 'react'
-import {
-  readXrMotionReferenceRuntime,
-  subscribeXrMotionReferenceRuntime,
-} from './xrMotionReferenceRuntime'
 
 export type ThreeObjectInputOwnership = Readonly<{
   active: boolean
-  nodeId: string | null
+  objectId: string | null
   pointerId: number | null
   revision: number
 }>
@@ -18,7 +14,7 @@ export type ThreeViewportControlsTarget = {
 const listeners = new Set<() => void>()
 let ownership: ThreeObjectInputOwnership = Object.freeze({
   active: false,
-  nodeId: null,
+  objectId: null,
   pointerId: null,
   revision: 0,
 })
@@ -52,15 +48,22 @@ export function hasThreeObjectDragMoved(
   return Math.hypot(current.x - start.x, current.y - start.y) >= Math.max(0, thresholdPx)
 }
 
-export function claimThreeObjectInputOwnership(nodeId: string, pointerId: number): boolean {
-  const normalizedNodeId = String(nodeId || '').trim()
-  if (!normalizedNodeId || !Number.isFinite(pointerId)) return false
+export function threeObjectDragTerminationMatchesPointer(
+  event: { readonly pointerId?: unknown },
+  activePointerId: number | null,
+): boolean {
+  return typeof event.pointerId !== 'number' || event.pointerId === activePointerId
+}
+
+export function claimThreeObjectInputOwnership(objectId: string, pointerId: number): boolean {
+  const normalizedObjectId = String(objectId || '').trim()
+  if (!normalizedObjectId || !Number.isFinite(pointerId)) return false
   if (ownership.active) {
-    return ownership.nodeId === normalizedNodeId && ownership.pointerId === pointerId
+    return ownership.objectId === normalizedObjectId && ownership.pointerId === pointerId
   }
   ownership = Object.freeze({
     active: true,
-    nodeId: normalizedNodeId,
+    objectId: normalizedObjectId,
     pointerId,
     revision: ownership.revision + 1,
   })
@@ -68,12 +71,12 @@ export function claimThreeObjectInputOwnership(nodeId: string, pointerId: number
   return true
 }
 
-export function releaseThreeObjectInputOwnership(nodeId: string, pointerId?: number): void {
-  if (!ownership.active || ownership.nodeId !== String(nodeId || '').trim()) return
+export function releaseThreeObjectInputOwnership(objectId: string, pointerId?: number): void {
+  if (!ownership.active || ownership.objectId !== String(objectId || '').trim()) return
   if (typeof pointerId === 'number' && pointerId !== ownership.pointerId) return
   ownership = Object.freeze({
     active: false,
-    nodeId: null,
+    objectId: null,
     pointerId: null,
     revision: ownership.revision + 1,
   })
@@ -87,14 +90,11 @@ export function bindThreeViewportControlsOwnership(args: {
   const sync = () => {
     args.controls.enabled = args.baseEnabled
       && !readThreeObjectInputOwnership().active
-      && !readXrMotionReferenceRuntime().viewportControlActive
   }
   const unsubscribeObject = subscribeThreeObjectInputOwnership(sync)
-  const unsubscribeXr = subscribeXrMotionReferenceRuntime(sync)
   sync()
   return () => {
     unsubscribeObject()
-    unsubscribeXr()
   }
 }
 

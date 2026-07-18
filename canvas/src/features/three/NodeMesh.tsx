@@ -25,6 +25,7 @@ import {
   claimThreeObjectInputOwnership,
   hasThreeObjectDragMoved,
   releaseThreeObjectInputOwnership,
+  threeObjectDragTerminationMatchesPointer,
 } from './threeObjectInputOwnership'
 
 export function NodeMesh({
@@ -366,8 +367,7 @@ export function NodeMesh({
       if (nativeEvent.type === 'visibilitychange'
         && typeof document !== 'undefined'
         && document.visibilityState !== 'hidden') return
-      const pointerId = (nativeEvent as PointerEvent).pointerId
-      if (typeof pointerId === 'number' && pointerId !== activePointerIdRef.current) return
+      if (!threeObjectDragTerminationMatchesPointer(nativeEvent as PointerEvent, activePointerIdRef.current)) return
       clearDrag()
     }
     windowFinishRef.current = finishWindowDrag

@@ -320,7 +320,7 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
     await execTest(
       results,
       'ui.three.xrObjectDrag.synchronousViewportOwnership',
-      modXrViewportControlsOwnership.testXrViewportControlsOwnershipPublishesSynchronously,
+      modXrViewportControlsOwnership.testXrObjectInputOwnershipPublishesSynchronously,
     )
     await execTest(
       results,

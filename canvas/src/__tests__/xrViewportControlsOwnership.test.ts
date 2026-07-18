@@ -2,16 +2,13 @@ import { PerspectiveCamera } from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import {
-  xrViewportDragTerminationMatchesPointer,
-} from '@/features/three/xrViewportControlsOwnership'
-import { setXrMotionReferenceViewportControlActive } from '@/features/three/xrMotionReferenceRuntime'
-import {
   bindThreeViewportControlsOwnership,
   canStartThreeObjectDrag,
   claimThreeObjectInputOwnership,
   hasThreeObjectDragMoved,
   readThreeObjectInputOwnership,
   releaseThreeObjectInputOwnership,
+  threeObjectDragTerminationMatchesPointer,
 } from '@/features/three/threeObjectInputOwnership'
 
 function assertCondition(condition: unknown, message: string): void {
@@ -45,20 +42,20 @@ function dispatchPointer(
   target.dispatchEvent(event)
 }
 
-export function testXrViewportControlsOwnershipPublishesSynchronously() {
-  setXrMotionReferenceViewportControlActive(false)
+export function testXrObjectInputOwnershipPublishesSynchronously() {
+  releaseThreeObjectInputOwnership('xr:actor:actor-a:mark-a')
   const controls = { enabled: true }
   const unsubscribe = bindThreeViewportControlsOwnership({ controls, baseEnabled: true })
   try {
-    setXrMotionReferenceViewportControlActive(true)
+    claimThreeObjectInputOwnership('xr:actor:actor-a:mark-a', 7)
     assertCondition(!controls.enabled, 'expected XR object ownership to disable viewport controls before the setter returns')
-    setXrMotionReferenceViewportControlActive(false)
+    releaseThreeObjectInputOwnership('xr:actor:actor-a:mark-a', 7)
     assertCondition(controls.enabled, 'expected releasing XR object ownership to restore available viewport controls')
     unsubscribe()
-    setXrMotionReferenceViewportControlActive(true)
+    claimThreeObjectInputOwnership('xr:actor:actor-a:mark-a', 7)
     assertCondition(controls.enabled, 'expected disposal to detach the viewport ownership subscriber')
   } finally {
-    setXrMotionReferenceViewportControlActive(false)
+    releaseThreeObjectInputOwnership('xr:actor:actor-a:mark-a')
     unsubscribe()
   }
 
@@ -68,12 +65,12 @@ export function testXrViewportControlsOwnershipPublishesSynchronously() {
     baseEnabled: false,
   })
   try {
-    setXrMotionReferenceViewportControlActive(true)
-    setXrMotionReferenceViewportControlActive(false)
+    claimThreeObjectInputOwnership('xr:mark:actor-a:mark-a', 9)
+    releaseThreeObjectInputOwnership('xr:mark:actor-a:mark-a', 9)
     assertCondition(!externallyDisabledControls.enabled, 'expected drag release to preserve another camera owner')
   } finally {
     releaseExternalOwner()
-    setXrMotionReferenceViewportControlActive(false)
+    releaseThreeObjectInputOwnership('xr:mark:actor-a:mark-a')
   }
 }
 
@@ -88,7 +85,7 @@ export function testThreeObjectInputOwnershipPublishesSynchronously() {
     assertCondition(hasThreeObjectDragMoved({ x: 10, y: 10 }, { x: 14, y: 10 }), 'expected deliberate pointer motion to start object movement')
     assertCondition(claimThreeObjectInputOwnership('node-a', 7), 'expected the first pointer to claim object input')
     assertCondition(!controls.enabled, 'expected node pointerdown to synchronously disable viewport controls')
-    assertCondition(readThreeObjectInputOwnership().nodeId === 'node-a', 'expected ownership to identify the dragged node')
+    assertCondition(readThreeObjectInputOwnership().objectId === 'node-a', 'expected ownership to identify the dragged object')
     assertCondition(!claimThreeObjectInputOwnership('node-b', 8), 'expected a second pointer to be unable to steal object input')
     releaseThreeObjectInputOwnership('node-a', 8)
     assertCondition(!controls.enabled, 'expected a second pointer to preserve the active object owner')
@@ -102,15 +99,15 @@ export function testThreeObjectInputOwnershipPublishesSynchronously() {
 
 export function testXrViewportDragTerminationHonorsPointerOwnership() {
   assertCondition(
-    xrViewportDragTerminationMatchesPointer({ pointerId: 7 }, 7),
+    threeObjectDragTerminationMatchesPointer({ pointerId: 7 }, 7),
     'expected the active pointer to finish its XR object drag',
   )
   assertCondition(
-    !xrViewportDragTerminationMatchesPointer({ pointerId: 8 }, 7),
+    !threeObjectDragTerminationMatchesPointer({ pointerId: 8 }, 7),
     'expected a second pointer to leave the active XR object drag owned',
   )
   assertCondition(
-    xrViewportDragTerminationMatchesPointer({}, 7),
+    threeObjectDragTerminationMatchesPointer({}, 7),
     'expected non-pointer cancellation such as blur or hidden visibility to finish the XR object drag',
   )
 }
@@ -131,7 +128,6 @@ export function testThreeObjectDragSuppressesOrbitControlsBeforePointerMove() {
   controls.enableDamping = false
   controls.target.set(0, 0, 0)
   controls.update()
-  setXrMotionReferenceViewportControlActive(false)
 
   const resetPose = () => {
     camera.position.set(0, 0, 10)
@@ -180,7 +176,6 @@ export function testThreeObjectDragSuppressesOrbitControlsBeforePointerMove() {
     }
   } finally {
     releaseThreeObjectInputOwnership('node-a')
-    setXrMotionReferenceViewportControlActive(false)
     controls.dispose()
     restore()
   }
