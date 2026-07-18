@@ -14,6 +14,7 @@ import {
   hashScopedStringArraySignature,
   hashSignatureParts,
 } from '@/lib/hash/signature'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 
 export type FlowHandleDir = 'in' | 'out'
 
@@ -39,6 +40,17 @@ export function parseFlowHandleKey(handleId: FlowHandleId): string {
 export const FLOW_HANDLE_DEFAULT_EDGE_ID = '__flow_default_handle__' as const
 const FLOW_HANDLES_BY_NODE_CACHE_LIMIT = 32
 const flowHandlesByNodeCache = new Map<string, Record<string, FlowNodeHandles>>()
+const RICH_MEDIA_FLOW_PORT_PRIORITY_BY_TAB: Readonly<Record<string, ReadonlyArray<string>>> = {
+  text: ['output', 'outputSrcDoc', 'imageUrl', 'videoUrl', 'audioUrl'],
+  image: ['imageUrl', 'output', 'outputSrcDoc', 'videoUrl', 'audioUrl'],
+  video: ['videoUrl', 'imageUrl', 'audioUrl', 'outputSrcDoc', 'output'],
+  audio: ['audioUrl', 'videoUrl', 'imageUrl', 'outputSrcDoc', 'output'],
+}
+
+export function resolveRichMediaFlowPortPriority(activeTab: unknown): ReadonlyArray<string> {
+  const normalizedTab = String(unwrapGraphCellValue(activeTab) || '').trim().toLowerCase()
+  return RICH_MEDIA_FLOW_PORT_PRIORITY_BY_TAB[normalizedTab] || []
+}
 
 export function buildFlowHandleId(args: { dir: FlowHandleDir; edgeId: string }): FlowHandleId {
   const edgeId = String(args.edgeId || '').trim()
@@ -270,17 +282,7 @@ export function computeFlowHandlesByNode(args: {
     const props = node?.properties && typeof node.properties === 'object' && !Array.isArray(node.properties)
       ? (node.properties as Record<string, unknown>)
       : null
-    const activeTab = String(props?.richMediaActiveTab || '').trim()
-    const preferredKeys =
-      activeTab === 'text'
-        ? ['output', 'outputSrcDoc', 'imageUrl', 'videoUrl', 'audioUrl']
-        : activeTab === 'image'
-          ? ['imageUrl', 'output', 'outputSrcDoc', 'videoUrl', 'audioUrl']
-          : activeTab === 'video'
-            ? ['videoUrl', 'imageUrl', 'audioUrl', 'outputSrcDoc', 'output']
-            : activeTab === 'audio'
-              ? ['audioUrl', 'videoUrl', 'imageUrl', 'outputSrcDoc', 'output']
-              : []
+    const preferredKeys = resolveRichMediaFlowPortPriority(props?.richMediaActiveTab)
     if (preferredKeys.length === 0 || handles.length <= 1) return handles
     const handleById = new Map(handles.map(handle => [handle.id, handle] as const))
     const ordered = preferredKeys

@@ -4,7 +4,7 @@ import type { GraphEdge } from '@/lib/graph/types'
 import type { GraphNode } from '@/lib/graph/types'
 import type { GraphSchema } from '@/lib/graph/schema'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
-import { FLOW_HANDLE_DEFAULT_EDGE_ID, computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults, parseFlowHandleKey } from '@/components/FlowCanvas/handles'
+import { FLOW_HANDLE_DEFAULT_EDGE_ID, computeFlowHandlesByNode, ensureFlowHandlesHaveDefaults, parseFlowHandleKey, resolveRichMediaFlowPortPriority } from '@/components/FlowCanvas/handles'
 import { shouldInjectDefaultFlowHandles } from '@/lib/graph/portHandlesBehavior'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
@@ -380,7 +380,10 @@ export const WidgetEditorPortHandles = React.memo(function WidgetEditorPortHandl
     )
   }
 
-  const selectOuterHandle = String(args.node?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+  const richMediaProperties = isRecord(args.node?.properties) ? args.node.properties : null
+  const hasSemanticRichMediaPort = String(args.node?.type || '').trim() === FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
+    && resolveRichMediaFlowPortPriority(richMediaProperties?.richMediaActiveTab).length > 0
+  const selectOuterHandle = hasSemanticRichMediaPort
     ? selectPreferredFlowPortHandle
     : selectCenteredFlowPortHandle
   const inputHandles = selectOuterHandle(handles.in)

@@ -117,7 +117,7 @@ export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
     id: 'rich-media-panel',
     updatedAt: '2026-07-19T00:00:00.000Z',
   }
-  const renderRichMediaHandles = (richMediaActiveTab: 'text' | 'image') => {
+  const renderRichMediaHandles = (richMediaActiveTab: unknown) => {
     richMediaRoot.render(
       React.createElement(
         'div',
@@ -164,6 +164,24 @@ export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
   const imageOutput = richMediaHost.querySelector('button[data-kg-port-dir="out"]') as HTMLButtonElement | null
   if (imageInput?.dataset.kgPortKey !== 'imageUrl' || imageOutput?.dataset.kgPortKey !== 'imageUrl') {
     throw new Error(`expected image Rich Media rails to expose imageUrl, got ${imageInput?.dataset.kgPortKey}/${imageOutput?.dataset.kgPortKey}`)
+  }
+
+  renderRichMediaHandles({ key: 'richMediaActiveTab', type: 'string', value: 'video' })
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const typedVideoInput = richMediaHost.querySelector('button[data-kg-port-dir="in"]') as HTMLButtonElement | null
+  const typedVideoOutput = richMediaHost.querySelector('button[data-kg-port-dir="out"]') as HTMLButtonElement | null
+  if (typedVideoInput?.dataset.kgPortKey !== 'videoUrl' || typedVideoOutput?.dataset.kgPortKey !== 'videoUrl') {
+    throw new Error(`expected typed video Rich Media rails to expose videoUrl, got ${typedVideoInput?.dataset.kgPortKey}/${typedVideoOutput?.dataset.kgPortKey}`)
+  }
+
+  renderRichMediaHandles('auto')
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const autoInput = richMediaHost.querySelector('button[data-kg-port-dir="in"]') as HTMLButtonElement | null
+  const autoOutput = richMediaHost.querySelector('button[data-kg-port-dir="out"]') as HTMLButtonElement | null
+  if (autoInput?.dataset.kgPortKey !== 'videoUrl' || autoOutput?.dataset.kgPortKey !== 'videoUrl') {
+    throw new Error(`expected auto Rich Media rails to retain centered videoUrl fallback, got ${autoInput?.dataset.kgPortKey}/${autoOutput?.dataset.kgPortKey}`)
   }
 
   richMediaRoot.unmount()
