@@ -36,12 +36,12 @@ import {
 import {
   XR_MOTION_REFERENCE_CAMERA_BASELINE_METERS,
   resolveXrMotionReferenceStage,
-  sampleXrMotionReferenceMarks,
 } from './xrMotionReferenceModel'
 import {
   readXrMotionReferenceRuntime,
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
+import { resolveXrShotTarget, resolveXrShotTargetPosition } from './xrShotTargets'
 import { xrChoreographyCanDriveCamera, xrChoreographyOwnsCamera } from './xrCameraControlOwnership'
 import { useThreeObjectInputOwnership } from './threeObjectInputOwnership'
 import {
@@ -348,13 +348,14 @@ export function useCameraFramingControlsRuntime({
   const readContext = React.useCallback((): CameraFramingContext => {
     if (modelAssetFit) return contextFromModelPose(readModelAssetCameraPose(modelAssetFit))
     if (mode === 'xr' && framing.anchorId) {
-      const track = readXrMotionReferenceRuntime().plan.cast.find(candidate => candidate.actorId === framing.anchorId)
-      if (track) {
-        const runtime = readXrMotionReferenceRuntime()
+      const runtime = readXrMotionReferenceRuntime()
+      const shotTarget = resolveXrShotTarget(runtime.plan, framing.anchorId)
+      if (shotTarget) {
         const stage = resolveXrMotionReferenceStage(runtime.plan.stageId)
         const scale = XR_MOTION_STAGE_SPAN / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
-        const sampled = sampleXrMotionReferenceMarks(track.marks, runtime.playheadSeconds)
-        const target = xrMotionReferenceWorldPosition([sampled[0], sampled[1] + 1.2, sampled[2]], scale)
+        const sampled = resolveXrShotTargetPosition(runtime.plan, shotTarget.id, runtime.playheadSeconds)
+        const targetHeight = shotTarget.kind === 'object' ? 1.2 : 0
+        const target = xrMotionReferenceWorldPosition([sampled[0], sampled[1] + targetHeight, sampled[2]], scale)
         return {
           target,
           up: [0, 1, 0],

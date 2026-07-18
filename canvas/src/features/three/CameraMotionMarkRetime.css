@@ -25,6 +25,20 @@
   font-size: 8px;
 }
 
+.xr-shot-target-lane-label {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.xr-shot-target-lane-label[aria-pressed="true"] b {
+  color: var(--kg-canvas-accent, #2563eb);
+}
+
 .xr-camera-motion-retime-camera-swatch {
   border: 1px solid #64748b;
   background: #f8fafc;
@@ -73,6 +87,52 @@
   min-width: 0;
   background:
     repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), color-mix(in srgb, var(--kg-border, #cbd5e1) 20%, transparent) calc(10% - 1px), color-mix(in srgb, var(--kg-border, #cbd5e1) 20%, transparent) 10%);
+}
+
+.xr-shot-target-timeline-lane {
+  position: absolute;
+  inset: 0;
+}
+
+.xr-shot-target-timeline-bar {
+  position: absolute;
+  top: 5px;
+  right: 14px;
+  bottom: 5px;
+  left: 14px;
+  z-index: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--kg-xr-shot-target-color, #64748b) 58%, transparent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--kg-xr-shot-target-color, #64748b) 13%, transparent);
+  color: color-mix(in srgb, var(--kg-xr-shot-target-color, #64748b) 86%, var(--kg-text-primary, #0f172a));
+  cursor: pointer;
+  padding: 0 8px;
+  text-align: left;
+}
+
+.xr-shot-target-timeline-bar span {
+  display: block;
+  overflow: hidden;
+  font-size: 8px;
+  font-weight: 700;
+  opacity: 0.72;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xr-shot-target-timeline-lane[data-kg-xr-shot-target-selected="1"] .xr-shot-target-timeline-bar {
+  border-color: #facc15;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #facc15 56%, transparent);
+}
+
+.xr-shot-target-timeline-lane > .xr-camera-motion-retime-lane {
+  z-index: 1;
+}
+
+[data-kg-xr-timeline-shot-target="xr-shot:scene"] [data-kg-gantt-timeline-track-row-key*="xr_stage_scene"] {
+  outline: 2px solid #facc15;
+  outline-offset: 1px;
 }
 
 .timeline-video-sequence-inserted-lane .xr-camera-motion-retime-lane-mark.timeline-transport-time-axis-mark {

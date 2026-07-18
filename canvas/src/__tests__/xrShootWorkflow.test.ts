@@ -4,6 +4,7 @@ import type { GraphData } from '@/lib/graph/types'
 import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
   XR_MOTION_REFERENCE_MAX_CAMERA_MARKS,
+  readXrMotionReferencePlan,
   sampleXrMotionReferenceCameraRig,
   sampleXrMotionReferenceCameraSettings,
   serializeXrMotionReferencePlan,
@@ -33,12 +34,17 @@ import {
   selectXrMotionReferenceActor,
   selectXrMotionReferenceCameraMark,
   selectXrMotionReferenceCastMark,
+  selectXrMotionReferenceShotTarget,
   setXrMotionReferenceCameraMark,
   setXrMotionReferenceCameraRig,
   setXrMotionReferenceCastMarkArmed,
   setXrMotionReferenceDuration,
   setXrMotionReferencePlayhead,
 } from '@/features/three/xrMotionReferenceRuntime'
+import {
+  buildXrShotTargets,
+  XR_MOTION_REFERENCE_SCENE_SHOT_TARGET_ID,
+} from '@/features/three/xrShotTargets'
 
 function readSource(...parts: string[]): string {
   return readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
@@ -118,6 +124,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   const retimeCssSource = readSource('features', 'three', 'CameraMotionMarkRetime.css')
   const choreographyControlsSource = readSource('features', 'three', 'XrChoreographyMarkControls.tsx')
   const runtimeSource = readSource('features', 'three', 'xrMotionReferenceRuntime.ts')
+  const shotTargetSource = readSource('features', 'three', 'xrShotTargets.ts')
   const objectInputOwnershipSource = readSource('features', 'three', 'threeObjectInputOwnership.ts')
   const stageGeometrySource = readSource('features', 'three', 'XrStagePresetGeometry.tsx')
   const controlsSource = readSource('features', 'three', 'Controls.tsx')
@@ -131,6 +138,9 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     'data-kg-xr-shoot-camera-mark="1"',
     'XR_MOTION_REFERENCE_CAMERA_RIGS',
     "event.key.toLowerCase() === 'm'",
+    'data-kg-xr-shoot-target="scene-or-object"',
+    'selectBoundXrShotTarget',
+    'selectedShotTarget.id',
   ]) {
     if (!shootCameraSource.includes(marker)) throw new Error(`expected FloatingPanel Camera SHOOT to expose ${marker}`)
   }
@@ -164,10 +174,10 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   for (const marker of ['XR_CHOREOGRAPHY_EASINGS', 'XR_CHOREOGRAPHY_GAITS', 'data-kg-xr-mark-easing', 'data-kg-xr-mark-gait', 'data-kg-xr-speed-warning', 'showPosition', 'data-kg-xr-mark-position-layout="compact-timeline"', 'XYZ m']) {
     if (!choreographyControlsSource.includes(marker)) throw new Error(`expected shared choreography controls to expose ${marker}`)
   }
-  for (const marker of ['xr-camera-motion-retime-lane-label', 'xr-camera-motion-retime-lane-mark', 'position: absolute', 'inset: 0', 'top: 50%', 'transform: translate(-50%, -50%)', 'cursor: ew-resize', 'xr-camera-motion-mark-selection-controls--lane', '--kg-xr-mark-editor-translate-x', '[aria-pressed="true"]']) {
+  for (const marker of ['xr-camera-motion-retime-lane-label', 'xr-camera-motion-retime-lane-mark', 'position: absolute', 'inset: 0', 'top: 50%', 'transform: translate(-50%, -50%)', 'cursor: ew-resize', 'xr-camera-motion-mark-selection-controls--lane', '--kg-xr-mark-editor-translate-x', '[aria-pressed="true"]', 'xr-shot-target-timeline-bar', 'data-kg-xr-shot-target-selected']) {
     if (!retimeCssSource.includes(marker)) throw new Error(`expected cast and Camera marks to use dedicated shared-scale lanes through ${marker}`)
   }
-  for (const marker of ['<CameraMotionMarkRetime', 'layout="lane"', 'laneTarget={{ kind:', 'timelineInsertedLanes={[', "insertAfterLaneId: 'scene'", 'includeChoreographyCues: false', '<TimelineTransportInlineClip', '<TimelineTransportTimeAxisClip', 'data-kg-xr-choreography-shared-axis-rail', 'data-kg-xr-timeline-consolidated-lane="stage-output-ruler"', 'data-kg-xr-choreography-cast-lane-label', 'data-kg-xr-choreography-camera-lane-label', 'data-kg-xr-timeline-control-bar="stage-output"', 'data-kg-xr-timeline-cast-target="1"', 'aria-label="XR timeline cast target"', 'data-kg-xr-timeline-playhead-control="1"', 'aria-label="XR timeline playhead seconds"', 'data-kg-xr-timeline-seconds-control="time-axis"', 'aria-label="XR timeline seconds"', 'data-kg-xr-timeline-fps-control="time-axis"', 'aria-label="XR timeline FPS"', 'runtimeDurationSeconds={runtime.plan.durationSeconds}', 'runtimeFrameRate={runtime.plan.fps}', 'data-kg-xr-timeline-transport="reused-gantt-player"', '<GanttTimelineTransportPanel', 'supplementalLanes={', 'timeAxisControls={']) {
+  for (const marker of ['<CameraMotionMarkRetime', 'layout="lane"', 'laneTarget={{ kind:', 'timelineInsertedLanes={[', "insertAfterLaneId: 'scene'", 'includeChoreographyCues: false', '<TimelineTransportInlineClip', '<TimelineTransportTimeAxisClip', 'data-kg-xr-choreography-shared-axis-rail', 'data-kg-xr-timeline-consolidated-lane="stage-output-ruler"', 'data-kg-xr-choreography-cast-lane-label', 'data-kg-xr-choreography-camera-lane-label', 'data-kg-xr-timeline-control-bar="stage-output"', 'data-kg-xr-timeline-shot-target="1"', 'aria-label="XR timeline scene or 3D object shot target"', 'data-kg-xr-shot-target-lane', 'data-kg-xr-shot-target-bar', 'onSelectedRowKeyChange', 'onClickCapture', '[data-kg-gantt-timeline-track-row-key*="xr_stage_scene"]', 'XR_MOTION_REFERENCE_SCENE_SHOT_TARGET_ID', 'data-kg-xr-timeline-playhead-control="1"', 'aria-label="XR timeline playhead seconds"', 'data-kg-xr-timeline-seconds-control="time-axis"', 'aria-label="XR timeline seconds"', 'data-kg-xr-timeline-fps-control="time-axis"', 'aria-label="XR timeline FPS"', 'runtimeDurationSeconds={runtime.plan.durationSeconds}', 'runtimeFrameRate={runtime.plan.fps}', 'data-kg-xr-timeline-transport="reused-gantt-player"', '<GanttTimelineTransportPanel', 'supplementalLanes={', 'timeAxisControls={']) {
     if (!timelineSource.includes(marker)) throw new Error(`expected BottomPanel Timeline to own consolidated XR motion through ${marker}`)
   }
   for (const forbidden of ['layout="controls"', 'layout="ruler"', 'layout="time-axis"', 'data-kg-xr-timeline-control-bar="marks"', 'timeRulerOverlay={<CameraMotionMarkRetime', '--kg-xr-timeline-marks-height', '>Marks</span>']) {
@@ -208,17 +218,20 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   if (sharedCameraSource.includes('No storyboard card loaded.') || !sharedCameraSource.includes("data-kg-camera-framing-mode={selectedCard ? 'storyboard' : 'shared'}")) {
     throw new Error('expected globe-like shared Camera utilities to remain available without a storyboard card')
   }
-  for (const marker of ['onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}', 'dropXrMotionReferenceCastMark', 'MarkNumberSprite', 'markNumber: index + 1', 'kg_xr_motion_cast_mark_highlight_', 'runtime.selectedMark?.kind === \'cast\'', 'XR_MOTION_REFERENCE_SELECTION_COLOR', 'CastMarkControl', 'resolveCastControlMark', 'controlSurface="actor"', 'kgXrAnimationControl: true', 'event.ray.intersectPlane', 'setXrMotionReferenceCastMarkChoreography', 'claimThreeObjectInputOwnership(inputOwnerId, event.pointerId)', 'releaseThreeObjectInputOwnership(inputOwnerId', 'hasThreeObjectDragMoved', 'dragOffsetRef.current.set(...markWorldPosition).sub(grabPoint)', 'point.add(dragOffsetRef.current)', 'setPointerCapture(event.pointerId)', 'activePointerIdRef.current = event.pointerId', "window.addEventListener('lostpointercapture', finishWindowDrag, true)", "window.addEventListener('blur', finishWindowDrag)", "document.addEventListener('visibilitychange', finishWindowDrag)", "draggableAxes: 'xz'", 'onClick={event => {', 'selectXrMotionReferenceCameraMark(mark.id)', "window.addEventListener('pointercancel', finishWindowDrag)"]) {
+  for (const marker of ['onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}', 'dropXrMotionReferenceCastMark', 'MarkNumberSprite', 'markNumber: index + 1', 'kg_xr_motion_cast_mark_highlight_', 'runtime.selectedMark?.kind === \'cast\'', 'XR_MOTION_REFERENCE_SELECTION_COLOR', 'CastMarkControl', 'resolveCastControlMark', 'controlSurface="actor"', 'kgXrAnimationControl: true', 'event.ray.intersectPlane', 'setXrMotionReferenceCastMarkChoreography', 'claimThreeObjectInputOwnership(inputOwnerId, event.pointerId)', 'releaseThreeObjectInputOwnership(inputOwnerId', 'captureThreeObjectPointer(event)', 'hasThreeObjectDragMoved', 'dragOffsetRef.current.set(...markWorldPosition).sub(grabPoint)', 'point.add(dragOffsetRef.current)', 'activePointerIdRef.current = event.pointerId', "window.addEventListener('lostpointercapture', finishWindowDrag, true)", "window.addEventListener('blur', finishWindowDrag)", "document.addEventListener('visibilitychange', finishWindowDrag)", "draggableAxes: 'xz'", 'onClick={event => {', 'selectXrMotionReferenceCameraMark(mark.id)', "window.addEventListener('pointercancel', finishWindowDrag)"]) {
     if (!stageSource.includes(marker)) throw new Error(`expected direct numbered XR floor marking to expose ${marker}`)
   }
-  for (const marker of ['<XrSceneLibrarySubject', 'selected={runtime.selectedActorId === subject.id}', 'selectBoundXrActor(subject.id)']) {
-    if (!stageSource.includes(marker)) throw new Error(`expected timeline and stage asset selection to share actor state through ${marker}`)
+  for (const marker of ['<XrSceneLibrarySubject', 'selected={runtime.selectedShotTargetId === subject.id}', 'selectBoundXrShotTarget(subject.id)']) {
+    if (!stageSource.includes(marker)) throw new Error(`expected timeline, SHOOT, and stage asset selection to share shot-target state through ${marker}`)
   }
   for (const marker of ['kg_xr_scene_subject_selected_', 'onSelect?.()', 'event.stopPropagation()', 'XR_MOTION_REFERENCE_SELECTION_COLOR']) {
     if (!subjectSource.includes(marker)) throw new Error(`expected selectable XR assets to expose a visible stage highlight through ${marker}`)
   }
-  for (const marker of ['selectedMark: XrMotionReferenceMarkSelection', 'selectXrMotionReferenceCastMark', 'selectXrMotionReferenceCameraMark', 'resolveExistingXrMotionReferenceMarkSelection']) {
+  for (const marker of ['selectedMark: XrMotionReferenceMarkSelection', 'selectedShotTargetId: string', 'selectXrMotionReferenceShotTarget', 'selectXrMotionReferenceCastMark', 'selectXrMotionReferenceCameraMark', 'resolveExistingXrMotionReferenceMarkSelection']) {
     if (!runtimeSource.includes(marker)) throw new Error(`expected XR mark highlight selection runtime to expose ${marker}`)
+  }
+  for (const marker of ['XR_MOTION_REFERENCE_SCENE_SHOT_TARGET_ID', 'buildXrShotTargets', 'resolveDefaultXrShotTargetId', 'resolveXrShotTargetPosition']) {
+    if (!shotTargetSource.includes(marker)) throw new Error(`expected one shared Scene/3D Object SHOOT target owner through ${marker}`)
   }
   if (runtimeSource.includes('viewportControlActive') || runtimeSource.includes('setXrMotionReferenceViewportControlActive')) {
     throw new Error('expected XR object gestures to use the neutral three-object input owner instead of a runtime-local camera flag')
@@ -239,7 +252,8 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     || !controlsSource.includes("if (mode === 'xr')")) {
     throw new Error('expected scrub/play camera choreography to use the XR camera playback owner')
   }
-  if (!controlsSource.includes('bindThreeViewportControlsOwnership({')
+  if (!controlsSource.includes('useThreeObjectInputOwnership')
+    || !objectInputOwnershipSource.includes('bindThreeViewportControlsOwnership')
     || !objectInputOwnershipSource.includes('subscribeThreeObjectInputOwnership(sync)')
     || objectInputOwnershipSource.includes('readXrMotionReferenceRuntime')) {
     throw new Error('expected every 3D and XR object gesture to synchronously suspend camera controls through one neutral owner')
@@ -263,8 +277,40 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     if (implementation.includes(forbidden)) throw new Error(`expected the native SHOOT implementation to avoid external runtime token ${forbidden}`)
   }
 
+  const staticObjectPlan = readXrMotionReferencePlan({
+    durationSeconds: 6,
+    subjects: [{
+      id: 'chair-a',
+      assetId: 'furniture-chair',
+      label: 'Hero chair',
+      color: '#c084fc',
+      position: [3, 0, 2],
+      rotationYDegrees: 0,
+      scale: 1,
+    }],
+    camera: [{
+      timeSeconds: 0,
+      anchorId: 'chair-a',
+      settings: { angle: 'front', level: 'eye-level', shot: 'medium', note: '', orbitX: 0, orbitY: 0, focalLengthMm: 50 },
+    }],
+  })
+  const staticTargets = buildXrShotTargets(staticObjectPlan)
+  if (staticTargets[0]?.id !== XR_MOTION_REFERENCE_SCENE_SHOT_TARGET_ID
+    || !staticTargets.some(target => target.id === 'chair-a' && target.kind === 'object' && target.castActorId === null)
+    || staticObjectPlan.camera[0]?.pose.target.join('|') !== '3|0|2') {
+    throw new Error('expected SCENE and non-cast 3D Objects to remain first-class SHOOT targets with anchored camera poses')
+  }
+
   const graphData = buildShootGraph()
   hydrateXrMotionReferenceRuntime({ sceneKey: 'shoot-scene', nodes: graphData.nodes, persistedValue: null })
+  selectXrMotionReferenceActor('actor-a')
+  if (readXrMotionReferenceRuntime().selectedShotTargetId !== 'actor-a') {
+    throw new Error('expected cast selection to bind the matching SHOOT object target')
+  }
+  selectXrMotionReferenceShotTarget(XR_MOTION_REFERENCE_SCENE_SHOT_TARGET_ID)
+  if (readXrMotionReferenceRuntime().selectedShotTargetId !== XR_MOTION_REFERENCE_SCENE_SHOT_TARGET_ID) {
+    throw new Error('expected the Timeline SCENE bar to bind the shared SHOOT target')
+  }
   selectXrMotionReferenceActor('actor-a')
   setXrMotionReferenceDuration(6)
   setXrMotionReferencePlayhead(1)
@@ -304,6 +350,9 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   const finalCameraMark = readXrMotionReferenceRuntime().plan.camera.find(mark => mark.timeSeconds === 6)
   if (!finalCameraMark) throw new Error('expected SHOOT to drop a second camera mark')
   selectXrMotionReferenceCameraMark(finalCameraMark.id)
+  if (readXrMotionReferenceRuntime().selectedShotTargetId !== 'actor-a') {
+    throw new Error('expected camera mark selection to restore its linked 3D Object SHOOT target')
+  }
   retimeXrMotionReferenceCameraMark(finalCameraMark.id, 5.5)
   const shootPlan = readXrMotionReferenceRuntime().plan
   const retimedCameraMark = shootPlan.camera.find(mark => mark.timeSeconds === 5.5)

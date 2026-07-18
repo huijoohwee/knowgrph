@@ -9,6 +9,7 @@ import {
   setXrMotionReferenceCameraMark,
   setXrMotionReferenceCameraRig,
 } from './xrMotionReferenceRuntime'
+import { resolveXrShotTarget } from './xrShotTargets'
 
 export type ApplyXrCameraMoveResult = Readonly<{
   applied: boolean
@@ -25,8 +26,8 @@ export function applyXrCameraMove(args: {
   settings: StrybldrCameraSettings
 }): ApplyXrCameraMoveResult {
   const runtime = readXrMotionReferenceRuntime()
-  if (!runtime.plan.cast.some(track => track.actorId === args.anchorId)) {
-    return Object.freeze({ applied: false, message: 'Select a cast subject before applying a subject-bound Camera move.' })
+  if (!resolveXrShotTarget(runtime.plan, args.anchorId)) {
+    return Object.freeze({ applied: false, message: 'Select a Scene or 3D Object before applying a target-bound Camera move.' })
   }
   const drafts = buildXrCameraMoveMarkDrafts({
     ...args,

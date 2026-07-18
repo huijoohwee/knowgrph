@@ -68,7 +68,7 @@ export function XrCameraMovePresetControl({
   return (
     <section
       className={cn('grid gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}
-      aria-label="Subject-bound Camera moves"
+      aria-label="Scene or object-bound Camera moves"
       data-kg-xr-camera-move-controls="floating-camera-only"
       data-kg-xr-camera-move-timeline-owner="bottom-panel"
     >
@@ -76,7 +76,7 @@ export function XrCameraMovePresetControl({
         <Orbit className="mt-0.5 size-4 shrink-0" strokeWidth={1.8} aria-hidden />
         <section className="min-w-0">
           <h4 className="text-[10px] font-bold uppercase tracking-[0.12em]">Camera moves</h4>
-          <p className={cn('m-0 text-[9px]', UI_THEME_TOKENS.text.tertiary)}>Subject-bound presets author the shared Camera lane.</p>
+          <p className={cn('m-0 text-[9px]', UI_THEME_TOKENS.text.tertiary)}>Target-bound presets author linked marks in the shared Camera lane.</p>
         </section>
       </header>
       <section className="grid grid-cols-[minmax(0,1fr)_5.5rem] gap-2">
