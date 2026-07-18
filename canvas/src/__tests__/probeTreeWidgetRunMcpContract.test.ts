@@ -555,6 +555,7 @@ export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesD
     || !result?.message.includes('without continuing Probe-Tree')
     || publishedOutput?.panelLabel !== 'Generated Result'
     || publishedOutput?.outputKey !== 'probe-tree-generated-result'
+    || publishedOutput?.allowCreateStandaloneOutput !== true
     || !publishedText.startsWith('---\nschema: "knowgrph-rich-media-text/v1"\n')
     || !publishedText.includes('# Generated deliverable')
     || /<!doctype|<html\b/i.test(publishedText)

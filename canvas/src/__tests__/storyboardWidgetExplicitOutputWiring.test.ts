@@ -7,7 +7,11 @@ import {
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 
-function createTextOutputHarness(initialGraph: GraphData, storeGraph: GraphData = initialGraph) {
+function createTextOutputHarness(
+  initialGraph: GraphData,
+  storeGraph: GraphData = initialGraph,
+  allowCreateRichMediaPanel = true,
+) {
   let draft = initialGraph
   const resolveNode = (nodeId: string) => draft.nodes.find(node => String(node.id) === nodeId) || null
   const publishers = createStoryboardWidgetWorkflowRichMediaPublishers({
@@ -26,7 +30,7 @@ function createTextOutputHarness(initialGraph: GraphData, storeGraph: GraphData 
       storeNodeById: new Map(storeGraph.nodes.map(node => [String(node.id), node])),
     } as never,
     graphForRun: initialGraph,
-    allowCreateRichMediaPanel: true,
+    allowCreateRichMediaPanel,
     withRunLayoutMutationGuard: run => run(),
     scheduleWorkflowOutputEdgeRefresh: () => undefined,
     readLiveDraftGraphData: () => draft,
@@ -187,5 +191,42 @@ export function testSelectedChildRunRestoresExplicitTargetFromCanonicalGraph() {
     || panel?.properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]
   ) {
     throw new Error(`expected Run to restore only the selected child's explicit target edge, got ${JSON.stringify(published)}`)
+  }
+}
+
+export function testSelectedGenerationCreatesStandaloneResultDuringRunAll() {
+  const selectedChild: GraphNode = {
+    id: 'mcp-response-n1-qa1',
+    type: 'TextGeneration',
+    label: 'Selected Probe child',
+    properties: { parentNodeId: 'n1', probeTreeThreadRootId: 'n1', cardTypeLabel: 'Probe-Tree Card' },
+  }
+  const graph: GraphData = { type: 'Graph', nodes: [selectedChild], edges: [] }
+  const harness = createTextOutputHarness(graph, graph, false)
+
+  const published = harness.publishers.publishTextRunOutputToRichMediaPanel({
+    anchorNode: selectedChild,
+    baseGraphData: graph,
+    outputText: '# Generated result\n\nStandalone until the user wires it.',
+    title: 'Generated Result',
+    model: 'test-model',
+    outputKey: 'probe-tree-generated-result',
+    outputGroupId: 'probe-tree:n1',
+    panelLabel: 'Generated Result',
+    panelProperties: { probeTreeTerminalGeneration: true },
+    allowCreateStandaloneOutput: true,
+  })
+
+  const resultPanel = published?.nodes.find(node => node.label === 'Generated Result')
+  if (
+    !published
+    || published.nodes.length !== 2
+    || published.edges.length !== 0
+    || resultPanel?.properties.output !== '# Generated result\n\nStandalone until the user wires it.'
+    || resultPanel?.properties.workflowOutputAnchorNodeId !== 'mcp-response-n1-qa1'
+    || resultPanel?.properties.workflowOutputKey !== 'probe-tree-generated-result'
+    || resultPanel?.properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY] !== WORKFLOW_OUTPUT_EDGE_MODE_MANUAL
+  ) {
+    throw new Error(`expected Run All terminal generation to publish one standalone manual result, got ${JSON.stringify(published)}`)
   }
 }

@@ -80,6 +80,7 @@ export async function runStoryboardWidgetProbeTreeTerminalGeneration(args: {
     outputIndex: 1,
     panelLabel: GENERATED_RESULT_PANEL_LABEL,
     panelProperties: { probeTreeTerminalGeneration: true },
+    allowCreateStandaloneOutput: true,
   })
   if (!publishedGraphData) throw new Error('The selected generation request could not publish its Rich Media result.')
   args.onMaterialized([])
