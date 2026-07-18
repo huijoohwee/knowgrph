@@ -26,6 +26,7 @@ test('collaboration browser gate edits through the canonical active editor owner
   assert.match(smoke, /editorSurfaceCount !== 1/)
   assert.match(smoke, /editorRoot\?\.contains\(document\.activeElement\)/)
   assert.match(smoke, /keyboard\.insertText/)
+  assert.match(smoke, /assertRoomStatus\(WORKER_URL, basename\(DOC_PATH\)\)/)
   assert.doesNotMatch(smoke, /graphState\.setActiveMarkdownDocument/)
 })
 
