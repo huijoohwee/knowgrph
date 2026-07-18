@@ -10,6 +10,7 @@ const modXrMotionReferencePackage = () => import('@/__tests__/xrMotionReferenceP
 const modXrCameraMoves = () => import('@/__tests__/xrCameraMoves.test')
 const modXrShootWorkflow = () => import('@/__tests__/xrShootWorkflow.test')
 const modXrAnimationRuntime = () => import('@/__tests__/xrAnimationRuntime.test')
+const modXrKeyboardChoreography = () => import('@/__tests__/xrKeyboardChoreography.test')
 const modWorkspaceImportXrSpatialCaptureIngestion = () => import('@/__tests__/workspaceImportXrSpatialCaptureIngestion.test')
 const modWorkspaceImportXrSpatialCaptureLaunchUrl = () => import('@/__tests__/workspaceImportXrSpatialCaptureLaunchUrl.test')
 const modWorkspaceImportXrSpatialCaptureRuntime = () => import('@/__tests__/workspaceImportXrSpatialCaptureRuntime.test')
@@ -101,6 +102,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'canvas.xrMode.animationRuntime', async () => {
     const mod = await modXrAnimationRuntime()
     await mod.testXrAnimationRuntimeIsNativeInvocableAndExportable()
+  })
+  await execTest(results, 'canvas.xrMode.keyboardChoreography', async () => {
+    const mod = await modXrKeyboardChoreography()
+    await mod.testXrKeyboardChoreographySharesBrowserAndMcpMotion()
   })
   await execTest(results, 'workspace.import.xrSpatialCapture.localPlyManifestCache', async () => {
     const mod = await modWorkspaceImportXrSpatialCaptureIngestion()

@@ -285,7 +285,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 - [x] `https://airvio.co/knowgrph/share/{opaque-token}` negotiates to storage-backed Markdown
 - [x] smoke validation probes a canonical published shared document URL instead of skipping the route
 - [x] `/.well-known/agent-card.json` and `/knowgrph/.well-known/agent-card.json` both return JSON
-- [x] browser runtime exposes all 26 shared app contracts: 23 read-only retrieval/inspection tools plus `knowgrph.control_local_camera`, `knowgrph.control_local_animation`, and `knowgrph.control_local_xr_scene`; Animation inspection/control is included explicitly
+- [x] browser runtime exposes all 26 shared app contracts: 23 read-only retrieval/inspection tools plus `knowgrph.control_local_camera`, `knowgrph.control_local_animation`, and `knowgrph.control_local_xr_scene`; Camera framing/mark choreography and Animation object movement reuse the shared normalized WASD/arrow owner
 - [x] HTML fallback exposes WebMCP markers plus scanner-visible `provideContext` and `registerTool`
 - [x] JSON-RPC MCP `initialize` returns a valid result
 - [x] JSON-RPC MCP `tools/list` returns the shared read-only published tool set

@@ -597,8 +597,8 @@ export function setXrMotionReferenceCastMarkChoreography(args: {
   return edit ? updatePlan(edit) : snapshot
 }
 
-export function setXrMotionReferenceCameraMarkEasing(markId: string, easing: XrChoreographyEasing): XrMotionReferenceRuntimeSnapshot {
-  const edit = buildCameraMarkChoreographyEdit(snapshot.plan, markId, easing)
+export function setXrMotionReferenceCameraMarkChoreography(args: Readonly<{ markId: string; easing?: XrChoreographyEasing; settings?: StrybldrCameraSettings }>): XrMotionReferenceRuntimeSnapshot {
+  const edit = buildCameraMarkChoreographyEdit(snapshot.plan, args)
   return edit ? updatePlan(edit) : snapshot
 }
 
