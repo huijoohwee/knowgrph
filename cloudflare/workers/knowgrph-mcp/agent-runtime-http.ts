@@ -2,7 +2,7 @@ import {
   AGENT_RUN_OUTPUT_SCHEMA_ID,
   executeAgentRun,
 } from "../../../contracts/agent-runtime.schema.js";
-import { createWorkersAiAgentAdapter } from "./agent-runtime-adapter";
+import { createWorkersAiRunningAgentRuntime } from "./agent-runtime-adapter";
 import { readRunManifestThroughNamespace } from "./run-manifest-store.mjs";
 
 export const AGENTS_PATH = "/knowgrph/control-plane/agents";
@@ -12,6 +12,7 @@ const MAX_AGENT_RUN_BODY_BYTES = 64 * 1024;
 
 export type AgentRuntimeHttpEnv = Env & {
   KNOWGRPH_AGENT_RUNTIME_BEARER_TOKEN?: string;
+  KNOWGRPH_AGENT_MODEL_ID?: string;
 };
 
 export type RuntimeAuthorization = {
@@ -143,7 +144,7 @@ export async function handleAgentRun(
   }
 
   const result = await executeAgentRun(input, {
-    adapter: createWorkersAiAgentAdapter(env),
+    ...createWorkersAiRunningAgentRuntime(env),
   });
   const payload = result.payload || {
     contractVersion: AGENT_RUN_OUTPUT_SCHEMA_ID,

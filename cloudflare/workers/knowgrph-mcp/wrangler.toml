@@ -19,7 +19,9 @@ enabled = true
 [vars]
 KNOWGRPH_MCP_PUBLIC_BASE_URL = "https://airvio.co"
 KNOWGRPH_MCP_TOOL_LIST_NAME = "knowgrph-video-remix"
-KNOWGRPH_AGENT_MODEL = "@cf/aisingapore/gemma-sea-lion-v4-27b-it"
+# Live SME Care execution also requires an operator-selected model identifier.
+# Keep it out of the repository default and configure KNOWGRPH_AGENT_MODEL_ID
+# in the target Worker environment before requesting bounded live proof.
 # Required before serving authenticated MCP, agent-run POST, or persisted-run reads:
 #   npx wrangler secret put KNOWGRPH_AGENT_RUNTIME_BEARER_TOKEN --config cloudflare/workers/knowgrph-mcp/wrangler.toml
 # task 12.5 — env-gated live/mock stage clients. Default "0" keeps the Director

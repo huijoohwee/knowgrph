@@ -23,6 +23,24 @@ const fail = (message) => {
 
 const equalJson = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 
+const readFrontmatterStringArray = (frontmatter, key) => {
+  const lines = String(frontmatter || "").split(/\r?\n/);
+  const keyIndex = lines.findIndex((line) => line.startsWith(`${key}:`));
+  if (keyIndex < 0) return [];
+  const inline = lines[keyIndex].slice(`${key}:`.length).trim();
+  if (inline) {
+    const parsed = JSON.parse(inline);
+    return Array.isArray(parsed) && parsed.every((value) => typeof value === "string") ? parsed : [];
+  }
+  const values = [];
+  for (const line of lines.slice(keyIndex + 1)) {
+    const match = line.match(/^\s{2}-\s+["']?([^"']+?)["']?\s*$/);
+    if (!match) break;
+    values.push(match[1]);
+  }
+  return values;
+};
+
 async function readContract() {
   const contract = await readRuntimeReadinessContract();
   if (!equalJson(contract.stage_contract?.order, VIDEO_REMIX_STAGE_ORDER)) {
@@ -55,10 +73,16 @@ async function verifyDocs(contract) {
     }
   }
   const skillsSource = await fs.readFile(path.join(docsRoot, "SKILLS.md"), "utf8");
+  const skillsFrontmatter = skillsSource.match(/^---\n([\s\S]*?)\n---/)?.[1] || "";
+  let catalogVariants = [];
+  try {
+    catalogVariants = readFrontmatterStringArray(skillsFrontmatter, "skill_variants");
+  } catch {
+    fail("Agentic Canvas OS SKILLS.md skill_variants is not a valid string array");
+  }
   const agentVariants = listAgentDefinitions().map((definition) => {
-    const expectedRowPrefix = `| \`${definition.id}\` | \`${definition.invocation}\` |`;
-    if (!skillsSource.includes(expectedRowPrefix)) {
-      fail(`Agentic Canvas OS SKILLS.md did not authorize ${definition.id} -> ${definition.invocation}`);
+    if (!catalogVariants.includes(definition.id)) {
+      fail(`Agentic Canvas OS SKILLS.md did not catalog ${definition.id}`);
     }
     return { id: definition.id, invocation: definition.invocation };
   });

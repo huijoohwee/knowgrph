@@ -1,4 +1,5 @@
 import registryDocument from "../data/config/agents/agent-definitions.json" with { type: "json" };
+import { prepareAgentDefinition } from "./agent-model-runtime.js";
 
 export const AGENT_DEFINITION_REGISTRY_SCHEMA = "knowgrph.agent-definition-registry/v1";
 export const AGENT_RUN_INPUT_SCHEMA_ID = "knowgrph.agent-run.input/v1";
@@ -69,6 +70,21 @@ export function validateAgentDefinitionRegistry(document = registryDocument) {
       if (definition.skillOutputSchemaRef !== "knowgrph-sme-risk-run/v1") add(`${path}.skillOutputSchemaRef`, "must reference the SME run schema");
       if (definition.topology?.pattern !== "fan-out/fan-in" || definition.topology?.maxIterations !== 1) add(`${path}.topology`, "must declare bounded fan-out/fan-in topology");
       if (definition.bounds?.maxWallSeconds > 300 || definition.bounds?.tokenBudget > 100000) add(`${path}.bounds`, "must stay within the SME timeout and token budget");
+      if (definition.modelRequirements?.providerId !== "cloudflare-workers-ai") add(`${path}.modelRequirements.providerId`, "must select the registered Workers AI provider");
+      if (!definition.modelRequirements?.features?.includes("text")) add(`${path}.modelRequirements.features`, "must require text generation");
+      if (definition.modelRequirements?.transport?.delivery !== "complete" || definition.modelRequirements?.transport?.connection !== "per-run") {
+        add(`${path}.modelRequirements.transport`, "must require complete, per-run delivery");
+      }
+    }
+    if (definition.modelRequirements !== undefined) {
+      if (!isObject(definition.modelRequirements)) add(`${path}.modelRequirements`, "must be an object");
+      if (!nonEmpty(definition.modelRequirements?.providerId)) add(`${path}.modelRequirements.providerId`, "must be a non-empty string");
+      if (!Array.isArray(definition.modelRequirements?.features) || !definition.modelRequirements.features.every(nonEmpty)) {
+        add(`${path}.modelRequirements.features`, "must be a string array");
+      }
+      if (!nonEmpty(definition.modelRequirements?.transport?.delivery) || !nonEmpty(definition.modelRequirements?.transport?.connection)) {
+        add(`${path}.modelRequirements.transport`, "must declare delivery and connection");
+      }
     }
     for (const field of ["capabilities", "policyRefs", "renderers", "vccs", "promptContract"]) {
       if (!Array.isArray(definition[field]) || definition[field].length === 0 || !definition[field].every(nonEmpty)) {
@@ -125,7 +141,7 @@ export const AGENT_RUN_INPUT_SCHEMA = Object.freeze({
     brief: { type: "string", minLength: 1, maxLength: MAX_BRIEF_CHARS },
     mode: { type: "string", enum: ["dry-run", "live"], default: "dry-run" },
     runId: { type: "string", minLength: 1, maxLength: 128 },
-    providerMode: { type: "string", enum: ["workers-ai", "byteplus-modelark", "mock"], default: "workers-ai" },
+    providerMode: { type: "string", enum: ["workers-ai", "byteplus-modelark", "mock"] },
     approvals: { type: "array", items: { oneOf: [{ type: "string" }, { type: "object", additionalProperties: true }] } },
     context: { type: "object", additionalProperties: true },
   },
@@ -146,6 +162,7 @@ export const AGENT_RUN_OUTPUT_SCHEMA = Object.freeze({
     plan: { type: "object", additionalProperties: true },
     budgetMeters: { type: "object", additionalProperties: true },
     result: { type: "object", additionalProperties: true },
+    modelRuntime: { type: "object", additionalProperties: true },
     error: { type: "object", additionalProperties: true },
   },
 });
@@ -160,6 +177,9 @@ function validateAgentRunInput(input) {
   if (!nonEmpty(input.brief)) errors.push({ path: "brief", reason: "must be a non-empty string" });
   if (typeof input.brief === "string" && input.brief.length > MAX_BRIEF_CHARS) errors.push({ path: "brief", reason: `must be at most ${MAX_BRIEF_CHARS} characters` });
   if (input.mode !== undefined && !["dry-run", "live"].includes(input.mode)) errors.push({ path: "mode", reason: "must be dry-run or live" });
+  if (input.mode === "live" && input.providerMode !== undefined && input.providerMode !== "workers-ai") {
+    errors.push({ path: "providerMode", reason: "live prepared-agent execution resolves through workers-ai" });
+  }
   return { valid: errors.length === 0, errors, definition: byId || byInvocation };
 }
 
@@ -216,19 +236,41 @@ export function compileAgentRun(input, { createRunId = () => crypto.randomUUID()
   };
 }
 
-export async function executeAgentRun(input, { adapter, createRunId } = {}) {
+export async function executeAgentRun(input, { modelResolver, runningAgentAdapters, createRunId } = {}) {
   const compiled = compileAgentRun(input, { createRunId });
   if (!compiled.payload || compiled.payload.status !== "ready") return compiled;
-  if (!adapter || typeof adapter.execute !== "function") {
-    return { ok: false, payload: { ...compiled.payload, status: "blocked", error: { code: "execution_adapter_unavailable" } } };
+  const preparation = await prepareAgentDefinition(
+    resolveAgentDefinition(compiled.payload.agentDefinitionId),
+    { resolveModel: modelResolver },
+  );
+  if (!preparation.ok) {
+    return { ok: false, payload: { ...compiled.payload, status: "blocked", error: preparation.error } };
+  }
+  const adapterId = preparation.preparedAgent.modelRuntime.provider.adapterId;
+  const adapter = runningAgentAdapters?.resolve?.(adapterId);
+  if (!adapter) {
+    return {
+      ok: false,
+      payload: {
+        ...compiled.payload,
+        status: "blocked",
+        modelRuntime: preparation.preparedAgent.modelRuntime,
+        error: { code: "running_agent_adapter_unavailable", adapterId },
+      },
+    };
   }
   try {
-    const result = await adapter.execute({ input: { ...input }, run: compiled.payload, definition: resolveAgentDefinition(compiled.payload.agentDefinitionId) });
+    const result = await adapter.execute({
+      input: { ...input },
+      run: compiled.payload,
+      preparedAgent: preparation.preparedAgent,
+    });
     return {
       ok: true,
       payload: {
         ...compiled.payload,
         status: "completed",
+        modelRuntime: preparation.preparedAgent.modelRuntime,
         result,
         budgetMeters: {
           ...compiled.payload.budgetMeters,
@@ -240,6 +282,20 @@ export async function executeAgentRun(input, { adapter, createRunId } = {}) {
       },
     };
   } catch (error) {
-    return { ok: false, payload: { ...compiled.payload, status: "blocked", error: { code: "execution_failed", message: error instanceof Error ? error.message : String(error) } } };
+    return {
+      ok: false,
+      payload: {
+        ...compiled.payload,
+        status: "blocked",
+        modelRuntime: preparation.preparedAgent.modelRuntime,
+        budgetMeters: {
+          estimatedCostUsd: null,
+          actualCostUsd: null,
+          paidProviderCalls: 1,
+          costStatus: "provider_call_failed_unpriced",
+        },
+        error: { code: "execution_failed", message: error instanceof Error ? error.message : String(error) },
+      },
+    };
   }
 }

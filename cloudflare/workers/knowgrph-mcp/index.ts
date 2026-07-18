@@ -41,6 +41,8 @@ import {
   handleRunsRead,
   runtimeJsonResponse,
 } from "./agent-runtime-http";
+import { createWorkersAiRunningAgentRuntime } from "./agent-runtime-adapter";
+import { hasWorkersAiModelRuntimeConfiguration } from "./agent-runtime-model-resolver.mjs";
 import {
   defaultPersistenceDiagnosticEmitter,
   defaultStageTransitionDiagnosticEmitter,
@@ -58,6 +60,7 @@ import {
 
 export interface KnowgrphMcpEnv extends Env {
   KNOWGRPH_AGENT_RUNTIME_BEARER_TOKEN?: string;
+  KNOWGRPH_AGENT_MODEL_ID?: string;
   // task 12.5 env gating: live stage clients are enabled when KNOWGRPH_LIVE_CLIENTS
   // is truthy or a provider credential (EXA_API_KEY) is present; otherwise the
   // Director runs against deterministic mocks (zero live/paid calls).
@@ -342,6 +345,7 @@ const AGENT_RUNTIME_OUTPUT = {
   status: z.enum(["planned", "approval_required", "ready", "completed", "blocked"]),
   plan: z.record(z.string(), z.unknown()),
   budgetMeters: z.record(z.string(), z.unknown()),
+  modelRuntime: z.record(z.string(), z.unknown()).optional(),
   result: z.record(z.string(), z.unknown()).optional(),
   error: z.record(z.string(), z.unknown()).optional(),
 };
@@ -376,6 +380,7 @@ async function dispatchToolCall(
     KNOWGRPH_PAYMENT_API_KEY: env?.KNOWGRPH_PAYMENT_API_KEY,
     KNOWGRPH_MEDIA_BUCKET: env?.KNOWGRPH_MEDIA_BUCKET,
   }, { r2Client: env?.KNOWGRPH_MEDIA_R2 });
+  const agentRuntime = createWorkersAiRunningAgentRuntime(env);
   // Single shared dispatch path (run-manifest-store.mjs) used by both the
   // Worker and the Node unit tests so the gate-enforcement + gated-persistence
   // invariants cannot drift between surfaces. Director runs emit stage
@@ -403,7 +408,11 @@ async function dispatchToolCall(
     resolveLiveArgs: createLiveArgsResolver(
       liveClients,
     ),
-    runtimeDeps: { clients: liveClients },
+    runtimeDeps: {
+      clients: liveClients,
+      agentModelResolver: agentRuntime.modelResolver,
+      runningAgentAdapters: agentRuntime.runningAgentAdapters,
+    },
   });
 
   return {
@@ -486,8 +495,11 @@ function buildHealthBody(env: KnowgrphMcpEnv): Record<string, unknown> {
     },
     agentRuntime: {
       definitions: listAgentDefinitions().map((definition) => definition.id),
+      preparedDefinitions: listAgentDefinitions()
+        .filter((definition) => definition.modelRequirements)
+        .map((definition) => definition.id),
       dryRun: "ready",
-      liveAdapter: env?.AI && env?.KNOWGRPH_AGENT_MODEL ? "configured" : "blocked_by_configuration",
+      liveAdapter: hasWorkersAiModelRuntimeConfiguration(env) ? "configured" : "blocked_by_configuration",
       endpoint: AGENT_RUNS_PATH,
     },
   };
