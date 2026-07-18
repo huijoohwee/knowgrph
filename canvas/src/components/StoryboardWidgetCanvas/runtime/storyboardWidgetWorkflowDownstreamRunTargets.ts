@@ -1,5 +1,8 @@
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
+import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
+import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
+import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 import { FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID } from '@/lib/config'
 import { readFlowComputeSource } from '@/lib/storyboardWidget/flowComputeInline'
 
@@ -76,6 +79,64 @@ function readOutgoingEdgeTargetIds(args: { node: GraphNode; graphData: GraphData
     pushUnique(out, seen, [endpoints.tgt])
   }
   return out
+}
+
+function isSystemOwnedWorkflowEdge(edge: GraphEdge): boolean {
+  const properties = readPlainRecord(unwrapGraphCellValue(edge.properties))
+  return unwrapGraphCellValue(properties?.workflowOutputEdge) === true
+    || unwrapGraphCellValue(properties?.imageThreeJsOutputEdge) === true
+    || unwrapGraphCellValue(properties?.imageGlbOutputEdge) === true
+}
+
+/**
+ * Reconciles only user-authored outgoing topology for the exact Run owner.
+ * Panel metadata and root aliases never synthesize an edge here.
+ */
+export function mergeStoryboardWidgetExplicitRunTargetTopology(args: {
+  graphData: GraphData
+  liveGraphData: GraphData | null | undefined
+  sourceNodeId: string
+}): GraphData {
+  const sourceNodeId = cleanString(args.sourceNodeId)
+  if (!sourceNodeId || !args.liveGraphData) return args.graphData
+
+  const liveNodes = Array.isArray(args.liveGraphData.nodes) ? args.liveGraphData.nodes : []
+  const liveEdges = Array.isArray(args.liveGraphData.edges) ? args.liveGraphData.edges : []
+  const authoredEdges = liveEdges.filter(edge => {
+    const endpoints = readGraphEdgeEndpoints(edge)
+    return isCanonicalNodeIdEqual(endpoints.src, sourceNodeId)
+      && cleanString(edge.label) !== 'candidateOption'
+      && !isSystemOwnedWorkflowEdge(edge)
+  })
+  if (authoredEdges.length === 0) return args.graphData
+
+  const currentNodes = Array.isArray(args.graphData.nodes) ? args.graphData.nodes : []
+  const currentEdges = Array.isArray(args.graphData.edges) ? args.graphData.edges : []
+  const appendedNodes: GraphNode[] = []
+  const appendedEdges: GraphEdge[] = []
+
+  for (const edge of authoredEdges) {
+    const endpoints = readGraphEdgeEndpoints(edge)
+    const targetNode = liveNodes.find(node => isCanonicalNodeIdEqual(node.id, endpoints.tgt))
+    if (!targetNode) continue
+    const targetExists = [...currentNodes, ...appendedNodes]
+      .some(node => isCanonicalNodeIdEqual(node.id, targetNode.id))
+    if (!targetExists) appendedNodes.push(targetNode)
+
+    const edgeExists = [...currentEdges, ...appendedEdges].some(currentEdge => {
+      const currentEndpoints = readGraphEdgeEndpoints(currentEdge)
+      return isCanonicalNodeIdEqual(currentEndpoints.src, endpoints.src)
+        && isCanonicalNodeIdEqual(currentEndpoints.tgt, endpoints.tgt)
+    })
+    if (!edgeExists) appendedEdges.push(edge)
+  }
+
+  if (appendedNodes.length === 0 && appendedEdges.length === 0) return args.graphData
+  return bumpStoryboardWidgetDraftGraphDataRevision({
+    ...args.graphData,
+    nodes: [...currentNodes, ...appendedNodes],
+    edges: [...currentEdges, ...appendedEdges],
+  })
 }
 
 export function resolveStoryboardWidgetWorkflowDownstreamRunTargetIds(args: {
