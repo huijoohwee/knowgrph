@@ -23,6 +23,7 @@ export const XR_SCENE_INVOCATION_SEMANTICS = Object.freeze({
   world: '#world',
   body: '#body',
   impulse: '#impulse',
+  controller: '#controller',
   reticle: '#reticle',
 })
 

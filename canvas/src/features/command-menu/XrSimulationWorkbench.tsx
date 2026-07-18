@@ -17,6 +17,7 @@ import {
 import type { XrSceneControlInput } from '@/features/three/xrSceneMcpRuntime'
 import type { XrPhysicsControlInput } from '@/features/three/xrSceneInteractiveInvocation'
 import { selectBoundXrShotTarget } from '@/features/three/xrSelectedActorBinding'
+import { XrNativeControllerDemoControls } from './XrNativeControllerDemoControls'
 
 type XrSimulationWorkbenchProps = Readonly<{
   sceneReady: boolean
@@ -252,6 +253,8 @@ export function XrSimulationWorkbench({ sceneReady, runControl }: XrSimulationWo
           {physics.phase}<br />{physics.world.bodies.length} bodies
         </output>
       </header>
+
+      <XrNativeControllerDemoControls sceneReady={sceneReady} runControl={runControl} />
 
       {!sceneReady ? (
         <p className="m-0 rounded bg-amber-100 px-2 py-1 text-[10px] text-amber-900 dark:bg-amber-950/60 dark:text-amber-100">

@@ -3,6 +3,7 @@ import type { Group } from 'three'
 import type { GraphData } from '@/lib/graph/types'
 import { XrMotionReferenceStage } from '@/features/three/XrMotionReferenceStage'
 import { XrPhysicsStageRuntime } from '@/features/three/XrPhysicsStageRuntime'
+import { XrNativeControllerDemoStage } from '@/features/three/XrNativeControllerDemoStage'
 import { resolveXrMotionReferenceStage } from '@/features/three/xrMotionReferenceModel'
 import {
   readXrMotionReferenceRuntime,
@@ -34,6 +35,7 @@ export function XrGraphStage({ data }: { data: GraphData }) {
         coordinateRootRef={stageRootRef}
       />
       <XrPhysicsStageRuntime stageScale={stageScale} groundY={XR_MOTION_STAGE_GROUND_Y} />
+      <XrNativeControllerDemoStage stageScale={stageScale} groundY={XR_MOTION_STAGE_GROUND_Y} />
     </group>
   )
 }

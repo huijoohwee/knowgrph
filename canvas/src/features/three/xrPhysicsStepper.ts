@@ -285,7 +285,7 @@ function resolveFloor(
       state.position.splice(0, 3, ...startPosition)
       state.startOverlapResolved = true
     }
-  } else if (!(time === 0 && state.startOverlapResolved)) {
+  } else if (time > SWEEP_EPSILON) {
     const endPosition = mutableVector(state.position)
     for (let axis = 0; axis < 3; axis += 1) {
       state.position[axis] = startPosition[axis] + (endPosition[axis] - startPosition[axis]) * time

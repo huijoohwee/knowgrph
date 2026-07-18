@@ -93,7 +93,7 @@ const XR_SCENE_COMMAND_FALLBACKS = [
   { token: XR_SCENE_INVOCATION_COMMANDS.place, label: 'Place XR asset', summary: 'Place a native 3D asset into the active XR scene.' },
   { token: XR_SCENE_INVOCATION_COMMANDS.label, label: 'Label XR subject', summary: 'Update the label of a placed XR scene subject.' },
   { token: XR_SCENE_INVOCATION_COMMANDS.remove, label: 'Remove XR subject', summary: 'Remove a placed subject from the active XR scene.' },
-  { token: XR_SCENE_INVOCATION_COMMANDS.physics, label: 'Control XR physics', summary: 'Control native fixed-step XR world, body, and impulse operations.' },
+  { token: XR_SCENE_INVOCATION_COMMANDS.physics, label: 'Control XR physics', summary: 'Control native fixed-step XR world, body, impulse, and controller operations.' },
   { token: XR_SCENE_INVOCATION_COMMANDS.present, label: 'Present XR scene', summary: 'Place the active XR scene at the current immersive reticle.' },
 ] as const
 
@@ -101,6 +101,7 @@ const XR_SCENE_SEMANTIC_FALLBACKS = [
   { token: XR_SCENE_INVOCATION_SEMANTICS.world, label: 'XR physics world', summary: 'Route an XR physics operation to world and transport settings.' },
   { token: XR_SCENE_INVOCATION_SEMANTICS.body, label: 'XR physics body', summary: 'Route an XR physics operation to one placed subject body.' },
   { token: XR_SCENE_INVOCATION_SEMANTICS.impulse, label: 'XR physics impulse', summary: 'Route a finite impulse to one dynamic XR body.' },
+  { token: XR_SCENE_INVOCATION_SEMANTICS.controller, label: 'XR native controller', summary: 'Route lifecycle and mode operations to the native XR controller demo.' },
   { token: XR_SCENE_INVOCATION_SEMANTICS.reticle, label: 'XR placement reticle', summary: 'Route immersive placement to the current tracked reticle.' },
 ] as const
 

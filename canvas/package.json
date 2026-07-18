@@ -27,6 +27,8 @@
     "dev:care-agent": "VITE_KNOWGRPH_RUN_READY_DEMO=care-agent vite --configLoader runner",
     "predev:risk-copilot": "npm run predev",
     "dev:risk-copilot": "VITE_KNOWGRPH_RUN_READY_DEMO=risk-copilot vite --configLoader runner",
+    "predev:xr-physics": "npm run prepare:linked-packages && npm run fix:entities-sourcemaps && npm run build:settings",
+    "dev:xr-physics": "VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT=$PWD/../docs VITE_KNOWGRPH_RUN_READY_REPO_LOCAL=1 VITE_KNOWGRPH_RUN_READY_DEMO=xr-physics vite --configLoader runner",
     "predev:5173": "npm run predev",
     "dev:5173": "vite --configLoader runner --port 5173 --strictPort",
     "prebuild": "npm run prepare:linked-packages && npm run build:settings && if [ \"${KG_SKIP_DOCS_UPDATE:-}\" = \"1\" ]; then echo \"[knowgrph] skipping docs:preview:update\"; else npm --prefix .. run docs:preview:update && tsx src/cli/lint-doc.ts; fi",

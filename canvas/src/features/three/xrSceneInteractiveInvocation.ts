@@ -4,9 +4,10 @@ import {
   XR_SCENE_INVOCATION_SEMANTICS,
 } from './xrSceneMcpContract.mjs'
 
-export type XrPhysicsScope = 'world' | 'body' | 'impulse'
-export type XrPhysicsOperation = 'play' | 'pause' | 'stop' | 'reset' | 'step' | 'configure' | 'attach' | 'detach' | 'impulse'
+export type XrPhysicsScope = 'world' | 'body' | 'impulse' | 'controller'
+export type XrPhysicsOperation = 'play' | 'pause' | 'stop' | 'reset' | 'step' | 'configure' | 'attach' | 'detach' | 'impulse' | 'develop-run' | 'resume' | 'exit' | 'select'
 export type XrPhysicsBodyMode = 'static' | 'dynamic' | 'kinematic' | 'trigger'
+export type XrPhysicsControllerMode = 'ball' | 'rocket'
 export type XrInteractiveVector = readonly [number, number, number]
 
 export type XrPhysicsControlInput = Readonly<{
@@ -25,6 +26,7 @@ export type XrPhysicsControlInput = Readonly<{
   maxSubsteps?: number
   impulse?: XrInteractiveVector
   ticks?: number
+  controllerMode?: XrPhysicsControllerMode
 }>
 
 export type XrInteractiveInvocation = Readonly<{
@@ -40,6 +42,7 @@ const BODY_MODES = new Set<XrPhysicsBodyMode>(['static', 'dynamic', 'kinematic',
 const WORLD_OPERATIONS = new Set<XrPhysicsOperation>(['play', 'pause', 'stop', 'reset', 'step', 'configure'])
 const BODY_OPERATIONS = new Set<XrPhysicsOperation>(['attach', 'configure', 'detach'])
 const IMPULSE_OPERATIONS = new Set<XrPhysicsOperation>(['impulse'])
+const CONTROLLER_OPERATIONS = new Set<XrPhysicsOperation>(['develop-run', 'pause', 'resume', 'reset', 'exit', 'select'])
 const BODY_PROPERTY_KEYS = Object.freeze([
   'bodyMode',
   'massKg',
@@ -51,6 +54,7 @@ const BODY_PROPERTY_KEYS = Object.freeze([
 ] as const)
 const WORLD_CONFIGURE_KEYS = new Set(['scope', 'operation', 'gravity', 'fixedStepSeconds', 'maxSubsteps'])
 const BODY_CONFIGURE_KEYS = new Set(['scope', 'operation', 'subjectId', ...BODY_PROPERTY_KEYS])
+const CONTROLLER_KEYS = new Set(['scope', 'operation', 'controllerMode'])
 
 const OPERATION_KEYS: Readonly<Record<XrPhysicsOperation, ReadonlySet<string>>> = Object.freeze({
   play: new Set(['scope', 'operation']),
@@ -62,6 +66,10 @@ const OPERATION_KEYS: Readonly<Record<XrPhysicsOperation, ReadonlySet<string>>> 
   attach: new Set(['scope', 'operation', 'subjectId', ...BODY_PROPERTY_KEYS]),
   detach: new Set(['scope', 'operation', 'subjectId']),
   impulse: new Set(['scope', 'operation', 'subjectId', 'impulse']),
+  'develop-run': CONTROLLER_KEYS,
+  resume: new Set(['scope', 'operation']),
+  exit: new Set(['scope', 'operation']),
+  select: CONTROLLER_KEYS,
 })
 
 function record(value: unknown): Record<string, unknown> {
@@ -133,7 +141,7 @@ function normalizePhysics(value: unknown, coerceInvocationValues = false): XrPhy
   const operation = (typeof source.operation === 'string'
     ? coerceInvocationValues ? source.operation.trim() : source.operation
     : '') as XrPhysicsOperation
-  const allowedOperations = scope === 'world' ? WORLD_OPERATIONS : scope === 'body' ? BODY_OPERATIONS : scope === 'impulse' ? IMPULSE_OPERATIONS : null
+  const allowedOperations = scope === 'world' ? WORLD_OPERATIONS : scope === 'body' ? BODY_OPERATIONS : scope === 'impulse' ? IMPULSE_OPERATIONS : scope === 'controller' ? CONTROLLER_OPERATIONS : null
   if (!allowedOperations?.has(operation)) return null
   const allowedKeys = operation === 'configure'
     ? scope === 'world' ? WORLD_CONFIGURE_KEYS : BODY_CONFIGURE_KEYS
@@ -148,6 +156,11 @@ function normalizePhysics(value: unknown, coerceInvocationValues = false): XrPhy
   if ((scope === 'body' || scope === 'impulse') && !normalizedSubjectId) return null
   if (bodyMode && !BODY_MODES.has(bodyMode)) return null
   if (scope === 'body' && operation === 'attach' && !bodyMode) return null
+  const controllerMode = typeof source.controllerMode === 'string'
+    ? (coerceInvocationValues ? source.controllerMode.trim() : source.controllerMode) as XrPhysicsControllerMode
+    : undefined
+  if (controllerMode !== undefined && controllerMode !== 'ball' && controllerMode !== 'rocket') return null
+  if (scope === 'controller' && operation === 'select' && !controllerMode) return null
 
   const massKg = finite(source.massKg, 0.001, 10_000, false, coerceInvocationValues)
   const friction = finite(source.friction, 0, 1, false, coerceInvocationValues)
@@ -169,6 +182,7 @@ function normalizePhysics(value: unknown, coerceInvocationValues = false): XrPhy
   if (scope !== 'world' && (gravity || fixedStepSeconds !== undefined || maxSubsteps !== undefined || ticks !== undefined)) return null
   if (scope !== 'body' && (bodyMode || massKg !== undefined || friction !== undefined || restitution !== undefined || linearDamping !== undefined || collisionGroup !== undefined || collisionMask !== undefined)) return null
   if (scope !== 'impulse' && impulse) return null
+  if (scope !== 'controller' && controllerMode !== undefined) return null
   if (operation !== 'step' && ticks !== undefined) return null
   if (scope === 'world' && operation === 'configure' && !gravity && fixedStepSeconds === undefined && maxSubsteps === undefined) return null
   if (scope === 'body' && operation === 'configure'
@@ -196,6 +210,7 @@ function normalizePhysics(value: unknown, coerceInvocationValues = false): XrPhy
     ...(maxSubsteps !== undefined ? { maxSubsteps } : {}),
     ...(impulse ? { impulse } : {}),
     ...(ticks !== undefined ? { ticks } : {}),
+    ...(controllerMode !== undefined ? { controllerMode } : {}),
   })
 }
 
@@ -224,20 +239,22 @@ export function parseXrInteractiveInvocation(value: unknown): XrInteractiveInvoc
     ? 'world'
     : semantics[0] === XR_SCENE_INVOCATION_SEMANTICS.body
       ? 'body'
-      : semantics[0] === XR_SCENE_INVOCATION_SEMANTICS.impulse ? 'impulse' : null
+      : semantics[0] === XR_SCENE_INVOCATION_SEMANTICS.impulse
+        ? 'impulse'
+        : semantics[0] === XR_SCENE_INVOCATION_SEMANTICS.controller ? 'controller' : null
   if (!scope) return null
   const allowed = scope === 'world'
     ? new Set(['operation', 'gravity', 'fixedStep', 'maxSubsteps', 'ticks'])
     : scope === 'body'
       ? new Set(['operation', 'subject', 'mode', 'mass', 'friction', 'restitution', 'damping', 'group', 'mask'])
-      : new Set(['operation', 'subject', 'vector'])
+      : scope === 'impulse' ? new Set(['operation', 'subject', 'vector']) : new Set(['operation', 'mode'])
   const pairs = parsePairs(tokens.slice(1).filter(token => !token.startsWith('@') && !token.startsWith('#')), allowed)
   if (!pairs) return null
   const physics = normalizePhysics({
     scope,
     operation: pairs.operation,
     ...(pairs.subject !== undefined ? { subjectId: decodedInvocationSubjectId(pairs.subject) } : {}),
-    ...(pairs.mode !== undefined ? { bodyMode: pairs.mode } : {}),
+    ...(scope === 'body' && pairs.mode !== undefined ? { bodyMode: pairs.mode } : {}),
     ...(pairs.mass !== undefined ? { massKg: pairs.mass } : {}),
     ...(pairs.friction !== undefined ? { friction: pairs.friction } : {}),
     ...(pairs.restitution !== undefined ? { restitution: pairs.restitution } : {}),
@@ -249,6 +266,7 @@ export function parseXrInteractiveInvocation(value: unknown): XrInteractiveInvoc
     ...(pairs.maxSubsteps !== undefined ? { maxSubsteps: pairs.maxSubsteps } : {}),
     ...(pairs.vector !== undefined ? { impulse: pairs.vector } : {}),
     ...(pairs.ticks !== undefined ? { ticks: pairs.ticks } : {}),
+    ...(scope === 'controller' && pairs.mode !== undefined ? { controllerMode: pairs.mode } : {}),
   }, true)
   return physics ? Object.freeze({ action: 'physics', physics, invocation }) : null
 }

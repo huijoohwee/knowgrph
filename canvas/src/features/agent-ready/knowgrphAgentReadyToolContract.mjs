@@ -67,6 +67,7 @@ const XR_PHYSICS_CONTROL_FIELDS = Object.freeze({
   maxSubsteps: { type: 'integer', minimum: 1, maximum: 8 },
   impulse: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number', minimum: -10000, maximum: 10000 } },
   ticks: { type: 'integer', minimum: 1, maximum: 240 },
+  controllerMode: { type: 'string', enum: ['ball', 'rocket'] },
 })
 const XR_PHYSICS_BODY_FIELD_NAMES = Object.freeze([
   'bodyMode', 'massKg', 'friction', 'restitution', 'linearDamping', 'collisionGroup', 'collisionMask',
@@ -91,11 +92,14 @@ const XR_PHYSICS_CONTROL_INPUT_SCHEMA = Object.freeze({
     buildXrPhysicsOperationSchema({ scope: 'body', operation: 'configure', fields: ['subjectId', ...XR_PHYSICS_BODY_FIELD_NAMES], required: ['subjectId'], requireOneOf: XR_PHYSICS_BODY_FIELD_NAMES }),
     buildXrPhysicsOperationSchema({ scope: 'body', operation: 'detach', fields: ['subjectId'], required: ['subjectId'] }),
     buildXrPhysicsOperationSchema({ scope: 'impulse', operation: 'impulse', fields: ['subjectId', 'impulse'], required: ['subjectId', 'impulse'] }),
+    buildXrPhysicsOperationSchema({ scope: 'controller', operation: 'develop-run', fields: ['controllerMode'] }),
+    ...['pause', 'resume', 'reset', 'exit'].map(operation => buildXrPhysicsOperationSchema({ scope: 'controller', operation })),
+    buildXrPhysicsOperationSchema({ scope: 'controller', operation: 'select', fields: ['controllerMode'], required: ['controllerMode'] }),
   ],
 })
 
 const XR_SCENE_CONTROL_FIELDS = Object.freeze({
-  invocation: { type: 'string', minLength: 1, pattern: '\\S', description: 'Invocation such as /xr.place @person-adult transition=linear, /xr.physics @canvas #world operation=play, or /xr.present @scene #reticle.' },
+  invocation: { type: 'string', minLength: 1, pattern: '\\S', description: 'Invocation such as /xr.place @person-adult transition=linear, /xr.physics @canvas #controller operation=develop-run mode=ball, or /xr.present @scene #reticle.' },
   action: { type: 'string', enum: ['stage', 'place', 'transition', 'label', 'remove', 'physics', 'present'] },
   stageId: { type: 'string', minLength: 1, pattern: '\\S' },
   assetId: { type: 'string', minLength: 1, pattern: '\\S' },

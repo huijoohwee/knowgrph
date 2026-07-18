@@ -5,13 +5,15 @@ export const CARE_AGENT_RUN_READY_DEMO_ID = 'care-agent'
 export const CARE_AGENT_DEMO_WORKSPACE_SEED_BASENAME = 'knowgrph-care-agent-demo.md'
 export const RISK_COPILOT_RUN_READY_DEMO_ID = 'risk-copilot'
 export const RISK_COPILOT_DEMO_WORKSPACE_SEED_BASENAME = 'knowgrph-sme-care-agent-demo.md'
+export const XR_PHYSICS_RUN_READY_DEMO_ID = 'xr-physics'
+export const XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME = 'knowgrph-physics-playground-demo.md'
 
 export type WorkspaceRunReadyDemoSeed = {
   id: string
   label: string
   validationSeedRelPath: string
   seedRelPathCandidates: readonly string[]
-  sourceRoot: 'huijoohwee/docs'
+  sourceRoot: 'huijoohwee/docs' | 'knowgrph/docs'
   cleanCanvasRecommended: boolean
 }
 
@@ -44,6 +46,18 @@ export const WORKSPACE_RUN_READY_DEMO_SEEDS: readonly WorkspaceRunReadyDemoSeed[
       RISK_COPILOT_DEMO_WORKSPACE_SEED_BASENAME,
     ],
     sourceRoot: 'huijoohwee/docs',
+    cleanCanvasRecommended: true,
+  },
+  {
+    id: XR_PHYSICS_RUN_READY_DEMO_ID,
+    label: 'Knowgrph Native XR Physics Demo',
+    validationSeedRelPath: XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME,
+    seedRelPathCandidates: [
+      `docs/workspace-seeds/${XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME}`,
+      `docs/${XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME}`,
+      XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME,
+    ],
+    sourceRoot: 'knowgrph/docs',
     cleanCanvasRecommended: true,
   },
 ]

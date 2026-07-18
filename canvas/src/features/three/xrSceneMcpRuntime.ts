@@ -54,6 +54,16 @@ import {
   readXrArPlacementRuntime,
 } from './xrArPlacementRuntime'
 import {
+  developAndRunXrNativeControllerDemo,
+  exitXrNativeControllerDemo,
+  pauseXrNativeControllerDemo,
+  readSharedXrNativeControllerDemoFrame,
+  readXrNativeControllerDemo,
+  resetSharedXrNativeControllerDemo,
+  resumeXrNativeControllerDemo,
+  selectXrNativeControllerDemoMode,
+} from './xrNativeControllerDemoRuntime'
+import {
   XR_SCENE_INVOCATION_COMMANDS,
   XR_SCENE_INVOCATION_BINDINGS,
   XR_SCENE_INVOCATION_SEMANTICS,
@@ -290,6 +300,7 @@ export function inspectLocalXrSceneAssets() {
   const runtime = readXrMotionReferenceRuntime()
   const physics = readXrPhysicsRuntime()
   const physicsFrame = readXrPhysicsRuntimeFrame()
+  const controllerDemo = readXrNativeControllerDemo()
   const arPlacement = readXrArPlacementRuntime()
   return {
     schema: XR_SCENE_MCP_SCHEMA,
@@ -306,6 +317,7 @@ export function inspectLocalXrSceneAssets() {
       physicsWorld: `${XR_SCENE_INVOCATION_COMMANDS.physics} ${XR_SCENE_INVOCATION_BINDINGS.canvas} ${XR_SCENE_INVOCATION_SEMANTICS.world} operation=play|pause|stop|reset|step|configure`,
       physicsBody: `${XR_SCENE_INVOCATION_COMMANDS.physics} ${XR_SCENE_INVOCATION_BINDINGS.canvas} ${XR_SCENE_INVOCATION_SEMANTICS.body} operation=attach|configure|detach subject=<id>`,
       physicsImpulse: `${XR_SCENE_INVOCATION_COMMANDS.physics} ${XR_SCENE_INVOCATION_BINDINGS.canvas} ${XR_SCENE_INVOCATION_SEMANTICS.impulse} operation=impulse subject=<id> vector=x,y,z`,
+      physicsController: `${XR_SCENE_INVOCATION_COMMANDS.physics} ${XR_SCENE_INVOCATION_BINDINGS.canvas} ${XR_SCENE_INVOCATION_SEMANTICS.controller} operation=develop-run|pause|resume|reset|exit|select mode=ball|rocket`,
       present: `${XR_SCENE_INVOCATION_COMMANDS.present} ${XR_SCENE_INVOCATION_BINDINGS.scene} ${XR_SCENE_INVOCATION_SEMANTICS.reticle}`,
     },
     environments: XR_MOTION_REFERENCE_STAGE_PRESETS.map(stage => ({
@@ -352,6 +364,10 @@ export function inspectLocalXrSceneAssets() {
       dirty: physics.dirty,
       revision: physics.revision,
       frame: physicsFrame,
+      controllerDemo: {
+        ...controllerDemo,
+        frame: controllerDemo.phase === 'off' ? null : readSharedXrNativeControllerDemoFrame(),
+      },
     },
     immersivePlacement: {
       ...arPlacement,
@@ -370,9 +386,26 @@ type XrPhysicsControlResult = Readonly<{
 function runXrPhysicsControl(physics: XrPhysicsControlInput): XrPhysicsControlResult {
   const before = readXrPhysicsRuntime()
   const subjectId = String(physics.subjectId || '').trim()
+  if (physics.scope === 'controller') {
+    if (physics.operation === 'develop-run') {
+      stopXrPhysicsRuntime()
+      if (physics.controllerMode) selectXrNativeControllerDemoMode(physics.controllerMode)
+      developAndRunXrNativeControllerDemo()
+    } else if (physics.operation === 'select' && physics.controllerMode) {
+      selectXrNativeControllerDemoMode(physics.controllerMode)
+    } else if (physics.operation === 'pause') pauseXrNativeControllerDemo()
+    else if (physics.operation === 'resume') resumeXrNativeControllerDemo()
+    else if (physics.operation === 'reset') resetSharedXrNativeControllerDemo()
+    else if (physics.operation === 'exit') exitXrNativeControllerDemo()
+    else return { ok: false, message: 'Use a supported native XR controller operation.' }
+    activateXrSceneWorkspace()
+    const demo = readXrNativeControllerDemo()
+    return { ok: true, message: `Native XR ${demo.mode} controller is ${demo.phase}.` }
+  }
   if (physics.scope === 'world') {
     if (physics.operation === 'play') {
       if (before.world.bodies.length === 0) return { ok: false, message: 'Attach at least one XR body before entering Play mode.' }
+      exitXrNativeControllerDemo()
       playXrPhysicsRuntime()
       activateXrSceneWorkspace()
       return { ok: true, message: 'XR dynamics Play mode started.' }

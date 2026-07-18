@@ -165,7 +165,7 @@ function assertWebMcpSchemasAndReadOnlyProjection(): void {
   assert(control, 'expected the browser-local XR scene control contract')
 
   const physicsSchema = control.inputSchema?.properties?.physics as JsonSchema | undefined
-  assert(physicsSchema?.oneOf?.length === 10, `expected ten operation-specific XR physics schemas, got ${physicsSchema?.oneOf?.length || 0}`)
+  assert(physicsSchema?.oneOf?.length === 16, `expected sixteen operation-specific XR physics schemas, got ${physicsSchema?.oneOf?.length || 0}`)
   const operationSchema = (scope: string, operation: string): JsonSchema | undefined => physicsSchema.oneOf?.find(schema => (
     schema.properties?.scope?.const === scope && schema.properties?.operation?.const === operation
   ))
@@ -174,6 +174,8 @@ function assertWebMcpSchemasAndReadOnlyProjection(): void {
   assert(worldConfigure?.properties?.fixedStepSeconds?.maximum === 1 / 30, 'expected exact 30 Hz maximum step endpoint')
   assert(!operationSchema('world', 'play')?.properties?.gravity, 'expected Play schema to reject configure-only fields')
   assert(!operationSchema('body', 'detach')?.properties?.massKg, 'expected Detach schema to reject body configuration fields')
+  assert(operationSchema('controller', 'develop-run')?.properties?.controllerMode, 'expected native controller launch to accept an optional mode')
+  assert(operationSchema('controller', 'select')?.required?.includes('controllerMode'), 'expected native controller selection to require a mode')
 
   const sceneControlSchema = control.inputSchema as JsonSchema | undefined
   assert(sceneControlSchema?.oneOf?.length === 8, `expected invocation plus seven structured XR action schemas, got ${sceneControlSchema?.oneOf?.length || 0}`)
@@ -230,6 +232,10 @@ function assertExpandedCleanRoomBoundary(): void {
     'src/features/three/xrPhysicsModel.ts',
     'src/features/three/xrPhysicsRuntime.ts',
     'src/features/three/xrPhysicsStepper.ts',
+    'src/features/three/xrNativeControllerInput.ts',
+    'src/features/three/xrNativeControllerDemoRuntime.ts',
+    'src/features/three/XrNativeControllerDemoStage.tsx',
+    'src/features/three/useXrNativeControllerDemoCamera.ts',
     'src/features/three/XrPhysicsStageRuntime.tsx',
     'src/features/three/XrKeyboardChoreographyRuntime.tsx',
     'src/features/three/XrMotionReferenceRuntimeBridge.tsx',
@@ -244,6 +250,7 @@ function assertExpandedCleanRoomBoundary(): void {
     'src/features/three/xrSceneMcpContract.mjs',
     'src/features/three/xrSceneMcpRuntime.ts',
     'src/features/command-menu/XrSimulationWorkbench.tsx',
+    'src/features/command-menu/XrNativeControllerDemoControls.tsx',
     'src/features/command-menu/XrMediaLibraryPanel.tsx',
     'src/features/agent-ready/knowgrphAgentReadyToolContract.mjs',
     'src/features/agent-ready/knowgrphVdeoxplnContract.mjs',
@@ -256,6 +263,7 @@ function assertExpandedCleanRoomBoundary(): void {
     'package-lock.json',
   ].map(path => resolve(process.cwd(), path))
   paths.push(resolve(repoRoot, 'package.json'), resolve(repoRoot, 'package-lock.json'))
+  paths.push(resolve(repoRoot, 'docs/workspace-seeds/knowgrph-physics-playground-demo.md'))
   const source = paths.map(path => readFileSync(path, 'utf8')).join('\n').toLowerCase()
   const forbidden = [
     ['8th', 'wall'].join(''),
@@ -280,6 +288,9 @@ export async function assertXrScenePhysicsWebMcpLifecycle(args: Readonly<{
   const afterRejectedEdit = await args.inspect()
   const impulse = await args.control({ action: 'physics', physics: { scope: 'impulse', operation: 'impulse', subjectId: args.subjectId, impulse: [0, 3, -1] } })
   const stopped = await args.control({ invocation: '/xr.physics @canvas #world operation=stop' })
+  const controllerStarted = await args.control({ invocation: '/xr.physics @canvas #controller operation=develop-run mode=ball' })
+  const controllerSelected = await args.control({ action: 'physics', physics: { scope: 'controller', operation: 'select', controllerMode: 'rocket' } })
+  const controllerExited = await args.control({ invocation: '/xr.physics @canvas #controller operation=exit' })
   assert((invalidSemantics as { ok?: unknown }).ok === false, 'expected duplicate XR physics semantics to fail closed')
   assert((rejectedSceneEdit as { ok?: unknown }).ok === false
     && (afterRejectedEdit as { physics?: { phase?: unknown } }).physics?.phase === 'playing', 'expected rejected XR scene edits to preserve active dynamics')
@@ -288,6 +299,9 @@ export async function assertXrScenePhysicsWebMcpLifecycle(args: Readonly<{
     && (played as { scene?: { physics?: { phase?: unknown } } }).scene?.physics?.phase === 'playing'
     && (impulse as { ok?: unknown }).ok === true
     && (stopped as { scene?: { physics?: { phase?: unknown } } }).scene?.physics?.phase === 'stopped', 'expected XR WebMCP attach/play/impulse/stop parity')
+  assert((controllerStarted as { scene?: { physics?: { controllerDemo?: { phase?: unknown } } } }).scene?.physics?.controllerDemo?.phase === 'running'
+    && (controllerSelected as { scene?: { physics?: { controllerDemo?: { mode?: unknown } } } }).scene?.physics?.controllerDemo?.mode === 'rocket'
+    && (controllerExited as { scene?: { physics?: { controllerDemo?: { phase?: unknown } } } }).scene?.physics?.controllerDemo?.phase === 'off', 'expected XR WebMCP native controller launch/select/exit parity')
 }
 
 export function testXrSceneMcpContractCatalogSchemasAndCleanRoom(): void {

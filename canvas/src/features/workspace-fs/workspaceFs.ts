@@ -2,7 +2,11 @@ import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceBasename } from './path'
 import { readEnvString } from '@/lib/config.env'
 import { readWorkspaceInitializationDocsMirrorEntries, readWorkspaceInitializationSeedText } from './workspaceSeedProvider'
-import { WORKSPACE_RUN_READY_DEMO_ENV, resolveWorkspaceValidationSeedRelPath } from './workspaceRunReadyDemos'
+import {
+  WORKSPACE_RUN_READY_DEMO_ENV,
+  resolveWorkspaceRunReadyDemoSeed,
+  resolveWorkspaceValidationSeedRelPath,
+} from './workspaceRunReadyDemos'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import {
   buildShadowFileEntry,
@@ -214,6 +218,9 @@ const normalizeInitializationSeedRelPath = (value: string): string => {
     .replace(/\/+$/, '')
 }
 const DEFAULT_WORKSPACE_INITIALIZATION_SEED_ROOT_REL_PATHS = ['docs/workspace-seeds', 'docs'] as const
+const WORKSPACE_RUN_READY_DEMO_ID = readEnvString(WORKSPACE_RUN_READY_DEMO_ENV, '')
+const WORKSPACE_RUN_READY_DEMO = resolveWorkspaceRunReadyDemoSeed(WORKSPACE_RUN_READY_DEMO_ID)
+const REPO_LOCAL_RUN_READY_SOURCE_EXCLUSIVE = WORKSPACE_RUN_READY_DEMO?.sourceRoot === 'knowgrph/docs'
 export const WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH = readEnvString(
   'VITE_WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH',
   '',
@@ -251,7 +258,7 @@ export const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = readEnvString(
   'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
   resolveWorkspaceValidationSeedRelPath({
     explicitRelPath: TEST_VALIDATION_WORKSPACE_SEED_EXPLICIT_REL_PATH,
-    runReadyDemoId: readEnvString(WORKSPACE_RUN_READY_DEMO_ENV, ''),
+    runReadyDemoId: WORKSPACE_RUN_READY_DEMO_ID,
     defaultRelPath: DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
   }),
 )
@@ -364,13 +371,22 @@ const DEFAULT_WORKSPACE_SEED_FAMILY_PATHS = new Set<WorkspacePath>([
   ...WORKSPACE_SEED_SPECS.map(seed => seed.path),
 ])
 
-const loadWorkspaceSeedText = async (args: {
+export const loadWorkspaceSeedText = async (args: {
   basename: string
   relPaths: ReadonlyArray<string>
   fallbackText: string
   docsMirrorEntries?: Awaited<ReturnType<typeof readWorkspaceInitializationDocsMirrorEntries>>
+  sourceExclusive?: boolean
 }): Promise<{ text: string; isFallback: boolean }> => {
   const basename = normalizeInitializationSeedRelPath(args.basename)
+  if (args.sourceExclusive) {
+    const preferredText = await readWorkspaceInitializationSeedText({
+      basename: args.basename,
+      relPathCandidates: args.relPaths,
+    })
+    if (preferredText) return { text: preferredText, isFallback: false }
+    return { text: args.fallbackText, isFallback: true }
+  }
   const relPathSet = new Set(
     (args.relPaths || [])
       .map(path => normalizeInitializationSeedRelPath(path))
@@ -439,11 +455,19 @@ export function expandWorkspaceSeedFileEntries(path: WorkspacePath, text: string
 }
 
 export async function getWorkspaceSeedFiles(): Promise<WorkspaceSeedFile[]> {
-  const docsMirrorEntries = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
+  const docsMirrorEntries = REPO_LOCAL_RUN_READY_SOURCE_EXCLUSIVE
+    ? []
+    : await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
   const loaded = await Promise.all(
     WORKSPACE_SEED_SPECS.map(async seed => ({
       path: seed.path,
-      ...(await loadWorkspaceSeedText({ basename: seed.basename, relPaths: seed.sourceRelPaths, fallbackText: seed.fallbackText, docsMirrorEntries })),
+      ...(await loadWorkspaceSeedText({
+        basename: seed.basename,
+        relPaths: seed.sourceRelPaths,
+        fallbackText: seed.fallbackText,
+        docsMirrorEntries,
+        sourceExclusive: REPO_LOCAL_RUN_READY_SOURCE_EXCLUSIVE,
+      })),
     })),
   )
   return loaded
