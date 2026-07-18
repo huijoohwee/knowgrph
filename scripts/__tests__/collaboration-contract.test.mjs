@@ -26,18 +26,24 @@ test('collaboration browser gate edits through the canonical active editor owner
   assert.match(smoke, /editorSurfaceCount !== 1/)
   assert.match(smoke, /editorRoot\?\.contains\(document\.activeElement\)/)
   assert.match(smoke, /keyboard\.insertText/)
+  assert.match(smoke, /assertRoomStatus\(WORKER_URL, basename\(DOC_PATH\)\)/)
   assert.doesNotMatch(smoke, /graphState\.setActiveMarkdownDocument/)
 })
 
 test('collaboration smoke preparation builds grph-shared before readiness checks', () => {
   const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
   const readiness = fs.readFileSync(new URL('../check-collaboration-readiness.mjs', import.meta.url), 'utf8')
+  const viteConfig = fs.readFileSync(new URL('../../canvas/vite.config.ts', import.meta.url), 'utf8')
   const preparationIndex = readiness.indexOf("args: ['run', 'smoke:prepare']")
   const docsGuardIndex = readiness.indexOf("name: 'docs guard'")
 
   assert.equal(pkg.scripts?.['smoke:prepare'], 'npm run build --workspace=grph-shared')
   assert.ok(preparationIndex >= 0)
   assert.ok(preparationIndex < docsGuardIndex)
+  assert.match(readiness, /resolveCanonicalSourceRoots/)
+  assert.match(readiness, /KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT/)
+  assert.match(readiness, /VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT/)
+  assert.match(viteConfig, /optimizeDeps:[\s\S]*include:[\s\S]*'yjs'/)
 })
 
 test('release smoke prepares shared modules and defers only the x402 wallet gate', () => {

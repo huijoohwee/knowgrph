@@ -6879,6 +6879,7 @@ export default defineConfig(({ command }) => {
       'maplibre-gl',
       'dagre',
       '@react-three/fiber',
+      'yjs',
     ],
     exclude: ['gympgrph', 'grph-shared', 'entities'],
     esbuildOptions: {
