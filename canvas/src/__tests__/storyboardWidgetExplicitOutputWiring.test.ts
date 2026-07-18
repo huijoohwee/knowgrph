@@ -11,9 +11,12 @@ function createTextOutputHarness(
   initialGraph: GraphData,
   storeGraph: GraphData = initialGraph,
   allowCreateRichMediaPanel = true,
+  options: { commitPublishedGraphData?: boolean } = {},
 ) {
   let draft = initialGraph
-  const resolveNode = (nodeId: string) => draft.nodes.find(node => String(node.id) === nodeId) || null
+  const resolveNode = (nodeId: string) => draft.nodes.find(node => String(node.id) === nodeId)
+    || storeGraph.nodes.find(node => String(node.id) === nodeId)
+    || null
   const publishers = createStoryboardWidgetWorkflowRichMediaPublishers({
     context: {
       draftGraph: initialGraph,
@@ -36,7 +39,7 @@ function createTextOutputHarness(
     readLiveDraftGraphData: () => draft,
     appendDraftNode: () => { throw new Error('text publication must use its atomic transaction') },
     commitDraftGraphDataUpdate: (_current, next) => { draft = next },
-    commitPublishedGraphData: next => { draft = next },
+    ...(options.commitPublishedGraphData === false ? {} : { commitPublishedGraphData: (next: GraphData) => { draft = next } }),
     updateNode: (id, patch) => {
       draft = { ...draft, nodes: draft.nodes.map(node => String(node.id) === id ? { ...node, ...patch } : node) }
     },
@@ -228,5 +231,67 @@ export function testSelectedGenerationCreatesStandaloneResultDuringRunAll() {
     || resultPanel?.properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY] !== WORKFLOW_OUTPUT_EDGE_MODE_MANUAL
   ) {
     throw new Error(`expected Run All terminal generation to publish one standalone manual result, got ${JSON.stringify(published)}`)
+  }
+}
+
+export function testRunAllReconcilesTypedPersistedStandaloneResult() {
+  const selectedChild: GraphNode = {
+    id: 'mcp-response-card-01',
+    type: 'TextGeneration',
+    label: 'Selected Probe child',
+    properties: { parentNodeId: 'n2', probeTreeThreadRootId: 'n2', cardTypeLabel: 'Probe-Tree Card' },
+  }
+  const persistedResult: GraphNode = {
+    id: 'persisted-generated-result',
+    type: 'RichMediaPanel',
+    label: 'Generated Result',
+    properties: {
+      key: 'properties',
+      type: 'object',
+      value: {
+        media_interactive: true,
+        output: '# Previous generated result',
+        workflowOutputAnchorNodeId: 'mcp-response-card-01',
+        workflowOutputKey: 'probe-tree-generated-result',
+        workflowOutputGroupId: 'probe-tree:n2',
+        [WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]: WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
+      },
+    } as never,
+  }
+  const runGraph: GraphData = { type: 'Graph', nodes: [selectedChild], edges: [] }
+  const canonicalGraph: GraphData = { type: 'Graph', nodes: [selectedChild, persistedResult], edges: [] }
+  const harness = createTextOutputHarness(runGraph, canonicalGraph, false, { commitPublishedGraphData: false })
+
+  const published = harness.publishers.publishTextRunOutputToRichMediaPanel({
+    anchorNode: selectedChild,
+    baseGraphData: runGraph,
+    outputText: '# Refreshed generated result',
+    title: 'Generated Result',
+    model: 'test-model',
+    outputKey: 'probe-tree-generated-result',
+    outputGroupId: 'probe-tree:n2',
+    panelLabel: 'Generated Result',
+    panelProperties: { probeTreeTerminalGeneration: true },
+    allowCreateStandaloneOutput: true,
+  })
+
+  const resultPanels = published?.nodes.filter(node => node.label === 'Generated Result') || []
+  const resultProperties = resultPanels[0]?.properties as unknown as {
+    key?: unknown
+    type?: unknown
+    value?: Record<string, unknown>
+  }
+  if (
+    !published
+    || published.nodes.length !== 2
+    || published.edges.length !== 0
+    || resultPanels.length !== 1
+    || resultPanels[0]?.id !== 'persisted-generated-result'
+    || resultProperties.key !== 'properties'
+    || resultProperties.type !== 'object'
+    || resultProperties.value?.output !== '# Refreshed generated result'
+    || resultProperties.value?.workflowOutputAnchorNodeId !== 'mcp-response-card-01'
+  ) {
+    throw new Error(`expected Run All to atomically reuse the typed persisted standalone result, got ${JSON.stringify(published)}`)
   }
 }
