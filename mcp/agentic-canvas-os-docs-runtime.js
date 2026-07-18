@@ -58,11 +58,17 @@ export const resolveAgenticCanvasOsLiveProofRevision = async ({
   }
   const repositoryRoot = path.resolve(absoluteDocsRoot, "..");
   const proofPath = path.relative(repositoryRoot, path.join(absoluteDocsRoot, AGENTIC_CANVAS_OS_LIVE_AGENT_PROOF_FILE));
-  const { stdout } = await execFileAsync("git", [
-    "-C", repositoryRoot, "log", "--follow", "--diff-filter=A", "--format=%H", "--", proofPath,
+  const { stdout: shallowOutput } = await execFileAsync("git", [
+    "-C", repositoryRoot, "rev-parse", "--is-shallow-repository",
   ]);
-  const revisions = normalizeText(stdout).split(/\r?\n/).filter(Boolean);
-  const localRevision = revisions.at(-1) || "";
+  const isShallowRepository = normalizeText(shallowOutput) === "true";
+  let localRevision = "";
+  if (!isShallowRepository) {
+    const { stdout } = await execFileAsync("git", [
+      "-C", repositoryRoot, "log", "--follow", "--diff-filter=A", "--format=%H", "--", proofPath,
+    ]);
+    localRevision = normalizeText(stdout).split(/\r?\n/).filter(Boolean).at(-1) || "";
+  }
   if (SOURCE_REVISION_PATTERN.test(localRevision)) return localRevision;
   const revision = await resolveAgentLiveProviderProofRevisionFromGitHub({
     sourceRevision,
