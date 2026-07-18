@@ -5,6 +5,7 @@ export const AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT = "agentic-canvas-os/docs";
 export const AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL =
   "https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs";
 export const AGENTIC_CANVAS_OS_LIVE_AGENT_PROOF_FILE = "LIVE-AGENT-PROVIDER-PROOF.md";
+export const AGENTIC_CANVAS_OS_PROGRESSIVE_AGENTS_FILE = "PROGRESSIVE-AGENTS.md";
 
 export const AGENTIC_CANVAS_OS_DOCS_KIND_FILES = Object.freeze({
   command: "DICTIONARY-COMMAND.md",
@@ -39,16 +40,50 @@ export const AGENTIC_CANVAS_OS_DOCS_INPUT_SCHEMA = Object.freeze({
   },
 });
 
+const PROGRESSIVE_AGENTS_READINESS_OUTPUT_SCHEMA = Object.freeze({
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schema", "status", "sourceRevision", "sourcePath", "sourceUrl", "contractSchema",
+    "runtimeScope", "runtimeOwner", "runtimeProof", "contractReady", "configured",
+    "progressionPolicy", "growthStages", "externalSdkDependency", "providerExecutionStatus",
+    "defaultWorkerConfigured", "deployPolicy",
+  ],
+  properties: {
+    schema: { const: "progressive-agents-readiness-summary/v1" },
+    status: { enum: ["runtime-ready-dev", "unavailable"] },
+    sourceRevision: { type: "string", pattern: "^[0-9a-f]{40}$" },
+    sourcePath: { const: "docs/PROGRESSIVE-AGENTS.md" },
+    sourceUrl: { type: "string" },
+    contractSchema: { type: "string" },
+    runtimeScope: { type: "string" },
+    runtimeOwner: { type: "string" },
+    runtimeProof: { type: "string" },
+    contractReady: { type: "boolean" },
+    configured: { type: ["boolean", "null"] },
+    progressionPolicy: { enum: ["single-agent-then-tools-then-specialists", "unavailable"] },
+    growthStages: { type: "array", items: { type: "string" }, maxItems: 3 },
+    externalSdkDependency: { type: ["boolean", "null"] },
+    providerExecutionStatus: { enum: ["unverified", "unavailable"] },
+    defaultWorkerConfigured: { type: ["boolean", "null"] },
+    deployPolicy: { type: "string" },
+  },
+});
+
 export const AGENTIC_CANVAS_OS_DOCS_OUTPUT_SCHEMA = Object.freeze({
   type: "object",
   additionalProperties: true,
-  required: ["ok", "docsRoot", "sourceRootUrl", "sourceRevision", "liveAgentProviderProof", "catalog"],
+  required: [
+    "ok", "docsRoot", "sourceRootUrl", "sourceRevision",
+    "liveAgentProviderProof", "progressiveAgentsReadiness", "catalog",
+  ],
   properties: {
     ok: { type: "boolean" },
     docsRoot: { type: "string" },
     sourceRootUrl: { type: "string" },
     sourceRevision: { type: "string", pattern: "^[0-9a-f]{40}$" },
     liveAgentProviderProof: { type: "object", additionalProperties: true },
+    progressiveAgentsReadiness: PROGRESSIVE_AGENTS_READINESS_OUTPUT_SCHEMA,
     absoluteDocsRoot: { type: "string" },
     token: { type: "string" },
     invocation: { type: ["object", "null"], additionalProperties: true },

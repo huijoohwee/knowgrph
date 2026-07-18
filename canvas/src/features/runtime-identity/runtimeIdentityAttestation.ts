@@ -88,6 +88,10 @@ const snapshotRuntimeIdentity = (identity: KnowgrphRuntimeIdentity): KnowgrphRun
     ...identity.agentLiveProviderProof,
     finalAnswerOwners: { ...identity.agentLiveProviderProof.finalAnswerOwners },
   },
+  progressiveAgentsReadiness: {
+    ...identity.progressiveAgentsReadiness,
+    growthStages: [...identity.progressiveAgentsReadiness.growthStages],
+  },
 })
 
 const isRuntimeIdentity = (value: unknown): value is KnowgrphRuntimeIdentity => {
@@ -102,6 +106,8 @@ const isRuntimeIdentity = (value: unknown): value is KnowgrphRuntimeIdentity => 
     || !isRecord(value.catalogCounts)
     || !isRecord(value.agentLiveProviderProof)
     || !isRecord(value.agentLiveProviderProof.finalAnswerOwners)
+    || !isRecord(value.progressiveAgentsReadiness)
+    || !Array.isArray(value.progressiveAgentsReadiness.growthStages)
   ) return false
   return typeof value.catalogHydration.status === 'string'
     && Number.isInteger(value.catalogHydration.attempts)
@@ -125,6 +131,23 @@ const isRuntimeIdentity = (value: unknown): value is KnowgrphRuntimeIdentity => 
     && typeof value.agentLiveProviderProof.finalAnswerOwners.handoff === 'string'
     && typeof value.agentLiveProviderProof.continuationContext === 'string'
     && typeof value.agentLiveProviderProof.defaultWorkerConfigured === 'boolean'
+    && value.progressiveAgentsReadiness.schema === 'progressive-agents-readiness-summary/v1'
+    && typeof value.progressiveAgentsReadiness.status === 'string'
+    && typeof value.progressiveAgentsReadiness.sourceRevision === 'string'
+    && typeof value.progressiveAgentsReadiness.sourcePath === 'string'
+    && typeof value.progressiveAgentsReadiness.sourceUrl === 'string'
+    && typeof value.progressiveAgentsReadiness.contractSchema === 'string'
+    && typeof value.progressiveAgentsReadiness.runtimeScope === 'string'
+    && typeof value.progressiveAgentsReadiness.runtimeOwner === 'string'
+    && typeof value.progressiveAgentsReadiness.runtimeProof === 'string'
+    && typeof value.progressiveAgentsReadiness.contractReady === 'boolean'
+    && (typeof value.progressiveAgentsReadiness.configured === 'boolean' || value.progressiveAgentsReadiness.configured === null)
+    && typeof value.progressiveAgentsReadiness.progressionPolicy === 'string'
+    && value.progressiveAgentsReadiness.growthStages.every(stage => typeof stage === 'string')
+    && (typeof value.progressiveAgentsReadiness.externalSdkDependency === 'boolean' || value.progressiveAgentsReadiness.externalSdkDependency === null)
+    && typeof value.progressiveAgentsReadiness.providerExecutionStatus === 'string'
+    && (typeof value.progressiveAgentsReadiness.defaultWorkerConfigured === 'boolean' || value.progressiveAgentsReadiness.defaultWorkerConfigured === null)
+    && typeof value.progressiveAgentsReadiness.deployPolicy === 'string'
 }
 
 const toHex = (bytes: ArrayBuffer): string =>
@@ -244,6 +267,9 @@ const collectParityDifferences = (
   }
   if (new Set(identities.map(identity => JSON.stringify(identity.agentLiveProviderProof))).size !== 1) {
     differences.push('agentLiveProviderProof')
+  }
+  if (new Set(identities.map(identity => JSON.stringify(identity.progressiveAgentsReadiness))).size !== 1) {
+    differences.push('progressiveAgentsReadiness')
   }
   return differences
 }

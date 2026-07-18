@@ -8,7 +8,7 @@ import { useKnowgrphRuntimeIdentityAttestationRuntime } from './useKnowgrphRunti
 
 const CATALOG_IDENTITY_SIGILS: readonly AgenticOsRemoteGrammarSigil[] = ['/', '#', '@']
 
-/** Owns application identity globally; docs catalog and provider proof are source-backed facets. */
+/** Owns application identity globally; docs catalog, provider proof, and progressive readiness are source-backed facets. */
 export function KnowgrphRuntimeIdentityRuntime() {
   const catalogSnapshot = useAgenticOsRemoteGrammarCatalog({ sigils: CATALOG_IDENTITY_SIGILS })
   const identity = useKnowgrphRuntimeIdentity()

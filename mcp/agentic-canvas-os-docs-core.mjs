@@ -1,6 +1,7 @@
 import {
   AGENTIC_CANVAS_OS_DOCS_KIND_FILES,
   AGENTIC_CANVAS_OS_LIVE_AGENT_PROOF_FILE,
+  AGENTIC_CANVAS_OS_PROGRESSIVE_AGENTS_FILE,
   AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL,
   AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT,
   dictionaryFileForAgenticCanvasOsToken,
@@ -108,6 +109,63 @@ export const buildAgentLiveProviderProofSummary = ({
     },
     continuationContext: preservesAllTurns ? "all_turns" : "",
     defaultWorkerConfigured,
+  };
+};
+
+export const buildProgressiveAgentsReadinessSummary = ({
+  markdown = "",
+  sourceRevision = "",
+} = {}) => {
+  const normalizedSourceRevision = normalizeText(sourceRevision);
+  const frontmatter = extractFrontmatter(markdown);
+  const contractSchema = readFrontmatterScalar(frontmatter, "schema");
+  const sourceStatus = readFrontmatterScalar(frontmatter, "status");
+  const runtimeScope = readFrontmatterScalar(frontmatter, "runtime_scope");
+  const runtimeClaim = readFrontmatterScalar(frontmatter, "runtime_claim");
+  const runtimeOwner = readFrontmatterScalar(frontmatter, "runtime_owner");
+  const runtimeProof = readFrontmatterScalar(frontmatter, "runtime_proof");
+  const externalSourcePolicy = readFrontmatterScalar(frontmatter, "external_source_policy");
+  const deployPolicy = readFrontmatterScalar(frontmatter, "publish_policy");
+  const normalizedBody = String(markdown || "").replace(/\s+/g, " ");
+  const growthStagesReady = ["Register one agent", "Run one agent", "Add tools", "Add specialists"]
+    .every((stage) => String(markdown || "").includes(`| ${stage} |`));
+  const noExternalSdk = /does not import or emulate an external Agents SDK/i.test(normalizedBody);
+  const providerUnverified = /provider execution `unverified`/i.test(normalizedBody);
+  const defaultWorkerUnconfigured = /default Worker execution remains unconfigured/i.test(runtimeClaim)
+    && /default Worker keeps all execution states false/i.test(normalizedBody);
+  const ready = SHA_PATTERN.test(normalizedSourceRevision)
+    && contractSchema === "progressive-agents-runtime-contract/v1"
+    && sourceStatus === "runtime-ready-dev"
+    && Boolean(runtimeScope)
+    && runtimeOwner === "../agent-api/src/progressive-agents.js"
+    && runtimeProof === "../__tests__/progressive-agents.test.mjs"
+    && externalSourcePolicy.includes("forbid copied code")
+    && deployPolicy === "Dev-only until explicit operator approval"
+    && growthStagesReady
+    && noExternalSdk
+    && providerUnverified
+    && defaultWorkerUnconfigured;
+
+  return {
+    schema: "progressive-agents-readiness-summary/v1",
+    status: ready ? "runtime-ready-dev" : "unavailable",
+    sourceRevision: normalizedSourceRevision,
+    sourcePath: `docs/${AGENTIC_CANVAS_OS_PROGRESSIVE_AGENTS_FILE}`,
+    sourceUrl: SHA_PATTERN.test(normalizedSourceRevision)
+      ? `https://github.com/huijoohwee/agentic-canvas-os/blob/${normalizedSourceRevision}/docs/${AGENTIC_CANVAS_OS_PROGRESSIVE_AGENTS_FILE}`
+      : "",
+    contractSchema,
+    runtimeScope,
+    runtimeOwner,
+    runtimeProof,
+    contractReady: ready,
+    configured: ready ? false : null,
+    progressionPolicy: ready ? "single-agent-then-tools-then-specialists" : "unavailable",
+    growthStages: ready ? ["single-agent", "tool-enabled-agent", "specialist-workflow"] : [],
+    externalSdkDependency: ready ? false : null,
+    providerExecutionStatus: ready ? "unverified" : "unavailable",
+    defaultWorkerConfigured: ready ? false : null,
+    deployPolicy,
   };
 };
 
@@ -326,6 +384,10 @@ export const buildAgenticCanvasOsDocsInvokePayload = ({
     sourceRevision: normalizedSourceRevision,
     proofRevision: liveAgentProviderProofRevision,
   });
+  const progressiveAgentsReadiness = buildProgressiveAgentsReadinessSummary({
+    markdown: docsContentByFileName[AGENTIC_CANVAS_OS_PROGRESSIVE_AGENTS_FILE] || "",
+    sourceRevision: normalizedSourceRevision,
+  });
 
   return {
     ok: !normalizedToken || Boolean(effectiveInvocation),
@@ -333,6 +395,7 @@ export const buildAgenticCanvasOsDocsInvokePayload = ({
     sourceRootUrl: AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL,
     sourceRevision: normalizedSourceRevision,
     liveAgentProviderProof,
+    progressiveAgentsReadiness,
     ...(absoluteDocsRoot ? { absoluteDocsRoot } : {}),
     ...(normalizedToken ? { token: normalizedToken } : {}),
     invocation: resolvedInvocation,
@@ -359,6 +422,7 @@ export const buildAgenticCanvasOsDocsStaticResolutionPayload = (args = {}) => (
       "DICTIONARY-SEMANTIC.md": "",
       "DICTIONARY-BINDING.md": "",
       [AGENTIC_CANVAS_OS_LIVE_AGENT_PROOF_FILE]: "",
+      [AGENTIC_CANVAS_OS_PROGRESSIVE_AGENTS_FILE]: "",
     },
   })
 );
@@ -392,12 +456,13 @@ export const buildAgenticCanvasOsDocsDynamicResolutionPayload = async (args = {}
     }
   };
 
-  const [facts, command, semantic, binding, liveAgentProviderProof, liveAgentProviderProofRevision] = await Promise.all([
+  const [facts, command, semantic, binding, liveAgentProviderProof, progressiveAgents, liveAgentProviderProofRevision] = await Promise.all([
     fetchDoc("FACTS.md"),
     fetchDoc("DICTIONARY-COMMAND.md"),
     fetchDoc("DICTIONARY-SEMANTIC.md"),
     fetchDoc("DICTIONARY-BINDING.md"),
     fetchDoc(AGENTIC_CANVAS_OS_LIVE_AGENT_PROOF_FILE),
+    fetchDoc(AGENTIC_CANVAS_OS_PROGRESSIVE_AGENTS_FILE),
     resolveAgentLiveProviderProofRevisionFromGitHub({
       sourceRevision,
       requestInit: { cf: { cacheTtl: 86400, cacheEverything: true } },
@@ -414,6 +479,7 @@ export const buildAgenticCanvasOsDocsDynamicResolutionPayload = async (args = {}
       "DICTIONARY-SEMANTIC.md": semantic,
       "DICTIONARY-BINDING.md": binding,
       [AGENTIC_CANVAS_OS_LIVE_AGENT_PROOF_FILE]: liveAgentProviderProof,
+      [AGENTIC_CANVAS_OS_PROGRESSIVE_AGENTS_FILE]: progressiveAgents,
     },
   });
 };
