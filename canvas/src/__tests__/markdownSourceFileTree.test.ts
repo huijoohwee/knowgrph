@@ -17,6 +17,8 @@ export async function testMarkdownSourceFileTreeCentralizesSourcePanelModelLogic
     { id: 'a', name: 'docs/readme.md', active: true },
     { id: 'b', name: 'docs/guides/intro.md' },
     { id: 'c', name: 'notes/todo.md' },
+    { id: 'd', name: 'chat-log/20260719T010707Z/kgc.md' },
+    { id: 'e', name: 'video-runs-24/run.json' },
   ])
 
   const collapsedVisible = flattenVisibleMarkdownSourceFileTree({
@@ -62,5 +64,9 @@ export async function testMarkdownSourceFileTreeCentralizesSourcePanelModelLogic
 
   if (resolveMarkdownSourceParentFolderPath('docs/guides/intro.md') !== 'docs/guides') {
     throw new Error('expected source file parent folder resolution to preserve nested directory path')
+  }
+
+  if (collapsedPaths.includes('chat-log') || collapsedPaths.includes('video-runs-24')) {
+    throw new Error(`expected generated run evidence to stay out of the source tree, got ${collapsedPaths}`)
   }
 }
