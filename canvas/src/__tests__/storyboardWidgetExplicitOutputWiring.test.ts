@@ -1,5 +1,4 @@
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
-import { createStoryboardWidgetWorkflowRichMediaPublishers } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPublication'
 import { resolveStoryboardWidgetWorkflowDownstreamRunTargetIds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowDownstreamRunTargets'
 import {
   ensureStoryboardWidgetWorkflowOutputEdge,
@@ -11,59 +10,8 @@ import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/grap
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { buildStoryboardWidgetTextRunSourceState } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetTextRunSourceState'
-
-function createTextOutputHarness(
-  initialGraph: GraphData,
-  storeGraph: GraphData = initialGraph,
-  allowCreateRichMediaPanel = true,
-  options: { commitPublishedGraphData?: boolean } = {},
-) {
-  let draft = initialGraph
-  let draftCommitCount = 0
-  let publishedCommitCount = 0
-  const resolveNode = (nodeId: string) => draft.nodes.find(node => String(node.id) === nodeId)
-    || storeGraph.nodes.find(node => String(node.id) === nodeId)
-    || null
-  const publishers = createStoryboardWidgetWorkflowRichMediaPublishers({
-    context: {
-      draftGraph: initialGraph,
-      renderGraph: initialGraph,
-      baseGraph: initialGraph,
-      storeGraph,
-      draftNodes: initialGraph.nodes,
-      renderNodes: initialGraph.nodes,
-      baseNodes: initialGraph.nodes,
-      storeNodes: storeGraph.nodes,
-      draftNodeById: new Map(initialGraph.nodes.map(node => [String(node.id), node])),
-      renderNodeById: new Map(initialGraph.nodes.map(node => [String(node.id), node])),
-      baseNodeById: new Map(initialGraph.nodes.map(node => [String(node.id), node])),
-      storeNodeById: new Map(storeGraph.nodes.map(node => [String(node.id), node])),
-    } as never,
-    graphForRun: initialGraph,
-    allowCreateRichMediaPanel,
-    withRunLayoutMutationGuard: run => run(),
-    scheduleWorkflowOutputEdgeRefresh: () => undefined,
-    readLiveDraftGraphData: () => draft,
-    appendDraftNode: () => { throw new Error('text publication must use its atomic transaction') },
-    commitDraftGraphDataUpdate: (_current, next) => {
-      draftCommitCount += 1
-      draft = next
-    },
-    ...(options.commitPublishedGraphData === false ? {} : { commitPublishedGraphData: (next: GraphData) => {
-      publishedCommitCount += 1
-      draft = next
-    } }),
-    updateNode: (id, patch) => {
-      draft = { ...draft, nodes: draft.nodes.map(node => String(node.id) === id ? { ...node, ...patch } : node) }
-    },
-    resolveNodeByIdAcrossGraphs: resolveNode,
-  })
-  return {
-    publishers,
-    readGraph: () => draft,
-    readCommitCounts: () => ({ draft: draftCommitCount, published: publishedCommitCount }),
-  }
-}
+import { buildRichMediaPanelOverlayState, resolveRichMediaPanelDisplayText } from '@/lib/render/richMediaPanelState'
+import { createStoryboardWidgetTextOutputHarness as createTextOutputHarness } from '@/tests/lib/storyboardWidgetTextOutputHarness'
 
 export function testWorkflowOwnedOutputEdgeRepairsCanonicalPortMetadata() {
   const source: GraphNode = { id: 'source', type: 'TextGeneration', label: 'Widget Card', properties: {} }
@@ -122,14 +70,19 @@ export function testGenericTextRunPreservesSourceAndMaterializesConnectedPanel()
     },
   }
   const harness = createTextOutputHarness({ type: 'Graph', nodes: [source], edges: [] })
-  const generatedMarkdown = '# Financial plan\n\n| Metric | Value |\n| --- | ---: |\n| Revenue | RM 100,000 |'
+  const generatedVersions = [
+    '# Financial plan\n\n| Metric | Value |\n| --- | ---: |\n| Revenue | RM 100,000 |',
+    '# Revised financial plan\n\n| Metric | Value |\n| --- | ---: |\n| Revenue | RM 120,000 |',
+  ]
 
   for (let index = 0; index < 2; index += 1) {
     harness.publishers.publishTextRunOutputToRichMediaPanel({
       anchorNode: source,
-      outputText: generatedMarkdown,
+      outputText: generatedVersions[index] || '',
       title: 'Widget Card',
       model: 'test-model',
+      versionId: `run-${index + 1}`,
+      versionCreatedAt: `2026-07-19T02:0${index}:00.000Z`,
       connectCreatedOutputToAnchor: true,
     })
   }
@@ -142,6 +95,7 @@ export function testGenericTextRunPreservesSourceAndMaterializesConnectedPanel()
   const published = harness.readGraph()
   const outputPanels = published.nodes.filter(node => node.type === 'RichMediaPanel')
   const outputEdges = published.edges.filter(edge => edge.properties?.workflowOutputEdge === true)
+  const outputVersions = outputPanels[0]?.properties.outputVersions as Array<{ id?: unknown; output?: unknown }> | undefined
   if (
     sourceProperties.prompt !== 'Generate a financial response for restaurant startup'
     || sourceProperties.summary !== 'Keep this authored brief.'
@@ -150,7 +104,13 @@ export function testGenericTextRunPreservesSourceAndMaterializesConnectedPanel()
     || sourceProperties.lastRunAt !== '2026-07-19T02:00:00.000Z'
     || published.nodes.length !== 2
     || outputPanels.length !== 1
-    || outputPanels[0]?.properties.output !== generatedMarkdown
+    || outputPanels[0]?.properties.output !== generatedVersions[1]
+    || outputVersions?.length !== 2
+    || outputVersions[0]?.id !== 'run-1'
+    || outputVersions[0]?.output !== generatedVersions[0]
+    || outputVersions[1]?.id !== 'run-2'
+    || outputVersions[1]?.output !== generatedVersions[1]
+    || outputPanels[0]?.properties.selectedOutputVersionId !== 'run-2'
     || outputEdges.length !== 1
     || outputEdges[0]?.source !== 'n3'
     || outputEdges[0]?.target !== outputPanels[0]?.id
@@ -158,6 +118,78 @@ export function testGenericTextRunPreservesSourceAndMaterializesConnectedPanel()
     || outputEdges[0]?.properties?.[FLOW_EDGE_TARGET_PORT_KEY] !== 'output'
   ) {
     throw new Error(`expected generic text Run to preserve source input and reuse one connected Rich Media output, got ${JSON.stringify({ sourceProperties, published })}`)
+  }
+}
+
+export function testExistingTextOutputBecomesSelectableVersionOnRerun() {
+  const source: GraphNode = {
+    id: 'source-existing',
+    type: 'TextGeneration',
+    label: 'Widget Card',
+    properties: { prompt: 'Refine this report.' },
+  }
+  const panel: GraphNode = {
+    id: 'panel-existing',
+    type: 'RichMediaPanel',
+    label: 'Rich Media Panel',
+    properties: {
+      output: '# Existing report\n\nVersion one.',
+      outputMimeType: 'text/markdown; charset=utf-8',
+      outputModel: 'previous-model',
+      lastRunAt: '2026-07-19T01:00:00.000Z',
+      richMediaActiveTab: 'text',
+    },
+  }
+  const graph: GraphData = {
+    type: 'Graph',
+    nodes: [source, panel],
+    edges: [{ id: 'authored-existing-output', source: source.id, target: panel.id, label: 'output', properties: {} }],
+  }
+  const harness = createTextOutputHarness(graph)
+  harness.publishers.publishTextRunOutputToRichMediaPanel({
+    anchorNode: source,
+    outputText: '# Revised report\n\nStreaming partial.',
+    title: 'Rich Media Panel',
+    model: 'current-model',
+    versionId: 'run-current',
+    versionCreatedAt: '2026-07-19T02:00:00.000Z',
+    loading: true,
+  })
+  harness.publishers.publishTextRunOutputToRichMediaPanel({
+    anchorNode: source,
+    outputText: '# Revised report\n\nVersion two.',
+    title: 'Rich Media Panel',
+    model: 'current-model',
+    versionId: 'run-current',
+    versionCreatedAt: '2026-07-19T02:00:00.000Z',
+  })
+
+  const published = harness.readGraph()
+  const publishedPanel = published.nodes.find(node => node.id === panel.id)
+  const versions = publishedPanel?.properties.outputVersions as Array<Record<string, unknown>> | undefined
+  const previousVersionPanel = publishedPanel
+    ? buildRichMediaPanelOverlayState({
+        node: {
+          ...publishedPanel,
+          properties: { ...publishedPanel.properties, selectedOutputVersionId: String(versions?.[0]?.id || '') },
+        },
+      })
+    : undefined
+  if (
+    published.nodes.length !== 2
+    || published.edges.length !== 1
+    || published.edges[0]?.source !== source.id
+    || published.edges[0]?.target !== panel.id
+    || publishedPanel?.properties.output !== '# Revised report\n\nVersion two.'
+    || versions?.length !== 2
+    || versions[0]?.output !== '# Existing report\n\nVersion one.'
+    || versions[0]?.outputModel !== 'previous-model'
+    || versions[1]?.id !== 'run-current'
+    || versions[1]?.output !== '# Revised report\n\nVersion two.'
+    || publishedPanel?.properties.selectedOutputVersionId !== 'run-current'
+    || resolveRichMediaPanelDisplayText(previousVersionPanel) !== '# Existing report\n\nVersion one.'
+  ) {
+    throw new Error(`expected rerun to retain the existing output as version one and preserve its authored edge, got ${JSON.stringify(published)}`)
   }
 }
 

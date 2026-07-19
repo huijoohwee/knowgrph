@@ -91,7 +91,7 @@ export async function testGenerateRunMarkdownWithProviderUsesChatProxyResponse()
         throw new Error(`expected text generation to use the Seed text model, got ${String(body.model)}`)
       }
       const systemInstruction = body.messages?.[0]
-      if (systemInstruction?.role !== 'system' || !String(systemInstruction.content || '').includes('dominant language of the user-authored request')) {
+      if (systemInstruction?.role !== 'system' || !String(systemInstruction.content || '').includes('Infer response-language intent semantically') || !String(systemInstruction.content || '').includes('ask one concise clarification')) {
         throw new Error(`expected chat-completions generation to carry multilingual response instructions, got ${JSON.stringify(body.messages)}`)
       }
       return new Response(JSON.stringify({ choices: [{ message: { content: '# Final Output\n\nSpecific answer.' } }] }), {

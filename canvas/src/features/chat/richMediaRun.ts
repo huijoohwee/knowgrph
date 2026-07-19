@@ -173,7 +173,7 @@ export const clearRichMediaOutputProperties = (properties: Record<string, unknow
   delete next.imageThreeJsInvocation
   delete next.outputSrcDoc
   delete next.outputLoading
-  delete next.outputLoadingKind; delete next.outputLoadingLabel
+  delete next.outputLoadingKind; delete next.outputLoadingLabel; delete next.outputVersions; delete next.selectedOutputVersionId
   delete next.renderErrorCode
   delete next.renderErrorReason
   delete next.renderJobId

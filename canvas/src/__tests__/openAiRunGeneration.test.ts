@@ -22,8 +22,14 @@ export async function testGenerateRunMarkdownWithProviderSupportsOpenAiResponses
       if (typeof body.instructions !== 'string' || !body.instructions.trim()) {
         throw new Error('expected responses request to include instructions')
       }
-      if (!body.instructions.includes('dominant language of the user-authored request') || !body.instructions.includes('connected source context')) {
-        throw new Error(`expected responses instructions to keep authored-request language authority, got ${body.instructions}`)
+      if (
+        !body.instructions.includes('Infer response-language intent semantically')
+        || !body.instructions.includes('genuinely ambiguous')
+        || !body.instructions.includes('ask one concise clarification')
+        || !body.instructions.includes('Do not ask for clarification solely because connected source context uses another language')
+        || body.instructions.includes('Unicode')
+      ) {
+        throw new Error(`expected responses instructions to use semantic multilingual clarification without script hardcodes, got ${body.instructions}`)
       }
       if (typeof body.input !== 'string' || !body.input.trim()) {
         throw new Error('expected responses request to use input text payload')

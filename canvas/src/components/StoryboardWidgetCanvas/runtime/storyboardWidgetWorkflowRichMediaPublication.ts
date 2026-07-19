@@ -37,6 +37,12 @@ import { createStoryboardWidgetWorkflowPublicationTransaction } from '@/componen
 import { areStoryboardWidgetWorkflowRecordValuesEqual } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowWriteback'
 import { PROBE_TREE_OUTPUT_KEY } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
 import { buildStoryboardWidgetTextPublicationGraph } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetTextPublicationGraph'
+import {
+  buildRichMediaTextOutputBaselinePatch,
+  buildRichMediaTextOutputVersionPatch,
+} from '@/lib/render/richMediaOutputVersions'
+import type { StoryboardWidgetTextRunOutputPublisher } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetTextRunOutputPublisher'
+export type { StoryboardWidgetTextRunOutputPublisher } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetTextRunOutputPublisher'
 
 const HTML_VIDEO_PREVIEW_STABILITY_KEYS = [
   'output',
@@ -70,29 +76,6 @@ export function stabilizeHtmlVideoPreviewPatchForExistingProps(
     lastRunAt: currentProps.lastRunAt,
   }
 }
-
-export type StoryboardWidgetTextRunOutputPublisher = (args: {
-  anchorNode: GraphNode
-  baseGraphData?: GraphData | null
-  outputText: string
-  title: string
-  model?: unknown
-  sourceUrl?: string
-  outputPath?: string | null
-  srcDoc?: string | null
-  loading?: boolean
-  loadingLabel?: string
-  outputKey?: string
-  outputGroupId?: string
-  outputThreadRootId?: string
-  panelLabel?: string
-  panelProperties?: Record<string, unknown>
-  outputIndex?: number
-  allowCreateStandaloneOutput?: boolean
-  connectCreatedOutputToAnchor?: boolean
-  ownedOutputOnly?: boolean
-  deferPublishedGraphCommit?: boolean
-}) => GraphData | null
 
 export type StoryboardWidgetMediaRunOutputPublisher = (args: {
   anchorNode: GraphNode
@@ -329,18 +312,20 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
       })
       const panelNodeIds = explicitPanelNodeIds.length > 0 ? explicitPanelNodeIds : createdPanelNodeId ? [createdPanelNodeId] : []
       if (panelNodeIds.length === 0) return null
-      const patch: Record<string, unknown> = {
+      const textOutputPatch = buildTextWidgetOutputPatch({
+        output: String(panelArgs.outputText || ''),
+        title: panelArgs.title,
+        model: panelArgs.model,
+        outputPath: panelArgs.outputPath,
+        materializeSrcDoc: false,
+      })
+      const basePatch: Record<string, unknown> = {
         ...(panelArgs.panelProperties || {}),
         ...clearRichMediaOutputProperties({}),
-        ...buildTextWidgetOutputPatch({
-          output: String(panelArgs.outputText || ''),
-          title: panelArgs.title,
-          model: panelArgs.model,
-          outputPath: panelArgs.outputPath,
-          materializeSrcDoc: false,
-        }),
+        ...textOutputPatch,
         outputSrcDoc: panelArgs.srcDoc ? panelArgs.srcDoc : undefined,
         richMediaActiveTab: panelArgs.srcDoc ? 'auto' : 'text',
+        selectedOutputVersionId: undefined,
         outputLoading: panelArgs.loading === true ? true : undefined,
         outputLoadingKind: panelArgs.loading === true ? 'text' : undefined,
         outputLoadingLabel: panelArgs.loading === true && panelArgs.loadingLabel?.trim() ? panelArgs.loadingLabel.trim() : undefined,
@@ -357,10 +342,27 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
             : WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
         }),
       }
-      for (const panelNodeId of panelNodeIds) applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch({
-        panelNodeId, patch, readLiveDraftGraphData: transaction.readDraftGraphData,
-        commitDraftGraphDataUpdate: transaction.commitDraftGraphDataUpdate, scheduleWorkflowOutputEdgeRefresh: () => undefined,
-      })
+      for (const panelNodeId of panelNodeIds) {
+        const existingPanelProps = readPanelProperties(panelNodeId)
+        const patch = panelArgs.loading === true
+          ? { ...basePatch, ...buildRichMediaTextOutputBaselinePatch(existingPanelProps) }
+          : {
+              ...basePatch,
+              ...buildRichMediaTextOutputVersionPatch({
+                properties: existingPanelProps,
+                output: String(panelArgs.outputText || ''),
+                outputMimeType: textOutputPatch.outputMimeType,
+                outputModel: textOutputPatch.outputModel,
+                outputPath: textOutputPatch.outputPath,
+                versionId: panelArgs.versionId,
+                createdAt: panelArgs.versionCreatedAt || readWorkflowString(textOutputPatch.lastRunAt),
+              }),
+            }
+        applyStoryboardWidgetWorkflowRichMediaPanelDraftPatch({
+          panelNodeId, patch, readLiveDraftGraphData: transaction.readDraftGraphData,
+          commitDraftGraphDataUpdate: transaction.commitDraftGraphDataUpdate, scheduleWorkflowOutputEdgeRefresh: () => undefined,
+        })
+      }
       if (explicitPanelNodeIds.length === 0 && panelArgs.connectCreatedOutputToAnchor === true) {
         for (const panelNodeId of panelNodeIds) ensureStoryboardWidgetWorkflowOutputEdge({
           anchorNodeId: readWorkflowString(panelArgs.anchorNode.id),

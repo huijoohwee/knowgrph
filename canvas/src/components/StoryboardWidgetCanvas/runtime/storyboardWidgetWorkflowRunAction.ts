@@ -516,7 +516,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
             title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL,
             model: properties.chatModel || useGraphStore.getState().chatModel,
             outputPath,
-            loading,
+            loading, versionId: `text-run-${textRunStartedAt}`, versionCreatedAt: textRunStartedAt,
             connectCreatedOutputToAnchor: true,
           })
         }

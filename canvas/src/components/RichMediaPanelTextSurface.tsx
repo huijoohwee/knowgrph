@@ -13,6 +13,8 @@ export function RichMediaPanelTextSurface(args: {
   props: RichMediaPanelProps
 }) {
   const { model, props } = args
+  const outputVersions = props.panel?.outputVersions || []
+  const selectedOutputVersionId = props.panel?.selectedOutputVersionId || outputVersions.at(-1)?.id || ''
   const wrapWithMediaDropZone = (children: React.ReactNode) => (
     props.onMediaDrop ? (
       <CardMediaDropZoneFrame
@@ -49,6 +51,36 @@ export function RichMediaPanelTextSurface(args: {
         onPointerDownCapture={model.panelTextEditable ? event => event.stopPropagation() : undefined}
         onWheelCapture={model.panelTextEditable ? event => event.stopPropagation() : undefined}
       >
+        {outputVersions.length > 1 ? (
+          <label
+            className="flex shrink-0 items-center justify-end gap-2 border-b px-2 py-1 text-[11px]"
+            data-kg-rich-media-output-version-control="1"
+            style={{ borderColor: 'var(--kg-border)', color: 'var(--kg-muted-foreground)' }}
+            onPointerDown={event => event.stopPropagation()}
+          >
+            <span>Output version</span>
+            <select
+              aria-label="Output version"
+              value={selectedOutputVersionId}
+              className="max-w-40 rounded border bg-transparent px-1 py-0.5 text-[11px]"
+              style={{ borderColor: 'var(--kg-border)', color: 'var(--kg-foreground)' }}
+              onChange={event => props.onPanelChange?.({
+                activeTab: 'text',
+                freezeConnectedOutput: props.panel?.freezeConnectedOutput === true,
+                selectedOutputVersionId: event.currentTarget.value,
+              })}
+            >
+              {[...outputVersions].reverse().map((version, reverseIndex) => {
+                const versionNumber = outputVersions.length - reverseIndex
+                return (
+                  <option key={version.id} value={version.id}>
+                    {`Version ${versionNumber}${reverseIndex === 0 ? ' (latest)' : ''}`}
+                  </option>
+                )
+              })}
+            </select>
+          </label>
+        ) : null}
         <section className={CARD_TEXT_SURFACE_SCROLL_CLASS_NAME} data-kg-canvas-pointer-ignore="true" data-kg-canvas-wheel-ignore="true" data-kg-media-scroll-surface="1" data-kg-rich-media-card-text-scroll="1">
           <CardInlineTextEditor
             value={model.panelDisplayText}
