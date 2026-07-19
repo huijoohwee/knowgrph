@@ -33,7 +33,7 @@ export type VisibleMarkdownSourceFileTreeNode = {
 
 // Run evidence remains persisted and addressable, but it is not an authored source
 // document and should not crowd the Explorer's root-level workspace inventory.
-const LEGACY_GENERATED_SOURCE_ROOT_PATTERN = /^(?:chat-log|video-runs(?:-\d+)?)$/i
+const LEGACY_GENERATED_SOURCE_ROOT_PATTERN = /^(?:agentic-os-docs|chat-log|video-runs(?:-\d+)?)$/i
 
 const normalizeMarkdownSourceFilePath = (name: string): string =>
   String(name || '').trim().replace(/\\/g, '/').replace(/\/+$/g, '')
