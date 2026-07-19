@@ -22,8 +22,14 @@ export async function testGenerateRunMarkdownWithProviderSupportsOpenAiResponses
       if (typeof body.instructions !== 'string' || !body.instructions.trim()) {
         throw new Error('expected responses request to include instructions')
       }
+      if (!body.instructions.includes('dominant language of the user-authored request') || !body.instructions.includes('connected source context')) {
+        throw new Error(`expected responses instructions to keep authored-request language authority, got ${body.instructions}`)
+      }
       if (typeof body.input !== 'string' || !body.input.trim()) {
         throw new Error('expected responses request to use input text payload')
+      }
+      if (body.input !== '<connected-source-context>\nSumber dalam Bahasa Melayu.\n</connected-source-context>\n\n<user-authored-request>\n生成财务报告\n</user-authored-request>') {
+        throw new Error(`expected responses input to preserve multilingual source and authored prompt, got ${String(body.input)}`)
       }
       if (typeof body.messages !== 'undefined') {
         throw new Error('expected responses request to omit messages field')
@@ -47,7 +53,7 @@ export async function testGenerateRunMarkdownWithProviderSupportsOpenAiResponses
         apiKey: '',
         chatModel: OPENAI_TEST_MODEL,
       },
-      prompt: 'Generate markdown',
+      prompt: '<connected-source-context>\nSumber dalam Bahasa Melayu.\n</connected-source-context>\n\n<user-authored-request>\n生成财务报告\n</user-authored-request>',
       options: { chatMaxCompletionTokens: 120, chatReasoningEffort: 'minimal' },
     })
     if (text !== '# Final Output\n\nSpecific answer.') {
