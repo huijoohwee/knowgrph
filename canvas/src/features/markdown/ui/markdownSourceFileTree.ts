@@ -31,8 +31,18 @@ export type VisibleMarkdownSourceFileTreeNode = {
   hasChildren?: boolean
 }
 
+// Run evidence remains persisted and addressable, but it is not an authored source
+// document and should not crowd the Explorer's root-level workspace inventory.
+const LEGACY_GENERATED_SOURCE_ROOT_PATTERN = /^(?:agentic-os-docs|chat-log|video-runs(?:-\d+)?)$/i
+
 const normalizeMarkdownSourceFilePath = (name: string): string =>
   String(name || '').trim().replace(/\\/g, '/').replace(/\/+$/g, '')
+
+export function isLegacyGeneratedMarkdownSourcePath(name: string): boolean {
+  const normalized = normalizeMarkdownSourceFilePath(name)
+  const root = normalized.split('/').filter(Boolean)[0] || ''
+  return LEGACY_GENERATED_SOURCE_ROOT_PATTERN.test(root)
+}
 
 export function normalizeMarkdownSourceFolderPath(v: unknown): string {
   const raw = String(v || '').trim()
@@ -59,6 +69,7 @@ export function buildMarkdownSourceFileTree(
   for (const sourceFile of list) {
     const rawName = normalizeMarkdownSourceFilePath(String(sourceFile?.name || ''))
     if (!rawName) continue
+    if (isLegacyGeneratedMarkdownSourcePath(rawName)) continue
     const parts = rawName.split('/').filter(Boolean)
     if (parts.length === 0) continue
 
