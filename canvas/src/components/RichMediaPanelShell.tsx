@@ -1,5 +1,6 @@
 import type React from 'react'
-import { StoryboardWidgetPanelChromeHeader } from '@/components/StoryboardWidget/StoryboardWidgetPanelChrome'
+import { STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME, StoryboardWidgetPanelChromeHeader } from '@/components/StoryboardWidget/StoryboardWidgetPanelChrome'
+import { RichMediaOutputVersionSelector } from './RichMediaOutputVersionSelector'
 import { RichMediaPanelResizeHandle } from './RichMediaPanelResizeHandle'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
 import type { RichMediaPanelModel } from './useRichMediaPanelModel'
@@ -34,6 +35,16 @@ export function RichMediaPanelShell(args: {
           <StoryboardWidgetPanelChromeHeader
             active={model.headerControlsActive}
             title={model.title}
+            titleContent={(
+              <section className="flex w-full min-w-0 items-center gap-2">
+                <h3 className={STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME}>{model.title}</h3>
+                <RichMediaOutputVersionSelector
+                  panel={props.panel}
+                  onPanelChange={props.onPanelChange}
+                  placement="header"
+                />
+              </section>
+            )}
             minimized={props.headerMinimized === true}
             showFieldToggle={false}
             showPinToggle={typeof props.onHeaderTogglePinned === 'function'}
