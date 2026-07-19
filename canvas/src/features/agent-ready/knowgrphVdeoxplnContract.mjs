@@ -46,11 +46,20 @@ const buildPublishedToolNames = () =>
   buildKnowgrphAgentReadyToolContracts({ defaultWorkspaceId: KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID })
     .map((tool) => tool.name);
 
-const buildBrowserToolNames = () =>
+const buildBrowserToolContracts = () =>
   buildKnowgrphAgentReadyToolContracts({
     defaultWorkspaceId: KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
     includeBrowserOnlyTools: true,
-  }).map((tool) => tool.name);
+  });
+
+const buildBrowserToolNames = () => buildBrowserToolContracts().map((tool) => tool.name);
+
+const buildReadOnlyBrowserToolNames = () => {
+  const publishedToolNames = new Set(buildPublishedToolNames());
+  return buildBrowserToolContracts()
+    .filter((tool) => tool.annotations?.readOnlyHint === true && !publishedToolNames.has(tool.name))
+    .map((tool) => tool.name);
+};
 
 const RAW_VDEOXPLN = Object.freeze([
   {
@@ -121,20 +130,7 @@ const RAW_VDEOXPLN = Object.freeze([
     ],
     tools: {
       published: [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectAgentSurface],
-      browserLocal: [
-        KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSettingsChatReadiness,
-        KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelState,
-        KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalEditorWorkspaceState,
-        KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalChatPipelineState,
-        KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalMainPanelChatCanvasPipeline,
-        KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalWorkspaceDocument,
-        KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasTopology,
-        KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalCanvasSnapshot,
-        KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dCameraPose,
-        KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions,
-        KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal2dZoomViewport,
-        KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSourceFilesSnapshot,
-      ],
+      browserLocal: buildReadOnlyBrowserToolNames(),
       local: [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList],
     },
     workflow: [

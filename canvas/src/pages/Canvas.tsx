@@ -29,6 +29,7 @@ import {
 } from '@/lib/ui/responsiveElementClasses'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { isRouterRootAliasRuntime } from '@/lib/routing/basePath'
+import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
 
 import { CanvasStartupRuntimes } from '@/features/canvas/CanvasStartupRuntimes'
 
@@ -56,6 +57,8 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
   const bootstrapRuntimesEnabled = props.bootstrapRuntimesEnabled !== false
   const location = useLocation()
   const { isEmbeddedPreview, setIsEmbeddedPreview, detectEmbeddedPreviewWriteback } = useCanvasEmbeddedPreviewRuntime(location.search)
+  const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive()
+  const previewOnly = isEmbeddedPreview || xrPhysicsRunReadyDemo
   const hasSearchParams = React.useMemo(() => String(location.search || '').trim().length > 0, [location.search])
   const hasDocDeepLinkParams = React.useMemo(() => Boolean(parseDocDeepLink(String(location.search || ''))), [location.search])
   const [liveCanvasHeroOwnsWorkspace, setLiveCanvasHeroOwnsWorkspace] = React.useState(() => (
@@ -81,7 +84,7 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
   )
 
   const queryRequestsEditorWorkspace = shouldOpenEditorWorkspaceFromSearch(location.search)
-  const launchSpotlightShortcutEnabled = !isEmbeddedPreview && workspaceViewMode !== 'editor'
+  const launchSpotlightShortcutEnabled = !previewOnly && workspaceViewMode !== 'editor'
   const consumedEditorWorkspaceQueryRef = React.useRef(false)
 
   React.useEffect(() => {
@@ -233,15 +236,19 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
         className={`${UI_RESPONSIVE_CANVAS_PAGE_SURFACE_CLASSNAME} bg-[var(--kg-canvas-bg)] transition-colors duration-300`}
         aria-label="Knowgrph Canvas"
       >
-        {isEmbeddedPreview ? (
-          <main className="flex-1 relative overflow-hidden" aria-label="Canvas Preview Only">
+        {previewOnly ? (
+          <main
+            className="flex-1 relative overflow-hidden"
+            aria-label={xrPhysicsRunReadyDemo ? 'XR Physics Playground' : 'Canvas Preview Only'}
+            data-kg-xr-physics-run-ready={xrPhysicsRunReadyDemo ? 'full-frame' : undefined}
+          >
             <React.Suspense fallback={null}>
               <CanvasViewportLazy
                 variant="embeddedPreview"
-                geospatialModeEnabled={geospatialModeEnabled}
+                geospatialModeEnabled={xrPhysicsRunReadyDemo ? false : geospatialModeEnabled}
                 workspaceEditorOverlayOpen={false}
-                canvasRenderMode={canvasRenderMode}
-                canvas3dMode={canvas3dMode}
+                canvasRenderMode={xrPhysicsRunReadyDemo ? '3d' : canvasRenderMode}
+                canvas3dMode={xrPhysicsRunReadyDemo ? 'xr' : canvas3dMode}
                 canvas2dRenderer={canvas2dRenderer}
               />
             </React.Suspense>
@@ -315,6 +322,7 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
                         layout="full"
                         geospatialModeEnabled={geospatialModeEnabled}
                         workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}
+                        workspaceVisibleCanvasLeft={workspaceCanvasPaneVisible ? workspacePaneBoundaryCss : undefined}
                         canvasRenderMode={canvasRenderMode}
                         canvas3dMode={canvas3dMode}
                         canvas2dRenderer={canvas2dRenderer}

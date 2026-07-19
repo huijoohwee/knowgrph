@@ -11,6 +11,7 @@ export type XrSceneMediaDragProjection = Readonly<{
   entityKind: 'environment' | 'asset'
   entityId: string
   label: string
+  subjectLabel?: string
   description?: string
   category?: string
   transition?: 'linear' | 'hold'
@@ -132,6 +133,7 @@ export function normalizeXrSceneMediaDragProjection(value: unknown): XrSceneMedi
   const entityKind = normalizeText(record.entityKind)
   const entityId = normalizeText(record.entityId)
   const label = normalizeText(record.label)
+  const subjectLabel = normalizeText(record.subjectLabel)
   if (schema !== XR_SCENE_MEDIA_DRAG_SCHEMA) return undefined
   if (entityKind !== 'environment' && entityKind !== 'asset') return undefined
   if (!entityId || !label) return undefined
@@ -141,6 +143,7 @@ export function normalizeXrSceneMediaDragProjection(value: unknown): XrSceneMedi
     entityKind,
     entityId,
     label,
+    subjectLabel: subjectLabel && Array.from(subjectLabel).length <= 80 ? subjectLabel : undefined,
     description: normalizeText(record.description) || undefined,
     category: normalizeText(record.category) || undefined,
     transition: transition === 'hold' || transition === 'linear' ? transition : undefined,

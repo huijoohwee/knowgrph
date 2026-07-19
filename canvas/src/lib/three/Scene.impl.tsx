@@ -1,10 +1,10 @@
 import React from 'react'
-import { useThree, useFrame } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import type { GraphSchema, ThreeConfig } from '@/lib/graph/schema'
+import type { GraphSchema } from '@/lib/graph/schema'
 import { resolveCssVar } from '@/lib/ui/theme-tokens'
 import { getThreeConfig, getRendererPalette, MVP_COLOR_PALETTE } from '@/lib/graph/schema'
 import { computeNeighborIds } from '@/components/GraphCanvas/highlight'
@@ -206,6 +206,7 @@ export function Scene({
   dragOverridesRef,
   hiddenNodeIdSet,
   mode = '3d',
+  backgroundColor,
 }: {
   data: GraphData;
   schema: GraphSchema;
@@ -222,8 +223,8 @@ export function Scene({
   dragOverridesRef?: React.MutableRefObject<Record<string, Vec3>>;
   hiddenNodeIdSet?: Set<string>;
   mode?: Canvas3dModeId;
+  backgroundColor: string;
 }) {
-  const { gl } = useThree()
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
   const selectedEdgeId = useGraphStore(s => s.selectedEdgeId)
   const selectedNodeIds = useGraphStore(s => s.selectedNodeIds)
@@ -321,21 +322,7 @@ export function Scene({
 
   const cameraConfig = getCameraConfig(schema)
   const hiddenNodeIds = hiddenNodeIdSet || null
-  const backgroundColorEffective = React.useMemo(() => {
-    void theme
-    const threeCfgLocal: ThreeConfig = getThreeConfig(schema)
-    const raw = threeCfgLocal.backgroundColor
-    if (typeof raw === 'string' && raw.trim() !== '') return raw
-    if (mode === 'voxel') return resolveCssVar('--kg-canvas-bg', '#05050f')
-    return resolveCssVar('--kg-canvas-bg', '#ffffff')
-  }, [mode, schema, theme])
-  React.useEffect(() => {
-    try {
-      gl.setClearColor(backgroundColorEffective)
-    } catch {
-      void 0
-    }
-  }, [backgroundColorEffective, gl])
+  const backgroundColorEffective = backgroundColor
   const arrowLenDefault = typeof threeCfg.linkDirectionalArrowLength === 'number' ? Math.max(2, Math.min(24, threeCfg.linkDirectionalArrowLength)) : 8
   const linkOpacityDefault = typeof threeCfg.linkOpacity === 'number'
     ? Math.max(0, Math.min(1, threeCfg.linkOpacity))

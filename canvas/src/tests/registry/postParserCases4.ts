@@ -303,7 +303,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["markdownWorkspace.viewer.rendersMarkdownImage","@/__tests__/markdownWorkspaceViewerRendersImage.test","testMarkdownWorkspaceViewerRendersMarkdownImage"],
   ["workspaceFs.seed.noReseedAfterUserDeletesAll","@/__tests__/workspaceSeedPersistence.test","testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles"],
   ["workspaceFs.seed.keepsUserDeletedDefaultSeedEntryRemoved","@/__tests__/workspaceSeedPersistence.test","testWorkspaceEnsureSeedKeepsUserDeletedDefaultSeedEntryRemoved"],
-  ["workspaceFs.startup.prefersValidationSeedForDefaultSeedFamily","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPrefersValidationSeedForDefaultSeedFamily"],
+  ["workspaceFs.startup.prefersCanonicalXrStarterForDefaultSeedFamily","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPrefersCanonicalXrStarterForDefaultSeedFamily"],
   ["workspaceFs.startup.prefersValidationSeedForCustomValidationTarget","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPrefersValidationSeedForCustomValidationTarget"],
   ["workspaceFs.startup.preservesExplicitDefaultSeedSelection","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPreservesExplicitDefaultSeedSelection"],
   ["workspaceFs.startup.forcesValidationSeedWhenCustomTargetExists","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathForcesValidationSeedWhenCustomTargetExists"],

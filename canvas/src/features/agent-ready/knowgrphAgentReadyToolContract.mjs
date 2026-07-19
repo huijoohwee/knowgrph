@@ -6,6 +6,11 @@ import {
 import { XR_SCENE_WEB_MCP_TOOL_IDS } from '../three/xrSceneMcpContract.mjs'
 import { CAMERA_WEB_MCP_TOOL_IDS } from '../strybldr/cameraMcpContract.mjs'
 import { XR_ANIMATION_WEB_MCP_TOOL_IDS } from '../three/xrAnimationMcpContract.mjs'
+import {
+  FETCH_OUTPUT_SCHEMA,
+  RUNTIME_IDENTITY_OUTPUT_SCHEMA,
+  SEARCH_OUTPUT_SCHEMA,
+} from './knowgrphAgentReadyOutputSchemas.mjs'
 
 export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   search: 'search',
@@ -53,74 +58,245 @@ const LOCAL_MUTATION_TOOL_ANNOTATIONS = Object.freeze({
   idempotentHint: false,
 })
 
-const SEARCH_OUTPUT_SCHEMA = Object.freeze({
+const XR_PHYSICS_CONTROL_FIELDS = Object.freeze({
+  subjectId: { type: 'string', minLength: 1, maxLength: 160, pattern: '\\S' },
+  bodyMode: { type: 'string', enum: ['static', 'dynamic', 'kinematic', 'trigger'] },
+  massKg: { type: 'number', minimum: 0.001, maximum: 10000 },
+  friction: { type: 'number', minimum: 0, maximum: 1 },
+  restitution: { type: 'number', minimum: 0, maximum: 1 },
+  linearDamping: { type: 'number', minimum: 0, maximum: 20 },
+  collisionGroup: { type: 'integer', minimum: 1, maximum: 65535 },
+  collisionMask: { type: 'integer', minimum: 0, maximum: 65535 },
+  gravity: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number', minimum: -100, maximum: 100 } },
+  fixedStepSeconds: { type: 'number', minimum: 1 / 240, maximum: 1 / 30 },
+  maxSubsteps: { type: 'integer', minimum: 1, maximum: 8 },
+  impulse: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number', minimum: -10000, maximum: 10000 } },
+  ticks: { type: 'integer', minimum: 1, maximum: 240 },
+  controllerMode: { type: 'string', enum: ['ball', 'rocket'] },
+})
+const XR_PHYSICS_BODY_FIELD_NAMES = Object.freeze([
+  'bodyMode', 'massKg', 'friction', 'restitution', 'linearDamping', 'collisionGroup', 'collisionMask',
+])
+const buildXrPhysicsOperationSchema = ({ scope, operation, fields = [], required = [], requireOneOf = [] }) => ({
+  type: 'object',
+  additionalProperties: false,
+  required: ['scope', 'operation', ...required],
+  properties: {
+    scope: { const: scope },
+    operation: { const: operation },
+    ...Object.fromEntries(fields.map(field => [field, XR_PHYSICS_CONTROL_FIELDS[field]])),
+  },
+  ...(requireOneOf.length ? { minProperties: 3 + required.length } : {}),
+})
+const XR_PHYSICS_CONTROL_INPUT_SCHEMA = Object.freeze({
+  oneOf: [
+    ...['play', 'pause', 'stop', 'reset'].map(operation => buildXrPhysicsOperationSchema({ scope: 'world', operation })),
+    buildXrPhysicsOperationSchema({ scope: 'world', operation: 'step', fields: ['ticks'] }),
+    buildXrPhysicsOperationSchema({ scope: 'world', operation: 'configure', fields: ['gravity', 'fixedStepSeconds', 'maxSubsteps'], requireOneOf: ['gravity', 'fixedStepSeconds', 'maxSubsteps'] }),
+    buildXrPhysicsOperationSchema({ scope: 'body', operation: 'attach', fields: ['subjectId', ...XR_PHYSICS_BODY_FIELD_NAMES], required: ['subjectId', 'bodyMode'] }),
+    buildXrPhysicsOperationSchema({ scope: 'body', operation: 'configure', fields: ['subjectId', ...XR_PHYSICS_BODY_FIELD_NAMES], required: ['subjectId'], requireOneOf: XR_PHYSICS_BODY_FIELD_NAMES }),
+    buildXrPhysicsOperationSchema({ scope: 'body', operation: 'detach', fields: ['subjectId'], required: ['subjectId'] }),
+    buildXrPhysicsOperationSchema({ scope: 'impulse', operation: 'impulse', fields: ['subjectId', 'impulse'], required: ['subjectId', 'impulse'] }),
+    buildXrPhysicsOperationSchema({ scope: 'controller', operation: 'develop-run', fields: ['controllerMode'] }),
+    ...['pause', 'resume', 'reset', 'exit'].map(operation => buildXrPhysicsOperationSchema({ scope: 'controller', operation })),
+    buildXrPhysicsOperationSchema({ scope: 'controller', operation: 'select', fields: ['controllerMode'], required: ['controllerMode'] }),
+  ],
+})
+
+const XR_SCENE_CONTROL_FIELDS = Object.freeze({
+  invocation: { type: 'string', minLength: 1, pattern: '\\S', description: 'Invocation such as /xr.place @vehicle-helicopter transition=linear, /xr.transform @subject #transform asset=prop-ball position=1,0,-2, /xr.physics @canvas #controller operation=develop-run mode=ball, or /xr.present @scene #reticle.' },
+  action: { type: 'string', enum: ['stage', 'place', 'transform', 'transition', 'label', 'remove', 'physics', 'present'] },
+  stageId: { type: 'string', minLength: 1, pattern: '\\S' },
+  assetId: { type: 'string', minLength: 1, pattern: '\\S' },
+  subjectId: { type: 'string', minLength: 1, maxLength: 160, pattern: '\\S' },
+  label: { type: 'string', minLength: 1, maxLength: 80, pattern: '\\S' },
+  transition: { type: 'string', enum: ['linear', 'hold'] },
+  position: { type: 'array', minItems: 3, maxItems: 3, prefixItems: [
+    { type: 'number', minimum: -50, maximum: 50 },
+    { type: 'number', minimum: 0, maximum: 50 },
+    { type: 'number', minimum: -50, maximum: 50 },
+  ] },
+  rotationYDegrees: { type: 'number', minimum: -180, maximum: 180 },
+  scale: { type: 'number', minimum: 0.25, maximum: 4 },
+  color: { type: 'string', pattern: '^#[0-9a-fA-F]{6}$' },
+  physics: XR_PHYSICS_CONTROL_INPUT_SCHEMA,
+})
+const buildXrSceneStructuredActionSchema = ({ action, fields = [], required = fields }) => ({
+  type: 'object',
+  additionalProperties: false,
+  required: ['action', ...required],
+  properties: {
+    action: { const: action },
+    ...Object.fromEntries(fields.map(field => [field, XR_SCENE_CONTROL_FIELDS[field]])),
+  },
+})
+const XR_SCENE_CONTROL_INPUT_SCHEMA = Object.freeze({
+  type: 'object',
+  additionalProperties: false,
+  properties: XR_SCENE_CONTROL_FIELDS,
+  oneOf: [
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['invocation'],
+      properties: { invocation: XR_SCENE_CONTROL_FIELDS.invocation },
+    },
+    buildXrSceneStructuredActionSchema({ action: 'stage', fields: ['stageId'] }),
+    buildXrSceneStructuredActionSchema({ action: 'place', fields: ['assetId', 'label', 'transition'], required: ['assetId'] }),
+    { ...buildXrSceneStructuredActionSchema({ action: 'transform', fields: ['subjectId', 'assetId', 'position', 'rotationYDegrees', 'scale', 'color'], required: ['subjectId'] }), minProperties: 3 },
+    buildXrSceneStructuredActionSchema({ action: 'transition', fields: ['subjectId', 'transition'], required: ['subjectId'] }),
+    buildXrSceneStructuredActionSchema({ action: 'label', fields: ['subjectId', 'label'] }),
+    buildXrSceneStructuredActionSchema({ action: 'remove', fields: ['subjectId'] }),
+    buildXrSceneStructuredActionSchema({ action: 'physics', fields: ['physics'] }),
+    buildXrSceneStructuredActionSchema({ action: 'present' }),
+  ],
+})
+
+const XR_SCENE_INSPECTION_OUTPUT_SCHEMA = Object.freeze({
   type: 'object',
   additionalProperties: true,
-  required: ['ids', 'results'],
+  required: ['schema', 'webMcpTools', 'sceneReady', 'catalogDefaults', 'invocationGrammar', 'environments', 'assets', 'runtime', 'physics', 'immersivePlacement'],
   properties: {
-    ids: {
-      type: 'array',
-      items: { type: 'string' },
+    catalogDefaults: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['terrainId', 'assetId'],
+      properties: {
+        terrainId: { type: 'string', minLength: 1 },
+        assetId: { type: 'string', minLength: 1 },
+      },
     },
-    results: {
+    environments: {
       type: 'array',
       items: {
         type: 'object',
         additionalProperties: true,
-        required: ['id', 'title', 'url'],
+        required: ['id', 'label', 'kind', 'default', 'sizeMeters', 'invocation'],
         properties: {
-          id: { type: 'string' },
-          title: { type: 'string' },
-          url: { type: 'string' },
-          snippet: { type: 'string' },
-          workspaceId: { type: 'string' },
-          canonicalPath: { type: 'string' },
+          id: { type: 'string', minLength: 1 },
+          label: { type: 'string', minLength: 1 },
+          kind: { type: 'string', enum: ['terrain', 'environment'] },
+          default: { type: 'boolean' },
+          sizeMeters: { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', exclusiveMinimum: 0 } },
+          invocation: { type: 'string', pattern: '^/xr\\.stage\\s+@' },
+        },
+      },
+    },
+    assets: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: true,
+        required: ['id', 'label', 'category', 'default', 'featured', 'dimensionsMeters', 'mobile', 'invocation'],
+        properties: {
+          id: { type: 'string', minLength: 1 },
+          label: { type: 'string', minLength: 1 },
+          category: { type: 'string', enum: ['people', 'animals', 'vehicles', 'furniture', 'props'] },
+          default: { type: 'boolean' },
+          featured: { type: 'boolean' },
+          dimensionsMeters: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number', exclusiveMinimum: 0 } },
+          mobile: { type: 'boolean' },
+          invocation: { type: 'string', pattern: '^/xr\\.place\\s+@' },
         },
       },
     },
   },
 })
 
-const FETCH_OUTPUT_SCHEMA = Object.freeze({
-  type: 'object',
-  additionalProperties: true,
-  required: ['id', 'title', 'content', 'text', 'url'],
-  properties: {
-    id: { type: 'string' },
-    title: { type: 'string' },
-    content: { type: 'string' },
-    text: { type: 'string' },
-    url: { type: 'string' },
-    metadata: {
-      type: 'object',
-      additionalProperties: true,
-    },
+const XR_ANIMATION_CONTROL_FIELDS = Object.freeze({
+  invocation: { type: 'string', minLength: 1, pattern: '\\S', description: 'Native invocation such as /animation.control #action-path @selected-actor operation=move-object keys=w+d distance=0.25.' },
+  trackKind: { type: 'string', enum: ['character-motion', 'action-path'] },
+  presetId: { type: 'string', minLength: 1, pattern: '\\S' },
+  targetId: { type: 'string', minLength: 1, pattern: '\\S' },
+  timeSeconds: { type: 'number', minimum: 0 },
+  markId: { type: 'string', minLength: 1, pattern: '^[a-zA-Z0-9:._-]+$' },
+  easing: { type: 'string', enum: ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'hold'] },
+  gait: { type: 'string', enum: ['hold', 'walk', 'jog', 'run', 'wheeled', 'flight', 'drop'] },
+  position: {
+    type: 'array',
+    description: 'Cast mark [x, y, z] position in stage meters. Timing remains owned by BottomPanel Timeline.',
+    minItems: 3,
+    maxItems: 3,
+    items: { type: 'number', minimum: -1000, maximum: 1000 },
   },
+  keys: {
+    type: 'array',
+    description: 'One or more WASD or arrow keys. Opposites cancel and diagonal movement is normalized.',
+    minItems: 1,
+    maxItems: 8,
+    uniqueItems: true,
+    items: { type: 'string', enum: ['w', 'a', 's', 'd', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'] },
+  },
+  distanceMeters: { type: 'number', exclusiveMinimum: 0, maximum: 10 },
+  fine: { type: 'boolean', description: 'Use the shared 0.05 m precision step when distanceMeters is omitted.' },
 })
-
-const RUNTIME_IDENTITY_OUTPUT_SCHEMA = Object.freeze({
+const buildXrAnimationOperationSchema = ({ operation, fields = [], required = [] }) => ({
   type: 'object',
   additionalProperties: false,
-  required: ['identity', 'gate'],
+  required: ['operation', ...required],
   properties: {
-    identity: {
-      type: 'object',
-      additionalProperties: true,
-      required: [
-        'schema', 'device', 'branch', 'knowgrphRevision', 'agenticCanvasOsRevision',
-        'catalogRevision', 'catalogHydration', 'catalogCounts', 'agentLiveProviderProof',
-        'progressiveAgentsReadiness',
-      ],
-    },
-    gate: {
-      type: 'object',
-      additionalProperties: true,
-      required: [
-        'schema', 'status', 'transportStatus', 'requiredDeviceCount',
-        'observedDeviceCount', 'expiresAtMs', 'verificationDigest', 'message', 'differences',
-      ],
-    },
+    operation: { const: operation },
+    ...Object.fromEntries(fields.map(field => [field, XR_ANIMATION_CONTROL_FIELDS[field]])),
   },
+})
+const XR_ANIMATION_CONTROL_INPUT_SCHEMA = Object.freeze({
+  oneOf: [
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['invocation'],
+      properties: { invocation: XR_ANIMATION_CONTROL_FIELDS.invocation },
+    },
+    buildXrAnimationOperationSchema({ operation: 'apply', fields: ['trackKind', 'presetId', 'targetId'], required: ['presetId'] }),
+    buildXrAnimationOperationSchema({ operation: 'clear', fields: ['trackKind', 'targetId'] }),
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['operation', 'markKind', 'markId'],
+      properties: {
+        operation: { const: 'configure-mark' },
+        markKind: { const: 'cast' },
+        markId: XR_ANIMATION_CONTROL_FIELDS.markId,
+        targetId: XR_ANIMATION_CONTROL_FIELDS.targetId,
+        trackKind: { const: 'action-path' },
+        easing: XR_ANIMATION_CONTROL_FIELDS.easing,
+        gait: XR_ANIMATION_CONTROL_FIELDS.gait,
+        position: XR_ANIMATION_CONTROL_FIELDS.position,
+      },
+      anyOf: [
+        { properties: { easing: XR_ANIMATION_CONTROL_FIELDS.easing }, required: ['easing'] },
+        { properties: { gait: XR_ANIMATION_CONTROL_FIELDS.gait }, required: ['gait'] },
+        { properties: { position: XR_ANIMATION_CONTROL_FIELDS.position }, required: ['position'] },
+      ],
+    },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['operation', 'markKind', 'markId', 'easing'],
+      properties: {
+        operation: { const: 'configure-mark' },
+        markKind: { const: 'camera' },
+        markId: XR_ANIMATION_CONTROL_FIELDS.markId,
+        easing: XR_ANIMATION_CONTROL_FIELDS.easing,
+      },
+    },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['operation', 'keys'],
+      properties: {
+        operation: { const: 'move-object' },
+        targetId: XR_ANIMATION_CONTROL_FIELDS.targetId,
+        trackKind: { const: 'action-path' },
+        markId: XR_ANIMATION_CONTROL_FIELDS.markId,
+        keys: XR_ANIMATION_CONTROL_FIELDS.keys,
+        distanceMeters: XR_ANIMATION_CONTROL_FIELDS.distanceMeters,
+        fine: XR_ANIMATION_CONTROL_FIELDS.fine,
+      },
+    },
+    ...['play', 'pause', 'export'].map(operation => buildXrAnimationOperationSchema({ operation })),
+    buildXrAnimationOperationSchema({ operation: 'scrub', fields: ['timeSeconds'], required: ['timeSeconds'] }),
+  ],
 })
 
 export const buildKnowgrphWebMcpToolName = (
@@ -302,8 +478,9 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
             type: 'object',
             additionalProperties: false,
             properties: {
-              invocation: { type: 'string', description: 'Invocation such as /camera.animate @camera #camera-motion sensor=super-35 lens=35 focus=2 aspect=2.39:1 time=1.' },
-              action: { type: 'string', enum: ['frame', 'animate', 'playback', 'scrub'] },
+              invocation: { type: 'string', description: 'Invocation such as /camera.select @camera #camera camera=fixed-follow or /camera.animate @camera #camera-motion sensor=super-35 lens=35 focus=2 aspect=2.39:1 time=1.' },
+              action: { type: 'string', enum: ['select', 'frame', 'animate', 'playback', 'scrub'] },
+              cameraId: { type: 'string', enum: ['fixed-follow', 'free-orbit'] },
               targetId: { type: 'string' },
               angle: { type: 'string', enum: ['front', 'left-side', 'right-side', 'overhead'] },
               level: { type: 'string', enum: ['eye-level', 'high-angle', 'low-angle'] },
@@ -337,7 +514,7 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalAnimation,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalAnimation),
           title: 'Inspect Local Animation',
-          description: 'Inspect native XR character-motion and action-path presets, selected cast state, deterministic package capability, and hydrated upstream invocation grammar.',
+          description: 'Inspect native XR character-motion and action-path presets, selected cast state, deterministic package capability, and the in-repo invocation grammar.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
           outputSchema: { type: 'object', additionalProperties: true, required: ['schema', 'webMcpTools', 'sceneReady', 'catalog', 'invocationGrammar', 'presets', 'runtime'] },
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
@@ -345,41 +522,8 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalAnimation,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalAnimation),
           title: 'Control Local Animation',
-          description: 'Apply, clear, configure, keyboard-move, play, pause, scrub, or export native XR choreography through structured fields or the upstream /animation.control, #character-motion, #action-path, @selected-actor, and @canvas grammar.',
-          inputSchema: {
-            type: 'object',
-            additionalProperties: false,
-            properties: {
-              invocation: { type: 'string', description: 'Upstream invocation such as /animation.control #action-path @selected-actor operation=move-object keys=w+d distance=0.25.' },
-              operation: { type: 'string', enum: ['apply', 'clear', 'configure-mark', 'move-object', 'play', 'pause', 'scrub', 'export'] },
-              trackKind: { type: 'string', enum: ['character-motion', 'action-path'] },
-              presetId: { type: 'string' },
-              targetId: { type: 'string' },
-              timeSeconds: { type: 'number', minimum: 0 },
-              markKind: { type: 'string', enum: ['cast', 'camera'] },
-              markId: { type: 'string' },
-              easing: { type: 'string', enum: ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'hold'] },
-              gait: { type: 'string', enum: ['hold', 'walk', 'jog', 'run', 'wheeled', 'flight', 'drop'] },
-              position: {
-                type: 'array',
-                description: 'Cast mark [x, y, z] position in stage meters. Timing remains owned by BottomPanel Timeline.',
-                minItems: 3,
-                maxItems: 3,
-                items: { type: 'number', minimum: -1000, maximum: 1000 },
-              },
-              keys: {
-                type: 'array',
-                description: 'One or more WASD or arrow keys. Opposites cancel and diagonal movement is normalized.',
-                minItems: 1,
-                maxItems: 8,
-                uniqueItems: true,
-                items: { type: 'string', enum: ['w', 'a', 's', 'd', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'] },
-              },
-              distanceMeters: { type: 'number', exclusiveMinimum: 0, maximum: 10 },
-              fine: { type: 'boolean', description: 'Use the shared 0.05 m precision step when distanceMeters is omitted.' },
-            },
-            anyOf: [{ required: ['invocation'] }, { required: ['operation'] }],
-          },
+          description: 'Apply, clear, configure, keyboard-move, play, pause, scrub, or export native XR choreography through structured fields or the in-repo /animation.control, #character-motion, #action-path, @selected-actor, and @canvas grammar.',
+          inputSchema: XR_ANIMATION_CONTROL_INPUT_SCHEMA,
           outputSchema: { type: 'object', additionalProperties: true, required: ['ok', 'message'] },
           annotations: LOCAL_MUTATION_TOOL_ANNOTATIONS,
         }, {
@@ -393,29 +537,16 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalXrSceneAssets,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalXrSceneAssets),
           title: 'Inspect Local XR Scene Assets',
-          description: 'Inspect the browser-local XR environment kits, procedural 3D asset library, typed placement grammar, placed subjects, and path interpolation without mutating the scene.',
+          description: 'Inspect the browser-local XR terrain and environment kits, explicit catalog defaults, procedural 3D asset library, native dynamics, immersive AR placement, typed invocation grammar, placed subjects, and path interpolation without mutating the scene.',
           inputSchema: { type: 'object', additionalProperties: false, properties: {} },
-          outputSchema: { type: 'object', additionalProperties: true, required: ['schema', 'webMcpTools', 'sceneReady', 'invocationGrammar', 'environments', 'assets', 'runtime'] },
+          outputSchema: XR_SCENE_INSPECTION_OUTPUT_SCHEMA,
           annotations: READ_ONLY_TOOL_ANNOTATIONS,
         }, {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalXrScene,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalXrScene),
           title: 'Control Local XR Scene',
-          description: 'Control the open browser-local XR scene through structured stage, placement, path-interpolation, label, and removal actions. Animation is owned separately by /animation.control.',
-          inputSchema: {
-            type: 'object',
-            additionalProperties: false,
-            properties: {
-              invocation: { type: 'string', description: 'Invocation such as /xr.place @person-adult transition=linear.' },
-              action: { type: 'string', enum: ['stage', 'place', 'transition', 'label', 'remove'] },
-              stageId: { type: 'string' },
-              assetId: { type: 'string' },
-              subjectId: { type: 'string' },
-              label: { type: 'string', maxLength: 80 },
-              transition: { type: 'string', enum: ['linear', 'hold'] },
-            },
-            anyOf: [{ required: ['invocation'] }, { required: ['action'] }],
-          },
+          description: 'Control the open browser-local XR scene through structured stage, placement, native dynamics, immersive AR reticle placement, path-interpolation, label, and removal actions. Animation is owned separately by /animation.control.',
+          inputSchema: XR_SCENE_CONTROL_INPUT_SCHEMA,
           outputSchema: { type: 'object', additionalProperties: true, required: ['ok', 'message'] },
           annotations: LOCAL_MUTATION_TOOL_ANNOTATIONS,
         }, {

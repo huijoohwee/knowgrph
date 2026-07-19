@@ -19,10 +19,7 @@ import {
 } from '@/features/strybldr/cameraFramingRuntime'
 import { shouldApplySharedCameraFramingRevision } from '@/features/three/cameraFramingControlsRuntime'
 import { hydrateCanonicalXrMotionReferenceRuntime } from '@/features/three/XrMotionReferenceRuntimeBridge'
-import {
-  registerAgenticOsRemoteGrammarCatalogEntries,
-  resetAgenticOsRemoteGrammarCatalogForTests,
-} from '@/features/agentic-os/agenticOsRemoteGrammarClient'
+import { registerAgenticOsRemoteGrammarCatalogEntries, resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { resolveChatInvocationCatalogEntries } from '@/features/chat/chatInvocationRegistry'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
@@ -45,11 +42,8 @@ import {
   buildXrShotTargets,
   XR_MOTION_REFERENCE_SCENE_SHOT_TARGET_ID,
 } from '@/features/three/xrShotTargets'
-
-function readSource(...parts: string[]): string {
-  return readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
-}
-
+import { selectBoundXrShotTarget } from '@/features/three/xrSelectedActorBinding'
+function readSource(...parts: string[]): string { return readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8') }
 function buildShootGraph(): GraphData {
   return {
     type: 'Graph',
@@ -58,38 +52,9 @@ function buildShootGraph(): GraphData {
     metadata: {},
   }
 }
-
-const CAMERA_DICTIONARY_TOKENS = {
-  command: ['/camera.frame', '/camera.animate', '/camera.play', '/camera.scrub'],
-  semantic: ['#camera', '#camera-shot', '#camera-motion'],
-  binding: ['@camera', '@selected-actor'],
-} as const
-
-function registerCanonicalCameraGrammar() {
-  resetAgenticOsRemoteGrammarCatalogForTests()
-  for (const [kind, tokens] of Object.entries(CAMERA_DICTIONARY_TOKENS)) {
-    const fileName = kind === 'command'
-      ? 'DICTIONARY-COMMAND.md'
-      : kind === 'semantic'
-        ? 'DICTIONARY-SEMANTIC.md'
-        : 'DICTIONARY-BINDING.md'
-    const sourcePath = resolve(process.cwd(), '..', '..', 'agentic-canvas-os', 'docs', fileName)
-    const source = readFileSync(sourcePath, 'utf8')
-    for (const token of tokens) {
-      if (!source.includes(`  - "${token}"`) || !source.includes(`| \`${token}\` |`)) {
-        throw new Error(`expected canonical ${fileName} to own ${token}`)
-      }
-    }
-    registerAgenticOsRemoteGrammarCatalogEntries(tokens.map(token => ({
-      token,
-      kind,
-      sourcePath: fileName,
-    })))
-  }
-}
-
+function resetToNativeCameraGrammar() { resetAgenticOsRemoteGrammarCatalogForTests() }
 export function testXrShootWorkflowMarksRigsRetimeAndExports() {
-  registerCanonicalCameraGrammar()
+  resetToNativeCameraGrammar()
   const ownershipArgs = { mode: 'xr', xrEmptyWorld: false, cameraMarkCount: 1 } as const
   if (!xrChoreographyCanDriveCamera(ownershipArgs)
     || xrChoreographyOwnsCamera({ ...ownershipArgs, timelinePlaying: false })
@@ -118,6 +83,9 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   const bottomTimelineSource = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
   const cameraMcpContractSource = readSource('features', 'strybldr', 'cameraMcpContract.mjs')
   const cameraMcpRuntimeSource = readSource('features', 'strybldr', 'cameraMcpRuntime.ts')
+  const cameraSourceMcpSource = readSource('features', 'strybldr', 'cameraSourceMcpRuntime.ts')
+  const cameraSourceCatalog = readSource('features', 'three', 'xrNativeControllerCameraCatalog.ts')
+  const cameraSourceRuntime = readSource('features', 'three', 'xrNativeControllerCameraRuntime.ts')
   const cameraMcpInvocationSource = readSource('features', 'strybldr', 'CameraMcpInvocationSection.tsx')
   const cameraWebMcpSource = readSource('features', 'agent-ready', 'cameraWebMcpTools.ts')
   const floatingPanelCatalogLayoutSource = readSource('lib', 'ui', 'floatingPanelCatalogLayout.tsx')
@@ -137,7 +105,6 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   const threeGraphSource = readSource('lib', 'three', 'ThreeGraph.impl.tsx')
   const packageSource = readSource('features', 'three', 'xrMotionReferencePackage.ts')
   const agentReadyToolContractSource = readSource('features', 'agent-ready', 'knowgrphAgentReadyToolContract.mjs')
-
   for (const marker of [
     'data-kg-xr-shoot-panel="1"',
     'data-kg-xr-shoot-cast-mark="1"',
@@ -146,12 +113,19 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     'XR_MOTION_REFERENCE_CAMERA_RIGS',
     "event.key.toLowerCase() === 'm'",
     'data-kg-xr-shoot-target="scene-or-object"',
+    'data-kg-xr-camera-source="1"',
+    'aria-label="XR camera source"',
     'selectBoundXrShotTarget',
     'selectedShotTarget.id',
     'data-kg-camera-optics-projection="xr-shoot"',
     'Optics · edit in Camera',
   ]) {
     if (!shootCameraSource.includes(marker)) throw new Error(`expected FloatingPanel Camera SHOOT to expose ${marker}`)
+  }
+  for (const marker of ['fixed-follow', 'free-orbit', 'selectXrNativeControllerCameraMode', 'subscribeXrNativeControllerCamera']) {
+    if (!shootCameraSource.includes(marker) && !cameraSourceCatalog.includes(marker) && !cameraSourceRuntime.includes(marker)) {
+      throw new Error(`expected Camera source selection to expose ${marker}`)
+    }
   }
   if (shootCameraSource.includes('data-kg-xr-shoot-lens') || shootCameraSource.includes('aria-label="Camera focal length in millimeters"')) {
     throw new Error('expected XR SHOOT to project shared Camera optics without duplicating an editable lens owner')
@@ -168,10 +142,10 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   for (const marker of ['<StrybldrCameraFramingSection', '<XrShootCameraSection']) {
     if (!cameraPanelSource.includes(marker)) throw new Error(`expected canonical FloatingPanel Camera ownership through ${marker}`)
   }
-  for (const marker of ['<CollapsibleSection', '<ExpandCollapseAllButton', '<CameraMcpInvocationSection', 'useCollapsibleSectionGroup', 'Expand All Camera sections', 'Collapse All Camera sections', 'renderMarkdownSigilInlineText', 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'data-kg-camera-runtime-invocation-chip-renderer="shared-markdown-sigil"', '/camera.frame #camera-shot @camera']) {
+  for (const marker of ['<CollapsibleSection', '<ExpandCollapseAllButton', '<CameraMcpInvocationSection', 'useCollapsibleSectionGroup', 'Expand All Camera sections', 'Collapse All Camera sections', 'renderMarkdownSigilInlineText', 'renderAgenticOsInvocationKeywordChip', 'sourceLink: false', 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'data-kg-camera-runtime-invocation-chip-renderer="shared-markdown-sigil"', '/camera.frame #camera-shot @camera']) {
     if (!cameraPanelSource.includes(marker)) throw new Error(`expected Camera to reuse the 3D-for-XR disclosure owner through ${marker}`)
   }
-  for (const marker of ['useAgenticOsRemoteGrammarCatalog', 'inspectLocalCamera', 'data-kg-camera-webmcp-tool', 'data-kg-camera-invocation-token', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'renderMarkdownSigilInlineText(title)', 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'data-kg-camera-invocation-chip-renderer=', "const invocationTitle = /^[#/@]/.test(title)"]) {
+  for (const marker of ['getAgenticOsDictionaryInvocations', 'inspectLocalCamera', 'data-kg-camera-grammar-status={nativeInvocationReady', 'data-kg-camera-webmcp-tool', 'data-kg-camera-invocation-token', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'renderMarkdownSigilInlineText(title,', 'renderAgenticOsInvocationKeywordChip', 'sourceLink: false', 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'data-kg-camera-invocation-chip-renderer=', "const invocationTitle = /^[#/@]/.test(title)"]) {
     if (!cameraMcpInvocationSource.includes(marker)) throw new Error(`expected Camera MCP cards to project the shared catalog through ${marker}`)
   }
   if (!floatingPanelCatalogLayoutSource.includes('FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT')) {
@@ -242,7 +216,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   if (sharedCameraSource.includes('No storyboard card loaded.') || !sharedCameraSource.includes("data-kg-camera-framing-mode={selectedCard ? 'storyboard' : 'shared'}")) {
     throw new Error('expected globe-like shared Camera utilities to remain available without a storyboard card')
   }
-  for (const marker of ['onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}', 'dropXrMotionReferenceCastMark', 'MarkNumberSprite', 'markNumber: index + 1', 'kg_xr_motion_cast_mark_highlight_', 'runtime.selectedMark?.kind === \'cast\'', 'XR_MOTION_REFERENCE_SELECTION_COLOR', 'CastMarkControl', 'resolveCastControlMark', 'controlSurface="actor"', 'kgXrAnimationControl: true', 'event.ray.intersectPlane', 'setXrMotionReferenceCastMarkChoreography', 'claimThreeObjectInputOwnership(inputOwnerId, event.pointerId)', 'releaseThreeObjectInputOwnership(inputOwnerId', 'captureThreeObjectPointer(event)', 'hasThreeObjectDragMoved', 'dragOffsetRef.current.set(...markWorldPosition).sub(grabPoint)', 'point.add(dragOffsetRef.current)', 'activePointerIdRef.current = event.pointerId', "window.addEventListener('lostpointercapture', finishWindowDrag, true)", "window.addEventListener('blur', finishWindowDrag)", "document.addEventListener('visibilitychange', finishWindowDrag)", "draggableAxes: 'xz'", 'onClick={event => {', 'selectXrMotionReferenceCameraMark(mark.id)', "window.addEventListener('pointercancel', finishWindowDrag)"]) {
+  for (const marker of ['onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}', 'dropXrMotionReferenceCastMark', 'MarkNumberSprite', 'markNumber: index + 1', 'kg_xr_motion_cast_mark_highlight_', 'runtime.selectedMark?.kind === \'cast\'', 'XR_MOTION_REFERENCE_SELECTION_COLOR', 'CastMarkControl', 'resolveCastControlMark', 'controlSurface="actor"', 'kgXrAnimationControl: true', 'rayInCoordinateRoot(event.ray, coordinateRootRef).intersectPlane', 'setXrMotionReferenceCastMarkChoreography', 'claimThreeObjectInputOwnership(inputOwnerId, event.pointerId)', 'releaseThreeObjectInputOwnership(inputOwnerId', 'captureThreeObjectPointer(event)', 'hasThreeObjectDragMoved', 'dragOffsetRef.current.set(...markWorldPosition).sub(grabPoint)', 'point.add(dragOffsetRef.current)', 'activePointerIdRef.current = event.pointerId', "window.addEventListener('lostpointercapture', finishWindowDrag, true)", "window.addEventListener('blur', finishWindowDrag)", "document.addEventListener('visibilitychange', finishWindowDrag)", "draggableAxes: 'xz'", 'onClick={event => {', 'selectXrMotionReferenceCameraMark(mark.id)', "window.addEventListener('pointercancel', finishWindowDrag)"]) {
     if (!stageSource.includes(marker)) throw new Error(`expected direct numbered XR floor marking to expose ${marker}`)
   }
   for (const marker of ['<XrSceneLibrarySubject', 'selected={runtime.selectedShotTargetId === subject.id}', 'selectBoundXrShotTarget(subject.id)']) {
@@ -265,8 +239,10 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   if (xrClaimIndex < 0 || xrSelectionIndex < 0 || xrClaimIndex > xrSelectionIndex) {
     throw new Error('expected XR object input to suspend camera framing before actor selection can publish')
   }
-  if (!stageGeometrySource.includes('onFloorPoint([event.point.x, groundY, event.point.z])')) {
-    throw new Error('expected the native stage floor to own the bounded Three pointer projection')
+  if (!stageGeometrySource.includes('const point = event.point.clone()')
+    || !stageGeometrySource.includes('coordinateRoot.worldToLocal(point)')
+    || !stageGeometrySource.includes('onFloorPoint([point.x, groundY, point.z])')) {
+    throw new Error('expected the native stage floor to own the bounded placed-stage pointer projection')
   }
   if (!controlsSource.includes('useXrMotionReferenceCameraPlayback({')
     || !playbackSource.includes('sampleXrMotionReferenceCameraPose')
@@ -274,6 +250,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     || !playbackSource.includes('camera.focus = settings.focusDistanceMeters')
     || !samplingSource.includes('focusDistanceMeters: left.settings.focusDistanceMeters')
     || !playbackSource.includes('requestXrMotionReferenceCameraPlaybackReapply')
+    || !['prePlaybackPoseRef', "mode !== 'free-orbit'", 'camera.position.copy(snapshot.position)', 'controls.target.copy(snapshot.target)'].every(marker => playbackSource.includes(marker))
     || !controlsSource.includes('pendingCameraSceneResetRef')
     || !controlsSource.includes("if (mode === 'xr')")) {
     throw new Error('expected scrub/play camera choreography to use the XR camera playback owner')
@@ -291,15 +268,17 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     if (!aspectMaskSource.includes(marker)) throw new Error(`expected the XR viewport aspect-mask projection to expose ${marker}`)
   }
   if (!threeGraphSource.includes('<XrCameraAspectMask />')) throw new Error('expected XR Mode to render its shared Camera aspect mask over the Three viewport')
-
-  for (const marker of ['/camera.frame', '/camera.animate', '/camera.play', '/camera.scrub']) {
+  for (const marker of ['/camera.select', '/camera.frame', '/camera.animate', '/camera.play', '/camera.scrub']) {
     if (!cameraMcpContractSource.includes(marker)) throw new Error(`expected Camera / @ # invocation contract to expose ${marker}`)
   }
   if (cameraMcpContractSource.includes('CAMERA_INVOCATION_CATALOG')) {
-    throw new Error('expected Camera invocation metadata to resolve only from the Agentic Canvas OS dictionaries')
+    throw new Error('expected Camera invocation metadata to remain contract-owned without a duplicate catalog')
   }
   for (const marker of ['inspectLocalCamera', 'controlLocalCamera', 'publishCameraFramingRuntime', 'setXrMotionReferenceCameraMark', 'setTimelineTransportState']) {
     if (!cameraMcpRuntimeSource.includes(marker) && !cameraWebMcpSource.includes(marker)) throw new Error(`expected Camera MCP runtime to expose ${marker}`)
+  }
+  for (const marker of ['normalizeCameraSourceSelection', 'inspectLocalCameraSource', 'timeline-playback', 'inputSuspended']) {
+    if (!cameraSourceMcpSource.includes(marker)) throw new Error(`expected Camera MCP source selection to expose ${marker}`)
   }
   for (const marker of ['sensor=full-frame', 'focus=5', 'aspect=2.39:1', 'CameraSensorFormatId', 'focusDistanceMeters', 'aspectRatio']) {
     if (!cameraMcpRuntimeSource.includes(marker)) throw new Error(`expected / @ # Camera control to expose optics parameter ${marker}`)
@@ -307,12 +286,10 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   for (const marker of ['sensorId:', 'focusDistanceMeters:', 'aspectRatio:', "'super-16'", "'super-35'", "'full-frame'", "'65mm'"]) {
     if (!agentReadyToolContractSource.includes(marker)) throw new Error(`expected Camera WebMCP structured optics control to expose ${marker}`)
   }
-
-  const implementation = [shootCameraSource, cameraPanelSource, sharedCameraSource, cameraControlSource, cameraOpticsSource, cameraOpticsModelSource, retimeSource, timelineSource, stageSource, stageGeometrySource, playbackSource, samplingSource, aspectMaskSource, packageSource, cameraMcpContractSource, cameraMcpRuntimeSource, cameraMcpInvocationSource].join('\n').toLowerCase()
+  const implementation = [shootCameraSource, cameraPanelSource, sharedCameraSource, cameraControlSource, cameraOpticsSource, cameraOpticsModelSource, retimeSource, timelineSource, stageSource, stageGeometrySource, playbackSource, samplingSource, aspectMaskSource, packageSource, cameraMcpContractSource, cameraMcpRuntimeSource, cameraSourceMcpSource, cameraSourceCatalog, cameraSourceRuntime, cameraMcpInvocationSource].join('\n').toLowerCase()
   for (const forbidden of ['wassermanproductions', 'blockout', 'ffmpeg', 'electron-vite']) {
     if (implementation.includes(forbidden)) throw new Error(`expected the native SHOOT implementation to avoid external runtime token ${forbidden}`)
   }
-
   const staticObjectPlan = readXrMotionReferencePlan({
     durationSeconds: 6,
     subjects: [{
@@ -336,7 +313,6 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     || staticObjectPlan.camera[0]?.pose.target.join('|') !== '3|0|2') {
     throw new Error('expected SCENE and non-cast 3D Objects to remain first-class SHOOT targets with anchored camera poses')
   }
-
   const graphData = buildShootGraph()
   hydrateXrMotionReferenceRuntime({ sceneKey: 'shoot-scene', nodes: graphData.nodes, persistedValue: null })
   selectXrMotionReferenceActor('actor-a')
@@ -370,7 +346,6 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   if (retimedCastRuntime.selectedMark?.kind !== 'cast' || retimedCastRuntime.selectedMark.markId !== retimedCastMark.id) {
     throw new Error('expected retiming to preserve the selected mark across deterministic ID regeneration')
   }
-
   setXrMotionReferenceCameraRig('handheld')
   setXrMotionReferenceCameraMark({
     timeSeconds: 0,
@@ -413,10 +388,27 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     || !brief.includes('drone rig, ease-in-out easing, Full Frame 36x24mm, 85mm, focus 2m, 2.39:1 delivery mask')) {
     throw new Error('expected the exported package to preserve camera rig, easing, sensor, zoom, focus, and aspect choreography')
   }
-
   const priorCamera = readCameraFramingRuntime()
   const priorGraphState = useGraphStore.getState()
   useGraphStore.setState({ floatingPanelOpen: false, floatingPanelView: 'animation' } as never)
+  const freeOrbitResult = controlLocalCamera({ invocation: '/camera.select @camera #camera camera=free-orbit' })
+  selectBoundXrShotTarget('actor-a')
+  const targetSelectionState = { panel: useGraphStore.getState().floatingPanelView, camera: inspectLocalCamera().source.selected }
+  const freeOrbitInspection = inspectLocalCamera()
+  const fixedFollowResult = controlLocalCamera({ action: 'select', cameraId: 'fixed-follow' })
+  const invalidCameraResult = controlLocalCamera({ action: 'select', cameraId: 'authored-shot' as never })
+  const invalidCameraSemantic = controlLocalCamera({ invocation: '/camera.select @camera #camera-shot camera=free-orbit' })
+  if (!freeOrbitResult.ok
+    || freeOrbitInspection.source.selected !== 'free-orbit'
+    || freeOrbitInspection.source.effectiveOwner !== 'free-orbit'
+    || targetSelectionState.panel !== 'camera'
+    || targetSelectionState.camera !== 'free-orbit'
+    || !fixedFollowResult.ok
+    || inspectLocalCamera().source.selected !== 'fixed-follow'
+    || invalidCameraResult.ok
+    || invalidCameraSemantic.ok) {
+    throw new Error(`expected Camera source selection to switch fixed follow/free orbit and fail closed, got ${JSON.stringify({ freeOrbitResult, fixedFollowResult, invalidCameraResult, invalidCameraSemantic })}`)
+  }
   const cameraResult = controlLocalCamera({ invocation: '/camera.frame @camera #camera-shot angle=right-side level=high-angle shot=close-up sensor=65mm lens=85 focus=3.5 aspect=2.39:1' })
   const controlledCamera = readCameraFramingRuntime()
   if (!cameraResult.ok
@@ -472,6 +464,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   }
   const scrubResult = controlLocalCamera({ invocation: '/camera.scrub @camera #camera-motion time=1.5' })
   const playResult = controlLocalCamera({ invocation: '/camera.play @camera #camera-motion state=play' })
+  const playbackCameraInspection = inspectLocalCamera()
   const playbackFramingRevision = readCameraFramingRuntime().revision
   const frameDuringPlaybackResult = controlLocalCamera({ action: 'frame', targetId: 'actor-a', shot: 'wide' })
   const pauseResult = controlLocalCamera({ invocation: '/camera.play @camera #camera-motion state=pause' })
@@ -491,6 +484,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   const missingStructuredScrubTime = controlLocalCamera({ action: 'scrub', targetId: 'camera' })
   if (!scrubResult.ok
     || !playResult.ok
+    || playbackCameraInspection.source.effectiveOwner !== 'timeline-playback'
     || !pauseResult.ok
     || frameDuringPlaybackResult.ok
     || readCameraFramingRuntime().revision !== playbackFramingRevision
@@ -515,6 +509,9 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   }
   const cameraInspection = inspectLocalCamera()
   if (!cameraInspection.invocationGrammar
+    || cameraInspection.invocationGrammar.select !== '/camera.select @camera #camera camera=fixed-follow|free-orbit'
+    || cameraInspection.source.selected !== 'fixed-follow'
+    || cameraInspection.source.effectiveOwner !== 'fixed-follow'
     || cameraInspection.optics.stateOwner !== 'FloatingPanel.Camera'
     || cameraInspection.optics.timelineRole !== 'keyframe-projection'
     || cameraInspection.optics.sensors.length !== 4) {
@@ -571,11 +568,18 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     throw new Error('expected an app-root document switch to clear stale Camera framing and choreography before a closed panel can reapply it')
   }
   const cameraCatalogTokens = new Set(resolveChatInvocationCatalogEntries('all', 'camera').map(entry => entry.token))
-  for (const token of ['/camera.frame', '/camera.animate', '/camera.play', '/camera.scrub', '@camera', '#camera']) {
+  for (const token of ['/camera.select', '/camera.frame', '/camera.animate', '/camera.play', '/camera.scrub', '@camera', '#camera']) {
     if (!cameraCatalogTokens.has(token)) throw new Error(`expected shared invocation catalog to expose ${token}`)
   }
   resetAgenticOsRemoteGrammarCatalogForTests()
-  if (inspectLocalCamera().invocationGrammar !== null) throw new Error('expected Camera inspection to fail closed when the upstream invocation catalog is absent')
+  registerAgenticOsRemoteGrammarCatalogEntries([{ token: '/camera.select', kind: 'semantic', sourcePath: 'conflicting-remote-grammar' }])
+  if (!controlLocalCamera({ invocation: '/camera.select @camera #camera camera=free-orbit' }).ok) throw new Error('native Camera selection must ignore conflicting remote grammar tokens')
+  resetAgenticOsRemoteGrammarCatalogForTests()
+  const nativeCameraInspection = inspectLocalCamera()
+  if (!nativeCameraInspection.invocationGrammar
+    || nativeCameraInspection.invocationGrammar.source !== 'native-knowgrph-invocation-catalog') {
+    throw new Error('expected Camera inspection to remain / @ # ready without remote grammar hydration')
+  }
   useGraphStore.setState({
     markdownDocumentName: priorGraphState.markdownDocumentName,
     markdownDocumentText: priorGraphState.markdownDocumentText,

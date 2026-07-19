@@ -5,9 +5,9 @@ import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from '@/features/work
 import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
+  resolveWorkspaceStartupActivePath,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
-  WORKSPACE_README_SEED_PATH,
 } from '@/features/workspace-fs/workspaceFs'
 import { readWorkspaceSourceRootEntriesSnapshot } from '@/features/source-files/sourceFilesRuntimeActive'
 import { resolveMaterializedWorkspaceActivePath } from '@/features/source-files/sourceFilesRuntimeMaterialization'
@@ -88,12 +88,20 @@ export function resolveWorkspaceStartupActivePathToApply(args: {
   return args.snapshotActivePath === args.latestActivePath ? null : args.snapshotActivePath
 }
 
-export function shouldFallbackWorkspaceStartupToReadme(args: {
+export function shouldInitializeWorkspaceStartupDefaultStarter(args: {
   activePath: WorkspacePath | null
   hasDesiredActiveText: boolean
   preferCustomValidationSeed?: boolean
 }): boolean {
   return !args.activePath && !args.hasDesiredActiveText && !args.preferCustomValidationSeed
+}
+
+export function resolveWorkspaceStartupDefaultStarterPath(workspaceEntries: WorkspaceEntry[]): WorkspacePath | null {
+  return resolveWorkspaceStartupActivePath({
+    workspaceFilePaths: workspaceEntries.filter(entry => entry.kind === 'file').map(entry => entry.path),
+    activePath: null,
+    preferDefaultStarter: true,
+  })
 }
 
 export function createWorkspaceStartupSourceRootEntriesReader(args: {
@@ -146,13 +154,13 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
     ? await readStartupSourceRootEntries(desiredActivePath)
     : startupWorkspaceEntries
   const hasDesiredActiveText = workspaceEntries.some(entry => entry?.kind === 'file' && entry.path === desiredActivePath && String(entry.text || '').trim())
-  if (shouldFallbackWorkspaceStartupToReadme({
+  if (shouldInitializeWorkspaceStartupDefaultStarter({
     activePath: currentActivePath,
     hasDesiredActiveText,
     preferCustomValidationSeed,
   })) {
     desiredActivePath = resolveWorkspaceStartupCanonicalPath({
-      activePath: WORKSPACE_README_SEED_PATH,
+      activePath: resolveWorkspaceStartupDefaultStarterPath(startupWorkspaceEntries),
       workspaceEntries: startupWorkspaceEntries,
     })
     workspaceEntries = desiredActivePath

@@ -21,18 +21,13 @@ import {
   useCameraFramingControlsRuntime,
 } from './cameraFramingControlsRuntime'
 import { buildVoxelCameraIntroPoses, readVoxelCameraConfig } from './voxelCamera'
-import {
-  XR_MOTION_STAGE_CAMERA_POSITION,
-  XR_MOTION_STAGE_CAMERA_TARGET,
-} from './xrMotionReferenceCoordinates'
+import { XR_MOTION_STAGE_CAMERA_POSITION, XR_MOTION_STAGE_CAMERA_TARGET } from './xrMotionReferenceCoordinates'
 import { useXrMotionReferenceCameraPlayback } from './xrCameraPlaybackControlsRuntime'
-import {
-  readXrMotionReferenceRuntime,
-  subscribeXrMotionReferenceRuntime,
-} from './xrMotionReferenceRuntime'
+import { readXrMotionReferenceRuntime, subscribeXrMotionReferenceRuntime } from './xrMotionReferenceRuntime'
 import { xrChoreographyCanDriveCamera, xrChoreographyOwnsCamera } from './xrCameraControlOwnership'
 import { readThreeObjectInputOwnership, useThreeObjectInputOwnership } from './threeObjectInputOwnership'
 import { useThreeObjectCameraInputOwnership } from './useThreeObjectCameraInputOwnership'
+import { useXrNativeControllerDemoCamera } from './useXrNativeControllerDemoCamera'
 
 export function Controls({
   schema,
@@ -97,6 +92,7 @@ export function Controls({
     controls,
     baseEnabled: !paused && !choreographyOwnsCamera,
   })
+  useXrNativeControllerDemoCamera({ camera: perspectiveCamera, controls, suspended: !!paused || mode !== 'xr' || xrEmptyWorld || choreographyOwnsCamera || objectInputOwnership.active })
   const expansionCfg = schema.behavior?.expansion || {}
   const zoomOnSelectionEnabled = expansionCfg.enabled !== false && expansionCfg.zoomOnSelection !== false
   const controlsUserInteractingRef = React.useRef(false)

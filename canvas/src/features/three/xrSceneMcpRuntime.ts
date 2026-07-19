@@ -1,13 +1,17 @@
 import { activateCanvasGraphSurfaceMode } from '@/lib/canvas/canvas3dMode'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import type { JSONValue } from '@/lib/graph/types'
 import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
+  XR_MOTION_REFERENCE_MAX_CAST_TRACKS,
   serializeXrMotionReferencePlan,
-  type XrMotionReferenceTransition,
 } from './xrMotionReferenceModel'
 import {
+  XR_MOTION_REFERENCE_DEFAULT_STAGE_ID,
   XR_MOTION_REFERENCE_STAGE_PRESETS,
   XR_SCENE_LIBRARY_ASSETS,
+  XR_SCENE_LIBRARY_DEFAULT_ASSET_ID,
+  XR_SCENE_LIBRARY_FEATURED_ASSET_IDS,
   isXrSceneLibraryAssetId,
   type XrMotionReferenceStageId,
 } from './xrSceneLibrary'
@@ -16,41 +20,70 @@ import {
   markXrMotionReferenceSaved,
   readXrMotionReferenceRuntime,
   removeXrMotionReferenceSubject,
+  restoreXrMotionReferenceRuntimeSnapshot,
   setXrMotionReferenceCastTransition,
   setXrMotionReferenceStage,
+  setXrMotionReferenceSubjectAsset,
   setXrMotionReferenceSubjectLabel,
+  setXrMotionReferenceSubjectTransform,
 } from './xrMotionReferenceRuntime'
-import { hydrateCanonicalXrMotionReferenceRuntime } from './XrMotionReferenceRuntimeBridge'
+import {
+  hydrateCanonicalXrMotionReferenceRuntime,
+  hydrateCanonicalXrPhysicsRuntime,
+} from './XrMotionReferenceRuntimeBridge'
+import { XR_PHYSICS_GRAPH_METADATA_KEY } from './xrPhysicsModel'
+import {
+  applyXrPhysicsImpulse,
+  attachXrPhysicsBody,
+  configureXrPhysicsBody,
+  configureXrPhysicsWorld,
+  detachXrPhysicsBody,
+  markXrPhysicsRuntimeSaved,
+  pauseXrPhysicsRuntime,
+  playXrPhysicsRuntime,
+  readXrPhysicsRuntime,
+  readXrPhysicsRuntimeFrame,
+  resetXrPhysicsRuntime,
+  restoreXrPhysicsRuntimeSnapshot,
+  serializeXrPhysicsRuntimeWorld,
+  stepXrPhysicsRuntimeTicks,
+  stopXrPhysicsRuntime,
+} from './xrPhysicsRuntime'
+import type { XrPhysicsControlInput } from './xrSceneInteractiveInvocation'
+import {
+  commitXrArPlacement,
+  readXrArPlacementRuntime,
+} from './xrArPlacementRuntime'
+import {
+  developAndRunXrNativeControllerDemo,
+  exitXrNativeControllerDemo,
+  pauseXrNativeControllerDemo,
+  readSharedXrNativeControllerDemoFrame,
+  readXrNativeControllerDemo,
+  resetSharedXrNativeControllerDemo,
+  resumeXrNativeControllerDemo,
+  selectXrNativeControllerDemoMode,
+  setSharedXrNativeControllerDemoTerrain,
+} from './xrNativeControllerDemoRuntime'
 import {
   XR_SCENE_INVOCATION_COMMANDS,
+  XR_SCENE_INVOCATION_BINDINGS,
+  XR_SCENE_INVOCATION_SEMANTICS,
   XR_SCENE_MCP_SCHEMA,
   XR_SCENE_WEB_MCP_TOOL_IDS,
   buildXrPlaceInvocation,
   buildXrStageInvocation,
+  buildXrTransformInvocation,
 } from './xrSceneMcpContract.mjs'
+import {
+  normalizeXrSceneControl,
+  type XrSceneControlAction,
+  type XrSceneControlInput,
+  type XrSceneTransition,
+} from './xrSceneControlNormalization'
 
-export type XrSceneTransition = XrMotionReferenceTransition
-export type XrSceneControlAction = 'stage' | 'place' | 'transition' | 'label' | 'remove'
-
-export type XrSceneControlInput = Readonly<{
-  invocation?: string
-  action?: XrSceneControlAction
-  stageId?: string
-  assetId?: string
-  subjectId?: string
-  label?: string
-  transition?: XrSceneTransition
-}>
-
-type NormalizedXrSceneControl = Readonly<{
-  action: XrSceneControlAction
-  stageId: string
-  assetId: string
-  subjectId: string
-  label: string
-  transition: XrSceneTransition
-  invocation: string
-}>
+export { normalizeXrSceneControl }
+export type { XrSceneControlAction, XrSceneControlInput, XrSceneTransition }
 
 export type XrSceneControlResult = Readonly<{
   ok: boolean
@@ -59,77 +92,6 @@ export type XrSceneControlResult = Readonly<{
   subjectId?: string
   scene?: ReturnType<typeof inspectLocalXrSceneAssets>
 }>
-
-const asTransition = (value: unknown): XrSceneTransition | null => {
-  const normalized = String(value || '').trim()
-  if (!normalized) return 'linear'
-  return normalized === 'linear' || normalized === 'hold' ? normalized : null
-}
-const cleanTarget = (value: unknown): string => String(value || '').trim().replace(/^@+/, '')
-
-function parsePairs(tokens: readonly string[], allowedKeys: readonly string[]): Readonly<Record<string, string>> | null {
-  const entries: Array<readonly [string, string]> = []
-  const seen = new Set<string>()
-  for (const token of tokens) {
-    const separator = token.indexOf('=')
-    if (separator <= 0 || separator === token.length - 1) return null
-    const key = token.slice(0, separator)
-    const value = token.slice(separator + 1)
-    if (!allowedKeys.includes(key) || seen.has(key)) return null
-    seen.add(key)
-    entries.push([key, value])
-  }
-  return Object.freeze(Object.fromEntries(entries))
-}
-
-function parseXrSceneInvocation(invocationValue: unknown): Partial<NormalizedXrSceneControl> | null {
-  const invocation = String(invocationValue || '').trim()
-  if (!invocation) return null
-  const tokens = invocation.split(/\s+/).filter(Boolean)
-  const command = tokens[0]
-  const action = command === XR_SCENE_INVOCATION_COMMANDS.stage
-    ? 'stage'
-    : command === XR_SCENE_INVOCATION_COMMANDS.place
-      ? 'place'
-      : command === XR_SCENE_INVOCATION_COMMANDS.label
-        ? 'label'
-        : command === XR_SCENE_INVOCATION_COMMANDS.remove
-          ? 'remove'
-          : null
-  if (!action || tokens.slice(1).some(token => token.startsWith('/') || token.startsWith('#'))) return null
-  const bindings = tokens.slice(1).filter(token => token.startsWith('@'))
-  if (bindings.length !== 1) return null
-  const target = cleanTarget(bindings[0])
-  if (!target) return null
-  const allowedPairKeys = action === 'place' ? ['transition', 'label'] : action === 'label' ? ['label'] : []
-  const pairs = parsePairs(tokens.slice(1).filter(token => !token.startsWith('@')), allowedPairKeys)
-  if (!pairs) return null
-  const transition = asTransition(pairs.transition)
-  if (!transition || (action === 'label' && !String(pairs.label || '').trim())) return null
-  const label = String(pairs.label || '').trim().slice(0, 80)
-  if (action === 'stage') return { action, stageId: target, invocation, transition }
-  if (action === 'place') return { action, assetId: target, invocation, transition, label }
-  return { action, subjectId: target, invocation, transition, label }
-}
-
-function normalizeXrSceneControl(input: XrSceneControlInput): NormalizedXrSceneControl | null {
-  const invocation = String(input.invocation || '').trim()
-  const parsed = parseXrSceneInvocation(invocation)
-  if (invocation && !parsed) return null
-  const action = (parsed?.action || input.action) as XrSceneControlAction | undefined
-  if (!action || !['stage', 'place', 'transition', 'label', 'remove'].includes(action)) return null
-  const transition = asTransition(parsed?.transition ?? input.transition)
-  if (!transition) return null
-  return {
-    action,
-    stageId: cleanTarget(parsed?.stageId || input.stageId),
-    assetId: cleanTarget(parsed?.assetId || input.assetId),
-    subjectId: cleanTarget(parsed?.subjectId || input.subjectId),
-    label: String(parsed?.label || input.label || '').trim().slice(0, 80),
-    transition,
-    invocation: String(parsed?.invocation || input.invocation || '').trim(),
-  }
-}
 
 function sceneDocumentReady(): boolean {
   const state = useGraphStore.getState()
@@ -141,16 +103,12 @@ function sceneDocumentReady(): boolean {
 }
 
 function hydrateActiveXrScene(): boolean {
-  return sceneDocumentReady() && hydrateCanonicalXrMotionReferenceRuntime()
+  if (!sceneDocumentReady() || !hydrateCanonicalXrMotionReferenceRuntime()) return false
+  hydrateCanonicalXrPhysicsRuntime()
+  return true
 }
 
-function persistAndActivateXrScene(): boolean {
-  const state = useGraphStore.getState()
-  const serialized = serializeXrMotionReferencePlan(readXrMotionReferenceRuntime().plan)
-  state.updateGraphMetadata({ [XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]: serialized })
-  const savedValue = useGraphStore.getState().graphData?.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]
-  if (savedValue !== serialized) return false
-  markXrMotionReferenceSaved(serialized)
+function activateXrSceneWorkspace(): void {
   const nextState = useGraphStore.getState()
   activateCanvasGraphSurfaceMode({
     mode: 'xr',
@@ -163,11 +121,46 @@ function persistAndActivateXrScene(): boolean {
   }
   nextState.setBottomSurfaceTab('timeline')
   nextState.setBottomSurfaceCollapsed(false)
+}
+
+function sameJson(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
+function persistAndActivateXrScene(includePhysics = false): boolean {
+  const state = useGraphStore.getState()
+  const serializedMotion = serializeXrMotionReferencePlan(readXrMotionReferenceRuntime().plan)
+  const serializedPhysics = serializeXrPhysicsRuntimeWorld() as unknown as JSONValue
+  state.updateGraphMetadata({
+    [XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]: serializedMotion,
+    ...(includePhysics ? { [XR_PHYSICS_GRAPH_METADATA_KEY]: serializedPhysics } : {}),
+  })
+  const metadata = useGraphStore.getState().graphData?.metadata
+  if (metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY] !== serializedMotion) return false
+  if (includePhysics && !sameJson(metadata?.[XR_PHYSICS_GRAPH_METADATA_KEY], serializedPhysics)) return false
+  markXrMotionReferenceSaved(serializedMotion)
+  if (includePhysics) markXrPhysicsRuntimeSaved(metadata?.[XR_PHYSICS_GRAPH_METADATA_KEY])
+  activateXrSceneWorkspace()
+  return true
+}
+
+function persistXrPhysicsConfig(): boolean {
+  const state = useGraphStore.getState()
+  const serialized = serializeXrPhysicsRuntimeWorld() as unknown as JSONValue
+  state.updateGraphMetadata({ [XR_PHYSICS_GRAPH_METADATA_KEY]: serialized })
+  const savedValue = useGraphStore.getState().graphData?.metadata?.[XR_PHYSICS_GRAPH_METADATA_KEY]
+  if (!sameJson(savedValue, serialized)) return false
+  markXrPhysicsRuntimeSaved(savedValue)
+  activateXrSceneWorkspace()
   return true
 }
 
 export function inspectLocalXrSceneAssets() {
   const runtime = readXrMotionReferenceRuntime()
+  const physics = readXrPhysicsRuntime()
+  const physicsFrame = readXrPhysicsRuntimeFrame()
+  const controllerDemo = readXrNativeControllerDemo()
+  const arPlacement = readXrArPlacementRuntime()
   return {
     schema: XR_SCENE_MCP_SCHEMA,
     webMcpTools: {
@@ -175,16 +168,28 @@ export function inspectLocalXrSceneAssets() {
       control: `knowgrph.${XR_SCENE_WEB_MCP_TOOL_IDS.control}`,
     },
     sceneReady: sceneDocumentReady(),
+    catalogDefaults: {
+      terrainId: XR_MOTION_REFERENCE_DEFAULT_STAGE_ID,
+      assetId: XR_SCENE_LIBRARY_DEFAULT_ASSET_ID,
+    },
     invocationGrammar: {
       stage: `${XR_SCENE_INVOCATION_COMMANDS.stage} @environment`,
       place: `${XR_SCENE_INVOCATION_COMMANDS.place} @asset transition=linear|hold label=<optional-id>`,
+      transform: `${XR_SCENE_INVOCATION_COMMANDS.transform} @subject ${XR_SCENE_INVOCATION_SEMANTICS.transform} asset=<asset-id> position=<x,y,z> rotation=<degrees> scale=<0.25..4> color=<hex>`,
       label: `${XR_SCENE_INVOCATION_COMMANDS.label} @subject label=<required-id>`,
       remove: `${XR_SCENE_INVOCATION_COMMANDS.remove} @subject`,
+      physicsWorld: `${XR_SCENE_INVOCATION_COMMANDS.physics} ${XR_SCENE_INVOCATION_BINDINGS.canvas} ${XR_SCENE_INVOCATION_SEMANTICS.world} operation=play|pause|stop|reset|step|configure`,
+      physicsBody: `${XR_SCENE_INVOCATION_COMMANDS.physics} ${XR_SCENE_INVOCATION_BINDINGS.canvas} ${XR_SCENE_INVOCATION_SEMANTICS.body} operation=attach|configure|detach subject=<id>`,
+      physicsImpulse: `${XR_SCENE_INVOCATION_COMMANDS.physics} ${XR_SCENE_INVOCATION_BINDINGS.canvas} ${XR_SCENE_INVOCATION_SEMANTICS.impulse} operation=impulse subject=<id> vector=x,y,z`,
+      physicsController: `${XR_SCENE_INVOCATION_COMMANDS.physics} ${XR_SCENE_INVOCATION_BINDINGS.canvas} ${XR_SCENE_INVOCATION_SEMANTICS.controller} operation=develop-run|pause|resume|reset|exit|select mode=ball|rocket`,
+      present: `${XR_SCENE_INVOCATION_COMMANDS.present} ${XR_SCENE_INVOCATION_BINDINGS.scene} ${XR_SCENE_INVOCATION_SEMANTICS.reticle}`,
     },
     environments: XR_MOTION_REFERENCE_STAGE_PRESETS.map(stage => ({
       id: stage.id,
       label: stage.label,
       description: stage.description,
+      kind: stage.environmentKind,
+      default: stage.id === XR_MOTION_REFERENCE_DEFAULT_STAGE_ID,
       sizeMeters: [...stage.sizeMeters],
       invocation: buildXrStageInvocation(stage.id),
     })),
@@ -193,6 +198,8 @@ export function inspectLocalXrSceneAssets() {
       label: asset.label,
       category: asset.category,
       description: asset.description,
+      default: asset.id === XR_SCENE_LIBRARY_DEFAULT_ASSET_ID,
+      featured: XR_SCENE_LIBRARY_FEATURED_ASSET_IDS.includes(asset.id as typeof XR_SCENE_LIBRARY_FEATURED_ASSET_IDS[number]),
       dimensionsMeters: [...asset.dimensionsMeters],
       mobile: asset.mobile,
       invocation: buildXrPlaceInvocation(asset.id, asset.mobile ? 'linear' : 'hold'),
@@ -210,6 +217,10 @@ export function inspectLocalXrSceneAssets() {
           label: subject.label,
           category: subject.category,
           position: [...subject.position],
+          rotationYDegrees: subject.rotationYDegrees,
+          scale: subject.scale,
+          color: subject.color,
+          transformInvocation: buildXrTransformInvocation(subject.id, subject),
           transition,
         }
       }),
@@ -217,7 +228,130 @@ export function inspectLocalXrSceneAssets() {
       dirty: runtime.dirty,
       revision: runtime.revision,
     },
+    physics: {
+      schema: physics.world.schema,
+      phase: physics.phase,
+      world: serializeXrPhysicsRuntimeWorld(),
+      staticColliderCount: physics.staticColliderCount,
+      dirty: physics.dirty,
+      revision: physics.revision,
+      frame: physicsFrame,
+      controllerDemo: {
+        ...controllerDemo,
+        frame: controllerDemo.phase === 'off' ? null : readSharedXrNativeControllerDemoFrame(),
+      },
+    },
+    immersivePlacement: {
+      ...arPlacement,
+      hitMatrix: arPlacement.hitMatrix ? [...arPlacement.hitMatrix] : null,
+      placementMatrix: arPlacement.placementMatrix ? [...arPlacement.placementMatrix] : null,
+    },
   }
+}
+
+type XrPhysicsControlResult = Readonly<{
+  ok: boolean
+  message: string
+  subjectId?: string
+}>
+
+function runXrPhysicsControl(physics: XrPhysicsControlInput): XrPhysicsControlResult {
+  const before = readXrPhysicsRuntime()
+  const subjectId = String(physics.subjectId || '').trim()
+  if (physics.scope === 'controller') {
+    if (physics.operation === 'develop-run') {
+      stopXrPhysicsRuntime()
+      if (physics.controllerMode) selectXrNativeControllerDemoMode(physics.controllerMode)
+      developAndRunXrNativeControllerDemo()
+    } else if (physics.operation === 'select' && physics.controllerMode) {
+      selectXrNativeControllerDemoMode(physics.controllerMode)
+    } else if (physics.operation === 'pause') pauseXrNativeControllerDemo()
+    else if (physics.operation === 'resume') resumeXrNativeControllerDemo()
+    else if (physics.operation === 'reset') resetSharedXrNativeControllerDemo()
+    else if (physics.operation === 'exit') exitXrNativeControllerDemo()
+    else return { ok: false, message: 'Use a supported native XR controller operation.' }
+    activateXrSceneWorkspace()
+    const demo = readXrNativeControllerDemo()
+    return { ok: true, message: `Native XR ${demo.mode} controller is ${demo.phase}.` }
+  }
+  if (physics.scope === 'world') {
+    if (physics.operation === 'play') {
+      if (before.world.bodies.length === 0) return { ok: false, message: 'Attach at least one XR body before entering Play mode.' }
+      exitXrNativeControllerDemo()
+      playXrPhysicsRuntime()
+      activateXrSceneWorkspace()
+      return { ok: true, message: 'XR dynamics Play mode started.' }
+    }
+    if (physics.operation === 'pause') {
+      if (before.phase !== 'playing') return { ok: false, message: 'XR dynamics can pause only while playing.' }
+      pauseXrPhysicsRuntime()
+      activateXrSceneWorkspace()
+      return { ok: true, message: 'XR dynamics paused.' }
+    }
+    if (physics.operation === 'stop') {
+      stopXrPhysicsRuntime()
+      activateXrSceneWorkspace()
+      return { ok: true, message: 'XR dynamics stopped and authored transforms restored.' }
+    }
+    if (physics.operation === 'reset') {
+      resetXrPhysicsRuntime()
+      activateXrSceneWorkspace()
+      return { ok: true, message: 'XR dynamics reset to authored spawn transforms.' }
+    }
+    if (physics.operation === 'step') {
+      if (before.phase === 'stopped') return { ok: false, message: 'Start or pause Play mode before stepping XR dynamics.' }
+      const ticks = physics.ticks || 1
+      const result = stepXrPhysicsRuntimeTicks(ticks)
+      if (result.subSteps !== ticks) return { ok: false, message: 'XR dynamics could not advance the requested fixed steps.' }
+      activateXrSceneWorkspace()
+      return { ok: true, message: `XR dynamics advanced ${ticks} fixed ${ticks === 1 ? 'step' : 'steps'}.` }
+    }
+    if (before.phase !== 'stopped') return { ok: false, message: 'Stop XR dynamics before editing world settings.' }
+    configureXrPhysicsWorld({
+      ...(physics.gravity ? { gravity: physics.gravity } : {}),
+      ...(physics.fixedStepSeconds !== undefined ? { fixedStepSeconds: physics.fixedStepSeconds } : {}),
+      ...(physics.maxSubsteps !== undefined ? { maxSubSteps: physics.maxSubsteps } : {}),
+    })
+    if (readXrPhysicsRuntime().revision === before.revision) return { ok: false, message: 'XR world settings were unchanged or invalid.' }
+    if (!persistXrPhysicsConfig()) {
+      restoreXrPhysicsRuntimeSnapshot(before)
+      return { ok: false, message: 'XR world settings could not be written to graph metadata.' }
+    }
+    return { ok: true, message: 'XR world settings persisted.' }
+  }
+
+  const subject = readXrMotionReferenceRuntime().plan.subjects.find(candidate => candidate.id === subjectId)
+  if (!subject) return { ok: false, message: `Unknown XR subject: ${subjectId || '(empty)'}.` }
+  if (physics.scope === 'impulse') {
+    if (!physics.impulse || !applyXrPhysicsImpulse(subjectId, physics.impulse)) {
+      return { ok: false, message: 'Impulses require a dynamic body in playing or paused XR dynamics.' }
+    }
+    activateXrSceneWorkspace()
+    return { ok: true, message: `Impulse applied to ${subject.label}.`, subjectId }
+  }
+  if (before.phase !== 'stopped') return { ok: false, message: 'Stop XR dynamics before editing body components.' }
+  const patch = {
+    ...(physics.bodyMode ? { mode: physics.bodyMode } : {}),
+    ...(physics.massKg !== undefined ? { mass: physics.massKg } : {}),
+    ...(physics.friction !== undefined ? { friction: physics.friction } : {}),
+    ...(physics.restitution !== undefined ? { restitution: physics.restitution } : {}),
+    ...(physics.linearDamping !== undefined ? { linearDamping: physics.linearDamping } : {}),
+    ...(physics.collisionGroup !== undefined ? { collisionGroup: physics.collisionGroup } : {}),
+    ...(physics.collisionMask !== undefined ? { collisionMask: physics.collisionMask } : {}),
+  }
+  if (physics.operation === 'attach') attachXrPhysicsBody({ subjectId, patch })
+  else if (physics.operation === 'configure') {
+    if (Object.keys(patch).length === 0) return { ok: false, message: 'Configure at least one XR body property.' }
+    configureXrPhysicsBody(subjectId, patch)
+  } else detachXrPhysicsBody(subjectId)
+  if (readXrPhysicsRuntime().revision === before.revision) {
+    return { ok: false, message: `XR body ${physics.operation} was unchanged or invalid for ${subject.label}.` }
+  }
+  if (!persistXrPhysicsConfig()) {
+    restoreXrPhysicsRuntimeSnapshot(before)
+    return { ok: false, message: 'The XR body component could not be written to graph metadata.' }
+  }
+  return { ok: true, message: `XR body ${physics.operation} persisted for ${subject.label}.`, subjectId }
 }
 
 export function controlLocalXrScene(input: XrSceneControlInput): XrSceneControlResult {
@@ -225,12 +359,31 @@ export function controlLocalXrScene(input: XrSceneControlInput): XrSceneControlR
   if (!control) return { ok: false, message: 'Use a supported XR action or an invocation such as /xr.place @person-adult transition=linear.' }
   if (!hydrateActiveXrScene()) return { ok: false, message: 'Open or create a graph document before controlling the XR scene.' }
 
+  if (control.action === 'physics' && control.physics) {
+    const result = runXrPhysicsControl(control.physics)
+    return { ...result, action: control.action, scene: inspectLocalXrSceneAssets() }
+  }
+  if (control.action === 'present') {
+    if (!commitXrArPlacement()) {
+      return { ok: false, message: 'Enter an immersive AR session and acquire a current reticle hit before placing the scene.' }
+    }
+    activateXrSceneWorkspace()
+    return { ok: true, message: 'XR scene placed at the current real-world reticle.', action: control.action, scene: inspectLocalXrSceneAssets() }
+  }
+
+  if (readXrPhysicsRuntime().phase !== 'stopped') {
+    return { ok: false, message: 'Stop XR dynamics before editing the staged scene.' }
+  }
+  const previousMotion = readXrMotionReferenceRuntime()
+  const previousPhysics = readXrPhysicsRuntime()
   let message = ''
   let subjectId = ''
+  let physicsChanged = false
   if (control.action === 'stage') {
     const stage = XR_MOTION_REFERENCE_STAGE_PRESETS.find(candidate => candidate.id === control.stageId)
     if (!stage) return { ok: false, message: `Unknown XR environment: ${control.stageId || '(empty)'}.` }
     setXrMotionReferenceStage(stage.id as XrMotionReferenceStageId)
+    setSharedXrNativeControllerDemoTerrain(stage.id as XrMotionReferenceStageId)
     message = `${stage.label} staged in XR Mode.`
   } else if (control.action === 'place') {
     if (!isXrSceneLibraryAssetId(control.assetId)) return { ok: false, message: `Unknown XR asset: ${control.assetId || '(empty)'}.` }
@@ -248,6 +401,32 @@ export function controlLocalXrScene(input: XrSceneControlInput): XrSceneControlR
     }
     setXrMotionReferenceCastTransition(subjectId, control.transition)
     message = `XR subject path interpolation set to ${control.transition}.`
+  } else if (control.action === 'transform') {
+    subjectId = control.subjectId
+    const subject = readXrMotionReferenceRuntime().plan.subjects.find(candidate => candidate.id === subjectId)
+    if (!subject) return { ok: false, message: `Unknown XR subject: ${subjectId || '(empty)'}.` }
+    if (control.assetId) {
+      if (!isXrSceneLibraryAssetId(control.assetId)) return { ok: false, message: `Unknown XR asset: ${control.assetId}.` }
+      const nextAsset = XR_SCENE_LIBRARY_ASSETS.find(candidate => candidate.id === control.assetId)!
+      const motion = readXrMotionReferenceRuntime()
+      if (nextAsset.mobile
+        && !motion.plan.cast.some(track => track.actorId === subjectId)
+        && motion.plan.cast.length >= XR_MOTION_REFERENCE_MAX_CAST_TRACKS) {
+        return { ok: false, message: 'The bounded XR cast-track capacity has been reached.' }
+      }
+      setXrMotionReferenceSubjectAsset({ subjectId, assetId: nextAsset.id })
+      if (readXrMotionReferenceRuntime().plan.subjects.find(candidate => candidate.id === subjectId)?.assetId !== nextAsset.id) {
+        return { ok: false, message: `${subject.label} could not change to ${nextAsset.label}.` }
+      }
+    }
+    setXrMotionReferenceSubjectTransform({
+      subjectId,
+      ...(control.position ? { position: control.position } : {}),
+      ...(control.rotationYDegrees !== undefined ? { rotationYDegrees: control.rotationYDegrees } : {}),
+      ...(control.scale !== undefined ? { scale: control.scale } : {}),
+      ...(control.color ? { color: control.color } : {}),
+    })
+    message = `${subject.label} ${control.assetId ? 'asset and transform' : 'transform'} updated.`
   } else if (control.action === 'label') {
     subjectId = control.subjectId
     if (!control.label) return { ok: false, message: 'XR subject labels must not be empty.' }
@@ -256,14 +435,23 @@ export function controlLocalXrScene(input: XrSceneControlInput): XrSceneControlR
     }
     setXrMotionReferenceSubjectLabel(subjectId, control.label)
     message = `XR subject relabeled ${control.label}.`
-  } else {
+  } else if (control.action === 'remove') {
     subjectId = control.subjectId
     const subject = readXrMotionReferenceRuntime().plan.subjects.find(candidate => candidate.id === subjectId)
     if (!subject) return { ok: false, message: `Unknown XR subject: ${subjectId || '(empty)'}.` }
+    if (readXrPhysicsRuntime().world.bodies.some(body => body.subjectId === subjectId)) {
+      detachXrPhysicsBody(subjectId)
+      physicsChanged = true
+    }
     removeXrMotionReferenceSubject(subjectId)
     message = `${subject.label} removed from the XR stage.`
   }
 
-  if (!persistAndActivateXrScene()) return { ok: false, message: 'The XR scene could not be written to graph metadata.' }
+  if (!persistAndActivateXrScene(physicsChanged)) {
+    restoreXrMotionReferenceRuntimeSnapshot(previousMotion)
+    restoreXrPhysicsRuntimeSnapshot(previousPhysics)
+    return { ok: false, message: 'The XR scene could not be written to graph metadata.' }
+  }
+  hydrateCanonicalXrPhysicsRuntime()
   return { ok: true, message, action: control.action, ...(subjectId ? { subjectId } : {}), scene: inspectLocalXrSceneAssets() }
 }

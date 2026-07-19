@@ -31,6 +31,7 @@ test("publish sync removes stale generated assets from both mirror trees", () =>
 });
 
 test("publish sync includes the published agent-ready dependency closure", () => {
+  assert.match(syncScript, /'knowgrphAgentReadyOutputSchemas\.mjs'/);
   assert.match(syncScript, /'mcpAppsContractText\.mjs'/);
   assert.match(syncScript, /'mcpAppsOnboarding\.mjs'/);
   assert.match(syncScript, /'probeTreeUserInputRelevance\.mjs'/);

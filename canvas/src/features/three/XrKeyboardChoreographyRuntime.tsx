@@ -20,6 +20,7 @@ import {
   claimThreeObjectKeyboardInputOwnership,
   releaseThreeObjectKeyboardInputOwnership,
 } from './threeObjectInputOwnership'
+import { readXrPhysicsRuntime } from './xrPhysicsRuntime'
 import {
   THREE_KEYBOARD_HOLD_DELAY_MS,
   normalizeThreeKeyboardKey,
@@ -60,6 +61,8 @@ function resolveCastTarget(
 ): XrKeyboardChoreographyTarget | null {
   const selection = runtime.selectedMark
   if (selection?.kind !== 'cast') return null
+  const physics = readXrPhysicsRuntime()
+  if (physics.phase !== 'stopped' && physics.world.bodies.some(body => body.subjectId === selection.actorId)) return null
   const mark = runtime.plan.cast
     .find(track => track.actorId === selection.actorId)
     ?.marks.find(candidate => candidate.id === selection.markId)

@@ -13,6 +13,7 @@ import {
   type XrAnimationAssignment,
 } from '@/features/three/xrAnimationCatalog'
 import {
+  XR_MOTION_REFERENCE_DEFAULT_STAGE_ID,
   XR_MOTION_REFERENCE_STAGE_PRESETS,
   isXrSceneLibraryAssetId,
   resolveXrMotionReferenceStage,
@@ -40,7 +41,9 @@ import {
 } from './xrMotionReferenceSampling'
 
 export {
+  XR_MOTION_REFERENCE_DEFAULT_STAGE_ID,
   XR_MOTION_REFERENCE_STAGE_PRESETS,
+  XR_MOTION_REFERENCE_TERRAIN_PRESETS,
   resolveXrMotionReferenceStage,
 } from '@/features/three/xrSceneLibrary'
 export type {
@@ -219,7 +222,7 @@ function normalizeStageId(value: unknown): XrMotionReferenceStageId {
   const id = String(value || '').trim()
   return XR_MOTION_REFERENCE_STAGE_PRESETS.some(preset => preset.id === id)
     ? id as XrMotionReferenceStageId
-    : 'neutral-volume'
+    : XR_MOTION_REFERENCE_DEFAULT_STAGE_ID
 }
 
 function normalizeAnimationAssignment(

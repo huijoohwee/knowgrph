@@ -1,42 +1,33 @@
-import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
-import { CAMERA_INVOCATION_COMMANDS } from './cameraMcpContract.mjs'
+import {
+  CAMERA_INVOCATION_BINDINGS,
+  CAMERA_INVOCATION_COMMANDS,
+  CAMERA_INVOCATION_SEMANTICS,
+} from './cameraMcpContract.mjs'
 
 export type CanonicalCameraInvocationTokens = Readonly<{
+  select: string
   frame: string
   animate: string
   playback: string
   scrub: string
   cameraShot: string
   cameraMotion: string
+  cameraSemantic: string
   camera: string
   selectedActor: string
 }>
 
-export function resolveCanonicalCameraInvocationTokens(): CanonicalCameraInvocationTokens | null {
-  const frame = findAgenticOsInvocationByToken(CAMERA_INVOCATION_COMMANDS.frame)
-  const animate = findAgenticOsInvocationByToken(CAMERA_INVOCATION_COMMANDS.animate)
-  const playback = findAgenticOsInvocationByToken(CAMERA_INVOCATION_COMMANDS.playback)
-  const scrub = findAgenticOsInvocationByToken(CAMERA_INVOCATION_COMMANDS.scrub)
-  const cameraShot = findAgenticOsInvocationByToken('#camera-shot')
-  const cameraMotion = findAgenticOsInvocationByToken('#camera-motion')
-  const camera = findAgenticOsInvocationByToken('@camera')
-  const selectedActor = findAgenticOsInvocationByToken('@selected-actor')
-  if (!frame || frame.kind !== 'command'
-    || !animate || animate.kind !== 'command'
-    || !playback || playback.kind !== 'command'
-    || !scrub || scrub.kind !== 'command'
-    || !cameraShot || cameraShot.kind !== 'semantic'
-    || !cameraMotion || cameraMotion.kind !== 'semantic'
-    || !camera || camera.kind !== 'binding'
-    || !selectedActor || selectedActor.kind !== 'binding') return null
+export function resolveCanonicalCameraInvocationTokens(): CanonicalCameraInvocationTokens {
   return {
-    frame: frame.token,
-    animate: animate.token,
-    playback: playback.token,
-    scrub: scrub.token,
-    cameraShot: cameraShot.token,
-    cameraMotion: cameraMotion.token,
-    camera: camera.token,
-    selectedActor: selectedActor.token,
+    select: CAMERA_INVOCATION_COMMANDS.select,
+    frame: CAMERA_INVOCATION_COMMANDS.frame,
+    animate: CAMERA_INVOCATION_COMMANDS.animate,
+    playback: CAMERA_INVOCATION_COMMANDS.playback,
+    scrub: CAMERA_INVOCATION_COMMANDS.scrub,
+    cameraShot: CAMERA_INVOCATION_SEMANTICS.shot,
+    cameraMotion: CAMERA_INVOCATION_SEMANTICS.motion,
+    cameraSemantic: CAMERA_INVOCATION_SEMANTICS.camera,
+    camera: CAMERA_INVOCATION_BINDINGS.camera,
+    selectedActor: CAMERA_INVOCATION_BINDINGS.selectedActor,
   }
 }

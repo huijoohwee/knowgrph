@@ -35,6 +35,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["docs.careAgentDemo.runReadyMode","@/__tests__/careAgentDemoRuntimeReady.test","testCareAgentDemoRunReadyModeLoadsSourceBackedCleanCanvasSeed"],
   ["docs.riskCopilotDemo.runtimeReady","@/__tests__/riskCopilotDemoRuntimeReady.test","testRiskCopilotDemoIsRuntimeReadyFromLocalProof"],
   ["docs.riskCopilotDemo.runReadyMode","@/__tests__/riskCopilotDemoRuntimeReady.test","testRiskCopilotDemoRunReadyModeLoadsSourceBackedCleanCanvasSeed"],
+  ["docs.xrPhysicsDemo.runReadyMode","@/__tests__/xrPhysicsDemoRuntimeReady.test","testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed"],
   ["probeTree.select.frontmatterFlowCanvasSync","@/__tests__/probeTreeRuntimeCanvasSync.test","testProbeTreeSelectedNodeParsesThroughFrontmatterFlowForCanvasSync"],
   ["htmlParser.losslessEmbeddedMarkdown","@/__tests__/htmlParserRoundTripLossless.test","testHtmlParserUsesEmbeddedLosslessMarkdownSource"],
   ["htmlParser.plainText.paragraphs","@/__tests__/plainTextToMarkdown.test","testPlainTextToMarkdownPreservesParagraphs"],

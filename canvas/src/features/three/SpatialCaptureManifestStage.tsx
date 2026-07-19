@@ -1,5 +1,5 @@
 import React from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { createPortal, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { StandaloneSpatialCaptureManifest } from '@/features/markdown-workspace/workspaceImport/spatialCaptureFileset'
 import {
@@ -9,6 +9,10 @@ import {
   subscribeSpatialCaptureTool,
 } from '@/features/three/xrSpatialCaptureTools'
 import type { SpatialCaptureCenterActionId, SpatialCaptureToolId } from '@/features/three/xrSpatialCaptureTools'
+import {
+  readXrArPlacementRuntime,
+  subscribeXrArPlacementRuntime,
+} from '@/features/three/xrArPlacementRuntime'
 import { loadSpatialCapturePointCloud, loadSpatialCapturePointCloudPreview, type SpatialCapturePointCloudLoad } from '@/lib/assets/spatialCaptureAssetRuntime'
 import type { GlbFit } from '@/lib/three/GlbAssetModel'
 import {
@@ -56,6 +60,7 @@ const SPATIAL_CAPTURE_SELECTION_COLORS: Record<SpatialCaptureCenterActionId, str
   add: '#38bdf8',
   remove: '#fb7185',
 }
+const readImmersiveSessionMode = () => readXrArPlacementRuntime().immersiveSessionMode
 
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min
@@ -276,7 +281,12 @@ export function SpatialCaptureManifestStage({
   onLoadStateChange?: (state: LoadState) => void
   onFitChange?: (fit: GlbFit | null) => void
 }) {
-  const { camera, size } = useThree()
+  const { camera, scene, size } = useThree()
+  const immersiveSessionMode = React.useSyncExternalStore(
+    subscribeXrArPlacementRuntime,
+    readImmersiveSessionMode,
+    readImmersiveSessionMode,
+  )
   const [state, setState] = React.useState<LoadState>({ status: 'loading' })
   const [spatialTool, setSpatialTool] = React.useState<SpatialCaptureToolId>(readSpatialCaptureTool())
   const [spatialCenterAction, setSpatialCenterAction] = React.useState<SpatialCaptureCenterActionId>(readSpatialCaptureCenterAction())
@@ -467,8 +477,13 @@ export function SpatialCaptureManifestStage({
 
   return (
     <>
-      <color attach="background" args={[SPATIAL_CAPTURE_BACKGROUND]} />
-      <fog attach="fog" args={[SPATIAL_CAPTURE_FOG, 260, 680]} />
+      {immersiveSessionMode !== 'immersive-ar' ? createPortal(
+        <>
+          <color attach="background" args={[SPATIAL_CAPTURE_BACKGROUND]} />
+          <fog attach="fog" args={[SPATIAL_CAPTURE_FOG, 260, 680]} />
+        </>,
+        scene,
+      ) : null}
       <group name={`kg_spatial_capture_manifest_${manifest.format}`} scale={[fit.scale, fit.scale, fit.scale]} position={fit.position}>
         {gaussianSplatMaterial && geometry instanceof THREE.InstancedBufferGeometry
           ? (
