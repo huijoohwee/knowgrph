@@ -84,6 +84,14 @@ const snapshotRuntimeIdentity = (identity: KnowgrphRuntimeIdentity): KnowgrphRun
   catalogRevision: identity.catalogRevision,
   catalogHydration: { ...identity.catalogHydration },
   catalogCounts: { ...identity.catalogCounts },
+  agentLiveProviderProof: {
+    ...identity.agentLiveProviderProof,
+    finalAnswerOwners: { ...identity.agentLiveProviderProof.finalAnswerOwners },
+  },
+  progressiveAgentsReadiness: {
+    ...identity.progressiveAgentsReadiness,
+    growthStages: [...identity.progressiveAgentsReadiness.growthStages],
+  },
 })
 
 const isRuntimeIdentity = (value: unknown): value is KnowgrphRuntimeIdentity => {
@@ -96,12 +104,50 @@ const isRuntimeIdentity = (value: unknown): value is KnowgrphRuntimeIdentity => 
     || typeof value.catalogRevision !== 'string'
     || !isRecord(value.catalogHydration)
     || !isRecord(value.catalogCounts)
+    || !isRecord(value.agentLiveProviderProof)
+    || !isRecord(value.agentLiveProviderProof.finalAnswerOwners)
+    || !isRecord(value.progressiveAgentsReadiness)
+    || !Array.isArray(value.progressiveAgentsReadiness.growthStages)
   ) return false
   return typeof value.catalogHydration.status === 'string'
     && Number.isInteger(value.catalogHydration.attempts)
     && Number.isInteger(value.catalogCounts.slash)
     && Number.isInteger(value.catalogCounts.hash)
     && Number.isInteger(value.catalogCounts.at)
+    && value.agentLiveProviderProof.schema === 'agent-live-provider-proof-summary/v1'
+    && typeof value.agentLiveProviderProof.status === 'string'
+    && typeof value.agentLiveProviderProof.sourceRevision === 'string'
+    && typeof value.agentLiveProviderProof.proofRevision === 'string'
+    && typeof value.agentLiveProviderProof.sourcePath === 'string'
+    && typeof value.agentLiveProviderProof.sourceUrl === 'string'
+    && typeof value.agentLiveProviderProof.model === 'string'
+    && typeof value.agentLiveProviderProof.reasoningEffort === 'string'
+    && Number.isInteger(value.agentLiveProviderProof.providerCalls)
+    && Number.isInteger(value.agentLiveProviderProof.inputTokens)
+    && Number.isInteger(value.agentLiveProviderProof.outputTokens)
+    && Number.isInteger(value.agentLiveProviderProof.cachedInputTokens)
+    && typeof value.agentLiveProviderProof.estimatedCostUsd === 'number'
+    && typeof value.agentLiveProviderProof.finalAnswerOwners.delegation === 'string'
+    && typeof value.agentLiveProviderProof.finalAnswerOwners.handoff === 'string'
+    && typeof value.agentLiveProviderProof.continuationContext === 'string'
+    && typeof value.agentLiveProviderProof.defaultWorkerConfigured === 'boolean'
+    && value.progressiveAgentsReadiness.schema === 'progressive-agents-readiness-summary/v1'
+    && typeof value.progressiveAgentsReadiness.status === 'string'
+    && typeof value.progressiveAgentsReadiness.sourceRevision === 'string'
+    && typeof value.progressiveAgentsReadiness.sourcePath === 'string'
+    && typeof value.progressiveAgentsReadiness.sourceUrl === 'string'
+    && typeof value.progressiveAgentsReadiness.contractSchema === 'string'
+    && typeof value.progressiveAgentsReadiness.runtimeScope === 'string'
+    && typeof value.progressiveAgentsReadiness.runtimeOwner === 'string'
+    && typeof value.progressiveAgentsReadiness.runtimeProof === 'string'
+    && typeof value.progressiveAgentsReadiness.contractReady === 'boolean'
+    && (typeof value.progressiveAgentsReadiness.configured === 'boolean' || value.progressiveAgentsReadiness.configured === null)
+    && typeof value.progressiveAgentsReadiness.progressionPolicy === 'string'
+    && value.progressiveAgentsReadiness.growthStages.every(stage => typeof stage === 'string')
+    && (typeof value.progressiveAgentsReadiness.externalSdkDependency === 'boolean' || value.progressiveAgentsReadiness.externalSdkDependency === null)
+    && typeof value.progressiveAgentsReadiness.providerExecutionStatus === 'string'
+    && (typeof value.progressiveAgentsReadiness.defaultWorkerConfigured === 'boolean' || value.progressiveAgentsReadiness.defaultWorkerConfigured === null)
+    && typeof value.progressiveAgentsReadiness.deployPolicy === 'string'
 }
 
 const toHex = (bytes: ArrayBuffer): string =>
@@ -218,6 +264,12 @@ const collectParityDifferences = (
     if (new Set(identities.map(identity => identity.catalogCounts[field])).size !== 1) {
       differences.push(`catalogCounts.${field}`)
     }
+  }
+  if (new Set(identities.map(identity => JSON.stringify(identity.agentLiveProviderProof))).size !== 1) {
+    differences.push('agentLiveProviderProof')
+  }
+  if (new Set(identities.map(identity => JSON.stringify(identity.progressiveAgentsReadiness))).size !== 1) {
+    differences.push('progressiveAgentsReadiness')
   }
   return differences
 }

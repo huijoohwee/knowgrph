@@ -2,14 +2,11 @@ import React from 'react'
 import { Clapperboard, MapPin, Video } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
+import { PanelSelect } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
-import {
-  STRYBLDR_CAMERA_MAX_FOCAL_LENGTH_MM,
-  STRYBLDR_CAMERA_MIN_FOCAL_LENGTH_MM,
-  readStrybldrCameraSettings,
-} from './strybldrCamera'
+import { readStrybldrCameraSettings } from './strybldrCamera'
+import { formatCameraOptics } from './cameraOptics'
 import {
   publishCameraFramingRuntime,
   readCameraFramingRuntime,
@@ -27,7 +24,19 @@ import {
   subscribeXrMotionReferenceRuntime,
   toggleXrMotionReferenceCastMarkArmed,
 } from '@/features/three/xrMotionReferenceRuntime'
-import { readBoundXrSelectedActorId, selectBoundXrActor } from '@/features/three/xrSelectedActorBinding'
+import { selectBoundXrShotTarget } from '@/features/three/xrSelectedActorBinding'
+import { buildXrShotTargets } from '@/features/three/xrShotTargets'
+import { XrCameraMovePresetControl } from './XrCameraMovePresetControl'
+import {
+  XR_NATIVE_CONTROLLER_CAMERA_MODES,
+  resolveXrNativeControllerCameraOption,
+  type XrNativeControllerCameraMode,
+} from '@/features/three/xrNativeControllerCameraCatalog'
+import {
+  readXrNativeControllerCamera,
+  selectXrNativeControllerCameraMode,
+  subscribeXrNativeControllerCamera,
+} from '@/features/three/xrNativeControllerCameraRuntime'
 
 const RIG_LABELS: Readonly<Record<XrMotionReferenceCameraRig, string>> = {
   dolly: 'Dolly',
@@ -44,10 +53,9 @@ function isTextEditingTarget(target: EventTarget | null): boolean {
 }
 
 export function XrShootCameraSection() {
-  const { xrActive, pushUiToast, selectedNodeId, timelinePlaying } = useGraphStore(useShallow(state => ({
+  const { xrActive, pushUiToast, timelinePlaying } = useGraphStore(useShallow(state => ({
     xrActive: state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr',
     pushUiToast: state.pushUiToast,
-    selectedNodeId: state.selectedNodeId,
     timelinePlaying: state.timelineTransportPlaying,
   })))
   const runtime = React.useSyncExternalStore(
@@ -55,10 +63,18 @@ export function XrShootCameraSection() {
     readXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
   )
-  const selectedActorId = React.useMemo(() => readBoundXrSelectedActorId(), [runtime, selectedNodeId])
-  const selectedTrack = runtime.plan.cast.find(track => track.actorId === selectedActorId)
-    || runtime.plan.cast[0]
+  const nativeController = React.useSyncExternalStore(
+    subscribeXrNativeControllerCamera,
+    readXrNativeControllerCamera,
+    readXrNativeControllerCamera,
+  )
+  const shotTargets = React.useMemo(() => buildXrShotTargets(runtime.plan), [runtime.plan])
+  const selectedShotTarget = shotTargets.find(target => target.id === runtime.selectedShotTargetId)
+    || shotTargets[0]
     || null
+  const selectedTrack = selectedShotTarget?.castActorId
+    ? runtime.plan.cast.find(track => track.actorId === selectedShotTarget.castActorId) || null
+    : null
   const cameraPlaybackActive = xrActive && timelinePlaying && runtime.plan.camera.length > 0
   const framing = React.useSyncExternalStore(
     subscribeCameraFramingRuntime,
@@ -81,41 +97,50 @@ export function XrShootCameraSection() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [runtime.castMarkArmed, selectedTrack, xrActive])
 
-  const publishActorFraming = React.useCallback((settingsValue: unknown) => {
-    if (!selectedTrack || cameraPlaybackActive) return
+  const publishShotFraming = React.useCallback((settingsValue: unknown) => {
+    if (!selectedShotTarget || cameraPlaybackActive) return
     publishCameraFramingRuntime({
-      anchorId: selectedTrack.actorId,
+      anchorId: selectedShotTarget.id,
       settings: readStrybldrCameraSettings(settingsValue),
       source: 'panel',
     })
-  }, [cameraPlaybackActive, selectedTrack])
+  }, [cameraPlaybackActive, selectedShotTarget])
 
   const autoFrameMedium = React.useCallback(() => {
-    if (!selectedTrack) return
+    if (!selectedShotTarget) return
     const current = readCameraFramingRuntime()
-    publishActorFraming({ ...current.settings, shot: 'medium' })
+    publishShotFraming({ ...current.settings, shot: 'medium' })
     pushUiToast({
       id: 'xr:shoot:medium-shot',
       kind: 'success',
-      message: `MS framed ${selectedTrack.label} at ${current.settings.focalLengthMm}mm.`,
+      message: `MS framed ${selectedShotTarget.label} at ${current.settings.focalLengthMm}mm.`,
     })
-  }, [publishActorFraming, pushUiToast, selectedTrack])
+  }, [publishShotFraming, pushUiToast, selectedShotTarget])
 
   const dropCameraMark = React.useCallback(() => {
-    if (!selectedTrack) return
+    if (!selectedShotTarget) return
     const current = readCameraFramingRuntime()
     setXrMotionReferenceCameraMark({
       timeSeconds: runtime.playheadSeconds,
-      anchorId: selectedTrack.actorId,
+      anchorId: selectedShotTarget.id,
       rig: runtime.selectedCameraRig,
       settings: { ...current.settings },
     })
     pushUiToast({
       id: 'xr:shoot:camera-mark',
       kind: 'success',
-      message: `Camera mark ${readXrMotionReferenceRuntime().plan.camera.length} dropped at ${runtime.playheadSeconds.toFixed(2)}s.`,
+      message: `Camera mark ${readXrMotionReferenceRuntime().plan.camera.length} linked to ${selectedShotTarget.label} at ${runtime.playheadSeconds.toFixed(2)}s.`,
     })
-  }, [pushUiToast, runtime.playheadSeconds, runtime.selectedCameraRig, selectedTrack])
+  }, [pushUiToast, runtime.playheadSeconds, runtime.selectedCameraRig, selectedShotTarget])
+
+  const selectCameraSource = React.useCallback((mode: XrNativeControllerCameraMode) => {
+    selectXrNativeControllerCameraMode(mode)
+    pushUiToast({
+      id: 'xr:shoot:camera-source',
+      kind: 'success',
+      message: `XR camera source: ${resolveXrNativeControllerCameraOption(mode).label}.`,
+    })
+  }, [pushUiToast])
 
   if (!xrActive) return null
 
@@ -131,7 +156,7 @@ export function XrShootCameraSection() {
           <Clapperboard className="size-4 shrink-0" strokeWidth={1.8} aria-hidden />
           <section>
             <h3 className="text-xs font-black tracking-[0.16em]">SHOOT</h3>
-            <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Cast marks, lens, rig, camera track.</p>
+            <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Scene/object links, cast marks, rig, camera track.</p>
           </section>
         </section>
         <output className={cn('text-right text-[10px]', UI_THEME_TOKENS.text.tertiary)}>
@@ -140,17 +165,36 @@ export function XrShootCameraSection() {
       </header>
 
       <label className="grid gap-1 text-[10px]">
-        <span className={UI_THEME_TOKENS.text.tertiary}>Actor</span>
+        <span className={UI_THEME_TOKENS.text.tertiary}>Camera source</span>
         <PanelSelect
-          aria-label="SHOOT actor"
-          value={selectedTrack?.actorId || ''}
-          disabled={!selectedTrack}
-          onChange={event => selectBoundXrActor(event.target.value)}
-          data-kg-xr-shoot-actor="1"
+          aria-label="XR camera source"
+          value={nativeController.mode}
+          onChange={event => selectCameraSource(event.target.value as XrNativeControllerCameraMode)}
+          data-kg-xr-camera-source="1"
         >
-          {runtime.plan.cast.length
-            ? runtime.plan.cast.map(track => <option key={track.actorId} value={track.actorId}>{track.label}</option>)
-            : <option value="">No cast</option>}
+          {XR_NATIVE_CONTROLLER_CAMERA_MODES.map(mode => (
+            <option key={mode} value={mode}>{resolveXrNativeControllerCameraOption(mode).label}</option>
+          ))}
+        </PanelSelect>
+        <span className={UI_THEME_TOKENS.text.tertiary} data-kg-xr-camera-source-status={nativeController.mode}>
+          {resolveXrNativeControllerCameraOption(nativeController.mode).description}
+        </span>
+      </label>
+
+      <label className="grid gap-1 text-[10px]">
+        <span className={UI_THEME_TOKENS.text.tertiary}>Shot target</span>
+        <PanelSelect
+          aria-label="SHOOT scene or 3D object target"
+          value={selectedShotTarget?.id || ''}
+          disabled={!selectedShotTarget}
+          onChange={event => selectBoundXrShotTarget(event.target.value)}
+          data-kg-xr-shoot-target="scene-or-object"
+        >
+          {shotTargets.map(target => (
+            <option key={target.id} value={target.id}>
+              {target.kind === 'scene' ? 'SCENE' : '3D OBJECT'} · {target.label}
+            </option>
+          ))}
         </PanelSelect>
       </label>
 
@@ -169,10 +213,10 @@ export function XrShootCameraSection() {
       <p className={cn('m-0 text-[10px]', runtime.castMarkArmed ? 'text-emerald-600 dark:text-emerald-300' : UI_THEME_TOKENS.text.tertiary)} aria-live="polite">
         {selectedTrack
           ? `${selectedTrack.label} · ${selectedTrack.marks.length} numbered mark${selectedTrack.marks.length === 1 ? '' : 's'}${runtime.castMarkArmed ? ' · placement armed; Esc cancels' : ''}`
-          : 'Add a mobile subject or open a graph with cast nodes.'}
+          : `${selectedShotTarget?.label || 'Scene'} · camera target only; select a mobile 3D Object to place cast marks.`}
       </p>
 
-      <section className="grid grid-cols-[minmax(0,1fr)_5.5rem] gap-2">
+      <section className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] gap-2">
         <label className="grid gap-1 text-[10px]">
           <span className={UI_THEME_TOKENS.text.tertiary}>Rig</span>
           <PanelSelect
@@ -184,30 +228,29 @@ export function XrShootCameraSection() {
             {XR_MOTION_REFERENCE_CAMERA_RIGS.map(rig => <option key={rig} value={rig}>{RIG_LABELS[rig]}</option>)}
           </PanelSelect>
         </label>
-        <label className="grid gap-1 text-[10px]">
-          <span className={UI_THEME_TOKENS.text.tertiary}>Lens mm</span>
-          <PanelTextInput
-            type="number"
-            min={STRYBLDR_CAMERA_MIN_FOCAL_LENGTH_MM}
-            max={STRYBLDR_CAMERA_MAX_FOCAL_LENGTH_MM}
-            step={1}
-            value={framing.settings.focalLengthMm}
-            disabled={cameraPlaybackActive}
-            onChange={event => publishActorFraming({ ...readCameraFramingRuntime().settings, focalLengthMm: Number(event.target.value) })}
-            data-kg-xr-shoot-lens="1"
-          />
-        </label>
+        <section className="grid gap-1 text-[10px]" aria-label="SHOOT camera optics projection" data-kg-camera-optics-projection="xr-shoot">
+          <span className={UI_THEME_TOKENS.text.tertiary}>Optics · edit in Camera</span>
+          <output className={cn('min-w-0 rounded border px-2 py-1.5 font-semibold', UI_THEME_TOKENS.panel.border)}>
+            {formatCameraOptics(framing.settings)}
+          </output>
+        </section>
       </section>
 
       <section className="grid grid-cols-2 gap-2">
-        <button type="button" className="App-toolbar__btn font-bold" disabled={!selectedTrack || cameraPlaybackActive} onClick={autoFrameMedium} data-kg-xr-shoot-medium-shot="1">
+        <button type="button" className="App-toolbar__btn font-bold" disabled={!selectedShotTarget || cameraPlaybackActive || nativeController.mode === 'fixed-follow'} onClick={autoFrameMedium} data-kg-xr-shoot-medium-shot="1">
           MS · Medium shot
         </button>
-        <button type="button" className="App-toolbar__btn flex items-center justify-center gap-1 font-bold" disabled={!selectedTrack || cameraPlaybackActive} onClick={dropCameraMark} data-kg-xr-shoot-camera-mark="1">
+        <button type="button" className="App-toolbar__btn flex items-center justify-center gap-1 font-bold" disabled={!selectedShotTarget || cameraPlaybackActive} onClick={dropCameraMark} data-kg-xr-shoot-camera-mark="1">
           <Video className="size-3.5" aria-hidden />
           Drop camera mark
         </button>
       </section>
+
+      <XrCameraMovePresetControl
+        anchorId={selectedShotTarget?.id || ''}
+        anchorLabel={selectedShotTarget?.label || ''}
+        disabled={!selectedShotTarget || cameraPlaybackActive}
+      />
     </section>
   )
 }

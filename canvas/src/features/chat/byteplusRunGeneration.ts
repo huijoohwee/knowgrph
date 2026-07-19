@@ -17,6 +17,8 @@ import {
 import { buildProviderChatRequestOptions } from './floatingPanelChat/floatingPanelChatProviderOptions'
 import { extractAssistantDelta } from './floatingPanelChat/floatingPanelChatStreamParsing'
 import { readRunTextEventStream } from './runTextEventStream'
+import { readRunTextProviderResponse } from './runTextProviderResponse'
+import { readRunTextResponseInstructions } from './runTextResponseInstructions'
 import { resolveBytePlusVideoReferenceImage } from './byteplusVideoReferenceImage'
 import { loadAvailableModelIds, parseErrorBody, parseJsonResponseBody, shouldRetryWithActivationFallback } from './floatingPanelChat/floatingPanelChatHttp'
 import { readBytePlusImageWidgetDefaults } from '@/features/integrations/byteplusImageGenerationDefaults'
@@ -749,14 +751,16 @@ export async function generateRunMarkdownWithProvider(args: {
   const baseMessages = [
     {
       role: 'system',
-      content: 'Return only the final user-facing markdown deliverable. Do not mention KGC, frontmatter, pipeline, or internal graph mechanics.',
+      content: readRunTextResponseInstructions(),
     },
     {
       role: 'user',
       content: args.prompt,
     },
   ]
-  const requestMessages = providerMessages || baseMessages
+  const requestMessages = providerMessages
+    ? [baseMessages[0], ...providerMessages]
+    : baseMessages
   const tokenLimit = cleanInteger(args.options?.chatMaxCompletionTokens)
   const streamRequested = cleanBool(args.options?.chatStream) !== false
 
@@ -800,7 +804,7 @@ export async function generateRunMarkdownWithProvider(args: {
     (typeof res.headers?.get === 'function' ? res.headers.get('content-type') : '')
     || '',
   ).toLowerCase()
-  const isEventStream = streamRequested && contentType.includes('text/event-stream')
+  const isEventStream = contentType.includes('text/event-stream')
   if (isEventStream && res.body) {
     return readRunTextEventStream({
       body: res.body,
@@ -809,9 +813,7 @@ export async function generateRunMarkdownWithProvider(args: {
     })
   }
   const data = await parseJsonResponseBody(res, 'Run text generation')
-  const text = extractChatText(data)
-  if (text) args.options?.onText?.(text)
-  return text || null
+  return readRunTextProviderResponse({ payload: data, extractText: extractChatText, onText: args.options?.onText })
 }
 
 export async function generateRunImageWithBytePlus(args: {

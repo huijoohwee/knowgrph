@@ -8,6 +8,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { XR_MOTION_REFERENCE_SELECTION_COLOR } from './xrMotionReferenceModel'
+import { resolveXrCameraMoveLabel } from './xrCameraMoveCatalog'
 import {
   readXrMotionReferenceRuntime,
   removeXrMotionReferenceCameraMark,
@@ -16,13 +17,15 @@ import {
   retimeXrMotionReferenceCastMark,
   selectXrMotionReferenceCameraMark,
   selectXrMotionReferenceCastMark,
-  setXrMotionReferenceCameraMarkEasing,
+  setXrMotionReferenceCameraMarkChoreography,
   setXrMotionReferenceCastMarkChoreography,
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
 import { readBoundXrSelectedActorId } from './xrSelectedActorBinding'
 import { resolveXrChoreographySpeedWarnings } from './xrChoreographyDiagnostics'
 import { XrChoreographyMarkControls } from './XrChoreographyMarkControls'
+import { buildXrShotTargets } from './xrShotTargets'
+import { formatCameraOptics } from '@/features/strybldr/cameraOptics'
 import './CameraMotionMarkRetime.css'
 
 function TimeEditor({
@@ -115,13 +118,17 @@ export function CameraMotionMarkRetime({
   laneTarget?: CameraMotionTimelineLaneTarget
   layout?: 'lane' | 'panel'
 }) {
-  const selectedNodeId = useGraphStore(state => state.selectedNodeId)
+  useGraphStore(state => state.selectedNodeId)
   const runtime = React.useSyncExternalStore(
     subscribeXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
   )
-  const selectedActorId = React.useMemo(() => readBoundXrSelectedActorId(), [runtime, selectedNodeId])
+  const selectedActorId = readBoundXrSelectedActorId()
+  const shotTargetLabelById = React.useMemo(
+    () => new Map(buildXrShotTargets(runtime.plan).map(target => [target.id, target.label])),
+    [runtime.plan],
+  )
   const selectedTrack = runtime.plan.cast.find(track => track.actorId === selectedActorId)
     || runtime.plan.cast[0]
     || null
@@ -146,7 +153,9 @@ export function CameraMotionMarkRetime({
       onClick={event => event.stopPropagation()}
     >
       <span className="xr-camera-motion-mark-selection-label">
-        {selectedCastMark ? `${selectedCastTrack!.label} · ${selectedCastMarkIndex + 1}` : `Camera · C${selectedCameraMarkIndex + 1}`}
+        {selectedCastMark
+          ? `${selectedCastTrack!.label} · ${selectedCastMarkIndex + 1}`
+          : `Camera · C${selectedCameraMarkIndex + 1} · ${shotTargetLabelById.get(selectedCameraMark?.anchorId || '') || 'Unbound'} · ${selectedCameraMark ? formatCameraOptics(selectedCameraMark.settings) : ''}`}
       </span>
       {selectedCastMark ? (
         <>
@@ -157,7 +166,7 @@ export function CameraMotionMarkRetime({
       ) : selectedCameraMark ? (
         <>
           <TimeEditor compact label={`Camera mark ${selectedCameraMarkIndex + 1} time`} value={selectedCameraMark.timeSeconds} max={runtime.plan.durationSeconds} onChange={value => retimeXrMotionReferenceCameraMark(selectedCameraMark.id, value)} />
-          <XrChoreographyMarkControls compact target={{ kind: 'camera', mark: selectedCameraMark }} warning={warnings.find(warning => warning.targetKind === 'camera' && warning.fromMarkId === selectedCameraMark.id)} onChange={update => update.easing && setXrMotionReferenceCameraMarkEasing(update.markId, update.easing)} />
+          <XrChoreographyMarkControls compact target={{ kind: 'camera', mark: selectedCameraMark }} warning={warnings.find(warning => warning.targetKind === 'camera' && warning.fromMarkId === selectedCameraMark.id)} onChange={update => update.easing && setXrMotionReferenceCameraMarkChoreography({ markId: update.markId, easing: update.easing })} />
           <button type="button" className="App-toolbar__btn p-0.5" aria-label={`Remove camera mark ${selectedCameraMarkIndex + 1}`} onClick={() => removeXrMotionReferenceCameraMark(selectedCameraMark.id)}><Trash2 className="size-3" aria-hidden /></button>
         </>
       ) : null}
@@ -227,6 +236,7 @@ export function CameraMotionMarkRetime({
       >
         {runtime.plan.camera.map((mark, index) => {
           const selected = runtime.selectedMark?.kind === 'camera' && runtime.selectedMark.markId === mark.id
+          const targetLabel = shotTargetLabelById.get(mark.anchorId) || 'Unbound target'
           const selectMark = () => selectXrMotionReferenceCameraMark(mark.id)
           return (
             <TimelineTransportTimeAxisMark
@@ -234,8 +244,8 @@ export function CameraMotionMarkRetime({
               laneStyle="audio"
               className="xr-camera-motion-retime-lane-mark xr-camera-motion-retime-lane-mark--camera"
               style={markAxisStyle(mark.timeSeconds, scaleDurationSeconds)}
-              title={`${mark.rig} · ${mark.timeSeconds}s · drag to retime`}
-              aria-label={`Camera mark ${index + 1} at ${mark.timeSeconds} seconds · ${mark.rig}`}
+              title={`${targetLabel} · ${resolveXrCameraMoveLabel(mark.moveId)} · ${mark.rig} · ${formatCameraOptics(mark.settings)} · ${mark.timeSeconds}s · drag to retime`}
+              aria-label={`Camera mark ${index + 1} linked to ${targetLabel} at ${mark.timeSeconds} seconds · ${resolveXrCameraMoveLabel(mark.moveId)} · ${mark.rig} · ${formatCameraOptics(mark.settings)}`}
               aria-pressed={selected}
               role="button"
               tabIndex={0}
@@ -246,6 +256,12 @@ export function CameraMotionMarkRetime({
                 retimeXrMotionReferenceCameraMark(selection?.kind === 'camera' ? selection.markId : mark.id, value)
               })}
               data-kg-xr-lane-camera-mark={index + 1}
+              data-kg-xr-camera-mark-target={mark.anchorId}
+              data-kg-camera-optics-projection="timeline-mark"
+              data-kg-camera-sensor={mark.settings.sensorId}
+              data-kg-camera-focal-length-mm={mark.settings.focalLengthMm}
+              data-kg-camera-focus-distance-m={mark.settings.focusDistanceMeters}
+              data-kg-camera-aspect-ratio={mark.settings.aspectRatio}
               data-kg-xr-stage-highlight-target={selected ? 'camera-mark' : undefined}
             >
               <span style={selected ? { backgroundColor: XR_MOTION_REFERENCE_SELECTION_COLOR } : undefined}>C{index + 1}</span>
@@ -286,7 +302,7 @@ export function CameraMotionMarkRetime({
           <article key={mark.id} className={cn('flex items-center gap-1 rounded border px-1 py-0.5', UI_THEME_TOKENS.panel.border)} data-kg-xr-retime-camera-mark={index + 1}>
             <span className="text-[9px] font-bold">C{index + 1}</span>
             <TimeEditor label={`Camera mark ${index + 1} time`} value={mark.timeSeconds} max={runtime.plan.durationSeconds} onChange={value => retimeXrMotionReferenceCameraMark(mark.id, value)} />
-            <span className={cn('max-w-16 truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)} title={mark.rig}>{mark.rig}</span>
+            <span className={cn('max-w-40 truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)} title={`${resolveXrCameraMoveLabel(mark.moveId)} · ${mark.rig} · ${formatCameraOptics(mark.settings)}`} data-kg-camera-optics-projection="timeline-mark">{resolveXrCameraMoveLabel(mark.moveId)} · {mark.settings.focalLengthMm}mm · {mark.settings.focusDistanceMeters}m</span>
             <button type="button" className="App-toolbar__btn p-1" aria-label={`Remove camera mark ${index + 1}`} onClick={() => removeXrMotionReferenceCameraMark(mark.id)}>
               <Trash2 className="size-3" aria-hidden />
             </button>

@@ -41,6 +41,7 @@ export type RichMediaPanelChange = {
   activeTab: RichMediaPanelOverlayState['activeTab']
   freezeConnectedOutput: boolean
   text?: string
+  selectedOutputVersionId?: string
 }
 
 export const RICH_MEDIA_DISPLAY_COPY = {
@@ -476,6 +477,9 @@ export function commitRichMediaPanelChange(args: {
       richMediaActiveTab: activeTab,
       freezeConnectedOutput: Boolean(next.freezeConnectedOutput),
       ...(typeof next.text === 'string' ? { output: next.text } : {}),
+      ...(typeof next.selectedOutputVersionId === 'string'
+        ? { selectedOutputVersionId: next.selectedOutputVersionId.trim() || undefined }
+        : {}),
     },
   })
 }

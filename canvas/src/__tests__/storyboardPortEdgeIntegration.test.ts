@@ -288,10 +288,10 @@ export function testStoryboardRichMediaOverlaySelectionMountsSharedPortHandles()
   if (!headerToolbar.includes('st.updateOpenWidgetNodeIds(prev => (prev.includes(nodeId) ? prev : [...prev, nodeId]))')) {
     throw new Error('expected Rich Media overlay reselection on Storyboard to reopen the panel in shared open-widget state')
   }
-  if (!overlayHandles.includes('resolveGraphNodeByCanonicalId(interaction?.graphData, nodeId)') || !overlayHandles.includes('!props.selected')) {
-    throw new Error('expected shared overlay port handles to resolve canonical node ids and unmount without selection chrome')
+  if (!overlayHandles.includes('resolveGraphNodeByCanonicalId(interaction?.graphData, nodeId)') || !overlayHandles.includes('(!props.selected && !isPendingTarget)') || !overlayHandles.includes('inputOnly={isPendingTarget && !props.selected}')) {
+    throw new Error('expected shared overlay handles to expose input-only targets during an explicit edge drag')
   }
-  if (!overlayHandles.includes('FLOW_PORT_HANDLE_FINALIZE_EVENT') || !overlayHandles.includes('value.finalizeEdge(targetNodeId, detail.targetPortKey)')) {
+  if (!overlayHandles.includes('FLOW_PORT_HANDLE_FINALIZE_EVENT') || !overlayHandles.includes('value.finalizeEdge(targetNodeId, detail.targetPortKey, {')) {
     throw new Error('expected shared overlay port handles to consume semantic drag-finalize events')
   }
   if (!overlayHandles.includes('FLOW_PORT_HANDLE_CANCEL_EVENT') || !overlayHandles.includes('value.cancelEdge()')) {

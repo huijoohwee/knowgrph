@@ -30,7 +30,7 @@ It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
    - Owners:
      - `mcp/server.js`
      - `mcp/local-tool-contract.js`
-   - Scope: read-only published Source Files retrieval, Agentic Canvas OS docs `/` `#` `@` invocation lookup, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, deny-first sandbox policy validation and authorization preflight, approval-gated video-remix run manifests, local browser API bridge, SEA-LION sidecar calls, HTML video rendering, visual annotation, scoped memory, local probe-tree branching, AI Showrunner dry-runs, zero-token OS status, and vdeoxpln registry inspection
+   - Scope: read-only published Source Files retrieval, Agentic Canvas OS docs `/` `#` `@` invocation lookup, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, deny-first sandbox policy validation and authorization preflight, approval-gated video-remix run manifests, local browser API bridge, SEA-LION sidecar calls, HTML video rendering, visual annotation, scoped memory, local probe-tree branching, AI Showrunner dry-runs, zero-token OS status, vdeoxpln registry inspection, and credential-gated Google/Microsoft spreadsheet or slide publication
    - Transport: stdio only
    - MCP Apps metadata: advertises the shared `ui://knowgrph/agent-ready` resource, no-auth `securitySchemes`, mirrored `_meta.securitySchemes` for UI-linked tools, and widget-accessibility metadata from the shared contract
 
@@ -87,7 +87,7 @@ Canonical local tool inventory owner:
 
 - `search` — searches published Knowgrph Source Files and returns stable `kgdoc:` ids with citation-ready result URLs
 - `fetch` — fetches the complete published Source File markdown for an id returned by `search`, returning both `content` and `text`
-- `knowgrph.agentic_canvas_os.docs.invoke` — resolves Agentic Canvas OS docs invocation tokens (`/`, `#`, `@`) from the sibling `agentic-canvas-os/docs` SSOT; local stdio reads `FACTS.md` and the three dictionary files from disk, while the Worker registry exposes the same read-only tool identity for source-resolution metadata
+- `knowgrph.agentic_canvas_os.docs.invoke` — resolves Agentic Canvas OS docs invocation tokens (`/`, `#`, `@`) from the sibling `agentic-canvas-os/docs` SSOT; prompt presets declare this tool through `mcp_tool` and pass their executable `runtime_command` unchanged as `mcp_token`. Local stdio reads `FACTS.md`, the three dictionary files, `LIVE-AGENT-PROVIDER-PROOF.md`, and `PROGRESSIVE-AGENTS.md`; its result includes source-revision-bound `liveAgentProviderProof` and `progressiveAgentsReadiness` summaries, while the Worker registry exposes the same read-only tool identity. Incomplete or revision-mismatched progressive evidence is `unavailable`. This lookup does not submit the loaded Chat prompt, execute its runtime command, configure an agent or provider, repeat proof calls, or authorize spend, mutation, or deployment.
 - `prompts/list` / `prompts/get` — expose read-only prompt templates that guide MCP hosts to use `search`/`fetch` or `inspect_agent_surface`; prompts do not introduce a second execution path
 - `resources/templates/list` — exposes the shared `kgdoc://source-file/{id}` template for Source Files returned by `search`
 - `resources/read` — reads either `ui://knowgrph/agent-ready` as MCP Apps HTML or `kgdoc://source-file/{id}` as Source Files `text/markdown` through the existing `fetch` executor
@@ -171,6 +171,14 @@ Canonical local tool inventory owner:
    - Reads the canonical Knowgrph vdeoxpln registry from `canvas/src/features/agent-ready/knowgrphVdeoxplnContract.mjs`
    - Typical use: inspect vdeoxpln ids, semantic keys, source owners, local MCP/WebMCP/Pages tool projections, publish scopes, validation commands, optional generated `SKILL.md`-style Markdown, and a neutral intent/state routing plan
    - Routing ignores route names, file names, absolute paths, and URLs. Mutating browser-local vdeoxpln workflows still run through the existing MainPanel -> FloatingPanel Chat -> Workspace FS -> Source Files -> KGC -> Canvas path, with a source-backed run manifest persisted beside KGC workspace output.
+15. `export.publish`
+   - Reads one bounded repository-relative Markdown artifact with required YAML `title` frontmatter, then publishes `kind="spreadsheet"` or `kind="slides"` through the local Node MCP runtime.
+   - `target_provider` defaults to `google`. The default route attempts Google once and may attempt Microsoft once only when fallback is enabled, Microsoft is configured, and the Google failure is explicitly retryable/transient. Explicit `target_provider="microsoft"` attempts Microsoft only and does not set `fallback_used`.
+   - Google creates or updates a native Sheet or Slides presentation through the Drive, Sheets, and Slides APIs. Personal accounts require human OAuth; service-account mode is accepted only with an impersonated Workspace user or an explicit shared-drive folder.
+   - Microsoft converts bounded Markdown to deterministic native `.xlsx` or `.pptx` OOXML and uploads or replaces the file through Microsoft Graph `/me/drive`. It does not assume a Graph PowerPoint editor or workbook-creation API.
+   - Identity is exactly `(artifact_id, provider, kind)`. The verified hash-chained `FLEET.md` ledger resolves the latest successful provider ID so a repeat call updates the same object.
+   - The path verifies the source SHA-256 before and after publication, bounds complete HTTPS responses, sanitizes provider failures, cleans up a newly created partial object when possible, and fails closed on corrupt identity/ledger state. Repeats reuse one external ID but may overwrite content, create a provider revision, and append a ledger row, so MCP annotations declare destructive/non-idempotent open-world mutation. There is no same-provider retry and no model call.
+   - The deterministic and mocked-provider paths are implemented. A real Google/Microsoft account run and the Google 5-second p95 objective remain unproven until operator credentials and bounded live receipts exist; see `docs/documents/knowgrph-docs-sheets-slides-runtime-readiness.md`.
 
 All shipped local read-only Source Files tools declare no-auth `securitySchemes`. The UI-linked `knowgrph.vdeoxpln.list` tool also mirrors that scheme in `_meta.securitySchemes`, links `_meta.ui.resourceUri` to `ui://knowgrph/agent-ready`, and sets `_meta["openai/widgetAccessible"]` so Apps-capable hosts can let the resource call back through the MCP tool bridge. Resource templates are served through the standard MCP `resources` capability; Knowgrph does not define a custom resource-template capability.
 
@@ -183,6 +191,8 @@ This local README does **not** claim that the following are implemented in `mcp/
 - a server-side D1 shadow graph for the browser canvas pipeline
 - a second MCP-only graph materialization path outside the current FloatingPanel Chat ->
   YAML frontmatter -> Canvas apply flow
+- live Google or Microsoft account readiness, recipient sharing permissions, or provider latency from local/mock tests alone
+- a Prod, Pages, Worker, or Cloudflare export route; `export.publish` is local stdio functionality
 
 The current browser-local E2E path remains:
 
@@ -206,14 +216,55 @@ python3.11 -m venv .venv
 ./.venv/bin/python -m pip install --upgrade pip
 ./.venv/bin/python -m pip install -r requirements.txt
 
-# 2) Node deps for MCP server
-npm --prefix mcp install
+# 2) Node workspace deps and shared Office runtime used by export.publish
+npm install
+npm run smoke:prepare
 ```
 
 ## Run locally (smoke test)
 
 ```bash
 KNOWGRPH_ROOT="$(pwd)" KNOWGRPH_PYTHON="./.venv/bin/python" node ./mcp/server.js
+```
+
+The export ledger is committed as an empty template. Verify its hash chain or
+inspect entries without editing machine records by hand:
+
+```bash
+node ./scripts/fleet.js verify
+node ./scripts/fleet.js list
+```
+
+Credential-gated publication and bounded two-pass real-account verification are
+available from the repository root:
+
+```bash
+npm run export:publish -- \
+  --artifact docs/documents/knowgrph-docs-sheets-slides-prd-tad.md \
+  --kind spreadsheet \
+  --provider google \
+  --json
+
+npm run export:verify:live -- \
+  --artifact docs/documents/knowgrph-docs-sheets-slides-prd-tad.md \
+  --providers google,microsoft \
+  --kinds spreadsheet,slides
+```
+
+The live verifier creates each requested provider/kind identity and updates it
+once, proves stable IDs and source SHA-256, and emits an isolated-ledger receipt.
+It first requires one clean exact Git SHA and exits blocked before artifact,
+ledger, or provider calls when the tree is dirty or credentials are missing. An
+exit-0 receipt still requires account-native open verification; two
+timings per identity do not establish the 5-second p95 objective.
+
+For a real-account acceptance run, point the same ledger implementation at a
+private temporary path so provider IDs and account-specific URLs are not written
+to the repository:
+
+```bash
+KNOWGRPH_EXPORT_FLEET_PATH=/ABS/PRIVATE/PATH/knowgrph-export-proof.md \
+  node ./mcp/server.js
 ```
 
 ## Configure in an MCP client (stdio)
@@ -242,6 +293,49 @@ Optional tool-specific host env remains server-owned, for example `KNOWGRPH_MEMO
 `KNOWGRPH_BROWSER_API_RUNTIME_URL`, `KNOWGRPH_PROBE_TREE_MODEL`, and
 `KNOWGRPH_PROBE_TREE_MODEL_URL`.
 
+### Docs/Sheets/Slides export configuration
+
+Do not place credential values in this README, MCP client JSON committed to Git,
+KGC frontmatter, or `FLEET.md`.
+
+Google accepts one of these host-owned modes:
+
+- direct human OAuth token: `KNOWGRPH_GOOGLE_ACCESS_TOKEN`
+- human OAuth refresh: `KNOWGRPH_GOOGLE_CLIENT_ID`,
+  `KNOWGRPH_GOOGLE_CLIENT_SECRET`, and `KNOWGRPH_GOOGLE_REFRESH_TOKEN`
+- service account: `KNOWGRPH_GOOGLE_SERVICE_ACCOUNT_JSON` plus either
+  `KNOWGRPH_GOOGLE_IMPERSONATED_USER` or
+  `KNOWGRPH_GOOGLE_SHARED_DRIVE_FOLDER_ID`
+
+`KNOWGRPH_GOOGLE_DRIVE_FOLDER_ID` may also constrain human OAuth output to a
+writable Drive folder. It does not enable service-account mode. A bare
+service-account JSON value is intentionally not treated as configured for
+personal My Drive publication.
+
+Microsoft personal-account publication accepts either:
+
+- `KNOWGRPH_MICROSOFT_ACCESS_TOKEN`; or
+- `KNOWGRPH_MICROSOFT_CLIENT_ID` and
+  `KNOWGRPH_MICROSOFT_REFRESH_TOKEN`, with optional
+  `KNOWGRPH_MICROSOFT_CLIENT_SECRET`
+
+Optional Microsoft settings are `KNOWGRPH_MICROSOFT_TENANT` (defaults to
+`consumers`), `KNOWGRPH_MICROSOFT_SCOPE` (defaults to
+`offline_access Files.ReadWrite`), and
+`KNOWGRPH_MICROSOFT_ONEDRIVE_FOLDER`.
+
+Microsoft refresh-token rotation replaces the supplied runtime environment
+value and supports an injected persistence callback. The MCP host remains
+responsible for durable secret storage and for injecting the latest token after
+restart; no rotated token is printed or written to Git.
+
+Cross-provider/runtime settings are:
+
+- `KNOWGRPH_EXPORT_MICROSOFT_FALLBACK_ENABLED` — defaults to enabled; set to
+  `false`, `off`, or `0` to disable Google-to-Microsoft fallback
+- `KNOWGRPH_EXPORT_FLEET_PATH` — optional absolute path for an isolated ledger
+- `KNOWGRPH_ROOT` — repository root used for bounded artifact resolution
+
 Then you can call:
 
 - `search` with `{ "query": "renderer architecture", "limit": 10 }`
@@ -266,6 +360,8 @@ Then you can call:
 - `knowgrph.showrunner.start_run` with `{ "brief_markdown": "---\\ncontract: knowgrph-showrunner-brief/v1\\n---\\n# Brief\\nDry-run a branching podcast pilot.", "dry_run": true }`
 - `knowgrph.os.status` with `{ "view": "capabilities" }`
 - `knowgrph.vdeoxpln.list` with `{ "includeMarkdown": true }`
+- `export.publish` with `{ "artifact_id": "docs/documents/example-financial-plan.md", "kind": "spreadsheet" }`
+- `export.publish` with `{ "artifact_id": "docs/documents/example-deck.md", "kind": "slides", "target_provider": "microsoft" }`
 
 ## Relationship to MainPanel MCP
 

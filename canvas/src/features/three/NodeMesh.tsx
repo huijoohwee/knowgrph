@@ -20,6 +20,16 @@ import { resolveCssVar } from '@/lib/ui/theme-tokens'
 import { getVoxelLabelTexture } from './voxelLabelTexture'
 import { truncateTextWithEllipsis } from '@/components/GraphCanvas/layout/utils'
 import { isRichMediaPanelDisplayEnabled } from '@/lib/render/richMediaSsot'
+import {
+  canStartThreeObjectDrag,
+  captureThreeObjectPointer,
+  claimThreeObjectInputOwnership,
+  hasThreeObjectDragMoved,
+  isolateThreeObjectPointerEvent,
+  releaseThreeObjectPointerCapture,
+  releaseThreeObjectInputOwnership,
+  threeObjectDragTerminationMatchesPointer,
+} from './threeObjectInputOwnership'
 
 export function NodeMesh({
   node,
@@ -64,6 +74,11 @@ export function NodeMesh({
   const gapRingRef = useRef<THREE.Mesh>(null)
   const gapRingMatRef = useRef<THREE.MeshBasicMaterial>(null)
   const draggingRef = useRef(false)
+  const activePointerIdRef = useRef<number | null>(null)
+  const dragStartClientRef = useRef<{ x: number; y: number } | null>(null)
+  const dragMovedRef = useRef(false)
+  const dragCursorTargetRef = useRef<HTMLElement | null>(null)
+  const windowFinishRef = useRef<EventListener | null>(null)
   const mediaNodeOpacity = useGraphStore(s => s.mediaNodeOpacity)
   const renderMediaAsNodes = useGraphStore(s => s.renderMediaAsNodes)
   const baseColor = getNodeBaseFill(node, schema)
@@ -303,32 +318,81 @@ export function NodeMesh({
       }
     }
   }, [labelMaterial])
+  const clearDrag = React.useCallback(() => {
+    const windowFinish = windowFinishRef.current
+    if (windowFinish && typeof window !== 'undefined') {
+      window.removeEventListener('pointerup', windowFinish)
+      window.removeEventListener('pointercancel', windowFinish)
+      window.removeEventListener('lostpointercapture', windowFinish, true)
+      window.removeEventListener('blur', windowFinish)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', windowFinish)
+    }
+    windowFinishRef.current = null
+    const pointerId = activePointerIdRef.current
+    activePointerIdRef.current = null
+    dragStartClientRef.current = null
+    dragMovedRef.current = false
+    const cursorTarget = dragCursorTargetRef.current
+    dragCursorTargetRef.current = null
+    if (cursorTarget?.style) cursorTarget.style.cursor = 'default'
+    if (!draggingRef.current) return
+    draggingRef.current = false
+    if (dragOverridesRef) delete dragOverridesRef.current[node.id]
+    releaseThreeObjectInputOwnership(node.id, pointerId ?? undefined)
+    setNodeDragActive?.(node.id, false)
+  }, [dragOverridesRef, node.id, setNodeDragActive])
+  const finishDrag = React.useCallback((e?: ThreeEvent<PointerEvent>) => {
+    const wasDragging = draggingRef.current
+    const dragMoved = dragMovedRef.current
+    clearDrag()
+    if (!wasDragging || !e) return
+    isolateThreeObjectPointerEvent(e)
+    if (dragMoved) onDragEnd?.(node.id, e)
+    releaseThreeObjectPointerCapture(e)
+  }, [clearDrag, node.id, onDragEnd])
+  React.useEffect(() => clearDrag, [clearDrag])
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
-    const isModifier = e.metaKey || e.ctrlKey
-    if (!isModifier) return
+    if (!canStartThreeObjectDrag(e.button) || draggingRef.current) return
+    if (!claimThreeObjectInputOwnership(node.id, e.pointerId)) return
+    isolateThreeObjectPointerEvent(e)
     draggingRef.current = true
+    activePointerIdRef.current = e.pointerId
+    dragStartClientRef.current = { x: e.clientX, y: e.clientY }
+    dragMovedRef.current = false
+    dragCursorTargetRef.current = e.nativeEvent.target as HTMLElement | null
     setNodeDragActive?.(node.id, true)
-    if (onDragStart) onDragStart(node.id, e)
+    const finishWindowDrag: EventListener = nativeEvent => {
+      if (nativeEvent.type === 'visibilitychange'
+        && typeof document !== 'undefined'
+        && document.visibilityState !== 'hidden') return
+      if (!threeObjectDragTerminationMatchesPointer(nativeEvent as PointerEvent, activePointerIdRef.current)) return
+      clearDrag()
+    }
+    windowFinishRef.current = finishWindowDrag
+    window.addEventListener('pointerup', finishWindowDrag)
+    window.addEventListener('pointercancel', finishWindowDrag)
+    window.addEventListener('lostpointercapture', finishWindowDrag, true)
+    window.addEventListener('blur', finishWindowDrag)
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', finishWindowDrag)
+    if (dragCursorTargetRef.current?.style) dragCursorTargetRef.current.style.cursor = 'grabbing'
+    captureThreeObjectPointer(e)
+    onDragStart?.(node.id, e)
   }
   const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
     if (onHoverChange) {
       onHoverChange({ id: node.id, clientX: e.clientX, clientY: e.clientY })
     }
-    if (!draggingRef.current) return
-    if (onDrag) onDrag(node.id, e)
-  }
-  const handlePointerUp = (e: ThreeEvent<PointerEvent>) => {
-    if (!draggingRef.current) return
-    draggingRef.current = false
-    setNodeDragActive?.(node.id, false)
-    if (onDragEnd) onDragEnd(node.id, e)
+    if (!draggingRef.current || e.pointerId !== activePointerIdRef.current) return
+    isolateThreeObjectPointerEvent(e)
+    const dragStart = dragStartClientRef.current
+    if (!dragMovedRef.current && dragStart) {
+      dragMovedRef.current = hasThreeObjectDragMoved(dragStart, { x: e.clientX, y: e.clientY })
+    }
+    if (!dragMovedRef.current) return
+    onDrag?.(node.id, e)
   }
   const handlePointerOut = () => {
     setHovered(false)
-    if (draggingRef.current) {
-      draggingRef.current = false
-      setNodeDragActive?.(node.id, false)
-    }
   }
   const voxelHitH = voxelScoresBox ? voxelScoresBox.maxH : voxelH
   const voxelHitW = voxelScoresBox ? voxelScoresBox.hitW : voxelW
@@ -356,7 +420,8 @@ export function NodeMesh({
         }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
+        onPointerUp={finishDrag}
+        onPointerCancel={finishDrag}
       >
         {isVoxel ? (
           <boxGeometry args={[voxelHitW, voxelHitD, voxelHitH]} />

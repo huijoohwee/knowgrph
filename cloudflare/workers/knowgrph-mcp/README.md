@@ -4,7 +4,8 @@ Cloudflare Worker that hosts the Agents SDK `McpAgent` for the
 **knowgrph ↔ agentic-canvas-os MCP connector** control plane. Exposes the
 Director tool (`knowgrph.video_remix.run`) plus the five stage tools
 (`research`, `storyboard`, `render`, `publish`, `checkout`), the read-only
-OS status tool (`knowgrph.os.status`), and the read-only Agentic Canvas OS docs
+OS status tool (`knowgrph.os.status`), the receipt-fenced run-note mutation
+(`knowgrph.run_manifest.note.update`), and the read-only Agentic Canvas OS docs
 invocation tool (`knowgrph.agentic_canvas_os.docs.invoke`) over the
 **MCP Streamable HTTP** transport at `https://airvio.co/knowgrph/control-plane/mcp`.
 
@@ -17,12 +18,14 @@ R14.1; Properties 1, 26).
 
 | File | Responsibility |
 |---|---|
-| `index.ts` | Worker entry. Defines `KnowgrphMcpAgent` (Agents SDK `McpAgent`), registers the 8 tools with the Streamable HTTP transport, routes `/knowgrph/control-plane/mcp[*]` to `KnowgrphMcpAgent.serve(...)`, persists each Director Run_Manifest to the durable store, and serves `GET /knowgrph/control-plane/mcp/runs/{id}` for read-back. |
+| `index.ts` | Worker entry. Defines `KnowgrphMcpAgent` (Agents SDK `McpAgent`), registers 10 tools with Streamable HTTP, routes `/knowgrph/control-plane/mcp[*]`, and forwards request metadata and the idempotency header to the durable dispatcher. |
 | `tool-registry.mjs` | Pure-JS source of truth for the tool list, schemas, and approval-gate boundary. Imported by the Worker and by the Node `node:test` unit tests. Reuses `mcp/video-remix-runtime.js` for the Director tool. |
 | `run-manifest-store.mjs` | Durable Run_Manifest persistence (task 1.2). `RunManifestStore` Durable Object plus pure helpers (`RunManifestPersistence`, `persistRunManifestThroughNamespace`, `readRunManifestThroughNamespace`). One DO instance per `runId`. |
+| `run-note-execution.mjs` | Strict native run-note contract, execution-metadata validation, atomic manifest/receipt transaction, replay, conflict, expiry, and capacity owner. |
 | `wrangler.toml` | Worker bindings: route `airvio.co/knowgrph/control-plane/mcp[*]`, Durable Object classes `KnowgrphMcpAgent` (transport sessions) and `RunManifestStore` (Run_Manifest persistence). |
 | `__tests__/tool-registry.test.mjs` | Node-built-in unit tests for Property 26 (input + output schemas) and Property 1 (gate boundary). |
 | `__tests__/run-manifest-store.test.mjs` | Node-built-in unit tests for Property 25 (durable persistence read-back consistency) against an in-memory storage shim. |
+| `__tests__/run-note-execution.test.mjs` | Native first-apply, uncertain retry, no-duplicate revision, missing metadata, catalog, and payload-conflict proof. |
 
 ## Tool surface (Property 26 / R14.4)
 
@@ -34,11 +37,69 @@ R14.1; Properties 1, 26).
 | `knowgrph.video_remix.render` | `render-action` | input + output (assets + ledgerEventIds) |
 | `knowgrph.video_remix.publish` | `cloud-deploy` | input + output (publishedUrls) |
 | `knowgrph.video_remix.checkout` | `payment-action` | input + output (Stripe sessionId, payoutSettled) |
+| `knowgrph.run_manifest.note.update` | Agentic signed review plus native receipt metadata | input + output (operator note, revision, execution receipt) |
 | `knowgrph.os.status` | n/a (read-only) | input + output (Agentic OS status views) |
 | `knowgrph.agentic_canvas_os.docs.invoke` | n/a (read-only) | input + output (`/`, `#`, `@` docs invocation lookup) |
 
 `buildKnowgrphMcpToolDefinitions()` in `tool-registry.mjs` is the canonical
 builder; every entry carries both `inputSchema` and `outputSchema`.
+
+## Reviewed run-note mutation
+
+`knowgrph.run_manifest.note.update` accepts only `{ run_id, note }`. The model
+arguments do not contain approval or idempotency fields. The owning Agentic
+gateway must place its exact `function-execution-receipt/v1` identity under
+MCP request metadata key `io.agentic-canvas-os/execution` and send the same
+64-character key in `idempotency-key`.
+
+The per-run `RunManifestStore` validates both channels, then atomically updates
+`manifest.operatorNote` and a bounded seven-day receipt map in one Durable
+Object transaction. A matching retry returns status `replayed` and the original
+revision; changed arguments, receipt identity, or digest under the same key
+returns `idempotency_conflict` without mutation. Thirty-two unexpired receipts
+are retained per run; capacity fails closed instead of evicting active evidence.
+Successful output includes exact native evidence:
+
+```json
+{
+  "ok": true,
+  "run_id": "<runId>",
+  "note": "<reviewed note>",
+  "revision": 1,
+  "execution_receipt": {
+    "schema": "knowgrph-tool-execution-receipt/v1",
+    "idempotencyKey": "<64 lowercase hex>",
+    "requestDigest": "<64 lowercase hex>",
+    "status": "applied"
+  }
+}
+```
+
+This source implementation has local cross-repository recovery proof. The
+separate `knowgrph-mcp-dev` Worker also returned one accepted provider-driven
+result on 2026-07-19: native status `applied`, exact note revision 1, and the
+same 64-character idempotency key as the completed Agentic execution receipt.
+The canonical sanitized record is pinned through
+`docs/runtime-readiness-contract.md` to Agentic Canvas OS
+`LIVE-REVIEWED-FUNCTION-PROOF.md`. Prod and every additional provider or
+Cloudflare deployment remain separately gated.
+
+## Isolated Dev deployment
+
+The `dev` Wrangler environment deploys only to
+`knowgrph-mcp-dev.huijoohwee.workers.dev`. It repeats the non-inheritable
+bindings and migrations, keeps live stage clients disabled, and declares no
+custom-domain routes. Configure a Dev-only runtime bearer with
+`wrangler secret put KNOWGRPH_AGENT_RUNTIME_BEARER_TOKEN --env dev`, then run
+`npm run deploy:dev`. The top-level `deploy` script remains the separately
+gated production deployment.
+
+Accepted Dev evidence: Worker version
+`e8747308-e6af-4e82-957d-cb9b764d575d` persisted
+`Reviewed Dev provider proof 20260719-live-01.` at revision 1 for manifest
+`dev-provider-proof-manifest-20260719-live-01`. Its native receipt schema was
+`knowgrph-tool-execution-receipt/v1`, status `applied`. This read-back is a
+completed historical proof, not permission to repeat the run.
 
 ## Durable Run_Manifest persistence (Property 25 / R14.2)
 

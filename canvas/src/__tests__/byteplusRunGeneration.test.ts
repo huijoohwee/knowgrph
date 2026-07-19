@@ -76,22 +76,27 @@ export async function testGenerateRunMarkdownWithProviderUsesChatProxyResponse()
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (url.includes('/models')) {
-        return {
-          ok: true,
-          json: async () => ({ data: [{ id: CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT }] }),
-        } as Response
+        return new Response(JSON.stringify({ data: [{ id: CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT }] }), {
+          headers: { 'content-type': 'application/json' },
+        })
       }
-      const body = JSON.parse(String(init?.body || '{}')) as { model?: string }
+      const body = JSON.parse(String(init?.body || '{}')) as {
+        model?: string
+        messages?: Array<{ role?: unknown; content?: unknown }>
+      }
       if (url !== '/__chat_proxy/api/v3/chat/completions') {
         throw new Error(`unexpected chat endpoint: ${url}`)
       }
       if (body.model !== CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT) {
         throw new Error(`expected text generation to use the Seed text model, got ${String(body.model)}`)
       }
-      return {
-        ok: true,
-        json: async () => ({ choices: [{ message: { content: '# Final Output\n\nSpecific answer.' } }] }),
-      } as Response
+      const systemInstruction = body.messages?.[0]
+      if (systemInstruction?.role !== 'system' || !String(systemInstruction.content || '').includes('Infer response-language intent semantically') || !String(systemInstruction.content || '').includes('ask one concise clarification')) {
+        throw new Error(`expected chat-completions generation to carry multilingual response instructions, got ${JSON.stringify(body.messages)}`)
+      }
+      return new Response(JSON.stringify({ choices: [{ message: { content: '# Final Output\n\nSpecific answer.' } }] }), {
+        headers: { 'content-type': 'application/json' },
+      })
     }) as typeof fetch
 
     const text = await generateRunMarkdownWithProvider({
@@ -105,66 +110,6 @@ export async function testGenerateRunMarkdownWithProviderUsesChatProxyResponse()
     })
     if (text !== '# Final Output\n\nSpecific answer.') {
       throw new Error(`unexpected generated markdown: ${String(text)}`)
-    }
-  } finally {
-    globalThis.fetch = originalFetch
-  }
-}
-
-export async function testGenerateRunMarkdownWithProviderSupportsOpenAiResponsesApi() {
-  const originalFetch = globalThis.fetch
-  try {
-    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input)
-      if (url !== '/__chat_proxy/v1/responses') {
-        throw new Error(`unexpected openai responses endpoint: ${url}`)
-      }
-      const body = JSON.parse(String(init?.body || '{}')) as {
-        model?: string
-        input?: unknown
-        instructions?: unknown
-        messages?: unknown
-      }
-      if (!body.model) {
-        throw new Error('expected responses request to include model')
-      }
-      if (typeof body.instructions !== 'string' || !body.instructions.trim()) {
-        throw new Error('expected responses request to include instructions')
-      }
-      if (typeof body.input !== 'string' || !body.input.trim()) {
-        throw new Error('expected responses request to use input text payload')
-      }
-      if (typeof body.messages !== 'undefined') {
-        throw new Error('expected responses request to omit messages field')
-      }
-      return {
-        ok: true,
-        json: async () => ({
-          output: [
-            {
-              type: 'message',
-              role: 'assistant',
-              content: [{ type: 'output_text', text: '# Final Output\n\nSpecific answer.' }],
-            },
-          ],
-        }),
-      } as Response
-    }) as typeof fetch
-
-    const text = await generateRunMarkdownWithProvider({
-      config: {
-        provider: 'openai',
-        endpointUrl: 'https://api.openai.com/v1/responses',
-        apiKey: '',
-        chatModel: 'gpt-5-nano',
-      },
-      prompt: 'Generate markdown',
-      options: {
-        chatMaxCompletionTokens: 120,
-      },
-    })
-    if (text !== '# Final Output\n\nSpecific answer.') {
-      throw new Error(`unexpected generated markdown from responses: ${String(text)}`)
     }
   } finally {
     globalThis.fetch = originalFetch

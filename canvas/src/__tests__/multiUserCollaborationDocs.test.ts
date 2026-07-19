@@ -69,7 +69,7 @@ export function testMultiUserCollaborationDocsUseImplementedCollaborationOwners(
     'validate:multi-user-collaboration:e2e',
     'QUERY_PARAM_OPEN_EDITOR_WORKSPACE',
     'verify-multi-user-collaboration-e2e.ts',
-    'assertRoomStatus(WORKER_URL, DOC_PATH)',
+    'assertRoomStatus(WORKER_URL, ownerConnectedSnapshot.markdownDocumentName)',
     'session-roster',
     'document-sync',
     'testP2PCollaborationRuntimeRelaysRosterPresenceAndDocumentAcrossGuests',

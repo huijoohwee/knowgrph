@@ -1,7 +1,6 @@
 import { activateCanvasGraphSurfaceMode } from '@/lib/canvas/canvas3dMode'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
-import { getAgenticOsRemoteGrammarCatalogSnapshot } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import {
   XR_ANIMATION_PRESETS,
   isXrAnimationPresetId,
@@ -14,6 +13,7 @@ import {
   XR_CHOREOGRAPHY_EASINGS,
   XR_CHOREOGRAPHY_GAITS,
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
+  resolveXrMotionReferenceStage,
   serializeXrMotionReferencePlan,
   type XrChoreographyEasing,
   type XrChoreographyGait,
@@ -28,7 +28,7 @@ import {
   selectXrMotionReferenceCameraMark,
   selectXrMotionReferenceCastMark,
   setXrMotionReferenceCastAnimation,
-  setXrMotionReferenceCameraMarkEasing,
+  setXrMotionReferenceCameraMarkChoreography,
   setXrMotionReferenceCastMarkChoreography,
   setXrMotionReferencePlayhead,
 } from './xrMotionReferenceRuntime'
@@ -37,10 +37,46 @@ import { requestXrMotionReferenceCameraPlaybackReapply } from './xrCameraPlaybac
 import { hydrateCanonicalXrMotionReferenceRuntime } from './XrMotionReferenceRuntimeBridge'
 import { buildXrMotionReferencePackage } from './xrMotionReferencePackage'
 import { xrMotionReferenceTimelineDocumentKey } from './xrMotionReferenceTimeline'
-import { XR_ANIMATION_MCP_SCHEMA, XR_ANIMATION_WEB_MCP_TOOL_IDS } from './xrAnimationMcpContract.mjs'
+import {
+  XR_ANIMATION_INVOCATION_BINDINGS,
+  XR_ANIMATION_INVOCATION_COMMANDS,
+  XR_ANIMATION_INVOCATION_SEMANTICS,
+  XR_ANIMATION_MCP_SCHEMA,
+  XR_ANIMATION_WEB_MCP_TOOL_IDS,
+} from './xrAnimationMcpContract.mjs'
 import { resolveXrChoreographySpeedWarnings } from './xrChoreographyDiagnostics'
+import {
+  THREE_OBJECT_KEYBOARD_FINE_STEP_METERS,
+  THREE_OBJECT_KEYBOARD_MAX_COMMAND_DISTANCE_METERS,
+  THREE_OBJECT_KEYBOARD_STEP_METERS,
+  readThreeKeyboardMovementKeys,
+  resolveThreeObjectKeyboardMotionPosition,
+  type ThreeKeyboardMovementKey,
+} from './threeKeyboardChoreography'
 
-export type XrAnimationControlOperation = 'apply' | 'clear' | 'configure-mark' | 'play' | 'pause' | 'scrub' | 'export'
+const XR_ANIMATION_CONTROL_OPERATIONS = Object.freeze([
+  'apply',
+  'clear',
+  'configure-mark',
+  'move-object',
+  'play',
+  'pause',
+  'scrub',
+  'export',
+] as const)
+
+const XR_ANIMATION_STRUCTURED_KEYS = Object.freeze({
+  apply: ['operation', 'trackKind', 'presetId', 'targetId'],
+  clear: ['operation', 'trackKind', 'targetId'],
+  'configure-mark': ['operation', 'markKind', 'markId', 'targetId', 'trackKind', 'easing', 'gait', 'position'],
+  'move-object': ['operation', 'trackKind', 'targetId', 'markId', 'keys', 'distanceMeters', 'fine'],
+  play: ['operation'],
+  pause: ['operation'],
+  scrub: ['operation', 'timeSeconds'],
+  export: ['operation'],
+} as const)
+
+export type XrAnimationControlOperation = typeof XR_ANIMATION_CONTROL_OPERATIONS[number]
 
 export type XrAnimationControlInput = Readonly<{
   invocation?: string
@@ -54,6 +90,9 @@ export type XrAnimationControlInput = Readonly<{
   easing?: XrChoreographyEasing
   gait?: XrChoreographyGait
   position?: XrMotionReferenceVector
+  keys?: readonly string[]
+  distanceMeters?: number
+  fine?: boolean
 }>
 
 export type XrAnimationControlResult = Readonly<{
@@ -85,14 +124,17 @@ type NormalizedAnimationControl = Readonly<{
   easing?: XrChoreographyEasing
   gait?: XrChoreographyGait
   position?: XrMotionReferenceVector
+  keys: readonly ThreeKeyboardMovementKey[]
+  distanceMeters: number
+  fine: boolean
 }>
 
 function resolveCanonicalInvocationTokens(): CanonicalInvocationTokens | null {
-  const command = findAgenticOsInvocationByToken('/animation.control')
-  const characterMotion = findAgenticOsInvocationByToken('#character-motion')
-  const actionPath = findAgenticOsInvocationByToken('#action-path')
-  const selectedActor = findAgenticOsInvocationByToken('@selected-actor')
-  const canvas = findAgenticOsInvocationByToken('@canvas')
+  const command = findAgenticOsInvocationByToken(XR_ANIMATION_INVOCATION_COMMANDS.control)
+  const characterMotion = findAgenticOsInvocationByToken(XR_ANIMATION_INVOCATION_SEMANTICS.characterMotion)
+  const actionPath = findAgenticOsInvocationByToken(XR_ANIMATION_INVOCATION_SEMANTICS.actionPath)
+  const selectedActor = findAgenticOsInvocationByToken(XR_ANIMATION_INVOCATION_BINDINGS.selectedActor)
+  const canvas = findAgenticOsInvocationByToken(XR_ANIMATION_INVOCATION_BINDINGS.canvas)
   if (!command || command.kind !== 'command'
     || !characterMotion || characterMotion.kind !== 'semantic'
     || !actionPath || actionPath.kind !== 'semantic'
@@ -115,6 +157,30 @@ export function buildXrAnimationInvocation(presetIdValue: XrAnimationPresetId): 
   return `${tokens.command} ${semantic} ${tokens.selectedActor} operation=apply preset=${preset.id}`
 }
 
+export function buildXrAnimationObjectMoveInvocation(input: Readonly<{
+  keys: Iterable<string>
+  distanceMeters?: number
+  fine?: boolean
+  markId?: string
+}>): string {
+  const tokens = resolveCanonicalInvocationTokens()
+  const keys = readThreeKeyboardMovementKeys(input.keys)
+  const markId = String(input.markId || '').trim()
+  if (!tokens || !keys || (markId && !/^[a-zA-Z0-9:._-]+$/.test(markId))) return ''
+  if (input.fine !== undefined && typeof input.fine !== 'boolean') return ''
+  if (input.distanceMeters !== undefined
+    && (!Number.isFinite(input.distanceMeters)
+      || input.distanceMeters <= 0
+      || input.distanceMeters > THREE_OBJECT_KEYBOARD_MAX_COMMAND_DISTANCE_METERS)) return ''
+  const parameters = [
+    `keys=${keys.join('+')}`,
+    ...(input.distanceMeters === undefined ? [] : [`distance=${Number(input.distanceMeters.toFixed(3))}`]),
+    ...(input.fine ? ['fine=true'] : []),
+    ...(markId ? [`markId=${markId}`] : []),
+  ]
+  return `${tokens.command} ${tokens.actionPath} ${tokens.selectedActor} operation=move-object ${parameters.join(' ')}`
+}
+
 export function buildXrAnimationTransportInvocation(operation: 'play' | 'pause' | 'scrub' | 'export', timeSeconds?: number): string {
   const tokens = resolveCanonicalInvocationTokens()
   if (!tokens) return ''
@@ -130,7 +196,7 @@ function parsePairs(tokens: readonly string[]): Readonly<Record<string, string>>
     if (separator <= 0 || separator === token.length - 1) return null
     const key = token.slice(0, separator)
     const value = token.slice(separator + 1)
-    if (!['operation', 'preset', 'time'].includes(key) || seen.has(key)) return null
+    if (!['operation', 'preset', 'time', 'keys', 'distance', 'fine', 'markKind', 'markId', 'easing', 'gait', 'position'].includes(key) || seen.has(key)) return null
     seen.add(key)
     entries.push([key, value])
   }
@@ -150,21 +216,62 @@ function parseInvocation(value: unknown): Partial<NormalizedAnimationControl> | 
   const pairs = parsePairs(tokens.slice(1).filter(token => !token.startsWith('#') && !token.startsWith('@')))
   if (!pairs) return null
   const operation = String(pairs.operation || '').trim() as XrAnimationControlOperation
-  if (!['apply', 'clear', 'play', 'pause', 'scrub', 'export'].includes(operation)) return null
-  const actorOperation = operation === 'apply' || operation === 'clear'
-  if (actorOperation) {
+  if (!XR_ANIMATION_CONTROL_OPERATIONS.includes(operation)) return null
+  const markKind = pairs.markKind === 'cast' || pairs.markKind === 'camera' ? pairs.markKind : ''
+  const configureCastMark = operation === 'configure-mark' && markKind === 'cast'
+  const configureCameraMark = operation === 'configure-mark' && markKind === 'camera'
+  const actorOperation = operation === 'apply' || operation === 'clear' || operation === 'move-object'
+  if (operation === 'configure-mark' && !configureCastMark && !configureCameraMark) return null
+  if (actorOperation || configureCastMark) {
     if (bindings.length !== 1 || bindings[0] !== canonical.selectedActor) return null
     if (semantics.length !== 1 || ![canonical.characterMotion, canonical.actionPath].includes(semantics[0]!)) return null
+    if ((operation === 'move-object' || configureCastMark) && semantics[0] !== canonical.actionPath) return null
   } else if (bindings.length !== 1 || bindings[0] !== canonical.canvas || semantics.length !== 0) {
     return null
   }
   const allowedPairKeys = actorOperation
-    ? operation === 'apply' ? ['operation', 'preset'] : ['operation']
-    : operation === 'scrub' ? ['operation', 'time'] : ['operation']
+    ? operation === 'apply'
+      ? ['operation', 'preset']
+      : operation === 'move-object'
+        ? ['operation', 'keys', 'distance', 'fine', 'markId']
+        : ['operation']
+    : operation === 'configure-mark'
+      ? ['operation', 'markKind', 'markId', 'easing', 'gait', 'position']
+      : operation === 'scrub' ? ['operation', 'time'] : ['operation']
   if (Object.keys(pairs).some(key => !allowedPairKeys.includes(key))) return null
   if (operation === 'apply' && !pairs.preset) return null
+  const movementKeys = operation === 'move-object'
+    ? readThreeKeyboardMovementKeys(String(pairs.keys || '').split('+'))
+    : Object.freeze([])
+  if (operation === 'move-object' && !movementKeys) return null
+  const movementDistance = pairs.distance === undefined ? undefined : Number(pairs.distance)
+  if (movementDistance !== undefined
+    && (!Number.isFinite(movementDistance)
+      || movementDistance <= 0
+      || movementDistance > THREE_OBJECT_KEYBOARD_MAX_COMMAND_DISTANCE_METERS)) return null
+  const fine = pairs.fine === undefined ? false : pairs.fine === 'true'
+  if (pairs.fine !== undefined && pairs.fine !== 'true' && pairs.fine !== 'false') return null
+  if (pairs.markId !== undefined && !/^[a-zA-Z0-9:._-]+$/.test(pairs.markId)) return null
+  const easing = pairs.easing && XR_CHOREOGRAPHY_EASINGS.includes(pairs.easing as XrChoreographyEasing)
+    ? pairs.easing as XrChoreographyEasing
+    : undefined
+  const gait = pairs.gait && XR_CHOREOGRAPHY_GAITS.includes(pairs.gait as XrChoreographyGait)
+    ? pairs.gait as XrChoreographyGait
+    : undefined
+  if (pairs.easing && !easing) return null
+  if (pairs.gait && !gait) return null
+  const parsedPosition = pairs.position?.split(',').map(Number)
+  const position = parsedPosition?.length === 3
+    && parsedPosition.every(value => Number.isFinite(value) && Math.abs(value) <= 1000)
+    ? [parsedPosition[0]!, parsedPosition[1]!, parsedPosition[2]!] as XrMotionReferenceVector
+    : undefined
+  if (pairs.position && !position) return null
+  if (operation === 'configure-mark') {
+    if (!pairs.markId || (!easing && !gait && !position)) return null
+    if (configureCameraMark && (!easing || gait || position)) return null
+  }
   if (operation === 'scrub' && (!Object.hasOwn(pairs, 'time') || !Number.isFinite(Number(pairs.time)) || Number(pairs.time) < 0)) return null
-  const semantic = actorOperation ? semantics[0]! : ''
+  const semantic = actorOperation || configureCastMark ? semantics[0]! : ''
   const binding = bindings[0]!
   return {
     invocation,
@@ -172,22 +279,79 @@ function parseInvocation(value: unknown): Partial<NormalizedAnimationControl> | 
     presetId: String(pairs.preset || '').trim(),
     targetId: binding === canonical.selectedActor ? 'selected-actor' : binding === canonical.canvas ? 'canvas' : '',
     timeSeconds: Number(pairs.time || 0),
+    keys: movementKeys || Object.freeze([]),
+    distanceMeters: movementDistance ?? (fine ? THREE_OBJECT_KEYBOARD_FINE_STEP_METERS : THREE_OBJECT_KEYBOARD_STEP_METERS),
+    fine,
+    ...(operation === 'configure-mark' ? { markKind: markKind as 'cast' | 'camera' } : {}),
+    markId: String(pairs.markId || '').trim(),
+    ...(easing ? { easing } : {}),
+    ...(gait ? { gait } : {}),
+    ...(position ? { position } : {}),
     ...(semantic ? { trackKind: semantic === canonical.characterMotion ? 'character-motion' : 'action-path' } : {}),
   }
 }
 
 function normalizeControl(input: XrAnimationControlInput): NormalizedAnimationControl | null {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null
   const invocation = String(input.invocation || '').trim()
   const parsed = parseInvocation(invocation)
   if (invocation && !parsed) return null
+  if (invocation && (Object.keys(input).length !== 1 || !Object.hasOwn(input, 'invocation'))) return null
   const operation = (parsed?.operation || input.operation) as XrAnimationControlOperation | undefined
-  if (!operation || !['apply', 'clear', 'configure-mark', 'play', 'pause', 'scrub', 'export'].includes(operation)) return null
+  if (!operation || !XR_ANIMATION_CONTROL_OPERATIONS.includes(operation)) return null
+  if (!invocation) {
+    const allowedKeys = XR_ANIMATION_STRUCTURED_KEYS[operation]
+    if (Object.keys(input).some(key => !(allowedKeys as readonly string[]).includes(key))) return null
+    if (input.targetId !== undefined && !String(input.targetId).trim()) return null
+    if (input.trackKind !== undefined && input.trackKind !== 'character-motion' && input.trackKind !== 'action-path') return null
+    if (operation === 'apply' && !String(input.presetId || '').trim()) return null
+    if (operation === 'configure-mark') {
+      if (!Object.hasOwn(input, 'markKind')
+        || !String(input.markId || '').trim()
+        || !/^[a-zA-Z0-9:._-]+$/.test(String(input.markId || ''))
+        || (!input.easing && !input.gait && !input.position)) return null
+      if (input.markKind === 'camera' && (
+        !input.easing
+        || input.gait !== undefined
+        || input.position !== undefined
+        || input.targetId !== undefined
+        || input.trackKind !== undefined
+      )) return null
+      if (input.markKind === 'cast' && input.trackKind !== undefined && input.trackKind !== 'action-path') return null
+    }
+    if (operation === 'move-object' && (!input.keys || input.keys.length === 0 || (input.trackKind !== undefined && input.trackKind !== 'action-path'))) return null
+    if (operation === 'scrub' && !Object.hasOwn(input, 'timeSeconds')) return null
+  }
   if (input.trackKind !== undefined && input.trackKind !== 'character-motion' && input.trackKind !== 'action-path') return null
   if (input.markKind !== undefined && input.markKind !== 'cast' && input.markKind !== 'camera') return null
   if (input.easing !== undefined && !XR_CHOREOGRAPHY_EASINGS.includes(input.easing)) return null
   if (input.gait !== undefined && !XR_CHOREOGRAPHY_GAITS.includes(input.gait)) return null
   if (input.position !== undefined && (input.position.length !== 3 || input.position.some(value => !Number.isFinite(value) || Math.abs(value) > 1000))) return null
-  if (input.markKind === 'camera' && (input.gait !== undefined || input.position !== undefined)) return null
+  const markKind = parsed?.markKind || input.markKind || 'cast'
+  const easing = parsed?.easing || input.easing
+  const gait = parsed?.gait || input.gait
+  const position = parsed?.position || input.position
+  if (markKind === 'camera' && (gait !== undefined || position !== undefined)) return null
+  if (input.fine !== undefined && typeof input.fine !== 'boolean') return null
+  if (input.keys !== undefined && (!Array.isArray(input.keys) || input.keys.some(key => typeof key !== 'string'))) return null
+  const movementKeys = parsed?.keys || (input.keys ? readThreeKeyboardMovementKeys(input.keys) : null)
+  const movementDistanceInput = parsed ? parsed.distanceMeters : input.distanceMeters
+  const fine = parsed?.fine ?? input.fine ?? false
+  const hasMovementFields = input.keys !== undefined || input.distanceMeters !== undefined || input.fine !== undefined
+  if (operation === 'move-object') {
+    if (!movementKeys
+      || input.markKind === 'camera'
+      || (input.trackKind !== undefined && input.trackKind !== 'action-path')
+      || input.presetId !== undefined
+      || input.timeSeconds !== undefined
+      || easing !== undefined
+      || gait !== undefined
+      || position !== undefined) return null
+  } else if (hasMovementFields) return null
+  if (movementDistanceInput !== undefined
+    && (!Number.isFinite(movementDistanceInput)
+      || Number(movementDistanceInput) <= 0
+      || Number(movementDistanceInput) > THREE_OBJECT_KEYBOARD_MAX_COMMAND_DISTANCE_METERS)) return null
   const trackKind = parsed?.trackKind || input.trackKind
   const timeSeconds = parsed ? parsed.timeSeconds : input.timeSeconds
   if (operation === 'scrub' && (!Number.isFinite(timeSeconds) || Number(timeSeconds) < 0)) return null
@@ -198,11 +362,16 @@ function normalizeControl(input: XrAnimationControlInput): NormalizedAnimationCo
     targetId: String(parsed?.targetId || input.targetId || '').trim().replace(/^@+/, ''),
     timeSeconds: Number.isFinite(timeSeconds) ? Number(timeSeconds) : 0,
     invocation: String(parsed?.invocation || input.invocation || '').trim(),
-    markKind: input.markKind === 'camera' ? 'camera' : 'cast',
-    markId: String(input.markId || '').trim(),
-    ...(input.easing ? { easing: input.easing } : {}),
-    ...(input.gait ? { gait: input.gait } : {}),
-    ...(input.position ? { position: [...input.position] as XrMotionReferenceVector } : {}),
+    markKind,
+    markId: String(parsed?.markId || input.markId || '').trim(),
+    ...(easing ? { easing } : {}),
+    ...(gait ? { gait } : {}),
+    ...(position ? { position: [...position] as XrMotionReferenceVector } : {}),
+    keys: movementKeys || Object.freeze([]),
+    distanceMeters: movementDistanceInput === undefined
+      ? fine ? THREE_OBJECT_KEYBOARD_FINE_STEP_METERS : THREE_OBJECT_KEYBOARD_STEP_METERS
+      : Number(movementDistanceInput),
+    fine,
   }
 }
 
@@ -253,7 +422,6 @@ function updateTransport(operation: 'play' | 'pause' | 'scrub', timeSeconds: num
 export function inspectLocalAnimation() {
   const runtime = readXrMotionReferenceRuntime()
   const speedWarnings = resolveXrChoreographySpeedWarnings(runtime.plan)
-  const catalog = getAgenticOsRemoteGrammarCatalogSnapshot()
   const canonical = resolveCanonicalInvocationTokens()
   return {
     schema: XR_ANIMATION_MCP_SCHEMA,
@@ -263,13 +431,14 @@ export function inspectLocalAnimation() {
     },
     sceneReady: sceneReady(),
     catalog: {
-      revision: catalog.sourceRevision,
-      hydration: catalog.hydration,
+      source: 'native-knowgrph-invocation-catalog',
+      hydration: { status: 'native-ready', attempts: 0, error: '' },
       canonical: Boolean(canonical),
     },
     invocationGrammar: canonical ? {
       applyCharacterMotion: `${canonical.command} ${canonical.characterMotion} ${canonical.selectedActor} operation=apply preset=<typed-id>`,
       applyActionPath: `${canonical.command} ${canonical.actionPath} ${canonical.selectedActor} operation=apply preset=<typed-id>`,
+      moveObject: `${canonical.command} ${canonical.actionPath} ${canonical.selectedActor} operation=move-object keys=<w+a+s+d|arrows> distance=<meters> fine=<true|false> markId=<typed-id>`,
       configureCastMark: `${canonical.command} ${canonical.actionPath} ${canonical.selectedActor} operation=configure-mark markKind=cast markId=<typed-id> easing=<typed-easing> gait=<typed-gait> position=<x,y,z>`,
       configureCameraMark: `${canonical.command} ${canonical.canvas} operation=configure-mark markKind=camera markId=<typed-id> easing=<typed-easing>`,
       transport: `${canonical.command} ${canonical.canvas} operation=play|pause|scrub|export`,
@@ -295,16 +464,60 @@ export function inspectLocalAnimation() {
 
 export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimationControlResult {
   const control = normalizeControl(input)
-  if (!control) return { ok: false, message: 'Use a supported structured animation operation or a hydrated /animation.control invocation.' }
+  if (!control) return { ok: false, message: 'Use a supported structured animation operation or native /animation.control invocation.' }
   if (!sceneReady() || !hydrateCanonicalXrMotionReferenceRuntime()) return { ok: false, message: 'Open or create a graph document before controlling XR animation.' }
   const targetId = resolvedTargetId(control)
+
+  if (control.operation === 'move-object') {
+    const previousRuntime = readXrMotionReferenceRuntime()
+    const track = previousRuntime.plan.cast.find(candidate => candidate.actorId === targetId)
+    const selectedMark = previousRuntime.selectedMark
+    const markId = control.markId || (selectedMark?.kind === 'cast' && selectedMark.actorId === targetId ? selectedMark.markId : '')
+    const mark = track?.marks.find(candidate => candidate.id === markId)
+    if (!track || !mark) return { ok: false, message: 'Select a valid cast mark before moving a 3D object.' }
+    const stage = resolveXrMotionReferenceStage(previousRuntime.plan.stageId)
+    const nextPosition = resolveThreeObjectKeyboardMotionPosition({
+      bounds: {
+        halfDepth: stage.sizeMeters[1] / 2,
+        halfWidth: stage.sizeMeters[0] / 2,
+      },
+      distanceMeters: control.distanceMeters,
+      keys: control.keys,
+      position: mark.position,
+    })
+    if (!nextPosition) return { ok: false, message: 'Use one or more supported WASD or arrow movement keys.' }
+    const changed = nextPosition[0] !== mark.position[0] || nextPosition[2] !== mark.position[2]
+    if (changed) {
+      setXrMotionReferenceCastMarkChoreography({
+        actorId: targetId,
+        markId,
+        position: nextPosition as XrMotionReferenceVector,
+      })
+      if (!persistPlan()) {
+        restoreXrMotionReferenceRuntimeSnapshot(previousRuntime)
+        return { ok: false, message: 'The 3D object movement could not be written to graph metadata.' }
+      }
+    }
+    selectXrMotionReferenceCastMark(targetId, markId)
+    selectBoundXrActor(targetId)
+    activateAnimationSurface()
+    return {
+      ok: true,
+      message: changed
+        ? `Moved ${track.label} with ${control.keys.join('+')} by ${control.distanceMeters.toFixed(3)} m.`
+        : `${track.label} is already at the stage boundary.`,
+      operation: control.operation,
+      targetId,
+      scene: inspectLocalAnimation(),
+    }
+  }
 
   if (control.operation === 'configure-mark') {
     if (!control.markId || (!control.easing && !control.gait && !control.position)) return { ok: false, message: 'Configure-mark requires markId and easing, gait, or position.' }
     const previousRuntime = readXrMotionReferenceRuntime()
     if (control.markKind === 'camera') {
       if (!control.easing || !previousRuntime.plan.camera.some(mark => mark.id === control.markId)) return { ok: false, message: 'Select a valid camera mark and easing.' }
-      setXrMotionReferenceCameraMarkEasing(control.markId, control.easing)
+      setXrMotionReferenceCameraMarkChoreography({ markId: control.markId, easing: control.easing })
       selectXrMotionReferenceCameraMark(control.markId)
     } else {
       const track = previousRuntime.plan.cast.find(candidate => candidate.actorId === targetId)

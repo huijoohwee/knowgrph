@@ -20,6 +20,8 @@ import {
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID } from '@/lib/storage/knowgrphStorageSyncContract'
 import { AGENTIC_COMMERCE_MAIN_PANEL_READINESS } from 'grph-shared/payments/agenticCommerceSsot'
+import { assertXrScenePhysicsWebMcpLifecycle, testXrSceneMcpContractCatalogSchemasAndCleanRoom } from '@/__tests__/xrSceneMcpContract.test'
+import { assertInspectedXrCatalogMatchesNativeLibrary } from '@/__tests__/helpers/xrSceneLibraryAssertions'
 
 type RegisteredTool = {
   name: string
@@ -78,6 +80,7 @@ const assertWebMcpRuntimeToolParity = (tools: RegisteredTool[], label: string): 
 }
 
 export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths(): Promise<void> {
+  testXrSceneMcpContractCatalogSchemasAndCleanRoom()
   const previousBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
   const previousFetch = globalThis.fetch
   const { restore } = initJsdomHarness()
@@ -305,8 +308,14 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     const invalidXrSceneTransition = await controlLocalXrSceneTool.execute({ invocation: '/xr.place @person-adult transition=teleport' })
     const invalidXrScenePair = await controlLocalXrSceneTool.execute({ invocation: '/xr.stage @neutral-volume foo=bar' })
     const localXrSceneControl = await controlLocalXrSceneTool.execute({ action: 'place', assetId: 'person-adult', transition: 'linear', label: 'MCP CAST' })
+    const placedXrSubjectId = String((localXrSceneControl as { subjectId?: unknown }).subjectId || '')
+    await assertXrScenePhysicsWebMcpLifecycle({
+      control: input => controlLocalXrSceneTool.execute(input),
+      inspect: () => inspectLocalXrSceneAssetsTool.execute(),
+      subjectId: placedXrSubjectId,
+    })
     const localCamera = await inspectLocalCameraTool.execute()
-    const localCameraControl = await controlLocalCameraTool.execute({ action: 'frame', targetId: 'camera', angle: 'right-side', level: 'high-angle', shot: 'close-up', focalLengthMm: 85 })
+    const localCameraControl = await controlLocalCameraTool.execute({ action: 'frame', targetId: 'camera', angle: 'right-side', level: 'high-angle', shot: 'close-up', sensorId: '65mm', focalLengthMm: 85, focusDistanceMeters: 3.5, aspectRatio: '2.39:1' })
     const localAnimationControl = await controlLocalAnimationTool.execute({ operation: 'apply', trackKind: 'character-motion', presetId: 'dance', targetId: 'start' })
     const localAnimation = await inspectLocalAnimationTool.execute()
     useGraphStore.setState({ canvasRenderMode: '3d' } as never)
@@ -446,9 +455,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if ((localThreeLayoutPositions as { samplePositions?: Array<{ id?: unknown }> }).samplePositions?.[0]?.id !== 'alpha') {
       throw new Error(`expected inspect_local_3d_layout_positions to sort sampled positions deterministically, got ${JSON.stringify(localThreeLayoutPositions)}`)
     }
-    if ((localXrSceneAssets as { assets?: unknown[] }).assets?.length !== 18 || (localXrSceneAssets as { environments?: unknown[] }).environments?.length !== 10) {
-      throw new Error(`expected XR WebMCP inspection to list native environments and assets, got ${JSON.stringify(localXrSceneAssets)}`)
-    }
+    assertInspectedXrCatalogMatchesNativeLibrary(localXrSceneAssets)
     if ((localXrSceneControl as { ok?: unknown }).ok !== true || (localXrSceneControl as { scene?: { runtime?: { subjects?: Array<{ label?: unknown; transition?: unknown }> } } }).scene?.runtime?.subjects?.at(-1)?.label !== 'MCP CAST' || (localXrSceneControl as { scene?: { runtime?: { subjects?: Array<{ label?: unknown; transition?: unknown }> } } }).scene?.runtime?.subjects?.at(-1)?.transition !== 'linear') {
       throw new Error(`expected structured XR WebMCP control to place cast with typed interpolation, got ${JSON.stringify(localXrSceneControl)}`)
     }
@@ -457,11 +464,13 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
       || (invalidXrScenePair as { ok?: unknown }).ok !== false) {
       throw new Error('expected XR invocation parsing to reject duplicate bindings, invalid transitions, and unknown fields')
     }
-    if ((localCamera as { schema?: unknown }).schema !== 'knowgrph-shared-camera-mcp/v1') {
+    if ((localCamera as { schema?: unknown; optics?: { stateOwner?: unknown; sensors?: unknown[] } }).schema !== 'knowgrph-shared-camera-mcp/v1'
+      || (localCamera as { optics?: { stateOwner?: unknown } }).optics?.stateOwner !== 'FloatingPanel.Camera'
+      || (localCamera as { optics?: { sensors?: unknown[] } }).optics?.sensors?.length !== 4) {
       throw new Error(`expected Camera WebMCP inspection to expose the shared Camera schema, got ${JSON.stringify(localCamera)}`)
     }
-    const controlledCamera = localCameraControl as { ok?: unknown; action?: unknown; camera?: { framing?: { settings?: { angle?: unknown; level?: unknown; shot?: unknown; focalLengthMm?: unknown } }; surface?: { cameraPanelOpen?: unknown } } }
-    if (controlledCamera.ok !== true || controlledCamera.action !== 'frame' || controlledCamera.camera?.framing?.settings?.angle !== 'right-side' || controlledCamera.camera.framing.settings.level !== 'high-angle' || controlledCamera.camera.framing.settings.shot !== 'close-up' || controlledCamera.camera.framing.settings.focalLengthMm !== 85 || controlledCamera.camera.surface?.cameraPanelOpen !== false) {
+    const controlledCamera = localCameraControl as { ok?: unknown; action?: unknown; camera?: { framing?: { settings?: { angle?: unknown; level?: unknown; shot?: unknown; sensorId?: unknown; focalLengthMm?: unknown; focusDistanceMeters?: unknown; aspectRatio?: unknown } }; surface?: { cameraPanelOpen?: unknown } } }
+    if (controlledCamera.ok !== true || controlledCamera.action !== 'frame' || controlledCamera.camera?.framing?.settings?.angle !== 'right-side' || controlledCamera.camera.framing.settings.level !== 'high-angle' || controlledCamera.camera.framing.settings.shot !== 'close-up' || controlledCamera.camera.framing.settings.sensorId !== '65mm' || controlledCamera.camera.framing.settings.focalLengthMm !== 85 || controlledCamera.camera.framing.settings.focusDistanceMeters !== 3.5 || controlledCamera.camera.framing.settings.aspectRatio !== '2.39:1' || controlledCamera.camera.surface?.cameraPanelOpen !== false) {
       throw new Error(`expected structured Camera WebMCP control to frame without ejecting the active panel, got ${JSON.stringify(localCameraControl)}`)
     }
     const animationInspection = localAnimation as { schema?: unknown; presets?: unknown[]; runtime?: { cast?: Array<{ actorId?: unknown; animation?: { presetId?: unknown } }> } }

@@ -1,5 +1,6 @@
 import React from 'react'
 import { Camera, Footprints, type LucideIcon } from 'lucide-react'
+import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
 import {
   FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT,
   floatingPanelCatalogThreeRowClassName,
@@ -63,7 +64,9 @@ function ChoreographyCard({
           data-kg-xr-mark-parameter-chips={target}
           data-kg-xr-mark-parameter-chip-renderer="shared-markdown-sigil"
         >
-          {renderMarkdownSigilInlineText(invocation)}
+          {renderMarkdownSigilInlineText(invocation, {
+            renderKeywordChip: ({ value, className }) => renderAgenticOsInvocationKeywordChip({ value, className, sourceLink: false }),
+          })}
         </output>
       </section>
     </article>
@@ -131,7 +134,7 @@ export function XrChoreographyInspector({
           Icon={Footprints}
           target="cast"
           title={track.label}
-          description="Drag its numbered stage mark, or edit time, easing, gait, and XYZ in its Timeline cast lane."
+          description="Drag its numbered stage mark; tap WASD or arrow keys for 0.25 m, hold for smooth motion, and use Shift for 0.05 m precision. Edit XYZ in its Timeline lane."
           invocation={projectedCastInvocation}
           metadata={`${track.marks.length} mark${track.marks.length === 1 ? '' : 's'} · mark ${castMarkIndex + 1} · ${castMark.timeSeconds}s`}
           footer={<span className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)} data-kg-xr-choreography-selection-owner="timeline-cast">Select marks in the {track.label} Timeline lane.</span>}

@@ -319,9 +319,11 @@ async function main(): Promise<void> {
       connectAuthenticatedRoom(guestPage),
     ])
 
-    await waitForPageCondition(ownerPage, 'owner peer roster', snapshot => snapshot.connectedPeerCount >= 2)
-    await waitForPageCondition(guestPage, 'guest peer roster', snapshot => snapshot.connectedPeerCount >= 2)
-    await assertRoomStatus(WORKER_URL, DOC_PATH)
+    const [ownerConnectedSnapshot] = await Promise.all([
+      waitForPageCondition(ownerPage, 'owner peer roster', snapshot => snapshot.connectedPeerCount >= 2),
+      waitForPageCondition(guestPage, 'guest peer roster', snapshot => snapshot.connectedPeerCount >= 2),
+    ])
+    await assertRoomStatus(WORKER_URL, ownerConnectedSnapshot.markdownDocumentName)
 
     await appendMarkerThroughActiveEditor(guestPage, MARKER)
 

@@ -16,6 +16,10 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import {
+  AGENT_MODEL_RUNTIME_SCHEMA,
+  createRunningAgentAdapterRegistry,
+} from "../../../../contracts/agent-model-runtime.js";
 
 import {
   buildKnowgrphMcpToolDefinitions,
@@ -28,9 +32,10 @@ import {
   KNOWGRPH_MCP_STAGE_GATES,
   KNOWGRPH_MCP_STAGE_TOOL_NAMES,
   KNOWGRPH_OS_STATUS_TOOL_NAME,
+  RUN_NOTE_TOOL_NAME,
 } from "../tool-registry.mjs";
 
-test("tool surface lists the generic agent runtime, Director, all five stage tools, OS status, and docs invocation", () => {
+test("tool surface lists the agent runtime, Director, stage tools, run note, OS status, and docs", () => {
   const definitions = buildKnowgrphMcpToolDefinitions();
   const names = definitions.map((tool) => tool.name);
   assert.ok(names.includes(KNOWGRPH_MCP_DIRECTOR_TOOL_NAME));
@@ -39,8 +44,9 @@ test("tool surface lists the generic agent runtime, Director, all five stage too
     assert.ok(names.includes(stageName), `missing stage tool: ${stageName}`);
   }
   assert.ok(names.includes(KNOWGRPH_OS_STATUS_TOOL_NAME));
+  assert.ok(names.includes(RUN_NOTE_TOOL_NAME));
   assert.ok(names.includes(AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME));
-  assert.equal(definitions.length, 9);
+  assert.equal(definitions.length, 10);
 });
 
 test("Property 26 / R14.4: every listed tool exposes a non-empty input schema AND output schema", () => {
@@ -51,6 +57,7 @@ test("Property 26 / R14.4: every listed tool exposes a non-empty input schema AN
     KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
     AGENT_RUNTIME_TOOL_NAME,
     ...Object.values(KNOWGRPH_MCP_STAGE_TOOL_NAMES),
+    RUN_NOTE_TOOL_NAME,
     KNOWGRPH_OS_STATUS_TOOL_NAME,
     AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
   ];
@@ -96,6 +103,46 @@ test("generic agent runtime compiles each registered invocation through one zero
     assert.equal(result.structuredContent.status, "planned");
     assert.equal(result.structuredContent.budgetMeters.paidProviderCalls, 0);
   }
+});
+
+test("approved SME Care execution prepares a model packet and dispatches through its exact registered adapter", async () => {
+  let adapterCalls = 0;
+  const result = await executeKnowgrphMcpToolAsync(
+    AGENT_RUNTIME_TOOL_NAME,
+    {
+      invocation: "/sme-care-agent",
+      brief: "Assess the protection gap.",
+      mode: "live",
+      runId: "registered-adapter-proof",
+      approvals: ["paid-model-call"],
+    },
+    {
+      agentModelResolver: async () => ({
+        status: "ready",
+        packet: {
+          schemaVersion: AGENT_MODEL_RUNTIME_SCHEMA,
+          provider: { id: "cloudflare-workers-ai", revision: "test/v1", adapterId: "cloudflare-workers-ai" },
+          model: { id: "operator-selected-model", features: ["text"] },
+          transport: { id: "test-binding", delivery: "complete", connection: "per-run" },
+        },
+      }),
+      runningAgentAdapters: createRunningAgentAdapterRegistry([
+        {
+          id: "cloudflare-workers-ai",
+          execute: async ({ preparedAgent }) => {
+            adapterCalls += 1;
+            assert.equal(preparedAgent.id, "agent.sme-care");
+            assert.equal(preparedAgent.modelRuntime.model.id, "operator-selected-model");
+            return { text: "review-ready result" };
+          },
+        },
+      ]),
+    },
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.structuredContent.status, "completed");
+  assert.equal(result.structuredContent.result.text, "review-ready result");
+  assert.equal(adapterCalls, 1);
 });
 
 test("collectApprovedGateIds normalizes string and object entries", () => {

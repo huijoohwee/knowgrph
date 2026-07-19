@@ -5,9 +5,11 @@ import { KNOWGRPH_LOCAL_MCP_TOOL_NAMES as SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES }
 import { buildKnowgrphMcpAppsToolMeta, buildKnowgrphMcpNoauthSecuritySchemes } from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
 import { KNOWGRPH_MEMORY_LAYER_MCP_TOOL_NAMES, MEMORY_ADD_INPUT_SCHEMA, MEMORY_ADD_OUTPUT_SCHEMA, MEMORY_SEARCH_INPUT_SCHEMA, MEMORY_SEARCH_OUTPUT_SCHEMA, PROCEDURAL_MEMORY_EXTRACT_INPUT_SCHEMA, PROCEDURAL_MEMORY_EXTRACT_OUTPUT_SCHEMA, PROMPT_ASSEMBLER_INPUT_SCHEMA, PROMPT_ASSEMBLER_OUTPUT_SCHEMA, USER_MODEL_MATERIALIZE_INPUT_SCHEMA, USER_MODEL_MATERIALIZE_OUTPUT_SCHEMA } from "../canvas/src/features/memory/aiAgentsMemoryLayerContract.mjs";
 import { AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION } from "./agentic-canvas-os-docs-contract.mjs";
+import { buildExternalToolGatewayDefinitions } from "./external-tool-gateway-contract.js";
 import { buildProbeTreeLocalToolDefinitions } from "./probe-tree-tool-contract.js";
 import { buildSmeRiskCopilotLocalToolDefinitions } from "./sme-risk-copilot-tool-contract.js";
 import { buildAgentSandboxPolicyToolDefinitions } from "./agent-sandbox-policy-tool-contract.js"; import { VIDEO_WORKFLOW_INPUT_SCHEMA } from "./video-remix/workflow-contract.js";
+import { EXPORT_PUBLISH_INPUT_SCHEMA, EXPORT_PUBLISH_OUTPUT_SCHEMA } from "./export-publish-contract.js";
 export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES;
 
 const VDEOXPLN_LIST_OUTPUT_SCHEMA = Object.freeze({
@@ -139,6 +141,13 @@ const LOCAL_IDEMPOTENT_PROCESS_TOOL_ANNOTATIONS = Object.freeze({
 const BROWSER_API_TOOL_ANNOTATIONS = Object.freeze({
   readOnlyHint: false,
   destructiveHint: false,
+  openWorldHint: true,
+  idempotentHint: false,
+});
+
+const EXTERNAL_MUTATING_PROCESS_TOOL_ANNOTATIONS = Object.freeze({
+  readOnlyHint: false,
+  destructiveHint: true,
   openWorldHint: true,
   idempotentHint: false,
 });
@@ -417,6 +426,17 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
       ...AGENTIC_CANVAS_OS_DOCS_TOOL_DEFINITION,
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.agenticCanvasOsDocsInvoke,
     }, READ_ONLY_TOOL_ANNOTATIONS),
+    withLocalMcpDescriptorDefaults({
+      name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.exportPublish,
+      description: "Use this when a local MCP host needs to publish a frontmatter-first KGC Markdown artifact to a stable Google Sheet/Slides or Microsoft XLSX/PPTX identity; each run may overwrite remote content, create a revision, and append the local ledger.",
+      inputSchema: EXPORT_PUBLISH_INPUT_SCHEMA,
+      outputSchema: EXPORT_PUBLISH_OUTPUT_SCHEMA,
+    }, EXTERNAL_MUTATING_PROCESS_TOOL_ANNOTATIONS),
+    ...buildExternalToolGatewayDefinitions({
+      toolNames: KNOWGRPH_LOCAL_MCP_TOOL_NAMES,
+      withDefaults: withLocalMcpDescriptorDefaults,
+      readOnlyAnnotations: READ_ONLY_TOOL_ANNOTATIONS,
+    }),
     withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.showrunnerStartRun,
       description:

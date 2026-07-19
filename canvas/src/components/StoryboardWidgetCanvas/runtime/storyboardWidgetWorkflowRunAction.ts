@@ -6,18 +6,17 @@ import { isKgcWorkspaceCompanionPath, toCanonicalKgcWorkspacePath } from '@/feat
 import { emitKgcRunOutput } from '@/features/chat/kgcRunOutput'
 import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLandingGuard'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { UI_COPY, FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
+import { UI_COPY, FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID } from '@/lib/config'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import { buildTextWidgetOutputPatch, clearRichMediaOutputProperties, resolveRichMediaWidgetKind, writeTextWidgetRunOutputArtifact } from '@/features/chat/richMediaRun'
 import { fetchYouTubeTranscriptMarkdown } from '@/features/transcription/youtubeTranscriptMarkdown'
-import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
 import { resolveEffectiveTextGenerationWidgetProperties } from '@/features/storyboard-widget-manager/registryTemplates'
 import { inferTextGenerationProviderFamily } from '@/features/storyboard-widget-manager/textGenerationProviderFamily'
 import { runSwarmPredictionWidgetProperties } from '@/features/swarm-prediction/swarmPredictionWidget'
 import { FLOW_SHOWRUNNER_NODE_TYPE_ID, runShowrunnerWidgetProperties } from '@/features/ai-showrunner/showrunnerFlowNode'
 import { getCachedStoryboardWidgetWorkflowNodeResolutionContext, resolveStoryboardWidgetWorkflowNodeByIdAcrossGraphs, resolveStoryboardWidgetWorkflowRunTarget } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRenderGraph'
-import { buildStoryboardWidgetInlineComputeOutputPatch, resolveStoryboardWidgetWorkflowConnectedValuesInput } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunInputs'
+import { buildStoryboardWidgetInlineComputeOutputPatch, resolveStoryboardWidgetTextGenerationPrompts, resolveStoryboardWidgetWorkflowConnectedValuesInput } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunInputs'
 import { isStoryboardWidgetWorkflowRunnableNode, resolveStoryboardWidgetWorkflowDownstreamRunTargetIds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowDownstreamRunTargets'
 import { publishStoryboardWidgetSourceBackedRunOutput } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetSourceBackedRunOutput'
 import { setStoryboardWidgetWorkflowRunLoadingStateForKnownNodeIds, updateStoryboardWidgetWorkflowOutputForKnownNodeIds } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowWriteback'
@@ -31,8 +30,10 @@ import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes
 import { readFlowComputeSource } from '@/lib/storyboardWidget/flowComputeInline'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
-import { resolveStoryboardWidgetTextThinkingOptions } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowTextThinking'
 import { runStoryboardWidgetNativeCrawlerInvocation } from './storyboardWidgetWorkflowNativeCrawlerRun'
+import { runStoryboardWidgetRichMediaDeliverables } from './storyboardWidgetWorkflowRichMediaDeliverablesRun'
+import { generateStoryboardWidgetTextWithProvider } from './storyboardWidgetWorkflowTextGenerationProvider'
+import { buildStoryboardWidgetTextRunSourceState } from './storyboardWidgetTextRunSourceState'
 import type { StoryboardWidgetWorkflowNodeRunner, StoryboardWidgetWorkflowNodeRunnerArgs } from './storyboardWidgetWorkflowRunTypes'
 export { resolveStoryboardWidgetBaseGraphKind } from './storyboardWidgetWorkflowRunTypes'
 export type { StoryboardWidgetWorkflowNodeRunner, StoryboardWidgetWorkflowNodeRunnerArgs } from './storyboardWidgetWorkflowRunTypes'
@@ -444,7 +445,38 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
             chatToolChoiceJson: store.chatToolChoiceJson,
           },
         })
-        const prompt = typeof properties.prompt === 'string' ? properties.prompt.trim() : ''
+        const connectedValuesInput = resolveStoryboardWidgetWorkflowConnectedValuesInput({
+          context: workflowNodeResolutionContext,
+          graphForRun,
+          writableNodeId,
+          registry: args.widgetRegistry,
+        })
+        const connectedValuesBySchemaPath = connectedValuesInput?.connectedValuesByNodeId.get(connectedValuesInput.targetNodeId)
+        const { authoredPrompt, connectedPrompt, prompt } = resolveStoryboardWidgetTextGenerationPrompts({ authoredPrompt: properties.prompt, connectedValue: connectedValuesBySchemaPath?.['properties.prompt']?.value })
+        const textProviderBase = { properties, store, formId: resolvedTextRegistryEntry?.formId || rawNodeProperties[FLOW_WIDGET_FORM_ID_KEY], localProperties: rawNodeProperties }
+        const generateTextWithProvider = (generationPrompt: string, onText?: (nextText: string) => void) => generateStoryboardWidgetTextWithProvider({
+          ...textProviderBase,
+          prompt: generationPrompt,
+          onText,
+        })
+        const deliverablesRun = await runStoryboardWidgetRichMediaDeliverables({
+          id,
+          node,
+          graphForRun,
+          rawNodeProperties,
+          authoredPrompt,
+          connectedPrompt,
+          connectedSourceNodeId: connectedValuesBySchemaPath?.['properties.prompt']?.sources?.[0]?.nodeId || '',
+          workspacePath: activeWorkspacePath || null, requireDurablePersistence: runOptions?.requireDurableMediaPersistence === true,
+          model: properties.chatModel || store.chatModel,
+          generateText: generateTextWithProvider,
+          publishOutput: publishTextRunOutputToRichMediaPanel,
+          readGraph: args.readDraftGraphData,
+          setLoading: loading => setRunLoadingStateForKnownNodeIds(loading ? { loading: true, kind: 'text' } : { loading: false }),
+          reportFailure: reportNodeRunFailure,
+          upsertToast: args.upsertUiToast,
+        })
+        if (deliverablesRun.handled) return void (publishedRunGraphData = deliverablesRun.graphData || args.readDraftGraphData())
         const probeTreeOutput = await runStoryboardWidgetProbeTreeTextGenerationInvocation({
           graphForRun, nodeIds: [writableNodeId, resolvedNodeId, id, String(node.id || '')], requestedNodeId: id, fallbackNode: node, resolutionContext: workflowNodeResolutionContext,
           textGeneration: { prompt, formId: resolvedTextRegistryEntry?.formId || rawNodeProperties[FLOW_WIDGET_FORM_ID_KEY], localProperties: rawNodeProperties, resolvedProperties: properties, runtimeProperties: store },
@@ -463,69 +495,36 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
           return
         }
         if (await runStoryboardWidgetNativeCrawlerInvocation({ id, prompt, node, nodeProperties: rawNodeProperties, workspacePath: args.markdownDocumentName, recoveryOnly: runOptions?.nativeCrawlerRecovery === true, updateOutput: updateRunOutputForKnownNodeIds, publishOutput: publishTextRunOutputToRichMediaPanel, upsertToast: args.upsertUiToast, reportFailure: reportNodeRunFailure })) return
+        const textRunStartedAt = new Date().toISOString()
         setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
-        const mirrorTextOutputToRichMediaPanel = isFlowVideoScriptFormId(resolvedTextRegistryEntry?.formId) || providerFamily === 'byteplus'
-        const textThinkingOptions = resolveStoryboardWidgetTextThinkingOptions({ formId: resolvedTextRegistryEntry?.formId || rawNodeProperties[FLOW_WIDGET_FORM_ID_KEY], localProperties: rawNodeProperties, prompt, resolvedMaxCompletionTokens: properties.chatMaxCompletionTokens ?? store.chatMaxCompletionTokens, resolvedThinkingJson: properties.chatThinkingJson ?? store.chatThinkingJson, resolvedThinkingType: properties.chatThinkingType ?? store.chatThinkingType })
-        if (mirrorTextOutputToRichMediaPanel) {
-          updateRunOutputForKnownNodeIds(nodeProps => ({ ...clearRichMediaOutputProperties(nodeProps), outputLoading: true, outputLoadingKind: 'text', lastRunAt: new Date().toISOString() }))
-        }
+        updateRunOutputForKnownNodeIds(nodeProps => buildStoryboardWidgetTextRunSourceState({
+          properties: nodeProps,
+          loading: true,
+          runAt: textRunStartedAt,
+        }))
         let lastPublishedText = ''
         const publishTextRunOutput = (outputText: string, loading: boolean, outputPath?: string | null) => {
           const nextOutput = String(outputText || '')
-          if (mirrorTextOutputToRichMediaPanel) {
-            updateRunOutputForKnownNodeIds(nodeProps => ({
-              ...clearRichMediaOutputProperties(nodeProps),
-              ...(loading === true ? {} : buildTextWidgetOutputPatch({ output: nextOutput, title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL, model: properties.chatModel || store.chatModel, outputPath })),
-              outputLoading: loading === true ? true : undefined,
-              outputLoadingKind: loading === true ? 'text' : undefined,
-              lastRunAt: loading === true ? new Date().toISOString() : undefined,
-            }))
-            publishTextRunOutputToRichMediaPanel({ anchorNode: node, outputText: nextOutput, title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL, model: properties.chatModel || useGraphStore.getState().chatModel, outputPath, loading })
-            return
-          }
-          updateRunOutputForKnownNodeIds(nodeProps => ({
-            ...clearRichMediaOutputProperties(nodeProps),
-            ...buildTextWidgetOutputPatch({ output: nextOutput, title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL, model: properties.chatModel || store.chatModel, outputPath }),
-            outputLoading: loading === true ? true : undefined,
-            outputLoadingKind: loading === true ? 'text' : undefined,
+          updateRunOutputForKnownNodeIds(nodeProps => buildStoryboardWidgetTextRunSourceState({
+            properties: nodeProps,
+            loading,
+            runAt: textRunStartedAt,
           }))
+          publishTextRunOutputToRichMediaPanel({
+            anchorNode: node,
+            outputText: nextOutput,
+            title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL,
+            model: properties.chatModel || useGraphStore.getState().chatModel,
+            outputPath,
+            loading, versionId: `text-run-${textRunStartedAt}`, versionCreatedAt: textRunStartedAt,
+            connectCreatedOutputToAnchor: true,
+          })
         }
         try {
-          const result = await generateRunMarkdownWithProvider({
-            config: {
-              provider: properties.chatProvider || store.chatProvider,
-              endpointUrl: properties.chatEndpointUrl || store.chatEndpointUrl,
-              apiKey: (properties.chatAuthMode || store.chatAuthMode) === 'byok' ? store.chatApiKey : '',
-              chatModel: properties.chatModel || store.chatModel,
-            },
-            prompt,
-            options: {
-              chatTemperature: properties.chatTemperature ?? store.chatTemperature,
-              chatMaxCompletionTokens: textThinkingOptions.chatMaxCompletionTokens,
-              chatServiceTier: properties.chatServiceTier ?? store.chatServiceTier,
-              chatStream: properties.chatStream ?? store.chatStream,
-              chatMessagesJson: properties.chatMessagesJson ?? store.chatMessagesJson,
-              chatReasoningEffort: properties.chatReasoningEffort ?? store.chatReasoningEffort,
-              chatThinkingType: textThinkingOptions.chatThinkingType,
-              chatThinkingJson: textThinkingOptions.chatThinkingJson,
-              chatFrequencyPenalty: properties.chatFrequencyPenalty ?? store.chatFrequencyPenalty,
-              chatPresencePenalty: properties.chatPresencePenalty ?? store.chatPresencePenalty,
-              chatTopP: properties.chatTopP ?? store.chatTopP,
-              chatLogprobs: properties.chatLogprobs ?? store.chatLogprobs,
-              chatTopLogprobs: properties.chatTopLogprobs ?? store.chatTopLogprobs,
-              chatParallelToolCalls: properties.chatParallelToolCalls ?? store.chatParallelToolCalls,
-              chatStopJson: properties.chatStopJson ?? store.chatStopJson,
-              chatStreamOptionsJson: properties.chatStreamOptionsJson ?? store.chatStreamOptionsJson,
-              chatResponseFormatJson: properties.chatResponseFormatJson ?? store.chatResponseFormatJson,
-              chatLogitBiasJson: properties.chatLogitBiasJson ?? store.chatLogitBiasJson,
-              chatToolsJson: properties.chatToolsJson ?? store.chatToolsJson,
-              chatToolChoiceJson: properties.chatToolChoiceJson ?? store.chatToolChoiceJson,
-              onText: (nextText) => {
-                if (nextText === lastPublishedText) return
-                lastPublishedText = nextText
-                publishTextRunOutput(nextText, true)
-              },
-            },
+          const result = await generateTextWithProvider(prompt, nextText => {
+            if (nextText === lastPublishedText) return
+            lastPublishedText = nextText
+            publishTextRunOutput(nextText, true)
           })
           if (!result) {
             reportNodeRunFailure(UI_COPY.storyboardWidgetRunFailedToast)
@@ -593,6 +592,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
       args.upsertUiToast({ id: `storyboard-widget-persistence-failed-${String(nodeId || '')}`, kind: 'error', message: detail || 'Generated output could not be persisted to the workspace.', ttlMs: 5200 })
       deferredError = { value: error }
     }
+    scheduleWorkflowOutputEdgeRefresh()
     if (deferredError) throw deferredError.value
   }
   return runWorkflowNode

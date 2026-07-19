@@ -37,13 +37,21 @@ const PROBE_TREE_BUCKET_SYNTAX_WORDS = new Set([
 const PROBE_TREE_BUCKET_UNIT_WORDS = new Set([
   "bps", "cent", "cents", "day", "days", "dollar", "dollars", "eur", "gbp", "hour", "hours", "k", "m", "minute", "minutes", "month", "months", "percent", "percentage", "percentages", "quarter", "quarters", "second", "seconds", "sgd", "usd", "week", "weeks", "year", "years", "yr", "yrs",
 ]);
+const PROBE_TREE_CHOICE_DECISION_CUE_PATTERN = /\b(?:accept|avoid|balance|enable|favor|focus|increase|limit|maximize|minimize|prefer|prioritize|protect|reduce|require|retain|target|tolerate)\b/i;
 
 export const cleanProbeTreeResponseText = (value, maxLength = 320) => (
   String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength)
 );
 
+const normalizeProbeTreeComparableText = value => cleanProbeTreeResponseText(value, 8_000)
+  .toLowerCase()
+  .replace(/(^|\s)[/#@][a-z0-9_.-]+(?=\s|$)/g, " ")
+  .replace(/[^a-z0-9]+/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
+
 export const isProbeTreeTerminalGenerationRequest = value => (
-  PROBE_TREE_TERMINAL_GENERATION_PATTERN.test(cleanProbeTreeResponseText(value, 8_000))
+  Boolean(resolveProbeTreeTerminalGenerationRequest(value))
 );
 
 export const safeProbeTreeResponseId = (value, fallback) => {
@@ -69,23 +77,33 @@ export function normalizeProbeTreeSelectionOptions(value) {
   return options.length >= PROBE_TREE_MULTI_SELECT_LIMITS.min ? options : [];
 }
 
-const isProbeTreeMechanicalBucketLabel = value => {
+const collectProbeTreeChoiceSemanticTokens = value => {
   const tokens = cleanProbeTreeResponseText(value, 160).toLowerCase().match(/[a-z]+|\d+(?:\.\d+)?[a-z]*/g) || [];
-  const hasQuantity = tokens.some(token => /^\d/.test(token) || PROBE_TREE_BUCKET_NUMBER_WORDS.has(token));
-  if (!hasQuantity) return false;
-  const semanticTokens = tokens.filter(token => (
+  return tokens.filter(token => (
     !/^\d+(?:\.\d+)?(?:k|m|bn|b)?$/.test(token)
     && !PROBE_TREE_BUCKET_NUMBER_WORDS.has(token)
     && !PROBE_TREE_BUCKET_SYNTAX_WORDS.has(token)
     && !PROBE_TREE_BUCKET_UNIT_WORDS.has(token)
   ));
-  return semanticTokens.length === 0;
 };
 
-export function areProbeTreeSelectionOptionsOnlyMechanicalBuckets(value) {
+const isProbeTreeSemanticallyThinChoice = (value, contextText) => {
+  const normalized = cleanProbeTreeResponseText(value, 160).toLowerCase();
+  const semanticTokenCount = collectProbeTreeChoiceSemanticTokens(normalized).length;
+  if (semanticTokenCount < 2) return true;
+  if (PROBE_TREE_CHOICE_DECISION_CUE_PATTERN.test(normalized)) return false;
+  if (semanticTokenCount < 3) return true;
+  const comparableChoice = normalizeProbeTreeComparableText(normalized);
+  const comparableContext = normalizeProbeTreeComparableText(contextText);
+  return semanticTokenCount <= 3
+    && comparableChoice
+    && ` ${comparableContext} `.includes(` ${comparableChoice} `);
+};
+
+export function doProbeTreeSelectionOptionsContainSemanticallyThinChoices(value, contextText = "") {
   const options = normalizeProbeTreeSelectionOptions(value);
   return options.length >= PROBE_TREE_MULTI_SELECT_LIMITS.min
-    && options.every(option => isProbeTreeMechanicalBucketLabel(option.label));
+    && options.some(option => isProbeTreeSemanticallyThinChoice(option.label, contextText));
 }
 
 export function normalizeProbeTreeContextAnchors(value) {
@@ -143,15 +161,17 @@ const normalizeProbeTreeContinuationQuestion = value => cleanProbeTreeResponseTe
   .replace(/[?]+$/g, "")
   .trim();
 
+const readProbeTreeContinuationOtherSelection = value => cleanProbeTreeResponseText(
+  cleanProbeTreeResponseText(value, 8_000).match(/(?:^|\s)Other\s*:\s*(.+)$/i)?.[1],
+  240,
+);
+
 const readProbeTreeContinuationSelections = value => {
   const normalized = cleanProbeTreeResponseText(value, 8_000);
   const numberedSelections = [...normalized.matchAll(
     /(?:^|\s)\d+\.\s*(.+?)(?=(?:\s+\d+\.\s*)|(?:\s+Other(?:\s*:|$))|$)/gi,
   )].map(match => cleanProbeTreeResponseText(match[1], 240)).filter(Boolean);
-  const otherSelection = cleanProbeTreeResponseText(
-    normalized.match(/(?:^|\s)Other\s*:\s*(.+)$/i)?.[1],
-    240,
-  );
+  const otherSelection = readProbeTreeContinuationOtherSelection(normalized);
   const seen = new Set();
   return [...numberedSelections, otherSelection].filter(selection => {
     const key = selection.toLowerCase();
@@ -160,6 +180,13 @@ const readProbeTreeContinuationSelections = value => {
     return true;
   });
 };
+
+export function resolveProbeTreeTerminalGenerationRequest(value) {
+  const normalized = cleanProbeTreeResponseText(value, 8_000);
+  if (PROBE_TREE_TERMINAL_GENERATION_PATTERN.test(normalized)) return normalized;
+  const otherSelection = readProbeTreeContinuationOtherSelection(normalized);
+  return PROBE_TREE_TERMINAL_GENERATION_PATTERN.test(otherSelection) ? otherSelection : "";
+}
 
 const normalizeProbeTreeContinuationAnswer = value => {
   const normalized = cleanProbeTreeResponseText(value, 8_000);
@@ -253,13 +280,6 @@ export function resolveProbeTreeContextAnchors({ contextText, question, contextA
   return normalizeProbeTreeContextAnchors([...providedAnchors, ...derivedAnchors]);
 }
 
-const normalizeProbeTreeComparableText = value => cleanProbeTreeResponseText(value, 8_000)
-  .toLowerCase()
-  .replace(/(^|\s)[/#@][a-z0-9_.-]+(?=\s|$)/g, " ")
-  .replace(/[^a-z0-9]+/g, " ")
-  .replace(/\s+/g, " ")
-  .trim();
-
 const isProbeTreeSourceQueryRestatement = ({ userInput, question, selectionOptions }) => {
   const comparableInput = normalizeProbeTreeComparableText(userInput);
   const comparableQuestion = normalizeProbeTreeComparableText(question);
@@ -285,7 +305,7 @@ export function areProbeTreeContinuationChoicesSuggested({ contextText, question
   const quotedFocus = cleanProbeTreeResponseText(String(question || "").match(/"([^"]+)"/)?.[1], 480);
   const focus = cleanProbeTreeResponseText(quotedFocus || normalizeProbeTreeContinuationAnswer(continuationAnswer), 8_000).toLowerCase();
   if (!focus) return true;
-  return !options.every(option => focus.includes(option.label.toLowerCase()));
+  return options.every(option => !focus.includes(option.label.toLowerCase()));
 }
 
 export function isProbeTreeCardUserInputRelevant({ contextText, question, selectionOptions, contextAnchors } = {}) {
@@ -297,10 +317,10 @@ export function isProbeTreeCardUserInputRelevant({ contextText, question, select
   const options = normalizeProbeTreeSelectionOptions(selectionOptions);
   if (
     !normalizedInput
-    || (continuationAnswer && isProbeTreeTerminalGenerationRequest(userInput))
+    || (continuationAnswer && isProbeTreeTerminalGenerationRequest(continuationAnswer))
     || anchors.length < 2
     || options.length < 2
-    || areProbeTreeSelectionOptionsOnlyMechanicalBuckets(options)
+    || doProbeTreeSelectionOptionsContainSemanticallyThinChoices(options, groundingInput)
     || isProbeTreeSourceQueryRestatement({ userInput, question, selectionOptions: options })
     || GENERIC_RESPONSE_CONTENT_PATTERN.test(String(question || "").trim())
     || GENERIC_CLARIFICATION_QUESTION_PATTERN.test(String(question || "").trim())

@@ -4,7 +4,17 @@ import {
   resolveXrPanelRuntimeStack,
   resolveXrPanelSourceProfile,
 } from '@/features/three/xrPanelModel'
-import { XR_MOTION_REFERENCE_STAGE_PRESETS, XR_SCENE_LIBRARY_ASSETS } from '@/features/three/xrSceneLibrary'
+import {
+  reconcileNextSubjectLabelAfterDrop,
+  reconcileXrTransformNumberDraft,
+} from '@/features/command-menu/xrMediaAuthoringDrafts'
+import {
+  XR_MOTION_REFERENCE_DEFAULT_STAGE_ID,
+  XR_MOTION_REFERENCE_STAGE_PRESETS,
+  XR_SCENE_LIBRARY_ASSETS,
+  XR_SCENE_LIBRARY_DEFAULT_ASSET_ID,
+  XR_SCENE_LIBRARY_FEATURED_ASSET_IDS,
+} from '@/features/three/xrSceneLibrary'
 import { buildXrAssetMediaDragPayload, buildXrStageMediaDragPayload } from '@/features/three/xrSceneMediaDrag'
 import { buildRichMediaPanelDroppedMediaProperties } from '@/lib/render/richMediaPanelNode'
 import { buildRichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
@@ -19,6 +29,7 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   const spatialAssetTools = readSource('features', 'three', 'SpatialAssetToolsPanel.tsx')
   const mediaCatalog = readSource('features', 'command-menu', 'MediaCatalogPanelView.tsx')
   const xrMediaLibrary = readSource('features', 'command-menu', 'XrMediaLibraryPanel.tsx')
+  const xrSimulationOpenRequest = readSource('features', 'command-menu', 'xrSimulationWorkbenchOpenRequest.ts')
   const xrSceneMediaDrag = readSource('features', 'three', 'xrSceneMediaDrag.ts')
   const xrSceneMediaDrop = readSource('features', 'three', 'useXrSceneMediaDrop.ts')
   const threeGraph = readSource('lib', 'three', 'ThreeGraph.impl.tsx')
@@ -29,6 +40,11 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   const xrStagePresetGeometry = readSource('features', 'three', 'XrStagePresetGeometry.tsx')
   const xrMotionReferenceStage = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
   const xrSceneLibrarySubject = readSource('features', 'three', 'XrSceneLibrarySubject.tsx')
+  const xrProceduralBall = readSource('features', 'three', 'XrProceduralBallGeometry.tsx')
+  const xrProceduralVehicle = readSource('features', 'three', 'XrProceduralVehicleGeometry.tsx')
+  const xrSingaporeTerrain = readSource('features', 'three', 'XrSingaporeTerrainGeometry.tsx')
+  const xrTerrainPerimeter = readSource('features', 'three', 'xrTerrainPerimeter.ts')
+  const xrNativeAuthoredSubjects = readSource('features', 'three', 'XrNativeControllerAuthoredSubjects.tsx')
   const mediaDragPayload = readSource('lib', 'ui', 'mediaDragPayload.ts')
   const xrCameraFramingPath = resolve(process.cwd(), 'src', 'features', 'three', 'XrCameraFramingSection.tsx')
   const xrPanelModel = readSource('features', 'three', 'xrPanelModel.ts')
@@ -46,6 +62,7 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   const bottomPanel = readSource('features', 'strybldr', 'StrybldrTimelineBottomPanel.tsx')
   const timelineBottomPanel = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
   const xrCameraMotion = readSource('features', 'three', 'XrCameraMotionSection.tsx')
+  const xrAnimationPanel = readSource('features', 'three', 'XrAnimationFloatingPanelView.tsx')
   const floatingPanel = readSource('lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
   const viewport = readSource('components', 'CanvasViewport.tsx')
   const floatingTypes = readSource('hooks', 'store', 'store-types', 'graph-state-chat-import.ts')
@@ -91,8 +108,23 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   if (cameraFloatingProjection.includes('<XrCameraMotionSection')) {
     throw new Error('expected FloatingPanel Camera to leave XR motion and transport in BottomPanel Timeline')
   }
-  for (const marker of ['data-kg-xr-timeline-player="1"', 'data-kg-xr-timeline-player-controls="1"', 'data-kg-xr-timeline-consolidated-lane="stage-output-retime"', 'data-kg-xr-timeline-control-bar="stage-output"', 'data-kg-xr-timeline-control-bar="marks"', 'data-kg-xr-timeline-seconds-control="time-axis"', 'aria-label="XR timeline seconds"', 'data-kg-xr-timeline-fps-control="time-axis"', 'aria-label="XR timeline FPS"', '<TimelineTransportInlineClip', '<TimelineTransportTimeAxisClip', '<CameraMotionMarkRetime', 'layout="time-axis"', '<GanttTimelineTransportPanel', 'supplementalLanes={', 'timeAxisControls={', 'data-kg-xr-timeline-transport="reused-gantt-player"']) {
+  for (const marker of ['data-kg-xr-timeline-player="1"', 'data-kg-xr-timeline-player-controls="1"', 'data-kg-xr-timeline-consolidated-lane="stage-output-ruler"', 'data-kg-xr-timeline-control-bar="stage-output"', 'data-kg-xr-timeline-shot-target="1"', 'aria-label="XR timeline scene or 3D object shot target"', 'data-kg-xr-shot-target-lane', 'data-kg-xr-shot-target-bar', 'data-kg-xr-simulation-lane-label="1"', 'data-kg-xr-simulation-lane="1"', 'data-kg-xr-simulation-bar="full-scene"', 'openSimulationWorkbench', 'data-kg-xr-timeline-playhead-control="1"', 'aria-label="XR timeline playhead seconds"', 'data-kg-xr-timeline-seconds-control="time-axis"', 'aria-label="XR timeline seconds"', 'data-kg-xr-timeline-fps-control="time-axis"', 'aria-label="XR timeline FPS"', '<TimelineTransportInlineClip', '<TimelineTransportTimeAxisClip', '<CameraMotionMarkRetime', 'layout="lane"', '<GanttTimelineTransportPanel', 'timelineInsertedLanes={[', 'supplementalLanes={', 'timeAxisControls={', 'data-kg-xr-choreography-shared-axis-rail="camera"', 'data-kg-xr-timeline-transport="reused-gantt-player"']) {
     if (!xrCameraMotion.includes(marker)) throw new Error(`expected BottomPanel XR Timeline to expose ${marker}`)
+  }
+  for (const marker of [
+    'subscribeXrNativeControllerDemo',
+    "nativeController.phase !== 'off'",
+    'readSharedXrNativeControllerDemoFrame().bodies.length',
+    "nativeControllerActive ? 'native-controller' : 'scene'",
+    'data-kg-xr-simulation-runtime={simulationRuntime}',
+  ]) {
+    if (!xrCameraMotion.includes(marker)) throw new Error(`expected Timeline Simulation to project the active native controller runtime through ${marker}`)
+  }
+  if (!xrCameraMotion.includes("controlLocalXrScene({ action: 'stage'") || xrCameraMotion.includes('setXrMotionReferenceStage(')) {
+    throw new Error('expected Timeline stage changes to reuse the guarded, persisted scene/physics mutation owner')
+  }
+  for (const duplicate of ['data-kg-animation-runtime-controls="shared-xr"', 'aria-label="Animation cast target"', 'aria-label="Animation playhead seconds"']) {
+    if (xrAnimationPanel.includes(duplicate)) throw new Error(`expected FloatingPanel Animation to remove duplicate Timeline control ${duplicate}`)
   }
   if (existsSync(xrCameraFramingPath)) {
     throw new Error('expected the duplicate FloatingPanel XR Camera projection to be deleted')
@@ -255,6 +287,12 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     if (!mediaCatalog.includes(marker)) throw new Error(`expected Media to own the canonical 3D entry through ${marker}`)
   }
   if (!xrMediaLibrary.includes('<SpatialAssetToolsPanel />')) throw new Error('expected Media 3D to retain spatial asset tooling')
+  const featuredLabels = XR_SCENE_LIBRARY_FEATURED_ASSET_IDS.map(assetId => XR_SCENE_LIBRARY_ASSETS.find(asset => asset.id === assetId)?.label)
+  if (XR_MOTION_REFERENCE_DEFAULT_STAGE_ID !== 'singapore'
+    || XR_SCENE_LIBRARY_DEFAULT_ASSET_ID !== 'vehicle-helicopter'
+    || featuredLabels.join('|') !== 'Helicopter|Airplane|Car|Ball') {
+    throw new Error(`expected Singapore and default Helicopter/Airplane/Car/Ball to use explicit catalog defaults, got ${featuredLabels.join('|')}`)
+  }
   if (
     (xrMediaLibrary.match(/<XrLibraryCard/g) || []).length < 2
     || !xrMediaLibrary.includes('data-kg-media-xr-card-layout="media-3-rows"')
@@ -265,6 +303,40 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   }
   if (xrMediaLibrary.includes('sm:grid-cols-2')) throw new Error('expected Environment Kits to remove the stale two-column tile layout')
   for (const marker of [
+    "runControl({ action: 'transform'",
+    'return runControl({ action: \'transform\'',
+    'input.value = reconcileXrTransformNumberDraft({',
+    "const label = nextLabel.trim()",
+    "...(label ? { label } : {})",
+    'data-kg-media-xr-subject-transform={subject.id}',
+    'data-kg-media-xr-subject-position={subject.id}',
+    'data-kg-media-xr-subject-rotation={subject.id}',
+    'data-kg-media-xr-subject-scale={subject.id}',
+    'data-kg-media-xr-subject-color={subject.id}',
+    'data-kg-media-xr-terrain-selector="1"',
+    'data-kg-media-xr-featured-asset-selector="1"',
+    'data-kg-media-xr-subject-asset={subject.id}',
+    "setSubjectTransform(subject.id, { assetId: event.target.value })",
+    'buildXrTransformInvocation(subject.id, subject)',
+  ]) {
+    if (!xrMediaLibrary.includes(marker)) throw new Error(`expected Media 3D subject create/update/delete to expose native strict-runtime CRUD through ${marker}`)
+  }
+  if (!xrSceneLibrarySubject.includes("asset.shape === 'ball'")
+    || !xrSceneLibrarySubject.includes('<XrProceduralBallGeometry')
+    || !xrSceneLibrarySubject.includes('accentColor={effectiveColor}')
+    || !xrProceduralBall.includes('kg_xr_procedural_ball_geometry')) {
+    throw new Error('expected the asset-library Ball and native controller Ball to reuse one procedural geometry owner')
+  }
+  for (const marker of ['requestXrSimulationWorkbenchOpen()', "state.setFloatingPanelView('media')", "state.setFloatingPanelOpen(true)"]) {
+    if (!xrCameraMotion.includes(marker)) throw new Error(`expected the XR Simulation Timeline lane to route through the canonical Media workbench owner via ${marker}`)
+  }
+  for (const marker of ['subscribeXrSimulationWorkbenchOpenRequest', 'readXrSimulationWorkbenchOpenRevision']) {
+    if (!mediaCatalog.includes(marker) || !xrMediaLibrary.includes(marker)) throw new Error(`expected Media catalog and its XR library to consume the shared Simulation workbench intent via ${marker}`)
+  }
+  for (const marker of ['xrSimulationWorkbenchOpenRevision += 1', 'window.dispatchEvent', 'window.addEventListener']) {
+    if (!xrSimulationOpenRequest.includes(marker)) throw new Error(`expected the shared Simulation workbench request owner to expose ${marker}`)
+  }
+  for (const marker of [
     'draggable={true}',
     'data-kg-media-xr-draggable="1"',
     'startMediaDrag(event, dragPayload)',
@@ -273,11 +345,12 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     'continueMediaPointerDrag(event, dragPayload)',
     'continueMediaMouseDrag(event, dragPayload)',
     'buildXrStageMediaDragPayload(stage)',
-    'buildXrAssetMediaDragPayload(asset, transition)',
+    'buildXrAssetMediaDragPayload(asset, transition, subjectLabel)',
+    'setNextLabel(current => reconcileNextSubjectLabelAfterDrop(current, detail.subjectLabel))',
   ]) {
     if (!xrMediaLibrary.includes(marker)) throw new Error(`expected Media 3D cards to reuse shared Media drag behavior through ${marker}`)
   }
-  for (const marker of ['buildXrStageMediaDragPayload', 'buildXrAssetMediaDragPayload', 'controlXrSceneMediaDrop', 'XR_SCENE_MEDIA_DRAG_SCHEMA']) {
+  for (const marker of ['buildXrStageMediaDragPayload', 'buildXrAssetMediaDragPayload', 'controlXrSceneMediaDrop', 'XR_SCENE_MEDIA_DRAG_SCHEMA', 'XR_SCENE_MEDIA_DROP_COMMITTED_EVENT', 'label: projection.subjectLabel']) {
     if (!xrSceneMediaDrag.includes(marker)) throw new Error(`expected typed XR Media projection to expose ${marker}`)
   }
   for (const marker of ['MEDIA_POINTER_DRAG_DROP_EVENT', 'readMediaDragPayload', 'claimMediaPointerDragDrop', 'isMediaPointerDragDistanceAccepted', 'controlXrSceneMediaDrop']) {
@@ -315,8 +388,26 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   if (!xrMotionReferenceStage.includes('<XrStagePresetGeometry') || !xrStagePresetGeometry.includes('stage.structures.map')) {
     throw new Error('expected XR Mode and Rich Media previews to share the canonical procedural stage geometry')
   }
+  for (const marker of ['<XrSingaporeTerrainGeometry', 'stage={stage}', "stage.id === 'singapore'"]) {
+    if (!xrStagePresetGeometry.includes(marker)) throw new Error(`expected canonical stage geometry to project Singapore through ${marker}`)
+  }
+  for (const marker of ['kg_xr_singapore_marina_bay_sands', 'kg_xr_singapore_flyer', 'kg_xr_singapore_gardens_by_the_bay', 'kg_xr_singapore_perimeter_water', 'kg_xr_singapore_seawall', 'resolveXrTerrainPerimeter', 'selectable: false']) {
+    if (!xrSingaporeTerrain.includes(marker)) throw new Error(`expected native Singapore presentation to expose ${marker}`)
+  }
+  if (xrSingaporeTerrain.includes('XrSceneLibraryAssetGeometry') || xrSingaporeTerrain.includes('showcaseSubjects')) {
+    throw new Error('expected fixed Singapore terrain to leave mobile Helicopter/Airplane/Car assets to canonical Media CRUD')
+  }
+  for (const marker of ['XR_TERRAIN_BOUNDARY_THICKNESS_METERS', "edge('west'", "edge('east'", "edge('north'", "edge('south'"]) {
+    if (!xrTerrainPerimeter.includes(marker)) throw new Error(`expected canonical terrain perimeter to expose ${marker}`)
+  }
   if (!xrSceneLibrarySubject.includes('export function XrSceneLibraryAssetGeometry') || !xrSceneLibrarySubject.includes('<XrSceneLibraryAssetGeometry')) {
     throw new Error('expected XR Mode and Rich Media previews to share the canonical procedural subject/prop geometry')
+  }
+  for (const marker of ['kg_xr_procedural_car', 'kg_xr_procedural_airplane', 'kg_xr_procedural_helicopter', 'kg_xr_car_wheel', 'kg_xr_helicopter_main_rotor']) {
+    if (!xrProceduralVehicle.includes(marker)) throw new Error(`expected one shared procedural vehicle owner to expose ${marker}`)
+  }
+  if (!xrNativeAuthoredSubjects.includes('runtime.plan.subjects.map') || !xrNativeAuthoredSubjects.includes('<XrSceneLibrarySubject')) {
+    throw new Error('expected active controller mode to retain persisted authored XR subjects')
   }
   for (const marker of ['CollapsibleSection', 'ExpandCollapseAllButton', 'useCollapsibleSectionGroup', 'defaultCollapsed={false}', 'headerClassName="px-0"']) {
     if (!xrMediaLibrary.includes(marker)) throw new Error(`expected Media 3D sections to reuse shared disclosure behavior through ${marker}`)
@@ -368,8 +459,20 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   ) {
     throw new Error(`expected environment drag payload to project into canonical Media, got ${JSON.stringify(stagePayload)}`)
   }
-  const assetPayload = normalizeMediaDragPayload(buildXrAssetMediaDragPayload(XR_SCENE_LIBRARY_ASSETS[0]!, 'linear'))
-  if (assetPayload?.xrScene?.entityKind !== 'asset' || assetPayload.xrScene.entityId !== XR_SCENE_LIBRARY_ASSETS[0]!.id || assetPayload.xrScene.transition !== 'linear') {
+  let transformCommitCount = 0
+  const invalidEmptyDraft = reconcileXrTransformNumberDraft({ draftValue: '', persistedValue: 1.25, minimum: 0.25, maximum: 4, commit: () => { transformCommitCount += 1; return true } })
+  const invalidRangeDraft = reconcileXrTransformNumberDraft({ draftValue: '5', persistedValue: 1.25, minimum: 0.25, maximum: 4, commit: () => { transformCommitCount += 1; return true } })
+  const rejectedDraft = reconcileXrTransformNumberDraft({ draftValue: '2', persistedValue: 1.25, minimum: 0.25, maximum: 4, commit: () => { transformCommitCount += 1; return false } })
+  const committedDraft = reconcileXrTransformNumberDraft({ draftValue: '2', persistedValue: 1.25, minimum: 0.25, maximum: 4, commit: () => { transformCommitCount += 1; return true } })
+  if (invalidEmptyDraft !== '1.25' || invalidRangeDraft !== '1.25' || rejectedDraft !== '1.25' || committedDraft !== '2' || transformCommitCount !== 2) {
+    throw new Error(`expected XR transform drafts to roll back invalid and rejected edits, got ${JSON.stringify({ invalidEmptyDraft, invalidRangeDraft, rejectedDraft, committedDraft, transformCommitCount })}`)
+  }
+  if (reconcileNextSubjectLabelAfterDrop('  THIEF  ', 'THIEF') !== '' || reconcileNextSubjectLabelAfterDrop('PILOT', 'THIEF') !== 'PILOT') {
+    throw new Error('expected a committed drag to clear only the matching next-subject label draft')
+  }
+
+  const assetPayload = normalizeMediaDragPayload(buildXrAssetMediaDragPayload(XR_SCENE_LIBRARY_ASSETS[0]!, 'linear', '  THIEF  '))
+  if (assetPayload?.xrScene?.entityKind !== 'asset' || assetPayload.xrScene.entityId !== XR_SCENE_LIBRARY_ASSETS[0]!.id || assetPayload.xrScene.transition !== 'linear' || assetPayload.xrScene.subjectLabel !== 'THIEF') {
     throw new Error(`expected asset drag payload to retain typed XR placement metadata, got ${JSON.stringify(assetPayload)}`)
   }
   const richMediaProperties = buildRichMediaPanelDroppedMediaProperties(assetPayload!)
@@ -392,7 +495,7 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     throw new Error(`expected persisted XR metadata to hydrate the live Rich Media renderer, got ${JSON.stringify(richMediaState?.xrScene)}`)
   }
 
-  const implementationText = [spatialAssetTools, mediaCatalog, xrMediaLibrary, xrSceneMediaDrag, xrSceneMediaDrop, sharedCameraFraming, cameraFramingRuntime, cameraFramingPose, cameraFramingControls, xrPanelModel, cameraPanel, cameraModel, floatingPanel].join('\n')
+  const implementationText = [spatialAssetTools, mediaCatalog, xrMediaLibrary, xrSceneMediaDrag, xrSceneMediaDrop, sharedCameraFraming, cameraFramingRuntime, cameraFramingPose, cameraFramingControls, xrPanelModel, cameraPanel, cameraModel, floatingPanel, xrProceduralBall, xrProceduralVehicle, xrSingaporeTerrain, xrNativeAuthoredSubjects].join('\n')
   for (const token of [['super', 'splat'].join(''), ['play', 'canvas'].join(''), ['pc', 'ui'].join(''), ['splat', 'Data'].join('')]) {
     if (implementationText.toLowerCase().includes(token.toLowerCase())) {
       throw new Error(`expected XR panel implementation to avoid copied external runtime token ${token}`)

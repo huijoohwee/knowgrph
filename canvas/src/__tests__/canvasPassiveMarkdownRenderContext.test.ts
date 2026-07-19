@@ -69,7 +69,13 @@ export function testPassiveSourceFileSwitchesDoNotRetargetCanvasMarkdownRenderCo
   if (!storyboardWidgetText.includes('text: markdownDocumentText')) {
     throw new Error('expected Storyboard Widget applied markdown context to include the active source text for same-document reapply resets')
   }
-  if (!storyboardWidgetText.includes("return [String(canvasMarkdownDocument.semanticKey || '').trim(), String(markdownDocumentApplyRevision || 0)].join('::')")) {
-    throw new Error('expected Storyboard Widget draft lifetime to key off the shared applied-document semantic key plus explicit apply revision instead of only the document path')
+  if (!storyboardWidgetText.includes('buildCanvasAppliedMarkdownDocumentIdentityKey({ name: canvasMarkdownDocument.name, sourceUrl: canvasMarkdownDocument.sourceUrl })')) {
+    throw new Error('expected Storyboard Widget draft lifetime to use stable applied-document identity instead of markdown text content')
+  }
+  if (storyboardWidgetText.includes('canvasMarkdownDocument.semanticKey')) {
+    throw new Error('expected same-document text sync not to change Storyboard draft document identity')
+  }
+  if (!storyboardWidgetText.includes('String(markdownDocumentApplyRevision || 0)].join')) {
+    throw new Error('expected explicit document apply revisions to reset Storyboard draft authority without ordinary source-sync churn')
   }
 }

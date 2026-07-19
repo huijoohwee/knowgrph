@@ -3,7 +3,6 @@ import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { FlowConnectedValuesBySchemaPath } from '@/lib/storyboardWidget/flowDataflow'
-import { applyConnectedValuesToNodeForRender } from '@/lib/render/effectiveMediaNode'
 import { computeRichMediaOverlayConnectedValuesByNodeId } from '@/lib/render/richMediaSsot'
 import { normalizeRichMediaPanelInlineSrcDoc } from '@/lib/render/richMediaPanelSrcDoc'
 import { isRichMediaPanelNode } from '@/lib/render/richMediaPanelNode'
@@ -23,6 +22,11 @@ import { readImageToThreeJsRenderMode, type ImageToThreeJsRenderMode } from '@/f
 import { readStoryboardProbeTreeMultiSelectModel, type StoryboardProbeTreeMultiSelectModel } from '@/components/StoryboardCanvas/storyboardProbeTreeMultiSelectModel'
 import { projectStoryboardMediaAlbumItems, STORYBOARD_CARD_MEDIA_ALBUM_PROPERTY, type StoryboardMediaAlbumItem } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
 import { resolveWidgetNodeTitle } from '@/components/StoryboardWidget/widgetEditorTitle'
+import {
+  buildStoryboardCardConnectedProjection,
+  type StoryboardCardConnectedProjection,
+  type StoryboardCardSourceReference,
+} from '@/components/StoryboardCanvas/storyboardCardConnectedSources'
 import {
   isStructuralStoryboardNodeType,
   isStoryboardCardNodeType,
@@ -131,6 +135,8 @@ export type StoryboardCardModel = {
   candidateScore: number
   structural: boolean
   probeTreeMultiSelect?: StoryboardProbeTreeMultiSelectModel | null
+  sourceReferences?: readonly StoryboardCardSourceReference[]
+  connectedTextFieldId?: StoryboardCardConnectedProjection['connectedTextFieldId']
 }
 export type StoryboardLaneModel = {
   id: string
@@ -447,7 +453,7 @@ const computeCandidateScore = (args: {
   return score
 }
 
-const buildCardModel = (node: GraphNode, inputIndex: number, stageTokensByLane: ReadonlyMap<string, readonly string[]>): StoryboardCardModel => {
+const buildCardModel = (node: GraphNode, inputIndex: number, stageTokensByLane: ReadonlyMap<string, readonly string[]>, connectedProjection: StoryboardCardConnectedProjection): StoryboardCardModel => {
   const properties = readNodeProperties(node)
   const media = readStoryboardMedia(node, properties)
   const references = readStoryboardReferences(properties, media)
@@ -508,6 +514,8 @@ const buildCardModel = (node: GraphNode, inputIndex: number, stageTokensByLane: 
     }),
     structural: isStructuralStoryboardNodeType(nodeType),
     probeTreeMultiSelect: readStoryboardProbeTreeMultiSelectModel(properties),
+    sourceReferences: connectedProjection.sourceReferences,
+    connectedTextFieldId: connectedProjection.connectedTextFieldId,
   }
 }
 
@@ -533,20 +541,6 @@ export const buildStoryboardSemanticKey = (args: { graphData: GraphData | null; 
   })
 }
 
-function resolveStoryboardRenderNode(args: {
-  node: GraphNode
-  connectedValuesByNodeId?: ReadonlyMap<string, FlowConnectedValuesBySchemaPath> | null
-}): GraphNode {
-  const id = readString(args.node.id)
-  if (!id) return args.node
-  const connectedValuesBySchemaPath = args.connectedValuesByNodeId?.get(id)
-  if (!connectedValuesBySchemaPath) return args.node
-  return applyConnectedValuesToNodeForRender({
-    node: args.node,
-    connectedValuesBySchemaPath,
-  })
-}
-
 export const buildStoryboardBoardModel = (args: {
   graphData: GraphData | null
   graphRevision: number
@@ -569,11 +563,14 @@ export const buildStoryboardBoardModel = (args: {
         })
       : null
   )
-  const allCards = cardNodes.map((node, index) => buildCardModel(
-    resolveStoryboardRenderNode({ node, connectedValuesByNodeId }),
-    index,
-    stageTokensByLane,
-  ))
+  const allCards = cardNodes.map((node, index) => {
+    const connectedProjection = buildStoryboardCardConnectedProjection({
+      graphData: args.graphData,
+      node,
+      connectedValuesBySchemaPath: connectedValuesByNodeId?.get(readString(node.id)),
+    })
+    return buildCardModel(connectedProjection.renderNode, index, stageTokensByLane, connectedProjection)
+  })
   const cards = selectRenderableCards(allCards)
   const lanesById = new Map<string, StoryboardLaneModel>()
   for (const card of cards) {

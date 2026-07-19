@@ -35,6 +35,7 @@ export function readXrChoreographyGait(value: unknown, fallback: XrChoreographyG
 
 export function defaultXrChoreographyGait(category?: string, assetId?: string): XrChoreographyGait {
   if (String(assetId || '').includes('airplane') || String(assetId || '').includes('helicopter')) return 'flight'
+  if (String(assetId || '').includes('ball')) return 'wheeled'
   if (category === 'vehicles') return 'wheeled'
   if (category === 'props') return 'hold'
   return 'walk'

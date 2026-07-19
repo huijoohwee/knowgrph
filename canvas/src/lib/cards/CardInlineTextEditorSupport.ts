@@ -22,6 +22,7 @@ export type CardInlineTextEditorProps = {
   editorClassName?: string
   emptyClassName?: string
   markdownPreview?: boolean | 'auto'
+  markdownPresentationMode?: boolean
   markdownDocumentPath?: string
   markdownCommandMenus?: boolean
   markdownCommandContextText?: string

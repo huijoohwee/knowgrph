@@ -152,6 +152,7 @@ function buildRichMediaPanelTextualIframeSpec(args: {
   outputText: string
   outputSrcDoc: string
 }): NodeMediaSpec {
+  const interactive = args.interactive === true
   if (args.outputSrcDoc) {
     return {
       kind: 'iframe',
@@ -160,29 +161,21 @@ function buildRichMediaPanelTextualIframeSpec(args: {
         srcDoc: args.outputSrcDoc,
         title: readNodeTitle(args.node),
       }),
-      interactive: args.interactive === true,
+      interactive,
     }
   }
   const trimmed = args.outputText.trim()
-  if (trimmed) {
-    if (containsMarkdownPipeTable(trimmed)) {
-      return {
-        kind: 'iframe',
-        url: '',
-        interactive: args.interactive === true,
-      }
-    }
-    return {
-      kind: 'iframe',
-      url: '',
-      srcDoc: buildTextWidgetOutputSrcDoc({
-        title: readNodeTitle(args.node),
-        text: args.outputText,
-      }),
-      interactive: args.interactive === true,
-    }
+  const properties = (args.node.properties || {}) as Record<string, unknown>
+  const usesNativeMarkdownSurface = containsMarkdownPipeTable(trimmed) || readNodeFieldBoolean(args.node, properties, 'markdownPresentationMode')
+  if (!trimmed || usesNativeMarkdownSurface) {
+    return { kind: 'iframe', url: '', interactive }
   }
-  return { kind: 'iframe', url: '', interactive: args.interactive === true }
+  return {
+    kind: 'iframe',
+    url: '',
+    srcDoc: buildTextWidgetOutputSrcDoc({ title: readNodeTitle(args.node), text: args.outputText }),
+    interactive,
+  }
 }
 
 function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
@@ -225,6 +218,7 @@ function getCacheKey(node: GraphNode, props: Record<string, unknown>): string {
     read('text'),
     read('markdown'),
     read('richMediaActiveTab'),
+    read('markdownPresentationMode'),
     read('freezeConnectedOutput'),
   ]
     .map(v => String(v ?? ''))

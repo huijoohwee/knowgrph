@@ -7,6 +7,9 @@ import { createRoot } from 'react-dom/client'
 import { defaultSchema } from '@/lib/graph/schema'
 import { WidgetEditorPortHandles, orderFlowPortHandlesByCenterPriority, selectCenteredFlowPortHandle } from '@/components/StoryboardWidget/WidgetEditorPortHandles'
 import { PORT_HANDLE_MIN_VISUAL_SIZE_PX, readPortHandleUiMetrics } from '@/components/StoryboardWidget/portHandleUi'
+import { buildRichMediaPanelRegistryDraft } from '@/features/storyboard-widget-manager/richMediaPanelRegistryDraft'
+import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config.storyboard-widget'
+import type { JSONValue } from '@/lib/graph/types'
 
 export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'http://localhost' })
@@ -106,6 +109,99 @@ export const testFlowWidgetRendersPortHandleGutterWhenEnabled = async () => {
   }
 
   overlayRoot.unmount()
+
+  const richMediaHost = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(richMediaHost)
+  const richMediaRoot = createRoot(richMediaHost)
+  const richMediaRegistryEntry = {
+    ...buildRichMediaPanelRegistryDraft(),
+    id: 'rich-media-panel',
+    updatedAt: '2026-07-19T00:00:00.000Z',
+  }
+  const renderRichMediaHandles = (richMediaActiveTab: JSONValue, wrapProperties = false) => {
+    const properties = wrapProperties
+      ? {
+          key: 'properties',
+          type: 'object',
+          value: { richMediaActiveTab },
+        }
+      : { richMediaActiveTab }
+    richMediaRoot.render(
+      React.createElement(
+        'div',
+        { style: { position: 'relative', width: 360, height: 320 } },
+        React.createElement(WidgetEditorPortHandles, {
+          active: true,
+          node: {
+            id: 'rich-media-source',
+            type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+            properties,
+          },
+          schema,
+          edges: [],
+          registryEntries: [richMediaRegistryEntry],
+          forceEnabled: true,
+          strictHandleSet: true,
+          toolMode: 'select',
+          pendingEdgeSourceId: null,
+        }),
+      ),
+    )
+  }
+
+  renderRichMediaHandles('text')
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const textInput = richMediaHost.querySelector('button[data-kg-port-dir="in"]') as HTMLButtonElement | null
+  const textOutput = richMediaHost.querySelector('button[data-kg-port-dir="out"]') as HTMLButtonElement | null
+  if (!textInput || !textOutput) throw new Error('expected text Rich Media to render one input and one output rail')
+  if (textInput.dataset.kgPortKey !== 'output' || textOutput.dataset.kgPortKey !== 'output') {
+    throw new Error(`expected text Rich Media rails to expose output, got ${textInput.dataset.kgPortKey}/${textOutput.dataset.kgPortKey}`)
+  }
+  if (textInput.style.top !== '50%' || textOutput.style.top !== '50%') {
+    throw new Error(`expected text Rich Media rails at vertical middle, got ${textInput.style.top}/${textOutput.style.top}`)
+  }
+  if (!textInput.disabled || textOutput.disabled) {
+    throw new Error('expected text Rich Media input disabled and output enabled before edge drag')
+  }
+
+  renderRichMediaHandles('image')
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const imageInput = richMediaHost.querySelector('button[data-kg-port-dir="in"]') as HTMLButtonElement | null
+  const imageOutput = richMediaHost.querySelector('button[data-kg-port-dir="out"]') as HTMLButtonElement | null
+  if (imageInput?.dataset.kgPortKey !== 'imageUrl' || imageOutput?.dataset.kgPortKey !== 'imageUrl') {
+    throw new Error(`expected image Rich Media rails to expose imageUrl, got ${imageInput?.dataset.kgPortKey}/${imageOutput?.dataset.kgPortKey}`)
+  }
+
+  renderRichMediaHandles({ key: 'richMediaActiveTab', type: 'string', value: 'video' })
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const typedVideoInput = richMediaHost.querySelector('button[data-kg-port-dir="in"]') as HTMLButtonElement | null
+  const typedVideoOutput = richMediaHost.querySelector('button[data-kg-port-dir="out"]') as HTMLButtonElement | null
+  if (typedVideoInput?.dataset.kgPortKey !== 'videoUrl' || typedVideoOutput?.dataset.kgPortKey !== 'videoUrl') {
+    throw new Error(`expected typed video Rich Media rails to expose videoUrl, got ${typedVideoInput?.dataset.kgPortKey}/${typedVideoOutput?.dataset.kgPortKey}`)
+  }
+
+  renderRichMediaHandles('auto')
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const autoInput = richMediaHost.querySelector('button[data-kg-port-dir="in"]') as HTMLButtonElement | null
+  const autoOutput = richMediaHost.querySelector('button[data-kg-port-dir="out"]') as HTMLButtonElement | null
+  if (autoInput?.dataset.kgPortKey !== 'videoUrl' || autoOutput?.dataset.kgPortKey !== 'videoUrl') {
+    throw new Error(`expected auto Rich Media rails to retain centered videoUrl fallback, got ${autoInput?.dataset.kgPortKey}/${autoOutput?.dataset.kgPortKey}`)
+  }
+
+  renderRichMediaHandles({ key: 'richMediaActiveTab', type: 'string', value: 'text' }, true)
+  await new Promise<void>(resolve => setTimeout(resolve, 20))
+
+  const wrappedTextInput = richMediaHost.querySelector('button[data-kg-port-dir="in"]') as HTMLButtonElement | null
+  const wrappedTextOutput = richMediaHost.querySelector('button[data-kg-port-dir="out"]') as HTMLButtonElement | null
+  if (wrappedTextInput?.dataset.kgPortKey !== 'output' || wrappedTextOutput?.dataset.kgPortKey !== 'output') {
+    throw new Error(`expected outer-wrapped text Rich Media rails to expose output, got ${wrappedTextInput?.dataset.kgPortKey}/${wrappedTextOutput?.dataset.kgPortKey}`)
+  }
+
+  richMediaRoot.unmount()
 }
 
 export const testFlowWidgetOutputPortHandleDomOrderPrefersCenterLane = () => {
@@ -151,8 +247,8 @@ export const testFlowWidgetOutputPortHandleDomOrderPrefersCenterLane = () => {
   if (!registrySection.includes('if (!portHandlesVisible) return null') || !registrySection.includes('const visiblePortRows = showPortRows && portHandlesVisible ? portRows : []')) {
     throw new Error('expected registry handle visibility to be independent from interaction enablement')
   }
-  if (!overlayHandles.includes('!props.selected') || overlayHandles.includes('const visible =')) {
-    throw new Error('expected Card and Rich Media overlay handles to mount only with selection chrome')
+  if (!overlayHandles.includes('(!props.selected && !isPendingTarget)') || !overlayHandles.includes('inputOnly={isPendingTarget && !props.selected}')) {
+    throw new Error('expected Card and Rich Media overlay handles to mount input-only targets during explicit edge drag')
   }
   if (!panel.includes('forceEnabled')) {
     throw new Error('expected the Rich Media outer pair to remain visible independently from schema interaction state')

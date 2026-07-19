@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { resolveActiveMarkdownBaseGraph } from '@/hooks/active-graph-data/useActiveGraphData.impl'
 import {
+  buildCanvasAppliedMarkdownDocumentIdentityKey,
   buildCanvasAppliedMarkdownDocumentSemanticKey,
   shouldRefreshCanvasAppliedMarkdownDocument,
   type CanvasAppliedMarkdownDocument,
@@ -224,6 +225,19 @@ export function testSourceFilesSwitchingRefreshesCanvasAppliedDocumentIdentityWi
   }
   if (!shouldRefreshCanvasAppliedMarkdownDocument({ latest: first, next: switched, applyViewPreset: false })) {
     throw new Error('expected Source Files document switching to refresh canvas-applied markdown identity even without a view-preset replay')
+  }
+  const firstIdentityKey = buildCanvasAppliedMarkdownDocumentIdentityKey(first)
+  const editedFirstIdentityKey = buildCanvasAppliedMarkdownDocumentIdentityKey(editedFirst)
+  const switchedIdentityKey = buildCanvasAppliedMarkdownDocumentIdentityKey(switched)
+  const switchedSourceIdentityKey = buildCanvasAppliedMarkdownDocumentIdentityKey({
+    ...first,
+    sourceUrl: 'workspace:/docs/alternate-video-demo.md',
+  })
+  if (firstIdentityKey !== editedFirstIdentityKey) {
+    throw new Error('expected same-document text mutation to preserve Storyboard draft document identity')
+  }
+  if (firstIdentityKey === switchedIdentityKey || firstIdentityKey === switchedSourceIdentityKey) {
+    throw new Error('expected a different applied document name or source URL to advance Storyboard draft document identity')
   }
 }
 

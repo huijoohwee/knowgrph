@@ -35,7 +35,7 @@ export function resolveMarkdownWorkspaceBootstrapActivePath(args: {
     const startupPath = resolveWorkspaceStartupActivePath({
       workspaceFilePaths: args.entriesIndex.filePaths,
       activePath: args.activePath,
-      preferValidationSeedForDefaultFamily: true,
+      preferDefaultStarter: true,
       forceValidationSeedIfPresent: preferCustomValidationSeed,
     })
     const canonicalStartupPath = canonicalize(startupPath)

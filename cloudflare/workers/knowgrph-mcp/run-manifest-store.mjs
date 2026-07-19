@@ -45,6 +45,15 @@ export {
 } from "./run-manifest/persistence.mjs";
 
 export {
+  RUN_NOTE_TOOL_NAME,
+  RUN_NOTE_EXECUTION_META_KEY,
+  RUN_NOTE_RECEIPT_SCHEMA,
+  RUN_NOTE_TOOL_DEFINITION,
+  RunNoteExecutionStore,
+  executeRunNoteThroughNamespace,
+} from "./run-note-execution.mjs";
+
+export {
   executeAndPersistDirector,
   RUN_MANIFEST_READBACK_PATH_PREFIX,
   dispatchKnowgrphMcpToolCall,

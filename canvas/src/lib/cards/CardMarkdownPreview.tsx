@@ -158,6 +158,7 @@ export function CardMarkdownPreview({
   richMediaDataAttrs = false,
   previewScrollable = false,
   inlineChipDensity = 'regular',
+  markdownPresentationMode = false,
 }: {
   markdownText: string
   activeDocumentPath: string
@@ -168,14 +169,15 @@ export function CardMarkdownPreview({
   richMediaDataAttrs?: boolean
   previewScrollable?: boolean
   inlineChipDensity?: 'regular' | 'compact'
+  markdownPresentationMode?: boolean
 }) {
   const sourceText = inlineChipDensity === 'compact'
     ? normalizeCardInlineMediaSoftLineBreaks(String(markdownText || '')).trim()
     : String(markdownText || '')
   const splitPreview = React.useMemo(() => splitCardMarkdownPreviewInlineParts(sourceText), [sourceText])
   const previewText = splitPreview.text
-  const renderPlainPreviewText = previewText && !hasCardMarkdownPreviewSyntax(previewText)
-  const renderInlineMediaPreview = splitPreview.hasMedia && !hasCardMarkdownPreviewSyntax(previewText)
+  const renderPlainPreviewText = !markdownPresentationMode && previewText && !hasCardMarkdownPreviewSyntax(previewText)
+  const renderInlineMediaPreview = !markdownPresentationMode && splitPreview.hasMedia && !hasCardMarkdownPreviewSyntax(previewText)
   const rootTextMetricsClassName = inlineChipDensity === 'compact'
     ? 'min-w-0 w-full [font-size:inherit] [line-height:inherit]'
     : 'min-w-0 w-full text-xs leading-5'
@@ -200,7 +202,7 @@ export function CardMarkdownPreview({
             markdownTokenStoreSync={false}
             highlightedLineRange={null}
             markdownWordWrap
-            markdownPresentationMode={false}
+            markdownPresentationMode={markdownPresentationMode}
             markdownTextHighlight={false}
             uiPanelTextFontClass={uiPanelTextFontClass}
             uiPanelMonospaceTextClass={uiPanelMonospaceTextClass}
@@ -210,7 +212,7 @@ export function CardMarkdownPreview({
             showSidebar={false}
             markdownViewerWidthMode="wide"
             contentClassName={CARD_MARKDOWN_CONTENT_CLASS_NAME}
-            markdownCardPreviewMode
+            markdownCardPreviewMode={!markdownPresentationMode}
             markdownForcePlainTables
           />
         </React.Suspense>

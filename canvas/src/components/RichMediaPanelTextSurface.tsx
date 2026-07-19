@@ -5,6 +5,7 @@ import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 import { CARD_TEXT_SURFACE_COLUMN_CLASS_NAME, CARD_TEXT_SURFACE_EDIT_CLASS_NAME, CARD_TEXT_SURFACE_SCROLL_CLASS_NAME, CARD_TEXT_SURFACE_TEXT_CLASS_NAME, CARD_TEXT_SURFACE_VIEW_CLASS_NAME } from '@/lib/cards/cardTextSurfaceFrame'
 import { UI_VIEW_EDIT_SURFACE_AREA_CLASS_NAME, UI_VIEW_EDIT_SURFACE_DATA_ATTRIBUTES } from '@/lib/ui/surfaceClasses'
 import { cn } from '@/lib/utils'
+import { RichMediaOutputVersionSelector } from './RichMediaOutputVersionSelector'
 import type { RichMediaPanelProps } from './RichMediaPanel.types'
 import type { RichMediaPanelModel } from './useRichMediaPanelModel'
 
@@ -49,6 +50,13 @@ export function RichMediaPanelTextSurface(args: {
         onPointerDownCapture={model.panelTextEditable ? event => event.stopPropagation() : undefined}
         onWheelCapture={model.panelTextEditable ? event => event.stopPropagation() : undefined}
       >
+        {!model.showStoryboardWidgetChrome ? (
+          <RichMediaOutputVersionSelector
+            panel={props.panel}
+            onPanelChange={props.onPanelChange}
+            placement="body"
+          />
+        ) : null}
         <section className={CARD_TEXT_SURFACE_SCROLL_CLASS_NAME} data-kg-canvas-pointer-ignore="true" data-kg-canvas-wheel-ignore="true" data-kg-media-scroll-surface="1" data-kg-rich-media-card-text-scroll="1">
           <CardInlineTextEditor
             value={model.panelDisplayText}
@@ -59,7 +67,8 @@ export function RichMediaPanelTextSurface(args: {
             multiline
             displayLineClamp="none"
             rows={8}
-            markdownPreview="auto"
+            markdownPreview={props.panel?.markdownPresentationMode === true ? true : 'auto'}
+            markdownPresentationMode={props.panel?.markdownPresentationMode === true}
             markdownDocumentPath={model.panelMarkdownDocumentPath}
             markdownCommandMenus={model.panelTextEditable}
             editorSurface="viewer"

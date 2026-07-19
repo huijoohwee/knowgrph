@@ -14,7 +14,7 @@ import {
   resolveExistingWorkspaceStartupCanonicalPath,
   resolveWorkspaceStartupActivePathToApply,
   resolveWorkspaceStartupCanonicalPath,
-  shouldFallbackWorkspaceStartupToReadme,
+  shouldInitializeWorkspaceStartupDefaultStarter,
 } from '@/features/source-files/sourceFilesRuntimeStartup'
 import { invalidateCachedWorkspaceActiveEntrySnapshot } from '@/features/source-files/workspaceActiveEntryCache'
 import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
@@ -35,6 +35,7 @@ import {
   TEST_VALIDATION_WORKSPACE_SEED_BASENAME,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   WORKSPACE_README_SEED_PATH,
+  XR_PHYSICS_WORKSPACE_SEED_PATH,
   resolveWorkspaceStartupActivePath,
   sortWorkspaceEntriesForExplorer,
 } from '@/features/workspace-fs/workspaceFs'
@@ -179,19 +180,18 @@ export async function testWorkspaceEnsureSeedKeepsUserDeletedDefaultSeedEntryRem
     restore()
   }
 }
-
-export function testWorkspaceStartupActivePathPrefersValidationSeedForDefaultSeedFamily() {
+export function testWorkspaceStartupActivePathPrefersCanonicalXrStarterForDefaultSeedFamily() {
   const next = resolveWorkspaceStartupActivePath({
     workspaceFilePaths: [
       WORKSPACE_README_SEED_PATH,
       TEST_VALIDATION_WORKSPACE_SEED_PATH,
-      GEOSPATIAL_WORKSPACE_SEED_PATH,
+      XR_PHYSICS_WORKSPACE_SEED_PATH,
     ],
-    activePath: TEST_VALIDATION_WORKSPACE_SEED_PATH,
-    preferValidationSeedForDefaultFamily: true,
+    activePath: null,
+    preferDefaultStarter: true,
   })
-  if (next !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
-    throw new Error(`expected default seed startup to prefer validation seed, got ${String(next)}`)
+  if (next !== XR_PHYSICS_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected default seed startup to prefer the canonical XR starter, got ${String(next)}`)
   }
 }
 
@@ -203,7 +203,7 @@ export function testWorkspaceStartupActivePathPrefersValidationSeedForCustomVali
       GEOSPATIAL_WORKSPACE_SEED_PATH,
     ],
     activePath: null,
-    preferValidationSeedForDefaultFamily: true,
+    preferDefaultStarter: true,
   })
   if (next !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
     throw new Error(`expected custom validation target startup to prefer validation seed, got ${String(next)}`)
@@ -218,7 +218,7 @@ export function testWorkspaceStartupActivePathPreservesExplicitDefaultSeedSelect
       GEOSPATIAL_WORKSPACE_SEED_PATH,
     ],
     activePath: WORKSPACE_README_SEED_PATH,
-    preferValidationSeedForDefaultFamily: true,
+    preferDefaultStarter: true,
   })
   if (next !== WORKSPACE_README_SEED_PATH) {
     throw new Error(`expected explicit default seed selection to be preserved, got ${String(next)}`)
@@ -234,7 +234,7 @@ export function testWorkspaceStartupActivePathForcesValidationSeedWhenCustomTarg
       '/notes/knowgrph-pitchdeck.md',
     ],
     activePath: '/notes/knowgrph-pitchdeck.md' as never,
-    preferValidationSeedForDefaultFamily: true,
+    preferDefaultStarter: true,
     forceValidationSeedIfPresent: true,
   })
   if (next !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
@@ -649,20 +649,20 @@ export async function testWorkspaceBootstrapMaterializeSharedSnapshotHelpersCent
     throw new Error(`expected initial startup active-path apply to initialize when no newer selection exists, got ${String(defaultStartupApply)}`)
   }
 
-  if (shouldFallbackWorkspaceStartupToReadme({
+  if (shouldInitializeWorkspaceStartupDefaultStarter({
     activePath: '/docs/selected.md' as never,
     hasDesiredActiveText: false,
     preferCustomValidationSeed: false,
   })) {
-    throw new Error('expected startup README fallback to preserve an explicit active path while its text snapshot hydrates')
+    throw new Error('expected startup default initialization to preserve an explicit active path while its text snapshot hydrates')
   }
 
-  if (!shouldFallbackWorkspaceStartupToReadme({
+  if (!shouldInitializeWorkspaceStartupDefaultStarter({
     activePath: null,
     hasDesiredActiveText: false,
     preferCustomValidationSeed: false,
   })) {
-    throw new Error('expected startup README fallback to initialize only when no active path has been selected')
+    throw new Error('expected startup default initialization to run only when no active path has been selected')
   }
 
   const startupActivePath = '/docs/startup-active.md'

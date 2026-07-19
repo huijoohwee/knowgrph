@@ -2,8 +2,10 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   readXrMotionReferenceRuntime,
   selectXrMotionReferenceActor,
+  selectXrMotionReferenceShotTarget,
   type XrMotionReferenceRuntimeSnapshot,
 } from './xrMotionReferenceRuntime'
+import { resolveXrShotTarget } from './xrShotTargets'
 
 const cleanId = (value: unknown): string => String(value || '').trim()
 
@@ -19,7 +21,8 @@ export function readBoundXrSelectedActorId(): string {
 export function selectBoundXrActor(actorIdValue: string): XrMotionReferenceRuntimeSnapshot {
   const actorId = cleanId(actorIdValue)
   const state = useGraphStore.getState()
-  const runtime = selectXrMotionReferenceActor(actorId)
+  selectXrMotionReferenceActor(actorId)
+  const runtime = selectXrMotionReferenceShotTarget(actorId)
   if (!runtime.plan.cast.some(track => track.actorId === actorId)) return runtime
   const actorIsGraphNode = Boolean(state.graphData?.nodes?.some(node => cleanId(node.id) === actorId))
   if (actorIsGraphNode) {
@@ -30,10 +33,21 @@ export function selectBoundXrActor(actorIdValue: string): XrMotionReferenceRunti
   return runtime
 }
 
+export function selectBoundXrShotTarget(targetIdValue: string): XrMotionReferenceRuntimeSnapshot {
+  const targetId = cleanId(targetIdValue)
+  const runtime = readXrMotionReferenceRuntime()
+  const target = resolveXrShotTarget(runtime.plan, targetId)
+  if (!target) return runtime
+  if (target.castActorId) return selectBoundXrActor(target.castActorId)
+  const state = useGraphStore.getState()
+  if (cleanId(state.selectedNodeId)) state.selectNode(null)
+  return selectXrMotionReferenceShotTarget(target.id)
+}
+
 export function synchronizeBoundXrActorFromGraphSelection(): XrMotionReferenceRuntimeSnapshot {
   const selectedNodeId = cleanId(useGraphStore.getState().selectedNodeId)
   const runtime = readXrMotionReferenceRuntime()
-  return selectedNodeId && runtime.plan.cast.some(track => track.actorId === selectedNodeId)
-    ? selectXrMotionReferenceActor(selectedNodeId)
-    : runtime
+  if (!selectedNodeId || !runtime.plan.cast.some(track => track.actorId === selectedNodeId)) return runtime
+  selectXrMotionReferenceActor(selectedNodeId)
+  return selectXrMotionReferenceShotTarget(selectedNodeId)
 }

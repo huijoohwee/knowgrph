@@ -5,9 +5,7 @@ import {
   resolveXrMotionReferenceStage,
   sampleXrMotionReferenceMarks,
   XR_MOTION_REFERENCE_MAX_CAMERA_MARKS,
-  XR_MOTION_REFERENCE_MAX_CAST_TRACKS,
   XR_MOTION_REFERENCE_MAX_CAST_MARKS,
-  XR_MOTION_REFERENCE_MAX_SUBJECTS,
   type XrMotionReferencePlan,
   type XrMotionReferenceCameraRig,
   type XrMotionReferenceStageId,
@@ -20,6 +18,7 @@ import {
   type XrChoreographyEasing,
   type XrChoreographyGait,
 } from './xrChoreographyEasing'
+import type { XrCameraMoveId } from './xrCameraMoveCatalog'
 import {
   xrMotionReferenceCastTrackRecord as castTrackRecord,
   xrMotionReferencePlanRecord as planRecord,
@@ -30,7 +29,6 @@ import {
   buildCastMarkChoreographyEdit,
 } from './xrMotionReferenceChoreographyEdits'
 import { resolveExistingXrMotionReferenceMarkSelection, resolveRetimedCameraMarkSelection, resolveRetimedCastMarkSelection, type XrMotionReferenceMarkSelection } from './xrMotionReferenceSelection'
-import { resolveXrSceneLibraryAsset } from '@/features/three/xrSceneLibrary'
 import {
   buildXrAnimationActionPath,
   isXrAnimationPresetId,
@@ -39,16 +37,28 @@ import {
   type XrAnimationAssignment,
   type XrAnimationPresetId,
 } from '@/features/three/xrAnimationCatalog'
+import {
+  buildXrMotionReferenceSubjectAddEdit,
+  buildXrMotionReferenceSubjectAssetEdit,
+  buildXrMotionReferenceSubjectLabelEdit,
+  buildXrMotionReferenceSubjectRemoveEdit,
+  buildXrMotionReferenceSubjectTransformEdit,
+  type XrMotionReferenceSubjectEdit,
+} from './xrMotionReferenceSubjectEdits'
+import {
+  resolveDefaultXrShotTargetId,
+  resolveXrShotTarget,
+} from './xrShotTargets'
 export type { XrMotionReferenceMarkSelection } from './xrMotionReferenceSelection'
 export type XrMotionReferenceRuntimeSnapshot = Readonly<{
   sceneKey: string
   sourceSignature: string
   plan: XrMotionReferencePlan
   selectedActorId: string
+  selectedShotTargetId: string
   selectedCameraRig: XrMotionReferenceCameraRig
   selectedMark: XrMotionReferenceMarkSelection
   castMarkArmed: boolean
-  viewportControlActive: boolean
   playheadSeconds: number
   dirty: boolean
   revision: number
@@ -65,10 +75,10 @@ let snapshot = freezeSnapshot({
   sourceSignature: '',
   plan: readXrMotionReferencePlan(null, []),
   selectedActorId: '',
+  selectedShotTargetId: '',
   selectedCameraRig: 'dolly',
   selectedMark: null,
   castMarkArmed: false,
-  viewportControlActive: false,
   playheadSeconds: 0,
   dirty: false,
   revision: 0,
@@ -99,10 +109,12 @@ function updatePlan(
   const selectedActorId = plan.cast.some(track => track.actorId === snapshot.selectedActorId)
     ? snapshot.selectedActorId
     : plan.cast[0]?.actorId || ''
+  const selectedShotTargetId = resolveDefaultXrShotTargetId(plan, snapshot.selectedShotTargetId, selectedActorId)
   return publish({
     ...snapshot,
     plan,
     selectedActorId,
+    selectedShotTargetId,
     selectedMark: resolveExistingXrMotionReferenceMarkSelection(plan, resolveSelection ? resolveSelection(plan) : snapshot.selectedMark),
     playheadSeconds: Math.min(snapshot.playheadSeconds, plan.durationSeconds),
     dirty: true,
@@ -141,11 +153,13 @@ export function hydrateXrMotionReferenceRuntime(args: {
     const selectedActorId = plan.cast.some(track => track.actorId === snapshot.selectedActorId)
       ? snapshot.selectedActorId
       : plan.cast[0]?.actorId || ''
+    const selectedShotTargetId = resolveDefaultXrShotTargetId(plan, snapshot.selectedShotTargetId, selectedActorId)
     return publish({
       ...snapshot,
       sourceSignature: nextSourceSignature,
       plan,
       selectedActorId,
+      selectedShotTargetId,
       selectedMark: resolveExistingXrMotionReferenceMarkSelection(plan, snapshot.selectedMark),
       dirty: true,
     })
@@ -155,15 +169,16 @@ export function hydrateXrMotionReferenceRuntime(args: {
   const selectedActorId = plan.cast.some(track => track.actorId === snapshot.selectedActorId)
     ? snapshot.selectedActorId
     : plan.cast[0]?.actorId || ''
+  const selectedShotTargetId = resolveDefaultXrShotTargetId(plan, snapshot.selectedShotTargetId, selectedActorId)
   return publish({
     sceneKey: String(args.sceneKey || ''),
     sourceSignature: nextSourceSignature,
     plan,
     selectedActorId,
+    selectedShotTargetId,
     selectedCameraRig: snapshot.selectedCameraRig,
     selectedMark: null,
     castMarkArmed: false,
-    viewportControlActive: false,
     playheadSeconds: 0,
     dirty: false,
   })
@@ -211,72 +226,42 @@ export function setXrMotionReferenceFps(fps: number): XrMotionReferenceRuntimeSn
   return updatePlan({ ...planRecord(snapshot.plan), fps })
 }
 
-function nextSubjectPlacement(index: number): XrMotionReferenceVector {
-  const stage = resolveXrMotionReferenceStage(snapshot.plan.stageId)
-  const columns = Math.max(2, Math.min(6, Math.floor(stage.sizeMeters[0] / 4)))
-  const column = index % columns
-  const row = Math.floor(index / columns)
-  const xStep = Math.min(3.2, stage.sizeMeters[0] / Math.max(columns + 1, 1))
-  const zStep = Math.min(3.2, stage.sizeMeters[1] / 5)
-  return [
-    Number(((column - (columns - 1) / 2) * xStep).toFixed(3)),
-    0,
-    Number((Math.min(stage.sizeMeters[1] * 0.32, row * zStep) - stage.sizeMeters[1] * 0.16).toFixed(3)),
-  ]
-}
-
-function nextSubjectId(assetId: string): string {
-  const prefix = `xr-subject:${assetId}:`
-  const used = new Set(snapshot.plan.subjects.map(subject => subject.id))
-  let ordinal = 1
-  while (used.has(`${prefix}${ordinal}`) && ordinal <= XR_MOTION_REFERENCE_MAX_SUBJECTS) ordinal += 1
-  return `${prefix}${ordinal}`
+function applySubjectEdit(edit: XrMotionReferenceSubjectEdit | null): XrMotionReferenceRuntimeSnapshot {
+  if (!edit) return snapshot
+  if (edit.clearArchivedActorId) dirtyCastArchive.delete(edit.clearArchivedActorId)
+  return updatePlan(edit.value)
 }
 
 export function addXrMotionReferenceSubject(args: {
   assetId: string
   label?: string
 }): XrMotionReferenceRuntimeSnapshot {
-  if (snapshot.plan.subjects.length >= XR_MOTION_REFERENCE_MAX_SUBJECTS) return snapshot
-  const asset = resolveXrSceneLibraryAsset(args.assetId)
-  const plan = planRecord(snapshot.plan)
-  const id = nextSubjectId(asset.id)
-  const label = String(args.label || asset.label).trim().slice(0, 80) || asset.label
-  const position = nextSubjectPlacement(snapshot.plan.subjects.length)
-  const subjects = Array.isArray(plan.subjects) ? plan.subjects.slice() : []
-  subjects.push({ id, assetId: asset.id, label, color: asset.defaultColor, position: [...position], rotationYDegrees: 0, scale: 1 })
-  const cast = Array.isArray(plan.cast) ? plan.cast.slice() : []
-  if (asset.mobile && cast.length < XR_MOTION_REFERENCE_MAX_CAST_TRACKS) {
-    cast.push({ actorId: id, label, animation: null, marks: [{ timeSeconds: 0, position: [...position], transition: 'linear', gait: defaultXrChoreographyGait(asset.category, asset.id) }] })
-  }
-  return updatePlan({ ...plan, subjects, cast })
+  return applySubjectEdit(buildXrMotionReferenceSubjectAddEdit(snapshot.plan, args))
 }
 
 export function setXrMotionReferenceSubjectLabel(subjectIdValue: string, nextLabelValue: string): XrMotionReferenceRuntimeSnapshot {
-  const subjectId = String(subjectIdValue || '').trim()
-  const nextLabel = String(nextLabelValue || '').trim().slice(0, 80)
-  if (!subjectId || !nextLabel) return snapshot
-  const plan = planRecord(snapshot.plan)
-  const subjects = snapshot.plan.subjects.map(subject => (
-    subject.id === subjectId ? { ...subject, label: nextLabel } : subject
-  ))
-  if (!subjects.some(subject => subject.id === subjectId)) return snapshot
-  const cast = snapshot.plan.cast.map(track => ({
-    ...castTrackRecord(track),
-    label: track.actorId === subjectId ? nextLabel : track.label,
-  }))
-  return updatePlan({ ...plan, subjects, cast })
+  return applySubjectEdit(buildXrMotionReferenceSubjectLabelEdit(snapshot.plan, subjectIdValue, nextLabelValue))
+}
+
+export function setXrMotionReferenceSubjectAsset(args: Readonly<{
+  subjectId: string
+  assetId: string
+}>): XrMotionReferenceRuntimeSnapshot {
+  return applySubjectEdit(buildXrMotionReferenceSubjectAssetEdit(snapshot.plan, args))
+}
+
+export function setXrMotionReferenceSubjectTransform(args: Readonly<{
+  subjectId: string
+  position?: XrMotionReferenceVector
+  rotationYDegrees?: number
+  scale?: number
+  color?: string
+}>): XrMotionReferenceRuntimeSnapshot {
+  return applySubjectEdit(buildXrMotionReferenceSubjectTransformEdit(snapshot.plan, args))
 }
 
 export function removeXrMotionReferenceSubject(subjectIdValue: string): XrMotionReferenceRuntimeSnapshot {
-  const subjectId = String(subjectIdValue || '').trim()
-  if (!snapshot.plan.subjects.some(subject => subject.id === subjectId)) return snapshot
-  const plan = planRecord(snapshot.plan)
-  const subjects = snapshot.plan.subjects.filter(subject => subject.id !== subjectId)
-  const cast = snapshot.plan.cast
-    .filter(track => track.actorId !== subjectId)
-    .map(castTrackRecord)
-  return updatePlan({ ...plan, subjects, cast })
+  return applySubjectEdit(buildXrMotionReferenceSubjectRemoveEdit(snapshot.plan, subjectIdValue))
 }
 
 export function setXrMotionReferencePlayhead(timeSeconds: number): XrMotionReferenceRuntimeSnapshot {
@@ -287,11 +272,22 @@ export function setXrMotionReferencePlayhead(timeSeconds: number): XrMotionRefer
 
 export function selectXrMotionReferenceActor(actorId: string): XrMotionReferenceRuntimeSnapshot {
   const normalized = String(actorId || '').trim()
-  if (!snapshot.plan.cast.some(track => track.actorId === normalized) || normalized === snapshot.selectedActorId) return snapshot
+  if (!snapshot.plan.cast.some(track => track.actorId === normalized)) return snapshot
+  if (normalized === snapshot.selectedActorId && normalized === snapshot.selectedShotTargetId) return snapshot
   const selectedMark = snapshot.selectedMark?.kind === 'cast' && snapshot.selectedMark.actorId !== normalized
     ? null
     : snapshot.selectedMark
-  return publish({ ...snapshot, selectedActorId: normalized, selectedMark })
+  return publish({ ...snapshot, selectedActorId: normalized, selectedShotTargetId: normalized, selectedMark })
+}
+
+export function selectXrMotionReferenceShotTarget(targetIdValue: string): XrMotionReferenceRuntimeSnapshot {
+  const targetId = String(targetIdValue || '').trim()
+  if (!resolveXrShotTarget(snapshot.plan, targetId) || targetId === snapshot.selectedShotTargetId) return snapshot
+  const selectedMark = snapshot.selectedMark?.kind === 'camera'
+    && snapshot.plan.camera.some(mark => mark.id === snapshot.selectedMark?.markId && mark.anchorId === targetId)
+    ? snapshot.selectedMark
+    : null
+  return publish({ ...snapshot, selectedShotTargetId: targetId, selectedMark })
 }
 
 export function selectXrMotionReferenceCastMark(
@@ -309,15 +305,22 @@ export function selectXrMotionReferenceCastMark(
   return publish({
     ...snapshot,
     selectedActorId: actorId,
+    selectedShotTargetId: actorId,
     selectedMark: Object.freeze({ kind: 'cast', actorId, markId }),
   })
 }
 
 export function selectXrMotionReferenceCameraMark(markIdValue: string): XrMotionReferenceRuntimeSnapshot {
   const markId = String(markIdValue || '').trim()
-  if (!snapshot.plan.camera.some(mark => mark.id === markId)) return snapshot
-  if (snapshot.selectedMark?.kind === 'camera' && snapshot.selectedMark.markId === markId) return snapshot
-  return publish({ ...snapshot, selectedMark: Object.freeze({ kind: 'camera', markId }) })
+  const mark = snapshot.plan.camera.find(candidate => candidate.id === markId)
+  if (!mark) return snapshot
+  const selectedShotTargetId = resolveXrShotTarget(snapshot.plan, mark.anchorId)
+    ? mark.anchorId
+    : snapshot.selectedShotTargetId
+  if (snapshot.selectedMark?.kind === 'camera'
+    && snapshot.selectedMark.markId === markId
+    && snapshot.selectedShotTargetId === selectedShotTargetId) return snapshot
+  return publish({ ...snapshot, selectedShotTargetId, selectedMark: Object.freeze({ kind: 'camera', markId }) })
 }
 
 export function setXrMotionReferenceCameraRig(rig: XrMotionReferenceCameraRig): XrMotionReferenceRuntimeSnapshot {
@@ -333,12 +336,6 @@ export function setXrMotionReferenceCastMarkArmed(armed: boolean): XrMotionRefer
 
 export function toggleXrMotionReferenceCastMarkArmed(): XrMotionReferenceRuntimeSnapshot {
   return setXrMotionReferenceCastMarkArmed(!snapshot.castMarkArmed)
-}
-
-export function setXrMotionReferenceViewportControlActive(active: boolean): XrMotionReferenceRuntimeSnapshot {
-  const viewportControlActive = active === true
-  if (viewportControlActive === snapshot.viewportControlActive) return snapshot
-  return publish({ ...snapshot, viewportControlActive })
 }
 
 export function setXrMotionReferenceCastMark(args: {
@@ -531,6 +528,7 @@ export function setXrMotionReferenceCameraMark(args: {
   timeSeconds: number
   anchorId: string
   settings: StrybldrCameraSettings
+  moveId?: XrCameraMoveId
   rig?: XrMotionReferenceCameraRig
   easing?: XrChoreographyEasing
 }): XrMotionReferenceRuntimeSnapshot {
@@ -542,6 +540,7 @@ export function setXrMotionReferenceCameraMark(args: {
   camera.push({
     timeSeconds: args.timeSeconds,
     anchorId: String(args.anchorId || '').trim(),
+    moveId: args.moveId || 'custom',
     rig,
     easing: args.easing || defaultXrCameraEasing(rig),
     settings: { ...args.settings },
@@ -556,6 +555,7 @@ export function removeXrMotionReferenceCameraMark(markId: string): XrMotionRefer
     .map(mark => ({
       timeSeconds: mark.timeSeconds,
       anchorId: mark.anchorId,
+      moveId: mark.moveId,
       rig: mark.rig,
       easing: mark.easing,
       settings: { ...mark.settings },
@@ -571,6 +571,7 @@ export function retimeXrMotionReferenceCameraMark(markId: string, timeSeconds: n
   const camera = snapshot.plan.camera.map(mark => ({
     timeSeconds: mark.id === markId ? timeSeconds : mark.timeSeconds,
     anchorId: mark.anchorId,
+    moveId: mark.moveId,
     rig: mark.rig,
     easing: mark.easing,
     settings: { ...mark.settings },
@@ -589,8 +590,8 @@ export function setXrMotionReferenceCastMarkChoreography(args: {
   return edit ? updatePlan(edit) : snapshot
 }
 
-export function setXrMotionReferenceCameraMarkEasing(markId: string, easing: XrChoreographyEasing): XrMotionReferenceRuntimeSnapshot {
-  const edit = buildCameraMarkChoreographyEdit(snapshot.plan, markId, easing)
+export function setXrMotionReferenceCameraMarkChoreography(args: Readonly<{ markId: string; easing?: XrChoreographyEasing; settings?: StrybldrCameraSettings }>): XrMotionReferenceRuntimeSnapshot {
+  const edit = buildCameraMarkChoreographyEdit(snapshot.plan, args)
   return edit ? updatePlan(edit) : snapshot
 }
 

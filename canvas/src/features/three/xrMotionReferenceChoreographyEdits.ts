@@ -1,5 +1,9 @@
 import type { XrMotionReferencePlan, XrMotionReferenceVector } from './xrMotionReferenceModel'
 import {
+  readStrybldrCameraSettings,
+  type StrybldrCameraSettings,
+} from '@/features/strybldr/strybldrCamera'
+import {
   readXrChoreographyEasing,
   readXrChoreographyGait,
   type XrChoreographyEasing,
@@ -31,16 +35,22 @@ export function buildCastMarkChoreographyEdit(
 
 export function buildCameraMarkChoreographyEdit(
   plan: XrMotionReferencePlan,
-  markId: string,
-  easing: XrChoreographyEasing,
+  args: Readonly<{
+    markId: string
+    easing?: XrChoreographyEasing
+    settings?: StrybldrCameraSettings
+  }>,
 ): Record<string, unknown> | null {
-  if (!plan.camera.some(mark => mark.id === markId)) return null
+  if (!plan.camera.some(mark => mark.id === args.markId) || (!args.easing && !args.settings)) return null
   const camera = plan.camera.map(mark => ({
     timeSeconds: mark.timeSeconds,
     anchorId: mark.anchorId,
+    moveId: mark.moveId,
     rig: mark.rig,
-    easing: mark.id === markId ? readXrChoreographyEasing(easing) : mark.easing,
-    settings: { ...mark.settings },
+    easing: mark.id === args.markId && args.easing ? readXrChoreographyEasing(args.easing) : mark.easing,
+    settings: mark.id === args.markId && args.settings
+      ? readStrybldrCameraSettings(args.settings)
+      : { ...mark.settings },
   }))
   return { ...xrMotionReferencePlanRecord(plan), camera }
 }

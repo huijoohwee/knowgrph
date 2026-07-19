@@ -320,17 +320,42 @@ export const runNodeOnlyInteractionTests = async (results: TestResult[]) => {
     await execTest(
       results,
       'ui.three.xrObjectDrag.synchronousViewportOwnership',
-      modXrViewportControlsOwnership.testXrViewportControlsOwnershipPublishesSynchronously,
+      modXrViewportControlsOwnership.testXrObjectInputOwnershipPublishesSynchronously,
     )
     await execTest(
       results,
       'ui.three.xrObjectDrag.suppressesOrbitControls',
-      modXrViewportControlsOwnership.testXrObjectDragSuppressesOrbitControlsBeforePointerMove,
+      modXrViewportControlsOwnership.testThreeObjectDragSuppressesOrbitControlsBeforePointerMove,
+    )
+    await execTest(
+      results,
+      'ui.three.objectDrag.synchronousViewportOwnership',
+      modXrViewportControlsOwnership.testThreeObjectInputOwnershipPublishesSynchronously,
     )
     await execTest(
       results,
       'ui.three.xrObjectDrag.pointerOwnership',
       modXrViewportControlsOwnership.testXrViewportDragTerminationHonorsPointerOwnership,
+    )
+    await execTest(
+      results,
+      'ui.three.objectDrag.blocksNativeCameraHandlers',
+      modXrViewportControlsOwnership.testThreeObjectPointerEventsBlockNativeCameraHandlers,
+    )
+    await execTest(
+      results,
+      'ui.three.objectDrag.locksCameraPoseUntilRelease',
+      modXrViewportControlsOwnership.testThreeObjectCameraPoseRemainsLockedUntilRelease,
+    )
+    await execTest(
+      results,
+      'ui.three.viewportGesture.synchronousOwnership',
+      modXrViewportControlsOwnership.testThreeViewportGestureOwnershipPublishesSynchronously,
+    )
+    await execTest(
+      results,
+      'ui.three.viewportGesture.ownershipSpansSettledCommit',
+      modXrViewportControlsOwnership.testThreeViewportOwnershipSpansSettledCameraCommit,
     )
 
     const modSelectionNoDup = await import('../../__tests__/selectionNoDuplicateTocFocusRegression.test')

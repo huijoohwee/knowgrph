@@ -49,13 +49,13 @@ Do not collapse these labels into one generic `ready` claim.
 
 ## Current Repo Baseline
 
-As of 2026-07-10, the source-owned repo truth is:
+As of 2026-07-19, the source-owned repo truth is:
 
 | Claim area | Current state | Notes |
 | --- | --- | --- |
 | MainPanel Integrations provider universe | `documented` contract with browser-published signals in parts of the shared chat readiness surface | Canonical coverage should follow the Settings-backed provider universe, not only a narrowed demo subset |
 | MainPanel MCP Knowgrph-owned rows | Mixed `documented` and `browser-published` | Some rows are browser-readable readiness/setup surfaces rather than executable MCP routes |
-| External bridge ids `knowgrph.tool.search`, `knowgrph.tool.describe`, `knowgrph.tool.call` | `documented` planned targets | They must not be described as executable runtime owners until registered by a runtime surface |
+| External bridge ids `knowgrph.tool.catalog`, `knowgrph.tool.search`, `knowgrph.tool.describe`, `knowgrph.tool.call` | `runtime-executable` on local stdio; Dev browser bridge for approved artifact calls | The runtime exposes only opaque host-approved capabilities. External writes additionally require a digest-bound, expiring, single-use approval after a separate browser confirmation. This is not Prod or Cloudflare proof. |
 
 ## Release-Gate Checklist
 

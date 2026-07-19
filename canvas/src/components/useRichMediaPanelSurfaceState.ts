@@ -105,7 +105,10 @@ export function useRichMediaPanelSurfaceState(
   const storyboardWidgetOverlayProxyMode = props.storyboardWidgetInteractionMode === true
   const storyboardWidgetInteractionMode = storyboardWidgetOverlayProxyMode || storyboardWidgetFrontmatterDocumentMode
   const panelTextEditable = Boolean(
-    mediaState.panel && mediaState.panelSelectedTab === 'text' && typeof props.onPanelChange === 'function',
+    mediaState.panel
+    && mediaState.panelSelectedTab === 'text'
+    && (mediaState.panel.outputVersions?.length || 0) === 0
+    && typeof props.onPanelChange === 'function',
   )
   const showPanelTextSurface = Boolean(
     mediaState.panel

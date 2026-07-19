@@ -22,6 +22,45 @@ const buildIdentity = (
   catalogRevision: 'a'.repeat(40),
   catalogHydration: { status: 'fresh', attempts: 1 },
   catalogCounts: { slash: 78, hash: 94, at: 95 },
+  agentLiveProviderProof: {
+    schema: 'agent-live-provider-proof-summary/v1',
+    status: 'verified-bounded-live',
+    evidenceSchema: 'agent-live-provider-proof-contract/v1',
+    sourceStatus: 'runtime-ready-dev',
+    sourceRevision: 'a'.repeat(40),
+    proofRevision: 'd'.repeat(40),
+    sourcePath: 'docs/LIVE-AGENT-PROVIDER-PROOF.md',
+    sourceUrl: `https://github.com/huijoohwee/agentic-canvas-os/blob/${'d'.repeat(40)}/docs/LIVE-AGENT-PROVIDER-PROOF.md`,
+    model: 'gpt-5.6-sol',
+    reasoningEffort: 'low',
+    providerCalls: 3,
+    inputTokens: 576,
+    outputTokens: 53,
+    cachedInputTokens: 0,
+    estimatedCostUsd: 0.00447,
+    finalAnswerOwners: { delegation: 'manager', handoff: 'specialist' },
+    continuationContext: 'all_turns',
+    defaultWorkerConfigured: false,
+  },
+  progressiveAgentsReadiness: {
+    schema: 'progressive-agents-readiness-summary/v1',
+    status: 'runtime-ready-dev',
+    sourceRevision: 'a'.repeat(40),
+    sourcePath: 'docs/PROGRESSIVE-AGENTS.md',
+    sourceUrl: `https://github.com/huijoohwee/agentic-canvas-os/blob/${'a'.repeat(40)}/docs/PROGRESSIVE-AGENTS.md`,
+    contractSchema: 'progressive-agents-runtime-contract/v1',
+    runtimeScope: 'single-agent execution, tool-bearing agent execution, and explicit specialist workflow delegation',
+    runtimeOwner: '../agent-api/src/progressive-agents.js',
+    runtimeProof: '../__tests__/progressive-agents.test.mjs',
+    contractReady: true,
+    configured: false,
+    progressionPolicy: 'single-agent-then-tools-then-specialists',
+    growthStages: ['single-agent', 'tool-enabled-agent', 'specialist-workflow'],
+    externalSdkDependency: false,
+    providerExecutionStatus: 'unverified',
+    defaultWorkerConfigured: false,
+    deployPolicy: 'Dev-only until explicit operator approval',
+  },
   ...overrides,
 })
 
@@ -80,6 +119,53 @@ export async function testRuntimeIdentityAttestationBlocksMismatchReplayAndDupli
   })
   if (mismatchResult.status !== 'mismatch' || !mismatchResult.differences.includes('knowgrphRevision')) {
     throw new Error(`Expected exact SHA mismatch to fail closed, got ${JSON.stringify(mismatchResult)}`)
+  }
+
+  const proofMismatch = await buildEnvelope({
+    device: 'device-b',
+    runtimeInstanceId: 'runtime-proof',
+    identity: buildIdentity('device-b', {
+      agentLiveProviderProof: {
+        ...buildIdentity('device-b').agentLiveProviderProof,
+        proofRevision: 'e'.repeat(40),
+        sourceUrl: `https://github.com/huijoohwee/agentic-canvas-os/blob/${'e'.repeat(40)}/docs/LIVE-AGENT-PROVIDER-PROOF.md`,
+      },
+    }),
+  })
+  const proofMismatchResult = await verifyKnowgrphRuntimeIdentityAttestations({
+    sessionId: SESSION_ID,
+    challenge: CHALLENGE,
+    attestations: [matching, proofMismatch],
+    nowMs: NOW_MS + 1_000,
+  })
+  if (
+    proofMismatchResult.status !== 'mismatch'
+    || !proofMismatchResult.differences.includes('agentLiveProviderProof')
+  ) {
+    throw new Error(`Expected exact provider-proof SHA mismatch to fail closed, got ${JSON.stringify(proofMismatchResult)}`)
+  }
+
+  const readinessMismatch = await buildEnvelope({
+    device: 'device-b',
+    runtimeInstanceId: 'runtime-readiness',
+    identity: buildIdentity('device-b', {
+      progressiveAgentsReadiness: {
+        ...buildIdentity('device-b').progressiveAgentsReadiness,
+        runtimeScope: 'changed specialist workflow scope',
+      },
+    }),
+  })
+  const readinessMismatchResult = await verifyKnowgrphRuntimeIdentityAttestations({
+    sessionId: SESSION_ID,
+    challenge: CHALLENGE,
+    attestations: [matching, readinessMismatch],
+    nowMs: NOW_MS + 1_000,
+  })
+  if (
+    readinessMismatchResult.status !== 'mismatch'
+    || !readinessMismatchResult.differences.includes('progressiveAgentsReadiness')
+  ) {
+    throw new Error(`Expected progressive Agents readiness mismatch to fail closed, got ${JSON.stringify(readinessMismatchResult)}`)
   }
 
   const replayed = await buildEnvelope({

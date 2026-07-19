@@ -19,6 +19,7 @@ import { isPlainObject } from '@/lib/graph/value'
 import type { GraphData, GraphEdge, GraphNode } from '@/lib/graph/types'
 import { isCanonicalNodeIdEqual, resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { normalizeGeneratedRichMediaTableProperties } from '@/features/rich-media/richMediaTablePersistence'
+import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
 
 import {
   listStoryboardWidgetWorkflowNodesAcrossGraphs,
@@ -40,6 +41,14 @@ import {
   PROBE_TREE_LAYOUT_VERSION_PROPERTY,
   PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY,
 } from '@/lib/storyboardWidget/probeTreeLayoutContract'
+import {
+  buildStoryboardWidgetWorkflowOutputEdgeId,
+  hasCanonicalStoryboardWidgetWorkflowOutputEdgeProperties,
+  isStoryboardWidgetWorkflowOutputEdge,
+  mergeStoryboardWidgetWorkflowOutputEdgeProperties,
+  WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
+  WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowOutputEdge'
 
 export {
   IMAGE_TO_THREEJS_OUTPUT_PANEL_ANCHOR_ID_PROPERTY,
@@ -57,6 +66,7 @@ export const IMAGE_TO_THREEJS_OUTPUT_EDGE_PROPERTY = 'imageThreeJsOutputEdge' as
 export const IMAGE_TO_THREEJS_OUTPUT_EDGE_LABEL = 'image.to-threejs output' as const
 export const IMAGE_TO_GLB_OUTPUT_EDGE_PROPERTY = 'imageGlbOutputEdge' as const
 export const IMAGE_TO_GLB_OUTPUT_EDGE_LABEL = 'image.to-glb output' as const
+export { WORKFLOW_OUTPUT_EDGE_MODE_MANUAL, WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY }
 
 const isTypedPropertyEnvelope = (value: unknown): value is Record<string, unknown> & { value: unknown } => (
   isPlainObject(value)
@@ -145,9 +155,9 @@ export function resolveStoryboardWidgetWorkflowRichMediaPanelTargetNodeId(args: 
   const anchorNodeId = cleanString(args.anchorNodeId)
   const outputKey = cleanString(args.outputKey)
   const outputGroupId = cleanString(args.outputGroupId)
-  if (outputGroupId && outputKey) {
+  if (outputGroupId && outputKey === PROBE_TREE_OUTPUT_KEY) {
     const groupedPanel = panels.find(node => {
-      const properties = (node.properties || {}) as Record<string, unknown>
+      const properties = readGraphNodeProperties(node)
       return cleanString(properties.workflowOutputGroupId) === outputGroupId
         && cleanString(properties.workflowOutputKey) === outputKey
     })
@@ -155,25 +165,14 @@ export function resolveStoryboardWidgetWorkflowRichMediaPanelTargetNodeId(args: 
   }
   if (anchorNodeId && outputKey) {
     const exactPanel = panels.find(n => {
-      const p = (n.properties || {}) as Record<string, unknown>
+      const p = readGraphNodeProperties(n)
       return cleanString(p.workflowOutputAnchorNodeId) === anchorNodeId && cleanString(p.workflowOutputKey) === outputKey
     })
     if (exactPanel) return cleanString(exactPanel.id) || null
-
-    // Adopt one legacy, unowned panel for the first named output. Once adopted,
-    // every additional output key receives its own stable Rich Media Panel.
-    const legacyPanels = panels.filter(n => {
-      const p = (n.properties || {}) as Record<string, unknown>
-      return !cleanString(p.workflowOutputAnchorNodeId) && !cleanString(p.workflowOutputKey)
-    })
-    const activeLegacyPanel = legacyPanels.find(n => {
-      const p = (n.properties || {}) as Record<string, unknown>
-      return (typeof p.outputSrcDoc === 'string' && p.outputSrcDoc.trim()) || (typeof p.output === 'string' && p.output.trim())
-    })
-    return cleanString((activeLegacyPanel || legacyPanels[0])?.id) || null
+    return null
   }
   const activePanel = panels.find(n => {
-    const p = (n.properties || {}) as Record<string, unknown>
+    const p = readGraphNodeProperties(n)
     return (typeof p.outputSrcDoc === 'string' && p.outputSrcDoc.trim()) || (typeof p.output === 'string' && p.output.trim())
   })
   return cleanString((activePanel || panels[0])?.id) || null
@@ -425,24 +424,6 @@ export function ensureStoryboardWidgetImageToGlbOutputEdge(args: {
   })
 }
 
-function buildWorkflowOutputEdgeId(args: {
-  sourceNodeId: string
-  targetNodeId: string
-  outputKey?: string | null
-  usedEdgeIds: ReadonlySet<string>
-}): string {
-  const slug = ['workflow-output', args.sourceNodeId, cleanString(args.outputKey) || 'output', args.targetNodeId]
-    .join('-')
-    .replace(/[^A-Za-z0-9_-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 180) || 'workflow-output-edge'
-  if (!args.usedEdgeIds.has(slug)) return slug
-  let suffix = 2
-  while (args.usedEdgeIds.has(`${slug}-${suffix}`)) suffix += 1
-  return `${slug}-${suffix}`
-}
-
 export function preserveStoryboardWidgetWorkflowInputTopology(args: {
   graphData: GraphData
   anchorNode: GraphNode
@@ -459,22 +440,42 @@ export function preserveStoryboardWidgetWorkflowInputTopology(args: {
   for (const panel of nodes) {
     if (cleanString(panel.type) !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID) continue
     const panelNodeId = cleanString(panel.id)
-    const properties = (panel.properties || {}) as Record<string, unknown>
+    const properties = readGraphNodeProperties(panel)
     if (!panelNodeId || !isCanonicalNodeIdEqual(properties.workflowOutputAnchorNodeId, anchorNodeId)) continue
-    const exists = edges.some(edge => {
+    if (cleanString(properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]) === WORKFLOW_OUTPUT_EDGE_MODE_MANUAL) continue
+    const existingEdgeIndex = edges.findIndex(edge => {
       const endpoints = readGraphEdgeEndpoints(edge)
       return isCanonicalNodeIdEqual(endpoints.src, anchorNodeId) && isCanonicalNodeIdEqual(endpoints.tgt, panelNodeId)
     })
-    if (exists) continue
     const outputKey = cleanString(properties.workflowOutputKey) || 'output'
-    const edgeId = buildWorkflowOutputEdgeId({ sourceNodeId: anchorNodeId, targetNodeId: panelNodeId, outputKey, usedEdgeIds })
+    if (existingEdgeIndex >= 0) {
+      const existingEdge = edges[existingEdgeIndex]!
+      if (!isStoryboardWidgetWorkflowOutputEdge(existingEdge.properties)) continue
+      if (hasCanonicalStoryboardWidgetWorkflowOutputEdgeProperties(existingEdge.properties, {
+        sourceNodeId: anchorNodeId,
+        outputKey,
+      })) continue
+      edges[existingEdgeIndex] = {
+        ...existingEdge,
+        properties: mergeStoryboardWidgetWorkflowOutputEdgeProperties(existingEdge.properties, {
+          sourceNodeId: anchorNodeId,
+          outputKey,
+        }) as never,
+      }
+      changed = true
+      continue
+    }
+    const edgeId = buildStoryboardWidgetWorkflowOutputEdgeId({ sourceNodeId: anchorNodeId, targetNodeId: panelNodeId, outputKey, usedEdgeIds })
     usedEdgeIds.add(edgeId)
     edges.push({
       id: edgeId,
       source: anchorNodeId,
       target: panelNodeId,
       label: outputKey,
-      properties: { workflowOutputEdge: true, workflowOutputAnchorNodeId: anchorNodeId, workflowOutputKey: outputKey } as never,
+      properties: mergeStoryboardWidgetWorkflowOutputEdgeProperties({}, {
+        sourceNodeId: anchorNodeId,
+        outputKey,
+      }) as never,
     })
     changed = true
   }
@@ -486,6 +487,8 @@ export function ensureStoryboardWidgetWorkflowOutputEdge(args: {
   anchorNodeId: string
   panelNodeId: string
   outputKey?: string | null
+  sourcePortKey?: string | null
+  targetPortKey?: string | null
   readLiveDraftGraphData: () => GraphData | null
   commitDraftGraphDataUpdate: (currentDraft: GraphData, nextDraft: GraphData) => void
   scheduleWorkflowOutputEdgeRefresh: () => void
@@ -496,9 +499,36 @@ export function ensureStoryboardWidgetWorkflowOutputEdge(args: {
   const targetNodeId = cleanString(resolveGraphNodeByCanonicalId(currentDraft, args.panelNodeId)?.id)
   if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return false
   const edges = Array.isArray(currentDraft.edges) ? currentDraft.edges : []
-  const existing = edges.some(edge => cleanString(edge?.source) === sourceNodeId && cleanString(edge?.target) === targetNodeId)
-  if (existing) return false
-  const edgeId = buildWorkflowOutputEdgeId({
+  const existingEdgeIndex = edges.findIndex(edge => {
+    const endpoints = readGraphEdgeEndpoints(edge)
+    return isCanonicalNodeIdEqual(endpoints.src, sourceNodeId) && isCanonicalNodeIdEqual(endpoints.tgt, targetNodeId)
+  })
+  if (existingEdgeIndex >= 0) {
+    const existingEdge = edges[existingEdgeIndex]!
+    if (!isStoryboardWidgetWorkflowOutputEdge(existingEdge.properties)) return false
+    if (hasCanonicalStoryboardWidgetWorkflowOutputEdgeProperties(existingEdge.properties, {
+      sourceNodeId,
+      outputKey: args.outputKey,
+      sourcePortKey: args.sourcePortKey,
+      targetPortKey: args.targetPortKey,
+    })) return false
+    const nextEdges = edges.map((edge, index) => index === existingEdgeIndex ? {
+      ...edge,
+      properties: mergeStoryboardWidgetWorkflowOutputEdgeProperties(edge.properties, {
+        sourceNodeId,
+        outputKey: args.outputKey,
+        sourcePortKey: args.sourcePortKey,
+        targetPortKey: args.targetPortKey,
+      }) as never,
+    } : edge)
+    args.commitDraftGraphDataUpdate(
+      currentDraft,
+      bumpStoryboardWidgetDraftGraphDataRevision({ ...currentDraft, edges: nextEdges }),
+    )
+    args.scheduleWorkflowOutputEdgeRefresh()
+    return true
+  }
+  const edgeId = buildStoryboardWidgetWorkflowOutputEdgeId({
     sourceNodeId,
     targetNodeId,
     outputKey: args.outputKey,
@@ -512,11 +542,12 @@ export function ensureStoryboardWidgetWorkflowOutputEdge(args: {
       source: sourceNodeId,
       target: targetNodeId,
       label: outputKey,
-      properties: {
-        workflowOutputEdge: true,
-        workflowOutputAnchorNodeId: sourceNodeId,
-        workflowOutputKey: outputKey,
-      } as never,
+      properties: mergeStoryboardWidgetWorkflowOutputEdgeProperties({}, {
+        sourceNodeId,
+        outputKey,
+        sourcePortKey: args.sourcePortKey,
+        targetPortKey: args.targetPortKey,
+      }) as never,
     }],
   })
   args.commitDraftGraphDataUpdate(currentDraft, nextDraft)

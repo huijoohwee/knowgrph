@@ -1,4 +1,5 @@
 import { Camera } from 'lucide-react'
+import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { FloatingPanelCatalogHeader } from '@/lib/ui/floatingPanelCatalogLayout'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
@@ -40,7 +41,7 @@ export function StrybldrCameraFloatingPanelView() {
     <section className="flex h-full flex-col" aria-label="Camera panel" data-kg-camera-panel-surface="floatingPanel">
       <FloatingPanelCatalogHeader
         title="Camera"
-        subtitle="Shared framing, XR SHOOT, WebMCP, and invocation tokens"
+        subtitle="Shared framing, subject-bound XR moves, WebMCP, and invocation tokens"
         actionsLabel="Camera actions"
       />
       <section className={`${UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME} px-1 pb-2`} data-kg-camera-catalog-layout="3d-for-xr-shared">
@@ -58,7 +59,9 @@ export function StrybldrCameraFloatingPanelView() {
                 data-kg-camera-runtime-invocation-chip-renderer="shared-markdown-sigil"
               >
                 <span>WebMCP · inspect + control</span>
-                {renderMarkdownSigilInlineText('/camera.frame #camera-shot @camera')}
+                {renderMarkdownSigilInlineText('/camera.frame #camera-shot @camera', {
+                  renderKeywordChip: ({ value, className }) => renderAgenticOsInvocationKeywordChip({ value, className, sourceLink: false }),
+                })}
               </section>
             </section>
             <section className="flex shrink-0 items-center gap-1">

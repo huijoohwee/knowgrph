@@ -1,12 +1,23 @@
 import type { JSONValue } from '@/lib/graph/types'
+import {
+  CAMERA_DEFAULT_ASPECT_RATIO_ID,
+  CAMERA_DEFAULT_FOCUS_DISTANCE_METERS,
+  CAMERA_DEFAULT_SENSOR_FORMAT_ID,
+  clampCameraFocusDistanceMeters,
+  formatCameraOptics,
+  readCameraAspectRatioId,
+  readCameraSensorFormatId,
+  type CameraAspectRatioId,
+  type CameraSensorFormatId,
+} from './cameraOptics'
 
 export const STRYBLDR_CAMERA_PROPERTY_KEY = 'strybldrCamera'
 
 export const STRYBLDR_CAMERA_ANGLES = ['front', 'left-side', 'right-side', 'overhead'] as const
 export const STRYBLDR_CAMERA_LEVELS = ['eye-level', 'high-angle', 'low-angle'] as const
 export const STRYBLDR_CAMERA_SHOTS = ['wide', 'medium', 'close-up'] as const
-export const STRYBLDR_CAMERA_MIN_FOCAL_LENGTH_MM = 14
-export const STRYBLDR_CAMERA_MAX_FOCAL_LENGTH_MM = 200
+export const STRYBLDR_CAMERA_MIN_FOCAL_LENGTH_MM = 8
+export const STRYBLDR_CAMERA_MAX_FOCAL_LENGTH_MM = 300
 export const STRYBLDR_CAMERA_DEFAULT_FOCAL_LENGTH_MM = 50
 
 export type StrybldrCameraAngle = (typeof STRYBLDR_CAMERA_ANGLES)[number]
@@ -20,7 +31,10 @@ export type StrybldrCameraSettings = {
   note: string
   orbitX: number
   orbitY: number
+  sensorId: CameraSensorFormatId
   focalLengthMm: number
+  focusDistanceMeters: number
+  aspectRatio: CameraAspectRatioId
 }
 
 export const STRYBLDR_DEFAULT_CAMERA_SETTINGS: StrybldrCameraSettings = {
@@ -30,7 +44,10 @@ export const STRYBLDR_DEFAULT_CAMERA_SETTINGS: StrybldrCameraSettings = {
   note: '',
   orbitX: 0,
   orbitY: 0,
+  sensorId: CAMERA_DEFAULT_SENSOR_FORMAT_ID,
   focalLengthMm: STRYBLDR_CAMERA_DEFAULT_FOCAL_LENGTH_MM,
+  focusDistanceMeters: CAMERA_DEFAULT_FOCUS_DISTANCE_METERS,
+  aspectRatio: CAMERA_DEFAULT_ASPECT_RATIO_ID,
 }
 
 const STRYBLDR_CAMERA_LABELS: Record<StrybldrCameraAngle | StrybldrCameraLevel | StrybldrCameraShot, string> = {
@@ -111,12 +128,16 @@ export const readStrybldrCameraSettings = (value: unknown): StrybldrCameraSettin
     note: String(record.note || '').trim(),
     orbitX: record.orbitX === undefined ? fallbackOrbit.orbitX : clampCameraOrbit(record.orbitX),
     orbitY: record.orbitY === undefined ? fallbackOrbit.orbitY : clampCameraOrbit(record.orbitY),
+    sensorId: readCameraSensorFormatId(record.sensorId),
     focalLengthMm: clampFocalLengthMm(record.focalLengthMm),
+    focusDistanceMeters: clampCameraFocusDistanceMeters(record.focusDistanceMeters),
+    aspectRatio: readCameraAspectRatioId(record.aspectRatio),
   }
 }
 
 export const serializeStrybldrCameraSettings = (
-  settings: Omit<StrybldrCameraSettings, 'orbitX' | 'orbitY' | 'focalLengthMm'> & Partial<Pick<StrybldrCameraSettings, 'orbitX' | 'orbitY' | 'focalLengthMm'>>,
+  settings: Omit<StrybldrCameraSettings, 'orbitX' | 'orbitY' | 'sensorId' | 'focalLengthMm' | 'focusDistanceMeters' | 'aspectRatio'>
+    & Partial<Pick<StrybldrCameraSettings, 'orbitX' | 'orbitY' | 'sensorId' | 'focalLengthMm' | 'focusDistanceMeters' | 'aspectRatio'>>,
 ): JSONValue => {
   return {
     angle: settings.angle,
@@ -125,7 +146,10 @@ export const serializeStrybldrCameraSettings = (
     note: settings.note.trim(),
     orbitX: clampCameraOrbit(settings.orbitX),
     orbitY: clampCameraOrbit(settings.orbitY),
+    sensorId: readCameraSensorFormatId(settings.sensorId),
     focalLengthMm: clampFocalLengthMm(settings.focalLengthMm),
+    focusDistanceMeters: clampCameraFocusDistanceMeters(settings.focusDistanceMeters),
+    aspectRatio: readCameraAspectRatioId(settings.aspectRatio),
   } as JSONValue
 }
 
@@ -144,5 +168,5 @@ export const formatStrybldrCameraSettings = (settings: StrybldrCameraSettings): 
 }
 
 export const buildStrybldrCameraHandoffLine = (settings: StrybldrCameraSettings): string => {
-  return `Camera: ${formatStrybldrCameraSettings(settings)}`
+  return `Camera: ${formatStrybldrCameraSettings(settings)} · ${formatCameraOptics(settings)}`
 }

@@ -276,7 +276,7 @@ export function testStoryboardWidgetManagerBuildsReusableTextRegistryDrafts() {
   if (deerflowLabel !== 'Widget Card') {
     throw new Error(`expected DeerFlow compatibility form to use the canonical Widget Card label, got ${String(deerflowLabel)}`)
   }
-  ;(['byteplus', 'openai', 'deerflow', 'miromind', 'agnes', 'sealion', 'qwen', 'google-cloud'] as const).forEach(providerFamily => {
+  ;(['byteplus', 'lmstudio-local', 'openai', 'deerflow', 'miromind', 'agnes', 'sealion', 'qwen', 'google-cloud'] as const).forEach(providerFamily => {
     const draft = buildTextGenerationRegistryDraft({ providerFamily })
     const label = getWidgetRegistryEntryLabel({ nodeTypeId: draft.nodeTypeId, formId: draft.formId })
     if (label !== 'Widget Card') {

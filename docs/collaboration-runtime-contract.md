@@ -2,7 +2,7 @@
 title: "Knowgrph Collaboration Runtime Contract"
 doc_type: "Runtime Contract"
 status: "active"
-contract_version: 21
+contract_version: 22
 frontmatter_contract: "required"
 ci_command_timeout_ms: 300000
 invocation:
@@ -21,8 +21,8 @@ local_development:
   task_mode: "task"
   mode_environment_variable: "KG_DEV_SOURCE_MODE"
   worktree_policy:
-    mode: "single-device-single-worktree"
-    maximum_registered_per_repository: 1
+    mode: "same-device-multi-worktree"
+    minimum_registered_per_repository: 1
   canonical_sources:
     - id: "knowgrph"
       repository_path: "."
@@ -103,8 +103,8 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 
 ## Ownership And Conflict Prevention
 
-- Each device keeps one registered worktree per repository and switches task branches in place; `git worktree add` is forbidden.
-- One task owns the writable branch currently checked out in that worktree.
+- Each device keeps one canonical main worktree and may add registered task worktrees detached from fetched `origin/main` before claim.
+- One task owns each writable task worktree, branch, semantic scope, lease, and draft pull request.
 - One semantic scope has one active implementation owner.
 - Every task branch uses `agent/<device>/<semantic-scope>` and starts from the declared `origin/main` commit.
 - If two active changes claim the same scope, serialize them or explicitly hand over ownership before further edits.
@@ -141,21 +141,21 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 
 When the canonical checkout remains owned by another semantic scope, an already-created stopped-writer commit may be published with `npm run release:publish:immutable -- --source-sha <sha> --target-ref refs/heads/agent/<device>/<scope> --expected-remote-sha <sha>`. The command compares the expected remote head, proves fast-forward ancestry, validates the source commit and tree without switching or staging, reads the exact pinned docs SHA from that source object, writes the immutable app/docs/catalog manifest only under `.git`, performs the bounded repository-owned object gate, pushes the exact object, and verifies the remote ref. Manual hook bypass, force, raw refspec push, missing manifest, or authored-file mutation is forbidden.
 
-The visible runtime check lives in MainPanel Settings as the `Cross-device Identity Gate` KTV section. `KnowgrphRuntimeIdentityRuntime`, mounted once at the application root, owns the canonical app-wide identity snapshot; Settings is a read/action projection only. Agentic Canvas OS `/`, `#`, and `@` catalog hydration publishes one revision/count facet into that global identity and must never become the identity owner.
+The visible runtime check lives in MainPanel Settings as the `Cross-device Identity Gate` KTV section. `KnowgrphRuntimeIdentityRuntime`, mounted once at the application root, owns the canonical app-wide identity snapshot; Settings is a read/action projection only. Agentic Canvas OS `/`, `#`, and `@` catalog hydration publishes revision/count, bounded live-provider-proof, and progressive-Agents-readiness facets into that global identity and must never become the identity owner. The docs MCP derives those facets from canonical `LIVE-AGENT-PROVIDER-PROOF.md` and `PROGRESSIVE-AGENTS.md` contracts bound to exact Git revisions; missing, malformed, or revision-mismatched evidence is `unavailable`. MainPanel displays proof usage and ownership plus the source-backed single-agent → tools → specialists progression, unconfigured default Worker, unverified provider execution, and no-external-SDK boundary without issuing or offering a provider call.
 
 Automatic compliance uses the authenticated canvas-room transport with the dedicated global room `runtime-identity:knowgrph:main`. The storage boundary derives an opaque principal from the persistent client installation id only after authenticating the session; the room issues short-lived challenges and relays attestations without building, changing, selecting, or persisting runtime identity. It rejects document/asset traffic, binds one principal/device/runtime identity to each authenticated socket session, and rejects one session changing principals. The application-root reporter reads the canonical identity store, binds a point-in-time snapshot to the room challenge, runtime instance, timestamps, and SHA-256 digest, then every client verifies the relayed evidence locally. MainPanel Settings projects only the resulting transport and parity state. `Copy diagnostic JSON` copies the current identity and gate snapshots as a troubleshooting fallback and is never required compliance evidence.
 
-The automatic gate passes only with at least two distinct authenticated device principals and sessions, live device labels, and runtime instances, valid authenticated relay metadata, an unexpired matching challenge, fresh hydration within attempts zero through two, exact Knowgrph/docs/catalog SHA equality, catalog/docs equality, and exact `/`, `#`, and `@` counts. It reports `collecting`, `pass`, `mismatch`, `stale`, or `blocked`; duplicate, replayed, expired, malformed, or mismatched evidence fails closed. Branch names remain informational. Reconnect failures are bounded per outage and reset only after a stable connected window. No client, room, verifier, WebMCP tool, or Settings action may select a majority winner, refresh the catalog implicitly, mutate Git, or synchronize source. The read-only browser tool `knowgrph.read_local_runtime_identity` exposes the canonical local identity and current automatic gate snapshot without becoming an owner.
+The automatic gate passes only with at least two distinct authenticated device principals and sessions, live device labels, and runtime instances, valid authenticated relay metadata, an unexpired matching challenge, fresh hydration within attempts zero through two, exact Knowgrph/docs/catalog SHA equality, catalog/docs equality, exact `/`, `#`, and `@` counts, matching verified proof/source revisions, and identical source-bound progressive readiness. It reports `collecting`, `pass`, `mismatch`, `stale`, or `blocked`; duplicate, replayed, expired, malformed, unavailable-proof/readiness, or mismatched evidence fails closed. Branch names remain informational. Reconnect failures are bounded per outage and reset only after a stable connected window. No client, room, verifier, WebMCP tool, or Settings action may select a majority winner, refresh the catalog implicitly, mutate Git, synchronize source, or repeat the provider proof. The read-only browser tool `knowgrph.read_local_runtime_identity` exposes the canonical local identity and current automatic gate snapshot without becoming an owner.
 
 ## Local Development Source Identity
 
 - Normal `npm run dev` startup fetches every `local_development.canonical_sources` entry before Vite starts.
-- `npm run dev:latest` is the explicit canonical-refresh path. It preflights every canonical source before mutation, requires one registered worktree plus a clean canonical branch, rejects divergent history, applies only `git merge --ff-only` updates, and then delegates to the unchanged `npm run dev` gate.
+- `npm run dev:latest` is the explicit canonical-refresh path. It preflights every canonical source before mutation, requires a clean canonical main worktree, rejects divergent history, applies only `git merge --ff-only` updates there, and then delegates to the unchanged `npm run dev` gate.
 - `dev:latest` never stashes, resets, pulls, switches branches, or mutates an owned task branch. If any source cannot update safely, all source fast-forwards are withheld and startup fails with the responsible identity.
-- Startup counts each source repository's registered worktrees and fails closed unless the count is exactly `local_development.worktree_policy.maximum_registered_per_repository`.
-- `npm run worktree:check` exposes that count-only policy as a standalone preflight without fetching, checking cleanliness, or starting Dev. `ci:integration` runs it first, so the installed pre-push hook and remote Integration Gate reject redundant registered worktrees before expensive validation.
+- Startup accepts one or more registered worktrees per source repository, while rejecting missing, bare, prunable, or duplicate-branch registrations.
+- `npm run worktree:check` exposes that registry policy as a standalone preflight without fetching, changing branches, or starting Dev. `ci:integration` runs it first so the installed pre-push hook and remote Integration Gate reject unsafe registrations before expensive validation.
 - Canonical mode requires every registered repository to be clean and exactly equal to its fetched canonical SHA. The port number never selects application or documentation source code.
-- The centralized Agentic Canvas OS docs entry resolves from the sibling repository and requires its `docs` root. Stale, ahead, divergent, dirty, or missing sources fail closed with the responsible source identity.
+- The centralized Agentic Canvas OS docs entry resolves beside the registered Knowgrph main worktree, even when the command starts in a linked task worktree, and requires its `docs` root. Stale, ahead, divergent, dirty, or missing sources fail closed with the responsible source identity.
 - `npm run dev` and `npm run dev:apex` infer task mode when the application checkout is on a contract-valid `agent/<device>/<semantic-scope>` branch. `KG_DEV_SOURCE_MODE` remains an expert override for an explicit canonical or task check. Task mode permits divergence only for the source whose contract declares `task_divergence_allowed: true`; the shared Agentic Canvas OS docs revision remains clean and canonical.
 - Already-running servers retain the SHA they started with. Restart them after `origin/main` advances so the startup gate can validate the new canonical source.
 

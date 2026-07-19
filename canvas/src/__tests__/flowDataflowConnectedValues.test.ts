@@ -18,8 +18,11 @@ import { buildSwarmPredictionRegistryDraft } from '@/features/swarm-prediction/s
 export const testFlowDataflowConnectedValuesReusesSharedReaders = () => {
   const filePath = resolve(process.cwd(), 'src', 'lib', 'storyboardWidget', 'flowDataflow.ts')
   const text = readFileSync(filePath, 'utf8')
-  if (!text.includes("import { readNodeProperties } from '@/lib/graph/nodeProperties'")) {
-    throw new Error('expected flow dataflow to reuse the shared node properties reader upstream')
+  if (!text.includes("import { readRecordPathValue, unwrapGraphCellValue } from '@/lib/graph/nodeProperties'")) {
+    throw new Error('expected flow dataflow to reuse the shared logical cell and property-path readers upstream')
+  }
+  if (!text.includes("import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'")) {
+    throw new Error('expected flow dataflow to reuse the persisted graph-property container reader upstream')
   }
   if (!text.includes("import { isPlainObject } from '@/lib/graph/value'")) {
     throw new Error('expected flow dataflow to reuse the shared plain-object guard upstream')
@@ -27,14 +30,97 @@ export const testFlowDataflowConnectedValuesReusesSharedReaders = () => {
   if (!text.includes('const readPlainObject = (value: unknown): Record<string, unknown> | null => {')) {
     throw new Error('expected flow dataflow to centralize plain-object coercion in one local helper')
   }
-  if (!text.includes('hashRecordSignature32(readNodeProperties(node), { maxEntries: 80, maxDepth: 3 })')) {
-    throw new Error('expected flow dataflow graph keys to reuse the shared node properties reader')
+  if (!text.includes('hashRecordSignature32(readGraphNodeProperties(node), { maxEntries: 80, maxDepth: 3 })')) {
+    throw new Error('expected flow dataflow graph keys to hash logical persisted properties')
   }
-  if (!text.includes('const props = readPlainObject(edge?.properties)')) {
-    throw new Error('expected flow dataflow edge port reads to reuse the shared local plain-object helper')
+  if (!text.includes('const props = readPersistedPropertyObject(edge?.properties)')) {
+    throw new Error('expected flow dataflow edge port reads to unwrap persisted property containers')
+  }
+  if (!text.includes('return readRecordPathValue(readGraphNodeProperties(node), path)')) {
+    throw new Error('expected output-port reads to resolve logical persisted property values')
   }
   if (text.includes('function isRecord(v: unknown): v is Record<string, unknown> {')) {
     throw new Error('expected flow dataflow to stop defining a local record guard')
+  }
+}
+
+export const testFlowDataflowConnectedValuesUnwrapsPersistedRichMediaOutput = () => {
+  const graphData = {
+    type: 'GraphData',
+    nodes: [
+      {
+        id: 'generated-result',
+        type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+        label: 'Generated Result',
+        properties: {
+          key: 'properties',
+          type: 'object',
+          value: {
+            output: {
+              key: 'output',
+              type: 'textarea',
+              value: '# Generated result\n\nUse this source for the deliverables.',
+            },
+          },
+        },
+      },
+      {
+        id: 'deliverables-card',
+        type: 'TextGeneration',
+        label: 'Deliverables Widget Card',
+        properties: {},
+      },
+    ],
+    edges: [{
+      id: 'generated-to-deliverables',
+      source: 'generated-result',
+      target: 'deliverables-card',
+      label: 'output to prompt',
+      properties: {
+        key: 'properties',
+        type: 'object',
+        value: {
+          'flow:sourcePortKey': { key: 'flow:sourcePortKey', type: 'string', value: 'output' },
+          'flow:targetPortKey': { key: 'flow:targetPortKey', type: 'string', value: 'prompt_in' },
+        },
+      },
+    }],
+  }
+  const registry = [
+    {
+      id: 'rich-media',
+      isEnabled: true,
+      nodeTypeId: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      widgetTypeId: FLOW_RICH_MEDIA_PANEL_WIDGET_TYPE_ID,
+      formId: FLOW_RICH_MEDIA_PANEL_FORM_ID,
+      fields: [],
+      ports: [{ portKey: 'output', direction: 'output' as const, schemaPath: 'properties.output' }],
+      schemaMappings: [],
+      updatedAt: '2026-07-19T00:00:00.000Z',
+    },
+    {
+      id: 'text-generation',
+      isEnabled: true,
+      nodeTypeId: 'TextGeneration',
+      widgetTypeId: 'default',
+      formId: 'textGeneration',
+      fields: [],
+      ports: [{ portKey: 'prompt_in', direction: 'input' as const, schemaPath: 'properties.prompt' }],
+      schemaMappings: [],
+      updatedAt: '2026-07-19T00:00:00.000Z',
+    },
+  ]
+
+  const connected = computeFlowConnectedValuesBySchemaPath({
+    graphData: graphData as never,
+    registry,
+    targetNodeIds: new Set(['deliverables-card']),
+  }).get('deliverables-card')?.['properties.prompt']
+  if (connected?.value !== '# Generated result\n\nUse this source for the deliverables.') {
+    throw new Error(`expected persisted Rich Media output scalar at Widget Card prompt_in, got ${JSON.stringify(connected)}`)
+  }
+  if (connected.sources[0]?.edgeId !== 'generated-to-deliverables' || connected.sources[0]?.portKey !== 'output') {
+    throw new Error(`expected typed edge provenance from Generated Result output, got ${JSON.stringify(connected.sources)}`)
   }
 }
 

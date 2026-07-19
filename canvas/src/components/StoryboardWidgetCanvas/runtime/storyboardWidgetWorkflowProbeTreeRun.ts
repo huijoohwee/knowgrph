@@ -24,13 +24,11 @@ import {
 import {
   KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
   PROBE_TREE_DEFAULTS,
-  PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { invokeProbeTreeMcpBridge } from '@/features/agent-ready/probeTreeMcpClient'
 import type { ProbeTreeMcpBridgeSuccess } from '@/features/agent-ready/probeTreeMcpBridgeContract'
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
 import { buildRichMediaTextMarkdownDocument } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
-import { buildAgenticOsRuntimeInvocationSystemPrompt, buildRuntimeInvocationRoutingSystemPrompt } from '@/features/chat/chatRuntimeInvocationProfile'
 import {
   readGraphNodeCanonicalTextProperty,
   readGraphNodeCardTitle,
@@ -40,6 +38,7 @@ import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { StoryboardWidgetWorkflowNodeResolutionContext } from './storyboardWidgetRenderGraph'
 import { buildStoryboardWidgetProbeTreeContextText } from './storyboardWidgetProbeTreeContext'
+import { buildStoryboardWidgetProbeTreeProviderPrompt } from './storyboardWidgetProbeTreeProviderPrompt'
 import {
   isStoryboardWidgetProbeTreeContinuationNode,
   reconcileStoryboardWidgetProbeTreeSelectedRunNode,
@@ -48,6 +47,7 @@ import {
 import {
   runStoryboardWidgetProbeTreeTerminalGeneration,
 } from './storyboardWidgetProbeTreeTerminalGeneration'
+import { resolveStoryboardWidgetProbeTreeProviderRequestOptions } from './storyboardWidgetProbeTreeProviderRequest'
 
 const INVOCATION_TOKEN_PATTERN = /(^|\s)([/#@][A-Za-z0-9_.-]+)/g
 const PROBE_TREE_INVOCATION_TOKENS = new Set<string>(
@@ -192,6 +192,7 @@ export function runStoryboardWidgetProbeTreeInvocation(args: {
     outputIndex: 1,
     panelLabel: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
     panelProperties: { probeTreeThreadLedger: true, probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION },
+    connectCreatedOutputToAnchor: true,
   })
   if (!publishedGraphData) throw new Error('Probe-Tree could not publish its Rich Media ledger.')
   if (materialized.materializedNodeIds.length > 0) args.onMaterialized(materialized.materializedNodeIds)
@@ -222,46 +223,6 @@ const readMcpModel = (result: Record<string, unknown>): string => {
   return String(costLog.model || '').trim() || 'knowgrph.probe.generate'
 }
 
-export function buildStoryboardWidgetProbeTreeProviderPrompt(args: {
-  authoredPrompt: string
-  contextText: string
-  currentNodeId: string
-  mcpResult: Record<string, unknown>
-  mcpInvoked: boolean
-  probeTreeDepth: number
-}): string {
-  const literalMcpResult = JSON.stringify({ result: args.mcpResult }, null, 2).slice(0, 18_000)
-  return [
-    buildRuntimeInvocationRoutingSystemPrompt(args.authoredPrompt),
-    buildAgenticOsRuntimeInvocationSystemPrompt(args.authoredPrompt),
-    'Widget Card Probe-Tree provider task:',
-    '- Use the selected Widget request below as the only topic. Do not substitute a stock workflow or unrelated domain.',
-    `- The local knowgrph MCP ${args.mcpInvoked ? 'was invoked' : 'was unavailable'}; treat the literal result as bounded candidate evidence, not as permission to claim other tools ran.`,
-    `- Return one fenced JSON block rooted at response.structuredContent using ${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION}.`,
-    '- Emit exactly 2-4 records in cards. Each record must contain only id, question, rationale, evidenceNeeded, probeTreeCardVariant: probe-tree-type-2, and 2-4 concise string selectionOptions.',
-    `- The runtime owns source Widget ${args.currentNodeId}, source-verbatim contextAnchors, parentNodeId, candidateOptionId, depth ${args.probeTreeDepth}, selectionMode, allowOther, nextAction, empty user Output, candidate edges, and the Rich Media ledger. Do not emit contextAnchors or those runtime fields. Do not emit widgets, panels, edges, or copied source records.`,
-    '- Put each generated probe in question for the card Summary and make every selection option a concise answer to that exact question. Do not pre-answer the user-owned multi-selection or Other response.',
-    '- Ground every question in the selected user input. Mention the request subject plus at least one named entity or distinctive request term so the runtime can derive source-verbatim anchors. Suggested answers may introduce plausible user preferences for the new decision variable, but must never assert invented facts.',
-    '- Never copy or paraphrase the selected request as a card question. Each card must introduce one concrete missing decision variable whose answer would materially change the requested result.',
-    '- Treat named entities and alternatives already present in the request as subjects to clarify, not as a ready-made selectionOptions array. Never turn an extracted entity list into an echo card.',
-    '- Give every card a different request-specific decision variable. Never reuse a choice label, another card\'s complete selection set, or a subset or superset of another card\'s choices.',
-    '- Each selectionOptions array must contain suggested clarification answers for its question. Never split the selected focus or repeat its words as bare answer fragments.',
-    '- Never emit an answer set made only of numbers, ranges, or units such as bare time, money, percentage, or quantity buckets. A number-bearing answer is valid only when it also names the semantic preference, tradeoff, or consequence that selecting it expresses.',
-    '- For a continuation, the selected child card and its user-authored output own the next topic. Use the thread root only for lineage; never replace the selected child context with a root alias.',
-    '- Every card must be a concrete next question relevant to the authored request; morphological variants such as invest and investment are allowed when the named entities and meaning remain intact.',
-    '- Never emit generic process cards named Clarify probe, Generate branches, or Select handoff.',
-    '- Reject every canned wrapper: scope/priority/constraint over the whole query, pairwise relationship questions, evidence/decision-basis/deliverable templates, and choices such as compare current evidence, resolve the dependency, or choose the decision order. Ask only about concrete missing parameters that materially change this request.',
-    '- If 2-4 distinct query-specific cards cannot be produced without invented facts, return an empty cards array so the runtime fails closed; never fill the quota by restating the query or applying generic or hardcoded templates.',
-    '- If the selected user input is an imperative generation request, fulfill that deliverable through normal generation. Do not emit clarification cards and do not continue Probe-Tree.',
-    '- Do not add prose before or after the fenced JSON block.',
-    '',
-    'Selected Widget context:',
-    args.contextText,
-    '',
-    'Literal MCP CallToolResult:',
-    literalMcpResult,
-  ].filter(Boolean).join('\n')
-}
 export type StoryboardWidgetProbeTreeMcpRunResult = StoryboardWidgetProbeTreeStructuredMaterialization & {
   invocationToken: string
   mcpInvoked: boolean
@@ -294,10 +255,9 @@ export function resolveStoryboardWidgetProbeTreeChatRoute(args: {
   resolvedProperties: Record<string, unknown>
   runtimeProperties: StoryboardWidgetProbeTreeProviderRuntimeProperties
 }) {
-  const readRouteValue = (key: 'chatProvider' | 'chatEndpointUrl' | 'chatModel'): string => {
-    const runtimeValue = String(unwrapGraphCellValue(args.runtimeProperties[key]) || '').trim()
-    return runtimeValue || String(unwrapGraphCellValue(args.resolvedProperties[key]) || '').trim()
-  }
+  const readRouteValue = (key: 'chatProvider' | 'chatEndpointUrl' | 'chatModel'): string => (
+    String(unwrapGraphCellValue(args.runtimeProperties[key]) || '').trim()
+  )
   const localAuthMode = String(unwrapGraphCellValue(args.localProperties?.chatAuthMode) || '').trim()
   const runtimeAuthMode = String(unwrapGraphCellValue(args.runtimeProperties.chatAuthMode) || '').trim()
   const resolvedAuthMode = String(unwrapGraphCellValue(args.resolvedProperties.chatAuthMode) || '').trim()
@@ -411,7 +371,6 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   if (args.generateProviderResponse) {
     try {
       providerText = String(await args.generateProviderResponse(buildStoryboardWidgetProbeTreeProviderPrompt({
-        authoredPrompt: prompt,
         contextText,
         currentNodeId,
         mcpResult,
@@ -440,14 +399,15 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     : null
   if (materialized) providerAccepted = true
 
-  if (!materialized && mcpInvoked) {
+  const mcpModel = readMcpModel(mcpResult)
+  if (!materialized && mcpInvoked && mcpModel.toLowerCase() !== 'none') {
     materialized = materializeStoryboardWidgetProbeTreeStructuredResponse({
       graphData: graphForInvocation,
       anchorNode: node,
       responseText: JSON.stringify({ result: mcpResult }, null, 2),
       contextText,
       responseSource: 'mcp',
-      model: readMcpModel(mcpResult),
+      model: mcpModel,
       mcpInvoked,
       threadRootId,
       invocationTokens,
@@ -478,6 +438,7 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     outputIndex: 1,
     panelLabel: PROBE_TREE_RICH_MEDIA_PANEL_LABEL,
     panelProperties: { probeTreeThreadLedger: true, probeTreeOutputLayoutVersion: PROBE_TREE_OUTPUT_LAYOUT_VERSION },
+    connectCreatedOutputToAnchor: true,
   })
   if (!publishedGraphData) throw new Error('Probe-Tree could not publish its Rich Media ledger.')
   materialized = { ...materialized, graphData: publishedGraphData }
@@ -533,6 +494,7 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
     localProperties,
     prompt: prompt || invocationText,
     resolvedMaxCompletionTokens: readResolvedProviderValue('chatMaxCompletionTokens'),
+    resolvedReasoningEffort: readResolvedProviderValue('chatReasoningEffort'),
     resolvedThinkingJson: readResolvedProviderValue('chatThinkingJson'),
     resolvedThinkingType: readResolvedProviderValue('chatThinkingType'),
   })
@@ -545,6 +507,11 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
   let publicationCompleted = false
   const generateProviderResponse = args.generateProviderResponse || (async refinementPrompt => {
     try {
+      const providerRequestOptions = resolveStoryboardWidgetProbeTreeProviderRequestOptions({
+        prompt: refinementPrompt,
+        chatMaxCompletionTokens: resolvedThinking.chatMaxCompletionTokens,
+        chatReasoningEffort: resolvedThinking.chatReasoningEffort,
+      })
       return await generateRunMarkdownWithProvider({
         config: {
           provider,
@@ -555,10 +522,10 @@ export async function runStoryboardWidgetProbeTreeTextGenerationInvocation(args:
         prompt: refinementPrompt,
         options: {
           chatTemperature: readResolvedProviderValue('chatTemperature'),
-          chatMaxCompletionTokens: resolvedThinking.chatMaxCompletionTokens,
+          chatMaxCompletionTokens: providerRequestOptions.chatMaxCompletionTokens,
           chatServiceTier: readResolvedProviderValue('chatServiceTier'),
           chatStream: false,
-          chatReasoningEffort: readResolvedProviderValue('chatReasoningEffort'),
+          chatReasoningEffort: providerRequestOptions.chatReasoningEffort,
           chatThinkingType: resolvedThinking.chatThinkingType,
           chatThinkingJson: resolvedThinking.chatThinkingJson,
           chatFrequencyPenalty: readResolvedProviderValue('chatFrequencyPenalty'),

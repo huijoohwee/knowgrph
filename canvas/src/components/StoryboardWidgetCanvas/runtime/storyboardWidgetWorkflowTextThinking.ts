@@ -3,6 +3,7 @@ import { parseChatSkillSlashInvocation } from '@/features/chat/chatSkillRegistry
 
 type StoryboardWidgetTextThinkingOptions = {
   chatMaxCompletionTokens: unknown
+  chatReasoningEffort: unknown
   chatThinkingJson: unknown
   chatThinkingType: unknown
 }
@@ -18,6 +19,7 @@ export function resolveStoryboardWidgetTextThinkingOptions(args: {
   localProperties: Record<string, unknown>
   prompt?: unknown
   resolvedMaxCompletionTokens: unknown
+  resolvedReasoningEffort: unknown
   resolvedThinkingJson: unknown
   resolvedThinkingType: unknown
 }): StoryboardWidgetTextThinkingOptions {
@@ -25,12 +27,14 @@ export function resolveStoryboardWidgetTextThinkingOptions(args: {
     if (parseChatSkillSlashInvocation(args.prompt)) {
       return {
         chatMaxCompletionTokens: args.resolvedMaxCompletionTokens,
+        chatReasoningEffort: 'minimal',
         chatThinkingJson: '',
         chatThinkingType: 'disabled',
       }
     }
     return {
       chatMaxCompletionTokens: args.resolvedMaxCompletionTokens,
+      chatReasoningEffort: args.resolvedReasoningEffort,
       chatThinkingJson: args.resolvedThinkingJson,
       chatThinkingType: args.resolvedThinkingType,
     }
@@ -39,6 +43,7 @@ export function resolveStoryboardWidgetTextThinkingOptions(args: {
     chatMaxCompletionTokens: owns(args.localProperties, 'chatMaxCompletionTokens')
       ? args.resolvedMaxCompletionTokens
       : Math.max(Number(args.resolvedMaxCompletionTokens) || 0, VIDEO_SCRIPT_MINIMUM_COMPLETION_TOKENS),
+    chatReasoningEffort: args.resolvedReasoningEffort,
     chatThinkingJson: '',
     chatThinkingType: owns(args.localProperties, 'chatThinkingType')
       ? args.resolvedThinkingType

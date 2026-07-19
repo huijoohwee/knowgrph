@@ -21,17 +21,13 @@ import {
   useCameraFramingControlsRuntime,
 } from './cameraFramingControlsRuntime'
 import { buildVoxelCameraIntroPoses, readVoxelCameraConfig } from './voxelCamera'
-import {
-  XR_MOTION_STAGE_CAMERA_POSITION,
-  XR_MOTION_STAGE_CAMERA_TARGET,
-} from './xrMotionReferenceCoordinates'
+import { XR_MOTION_STAGE_CAMERA_POSITION, XR_MOTION_STAGE_CAMERA_TARGET } from './xrMotionReferenceCoordinates'
 import { useXrMotionReferenceCameraPlayback } from './xrCameraPlaybackControlsRuntime'
-import {
-  readXrMotionReferenceRuntime,
-  subscribeXrMotionReferenceRuntime,
-} from './xrMotionReferenceRuntime'
+import { readXrMotionReferenceRuntime, subscribeXrMotionReferenceRuntime } from './xrMotionReferenceRuntime'
 import { xrChoreographyCanDriveCamera, xrChoreographyOwnsCamera } from './xrCameraControlOwnership'
-import { bindXrViewportControlsOwnership } from './xrViewportControlsOwnership'
+import { readThreeObjectInputOwnership, useThreeObjectInputOwnership } from './threeObjectInputOwnership'
+import { useThreeObjectCameraInputOwnership } from './useThreeObjectCameraInputOwnership'
+import { useXrNativeControllerDemoCamera } from './useXrNativeControllerDemoCamera'
 
 export function Controls({
   schema,
@@ -83,6 +79,7 @@ export function Controls({
     readXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
   )
+  const objectInputOwnership = useThreeObjectInputOwnership()
   const cameraOwnershipArgs = {
     mode,
     xrEmptyWorld,
@@ -90,6 +87,12 @@ export function Controls({
   }
   const choreographyCanDriveCamera = xrChoreographyCanDriveCamera(cameraOwnershipArgs)
   const choreographyOwnsCamera = xrChoreographyOwnsCamera({ ...cameraOwnershipArgs, timelinePlaying: timelineTransportPlaying })
+  useThreeObjectCameraInputOwnership({
+    camera: perspectiveCamera,
+    controls,
+    baseEnabled: !paused && !choreographyOwnsCamera,
+  })
+  useXrNativeControllerDemoCamera({ camera: perspectiveCamera, controls, suspended: !!paused || mode !== 'xr' || xrEmptyWorld || choreographyOwnsCamera || objectInputOwnership.active })
   const expansionCfg = schema.behavior?.expansion || {}
   const zoomOnSelectionEnabled = expansionCfg.enabled !== false && expansionCfg.zoomOnSelection !== false
   const controlsUserInteractingRef = React.useRef(false)
@@ -100,6 +103,11 @@ export function Controls({
   const previousCameraSceneKeyRef = React.useRef(xrRuntime.sceneKey)
   const pendingCameraSceneResetRef = React.useRef(false)
   const modelAssetMode = Boolean(String(modelAssetRenderKey || '').trim())
+  React.useEffect(() => {
+    if (!objectInputOwnership.active) return
+    controlsUserInteractingRef.current = false
+    lastInteractionAtRef.current = Date.now()
+  }, [objectInputOwnership.active])
   const voxelIdleAutoRotateConfig = React.useMemo(() => ({
     delayMs: typeof schema.three?.voxelIdleAutoRotateDelayMs === 'number' && Number.isFinite(schema.three.voxelIdleAutoRotateDelayMs)
       ? Math.max(0, Math.min(6000, schema.three.voxelIdleAutoRotateDelayMs))
@@ -163,11 +171,14 @@ export function Controls({
     }
   }, [controls, onControlsChange])
   useFrame(() => {
+    const objectDragActive = readThreeObjectInputOwnership().active
+    if (objectDragActive) return
     const voxelIdleAutoRotate = mode === 'voxel'
       && !paused
       && !modelAssetMode
       && voxelIdleAutoRotateConfig.enabled
       && !viewPinned
+      && !objectDragActive
       && !controlsUserInteractingRef.current
       && Date.now() - lastInteractionAtRef.current >= voxelIdleAutoRotateConfig.delayMs
     controls.autoRotate = voxelIdleAutoRotate
@@ -246,8 +257,11 @@ export function Controls({
     }
   })
   const lastFitSigRef = React.useRef<string | null>(null)
+  const lastObjectInputRevisionRef = React.useRef(objectInputOwnership.revision)
   React.useEffect(() => {
-    if (paused || viewPinned || mode === 'xr') return
+    const objectInputChanged = lastObjectInputRevisionRef.current !== objectInputOwnership.revision
+    lastObjectInputRevisionRef.current = objectInputOwnership.revision
+    if (paused || viewPinned || mode === 'xr' || objectInputOwnership.active) return
     if (!fitToScreenMode) {
       lastFitSigRef.current = null
       return
@@ -266,15 +280,16 @@ export function Controls({
     })
     if (lastFitSigRef.current === sig) return
     lastFitSigRef.current = sig
+    if (objectInputChanged) return
     try {
       requestThreeCamera('fit')
     } catch {
       void 0
     }
-  }, [paused, viewPinned, mode, fitToScreenMode, data, requestThreeCamera, schema, size.height, size.width, workspaceGraphMutationBlockKey])
+  }, [paused, viewPinned, mode, fitToScreenMode, data, requestThreeCamera, schema, size.height, size.width, workspaceGraphMutationBlockKey, objectInputOwnership.active, objectInputOwnership.revision])
   const lastSelectionKeyRef = React.useRef<string | null>(null)
   React.useEffect(() => {
-    if (paused || viewPinned || mode === 'xr') return
+    if (paused || viewPinned || mode === 'xr' || objectInputOwnership.active) return
     if (!zoomToSelectionMode || !zoomOnSelectionEnabled) {
       lastSelectionKeyRef.current = null
       return
@@ -309,6 +324,7 @@ export function Controls({
     selectedNodeIds,
     requestThreeCamera,
     mode,
+    objectInputOwnership.active,
   ])
   React.useEffect(() => {
     const cfg = getCameraConfig(schema)
@@ -324,6 +340,9 @@ export function Controls({
         camera.up.set(0, 1, 0)
       }
       controls.enableRotate = true
+      controls.enablePan = true
+      controls.enableZoom = true
+      controls.zoomToCursor = true
     } catch {
       void 0
     }
@@ -362,7 +381,7 @@ export function Controls({
     }
     const releasedChoreographyCamera = previousCameraOwnershipRef.current && !choreographyCanDriveCamera
     const pendingCameraSceneReset = pendingCameraSceneResetRef.current
-    if ((enteredXr || enteredEmptyXrWorld || releasedChoreographyCamera || pendingCameraSceneReset) && !choreographyCanDriveCamera && !paused && !viewPinned && !String(modelAssetRenderKey || '').trim()) {
+    if ((enteredXr || enteredEmptyXrWorld || releasedChoreographyCamera || pendingCameraSceneReset) && !choreographyCanDriveCamera && !paused && !viewPinned && !objectInputOwnership.active && !String(modelAssetRenderKey || '').trim()) {
       voxelIntroRef.current = null
       if (releasedChoreographyCamera && !pendingCameraSceneReset && requestCameraFramingControlsReapply()) {
         previousCameraOwnershipRef.current = false
@@ -385,7 +404,7 @@ export function Controls({
       pendingCameraSceneResetRef.current = false
       return
     }
-    if (paused || mode !== 'voxel') {
+    if (paused || objectInputOwnership.active || mode !== 'voxel') {
       voxelIntroRef.current = null
       return
     }
@@ -436,7 +455,7 @@ export function Controls({
         tz: poses.end.target.z,
       },
     }
-  }, [camera, choreographyCanDriveCamera, controls, mode, modelAssetRenderKey, paused, positions, schema, viewPinned, xrEmptyWorld, xrRuntime.sceneKey])
+  }, [camera, choreographyCanDriveCamera, controls, mode, modelAssetRenderKey, objectInputOwnership.active, paused, positions, schema, viewPinned, xrEmptyWorld, xrRuntime.sceneKey])
   useCameraFramingControlsRuntime({
     camera: perspectiveCamera,
     controls,
@@ -454,10 +473,6 @@ export function Controls({
     playing: timelineTransportPlaying,
     xrEmptyWorld,
   })
-  React.useLayoutEffect(() => bindXrViewportControlsOwnership({
-    controls,
-    baseEnabled: !paused && !choreographyOwnsCamera,
-  }), [choreographyOwnsCamera, controls, paused])
   React.useEffect(() => {
     const fns: ThreeCameraSnapshotFns = {
       capturePose: (): ThreeCameraPose | null => {
@@ -505,7 +520,7 @@ export function Controls({
     }
   }, [camera, controls, perspectiveCamera, registerThreeCameraSnapshotFns])
   React.useEffect(() => {
-    if (paused) return
+    if (paused || objectInputOwnership.active) return
     const req = threeCameraRequest
     if (!req) return
     if (choreographyOwnsCamera) {
@@ -570,7 +585,7 @@ export function Controls({
     })
     useGraphStore.getState().clearThreeCameraRequest()
     selectionPerfEnd('three', t0)
-  }, [choreographyOwnsCamera, paused, viewPinned, threeCameraRequest, data, selectedNodeId, selectedEdgeId, selectedGroupId, selectedNodeIds, selectedEdgeIds, selectedGroupIds, positions, perspectiveCamera, controls, zoomOnSelectionEnabled, mode, modelAssetFit, modelAssetRenderKey])
+  }, [choreographyOwnsCamera, objectInputOwnership.active, paused, viewPinned, threeCameraRequest, data, selectedNodeId, selectedEdgeId, selectedGroupId, selectedNodeIds, selectedEdgeIds, selectedGroupIds, positions, perspectiveCamera, controls, zoomOnSelectionEnabled, mode, modelAssetFit, modelAssetRenderKey])
   React.useEffect(() => {
     return () => {
       try { controls.dispose() } catch { void 0 }

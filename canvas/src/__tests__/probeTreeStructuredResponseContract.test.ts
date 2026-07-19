@@ -8,6 +8,7 @@ import {
   extractProbeTreeUserInputText,
   isProbeTreeCardUserInputRelevant,
   PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION,
+  resolveProbeTreeTerminalGenerationRequest,
   resolveProbeTreeContextAnchors,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { KNOWGRPH_PROBE_TREE_INVOCATION_TOKENS } from '@/features/agentic-os/probeTreePromptPreset'
@@ -43,8 +44,9 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
     'leaves output empty for the user-owned selection',
     'Reject every canned wrapper',
     'pairwise relationship questions',
-    'imperative generation request',
-    'do not continue Probe-Tree',
+    'explicit Probe-Tree invocation',
+    'begins with an action verb',
+    'runtime resolves terminal continuation answers',
   ]) {
     if (!prompt.includes(expected)) {
       throw new Error(`expected Probe-Tree LLM prompt to include ${expected}, got ${prompt}`)
@@ -139,12 +141,32 @@ export function testProbeTreeLlmResponseContractProjectsEditableBranches() {
 
 export function testProbeTreeMcpResponseAdapterBoundsWidgetCardsAndPanel() {
   const contextText = 'Authored request: Prioritize care evidence across member risk tier, CRM authority, claims freshness, care-plan handoff, consent status, escalation owner, review deadline, and approval state. Selected Widget id: care-source'
-  const optionSets = [
-    ['member risk tier', 'CRM authority'],
-    ['member risk tier', 'CRM authority'],
-    ['claims freshness', 'care-plan handoff'],
-    ['consent status', 'escalation owner'],
-    ['review deadline', 'approval state'],
+  const candidates = [
+    {
+      question: 'Which member risk tier or CRM authority gap should care evidence resolve?',
+      selectionOptions: ['Prioritize high member risk exposure', 'Require verified CRM system authority'],
+      contextAnchors: ['member risk tier', 'CRM authority'],
+    },
+    {
+      question: 'Which member risk tier or CRM authority gap should care evidence resolve?',
+      selectionOptions: ['Prioritize high member risk exposure', 'Require verified CRM system authority'],
+      contextAnchors: ['member risk tier', 'CRM authority'],
+    },
+    {
+      question: 'Which claims freshness or care-plan handoff condition should care evidence resolve?',
+      selectionOptions: ['Require recently refreshed claims evidence', 'Prioritize explicit care-plan handoff ownership'],
+      contextAnchors: ['claims freshness', 'care-plan handoff'],
+    },
+    {
+      question: 'Which consent status or escalation owner condition should care evidence resolve?',
+      selectionOptions: ['Require currently valid consent status', 'Assign named escalation owner accountability'],
+      contextAnchors: ['consent status', 'escalation owner'],
+    },
+    {
+      question: 'Which review deadline or approval state condition should care evidence resolve?',
+      selectionOptions: ['Prioritize near-term review deadline', 'Require explicit approval state confirmation'],
+      contextAnchors: ['review deadline', 'approval state'],
+    },
   ]
   const response = buildProbeTreeStructuredResponse({
     threadRootId: 'care-agent',
@@ -152,13 +174,13 @@ export function testProbeTreeMcpResponseAdapterBoundsWidgetCardsAndPanel() {
     contextText,
     optionCount: 9,
     probeTreeDepth: 99,
-    options: optionSets.map((selectionOptions, index) => ({
+    options: candidates.map((candidate, index) => ({
       id: `care-option-${index + 1}`,
-      text: `Which ${selectionOptions[0]} and ${selectionOptions[1]} priority should care evidence use?`,
+      text: candidate.question,
       rationale: `Keeps branch ${index + 1} source-backed.`,
       evidenceNeeded: 'User selection among the authored care evidence priorities.',
-      selectionOptions,
-      contextAnchors: selectionOptions,
+      selectionOptions: candidate.selectionOptions,
+      contextAnchors: candidate.contextAnchors,
     })),
   })
   const structured = response.structuredContent
@@ -250,7 +272,7 @@ export function testProbeTreeNoModelCardsFailClosed() {
   }
 }
 
-export function testProbeTreeRestatedQueryAndMechanicalBucketsAreRejected() {
+export function testProbeTreeRestatedQueryAndSemanticallyThinChoicesAreRejected() {
   const authoredRequest = '/knowgrph.probe-tree recommend invest in India, China, or SE Asia'
   const contextText = ['Authored request:', authoredRequest, 'Selected Widget id: investment-root'].join('\n')
   const restatedQuestionAccepted = isProbeTreeCardUserInputRelevant({
@@ -271,6 +293,18 @@ export function testProbeTreeRestatedQueryAndMechanicalBucketsAreRejected() {
     selectionOptions: ['Long-term capital growth', 'Recurring income yield', 'Strategic market access'],
     contextAnchors: ['India', 'China', 'SE Asia'],
   })
+  const conciseSemanticQuestionAccepted = isProbeTreeCardUserInputRelevant({
+    contextText,
+    question: 'Which investment objective should drive the India, China, or SE Asia recommendation?',
+    selectionOptions: ['Maximize returns', 'Protect capital value', 'Prioritize strategic access'],
+    contextAnchors: ['India', 'China', 'SE Asia'],
+  })
+  const uncuedTwoWordChoicesAccepted = isProbeTreeCardUserInputRelevant({
+    contextText,
+    question: 'Which risk posture should drive the India, China, or SE Asia recommendation?',
+    selectionOptions: ['Higher risk', 'Lower risk'],
+    contextAnchors: ['India', 'China', 'SE Asia'],
+  })
   const sparseContextText = [
     'Authored request:',
     '/sme-care-agent @source.frontmatter @runtime-proof #runtime-ready /knowgrph.probe-tree invest in India, or SE Asia?',
@@ -286,6 +320,24 @@ export function testProbeTreeRestatedQueryAndMechanicalBucketsAreRejected() {
     question: sparseQuestion,
     selectionOptions: ['1-2 years', '3-5 years', '6-7 years', '7-10 years'],
   })
+  const mixedMechanicalBucketQuestionAccepted = isProbeTreeCardUserInputRelevant({
+    contextText: sparseContextText,
+    question: sparseQuestion,
+    selectionOptions: [
+      '1-2 years',
+      '3-7 years for balanced growth and execution risk',
+      '7+ years for long-horizon market access',
+    ],
+  })
+  const mixedEntityLabelQuestionAccepted = isProbeTreeCardUserInputRelevant({
+    contextText: sparseContextText,
+    question: 'Which investment objective should guide the India or Southeast Asia recommendation?',
+    selectionOptions: [
+      'India',
+      'Prioritize recurring income yield',
+      'Prioritize strategic market access',
+    ],
+  })
   const semanticBucketQuestionAccepted = isProbeTreeCardUserInputRelevant({
     contextText: sparseContextText,
     question: sparseQuestion,
@@ -295,16 +347,39 @@ export function testProbeTreeRestatedQueryAndMechanicalBucketsAreRejected() {
       '7+ years for long-horizon market access',
     ],
   })
+  const continuationContext = [
+    'Authored request:',
+    'Compare regulatory changes across Indonesia, Singapore, and Malaysia.',
+    'Selected continuation question:',
+    'Which evidence standard should govern the regulatory comparison?',
+    'Selected continuation answer:',
+    '1. Current regulator guidance',
+    '2. Licensed-adviser review',
+  ].join('\n')
+  const repeatedContinuationChoiceAccepted = areProbeTreeContinuationChoicesSuggested({
+    contextText: continuationContext,
+    question: 'Which current regulator guidance or licensed-adviser review gap should the next comparison resolve?',
+    selectionOptions: [
+      'Current regulator guidance',
+      'Prioritize jurisdiction-specific recency gaps',
+      'Require conflicting-source escalation',
+    ],
+  })
   if (
     restatedQuestionAccepted
     || entityListParaphraseAccepted
     || !querySpecificQuestionAccepted
+    || !conciseSemanticQuestionAccepted
+    || uncuedTwoWordChoicesAccepted
     || mechanicalBucketQuestionAccepted
+    || mixedMechanicalBucketQuestionAccepted
+    || mixedEntityLabelQuestionAccepted
     || !semanticBucketQuestionAccepted
+    || repeatedContinuationChoiceAccepted
     || !['invest', 'India', 'SE Asia'].every(anchor => derivedSparseAnchors.includes(anchor))
     || derivedSparseAnchors.includes('Southeast Asia')
   ) {
-    throw new Error(`expected source-query echoes and bare numeric buckets to fail while semantic number-bearing choices and sparse source-verbatim anchors survive, got ${JSON.stringify({ restatedQuestionAccepted, entityListParaphraseAccepted, querySpecificQuestionAccepted, mechanicalBucketQuestionAccepted, semanticBucketQuestionAccepted, derivedSparseAnchors })}`)
+    throw new Error(`expected source-query echoes, every semantically thin choice, and repeated continuation answers to fail while concise semantic preferences, semantic number-bearing choices, and sparse source-verbatim anchors survive, got ${JSON.stringify({ restatedQuestionAccepted, entityListParaphraseAccepted, querySpecificQuestionAccepted, conciseSemanticQuestionAccepted, uncuedTwoWordChoicesAccepted, mechanicalBucketQuestionAccepted, mixedMechanicalBucketQuestionAccepted, mixedEntityLabelQuestionAccepted, semanticBucketQuestionAccepted, repeatedContinuationChoiceAccepted, derivedSparseAnchors })}`)
   }
 }
 
@@ -374,6 +449,8 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
     question: 'Which parts of "provider-neutral protection guidance" need separate follow-up?',
     selectionOptions: ['provider-neutral', 'protection guidance'],
   })
+  const mixedTerminalRequest = resolveProbeTreeTerminalGenerationRequest('4. 7-10 years Other: Generate the report')
+  const clarificationChoiceRequest = resolveProbeTreeTerminalGenerationRequest('1. Generate recurring income 2. Protect capital value')
   if (
     forbiddenMetadata.some(keyword => keywords.includes(keyword))
     || !['sme', 'cyber', 'supply-chain', 'physical-asset', 'growth-stage'].every(keyword => keywords.includes(keyword))
@@ -383,6 +460,8 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
     || questionOnlyContinuationInput !== 'coverage authority, claims freshness, adviser handoff'
     || genericWrapperAccepted
     || relationshipWrapperAccepted
+    || mixedTerminalRequest !== 'Generate the report'
+    || clarificationChoiceRequest
   ) {
     throw new Error(`expected relevance validation to reject canned wrappers while keeping the selected child input primary, got ${JSON.stringify({ keywords, continuationInput, continuationKeywords, questionOnlyContinuationInput })}`)
   }

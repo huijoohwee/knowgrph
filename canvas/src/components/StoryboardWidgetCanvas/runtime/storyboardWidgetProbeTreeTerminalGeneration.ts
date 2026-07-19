@@ -3,11 +3,12 @@ import type { StoryboardWidgetTextRunOutputPublisher } from '@/components/Storyb
 import { buildStoryboardWidgetProbeTreeOutputGroupId } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
 import {
   KNOWGRPH_PROBE_TREE_CONTRACT_VERSION,
-  isProbeTreeTerminalGenerationRequest,
+  resolveProbeTreeTerminalGenerationRequest,
 } from '@/features/agent-ready/probeTreeContract.mjs'
 import { buildRichMediaTextMarkdownDocument } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
 import { readGraphNodeCanonicalTextProperty, readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { PROBE_TREE_TERMINAL_PROVIDER_TASK_MARKER } from './storyboardWidgetProbeTreeProviderRequest'
 import { isStoryboardWidgetProbeTreeContinuationNode } from './storyboardWidgetProbeTreeRunNode'
 
 const GENERATED_RESULT_PANEL_LABEL = 'Generated Result'
@@ -16,7 +17,7 @@ const GENERATED_RESULT_OUTPUT_KEY = 'probe-tree-generated-result'
 export function readStoryboardWidgetProbeTreeTerminalGenerationRequest(node: GraphNode): string {
   if (!isStoryboardWidgetProbeTreeContinuationNode(node)) return ''
   const output = readGraphNodeCanonicalTextProperty(readGraphNodeProperties(node), STORYBOARD_OUTPUT_PROPERTY_KEYS)
-  return isProbeTreeTerminalGenerationRequest(output) ? output : ''
+  return resolveProbeTreeTerminalGenerationRequest(output)
 }
 
 export function buildStoryboardWidgetProbeTreeTerminalGenerationPrompt(args: {
@@ -24,7 +25,7 @@ export function buildStoryboardWidgetProbeTreeTerminalGenerationPrompt(args: {
   contextText: string
 }): string {
   return [
-    'Terminal generation task:',
+    PROBE_TREE_TERMINAL_PROVIDER_TASK_MARKER,
     '- Fulfill the selected user request now as the requested deliverable.',
     '- Do not ask a clarification question, emit Probe-Tree cards, or continue Probe-Tree.',
     '- Do not substitute a canned, fixture-backed, or use-case-specific hardcoded response.',
@@ -79,6 +80,8 @@ export async function runStoryboardWidgetProbeTreeTerminalGeneration(args: {
     outputIndex: 1,
     panelLabel: GENERATED_RESULT_PANEL_LABEL,
     panelProperties: { probeTreeTerminalGeneration: true },
+    allowCreateStandaloneOutput: true,
+    connectCreatedOutputToAnchor: true,
   })
   if (!publishedGraphData) throw new Error('The selected generation request could not publish its Rich Media result.')
   args.onMaterialized([])

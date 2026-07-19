@@ -4,6 +4,8 @@ import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 import { readParsedGraphRevisionOrInitial } from '@/features/source-files/sourceFileParsedGraphRevision'
 import { toMetadataRecord } from '@/lib/graph/documentMetadata'
 import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
+import { createUniqueId } from '@/lib/ids'
+import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'
 
 export type SourceLayerInput = {
   id: string
@@ -43,6 +45,28 @@ function computeTextHash(layer: SourceLayerInput): string {
 
 function readSourceLayerGraphMetadata(graphData: { metadata?: unknown } | null | undefined): Record<string, unknown> {
   return toMetadataRecord(graphData?.metadata)
+}
+
+export function stripRepeatedSourceLayerEntityPrefix(rawId: unknown, rawLayerId: unknown): string {
+  let id = String(rawId || '').trim()
+  const layerId = String(rawLayerId || '').trim()
+  if (!id || !layerId) return id
+  const prefix = `${layerId}::`
+  while (id.startsWith(prefix)) {
+    id = id.slice(prefix.length).trim()
+  }
+  return id
+}
+
+function buildSourceLayerEdgeTopologyKey(edge: GraphEdge, source: string, target: string): string {
+  return JSON.stringify({
+    source,
+    target,
+    sourcePortKey: readFlowEdgePortKey(edge, 'source') || '',
+    targetPortKey: readFlowEdgePortKey(edge, 'target') || '',
+    type: String(edge.type || '').trim(),
+    label: String(edge.label || '').trim(),
+  })
 }
 
 const PARSED_GRAPH_SEMANTIC_KEY_CACHE = new WeakMap<object, string>()
@@ -332,8 +356,12 @@ export function composeGraphFromSourceLayers(args: {
     const sourceUrl = layer.source?.kind === 'url' ? String(layer.source?.url || '').trim() : ''
     const documentPath = label
 
+    const includedNodeIds = new Set<string>()
     for (const node of graph.nodes || []) {
-      const nextId = `${prefix}${String(node.id)}`
+      const innerId = stripRepeatedSourceLayerEntityPrefix(node.id, layer.id)
+      if (!innerId || includedNodeIds.has(innerId)) continue
+      includedNodeIds.add(innerId)
+      const nextId = `${prefix}${innerId}`
       const nextMeta = { ...(node.metadata || {}) } as Record<string, JSONValue>
       nextMeta.sourceLayerId = layer.id as unknown as JSONValue
       nextMeta.sourceLayerLabel = label as unknown as JSONValue
@@ -342,8 +370,29 @@ export function composeGraphFromSourceLayers(args: {
       nodes.push({ ...node, id: nextId, metadata: nextMeta })
     }
 
+    const reservedEdgeIds = new Set(
+      (graph.edges || [])
+        .map(edge => stripRepeatedSourceLayerEntityPrefix(edge.id, layer.id))
+        .filter(Boolean),
+    )
+    const includedEdgeTopologyById = new Map<string, string>()
+    const includedCanonicalEdgeIdentities = new Set<string>()
     for (const edge of graph.edges || []) {
-      const nextId = `${prefix}${String(edge.id)}`
+      const source = stripRepeatedSourceLayerEntityPrefix(edge.source, layer.id)
+      const target = stripRepeatedSourceLayerEntityPrefix(edge.target, layer.id)
+      let innerId = stripRepeatedSourceLayerEntityPrefix(edge.id, layer.id)
+      if (!innerId || !source || !target) continue
+      const topologyKey = buildSourceLayerEdgeTopologyKey(edge, source, target)
+      const canonicalIdentity = JSON.stringify([innerId, topologyKey])
+      if (includedCanonicalEdgeIdentities.has(canonicalIdentity)) continue
+      includedCanonicalEdgeIdentities.add(canonicalIdentity)
+      const existingTopologyKey = includedEdgeTopologyById.get(innerId)
+      if (existingTopologyKey) {
+        innerId = createUniqueId('e', reservedEdgeIds)
+      }
+      reservedEdgeIds.add(innerId)
+      includedEdgeTopologyById.set(innerId, topologyKey)
+      const nextId = `${prefix}${innerId}`
       const nextMeta = { ...(edge.metadata || {}) } as Record<string, JSONValue>
       nextMeta.sourceLayerId = layer.id as unknown as JSONValue
       nextMeta.sourceLayerLabel = label as unknown as JSONValue
@@ -352,8 +401,8 @@ export function composeGraphFromSourceLayers(args: {
       edges.push({
         ...edge,
         id: nextId,
-        source: `${prefix}${String(edge.source)}`,
-        target: `${prefix}${String(edge.target)}`,
+        source: `${prefix}${source}`,
+        target: `${prefix}${target}`,
         metadata: nextMeta,
       })
     }
@@ -402,10 +451,9 @@ function readComposedEntityLayerId(entity: GraphNode | GraphEdge): string {
 function projectComposedEntityId(rawId: unknown, layerId: string): string {
   const id = String(rawId || '').trim()
   if (!id) return ''
-  const separatorIndex = id.indexOf('::')
-  if (separatorIndex <= 0) return id
-  if (id.slice(0, separatorIndex).trim() !== layerId) return ''
-  return id.slice(separatorIndex + 2).trim()
+  const projectedId = stripRepeatedSourceLayerEntityPrefix(id, layerId)
+  if (projectedId !== id) return projectedId
+  return id.includes('::') ? '' : id
 }
 
 function restoreSourceEntityMetadata<T extends GraphNode | GraphEdge>(
@@ -442,7 +490,11 @@ export function projectComposedGraphToSourceLayer(args: {
   if (!layerId) return args.graphData
 
   const sourceGraph = args.layer.parsedGraphData || { type: 'Graph', nodes: [], edges: [], metadata: {} }
-  const originalNodesById = new Map((sourceGraph.nodes || []).map(node => [String(node.id || '').trim(), node] as const))
+  const originalNodesById = new Map<string, GraphNode>()
+  for (const node of sourceGraph.nodes || []) {
+    const id = stripRepeatedSourceLayerEntityPrefix(node.id, layerId)
+    if (id && !originalNodesById.has(id)) originalNodesById.set(id, node)
+  }
   const projectedNodes: GraphNode[] = []
   const includedNodeIds = new Set<string>()
   for (const node of args.graphData.nodes || []) {
@@ -457,20 +509,40 @@ export function projectComposedGraphToSourceLayer(args: {
     ))
   }
 
-  const originalEdgesById = new Map((sourceGraph.edges || []).map(edge => [String(edge.id || '').trim(), edge] as const))
-  const projectedEdges: GraphEdge[] = []
-  const includedEdgeIds = new Set<string>()
+  const originalEdgesById = new Map<string, GraphEdge>()
+  for (const edge of sourceGraph.edges || []) {
+    const id = stripRepeatedSourceLayerEntityPrefix(edge.id, layerId)
+    if (id && !originalEdgesById.has(id)) originalEdgesById.set(id, edge)
+  }
+  const edgeCandidates: Array<{ edge: GraphEdge; id: string; source: string; target: string }> = []
   for (const edge of args.graphData.edges || []) {
     const entityLayerId = readComposedEntityLayerId(edge)
     if (entityLayerId && entityLayerId !== layerId) continue
-    const projectedId = projectComposedEntityId(edge.id, layerId)
+    const id = projectComposedEntityId(edge.id, layerId)
     const source = projectComposedEntityId(edge.source, layerId)
     const target = projectComposedEntityId(edge.target, layerId)
-    if (!projectedId || includedEdgeIds.has(projectedId) || !includedNodeIds.has(source) || !includedNodeIds.has(target)) continue
-    includedEdgeIds.add(projectedId)
+    if (!id || !includedNodeIds.has(source) || !includedNodeIds.has(target)) continue
+    edgeCandidates.push({ edge, id, source, target })
+  }
+  const projectedEdges: GraphEdge[] = []
+  const reservedEdgeIds = new Set(edgeCandidates.map(candidate => candidate.id))
+  const includedEdgeTopologyById = new Map<string, string>()
+  const includedCanonicalEdgeIdentities = new Set<string>()
+  for (const candidate of edgeCandidates) {
+    let projectedId = candidate.id
+    const topologyKey = buildSourceLayerEdgeTopologyKey(candidate.edge, candidate.source, candidate.target)
+    const canonicalIdentity = JSON.stringify([projectedId, topologyKey])
+    if (includedCanonicalEdgeIdentities.has(canonicalIdentity)) continue
+    includedCanonicalEdgeIdentities.add(canonicalIdentity)
+    const existingTopologyKey = includedEdgeTopologyById.get(projectedId)
+    if (existingTopologyKey) {
+      projectedId = createUniqueId('e', reservedEdgeIds)
+    }
+    reservedEdgeIds.add(projectedId)
+    includedEdgeTopologyById.set(projectedId, topologyKey)
     projectedEdges.push(restoreSourceEntityMetadata(
-      { ...edge, id: projectedId, source, target },
-      originalEdgesById.get(projectedId) || null,
+      { ...candidate.edge, id: projectedId, source: candidate.source, target: candidate.target },
+      originalEdgesById.get(candidate.id) || null,
     ))
   }
 

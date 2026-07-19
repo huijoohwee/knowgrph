@@ -8,7 +8,11 @@ import type { GraphSchema } from '@/lib/graph/schema'
 import { pickDefaultFlowPortKey } from '@/lib/graph/flowPorts'
 import { resolveGraphNodeByCanonicalId } from '@/lib/graph/canonicalNodeIds'
 import { finalizeEdgeAuthoring } from '@/features/edge-creation/authoring'
-import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
+import {
+  bumpStoryboardWidgetDraftGraphDataRevision,
+  hasStoryboardWidgetDraftGraphDataCanonicalSuperset,
+  mergeStoryboardWidgetDraftGraphDataWithLiveAdditions,
+} from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
 import { FLOW_PORT_HANDLE_PREVIEW_EVENT, type FlowPortHandlePreviewDetail } from '@/components/StoryboardWidget/flowPortHandlePointerDrag'
 import {
@@ -46,6 +50,32 @@ export function appendStoryboardWidgetDraftNode(graphData: GraphData, node: Grap
     { ...graphData, nodes: [...nodes, node], edges: Array.isArray(graphData.edges) ? graphData.edges : [] },
     opts,
   )
+}
+
+export function resolveStoryboardWidgetPostCommitDraftGraphData(args: {
+  liveGraphData: GraphData | null
+  draftGraphData: GraphData | null
+  fallbackGraphData: GraphData
+  committedNode: GraphNode
+  revisionFloor?: number | null
+}): GraphData {
+  const liveContainsCommittedNode = Boolean(
+    resolveGraphNodeByCanonicalId(args.liveGraphData, args.committedNode.id),
+  )
+  const liveGraphData = liveContainsCommittedNode ? args.liveGraphData! : null
+  const liveContainsWholeDraft = hasStoryboardWidgetDraftGraphDataCanonicalSuperset(
+    liveGraphData,
+    args.draftGraphData,
+  )
+  const authoritativeGraphData = liveGraphData && args.draftGraphData && !liveContainsWholeDraft
+    ? mergeStoryboardWidgetDraftGraphDataWithLiveAdditions({
+        liveGraphData,
+        draftGraphData: args.draftGraphData,
+      })
+    : liveGraphData || args.draftGraphData || args.fallbackGraphData
+  return appendStoryboardWidgetDraftNode(authoritativeGraphData, args.committedNode, {
+    revisionFloor: args.revisionFloor,
+  })
 }
 
 export function appendStoryboardWidgetAuthoredEdge(graphData: GraphData, edge: GraphData['edges'][number], opts?: { revisionFloor?: number | null }): GraphData {
@@ -247,7 +277,7 @@ export function useStoryboardWidgetGraphActions(args: {
         args.setToolMode('select')
       }
     },
-    [args, materializeConnectedMediaValue, readAuthoringGraphData, readCommittedNodeIds],
+    [args, materializeConnectedMediaValue, readAuthoringGraphData, readCommittedNodeIds, readLiveGraphData],
   )
 
   const cancelPendingEdge = React.useCallback(() => {
@@ -347,11 +377,13 @@ export function useStoryboardWidgetGraphActions(args: {
         readDraftRevisionFloor(args.baseGraphData),
       )
       const draftNode: GraphNode = { ...nextNode, id: actualId }
-      const nextDraftGraphData = appendStoryboardWidgetDraftNode(
-        (args.draftGraphDataRef.current || liveGraphData || base) as GraphData,
-        draftNode,
-        { revisionFloor },
-      )
+      const nextDraftGraphData = resolveStoryboardWidgetPostCommitDraftGraphData({
+        liveGraphData,
+        draftGraphData: args.draftGraphDataRef.current,
+        fallbackGraphData: base,
+        committedNode: draftNode,
+        revisionFloor,
+      })
       if (nextDraftGraphData !== args.draftGraphDataRef.current) {
         args.draftGraphDataRef.current = nextDraftGraphData
         args.setDraftGraphData(nextDraftGraphData)

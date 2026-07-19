@@ -210,14 +210,20 @@ test("probe.generate uses host-owned Ollama adapter when configured and keeps co
                   text: "Which care-plan coaching language should guide the next branch?",
                   rationale: "Uses only the requested care-plan coaching scope.",
                   evidenceNeeded: "User selection",
-                  selectionOptions: ["English", "Mandarin"],
+                  selectionOptions: [
+                    "Prioritize English-first coaching with Mandarin support",
+                    "Prioritize Mandarin-first coaching with English support",
+                  ],
                   contextAnchors: ["care-plan coaching", "English", "Mandarin"],
                 },
                 {
                   text: "Which caregiver or member summary should guide the next branch?",
                   rationale: "Uses only the requested summary scope.",
                   evidenceNeeded: "User selection",
-                  selectionOptions: ["caregiver summary", "member summary"],
+                  selectionOptions: [
+                    "Prioritize a concise caregiver action summary",
+                    "Prioritize a concise member self-management summary",
+                  ],
                   contextAnchors: ["caregiver summary", "member summary"],
                 },
               ],

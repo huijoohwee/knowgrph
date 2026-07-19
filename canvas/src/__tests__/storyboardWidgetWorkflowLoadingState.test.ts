@@ -31,4 +31,9 @@ export function testStoryboardWidgetCanvasRunSetsSharedOutputLoadingState() {
     if (!runAll.includes(snippet)) throw new Error(`expected Run all Git-style source tracking contract snippet: ${snippet}`)
   }
   if (runAll.includes("args.upsertUiToast({ id: 'storyboard-widget-run-all-done'")) throw new Error('expected Run all completion to resolve its shared progress toast')
+  if (runAll.includes('}, [args])')) throw new Error('expected Run All event ownership to use stable member dependencies instead of the render-local args object')
+  const runnerMemoStart = text.indexOf('const runWorkflowNode = React.useMemo(')
+  const runnerMemoEnd = text.indexOf('useStoryboardWidgetWorkflowRunAll({', runnerMemoStart)
+  const runnerMemo = text.slice(runnerMemoStart, runnerMemoEnd)
+  if (!runnerMemo || runnerMemo.includes('}), [args])')) throw new Error('expected the shared node runner to remain stable across toolbar pointer-down layout-lock renders')
 }

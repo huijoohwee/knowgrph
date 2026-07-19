@@ -18,7 +18,7 @@ import {
   hydrateXrMotionReferenceRuntime,
   readXrMotionReferenceRuntime,
   removeXrMotionReferenceSubject,
-  setXrMotionReferenceCameraMarkEasing,
+  setXrMotionReferenceCameraMarkChoreography,
   setXrMotionReferenceCameraMark,
   setXrMotionReferenceCastMarkChoreography,
   setXrMotionReferenceCastTransition,
@@ -29,7 +29,7 @@ import {
   setXrMotionReferenceStage,
   setXrMotionReferenceSubjectLabel,
 } from '@/features/three/xrMotionReferenceRuntime'
-import { XR_MOTION_REFERENCE_STAGE_PRESETS, XR_SCENE_LIBRARY_ASSETS } from '@/features/three/xrSceneLibrary'
+import { assertXrDefaultTerrain, assertXrSceneCatalogAndVehiclePlacements, assertXrSubjectAssetSwapCrud, assertXrTerrainAssetsAreCleanRoom } from '@/__tests__/helpers/xrSceneLibraryAssertions'
 import {
   XR_MOTION_STAGE_CAMERA_POSITION,
   XR_MOTION_STAGE_CAMERA_TARGET,
@@ -38,6 +38,11 @@ import {
 import { buildXrMotionReferenceTimelineCode } from '@/features/three/xrMotionReferenceTimeline'
 import { buildMermaidGanttTimelineModel } from '@/lib/mermaid/mermaidGanttBarInteraction'
 import { resolveVideoSequenceTimelineLane } from '@/components/timeline/videoSequenceTimeline'
+import {
+  CAMERA_SENSOR_FORMATS,
+  resolveCameraVerticalFovDegreesForOptics,
+  resolveFullFrameEquivalentFocalLengthMm,
+} from '@/features/strybldr/cameraOptics'
 
 function readSource(...parts: string[]): string {
   return readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
@@ -119,6 +124,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (runtime.plan.schema !== XR_MOTION_REFERENCE_SCHEMA || runtime.plan.cast.length !== 2) {
     throw new Error(`expected graph nodes to hydrate native cast tracks, got ${JSON.stringify(runtime.plan)}`)
   }
+  assertXrDefaultTerrain(runtime.plan.stageId)
   if (runtime.plan.cast.some(track => track.marks.length !== 1 || track.marks[0]?.timeSeconds !== 0)) {
     throw new Error('expected each graph-derived cast member to receive one bounded starting mark')
   }
@@ -135,18 +141,18 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   setXrMotionReferenceCameraMark({
     timeSeconds: 0,
     anchorId: 'cast-a',
-    settings: { angle: 'front', level: 'eye-level', shot: 'wide', note: 'Opening', orbitX: 0, orbitY: 0, focalLengthMm: 35 },
+    settings: { angle: 'front', level: 'eye-level', shot: 'wide', note: 'Opening', orbitX: 0, orbitY: 0, sensorId: 'super-35', focalLengthMm: 35, focusDistanceMeters: 6, aspectRatio: '1.85:1' },
     rig: 'dolly',
   })
   setXrMotionReferenceCameraMark({
     timeSeconds: 5,
     anchorId: 'cast-a',
-    settings: { angle: 'right-side', level: 'high-angle', shot: 'close-up', note: 'Arrival', orbitX: 0.4, orbitY: -0.35, focalLengthMm: 85 },
+    settings: { angle: 'right-side', level: 'high-angle', shot: 'close-up', note: 'Arrival', orbitX: 0.4, orbitY: -0.35, sensorId: 'full-frame', focalLengthMm: 85, focusDistanceMeters: 1.2, aspectRatio: '2.39:1' },
     rig: 'drone',
   })
   const authored = readXrMotionReferenceRuntime().plan
   setXrMotionReferenceCastMarkChoreography({ actorId: 'cast-a', markId: authored.cast.find(track => track.actorId === 'cast-a')!.marks[0]!.id, easing: 'ease-in', gait: 'walk' })
-  setXrMotionReferenceCameraMarkEasing(authored.camera[0]!.id, 'ease-in-out')
+  setXrMotionReferenceCameraMarkChoreography({ markId: authored.camera[0]!.id, easing: 'ease-in-out' })
   setXrMotionReferencePlayhead(2.5)
   runtime = readXrMotionReferenceRuntime()
   if (runtime.plan.stageId !== 'loading-bay' || runtime.plan.durationSeconds !== 5 || runtime.plan.fps !== 10 || !runtime.dirty) {
@@ -221,7 +227,10 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   }
   if (roundTrip.cast.find(track => track.actorId === 'cast-a')?.marks[0]?.transition !== 'ease-in'
     || roundTrip.cast.find(track => track.actorId === 'cast-a')?.marks[0]?.gait !== 'walk'
-    || roundTrip.camera[0]?.easing !== 'ease-in-out') {
+    || roundTrip.camera[0]?.easing !== 'ease-in-out'
+    || roundTrip.camera[0]?.settings.sensorId !== 'super-35'
+    || roundTrip.camera[1]?.settings.focusDistanceMeters !== 1.2
+    || roundTrip.camera[1]?.settings.aspectRatio !== '2.39:1') {
     throw new Error('expected cast gait plus cast/camera easing to survive deterministic graph metadata round-trip')
   }
   if (roundTrip.camera[0]?.pose.target.join('|') !== '-3.6|0|-1.4' || roundTrip.camera[1]?.pose.target.join('|') !== '4|0|-3') {
@@ -264,12 +273,17 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     if (!paths.includes(expected)) throw new Error(`expected package virtual file ${expected}`)
   }
   const manifestFile = first.files.find(file => file.path === 'reference/manifest.json')!
-  const manifest = JSON.parse(manifestFile.text) as { cameraSemanticMapping?: { baselineMeters?: number; anchorFallback?: string }; interpolation?: string; speedWarnings?: number }
+  const manifest = JSON.parse(manifestFile.text) as { cameraSemanticMapping?: { baselineMeters?: number; anchorFallback?: string }; cameraOptics?: { sensors?: string[]; interpolation?: { focalLengthMm?: string; focusDistanceMeters?: string } }; interpolation?: string; speedWarnings?: number }
   if (manifest.cameraSemanticMapping?.baselineMeters !== 8 || manifest.cameraSemanticMapping.anchorFallback !== 'stage-origin') {
     throw new Error(`expected explicit semantic camera meter mapping, got ${JSON.stringify(manifest.cameraSemanticMapping)}`)
   }
   if (manifest.interpolation !== 'per-mark-easing-with-gait-profiles' || typeof manifest.speedWarnings !== 'number') {
     throw new Error(`expected the package manifest to declare choreography interpolation and diagnostics, got ${JSON.stringify(manifest)}`)
+  }
+  if (manifest.cameraOptics?.sensors?.join('|') !== 'super-35|full-frame'
+    || manifest.cameraOptics.interpolation?.focalLengthMm !== 'per-mark-easing'
+    || manifest.cameraOptics.interpolation.focusDistanceMeters !== 'per-mark-easing') {
+    throw new Error(`expected the package manifest to declare sensor-aware zoom and rack-focus semantics, got ${JSON.stringify(manifest.cameraOptics)}`)
   }
   const missingAnchorPlan = readXrMotionReferencePlan({
     ...serialized as Record<string, unknown>,
@@ -279,9 +293,18 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     throw new Error('expected a missing semantic camera anchor to fall back to stage origin')
   }
   const samplesFile = first.files.find(file => file.path === 'reference/frame-samples.json')!
-  const samples = JSON.parse(samplesFile.text) as Array<{ cast?: unknown[]; camera?: unknown }>
-  if (samples.length !== 51 || !Array.isArray(samples[25]?.cast) || !samples[25]?.camera) {
-    throw new Error('expected deterministic per-frame camera and cast samples')
+  const samples = JSON.parse(samplesFile.text) as Array<{ cast?: unknown[]; camera?: unknown; cameraOptics?: { sensorId?: string; focalLengthMm?: number; focusDistanceMeters?: number; aspectRatio?: string } }>
+  if (samples.length !== 51 || !Array.isArray(samples[25]?.cast) || !samples[25]?.camera
+    || samples[25]?.cameraOptics?.sensorId !== 'super-35'
+    || samples[25]?.cameraOptics?.focalLengthMm !== 60
+    || samples[25]?.cameraOptics?.focusDistanceMeters !== 3.6
+    || samples[25]?.cameraOptics?.aspectRatio !== '1.85:1') {
+    throw new Error(`expected deterministic per-frame camera, optics, and cast samples, got ${JSON.stringify(samples[25])}`)
+  }
+  if (CAMERA_SENSOR_FORMATS.map(sensor => sensor.id).join('|') !== 'super-16|super-35|full-frame|65mm'
+    || Math.abs(resolveCameraVerticalFovDegreesForOptics('full-frame', 50) - 26.991) > 0.01
+    || resolveFullFrameEquivalentFocalLengthMm('super-16', 16) !== 46.5) {
+    throw new Error('expected the native optics catalog to preserve four real sensor gates and deterministic field-of-view math')
   }
   const blob = xrMotionReferencePackageBlob(first)
   if (blob.type !== 'application/json;charset=utf-8' || !(await blob.text()).endsWith('\n')) {
@@ -300,14 +323,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     throw new Error('expected motion identity to change with choreography while graph identity remains stable')
   }
 
-  const requiredEnvironmentIds = ['downtown', 'residential-street', 'supermarket', 'movie-theater', 'train-car', 'backyard-pool', 'aerial-sky']
-  if (!requiredEnvironmentIds.every(id => XR_MOTION_REFERENCE_STAGE_PRESETS.some(stage => stage.id === id))) {
-    throw new Error('expected the native XR library to include every requested environment kit')
-  }
-  const categories = new Set(XR_SCENE_LIBRARY_ASSETS.map(asset => asset.category))
-  if (!['people', 'animals', 'vehicles', 'furniture', 'props'].every(category => categories.has(category as never))) {
-    throw new Error(`expected a complete native XR subject library, got ${[...categories].join(',')}`)
-  }
+  assertXrSceneCatalogAndVehiclePlacements()
   hydrateXrMotionReferenceRuntime({ sceneKey: 'library-scene', nodes: [], persistedValue: null })
   setXrMotionReferenceStage('downtown')
   addXrMotionReferenceSubject({ assetId: 'person-adult', label: 'THIEF' })
@@ -341,6 +357,8 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   }
   removeXrMotionReferenceSubject(staticSubject.id)
   if (readXrMotionReferenceRuntime().plan.subjects.length !== 1) throw new Error('expected placed static subjects to be removable')
+
+  assertXrSubjectAssetSwapCrud()
 
   const stageSource = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
   const runtimeBridgeSource = readSource('features', 'three', 'XrMotionReferenceRuntimeBridge.tsx')
@@ -381,7 +399,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     'data-kg-xr-motion-stage-select="1"',
     'data-kg-xr-motion-save="1"',
     'data-kg-xr-motion-export="1"',
-    "documentLoaded ? `${runtime.plan.cast.length} cast · ${edges} links` : 'World ready'",
+    "documentLoaded ? `${objectTargets.length} objects · ${edges} links` : 'World ready'",
     'updateGraphMetadata',
     'downloadBlob',
   ]) {
@@ -523,10 +541,13 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (emptyWorldSource.includes('kg_xr_empty_world_camera') || emptyWorldSource.includes('EmptyWorldCamera')) {
     throw new Error('expected the source-free XR stage to avoid a fake Camera prop')
   }
-  if (!threeGraphSource.includes("key={hasXrEmptyWorld ? 'xr-empty-world-canvas' : 'scene-canvas'}")
-    || !threeGraphSource.includes("gl.setClearColor(hasXrEmptyWorld ? '#0b2f4a' : '#000000'")
+  if (!threeGraphSource.includes("const rendererLifecycleKey = hasXrEmptyWorld ? 'xr-empty-world-canvas' : 'scene-canvas'")
+    || !threeGraphSource.includes("const rendererClearColor = hasXrEmptyWorld")
+    || !threeGraphSource.includes("? '#0b2f4a'")
+    || !threeGraphSource.includes('const rendererDefaultClearAlpha = hasXrEmptyWorld || hasGraph ? 1 : 0')
+    || !threeGraphSource.includes('<XrRendererClearController')
     || !threeGraphSource.includes("gl.xr.enabled = mode === 'xr'")) {
-    throw new Error('expected the empty XR world to remount with an opaque navy camera environment')
+    throw new Error('expected the empty XR world to remount with the shared navy renderer environment')
   }
   for (const marker of ['data-kg-xr-empty-world-hud="1"', 'Centers Mode', 'XR world axes X Y Z']) {
     if (!emptyWorldHudSource.includes(marker)) throw new Error(`expected source-free XR orientation HUD to expose ${marker}`)
@@ -581,12 +602,14 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     throw new Error('expected package export to retain the shared blob-download owner')
   }
 
-  const implementation = [xrCameraMotionSource, xrTimelineProjectionSource, stageSource, stagePresetGeometrySource, emptyWorldSource, emptyWorldHudSource, modelSource, packageSource, runtimeSource, runtimeBridgeSource, sceneLibrarySource, sceneSubjectSource, xrMediaLibrarySource, readSource('features', 'three', 'xrAnimationCatalog.ts'), readSource('features', 'three', 'xrAnimationMcpRuntime.ts'), readSource('features', 'three', 'XrAnimationFloatingPanelView.tsx')].join('\n').toLowerCase()
+  const proceduralBallSource = readSource('features', 'three', 'XrProceduralBallGeometry.tsx')
+  const implementation = [xrCameraMotionSource, xrTimelineProjectionSource, stageSource, stagePresetGeometrySource, emptyWorldSource, emptyWorldHudSource, modelSource, packageSource, runtimeSource, runtimeBridgeSource, sceneLibrarySource, sceneSubjectSource, proceduralBallSource, xrMediaLibrarySource, readSource('features', 'three', 'xrAnimationCatalog.ts'), readSource('features', 'three', 'xrAnimationMcpRuntime.ts'), readSource('features', 'three', 'XrAnimationFloatingPanelView.tsx')].join('\n').toLowerCase()
   for (const forbidden of ['wassermanproductions', 'blockout', 'ffmpeg', 'electron-vite']) {
     if (implementation.includes(forbidden)) {
       throw new Error(`expected clean-room XR implementation to avoid external runtime token ${forbidden}`)
     }
   }
+  assertXrTerrainAssetsAreCleanRoom([sceneLibrarySource, sceneSubjectSource, proceduralBallSource])
   const rootPackage = readFileSync(resolve(process.cwd(), '..', 'package.json'), 'utf8').toLowerCase()
   const canvasPackage = readFileSync(resolve(process.cwd(), 'package.json'), 'utf8').toLowerCase()
   if (`${rootPackage}\n${canvasPackage}`.includes('wassermanproductions/blockout')) {

@@ -10,7 +10,7 @@ import {
   buildExternalMcpStreamableHttpConfigJson,
   getExternalMcpToolServerRowAnchorId,
 } from '@/features/panels/views/externalMcpToolServerDocs'
-import { assertDeferredExternalMcpBridgeIdsStayDocumentedContract } from '@/__tests__/helpers/mainPanelMcpExpectations'
+import { assertExternalMcpBridgeIdsAreRuntimeExecutable } from '@/__tests__/helpers/mainPanelMcpExpectations'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { MemoryStorage } from '@/tests/lib/memoryStorage'
@@ -120,7 +120,7 @@ export function testExternalMcpGeneratedConfigTemplatesStayGenericAndNonSecret()
   assertNoSecretOrProviderMaterial(`${stdioText}\n${httpText}`)
 }
 
-export function testExternalMcpSsotRowsCoverDeferredDiscoveryAndBoundaries() {
+export function testExternalMcpSsotRowsCoverRuntimeDiscoveryAndBoundaries() {
   const keys = new Set(EXTERNAL_MCP_TOOL_SERVER_DOC_ENTRIES.map(entry => entry.meta.key))
   for (const key of [
     'externalMcp.gateway.role',
@@ -128,6 +128,7 @@ export function testExternalMcpSsotRowsCoverDeferredDiscoveryAndBoundaries() {
     'externalMcp.tool.allowlist_policy',
     'externalMcp.schema.progressive_disclosure',
     'externalMcp.approval.policy',
+    'externalMcp.runtime.profile_env',
     EXTERNAL_MCP_TOOL_SERVER_STDIO_CONFIG_KEY,
     EXTERNAL_MCP_TOOL_SERVER_HTTP_CONFIG_KEY,
     'externalMcp.secrets.boundary',
@@ -139,7 +140,7 @@ export function testExternalMcpSsotRowsCoverDeferredDiscoveryAndBoundaries() {
   const bridgeEntry = EXTERNAL_MCP_TOOL_SERVER_DOC_ENTRIES.find(entry => entry.meta.key === 'externalMcp.tool.bridge_ids')
   const boundaryEntry = EXTERNAL_MCP_TOOL_SERVER_DOC_ENTRIES.find(entry => entry.meta.key === 'externalMcp.copy.boundary')
   const combined = `${bridgeEntry?.value || ''}\n${bridgeEntry?.details.responsibility || ''}\n${boundaryEntry?.value || ''}\n${boundaryEntry?.details.responsibility || ''}`
-  assertDeferredExternalMcpBridgeIdsStayDocumentedContract(combined)
+  assertExternalMcpBridgeIdsAreRuntimeExecutable(combined)
   if (!combined.includes('Forbid copied external gateway code')) {
     throw new Error(`expected external MCP row contract to include copy-boundary guard, got ${JSON.stringify(combined)}`)
   }

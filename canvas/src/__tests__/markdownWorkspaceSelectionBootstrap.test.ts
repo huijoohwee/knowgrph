@@ -2,8 +2,10 @@ import {
   GEOSPATIAL_WORKSPACE_SEED_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   WORKSPACE_README_SEED_PATH,
+  XR_PHYSICS_WORKSPACE_SEED_PATH,
 } from '@/features/workspace-fs/workspaceFs'
 import type { WorkspaceEntry } from '@/features/workspace-fs/types'
+import { resolveWorkspaceStartupDefaultStarterPath } from '@/features/source-files/sourceFilesRuntimeStartup'
 import { resolveMarkdownWorkspaceBootstrapActivePath } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionBootstrap'
 import { buildWorkspaceEntriesIndex } from '@/lib/markdown-workspace-runtime/workspaceEntriesIndex'
 
@@ -21,6 +23,7 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
     buildFileEntry(WORKSPACE_README_SEED_PATH),
     buildFileEntry(TEST_VALIDATION_WORKSPACE_SEED_PATH),
     buildFileEntry(GEOSPATIAL_WORKSPACE_SEED_PATH),
+    buildFileEntry(XR_PHYSICS_WORKSPACE_SEED_PATH),
   ]
 
   const startup = resolveMarkdownWorkspaceBootstrapActivePath({
@@ -30,8 +33,28 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
     lastRequestedActivePath: null,
     nowMs: 10_000,
   })
-  if (startup !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
-    throw new Error(`expected bootstrap helper to prefer the validation seed as the default initialization file, got ${String(startup)}`)
+  if (startup !== XR_PHYSICS_WORKSPACE_SEED_PATH || startup.includes('/share/')) {
+    throw new Error(`expected bootstrap helper to prefer the canonical XR seed without a share route, got ${String(startup)}`)
+  }
+
+  const startupWithWorkspaceCorpus = resolveMarkdownWorkspaceBootstrapActivePath({
+    entriesIndex: buildWorkspaceEntriesIndex([
+      buildFileEntry('/docs/a.md'),
+      buildFileEntry(XR_PHYSICS_WORKSPACE_SEED_PATH),
+      buildFileEntry('/docs/b.md'),
+    ]),
+    activePath: null,
+    lastSetActivePath: null,
+    lastRequestedActivePath: null,
+    nowMs: 10_000,
+  })
+  if (startupWithWorkspaceCorpus !== XR_PHYSICS_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected an unselected workspace corpus to open the canonical XR seed, got ${String(startupWithWorkspaceCorpus)}`)
+  }
+
+  const sourceFilesStarter = resolveWorkspaceStartupDefaultStarterPath(defaultSeedEntries)
+  if (sourceFilesStarter !== XR_PHYSICS_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected initial Source Files bootstrap to reuse the canonical XR starter, got ${String(sourceFilesStarter)}`)
   }
 
   const preserveValidActivePath = resolveMarkdownWorkspaceBootstrapActivePath({

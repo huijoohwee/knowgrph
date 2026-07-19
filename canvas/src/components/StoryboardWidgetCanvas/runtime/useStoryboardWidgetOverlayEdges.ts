@@ -54,6 +54,7 @@ import { isStoryboardCardMediaDropOverlayEdge } from '@/components/StoryboardWid
 import { FRONTMATTER_COLLECTIVE_ROLE_INDEX_KEY, buildFrontmatterOverlayNodeLookup, resolveFrontmatterOverlayEdgeCrowdingLiftPx } from '@/lib/storyboardWidget/frontmatterCollectiveLayout'
 import { resolveStoryboardWidgetFocusedEdgeIds } from '@/lib/storyboardWidget/storyboardWidgetPortRows'
 import { FLOW_PORT_HANDLE_PREVIEW_EVENT, type FlowPortHandlePreviewDetail } from '@/components/StoryboardWidget/flowPortHandlePointerDrag'
+import { resolveStoryboardWidgetOverlayEdgeGraphAuthority } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayEdgeGraphAuthority'
 
 function removeAllPaths(ref: React.MutableRefObject<Map<string, SVGPathElement>>) {
   for (const el of ref.current.values()) {
@@ -269,6 +270,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
   rootRef: React.RefObject<HTMLElement | null>
   draftGraphDataRef: React.MutableRefObject<GraphData | null>
   renderGraphDataOverride: GraphData | null
+  fixedCardsOwnGraphAuthority: boolean
   overlayEditorNodeIdsRef: React.MutableRefObject<string[]>
   openWidgetNodeIdsRef: React.MutableRefObject<string[]>
   pendingOverlayNodeIdRef: React.MutableRefObject<string | null>
@@ -653,7 +655,11 @@ export function useStoryboardWidgetOverlayEdges(args: {
         }
         return entries
       })()
-      const liveGraph = args.draftGraphDataRef.current || args.renderGraphDataOverride || null
+      const liveGraph = resolveStoryboardWidgetOverlayEdgeGraphAuthority({
+        draftGraphData: args.draftGraphDataRef.current,
+        renderedGraphData: args.renderGraphDataOverride,
+        fixedCardsOwnGraphAuthority: args.fixedCardsOwnGraphAuthority,
+      })
       const now = Date.now()
       const liveGraphNodeCount = Array.isArray(liveGraph?.nodes) ? liveGraph.nodes.length : 0
       const liveGraphEdgeCount = Array.isArray(liveGraph?.edges) ? liveGraph.edges.length : 0
@@ -1422,7 +1428,7 @@ export function useStoryboardWidgetOverlayEdges(args: {
     }
     if (immediate) updateOverlayEdges()
     else overlayEdgeRafRef.current = requestAnimationFrame(updateOverlayEdges)
-  }, [args.active, args.draftGraphDataRef, args.storyboardWidgetSurfaceId, args.openWidgetNodeIdsRef, args.overlayEdgesEnabledRef, args.overlayEditorNodeIdsRef, args.pendingOverlayNodeIdRef, args.renderGraphDataOverride, args.rootRef, args.widgetRegistryRef, cacheFrozenOverlayEdgePaths, storyboardWidgetSelectedPortRowKey, pushOverlayEdgeTrace, rankdir, restoreFrozenOverlayEdgePaths, scheduleOverlayEdgeReadinessRetry, scheduleTransientOverlayEdgeRetry, schema])
+  }, [args.active, args.draftGraphDataRef, args.fixedCardsOwnGraphAuthority, args.storyboardWidgetSurfaceId, args.openWidgetNodeIdsRef, args.overlayEdgesEnabledRef, args.overlayEditorNodeIdsRef, args.pendingOverlayNodeIdRef, args.renderGraphDataOverride, args.rootRef, args.widgetRegistryRef, cacheFrozenOverlayEdgePaths, storyboardWidgetSelectedPortRowKey, pushOverlayEdgeTrace, rankdir, restoreFrozenOverlayEdgePaths, scheduleOverlayEdgeReadinessRetry, scheduleTransientOverlayEdgeRetry, schema])
   scheduleOverlayEdgeUpdateRef.current = scheduleOverlayEdgeUpdate
 
   React.useEffect(() => {

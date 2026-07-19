@@ -1,6 +1,9 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
+  ["sourceLayers.identity.composeCanonicalizesAliases","@/__tests__/sourceLayerIdentityHardening.test","testSourceLayerCompositionCollapsesRepeatedAliasesWithoutLosingEdgeTopology"],
+  ["sourceLayers.identity.projectCanonicalizesAliases","@/__tests__/sourceLayerIdentityHardening.test","testSourceLayerProjectionHealsRepeatedAliasesWithoutLosingEdgeTopology"],
+  ["sourceLayers.identity.edgeAuthoringReservesCanonicalIds","@/__tests__/sourceLayerIdentityHardening.test","testEdgeAuthoringReservesCanonicalIdsFromQualifiedEdges"],
   ["ui.videoSequence.timelineBar.clickRequiresDragIntent","@/__tests__/mermaidGanttPanelRouting.test","testTimelineBarClickRequiresDragIntentBeforePreview"],
   ["ui.videoSequence.timelineClipEdit.fractionalSourceTiming","@/__tests__/videoSequenceTimelineSurfaces.test","testVideoSequenceTimelineClipEditsPreserveFractionalSourceTiming"],
   ["ui.videoSequence.timelineClipEdit.stableDisplayLane","@/__tests__/videoSequenceTimelineSurfaces.test","testVideoSequenceDisplayLanesStayStableWhenClipMovesAcrossAnother"],
@@ -81,6 +84,8 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["mainPanel.storyboardWidgetManager.registry.seedWidgetMappings","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerSeedsDefaultRegistryEntriesAndConsolidatesPropsPanelMedia"],
   ["mainPanel.storyboardWidgetManager.registry.reconcilesStaleBuiltInTextEntry","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerReconcilesStaleBuiltInTextRegistryEntry"],
   ["mainPanel.storyboardWidgetManager.registry.reconcilesTextProviderFromSelectedModel","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerReconcilesTextWidgetProviderFromSelectedModel"],
+  ["mainPanel.storyboardWidgetManager.registry.infersLmStudioLocalProviderFamily","@/__tests__/textGenerationLmStudioProviderProfile.test","testStoryboardWidgetManagerInfersLmStudioLocalProviderFamily"],
+  ["mainPanel.storyboardWidgetManager.registry.preservesLmStudioLocalProviderProfile","@/__tests__/textGenerationLmStudioProviderProfile.test","testStoryboardWidgetManagerPreservesLmStudioLocalProviderProfile"],
   ["mainPanel.storyboardWidgetManager.registry.reusableTextDrafts","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerBuildsReusableTextRegistryDrafts"],
   ["mainPanel.storyboardWidgetManager.registry.omitsOpenAiTextDefault","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerDoesNotSeedOpenAiTextRegistryEntry"],
   ["mainPanel.storyboardWidgetManager.registry.omitsDeerFlowTextDefault","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerDoesNotSeedDeerFlowTextRegistryEntry"],
@@ -147,6 +152,9 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["storyboardWidget.draftGraph.revision.bumpNeutral","@/__tests__/storyboardWidgetDraftGraphData.test","testStoryboardWidgetDraftGraphRevisionBumpIsNeutral"],
   ["storyboardWidget.draftGraph.baseReset.skipsEquivalentNewerBaseRefresh","@/__tests__/storyboardWidgetDraftGraphData.test","testStoryboardWidgetBaseResetSkipsEquivalentNewerBaseRefresh"],
   ["storyboardWidget.draftGraph.baseReset.stableDerivedIdentity","@/__tests__/storyboardWidgetDraftGraphData.test","testStoryboardWidgetBaseResetEffectKeysOffRevisionInsteadOfDerivedGraphIdentity"],
+  ["storyboardWidget.draftGraph.historyAppend.preservesComposedSuperset","@/__tests__/storyboardWidgetDraftGraphData.test","testStoryboardWidgetBaseResetPreservesComposedSupersetAcrossNormalHistoryAppend"],
+  ["storyboardWidget.draftGraph.reparse.noCanonicalDuplicates","@/__tests__/storyboardWidgetDraftGraphData.test","testStoryboardWidgetBaseReparseKeepsOneCanonicalIdentityPerNode"],
+  ["storyboardWidget.draftGraph.innerIdentity.ambiguousAcrossLayers","@/__tests__/storyboardWidgetDraftGraphData.test","testStoryboardWidgetBaseResetDoesNotConflateAmbiguousInnerIdsAcrossLayers"],
   ["flowCanvas.integration.renderDataAndZoomState","@/__tests__/flowCanvasIntegration.test","testFlowCanvasUsesActiveGraphRenderDataAndZoomState"],
   ["storyboardWidget.integration.wheelPanInfiniteCanvasNoLayoutWrites","@/__tests__/flowCanvasIntegration.test","testStoryboardWidgetWheelPanKeepsInfiniteCanvasOffViewportWithoutLayoutWrites"],
   ["storyboardWidget.integration.dragZoomWorkspaceToggleCollectiveLayoutStable","@/__tests__/flowCanvasIntegration.test","testStoryboardWidgetDragZoomAndWorkspaceToggleKeepCollectiveLayoutStable"],
@@ -295,7 +303,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["markdownWorkspace.viewer.rendersMarkdownImage","@/__tests__/markdownWorkspaceViewerRendersImage.test","testMarkdownWorkspaceViewerRendersMarkdownImage"],
   ["workspaceFs.seed.noReseedAfterUserDeletesAll","@/__tests__/workspaceSeedPersistence.test","testWorkspaceEnsureSeedDoesNotReseedAfterUserDeletesAllFiles"],
   ["workspaceFs.seed.keepsUserDeletedDefaultSeedEntryRemoved","@/__tests__/workspaceSeedPersistence.test","testWorkspaceEnsureSeedKeepsUserDeletedDefaultSeedEntryRemoved"],
-  ["workspaceFs.startup.prefersValidationSeedForDefaultSeedFamily","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPrefersValidationSeedForDefaultSeedFamily"],
+  ["workspaceFs.startup.prefersCanonicalXrStarterForDefaultSeedFamily","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPrefersCanonicalXrStarterForDefaultSeedFamily"],
   ["workspaceFs.startup.prefersValidationSeedForCustomValidationTarget","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPrefersValidationSeedForCustomValidationTarget"],
   ["workspaceFs.startup.preservesExplicitDefaultSeedSelection","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathPreservesExplicitDefaultSeedSelection"],
   ["workspaceFs.startup.forcesValidationSeedWhenCustomTargetExists","@/__tests__/workspaceSeedPersistence.test","testWorkspaceStartupActivePathForcesValidationSeedWhenCustomTargetExists"],

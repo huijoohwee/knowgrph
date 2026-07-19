@@ -1,22 +1,10 @@
 // Cloudflare Worker entry for the knowgrph control-plane McpAgent.
-//
-// Spec: knowgrph-acos-mcp-connector
-//   - task 1.1 (R14.1; Properties 1, 26): Agents SDK `McpAgent` exposed
-//     over MCP Streamable HTTP transport at airvio.co/knowgrph/control-plane/mcp.
-//   - task 1.2 (R14.2; Property 25): durable Run_Manifest persistence so
-//     a Director run state change is written within 2s and a subsequent
-//     `GET /runs/{id}` returns the latest persisted state.
-//
-// This Worker reuses the existing `mcp/video-remix-runtime.js` Director and
-// the canonical tool definitions in `./tool-registry.mjs` (which carries the
-// Director + 5 stage tools, each with input + output schemas - Property 26).
+// Reuses the existing Director and canonical tool definitions.
 // Approval-gate enforcement on stage tools is performed by
 // `executeKnowgrphMcpTool` at the McpAgent boundary so a remote invocation
 // before approval is withheld with no state mutation (Property 1 / R14.6).
 //
-// Run_Manifest persistence is implemented by the `RunManifestStore` Durable
-// Object (one DO instance per `runId`) declared in `./run-manifest-store.mjs`
-// and bound as `RUN_MANIFEST_STORE` in `wrangler.toml`.
+// `RUN_MANIFEST_STORE` binds one `RunManifestStore` Durable Object per run.
 
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -29,7 +17,9 @@ import {
   KNOWGRPH_MCP_CONTRACT_VERSION,
   KNOWGRPH_MCP_DIRECTOR_TOOL_NAME,
   KNOWGRPH_OS_STATUS_TOOL_NAME,
+  RUN_NOTE_TOOL_NAME,
 } from "./tool-registry.mjs";
+import { RUN_NOTE_INPUT, RUN_NOTE_OUTPUT } from "./run-note-tool-schema";
 import {
   listAgentDefinitions,
 } from "../../../contracts/agent-runtime.schema.js";
@@ -41,11 +31,14 @@ import {
   handleRunsRead,
   runtimeJsonResponse,
 } from "./agent-runtime-http";
+import { createWorkersAiRunningAgentRuntime } from "./agent-runtime-adapter";
+import { hasWorkersAiModelRuntimeConfiguration } from "./agent-runtime-model-resolver.mjs";
 import {
   defaultPersistenceDiagnosticEmitter,
   defaultStageTransitionDiagnosticEmitter,
   dispatchKnowgrphMcpToolCall,
   RUN_MANIFEST_PERSISTENCE_DEADLINE_MS,
+  RUN_NOTE_EXECUTION_META_KEY,
   RunManifestStore,
 } from "./run-manifest-store.mjs";
 // Env-gated live/mock stage-client resolver (task 12.5). Builds live provider
@@ -58,6 +51,7 @@ import {
 
 export interface KnowgrphMcpEnv extends Env {
   KNOWGRPH_AGENT_RUNTIME_BEARER_TOKEN?: string;
+  KNOWGRPH_AGENT_MODEL_ID?: string;
   // task 12.5 env gating: live stage clients are enabled when KNOWGRPH_LIVE_CLIENTS
   // is truthy or a provider credential (EXA_API_KEY) is present; otherwise the
   // Director runs against deterministic mocks (zero live/paid calls).
@@ -342,11 +336,16 @@ const AGENT_RUNTIME_OUTPUT = {
   status: z.enum(["planned", "approval_required", "ready", "completed", "blocked"]),
   plan: z.record(z.string(), z.unknown()),
   budgetMeters: z.record(z.string(), z.unknown()),
+  modelRuntime: z.record(z.string(), z.unknown()).optional(),
   result: z.record(z.string(), z.unknown()).optional(),
   error: z.record(z.string(), z.unknown()).optional(),
 };
 
 type ToolHandlerArgs = Record<string, unknown>;
+type ToolCallExtra = {
+  _meta?: Record<string, unknown>;
+  requestInfo?: { headers?: Record<string, string | string[] | undefined> };
+};
 
 type ToolCallResult = {
   content: Array<{ type: "text"; text: string }>;
@@ -358,7 +357,16 @@ async function dispatchToolCall(
   toolName: string,
   args: ToolHandlerArgs,
   env: KnowgrphMcpEnv,
+  extra?: ToolCallExtra,
 ): Promise<ToolCallResult> {
+  const headers = extra?.requestInfo?.headers ?? {};
+  const idempotencyValue = Object.entries(headers).find(
+    ([name]) => name.toLowerCase() === "idempotency-key",
+  )?.[1];
+  const idempotencyHeader = Array.isArray(idempotencyValue)
+    ? idempotencyValue[0]
+    : idempotencyValue;
+  const executionMetadata = extra?._meta?.[RUN_NOTE_EXECUTION_META_KEY];
   const liveClients = resolveStageClients({
     KNOWGRPH_LIVE_CLIENTS: env?.KNOWGRPH_LIVE_CLIENTS,
     EXA_API_KEY: env?.EXA_API_KEY,
@@ -376,6 +384,7 @@ async function dispatchToolCall(
     KNOWGRPH_PAYMENT_API_KEY: env?.KNOWGRPH_PAYMENT_API_KEY,
     KNOWGRPH_MEDIA_BUCKET: env?.KNOWGRPH_MEDIA_BUCKET,
   }, { r2Client: env?.KNOWGRPH_MEDIA_R2 });
+  const agentRuntime = createWorkersAiRunningAgentRuntime(env);
   // Single shared dispatch path (run-manifest-store.mjs) used by both the
   // Worker and the Node unit tests so the gate-enforcement + gated-persistence
   // invariants cannot drift between surfaces. Director runs emit stage
@@ -403,7 +412,15 @@ async function dispatchToolCall(
     resolveLiveArgs: createLiveArgsResolver(
       liveClients,
     ),
-    runtimeDeps: { clients: liveClients },
+    runtimeDeps: {
+      clients: liveClients,
+      agentModelResolver: agentRuntime.modelResolver,
+      runningAgentAdapters: agentRuntime.runningAgentAdapters,
+    },
+    execution: executionMetadata && typeof executionMetadata === "object"
+      ? executionMetadata
+      : undefined,
+    idempotencyHeader,
   });
 
   return {
@@ -443,7 +460,7 @@ export class KnowgrphMcpAgent extends McpAgent<KnowgrphMcpEnv> {
           outputSchema,
           annotations: def?.annotations,
         },
-        async (args: ToolHandlerArgs) => dispatchToolCall(name, args, env),
+        async (args: ToolHandlerArgs, extra) => dispatchToolCall(name, args, env, extra),
       );
     };
 
@@ -466,6 +483,7 @@ export class KnowgrphMcpAgent extends McpAgent<KnowgrphMcpEnv> {
     register("knowgrph.video_remix.render", RENDER_INPUT, RENDER_OUTPUT);
     register("knowgrph.video_remix.publish", PUBLISH_INPUT, PUBLISH_OUTPUT);
     register("knowgrph.video_remix.checkout", CHECKOUT_INPUT, CHECKOUT_OUTPUT);
+    register(RUN_NOTE_TOOL_NAME, RUN_NOTE_INPUT, RUN_NOTE_OUTPUT);
     register(KNOWGRPH_OS_STATUS_TOOL_NAME, OS_STATUS_INPUT, OS_STATUS_OUTPUT);
     register(AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, AGENTIC_CANVAS_OS_DOCS_INPUT, AGENTIC_CANVAS_OS_DOCS_OUTPUT);
   }
@@ -486,8 +504,11 @@ function buildHealthBody(env: KnowgrphMcpEnv): Record<string, unknown> {
     },
     agentRuntime: {
       definitions: listAgentDefinitions().map((definition) => definition.id),
+      preparedDefinitions: listAgentDefinitions()
+        .filter((definition) => definition.modelRequirements)
+        .map((definition) => definition.id),
       dryRun: "ready",
-      liveAdapter: env?.AI && env?.KNOWGRPH_AGENT_MODEL ? "configured" : "blocked_by_configuration",
+      liveAdapter: hasWorkersAiModelRuntimeConfiguration(env) ? "configured" : "blocked_by_configuration",
       endpoint: AGENT_RUNS_PATH,
     },
   };

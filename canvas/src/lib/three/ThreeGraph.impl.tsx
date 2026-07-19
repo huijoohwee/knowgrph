@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
-import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
+import { defaultSchema, getThreeConfig, type GraphSchema } from '@/lib/graph/schema'
 import { deriveSceneDisplayGraph } from '@/lib/scene/sceneDerivation'
 import { usePositions } from '@/features/three/layout'
 import { GraphHoverTooltip, type HoverInfo } from '@/components/GraphHoverTooltip'
@@ -24,6 +24,17 @@ import { SpatialCaptureManifestStage } from '@/features/three/SpatialCaptureMani
 import { XrEmptyWorldStage } from '@/features/three/XrEmptyWorldStage'
 import { XrEmptyWorldHud } from '@/features/three/XrEmptyWorldHud'
 import { useXrSceneMediaDrop } from '@/features/three/useXrSceneMediaDrop'
+import { XrCameraAspectMask } from '@/features/three/XrCameraAspectMask'
+import { XrArPlacementStage } from '@/features/three/XrArPlacementStage'
+import { resolveXrMotionReferenceStage } from '@/features/three/xrMotionReferenceModel'
+import {
+  readXrMotionReferenceRuntime,
+  subscribeXrMotionReferenceRuntime,
+} from '@/features/three/xrMotionReferenceRuntime'
+import { XR_MOTION_STAGE_SPAN } from '@/features/three/xrMotionReferenceCoordinates'
+import { resolveCssVar } from '@/lib/ui/theme-tokens'
+import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { XrRendererClearController } from '@/lib/three/XrRendererClearController'
 
 const SceneLazy = React.lazy(() =>
   import('@/lib/three/Scene.impl').then(mod => ({
@@ -37,6 +48,51 @@ const ControlsLazy = React.lazy(() =>
   })),
 )
 
+const XR_WORLD_CONTENT_SCALE_MIN = 0.0001
+const XR_WORLD_CONTENT_SCALE_MAX = 10_000
+const XR_PHYSICS_RUN_READY_GRAPH: GraphData = { type: 'Graph', nodes: [], edges: [] }
+
+function readXrStageMetersPerUnit(): number {
+  const stage = resolveXrMotionReferenceStage(readXrMotionReferenceRuntime().plan.stageId)
+  return Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1) / XR_MOTION_STAGE_SPAN
+}
+
+function boundedInverseFitScale(fit: GlbFit | null): number {
+  const fitScale = Number(fit?.scale)
+  if (!Number.isFinite(fitScale) || fitScale <= 0) return 1
+  return Math.min(XR_WORLD_CONTENT_SCALE_MAX, Math.max(XR_WORLD_CONTENT_SCALE_MIN, 1 / fitScale))
+}
+
+function fitFloorOffset(fit: GlbFit | null): readonly [number, number, number] {
+  const floorY = Number(fit?.floorY)
+  return [0, Number.isFinite(floorY) ? -floorY : 0, 0]
+}
+
+function resolveSceneBackgroundColor(schema: GraphSchema, mode: Canvas3dModeId): string {
+  const raw = getThreeConfig(schema).backgroundColor
+  if (typeof raw === 'string' && raw.trim() !== '') return raw
+  if (mode === 'voxel') return resolveCssVar('--kg-canvas-bg', '#05050f')
+  return resolveCssVar('--kg-canvas-bg', '#ffffff')
+}
+
+function XrWorldPlacement({
+  active,
+  children,
+  contentScale,
+  contentOffset,
+}: {
+  active: boolean
+  children: React.ReactNode
+  contentScale: number
+  contentOffset: readonly [number, number, number]
+}) {
+  return active ? (
+    <XrArPlacementStage contentScale={contentScale} contentOffset={contentOffset}>
+      {children}
+    </XrArPlacementStage>
+  ) : <>{children}</>
+}
+
 export default function ThreeGraph({ active = true, mode = '3d' }: { active?: boolean; mode?: Canvas3dModeId }) {
   const {
     schema,
@@ -45,6 +101,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     setSelectionSource,
   } = useGraphStore()
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
+  const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName)
   const markdownDocumentSourceUrl = useGraphStore(s => s.markdownDocumentSourceUrl)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
   const markdownDocumentApplyViewPreset = useGraphStore(s => s.markdownDocumentApplyViewPreset)
@@ -75,6 +132,11 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   }, [])
   const paused = !active
   const graph = useActiveGraphRenderData() as GraphData | null
+  const xrStageMetersPerUnit = React.useSyncExternalStore(
+    subscribeXrMotionReferenceRuntime,
+    readXrStageMetersPerUnit,
+    readXrStageMetersPerUnit,
+  )
   const xrDocumentLoaded = mode !== 'xr' || Boolean(
     String(markdownDocumentName || '').trim()
     && String(markdownDocumentText || '').trim(),
@@ -157,16 +219,27 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     return deriveSceneDisplayGraph({ graphData: g })?.displayGraphData || g
   }, [glbAsset, renderGraph, spatialCaptureManifest])
   const sceneGraphForRender = useMemo<GraphData | null>(() => {
-    if (!sceneGraph || !Array.isArray(sceneGraph.nodes)) return null
+    if (!sceneGraph || !Array.isArray(sceneGraph.nodes)) {
+      return xrPhysicsRunReadyDemo ? XR_PHYSICS_RUN_READY_GRAPH : null
+    }
     return Array.isArray(sceneGraph.edges)
       ? sceneGraph
       : { ...sceneGraph, edges: [] }
-  }, [sceneGraph])
+  }, [sceneGraph, xrPhysicsRunReadyDemo])
   const hasGraph = !!sceneGraphForRender
   const hasGlbAsset = !!glbAsset && shouldRenderGlbAsset
   const hasSpatialCaptureManifest = !!spatialCaptureManifest
-  const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded
+  const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded && !xrPhysicsRunReadyDemo
   const hasRenderableScene = hasGraph || hasGlbAsset || hasSpatialCaptureManifest || hasXrEmptyWorld
+  const xrStandaloneFit = hasSpatialCaptureManifest
+    ? spatialCaptureFit
+    : hasGlbAsset
+      ? glbAssetFit
+      : null
+  const xrWorldContentScale = hasGraph || hasXrEmptyWorld
+    ? xrStageMetersPerUnit
+    : boundedInverseFitScale(xrStandaloneFit)
+  const xrWorldContentOffset = fitFloorOffset(xrStandaloneFit)
   const hoverEnabled = (effectiveSchema as GraphSchema).behavior?.hover?.enabled !== false
   const positions = usePositions(
     hasGraph ? sceneGraphForRender!.nodes : [],
@@ -188,6 +261,17 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   const draggedNodeIdRef = React.useRef<string | null>(null)
   const hoverClearTimerRef = useRef<number | null>(null)
   const theme = useThemeDetector()
+  const sceneBackgroundColor = useMemo(() => {
+    void theme
+    return resolveSceneBackgroundColor(effectiveSchema, mode)
+  }, [effectiveSchema, mode, theme])
+  const rendererClearColor = hasXrEmptyWorld
+    ? '#0b2f4a'
+    : hasGraph
+      ? sceneBackgroundColor
+      : '#000000'
+  const rendererDefaultClearAlpha = hasXrEmptyWorld || hasGraph ? 1 : 0
+  const rendererLifecycleKey = hasXrEmptyWorld ? 'xr-empty-world-canvas' : 'scene-canvas'
   useEffect(() => {
     draggedNodeIdRef.current = draggedNodeId
   }, [draggedNodeId])
@@ -342,18 +426,22 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       data-kg-xr-exclusive-stage={mode === 'xr' && (hasGraph || hasXrEmptyWorld) ? '1' : undefined}
       data-kg-xr-empty-world={hasXrEmptyWorld ? '1' : undefined}
       data-kg-xr-scene-media-drop={mode === 'xr' ? '1' : undefined}
+      data-kg-three-viewport-gestures="orbit-pan-cursor-zoom"
       onDragOver={xrSceneMediaDrop.onDragOver}
       onDrop={xrSceneMediaDrop.onDrop}
+      onContextMenu={event => {
+        event.preventDefault()
+        event.stopPropagation()
+      }}
     >
       <Canvas
-        key={hasXrEmptyWorld ? 'xr-empty-world-canvas' : 'scene-canvas'}
+        key={rendererLifecycleKey}
         frameloop={paused ? 'demand' : 'always'}
         camera={{ position: [0, 0, 220], fov: 50 }}
         shadows
         gl={{ antialias: true, alpha: true }}
         onCreated={({ gl, scene, camera }) => {
           gl.xr.enabled = mode === 'xr'
-          gl.setClearColor(hasXrEmptyWorld ? '#0b2f4a' : '#000000', hasXrEmptyWorld ? 1 : 0)
           try {
             gl.toneMapping = ACESFilmicToneMapping
             gl.toneMappingExposure = 1
@@ -390,51 +478,61 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
           selectEdge(null)
         }}
       >
+        <XrRendererClearController
+          color={rendererClearColor}
+          defaultAlpha={rendererDefaultClearAlpha}
+          xrSurface={mode === 'xr'}
+        />
         <React.Suspense fallback={null}>
-          {hasXrEmptyWorld ? (
-            <group name="kg_xr_empty_world">
-              <ambientLight intensity={0.78} />
-              <directionalLight position={[180, -160, 320]} intensity={1.25} castShadow />
-              <XrEmptyWorldStage />
-            </group>
-          ) : null}
-          {hasGraph ? (
-            <SceneLazy
-              data={sceneGraphForRender as GraphData}
-              schema={effectiveSchema as GraphSchema}
-              positions={positions}
-              paused={paused}
-              onSelectNode={onSelectNode}
-              onHoverNode={hoverEnabled ? handleHoverNode : undefined}
-              onHoverEdge={hoverEnabled ? handleHoverEdge : undefined}
-              onHoverEdgeIdChange={hoverEnabled ? handleHoverEdgeIdChange : undefined}
-              hoveredEdgeId={hoveredEdgeId}
-              onDragNode={setDraggedNodeId}
-              draggedNodeId={draggedNodeId}
-              theme={theme}
-              dragOverridesRef={dragOverridesRef as unknown as React.MutableRefObject<Record<string, [number, number, number]>>}
-              hiddenNodeIdSet={overlayHiddenNodeIdSet}
-              mode={mode}
-            />
-          ) : null}
-          {glbAsset && shouldRenderGlbAsset ? (
-            <GlbAssetModel
-              key={glbAssetRenderKey}
-              asset={glbAsset}
-              mode={mode}
-              paused={paused}
-              standalone={!hasGraph}
-              onFitChange={handleGlbAssetFitChange}
-            />
-          ) : null}
-          {spatialCaptureManifest ? (
-            <SpatialCaptureManifestStage
-              manifest={spatialCaptureManifest}
-              paused={paused}
-              onLoadStateChange={handleSpatialLoadStateChange}
-              onFitChange={handleSpatialCaptureFitChange}
-            />
-          ) : null}
+          <XrWorldPlacement
+            active={mode === 'xr'}
+            contentScale={xrWorldContentScale}
+            contentOffset={xrWorldContentOffset}
+          >
+            {hasXrEmptyWorld ? (
+              <group name="kg_xr_empty_world">
+                <XrEmptyWorldStage />
+              </group>
+            ) : null}
+            {hasGraph ? (
+              <SceneLazy
+                data={sceneGraphForRender as GraphData}
+                schema={effectiveSchema as GraphSchema}
+                positions={positions}
+                paused={paused}
+                onSelectNode={onSelectNode}
+                onHoverNode={hoverEnabled ? handleHoverNode : undefined}
+                onHoverEdge={hoverEnabled ? handleHoverEdge : undefined}
+                onHoverEdgeIdChange={hoverEnabled ? handleHoverEdgeIdChange : undefined}
+                hoveredEdgeId={hoveredEdgeId}
+                onDragNode={setDraggedNodeId}
+                draggedNodeId={draggedNodeId}
+                theme={theme}
+                dragOverridesRef={dragOverridesRef as unknown as React.MutableRefObject<Record<string, [number, number, number]>>}
+                hiddenNodeIdSet={overlayHiddenNodeIdSet}
+                mode={mode}
+                backgroundColor={sceneBackgroundColor}
+              />
+            ) : null}
+            {glbAsset && shouldRenderGlbAsset ? (
+              <GlbAssetModel
+                key={glbAssetRenderKey}
+                asset={glbAsset}
+                mode={mode}
+                paused={paused}
+                standalone={!hasGraph}
+                onFitChange={handleGlbAssetFitChange}
+              />
+            ) : null}
+            {spatialCaptureManifest ? (
+              <SpatialCaptureManifestStage
+                manifest={spatialCaptureManifest}
+                paused={paused}
+                onLoadStateChange={handleSpatialLoadStateChange}
+                onFitChange={handleSpatialCaptureFitChange}
+              />
+            ) : null}
+          </XrWorldPlacement>
           <ControlsLazy
             schema={effectiveSchema as GraphSchema}
             positions={positions}
@@ -454,8 +552,10 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
           <OverlayFrameSync enabled={active && mode !== 'xr'} scheduleRef={scheduleRef} />
         </React.Suspense>
       </Canvas>
+      {mode === 'xr' && xrDocumentLoaded ? <XrCameraAspectMask /> : null}
       {hasXrEmptyWorld ? <XrEmptyWorldHud /> : null}
       <CanvasXrEntryPanel
+        key={`${rendererLifecycleKey}-session-panel`}
         active={active && mode === 'xr'}
         rendererRef={threeGlRef}
         surfaceKind={spatialCaptureManifest ? 'spatial-capture' : 'graph'}

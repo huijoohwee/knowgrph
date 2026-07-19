@@ -130,4 +130,36 @@ export const testFlowHandlesRebalanceRichMediaPanelPortsByActiveTab = () => {
   if (audioHandles.out[0]?.id !== 'out:audioUrl') {
     throw new Error(`expected audio tab output handles to prioritize out:audioUrl, got ${audioHandles.out.map(h => h.id).join(',')}`)
   }
+
+  const typedVideoByNode = computeFlowHandlesByNode({
+    nodes: [{
+      id: 'panel-typed-video',
+      type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      properties: { richMediaActiveTab: { key: 'richMediaActiveTab', type: 'string', value: 'video' } },
+    }],
+    edges: [],
+    widgetRegistry: registry,
+  })
+  const typedVideoHandles = typedVideoByNode['panel-typed-video']
+  if (typedVideoHandles?.in[0]?.id !== 'in:videoUrl' || typedVideoHandles?.out[0]?.id !== 'out:videoUrl') {
+    throw new Error(`expected typed video tab handles to prioritize videoUrl, got ${JSON.stringify(typedVideoHandles)}`)
+  }
+
+  const wrappedTextByNode = computeFlowHandlesByNode({
+    nodes: [{
+      id: 'panel-wrapped-text',
+      type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID,
+      properties: {
+        key: 'properties',
+        type: 'object',
+        value: { richMediaActiveTab: { key: 'richMediaActiveTab', type: 'string', value: 'text' } },
+      },
+    }],
+    edges: [],
+    widgetRegistry: registry,
+  })
+  const wrappedTextHandles = wrappedTextByNode['panel-wrapped-text']
+  if (wrappedTextHandles?.in[0]?.id !== 'in:output' || wrappedTextHandles?.out[0]?.id !== 'out:output') {
+    throw new Error(`expected outer-wrapped text tab handles to prioritize output, got ${JSON.stringify(wrappedTextHandles)}`)
+  }
 }

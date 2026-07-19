@@ -1,5 +1,5 @@
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
-import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
+import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath, workspaceBasename } from './path'
 import {
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   buildWorkspaceSeedFileEntry,
@@ -8,8 +8,10 @@ import {
   isInitializationWorkspacePath,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   shouldPreserveFallbackWorkspaceSeedText,
+  XR_PHYSICS_WORKSPACE_SEED_PATH,
 } from './workspaceFs'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
+import { loadWorkspaceSourceIndex, setWorkspaceEntrySource } from './sourceIndex'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsRemove, lsSetBool } from '@/lib/persistence'
 
@@ -49,6 +51,46 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
     })
   }
 
+  const clearWorkspaceEntrySource = (path: WorkspacePath): boolean => {
+    const normalizedPath = normalizeWorkspacePath(path)
+    if (!loadWorkspaceSourceIndex()[normalizedPath]) return false
+    setWorkspaceEntrySource(normalizedPath, null, { persist: 'sync' })
+    return true
+  }
+
+  const removeNoncanonicalXrPhysicsFiles = (): boolean => {
+    const targetBasename = workspaceBasename(XR_PHYSICS_WORKSPACE_SEED_PATH).toLowerCase()
+    let changed = false
+    for (const [path, entry] of entriesByPath) {
+      if (entry.kind !== 'file' || path === XR_PHYSICS_WORKSPACE_SEED_PATH) continue
+      if (workspaceBasename(path).toLowerCase() !== targetBasename) continue
+      entriesByPath.delete(path)
+      clearWorkspaceEntrySource(path)
+      changed = true
+    }
+    return changed
+  }
+
+  const clearStaleXrPhysicsSourcesIfCanonicalMaterialized = (): boolean => {
+    const canonical = entriesByPath.get(XR_PHYSICS_WORKSPACE_SEED_PATH)
+    if (canonical?.kind !== 'file') return false
+    const targetBasename = workspaceBasename(XR_PHYSICS_WORKSPACE_SEED_PATH).toLowerCase()
+    const sourceIndex = loadWorkspaceSourceIndex()
+    let changed = false
+    for (const rawPath of Object.keys(sourceIndex)) {
+      const path = normalizeWorkspacePath(rawPath)
+      if (workspaceBasename(path).toLowerCase() !== targetBasename) continue
+      if (path !== XR_PHYSICS_WORKSPACE_SEED_PATH && entriesByPath.get(path)?.kind === 'folder') continue
+      if (clearWorkspaceEntrySource(path)) changed = true
+    }
+    return changed
+  }
+
+  const hasOnlyCanonicalXrPhysicsFile = (): boolean => {
+    const files = [...entriesByPath.values()].filter(entry => entry.kind === 'file')
+    return files.length === 1 && files[0]?.path === XR_PHYSICS_WORKSPACE_SEED_PATH
+  }
+
   const ensureSeed = async (): Promise<boolean> => {
     ensureRoot()
     let changed = false
@@ -74,6 +116,12 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
     if (hasFiles) {
       const seeds = await getWorkspaceSeedFiles()
       let seededTextChanged = false
+      const canonicalXrSeed = seeds.find(seed => (
+        normalizeWorkspacePath(seed.path) === XR_PHYSICS_WORKSPACE_SEED_PATH
+      )) || null
+      if (canonicalXrSeed && removeNoncanonicalXrPhysicsFiles()) {
+        seededTextChanged = true
+      }
       for (const seed of seeds) {
         const path = normalizeWorkspacePath(seed.path)
         const existing = entriesByPath.get(path)
@@ -83,7 +131,13 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
           seededTextChanged = true
           continue
         }
-        if (!existing || existing.kind !== 'file') continue
+        if (!existing || existing.kind !== 'file') {
+          if (path !== XR_PHYSICS_WORKSPACE_SEED_PATH) continue
+          const entries = expandWorkspaceSeedFileEntries(path, seed.text, Date.now())
+          for (const entry of entries) entriesByPath.set(entry.path, entry)
+          seededTextChanged = true
+          continue
+        }
         const currentText = String(existing.text ?? '')
         if (seed.isFallback && shouldPreserveFallbackWorkspaceSeedText(currentText)) continue
         const nextText = String(seed.text ?? '')
@@ -91,22 +145,30 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
         entriesByPath.set(path, buildWorkspaceSeedFileEntry(path, nextText, Date.now()))
         seededTextChanged = true
       }
+      if (canonicalXrSeed && clearStaleXrPhysicsSourcesIfCanonicalMaterialized()) seededTextChanged = true
       if (seededTextChanged) changed = true
       if (!seeded) lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
-      if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
+      if (userClearedAll && !hasOnlyCanonicalXrPhysicsFile()) {
+        lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
+      }
       return changed
     }
-    if (userClearedAll) return changed
     const seeds = await getWorkspaceSeedFiles()
-    for (const seed of seeds) {
+    const canonicalXrSeed = seeds.find(seed => (
+      normalizeWorkspacePath(seed.path) === XR_PHYSICS_WORKSPACE_SEED_PATH
+    )) || null
+    const seedsToMaterialize = userClearedAll
+      ? (canonicalXrSeed ? [canonicalXrSeed] : [])
+      : seeds
+    for (const seed of seedsToMaterialize) {
       const entries = expandWorkspaceSeedFileEntries(normalizeWorkspacePath(seed.path), seed.text, Date.now())
       for (const entry of entries) {
         entriesByPath.set(entry.path, entry)
         changed = true
       }
     }
-    lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
-    if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
+    if (canonicalXrSeed && clearStaleXrPhysicsSourcesIfCanonicalMaterialized()) changed = true
+    if (!userClearedAll) lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
     return changed
   }
 

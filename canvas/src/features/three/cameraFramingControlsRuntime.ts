@@ -36,13 +36,20 @@ import {
 import {
   XR_MOTION_REFERENCE_CAMERA_BASELINE_METERS,
   resolveXrMotionReferenceStage,
-  sampleXrMotionReferenceMarks,
 } from './xrMotionReferenceModel'
 import {
   readXrMotionReferenceRuntime,
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
+import { resolveXrShotTarget, resolveXrShotTargetPosition } from './xrShotTargets'
 import { xrChoreographyCanDriveCamera, xrChoreographyOwnsCamera } from './xrCameraControlOwnership'
+import { useThreeObjectInputOwnership } from './threeObjectInputOwnership'
+import {
+  claimThreeViewportInputOwnership,
+  releaseThreeViewportInputOwnership,
+  shouldDeferThreeCameraProgrammaticInput,
+  useThreeViewportInputOwnership,
+} from './threeViewportInputOwnership'
 
 type CameraFramingControlsRuntimeArgs = {
   camera: PerspectiveCamera
@@ -296,6 +303,13 @@ export function useCameraFramingControlsRuntime({
     readXrMotionReferenceRuntime,
   )
   const timelineTransportPlaying = useGraphStore(state => state.timelineTransportPlaying)
+  const objectInputOwnership = useThreeObjectInputOwnership()
+  const viewportInputOwnership = useThreeViewportInputOwnership()
+  const viewportInputOwnerId = `orbit-controls:${React.useId()}`
+  const programmaticCameraInputBlocked = shouldDeferThreeCameraProgrammaticInput({
+    objectInputActive: objectInputOwnership.active,
+    viewportInputActive: viewportInputOwnership.active,
+  })
   const cameraOwnershipArgs = {
     mode,
     xrEmptyWorld,
@@ -334,13 +348,14 @@ export function useCameraFramingControlsRuntime({
   const readContext = React.useCallback((): CameraFramingContext => {
     if (modelAssetFit) return contextFromModelPose(readModelAssetCameraPose(modelAssetFit))
     if (mode === 'xr' && framing.anchorId) {
-      const track = readXrMotionReferenceRuntime().plan.cast.find(candidate => candidate.actorId === framing.anchorId)
-      if (track) {
-        const runtime = readXrMotionReferenceRuntime()
+      const runtime = readXrMotionReferenceRuntime()
+      const shotTarget = resolveXrShotTarget(runtime.plan, framing.anchorId)
+      if (shotTarget) {
         const stage = resolveXrMotionReferenceStage(runtime.plan.stageId)
         const scale = XR_MOTION_STAGE_SPAN / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
-        const sampled = sampleXrMotionReferenceMarks(track.marks, runtime.playheadSeconds)
-        const target = xrMotionReferenceWorldPosition([sampled[0], sampled[1] + 1.2, sampled[2]], scale)
+        const sampled = resolveXrShotTargetPosition(runtime.plan, shotTarget.id, runtime.playheadSeconds)
+        const targetHeight = shotTarget.kind === 'object' ? 1.2 : 0
+        const target = xrMotionReferenceWorldPosition([sampled[0], sampled[1] + targetHeight, sampled[2]], scale)
         return {
           target,
           up: [0, 1, 0],
@@ -363,7 +378,7 @@ export function useCameraFramingControlsRuntime({
   }, [camera, controls, framing.anchorId, mode, modelAssetFit, modelAssetRenderKey])
 
   const publishCanvasPose = React.useCallback((pose: CameraFramingCanvasPose): boolean => {
-    if (paused || choreographyOwnsCamera || !isSharedCameraFramingSurfaceMode(mode)) return false
+    if (paused || choreographyOwnsCamera || objectInputOwnership.active || !isSharedCameraFramingSurfaceMode(mode)) return false
     const context = readContext()
     const current = readCameraFramingRuntime()
     if (readSpatialCaptureAxis() !== 'free') setSpatialCaptureAxis('free')
@@ -381,7 +396,7 @@ export function useCameraFramingControlsRuntime({
       ? null
       : { revision: published.revision, contextKey, fit: modelAssetFit }
     return true
-  }, [choreographyOwnsCamera, contextKey, mode, modelAssetFit, paused, readContext])
+  }, [choreographyOwnsCamera, contextKey, mode, modelAssetFit, objectInputOwnership.active, paused, readContext])
 
   React.useEffect(() => {
     cameraFramingCanvasPoseCommit = publishCanvasPose
@@ -415,13 +430,13 @@ export function useCameraFramingControlsRuntime({
 
   React.useEffect(() => {
     const key = String(modelAssetRenderKey || '').trim()
-    if (!key || !modelAssetFit || paused || choreographyCanDriveCamera) return
+    if (!key || !modelAssetFit || paused || choreographyCanDriveCamera || programmaticCameraInputBlocked) return
     if (isSharedCameraFramingSurfaceMode(mode) && (axisRequest.axis !== 'free' || framing.revision > 0)) return
     runProgrammaticPose(() => applyModelAssetCameraPose({ camera, controls, fit: modelAssetFit, perspectiveCamera: camera }))
-  }, [axisRequest.axis, camera, choreographyCanDriveCamera, controls, framing.revision, mode, modelAssetFit, modelAssetRenderKey, paused, runProgrammaticPose])
+  }, [axisRequest.axis, camera, choreographyCanDriveCamera, controls, framing.revision, mode, modelAssetFit, modelAssetRenderKey, paused, programmaticCameraInputBlocked, runProgrammaticPose])
 
   React.useEffect(() => {
-    if (paused || choreographyCanDriveCamera || !isSharedCameraFramingSurfaceMode(mode) || !modelAssetFit || axisRequest.axis === 'free') return
+    if (paused || choreographyCanDriveCamera || programmaticCameraInputBlocked || !isSharedCameraFramingSurfaceMode(mode) || !modelAssetFit || axisRequest.axis === 'free') return
     const context = contextFromModelPose(readModelAssetCameraPose(modelAssetFit))
     const current = readCameraFramingRuntime()
     const settings = resolveCameraFramingAxisSettings(
@@ -440,10 +455,10 @@ export function useCameraFramingControlsRuntime({
       settings,
       source: 'axis',
     })
-  }, [axisRequest, camera, choreographyCanDriveCamera, controls, minimumY, mode, modelAssetFit, paused, runProgrammaticPose])
+  }, [axisRequest, camera, choreographyCanDriveCamera, controls, minimumY, mode, modelAssetFit, paused, programmaticCameraInputBlocked, runProgrammaticPose])
 
   React.useEffect(() => {
-    if (paused || choreographyOwnsCamera || !isSharedCameraFramingSurfaceMode(mode) || framing.revision === 0) return
+    if (paused || choreographyOwnsCamera || programmaticCameraInputBlocked || !isSharedCameraFramingSurfaceMode(mode) || framing.revision === 0) return
     const forcedReapply = handledReapplyRevisionRef.current !== reapplyRevision
     handledReapplyRevisionRef.current = reapplyRevision
     if (!shouldApplySharedCameraFramingRevision({
@@ -478,42 +493,53 @@ export function useCameraFramingControlsRuntime({
       baseDistance: context.baseDistance,
       up: context.up,
     })
-    camera.fov = resolveCameraVerticalFovDegrees(framing.settings.focalLengthMm)
+    camera.fov = resolveCameraVerticalFovDegrees(framing.settings.focalLengthMm, framing.settings.sensorId)
+    camera.focus = framing.settings.focusDistanceMeters
     runProgrammaticPose(() => applyCameraFramingPose({ camera, controls, pose, near: context.near, far: context.far, minimumY }))
     appliedFramingRef.current = { revision: framing.revision, contextKey: framingContextKey }
-  }, [camera, choreographyOwnsCamera, contextKey, controls, framing, minimumY, mode, modelAssetFit, paused, readContext, reapplyRevision, runProgrammaticPose])
+  }, [camera, choreographyOwnsCamera, contextKey, controls, framing, framingContextKey, minimumY, mode, modelAssetFit, paused, programmaticCameraInputBlocked, readContext, reapplyRevision, runProgrammaticPose])
 
   React.useEffect(() => {
     const publishSettledCanvasPose = () => {
-      publishCanvasPose({
-        position: [camera.position.x, camera.position.y, camera.position.z],
-        target: [controls.target.x, controls.target.y, controls.target.z],
-      })
+      try {
+        publishCanvasPose({
+          position: [camera.position.x, camera.position.y, camera.position.z],
+          target: [controls.target.x, controls.target.y, controls.target.z],
+        })
+      } finally {
+        releaseThreeViewportInputOwnership(viewportInputOwnerId)
+      }
     }
     const settledInteraction = createCameraFramingSettledInteraction({ publish: publishSettledCanvasPose })
+    const cancelInteraction = () => {
+      settledInteraction.cancel()
+      releaseThreeViewportInputOwnership(viewportInputOwnerId)
+    }
     const handleStart = () => {
-      if (applyingPoseRef.current || choreographyOwnsCamera) {
-        settledInteraction.cancel()
+      if (applyingPoseRef.current || paused || choreographyOwnsCamera || objectInputOwnership.active || !isSharedCameraFramingSurfaceMode(mode) || !claimThreeViewportInputOwnership(viewportInputOwnerId)) {
+        cancelInteraction()
         return
       }
       settledInteraction.start()
     }
     const handleChange = () => {
-      if (applyingPoseRef.current || choreographyOwnsCamera) {
-        settledInteraction.cancel()
+      if (applyingPoseRef.current || choreographyOwnsCamera || objectInputOwnership.active) {
+        cancelInteraction()
         return
       }
       settledInteraction.change()
     }
-    const handleEnd = () => choreographyOwnsCamera ? settledInteraction.cancel() : settledInteraction.end()
+    const handleEnd = () => choreographyOwnsCamera || objectInputOwnership.active
+      ? cancelInteraction()
+      : settledInteraction.end()
     controls.addEventListener('start', handleStart)
     controls.addEventListener('change', handleChange)
     controls.addEventListener('end', handleEnd)
     return () => {
-      settledInteraction.cancel()
+      cancelInteraction()
       controls.removeEventListener('start', handleStart)
       controls.removeEventListener('change', handleChange)
       controls.removeEventListener('end', handleEnd)
     }
-  }, [camera, choreographyOwnsCamera, controls, publishCanvasPose])
+  }, [camera, choreographyOwnsCamera, controls, mode, objectInputOwnership.active, paused, publishCanvasPose, viewportInputOwnerId])
 }

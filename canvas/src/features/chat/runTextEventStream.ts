@@ -2,6 +2,10 @@ import {
   extractAssistantStreamDelta,
   parseSseEvents,
 } from './floatingPanelChat/floatingPanelChatStreamParsing'
+import {
+  readRunTextProviderIncompleteReason,
+  RunTextProviderIncompleteError,
+} from './runTextProviderResponse'
 
 export async function readRunTextEventStream(args: {
   body: ReadableStream<Uint8Array>
@@ -15,8 +19,11 @@ export async function readRunTextEventStream(args: {
   let done = false
   let finishReason = ''
   let reasoningObserved = false
+  let incompleteReason: string | null = null
   const providerErrors: string[] = []
   const consumePayload = (payload: unknown) => {
+    const terminalIncompleteReason = readRunTextProviderIncompleteReason(payload)
+    if (terminalIncompleteReason !== null) incompleteReason = terminalIncompleteReason
     const streamDelta = extractAssistantStreamDelta(payload)
     if (streamDelta.finishReason) finishReason = streamDelta.finishReason
     if (streamDelta.reasoningTextDelta || streamDelta.reasoningStepSummaries.length) reasoningObserved = true
@@ -25,6 +32,18 @@ export async function readRunTextEventStream(args: {
     })
     const next = args.extractText(payload)
     if (!next) return
+    const eventType = payload && typeof payload === 'object'
+      ? String((payload as { type?: unknown }).type || '').trim().toLowerCase()
+      : ''
+    const isTerminalAggregate = eventType === 'response.output_text.done' || eventType === 'response.completed'
+    if (isTerminalAggregate && fullText) {
+      if (next === fullText || fullText.endsWith(next)) return
+      if (next.startsWith(fullText)) {
+        fullText = next
+        args.onText?.(fullText)
+        return
+      }
+    }
     fullText += next
     args.onText?.(fullText)
   }
@@ -53,6 +72,7 @@ export async function readRunTextEventStream(args: {
   if (buffer.trim()) consumeEvents(parseSseEvents(`${buffer}\n\n`).events)
   if (fullText.trim()) return fullText
   if (providerErrors.length) throw new Error(providerErrors[0])
+  if (incompleteReason !== null) throw new RunTextProviderIncompleteError(incompleteReason)
   if (finishReason === 'length') {
     throw new Error('Text generation reached max_completion_tokens before returning assistant content. Disable thinking or increase the text-stage token budget.')
   }

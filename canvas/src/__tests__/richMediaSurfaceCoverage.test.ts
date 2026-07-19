@@ -100,6 +100,10 @@ function buildConnectedMarkdownRichMediaGraph(): {
 
 export function testRichMediaPanelMarkdownPayloadCoversRendererModeMatrix() {
   const { graphData, registry } = buildConnectedMarkdownRichMediaGraph()
+  const nativeTextSurface = readFileSync(resolve(process.cwd(), 'src', 'components', 'RichMediaPanelTextSurface.tsx'), 'utf8')
+  for (const snippet of ['<CardInlineTextEditor', 'data-kg-rich-media-markdown-preview="1"', "markdownPreview={props.panel?.markdownPresentationMode === true ? true : 'auto'}"]) {
+    if (!nativeTextSurface.includes(snippet)) throw new Error(`expected native Rich Media markdown surface contract: ${snippet}`)
+  }
   const graphSemanticKey = buildScopedGraphSemanticKey('rich-media-surface-coverage', {
     graphData,
     graphRevision: 1,
@@ -135,10 +139,12 @@ export function testRichMediaPanelMarkdownPayloadCoversRendererModeMatrix() {
     })
     const panel = overlays.find(node => node.id === 'rich-media-panel')
     if (!panel) throw new Error(`expected ${label} to include the connected Rich Media Panel overlay`)
-    if (panel.kind !== 'iframe') throw new Error(`expected ${label} text/table payload to render as iframe, got ${panel.kind}`)
-    const srcDoc = String(panel.srcDoc || '')
-    for (const snippet of ['data-kg-rich-media-markdown-srcdoc="1"', '<table>', '<blockquote>', '<pre><code', 'const value = 42']) {
-      if (!srcDoc.includes(snippet)) throw new Error(`expected ${label} srcDoc snippet: ${snippet}`)
+    if (panel.kind !== 'iframe') throw new Error(`expected ${label} text payload to retain the Rich Media text routing kind, got ${panel.kind}`)
+    if (panel.srcDoc) throw new Error(`expected ${label} connected markdown to avoid the legacy srcDoc iframe path`)
+    if (panel.panel?.activeTab !== 'text') throw new Error(`expected ${label} connected markdown to select the native text tab`)
+    const nativeMarkdown = String(panel.panel?.text || '')
+    for (const snippet of ['| Kind | Value |', '![Image](https://example.com/generated.png)', '```ts', 'const value = 42', '> Quoted line']) {
+      if (!nativeMarkdown.includes(snippet)) throw new Error(`expected ${label} native markdown payload snippet: ${snippet}`)
     }
   }
 }
@@ -199,7 +205,7 @@ export function testRichMediaSurfaceRuntimePathsReuseSharedOverlayOwners() {
     'onHeaderTogglePinned={event =>',
     'onHeaderToggleMinimized={() => togglePanelSize(n.id)}',
     'const stopPanelChromeSafeEvent = React.useCallback',
-    "target?.closest('button,a,input,textarea,select,[role=\"button\"],[data-kg-rich-media-resize-handle=\"1\"]')",
+    "target?.closest('button,a,input,textarea,select,[role=\"button\"],[data-kg-rich-media-resize-handle=\"1\"],[data-kg-rich-media-interaction-owner=\"1\"]')",
     'onClickCapture={stopPanelChromeSafeEvent}',
     'forwardWheelBeforeScrollableTarget={store.infiniteCanvasInteractionMode !==',
   ]) {

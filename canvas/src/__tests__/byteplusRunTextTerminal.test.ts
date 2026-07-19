@@ -3,6 +3,7 @@ import {
   CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
   CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
   CHAT_PROVIDER_BYTEPLUS,
+  CHAT_PROVIDER_LM_STUDIO,
 } from '@/lib/chatEndpoint'
 
 export async function testBytePlusRunTextReportsReasoningOnlyLengthTerminal() {
@@ -152,6 +153,46 @@ export async function testBytePlusRunTextReportsTruncatedSuccessfulJsonWithoutRe
     }
     if (generationRequests !== 1) {
       throw new Error(`expected no automatic retry after an ambiguous provider response, got ${generationRequests} requests`)
+    }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+}
+
+export async function testRunTextParsesProviderEventStreamWhenStreamingWasNotRequested() {
+  const originalFetch = globalThis.fetch
+  let generationRequests = 0
+  let requestedStream: unknown = null
+  try {
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      generationRequests += 1
+      const requestBody = JSON.parse(String(init?.body || '{}')) as { stream?: unknown }
+      requestedStream = requestBody.stream
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"# Local acceptance"}}]}\n\n'))
+          controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'))
+          controller.close()
+        },
+      })
+      return new Response(stream, {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream; charset=utf-8' },
+      })
+    }) as typeof fetch
+
+    const text = await generateRunMarkdownWithProvider({
+      config: {
+        provider: CHAT_PROVIDER_LM_STUDIO,
+        endpointUrl: 'http://127.0.0.1:5199/v1/chat/completions',
+        apiKey: '',
+        chatModel: 'acceptance-model',
+      },
+      prompt: 'Generate the final artifact.',
+      options: { chatStream: false },
+    })
+    if (text !== '# Local acceptance' || requestedStream !== false || generationRequests !== 1) {
+      throw new Error(`expected stream:false to parse the provider SSE response without retrying, got ${JSON.stringify({ text, requestedStream, generationRequests })}`)
     }
   } finally {
     globalThis.fetch = originalFetch

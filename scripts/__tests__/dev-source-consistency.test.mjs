@@ -47,18 +47,20 @@ test('canonical Dev source rejects stale or dirty checkouts before any port can 
   }), contract, 'canonical'), /agentic-canvas-os-docs source requires a clean worktree/)
 })
 
-test('all source modes reject multiple registered worktrees on one device', async () => {
+test('all source modes accept multiple registered worktrees with isolated branches', async () => {
   const contract = await readContract()
-  assert.throws(() => evaluateDevSourceConsistency(sourceStates({
+  const canonical = evaluateDevSourceConsistency(sourceStates({
     application: { worktreeCount: 2 },
-  }), contract, 'canonical'), /requires exactly 1 registered worktree/)
-  assert.throws(() => evaluateDevSourceConsistency(sourceStates({
+  }), contract, 'canonical')
+  assert.equal(canonical.canonical, true)
+  const task = evaluateDevSourceConsistency(sourceStates({
     application: {
       branch: 'agent/macbook/dev-source-consistency',
       headSha: SHA_B,
       worktreeCount: 2,
     },
-  }), contract, 'task'), /requires exactly 1 registered worktree/)
+  }), contract, 'task')
+  assert.equal(task.canonical, false)
 })
 
 test('task mode allows application divergence but keeps Agentic Canvas OS docs canonical', async () => {

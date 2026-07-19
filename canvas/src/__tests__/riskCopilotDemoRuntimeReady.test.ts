@@ -43,8 +43,8 @@ const asRecord = (value: unknown, label: string): PlainRecord => {
 export function testRiskCopilotDemoIsRuntimeReadyFromLocalProof() {
   const markdown = fs.readFileSync(DOC_PATH, 'utf8')
   const meta = readFrontmatter(markdown)
-  if (meta.schema !== 'kgc-risk-copilot-demo/v1' || meta.runtime_status !== 'runtime-ready') {
-    throw new Error(`unexpected risk-copilot contract ${JSON.stringify({ schema: meta.schema, runtime_status: meta.runtime_status })}`)
+  if (meta.schema !== 'kgc-computing-flow/v1' || meta.demo_schema !== 'kgc-risk-copilot-demo/v1' || meta.runtime_status !== 'runtime-ready') {
+    throw new Error(`unexpected risk-copilot contract ${JSON.stringify({ schema: meta.schema, demo_schema: meta.demo_schema, runtime_status: meta.runtime_status })}`)
   }
   if (meta.deployed_api_claim !== 'false' || meta.publish_scope !== 'local-only') throw new Error('expected local-only, non-deployed demo state')
   const runtimeDefaults = asRecord(meta.runtime_defaults, 'runtime_defaults')

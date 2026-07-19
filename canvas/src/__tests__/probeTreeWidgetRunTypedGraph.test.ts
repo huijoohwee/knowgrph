@@ -17,6 +17,45 @@ import { isStoryboardWidgetProbeTreeLineageOnlyRootNode } from '@/components/Sto
 
 const cell = (key: string, type: string, value: unknown) => ({ key, type, value })
 
+export function testStoryboardWidgetWorkflowRunTargetResolvesComposedOverlayIdAgainstInnerDraftNode() {
+  const innerNode: GraphNode = {
+    id: 'n18',
+    type: 'TextGeneration',
+    label: 'Deliverables Widget Card',
+    properties: {},
+  }
+  const draftGraph: GraphData = {
+    type: 'Graph',
+    nodes: [innerNode],
+    edges: [],
+    metadata: { graphDataRevision: 18 },
+  }
+  const storeGraph: GraphData = {
+    type: 'Graph',
+    nodes: [{ ...innerNode, id: 'ws:caca068a::n18' }],
+    edges: [],
+    metadata: { graphDataRevision: 19, sourceLayerComposition: 'compose' },
+  }
+  const context = getCachedStoryboardWidgetWorkflowNodeResolutionContext({
+    draftGraph,
+    draftGraphRevision: 18,
+    renderGraph: draftGraph,
+    renderGraphRevision: 18,
+    baseGraph: draftGraph,
+    baseGraphRevision: 18,
+    storeGraph,
+    storeGraphRevision: 19,
+    preferCurrentGraphDataRefs: true,
+  })
+  const resolved = resolveStoryboardWidgetWorkflowRunTarget({
+    context,
+    requestedNodeId: 'ws:caca068a::n18',
+  })
+  if (resolved?.node !== innerNode || resolved.resolvedNodeId !== 'n18' || resolved.writableNodeId !== 'n18') {
+    throw new Error(`expected composed overlay Run identity to resolve the unique writable inner draft node, got ${JSON.stringify(resolved)}`)
+  }
+}
+
 export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity() {
   const prompt = [
     '/sme-care-agent @source.frontmatter @source.body',
@@ -112,6 +151,7 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
 
   let committedGraph: GraphData | null = null
   let publishedBaseGraph: GraphData | null | undefined
+  let publishedLedgerConnection = false
   const result = runStoryboardWidgetProbeTreeInvocation({
     graphForRun: resolvedRunTarget.graphForRun,
     nodeIds: ['n1'],
@@ -120,6 +160,7 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
     publishOutput: output => {
       committedGraph = output.baseGraphData || null
       publishedBaseGraph = output.baseGraphData
+      publishedLedgerConnection = output.connectCreatedOutputToAnchor === true
       return committedGraph
     },
   })
@@ -130,11 +171,12 @@ export async function testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity
     result?.changed
     || !committedGraph
     || publishedBaseGraph !== resultGraph
+    || !publishedLedgerConnection
     || branchNodes.length !== 3
     || candidateEdges.length !== 3
     || branchNodes.some(node => node.properties.parentNodeId !== 'n1')
   ) {
-    throw new Error(`expected typed frontmatter Widget Card Run to publish one visible Probe-Tree branch set, got ${JSON.stringify({ result, committedGraph, publishedBaseGraph, branchNodes, candidateEdges })}`)
+    throw new Error(`expected typed frontmatter Widget Card Run to publish one visible Probe-Tree branch set and connected ledger, got ${JSON.stringify({ result, committedGraph, publishedBaseGraph, publishedLedgerConnection, branchNodes, candidateEdges })}`)
   }
   if (!isStoryboardWidgetProbeTreeLineageOnlyRootNode(resultGraph!, typedNode) || branchNodes.some(node => isStoryboardWidgetProbeTreeLineageOnlyRootNode(resultGraph!, node))) {
     throw new Error('expected Run All to treat only the superseded Probe-Tree root as lineage while each selected child owns its continuation')

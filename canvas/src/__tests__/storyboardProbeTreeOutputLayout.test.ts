@@ -15,12 +15,14 @@ import {
 import { normalizeProbeTreeCandidateEdges } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeCandidateEdges'
 import { resolveStoryboardWidgetWorkflowRichMediaPanelTargetNodeId } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
 import { applyStoryboardCanvasGraphPropertyAuthority } from '@/components/StoryboardWidgetCanvas/runtime/storyboardCanvasGraphAuthority'
+import { resolveStoryboardWidgetOverlayEdgeGraphAuthority } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayEdgeGraphAuthority'
 import {
   resolveFlowCanvasMediaOverlayGraphNode,
   resolveFlowCanvasMediaOverlayPinnedInCanvas,
   resolveFlowCanvasMediaOverlayWorldTopLeft2d,
 } from '@/components/FlowCanvas/flowCanvasMediaOverlayWorldPoint'
 import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
+import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { buildRichMediaTextMarkdownDocument } from '@/features/rich-media/richMediaTextMarkdownContract.mjs'
 import type { GraphData } from '@/lib/graph/types'
 import {
@@ -30,6 +32,10 @@ import {
   PROBE_TREE_LAYOUT_VERSION_PROPERTY,
   PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY,
 } from '@/lib/storyboardWidget/probeTreeLayoutContract'
+import {
+  WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
+  WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowOutputEdge'
 
 const assert = (condition: unknown, message: string): void => {
   if (!condition) throw new Error(message)
@@ -277,6 +283,48 @@ export function testProbeTreeLayoutOwnershipSurvivesCanonicalPropertyProjection(
   assert(readPosition(canonicalized, String(candidateEdges[0]!.target)).x > readPosition(canonicalized, String(candidateEdges[0]!.source)).x, 'expected canonical candidate edge geometry to stay forward-only')
 }
 
+export function testProbeTreeOverlayEdgesUseNormalizedStoryboardGraphAuthority() {
+  const sourceGraph: GraphData = {
+    type: 'Graph',
+    nodes: [
+      { id: 'root', type: 'TextGeneration', label: 'Root', x: 0, y: 0, properties: {} },
+      {
+        id: 'branch',
+        type: 'TextGeneration',
+        label: 'Branch',
+        x: 440,
+        y: 0,
+        properties: {
+          cardTypeLabel: 'Probe-Tree Card',
+          parentNodeId: 'root',
+          probeTreeThreadRootId: 'root',
+        },
+      },
+    ],
+    edges: [],
+  }
+  const renderedGraph = applyStoryboardCanvasGraphPropertyAuthority({
+    graphData: sourceGraph,
+    propertyAuthorityGraphData: sourceGraph,
+  })!
+  assert(renderedGraph.edges.some(edge => edge.source === 'root' && edge.target === 'branch'), 'expected Storyboard graph authority to restore the declared Probe-Tree route after a source round trip')
+
+  const fixedCardEdgeGraph = resolveStoryboardWidgetOverlayEdgeGraphAuthority({
+    draftGraphData: sourceGraph,
+    renderedGraphData: renderedGraph,
+    fixedCardsOwnGraphAuthority: true,
+  })
+  assert(fixedCardEdgeGraph === renderedGraph, 'expected fixed-card edges to use the same normalized graph authority as their rendered cards')
+  assert(fixedCardEdgeGraph?.edges.length === 1, 'expected the fixed-card overlay renderer to retain the restored Probe-Tree edge')
+
+  const interactiveEdgeGraph = resolveStoryboardWidgetOverlayEdgeGraphAuthority({
+    draftGraphData: sourceGraph,
+    renderedGraphData: renderedGraph,
+    fixedCardsOwnGraphAuthority: false,
+  })
+  assert(interactiveEdgeGraph === sourceGraph, 'expected interactive editor edges to keep live draft authority')
+}
+
 export function testProbeTreeCandidateEdgesRejectParentlessAndCyclicRoutes() {
   const graphData: GraphData = {
     type: 'Graph',
@@ -471,6 +519,32 @@ export function testProbeTreeOutputLayoutCollapsesDuplicateThreadLedgers() {
     outputGroupId,
   })
   assert(resolved === 'panel-root', `expected a later continuation to reuse the thread ledger, got ${String(resolved)}`)
+}
+
+export function testProbeTreeOutputLayoutRepairsDisconnectedCanonicalLedger() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [
+      { id: 'n1', type: 'TextGeneration', label: 'Source', x: 0, y: 0, properties: {} },
+      { id: 'n2', type: 'RichMediaPanel', label: 'Probe-Tree Branches', x: 520, y: 0,
+        properties: {
+          workflowOutputAnchorNodeId: 'n1',
+          workflowOutputKey: PROBE_TREE_OUTPUT_KEY,
+          [WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY]: WORKFLOW_OUTPUT_EDGE_MODE_MANUAL,
+        },
+      },
+    ],
+    edges: [],
+  }
+  const normalized = normalizeAllStoryboardWidgetProbeTreeOutputLayouts(graphData)
+  const repairedPanel = normalized.nodes.find(node => node.id === 'n2')
+  const outputEdges = normalized.edges.filter(edge => edge.properties?.workflowOutputEdge === true)
+  assert(outputEdges.length === 1, `expected one repaired ledger edge, got ${JSON.stringify(outputEdges)}`)
+  assert(outputEdges[0]?.source === 'n1' && outputEdges[0]?.target === 'n2', `expected source-to-ledger topology, got ${JSON.stringify(outputEdges[0])}`)
+  assert(outputEdges[0]?.properties?.[FLOW_EDGE_SOURCE_PORT_KEY] === 'text_out', `expected repaired ledger source port text_out, got ${JSON.stringify(outputEdges[0])}`)
+  assert(outputEdges[0]?.properties?.[FLOW_EDGE_TARGET_PORT_KEY] === 'output', `expected repaired ledger target port output, got ${JSON.stringify(outputEdges[0])}`)
+  assert(repairedPanel?.properties[WORKFLOW_OUTPUT_EDGE_MODE_PROPERTY] == null, 'expected passive authority to clear the stale manual-disconnect marker')
+  assert(normalizeAllStoryboardWidgetProbeTreeOutputLayouts(normalized) === normalized, 'expected repaired ledger authority to be idempotent')
 }
 
 export function testProbeTreeOutputLayoutMergesLiveLedgersBeforeNormalization() {

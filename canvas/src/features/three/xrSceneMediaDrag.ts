@@ -11,6 +11,13 @@ import {
 } from './xrSceneMcpRuntime'
 
 const XR_RICH_MEDIA_PANEL_LABEL = '3D for XR'
+export const XR_SCENE_MEDIA_DROP_COMMITTED_EVENT = 'kg:xr-scene-media-drop-committed'
+
+export type XrSceneMediaDropCommittedDetail = Readonly<{
+  entityId: string
+  subjectId?: string
+  subjectLabel?: string
+}>
 
 function escapeSvgText(value: string): string {
   return value
@@ -59,8 +66,9 @@ export function buildXrStageMediaDragPayload(stage: XrMotionReferenceStagePreset
   }
 }
 
-export function buildXrAssetMediaDragPayload(asset: XrSceneLibraryAsset, transition: XrSceneTransition): MediaDragPayload {
+export function buildXrAssetMediaDragPayload(asset: XrSceneLibraryAsset, transition: XrSceneTransition, subjectLabelValue = ''): MediaDragPayload {
   const effectiveTransition: XrSceneTransition = asset.mobile ? transition : 'hold'
+  const subjectLabel = Array.from(String(subjectLabelValue || '').trim()).slice(0, 80).join('')
   const previewUrl = buildXrMediaPreviewDataUrl({
     entityKind: 'asset',
     label: asset.label,
@@ -78,6 +86,7 @@ export function buildXrAssetMediaDragPayload(asset: XrSceneLibraryAsset, transit
       entityKind: 'asset',
       entityId: asset.id,
       label: asset.label,
+      ...(subjectLabel ? { subjectLabel } : {}),
       description: asset.description,
       category: asset.category,
       transition: effectiveTransition,
@@ -91,9 +100,20 @@ export function controlXrSceneMediaDrop(payload: MediaDragPayload): XrSceneContr
   if (projection.entityKind === 'environment') {
     return controlLocalXrScene({ action: 'stage', stageId: projection.entityId })
   }
-  return controlLocalXrScene({
+  const result = controlLocalXrScene({
     action: 'place',
     assetId: projection.entityId,
     transition: projection.transition || 'linear',
+    ...(projection.subjectLabel ? { label: projection.subjectLabel } : {}),
   })
+  if (result.ok && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent<XrSceneMediaDropCommittedDetail>(XR_SCENE_MEDIA_DROP_COMMITTED_EVENT, {
+      detail: {
+        entityId: projection.entityId,
+        ...(result.subjectId ? { subjectId: result.subjectId } : {}),
+        ...(projection.subjectLabel ? { subjectLabel: projection.subjectLabel } : {}),
+      },
+    }))
+  }
+  return result
 }

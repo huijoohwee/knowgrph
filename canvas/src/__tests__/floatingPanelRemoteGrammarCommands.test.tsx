@@ -268,6 +268,7 @@ export async function testRemoteAgenticOsGrammarPrimeFailsClosedWhenTransportUna
 export async function testRemoteAgenticOsGrammarHydrationIsRevisionKeyedAndBounded() {
   const originalFetch = globalThis.fetch
   let sourceRevision = 'a'.repeat(40)
+  let progressiveProviderStatus = 'unverified'
   resetAgenticOsRemoteGrammarCatalogForTests()
   globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
@@ -286,6 +287,43 @@ export async function testRemoteAgenticOsGrammarHydrationIsRevisionKeyedAndBound
         structuredContent: {
           ok: true,
           sourceRevision,
+          liveAgentProviderProof: {
+            schema: 'agent-live-provider-proof-summary/v1',
+            status: 'verified-bounded-live',
+            evidenceSchema: 'agent-live-provider-proof-contract/v1',
+            sourceStatus: 'runtime-ready-dev',
+            sourceRevision,
+            proofRevision: 'd'.repeat(40),
+            model: 'test-model',
+            reasoningEffort: 'low',
+            providerCalls: 3,
+            inputTokens: 10,
+            outputTokens: 5,
+            cachedInputTokens: 0,
+            estimatedCostUsd: 0.001,
+            finalAnswerOwners: { delegation: 'manager', handoff: 'specialist' },
+            continuationContext: 'all_turns',
+            defaultWorkerConfigured: false,
+          },
+          progressiveAgentsReadiness: {
+            schema: 'progressive-agents-readiness-summary/v1',
+            status: 'runtime-ready-dev',
+            sourceRevision,
+            sourcePath: 'docs/PROGRESSIVE-AGENTS.md',
+            sourceUrl: `https://github.com/huijoohwee/agentic-canvas-os/blob/${sourceRevision}/docs/PROGRESSIVE-AGENTS.md`,
+            contractSchema: 'progressive-agents-runtime-contract/v1',
+            runtimeScope: 'single-agent execution, tool-bearing agent execution, and explicit specialist workflow delegation',
+            runtimeOwner: '../agent-api/src/progressive-agents.js',
+            runtimeProof: '../__tests__/progressive-agents.test.mjs',
+            contractReady: true,
+            configured: false,
+            progressionPolicy: 'single-agent-then-tools-then-specialists',
+            growthStages: ['single-agent', 'tool-enabled-agent', 'specialist-workflow'],
+            externalSdkDependency: false,
+            providerExecutionStatus: progressiveProviderStatus,
+            defaultWorkerConfigured: false,
+            deployPolicy: 'Dev-only until explicit operator approval',
+          },
           catalog: [{ token: `${query}revision-${sourceRevision[0]}`, kind, label: `Revision ${sourceRevision[0]}` }],
         },
       },
@@ -300,10 +338,21 @@ export async function testRemoteAgenticOsGrammarHydrationIsRevisionKeyedAndBound
     if (first.counts.slash !== 1 || first.counts.hash !== 1 || first.counts.at !== 1) {
       throw new Error(`expected exact sigil counts after hydration, got ${JSON.stringify(first.counts)}`)
     }
+    if (first.liveAgentProviderProof.status !== 'verified-bounded-live' || first.liveAgentProviderProof.proofRevision !== 'd'.repeat(40)) {
+      throw new Error(`expected source-backed live provider proof to hydrate with the catalog revision, got ${JSON.stringify(first.liveAgentProviderProof)}`)
+    }
+    if (first.progressiveAgentsReadiness.status !== 'runtime-ready-dev'
+      || first.progressiveAgentsReadiness.sourceRevision !== sourceRevision) {
+      throw new Error(`expected source-backed progressive Agents readiness to share the catalog revision, got ${JSON.stringify(first.progressiveAgentsReadiness)}`)
+    }
     sourceRevision = 'b'.repeat(40)
+    progressiveProviderStatus = 'verified'
     const second = await refreshAgenticOsRemoteGrammarCatalog()
     if (second.sourceRevision !== sourceRevision || second.entries.some(entry => entry.token.endsWith('revision-a'))) {
       throw new Error(`expected docs revision change to invalidate the prior catalog, got ${JSON.stringify(second)}`)
+    }
+    if (second.progressiveAgentsReadiness.status !== 'unavailable') {
+      throw new Error(`expected unsupported progressive readiness evidence to fail closed, got ${JSON.stringify(second.progressiveAgentsReadiness)}`)
     }
     if (getAgenticOsRemoteGrammarCatalogSnapshot().hydration.attempts > 2) {
       throw new Error('expected catalog hydration attempts to stay within the two-attempt contract')

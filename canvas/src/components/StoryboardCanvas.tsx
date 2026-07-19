@@ -65,9 +65,7 @@ import { CardMediaLoadingSkeleton, CardMediaPreview } from '@/lib/cards/CardMedi
 import { WidgetEditorActionsToolbar } from '@/components/StoryboardWidget/WidgetEditorActionsToolbar'
 import { WIDGET_ACTIONS_TOOLBAR_MAX_WIDTH_PX } from '@/components/StoryboardWidget/flowWidgetOverlayShared'
 import { ChatModelCredentialControls } from '@/features/chat/ChatModelCredentialControls'
-import { resolveSharedChatModelSelect } from '@/features/chat/chatModelCredentialResolver'
-import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
-import { getChatProviderLabel } from '@/lib/chatEndpoint'
+import { resolveChatModelCredentialProjection } from '@/features/chat/floatingPanelChat/floatingPanelChatCredentialContext'
 import {
   CARD_MARKDOWN_PREVIEW_CHIP_CLASS_NAME,
   CARD_MARKDOWN_PREVIEW_INLINE_MEDIA_CLASS_NAME,
@@ -527,7 +525,7 @@ export default function StoryboardCanvas({
   active?: boolean
 }) {
   const graphData = useActiveGraphRenderData(active)
-  const { storeGraphData, graphRevision, flowWidgetPinnedByNodeId, flowWidgetPinnedByNodeIdByGraphMetaKey, selectedNodeId, selectNode, updateNode, addNode, removeNode, setSelectionSource, updateOpenWidgetNodeIds, setGraphDataPreservingLayout, setMarkdownDocument, addHistory, upsertUiToast, dismissUiToast, markdownDocumentName, markdownDocumentText, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry, chatProvider, chatAuthMode, chatApiKey, setChatApiKey, chatModel, uiPanelMicroLabelTextSizeClass, strybldrStoryboardCardAspectMode, strybldrStoryboardBoardLayoutMode } = useGraphStore(
+  const { storeGraphData, graphRevision, flowWidgetPinnedByNodeId, flowWidgetPinnedByNodeIdByGraphMetaKey, selectedNodeId, selectNode, updateNode, addNode, removeNode, setSelectionSource, updateOpenWidgetNodeIds, setGraphDataPreservingLayout, setMarkdownDocument, addHistory, upsertUiToast, dismissUiToast, markdownDocumentName, markdownDocumentText, documentWidgetRegistry, effectiveWidgetRegistry, baseWidgetRegistry, chatProvider, chatAuthMode, chatApiKey, setChatApiKey, chatEndpointUrl, chatModel, uiPanelMicroLabelTextSizeClass, strybldrStoryboardCardAspectMode, strybldrStoryboardBoardLayoutMode } = useGraphStore(
     useShallow(s => ({
       storeGraphData: (s.graphData as GraphData | null) || null,
       graphRevision: s.graphDataRevision || 0,
@@ -554,6 +552,7 @@ export default function StoryboardCanvas({
       chatAuthMode: s.chatAuthMode,
       chatApiKey: s.chatApiKey,
       setChatApiKey: s.setChatApiKey,
+      chatEndpointUrl: s.chatEndpointUrl,
       chatModel: s.chatModel,
       uiPanelMicroLabelTextSizeClass: s.uiPanelMicroLabelTextSizeClass || 'text-xs',
       strybldrStoryboardCardAspectMode: s.strybldrStoryboardCardAspectMode === '9:16' ? '9:16' : '16:9',
@@ -1073,14 +1072,6 @@ export default function StoryboardCanvas({
     updateOpenWidgetNodeIds(prev => (prev.includes(selectedId) ? prev : [...prev, selectedId]))
     addHistory('Storyboard canvas media')
   }, [addHistory, addNode, board.lanes, graphData, storeGraphData, storyboardZoom.transform])
-  const sharedCardApiKeyPrompt = React.useMemo(() => {
-    if (!shouldRenderFloatingChatApiKeyPrompt({ chatAuthMode, chatProvider })) return null
-    return {
-      providerLabel: getChatProviderLabel(chatProvider),
-      value: chatApiKey || '',
-      onChange: setChatApiKey,
-    }
-  }, [chatApiKey, chatAuthMode, chatProvider, setChatApiKey])
   const handleNewStoryboardRecord = React.useCallback((preferredLane?: string) => {
     const storeGraphData = useGraphStore.getState().graphData as GraphData | null
     const baseGraphData = (storeGraphData || graphData || { context: '', type: 'Graph', nodes: [], edges: [] }) as GraphData
@@ -2167,15 +2158,21 @@ export default function StoryboardCanvas({
                     const candidateCreditCost = Number(currentCardProperties.creditCost || 0)
                     const candidateElapsedMs = Number(currentCardProperties.elapsedMs || 0)
                     const candidatePublishEligible = readStoryboardBool(currentCardProperties.publishEligible)
+                    const storyboardCardCredentialProjection = resolveChatModelCredentialProjection({
+                      currentNode: nodeById.get(card.id) || null,
+                      globalProvider: chatProvider,
+                      globalAuthMode: chatAuthMode,
+                      globalEndpointUrl: chatEndpointUrl,
+                      globalModel: chatModel,
+                      apiKey: chatApiKey || '',
+                      onApiKeyChange: setChatApiKey,
+                    })
                     const explicitStoryboardCardChatModel = readStoryboardScalar(currentCardProperties.chatModel)
                     const sourceModelLabel = readStoryboardScalar(card.sourceModelLabel)
                     const shouldUseSourceModelReadout = !!sourceModelLabel && !explicitStoryboardCardChatModel
                     const storyboardCardModelSelect = shouldUseSourceModelReadout
                       ? null
-                      : resolveSharedChatModelSelect({
-                          chatProvider,
-                          chatModel: explicitStoryboardCardChatModel || chatModel,
-                        })
+                      : storyboardCardCredentialProjection.modelSelect
                     const storyboardMediaPromptModel = storyboardCardModelSelect?.modelId || sourceModelLabel || chatModel
                     return (
                       <React.Fragment key={card.id}>
@@ -2420,7 +2417,7 @@ export default function StoryboardCanvas({
                                 </p>
                                 {storyboardCardModelSelect ? (
                                   <ChatModelCredentialControls
-                                    apiKeyPrompt={sharedCardApiKeyPrompt}
+                                    apiKeyPrompt={storyboardCardCredentialProjection.apiKeyPrompt}
                                     modelId={storyboardCardModelSelect.modelId}
                                     modelOptions={storyboardCardModelSelect.options}
                                     onModelChanged={nextModel => updateStoryboardCardModel(card.id, nextModel)}
