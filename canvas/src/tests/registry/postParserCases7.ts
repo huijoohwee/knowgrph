@@ -51,6 +51,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["graph.canonicalNodePropertyAuthority.preservesScopedLayout","@/__tests__/applyCanonicalNodePropertyAuthority.test","testCanonicalNodePropertyAuthorityPreservesScopedLayout"],
   ["ui.storyboard.canvasGraphAuthority.prefersLiveDraft","@/__tests__/storyboardCanvasGraphAuthority.test","testStoryboardCanvasGraphAuthorityPrefersLiveNonEmptyDraft"],
   ["ui.storyboard.canvasGraphAuthority.rejectsEmptyDraft","@/__tests__/storyboardCanvasGraphAuthority.test","testStoryboardCanvasGraphAuthorityRejectsEmptyTransientDraft"],
+  ["ui.storyboard.canvasGraphAuthority.honorsPendingEmptyMarkdownDraft","@/__tests__/storyboardCanvasGraphAuthority.test","testStoryboardCanvasGraphAuthorityHonorsPendingEmptyMarkdownDraft"],
   ["ui.flowCanvas.overlays.nativeScenePartition","@/__tests__/flowCanvasOverlayNativeScenePartitionRegression.test","testFlowCanvasPartitionsOverlayOwnedNodesBeforeNativeSceneBuild"],
   ["aiShowrunner.briefScript.roundTrip","@/__tests__/aiShowrunner.test","testAiShowrunnerBriefAndScriptRoundTrip"],
   ["aiShowrunner.stateBusToken.contracts","@/__tests__/aiShowrunner.test","testAiShowrunnerStateBusAndTokenContracts"],

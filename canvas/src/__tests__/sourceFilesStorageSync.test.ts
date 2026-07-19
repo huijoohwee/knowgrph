@@ -46,7 +46,7 @@ const sourceFileFixture: SourceFile = {
   },
 }
 
-export function testKnowgrphWorkspaceIdBuildsStableScopedIdentity() {
+export function testKnowgrphWorkspaceIdUsesCanonicalDefaultAcrossDeviceLocalWorkspaceState() {
   const previousWorkspaceId = process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
   delete process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID
   const a = buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState({
@@ -67,8 +67,9 @@ export function testKnowgrphWorkspaceIdBuildsStableScopedIdentity() {
     folderCacheId: 'cache_b',
     selectedFolderPath: 'notes/demo',
   })
-  if (a !== b) throw new Error('expected workspace identity builder to be deterministic for the same workspace state')
-  if (a === c) throw new Error('expected workspace identity builder to change when the workspace cache id changes')
+  if (a !== 'kgws:canonical-docs' || b !== a || c !== a) {
+    throw new Error('expected browser-local workspace metadata to resolve to one canonical cross-device storage workspace')
+  }
   if (typeof previousWorkspaceId === 'string') process.env.VITE_KNOWGRPH_STORAGE_WORKSPACE_ID = previousWorkspaceId
 }
 

@@ -1353,7 +1353,7 @@ export function testSourceFilesStorageSyncDocumentHashDoesNotSelfDependOnParsedT
   if (!text.includes('const readSourceFileGraphDataSemanticHash = (value: unknown): string =>')) {
     throw new Error('expected source-files storage sync to centralize cached graph payload semantic hashing in a helper')
   }
-  const graphHashFnEnd = text.indexOf('const resolveWorkspaceIdentitySeed = (workspaceState: SourceFilesWorkspaceState): string =>', graphHashFnStart)
+  const graphHashFnEnd = text.indexOf('export const buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState = (', graphHashFnStart)
   const graphHashSection = graphHashFnEnd > graphHashFnStart ? text.slice(graphHashFnStart, graphHashFnEnd) : text.slice(graphHashFnStart)
   if (graphHashSection.includes('normalizeString(file.parsedTextHash)')) {
     throw new Error('expected source-files storage graph hash to avoid parsedTextHash-dependent feedback churn across sync boundaries')

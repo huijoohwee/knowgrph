@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { chromium, type Page } from 'playwright'
 import { buildKnowgrphStorageCanvasRoomPath } from '../src/lib/storage/knowgrphStorageSyncContract'
 import { QUERY_PARAM_OPEN_EDITOR_WORKSPACE } from '../src/lib/routing/queryParams'
+import { LOCAL_DOC_PARAM } from '../src/features/canvas/canvasDocDeepLink'
 
 const DEFAULT_OWNER_APP_URL = 'http://127.0.0.1:5173/'
 const DEFAULT_GUEST_APP_URL = 'http://127.0.0.1:5174/'
@@ -70,8 +71,8 @@ function buildWorkspaceUrl(rawUrl: string): string {
   if (!String(url.searchParams.get(QUERY_PARAM_OPEN_EDITOR_WORKSPACE) || '').trim()) {
     url.searchParams.set(QUERY_PARAM_OPEN_EDITOR_WORKSPACE, '1')
   }
-  if (!String(url.searchParams.get('kgPath') || '').trim()) {
-    url.searchParams.set('kgPath', DOC_PATH)
+  if (!String(url.searchParams.get(LOCAL_DOC_PARAM) || '').trim()) {
+    url.searchParams.set(LOCAL_DOC_PARAM, DOC_PATH)
   }
   return url.toString()
 }

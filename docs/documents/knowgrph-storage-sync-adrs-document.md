@@ -27,6 +27,7 @@
 | ADR-011 | Accepted | Promote generated chat Markdown through GitHub first, storage second. | `canvas/src/lib/workspace/github/` |
 | ADR-012 | Accepted | Store generated binary artifacts in R2 with Markdown manifests. | `cloudflare/workers/knowgrph-storage/src/index.ts` |
 | ADR-013 | Accepted | Persist collaborative AI media through R2, D1, KV, and Durable Objects. | `cloudflare/workers/knowgrph-storage/src/index.ts` |
+| ADR-014 | Accepted | Use one canonical storage workspace by default across devices. | `canvas/src/features/source-files/sourceFilesStorageSync.ts` |
 
 ## ADR-001: Minimal Persisted Client Working Store
 
@@ -79,3 +80,7 @@ Generated binary artifacts use R2 for bytes and D1 for searchable Markdown manif
 ## ADR-013: Collaborative AI Media Persistence
 
 AI media persistence combines R2 bytes, D1 metadata, optional KV access-cache entries, and optional Durable Object room notification. KV namespace ids and live Cloudflare binding proof remain operator-owned and are never faked in repo config.
+
+## ADR-014: Canonical Cross-Device Source Files Workspace
+
+The default Source Files storage workspace is `kgws:canonical-docs` on every installation. Browser-local folder cache IDs and selected paths remain local workspace preferences, never remote storage identity, so Dev, Prod, and other devices converge on the same Source Files inventory. `VITE_KNOWGRPH_STORAGE_WORKSPACE_ID` is the explicit opt-in boundary for an isolated workspace.

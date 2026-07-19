@@ -68,6 +68,8 @@ export function testMultiUserCollaborationDocsUseImplementedCollaborationOwners(
     "detailTab === 'collaboration'",
     'validate:multi-user-collaboration:e2e',
     'QUERY_PARAM_OPEN_EDITOR_WORKSPACE',
+    "import { LOCAL_DOC_PARAM } from '../src/features/canvas/canvasDocDeepLink'",
+    'url.searchParams.set(LOCAL_DOC_PARAM, DOC_PATH)',
     'verify-multi-user-collaboration-e2e.ts',
     'assertRoomStatus(WORKER_URL, ownerConnectedSnapshot.markdownDocumentName)',
     'session-roster',

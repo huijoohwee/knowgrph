@@ -12,6 +12,30 @@ export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () =>
   if (!text.includes("from './canvasDocDeepLink'")) {
     throw new Error('Expected document deep links to use the shared parser/URL helper')
   }
+  if (!text.includes("import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'")) {
+    throw new Error('Expected document deep links to use the shared Source Files bootstrap readiness owner')
+  }
+  const bootstrapReadyHookIndex = text.indexOf('const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()')
+  const bootstrapReadyGuardIndex = text.indexOf('if (!sourceFilesBootstrapReady) return')
+  const liveSearchIndex = text.indexOf("const currentSearch = typeof window !== 'undefined'")
+  const parseDeepLinkIndex = text.indexOf('const link = parseDocDeepLink(currentSearch)')
+  const consumeDeepLinkIndex = text.indexOf('consumeDeepLinkParams(currentSearch)')
+  if (
+    bootstrapReadyHookIndex < 0
+    || bootstrapReadyGuardIndex < 0
+    || liveSearchIndex < 0
+    || parseDeepLinkIndex < 0
+    || consumeDeepLinkIndex < 0
+    || bootstrapReadyHookIndex > bootstrapReadyGuardIndex
+    || bootstrapReadyGuardIndex > liveSearchIndex
+    || bootstrapReadyGuardIndex > parseDeepLinkIndex
+    || bootstrapReadyGuardIndex > consumeDeepLinkIndex
+  ) {
+    throw new Error('Expected document deep links to remain unconsumed until persisted Source Files startup finishes')
+  }
+  if (!text.includes('[search, pushUiToast, sourceFilesBootstrapReady]')) {
+    throw new Error('Expected Source Files bootstrap readiness to re-run deferred document deep links')
+  }
   if (!explorerStoreText.includes('readLocalDocDeepLinkPathFromCurrentLocation()')) {
     throw new Error('Expected markdown explorer startup to prefer a live local document deep link before persisted active path')
   }
