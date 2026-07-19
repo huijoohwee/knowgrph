@@ -140,6 +140,9 @@ jobs:
           path: |
             huijoohwee/content/knowgrph
             huijoohwee/functions
+            huijoohwee/canvas
+            huijoohwee/contracts
+            huijoohwee/grph-shared
             huijoohwee/_headers
             huijoohwee/_redirects
           if-no-files-found: error
