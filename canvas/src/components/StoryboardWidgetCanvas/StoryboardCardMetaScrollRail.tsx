@@ -2,6 +2,7 @@ import React from 'react'
 
 import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { StoryboardCardInvocationChips } from '@/components/StoryboardWidgetCanvas/StoryboardCardInvocationChips'
+import { StoryboardCardSourceReferenceChips } from '@/components/StoryboardWidgetCanvas/StoryboardCardSourceReferenceChips'
 import { CardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'
 
 const stopCardMetaPointerEvent = (event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement>): void => {
@@ -56,6 +57,8 @@ export function StoryboardCardMetaScrollRail(props: {
 }) {
   const { card, onCommitLane, onCommitType } = props
   const hasInvocationTokens = card.invocationTokens.some(token => token.startsWith('/') || token.startsWith('@') || token.startsWith('#'))
+  const sourceReferences = card.sourceReferences || []
+  const hasSourceReferences = sourceReferences.length > 0
   const hidesRedundantWidgetCardMetadata = isRedundantWidgetCardMetadata(card)
   const metaRef = React.useRef<HTMLElement | null>(null)
   React.useEffect(() => {
@@ -68,7 +71,7 @@ export function StoryboardCardMetaScrollRail(props: {
   const handleMetaWheelCapture = React.useCallback((event: React.WheelEvent<HTMLElement>) => {
     handleStoryboardCardMetaWheelEvent(event, event.currentTarget)
   }, [])
-  if (hidesRedundantWidgetCardMetadata && !hasInvocationTokens) return null
+  if (hidesRedundantWidgetCardMetadata && !hasInvocationTokens && !hasSourceReferences) return null
   return (
     <header
       ref={metaRef}
@@ -106,6 +109,7 @@ export function StoryboardCardMetaScrollRail(props: {
           editorClassName="min-w-[4.5rem] rounded border bg-[color:var(--kg-input-bg)] px-1 py-0.5 text-[8px] font-semibold text-[color:var(--kg-text-primary)]"
         />
       </> : null}
+      <StoryboardCardSourceReferenceChips references={sourceReferences} />
       <StoryboardCardInvocationChips tokens={card.invocationTokens} />
     </header>
   )

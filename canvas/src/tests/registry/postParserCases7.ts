@@ -106,6 +106,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["ui.flowWidget.storyboardCardTextLayout.aspectSizing","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardOverlayLayoutKeepsSharedAspectRatioSizing"],
   ["ui.flowWidget.storyboardCardTextLayout.invocationChips","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardInvocationChipsReuseSharedInvocationRenderer"],
   ["ui.flowWidget.storyboardCardTextLayout.metaWheelRail","@/__tests__/storyboardCardTextLayout.test","testStoryboardCardMetaWheelScrollsInsideRail"],
+  ["ui.flowWidget.storyboardCardTextLayout.connectedSourceChip","@/__tests__/storyboardCardConnectedSourceReferences.test","testStoryboardCardsRenderConnectedTextAsSourceChipsWithoutReplacingInput"],
   ["ui.inlineCardEditor.viewerSurface.keepsFocusedDomWhenRenderedDraftMatches","@/__tests__/cardInlineTextEditorViewerSurfaceRegression.test.tsx","testCardInlineTextEditorViewerSurfaceKeepsFocusedDomWhenRenderedDraftMatches"],
   ["ui.inlineCardEditor.viewerSurface.singleLineTitle","@/__tests__/cardInlineTextEditorViewerTitleRegression.test.tsx","testCardInlineTextEditorViewerSurfaceEditsSingleLineTitles"],
   ["ui.inlineCardEditor.viewerSurface.stableViewEditLayout","@/__tests__/cardInlineTextSurfaceLayoutRegression.test.tsx","testCardInlineTextSurfaceKeepsViewEditLayoutStable"],
