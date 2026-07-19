@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test __tests__/*.test.mjs"
   },
   "exports": {
     "./graph/types": {
@@ -322,6 +323,11 @@
       "import": "./dist/spreadsheet/types.js",
       "default": "./dist/spreadsheet/types.js"
     },
+    "./office/markdownOfficeArtifacts": {
+      "types": "./dist/office/markdownOfficeArtifacts.d.ts",
+      "import": "./dist/office/markdownOfficeArtifacts.js",
+      "default": "./dist/office/markdownOfficeArtifacts.js"
+    },
     "./ui/panelTypography": {
       "types": "./dist/ui/panelTypography.d.ts",
       "import": "./dist/ui/panelTypography.js",
@@ -420,6 +426,7 @@
     "typescript": "~5.8.3"
   },
   "dependencies": {
+    "fflate": "^0.8.3",
     "yjs": "^13.6.31"
   }
 }

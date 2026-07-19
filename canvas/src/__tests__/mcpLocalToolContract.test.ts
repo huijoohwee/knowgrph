@@ -177,6 +177,18 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
   assertAnnotations(searchTool, { readOnlyHint: true, destructiveHint: false, openWorldHint: false, idempotentHint: true })
   assertAnnotations(fetchTool, { readOnlyHint: true, destructiveHint: false, openWorldHint: false, idempotentHint: true })
 
+  const exportPublishTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.exportPublish)
+  if (!exportPublishTool) throw new Error('expected export.publish tool definition')
+  assertAnnotations(exportPublishTool, { readOnlyHint: false, destructiveHint: true, openWorldHint: true, idempotentHint: false })
+  for (const requiredInput of ['artifact_id', 'kind', 'target_provider']) {
+    if (!exportPublishTool.inputSchema.properties?.[requiredInput]) {
+      throw new Error(`expected export.publish schema to expose ${requiredInput}`)
+    }
+  }
+  if (exportPublishTool.outputSchema?.type !== 'object') {
+    throw new Error(`expected export.publish to expose a structured outputSchema, got ${JSON.stringify(exportPublishTool.outputSchema)}`)
+  }
+
   const processTools = [
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiLaunch,
     contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.pipeline,
