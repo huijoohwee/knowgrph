@@ -14,10 +14,8 @@ import type {
   KgDocumentRecord,
   KgGraphSnapshotRecord,
 } from '@/lib/storage/knowgrphStorageSyncContract'
-import {
-  normalizeSourceFilesWorkspaceState,
-  type SourceFilesWorkspaceState,
-} from '@/features/source-files/sourceFilesWorkspaceState'
+import { KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID } from '@/lib/storage/knowgrphStorageSyncContract'
+import type { SourceFilesWorkspaceState } from '@/features/source-files/sourceFilesWorkspaceState'
 import {
   getSourceFileTextHash,
   isWorkspaceBackedSourceFile,
@@ -97,29 +95,12 @@ const buildSourceFileStorageSyncToken = (file: SourceFile): string => {
   return `${id}:${documentHash}:${graphHash}`
 }
 
-const resolveWorkspaceIdentitySeed = (workspaceState: SourceFilesWorkspaceState): string => {
-  const normalized = normalizeSourceFilesWorkspaceState(workspaceState)
-  return (
-    normalizeString(normalized.folderCacheId)
-    || normalizeString(normalized.selectedFolderPath)
-    || normalizeString(normalized.folderName)
-    || 'default'
-  )
-}
-
 export const buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState = (
-  workspaceState: SourceFilesWorkspaceState,
+  _workspaceState: SourceFilesWorkspaceState,
 ): string => {
   const workspaceIdOverride = readKnowgrphStorageWorkspaceIdOverride()
   if (workspaceIdOverride) return workspaceIdOverride
-  const normalized = normalizeSourceFilesWorkspaceState(workspaceState)
-  const seed = [
-    resolveWorkspaceIdentitySeed(normalized),
-    normalizeString(normalized.accessMode),
-    normalizeString(normalized.folderName),
-    normalizeString(normalized.selectedFolderPath),
-  ].join('|')
-  return `kgws:${hashStringToHex(seed)}`
+  return KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID
 }
 
 const toRemoteDocumentRecord = (
