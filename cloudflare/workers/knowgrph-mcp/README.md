@@ -79,6 +79,16 @@ This source implementation has local cross-repository recovery proof. The
 deployed Worker, Prod, Cloudflare deployment, and provider-driven execution
 remain separately gated.
 
+## Isolated Dev deployment
+
+The `dev` Wrangler environment deploys only to
+`knowgrph-mcp-dev.huijoohwee.workers.dev`. It repeats the non-inheritable
+bindings and migrations, keeps live stage clients disabled, and declares no
+custom-domain routes. Configure a Dev-only runtime bearer with
+`wrangler secret put KNOWGRPH_AGENT_RUNTIME_BEARER_TOKEN --env dev`, then run
+`npm run deploy:dev`. The top-level `deploy` script remains the separately
+gated production deployment.
+
 ## Durable Run_Manifest persistence (Property 25 / R14.2)
 
 When the Director tool (`knowgrph.video_remix.run`) returns a Run_Manifest,

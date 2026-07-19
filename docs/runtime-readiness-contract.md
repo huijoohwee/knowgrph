@@ -13,7 +13,7 @@ stage_contract:
   order: ["research", "storyboard", "render", "edit", "publish", "checkout"]
 docs_dependency:
   repository: "https://github.com/huijoohwee/agentic-canvas-os.git"
-  ref: "276446da3e9b175f0d03376fe76a48dc38c160cb"
+  ref: "e2bdbeb337b6782ddd612a94941eec8b57ed184f"
   root_env: "KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT"
   default_relative_root: "../agentic-canvas-os/docs"
   required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "RUNTIME-PROOF.md", "LIVE-AGENT-PROVIDER-PROOF.md", "PROGRESSIVE-AGENTS.md", "SKILLS.md"]
@@ -56,6 +56,8 @@ The deployed agent runtime requires only the `knowgrph-mcp` Worker, its Agents S
 
 The pinned Agentic Canvas OS documentation is a source-time governance dependency checked before promotion. It is not a request-time infrastructure dependency. BytePlus, Exa, StryTree, payment, and media services remain optional adapters for their existing specialized stages and are not required for `/investment-research-agent`, `/sme-care-agent`, or `/video-agent` to compile and dry-run.
 
+The reviewed Function Calling proof uses the separate `env.dev` Worker named `knowgrph-mcp-dev`. That environment repeats the MCP and Run Manifest Durable Object bindings, keeps `KNOWGRPH_LIVE_CLIENTS="0"`, serves only a `workers.dev` hostname, and declares no `airvio.co` route. Its Dev-only bearer authenticates both the Agentic service client and the proof manifest read-back. The top-level production routes and deploy command remain a separate gate.
+
 Live execution is fail-closed. `/sme-care-agent` is the single prepared definition: its text and complete/per-run transport requirements pass to the Workers AI resolver, which returns a versioned provider/model/transport packet. The runtime then resolves the packet's exact adapter id from the immutable Running Agents registry. Missing approval, binding, model id, incompatible packet, or adapter blocks before dispatch. The other definitions remain deterministic dry-run only until they declare and prove their own model requirements.
 
 `/sme-care-agent` additionally owns the internal `agent.sme` / `sme.risk.profile` deterministic kernel. Its Cloudflare bundle compiles without an external orchestration service, while its full Dev execution uses the existing local Source Files owner for atomic `sme-agent/profiles/*` and `sme-agent/runs/*` writes. Every successful live run includes `sme-agent/runs/<runId>/canvas-evidence.md`, a `kgc-computing-flow/v1` Storyboard projection of exposures, gaps, unknown risks, protection guidance, rationales, cost, and deployment boundaries. The checked-in pre-seed evidence mirror is regenerated from the same runtime owner and must remain byte-identical. Prod mirror and Cloudflare mutations remain prohibited until separately authorized.
@@ -74,6 +76,14 @@ npx wrangler secret put KNOWGRPH_AGENT_RUNTIME_BEARER_TOKEN \
   --config cloudflare/workers/knowgrph-mcp/wrangler.toml
 npx wrangler secret put KNOWGRPH_AGENT_MODEL_ID \
   --config cloudflare/workers/knowgrph-mcp/wrangler.toml
+```
+
+Isolated reviewed-function proof preparation, only after explicit Dev deploy approval:
+
+```bash
+npx wrangler secret put KNOWGRPH_AGENT_RUNTIME_BEARER_TOKEN \
+  --config cloudflare/workers/knowgrph-mcp/wrangler.toml --env dev
+npm --prefix cloudflare/workers/knowgrph-mcp run deploy:dev
 ```
 
 Post-deploy verification, only after explicit authorization and with explicit URLs:

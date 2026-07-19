@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "wrangler dev --config wrangler.toml",
     "deploy": "wrangler deploy --config wrangler.toml",
+    "deploy:dev": "wrangler deploy --config wrangler.toml --env dev",
+    "secrets:list:dev": "wrangler secret list --config wrangler.toml --env dev",
     "test": "node --test __tests__/*.test.mjs"
   },
   "dependencies": {
