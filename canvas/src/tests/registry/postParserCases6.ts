@@ -9,6 +9,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["storyboardWidget.textGeneration.agentPromptDisablesThinking","@/__tests__/storyboardWidgetWorkflowTextThinking.test","testAgentPromptWorkflowDisablesThinkingForFinalOutput"],
   ["storyboardWidget.textGeneration.manualOutputStaysStandalone","@/__tests__/storyboardWidgetWorkflowInputTopology.test","testTextRunPersistenceKeepsManualOutputStandalone"],
   ["storyboardWidget.outputWiring.canonicalPortRepair","@/__tests__/storyboardWidgetExplicitOutputWiring.test","testWorkflowOwnedOutputEdgeRepairsCanonicalPortMetadata"],
+  ["storyboardWidget.outputWiring.genericTextConnectedPanel","@/__tests__/storyboardWidgetExplicitOutputWiring.test","testGenericTextRunPreservesSourceAndMaterializesConnectedPanel"],
   ["storyboardWidget.outputWiring.deliverablesOwnedOutputs","@/__tests__/storyboardWidgetExplicitOutputWiring.test","testDeliverablesOwnedOutputsStayDistinctAndIdempotent"],
   ["storyboardWidget.outputWiring.explicitMultiTargets","@/__tests__/storyboardWidgetExplicitOutputWiring.test","testExplicitMultiEdgesTargetWidgetCardAndRichMediaPanels"],
   ["storyboardWidget.outputWiring.standaloneUntilExplicit","@/__tests__/storyboardWidgetExplicitOutputWiring.test","testGeneratedOutputsStayStandaloneUntilExplicitlyWired"],

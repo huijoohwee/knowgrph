@@ -6,7 +6,7 @@ import { isKgcWorkspaceCompanionPath, toCanonicalKgcWorkspacePath } from '@/feat
 import { emitKgcRunOutput } from '@/features/chat/kgcRunOutput'
 import { ensureEditorCanvasLandingForDuration } from '@/lib/toolbar/workspaceLandingGuard'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
-import { UI_COPY, FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID, isFlowVideoScriptFormId } from '@/lib/config'
+import { UI_COPY, FLOW_SWARM_PREDICTION_NODE_TYPE_ID, FLOW_TEXT_GENERATION_NODE_LABEL, FLOW_TEXT_GENERATION_NODE_TYPE_ID, FLOW_VIDEO_TRANSCRIBER_NODE_LABEL, FLOW_VIDEO_TRANSCRIBER_NODE_TYPE_ID } from '@/lib/config'
 import { readGraphDataRevision } from '@/lib/graph/documentMetadata'
 import { resolveWidgetRegistryEntry, FLOW_WIDGET_FORM_ID_KEY } from '@/features/storyboard-widget-manager/resolveWidgetRegistry'
 import { buildTextWidgetOutputPatch, clearRichMediaOutputProperties, resolveRichMediaWidgetKind, writeTextWidgetRunOutputArtifact } from '@/features/chat/richMediaRun'
@@ -33,6 +33,7 @@ import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
 import { runStoryboardWidgetNativeCrawlerInvocation } from './storyboardWidgetWorkflowNativeCrawlerRun'
 import { runStoryboardWidgetRichMediaDeliverables } from './storyboardWidgetWorkflowRichMediaDeliverablesRun'
 import { generateStoryboardWidgetTextWithProvider } from './storyboardWidgetWorkflowTextGenerationProvider'
+import { buildStoryboardWidgetTextRunSourceState } from './storyboardWidgetTextRunSourceState'
 import type { StoryboardWidgetWorkflowNodeRunner, StoryboardWidgetWorkflowNodeRunnerArgs } from './storyboardWidgetWorkflowRunTypes'
 export { resolveStoryboardWidgetBaseGraphKind } from './storyboardWidgetWorkflowRunTypes'
 export type { StoryboardWidgetWorkflowNodeRunner, StoryboardWidgetWorkflowNodeRunnerArgs } from './storyboardWidgetWorkflowRunTypes'
@@ -495,31 +496,30 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
           return
         }
         if (await runStoryboardWidgetNativeCrawlerInvocation({ id, prompt, node, nodeProperties: rawNodeProperties, workspacePath: args.markdownDocumentName, recoveryOnly: runOptions?.nativeCrawlerRecovery === true, updateOutput: updateRunOutputForKnownNodeIds, publishOutput: publishTextRunOutputToRichMediaPanel, upsertToast: args.upsertUiToast, reportFailure: reportNodeRunFailure })) return
+        const textRunStartedAt = new Date().toISOString()
         setRunLoadingStateForKnownNodeIds({ loading: true, kind: 'text' })
-        const mirrorTextOutputToRichMediaPanel = isFlowVideoScriptFormId(resolvedTextRegistryEntry?.formId) || providerFamily === 'byteplus'
-        if (mirrorTextOutputToRichMediaPanel) {
-          updateRunOutputForKnownNodeIds(nodeProps => ({ ...clearRichMediaOutputProperties(nodeProps), outputLoading: true, outputLoadingKind: 'text', lastRunAt: new Date().toISOString() }))
-        }
+        updateRunOutputForKnownNodeIds(nodeProps => buildStoryboardWidgetTextRunSourceState({
+          properties: nodeProps,
+          loading: true,
+          runAt: textRunStartedAt,
+        }))
         let lastPublishedText = ''
         const publishTextRunOutput = (outputText: string, loading: boolean, outputPath?: string | null) => {
           const nextOutput = String(outputText || '')
-          if (mirrorTextOutputToRichMediaPanel) {
-            updateRunOutputForKnownNodeIds(nodeProps => ({
-              ...clearRichMediaOutputProperties(nodeProps),
-              ...(loading === true ? {} : buildTextWidgetOutputPatch({ output: nextOutput, title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL, model: properties.chatModel || store.chatModel, outputPath })),
-              outputLoading: loading === true ? true : undefined,
-              outputLoadingKind: loading === true ? 'text' : undefined,
-              lastRunAt: loading === true ? new Date().toISOString() : undefined,
-            }))
-            publishTextRunOutputToRichMediaPanel({ anchorNode: node, outputText: nextOutput, title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL, model: properties.chatModel || useGraphStore.getState().chatModel, outputPath, loading })
-            return
-          }
-          updateRunOutputForKnownNodeIds(nodeProps => ({
-            ...clearRichMediaOutputProperties(nodeProps),
-            ...buildTextWidgetOutputPatch({ output: nextOutput, title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL, model: properties.chatModel || store.chatModel, outputPath }),
-            outputLoading: loading === true ? true : undefined,
-            outputLoadingKind: loading === true ? 'text' : undefined,
+          updateRunOutputForKnownNodeIds(nodeProps => buildStoryboardWidgetTextRunSourceState({
+            properties: nodeProps,
+            loading,
+            runAt: textRunStartedAt,
           }))
+          publishTextRunOutputToRichMediaPanel({
+            anchorNode: node,
+            outputText: nextOutput,
+            title: node.label || FLOW_TEXT_GENERATION_NODE_LABEL,
+            model: properties.chatModel || useGraphStore.getState().chatModel,
+            outputPath,
+            loading,
+            connectCreatedOutputToAnchor: true,
+          })
         }
         try {
           const result = await generateTextWithProvider(prompt, nextText => {
