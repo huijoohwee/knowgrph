@@ -10,6 +10,7 @@ import { PROBE_TREE_OUTPUT_KEY } from '@/components/StoryboardWidgetCanvas/runti
 import { FLOW_EDGE_SOURCE_PORT_KEY, FLOW_EDGE_TARGET_PORT_KEY } from '@/lib/graph/flowPorts'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { buildStoryboardWidgetTextRunSourceState } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetTextRunSourceState'
 
 function createTextOutputHarness(
   initialGraph: GraphData,
@@ -105,6 +106,58 @@ export function testWorkflowOwnedOutputEdgeRepairsCanonicalPortMetadata() {
     || unwrapGraphCellValue(properties.workflowOutputEdge) !== true
   ) {
     throw new Error(`expected canonical text_out -> output metadata in the persisted edge container, got ${JSON.stringify(draft.edges[0])}`)
+  }
+}
+
+export function testGenericTextRunPreservesSourceAndMaterializesConnectedPanel() {
+  const source: GraphNode = {
+    id: 'n3',
+    type: 'TextGeneration',
+    label: 'Widget Card',
+    properties: {
+      prompt: 'Generate a financial response for restaurant startup',
+      summary: 'Keep this authored brief.',
+      output: 'stale in-place provider output',
+      outputModel: 'legacy-model',
+    },
+  }
+  const harness = createTextOutputHarness({ type: 'Graph', nodes: [source], edges: [] })
+  const generatedMarkdown = '# Financial plan\n\n| Metric | Value |\n| --- | ---: |\n| Revenue | RM 100,000 |'
+
+  for (let index = 0; index < 2; index += 1) {
+    harness.publishers.publishTextRunOutputToRichMediaPanel({
+      anchorNode: source,
+      outputText: generatedMarkdown,
+      title: 'Widget Card',
+      model: 'test-model',
+      connectCreatedOutputToAnchor: true,
+    })
+  }
+
+  const sourceProperties = buildStoryboardWidgetTextRunSourceState({
+    properties: source.properties as Record<string, unknown>,
+    loading: false,
+    runAt: '2026-07-19T02:00:00.000Z',
+  })
+  const published = harness.readGraph()
+  const outputPanels = published.nodes.filter(node => node.type === 'RichMediaPanel')
+  const outputEdges = published.edges.filter(edge => edge.properties?.workflowOutputEdge === true)
+  if (
+    sourceProperties.prompt !== 'Generate a financial response for restaurant startup'
+    || sourceProperties.summary !== 'Keep this authored brief.'
+    || 'output' in sourceProperties
+    || 'outputModel' in sourceProperties
+    || sourceProperties.lastRunAt !== '2026-07-19T02:00:00.000Z'
+    || published.nodes.length !== 2
+    || outputPanels.length !== 1
+    || outputPanels[0]?.properties.output !== generatedMarkdown
+    || outputEdges.length !== 1
+    || outputEdges[0]?.source !== 'n3'
+    || outputEdges[0]?.target !== outputPanels[0]?.id
+    || outputEdges[0]?.properties?.[FLOW_EDGE_SOURCE_PORT_KEY] !== 'text_out'
+    || outputEdges[0]?.properties?.[FLOW_EDGE_TARGET_PORT_KEY] !== 'output'
+  ) {
+    throw new Error(`expected generic text Run to preserve source input and reuse one connected Rich Media output, got ${JSON.stringify({ sourceProperties, published })}`)
   }
 }
 
