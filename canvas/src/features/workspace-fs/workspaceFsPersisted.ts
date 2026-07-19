@@ -26,6 +26,7 @@ import {
   hasOnlyCanonicalXrPhysicsFile,
   isStaleRootMarkdownAliasCoveredByDocsMirror,
   removeNoncanonicalXrPhysicsFiles,
+  removeLegacyWorkspaceSourceEntries,
   resetWorkspaceDocsMirrorSyncForPersistedFs,
   syncWorkspaceDocsMirrorEntries,
   toWorkspaceDocsMirrorPath,
@@ -167,6 +168,7 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
     const { collections } = await getDb()
     await ensureRoot()
     let changed = false
+    if (await removeLegacyWorkspaceSourceEntries(collections)) changed = true
     const docsOnlyMode = readWorkspaceSourceFilesDocsOnlySetting()
     const sourceDocsMirrorEntries = docsOnlyMode
       ? await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })

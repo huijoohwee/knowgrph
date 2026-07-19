@@ -1,3 +1,5 @@
+import { isLegacyAgenticOsDocsWorkspacePath } from '@/features/workspace-fs/workspaceLegacySourceRoots'
+
 export const MARKDOWN_SOURCE_FOLDER_ROOT_PATH = ''
 
 export type MarkdownSourceFileListItemLike = {
@@ -33,13 +35,14 @@ export type VisibleMarkdownSourceFileTreeNode = {
 
 // Run evidence remains persisted and addressable, but it is not an authored source
 // document and should not crowd the Explorer's root-level workspace inventory.
-const LEGACY_GENERATED_SOURCE_ROOT_PATTERN = /^(?:agentic-os-docs|chat-log|video-runs(?:-\d+)?)$/i
+const LEGACY_GENERATED_SOURCE_ROOT_PATTERN = /^(?:chat-log|video-runs(?:-\d+)?)$/i
 
 const normalizeMarkdownSourceFilePath = (name: string): string =>
   String(name || '').trim().replace(/\\/g, '/').replace(/\/+$/g, '')
 
 export function isLegacyGeneratedMarkdownSourcePath(name: string): boolean {
   const normalized = normalizeMarkdownSourceFilePath(name)
+  if (isLegacyAgenticOsDocsWorkspacePath(normalized)) return true
   const root = normalized.split('/').filter(Boolean)[0] || ''
   return LEGACY_GENERATED_SOURCE_ROOT_PATTERN.test(root)
 }

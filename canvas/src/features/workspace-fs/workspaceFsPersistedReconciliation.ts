@@ -10,6 +10,7 @@ import { normalizeWorkspacePath, workspaceBasename } from './path'
 import { readWorkspaceInitializationDocsMirrorEntries } from './workspaceSeedProvider'
 import { loadWorkspaceSourceIndex, setWorkspaceEntrySource } from './sourceIndex'
 import type { WorkspaceEntry, WorkspacePath } from './types'
+import { isLegacyAgenticOsDocsWorkspacePath } from './workspaceLegacySourceRoots'
 
 type WorkspaceRecordMap = { entries: WorkspaceEntry }
 type WorkspaceCollections = PersistedCollectionMap<WorkspaceRecordMap>
@@ -84,6 +85,23 @@ const clearWorkspaceEntrySource = (path: WorkspacePath): boolean => {
   if (!loadWorkspaceSourceIndex()[normalizedPath]) return false
   setWorkspaceEntrySource(normalizedPath, null, { persist: 'sync' })
   return true
+}
+
+export const removeLegacyWorkspaceSourceEntries = async (
+  collections: WorkspaceCollections,
+): Promise<boolean> => {
+  const rows = await collections.entries.find().exec()
+  let changed = false
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i]
+    if (!row) continue
+    const path = normalizeWorkspacePath(String(row.get('path') || ''))
+    if (!isLegacyAgenticOsDocsWorkspacePath(path)) continue
+    await row.remove()
+    clearWorkspaceEntrySource(path)
+    changed = true
+  }
+  return changed
 }
 
 export const removeNoncanonicalXrPhysicsFiles = async (

@@ -82,6 +82,10 @@ export const runMarkdownTests = async (results: TestResult[]) => {
     const mod = await modMarkdownFileTreeFolderClick()
     await mod.testMarkdownFileTreeFolderClickDoesNotClearSelection()
   })
+  await execTest(results, 'markdownFileTree.excludesLegacyAgenticOsDocsKeepsCanonical', async () => {
+    const mod = await modMarkdownFileTreeFolderClick()
+    await mod.testMarkdownFileTreeExcludesLegacyAgenticOsDocsRoot()
+  })
   await execTest(results, 'markdown.geospatial.tripDemoRegistersGeoDataset', async () => {
     const mod = await modMarkdownGeoIntegrationTripDemo()
     await mod.testMarkdownTripDemoJsonFenceRegistersAsGeoDataset()
