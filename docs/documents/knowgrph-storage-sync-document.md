@@ -282,6 +282,8 @@ flowchart TB
 4. Authoritative reconciliation deletes cached `/docs/**` entries absent from GitHub
 5. An authorized release seeds the same files as `agentic-canvas-os/docs/**` D1 canonical paths
 6. D1 export/read-back must equal the GitHub file inventory before cross-device Cloudflare sync is claimed
+
+The collaboration readiness harness uses `/docs/README.md`, which exists in the canonical corpus, as its shared owner/guest document.
 ```
 
 ### Path B — Cloudflare D1 Export URL (Runtime Read Cache)
