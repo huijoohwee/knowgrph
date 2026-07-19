@@ -65,3 +65,45 @@ export async function testMarkdownFileTreeFolderClickDoesNotClearSelection() {
     restoreDom()
   }
 }
+
+export async function testMarkdownFileTreeExcludesLegacyAgenticOsDocsRoot() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+
+  let root: ReturnType<typeof createRoot> | null = null
+  try {
+    const entries: WorkspaceEntry[] = [
+      { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
+      { path: '/agentic-canvas-os', parentPath: '/', kind: 'folder', name: 'agentic-canvas-os', updatedAtMs: 1 },
+      { path: '/agentic-os-docs', parentPath: '/', kind: 'folder', name: 'agentic-os-docs', updatedAtMs: 1 },
+    ]
+
+    root = createRoot(container as unknown as HTMLElement)
+    root.render(
+      <MarkdownFileTree
+        entries={entries}
+        expandedPaths={new Set()}
+        toggleExpanded={() => undefined}
+        activePath={null}
+        onSelectFile={() => undefined}
+        sourcesByPath={null}
+      />,
+    )
+    await tick()
+
+    if (!container.querySelector('section[aria-label="Folder agentic-canvas-os"]')) {
+      throw new Error('expected canonical agentic-canvas-os root to remain visible')
+    }
+    if (container.querySelector('section[aria-label="Folder agentic-os-docs"]')) {
+      throw new Error('expected legacy agentic-os-docs root to be excluded')
+    }
+  } finally {
+    try {
+      root?.unmount()
+    } catch {
+      void 0
+    }
+    restoreDom()
+  }
+}

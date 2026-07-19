@@ -28,6 +28,27 @@ export const testWorkspaceFsMemoryInitialEntries = async () => {
   if (text !== '# A') throw new Error(`Expected initial file text '# A', got ${String(text)}`)
 }
 
+export const testWorkspaceFsMemoryRemovesLegacyAgenticOsDocsAndKeepsCanonicalRoot = async () => {
+  const fs = createMemoryWorkspaceFs({
+    initialEntries: [
+      { path: '/agentic-os-docs', parentPath: '/', kind: 'folder', name: 'agentic-os-docs', updatedAtMs: 1 },
+      { path: '/agentic-os-docs/MEMORY.md', parentPath: '/agentic-os-docs', kind: 'file', name: 'MEMORY.md', text: '# stale', updatedAtMs: 1 },
+      { path: '/agentic-canvas-os', parentPath: '/', kind: 'folder', name: 'agentic-canvas-os', updatedAtMs: 1 },
+      { path: '/agentic-canvas-os/docs', parentPath: '/agentic-canvas-os', kind: 'folder', name: 'docs', updatedAtMs: 1 },
+      { path: '/agentic-canvas-os/docs/MEMORY.md', parentPath: '/agentic-canvas-os/docs', kind: 'file', name: 'MEMORY.md', text: '# canonical', updatedAtMs: 1 },
+    ],
+  })
+
+  await fs.ensureSeed()
+  const paths = new Set((await fs.listEntries()).map(entry => entry.path))
+  if (paths.has('/agentic-os-docs') || paths.has('/agentic-os-docs/MEMORY.md')) {
+    throw new Error('expected the legacy agentic-os-docs tree to be removed during seed reconciliation')
+  }
+  if (!paths.has('/agentic-canvas-os') || !paths.has('/agentic-canvas-os/docs/MEMORY.md')) {
+    throw new Error('expected the canonical agentic-canvas-os tree to remain intact')
+  }
+}
+
 export const testWorkspaceFsMemoryForbidsInitializationFileDelete = async () => {
   const fs = createMemoryWorkspaceFs()
 

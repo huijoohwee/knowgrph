@@ -262,7 +262,7 @@ flowchart TB
 | Cloudflare Worker not deployed to Edge | Client push/pull has no server endpoint | **Resolved** — Worker deployed at `airvio.co/api/storage/*` |
 | D1 database not provisioned | No shared remote store exists | **Resolved** — D1 provisioned (`633355bf-…152`) |
 | No cross-device sync | Workspace state is siloed per-browser | **Resolved** — push/pull + 120s polling loop |
-| Canonical corpus drift | Device caches and the former `huijoohwee/docs` seed exposed different Source Files inventories | **Resolved in Dev** — GitHub `agentic-canvas-os/docs` owns bootstrap; the release seeder reconciles D1 to the same canonical paths and removes stale rows |
+| Canonical corpus drift | Device caches, the former `huijoohwee/docs` seed, and the legacy `/agentic-os-docs` workspace root exposed different Source Files inventories | **Resolved in Dev** — GitHub `agentic-canvas-os/docs` owns bootstrap; workspace startup removes the exact legacy `/agentic-os-docs` subtree from persisted, memory, and hot-reload state while preserving `/agentic-canvas-os`; the release seeder reconciles D1 to the same canonical paths and removes stale rows |
 | No per-file persistence truth or upload action | A local `New .md` row looked the same as a GitHub + Cloudflare verified document | **Resolved in Dev** — Source Files renders local, checking, uploading, cloud, unavailable, and failure states; clicking a supported Markdown icon runs GitHub first, D1 second, then exact document read-back |
 | No user identity | Mutations are anonymous (device-scoped only) | Open — see multi-user collaboration PRD-TAD |
 | No access control | Any device with workspace ID can read/write | Open — see multi-user collaboration PRD-TAD |
