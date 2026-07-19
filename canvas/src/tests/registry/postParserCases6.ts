@@ -172,6 +172,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["richMedia.deliverables.nativeMarkdownPresentationSurface","@/__tests__/richMediaPanelTextModeRegression.test.tsx","testRichMediaPanelPresentationMarkdownUsesNativeDeckSurface"],
   ["richMedia.deliverables.mcpBackedPrompt","@/__tests__/richMediaDeliverablesRun.test","testRichMediaDeliverablesBuildsBoundedMcpBackedGenerationPrompt"],
   ["richMedia.deliverables.connectedSourceRunInput","@/__tests__/richMediaDeliverablesRun.test","testRichMediaDeliverablesRunUsesConnectedSourceAndKeepsAuthoredInstructions"],
+  ["richMedia.deliverables.multilingualAuthoredRequest","@/__tests__/richMediaDeliverablesRun.test","testConnectedSourceDoesNotReplaceMultilingualAuthoredRequest"],
   ["richMedia.deliverables.typedTargetPrompt","@/__tests__/richMediaDeliverablesRun.test","testRichMediaDeliverablesTypedTargetKeepsMarkerPromptAndInvocationTokens"],
   ["richMedia.deliverables.ownedPanelsDisplayLocalArtifacts","@/__tests__/richMediaDeliverablesRun.test","testRichMediaDeliverablesOwnedPanelsDisplayLocalArtifactsAcrossConnectedEdges"],
   ["richMedia.deliverables.requiredWorkbookPersistenceFailsClosed","@/__tests__/richMediaDeliverablesRun.test","testRichMediaDeliverablesRequiredWorkbookPersistenceFailsBeforePanelPublication"],

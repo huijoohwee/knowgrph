@@ -18,6 +18,7 @@ import { buildProviderChatRequestOptions } from './floatingPanelChat/floatingPan
 import { extractAssistantDelta } from './floatingPanelChat/floatingPanelChatStreamParsing'
 import { readRunTextEventStream } from './runTextEventStream'
 import { readRunTextProviderResponse } from './runTextProviderResponse'
+import { readRunTextResponseInstructions } from './runTextResponseInstructions'
 import { resolveBytePlusVideoReferenceImage } from './byteplusVideoReferenceImage'
 import { loadAvailableModelIds, parseErrorBody, parseJsonResponseBody, shouldRetryWithActivationFallback } from './floatingPanelChat/floatingPanelChatHttp'
 import { readBytePlusImageWidgetDefaults } from '@/features/integrations/byteplusImageGenerationDefaults'
@@ -750,14 +751,16 @@ export async function generateRunMarkdownWithProvider(args: {
   const baseMessages = [
     {
       role: 'system',
-      content: 'Return only the final user-facing markdown deliverable. Do not mention KGC, frontmatter, pipeline, or internal graph mechanics.',
+      content: readRunTextResponseInstructions(),
     },
     {
       role: 'user',
       content: args.prompt,
     },
   ]
-  const requestMessages = providerMessages || baseMessages
+  const requestMessages = providerMessages
+    ? [baseMessages[0], ...providerMessages]
+    : baseMessages
   const tokenLimit = cleanInteger(args.options?.chatMaxCompletionTokens)
   const streamRequested = cleanBool(args.options?.chatStream) !== false
 

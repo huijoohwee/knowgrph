@@ -122,9 +122,22 @@ export function testRichMediaDeliverablesRunUsesConnectedSourceAndKeepsAuthoredI
   if (
     !prompts.authoredPrompt.startsWith('/investment-research-agent')
     || prompts.connectedPrompt !== '# Generated Result\n\nRM100,000 budget.'
-    || prompts.prompt !== prompts.connectedPrompt
+    || !prompts.prompt.includes('<connected-source-context>\n# Generated Result\n\nRM100,000 budget.\n</connected-source-context>')
+    || !prompts.prompt.includes('<user-authored-request>\n/investment-research-agent\nGenerate a slide deck and financial model.\n</user-authored-request>')
   ) {
     throw new Error(`expected Widget Card Run to consume the connected Rich Media value without losing authored instructions, got ${JSON.stringify(prompts)}`)
+  }
+}
+
+export function testConnectedSourceDoesNotReplaceMultilingualAuthoredRequest() {
+  const prompts = resolveStoryboardWidgetTextGenerationPrompts({
+    authoredPrompt: '生成财务报告',
+    connectedValue: 'Sila huraikan pelan perniagaan dan bajet untuk gerai makanan.',
+  })
+  const sourceIndex = prompts.prompt.indexOf('<connected-source-context>')
+  const requestIndex = prompts.prompt.indexOf('<user-authored-request>')
+  if (sourceIndex !== 0 || requestIndex <= sourceIndex || !prompts.prompt.includes('生成财务报告')) {
+    throw new Error(`expected connected Malay evidence followed by the authored Chinese request, got ${prompts.prompt}`)
   }
 }
 

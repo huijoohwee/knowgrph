@@ -33,7 +33,19 @@ export function resolveStoryboardWidgetTextGenerationPrompts(args: {
 }): { authoredPrompt: string; connectedPrompt: string; prompt: string } {
   const authoredPrompt = normalizeStoryboardWidgetConnectedTextValue(args.authoredPrompt)
   const connectedPrompt = normalizeStoryboardWidgetConnectedTextValue(args.connectedValue)
-  return { authoredPrompt, connectedPrompt, prompt: connectedPrompt || authoredPrompt }
+  if (!authoredPrompt || !connectedPrompt) {
+    return { authoredPrompt, connectedPrompt, prompt: authoredPrompt || connectedPrompt }
+  }
+  const prompt = [
+    '<connected-source-context>',
+    connectedPrompt,
+    '</connected-source-context>',
+    '',
+    '<user-authored-request>',
+    authoredPrompt,
+    '</user-authored-request>',
+  ].join('\n')
+  return { authoredPrompt, connectedPrompt, prompt }
 }
 
 function normalizeWorkflowSchemaPath(schemaPath: unknown, fallbackKey = ''): string {
