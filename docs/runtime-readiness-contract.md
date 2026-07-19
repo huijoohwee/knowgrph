@@ -13,10 +13,10 @@ stage_contract:
   order: ["research", "storyboard", "render", "edit", "publish", "checkout"]
 docs_dependency:
   repository: "https://github.com/huijoohwee/agentic-canvas-os.git"
-  ref: "e2bdbeb337b6782ddd612a94941eec8b57ed184f"
+  ref: "a7ac73f427c10957b37d016e6a55592b578c381f"
   root_env: "KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT"
   default_relative_root: "../agentic-canvas-os/docs"
-  required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "RUNTIME-PROOF.md", "LIVE-AGENT-PROVIDER-PROOF.md", "PROGRESSIVE-AGENTS.md", "SKILLS.md"]
+  required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "RUNTIME-PROOF.md", "LIVE-AGENT-PROVIDER-PROOF.md", "LIVE-REVIEWED-FUNCTION-PROOF.md", "PROGRESSIVE-AGENTS.md", "SKILLS.md"]
   proof_tokens: ["/runtime-ready.check", "/session.start", "/release.complete", "/knowgrph.probe-tree", "#runtime-ready", "#multi-agent-collaboration", "#knowgrph.probe-tree", "@operator", "@working-directory", "@source.frontmatter", "@runtime-proof", "@knowgrph.probe-tree", "@mcp-gateway", "/sandbox.policy.validate", "#agent-sandbox-policy", "@sandbox-policy"]
 local_proof:
   provider_mode: "mock"
@@ -57,6 +57,8 @@ The deployed agent runtime requires only the `knowgrph-mcp` Worker, its Agents S
 The pinned Agentic Canvas OS documentation is a source-time governance dependency checked before promotion. It is not a request-time infrastructure dependency. BytePlus, Exa, StryTree, payment, and media services remain optional adapters for their existing specialized stages and are not required for `/investment-research-agent`, `/sme-care-agent`, or `/video-agent` to compile and dry-run.
 
 The reviewed Function Calling proof uses the separate `env.dev` Worker named `knowgrph-mcp-dev`. That environment repeats the MCP and Run Manifest Durable Object bindings, keeps `KNOWGRPH_LIVE_CLIENTS="0"`, serves only a `workers.dev` hostname, and declares no `airvio.co` route. Its Dev-only bearer authenticates both the Agentic service client and the proof manifest read-back. The top-level production routes and deploy command remain a separate gate.
+
+The accepted 2026-07-19 proof is bound to Agentic Canvas OS revision `a7ac73f427c10957b37d016e6a55592b578c381f` and its canonical `LIVE-REVIEWED-FUNCTION-PROOF.md`. One recovered durable continuation completed one logical `gpt-5.6-luna` run in two Responses requests and one signed reviewed call. Knowgrph returned an `applied` native receipt, and authenticated read-back found the exact note at revision 1. Aggregate returned usage was 546 input and 55 output tokens with USD 0.000876 estimated cost. The evidence proves only this route-free Dev lane; no production route, Pages deployment, custom domain, or live stage client changed.
 
 Live execution is fail-closed. `/sme-care-agent` is the single prepared definition: its text and complete/per-run transport requirements pass to the Workers AI resolver, which returns a versioned provider/model/transport packet. The runtime then resolves the packet's exact adapter id from the immutable Running Agents registry. Missing approval, binding, model id, incompatible packet, or adapter blocks before dispatch. The other definitions remain deterministic dry-run only until they declare and prove their own model requirements.
 
