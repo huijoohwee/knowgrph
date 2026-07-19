@@ -10,6 +10,18 @@ import {
 } from './workspaceSourceMirrorFormats'
 
 const GITHUB_DOCS_MIRROR_FETCH_CONCURRENCY = 8
+const CANONICAL_GITHUB_DOCS_MIRROR_CACHE_TTL_MS = 60_000
+
+export const CANONICAL_AGENTIC_CANVAS_OS_DOCS_GITHUB_URL =
+  'https://github.com/huijoohwee/agentic-canvas-os/tree/main/docs'
+
+let canonicalDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
+let canonicalDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
+
+export const resetCanonicalAgenticDocsMirrorCacheForTests = (): void => {
+  canonicalDatasetCache = null
+  canonicalDatasetInFlight = null
+}
 
 const normalizeRepoRelPath = (value: string): string => {
   return String(value || '')
@@ -75,6 +87,7 @@ export const readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl = async (args: {
   url: string
   maxFiles: number
   maxFileBytes: number
+  requireCompleteDataset?: boolean
 }): Promise<WorkspaceDocsMirrorEntry[]> => {
   if (typeof fetch !== 'function') return []
   const repoRef = parseGitHubRepoUrl(String(args.url || '').trim())
@@ -104,6 +117,7 @@ export const readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl = async (args: {
         return { relPath, text, updatedAtMs: readStableUpdatedAtMs(relPath, text) }
       },
     )
+    if (args.requireCompleteDataset === true && fetched.some(entry => entry === null)) return []
     const byRelPath = new Map<string, WorkspaceDocsMirrorEntry>()
     for (const entry of fetched) {
       if (!entry) continue
@@ -113,5 +127,32 @@ export const readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl = async (args: {
     return [...byRelPath.values()].sort((a, b) => a.relPath.localeCompare(b.relPath))
   } catch {
     return []
+  }
+}
+
+export const readCanonicalAgenticCanvasOsDocsMirrorEntries = async (args: {
+  maxFiles: number
+  maxFileBytes: number
+}): Promise<WorkspaceDocsMirrorEntry[]> => {
+  if (canonicalDatasetCache && canonicalDatasetCache.expiresAtMs > Date.now()) {
+    return canonicalDatasetCache.entries.map(entry => ({ ...entry }))
+  }
+  if (!canonicalDatasetInFlight) {
+    canonicalDatasetInFlight = readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl({
+      url: CANONICAL_AGENTIC_CANVAS_OS_DOCS_GITHUB_URL,
+      maxFiles: args.maxFiles,
+      maxFileBytes: args.maxFileBytes,
+      requireCompleteDataset: true,
+    }).then(entries => entries.map(entry => ({ ...entry, authority: 'agentic-canvas-os-github' })))
+  }
+  try {
+    const entries = await canonicalDatasetInFlight
+    canonicalDatasetCache = {
+      entries: entries.map(entry => ({ ...entry })),
+      expiresAtMs: Date.now() + CANONICAL_GITHUB_DOCS_MIRROR_CACHE_TTL_MS,
+    }
+    return entries.map(entry => ({ ...entry }))
+  } finally {
+    canonicalDatasetInFlight = null
   }
 }

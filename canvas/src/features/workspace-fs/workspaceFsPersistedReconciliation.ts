@@ -13,7 +13,12 @@ import type { WorkspaceEntry, WorkspacePath } from './types'
 
 type WorkspaceRecordMap = { entries: WorkspaceEntry }
 type WorkspaceCollections = PersistedCollectionMap<WorkspaceRecordMap>
-type WorkspaceDocsMirrorEntry = { relPath: string; text: string; updatedAtMs: number }
+type WorkspaceDocsMirrorEntry = {
+  relPath: string
+  text: string
+  updatedAtMs: number
+  authority?: 'agentic-canvas-os-github'
+}
 
 const WORKSPACE_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/docs')
 let lastDocsMirrorSyncSignature = ''
@@ -32,7 +37,7 @@ const normalizeDocsMirrorRelPath = (value: string): string => {
     .replace(/\/+$/, '')
   if (!normalized) return ''
   const lowered = normalized.toLowerCase()
-  const docsRootMarker = 'huijoohwee/docs/'
+  const docsRootMarker = 'agentic-canvas-os/docs/'
   if (lowered.startsWith(docsRootMarker)) return normalized.slice(docsRootMarker.length)
   if (lowered.startsWith(`docs/${docsRootMarker}`)) {
     return normalized.slice(`docs/${docsRootMarker}`.length)
@@ -44,12 +49,6 @@ const normalizeDocsMirrorRelPath = (value: string): string => {
 
 export const toWorkspaceDocsMirrorPath = (relPath: string): WorkspacePath => {
   const normalizedRelPath = normalizeDocsMirrorRelPath(relPath)
-  if (
-    normalizedRelPath === 'agentic-canvas-os/docs'
-    || normalizedRelPath.startsWith('agentic-canvas-os/docs/')
-  ) {
-    return normalizeWorkspacePath(`/${normalizedRelPath}`)
-  }
   return normalizeWorkspacePath(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/${normalizedRelPath}`)
 }
 
@@ -179,6 +178,9 @@ export const syncWorkspaceDocsMirrorEntries = async (
   if (desiredEntriesByPath.size === 0) return false
   const canonicalXrSeedDesired = CANONICAL_XR_PHYSICS_WORKSPACE_SEED_ENABLED
     && desiredEntriesByPath.get(XR_PHYSICS_WORKSPACE_SEED_PATH)?.kind === 'file'
+  const canonicalAgenticDocsOwnTree = docsEntries.every(
+    entry => entry.authority === 'agentic-canvas-os-github',
+  )
   const workspaceSourceIndex = loadWorkspaceSourceIndex()
   const sourceOwnedDocsPaths = buildWorkspaceDocsMirrorSourceOwnedPathSet(workspaceSourceIndex)
   const existingRows = await collections.entries.find().exec()
@@ -200,12 +202,13 @@ export const syncWorkspaceDocsMirrorEntries = async (
     }
     const canonicalXrSeedMustWin = canonicalXrSeedDesired
       && existingPath === XR_PHYSICS_WORKSPACE_SEED_PATH
-    if (sourceOwnedDocsPaths.has(existingPath) && !canonicalXrSeedMustWin) {
+    if (!canonicalAgenticDocsOwnTree && sourceOwnedDocsPaths.has(existingPath) && !canonicalXrSeedMustWin) {
       desiredEntriesByPath.delete(existingPath)
       continue
     }
     if (!desired) {
       await row.remove()
+      if (canonicalAgenticDocsOwnTree) clearWorkspaceEntrySource(existingPath)
       changed = true
       continue
     }

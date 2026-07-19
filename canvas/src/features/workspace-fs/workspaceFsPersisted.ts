@@ -172,7 +172,9 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
       ? await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
       : []
     const docsMirrorEntries = docsOnlyMode
-      ? await mergeCanonicalXrPhysicsWorkspaceSeedIntoDocsMirror(sourceDocsMirrorEntries)
+      ? sourceDocsMirrorEntries.every(entry => entry.authority === 'agentic-canvas-os-github')
+        ? sourceDocsMirrorEntries
+        : await mergeCanonicalXrPhysicsWorkspaceSeedIntoDocsMirror(sourceDocsMirrorEntries)
       : []
     const hasDocsMirrorFiles = sourceDocsMirrorEntries.length > 0
     const hasAnyFilesNow = await collections.entries.find({ selector: { kind: 'file' } }).exec().then(rows => rows.length > 0)
