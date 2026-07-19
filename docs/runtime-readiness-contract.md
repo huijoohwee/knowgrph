@@ -13,10 +13,10 @@ stage_contract:
   order: ["research", "storyboard", "render", "edit", "publish", "checkout"]
 docs_dependency:
   repository: "https://github.com/huijoohwee/agentic-canvas-os.git"
-  ref: "a7ac73f427c10957b37d016e6a55592b578c381f"
+  ref: "e2bdbeb337b6782ddd612a94941eec8b57ed184f"
   root_env: "KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT"
   default_relative_root: "../agentic-canvas-os/docs"
-  required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "RUNTIME-PROOF.md", "LIVE-AGENT-PROVIDER-PROOF.md", "LIVE-REVIEWED-FUNCTION-PROOF.md", "PROGRESSIVE-AGENTS.md", "SKILLS.md"]
+  required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "RUNTIME-PROOF.md", "LIVE-AGENT-PROVIDER-PROOF.md", "PROGRESSIVE-AGENTS.md", "SKILLS.md"]
   proof_tokens: ["/runtime-ready.check", "/session.start", "/release.complete", "/knowgrph.probe-tree", "#runtime-ready", "#multi-agent-collaboration", "#knowgrph.probe-tree", "@operator", "@working-directory", "@source.frontmatter", "@runtime-proof", "@knowgrph.probe-tree", "@mcp-gateway", "/sandbox.policy.validate", "#agent-sandbox-policy", "@sandbox-policy"]
 local_proof:
   provider_mode: "mock"
