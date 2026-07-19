@@ -182,6 +182,7 @@ Local field names differ from remote to preserve the existing browser-local cont
 - `POST /api/storage/blob/:workspaceId/:canonicalPath*` — store generated binary artifacts in R2 under the same workspace/canonical-path identity
 - `GET|HEAD /api/storage/blob/:workspaceId/:canonicalPath*` — read generated binary artifact bodies or metadata from R2
 - `POST /api/storage/collab/save` — GitHub save bridge; accepts saved Yjs snapshots; requires Worker `KNOWGRPH_STORAGE_GITHUB_TOKEN`, owner, and repo config
+- Source Files explicit cloud upload reuses that bridge for saved Markdown, including an empty new `.md`, then pushes the identical document to D1 and requires `GET /api/storage/doc/:workspaceId/:canonicalPath*` byte equality before presenting the row as cloud-synced. A bridge failure must not enqueue or push D1.
 
 **Harness Contract — Client Sync Engine**
 

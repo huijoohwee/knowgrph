@@ -67,7 +67,7 @@ const MARKDOWN_PIPELINE_INPUT_REL_PATH = String(process.env.VITE_MARKDOWN_PIPELI
 const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR = String(process.env.VITE_MARKDOWN_PIPELINE_OUTPUT_DIR || '').trim() || 'data/outputs/knowgrph-workflow-preview'
 const CODEBASE_INDEX_PIPELINE_COMMAND = `python -m knowgrph_parser markdown --input ${MARKDOWN_PIPELINE_INPUT_REL_PATH} --output-dir ${CODEBASE_INDEX_PIPELINE_OUTPUT_DIR}`
 const CHAT_PROXY_PREFIX = '/__chat_proxy'
-const CHAT_BINARY_DOWNLOAD_PROXY_PREFIX = '/__chat_asset_proxy'
+const CHAT_BINARY_DOWNLOAD_PROXY_PREFIX = '/__chat_asset_proxy'; const KNOWGRPH_STORAGE_DEV_PROXY_TARGET = String(process.env.KNOWGRPH_STORAGE_DEV_PROXY_TARGET || 'https://airvio.co').trim().replace(/\/+$/, '') || 'https://airvio.co'
 const CHAT_LOG_APPEND_PATH = '/__chat_log_append'
 const KG_FS_WRITE_PATH = '/__kg_fs_write'
 const KG_FS_LIST_PATH = '/__kg_fs_list'
@@ -6995,9 +6995,9 @@ export default defineConfig(({ command }) => {
     },
     proxy: {
       '/api/storage': {
-        target: 'https://airvio.co',
+        target: KNOWGRPH_STORAGE_DEV_PROXY_TARGET,
         changeOrigin: true,
-        secure: true,
+        secure: KNOWGRPH_STORAGE_DEV_PROXY_TARGET.startsWith('https://'),
       },
     },
     fs: {

@@ -490,6 +490,8 @@ Response:
 
 Error handling: 400 on malformed request or unsupported path; 409 when concurrent JSON lacks Yjs CRDT state; 403 when the Worker has no GitHub bridge token; 500 on missing repository config or GitHub API failures.
 
+The Source Files row upload client uses this route only for explicit Markdown saves, including a newly created empty `.md`. A successful bridge response is necessary but not sufficient for the cloud icon: the client next pushes the same text through the D1 document sync contract and requires exact `GET /api/storage/doc/:workspaceId/:canonicalPath*` read-back. If the GitHub bridge fails, D1 is untouched; if D1 or read-back fails after the commit, the row remains in a retryable failure state.
+
 ### Export Route
 
 - **Method**: `GET`
