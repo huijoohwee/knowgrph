@@ -76,8 +76,13 @@ Successful output includes exact native evidence:
 ```
 
 This source implementation has local cross-repository recovery proof. The
-deployed Worker, Prod, Cloudflare deployment, and provider-driven execution
-remain separately gated.
+separate `knowgrph-mcp-dev` Worker also returned one accepted provider-driven
+result on 2026-07-19: native status `applied`, exact note revision 1, and the
+same 64-character idempotency key as the completed Agentic execution receipt.
+The canonical sanitized record is pinned through
+`docs/runtime-readiness-contract.md` to Agentic Canvas OS
+`LIVE-REVIEWED-FUNCTION-PROOF.md`. Prod and every additional provider or
+Cloudflare deployment remain separately gated.
 
 ## Isolated Dev deployment
 
@@ -88,6 +93,13 @@ custom-domain routes. Configure a Dev-only runtime bearer with
 `wrangler secret put KNOWGRPH_AGENT_RUNTIME_BEARER_TOKEN --env dev`, then run
 `npm run deploy:dev`. The top-level `deploy` script remains the separately
 gated production deployment.
+
+Accepted Dev evidence: Worker version
+`e8747308-e6af-4e82-957d-cb9b764d575d` persisted
+`Reviewed Dev provider proof 20260719-live-01.` at revision 1 for manifest
+`dev-provider-proof-manifest-20260719-live-01`. Its native receipt schema was
+`knowgrph-tool-execution-receipt/v1`, status `applied`. This read-back is a
+completed historical proof, not permission to repeat the run.
 
 ## Durable Run_Manifest persistence (Property 25 / R14.2)
 
