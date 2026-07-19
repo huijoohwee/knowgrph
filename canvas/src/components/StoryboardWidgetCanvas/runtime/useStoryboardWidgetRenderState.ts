@@ -6,6 +6,7 @@ import type { GraphData } from '@/lib/graph/types'
 import { readFrontmatterFlowRenderSettings } from '@/lib/graph/frontmatterFlowSettings'
 import { shouldPreferScopedGraphDataAuthority } from '@/lib/storyboardWidget/storyboardWidgetGraphAuthority'
 import { buildStoryboardWidgetDraftGraphBaseSignature, resolveStoryboardWidgetDraftGraphDataForBaseReset } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
+import { isAuthoritativeEmptyStoryboardGraph } from './storyboardCanvasGraphAuthority'
 
 export function useStoryboardWidgetRenderState(args: {
   active: boolean
@@ -128,6 +129,7 @@ export function useStoryboardWidgetRenderState(args: {
       args.workspaceMutationBlocked
       && args.storyboardWidgetViewActive
       && !nextHasNodes
+      && !isAuthoritativeEmptyStoryboardGraph(nextGraph)
     if (nextHasNodes || !args.frontmatterOnlyPolicyActive) {
       setStableRenderGraphOverride(prev => {
         if (shouldPreserveStableDuringWorkspaceMutation && prev?.documentKey === args.activeDocumentKey) return prev
@@ -183,9 +185,11 @@ export function useStoryboardWidgetRenderState(args: {
       args.workspaceMutationBlocked
       && args.storyboardWidgetViewActive
       && !nextHasNodes
+      && !isAuthoritativeEmptyStoryboardGraph(nextGraph)
       && stableRenderGraphOverride?.documentKey === args.activeDocumentKey
       && stableHasNodes
     if (preserveStableGraphDuringWorkspaceMutation) return stableGraph
+    if (isAuthoritativeEmptyStoryboardGraph(nextGraph)) return nextGraph
     const preserveStableGraphAcrossFlowViewClose =
       args.storyboardWidgetViewActive !== true
       && stableRenderGraphOverride?.documentKey === args.activeDocumentKey

@@ -5,6 +5,19 @@ import { normalizeAllStoryboardWidgetProbeTreeOutputLayouts } from './storyboard
 const hasGraphNodes = (graphData: GraphData | null | undefined): graphData is GraphData =>
   Array.isArray(graphData?.nodes) && graphData.nodes.length > 0
 
+export function isAuthoritativeEmptyStoryboardGraph(graphData: GraphData | null | undefined): boolean {
+  const nodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
+  const edges = Array.isArray(graphData?.edges) ? graphData.edges : []
+  if (!graphData || nodes.length > 0 || edges.length > 0) return false
+  const metadata = graphData.metadata
+  return !!(
+    metadata
+    && typeof metadata === 'object'
+    && !Array.isArray(metadata)
+    && (metadata as Record<string, unknown>).pending === true
+  )
+}
+
 export function applyStoryboardCanvasGraphPropertyAuthority(args: {
   graphData: GraphData | null | undefined
   propertyAuthorityGraphData: GraphData | null | undefined
@@ -18,7 +31,9 @@ export function resolveStoryboardCanvasGraphDataAuthority(args: {
   draftGraphData: GraphData | null
   renderGraphData: GraphData | null
 }): GraphData {
-  const graphData = hasGraphNodes(args.draftGraphData)
+  const graphData = isAuthoritativeEmptyStoryboardGraph(args.draftGraphData)
+    ? args.draftGraphData
+    : hasGraphNodes(args.draftGraphData)
     ? args.draftGraphData
     : hasGraphNodes(args.renderGraphData)
       ? args.renderGraphData
