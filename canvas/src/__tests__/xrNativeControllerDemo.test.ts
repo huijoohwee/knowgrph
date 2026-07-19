@@ -8,6 +8,8 @@ import {
   shouldConsumeXrNativeControllerKeyUp,
 } from '@/features/three/xrNativeControllerInput'
 import {
+  XR_NATIVE_CONTROLLER_DEMO_CHEST_POSITION,
+  XR_NATIVE_CONTROLLER_DEMO_KEY_POSITION,
   XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID,
   createXrNativeControllerDemoRuntime,
   readXrNativeControllerDemoRuntimeFrame,
@@ -16,6 +18,7 @@ import {
   stepXrNativeControllerDemoRuntime,
   stepXrNativeControllerDemoRuntimeTicks,
 } from '@/features/three/xrNativeControllerDemoRuntime'
+import { setXrPhysicsSimulationBodyPose } from '@/features/three/xrPhysicsStepper'
 import {
   buildXrPhysicsInvocation,
 } from '@/features/three/xrSceneMcpContract.mjs'
@@ -82,8 +85,13 @@ export function testXrNativeBallControllerIsDeterministicAndInteractive() {
   assert(JSON.stringify(chunkedFrame) === JSON.stringify(exactFrame), 'fixed input must replay identically across render chunks')
   assert(chunkedFrame.player.position[2] < 3, `ball movement must drive the shared rigid body forward, got ${JSON.stringify(chunkedFrame.player)}`)
   assert(Math.abs(chunkedFrame.ballRotation[0]) > 0.1 && Math.abs(chunkedFrame.ballRotation[1]) > 0.01, 'ball displacement and modifier must produce visible roll and torque')
-  const crate = chunkedFrame.bodies.find(body => body.subjectId === 'native-crate-a')
-  assert(crate && crate.position[2] < -1.2, 'ball controller must push a dynamic physics interaction prop')
+  const interaction = runningRuntime('ball')
+  const barrelStart = readXrNativeControllerDemoRuntimeFrame(interaction).bodies.find(body => body.subjectId === 'native-crate-a')
+  assert(barrelStart, 'playground must include the foreground barrel stack')
+  setXrNativeControllerDemoRuntimeInput(interaction, createXrNativeControllerInput({ moveX: 1, source: 'keyboard' }))
+  stepXrNativeControllerDemoRuntimeTicks(interaction, 280)
+  const barrel = readXrNativeControllerDemoRuntimeFrame(interaction).bodies.find(body => body.subjectId === 'native-crate-a')
+  assert(barrel && barrel.position[0] > barrelStart.position[0] + 0.04, 'ball controller must push a dynamic playground prop')
 
   resetXrNativeControllerDemoRuntime(chunked)
   chunked.phase = 'running'
@@ -120,10 +128,62 @@ export function testXrNativeRocketControllerThrustsTiltsAndStabilizes() {
   const stabilized = readXrNativeControllerDemoRuntimeFrame(runtime)
   assert(Math.abs(stabilized.rocketRotation[0]) < Math.abs(thrust.rocketRotation[0]) * 0.4, 'modifier must stabilize pitch toward upright')
   assert(Math.abs(stabilized.rocketRotation[2]) < Math.abs(thrust.rocketRotation[2]) * 0.4, 'modifier must stabilize roll toward upright')
+  runtime.phase = 'paused'
+  setXrNativeControllerDemoRuntimeInput(runtime, createXrNativeControllerInput({ primary: true, source: 'keyboard' }))
+  assert(!readXrNativeControllerDemoRuntimeFrame(runtime).rocketThrusting, 'paused rocket input must not animate active thrust')
   resetXrNativeControllerDemoRuntime(runtime)
   const reset = readXrNativeControllerDemoRuntimeFrame(runtime)
   assert(reset.stepCount === 0 && reset.player.subjectId === XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID, 'reset must restore the authored native controller simulation')
-  assert(JSON.stringify(reset.player.position) === JSON.stringify([0, 0, 4.2]), 'reset must restore the exact authored spawn pose')
+  assert(JSON.stringify(reset.player.position) === JSON.stringify([0, 0, 6.2]), 'reset must restore the exact authored spawn pose')
+}
+
+export function testXrNativePlaygroundObjectiveIsGatedAndResettable() {
+  const blocked = runningRuntime('ball')
+  setXrPhysicsSimulationBodyPose(blocked.simulation, XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID, XR_NATIVE_CONTROLLER_DEMO_CHEST_POSITION)
+  stepXrNativeControllerDemoRuntimeTicks(blocked, 1)
+  assert(readXrNativeControllerDemoRuntimeFrame(blocked).objective === 'find-key', 'treasure contact before collecting the key must stay gated')
+
+  const runtime = runningRuntime('ball')
+  assert(readXrNativeControllerDemoRuntimeFrame(runtime).objective === 'find-key', 'playground must begin by finding the key')
+  setXrPhysicsSimulationBodyPose(runtime.simulation, XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID, XR_NATIVE_CONTROLLER_DEMO_KEY_POSITION)
+  stepXrNativeControllerDemoRuntimeTicks(runtime, 1)
+  const found = readXrNativeControllerDemoRuntimeFrame(runtime)
+  assert(found.objective === 'unlock-treasure' && found.keyCollected && !found.chestUnlocked, 'key contact must advance only to treasure unlock')
+  setXrPhysicsSimulationBodyPose(runtime.simulation, XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID, [
+    XR_NATIVE_CONTROLLER_DEMO_CHEST_POSITION[0],
+    8,
+    XR_NATIVE_CONTROLLER_DEMO_CHEST_POSITION[2],
+  ], [0, 0, 0], { teleport: true })
+  stepXrNativeControllerDemoRuntimeTicks(runtime, 1)
+  assert(readXrNativeControllerDemoRuntimeFrame(runtime).objective === 'unlock-treasure', 'high-altitude chest flyover must remain vertically gated')
+  setXrPhysicsSimulationBodyPose(runtime.simulation, XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID, XR_NATIVE_CONTROLLER_DEMO_CHEST_POSITION)
+  stepXrNativeControllerDemoRuntimeTicks(runtime, 1)
+  const complete = readXrNativeControllerDemoRuntimeFrame(runtime)
+  assert(complete.objective === 'complete' && complete.chestUnlocked, 'treasure must open only after key collection')
+  resetXrNativeControllerDemoRuntime(runtime)
+  const reset = readXrNativeControllerDemoRuntimeFrame(runtime)
+  assert(reset.objective === 'find-key' && !reset.keyCollected && !reset.chestUnlocked, 'reset must restore the complete objective state')
+  assert(reset.bodies.filter(body => body.subjectId.startsWith('native-pin-')).length === 6, 'reset must restore the interactive bowling set')
+  assert(reset.bodies.filter(body => body.subjectId.startsWith('native-crate-')).length === 3, 'reset must restore the foreground obstacle cluster')
+}
+
+export function testXrNativeCannonReloadTeleportsWithoutSweepingAcrossPlayground() {
+  const runtime = runningRuntime('ball')
+  stepXrNativeControllerDemoRuntimeTicks(runtime, 1_200)
+  stepXrNativeControllerDemoRuntimeTicks(runtime, 718)
+  assert(runtime.simulation.stepCount === 1_920, 'repeat-fire regression must reach the second left-cannon launch tick')
+  setXrPhysicsSimulationBodyPose(
+    runtime.simulation,
+    XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID,
+    [1.25, 0, 5],
+    [0, 0, 0],
+    { teleport: true },
+  )
+  stepXrNativeControllerDemoRuntimeTicks(runtime, 1)
+  const cannonball = readXrNativeControllerDemoRuntimeFrame(runtime).bodies
+    .find(body => body.subjectId === 'native-cannonball-left')
+  assert(cannonball && cannonball.position[2] < -5, 'repeat cannon reload must begin at the muzzle rather than sweep from its prior landing point')
+  assert(!cannonball.contacts.includes(XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID), 'repeat cannon reload must not collide along the teleport path')
 }
 
 export function testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute() {
@@ -140,18 +200,27 @@ export function testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute() {
   const graphStage = source('features', 'three', 'XrGraphStage.tsx')
   const camera = source('features', 'three', 'useXrNativeControllerDemoCamera.ts')
   const threeControls = source('features', 'three', 'Controls.tsx')
+  const environment = source('features', 'three', 'XrNativeControllerDemoEnvironment.tsx')
   assert(workbench.includes('<XrNativeControllerDemoControls'), 'existing Simulation workbench must own the demo controls')
   for (const marker of ['data-kg-xr-native-controller-demo="1"', 'data-kg-xr-native-controller-action={marker}', 'marker="develop-run"', 'data-kg-xr-native-controller-invocation']) {
     assert(controls.includes(marker), `native controller UI must expose ${marker}`)
   }
   assert(graphStage.includes('<XrNativeControllerDemoStage'), 'canonical graph XR stage must mount the native procedural demo')
   assert(stage.includes('navigator.getGamepads()') && stage.includes('readXrNativeControllerKeyboardInput'), 'stage runtime must unify standard gamepad and keyboard input')
-  assert(camera.includes('controls.target.lerp') && threeControls.includes('useXrNativeControllerDemoCamera'), 'shared camera owner must provide smooth controller following')
+  assert(stage.includes('closest(INTERACTIVE_TARGET_SELECTOR)') && stage.includes('frame.bodyRotations'), 'stage must preserve native button activation and consume deterministic prop presentation state')
+  assert(camera.includes('controls.target.lerp') && camera.includes('camera.fov - PLAYGROUND_FOV_DEGREES') && threeControls.includes('useXrNativeControllerDemoCamera'), 'shared camera owner must provide smooth controller following and retain full-frame optics')
+  assert(camera.includes('controls.enableRotate = false') && !camera.includes('frame.player.velocity'), 'world-relative controller input must retain a fixed-yaw hero camera')
+  for (const landmark of ['kg_xr_playground_skull_grotto', 'kg_xr_playground_treasure', 'kg_xr_playground_key', 'kg_xr_playground_moving_hazards', 'BowlingPin']) {
+    assert(environment.includes(landmark), `procedural playground must include ${landmark}`)
+  }
 
   const corePaths = [
     ['features', 'three', 'xrNativeControllerInput.ts'],
     ['features', 'three', 'xrNativeControllerDemoRuntime.ts'],
     ['features', 'three', 'XrNativeControllerDemoStage.tsx'],
+    ['features', 'three', 'XrNativeControllerDemoEnvironment.tsx'],
+    ['features', 'three', 'XrNativeControllerDemoVehicles.tsx'],
+    ['features', 'three', 'XrNativeControllerDemoHud.tsx'],
     ['features', 'three', 'useXrNativeControllerDemoCamera.ts'],
     ['features', 'command-menu', 'XrNativeControllerDemoControls.tsx'],
   ] as const

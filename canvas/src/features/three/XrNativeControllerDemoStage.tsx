@@ -1,6 +1,15 @@
 import React from 'react'
 import { useFrame } from '@react-three/fiber'
-import type { Group, Mesh } from 'three'
+import type { Group, Object3D } from 'three'
+import {
+  XR_NATIVE_DYNAMIC_BODY_Y_OFFSETS,
+  XrNativeControllerDemoEnvironment,
+  XrNativeControllerDynamicProps,
+} from './XrNativeControllerDemoEnvironment'
+import {
+  XrNativeControllerBallVisual,
+  XrNativeControllerRocketVisual,
+} from './XrNativeControllerDemoVehicles'
 import {
   createXrNativeControllerInput,
   mergeXrNativeControllerInputs,
@@ -10,100 +19,19 @@ import {
   xrNativeControllerInputCode,
 } from './xrNativeControllerInput'
 import {
-  exitXrNativeControllerDemo,
   readSharedXrNativeControllerDemoFrame,
   readXrNativeControllerDemo,
+  resetSharedXrNativeControllerDemo,
   setSharedXrNativeControllerDemoInput,
   stepSharedXrNativeControllerDemo,
   subscribeXrNativeControllerDemo,
 } from './xrNativeControllerDemoRuntime'
 
-function isEditableTarget(target: EventTarget | null): boolean {
-  const element = target instanceof HTMLElement ? target : null
-  if (!element) return false
-  const tagName = element.tagName.toLowerCase()
-  return element.isContentEditable || tagName === 'input' || tagName === 'textarea' || tagName === 'select'
-}
+const INTERACTIVE_TARGET_SELECTOR = 'button, a[href], input, textarea, select, [contenteditable="true"], [role="button"], [role="link"]'
 
-function BallVisual({ rootRef }: { rootRef: React.RefObject<Group | null> }) {
-  return (
-    <group ref={rootRef} name="kg_xr_native_ball_visual">
-      <mesh position={[0, 0.5, 0]} castShadow>
-        <sphereGeometry args={[0.5, 32, 20]} />
-        <meshStandardMaterial color="#22d3ee" roughness={0.42} metalness={0.08} />
-      </mesh>
-      <mesh position={[0, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.405, 0.045, 10, 40]} />
-        <meshStandardMaterial color="#f8fafc" roughness={0.65} />
-      </mesh>
-      <mesh position={[0, 0.5, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <torusGeometry args={[0.405, 0.035, 10, 40]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.72} />
-      </mesh>
-    </group>
-  )
-}
-
-function RocketVisual({
-  flameRef,
-  rootRef,
-}: {
-  flameRef: React.RefObject<Mesh | null>
-  rootRef: React.RefObject<Group | null>
-}) {
-  return (
-    <group ref={rootRef} name="kg_xr_native_rocket_visual">
-      <mesh position={[0, 0.72, 0]} castShadow>
-        <cylinderGeometry args={[0.32, 0.46, 1.22, 18]} />
-        <meshStandardMaterial color="#e2e8f0" roughness={0.35} metalness={0.32} />
-      </mesh>
-      <mesh position={[0, 1.55, 0]}>
-        <coneGeometry args={[0.32, 0.65, 18]} />
-        <meshStandardMaterial color="#f43f5e" roughness={0.5} metalness={0.12} />
-      </mesh>
-      {[-1, 1].map(side => (
-        <mesh key={`x:${side}`} position={[side * 0.46, 0.42, 0]} rotation={[0, 0, side * -0.24]}>
-          <boxGeometry args={[0.3, 0.55, 0.1]} />
-          <meshStandardMaterial color="#fb7185" roughness={0.52} />
-        </mesh>
-      ))}
-      {[-1, 1].map(side => (
-        <mesh key={`z:${side}`} position={[0, 0.42, side * 0.46]} rotation={[side * 0.24, 0, 0]}>
-          <boxGeometry args={[0.1, 0.55, 0.3]} />
-          <meshStandardMaterial color="#fb7185" roughness={0.52} />
-        </mesh>
-      ))}
-      <mesh ref={flameRef} position={[0, -0.18, 0]} visible={false}>
-        <coneGeometry args={[0.26, 0.75, 14]} />
-        <meshBasicMaterial color="#fbbf24" transparent opacity={0.88} />
-      </mesh>
-    </group>
-  )
-}
-
-function Arena() {
-  const wallMaterial = () => <meshStandardMaterial color="#0f766e" transparent opacity={0.3} roughness={0.86} />
-  return (
-    <group name="kg_xr_native_controller_arena">
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} receiveShadow>
-        <planeGeometry args={[15.5, 15.5, 1, 1]} />
-        <meshStandardMaterial color="#082f49" transparent opacity={0.42} roughness={1} />
-      </mesh>
-      <gridHelper args={[15, 15, '#22d3ee', '#155e75']} position={[0, 0.02, 0]} />
-      <mesh position={[-7.75, 1.5, 0]}><boxGeometry args={[0.5, 3, 16]} />{wallMaterial()}</mesh>
-      <mesh position={[7.75, 1.5, 0]}><boxGeometry args={[0.5, 3, 16]} />{wallMaterial()}</mesh>
-      <mesh position={[0, 1.5, -7.75]}><boxGeometry args={[16, 3, 0.5]} />{wallMaterial()}</mesh>
-      <mesh position={[0, 1.5, 7.75]}><boxGeometry args={[16, 3, 0.5]} />{wallMaterial()}</mesh>
-      <mesh position={[3.9, 0.45, -4.3]} castShadow receiveShadow>
-        <boxGeometry args={[3.6, 0.9, 3]} />
-        <meshStandardMaterial color="#164e63" roughness={0.76} metalness={0.08} />
-      </mesh>
-      <mesh position={[0, 0.035, -3.8]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.85, 1.05, 32]} />
-        <meshBasicMaterial color="#fbbf24" transparent opacity={0.72} />
-      </mesh>
-    </group>
-  )
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  const element = target instanceof Element ? target : null
+  return Boolean(element?.closest(INTERACTIVE_TARGET_SELECTOR))
 }
 
 export function XrNativeControllerDemoStage({
@@ -122,9 +50,12 @@ export function XrNativeControllerDemoStage({
   const playerRootRef = React.useRef<Group | null>(null)
   const ballRootRef = React.useRef<Group | null>(null)
   const rocketRootRef = React.useRef<Group | null>(null)
-  const flameRef = React.useRef<Mesh | null>(null)
-  const crateARef = React.useRef<Mesh | null>(null)
-  const crateBRef = React.useRef<Mesh | null>(null)
+  const flameRef = React.useRef<Group | null>(null)
+  const bodyRefs = React.useRef(new Map<string, Object3D>())
+  const registerBodyRef = React.useCallback((subjectId: string, node: Object3D | null) => {
+    if (node) bodyRefs.current.set(subjectId, node)
+    else bodyRefs.current.delete(subjectId)
+  }, [])
 
   React.useEffect(() => {
     const clearInput = () => {
@@ -132,7 +63,13 @@ export function XrNativeControllerDemoStage({
       setSharedXrNativeControllerDemoInput(createXrNativeControllerInput())
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (runtime.phase === 'off' || isEditableTarget(event.target) || !xrNativeControllerInputCode(event.code)) return
+      if (runtime.phase === 'off' || isInteractiveTarget(event.target)) return
+      if (event.code === 'KeyR') {
+        if (!event.repeat) resetSharedXrNativeControllerDemo()
+        event.preventDefault()
+        return
+      }
+      if (!xrNativeControllerInputCode(event.code)) return
       pressedCodesRef.current.add(event.code)
       event.preventDefault()
     }
@@ -142,7 +79,7 @@ export function XrNativeControllerDemoStage({
       if (shouldConsumeXrNativeControllerKeyUp({
         active: runtime.phase !== 'off',
         code: event.code,
-        editableTarget: isEditableTarget(event.target),
+        editableTarget: isInteractiveTarget(event.target),
         wasCaptured,
       })) event.preventDefault()
     }
@@ -156,10 +93,6 @@ export function XrNativeControllerDemoStage({
       clearInput()
     }
   }, [runtime.phase])
-
-  React.useEffect(() => () => {
-    exitXrNativeControllerDemo()
-  }, [])
 
   useFrame((_state, deltaSeconds) => {
     const keyboard = readXrNativeControllerKeyboardInput(pressedCodesRef.current)
@@ -188,39 +121,59 @@ export function XrNativeControllerDemoStage({
       const pulse = 0.86 + Math.sin(frame.elapsedSeconds * 34) * 0.14
       flameRef.current.scale.set(1, pulse, 1)
     }
-    const crateA = frame.bodies.find(body => body.subjectId === 'native-crate-a')
-    const crateB = frame.bodies.find(body => body.subjectId === 'native-crate-b')
-    if (crateA && crateARef.current) crateARef.current.position.set(crateA.position[0], crateA.position[1] + 0.55, crateA.position[2])
-    if (crateB && crateBRef.current) crateBRef.current.position.set(crateB.position[0], crateB.position[1] + 0.4, crateB.position[2])
+    for (const body of frame.bodies) {
+      const object = bodyRefs.current.get(body.subjectId)
+      if (!object) continue
+      const yOffset = XR_NATIVE_DYNAMIC_BODY_Y_OFFSETS[body.subjectId] || 0
+      object.position.set(body.position[0], body.position[1] + yOffset, body.position[2])
+      const rotation = frame.bodyRotations[body.subjectId]
+      if (rotation) object.rotation.set(...rotation)
+    }
   })
 
   return (
-    <group
-      name="kg_xr_native_controller_demo"
-      position={[0, groundY, 0]}
-      scale={stageScale}
-      visible={runtime.phase !== 'off'}
-      userData={{
-        schema: runtime.schema,
-        phase: runtime.phase,
-        mode: runtime.mode,
-        input: 'keyboard-gamepad',
-        followCamera: runtime.followCamera,
-      }}
-    >
-      <Arena />
-      <group ref={playerRootRef} name="kg_xr_native_controller_player">
-        <BallVisual rootRef={ballRootRef} />
-        <RocketVisual rootRef={rocketRootRef} flameRef={flameRef} />
+    <>
+      {runtime.phase !== 'off' ? (
+        <>
+          <ambientLight intensity={0.4} />
+          <hemisphereLight args={['#dff4ff', '#d9b978', 0.55]} />
+          <directionalLight
+            position={[stageScale * 12, stageScale * 19, stageScale * 10]}
+            intensity={1.8}
+            color="#fff8df"
+            castShadow
+            shadow-mapSize-width={2048}
+            shadow-mapSize-height={2048}
+            shadow-camera-left={stageScale * -16}
+            shadow-camera-right={stageScale * 16}
+            shadow-camera-top={stageScale * 15}
+            shadow-camera-bottom={stageScale * -15}
+            shadow-camera-far={stageScale * 55}
+            shadow-bias={-0.0002}
+          />
+        </>
+      ) : null}
+      <group
+        name="kg_xr_native_controller_demo"
+        position={[0, groundY, 0]}
+        scale={stageScale}
+        visible={runtime.phase !== 'off'}
+        userData={{
+          schema: runtime.schema,
+          phase: runtime.phase,
+          mode: runtime.mode,
+          objective: runtime.objective,
+          input: 'keyboard-gamepad',
+          followCamera: runtime.followCamera,
+        }}
+      >
+        <XrNativeControllerDemoEnvironment objective={runtime.objective} />
+        <group ref={playerRootRef} name="kg_xr_native_controller_player">
+          <XrNativeControllerBallVisual rootRef={ballRootRef} />
+          <XrNativeControllerRocketVisual rootRef={rocketRootRef} flameRef={flameRef} />
+        </group>
+        <XrNativeControllerDynamicProps registerBodyRef={registerBodyRef} />
       </group>
-      <mesh ref={crateARef} castShadow receiveShadow name="kg_xr_native_dynamic_crate_a">
-        <boxGeometry args={[1.1, 1.1, 1.1]} />
-        <meshStandardMaterial color="#f97316" roughness={0.78} />
-      </mesh>
-      <mesh ref={crateBRef} castShadow receiveShadow name="kg_xr_native_dynamic_crate_b">
-        <boxGeometry args={[0.8, 0.8, 0.8]} />
-        <meshStandardMaterial color="#a78bfa" roughness={0.68} />
-      </mesh>
-    </group>
+    </>
   )
 }

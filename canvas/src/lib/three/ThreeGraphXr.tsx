@@ -29,6 +29,7 @@ import {
   type XrArSessionLike,
   type XrArSpaceLike,
 } from '@/features/three/xrArPlacementRuntime'
+import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
 
 export function OverlayFrameSync({ enabled, scheduleRef }: { enabled: boolean; scheduleRef: React.MutableRefObject<(() => void) | null> }) {
   useFrame(() => {
@@ -354,7 +355,7 @@ export function CanvasXrEntryPanel({
     }
   }, [rendererRef, sessionMode])
 
-  if (!active) return null
+  if (!active || isXrPhysicsRunReadyDemoActive()) return null
   const spatialChrome = surfaceKind === 'spatial-capture' ? (
     <>
       <section

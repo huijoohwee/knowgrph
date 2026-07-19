@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
+import { Canvas } from '@react-three/fiber'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
 import type { GraphData, GraphNode, GraphEdge } from '@/lib/graph/types'
@@ -33,11 +33,8 @@ import {
 } from '@/features/three/xrMotionReferenceRuntime'
 import { XR_MOTION_STAGE_SPAN } from '@/features/three/xrMotionReferenceCoordinates'
 import { resolveCssVar } from '@/lib/ui/theme-tokens'
-import {
-  readXrImmersiveSessionMode,
-  resolveXrRendererClearAlpha,
-  subscribeXrArPlacementRuntime,
-} from '@/features/three/xrArPlacementRuntime'
+import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { XrRendererClearController } from '@/lib/three/XrRendererClearController'
 
 const SceneLazy = React.lazy(() =>
   import('@/lib/three/Scene.impl').then(mod => ({
@@ -53,6 +50,7 @@ const ControlsLazy = React.lazy(() =>
 
 const XR_WORLD_CONTENT_SCALE_MIN = 0.0001
 const XR_WORLD_CONTENT_SCALE_MAX = 10_000
+const XR_PHYSICS_RUN_READY_GRAPH: GraphData = { type: 'Graph', nodes: [], edges: [] }
 
 function readXrStageMetersPerUnit(): number {
   const stage = resolveXrMotionReferenceStage(readXrMotionReferenceRuntime().plan.stageId)
@@ -77,35 +75,6 @@ function resolveSceneBackgroundColor(schema: GraphSchema, mode: Canvas3dModeId):
   return resolveCssVar('--kg-canvas-bg', '#ffffff')
 }
 
-function XrRendererClearController({
-  color,
-  defaultAlpha,
-  xrSurface,
-}: {
-  color: string
-  defaultAlpha: number
-  xrSurface: boolean
-}) {
-  const { gl } = useThree()
-  const immersiveSessionMode = React.useSyncExternalStore(
-    subscribeXrArPlacementRuntime,
-    readXrImmersiveSessionMode,
-    readXrImmersiveSessionMode,
-  )
-  const clearAlpha = resolveXrRendererClearAlpha(
-    defaultAlpha,
-    xrSurface ? immersiveSessionMode : 'none',
-  )
-  React.useEffect(() => {
-    try {
-      gl.setClearColor(color, clearAlpha)
-    } catch {
-      void 0
-    }
-  }, [clearAlpha, color, gl])
-  return null
-}
-
 function XrWorldPlacement({
   active,
   children,
@@ -125,6 +94,7 @@ function XrWorldPlacement({
 }
 
 export default function ThreeGraph({ active = true, mode = '3d' }: { active?: boolean; mode?: Canvas3dModeId }) {
+  const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive()
   const {
     schema,
     selectNode,
@@ -249,15 +219,17 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     return deriveSceneDisplayGraph({ graphData: g })?.displayGraphData || g
   }, [glbAsset, renderGraph, spatialCaptureManifest])
   const sceneGraphForRender = useMemo<GraphData | null>(() => {
-    if (!sceneGraph || !Array.isArray(sceneGraph.nodes)) return null
+    if (!sceneGraph || !Array.isArray(sceneGraph.nodes)) {
+      return xrPhysicsRunReadyDemo ? XR_PHYSICS_RUN_READY_GRAPH : null
+    }
     return Array.isArray(sceneGraph.edges)
       ? sceneGraph
       : { ...sceneGraph, edges: [] }
-  }, [sceneGraph])
+  }, [sceneGraph, xrPhysicsRunReadyDemo])
   const hasGraph = !!sceneGraphForRender
   const hasGlbAsset = !!glbAsset && shouldRenderGlbAsset
   const hasSpatialCaptureManifest = !!spatialCaptureManifest
-  const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded
+  const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded && !xrPhysicsRunReadyDemo
   const hasRenderableScene = hasGraph || hasGlbAsset || hasSpatialCaptureManifest || hasXrEmptyWorld
   const xrStandaloneFit = hasSpatialCaptureManifest
     ? spatialCaptureFit

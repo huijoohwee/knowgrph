@@ -13,6 +13,7 @@ import {
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
 import { sampleXrMotionReferenceCameraSettings } from './xrMotionReferenceSampling'
+import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
 
 type MaskGeometry = Readonly<{
   barHeight: number
@@ -63,6 +64,8 @@ export function XrCameraAspectMask() {
   const geometry = resolveMaskGeometry(size.width, size.height, aspect.value)
   const activeWidth = Math.max(0, size.width - geometry.barWidth * 2)
   const activeHeight = Math.max(0, size.height - geometry.barHeight * 2)
+
+  if (isXrPhysicsRunReadyDemoActive()) return null
 
   return (
     <aside

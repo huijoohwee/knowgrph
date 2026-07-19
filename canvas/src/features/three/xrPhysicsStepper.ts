@@ -576,12 +576,9 @@ export function applyXrPhysicsSimulationImpulse(
   for (let axis = 0; axis < 3; axis += 1) state.velocity[axis] += impulse[axis] / config.mass
   return true
 }
-
 export function setXrPhysicsSimulationBodyPose(
-  simulation: XrPhysicsSimulation,
-  subjectId: string,
-  position: XrPhysicsVector,
-  velocity: XrPhysicsVector = [0, 0, 0],
+  simulation: XrPhysicsSimulation, subjectId: string, position: XrPhysicsVector,
+  velocity: XrPhysicsVector = [0, 0, 0], options: Readonly<{ teleport?: boolean }> = {},
 ): boolean {
   const state = simulation.bodies.get(String(subjectId || '').trim())
   if (!state
@@ -589,7 +586,12 @@ export function setXrPhysicsSimulationBodyPose(
     || !Array.isArray(velocity)
     || !position.every(Number.isFinite)
     || !velocity.every(Number.isFinite)) return false
-  if (!state.sweepStartPosition) state.sweepStartPosition = mutableVector(state.position)
+  if (options.teleport) {
+    state.grounded = false
+    state.contacts.clear()
+    state.sweepStartPosition = null
+    state.startOverlapResolved = false
+  } else if (!state.sweepStartPosition) state.sweepStartPosition = mutableVector(state.position)
   state.position.splice(0, 3, position[0], position[1], position[2])
   state.velocity.splice(0, 3, velocity[0], velocity[1], velocity[2])
   return true

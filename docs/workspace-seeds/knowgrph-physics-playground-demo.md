@@ -7,9 +7,9 @@ publish_scope: "local-only"
 kgCanvasSurfaceMode: "xr"
 kgCanvasRenderMode: "3d"
 kgCanvas3dMode: "xr"
-kgFloatingPanelOpen: true
+kgFloatingPanelOpen: false
 kgFloatingPanelView: "media"
-kgBottomPanelOpen: true
+kgBottomPanelOpen: false
 kgBottomPanelTab: "timeline"
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
@@ -23,6 +23,8 @@ run_ready_demo:
   source_backed: true
   clean_canvas_recommended: true
   native_runtime: true
+  presentation: "full-frame-playground"
+  auto_start: true
   external_dependencies: []
 native_controller_demo:
   runtime_owner: "XR Simulation workbench"
@@ -30,6 +32,9 @@ native_controller_demo:
   controller_switching: "preserve active body pose and velocity"
   deterministic_step: true
   camera_mode: "smooth follow"
+  scene: "procedural tropical island"
+  objective: "collect key then unlock treasure"
+  interactive_props: ["barrels", "bowling pins", "cannonballs"]
   controllers:
     - id: "ball"
       presentation: "procedural sphere"
@@ -54,6 +59,7 @@ runtime_validation:
   replayable: true
   local_assets_only: true
   external_calls: false
+  editor_chrome: false
 mcp_control:
   inspect_tool: "knowgrph.inspect_local_xr_scene_assets"
   control_tool: "knowgrph.control_local_xr_scene"
@@ -71,7 +77,7 @@ flow:
       properties:
         role: "lifecycle"
         state: "runtime-ready"
-        output: "Open Simulation, start the native demo, then switch controllers without resetting motion."
+        output: "Launch directly into the full-frame native demo, then switch controllers without resetting motion."
     - id: "xr_ball_controller"
       type: "XrDemoController"
       label: "Ball Controller"
@@ -113,11 +119,11 @@ flow:
 
 # Native XR Physics Playground
 
-This workspace opens directly in XR Mode and activates the in-repository controller demo from the Simulation workbench. The arena, player presentations, physics stepping, inputs, controller switching, and follow camera are owned by Knowgrph runtime modules and need no remote service or downloaded asset.
+This workspace opens directly as a full-frame, playable XR physics playground. The tropical island, player presentations, physics stepping, inputs, controller switching, objective loop, and follow camera are owned by Knowgrph runtime modules and need no remote service or downloaded asset.
 
 ## Run
 
-From the repository root, run `npm run demo:xr-physics`. In the Canvas toolbar, keep Surface Mode on XR Mode, open Media → Simulation, and choose **Develop & Run**.
+From the repository root, run `npm run demo:xr-physics`. The Beach Ball, playground, camera, and bottom vehicle switcher start automatically with no editor interaction.
 
 ## Controls
 
@@ -130,7 +136,9 @@ From the repository root, run `npm run demo:xr-physics`. In the Canvas toolbar, 
 
 The same runtime is MCP-controllable through `knowgrph.control_local_xr_scene`; use `/xr.physics @canvas #controller operation=develop-run mode=ball`, then `operation=select mode=rocket`, `operation=pause`, `operation=resume`, `operation=reset`, or `operation=exit`.
 
-The ball rolls across the native arena, jumps only from supported contact, retains bounded air steering, and exposes a stronger torque response while the modifier is held. The rocket applies directional and vertical thrust, visualizes bounded tilt, dampens rotation, and uses the modifier to stabilize toward upright.
+The ball rolls across the sand, jumps only from supported contact, retains bounded air steering, and exposes a stronger torque response while the modifier is held. The rocket applies directional and vertical thrust, visualizes bounded tilt and live exhaust, dampens rotation, and uses the modifier to stabilize toward upright.
+
+Find the procedural key near the grotto, then return to the treasure chest to unlock it. Barrels, bowling pins, and timed cannonballs share the same deterministic collision world with both vehicles. Press `R` to restore the Beach Ball, player, interactive props, key, treasure, and selected objective state.
 
 Switching between Ball and Rocket changes the active controller and procedural presentation while preserving the simulated body position and velocity. Pause, Resume, Reset, and Exit remain deterministic lifecycle actions. The follow camera eases toward the active body without creating a second camera owner.
 
@@ -141,4 +149,6 @@ Switching between Ball and Rocket changes the active controller and procedural p
 - [x] Keyboard and standard gamepad inputs normalize to one controller state.
 - [x] Controller switching preserves pose and velocity.
 - [x] Smooth follow camera respects the shared camera owner.
+- [x] Full-frame launch hides editor chrome and starts with Beach Ball selected.
+- [x] Procedural island, key-to-treasure objective, cannons, barrels, and pins are local runtime content.
 - [x] No remote assets, provider calls, or external runtime dependencies are required.

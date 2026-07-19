@@ -16,6 +16,7 @@ import {
   resolveWorkspaceRunReadyDemoSeed,
   resolveWorkspaceValidationSeedRelPath,
 } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { autoStartPristineXrPhysicsRunReadyDemo } from '@/features/canvas/xrPhysicsRunReadyLifecycle'
 
 type PlainRecord = Record<string, unknown>
 
@@ -38,6 +39,26 @@ const extractFrontmatterYaml = (text: string): string => {
 }
 
 export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
+  const lifecycle = { phase: 'off' as 'off' | 'running', revision: 0 }
+  let selectedMode = ''
+  let launchCount = 0
+  const actions = {
+    selectMode: (mode: 'ball' | 'rocket') => { selectedMode = mode },
+    developAndRun: () => {
+      launchCount += 1
+      lifecycle.phase = 'running'
+      lifecycle.revision += 1
+    },
+  }
+  if (!autoStartPristineXrPhysicsRunReadyDemo(lifecycle, actions) || selectedMode !== 'ball' || launchCount !== 1) {
+    throw new Error('expected pristine run-ready lifecycle to auto-start the Ball controller exactly once')
+  }
+  lifecycle.phase = 'off'
+  lifecycle.revision += 1
+  if (autoStartPristineXrPhysicsRunReadyDemo(lifecycle, actions) || launchCount !== 1) {
+    throw new Error('expected an intentional lifecycle exit to remain durable')
+  }
+
   const markdownText = fs.readFileSync(SEED_PATH, 'utf8')
   const meta = asRecord(parseYaml(extractFrontmatterYaml(markdownText)), 'frontmatter')
 
@@ -60,12 +81,12 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
     throw new Error('expected the workspace seed to activate the canonical XR surface and 3D renderer')
   }
   if (
-    meta.kgFloatingPanelOpen !== true
+    meta.kgFloatingPanelOpen !== false
     || meta.kgFloatingPanelView !== 'media'
-    || meta.kgBottomPanelOpen !== true
+    || meta.kgBottomPanelOpen !== false
     || meta.kgBottomPanelTab !== 'timeline'
   ) {
-    throw new Error('expected the workspace seed to open the canonical Media Simulation and Timeline surfaces')
+    throw new Error('expected standalone mode to retain canonical panel targets while hiding editor chrome')
   }
 
   const runReady = asRecord(meta.run_ready_demo, 'run_ready_demo')
@@ -77,6 +98,8 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
     || runReady.source_backed !== true
     || runReady.clean_canvas_recommended !== true
     || runReady.native_runtime !== true
+    || runReady.presentation !== 'full-frame-playground'
+    || runReady.auto_start !== true
     || !Array.isArray(runReady.external_dependencies)
     || runReady.external_dependencies.length !== 0
   ) {
@@ -125,6 +148,9 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
     'modifier stabilization',
     'standard left stick',
     'smooth follow',
+    'procedural tropical island',
+    'collect key then unlock treasure',
+    'full-frame-playground',
     '/xr.physics @canvas #controller operation=develop-run mode=ball',
     'knowgrph.control_local_xr_scene',
   ]) {
@@ -148,6 +174,29 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
   const expectedCanvasPredev = 'npm run prepare:linked-packages && npm run fix:entities-sourcemaps && npm run build:settings'
   if (canvasScripts['predev:xr-physics'] !== expectedCanvasPredev) {
     throw new Error('expected the standalone demo preflight to prepare only native in-repo runtime dependencies')
+  }
+
+  const sourceText = (...parts: string[]) => fs.readFileSync(path.join(REPO_ROOT, 'canvas', 'src', ...parts), 'utf8')
+  const canvasPageSource = sourceText('pages', 'Canvas.tsx')
+  const viewportSource = sourceText('components', 'CanvasViewport.tsx')
+  const graphStageSource = sourceText('features', 'three', 'XrGraphStage.tsx')
+  const aspectMaskSource = sourceText('features', 'three', 'XrCameraAspectMask.tsx')
+  const sessionPanelSource = sourceText('lib', 'three', 'ThreeGraphXr.tsx')
+  const threeGraphSource = sourceText('lib', 'three', 'ThreeGraph.impl.tsx')
+  if (!canvasPageSource.includes("data-kg-xr-physics-run-ready={xrPhysicsRunReadyDemo ? 'full-frame'")) {
+    throw new Error('expected run-ready launch to project the existing viewport without editor chrome')
+  }
+  if (!viewportSource.includes('<XrNativeControllerDemoHud') || !viewportSource.includes('isXrPhysicsRunReadyDemoActive')) {
+    throw new Error('expected the shared viewport to own the standalone controller HUD')
+  }
+  if (!graphStageSource.includes("controllerDemo.phase === 'off'")) {
+    throw new Error('expected the playground stage to replace rather than overlap the authored XR stage')
+  }
+  if (!aspectMaskSource.includes('isXrPhysicsRunReadyDemoActive()') || !sessionPanelSource.includes('isXrPhysicsRunReadyDemoActive()')) {
+    throw new Error('expected standalone launch to suppress editor optics and session chrome')
+  }
+  if (!threeGraphSource.includes('XR_PHYSICS_RUN_READY_GRAPH') || !threeGraphSource.includes('!xrDocumentLoaded && !xrPhysicsRunReadyDemo')) {
+    throw new Error('expected standalone launch to bypass the authored XR empty-world loading surface')
   }
 
   const expectedProviderUrl = buildLocalFsFetchPath(SEED_PATH)

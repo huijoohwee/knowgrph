@@ -161,5 +161,8 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["canvas.xrMode.physics.nativeController.input","@/__tests__/xrNativeControllerDemo.test","testXrNativeControllerInputNormalizesKeyboardAndGamepad"],
   ["canvas.xrMode.physics.nativeController.ball","@/__tests__/xrNativeControllerDemo.test","testXrNativeBallControllerIsDeterministicAndInteractive"],
   ["canvas.xrMode.physics.nativeController.rocket","@/__tests__/xrNativeControllerDemo.test","testXrNativeRocketControllerThrustsTiltsAndStabilizes"],
+  ["canvas.xrMode.physics.nativeController.objective","@/__tests__/xrNativeControllerDemo.test","testXrNativePlaygroundObjectiveIsGatedAndResettable"],
+  ["canvas.xrMode.physics.nativeController.cannonReload","@/__tests__/xrNativeControllerDemo.test","testXrNativeCannonReloadTeleportsWithoutSweepingAcrossPlayground"],
   ["canvas.xrMode.physics.nativeController.integration","@/__tests__/xrNativeControllerDemo.test","testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute"],
+  ["canvas.xrMode.physics.nativeController.runReadyLifecycle","@/__tests__/xrPhysicsRunReadyDemoRuntime.test.tsx","testXrPhysicsRunReadyRuntimeAutoStartsOnceAndPreservesExitAcrossRemount"],
 ]

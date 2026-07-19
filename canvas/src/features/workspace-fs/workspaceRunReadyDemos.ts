@@ -72,6 +72,14 @@ export const resolveWorkspaceRunReadyDemoSeedRelPath = (demoId: string): string 
   resolveWorkspaceRunReadyDemoSeed(demoId)?.validationSeedRelPath || ''
 )
 
+export const readWorkspaceRunReadyDemoId = (): string => (
+  resolveWorkspaceRunReadyDemoSeed(readEnvString(WORKSPACE_RUN_READY_DEMO_ENV, ''))?.id || ''
+)
+
+export const isXrPhysicsRunReadyDemoActive = (): boolean => (
+  readWorkspaceRunReadyDemoId() === XR_PHYSICS_RUN_READY_DEMO_ID
+)
+
 export const resolveWorkspaceValidationSeedRelPath = (args: {
   explicitRelPath: string
   runReadyDemoId: string
@@ -85,4 +93,4 @@ export const resolveWorkspaceValidationSeedRelPath = (args: {
 }
 
 export const readWorkspaceRunReadyDemoSeedRelPath = (): string =>
-  resolveWorkspaceRunReadyDemoSeedRelPath(readEnvString(WORKSPACE_RUN_READY_DEMO_ENV, ''))
+  resolveWorkspaceRunReadyDemoSeedRelPath(readWorkspaceRunReadyDemoId())

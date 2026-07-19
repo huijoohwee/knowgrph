@@ -12,6 +12,7 @@ import {
   createXrPhysicsSimulation,
   readXrPhysicsSimulationBody,
   resetXrPhysicsSimulation,
+  setXrPhysicsSimulationBodyPose,
   stepXrPhysicsSimulation,
   type XrPhysicsBodyState,
   type XrPhysicsSimulation,
@@ -24,9 +25,12 @@ import {
 export const XR_NATIVE_CONTROLLER_DEMO_SCHEMA = 'knowgrph-xr-native-controller-demo/v1'
 export const XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID = 'native-controller'
 export const XR_NATIVE_CONTROLLER_DEMO_MODES = ['ball', 'rocket'] as const
+export const XR_NATIVE_CONTROLLER_DEMO_KEY_POSITION = Object.freeze([-8.4, 0.62, -6.9] as const)
+export const XR_NATIVE_CONTROLLER_DEMO_CHEST_POSITION = Object.freeze([-3.4, 0, -6.3] as const)
 
 export type XrNativeControllerDemoMode = (typeof XR_NATIVE_CONTROLLER_DEMO_MODES)[number]
 export type XrNativeControllerDemoPhase = 'off' | 'ready' | 'running' | 'paused'
+export type XrNativeControllerDemoObjective = 'find-key' | 'unlock-treasure' | 'complete'
 
 export type XrNativeControllerDemoSnapshot = Readonly<{
   schema: typeof XR_NATIVE_CONTROLLER_DEMO_SCHEMA
@@ -34,6 +38,9 @@ export type XrNativeControllerDemoSnapshot = Readonly<{
   mode: XrNativeControllerDemoMode
   followCamera: boolean
   fixedRateHz: number
+  objective: XrNativeControllerDemoObjective
+  keyCollected: boolean
+  chestUnlocked: boolean
   revision: number
 }>
 
@@ -45,18 +52,24 @@ export type XrNativeControllerDemoFrame = Readonly<{
   stepCount: number
   player: XrPhysicsBodyState
   bodies: readonly XrPhysicsBodyState[]
+  bodyRotations: Readonly<Record<string, XrPhysicsVector>>
   input: XrNativeControllerInput
   ballRotation: XrPhysicsVector
   rocketRotation: XrPhysicsVector
   rocketThrusting: boolean
   cameraTarget: XrPhysicsVector
+  objective: XrNativeControllerDemoObjective
+  keyCollected: boolean
+  chestUnlocked: boolean
 }>
 
 export type XrNativeControllerDemoRuntime = {
   accumulatorSeconds: number
   ballRotation: [number, number, number]
+  bodyRotations: Record<string, [number, number, number]>
   input: XrNativeControllerInput
   mode: XrNativeControllerDemoMode
+  objective: XrNativeControllerDemoObjective
   phase: XrNativeControllerDemoPhase
   previousPlayerPosition: [number, number, number]
   previousPrimary: boolean
@@ -81,6 +94,28 @@ const ROCKET_VERTICAL_ACCELERATION = 18
 const ROCKET_MAX_TILT_RADIANS = Math.PI * 0.24
 const ROCKET_TILT_RESPONSE = 8
 const ROCKET_STABILIZE_RESPONSE = 14
+const CANNON_STEP_INTERVAL = FIXED_RATE_HZ * 8
+const PRESENTATION_BODY_IDS = Object.freeze([
+  'native-crate-a', 'native-crate-b', 'native-crate-c',
+  ...Array.from({ length: 6 }, (_, index) => `native-pin-${index + 1}`),
+])
+
+function createBodyRotations(): Record<string, [number, number, number]> {
+  return Object.fromEntries(PRESENTATION_BODY_IDS.map(id => [id, [0, 0, 0]]))
+}
+
+const pinBodies = Object.fromEntries([
+  [-0.9, -0.75], [0, -0.75], [0.9, -0.75],
+  [-0.45, 0.15], [0.45, 0.15], [0, 1.05],
+].map(([x, z], index) => [`native-pin-${index + 1}`, {
+  mode: 'dynamic' as const,
+  sizeMeters: [0.46, 1.18, 0.46] as XrPhysicsVector,
+  spawnPosition: [8.1 + x, 0, -1.8 + z] as XrPhysicsVector,
+  mass: 0.48,
+  friction: 0.54,
+  restitution: 0.28,
+  linearDamping: 0.46,
+}]))
 
 function demoWorld(): XrPhysicsWorldConfig {
   return readXrPhysicsWorld({
@@ -91,8 +126,8 @@ function demoWorld(): XrPhysicsWorldConfig {
     bodies: {
       [XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID]: {
         mode: 'dynamic',
-        sizeMeters: [1, 1, 1],
-        spawnPosition: [0, 0, 4.2],
+        sizeMeters: [1.2, 1.2, 1.2],
+        spawnPosition: [0, 0, 6.2],
         mass: 1.4,
         friction: 0.72,
         restitution: 0.2,
@@ -100,33 +135,68 @@ function demoWorld(): XrPhysicsWorldConfig {
       },
       'native-crate-a': {
         mode: 'dynamic',
-        sizeMeters: [1.1, 1.1, 1.1],
-        spawnPosition: [0, 0, -1.2],
-        mass: 2.2,
-        friction: 0.66,
-        restitution: 0.12,
-        linearDamping: 0.5,
+        sizeMeters: [1.55, 1.45, 1.55],
+        spawnPosition: [4.4, 0, 6.8],
+        mass: 0.62,
+        friction: 0.46,
+        restitution: 0.24,
+        linearDamping: 0.24,
       },
       'native-crate-b': {
         mode: 'dynamic',
-        sizeMeters: [0.8, 0.8, 0.8],
-        spawnPosition: [1.5, 0, -2.5],
-        mass: 0.9,
+        sizeMeters: [1.55, 1.45, 1.55],
+        spawnPosition: [6.2, 0, 7],
+        mass: 0.68,
         friction: 0.58,
         restitution: 0.36,
         linearDamping: 0.3,
       },
+      'native-crate-c': {
+        mode: 'dynamic',
+        sizeMeters: [1.95, 1.85, 1.95],
+        spawnPosition: [4.2, 0, 9.3],
+        mass: 0.84,
+        friction: 0.58,
+        restitution: 0.3,
+        linearDamping: 0.34,
+      },
+      'native-cannonball-left': {
+        mode: 'dynamic',
+        sizeMeters: [0.52, 0.52, 0.52],
+        spawnPosition: [1.6, 0.45, -5.4],
+        mass: 0.72,
+        friction: 0.42,
+        restitution: 0.52,
+        linearDamping: 0.08,
+      },
+      'native-cannonball-right': {
+        mode: 'dynamic',
+        sizeMeters: [0.52, 0.52, 0.52],
+        spawnPosition: [4.15, 0.45, -5.4],
+        mass: 0.72,
+        friction: 0.42,
+        restitution: 0.52,
+        linearDamping: 0.08,
+      },
+      ...pinBodies,
     },
   })
 }
 
 function demoColliders(): readonly XrPhysicsStaticCollider[] {
   return readXrPhysicsStaticColliders([
-    { id: 'native-wall-west', center: [-7.75, 1.5, 0], sizeMeters: [0.5, 3, 16] },
-    { id: 'native-wall-east', center: [7.75, 1.5, 0], sizeMeters: [0.5, 3, 16] },
-    { id: 'native-wall-north', center: [0, 1.5, -7.75], sizeMeters: [16, 3, 0.5] },
-    { id: 'native-wall-south', center: [0, 1.5, 7.75], sizeMeters: [16, 3, 0.5] },
-    { id: 'native-platform', center: [3.9, 0.45, -4.3], sizeMeters: [3.6, 0.9, 3] },
+    { id: 'native-island-west', center: [-15.4, 2, 1], sizeMeters: [0.6, 4, 27] },
+    { id: 'native-island-east', center: [15.4, 2, 1], sizeMeters: [0.6, 4, 27] },
+    { id: 'native-island-north', center: [0, 2, -12.3], sizeMeters: [31.4, 4, 0.6] },
+    { id: 'native-island-south', center: [0, 2, 14.5], sizeMeters: [31.4, 4, 0.6] },
+    { id: 'native-treasure-block', center: [-3.4, 0.8, -6.3], sizeMeters: [2.5, 1.6, 1.5] },
+    { id: 'native-grotto-block', center: [-10.7, 1.8, -7], sizeMeters: [3.4, 3.6, 5.2] },
+    { id: 'native-cannon-left', center: [1.6, 0.6, -6.25], sizeMeters: [1.5, 1.2, 1.8] },
+    { id: 'native-cannon-right', center: [4.15, 0.6, -6.25], sizeMeters: [1.5, 1.2, 1.8] },
+    { id: 'native-rear-fence', center: [0, 0.95, -9.35], sizeMeters: [19, 1.9, 0.3] },
+    { id: 'native-ramp-step-a', center: [-8.8, 0.12, 0.25], sizeMeters: [3.8, 0.24, 1.2] },
+    { id: 'native-ramp-step-b', center: [-8.8, 0.32, -0.75], sizeMeters: [3.8, 0.64, 0.9] },
+    { id: 'native-ramp-step-c', center: [-8.8, 0.55, -1.5], sizeMeters: [3.8, 1.1, 0.65] },
   ])
 }
 
@@ -214,11 +284,64 @@ function updateBallRotation(runtime: XrNativeControllerDemoRuntime): void {
   runtime.previousPlayerPosition = [current[0], current[1], current[2]]
 }
 
+function updateBodyRotations(runtime: XrNativeControllerDemoRuntime, stepSeconds: number): void {
+  for (const [subjectId, rotation] of Object.entries(runtime.bodyRotations)) {
+    const body = readXrPhysicsSimulationBody(runtime.simulation, subjectId)
+    if (!body) continue
+    const horizontalSpeed = Math.hypot(body.velocity[0], body.velocity[2])
+    if (subjectId.startsWith('native-pin-') && horizontalSpeed > 0.22) {
+      const tilt = Math.min(1.28, Math.max(Math.abs(rotation[0]), Math.abs(rotation[2])) + horizontalSpeed * stepSeconds * 0.18)
+      rotation[0] = body.velocity[2] < 0 ? -tilt : tilt
+      rotation[2] = body.velocity[0] > 0 ? -tilt : tilt
+    } else if (subjectId.startsWith('native-crate-')) {
+      rotation[0] += body.velocity[2] * stepSeconds * 0.7
+      rotation[2] -= body.velocity[0] * stepSeconds * 0.7
+    }
+  }
+}
+
+function fireCannon(runtime: XrNativeControllerDemoRuntime, side: 'left' | 'right'): void {
+  const left = side === 'left'
+  setXrPhysicsSimulationBodyPose(
+    runtime.simulation,
+    left ? 'native-cannonball-left' : 'native-cannonball-right',
+    left ? [1.6, 1.05, -5.25] : [4.15, 1.05, -5.25],
+    left ? [-0.35, 5.8, 9.2] : [0.35, 5.35, 8.6],
+    { teleport: true },
+  )
+}
+
+function updateCannons(runtime: XrNativeControllerDemoRuntime): void {
+  const tick = runtime.simulation.stepCount
+  if (tick >= CANNON_STEP_INTERVAL && tick % CANNON_STEP_INTERVAL === 0) fireCannon(runtime, 'left')
+  if (tick >= CANNON_STEP_INTERVAL * 1.5
+    && (tick + CANNON_STEP_INTERVAL / 2) % CANNON_STEP_INTERVAL === 0) fireCannon(runtime, 'right')
+}
+
+function horizontalDistance(position: XrPhysicsVector, target: readonly [number, number, number]): number {
+  return Math.hypot(position[0] - target[0], position[2] - target[2])
+}
+
+function updateObjective(runtime: XrNativeControllerDemoRuntime): void {
+  const position = playerBody(runtime).position
+  if (runtime.objective === 'find-key'
+    && horizontalDistance(position, XR_NATIVE_CONTROLLER_DEMO_KEY_POSITION) < 1.25
+    && Math.abs(position[1] - XR_NATIVE_CONTROLLER_DEMO_KEY_POSITION[1]) < 2.4) {
+    runtime.objective = 'unlock-treasure'
+  }
+  if (runtime.objective === 'unlock-treasure'
+    && horizontalDistance(position, XR_NATIVE_CONTROLLER_DEMO_CHEST_POSITION) < 2.15
+    && Math.abs(position[1] - XR_NATIVE_CONTROLLER_DEMO_CHEST_POSITION[1]) < 2.4) {
+    runtime.objective = 'complete'
+  }
+}
+
 function stepFixed(runtime: XrNativeControllerDemoRuntime): void {
   const stepSeconds = runtime.world.fixedStepSeconds
   if (runtime.mode === 'ball') driveBall(runtime, stepSeconds)
   else driveRocket(runtime, stepSeconds)
   runtime.previousPrimary = runtime.input.primary
+  updateCannons(runtime)
   stepXrPhysicsSimulation({
     simulation: runtime.simulation,
     world: runtime.world,
@@ -226,6 +349,8 @@ function stepFixed(runtime: XrNativeControllerDemoRuntime): void {
     stepSeconds,
   })
   updateBallRotation(runtime)
+  updateBodyRotations(runtime, stepSeconds)
+  updateObjective(runtime)
 }
 
 function notify(): void {
@@ -240,9 +365,11 @@ export function createXrNativeControllerDemoRuntime(): XrNativeControllerDemoRun
   return {
     accumulatorSeconds: 0,
     ballRotation: [0, 0, 0],
+    bodyRotations: createBodyRotations(),
     colliders: demoColliders(),
     input: createXrNativeControllerInput(),
     mode: 'ball',
+    objective: 'find-key',
     phase: 'off',
     playerConfig,
     previousPlayerPosition: [position[0], position[1], position[2]],
@@ -258,7 +385,9 @@ export function resetXrNativeControllerDemoRuntime(runtime: XrNativeControllerDe
   resetXrPhysicsSimulation(runtime.simulation, runtime.world)
   runtime.accumulatorSeconds = 0
   runtime.ballRotation = [0, 0, 0]
+  for (const rotation of Object.values(runtime.bodyRotations)) rotation.splice(0, 3, 0, 0, 0)
   runtime.input = createXrNativeControllerInput()
+  runtime.objective = 'find-key'
   runtime.previousPlayerPosition = mutablePosition(playerBody(runtime))
   runtime.previousPrimary = false
   runtime.rocketRotation = [0, 0, 0]
@@ -311,15 +440,22 @@ export function readXrNativeControllerDemoRuntimeFrame(
     stepCount: runtime.simulation.stepCount,
     player,
     bodies: captureXrPhysicsSimulation(runtime.simulation),
+    bodyRotations: Object.freeze(Object.fromEntries(Object.entries(runtime.bodyRotations).map(([id, rotation]) => [
+      id,
+      Object.freeze([...rotation]) as XrPhysicsVector,
+    ]))),
     input: runtime.input,
     ballRotation: Object.freeze([...runtime.ballRotation]) as XrPhysicsVector,
     rocketRotation: Object.freeze([...runtime.rocketRotation]) as XrPhysicsVector,
-    rocketThrusting: runtime.mode === 'rocket' && runtime.input.primary,
+    rocketThrusting: runtime.phase === 'running' && runtime.mode === 'rocket' && runtime.input.primary,
     cameraTarget: Object.freeze([
       player.position[0],
-      player.position[1] + (runtime.mode === 'rocket' ? 1.25 : 0.8),
+      player.position[1] + (runtime.mode === 'rocket' ? 1.05 : 0.6),
       player.position[2],
     ]) as XrPhysicsVector,
+    objective: runtime.objective,
+    keyCollected: runtime.objective !== 'find-key',
+    chestUnlocked: runtime.objective === 'complete',
   })
 }
 
@@ -332,6 +468,9 @@ function createSharedSnapshot(): XrNativeControllerDemoSnapshot {
     mode: sharedRuntime.mode,
     followCamera: sharedRuntime.phase !== 'off',
     fixedRateHz: FIXED_RATE_HZ,
+    objective: sharedRuntime.objective,
+    keyCollected: sharedRuntime.objective !== 'find-key',
+    chestUnlocked: sharedRuntime.objective === 'complete',
     revision: sharedRuntime.snapshotRevision,
   })
 }
@@ -373,6 +512,7 @@ export function resumeXrNativeControllerDemo(): XrNativeControllerDemoSnapshot {
 export function resetSharedXrNativeControllerDemo(): XrNativeControllerDemoSnapshot {
   const phase = sharedRuntime.phase === 'off' ? 'ready' : sharedRuntime.phase
   resetXrNativeControllerDemoRuntime(sharedRuntime)
+  sharedRuntime.mode = 'ball'
   sharedRuntime.phase = phase === 'paused' ? 'paused' : phase === 'running' ? 'running' : 'ready'
   return publishShared()
 }
@@ -394,7 +534,10 @@ export function setSharedXrNativeControllerDemoInput(input: XrNativeControllerIn
 }
 
 export function stepSharedXrNativeControllerDemo(deltaSeconds: number): number {
-  return stepXrNativeControllerDemoRuntime(sharedRuntime, deltaSeconds)
+  const objective = sharedRuntime.objective
+  const steps = stepXrNativeControllerDemoRuntime(sharedRuntime, deltaSeconds)
+  if (objective !== sharedRuntime.objective) publishShared()
+  return steps
 }
 
 export function readSharedXrNativeControllerDemoFrame(): XrNativeControllerDemoFrame {

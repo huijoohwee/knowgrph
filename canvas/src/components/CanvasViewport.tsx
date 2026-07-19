@@ -10,6 +10,8 @@ import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { UI_RESPONSIVE_CANVAS_MINIMAP_OVERLAY_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
+import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { XrNativeControllerDemoHud } from '@/features/three/XrNativeControllerDemoHud'
 
 import { getCanvas2dSurfaceId, isCanvas2dRendererId, isStoryboardCanvas2dRenderer, supportsCanvas2dMinimap } from '@/lib/config.render'
 import { shouldRenderTimelineSurface } from '@/lib/timeline/timelineVisibility'
@@ -122,6 +124,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     documentSwitchPendingLabel = 'Switching document...',
     onLiveCanvasHeroVisibilityChange,
   } = props
+  const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive()
   const activeGraphData = useActiveGraphRenderData(true)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const sourceFiles = useGraphStore(s => s.sourceFiles)
@@ -272,7 +275,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const isTouchViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
   const [activatedHeavyRuntimeSurfaces, setActivatedHeavyRuntimeSurfaces] = React.useState<Partial<Record<'3d' | 'geo', true>>>({})
-  const heavyRuntimeIntentSurface = resolveCanvasViewportHeavyRuntimeIntentSurface({
+  const heavyRuntimeIntentSurface = xrPhysicsRunReadyDemo ? null : resolveCanvasViewportHeavyRuntimeIntentSurface({
     isTouchViewport,
     geospatialOverlayOwnsViewport,
     canvasRenderMode,
@@ -311,7 +314,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
       data-kg-canvas-viewport-root="1"
       className="relative w-full h-full overflow-hidden"
       style={{ touchAction: 'manipulation', overscrollBehavior: 'none', WebkitTapHighlightColor: 'transparent' }}
-      aria-label={variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}
+      aria-label={xrPhysicsRunReadyDemo ? 'Interactive XR Physics Playground' : variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}
     >
       <React.Suspense fallback={null}>
         {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
@@ -531,6 +534,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
           </>
         ) : null}
       </React.Suspense>
+      {xrPhysicsRunReadyDemo ? <XrNativeControllerDemoHud /> : null}
       {variant === 'workspace' ? <CanvasEmbedCodePanelHost /> : null}
     </section>
   )

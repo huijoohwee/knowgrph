@@ -60,6 +60,7 @@ export async function testXrSessionPolicyPrefersNativeArWithoutProviderDependenc
     readFileSync(resolve(process.cwd(), 'src/lib/three/ThreeGraphXrSessionPolicy.ts'), 'utf8'),
   ].join('\n')
   const worldSource = readFileSync(resolve(process.cwd(), 'src/lib/three/ThreeGraph.impl.tsx'), 'utf8')
+  const rendererClearSource = readFileSync(resolve(process.cwd(), 'src/lib/three/XrRendererClearController.tsx'), 'utf8')
   const graphSceneSource = readFileSync(resolve(process.cwd(), 'src/lib/three/Scene.impl.tsx'), 'utf8')
   const graphStageSource = readFileSync(resolve(process.cwd(), 'src/features/three/XrGraphStage.tsx'), 'utf8')
   const placementStageSource = readFileSync(resolve(process.cwd(), 'src/features/three/XrArPlacementStage.tsx'), 'utf8')
@@ -131,7 +132,7 @@ export async function testXrSessionPolicyPrefersNativeArWithoutProviderDependenc
     throw new Error('expected spatial capture environment to attach to the Scene without obscuring immersive AR passthrough')
   }
   if (!worldSource.includes('<XrRendererClearController')
-    || !worldSource.includes('resolveXrRendererClearAlpha(')
+    || !rendererClearSource.includes('resolveXrRendererClearAlpha(')
     || graphSceneSource.includes('setClearColor(')) {
     throw new Error('expected one canvas-level renderer clear owner to preserve AR passthrough for graph and empty XR worlds')
   }
