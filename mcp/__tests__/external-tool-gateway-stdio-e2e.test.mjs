@@ -12,6 +12,7 @@ import { createExternalToolGatewayRuntime } from "../external-tool-gateway-runti
 import { EXTERNAL_MCP_PROFILES_ENV, computeExternalToolSchemaDigest, loadExternalToolProfileRegistry } from "../external-tool-profile-registry.js";
 
 const SECRET = "test-only-external-mcp-approval-secret-32chars";
+const FIXTURE_HOST_ENV = Object.freeze({ NODE_ENV: "test", TMPDIR: tmpdir() });
 const fixturePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "fixtures/external-slides-mcp-server.mjs");
 const FIXTURE_SLIDES_INPUT_SCHEMA = Object.freeze({
   type: "object",
@@ -84,11 +85,11 @@ const buildFixtureCallArgs = (capability, idempotencyKey) => ({
 
 test("gateway invokes an exact host-approved stdio Slides MCP and returns only a sanitized receipt", async () => {
   const registry = loadExternalToolProfileRegistry({
-    env: { NODE_ENV: "test" },
+    env: FIXTURE_HOST_ENV,
     rawProfilesJson: FIXTURE_PROFILES_JSON,
   });
   const capability = registry.capabilities[0];
-  const runtime = createExternalToolGatewayRuntime({ registry, approvalSecret: SECRET, now: 1_800_000_000_000 });
+  const runtime = createExternalToolGatewayRuntime({ registry, approvalSecret: SECRET, env: FIXTURE_HOST_ENV, now: 1_800_000_000_000 });
   const callArgs = buildFixtureCallArgs(capability, "fixture-deck-0001");
   const approvalToken = runtime.createApprovalToken(callArgs, { tokenId: "fixture-approval-token-0001" });
   const outputPath = fixtureOutputPath("fixture-deck-0001", "slides.md");
@@ -107,12 +108,12 @@ test("gateway invokes an exact host-approved stdio Slides MCP and returns only a
 
 test("gateway invokes an exact host-approved stdio Sheets MCP and creates the external file", async () => {
   const registry = loadExternalToolProfileRegistry({
-    env: { NODE_ENV: "test" },
+    env: FIXTURE_HOST_ENV,
     rawProfilesJson: FIXTURE_PROFILES_JSON,
   });
   const capability = registry.capabilities.find(entry => entry.artifactKind === "spreadsheet");
   assert.ok(capability);
-  const runtime = createExternalToolGatewayRuntime({ registry, approvalSecret: SECRET, now: 1_800_000_000_000 });
+  const runtime = createExternalToolGatewayRuntime({ registry, approvalSecret: SECRET, env: FIXTURE_HOST_ENV, now: 1_800_000_000_000 });
   const callArgs = {
     ...buildFixtureCallArgs(capability, "fixture-sheet-0003"),
     artifact: {
