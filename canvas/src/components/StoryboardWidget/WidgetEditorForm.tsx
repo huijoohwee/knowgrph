@@ -38,9 +38,7 @@ import {
   getRichMediaPanelNodeLabel,
 } from '@/lib/render/richMediaSsot'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { resolveSharedChatModelSelect } from '@/features/chat/chatModelCredentialResolver'
-import { shouldRenderFloatingChatApiKeyPrompt } from '@/features/chat/floatingPanelChat/floatingPanelChatApiKeyPrompt'
-import { getChatProviderLabel } from '@/lib/chatEndpoint'
+import { resolveChatModelCredentialProjection } from '@/features/chat/floatingPanelChat/floatingPanelChatCredentialContext'
 import {
   buildConnectedValuesSemanticSignature,
   buildGraphEdgesSemanticSignature,
@@ -106,6 +104,7 @@ export const WidgetEditorForm = React.memo(function WidgetEditorForm({
     chatAuthMode,
     chatApiKey,
     setChatApiKey,
+    chatEndpointUrl,
     chatModel,
     selectNode,
     setSelectionSource,
@@ -122,6 +121,7 @@ export const WidgetEditorForm = React.memo(function WidgetEditorForm({
       chatAuthMode: s.chatAuthMode,
       chatApiKey: s.chatApiKey,
       setChatApiKey: s.setChatApiKey,
+      chatEndpointUrl: s.chatEndpointUrl,
       chatModel: s.chatModel,
       selectNode: s.selectNode,
       setSelectionSource: s.setSelectionSource,
@@ -235,18 +235,17 @@ export const WidgetEditorForm = React.memo(function WidgetEditorForm({
   }
   const connectedValuesSnapshot = connectedValuesSnapshotRef.current.value
   const isRichMediaPanelWidget = nodeTypeId === 'RichMediaPanel'
-  const widgetModelSelect = React.useMemo(() => resolveSharedChatModelSelect({
-    chatProvider,
-    chatModel: pickString(propertiesSnapshot.chatModel).trim() || chatModel,
-  }), [chatModel, chatProvider, propertiesSnapshot.chatModel])
-  const widgetApiKeyPrompt = React.useMemo(() => {
-    if (!shouldRenderFloatingChatApiKeyPrompt({ chatAuthMode, chatProvider })) return null
-    return {
-      providerLabel: getChatProviderLabel(chatProvider),
-      value: chatApiKey || '',
-      onChange: setChatApiKey,
-    }
-  }, [chatApiKey, chatAuthMode, chatProvider, setChatApiKey])
+  const widgetCredentialProjection = React.useMemo(() => resolveChatModelCredentialProjection({
+    currentNode: node,
+    globalProvider: chatProvider,
+    globalAuthMode: chatAuthMode,
+    globalEndpointUrl: chatEndpointUrl,
+    globalModel: chatModel,
+    apiKey: chatApiKey || '',
+    onApiKeyChange: setChatApiKey,
+  }), [chatApiKey, chatAuthMode, chatEndpointUrl, chatModel, chatProvider, node, setChatApiKey])
+  const widgetModelSelect = widgetCredentialProjection.modelSelect
+  const widgetApiKeyPrompt = widgetCredentialProjection.apiKeyPrompt
   const idBase = React.useMemo(() => {
     const nodeId = cleanDomIdPart(nodeHelperSnapshot.id) || 'node'
     return `flow-node-quick-${nodeId}`

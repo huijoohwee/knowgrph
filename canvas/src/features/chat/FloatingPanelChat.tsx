@@ -38,8 +38,6 @@ import { useResumeDurableChatStream } from '@/features/chat/floatingPanelChat/us
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
 import { emitMarkdownLayoutRequest } from '@/lib/markdown-workspace-runtime/markdownWorkspaceRuntime.shared'
 import { normalizeMarkdownWorkspaceSelectionPath } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionPath'
-import { getCachedGraphLookup } from '@/lib/graph/lookupCache'
-import { buildScopedGraphSemanticKey } from '@/lib/graph/semanticKey'
 import { parseChatIngestUrlCommand } from '@/features/chat/chatCommandRegistry'
 import {
   clearLocalChatPipelineSurfaceSnapshot,
@@ -69,6 +67,7 @@ import { flushFloatingPanelChatInputHandoff } from '@/features/chat/floatingPane
 import { stopFloatingPanelChatStream } from '@/features/chat/floatingPanelChat/floatingPanelChatStop'
 import { useFloatingPanelChatThreadFollow } from '@/features/chat/floatingPanelChat/useFloatingPanelChatThreadFollow'
 import { openMarkdownWorkspacePathInExplorer } from '@/features/markdown-workspace/openMarkdownWorkspacePathInExplorer'
+import { useFloatingPanelChatCredentialContext } from '@/features/chat/floatingPanelChat/useFloatingPanelChatCredentialContext'
 export default function FloatingPanelChat() {
   const graphData = useGraphStore(s => s.graphData)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
@@ -220,9 +219,23 @@ export default function FloatingPanelChat() {
 
   const historyKey = React.useMemo(() => buildHistoryKey(graphData), [graphData])
 
+  const { currentNode, credentialContext } = useFloatingPanelChatCredentialContext({
+    graphData,
+    graphDataRevision,
+    selectedNodeId,
+    globalProvider: chatProvider,
+    globalAuthMode: chatAuthMode,
+    globalEndpointUrl: chatEndpointUrl,
+    globalModel: chatModel,
+  })
+
   const chatProviderLabel = React.useMemo(
     () => getChatProviderLabel(chatProvider),
     [chatProvider],
+  )
+  const credentialProviderLabel = React.useMemo(
+    () => getChatProviderLabel(credentialContext.provider),
+    [credentialContext.provider],
   )
   const chatProviderRegion = React.useMemo(
     () => getChatProviderRegionLabel(chatProvider, chatEndpointUrl || CHAT_DEFAULT_ENDPOINT_URL),
@@ -389,7 +402,10 @@ export default function FloatingPanelChat() {
     storageChatRelayConfig,
     storageChatRelayDecision,
   ])
-  const shouldShowChatApiKeyPrompt = shouldRenderFloatingChatApiKeyPrompt({ chatAuthMode, chatProvider })
+  const shouldShowChatApiKeyPrompt = shouldRenderFloatingChatApiKeyPrompt({
+    chatAuthMode: credentialContext.authMode,
+    chatProvider: credentialContext.provider,
+  })
 
   React.useEffect(() => {
     publishLocalChatPipelineSurfaceSnapshot({
@@ -563,26 +579,6 @@ export default function FloatingPanelChat() {
     setChatKnowgrphWorkspacePath,
     stopActiveChatStream,
   ])
-
-  const graphLookup = React.useMemo(() => {
-    if (!graphData) return null
-    const graphSemanticKey = buildScopedGraphSemanticKey('floating-panel-chat-graph', {
-      graphData,
-      graphRevision: graphDataRevision,
-    })
-    return getCachedGraphLookup({
-      cacheScope: 'floating-panel-chat-graph',
-      graphData,
-      graphRevision: graphDataRevision,
-      graphSemanticKey,
-      preferCurrentGraphDataRefs: true,
-    })
-  }, [graphData, graphDataRevision])
-
-  const currentNode = React.useMemo(() => {
-    if (!selectedNodeId) return null
-    return graphLookup?.nodeById.get(selectedNodeId) || null
-  }, [graphLookup, selectedNodeId])
 
   const {
     appendPrompt: appendChatPrompt,
@@ -834,7 +830,7 @@ export default function FloatingPanelChat() {
         relayStatus={visibleRelayStatus}
         relaySummary={visibleRelaySummary}
         relayAction={visibleRelayStatus || visibleRelaySummary ? { label: 'Open Log', onClick: openRelayLogView } : null}
-        apiKeyPrompt={shouldShowChatApiKeyPrompt ? { providerLabel: chatProviderLabel, value: chatApiKey || '', onChange: setChatApiKey } : null}
+        apiKeyPrompt={shouldShowChatApiKeyPrompt ? { providerLabel: credentialProviderLabel, value: chatApiKey || '', onChange: setChatApiKey } : null}
         currentNode={currentNode}
         modelId={chatModelSelect.modelId}
         modelOptions={chatModelSelect.options}

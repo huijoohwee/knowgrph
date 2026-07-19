@@ -1,4 +1,5 @@
 import { generateRunMarkdownWithProvider } from '@/features/chat/byteplusRunGeneration'
+import { resolveSubmitRuntimeFriendlyMessage } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitErrors'
 import type { GraphState } from '@/hooks/useGraphStore'
 import { resolveStoryboardWidgetTextThinkingOptions } from './storyboardWidgetWorkflowTextThinking'
 
@@ -20,11 +21,14 @@ export function generateStoryboardWidgetTextWithProvider(args: {
     resolvedThinkingJson: properties.chatThinkingJson ?? store.chatThinkingJson,
     resolvedThinkingType: properties.chatThinkingType ?? store.chatThinkingType,
   })
+  const provider = properties.chatProvider || store.chatProvider
+  const endpointUrl = properties.chatEndpointUrl || store.chatEndpointUrl
+  const authMode = (properties.chatAuthMode || store.chatAuthMode) === 'byok' ? 'byok' : 'serverManaged'
   return generateRunMarkdownWithProvider({
     config: {
-      provider: properties.chatProvider || store.chatProvider,
-      endpointUrl: properties.chatEndpointUrl || store.chatEndpointUrl,
-      apiKey: (properties.chatAuthMode || store.chatAuthMode) === 'byok' ? store.chatApiKey : '',
+      provider,
+      endpointUrl,
+      apiKey: authMode === 'byok' ? store.chatApiKey : '',
       chatModel: properties.chatModel || store.chatModel,
     },
     prompt: args.prompt,
@@ -51,5 +55,13 @@ export function generateStoryboardWidgetTextWithProvider(args: {
       chatToolChoiceJson: properties.chatToolChoiceJson ?? store.chatToolChoiceJson,
       ...(args.onText ? { onText: args.onText } : {}),
     },
+  }).catch(error => {
+    const raw = error instanceof Error ? error.message : String(error || '')
+    throw new Error(resolveSubmitRuntimeFriendlyMessage({
+      raw,
+      endpointUrl: typeof endpointUrl === 'string' ? endpointUrl : null,
+      chatProvider: typeof provider === 'string' ? provider : null,
+      chatAuthMode: authMode,
+    }))
   })
 }

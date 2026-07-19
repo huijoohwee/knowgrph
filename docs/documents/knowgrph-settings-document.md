@@ -113,6 +113,7 @@
 ## Chat Settings: Endpoint, Model, Context
 
 - `chatProvider` defaults to BytePlus ModelArk (`ap-southeast-1`) with OpenAI as the secondary official profile; preserve canonical official endpoint URLs in Settings even though requests route through the same-origin proxy.
+- TextGeneration credential controls resolve the selected card's effective provider, auth mode, endpoint, and model before rendering a BYOK prompt. Provider rejection diagnostics require the key to match that provider and endpoint region, preserve the returned request id, and never log or persist the credential.
 - `chatAuthMode` selects `serverManaged` (default) vs `byok`.
   - `serverManaged`: no user key is required; Cloudflare/dev proxy secrets stay server-side and the proxy injects the provider key.
   - `byok`: the user explicitly provides a fallback API key for the current runtime only (memory-only; never localStorage/sessionStorage).

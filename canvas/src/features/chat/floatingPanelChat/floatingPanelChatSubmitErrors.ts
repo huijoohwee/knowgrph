@@ -8,8 +8,13 @@ import { CHAT_SUBMIT_TRANSPORT_TIMEOUT_ERROR } from './floatingPanelChatSubmitTr
 import { finalizeSubmitTerminalState, materializePendingSubmitAssistantError } from './floatingPanelChatSubmitLifecycle'
 import type { ChatMessage } from '../FloatingPanelChatSections'
 
-const INVALID_TOKEN_PATTERN = /(invalid token|invalid api key|invalid authorization|无效的令牌)/i
+const INVALID_TOKEN_PATTERN = /(invalid token|invalid api key|invalid authorization|api key format is incorrect|无效的令牌)/i
 const MISSING_API_KEY_PATTERN = /(missing [\w\s-]*api key|requires an api key)/i
+
+const resolveRequestIdSuffix = (raw: string): string => {
+  const requestId = raw.match(/request\s+id:\s*([a-z0-9-]+)/i)?.[1] || ''
+  return requestId ? ` Request id: ${requestId}` : ''
+}
 
 const resolveProviderCredentialFriendlyMessage = (args: {
   raw: string
@@ -20,9 +25,10 @@ const resolveProviderCredentialFriendlyMessage = (args: {
   if (!raw) return null
   const providerLabel = getChatProviderLabel(args.chatProvider || 'openai')
   if (INVALID_TOKEN_PATTERN.test(raw)) {
+    const requestIdSuffix = resolveRequestIdSuffix(raw)
     return args.chatAuthMode === 'byok'
-      ? `${providerLabel} rejected the API key configured in Settings. Update Settings -> Chat auth with a valid BYOK key and retry.`
-      : `${providerLabel} rejected the configured server-managed chat proxy API key. Rotate the deployed server-managed key or switch Settings -> Chat auth to BYOK and retry.`
+      ? `${providerLabel} rejected the BYOK API key. Verify that the key belongs to this provider and matches the endpoint region, update Settings -> Chat auth, and retry.${requestIdSuffix}`
+      : `${providerLabel} rejected the configured server-managed chat proxy API key. Rotate the deployed server-managed key or switch Settings -> Chat auth to BYOK and retry.${requestIdSuffix}`
   }
   if (MISSING_API_KEY_PATTERN.test(raw)) {
     return args.chatAuthMode === 'byok'
