@@ -582,8 +582,6 @@ Readiness checks should run on explicit action, first use, or focused validation
 
 **TCO/FOSS:** zero cost when implemented with the server runtime crypto APIs already available to the owning integration.
 
----
-
 ### Validation Checklist
 
 Before any new API integration is merged, verify:
