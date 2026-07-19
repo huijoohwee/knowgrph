@@ -79,3 +79,38 @@ new_sqlite_classes = [ "KnowgrphMcpAgent" ]
 [[migrations]]
 tag = "v2_run_manifest_store"
 new_sqlite_classes = [ "RunManifestStore" ]
+
+# Isolated proof environment. It deliberately has no custom-domain routes and
+# cannot shadow the production control plane.
+[env.dev]
+name = "knowgrph-mcp-dev"
+workers_dev = true
+preview_urls = true
+routes = []
+
+[env.dev.observability]
+enabled = true
+
+[env.dev.vars]
+KNOWGRPH_MCP_PUBLIC_BASE_URL = "https://knowgrph-mcp-dev.huijoohwee.workers.dev"
+KNOWGRPH_MCP_TOOL_LIST_NAME = "knowgrph-video-remix-dev"
+KNOWGRPH_LIVE_CLIENTS = "0"
+
+[env.dev.ai]
+binding = "AI"
+
+[[env.dev.durable_objects.bindings]]
+name = "MCP_AGENT"
+class_name = "KnowgrphMcpAgent"
+
+[[env.dev.durable_objects.bindings]]
+name = "RUN_MANIFEST_STORE"
+class_name = "RunManifestStore"
+
+[[env.dev.migrations]]
+tag = "v1_knowgrph_mcp_agent"
+new_sqlite_classes = [ "KnowgrphMcpAgent" ]
+
+[[env.dev.migrations]]
+tag = "v2_run_manifest_store"
+new_sqlite_classes = [ "RunManifestStore" ]
