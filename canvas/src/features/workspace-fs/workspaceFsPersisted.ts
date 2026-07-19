@@ -1,6 +1,7 @@
 import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
-import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath, workspaceBasename } from './path'
+import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
 import {
+  CANONICAL_XR_PHYSICS_WORKSPACE_SEED_ENABLED,
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE,
   buildWorkspaceSeedFileEntry,
   expandWorkspaceSeedFileEntries,
@@ -9,15 +10,26 @@ import {
   TEST_VALIDATION_WORKSPACE_SEED_BASENAME,
   getWorkspaceSeedFiles,
   isInitializationWorkspacePath,
+  mergeCanonicalXrPhysicsWorkspaceSeedIntoDocsMirror,
   WORKSPACE_README_SEED_BASENAME,
   WORKSPACE_README_SEED_PATH,
   TEST_VALIDATION_WORKSPACE_SEED_PATH,
   shouldPreserveFallbackWorkspaceSeedText,
+  XR_PHYSICS_WORKSPACE_ROOT_ALIAS_PATH,
+  XR_PHYSICS_WORKSPACE_SEED_PATH,
 } from './workspaceFs'
 import { ensureWorkspaceDocsMirrorFolder, readWorkspaceInitializationDocsMirrorEntries, upsertWorkspaceDocsMirrorText, upsertWorkspaceInitializationSeedText } from './workspaceSeedProvider'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
-import { loadWorkspaceSourceIndex } from './sourceIndex'
-import { buildWorkspaceDocsMirrorSourceOwnedPathSet } from './workspaceDocsMirrorSourceOwnership'
+import {
+  buildDocsMirrorBasenameSet,
+  clearStaleXrPhysicsSourcesIfCanonicalMaterialized,
+  hasOnlyCanonicalXrPhysicsFile,
+  isStaleRootMarkdownAliasCoveredByDocsMirror,
+  removeNoncanonicalXrPhysicsFiles,
+  resetWorkspaceDocsMirrorSyncForPersistedFs,
+  syncWorkspaceDocsMirrorEntries,
+  toWorkspaceDocsMirrorPath,
+} from './workspaceFsPersistedReconciliation'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsJson, lsRemove, lsSetBool } from '@/lib/persistence'
 import {
@@ -29,7 +41,6 @@ import { readWorkspaceSourceFilesDocsOnlySetting } from '@/lib/workspace/workspa
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT, normalizeChatLocalStorageRootPath } from '@/features/chat/chatStorageConfig'
 
 const DB_NAME = 'kg:workspace-fs'
-let lastDocsMirrorSyncSignature = ''
 const WORKSPACE_DOCS_MIRROR_FLUSH_DEBOUNCE_MS = 150
 const docsMirrorFolderFlushTimers = new Map<WorkspacePath, number>()
 const docsMirrorTextFlushTimers = new Map<WorkspacePath, number>()
@@ -69,34 +80,6 @@ const normalizeUpdatedAtMs = (value: unknown, fallback = Date.now()): number => 
   return Math.floor(n)
 }
 const readWorkspaceSeedBasenameForPath = (path: WorkspacePath): string | null => WORKSPACE_SEED_BASENAME_BY_PATH.get(path) || null
-
-const normalizeDocsMirrorRelPath = (value: string): string => {
-  const normalized = String(value || '')
-    .trim()
-    .replace(/\\/g, '/')
-    .replace(/^\/+/, '')
-    .replace(/\/+$/, '')
-  if (!normalized) return ''
-  const lowered = normalized.toLowerCase()
-  const docsRootMarker = 'huijoohwee/docs/'
-  if (lowered.startsWith(docsRootMarker)) {
-    return normalized.slice(docsRootMarker.length)
-  }
-  if (lowered.startsWith(`docs/${docsRootMarker}`)) {
-    return normalized.slice(`docs/${docsRootMarker}`.length)
-  }
-  const docsRootIndex = lowered.indexOf(`/${docsRootMarker}`)
-  if (docsRootIndex >= 0) {
-    return normalized.slice(docsRootIndex + docsRootMarker.length + 1)
-  }
-  return normalized
-}
-
-const toWorkspaceDocsMirrorPath = (relPath: string): WorkspacePath => {
-  const normalizedRelPath = normalizeDocsMirrorRelPath(relPath)
-  if (normalizedRelPath === 'agentic-canvas-os/docs' || normalizedRelPath.startsWith('agentic-canvas-os/docs/')) return normalizeWorkspacePath(`/${normalizedRelPath}`)
-  return normalizeWorkspacePath(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/${normalizedRelPath}`)
-}
 
 const isWorkspaceDocsMirrorPath = (path: WorkspacePath): boolean => isWorkspaceUnderRoot(path, WORKSPACE_DOCS_MIRROR_ROOT_PATH)
 const isWorkspaceAgenticOsDocsMirrorPath = (path: WorkspacePath): boolean => isWorkspaceUnderRoot(path, WORKSPACE_AGENTIC_OS_DOCS_MIRROR_ROOT_PATH)
@@ -138,134 +121,6 @@ const scheduleWorkspaceDocsMirrorTextUpsert = (workspacePath: WorkspacePath, tex
   docsMirrorTextFlushTimers.set(workspacePath, timer)
 }
 
-const buildDocsMirrorBasenameSet = (
-  docsEntries: ReadonlyArray<{ relPath: string }>,
-): Set<string> => {
-  const out = new Set<string>()
-  for (let i = 0; i < docsEntries.length; i += 1) {
-    const relPath = normalizeDocsMirrorRelPath(String(docsEntries[i]?.relPath || ''))
-    const basename = workspaceBasename(`/${relPath}`).toLowerCase()
-    if (basename) out.add(basename)
-  }
-  return out
-}
-
-const isStaleRootMarkdownAliasCoveredByDocsMirror = (args: {
-  path: WorkspacePath
-  docsMirrorBasenames: ReadonlySet<string>
-  rootSeedPaths: ReadonlySet<WorkspacePath>
-}): boolean => {
-  const path = normalizeWorkspacePath(args.path)
-  if (!path || path.startsWith('/docs/')) return false
-  if (args.rootSeedPaths.has(path)) return false
-  const segments = path.split('/').filter(Boolean)
-  if (segments.length !== 1) return false
-  const basename = workspaceBasename(path)
-  if (!basename || !/\.md$/i.test(basename)) return false
-  if (!args.docsMirrorBasenames.has(basename.toLowerCase())) return false
-  return true
-}
-
-const buildDocsMirrorSyncSignature = (
-  docsEntries: ReadonlyArray<{ relPath: string; text: string; updatedAtMs: number }>,
-): string => {
-  const rows = (Array.isArray(docsEntries) ? docsEntries : [])
-    .map(entry => {
-      const relPath = normalizeDocsMirrorRelPath(String(entry?.relPath || ''))
-      if (!relPath) return ''
-      return `${relPath}:${Number(entry?.updatedAtMs || 0)}:${String(entry?.text || '').length}`
-    })
-    .filter(Boolean)
-    .sort()
-  return rows.join('|')
-}
-
-const syncWorkspaceDocsMirrorEntries = async (
-  collections: WorkspaceCollections,
-  docsEntriesInput?: ReadonlyArray<{ relPath: string; text: string; updatedAtMs: number }>,
-): Promise<boolean> => {
-  const docsEntries = Array.isArray(docsEntriesInput)
-    ? [...docsEntriesInput]
-    : await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
-  if (docsEntries.length === 0) return false
-  const docsMirrorSignature = buildDocsMirrorSyncSignature(docsEntries)
-  if (docsMirrorSignature && docsMirrorSignature === lastDocsMirrorSyncSignature) return false
-  const desiredEntriesByPath = new Map<WorkspacePath, WorkspaceEntry>()
-  for (let i = 0; i < docsEntries.length; i += 1) {
-    const entry = docsEntries[i]
-    if (!entry) continue
-    const mirrorPath = toWorkspaceDocsMirrorPath(entry.relPath)
-    const expanded = expandWorkspaceSeedFileEntries(
-      mirrorPath,
-      String(entry.text || ''),
-      Number.isFinite(entry.updatedAtMs) ? entry.updatedAtMs : Date.now(),
-    )
-    for (let j = 0; j < expanded.length; j += 1) {
-      const next = expanded[j]
-      if (!next) continue
-      desiredEntriesByPath.set(next.path, next)
-    }
-  }
-  if (desiredEntriesByPath.size === 0) return false
-  const sourceOwnedDocsPaths = buildWorkspaceDocsMirrorSourceOwnedPathSet(loadWorkspaceSourceIndex())
-  const existingRows = await collections.entries.find().exec()
-  let changed = false
-  for (let i = 0; i < existingRows.length; i += 1) {
-    const row = existingRows[i]
-    if (!row) continue
-    const existingPath = normalizeWorkspacePath(String(row.get('path') || ''))
-    if (!existingPath.startsWith(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/`)) continue
-    const desired = desiredEntriesByPath.get(existingPath) || null
-    if (sourceOwnedDocsPaths.has(existingPath)) {
-      desiredEntriesByPath.delete(existingPath)
-      continue
-    }
-    if (!desired) {
-      await row.remove()
-      changed = true
-      continue
-    }
-    desiredEntriesByPath.delete(existingPath)
-    const existingKind = String(row.get('kind') || '')
-    const existingName = String(row.get('name') || '')
-    const existingParentPath = String(row.get('parentPath') || '')
-    const existingText = String(row.get('text') ?? '')
-    const nextParentPath = String(desired.parentPath || '')
-    const nextText = desired.kind === 'file' ? String(desired.text || '') : ''
-    if (
-      existingKind !== desired.kind
-      || existingName !== desired.name
-      || existingParentPath !== nextParentPath
-      || (desired.kind === 'file' && existingText !== nextText)
-    ) {
-      await row.incrementalPatch({
-        parentPath: nextParentPath,
-        kind: desired.kind,
-        name: desired.name,
-        text: nextText,
-        updatedAtMs: normalizeUpdatedAtMs(desired.updatedAtMs),
-      })
-      changed = true
-    }
-  }
-  const pendingEntries = [...desiredEntriesByPath.values()].sort((a, b) => a.path.localeCompare(b.path))
-  for (let i = 0; i < pendingEntries.length; i += 1) {
-    const entry = pendingEntries[i]
-    if (!entry) continue
-    await collections.entries.incrementalUpsert({
-      path: entry.path,
-      parentPath: String(entry.parentPath || ''),
-      kind: entry.kind,
-      name: entry.name,
-      text: entry.kind === 'file' ? String(entry.text || '') : '',
-      updatedAtMs: normalizeUpdatedAtMs(entry.updatedAtMs),
-    })
-    changed = true
-  }
-  if (docsMirrorSignature) lastDocsMirrorSyncSignature = docsMirrorSignature
-  return changed
-}
-
 const getDb = async () => {
   if (dbSingleton) return dbSingleton
   dbSingleton = (async () => {
@@ -284,7 +139,7 @@ const getDb = async () => {
 }
 
 export function createWorkspacePersistedFs(): WorkspaceFs {
-  lastDocsMirrorSyncSignature = ''
+  resetWorkspaceDocsMirrorSyncForPersistedFs()
   const ensureRoot = async () => {
     const { collections } = await getDb()
     const existing = await collections.entries.findOne(WORKSPACE_ROOT_PATH).exec()
@@ -313,16 +168,26 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
     await ensureRoot()
     let changed = false
     const docsOnlyMode = readWorkspaceSourceFilesDocsOnlySetting()
-    const docsMirrorEntries = docsOnlyMode
+    const sourceDocsMirrorEntries = docsOnlyMode
       ? await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
       : []
-    const hasDocsMirrorFiles = docsMirrorEntries.length > 0
+    const docsMirrorEntries = docsOnlyMode
+      ? await mergeCanonicalXrPhysicsWorkspaceSeedIntoDocsMirror(sourceDocsMirrorEntries)
+      : []
+    const hasDocsMirrorFiles = sourceDocsMirrorEntries.length > 0
     const hasAnyFilesNow = await collections.entries.find({ selector: { kind: 'file' } }).exec().then(rows => rows.length > 0)
+    const canonicalXrDocsMirrorEnabled = CANONICAL_XR_PHYSICS_WORKSPACE_SEED_ENABLED && docsMirrorEntries.some(entry => (
+      toWorkspaceDocsMirrorPath(entry.relPath) === XR_PHYSICS_WORKSPACE_SEED_PATH
+    ))
+    if (docsOnlyMode && canonicalXrDocsMirrorEnabled && await removeNoncanonicalXrPhysicsFiles(collections)) {
+      changed = true
+    }
     if (docsOnlyMode && hasDocsMirrorFiles) {
       const rootSeedPaths = new Set<WorkspacePath>([
         WORKSPACE_README_SEED_PATH,
         TEST_VALIDATION_WORKSPACE_SEED_PATH,
         GEOSPATIAL_WORKSPACE_SEED_PATH,
+        XR_PHYSICS_WORKSPACE_ROOT_ALIAS_PATH,
       ])
       const docsMirrorBasenames = buildDocsMirrorBasenameSet(docsMirrorEntries)
       const rows = await collections.entries.find({ selector: { kind: 'file' } }).exec()
@@ -365,10 +230,59 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
     const fileCount = await collections.entries.find({ selector: { kind: 'file' } }).exec().then(rows => rows.length)
     const seeded = lsBool(LS_KEYS.markdownWorkspaceSeeded, false)
     const userClearedAll = lsBool(LS_KEYS.markdownWorkspaceUserClearedAllFiles, false)
+    const clearedWorkspaceNeedsProtectedXrOnly = userClearedAll && (
+      fileCount === 0 || await hasOnlyCanonicalXrPhysicsFile(collections)
+    )
+    if (clearedWorkspaceNeedsProtectedXrOnly) {
+      const canonicalXrSeed = (await getWorkspaceSeedFiles()).find(seed => (
+        normalizeWorkspacePath(seed.path) === XR_PHYSICS_WORKSPACE_SEED_PATH
+      )) || null
+      if (canonicalXrSeed) {
+        const existing = await collections.entries.findOne(XR_PHYSICS_WORKSPACE_SEED_PATH).exec()
+        if (existing?.get('kind') === 'file') {
+          const nextText = String(canonicalXrSeed.text ?? '')
+          if (String(existing.get('text') ?? '') !== nextText) {
+            const entry = buildWorkspaceSeedFileEntry(XR_PHYSICS_WORKSPACE_SEED_PATH, nextText, Date.now())
+            await existing.incrementalPatch({
+              parentPath: entry.parentPath || '',
+              name: entry.name,
+              text: nextText,
+              updatedAtMs: normalizeUpdatedAtMs(entry.updatedAtMs),
+            })
+            changed = true
+          }
+        } else {
+          const entries = expandWorkspaceSeedFileEntries(
+            XR_PHYSICS_WORKSPACE_SEED_PATH,
+            canonicalXrSeed.text,
+            Date.now(),
+          )
+          for (const entry of entries) {
+            await collections.entries.incrementalUpsert({
+              path: entry.path,
+              parentPath: entry.parentPath || '',
+              kind: entry.kind,
+              name: entry.name,
+              text: entry.kind === 'file' ? String(entry.text ?? '') : '',
+              updatedAtMs: normalizeUpdatedAtMs(entry.updatedAtMs),
+            })
+            changed = true
+          }
+        }
+        if (await clearStaleXrPhysicsSourcesIfCanonicalMaterialized(collections)) changed = true
+      }
+      return changed
+    }
     if (fileCount > 0) {
       if (!(docsOnlyMode && hasDocsMirrorFiles)) {
         const seeds = await getWorkspaceSeedFiles()
         let seededTextChanged = false
+        const canonicalXrSeed = seeds.find(seed => (
+          normalizeWorkspacePath(seed.path) === XR_PHYSICS_WORKSPACE_SEED_PATH
+        )) || null
+        if (canonicalXrSeed && await removeNoncanonicalXrPhysicsFiles(collections)) {
+          seededTextChanged = true
+        }
         for (const seed of seeds) {
           const path = normalizeWorkspacePath(seed.path)
           const row = await collections.entries.findOne(path).exec()
@@ -387,7 +301,22 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
             seededTextChanged = true
             continue
           }
-          if (!row || row.get('kind') !== 'file') continue
+          if (!row || row.get('kind') !== 'file') {
+            if (path !== XR_PHYSICS_WORKSPACE_SEED_PATH) continue
+            const entries = expandWorkspaceSeedFileEntries(path, seed.text, Date.now())
+            for (const entry of entries) {
+              await collections.entries.incrementalUpsert({
+                path: entry.path,
+                parentPath: entry.parentPath || '',
+                kind: entry.kind,
+                name: entry.name,
+                text: entry.kind === 'file' ? String(entry.text ?? '') : '',
+                updatedAtMs: normalizeUpdatedAtMs(entry.updatedAtMs),
+              })
+            }
+            seededTextChanged = true
+            continue
+          }
           const currentText = String(row.get('text') ?? '')
           if (seed.isFallback && shouldPreserveFallbackWorkspaceSeedText(currentText)) continue
           const nextText = String(seed.text ?? '')
@@ -401,17 +330,25 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
           })
           seededTextChanged = true
         }
+        if (canonicalXrSeed && await clearStaleXrPhysicsSourcesIfCanonicalMaterialized(collections)) {
+          seededTextChanged = true
+        }
         if (seededTextChanged) changed = true
       }
-      if (await syncWorkspaceDocsMirrorEntries(collections, docsMirrorEntries)) changed = true
+      if (hasDocsMirrorFiles && await syncWorkspaceDocsMirrorEntries(collections, docsMirrorEntries)) changed = true
+      if (canonicalXrDocsMirrorEnabled && await clearStaleXrPhysicsSourcesIfCanonicalMaterialized(collections)) changed = true
       if (!seeded) lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
-      if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
+      if (userClearedAll && !await hasOnlyCanonicalXrPhysicsFile(collections)) {
+        lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
+      }
       return changed
     }
-    if (userClearedAll) return changed
     const now = Date.now()
     if (!(docsOnlyMode && hasDocsMirrorFiles)) {
       const seeds = await getWorkspaceSeedFiles()
+      const canonicalXrSeed = seeds.find(seed => (
+        normalizeWorkspacePath(seed.path) === XR_PHYSICS_WORKSPACE_SEED_PATH
+      )) || null
       for (const seed of seeds) {
         const entries = expandWorkspaceSeedFileEntries(normalizeWorkspacePath(seed.path), seed.text, now)
         for (const entry of entries) {
@@ -426,10 +363,11 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
           changed = true
         }
       }
+      if (canonicalXrSeed && await clearStaleXrPhysicsSourcesIfCanonicalMaterialized(collections)) changed = true
     }
-    if (await syncWorkspaceDocsMirrorEntries(collections, docsMirrorEntries)) changed = true
+    if (hasDocsMirrorFiles && await syncWorkspaceDocsMirrorEntries(collections, docsMirrorEntries)) changed = true
+    if (canonicalXrDocsMirrorEnabled && await clearStaleXrPhysicsSourcesIfCanonicalMaterialized(collections)) changed = true
     lsSetBool(LS_KEYS.markdownWorkspaceSeeded, true)
-    if (userClearedAll) lsRemove(LS_KEYS.markdownWorkspaceUserClearedAllFiles)
     return changed
   }
 

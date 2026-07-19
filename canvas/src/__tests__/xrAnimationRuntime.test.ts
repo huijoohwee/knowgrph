@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { GraphData } from '@/lib/graph/types'
 import {
-  registerAgenticOsRemoteGrammarCatalogEntries,
   resetAgenticOsRemoteGrammarCatalogForTests,
 } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -60,12 +59,6 @@ import { hydrateCanonicalXrMotionReferenceRuntime } from '@/features/three/XrMot
 import { selectBoundXrActor } from '@/features/three/xrSelectedActorBinding'
 import { buildXrMotionReferenceTimelineCode } from '@/features/three/xrMotionReferenceTimeline'
 
-const ANIMATION_DICTIONARY_TOKENS = {
-  command: ['/animation.control'],
-  semantic: ['#character-motion', '#action-path'],
-  binding: ['@selected-actor', '@canvas'],
-} as const
-
 function readSource(...parts: string[]): string {
   return readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
 }
@@ -82,22 +75,8 @@ function buildAnimationGraph(): GraphData {
   }
 }
 
-function registerCanonicalAnimationGrammar(): void {
+function resetToNativeAnimationGrammar(): void {
   resetAgenticOsRemoteGrammarCatalogForTests()
-  for (const [kind, tokens] of Object.entries(ANIMATION_DICTIONARY_TOKENS)) {
-    const fileName = kind === 'command'
-      ? 'DICTIONARY-COMMAND.md'
-      : kind === 'semantic'
-        ? 'DICTIONARY-SEMANTIC.md'
-        : 'DICTIONARY-BINDING.md'
-    const source = readFileSync(resolve(process.cwd(), '..', '..', 'agentic-canvas-os', 'docs', fileName), 'utf8')
-    for (const token of tokens) {
-      if (!source.includes(`  - "${token}"`) || !source.includes(`| \`${token}\` |`)) {
-        throw new Error(`expected upstream ${fileName} to own ${token}`)
-      }
-    }
-    registerAgenticOsRemoteGrammarCatalogEntries(tokens.map(token => ({ token, kind, sourcePath: fileName })))
-  }
 }
 
 export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
@@ -323,7 +302,7 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
     readSource('features', 'three', 'xrSceneMcpRuntime.ts'),
     stageSource,
   ]
-  for (const marker of ['FloatingPanelCatalogHeader', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'ExpandCollapseAllButton', 'useCollapsibleSectionGroup', 'data-kg-animation-card-toggle', 'data-kg-animation-clear="selected-actor"', 'data-kg-animation-mcp="knowgrph.control_local_animation"', 'AnimationInvocationChips', 'splitInvocationTokenSegments(invocation)', "segment.kind === 'token'", "surface === 'action' ? compactInvocation : displayInvocation", 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'data-kg-animation-invocation-chips={surface}', 'data-kg-animation-invocation-chip-renderer="shared-markdown-sigil"', '<AnimationInvocationChips invocation={invocation} surface="action" />', '<AnimationInvocationChips active={active} invocation={invocation} surface="details" />']) {
+  for (const marker of ['FloatingPanelCatalogHeader', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'ExpandCollapseAllButton', 'useCollapsibleSectionGroup', 'data-kg-animation-card-toggle', 'data-kg-animation-clear="selected-actor"', 'data-kg-animation-mcp="knowgrph.control_local_animation"', 'AnimationInvocationChips', 'splitInvocationTokenSegments(invocation)', "segment.kind === 'token'", "surface === 'action' ? compactInvocation : displayInvocation", 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'data-kg-animation-invocation-chips={surface}', 'data-kg-animation-invocation-chip-renderer="shared-markdown-sigil"', 'renderAgenticOsInvocationKeywordChip', 'sourceLink: false', '<AnimationInvocationChips invocation={invocation} surface="action" />', '<AnimationInvocationChips active={active} invocation={invocation} surface="details" />']) {
     if (!panelSource.includes(marker)) throw new Error(`expected first-class Animation cards to reuse shared disclosure/catalog UI through ${marker}`)
   }
   for (const marker of ['XrChoreographyInspector', 'inspectLocalAnimation', 'Shared cast and camera choreography, playback, and export']) {
@@ -338,7 +317,7 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   for (const duplicate of ['data-kg-animation-runtime-controls="shared-xr"', 'aria-label="Animation cast target"', 'aria-label="Animation playhead seconds"']) {
     if (panelSource.includes(duplicate)) throw new Error(`expected FloatingPanel Animation to remove duplicate Timeline control ${duplicate}`)
   }
-  for (const marker of ['data-kg-xr-choreography-inspector="shared-runtime"', 'One mark model for cast and camera · Timeline owns time', 'resolveXrChoreographySpeedWarnings', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'data-kg-xr-choreography-card={target}', 'data-kg-xr-choreography-card-layout={FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT}', 'data-kg-xr-choreography-card-row="controls"', 'data-kg-xr-choreography-card-row="invocation"', 'data-kg-xr-choreography-invocation={target}', 'projectedCastInvocation', 'projectedCameraInvocation', 'data-kg-xr-choreography-runtime-ready', 'MCP · / @ # ready', 'renderMarkdownSigilInlineText', 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'renderMarkdownSigilInlineText(invocation)', 'BottomPanel Timeline', 'data-kg-xr-mark-parameter-chips={target}', 'data-kg-xr-mark-parameter-chip-renderer="shared-markdown-sigil"', 'data-kg-xr-choreography-selection-owner="timeline-cast"', 'data-kg-xr-choreography-selection-owner="timeline-camera"', 'Select marks in the']) {
+  for (const marker of ['data-kg-xr-choreography-inspector="shared-runtime"', 'One mark model for cast and camera · Timeline owns time', 'resolveXrChoreographySpeedWarnings', 'floatingPanelCatalogThreeRowClassName', 'floatingPanelCatalogThreeRowThumbnailFrameClassName', 'data-kg-xr-choreography-card={target}', 'data-kg-xr-choreography-card-layout={FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT}', 'data-kg-xr-choreography-card-row="controls"', 'data-kg-xr-choreography-card-row="invocation"', 'data-kg-xr-choreography-invocation={target}', 'projectedCastInvocation', 'projectedCameraInvocation', 'data-kg-xr-choreography-runtime-ready', 'MCP · / @ # ready', 'renderMarkdownSigilInlineText', 'renderAgenticOsInvocationKeywordChip', 'sourceLink: false', 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'renderMarkdownSigilInlineText(invocation,', 'BottomPanel Timeline', 'data-kg-xr-mark-parameter-chips={target}', 'data-kg-xr-mark-parameter-chip-renderer="shared-markdown-sigil"', 'data-kg-xr-choreography-selection-owner="timeline-cast"', 'data-kg-xr-choreography-selection-owner="timeline-camera"', 'Select marks in the']) {
     if (!inspectorSource.includes(marker)) throw new Error(`expected Animation choreography inspection to expose ${marker}`)
   }
   for (const forbidden of ['<XrChoreographyMarkControls', 'MarkParameterChips', 'data-kg-xr-mark-parameter-sigil', 'selectXrMotionReferenceCastMark', 'selectXrMotionReferenceCameraMark', 'aria-label={`Select ${track.label} mark']) {
@@ -350,7 +329,7 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   for (const marker of ["'configure-mark'", "'move-object'", 'buildXrAnimationObjectMoveInvocation', 'resolveThreeObjectKeyboardMotionPosition', 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkChoreography', 'position: control.position', 'resolveXrChoreographySpeedWarnings', 'configureCastMark', 'configureCameraMark', 'moveObject']) {
     if (!animationMcpSource.includes(marker)) throw new Error(`expected Animation MCP to control and inspect choreography through ${marker}`)
   }
-  for (const marker of ["'configure-mark'", "'move-object'", "enum: ['w', 'a', 's', 'd', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']", 'distanceMeters', 'Use the shared 0.05 m precision step', "enum: ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'hold']", "enum: ['hold', 'walk', 'jog', 'run', 'wheeled', 'flight', 'drop']", "Cast mark [x, y, z] position in stage meters"]) {
+  for (const marker of ['XR_ANIMATION_CONTROL_INPUT_SCHEMA', 'buildXrAnimationOperationSchema', 'oneOf:', "'configure-mark'", "'move-object'", "enum: ['w', 'a', 's', 'd', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']", 'distanceMeters', 'Use the shared 0.05 m precision step', "enum: ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'hold']", "enum: ['hold', 'walk', 'jog', 'run', 'wheeled', 'flight', 'drop']", "Cast mark [x, y, z] position in stage meters"]) {
     if (!agentReadyContractSource.includes(marker)) throw new Error(`expected Web MCP schema to expose typed choreography fields through ${marker}`)
   }
   for (const marker of ['KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalAnimation', 'controlLocalAnimation(input || {})']) {
@@ -395,7 +374,7 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   }
 
   const priorState = useGraphStore.getState()
-  registerCanonicalAnimationGrammar()
+  resetToNativeAnimationGrammar()
   try {
     useGraphStore.setState({
       markdownDocumentName: 'Animation invocation.md',
@@ -425,9 +404,10 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
     }
     const configuredMarkId = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === 'actor-a')!.marks[0]!.id
     const configured = controlLocalAnimation({ operation: 'configure-mark', markKind: 'cast', markId: configuredMarkId, targetId: 'actor-a', easing: 'ease-in-out', gait: 'run', position: [2, 0, -1] })
+    const configuredInvocation = controlLocalAnimation({ invocation: `/animation.control #action-path @selected-actor operation=configure-mark markKind=cast markId=${configuredMarkId} easing=ease-in-out gait=run position=2,0,-1` })
     const configuredMark = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === 'actor-a')!.marks.find(mark => mark.id === configuredMarkId)
-    if (!configured.ok || configuredMark?.transition !== 'ease-in-out' || configuredMark.gait !== 'run' || configuredMark.position.join('|') !== '2|0|-1' || readXrMotionReferenceRuntime().dirty) {
-      throw new Error(`expected structured MCP to persist per-mark cast choreography atomically, got ${JSON.stringify(configured)}`)
+    if (!configured.ok || !configuredInvocation.ok || configuredMark?.transition !== 'ease-in-out' || configuredMark.gait !== 'run' || configuredMark.position.join('|') !== '2|0|-1' || readXrMotionReferenceRuntime().dirty) {
+      throw new Error(`expected structured and / @ # MCP to persist per-mark cast choreography atomically, got ${JSON.stringify({ configured, configuredInvocation })}`)
     }
     const moveInvocation = buildXrAnimationObjectMoveInvocation({ keys: ['w', 'd'], distanceMeters: 1, markId: configuredMarkId })
     const moved = controlLocalAnimation({ invocation: moveInvocation })
@@ -458,6 +438,12 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
     const invalidMoveSemantic = controlLocalAnimation({ invocation: `/animation.control #character-motion @selected-actor operation=move-object keys=w markId=${configuredMarkId}` })
     const invalidMoveKeys = controlLocalAnimation({ operation: 'move-object', targetId: 'actor-a', markId: configuredMarkId, keys: ['PageUp'] })
     const invalidMoveDistance = controlLocalAnimation({ operation: 'move-object', targetId: 'actor-a', markId: configuredMarkId, keys: ['w'], distanceMeters: 11 })
+    const mixedInvocation = controlLocalAnimation({ invocation: '/animation.control @canvas operation=play', operation: 'play' })
+    const missingPresetApply = controlLocalAnimation({ operation: 'apply', targetId: 'actor-a' })
+    const missingMarkKind = controlLocalAnimation({ operation: 'configure-mark', markId: configuredMarkId, targetId: 'actor-a', easing: 'linear' })
+    const cameraConfigWithIgnoredTarget = controlLocalAnimation({ operation: 'configure-mark', markKind: 'camera', markId: 'missing-camera', targetId: 'actor-a', easing: 'linear' })
+    const structuredScrubWithoutTime = controlLocalAnimation({ operation: 'scrub' })
+    const playWithIgnoredTarget = controlLocalAnimation({ operation: 'play', targetId: 'actor-a' })
     if (!scrubbed.ok
       || readXrMotionReferenceRuntime().playheadSeconds !== 1.25
       || !exported.ok
@@ -471,8 +457,8 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
       || !Array.isArray(inspection.runtime.speedWarnings)) {
       throw new Error('expected Animation MCP inspect/control to share invocation, scrub, and export runtime state')
     }
-    if (invalidInvocation.ok || unknownPairInvocation.ok || invalidTimeInvocation.ok || missingTimeInvocation.ok || extraCommandInvocation.ok || wrongBindingInvocation.ok || missingSemanticInvocation.ok || invalidMoveSemantic.ok || invalidMoveKeys.ok || invalidMoveDistance.ok) {
-      throw new Error('expected Animation invocation parsing to reject noncanonical commands, semantics, bindings, fields, and scrub values')
+    if (invalidInvocation.ok || unknownPairInvocation.ok || invalidTimeInvocation.ok || missingTimeInvocation.ok || extraCommandInvocation.ok || wrongBindingInvocation.ok || missingSemanticInvocation.ok || invalidMoveSemantic.ok || invalidMoveKeys.ok || invalidMoveDistance.ok || mixedInvocation.ok || missingPresetApply.ok || missingMarkKind.ok || cameraConfigWithIgnoredTarget.ok || structuredScrubWithoutTime.ok || playWithIgnoredTarget.ok) {
+      throw new Error('expected Animation invocation and structured parsing to reject noncanonical commands, incomplete operations, ignored fields, and scrub values')
     }
     useGraphStore.getState().selectNode('actor-b')
     if (readXrMotionReferenceRuntime().selectedActorId !== 'actor-a' || inspectLocalAnimation().runtime.selectedActorId !== 'actor-b') {

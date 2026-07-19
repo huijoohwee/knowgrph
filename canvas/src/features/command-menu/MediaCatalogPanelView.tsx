@@ -27,6 +27,10 @@ import { UploadedMediaCard, UploadedMediaRow } from './mediaCatalogUploadedItems
 import { buildUploadedMediaInfoLabel, readUploadedMediaDescription, readUploadedMediaFieldText } from './mediaCatalogUploadedFields'
 import { MediaCatalogRichMediaPreview } from './MediaCatalogRichMediaPreview'
 import { XrMediaLibraryPanel } from './XrMediaLibraryPanel'
+import {
+  readXrSimulationWorkbenchOpenRevision,
+  subscribeXrSimulationWorkbenchOpenRequest,
+} from './xrSimulationWorkbenchOpenRequest'
 
 type MediaCatalogPanelViewProps = {
   catalogLayout: MediaCatalogLayout
@@ -123,10 +127,18 @@ export function MediaCatalogPanelView({
 }: MediaCatalogPanelViewProps) {
   const search = useFloatingPanelCatalogSearch()
   const xrSurfaceActive = useGraphStore(state => state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr')
+  const xrSimulationWorkbenchOpenRevision = React.useSyncExternalStore(
+    subscribeXrSimulationWorkbenchOpenRequest,
+    readXrSimulationWorkbenchOpenRevision,
+    readXrSimulationWorkbenchOpenRevision,
+  )
   const [catalogMode, setCatalogMode] = React.useState<'media' | 'xr-3d'>(() => xrSurfaceActive ? 'xr-3d' : 'media')
   React.useEffect(() => {
     if (xrSurfaceActive) setCatalogMode('xr-3d')
   }, [xrSurfaceActive])
+  React.useEffect(() => {
+    if (xrSurfaceActive && xrSimulationWorkbenchOpenRevision > 0) setCatalogMode('xr-3d')
+  }, [xrSimulationWorkbenchOpenRevision, xrSurfaceActive])
   const mediaItemCount = uploadedMediaItems.length + mediaItems.length + mediaActions.length + (sourceMetadataItem ? 1 : 0)
   const normalizedSearchQuery = search.normalizedSearchQuery
   const visibleSourceMetadataItem = sourceMetadataItem && matchesMediaSourceMetadataSearch(sourceMetadataItem, normalizedSearchQuery) ? sourceMetadataItem : null

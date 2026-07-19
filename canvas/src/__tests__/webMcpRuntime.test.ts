@@ -21,6 +21,7 @@ import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID } from '@/lib/storage/knowgrphStorageSyncContract'
 import { AGENTIC_COMMERCE_MAIN_PANEL_READINESS } from 'grph-shared/payments/agenticCommerceSsot'
 import { assertXrScenePhysicsWebMcpLifecycle, testXrSceneMcpContractCatalogSchemasAndCleanRoom } from '@/__tests__/xrSceneMcpContract.test'
+import { assertInspectedXrCatalogMatchesNativeLibrary } from '@/__tests__/helpers/xrSceneLibraryAssertions'
 
 type RegisteredTool = {
   name: string
@@ -454,9 +455,7 @@ export async function testWebMcpRuntimeLateBindsAndUsesSameOriginStoragePaths():
     if ((localThreeLayoutPositions as { samplePositions?: Array<{ id?: unknown }> }).samplePositions?.[0]?.id !== 'alpha') {
       throw new Error(`expected inspect_local_3d_layout_positions to sort sampled positions deterministically, got ${JSON.stringify(localThreeLayoutPositions)}`)
     }
-    if ((localXrSceneAssets as { assets?: unknown[] }).assets?.length !== 18 || (localXrSceneAssets as { environments?: unknown[] }).environments?.length !== 10) {
-      throw new Error(`expected XR WebMCP inspection to list native environments and assets, got ${JSON.stringify(localXrSceneAssets)}`)
-    }
+    assertInspectedXrCatalogMatchesNativeLibrary(localXrSceneAssets)
     if ((localXrSceneControl as { ok?: unknown }).ok !== true || (localXrSceneControl as { scene?: { runtime?: { subjects?: Array<{ label?: unknown; transition?: unknown }> } } }).scene?.runtime?.subjects?.at(-1)?.label !== 'MCP CAST' || (localXrSceneControl as { scene?: { runtime?: { subjects?: Array<{ label?: unknown; transition?: unknown }> } } }).scene?.runtime?.subjects?.at(-1)?.transition !== 'linear') {
       throw new Error(`expected structured XR WebMCP control to place cast with typed interpolation, got ${JSON.stringify(localXrSceneControl)}`)
     }

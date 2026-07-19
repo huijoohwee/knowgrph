@@ -17,6 +17,8 @@ import {
   type XrNativeControllerDemoObjective,
 } from './xrNativeControllerDemoRuntime'
 import { XrNativeControllerDemoAerialSetpieces } from './XrNativeControllerDemoAerialSetpieces'
+import { XrStagePresetGeometry } from './XrStagePresetGeometry'
+import type { XrMotionReferenceStagePreset } from './xrSceneLibrary'
 
 export const XR_NATIVE_DYNAMIC_BODY_Y_OFFSETS: Readonly<Record<string, number>> = Object.freeze({
   'native-crate-a': 0.72,
@@ -374,10 +376,46 @@ function useIrregularIslandShape() {
   }, [])
 }
 
-export function XrNativeControllerDemoEnvironment({ objective }: { objective: XrNativeControllerDemoObjective }) {
-  const islandShape = useIrregularIslandShape()
+function XrNativeControllerTerrainEnvironment({
+  objective,
+  stage,
+}: {
+  objective: XrNativeControllerDemoObjective
+  stage: XrMotionReferenceStagePreset
+}) {
   return (
-    <group name="kg_xr_native_tropical_playground" userData={{ objective }}>
+    <group name={`kg_xr_native_terrain_${stage.id}`} userData={{ objective, terrainId: stage.id }}>
+      <XrStagePresetGeometry
+        stage={stage}
+        span={Math.max(...stage.sizeMeters)}
+        showAxes={false}
+        showGrid={false}
+        shadows
+        minFloorThickness={0.16}
+      />
+      <TutorialMarkings />
+      <Treasure objective={objective} />
+      <Key collected={objective !== 'find-key'} />
+      <Cannon position={[1.6, 0, -6.25]} />
+      <Cannon position={[4.15, 0, -6.25]} />
+      {stage.id === 'singapore' ? null : <MovingHazards />}
+    </group>
+  )
+}
+
+export function XrNativeControllerDemoEnvironment({
+  objective,
+  stage,
+}: {
+  objective: XrNativeControllerDemoObjective
+  stage: XrMotionReferenceStagePreset
+}) {
+  const islandShape = useIrregularIslandShape()
+  if (stage.id !== 'tropical-playground') {
+    return <XrNativeControllerTerrainEnvironment objective={objective} stage={stage} />
+  }
+  return (
+    <group name="kg_xr_native_tropical_playground" userData={{ objective, environmentId: stage.id }}>
       <mesh position={[0, -1.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[180, 180]} />
         <meshStandardMaterial color="#4fc3e8" roughness={0.5} metalness={0.05} />

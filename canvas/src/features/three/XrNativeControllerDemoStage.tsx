@@ -1,6 +1,7 @@
 import React from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { Group, Object3D } from 'three'
+import type { XrMotionReferenceStagePreset } from './xrSceneLibrary'
 import {
   XR_NATIVE_DYNAMIC_BODY_Y_OFFSETS,
   XrNativeControllerDemoEnvironment,
@@ -10,6 +11,7 @@ import {
   XrNativeControllerBallVisual,
   XrNativeControllerRocketVisual,
 } from './XrNativeControllerDemoVehicles'
+import { XrNativeControllerAuthoredSubjects } from './XrNativeControllerAuthoredSubjects'
 import {
   createXrNativeControllerInput,
   mergeXrNativeControllerInputs,
@@ -38,10 +40,12 @@ export function XrNativeControllerDemoStage({
   stageScale,
   groundY,
   retainStage = false,
+  stage,
 }: {
   stageScale: number
   groundY: number
   retainStage?: boolean
+  stage: XrMotionReferenceStagePreset
 }) {
   const runtime = React.useSyncExternalStore(
     subscribeXrNativeControllerDemo,
@@ -168,9 +172,11 @@ export function XrNativeControllerDemoStage({
           objective: runtime.objective,
           input: 'keyboard-gamepad',
           followCamera: runtime.followCamera,
+          terrainId: runtime.terrainId,
         }}
       >
-        <XrNativeControllerDemoEnvironment objective={runtime.objective} />
+        <XrNativeControllerDemoEnvironment objective={runtime.objective} stage={stage} />
+        <XrNativeControllerAuthoredSubjects />
         <group ref={playerRootRef} name="kg_xr_native_controller_player">
           <XrNativeControllerBallVisual rootRef={ballRootRef} />
           <XrNativeControllerRocketVisual rootRef={rocketRootRef} flameRef={flameRef} />

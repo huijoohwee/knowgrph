@@ -3,18 +3,18 @@ import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { resetCameraFramingRuntimeForDocument } from '@/features/strybldr/cameraFramingRuntime'
 import {
-  XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
   resolveXrMotionReferenceStage,
   xrMotionReferenceSceneKey,
 } from './xrMotionReferenceModel'
 import { hydrateXrMotionReferenceRuntime, readXrMotionReferenceRuntime } from './xrMotionReferenceRuntime'
-import { resolveXrSceneLibraryAsset } from './xrSceneLibrary'
+import { resolveXrMotionReferenceColliderStructures, resolveXrSceneLibraryAsset } from './xrSceneLibrary'
 import {
   XR_PHYSICS_GRAPH_METADATA_KEY,
   buildXrPhysicsStructureColliders,
 } from './xrPhysicsModel'
 import { hydrateXrPhysicsRuntime } from './xrPhysicsRuntime'
 import { synchronizeBoundXrActorFromGraphSelection } from './xrSelectedActorBinding'
+import { resolveXrMotionReferencePersistedValue } from './xrMotionReferencePersistedValue'
 
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
 
@@ -33,7 +33,7 @@ export function hydrateCanonicalXrMotionReferenceRuntime(): boolean {
   hydrateXrMotionReferenceRuntime({
     sceneKey,
     nodes: graphData?.nodes || [],
-    persistedValue: graphData?.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY],
+    persistedValue: resolveXrMotionReferencePersistedValue(graphData?.metadata),
   })
   return documentReady
 }
@@ -60,7 +60,7 @@ export function hydrateCanonicalXrPhysicsRuntime(): boolean {
     sceneKey: motion.sceneKey,
     persistedValue: documentReady ? state.graphData?.metadata?.[XR_PHYSICS_GRAPH_METADATA_KEY] : null,
     subjects,
-    staticColliders: buildXrPhysicsStructureColliders(resolveXrMotionReferenceStage(motion.plan.stageId).structures),
+    staticColliders: buildXrPhysicsStructureColliders(resolveXrMotionReferenceColliderStructures(resolveXrMotionReferenceStage(motion.plan.stageId))),
   })
   return documentReady
 }
@@ -72,7 +72,7 @@ export function XrMotionReferenceRuntimeBridge() {
     markdownDocumentText: state.markdownDocumentText,
     selectedNodeId: state.selectedNodeId,
   })))
-  const persistedValue = graphData?.metadata?.[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]
+  const persistedValue = resolveXrMotionReferencePersistedValue(graphData?.metadata)
   const persistedPhysicsValue = graphData?.metadata?.[XR_PHYSICS_GRAPH_METADATA_KEY]
 
   useIsomorphicLayoutEffect(() => {

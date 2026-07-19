@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { Vector3, type PerspectiveCamera } from 'three'
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { resolveXrMotionReferenceStage } from './xrSceneLibrary'
 import { XR_MOTION_STAGE_SPAN } from './xrMotionReferenceCoordinates'
 import { readXrMotionReferenceRuntime } from './xrMotionReferenceRuntime'
@@ -11,14 +12,11 @@ import {
   readSharedXrNativeControllerDemoFrame,
   readXrNativeControllerDemo,
 } from './xrNativeControllerDemoRuntime'
+import { resolveXrNativeControllerFollowFraming } from './xrNativeControllerCameraFraming'
+import { readXrNativeControllerCamera } from './xrNativeControllerCameraRuntime'
 
-const DEFAULT_FOLLOW_OFFSET_METERS = Object.freeze([0, 6.6, 9.5] as const)
-const PLAYGROUND_FOV_DEGREES = 54
-const AERIAL_FOV_DEGREES = 60
 const AERIAL_ALTITUDE_START_METERS = 3
 const AERIAL_ALTITUDE_RANGE_METERS = 17
-const AERIAL_FOLLOW_RISE_METERS = 18
-const AERIAL_FOLLOW_RETREAT_METERS = 11
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value))
@@ -33,6 +31,8 @@ export function useXrNativeControllerDemoCamera({
   controls: OrbitControls
   suspended: boolean
 }) {
+  const markdownDocumentName = useGraphStore(state => state.markdownDocumentName)
+  const runReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName)
   const activeRef = React.useRef(false)
   const controlsCapabilitiesRef = React.useRef<null | {
     enablePan: boolean
@@ -59,7 +59,8 @@ export function useXrNativeControllerDemoCamera({
 
   useFrame((_state, deltaSecondsValue) => {
     const runtime = readXrNativeControllerDemo()
-    const active = runtime.followCamera && !suspended
+    const motionRuntime = readXrMotionReferenceRuntime()
+    const active = readXrNativeControllerCamera().mode === 'fixed-follow' && runtime.followCamera && !suspended
     if (!active) {
       if (activeRef.current && previousFovRef.current !== null) {
         camera.fov = previousFovRef.current
@@ -75,8 +76,8 @@ export function useXrNativeControllerDemoCamera({
       return
     }
     const frame = readSharedXrNativeControllerDemoFrame()
-    const stage = resolveXrMotionReferenceStage(readXrMotionReferenceRuntime().plan.stageId)
-    const stageScale = isXrPhysicsRunReadyDemoActive()
+    const stage = resolveXrMotionReferenceStage(motionRuntime.plan.stageId)
+    const stageScale = runReadyDemo
       ? XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE
       : XR_MOTION_STAGE_SPAN / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
     const deltaSeconds = Number.isFinite(deltaSecondsValue) ? Math.max(0, Math.min(0.1, deltaSecondsValue)) : 0
@@ -84,15 +85,20 @@ export function useXrNativeControllerDemoCamera({
     const aerialFactor = frame.mode === 'rocket'
       ? clamp01((altitude - AERIAL_ALTITUDE_START_METERS) / AERIAL_ALTITUDE_RANGE_METERS)
       : 0
+    const framing = resolveXrNativeControllerFollowFraming({
+      stageId: stage.id,
+      aspect: camera.aspect,
+      aerialFactor,
+    })
     const target = desiredTargetRef.current.set(
       frame.cameraTarget[0] * (1 - aerialFactor * 0.22) * stageScale,
       frame.cameraTarget[1] * (1 - aerialFactor * 0.58) * stageScale,
-      frame.cameraTarget[2] * (1 - aerialFactor * 0.18) * stageScale,
+      (frame.cameraTarget[2] - framing.lookAheadMeters) * (1 - aerialFactor * 0.18) * stageScale,
     )
     desiredOffsetRef.current.set(
-      DEFAULT_FOLLOW_OFFSET_METERS[0] * stageScale,
-      (DEFAULT_FOLLOW_OFFSET_METERS[1] + aerialFactor * AERIAL_FOLLOW_RISE_METERS) * stageScale,
-      (DEFAULT_FOLLOW_OFFSET_METERS[2] + aerialFactor * AERIAL_FOLLOW_RETREAT_METERS) * stageScale,
+      framing.offsetMeters[0] * stageScale,
+      framing.offsetMeters[1] * stageScale,
+      framing.offsetMeters[2] * stageScale,
     )
     if (!activeRef.current) {
       previousFovRef.current = camera.fov
@@ -115,7 +121,7 @@ export function useXrNativeControllerDemoCamera({
     controls.enablePan = false
     controls.enableRotate = false
     controls.enableZoom = false
-    const desiredFov = PLAYGROUND_FOV_DEGREES + (AERIAL_FOV_DEGREES - PLAYGROUND_FOV_DEGREES) * aerialFactor
+    const desiredFov = framing.fovDegrees
     if (Math.abs(camera.fov - desiredFov) > 0.01) {
       camera.fov += (desiredFov - camera.fov) * (1 - Math.exp(-4 * deltaSeconds))
       camera.updateProjectionMatrix()

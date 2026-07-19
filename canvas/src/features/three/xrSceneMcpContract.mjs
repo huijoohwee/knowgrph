@@ -8,6 +8,7 @@ export const XR_SCENE_WEB_MCP_TOOL_IDS = Object.freeze({
 export const XR_SCENE_INVOCATION_COMMANDS = Object.freeze({
   stage: '/xr.stage',
   place: '/xr.place',
+  transform: '/xr.transform',
   label: '/xr.label',
   remove: '/xr.remove',
   physics: '/xr.physics',
@@ -20,6 +21,7 @@ export const XR_SCENE_INVOCATION_BINDINGS = Object.freeze({
 })
 
 export const XR_SCENE_INVOCATION_SEMANTICS = Object.freeze({
+  transform: '#transform',
   world: '#world',
   body: '#body',
   impulse: '#impulse',
@@ -37,6 +39,22 @@ export const buildXrStageInvocation = stageId => (
 export const buildXrPlaceInvocation = (assetId, transition = 'linear') => {
   const target = `@${cleanTarget(assetId)}`
   return `${XR_SCENE_INVOCATION_COMMANDS.place} ${target} transition=${cleanTransition(transition)}`
+}
+
+export const buildXrTransformInvocation = (subjectId, transform = {}) => {
+  const pairs = [
+    String(transform.assetId || '').trim() ? `asset=${cleanTarget(transform.assetId)}` : '',
+    Array.isArray(transform.position) ? `position=${transform.position.join(',')}` : '',
+    Number.isFinite(transform.rotationYDegrees) ? `rotation=${transform.rotationYDegrees}` : '',
+    Number.isFinite(transform.scale) ? `scale=${transform.scale}` : '',
+    /^#[0-9a-f]{6}$/i.test(String(transform.color || '')) ? `color=${String(transform.color).toLowerCase()}` : '',
+  ].filter(Boolean)
+  return [
+    XR_SCENE_INVOCATION_COMMANDS.transform,
+    `@${encodeURIComponent(cleanTarget(subjectId))}`,
+    XR_SCENE_INVOCATION_SEMANTICS.transform,
+    ...pairs,
+  ].join(' ')
 }
 
 export const buildXrPhysicsInvocation = (semantic, operation, pairs = {}) => {

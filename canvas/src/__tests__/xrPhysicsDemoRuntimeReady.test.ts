@@ -17,6 +17,11 @@ import {
   resolveWorkspaceValidationSeedRelPath,
 } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { ensureXrPhysicsRunReadyDemoRunning } from '@/features/canvas/xrPhysicsRunReadyLifecycle'
+import {
+  XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
+  readXrMotionReferencePlan,
+} from '@/features/three/xrMotionReferenceModel'
+import { resolveXrMotionReferencePersistedValue } from '@/features/three/xrMotionReferencePersistedValue'
 
 type PlainRecord = Record<string, unknown>
 
@@ -39,7 +44,7 @@ const extractFrontmatterYaml = (text: string): string => {
 }
 
 export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
-  const lifecycle = { phase: 'off' as 'off' | 'running', revision: 0 }
+  const lifecycle = { phase: 'off' as 'off' | 'ready' | 'paused' | 'running', revision: 0 }
   let selectedMode = ''
   let launchCount = 0
   const actions = {
@@ -60,6 +65,20 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
   }
   if (ensureXrPhysicsRunReadyDemoRunning(lifecycle, actions) || Number(launchCount) !== 2) {
     throw new Error('expected a running standalone lifecycle to avoid duplicate launch')
+  }
+  lifecycle.phase = 'ready'
+  lifecycle.revision += 1
+  if (!ensureXrPhysicsRunReadyDemoRunning(lifecycle, actions) || selectedMode !== 'ball' || Number(launchCount) !== 3) {
+    throw new Error('expected a ready auto-start lifecycle to develop and run the Ball controller')
+  }
+  lifecycle.phase = 'paused'
+  lifecycle.revision += 1
+  if (ensureXrPhysicsRunReadyDemoRunning(lifecycle, actions) || Number(launchCount) !== 3) {
+    throw new Error('expected a paused pre-existing runtime not to be relaunched or claimed')
+  }
+  lifecycle.phase = 'running'
+  if (ensureXrPhysicsRunReadyDemoRunning(lifecycle, actions) || Number(launchCount) !== 3) {
+    throw new Error('expected a running pre-existing runtime not to be relaunched or claimed')
   }
 
   const markdownText = fs.readFileSync(SEED_PATH, 'utf8')
@@ -143,6 +162,38 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
   for (const id of ['xr_demo_entry', 'xr_ball_controller', 'xr_rocket_controller', 'xr_runtime_gate']) {
     if (!graphNodeIds.has(id)) throw new Error(`expected XR physics demo graph to include ${id}`)
   }
+  const frontmatterMeta = asRecord(parsed.graphData.metadata?.frontmatterMeta, 'parsed frontmatter metadata')
+  const sourceSeedValue = asRecord(
+    frontmatterMeta[XR_MOTION_REFERENCE_GRAPH_METADATA_KEY],
+    'source-authored XR motion plan',
+  )
+  if (resolveXrMotionReferencePersistedValue(parsed.graphData.metadata) !== sourceSeedValue) {
+    throw new Error('expected XR motion hydration to fall back to the source-authored frontmatter plan')
+  }
+  const sourcePlan = readXrMotionReferencePlan(sourceSeedValue, parsed.graphData.nodes)
+  const selectableVehicleIds = [
+    'xr-subject:vehicle-helicopter:1',
+    'xr-subject:vehicle-airplane:1',
+    'xr-subject:vehicle-sedan:1',
+  ]
+  if (sourcePlan.stageId !== 'singapore'
+    || sourcePlan.subjects.length !== selectableVehicleIds.length
+    || selectableVehicleIds.some(id => !sourcePlan.subjects.some(subject => subject.id === id))
+    || selectableVehicleIds.some(id => !sourcePlan.cast.some(track => track.actorId === id))) {
+    throw new Error(`expected the source document to seed three selectable Singapore vehicle subjects, got ${JSON.stringify(sourcePlan)}`)
+  }
+  const persistedEmptyPlan = { ...sourceSeedValue, subjects: [], cast: [] }
+  const topLevelMetadata = {
+    frontmatterMeta,
+    [XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]: persistedEmptyPlan,
+  }
+  if (resolveXrMotionReferencePersistedValue(topLevelMetadata) !== persistedEmptyPlan
+    || resolveXrMotionReferencePersistedValue({
+      frontmatterMeta,
+      [XR_MOTION_REFERENCE_GRAPH_METADATA_KEY]: null,
+    }) !== null) {
+    throw new Error('expected an explicit persisted XR plan, including empty or null values, to override the frontmatter seed')
+  }
 
   for (const required of [
     'rolling movement',
@@ -150,10 +201,20 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
     'directional thrust',
     'modifier stabilization',
     'standard left stick',
-    'smooth follow',
+    'fixed-follow',
+    'free-orbit',
+    '/camera.select @camera #camera',
+    'knowgrph.control_local_camera',
     'bounded aerial composition',
-    'procedural horizon volcano',
-    'procedural tropical island',
+    'procedural Singapore waterfront terrain',
+    'catalog-driven stable terrain IDs',
+    'vehicle-helicopter',
+    'vehicle-airplane',
+    'vehicle-sedan',
+    'prop-ball',
+    'Marina Bay towers',
+    'source-authored selectable',
+    'Placed subjects remain visible',
     'collect key then unlock treasure',
     'full-frame-playground',
     '/xr.physics @canvas #controller operation=develop-run mode=ball',
@@ -195,14 +256,24 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
     || !canvasPageSource.includes("canvas3dMode={xrPhysicsRunReadyDemo ? 'xr'")) {
     throw new Error('expected late document UI restores to remain unable to replace the dedicated XR surface')
   }
+  if (
+    !canvasPageSource.includes('workspaceVisibleCanvasLeft={workspaceCanvasPaneVisible ? workspacePaneBoundaryCss : undefined}')
+    || !viewportSource.includes('workspaceXrViewportInset')
+    || !viewportSource.includes('width: `calc(100% - ${workspaceXrViewportInset})`')
+  ) {
+    throw new Error('expected the document-driven playground to center its camera and controls inside the visible workspace canvas pane')
+  }
   if (!viewportSource.includes('<XrNativeControllerDemoHud') || !viewportSource.includes('isXrPhysicsRunReadyDemoActive')) {
     throw new Error('expected the shared viewport to own the standalone controller HUD')
   }
   if (!graphStageSource.includes('nativeControllerOwnsStage') || !graphStageSource.includes('retainStage={runReadyDemo}')) {
     throw new Error('expected the standalone playground to retain exclusive stage ownership across lifecycle transitions')
   }
-  if (!aspectMaskSource.includes('isXrPhysicsRunReadyDemoActive()') || !sessionPanelSource.includes('isXrPhysicsRunReadyDemoActive()')) {
-    throw new Error('expected standalone launch to suppress editor optics and session chrome')
+  if (
+    !aspectMaskSource.includes('isXrPhysicsRunReadyDemoActive(markdownDocumentName)')
+    || !sessionPanelSource.includes('isXrPhysicsRunReadyDemoActive(markdownDocumentName)')
+  ) {
+    throw new Error('expected standalone and canonical-document launches to suppress editor optics and session chrome')
   }
   if (!threeGraphSource.includes('XR_PHYSICS_RUN_READY_GRAPH') || !threeGraphSource.includes('!xrDocumentLoaded && !xrPhysicsRunReadyDemo')) {
     throw new Error('expected standalone launch to bypass the authored XR empty-world loading surface')

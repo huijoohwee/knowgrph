@@ -3,6 +3,7 @@ import {
   XR_SCENE_INVOCATION_COMMANDS,
   XR_SCENE_INVOCATION_SEMANTICS,
 } from './xrSceneMcpContract.mjs'
+import { XR_PHYSICS_COLLISION_BITFIELD_MAX } from './xrPhysicsModel'
 
 export type XrPhysicsScope = 'world' | 'body' | 'impulse' | 'controller'
 export type XrPhysicsOperation = 'play' | 'pause' | 'stop' | 'reset' | 'step' | 'configure' | 'attach' | 'detach' | 'impulse' | 'develop-run' | 'resume' | 'exit' | 'select'
@@ -161,13 +162,12 @@ function normalizePhysics(value: unknown, coerceInvocationValues = false): XrPhy
     : undefined
   if (controllerMode !== undefined && controllerMode !== 'ball' && controllerMode !== 'rocket') return null
   if (scope === 'controller' && operation === 'select' && !controllerMode) return null
-
   const massKg = finite(source.massKg, 0.001, 10_000, false, coerceInvocationValues)
   const friction = finite(source.friction, 0, 1, false, coerceInvocationValues)
   const restitution = finite(source.restitution, 0, 1, false, coerceInvocationValues)
   const linearDamping = finite(source.linearDamping, 0, 20, false, coerceInvocationValues)
-  const collisionGroup = finite(source.collisionGroup, 1, 65_535, true, coerceInvocationValues)
-  const collisionMask = finite(source.collisionMask, 0, 65_535, true, coerceInvocationValues)
+  const collisionGroup = finite(source.collisionGroup, 1, XR_PHYSICS_COLLISION_BITFIELD_MAX, true, coerceInvocationValues)
+  const collisionMask = finite(source.collisionMask, 0, XR_PHYSICS_COLLISION_BITFIELD_MAX, true, coerceInvocationValues)
   const fixedStepSeconds = finite(source.fixedStepSeconds, 1 / 240, 1 / 30, false, coerceInvocationValues)
   const maxSubsteps = finite(source.maxSubsteps, 1, 8, true, coerceInvocationValues)
   const ticks = finite(source.ticks, 1, 240, true, coerceInvocationValues)

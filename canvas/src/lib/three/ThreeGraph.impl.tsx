@@ -94,7 +94,6 @@ function XrWorldPlacement({
 }
 
 export default function ThreeGraph({ active = true, mode = '3d' }: { active?: boolean; mode?: Canvas3dModeId }) {
-  const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive()
   const {
     schema,
     selectNode,
@@ -102,6 +101,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     setSelectionSource,
   } = useGraphStore()
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
+  const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName)
   const markdownDocumentSourceUrl = useGraphStore(s => s.markdownDocumentSourceUrl)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
   const markdownDocumentApplyViewPreset = useGraphStore(s => s.markdownDocumentApplyViewPreset)

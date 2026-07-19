@@ -1,5 +1,6 @@
 import React from 'react'
 import { Camera, Footprints, type LucideIcon } from 'lucide-react'
+import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
 import {
   FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT,
   floatingPanelCatalogThreeRowClassName,
@@ -63,7 +64,9 @@ function ChoreographyCard({
           data-kg-xr-mark-parameter-chips={target}
           data-kg-xr-mark-parameter-chip-renderer="shared-markdown-sigil"
         >
-          {renderMarkdownSigilInlineText(invocation)}
+          {renderMarkdownSigilInlineText(invocation, {
+            renderKeywordChip: ({ value, className }) => renderAgenticOsInvocationKeywordChip({ value, className, sourceLink: false }),
+          })}
         </output>
       </section>
     </article>

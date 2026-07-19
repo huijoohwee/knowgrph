@@ -1,4 +1,5 @@
 import { Camera } from 'lucide-react'
+import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { FloatingPanelCatalogHeader } from '@/lib/ui/floatingPanelCatalogLayout'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
@@ -58,7 +59,9 @@ export function StrybldrCameraFloatingPanelView() {
                 data-kg-camera-runtime-invocation-chip-renderer="shared-markdown-sigil"
               >
                 <span>WebMCP · inspect + control</span>
-                {renderMarkdownSigilInlineText('/camera.frame #camera-shot @camera')}
+                {renderMarkdownSigilInlineText('/camera.frame #camera-shot @camera', {
+                  renderKeywordChip: ({ value, className }) => renderAgenticOsInvocationKeywordChip({ value, className, sourceLink: false }),
+                })}
               </section>
             </section>
             <section className="flex shrink-0 items-center gap-1">

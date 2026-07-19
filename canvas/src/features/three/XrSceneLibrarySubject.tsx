@@ -3,6 +3,8 @@ import * as THREE from 'three'
 import { getVoxelLabelTexture } from '@/features/three/voxelLabelTexture'
 import { THREE_RENDER_ORDER } from '@/features/three/renderOrder'
 import { resolveXrSceneLibraryAsset } from '@/features/three/xrSceneLibrary'
+import { XrProceduralBallGeometry } from '@/features/three/XrProceduralBallGeometry'
+import { XrProceduralVehicleGeometry } from '@/features/three/XrProceduralVehicleGeometry'
 import {
   XR_MOTION_REFERENCE_SELECTION_COLOR,
   type XrMotionReferenceSubject,
@@ -60,22 +62,6 @@ function Quadruped({ color, size }: { color: string; size: readonly [number, num
   )
 }
 
-function Car({ color, size }: { color: string; size: readonly [number, number, number] }) {
-  const [width, height, depth] = size
-  return (
-    <group>
-      <mesh position={[0, 0, height * 0.34]}><boxGeometry args={[width, depth, height * 0.48]} /><Material color={color} /></mesh>
-      <mesh position={[0, depth * 0.05, height * 0.72]}><boxGeometry args={[width * 0.76, depth * 0.5, height * 0.38]} /><Material color={color} /></mesh>
-      {[-1, 1].flatMap(x => [-1, 1].map(y => (
-        <mesh key={`${x}:${y}`} position={[x * width * 0.46, y * depth * 0.32, height * 0.2]} rotation={[0, Math.PI / 2, 0]}>
-          <cylinderGeometry args={[height * 0.2, height * 0.2, width * 0.08, 16]} />
-          <meshStandardMaterial color="#0f172a" roughness={1} />
-        </mesh>
-      )))}
-    </group>
-  )
-}
-
 function Bicycle({ color, size }: { color: string; size: readonly [number, number, number] }) {
   const [width, height, depth] = size
   const radius = Math.min(height, depth * 0.32) * 0.42
@@ -89,31 +75,6 @@ function Bicycle({ color, size }: { color: string; size: readonly [number, numbe
       ))}
       <mesh position={[0, 0, radius * 1.2]} rotation={[Math.PI / 4, 0, 0]}><boxGeometry args={[width * 0.12, depth * 0.7, width * 0.12]} /><Material color={color} /></mesh>
       <mesh position={[0, -depth * 0.08, height * 0.78]}><boxGeometry args={[width * 0.7, width * 0.1, width * 0.1]} /><Material color={color} /></mesh>
-    </group>
-  )
-}
-
-function Airplane({ color, size }: { color: string; size: readonly [number, number, number] }) {
-  const [width, height, depth] = size
-  return (
-    <group>
-      <mesh position={[0, 0, height * 0.48]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[height * 0.18, height * 0.34, depth, 14]} /><Material color={color} /></mesh>
-      <mesh position={[0, 0, height * 0.42]}><boxGeometry args={[width, depth * 0.16, height * 0.12]} /><Material color={color} /></mesh>
-      <mesh position={[0, depth * 0.36, height * 0.68]}><boxGeometry args={[width * 0.32, depth * 0.18, height * 0.1]} /><Material color={color} /></mesh>
-      <mesh position={[0, depth * 0.43, height * 0.88]}><boxGeometry args={[width * 0.08, depth * 0.12, height * 0.7]} /><Material color={color} /></mesh>
-    </group>
-  )
-}
-
-function Helicopter({ color, size }: { color: string; size: readonly [number, number, number] }) {
-  const [width, height, depth] = size
-  return (
-    <group>
-      <mesh position={[0, -depth * 0.12, height * 0.52]}><sphereGeometry args={[width * 0.38, 18, 12]} /><Material color={color} /></mesh>
-      <mesh position={[0, depth * 0.26, height * 0.52]}><boxGeometry args={[width * 0.18, depth * 0.7, height * 0.18]} /><Material color={color} /></mesh>
-      <mesh position={[0, 0, height * 0.92]}><cylinderGeometry args={[width * 0.03, width * 0.03, height * 0.35, 8]} /><meshStandardMaterial color="#475569" /></mesh>
-      <mesh position={[0, 0, height * 1.08]}><boxGeometry args={[width * 1.45, depth * 0.045, height * 0.035]} /><meshStandardMaterial color="#0f172a" /></mesh>
-      <mesh position={[0, depth * 0.48, height * 0.55]}><boxGeometry args={[width * 0.7, depth * 0.04, height * 0.04]} /><meshStandardMaterial color="#0f172a" /></mesh>
     </group>
   )
 }
@@ -220,10 +181,11 @@ export function XrSceneLibraryAssetGeometry({
   const effectiveColor = color || asset.defaultColor
   if (asset.shape === 'humanoid') return <Humanoid color={effectiveColor} pose={animationPose} size={size} />
   if (asset.shape === 'quadruped') return <Quadruped color={effectiveColor} size={size} />
-  if (asset.shape === 'car') return <Car color={effectiveColor} size={size} />
+  if (asset.shape === 'car') return <XrProceduralVehicleGeometry kind="car" color={effectiveColor} size={size} />
   if (asset.shape === 'bicycle') return <Bicycle color={effectiveColor} size={size} />
-  if (asset.shape === 'airplane') return <Airplane color={effectiveColor} size={size} />
-  if (asset.shape === 'helicopter') return <Helicopter color={effectiveColor} size={size} />
+  if (asset.shape === 'airplane') return <XrProceduralVehicleGeometry kind="airplane" color={effectiveColor} size={size} />
+  if (asset.shape === 'helicopter') return <XrProceduralVehicleGeometry kind="helicopter" color={effectiveColor} size={size} />
+  if (asset.shape === 'ball') return <XrProceduralBallGeometry diameterMeters={Math.max(...size)} accentColor={effectiveColor} />
   if (asset.shape === 'debris') return <Debris color={effectiveColor} size={size} />
   if (asset.shape === 'chair') return <Chair color={effectiveColor} size={size} />
   if (asset.shape === 'table') return <Table color={effectiveColor} size={size} />

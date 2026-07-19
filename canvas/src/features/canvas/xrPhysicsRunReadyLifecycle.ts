@@ -14,7 +14,7 @@ export function ensureXrPhysicsRunReadyDemoRunning(
   runtime: RunReadyLifecycleSnapshot,
   actions: XrPhysicsRunReadyLifecycleActions,
 ): boolean {
-  if (runtime.phase !== 'off') return false
+  if (runtime.phase !== 'off' && runtime.phase !== 'ready') return false
   actions.selectMode('ball')
   actions.developAndRun()
   return true

@@ -38,6 +38,7 @@ import {
   normalizeXrPhysicsControl,
   parseXrInteractiveInvocation,
 } from '@/features/three/xrSceneInteractiveInvocation'
+import { assertCollisionBitfieldDomainMatchesUiAndMcp } from '@/__tests__/helpers/xrPhysicsRuntimeAssertions'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
@@ -49,9 +50,7 @@ function near(actual: number, expected: number, tolerance: number, message: stri
   }
 }
 
-function source(...parts: string[]): string {
-  return readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
-}
+function source(...parts: string[]): string { return readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8') }
 
 function arbitrarySubjects(): readonly XrPhysicsSubjectSeed[] {
   return [
@@ -619,6 +618,7 @@ function testStrictSceneInvocationGrammar(): void {
 
 export function testXrPhysicsRuntimeIsNativeDeterministicAndDataDriven(): void {
   testStableArbitraryIdSerialization()
+  assertCollisionBitfieldDomainMatchesUiAndMcp()
   testDeterministicFixedStepAndCollisions()
   testSweptHighSpeedCollisions()
   testEarliestTimeOfImpactWins()

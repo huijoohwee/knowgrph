@@ -4,6 +4,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import {
   XR_PHYSICS_BODY_MODES,
+  XR_PHYSICS_COLLISION_BITFIELD_MAX,
   type XrPhysicsBodyMode,
 } from '@/features/three/xrPhysicsModel'
 import {
@@ -30,6 +31,8 @@ type BodyDraft = Readonly<{
   friction: string
   restitution: string
   damping: string
+  collisionGroup: string
+  collisionMask: string
 }>
 
 type WorldDraft = Readonly<{
@@ -46,6 +49,8 @@ const DEFAULT_BODY_DRAFT: BodyDraft = Object.freeze({
   friction: '0.55',
   restitution: '0.1',
   damping: '0.08',
+  collisionGroup: '1',
+  collisionMask: String(XR_PHYSICS_COLLISION_BITFIELD_MAX),
 })
 
 const DEFAULT_IMPULSE: VectorDraft = Object.freeze(['0', '2', '0'])
@@ -80,6 +85,8 @@ function bodyDraftFromRuntime(body: ReturnType<typeof readXrPhysicsRuntime>['wor
     friction: compactNumber(body.friction),
     restitution: compactNumber(body.restitution),
     damping: compactNumber(body.linearDamping),
+    collisionGroup: String(body.collisionGroup),
+    collisionMask: String(body.collisionMask),
   })
 }
 
@@ -203,7 +210,9 @@ export function XrSimulationWorkbench({ sceneReady, runControl }: XrSimulationWo
     const friction = boundedNumber(bodyDraft.friction, 0, 1)
     const restitution = boundedNumber(bodyDraft.restitution, 0, 1)
     const linearDamping = boundedNumber(bodyDraft.damping, 0, 20)
-    if (!selectedSubject || massKg === null || friction === null || restitution === null || linearDamping === null) return null
+    const collisionGroup = integerInRange(bodyDraft.collisionGroup, 1, XR_PHYSICS_COLLISION_BITFIELD_MAX)
+    const collisionMask = integerInRange(bodyDraft.collisionMask, 0, XR_PHYSICS_COLLISION_BITFIELD_MAX)
+    if (!selectedSubject || massKg === null || friction === null || restitution === null || linearDamping === null || collisionGroup === null || collisionMask === null) return null
     return Object.freeze({
       subjectId: selectedSubject.id,
       bodyMode: bodyDraft.mode,
@@ -211,6 +220,8 @@ export function XrSimulationWorkbench({ sceneReady, runControl }: XrSimulationWo
       friction,
       restitution,
       linearDamping,
+      collisionGroup,
+      collisionMask,
     })
   }, [bodyDraft, selectedSubject])
 
@@ -299,6 +310,8 @@ export function XrSimulationWorkbench({ sceneReady, runControl }: XrSimulationWo
           <NumericField label="Friction" value={bodyDraft.friction} min={0} max={1} step={0.05} disabled={bodyEditingDisabled} marker="friction" onChange={value => setBodyDraft(current => ({ ...current, friction: value }))} />
           <NumericField label="Restitution" value={bodyDraft.restitution} min={0} max={1} step={0.05} disabled={bodyEditingDisabled} marker="restitution" onChange={value => setBodyDraft(current => ({ ...current, restitution: value }))} />
           <NumericField label="Damping" value={bodyDraft.damping} min={0} max={20} step={0.05} disabled={bodyEditingDisabled} marker="damping" onChange={value => setBodyDraft(current => ({ ...current, damping: value }))} />
+          <NumericField label="Collision group" value={bodyDraft.collisionGroup} min={1} max={XR_PHYSICS_COLLISION_BITFIELD_MAX} step={1} disabled={bodyEditingDisabled} marker="collision-group" onChange={value => setBodyDraft(current => ({ ...current, collisionGroup: value }))} />
+          <NumericField label="Collision mask" value={bodyDraft.collisionMask} min={0} max={XR_PHYSICS_COLLISION_BITFIELD_MAX} step={1} disabled={bodyEditingDisabled} marker="collision-mask" onChange={value => setBodyDraft(current => ({ ...current, collisionMask: value }))} />
         </section>
 
         <section className="grid grid-cols-3 gap-1">

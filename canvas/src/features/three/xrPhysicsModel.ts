@@ -58,8 +58,9 @@ export type XrPhysicsBodyPatch = Partial<Omit<XrPhysicsBodyConfig, 'subjectId'>>
 
 export const XR_PHYSICS_MAX_BODIES = 128
 export const XR_PHYSICS_MAX_STATIC_COLLIDERS = 192
+export const XR_PHYSICS_COLLISION_BITFIELD_MAX = 0xffff
 const DEFAULT_GROUP = 1
-const ALL_GROUPS = 0xffffffff
+const ALL_GROUPS = XR_PHYSICS_COLLISION_BITFIELD_MAX
 
 export function compareXrPhysicsIds(leftValue: string, rightValue: string): number {
   const left = String(leftValue || '')

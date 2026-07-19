@@ -29,7 +29,7 @@ import {
   setXrMotionReferenceStage,
   setXrMotionReferenceSubjectLabel,
 } from '@/features/three/xrMotionReferenceRuntime'
-import { XR_MOTION_REFERENCE_STAGE_PRESETS, XR_SCENE_LIBRARY_ASSETS } from '@/features/three/xrSceneLibrary'
+import { assertXrDefaultTerrain, assertXrSceneCatalogAndVehiclePlacements, assertXrSubjectAssetSwapCrud, assertXrTerrainAssetsAreCleanRoom } from '@/__tests__/helpers/xrSceneLibraryAssertions'
 import {
   XR_MOTION_STAGE_CAMERA_POSITION,
   XR_MOTION_STAGE_CAMERA_TARGET,
@@ -124,6 +124,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   if (runtime.plan.schema !== XR_MOTION_REFERENCE_SCHEMA || runtime.plan.cast.length !== 2) {
     throw new Error(`expected graph nodes to hydrate native cast tracks, got ${JSON.stringify(runtime.plan)}`)
   }
+  assertXrDefaultTerrain(runtime.plan.stageId)
   if (runtime.plan.cast.some(track => track.marks.length !== 1 || track.marks[0]?.timeSeconds !== 0)) {
     throw new Error('expected each graph-derived cast member to receive one bounded starting mark')
   }
@@ -322,14 +323,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     throw new Error('expected motion identity to change with choreography while graph identity remains stable')
   }
 
-  const requiredEnvironmentIds = ['downtown', 'residential-street', 'supermarket', 'movie-theater', 'train-car', 'backyard-pool', 'aerial-sky']
-  if (!requiredEnvironmentIds.every(id => XR_MOTION_REFERENCE_STAGE_PRESETS.some(stage => stage.id === id))) {
-    throw new Error('expected the native XR library to include every requested environment kit')
-  }
-  const categories = new Set(XR_SCENE_LIBRARY_ASSETS.map(asset => asset.category))
-  if (!['people', 'animals', 'vehicles', 'furniture', 'props'].every(category => categories.has(category as never))) {
-    throw new Error(`expected a complete native XR subject library, got ${[...categories].join(',')}`)
-  }
+  assertXrSceneCatalogAndVehiclePlacements()
   hydrateXrMotionReferenceRuntime({ sceneKey: 'library-scene', nodes: [], persistedValue: null })
   setXrMotionReferenceStage('downtown')
   addXrMotionReferenceSubject({ assetId: 'person-adult', label: 'THIEF' })
@@ -363,6 +357,8 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   }
   removeXrMotionReferenceSubject(staticSubject.id)
   if (readXrMotionReferenceRuntime().plan.subjects.length !== 1) throw new Error('expected placed static subjects to be removable')
+
+  assertXrSubjectAssetSwapCrud()
 
   const stageSource = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
   const runtimeBridgeSource = readSource('features', 'three', 'XrMotionReferenceRuntimeBridge.tsx')
@@ -606,12 +602,14 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     throw new Error('expected package export to retain the shared blob-download owner')
   }
 
-  const implementation = [xrCameraMotionSource, xrTimelineProjectionSource, stageSource, stagePresetGeometrySource, emptyWorldSource, emptyWorldHudSource, modelSource, packageSource, runtimeSource, runtimeBridgeSource, sceneLibrarySource, sceneSubjectSource, xrMediaLibrarySource, readSource('features', 'three', 'xrAnimationCatalog.ts'), readSource('features', 'three', 'xrAnimationMcpRuntime.ts'), readSource('features', 'three', 'XrAnimationFloatingPanelView.tsx')].join('\n').toLowerCase()
+  const proceduralBallSource = readSource('features', 'three', 'XrProceduralBallGeometry.tsx')
+  const implementation = [xrCameraMotionSource, xrTimelineProjectionSource, stageSource, stagePresetGeometrySource, emptyWorldSource, emptyWorldHudSource, modelSource, packageSource, runtimeSource, runtimeBridgeSource, sceneLibrarySource, sceneSubjectSource, proceduralBallSource, xrMediaLibrarySource, readSource('features', 'three', 'xrAnimationCatalog.ts'), readSource('features', 'three', 'xrAnimationMcpRuntime.ts'), readSource('features', 'three', 'XrAnimationFloatingPanelView.tsx')].join('\n').toLowerCase()
   for (const forbidden of ['wassermanproductions', 'blockout', 'ffmpeg', 'electron-vite']) {
     if (implementation.includes(forbidden)) {
       throw new Error(`expected clean-room XR implementation to avoid external runtime token ${forbidden}`)
     }
   }
+  assertXrTerrainAssetsAreCleanRoom([sceneLibrarySource, sceneSubjectSource, proceduralBallSource])
   const rootPackage = readFileSync(resolve(process.cwd(), '..', 'package.json'), 'utf8').toLowerCase()
   const canvasPackage = readFileSync(resolve(process.cwd(), 'package.json'), 'utf8').toLowerCase()
   if (`${rootPackage}\n${canvasPackage}`.includes('wassermanproductions/blockout')) {

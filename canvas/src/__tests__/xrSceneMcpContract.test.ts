@@ -26,6 +26,7 @@ import {
 import { parseChatInvocationDirectives } from '@/features/chat/chatInvocationRegistry'
 import { resolveChatRuntimeInvocationQuery } from '@/features/chat/chatRuntimeInvocationQuery'
 import { parseXrInteractiveInvocation } from '@/features/three/xrSceneInteractiveInvocation'
+import { normalizeXrSceneControl } from '@/features/three/xrSceneMcpRuntime'
 import {
   XR_SCENE_INVOCATION_BINDINGS,
   XR_SCENE_INVOCATION_COMMANDS,
@@ -34,6 +35,7 @@ import {
   buildXrPlaceInvocation,
   buildXrPresentInvocation,
   buildXrStageInvocation,
+  buildXrTransformInvocation,
 } from '@/features/three/xrSceneMcpContract.mjs'
 import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
 
@@ -133,6 +135,25 @@ function assertCanonicalCatalogAndRuntimeDedupe(): void {
 function assertInvocationBuildersRoundTrip(): void {
   assert(buildXrStageInvocation('neutral-volume') === '/xr.stage @neutral-volume', 'expected canonical stage builder')
   assert(buildXrPlaceInvocation('person-adult', 'hold') === '/xr.place @person-adult transition=hold', 'expected canonical place builder')
+  const transformInvocation = buildXrTransformInvocation('actor with spaces/β', {
+    position: [1, 0, -2],
+    rotationYDegrees: 45,
+    scale: 1.25,
+    color: '#38bdf8',
+  })
+  const transform = normalizeXrSceneControl({ invocation: transformInvocation })
+  assert(transformInvocation === '/xr.transform @actor%20with%20spaces%2F%CE%B2 #transform position=1,0,-2 rotation=45 scale=1.25 color=#38bdf8', 'expected canonical transform builder')
+  assert(transform?.action === 'transform'
+    && transform.subjectId === 'actor with spaces/β'
+    && transform.position?.join('|') === '1|0|-2'
+    && transform.rotationYDegrees === 45
+    && transform.scale === 1.25
+    && transform.color === '#38bdf8', 'expected transform invocation to round-trip native / @ # fields')
+  const assetSwapInvocation = buildXrTransformInvocation('actor-a', { assetId: 'prop-ball' })
+  const assetSwap = normalizeXrSceneControl({ invocation: assetSwapInvocation })
+  assert(assetSwapInvocation === '/xr.transform @actor-a #transform asset=prop-ball'
+    && assetSwap?.action === 'transform'
+    && assetSwap.assetId === 'prop-ball', 'expected native asset replacement to reuse the canonical transform invocation owner')
 
   const subjectId = 'actor with spaces/β'
   const physicsInvocation = buildXrPhysicsInvocation('body', 'attach', {
@@ -162,6 +183,10 @@ function assertWebMcpSchemasAndReadOnlyProjection(): void {
   const inspect = contracts.find(contract => contract.name === KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalXrSceneAssets)
   const control = contracts.find(contract => contract.name === KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalXrScene)
   assert(inspect?.outputSchema?.required?.includes('physics') && inspect.outputSchema.required.includes('immersivePlacement'), 'expected XR inspection schema to require physics and immersive placement')
+  const inspectSchema = JSON.stringify(inspect.outputSchema)
+  for (const field of ['catalogDefaults', 'terrainId', 'assetId', 'kind', 'default', 'featured']) {
+    assert(inspectSchema.includes(`"${field}"`), `expected XR inspection output schema to type ${field}`)
+  }
   assert(control, 'expected the browser-local XR scene control contract')
 
   const physicsSchema = control.inputSchema?.properties?.physics as JsonSchema | undefined
@@ -178,10 +203,15 @@ function assertWebMcpSchemasAndReadOnlyProjection(): void {
   assert(operationSchema('controller', 'select')?.required?.includes('controllerMode'), 'expected native controller selection to require a mode')
 
   const sceneControlSchema = control.inputSchema as JsonSchema | undefined
-  assert(sceneControlSchema?.oneOf?.length === 8, `expected invocation plus seven structured XR action schemas, got ${sceneControlSchema?.oneOf?.length || 0}`)
+  assert(sceneControlSchema?.oneOf?.length === 9, `expected invocation plus eight structured XR action schemas, got ${sceneControlSchema?.oneOf?.length || 0}`)
   const physicsActionSchema = sceneControlSchema.oneOf?.find(schema => schema.properties?.action?.const === 'physics')
+  const transformActionSchema = sceneControlSchema.oneOf?.find(schema => schema.properties?.action?.const === 'transform')
   const invocationSchema = sceneControlSchema.oneOf?.find(schema => schema.required?.includes('invocation'))
   assert(physicsActionSchema?.required?.includes('physics'), 'expected structured physics actions to require the operation-specific physics payload')
+  assert(transformActionSchema?.required?.includes('subjectId')
+    && transformActionSchema.properties?.assetId
+    && transformActionSchema.properties?.scale?.minimum === 0.25
+    && transformActionSchema.properties?.scale?.maximum === 4, 'expected subject transform schema to require identity and bounded scale')
   assert(invocationSchema?.additionalProperties === false
     && Object.keys(invocationSchema.properties || {}).join('|') === 'invocation', 'expected invocation calls to reject contradictory structured action fields')
 
@@ -190,6 +220,16 @@ function assertWebMcpSchemasAndReadOnlyProjection(): void {
     action: 'physics',
     physics: { scope: 'world', operation: 'configure', gravity: [0, -9.81, 0] },
   }), `expected strict Ajv clients to compile and validate XR world configuration: ${JSON.stringify(validateControl.errors)}`)
+  assert(validateControl({
+    action: 'transform',
+    subjectId: 'actor-a',
+    position: [1, 0, -2],
+    rotationYDegrees: 45,
+    scale: 1.25,
+    color: '#38bdf8',
+  }), `expected strict Ajv clients to validate native subject transforms: ${JSON.stringify(validateControl.errors)}`)
+  assert(validateControl({ action: 'transform', subjectId: 'actor-a', assetId: 'vehicle-helicopter' }), `expected strict Ajv clients to validate native asset replacement: ${JSON.stringify(validateControl.errors)}`)
+  assert(!validateControl({ action: 'transform', subjectId: 'actor-a' }), 'expected subject transform schema to require at least one edited field')
   assert(!validateControl({
     action: 'physics',
     physics: { scope: 'world', operation: 'play', gravity: [0, -9.81, 0] },
@@ -200,6 +240,22 @@ function assertWebMcpSchemasAndReadOnlyProjection(): void {
     action: 'physics',
     physics: { scope: 'body', operation: 'detach', subjectId: ` ${'x'.repeat(160)} ` },
   }), 'expected strict Ajv validation to apply subject limits before runtime trimming')
+
+  const animationControl = contracts.find(contract => contract.name === KNOWGRPH_AGENT_READY_TOOL_IDS.controlLocalAnimation)
+  assert(animationControl, 'expected the browser-local Animation control contract')
+  const animationSchema = animationControl.inputSchema as JsonSchema | undefined
+  assert(animationSchema?.oneOf?.length === 10, `expected invocation plus nine operation-specific Animation schemas, got ${animationSchema?.oneOf?.length || 0}`)
+  const validateAnimation = new Ajv2020({ allErrors: true, strict: true }).compile(animationControl.inputSchema)
+  assert(validateAnimation({ invocation: '/animation.control @canvas operation=play' }), `expected strict Ajv clients to accept invocation-only Animation control: ${JSON.stringify(validateAnimation.errors)}`)
+  assert(validateAnimation({ operation: 'apply', trackKind: 'character-motion', presetId: 'dance', targetId: 'actor-a' }), `expected structured Animation apply schema: ${JSON.stringify(validateAnimation.errors)}`)
+  assert(validateAnimation({ operation: 'configure-mark', markKind: 'cast', markId: 'cast:actor-a:0', targetId: 'actor-a', gait: 'run', position: [1, 0, -2] }), `expected structured cast choreography schema: ${JSON.stringify(validateAnimation.errors)}`)
+  assert(validateAnimation({ operation: 'configure-mark', markKind: 'camera', markId: 'camera:0', easing: 'ease-in-out' }), `expected structured Camera choreography schema: ${JSON.stringify(validateAnimation.errors)}`)
+  assert(!validateAnimation({ invocation: '/animation.control @canvas operation=play', operation: 'play' }), 'expected Animation schema to reject mixed invocation and structured operation shapes')
+  assert(!validateAnimation({ operation: 'apply', targetId: 'actor-a' }), 'expected Animation apply schema to require a preset')
+  assert(!validateAnimation({ operation: 'scrub' }), 'expected Animation scrub schema to require timeSeconds')
+  assert(!validateAnimation({ operation: 'play', targetId: 'actor-a' }), 'expected Animation play schema to reject ignored target fields')
+  assert(!validateAnimation({ operation: 'configure-mark', markKind: 'camera', markId: 'camera:0', targetId: 'actor-a', easing: 'linear' }), 'expected Camera mark schema to reject ignored cast targeting')
+  assert(!validateAnimation({ operation: 'move-object', trackKind: 'character-motion', keys: ['w'] }), 'expected object movement schema to require action-path semantics when trackKind is explicit')
 
   const agentReady = buildKnowgrphVdeoxplnRegistry().find(entry => entry.id === KNOWGRPH_VDEOXPLN_IDS.agentReady)
   const publishedToolNames = new Set(buildKnowgrphAgentReadyToolContracts({
@@ -281,6 +337,8 @@ export async function assertXrScenePhysicsWebMcpLifecycle(args: Readonly<{
   subjectId: string
 }>): Promise<void> {
   assert(args.subjectId, 'expected a placed XR subject before exercising physics WebMCP')
+  const transformed = await args.control({ invocation: `/xr.transform @${encodeURIComponent(args.subjectId)} #transform asset=prop-ball position=1,0,-2 rotation=30 scale=1.25 color=#38bdf8` })
+  const staged = await args.control({ action: 'stage', stageId: 'tropical-playground' })
   const invalidSemantics = await args.control({ invocation: '/xr.physics @canvas #world #body operation=play' })
   const attached = await args.control({ invocation: `/xr.physics @canvas #body operation=attach subject=${encodeURIComponent(args.subjectId)} mode=dynamic mass=2 friction=0.4 restitution=0.2 damping=0.1` })
   const played = await args.control({ invocation: '/xr.physics @canvas #world operation=play' })
@@ -292,6 +350,15 @@ export async function assertXrScenePhysicsWebMcpLifecycle(args: Readonly<{
   const controllerSelected = await args.control({ action: 'physics', physics: { scope: 'controller', operation: 'select', controllerMode: 'rocket' } })
   const controllerExited = await args.control({ invocation: '/xr.physics @canvas #controller operation=exit' })
   assert((invalidSemantics as { ok?: unknown }).ok === false, 'expected duplicate XR physics semantics to fail closed')
+  const transformedSubject = (transformed as { scene?: { runtime?: { subjects?: Array<Record<string, unknown>> } } }).scene?.runtime?.subjects?.find(subject => subject.id === args.subjectId)
+  assert((transformed as { ok?: unknown }).ok === true
+    && Array.isArray(transformedSubject?.position)
+    && transformedSubject?.rotationYDegrees === 30
+    && transformedSubject?.assetId === 'prop-ball'
+    && transformedSubject?.scale === 1.25
+    && transformedSubject?.color === '#38bdf8', 'expected / @ # subject transforms to persist through the canonical scene owner')
+  assert((staged as { scene?: { runtime?: { stageId?: unknown }; physics?: { controllerDemo?: { terrainId?: unknown } } } }).scene?.runtime?.stageId === 'tropical-playground'
+    && (staged as { scene?: { physics?: { controllerDemo?: { terrainId?: unknown } } } }).scene?.physics?.controllerDemo?.terrainId === 'tropical-playground', 'expected stage control to synchronize the canonical plan and native controller terrain atomically')
   assert((rejectedSceneEdit as { ok?: unknown }).ok === false
     && (afterRejectedEdit as { physics?: { phase?: unknown } }).physics?.phase === 'playing', 'expected rejected XR scene edits to preserve active dynamics')
   assert((attached as { ok?: unknown; scene?: { physics?: { world?: { bodies?: Record<string, unknown> } } } }).ok === true

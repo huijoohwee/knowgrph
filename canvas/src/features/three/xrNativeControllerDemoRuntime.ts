@@ -18,10 +18,15 @@ import {
   type XrPhysicsSimulation,
 } from './xrPhysicsStepper'
 import {
+  XR_MOTION_REFERENCE_DEFAULT_STAGE_ID,
+  resolveXrMotionReferenceStage,
+  type XrMotionReferenceStageId,
+} from './xrSceneLibrary'
+import { buildXrNativeControllerTerrainColliders } from './xrNativeControllerDemoTerrain'
+import {
   createXrNativeControllerInput,
   type XrNativeControllerInput,
 } from './xrNativeControllerInput'
-
 export const XR_NATIVE_CONTROLLER_DEMO_SCHEMA = 'knowgrph-xr-native-controller-demo/v1'
 export const XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID = 'native-controller'
 export const XR_NATIVE_CONTROLLER_DEMO_MODES = ['ball', 'rocket'] as const
@@ -46,6 +51,7 @@ export type XrNativeControllerDemoSnapshot = Readonly<{
   objective: XrNativeControllerDemoObjective
   keyCollected: boolean
   chestUnlocked: boolean
+  terrainId: XrMotionReferenceStageId
   revision: number
 }>
 
@@ -66,6 +72,7 @@ export type XrNativeControllerDemoFrame = Readonly<{
   objective: XrNativeControllerDemoObjective
   keyCollected: boolean
   chestUnlocked: boolean
+  terrainId: XrMotionReferenceStageId
 }>
 
 export type XrNativeControllerDemoRuntime = {
@@ -81,7 +88,8 @@ export type XrNativeControllerDemoRuntime = {
   rocketRotation: [number, number, number]
   simulation: XrPhysicsSimulation
   snapshotRevision: number
-  readonly colliders: readonly XrPhysicsStaticCollider[]
+  terrainId: XrMotionReferenceStageId
+  colliders: readonly XrPhysicsStaticCollider[]
   readonly playerConfig: XrPhysicsBodyConfig
   readonly world: XrPhysicsWorldConfig
 }
@@ -205,6 +213,14 @@ function demoColliders(): readonly XrPhysicsStaticCollider[] {
     { id: 'native-ramp-step-b', center: [-8.8, 0.32, -0.75], sizeMeters: [3.8, 0.64, 0.9] },
     { id: 'native-ramp-step-c', center: [-8.8, 0.55, -1.5], sizeMeters: [3.8, 1.1, 0.65] },
   ])
+}
+
+function terrainColliders(stageId: XrMotionReferenceStageId): readonly XrPhysicsStaticCollider[] {
+  return buildXrNativeControllerTerrainColliders({
+    stageId,
+    maxAltitudeMeters: XR_NATIVE_CONTROLLER_DEMO_MAX_ALTITUDE_METERS,
+    fallbackColliders: demoColliders(),
+  })
 }
 
 function mutablePosition(body: XrPhysicsBodyState): [number, number, number] {
@@ -387,7 +403,7 @@ export function createXrNativeControllerDemoRuntime(): XrNativeControllerDemoRun
     accumulatorSeconds: 0,
     ballRotation: [0, 0, 0],
     bodyRotations: createBodyRotations(),
-    colliders: demoColliders(),
+    colliders: terrainColliders(XR_MOTION_REFERENCE_DEFAULT_STAGE_ID),
     input: createXrNativeControllerInput(),
     mode: 'ball',
     objective: 'find-key',
@@ -398,6 +414,7 @@ export function createXrNativeControllerDemoRuntime(): XrNativeControllerDemoRun
     rocketRotation: [0, 0, 0],
     simulation,
     snapshotRevision: 0,
+    terrainId: XR_MOTION_REFERENCE_DEFAULT_STAGE_ID,
     world,
   }
 }
@@ -477,6 +494,7 @@ export function readXrNativeControllerDemoRuntimeFrame(
     objective: runtime.objective,
     keyCollected: runtime.objective !== 'find-key',
     chestUnlocked: runtime.objective === 'complete',
+    terrainId: runtime.terrainId,
   })
 }
 
@@ -492,6 +510,7 @@ function createSharedSnapshot(): XrNativeControllerDemoSnapshot {
     objective: sharedRuntime.objective,
     keyCollected: sharedRuntime.objective !== 'find-key',
     chestUnlocked: sharedRuntime.objective === 'complete',
+    terrainId: sharedRuntime.terrainId,
     revision: sharedRuntime.snapshotRevision,
   })
 }
@@ -512,6 +531,17 @@ export function readXrNativeControllerDemo(): XrNativeControllerDemoSnapshot {
 export function subscribeXrNativeControllerDemo(listener: Listener): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
+}
+
+export function setSharedXrNativeControllerDemoTerrain(
+  stageId: XrMotionReferenceStageId,
+): XrNativeControllerDemoSnapshot {
+  const stage = resolveXrMotionReferenceStage(stageId)
+  if (sharedRuntime.terrainId === stage.id) return sharedSnapshot
+  sharedRuntime.terrainId = stage.id
+  sharedRuntime.colliders = terrainColliders(stage.id)
+  resetXrNativeControllerDemoRuntime(sharedRuntime)
+  return publishShared()
 }
 
 export function developAndRunXrNativeControllerDemo(): XrNativeControllerDemoSnapshot {

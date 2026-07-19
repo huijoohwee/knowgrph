@@ -322,6 +322,7 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
                         layout="full"
                         geospatialModeEnabled={geospatialModeEnabled}
                         workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}
+                        workspaceVisibleCanvasLeft={workspaceCanvasPaneVisible ? workspacePaneBoundaryCss : undefined}
                         canvasRenderMode={canvasRenderMode}
                         canvas3dMode={canvas3dMode}
                         canvas2dRenderer={canvas2dRenderer}

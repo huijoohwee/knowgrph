@@ -66,12 +66,13 @@ import {
   type CameraAspectRatioId,
   type CameraSensorFormatId,
 } from './cameraOptics'
-
-export type CameraControlAction = 'frame' | 'animate' | 'playback' | 'scrub'
-
+import { controlLocalCameraSource, inspectLocalCameraSource, isCameraSourceInvocation, normalizeCameraSourceSelection } from './cameraSourceMcpRuntime'
+import type { XrNativeControllerCameraMode } from '@/features/three/xrNativeControllerCameraCatalog'
+export type CameraControlAction = 'select' | 'frame' | 'animate' | 'playback' | 'scrub'
 export type CameraControlInput = Readonly<{
   invocation?: string
   action?: CameraControlAction
+  cameraId?: XrNativeControllerCameraMode
   targetId?: string
   angle?: StrybldrCameraAngle
   level?: StrybldrCameraLevel
@@ -90,9 +91,9 @@ export type CameraControlInput = Readonly<{
   fine?: boolean
   markId?: string
 }>
-
 type NormalizedCameraControl = Readonly<{
   action: CameraControlAction
+  cameraId?: XrNativeControllerCameraMode
   targetId: string
   angle?: StrybldrCameraAngle
   level?: StrybldrCameraLevel
@@ -112,16 +113,13 @@ type NormalizedCameraControl = Readonly<{
   markId: string
   invocation: string
 }>
-
 export type CameraControlResult = Readonly<{
   ok: boolean
   message: string
   action?: CameraControlAction
   camera?: ReturnType<typeof inspectLocalCamera>
 }>
-
 const cleanTarget = (value: unknown): string => String(value || '').trim().replace(/^@+/, '')
-
 function parseInvocationPairs(tokens: readonly string[], allowedKeys: readonly string[]): Readonly<Record<string, string>> | null {
   const entries: Array<readonly [string, string]> = []
   const seen = new Set<string>()
@@ -136,7 +134,6 @@ function parseInvocationPairs(tokens: readonly string[], allowedKeys: readonly s
   }
   return Object.freeze(Object.fromEntries(entries))
 }
-
 export function buildCameraKeyboardInvocation(input: Readonly<{
   action: 'animate' | 'frame'
   keys: Iterable<string>
@@ -148,7 +145,6 @@ export function buildCameraKeyboardInvocation(input: Readonly<{
   const canonical = resolveCanonicalCameraInvocationTokens()
   return canonical ? buildCameraKeyboardInvocationFromTokens(canonical, input) : ''
 }
-
 function parseCameraInvocation(invocationValue: unknown): Partial<NormalizedCameraControl> | null {
   const invocation = String(invocationValue || '').trim()
   if (!invocation) return null
@@ -232,8 +228,13 @@ function parseCameraInvocation(invocationValue: unknown): Partial<NormalizedCame
   }
   return { ...base, action, ...(action === 'playback' ? { playing: String(pairs.state || 'play') !== 'pause' } : {}) }
 }
-
 function normalizeCameraControl(input: CameraControlInput): NormalizedCameraControl | null {
+  const invocation = String(input.invocation || '').trim()
+  const canonical = resolveCanonicalCameraInvocationTokens()
+  if (canonical && (input.action === 'select' || input.cameraId !== undefined || isCameraSourceInvocation(invocation, canonical))) {
+    const selection = normalizeCameraSourceSelection(input as Readonly<Record<string, unknown>>, canonical)
+    return selection ? { ...selection, keys: Object.freeze([]), fine: false, markId: '' } as NormalizedCameraControl : null
+  }
   if (input.angle !== undefined && !STRYBLDR_CAMERA_ANGLES.includes(input.angle as StrybldrCameraAngle)) return null
   if (input.level !== undefined && !STRYBLDR_CAMERA_LEVELS.includes(input.level as StrybldrCameraLevel)) return null
   if (input.shot !== undefined && !STRYBLDR_CAMERA_SHOTS.includes(input.shot as StrybldrCameraShot)) return null
@@ -255,7 +256,6 @@ function normalizeCameraControl(input: CameraControlInput): NormalizedCameraCont
   if (input.fine !== undefined && typeof input.fine !== 'boolean') return null
   if (input.keys !== undefined && (!Array.isArray(input.keys) || input.keys.some(key => typeof key !== 'string'))) return null
   if (input.markId !== undefined && !/^[a-zA-Z0-9:._-]+$/.test(input.markId)) return null
-  const invocation = String(input.invocation || '').trim()
   const parsed = parseCameraInvocation(invocation)
   if (invocation && !parsed) return null
   const action = parsed?.action || input.action
@@ -403,7 +403,8 @@ export function inspectLocalCamera() {
       control: `knowgrph.${CAMERA_WEB_MCP_TOOL_IDS.control}`,
     },
     invocationGrammar: canonical ? {
-      source: 'agentic-canvas-os/docs/DICTIONARY-{COMMAND,SEMANTIC,BINDING}.md',
+      source: 'native-knowgrph-invocation-catalog',
+      select: `${canonical.select} ${canonical.camera} ${canonical.cameraSemantic} camera=fixed-follow|free-orbit`,
       frame: `${canonical.frame} ${canonical.camera}|${canonical.selectedActor} ${canonical.cameraShot} angle=front level=eye-level shot=medium sensor=full-frame lens=50 focus=5 aspect=2.39:1`,
       frameKeyboard: `${canonical.frame} ${canonical.camera}|${canonical.selectedActor} ${canonical.cameraShot} keys=<w+a+s+d|arrows> amount=<orbit-units> fine=<true|false>`,
       animate: `${canonical.animate} ${canonical.camera}|${canonical.selectedActor} ${canonical.cameraMotion} rig=dolly time=2.5 sensor=super-35 lens=35 focus=2 aspect=1.85:1`,
@@ -426,6 +427,7 @@ export function inspectLocalCamera() {
       cameraPanelOpen: state.floatingPanelOpen === true && state.floatingPanelView === 'camera',
       motionTimelineOpen: state.bottomSurfaceCollapsed === false && state.bottomSurfaceTab === 'timeline',
     },
+    source: inspectLocalCameraSource(),
     framing: {
       anchorId: framing.anchorId,
       documentKey: readCameraFramingRuntimeDocumentKey(),
@@ -449,7 +451,10 @@ export function inspectLocalCamera() {
 
 export function controlLocalCamera(input: CameraControlInput): CameraControlResult {
   const control = normalizeCameraControl(input)
-  if (!control) return { ok: false, message: 'Use a supported structured Camera action or a hydrated canonical /camera.* invocation.' }
+  if (!control) return { ok: false, message: 'Use a supported structured Camera action or native /camera.* invocation.' }
+  if (control.action === 'select') return control.cameraId
+    ? controlLocalCameraSource({ action: 'select', cameraId: control.cameraId, targetId: 'camera', invocation: control.invocation }, inspectLocalCamera)
+    : { ok: false, action: 'select', message: 'Select fixed-follow or free-orbit.' }
   if ((control.action === 'playback' || control.action === 'scrub') && control.targetId && control.targetId !== 'camera') {
     return { ok: false, action: control.action, message: 'Camera transport targets the shared @camera binding.' }
   }

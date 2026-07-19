@@ -30,6 +30,7 @@ import {
   type XrArSpaceLike,
 } from '@/features/three/xrArPlacementRuntime'
 import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function OverlayFrameSync({ enabled, scheduleRef }: { enabled: boolean; scheduleRef: React.MutableRefObject<(() => void) | null> }) {
   useFrame(() => {
@@ -104,6 +105,7 @@ export function CanvasXrEntryPanel({
   spatialRuntimeFidelity?: 'idle' | 'preview' | 'full'
   spatialRuntimeStatus?: 'idle' | 'loading' | 'ready' | 'empty' | 'error'
 }) {
+  const markdownDocumentName = useGraphStore(state => state.markdownDocumentName)
   const [status, setStatus] = React.useState<'checking' | 'supported' | 'unsupported' | 'requesting' | 'active' | 'ending' | 'error'>('checking')
   const [sessionMode, setSessionMode] = React.useState<XrSessionMode>('immersive-ar')
   const [sessionSupport, setSessionSupport] = React.useState<XrSessionSupport>({})
@@ -355,7 +357,7 @@ export function CanvasXrEntryPanel({
     }
   }, [rendererRef, sessionMode])
 
-  if (!active || isXrPhysicsRunReadyDemoActive()) return null
+  if (!active || isXrPhysicsRunReadyDemoActive(markdownDocumentName)) return null
   const spatialChrome = surfaceKind === 'spatial-capture' ? (
     <>
       <section

@@ -23,6 +23,13 @@ import {
   stepXrNativeControllerDemoRuntimeTicks,
 } from '@/features/three/xrNativeControllerDemoRuntime'
 import { setXrPhysicsSimulationBodyPose } from '@/features/three/xrPhysicsStepper'
+import { resolveXrMotionReferenceStage } from '@/features/three/xrSceneLibrary'
+import { resolveXrTerrainPerimeter } from '@/features/three/xrTerrainPerimeter'
+import { resolveXrNativeControllerFollowFraming } from '@/features/three/xrNativeControllerCameraFraming'
+import {
+  readXrNativeControllerCamera,
+  selectXrNativeControllerCameraMode,
+} from '@/features/three/xrNativeControllerCameraRuntime'
 import {
   buildXrPhysicsInvocation,
 } from '@/features/three/xrSceneMcpContract.mjs'
@@ -79,6 +86,24 @@ export function testXrNativeControllerInputNormalizesKeyboardAndGamepad() {
 export function testXrNativeBallControllerIsDeterministicAndInteractive() {
   const chunked = runningRuntime('ball')
   const exact = runningRuntime('ball')
+  const singaporePerimeter = resolveXrTerrainPerimeter(resolveXrMotionReferenceStage('singapore'))
+  assert(chunked.terrainId === 'singapore'
+    && chunked.colliders.some(collider => collider.id === 'terrain:singapore:west')
+    && !chunked.colliders.some(collider => collider.id.startsWith('stage:skyline-'))
+    && readXrNativeControllerDemoRuntimeFrame(chunked).terrainId === 'singapore', 'native controller runtime must default to Singapore terrain with matching procedural colliders')
+  assert(singaporePerimeter.widthMeters === 32
+    && singaporePerimeter.depthMeters === 24
+    && singaporePerimeter.halfWidthMeters === 16
+    && singaporePerimeter.halfDepthMeters === 12
+    && singaporePerimeter.edges.length === 4, 'Singapore terrain perimeter must resolve from the canonical stage dimensions')
+  for (const edge of singaporePerimeter.edges) {
+    const collider = chunked.colliders.find(candidate => candidate.id === `terrain:singapore:${edge.side}`)
+    assert(collider, `Singapore terrain must expose the ${edge.side} boundary collider`)
+    near(collider.center[0], edge.centerMeters[0], 1e-9, `${edge.side} boundary x must share the canonical perimeter`)
+    near(collider.center[2], edge.centerMeters[1], 1e-9, `${edge.side} boundary z must share the canonical perimeter`)
+    near(collider.sizeMeters[0], edge.sizeMeters[0], 1e-9, `${edge.side} boundary width must share the canonical perimeter`)
+    near(collider.sizeMeters[2], edge.sizeMeters[1], 1e-9, `${edge.side} boundary depth must share the canonical perimeter`)
+  }
   const input = createXrNativeControllerInput({ moveZ: -1, modifier: true, source: 'keyboard' })
   setXrNativeControllerDemoRuntimeInput(chunked, input)
   setXrNativeControllerDemoRuntimeInput(exact, input)
@@ -222,23 +247,60 @@ export function testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute() {
   const stage = source('features', 'three', 'XrNativeControllerDemoStage.tsx')
   const graphStage = source('features', 'three', 'XrGraphStage.tsx')
   const camera = source('features', 'three', 'useXrNativeControllerDemoCamera.ts')
+  const cameraFraming = source('features', 'three', 'xrNativeControllerCameraFraming.ts')
+  const cameraRuntime = source('features', 'three', 'xrNativeControllerCameraRuntime.ts')
   const threeControls = source('features', 'three', 'Controls.tsx')
   const environment = source('features', 'three', 'XrNativeControllerDemoEnvironment.tsx')
   const aerialSetpieces = source('features', 'three', 'XrNativeControllerDemoAerialSetpieces.tsx')
+  const authoredSubjects = source('features', 'three', 'XrNativeControllerAuthoredSubjects.tsx')
+  const singaporeTerrain = source('features', 'three', 'XrSingaporeTerrainGeometry.tsx')
+  const terrainColliders = source('features', 'three', 'xrNativeControllerDemoTerrain.ts')
+  const terrainPerimeter = source('features', 'three', 'xrTerrainPerimeter.ts')
+  const vehicleGeometry = source('features', 'three', 'XrProceduralVehicleGeometry.tsx')
   assert(workbench.includes('<XrNativeControllerDemoControls'), 'existing Simulation workbench must own the demo controls')
   for (const marker of ['data-kg-xr-native-controller-demo="1"', 'data-kg-xr-native-controller-action={marker}', 'marker="develop-run"', 'data-kg-xr-native-controller-invocation']) {
     assert(controls.includes(marker), `native controller UI must expose ${marker}`)
   }
   assert(graphStage.includes('<XrNativeControllerDemoStage'), 'canonical graph XR stage must mount the native procedural demo')
+  assert(graphStage.includes('setSharedXrNativeControllerDemoTerrain(stage.id)')
+    && stage.includes('terrainId: runtime.terrainId')
+    && environment.includes('kg_xr_native_terrain_'), 'native controller stage must project the selected canonical terrain instead of a metadata-only change')
   assert(stage.includes('navigator.getGamepads()') && stage.includes('readXrNativeControllerKeyboardInput'), 'stage runtime must unify standard gamepad and keyboard input')
   assert(stage.includes('closest(INTERACTIVE_TARGET_SELECTOR)') && stage.includes('frame.bodyRotations'), 'stage must preserve native button activation and consume deterministic prop presentation state')
-  assert(camera.includes('controls.target.lerp') && camera.includes('desiredFov') && camera.includes('PLAYGROUND_FOV_DEGREES') && threeControls.includes('useXrNativeControllerDemoCamera'), 'shared camera owner must provide smooth controller following and retain full-frame optics')
+  assert(stage.includes('<XrNativeControllerAuthoredSubjects')
+    && authoredSubjects.includes('runtime.plan.subjects.map')
+    && authoredSubjects.includes('<XrSceneLibrarySubject'), 'native controller ownership must keep authored Helicopter/Airplane/Car subjects visible through the shared subject renderer')
+  assert(camera.includes('controls.target.lerp') && camera.includes('desiredFov') && camera.includes('resolveXrNativeControllerFollowFraming') && cameraFraming.includes('PLAYGROUND_FOV_DEGREES') && threeControls.includes('useXrNativeControllerDemoCamera'), 'shared camera owner must provide smooth controller following and retain aspect-aware full-frame optics')
   assert(camera.includes('controls.enableRotate = false') && !camera.includes('frame.player.velocity'), 'world-relative controller input must retain a fixed-yaw hero camera')
-  assert(camera.includes('AERIAL_FOV_DEGREES') && camera.includes('aerialFactor') && camera.includes('XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE'), 'Rocket altitude must widen one fixed-scale camera owner into the aerial island view')
+  assert(cameraFraming.includes('AERIAL_FOV_DEGREES') && camera.includes('aerialFactor') && camera.includes('XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE'), 'Rocket altitude must widen one fixed-scale camera owner into the aerial island view')
+  assert(camera.includes("readXrNativeControllerCamera().mode === 'fixed-follow'")
+    && !camera.includes('authoredSubjectSelected')
+    && !cameraRuntime.includes('xrMotionReferenceRuntime'), 'camera selection must remain explicit and independent from selected 3D Objects/Assets')
+  const landscapeFraming = resolveXrNativeControllerFollowFraming({ stageId: 'singapore', aspect: 16 / 9, aerialFactor: 0 })
+  const narrowFraming = resolveXrNativeControllerFollowFraming({ stageId: 'singapore', aspect: 0.77, aerialFactor: 0 })
+  assert(narrowFraming.offsetMeters[2] > landscapeFraming.offsetMeters[2]
+    && narrowFraming.fovDegrees > landscapeFraming.fovDegrees, 'fixed follow must retain more terrain context in a narrow editor split')
+  selectXrNativeControllerCameraMode('free-orbit')
+  assert(readXrNativeControllerCamera().mode === 'free-orbit', 'Camera selector must release the shared camera to Free Orbit')
+  selectXrNativeControllerCameraMode('invalid-camera' as never)
+  assert(readXrNativeControllerCamera().mode === 'free-orbit', 'invalid Camera selection must fail closed')
+  selectXrNativeControllerCameraMode('fixed-follow')
   for (const landmark of ['kg_xr_playground_skull_grotto', 'kg_xr_playground_treasure', 'kg_xr_playground_key', 'kg_xr_playground_moving_hazards', 'BowlingPin']) {
     assert(environment.includes(landmark), `procedural playground must include ${landmark}`)
   }
   assert(environment.includes('<XrNativeControllerDemoAerialSetpieces'), 'playground environment must mount its clean-room aerial composition')
+  for (const landmark of ['kg_xr_singapore_marina_bay_sands', 'kg_xr_singapore_flyer', 'kg_xr_singapore_gardens_by_the_bay', 'kg_xr_singapore_perimeter_water', 'kg_xr_singapore_seawall', 'kg_xr_singapore_boundary_']) {
+    assert(singaporeTerrain.includes(landmark), `procedural Singapore terrain must include ${landmark}`)
+  }
+  assert(singaporeTerrain.includes('resolveXrTerrainPerimeter')
+    && terrainColliders.includes('resolveXrTerrainPerimeter')
+    && terrainPerimeter.includes('XR_TERRAIN_BOUNDARY_THICKNESS_METERS'), 'Singapore presentation and physics must share one canonical terrain perimeter')
+  assert(singaporeTerrain.includes('selectable: false')
+    && !singaporeTerrain.includes('XrSceneLibraryAssetGeometry')
+    && !singaporeTerrain.includes('showcaseSubjects'), 'fixed Singapore terrain must leave mobile assets to canonical Media CRUD')
+  for (const marker of ['kg_xr_procedural_car', 'kg_xr_procedural_airplane', 'kg_xr_procedural_helicopter', 'rotation={[0, 0, Math.PI / 2]}', 'kg_xr_helicopter_mast']) {
+    assert(vehicleGeometry.includes(marker), `shared vehicle geometry must expose corrected ${marker}`)
+  }
   for (const landmark of ['kg_xr_playground_north_horizon', 'kg_xr_playground_east_shore_ship', 'kg_xr_playground_deterministic_tentacles']) {
     assert(aerialSetpieces.includes(landmark), `procedural aerial playground must include ${landmark}`)
   }
@@ -246,12 +308,20 @@ export function testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute() {
   const corePaths = [
     ['features', 'three', 'xrNativeControllerInput.ts'],
     ['features', 'three', 'xrNativeControllerDemoRuntime.ts'],
+    ['features', 'three', 'xrNativeControllerDemoTerrain.ts'],
+    ['features', 'three', 'xrTerrainPerimeter.ts'],
     ['features', 'three', 'XrNativeControllerDemoStage.tsx'],
     ['features', 'three', 'XrNativeControllerDemoEnvironment.tsx'],
     ['features', 'three', 'XrNativeControllerDemoAerialSetpieces.tsx'],
     ['features', 'three', 'XrNativeControllerDemoVehicles.tsx'],
+    ['features', 'three', 'XrNativeControllerAuthoredSubjects.tsx'],
+    ['features', 'three', 'XrSingaporeTerrainGeometry.tsx'],
+    ['features', 'three', 'XrProceduralVehicleGeometry.tsx'],
     ['features', 'three', 'XrNativeControllerDemoHud.tsx'],
     ['features', 'three', 'useXrNativeControllerDemoCamera.ts'],
+    ['features', 'three', 'xrNativeControllerCameraCatalog.ts'],
+    ['features', 'three', 'xrNativeControllerCameraFraming.ts'],
+    ['features', 'three', 'xrNativeControllerCameraRuntime.ts'],
     ['features', 'command-menu', 'XrNativeControllerDemoControls.tsx'],
   ] as const
   const forbiddenOwner = ['8', 'th', 'wall'].join('')
@@ -260,6 +330,7 @@ export function testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute() {
     const text = source(...pathParts)
     assert(text.split('\n').length < 600, `${pathParts.at(-1)} must stay below the source budget`)
     assert(!text.toLowerCase().includes(forbiddenOwner) && !text.toLowerCase().includes(forbiddenProject), `${pathParts.at(-1)} must stay clean-room`)
+    assert(!/https?:\/\//i.test(text) && !/\.(?:glb|gltf)(?:\b|['"])/i.test(text), `${pathParts.at(-1)} must not locate remote or downloaded model assets`)
   }
   const runtimeSource = source('features', 'three', 'xrNativeControllerDemoRuntime.ts')
   assert(runtimeSource.includes("from './xrPhysicsStepper'"), 'controller demo must reuse the existing deterministic solver')

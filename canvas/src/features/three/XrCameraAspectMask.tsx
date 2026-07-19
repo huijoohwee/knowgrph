@@ -31,6 +31,7 @@ export function XrCameraAspectMask() {
   const rootRef = React.useRef<HTMLElement | null>(null)
   const [size, setSize] = React.useState({ width: 0, height: 0 })
   const playing = useGraphStore(state => state.timelineTransportPlaying)
+  const markdownDocumentName = useGraphStore(state => state.markdownDocumentName)
   const framing = React.useSyncExternalStore(
     subscribeCameraFramingRuntime,
     readCameraFramingRuntime,
@@ -65,7 +66,7 @@ export function XrCameraAspectMask() {
   const activeWidth = Math.max(0, size.width - geometry.barWidth * 2)
   const activeHeight = Math.max(0, size.height - geometry.barHeight * 2)
 
-  if (isXrPhysicsRunReadyDemoActive()) return null
+  if (isXrPhysicsRunReadyDemoActive(markdownDocumentName)) return null
 
   return (
     <aside

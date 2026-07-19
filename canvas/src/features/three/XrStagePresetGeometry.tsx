@@ -3,6 +3,7 @@ import type { ThreeEvent } from '@react-three/fiber'
 import type { Object3D } from 'three'
 import type { XrMotionReferenceStagePreset } from './xrSceneLibrary'
 import { xrMotionReferenceWorldPosition } from './xrMotionReferenceCoordinates'
+import { XrSingaporeTerrainGeometry } from './XrSingaporeTerrainGeometry'
 
 const STRUCTURE_TONES = {
   light: '#94a3b8',
@@ -38,6 +39,7 @@ export function XrStagePresetGeometry({
   const floorWidth = stage.sizeMeters[0] * scale
   const floorHeight = stage.sizeMeters[1] * scale
   const floorThickness = Math.max(minFloorThickness, scale * 0.08)
+  const singapore = stage.id === 'singapore'
   return (
     <group name={`kg_xr_stage_preset_${stage.id}`} userData={{ stageId: stage.id }}>
       <mesh
@@ -57,7 +59,13 @@ export function XrStagePresetGeometry({
         } : undefined}
       >
         <boxGeometry args={[floorWidth, floorThickness, floorHeight]} />
-        <meshStandardMaterial color="#475569" roughness={1} metalness={0} transparent opacity={0.68} />
+        <meshStandardMaterial
+          color={singapore ? '#cfe2c5' : '#475569'}
+          roughness={1}
+          metalness={0}
+          transparent={!singapore}
+          opacity={singapore ? 1 : 0.68}
+        />
       </mesh>
       {showGrid ? (
         <gridHelper
@@ -73,8 +81,16 @@ export function XrStagePresetGeometry({
           position={[0, groundY + 0.12, 0]}
         />
       ) : null}
+      {singapore ? (
+        <XrSingaporeTerrainGeometry
+          stage={stage}
+          scale={scale}
+          groundY={groundY}
+          shadows={shadows}
+        />
+      ) : null}
       <group name={`kg_xr_motion_stage_preset_${stage.id}`}>
-        {stage.structures.map(structure => {
+        {!singapore ? stage.structures.map(structure => {
           const position = xrMotionReferenceWorldPosition(structure.position, scale, groundY)
           return (
             <mesh
@@ -98,7 +114,7 @@ export function XrStagePresetGeometry({
               />
             </mesh>
           )
-        })}
+        }) : null}
       </group>
     </group>
   )

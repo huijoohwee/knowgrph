@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Group } from 'three'
 import type { GraphData } from '@/lib/graph/types'
+import { useGraphStore } from '@/hooks/useGraphStore'
 import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { XrMotionReferenceStage } from '@/features/three/XrMotionReferenceStage'
 import { XrPhysicsStageRuntime } from '@/features/three/XrPhysicsStageRuntime'
@@ -9,6 +10,7 @@ import { XrNativeControllerDemoSceneAtmosphere } from '@/features/three/XrNative
 import {
   XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE,
   readXrNativeControllerDemo,
+  setSharedXrNativeControllerDemoTerrain,
   subscribeXrNativeControllerDemo,
 } from '@/features/three/xrNativeControllerDemoRuntime'
 import { resolveXrMotionReferenceStage } from '@/features/three/xrMotionReferenceModel'
@@ -37,11 +39,15 @@ export function XrGraphStage({ data }: { data: GraphData }) {
     readXrNativeControllerDemo,
   )
   const stage = resolveXrMotionReferenceStage(runtime.plan.stageId)
-  const runReadyDemo = isXrPhysicsRunReadyDemoActive()
+  const markdownDocumentName = useGraphStore(state => state.markdownDocumentName)
+  const runReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName)
   const stageScale = runReadyDemo
     ? XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE
     : XR_MOTION_STAGE_SPAN / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
   const nativeControllerOwnsStage = runReadyDemo || controllerDemo.phase !== 'off'
+  React.useEffect(() => {
+    if (nativeControllerOwnsStage) setSharedXrNativeControllerDemoTerrain(stage.id)
+  }, [nativeControllerOwnsStage, stage.id])
   return (
     <>
       {nativeControllerOwnsStage ? (
@@ -63,6 +69,7 @@ export function XrGraphStage({ data }: { data: GraphData }) {
           stageScale={stageScale}
           groundY={XR_MOTION_STAGE_GROUND_Y}
           retainStage={runReadyDemo}
+          stage={stage}
         />
       </group>
     </>

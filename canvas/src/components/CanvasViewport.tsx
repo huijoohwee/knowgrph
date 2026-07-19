@@ -91,6 +91,7 @@ export type CanvasViewportProps = {
   layout?: 'full' | 'pane'
   geospatialModeEnabled: boolean
   workspaceEditorOverlayOpen?: boolean
+  workspaceVisibleCanvasLeft?: string
   canvasRenderMode: '2d' | '3d'
   canvas3dMode: Canvas3dModeId
   canvas2dRenderer: Canvas2dRendererId
@@ -117,6 +118,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     layout = 'full',
     geospatialModeEnabled,
     workspaceEditorOverlayOpen = false,
+    workspaceVisibleCanvasLeft,
     canvasRenderMode,
     canvas3dMode,
     canvas2dRenderer,
@@ -124,11 +126,11 @@ export function CanvasViewport(props: CanvasViewportProps) {
     documentSwitchPendingLabel = 'Switching document...',
     onLiveCanvasHeroVisibilityChange,
   } = props
-  const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive()
   const activeGraphData = useActiveGraphRenderData(true)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
+  const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
   const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
   const explorerActivePath = useMarkdownExplorerStore(s => s.activePath)
@@ -307,13 +309,26 @@ export function CanvasViewport(props: CanvasViewportProps) {
     && active2dSurface !== 'storyboard'
   const rootRef = React.useRef<HTMLElement | null>(null)
   useForbidBrowserZoomWheel(rootRef, true, { stopPropagation: false })
+  const workspaceXrViewportInset = xrPhysicsRunReadyDemo
+    && workspaceEditorOverlayOpen
+    && String(workspaceVisibleCanvasLeft || '').trim()
+      ? String(workspaceVisibleCanvasLeft).trim()
+      : ''
 
   return (
     <section
       ref={rootRef}
       data-kg-canvas-viewport-root="1"
       className="relative w-full h-full overflow-hidden"
-      style={{ touchAction: 'manipulation', overscrollBehavior: 'none', WebkitTapHighlightColor: 'transparent' }}
+      style={{
+        touchAction: 'manipulation',
+        overscrollBehavior: 'none',
+        WebkitTapHighlightColor: 'transparent',
+        ...(workspaceXrViewportInset ? {
+          marginLeft: workspaceXrViewportInset,
+          width: `calc(100% - ${workspaceXrViewportInset})`,
+        } : {}),
+      }}
       aria-label={xrPhysicsRunReadyDemo ? 'Interactive XR Physics Playground' : variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}
     >
       <React.Suspense fallback={null}>

@@ -7,6 +7,8 @@ export const RISK_COPILOT_RUN_READY_DEMO_ID = 'risk-copilot'
 export const RISK_COPILOT_DEMO_WORKSPACE_SEED_BASENAME = 'knowgrph-sme-care-agent-demo.md'
 export const XR_PHYSICS_RUN_READY_DEMO_ID = 'xr-physics'
 export const XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME = 'knowgrph-physics-playground-demo.md'
+export const XR_PHYSICS_DEMO_REPO_REL_PATH = `docs/workspace-seeds/${XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME}`
+export const XR_PHYSICS_DEMO_CODEBASE_REL_PATH = `knowgrph/${XR_PHYSICS_DEMO_REPO_REL_PATH}`
 
 export type WorkspaceRunReadyDemoSeed = {
   id: string
@@ -53,9 +55,11 @@ export const WORKSPACE_RUN_READY_DEMO_SEEDS: readonly WorkspaceRunReadyDemoSeed[
     label: 'Knowgrph Native XR Physics Demo',
     validationSeedRelPath: XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME,
     seedRelPathCandidates: [
-      `docs/workspace-seeds/${XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME}`,
+      XR_PHYSICS_DEMO_REPO_REL_PATH,
+      `workspace-seeds/${XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME}`,
       `docs/${XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME}`,
       XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME,
+      XR_PHYSICS_DEMO_CODEBASE_REL_PATH,
     ],
     sourceRoot: 'knowgrph/docs',
     cleanCanvasRecommended: true,
@@ -72,12 +76,44 @@ export const resolveWorkspaceRunReadyDemoSeedRelPath = (demoId: string): string 
   resolveWorkspaceRunReadyDemoSeed(demoId)?.validationSeedRelPath || ''
 )
 
-export const readWorkspaceRunReadyDemoId = (): string => (
-  resolveWorkspaceRunReadyDemoSeed(readEnvString(WORKSPACE_RUN_READY_DEMO_ENV, ''))?.id || ''
+const normalizeWorkspaceDocumentPath = (value: string | null | undefined): string => (
+  String(value || '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^workspace:/i, '')
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '')
+    .toLowerCase()
 )
 
-export const isXrPhysicsRunReadyDemoActive = (): boolean => (
-  readWorkspaceRunReadyDemoId() === XR_PHYSICS_RUN_READY_DEMO_ID
+export const resolveWorkspaceRunReadyDemoIdForDocumentPath = (
+  documentPath: string | null | undefined,
+): string => {
+  const normalizedPath = normalizeWorkspaceDocumentPath(documentPath)
+  if (!normalizedPath) return ''
+  for (const seed of WORKSPACE_RUN_READY_DEMO_SEEDS) {
+    const matches = seed.seedRelPathCandidates.some(candidate => (
+      normalizeWorkspaceDocumentPath(candidate) === normalizedPath
+    ))
+    if (matches) return seed.id
+  }
+  return ''
+}
+
+export const readWorkspaceRunReadyDemoId = (
+  documentPath?: string | null,
+): string => {
+  const explicitlySelected = resolveWorkspaceRunReadyDemoSeed(
+    readEnvString(WORKSPACE_RUN_READY_DEMO_ENV, ''),
+  )
+  if (explicitlySelected) return explicitlySelected.id
+  return resolveWorkspaceRunReadyDemoIdForDocumentPath(documentPath)
+}
+
+export const isXrPhysicsRunReadyDemoActive = (
+  documentPath?: string | null,
+): boolean => (
+  readWorkspaceRunReadyDemoId(documentPath) === XR_PHYSICS_RUN_READY_DEMO_ID
 )
 
 export const resolveWorkspaceValidationSeedRelPath = (args: {
