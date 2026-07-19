@@ -1,10 +1,10 @@
 import React from 'react'
 import { Eye, SlidersHorizontal, SquareTerminal, type LucideIcon } from 'lucide-react'
+import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
 import {
-  useAgenticOsRemoteGrammarCatalog,
-  type AgenticOsRemoteGrammarCatalogEntry,
-  type AgenticOsRemoteGrammarSigil,
-} from '@/features/agentic-os/agenticOsRemoteGrammarClient'
+  getAgenticOsDictionaryInvocations,
+  type AgenticOsDictionaryInvocation,
+} from '@/features/agentic-os/agenticOsDocInvocations'
 import {
   FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT,
   floatingPanelCatalogThreeRowClassName,
@@ -16,7 +16,7 @@ import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
 import { inspectLocalCamera } from './cameraMcpRuntime'
 
-const CAMERA_GRAMMAR_SIGILS: readonly AgenticOsRemoteGrammarSigil[] = ['/', '#', '@']
+const CAMERA_GRAMMAR_SIGILS = ['/', '#', '@'] as const
 const CAMERA_TOKEN_LIMIT = 12
 
 type CameraCatalogCardProps = {
@@ -28,16 +28,15 @@ type CameraCatalogCardProps = {
   dataAttributes?: Record<`data-${string}`, string | undefined>
 }
 
-const cameraCatalogEntryText = (entry: AgenticOsRemoteGrammarCatalogEntry): string => [
+const cameraCatalogEntryText = (entry: AgenticOsDictionaryInvocation): string => [
   entry.token,
   entry.label,
   entry.summary,
-  entry.intent,
   ...(entry.keywords || []),
 ].join(' ').toLowerCase()
 
-const cameraCatalogEntrySigilOrder = (entry: AgenticOsRemoteGrammarCatalogEntry): number => {
-  const index = CAMERA_GRAMMAR_SIGILS.indexOf(entry.token[0] as AgenticOsRemoteGrammarSigil)
+const cameraCatalogEntrySigilOrder = (entry: AgenticOsDictionaryInvocation): number => {
+  const index = CAMERA_GRAMMAR_SIGILS.indexOf(entry.token[0] as (typeof CAMERA_GRAMMAR_SIGILS)[number])
   return index < 0 ? CAMERA_GRAMMAR_SIGILS.length : index
 }
 
@@ -70,7 +69,9 @@ function CameraCatalogCard({
             title={title}
             data-kg-camera-invocation-chip-renderer={invocationTitle ? 'shared-markdown-sigil' : undefined}
           >
-            {renderMarkdownSigilInlineText(title)}
+            {renderMarkdownSigilInlineText(title, {
+              renderKeywordChip: ({ value, className }) => renderAgenticOsInvocationKeywordChip({ value, className, sourceLink: false }),
+            })}
           </h4>
         </header>
         <section className="grid min-w-0 gap-0.5" data-kg-floating-panel-card-row="meta">
@@ -83,14 +84,14 @@ function CameraCatalogCard({
   )
 }
 
-function CameraInvocationTokenCard({ entry }: { entry: AgenticOsRemoteGrammarCatalogEntry }) {
-  const source = entry.sourceUrl || entry.sourcePath || entry.fileName || 'Agentic Canvas OS dictionary'
+function CameraInvocationTokenCard({ entry }: { entry: AgenticOsDictionaryInvocation }) {
+  const source = entry.sourcePath || 'Native Knowgrph invocation catalog'
   const kind = String(entry.kind || 'invocation').trim() || 'invocation'
   return (
     <CameraCatalogCard
       Icon={SquareTerminal}
       title={entry.token}
-      description={entry.summary || entry.intent || entry.label || 'Canonical Camera invocation token.'}
+      description={entry.summary || entry.label || 'Canonical Camera invocation token.'}
       metadata={`${kind} · ${entry.label || 'Camera'}`}
       footer={<code className={cn('block min-w-0 truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)} title={source}>{source}</code>}
       dataAttributes={{
@@ -103,20 +104,19 @@ function CameraInvocationTokenCard({ entry }: { entry: AgenticOsRemoteGrammarCat
 }
 
 export function CameraMcpInvocationSection() {
-  const grammar = useAgenticOsRemoteGrammarCatalog({ sigils: CAMERA_GRAMMAR_SIGILS })
   const camera = inspectLocalCamera()
-  const cameraEntries = React.useMemo(() => grammar.entries
+  const cameraEntries = React.useMemo(() => getAgenticOsDictionaryInvocations()
     .filter(entry => cameraCatalogEntryText(entry).includes('camera'))
     .sort((left, right) => cameraCatalogEntrySigilOrder(left) - cameraCatalogEntrySigilOrder(right) || left.token.localeCompare(right.token))
-    .slice(0, CAMERA_TOKEN_LIMIT), [grammar.entries])
+    .slice(0, CAMERA_TOKEN_LIMIT), [])
+  const nativeInvocationReady = Boolean(camera.invocationGrammar)
 
   return (
     <section
       className="grid gap-2"
       aria-label="Camera WebMCP and invocation catalog"
       data-kg-camera-webmcp-invocations="1"
-      data-kg-camera-grammar-status={grammar.hydration.status}
-      data-kg-camera-grammar-revision={grammar.sourceRevision || undefined}
+      data-kg-camera-grammar-status={nativeInvocationReady ? 'native-ready' : 'unavailable'}
     >
       <section className="grid gap-1" aria-label="Camera WebMCP tools">
         <CameraCatalogCard
@@ -140,7 +140,7 @@ export function CameraMcpInvocationSection() {
       <section className="grid gap-1" aria-label="Canonical Camera invocation tokens">
         {cameraEntries.length > 0 ? cameraEntries.map(entry => <CameraInvocationTokenCard key={entry.token} entry={entry} />) : (
           <p className={cn('m-0 rounded border px-2 py-1 text-[10px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.tertiary)}>
-            Camera `/`, `#`, and `@` tokens are {grammar.hydration.status === 'loading' ? 'loading from' : 'resolved by'} the Agentic Canvas OS dictionaries.
+            Camera `/`, `#`, and `@` tokens are unavailable in the native catalog.
           </p>
         )}
       </section>

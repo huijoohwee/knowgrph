@@ -2,7 +2,18 @@ import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, ancestorPathsForWorkspacePath, normalizeWorkspacePath, workspaceBasename } from './path'
 import { readEnvString } from '@/lib/config.env'
 import { readWorkspaceInitializationDocsMirrorEntries, readWorkspaceInitializationSeedText } from './workspaceSeedProvider'
-import { WORKSPACE_RUN_READY_DEMO_ENV, resolveWorkspaceValidationSeedRelPath } from './workspaceRunReadyDemos'
+import {
+  WORKSPACE_RUN_READY_DEMO_ENV,
+  XR_PHYSICS_DEMO_REPO_REL_PATH,
+  XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME,
+  resolveWorkspaceRunReadyDemoSeed,
+  resolveWorkspaceValidationSeedRelPath,
+} from './workspaceRunReadyDemos'
+import {
+  CANONICAL_XR_PHYSICS_WORKSPACE_SEED_ENABLED,
+  loadXrPhysicsDemoSeedSource,
+} from './xrPhysicsDemoSeedSource'
+export { CANONICAL_XR_PHYSICS_WORKSPACE_SEED_ENABLED, mergeCanonicalXrPhysicsWorkspaceSeedIntoDocsMirror } from './xrPhysicsDemoSeedSource'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import {
   buildShadowFileEntry,
@@ -214,6 +225,9 @@ const normalizeInitializationSeedRelPath = (value: string): string => {
     .replace(/\/+$/, '')
 }
 const DEFAULT_WORKSPACE_INITIALIZATION_SEED_ROOT_REL_PATHS = ['docs/workspace-seeds', 'docs'] as const
+const WORKSPACE_RUN_READY_DEMO_ID = readEnvString(WORKSPACE_RUN_READY_DEMO_ENV, '')
+const WORKSPACE_RUN_READY_DEMO = resolveWorkspaceRunReadyDemoSeed(WORKSPACE_RUN_READY_DEMO_ID)
+const REPO_LOCAL_RUN_READY_SOURCE_EXCLUSIVE = WORKSPACE_RUN_READY_DEMO?.sourceRoot === 'knowgrph/docs'
 export const WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH = readEnvString(
   'VITE_WORKSPACE_INITIALIZATION_DOCS_ROOT_REL_PATH',
   '',
@@ -251,7 +265,7 @@ export const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH = readEnvString(
   'VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH',
   resolveWorkspaceValidationSeedRelPath({
     explicitRelPath: TEST_VALIDATION_WORKSPACE_SEED_EXPLICIT_REL_PATH,
-    runReadyDemoId: readEnvString(WORKSPACE_RUN_READY_DEMO_ENV, ''),
+    runReadyDemoId: WORKSPACE_RUN_READY_DEMO_ID,
     defaultRelPath: DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH,
   }),
 )
@@ -279,6 +293,8 @@ export const TEST_VALIDATION_WORKSPACE_SEED_BASENAME =
 const GEOSPATIAL_WORKSPACE_SEED_REL_PATH_CANDIDATES = buildInitializationSeedRelPathCandidates(GEOSPATIAL_WORKSPACE_SEED_BASENAME)
 export const GEOSPATIAL_WORKSPACE_SEED_REL_PATH = GEOSPATIAL_WORKSPACE_SEED_REL_PATH_CANDIDATES[0] || GEOSPATIAL_WORKSPACE_SEED_BASENAME
 export const GEOSPATIAL_WORKSPACE_SEED_PATH = normalizeWorkspacePath(GEOSPATIAL_WORKSPACE_SEED_BASENAME)
+export const XR_PHYSICS_WORKSPACE_SEED_PATH = normalizeWorkspacePath(`/${XR_PHYSICS_DEMO_REPO_REL_PATH}`)
+export const XR_PHYSICS_WORKSPACE_ROOT_ALIAS_PATH = normalizeWorkspacePath(XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME)
 const DEFAULT_WORKSPACE_README_TEXT = [
   '---',
   'title: "Knowgrph - Write it. See it. Ship it."',
@@ -329,6 +345,7 @@ type WorkspaceSeedSpec = {
   basename: string
   sourceRelPaths: string[]
   fallbackText: string
+  sourceLoader?: () => Promise<string>
 }
 const WORKSPACE_SEED_SPECS: readonly WorkspaceSeedSpec[] = [
   {
@@ -349,6 +366,13 @@ const WORKSPACE_SEED_SPECS: readonly WorkspaceSeedSpec[] = [
     sourceRelPaths: GEOSPATIAL_WORKSPACE_SEED_REL_PATH_CANDIDATES,
     fallbackText: DEFAULT_GEOSPATIAL_WORKSPACE_SEED_TEXT,
   },
+  ...(CANONICAL_XR_PHYSICS_WORKSPACE_SEED_ENABLED ? [{
+    path: XR_PHYSICS_WORKSPACE_SEED_PATH,
+    basename: XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME,
+    sourceRelPaths: [XR_PHYSICS_DEMO_REPO_REL_PATH],
+    fallbackText: '',
+    sourceLoader: loadXrPhysicsDemoSeedSource,
+  }] : []),
 ]
 const WORKSPACE_SEED_PATH_SET = new Set<WorkspacePath>(WORKSPACE_SEED_SPECS.map(seed => seed.path))
 const WORKSPACE_SEED_SOURCE_REL_PATH_SET = new Set<WorkspacePath>(
@@ -364,13 +388,22 @@ const DEFAULT_WORKSPACE_SEED_FAMILY_PATHS = new Set<WorkspacePath>([
   ...WORKSPACE_SEED_SPECS.map(seed => seed.path),
 ])
 
-const loadWorkspaceSeedText = async (args: {
+export const loadWorkspaceSeedText = async (args: {
   basename: string
   relPaths: ReadonlyArray<string>
   fallbackText: string
   docsMirrorEntries?: Awaited<ReturnType<typeof readWorkspaceInitializationDocsMirrorEntries>>
+  sourceExclusive?: boolean
 }): Promise<{ text: string; isFallback: boolean }> => {
   const basename = normalizeInitializationSeedRelPath(args.basename)
+  if (args.sourceExclusive) {
+    const preferredText = await readWorkspaceInitializationSeedText({
+      basename: args.basename,
+      relPathCandidates: args.relPaths,
+    })
+    if (preferredText) return { text: preferredText, isFallback: false }
+    return { text: args.fallbackText, isFallback: true }
+  }
   const relPathSet = new Set(
     (args.relPaths || [])
       .map(path => normalizeInitializationSeedRelPath(path))
@@ -439,14 +472,28 @@ export function expandWorkspaceSeedFileEntries(path: WorkspacePath, text: string
 }
 
 export async function getWorkspaceSeedFiles(): Promise<WorkspaceSeedFile[]> {
-  const docsMirrorEntries = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
+  const docsMirrorEntries = REPO_LOCAL_RUN_READY_SOURCE_EXCLUSIVE
+    ? []
+    : await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
   const loaded = await Promise.all(
-    WORKSPACE_SEED_SPECS.map(async seed => ({
-      path: seed.path,
-      ...(await loadWorkspaceSeedText({ basename: seed.basename, relPaths: seed.sourceRelPaths, fallbackText: seed.fallbackText, docsMirrorEntries })),
-    })),
+    WORKSPACE_SEED_SPECS.map(async seed => {
+      if (seed.sourceLoader) {
+        const text = String(await seed.sourceLoader() || '').trim()
+        return text ? { path: seed.path, text, isFallback: false } : null
+      }
+      return {
+        path: seed.path,
+        ...(await loadWorkspaceSeedText({
+          basename: seed.basename,
+          relPaths: seed.sourceRelPaths,
+          fallbackText: seed.fallbackText,
+          docsMirrorEntries,
+          sourceExclusive: REPO_LOCAL_RUN_READY_SOURCE_EXCLUSIVE,
+        })),
+      }
+    }),
   )
-  return loaded
+  return loaded.filter((seed): seed is WorkspaceSeedFile => seed !== null)
 }
 
 export function shouldPreserveFallbackWorkspaceSeedText(text: string): boolean {
@@ -489,7 +536,7 @@ export function isDefaultWorkspaceSeedFamilyOnly(paths: ReadonlyArray<WorkspaceP
 export function resolveWorkspaceStartupActivePath(args: {
   workspaceFilePaths: ReadonlyArray<WorkspacePath>
   activePath?: WorkspacePath | null
-  preferValidationSeedForDefaultFamily?: boolean
+  preferDefaultStarter?: boolean
   forceValidationSeedIfPresent?: boolean
 }): WorkspacePath | null {
   const workspaceFilePaths = args.workspaceFilePaths
@@ -498,26 +545,27 @@ export function resolveWorkspaceStartupActivePath(args: {
   const workspaceFilePathSet = new Set(workspaceFilePaths)
   const activePath = args.activePath ? normalizeWorkspacePath(args.activePath) : null
   const activePathExists = !!(activePath && workspaceFilePathSet.has(activePath))
+  const preferredStarterPath = workspaceFilePathSet.has(XR_PHYSICS_WORKSPACE_SEED_PATH) ? XR_PHYSICS_WORKSPACE_SEED_PATH : TEST_VALIDATION_WORKSPACE_SEED_PATH
   if (args.forceValidationSeedIfPresent === true && workspaceFilePathSet.has(TEST_VALIDATION_WORKSPACE_SEED_PATH)) {
     return TEST_VALIDATION_WORKSPACE_SEED_PATH
   }
+  if (args.preferDefaultStarter === true && !activePath && workspaceFilePathSet.has(preferredStarterPath)) return preferredStarterPath
   if (isDefaultWorkspaceSeedFamilyOnly(workspaceFilePaths)) {
     if (
       activePathExists &&
-      args.preferValidationSeedForDefaultFamily === true &&
-      activePath !== TEST_VALIDATION_WORKSPACE_SEED_PATH
+      args.preferDefaultStarter === true &&
+      activePath !== preferredStarterPath
     ) {
       return activePath
     }
-    if (args.preferValidationSeedForDefaultFamily === true && workspaceFilePathSet.has(TEST_VALIDATION_WORKSPACE_SEED_PATH)) {
-      return TEST_VALIDATION_WORKSPACE_SEED_PATH
+    if (args.preferDefaultStarter === true && workspaceFilePathSet.has(preferredStarterPath)) {
+      return preferredStarterPath
     }
     if (workspaceFilePathSet.has(WORKSPACE_README_SEED_PATH)) return WORKSPACE_README_SEED_PATH
     return workspaceFilePaths[0] || null
   }
   return activePathExists ? activePath : null
 }
-
 export function sortWorkspaceEntriesForExplorer(entries: ReadonlyArray<WorkspaceEntry>): WorkspaceEntry[] {
   const list = Array.isArray(entries) ? [...entries] : []
   const workspaceFilePaths = list

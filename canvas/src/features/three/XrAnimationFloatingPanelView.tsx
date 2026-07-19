@@ -29,12 +29,12 @@ import {
 } from '@/lib/ui/floatingPanelCatalogLayout'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
 import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
 import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
 import { cn } from '@/lib/utils'
 import ExpandCollapseAllButton from '@/features/panels/ui/ExpandCollapseAllButton'
 import { useCollapsibleSectionGroup } from '@/features/panels/ui/useCollapsibleSectionGroup'
-import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import {
   XR_ANIMATION_PRESETS,
   xrAnimationPresetCompatible,
@@ -98,7 +98,9 @@ function AnimationInvocationChips({
       data-kg-animation-invocation-chips={surface}
       data-kg-animation-invocation-chip-renderer="shared-markdown-sigil"
     >
-      {renderMarkdownSigilInlineText(surface === 'action' ? compactInvocation : displayInvocation)}
+      {renderMarkdownSigilInlineText(surface === 'action' ? compactInvocation : displayInvocation, {
+        renderKeywordChip: ({ value, className }) => renderAgenticOsInvocationKeywordChip({ value, className, sourceLink: false }),
+      })}
     </code>
   )
 }
@@ -219,7 +221,6 @@ export function XrAnimationFloatingPanelView() {
   })))
   const runtime = React.useSyncExternalStore(subscribeXrMotionReferenceRuntime, readXrMotionReferenceRuntime, readXrMotionReferenceRuntime)
   const selectedActorId = readBoundXrSelectedActorId()
-  const grammar = useAgenticOsRemoteGrammarCatalog({ sigils: ['/', '#', '@'] })
   const animationInspection = inspectLocalAnimation()
   const search = useFloatingPanelCatalogSearch()
   const sceneReady = Boolean(graphData && String(markdownDocumentName || '').trim() && String(markdownDocumentText || '').trim())
@@ -229,6 +230,7 @@ export function XrAnimationFloatingPanelView() {
   const visibleCharacter = visiblePresets.filter(preset => preset.kind === 'character-motion')
   const visiblePaths = visiblePresets.filter(preset => preset.kind === 'action-path')
   const selectedTrack = runtime.plan.cast.find(track => track.actorId === selectedActorId)
+  const nativeInvocationReady = Boolean(animationInspection.catalog.canonical && animationInspection.invocationGrammar)
 
   const toastResult = React.useCallback((result: ReturnType<typeof controlLocalAnimation>) => {
     pushUiToast({ id: result.ok ? 'xr:animation:updated' : 'xr:animation:error', kind: result.ok ? 'success' : sceneReady ? 'error' : 'warning', message: result.message })
@@ -252,7 +254,7 @@ export function XrAnimationFloatingPanelView() {
 
   const panelDisabled = !sceneReady || !selectedActorId
   return (
-    <section className={floatingPanelCatalogSurfaceClassName()} aria-label="Animation" data-kg-animation-floating-panel="1" data-kg-animation-mcp="knowgrph.control_local_animation" data-kg-animation-catalog-hydration={grammar.hydration.status}>
+    <section className={floatingPanelCatalogSurfaceClassName()} aria-label="Animation" data-kg-animation-floating-panel="1" data-kg-animation-mcp="knowgrph.control_local_animation" data-kg-animation-catalog="native-ready">
       <FloatingPanelCatalogHeader
         title="Animation"
         subtitle="Shared cast and camera choreography, playback, and export"
@@ -268,16 +270,16 @@ export function XrAnimationFloatingPanelView() {
         )}
         searchControl={<FloatingPanelCatalogSearchControl id="xr-animation-search" buttonLabel="Search animation presets" panelLabel="Animation preset search" placeholder="Search motions and paths" state={search} />}
       />
-      {!sceneReady || grammar.hydration.status !== 'fresh' ? <section className={cn('mb-2 grid gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-animation-runtime-status="shared-xr">
+      {!sceneReady || !nativeInvocationReady ? <section className={cn('mb-2 grid gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-animation-runtime-status="shared-xr">
         {!sceneReady ? <p className="rounded bg-amber-100 px-2 py-1 text-[10px] text-amber-900 dark:bg-amber-950/60 dark:text-amber-100">Open or create a graph document to persist animation.</p> : null}
-        {grammar.hydration.status !== 'fresh' ? <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Invocation catalog: {grammar.hydration.status} ({grammar.counts.slash}/{grammar.counts.hash}/{grammar.counts.at})</p> : null}
+        {!nativeInvocationReady ? <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Native invocation catalog unavailable.</p> : null}
       </section> : null}
       <section className={floatingPanelCatalogBodyClassName('grid content-start gap-3')}>
         <XrChoreographyInspector
           cameraInvocation={animationInspection.invocationGrammar?.configureCameraMark || animationInspection.webMcpTools.control}
           castInvocation={animationInspection.invocationGrammar?.configureCastMark || animationInspection.webMcpTools.control}
           controlTool={animationInspection.webMcpTools.control}
-          invocationReady={animationInspection.catalog.canonical && grammar.hydration.status === 'fresh'}
+          invocationReady={nativeInvocationReady}
           runtime={runtime}
           selectedActorId={selectedActorId}
         />

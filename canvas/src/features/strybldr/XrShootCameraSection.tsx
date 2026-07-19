@@ -27,6 +27,16 @@ import {
 import { selectBoundXrShotTarget } from '@/features/three/xrSelectedActorBinding'
 import { buildXrShotTargets } from '@/features/three/xrShotTargets'
 import { XrCameraMovePresetControl } from './XrCameraMovePresetControl'
+import {
+  XR_NATIVE_CONTROLLER_CAMERA_MODES,
+  resolveXrNativeControllerCameraOption,
+  type XrNativeControllerCameraMode,
+} from '@/features/three/xrNativeControllerCameraCatalog'
+import {
+  readXrNativeControllerCamera,
+  selectXrNativeControllerCameraMode,
+  subscribeXrNativeControllerCamera,
+} from '@/features/three/xrNativeControllerCameraRuntime'
 
 const RIG_LABELS: Readonly<Record<XrMotionReferenceCameraRig, string>> = {
   dolly: 'Dolly',
@@ -52,6 +62,11 @@ export function XrShootCameraSection() {
     subscribeXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
+  )
+  const nativeController = React.useSyncExternalStore(
+    subscribeXrNativeControllerCamera,
+    readXrNativeControllerCamera,
+    readXrNativeControllerCamera,
   )
   const shotTargets = React.useMemo(() => buildXrShotTargets(runtime.plan), [runtime.plan])
   const selectedShotTarget = shotTargets.find(target => target.id === runtime.selectedShotTargetId)
@@ -118,6 +133,15 @@ export function XrShootCameraSection() {
     })
   }, [pushUiToast, runtime.playheadSeconds, runtime.selectedCameraRig, selectedShotTarget])
 
+  const selectCameraSource = React.useCallback((mode: XrNativeControllerCameraMode) => {
+    selectXrNativeControllerCameraMode(mode)
+    pushUiToast({
+      id: 'xr:shoot:camera-source',
+      kind: 'success',
+      message: `XR camera source: ${resolveXrNativeControllerCameraOption(mode).label}.`,
+    })
+  }, [pushUiToast])
+
   if (!xrActive) return null
 
   return (
@@ -139,6 +163,23 @@ export function XrShootCameraSection() {
           {runtime.playheadSeconds.toFixed(2)}s<br />{runtime.plan.camera.length} camera marks
         </output>
       </header>
+
+      <label className="grid gap-1 text-[10px]">
+        <span className={UI_THEME_TOKENS.text.tertiary}>Camera source</span>
+        <PanelSelect
+          aria-label="XR camera source"
+          value={nativeController.mode}
+          onChange={event => selectCameraSource(event.target.value as XrNativeControllerCameraMode)}
+          data-kg-xr-camera-source="1"
+        >
+          {XR_NATIVE_CONTROLLER_CAMERA_MODES.map(mode => (
+            <option key={mode} value={mode}>{resolveXrNativeControllerCameraOption(mode).label}</option>
+          ))}
+        </PanelSelect>
+        <span className={UI_THEME_TOKENS.text.tertiary} data-kg-xr-camera-source-status={nativeController.mode}>
+          {resolveXrNativeControllerCameraOption(nativeController.mode).description}
+        </span>
+      </label>
 
       <label className="grid gap-1 text-[10px]">
         <span className={UI_THEME_TOKENS.text.tertiary}>Shot target</span>
@@ -196,7 +237,7 @@ export function XrShootCameraSection() {
       </section>
 
       <section className="grid grid-cols-2 gap-2">
-        <button type="button" className="App-toolbar__btn font-bold" disabled={!selectedShotTarget || cameraPlaybackActive} onClick={autoFrameMedium} data-kg-xr-shoot-medium-shot="1">
+        <button type="button" className="App-toolbar__btn font-bold" disabled={!selectedShotTarget || cameraPlaybackActive || nativeController.mode === 'fixed-follow'} onClick={autoFrameMedium} data-kg-xr-shoot-medium-shot="1">
           MS · Medium shot
         </button>
         <button type="button" className="App-toolbar__btn flex items-center justify-center gap-1 font-bold" disabled={!selectedShotTarget || cameraPlaybackActive} onClick={dropCameraMark} data-kg-xr-shoot-camera-mark="1">

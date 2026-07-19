@@ -141,6 +141,7 @@ const readWorkspaceDocsMirrorRootPathFallback = (): string => {
 }
 
 export const readWorkspaceDocsMirrorRootPathSetting = (): string => {
+  if (parseEnvBoolean('VITE_KNOWGRPH_RUN_READY_REPO_LOCAL', false)) return readWorkspaceDocsMirrorRootPathFallback()
   const storage = getLocalStorage()
   if (!storage) return readWorkspaceDocsMirrorRootPathFallback()
   try {

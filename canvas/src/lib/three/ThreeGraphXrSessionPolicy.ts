@@ -2,6 +2,13 @@ import type { WebGLRenderer } from 'three'
 
 export type XrSessionMode = 'immersive-ar' | 'immersive-vr'
 
+export type XrSessionReferenceSpaceKind = 'local-floor' | 'local'
+
+export type XrSessionReferenceSpace<TSpace extends object = object> = Readonly<{
+  kind: XrSessionReferenceSpaceKind
+  space: TSpace
+}>
+
 export type XrSessionSupport = Partial<Record<XrSessionMode, boolean>>
 
 export type XrSessionInit = {
@@ -10,6 +17,7 @@ export type XrSessionInit = {
 }
 
 export const XR_SESSION_MODE_ORDER: readonly XrSessionMode[] = ['immersive-ar', 'immersive-vr']
+export const XR_SESSION_REFERENCE_SPACE_ORDER: readonly XrSessionReferenceSpaceKind[] = ['local-floor', 'local']
 
 const XR_BASE_OPTIONAL_FEATURES = ['local-floor', 'bounded-floor', 'hand-tracking'] as const
 const XR_AR_OPTIONAL_FEATURES = ['hit-test', 'light-estimation'] as const
@@ -31,6 +39,21 @@ export function buildXrSessionInit(mode: XrSessionMode, domOverlayRoot?: Element
   }
   init.optionalFeatures = Array.from(optionalFeatures)
   return init
+}
+
+export async function requestPreferredXrReferenceSpace<TSpace extends object>(session: {
+  requestReferenceSpace?: (kind: XrSessionReferenceSpaceKind) => Promise<TSpace>
+}): Promise<XrSessionReferenceSpace<TSpace>> {
+  if (!session.requestReferenceSpace) throw new Error('XR reference spaces are unavailable')
+  let lastError: unknown = null
+  for (const kind of XR_SESSION_REFERENCE_SPACE_ORDER) {
+    try {
+      return { kind, space: await session.requestReferenceSpace(kind) }
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError || new Error('No supported XR reference space was found')
 }
 
 export function resolveXrDomOverlayRoot(renderer: WebGLRenderer | null): Element | null {

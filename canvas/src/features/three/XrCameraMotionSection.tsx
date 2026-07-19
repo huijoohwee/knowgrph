@@ -1,4 +1,5 @@
 import React from 'react'
+import { requestXrSimulationWorkbenchOpen } from '@/features/command-menu/xrSimulationWorkbenchOpenRequest'
 import { useShallow } from 'zustand/react/shallow'
 import { TimelineTransportInlineClip, TimelineTransportTimeAxisClip } from '@/components/timeline/TimelineTransportControls'
 import { GanttTimelineTransportPanel } from '@/features/gitgraph/GanttTimelineTransportPanel'
@@ -9,7 +10,6 @@ import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
   XR_MOTION_REFERENCE_STAGE_PRESETS,
   serializeXrMotionReferencePlan,
-  type XrMotionReferenceStageId,
 } from './xrMotionReferenceModel'
 import { buildXrMotionReferencePackage, xrMotionReferencePackageBlob, xrMotionReferencePackageFilename } from './xrMotionReferencePackage'
 import {
@@ -18,9 +18,15 @@ import {
   setXrMotionReferenceDuration,
   setXrMotionReferenceFps,
   setXrMotionReferencePlayhead,
-  setXrMotionReferenceStage,
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
+import { controlLocalXrScene } from './xrSceneMcpRuntime'
+import { readXrPhysicsRuntime, subscribeXrPhysicsRuntime } from './xrPhysicsRuntime'
+import {
+  readSharedXrNativeControllerDemoFrame,
+  readXrNativeControllerDemo,
+  subscribeXrNativeControllerDemo,
+} from './xrNativeControllerDemoRuntime'
 import { buildXrMotionReferenceTimelineCode, xrMotionReferenceTimelineDocumentKey } from './xrMotionReferenceTimeline'
 import { CameraMotionMarkRetime } from './CameraMotionMarkRetime'
 import { controlLocalAnimation } from './xrAnimationMcpRuntime'
@@ -64,6 +70,16 @@ export function XrCameraMotionSection() {
     subscribeXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
+  )
+  const physics = React.useSyncExternalStore(
+    subscribeXrPhysicsRuntime,
+    readXrPhysicsRuntime,
+    readXrPhysicsRuntime,
+  )
+  const nativeController = React.useSyncExternalStore(
+    subscribeXrNativeControllerDemo,
+    readXrNativeControllerDemo,
+    readXrNativeControllerDemo,
   )
   const xrActive = canvasRenderMode === '3d' && canvas3dMode === 'xr'
 
@@ -138,6 +154,20 @@ export function XrCameraMotionSection() {
     })
   }, [documentLoaded, pushUiToast])
 
+  const openSimulationWorkbench = React.useCallback(() => {
+    const state = useGraphStore.getState()
+    state.setFloatingPanelView('media')
+    state.setFloatingPanelOpen(true)
+    requestXrSimulationWorkbenchOpen()
+  }, [])
+
+  const nativeControllerActive = nativeController.phase !== 'off'
+  const simulationPhase = nativeControllerActive ? nativeController.phase : physics.phase
+  const simulationBodyCount = nativeControllerActive
+    ? readSharedXrNativeControllerDemoFrame().bodies.length
+    : physics.world.bodies.length
+  const simulationRuntime = nativeControllerActive ? 'native-controller' : 'scene'
+
   const edges = Array.isArray(graphData?.edges) ? graphData.edges.length : 0
   if (!xrActive) return null
 
@@ -176,6 +206,48 @@ export function XrCameraMotionSection() {
             }
           }}
           timelineInsertedLanes={[
+            {
+              id: 'xr-simulation',
+              insertAfterLaneId: 'scene',
+              label: (
+                <button
+                  type="button"
+                  className="xr-camera-motion-retime-lane-label xr-shot-target-lane-label"
+                  aria-label="Open XR Simulation workbench"
+                  onClick={openSimulationWorkbench}
+                  data-kg-xr-simulation-lane-label="1"
+                >
+                  <i aria-hidden style={{ backgroundColor: '#22c55e' }} />
+                  <b>Simulation</b>
+                  <small>{simulationBodyCount}</small>
+                </button>
+              ),
+              content: (
+                <TimelineTransportTimeAxisClip
+                  laneStyle="audio"
+                  className="xr-camera-motion-retime-time-axis-rail"
+                  aria-label="XR Simulation runtime lane"
+                  data-kg-xr-simulation-lane="1"
+                >
+                  <section
+                    className="xr-shot-target-timeline-lane"
+                    data-kg-xr-simulation-phase={simulationPhase}
+                    data-kg-xr-simulation-runtime={simulationRuntime}
+                  >
+                    <button
+                      type="button"
+                      className="xr-shot-target-timeline-bar"
+                      style={{ '--kg-xr-shot-target-color': '#22c55e' } as React.CSSProperties}
+                      aria-label={`Open XR Simulation workbench. ${simulationPhase}; ${simulationBodyCount} bodies.`}
+                      onClick={openSimulationWorkbench}
+                      data-kg-xr-simulation-bar="full-scene"
+                    >
+                      <span>{simulationPhase} · {simulationBodyCount} bod{simulationBodyCount === 1 ? 'y' : 'ies'}</span>
+                    </button>
+                  </section>
+                </TimelineTransportTimeAxisClip>
+              ),
+            },
             ...objectTargets.map(target => {
               const track = target.castActorId
                 ? runtime.plan.cast.find(candidate => candidate.actorId === target.castActorId) || null
@@ -335,7 +407,14 @@ export function XrCameraMotionSection() {
                       className="w-36"
                       aria-label="XR grey-box stage"
                       value={runtime.plan.stageId}
-                      onChange={event => setXrMotionReferenceStage(event.target.value as XrMotionReferenceStageId)}
+                      onChange={event => {
+                        const result = controlLocalXrScene({ action: 'stage', stageId: event.target.value })
+                        pushUiToast({
+                          id: result.ok ? 'xr:timeline:stage' : 'xr:timeline:stage-error',
+                          kind: result.ok ? 'success' : documentLoaded ? 'error' : 'warning',
+                          message: result.message,
+                        })
+                      }}
                       data-kg-xr-motion-stage-select="1"
                     >
                       {XR_MOTION_REFERENCE_STAGE_PRESETS.map(preset => (

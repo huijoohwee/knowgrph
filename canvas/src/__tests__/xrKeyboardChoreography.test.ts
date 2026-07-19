@@ -38,7 +38,7 @@ import { hydrateCanonicalXrMotionReferenceRuntime } from '@/features/three/XrMot
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 const KEYBOARD_DICTIONARY_TOKENS = {
-  command: ['/camera.frame', '/camera.animate', '/camera.play', '/camera.scrub', '/animation.control'],
+  command: ['/camera.select', '/camera.frame', '/camera.animate', '/camera.play', '/camera.scrub', '/animation.control'],
   semantic: ['#camera-shot', '#camera-motion', '#action-path', '#character-motion'],
   binding: ['@camera', '@selected-actor', '@canvas'],
 } as const

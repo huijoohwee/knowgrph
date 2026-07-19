@@ -2,11 +2,13 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   XR_SESSION_MODE_ORDER,
+  XR_SESSION_REFERENCE_SPACE_ORDER,
   buildXrSessionInit,
   chooseXrSessionMode,
+  requestPreferredXrReferenceSpace,
 } from '@/lib/three/ThreeGraphXrSessionPolicy'
 
-export function testXrSessionPolicyPrefersNativeArWithoutProviderDependency() {
+export async function testXrSessionPolicyPrefersNativeArWithoutProviderDependency() {
   if (XR_SESSION_MODE_ORDER.join('|') !== 'immersive-ar|immersive-vr') {
     throw new Error(`expected XR session support checks to prefer AR before VR, got ${XR_SESSION_MODE_ORDER.join('|')}`)
   }
@@ -21,6 +23,20 @@ export function testXrSessionPolicyPrefersNativeArWithoutProviderDependency() {
   }
   if (chooseXrSessionMode({ 'immersive-ar': false, 'immersive-vr': false }) !== null) {
     throw new Error('expected XR session selection to return null when no native XR session is supported')
+  }
+  if (XR_SESSION_REFERENCE_SPACE_ORDER.join('|') !== 'local-floor|local') {
+    throw new Error(`expected XR reference spaces to prefer local-floor before local, got ${XR_SESSION_REFERENCE_SPACE_ORDER.join('|')}`)
+  }
+  const referenceSpaceRequests: string[] = []
+  const referenceSpace = await requestPreferredXrReferenceSpace({
+    requestReferenceSpace: async kind => {
+      referenceSpaceRequests.push(kind)
+      if (kind === 'local-floor') throw new Error('local-floor unavailable')
+      return { kind }
+    },
+  })
+  if (referenceSpaceRequests.join('|') !== 'local-floor|local' || referenceSpace.kind !== 'local') {
+    throw new Error('expected shared XR reference-space negotiation to fall back from local-floor to local')
   }
 
   const overlayRoot = {} as Element
@@ -43,7 +59,20 @@ export function testXrSessionPolicyPrefersNativeArWithoutProviderDependency() {
     readFileSync(resolve(process.cwd(), 'src/lib/three/ThreeGraphXr.tsx'), 'utf8'),
     readFileSync(resolve(process.cwd(), 'src/lib/three/ThreeGraphXrSessionPolicy.ts'), 'utf8'),
   ].join('\n')
-  for (const forbiddenProviderToken of ['8thwall', 'XR8', 'addCameraPipelineModule']) {
+  const worldSource = readFileSync(resolve(process.cwd(), 'src/lib/three/ThreeGraph.impl.tsx'), 'utf8')
+  const rendererClearSource = readFileSync(resolve(process.cwd(), 'src/lib/three/XrRendererClearController.tsx'), 'utf8')
+  const graphSceneSource = readFileSync(resolve(process.cwd(), 'src/lib/three/Scene.impl.tsx'), 'utf8')
+  const graphStageSource = readFileSync(resolve(process.cwd(), 'src/features/three/XrGraphStage.tsx'), 'utf8')
+  const placementStageSource = readFileSync(resolve(process.cwd(), 'src/features/three/XrArPlacementStage.tsx'), 'utf8')
+  const emptyWorldSource = readFileSync(resolve(process.cwd(), 'src/features/three/XrEmptyWorldStage.tsx'), 'utf8')
+  const motionStageSource = readFileSync(resolve(process.cwd(), 'src/features/three/XrMotionReferenceStage.tsx'), 'utf8')
+  const presetGeometrySource = readFileSync(resolve(process.cwd(), 'src/features/three/XrStagePresetGeometry.tsx'), 'utf8')
+  const spatialCaptureSource = readFileSync(resolve(process.cwd(), 'src/features/three/SpatialCaptureManifestStage.tsx'), 'utf8')
+  for (const forbiddenProviderToken of [
+    ['8th', 'wall'].join(''),
+    ['XR', '8'].join(''),
+    ['add', 'Camera', 'Pipeline', 'Module'].join(''),
+  ]) {
     if (source.includes(forbiddenProviderToken)) {
       throw new Error(`expected XR Mode to stay provider-neutral without copied external runtime token ${forbiddenProviderToken}`)
     }
@@ -53,5 +82,62 @@ export function testXrSessionPolicyPrefersNativeArWithoutProviderDependency() {
   }
   if (!source.includes('requestSession(sessionMode, buildXrSessionInit(sessionMode, resolveXrDomOverlayRoot(renderer)))')) {
     throw new Error('expected XR session entry to use the shared native WebXR session-init policy')
+  }
+  if (!source.includes('requestPreferredXrReferenceSpace')
+    || !source.includes('renderer.xr.setReferenceSpace(referenceSpace.space')
+    || !source.includes('await beginXrArPlacementSession')) {
+    throw new Error('expected renderer and AR placement to share one awaited reference-space lifecycle')
+  }
+  if (!source.includes('renderer.xr.setSession(null') || !source.includes('data-kg-canvas-xr-reposition')) {
+    throw new Error('expected XR teardown and explicit AR reposition controls to be present')
+  }
+  if (!source.includes('pendingSessionRef.current = session')
+    || !source.includes('activateXrImmersiveSession(session as XrArSessionLike, sessionMode)')) {
+    throw new Error('expected pending sessions to be owned during async setup and physical presentation to cover immersive VR')
+  }
+  const pendingEndListenerIndex = source.indexOf("session.addEventListener?.('end', handleEnd)")
+  const referenceSpaceNegotiationIndex = source.indexOf('const referenceSpace = await requestPreferredXrReferenceSpace')
+  if (pendingEndListenerIndex < 0
+    || referenceSpaceNegotiationIndex < 0
+    || pendingEndListenerIndex > referenceSpaceNegotiationIndex) {
+    throw new Error('expected native session end ownership before asynchronous reference-space negotiation')
+  }
+  if ((worldSource.match(/<XrArPlacementStage/g) || []).length !== 1
+    || !worldSource.includes('contentScale={xrWorldContentScale}')
+    || !worldSource.includes('contentOffset={xrWorldContentOffset}')
+    || graphStageSource.includes('<XrArPlacementStage')) {
+    throw new Error('expected all XR world variants to share exactly one common AR placement wrapper')
+  }
+  if (!placementStageSource.includes('runtime.read().immersiveSessionActive')) {
+    throw new Error('expected physical content scale and floor offset to apply in both immersive AR and VR')
+  }
+  if (!worldSource.includes('1 / fitScale')
+    || !worldSource.includes('Number.isFinite(floorY) ? -floorY : 0')
+    || !worldSource.includes('xrStageMetersPerUnit')) {
+    throw new Error('expected XR placement to use bounded physical scale and floor alignment for every world surface')
+  }
+  if (!emptyWorldSource.includes('position={immersiveSessionActive ? [0, -floorDepth, 0]')
+    || !emptyWorldSource.includes('rotation={immersiveSessionActive ? [-Math.PI / 2, 0, 0]')
+    || !emptyWorldSource.includes('kgXrImmersiveFloorAligned')) {
+    throw new Error('expected the empty editor world to align its XY floor with the immersive XZ placement plane')
+  }
+  if (!graphStageSource.includes('coordinateRootRef={stageRootRef}')
+    || !motionStageSource.includes('coordinateRoot.matrixWorld).invert()')
+    || !presetGeometrySource.includes('coordinateRoot.worldToLocal(point)')) {
+    throw new Error('expected XR drag rays and floor hits to be converted back into placed stage-local coordinates')
+  }
+  if (!spatialCaptureSource.includes('createPortal(')
+    || !spatialCaptureSource.includes('scene,')
+    || !spatialCaptureSource.includes("immersiveSessionMode !== 'immersive-ar'")) {
+    throw new Error('expected spatial capture environment to attach to the Scene without obscuring immersive AR passthrough')
+  }
+  if (!worldSource.includes('<XrRendererClearController')
+    || !rendererClearSource.includes('resolveXrRendererClearAlpha(')
+    || graphSceneSource.includes('setClearColor(')) {
+    throw new Error('expected one canvas-level renderer clear owner to preserve AR passthrough for graph and empty XR worlds')
+  }
+  if ((worldSource.match(/key=\{rendererLifecycleKey\}/g) || []).length !== 1
+    || worldSource.split('key={`${rendererLifecycleKey}-session-panel`}').length !== 2) {
+    throw new Error('expected the native session panel to remount with a distinct sibling key whenever the XR renderer is replaced')
   }
 }
