@@ -592,6 +592,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
       args.upsertUiToast({ id: `storyboard-widget-persistence-failed-${String(nodeId || '')}`, kind: 'error', message: detail || 'Generated output could not be persisted to the workspace.', ttlMs: 5200 })
       deferredError = { value: error }
     }
+    scheduleWorkflowOutputEdgeRefresh()
     if (deferredError) throw deferredError.value
   }
   return runWorkflowNode

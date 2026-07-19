@@ -10,6 +10,7 @@ export function testStoryboardWidgetWorkflowRunActionIsSharedBetweenStoryboardWi
     "export { resolveStoryboardWidgetBaseGraphKind } from './storyboardWidgetWorkflowRunTypes'",
     "export type { StoryboardWidgetWorkflowNodeRunner, StoryboardWidgetWorkflowNodeRunnerArgs } from './storyboardWidgetWorkflowRunTypes'",
     'const runWorkflowNode: StoryboardWidgetWorkflowNodeRunner = async',
+    'scheduleWorkflowOutputEdgeRefresh()\n    if (deferredError)',
   ]) {
     if (!sharedSource.includes(snippet)) {
       throw new Error(`expected shared workflow run action to contain snippet: ${snippet}`)
