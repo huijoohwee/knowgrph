@@ -192,8 +192,11 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
   const deliverablesSeed = buildWidgetCardLayoutSeed(RICH_MEDIA_DELIVERABLES_LAYOUT_ID)
   if (deliverablesSeed?.label !== 'Deliverables Widget Card'
     || deliverablesSeed.properties.richMediaDeliverablesMode !== true
+    || deliverablesSeed.properties.externalMcpCreateArtifacts !== true
+    || deliverablesSeed.properties.externalSlidesMcpCapability !== 'auto'
+    || deliverablesSeed.properties.externalSheetsMcpCapability !== 'auto'
     || !String(deliverablesSeed.properties.prompt || '').includes('/investment-research-agent')
-    || !String(deliverablesSeed.properties.prompt || '').includes('Markdown slide deck')) {
+    || !String(deliverablesSeed.properties.prompt || '').includes('XLSX companion workbook')) {
     throw new Error(`expected Deliverables Widget Card to seed the typed MCP-backed two-output route, got ${JSON.stringify(deliverablesSeed)}`)
   }
   const droppedTextWidgetNode = {

@@ -201,6 +201,15 @@ export async function testRichMediaDeliverablesOwnedPanelsDisplayLocalArtifactsA
     if (artifact.panelProperties?.freezeConnectedOutput !== true) {
       throw new Error(`expected ${artifact.title} to freeze its generated local artifact across the lineage edge`)
     }
+    if (artifact.title === 'Financial Model') {
+      if (
+        artifact.panelProperties?.workbookMimeType !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        || !String(artifact.panelProperties.workbookSha256 || '').startsWith('sha256:')
+        || Number(artifact.panelProperties.workbookSizeBytes) <= 0
+      ) {
+        throw new Error(`expected the Markdown financial panel to retain verified XLSX companion metadata, got ${JSON.stringify(artifact.panelProperties)}`)
+      }
+    }
     const panel = buildRichMediaPanelOverlayState({
       node: {
         id: `deliverable-panel-${index}`,
@@ -223,6 +232,36 @@ export async function testRichMediaDeliverablesOwnedPanelsDisplayLocalArtifactsA
     if (!panel?.freezeConnectedOutput || displayedText !== artifact.outputText) {
       throw new Error(`expected ${artifact.title} display state to keep its local Markdown artifact, got ${JSON.stringify({ panel, displayedText })}`)
     }
+  }
+}
+
+export async function testRichMediaDeliverablesRequiredWorkbookPersistenceFailsBeforePanelPublication() {
+  const published: unknown[] = []
+  let rejected = false
+  try {
+    await runStoryboardWidgetRichMediaDeliverables({
+      id: 'deliverables-card',
+      node: { id: 'deliverables-card', type: 'TextGeneration', label: 'Deliverables Widget Card', properties: { richMediaDeliverablesMode: true } },
+      graphForRun: { type: 'GraphData', nodes: [], edges: [] },
+      rawNodeProperties: { richMediaDeliverablesMode: true },
+      authoredPrompt: 'Generate both deliverables.',
+      connectedPrompt: '# Generated Result\n\nBudget: RM100,000.',
+      connectedSourceNodeId: 'generated-result',
+      requireDurablePersistence: true,
+      model: 'test-model',
+      generateText: async () => structuredDeliverablesResponse,
+      publishOutput: args => { published.push(args); return args.baseGraphData || null },
+      readGraph: () => null,
+      updateOutput: () => void 0,
+      setLoading: () => void 0,
+      reportFailure: () => void 0,
+      upsertToast: () => void 0,
+    })
+  } catch {
+    rejected = true
+  }
+  if (!rejected || published.length !== 0) {
+    throw new Error(`expected required workbook persistence to fail before either panel publication, got ${JSON.stringify({ rejected, published: published.length })}`)
   }
 }
 

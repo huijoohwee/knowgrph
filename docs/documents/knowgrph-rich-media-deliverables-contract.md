@@ -11,7 +11,8 @@ Generated Result.output
   -> Deliverables Widget Card.prompt_in
   -> Run
   -> Slide Deck.output
-  -> Financial Model.output
+  -> Financial Model.output + Financial Model.xlsx
+  -> optional approved Slides/Sheets MCP artifacts
 ```
 
 The source edge must persist `flow:sourcePortKey: output` and `flow:targetPortKey: prompt_in`. Workflow-created output edges persist `text_out -> output`. The shared dataflow reader unwraps persisted object/property cells before the connected source becomes the Widget Card runtime prompt.
@@ -41,6 +42,10 @@ The bridge:
 
 If any requested token fails to resolve, Run fails closed before provider generation or output publication. A card with no invocation tokens may still use the configured provider without claiming MCP invocation.
 
+External artifact creation is a separate capability-scoped gateway. The local stdio MCP server registers `knowgrph.tool.catalog`, `knowgrph.tool.search`, `knowgrph.tool.describe`, and `knowgrph.tool.call`. Profiles load only from `KNOWGRPH_EXTERNAL_MCP_PROFILES_JSON`; each profile fixes one stdio or Streamable HTTP transport, exact upstream tool, live input-schema digest, canonical artifact argument mapping, host-owned constants, idempotency field, result pointers, and allowed HTTPS receipt origins. The browser can select only an opaque capability id; it cannot submit or override commands, endpoints, headers, environment variables, secrets, tool names, mappings, or raw upstream arguments.
+
+When a matching Slides or spreadsheet capability exists, Run prepares a digest-bound action and pauses on an explicit confirmation that names the selected capability. Approval creates one expiring, single-use `external-file-write` token. Cancel skips `/call`; schema drift, changed artifact content, revision mismatch, expired/consumed approval, unsafe receipt origin, or upstream errors fail closed without exposing raw provider output. Local Markdown/XLSX artifacts remain authoritative even when optional external publication is unavailable or cancelled. A card may set `externalMcpRequired: true` to require both approved external artifacts before either panel is published.
+
 ## Structured provider response
 
 Generation must return JSON whose `structuredContent` contains:
@@ -57,9 +62,15 @@ The two outputs use distinct workflow-owned identities:
 | Output | `workflowOutputKey` | Render contract |
 | --- | --- | --- |
 | Slide Deck | `markdown-slide-deck` | `text/markdown`, `markdownPresentationMode: true`, existing Markdown presentation renderer; generated iframe `srcDoc` stays disabled |
-| Financial Model | `financial-model-spreadsheet` | `text/markdown`, `tableFormat: markdown-pipe-table`, existing Markdown DataView/table renderer |
+| Financial Model | `financial-model-spreadsheet` | authoritative `text/markdown` pipe table in the existing DataView/table renderer, plus a deterministic `.xlsx` companion workbook |
 
-Publication uses the owned-output policy, so an existing authored downstream panel is not overwritten. Repeated Run upserts the same two panels and typed edges by anchor plus output key. Both panels freeze their generated local Markdown for display, so the lineage edge cannot replace the deck or table with the card's status summary. The two artifacts are staged in the draft graph and the outer Run performs one final durable persistence after both exist. Financial-model persistence removes HTML/`srcDoc`; Markdown remains the source of truth.
+Publication uses the owned-output policy, so an existing authored downstream panel is not overwritten. Repeated Run upserts the same two panels and typed edges by anchor plus output key. Both panels freeze their generated local Markdown for display, so the lineage edge cannot replace the deck or table with the card's status summary. Financial-model persistence removes HTML/`srcDoc`; Markdown remains the source of truth.
+
+The bounded Markdown table parser ignores fenced examples, preserves escaped cells, and rejects oversized or malformed tables. The browser-compatible workbook writer produces deterministic OOXML with inline strings, typed numeric/currency/percentage cells, a styled and frozen header, autofilter, bounded widths, and an exact XLSX MIME type. Provider-controlled strings never become formulas. The run writes an idempotent sibling workbook, SHA-256 metadata, and Markdown manifest; configured object storage may supply the durable download URL, while Dev/Preview serves an allowed local `.xlsx` path through `/__kg_fs_artifact`. The financial panel keeps workbook path, manifest, URL, MIME, hash, byte size, sheet, row, and column metadata. Workbook conversion and required durable persistence complete before either panel is staged.
+
+The terminal order is: docs MCP evidence -> live text provider -> structured response validation -> Markdown table parse -> XLSX build/hash/persistence -> optional explicitly approved external MCP calls -> two panel staging -> one final graph persistence. A required-stage failure publishes neither panel. A sanitized external web URL may become the panel Open target; the full receipt remains separate structured metadata.
+
+Source-layer composition recursively canonicalizes repeated `workspace::` aliases before persistence. Distinct edges that arrive with the same leaf id are collision-safely rekeyed, and interactive edge authoring reserves both canonical and qualified ids. This removes the repeated-card/edge clutter cause without treating rendered duplicates as independent nodes.
 
 ## Verification
 
@@ -72,8 +83,11 @@ Focused contracts cover:
 - structured deck/table parsing and fail-closed partial output;
 - two distinct idempotent output panels without authored-target overwrite;
 - native presentation-mode rendering without the generic iframe fallback, plus Markdown-only financial-table rendering;
-- local-artifact display precedence across connected output edges and one final durable graph write.
+- deterministic formula-safe XLSX OOXML, strict MIME/base64 local persistence, manifest/hash metadata, and a reload-safe download path;
+- host-profile validation, live schema pinning, digest-bound single-use approval, explicit cancellation, idempotency, and sanitized external receipts;
+- local-artifact display precedence across connected output edges and one final durable graph write;
 - palette-drop persistence across composed-store commit, source reparse, and ordinary history append, with no canonical duplicate or double-prefixed node identity;
+- recursive source-layer identity repair plus collision-safe edge preservation;
 - Run lookup from a composed overlay id to its unique source-local draft node.
 
 This contract is Dev/runtime work only. It grants no Prod mirror, Cloudflare, or release mutation.

@@ -1,7 +1,11 @@
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { GraphState } from '@/hooks/store/types'
 import type { GetGraph, SetGraph } from './graphDataSliceAccess'
-import { readSourceLayerKeysFromGraphData, updateGraphDataSourceLayerKeys } from '@/lib/graph/sourceLayers'
+import {
+  readSourceLayerKeysFromGraphData,
+  stripRepeatedSourceLayerEntityPrefix,
+  updateGraphDataSourceLayerKeys,
+} from '@/lib/graph/sourceLayers'
 import { buildUpdatedSourceFileParsedGraphState } from '@/features/source-files/sourceFileParsedState'
 import { resolvePreferredEnabledComposedSourceFileFromState } from '@/features/source-files/composedSourceSelection'
 
@@ -180,7 +184,7 @@ export function parseComposedId(id: string | null | undefined): ParsedComposedId
   const idx = text.indexOf('::')
   if (idx <= 0) return null
   const layerId = text.slice(0, idx).trim()
-  const innerId = text.slice(idx + 2)
+  const innerId = stripRepeatedSourceLayerEntityPrefix(text, layerId)
   if (!layerId || !innerId) return null
   return { layerId, innerId }
 }

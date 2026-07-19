@@ -30,6 +30,7 @@ import { serializeMarkdownPipeTable } from './src/features/markdown/ui/markdownD
 import { createWebpageMetaHandler } from './src/lib/websites/webpageMetaServer'
 import { createLocalFileRangeHandler } from './src/lib/assets/server/localFileRangeServer'
 import { createRemoteVideoFrameHandler, createRemoteVideoFramePublicAssetHandler, REMOTE_VIDEO_FRAME_PUBLIC_PREFIX } from './src/lib/rich-media/server/videoFrameServer'
+import { createKgFsPathPolicy, createWorkspaceArtifactBridgePlugin, decodeStrictBase64, decodeXlsxArtifactBase64 } from './viteWorkspaceArtifactBridge'
 import { buildWebpageProxyRuntimePlan } from './src/lib/websites/webpageProxyRuntimePolicy'
 import {
   buildWebpageSandboxCsp,
@@ -42,6 +43,7 @@ import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBas
 import { DEFAULT_VITE_WATCH_IGNORED, buildWorkspaceMirrorWatchIgnoredRoots, createWorkspaceMirrorWatchPathIgnore } from './viteWorkspaceMirrorWatch'
 import { loadChatProxyServerManagedEnv, resolveViteRuntimeIdentity } from './viteChatProxyEnv'
 import { forwardChatProxyUpstreamHead, forwardChatProxyUpstreamResponse } from './viteChatProxyResponse'; import { createProbeTreeMcpBridgePlugin } from './viteProbeTreeMcpBridge'
+import { createExternalMcpBridgePlugin } from './viteExternalMcpBridge'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..'), workspaceRoot = path.resolve(repoRoot, '..')
 const siblingDocsRoot = path.resolve(workspaceRoot, 'huijoohwee', 'docs'); loadChatProxyServerManagedEnv({ repoRoot, canvasRoot: __dirname }); const runtimeIdentity = resolveViteRuntimeIdentity(repoRoot)
@@ -5065,23 +5067,7 @@ function createWebpageProxyHandler(): import('vite').Connect.NextHandleFunction 
 
 function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
   const MAX_BODY_BYTES = 25_000_000
-  const workspaceMirrorRoot = path.resolve(repoRoot, '..')
-  const allowedRoots = [
-    path.resolve(repoRoot),
-    path.resolve(repoRoot, '..'),
-  ]
-  const isAllowed = (candidate: string): boolean => {
-    const resolved = path.resolve(candidate)
-    return allowedRoots.some(root => resolved === root || resolved.startsWith(root + path.sep))
-  }
-  const toHostPath = (candidate: string): string => {
-    const raw = String(candidate || '').trim()
-    if (!raw) return ''
-    const resolved = path.resolve(raw)
-    if (isAllowed(resolved)) return resolved
-    if (raw.startsWith('/')) return path.resolve(workspaceMirrorRoot, `.${raw}`)
-    return path.resolve(workspaceMirrorRoot, raw)
-  }
+  const pathPolicy = createKgFsPathPolicy(repoRoot)
   const parseKgcPathInfo = (absPath: string): { canonicalPath: string; tracePath: string | null; stem: string | null } => {
     const normalized = path.resolve(absPath)
     const base = path.basename(normalized)
@@ -5149,21 +5135,25 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
       res.end(JSON.stringify({ ok: false, error: 'Missing path' }))
       return
     }
-    const requestedAbsPath = toHostPath(incomingPath)
-    if (mkdirOnly) { if (!isAllowed(requestedAbsPath)) { res.statusCode = 403; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: false, error: 'Forbidden' })); return } try { await fs.mkdir(requestedAbsPath, { recursive: true }); res.statusCode = 200; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: true })) } catch (e: unknown) { const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''; res.statusCode = 500; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: false, error: msg || 'Mkdir failed' })) } return }
+    const requestedAbsPath = pathPolicy.resolveHostPath(incomingPath)
+    if (mkdirOnly) { if (!pathPolicy.isAllowed(requestedAbsPath)) { res.statusCode = 403; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: false, error: 'Forbidden' })); return } try { await fs.mkdir(requestedAbsPath, { recursive: true }); res.statusCode = 200; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: true })) } catch (e: unknown) { const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message?: unknown }).message || '') : ''; res.statusCode = 500; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({ ok: false, error: msg || 'Mkdir failed' })) } return }
     const kgcPathInfo = parseKgcPathInfo(requestedAbsPath)
     const absPath = kgcPathInfo.tracePath || kgcPathInfo.canonicalPath
     const ext = String(path.extname(absPath) || '').toLowerCase()
     const base = path.basename(absPath)
     const isKgcOutputCompanion = /^kgc-output_\d{14}(?:-[a-z0-9-]+)?\.(md|html|svg|png|pdf|jpg|jpeg|webp|gif|mp4|webm|mov|glb)$/i.test(base)
     const isImageModelArtifact = /(?:^|[\\/])image(?:[\\/]|$)/i.test(absPath) && (ext === '.glb' || ext === '.gltf')
-    if (!(ext === '.md' || isKgcOutputCompanion || isImageModelArtifact)) {
+    const mimeType = typeof parsed?.mimeType === 'string' ? parsed.mimeType.trim().toLowerCase() : ''
+    const decodedBase64 = base64 && encoding === 'base64' ? decodeStrictBase64(base64) : null
+    const decodedXlsx = ext === '.xlsx' ? decodeXlsxArtifactBase64({ base64, encoding, mimeType }) : null
+    const isXlsxArtifact = Boolean(decodedXlsx)
+    if (!(ext === '.md' || isKgcOutputCompanion || isImageModelArtifact || isXlsxArtifact)) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
-      res.end(JSON.stringify({ ok: false, error: 'Only .md, image .glb/.gltf, and supported kgc-output companion files are allowed' }))
+      res.end(JSON.stringify({ ok: false, error: 'Only .md, exact-MIME base64 .xlsx, image .glb/.gltf, and supported kgc-output companion files are allowed' }))
       return
     }
-    if (!isAllowed(absPath)) {
+    if (!pathPolicy.isAllowed(absPath)) {
       res.statusCode = 403
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(JSON.stringify({ ok: false, error: 'Forbidden' }))
@@ -5172,7 +5162,8 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
     try {
       await fs.mkdir(path.dirname(absPath), { recursive: true })
       if (base64 && encoding === 'base64') {
-        await fs.writeFile(absPath, Buffer.from(base64, 'base64'))
+        if (!decodedBase64) throw new Error('Invalid base64 content')
+        await fs.writeFile(absPath, decodedBase64)
       } else if (typeof text === 'string') {
         await fs.writeFile(absPath, text, 'utf8')
       } else {
@@ -5191,7 +5182,7 @@ function createKgFsWriteHandler(): import('vite').Connect.NextHandleFunction {
           path.resolve(dir, `${stem}-workspace-editor.md`),
         ]
         for (const variantPath of variantPaths) {
-          if (!isAllowed(variantPath)) continue
+          if (!pathPolicy.isAllowed(variantPath)) continue
           try {
             await fs.unlink(variantPath)
           } catch {
@@ -7144,7 +7135,7 @@ export default defineConfig(({ command }) => {
             autoThemeTarget: '#root',
           }),
           stripeCheckoutDevPlugin,
-          createAgenticOsGrammarDevPlugin({ rootDir: repoRoot }), createProbeTreeMcpBridgePlugin({ repoRoot }),
+          createAgenticOsGrammarDevPlugin({ rootDir: repoRoot }), createProbeTreeMcpBridgePlugin({ repoRoot }), createExternalMcpBridgePlugin(),
           markdownPipelineDevPlugin,
           apiGraphDevPlugin,
           flowchartFixtureDevPlugin,
@@ -7154,6 +7145,7 @@ export default defineConfig(({ command }) => {
           chatProxyDevPlugin,
           chatLogDevPlugin,
           kgFsWriteDevPlugin,
+          createWorkspaceArtifactBridgePlugin(repoRoot),
           kgFsListDevPlugin,
           webpageProxyDevPlugin,
           localGeoDatasetDevPlugin,

@@ -466,6 +466,7 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
           authoredPrompt,
           connectedPrompt,
           connectedSourceNodeId: connectedValuesBySchemaPath?.['properties.prompt']?.sources?.[0]?.nodeId || '',
+          workspacePath: activeWorkspacePath || null, requireDurablePersistence: runOptions?.requireDurableMediaPersistence === true,
           model: properties.chatModel || store.chatModel,
           generateText: generateTextWithProvider,
           publishOutput: publishTextRunOutputToRichMediaPanel,

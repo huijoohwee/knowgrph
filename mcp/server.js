@@ -14,7 +14,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { runVideoRemixAsync } from "./video-remix-runtime.js"; import { runShowrunnerLocalTool } from "./showrunner-runtime.js"; import { runOsStatusTool } from "./os-status-runtime.js"; import { callSealionSidecarTool } from "./sealion-sidecar-runtime.js"; import { callBrowserApiRuntime } from "./browser-api-runtime.js"; import { runProbeTreeTool } from "./probe-tree-runtime.js"; import { runSmeRiskCopilotTool } from "./sme-risk-copilot-runtime.js"; import { handleAnnotateImageTool, handleAnnotateVideoFrameTool } from "./annotation-runtime.js"; import { runAgentSandboxPolicyTool } from "./agent-sandbox-policy-runtime.js"; import { runAgenticCanvasOsDocsInvokeTool } from "./agentic-canvas-os-docs-runtime.js";
+import { runVideoRemixAsync } from "./video-remix-runtime.js"; import { runShowrunnerLocalTool } from "./showrunner-runtime.js"; import { runOsStatusTool } from "./os-status-runtime.js"; import { callSealionSidecarTool } from "./sealion-sidecar-runtime.js"; import { callBrowserApiRuntime } from "./browser-api-runtime.js"; import { runProbeTreeTool } from "./probe-tree-runtime.js"; import { runSmeRiskCopilotTool } from "./sme-risk-copilot-runtime.js"; import { handleAnnotateImageTool, handleAnnotateVideoFrameTool } from "./annotation-runtime.js"; import { runAgentSandboxPolicyTool } from "./agent-sandbox-policy-runtime.js"; import { runAgenticCanvasOsDocsInvokeTool } from "./agentic-canvas-os-docs-runtime.js"; import { isExternalToolGatewayToolName } from "./external-tool-gateway-contract.js"; import { runExternalToolGatewayTool } from "./external-tool-gateway-runtime.js";
 import {
   addMemoryLayerMemory,
   assembleMemoryLayerPrompt,
@@ -356,7 +356,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const toolName = request.params?.name;
   const args = request.params?.arguments ?? {};
 
-  try {
+  try { if (isExternalToolGatewayToolName(toolName)) { const payload = await runExternalToolGatewayTool(toolName, args); return jsonToolResult(payload, payload.ok === false); }
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiLaunch) {
       const target = typeof args.target === "string" ? args.target : "canvas";
       const host = typeof args.host === "string" && args.host.trim() ? args.host.trim() : DEFAULT_UI_HOST;

@@ -12,6 +12,11 @@ import {
   GENERATED_MARKDOWN_PIPE_TABLE_FORMAT,
   GENERATED_MARKDOWN_PIPE_TABLE_MIME_TYPE,
 } from '@/features/rich-media/richMediaTablePersistence'
+import { persistFinancialModelWorkbook } from '@/features/rich-media/financialModelWorkbookArtifact'
+import {
+  createRichMediaDeliverablesWithExternalMcp,
+  readCreatedExternalMcpReceipt,
+} from '@/features/rich-media/richMediaDeliverablesExternalMcp'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { StoryboardWidgetTextRunOutputPublisher } from './storyboardWidgetWorkflowRichMediaPublication'
 
@@ -23,6 +28,8 @@ export async function runStoryboardWidgetRichMediaDeliverables(args: {
   authoredPrompt: string
   connectedPrompt: string
   connectedSourceNodeId: string
+  workspacePath?: string | null
+  requireDurablePersistence?: boolean
   model: unknown
   generateText: (prompt: string) => Promise<string>
   publishOutput: StoryboardWidgetTextRunOutputPublisher
@@ -54,6 +61,20 @@ export async function runStoryboardWidgetRichMediaDeliverables(args: {
     }))
     if (!generated) throw new Error('Deliverables generation returned no output.')
     const deliverables = parseRichMediaDeliverablesResponse(generated)
+    const workbook = await persistFinancialModelWorkbook({
+      markdown: deliverables.financialModelMarkdown,
+      workspacePath: args.workspacePath,
+      requireDurablePersistence: args.requireDurablePersistence,
+    })
+    const externalMcp = await createRichMediaDeliverablesWithExternalMcp({
+      properties: args.rawNodeProperties,
+      slideDeckMarkdown: deliverables.slideDeckMarkdown,
+      financialModelMarkdown: deliverables.financialModelMarkdown,
+      workbook,
+    })
+    const externalSlideReceipt = readCreatedExternalMcpReceipt(externalMcp.slideDeck)
+    const externalSpreadsheetReceipt = readCreatedExternalMcpReceipt(externalMcp.spreadsheet)
+    const externalCreatedCount = [externalSlideReceipt, externalSpreadsheetReceipt].filter(Boolean).length
     const commonPanelProperties = {
       freezeConnectedOutput: true,
       richMediaDeliverablesMode: true,
@@ -61,6 +82,8 @@ export async function runStoryboardWidgetRichMediaDeliverables(args: {
       mcpInvoked: mcpResponse?.mcpInvoked === true,
       mcpTool: mcpResponse?.tool || '',
       mcpInvocationTokens: invocationTokens,
+      externalMcpEnabled: externalMcp.enabled,
+      externalMcpErrors: externalMcp.errors,
     }
     const slideDeckGraph = args.publishOutput({
       anchorNode: args.node,
@@ -75,7 +98,9 @@ export async function runStoryboardWidgetRichMediaDeliverables(args: {
         richMediaDocumentKind: 'markdown-slide-deck',
         markdownPresentationMode: true,
         outputMimeType: 'text/markdown; charset=utf-8',
+        externalArtifactReceipt: externalSlideReceipt || undefined,
       },
+      sourceUrl: externalSlideReceipt?.url,
       outputIndex: 0,
       allowCreateStandaloneOutput: true,
       connectCreatedOutputToAnchor: true,
@@ -100,7 +125,21 @@ export async function runStoryboardWidgetRichMediaDeliverables(args: {
         kind: 'markdown-table',
         richMediaActiveTab: 'text',
         media_interactive: false,
+        workbookPath: workbook.path || undefined,
+        workbookManifestPath: workbook.manifestPath || undefined,
+        workbookDownloadUrl: workbook.downloadUrl || undefined,
+        workbookStorageUrl: workbook.storageUrl || undefined,
+        workbookFileName: workbook.fileName,
+        workbookMimeType: workbook.mimeType,
+        workbookSha256: workbook.sha256,
+        workbookSizeBytes: workbook.sizeBytes,
+        workbookSheetName: workbook.sheetName,
+        workbookRowCount: workbook.rowCount,
+        workbookColumnCount: workbook.columnCount,
+        externalArtifactReceipt: externalSpreadsheetReceipt || undefined,
       },
+      sourceUrl: externalSpreadsheetReceipt?.url || workbook.downloadUrl || undefined,
+      outputPath: workbook.path,
       outputIndex: 1,
       allowCreateStandaloneOutput: true,
       connectCreatedOutputToAnchor: true,
@@ -110,18 +149,23 @@ export async function runStoryboardWidgetRichMediaDeliverables(args: {
     if (!financialModelGraph) throw new Error('Financial Model Rich Media panel could not be published.')
     args.updateOutput(properties => ({
       ...clearRichMediaOutputProperties(properties),
-      output: `Generated Slide Deck and Financial Model${mcpResponse ? ' with MCP evidence' : ''}.`,
+      output: `Generated Slide Deck, Markdown Financial Model, and XLSX workbook${mcpResponse ? ' with MCP evidence' : ''}${externalCreatedCount ? `; created ${externalCreatedCount} external MCP artifact${externalCreatedCount === 1 ? '' : 's'}` : ''}.`,
       outputMimeType: 'text/markdown; charset=utf-8',
       outputModel: args.model,
       mcpInvoked: mcpResponse?.mcpInvoked === true,
       mcpTool: mcpResponse?.tool || '',
       mcpInvocationTokens: invocationTokens,
+      externalMcpEnabled: externalMcp.enabled,
+      externalMcpCreatedCount: externalCreatedCount,
+      externalMcpErrors: externalMcp.errors,
+      workbookPath: workbook.path || undefined,
+      workbookSha256: workbook.sha256,
       lastRunAt: new Date().toISOString(),
     }))
     args.upsertToast({
       id: `storyboard-widget-run-${args.id}`,
       kind: 'success',
-      message: `Generated Slide Deck and Financial Model${mcpResponse ? ' via MCP-backed instructions' : ''}.`,
+      message: `Generated Slide Deck, Markdown Financial Model, and XLSX workbook${externalCreatedCount ? ` plus ${externalCreatedCount} external MCP artifact${externalCreatedCount === 1 ? '' : 's'}` : ''}.`,
       ttlMs: 3600,
     })
     return { handled: true, graphData: args.readGraph() || financialModelGraph }
