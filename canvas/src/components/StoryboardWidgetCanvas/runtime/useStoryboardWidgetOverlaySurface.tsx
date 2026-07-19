@@ -40,6 +40,7 @@ import {
   buildFlowCanvasGraphDataOverride,
   resolveOverlayOnlyActive,
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlaySurfaceVisibility'
+import { isAuthoritativeEmptyStoryboardGraph } from '@/components/StoryboardWidgetCanvas/runtime/storyboardCanvasGraphAuthority'
 import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 // #region debug-point A:overlay-surface-graph-handoff
 const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'
@@ -374,6 +375,7 @@ export function useStoryboardWidgetOverlaySurface(args: {
 
   const overlayEditorNodeIds = React.useMemo(() => {
     if (editorSurfaceKind === 'card') return []
+    if (isAuthoritativeEmptyStoryboardGraph(renderGraphDataOverride)) return []
     const rememberStableOverlayIds = (ids: string[]) => {
       lastStableOverlayEditorNodeIdsRef.current = ids
       lastStableOverlayEditorNodeIdsGraphKeyRef.current = renderGraphSemanticKey
