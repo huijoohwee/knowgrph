@@ -269,6 +269,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["workspace.writeThroughAndActiveDocSync.ownership.centralized","@/__tests__/sourceFilesIngestStaleGuard.test","testWorkspaceWriteThroughAndActiveDocSyncOwnershipIsCentralized"],
   ["sourceFiles.db.persist.skipsUnchangedRows","@/__tests__/sourceFilesIngestStaleGuard.test","testSourceFilesDbPersistsOnlyChangedRows"],
   ["sourceFiles.storageSync.documentHash.forbidsParsedTextHashFeedback","@/__tests__/sourceFilesIngestStaleGuard.test","testSourceFilesStorageSyncDocumentHashDoesNotSelfDependOnParsedTextHash"],
+  ["sourceFiles.storageSync.workspaceId.usesCanonicalCrossDeviceDefault","@/__tests__/sourceFilesStorageSync.test","testKnowgrphWorkspaceIdUsesCanonicalDefaultAcrossDeviceLocalWorkspaceState"],
   ["sourceFiles.storageSync.selectedWorkspaceEntries.publishExplicitRecords","@/__tests__/sourceFilesStorageSync.test","testSelectedWorkspaceEntriesPublishAsExplicitStorageRecords"],
   ["sourceFiles.githubWrite.generatedChatLogEndpoint","@/__tests__/sourceFilesGitHubWrite.test","testGeneratedChatLogWorkspacePathsPublishToGitHubEndpoint"],
   ["sourceFiles.githubWrite.generatedChatLogDisabledSkip","@/__tests__/sourceFilesGitHubWrite.test","testGeneratedChatLogGitHubPublishSkipsWhenDisabled"],
