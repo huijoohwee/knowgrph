@@ -64,7 +64,7 @@ traceability:
 
 ## Storage Ladder
 
-1. **Canonical authoring source**: GitHub `docs/**` is SSOT; the configured local docs mirror (`huijoohwee/docs/**` by default for Dev) is a working projection
+1. **Canonical authoring source**: GitHub `huijoohwee/agentic-canvas-os` `docs/**` is the Source Files SSOT; device-local folders are never allowed to replace this inventory
 2. **Per-device cache**: minimal browser cache only; it is not canonical persistence
 3. **Concurrent edit layer**: PocketBase + Yjs when ≥2 users edit the same file at the same time
 4. **Save bridge**: server-side bridge serializes saved Yjs state and commits to GitHub; collaborators never touch Git directly
@@ -76,7 +76,7 @@ traceability:
 
 The canonical authoring source does not change with workspace membership: GitHub `docs/**` remains SSOT.
 
-- **Single-user workspace**: Toolbar Storage Sync reads from and writes to the configured local docs mirror, which is expected to be a checkout/projection of the GitHub docs source.
+- **Single-user workspace**: Source Files reads the canonical Agentic Canvas OS GitHub tree first. A configured local mirror is an offline fallback, not an inventory owner.
 - **Multi-user workspace**: PocketBase + Yjs becomes the live collaboration layer only while concurrent same-file editing is active. On save, the bridge serializes Yjs state and commits to GitHub. D1 remains a runtime read/export cache and never becomes the collaboration SSOT.
 
 ### Multi-User Concurrent Editing
@@ -261,7 +261,7 @@ flowchart TB
 | Cloudflare Worker not deployed to Edge | Client push/pull has no server endpoint | **Resolved** — Worker deployed at `airvio.co/api/storage/*` |
 | D1 database not provisioned | No shared remote store exists | **Resolved** — D1 provisioned (`633355bf-…152`) |
 | No cross-device sync | Workspace state is siloed per-browser | **Resolved** — push/pull + 120s polling loop |
-| No seed write-back | Dev edits to workspace docs don't flow back to `huijoohwee/docs/` | **Resolved** — `/docs/**` workspace writes flow through `upsertWorkspaceDocsMirrorText()` into the configured docs mirror root |
+| Canonical corpus drift | Device caches and the former `huijoohwee/docs` seed exposed different Source Files inventories | **Resolved in Dev** — GitHub `agentic-canvas-os/docs` owns bootstrap; the release seeder reconciles D1 to the same canonical paths and removes stale rows |
 | No user identity | Mutations are anonymous (device-scoped only) | Open — see multi-user collaboration PRD-TAD |
 | No access control | Any device with workspace ID can read/write | Open — see multi-user collaboration PRD-TAD |
 | Stale outbox conflicts after re-seed | 48+ conflicts require manual resolution | **Resolved** — auto-clear after pull |
@@ -273,15 +273,17 @@ flowchart TB
 
 ## Happy Paths
 
-### Path A — Local Filesystem (Single Author, Current Default)
+### Path A — Canonical GitHub Bootstrap (Every Device)
 
 ```
-1. Author edits .md files in huijoohwee/docs/
-2. Toolbar → Workspace View → Storage Sync is on
-3. Workspace seed polling reads the configured docs mirror root
-4. Source Files materialize from the `/docs/**` workspace entries
-5. Editor Workspace edits to `/docs/**` write through to the configured docs mirror root
-6. Workspace renders updated docs
+1. Agentic Canvas OS changes merge into GitHub `huijoohwee/agentic-canvas-os/docs/**`
+2. Workspace bootstrap reads that GitHub tree before device-local or D1 fallback data
+3. Source Files materializes the exact canonical files under `/docs/**`
+4. Authoritative reconciliation deletes cached `/docs/**` entries absent from GitHub
+5. An authorized release seeds the same files as `agentic-canvas-os/docs/**` D1 canonical paths
+6. D1 export/read-back must equal the GitHub file inventory before cross-device Cloudflare sync is claimed
+
+The collaboration readiness harness uses `/docs/README.md`, which exists in the canonical corpus, as its shared owner/guest document.
 ```
 
 ### Path B — Cloudflare D1 Export URL (Runtime Read Cache)

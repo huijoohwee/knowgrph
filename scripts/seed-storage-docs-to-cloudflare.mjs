@@ -50,7 +50,7 @@ Usage:
   node ./scripts/seed-storage-docs-to-cloudflare.mjs [options]
 
 Options:
-  --docs-root <absolute-path>   Docs root to sync (default: ../huijoohwee/docs)
+  --docs-root <absolute-path>   Docs root to sync (default: ../agentic-canvas-os/docs)
   --base-url <url>              Storage API origin (default: https://airvio.co)
   --workspace-id <id>           Target workspace id (default: kgws:canonical-docs)
   --device-id <id>              Device id label (default: seed:canonical-docs)
@@ -62,14 +62,15 @@ Options:
 const normalizeString = (value) => String(value || '').trim()
 
 const docsRoot = normalizeString(getArgValue('--docs-root'))
-  || path.resolve(githubRoot, 'huijoohwee', 'docs')
+  || normalizeString(process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT)
+  || path.resolve(githubRoot, 'agentic-canvas-os', 'docs')
 const baseUrl = normalizeString(getArgValue('--base-url')) || 'https://airvio.co'
 const workspaceId = normalizeString(getArgValue('--workspace-id')) || 'kgws:canonical-docs'
 const deviceId = normalizeString(getArgValue('--device-id')) || 'seed:canonical-docs'
 const dryRun = hasFlag('--dry-run')
 
 const SUPPORTED_DOCS_FILE_EXTENSIONS = new Set(['.md', '.gltf', '.glb'])
-const DEFAULT_CANONICAL_DOCS_ROOT = 'huijoohwee/docs'
+const DEFAULT_CANONICAL_DOCS_ROOT = 'agentic-canvas-os/docs'
 const MAX_INLINE_DOCUMENT_CONTENT_CHARS = 48 * 1024
 
 const contentHash = (text) => createHash('sha256').update(text).digest('hex')

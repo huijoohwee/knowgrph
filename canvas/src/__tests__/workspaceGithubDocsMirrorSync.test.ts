@@ -4,16 +4,23 @@ import {
   readWorkspaceImportDefaultSourceUrlSetting,
   writeWorkspaceImportDefaultSourceUrlSetting,
 } from '@/lib/workspace/workspaceStoreSyncSettings'
-import { readWorkspaceInitializationDocsMirrorEntries } from '@/features/workspace-fs/workspaceSeedProvider'
+import {
+  readWorkspaceInitializationDocsMirrorEntries,
+} from '@/features/workspace-fs/workspaceSeedProvider'
+import { resetCanonicalAgenticDocsMirrorCacheForTests } from '@/features/workspace-fs/workspaceGithubDocsMirror'
 import { readWorkspaceActiveDocumentResolvedText } from '@/features/source-files/sourceFilesRuntimeActive'
 import { materializeActiveWorkspaceEntryIntoSourceFiles } from '@/features/source-files/sourceFilesRuntimeMaterialization'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
+import {
+  normalizeMarkdownWorkspaceDocsSourcePathFromCanonicalPath,
+  readStorageCanonicalPathCandidatesForWorkspacePath,
+} from '@/features/source-files/sourceFilesStoragePaths'
 import type { WorkspaceFs } from '@/features/workspace-fs/types'
 
 type MockRoute = { test: (url: string) => boolean; handler: (url: string, init?: RequestInit) => Response | Promise<Response> }
 
 const KG_GITHUB_ROOT = '/workspace'
-const KG_HUIJOOHWEE_DOCS_ROOT = `${KG_GITHUB_ROOT}/huijoohwee/docs`
+const KG_AGENTIC_CANVAS_OS_DOCS_ROOT = `${KG_GITHUB_ROOT}/agentic-canvas-os/docs`
 
 const jsonResponse = (obj: unknown, status: number = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } })
@@ -138,8 +145,9 @@ export async function testWorkspaceSeedProviderGitHubDocsMirrorDefaultSourceWins
 
   try {
     useGraphStore.getState().resetAll()
-    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_HUIJOOHWEE_DOCS_ROOT
-    writeWorkspaceImportDefaultSourceUrlSetting('https://github.com/huijoohwee/huijoohwee/tree/main/docs')
+    resetCanonicalAgenticDocsMirrorCacheForTests()
+    process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = KG_AGENTIC_CANVAS_OS_DOCS_ROOT
+    writeWorkspaceImportDefaultSourceUrlSetting('')
 
     const routes: MockRoute[] = [
       {
@@ -153,15 +161,15 @@ export async function testWorkspaceSeedProviderGitHubDocsMirrorDefaultSourceWins
         },
       },
       {
-        test: u => u === 'https://api.github.com/repos/huijoohwee/huijoohwee/git/refs/heads/main',
+        test: u => u === 'https://api.github.com/repos/huijoohwee/agentic-canvas-os/git/refs/heads/main',
         handler: () => jsonResponse({ object: { sha: 'commit-sha-docs' } }),
       },
       {
-        test: u => u === 'https://api.github.com/repos/huijoohwee/huijoohwee/git/commits/commit-sha-docs',
+        test: u => u === 'https://api.github.com/repos/huijoohwee/agentic-canvas-os/git/commits/commit-sha-docs',
         handler: () => jsonResponse({ tree: { sha: 'tree-sha-docs' } }),
       },
       {
-        test: u => u === 'https://api.github.com/repos/huijoohwee/huijoohwee/git/trees/tree-sha-docs?recursive=1',
+        test: u => u === 'https://api.github.com/repos/huijoohwee/agentic-canvas-os/git/trees/tree-sha-docs?recursive=1',
         handler: () =>
           jsonResponse({
             truncated: false,
@@ -176,19 +184,19 @@ export async function testWorkspaceSeedProviderGitHubDocsMirrorDefaultSourceWins
           }),
       },
       {
-        test: u => u === 'https://raw.githubusercontent.com/huijoohwee/huijoohwee/main/docs/alpha.md',
+        test: u => u === 'https://raw.githubusercontent.com/huijoohwee/agentic-canvas-os/main/docs/alpha.md',
         handler: () => textResponse('# remote alpha\n'),
       },
       {
-        test: u => u === 'https://raw.githubusercontent.com/huijoohwee/huijoohwee/main/docs/data.json',
+        test: u => u === 'https://raw.githubusercontent.com/huijoohwee/agentic-canvas-os/main/docs/data.json',
         handler: () => textResponse('{"remote":true}\n'),
       },
       {
-        test: u => u === 'https://raw.githubusercontent.com/huijoohwee/huijoohwee/main/docs/model.gltf',
+        test: u => u === 'https://raw.githubusercontent.com/huijoohwee/agentic-canvas-os/main/docs/model.gltf',
         handler: () => textResponse('{"asset":{"version":"2.0"}}\n'),
       },
       {
-        test: u => u === 'https://raw.githubusercontent.com/huijoohwee/huijoohwee/main/docs/model.glb',
+        test: u => u === 'https://raw.githubusercontent.com/huijoohwee/agentic-canvas-os/main/docs/model.glb',
         handler: () => binaryResponse(new Uint8Array([0, 1, 2, 3])),
       },
     ]
@@ -205,7 +213,7 @@ export async function testWorkspaceSeedProviderGitHubDocsMirrorDefaultSourceWins
     const byPath = new Map(mirrored.map(entry => [entry.relPath, entry.text]))
 
     if (localMirrorReadCount !== 0) {
-      throw new Error('expected explicit GitHub docs URL to win before reading stale local docs projection')
+      throw new Error('expected canonical Agentic Canvas OS GitHub docs to win before reading a local docs projection')
     }
     if (byPath.get('alpha.md') !== '# remote alpha\n') {
       throw new Error(`expected alpha.md to come from GitHub, got ${String(byPath.get('alpha.md') || '')}`)
@@ -222,7 +230,21 @@ export async function testWorkspaceSeedProviderGitHubDocsMirrorDefaultSourceWins
     if (byPath.has('image.png') || byPath.has('content/knowgrph/index.html')) {
       throw new Error('expected GitHub docs mirror to stay within the configured docs tree and Source Files mirror formats')
     }
+    if (mirrored.some(entry => entry.authority !== 'agentic-canvas-os-github')) {
+      throw new Error('expected every canonical GitHub entry to carry authoritative tree ownership for stale-file reconciliation')
+    }
+    if (
+      normalizeMarkdownWorkspaceDocsSourcePathFromCanonicalPath('agentic-canvas-os/docs/alpha.md')
+      !== 'workspace:/docs/alpha.md'
+    ) {
+      throw new Error('expected Agentic Canvas OS D1 paths to materialize into the canonical /docs workspace root')
+    }
+    const canonicalCandidates = readStorageCanonicalPathCandidatesForWorkspacePath('/docs/alpha.md')
+    if (canonicalCandidates[0] !== 'agentic-canvas-os/docs/alpha.md') {
+      throw new Error(`expected canonical D1 writes to prefer Agentic Canvas OS docs, got ${JSON.stringify(canonicalCandidates)}`)
+    }
   } finally {
+    resetCanonicalAgenticDocsMirrorCacheForTests()
     writeWorkspaceImportDefaultSourceUrlSetting(previousDefaultSourceUrl)
     if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
     else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT

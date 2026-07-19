@@ -42,6 +42,10 @@ export function testCloudflareDeployScriptsSeedDocsMirrorIntoD1() {
     || !seedScriptText.includes('Source Files mismatch after seed')) {
     throw new Error('expected D1 docs seeding to reconcile stale Source Files instead of leaving an append-only Cloudflare cache')
   }
+  if (!seedScriptText.includes("process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT")
+    || !seedScriptText.includes("DEFAULT_CANONICAL_DOCS_ROOT = 'agentic-canvas-os/docs'")) {
+    throw new Error('expected D1 docs seeding to project the release-resolved Agentic Canvas OS docs source into canonical storage paths')
+  }
   if (!seedSqlText.includes('ON CONFLICT(workspace_id, canonical_path) DO UPDATE SET')
     || !seedSqlText.includes('AND document_id = (${documentIdentitySql});')) {
     throw new Error('expected direct D1 seeding to preserve canonical-path ownership and attach chunks to the resolved document identity')

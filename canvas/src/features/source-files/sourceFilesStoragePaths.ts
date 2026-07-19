@@ -6,8 +6,8 @@ import {
 } from '@/features/workspace-fs/workspaceFs'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
-const CANONICAL_DOCS_ROOT = 'huijoohwee/docs'
-const CANONICAL_DOCS_PARENT_ROOT = 'huijoohwee'
+const CANONICAL_DOCS_ROOT = 'agentic-canvas-os/docs'
+const CANONICAL_DOCS_PARENT_ROOT = 'agentic-canvas-os'
 
 export const looksLikeHttpUrl = (value: string): boolean => /^https?:\/\//i.test(value)
 

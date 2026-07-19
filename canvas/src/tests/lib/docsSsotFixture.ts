@@ -10,7 +10,7 @@ import {
 const DEFAULT_DOCS_SSOT_CACHE_DIR = path.join(os.tmpdir(), 'knowgrph-docs-ssot-fixtures')
 const DEFAULT_DOCS_SSOT_STORAGE_BASE_URL = 'https://airvio.co'
 const DEFAULT_DOCS_SSOT_WORKSPACE_ID = 'kgws:canonical-docs'
-const DEFAULT_DOCS_SSOT_CANONICAL_PREFIX = 'huijoohwee/docs'
+const DEFAULT_DOCS_SSOT_CANONICAL_PREFIX = 'agentic-canvas-os/docs'
 const DOCS_SSOT_REQUEST_TIMEOUT_SECONDS = '20'
 
 const fetchedFixtureTextByBasename = new Map<string, string>()

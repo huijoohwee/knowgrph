@@ -294,7 +294,7 @@ flowchart LR
   Pages --> Agent["HTTP agent-ready routes"]
   Dev --> StorageDeploy["npm run storage:deploy"]
   StorageDeploy --> StorageWorker["knowgrph-storage Worker"]
-  StorageDeploy --> D1Seed["seed huijoohwee/docs"]
+  StorageDeploy --> D1Seed["reconcile agentic-canvas-os/docs"]
   StorageWorker --> D1["Cloudflare D1 knowgrph-storage"]
   D1Seed --> D1
   StorageWorker --> StorageRoutes["airvio.co/api/storage/*"]
@@ -314,7 +314,7 @@ flowchart LR
 |---|---|---|---|
 | Build | `pages:build-sync` | source -> Vite build -> publish mirror | `scripts/sync-pages-knowgrph.mjs` |
 | Deploy static app | Wrangler Pages deploy | publish mirror -> Cloudflare Pages | `pages:deploy-cloudflare` |
-| Deploy storage | D1 migrations, Worker deploy, docs seed | migrations -> D1, Worker bundle -> route, `huijoohwee/docs` -> D1 | `storage:deploy` |
+| Deploy storage | D1 migrations, Worker deploy, docs reconciliation | migrations -> D1, Worker bundle -> route, release-resolved `agentic-canvas-os/docs` -> D1 | `storage:deploy` |
 | Deploy payment | Payment D1 migrations, Worker deploy, payment readiness | payment migrations -> D1 schema, payment Worker bundle -> route, visible payment vars -> production authority | `payment:d1:migrate:remote`, `payment:worker:deploy`, `payment:stripe:readiness`, `payment:x402:configure`, `payment:x402:readiness`, `payment:readiness` |
 | Publish DNS-AID | REST API upsert | record contract -> Cloudflare DNS -> public DoH | `dns-aid:publish` |
 | Validate discovery | HTTP and DNS checks | public routes -> validators -> pass/fail | `agent-ready:check`, `dns-aid:check` |

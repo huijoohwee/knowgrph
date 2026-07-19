@@ -9,12 +9,12 @@ import {
 import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 import { readCachedWorkspaceDocsMirrorEntries, readFirstKnowgrphStorageDocText, readWorkspaceDocsMirrorTextViaFetch as readTextViaFetch } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
 import { importNodeFsPromises, importNodePath } from '@/features/workspace-fs/workspaceSeedNodeModules'
-import { isWorkspaceDocsMirrorGitHubSourceUrl, readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl } from '@/features/workspace-fs/workspaceGithubDocsMirror'
+import { isWorkspaceDocsMirrorGitHubSourceUrl, readCanonicalAgenticCanvasOsDocsMirrorEntries, readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl } from '@/features/workspace-fs/workspaceGithubDocsMirror'
 import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBase64 } from '@/features/workspace-fs/workspaceSourceMirrorFormats'
 import { readWorkspaceMirrorRootEntries } from '@/features/workspace-fs/workspaceMirrorRootEntries'
 const KG_FS_WRITE_PATH = '/__kg_fs_write', KG_FS_LIST_PATH = '/__kg_fs_list'
 const WORKSPACE_DOCS_MIRROR_MAX_FILES = 500, WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES = 500 * 1024
-const LOCAL_DOCS_MIRROR_CACHE_TTL_MS = 1000
+const LOCAL_DOCS_MIRROR_CACHE_TTL_MS = 1000, CANONICAL_STORAGE_DOCS_ROOT = 'agentic-canvas-os/docs'
 // #region debug-point A:workspace-mirror-bootstrap
 const WORKSPACE_MIRROR_TRACE_SCOPE = 'workspace-mirror'
 let workspaceMirrorDebugSequence = 0
@@ -347,16 +347,16 @@ const readCanonicalPathCandidatesForSourcePath = (sourcePathRaw: string): string
       }
       return normalizedPath
     }
-    const docsRootMarker = 'huijoohwee/docs/'
+    const docsRootMarker = `${CANONICAL_STORAGE_DOCS_ROOT}/`
     const docsRootIndex = next.toLowerCase().indexOf(docsRootMarker)
     if (docsRootIndex > 0) {
       next = next.slice(docsRootIndex)
     }
-    if (next.toLowerCase().startsWith('docs/huijoohwee/docs/')) {
-      next = `huijoohwee/docs/${next.slice('docs/huijoohwee/docs/'.length)}`
+    if (next.toLowerCase().startsWith(`docs/${docsRootMarker}`)) {
+      next = `${CANONICAL_STORAGE_DOCS_ROOT}/${next.slice(`docs/${docsRootMarker}`.length)}`
     }
     next = collapsePrefix(next, 'docs')
-    next = collapsePrefix(next, 'huijoohwee/docs')
+    next = collapsePrefix(next, CANONICAL_STORAGE_DOCS_ROOT)
     return normalizeMirrorRelPath(next)
   }
   const normalized = normalizeCanonicalPath(withoutWorkspace)
@@ -365,17 +365,17 @@ const readCanonicalPathCandidatesForSourcePath = (sourcePathRaw: string): string
   const push = (value: string) => {
     const next = normalizeCanonicalPath(value)
     if (!next || !isWorkspaceSourceMirrorFileName(next)) return
-    if (next.toLowerCase().includes('/huijoohwee/docs/huijoohwee/docs/')) return
-    if (next.toLowerCase().startsWith('docs/huijoohwee/docs/')) return
+    if (next.toLowerCase().includes(`/${CANONICAL_STORAGE_DOCS_ROOT}/${CANONICAL_STORAGE_DOCS_ROOT}/`)) return
+    if (next.toLowerCase().startsWith(`docs/${CANONICAL_STORAGE_DOCS_ROOT}/`)) return
     candidates.add(next)
   }
   if (normalized.startsWith('docs/')) {
     // Prefer canonical storage owner path first to avoid noisy/failed docs/* probes.
-    push(`huijoohwee/${normalized}`)
+    push(`agentic-canvas-os/${normalized}`)
     push(normalized)
-  } else if (normalized.startsWith('huijoohwee/docs/')) {
+  } else if (normalized.startsWith(`${CANONICAL_STORAGE_DOCS_ROOT}/`)) {
     push(normalized)
-    push(normalized.slice('huijoohwee/'.length))
+    push(normalized.slice('agentic-canvas-os/'.length))
   } else {
     push(normalized)
   }
@@ -525,16 +525,16 @@ const normalizeSourceFileMirrorPath = (value: unknown): string => {
   }
   let normalized = normalizeMirrorRelPath(withoutWorkspacePrefix)
   if (!normalized) return ''
-  const docsRootMarker = 'huijoohwee/docs/'
+  const docsRootMarker = `${CANONICAL_STORAGE_DOCS_ROOT}/`
   const docsRootIndex = normalized.toLowerCase().indexOf(docsRootMarker)
   if (docsRootIndex > 0) {
     normalized = normalized.slice(docsRootIndex)
   }
-  if (normalized.toLowerCase().startsWith('docs/huijoohwee/docs/')) {
-    normalized = `huijoohwee/docs/${normalized.slice('docs/huijoohwee/docs/'.length)}`
+  if (normalized.toLowerCase().startsWith(`docs/${docsRootMarker}`)) {
+    normalized = `${CANONICAL_STORAGE_DOCS_ROOT}/${normalized.slice(`docs/${docsRootMarker}`.length)}`
   }
   normalized = collapsePrefix(normalized, 'docs')
-  normalized = collapsePrefix(normalized, 'huijoohwee/docs')
+  normalized = collapsePrefix(normalized, CANONICAL_STORAGE_DOCS_ROOT)
   return normalizeMirrorRelPath(normalized)
 }
 
@@ -544,7 +544,7 @@ const stripWorkspaceDocsMirrorRootPrefix = (path: string): string => {
   const normalized = normalizeMirrorRelPath(path)
   if (!normalized) return ''
   const lowered = normalized.toLowerCase()
-  const docsRootMarker = 'huijoohwee/docs/'
+  const docsRootMarker = `${CANONICAL_STORAGE_DOCS_ROOT}/`
   if (lowered.startsWith(docsRootMarker)) {
     return normalizeMirrorRelPath(normalized.slice(docsRootMarker.length))
   }
@@ -1293,7 +1293,7 @@ const normalizeSelectedFolderMirrorPath = (value: string): string => {
     return normalizeMirrorRelPath(parts.slice(0, -1).join('/'))
   })()
   const lower = asFolder.toLowerCase()
-  const docsRootPrefix = 'huijoohwee/docs/'
+  const docsRootPrefix = `${CANONICAL_STORAGE_DOCS_ROOT}/`
   const docsRootIndex = lower.indexOf(docsRootPrefix)
   if (docsRootIndex >= 0) {
     return normalizeMirrorRelPath(asFolder.slice(docsRootIndex + docsRootPrefix.length))
@@ -1311,11 +1311,7 @@ const normalizeSelectedFolderMirrorPath = (value: string): string => {
   return asFolder
 }
 
-export type WorkspaceDocsMirrorEntry = {
-  relPath: string
-  text: string
-  updatedAtMs: number
-}
+export type WorkspaceDocsMirrorEntry = { relPath: string; text: string; updatedAtMs: number; authority?: 'agentic-canvas-os-github' }
 
 const readWorkspaceDocsMirrorDatasetScore = (entries: ReadonlyArray<WorkspaceDocsMirrorEntry>): number => {
   const list = Array.isArray(entries) ? entries : []
@@ -1552,6 +1548,8 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
     },
   })
   // #endregion
+  const canonicalGitHubEntries = await readCanonicalAgenticCanvasOsDocsMirrorEntries({ maxFiles: WORKSPACE_DOCS_MIRROR_MAX_FILES, maxFileBytes: WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES })
+  if (canonicalGitHubEntries.length > 0) return canonicalGitHubEntries
   if (defaultSourceUrlIsGitHub) {
     const viaGitHubDefaultSource = await readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl({
       url: defaultSourceUrl,
