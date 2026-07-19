@@ -1,11 +1,13 @@
 import React from 'react'
 import type { Group } from 'three'
 import type { GraphData } from '@/lib/graph/types'
+import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { XrMotionReferenceStage } from '@/features/three/XrMotionReferenceStage'
 import { XrPhysicsStageRuntime } from '@/features/three/XrPhysicsStageRuntime'
 import { XrNativeControllerDemoStage } from '@/features/three/XrNativeControllerDemoStage'
 import { XrNativeControllerDemoSceneAtmosphere } from '@/features/three/XrNativeControllerDemoEnvironment'
 import {
+  XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE,
   readXrNativeControllerDemo,
   subscribeXrNativeControllerDemo,
 } from '@/features/three/xrNativeControllerDemoRuntime'
@@ -35,14 +37,18 @@ export function XrGraphStage({ data }: { data: GraphData }) {
     readXrNativeControllerDemo,
   )
   const stage = resolveXrMotionReferenceStage(runtime.plan.stageId)
-  const stageScale = XR_MOTION_STAGE_SPAN / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
+  const runReadyDemo = isXrPhysicsRunReadyDemoActive()
+  const stageScale = runReadyDemo
+    ? XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE
+    : XR_MOTION_STAGE_SPAN / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
+  const nativeControllerOwnsStage = runReadyDemo || controllerDemo.phase !== 'off'
   return (
     <>
-      {controllerDemo.phase !== 'off' ? (
+      {nativeControllerOwnsStage ? (
         <XrNativeControllerDemoSceneAtmosphere stageScale={stageScale} />
       ) : null}
       <group ref={stageRootRef} name="kg_graph_xr_stage">
-        {controllerDemo.phase === 'off' ? (
+        {!nativeControllerOwnsStage ? (
           <>
             <XrMotionReferenceStage
               graphData={data}
@@ -53,7 +59,11 @@ export function XrGraphStage({ data }: { data: GraphData }) {
             <XrPhysicsStageRuntime stageScale={stageScale} groundY={XR_MOTION_STAGE_GROUND_Y} />
           </>
         ) : null}
-        <XrNativeControllerDemoStage stageScale={stageScale} groundY={XR_MOTION_STAGE_GROUND_Y} />
+        <XrNativeControllerDemoStage
+          stageScale={stageScale}
+          groundY={XR_MOTION_STAGE_GROUND_Y}
+          retainStage={runReadyDemo}
+        />
       </group>
     </>
   )

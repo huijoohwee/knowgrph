@@ -25,6 +25,11 @@ import {
 export const XR_NATIVE_CONTROLLER_DEMO_SCHEMA = 'knowgrph-xr-native-controller-demo/v1'
 export const XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID = 'native-controller'
 export const XR_NATIVE_CONTROLLER_DEMO_MODES = ['ball', 'rocket'] as const
+export const XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE = 1.5
+export const XR_NATIVE_CONTROLLER_DEMO_MAX_ALTITUDE_METERS = 24
+export const XR_NATIVE_PLAYGROUND_HALF_EXTENT_X = 15.4
+export const XR_NATIVE_PLAYGROUND_HALF_EXTENT_Z = 13.4
+export const XR_NATIVE_PLAYGROUND_CENTER_Z = 1.1
 export const XR_NATIVE_CONTROLLER_DEMO_KEY_POSITION = Object.freeze([-8.4, 0.62, -6.9] as const)
 export const XR_NATIVE_CONTROLLER_DEMO_CHEST_POSITION = Object.freeze([-3.4, 0, -6.3] as const)
 
@@ -184,11 +189,13 @@ function demoWorld(): XrPhysicsWorldConfig {
 }
 
 function demoColliders(): readonly XrPhysicsStaticCollider[] {
+  const flightBoundaryHeight = XR_NATIVE_CONTROLLER_DEMO_MAX_ALTITUDE_METERS + 4
+  const flightBoundaryCenterY = flightBoundaryHeight / 2
   return readXrPhysicsStaticColliders([
-    { id: 'native-island-west', center: [-15.4, 2, 1], sizeMeters: [0.6, 4, 27] },
-    { id: 'native-island-east', center: [15.4, 2, 1], sizeMeters: [0.6, 4, 27] },
-    { id: 'native-island-north', center: [0, 2, -12.3], sizeMeters: [31.4, 4, 0.6] },
-    { id: 'native-island-south', center: [0, 2, 14.5], sizeMeters: [31.4, 4, 0.6] },
+    { id: 'native-island-west', center: [-XR_NATIVE_PLAYGROUND_HALF_EXTENT_X, flightBoundaryCenterY, XR_NATIVE_PLAYGROUND_CENTER_Z], sizeMeters: [0.6, flightBoundaryHeight, XR_NATIVE_PLAYGROUND_HALF_EXTENT_Z * 2] },
+    { id: 'native-island-east', center: [XR_NATIVE_PLAYGROUND_HALF_EXTENT_X, flightBoundaryCenterY, XR_NATIVE_PLAYGROUND_CENTER_Z], sizeMeters: [0.6, flightBoundaryHeight, XR_NATIVE_PLAYGROUND_HALF_EXTENT_Z * 2] },
+    { id: 'native-island-north', center: [0, flightBoundaryCenterY, XR_NATIVE_PLAYGROUND_CENTER_Z - XR_NATIVE_PLAYGROUND_HALF_EXTENT_Z], sizeMeters: [XR_NATIVE_PLAYGROUND_HALF_EXTENT_X * 2 + 0.6, flightBoundaryHeight, 0.6] },
+    { id: 'native-island-south', center: [0, flightBoundaryCenterY, XR_NATIVE_PLAYGROUND_CENTER_Z + XR_NATIVE_PLAYGROUND_HALF_EXTENT_Z], sizeMeters: [XR_NATIVE_PLAYGROUND_HALF_EXTENT_X * 2 + 0.6, flightBoundaryHeight, 0.6] },
     { id: 'native-treasure-block', center: [-3.4, 0.8, -6.3], sizeMeters: [2.5, 1.6, 1.5] },
     { id: 'native-grotto-block', center: [-10.7, 1.8, -7], sizeMeters: [3.4, 3.6, 5.2] },
     { id: 'native-cannon-left', center: [1.6, 0.6, -6.25], sizeMeters: [1.5, 1.2, 1.8] },
@@ -284,6 +291,19 @@ function updateBallRotation(runtime: XrNativeControllerDemoRuntime): void {
   runtime.previousPlayerPosition = [current[0], current[1], current[2]]
 }
 
+function constrainRocketAltitude(runtime: XrNativeControllerDemoRuntime): void {
+  if (runtime.mode !== 'rocket') return
+  const body = playerBody(runtime)
+  if (body.position[1] <= XR_NATIVE_CONTROLLER_DEMO_MAX_ALTITUDE_METERS) return
+  setXrPhysicsSimulationBodyPose(
+    runtime.simulation,
+    XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID,
+    [body.position[0], XR_NATIVE_CONTROLLER_DEMO_MAX_ALTITUDE_METERS, body.position[2]],
+    [body.velocity[0], Math.min(0, body.velocity[1]), body.velocity[2]],
+    { teleport: true },
+  )
+}
+
 function updateBodyRotations(runtime: XrNativeControllerDemoRuntime, stepSeconds: number): void {
   for (const [subjectId, rotation] of Object.entries(runtime.bodyRotations)) {
     const body = readXrPhysicsSimulationBody(runtime.simulation, subjectId)
@@ -348,6 +368,7 @@ function stepFixed(runtime: XrNativeControllerDemoRuntime): void {
     staticColliders: runtime.colliders,
     stepSeconds,
   })
+  constrainRocketAltitude(runtime)
   updateBallRotation(runtime)
   updateBodyRotations(runtime, stepSeconds)
   updateObjective(runtime)

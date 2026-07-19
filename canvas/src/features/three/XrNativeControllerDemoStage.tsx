@@ -37,9 +37,11 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
 export function XrNativeControllerDemoStage({
   stageScale,
   groundY,
+  retainStage = false,
 }: {
   stageScale: number
   groundY: number
+  retainStage?: boolean
 }) {
   const runtime = React.useSyncExternalStore(
     subscribeXrNativeControllerDemo,
@@ -56,6 +58,7 @@ export function XrNativeControllerDemoStage({
     if (node) bodyRefs.current.set(subjectId, node)
     else bodyRefs.current.delete(subjectId)
   }, [])
+  const stageVisible = retainStage || runtime.phase !== 'off'
 
   React.useEffect(() => {
     const clearInput = () => {
@@ -133,7 +136,7 @@ export function XrNativeControllerDemoStage({
 
   return (
     <>
-      {runtime.phase !== 'off' ? (
+      {stageVisible ? (
         <>
           <ambientLight intensity={0.4} />
           <hemisphereLight args={['#dff4ff', '#d9b978', 0.55]} />
@@ -157,7 +160,7 @@ export function XrNativeControllerDemoStage({
         name="kg_xr_native_controller_demo"
         position={[0, groundY, 0]}
         scale={stageScale}
-        visible={runtime.phase !== 'off'}
+        visible={stageVisible}
         userData={{
           schema: runtime.schema,
           phase: runtime.phase,

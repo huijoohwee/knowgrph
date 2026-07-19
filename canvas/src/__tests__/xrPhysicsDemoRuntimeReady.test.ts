@@ -16,7 +16,7 @@ import {
   resolveWorkspaceRunReadyDemoSeed,
   resolveWorkspaceValidationSeedRelPath,
 } from '@/features/workspace-fs/workspaceRunReadyDemos'
-import { autoStartPristineXrPhysicsRunReadyDemo } from '@/features/canvas/xrPhysicsRunReadyLifecycle'
+import { ensureXrPhysicsRunReadyDemoRunning } from '@/features/canvas/xrPhysicsRunReadyLifecycle'
 
 type PlainRecord = Record<string, unknown>
 
@@ -50,13 +50,16 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
       lifecycle.revision += 1
     },
   }
-  if (!autoStartPristineXrPhysicsRunReadyDemo(lifecycle, actions) || selectedMode !== 'ball' || launchCount !== 1) {
+  if (!ensureXrPhysicsRunReadyDemoRunning(lifecycle, actions) || selectedMode !== 'ball' || launchCount !== 1) {
     throw new Error('expected pristine run-ready lifecycle to auto-start the Ball controller exactly once')
   }
   lifecycle.phase = 'off'
   lifecycle.revision += 1
-  if (autoStartPristineXrPhysicsRunReadyDemo(lifecycle, actions) || launchCount !== 1) {
-    throw new Error('expected an intentional lifecycle exit to remain durable')
+  if (!ensureXrPhysicsRunReadyDemoRunning(lifecycle, actions) || selectedMode !== 'ball' || Number(launchCount) !== 2) {
+    throw new Error('expected standalone run-ready lifecycle to reclaim an off fallback')
+  }
+  if (ensureXrPhysicsRunReadyDemoRunning(lifecycle, actions) || Number(launchCount) !== 2) {
+    throw new Error('expected a running standalone lifecycle to avoid duplicate launch')
   }
 
   const markdownText = fs.readFileSync(SEED_PATH, 'utf8')
@@ -148,6 +151,8 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
     'modifier stabilization',
     'standard left stick',
     'smooth follow',
+    'bounded aerial composition',
+    'procedural horizon volcano',
     'procedural tropical island',
     'collect key then unlock treasure',
     'full-frame-playground',
@@ -167,7 +172,7 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
   if (rootScripts['demo:xr-physics'] !== 'npm run dev:xr-physics --workspace=@knowgrph/canvas --') {
     throw new Error('expected the repository demo command to delegate to the Canvas workspace')
   }
-  const expectedCanvasScript = `VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT=$PWD/../docs VITE_KNOWGRPH_RUN_READY_REPO_LOCAL=1 ${WORKSPACE_RUN_READY_DEMO_ENV}=${XR_PHYSICS_RUN_READY_DEMO_ID} vite --configLoader runner`
+  const expectedCanvasScript = `VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT=$PWD/../docs VITE_KNOWGRPH_RUN_READY_REPO_LOCAL=1 ${WORKSPACE_RUN_READY_DEMO_ENV}=${XR_PHYSICS_RUN_READY_DEMO_ID} vite --configLoader runner --port 5174 --strictPort`
   if (canvasScripts['dev:xr-physics'] !== expectedCanvasScript) {
     throw new Error('expected the Canvas demo command to activate repo-local source authority and the shared run-ready selector')
   }
@@ -186,11 +191,15 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
   if (!canvasPageSource.includes("data-kg-xr-physics-run-ready={xrPhysicsRunReadyDemo ? 'full-frame'")) {
     throw new Error('expected run-ready launch to project the existing viewport without editor chrome')
   }
+  if (!canvasPageSource.includes("canvasRenderMode={xrPhysicsRunReadyDemo ? '3d'")
+    || !canvasPageSource.includes("canvas3dMode={xrPhysicsRunReadyDemo ? 'xr'")) {
+    throw new Error('expected late document UI restores to remain unable to replace the dedicated XR surface')
+  }
   if (!viewportSource.includes('<XrNativeControllerDemoHud') || !viewportSource.includes('isXrPhysicsRunReadyDemoActive')) {
     throw new Error('expected the shared viewport to own the standalone controller HUD')
   }
-  if (!graphStageSource.includes("controllerDemo.phase === 'off'")) {
-    throw new Error('expected the playground stage to replace rather than overlap the authored XR stage')
+  if (!graphStageSource.includes('nativeControllerOwnsStage') || !graphStageSource.includes('retainStage={runReadyDemo}')) {
+    throw new Error('expected the standalone playground to retain exclusive stage ownership across lifecycle transitions')
   }
   if (!aspectMaskSource.includes('isXrPhysicsRunReadyDemoActive()') || !sessionPanelSource.includes('isXrPhysicsRunReadyDemoActive()')) {
     throw new Error('expected standalone launch to suppress editor optics and session chrome')

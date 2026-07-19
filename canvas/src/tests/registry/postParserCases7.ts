@@ -164,5 +164,5 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["canvas.xrMode.physics.nativeController.objective","@/__tests__/xrNativeControllerDemo.test","testXrNativePlaygroundObjectiveIsGatedAndResettable"],
   ["canvas.xrMode.physics.nativeController.cannonReload","@/__tests__/xrNativeControllerDemo.test","testXrNativeCannonReloadTeleportsWithoutSweepingAcrossPlayground"],
   ["canvas.xrMode.physics.nativeController.integration","@/__tests__/xrNativeControllerDemo.test","testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute"],
-  ["canvas.xrMode.physics.nativeController.runReadyLifecycle","@/__tests__/xrPhysicsRunReadyDemoRuntime.test.tsx","testXrPhysicsRunReadyRuntimeAutoStartsOnceAndPreservesExitAcrossRemount"],
+  ["canvas.xrMode.physics.nativeController.runReadyLifecycle","@/__tests__/xrPhysicsRunReadyDemoRuntime.test.tsx","testXrPhysicsRunReadyRuntimeReclaimsOffFallbackWithoutDoubleLaunch"],
 ]

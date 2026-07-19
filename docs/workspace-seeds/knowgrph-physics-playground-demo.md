@@ -134,13 +134,13 @@ From the repository root, run `npm run demo:xr-physics`. The Beach Ball, playgro
 | Torque or stabilization | Shift | Shoulder action |
 | Switch controller | Ball / Rocket buttons | Simulation controls |
 
-The same runtime is MCP-controllable through `knowgrph.control_local_xr_scene`; use `/xr.physics @canvas #controller operation=develop-run mode=ball`, then `operation=select mode=rocket`, `operation=pause`, `operation=resume`, `operation=reset`, or `operation=exit`.
+The same runtime is MCP-controllable through `knowgrph.control_local_xr_scene`; use `/xr.physics @canvas #controller operation=develop-run mode=ball`, then `operation=select mode=rocket`, `operation=pause`, `operation=resume`, or `operation=reset`. In the dedicated run-ready command, an `exit` transition is immediately reclaimed as a fresh Ball run so the authored editor preview can never leak beneath the standalone HUD.
 
-The ball rolls across the sand, jumps only from supported contact, retains bounded air steering, and exposes a stronger torque response while the modifier is held. The rocket applies directional and vertical thrust, visualizes bounded tilt and live exhaust, dampens rotation, and uses the modifier to stabilize toward upright.
+The ball rolls across the sand, jumps only from supported contact, retains bounded air steering, and exposes a stronger torque response while the modifier is held. The rocket applies directional and vertical thrust, visualizes bounded tilt and live exhaust, dampens rotation, and uses the modifier to stabilize toward upright. Rocket altitude stays within the authored island scale while the single camera raises and widens into a bounded aerial composition containing the procedural horizon volcano, east-shore ship, and animated tentacles.
 
 Find the procedural key near the grotto, then return to the treasure chest to unlock it. Barrels, bowling pins, and timed cannonballs share the same deterministic collision world with both vehicles. Press `R` to restore the Beach Ball, player, interactive props, key, treasure, and selected objective state.
 
-Switching between Ball and Rocket changes the active controller and procedural presentation while preserving the simulated body position and velocity. Pause, Resume, Reset, and Exit remain deterministic lifecycle actions. The follow camera eases toward the active body without creating a second camera owner.
+Switching between Ball and Rocket changes the active controller and procedural presentation while preserving the simulated body position and velocity. Pause, Resume, and Reset remain deterministic lifecycle actions. The follow camera eases toward the active body without creating a second camera owner.
 
 ## Demo-ready checks
 

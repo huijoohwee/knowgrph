@@ -10,7 +10,11 @@ import {
 import {
   XR_NATIVE_CONTROLLER_DEMO_CHEST_POSITION,
   XR_NATIVE_CONTROLLER_DEMO_KEY_POSITION,
+  XR_NATIVE_CONTROLLER_DEMO_MAX_ALTITUDE_METERS,
   XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID,
+  XR_NATIVE_PLAYGROUND_CENTER_Z,
+  XR_NATIVE_PLAYGROUND_HALF_EXTENT_X,
+  XR_NATIVE_PLAYGROUND_HALF_EXTENT_Z,
   createXrNativeControllerDemoRuntime,
   readXrNativeControllerDemoRuntimeFrame,
   resetXrNativeControllerDemoRuntime,
@@ -128,6 +132,25 @@ export function testXrNativeRocketControllerThrustsTiltsAndStabilizes() {
   const stabilized = readXrNativeControllerDemoRuntimeFrame(runtime)
   assert(Math.abs(stabilized.rocketRotation[0]) < Math.abs(thrust.rocketRotation[0]) * 0.4, 'modifier must stabilize pitch toward upright')
   assert(Math.abs(stabilized.rocketRotation[2]) < Math.abs(thrust.rocketRotation[2]) * 0.4, 'modifier must stabilize roll toward upright')
+  const ceilingRuntime = runningRuntime('rocket')
+  setXrNativeControllerDemoRuntimeInput(ceilingRuntime, createXrNativeControllerInput({ primary: true, source: 'keyboard' }))
+  stepXrNativeControllerDemoRuntimeTicks(ceilingRuntime, 1_200)
+  const ceilingFlight = readXrNativeControllerDemoRuntimeFrame(ceilingRuntime)
+  assert(ceilingFlight.player.position[1] <= XR_NATIVE_CONTROLLER_DEMO_MAX_ALTITUDE_METERS, 'sustained thrust must retain the island-scale aerial composition')
+  assert(ceilingFlight.player.velocity[1] <= 0.001, 'the aerial ceiling must cancel upward escape velocity')
+
+  const boundedRuntime = runningRuntime('rocket')
+  setXrNativeControllerDemoRuntimeInput(boundedRuntime, createXrNativeControllerInput({
+    moveX: 1,
+    moveZ: -1,
+    primary: true,
+    source: 'keyboard',
+  }))
+  stepXrNativeControllerDemoRuntimeTicks(boundedRuntime, 1_200)
+  const boundedFlight = readXrNativeControllerDemoRuntimeFrame(boundedRuntime)
+  assert(boundedFlight.player.position[1] <= XR_NATIVE_CONTROLLER_DEMO_MAX_ALTITUDE_METERS, 'sustained thrust must retain the island-scale aerial composition')
+  assert(Math.abs(boundedFlight.player.position[0]) <= XR_NATIVE_PLAYGROUND_HALF_EXTENT_X, 'sustained lateral flight must remain inside the island composition')
+  assert(Math.abs(boundedFlight.player.position[2] - XR_NATIVE_PLAYGROUND_CENTER_Z) <= XR_NATIVE_PLAYGROUND_HALF_EXTENT_Z, 'sustained forward flight must remain inside the island composition')
   runtime.phase = 'paused'
   setXrNativeControllerDemoRuntimeInput(runtime, createXrNativeControllerInput({ primary: true, source: 'keyboard' }))
   assert(!readXrNativeControllerDemoRuntimeFrame(runtime).rocketThrusting, 'paused rocket input must not animate active thrust')
@@ -201,6 +224,7 @@ export function testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute() {
   const camera = source('features', 'three', 'useXrNativeControllerDemoCamera.ts')
   const threeControls = source('features', 'three', 'Controls.tsx')
   const environment = source('features', 'three', 'XrNativeControllerDemoEnvironment.tsx')
+  const aerialSetpieces = source('features', 'three', 'XrNativeControllerDemoAerialSetpieces.tsx')
   assert(workbench.includes('<XrNativeControllerDemoControls'), 'existing Simulation workbench must own the demo controls')
   for (const marker of ['data-kg-xr-native-controller-demo="1"', 'data-kg-xr-native-controller-action={marker}', 'marker="develop-run"', 'data-kg-xr-native-controller-invocation']) {
     assert(controls.includes(marker), `native controller UI must expose ${marker}`)
@@ -208,10 +232,15 @@ export function testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute() {
   assert(graphStage.includes('<XrNativeControllerDemoStage'), 'canonical graph XR stage must mount the native procedural demo')
   assert(stage.includes('navigator.getGamepads()') && stage.includes('readXrNativeControllerKeyboardInput'), 'stage runtime must unify standard gamepad and keyboard input')
   assert(stage.includes('closest(INTERACTIVE_TARGET_SELECTOR)') && stage.includes('frame.bodyRotations'), 'stage must preserve native button activation and consume deterministic prop presentation state')
-  assert(camera.includes('controls.target.lerp') && camera.includes('camera.fov - PLAYGROUND_FOV_DEGREES') && threeControls.includes('useXrNativeControllerDemoCamera'), 'shared camera owner must provide smooth controller following and retain full-frame optics')
+  assert(camera.includes('controls.target.lerp') && camera.includes('desiredFov') && camera.includes('PLAYGROUND_FOV_DEGREES') && threeControls.includes('useXrNativeControllerDemoCamera'), 'shared camera owner must provide smooth controller following and retain full-frame optics')
   assert(camera.includes('controls.enableRotate = false') && !camera.includes('frame.player.velocity'), 'world-relative controller input must retain a fixed-yaw hero camera')
+  assert(camera.includes('AERIAL_FOV_DEGREES') && camera.includes('aerialFactor') && camera.includes('XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE'), 'Rocket altitude must widen one fixed-scale camera owner into the aerial island view')
   for (const landmark of ['kg_xr_playground_skull_grotto', 'kg_xr_playground_treasure', 'kg_xr_playground_key', 'kg_xr_playground_moving_hazards', 'BowlingPin']) {
     assert(environment.includes(landmark), `procedural playground must include ${landmark}`)
+  }
+  assert(environment.includes('<XrNativeControllerDemoAerialSetpieces'), 'playground environment must mount its clean-room aerial composition')
+  for (const landmark of ['kg_xr_playground_north_horizon', 'kg_xr_playground_east_shore_ship', 'kg_xr_playground_deterministic_tentacles']) {
+    assert(aerialSetpieces.includes(landmark), `procedural aerial playground must include ${landmark}`)
   }
 
   const corePaths = [
@@ -219,6 +248,7 @@ export function testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute() {
     ['features', 'three', 'xrNativeControllerDemoRuntime.ts'],
     ['features', 'three', 'XrNativeControllerDemoStage.tsx'],
     ['features', 'three', 'XrNativeControllerDemoEnvironment.tsx'],
+    ['features', 'three', 'XrNativeControllerDemoAerialSetpieces.tsx'],
     ['features', 'three', 'XrNativeControllerDemoVehicles.tsx'],
     ['features', 'three', 'XrNativeControllerDemoHud.tsx'],
     ['features', 'three', 'useXrNativeControllerDemoCamera.ts'],

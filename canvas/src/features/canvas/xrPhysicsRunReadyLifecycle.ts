@@ -10,11 +10,11 @@ export type XrPhysicsRunReadyLifecycleActions = Readonly<{
   selectMode: (mode: XrNativeControllerDemoMode) => unknown
 }>
 
-export function autoStartPristineXrPhysicsRunReadyDemo(
+export function ensureXrPhysicsRunReadyDemoRunning(
   runtime: RunReadyLifecycleSnapshot,
   actions: XrPhysicsRunReadyLifecycleActions,
 ): boolean {
-  if (runtime.phase !== 'off' || runtime.revision !== 0) return false
+  if (runtime.phase !== 'off') return false
   actions.selectMode('ball')
   actions.developAndRun()
   return true

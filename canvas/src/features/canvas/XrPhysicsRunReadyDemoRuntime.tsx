@@ -7,7 +7,8 @@ import {
   selectXrNativeControllerDemoMode,
   subscribeXrNativeControllerDemo,
 } from '@/features/three/xrNativeControllerDemoRuntime'
-import { autoStartPristineXrPhysicsRunReadyDemo } from './xrPhysicsRunReadyLifecycle'
+import { stopXrPhysicsRuntime } from '@/features/three/xrPhysicsRuntime'
+import { ensureXrPhysicsRunReadyDemoRunning } from './xrPhysicsRunReadyLifecycle'
 
 export function XrPhysicsRunReadyDemoRuntime() {
   const runtime = React.useSyncExternalStore(
@@ -24,9 +25,12 @@ export function XrPhysicsRunReadyDemoRuntime() {
     state.setCanvas3dMode('xr')
     state.setFloatingPanelOpen(false)
     state.setBottomSurfaceCollapsed(true)
-    autoStartPristineXrPhysicsRunReadyDemo(readXrNativeControllerDemo(), {
+    ensureXrPhysicsRunReadyDemoRunning(readXrNativeControllerDemo(), {
       selectMode: selectXrNativeControllerDemoMode,
-      developAndRun: developAndRunXrNativeControllerDemo,
+      developAndRun: () => {
+        stopXrPhysicsRuntime()
+        return developAndRunXrNativeControllerDemo()
+      },
     })
     return undefined
   }, [phase, revision])

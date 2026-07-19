@@ -1,6 +1,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { XrPhysicsRunReadyDemoRuntime } from '@/features/canvas/XrPhysicsRunReadyDemoRuntime'
+import { XrNativeControllerDemoHud } from '@/features/three/XrNativeControllerDemoHud'
 import {
   exitXrNativeControllerDemo,
   readXrNativeControllerDemo,
@@ -15,7 +16,7 @@ import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
 import { initWindowHarness } from '@/tests/lib/windowHarness'
 
-export async function testXrPhysicsRunReadyRuntimeAutoStartsOnceAndPreservesExitAcrossRemount() {
+export async function testXrPhysicsRunReadyRuntimeReclaimsOffFallbackWithoutDoubleLaunch() {
   const previousDemo = process.env[WORKSPACE_RUN_READY_DEMO_ENV]
   process.env[WORKSPACE_RUN_READY_DEMO_ENV] = XR_PHYSICS_RUN_READY_DEMO_ID
   const { restore: restoreWindow } = initWindowHarness({ storage: new MemoryStorage() })
@@ -41,6 +42,7 @@ export async function testXrPhysicsRunReadyRuntimeAutoStartsOnceAndPreservesExit
     React.StrictMode,
     null,
     React.createElement(XrPhysicsRunReadyDemoRuntime),
+    React.createElement(XrNativeControllerDemoHud),
   )
 
   try {
@@ -73,10 +75,12 @@ export async function testXrPhysicsRunReadyRuntimeAutoStartsOnceAndPreservesExit
     }
 
     await act(async () => { exitXrNativeControllerDemo() })
-    const exited = readXrNativeControllerDemo()
-    if (exited.phase !== 'off' || exited.revision !== running.revision + 1) {
-      throw new Error(`expected one explicit durable exit, got ${JSON.stringify(exited)}`)
+    const reclaimed = readXrNativeControllerDemo()
+    const hud = container.querySelector('[data-kg-xr-playground-hud="1"]')
+    if (reclaimed.phase !== 'running' || hud?.getAttribute('data-kg-xr-playground-phase') !== 'running') {
+      throw new Error(`expected run-ready mode to reclaim an off fallback before the HUD can overlay the authored XR scene, got ${JSON.stringify(reclaimed)}`)
     }
+    const reclaimedRevision = reclaimed.revision
     await unmountReactRoot(root, { window: dom.window as unknown as Window })
     root = null
     root = createRoot(container)
@@ -85,8 +89,8 @@ export async function testXrPhysicsRunReadyRuntimeAutoStartsOnceAndPreservesExit
       frames: 1,
     })
     const remounted = readXrNativeControllerDemo()
-    if (remounted.phase !== 'off' || remounted.revision !== exited.revision) {
-      throw new Error(`expected explicit exit to survive StrictMode remount, got ${JSON.stringify(remounted)}`)
+    if (remounted.phase !== 'running' || remounted.revision !== reclaimedRevision) {
+      throw new Error(`expected the reclaimed native stage to survive StrictMode remount without a second launch, got ${JSON.stringify(remounted)}`)
     }
   } finally {
     if (root) {

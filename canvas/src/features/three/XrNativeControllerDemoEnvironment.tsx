@@ -5,6 +5,7 @@ import {
   Color,
   Fog,
   LinearFilter,
+  Shape,
   SRGBColorSpace,
   type Group,
   type Object3D,
@@ -15,6 +16,7 @@ import {
   readSharedXrNativeControllerDemoFrame,
   type XrNativeControllerDemoObjective,
 } from './xrNativeControllerDemoRuntime'
+import { XrNativeControllerDemoAerialSetpieces } from './XrNativeControllerDemoAerialSetpieces'
 
 export const XR_NATIVE_DYNAMIC_BODY_Y_OFFSETS: Readonly<Record<string, number>> = Object.freeze({
   'native-crate-a': 0.72,
@@ -33,7 +35,7 @@ export function XrNativeControllerDemoSceneAtmosphere({ stageScale }: { stageSca
     const previousBackground = scene.background
     const previousFog = scene.fog
     const background = new Color('#78c8f5')
-    const fog = new Fog('#9bd8f2', stageScale * 24, stageScale * 58)
+    const fog = new Fog('#9bd8f2', stageScale * 38, stageScale * 92)
     scene.background = background
     scene.fog = fog
     return () => {
@@ -116,17 +118,18 @@ function TutorialMarkings() {
   const ballTexture = useInstructionTexture('ball')
   const rocketTexture = useInstructionTexture('rocket')
   const objectiveTexture = useObjectiveTexture()
+  const sandOverlayY = 0.06
   return (
     <group name="kg_xr_playground_tutorial_markings">
-      <mesh position={[-3.2, 0.025, -0.45]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[-3.2, sandOverlayY, -0.45]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[5.35, 1.95]} />
         <meshBasicMaterial map={ballTexture || undefined} color={ballTexture ? '#ffffff' : '#fff7cf'} transparent depthWrite={false} />
       </mesh>
-      <mesh position={[3.2, 0.025, -0.45]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[3.2, sandOverlayY, -0.45]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[5.35, 1.95]} />
         <meshBasicMaterial map={rocketTexture || undefined} color={rocketTexture ? '#ffffff' : '#fff7cf'} transparent depthWrite={false} />
       </mesh>
-      <mesh position={[0, 0.028, 1.4]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, sandOverlayY + 0.003, 1.4]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[10.2, 1.05]} />
         <meshBasicMaterial map={objectiveTexture || undefined} transparent depthWrite={false} />
       </mesh>
@@ -354,21 +357,37 @@ function MovingHazards() {
   )
 }
 
+function useIrregularIslandShape() {
+  return React.useMemo(() => {
+    const shape = new Shape()
+    const points = Array.from({ length: 28 }, (_, index) => {
+      const angle = index * Math.PI * 2 / 28
+      const edge = 1 + Math.sin(angle * 3 + 0.4) * 0.055 + Math.cos(angle * 7 - 0.7) * 0.035
+      return [Math.cos(angle) * 13.2 * edge, Math.sin(angle) * 12.45 * edge] as const
+    })
+    points.forEach(([x, z], index) => {
+      if (index === 0) shape.moveTo(x, z)
+      else shape.lineTo(x, z)
+    })
+    shape.closePath()
+    return shape
+  }, [])
+}
+
 export function XrNativeControllerDemoEnvironment({ objective }: { objective: XrNativeControllerDemoObjective }) {
+  const islandShape = useIrregularIslandShape()
   return (
     <group name="kg_xr_native_tropical_playground" userData={{ objective }}>
       <mesh position={[0, -1.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[90, 90]} />
+        <planeGeometry args={[180, 180]} />
         <meshStandardMaterial color="#4fc3e8" roughness={0.5} metalness={0.05} />
       </mesh>
-      <mesh position={[0, -0.55, 1.25]} scale={[1.18, 1, 1.16]} receiveShadow castShadow>
-        <cylinderGeometry args={[12.8, 14.5, 1.1, 48]} />
-        <meshStandardMaterial color="#cddbbd" roughness={0.96} flatShading />
+      <mesh position={[0, -1.05, 1.25]} rotation={[-Math.PI / 2, 0, 0]} scale={[1.12, 1.05, 1]} receiveShadow castShadow>
+        <extrudeGeometry args={[islandShape, { depth: 1.08, steps: 1, bevelEnabled: false }]} />
+        <meshStandardMaterial attach="material-0" color="#e1ead8" roughness={1} flatShading />
+        <meshStandardMaterial attach="material-1" color="#aabca8" roughness={0.96} flatShading />
       </mesh>
-      <mesh position={[0, 0.012, 1.25]} rotation={[-Math.PI / 2, 0, 0]} scale={[1.12, 0.95, 1]} receiveShadow>
-        <circleGeometry args={[13.3, 48]} />
-        <meshStandardMaterial color="#e1ead8" roughness={1} flatShading />
-      </mesh>
+      <XrNativeControllerDemoAerialSetpieces />
       <TutorialMarkings />
       <Fence />
       <Ramp />

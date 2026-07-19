@@ -245,10 +245,10 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
             <React.Suspense fallback={null}>
               <CanvasViewportLazy
                 variant="embeddedPreview"
-                geospatialModeEnabled={geospatialModeEnabled}
+                geospatialModeEnabled={xrPhysicsRunReadyDemo ? false : geospatialModeEnabled}
                 workspaceEditorOverlayOpen={false}
-                canvasRenderMode={canvasRenderMode}
-                canvas3dMode={canvas3dMode}
+                canvasRenderMode={xrPhysicsRunReadyDemo ? '3d' : canvasRenderMode}
+                canvas3dMode={xrPhysicsRunReadyDemo ? 'xr' : canvas3dMode}
                 canvas2dRenderer={canvas2dRenderer}
               />
             </React.Suspense>
