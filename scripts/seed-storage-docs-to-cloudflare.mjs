@@ -3,6 +3,10 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import {
+  buildDirectD1DocumentStatements,
+  toSqlString,
+} from './lib/seed-storage-documents-d1.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -290,12 +294,6 @@ const exportWorkspace = async (args) => {
   return json
 }
 
-const toSqlString = (value) => `'${String(value || '').replace(/'/g, "''")}'`
-const toSqlNullableString = (value) => {
-  if (value == null) return 'NULL'
-  return toSqlString(value)
-}
-
 const formatElapsedMs = (startedAt) => `${Date.now() - startedAt}ms`
 
 const executeD1SqlFile = async (sqlText, label = 'unnamed-step') => {
@@ -357,79 +355,10 @@ const seedDocumentsDirectlyToD1 = async (args) => {
     const mutation = seed?.documentMutation
     if (!mutation || mutation.entity !== 'document' || mutation.op !== 'upsert') continue
     const record = mutation.record
-    const updatedAtIso = new Date(Math.max(1, Number(record.updatedAtMs || Date.now()))).toISOString()
-    const statements = [
-      'PRAGMA foreign_keys = ON;',
-      `INSERT INTO documents (`,
-      `  id, workspace_id, canonical_path, title, doc_type, lang, graph_id, source_kind,`,
-      `  content_md, content_hash, parser_version, revision, deleted, created_at, updated_at`,
-      `) VALUES (`,
-      `  ${toSqlString(record.id)},`,
-      `  ${toSqlString(record.workspaceId)},`,
-      `  ${toSqlString(record.canonicalPath)},`,
-      `  ${toSqlNullableString(record.title)},`,
-      `  ${toSqlNullableString(record.docType)},`,
-      `  ${toSqlNullableString(record.lang)},`,
-      `  ${toSqlNullableString(record.graphId)},`,
-      `  ${toSqlString(record.sourceKind)},`,
-      `  ${toSqlString(record.contentMd)},`,
-      `  ${toSqlString(record.contentHash)},`,
-      `  ${toSqlString(record.parserVersion)},`,
-      `  ${Math.max(1, Number(record.revision || 1))},`,
-      `  ${record.deleted ? 1 : 0},`,
-      `  ${toSqlString(updatedAtIso)},`,
-      `  ${toSqlString(updatedAtIso)}`,
-      `)`,
-      `ON CONFLICT(id) DO UPDATE SET`,
-      `  workspace_id = excluded.workspace_id,`,
-      `  canonical_path = excluded.canonical_path,`,
-      `  title = excluded.title,`,
-      `  doc_type = excluded.doc_type,`,
-      `  lang = excluded.lang,`,
-      `  graph_id = excluded.graph_id,`,
-      `  source_kind = excluded.source_kind,`,
-      `  content_md = excluded.content_md,`,
-      `  content_hash = excluded.content_hash,`,
-      `  parser_version = excluded.parser_version,`,
-      `  revision = excluded.revision,`,
-      `  deleted = excluded.deleted,`,
-      `  updated_at = excluded.updated_at;`,
-      `DELETE FROM document_chunks WHERE document_id = ${toSqlString(record.id)} AND workspace_id = ${toSqlString(record.workspaceId)};`,
-    ]
-    for (let chunkIndex = 0; chunkIndex < seed.chunkMutations.length; chunkIndex += 1) {
-      const chunkMutation = seed.chunkMutations[chunkIndex]
-      if (!chunkMutation || chunkMutation.entity !== 'documentChunk' || chunkMutation.op !== 'upsert') continue
-      const chunk = chunkMutation.record
-      const chunkUpdatedAtIso = new Date(Math.max(1, Number(chunk.updatedAtMs || Date.now()))).toISOString()
-      statements.push(
-        [
-          `INSERT INTO document_chunks (`,
-          `  id, document_id, workspace_id, chunk_key, chunk_order, heading, markdown, token_estimate, content_hash, updated_at`,
-          `) VALUES (`,
-          `  ${toSqlString(chunk.id)},`,
-          `  ${toSqlString(chunk.documentId)},`,
-          `  ${toSqlString(chunk.workspaceId)},`,
-          `  ${toSqlString(chunk.chunkKey)},`,
-          `  ${Math.max(0, Number(chunk.chunkOrder || 0))},`,
-          `  ${toSqlNullableString(chunk.heading)},`,
-          `  ${toSqlString(chunk.markdown)},`,
-          `  ${Math.max(1, Number(chunk.tokenEstimate || 1))},`,
-          `  ${toSqlString(chunk.contentHash)},`,
-          `  ${toSqlString(chunkUpdatedAtIso)}`,
-          `)`,
-          `ON CONFLICT(id) DO UPDATE SET`,
-          `  document_id = excluded.document_id,`,
-          `  workspace_id = excluded.workspace_id,`,
-          `  chunk_key = excluded.chunk_key,`,
-          `  chunk_order = excluded.chunk_order,`,
-          `  heading = excluded.heading,`,
-          `  markdown = excluded.markdown,`,
-          `  token_estimate = excluded.token_estimate,`,
-          `  content_hash = excluded.content_hash,`,
-          `  updated_at = excluded.updated_at;`,
-        ].join('\n'),
-      )
-    }
+    const statements = buildDirectD1DocumentStatements({
+      record,
+      chunkMutations: seed.chunkMutations,
+    })
     console.log(`[knowgrph] d1 document upsert ${i + 1}/${args.documentSeeds.length}: ${record.canonicalPath} (chunks=${seed.chunkMutations.length})`)
     await executeD1SqlFile(statements.join('\n'), `document-upsert:${record.canonicalPath}`)
   }

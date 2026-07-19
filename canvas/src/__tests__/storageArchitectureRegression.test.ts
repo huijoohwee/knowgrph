@@ -18,10 +18,12 @@ export function testRootPackageDeclaresDrizzleForKnowgrphStorageWorker() {
 export function testCloudflareDeployScriptsSeedDocsMirrorIntoD1() {
   const packagePath = resolve(process.cwd(), '..', 'package.json')
   const seedScriptPath = resolve(process.cwd(), '..', 'scripts', 'seed-storage-docs-to-cloudflare.mjs')
+  const seedSqlPath = resolve(process.cwd(), '..', 'scripts', 'lib', 'seed-storage-documents-d1.mjs')
   const packageJson = JSON.parse(readFileSync(packagePath, 'utf8')) as {
     scripts?: Record<string, string>
   }
   const seedScriptText = readFileSync(seedScriptPath, 'utf8')
+  const seedSqlText = readFileSync(seedSqlPath, 'utf8')
   const scripts = packageJson.scripts || {}
   if (!scripts['storage:d1:seed:docs']?.includes('seed-storage-docs-to-cloudflare.mjs')) {
     throw new Error('expected storage:d1:seed:docs to own docs mirror seeding into D1')
@@ -43,6 +45,10 @@ export function testCloudflareDeployScriptsSeedDocsMirrorIntoD1() {
   if (!seedScriptText.includes("process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT")
     || !seedScriptText.includes("DEFAULT_CANONICAL_DOCS_ROOT = 'agentic-canvas-os/docs'")) {
     throw new Error('expected D1 docs seeding to project the release-resolved Agentic Canvas OS docs source into canonical storage paths')
+  }
+  if (!seedSqlText.includes('ON CONFLICT(workspace_id, canonical_path) DO UPDATE SET')
+    || !seedSqlText.includes('AND document_id = (${documentIdentitySql});')) {
+    throw new Error('expected direct D1 seeding to preserve canonical-path ownership and attach chunks to the resolved document identity')
   }
 }
 
