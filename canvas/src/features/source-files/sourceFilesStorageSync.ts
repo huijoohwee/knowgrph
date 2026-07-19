@@ -197,6 +197,7 @@ export const syncSourceFilesToKnowgrphStorage = async (args: {
   sourceFiles: SourceFile[]
   previousSourceFiles?: SourceFile[] | null
   dbState?: KnowgrphStorageDb | null
+  forceDocumentUpsert?: boolean
 }): Promise<{ queuedMutationCount: number }> => {
   const workspaceId = normalizeString(args.workspaceId)
   if (!workspaceId) return { queuedMutationCount: 0 }
@@ -233,9 +234,19 @@ export const syncSourceFilesToKnowgrphStorage = async (args: {
     const documentId = buildSourceFileDocumentId(file.id)
     keepDocumentIds.add(documentId)
     const existing = existingById.get(documentId) || null
-    const nextLocalRecord = buildDocumentLocalRecordForSourceFile(workspaceId, file, existing)
-    const didDocumentChange =
-      !existing
+    const builtLocalRecord = buildDocumentLocalRecordForSourceFile(workspaceId, file, existing)
+    const nextLocalRecord = args.forceDocumentUpsert === true && existing
+      ? {
+          ...builtLocalRecord,
+          documentRevision: Math.max(
+            Number(builtLocalRecord.documentRevision || 0),
+            Number(existing.documentRevision || 0) + 1,
+          ),
+          updatedAtMs: Date.now(),
+        }
+      : builtLocalRecord
+    const didDocumentChange = args.forceDocumentUpsert === true
+      || !existing
       || existing.canonicalPath !== nextLocalRecord.canonicalPath
       || existing.title !== nextLocalRecord.title
       || existing.contentHash !== nextLocalRecord.contentHash

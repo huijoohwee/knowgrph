@@ -16,6 +16,10 @@ import { selectLiveCanvasHeroSource } from '@/features/canvas/liveCanvasHeroSour
 import { resolveLiveCanvasHeroEmbedUrl } from '@/features/canvas/liveCanvasHeroEmbed'
 import { openCanvasEmbedCodePanel } from '@/features/canvas/canvasEmbedCodePanelEvent'
 import { buildCanvasEmbedIframeMarkup } from '@/features/canvas/canvasEmbedIframeMarkup'
+import {
+  SourceFileCloudSyncIndicator,
+  useSourceFileCloudSync,
+} from './SourceFileCloudSyncIndicator'
 
 type MarkdownWorkspaceSourceFilesListProps = {
   loading: boolean
@@ -55,6 +59,23 @@ export function MarkdownWorkspaceSourceFilesList(props: MarkdownWorkspaceSourceF
     onDeleteEntry,
     renderFileRight,
   } = props
+  const cloudSync = useSourceFileCloudSync(entries)
+
+  const renderFileStatusRight = React.useCallback((args: { entry: WorkspaceEntry; isActive: boolean }) => {
+    const existing = renderFileRight?.(args)
+    if (args.entry.kind !== 'file') return existing
+    return (
+      <span className="inline-flex items-center gap-0.5">
+        {existing}
+        <SourceFileCloudSyncIndicator
+          entry={args.entry}
+          status={cloudSync.readStatus(args.entry)}
+          error={cloudSync.readError(args.entry)}
+          onUpload={cloudSync.upload}
+        />
+      </span>
+    )
+  }, [cloudSync, renderFileRight])
 
   const buildShareUrl = React.useCallback((entry: WorkspaceEntry): string | null | Promise<string | null> => {
     if (entry.kind !== 'file') return null
@@ -133,7 +154,7 @@ export function MarkdownWorkspaceSourceFilesList(props: MarkdownWorkspaceSourceF
       onCanvasEmbedStart={handleCanvasEmbedStart}
       onCanvasEmbedReady={handleCanvasEmbedReady}
       onShareCodeReady={handleShareCodeReady}
-      renderFileRight={renderFileRight}
+      renderFileRight={renderFileStatusRight}
     />
   )
 }

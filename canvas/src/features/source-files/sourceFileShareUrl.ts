@@ -24,6 +24,10 @@ export type ReadWorkspaceEntryTextForStoragePublish = (
   entry: WorkspaceEntry,
 ) => string | null | undefined | Promise<string | null | undefined>
 
+export type ResolveWorkspaceEntryCanonicalPathForStoragePublish = (
+  entry: WorkspaceEntry,
+) => string | null | undefined
+
 export const readActiveKnowgrphStorageWorkspaceId = (): string => {
   const override = normalizeString(readEnvString('VITE_KNOWGRPH_STORAGE_WORKSPACE_ID', ''))
   if (override) return override
@@ -92,10 +96,11 @@ const buildWorkspaceEntryStorageSourceFileRecord = (args: {
   entry: WorkspaceEntry
   workspaceId: string
   canonicalPath: string
+  allowEmptyText?: boolean
 }): SourceFile | null => {
   if (args.entry.kind !== 'file') return null
   const text = String(args.entry.text || '')
-  if (!text.trim()) return null
+  if (!args.allowEmptyText && !text.trim()) return null
   const canonicalPath = normalizeString(args.canonicalPath)
   if (!canonicalPath) return null
   const identity = `${args.workspaceId}:${canonicalPath}`
@@ -128,6 +133,9 @@ export const publishWorkspaceEntriesToKnowgrphStorage = async (args: {
   deviceId?: string | null
   fetchImpl?: KnowgrphStorageSyncNowArgs['fetchImpl']
   readEntryText?: ReadWorkspaceEntryTextForStoragePublish
+  resolveCanonicalPath?: ResolveWorkspaceEntryCanonicalPathForStoragePublish
+  forceStorageWrite?: boolean
+  allowEmptyText?: boolean
 }): Promise<PublishWorkspaceEntriesToKnowgrphStorageResult> => {
   const workspaceId = normalizeString(args.workspaceId) || readActiveKnowgrphStorageWorkspaceId()
   const entries = Array.isArray(args.entries) ? args.entries : []
@@ -145,7 +153,8 @@ export const publishWorkspaceEntriesToKnowgrphStorage = async (args: {
   for (let i = 0; i < entries.length; i += 1) {
     const entry = entries[i]
     if (!entry || entry.kind !== 'file') continue
-    const canonicalPath = readPrimaryStorageCanonicalPathForWorkspacePath(entry.path, { markdownOnly: false })
+    const canonicalPath = normalizeString(args.resolveCanonicalPath?.(entry))
+      || readPrimaryStorageCanonicalPathForWorkspacePath(entry.path, { markdownOnly: false })
     if (!workspaceId || !canonicalPath || seen.has(canonicalPath)) continue
     seen.add(canonicalPath)
     const text = await readWorkspaceEntryResolvedTextForStoragePublish({
@@ -158,6 +167,7 @@ export const publishWorkspaceEntriesToKnowgrphStorage = async (args: {
       entry: text === entry.text ? entry : { ...entry, text },
       workspaceId,
       canonicalPath,
+      allowEmptyText: args.allowEmptyText,
     })
     if (!record) continue
     records.push(record)
@@ -172,6 +182,7 @@ export const publishWorkspaceEntriesToKnowgrphStorage = async (args: {
     workspaceId,
     sourceFiles: records,
     previousSourceFiles: [],
+    forceDocumentUpsert: args.forceStorageWrite,
   })
   let syncResult: KnowgrphStorageSyncRunResult | null = null
   if (args.syncNow !== false) {

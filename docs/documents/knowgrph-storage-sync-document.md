@@ -128,7 +128,8 @@ Toolbar → Workspace View → `Storage Sync` is the runtime gate for two storag
 
 1. **Solo/local path**: Editor Workspace `/docs/**` ⇄ Source Files ⇄ configured local docs mirror.
 2. **Concurrent path**: Editor Workspace `/docs/**` ⇄ Yjs document room ⇄ PocketBase realtime relay ⇄ GitHub save bridge.
-3. **Generated artifact publication path**: Generated workspace artifact blob ⇄ `/api/storage/blob/:workspaceId/:canonicalPath*` ⇄ R2 object, plus a sibling Markdown manifest pushed through the Source Files storage publication helper into D1.
+3. **Explicit Source Files cloud path**: a Markdown row's local/cloud icon commits the saved local file through the GitHub save bridge, pushes that exact text to D1 only after GitHub succeeds, and shows cloud-synced only after the public D1 document read-back matches.
+4. **Generated artifact publication path**: Generated workspace artifact blob ⇄ `/api/storage/blob/:workspaceId/:canonicalPath*` ⇄ R2 object, plus a sibling Markdown manifest pushed through the Source Files storage publication helper into D1.
 
 When on, the app keeps the workspace seed refresh loop active and allows same-file collaborative rooms to sync through PocketBase + Yjs. When off, seed refresh and collaboration room sync are paused; local Source Files persistence and graph composition remain local.
 
@@ -262,6 +263,7 @@ flowchart TB
 | D1 database not provisioned | No shared remote store exists | **Resolved** — D1 provisioned (`633355bf-…152`) |
 | No cross-device sync | Workspace state is siloed per-browser | **Resolved** — push/pull + 120s polling loop |
 | Canonical corpus drift | Device caches and the former `huijoohwee/docs` seed exposed different Source Files inventories | **Resolved in Dev** — GitHub `agentic-canvas-os/docs` owns bootstrap; the release seeder reconciles D1 to the same canonical paths and removes stale rows |
+| No per-file persistence truth or upload action | A local `New .md` row looked the same as a GitHub + Cloudflare verified document | **Resolved in Dev** — Source Files renders local, checking, uploading, cloud, unavailable, and failure states; clicking a supported Markdown icon runs GitHub first, D1 second, then exact document read-back |
 | No user identity | Mutations are anonymous (device-scoped only) | Open — see multi-user collaboration PRD-TAD |
 | No access control | Any device with workspace ID can read/write | Open — see multi-user collaboration PRD-TAD |
 | Stale outbox conflicts after re-seed | 48+ conflicts require manual resolution | **Resolved** — auto-clear after pull |
@@ -298,6 +300,21 @@ The collaboration readiness harness uses `/docs/README.md`, which exists in the 
 6. User edits stay local unless Storage Sync joins a PocketBase/Yjs collaboration room
 7. D1 remains a runtime read/export cache, not the authoring SSOT
 ```
+
+### Path B2 — Explicit Source File Cloud Upload
+
+```
+1. User creates or edits a Markdown file, including an empty new `.md`, and saves it into Workspace FS
+2. Source Files compares the saved row text with the canonical D1 export snapshot
+3. A hard-drive icon means the saved local text is not verified in the Cloudflare projection
+4. User clicks the icon
+5. POST /api/storage/collab/save commits docs/{path} through the server-owned GitHub bridge
+6. Only after GitHub succeeds, the client force-queues the same text under agentic-canvas-os/docs/{path} and pushes D1
+7. GET /api/storage/doc/:workspaceId/:canonicalPath must return the exact saved text
+8. The row changes to a cloud icon only after that read-back; GitHub failure skips D1, and partial/read-back failure stays visible as retryable failure
+```
+
+Local browser proof must set `KNOWGRPH_STORAGE_DEV_PROXY_TARGET` to a local Wrangler origin. The Vite default remains `https://airvio.co` for existing development behavior, but explicit local verification must never click a mutating Source Files icon while that production default is active.
 
 ### Path C — GitHub Repo Docs Folder (Import from External Source)
 
@@ -491,6 +508,7 @@ flowchart TB
 | Collaboration | PocketBase auth, room metadata, realtime update relay | `features/source-files/sourceFilesPocketBaseYjsRoom.ts` + PocketBase collections: `collab_rooms`, `collab_updates`, `collab_awareness` | Built in Dev; requires PocketBase collection deployment |
 | Collaboration | Markdown Workspace collaboration runtime | `features/source-files/useSourceFilesPocketBaseYjsCollaborationRuntime.ts` + `lib/markdown-workspace-runtime/MarkdownWorkspaceRuntime.impl.tsx` | Built; gated by Storage Sync and `VITE_KNOWGRPH_COLLAB_POCKETBASE_URL` |
 | Collaboration | GitHub save bridge with server-owned token/App identity | `POST /api/storage/collab/save` in `workers/knowgrph-storage/index.ts` | Built; requires Worker `KNOWGRPH_STORAGE_GITHUB_TOKEN`, owner, and repo config; reads PocketBase room state when `KNOWGRPH_STORAGE_POCKETBASE_URL` is set |
+| Source Files cloud status/action | `SourceFileCloudSyncIndicator` + `syncWorkspaceEntryToCanonicalCloud` | `features/markdown-workspace/SourceFileCloudSyncIndicator.tsx` + `features/source-files/sourceFileCanonicalCloudSync.ts` | Built in Dev; supports explicit Markdown uploads including empty new files, GitHub-before-D1 ordering, exact D1 read-back, focus/120s status refresh, and retryable failure state |
 | Collaboration | JSON CRDT guardrail | raw JSON editor gate + structured `Y.Map` owner | Built; bridge rejects concurrent JSON saves without Yjs state |
 
 `SourceFilesPersistenceBootstrap.tsx` is the client-side SSOT orchestrator: seed-sync and rematerialize scheduling accept prepared requests when available, fall back to one resolver otherwise, and reuse caller-owned `sourceFiles` snapshots to keep Storage ↔ Source Files ↔ Workspace parity without redundant store reads.
