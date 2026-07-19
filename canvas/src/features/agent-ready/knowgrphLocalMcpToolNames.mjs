@@ -34,6 +34,7 @@ export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({
   smeMultilingualAdapt: "knowgrph.sme.multilingual.adapt",
   smeCareAgentStatus: "sme_care_agent_status",
   agenticCanvasOsDocsInvoke: "knowgrph.agentic_canvas_os.docs.invoke",
+  exportPublish: "export.publish",
   toolCatalog: "knowgrph.tool.catalog",
   toolSearch: "knowgrph.tool.search",
   toolDescribe: "knowgrph.tool.describe",

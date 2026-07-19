@@ -472,7 +472,6 @@ export function createStoryboardWidgetWorkflowNodeRunner(args: StoryboardWidgetW
           generateText: generateTextWithProvider,
           publishOutput: publishTextRunOutputToRichMediaPanel,
           readGraph: args.readDraftGraphData,
-          updateOutput: updateRunOutputForKnownNodeIds,
           setLoading: loading => setRunLoadingStateForKnownNodeIds(loading ? { loading: true, kind: 'text' } : { loading: false }),
           reportFailure: reportNodeRunFailure,
           upsertToast: args.upsertUiToast,

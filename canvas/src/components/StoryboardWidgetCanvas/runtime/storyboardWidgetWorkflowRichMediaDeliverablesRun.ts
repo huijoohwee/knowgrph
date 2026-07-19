@@ -1,5 +1,4 @@
 import { invokeAgenticOsDocsMcpBridge } from '@/features/agent-ready/agenticOsDocsMcpClient'
-import { clearRichMediaOutputProperties } from '@/features/chat/richMediaRun'
 import {
   RICH_MEDIA_FINANCIAL_MODEL_OUTPUT_KEY,
   RICH_MEDIA_SLIDE_DECK_OUTPUT_KEY,
@@ -34,7 +33,6 @@ export async function runStoryboardWidgetRichMediaDeliverables(args: {
   generateText: (prompt: string) => Promise<string>
   publishOutput: StoryboardWidgetTextRunOutputPublisher
   readGraph: () => GraphData | null
-  updateOutput: (buildPatch: (properties: Record<string, unknown>) => Record<string, unknown>) => void
   setLoading: (loading: boolean) => void
   reportFailure: (message: string, ttlMs?: number) => void
   upsertToast: (toast: { id: string; kind: 'success'; message: string; ttlMs: number }) => void
@@ -147,21 +145,6 @@ export async function runStoryboardWidgetRichMediaDeliverables(args: {
       deferPublishedGraphCommit: true,
     })
     if (!financialModelGraph) throw new Error('Financial Model Rich Media panel could not be published.')
-    args.updateOutput(properties => ({
-      ...clearRichMediaOutputProperties(properties),
-      output: `Generated Slide Deck, Markdown Financial Model, and XLSX workbook${mcpResponse ? ' with MCP evidence' : ''}${externalCreatedCount ? `; created ${externalCreatedCount} external MCP artifact${externalCreatedCount === 1 ? '' : 's'}` : ''}.`,
-      outputMimeType: 'text/markdown; charset=utf-8',
-      outputModel: args.model,
-      mcpInvoked: mcpResponse?.mcpInvoked === true,
-      mcpTool: mcpResponse?.tool || '',
-      mcpInvocationTokens: invocationTokens,
-      externalMcpEnabled: externalMcp.enabled,
-      externalMcpCreatedCount: externalCreatedCount,
-      externalMcpErrors: externalMcp.errors,
-      workbookPath: workbook.path || undefined,
-      workbookSha256: workbook.sha256,
-      lastRunAt: new Date().toISOString(),
-    }))
     args.upsertToast({
       id: `storyboard-widget-run-${args.id}`,
       kind: 'success',

@@ -163,9 +163,19 @@ export function testRichMediaDeliverablesTypedTargetKeepsMarkerPromptAndInvocati
 
 export async function testRichMediaDeliverablesOwnedPanelsDisplayLocalArtifactsAcrossConnectedEdges() {
   const graphData = { type: 'GraphData', nodes: [], edges: [] }
+  const sourceProperties = {
+    richMediaDeliverablesMode: true,
+    prompt: 'Generate both deliverables.',
+    summary: 'Authored source-card summary.',
+    output: 'Authored source-card output.',
+  }
   const published: Array<{
     outputText: string
     title: string
+    outputKey?: string
+    allowCreateStandaloneOutput?: boolean
+    connectCreatedOutputToAnchor?: boolean
+    ownedOutputOnly?: boolean
     panelProperties?: Record<string, unknown>
   }> = []
   await runStoryboardWidgetRichMediaDeliverables({
@@ -174,10 +184,10 @@ export async function testRichMediaDeliverablesOwnedPanelsDisplayLocalArtifactsA
       id: 'deliverables-card',
       type: 'TextGeneration',
       label: 'Deliverables Widget Card',
-      properties: { richMediaDeliverablesMode: true },
+      properties: sourceProperties,
     },
     graphForRun: graphData,
-    rawNodeProperties: { richMediaDeliverablesMode: true },
+    rawNodeProperties: sourceProperties,
     authoredPrompt: 'Generate both deliverables.',
     connectedPrompt: '# Generated Result\n\nBudget: RM100,000.',
     connectedSourceNodeId: 'generated-result',
@@ -188,7 +198,6 @@ export async function testRichMediaDeliverablesOwnedPanelsDisplayLocalArtifactsA
       return panelArgs.baseGraphData || graphData
     },
     readGraph: () => graphData,
-    updateOutput: () => void 0,
     setLoading: () => void 0,
     reportFailure: message => { throw new Error(message) },
     upsertToast: () => void 0,
@@ -196,8 +205,29 @@ export async function testRichMediaDeliverablesOwnedPanelsDisplayLocalArtifactsA
   if (published.length !== 2) {
     throw new Error(`expected two owned Rich Media publications, got ${published.length}`)
   }
+  if (
+    sourceProperties.prompt !== 'Generate both deliverables.'
+    || sourceProperties.summary !== 'Authored source-card summary.'
+    || sourceProperties.output !== 'Authored source-card output.'
+  ) {
+    throw new Error(`expected deliverables Run to preserve authored source-card content, got ${JSON.stringify(sourceProperties)}`)
+  }
+  const expectedPublications = [
+    { title: 'Slide Deck', outputKey: 'markdown-slide-deck' },
+    { title: 'Financial Model', outputKey: 'financial-model-spreadsheet' },
+  ]
   for (let index = 0; index < published.length; index += 1) {
     const artifact = published[index]!
+    const expected = expectedPublications[index]!
+    if (
+      artifact.title !== expected.title
+      || artifact.outputKey !== expected.outputKey
+      || artifact.allowCreateStandaloneOutput !== true
+      || artifact.connectCreatedOutputToAnchor !== true
+      || artifact.ownedOutputOnly !== true
+    ) {
+      throw new Error(`expected ${expected.title} to remain a distinct connected Rich Media output, got ${JSON.stringify(artifact)}`)
+    }
     if (artifact.panelProperties?.freezeConnectedOutput !== true) {
       throw new Error(`expected ${artifact.title} to freeze its generated local artifact across the lineage edge`)
     }
@@ -252,7 +282,6 @@ export async function testRichMediaDeliverablesRequiredWorkbookPersistenceFailsB
       generateText: async () => structuredDeliverablesResponse,
       publishOutput: args => { published.push(args); return args.baseGraphData || null },
       readGraph: () => null,
-      updateOutput: () => void 0,
       setLoading: () => void 0,
       reportFailure: () => void 0,
       upsertToast: () => void 0,
