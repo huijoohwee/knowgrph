@@ -141,6 +141,65 @@ export async function testRichMediaPanelTextModeAddTextReusesMediaDropZone() {
   }
 }
 
+export async function testRichMediaPanelTextOutputVersionSelectorPublishesSelection() {
+  const { dom, restore: restoreDom } = initJsdomHarness()
+  try {
+    resetRichMediaPanelTestStoreState()
+    const container = dom.window.document.createElement('section')
+    dom.window.document.body.appendChild(container)
+    const root = createRoot(container as unknown as HTMLElement)
+    const changes: Array<{ selectedOutputVersionId?: string }> = []
+    const outputVersions = [
+      { id: 'version-1', createdAt: '2026-07-19T01:00:00.000Z', output: '# Version one' },
+      { id: 'version-2', createdAt: '2026-07-19T02:00:00.000Z', output: '# Version two' },
+    ]
+
+    await mountReactRoot(root,
+      React.createElement(RichMediaPanel, {
+        overlayId: 'rich-media-panel-versioned-output',
+        title: 'Rich Media Panel',
+        url: '',
+        kind: 'iframe',
+        interactive: false,
+        panel: {
+          activeTab: 'text',
+          freezeConnectedOutput: false,
+          hasText: true,
+          hasImage: false,
+          hasVideo: false,
+          hasAudio: false,
+          hasPoi: false,
+          text: '# Version two',
+          connectedText: '',
+          outputVersions,
+          selectedOutputVersionId: 'version-2',
+        },
+        onPanelChange: next => changes.push(next),
+      }),
+    { window: dom.window, frames: 20 })
+
+    const selector = container.querySelector('select[aria-label="Output version"]') as HTMLSelectElement | null
+    if (!selector || selector.value !== 'version-2' || selector.options.length !== 2) {
+      throw new Error(`expected latest output version to be selected by default, html=${container.innerHTML}`)
+    }
+    if (selector.options[0]?.textContent !== 'Version 2 (latest)' || selector.options[1]?.textContent !== 'Version 1') {
+      throw new Error(`expected newest-first version labels, got ${selector.innerHTML}`)
+    }
+    await act(async () => {
+      selector.value = 'version-1'
+      selector.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+      await waitForTasks(1)
+    })
+    if (changes.at(-1)?.selectedOutputVersionId !== 'version-1') {
+      throw new Error(`expected version selection to publish through the panel mutation owner, got ${JSON.stringify(changes)}`)
+    }
+
+    await unmountReactRoot(root, { window: dom.window })
+  } finally {
+    restoreDom()
+  }
+}
+
 export async function testRichMediaPanelTextModeUsesMarkdownPreviewSsot() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   try {

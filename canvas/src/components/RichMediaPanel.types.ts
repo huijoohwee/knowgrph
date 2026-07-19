@@ -72,6 +72,12 @@ export type RichMediaPanelProps = {
     hasPoi: boolean
     text: string
     connectedText: string
+    outputVersions?: Array<{
+      id: string
+      createdAt: string
+      output: string
+    }>
+    selectedOutputVersionId?: string
     isLoading?: boolean
     loadingLabel?: string
     xrScene?: XrSceneMediaDragProjection
@@ -83,5 +89,6 @@ export type RichMediaPanelProps = {
     activeTab: RichMediaPanelTab
     freezeConnectedOutput: boolean
     text?: string
+    selectedOutputVersionId?: string
   }) => void
 }

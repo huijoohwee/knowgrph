@@ -7,6 +7,10 @@ import { isImageToGlbOutputPanel } from '@/features/image-to-glb/imageToGlbContr
 import { readNodeFieldBoolean, readNodeFieldString } from '@/lib/canvas/graph-elements/mediaSpecNodeFields'
 import { normalizeXrSceneMediaDragProjection, type XrSceneMediaDragProjection } from '@/lib/ui/mediaDragPayload'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
+import {
+  resolveRichMediaTextOutputVersionSelection,
+  type RichMediaTextOutputVersion,
+} from '@/lib/render/richMediaOutputVersions'
 
 export type RichMediaPanelTab = 'auto' | 'text' | 'image' | 'video' | 'audio' | 'model' | 'poi'
 
@@ -22,6 +26,8 @@ export type RichMediaPanelOverlayState = {
   hasPoi: boolean
   text: string
   connectedText: string
+  outputVersions: RichMediaTextOutputVersion[]
+  selectedOutputVersionId: string
   isLoading: boolean
   loadingLabel: string
   xrScene?: XrSceneMediaDragProjection
@@ -69,10 +75,15 @@ export function normalizeConnectedTextValue(value: unknown): string {
 }
 
 export function resolveRichMediaPanelDisplayText(
-  panel: Pick<RichMediaPanelOverlayState, 'freezeConnectedOutput' | 'text' | 'connectedText'> | null | undefined,
+  panel: (Pick<RichMediaPanelOverlayState, 'freezeConnectedOutput' | 'text' | 'connectedText'> & {
+    outputVersions?: ReadonlyArray<Pick<RichMediaTextOutputVersion, 'id' | 'output'>>
+    selectedOutputVersionId?: string
+  }) | null | undefined,
   draftText = '',
 ): string {
   if (!panel) return ''
+  const selectedVersion = panel.outputVersions?.find(version => version.id === panel.selectedOutputVersionId)
+  if (selectedVersion) return selectedVersion.output
   return panel.freezeConnectedOutput
     ? draftText || panel.text || panel.connectedText || ''
     : panel.connectedText || panel.text || ''
@@ -115,6 +126,8 @@ export function buildStaticRichMediaPanelOverlayState(args: {
     hasPoi: activeTab === 'poi',
     text,
     connectedText,
+    outputVersions: [],
+    selectedOutputVersionId: '',
     isLoading: args.isLoading === true,
     loadingLabel,
   }
@@ -184,8 +197,12 @@ export function buildRichMediaPanelOverlayState(args: {
   const nodeForState = args.renderNode || resolveRichMediaPanelRenderNode({ node: baseNode, connectedValuesBySchemaPath })
   const props = (nodeForState.properties || {}) as Record<string, unknown>
   const output = readNodeFieldString(nodeForState, props, 'output')
+  const outputVersionSelection = resolveRichMediaTextOutputVersionSelection({
+    properties: (baseNode.properties || {}) as Record<string, unknown>,
+    fallbackOutput: output,
+  })
   const outputSrcDoc = readNodeFieldString(nodeForState, props, 'outputSrcDoc')
-  const text = outputSrcDoc.trim() ? '' : output
+  const text = outputSrcDoc.trim() ? '' : outputVersionSelection.selectedOutput
   const imageUrl = readNodeFieldString(nodeForState, props, 'imageUrl')
   const imageToThreeJsOutputSourceUrl = isImageToThreeJsOutputPanel(props)
     ? readNodeFieldString(nodeForState, props, 'outputSourceUrl')
@@ -252,6 +269,8 @@ export function buildRichMediaPanelOverlayState(args: {
     ),
     text,
     connectedText,
+    outputVersions: outputVersionSelection.versions,
+    selectedOutputVersionId: outputVersionSelection.selectedVersionId,
     isLoading,
     loadingLabel,
     ...(xrScene ? { xrScene } : {}),
