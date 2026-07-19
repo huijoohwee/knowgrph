@@ -1,27 +1,5 @@
 import type { WidgetRegistryEntry, WidgetRegistryField, WidgetRegistryPort } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import {
-  CHAT_AGNES_ENDPOINT_URL,
-  CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
-  CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
-  CHAT_DEERFLOW_ENDPOINT_URL,
-  CHAT_GOOGLE_CLOUD_ENDPOINT_URL,
-  CHAT_MIROMIND_ENDPOINT_URL,
-  CHAT_OPENAI_ENDPOINT_URL,
-  CHAT_QWEN_ENDPOINT_URL,
-  CHAT_SEALION_ENDPOINT_URL,
-  CHAT_PROVIDER_AGNES,
-  CHAT_PROVIDER_BYTEPLUS,
-  CHAT_PROVIDER_DEERFLOW,
-  CHAT_PROVIDER_GOOGLE_CLOUD,
-  CHAT_PROVIDER_MIROMIND,
-  CHAT_PROVIDER_OPENAI,
-  CHAT_PROVIDER_QWEN,
-  CHAT_PROVIDER_SEALION,
-  getDefaultChatModelForProvider,
-  normalizeChatProviderId,
-  resolveChatModelIdForProvider,
-} from '@/lib/chatEndpoint'
-import {
   STORYBOARD_WIDGET_VIDEO_MODEL_OPTIONS,
   FLOW_HTML_VIDEO_RENDERER_NODE_LABEL,
   FLOW_HTML_VIDEO_RENDERER_NODE_TYPE_ID,
@@ -98,6 +76,11 @@ import {
   normalizeTextGenerationProviderFamily,
   type TextGenerationProviderFamily,
 } from '@/features/storyboard-widget-manager/textGenerationProviderFamily'
+export {
+  normalizeTextGenerationWidgetPropertiesForProviderFamily,
+  resolveEffectiveTextGenerationWidgetProperties,
+  resolveTextGenerationGlobalDefaultsForProviderFamily,
+} from '@/features/storyboard-widget-manager/textGenerationProviderProperties'
 export type WidgetRegistryApiDocRef = {
   rowKey: string
   apiKey: string
@@ -107,55 +90,6 @@ export type WidgetRegistryMainPanelLink = {
   searchQuery: string
   anchorId: string
 }
-
-type TextGenerationProviderProfile = {
-  providerId: string
-  defaultEndpointUrl: string
-  defaultModel: string
-}
-
-const TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY: Readonly<Record<TextGenerationProviderFamily, TextGenerationProviderProfile>> = {
-  byteplus: {
-    providerId: CHAT_PROVIDER_BYTEPLUS,
-    defaultEndpointUrl: CHAT_BYTEPLUS_AP_SOUTHEAST_ENDPOINT_URL,
-    defaultModel: CHAT_BYTEPLUS_TEXT_MODEL_DEFAULT,
-  },
-  openai: {
-    providerId: CHAT_PROVIDER_OPENAI,
-    defaultEndpointUrl: CHAT_OPENAI_ENDPOINT_URL,
-    defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_OPENAI),
-  },
-  deerflow: {
-    providerId: CHAT_PROVIDER_DEERFLOW,
-    defaultEndpointUrl: CHAT_DEERFLOW_ENDPOINT_URL,
-    defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_DEERFLOW),
-  },
-  miromind: {
-    providerId: CHAT_PROVIDER_MIROMIND,
-    defaultEndpointUrl: CHAT_MIROMIND_ENDPOINT_URL,
-    defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_MIROMIND),
-  },
-  agnes: {
-    providerId: CHAT_PROVIDER_AGNES,
-    defaultEndpointUrl: CHAT_AGNES_ENDPOINT_URL,
-    defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_AGNES),
-  },
-  sealion: {
-    providerId: CHAT_PROVIDER_SEALION,
-    defaultEndpointUrl: CHAT_SEALION_ENDPOINT_URL,
-    defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_SEALION),
-  },
-  qwen: {
-    providerId: CHAT_PROVIDER_QWEN,
-    defaultEndpointUrl: CHAT_QWEN_ENDPOINT_URL,
-    defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_QWEN),
-  },
-  'google-cloud': {
-    providerId: CHAT_PROVIDER_GOOGLE_CLOUD,
-    defaultEndpointUrl: CHAT_GOOGLE_CLOUD_ENDPOINT_URL,
-    defaultModel: getDefaultChatModelForProvider(CHAT_PROVIDER_GOOGLE_CLOUD),
-  },
-} as const
 
 const OPENAI_COMPATIBLE_PROVIDER_ROW_PREFIX: Readonly<Record<'miromind' | 'agnes' | 'sealion' | 'qwen' | 'google-cloud', string>> = {
   miromind: 'miromindApi',
@@ -190,27 +124,6 @@ function mapOpenAiRowKeyToChatCompatibleProviderRowKey(
   const mappedSuffix = OPENAI_COMPATIBLE_PROVIDER_ROW_SUFFIX_BY_OPENAI_SUFFIX[suffix]
   if (!mappedSuffix) return null
   return `${OPENAI_COMPATIBLE_PROVIDER_ROW_PREFIX[providerFamily]}.${mappedSuffix}`
-}
-
-function hasTextGenerationOverrideValue(value: unknown): boolean {
-  if (typeof value === 'undefined' || value === null) return false
-  if (typeof value === 'string') return value.trim().length > 0
-  if (typeof value === 'number') return Number.isFinite(value)
-  if (typeof value === 'boolean') return true
-  if (Array.isArray(value)) return true
-  if (typeof value === 'object') return Object.keys(value).length > 0
-  return true
-}
-
-function getTextGenerationProviderProfile(providerFamily?: TextGenerationProviderFamily): TextGenerationProviderProfile {
-  if (providerFamily === 'openai') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.openai
-  if (providerFamily === 'deerflow') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.deerflow
-  if (providerFamily === 'miromind') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.miromind
-  if (providerFamily === 'agnes') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.agnes
-  if (providerFamily === 'sealion') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.sealion
-  if (providerFamily === 'qwen') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.qwen
-  if (providerFamily === 'google-cloud') return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY['google-cloud']
-  return TEXT_GENERATION_PROVIDER_PROFILE_BY_FAMILY.byteplus
 }
 
 export function listVisibleWidgetRegistryPortsForPropsEditor(args: {
@@ -267,7 +180,8 @@ export function resolveWidgetRegistryApiDocRef(args: {
       formId: args.registryEntry?.formId,
     })
     const isOpenAiCompatibleProvider =
-      providerFamily === 'openai'
+      providerFamily === 'lmstudio-local'
+      || providerFamily === 'openai'
       || providerFamily === 'deerflow'
       || providerFamily === 'miromind'
       || providerFamily === 'agnes'
@@ -343,7 +257,7 @@ export function resolveWidgetRegistryMainPanelLink(args: {
     return {
       tab: 'integrations',
       searchQuery: apiDocRef.rowKey,
-      anchorId: providerFamily === 'openai'
+      anchorId: providerFamily === 'openai' || providerFamily === 'lmstudio-local'
         ? getOpenAiChatApiRowAnchorId(apiDocRef.rowKey)
         : providerFamily === 'deerflow'
           ? getDeerFlowApiRowAnchorId(apiDocRef.rowKey)
@@ -425,88 +339,6 @@ export function isPropsPanelWidgetPaletteEntry(entry: WidgetRegistryEntry | null
   if (nodeTypeId !== FLOW_TEXT_GENERATION_NODE_TYPE_ID) return true
   if (widgetTypeId === 'default' && formId === 'textGeneration') return true
   return getWidgetRegistryEntryLabel(entry) !== FLOW_TEXT_GENERATION_NODE_LABEL
-}
-
-export function normalizeTextGenerationWidgetPropertiesForProviderFamily(args: {
-  providerFamily?: TextGenerationProviderFamily
-  properties?: Record<string, unknown>
-}): Record<string, unknown> {
-  const providerFamily = normalizeTextGenerationProviderFamily(args.providerFamily)
-  const prev = { ...(args.properties || {}) }
-  const profile = getTextGenerationProviderProfile(providerFamily)
-  const rawProvider = String(prev.chatProvider || '').trim()
-  const normalizedProvider = rawProvider ? normalizeChatProviderId(rawProvider) : profile.providerId
-  const providerMatchesFamily = normalizedProvider === profile.providerId
-  return {
-    ...prev,
-    chatProvider: profile.providerId,
-    chatEndpointUrl:
-      providerMatchesFamily && String(prev.chatEndpointUrl || '').trim()
-        ? String(prev.chatEndpointUrl || '').trim()
-        : profile.defaultEndpointUrl,
-    chatModel:
-      providerMatchesFamily && String(prev.chatModel || '').trim()
-        ? resolveChatModelIdForProvider(prev.chatModel, profile.providerId, { preserveUnknownCustomModel: true })
-        : profile.defaultModel,
-  }
-}
-
-export function resolveTextGenerationGlobalDefaultsForProviderFamily(args: {
-  providerFamily?: TextGenerationProviderFamily
-  globalProperties?: Record<string, unknown>
-}): Record<string, unknown> {
-  return normalizeTextGenerationWidgetPropertiesForProviderFamily({
-    providerFamily: args.providerFamily,
-    properties: args.globalProperties,
-  })
-}
-
-export function resolveEffectiveTextGenerationWidgetProperties(args: {
-  providerFamily?: TextGenerationProviderFamily
-  localProperties?: Record<string, unknown>
-  globalProperties?: Record<string, unknown>
-}): Record<string, unknown> {
-  const providerFamily = normalizeTextGenerationProviderFamily(args.providerFamily)
-  const base = resolveTextGenerationGlobalDefaultsForProviderFamily({
-    providerFamily,
-    globalProperties: args.globalProperties,
-  })
-  const local = { ...(args.localProperties || {}) }
-  const normalizedLocalProviderFields = normalizeTextGenerationWidgetPropertiesForProviderFamily({
-    providerFamily,
-    properties: local,
-  })
-  const next: Record<string, unknown> = { ...base }
-
-  for (const [key, value] of Object.entries(local)) {
-    if (!hasTextGenerationOverrideValue(value)) continue
-    if (key === 'chatProvider' || key === 'chatEndpointUrl' || key === 'chatModel') continue
-    if (key === 'chatAuthMode') {
-      const normalized = String(value || '').trim()
-      if (normalized !== 'byok') continue
-    }
-    next[key] = value
-  }
-
-  if (hasTextGenerationOverrideValue(local.chatProvider)) {
-    next.chatProvider = normalizedLocalProviderFields.chatProvider
-  } else if (Object.prototype.hasOwnProperty.call(base, 'chatProvider')) {
-    next.chatProvider = base.chatProvider
-  }
-
-  if (hasTextGenerationOverrideValue(local.chatEndpointUrl) || hasTextGenerationOverrideValue(local.chatProvider)) {
-    next.chatEndpointUrl = normalizedLocalProviderFields.chatEndpointUrl
-  } else if (Object.prototype.hasOwnProperty.call(base, 'chatEndpointUrl')) {
-    next.chatEndpointUrl = base.chatEndpointUrl
-  }
-
-  if (hasTextGenerationOverrideValue(local.chatModel) || hasTextGenerationOverrideValue(local.chatProvider)) {
-    next.chatModel = normalizedLocalProviderFields.chatModel
-  } else if (Object.prototype.hasOwnProperty.call(base, 'chatModel')) {
-    next.chatModel = base.chatModel
-  }
-
-  return next
 }
 
 function buildCommonTextGenerationPorts(): WidgetRegistryEntry['ports'] {

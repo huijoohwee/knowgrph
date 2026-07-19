@@ -4,6 +4,7 @@ import type { GraphSchema } from '@/lib/graph/schema'
 
 import { canAddEdge } from '@/features/schema/validation'
 import { createUniqueId } from '@/lib/ids'
+import { parseCanonicalNodeIds } from '@/lib/graph/canonicalNodeIds'
 import {
   FLOW_EDGE_DISPLAY_LABEL_KEY,
   FLOW_EDGE_SOURCE_PORT_KEY,
@@ -167,7 +168,10 @@ export function finalizeEdgeAuthoring(args: {
     )
     if (dup) return { kind: 'select-existing', edgeId: String(dup.id || '').trim() }
 
-    const used = new Set(edges.map(e => String(e.id || '').trim()).filter(Boolean))
+    const used = new Set<string>()
+    for (const edge of edges) {
+      for (const id of parseCanonicalNodeIds(edge.id)) used.add(id)
+    }
     const edgeId = createUniqueId('e', used)
     const next: GraphEdge = {
       id: edgeId,

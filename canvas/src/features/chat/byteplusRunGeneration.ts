@@ -801,7 +801,7 @@ export async function generateRunMarkdownWithProvider(args: {
     (typeof res.headers?.get === 'function' ? res.headers.get('content-type') : '')
     || '',
   ).toLowerCase()
-  const isEventStream = streamRequested && contentType.includes('text/event-stream')
+  const isEventStream = contentType.includes('text/event-stream')
   if (isEventStream && res.body) {
     return readRunTextEventStream({
       body: res.body,

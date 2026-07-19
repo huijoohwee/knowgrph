@@ -4,6 +4,7 @@ const escapeMarkdownTableCell = (raw: string): string => {
   const s = String(raw ?? '')
   return s
     .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/\\/g, '\\\\')
     .replace(/\|/g, '\\|')
     .replace(/\r?\n/g, ' ')
     .replace(/\s+/g, ' ')
@@ -25,6 +26,26 @@ export type MarkdownPipeTableInput = {
   rows: readonly (readonly MarkdownPipeTableScalar[])[]
   alignments?: readonly MarkdownPipeTableAlignment[]
 }
+
+export type ParsedMarkdownPipeTable = {
+  columns: string[]
+  rows: string[][]
+  alignments: Array<Exclude<MarkdownPipeTableAlignment, undefined>>
+}
+
+export type ParseMarkdownPipeTableOptions = {
+  maxColumns?: number
+  maxRows?: number
+  maxCellCharacters?: number
+  maxTotalCells?: number
+}
+
+const DEFAULT_MARKDOWN_PIPE_TABLE_LIMITS = Object.freeze({
+  maxColumns: 64,
+  maxRows: 1_000,
+  maxCellCharacters: 16_384,
+  maxTotalCells: 50_000,
+})
 
 /**
  * Canonical serializer for generated/persisted table artifacts.
@@ -88,11 +109,100 @@ const splitMarkdownPipeRow = (line: string): string[] | null => {
   return cells
 }
 
+const unescapeMarkdownPipeCell = (value: string): string =>
+  value.replace(/\\([\\|])/g, '$1')
+
 const isMarkdownPipeDelimiterRow = (line: string, expectedColumns: number): boolean => {
   const cells = splitMarkdownPipeRow(line)
   return !!cells
     && cells.length === expectedColumns
     && cells.every(cell => /^:?-{3,}:?$/.test(cell.replace(/\s+/g, '')))
+}
+
+const parseMarkdownPipeAlignment = (value: string): Exclude<MarkdownPipeTableAlignment, undefined> => {
+  const normalized = value.replace(/\s+/g, '')
+  if (normalized.startsWith(':') && normalized.endsWith(':')) return 'center'
+  if (normalized.startsWith(':')) return 'left'
+  if (normalized.endsWith(':')) return 'right'
+  return null
+}
+
+const readBoundedInteger = (value: number | undefined, fallback: number): number => {
+  if (!Number.isFinite(value)) return fallback
+  return Math.max(1, Math.floor(value as number))
+}
+
+const readMarkdownPipeTableLimits = (options: ParseMarkdownPipeTableOptions) => ({
+  maxColumns: readBoundedInteger(options.maxColumns, DEFAULT_MARKDOWN_PIPE_TABLE_LIMITS.maxColumns),
+  maxRows: readBoundedInteger(options.maxRows, DEFAULT_MARKDOWN_PIPE_TABLE_LIMITS.maxRows),
+  maxCellCharacters: readBoundedInteger(
+    options.maxCellCharacters,
+    DEFAULT_MARKDOWN_PIPE_TABLE_LIMITS.maxCellCharacters,
+  ),
+  maxTotalCells: readBoundedInteger(options.maxTotalCells, DEFAULT_MARKDOWN_PIPE_TABLE_LIMITS.maxTotalCells),
+})
+
+const isMarkdownFenceMarker = (line: string): boolean => /^(`{3,}|~{3,})/.test(line.trim())
+
+/**
+ * Parse the first authored GFM pipe table while ignoring fenced examples.
+ *
+ * The parser is deliberately bounded because generated Markdown can be
+ * provider-controlled and downstream consumers may materialize every cell.
+ */
+export const parseMarkdownPipeTable = (
+  value: unknown,
+  options: ParseMarkdownPipeTableOptions = {},
+): ParsedMarkdownPipeTable | null => {
+  const limits = readMarkdownPipeTableLimits(options)
+  const lines = String(value ?? '').replace(/\r\n?/g, '\n').split('\n')
+  let fence: '`' | '~' | null = null
+
+  for (let index = 0; index < lines.length - 1; index += 1) {
+    const line = lines[index] || ''
+    if (isMarkdownFenceMarker(line)) {
+      const marker = line.trim().startsWith('~') ? '~' : '`'
+      fence = fence === marker ? null : (fence || marker)
+      continue
+    }
+    if (fence) continue
+
+    const headerCells = splitMarkdownPipeRow(line)
+    if (!headerCells || headerCells.length < 1 || headerCells.length > limits.maxColumns) continue
+    const delimiterCells = splitMarkdownPipeRow(lines[index + 1] || '')
+    if (
+      !delimiterCells
+      || delimiterCells.length !== headerCells.length
+      || !delimiterCells.every(cell => /^:?-{3,}:?$/.test(cell.replace(/\s+/g, '')))
+    ) {
+      continue
+    }
+
+    const columns = headerCells.map(unescapeMarkdownPipeCell)
+    if (columns.some(cell => cell.length > limits.maxCellCharacters)) return null
+    const rows: string[][] = []
+    let totalCells = columns.length
+
+    for (let rowIndex = index + 2; rowIndex < lines.length; rowIndex += 1) {
+      const rowLine = lines[rowIndex] || ''
+      if (isMarkdownFenceMarker(rowLine)) break
+      const rowCells = splitMarkdownPipeRow(rowLine)
+      if (!rowCells) break
+      if (rowCells.length !== columns.length) return null
+      if (rows.length >= limits.maxRows || totalCells + rowCells.length > limits.maxTotalCells) return null
+      const row = rowCells.map(unescapeMarkdownPipeCell)
+      if (row.some(cell => cell.length > limits.maxCellCharacters)) return null
+      rows.push(row)
+      totalCells += row.length
+    }
+
+    return {
+      columns,
+      rows,
+      alignments: delimiterCells.map(parseMarkdownPipeAlignment),
+    }
+  }
+  return null
 }
 
 /** Detect a real GFM pipe table while ignoring fenced examples and prose pipes. */

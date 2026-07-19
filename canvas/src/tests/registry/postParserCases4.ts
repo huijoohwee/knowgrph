@@ -1,6 +1,9 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
+  ["sourceLayers.identity.composeCanonicalizesAliases","@/__tests__/sourceLayerIdentityHardening.test","testSourceLayerCompositionCollapsesRepeatedAliasesWithoutLosingEdgeTopology"],
+  ["sourceLayers.identity.projectCanonicalizesAliases","@/__tests__/sourceLayerIdentityHardening.test","testSourceLayerProjectionHealsRepeatedAliasesWithoutLosingEdgeTopology"],
+  ["sourceLayers.identity.edgeAuthoringReservesCanonicalIds","@/__tests__/sourceLayerIdentityHardening.test","testEdgeAuthoringReservesCanonicalIdsFromQualifiedEdges"],
   ["ui.videoSequence.timelineBar.clickRequiresDragIntent","@/__tests__/mermaidGanttPanelRouting.test","testTimelineBarClickRequiresDragIntentBeforePreview"],
   ["ui.videoSequence.timelineClipEdit.fractionalSourceTiming","@/__tests__/videoSequenceTimelineSurfaces.test","testVideoSequenceTimelineClipEditsPreserveFractionalSourceTiming"],
   ["ui.videoSequence.timelineClipEdit.stableDisplayLane","@/__tests__/videoSequenceTimelineSurfaces.test","testVideoSequenceDisplayLanesStayStableWhenClipMovesAcrossAnother"],
@@ -81,6 +84,8 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["mainPanel.storyboardWidgetManager.registry.seedWidgetMappings","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerSeedsDefaultRegistryEntriesAndConsolidatesPropsPanelMedia"],
   ["mainPanel.storyboardWidgetManager.registry.reconcilesStaleBuiltInTextEntry","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerReconcilesStaleBuiltInTextRegistryEntry"],
   ["mainPanel.storyboardWidgetManager.registry.reconcilesTextProviderFromSelectedModel","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerReconcilesTextWidgetProviderFromSelectedModel"],
+  ["mainPanel.storyboardWidgetManager.registry.infersLmStudioLocalProviderFamily","@/__tests__/textGenerationLmStudioProviderProfile.test","testStoryboardWidgetManagerInfersLmStudioLocalProviderFamily"],
+  ["mainPanel.storyboardWidgetManager.registry.preservesLmStudioLocalProviderProfile","@/__tests__/textGenerationLmStudioProviderProfile.test","testStoryboardWidgetManagerPreservesLmStudioLocalProviderProfile"],
   ["mainPanel.storyboardWidgetManager.registry.reusableTextDrafts","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerBuildsReusableTextRegistryDrafts"],
   ["mainPanel.storyboardWidgetManager.registry.omitsOpenAiTextDefault","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerDoesNotSeedOpenAiTextRegistryEntry"],
   ["mainPanel.storyboardWidgetManager.registry.omitsDeerFlowTextDefault","@/__tests__/storyboardWidgetManagerRegistry.test","testStoryboardWidgetManagerDoesNotSeedDeerFlowTextRegistryEntry"],

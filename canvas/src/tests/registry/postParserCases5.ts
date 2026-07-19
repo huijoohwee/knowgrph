@@ -117,7 +117,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["ui.mainPanel.mcpHub.knowgrphToolServerSsotBoundaries","@/__tests__/mainPanelMcpKnowgrphToolServers.test","testKnowgrphToolServerSsotRowsCoverInternalToolsAndBoundaries"],
   ["ui.mainPanel.mcpHub.surfacesExternalToolServerGatewayRows","@/__tests__/mainPanelMcpExternalToolServers.test","testMcpHubSurfacesExternalToolServerGatewayRows"],
   ["ui.mainPanel.mcpHub.externalToolServerConfigTemplatesGeneric","@/__tests__/mainPanelMcpExternalToolServers.test","testExternalMcpGeneratedConfigTemplatesStayGenericAndNonSecret"],
-  ["ui.mainPanel.mcpHub.externalToolServerSsotBoundaries","@/__tests__/mainPanelMcpExternalToolServers.test","testExternalMcpSsotRowsCoverDeferredDiscoveryAndBoundaries"],
+  ["ui.mainPanel.mcpHub.externalToolServerSsotBoundaries","@/__tests__/mainPanelMcpExternalToolServers.test","testExternalMcpSsotRowsCoverRuntimeDiscoveryAndBoundaries"],
   ["ui.mainPanel.mcpHub.surfacesExaMcpConfig","@/__tests__/mainPanelMcpExa.test","testMcpHubSurfacesExaMcpConfig"],
   ["ui.mainPanel.mcpHub.exaDefaultGeneratedConfigNonSecret","@/__tests__/mainPanelMcpExa.test","testExaMcpDefaultGeneratedConfigIsNonSecretAndHosted"],
   ["ui.mainPanel.mcpHub.exaAdvancedToolsUrl","@/__tests__/mainPanelMcpExa.test","testExaMcpAdvancedProfileBuildsExactToolsUrl"],

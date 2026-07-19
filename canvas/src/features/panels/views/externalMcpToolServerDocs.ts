@@ -6,6 +6,7 @@ export const EXTERNAL_MCP_TOOL_SERVER_DOC_AREA = 'External MCP Tool Servers'
 export const EXTERNAL_MCP_TOOL_SERVER_STDIO_CONFIG_KEY = 'externalMcp.config.stdio_template'
 export const EXTERNAL_MCP_TOOL_SERVER_HTTP_CONFIG_KEY = 'externalMcp.config.streamable_http_template'
 export const EXTERNAL_MCP_TOOL_SERVER_PLACEHOLDER_ENV = 'TOOL_SERVER_TOKEN_ENV'
+export const EXTERNAL_MCP_TOOL_SERVER_PROFILES_ENV = 'KNOWGRPH_EXTERNAL_MCP_PROFILES_JSON'
 
 const EXTERNAL_MCP_TOOL_SERVER_KEY_PREFIX = 'externalMcp.'
 const EXTERNAL_MCP_DISCOVERY_TOOL_IDS = [
@@ -58,8 +59,8 @@ const EXTERNAL_MCP_TOOL_SERVER_DOC_ROWS: ReadonlyArray<ExternalMcpToolServerDocR
   {
     key: 'gateway.role',
     typeLabel: 'contract',
-    value: 'discovery-first federation over host-owned MCP servers',
-    responsibility: 'Explain that MainPanel MCP connects agents to external tool servers through existing MCP clients and catalogs, not a new Knowgrph proxy.',
+    value: 'runtime-executable capability gateway over host-approved MCP profiles',
+    responsibility: 'Expose local catalog, search, describe, and call tools while keeping exact transports, credentials, upstream tool names, and mappings host-owned.',
     searchHints: ['external tool servers', 'federation', 'mcp gateway'],
   },
   {
@@ -89,7 +90,7 @@ const EXTERNAL_MCP_TOOL_SERVER_DOC_ROWS: ReadonlyArray<ExternalMcpToolServerDocR
     key: 'tool.bridge_ids',
     typeLabel: 'tool list',
     value: list(EXTERNAL_MCP_DISCOVERY_TOOL_IDS),
-    responsibility: 'Bridge routes for catalog discovery and deferred schema access from the current session-scoped tool catalog.',
+    responsibility: 'Runtime-executable local stdio routes for opaque capability discovery, bounded schema access, and approved external artifact calls.',
     searchHints: [...EXTERNAL_MCP_DISCOVERY_TOOL_IDS, 'tool search', 'tool describe', 'tool call'],
   },
   {
@@ -111,9 +112,17 @@ const EXTERNAL_MCP_TOOL_SERVER_DOC_ROWS: ReadonlyArray<ExternalMcpToolServerDocR
   {
     key: 'approval.policy',
     typeLabel: 'guard',
-    value: 'approval before mutating, paid, filesystem, browser-auth, terminal, or egress tools',
-    responsibility: 'Route risky external MCP tool calls through real tool identity, schema validation, approval, audit, cost, and fallback.',
+    value: 'digest-bound, expiring, single-use approval before every external file write',
+    responsibility: 'Bind approval to one capability revision, canonical artifact, and idempotency key before any external MCP mutation or egress.',
     searchHints: ['approval', 'egress', 'audit', 'cost', 'fallback'],
+  },
+  {
+    key: 'runtime.profile_env',
+    typeLabel: 'server env',
+    value: EXTERNAL_MCP_TOOL_SERVER_PROFILES_ENV,
+    responsibility: 'Load reviewed stdio or Streamable HTTP capability profiles only from the host environment.',
+    notes: 'Each enabled tool pins its live input-schema digest, canonical artifact argument mapping, constants, idempotency field, result pointers, and allowed HTTPS receipt origins. Browser requests cannot override them.',
+    searchHints: ['profile registry', 'schema digest', 'argument mapping', 'allowed origins'],
   },
   {
     key: 'config.stdio_template',
@@ -170,8 +179,11 @@ export const EXTERNAL_MCP_TOOL_SERVER_DOC_ENTRIES: ReadonlyArray<VirtualSettings
         'canvas/src/features/panels/views/settingsMcpDocEntries.ts',
         'mcp/local-tool-contract.js',
         'mcp/server.js',
+        'mcp/external-tool-gateway-runtime.js',
+        'mcp/external-tool-profile-registry.js',
+        'canvas/viteExternalMcpBridge.ts',
       ],
-      classes: ['Federated MCP discovery', 'External tool server readiness'],
+      classes: ['Capability-scoped MCP gateway', 'External tool server readiness'],
       functions: ['buildExternalMcpStdioConfigJson', 'buildExternalMcpStreamableHttpConfigJson'],
       imports: [],
     }
