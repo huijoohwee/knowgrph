@@ -18,10 +18,12 @@ export function testRootPackageDeclaresDrizzleForKnowgrphStorageWorker() {
 export function testCloudflareDeployScriptsSeedDocsMirrorIntoD1() {
   const packagePath = resolve(process.cwd(), '..', 'package.json')
   const seedScriptPath = resolve(process.cwd(), '..', 'scripts', 'seed-storage-docs-to-cloudflare.mjs')
+  const seedSqlPath = resolve(process.cwd(), '..', 'scripts', 'lib', 'seed-storage-documents-d1.mjs')
   const packageJson = JSON.parse(readFileSync(packagePath, 'utf8')) as {
     scripts?: Record<string, string>
   }
   const seedScriptText = readFileSync(seedScriptPath, 'utf8')
+  const seedSqlText = readFileSync(seedSqlPath, 'utf8')
   const scripts = packageJson.scripts || {}
   if (!scripts['storage:d1:seed:docs']?.includes('seed-storage-docs-to-cloudflare.mjs')) {
     throw new Error('expected storage:d1:seed:docs to own docs mirror seeding into D1')
@@ -39,6 +41,10 @@ export function testCloudflareDeployScriptsSeedDocsMirrorIntoD1() {
     || !seedScriptText.includes('stale-source-files=')
     || !seedScriptText.includes('Source Files mismatch after seed')) {
     throw new Error('expected D1 docs seeding to reconcile stale Source Files instead of leaving an append-only Cloudflare cache')
+  }
+  if (!seedSqlText.includes('ON CONFLICT(workspace_id, canonical_path) DO UPDATE SET')
+    || !seedSqlText.includes('AND document_id = (${documentIdentitySql});')) {
+    throw new Error('expected direct D1 seeding to preserve canonical-path ownership and attach chunks to the resolved document identity')
   }
 }
 
