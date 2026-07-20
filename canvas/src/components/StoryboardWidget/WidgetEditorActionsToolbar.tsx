@@ -206,8 +206,8 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
       onRemove()
       return
     }
-    event.stopPropagation()
     if (interactiveControl) return
+    event.stopPropagation()
     if (event.button !== 0) return
     try {
       event.preventDefault()

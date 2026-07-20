@@ -149,6 +149,11 @@ export async function testRichMediaPanelTextOutputVersionSelectorUsesBubbleToolb
     if (!toolbar?.contains(selector) || !placement || selector?.value !== 'version-2') {
       throw new Error(`expected the output version selector inside the selected-node bubble toolbar, html=${container.innerHTML}`)
     }
+    const pointerDown = new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true })
+    selector.dispatchEvent(pointerDown)
+    if (pointerDown.defaultPrevented) {
+      throw new Error('expected the bubble toolbar to preserve native select pointer activation')
+    }
     await act(async () => {
       selector.value = 'version-1'
       selector.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
