@@ -25,13 +25,16 @@ import { inspectLocalCamera } from './cameraMcpRuntime'
 
 const CAMERA_GRAMMAR_SIGILS = ['/', '#', '@'] as const
 const CAMERA_TOKEN_LIMIT = 12
+const cameraContractTokens = (contract: object): readonly string[] => (
+  Object.values(contract).filter((token): token is string => typeof token === 'string')
+)
 export const CAMERA_REQUIRED_METADATA_TOKENS: readonly Readonly<{
   kind: AgenticOsDictionaryInvocationKind
   token: string
 }>[] = Object.freeze([
-  ...Object.values(CAMERA_INVOCATION_COMMANDS).map(token => ({ kind: 'command' as const, token })),
-  ...Object.values(CAMERA_INVOCATION_SEMANTICS).map(token => ({ kind: 'semantic' as const, token })),
-  ...Object.values(CAMERA_INVOCATION_BINDINGS).map(token => ({ kind: 'binding' as const, token })),
+  ...cameraContractTokens(CAMERA_INVOCATION_COMMANDS).map(token => ({ kind: 'command' as const, token })),
+  ...cameraContractTokens(CAMERA_INVOCATION_SEMANTICS).map(token => ({ kind: 'semantic' as const, token })),
+  ...cameraContractTokens(CAMERA_INVOCATION_BINDINGS).map(token => ({ kind: 'binding' as const, token })),
 ])
 
 type CameraCatalogCardProps = {
