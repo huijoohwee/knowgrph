@@ -75,6 +75,18 @@ export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () =>
   if (!text.includes('forceApplyToGraph: options.applyToGraph')) {
     throw new Error('Expected repeated preview links to force the selected source graph into the embedded canvas')
   }
+  const missingFileGuardIndex = text.indexOf("if (!entry || entry.kind !== 'file')")
+  const missingFileIntentClearIndex = text.indexOf('clearRetainedLocalDocDeepLinkPath()', missingFileGuardIndex)
+  const localOpenCatchIndex = text.indexOf("const message = err instanceof Error ? err.message : 'Failed to open document'")
+  const localOpenCatchIntentClearIndex = text.lastIndexOf('clearRetainedLocalDocDeepLinkPath()', localOpenCatchIndex)
+  if (
+    missingFileGuardIndex < 0
+    || missingFileIntentClearIndex < missingFileGuardIndex
+    || missingFileIntentClearIndex > localOpenCatchIndex
+    || localOpenCatchIntentClearIndex < missingFileIntentClearIndex
+  ) {
+    throw new Error('Expected terminal local document open failures to clear retained reload intent')
+  }
   if (!canvasViewportText.includes("get('kgLiveHero') === '1'") || !canvasViewportText.includes('deriveLiveCanvasHeroCommandRouteGraph(safeGraphData)')) {
     throw new Error('Expected Live Canvas Hero embeds to reuse the exact source-derived command-route projection at the viewport boundary')
   }

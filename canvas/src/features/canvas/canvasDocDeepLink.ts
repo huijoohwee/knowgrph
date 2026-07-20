@@ -18,6 +18,7 @@ const CANVAS_PREVIEW_PARAM = 'kgPreview'
 const LIVE_CANVAS_HERO_PREVIEW_PARAM = 'kgLiveHero'
 const DEEP_LINK_PARAM = 'kgPath'
 export const LOCAL_DOC_PARAM = 'kgDoc'
+const LOCAL_DOC_HISTORY_STATE_KEY = '__knowgrphLocalDocPath'
 const WORKSPACE_ID_PARAM = 'kgWorkspaceId'
 const CANONICAL_PATH_PARAM = 'kgCanonicalPath'
 const APP_BASE_PATH = '/knowgrph'
@@ -79,7 +80,32 @@ export function readCurrentDocDeepLinkSearch(): string {
 
 export function readLocalDocDeepLinkPathFromCurrentLocation(): string | null {
   const link = parseDocDeepLink(readCurrentDocDeepLinkSearch())
-  return link?.kind === 'local' ? link.relativePath : null
+  if (link) return link.kind === 'local' ? link.relativePath : null
+  if (typeof window === 'undefined') return null
+  const state = window.history?.state
+  if (!state || typeof state !== 'object' || Array.isArray(state)) return null
+  const retainedPath = String((state as Record<string, unknown>)[LOCAL_DOC_HISTORY_STATE_KEY] || '').trim()
+  return retainedPath || null
+}
+
+function buildLocalDocHistoryState(relativePath: string | null): Record<string, unknown> | null {
+  const current = window.history?.state
+  const next = current && typeof current === 'object' && !Array.isArray(current)
+    ? { ...(current as Record<string, unknown>) }
+    : {}
+  if (relativePath) next[LOCAL_DOC_HISTORY_STATE_KEY] = relativePath
+  else delete next[LOCAL_DOC_HISTORY_STATE_KEY]
+  return Object.keys(next).length > 0 ? next : null
+}
+
+export function clearRetainedLocalDocDeepLinkPath(): void {
+  if (typeof window === 'undefined') return
+  try {
+    const nextState = buildLocalDocHistoryState(null)
+    window.history.replaceState(nextState, '')
+  } catch {
+    void 0
+  }
 }
 
 export function buildDocViewUrl(workspaceId: string, canonicalPath: string): string {
@@ -236,6 +262,7 @@ export function isSameOriginCanvasEmbedUrl(url: string, origin?: string | null):
 
 export function consumeDeepLinkParams(search: string): void {
   try {
+    const link = parseDocDeepLink(search)
     const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
     let changed = false
     if (params.has(LOCAL_DOC_PARAM)) { params.delete(LOCAL_DOC_PARAM); changed = true }
@@ -246,9 +273,11 @@ export function consumeDeepLinkParams(search: string): void {
     if (!changed) return
     const next = params.toString()
     const nextUrl = `${window.location.pathname}${next ? `?${next}` : ''}${window.location.hash || ''}`
-    window.history.replaceState(null, '', nextUrl)
+    const retainedLocalPath = link?.kind === 'local' ? link.relativePath : null
+    const nextState = buildLocalDocHistoryState(retainedLocalPath)
+    window.history.replaceState(nextState, '', nextUrl)
     try {
-      window.dispatchEvent(new PopStateEvent('popstate', { state: null }))
+      window.dispatchEvent(new PopStateEvent('popstate', { state: nextState }))
     } catch {
       window.dispatchEvent(new Event('popstate'))
     }

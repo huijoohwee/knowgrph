@@ -33,8 +33,8 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
     lastRequestedActivePath: null,
     nowMs: 10_000,
   })
-  if (startup !== XR_PHYSICS_WORKSPACE_SEED_PATH || startup.includes('/share/')) {
-    throw new Error(`expected bootstrap helper to prefer the canonical XR seed without a share route, got ${String(startup)}`)
+  if (startup !== TEST_VALIDATION_WORKSPACE_SEED_PATH || startup.includes('/share/')) {
+    throw new Error(`expected bootstrap helper to use the selector-aware validation seed without a share route, got ${String(startup)}`)
   }
 
   const startupWithWorkspaceCorpus = resolveMarkdownWorkspaceBootstrapActivePath({
@@ -48,13 +48,28 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
     lastRequestedActivePath: null,
     nowMs: 10_000,
   })
-  if (startupWithWorkspaceCorpus !== XR_PHYSICS_WORKSPACE_SEED_PATH) {
-    throw new Error(`expected an unselected workspace corpus to open the canonical XR seed, got ${String(startupWithWorkspaceCorpus)}`)
+  if (startupWithWorkspaceCorpus !== '/docs/a.md') {
+    throw new Error(`expected XR seed presence not to override the first unselected workspace document, got ${String(startupWithWorkspaceCorpus)}`)
   }
 
   const sourceFilesStarter = resolveWorkspaceStartupDefaultStarterPath(defaultSeedEntries)
-  if (sourceFilesStarter !== XR_PHYSICS_WORKSPACE_SEED_PATH) {
-    throw new Error(`expected initial Source Files bootstrap to reuse the canonical XR starter, got ${String(sourceFilesStarter)}`)
+  if (sourceFilesStarter !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected initial Source Files bootstrap to reuse the selector-aware validation starter, got ${String(sourceFilesStarter)}`)
+  }
+
+  const preserveExplicitReadmeWithXrAvailable = resolveMarkdownWorkspaceBootstrapActivePath({
+    entriesIndex: buildWorkspaceEntriesIndex([
+      buildFileEntry('/docs/README.md'),
+      buildFileEntry(TEST_VALIDATION_WORKSPACE_SEED_PATH),
+      buildFileEntry(XR_PHYSICS_WORKSPACE_SEED_PATH),
+    ]),
+    activePath: '/docs/README.md' as never,
+    lastSetActivePath: null,
+    lastRequestedActivePath: null,
+    nowMs: 10_000,
+  })
+  if (preserveExplicitReadmeWithXrAvailable !== null) {
+    throw new Error(`expected explicit README selection to remain authoritative while XR is available, got ${String(preserveExplicitReadmeWithXrAvailable)}`)
   }
 
   const preserveValidActivePath = resolveMarkdownWorkspaceBootstrapActivePath({
