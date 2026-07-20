@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { resolveBuiltChunkBudget } from './hygiene-built-chunk-budget.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -10,16 +11,6 @@ const repoRoot = path.resolve(__dirname, '..')
 const lineLimit = 600
 const byteLimit = 500 * 1024
 const reportLimit = 80
-const builtChunkBudgetOverrides = [
-  { pattern: /^canvas\/dist\/assets\/index-[A-Za-z0-9_-]+\.js$/, limit: 1800 * 1024, reason: 'canvas app entry chunk' },
-  { pattern: /^canvas\/dist\/assets\/SettingsView-[A-Za-z0-9_-]+\.js$/, limit: 700 * 1024, reason: 'lazy Settings panel route' },
-  { pattern: /^canvas\/dist\/assets\/settings-mcp-docs-[A-Za-z0-9_-]+\.js$/, limit: 1800 * 1024, reason: 'lazy MCP settings docs chunk' },
-  { pattern: /^canvas\/dist\/assets\/mermaid-[A-Za-z0-9_-]+\.js$/, limit: 2300 * 1024, reason: 'lazy Mermaid runtime vendor chunk' },
-  { pattern: /^canvas\/dist\/assets\/monaco-[A-Za-z0-9_-]+\.js$/, limit: 3000 * 1024, reason: 'lazy Monaco editor vendor chunk' },
-  { pattern: /^canvas\/dist\/assets\/three-core-[A-Za-z0-9_-]+\.js$/, limit: 800 * 1024, reason: 'lazy Three.js core vendor chunk' },
-  { pattern: /^canvas\/dist\/assets\/maplibre-[A-Za-z0-9_-]+\.js$/, limit: 1200 * 1024, reason: 'lazy MapLibre vendor chunk' },
-  { pattern: /^canvas\/dist\/assets\/transformers-[A-Za-z0-9_-]+\.js$/, limit: 700 * 1024, reason: 'lazy Hugging Face Transformers vendor chunk' },
-]
 
 const args = new Set(process.argv.slice(2))
 const checkAll = args.has('--all')
@@ -138,13 +129,6 @@ const builtChunkExtensions = new Set([
 ])
 
 const toPosixRel = absolutePath => path.relative(repoRoot, absolutePath).split(path.sep).filter(Boolean).join('/')
-
-const resolveBuiltChunkBudget = rel => {
-  for (const entry of builtChunkBudgetOverrides) {
-    if (entry.pattern.test(rel)) return entry
-  }
-  return { limit: byteLimit, reason: 'default asset budget' }
-}
 
 const isIgnoredRelativePath = rel => {
   if (ignoredRelativePaths.has(rel)) return true
