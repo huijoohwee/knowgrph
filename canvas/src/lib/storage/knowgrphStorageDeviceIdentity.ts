@@ -1,6 +1,6 @@
 import { getLocalStorage } from '@/lib/persistence'
 
-const KNOWGRPH_STORAGE_DEVICE_ID_KEY = 'kg:knowgrph-storage:device-id'
+export const KNOWGRPH_STORAGE_DEVICE_ID_KEY = 'kg:knowgrph-storage:device-id'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
 

@@ -11,6 +11,10 @@ import {
 import { findProtectedPushes, parsePrePushEntries } from '../check-pre-push-refs.mjs'
 import { classifyPrePushGate } from '../run-pre-push-gate.mjs'
 import { fetchOpenPullRequests } from '../github-active-scope-client.mjs'
+import {
+  buildLocalCollaborationBrowserEnv,
+  resolveLocalCollaborationStackConfig,
+} from '../lib/collaboration-local-stack.js'
 
 test('device lifecycle commands delegate to the canonical Agentic Canvas OS checkout wrapper', () => {
   const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
@@ -28,6 +32,17 @@ test('collaboration browser gate edits through the canonical active editor owner
   assert.match(smoke, /keyboard\.insertText/)
   assert.match(smoke, /assertRoomStatus\(WORKER_URL, ownerConnectedSnapshot\.markdownDocumentName\)/)
   assert.doesNotMatch(smoke, /graphState\.setActiveMarkdownDocument/)
+})
+
+test('local collaboration browser identities remain stable across repeated gate runs', () => {
+  const config = resolveLocalCollaborationStackConfig({ repoRoot: '/tmp/knowgrph-test', env: {} })
+  const browserEnv = buildLocalCollaborationBrowserEnv(config, {})
+
+  assert.equal(config.ownerClientDeviceId, 'dev:collaboration-owner-local')
+  assert.equal(config.guestClientDeviceId, 'dev:collaboration-guest-local')
+  assert.equal(browserEnv.KG_COLLABORATION_E2E_OWNER_DEVICE_ID, config.ownerClientDeviceId)
+  assert.equal(browserEnv.KG_COLLABORATION_E2E_GUEST_DEVICE_ID, config.guestClientDeviceId)
+  assert.notEqual(config.ownerClientDeviceId, config.guestClientDeviceId)
 })
 
 test('collaboration smoke preparation builds grph-shared before readiness checks', () => {
