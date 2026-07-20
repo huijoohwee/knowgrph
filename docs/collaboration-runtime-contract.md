@@ -2,7 +2,7 @@
 title: "Knowgrph Collaboration Runtime Contract"
 doc_type: "Runtime Contract"
 status: "active"
-contract_version: 23
+contract_version: 24
 frontmatter_contract: "required"
 ci_command_timeout_ms: 300000
 invocation:
@@ -48,8 +48,10 @@ local_development:
       task_divergence_allowed: false
 deployment:
   allowed_workflows: [".github/workflows/release.yml"]
-  required_trigger: "workflow_dispatch"
-  forbidden_triggers: ["pull_request", "push", "repository_dispatch", "schedule"]
+  required_trigger: "push"
+  required_branch: "main"
+  promotion_policy: "protected-green-main"
+  forbidden_triggers: ["pull_request", "workflow_dispatch", "repository_dispatch", "schedule"]
   command_patterns: ["wrangler(?:@[^ ]+)?\\s+pages\\s+deploy(?:\\s|$)", "npm\\s+run\\s+[^\\n]*deploy(?!ed)[^\\s]*(?:\\s|$)"]
 ci_scopes:
   dependencies:
@@ -122,7 +124,7 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 - `Integration Gate` is the sole required merge status.
 - `Integration Gate` generates `knowgrph.immutable-release-manifest/v1` from the exact pull-request head, source tree, pinned Agentic Canvas OS commit, and matching catalog revision; it uploads, downloads, and revalidates the exact bytes and digest before the canonical gate. Individually green repository checks do not replace this pair proof.
 - The gate validates this contract, runs source/build conflict compliance, and selects additional commands from `ci_scopes` based on changed paths.
-- Dev CI never requires or writes a Prod mirror. Source-to-mirror parity runs only after the manual release workflow creates its ephemeral production artifact.
+- Dev CI never writes a Prod mirror. Source-to-mirror parity runs after protected `main` integration when the automatic release workflow creates its ephemeral production artifact.
 - Commands are arrays rather than shell strings, preventing shell interpolation and keeping execution provider-neutral.
 - Every affected-scope command has the canonical bounded timeout; non-terminating checks fail closed instead of freezing the gate.
 - Unknown changed paths fail safe through `fallback_commands`.
@@ -177,6 +179,7 @@ The automatic gate passes only with at least two distinct authenticated device p
 
 - CI never deploys.
 - Only a workflow listed in `deployment.allowed_workflows` may contain deployment commands.
-- The allowed workflow must use only the explicit manual trigger declared by `deployment.required_trigger`.
-- Production release requires an exact verified Dev commit, an explicit `DEPLOY` confirmation, and approval through the GitHub `production` environment.
-- Prod repositories, Cloudflare resources, remote migrations, DNS, storage, and payment services remain untouched until an authorized release is manually started.
+- The allowed workflow must use the trigger declared by `deployment.required_trigger`, restricted to `deployment.required_branch`.
+- A protected green merge to `main` is standing release authorization. The workflow binds build, deploy, smoke, rollback target, and mirror publication to that exact SHA without a per-run confirmation.
+- The GitHub `production` environment must have no required human reviewers; credentials remain environment-scoped and least-privilege.
+- Prod repositories and Cloudflare resources remain untouched by pull-request CI, local developer commands, schedules, and repository dispatches.

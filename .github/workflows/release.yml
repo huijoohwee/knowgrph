@@ -1,16 +1,8 @@
 name: Production Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      commit_sha:
-        description: Exact 40-character Dev commit SHA already verified by Integration Gate
-        required: true
-        type: string
-      confirmation:
-        description: Type DEPLOY to authorize the production release
-        required: true
-        type: string
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -28,38 +20,29 @@ jobs:
       docs_revision: ${{ steps.agentic_canvas_os_docs.outputs.ref }}
       manifest_digest: ${{ steps.immutable_manifest.outputs.digest }}
     env:
-      RELEASE_SHA: ${{ inputs.commit_sha }}
-      RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+      RELEASE_SHA: ${{ github.sha }}
       KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: ${{ github.workspace }}/agentic-canvas-os/docs
 
     steps:
-      - name: Validate explicit authorization
-        run: |
-          if [[ ! "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "commit_sha must be an exact lowercase 40-character Git commit SHA" >&2
-            exit 1
-          fi
-          if [ "$RELEASE_CONFIRMATION" != "DEPLOY" ]; then
-            echo "production release requires confirmation=DEPLOY" >&2
-            exit 1
-          fi
-
-      - name: Checkout exact Dev commit
+      - name: Checkout exact protected main commit
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.commit_sha }}
+          ref: ${{ github.sha }}
           path: knowgrph
           fetch-depth: 2
 
       - name: Verify checked-out commit
         working-directory: knowgrph
-        run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+        run: |
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
 
       - name: Checkout production mirror
         uses: actions/checkout@v7
         with:
           repository: huijoohwee/huijoohwee
           path: huijoohwee
+          token: ${{ secrets.HUIJOOHWEE_PUSH_TOKEN }}
 
       - name: Checkout schema mirror
         uses: actions/checkout@v7
@@ -103,30 +86,28 @@ jobs:
         working-directory: knowgrph
         run: npm run --silent release:manifest:create -- --source-sha "$RELEASE_SHA" --target-ref "refs/heads/main" --output "$RUNNER_TEMP/immutable-release-manifest.json" --github-output
 
-      - name: Validate checked-out Agentic Canvas OS revision
+      - name: Validate dependency and immutable manifest
         working-directory: knowgrph
-        run: test "$(git -C ../agentic-canvas-os rev-parse HEAD)" = "${{ steps.agentic_canvas_os_docs.outputs.ref }}"
-
-      - name: Validate immutable release manifest
-        working-directory: knowgrph
-        run: npm run --silent release:manifest:check -- "$RUNNER_TEMP/immutable-release-manifest.json" --source-sha "$RELEASE_SHA" --docs-sha "${{ steps.agentic_canvas_os_docs.outputs.ref }}" --digest "${{ steps.immutable_manifest.outputs.digest }}"
+        run: |
+          test "$(git -C ../agentic-canvas-os rev-parse HEAD)" = "${{ steps.agentic_canvas_os_docs.outputs.ref }}"
+          npm run --silent release:manifest:check -- "$RUNNER_TEMP/immutable-release-manifest.json" --source-sha "$RELEASE_SHA" --docs-sha "${{ steps.agentic_canvas_os_docs.outputs.ref }}" --digest "${{ steps.immutable_manifest.outputs.digest }}"
 
       - name: Upload immutable release manifest
         uses: actions/upload-artifact@v7
         with:
-          name: immutable-release-manifest-${{ inputs.commit_sha }}
+          name: immutable-release-manifest-${{ github.sha }}
           path: ${{ runner.temp }}/immutable-release-manifest.json
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
 
       - name: Reverify exact candidate
         working-directory: knowgrph
         run: npm run ci:integration
 
-      - name: Build and sync verified candidate into ephemeral production artifact
+      - name: Build and sync verified candidate
         working-directory: knowgrph
         env:
-          KNOWGRPH_SOURCE_REVISION: ${{ inputs.commit_sha }}
+          KNOWGRPH_SOURCE_REVISION: ${{ github.sha }}
         run: npm run pages:build-sync
 
       - name: Verify source-to-mirror parity
@@ -140,7 +121,7 @@ jobs:
       - name: Upload verified release artifact
         uses: actions/upload-artifact@v7
         with:
-          name: production-${{ inputs.commit_sha }}
+          name: production-${{ github.sha }}
           path: |
             huijoohwee/content/knowgrph
             huijoohwee/knowgrph
@@ -152,24 +133,26 @@ jobs:
             huijoohwee/_routes.json
             huijoohwee/_headers
             huijoohwee/_redirects
+            huijoohwee/.well-known/runtime-readiness.json
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
 
   deploy:
-    name: Deploy Production
+    name: Deploy, Verify, And Publish Mirror
     needs: verify
     runs-on: ubuntu-latest
     environment: production
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
       KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: ${{ github.workspace }}/agentic-canvas-os/docs
 
     steps:
-      - name: Checkout exact Dev commit
+      - name: Checkout exact candidate
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.commit_sha }}
+          ref: ${{ github.sha }}
           path: knowgrph
           fetch-depth: 1
 
@@ -178,6 +161,7 @@ jobs:
         with:
           repository: huijoohwee/huijoohwee
           path: huijoohwee
+          token: ${{ secrets.HUIJOOHWEE_PUSH_TOKEN }}
 
       - name: Checkout exact Agentic Canvas OS docs SSOT
         uses: actions/checkout@v7
@@ -185,9 +169,6 @@ jobs:
           repository: ${{ needs.verify.outputs.docs_repository }}
           ref: ${{ needs.verify.outputs.docs_revision }}
           path: agentic-canvas-os
-
-      - name: Validate checked-out Agentic Canvas OS revision
-        run: test "$(git -C agentic-canvas-os rev-parse HEAD)" = "${{ needs.verify.outputs.docs_revision }}"
 
       - name: Setup Node
         uses: actions/setup-node@v7
@@ -202,35 +183,97 @@ jobs:
         working-directory: knowgrph
         run: npm ci
 
-      - name: Download verified release artifact
+      - name: Download verified artifacts
         uses: actions/download-artifact@v8
         with:
-          name: production-${{ inputs.commit_sha }}
+          name: production-${{ github.sha }}
           path: huijoohwee
 
-      - name: Download immutable release manifest
+      - name: Download immutable manifest
         uses: actions/download-artifact@v8
         with:
-          name: immutable-release-manifest-${{ inputs.commit_sha }}
+          name: immutable-release-manifest-${{ github.sha }}
           path: ${{ runner.temp }}/immutable-release-manifest-proof
 
-      - name: Revalidate immutable release manifest
+      - name: Revalidate immutable manifest and configuration
         working-directory: knowgrph
-        run: npm run --silent release:manifest:check -- "$RUNNER_TEMP/immutable-release-manifest-proof/immutable-release-manifest.json" --source-sha "${{ inputs.commit_sha }}" --docs-sha "${{ needs.verify.outputs.docs_revision }}" --digest "${{ needs.verify.outputs.manifest_digest }}"
-
-      - name: Require configured deployment credentials
         run: |
+          test "$(git -C ../agentic-canvas-os rev-parse HEAD)" = "${{ needs.verify.outputs.docs_revision }}"
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_PAGES_PROJECT"
+          test -n "${{ secrets.HUIJOOHWEE_PUSH_TOKEN }}"
+          npm run --silent release:manifest:check -- "$RUNNER_TEMP/immutable-release-manifest-proof/immutable-release-manifest.json" --source-sha "${{ github.sha }}" --docs-sha "${{ needs.verify.outputs.docs_revision }}" --digest "${{ needs.verify.outputs.manifest_digest }}"
+
+      - name: Capture current production rollback target
+        id: previous
+        working-directory: knowgrph
+        run: npm run --silent runtime:pages:capture-current
 
       - name: Deploy verified artifact
+        id: deploy_pages
         working-directory: knowgrph
-        run: npx --no-install wrangler pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true
+        run: npx --no-install wrangler pages deploy ../huijoohwee --project-name="$CLOUDFLARE_PAGES_PROJECT" --branch=main --commit-dirty=true
 
       - name: Reconcile canonical docs into D1
         working-directory: knowgrph
         run: npm run storage:d1:seed:docs
 
-      - name: Verify live agent-ready discovery
+      - name: Verify live runtime
         working-directory: knowgrph
+        run: ./.github/workflows/smoke-test.sh
+
+      - name: Publish verified production mirror
+        working-directory: huijoohwee
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          git config user.name "knowgrph-release[bot]"
+          git config user.email "knowgrph-release[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Production mirror already represents $RELEASE_SHA."
+          else
+            git commit -m "chore(release): promote knowgrph ${RELEASE_SHA:0:12}"
+            git push origin HEAD:main
+          fi
+
+      - name: Checkout rollback Knowgrph source
+        if: failure() && steps.deploy_pages.outcome == 'success'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.previous.outputs.commit_sha }}
+          path: rollback-knowgrph
+
+      - name: Install rollback dependencies
+        if: failure() && steps.deploy_pages.outcome == 'success'
+        working-directory: rollback-knowgrph
+        run: npm ci
+
+      - name: Resolve rollback docs dependency
+        if: failure() && steps.deploy_pages.outcome == 'success'
+        id: rollback_docs
+        working-directory: rollback-knowgrph
+        run: npm run --silent runtime:docs-dependency:resolve -- --github-output >> "$GITHUB_OUTPUT"
+
+      - name: Checkout rollback Agentic Canvas OS docs
+        if: failure() && steps.deploy_pages.outcome == 'success'
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ steps.rollback_docs.outputs.repository }}
+          ref: ${{ steps.rollback_docs.outputs.ref }}
+          path: rollback-agentic-canvas-os
+
+      - name: Roll back Pages and canonical docs
+        if: failure() && steps.deploy_pages.outcome == 'success'
+        working-directory: rollback-knowgrph
+        env:
+          KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: ${{ github.workspace }}/rollback-agentic-canvas-os/docs
+        run: |
+          npm run --silent runtime:pages:rollback -- --deployment-id "${{ steps.previous.outputs.deployment_id }}"
+          npm run storage:d1:seed:docs
+
+      - name: Verify restored production runtime
+        if: failure() && steps.deploy_pages.outcome == 'success'
+        working-directory: rollback-knowgrph
         run: ./.github/workflows/smoke-test.sh
