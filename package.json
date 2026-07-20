@@ -27,6 +27,8 @@
     "device:end": "node ../agentic-canvas-os/scripts/device-branch.mjs end",
     "device:park": "node ../agentic-canvas-os/scripts/device-branch.mjs park",
     "worktree:check": "node ./scripts/check-worktree-policy.mjs",
+    "worktree:lifecycle:check": "node ../agentic-canvas-os/scripts/worktree-lifecycle.mjs check --repository=.",
+    "worktree:lifecycle:cleanup": "node ../agentic-canvas-os/scripts/worktree-lifecycle.mjs cleanup --repository=.",
     "dev": "npm run dev --workspace=@knowgrph/canvas --",
     "dev:apex": "VITE_BASE_PATH=/ VITE_APEX_ROOT_ALIAS=1 npm run dev --workspace=@knowgrph/canvas --",
     "demo:care-agent": "npm run dev:care-agent --workspace=@knowgrph/canvas --",

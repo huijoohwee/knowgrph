@@ -23,6 +23,12 @@ local_development:
   worktree_policy:
     mode: "same-device-multi-worktree"
     minimum_registered_per_repository: 1
+    session_end:
+      completion_state: "completed"
+      cleanup_requires: ["clean", "detached", "exact-origin-main", "explicit-target"]
+      retain_states: ["canonical", "active", "delivery", "parked"]
+      force_remove: false
+      delete_branch: false
   canonical_sources:
     - id: "knowgrph"
       repository_path: "."
@@ -154,6 +160,7 @@ The automatic gate passes only with at least two distinct authenticated device p
 - `dev:latest` never stashes, resets, pulls, switches branches, or mutates an owned task branch. If any source cannot update safely, all source fast-forwards are withheld and startup fails with the responsible identity.
 - Startup accepts one or more registered worktrees per source repository, while rejecting missing, bare, prunable, or duplicate-branch registrations.
 - `npm run worktree:check` exposes that registry policy as a standalone preflight without fetching, changing branches, or starting Dev. `ci:integration` runs it first so the installed pre-push hook and remote Integration Gate reject unsafe registrations before expensive validation.
+- `npm run worktree:lifecycle:check` audits session-end state through the pinned Agentic Canvas OS lifecycle owner. It accepts canonical, active, delivery, and parked lanes, while dirty, ambiguous, invalid, or completed residual lanes require attention. `worktree:lifecycle:cleanup -- --worktree=<path>` removes only one clean detached exact-main lane recorded as completed, uses no force, and preserves its branch and commits.
 - Canonical mode requires every registered repository to be clean and exactly equal to its fetched canonical SHA. The port number never selects application or documentation source code.
 - The centralized Agentic Canvas OS docs entry resolves beside the registered Knowgrph main worktree, even when the command starts in a linked task worktree, and requires its `docs` root. Stale, ahead, divergent, dirty, or missing sources fail closed with the responsible source identity.
 - `npm run dev` and `npm run dev:apex` infer task mode when the application checkout is on a contract-valid `agent/<device>/<semantic-scope>` branch. `KG_DEV_SOURCE_MODE` remains an expert override for an explicit canonical or task check. Task mode permits divergence only for the source whose contract declares `task_divergence_allowed: true`; the shared Agentic Canvas OS docs revision remains clean and canonical.
