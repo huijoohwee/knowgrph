@@ -5,7 +5,10 @@ import test from 'node:test'
 
 import {
   assertD1DocumentParity,
+  assertNoD1GraphSnapshots,
   buildDirectD1DocumentStatements,
+  buildDirectD1ReconciliationStatements,
+  parseD1ExecuteJsonRows,
 } from '../lib/seed-storage-documents-d1.mjs'
 
 const workspaceId = 'workspace:test'
@@ -48,6 +51,20 @@ const schemaSql = `
     FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
     UNIQUE (document_id, chunk_key)
   );
+  CREATE TABLE graph_snapshots (
+    id TEXT PRIMARY KEY,
+    document_id TEXT NOT NULL,
+    workspace_id TEXT NOT NULL,
+    graph_revision INTEGER NOT NULL,
+    graph_hash TEXT NOT NULL,
+    graph_json TEXT NOT NULL,
+    layout_json TEXT,
+    derived_from_document_revision INTEGER NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
+    UNIQUE (document_id, graph_revision)
+  );
   INSERT INTO workspaces (id) VALUES ('workspace:test');
 `
 
@@ -69,6 +86,12 @@ const executeScenario = (scenarioSql) => {
           'documentId', document_id,
           'markdown', markdown
         )) FROM document_chunks
+      ), json('[]')),
+      'graphSnapshots', COALESCE((
+        SELECT json_group_array(json_object(
+          'id', id,
+          'documentId', document_id
+        )) FROM graph_snapshots
       ), json('[]'))
     ) AS result;
   `
@@ -120,23 +143,29 @@ const buildSeed = () => ({
 
 test('direct D1 seed reuses the row that already owns a canonical path', () => {
   const seed = buildSeed()
+  const authoritativeUpdatedAtMs = 1_800_000_000_000
+  const statements = buildDirectD1DocumentStatements({
+    ...seed,
+    authoritativeUpdatedAtMs,
+  })
+  const sql = statements.join('\n')
   const state = executeScenario(`
     INSERT INTO documents (
       id, workspace_id, canonical_path, title, doc_type, source_kind, content_md,
       content_hash, parser_version, revision, deleted, created_at, updated_at
     ) VALUES (
       'legacy:share-id', 'workspace:test', 'docs/example.md', 'legacy.md', 'markdown',
-      'markdown', '', 'hash:legacy', 'legacy-seed', 2, 1,
+      'markdown', '', 'hash:legacy', 'legacy-seed', 9, 1,
       '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
     );
-    ${buildDirectD1DocumentStatements(seed).join('\n')}
+    ${sql}
   `)
 
   assert.deepEqual(state.documents, [{
     id: 'legacy:share-id',
     canonicalPath,
     contentHash: 'hash:new',
-    revision: 7,
+    revision: 10,
     deleted: 0,
   }])
   assert.deepEqual(state.chunks, [{
@@ -144,6 +173,8 @@ test('direct D1 seed reuses the row that already owns a canonical path', () => {
     documentId: 'legacy:share-id',
     markdown: 'new content',
   }])
+  assert.match(sql, new RegExp(new Date(authoritativeUpdatedAtMs).toISOString(), 'g'))
+  assert.doesNotMatch(sql, new RegExp(new Date(seed.record.updatedAtMs).toISOString(), 'g'))
 })
 
 test('direct D1 seed inserts the deterministic id for a new canonical path', () => {
@@ -161,6 +192,133 @@ test('direct D1 seed inserts the deterministic id for a new canonical path', () 
 })
 
 const sha256 = value => createHash('sha256').update(value).digest('hex')
+
+test('direct D1 reconciliation retires unexpected documents and their chunks', () => {
+  const reconciliationStatements = buildDirectD1ReconciliationStatements({
+    workspaceId,
+    canonicalPaths: ['docs/expected.md'],
+    updatedAtMs: 1_700_000_000_000,
+    parserVersion: 'seed:test',
+  })
+  const state = executeScenario(`
+    INSERT INTO documents (
+      id, workspace_id, canonical_path, title, doc_type, source_kind, content_md,
+      content_hash, parser_version, revision, deleted, created_at, updated_at
+    ) VALUES
+      (
+        'docs:expected', 'workspace:test', 'docs/expected.md', 'expected.md', 'markdown',
+        'markdown', 'expected', '${sha256('expected')}', 'seed:test', 1, 0,
+        '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
+      ),
+      (
+        'docs:stale', 'workspace:test', 'docs/stale.md', 'stale.md', 'markdown',
+        'markdown', 'stale', '${sha256('stale')}', 'legacy', 2, 0,
+        '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
+      ),
+      (
+        'docs:deleted', 'workspace:test', 'docs/deleted.md', 'deleted.md', 'markdown',
+        'markdown', '', '${sha256('deleted')}', 'legacy', 4, 1,
+        '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
+      );
+    INSERT INTO document_chunks (
+      id, document_id, workspace_id, chunk_key, chunk_order, markdown,
+      token_estimate, content_hash, updated_at
+    ) VALUES
+      (
+        'chunk:expected', 'docs:expected', 'workspace:test', 'part-0000', 0,
+        'expected', 2, '${sha256('expected')}', '2026-01-01T00:00:00.000Z'
+      ),
+      (
+        'chunk:stale', 'docs:stale', 'workspace:test', 'part-0000', 0,
+        'stale', 2, '${sha256('stale')}', '2026-01-01T00:00:00.000Z'
+      ),
+      (
+        'chunk:deleted', 'docs:deleted', 'workspace:test', 'part-0000', 0,
+        'deleted', 2, '${sha256('deleted')}', '2026-01-01T00:00:00.000Z'
+      );
+    INSERT INTO graph_snapshots (
+      id, document_id, workspace_id, graph_revision, graph_hash, graph_json,
+      derived_from_document_revision, updated_at
+    ) VALUES
+      (
+        'snapshot:expected', 'docs:expected', 'workspace:test', 1, 'graph:expected', '{}',
+        1, '2026-01-01T00:00:00.000Z'
+      ),
+      (
+        'snapshot:deleted', 'docs:deleted', 'workspace:test', 4, 'graph:deleted', '{}',
+        4, '2026-01-01T00:00:00.000Z'
+      );
+    ${reconciliationStatements.join('\n')}
+  `)
+
+  assert.deepEqual(state.documents, [
+    {
+      id: 'docs:deleted',
+      canonicalPath: 'docs/deleted.md',
+      contentHash: sha256('deleted'),
+      revision: 4,
+      deleted: 1,
+    },
+    {
+      id: 'docs:expected',
+      canonicalPath: 'docs/expected.md',
+      contentHash: sha256('expected'),
+      revision: 1,
+      deleted: 0,
+    },
+    {
+      id: 'docs:stale',
+      canonicalPath: 'docs/stale.md',
+      contentHash: sha256('stale'),
+      revision: 3,
+      deleted: 1,
+    },
+  ])
+  assert.deepEqual(state.chunks, [{
+    id: 'chunk:expected',
+    documentId: 'docs:expected',
+    markdown: 'expected',
+  }])
+  assert.deepEqual(state.graphSnapshots, [])
+})
+
+test('direct D1 reconciliation rejects an empty canonical corpus', () => {
+  assert.throws(
+    () => buildDirectD1ReconciliationStatements({ workspaceId, canonicalPaths: [] }),
+    /requires at least one canonical path/,
+  )
+})
+
+test('direct D1 JSON readback accepts successful Wrangler rows and rejects failed output', () => {
+  const successfulOutput = JSON.stringify([{
+    results: [{ id: 'docs:a', canonicalPath: 'docs/a.md' }],
+    success: true,
+  }])
+  assert.deepEqual(
+    parseD1ExecuteJsonRows(`\uFEFF${successfulOutput}`, 'documents-readback'),
+    [{ id: 'docs:a', canonicalPath: 'docs/a.md' }],
+  )
+  assert.throws(
+    () => parseD1ExecuteJsonRows('', 'documents-readback'),
+    /documents-readback returned empty JSON output/,
+  )
+  assert.throws(
+    () => parseD1ExecuteJsonRows('[{"success":false,"error":"query rejected"}]', 'documents-readback'),
+    /documents-readback failed: query rejected/,
+  )
+  assert.throws(
+    () => parseD1ExecuteJsonRows('<html>challenge</html>', 'documents-readback'),
+    /documents-readback returned invalid JSON output/,
+  )
+})
+
+test('direct D1 verification rejects every derived graph snapshot', () => {
+  assert.deepEqual(assertNoD1GraphSnapshots([]), { graphSnapshotCount: 0 })
+  assert.throws(
+    () => assertNoD1GraphSnapshots([{ id: 'snapshot:stale', documentId: 'docs:a' }]),
+    /unexpectedGraphSnapshots=snapshot:stale/,
+  )
+})
 
 const buildParitySeed = ({ canonicalPath, content, chunks = [] }) => ({
   documentMutation: {
