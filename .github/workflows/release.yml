@@ -65,7 +65,17 @@ jobs:
 
       - name: Install dependencies
         working-directory: knowgrph
-        run: npm ci
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "npm ci failed after $attempt attempts" >&2
+              exit 1
+            fi
+            sleep "$((attempt * 10))"
+          done
 
       - name: Resolve Agentic Canvas OS docs dependency
         id: agentic_canvas_os_docs
@@ -180,7 +190,17 @@ jobs:
 
       - name: Install dependencies
         working-directory: knowgrph
-        run: npm ci
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "npm ci failed after $attempt attempts" >&2
+              exit 1
+            fi
+            sleep "$((attempt * 10))"
+          done
 
       - name: Download verified artifacts
         uses: actions/download-artifact@v8
