@@ -29,6 +29,7 @@ export type FloatingPanelOpenEventDetail = {
      | 'chat'
     | 'media'
     | 'animation'
+    | 'motionControl'
     | 'geo'
     | 'storyboardWidget'
     | 'flowchart'

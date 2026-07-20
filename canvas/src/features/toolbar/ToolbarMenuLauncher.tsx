@@ -125,6 +125,8 @@ export function ToolbarMenuLauncher({
             ? 'media'
           : tab === 'animation'
             ? 'animation'
+          : tab === 'motionControl'
+            ? 'motionControl'
           : tab === 'camera'
             ? 'camera'
           : tab === 'chat'

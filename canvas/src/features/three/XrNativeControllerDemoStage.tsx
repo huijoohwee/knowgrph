@@ -28,6 +28,8 @@ import {
   stepSharedXrNativeControllerDemo,
   subscribeXrNativeControllerDemo,
 } from './xrNativeControllerDemoRuntime'
+import { readMotionControlSnapshot } from './motionControlRuntime'
+import { motionControlPoseToControllerInput } from './motionControlPose'
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, a[href], input, textarea, select, [contenteditable="true"], [role="button"], [role="link"]'
 
@@ -107,7 +109,8 @@ export function XrNativeControllerDemoStage({
       ? Array.from(navigator.getGamepads()).filter(Boolean)
       : []
     const gamepad = readXrNativeControllerGamepadInput(pads[0])
-    setSharedXrNativeControllerDemoInput(mergeXrNativeControllerInputs(keyboard, gamepad))
+    const motion = motionControlPoseToControllerInput(readMotionControlSnapshot().pose)
+    setSharedXrNativeControllerDemoInput(mergeXrNativeControllerInputs(keyboard, gamepad, motion))
     stepSharedXrNativeControllerDemo(deltaSeconds)
     const frame = readSharedXrNativeControllerDemoFrame()
     const root = playerRootRef.current

@@ -126,8 +126,8 @@ export function testCanvasSurfaceMode3dSelectionUsesSharedOwner() {
   if (canvasViewMenuText.includes('view:geospatial')) {
     throw new Error('Expected Geospatial Mode to be owned by Surface Mode, not a stale view-scoped option id')
   }
-  if (canvasViewActionsText.includes("setCanvas3dMode('3d')") || !canvasViewActionsText.includes('onOpenShared3dPanel?.(mode)') || !canvasViewActionsText.includes("mode === 'xr' ? 'animation' : 'camera'") || !canvasViewActionsText.includes('if (!state.floatingPanelOpen)') || !canvasViewActionsText.includes("setBottomSurfaceTab('timeline')") || !canvasViewActionsText.includes('setBottomSurfaceCollapsed(false)')) {
-    throw new Error('Expected 3D/XR to preserve an open panel, default XR to Animation, and restore BottomPanel Timeline')
+  if (canvasViewActionsText.includes("setCanvas3dMode('3d')") || !canvasViewActionsText.includes('onOpenShared3dPanel?.(mode)') || !canvasViewActionsText.includes("mode === 'xr' ? 'motionControl' : 'camera'") || !canvasViewActionsText.includes('if (!state.floatingPanelOpen)') || !canvasViewActionsText.includes("setBottomSurfaceTab('timeline')") || !canvasViewActionsText.includes('setBottomSurfaceCollapsed(false)')) {
+    throw new Error('Expected 3D/XR to preserve an open panel, default XR to Motion Control, and restore BottomPanel Timeline')
   }
 
   const calls: string[] = []

@@ -6,6 +6,7 @@ import {
 import { XR_SCENE_WEB_MCP_TOOL_IDS } from '../three/xrSceneMcpContract.mjs'
 import { CAMERA_WEB_MCP_TOOL_IDS } from '../strybldr/cameraMcpContract.mjs'
 import { XR_ANIMATION_WEB_MCP_TOOL_IDS } from '../three/xrAnimationMcpContract.mjs'
+import { buildMotionControlAgentReadyToolContracts, MOTION_CONTROL_AGENT_READY_TOOL_IDS } from './motionControlAgentReadyContract.mjs'
 import {
   FETCH_OUTPUT_SCHEMA,
   RUNTIME_IDENTITY_OUTPUT_SCHEMA,
@@ -32,6 +33,7 @@ export const KNOWGRPH_AGENT_READY_TOOL_IDS = Object.freeze({
   controlLocalCamera: CAMERA_WEB_MCP_TOOL_IDS.control,
   inspectLocalAnimation: XR_ANIMATION_WEB_MCP_TOOL_IDS.inspect,
   controlLocalAnimation: XR_ANIMATION_WEB_MCP_TOOL_IDS.control,
+  ...MOTION_CONTROL_AGENT_READY_TOOL_IDS,
   inspectLocal3dLayoutPositions: 'inspect_local_3d_layout_positions',
   inspectLocalXrSceneAssets: XR_SCENE_WEB_MCP_TOOL_IDS.inspect,
   controlLocalXrScene: XR_SCENE_WEB_MCP_TOOL_IDS.control,
@@ -526,7 +528,7 @@ export const buildKnowgrphAgentReadyToolContracts = (args = {}) => {
           inputSchema: XR_ANIMATION_CONTROL_INPUT_SCHEMA,
           outputSchema: { type: 'object', additionalProperties: true, required: ['ok', 'message'] },
           annotations: LOCAL_MUTATION_TOOL_ANNOTATIONS,
-        }, {
+        }, ...buildMotionControlAgentReadyToolContracts({ buildWebName: buildKnowgrphWebMcpToolName, readOnlyAnnotations: READ_ONLY_TOOL_ANNOTATIONS, mutationAnnotations: LOCAL_MUTATION_TOOL_ANNOTATIONS }), {
           name: KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions,
           webName: buildKnowgrphWebMcpToolName(KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal3dLayoutPositions),
           title: 'Inspect Local 3D Layout Positions',

@@ -54,6 +54,7 @@ export type FloatingPanelView =
   | 'view'
   | 'media'
   | 'animation'
+  | 'motionControl'
   | 'camera'
   | 'design'
   | 'chat'

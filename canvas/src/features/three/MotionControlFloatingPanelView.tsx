@@ -1,0 +1,189 @@
+import React from 'react'
+import { Camera, Cpu, ShieldCheck, VideoOff } from 'lucide-react'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  FloatingPanelCatalogHeader,
+  floatingPanelCatalogBodyClassName,
+  floatingPanelCatalogSurfaceClassName,
+} from '@/lib/ui/floatingPanelCatalogLayout'
+import { PanelField, PanelSelect } from '@/lib/ui/panelFormControls'
+import { resolveCssVar, UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
+import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
+import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
+import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
+import { cn } from '@/lib/utils'
+import {
+  buildMotionControlInvocation,
+  controlLocalMotionControl,
+  inspectLocalMotionControl,
+  type MotionControlOperation,
+} from './motionControlMcpRuntime'
+import {
+  bindMotionControlPreview,
+  readMotionControlSnapshot,
+  stopMotionControl,
+  subscribeMotionControl,
+  type MotionControlBackendPreference,
+  type MotionControlSnapshot,
+} from './motionControlRuntime'
+
+const POSE_CONNECTIONS = Object.freeze([
+  [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
+  [11, 23], [12, 24], [23, 24], [23, 25], [25, 27], [24, 26], [26, 28],
+] as const)
+
+function MotionInvocation({ operation, backend }: { operation: MotionControlOperation; backend?: MotionControlBackendPreference }) {
+  const invocation = buildMotionControlInvocation(operation, backend)
+  return (
+    <code
+      className={cn(UI_INLINE_CHIP_GROUP_CLASSNAME, 'min-w-0 overflow-hidden font-mono text-[9px]', UI_THEME_TOKENS.text.secondary)}
+      data-kg-motion-control-invocation={operation}
+      data-kg-motion-control-invocation-chip-renderer="shared-markdown-sigil"
+    >
+      {renderMarkdownSigilInlineText(invocation, {
+        renderKeywordChip: ({ value, className }) => renderAgenticOsInvocationKeywordChip({ value, className, sourceLink: false }),
+      })}
+    </code>
+  )
+}
+
+function drawPoseOverlay(canvas: HTMLCanvasElement, state: MotionControlSnapshot): void {
+  const width = Math.max(1, Math.round(canvas.clientWidth * (window.devicePixelRatio || 1)))
+  const height = Math.max(1, Math.round(canvas.clientHeight * (window.devicePixelRatio || 1)))
+  if (canvas.width !== width) canvas.width = width
+  if (canvas.height !== height) canvas.height = height
+  const context = canvas.getContext('2d')
+  if (!context) return
+  context.clearRect(0, 0, width, height)
+  const landmarks = state.pose?.landmarks
+  if (!landmarks) return
+  context.lineCap = 'round'
+  context.lineWidth = Math.max(2, width / 160)
+  context.strokeStyle = resolveCssVar('--kg-canvas-accent', '#22d3ee')
+  for (const [startIndex, endIndex] of POSE_CONNECTIONS) {
+    const start = landmarks[startIndex]
+    const end = landmarks[endIndex]
+    if (!start || !end || Math.min(start.visibility, end.visibility) < 0.5) continue
+    context.beginPath()
+    context.moveTo((1 - start.x) * width, start.y * height)
+    context.lineTo((1 - end.x) * width, end.y * height)
+    context.stroke()
+  }
+  context.fillStyle = resolveCssVar('--kg-text-primary', '#f8fafc')
+  landmarks.slice(0, 33).forEach(landmark => {
+    if (landmark.visibility < 0.5) return
+    context.beginPath()
+    context.arc((1 - landmark.x) * width, landmark.y * height, Math.max(2.2, width / 90), 0, Math.PI * 2)
+    context.fill()
+  })
+}
+
+export function MotionControlFloatingPanelView() {
+  const state = React.useSyncExternalStore(subscribeMotionControl, readMotionControlSnapshot, readMotionControlSnapshot)
+  const pushUiToast = useGraphStore(store => store.pushUiToast)
+  const [backend, setBackend] = React.useState<MotionControlBackendPreference>(state.requestedBackend)
+  const [startPending, setStartPending] = React.useState(false)
+  const [stopPending, setStopPending] = React.useState(false)
+  const videoRef = React.useRef<HTMLVideoElement | null>(null)
+  const overlayRef = React.useRef<HTMLCanvasElement | null>(null)
+
+  React.useEffect(() => setBackend(state.requestedBackend), [state.requestedBackend])
+  React.useEffect(() => bindMotionControlPreview(videoRef.current), [state.cameraActive])
+  React.useEffect(() => {
+    const canvas = overlayRef.current
+    if (canvas) drawPoseOverlay(canvas, state)
+  }, [state])
+  React.useEffect(() => () => {
+    queueMicrotask(() => {
+      const liveState = useGraphStore.getState()
+      if (liveState.floatingPanelOpen && liveState.floatingPanelView === 'motionControl') return
+      void stopMotionControl('Motion Control stopped when its panel closed.')
+    })
+  }, [])
+
+  const runControl = React.useCallback(async (operation: Exclude<MotionControlOperation, 'open'>) => {
+    const setOperationPending = operation === 'start' ? setStartPending : setStopPending
+    setOperationPending(true)
+    try {
+      const result = await controlLocalMotionControl(operation === 'start' ? { operation, backend } : { operation })
+      pushUiToast({
+        id: `motion-control:${operation}:${result.ok ? 'ok' : 'error'}`,
+        kind: result.ok ? 'success' : 'error',
+        message: result.message,
+      })
+    } finally {
+      setOperationPending(false)
+    }
+  }, [backend, pushUiToast])
+
+  const inspection = inspectLocalMotionControl()
+  const runtimeBusy = state.phase === 'requesting-camera' || state.phase === 'loading-model' || state.phase === 'running'
+  const canStop = startPending || runtimeBusy || state.cameraActive
+  return (
+    <section
+      className={floatingPanelCatalogSurfaceClassName()}
+      aria-label="Motion Control"
+      data-kg-motion-control-floating-panel="1"
+      data-kg-motion-control-mcp="knowgrph.control_local_motion_control"
+      data-kg-motion-control-runtime={state.phase}
+    >
+      <FloatingPanelCatalogHeader
+        title="Motion Control"
+        subtitle="Local camera pose → XR"
+        actionsLabel="Motion Control actions"
+        dataAttributes={{ 'data-kg-motion-control-header': '1' }}
+        actions={<>
+          <button type="button" className="App-toolbar__btn" disabled={startPending || stopPending || runtimeBusy} onClick={() => void runControl('start')} data-kg-motion-control-start="1">
+            <Camera className="h-3.5 w-3.5" aria-hidden="true" /> Start
+          </button>
+          <button type="button" className="App-toolbar__btn" disabled={stopPending || !canStop} onClick={() => void runControl('stop')} data-kg-motion-control-stop="1">
+            <VideoOff className="h-3.5 w-3.5" aria-hidden="true" /> Stop
+          </button>
+        </>}
+      />
+      <section className={floatingPanelCatalogBodyClassName('grid content-start gap-2 px-1 pb-2')}>
+        <section className={cn('grid gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-motion-control-preview="local-only">
+          <div className="relative aspect-square w-full overflow-hidden rounded bg-[var(--kg-canvas-bg)]">
+            <video ref={videoRef} className="h-full w-full scale-x-[-1] object-cover" aria-label="Local Motion Control camera preview" />
+            <canvas ref={overlayRef} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true" />
+            {!state.cameraActive ? <div className={cn('absolute inset-0 grid place-items-center text-center text-xs', UI_THEME_TOKENS.text.secondary)}>Camera stays off until Start.</div> : null}
+          </div>
+          <PanelField label="LiteRT accelerator">
+            <PanelSelect value={backend} disabled={startPending || stopPending || runtimeBusy} onChange={event => setBackend(event.currentTarget.value as MotionControlBackendPreference)} data-kg-motion-control-backend="1">
+              <option value="auto">Auto · WebGPU with Wasm fallback</option>
+              <option value="webgpu">WebGPU preferred</option>
+              <option value="wasm">Wasm CPU</option>
+            </PanelSelect>
+          </PanelField>
+          <div role="status" aria-live="polite" aria-atomic="true" data-kg-motion-control-live-status="1">
+            <p className={cn('text-[10px]', state.phase === 'error' ? UI_THEME_TOKENS.status.error : UI_THEME_TOKENS.text.secondary)}>{state.message}</p>
+            {state.fallbackReason ? <p className={cn('text-[10px]', UI_THEME_TOKENS.status.warning)}>{state.fallbackReason}</p> : null}
+          </div>
+        </section>
+
+        <section className={cn('grid grid-cols-2 gap-2 rounded border p-2 text-[10px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} aria-label="Motion Control telemetry">
+          <span><b>Status</b><br />{state.phase}</span>
+          <span><b>Permission</b><br />{state.permission}</span>
+          <span><b>Backend</b><br />{state.effectiveBackend}</span>
+          <span><b>Confidence</b><br />{(state.confidence * 100).toFixed(0)}%</span>
+          <span><b>Inference</b><br />{state.latencyMs.toFixed(1)} ms · {state.framesPerSecond.toFixed(1)} FPS</span>
+        </section>
+
+        <section className={cn('grid gap-1 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-motion-control-invocations="shared-catalog">
+          <h3 className="text-[11px] font-semibold">MCP · / · @ · #</h3>
+          <MotionInvocation operation="start" backend={backend} />
+          <MotionInvocation operation="stop" />
+          <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>WebMCP: {inspection.webMcpTools.control}</p>
+        </section>
+
+        <section className={cn('grid gap-1 rounded border p-2 text-[10px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}>
+          <p className="flex items-center gap-1 font-semibold"><Cpu className="h-3.5 w-3.5" aria-hidden="true" /> Official LiteRT.js + Google BlazePose GHUM Full</p>
+          <p>Center one person’s full body. Pose drives a selected humanoid and the native XR physics controller.</p>
+          <p className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> Frames are neither uploaded nor persisted.</p>
+        </section>
+      </section>
+    </section>
+  )
+}
+
+export default MotionControlFloatingPanelView

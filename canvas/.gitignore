@@ -15,6 +15,7 @@ dist-ssr
 *.tsbuildinfo
 
 public/cesium/
+public/litert/
 
 .knowgrph-workspace/
 

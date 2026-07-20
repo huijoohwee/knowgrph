@@ -571,7 +571,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     || !sceneSource.includes("{mode !== 'xr' && fogColorEffective")) {
     throw new Error('expected XR motion reference to own the graph scene without nodes, edges, starfield, or graph fog interference')
   }
-  for (const marker of ['onOpenShared3dPanel', 'if (!state.floatingPanelOpen)', "mode === 'xr' ? 'animation' : 'camera'", 'setFloatingPanelOpen(true)', "setBottomSurfaceTab('timeline')", 'setBottomSurfaceCollapsed(false)']) {
+  for (const marker of ['onOpenShared3dPanel', 'if (!state.floatingPanelOpen)', "mode === 'xr' ? 'motionControl' : 'camera'", 'setFloatingPanelOpen(true)', "setBottomSurfaceTab('timeline')", 'setBottomSurfaceCollapsed(false)']) {
     if (!canvasViewSelectSource.includes(marker)) throw new Error(`expected 3D/XR Surface Mode to open its canonical panel via ${marker}`)
   }
   if (canvasViewSelectSource.includes("state.setFloatingPanelView('camera')")) {

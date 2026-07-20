@@ -94,6 +94,7 @@ export const UI_LABELS = {
   gantt: 'Gantt-Timeline',
   timeline: 'Timeline',
   xr: 'XR',
+  motionControl: 'Motion Control',
   samples: 'Samples',
   close: 'Close',
   save: 'Save',

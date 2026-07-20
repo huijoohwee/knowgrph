@@ -10,6 +10,10 @@ import {
   XR_ANIMATION_INVOCATION_SEMANTICS,
 } from '@/features/three/xrAnimationMcpContract.mjs'
 import {
+  MOTION_CONTROL_INVOCATION_COMMANDS,
+  MOTION_CONTROL_INVOCATION_SEMANTICS,
+} from '@/features/three/motionControlMcpContract.mjs'
+import {
   CAMERA_INVOCATION_BINDINGS,
   CAMERA_INVOCATION_COMMANDS,
   CAMERA_INVOCATION_SEMANTICS,
@@ -108,6 +112,7 @@ const XR_SCENE_COMMAND_FALLBACKS = [
   { token: XR_SCENE_INVOCATION_COMMANDS.physics, label: 'Control XR physics', summary: 'Control native fixed-step XR world, body, impulse, and controller operations.' },
   { token: XR_SCENE_INVOCATION_COMMANDS.present, label: 'Present XR scene', summary: 'Place the active XR scene at the current immersive reticle.' },
   { token: XR_ANIMATION_INVOCATION_COMMANDS.control, label: 'Control XR animation', summary: 'Apply and configure native character motion, action paths, choreography, and transport.' },
+  { token: MOTION_CONTROL_INVOCATION_COMMANDS.control, label: 'Control live pose', summary: 'Open, start, or stop browser-local LiteRT motion capture for XR Mode.' },
   { token: CAMERA_INVOCATION_COMMANDS.select, label: 'Select camera source', summary: 'Switch the native XR camera between fixed follow and free orbit.' },
   { token: CAMERA_INVOCATION_COMMANDS.frame, label: 'Frame camera', summary: 'Configure the shared native camera framing and optics.' },
   { token: CAMERA_INVOCATION_COMMANDS.animate, label: 'Animate camera', summary: 'Author a native subject-bound camera choreography mark.' },
@@ -124,6 +129,7 @@ const XR_SCENE_SEMANTIC_FALLBACKS = [
   { token: XR_SCENE_INVOCATION_SEMANTICS.reticle, label: 'XR placement reticle', summary: 'Route immersive placement to the current tracked reticle.' },
   { token: XR_ANIMATION_INVOCATION_SEMANTICS.characterMotion, label: 'Character motion', summary: 'Route native choreography to a character-motion assignment.' },
   { token: XR_ANIMATION_INVOCATION_SEMANTICS.actionPath, label: 'Action path', summary: 'Route native choreography to a spatial action path.' },
+  { token: MOTION_CONTROL_INVOCATION_SEMANTICS.pose, label: 'Human pose', summary: 'Route Motion Control to browser-local human pose estimation.' },
   { token: CAMERA_INVOCATION_SEMANTICS.camera, label: 'Camera', summary: 'Route an operation to the shared native camera.' },
   { token: CAMERA_INVOCATION_SEMANTICS.shot, label: 'Camera shot', summary: 'Route an operation to camera framing and optics.' },
   { token: CAMERA_INVOCATION_SEMANTICS.motion, label: 'Camera motion', summary: 'Route an operation to the XR camera choreography track.' },

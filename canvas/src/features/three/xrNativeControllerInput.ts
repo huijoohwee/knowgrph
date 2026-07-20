@@ -1,4 +1,4 @@
-export type XrNativeControllerInputSource = 'none' | 'keyboard' | 'gamepad' | 'mixed'
+export type XrNativeControllerInputSource = 'none' | 'keyboard' | 'gamepad' | 'motion' | 'mixed'
 
 export type XrNativeControllerInput = Readonly<{
   moveX: number
@@ -104,20 +104,16 @@ export function readXrNativeControllerGamepadInput(gamepad: GamepadLike | null |
   })
 }
 
-export function mergeXrNativeControllerInputs(
-  keyboard: XrNativeControllerInput,
-  gamepad: XrNativeControllerInput,
-): XrNativeControllerInput {
-  const keyboardActive = keyboard.source !== 'none'
-  const gamepadActive = gamepad.source !== 'none'
-  const source: XrNativeControllerInputSource = keyboardActive && gamepadActive
+export function mergeXrNativeControllerInputs(...inputs: readonly XrNativeControllerInput[]): XrNativeControllerInput {
+  const activeInputs = inputs.filter(input => input.source !== 'none')
+  const source: XrNativeControllerInputSource = activeInputs.length > 1
     ? 'mixed'
-    : gamepadActive ? 'gamepad' : keyboardActive ? 'keyboard' : 'none'
+    : activeInputs[0]?.source || 'none'
   return createXrNativeControllerInput({
-    moveX: keyboard.moveX + gamepad.moveX,
-    moveZ: keyboard.moveZ + gamepad.moveZ,
-    primary: keyboard.primary || gamepad.primary,
-    modifier: keyboard.modifier || gamepad.modifier,
+    moveX: inputs.reduce((sum, input) => sum + input.moveX, 0),
+    moveZ: inputs.reduce((sum, input) => sum + input.moveZ, 0),
+    primary: inputs.some(input => input.primary),
+    modifier: inputs.some(input => input.modifier),
     source,
   })
 }

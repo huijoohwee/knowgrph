@@ -27,27 +27,10 @@ import {
 } from '@/lib/ui/responsiveElementClasses'
 import { normalizeBadgeChipBaseClassName } from '@/lib/ui/icons'
 import type { UiStorageReaders } from './uiSliceStorage'
-import {
-  CHAT_AI_MARKDOWN_GRAPH_SUMMARY_MAX_TOKENS_DEFAULT,
-  CHAT_AI_MARKDOWN_GUIDELINE_DIGEST_MAX_TOKENS_DEFAULT,
-  CHAT_AI_MARKDOWN_MAX_TOKENS_DEFAULT,
-  CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT,
-  DEFAULT_INTEGRATION_CONFIGS,
-  type InitialChatUiContext,
-  clampChatCompletionTokens,
-  clampChatContextMaxTokens,
-  clampChatTopLogprobs,
-  isCanonicalKgcWorkspacePath,
-  normalizeChatJsonText,
-  normalizeChatReasoningEffort,
-  normalizeChatServiceTier,
-  normalizeChatThinkingType,
-  parseIntegrationConfigsJson,
-  stringifyIntegrationConfigs,
-} from './uiSliceChat'
-import { normalizeChatLocalStorageRootPath } from '@/features/chat/chatStorageConfig'
+import type { InitialChatUiContext } from './uiSliceChat'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { createPdfImportInitialState } from './uiSlicePdfImportInitialState'
+import { createChatUiInitialState } from './uiSliceChatInitialState'
 
 type SetGraph = StoreApi<GraphState>['setState']
 
@@ -61,8 +44,7 @@ export const createUiInitialState = (
   readers: UiStorageReaders,
   chat: InitialChatUiContext,
 )=> {
-  const { lsNum, lsBool, lsInt, lsFloat, lsJson } = readers
-  const { initialChatProvider, initialChatAuthMode, initialChatEndpointUrl, initialChatModel } = chat
+  const { lsNum, lsBool, lsFloat, lsJson } = readers
   const initialWorkspaceViewMode = lsJson<'canvas' | 'editor'>(
     LS_KEYS.workspaceViewMode,
     'canvas',
@@ -89,6 +71,7 @@ export const createUiInitialState = (
           view === 'skillsCommands' || view === 'promptPresets'
           || view === 'media'
           || view === 'animation'
+          || view === 'motionControl'
           || view === 'view'
           || view === 'camera'
           || view === 'design'
@@ -480,135 +463,7 @@ export const createUiInitialState = (
     uiOverlayOpacity: lsNum(LS_KEYS.overlayOpacity, 0.95),
     uiPanelOpacity: lsNum(LS_KEYS.panelOpacity, 0.95),
     uiToolbarOpacity: lsNum(LS_KEYS.toolbarOpacity, 0.95),
-    chatProvider: initialChatProvider,
-    chatAuthMode: initialChatAuthMode,
-    chatApiKey: '',
-    chatEndpointUrl: initialChatEndpointUrl,
-    chatModel: initialChatModel,
-    chatTemperature: lsNum(LS_KEYS.chatTemperature, 0.3),
-    chatMaxCompletionTokens: clampChatCompletionTokens(
-      lsInt(LS_KEYS.chatMaxCompletionTokens, CHAT_AI_MARKDOWN_MAX_TOKENS_DEFAULT),
-    ),
-    chatServiceTier: lsJson<'auto' | 'default'>(
-      LS_KEYS.chatServiceTier,
-      'auto',
-      value => normalizeChatServiceTier(value),
-    ),
-    chatStream: lsBool(LS_KEYS.chatStream, true),
-    chatMessagesJson: lsJson<string>(LS_KEYS.chatMessagesJson, '', value => normalizeChatJsonText(value)),
-    chatReasoningEffort: lsJson<'minimal' | 'low' | 'medium' | 'high'>(
-      LS_KEYS.chatReasoningEffort,
-      'medium',
-      value => normalizeChatReasoningEffort(value),
-    ),
-    chatThinkingType: lsJson<'enabled' | 'disabled' | 'auto'>(
-      LS_KEYS.chatThinkingType,
-      'enabled',
-      value => normalizeChatThinkingType(value),
-    ),
-    chatThinkingJson: lsJson<string>(LS_KEYS.chatThinkingJson, '', value => normalizeChatJsonText(value)),
-    chatFrequencyPenalty: lsFloat(LS_KEYS.chatFrequencyPenalty, 0, { min: -2, max: 2 }),
-    chatPresencePenalty: lsFloat(LS_KEYS.chatPresencePenalty, 0, { min: -2, max: 2 }),
-    chatTopP: lsFloat(LS_KEYS.chatTopP, 0.7, { min: 0, max: 1 }),
-    chatLogprobs: lsBool(LS_KEYS.chatLogprobs, false),
-    chatTopLogprobs: clampChatTopLogprobs(lsInt(LS_KEYS.chatTopLogprobs, 0)),
-    chatParallelToolCalls: lsBool(LS_KEYS.chatParallelToolCalls, true),
-    chatStopJson: lsJson<string>(LS_KEYS.chatStopJson, '', value => normalizeChatJsonText(value)),
-    chatStreamOptionsJson: lsJson<string>(LS_KEYS.chatStreamOptionsJson, '', value => normalizeChatJsonText(value)),
-    chatResponseFormatJson: lsJson<string>(LS_KEYS.chatResponseFormatJson, '', value => normalizeChatJsonText(value)),
-    chatLogitBiasJson: lsJson<string>(LS_KEYS.chatLogitBiasJson, '', value => normalizeChatJsonText(value)),
-    chatToolsJson: lsJson<string>(LS_KEYS.chatToolsJson, '', value => normalizeChatJsonText(value)),
-    chatToolChoiceJson: lsJson<string>(LS_KEYS.chatToolChoiceJson, '', value => normalizeChatJsonText(value)),
-    chatGraphSummaryMaxTokens: clampChatContextMaxTokens(
-      lsInt(LS_KEYS.chatGraphSummaryMaxTokens, CHAT_AI_MARKDOWN_GRAPH_SUMMARY_MAX_TOKENS_DEFAULT),
-      CHAT_AI_MARKDOWN_GRAPH_SUMMARY_MAX_TOKENS_DEFAULT,
-    ),
-    chatGuidelineDigestMaxTokens: clampChatContextMaxTokens(
-      lsInt(LS_KEYS.chatGuidelineDigestMaxTokens, CHAT_AI_MARKDOWN_GUIDELINE_DIGEST_MAX_TOKENS_DEFAULT),
-      CHAT_AI_MARKDOWN_GUIDELINE_DIGEST_MAX_TOKENS_DEFAULT,
-    ),
-    chatSystemPrompt: lsJson<string | null>(
-      LS_KEYS.chatSystemPrompt,
-      null,
-      value => (typeof value === 'string' ? value : null),
-    ),
-    chatStorageTarget: lsJson<'chatKnowgrph' | 'chatHistory'>(
-      LS_KEYS.chatStorageTarget,
-      'chatKnowgrph',
-      value => {
-        const raw = String(value || '').trim().toLowerCase()
-        if (raw === 'chathistory') return 'chatHistory'
-        return 'chatKnowgrph'
-      },
-    ),
-    chatLocalStorageRootPath: lsJson<string>(
-      LS_KEYS.chatLocalStorageRootPath,
-      CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT,
-      value => normalizeChatLocalStorageRootPath(typeof value === 'string' ? value : null),
-    ),
-    chatKnowgrphStorageMode: lsJson<'local' | 'cloud'>(
-      LS_KEYS.chatKnowgrphStorageMode,
-      'local',
-      value => (String(value || '').trim().toLowerCase() === 'cloud' ? 'cloud' : 'local'),
-    ),
-    chatKnowgrphWorkspacePath: lsJson<string | null>(
-      LS_KEYS.chatKnowgrphWorkspacePath,
-      null,
-      value => {
-        const raw = typeof value === 'string' ? value.trim() : ''
-        if (!raw) return null
-        return isCanonicalKgcWorkspacePath(raw) ? raw : null
-      },
-    ),
-    chatWorkspaceStreamingPath: null,
-    chatWorkspaceStreamingText: null,
-    chatKnowgrphCloudUrl: lsJson<string | null>(
-      LS_KEYS.chatKnowgrphCloudUrl,
-      null,
-      value => {
-        const raw = typeof value === 'string' ? value.trim() : ''
-        return raw ? raw : null
-      },
-    ),
-    chatHistoryWorkspacePath: lsJson<string | null>(
-      LS_KEYS.chatHistoryWorkspacePath,
-      null,
-      value => {
-        const raw = typeof value === 'string' ? value.trim() : ''
-        return raw ? raw : null
-      },
-    ),
-    chatHistoryStorageMode: lsJson<'local' | 'cloud'>(
-      LS_KEYS.chatHistoryStorageMode,
-      'local',
-      value => {
-        const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
-        return raw === 'cloud' ? 'cloud' : 'local'
-      },
-    ),
-    chatHistoryCloudUrl: lsJson<string | null>(
-      LS_KEYS.chatHistoryCloudUrl,
-      null,
-      value => {
-        const raw = typeof value === 'string' ? value.trim() : ''
-        return raw ? raw : null
-      },
-    ),
-    chatContextScope: lsJson<'selection' | 'workspace' | 'hybrid'>(
-      LS_KEYS.chatContextScope,
-      'hybrid',
-      value => {
-        const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
-        if (raw === 'selection') return 'selection'
-        if (raw === 'workspace') return 'workspace'
-        return 'hybrid'
-      },
-    ),
-    integrationConfigsJson: lsJson<string>(
-      LS_KEYS.integrationConfigsJson,
-      stringifyIntegrationConfigs(DEFAULT_INTEGRATION_CONFIGS),
-      value => stringifyIntegrationConfigs(parseIntegrationConfigsJson(typeof value === 'string' ? value : null)),
-    ),
+    ...createChatUiInitialState(readers, chat),
 
     grabMapsAuthMode: lsJson<'serverManaged' | 'byok'>(
       LS_KEYS.grabMapsAuthMode,
