@@ -10,7 +10,7 @@ export function commitGanttTimelineVideoSequenceCode(args: {
   nextCode: string | null
   nextLineIndex?: number
   readDocumentSnapshot: () => { markdownDocumentName: string; markdownText: string }
-  setMarkdownDocument: (markdownDocumentName: string, markdownText: string, options?: { applyViewPreset?: boolean }) => void
+  setMarkdownDocument: (markdownDocumentName: string, markdownText: string, options?: { applyViewPreset?: boolean; historyLabel?: string }) => void
   setSelectedRowKey: (rowKey: string) => void
 }) {
   if (!args.nextCode || args.nextCode === args.actionContext.code) return
@@ -24,7 +24,10 @@ export function commitGanttTimelineVideoSequenceCode(args: {
   }
   const nextMarkdownText = replaceFirstMermaidGanttFrontmatterCode(args.actionContext.markdownText, args.nextCode)
   if (!nextMarkdownText || nextMarkdownText === args.actionContext.markdownText) return
-  args.setMarkdownDocument(args.actionContext.markdownDocumentName, nextMarkdownText, { applyViewPreset: false })
+  args.setMarkdownDocument(args.actionContext.markdownDocumentName, nextMarkdownText, {
+    applyViewPreset: false,
+    historyLabel: 'Gantt Timeline edit',
+  })
   const lineIndex = args.nextLineIndex ?? args.actionContext.selectedSpan.lineIndex
   args.setSelectedRowKey(resolveGanttTimelineVideoSequenceSelectedRowKey({
     code: args.nextCode,

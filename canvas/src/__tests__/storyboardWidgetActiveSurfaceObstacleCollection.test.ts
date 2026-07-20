@@ -7,6 +7,7 @@ import {
   readStoryboardWidgetOverlaySurfaceId,
   resolveStoryboardWidgetOverlayProxyTarget,
 } from '@/lib/canvas/storyboard-widget-overlay-proxy'
+import { distinctStoryboardOverlayRectsOverlap } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRuntimeRichMediaObstacles'
 
 export async function testStoryboardWidgetOverlaySurfaceResolutionFallsBackToSurfaceRoot() {
   const { dom, restore } = initJsdomHarness('<!doctype html><html><body></body></html>')
@@ -307,5 +308,20 @@ export async function testStoryboardWidgetActiveSurfaceObstacleCollectionPrefers
     }
   } finally {
     restore()
+  }
+}
+
+export function testStoryboardWidgetPinnedCardTreatsDistinctRichMediaAsCollisionObstacle() {
+  const card = { id: 'card-a', left: 100, top: 100, width: 240, height: 180 }
+  const richMedia = { id: 'rich-media:panel-a', left: 220, top: 180, width: 320, height: 220 }
+  if (!distinctStoryboardOverlayRectsOverlap(card, richMedia, 12)) {
+    throw new Error('expected overlapping pinned card and Rich Media panel to require layout separation')
+  }
+  if (distinctStoryboardOverlayRectsOverlap(
+    { ...card, id: 'panel-a' },
+    richMedia,
+    12,
+  )) {
+    throw new Error('expected a Rich Media proxy not to collide with its own canonical overlay')
   }
 }

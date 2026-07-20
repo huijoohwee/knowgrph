@@ -1,5 +1,4 @@
 import React from 'react'
-
 import { applyPreferredSeedLayoutCells } from '@/components/StoryboardWidget/seedGroupSpread'
 import { resolveStoryboardWidgetVisibleViewport } from '@/components/FlowCanvas/applyZoomRequestNative'
 import {
@@ -50,7 +49,7 @@ import {
   shouldUseStoryboardWidgetFloatingScreenAuthority,
 } from '@/lib/storyboardWidget/widgetPlacementAuthority'
 import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
-
+import { distinctStoryboardOverlayRectsOverlap } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRuntimeRichMediaObstacles'
 // #region debug-point A:overlay-collision
 const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'
 const reportStoryboardMediaPanelLoopOverlayCollisionDebug = (args: {
@@ -629,6 +628,7 @@ export function useStoryboardWidgetOverlayCollision(args: {
             return { id, left: rect.left, top: rect.top, width: rect.width, height: rect.height }
           })
           .filter((item): item is { id: string; left: number; top: number; width: number; height: number } => !!item)
+        if (pinnedCandidates.some(candidate => pinnedObstacles.some(obstacle => distinctStoryboardOverlayRectsOverlap(candidate, obstacle, gapPx)))) return true
         if (pinnedCandidates.length < 2) return false
         for (let i = 0; i < pinnedCandidates.length; i += 1) {
           for (let j = i + 1; j < pinnedCandidates.length; j += 1) {
@@ -766,7 +766,7 @@ export function useStoryboardWidgetOverlayCollision(args: {
       }
       const shouldResolveItemsAgainstObstacles = (candidates: Array<{ id: string; left: number; top: number; width?: number; height?: number }>) => {
         for (let i = 0; i < candidates.length; i += 1) for (let j = 0; j < pinnedObstacles.length; j += 1) {
-          if (hasOverlap(candidates[i]!, pinnedObstacles[j]!, floatingScaled, gapPx)) return true
+          if (distinctStoryboardOverlayRectsOverlap(candidates[i]!, pinnedObstacles[j]!, gapPx, floatingScaled)) return true
         }
         return false
       }
@@ -1028,7 +1028,7 @@ export function useStoryboardWidgetOverlayCollision(args: {
           }
           for (let i = 0; i < candidates.length; i += 1) {
             for (let j = 0; j < pinnedObstacles.length; j += 1) {
-              if (hasOverlap(candidates[i]!, pinnedObstacles[j]!, floatingScaled, gapPx)) count += 1
+              if (distinctStoryboardOverlayRectsOverlap(candidates[i]!, pinnedObstacles[j]!, gapPx, floatingScaled)) count += 1
             }
           }
           if (shouldRebalanceCluster(candidates)) count += 1

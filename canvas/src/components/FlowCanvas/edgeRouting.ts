@@ -153,7 +153,11 @@ export function routeFlowEdgeOrtho(args: {
     ])
   }
 
-  const primaryCandidates = candidatesFor(midPrimary)
+  const primaryStart = args.rankdir === 'LR' ? s.x : s.y
+  const primaryEnd = args.rankdir === 'LR' ? t.x : t.y
+  const primaryMin = Math.min(primaryStart, primaryEnd)
+  const primaryMax = Math.max(primaryStart, primaryEnd)
+  const primaryCandidates = candidatesFor(midPrimary).filter(lane => lane >= primaryMin && lane <= primaryMax)
   for (let i = 0; i < primaryCandidates.length; i += 1) {
     const pts = buildPrimary(primaryCandidates[i])
     if (!pathHitsAnyObstacle(pts, obstacles, margin, ignorePoints)) return pts
