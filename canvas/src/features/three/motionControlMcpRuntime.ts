@@ -2,6 +2,7 @@ import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsD
 import {
   inspectMotionControlRuntime,
   readMotionControlSnapshot,
+  setMotionControlBoundingBoxEnabled,
   startMotionControl,
   stopMotionControl,
   type MotionControlBackendPreference,
@@ -26,12 +27,14 @@ export type MotionControlInput = Readonly<{
   invocation?: string
   operation?: MotionControlOperation
   backend?: MotionControlBackendPreference
+  boundingBox?: boolean
 }>
 
 type CanonicalTokens = Readonly<{ command: string; semantic: string; binding: string }>
 type NormalizedControl = Readonly<{
   operation: MotionControlOperation
   backend: MotionControlBackendPreference
+  boundingBox?: boolean
   invocation: string
 }>
 
@@ -49,6 +52,11 @@ export function buildMotionControlInvocation(operation: MotionControlOperation, 
   return `${tokens.command} ${tokens.binding} ${tokens.semantic} operation=${operation}${operation === 'start' ? ` backend=${backend}` : ''}`
 }
 
+export function buildMotionControlBoundingBoxInvocation(enabled: boolean): string {
+  const invocation = buildMotionControlInvocation('open')
+  return invocation ? `${invocation} boundingBox=${enabled}` : ''
+}
+
 function parseInvocation(value: unknown): NormalizedControl | null {
   const invocation = String(value || '').trim()
   const canonical = canonicalTokens()
@@ -63,28 +71,31 @@ function parseInvocation(value: unknown): NormalizedControl | null {
     const separator = token.indexOf('=')
     if (separator <= 0 || separator === token.length - 1) return null
     const key = token.slice(0, separator)
-    if (!['operation', 'backend'].includes(key) || pairs[key]) return null
+    if (!['operation', 'backend', 'boundingBox'].includes(key) || pairs[key]) return null
     pairs[key] = token.slice(separator + 1)
   }
   const operation = pairs.operation as MotionControlOperation
   const backend = (pairs.backend || 'auto') as MotionControlBackendPreference
   if (!['open', 'start', 'stop'].includes(operation) || !['auto', 'webgpu', 'wasm'].includes(backend)) return null
   if (operation !== 'start' && pairs.backend) return null
-  return { invocation, operation, backend }
+  if (pairs.boundingBox && !['true', 'false'].includes(pairs.boundingBox)) return null
+  if (operation !== 'open' && pairs.boundingBox) return null
+  return { invocation, operation, backend, ...(pairs.boundingBox ? { boundingBox: pairs.boundingBox === 'true' } : {}) }
 }
 
 function normalizeControl(input: MotionControlInput): NormalizedControl | null {
   if (input.invocation) {
     if (Object.keys(input).some(key => key !== 'invocation')) return null
-    if (input.operation !== undefined || input.backend !== undefined) return null
+    if (input.operation !== undefined || input.backend !== undefined || input.boundingBox !== undefined) return null
     return parseInvocation(input.invocation)
   }
-  if (Object.keys(input).some(key => key !== 'operation' && key !== 'backend')) return null
+  if (Object.keys(input).some(key => !['operation', 'backend', 'boundingBox'].includes(key))) return null
   const operation = input.operation
   const backend = input.backend || 'auto'
   if (!operation || !['open', 'start', 'stop'].includes(operation)) return null
   if (!['auto', 'webgpu', 'wasm'].includes(backend) || (operation !== 'start' && input.backend !== undefined)) return null
-  return { invocation: '', operation, backend }
+  if (input.boundingBox !== undefined && (operation !== 'open' || typeof input.boundingBox !== 'boolean')) return null
+  return { invocation: '', operation, backend, ...(input.boundingBox === undefined ? {} : { boundingBox: input.boundingBox }) }
 }
 
 export function inspectLocalMotionControl() {
@@ -100,6 +111,7 @@ export function inspectLocalMotionControl() {
     },
     invocationGrammar: canonical ? {
       open: `${canonical.command} ${canonical.binding} ${canonical.semantic} operation=open`,
+      boundingBox: `${canonical.command} ${canonical.binding} ${canonical.semantic} operation=open boundingBox=true|false`,
       start: `${canonical.command} ${canonical.binding} ${canonical.semantic} operation=start backend=auto|webgpu|wasm`,
       stop: `${canonical.command} ${canonical.binding} ${canonical.semantic} operation=stop`,
     } : null,
@@ -123,7 +135,10 @@ export async function controlLocalMotionControl(input: MotionControlInput) {
     }
   }
   if (control.operation === 'open') {
-    return { ok: true, message: 'Motion Control opened in XR Mode. Camera access still requires Start.', operation: control.operation, motionControl: inspectLocalMotionControl() }
+    if (control.boundingBox !== undefined) setMotionControlBoundingBoxEnabled(control.boundingBox)
+    const preferenceMessage = control.boundingBox === undefined ? '' : ` Bounding box ${control.boundingBox ? 'enabled' : 'disabled'}.`
+    const cameraMessage = readMotionControlSnapshot().cameraActive ? ' Camera capture remains active.' : ' Camera access still requires Start.'
+    return { ok: true, message: `Motion Control opened in XR Mode.${preferenceMessage}${cameraMessage}`, operation: control.operation, motionControl: inspectLocalMotionControl() }
   }
   const started = await startMotionControl(control.backend)
   return {

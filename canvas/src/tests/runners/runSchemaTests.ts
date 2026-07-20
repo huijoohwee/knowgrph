@@ -11,6 +11,7 @@ const modXrCameraMoves = () => import('@/__tests__/xrCameraMoves.test')
 const modXrShootWorkflow = () => import('@/__tests__/xrShootWorkflow.test')
 const modXrAnimationRuntime = () => import('@/__tests__/xrAnimationRuntime.test')
 const modMotionControlRuntime = () => import('@/__tests__/motionControlRuntime.test')
+const modMotionControlBoundingBox = () => import('@/__tests__/motionControlBoundingBox.test')
 const modXrKeyboardChoreography = () => import('@/__tests__/xrKeyboardChoreography.test')
 const modXrPhysicsRuntime = () => import('@/__tests__/xrPhysicsRuntime.test')
 const modXrArPlacementRuntime = () => import('@/__tests__/xrArPlacementRuntime.test')
@@ -113,6 +114,14 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'canvas.xrMode.motionControlWebMcpRuntime', async () => {
     const mod = await modMotionControlRuntime()
     await mod.testMotionControlWebMcpReusesCanonicalXrTargets()
+  })
+  await execTest(results, 'canvas.xrMode.motionControlBoundingBoxRuntime', async () => {
+    const mod = await modMotionControlBoundingBox()
+    await mod.testMotionControlBoundingBoxReusesTrackedRoiAndDefaultsOff()
+  })
+  await execTest(results, 'canvas.xrMode.motionControlBoundingBoxInvocation', async () => {
+    const mod = await modMotionControlBoundingBox()
+    await mod.testMotionControlBoundingBoxIsStrictlyInvocableWithoutCamera()
   })
   await execTest(results, 'canvas.xrMode.keyboardChoreography', async () => {
     const mod = await modXrKeyboardChoreography()
