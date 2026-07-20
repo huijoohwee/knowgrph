@@ -122,9 +122,11 @@ jobs:
         working-directory: knowgrph
         run: npm run ci:integration
 
-      - name: Sync verified build into ephemeral production artifact
+      - name: Build and sync verified candidate into ephemeral production artifact
         working-directory: knowgrph
-        run: npm run pages:sync
+        env:
+          KNOWGRPH_SOURCE_REVISION: ${{ inputs.commit_sha }}
+        run: npm run pages:build-sync
 
       - name: Verify source-to-mirror parity
         working-directory: knowgrph
