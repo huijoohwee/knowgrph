@@ -181,5 +181,6 @@ The automatic gate passes only with at least two distinct authenticated device p
 - Only a workflow listed in `deployment.allowed_workflows` may contain deployment commands.
 - The allowed workflow must use the trigger declared by `deployment.required_trigger`, restricted to `deployment.required_branch`.
 - A protected green merge to `main` is standing release authorization. The workflow binds build, deploy, smoke, rollback target, and mirror publication to that exact SHA without a per-run confirmation.
+- Before release, the controller idempotently disables Cloudflare Pages Git-triggered production and preview deployments and verifies convergence. It fails closed if ownership cannot converge; verified Direct Upload from `Production Release` is the sole deployment owner.
 - The GitHub `production` environment must have no required human reviewers; credentials remain environment-scoped and least-privilege.
 - Prod repositories and Cloudflare resources remain untouched by pull-request CI, local developer commands, schedules, and repository dispatches.

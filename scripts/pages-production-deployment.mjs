@@ -6,9 +6,38 @@ const [command, ...args] = process.argv.slice(2)
 const accountId = requiredEnv('CLOUDFLARE_ACCOUNT_ID')
 const apiToken = requiredEnv('CLOUDFLARE_API_TOKEN')
 const projectName = requiredEnv('CLOUDFLARE_PAGES_PROJECT')
-const baseUrl = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/pages/projects/${encodeURIComponent(projectName)}/deployments`
+const projectUrl = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/pages/projects/${encodeURIComponent(projectName)}`
+const baseUrl = `${projectUrl}/deployments`
 
-if (command === 'capture-current') {
+if (command === 'enforce-direct-upload-owner') {
+  let response = await cloudflare(projectUrl)
+  let sourceConfig = response.result?.source?.config
+  if (!sourceConfig) {
+    console.log('Pages project has no Git source integration; Direct Upload is the sole deployment owner.')
+  } else {
+    if (sourceConfig.production_deployments_enabled !== false || sourceConfig.preview_deployment_setting !== 'none') {
+      const sourceType = response.result?.source?.type
+      if (sourceType !== 'github' && sourceType !== 'gitlab') throw new Error('Pages Git source type is invalid')
+      response = await cloudflare(projectUrl, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          source: {
+            type: sourceType,
+            config: {
+              production_deployments_enabled: false,
+              preview_deployment_setting: 'none',
+            },
+          },
+        }),
+      })
+      sourceConfig = response.result?.source?.config
+    }
+    if (sourceConfig?.production_deployments_enabled !== false || sourceConfig?.preview_deployment_setting !== 'none') {
+      throw new Error('Cloudflare Pages Git deployment ownership reconciliation did not converge')
+    }
+    console.log('Cloudflare Pages Git deployments are disabled; Direct Upload is now the sole deployment owner.')
+  }
+} else if (command === 'capture-current') {
   const response = await cloudflare(`${baseUrl}?env=production&per_page=20`)
   const deployment = response.result?.find(item => (
     item?.environment === 'production' && item?.latest_stage?.status === 'success'
@@ -28,7 +57,7 @@ if (command === 'capture-current') {
   if (!response.result?.id) throw new Error('Cloudflare rollback response did not identify a deployment')
   console.log(`Rolled production back to Pages deployment ${deploymentId}.`)
 } else {
-  throw new Error('usage: pages-production-deployment.mjs <capture-current|rollback> [--deployment-id <id>]')
+  throw new Error('usage: pages-production-deployment.mjs <enforce-direct-upload-owner|capture-current|rollback> [--deployment-id <id>]')
 }
 
 async function cloudflare(url, init = {}) {

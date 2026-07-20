@@ -46,10 +46,19 @@ test('production release is automatic only for protected main and retains rollba
   assert.match(releaseWorkflow, /on:\s*\n\s*push:\s*\n\s*branches: \[main\]/)
   assert.doesNotMatch(releaseWorkflow, /workflow_dispatch:/)
   assert.doesNotMatch(releaseWorkflow, /confirmation:/)
+  assert.match(releaseWorkflow, /name: Enforce sole deployment ownership/)
+  assert.match(releaseWorkflow, /runtime:pages:owner-enforce/)
   assert.match(releaseWorkflow, /name: Capture current production rollback target/)
   assert.match(releaseWorkflow, /runtime:pages:capture-current/)
   assert.match(releaseWorkflow, /runtime:pages:rollback/)
   assert.match(releaseWorkflow, /if: failure\(\) && steps\.deploy_pages\.outcome == 'success'/)
+})
+
+test('production release reconciles competing Cloudflare Pages Git deployment ownership', () => {
+  assert.match(pagesDeploymentScript, /enforce-direct-upload-owner/)
+  assert.match(pagesDeploymentScript, /method: 'PATCH'/)
+  assert.match(pagesDeploymentScript, /production_deployments_enabled: false/)
+  assert.match(pagesDeploymentScript, /preview_deployment_setting: 'none'/)
 })
 
 test('verified production mirror is published only after live smoke', () => {

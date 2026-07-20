@@ -205,6 +205,10 @@ jobs:
           test -n "${{ secrets.HUIJOOHWEE_PUSH_TOKEN }}"
           npm run --silent release:manifest:check -- "$RUNNER_TEMP/immutable-release-manifest-proof/immutable-release-manifest.json" --source-sha "${{ github.sha }}" --docs-sha "${{ needs.verify.outputs.docs_revision }}" --digest "${{ needs.verify.outputs.manifest_digest }}"
 
+      - name: Enforce sole deployment ownership
+        working-directory: knowgrph
+        run: npm run --silent runtime:pages:owner-enforce
+
       - name: Capture current production rollback target
         id: previous
         working-directory: knowgrph
