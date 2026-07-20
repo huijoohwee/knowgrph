@@ -166,7 +166,7 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     || !published.outputText.includes('\ncontent_type: "text/markdown"\n')
     || /<!doctype|<html\b/i.test(published.outputText)
     || !published.outputText.includes('SME')
-    || !published.outputText.includes('MCP: knowgrph.probe.generate invoked')
+    || !published.outputText.includes('mcp=knowgrph.probe.generate')
   ) {
     throw new Error(`expected MCP-first relevant provider cards to replace deterministic fallbacks, got ${JSON.stringify({ result, mcpRequest, providerPrompt, published })}`)
   }

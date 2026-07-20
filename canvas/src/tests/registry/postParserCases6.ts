@@ -133,6 +133,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["canvas.probeTree.widgetRun.rejectsOverboundedProviderCards","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunRejectsOverboundedProviderCardsAndUsesMcpResult"],
   ["canvas.probeTree.widgetRun.refusesGenericNoModelFallback","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunRefusesGenericNoModelFallback"],
   ["canvas.probeTree.widgetRun.repairsRejectedFoodStallCardsOnce","@/__tests__/probeTreeWidgetRunProviderRepair.test","testProbeTreeWidgetRunRepairsRejectedFoodStallCardsOnce"],
+  ["canvas.probeTree.widgetRun.multilingualContinuationSwitch","@/__tests__/probeTreeWidgetRunMultilingualContinuation.test","testProbeTreeWidgetRunFollowsUserAuthoredContinuationLanguageSwitch"],
   ["canvas.probeTree.widgetRun.surfacesProviderTransportFailure","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunSurfacesProviderTransportFailure"],
   ["canvas.probeTree.widgetRun.usesActiveChatRoute","@/__tests__/probeTreeWidgetRunRoute.test","testProbeTreeWidgetRunUsesActiveChatRouteOverStaleCardProvider"],
   ["canvas.probeTree.widgetRun.sendsConfiguredLlmQuerySpecificContract","@/__tests__/probeTreeWidgetRunQuerySpecificProvider.test","testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContract"],
