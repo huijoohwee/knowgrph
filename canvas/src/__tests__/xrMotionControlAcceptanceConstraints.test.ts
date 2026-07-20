@@ -294,20 +294,24 @@ const EASED_COLLISION_DISTANCE_METERS = 7.5
 const EASED_COLLISION_PROGRESS = Math.sqrt(0.1)
 const EASED_PEER_ZERO_PROGRESS = 2 * EASED_COLLISION_PROGRESS - EASED_COLLISION_PROGRESS ** 2
 
-function easedPeerCollisionFixture(sceneKey: string): XrMotionReferencePlan {
+function easedPeerCollisionFixture(
+  sceneKey: string,
+  moverStartX = -EASED_COLLISION_DISTANCE_METERS * 0.1,
+  moverTravelMeters = EASED_COLLISION_DISTANCE_METERS,
+): XrMotionReferencePlan {
   const distance = EASED_COLLISION_DISTANCE_METERS
   const peerProgress = EASED_PEER_ZERO_PROGRESS
   return hydrateRuntimeFixture(sceneKey, {
     stageId: 'neutral-volume',
     durationSeconds: 1,
     subjects: [
-      { id: 'eased-mover', assetId: 'animal-cat', position: [-distance * 0.1, 0, 0] },
+      { id: 'eased-mover', assetId: 'animal-cat', position: [moverStartX, 0, 0] },
       { id: 'eased-peer', assetId: 'animal-cat', position: [0, 0, distance * peerProgress] },
     ],
     cast: [
       { actorId: 'eased-mover', marks: [
-        { timeSeconds: 0, position: [-distance * 0.1, 0, 0], transition: 'linear', gait: 'walk' },
-        { timeSeconds: 1, position: [distance * 0.9, 0, 0], transition: 'linear', gait: 'walk' },
+        { timeSeconds: 0, position: [moverStartX, 0, 0], transition: 'linear', gait: 'walk' },
+        { timeSeconds: 1, position: [moverStartX + moverTravelMeters, 0, 0], transition: 'linear', gait: 'walk' },
       ] },
       { actorId: 'eased-peer', marks: [
         { timeSeconds: 0, position: [0, 0, distance * peerProgress], transition: 'ease-out', gait: 'walk' },
@@ -319,10 +323,10 @@ function easedPeerCollisionFixture(sceneKey: string): XrMotionReferencePlan {
 
 function testTransitionRejectsEasedMidSegmentCollision(): void {
   const sceneKey = 'acceptance:eased-transition-collision'
-  const plan = easedPeerCollisionFixture(sceneKey)
+  const plan = easedPeerCollisionFixture(sceneKey, -0.3, 7)
   assert(isXrConstrainedMotionPlanSafe({ plan, sceneKey }), 'linear baseline must remain collision-free before the easing edit')
   assertRuntimeMutationRejected('transition eased mid-segment collision', () => (
-    setXrMotionReferenceCastTransition('eased-mover', 'ease-in')
+    setXrMotionReferenceCastTransition('eased-mover', 'hold')
   ))
 }
 
@@ -349,7 +353,7 @@ function testPhysicsOwnershipRejectsTemporalEdits(): void {
   playXrPhysicsRuntime()
   try {
     assertRuntimeMutationRejected('physics-owned transition', () => (
-      setXrMotionReferenceCastTransition('owned-mover', 'ease-in')
+      setXrMotionReferenceCastTransition('owned-mover', 'hold')
     ))
     assertRuntimeMutationRejected('physics-owned configure-mark easing', () => (
       setXrMotionReferenceCastMarkChoreography({ actorId: 'owned-mover', markId, easing: 'ease-in' })
