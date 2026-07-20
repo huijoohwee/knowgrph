@@ -114,7 +114,7 @@
     "test:collaboration-contract": "node --test scripts/__tests__/collaboration-contract.test.mjs scripts/__tests__/collaboration-runtime-report.test.mjs scripts/__tests__/conflict-compliance.test.mjs scripts/__tests__/dev-source-consistency.test.mjs scripts/__tests__/immutable-release-manifest.test.mjs scripts/__tests__/runtime-readiness-contract.test.mjs scripts/__tests__/sync-dev-canonical-sources.test.mjs scripts/__tests__/worktree-policy.test.mjs",
     "ci:affected": "node ./scripts/run-affected-ci.mjs",
     "ci:integration": "npm run worktree:check && npm run collaboration:contract:check && npm run conflict:source && npm run ci:affected",
-    "test:publish-sync:contract": "node --test scripts/__tests__/sync-pages-stale-asset-cleanup.test.mjs scripts/__tests__/seed-storage-documents-d1.test.mjs",
+    "test:publish-sync:contract": "node --test scripts/__tests__/sync-pages-stale-asset-cleanup.test.mjs scripts/__tests__/seed-storage-documents-d1.test.mjs scripts/__tests__/production-release-contract.test.mjs",
     "conflict:source": "npm run hygiene:check && npm run test:publish-sync:contract && npm run pages:build && npm run hygiene:chunks && node ./scripts/check-conflict-compliance.mjs --source-only",
     "conflict:mirror:check": "node ./scripts/check-conflict-compliance.mjs",
     "conflict:check": "npm run hygiene:check && npm run test:publish-sync:contract && npm run pages:build && npm run hygiene:chunks && node ./scripts/check-conflict-compliance.mjs",

@@ -73,9 +73,9 @@ const hasExpectedAuthResourceReference = (payload) => payload.resource === `${ba
 const hasExpectedProtectedResource = (payload) => hasExpectedAuthResourceReference(payload) && includesAll(payload.bearer_methods_supported, ['header'])
 const hasExpectedAgentAuth = (agentAuth) => agentAuth?.skill === `${originUrl}/auth.md` && agentAuth?.register_uri === `${baseUrl}/agent/auth` && agentAuth?.claim_uri === `${baseUrl}/agent/auth/claim` && agentAuth?.revocation_uri === `${baseUrl}/agent/auth/revoke` && includesAll(agentAuth?.identity_types_supported, ['anonymous', 'identity_assertion']) && includesAll(agentAuth?.anonymous?.credential_types_supported, ['api_key']) && includesAll(agentAuth?.identity_assertion?.assertion_types_supported, ['urn:ietf:params:oauth:token-type:id-jag', 'verified_email']) && includesAll(agentAuth?.identity_assertion?.credential_types_supported, ['access_token', 'api_key']) && includesAll(agentAuth?.events_supported, ['https://schemas.workos.com/events/agent/auth/identity/assertion/revoked'])
 const defaultSharedDocCanonicalPath = [
-  'huijoohwee',
+  'agentic-canvas-os',
   'docs',
-  ['knowgrph', 'strybldr', 'starter', 'template.md'].join('-'),
+  'RELEASE-WORKFLOW.md',
 ].join('/')
 const preferredSharedDocSample = {
   workspaceId: defaultWorkspaceId,
@@ -142,7 +142,7 @@ const deepResearchSearchQuery = String(sharedDocSample?.canonicalPath || preferr
   .pop()
   ?.replace(/\.[^.]+$/, '')
   || 'knowgrph'
-const contentAwareSearchQuery = 'deployment topology'
+const contentAwareSearchQuery = 'revision-fence'
 const normalizeSearchEvidence = (value) => String(value || '')
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, ' ')
@@ -809,7 +809,7 @@ const checks = [
         && Array.isArray(result?.ids)
         && result.ids.length > 0
         && result.results?.some((entry) =>
-          String(entry?.canonicalPath || '').endsWith('knowgrph-modularity-prd-tad.md')
+          String(entry?.canonicalPath || '') === 'agentic-canvas-os/docs/AGENT-DEFINITIONS.md'
           && normalizeSearchEvidence(entry?.snippet).includes(contentAwareSearchEvidence),
         )
     },

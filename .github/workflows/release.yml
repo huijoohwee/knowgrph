@@ -24,6 +24,7 @@ jobs:
     name: Verify Release Candidate
     runs-on: ubuntu-latest
     outputs:
+      docs_repository: ${{ steps.agentic_canvas_os_docs.outputs.repository }}
       docs_revision: ${{ steps.agentic_canvas_os_docs.outputs.ref }}
       manifest_digest: ${{ steps.immutable_manifest.outputs.digest }}
     env:
@@ -158,6 +159,7 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: ${{ github.workspace }}/agentic-canvas-os/docs
 
     steps:
       - name: Checkout exact Dev commit
@@ -172,6 +174,16 @@ jobs:
         with:
           repository: huijoohwee/huijoohwee
           path: huijoohwee
+
+      - name: Checkout exact Agentic Canvas OS docs SSOT
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ needs.verify.outputs.docs_repository }}
+          ref: ${{ needs.verify.outputs.docs_revision }}
+          path: agentic-canvas-os
+
+      - name: Validate checked-out Agentic Canvas OS revision
+        run: test "$(git -C agentic-canvas-os rev-parse HEAD)" = "${{ needs.verify.outputs.docs_revision }}"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -210,6 +222,10 @@ jobs:
       - name: Deploy verified artifact
         working-directory: knowgrph
         run: npx --no-install wrangler pages deploy ../huijoohwee --project-name=joohwee --branch=main --commit-dirty=true
+
+      - name: Reconcile canonical docs into D1
+        working-directory: knowgrph
+        run: npm run storage:d1:seed:docs
 
       - name: Verify live agent-ready discovery
         working-directory: knowgrph
