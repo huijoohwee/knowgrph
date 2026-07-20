@@ -12,6 +12,7 @@ import {
   VERSION_HISTORY_MAX_ENTRIES,
   type VersionHistoryEntry,
 } from '@/features/history/versionHistoryTypes'
+import { writeActiveMarkdownDocumentTextIfPresent } from './graph-data-slice/graphDataFrontmatterFlowSync'
 
 type SetGraph = StoreApi<GraphState>['setState']
 type GetGraph = StoreApi<GraphState>['getState']
@@ -130,6 +131,16 @@ const restoreHistoryEntry = (set: SetGraph, get: GetGraph, entry: VersionHistory
     if (persisted) persistGraphDataToLocalStorage(persisted)
   } catch {
     void 0
+  }
+  const restoredText = entry.markdownDocumentText ?? entry.activeSourceFileSnapshot?.text ?? null
+  if (restoredText != null) {
+    const restoredState = get()
+    void writeActiveMarkdownDocumentTextIfPresent({
+      state: restoredState,
+      sourceFiles: restoredState.sourceFiles || [],
+      text: restoredText,
+      label: `History restore: ${entry.label}`,
+    })
   }
 }
 

@@ -1,6 +1,7 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
+  ["viewport.storyboardWidget.overlay.distinctRichMediaCollision","@/__tests__/storyboardWidgetActiveSurfaceObstacleCollection.test","testStoryboardWidgetPinnedCardTreatsDistinctRichMediaAsCollisionObstacle"],
   ["url.coerceMediaUrl.acceptsNativeGlbDataUrl","@/__tests__/mediaUrlCoercion.test","testCoerceMediaUrlAcceptsNativeGlbDataUrl"],
   ["imageToThreeJs.formats.supportedAndProxied","@/__tests__/imageToThreeJs.test","testImageToThreeJsSupportsPngJpgAndSvgIncludingProxyUrls"],
   ["imageToThreeJs.contract.typedZeroCostPatch","@/__tests__/imageToThreeJs.test","testImageToThreeJsBuildsTypedZeroCostRenderPatch"],

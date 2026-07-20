@@ -48,3 +48,19 @@ export function testFlowEdgeRoutingIgnorePointsSkipsEndpointObstacles() {
   const laneY = pts[1].y
   if (laneY >= -20 && laneY <= 20) throw new Error('expected route to avoid non-endpoint obstacle')
 }
+
+export function testFlowEdgeRoutingForbidsPrimaryAxisBacktracking() {
+  const pts = routeFlowEdgeOrtho({
+    rankdir: 'LR',
+    start: { x: 0, y: 0 },
+    end: { x: 40, y: 100 },
+    obstacles: [{ x: 12, y: 40, w: 16, h: 20 }],
+    marginPx: 0,
+    laneStepPx: 56,
+    maxLanes: 4,
+  })
+  if (pts.length < 4) throw new Error('expected orthogonal polyline')
+  if (pts.some(point => point.x < 0 || point.x > 40)) {
+    throw new Error(`expected LR route to remain inside its primary-axis interval, got ${JSON.stringify(pts)}`)
+  }
+}

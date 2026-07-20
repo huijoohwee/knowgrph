@@ -14,6 +14,27 @@ export type StoryboardWidgetWorldObstacle = {
   height: number
 }
 
+export function distinctStoryboardOverlayRectsOverlap(
+  left: Omit<StoryboardWidgetWorldObstacle, 'width' | 'height'> & { width?: number; height?: number },
+  right: Omit<StoryboardWidgetWorldObstacle, 'width' | 'height'> & { width?: number; height?: number },
+  gap = 0,
+  fallbackSize: { width: number; height: number } = { width: 0, height: 0 },
+): boolean {
+  const normalizeId = (value: string) => String(value || '').replace(/^rich-media:/, '').trim()
+  const leftId = normalizeId(left.id)
+  const rightId = normalizeId(right.id)
+  if (leftId && leftId === rightId) return false
+  const safeGap = Math.max(0, Number.isFinite(gap) ? gap : 0)
+  const leftWidth = left.width ?? fallbackSize.width
+  const leftHeight = left.height ?? fallbackSize.height
+  const rightWidth = right.width ?? fallbackSize.width
+  const rightHeight = right.height ?? fallbackSize.height
+  return left.left < right.left + rightWidth + safeGap
+    && right.left < left.left + leftWidth + safeGap
+    && left.top < right.top + rightHeight + safeGap
+    && right.top < left.top + leftHeight + safeGap
+}
+
 export function collectActiveRichMediaWorldObstacles(args: {
   storyboardWidgetSurfaceId: string | null | undefined
   skipAll?: boolean

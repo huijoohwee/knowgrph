@@ -73,7 +73,7 @@ export function useGanttTimelineDocumentActions(args: {
   const [exportingKind, setExportingKind] = React.useState<VideoSequenceExportKind | ''>('')
   const [recentExportSessions, setRecentExportSessions] = React.useState<VideoSequenceExportSessionRecord[]>([])
   const exportAbortControllerRef = React.useRef<AbortController | null>(null)
-  const { setMarkdownDocument, upsertUiToast } = useTimelineDocumentMutationStoreBinding()
+  const { commitMarkdownDocument, upsertUiToast } = useTimelineDocumentMutationStoreBinding()
   const { autoSnappingEnabled, rippleEditingEnabled, setTimelineTransportAutoSnappingEnabled, setTimelineTransportRippleEditingEnabled, setTimelineTransportTimingSyncMode, timingSyncMode } = useTimelineTransportTimingSyncStoreBinding()
   const readDocumentSnapshot = useTimelineDocumentSnapshotReader({
     markdownDocumentName: args.markdownDocumentName,
@@ -95,9 +95,9 @@ export function useGanttTimelineDocumentActions(args: {
     nextCode,
     nextLineIndex,
     readDocumentSnapshot,
-    setMarkdownDocument,
+    setMarkdownDocument: commitMarkdownDocument,
     setSelectedRowKey: args.setSelectedRowKey,
-  }), [args.markdownText, args.setSelectedRowKey, readDocumentSnapshot, setMarkdownDocument])
+  }), [args.markdownText, args.setSelectedRowKey, commitMarkdownDocument, readDocumentSnapshot])
 
   const handleVideoSequenceTool = React.useCallback((toolId: VideoSequenceTimelineToolId) => {
     const actionContext = resolveCurrentVideoSequenceActionContext()
@@ -178,7 +178,10 @@ export function useGanttTimelineDocumentActions(args: {
       })
       return false
     }
-    setMarkdownDocument(args.markdownDocumentName, next.markdownText, { applyViewPreset: false })
+    commitMarkdownDocument(args.markdownDocumentName, next.markdownText, {
+      applyViewPreset: false,
+      historyLabel: 'Gantt Timeline media drop',
+    })
     args.setSelectedRowKey(next.rowKey)
     return true
   }, [
@@ -187,7 +190,7 @@ export function useGanttTimelineDocumentActions(args: {
     args.markdownText,
     args.setSelectedRowKey,
     readDocumentSnapshot,
-    setMarkdownDocument,
+    commitMarkdownDocument,
     upsertUiToast,
   ])
 
@@ -569,11 +572,11 @@ export function useGanttTimelineDocumentActions(args: {
     if (!nextCode) return
     const nextMarkdownText = replaceFirstMermaidGanttFrontmatterCode(input.dragState.markdownText, nextCode)
     if (!nextMarkdownText || nextMarkdownText === input.dragState.markdownText) return
-    setMarkdownDocument(input.dragState.markdownDocumentName, nextMarkdownText, { applyViewPreset: false })
+    commitMarkdownDocument(input.dragState.markdownDocumentName, nextMarkdownText, { applyViewPreset: false, historyLabel: 'Gantt Timeline drag edit' })
     const nextLineIndex = reordered?.lineIndex ?? input.dragState.span.lineIndex
     const nextLine = nextCode.split('\n')[nextLineIndex]?.trim()
     if (nextLine) args.setSelectedRowKey(`${nextLineIndex}:task:${nextLine}`)
-  }, [args.code, args.setSelectedRowKey, autoSnappingEnabled, readDocumentSnapshot, rippleEditingEnabled, setMarkdownDocument, timingSyncMode])
+  }, [args.code, args.setSelectedRowKey, autoSnappingEnabled, commitMarkdownDocument, readDocumentSnapshot, rippleEditingEnabled, timingSyncMode])
 
   return {
     autoSnappingEnabled,
