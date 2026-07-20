@@ -30,6 +30,7 @@ function readSource(...parts: string[]): string {
 export function testXrModeUsesCanonicalFloatingPanel() {
   const spatialAssetTools = readSource('features', 'three', 'SpatialAssetToolsPanel.tsx')
   const mediaCatalog = readSource('features', 'command-menu', 'MediaCatalogPanelView.tsx')
+  const mediaCatalogModeRuntime = readSource('features', 'command-menu', 'mediaCatalogModeRuntime.ts')
   const xrMediaLibrary = readSource('features', 'command-menu', 'XrMediaLibraryPanel.tsx')
   const xrSimulationOpenRequest = readSource('features', 'command-menu', 'xrSimulationWorkbenchOpenRequest.ts')
   const xrSceneMediaDrag = readSource('features', 'three', 'xrSceneMediaDrag.ts')
@@ -293,8 +294,11 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   if (!floatingPanelPresetSource.includes("raw === 'camera'") || !floatingPanelPresetSource.includes("raw === 'animation'") || !floatingPanelPresetSource.includes("raw === 'motionControl'") || !floatingPanelPresetSource.includes("raw === 'media'") || floatingPanelPresetSource.includes("raw === 'xr'") || !appliedFrontmatter.includes('readFloatingPanelViewPreset')) {
     throw new Error('expected FloatingPanel frontmatter routing to use Media, Animation, Motion Control, and Camera without the stale XR projection')
   }
-  for (const marker of ['data-kg-media-mode-switcher="header-icons"', 'data-kg-media-library-toggle="1"', 'data-kg-media-3d-toggle="1"', 'title="Media"', 'title="3D for XR"', "xrSurfaceActive ? 'xr-3d' : 'media'", '<XrMediaLibraryPanel']) {
+  for (const marker of ['data-kg-media-mode-switcher="header-icons"', 'data-kg-media-library-toggle="1"', 'data-kg-media-3d-toggle="1"', 'title="Media"', 'title="3D for XR"', 'subscribeMediaCatalogMode', 'readMediaCatalogMode', '<XrMediaLibraryPanel']) {
     if (!mediaCatalog.includes(marker)) throw new Error(`expected Media to own the canonical 3D entry through ${marker}`)
+  }
+  if (!mediaCatalogModeRuntime.includes("let snapshot: MediaCatalogMode = 'media'") || !mediaCatalogModeRuntime.includes('for (const listener of listeners) listener()')) {
+    throw new Error('expected Media and 3D for XR to share one observable catalog mode owner')
   }
   if (!xrMediaLibrary.includes('<SpatialAssetToolsPanel />')) throw new Error('expected Media 3D to retain spatial asset tooling')
   const featuredLabels = XR_SCENE_LIBRARY_FEATURED_ASSET_IDS.map(assetId => XR_SCENE_LIBRARY_ASSETS.find(asset => asset.id === assetId)?.label)

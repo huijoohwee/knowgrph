@@ -26,6 +26,11 @@ import { MediaActionListRow, MediaCandidateListRow, MediaSourceMetadataListRow, 
 import { UploadedMediaCard, UploadedMediaRow } from './mediaCatalogUploadedItems'
 import { buildUploadedMediaInfoLabel, readUploadedMediaDescription, readUploadedMediaFieldText } from './mediaCatalogUploadedFields'
 import { MediaCatalogRichMediaPreview } from './MediaCatalogRichMediaPreview'
+import {
+  readMediaCatalogMode,
+  setMediaCatalogMode,
+  subscribeMediaCatalogMode,
+} from './mediaCatalogModeRuntime'
 import { XrMediaLibraryPanel } from './XrMediaLibraryPanel'
 import {
   readXrSimulationWorkbenchOpenRevision,
@@ -132,12 +137,16 @@ export function MediaCatalogPanelView({
     readXrSimulationWorkbenchOpenRevision,
     readXrSimulationWorkbenchOpenRevision,
   )
-  const [catalogMode, setCatalogMode] = React.useState<'media' | 'xr-3d'>(() => xrSurfaceActive ? 'xr-3d' : 'media')
+  const catalogMode = React.useSyncExternalStore(
+    subscribeMediaCatalogMode,
+    readMediaCatalogMode,
+    readMediaCatalogMode,
+  )
   React.useEffect(() => {
-    if (xrSurfaceActive) setCatalogMode('xr-3d')
+    if (xrSurfaceActive) setMediaCatalogMode('xr-3d')
   }, [xrSurfaceActive])
   React.useEffect(() => {
-    if (xrSurfaceActive && xrSimulationWorkbenchOpenRevision > 0) setCatalogMode('xr-3d')
+    if (xrSurfaceActive && xrSimulationWorkbenchOpenRevision > 0) setMediaCatalogMode('xr-3d')
   }, [xrSimulationWorkbenchOpenRevision, xrSurfaceActive])
   const mediaItemCount = uploadedMediaItems.length + mediaItems.length + mediaActions.length + (sourceMetadataItem ? 1 : 0)
   const normalizedSearchQuery = search.normalizedSearchQuery
@@ -235,7 +244,7 @@ export function MediaCatalogPanelView({
                 aria-label="Show media library"
                 aria-pressed={catalogMode === 'media'}
                 data-kg-media-library-toggle="1"
-                onClick={() => setCatalogMode('media')}
+                onClick={() => setMediaCatalogMode('media')}
               >
                 <ImageIcon className="size-3.5" strokeWidth={1.7} aria-hidden />
               </button>
@@ -246,7 +255,7 @@ export function MediaCatalogPanelView({
                 aria-label="Show 3D assets for XR"
                 aria-pressed={catalogMode === 'xr-3d'}
                 data-kg-media-3d-toggle="1"
-                onClick={() => setCatalogMode('xr-3d')}
+                onClick={() => setMediaCatalogMode('xr-3d')}
               >
                 <Box className="size-3.5" strokeWidth={1.7} aria-hidden />
               </button>

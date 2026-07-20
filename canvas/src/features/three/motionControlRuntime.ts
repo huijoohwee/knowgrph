@@ -534,12 +534,8 @@ export async function stopMotionControl(message = 'Motion Control is off.'): Pro
     animationFrameId = null
     removeLifecycleStops()
     stopCamera()
-    const pendingInference = inferencePromise
-    if (pendingInference) await pendingInference.catch(() => void 0)
-    if (inferencePromise === pendingInference) inferencePromise = null
     const model = compiledModel
     compiledModel = null
-    model?.delete()
     resetMotionControlCalibration()
     roi = { x: 0, y: 0, size: 1 }
     lostFrameCount = 0
@@ -556,6 +552,10 @@ export async function stopMotionControl(message = 'Motion Control is off.'): Pro
       framesPerSecond: 0,
       pose: null,
     })
+    const pendingInference = inferencePromise
+    if (pendingInference) await pendingInference.catch(() => void 0)
+    if (inferencePromise === pendingInference) inferencePromise = null
+    model?.delete()
     return snapshot
   })()
   stopPromise = operation
