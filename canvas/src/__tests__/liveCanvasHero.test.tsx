@@ -8,7 +8,11 @@ import {
   appendLiveCanvasHeroToken,
   buildLiveCanvasHeroModel,
 } from '@/features/agentic-os/liveCanvasHeroModel'
-import { hasLiveCanvasHeroBlockingSearchParams, shouldShowLiveCanvasHero } from '@/features/canvas/liveCanvasHeroVisibility'
+import {
+  hasLiveCanvasHeroBlockingSearchParams,
+  shouldDocumentSwitchOwnCanvasViewport,
+  shouldShowLiveCanvasHero,
+} from '@/features/canvas/liveCanvasHeroVisibility'
 import { buildCanvasEmbedIframeMarkup } from '@/features/canvas/canvasEmbedIframeMarkup'
 import {
   KNOWGRPH_CANVAS_EMBED_MESSAGE_VERSION,
@@ -302,6 +306,15 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
   }
   if (!heroHookSource.includes('dismissed: landingExited || (!isRootAlias && defaultSeedContentChanged)')) {
     throw new Error('expected persisted workspace document changes to stay isolated from apex hero dismissal')
+  }
+}
+
+export function testLiveCanvasHeroRetainsViewportOwnershipDuringPersistedDocumentSwitch(): void {
+  if (shouldDocumentSwitchOwnCanvasViewport({ documentSwitchBlocksCanvas: true, liveCanvasHeroVisible: true })) {
+    throw new Error('expected the apex hero to retain viewport ownership during a persisted document switch')
+  }
+  if (!shouldDocumentSwitchOwnCanvasViewport({ documentSwitchBlocksCanvas: true, liveCanvasHeroVisible: false })) {
+    throw new Error('expected the workspace route to retain its fail-closed document-switch placeholder')
   }
 }
 

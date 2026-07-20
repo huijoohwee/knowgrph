@@ -284,6 +284,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["ui.canvas.liveHero.sourceBackedContract","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroUsesSourceBackedInvocationContract"],
   ["ui.canvas.liveHero.workspaceReadmeSourceFidelity","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroWorkspaceReadmeSourceFidelity"],
   ["ui.canvas.liveHero.hydratedApexVisibility","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex"],
+  ["ui.canvas.liveHero.persistedDocumentSwitchOwnership","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroRetainsViewportOwnershipDuringPersistedDocumentSwitch"],
   ["ui.canvas.liveHero.rawRunAllGrammar","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroRunAllPreservesRawGrammar"],
   ["ui.canvas.liveHero.rawChatHandoff.sharedAppendEvent","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroChatHandoffFlushesThroughSharedAppendEvent"],
   ["ui.canvas.liveHero.interactiveWorkspaceCanvas","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroUsesInteractiveWorkspaceCanvas"],
