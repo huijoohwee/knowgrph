@@ -9,6 +9,18 @@ const agentReadySmoke = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'check
 const docsSeedScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'seed-storage-docs-to-cloudflare.mjs'), 'utf8')
 const docsSeedLibrary = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'lib', 'seed-storage-documents-d1.mjs'), 'utf8')
 
+test('production release rebuilds the canvas with the exact authorized candidate revision', () => {
+  const verifyJob = releaseWorkflow.slice(
+    releaseWorkflow.indexOf('\n  verify:'),
+    releaseWorkflow.indexOf('\n  deploy:'),
+  )
+
+  assert.match(verifyJob, /name: Build and sync verified candidate into ephemeral production artifact/)
+  assert.match(verifyJob, /KNOWGRPH_SOURCE_REVISION: \$\{\{ inputs\.commit_sha \}\}/)
+  assert.match(verifyJob, /run: npm run pages:build-sync/)
+  assert.doesNotMatch(verifyJob, /run: npm run pages:sync/)
+})
+
 test('production release reconciles the exact canonical docs revision before live smoke', () => {
   const deployJob = releaseWorkflow.slice(releaseWorkflow.indexOf('\n  deploy:'))
   const checkoutIndex = deployJob.indexOf('Checkout exact Agentic Canvas OS docs SSOT')
