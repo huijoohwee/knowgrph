@@ -1,6 +1,6 @@
 import type { WorkspaceEntry, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath, workspaceBasename } from './path'
-import { LEGACY_AGENTIC_OS_DOCS_ROOT_PATH } from './workspaceLegacySourceRoots'
+import { isLegacyWorkspaceSourcePath } from './workspaceLegacySourceRoots'
 
 export const SHADOW_MAX_FILE_TEXT_CHARS = 2_000_000
 
@@ -52,7 +52,9 @@ export const deleteShadowEntry = (path: WorkspacePath) => {
 
 export const snapshotShadowEntries = (): WorkspaceEntry[] => {
   const shadow = ensureShadow()
-  deleteShadowEntry(LEGACY_AGENTIC_OS_DOCS_ROOT_PATH)
+  for (const path of [...shadow.keys()]) {
+    if (isLegacyWorkspaceSourcePath(path)) deleteShadowEntry(path)
+  }
   return [...shadow.values()]
 }
 

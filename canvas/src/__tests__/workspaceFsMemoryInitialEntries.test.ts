@@ -28,14 +28,20 @@ export const testWorkspaceFsMemoryInitialEntries = async () => {
   if (text !== '# A') throw new Error(`Expected initial file text '# A', got ${String(text)}`)
 }
 
-export const testWorkspaceFsMemoryRemovesLegacyAgenticOsDocsAndKeepsCanonicalRoot = async () => {
+export const testWorkspaceFsMemoryRemovesLegacySourceRootsAndKeepsCanonicalArtifacts = async () => {
   const fs = createMemoryWorkspaceFs({
     initialEntries: [
       { path: '/agentic-os-docs', parentPath: '/', kind: 'folder', name: 'agentic-os-docs', updatedAtMs: 1 },
       { path: '/agentic-os-docs/MEMORY.md', parentPath: '/agentic-os-docs', kind: 'file', name: 'MEMORY.md', text: '# stale', updatedAtMs: 1 },
+      { path: '/video-runs', parentPath: '/', kind: 'folder', name: 'video-runs', updatedAtMs: 1 },
+      { path: '/video-runs/run.json', parentPath: '/video-runs', kind: 'file', name: 'run.json', text: '{}', updatedAtMs: 1 },
+      { path: '/video-runs-24', parentPath: '/', kind: 'folder', name: 'video-runs-24', updatedAtMs: 1 },
+      { path: '/video-runs-24/master.mp4', parentPath: '/video-runs-24', kind: 'file', name: 'master.mp4', updatedAtMs: 1 },
+      { path: '/video-runs-demo', parentPath: '/', kind: 'folder', name: 'video-runs-demo', updatedAtMs: 1 },
       { path: '/agentic-canvas-os', parentPath: '/', kind: 'folder', name: 'agentic-canvas-os', updatedAtMs: 1 },
       { path: '/agentic-canvas-os/docs', parentPath: '/agentic-canvas-os', kind: 'folder', name: 'docs', updatedAtMs: 1 },
       { path: '/agentic-canvas-os/docs/MEMORY.md', parentPath: '/agentic-canvas-os/docs', kind: 'file', name: 'MEMORY.md', text: '# canonical', updatedAtMs: 1 },
+      { path: '/kgc-output_20260720T010203Z-video.mp4', parentPath: '/', kind: 'file', name: 'kgc-output_20260720T010203Z-video.mp4', updatedAtMs: 1 },
     ],
   })
 
@@ -44,8 +50,11 @@ export const testWorkspaceFsMemoryRemovesLegacyAgenticOsDocsAndKeepsCanonicalRoo
   if (paths.has('/agentic-os-docs') || paths.has('/agentic-os-docs/MEMORY.md')) {
     throw new Error('expected the legacy agentic-os-docs tree to be removed during seed reconciliation')
   }
-  if (!paths.has('/agentic-canvas-os') || !paths.has('/agentic-canvas-os/docs/MEMORY.md')) {
-    throw new Error('expected the canonical agentic-canvas-os tree to remain intact')
+  if ([...paths].some(path => /^\/video-runs(?:-\d+)?(?:\/|$)/.test(path))) {
+    throw new Error('expected legacy video-runs trees to be removed during seed reconciliation')
+  }
+  if (!paths.has('/agentic-canvas-os/docs/MEMORY.md') || !paths.has('/video-runs-demo') || !paths.has('/kgc-output_20260720T010203Z-video.mp4')) {
+    throw new Error('expected canonical source and current generated artifacts to remain intact')
   }
 }
 

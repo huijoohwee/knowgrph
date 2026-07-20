@@ -10,7 +10,7 @@ import { subscribePointerDownDismiss, subscribeWindowEscapeDismiss } from '@/lib
 import { buildMarkdownFileTreeContextMenuItems } from './markdownFileTreeContextMenuItems'
 import { MarkdownFileTreeRowButton } from './MarkdownFileTreeRowButton'
 import { clampOverlayTopLeftFullyInViewport } from '@/lib/ui/overlayClamp'
-import { excludeLegacyAgenticOsDocsWorkspaceEntries } from '@/features/workspace-fs/workspaceLegacySourceRoots'
+import { excludeLegacyWorkspaceSourceEntries } from '@/features/workspace-fs/workspaceLegacySourceRoots'
 import {
   UI_RESPONSIVE_COMPACT_GLYPH_CLASSNAME,
   UI_RESPONSIVE_DATA_VIEW_NARROW_MENU_PANEL_CLASSNAME,
@@ -26,7 +26,7 @@ type Node = {
 const buildTree = (entries: WorkspaceEntry[]): Node => {
   const byParent = new Map<string, WorkspaceEntry[]>()
   const byPath = new Map<string, WorkspaceEntry>()
-  for (const e of excludeLegacyAgenticOsDocsWorkspaceEntries(entries || [])) {
+  for (const e of excludeLegacyWorkspaceSourceEntries(entries || [])) {
     if (!e) continue
     byPath.set(e.path, e)
     const parent = e.parentPath ?? '__root__'

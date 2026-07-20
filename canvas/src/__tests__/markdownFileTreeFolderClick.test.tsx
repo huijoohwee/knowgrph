@@ -66,7 +66,7 @@ export async function testMarkdownFileTreeFolderClickDoesNotClearSelection() {
   }
 }
 
-export async function testMarkdownFileTreeExcludesLegacyAgenticOsDocsRoot() {
+export async function testMarkdownFileTreeExcludesLegacyRootsAndKeepsCanonicalArtifacts() {
   const { dom, restore: restoreDom } = initJsdomHarness()
   const container = dom.window.document.createElement('section')
   dom.window.document.body.appendChild(container)
@@ -77,6 +77,10 @@ export async function testMarkdownFileTreeExcludesLegacyAgenticOsDocsRoot() {
       { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 1 },
       { path: '/agentic-canvas-os', parentPath: '/', kind: 'folder', name: 'agentic-canvas-os', updatedAtMs: 1 },
       { path: '/agentic-os-docs', parentPath: '/', kind: 'folder', name: 'agentic-os-docs', updatedAtMs: 1 },
+      { path: '/video-runs', parentPath: '/', kind: 'folder', name: 'video-runs', updatedAtMs: 1 },
+      { path: '/video-runs-24', parentPath: '/', kind: 'folder', name: 'video-runs-24', updatedAtMs: 1 },
+      { path: '/video-runs-demo', parentPath: '/', kind: 'folder', name: 'video-runs-demo', updatedAtMs: 1 },
+      { path: '/kgc-output_20260720T010203Z-video.mp4', parentPath: '/', kind: 'file', name: 'kgc-output_20260720T010203Z-video.mp4', updatedAtMs: 1 },
     ]
 
     root = createRoot(container as unknown as HTMLElement)
@@ -97,6 +101,15 @@ export async function testMarkdownFileTreeExcludesLegacyAgenticOsDocsRoot() {
     }
     if (container.querySelector('section[aria-label="Folder agentic-os-docs"]')) {
       throw new Error('expected legacy agentic-os-docs root to be excluded')
+    }
+    if (container.querySelector('section[aria-label="Folder video-runs"]') || container.querySelector('section[aria-label="Folder video-runs-24"]')) {
+      throw new Error('expected legacy video-runs roots to be excluded')
+    }
+    if (!container.querySelector('section[aria-label="Folder video-runs-demo"]')) {
+      throw new Error('expected similarly named nonlegacy folders to remain visible')
+    }
+    if (!container.querySelector('section[aria-label="File kgc-output_20260720T010203Z-video.mp4"]')) {
+      throw new Error('expected the current generated artifact to remain visible')
     }
   } finally {
     try {

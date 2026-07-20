@@ -14,7 +14,7 @@ import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import { loadWorkspaceSourceIndex, setWorkspaceEntrySource } from './sourceIndex'
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsRemove, lsSetBool } from '@/lib/persistence'
-import { isLegacyAgenticOsDocsWorkspacePath } from './workspaceLegacySourceRoots'
+import { isLegacyWorkspaceSourcePath } from './workspaceLegacySourceRoots'
 
 export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry[] }): WorkspaceFs {
   const entriesByPath = new Map<string, WorkspaceEntry>()
@@ -95,7 +95,7 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
   const removeLegacyWorkspaceSourceEntries = (): boolean => {
     let changed = false
     for (const path of [...entriesByPath.keys()]) {
-      if (!isLegacyAgenticOsDocsWorkspacePath(path)) continue
+      if (!isLegacyWorkspaceSourcePath(path)) continue
       entriesByPath.delete(path)
       clearWorkspaceEntrySource(normalizeWorkspacePath(path))
       changed = true
