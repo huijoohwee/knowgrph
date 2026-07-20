@@ -14,6 +14,8 @@ deploy_boundary: "Dev-only"
 
 Motion Control is a first-class FloatingPanel view between Animation and Camera. It reuses the existing FloatingPanel catalog header, surface/body layout, form controls, local status rows, and Markdown invocation renderer. Entering Toolbar → Canvas View Mode → Surface Mode → XR opens Motion Control only when no FloatingPanel is already open and keeps BottomPanel Timeline as the sole transport.
 
+Two compact target cards project the current **3D for XR** and **Animation** state into Motion Control. Their Open actions move the same FloatingPanel to Media's canonical 3D view or the canonical Animation view; they do not copy either catalog, create another target store, or introduce a second scene/animation mutation path. Each card renders the existing scene or animation WebMCP identity and its existing `/`, `@`, and `#` invocation rather than defining a Motion-Control-specific replacement.
+
 The operator explicitly starts and stops one local camera session. A square mirrored preview shows the latest video frame and accepted skeleton; status rows report permission, requested and effective backend, fallback reason, confidence, inference latency, and effective FPS. The panel instructs the operator to keep one full body centered because the MVP runs Google's standalone landmark model with a bounded centered-person crop rather than claiming arbitrary-frame person detection.
 
 ## Runtime owners
@@ -21,11 +23,12 @@ The operator explicitly starts and stops one local camera session. A square mirr
 | Concern | Canonical owner | Contract |
 |---|---|---|
 | UI route | `ToolbarToolMenu.impl.tsx` and `MotionControlFloatingPanelView.tsx` | One lazy-mounted first-class FloatingPanel projection with no parallel shell or nested scroll owner. |
+| Target projection | `MotionControlTargetCards.tsx`, `motionControlTargetRuntime.ts`, `motionControlSurfaceRuntime.ts`, and `mediaCatalogModeRuntime.ts` | Compact read/action projections expose selected-humanoid compatibility plus current 3D/Animation status, then route to the existing Media or Animation FloatingPanel owner. Media and the lifecycle guard observe one ephemeral catalog-mode owner, so only the explicit 3D for XR submode retains capture. No target, asset, animation, invocation, or persistence schema is duplicated. |
 | Asset configuration | `motionControlConfig.ts` | One same-origin URL owner for the official LiteRT Wasm directory and Google pose model. |
 | Build assets | `scripts/prepare-litert-assets.mjs` | Copies Wasm from installed `@litertjs/core`; downloads and extracts the official Google model only after exact digest checks; generated binaries remain untracked. |
 | Camera and inference | `motionControlRuntime.ts` | Explicit permission, local preprocessing, LiteRT compile/run, metadata validation, backpressure, ROI tracking, smoothing input, telemetry, and shutdown. |
 | Pose schema and projection | `motionControlPose.ts` | One finite app-owned frame schema maps 33 landmarks to selected-humanoid pose and normalized native-controller input. |
-| XR lifecycle | `XrGraphStage.tsx` | Leaving XR stops Motion Control; both ordinary XR and native physics branches consume the same latest pose without creating a second renderer or physics loop. |
+| XR lifecycle | `MotionControlXrLifecycleGuard.tsx` and `ToolbarMenuLauncher.tsx` | One stable toolbar-level owner covers graph-backed and empty-world XR. Capture may remain active only while XR is active and the open FloatingPanel is Motion Control, Media's explicit 3D for XR submode, or Animation. Stop, closing the panel, selecting ordinary Media or another unrelated FloatingPanel view, leaving XR, page lifecycle loss, camera end, or lifecycle-owner unmount releases capture; both ordinary XR and native physics branches consume the same latest pose without creating a second renderer or physics loop. |
 | Invocation | `motionControlMcpContract.mjs` and `motionControlMcpRuntime.ts` | `/motion.control @canvas #pose operation=open`, `operation=stop`, or `operation=start backend=<auto|webgpu|wasm>` and equivalent structured control converge on one strict parser/runtime; `backend` is valid only for `start`. |
 | Browser WebMCP | `motionControlWebMcpTools.ts` and `webMcpRuntime.ts` | `knowgrph.inspect_local_motion_control` and `knowgrph.control_local_motion_control` address only the active browser runtime. No stdio or published HTTP host claims camera reachability. |
 
@@ -43,12 +46,13 @@ The runtime prefers WebGPU when requested and supported. It reports pure `webgpu
 
 ## Capture, scheduling, and privacy
 
-1. Camera access is requested only from explicit Start control.
+1. Camera access is requested only from explicit Start control after XR activation succeeds; a document lock or other rejected XR transition fails before permission or capture begins.
 2. The first input is a centered square person crop; accepted landmarks produce a bounded next-frame ROI. Tracking loss resets to the centered acquisition crop.
 3. Only one inference may be active. The next animation frame is scheduled after the current asynchronous inference settles, so slow inference cannot queue frames.
 4. Invalid shapes, non-finite values, and pose confidence below `0.5` clear the live pose instead of freezing stale motion.
-5. Stop, panel close, XR unmount, page hide, backend replacement, and runtime error cancel scheduling; stop every `MediaStreamTrack`; detach the video; clear canvases and pose; and delete LiteRT resources.
-6. Camera frames, raw tensors, and pose history are not uploaded, persisted to graph/workspace storage, included in exports, or returned through MCP. Recording is not part of this feature.
+5. Capture remains active across only the open Motion Control, Media's explicit 3D for XR submode, and Animation FloatingPanel surfaces while XR remains active. Explicit Stop, closing the FloatingPanel, selecting ordinary Media or any other unrelated view, leaving XR, page hide, camera end, backend replacement, lifecycle-owner unmount, or runtime error cancels scheduling; stops every `MediaStreamTrack`; detaches the video; clears canvases and pose; and deletes LiteRT resources.
+6. A valid live pose transiently overrides only the selected compatible humanoid's character pose. Authored animation assignments and action-path marks stay canonical and resume when tracking is lost or Motion Control stops.
+7. Camera frames, raw tensors, the live pose, and pose history are not uploaded, persisted to graph/workspace storage, included in exports, or returned through MCP. Recording is not part of this feature.
 
 The MVP is single-person entertainment/XR control. It does not claim identity recognition, surveillance, multi-person tracking, medically meaningful biomechanics, metric-accurate camera depth, or safety-critical control.
 
@@ -61,18 +65,19 @@ Knowgrph must not copy or adapt its code, algorithms' expression, file/module st
 ## Invocation and physics projection
 
 - Opening: `/motion.control @canvas #pose operation=open` activates XR and opens the panel without requesting camera permission.
-- Starting: `/motion.control @canvas #pose operation=start backend=auto` starts the active browser-local capture/inference runtime and surfaces permission failure honestly.
+- Starting: `/motion.control @canvas #pose operation=start backend=auto` first verifies the approved XR surface, then starts the active browser-local capture/inference runtime and surfaces XR-activation or permission failure honestly.
 - Stopping: `/motion.control @canvas #pose operation=stop` releases all capture and inference resources.
 - WebMCP structured calls reuse the identical controller and accept `backend` only with the `start` operation; `open` and `stop` reject it.
-- The accepted pose projects into the selected humanoid through the existing animation pose seam. In the physics playground, torso lean and arm direction map to the native normalized controller input, which is merged with keyboard/gamepad input before the existing single deterministic physics step.
+- The 3D for XR card reuses `knowgrph.control_local_xr_scene` and the existing XR scene invocation; the Animation card reuses `knowgrph.control_local_animation` and the existing `/animation.control` grammar. Motion Control adds no composite MCP tool, operation, or invocation schema.
+- The accepted pose projects transiently into the selected compatible humanoid through the existing animation pose seam. It overrides the visible character pose only; authored preset/path state is neither rewritten nor cleared and resumes after Stop or tracking loss. In the physics playground, torso lean and arm direction map to the native normalized controller input, which is merged with keyboard/gamepad input before the existing single deterministic physics step.
 
 No invocation accepts an arbitrary model URL, Wasm URL, camera-frame payload, node id, document path, or validation share token.
 
 ## Acceptance and proof boundary
 
-- Focused tests cover first-class panel routing and layout reuse; official LiteRT API markers; one-inference backpressure; cleanup; metadata shapes; same-origin asset integrity; strict `/ @ #` and WebMCP convergence; selected-humanoid projection; physics controller integration; clean-room source scanning; and external validation-input hardcode rejection.
+- Focused tests cover first-class panel routing and layout reuse; target-card projection into the existing 3D and Animation owners; the three-view XR capture allowlist, rejected-XR fail-closed behavior, and unrelated-view teardown; official LiteRT API markers; one-inference backpressure; cleanup; metadata shapes; same-origin asset integrity; strict `/ @ #` and WebMCP convergence; selected-humanoid projection; authored-animation resume semantics; physics controller integration; clean-room source scanning; and external validation-input hardcode rejection.
 - Build validation must run `prepare:litert-assets`, TypeScript, focused runtime tests, docs checks, hygiene, and `git diff --check`.
-- Browser validation must inspect the normal source-backed physics demo route, open XR and Motion Control, verify local preview/status, exercise explicit Start/Stop when camera permission is available, and confirm no request targets the inspiration repository or uploads a frame.
+- Browser validation must inspect the normal source-backed physics demo route, open XR and Motion Control, verify local preview/status, exercise explicit Start/Stop when camera permission is available, open the compact 3D for XR and Animation targets without losing capture, verify an unrelated FloatingPanel view stops it, and confirm no frame upload or pose-history write occurs.
 - Source/build proof does not by itself prove camera permission, live pose quality, effective WebGPU execution, Prod, or Cloudflare deployment. Dev browser observations must state any host permission or hardware limitation explicitly.
 
-VCC: Given the source-backed physics playground document, when the operator enters XR, opens Motion Control, explicitly starts capture, and moves within a centered full-body frame, then the panel reports honest local inference state, the accepted pose drives the selected humanoid and canonical physics-controller seam, `/motion.control @canvas #pose` and WebMCP reach the same runtime, Stop releases the camera, and neither the document URL nor the inspiration repository appears in production runtime logic.
+VCC: Given the source-backed physics playground document, when the operator enters XR, opens Motion Control, explicitly starts capture, moves within a centered full-body frame, and opens the compact 3D for XR or Animation target, then the panel reports honest local inference state, capture remains active only across those three XR FloatingPanel views, the accepted pose transiently drives the selected compatible humanoid and canonical physics-controller seam, authored preset/path state resumes after Stop or tracking loss, the existing scene/animation/motion WebMCP and `/ @ #` contracts remain the only invocation owners, and Stop, panel close, an unrelated view, XR exit, page lifecycle loss, or camera end releases the camera without persisting pose history.

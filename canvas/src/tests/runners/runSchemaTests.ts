@@ -110,6 +110,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modMotionControlRuntime()
     await mod.testMotionControlRuntimeIsLiteRtInvocableAndXrReady()
   })
+  await execTest(results, 'canvas.xrMode.motionControlWebMcpRuntime', async () => {
+    const mod = await modMotionControlRuntime()
+    await mod.testMotionControlWebMcpReusesCanonicalXrTargets()
+  })
   await execTest(results, 'canvas.xrMode.keyboardChoreography', async () => {
     const mod = await modXrKeyboardChoreography()
     await mod.testXrKeyboardChoreographySharesBrowserAndMcpMotion()

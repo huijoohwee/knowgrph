@@ -1,4 +1,5 @@
 import React from 'react'
+import { setMediaCatalogMode } from '@/features/command-menu/mediaCatalogModeRuntime'
 import { requestXrSimulationWorkbenchOpen } from '@/features/command-menu/xrSimulationWorkbenchOpenRequest'
 import { useShallow } from 'zustand/react/shallow'
 import { TimelineTransportInlineClip, TimelineTransportTimeAxisClip } from '@/components/timeline/TimelineTransportControls'
@@ -156,6 +157,7 @@ export function XrCameraMotionSection() {
 
   const openSimulationWorkbench = React.useCallback(() => {
     const state = useGraphStore.getState()
+    setMediaCatalogMode('xr-3d')
     state.setFloatingPanelView('media')
     state.setFloatingPanelOpen(true)
     requestXrSimulationWorkbenchOpen()

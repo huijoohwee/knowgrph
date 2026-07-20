@@ -2,6 +2,16 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
 import {
+  readMediaCatalogMode,
+  setMediaCatalogMode,
+} from '@/features/command-menu/mediaCatalogModeRuntime'
+import {
+  installKnowgrphWebMcpRuntime,
+  resetKnowgrphWebMcpRuntimeForTests,
+} from '@/features/agent-ready/webMcpRuntime'
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
+import {
   buildMotionControlInvocation,
   controlLocalMotionControl,
   inspectLocalMotionControl,
@@ -19,6 +29,15 @@ import {
   startMotionControl,
   stopMotionControl,
 } from '@/features/three/motionControlRuntime'
+import {
+  buildMotionControlXrControllerInvocation,
+  inspectMotionControlTargets,
+} from '@/features/three/motionControlTargetRuntime'
+import {
+  motionControlCaptureSurfaceIsOpen,
+  openMotionControlSurface,
+} from '@/features/three/motionControlSurfaceRuntime'
+import { parseXrInteractiveInvocation } from '@/features/three/xrSceneInteractiveInvocation'
 
 const source = (...parts: string[]): string => readFileSync(resolve(process.cwd(), ...parts), 'utf8')
 const landmark = (x: number, y: number, z = 0): MotionControlLandmark => Object.freeze({ x, y, z, visibility: 0.95, presence: 0.96 })
@@ -190,6 +209,112 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
     || inspection.privacy.framePersistence !== false) {
     throw new Error('expected browser WebMCP and local-only privacy metadata from the canonical Motion Control runtime')
   }
+  const targets = inspectMotionControlTargets()
+  if (targets.surfaces.xr3d.webMcpTool !== 'knowgrph.control_local_xr_scene'
+    || targets.surfaces.animation.webMcpTool !== 'knowgrph.control_local_animation'
+    || !targets.surfaces.xr3d.invocation.includes('/xr.physics @canvas #controller')
+    || !targets.surfaces.animation.invocation.startsWith('/animation.control')) {
+    throw new Error('expected Motion Control to project the canonical 3D for XR and Animation owners')
+  }
+  const inactiveControllerInvocation = buildMotionControlXrControllerInvocation({ mode: 'rocket', phase: 'off' })
+  const activeControllerInvocation = buildMotionControlXrControllerInvocation({ mode: 'ball', phase: 'running' })
+  const parsedActiveControllerInvocation = parseXrInteractiveInvocation(activeControllerInvocation)
+  if (inactiveControllerInvocation !== '/xr.physics @canvas #controller operation=develop-run mode=rocket'
+    || activeControllerInvocation !== '/xr.physics @canvas #controller operation=reset'
+    || parsedActiveControllerInvocation?.action !== 'physics'
+    || parsedActiveControllerInvocation.physics.operation !== 'reset'
+    || parseXrInteractiveInvocation(`${activeControllerInvocation} mode=ball`) !== null) {
+    throw new Error('expected Motion Control to emit only controller invocations accepted by the canonical XR parser')
+  }
+  if (inspection.targets.surfaces.xr3d.webMcpTool !== targets.surfaces.xr3d.webMcpTool
+    || inspection.targets.surfaces.animation.webMcpTool !== targets.surfaces.animation.webMcpTool) {
+    throw new Error('expected Motion Control WebMCP inspection to expose the shared target projection')
+  }
+  for (const view of ['motionControl', 'animation'] as const) {
+    if (!motionControlCaptureSurfaceIsOpen({
+      canvasRenderMode: '3d',
+      canvas3dMode: 'xr',
+      floatingPanelOpen: true,
+      floatingPanelView: view,
+      mediaCatalogMode: 'media',
+    })) {
+      throw new Error(`expected capture continuity while the canonical ${view} XR surface is open`)
+    }
+  }
+  if (!motionControlCaptureSurfaceIsOpen({
+    canvasRenderMode: '3d',
+    canvas3dMode: 'xr',
+    floatingPanelOpen: true,
+    floatingPanelView: 'media',
+    mediaCatalogMode: 'xr-3d',
+  }) || motionControlCaptureSurfaceIsOpen({
+    canvasRenderMode: '3d',
+    canvas3dMode: 'xr',
+    floatingPanelOpen: true,
+    floatingPanelView: 'media',
+    mediaCatalogMode: 'media',
+  })) {
+    throw new Error('expected capture continuity only for Media\'s explicit 3D for XR submode')
+  }
+  for (const closed of [
+    { canvasRenderMode: '2d', canvas3dMode: 'xr', floatingPanelOpen: true, floatingPanelView: 'motionControl' as const, mediaCatalogMode: 'xr-3d' as const },
+    { canvasRenderMode: '3d', canvas3dMode: '3d', floatingPanelOpen: true, floatingPanelView: 'motionControl' as const, mediaCatalogMode: 'xr-3d' as const },
+    { canvasRenderMode: '3d', canvas3dMode: 'xr', floatingPanelOpen: false, floatingPanelView: 'motionControl' as const, mediaCatalogMode: 'xr-3d' as const },
+    { canvasRenderMode: '3d', canvas3dMode: 'xr', floatingPanelOpen: true, floatingPanelView: 'camera' as const, mediaCatalogMode: 'xr-3d' as const },
+  ]) {
+    if (motionControlCaptureSurfaceIsOpen(closed)) {
+      throw new Error(`expected capture to stop outside approved XR target surfaces: ${JSON.stringify(closed)}`)
+    }
+  }
+  const previousSurface = useGraphStore.getState()
+  const previousSurfaceState = {
+    canvasRenderMode: previousSurface.canvasRenderMode,
+    canvas3dMode: previousSurface.canvas3dMode,
+    floatingPanelOpen: previousSurface.floatingPanelOpen,
+    floatingPanelView: previousSurface.floatingPanelView,
+    bottomSurfaceTab: previousSurface.bottomSurfaceTab,
+    bottomSurfaceCollapsed: previousSurface.bottomSurfaceCollapsed,
+    documentStructureBaselineLock: previousSurface.documentStructureBaselineLock,
+  }
+  const previousMediaCatalogMode = readMediaCatalogMode()
+  try {
+    useGraphStore.setState({
+      documentStructureBaselineLock: true,
+      canvasRenderMode: '2d',
+      canvas3dMode: '3d',
+      floatingPanelOpen: false,
+      floatingPanelView: 'propsPanel',
+    })
+    const blockedStart = await controlLocalMotionControl({ operation: 'start', backend: 'auto' })
+    const blockedSurface = useGraphStore.getState()
+    if (blockedStart.ok
+      || !blockedStart.message.includes('requires XR Mode')
+      || blockedSurface.canvasRenderMode !== '2d'
+      || blockedSurface.floatingPanelOpen
+      || readMotionControlSnapshot().cameraActive) {
+      throw new Error('expected Motion Control Start to fail before camera access when XR activation is rejected')
+    }
+    useGraphStore.setState({ ...previousSurfaceState, documentStructureBaselineLock: false } as never)
+    setMediaCatalogMode('media')
+    if (!openMotionControlSurface('xr-3d')) throw new Error('expected the available XR surface to open')
+    const xr3dSurface = useGraphStore.getState()
+    if (xr3dSurface.canvasRenderMode !== '3d'
+      || xr3dSurface.canvas3dMode !== 'xr'
+      || xr3dSurface.floatingPanelOpen !== true
+      || xr3dSurface.floatingPanelView !== 'media'
+      || xr3dSurface.bottomSurfaceTab !== 'timeline'
+      || xr3dSurface.bottomSurfaceCollapsed !== false
+      || readMediaCatalogMode() !== 'xr-3d') {
+      throw new Error('expected 3D for XR to reuse the canonical XR Media and Timeline surfaces')
+    }
+    if (!openMotionControlSurface('animation')) throw new Error('expected the available Animation XR surface to open')
+    if (useGraphStore.getState().floatingPanelView !== 'animation') {
+      throw new Error('expected Animation to reuse its canonical FloatingPanel surface')
+    }
+  } finally {
+    setMediaCatalogMode(previousMediaCatalogMode)
+    useGraphStore.setState(previousSurfaceState as never)
+  }
   const rejected = await controlLocalMotionControl({ invocation: '/motion.control @canvas #pose operation=start backend=auto extra=true' })
   if (rejected.ok !== false) throw new Error('expected unknown invocation fields to fail closed')
   const rejectedStructured = await controlLocalMotionControl({ operation: 'open', extra: true } as never)
@@ -198,6 +323,16 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
   const runtimeSource = source('src', 'features', 'three', 'motionControlRuntime.ts')
   const assetScript = source('scripts', 'prepare-litert-assets.mjs')
   const panelSource = source('src', 'features', 'three', 'MotionControlFloatingPanelView.tsx')
+  const targetCardsSource = source('src', 'features', 'three', 'MotionControlTargetCards.tsx')
+  const targetRuntimeSource = source('src', 'features', 'three', 'motionControlTargetRuntime.ts')
+  const surfaceRuntimeSource = source('src', 'features', 'three', 'motionControlSurfaceRuntime.ts')
+  const lifecycleGuardSource = source('src', 'features', 'three', 'MotionControlXrLifecycleGuard.tsx')
+  const mediaCatalogModeSource = source('src', 'features', 'command-menu', 'mediaCatalogModeRuntime.ts')
+  const mediaPanelSource = source('src', 'features', 'command-menu', 'MediaCatalogPanelView.tsx')
+  const toolbarLauncherSource = source('src', 'features', 'toolbar', 'ToolbarMenuLauncher.tsx')
+  const toolbarToolMenuSource = source('src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
+  const xrSceneMcpSource = source('src', 'features', 'three', 'xrSceneMcpRuntime.ts')
+  const xrCameraMotionSource = source('src', 'features', 'three', 'XrCameraMotionSection.tsx')
   const stageSource = source('src', 'features', 'three', 'XrNativeControllerDemoStage.tsx')
   for (const marker of [
     "import('@litertjs/core')",
@@ -221,11 +356,72 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
   ]) {
     if (!runtimeSource.includes(marker)) throw new Error(`expected production LiteRT runtime lifecycle marker ${marker}`)
   }
+  const stopRuntimeStart = runtimeSource.indexOf('export async function stopMotionControl')
+  const immediateOffPublish = runtimeSource.indexOf("phase: 'off'", stopRuntimeStart)
+  const pendingInferenceDrain = runtimeSource.indexOf('if (pendingInference) await pendingInference.catch', stopRuntimeStart)
+  if (stopRuntimeStart < 0 || immediateOffPublish < stopRuntimeStart || pendingInferenceDrain < 0 || immediateOffPublish > pendingInferenceDrain) {
+    throw new Error('expected Stop to publish camera-off state before awaiting an in-flight LiteRT inference cleanup')
+  }
   for (const marker of ['POSE_TASK_SHA256', 'MAX_POSE_TASK_BYTES', 'AbortSignal.timeout(', 'storage.googleapis.com/mediapipe-models/', 'copyFile(', 'pose_landmarks_detector.tflite', 'readBoundedResponseBytes(']) {
     if (!assetScript.includes(marker)) throw new Error(`expected same-origin licensed LiteRT asset preparation marker ${marker}`)
   }
   for (const marker of ['floatingPanelCatalogSurfaceClassName()', 'floatingPanelCatalogBodyClassName(', 'data-kg-motion-control-start', 'data-kg-motion-control-invocation-chip-renderer="shared-markdown-sigil"']) {
     if (!panelSource.includes(marker)) throw new Error(`expected shared FloatingPanel Motion Control layout marker ${marker}`)
+  }
+  for (const marker of ['MotionControlTargetCards', "openMotionControlSurface(target)"]) {
+    if (!panelSource.includes(marker)) throw new Error(`expected Motion Control target coordinator marker ${marker}`)
+  }
+  for (const marker of [
+    'data-kg-motion-control-target="xr-3d"',
+    'data-kg-motion-control-target="animation"',
+    'renderMarkdownSigilInlineText',
+    'xr3d.webMcpTool',
+    'animation.webMcpTool',
+    'subscribeXrNativeControllerDemo',
+  ]) {
+    if (!targetCardsSource.includes(marker)) throw new Error(`expected shared Motion Control target card marker ${marker}`)
+  }
+  for (const marker of [
+    'readBoundXrSelectedActorId()',
+    'inspectLocalXrSceneAssets()',
+    'inspectLocalAnimation()',
+    'buildMotionControlXrControllerInvocation(controller)',
+  ]) {
+    if (!targetRuntimeSource.includes(marker)) throw new Error(`expected centralized Motion Control target ownership marker ${marker}`)
+  }
+  for (const marker of [
+    "'motion-control': Object.freeze",
+    "'xr-3d': Object.freeze",
+    'animation: Object.freeze',
+    "input.floatingPanelView === 'media' && input.mediaCatalogMode === 'xr-3d'",
+    "activeState.canvasRenderMode !== '3d' || activeState.canvas3dMode !== 'xr'",
+    "if (target === 'xr-3d') setMediaCatalogMode('xr-3d')",
+  ]) {
+    if (!surfaceRuntimeSource.includes(marker)) throw new Error(`expected centralized Motion Control surface ownership marker ${marker}`)
+  }
+  if (!lifecycleGuardSource.includes('motionControlCaptureSurfaceIsOpen')
+    || !lifecycleGuardSource.includes('subscribeMediaCatalogMode')
+    || !lifecycleGuardSource.includes('subscribeMotionControl')
+    || !lifecycleGuardSource.includes('captureActive')
+    || !lifecycleGuardSource.includes('mountedLifecycleOwnerCount')
+    || !lifecycleGuardSource.includes('Motion Control stopped when its XR FloatingPanel surface closed.')
+    || !toolbarLauncherSource.includes('<MotionControlXrLifecycleGuard />')) {
+    throw new Error('expected stable toolbar lifecycle ownership for Motion Control capture continuity')
+  }
+  if (!mediaCatalogModeSource.includes("let snapshot: MediaCatalogMode = 'media'")
+    || !mediaPanelSource.includes('subscribeMediaCatalogMode')
+    || !mediaPanelSource.includes("setMediaCatalogMode('media')")
+    || !mediaPanelSource.includes("setMediaCatalogMode('xr-3d')")) {
+    throw new Error('expected Media and 3D for XR to share one observable catalog-mode owner')
+  }
+  const toolbarCatalogModeSelection = toolbarToolMenuSource.indexOf("setMediaCatalogMode(canvasRenderMode === '3d' && canvas3dMode === 'xr' ? 'xr-3d' : 'media')")
+  const toolbarPanelSelection = toolbarToolMenuSource.indexOf('setFloatingPanelView(view)', toolbarCatalogModeSelection)
+  if (toolbarCatalogModeSelection < 0
+    || toolbarPanelSelection < toolbarCatalogModeSelection
+    || !toolbarToolMenuSource.includes('handleSelectView(requestedFloatingPanelView)')
+    || !xrSceneMcpSource.includes("setMediaCatalogMode('xr-3d')")
+    || !xrCameraMotionSource.includes("setMediaCatalogMode('xr-3d')")) {
+    throw new Error('expected every XR Media entry route to publish the 3D for XR submode before opening Media')
   }
   if (!stageSource.includes('mergeXrNativeControllerInputs(keyboard, gamepad, motion)')) {
     throw new Error('expected Motion Control to merge before the single native XR physics step')
@@ -235,12 +431,23 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
 
   const forbiddenOwner = ['andris', 'gauracs'].join('')
   const forbiddenRepository = ['LiteRT.js', 'Mocap'].join('-')
+  const forbiddenShareHost = ['airvio', 'co'].join('.')
+  const forbiddenSeedName = ['knowgrph', 'physics', 'playground', 'demo.md'].join('-')
+  const forbiddenAbsolutePrefix = ['', 'Users', 'huijoohwee'].join('/')
   for (const path of [
     ['src', 'features', 'three', 'motionControlRuntime.ts'],
     ['src', 'features', 'three', 'motionControlPose.ts'],
     ['src', 'features', 'three', 'motionControlConfig.ts'],
     ['src', 'features', 'three', 'MotionControlFloatingPanelView.tsx'],
+    ['src', 'features', 'three', 'MotionControlTargetCards.tsx'],
+    ['src', 'features', 'three', 'MotionControlXrLifecycleGuard.tsx'],
+    ['src', 'features', 'three', 'motionControlTargetRuntime.ts'],
+    ['src', 'features', 'three', 'motionControlSurfaceRuntime.ts'],
     ['src', 'features', 'three', 'motionControlMcpRuntime.ts'],
+    ['src', 'features', 'command-menu', 'mediaCatalogModeRuntime.ts'],
+    ['src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx'],
+    ['src', 'features', 'three', 'xrSceneMcpRuntime.ts'],
+    ['src', 'features', 'three', 'XrCameraMotionSection.tsx'],
     ['src', 'features', 'agent-ready', 'motionControlAgentReadyContract.mjs'],
     ['src', 'features', 'agent-ready', 'motionControlWebMcpTools.ts'],
     ['scripts', 'prepare-litert-assets.mjs'],
@@ -248,8 +455,130 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
     ['..', 'package-lock.json'],
   ]) {
     const text = source(...path)
-    if (text.includes(forbiddenOwner) || text.includes(forbiddenRepository)) {
-      throw new Error(`expected clean-room Motion Control source without inspiration-repository dependencies: ${path.join('/')}`)
+    if (text.includes(forbiddenOwner)
+      || text.includes(forbiddenRepository)
+      || text.includes(forbiddenShareHost)
+      || text.includes(forbiddenSeedName)
+      || text.includes(forbiddenAbsolutePrefix)) {
+      throw new Error(`expected clean-room, document-agnostic Motion Control source: ${path.join('/')}`)
     }
+  }
+}
+
+export async function testMotionControlWebMcpReusesCanonicalXrTargets() {
+  type RegisteredTool = Readonly<{
+    name: string
+    outputSchema?: Record<string, unknown>
+    execute: (input?: Record<string, unknown>) => Promise<unknown>
+  }>
+
+  const previousSurface = useGraphStore.getState()
+  const previousSurfaceState = {
+    canvasRenderMode: previousSurface.canvasRenderMode,
+    canvas3dMode: previousSurface.canvas3dMode,
+    floatingPanelOpen: previousSurface.floatingPanelOpen,
+    floatingPanelView: previousSurface.floatingPanelView,
+    bottomSurfaceTab: previousSurface.bottomSurfaceTab,
+    bottomSurfaceCollapsed: previousSurface.bottomSurfaceCollapsed,
+  }
+  const { restore } = initJsdomHarness()
+  const registeredTools = new Map<string, RegisteredTool>()
+  let cameraRequestCount = 0
+
+  try {
+    resetKnowgrphWebMcpRuntimeForTests()
+    const navigatorObject = window.navigator as Navigator & {
+      modelContext?: {
+        registerTool?: (tool: RegisteredTool, options?: { signal?: AbortSignal }) => void
+      }
+    }
+    Object.defineProperty(navigatorObject, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async () => {
+          cameraRequestCount += 1
+          throw new Error('camera must not be requested by operation=open')
+        },
+      },
+    })
+    navigatorObject.modelContext = {
+      registerTool(tool, options) {
+        if (!options?.signal) throw new Error(`expected AbortSignal-backed registration for ${tool.name}`)
+        registeredTools.set(tool.name, tool)
+      },
+    }
+    installKnowgrphWebMcpRuntime()
+
+    const inspectTool = registeredTools.get('knowgrph.inspect_local_motion_control')
+    const controlTool = registeredTools.get('knowgrph.control_local_motion_control')
+    if (!inspectTool || !controlTool) {
+      throw new Error(`expected both Motion Control WebMCP tools, got ${Array.from(registeredTools.keys()).join(', ')}`)
+    }
+    const inspectOutputSchema = inspectTool.outputSchema as {
+      required?: string[]
+      properties?: {
+        targets?: {
+          required?: string[]
+          properties?: {
+            surfaces?: {
+              required?: string[]
+              properties?: {
+                xr3d?: { properties?: { webMcpTool?: { const?: unknown } } }
+                animation?: { properties?: { webMcpTool?: { const?: unknown } } }
+              }
+            }
+          }
+        }
+      }
+    }
+    const targetSurfaceSchema = inspectOutputSchema.properties?.targets?.properties?.surfaces
+    if (!inspectOutputSchema.required?.includes('targets')
+      || !inspectOutputSchema.properties?.targets?.required?.includes('selectedHumanoid')
+      || !targetSurfaceSchema?.required?.includes('xr3d')
+      || !targetSurfaceSchema.required.includes('animation')
+      || targetSurfaceSchema.properties?.xr3d?.properties?.webMcpTool?.const !== 'knowgrph.control_local_xr_scene'
+      || targetSurfaceSchema.properties?.animation?.properties?.webMcpTool?.const !== 'knowgrph.control_local_animation') {
+      throw new Error(`expected the Motion Control WebMCP output schema to own its target projection, got ${JSON.stringify(inspectTool.outputSchema)}`)
+    }
+
+    useGraphStore.setState({
+      canvasRenderMode: '2d',
+      canvas3dMode: '3d',
+      floatingPanelOpen: false,
+      floatingPanelView: 'media',
+      bottomSurfaceTab: 'stats',
+      bottomSurfaceCollapsed: true,
+    } as never)
+    const inspection = await inspectTool.execute() as {
+      schema?: unknown
+      targets?: {
+        surfaces?: {
+          xr3d?: { webMcpTool?: unknown; invocation?: unknown }
+          animation?: { webMcpTool?: unknown; invocation?: unknown }
+        }
+      }
+    }
+    const opened = await controlTool.execute({ operation: 'open' }) as { ok?: unknown }
+    const surface = useGraphStore.getState()
+    if (inspection.schema !== 'knowgrph-motion-control-mcp/v1'
+      || inspection.targets?.surfaces?.xr3d?.webMcpTool !== 'knowgrph.control_local_xr_scene'
+      || inspection.targets?.surfaces?.animation?.webMcpTool !== 'knowgrph.control_local_animation'
+      || !String(inspection.targets?.surfaces?.xr3d?.invocation || '').includes('/xr.physics @canvas #controller')
+      || !String(inspection.targets?.surfaces?.animation?.invocation || '').startsWith('/animation.control')
+      || opened.ok !== true
+      || surface.canvasRenderMode !== '3d'
+      || surface.canvas3dMode !== 'xr'
+      || surface.floatingPanelOpen !== true
+      || surface.floatingPanelView !== 'motionControl'
+      || surface.bottomSurfaceCollapsed !== false
+      || surface.bottomSurfaceTab !== 'timeline'
+      || cameraRequestCount !== 0) {
+      throw new Error(`expected Motion Control WebMCP open to reuse the canonical XR owners without camera access, got ${JSON.stringify({ inspection, opened, cameraRequestCount })}`)
+    }
+  } finally {
+    await stopMotionControl()
+    useGraphStore.setState(previousSurfaceState as never)
+    resetKnowgrphWebMcpRuntimeForTests()
+    restore()
   }
 }
