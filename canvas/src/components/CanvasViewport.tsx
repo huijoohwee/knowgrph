@@ -19,6 +19,7 @@ import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-fil
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { isStrybldrStoryboardGraphData } from '@/features/strybldr/strybldrStoryboard'
 import { useKnowgrphLiveCanvasHero } from '@/features/canvas/useKnowgrphLiveCanvasHero'
+import { shouldDocumentSwitchOwnCanvasViewport } from '@/features/canvas/liveCanvasHeroVisibility'
 import { deriveLiveCanvasHeroCommandRouteGraph } from '@/features/canvas/liveCanvasHeroProjection'
 import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
 import { resolveCanvasViewportHeavyRuntimeIntentSurface } from '@/components/canvasViewportHeavyRuntimeIntent'
@@ -234,6 +235,10 @@ export function CanvasViewport(props: CanvasViewportProps) {
     floatingPanelOpen,
     alternateCanvasSurfaceActive: geospatialModeEnabled || canvasRenderMode !== '2d',
   })
+  const documentSwitchOwnsViewport = shouldDocumentSwitchOwnCanvasViewport({
+    documentSwitchBlocksCanvas,
+    liveCanvasHeroVisible,
+  })
   const liveCanvasHeroEmbedRef = React.useRef<HTMLIFrameElement | null>(null)
   const liveCanvasHeroEmbedReadyRef = React.useRef(false)
   const pendingLiveCanvasHeroChatMessageRef = React.useRef<ReturnType<typeof createEmbeddedCanvasChatSubmitMessage>>(null)
@@ -290,7 +295,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
       return { ...previous, [heavyRuntimeIntentSurface]: true }
     })
   }, [heavyRuntimeIntentSurface])
-  const minimapOverlayVisible = !documentSwitchBlocksCanvas
+  const minimapOverlayVisible = !documentSwitchOwnsViewport
     && !geospatialOverlayOwnsViewport
     && !liveCanvasHeroVisible
     && !liveCanvasHeroEmbedPreview
@@ -301,7 +306,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
       || (activeSurface === '3d' && effectiveCanvas3dMode === '3d')
     )
   const minimapOverlaySurface = activeSurface === '3d' ? '3d' : '2d'
-  const bridgeOnlyWidgetDropActive = !documentSwitchBlocksCanvas
+  const bridgeOnlyWidgetDropActive = !documentSwitchOwnsViewport
     && !geospatialOverlayOwnsViewport
     && !liveCanvasHeroVisible
     && !liveCanvasHeroEmbedPreview
@@ -332,12 +337,12 @@ export function CanvasViewport(props: CanvasViewportProps) {
       aria-label={xrPhysicsRunReadyDemo ? 'Interactive XR Physics Playground' : variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}
     >
       <React.Suspense fallback={null}>
-        {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
+        {!documentSwitchOwnsViewport && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
           <section className="absolute inset-0 z-[10]">
             {liveCanvasHeroEmbedPreview && liveCanvasHeroEmbedGraph ? (
                 <section
                   className="absolute inset-0 pointer-events-auto opacity-100"
-                  aria-label={liveCanvasHeroEmbedPreviewSurface === 'storyboard' ? 'Shared interactive workspace README Storyboard canvas' : 'Shared interactive workspace README command-route canvas'}
+                  aria-label={liveCanvasHeroEmbedPreviewSurface === 'storyboard' ? 'Shared interactive Storyboard canvas' : 'Shared interactive command-route canvas'}
                   data-kg-live-canvas-hero-embed-preview="true"
                   data-kg-live-canvas-hero-interactive="true"
                   data-kg-live-canvas-hero-embed-surface={liveCanvasHeroEmbedPreviewSurface || 'flow'}
@@ -439,19 +444,19 @@ export function CanvasViewport(props: CanvasViewportProps) {
             <StoryboardWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled />
           </section>
         ) : null}
-        {!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '3d' && !heavyRuntimeIntentBlocked ? (
+        {!documentSwitchOwnsViewport && !geospatialOverlayOwnsViewport && canvasRenderMode === '3d' && !heavyRuntimeIntentBlocked ? (
           <section className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
             <ThreeGraphLazy active mode={effectiveCanvas3dMode} />
           </section>
         ) : null}
 
-        {!documentSwitchBlocksCanvas && geospatialModeEnabled && active2dSurface === 'storyboard' ? (
+        {!documentSwitchOwnsViewport && geospatialModeEnabled && active2dSurface === 'storyboard' ? (
           <section className="absolute inset-0 z-[30] pointer-events-none" aria-hidden="true">
             <StoryboardWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled geospatialWidgetPanelMode />
           </section>
         ) : null}
 
-        {!documentSwitchBlocksCanvas && geospatialOverlayOwnsViewport && !heavyRuntimeIntentBlocked ? (
+        {!documentSwitchOwnsViewport && geospatialOverlayOwnsViewport && !heavyRuntimeIntentBlocked ? (
           <CanvasViewportGeospatialOverlayLazy
             active={activeSurface === 'geo'}
             geospatialModeEnabled={geospatialModeEnabled}
@@ -459,7 +464,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
             storyboardWidgetPanelsActive={geospatialModeEnabled && active2dSurface === 'storyboard'}
           />
         ) : null}
-        {!documentSwitchBlocksCanvas && heavyRuntimeIntentSurface && heavyRuntimeIntentBlocked ? (
+        {!documentSwitchOwnsViewport && heavyRuntimeIntentSurface && heavyRuntimeIntentBlocked ? (
           <section
             className="absolute inset-0 z-[35] flex items-center justify-center bg-[var(--kg-canvas-bg)]/96 px-4"
             aria-label={`${HEAVY_RUNTIME_INTENT_COPY[heavyRuntimeIntentSurface].title} activation`}
@@ -491,7 +496,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
 
         {variant === 'workspace' ? (
           <>
-            {layout === 'full' && !documentSwitchBlocksCanvas && !liveCanvasHeroVisible ? (
+            {layout === 'full' && !documentSwitchOwnsViewport && !liveCanvasHeroVisible ? (
               <React.Suspense fallback={null}>
                 <LaunchSpotlightLazy />
               </React.Suspense>
@@ -533,9 +538,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
                 workspaceEditorOverlayOpen={workspaceEditorOverlayOpen}
               />
             ) : null}
-            {!documentSwitchBlocksCanvas && !liveCanvasHeroVisible && MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}
-            {!documentSwitchBlocksCanvas && !liveCanvasHeroVisible && paywallOverlayActive ? <PaywallOverlayLazy portalTarget={rootRef.current} /> : null}
-            {documentSwitchBlocksCanvas ? (
+            {!documentSwitchOwnsViewport && !liveCanvasHeroVisible && MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}
+            {!documentSwitchOwnsViewport && !liveCanvasHeroVisible && paywallOverlayActive ? <PaywallOverlayLazy portalTarget={rootRef.current} /> : null}
+            {documentSwitchOwnsViewport ? (
               <section
                 className="absolute inset-0 z-[80] flex items-center justify-center bg-[var(--kg-canvas-bg)]"
                 aria-label={documentSwitchPendingLabel}

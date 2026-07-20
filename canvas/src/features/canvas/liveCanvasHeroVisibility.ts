@@ -33,3 +33,10 @@ export function shouldShowLiveCanvasHero(args: LiveCanvasHeroVisibilityArgs): bo
   if (args.workspaceDocumentSwitchPending) return false
   return true
 }
+
+export function shouldDocumentSwitchOwnCanvasViewport(args: {
+  documentSwitchBlocksCanvas: boolean
+  liveCanvasHeroVisible: boolean
+}): boolean {
+  return args.documentSwitchBlocksCanvas && !args.liveCanvasHeroVisible
+}

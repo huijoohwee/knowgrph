@@ -4,7 +4,7 @@ id: knowgrph-live-canvas-hero
 version: 1.0.0
 status: implemented
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-20
 author: airvio / joohwee
 domain: knowgrph
 tags: [agent-ready, live-canvas, hero, discovery]
@@ -55,4 +55,6 @@ The Home command deck is **Agentic Video Canvas**. Its editable query is the SSO
 ## Discovery Notes
 
 - The React Live Canvas Hero reads its eyebrow, headline, lede, and posture labels from this document.
+- The apex Home hero retains viewport ownership during persisted workspace document bootstrap; the switching-document placeholder remains exclusive to `/knowgrph` workspace routes.
+- The default shared Storyboard background resolves `agentic-canvas-os/docs/AGENT-DEFINITIONS.md`; its opaque share token is derived from that active canonical D1 path instead of a retired publish-mirror README path.
 - Public discovery should advertise this route as the compact Markdown entry point for agent-first landing context.

@@ -8,7 +8,11 @@ import {
   appendLiveCanvasHeroToken,
   buildLiveCanvasHeroModel,
 } from '@/features/agentic-os/liveCanvasHeroModel'
-import { hasLiveCanvasHeroBlockingSearchParams, shouldShowLiveCanvasHero } from '@/features/canvas/liveCanvasHeroVisibility'
+import {
+  hasLiveCanvasHeroBlockingSearchParams,
+  shouldDocumentSwitchOwnCanvasViewport,
+  shouldShowLiveCanvasHero,
+} from '@/features/canvas/liveCanvasHeroVisibility'
 import { buildCanvasEmbedIframeMarkup } from '@/features/canvas/canvasEmbedIframeMarkup'
 import {
   KNOWGRPH_CANVAS_EMBED_MESSAGE_VERSION,
@@ -305,6 +309,15 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
   }
 }
 
+export function testLiveCanvasHeroRetainsViewportOwnershipDuringPersistedDocumentSwitch(): void {
+  if (shouldDocumentSwitchOwnCanvasViewport({ documentSwitchBlocksCanvas: true, liveCanvasHeroVisible: true })) {
+    throw new Error('expected the apex hero to retain viewport ownership during a persisted document switch')
+  }
+  if (!shouldDocumentSwitchOwnCanvasViewport({ documentSwitchBlocksCanvas: true, liveCanvasHeroVisible: false })) {
+    throw new Error('expected the workspace route to retain its fail-closed document-switch placeholder')
+  }
+}
+
 export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
   const viewportSource = readFileSync(resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx'), 'utf8')
   const canvasPageSource = readFileSync(resolve(process.cwd(), 'src', 'pages', 'Canvas.tsx'), 'utf8')
@@ -358,7 +371,7 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
   }
   if (!heroHookSource.includes("|| (isRootAlias ? WORKSPACE_README_SOURCE_PATH : '')")
     || !heroHookSource.includes('selectedEmbedSource?.embedUrl')
-    || !heroHookSource.includes('resolveCanonicalWorkspaceReadmeCanvasEmbedRuntimeUrl()')) {
+    || !heroHookSource.includes('resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl()')) {
     throw new Error('expected Home to resolve either the selected embed or the canonical Share canvas embed URL')
   }
   if (!heroHookSource.includes('readPersistedLiveCanvasHeroSourceSelection')) {
