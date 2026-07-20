@@ -142,6 +142,7 @@ jobs:
           name: production-${{ inputs.commit_sha }}
           path: |
             huijoohwee/content/knowgrph
+            huijoohwee/knowgrph
             huijoohwee/functions
             huijoohwee/canvas
             huijoohwee/contracts
