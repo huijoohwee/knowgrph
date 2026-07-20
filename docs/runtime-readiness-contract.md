@@ -72,6 +72,7 @@ Live execution is fail-closed. `/sme-care-agent` is the single prepared definiti
 
 ```bash
 npm run runtime:docs-dependency:resolve
+npm run worktree:lifecycle:check
 npm run runtime:check
 ```
 

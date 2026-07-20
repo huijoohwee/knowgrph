@@ -85,7 +85,7 @@ Each mantra and table row stays alphabetized so merge decisions remain easy to s
 
 ## Merge Order
 
-1. Fetch `origin`, verify the repository has exactly one registered worktree on this device, and create `agent/<device>/<semantic-scope>` from `origin/main` in that checkout; switch branches in place and forbid `git worktree add`.
+1. Fetch `origin`, preserve one clean registered `main` runtime worktree, and create each `agent/<device>/<semantic-scope>` from `origin/main` in its own detached registered task worktree.
 2. Declare one action, semantic scope, actor, and exact `origin/main` base SHA in pull-request frontmatter.
 3. Classify each conflicting file as `runtime-source`, `canonical-doc`, `generator`, `schema-mirror`, or `publish-mirror`.
 4. Stop parallel implementation when another active change owns the same semantic scope; serialize or explicitly hand over ownership.
@@ -148,6 +148,7 @@ For server-side merge gating, see `docs/branch-protection.md`.
 
 ```bash
 npm run worktree:check
+npm run worktree:lifecycle:check
 npm run collaboration:contract:check
 npm run ci:affected
 npm run ci:integration
@@ -243,7 +244,8 @@ Use `npm run hygiene:audit` before broad refactors to list all current source-bu
 - [ ] Every conflicting file has an identified owner surface
 - [ ] Pull-request frontmatter declares one `/` action, `#` semantic scope, `@` actor, and exact base SHA
 - [ ] The task branch identifies one device and matches the declared semantic scope
-- [ ] Each source repository has exactly one registered worktree on this device
+- [ ] Each source repository has one canonical main worktree and only registered branch-exclusive task worktrees
+- [ ] Completed task worktrees are lifecycle-cleaned without force while active, delivery, and parked lanes are retained
 - [ ] No other active change owns the same semantic scope
 - [ ] A cross-device handoff stopped the sender before the receiver resumed the exact pushed commit
 - [ ] No generated or publish mirror file was hand-merged without fixing the upstream source

@@ -31,6 +31,13 @@ test('porcelain worktree records are counted without path parsing', () => {
 
 test('contract worktree policy accepts multiple isolated worktrees and rejects missing registrations', async () => {
   const contract = await readContract()
+  assert.deepEqual(contract.local_development.worktree_policy.session_end, {
+    completion_state: 'completed',
+    cleanup_requires: ['clean', 'detached', 'exact-origin-main', 'explicit-target'],
+    retain_states: ['canonical', 'active', 'delivery', 'parked'],
+    force_remove: false,
+    delete_branch: false,
+  })
   const result = evaluateWorktreePolicy(canonicalStates, contract)
   assert.equal(result.message, (
     'same-device-multi-worktree sources knowgrph=1; agentic-canvas-os-docs=1'
@@ -104,6 +111,14 @@ test('Git pre-push delegates current and object refs to the repository-owned gat
   const prePushHook = readFileSync(path.resolve(repoRoot, '.githooks/pre-push'), 'utf8')
   const prePushGate = readFileSync(path.resolve(repoRoot, 'scripts/run-pre-push-gate.mjs'), 'utf8')
   assert.equal(packageJson.scripts['worktree:check'], 'node ./scripts/check-worktree-policy.mjs')
+  assert.equal(
+    packageJson.scripts['worktree:lifecycle:check'],
+    'node ../agentic-canvas-os/scripts/worktree-lifecycle.mjs check --repository=.',
+  )
+  assert.equal(
+    packageJson.scripts['worktree:lifecycle:cleanup'],
+    'node ../agentic-canvas-os/scripts/worktree-lifecycle.mjs cleanup --repository=.',
+  )
   assert.ok(packageJson.scripts['ci:integration'].startsWith('npm run worktree:check &&'))
   assert.match(prePushHook, /run-pre-push-gate\.mjs/)
   assert.match(prePushGate, /runCheckoutIntegration/)
