@@ -22,11 +22,21 @@ import {
   XR_MOTION_STAGE_GROUND_Y,
   XR_MOTION_STAGE_SPAN,
 } from '@/features/three/xrMotionReferenceCoordinates'
+import { stopMotionControl } from '@/features/three/motionControlRuntime'
 
 export { XR_MOTION_STAGE_SPAN } from '@/features/three/xrMotionReferenceCoordinates'
 export const XR_MOTION_STAGE_FLOOR_DEPTH = -72
 
+function stopMotionControlAfterXrUnmount() {
+  queueMicrotask(() => {
+    const state = useGraphStore.getState()
+    if (state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr') return
+    void stopMotionControl('Motion Control stopped when XR Mode closed.')
+  })
+}
+
 export function XrGraphStage({ data }: { data: GraphData }) {
+  React.useEffect(() => stopMotionControlAfterXrUnmount, [])
   const stageRootRef = React.useRef<Group | null>(null)
   const runtime = React.useSyncExternalStore(
     subscribeXrMotionReferenceRuntime,

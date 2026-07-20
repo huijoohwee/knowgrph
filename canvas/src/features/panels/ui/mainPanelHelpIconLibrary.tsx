@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  ArrowRightLeft, BarChart3, Braces, CalendarClock, Camera, ChartGantt, Clapperboard, Copy, CreditCard, Cuboid, Eraser, GitBranch, Globe2, Hand, Hash,
+  Accessibility, ArrowRightLeft, BarChart3, Braces, CalendarClock, Camera, ChartGantt, Clapperboard, Copy, CreditCard, Cuboid, Eraser, GitBranch, Globe2, Hand, Hash,
   HelpCircle, History as HistoryIcon, ImageIcon, LayoutGrid, Link2, ListChecks, LocateFixed, Map as MapIcon, MessageCircle, MonitorPlay,
   Network, Palette, Plug, PlugZap, Radio, Server, Settings, SlidersHorizontal, SquareCheckBig, SquareTerminal, Table, Type as TextTypeIcon, UserX, Users,
   Workflow,
@@ -71,6 +71,7 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'floatingPanel.view',
   'floatingPanel.media',
   'floatingPanel.animation',
+  'floatingPanel.motionControl',
   'floatingPanel.camera',
   'floatingPanel.design',
   'floatingPanel.chat',
@@ -333,6 +334,11 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'Animation',
     Icon: Clapperboard,
   },
+  'floatingPanel.motionControl': {
+    category: 'FloatingPanel surface',
+    label: 'Motion Control',
+    Icon: Accessibility,
+  },
   'floatingPanel.camera': {
     category: 'FloatingPanel surface',
     label: 'Camera',
@@ -416,6 +422,7 @@ export type FloatingPanelTypeIconView =
   | 'view'
   | 'media'
   | 'animation'
+  | 'motionControl'
   | 'camera'
   | 'design'
   | 'chat'
@@ -437,6 +444,7 @@ export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   view: 'floatingPanel.view',
   media: 'floatingPanel.media',
   animation: 'floatingPanel.animation',
+  motionControl: 'floatingPanel.motionControl',
   camera: 'floatingPanel.camera',
   design: 'floatingPanel.design',
   chat: 'floatingPanel.chat',

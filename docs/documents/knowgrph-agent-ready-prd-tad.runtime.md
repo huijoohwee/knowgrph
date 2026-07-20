@@ -246,8 +246,8 @@ runtime agent surface must converge on the same document identity and pipeline m
 ### Agent surface guardrails
 
 - no write access from HTTP MCP
-- no published or remote mutation tools; browser WebMCP mutation is limited to the three guarded
-  local Camera, Animation, and XR scene controls declared by the shared contract
+- no published or remote mutation tools; browser WebMCP mutation is limited to the four guarded
+  local Camera, Animation, Motion Control, and XR scene controls declared by the shared contract
 - no discovery metadata advertising tools that are not executable
 - no root-level discovery drift that conflicts with `/knowgrph/` as the service homepage
 - no deployed-route claim for the local SuperAgent harness unless a source-owned Pages/Worker route and live validation exist
@@ -285,7 +285,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 - [x] `https://airvio.co/knowgrph/share/{opaque-token}` negotiates to storage-backed Markdown
 - [x] smoke validation probes a canonical published shared document URL instead of skipping the route
 - [x] `/.well-known/agent-card.json` and `/knowgrph/.well-known/agent-card.json` both return JSON
-- [x] browser runtime exposes all 26 shared app contracts: 23 read-only retrieval/inspection tools plus `knowgrph.control_local_camera`, `knowgrph.control_local_animation`, and `knowgrph.control_local_xr_scene`; Camera framing/mark choreography and Animation object movement reuse the shared normalized WASD/arrow owner
+- [x] browser runtime exposes all 28 shared app contracts: 24 read-only retrieval/inspection tools plus `knowgrph.control_local_camera`, `knowgrph.control_local_animation`, `knowgrph.control_local_motion_control`, and `knowgrph.control_local_xr_scene`; Motion Control starts or stops only the active browser-local camera/LiteRT runtime and exposes no frame payload
 - [x] HTML fallback exposes WebMCP markers plus scanner-visible `provideContext` and `registerTool`
 - [x] JSON-RPC MCP `initialize` returns a valid result
 - [x] JSON-RPC MCP `tools/list` returns the shared read-only published tool set

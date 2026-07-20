@@ -20,6 +20,8 @@ import { buildRichMediaPanelDroppedMediaProperties } from '@/lib/render/richMedi
 import { buildRichMediaPanelOverlayState } from '@/lib/render/richMediaPanelState'
 import { normalizeMediaDragPayload, XR_SCENE_MEDIA_DRAG_SCHEMA } from '@/lib/ui/mediaDragPayload'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/storyboardWidget/richMediaPanelConfig'
+import { sampleXrAnimationPose } from '@/features/three/xrAnimationCatalog'
+import { resolveMotionControlSubjectPose } from '@/features/three/useMotionControlAnimationPose'
 
 function readSource(...parts: string[]): string {
   return readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
@@ -39,6 +41,7 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   const xrSceneMediaSurface = readSource('features', 'three', 'XrSceneMediaSurface.tsx')
   const xrStagePresetGeometry = readSource('features', 'three', 'XrStagePresetGeometry.tsx')
   const xrMotionReferenceStage = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
+  const xrGraphStage = readSource('features', 'three', 'XrGraphStage.tsx')
   const xrSceneLibrarySubject = readSource('features', 'three', 'XrSceneLibrarySubject.tsx')
   const xrProceduralBall = readSource('features', 'three', 'XrProceduralBallGeometry.tsx')
   const xrProceduralVehicle = readSource('features', 'three', 'XrProceduralVehicleGeometry.tsx')
@@ -243,8 +246,8 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   if (bottomTypes.includes("| 'xr'") || bottomPanel.includes('XrPanelViewLazy') || bottomPanel.includes("view === 'xr'") || viewport.includes('xrBottomPanelVisible')) {
     throw new Error('expected legacy BottomPanel XR types, toggle, mount, and viewport routing to be removed')
   }
-  if (!floatingTypes.includes("| 'camera'") || !floatingTypes.includes("| 'animation'") || !floatingTypes.includes("| 'media'") || floatingTypes.includes("| 'xr'") || !uiInitialState.includes("view === 'camera'") || !uiInitialState.includes("view === 'animation'") || !uiInitialState.includes("view === 'media'") || uiInitialState.includes("view === 'xr'")) {
-    throw new Error('expected Media, Animation, and Camera to remain first-class FloatingPanel panels with the duplicate XR route removed')
+  if (!floatingTypes.includes("| 'camera'") || !floatingTypes.includes("| 'animation'") || !floatingTypes.includes("| 'motionControl'") || !floatingTypes.includes("| 'media'") || floatingTypes.includes("| 'xr'") || !uiInitialState.includes("view === 'camera'") || !uiInitialState.includes("view === 'animation'") || !uiInitialState.includes("view === 'motionControl'") || !uiInitialState.includes("view === 'media'") || uiInitialState.includes("view === 'xr'")) {
+    throw new Error('expected Media, Animation, Motion Control, and Camera to remain first-class FloatingPanel panels with the duplicate XR route removed')
   }
   if (
     !floatingPanel.includes('StrybldrCameraFloatingPanelViewLazy') ||
@@ -253,35 +256,42 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     !floatingPanel.includes("floatingPanelView === 'animation'") ||
     !floatingPanel.includes("{ view: 'animation'") ||
     !floatingPanel.includes('XrAnimationFloatingPanelViewLazy') ||
+    !floatingPanel.includes("floatingPanelView === 'motionControl'") ||
+    !floatingPanel.includes("{ view: 'motionControl'") ||
+    !floatingPanel.includes('MotionControlFloatingPanelViewLazy') ||
     !floatingPanel.includes("floatingPanelView === 'media'") ||
     floatingPanel.includes('XrPanelViewLazy') ||
     floatingPanel.includes("{ view: 'xr'")
   ) {
-    throw new Error('expected FloatingPanel Media, Animation, and Camera to own canonical projections without a duplicate XR panel')
+    throw new Error('expected FloatingPanel Media, Animation, Motion Control, and Camera to own canonical projections without a duplicate XR panel')
   }
   const mediaViewIndex = floatingPanel.indexOf("{ view: 'media'")
   const animationViewIndex = floatingPanel.indexOf("{ view: 'animation'")
+  const motionControlViewIndex = floatingPanel.indexOf("{ view: 'motionControl'")
   const cameraViewIndex = floatingPanel.indexOf("{ view: 'camera'")
-  if (!(mediaViewIndex >= 0 && mediaViewIndex < animationViewIndex && animationViewIndex < cameraViewIndex)
-    || !floatingPanel.includes("'animation', 'camera'")) {
-    throw new Error('expected full-height Animation immediately to the right of Media and before Camera')
+  if (!(mediaViewIndex >= 0 && mediaViewIndex < animationViewIndex && animationViewIndex < motionControlViewIndex && motionControlViewIndex < cameraViewIndex)
+    || !floatingPanel.includes("'animation', 'motionControl', 'camera'")) {
+    throw new Error('expected full-height Motion Control immediately to the right of Animation and before Camera')
   }
   if (
     !floatingBridge.includes("| 'camera'") ||
     !floatingBridge.includes("| 'animation'") ||
+    !floatingBridge.includes("| 'motionControl'") ||
     !floatingBridge.includes("| 'media'") ||
     floatingBridge.includes("| 'xr'") ||
     !toolbarLauncher.includes("tab === 'camera'") ||
     !toolbarLauncher.includes("tab === 'animation'") ||
+    !toolbarLauncher.includes("tab === 'motionControl'") ||
     toolbarLauncher.includes("tab === 'xr'") ||
     !iconLibrary.includes("'floatingPanel.camera'") ||
     !iconLibrary.includes("'floatingPanel.animation'") ||
+    !iconLibrary.includes("'floatingPanel.motionControl'") ||
     iconLibrary.includes("'floatingPanel.xr'")
   ) {
     throw new Error('expected the FloatingPanel bridge, launcher, and help registry to remove the duplicate XR route without aliases')
   }
-  if (!floatingPanelPresetSource.includes("raw === 'camera'") || !floatingPanelPresetSource.includes("raw === 'animation'") || !floatingPanelPresetSource.includes("raw === 'media'") || floatingPanelPresetSource.includes("raw === 'xr'") || !appliedFrontmatter.includes('readFloatingPanelViewPreset')) {
-    throw new Error('expected FloatingPanel frontmatter routing to use Media, Animation, and Camera without the stale XR projection')
+  if (!floatingPanelPresetSource.includes("raw === 'camera'") || !floatingPanelPresetSource.includes("raw === 'animation'") || !floatingPanelPresetSource.includes("raw === 'motionControl'") || !floatingPanelPresetSource.includes("raw === 'media'") || floatingPanelPresetSource.includes("raw === 'xr'") || !appliedFrontmatter.includes('readFloatingPanelViewPreset')) {
+    throw new Error('expected FloatingPanel frontmatter routing to use Media, Animation, Motion Control, and Camera without the stale XR projection')
   }
   for (const marker of ['data-kg-media-mode-switcher="header-icons"', 'data-kg-media-library-toggle="1"', 'data-kg-media-3d-toggle="1"', 'title="Media"', 'title="3D for XR"', "xrSurfaceActive ? 'xr-3d' : 'media'", '<XrMediaLibraryPanel']) {
     if (!mediaCatalog.includes(marker)) throw new Error(`expected Media to own the canonical 3D entry through ${marker}`)
@@ -408,6 +418,21 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   }
   if (!xrNativeAuthoredSubjects.includes('runtime.plan.subjects.map') || !xrNativeAuthoredSubjects.includes('<XrSceneLibrarySubject')) {
     throw new Error('expected active controller mode to retain persisted authored XR subjects')
+  }
+  const pose = sampleXrAnimationPose(null, 0)
+  if (resolveMotionControlSubjectPose({ id: 'actor', assetId: 'person-adult' }, 'actor', pose) !== pose
+    || resolveMotionControlSubjectPose({ id: 'actor', assetId: 'vehicle-sedan' }, 'actor', pose) !== null
+    || resolveMotionControlSubjectPose({ id: 'other', assetId: 'person-adult' }, 'actor', pose) !== null) {
+    throw new Error('expected live Motion Control pose to target only the selected humanoid subject')
+  }
+  if (!xrSceneLibrarySubject.includes('rotation={[degrees(pitch), degrees(roll), 0]}')) {
+    throw new Error('expected humanoid local-Z arms to project elevation through the visible local-Y rotation axis')
+  }
+  for (const marker of ['livePose={!subjectIds.has(track.actorId) && track.actorId === motionActorId ? livePose : null}', 'const pose = livePose || sampleXrAnimationPose', 'resolveMotionControlSubjectPose(subject, motionActorId, livePose)']) {
+    if (!`${xrMotionReferenceStage}\n${xrNativeAuthoredSubjects}`.includes(marker)) throw new Error(`expected selected XR actors to receive live humanoid pose through ${marker}`)
+  }
+  for (const marker of ['queueMicrotask(', 'useGraphStore.getState()', "state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr'", 'stopMotionControlAfterXrUnmount']) {
+    if (!xrGraphStage.includes(marker)) throw new Error(`expected XR cleanup to survive StrictMode remounts through ${marker}`)
   }
   for (const marker of ['CollapsibleSection', 'ExpandCollapseAllButton', 'useCollapsibleSectionGroup', 'defaultCollapsed={false}', 'headerClassName="px-0"']) {
     if (!xrMediaLibrary.includes(marker)) throw new Error(`expected Media 3D sections to reuse shared disclosure behavior through ${marker}`)

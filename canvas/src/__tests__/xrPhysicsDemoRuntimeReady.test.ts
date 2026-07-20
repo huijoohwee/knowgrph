@@ -103,12 +103,12 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
     throw new Error('expected the workspace seed to activate the canonical XR surface and 3D renderer')
   }
   if (
-    meta.kgFloatingPanelOpen !== false
-    || meta.kgFloatingPanelView !== 'media'
+    meta.kgFloatingPanelOpen !== true
+    || meta.kgFloatingPanelView !== 'motionControl'
     || meta.kgBottomPanelOpen !== false
     || meta.kgBottomPanelTab !== 'timeline'
   ) {
-    throw new Error('expected standalone mode to retain canonical panel targets while hiding editor chrome')
+    throw new Error('expected standalone mode to open canonical Motion Control while retaining the Timeline target')
   }
 
   const runReady = asRecord(meta.run_ready_demo, 'run_ready_demo')
@@ -219,6 +219,9 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
     'full-frame-playground',
     '/xr.physics @canvas #controller operation=develop-run mode=ball',
     'knowgrph.control_local_xr_scene',
+    '/motion.control @canvas #pose operation=start backend=auto',
+    'knowgrph.inspect_local_motion_control',
+    'knowgrph.control_local_motion_control',
   ]) {
     if (!markdownText.includes(required)) throw new Error(`expected native demo contract to include ${required}`)
   }
@@ -237,9 +240,9 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
   if (canvasScripts['dev:xr-physics'] !== expectedCanvasScript) {
     throw new Error('expected the Canvas demo command to activate repo-local source authority and the shared run-ready selector')
   }
-  const expectedCanvasPredev = 'npm run prepare:linked-packages && npm run fix:entities-sourcemaps && npm run build:settings'
+  const expectedCanvasPredev = 'npm run prepare:linked-packages && npm run prepare:litert-assets && npm run fix:entities-sourcemaps && npm run build:settings'
   if (canvasScripts['predev:xr-physics'] !== expectedCanvasPredev) {
-    throw new Error('expected the standalone demo preflight to prepare only native in-repo runtime dependencies')
+    throw new Error('expected the standalone demo preflight to prepare linked packages plus integrity-pinned same-origin LiteRT assets')
   }
 
   const sourceText = (...parts: string[]) => fs.readFileSync(path.join(REPO_ROOT, 'canvas', 'src', ...parts), 'utf8')

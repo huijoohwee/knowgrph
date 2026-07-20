@@ -138,7 +138,7 @@ export function Canvas2dRendererSelect({
           onOpenGeospatialMode,
           onOpenShared3dPanel: mode => {
             if (!state.floatingPanelOpen) {
-              state.setFloatingPanelView(mode === 'xr' ? 'animation' : 'camera')
+              state.setFloatingPanelView(mode === 'xr' ? 'motionControl' : 'camera')
               state.setFloatingPanelOpen(true)
             }
             if (mode === 'xr') {

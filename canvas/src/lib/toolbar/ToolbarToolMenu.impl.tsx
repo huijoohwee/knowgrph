@@ -32,9 +32,6 @@ import { LS_KEYS, UI_LABELS, UI_SELECTORS } from '@/lib/config'
 import HeaderActions from '@/features/panels/ui/HeaderActions'
 import {
   FLOATING_PANEL_TYPE_ICON_BY_VIEW,
-  MainPanelTypeIcon,
-  getMainPanelTypeIconMeta,
-  resolveMainPanelKtvTypeIconKey,
 } from '@/features/panels/ui/mainPanelHelpIconLibrary'
 import { FloatingPropsPanel } from '@/features/toolbar/FloatingPropsPanel'
 import { FloatingPanelSkillsCommandsView } from '@/features/toolbar/FloatingPanelSkillsCommandsView'; import { FloatingPanelPromptPresetsView } from '@/features/toolbar/FloatingPanelPromptPresetsView'
@@ -43,14 +40,16 @@ import type { ToolbarToolMenuProps } from '@/features/toolbar/ToolbarToolMenuTyp
 import { requestGeospatialTraversalRun, setGeospatialModeEnabled as enableGeospatialMode } from '@/features/geospatial/gympgrphBridge'
 import { onGeospatialModeChanged } from '@/features/geospatial/events'
 import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
-import ErrorBoundary from '@/components/ErrorBoundary'
-import { useActiveGraphRenderData } from '@/hooks/useActiveGraphData'
-import { deriveGraphGroups } from '@/components/GraphCanvas/layout/graphGroups'
 import { openOrchestratorWorkflowWorkspaceFile } from '@/features/panels/utils/orchestratorWorkspaceFiles'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import { WorkspaceDataViewFloatingPanelView } from '@/features/markdown-workspace/main/viewer/WorkspaceDataViewFloatingPanelView'
 import { PanelFormDensityProvider } from '@/lib/ui/panelFormControls'
 import { useWorkspaceDataViewFloatingDensity } from '@/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore'
+import { GeoView } from '@/lib/toolbar/ToolbarToolMenuGeoView'
+import {
+  FloatingPanelHeaderStatus,
+  useFloatingPanelDevStatusMetrics,
+} from '@/lib/toolbar/ToolbarToolMenuStatus'
 
 type RequestedFloatingPanelView = FloatingPanelView; type FloatingManagedHeaderActionsView = 'renderer'
 type FloatingHeaderActions = {
@@ -59,12 +58,6 @@ type FloatingHeaderActions = {
   applyDisabled?: boolean
   resetDisabled?: boolean
 }
-
-type FloatingPanelDevStatusMetrics = {
-  counter: string
-  hierarchyBadge: string
-  suffix: string
-} | null
 
 type FloatingPanelViewButtonSpec = {
   view: FloatingPanelView
@@ -83,33 +76,10 @@ type FloatingPanelOverflowOption = {
   hidden?: boolean
 }
 
-type GeospatialPanelHostProps = {
-  active?: boolean
-  showDatasetsManager?: boolean
-  panelTypography?: unknown
-  renderTypeIcon?: (args: { typeLabel: string }) => React.ReactNode
-  snapshot?: unknown
-  handlers?: unknown
-}
-
-const MissingGeospatialPanelHost = React.memo(function MissingGeospatialPanelHost(_props: GeospatialPanelHostProps) {
-  return (
-    <section className={`h-full w-full flex items-center justify-center text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-      Geospatial panel unavailable
-    </section>
-  )
-})
-
-const GeospatialPanelHostLazy = React.lazy(async (): Promise<{ default: React.ComponentType<GeospatialPanelHostProps> }> => {
-  const m = (await import('gympgrph')) as unknown as Record<string, unknown>
-  const c = m.GeospatialPanelHost as unknown
-  if (!c) return { default: MissingGeospatialPanelHost }
-  return { default: c as React.ComponentType<GeospatialPanelHostProps> }
-})
-
 const FloatingPanelChatLazy = React.lazy(() => import('@/features/chat/FloatingPanelChat'))
 const MediaCatalogPanelLazy = React.lazy(() => import('@/features/command-menu/CommandMenuCatalogPanel'))
 const XrAnimationFloatingPanelViewLazy = React.lazy(() => import('@/features/three/XrAnimationFloatingPanelView'))
+const MotionControlFloatingPanelViewLazy = React.lazy(() => import('@/features/three/MotionControlFloatingPanelView'))
 const StoryboardWidgetFloatingPanelViewLazy = React.lazy(() => import('@/features/storyboard-widget-manager/StoryboardWidgetFloatingPanelView').then(mod => ({ default: mod.StoryboardWidgetFloatingPanelView })))
 const FlowchartFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/FlowchartFloatingPanelView').then(mod => ({ default: mod.FlowchartFloatingPanelView })))
 const GitGraphFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/GitGraphFloatingPanelView').then(mod => ({ default: mod.GitGraphFloatingPanelView })))
@@ -119,165 +89,7 @@ const ArchitectureFloatingPanelViewLazy = React.lazy(() => import('@/features/gi
 const EventModelingFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/EventModelingFloatingPanelView').then(mod => ({ default: mod.EventModelingFloatingPanelView })))
 const StrybldrCameraFloatingPanelViewLazy = React.lazy(() => import('@/features/strybldr/StrybldrCameraFloatingPanelView').then(mod => ({ default: mod.StrybldrCameraFloatingPanelView })))
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'promptPresets', 'view', 'animation', 'camera', 'chat', 'geo', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'architecture', 'eventModeling'])
-
-const FloatingPanelHeaderStatus = React.memo(function FloatingPanelHeaderStatus(props: {
-  pipelineStatus: string | null
-  exportStatus?: string | null
-  devStatusMetrics: FloatingPanelDevStatusMetrics
-  uiPanelMicroLabelTextSizeClass: string
-}) {
-  const { pipelineStatus, exportStatus, devStatusMetrics, uiPanelMicroLabelTextSizeClass } = props
-  const statusClassName = `${uiPanelMicroLabelTextSizeClass} ${UI_THEME_TOKENS.text.tertiary} kg-truncate-chip`
-
-  return (
-    <span className={`${uiToolbarRowScrollClassName} gap-1 pl-1`}>
-      {pipelineStatus && (
-        <span className={statusClassName}>
-          {pipelineStatus}
-        </span>
-      )}
-      {devStatusMetrics && (
-        <span className={statusClassName}>
-          {devStatusMetrics.counter}
-        </span>
-      )}
-      {devStatusMetrics && (
-        <span className={statusClassName}>
-          {devStatusMetrics.hierarchyBadge}
-        </span>
-      )}
-      {devStatusMetrics && (
-        <span className={statusClassName}>
-          {devStatusMetrics.suffix}
-        </span>
-      )}
-      {exportStatus && (
-        <span className={statusClassName}>
-          {exportStatus}
-        </span>
-      )}
-    </span>
-  )
-})
-
-const GeoView = React.memo(function GeoView(props: {
-  geospatialModeEnabled: boolean
-  isEnablingGeospatial: boolean
-  geospatialEnableError: string | null
-  onEnableGeospatial: () => void
-}) {
-  const {
-    geospatialModeEnabled,
-    isEnablingGeospatial,
-    geospatialEnableError,
-    onEnableGeospatial,
-  } = props
-  const activeGraphData = useActiveGraphRenderData()
-  const panelTypography = usePanelTypography()
-  const uiIconScale = useGraphStore(s => s.uiIconScale)
-  const uiIconStrokeWidth = useGraphStore(s => s.uiIconStrokeWidth)
-  const iconSizeClass = getIconSizeClass(uiIconScale)
-  const gympgrphBridge = useGraphStore(
-    useShallow(s => ({
-      zoomState: s.zoomState,
-      canvasRenderMode: s.canvasRenderMode,
-      selectedNodeId: s.selectedNodeId,
-      selectedNodeIds: s.selectedNodeIds,
-      selectedEdgeId: s.selectedEdgeId,
-      selectNode: s.selectNode,
-      selectEdge: s.selectEdge,
-      setSelectionSource: s.setSelectionSource,
-      requestZoom: s.requestZoom,
-      requestThreeCamera: s.requestThreeCamera,
-      pushUiToast: s.pushUiToast,
-      upsertUiToast: s.upsertUiToast,
-      dismissUiToast: s.dismissUiToast,
-    })),
-  )
-  const renderGeospatialTypeIcon = React.useCallback(({ typeLabel }: { typeLabel: string }) => {
-    const iconKey = resolveMainPanelKtvTypeIconKey(typeLabel)
-    const meta = getMainPanelTypeIconMeta(iconKey)
-    const label = String(typeLabel || meta.label).trim() || meta.label
-    return (
-      <span
-        className="inline-flex min-h-5 min-w-5 items-center justify-center"
-        title={`${label}: ${meta.label}`}
-        role="img"
-        aria-label={label}
-      >
-        <MainPanelTypeIcon
-          iconKey={iconKey}
-          className={`${iconSizeClass} ${UI_THEME_TOKENS.text.secondary}`}
-          strokeWidth={uiIconStrokeWidth}
-          ariaHidden
-        />
-      </span>
-    )
-  }, [iconSizeClass, uiIconStrokeWidth])
-
-  return (
-    <section className="h-full flex flex-col" aria-label="Geospatial panel">
-      {geospatialModeEnabled ? (
-        <ErrorBoundary>
-          <React.Suspense
-            fallback={
-              <section className={`p-3 text-xs ${UI_THEME_TOKENS.text.secondary}`}>
-                Loading geospatial panel...
-              </section>
-            }
-          >
-            <section className={UI_RESPONSIVE_FLOATING_PANEL_SCROLL_CLASSNAME}>
-              <GeospatialPanelHostLazy
-                active
-                showDatasetsManager={false}
-                panelTypography={panelTypography}
-                renderTypeIcon={renderGeospatialTypeIcon}
-                snapshot={{
-                  graphData: activeGraphData,
-                  zoomState: gympgrphBridge.zoomState,
-                  canvasRenderMode: gympgrphBridge.canvasRenderMode,
-                  selectedNodeId: gympgrphBridge.selectedNodeId,
-                  selectedNodeIds: gympgrphBridge.selectedNodeIds,
-                  selectedEdgeId: gympgrphBridge.selectedEdgeId,
-                }}
-                handlers={{
-                  selectNode: gympgrphBridge.selectNode,
-                  selectEdge: gympgrphBridge.selectEdge,
-                  setSelectionSource: gympgrphBridge.setSelectionSource,
-                  requestZoom: gympgrphBridge.requestZoom,
-                  requestThreeCamera: gympgrphBridge.requestThreeCamera,
-                  pushUiToast: gympgrphBridge.pushUiToast,
-                  upsertUiToast: gympgrphBridge.upsertUiToast,
-                  dismissUiToast: gympgrphBridge.dismissUiToast,
-                }}
-              />
-            </section>
-          </React.Suspense>
-        </ErrorBoundary>
-      ) : (
-        <section className="flex h-full flex-col items-start justify-center gap-3 p-3">
-          <p className={cn('text-sm', UI_THEME_TOKENS.text.secondary)}>
-            {isEnablingGeospatial
-              ? 'Enabling Geospatial Mode...'
-              : 'Enable Geospatial Mode to view this panel.'}
-          </p>
-          <button
-            type="button"
-            className={cn('App-toolbar__btn', UI_THEME_TOKENS.button.text, UI_THEME_TOKENS.button.hoverBg)}
-            onClick={onEnableGeospatial}
-            disabled={isEnablingGeospatial}
-          >
-            {isEnablingGeospatial ? 'Enabling Geo...' : 'Enable Geospatial Mode'}
-          </button>
-          {geospatialEnableError ? (
-            <p className={cn('text-xs', UI_THEME_TOKENS.text.secondary)}>{geospatialEnableError}</p>
-          ) : null}
-        </section>
-      )}
-    </section>
-  )
-})
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'promptPresets', 'view', 'animation', 'motionControl', 'camera', 'chat', 'geo', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'architecture', 'eventModeling'])
 
 export function ToolbarToolMenu({
   pipelineStatus,
@@ -330,39 +142,7 @@ export function ToolbarToolMenu({
   )
   const workspaceEditorOverlayOpen = isWorkspaceEditorOverlayOpen({ workspaceViewMode, workspaceCanvasPaneOpen })
 
-  const activeGraphRenderData = useActiveGraphRenderData(true)
-  const devStatusMetrics = React.useMemo(() => {
-    const isDev = (() => {
-      try {
-        const m = import.meta as unknown as { env?: unknown }
-        const env = m && typeof m.env === 'object' && m.env ? (m.env as Record<string, unknown>) : null
-        return env ? env.DEV === true : false
-      } catch {
-        return false
-      }
-    })()
-    if (!isDev) return null
-    const data = activeGraphRenderData
-    if (!data) return { counter: 'n0 e0 g0', hierarchyBadge: 'h0', suffix: 'bp:h0 s0 c0 m0' }
-    const nodes = Array.isArray(data.nodes) ? data.nodes.length : 0
-    const edges = Array.isArray(data.edges) ? data.edges.length : 0
-    const groupsDerived = deriveGraphGroups(data, { forceDocumentStructure: false })
-    const groups = groupsDerived.length
-    const maxDepth = groupsDerived.reduce((m, g) => {
-      const d = typeof g.depth === 'number' && Number.isFinite(g.depth) ? Math.max(0, Math.floor(g.depth)) : 0
-      return Math.max(m, d)
-    }, 0)
-    const hierarchyLevels = groups > 0 ? maxDepth + 1 : 0
-    const hubs = (Array.isArray(data.nodes) ? data.nodes : []).filter(n => String(n.type || '').trim().toLowerCase() === 'hub').length
-    const spokes = (Array.isArray(data.edges) ? data.edges : []).filter(e => String(e.label || '') === 'spokeTo').length
-    const crosses = (Array.isArray(data.edges) ? data.edges : []).filter(e => String(e.label || '') === 'linksTo').length
-    const members = (Array.isArray(data.nodes) ? data.nodes : []).filter(n => {
-      const t = String(n.type || '').trim().toLowerCase()
-      return t === 'problem' || t === 'solution'
-    }).length
-    const suffix = `bp:h${hubs} s${spokes} c${crosses} m${members}`
-    return { counter: `n${nodes} e${edges} g${groups}`, hierarchyBadge: `h${hierarchyLevels}`, suffix }
-  }, [activeGraphRenderData])
+  const devStatusMetrics = useFloatingPanelDevStatusMetrics()
 
   const {
     fontClass: uiPanelTextFontClass,
@@ -495,6 +275,7 @@ export function ToolbarToolMenu({
       { view: 'view', title: UI_LABELS.view, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.view },
       { view: 'media', title: 'Media', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.media },
       { view: 'animation', title: 'Animation', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.animation },
+      { view: 'motionControl', title: UI_LABELS.motionControl, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.motionControl },
       { view: 'camera', title: 'Camera', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.camera },
       { view: 'design', title: 'Design', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.design },
       { view: 'chat', title: UI_LABELS.chat, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.chat },
@@ -705,6 +486,11 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'animation' && (
               <React.Suspense fallback={null}>
                 <XrAnimationFloatingPanelViewLazy />
+              </React.Suspense>
+            )}
+            {floatingPanelView === 'motionControl' && (
+              <React.Suspense fallback={null}>
+                <MotionControlFloatingPanelViewLazy />
               </React.Suspense>
             )}
             {floatingPanelView === 'camera' && (

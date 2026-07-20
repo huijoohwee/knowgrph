@@ -26,7 +26,7 @@ function Humanoid({ color, pose, size }: { color: string; pose?: XrAnimationPose
       <group
         key={side}
         position={[side * width * 0.48, 0, height * 0.68 - crouchOffset]}
-        rotation={[degrees(pitch), 0, degrees(roll)]}
+        rotation={[degrees(pitch), degrees(roll), 0]}
       >
         <mesh position={[0, 0, -height * 0.16]}><boxGeometry args={[width * 0.16, depth * 0.58, height * 0.34]} /><Material color={color} /></mesh>
         {side > 0 && pose?.propCue === 'cup' ? <mesh position={[0, -depth * 0.2, -height * 0.38]}><cylinderGeometry args={[width * 0.11, width * 0.09, height * 0.16, 12]} /><meshStandardMaterial color="#e2e8f0" roughness={0.55} /></mesh> : null}

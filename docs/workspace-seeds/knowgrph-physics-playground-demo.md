@@ -7,8 +7,8 @@ publish_scope: "local-only"
 kgCanvasSurfaceMode: "xr"
 kgCanvasRenderMode: "3d"
 kgCanvas3dMode: "xr"
-kgFloatingPanelOpen: false
-kgFloatingPanelView: "media"
+kgFloatingPanelOpen: true
+kgFloatingPanelView: "motionControl"
 kgBottomPanelOpen: false
 kgBottomPanelTab: "timeline"
 kgDocumentSemanticMode: "document"
@@ -70,6 +70,16 @@ native_controller_demo:
       primary: "standard primary action"
       modifier: "standard shoulder action"
   lifecycle: ["develop-and-run", "pause", "resume", "reset", "exit"]
+motion_control:
+  runtime: "browser-local LiteRT.js"
+  model: "Google BlazePose GHUM Full"
+  permission: "explicit Start action"
+  frame_upload: false
+  frame_persistence: false
+  xr_drivers: ["native physics controller", "selected humanoid pose"]
+  invocation: "/motion.control @canvas #pose operation=start backend=auto"
+  inspect_tool: "knowgrph.inspect_local_motion_control"
+  control_tool: "knowgrph.control_local_motion_control"
 kgXrMotionReference:
   schema: "knowgrph-xr-motion-reference/v1"
   stageId: "singapore"

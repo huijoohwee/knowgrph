@@ -158,7 +158,7 @@ test("local MCP docs invocation treats sigil-only queries as token-prefix filter
 });
 
 test("local MCP docs invocation resolves specific /, #, and @ tokens with source content", { skip: !DOCS_AVAILABLE }, async () => {
-  for (const token of ["/query", "#runtime-ready", "@mcp-gateway"]) {
+  for (const token of ["/query", "#runtime-ready", "@mcp-gateway", "/motion.control", "#pose", "@canvas"]) {
     const result = await runAgenticCanvasOsDocsInvokeTool({ token, includeContent: true }, {
       rootDir: KNOWGRPH_ROOT,
       env: DOCS_ENV,
