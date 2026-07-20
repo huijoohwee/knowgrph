@@ -225,7 +225,6 @@ export class KnowgrphCanvasSyncRoom {
         authenticatedSessionId: attachment.sessionId,
       }, ws)
     }
-    ws.close(code, reason)
   }
 
   private async handleConnect(request: Request): Promise<Response> {
