@@ -26,6 +26,29 @@ const readString = (value: unknown): string => String(unwrapGraphCellValue(value
 
 const readNodeId = (node?: GraphNode | null): string => readString(node?.id)
 
+export const resolveUniqueProbeTreeCardNodeId = (args: {
+  candidateId: string
+  anchorNodeId: string
+  candidateKey: string
+  index: number
+  occupiedNodeIds: Set<string>
+}): string => {
+  const baseId = readString(args.candidateId) || `mcp-response-card-${args.index + 1}`
+  if (!args.occupiedNodeIds.has(baseId)) {
+    args.occupiedNodeIds.add(baseId)
+    return baseId
+  }
+  const scope = hashText(`${args.anchorNodeId}:${args.candidateKey}:${args.index}`).slice(0, 8)
+  let nodeId = `${baseId}-${scope}`
+  let suffix = 2
+  while (args.occupiedNodeIds.has(nodeId)) {
+    nodeId = `${baseId}-${scope}-${suffix}`
+    suffix += 1
+  }
+  args.occupiedNodeIds.add(nodeId)
+  return nodeId
+}
+
 const readProbeTreeDepth = (properties: Record<string, unknown>): number => {
   const value = Number(unwrapGraphCellValue(properties.probeTreeDepth))
   if (!Number.isFinite(value)) return 0
@@ -209,7 +232,7 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
 
   const removedNodeIds = collectReplacedProbeTreeNodeIds(graphData, anchorNodeId)
   const retainedNodes = (graphData.nodes || []).filter(node => !removedNodeIds.has(readNodeId(node)))
-  const retainedNodeIds = new Set(retainedNodes.map(readNodeId).filter(Boolean))
+  const occupiedNodeIds = new Set(retainedNodes.map(readNodeId).filter(Boolean))
   const priorNodeById = new Map((graphData.nodes || []).map(node => [readNodeId(node), node]))
   const anchorProperties = readGraphNodeProperties(args.anchorNode)
   const threadRootId = readString(args.threadRootId) || readString(anchorProperties.probeTreeThreadRootId) || anchorNodeId
@@ -222,13 +245,16 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
   })
   const materializedNodeIds: string[] = []
   const projectedNodes: GraphNode[] = cards.map((card, index) => {
-    let nodeId = card.id
-    if (retainedNodeIds.has(nodeId) && nodeId !== anchorNodeId) {
-      nodeId = `${nodeId}-${hashText(anchorNodeId).slice(0, 8)}`
-    }
+    const candidateOptionId = readString(card.properties.probeTreeCandidateKey) || `candidate-${index + 1}`
+    const nodeId = resolveUniqueProbeTreeCardNodeId({
+      candidateId: card.id,
+      anchorNodeId,
+      candidateKey: candidateOptionId,
+      index,
+      occupiedNodeIds,
+    })
     materializedNodeIds.push(nodeId)
     const previous = priorNodeById.get(nodeId)
-    const candidateOptionId = readString(card.properties.probeTreeCandidateKey) || `candidate-${index + 1}`
     const question = readString(card.properties.summary || card.properties.question) || card.label
     return {
       id: nodeId,

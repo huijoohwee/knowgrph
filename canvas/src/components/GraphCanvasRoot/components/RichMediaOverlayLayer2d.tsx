@@ -6,6 +6,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { isSpacePanHeld } from '@/lib/canvas/space-pan'
 import { Z_INDEX_GRAPH_MEDIA_LAYER } from '@/lib/ui/zIndex'
 import RichMediaPanel from '@/components/RichMediaPanel'
+import { RichMediaOutputVersionSelector } from '@/components/RichMediaOutputVersionSelector'
 import type { MediaOverlayNode } from '@/lib/render/mediaOverlayPool'
 import { createUniqueId } from '@/lib/ids'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
@@ -270,6 +271,13 @@ export function RichMediaOverlayLayer2d(props: {
               visible={selected}
               {...buildSharedRichMediaOverlayToolbarProps()}
               {...toolbarControlProps}
+              outputVersionControl={(
+                <RichMediaOutputVersionSelector
+                  panel={n.panel}
+                  onPanelChange={n.panel ? changePanel : undefined}
+                  placement="toolbar"
+                />
+              )}
               onRun={() => void 0}
               onOpenInSidepane={() => openPanelInSidepane(n.id)}
               onDuplicate={() => duplicatePanel(n.id)}
@@ -289,6 +297,7 @@ export function RichMediaOverlayLayer2d(props: {
               renderMode={n.renderMode}
               selected={selected}
               panelChrome="storyboardWidget"
+              outputVersionPlacement="bubble-toolbar"
               placementOwner="parent"
               canvasOverlayPinned={richMediaPanelPinned}
               {...headerPinProps}
