@@ -14,7 +14,6 @@ import { buildAgenticCanvasOsDocsStaticResolutionPayload, buildAgenticCanvasOsDo
 import { executeCloudflareOsStatusTool, KNOWGRPH_OS_STATUS_TOOL_NAME, OS_STATUS_TOOL_DEFINITION } from "./os-status-tool.mjs";
 import { AGENT_RUNTIME_TOOL_DEFINITION, AGENT_RUNTIME_TOOL_NAME, executeAgentRuntimeTool, executeAgentRuntimeToolAsync } from "./agent-runtime-tool.mjs";
 import { RUN_NOTE_TOOL_DEFINITION, RUN_NOTE_TOOL_NAME } from "./run-note-execution.mjs";
-
 export const KNOWGRPH_MCP_CONTRACT_VERSION = "knowgrph.mcp.video_remix/v0.1";
 export { AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, AGENT_RUNTIME_TOOL_NAME, KNOWGRPH_OS_STATUS_TOOL_NAME, RUN_NOTE_TOOL_NAME };
 export const KNOWGRPH_MCP_DIRECTOR_TOOL_NAME = "knowgrph.video_remix.run";
@@ -591,7 +590,7 @@ export async function executeKnowgrphMcpToolAsync(toolName, rawArgs = {}, deps =
   }
 
   if (toolName === AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME) {
-    const payload = await buildAgenticCanvasOsDocsDynamicResolutionPayload(args);
+    const payload = await buildAgenticCanvasOsDocsDynamicResolutionPayload(args, { fetchImpl: deps?.fetchImpl });
     return { ok: payload.ok, structuredContent: payload, text: JSON.stringify(payload, null, 2) };
   }
 

@@ -17,7 +17,7 @@ docs_dependency:
   root_env: "KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT"
   default_relative_root: "../agentic-canvas-os/docs"
   required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "RUNTIME-PROOF.md", "LIVE-AGENT-PROVIDER-PROOF.md", "PROGRESSIVE-AGENTS.md", "SKILLS.md"]
-  proof_tokens: ["/runtime-ready.check", "/session.start", "/release.complete", "/knowgrph.probe-tree", "#runtime-ready", "#multi-agent-collaboration", "#knowgrph.probe-tree", "@operator", "@working-directory", "@source.frontmatter", "@runtime-proof", "@knowgrph.probe-tree", "@mcp-gateway", "/sandbox.policy.validate", "#agent-sandbox-policy", "@sandbox-policy"]
+  proof_tokens: ["/runtime-ready.check", "/session.start", "/release.complete", "/knowgrph.probe-tree", "/ecs.session-start", "/ecs.world-tick", "/ecs.decision-persist", "#runtime-ready", "#multi-agent-collaboration", "#knowgrph.probe-tree", "#agentic-ecs", "@operator", "@working-directory", "@source.frontmatter", "@runtime-proof", "@knowgrph.probe-tree", "@mcp-gateway", "@ecs-session", "/sandbox.policy.validate", "#agent-sandbox-policy", "@sandbox-policy"]
 local_proof:
   provider_mode: "mock"
   network_allowed: false
@@ -49,6 +49,8 @@ The opening frontmatter is the machine source of truth for the Dev runtime-readi
 `runtime-ready` is an executable claim. It requires the focused runtime suite, readable pinned dictionaries, canonical stage topology, deterministic replay, zero paid calls, zero actual cost, proof bound to the current Git source state, and a byte-stable `/sme-care-agent` Canvas evidence artifact that parses through the shared frontmatter-flow path.
 
 The local gate performs no network calls, deployments, remote migrations, or repository writes. Deployed reachability is a separate operator-invoked verification and cannot promote a failing local runtime.
+
+The Agentic ECS tokens resolve from the pinned Agentic Canvas OS dictionaries, while executable ownership remains in Knowgrph. Its three local stdio operations are `dev-only`; the canonical server injects no systems, decision executor, model route, network path, or deployment capability. The default lifecycle is KGC hydration, one successful zero-system/no-reasoning tick with a canonical zero Cost_Log, and zero-pending disposal. Reviewed embedding hosts may inject systems and an optional decision executor only through runtime construction, never through MCP arguments.
 
 ## Cloudflare-Only Runtime Boundary
 

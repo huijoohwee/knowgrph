@@ -5,6 +5,25 @@ import { normalizeWorkspacePath, workspaceBasename, workspaceDocumentKey } from 
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { normalizeMermaidMmdToMarkdown } from 'grph-shared/markdown/mermaidInput'
 
+export async function applyChatKgcDocumentTextToCanvas({
+  name,
+  text,
+}: {
+  name: string
+  text: string
+}): Promise<boolean> {
+  return await useGraphStore.getState().setActiveMarkdownDocument({
+    name,
+    text: normalizeMermaidMmdToMarkdown(name, text),
+    normalizeMermaidMmd: false,
+    sourceUrl: null,
+    jsonSourceText: null,
+    applyViewPreset: true,
+    applyToGraph: true,
+    forceApplyToGraph: true,
+  })
+}
+
 export async function applyChatKgcWorkspaceDocumentToCanvas(path: string): Promise<boolean> {
   const workspacePath = normalizeWorkspacePath(path)
   if (!workspacePath) return false
@@ -21,14 +40,5 @@ export async function applyChatKgcWorkspaceDocumentToCanvas(path: string): Promi
     },
   })
   const name = workspaceDocumentKey(workspacePath) || workspaceBasename(workspacePath) || workspacePath
-  return await useGraphStore.getState().setActiveMarkdownDocument({
-    name,
-    text: normalizeMermaidMmdToMarkdown(name, text),
-    normalizeMermaidMmd: false,
-    sourceUrl: null,
-    jsonSourceText: null,
-    applyViewPreset: true,
-    applyToGraph: true,
-    forceApplyToGraph: true,
-  })
+  return await applyChatKgcDocumentTextToCanvas({ name, text })
 }

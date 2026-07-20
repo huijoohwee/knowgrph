@@ -180,4 +180,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["canvas.xrMode.physics.nativeController.documentActivation","@/__tests__/xrPhysicsRunReadyDemoRuntime.test.tsx","testXrPhysicsRunReadyRuntimeActivatesFromCanonicalSourceDocumentInOrdinaryDev"],
   ["canvas.xrMode.physics.nativeController.unmountOwnership","@/__tests__/xrPhysicsRunReadyDemoRuntime.test.tsx","testXrPhysicsRunReadyRuntimeUnmountTeardownRespectsLaunchOwnership"],
   ["canvas.xrMode.physics.nativeController.runReadyLifecycle","@/__tests__/xrPhysicsRunReadyDemoRuntime.test.tsx","testXrPhysicsRunReadyRuntimeReclaimsOffFallbackWithoutDoubleLaunch"],
+  ["canvas.agenticEcs.projection.documentTextSeam","@/__tests__/agenticEcsCanvasProjection.test","testAgenticEcsCanvasProjectionUsesDocumentTextApplySeam"],
+  ["workspace.docsMirror.localRoots.agenticFallback","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceDocsMirrorLocalRootsPromotesAgenticFallbackWhenPrimaryRootIsAbsent"],
+  ["workspace.docsMirror.localRoots.githubUnavailable","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceSeedProviderUsesLocalAgenticDocsWhenGitHubIsUnavailable"],
 ]

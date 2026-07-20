@@ -427,8 +427,14 @@ export const buildAgenticCanvasOsDocsStaticResolutionPayload = (args = {}) => (
   })
 );
 
-export const buildAgenticCanvasOsDocsDynamicResolutionPayload = async (args = {}) => {
-  const revisionResponse = await fetch("https://api.github.com/repos/huijoohwee/agentic-canvas-os/commits/main", {
+export const buildAgenticCanvasOsDocsDynamicResolutionPayload = async (
+  args = {},
+  { fetchImpl = globalThis.fetch } = {},
+) => {
+  if (typeof fetchImpl !== "function") {
+    throw new Error("Agentic Canvas OS docs resolution requires a fetch implementation");
+  }
+  const revisionResponse = await fetchImpl("https://api.github.com/repos/huijoohwee/agentic-canvas-os/commits/main", {
     headers: {
       accept: "application/vnd.github+json",
       "user-agent": "knowgrph-agentic-canvas-os-docs-runtime",
@@ -446,7 +452,7 @@ export const buildAgenticCanvasOsDocsDynamicResolutionPayload = async (args = {}
   const fetchDoc = async (fileName) => {
     try {
       const url = `https://raw.githubusercontent.com/huijoohwee/agentic-canvas-os/${sourceRevision}/docs/${fileName}`;
-      const res = await fetch(url, {
+      const res = await fetchImpl(url, {
         cf: { cacheTtl: 86400, cacheEverything: true }
       });
       if (!res.ok) return "";
@@ -465,6 +471,7 @@ export const buildAgenticCanvasOsDocsDynamicResolutionPayload = async (args = {}
     fetchDoc(AGENTIC_CANVAS_OS_PROGRESSIVE_AGENTS_FILE),
     resolveAgentLiveProviderProofRevisionFromGitHub({
       sourceRevision,
+      fetchImpl,
       requestInit: { cf: { cacheTtl: 86400, cacheEverything: true } },
     }),
   ]);
