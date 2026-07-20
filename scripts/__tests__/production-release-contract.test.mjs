@@ -21,6 +21,16 @@ test('production release rebuilds the canvas with the exact authorized candidate
   assert.doesNotMatch(verifyJob, /run: npm run pages:sync/)
 })
 
+test('production artifact includes the public app-shell mirror fetched by Pages Functions', () => {
+  const artifactStep = releaseWorkflow.slice(
+    releaseWorkflow.indexOf('name: Upload verified release artifact'),
+    releaseWorkflow.indexOf('\n  deploy:'),
+  )
+
+  assert.match(artifactStep, /huijoohwee\/content\/knowgrph/)
+  assert.match(artifactStep, /huijoohwee\/knowgrph/)
+})
+
 test('production release reconciles the exact canonical docs revision before live smoke', () => {
   const deployJob = releaseWorkflow.slice(releaseWorkflow.indexOf('\n  deploy:'))
   const checkoutIndex = deployJob.indexOf('Checkout exact Agentic Canvas OS docs SSOT')
