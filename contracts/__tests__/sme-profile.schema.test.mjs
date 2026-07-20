@@ -49,3 +49,11 @@ test("invalid profile reports the first field path and returns no partial profil
   assert.equal(result.error.path, "schema");
   assert.equal("profile" in result, false);
 });
+
+test("credential-like profile ids fail closed before Markdown is printed", () => {
+  const result = printSmeProfileMarkdown({ ...profile, profile_id: "sk-aaaaaaaa" });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "unsafe_sme_profile");
+  assert.equal(result.error.path, "profile_id");
+  assert.equal("markdown" in result, false);
+});
