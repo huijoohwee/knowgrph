@@ -227,13 +227,29 @@ test("Agentic Canvas OS docs invocation is cataloged remotely as read-only", () 
   assert.equal(descriptor.inputSchema.properties.token.type, "string");
 });
 
-test("Agentic Canvas OS docs invocation resolves prefixed tokens remotely", async () => {
+test("Agentic Canvas OS docs invocation resolves prefixed tokens remotely", async (t) => {
+  const sourceRevision = "a".repeat(40);
+  const proofRevision = "b".repeat(40);
+  t.mock.method(globalThis, "fetch", async (input) => {
+    const url = String(input);
+    if (url.endsWith("/repos/huijoohwee/agentic-canvas-os/commits/main")) {
+      return Response.json({ sha: sourceRevision });
+    }
+    if (url.includes("/repos/huijoohwee/agentic-canvas-os/commits?")) {
+      return Response.json([{ sha: proofRevision }]);
+    }
+    if (url.startsWith(`https://raw.githubusercontent.com/huijoohwee/agentic-canvas-os/${sourceRevision}/docs/`)) {
+      return new Response("", { status: 200 });
+    }
+    return new Response("not found", { status: 404 });
+  });
+
   const result = await executeKnowgrphMcpToolAsync(AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, {
     token: "/query",
   });
 
   assert.equal(result.ok, true);
-  assert.match(result.structuredContent?.sourceRevision, /^[0-9a-f]{40}$/);
+  assert.equal(result.structuredContent?.sourceRevision, sourceRevision);
   assert.equal(result.structuredContent?.invocation?.token, "/query");
   assert.equal(result.structuredContent?.invocation?.sourcePath, "DICTIONARY-COMMAND.md#/query");
 });

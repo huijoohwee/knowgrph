@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import {
+  assertD1DocumentParity,
   buildDirectD1DocumentStatements,
   toSqlString,
 } from './lib/seed-storage-documents-d1.mjs'
@@ -249,11 +250,6 @@ const buildReconciliationMutations = (args) => {
   return deletes
 }
 
-const countActiveExportedDocuments = (exported) => {
-  const documents = Array.isArray(exported?.documents) ? exported.documents : []
-  return documents.filter(document => document && document.deleted !== true).length
-}
-
 const pushMutations = async (args) => {
   const endpoint = new URL('/api/storage/push', args.baseUrl).toString()
   const response = await fetch(endpoint, {
@@ -310,8 +306,8 @@ const executeD1SqlFile = async (sqlText, label = 'unnamed-step') => {
     const result = spawnSync(
       'npx',
       [
-        '--yes',
-        'wrangler@latest',
+        '--no-install',
+        'wrangler',
         'd1',
         'execute',
         'knowgrph-storage',
@@ -329,7 +325,7 @@ const executeD1SqlFile = async (sqlText, label = 'unnamed-step') => {
     )
     if (result.status !== 0) {
       const message = (result.stderr || result.stdout || '').trim()
-      throw new Error(message || 'npx wrangler@latest d1 execute failed')
+      throw new Error(message || 'installed wrangler d1 execute failed')
     }
     console.log(`[knowgrph] d1 execute done: ${label} (${formatElapsedMs(startedAt)})`)
   } finally {
@@ -384,6 +380,17 @@ const seedDocumentsDirectlyToD1 = async (args) => {
     console.log(`[knowgrph] d1 stale document delete ${i + 1}/${args.deleteMutations.length}: ${record.canonicalPath}`)
     await executeD1SqlFile(sql, `document-delete:${record.canonicalPath}`)
   }
+  await executeD1SqlFile(
+    [
+      `DELETE FROM document_chunks`,
+      `WHERE workspace_id = ${toSqlString(args.workspaceId)}`,
+      `  AND document_id NOT IN (`,
+      `    SELECT id FROM documents`,
+      `    WHERE workspace_id = ${toSqlString(args.workspaceId)} AND deleted = 0`,
+      `  );`,
+    ].join('\n'),
+    'stale-chunk-cleanup',
+  )
 }
 
 const run = async () => {
@@ -459,11 +466,12 @@ const run = async () => {
       console.log('[knowgrph] export start: api-push-verification')
       const exported = await exportWorkspace({ baseUrl, workspaceId })
       console.log(`[knowgrph] export done: api-push-verification (${formatElapsedMs(exportedStartedAt)})`)
-      const documentCount = countActiveExportedDocuments(exported)
-      console.log(`[knowgrph] export verification: documents=${documentCount}`)
-      if (documentCount !== docsSourceFiles.length) {
-        throw new Error(`Source Files mismatch after seed: local=${docsSourceFiles.length}, remote=${documentCount}`)
-      }
+      const parity = assertD1DocumentParity({
+        expectedDocumentSeeds: documentSeeds,
+        exportedDocuments: exported.documents,
+        exportedDocumentChunks: exported.documentChunks,
+      })
+      console.log(`[knowgrph] export verification: documents=${parity.documentCount}; chunks=${parity.chunkCount}; path-hash-parity=passed; content-parity=passed`)
       return
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -485,11 +493,12 @@ const run = async () => {
   console.log('[knowgrph] export start: direct-d1-verification')
   const exported = await exportWorkspace({ baseUrl, workspaceId })
   console.log(`[knowgrph] export done: direct-d1-verification (${formatElapsedMs(exportedStartedAt)})`)
-  const documentCount = countActiveExportedDocuments(exported)
-  console.log(`[knowgrph] export verification: documents=${documentCount}`)
-  if (documentCount !== docsSourceFiles.length) {
-    throw new Error(`Source Files mismatch after direct D1 seed: local=${docsSourceFiles.length}, remote=${documentCount}`)
-  }
+  const parity = assertD1DocumentParity({
+    expectedDocumentSeeds: documentSeeds,
+    exportedDocuments: exported.documents,
+    exportedDocumentChunks: exported.documentChunks,
+  })
+  console.log(`[knowgrph] export verification: documents=${parity.documentCount}; chunks=${parity.chunkCount}; path-hash-parity=passed; content-parity=passed`)
   console.log('[knowgrph] direct D1 seed complete')
 }
 

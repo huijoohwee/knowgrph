@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
+import test from 'node:test'
+
+const repoRoot = path.resolve(import.meta.dirname, '..', '..')
+const releaseWorkflow = fs.readFileSync(path.resolve(repoRoot, '.github', 'workflows', 'release.yml'), 'utf8')
+const agentReadySmoke = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'check-agent-ready.mjs'), 'utf8')
+const docsSeedScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'seed-storage-docs-to-cloudflare.mjs'), 'utf8')
+
+test('production release reconciles the exact canonical docs revision before live smoke', () => {
+  const deployJob = releaseWorkflow.slice(releaseWorkflow.indexOf('\n  deploy:'))
+  const checkoutIndex = deployJob.indexOf('Checkout exact Agentic Canvas OS docs SSOT')
+  const seedIndex = deployJob.indexOf('Reconcile canonical docs into D1')
+  const smokeIndex = deployJob.indexOf('Verify live agent-ready discovery')
+
+  assert.match(deployJob, /KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: \$\{\{ github\.workspace \}\}\/agentic-canvas-os\/docs/)
+  assert.match(releaseWorkflow, /docs_repository: \$\{\{ steps\.agentic_canvas_os_docs\.outputs\.repository \}\}/)
+  assert.match(deployJob, /repository: \$\{\{ needs\.verify\.outputs\.docs_repository \}\}/)
+  assert.match(deployJob, /ref: \$\{\{ needs\.verify\.outputs\.docs_revision \}\}/)
+  assert.match(deployJob, /run: npm run storage:d1:seed:docs/)
+  assert.ok(checkoutIndex >= 0, 'expected the deploy job to checkout the pinned canonical docs revision')
+  assert.ok(seedIndex > checkoutIndex, 'expected D1 reconciliation after the pinned docs checkout')
+  assert.ok(smokeIndex > seedIndex, 'expected live smoke after D1 reconciliation')
+})
+
+test('agent-ready smoke probes the current canonical docs corpus', () => {
+  assert.match(agentReadySmoke, /'agentic-canvas-os',\s+'docs',\s+'RELEASE-WORKFLOW\.md'/m)
+  assert.match(agentReadySmoke, /const contentAwareSearchQuery = 'revision-fence'/)
+  assert.match(agentReadySmoke, /String\(entry\?\.canonicalPath \|\| ''\) === 'agentic-canvas-os\/docs\/AGENT-DEFINITIONS\.md'/)
+  assert.doesNotMatch(agentReadySmoke, /knowgrph-modularity-prd-tad\.md/)
+  assert.doesNotMatch(agentReadySmoke, /knowgrph-strybldr-starter-template/)
+})
+
+test('canonical docs reconciliation uses the lockfile Wrangler version', () => {
+  assert.match(docsSeedScript, /'--no-install',\s+'wrangler',\s+'d1'/m)
+  assert.doesNotMatch(docsSeedScript, /wrangler@latest/)
+})
+
+test('canonical docs reconciliation proves stored content and exact chunk parity', () => {
+  assert.match(docsSeedScript, /expectedDocumentSeeds: documentSeeds/)
+  assert.match(docsSeedScript, /exportedDocumentChunks: exported\.documentChunks/)
+  assert.match(docsSeedScript, /content-parity=passed/)
+  assert.match(docsSeedScript, /document_id NOT IN/)
+})

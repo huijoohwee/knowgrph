@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import test from 'node:test'
 
-import { buildDirectD1DocumentStatements } from '../lib/seed-storage-documents-d1.mjs'
+import {
+  assertD1DocumentParity,
+  buildDirectD1DocumentStatements,
+} from '../lib/seed-storage-documents-d1.mjs'
 
 const workspaceId = 'workspace:test'
 const canonicalPath = 'docs/example.md'
@@ -154,4 +158,105 @@ test('direct D1 seed inserts the deterministic id for a new canonical path', () 
     deleted: 0,
   }])
   assert.equal(state.chunks[0].documentId, seed.record.id)
+})
+
+const sha256 = value => createHash('sha256').update(value).digest('hex')
+
+const buildParitySeed = ({ canonicalPath, content, chunks = [] }) => ({
+  documentMutation: {
+    record: {
+      canonicalPath,
+      contentMd: chunks.length > 0 ? '' : content,
+      contentHash: sha256(content),
+      docType: 'markdown',
+    },
+  },
+  chunkMutations: chunks.map((markdown, chunkOrder) => ({
+    record: {
+      id: `${canonicalPath}:chunk:${chunkOrder}`,
+      chunkKey: `part-${String(chunkOrder).padStart(4, '0')}`,
+      chunkOrder,
+      markdown,
+      contentHash: sha256(markdown),
+    },
+  })),
+})
+
+test('D1 seed verification requires exact active path, content, hash, and chunk parity', () => {
+  const expectedDocumentSeeds = [
+    buildParitySeed({ canonicalPath: 'docs/a.md', content: 'alpha' }),
+    buildParitySeed({ canonicalPath: 'docs/b.md', content: 'beta-gamma', chunks: ['beta-', 'gamma'] }),
+  ]
+  const exportedDocuments = [
+    { id: 'actual:a', canonicalPath: 'docs/a.md', contentMd: 'alpha', contentHash: sha256('alpha'), deleted: false },
+    { id: 'actual:b', canonicalPath: 'docs/b.md', contentMd: '', contentHash: sha256('beta-gamma'), deleted: false },
+    { id: 'actual:retired', canonicalPath: 'docs/retired.md', contentMd: '', contentHash: sha256('retired'), deleted: true },
+  ]
+  const exportedDocumentChunks = [
+    { id: 'actual:b:0', documentId: 'actual:b', chunkKey: 'part-0000', chunkOrder: 0, markdown: 'beta-', contentHash: sha256('beta-') },
+    { id: 'actual:b:1', documentId: 'actual:b', chunkKey: 'part-0001', chunkOrder: 1, markdown: 'gamma', contentHash: sha256('gamma') },
+  ]
+
+  assert.deepEqual(assertD1DocumentParity({
+    expectedDocumentSeeds,
+    exportedDocuments,
+    exportedDocumentChunks,
+  }), { documentCount: 2, chunkCount: 2 })
+  assert.throws(
+    () => assertD1DocumentParity({
+      expectedDocumentSeeds,
+      exportedDocuments: [
+        exportedDocuments[0],
+        { ...exportedDocuments[1], contentHash: sha256('stale') },
+      ],
+      exportedDocumentChunks,
+    }),
+    /contentHash=docs\/b\.md/,
+  )
+  assert.throws(
+    () => assertD1DocumentParity({
+      expectedDocumentSeeds,
+      exportedDocuments: [
+        exportedDocuments[0],
+        { id: 'actual:c', canonicalPath: 'docs/c.md', contentMd: 'charlie', contentHash: sha256('charlie'), deleted: false },
+      ],
+      exportedDocumentChunks: [],
+    }),
+    /missing=docs\/b\.md; unexpected=docs\/c\.md/,
+  )
+})
+
+test('D1 seed verification rejects corrupted or incomplete stored document content', () => {
+  const expectedDocumentSeeds = [
+    buildParitySeed({ canonicalPath: 'docs/a.md', content: 'alpha' }),
+    buildParitySeed({ canonicalPath: 'docs/b.md', content: 'beta-gamma', chunks: ['beta-', 'gamma'] }),
+  ]
+  const exportedDocuments = [
+    { id: 'actual:a', canonicalPath: 'docs/a.md', contentMd: 'corrupt', contentHash: sha256('alpha'), deleted: false },
+    { id: 'actual:b', canonicalPath: 'docs/b.md', contentMd: '', contentHash: sha256('beta-gamma'), deleted: false },
+  ]
+  const exportedDocumentChunks = [
+    { id: 'actual:b:0', documentId: 'actual:b', chunkKey: 'part-0000', chunkOrder: 0, markdown: 'beta-', contentHash: sha256('beta-') },
+  ]
+
+  assert.throws(
+    () => assertD1DocumentParity({ expectedDocumentSeeds, exportedDocuments, exportedDocumentChunks }),
+    /content=docs\/a\.md,docs\/b\.md; chunks=docs\/b\.md/,
+  )
+})
+
+test('D1 seed verification rejects chunks retained for deleted documents', () => {
+  const expectedDocumentSeeds = [buildParitySeed({ canonicalPath: 'docs/a.md', content: 'alpha' })]
+  const exportedDocuments = [
+    { id: 'actual:a', canonicalPath: 'docs/a.md', contentMd: 'alpha', contentHash: sha256('alpha'), deleted: false },
+    { id: 'actual:retired', canonicalPath: 'docs/retired.md', contentMd: '', contentHash: sha256('retired'), deleted: true },
+  ]
+  const exportedDocumentChunks = [
+    { id: 'stale:chunk', documentId: 'actual:retired', chunkKey: 'part-0000', chunkOrder: 0, markdown: 'retired', contentHash: sha256('retired') },
+  ]
+
+  assert.throws(
+    () => assertD1DocumentParity({ expectedDocumentSeeds, exportedDocuments, exportedDocumentChunks }),
+    /unexpectedChunks=stale:chunk; chunkCount=1\/0/,
+  )
 })
