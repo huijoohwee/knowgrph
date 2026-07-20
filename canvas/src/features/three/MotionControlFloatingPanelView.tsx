@@ -11,6 +11,7 @@ import { resolveCssVar, UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
+import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { cn } from '@/lib/utils'
 import {
   buildMotionControlBoundingBoxInvocation,
@@ -19,6 +20,11 @@ import {
   inspectLocalMotionControl,
   type MotionControlOperation,
 } from './motionControlMcpRuntime'
+import {
+  MOTION_CONTROL_INVOCATION_BINDINGS,
+  MOTION_CONTROL_INVOCATION_COMMANDS,
+  MOTION_CONTROL_INVOCATION_SEMANTICS,
+} from './motionControlMcpContract.mjs'
 import {
   bindMotionControlPreview,
   readMotionControlSnapshot,
@@ -38,6 +44,12 @@ const POSE_CONNECTIONS = Object.freeze([
   [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
   [11, 23], [12, 24], [23, 24], [23, 25], [25, 27], [24, 26], [26, 28],
 ] as const)
+const MOTION_CONTROL_GRAMMAR_SIGILS = ['/', '#', '@'] as const
+const MOTION_CONTROL_REQUIRED_METADATA_TOKENS = Object.freeze([
+  ...Object.values(MOTION_CONTROL_INVOCATION_COMMANDS).map(token => ({ kind: 'command' as const, token })),
+  ...Object.values(MOTION_CONTROL_INVOCATION_SEMANTICS).map(token => ({ kind: 'semantic' as const, token })),
+  ...Object.values(MOTION_CONTROL_INVOCATION_BINDINGS).map(token => ({ kind: 'binding' as const, token })),
+])
 
 function MotionInvocation({ operation, backend, boundingBox }: { operation: MotionControlOperation; backend?: MotionControlBackendPreference; boundingBox?: boolean }) {
   const invocation = boundingBox === undefined
@@ -97,6 +109,7 @@ function drawPoseOverlay(canvas: HTMLCanvasElement, state: MotionControlSnapshot
 }
 
 export function MotionControlFloatingPanelView() {
+  const grammarCatalog = useAgenticOsRemoteGrammarCatalog({ sigils: MOTION_CONTROL_GRAMMAR_SIGILS })
   const state = React.useSyncExternalStore(subscribeMotionControl, readMotionControlSnapshot, readMotionControlSnapshot)
   const pushUiToast = useGraphStore(store => store.pushUiToast)
   const [backend, setBackend] = React.useState<MotionControlBackendPreference>(state.requestedBackend)
@@ -153,6 +166,10 @@ export function MotionControlFloatingPanelView() {
   }, [pushUiToast])
 
   const inspection = inspectLocalMotionControl()
+  const sourceMetadataReady = grammarCatalog.hydration.status === 'fresh'
+    && MOTION_CONTROL_REQUIRED_METADATA_TOKENS.every(required => grammarCatalog.entries.some(entry => entry.token === required.token && entry.kind === required.kind))
+  const sourceMetadataLoading = grammarCatalog.hydration.status === 'idle' || grammarCatalog.hydration.status === 'loading'
+  const nativeInvocationReady = Boolean(inspection.invocationGrammar)
   const runtimeBusy = state.phase === 'requesting-camera' || state.phase === 'loading-model' || state.phase === 'running'
   const canStop = startPending || runtimeBusy || state.cameraActive
   return (
@@ -162,6 +179,8 @@ export function MotionControlFloatingPanelView() {
       data-kg-motion-control-floating-panel="1"
       data-kg-motion-control-mcp="knowgrph.control_local_motion_control"
       data-kg-motion-control-runtime={state.phase}
+      data-kg-motion-control-metadata-status={grammarCatalog.hydration.status}
+      data-kg-motion-control-metadata-version={String(grammarCatalog.version)}
     >
       <FloatingPanelCatalogHeader
         title="Motion Control"
@@ -200,6 +219,7 @@ export function MotionControlFloatingPanelView() {
             />
             Bounding box · {state.boundingBoxEnabled ? 'Enabled' : 'Disabled (default)'}
           </label>
+          <p className={cn('text-[9px]', UI_THEME_TOKENS.text.tertiary)}>Shows the live pose ROI and catalog-authored XR object bounds.</p>
           <div role="status" aria-live="polite" aria-atomic="true" data-kg-motion-control-live-status="1">
             <p className={cn('text-[10px]', state.phase === 'error' ? UI_THEME_TOKENS.status.error : UI_THEME_TOKENS.text.secondary)}>{state.message}</p>
             {state.fallbackReason ? <p className={cn('text-[10px]', UI_THEME_TOKENS.status.warning)}>{state.fallbackReason}</p> : null}
@@ -214,10 +234,17 @@ export function MotionControlFloatingPanelView() {
           <span><b>Inference</b><br />{state.latencyMs.toFixed(1)} ms · {state.framesPerSecond.toFixed(1)} FPS</span>
         </section>
 
-        <MotionControlTargetCards running={state.phase === 'running'} onOpenTarget={openTarget} />
+        <MotionControlTargetCards livePoseActive={Boolean(state.pose)} onOpenTarget={openTarget} />
 
         <section className={cn('grid gap-1 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-motion-control-invocations="shared-catalog">
           <h3 className="text-[11px] font-semibold">MCP · / · @ · #</h3>
+          {!sourceMetadataReady ? (
+            <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>
+              {sourceMetadataLoading
+                ? `ACOS Motion Control invocation metadata is loading.${nativeInvocationReady ? ' Native Motion Control remains ready.' : ''}`
+                : `ACOS Motion Control invocation metadata is unavailable.${nativeInvocationReady ? ' Native Motion Control remains ready.' : ''}`}
+            </p>
+          ) : null}
           <MotionInvocation operation="start" backend={backend} />
           <MotionInvocation operation="stop" />
           <MotionInvocation operation="open" boundingBox={true} />

@@ -10,6 +10,7 @@ import {
   SME_RISK_DOMAINS,
   parseSmeProfileMarkdown,
   printSmeProfileMarkdown,
+  validateSmeProfile,
 } from "../../contracts/sme-profile.schema.js";
 import {
   adviseProtection,
@@ -40,12 +41,14 @@ const profileArb = fc.record({
   digital_footprint: fc.oneof(fc.constant("undeclared"), text),
   suppliers: optionalList,
   declared_coverage: coverage,
-});
+}).filter((profile) => validateSmeProfile(profile).ok);
 const check = (property) => fc.assert(property, { numRuns: 100 });
 
 test("Property 1: parse/print round-trip and determinism", () => check(fc.property(profileArb, (profile) => {
   const first = printSmeProfileMarkdown(profile);
   const second = printSmeProfileMarkdown(profile);
+  assert.equal(first.ok, true);
+  assert.equal(second.ok, true);
   assert.equal(first.markdown, second.markdown);
   assert.deepEqual(parseSmeProfileMarkdown(first.markdown).profile, profile);
 })));

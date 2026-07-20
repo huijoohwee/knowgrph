@@ -1,14 +1,8 @@
-import type {
-  XrPhysicsBodyConfig,
-  XrPhysicsStaticCollider,
-  XrPhysicsVector,
-  XrPhysicsWorldConfig,
-} from './xrPhysicsModel'
+import type { XrPhysicsBodyConfig, XrPhysicsStaticCollider, XrPhysicsVector, XrPhysicsWorldConfig } from './xrPhysicsModel'
 import { compareXrPhysicsIds } from './xrPhysicsModel'
-
+import { XR_PHYSICS_BODY_CONTACT_DRAG_RATE, XR_PHYSICS_SURFACE_CONTACT_DRAG_RATE, resolveXrPhysicsContactDrag, resolveXrPhysicsRelativeContactVelocities } from './xrPhysicsContactDrag'
 type MutableVector = [number, number, number]
 type Axis = 0 | 1 | 2
-
 type SweptAabbHit = Readonly<{
   time: number
   axis: Axis
@@ -54,6 +48,7 @@ type MutableXrPhysicsBodyState = {
   velocity: MutableVector
   grounded: boolean
   contacts: Set<string>
+  previousContacts: Set<string>
   sweepStartPosition: MutableVector | null
   startOverlapResolved: boolean
 }
@@ -76,6 +71,7 @@ function bodyState(config: XrPhysicsBodyConfig): MutableXrPhysicsBodyState {
     velocity: mutableVector(config.initialVelocity),
     grounded: false,
     contacts: new Set(),
+    previousContacts: new Set(),
     sweepStartPosition: null,
     startOverlapResolved: false,
   }
@@ -241,7 +237,7 @@ function applySurfaceVelocity(
 ): void {
   const normalVelocity = velocity[axis] * normal
   if (normalVelocity < 0) velocity[axis] -= (1 + restitution) * normalVelocity * normal
-  const drag = Math.max(0, 1 - friction * stepSeconds * 12)
+  const drag = resolveXrPhysicsContactDrag(friction, XR_PHYSICS_SURFACE_CONTACT_DRAG_RATE, stepSeconds)
   for (let index = 0; index < 3; index += 1) {
     if (index !== axis) velocity[index] *= drag
   }
@@ -295,7 +291,7 @@ function resolveFloor(
   state.grounded = true
   applySurfaceVelocity(
     state.velocity, 1, 1, Math.max(config.restitution, floor.restitution),
-    Math.sqrt(config.friction * floor.friction), stepSeconds,
+    Math.sqrt(config.friction * floor.friction), (1 - Math.min(1, Math.max(0, time))) * stepSeconds,
   )
   return 1
 }
@@ -347,7 +343,7 @@ function resolveStaticCollider(
     normal,
     Math.max(config.restitution, collider.restitution),
     Math.sqrt(config.friction * collider.friction),
-    stepSeconds,
+    state.previousContacts.has(collider.id) ? stepSeconds : (1 - collision.time) * stepSeconds,
   )
   return 1
 }
@@ -444,11 +440,13 @@ function resolveBodyPair(
     rightState.velocity[axis] += impulse * rightInverseMass * normal
   }
   const friction = Math.sqrt(left.friction * right.friction)
-  const drag = Math.max(0, 1 - friction * stepSeconds * 8)
+  const establishedContact = leftState.previousContacts.has(right.subjectId) && rightState.previousContacts.has(left.subjectId)
+  const drag = resolveXrPhysicsContactDrag(friction, XR_PHYSICS_BODY_CONTACT_DRAG_RATE, establishedContact ? stepSeconds : (1 - collision.time) * stepSeconds)
   for (let index = 0; index < 3; index += 1) {
     if (index !== axis) {
-      if (leftInverseMass > 0) leftState.velocity[index] *= drag
-      if (rightInverseMass > 0) rightState.velocity[index] *= drag
+      const velocities = resolveXrPhysicsRelativeContactVelocities(leftState.velocity[index], rightState.velocity[index], leftInverseMass, rightInverseMass, drag)
+      if (leftInverseMass > 0) leftState.velocity[index] = velocities[0]
+      if (rightInverseMass > 0) rightState.velocity[index] = velocities[1]
     }
   }
   return 1
@@ -476,6 +474,8 @@ function integrate(
   stepSeconds: number,
 ): void {
   state.grounded = false
+  state.previousContacts.clear()
+  state.contacts.forEach(contact => state.previousContacts.add(contact))
   state.contacts.clear()
   state.startOverlapResolved = false
   if (config.mode !== 'dynamic') return

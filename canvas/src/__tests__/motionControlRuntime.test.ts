@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
+import { assertPinnedAgenticOsDictionaryTokensForTest, PINNED_MOTION_CONTROL_DICTIONARY_TOKENS } from '@/__tests__/helpers/pinnedAgenticOsDictionary'
+import { resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import {
   readMediaCatalogMode,
   setMediaCatalogMode,
@@ -141,6 +142,7 @@ async function testCaptureEndedLifecycle() {
 }
 
 export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
+  resetAgenticOsRemoteGrammarCatalogForTests()
   const frame = poseFrame(1)
   resetMotionControlCalibration()
   const animationPose = motionControlPoseToAnimationPose(frame)
@@ -187,7 +189,6 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
   if (smoothed.timestampMs !== 3 || smoothed.landmarks.length !== 33 || smoothed.worldLandmarks.length !== 33) {
     throw new Error('expected stable 33-landmark normalized and world-coordinate smoothing')
   }
-
   const invocation = buildMotionControlInvocation('start', 'auto')
   if (invocation !== '/motion.control @canvas #pose operation=start backend=auto') {
     throw new Error(`expected canonical / @ # Motion Control invocation, received ${invocation}`)
@@ -195,8 +196,10 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
   if (buildMotionControlInvocation('open') !== '/motion.control @canvas #pose operation=open') {
     throw new Error('expected open invocation to omit the start-only backend field')
   }
-  for (const [token, kind] of [['/motion.control', 'command'], ['#pose', 'semantic'], ['@canvas', 'binding']] as const) {
-    if (findAgenticOsInvocationByToken(token)?.kind !== kind) throw new Error(`expected ${token} in the shared ${kind} catalog`)
+  try {
+    assertPinnedAgenticOsDictionaryTokensForTest(PINNED_MOTION_CONTROL_DICTIONARY_TOKENS)
+  } finally {
+    resetAgenticOsRemoteGrammarCatalogForTests()
   }
   const inspection = inspectLocalMotionControl()
   if (inspection.schema !== 'knowgrph-motion-control-mcp/v1'
@@ -441,9 +444,21 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
     ['src', 'features', 'three', 'MotionControlFloatingPanelView.tsx'],
     ['src', 'features', 'three', 'MotionControlTargetCards.tsx'],
     ['src', 'features', 'three', 'MotionControlXrLifecycleGuard.tsx'],
+    ['src', 'features', 'three', 'CameraMotionMarkRetime.tsx'],
+    ['src', 'features', 'three', 'XrKeyboardChoreographyRuntime.tsx'],
+    ['src', 'features', 'three', 'XrMotionReferenceRuntimeBridge.tsx'],
+    ['src', 'features', 'three', 'XrMotionReferenceStage.tsx'],
+    ['src', 'features', 'three', 'XrNativeControllerAuthoredSubjects.tsx'],
+    ['src', 'features', 'three', 'XrSceneLibrarySubject.tsx'],
     ['src', 'features', 'three', 'motionControlTargetRuntime.ts'],
     ['src', 'features', 'three', 'motionControlSurfaceRuntime.ts'],
     ['src', 'features', 'three', 'motionControlMcpRuntime.ts'],
+    ['src', 'features', 'three', 'xrAnimationMcpRuntime.ts'],
+    ['src', 'features', 'three', 'xrConstrainedCastMarkRuntime.ts'],
+    ['src', 'features', 'three', 'xrMotionReferenceSubjectPlacement.ts'],
+    ['src', 'features', 'three', 'xrPhysicsContactDrag.ts'],
+    ['src', 'features', 'three', 'xrPhysicsStepper.ts'],
+    ['src', 'features', 'three', 'xrSubjectMotionConstraints.ts'],
     ['src', 'features', 'command-menu', 'mediaCatalogModeRuntime.ts'],
     ['src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx'],
     ['src', 'features', 'three', 'xrSceneMcpRuntime.ts'],

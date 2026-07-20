@@ -22,6 +22,7 @@ import { normalizeMediaDragPayload, XR_SCENE_MEDIA_DRAG_SCHEMA } from '@/lib/ui/
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/storyboardWidget/richMediaPanelConfig'
 import { sampleXrAnimationPose } from '@/features/three/xrAnimationCatalog'
 import { resolveMotionControlSubjectPose } from '@/features/three/useMotionControlAnimationPose'
+import { buildMotionControlAnimationTarget, buildMotionControlObjectIdentification } from '@/features/three/motionControlTargetRuntime'
 
 function readSource(...parts: string[]): string {
   return readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
@@ -67,6 +68,9 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   const timelineBottomPanel = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
   const xrCameraMotion = readSource('features', 'three', 'XrCameraMotionSection.tsx')
   const xrAnimationPanel = readSource('features', 'three', 'XrAnimationFloatingPanelView.tsx')
+  const motionControlTargetCards = readSource('features', 'three', 'MotionControlTargetCards.tsx')
+  const motionControlTargetRuntime = readSource('features', 'three', 'motionControlTargetRuntime.ts')
+  const motionControlAgentReadyContract = readSource('features', 'agent-ready', 'motionControlAgentReadyContract.mjs')
   const floatingPanel = readSource('lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
   const viewport = readSource('components', 'CanvasViewport.tsx')
   const floatingTypes = readSource('hooks', 'store', 'store-types', 'graph-state-chat-import.ts')
@@ -306,6 +310,62 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     || XR_SCENE_LIBRARY_DEFAULT_ASSET_ID !== 'vehicle-helicopter'
     || featuredLabels.join('|') !== 'Helicopter|Airplane|Car|Ball') {
     throw new Error(`expected Singapore and default Helicopter/Airplane/Car/Ball to use explicit catalog defaults, got ${featuredLabels.join('|')}`)
+  }
+  const objectIdentification = buildMotionControlObjectIdentification({
+    subjects: [
+      { id: 'subject-ball', assetId: 'prop-ball', category: 'props', label: 'Practice Ball' },
+      { id: 'subject-car', assetId: 'vehicle-sedan', category: 'vehicles', label: 'Camera Car' },
+    ],
+    selectedSubjectId: 'subject-car',
+    physicsBodies: [{ subjectId: 'subject-ball', mode: 'dynamic' }],
+  })
+  const vehicleAnimationTarget = buildMotionControlAnimationTarget({
+    actorId: 'subject-car',
+    label: 'Camera Car',
+    livePoseCompatible: false,
+    assignedPresetId: '',
+    recommendedPresetId: 'car-chase',
+  })
+  const assignedVehicleAnimationTarget = buildMotionControlAnimationTarget({
+    actorId: 'subject-car',
+    label: 'Camera Car',
+    livePoseCompatible: false,
+    assignedPresetId: 'car-chase',
+    recommendedPresetId: 'car-chase',
+  })
+  const ballIdentification = objectIdentification.records.find(record => record.id === 'subject-ball')
+  const carIdentification = objectIdentification.records.find(record => record.id === 'subject-car')
+  if (!ballIdentification
+    || !carIdentification
+    || objectIdentification.counts.total !== 2
+    || objectIdentification.counts.selected !== 1
+    || objectIdentification.counts.physicsAttached !== 1
+    || ballIdentification.assetLabel !== 'Ball'
+    || ballIdentification.catalogDimensionsMeters.join(',') !== '1.2,1.2,1.2'
+    || !ballIdentification.physicsBodyAttached
+    || ballIdentification.physicsBodyMode !== 'dynamic'
+    || !carIdentification.selected
+    || carIdentification.physicsBodyAttached
+    || carIdentification.physicsBodyMode !== 'none'
+    || !vehicleAnimationTarget.compatible
+    || vehicleAnimationTarget.livePoseCompatible
+    || vehicleAnimationTarget.assignedPresetId
+    || !assignedVehicleAnimationTarget.compatible
+    || assignedVehicleAnimationTarget.assignedPresetId !== 'car-chase') {
+    throw new Error(`expected Motion Control identification to join canonical authored subjects, assets, selection, and physics bodies: ${JSON.stringify(objectIdentification)}`)
+  }
+  for (const marker of ['runtime.plan.subjects', 'runtime.selectedShotTargetId', 'physics.world.bodies', 'resolveXrSceneLibraryAsset', 'objectIdentification']) {
+    if (!motionControlTargetRuntime.includes(marker)) throw new Error(`expected Motion Control object identification to reuse canonical scene/physics owner ${marker}`)
+  }
+  for (const marker of ['data-kg-motion-control-object-selector="1"', 'selectBoundXrShotTarget', 'requestXrSimulationWorkbenchOpen()', "onOpenTarget('xr-3d')", 'data-kg-motion-control-fine-tune-physics="canonical-workbench"', 'animation compatible · assign', 'authored animation ready · live pose unavailable']) {
+    if (!motionControlTargetCards.includes(marker)) throw new Error(`expected Motion Control object selection and physics tuning to route through canonical owner ${marker}`)
+  }
+  for (const duplicateOwner of ['configureXrPhysicsBody(', 'attachXrPhysicsBody(', 'controlLocalXrScene(']) {
+    if (motionControlTargetCards.includes(duplicateOwner)) throw new Error(`expected Motion Control to avoid duplicate physics mutation owner ${duplicateOwner}`)
+  }
+  if (!motionControlAgentReadyContract.includes('objectIdentification: buildMotionControlObjectIdentificationOutputSchema()')
+    || !motionControlAgentReadyContract.includes("additionalProperties: false")) {
+    throw new Error('expected strict agent-ready output schema for scene-derived Motion Control object identification')
   }
   if (
     (xrMediaLibrary.match(/<XrLibraryCard/g) || []).length < 2

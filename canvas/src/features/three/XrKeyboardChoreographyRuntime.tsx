@@ -6,21 +6,17 @@ import {
   readCameraFramingRuntime,
 } from '@/features/strybldr/cameraFramingRuntime'
 import type { StrybldrCameraSettings } from '@/features/strybldr/strybldrCamera'
-import {
-  resolveXrMotionReferenceStage,
-  type XrMotionReferenceVector,
-} from './xrMotionReferenceModel'
+import type { XrMotionReferenceVector } from './xrMotionReferenceModel'
 import {
   readXrMotionReferenceRuntime,
   setXrMotionReferenceCameraMarkChoreography,
-  setXrMotionReferenceCastMarkChoreography,
   type XrMotionReferenceRuntimeSnapshot,
 } from './xrMotionReferenceRuntime'
 import {
   claimThreeObjectKeyboardInputOwnership,
   releaseThreeObjectKeyboardInputOwnership,
 } from './threeObjectInputOwnership'
-import { readXrPhysicsRuntime } from './xrPhysicsRuntime'
+import { readXrPhysicsRuntime, readXrPhysicsRuntimeFrame } from './xrPhysicsRuntime'
 import {
   THREE_KEYBOARD_HOLD_DELAY_MS,
   normalizeThreeKeyboardKey,
@@ -28,10 +24,11 @@ import {
   resolveThreeCameraKeyboardFraming,
   resolveThreeKeyboardFrameAmount,
   resolveThreeKeyboardTap,
-  resolveThreeObjectKeyboardMotionPosition,
   type ThreeKeyboardEvent,
   type ThreeKeyboardMovementKey,
 } from './threeKeyboardChoreography'
+import { resolveXrSubjectKeyboardMotion } from './xrSubjectMotionConstraints'
+import { applyXrConstrainedCastMarkChoreography } from './xrConstrainedCastMarkRuntime'
 
 type XrKeyboardChoreographyTarget = Readonly<{
   changed: boolean
@@ -56,28 +53,29 @@ function cameraSettingsEqual(left: StrybldrCameraSettings, right: StrybldrCamera
 
 function resolveCastTarget(
   runtime: XrMotionReferenceRuntimeSnapshot,
-  keys: Iterable<string>,
+  keys: Iterable<ThreeKeyboardMovementKey>,
   distanceMeters: number,
 ): XrKeyboardChoreographyTarget | null {
   const selection = runtime.selectedMark
   if (selection?.kind !== 'cast') return null
   const physics = readXrPhysicsRuntime()
-  if (physics.phase !== 'stopped' && physics.world.bodies.some(body => body.subjectId === selection.actorId)) return null
   const mark = runtime.plan.cast
     .find(track => track.actorId === selection.actorId)
     ?.marks.find(candidate => candidate.id === selection.markId)
   if (!mark) return null
-  const stage = resolveXrMotionReferenceStage(runtime.plan.stageId)
-  const nextPosition = resolveThreeObjectKeyboardMotionPosition({
-    bounds: {
-      halfDepth: stage.sizeMeters[1] / 2,
-      halfWidth: stage.sizeMeters[0] / 2,
-    },
+  const motion = resolveXrSubjectKeyboardMotion({
+    actorId: selection.actorId,
     distanceMeters,
     keys,
+    markId: mark.id,
+    physics,
+    physicsFrame: physics.phase === 'stopped' ? undefined : readXrPhysicsRuntimeFrame(),
+    plan: runtime.plan,
     position: mark.position,
-  }) as XrMotionReferenceVector | null
-  if (!nextPosition) return null
+    timeSeconds: mark.timeSeconds,
+  })
+  if (!motion || motion.status === 'physics-owned') return null
+  const nextPosition = motion.position
   return Object.freeze({
     actorId: selection.actorId,
     changed: nextPosition[0] !== mark.position[0] || nextPosition[2] !== mark.position[2],
@@ -130,7 +128,7 @@ function resolveCameraFramingTarget(
 
 export function resolveXrKeyboardChoreographyTarget(input: Readonly<{
   amount: number
-  keys: Iterable<string>
+  keys: Iterable<ThreeKeyboardMovementKey>
   runtime: XrMotionReferenceRuntimeSnapshot
 }>): XrKeyboardChoreographyTarget | null {
   const castTarget = resolveCastTarget(input.runtime, input.keys, input.amount)
@@ -152,7 +150,7 @@ export function resolveXrObjectKeyboardMotionTarget(
 
 export function resolveXrObjectKeyboardMotionFrameTarget(
   runtime: XrMotionReferenceRuntimeSnapshot,
-  keys: Iterable<string>,
+  keys: Iterable<ThreeKeyboardMovementKey>,
   distanceMeters: number,
 ): XrKeyboardChoreographyTarget | null {
   return resolveCastTarget(runtime, keys, distanceMeters)
@@ -176,7 +174,7 @@ function isKeyboardMotionSurface(target: EventTarget | null): boolean {
 function applyTarget(target: XrKeyboardChoreographyTarget): void {
   if (!target.changed) return
   if (target.kind === 'cast-mark' && target.actorId && target.markId && target.nextPosition) {
-    setXrMotionReferenceCastMarkChoreography({
+    applyXrConstrainedCastMarkChoreography({
       actorId: target.actorId,
       markId: target.markId,
       position: target.nextPosition,

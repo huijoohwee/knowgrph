@@ -183,7 +183,7 @@ export function testXrKeyboardChoreographySharesBrowserAndMcpMotion(): void {
   const helpShortcutSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'panels', 'views', 'HelpShortcutsSection.tsx'), 'utf8')
   const helpLogicSource = readFileSync(resolve(process.cwd(), 'src', 'features', 'panels', 'hooks', 'useHelpViewLogic.ts'), 'utf8')
   if (!browserAdapter.includes('resolveThreeCameraKeyboardFraming')
-    || !browserAdapter.includes('resolveThreeObjectKeyboardMotionPosition')
+    || !browserAdapter.includes('resolveXrSubjectKeyboardMotion')
     || !browserAdapter.includes('[data-kg-floating-panel-view-trigger="camera"]')
     || !readFileSync(resolve(process.cwd(), 'src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx'), 'utf8').includes('data-kg-floating-panel-view-trigger={spec.view}')
     || !cameraWebMcp.includes('async input => controlLocalCamera(input || {})')

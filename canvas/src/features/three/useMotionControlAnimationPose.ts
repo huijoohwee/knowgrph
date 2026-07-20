@@ -22,6 +22,7 @@ export function useMotionControlAnimationPose() {
     readMotionControlSnapshot,
   )
   return {
+    boundingBoxEnabled: motionControl.boundingBoxEnabled,
     motionActorId: readBoundXrSelectedActorId(),
     livePose: motionControlPoseToAnimationPose(motionControl.pose),
   }

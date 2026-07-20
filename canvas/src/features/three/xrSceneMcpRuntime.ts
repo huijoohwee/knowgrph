@@ -5,6 +5,7 @@ import type { JSONValue } from '@/lib/graph/types'
 import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
   XR_MOTION_REFERENCE_MAX_CAST_TRACKS,
+  XR_MOTION_REFERENCE_MAX_SUBJECTS,
   serializeXrMotionReferencePlan,
 } from './xrMotionReferenceModel'
 import {
@@ -24,7 +25,7 @@ import {
   restoreXrMotionReferenceRuntimeSnapshot,
   setXrMotionReferenceCastTransition,
   setXrMotionReferenceStage,
-  setXrMotionReferenceSubjectAsset,
+  setXrMotionReferenceSubjectAssetAndTransform,
   setXrMotionReferenceSubjectLabel,
   setXrMotionReferenceSubjectTransform,
 } from './xrMotionReferenceRuntime'
@@ -385,6 +386,9 @@ export function controlLocalXrScene(input: XrSceneControlInput): XrSceneControlR
     const stage = XR_MOTION_REFERENCE_STAGE_PRESETS.find(candidate => candidate.id === control.stageId)
     if (!stage) return { ok: false, message: `Unknown XR environment: ${control.stageId || '(empty)'}.` }
     setXrMotionReferenceStage(stage.id as XrMotionReferenceStageId)
+    if (readXrMotionReferenceRuntime().plan.stageId !== stage.id) {
+      return { ok: false, message: `${stage.label} could not be staged without violating XR motion constraints.` }
+    }
     setSharedXrNativeControllerDemoTerrain(stage.id as XrMotionReferenceStageId)
     message = `${stage.label} staged in XR Mode.`
   } else if (control.action === 'place') {
@@ -392,16 +396,35 @@ export function controlLocalXrScene(input: XrSceneControlInput): XrSceneControlR
     const asset = XR_SCENE_LIBRARY_ASSETS.find(candidate => candidate.id === control.assetId)!
     const before = readXrMotionReferenceRuntime().plan.subjects.length
     const next = addXrMotionReferenceSubject({ assetId: asset.id, label: control.label })
-    if (next.plan.subjects.length === before) return { ok: false, message: 'The bounded XR scene subject capacity has been reached.' }
+    if (next.plan.subjects.length === before) {
+      return {
+        ok: false,
+        message: before >= XR_MOTION_REFERENCE_MAX_SUBJECTS
+          ? 'The bounded XR scene subject capacity has been reached.'
+          : 'No collision-free authored placement is available for that XR asset.',
+      }
+    }
     subjectId = next.plan.subjects.at(-1)?.id || ''
-    if (asset.mobile && subjectId) setXrMotionReferenceCastTransition(subjectId, control.transition)
+    if (asset.mobile && subjectId) {
+      const beforeTransitionRevision = readXrMotionReferenceRuntime().revision
+      const transitioned = setXrMotionReferenceCastTransition(subjectId, control.transition)
+      if (transitioned.revision === beforeTransitionRevision) {
+        restoreXrMotionReferenceRuntimeSnapshot(previousMotion)
+        return { ok: false, message: `${asset.label} could not be placed with a collision-free ${control.transition} path.` }
+      }
+    }
     message = `${next.plan.subjects.at(-1)?.label || asset.label} placed with ${asset.mobile ? control.transition : 'static'} path interpolation.`
   } else if (control.action === 'transition') {
     subjectId = control.subjectId
     if (!readXrMotionReferenceRuntime().plan.cast.some(track => track.actorId === subjectId)) {
       return { ok: false, message: `XR subject ${subjectId || '(empty)'} is not a markable cast track.` }
     }
-    setXrMotionReferenceCastTransition(subjectId, control.transition)
+    const beforeRevision = readXrMotionReferenceRuntime().revision
+    const next = setXrMotionReferenceCastTransition(subjectId, control.transition)
+    if (next.revision === beforeRevision
+      || next.plan.cast.find(track => track.actorId === subjectId)?.marks.some(mark => mark.transition !== control.transition)) {
+      return { ok: false, message: `XR subject path interpolation was blocked by XR motion constraints.` }
+    }
     message = `XR subject path interpolation set to ${control.transition}.`
   } else if (control.action === 'transform') {
     subjectId = control.subjectId
@@ -416,18 +439,32 @@ export function controlLocalXrScene(input: XrSceneControlInput): XrSceneControlR
         && motion.plan.cast.length >= XR_MOTION_REFERENCE_MAX_CAST_TRACKS) {
         return { ok: false, message: 'The bounded XR cast-track capacity has been reached.' }
       }
-      setXrMotionReferenceSubjectAsset({ subjectId, assetId: nextAsset.id })
-      if (readXrMotionReferenceRuntime().plan.subjects.find(candidate => candidate.id === subjectId)?.assetId !== nextAsset.id) {
-        return { ok: false, message: `${subject.label} could not change to ${nextAsset.label}.` }
+      const beforeRevision = motion.revision
+      const next = setXrMotionReferenceSubjectAssetAndTransform({
+        subjectId,
+        assetId: nextAsset.id,
+        ...(control.position ? { position: control.position } : {}),
+        ...(control.rotationYDegrees !== undefined ? { rotationYDegrees: control.rotationYDegrees } : {}),
+        ...(control.scale !== undefined ? { scale: control.scale } : {}),
+        ...(control.color ? { color: control.color } : {}),
+      })
+      if (next.revision === beforeRevision
+        || next.plan.subjects.find(candidate => candidate.id === subjectId)?.assetId !== nextAsset.id) {
+        return { ok: false, message: `${subject.label} could not change to ${nextAsset.label} without violating XR motion constraints.` }
+      }
+    } else {
+      const beforeRevision = readXrMotionReferenceRuntime().revision
+      const next = setXrMotionReferenceSubjectTransform({
+        subjectId,
+        ...(control.position ? { position: control.position } : {}),
+        ...(control.rotationYDegrees !== undefined ? { rotationYDegrees: control.rotationYDegrees } : {}),
+        ...(control.scale !== undefined ? { scale: control.scale } : {}),
+        ...(control.color ? { color: control.color } : {}),
+      })
+      if (next.revision === beforeRevision) {
+        return { ok: false, message: `${subject.label} transform was blocked by XR motion constraints.` }
       }
     }
-    setXrMotionReferenceSubjectTransform({
-      subjectId,
-      ...(control.position ? { position: control.position } : {}),
-      ...(control.rotationYDegrees !== undefined ? { rotationYDegrees: control.rotationYDegrees } : {}),
-      ...(control.scale !== undefined ? { scale: control.scale } : {}),
-      ...(control.color ? { color: control.color } : {}),
-    })
     message = `${subject.label} ${control.assetId ? 'asset and transform' : 'transform'} updated.`
   } else if (control.action === 'label') {
     subjectId = control.subjectId

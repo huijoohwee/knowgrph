@@ -9,10 +9,45 @@ import {
 } from './xrAnimationMcpRuntime'
 import { buildXrPhysicsInvocation } from './xrSceneMcpContract.mjs'
 import { inspectLocalXrSceneAssets } from './xrSceneMcpRuntime'
+import { readXrPhysicsRuntime, type XrPhysicsRuntimeSnapshot } from './xrPhysicsRuntime'
+import type { XrMotionReferenceSubject } from './xrMotionReferenceModel'
 import { readXrMotionReferenceRuntime } from './xrMotionReferenceRuntime'
 import { readBoundXrSelectedActorId } from './xrSelectedActorBinding'
 import { resolveXrSceneLibraryAsset } from './xrSceneLibrary'
 import { MOTION_CONTROL_SURFACE_CATALOG } from './motionControlSurfaceRuntime'
+
+type AuthoredSubjectIdentity = Pick<XrMotionReferenceSubject, 'id' | 'assetId' | 'category' | 'label'>
+type PhysicsBodyIdentity = Pick<XrPhysicsRuntimeSnapshot['world']['bodies'][number], 'subjectId' | 'mode'>
+
+export function buildMotionControlObjectIdentification(input: Readonly<{
+  subjects: readonly AuthoredSubjectIdentity[]
+  selectedSubjectId: string
+  physicsBodies: readonly PhysicsBodyIdentity[]
+}>) {
+  const physicsBodies = new Map(input.physicsBodies.map(body => [body.subjectId, body]))
+  const records = Object.freeze(input.subjects.map(subject => {
+    const asset = resolveXrSceneLibraryAsset(subject.assetId)
+    const body = physicsBodies.get(subject.id)
+    return Object.freeze({
+      id: subject.id,
+      label: subject.label,
+      category: subject.category,
+      assetLabel: asset.label,
+      catalogDimensionsMeters: Object.freeze([...asset.dimensionsMeters]) as readonly [number, number, number],
+      selected: subject.id === input.selectedSubjectId,
+      physicsBodyAttached: Boolean(body),
+      physicsBodyMode: body?.mode || 'none' as const,
+    })
+  }))
+  return Object.freeze({
+    records,
+    counts: Object.freeze({
+      total: records.length,
+      selected: records.filter(record => record.selected).length,
+      physicsAttached: records.filter(record => record.physicsBodyAttached).length,
+    }),
+  })
+}
 
 export function buildMotionControlXrControllerInvocation(controller: Readonly<{
   mode: 'ball' | 'rocket'
@@ -23,9 +58,23 @@ export function buildMotionControlXrControllerInvocation(controller: Readonly<{
     : buildXrPhysicsInvocation('controller', 'reset')
 }
 
+export function buildMotionControlAnimationTarget(input: Readonly<{
+  actorId: string
+  label: string
+  livePoseCompatible: boolean
+  assignedPresetId: string
+  recommendedPresetId: string
+}>) {
+  return Object.freeze({
+    ...input,
+    compatible: Boolean(input.actorId && (input.assignedPresetId || input.recommendedPresetId)),
+  })
+}
+
 export function inspectMotionControlTargets() {
   const runtime = readXrMotionReferenceRuntime()
   const scene = inspectLocalXrSceneAssets()
+  const physics = readXrPhysicsRuntime()
   const animation = inspectLocalAnimation()
   const controller = scene.physics.controllerDemo
   const actorId = readBoundXrSelectedActorId()
@@ -45,6 +94,18 @@ export function inspectMotionControlTargets() {
     ? XR_ANIMATION_PRESETS.find(preset => preset.id === track.animation?.presetId)
     : null
   const animationPreset = assignedPreset || compatiblePreset
+  const animationTarget = buildMotionControlAnimationTarget({
+    actorId,
+    label: subject?.label || track?.label || '',
+    livePoseCompatible: humanoidCompatible,
+    assignedPresetId: assignedPreset?.id || '',
+    recommendedPresetId: compatiblePreset?.id || '',
+  })
+  const objectIdentification = buildMotionControlObjectIdentification({
+    subjects: runtime.plan.subjects,
+    selectedSubjectId: runtime.selectedShotTargetId,
+    physicsBodies: physics.world.bodies,
+  })
   return {
     selectedHumanoid: {
       actorId,
@@ -56,7 +117,8 @@ export function inspectMotionControlTargets() {
       xr3d: {
         ...MOTION_CONTROL_SURFACE_CATALOG['xr-3d'],
         sceneReady: scene.sceneReady,
-        subjectCount: scene.runtime.subjects.length,
+        subjectCount: objectIdentification.counts.total,
+        objectIdentification,
         controllerMode: controller.mode,
         controllerPhase: controller.phase,
         invocation: buildMotionControlXrControllerInvocation(controller),
@@ -65,6 +127,7 @@ export function inspectMotionControlTargets() {
       animation: {
         ...MOTION_CONTROL_SURFACE_CATALOG.animation,
         sceneReady: animation.sceneReady,
+        selectedTarget: animationTarget,
         invocation: animationPreset
           ? buildXrAnimationInvocation(animationPreset.id)
           : buildXrAnimationTransportInvocation('play'),

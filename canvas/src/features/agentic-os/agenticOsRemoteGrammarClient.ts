@@ -9,6 +9,7 @@ import {
   normalizeProgressiveAgentsReadiness,
   type AgenticOsProgressiveAgentsReadinessSummary,
 } from './agenticOsProgressiveAgentsReadiness'
+import { normalizeAgenticOsRemoteGrammarCatalogProvenance } from './agenticOsRemoteGrammarProvenance'
 
 export type AgenticOsRemoteGrammarCatalogEntry = {
   token: string
@@ -518,6 +519,10 @@ export async function fetchAgenticOsRemoteGrammarCatalog(
   if (!/^[0-9a-f]{40}$/.test(payload.sourceRevision)) {
     throw new Error('Agentic OS remote grammar response is missing an exact docs revision')
   }
+  const sourceBoundCatalog = normalizeAgenticOsRemoteGrammarCatalogProvenance(
+    payload.catalog,
+    payload.sourceRevision,
+  )
   if (remoteGrammarSourceRevision && remoteGrammarSourceRevision !== payload.sourceRevision) {
     remoteGrammarEntriesByToken = new Map()
     remoteGrammarSuccessfulSigils = new Map()
@@ -530,7 +535,7 @@ export async function fetchAgenticOsRemoteGrammarCatalog(
     payload.progressiveAgentsReadiness,
     payload.sourceRevision,
   )
-  const entries = [...registerAgenticOsRemoteGrammarCatalogEntries(payload.catalog)]
+  const entries = [...registerAgenticOsRemoteGrammarCatalogEntries(sourceBoundCatalog)]
   const normalizedQuery = normalizeString(args.query)
   const sigil = REMOTE_GRAMMAR_SIGIL_ORDER.includes(normalizedQuery as AgenticOsRemoteGrammarSigil)
     ? normalizedQuery as AgenticOsRemoteGrammarSigil

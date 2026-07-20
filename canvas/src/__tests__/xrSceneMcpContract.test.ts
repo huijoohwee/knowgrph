@@ -2,18 +2,18 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import Ajv2020 from 'ajv/dist/2020.js'
 import {
+  registerPinnedAgenticOsDictionaryTokensForTest,
+  RETIRED_BROWSER_DICTIONARY_FALLBACK_TOKENS,
+} from '@/__tests__/helpers/pinnedAgenticOsDictionary'
+import {
   findAgenticOsInvocationByToken,
   getAgenticOsBindingInvocations,
-  getAgenticOsCanvasInteractionPanelInvocations,
   getAgenticOsCommandInvocations,
   getAgenticOsSemanticInvocations,
   type AgenticOsDictionaryInvocation,
   type AgenticOsDictionaryInvocationKind,
 } from '@/features/agentic-os/agenticOsDocInvocations'
-import {
-  registerAgenticOsRemoteGrammarCatalogEntries,
-  resetAgenticOsRemoteGrammarCatalogForTests,
-} from '@/features/agentic-os/agenticOsRemoteGrammarClient'
+import { resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import {
   KNOWGRPH_AGENT_READY_DEFAULT_WORKSPACE_ID,
   KNOWGRPH_AGENT_READY_TOOL_IDS,
@@ -25,6 +25,9 @@ import {
 } from '@/features/agent-ready/knowgrphVdeoxplnContract.mjs'
 import { parseChatInvocationDirectives } from '@/features/chat/chatInvocationRegistry'
 import { resolveChatRuntimeInvocationQuery } from '@/features/chat/chatRuntimeInvocationQuery'
+import { buildCameraKeyboardInvocation } from '@/features/strybldr/cameraMcpRuntime'
+import { buildMotionControlInvocation } from '@/features/three/motionControlMcpRuntime'
+import { buildXrAnimationInvocation } from '@/features/three/xrAnimationMcpRuntime'
 import { parseXrInteractiveInvocation } from '@/features/three/xrSceneInteractiveInvocation'
 import { normalizeXrSceneControl } from '@/features/three/xrSceneMcpRuntime'
 import {
@@ -38,6 +41,7 @@ import {
   buildXrTransformInvocation,
 } from '@/features/three/xrSceneMcpContract.mjs'
 import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
+import { AGENTIC_CANVAS_OS_DOCS_KIND_FILES } from '../../../mcp/agentic-canvas-os-docs-contract.mjs'
 
 type JsonSchema = Readonly<{
   const?: unknown
@@ -70,32 +74,48 @@ function registryForKind(kind: AgenticOsDictionaryInvocationKind) {
 }
 
 function assertCanonicalCatalogAndRuntimeDedupe(): void {
-  const catalogSource = readFileSync(resolve(process.cwd(), 'src/features/agentic-os/agenticOsDocInvocations.ts'), 'utf8')
-  for (const owner of ['XR_SCENE_INVOCATION_COMMANDS', 'XR_SCENE_INVOCATION_SEMANTICS', 'XR_SCENE_INVOCATION_BINDINGS']) {
-    assert(catalogSource.includes(owner), `expected canonical XR catalog fallbacks to reuse ${owner}`)
-  }
-  for (const token of Object.values(TOKENS_BY_KIND).flatMap(tokens => [...tokens])) {
-    assert(!catalogSource.includes(`token: '${token}'`), `expected ${token} to remain single-owned by xrSceneMcpContract`)
-  }
   resetAgenticOsRemoteGrammarCatalogForTests()
   try {
-    for (const [kind, tokens] of Object.entries(TOKENS_BY_KIND) as Array<[
+    for (const [kind, tokens] of Object.entries(RETIRED_BROWSER_DICTIONARY_FALLBACK_TOKENS) as Array<[
+      AgenticOsDictionaryInvocationKind,
+      readonly string[],
+    ]>) {
+      for (const token of tokens) {
+        assert(!registryForKind(kind).some(invocation => invocation.token === token), `expected retired local ${kind} fallback ${token} to remain absent`)
+        assert(findAgenticOsInvocationByToken(token) == null, `expected ${token} to resolve only after source-backed catalog hydration`)
+      }
+    }
+    const nativeStage = normalizeXrSceneControl({ invocation: buildXrStageInvocation('neutral-volume') })
+    const nativePhysics = parseXrInteractiveInvocation(buildXrPhysicsInvocation('world', 'reset'))
+    const nativePresent = parseXrInteractiveInvocation(buildXrPresentInvocation())
+    const nativeCamera = buildCameraKeyboardInvocation({ action: 'frame', keys: ['w'] })
+    const nativeAnimation = buildXrAnimationInvocation('dance')
+    const nativeMotionControl = buildMotionControlInvocation('open')
+    assert(nativeStage?.action === 'stage' && nativeStage.stageId === 'neutral-volume', 'expected native XR stage parsing before remote dictionary hydration')
+    assert(nativePhysics?.action === 'physics' && nativePhysics.physics.operation === 'reset', 'expected native XR physics parsing before remote dictionary hydration')
+    assert(nativePresent?.action === 'present', 'expected native XR presentation parsing before remote dictionary hydration')
+    assert(nativeCamera.startsWith('/camera.frame '), 'expected native Camera builder before remote dictionary hydration')
+    assert(nativeAnimation.startsWith('/animation.control '), 'expected native Animation builder before remote dictionary hydration')
+    assert(nativeMotionControl.startsWith('/motion.control '), 'expected native Motion Control builder before remote dictionary hydration')
+
+    const revision = registerPinnedAgenticOsDictionaryTokensForTest(RETIRED_BROWSER_DICTIONARY_FALLBACK_TOKENS)
+    registerPinnedAgenticOsDictionaryTokensForTest(RETIRED_BROWSER_DICTIONARY_FALLBACK_TOKENS)
+    for (const [kind, tokens] of Object.entries(RETIRED_BROWSER_DICTIONARY_FALLBACK_TOKENS) as Array<[
       AgenticOsDictionaryInvocationKind,
       readonly string[],
     ]>) {
       for (const token of tokens) {
         const matches = registryForKind(kind).filter(invocation => invocation.token === token)
-        assert(matches.length === 1, `expected one local ${kind} fallback for ${token}, got ${matches.length}`)
+        assert(matches.length === 1, `expected one deduplicated pinned ${kind} entry for ${token}, got ${matches.length}`)
         const resolved = findAgenticOsInvocationByToken(token)
-        assert(resolved?.kind === kind && resolved.token === token, `expected canonical lookup for ${token}`)
+        assert(resolved?.kind === kind && resolved.token === token, `expected pinned canonical lookup for ${token}`)
+        assert(
+          resolved.sourcePath.includes(`/blob/${revision}/docs/${AGENTIC_CANVAS_OS_DOCS_KIND_FILES[kind]}`),
+          `expected exact-revision source metadata for ${token}, got ${resolved.sourcePath}`,
+        )
         const route = resolveChatRuntimeInvocationQuery(`${token} active XR scene`)
         assert(route.leadingRoute?.kind === 'agentic-os' && route.leadingRoute.token === token, `expected chat routing for ${token}`)
       }
-    }
-    const canvasInteractionTokens = new Set<string>(getAgenticOsCanvasInteractionPanelInvocations().map(invocation => invocation.token))
-    const xrFallbackTokens: readonly string[] = Object.values(TOKENS_BY_KIND).flatMap(tokens => [...tokens])
-    for (const token of xrFallbackTokens) {
-      assert(canvasInteractionTokens.has(token), `expected the canonical Canvas Interaction panel to expose ${token}`)
     }
 
     const semanticTokens = new Set<InvocationToken>(
@@ -105,28 +125,6 @@ function assertCanonicalCatalogAndRuntimeDedupe(): void {
       assert(semanticTokens.has(token), `expected semantic directive parsing for ${token}`)
     }
 
-    const remoteEntries = (Object.entries(TOKENS_BY_KIND) as Array<[
-      AgenticOsDictionaryInvocationKind,
-      readonly string[],
-    ]>).flatMap(([kind, tokens]) => tokens.map(token => ({
-      token: token === XR_SCENE_INVOCATION_COMMANDS.physics ? token.toUpperCase() : token,
-      kind,
-      label: `Remote ${token}`,
-      sourcePath: `remote/${kind}/${token.slice(1)}`,
-    })))
-    registerAgenticOsRemoteGrammarCatalogEntries(remoteEntries)
-    for (const [kind, tokens] of Object.entries(TOKENS_BY_KIND) as Array<[
-      AgenticOsDictionaryInvocationKind,
-      readonly string[],
-    ]>) {
-      for (const token of tokens) {
-        const matches = registryForKind(kind).filter(invocation => invocation.token.toLowerCase() === token.toLowerCase())
-        assert(matches.length === 1, `expected remote hydration to dedupe ${token}, got ${matches.length}`)
-        const resolved = findAgenticOsInvocationByToken(token)
-        assert(resolved?.sourcePath === `remote/${kind}/${token.slice(1)}`, `expected remote metadata to override the ${token} fallback`)
-        assert(resolved.token === token, `expected remote metadata to preserve canonical SSOT casing for ${token}`)
-      }
-    }
   } finally {
     resetAgenticOsRemoteGrammarCatalogForTests()
   }

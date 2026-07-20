@@ -71,6 +71,7 @@ jobs:
           repository: ${{ steps.agentic_canvas_os_docs.outputs.repository }}
           ref: ${{ steps.agentic_canvas_os_docs.outputs.ref }}
           path: agentic-canvas-os
+          fetch-depth: 0
 
       # Deterministic network-free gate — must pass before reachability checks.
       - name: Runtime readiness check (network-free)

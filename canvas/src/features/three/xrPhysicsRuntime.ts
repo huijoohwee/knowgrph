@@ -30,6 +30,7 @@ export type XrPhysicsRuntimePhase = 'stopped' | 'playing' | 'paused'
 
 export type XrPhysicsRuntimeSnapshot = Readonly<{
   sceneKey: string
+  ownerSourceSignature: string
   sourceSignature: string
   phase: XrPhysicsRuntimePhase
   world: XrPhysicsWorldConfig
@@ -73,6 +74,7 @@ const initialWorld = readXrPhysicsWorld(null)
 let simulation: XrPhysicsSimulation = createXrPhysicsSimulation(initialWorld)
 let snapshot = freezeSnapshot({
   sceneKey: '',
+  ownerSourceSignature: '',
   sourceSignature: '',
   phase: 'stopped',
   world: initialWorld,
@@ -99,14 +101,39 @@ function normalizedSubjectSeeds(subjects: readonly XrPhysicsSubjectSeed[]): read
   return Object.freeze(seeds.filter((seed, index) => index === 0 || seeds[index - 1]!.subjectId !== seed.subjectId))
 }
 
-function hydrationSignature(args: {
+function physicsOwnerSourceSignature(args: {
   sceneKey: string
+  sourceSignature: string
   persistedValue: unknown
   subjects: readonly XrPhysicsSubjectSeed[]
   colliders: readonly XrPhysicsStaticCollider[]
 }): string {
   return JSON.stringify({
     sceneKey: String(args.sceneKey || ''),
+    sourceSignature: String(args.sourceSignature || ''),
+    persistedWorld: serializeXrPhysicsWorld(readXrPhysicsWorld(args.persistedValue)),
+    subjectIds: args.subjects.map(subject => subject.subjectId),
+    colliders: args.colliders.map(collider => [
+      collider.id,
+      collider.center,
+      collider.sizeMeters,
+      collider.friction,
+      collider.restitution,
+      collider.collisionGroup,
+      collider.collisionMask,
+      collider.trigger,
+    ]),
+  })
+}
+
+function stoppedHydrationSignature(args: {
+  ownerSourceSignature: string
+  persistedValue: unknown
+  subjects: readonly XrPhysicsSubjectSeed[]
+  colliders: readonly XrPhysicsStaticCollider[]
+}): string {
+  return JSON.stringify({
+    ownerSourceSignature: args.ownerSourceSignature,
     persistedWorld: serializeXrPhysicsWorld(readXrPhysicsWorld(args.persistedValue, args.subjects)),
     subjects: args.subjects.map(subject => [subject.subjectId, subject.position, subject.sizeMeters]),
     colliders: args.colliders.map(collider => [
@@ -209,24 +236,38 @@ export function serializeXrPhysicsRuntimeWorld(): Record<string, unknown> {
 
 export function hydrateXrPhysicsRuntime(args: {
   sceneKey: string
+  sourceSignature?: string
   persistedValue: unknown
   subjects: readonly XrPhysicsSubjectSeed[]
   staticColliders?: readonly XrPhysicsStaticCollider[]
 }): XrPhysicsRuntimeSnapshot {
   const subjects = normalizedSubjectSeeds(args.subjects)
   const colliders = readXrPhysicsStaticColliders(args.staticColliders || [])
-  const sourceSignature = hydrationSignature({
+  const ownerSourceSignature = physicsOwnerSourceSignature({
     sceneKey: args.sceneKey,
+    sourceSignature: args.sourceSignature || '',
     persistedValue: args.persistedValue,
     subjects,
     colliders,
   })
+  const sourceSignature = stoppedHydrationSignature({
+    ownerSourceSignature,
+    persistedValue: args.persistedValue,
+    subjects,
+    colliders,
+  })
+  const sameActiveOwner = snapshot.phase !== 'stopped'
+    && snapshot.sceneKey === String(args.sceneKey || '')
+    && snapshot.ownerSourceSignature === ownerSourceSignature
+  if (sameActiveOwner) return snapshot
   if (sourceSignature === snapshot.sourceSignature) return snapshot
   activeSubjects = subjects
   staticColliders = colliders
   const persistedWorld = readXrPhysicsWorld(args.persistedValue, activeSubjects)
-  const sameDirtyScene = snapshot.sceneKey === String(args.sceneKey || '') && snapshot.dirty
-  const preserveDirty = sameDirtyScene
+  const sameDirtySource = snapshot.sceneKey === String(args.sceneKey || '')
+    && snapshot.ownerSourceSignature === ownerSourceSignature
+    && snapshot.dirty
+  const preserveDirty = sameDirtySource
     && xrPhysicsWorldSignature(persistedWorld) !== xrPhysicsWorldSignature(snapshot.world)
   const world = preserveDirty
     ? readXrPhysicsWorld(serializeXrPhysicsWorld(snapshot.world), activeSubjects)
@@ -235,6 +276,7 @@ export function hydrateXrPhysicsRuntime(args: {
   accumulatorSeconds = 0
   return publish({
     sceneKey: String(args.sceneKey || ''),
+    ownerSourceSignature,
     sourceSignature,
     phase: 'stopped',
     world,

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { assertPinnedAgenticOsDictionaryTokensForTest, PINNED_ANIMATION_DICTIONARY_TOKENS } from '@/__tests__/helpers/pinnedAgenticOsDictionary'
 import type { GraphData } from '@/lib/graph/types'
 import {
   resetAgenticOsRemoteGrammarCatalogForTests,
@@ -58,6 +59,7 @@ import {
 import { hydrateCanonicalXrMotionReferenceRuntime } from '@/features/three/XrMotionReferenceRuntimeBridge'
 import { selectBoundXrActor } from '@/features/three/xrSelectedActorBinding'
 import { buildXrMotionReferenceTimelineCode } from '@/features/three/xrMotionReferenceTimeline'
+import { applyXrConstrainedCastActionPath } from '@/features/three/xrConstrainedCastMarkRuntime'
 
 function readSource(...parts: string[]): string {
   return readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
@@ -216,10 +218,13 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
     throw new Error('expected keyboard taps and frame-timed holds to provide bounded, normalized selected-mark choreography without shortcut modifiers')
   }
 
+  hydrateXrMotionReferenceRuntime({ sceneKey: 'animation-action-path', nodes: [], persistedValue: null })
   addXrMotionReferenceSubject({ assetId: 'vehicle-airplane', label: 'Picture plane' })
   const airplane = readXrMotionReferenceRuntime().plan.subjects.find(subject => subject.assetId === 'vehicle-airplane')
   if (!airplane) throw new Error('expected the native scene library to place a procedural airplane')
-  setXrMotionReferenceCastAnimation(airplane.id, 'plane-landing')
+  if (!applyXrConstrainedCastActionPath(airplane.id, 'plane-landing').applied) {
+    throw new Error('expected the shared constrained owner to assign the plane-landing path')
+  }
   plan = readXrMotionReferenceRuntime().plan
   const airplaneTrack = plan.cast.find(track => track.actorId === airplane.id)
   if (airplaneTrack?.animation?.presetId !== 'plane-landing' || airplaneTrack.marks.length !== 5 || airplaneTrack.marks.at(-1)?.transition !== 'hold') {
@@ -246,14 +251,14 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   const rebuiltPath = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === airplane.id)
   if (rebuiltPath?.marks.at(-1)?.timeSeconds !== 20
     || rebuiltPath.marks.some(mark => Math.abs(mark.position[0]) > resizedStage.sizeMeters[0] * 0.48 || Math.abs(mark.position[2]) > resizedStage.sizeMeters[1] * 0.48)) {
-    throw new Error('expected duration and stage changes to rebuild assigned action paths inside current bounds')
+    throw new Error(`expected duration and stage changes to rebuild assigned action paths inside current bounds, got ${JSON.stringify({ stageId: readXrMotionReferenceRuntime().plan.stageId, rebuiltPath })}`)
   }
   clearXrMotionReferenceCastAnimation(airplane.id)
   const clearedPath = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === airplane.id)
   if (clearedPath?.animation !== null || clearedPath.marks.length !== 1 || clearedPath.marks[0]?.transition !== 'hold') {
     throw new Error('expected clearing an action path to stop its baked motion marks')
   }
-  setXrMotionReferenceCastAnimation(airplane.id, 'plane-landing')
+  applyXrConstrainedCastActionPath(airplane.id, 'plane-landing')
   const assignedPath = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === airplane.id)
   if (!assignedPath) throw new Error('expected an assigned airplane action path')
   removeXrMotionReferenceCastMark(airplane.id, 'missing-mark')
@@ -264,18 +269,18 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   if (readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === airplane.id)?.animation !== null) {
     throw new Error('expected manual mark retiming to clear a stale action-path assignment')
   }
-  setXrMotionReferenceCastAnimation(airplane.id, 'plane-landing')
+  applyXrConstrainedCastActionPath(airplane.id, 'plane-landing')
   const removablePath = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === airplane.id)
   removeXrMotionReferenceCastMark(airplane.id, removablePath!.marks[1]!.id)
   if (readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === airplane.id)?.animation !== null) {
     throw new Error('expected manual mark removal to clear a stale action-path assignment')
   }
-  setXrMotionReferenceCastAnimation(airplane.id, 'plane-landing')
+  applyXrConstrainedCastActionPath(airplane.id, 'plane-landing')
   setXrMotionReferenceCastMark({ actorId: airplane.id, timeSeconds: 0.123, position: [0, 1, 0] })
   if (readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === airplane.id)?.animation !== null) {
     throw new Error('expected manual mark placement to clear a stale action-path assignment')
   }
-  setXrMotionReferenceCastAnimation(airplane.id, 'plane-landing')
+  applyXrConstrainedCastActionPath(airplane.id, 'plane-landing')
   const editablePath = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === airplane.id)
   setXrMotionReferenceCastMarkChoreography({ actorId: airplane.id, markId: editablePath!.marks[0]!.id, easing: 'ease-in-out', gait: 'flight' })
   if (readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === airplane.id)?.animation !== null) {
@@ -323,10 +328,10 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   for (const forbidden of ['<XrChoreographyMarkControls', 'MarkParameterChips', 'data-kg-xr-mark-parameter-sigil', 'selectXrMotionReferenceCastMark', 'selectXrMotionReferenceCameraMark', 'aria-label={`Select ${track.label} mark']) {
     if (inspectorSource.includes(forbidden)) throw new Error(`expected FloatingPanel choreography cards to avoid bespoke, duplicate mark controls or selectors, found ${forbidden}`)
   }
-  for (const marker of ['data-kg-xr-mark-easing', 'data-kg-xr-mark-gait', 'data-kg-xr-mark-position', 'data-kg-xr-mark-position-axis', 'Mark position · meters', 'XR_CHOREOGRAPHY_EASINGS', 'XR_CHOREOGRAPHY_GAITS', 'showPosition', 'data-kg-xr-mark-position-layout="compact-timeline"', 'XYZ m']) {
+  for (const marker of ['data-kg-xr-mark-easing', 'data-kg-xr-mark-gait', 'data-kg-xr-mark-position', 'data-kg-xr-mark-position-axis', "min={axis === 'Y' ? 0 : -XR_MOTION_REFERENCE_MAX_COORDINATE_METERS}", 'max={XR_MOTION_REFERENCE_MAX_COORDINATE_METERS}', 'Mark position · meters', 'XR_CHOREOGRAPHY_EASINGS', 'XR_CHOREOGRAPHY_GAITS', 'showPosition', 'data-kg-xr-mark-position-layout="compact-timeline"', 'XYZ m']) {
     if (!choreographyControlsSource.includes(marker)) throw new Error(`expected Timeline mark controls to expose ${marker}`)
   }
-  for (const marker of ["'configure-mark'", "'move-object'", 'buildXrAnimationObjectMoveInvocation', 'resolveThreeObjectKeyboardMotionPosition', 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkChoreography', 'position: control.position', 'resolveXrChoreographySpeedWarnings', 'configureCastMark', 'configureCameraMark', 'moveObject']) {
+  for (const marker of ["'configure-mark'", "'move-object'", 'buildXrAnimationObjectMoveInvocation', 'resolveXrSubjectKeyboardMotion', 'hydrateCanonicalXrPhysicsRuntime()', 'applyXrConstrainedCastMarkChoreography', 'setXrMotionReferenceCameraMarkChoreography', 'position: control.position', 'resolveXrChoreographySpeedWarnings', 'configureCastMark', 'configureCameraMark', 'moveObject']) {
     if (!animationMcpSource.includes(marker)) throw new Error(`expected Animation MCP to control and inspect choreography through ${marker}`)
   }
   for (const marker of ['XR_ANIMATION_CONTROL_INPUT_SCHEMA', 'buildXrAnimationOperationSchema', 'oneOf:', "'configure-mark'", "'move-object'", "enum: ['w', 'a', 's', 'd', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']", 'distanceMeters', 'Use the shared 0.05 m precision step', "enum: ['linear', 'ease-in', 'ease-out', 'ease-in-out', 'hold']", "enum: ['hold', 'walk', 'jog', 'run', 'wheeled', 'flight', 'drop']", "Cast mark [x, y, z] position in stage meters"]) {
@@ -359,7 +364,7 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
   for (const marker of ['<XrKeyboardChoreographyRuntime />', 'WASD or arrow keys', 'Shift for 0.05 m']) {
     if (!`${stageSource}\n${inspectorSource}`.includes(marker)) throw new Error(`expected XR object choreography to expose keyboard motion through ${marker}`)
   }
-  for (const marker of ['resolveXrObjectKeyboardMotionTarget', 'resolveThreeObjectKeyboardMotionPosition', 'window.requestAnimationFrame(runAnimationFrame)', 'THREE_KEYBOARD_HOLD_DELAY_MS', 'activeKeysRef.current.has(tap.key)', 'claimThreeObjectKeyboardInputOwnership', '[data-kg-xr-lane-cast-mark][aria-pressed="true"]', "window.addEventListener('keydown', handleKeyDown, { capture: true })", 'event.stopImmediatePropagation()', 'setXrMotionReferenceCastMarkChoreography', 'releaseThreeObjectKeyboardInputOwnership']) {
+  for (const marker of ['resolveXrObjectKeyboardMotionTarget', 'resolveXrSubjectKeyboardMotion', 'window.requestAnimationFrame(runAnimationFrame)', 'THREE_KEYBOARD_HOLD_DELAY_MS', 'activeKeysRef.current.has(tap.key)', 'claimThreeObjectKeyboardInputOwnership', '[data-kg-xr-lane-cast-mark][aria-pressed="true"]', "window.addEventListener('keydown', handleKeyDown, { capture: true })", 'event.stopImmediatePropagation()', 'applyXrConstrainedCastMarkChoreography', 'releaseThreeObjectKeyboardInputOwnership']) {
     if (!keyboardMotionSource.includes(marker)) throw new Error(`expected XR keyboard motion to isolate object choreography through ${marker}`)
   }
   for (const marker of ['THREE_KEYBOARD_MOVEMENT_KEYS', 'resolveThreeKeyboardTap', 'resolveThreeKeyboardMotionDirection', 'resolveThreeKeyboardFrameAmount', 'resolveThreeObjectKeyboardMotionPosition', 'resolveThreeCameraKeyboardFraming', 'clampThreeObjectPlanarPosition']) {
@@ -401,6 +406,11 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
       || activeState.bottomSurfaceTab !== 'timeline'
       || activeState.bottomSurfaceCollapsed !== false) {
       throw new Error(`expected upstream / @ # animation invocation to persist and reveal the canonical runtime, got ${JSON.stringify(applied)}`)
+    }
+    try {
+      assertPinnedAgenticOsDictionaryTokensForTest(PINNED_ANIMATION_DICTIONARY_TOKENS)
+    } finally {
+      resetAgenticOsRemoteGrammarCatalogForTests()
     }
     const configuredMarkId = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === 'actor-a')!.marks[0]!.id
     const configured = controlLocalAnimation({ operation: 'configure-mark', markKind: 'cast', markId: configuredMarkId, targetId: 'actor-a', easing: 'ease-in-out', gait: 'run', position: [2, 0, -1] })

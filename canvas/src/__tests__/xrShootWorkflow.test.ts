@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { assertPinnedCameraDictionaryForTest } from '@/__tests__/helpers/pinnedAgenticOsDictionary'
 import type { GraphData } from '@/lib/graph/types'
 import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
@@ -20,7 +21,6 @@ import {
 import { shouldApplySharedCameraFramingRevision } from '@/features/three/cameraFramingControlsRuntime'
 import { hydrateCanonicalXrMotionReferenceRuntime } from '@/features/three/XrMotionReferenceRuntimeBridge'
 import { registerAgenticOsRemoteGrammarCatalogEntries, resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
-import { resolveChatInvocationCatalogEntries } from '@/features/chat/chatInvocationRegistry'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   dropXrMotionReferenceCastMark,
@@ -163,7 +163,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   for (const marker of ['data-kg-xr-timeline-retime="1"', 'retimeXrMotionReferenceCastMark', 'retimeXrMotionReferenceCameraMark', '<TimelineTransportTimeAxisMark', 'laneStyle="video"', 'laneStyle="audio"', 'data-kg-xr-lane-cast-mark', 'data-kg-xr-lane-camera-mark', 'selectXrMotionReferenceCastMark', 'aria-pressed={selected}', 'data-kg-xr-stage-highlight-target']) {
     if (!retimeSource.includes(marker)) throw new Error(`expected Camera choreography retiming to expose ${marker}`)
   }
-  for (const marker of ["laneTarget?.kind === 'cast'", "laneTarget?.kind === 'camera'", 'data-kg-xr-choreography-cast-lane', 'data-kg-xr-choreography-camera-lane', 'data-kg-xr-choreography-lane-axis', 'beginRulerMarkDrag', 'resolveVideoSequenceRulerInsetPixelMetrics', 'XrChoreographyMarkControls', 'compact showPosition', 'setXrMotionReferenceCastMarkChoreography', 'setXrMotionReferenceCameraMarkChoreography', 'data-kg-xr-ruler-mark-editor', 'data-kg-xr-speed-warning-count']) {
+  for (const marker of ["laneTarget?.kind === 'cast'", "laneTarget?.kind === 'camera'", 'data-kg-xr-choreography-cast-lane', 'data-kg-xr-choreography-camera-lane', 'data-kg-xr-choreography-lane-axis', 'beginRulerMarkDrag', 'resolveVideoSequenceRulerInsetPixelMetrics', 'XrChoreographyMarkControls', 'compact showPosition', 'applyXrConstrainedCastMarkChoreography', 'setXrMotionReferenceCameraMarkChoreography', 'data-kg-xr-ruler-mark-editor', 'data-kg-xr-speed-warning-count']) {
     if (!retimeSource.includes(marker)) throw new Error(`expected each cast and Camera track to expose the shared per-mark choreography model through ${marker}`)
   }
   for (const marker of ['data-kg-camera-optics-projection="timeline-mark"', 'data-kg-camera-sensor=', 'data-kg-camera-focal-length-mm=', 'data-kg-camera-focus-distance-m=', 'data-kg-camera-aspect-ratio=']) {
@@ -216,7 +216,7 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
   if (sharedCameraSource.includes('No storyboard card loaded.') || !sharedCameraSource.includes("data-kg-camera-framing-mode={selectedCard ? 'storyboard' : 'shared'}")) {
     throw new Error('expected globe-like shared Camera utilities to remain available without a storyboard card')
   }
-  for (const marker of ['onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}', 'dropXrMotionReferenceCastMark', 'MarkNumberSprite', 'markNumber: index + 1', 'kg_xr_motion_cast_mark_highlight_', 'runtime.selectedMark?.kind === \'cast\'', 'XR_MOTION_REFERENCE_SELECTION_COLOR', 'CastMarkControl', 'resolveCastControlMark', 'controlSurface="actor"', 'kgXrAnimationControl: true', 'rayInCoordinateRoot(event.ray, coordinateRootRef).intersectPlane', 'setXrMotionReferenceCastMarkChoreography', 'claimThreeObjectInputOwnership(inputOwnerId, event.pointerId)', 'releaseThreeObjectInputOwnership(inputOwnerId', 'captureThreeObjectPointer(event)', 'hasThreeObjectDragMoved', 'dragOffsetRef.current.set(...markWorldPosition).sub(grabPoint)', 'point.add(dragOffsetRef.current)', 'activePointerIdRef.current = event.pointerId', "window.addEventListener('lostpointercapture', finishWindowDrag, true)", "window.addEventListener('blur', finishWindowDrag)", "document.addEventListener('visibilitychange', finishWindowDrag)", "draggableAxes: 'xz'", 'onClick={event => {', 'selectXrMotionReferenceCameraMark(mark.id)', "window.addEventListener('pointercancel', finishWindowDrag)"]) {
+  for (const marker of ['onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}', 'dropXrMotionReferenceCastMark', 'MarkNumberSprite', 'markNumber: index + 1', 'kg_xr_motion_cast_mark_highlight_', 'runtime.selectedMark?.kind === \'cast\'', 'XR_MOTION_REFERENCE_SELECTION_COLOR', 'CastMarkControl', 'resolveCastControlMark', 'controlSurface="actor"', 'kgXrAnimationControl: true', 'rayInCoordinateRoot(event.ray, coordinateRootRef).intersectPlane', 'applyXrConstrainedCastMarkChoreography', 'claimThreeObjectInputOwnership(inputOwnerId, event.pointerId)', 'releaseThreeObjectInputOwnership(inputOwnerId', 'captureThreeObjectPointer(event)', 'hasThreeObjectDragMoved', 'dragOffsetRef.current.set(...markWorldPosition).sub(grabPoint)', 'point.add(dragOffsetRef.current)', 'activePointerIdRef.current = event.pointerId', "window.addEventListener('lostpointercapture', finishWindowDrag, true)", "window.addEventListener('blur', finishWindowDrag)", "document.addEventListener('visibilitychange', finishWindowDrag)", "draggableAxes: 'xz'", 'onClick={event => {', 'selectXrMotionReferenceCameraMark(mark.id)', "window.addEventListener('pointercancel', finishWindowDrag)"]) {
     if (!stageSource.includes(marker)) throw new Error(`expected direct numbered XR floor marking to expose ${marker}`)
   }
   for (const marker of ['<XrSceneLibrarySubject', 'selected={runtime.selectedShotTargetId === subject.id}', 'selectBoundXrShotTarget(subject.id)']) {
@@ -567,11 +567,11 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     || readXrMotionReferenceRuntime().plan.camera.length !== 0) {
     throw new Error('expected an app-root document switch to clear stale Camera framing and choreography before a closed panel can reapply it')
   }
-  const cameraCatalogTokens = new Set(resolveChatInvocationCatalogEntries('all', 'camera').map(entry => entry.token))
-  for (const token of ['/camera.select', '/camera.frame', '/camera.animate', '/camera.play', '/camera.scrub', '@camera', '#camera']) {
-    if (!cameraCatalogTokens.has(token)) throw new Error(`expected shared invocation catalog to expose ${token}`)
+  try {
+    assertPinnedCameraDictionaryForTest()
+  } finally {
+    resetAgenticOsRemoteGrammarCatalogForTests()
   }
-  resetAgenticOsRemoteGrammarCatalogForTests()
   registerAgenticOsRemoteGrammarCatalogEntries([{ token: '/camera.select', kind: 'semantic', sourcePath: 'conflicting-remote-grammar' }])
   if (!controlLocalCamera({ invocation: '/camera.select @camera #camera camera=free-orbit' }).ok) throw new Error('native Camera selection must ignore conflicting remote grammar tokens')
   resetAgenticOsRemoteGrammarCatalogForTests()

@@ -6,14 +6,23 @@ const modLayoutDatasetKeyStable = () => import('@/__tests__/layoutDatasetKeyStab
 const modCanvas3dMode = () => import('@/__tests__/canvas3dMode.test')
 const modCanvasXrSessionPolicy = () => import('@/__tests__/canvasXrSessionPolicy.test')
 const modCanvasXrPanelSurface = () => import('@/__tests__/canvasXrPanelSurface.test')
+const modXrAgenticEcsComposition = () => import('@/__tests__/xrAgenticEcsComposition.test')
 const modXrMotionReferencePackage = () => import('@/__tests__/xrMotionReferencePackage.test')
 const modXrCameraMoves = () => import('@/__tests__/xrCameraMoves.test')
 const modXrShootWorkflow = () => import('@/__tests__/xrShootWorkflow.test')
 const modXrAnimationRuntime = () => import('@/__tests__/xrAnimationRuntime.test')
 const modMotionControlRuntime = () => import('@/__tests__/motionControlRuntime.test')
+const modMotionControlSmoothing = () => import('@/__tests__/motionControlSmoothing.test')
 const modMotionControlBoundingBox = () => import('@/__tests__/motionControlBoundingBox.test')
+const modMotionControlMultiObjectIdentification = () => import('@/__tests__/motionControlMultiObjectIdentification.test')
+const modMotionControlCleanRoomBoundary = () => import('@/__tests__/motionControlCleanRoomBoundary.test')
 const modXrKeyboardChoreography = () => import('@/__tests__/xrKeyboardChoreography.test')
+const modXrSubjectMotionConstraints = () => import('@/__tests__/xrSubjectMotionConstraints.test')
+const modXrLegacyPositionWriterConstraints = () => import('@/__tests__/xrLegacyPositionWriterConstraints.test')
+const modXrMotionControlAcceptanceConstraints = () => import('@/__tests__/xrMotionControlAcceptanceConstraints.test')
+const modXrPhysicsPlayheadOwnership = () => import('@/__tests__/xrPhysicsPlayheadOwnership.test')
 const modXrPhysicsRuntime = () => import('@/__tests__/xrPhysicsRuntime.test')
+const modXrPhysicsTuning = () => import('@/__tests__/xrPhysicsTuning.test')
 const modXrArPlacementRuntime = () => import('@/__tests__/xrArPlacementRuntime.test')
 const modWorkspaceImportXrSpatialCaptureIngestion = () => import('@/__tests__/workspaceImportXrSpatialCaptureIngestion.test')
 const modWorkspaceImportXrSpatialCaptureLaunchUrl = () => import('@/__tests__/workspaceImportXrSpatialCaptureLaunchUrl.test')
@@ -91,6 +100,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modCanvasXrPanelSurface()
     await mod.testXrModeUsesCanonicalFloatingPanel()
   })
+  await execTest(results, 'canvas.xrMode.agenticEcsCompositionBoundary', async () => {
+    const mod = await modXrAgenticEcsComposition()
+    await mod.testXrAgenticEcsCompositionBoundaryRemainsExplicit()
+  })
   await execTest(results, 'canvas.xrMode.motionReferencePackage', async () => {
     const mod = await modXrMotionReferencePackage()
     await mod.testXrMotionReferencePackageIsNativeDeterministicAndGraphBacked()
@@ -111,6 +124,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modMotionControlRuntime()
     await mod.testMotionControlRuntimeIsLiteRtInvocableAndXrReady()
   })
+  await execTest(results, 'canvas.xrMode.motionControlSmoothing', async () => {
+    const mod = await modMotionControlSmoothing()
+    await mod.testMotionControlSmoothingIsInferenceRateInvariant()
+  })
   await execTest(results, 'canvas.xrMode.motionControlWebMcpRuntime', async () => {
     const mod = await modMotionControlRuntime()
     await mod.testMotionControlWebMcpReusesCanonicalXrTargets()
@@ -123,13 +140,53 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modMotionControlBoundingBox()
     await mod.testMotionControlBoundingBoxIsStrictlyInvocableWithoutCamera()
   })
+  await execTest(results, 'canvas.xrMode.motionControlMultiObjectIdentification', async () => {
+    const mod = await modMotionControlMultiObjectIdentification()
+    await mod.testMotionControlBoundingBoxIdentifiesAllAuthoredXrSubjects()
+  })
+  await execTest(results, 'canvas.xrMode.motionControlCleanRoomBoundary', async () => {
+    const mod = await modMotionControlCleanRoomBoundary()
+    await mod.testMotionControlProductionRemainsCleanRoomAndDependencyFree()
+  })
   await execTest(results, 'canvas.xrMode.keyboardChoreography', async () => {
     const mod = await modXrKeyboardChoreography()
     await mod.testXrKeyboardChoreographySharesBrowserAndMcpMotion()
   })
+  await execTest(results, 'canvas.xrMode.subjectMotionConstraints', async () => {
+    const mod = await modXrSubjectMotionConstraints()
+    await mod.testXrSubjectMotionIsFootprintCollisionAndPhysicsAware()
+  })
+  await execTest(results, 'canvas.xrMode.legacyPositionWriterConstraints', async () => {
+    const mod = await modXrLegacyPositionWriterConstraints()
+    await mod.testXrLegacyPositionWritersAreConstrainedAndAtomic()
+  })
+  await execTest(results, 'canvas.xrMode.motionControl.acceptanceConstraints', async () => {
+    const mod = await modXrMotionControlAcceptanceConstraints()
+    await mod.testXrMotionControlAcceptanceConstraints()
+  })
+  await execTest(results, 'canvas.xrMode.physics.playheadOwnership', async () => {
+    const mod = await modXrPhysicsPlayheadOwnership()
+    await mod.testXrPhysicsPlayheadHydrationPreservesActiveOwnership()
+  })
+  await execTest(results, 'canvas.xrMode.physics.sourceIdentityLifecycle', async () => {
+    const mod = await modXrSubjectMotionConstraints()
+    await mod.testXrPhysicsHydrationUsesFullSourceIdentity()
+  })
+  await execTest(results, 'canvas.xrMode.animation.constrainedMoveObject', async () => {
+    const mod = await modXrSubjectMotionConstraints()
+    await mod.testXrAnimationMcpReportsConstrainedMoveObjectResolution()
+  })
+  await execTest(results, 'canvas.xrMode.animation.constrainedActionPath', async () => {
+    const mod = await modXrSubjectMotionConstraints()
+    await mod.testXrAnimationActionPathsRespectPhysicsAndSceneGeometry()
+  })
   await execTest(results, 'canvas.xrMode.physics.nativeDeterministicRuntime', async () => {
     const mod = await modXrPhysicsRuntime()
     await mod.testXrPhysicsRuntimeIsNativeDeterministicAndDataDriven()
+  })
+  await execTest(results, 'canvas.xrMode.physics.rateInvariantContactDrag', async () => {
+    const mod = await modXrPhysicsTuning()
+    await mod.testXrPhysicsTuningIsRateInvariantAndRotationAware()
   })
   await execTest(results, 'canvas.xrMode.arPlacement.sessionLifecycle', async () => {
     const mod = await modXrArPlacementRuntime()

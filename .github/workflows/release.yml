@@ -96,6 +96,7 @@ jobs:
           repository: ${{ steps.agentic_canvas_os_docs.outputs.repository }}
           ref: ${{ steps.agentic_canvas_os_docs.outputs.ref }}
           path: agentic-canvas-os
+          fetch-depth: 0
 
       - name: Create immutable release manifest
         id: immutable_manifest

@@ -28,6 +28,7 @@ const sourcePatternChecks = [
   },
 ]
 const noCopiedRefCheckId = 'no-copied-ref'
+const fullHistoryCheckoutCheckId = 'full-history-checkout'
 
 export const workflowsRoot = path.resolve(repoRoot, '.github', 'workflows')
 
@@ -47,6 +48,19 @@ const requireWorkflowSource = (condition, workflowPath, message) => {
   if (!condition) throw new Error(`${workflowPath}: ${message}`)
 }
 
+const readNamedStepSource = (source, marker) => {
+  const lines = source.split(/\r?\n/)
+  const stepIndex = lines.findIndex(line => line.includes(marker))
+  if (stepIndex < 0) return ''
+  const indentation = lines[stepIndex].match(/^(\s*)-\s+/)?.[1]
+  if (indentation === undefined) return ''
+  const nextStepOffset = lines
+    .slice(stepIndex + 1)
+    .findIndex(line => line.startsWith(`${indentation}- `))
+  const endIndex = nextStepOffset < 0 ? lines.length : stepIndex + nextStepOffset + 1
+  return lines.slice(stepIndex, endIndex).join('\n')
+}
+
 export const validateRuntimeDocsWorkflowConsumer = ({ workflowPath, source }) => {
   let previousIndex = -1
 
@@ -63,6 +77,13 @@ export const validateRuntimeDocsWorkflowConsumer = ({ workflowPath, source }) =>
   for (const { pattern, label } of sourcePatternChecks) {
     requireWorkflowSource(pattern.test(source), workflowPath, `missing ${label}`)
   }
+
+  const docsCheckoutStep = readNamedStepSource(source, 'name: Checkout Agentic Canvas OS docs SSOT')
+  requireWorkflowSource(
+    /\n\s+fetch-depth:\s*0\s*(?:\n|$)/.test(docsCheckoutStep),
+    workflowPath,
+    'Agentic Canvas OS docs checkout must fetch full Git history',
+  )
 
   requireWorkflowSource(
     !/ref: [0-9a-f]{40}/.test(source),
@@ -85,6 +106,7 @@ export const validateRuntimeDocsWorkflowPolicy = workflowSources => {
     checks: [
       ...orderedStepChecks.map(check => check.id),
       ...sourcePatternChecks.map(check => check.id),
+      fullHistoryCheckoutCheckId,
       noCopiedRefCheckId,
     ],
   }

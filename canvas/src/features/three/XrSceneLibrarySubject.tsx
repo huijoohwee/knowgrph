@@ -11,6 +11,42 @@ import {
 } from '@/features/three/xrMotionReferenceModel'
 import type { XrAnimationPoseSample } from '@/features/three/xrAnimationCatalog'
 
+type XrSceneSubjectIdentificationBounds = Readonly<{
+  name: string
+  position: readonly [number, number, number]
+  size: [number, number, number]
+  color: string
+  userData: Readonly<{
+    source: 'xr-scene-library'
+    subjectId: string
+    assetId: string
+    category: XrMotionReferenceSubject['category']
+    label: string
+  }>
+}>
+
+function resolveXrSceneSubjectIdentificationBounds(
+  subject: XrMotionReferenceSubject,
+  enabled = false,
+): XrSceneSubjectIdentificationBounds | null {
+  if (!enabled) return null
+  const asset = resolveXrSceneLibraryAsset(subject.assetId)
+  const [width, height, depth] = asset.dimensionsMeters
+  return Object.freeze({
+    name: `kg_xr_scene_subject_identification_bounds_${subject.id}`,
+    position: Object.freeze([0, 0, height / 2] as const),
+    size: [width, depth, height] as [number, number, number],
+    color: subject.color,
+    userData: Object.freeze({
+      source: 'xr-scene-library',
+      subjectId: subject.id,
+      assetId: subject.assetId,
+      category: subject.category,
+      label: subject.label,
+    }),
+  })
+}
+
 function Material({ color }: { color: string }) {
   return <meshStandardMaterial color={color} roughness={0.9} metalness={0.02} />
 }
@@ -232,6 +268,7 @@ export function XrSceneLibrarySubject({
   position,
   stageScale,
   selected = false,
+  showIdentificationBounds = false,
   onSelect,
 }: {
   animationPose?: XrAnimationPoseSample | null
@@ -240,9 +277,11 @@ export function XrSceneLibrarySubject({
   position: readonly [number, number, number]
   stageScale: number
   selected?: boolean
+  showIdentificationBounds?: boolean
   onSelect?: () => void
 }) {
   const asset = resolveXrSceneLibraryAsset(subject.assetId)
+  const identificationBounds = resolveXrSceneSubjectIdentificationBounds(subject, showIdentificationBounds)
   const selectionRadius = Math.max(asset.dimensionsMeters[0], asset.dimensionsMeters[2], 0.8) * 0.72
   const rootOffset = animationPose?.rootOffsetMeters || [0, 0, 0]
   const rootRotation = animationPose?.rootRotationDegrees || [0, 0, 0]
@@ -283,6 +322,24 @@ export function XrSceneLibrarySubject({
       >
         <group rotation={[-Math.PI / 2, 0, 0]}>
           <XrSceneLibraryAssetGeometry assetId={subject.assetId} color={subject.color} animationPose={animationPose} />
+          {identificationBounds ? (
+            <mesh
+              name={identificationBounds.name}
+              position={identificationBounds.position}
+              renderOrder={THREE_RENDER_ORDER.overlays - 1}
+              userData={identificationBounds.userData}
+            >
+              <boxGeometry args={identificationBounds.size} />
+              <meshBasicMaterial
+                color={identificationBounds.color}
+                transparent
+                opacity={0.82}
+                wireframe
+                depthWrite={false}
+                toneMapped={false}
+              />
+            </mesh>
+          ) : null}
           <SubjectLabel label={subject.label} heightMeters={asset.dimensionsMeters[1]} selected={selected} />
         </group>
       </group>

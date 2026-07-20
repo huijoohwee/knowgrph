@@ -99,6 +99,7 @@
             "silent-resolver-command",
             "contract-derived-repository",
             "contract-derived-ref",
+            "full-history-checkout",
             "no-copied-ref"
           ]
         }

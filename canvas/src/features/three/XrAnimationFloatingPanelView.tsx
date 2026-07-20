@@ -30,6 +30,7 @@ import {
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
+import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
 import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
 import { cn } from '@/lib/utils'
@@ -46,6 +47,11 @@ import {
   inspectLocalAnimation,
 } from './xrAnimationMcpRuntime'
 import {
+  XR_ANIMATION_INVOCATION_BINDINGS,
+  XR_ANIMATION_INVOCATION_COMMANDS,
+  XR_ANIMATION_INVOCATION_SEMANTICS,
+} from './xrAnimationMcpContract.mjs'
+import {
   readXrMotionReferenceRuntime,
   subscribeXrMotionReferenceRuntime,
 } from './xrMotionReferenceRuntime'
@@ -55,6 +61,13 @@ import {
   xrMotionReferencePackageFilename,
 } from './xrMotionReferencePackage'
 import { XrChoreographyInspector } from './XrChoreographyInspector'
+
+const XR_ANIMATION_GRAMMAR_SIGILS = ['/', '#', '@'] as const
+const XR_ANIMATION_REQUIRED_METADATA_TOKENS = Object.freeze([
+  ...Object.values(XR_ANIMATION_INVOCATION_COMMANDS).map(token => ({ kind: 'command' as const, token })),
+  ...Object.values(XR_ANIMATION_INVOCATION_SEMANTICS).map(token => ({ kind: 'semantic' as const, token })),
+  ...Object.values(XR_ANIMATION_INVOCATION_BINDINGS).map(token => ({ kind: 'binding' as const, token })),
+])
 
 const PRESET_ICON_BY_ID: Readonly<Record<XrAnimationPreset['id'], LucideIcon>> = {
   fight: Swords,
@@ -211,6 +224,7 @@ function PresetGroup({
 }
 
 export function XrAnimationFloatingPanelView() {
+  const grammarCatalog = useAgenticOsRemoteGrammarCatalog({ sigils: XR_ANIMATION_GRAMMAR_SIGILS })
   const { graphData, markdownDocumentName, markdownDocumentText, pushUiToast, selectedNodeId, timelinePlaying } = useGraphStore(useShallow(state => ({
     graphData: state.graphData,
     markdownDocumentName: state.markdownDocumentName,
@@ -231,6 +245,9 @@ export function XrAnimationFloatingPanelView() {
   const visiblePaths = visiblePresets.filter(preset => preset.kind === 'action-path')
   const selectedTrack = runtime.plan.cast.find(track => track.actorId === selectedActorId)
   const nativeInvocationReady = Boolean(animationInspection.catalog.canonical && animationInspection.invocationGrammar)
+  const sourceMetadataReady = grammarCatalog.hydration.status === 'fresh'
+    && XR_ANIMATION_REQUIRED_METADATA_TOKENS.every(required => grammarCatalog.entries.some(entry => entry.token === required.token && entry.kind === required.kind))
+  const sourceMetadataLoading = grammarCatalog.hydration.status === 'idle' || grammarCatalog.hydration.status === 'loading'
 
   const toastResult = React.useCallback((result: ReturnType<typeof controlLocalAnimation>) => {
     pushUiToast({ id: result.ok ? 'xr:animation:updated' : 'xr:animation:error', kind: result.ok ? 'success' : sceneReady ? 'error' : 'warning', message: result.message })
@@ -254,7 +271,15 @@ export function XrAnimationFloatingPanelView() {
 
   const panelDisabled = !sceneReady || !selectedActorId
   return (
-    <section className={floatingPanelCatalogSurfaceClassName()} aria-label="Animation" data-kg-animation-floating-panel="1" data-kg-animation-mcp="knowgrph.control_local_animation" data-kg-animation-catalog="native-ready">
+    <section
+      className={floatingPanelCatalogSurfaceClassName()}
+      aria-label="Animation"
+      data-kg-animation-floating-panel="1"
+      data-kg-animation-mcp="knowgrph.control_local_animation"
+      data-kg-animation-catalog="native-ready"
+      data-kg-animation-metadata-status={grammarCatalog.hydration.status}
+      data-kg-animation-metadata-version={String(grammarCatalog.version)}
+    >
       <FloatingPanelCatalogHeader
         title="Animation"
         subtitle="Shared cast and camera choreography, playback, and export"
@@ -270,9 +295,16 @@ export function XrAnimationFloatingPanelView() {
         )}
         searchControl={<FloatingPanelCatalogSearchControl id="xr-animation-search" buttonLabel="Search animation presets" panelLabel="Animation preset search" placeholder="Search motions and paths" state={search} />}
       />
-      {!sceneReady || !nativeInvocationReady ? <section className={cn('mb-2 grid gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-animation-runtime-status="shared-xr">
+      {!sceneReady || !nativeInvocationReady || !sourceMetadataReady ? <section className={cn('mb-2 grid gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-animation-runtime-status="shared-xr">
         {!sceneReady ? <p className="rounded bg-amber-100 px-2 py-1 text-[10px] text-amber-900 dark:bg-amber-950/60 dark:text-amber-100">Open or create a graph document to persist animation.</p> : null}
-        {!nativeInvocationReady ? <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Native invocation catalog unavailable.</p> : null}
+        {!nativeInvocationReady ? <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Native Animation invocation runtime unavailable.</p> : null}
+        {!sourceMetadataReady ? (
+          <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>
+            {sourceMetadataLoading
+              ? `ACOS Animation invocation metadata is loading.${nativeInvocationReady ? ' Native Animation controls remain ready.' : ''}`
+              : `ACOS Animation invocation metadata is unavailable.${nativeInvocationReady ? ' Native Animation controls remain ready.' : ''}`}
+          </p>
+        ) : null}
       </section> : null}
       <section className={floatingPanelCatalogBodyClassName('grid content-start gap-3')}>
         <XrChoreographyInspector

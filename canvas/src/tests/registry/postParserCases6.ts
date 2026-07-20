@@ -206,6 +206,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["ui.floatingPanelChat.composer.slashVariableMenus","@/__tests__/floatingPanelChatContentEditableComposer.test","testFloatingPanelChatComposerReusesCardViewerEditSurface"],
   ["ui.floatingPanelChat.composer.cardViewerMutation","@/__tests__/floatingPanelChatContentEditableComposer.test","testFloatingPanelChatCardViewerEditSurfacePublishesMutationOnce"],
   ["ui.floatingPanelChat.composer.remoteGrammarWiring","@/__tests__/floatingPanelRemoteGrammarCommands.test","testFloatingPanelChatComposerWiresRemoteAgenticOsGrammar"],
+  ["ui.camera.invocations.remoteGrammarHydration","@/__tests__/floatingPanelRemoteGrammarCommands.test","testCameraInvocationSurfaceReactsToRemoteGrammarHydration"],
   ["ui.floatingPanelChat.composer.remoteGrammarSharedLookup","@/__tests__/floatingPanelRemoteGrammarCommands.test","testRemoteAgenticOsGrammarHydratesSharedInvocationLookups"],
   ["ui.floatingPanelChat.composer.remoteGrammarBareLocalhostFallback","@/__tests__/floatingPanelRemoteGrammarCommands.test","testRemoteAgenticOsGrammarIgnoresBareLocalhostOriginWithoutConfiguredBaseUrl"],
   ["ui.floatingPanelChat.composer.remoteGrammarTransportFailClosed","@/__tests__/floatingPanelRemoteGrammarCommands.test","testRemoteAgenticOsGrammarPrimeFailsClosedWhenTransportUnavailable"],

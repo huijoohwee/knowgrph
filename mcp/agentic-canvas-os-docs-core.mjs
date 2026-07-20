@@ -233,10 +233,24 @@ const parseDirectResolutionFromFrontmatter = (frontmatter) => {
   return out;
 };
 
-const sourceUrlForPath = (sourcePath) => {
-  const [fileName, fragment = ""] = normalizeText(sourcePath).split("#");
-  if (!fileName) return AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL;
-  return `${AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL}/${fileName}${fragment ? `#${fragment}` : ""}`;
+const sourceRootUrlForRevision = (sourceRevision = "") => {
+  const normalizedSourceRevision = normalizeText(sourceRevision);
+  return SHA_PATTERN.test(normalizedSourceRevision)
+    ? AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL.replace("/blob/main/", `/blob/${normalizedSourceRevision}/`)
+    : AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL;
+};
+
+const sourceUrlForPath = (sourcePath, sourceRootUrl = AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL) => {
+  const normalizedSourcePath = normalizeText(sourcePath);
+  const fragmentIndex = normalizedSourcePath.indexOf("#");
+  const fileName = fragmentIndex >= 0
+    ? normalizedSourcePath.slice(0, fragmentIndex)
+    : normalizedSourcePath;
+  const fragment = fragmentIndex >= 0
+    ? normalizedSourcePath.slice(fragmentIndex + 1)
+    : "";
+  if (!fileName) return sourceRootUrl;
+  return `${sourceRootUrl}/${fileName}${fragment ? `#${fragment}` : ""}`;
 };
 
 const labelForToken = (token) => (
@@ -274,7 +288,8 @@ const snippetForToken = (token, markdown) => {
   return section.slice(0, MAX_SNIPPET_CHARS);
 };
 
-export const buildAgenticCanvasOsDocsCatalog = (docsContentByFileName) => {
+export const buildAgenticCanvasOsDocsCatalog = (docsContentByFileName, { sourceRevision = "" } = {}) => {
+  const sourceRootUrl = sourceRootUrlForRevision(sourceRevision);
   const factsFrontmatter = extractFrontmatter(docsContentByFileName["FACTS.md"] || "");
   const directResolution = parseDirectResolutionFromFrontmatter(factsFrontmatter);
   const catalog = new Map();
@@ -291,7 +306,7 @@ export const buildAgenticCanvasOsDocsCatalog = (docsContentByFileName) => {
         label: labelForToken(token),
         summary,
         sourcePath,
-        sourceUrl: sourceUrlForPath(sourcePath),
+        sourceUrl: sourceUrlForPath(sourcePath, sourceRootUrl),
       });
     }
   }
@@ -306,7 +321,7 @@ export const buildAgenticCanvasOsDocsCatalog = (docsContentByFileName) => {
       label: labelForToken(token),
       summary: rowSummaryForToken(token, docsContentByFileName[fileName] || ""),
       sourcePath,
-      sourceUrl: sourceUrlForPath(sourcePath),
+      sourceUrl: sourceUrlForPath(sourcePath, sourceRootUrl),
     });
   }
 
@@ -327,7 +342,10 @@ export const buildAgenticCanvasOsDocsInvokePayload = ({
   if (!/^[0-9a-f]{40}$/.test(normalizedSourceRevision)) {
     throw new Error("Agentic Canvas OS docs payload requires an exact source revision SHA");
   }
-  const catalog = buildAgenticCanvasOsDocsCatalog(docsContentByFileName);
+  const sourceRootUrl = sourceRootUrlForRevision(normalizedSourceRevision);
+  const catalog = buildAgenticCanvasOsDocsCatalog(docsContentByFileName, {
+    sourceRevision: normalizedSourceRevision,
+  });
   const counts = catalog.reduce((acc, entry) => {
     acc[entry.kind] = (acc[entry.kind] || 0) + 1;
     return acc;
@@ -361,7 +379,7 @@ export const buildAgenticCanvasOsDocsInvokePayload = ({
           label: labelForToken(normalizedToken),
           summary: "",
           sourcePath,
-          sourceUrl: sourceUrlForPath(sourcePath),
+          sourceUrl: sourceUrlForPath(sourcePath, sourceRootUrl),
         };
       })()
     : null;
@@ -392,7 +410,7 @@ export const buildAgenticCanvasOsDocsInvokePayload = ({
   return {
     ok: !normalizedToken || Boolean(effectiveInvocation),
     docsRoot: AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT,
-    sourceRootUrl: AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL,
+    sourceRootUrl,
     sourceRevision: normalizedSourceRevision,
     liveAgentProviderProof,
     progressiveAgentsReadiness,
