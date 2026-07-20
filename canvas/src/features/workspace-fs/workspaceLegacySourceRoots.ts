@@ -2,6 +2,7 @@ import { normalizeWorkspacePath } from './path'
 import type { WorkspaceEntry, WorkspacePath } from './types'
 
 export const LEGACY_AGENTIC_OS_DOCS_ROOT_PATH = normalizeWorkspacePath('/agentic-os-docs')
+const LEGACY_VIDEO_RUNS_ROOT_PATTERN = /^\/video-runs(?:-\d+)?(?:\/|$)/i
 
 export const isLegacyAgenticOsDocsWorkspacePath = (
   path: WorkspacePath | string | null | undefined,
@@ -11,6 +12,14 @@ export const isLegacyAgenticOsDocsWorkspacePath = (
     || normalizedPath.startsWith(`${LEGACY_AGENTIC_OS_DOCS_ROOT_PATH}/`)
 }
 
-export const excludeLegacyAgenticOsDocsWorkspaceEntries = (
+export const isLegacyVideoRunsWorkspacePath = (
+  path: WorkspacePath | string | null | undefined,
+): boolean => LEGACY_VIDEO_RUNS_ROOT_PATTERN.test(normalizeWorkspacePath(String(path || '')))
+
+export const isLegacyWorkspaceSourcePath = (
+  path: WorkspacePath | string | null | undefined,
+): boolean => isLegacyAgenticOsDocsWorkspacePath(path) || isLegacyVideoRunsWorkspacePath(path)
+
+export const excludeLegacyWorkspaceSourceEntries = (
   entries: ReadonlyArray<WorkspaceEntry>,
-): WorkspaceEntry[] => entries.filter(entry => !isLegacyAgenticOsDocsWorkspacePath(entry?.path))
+): WorkspaceEntry[] => entries.filter(entry => !isLegacyWorkspaceSourcePath(entry?.path))

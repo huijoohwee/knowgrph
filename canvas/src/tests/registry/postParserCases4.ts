@@ -338,7 +338,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["workspace.import.url.absoluteFsPath.usesViteFsFetch","@/__tests__/workspaceImportUrlStubNoFetch.test","testWorkspaceImportUrlAcceptsAbsoluteFsPathViaViteFsFetch"],
   ["workspaceFs.events.batch.coalescesNotifications","@/__tests__/workspaceFsEventsBatch.test","testWorkspaceFsChangedBatchCoalescesNotifications"],
   ["workspaceFs.memory.initialEntries","@/__tests__/workspaceFsMemoryInitialEntries.test","testWorkspaceFsMemoryInitialEntries"],
-  ["workspaceFs.memory.removesLegacyAgenticOsDocsKeepsCanonical","@/__tests__/workspaceFsMemoryInitialEntries.test","testWorkspaceFsMemoryRemovesLegacyAgenticOsDocsAndKeepsCanonicalRoot"],
+  ["workspaceFs.memory.removesLegacySourceRootsKeepsCanonicalArtifacts","@/__tests__/workspaceFsMemoryInitialEntries.test","testWorkspaceFsMemoryRemovesLegacySourceRootsAndKeepsCanonicalArtifacts"],
   ["workspaceFs.memory.forbidsInitializationFileDelete","@/__tests__/workspaceFsMemoryInitialEntries.test","testWorkspaceFsMemoryForbidsInitializationFileDelete"],
   ["workspaceFs.memory.refreshesStaleInitializationFileText","@/__tests__/workspaceFsMemoryInitialEntries.test","testWorkspaceFsMemoryRefreshesStaleInitializationFileText"],
   ["workspaceFs.resilientShadow.keepsCreatedFileReadableAfterSilentReadMiss","@/__tests__/workspaceFsResilientShadow.test","testWorkspaceFsResilientShadowKeepsCreatedFileReadableAfterSilentReadMiss"],

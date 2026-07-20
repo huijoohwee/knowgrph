@@ -10,7 +10,7 @@ import { normalizeWorkspacePath, workspaceBasename } from './path'
 import { readWorkspaceInitializationDocsMirrorEntries } from './workspaceSeedProvider'
 import { loadWorkspaceSourceIndex, setWorkspaceEntrySource } from './sourceIndex'
 import type { WorkspaceEntry, WorkspacePath } from './types'
-import { isLegacyAgenticOsDocsWorkspacePath } from './workspaceLegacySourceRoots'
+import { isLegacyWorkspaceSourcePath } from './workspaceLegacySourceRoots'
 
 type WorkspaceRecordMap = { entries: WorkspaceEntry }
 type WorkspaceCollections = PersistedCollectionMap<WorkspaceRecordMap>
@@ -96,7 +96,7 @@ export const removeLegacyWorkspaceSourceEntries = async (
     const row = rows[i]
     if (!row) continue
     const path = normalizeWorkspacePath(String(row.get('path') || ''))
-    if (!isLegacyAgenticOsDocsWorkspacePath(path)) continue
+    if (!isLegacyWorkspaceSourcePath(path)) continue
     await row.remove()
     clearWorkspaceEntrySource(path)
     changed = true
