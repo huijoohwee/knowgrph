@@ -13,7 +13,7 @@ import {
 test('runtime docs dependency resolves one checkout repository and immutable ref', async () => {
   const contract = await readRuntimeReadinessContract()
   const dependency = resolveRuntimeDocsDependency(contract)
-  assert.equal(contract.docs_dependency.ref, '6326e2c0f127f8ace3fe06dc61658e5cd9536443')
+  assert.equal(contract.docs_dependency.ref, 'e258833efd8ead0d05f3e53338fb56e075c171a9')
   assert.ok(contract.docs_dependency.required_files.includes('AGENT-TOOLKIT.md'))
   assert.deepEqual(
     ['/agent.toolkit', '#agent-toolkit', '@agent-toolkit-observer']
