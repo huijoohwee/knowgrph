@@ -1,5 +1,7 @@
 import React from 'react'
 import { WidgetEditorActionsToolbar } from '@/components/StoryboardWidget/WidgetEditorActionsToolbar'
+import { RichMediaOutputVersionSelector } from '@/components/RichMediaOutputVersionSelector'
+import type { RichMediaPanelProps } from '@/components/RichMediaPanel.types'
 import { buildSharedRichMediaOverlayControlProps, buildSharedRichMediaOverlayToolbarProps } from '@/components/StoryboardWidget/richMediaOverlayToolbarProps'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { createUniqueId } from '@/lib/ids'
@@ -18,6 +20,7 @@ export function FlowCanvasRichMediaOverlayToolbar(props: {
   nodeId: string
   nodeProperties: Record<string, unknown>
   panel?: RichMediaPanelOverlayState
+  onPanelChange?: RichMediaPanelProps['onPanelChange']
   openUrl?: string
   sceneGraphData: GraphData | null
   workspaceMutationBlockedRef: React.MutableRefObject<boolean>
@@ -91,6 +94,13 @@ export function FlowCanvasRichMediaOverlayToolbar(props: {
       visible={props.visible}
       {...buildSharedRichMediaOverlayToolbarProps()}
       {...toolbarControlProps}
+      outputVersionControl={(
+        <RichMediaOutputVersionSelector
+          panel={props.panel}
+          onPanelChange={props.onPanelChange}
+          placement="toolbar"
+        />
+      )}
       onRun={() => void 0}
       onOpenInSidepane={openInSidepane}
       onDuplicate={duplicate}

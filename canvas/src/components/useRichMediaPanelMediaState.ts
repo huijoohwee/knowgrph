@@ -143,9 +143,10 @@ export function useRichMediaPanelMediaState(props: RichMediaPanelProps): RichMed
   const iframeEmbed = React.useMemo(() => (
     kind === 'iframe' ? resolveIframeEmbed({ url: rawUrl }) : null
   ), [kind, rawUrl])
+  const versionedTextOutputActive = (props.panel?.outputVersions?.length || 0) > 0
   const inlineSrcDoc = React.useMemo(() => (
-    typeof props.srcDoc === 'string' ? props.srcDoc.trim() : ''
-  ), [props.srcDoc])
+    versionedTextOutputActive ? '' : typeof props.srcDoc === 'string' ? props.srcDoc.trim() : ''
+  ), [props.srcDoc, versionedTextOutputActive])
   const [grabMapsPoiPreviewSrcDoc, setGrabMapsPoiPreviewSrcDoc] = React.useState<string>(() => {
     const payload = readLatestGrabMapsPoiRichMediaPreview()
     if (!payload) return ''
