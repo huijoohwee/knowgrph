@@ -142,6 +142,9 @@ test("local MCP docs invocation catalogs /, #, and @ entries from source docs", 
   assert.ok(result.catalog.some((entry) => entry.token === "/sandbox.policy.validate"));
   assert.ok(result.catalog.some((entry) => entry.token === "#agent-sandbox-policy"));
   assert.ok(result.catalog.some((entry) => entry.token === "@sandbox-policy"));
+  assert.ok(result.catalog.some((entry) => entry.token === "/agent.toolkit"));
+  assert.ok(result.catalog.some((entry) => entry.token === "#agent-toolkit"));
+  assert.ok(result.catalog.some((entry) => entry.token === "@agent-toolkit-observer"));
 });
 
 test("local MCP docs invocation treats sigil-only queries as token-prefix filters", { skip: !DOCS_AVAILABLE }, async () => {
@@ -158,7 +161,11 @@ test("local MCP docs invocation treats sigil-only queries as token-prefix filter
 });
 
 test("local MCP docs invocation resolves specific /, #, and @ tokens with source content", { skip: !DOCS_AVAILABLE }, async () => {
-  for (const token of ["/query", "#runtime-ready", "@mcp-gateway", "/motion.control", "#pose", "@canvas"]) {
+  for (const token of [
+    "/query", "#runtime-ready", "@mcp-gateway",
+    "/motion.control", "#pose", "@canvas",
+    "/agent.toolkit", "#agent-toolkit", "@agent-toolkit-observer",
+  ]) {
     const result = await runAgenticCanvasOsDocsInvokeTool({ token, includeContent: true }, {
       rootDir: KNOWGRPH_ROOT,
       env: DOCS_ENV,

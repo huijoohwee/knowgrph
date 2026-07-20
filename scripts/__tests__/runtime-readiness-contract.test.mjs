@@ -13,6 +13,13 @@ import {
 test('runtime docs dependency resolves one checkout repository and immutable ref', async () => {
   const contract = await readRuntimeReadinessContract()
   const dependency = resolveRuntimeDocsDependency(contract)
+  assert.equal(contract.docs_dependency.ref, '653dc935a137c7ff789ad6e486b3f9a4fea72d4e')
+  assert.ok(contract.docs_dependency.required_files.includes('AGENT-TOOLKIT.md'))
+  assert.deepEqual(
+    ['/agent.toolkit', '#agent-toolkit', '@agent-toolkit-observer']
+      .map((token) => contract.docs_dependency.proof_tokens.includes(token)),
+    [true, true, true],
+  )
   assert.deepEqual(dependency, {
     repository: 'huijoohwee/agentic-canvas-os',
     ref: contract.docs_dependency.ref,
