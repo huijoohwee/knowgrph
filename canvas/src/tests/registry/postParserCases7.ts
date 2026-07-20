@@ -173,6 +173,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["workspace.sourceFiles.xrPhysics.staleSourceOwnershipMigration","@/__tests__/xrPhysicsWorkspaceBootstrap.test","testXrPhysicsCanonicalSeedOverridesStalePersistedSourceOwnership"],
   ["workspace.sourceFiles.xrPhysics.conflictReplacement","@/__tests__/xrPhysicsWorkspaceBootstrapConflict.test","testXrPhysicsCanonicalSeedReplacesConflictingDocsMirrorEntries"],
   ["sourceFiles.cloudSync.canonicalGitHubBeforeCloudflareReadBack","@/__tests__/sourceFileCloudSync.test","testSourceFileCloudUploadCommitsGitHubBeforeCloudflareAndVerifiesReadBack"],
+  ["sourceFiles.cloudSync.matchingProtectedGitHubContent","@/__tests__/sourceFileCloudSync.test","testSourceFileCloudUploadReusesMatchingProtectedGitHubContent"],
   ["sourceFiles.cloudSync.githubFailureSkipsCloudflare","@/__tests__/sourceFileCloudSync.test","testSourceFileCloudUploadStopsBeforeCloudflareWhenGitHubBridgeFails"],
   ["sourceFiles.cloudSync.localCloudIndicatorClick","@/__tests__/sourceFileCloudSync.test","testSourceFileCloudIndicatorShowsLocalAndCloudStatesAndUploadsOnClick"],
   ["canvas.xrMode.physics.nativeController.documentActivation","@/__tests__/xrPhysicsRunReadyDemoRuntime.test.tsx","testXrPhysicsRunReadyRuntimeActivatesFromCanonicalSourceDocumentInOrdinaryDev"],

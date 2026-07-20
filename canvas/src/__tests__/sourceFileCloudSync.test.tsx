@@ -139,6 +139,68 @@ export async function testSourceFileCloudUploadCommitsGitHubBeforeCloudflareAndV
   }
 }
 
+export async function testSourceFileCloudUploadReusesMatchingProtectedGitHubContent() {
+  const { restore: restoreDom } = initJsdomHarness()
+  const { restore: restoreWindow } = initWindowHarness({ storage: new MemoryStorage() })
+  const previousFetch = globalThis.fetch
+  const env = Object.assign(createFakeKnowgrphStorageWorkerEnv(), {
+    KNOWGRPH_STORAGE_GITHUB_TOKEN: 'test-token',
+    KNOWGRPH_STORAGE_GITHUB_OWNER: 'huijoohwee',
+    KNOWGRPH_STORAGE_GITHUB_REPO: 'agentic-canvas-os',
+    KNOWGRPH_STORAGE_GITHUB_BRANCH: 'main',
+  })
+  const githubMethods: string[] = []
+  const text = '# Existing canonical document\n'
+  try {
+    resetWorkspaceFsForTests()
+    await __resetKnowgrphStorageDbForTests()
+    const fs = await getWorkspaceFs()
+    const repositoryRoot = await fs.createFolder({ parentPath: '/', name: 'agentic-canvas-os' })
+    const docsRoot = await fs.createFolder({ parentPath: repositoryRoot, name: 'docs' })
+    const path = await fs.createFile({ parentPath: docsRoot, name: 'existing.md', text })
+    const entry = (await fs.listEntries()).find(candidate => candidate.path === path)
+    if (!entry) throw new Error('expected existing canonical workspace entry')
+
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const method = String(init?.method || 'GET').toUpperCase()
+      githubMethods.push(method)
+      if (method !== 'GET') throw new Error(`expected matching GitHub content to avoid writes, got ${method}`)
+      return new Response(JSON.stringify({
+        sha: 'existing-content-sha',
+        content: Buffer.from(text, 'utf8').toString('base64'),
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }) as typeof fetch
+
+    const result = await syncWorkspaceEntryToCanonicalCloud({
+      entry,
+      workspaceId: 'kgws:test-source-file-protected-noop',
+      baseUrl: 'https://storage.example',
+      fetchImpl: async (input, init) => readStorageWorker().fetch(
+        input instanceof Request ? input : new Request(new URL(String(input), 'https://storage.example'), init),
+        env as never,
+      ),
+    })
+    if (githubMethods.join('|') !== 'GET') {
+      throw new Error(`expected one read-only GitHub check, got ${githubMethods.join(',')}`)
+    }
+    if (result.contentSha !== 'existing-content-sha' || result.readBackVerified !== true) {
+      throw new Error(`expected matching protected content and D1 read-back, got ${JSON.stringify(result)}`)
+    }
+    if (result.githubPath !== 'docs/existing.md') {
+      throw new Error(`expected repository-root workspace path to normalize once, got ${result.githubPath}`)
+    }
+  } finally {
+    globalThis.fetch = previousFetch
+    await __resetKnowgrphStorageDbForTests()
+    resetWorkspaceFsForTests()
+    restoreWindow()
+    restoreDom()
+  }
+}
+
 export async function testSourceFileCloudUploadStopsBeforeCloudflareWhenGitHubBridgeFails() {
   const { restore: restoreDom } = initJsdomHarness()
   const { restore: restoreWindow } = initWindowHarness({ storage: new MemoryStorage() })

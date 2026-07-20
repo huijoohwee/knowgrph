@@ -308,13 +308,13 @@ The collaboration readiness harness uses `/docs/README.md`, which exists in the 
 2. Source Files compares the saved row text with the canonical D1 export snapshot
 3. A hard-drive icon means the saved local text is not verified in the Cloudflare projection
 4. User clicks the icon
-5. POST /api/storage/collab/save commits docs/{path} through the server-owned GitHub bridge
+5. POST /api/storage/collab/save normalizes workspace-root paths once, verifies `docs/{path}` through the server-owned GitHub bridge, and treats byte-identical canonical content as success without creating a no-op commit
 6. Only after GitHub succeeds, the client force-queues the same text under agentic-canvas-os/docs/{path} and pushes D1
 7. GET /api/storage/doc/:workspaceId/:canonicalPath must return the exact saved text
 8. The row changes to a cloud icon only after that read-back; GitHub failure skips D1, and partial/read-back failure stays visible as retryable failure
 ```
 
-Local browser proof must set `KNOWGRPH_STORAGE_DEV_PROXY_TARGET` to a local Wrangler origin. The Vite default remains `https://airvio.co` for existing development behavior, but explicit local verification must never click a mutating Source Files icon while that production default is active.
+Local browser proof must set `KNOWGRPH_STORAGE_DEV_PROXY_TARGET` to a local Wrangler origin. Vite loads this server-only value from `.env.local` with `loadEnv`; local Worker credentials stay in an ignored `.dev.vars` file. The Vite default remains `https://airvio.co`, but explicit local verification must never click a mutating Source Files icon while that production default is active. The docs seeder forbids direct remote-D1 fallback whenever `--base-url` is not the canonical production origin.
 
 ### Path C — GitHub Repo Docs Folder (Import from External Source)
 

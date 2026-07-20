@@ -1,6 +1,7 @@
 .DS_Store
 .env
 .env.*
+.dev.vars*
 
 node_modules/
 npm-debug.log*
