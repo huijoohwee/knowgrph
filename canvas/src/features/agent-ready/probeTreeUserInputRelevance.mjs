@@ -39,16 +39,59 @@ const PROBE_TREE_BUCKET_UNIT_WORDS = new Set([
 ]);
 const PROBE_TREE_CHOICE_DECISION_CUE_PATTERN = /\b(?:accept|avoid|balance|enable|favor|focus|increase|limit|maximize|minimize|prefer|prioritize|protect|reduce|require|retain|target|tolerate)\b/i;
 
+const probeTreeWordSegmenter = typeof Intl !== "undefined" && typeof Intl.Segmenter === "function"
+  ? new Intl.Segmenter(undefined, { granularity: "word" })
+  : null;
+
+const normalizeProbeTreeWord = value => String(value || "").normalize("NFKC").toLowerCase();
+
+const collectProbeTreeWordSegments = value => {
+  const text = String(value || "");
+  const compounds = [...text.matchAll(/[\p{L}\p{N}][\p{L}\p{N}\p{M}]*(?:-[\p{L}\p{N}][\p{L}\p{N}\p{M}]*)+/gu)]
+    .map(match => ({ segment: match[0], index: match.index || 0, end: (match.index || 0) + match[0].length }));
+  if (probeTreeWordSegmenter) {
+    const out = [];
+    const emittedCompounds = new Set();
+    for (const part of probeTreeWordSegmenter.segment(text)) {
+      if (!part.isWordLike) continue;
+      const compoundIndex = compounds.findIndex(compound => part.index >= compound.index && part.index < compound.end);
+      if (compoundIndex >= 0) {
+        if (emittedCompounds.has(compoundIndex)) continue;
+        emittedCompounds.add(compoundIndex);
+        const compound = compounds[compoundIndex];
+        out.push({ ...compound, normalized: normalizeProbeTreeWord(compound.segment) });
+        continue;
+      }
+      const segment = String(part.segment || "").trim();
+      if (!segment) continue;
+      out.push({ segment, index: part.index, end: part.index + segment.length, normalized: normalizeProbeTreeWord(segment) });
+    }
+    return out;
+  }
+  return [...text.matchAll(/[\p{L}\p{N}][\p{L}\p{N}\p{M}]*(?:-[\p{L}\p{N}][\p{L}\p{N}\p{M}]*)*/gu)]
+    .flatMap(match => {
+      const segment = match[0];
+      const index = match.index || 0;
+      if (/[^\x00-\x7F]/.test(segment) && !segment.includes("-") && Array.from(segment).length > 1) {
+        let offset = index;
+        return Array.from(segment).map(character => {
+          const item = { segment: character, index: offset, end: offset + character.length, normalized: normalizeProbeTreeWord(character) };
+          offset += character.length;
+          return item;
+        });
+      }
+      return [{ segment, index, end: index + segment.length, normalized: normalizeProbeTreeWord(segment) }];
+    });
+};
+
 export const cleanProbeTreeResponseText = (value, maxLength = 320) => (
   String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength)
 );
 
-const normalizeProbeTreeComparableText = value => cleanProbeTreeResponseText(value, 8_000)
-  .toLowerCase()
-  .replace(/(^|\s)[/#@][a-z0-9_.-]+(?=\s|$)/g, " ")
-  .replace(/[^a-z0-9]+/g, " ")
-  .replace(/\s+/g, " ")
-  .trim();
+const normalizeProbeTreeComparableText = value => collectProbeTreeWordSegments(
+  cleanProbeTreeResponseText(value, 8_000)
+    .replace(/(^|\s)[/#@][a-z0-9_.-]+(?=\s|$)/gi, " "),
+).map(part => part.normalized).join(" ");
 
 export const isProbeTreeTerminalGenerationRequest = value => (
   Boolean(resolveProbeTreeTerminalGenerationRequest(value))
@@ -78,7 +121,8 @@ export function normalizeProbeTreeSelectionOptions(value) {
 }
 
 const collectProbeTreeChoiceSemanticTokens = value => {
-  const tokens = cleanProbeTreeResponseText(value, 160).toLowerCase().match(/[a-z]+|\d+(?:\.\d+)?[a-z]*/g) || [];
+  const tokens = collectProbeTreeWordSegments(cleanProbeTreeResponseText(value, 160))
+    .flatMap(part => part.normalized.split('-'));
   return tokens.filter(token => (
     !/^\d+(?:\.\d+)?(?:k|m|bn|b)?$/.test(token)
     && !PROBE_TREE_BUCKET_NUMBER_WORDS.has(token)
@@ -190,6 +234,8 @@ export function resolveProbeTreeTerminalGenerationRequest(value) {
 
 const normalizeProbeTreeContinuationAnswer = value => {
   const normalized = cleanProbeTreeResponseText(value, 8_000);
+  const otherSelection = readProbeTreeContinuationOtherSelection(normalized);
+  if (otherSelection) return otherSelection;
   const selections = readProbeTreeContinuationSelections(normalized);
   return selections.length > 0 ? selections.join(", ") : normalized;
 };
@@ -202,16 +248,16 @@ const buildProbeTreeKeywordPattern = keyword => keyword.split("-")
 
 export function collectProbeTreeContextKeywords(value, maxCount = 8) {
   const seen = new Set();
-  const words = String(value || "")
-    .toLowerCase()
+  const words = collectProbeTreeWordSegments(String(value || "")
     .replace(/https?:\/\/\S+/g, " ")
-    .replace(/(^|\s)[/#@][a-z0-9_.-]+/g, " ")
-    .replace(/\b(?:response\.)?structuredcontent\b/g, " ")
-    .match(/[a-z][a-z0-9]*(?:-[a-z0-9]+)*/g) || [];
+    .replace(/(^|\s)[/#@][a-z0-9_.-]+/gi, " ")
+    .replace(/\b(?:response\.)?structuredcontent\b/gi, " "))
+    .map(part => part.normalized);
   const out = [];
   for (const word of words) {
     const compoundStopWord = word.includes("-") && word.split("-").every(part => PROBE_TREE_CONTEXT_STOP_WORDS.has(part));
-    if (word.length < 3 || PROBE_TREE_CONTEXT_STOP_WORDS.has(word) || compoundStopWord || seen.has(word)) continue;
+    const minimumLength = /^[\x00-\x7F]+$/.test(word) ? 3 : 1;
+    if (!/\p{L}/u.test(word) || Array.from(word).length < minimumLength || PROBE_TREE_CONTEXT_STOP_WORDS.has(word) || compoundStopWord || seen.has(word)) continue;
     seen.add(word);
     out.push(word);
     if (out.length >= Math.max(1, Math.min(128, Number(maxCount) || 8))) break;
@@ -246,25 +292,29 @@ const normalizeProbeTreeKeywordStem = value => {
 };
 
 const collectProbeTreeComparableStems = value => new Set(
-  (String(value || "").toLowerCase().match(/[a-z][a-z0-9]*/g) || []).map(normalizeProbeTreeKeywordStem),
+  collectProbeTreeWordSegments(value).map(part => normalizeProbeTreeKeywordStem(part.normalized)),
 );
 
 const matchedContextKeywords = (contextKeywords, value) => {
   const text = String(value || "").toLowerCase();
+  const comparableWords = new Set(collectProbeTreeWordSegments(text).map(part => part.normalized));
   const comparableStems = collectProbeTreeComparableStems(text);
   return contextKeywords.filter(keyword => (
-    new RegExp(`(^|[^a-z0-9-])${buildProbeTreeKeywordPattern(keyword)}([^a-z0-9-]|$)`, "i").test(text)
+    comparableWords.has(normalizeProbeTreeWord(keyword))
+    || new RegExp(`(^|[^\\p{L}\\p{N}\\p{M}-])${buildProbeTreeKeywordPattern(keyword)}([^\\p{L}\\p{N}\\p{M}-]|$)`, "iu").test(text)
+    || (/[^\x00-\x7F]/.test(keyword) && text.includes(String(keyword).toLowerCase()))
     || (!keyword.includes("-") && comparableStems.has(normalizeProbeTreeKeywordStem(keyword)))
   ));
 };
 
 const findProbeTreeSourceAnchor = (groundingText, keyword) => {
   const sourceText = cleanProbeTreeResponseText(groundingText, 12_000);
-  const match = new RegExp(`(^|[^a-z0-9-])(${buildProbeTreeKeywordPattern(keyword)})(?=[^a-z0-9-]|$)`, "i").exec(sourceText);
-  if (!match) return "";
-  const keywordStart = match.index + String(match[1] || "").length;
+  const matchedSegment = collectProbeTreeWordSegments(sourceText)
+    .find(part => part.normalized === normalizeProbeTreeWord(keyword));
+  if (!matchedSegment) return "";
+  const keywordStart = matchedSegment.index;
   const uppercasePrefix = sourceText.slice(Math.max(0, keywordStart - 8), keywordStart).match(/\b[A-Z]{2,5}\s+$/)?.[0] || "";
-  return cleanProbeTreeResponseText(`${uppercasePrefix}${match[2]}`, 240);
+  return cleanProbeTreeResponseText(`${uppercasePrefix}${matchedSegment.segment}`, 240);
 };
 
 export function resolveProbeTreeContextAnchors({ contextText, question, contextAnchors } = {}) {

@@ -117,13 +117,13 @@ export function buildProbeTreeStructuredResponse(args = {}) {
   const panelBody = [
     "# Probe-Tree Branches",
     "",
-    `Source node: ${currentNodeId}`,
-    `Contract: ${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION}`,
+    `\`source=${currentNodeId} · contract=${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION}\``,
     "",
     ...cards.flatMap((card, index) => [
-      `${index + 1}. **${card.label}** — ${card.rationale}`,
+      `${index + 1}. **${card.question}**`,
       ...card.selectionOptions.map((option, optionIndex) => `   ${optionIndex + 1}. ${option.label}`),
-      "   - Other (author a different answer)",
+      ...(card.rationale ? [`   _${card.rationale}_`] : []),
+      ...(card.evidenceNeeded ? [`   > ${card.evidenceNeeded}`] : []),
     ]),
   ].join("\n");
   const panelOutput = buildRichMediaTextMarkdownDocument({

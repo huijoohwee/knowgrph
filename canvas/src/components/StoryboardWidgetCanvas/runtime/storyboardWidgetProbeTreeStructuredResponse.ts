@@ -136,21 +136,14 @@ const buildPanelMarkdown = (args: {
     ? args.invocationTokens.map(token => {
         const resolved = resolutionByToken.get(token.toLowerCase())
         if (!resolved) return token
-        return `${token} (${resolved.ok ? 'resolved' : 'forwarded; docs unavailable'})`
+        return `${token}[resolved=${resolved.ok}]`
       }).join(' ')
-    : '(none)'
-  const responseMode = args.responseSource === 'provider'
-    ? 'provider refinement over the literal MCP result'
-    : 'literal local MCP structured response'
+    : '∅'
   const body = [
     '# Probe-Tree Branches',
     '',
-    `Source node: ${args.anchorNodeId}`,
-    `Contract: ${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION}`,
-    `MCP: ${args.mcpInvoked ? 'knowgrph.probe.generate invoked' : 'not invoked'}`,
-    `Response mode: ${responseMode}`,
-    `Model: ${args.model || 'unknown'}`,
-    `Invocation grammar: ${grammarLine}`,
+    `\`source=${args.anchorNodeId} · contract=${PROBE_TREE_LLM_RESPONSE_CONTRACT_VERSION} · mcp=${args.mcpInvoked ? 'knowgrph.probe.generate' : 'none'} · response=${args.responseSource} · model=${args.model || 'unknown'}\``,
+    `\`grammar=${grammarLine}\``,
     '',
     ...args.cards.flatMap((card, index) => {
       const question = readString(card.properties.summary || card.properties.question) || card.label
@@ -158,11 +151,10 @@ const buildPanelMarkdown = (args: {
       const evidence = readString(card.properties.evidenceNeeded)
       const selectionOptions = normalizeProbeTreeSelectionOptions(card.properties.selectionOptions)
       return [
-        `${index + 1}. **${card.label}** — ${question}`,
+        `${index + 1}. **${question}**`,
         ...selectionOptions.map((option, optionIndex) => `   ${optionIndex + 1}. ${option.label}`),
-        ...(card.properties.allowOther === true ? ['   - Other (author a different answer)'] : []),
-        ...(rationale ? [`   - Why: ${rationale}`] : []),
-        ...(evidence ? [`   - Evidence: ${evidence}`] : []),
+        ...(rationale ? [`   _${rationale}_`] : []),
+        ...(evidence ? [`   > ${evidence}`] : []),
       ]
     }),
   ].join('\n')

@@ -16,6 +16,7 @@ export function buildStoryboardWidgetProbeTreeProviderRepairPrompt(args: {
     '- Every question must add a concrete missing decision variable instead of restating the selected request.',
     '- Every answer choice must express a semantic preference, tradeoff, or consequence instead of only copying entities, amounts, ranges, or units from the request.',
     '- Keep card questions and answer-choice sets mutually distinct, with no reused choice labels.',
+    '- Preserve the dominant natural language and script of the Active selected input during repair. Do not default to the language of the validation feedback, preceding question, lineage, or routing metadata.',
     '- Return only the required fenced JSON block.',
   ].join('\n')
 }
