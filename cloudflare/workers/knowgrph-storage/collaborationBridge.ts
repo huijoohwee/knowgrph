@@ -86,11 +86,24 @@ const encodeUtf8Base64 = (value: string): string => {
   return btoa(binary)
 }
 
+const decodeUtf8Base64 = (value: string): string => {
+  const normalized = normalizeString(value).replace(/\s+/g, '')
+  if (!normalized) return ''
+  if (typeof Buffer !== 'undefined') return Buffer.from(normalized, 'base64').toString('utf8')
+  const binary = atob(normalized)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+  return new TextDecoder().decode(bytes)
+}
+
 const normalizeGitHubDocsPathForCollaborationSave = (documentKey: string, documentKind: 'markdown' | 'json'): string => {
   const raw = normalizeString(documentKey)
     .replace(/^workspace:/, '')
     .replace(/^\/+/, '')
-  const githubPath = raw.startsWith('docs/') ? raw : `docs/${raw}`
+  const repositoryRelative = raw.startsWith('agentic-canvas-os/')
+    ? raw.slice('agentic-canvas-os/'.length)
+    : raw
+  const githubPath = repositoryRelative.startsWith('docs/') ? repositoryRelative : `docs/${repositoryRelative}`
   const parts = githubPath.split('/').filter(Boolean)
   if (parts.length < 2 || parts[0] !== 'docs') return ''
   if (parts.some(part => part === '.' || part === '..')) return ''
@@ -200,7 +213,12 @@ const commitCollaborationSnapshotToGitHub = async (args: {
   const currentResponse = await fetch(`${apiUrl}?ref=${encodeURIComponent(config.branch)}`, { headers })
   let currentSha = ''
   if (currentResponse.ok) {
-    currentSha = readNestedString(await readJsonObject(currentResponse), ['sha'])
+    const currentJson = await readJsonObject(currentResponse)
+    currentSha = readNestedString(currentJson, ['sha'])
+    const currentContentBase64 = readNestedString(currentJson, ['content'])
+    if (currentSha && currentContentBase64 && decodeUtf8Base64(currentContentBase64) === args.text) {
+      return { commitSha: null, contentSha: currentSha }
+    }
   } else if (currentResponse.status !== 404) {
     throw new Error(`GitHub contents read failed (${currentResponse.status})`)
   }

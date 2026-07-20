@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { traeBadgePlugin } from 'vite-plugin-trae-solo-badge'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -43,7 +43,7 @@ import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBas
 import { DEFAULT_VITE_WATCH_IGNORED, buildWorkspaceMirrorWatchIgnoredRoots, createWorkspaceMirrorWatchPathIgnore } from './viteWorkspaceMirrorWatch'
 import { loadChatProxyServerManagedEnv, resolveViteRuntimeIdentity } from './viteChatProxyEnv'
 import { forwardChatProxyUpstreamHead, forwardChatProxyUpstreamResponse } from './viteChatProxyResponse'; import { createProbeTreeMcpBridgePlugin } from './viteProbeTreeMcpBridge'
-import { createExternalMcpBridgePlugin } from './viteExternalMcpBridge'
+import { createExternalMcpBridgePlugin } from './viteExternalMcpBridge'; import { resolveKnowgrphStorageDevProxyTarget } from './viteStorageProxyEnv'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..'), workspaceRoot = path.resolve(repoRoot, '..')
 const siblingDocsRoot = path.resolve(workspaceRoot, 'huijoohwee', 'docs'); loadChatProxyServerManagedEnv({ repoRoot, canvasRoot: __dirname }); const runtimeIdentity = resolveViteRuntimeIdentity(repoRoot)
@@ -67,7 +67,7 @@ const MARKDOWN_PIPELINE_INPUT_REL_PATH = String(process.env.VITE_MARKDOWN_PIPELI
 const CODEBASE_INDEX_PIPELINE_OUTPUT_DIR = String(process.env.VITE_MARKDOWN_PIPELINE_OUTPUT_DIR || '').trim() || 'data/outputs/knowgrph-workflow-preview'
 const CODEBASE_INDEX_PIPELINE_COMMAND = `python -m knowgrph_parser markdown --input ${MARKDOWN_PIPELINE_INPUT_REL_PATH} --output-dir ${CODEBASE_INDEX_PIPELINE_OUTPUT_DIR}`
 const CHAT_PROXY_PREFIX = '/__chat_proxy'
-const CHAT_BINARY_DOWNLOAD_PROXY_PREFIX = '/__chat_asset_proxy'; const KNOWGRPH_STORAGE_DEV_PROXY_TARGET = String(process.env.KNOWGRPH_STORAGE_DEV_PROXY_TARGET || 'https://airvio.co').trim().replace(/\/+$/, '') || 'https://airvio.co'
+const CHAT_BINARY_DOWNLOAD_PROXY_PREFIX = '/__chat_asset_proxy'
 const CHAT_LOG_APPEND_PATH = '/__chat_log_append'
 const KG_FS_WRITE_PATH = '/__kg_fs_write'
 const KG_FS_LIST_PATH = '/__kg_fs_list'
@@ -6828,8 +6828,8 @@ function applyWorkspaceInitializationDocsAbsRootDefault(command: string): void {
   if (existsSync(siblingDocsRoot)) process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = siblingDocsRoot
 }
 
-export default defineConfig(({ command }) => {
-  applyWorkspaceInitializationDocsAbsRootDefault(command)
+export default defineConfig(({ command, mode }) => {
+  applyWorkspaceInitializationDocsAbsRootDefault(command); const fileEnv = loadEnv(mode, __dirname, ''); const knowgrphStorageDevProxyTarget = resolveKnowgrphStorageDevProxyTarget({ processEnv: process.env, fileEnv })
   const grphSharedAliasRoot = path.resolve(
     __dirname,
     command === 'serve' ? '../grph-shared/src' : '../grph-shared/dist',
@@ -6995,9 +6995,9 @@ export default defineConfig(({ command }) => {
     },
     proxy: {
       '/api/storage': {
-        target: KNOWGRPH_STORAGE_DEV_PROXY_TARGET,
+        target: knowgrphStorageDevProxyTarget,
         changeOrigin: true,
-        secure: KNOWGRPH_STORAGE_DEV_PROXY_TARGET.startsWith('https://'),
+        secure: knowgrphStorageDevProxyTarget.startsWith('https://'),
       },
     },
     fs: {

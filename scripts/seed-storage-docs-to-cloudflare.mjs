@@ -65,6 +65,7 @@ const docsRoot = normalizeString(getArgValue('--docs-root'))
   || normalizeString(process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT)
   || path.resolve(githubRoot, 'agentic-canvas-os', 'docs')
 const baseUrl = normalizeString(getArgValue('--base-url')) || 'https://airvio.co'
+const isCanonicalProductionOrigin = new URL(baseUrl).origin === 'https://airvio.co'
 const workspaceId = normalizeString(getArgValue('--workspace-id')) || 'kgws:canonical-docs'
 const deviceId = normalizeString(getArgValue('--device-id')) || 'seed:canonical-docs'
 const dryRun = hasFlag('--dry-run')
@@ -440,7 +441,7 @@ const run = async () => {
     console.log(`[knowgrph] stale-source-files=${deleteMutations.length}`)
     mutations.push(...deleteMutations)
   }
-  const shouldUseDirectD1Seed = chunkedDocuments.length > 0
+  const shouldUseDirectD1Seed = chunkedDocuments.length > 0 && isCanonicalProductionOrigin
   if (!shouldUseDirectD1Seed) {
     try {
       const pushJson = await pushMutations({
@@ -466,6 +467,9 @@ const run = async () => {
       return
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
+      if (!isCanonicalProductionOrigin) {
+        throw new Error(`API push failed for non-production storage origin; remote D1 fallback is forbidden: ${message}`)
+      }
       console.warn(`[knowgrph] API push path unavailable: ${message}`)
       console.warn('[knowgrph] Falling back to direct D1 remote upsert via npx wrangler.')
     }
