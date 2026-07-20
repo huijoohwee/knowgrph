@@ -115,6 +115,12 @@ export const validateContract = contract => {
   if (typeof deployment.required_trigger !== 'string' || !deployment.required_trigger) {
     throw new Error('deployment.required_trigger is required')
   }
+  if (typeof deployment.required_branch !== 'string' || !deployment.required_branch) {
+    throw new Error('deployment.required_branch is required')
+  }
+  if (deployment.promotion_policy !== 'protected-green-main') {
+    throw new Error('deployment.promotion_policy must be protected-green-main')
+  }
   for (const pattern of deployment.command_patterns) new RegExp(pattern, 'i')
 
   if (!contract.ci_scopes || typeof contract.ci_scopes !== 'object') throw new Error('ci_scopes mapping is required')

@@ -8,6 +8,8 @@ const releaseWorkflow = fs.readFileSync(path.resolve(repoRoot, '.github', 'workf
 const agentReadySmoke = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'check-agent-ready.mjs'), 'utf8')
 const docsSeedScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'seed-storage-docs-to-cloudflare.mjs'), 'utf8')
 const docsSeedLibrary = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'lib', 'seed-storage-documents-d1.mjs'), 'utf8')
+const pagesSyncScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'sync-pages-knowgrph.mjs'), 'utf8')
+const pagesDeploymentScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'pages-production-deployment.mjs'), 'utf8')
 
 test('GitHub workflows use Node 24 action majors', () => {
   const workflowRoot = path.resolve(repoRoot, '.github', 'workflows')
@@ -34,10 +36,51 @@ test('production release rebuilds the canvas with the exact authorized candidate
     releaseWorkflow.indexOf('\n  deploy:'),
   )
 
-  assert.match(verifyJob, /name: Build and sync verified candidate into ephemeral production artifact/)
-  assert.match(verifyJob, /KNOWGRPH_SOURCE_REVISION: \$\{\{ inputs\.commit_sha \}\}/)
+  assert.match(verifyJob, /name: Build and sync verified candidate/)
+  assert.match(verifyJob, /KNOWGRPH_SOURCE_REVISION: \$\{\{ github\.sha \}\}/)
   assert.match(verifyJob, /run: npm run pages:build-sync/)
   assert.doesNotMatch(verifyJob, /run: npm run pages:sync/)
+})
+
+test('production release is automatic only for protected main and retains rollback evidence', () => {
+  assert.match(releaseWorkflow, /on:\s*\n\s*push:\s*\n\s*branches: \[main\]/)
+  assert.doesNotMatch(releaseWorkflow, /workflow_dispatch:/)
+  assert.doesNotMatch(releaseWorkflow, /confirmation:/)
+  assert.match(releaseWorkflow, /name: Enforce sole deployment ownership/)
+  assert.match(releaseWorkflow, /runtime:pages:owner-enforce/)
+  assert.match(releaseWorkflow, /name: Capture current production rollback target/)
+  assert.match(releaseWorkflow, /runtime:pages:capture-current/)
+  assert.match(releaseWorkflow, /runtime:pages:rollback/)
+  assert.match(releaseWorkflow, /if: failure\(\) && steps\.deploy_pages\.outcome == 'success'/)
+})
+
+test('production release reconciles competing Cloudflare Pages Git deployment ownership', () => {
+  assert.match(pagesDeploymentScript, /enforce-direct-upload-owner/)
+  assert.match(pagesDeploymentScript, /method: 'PATCH'/)
+  assert.match(pagesDeploymentScript, /production_deployments_enabled: false/)
+  assert.match(pagesDeploymentScript, /preview_deployment_setting: 'none'/)
+})
+
+test('verified production mirror is published only after live smoke', () => {
+  const deployJob = releaseWorkflow.slice(releaseWorkflow.indexOf('\n  deploy:'))
+  const deployIndex = deployJob.indexOf('name: Deploy verified artifact')
+  const smokeIndex = deployJob.indexOf('name: Verify live runtime')
+  const publishIndex = deployJob.indexOf('name: Publish verified production mirror')
+
+  assert.ok(deployIndex >= 0)
+  assert.ok(smokeIndex > deployIndex)
+  assert.ok(publishIndex > smokeIndex)
+  assert.match(deployJob, /git push origin HEAD:main/)
+  assert.match(deployJob, /HUIJOOHWEE_PUSH_TOKEN/)
+})
+
+test('generated mirror and rollback are bound to immutable runtime identities', () => {
+  assert.match(pagesSyncScript, /knowgrph-production-runtime-readiness\/v1/)
+  assert.match(pagesSyncScript, /\.well-known', 'runtime-readiness\.json'/)
+  assert.match(pagesSyncScript, /sourceRevision/)
+  assert.match(pagesDeploymentScript, /deployment_trigger\?\.metadata\?\.commit_hash/)
+  assert.match(pagesDeploymentScript, /\/rollback`/)
+  assert.doesNotMatch(pagesDeploymentScript, /console\.log\([^\n]*(?:apiToken|CLOUDFLARE_API_TOKEN)/)
 })
 
 test('production artifact includes the public app-shell mirror fetched by Pages Functions', () => {
@@ -54,7 +97,7 @@ test('production release reconciles the exact canonical docs revision before liv
   const deployJob = releaseWorkflow.slice(releaseWorkflow.indexOf('\n  deploy:'))
   const checkoutIndex = deployJob.indexOf('Checkout exact Agentic Canvas OS docs SSOT')
   const seedIndex = deployJob.indexOf('Reconcile canonical docs into D1')
-  const smokeIndex = deployJob.indexOf('Verify live agent-ready discovery')
+  const smokeIndex = deployJob.indexOf('Verify live runtime')
 
   assert.match(deployJob, /KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: \$\{\{ github\.workspace \}\}\/agentic-canvas-os\/docs/)
   assert.match(releaseWorkflow, /docs_repository: \$\{\{ steps\.agentic_canvas_os_docs\.outputs\.repository \}\}/)

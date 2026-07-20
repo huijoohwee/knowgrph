@@ -89,7 +89,7 @@ Use the job name as the exact required merge status. It runs:
 
 - `npm run ci:integration`
 - standalone `npm run worktree:check` enforcement before build or affected-scope work
-- canonical collaboration frontmatter and manual-only deployment-boundary validation
+- canonical collaboration frontmatter and protected-main-only automatic deployment validation
 - `agent/<device>/<semantic-scope>` branch and canonical `main` target validation
 - declared base-SHA ancestry and unique active semantic-scope validation across open pull requests
 - affected-scope checks selected from `docs/collaboration-runtime-contract.md`
@@ -123,8 +123,9 @@ Publish-mirror and sibling-schema parity are release checks after ephemeral sync
 - [ ] stale approvals are dismissed when approvals are enabled
 - [ ] force pushes are disabled
 - [ ] direct pushes to `main` are restricted without bypass
-- [ ] the `production` environment requires an authorized reviewer
-- [ ] only `Production Release` can deploy, and only through `workflow_dispatch`
+- [ ] only `Production Release` can deploy, and only from a protected green push to `main`
+- [ ] the `production` environment has no required reviewers and exposes only least-privilege deployment credentials
+- [ ] the Cloudflare Pages Git source has production deployments disabled and preview deployment set to `none`; `Production Release` Direct Upload is the sole deploy owner
 
 ---
 
