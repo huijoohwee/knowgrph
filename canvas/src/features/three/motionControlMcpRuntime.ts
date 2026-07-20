@@ -1,4 +1,3 @@
-import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
 import {
   inspectMotionControlRuntime,
   readMotionControlSnapshot,
@@ -38,17 +37,14 @@ type NormalizedControl = Readonly<{
   invocation: string
 }>
 
-function canonicalTokens(): CanonicalTokens | null {
-  const command = findAgenticOsInvocationByToken(MOTION_CONTROL_INVOCATION_COMMANDS.control)
-  const semantic = findAgenticOsInvocationByToken(MOTION_CONTROL_INVOCATION_SEMANTICS.pose)
-  const binding = findAgenticOsInvocationByToken(MOTION_CONTROL_INVOCATION_BINDINGS.canvas)
-  if (command?.kind !== 'command' || semantic?.kind !== 'semantic' || binding?.kind !== 'binding') return null
-  return { command: command.token, semantic: semantic.token, binding: binding.token }
-}
+const canonicalTokens = (): CanonicalTokens => ({
+  command: MOTION_CONTROL_INVOCATION_COMMANDS.control,
+  semantic: MOTION_CONTROL_INVOCATION_SEMANTICS.pose,
+  binding: MOTION_CONTROL_INVOCATION_BINDINGS.canvas,
+})
 
 export function buildMotionControlInvocation(operation: MotionControlOperation, backend: MotionControlBackendPreference = 'auto'): string {
   const tokens = canonicalTokens()
-  if (!tokens) return ''
   return `${tokens.command} ${tokens.binding} ${tokens.semantic} operation=${operation}${operation === 'start' ? ` backend=${backend}` : ''}`
 }
 
@@ -60,7 +56,7 @@ export function buildMotionControlBoundingBoxInvocation(enabled: boolean): strin
 function parseInvocation(value: unknown): NormalizedControl | null {
   const invocation = String(value || '').trim()
   const canonical = canonicalTokens()
-  if (!invocation || !canonical) return null
+  if (!invocation) return null
   const tokens = invocation.split(/\s+/).filter(Boolean)
   if (tokens[0] !== canonical.command || tokens.filter(token => token.startsWith('/')).length !== 1) return null
   const semantics = tokens.filter(token => token.startsWith('#'))
@@ -109,12 +105,12 @@ export function inspectLocalMotionControl() {
       inspect: `knowgrph.${MOTION_CONTROL_WEB_MCP_TOOL_IDS.inspect}`,
       control: `knowgrph.${MOTION_CONTROL_WEB_MCP_TOOL_IDS.control}`,
     },
-    invocationGrammar: canonical ? {
+    invocationGrammar: {
       open: `${canonical.command} ${canonical.binding} ${canonical.semantic} operation=open`,
       boundingBox: `${canonical.command} ${canonical.binding} ${canonical.semantic} operation=open boundingBox=true|false`,
       start: `${canonical.command} ${canonical.binding} ${canonical.semantic} operation=start backend=auto|webgpu|wasm`,
       stop: `${canonical.command} ${canonical.binding} ${canonical.semantic} operation=stop`,
-    } : null,
+    },
     targets: inspectMotionControlTargets(),
   }
 }

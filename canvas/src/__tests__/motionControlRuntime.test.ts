@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
+import { assertPinnedAgenticOsDictionaryTokensForTest, PINNED_MOTION_CONTROL_DICTIONARY_TOKENS } from '@/__tests__/helpers/pinnedAgenticOsDictionary'
+import { resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import {
   readMediaCatalogMode,
   setMediaCatalogMode,
@@ -141,6 +142,7 @@ async function testCaptureEndedLifecycle() {
 }
 
 export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
+  resetAgenticOsRemoteGrammarCatalogForTests()
   const frame = poseFrame(1)
   resetMotionControlCalibration()
   const animationPose = motionControlPoseToAnimationPose(frame)
@@ -194,8 +196,10 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
   if (buildMotionControlInvocation('open') !== '/motion.control @canvas #pose operation=open') {
     throw new Error('expected open invocation to omit the start-only backend field')
   }
-  for (const [token, kind] of [['/motion.control', 'command'], ['#pose', 'semantic'], ['@canvas', 'binding']] as const) {
-    if (findAgenticOsInvocationByToken(token)?.kind !== kind) throw new Error(`expected ${token} in the shared ${kind} catalog`)
+  try {
+    assertPinnedAgenticOsDictionaryTokensForTest(PINNED_MOTION_CONTROL_DICTIONARY_TOKENS)
+  } finally {
+    resetAgenticOsRemoteGrammarCatalogForTests()
   }
   const inspection = inspectLocalMotionControl()
   if (inspection.schema !== 'knowgrph-motion-control-mcp/v1'

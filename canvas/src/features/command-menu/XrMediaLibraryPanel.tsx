@@ -1,9 +1,9 @@
 import React from 'react'
-import { Armchair, Box, Building2, Car, PawPrint, Trash2, TreePine, UserRound, UsersRound } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Armchair, Box, Building2, Car, PawPrint, Trash2, TreePine, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
+import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
@@ -18,7 +18,6 @@ import {
 } from '@/features/three/xrMotionReferenceModel'
 import {
   XR_SCENE_LIBRARY_DEFAULT_ASSET_ID,
-  XR_SCENE_LIBRARY_FEATURED_ASSET_IDS,
   XR_SCENE_LIBRARY_ASSETS,
   XR_SCENE_LIBRARY_CATEGORY_LABELS,
   type XrSceneLibraryAsset,
@@ -30,11 +29,7 @@ import {
   buildXrStageInvocation,
   buildXrTransformInvocation,
 } from '@/features/three/xrSceneMcpContract.mjs'
-import {
-  controlLocalXrScene,
-  type XrSceneTransition,
-  type XrSceneControlInput,
-} from '@/features/three/xrSceneMcpRuntime'
+import { controlLocalXrScene, type XrSceneControlInput, type XrSceneTransition } from '@/features/three/xrSceneMcpRuntime'
 import { SpatialAssetToolsPanel } from '@/features/three/SpatialAssetToolsPanel'
 import { XrSimulationWorkbench } from './XrSimulationWorkbench'
 import {
@@ -70,7 +65,9 @@ import {
   startMediaPointerDrag,
 } from './mediaCatalogShared'
 import { XrCatalogThumb } from './XrMediaCatalogThumbs'
-import { matchesXrMediaLibrarySearch as matchesSearch } from './xrMediaLibrarySearch'
+import { XrMediaLibrarySummary } from './XrMediaLibraryHeader'
+import { isXrMediaInvocationMetadataReady } from './xrMediaInvocationMetadata'
+import { buildXrMediaLibraryProjection } from './xrMediaLibrarySearch'
 
 type XrSceneLibraryFilter = 'all' | XrSceneLibraryCategory
 
@@ -83,6 +80,7 @@ const CATEGORY_ICONS: Readonly<Record<XrSceneLibraryCategory, LucideIcon>> = {
 }
 
 const XR_LIBRARY_SECTION_KEYS = ['environments', 'subjects-props', 'simulation'] as const
+const XR_SCENE_GRAMMAR_SIGILS = ['/', '#', '@'] as const
 function XrMediaCatalogThumb({ Icon, color, label }: { Icon: LucideIcon; color: string; label: string }) {
   return (
     <span
@@ -247,6 +245,7 @@ function XrAssetRow({
 }
 
 export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
+  const grammarCatalog = useAgenticOsRemoteGrammarCatalog({ sigils: XR_SCENE_GRAMMAR_SIGILS })
   const {
     graphData,
     markdownDocumentName,
@@ -290,6 +289,7 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
     return () => window.removeEventListener(XR_SCENE_MEDIA_DROP_COMMITTED_EVENT, onCommittedDrop)
   }, [])
   const sceneReady = Boolean(graphData && String(markdownDocumentName || '').trim() && String(markdownDocumentText || '').trim())
+  const sourceMetadataReady = isXrMediaInvocationMetadataReady(grammarCatalog)
   const runControl = React.useCallback((input: XrSceneControlInput) => {
     const result = controlLocalXrScene(input)
     pushUiToast({
@@ -328,28 +328,22 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
     return runControl({ action: 'transform', subjectId, ...transform }).ok
   }, [runControl])
 
-  const featuredAssets = React.useMemo(() => XR_SCENE_LIBRARY_FEATURED_ASSET_IDS.map(assetId => (
-    XR_SCENE_LIBRARY_ASSETS.find(asset => asset.id === assetId)
-  )).filter((asset): asset is XrSceneLibraryAsset => Boolean(asset)), [])
-  const selectedAsset = featuredAssets.find(asset => asset.id === selectedAssetId)
-    || featuredAssets.find(asset => asset.id === XR_SCENE_LIBRARY_DEFAULT_ASSET_ID)
-    || featuredAssets[0]
-  const visibleEnvironments = React.useMemo(() => XR_MOTION_REFERENCE_STAGE_PRESETS.filter(stage => matchesSearch(searchText, [stage.label, stage.description, 'environment kit xr 3d'])), [searchText])
-  const visibleAssets = React.useMemo(() => XR_SCENE_LIBRARY_ASSETS.filter(asset => (
-    (categoryFilter === 'all' || asset.category === categoryFilter)
-    && matchesSearch(searchText, [asset.label, asset.category, asset.description, ...asset.keywords, asset.mobile ? 'cast marks motion' : 'static'])
-  )), [categoryFilter, searchText])
+  const catalog = React.useMemo(() => buildXrMediaLibraryProjection({ categoryFilter, searchText, selectedAssetId }), [categoryFilter, searchText, selectedAssetId])
+  const { featuredAssets, selectedAsset, visibleAssets, visibleEnvironments } = catalog
 
   return (
-    <section className="grid min-w-0 gap-3" aria-label="3D for XR library" data-kg-media-xr-library="1" data-kg-media-xr-assets-mcp="knowgrph.control_local_xr_scene" data-kg-media-xr-scene-ready={sceneReady ? '1' : '0'}>
+    <section
+      className="grid min-w-0 gap-3"
+      aria-label="3D for XR library"
+      data-kg-media-xr-library="1"
+      data-kg-media-xr-assets-mcp="knowgrph.control_local_xr_scene"
+      data-kg-media-xr-scene-ready={sceneReady ? '1' : '0'}
+      data-kg-media-xr-metadata-status={grammarCatalog.hydration.status}
+      data-kg-media-xr-metadata-version={String(grammarCatalog.version)}
+    >
       <header className={cn('grid gap-2 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)}>
         <section className="flex items-start gap-2">
-          <XrCatalogThumb Icon={Building2} color="#38bdf8" />
-          <section className="min-w-0 flex-1">
-            <h3 className="text-xs font-semibold">3D for XR</h3>
-            <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Native grey-box kits and procedural subjects. No external assets or runtime dependency.</p>
-            <p className={cn('mt-0.5 truncate font-mono text-[9px]', UI_THEME_TOKENS.text.tertiary)} title="Browser WebMCP control tool">WebMCP · knowgrph.control_local_xr_scene</p>
-          </section>
+          <XrMediaLibrarySummary metadataReady={sourceMetadataReady} metadataStatus={grammarCatalog.hydration.status} />
           <section className="flex shrink-0 items-center gap-1">
             <output className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>{runtime.plan.subjects.length} placed</output>
             <ExpandCollapseAllButton

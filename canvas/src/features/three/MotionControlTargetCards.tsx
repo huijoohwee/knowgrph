@@ -3,6 +3,7 @@ import { Box, Clapperboard } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { requestXrSimulationWorkbenchOpen } from '@/features/command-menu/xrSimulationWorkbenchOpenRequest'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
+import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { PanelField, PanelSelect } from '@/lib/ui/panelFormControls'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -29,6 +30,8 @@ type MotionControlTargetCardsProps = Readonly<{
   onOpenTarget: (target: MotionControlCompanionTarget) => void
 }>
 
+const MOTION_TARGET_GRAMMAR_SIGILS = ['/', '#', '@'] as const
+
 function TargetInvocation({ invocation }: { invocation: string }) {
   return (
     <code
@@ -46,6 +49,7 @@ export const MotionControlTargetCards = React.memo(function MotionControlTargetC
   livePoseActive,
   onOpenTarget,
 }: MotionControlTargetCardsProps) {
+  const grammarCatalog = useAgenticOsRemoteGrammarCatalog({ sigils: MOTION_TARGET_GRAMMAR_SIGILS })
   const runtime = React.useSyncExternalStore(
     subscribeXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
@@ -62,7 +66,7 @@ export const MotionControlTargetCards = React.memo(function MotionControlTargetC
     readXrPhysicsRuntime,
   )
   const selectedNodeId = useGraphStore(state => state.selectedNodeId)
-  const targets = React.useMemo(inspectMotionControlTargets, [controller.revision, physics.revision, runtime.revision, selectedNodeId])
+  const targets = React.useMemo(inspectMotionControlTargets, [controller.revision, grammarCatalog.version, physics.revision, runtime.revision, selectedNodeId])
   const xr3d = targets.surfaces.xr3d
   const objectIdentification = xr3d.objectIdentification
   const selectedObject = objectIdentification.records.find(record => record.selected) || null
@@ -81,7 +85,13 @@ export const MotionControlTargetCards = React.memo(function MotionControlTargetC
   }, [onOpenTarget])
 
   return (
-    <section className="grid gap-2" aria-label="Motion Control XR targets" data-kg-motion-control-targets="shared-xr-owners">
+    <section
+      className="grid gap-2"
+      aria-label="Motion Control XR targets"
+      data-kg-motion-control-targets="shared-xr-owners"
+      data-kg-motion-control-target-metadata-status={grammarCatalog.hydration.status}
+      data-kg-motion-control-target-metadata-version={String(grammarCatalog.version)}
+    >
       <article className={cn('grid gap-1 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-motion-control-target="xr-3d">
         <header className="flex items-center gap-2">
           <Box className="size-4" aria-hidden="true" />

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
+  AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL,
   AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT,
 } from "../agentic-canvas-os-docs-contract.mjs";
 import {
@@ -14,6 +15,7 @@ import {
 } from "../agentic-canvas-os-docs-runtime.js";
 import {
   buildAgentLiveProviderProofSummary,
+  buildAgenticCanvasOsDocsCatalog,
   buildProgressiveAgentsReadinessSummary,
   resolveAgentLiveProviderProofRevisionFromGitHub,
 } from "../agentic-canvas-os-docs-core.mjs";
@@ -65,6 +67,18 @@ test("progressive Agents readiness fails closed when source evidence is incomple
   assert.equal(result.configured, null);
 });
 
+test("standalone docs catalog retains the branch source URL without a revision", () => {
+  const catalog = buildAgenticCanvasOsDocsCatalog({
+    "FACTS.md": "",
+    "DICTIONARY-COMMAND.md": "---\ndictionary_entries:\n  - /query\n---\n| `/query` | Query source docs |",
+    "DICTIONARY-SEMANTIC.md": "",
+    "DICTIONARY-BINDING.md": "",
+  });
+  const query = catalog.find((entry) => entry.token === "/query");
+
+  assert.equal(query?.sourceUrl, `${AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL}/DICTIONARY-COMMAND.md#/query`);
+});
+
 test("live provider proof revision falls back to exact read-only remote history", async () => {
   const requests = [];
   const revision = await resolveAgentLiveProviderProofRevisionFromGitHub({
@@ -94,6 +108,14 @@ test("local MCP docs invocation catalogs /, #, and @ entries from source docs", 
   assert.equal(result.docsRoot, AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT);
   assert.equal(result.absoluteDocsRoot, DOCS_ROOT);
   assert.match(result.sourceRevision, /^[0-9a-f]{40}$/);
+  assert.equal(
+    result.sourceRootUrl,
+    `https://github.com/huijoohwee/agentic-canvas-os/blob/${result.sourceRevision}/docs`,
+  );
+  assert.ok(
+    result.catalog.every((entry) => entry.sourceUrl.startsWith(`${result.sourceRootUrl}/`)),
+    "runtime catalog source URLs must share the exact source revision",
+  );
   assert.deepEqual(result.liveAgentProviderProof, {
     schema: "agent-live-provider-proof-summary/v1",
     status: "verified-bounded-live",
@@ -161,10 +183,12 @@ test("local MCP docs invocation treats sigil-only queries as token-prefix filter
 });
 
 test("local MCP docs invocation resolves specific /, #, and @ tokens with source content", { skip: !DOCS_AVAILABLE }, async () => {
-  for (const token of [
-    "/query", "#runtime-ready", "@mcp-gateway",
-    "/motion.control", "#pose", "@canvas",
-    "/agent.toolkit", "#agent-toolkit", "@agent-toolkit-observer",
+  for (const [token, expectedSourceUrlSuffix = ""] of [
+    ["/query", "/DICTIONARY-COMMAND.md#/query"],
+    ["#runtime-ready", "/DICTIONARY-SEMANTIC.md##runtime-ready"],
+    ["@mcp-gateway", "/DICTIONARY-BINDING.md#@mcp-gateway"],
+    ["/motion.control"], ["#pose"], ["@canvas"],
+    ["/agent.toolkit"], ["#agent-toolkit"], ["@agent-toolkit-observer"],
   ]) {
     const result = await runAgenticCanvasOsDocsInvokeTool({ token, includeContent: true }, {
       rootDir: KNOWGRPH_ROOT,
@@ -174,7 +198,11 @@ test("local MCP docs invocation resolves specific /, #, and @ tokens with source
     assert.equal(result.ok, true);
     assert.equal(result.invocation.token, token);
     assert.match(result.invocation.sourcePath, /^DICTIONARY-/);
-    assert.ok(result.invocation.sourceUrl.includes("/agentic-canvas-os/blob/main/docs/"));
+    assert.ok(result.invocation.sourceUrl.startsWith(`${result.sourceRootUrl}/`));
+    assert.ok(result.invocation.sourceUrl.includes(`/blob/${result.sourceRevision}/docs/`));
+    if (expectedSourceUrlSuffix) {
+      assert.equal(result.invocation.sourceUrl, `${result.sourceRootUrl}${expectedSourceUrlSuffix}`);
+    }
     assert.ok(result.invocation.content.includes(token));
   }
 });

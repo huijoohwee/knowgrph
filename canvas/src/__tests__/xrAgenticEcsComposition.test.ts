@@ -5,10 +5,26 @@ import {
   buildKnowgrphAgentReadyToolContracts,
 } from '@/features/agent-ready/knowgrphAgentReadyToolContract.mjs'
 import { KNOWGRPH_LOCAL_MCP_TOOL_NAMES } from '@/features/agent-ready/knowgrphLocalMcpToolNames.mjs'
-import { MOTION_CONTROL_INVOCATION_COMMANDS } from '@/features/three/motionControlMcpContract.mjs'
 import {
+  CAMERA_INVOCATION_BINDINGS,
+  CAMERA_INVOCATION_COMMANDS,
+  CAMERA_INVOCATION_SEMANTICS,
+} from '@/features/strybldr/cameraMcpContract.mjs'
+import {
+  MOTION_CONTROL_INVOCATION_BINDINGS,
+  MOTION_CONTROL_INVOCATION_COMMANDS,
+  MOTION_CONTROL_INVOCATION_SEMANTICS,
+} from '@/features/three/motionControlMcpContract.mjs'
+import {
+  XR_ANIMATION_INVOCATION_BINDINGS,
   XR_ANIMATION_INVOCATION_COMMANDS,
+  XR_ANIMATION_INVOCATION_SEMANTICS,
 } from '@/features/three/xrAnimationMcpContract.mjs'
+import {
+  XR_SCENE_INVOCATION_BINDINGS,
+  XR_SCENE_INVOCATION_COMMANDS,
+  XR_SCENE_INVOCATION_SEMANTICS,
+} from '@/features/three/xrSceneMcpContract.mjs'
 import { KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID } from '@/lib/storage/knowgrphStorageSyncContract'
 import { AGENTIC_CANVAS_OS_DOCS_KIND_FILES } from '../../../mcp/agentic-canvas-os-docs-contract.mjs'
 import {
@@ -49,6 +65,10 @@ function assertSameValues(actual: readonly string[], expected: readonly string[]
     throw new Error(`expected ${label} to equal ${JSON.stringify(sortedExpected)}, got ${JSON.stringify(sortedActual)}`)
   }
 }
+
+const dictionaryTokens = (dictionary: unknown): readonly string[] => (
+  Object.values((dictionary || {}) as Record<string, unknown>).map(String)
+)
 
 function resolveAgenticCanvasOsDocsRoot(): string {
   const configured = String(process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT || '').trim()
@@ -192,22 +212,30 @@ export function testXrAgenticEcsCompositionBoundaryRemainsExplicit(): void {
     }
   }
 
-  // XR scene grammar remains a local fallback today, so this boundary asserts only tokens already owned by source dictionaries.
+  const newlyCanonicalXrTokens = new Set<string>([
+    String(CAMERA_INVOCATION_COMMANDS.select),
+    ...dictionaryTokens(XR_SCENE_INVOCATION_COMMANDS),
+    ...dictionaryTokens(XR_SCENE_INVOCATION_SEMANTICS),
+    String(XR_SCENE_INVOCATION_BINDINGS.scene),
+  ])
+  if (newlyCanonicalXrTokens.size !== 15) {
+    throw new Error(`expected the protected Agentic Canvas OS revision to add exactly fifteen Camera/XR tokens, got ${newlyCanonicalXrTokens.size}`)
+  }
   const sourceBackedTokens = new Set<string>([
     ...expectedEcsEntries.flatMap(([, invocation]) => invocation.split(/\s+/).filter(token => /^[\/#@]/.test(token))),
-    XR_ANIMATION_INVOCATION_COMMANDS.control,
-    MOTION_CONTROL_INVOCATION_COMMANDS.control,
+    ...dictionaryTokens(CAMERA_INVOCATION_COMMANDS),
+    ...dictionaryTokens(CAMERA_INVOCATION_SEMANTICS),
+    ...dictionaryTokens(CAMERA_INVOCATION_BINDINGS),
+    ...dictionaryTokens(XR_SCENE_INVOCATION_COMMANDS),
+    ...dictionaryTokens(XR_SCENE_INVOCATION_SEMANTICS),
+    ...dictionaryTokens(XR_SCENE_INVOCATION_BINDINGS),
+    ...dictionaryTokens(XR_ANIMATION_INVOCATION_COMMANDS),
+    ...dictionaryTokens(XR_ANIMATION_INVOCATION_SEMANTICS),
+    ...dictionaryTokens(XR_ANIMATION_INVOCATION_BINDINGS),
+    ...dictionaryTokens(MOTION_CONTROL_INVOCATION_COMMANDS),
+    ...dictionaryTokens(MOTION_CONTROL_INVOCATION_SEMANTICS),
+    ...dictionaryTokens(MOTION_CONTROL_INVOCATION_BINDINGS),
   ])
-  assertSameValues([...sourceBackedTokens], [
-    '/ecs.session-start',
-    '/ecs.world-tick',
-    '/ecs.decision-persist',
-    '#agentic-ecs',
-    '@source.frontmatter',
-    '@ecs-session',
-    '/animation.control',
-    '/motion.control',
-  ], 'source-backed composition tokens')
   const docsRoot = resolveAgenticCanvasOsDocsRoot()
   sourceBackedTokens.forEach(token => assertSourceDictionaryOwnsToken(docsRoot, token))
 }

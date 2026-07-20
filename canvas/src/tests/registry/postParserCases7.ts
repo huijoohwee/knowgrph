@@ -1,6 +1,8 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
+  ["agenticOs.remoteGrammar.provenance.revisionBound","@/__tests__/agenticOsRemoteGrammarProvenance.test","testAgenticOsRemoteGrammarProvenanceRebasesExactDictionaryFragments"],
+  ["agenticOs.remoteGrammar.provenance.fetchFailClosed","@/__tests__/agenticOsRemoteGrammarProvenance.test","testAgenticOsRemoteGrammarFetchRegistersOnlyRevisionBoundProvenance"],
   ["viewport.storyboardWidget.overlay.distinctRichMediaCollision","@/__tests__/storyboardWidgetActiveSurfaceObstacleCollection.test","testStoryboardWidgetPinnedCardTreatsDistinctRichMediaAsCollisionObstacle"],
   ["url.coerceMediaUrl.acceptsNativeGlbDataUrl","@/__tests__/mediaUrlCoercion.test","testCoerceMediaUrlAcceptsNativeGlbDataUrl"],
   ["imageToThreeJs.formats.supportedAndProxied","@/__tests__/imageToThreeJs.test","testImageToThreeJsSupportsPngJpgAndSvgIncludingProxyUrls"],

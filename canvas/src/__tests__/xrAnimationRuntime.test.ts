@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { assertPinnedAgenticOsDictionaryTokensForTest, PINNED_ANIMATION_DICTIONARY_TOKENS } from '@/__tests__/helpers/pinnedAgenticOsDictionary'
 import type { GraphData } from '@/lib/graph/types'
 import {
   resetAgenticOsRemoteGrammarCatalogForTests,
@@ -405,6 +406,11 @@ export function testXrAnimationRuntimeIsNativeInvocableAndExportable() {
       || activeState.bottomSurfaceTab !== 'timeline'
       || activeState.bottomSurfaceCollapsed !== false) {
       throw new Error(`expected upstream / @ # animation invocation to persist and reveal the canonical runtime, got ${JSON.stringify(applied)}`)
+    }
+    try {
+      assertPinnedAgenticOsDictionaryTokensForTest(PINNED_ANIMATION_DICTIONARY_TOKENS)
+    } finally {
+      resetAgenticOsRemoteGrammarCatalogForTests()
     }
     const configuredMarkId = readXrMotionReferenceRuntime().plan.cast.find(track => track.actorId === 'actor-a')!.marks[0]!.id
     const configured = controlLocalAnimation({ operation: 'configure-mark', markKind: 'cast', markId: configuredMarkId, targetId: 'actor-a', easing: 'ease-in-out', gait: 'run', position: [2, 0, -1] })

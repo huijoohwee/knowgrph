@@ -1,6 +1,5 @@
 import { activateCanvasGraphSurfaceMode } from '@/lib/canvas/canvas3dMode'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
 import {
   XR_ANIMATION_PRESETS,
   resolveXrAnimationPreset,
@@ -134,29 +133,16 @@ type NormalizedAnimationControl = Readonly<{
   fine: boolean
 }>
 
-function resolveCanonicalInvocationTokens(): CanonicalInvocationTokens | null {
-  const command = findAgenticOsInvocationByToken(XR_ANIMATION_INVOCATION_COMMANDS.control)
-  const characterMotion = findAgenticOsInvocationByToken(XR_ANIMATION_INVOCATION_SEMANTICS.characterMotion)
-  const actionPath = findAgenticOsInvocationByToken(XR_ANIMATION_INVOCATION_SEMANTICS.actionPath)
-  const selectedActor = findAgenticOsInvocationByToken(XR_ANIMATION_INVOCATION_BINDINGS.selectedActor)
-  const canvas = findAgenticOsInvocationByToken(XR_ANIMATION_INVOCATION_BINDINGS.canvas)
-  if (!command || command.kind !== 'command'
-    || !characterMotion || characterMotion.kind !== 'semantic'
-    || !actionPath || actionPath.kind !== 'semantic'
-    || !selectedActor || selectedActor.kind !== 'binding'
-    || !canvas || canvas.kind !== 'binding') return null
-  return {
-    command: command.token,
-    characterMotion: characterMotion.token,
-    actionPath: actionPath.token,
-    selectedActor: selectedActor.token,
-    canvas: canvas.token,
-  }
-}
+const resolveCanonicalInvocationTokens = (): CanonicalInvocationTokens => ({
+  command: XR_ANIMATION_INVOCATION_COMMANDS.control,
+  characterMotion: XR_ANIMATION_INVOCATION_SEMANTICS.characterMotion,
+  actionPath: XR_ANIMATION_INVOCATION_SEMANTICS.actionPath,
+  selectedActor: XR_ANIMATION_INVOCATION_BINDINGS.selectedActor,
+  canvas: XR_ANIMATION_INVOCATION_BINDINGS.canvas,
+})
 
 export function buildXrAnimationInvocation(presetIdValue: XrAnimationPresetId): string {
   const tokens = resolveCanonicalInvocationTokens()
-  if (!tokens) return ''
   const preset = resolveXrAnimationPreset(presetIdValue)
   const semantic = preset.kind === 'character-motion' ? tokens.characterMotion : tokens.actionPath
   return `${tokens.command} ${semantic} ${tokens.selectedActor} operation=apply preset=${preset.id}`
@@ -171,7 +157,7 @@ export function buildXrAnimationObjectMoveInvocation(input: Readonly<{
   const tokens = resolveCanonicalInvocationTokens()
   const keys = readThreeKeyboardMovementKeys(input.keys)
   const markId = String(input.markId || '').trim()
-  if (!tokens || !keys || (markId && !/^[a-zA-Z0-9:._-]+$/.test(markId))) return ''
+  if (!keys || (markId && !/^[a-zA-Z0-9:._-]+$/.test(markId))) return ''
   if (input.fine !== undefined && typeof input.fine !== 'boolean') return ''
   if (input.distanceMeters !== undefined
     && (!Number.isFinite(input.distanceMeters)
@@ -188,7 +174,6 @@ export function buildXrAnimationObjectMoveInvocation(input: Readonly<{
 
 export function buildXrAnimationTransportInvocation(operation: 'play' | 'pause' | 'scrub' | 'export', timeSeconds?: number): string {
   const tokens = resolveCanonicalInvocationTokens()
-  if (!tokens) return ''
   if (operation === 'scrub' && (!Number.isFinite(timeSeconds) || Number(timeSeconds) < 0)) return ''
   return `${tokens.command} ${tokens.canvas} operation=${operation}${operation === 'scrub' ? ` time=${Number(timeSeconds).toFixed(3)}` : ''}`
 }
@@ -212,7 +197,6 @@ function parseInvocation(value: unknown): Partial<NormalizedAnimationControl> | 
   const invocation = String(value || '').trim()
   if (!invocation) return null
   const canonical = resolveCanonicalInvocationTokens()
-  if (!canonical) return null
   const tokens = invocation.split(/\s+/).filter(Boolean)
   if (tokens[0] !== canonical.command) return null
   if (tokens.slice(1).some(token => token.startsWith('/'))) return null
@@ -438,16 +422,16 @@ export function inspectLocalAnimation() {
     catalog: {
       source: 'native-knowgrph-invocation-catalog',
       hydration: { status: 'native-ready', attempts: 0, error: '' },
-      canonical: Boolean(canonical),
+      canonical: true,
     },
-    invocationGrammar: canonical ? {
+    invocationGrammar: {
       applyCharacterMotion: `${canonical.command} ${canonical.characterMotion} ${canonical.selectedActor} operation=apply preset=<typed-id>`,
       applyActionPath: `${canonical.command} ${canonical.actionPath} ${canonical.selectedActor} operation=apply preset=<typed-id>`,
       moveObject: `${canonical.command} ${canonical.actionPath} ${canonical.selectedActor} operation=move-object keys=<w+a+s+d|arrows> distance=<meters> fine=<true|false> markId=<typed-id>`,
       configureCastMark: `${canonical.command} ${canonical.actionPath} ${canonical.selectedActor} operation=configure-mark markKind=cast markId=<typed-id> easing=<typed-easing> gait=<typed-gait> position=<x,y,z>`,
       configureCameraMark: `${canonical.command} ${canonical.canvas} operation=configure-mark markKind=camera markId=<typed-id> easing=<typed-easing>`,
       transport: `${canonical.command} ${canonical.canvas} operation=play|pause|scrub|export`,
-    } : null,
+    },
     presets: XR_ANIMATION_PRESETS.map(preset => ({
       ...preset,
       invocation: buildXrAnimationInvocation(preset.id),

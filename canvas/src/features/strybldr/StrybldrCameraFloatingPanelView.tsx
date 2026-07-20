@@ -1,5 +1,6 @@
 import { Camera } from 'lucide-react'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
+import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { FloatingPanelCatalogHeader } from '@/lib/ui/floatingPanelCatalogLayout'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
@@ -16,6 +17,7 @@ import { XrShootCameraSection } from './XrShootCameraSection'
 
 const CAMERA_SECTION_KEYS = ['framing', 'mcp-invocations'] as const
 const XR_CAMERA_SECTION_KEYS = ['framing', 'shoot', 'mcp-invocations'] as const
+const CAMERA_GRAMMAR_SIGILS = ['/', '#', '@'] as const
 
 function CameraSectionTitle({ label, value }: { label: string; value: string }) {
   return (
@@ -27,6 +29,7 @@ function CameraSectionTitle({ label, value }: { label: string; value: string }) 
 }
 
 export function StrybldrCameraFloatingPanelView() {
+  const grammarCatalog = useAgenticOsRemoteGrammarCatalog({ sigils: CAMERA_GRAMMAR_SIGILS })
   const xrActive = useGraphStore(state => state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr')
   const visibleSectionKeys = xrActive ? XR_CAMERA_SECTION_KEYS : CAMERA_SECTION_KEYS
   const {
@@ -38,7 +41,13 @@ export function StrybldrCameraFloatingPanelView() {
   } = useCollapsibleSectionGroup(visibleSectionKeys)
 
   return (
-    <section className="flex h-full flex-col" aria-label="Camera panel" data-kg-camera-panel-surface="floatingPanel">
+    <section
+      className="flex h-full flex-col"
+      aria-label="Camera panel"
+      data-kg-camera-panel-surface="floatingPanel"
+      data-kg-camera-panel-metadata-status={grammarCatalog.hydration.status}
+      data-kg-camera-panel-metadata-version={String(grammarCatalog.version)}
+    >
       <FloatingPanelCatalogHeader
         title="Camera"
         subtitle="Shared framing, subject-bound XR moves, WebMCP, and invocation tokens"

@@ -1,6 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
+import { CAMERA_REQUIRED_METADATA_TOKENS, CameraMcpInvocationSection } from '@/features/strybldr/CameraMcpInvocationSection'
 import { FloatingPanelChatComposer } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposer'
 import { buildFloatingPanelChatComposerOverlayParts } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposerMediaOverlay'
 import { buildChatInvocationSystemPrompt, parseChatInvocationDirectives } from '@/features/chat/chatInvocationRegistry'
@@ -16,6 +17,80 @@ import {
 } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames, waitForTasks } from '@/tests/lib/reactRootHarness'
+
+export async function testCameraInvocationSurfaceReactsToRemoteGrammarHydration() {
+  const originalFetch = globalThis.fetch
+  resetAgenticOsRemoteGrammarCatalogForTests()
+  registerAgenticOsRemoteGrammarCatalogEntries([{
+    token: '/camera.hydration',
+    kind: 'command',
+    label: 'Camera hydration proof',
+    summary: 'Source-backed Camera metadata registered before the surface mounted.',
+    sourcePath: 'https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/DICTIONARY-COMMAND.md#camera-hydration',
+    keywords: ['camera', 'hydration'],
+  }])
+  const partialSnapshot = getAgenticOsRemoteGrammarCatalogSnapshot()
+  if (partialSnapshot.hydration.status !== 'idle') {
+    throw new Error(`expected partial Camera registration to remain idle before mount, got ${JSON.stringify(partialSnapshot.hydration)}`)
+  }
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+    if (body.method === 'initialize') {
+      return new Response(JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { protocolVersion: '2024-11-05' } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'mcp-session-id': 'camera-hydration-session' },
+      })
+    }
+    return new Response(JSON.stringify({
+      jsonrpc: '2.0',
+      id: body.id,
+      result: { structuredContent: { ok: true, sourceRevision: 'c'.repeat(40), catalog: [] } },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })
+  }) as typeof fetch
+
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+
+  try {
+    await mountReactRoot(root, <CameraMcpInvocationSection />, { window: dom.window as unknown as Window, frames: 4, tasks: 6 })
+    const hydratedCard = container.querySelector('[data-kg-camera-invocation-token="/camera.hydration"]')
+    const hydratedSurface = container.querySelector('[data-kg-camera-webmcp-invocations="1"]')
+    const partialFreshVersion = Number(hydratedSurface?.getAttribute('data-kg-camera-metadata-version') || '-1')
+    const metadataStatus = hydratedSurface?.getAttribute('data-kg-camera-metadata-status') || ''
+    const metadataMessage = container.querySelector('[data-kg-camera-metadata-not-fresh="1"]')
+    if (!hydratedSurface || !hydratedCard || partialFreshVersion <= partialSnapshot.version) {
+      throw new Error(`expected mounted Camera metadata to react to the catalog snapshot, html=${container.innerHTML}`)
+    }
+    if (metadataStatus !== 'fresh' || !metadataMessage || !/unavailable/i.test(metadataMessage.textContent || '')) {
+      throw new Error(`expected fresh-but-incomplete Camera metadata to retain its warning, html=${container.innerHTML}`)
+    }
+    if (!hydratedCard.getAttribute('data-kg-camera-invocation-source')?.includes('DICTIONARY-COMMAND.md#camera-hydration')) {
+      throw new Error(`expected hydrated Camera card to retain ACOS source ownership, html=${container.innerHTML}`)
+    }
+
+    await React.act(async () => {
+      registerAgenticOsRemoteGrammarCatalogEntries(CAMERA_REQUIRED_METADATA_TOKENS.map(required => ({
+        ...required,
+        label: `Complete ${required.token}`,
+        sourcePath: `https://github.com/huijoohwee/agentic-canvas-os/blob/${'c'.repeat(40)}/docs/DICTIONARY-${required.kind.toUpperCase()}.md`,
+      })))
+      await waitForFrames(dom.window as unknown as Window, 2)
+    })
+    const completeSurface = container.querySelector('[data-kg-camera-webmcp-invocations="1"]')
+    const completeVersion = Number(completeSurface?.getAttribute('data-kg-camera-metadata-version') || '-1')
+    if (completeVersion <= partialFreshVersion || container.querySelector('[data-kg-camera-metadata-not-fresh="1"]')) {
+      throw new Error(`expected the complete source-backed Camera token set to clear the metadata warning, html=${container.innerHTML}`)
+    }
+  } finally {
+    globalThis.fetch = originalFetch
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    resetAgenticOsRemoteGrammarCatalogForTests()
+    container.remove()
+    restore()
+  }
+}
 
 export async function testFloatingPanelChatComposerWiresRemoteAgenticOsGrammar() {
   const previousAgentReadyBaseUrl = process.env.VITE_KNOWGRPH_AGENT_READY_BASE_URL
@@ -280,6 +355,13 @@ export async function testRemoteAgenticOsGrammarHydrationIsRevisionKeyedAndBound
     }
     const query = String((body.params as { arguments?: { query?: string } })?.arguments?.query || '')
     const kind = query === '/' ? 'command' : query === '#' ? 'semantic' : 'binding'
+    const token = `${query}revision-${sourceRevision[0]}`
+    const dictionaryFileName = kind === 'command'
+      ? 'DICTIONARY-COMMAND.md'
+      : kind === 'semantic'
+        ? 'DICTIONARY-SEMANTIC.md'
+        : 'DICTIONARY-BINDING.md'
+    const sourcePath = `${dictionaryFileName}#${token}`
     return new Response(JSON.stringify({
       jsonrpc: '2.0',
       id: body.id,
@@ -324,7 +406,13 @@ export async function testRemoteAgenticOsGrammarHydrationIsRevisionKeyedAndBound
             defaultWorkerConfigured: false,
             deployPolicy: 'Dev-only until explicit operator approval',
           },
-          catalog: [{ token: `${query}revision-${sourceRevision[0]}`, kind, label: `Revision ${sourceRevision[0]}` }],
+          catalog: [{
+            token,
+            kind,
+            label: `Revision ${sourceRevision[0]}`,
+            sourcePath,
+            sourceUrl: `https://github.com/huijoohwee/agentic-canvas-os/blob/${sourceRevision}/docs/${sourcePath}`,
+          }],
         },
       },
     }), { status: 200, headers: { 'content-type': 'application/json' } })

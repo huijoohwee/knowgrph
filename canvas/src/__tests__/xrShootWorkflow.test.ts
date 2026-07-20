@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { assertPinnedCameraDictionaryForTest } from '@/__tests__/helpers/pinnedAgenticOsDictionary'
 import type { GraphData } from '@/lib/graph/types'
 import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
@@ -20,7 +21,6 @@ import {
 import { shouldApplySharedCameraFramingRevision } from '@/features/three/cameraFramingControlsRuntime'
 import { hydrateCanonicalXrMotionReferenceRuntime } from '@/features/three/XrMotionReferenceRuntimeBridge'
 import { registerAgenticOsRemoteGrammarCatalogEntries, resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
-import { resolveChatInvocationCatalogEntries } from '@/features/chat/chatInvocationRegistry'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   dropXrMotionReferenceCastMark,
@@ -567,11 +567,11 @@ export function testXrShootWorkflowMarksRigsRetimeAndExports() {
     || readXrMotionReferenceRuntime().plan.camera.length !== 0) {
     throw new Error('expected an app-root document switch to clear stale Camera framing and choreography before a closed panel can reapply it')
   }
-  const cameraCatalogTokens = new Set(resolveChatInvocationCatalogEntries('all', 'camera').map(entry => entry.token))
-  for (const token of ['/camera.select', '/camera.frame', '/camera.animate', '/camera.play', '/camera.scrub', '@camera', '#camera']) {
-    if (!cameraCatalogTokens.has(token)) throw new Error(`expected shared invocation catalog to expose ${token}`)
+  try {
+    assertPinnedCameraDictionaryForTest()
+  } finally {
+    resetAgenticOsRemoteGrammarCatalogForTests()
   }
-  resetAgenticOsRemoteGrammarCatalogForTests()
   registerAgenticOsRemoteGrammarCatalogEntries([{ token: '/camera.select', kind: 'semantic', sourcePath: 'conflicting-remote-grammar' }])
   if (!controlLocalCamera({ invocation: '/camera.select @camera #camera camera=free-orbit' }).ok) throw new Error('native Camera selection must ignore conflicting remote grammar tokens')
   resetAgenticOsRemoteGrammarCatalogForTests()

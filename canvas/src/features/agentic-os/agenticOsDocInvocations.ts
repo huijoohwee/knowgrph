@@ -1,23 +1,4 @@
 import { createAgenticOsInvocationCatalogRuntime } from './agenticOsInvocationCatalogRuntime'
-import {
-  XR_SCENE_INVOCATION_BINDINGS,
-  XR_SCENE_INVOCATION_COMMANDS,
-  XR_SCENE_INVOCATION_SEMANTICS,
-} from '@/features/three/xrSceneMcpContract.mjs'
-import {
-  XR_ANIMATION_INVOCATION_BINDINGS,
-  XR_ANIMATION_INVOCATION_COMMANDS,
-  XR_ANIMATION_INVOCATION_SEMANTICS,
-} from '@/features/three/xrAnimationMcpContract.mjs'
-import {
-  MOTION_CONTROL_INVOCATION_COMMANDS,
-  MOTION_CONTROL_INVOCATION_SEMANTICS,
-} from '@/features/three/motionControlMcpContract.mjs'
-import {
-  CAMERA_INVOCATION_BINDINGS,
-  CAMERA_INVOCATION_COMMANDS,
-  CAMERA_INVOCATION_SEMANTICS,
-} from '@/features/strybldr/cameraMcpContract.mjs'
 
 export type AgenticOsDocInvocationId = string
 
@@ -103,79 +84,12 @@ const buildAgenticOsDictionaryInvocation = (args: {
   sourcePath: args.sourcePath || dictionaryPath(args.dictionaryFileName),
 })
 
-const XR_SCENE_COMMAND_FALLBACKS = [
-  { token: XR_SCENE_INVOCATION_COMMANDS.stage, label: 'Stage XR environment', summary: 'Select the native XR environment for the active canvas scene.' },
-  { token: XR_SCENE_INVOCATION_COMMANDS.place, label: 'Place XR asset', summary: 'Place a native 3D asset into the active XR scene.' },
-  { token: XR_SCENE_INVOCATION_COMMANDS.transform, label: 'Transform XR subject', summary: 'Configure position, rotation, scale, and color for a placed XR subject.' },
-  { token: XR_SCENE_INVOCATION_COMMANDS.label, label: 'Label XR subject', summary: 'Update the label of a placed XR scene subject.' },
-  { token: XR_SCENE_INVOCATION_COMMANDS.remove, label: 'Remove XR subject', summary: 'Remove a placed subject from the active XR scene.' },
-  { token: XR_SCENE_INVOCATION_COMMANDS.physics, label: 'Control XR physics', summary: 'Control native fixed-step XR world, body, impulse, and controller operations.' },
-  { token: XR_SCENE_INVOCATION_COMMANDS.present, label: 'Present XR scene', summary: 'Place the active XR scene at the current immersive reticle.' },
-  { token: XR_ANIMATION_INVOCATION_COMMANDS.control, label: 'Control XR animation', summary: 'Apply and configure native character motion, action paths, choreography, and transport.' },
-  { token: MOTION_CONTROL_INVOCATION_COMMANDS.control, label: 'Control live pose', summary: 'Open, start, or stop browser-local LiteRT motion capture for XR Mode.' },
-  { token: CAMERA_INVOCATION_COMMANDS.select, label: 'Select camera source', summary: 'Switch the native XR camera between fixed follow and free orbit.' },
-  { token: CAMERA_INVOCATION_COMMANDS.frame, label: 'Frame camera', summary: 'Configure the shared native camera framing and optics.' },
-  { token: CAMERA_INVOCATION_COMMANDS.animate, label: 'Animate camera', summary: 'Author a native subject-bound camera choreography mark.' },
-  { token: CAMERA_INVOCATION_COMMANDS.playback, label: 'Play camera choreography', summary: 'Start or pause the native XR camera track.' },
-  { token: CAMERA_INVOCATION_COMMANDS.scrub, label: 'Scrub camera choreography', summary: 'Move the native XR camera playhead.' },
-] as const
+const EMPTY_AGENTIC_OS_DICTIONARY_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = Object.freeze([])
 
-const XR_SCENE_SEMANTIC_FALLBACKS = [
-  { token: XR_SCENE_INVOCATION_SEMANTICS.transform, label: 'XR subject transform', summary: 'Route an XR scene operation to a subject transform.' },
-  { token: XR_SCENE_INVOCATION_SEMANTICS.world, label: 'XR physics world', summary: 'Route an XR physics operation to world and transport settings.' },
-  { token: XR_SCENE_INVOCATION_SEMANTICS.body, label: 'XR physics body', summary: 'Route an XR physics operation to one placed subject body.' },
-  { token: XR_SCENE_INVOCATION_SEMANTICS.impulse, label: 'XR physics impulse', summary: 'Route a finite impulse to one dynamic XR body.' },
-  { token: XR_SCENE_INVOCATION_SEMANTICS.controller, label: 'XR native controller', summary: 'Route lifecycle and mode operations to the native XR controller demo.' },
-  { token: XR_SCENE_INVOCATION_SEMANTICS.reticle, label: 'XR placement reticle', summary: 'Route immersive placement to the current tracked reticle.' },
-  { token: XR_ANIMATION_INVOCATION_SEMANTICS.characterMotion, label: 'Character motion', summary: 'Route native choreography to a character-motion assignment.' },
-  { token: XR_ANIMATION_INVOCATION_SEMANTICS.actionPath, label: 'Action path', summary: 'Route native choreography to a spatial action path.' },
-  { token: MOTION_CONTROL_INVOCATION_SEMANTICS.pose, label: 'Human pose', summary: 'Route Motion Control to browser-local human pose estimation.' },
-  { token: CAMERA_INVOCATION_SEMANTICS.camera, label: 'Camera', summary: 'Route an operation to the shared native camera.' },
-  { token: CAMERA_INVOCATION_SEMANTICS.shot, label: 'Camera shot', summary: 'Route an operation to camera framing and optics.' },
-  { token: CAMERA_INVOCATION_SEMANTICS.motion, label: 'Camera motion', summary: 'Route an operation to the XR camera choreography track.' },
-] as const
-
-const XR_SCENE_BINDING_FALLBACKS = [
-  { token: XR_SCENE_INVOCATION_BINDINGS.canvas, label: 'Active canvas', summary: 'Bind the invocation to the active Knowgrph canvas.' },
-  { token: XR_SCENE_INVOCATION_BINDINGS.scene, label: 'Active XR scene', summary: 'Bind the invocation to the active immersive XR scene.' },
-  { token: XR_ANIMATION_INVOCATION_BINDINGS.selectedActor, label: 'Selected actor', summary: 'Bind animation or camera choreography to the selected cast actor.' },
-  { token: CAMERA_INVOCATION_BINDINGS.camera, label: 'Shared camera', summary: 'Bind the invocation to the shared 2D, 3D, and XR camera.' },
-] as const
-
-const buildXrSceneFallbackInvocation = (
-  kind: AgenticOsDictionaryInvocationKind,
-  definition: Readonly<{ token: AgenticOsDictionaryInvocation['token']; label: string; summary: string }>,
-): AgenticOsDictionaryInvocation => buildAgenticOsDictionaryInvocation({
-  kind,
-  token: definition.token,
-  label: definition.label,
-  summary: definition.summary,
-  group: 'XR scene control',
-  dictionaryFileName: dictionaryFileNameByKind[kind],
-  sourcePath: 'canvas/src/features/agentic-os/agenticOsDocInvocations.ts',
-  keywords: [
-    AGENTIC_OS_CANVAS_INTERACTION_PANEL_KEYWORD,
-    'xr scene control',
-    'xr mode',
-    'immersive scene',
-    'webmcp',
-  ],
-})
-
-export const AGENTIC_OS_COMMAND_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = Object.freeze(
-  XR_SCENE_COMMAND_FALLBACKS.map(definition => buildXrSceneFallbackInvocation('command', definition)),
-)
-export const AGENTIC_OS_SEMANTIC_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = Object.freeze(
-  XR_SCENE_SEMANTIC_FALLBACKS.map(definition => buildXrSceneFallbackInvocation('semantic', definition)),
-)
-export const AGENTIC_OS_BINDING_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = Object.freeze(
-  XR_SCENE_BINDING_FALLBACKS.map(definition => buildXrSceneFallbackInvocation('binding', definition)),
-)
-export const AGENTIC_OS_DICTIONARY_INVOCATIONS: readonly AgenticOsDictionaryInvocation[] = Object.freeze([
-  ...AGENTIC_OS_COMMAND_INVOCATIONS,
-  ...AGENTIC_OS_SEMANTIC_INVOCATIONS,
-  ...AGENTIC_OS_BINDING_INVOCATIONS,
-])
+export const AGENTIC_OS_COMMAND_INVOCATIONS = EMPTY_AGENTIC_OS_DICTIONARY_INVOCATIONS
+export const AGENTIC_OS_SEMANTIC_INVOCATIONS = EMPTY_AGENTIC_OS_DICTIONARY_INVOCATIONS
+export const AGENTIC_OS_BINDING_INVOCATIONS = EMPTY_AGENTIC_OS_DICTIONARY_INVOCATIONS
+export const AGENTIC_OS_DICTIONARY_INVOCATIONS = EMPTY_AGENTIC_OS_DICTIONARY_INVOCATIONS
 
 const invocationCatalogRuntime = createAgenticOsInvocationCatalogRuntime({
   docs: AGENTIC_OS_DOC_INVOCATIONS,

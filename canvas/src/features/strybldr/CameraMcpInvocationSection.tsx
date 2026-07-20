@@ -4,7 +4,9 @@ import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agen
 import {
   getAgenticOsDictionaryInvocations,
   type AgenticOsDictionaryInvocation,
+  type AgenticOsDictionaryInvocationKind,
 } from '@/features/agentic-os/agenticOsDocInvocations'
+import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import {
   FLOATING_PANEL_CATALOG_THREE_ROW_LAYOUT,
   floatingPanelCatalogThreeRowClassName,
@@ -14,10 +16,23 @@ import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import {
+  CAMERA_INVOCATION_BINDINGS,
+  CAMERA_INVOCATION_COMMANDS,
+  CAMERA_INVOCATION_SEMANTICS,
+} from './cameraMcpContract.mjs'
 import { inspectLocalCamera } from './cameraMcpRuntime'
 
 const CAMERA_GRAMMAR_SIGILS = ['/', '#', '@'] as const
 const CAMERA_TOKEN_LIMIT = 12
+export const CAMERA_REQUIRED_METADATA_TOKENS: readonly Readonly<{
+  kind: AgenticOsDictionaryInvocationKind
+  token: string
+}>[] = Object.freeze([
+  ...Object.values(CAMERA_INVOCATION_COMMANDS).map(token => ({ kind: 'command' as const, token })),
+  ...Object.values(CAMERA_INVOCATION_SEMANTICS).map(token => ({ kind: 'semantic' as const, token })),
+  ...Object.values(CAMERA_INVOCATION_BINDINGS).map(token => ({ kind: 'binding' as const, token })),
+])
 
 type CameraCatalogCardProps = {
   Icon: LucideIcon
@@ -104,12 +119,19 @@ function CameraInvocationTokenCard({ entry }: { entry: AgenticOsDictionaryInvoca
 }
 
 export function CameraMcpInvocationSection() {
+  const grammarCatalog = useAgenticOsRemoteGrammarCatalog({ sigils: CAMERA_GRAMMAR_SIGILS })
   const camera = inspectLocalCamera()
-  const cameraEntries = React.useMemo(() => getAgenticOsDictionaryInvocations()
-    .filter(entry => cameraCatalogEntryText(entry).includes('camera'))
-    .sort((left, right) => cameraCatalogEntrySigilOrder(left) - cameraCatalogEntrySigilOrder(right) || left.token.localeCompare(right.token))
-    .slice(0, CAMERA_TOKEN_LIMIT), [])
+  const cameraEntries = React.useMemo(() => {
+    void grammarCatalog.version
+    return getAgenticOsDictionaryInvocations()
+      .filter(entry => cameraCatalogEntryText(entry).includes('camera'))
+      .sort((left, right) => cameraCatalogEntrySigilOrder(left) - cameraCatalogEntrySigilOrder(right) || left.token.localeCompare(right.token))
+      .slice(0, CAMERA_TOKEN_LIMIT)
+  }, [grammarCatalog.version])
   const nativeInvocationReady = Boolean(camera.invocationGrammar)
+  const metadataLoading = grammarCatalog.hydration.status === 'idle' || grammarCatalog.hydration.status === 'loading'
+  const sourceMetadataReady = grammarCatalog.hydration.status === 'fresh'
+    && CAMERA_REQUIRED_METADATA_TOKENS.every(required => grammarCatalog.entries.some(entry => entry.token === required.token && entry.kind === required.kind))
 
   return (
     <section
@@ -117,6 +139,8 @@ export function CameraMcpInvocationSection() {
       aria-label="Camera WebMCP and invocation catalog"
       data-kg-camera-webmcp-invocations="1"
       data-kg-camera-grammar-status={nativeInvocationReady ? 'native-ready' : 'unavailable'}
+      data-kg-camera-metadata-status={grammarCatalog.hydration.status}
+      data-kg-camera-metadata-version={String(grammarCatalog.version)}
     >
       <section className="grid gap-1" aria-label="Camera WebMCP tools">
         <CameraCatalogCard
@@ -138,11 +162,17 @@ export function CameraMcpInvocationSection() {
       </section>
 
       <section className="grid gap-1" aria-label="Canonical Camera invocation tokens">
-        {cameraEntries.length > 0 ? cameraEntries.map(entry => <CameraInvocationTokenCard key={entry.token} entry={entry} />) : (
-          <p className={cn('m-0 rounded border px-2 py-1 text-[10px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.tertiary)}>
-            Camera `/`, `#`, and `@` tokens are unavailable in the native catalog.
+        {cameraEntries.map(entry => <CameraInvocationTokenCard key={entry.token} entry={entry} />)}
+        {!sourceMetadataReady ? (
+          <p
+            className={cn('m-0 rounded border px-2 py-1 text-[10px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.text.tertiary)}
+            data-kg-camera-metadata-not-fresh="1"
+          >
+            {metadataLoading
+              ? 'ACOS Camera invocation metadata is loading. Native Camera controls remain ready.'
+              : 'ACOS Camera invocation metadata is unavailable. Native Camera controls remain ready.'}
           </p>
-        )}
+        ) : null}
       </section>
     </section>
   )

@@ -8,6 +8,7 @@ import {
   getAgenticOsBindingInvocations,
   getAgenticOsDocInvocations,
 } from '@/features/agentic-os/agenticOsDocInvocations'
+import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import {
   buildAgenticOsSemanticInvocationActionMenuItems,
   buildAgenticOsSlashInvocationActionMenuItems,
@@ -32,6 +33,8 @@ import {
 import { UI_RESPONSIVE_MARKDOWN_INLINE_MENU_LIST_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 
 type VariableMode = 'ref' | 'create' | 'update' | 'fallback' | 'delete'
+
+const MARKDOWN_INLINE_MENU_GRAMMAR_SIGILS = ['/', '#', '@'] as const
 
 export const MarkdownBlockContainerInlineMenusOverlay = (props: {
   editDisableRichUi: boolean
@@ -85,6 +88,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
   onLinkInputKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
   onLinkCancel: () => void
 }) => {
+  const grammarCatalog = useAgenticOsRemoteGrammarCatalog({ sigils: MARKDOWN_INLINE_MENU_GRAMMAR_SIGILS })
   const [slashQuery, setSlashQuery] = React.useState('')
   const {
     applyChecklist,
@@ -112,6 +116,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
     setSlashQuery('')
   }, [setSlashMenuStable])
   const slashCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
+    void grammarCatalog.version
     const selectAgenticOsAction = (actionId: string) => {
       applyTurnInto(actionId, props.slashMenu.triggerRange || null)
       closeSlashMenu()
@@ -145,8 +150,9 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
       ...baseItems,
       ...buildAgenticOsSlashInvocationActionMenuItems({ onSelectActionId: selectAgenticOsAction }),
     ]
-  }, [applyChecklist, applyDivider, applyDraftAction, applyToggleHeading, applyTurnInto, closeSlashMenu, props.slashMenu.triggerRange, slashMenuKind])
+  }, [applyChecklist, applyDivider, applyDraftAction, applyToggleHeading, applyTurnInto, closeSlashMenu, grammarCatalog.version, props.slashMenu.triggerRange, slashMenuKind])
   const variableCommandItems = React.useMemo<MarkdownInlineCommandMenuItem[]>(() => {
+    void grammarCatalog.version
     const suggestionItems = variableSuggestions.map(suggestion => buildInlineVariableBrowseMenuItem({
       row: suggestion,
       onSelect: () => setVariableMenu(prev => ({ ...prev, keyInput: suggestion.key, query: suggestion.key, mode: 'ref' })),
@@ -223,7 +229,7 @@ export const MarkdownBlockContainerInlineMenusOverlay = (props: {
       ...modeActionItems,
       ...mediaActionItems,
     ]
-  }, [applyMediaCommandCandidate, applyTurnInto, applyVariableToken, mediaCommandCandidates, setVariableMenu, variableSuggestions])
+  }, [applyMediaCommandCandidate, applyTurnInto, applyVariableToken, grammarCatalog.version, mediaCommandCandidates, setVariableMenu, variableSuggestions])
   return (
     <>
       {!props.editDisableRichUi && props.slashMenu.show ? (
