@@ -6,13 +6,14 @@ import {
   floatingPanelCatalogBodyClassName,
   floatingPanelCatalogSurfaceClassName,
 } from '@/lib/ui/floatingPanelCatalogLayout'
-import { PanelField, PanelSelect } from '@/lib/ui/panelFormControls'
+import { PanelCheckbox, PanelField, PanelSelect } from '@/lib/ui/panelFormControls'
 import { resolveCssVar, UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_INLINE_CHIP_GROUP_CLASSNAME } from '@/lib/ui/textLayout'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
 import { cn } from '@/lib/utils'
 import {
+  buildMotionControlBoundingBoxInvocation,
   buildMotionControlInvocation,
   controlLocalMotionControl,
   inspectLocalMotionControl,
@@ -38,12 +39,14 @@ const POSE_CONNECTIONS = Object.freeze([
   [11, 23], [12, 24], [23, 24], [23, 25], [25, 27], [24, 26], [26, 28],
 ] as const)
 
-function MotionInvocation({ operation, backend }: { operation: MotionControlOperation; backend?: MotionControlBackendPreference }) {
-  const invocation = buildMotionControlInvocation(operation, backend)
+function MotionInvocation({ operation, backend, boundingBox }: { operation: MotionControlOperation; backend?: MotionControlBackendPreference; boundingBox?: boolean }) {
+  const invocation = boundingBox === undefined
+    ? buildMotionControlInvocation(operation, backend)
+    : buildMotionControlBoundingBoxInvocation(boundingBox)
   return (
     <code
       className={cn(UI_INLINE_CHIP_GROUP_CLASSNAME, 'min-w-0 overflow-hidden font-mono text-[9px]', UI_THEME_TOKENS.text.secondary)}
-      data-kg-motion-control-invocation={operation}
+      data-kg-motion-control-invocation={boundingBox === undefined ? operation : `bounding-box-${boundingBox ? 'enable' : 'disable'}`}
       data-kg-motion-control-invocation-chip-renderer="shared-markdown-sigil"
     >
       {renderMarkdownSigilInlineText(invocation, {
@@ -62,10 +65,19 @@ function drawPoseOverlay(canvas: HTMLCanvasElement, state: MotionControlSnapshot
   if (!context) return
   context.clearRect(0, 0, width, height)
   const landmarks = state.pose?.landmarks
-  if (!landmarks) return
   context.lineCap = 'round'
   context.lineWidth = Math.max(2, width / 160)
   context.strokeStyle = resolveCssVar('--kg-canvas-accent', '#22d3ee')
+  if (state.boundingBoxEnabled && state.boundingBox) {
+    const boundingBox = state.boundingBox
+    context.strokeRect(
+      (1 - (boundingBox.x + boundingBox.width)) * width,
+      boundingBox.y * height,
+      boundingBox.width * width,
+      boundingBox.height * height,
+    )
+  }
+  if (!landmarks) return
   for (const [startIndex, endIndex] of POSE_CONNECTIONS) {
     const start = landmarks[startIndex]
     const end = landmarks[endIndex]
@@ -90,6 +102,7 @@ export function MotionControlFloatingPanelView() {
   const [backend, setBackend] = React.useState<MotionControlBackendPreference>(state.requestedBackend)
   const [startPending, setStartPending] = React.useState(false)
   const [stopPending, setStopPending] = React.useState(false)
+  const [boundingBoxPending, setBoundingBoxPending] = React.useState(false)
   const videoRef = React.useRef<HTMLVideoElement | null>(null)
   const overlayRef = React.useRef<HTMLCanvasElement | null>(null)
 
@@ -113,6 +126,20 @@ export function MotionControlFloatingPanelView() {
       setOperationPending(false)
     }
   }, [backend, pushUiToast])
+
+  const setBoundingBoxEnabled = React.useCallback(async (enabled: boolean) => {
+    setBoundingBoxPending(true)
+    try {
+      const result = await controlLocalMotionControl({ operation: 'open', boundingBox: enabled })
+      pushUiToast({
+        id: `motion-control:bounding-box:${enabled ? 'enabled' : 'disabled'}:${result.ok ? 'ok' : 'error'}`,
+        kind: result.ok ? 'success' : 'error',
+        message: result.message,
+      })
+    } finally {
+      setBoundingBoxPending(false)
+    }
+  }, [pushUiToast])
 
   const openTarget = React.useCallback((target: MotionControlCompanionTarget) => {
     const opened = openMotionControlSurface(target)
@@ -164,6 +191,15 @@ export function MotionControlFloatingPanelView() {
               <option value="wasm">Wasm CPU</option>
             </PanelSelect>
           </PanelField>
+          <label className={cn('flex items-center gap-2 text-[10px]', UI_THEME_TOKENS.text.secondary)}>
+            <PanelCheckbox
+              checked={state.boundingBoxEnabled}
+              disabled={boundingBoxPending}
+              onChange={event => void setBoundingBoxEnabled(event.currentTarget.checked)}
+              data-kg-motion-control-bounding-box="1"
+            />
+            Bounding box · {state.boundingBoxEnabled ? 'Enabled' : 'Disabled (default)'}
+          </label>
           <div role="status" aria-live="polite" aria-atomic="true" data-kg-motion-control-live-status="1">
             <p className={cn('text-[10px]', state.phase === 'error' ? UI_THEME_TOKENS.status.error : UI_THEME_TOKENS.text.secondary)}>{state.message}</p>
             {state.fallbackReason ? <p className={cn('text-[10px]', UI_THEME_TOKENS.status.warning)}>{state.fallbackReason}</p> : null}
@@ -184,6 +220,8 @@ export function MotionControlFloatingPanelView() {
           <h3 className="text-[11px] font-semibold">MCP · / · @ · #</h3>
           <MotionInvocation operation="start" backend={backend} />
           <MotionInvocation operation="stop" />
+          <MotionInvocation operation="open" boundingBox={true} />
+          <MotionInvocation operation="open" boundingBox={false} />
           <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>WebMCP: {inspection.webMcpTools.control}</p>
         </section>
 

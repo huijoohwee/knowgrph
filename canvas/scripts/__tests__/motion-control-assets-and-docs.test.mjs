@@ -54,10 +54,15 @@ test('Motion Control asset and invocation docs retain their bounded and start-on
   assert.doesNotMatch(assetScript, /response\.arrayBuffer\(/)
   for (const document of [productDocument, apiDocument]) {
     assert.match(document, /operation=open/)
+    assert.match(document, /operation=open boundingBox=<true\|false>/)
     assert.match(document, /operation=stop/)
     assert.match(document, /operation=start backend=<auto\|webgpu\|wasm>/)
     assert.doesNotMatch(document, /operation=<open\|start\|stop> backend=/)
+    assert.doesNotMatch(document, /operation=configure/)
   }
+  assert.match(productDocument, /disabled by default/)
+  assert.match(productDocument, /tracked pose ROI/)
+  assert.match(apiDocument, /boundingBoxEnabled.*boundingBoxAvailable/)
   for (const target of ['3D for XR', 'Animation']) {
     assert.match(productDocument, new RegExp(target))
   }
@@ -67,5 +72,5 @@ test('Motion Control asset and invocation docs retain their bounded and start-on
   }
   assert.match(productDocument, /Capture remains active across only the open Motion Control, Media's explicit 3D for XR submode, and Animation FloatingPanel surfaces while XR remains active/)
   assert.match(productDocument, /Authored animation assignments and action-path marks stay canonical and resume/)
-  assert.match(apiDocument, /they add no MCP tool, operation, schema, or arbitrary target input/)
+  assert.match(apiDocument, /they add no (?:parallel )?MCP tool, operation, (?:schema|grammar owner), or arbitrary target input/)
 })
