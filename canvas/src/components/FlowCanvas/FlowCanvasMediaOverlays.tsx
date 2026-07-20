@@ -759,6 +759,10 @@ export default function FlowCanvasMediaOverlays(args: {
           }
           useGraphStore.getState().updateNode(id, patch as Partial<GraphNode>)
         }
+        const changeRichMediaPanel = (next: import('@/lib/render/richMediaSsot').RichMediaPanelChange) => {
+          if (!node.panel) return
+          commitRichMediaPanelChange({ nodeId: node.id, next, updateNode })
+        }
         const handleRichMediaPanelMediaDrop = (payload: MediaDragPayload) => {
           const mediaUrl = String(payload.url || '').trim()
           if (!mediaUrl || workspaceMutationBlockedRef.current) return
@@ -795,7 +799,7 @@ export default function FlowCanvasMediaOverlays(args: {
             data-kg-storyboard-widget-surface={storyboardWidgetOverlaySurfaceId || undefined}
             style={{ zIndex: overlayZIndex }}
           >
-            <FlowCanvasRichMediaOverlayToolbar visible={isSelected} nodeId={node.id} nodeProperties={sceneNodePropsByIdRef.current.get(node.id) || {}} panel={node.panel} openUrl={node.openUrl} sceneGraphData={sceneGraphData} workspaceMutationBlockedRef={workspaceMutationBlockedRef} onRemoveNode={onNodeRemove} />
+            <FlowCanvasRichMediaOverlayToolbar visible={isSelected} nodeId={node.id} nodeProperties={sceneNodePropsByIdRef.current.get(node.id) || {}} panel={node.panel} onPanelChange={changeRichMediaPanel} openUrl={node.openUrl} sceneGraphData={sceneGraphData} workspaceMutationBlockedRef={workspaceMutationBlockedRef} onRemoveNode={onNodeRemove} />
             <StoryboardWidgetOverlayPortHandles nodeId={node.id} selected={hasSelectionChrome} />
             <RichMediaPanel
               overlayId={node.id}
@@ -807,11 +811,12 @@ export default function FlowCanvasMediaOverlays(args: {
               kind={node.kind} renderMode={node.renderMode}
               selected={isSelected}
               panelChrome="storyboardWidget" canvasOverlayPinned={richMediaPanelPinned}
+              outputVersionPlacement="bubble-toolbar"
               placementOwner="parent"
               {...richMediaPanelHeaderToolbar.panelProps}
               interactive={resolveRichMediaPanelInteractive({ nodeInteractive: node.interactive, renderMediaAsNodes, infiniteCanvasInteractionMode, canvasRenderMode: '2d', canvas2dRenderer, frontmatterModeEnabled, documentSemanticMode })}
               panel={node.panel}
-              onPanelChange={next => { if (!node.panel) return; commitRichMediaPanelChange({ nodeId: node.id, next, updateNode }) }}
+              onPanelChange={changeRichMediaPanel}
               onMediaDrop={handleRichMediaPanelMediaDrop}
               forwardWheelTo={() => canvasRef.current}
               onPointerDownCapture={event => {

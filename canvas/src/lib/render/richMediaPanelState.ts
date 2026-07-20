@@ -202,7 +202,8 @@ export function buildRichMediaPanelOverlayState(args: {
     fallbackOutput: output,
   })
   const outputSrcDoc = readNodeFieldString(nodeForState, props, 'outputSrcDoc')
-  const text = outputSrcDoc.trim() ? '' : outputVersionSelection.selectedOutput
+  const hasOutputVersions = outputVersionSelection.versions.length > 0
+  const text = outputSrcDoc.trim() && !hasOutputVersions ? '' : outputVersionSelection.selectedOutput
   const imageUrl = readNodeFieldString(nodeForState, props, 'imageUrl')
   const imageToThreeJsOutputSourceUrl = isImageToThreeJsOutputPanel(props)
     ? readNodeFieldString(nodeForState, props, 'outputSourceUrl')

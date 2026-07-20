@@ -31,6 +31,7 @@ export type WidgetEditorActionsToolbarProps = {
     isKtvRows: boolean
     onToggle: () => void
   }
+  outputVersionControl?: React.ReactNode
   openExternalAction?: WidgetOpenExternalAction
   actionVisibility?: Partial<{
     run: boolean
@@ -187,6 +188,7 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
 
   const handleToolbarPointerDownCapture = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
     const target = event.target instanceof Element ? event.target : null
+    const interactiveControl = target?.closest('[data-kg-bubble-toolbar-interactive-control="1"]') || null
     const runButton = target?.closest('button[data-kg-toolbar-action="run"]') || null
     const removeButton = target?.closest('button[data-kg-toolbar-action="remove"]') || null
     if (event.button === 0 && runButton) {
@@ -204,6 +206,7 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
       onRemove()
       return
     }
+    if (interactiveControl) return
     event.stopPropagation()
     if (event.button !== 0) return
     try {
@@ -300,6 +303,16 @@ export const WidgetEditorActionsToolbar = React.memo(function WidgetEditorAction
             iconSizeClass={iconSizeClass}
             iconStrokeWidth={iconStrokeWidth}
           />
+        ) : null}
+
+        {args.outputVersionControl ? (
+          <span
+            className="inline-flex shrink-0 items-center px-1"
+            data-kg-bubble-toolbar-interactive-control="1"
+            data-kg-selection-surface="bubble-toolbar-output-version"
+          >
+            {args.outputVersionControl}
+          </span>
         ) : null}
 
         {openExternalAction?.visible ? (

@@ -134,6 +134,7 @@ export function testExistingTextOutputBecomesSelectableVersionOnRerun() {
     label: 'Rich Media Panel',
     properties: {
       output: '# Existing report\n\nVersion one.',
+      outputSrcDoc: '<p>Stale latest-output snapshot.</p>',
       outputMimeType: 'text/markdown; charset=utf-8',
       outputModel: 'previous-model',
       lastRunAt: '2026-07-19T01:00:00.000Z',
@@ -188,6 +189,7 @@ export function testExistingTextOutputBecomesSelectableVersionOnRerun() {
     || versions[1]?.output !== '# Revised report\n\nVersion two.'
     || publishedPanel?.properties.selectedOutputVersionId !== 'run-current'
     || resolveRichMediaPanelDisplayText(previousVersionPanel) !== '# Existing report\n\nVersion one.'
+    || previousVersionPanel?.text !== '# Existing report\n\nVersion one.'
   ) {
     throw new Error(`expected rerun to retain the existing output as version one and preserve its authored edge, got ${JSON.stringify(published)}`)
   }

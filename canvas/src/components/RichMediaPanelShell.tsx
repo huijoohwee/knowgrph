@@ -38,11 +38,13 @@ export function RichMediaPanelShell(args: {
             titleContent={(
               <section className="flex w-full min-w-0 items-center gap-2">
                 <h3 className={STORYBOARD_WIDGET_PANEL_TITLE_CLASS_NAME}>{model.title}</h3>
-                <RichMediaOutputVersionSelector
-                  panel={props.panel}
-                  onPanelChange={props.onPanelChange}
-                  placement="header"
-                />
+                {props.outputVersionPlacement !== 'bubble-toolbar' ? (
+                  <RichMediaOutputVersionSelector
+                    panel={props.panel}
+                    onPanelChange={props.onPanelChange}
+                    placement="header"
+                  />
+                ) : null}
               </section>
             )}
             minimized={props.headerMinimized === true}

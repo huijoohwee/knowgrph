@@ -1,6 +1,8 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import RichMediaPanel, { type RichMediaPanelProps } from '@/components/RichMediaPanel'
+import { RichMediaOutputVersionSelector } from '@/components/RichMediaOutputVersionSelector'
+import { WidgetEditorActionsToolbar } from '@/components/StoryboardWidget/WidgetEditorActionsToolbar'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForTasks } from '@/tests/lib/reactRootHarness'
@@ -43,6 +45,7 @@ const renderVersionedPanel = async (args: {
     overlayId: 'rich-media-panel-versioned-output',
     title: 'Rich Media Panel',
     url: '',
+    srcDoc: '<p>Stale latest-output snapshot.</p>',
     kind: 'iframe',
     interactive: false,
     panelChrome: args.panelChrome,
@@ -102,6 +105,62 @@ export async function testRichMediaPanelTextOutputVersionSelectorUsesStoryboardC
     const bodyControl = container.querySelector('[data-kg-rich-media-output-version-placement="body"]')
     if (selectors.length !== 1 || !header?.contains(selectors[0]) || bodyControl) {
       throw new Error(`expected one version selector in always-mounted Storyboard chrome, html=${container.innerHTML}`)
+    }
+
+    await unmountReactRoot(root, { window: dom.window })
+  } finally {
+    restore()
+  }
+}
+
+export async function testRichMediaPanelTextOutputVersionSelectorUsesBubbleToolbar() {
+  const { dom, restore } = initJsdomHarness()
+  try {
+    resetPanelStore()
+    const container = dom.window.document.createElement('section')
+    dom.window.document.body.appendChild(container)
+    const changes: Array<{ selectedOutputVersionId?: string }> = []
+    const root = createRoot(container)
+    await mountReactRoot(root, React.createElement(WidgetEditorActionsToolbar, {
+      visible: true,
+      active: true,
+      iconSizeClass: 'h-3 w-3',
+      iconStrokeWidth: 1.5,
+      enableHandlesDisabled: true,
+      convertToLoopDisabled: true,
+      duplicateDisabled: false,
+      actionVisibility: { run: false, clearOutput: false, updateKvEntry: false, enableHandles: false, probeTree: false, convertToLoop: false, duplicate: false, help: false, remove: false },
+      outputVersionControl: React.createElement(RichMediaOutputVersionSelector, {
+        panel: versionedPanel,
+        onPanelChange: next => changes.push(next),
+        placement: 'toolbar',
+      }),
+      onRun: () => undefined,
+      onDuplicate: () => undefined,
+      onClearOutput: () => undefined,
+      onHelp: () => undefined,
+      onRemove: () => undefined,
+      onConvertToLoopNode: () => undefined,
+    }), { window: dom.window, frames: 20 })
+
+    const toolbar = container.querySelector('[data-kg-bubble-toolbar="1"]')
+    const selector = container.querySelector('select[aria-label="Output version"]') as HTMLSelectElement | null
+    const placement = container.querySelector('[data-kg-rich-media-output-version-placement="toolbar"]')
+    if (!toolbar?.contains(selector) || !placement || selector?.value !== 'version-2') {
+      throw new Error(`expected the output version selector inside the selected-node bubble toolbar, html=${container.innerHTML}`)
+    }
+    const pointerDown = new dom.window.MouseEvent('pointerdown', { bubbles: true, cancelable: true })
+    selector.dispatchEvent(pointerDown)
+    if (pointerDown.defaultPrevented) {
+      throw new Error('expected the bubble toolbar to preserve native select pointer activation')
+    }
+    await act(async () => {
+      selector.value = 'version-1'
+      selector.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+      await waitForTasks(1)
+    })
+    if (changes.at(-1)?.selectedOutputVersionId !== 'version-1') {
+      throw new Error(`expected the bubble-toolbar selector to publish its version change, got ${JSON.stringify(changes)}`)
     }
 
     await unmountReactRoot(root, { window: dom.window })

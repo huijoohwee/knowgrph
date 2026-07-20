@@ -219,6 +219,28 @@ export function testProbeTreeMcpResponseAdapterBoundsWidgetCardsAndPanel() {
   ) {
     throw new Error(`expected literal MCP structured response to project a visible Widget/Card/Panel tree, got ${JSON.stringify(surface)}`)
   }
+
+  const collidingAnchorId = String(cards[0]?.id || '')
+  const anchorNode: GraphNode = { id: collidingAnchorId, type: FLOW_TEXT_GENERATION_NODE_TYPE_ID, label: 'Care source', properties: {} }
+  const duplicateIdResult = materializeStoryboardWidgetProbeTreeStructuredResponse({
+    graphData: { type: 'Graph', nodes: [anchorNode], edges: [] },
+    anchorNode,
+    responseText: JSON.stringify({ jsonrpc: '2.0', id: 'duplicate-card-ids', result: { structuredContent: { ok: true, response } } }),
+    contextText,
+    responseSource: 'mcp',
+    model: 'knowgrph.probe.generate',
+    mcpInvoked: true,
+    invocationTokens: ['/knowgrph.probe-tree'],
+  })
+  const uniqueMaterializedIds = new Set(duplicateIdResult?.materializedNodeIds || [])
+  if (
+    !duplicateIdResult
+    || duplicateIdResult.materializedNodeIds.length !== response.structuredContent.cards.length
+    || uniqueMaterializedIds.size !== duplicateIdResult.materializedNodeIds.length
+    || new Set(duplicateIdResult.graphData.nodes.map(node => String(node.id))).size !== duplicateIdResult.graphData.nodes.length
+  ) {
+    throw new Error(`expected duplicate provider card ids to receive unique runtime ids, got ${JSON.stringify(duplicateIdResult)}`)
+  }
 }
 
 export function testProbeTreeCrossCardDiversityRejectsRepeatedAndSubsetChoiceSets() {

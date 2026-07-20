@@ -55,6 +55,7 @@ export type RichMediaPanelProps = {
   scrollOwner?: 'media' | 'panel'
   onInlineContentSize?: (size: { width: number; height: number }) => void
   panelChrome?: 'none' | 'storyboardWidget'
+  outputVersionPlacement?: 'header' | 'bubble-toolbar'
   selected?: boolean
   canvasOverlayPinned?: boolean
   onMediaElement?: (element: HTMLMediaElement | null) => void
