@@ -31,6 +31,8 @@ test('collaboration browser gate edits through the canonical active editor owner
   assert.match(smoke, /editorRoot\?\.contains\(document\.activeElement\)/)
   assert.match(smoke, /keyboard\.insertText/)
   assert.match(smoke, /assertRoomStatus\(WORKER_URL, ownerConnectedSnapshot\.markdownDocumentName\)/)
+  assert.match(smoke, /for \(let attempt = 0; attempt < 20; attempt \+= 1\)/)
+  assert.match(smoke, /collaboration panel did not acknowledge the bounded open request/)
   assert.doesNotMatch(smoke, /graphState\.setActiveMarkdownDocument/)
 })
 

@@ -177,10 +177,15 @@ async function waitForRuntimeIdentityPass(page: Page, label: string): Promise<Ru
 async function openCollaborationPanel(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__KG_MAIN_PANEL_OPEN_READY__ === true, null, { timeout: 60_000 })
   await page.waitForSelector('[aria-label="Markdown Workspace"]', { timeout: 60_000 })
-  await page.evaluate(() => {
-    window.dispatchEvent(new CustomEvent('kg:mainPanelOpen', { detail: { tab: 'collaboration' } }))
-  })
-  await page.waitForSelector('#main-panel-collaboration-tab[aria-selected="true"]', { timeout: 30_000 })
+  const selectedTab = page.locator('#main-panel-collaboration-tab[aria-selected="true"]')
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('kg:mainPanelOpen', { detail: { tab: 'collaboration' } }))
+    })
+    if (await selectedTab.isVisible().catch(() => false)) return
+    await page.waitForTimeout(500)
+  }
+  throw new Error('collaboration panel did not acknowledge the bounded open request')
 }
 
 async function readMainPanelText(page: Page): Promise<string> {
