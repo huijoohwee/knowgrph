@@ -5,7 +5,10 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import {
   assertD1DocumentParity,
+  assertNoD1GraphSnapshots,
+  buildDirectD1ReconciliationStatements,
   buildDirectD1DocumentStatements,
+  parseD1ExecuteJsonRows,
   toSqlString,
 } from './lib/seed-storage-documents-d1.mjs'
 
@@ -333,11 +336,97 @@ const executeD1SqlFile = async (sqlText, label = 'unnamed-step') => {
   }
 }
 
-const seedDocumentsDirectlyToD1 = async (args) => {
-  const nowIso = new Date().toISOString()
-  await executeD1SqlFile(
+const executeD1JsonQuery = (sqlText, label = 'unnamed-query') => {
+  const startedAt = Date.now()
+  console.log(`[knowgrph] d1 query start: ${label}`)
+  const result = spawnSync(
+    'npx',
     [
-      'PRAGMA foreign_keys = ON;',
+      '--no-install',
+      'wrangler',
+      'd1',
+      'execute',
+      'knowgrph-storage',
+      '--remote',
+      '--config',
+      'cloudflare/workers/knowgrph-storage/wrangler.toml',
+      '--command',
+      sqlText,
+      '--json',
+    ],
+    {
+      cwd: knowgrphRoot,
+      env: process.env,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  )
+  if (result.status !== 0) {
+    const message = (result.stderr || result.stdout || '').trim()
+    throw new Error(message || `installed wrangler d1 query failed: ${label}`)
+  }
+  const rows = parseD1ExecuteJsonRows(result.stdout, label)
+  console.log(`[knowgrph] d1 query done: ${label} rows=${rows.length} (${formatElapsedMs(startedAt)})`)
+  return rows
+}
+
+const exportWorkspaceDirectlyFromD1 = (args) => {
+  const documents = executeD1JsonQuery(
+    [
+      'SELECT',
+      '  id,',
+      '  canonical_path AS canonicalPath,',
+      '  doc_type AS docType,',
+      '  content_md AS contentMd,',
+      '  content_hash AS contentHash,',
+      '  revision,',
+      '  deleted',
+      'FROM documents',
+      `WHERE workspace_id = ${toSqlString(args.workspaceId)}`,
+      '  AND deleted = 0',
+      'ORDER BY canonical_path, id;',
+    ].join('\n'),
+    'documents-readback',
+  )
+  const documentChunks = executeD1JsonQuery(
+    [
+      'SELECT',
+      '  id,',
+      '  document_id AS documentId,',
+      '  workspace_id AS workspaceId,',
+      '  chunk_key AS chunkKey,',
+      '  chunk_order AS chunkOrder,',
+      '  markdown,',
+      '  content_hash AS contentHash',
+      'FROM document_chunks',
+      `WHERE workspace_id = ${toSqlString(args.workspaceId)}`,
+      'ORDER BY document_id, chunk_order, chunk_key, id;',
+    ].join('\n'),
+    'document-chunks-readback',
+  )
+  const graphSnapshots = executeD1JsonQuery(
+    [
+      'SELECT',
+      '  id,',
+      '  document_id AS documentId,',
+      '  graph_revision AS graphRevision,',
+      '  graph_hash AS graphHash,',
+      '  derived_from_document_revision AS derivedFromDocumentRevision',
+      'FROM graph_snapshots',
+      `WHERE workspace_id = ${toSqlString(args.workspaceId)}`,
+      'ORDER BY document_id, graph_revision, id;',
+    ].join('\n'),
+    'graph-snapshots-readback',
+  )
+  return { documents, documentChunks, graphSnapshots }
+}
+
+const seedDocumentsDirectlyToD1 = async (args) => {
+  const authoritativeUpdatedAtMs = Date.now()
+  const nowIso = new Date(authoritativeUpdatedAtMs).toISOString()
+  const statements = [
+    'PRAGMA foreign_keys = ON;',
+    [
       `INSERT INTO workspaces (id, slug, title, visibility, created_at, updated_at)`,
       `VALUES (${toSqlString(args.workspaceId)}, ${toSqlString(args.workspaceId)}, ${toSqlString(args.workspaceId)}, 'private', ${toSqlString(nowIso)}, ${toSqlString(nowIso)})`,
       `ON CONFLICT(id) DO UPDATE SET`,
@@ -345,52 +434,31 @@ const seedDocumentsDirectlyToD1 = async (args) => {
       `title = excluded.title,`,
       `updated_at = excluded.updated_at;`,
     ].join('\n'),
-    'workspace-upsert',
-  )
+  ]
   for (let i = 0; i < args.documentSeeds.length; i += 1) {
     const seed = args.documentSeeds[i]
     const mutation = seed?.documentMutation
     if (!mutation || mutation.entity !== 'document' || mutation.op !== 'upsert') continue
     const record = mutation.record
-    const statements = buildDirectD1DocumentStatements({
+    const documentStatements = buildDirectD1DocumentStatements({
       record,
       chunkMutations: seed.chunkMutations,
+      authoritativeUpdatedAtMs,
     })
-    console.log(`[knowgrph] d1 document upsert ${i + 1}/${args.documentSeeds.length}: ${record.canonicalPath} (chunks=${seed.chunkMutations.length})`)
-    await executeD1SqlFile(statements.join('\n'), `document-upsert:${record.canonicalPath}`)
+    console.log(`[knowgrph] d1 document stage ${i + 1}/${args.documentSeeds.length}: ${record.canonicalPath} (chunks=${seed.chunkMutations.length})`)
+    statements.push(...documentStatements)
   }
-  for (let i = 0; i < args.deleteMutations.length; i += 1) {
-    const mutation = args.deleteMutations[i]
-    if (!mutation || mutation.entity !== 'document' || mutation.op !== 'delete') continue
-    const record = mutation.record
-    const updatedAtIso = new Date(Math.max(1, Number(record.updatedAtMs || Date.now()))).toISOString()
-    const sql = [
-      'PRAGMA foreign_keys = ON;',
-      `UPDATE documents SET`,
-      `  deleted = 1,`,
-      `  content_md = '',`,
-      `  content_hash = ${toSqlString(record.contentHash)},`,
-      `  parser_version = ${toSqlString(record.parserVersion)},`,
-      `  revision = CASE WHEN revision >= ${Math.max(1, Number(record.revision || 1))} THEN revision + 1 ELSE ${Math.max(1, Number(record.revision || 1))} END,`,
-      `  updated_at = ${toSqlString(updatedAtIso)}`,
-      `WHERE workspace_id = ${toSqlString(record.workspaceId)}`,
-      `  AND (id = ${toSqlString(record.id)} OR canonical_path = ${toSqlString(record.canonicalPath)});`,
-      `DELETE FROM document_chunks WHERE document_id = ${toSqlString(record.id)} AND workspace_id = ${toSqlString(record.workspaceId)};`,
-    ].join('\n')
-    console.log(`[knowgrph] d1 stale document delete ${i + 1}/${args.deleteMutations.length}: ${record.canonicalPath}`)
-    await executeD1SqlFile(sql, `document-delete:${record.canonicalPath}`)
-  }
-  await executeD1SqlFile(
-    [
-      `DELETE FROM document_chunks`,
-      `WHERE workspace_id = ${toSqlString(args.workspaceId)}`,
-      `  AND document_id NOT IN (`,
-      `    SELECT id FROM documents`,
-      `    WHERE workspace_id = ${toSqlString(args.workspaceId)} AND deleted = 0`,
-      `  );`,
-    ].join('\n'),
-    'stale-chunk-cleanup',
-  )
+  const expectedCanonicalPaths = args.documentSeeds
+    .map(seed => normalizeString(seed?.documentMutation?.record?.canonicalPath))
+    .filter(Boolean)
+  console.log(`[knowgrph] d1 authoritative reconciliation active-paths=${expectedCanonicalPaths.length}`)
+  const reconciliationStatements = buildDirectD1ReconciliationStatements({
+    workspaceId: args.workspaceId,
+    canonicalPaths: expectedCanonicalPaths,
+    updatedAtMs: authoritativeUpdatedAtMs,
+  })
+  statements.push(...reconciliationStatements)
+  await executeD1SqlFile(statements.join('\n'), 'authoritative-corpus-reconciliation')
 }
 
 const run = async () => {
@@ -434,6 +502,28 @@ const run = async () => {
     }
     return
   }
+  const shouldUseDirectD1ControlPlane = isCanonicalProductionOrigin
+  if (shouldUseDirectD1ControlPlane) {
+    console.warn('[knowgrph] Canonical production reconciliation skips the public storage API and uses direct D1 reconciliation with direct readback.')
+    await seedDocumentsDirectlyToD1({
+      workspaceId,
+      documentSeeds,
+    })
+    const exportedStartedAt = Date.now()
+    console.log('[knowgrph] export start: direct-d1-verification')
+    const exported = exportWorkspaceDirectlyFromD1({ workspaceId })
+    console.log(`[knowgrph] export done: direct-d1-verification (${formatElapsedMs(exportedStartedAt)})`)
+    const parity = assertD1DocumentParity({
+      expectedDocumentSeeds: documentSeeds,
+      exportedDocuments: exported.documents,
+      exportedDocumentChunks: exported.documentChunks,
+    })
+    const snapshotParity = assertNoD1GraphSnapshots(exported.graphSnapshots)
+    console.log(`[knowgrph] export verification: documents=${parity.documentCount}; chunks=${parity.chunkCount}; snapshots=${snapshotParity.graphSnapshotCount}; path-hash-parity=passed; content-parity=passed`)
+    console.log('[knowgrph] direct D1 seed complete')
+    return
+  }
+
   let deleteMutations = []
   const beforeExportStartedAt = Date.now()
   console.log('[knowgrph] export start: before-seed')
@@ -448,58 +538,33 @@ const run = async () => {
     console.log(`[knowgrph] stale-source-files=${deleteMutations.length}`)
     mutations.push(...deleteMutations)
   }
-  const shouldUseDirectD1Seed = chunkedDocuments.length > 0 && isCanonicalProductionOrigin
-  if (!shouldUseDirectD1Seed) {
-    try {
-      const pushJson = await pushMutations({
-        baseUrl,
-        workspaceId,
-        deviceId,
-        mutations,
-      })
-      const acknowledgements = Array.isArray(pushJson.acknowledgements) ? pushJson.acknowledgements : []
-      const applied = acknowledgements.filter(item => item && item.status === 'applied').length
-      const conflict = acknowledgements.filter(item => item && item.status === 'conflict').length
-      const rejected = acknowledgements.filter(item => item && item.status === 'rejected').length
-      console.log(`[knowgrph] push complete: applied=${applied}, conflict=${conflict}, rejected=${rejected}`)
-      const exportedStartedAt = Date.now()
-      console.log('[knowgrph] export start: api-push-verification')
-      const exported = await exportWorkspace({ baseUrl, workspaceId })
-      console.log(`[knowgrph] export done: api-push-verification (${formatElapsedMs(exportedStartedAt)})`)
-      const parity = assertD1DocumentParity({
-        expectedDocumentSeeds: documentSeeds,
-        exportedDocuments: exported.documents,
-        exportedDocumentChunks: exported.documentChunks,
-      })
-      console.log(`[knowgrph] export verification: documents=${parity.documentCount}; chunks=${parity.chunkCount}; path-hash-parity=passed; content-parity=passed`)
-      return
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      if (!isCanonicalProductionOrigin) {
-        throw new Error(`API push failed for non-production storage origin; remote D1 fallback is forbidden: ${message}`)
-      }
-      console.warn(`[knowgrph] API push path unavailable: ${message}`)
-      console.warn('[knowgrph] Falling back to direct D1 remote upsert via npx wrangler.')
-    }
-  } else {
-    console.warn('[knowgrph] Large canonical docs detected; skipping bulk API push and using direct D1 remote upsert.')
+  try {
+    const pushJson = await pushMutations({
+      baseUrl,
+      workspaceId,
+      deviceId,
+      mutations,
+    })
+    const acknowledgements = Array.isArray(pushJson.acknowledgements) ? pushJson.acknowledgements : []
+    const applied = acknowledgements.filter(item => item && item.status === 'applied').length
+    const conflict = acknowledgements.filter(item => item && item.status === 'conflict').length
+    const rejected = acknowledgements.filter(item => item && item.status === 'rejected').length
+    console.log(`[knowgrph] push complete: applied=${applied}, conflict=${conflict}, rejected=${rejected}`)
+    const exportedStartedAt = Date.now()
+    console.log('[knowgrph] export start: api-push-verification')
+    const exported = await exportWorkspace({ baseUrl, workspaceId })
+    console.log(`[knowgrph] export done: api-push-verification (${formatElapsedMs(exportedStartedAt)})`)
+    const parity = assertD1DocumentParity({
+      expectedDocumentSeeds: documentSeeds,
+      exportedDocuments: exported.documents,
+      exportedDocumentChunks: exported.documentChunks,
+    })
+    console.log(`[knowgrph] export verification: documents=${parity.documentCount}; chunks=${parity.chunkCount}; path-hash-parity=passed; content-parity=passed`)
+    return
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`API push failed for non-production storage origin; remote D1 fallback is forbidden: ${message}`)
   }
-  await seedDocumentsDirectlyToD1({
-    workspaceId,
-    documentSeeds,
-    deleteMutations,
-  })
-  const exportedStartedAt = Date.now()
-  console.log('[knowgrph] export start: direct-d1-verification')
-  const exported = await exportWorkspace({ baseUrl, workspaceId })
-  console.log(`[knowgrph] export done: direct-d1-verification (${formatElapsedMs(exportedStartedAt)})`)
-  const parity = assertD1DocumentParity({
-    expectedDocumentSeeds: documentSeeds,
-    exportedDocuments: exported.documents,
-    exportedDocumentChunks: exported.documentChunks,
-  })
-  console.log(`[knowgrph] export verification: documents=${parity.documentCount}; chunks=${parity.chunkCount}; path-hash-parity=passed; content-parity=passed`)
-  console.log('[knowgrph] direct D1 seed complete')
 }
 
 run().catch((error) => {

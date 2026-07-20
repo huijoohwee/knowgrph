@@ -7,6 +7,7 @@ const repoRoot = path.resolve(import.meta.dirname, '..', '..')
 const releaseWorkflow = fs.readFileSync(path.resolve(repoRoot, '.github', 'workflows', 'release.yml'), 'utf8')
 const agentReadySmoke = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'check-agent-ready.mjs'), 'utf8')
 const docsSeedScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'seed-storage-docs-to-cloudflare.mjs'), 'utf8')
+const docsSeedLibrary = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'lib', 'seed-storage-documents-d1.mjs'), 'utf8')
 
 test('production release reconciles the exact canonical docs revision before live smoke', () => {
   const deployJob = releaseWorkflow.slice(releaseWorkflow.indexOf('\n  deploy:'))
@@ -38,8 +39,37 @@ test('canonical docs reconciliation uses the lockfile Wrangler version', () => {
 })
 
 test('canonical docs reconciliation proves stored content and exact chunk parity', () => {
+  const directSeedIndex = docsSeedScript.indexOf('if (shouldUseDirectD1ControlPlane)')
+  const publicExportIndex = docsSeedScript.indexOf("console.log('[knowgrph] export start: before-seed')")
+  const directSeedFunction = docsSeedScript.slice(
+    docsSeedScript.indexOf('const seedDocumentsDirectlyToD1'),
+    docsSeedScript.indexOf('const run = async'),
+  )
+
   assert.match(docsSeedScript, /expectedDocumentSeeds: documentSeeds/)
   assert.match(docsSeedScript, /exportedDocumentChunks: exported\.documentChunks/)
+  assert.match(docsSeedScript, /exportWorkspaceDirectlyFromD1/)
+  assert.match(docsSeedScript, /graph-snapshots-readback/)
+  assert.match(docsSeedScript, /assertNoD1GraphSnapshots\(exported\.graphSnapshots\)/)
+  assert.match(docsSeedScript, /buildDirectD1ReconciliationStatements/)
+  assert.match(docsSeedScript, /'--command',[\s\S]*'--json'/)
+  assert.match(docsSeedScript, /maxBuffer: 64 \* 1024 \* 1024/)
+  assert.match(docsSeedScript, /const shouldUseDirectD1ControlPlane = isCanonicalProductionOrigin/)
+  assert.match(docsSeedScript, /WHERE workspace_id = .*\n.*AND deleted = 0/)
   assert.match(docsSeedScript, /content-parity=passed/)
-  assert.match(docsSeedScript, /document_id NOT IN/)
+  assert.match(docsSeedScript, /snapshots=\$\{snapshotParity\.graphSnapshotCount\}/)
+  assert.doesNotMatch(docsSeedScript, /joohwee\.pages\.dev/)
+  assert.match(docsSeedLibrary, /documents\.revision >= excluded\.revision/)
+  assert.match(docsSeedLibrary, /authoritativeUpdatedAtMs/)
+  assert.match(docsSeedLibrary, /DELETE FROM graph_snapshots/)
+  assert.match(docsSeedLibrary, /canonical_path NOT IN/)
+  assert.match(docsSeedLibrary, /document_id NOT IN/)
+  assert.equal(
+    (directSeedFunction.match(/executeD1SqlFile\(/g) || []).length,
+    1,
+    'expected one rollback-safe D1 import for the complete authoritative corpus',
+  )
+  assert.match(directSeedFunction, /authoritative-corpus-reconciliation/)
+  assert.ok(directSeedIndex >= 0, 'expected a direct D1 production branch')
+  assert.ok(publicExportIndex > directSeedIndex, 'expected direct production reconciliation before any public storage export')
 })

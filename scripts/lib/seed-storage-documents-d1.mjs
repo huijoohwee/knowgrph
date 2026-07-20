@@ -7,10 +7,12 @@ export const toSqlNullableString = (value) => {
   return toSqlString(value)
 }
 
+const normalizeString = (value) => String(value || '').trim()
+
 const toIsoTimestamp = (value) => new Date(Math.max(1, Number(value || Date.now()))).toISOString()
 
-export const buildDirectD1DocumentStatements = ({ record, chunkMutations }) => {
-  const updatedAtIso = toIsoTimestamp(record.updatedAtMs)
+export const buildDirectD1DocumentStatements = ({ record, chunkMutations, authoritativeUpdatedAtMs }) => {
+  const updatedAtIso = toIsoTimestamp(authoritativeUpdatedAtMs || record.updatedAtMs)
   const documentIdentitySql = [
     'SELECT id FROM documents',
     `WHERE workspace_id = ${toSqlString(record.workspaceId)}`,
@@ -48,7 +50,10 @@ export const buildDirectD1DocumentStatements = ({ record, chunkMutations }) => {
     `  content_md = excluded.content_md,`,
     `  content_hash = excluded.content_hash,`,
     `  parser_version = excluded.parser_version,`,
-    `  revision = excluded.revision,`,
+    `  revision = CASE`,
+    `    WHEN documents.revision >= excluded.revision THEN documents.revision + 1`,
+    `    ELSE excluded.revision`,
+    `  END,`,
     `  deleted = excluded.deleted,`,
     `  updated_at = excluded.updated_at;`,
     `DELETE FROM document_chunks`,
@@ -58,7 +63,7 @@ export const buildDirectD1DocumentStatements = ({ record, chunkMutations }) => {
   for (const chunkMutation of chunkMutations) {
     if (!chunkMutation || chunkMutation.entity !== 'documentChunk' || chunkMutation.op !== 'upsert') continue
     const chunk = chunkMutation.record
-    const chunkUpdatedAtIso = toIsoTimestamp(chunk.updatedAtMs)
+    const chunkUpdatedAtIso = toIsoTimestamp(authoritativeUpdatedAtMs || chunk.updatedAtMs)
     statements.push(
       [
         `INSERT INTO document_chunks (`,
@@ -91,7 +96,87 @@ export const buildDirectD1DocumentStatements = ({ record, chunkMutations }) => {
   return statements
 }
 
-const normalizeString = (value) => String(value || '').trim()
+export const buildDirectD1ReconciliationStatements = ({
+  workspaceId,
+  canonicalPaths,
+  updatedAtMs = Date.now(),
+  parserVersion = 'seed-storage-docs-to-cloudflare:v1',
+}) => {
+  const normalizedWorkspaceId = normalizeString(workspaceId)
+  const normalizedCanonicalPaths = [...new Set(
+    (canonicalPaths || []).map(normalizeString).filter(Boolean),
+  )].sort()
+  if (!normalizedWorkspaceId) throw new Error('direct D1 reconciliation requires a workspace id')
+  if (normalizedCanonicalPaths.length === 0) {
+    throw new Error('direct D1 reconciliation requires at least one canonical path')
+  }
+  const updatedAtIso = toIsoTimestamp(updatedAtMs)
+  const expectedPathsSql = normalizedCanonicalPaths.map(toSqlString).join(',\n    ')
+
+  return [
+    [
+      'DELETE FROM graph_snapshots',
+      `WHERE workspace_id = ${toSqlString(normalizedWorkspaceId)};`,
+    ].join('\n'),
+    [
+      'UPDATE documents SET',
+      '  deleted = 1,',
+      "  content_md = '',",
+      `  parser_version = ${toSqlString(parserVersion)},`,
+      '  revision = CASE WHEN revision < 1 THEN 1 ELSE revision + 1 END,',
+      `  updated_at = ${toSqlString(updatedAtIso)}`,
+      `WHERE workspace_id = ${toSqlString(normalizedWorkspaceId)}`,
+      '  AND deleted = 0',
+      '  AND canonical_path NOT IN (',
+      `    ${expectedPathsSql}`,
+      '  );',
+    ].join('\n'),
+    [
+      'DELETE FROM document_chunks',
+      `WHERE workspace_id = ${toSqlString(normalizedWorkspaceId)}`,
+      '  AND document_id NOT IN (',
+      '    SELECT id FROM documents',
+      `    WHERE workspace_id = ${toSqlString(normalizedWorkspaceId)}`,
+      '      AND deleted = 0',
+      '      AND canonical_path IN (',
+      `        ${expectedPathsSql}`,
+      '      )',
+      '  );',
+    ].join('\n'),
+  ]
+}
+
+export const parseD1ExecuteJsonRows = (stdout, label = 'D1 query') => {
+  const text = String(stdout || '').replace(/^\uFEFF/, '').trim()
+  if (!text) throw new Error(`${label} returned empty JSON output`)
+  let payload
+  try {
+    payload = JSON.parse(text)
+  } catch {
+    throw new Error(`${label} returned invalid JSON output`)
+  }
+  const operations = Array.isArray(payload) ? payload : [payload]
+  if (operations.length === 0) throw new Error(`${label} returned no D1 operations`)
+  const failedOperation = operations.find(operation => operation?.success !== true)
+  if (failedOperation) {
+    const message = normalizeString(failedOperation?.error || failedOperation?.message) || 'unknown D1 error'
+    throw new Error(`${label} failed: ${message}`)
+  }
+  return operations.flatMap(operation => (
+    Array.isArray(operation?.results) ? operation.results : []
+  ))
+}
+
+export const assertNoD1GraphSnapshots = (exportedGraphSnapshots) => {
+  const snapshotIds = (exportedGraphSnapshots || [])
+    .filter(Boolean)
+    .map(snapshot => normalizeString(snapshot?.id) || normalizeString(snapshot?.documentId) || 'unknown')
+    .sort()
+  if (snapshotIds.length > 0) {
+    throw new Error(`unexpectedGraphSnapshots=${snapshotIds.join(',')}`)
+  }
+  return { graphSnapshotCount: 0 }
+}
 
 const sha256Content = (content, docType = 'markdown') => {
   const value = String(content || '')
