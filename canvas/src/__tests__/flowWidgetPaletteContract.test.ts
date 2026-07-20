@@ -109,7 +109,7 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
       throw new Error(`expected ${label}: ${snippet}`)
     }
   }
-  if (!canvasViewportText.includes('const bridgeOnlyWidgetDropActive = !documentSwitchBlocksCanvas')
+  if (!canvasViewportText.includes('const bridgeOnlyWidgetDropActive = !documentSwitchOwnsViewport')
     || !canvasViewportText.includes("active2dSurface !== 'storyboard'")
     || !canvasViewportText.includes('<StoryboardWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled />')) {
     throw new Error('expected normal 2D canvas surfaces to mount the lightweight widget drop bridge used by the Props Panel palette')

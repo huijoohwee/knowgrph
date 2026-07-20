@@ -77,8 +77,8 @@ export function testStoryboardWidgetFrontmatterUsesFlowFilterForWidgetOverlays()
     throw new Error('expected CanvasViewport to keep Storyboard alive for frontmatter-flow handoff only when Storyboard is active')
   }
   if (!canvasViewportText.includes('const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceStoryboardSurfaceActive')
-    || !canvasViewportText.includes("!documentSwitchBlocksCanvas && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d'")
-    || !canvasViewportText.includes('{documentSwitchBlocksCanvas ? (')) {
+    || !canvasViewportText.includes('const documentSwitchOwnsViewport = shouldDocumentSwitchOwnCanvasViewport({') || !canvasViewportText.includes("!documentSwitchOwnsViewport && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d'")
+    || !canvasViewportText.includes('{documentSwitchOwnsViewport ? (')) {
     throw new Error('expected CanvasViewport document-switch gating to avoid blanking Storyboard when source graph authority is already frontmatter-flow')
   }
   if (!overlaySurfaceText.includes('if (!storyboardWidgetViewActive) {')) {

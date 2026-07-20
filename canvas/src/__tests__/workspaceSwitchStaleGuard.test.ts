@@ -107,7 +107,7 @@ export const testMarkdownWorkspaceRuntimeGuardsStaleIndexJobs = () => {
     throw new Error('Expected Canvas page to show a switching-document placeholder without unmounting toolbar-owned floating panels during source-file handoff')
   }
   const canvasViewportText = readUtf8(path.resolve(process.cwd(), 'src', 'components', 'CanvasViewport.tsx'))
-  if (!canvasViewportText.includes('const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceFrontmatterStoryboardWidgetSurfaceActive') || !canvasViewportText.includes('documentSwitchBlocksCanvas ? (')) {
+  if (!canvasViewportText.includes('const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceStoryboardSurfaceActive') || !canvasViewportText.includes('const documentSwitchOwnsViewport = shouldDocumentSwitchOwnCanvasViewport({') || !canvasViewportText.includes('documentSwitchOwnsViewport ? (')) {
     throw new Error('Expected Canvas viewport to render a switching-document placeholder while the active document handoff is pending')
   }
   if (!canvasViewportText.includes('Preparing canvas view...')) {
