@@ -39,6 +39,7 @@ import type { GraphData, GraphNode } from '@/lib/graph/types'
 import type { StoryboardWidgetWorkflowNodeResolutionContext } from './storyboardWidgetRenderGraph'
 import { buildStoryboardWidgetProbeTreeContextText } from './storyboardWidgetProbeTreeContext'
 import { buildStoryboardWidgetProbeTreeProviderPrompt } from './storyboardWidgetProbeTreeProviderPrompt'
+import { buildStoryboardWidgetProbeTreeProviderRepairPrompt } from './storyboardWidgetProbeTreeProviderRepairPrompt'
 import {
   isStoryboardWidgetProbeTreeContinuationNode,
   reconcileStoryboardWidgetProbeTreeSelectedRunNode,
@@ -227,6 +228,7 @@ export type StoryboardWidgetProbeTreeMcpRunResult = StoryboardWidgetProbeTreeStr
   invocationToken: string
   mcpInvoked: boolean
   providerAccepted: boolean
+  providerAttempts?: number
   kind: 'success' | 'warning'
   message: string
   mcpError?: string
@@ -368,21 +370,25 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
   const mcpInvoked = bridge?.mcpInvoked === true
   let providerText = ''
   let providerError = ''
+  let providerAttempts = 0
+  const providerPrompt = buildStoryboardWidgetProbeTreeProviderPrompt({
+    contextText,
+    currentNodeId,
+    mcpResult,
+    mcpInvoked,
+    probeTreeDepth: nextProbeTreeDepth,
+  })
   if (args.generateProviderResponse) {
     try {
-      providerText = String(await args.generateProviderResponse(buildStoryboardWidgetProbeTreeProviderPrompt({
-        contextText,
-        currentNodeId,
-        mcpResult,
-        mcpInvoked,
-        probeTreeDepth: nextProbeTreeDepth,
-      })) || '').trim()
+      providerAttempts += 1
+      providerText = String(await args.generateProviderResponse(providerPrompt) || '').trim()
     } catch (error) {
       providerError = error instanceof Error ? error.message : String(error || '')
     }
   }
 
   let providerAccepted = false
+  let providerRejectionReason = providerText ? '' : 'The provider returned an empty response.'
   let materialized = providerText
     ? materializeStoryboardWidgetProbeTreeStructuredResponse({
         graphData: graphForInvocation,
@@ -395,6 +401,7 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
         threadRootId,
         invocationTokens,
         invocationResolutions: bridge?.invocationResolutions,
+        onRejected: reason => { providerRejectionReason = reason },
       })
     : null
   if (materialized) providerAccepted = true
@@ -413,6 +420,34 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
       invocationTokens,
       invocationResolutions: bridge?.invocationResolutions,
     })
+  }
+  if (!materialized && args.generateProviderResponse && !providerError) {
+    let repairText = ''
+    try {
+      providerAttempts += 1
+      repairText = String(await args.generateProviderResponse(buildStoryboardWidgetProbeTreeProviderRepairPrompt({
+        basePrompt: providerPrompt,
+        rejectionReason: providerRejectionReason,
+      })) || '').trim()
+    } catch (error) {
+      providerError = error instanceof Error ? error.message : String(error || '')
+    }
+    if (repairText) {
+      materialized = materializeStoryboardWidgetProbeTreeStructuredResponse({
+        graphData: graphForInvocation,
+        anchorNode: node,
+        responseText: repairText,
+        contextText,
+        responseSource: 'provider',
+        model: String(args.providerModel || '').trim() || 'configured-provider',
+        mcpInvoked,
+        threadRootId,
+        invocationTokens,
+        invocationResolutions: bridge?.invocationResolutions,
+        onRejected: reason => { providerRejectionReason = reason },
+      })
+      if (materialized) providerAccepted = true
+    }
   }
   if (!materialized) {
     if (providerError) throw new Error(`Probe-Tree LLM request failed: ${providerError}`)
@@ -449,6 +484,7 @@ export async function runStoryboardWidgetProbeTreeMcpInvocation(args: {
     invocationToken,
     mcpInvoked,
     providerAccepted,
+    providerAttempts,
     kind: 'success',
     message: mcpInvoked
       ? `Generated ${count} context-specific Probe-Tree card${count === 1 ? '' : 's'} through knowgrph MCP.`
