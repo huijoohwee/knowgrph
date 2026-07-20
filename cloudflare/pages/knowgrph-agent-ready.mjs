@@ -42,7 +42,11 @@ import {
   buildKnowgrphCommerceDiscovery,
   buildKnowgrphCommerceStaticFiles,
 } from "./knowgrph-agent-ready-commerce.mjs";
-import { fetchKnowgrphAppShellAsset } from "./knowgrph-agent-ready-app-shell.mjs";
+import {
+  fetchKnowgrphAppShellAsset,
+  fetchKnowgrphStaticAsset,
+  handlesKnowgrphStaticAsset,
+} from "./knowgrph-agent-ready-app-shell.mjs";
 import {
   PUBLISHED_DOC_IDENTITY_RESOLVER_BROWSER_SOURCE,
   createPublishedDocIdentityResolver,
@@ -1423,19 +1427,6 @@ export const buildAgentReadyStaticFiles = async () => ({
 const handlesKnowgrphRoot = (pathname) => pathname === APP_BASE_PATH || pathname === `${APP_BASE_PATH}/`;
 const handlesKnowgrphHtmlSurface = (pathname) =>
   handlesKnowgrphRoot(pathname) || Boolean(resolvePublishedDocPathIdentity(pathname));
-const handlesKnowgrphStaticAsset = (pathname) => pathname.startsWith(`${APP_BASE_PATH}/assets/`);
-
-const fetchKnowgrphStaticAsset = async (context) => {
-  const headers = new Headers(context.request.headers);
-  headers.delete("origin");
-  const assetRequest = new Request(context.request.url, {
-    method: context.request.method,
-    headers,
-  });
-  if (typeof context.env?.ASSETS?.fetch === "function") return context.env.ASSETS.fetch(assetRequest);
-  return context.next(assetRequest);
-};
-
 const resolveAgentReadyRouteTag = (request) => {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/+$/, "") || "/";
@@ -1546,7 +1537,7 @@ export async function onRequest(context) {
     return jsonStatusResponse(405, { ok: false, error: "unsupported_method" });
   }
 
-  if (handlesKnowgrphStaticAsset(url.pathname)) {
+  if (handlesKnowgrphStaticAsset(url.pathname, APP_BASE_PATH)) {
     return fetchKnowgrphStaticAsset(context);
   }
 

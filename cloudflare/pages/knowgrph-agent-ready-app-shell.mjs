@@ -11,3 +11,37 @@ export const fetchKnowgrphAppShellAsset = async (context, appBasePath) => {
   if (typeof context.env?.ASSETS?.fetch === "function") return context.env.ASSETS.fetch(appShellRequest);
   return context.next(appShellRequest);
 };
+
+export const handlesKnowgrphStaticAsset = (pathname, appBasePath) =>
+  pathname.startsWith(`${appBasePath}/assets/`);
+
+const isHtmlAssetFallback = (response) => {
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  return contentType.includes("text/html") || contentType.includes("application/xhtml+xml");
+};
+
+const unavailableStaticAssetResponse = (request) =>
+  new Response(request.method === "HEAD" ? null : "Knowgrph asset is temporarily unavailable. Retry shortly.\n", {
+    status: 503,
+    headers: {
+      "cache-control": "no-store, max-age=0",
+      "content-type": "text/plain; charset=utf-8",
+      "retry-after": "1",
+      "x-content-type-options": "nosniff",
+      "x-knowgrph-asset-status": "temporarily-unavailable",
+    },
+  });
+
+export const fetchKnowgrphStaticAsset = async (context) => {
+  const headers = new Headers(context.request.headers);
+  headers.delete("origin");
+  const assetRequest = new Request(context.request.url, {
+    method: context.request.method,
+    headers,
+  });
+  const response = typeof context.env?.ASSETS?.fetch === "function"
+    ? await context.env.ASSETS.fetch(assetRequest)
+    : await context.next(assetRequest);
+  if (response.ok && !isHtmlAssetFallback(response)) return response;
+  return unavailableStaticAssetResponse(context.request);
+};

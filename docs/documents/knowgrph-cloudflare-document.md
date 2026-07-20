@@ -152,9 +152,16 @@ contract
 - **When** the maintainer runs the release validation chain
 - **Then** `npm run pages:check-sync` reports no mirror drift
 - **And** live probes confirm `https://airvio.co/knowgrph/` and at least one hashed asset return 200
+- **And** a transient missing hashed asset returns `503`, `Retry-After: 1`, and `Cache-Control: no-store`
+  instead of caching the HTML app shell under an immutable JavaScript or CSS URL
 
 > `/goal` translation: Cloudflare route parity is complete when `npm run pages:check-sync` exits 0
 > and live route probes return 200 for the app shell plus a current hashed asset.
+
+Revision-scoped `/knowgrph/assets/**` responses remain immutable only when the Pages asset binding
+returns a successful non-HTML asset. During deployment propagation, a missing asset or SPA HTML
+fallback is converted at the Pages Function boundary into the retryable, non-cacheable response
+above so a browser reload can recover without retaining a poisoned dynamic-import URL.
 
 #### Epic PRD-CF-E002 - Publish Agent Discovery Over HTTP And DNS
 

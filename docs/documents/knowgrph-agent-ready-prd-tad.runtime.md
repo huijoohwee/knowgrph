@@ -147,6 +147,7 @@ runtime agent surface must converge on the same document identity and pipeline m
 | Route | Method | Response |
 |---|---:|---|
 | `/knowgrph/` | GET/HEAD | HTML app shell plus Knowgrph discovery `Link` headers |
+| `/knowgrph/assets/{revision}/{asset}` | GET/HEAD | Successful non-HTML asset response, or retryable non-cacheable `503` while the exact asset is unavailable |
 | `/` | GET with `Accept: text/markdown` | `text/markdown` plus `x-markdown-tokens` |
 | `/knowgrph/` | GET with `Accept: text/markdown` | `text/markdown` plus `x-markdown-tokens` |
 | `/knowgrph/share/{opaque-token}` | GET | HTML shell for browsers or published markdown document on `Accept: text/markdown` |

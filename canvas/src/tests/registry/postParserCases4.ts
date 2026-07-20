@@ -1,6 +1,8 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
+  ["agentReady.httpMcpParity.staticAssetRejectsUnavailableFallback","@/__tests__/agentReadyPublishedDocHtml.test","testStaticAssetRejectsUnavailableOrHtmlFallbackWithoutCaching"],
+  ["agentReady.httpMcpParity.staticAssetPassesThroughJavascript","@/__tests__/agentReadyPublishedDocHtml.test","testStaticAssetPassesThroughJavascriptResponse"],
   ["sourceLayers.identity.composeCanonicalizesAliases","@/__tests__/sourceLayerIdentityHardening.test","testSourceLayerCompositionCollapsesRepeatedAliasesWithoutLosingEdgeTopology"],
   ["sourceLayers.identity.projectCanonicalizesAliases","@/__tests__/sourceLayerIdentityHardening.test","testSourceLayerProjectionHealsRepeatedAliasesWithoutLosingEdgeTopology"],
   ["sourceLayers.identity.edgeAuthoringReservesCanonicalIds","@/__tests__/sourceLayerIdentityHardening.test","testEdgeAuthoringReservesCanonicalIdsFromQualifiedEdges"],
