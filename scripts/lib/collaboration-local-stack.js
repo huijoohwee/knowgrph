@@ -11,6 +11,9 @@ const DEFAULT_OWNER_TOKEN = "kg_collaboration_owner_local_token";
 const DEFAULT_GUEST_TOKEN = "kg_collaboration_guest_local_token";
 const DEFAULT_OWNER_RUNTIME_DEVICE = "collaboration-owner-local";
 const DEFAULT_GUEST_RUNTIME_DEVICE = "collaboration-guest-local";
+const DEFAULT_OWNER_CLIENT_DEVICE_ID = "dev:collaboration-owner-local";
+const DEFAULT_GUEST_CLIENT_DEVICE_ID = "dev:collaboration-guest-local";
+const CLIENT_DEVICE_ID_PATTERN = /^dev:[A-Za-z0-9:-]{16,128}$/;
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -229,8 +232,17 @@ export function resolveLocalCollaborationStackConfig({
   const guestSessionToken = env.KG_COLLABORATION_E2E_GUEST_TOKEN || DEFAULT_GUEST_TOKEN;
   const ownerRuntimeDevice = env.KG_COLLABORATION_E2E_OWNER_DEVICE || DEFAULT_OWNER_RUNTIME_DEVICE;
   const guestRuntimeDevice = env.KG_COLLABORATION_E2E_GUEST_DEVICE || DEFAULT_GUEST_RUNTIME_DEVICE;
+  const ownerClientDeviceId = env.KG_COLLABORATION_E2E_OWNER_DEVICE_ID || DEFAULT_OWNER_CLIENT_DEVICE_ID;
+  const guestClientDeviceId = env.KG_COLLABORATION_E2E_GUEST_DEVICE_ID || DEFAULT_GUEST_CLIENT_DEVICE_ID;
   if (!ownerRuntimeDevice || !guestRuntimeDevice || ownerRuntimeDevice === guestRuntimeDevice) {
     throw new Error("local collaboration runtime devices must be distinct non-empty identities");
+  }
+  if (
+    !CLIENT_DEVICE_ID_PATTERN.test(ownerClientDeviceId)
+    || !CLIENT_DEVICE_ID_PATTERN.test(guestClientDeviceId)
+    || ownerClientDeviceId === guestClientDeviceId
+  ) {
+    throw new Error("local collaboration client device ids must be distinct valid dev: identities");
   }
   return {
     repoRoot,
@@ -247,6 +259,8 @@ export function resolveLocalCollaborationStackConfig({
     guestSessionToken,
     ownerRuntimeDevice,
     guestRuntimeDevice,
+    ownerClientDeviceId,
+    guestClientDeviceId,
     services: [
       {
         id: "owner-app",
@@ -285,6 +299,8 @@ export function buildLocalCollaborationBrowserEnv(config, env = process.env) {
     KG_COLLABORATION_E2E_WORKER_URL: config.normalizedWorkerBaseUrl,
     KG_COLLABORATION_E2E_OWNER_TOKEN: config.ownerSessionToken,
     KG_COLLABORATION_E2E_GUEST_TOKEN: config.guestSessionToken,
+    KG_COLLABORATION_E2E_OWNER_DEVICE_ID: config.ownerClientDeviceId,
+    KG_COLLABORATION_E2E_GUEST_DEVICE_ID: config.guestClientDeviceId,
   };
 }
 

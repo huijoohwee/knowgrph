@@ -3,6 +3,7 @@ import { basename, join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { chromium, type Page } from 'playwright'
 import { buildKnowgrphStorageCanvasRoomPath } from '../src/lib/storage/knowgrphStorageSyncContract'
+import { KNOWGRPH_STORAGE_DEVICE_ID_KEY } from '../src/lib/storage/knowgrphStorageDeviceIdentity'
 import { QUERY_PARAM_OPEN_EDITOR_WORKSPACE } from '../src/lib/routing/queryParams'
 import { LOCAL_DOC_PARAM } from '../src/features/canvas/canvasDocDeepLink'
 
@@ -11,12 +12,21 @@ const DEFAULT_GUEST_APP_URL = 'http://127.0.0.1:5174/'
 const DEFAULT_WORKER_URL = 'http://127.0.0.1:8787'
 const DEFAULT_WORKSPACE_ID = 'kgws:test-room'
 const DEFAULT_DOC_PATH = '/docs/README.md'
+const CLIENT_DEVICE_ID_PATTERN = /^dev:[A-Za-z0-9:-]{16,128}$/
 const OWNER_APP_URL = process.env.KG_COLLABORATION_E2E_OWNER_URL || DEFAULT_OWNER_APP_URL
 const GUEST_APP_URL = process.env.KG_COLLABORATION_E2E_GUEST_URL || DEFAULT_GUEST_APP_URL
 const WORKER_URL = process.env.KG_COLLABORATION_E2E_WORKER_URL || DEFAULT_WORKER_URL
 const WORKSPACE_ID = process.env.KG_COLLABORATION_E2E_WORKSPACE_ID || DEFAULT_WORKSPACE_ID
 const OWNER_TOKEN = process.env.KG_COLLABORATION_E2E_OWNER_TOKEN || ''
 const GUEST_TOKEN = process.env.KG_COLLABORATION_E2E_GUEST_TOKEN || ''
+const OWNER_DEVICE_ID = requireClientDeviceId(
+  'KG_COLLABORATION_E2E_OWNER_DEVICE_ID',
+  process.env.KG_COLLABORATION_E2E_OWNER_DEVICE_ID,
+)
+const GUEST_DEVICE_ID = requireClientDeviceId(
+  'KG_COLLABORATION_E2E_GUEST_DEVICE_ID',
+  process.env.KG_COLLABORATION_E2E_GUEST_DEVICE_ID,
+)
 const DOC_PATH = process.env.KG_COLLABORATION_E2E_DOC_PATH || DEFAULT_DOC_PATH
 const MARKER = process.env.KG_COLLABORATION_E2E_MARKER || `SMOKE_REMOTE_APPLY_MARKER_${new Date().toISOString().replace(/[-:.]/g, '').replace('T', 'T').replace('Z', 'Z')}`
 const SCREENSHOT_PREFIX = process.env.KG_COLLABORATION_E2E_SCREENSHOT_PREFIX || join(tmpdir(), 'knowgrph-collaboration-e2e')
@@ -52,6 +62,14 @@ type RuntimeIdentityProof = {
   catalogRevision: string
   catalogHydrationStatus: string
   catalogHydrationAttempts: number
+}
+
+function requireClientDeviceId(name: string, value: unknown): string {
+  const normalized = String(value || '').trim()
+  if (!CLIENT_DEVICE_ID_PATTERN.test(normalized)) {
+    throw new Error(`${name} must match ${CLIENT_DEVICE_ID_PATTERN}`)
+  }
+  return normalized
 }
 
 function resolveBrowserLaunchOptions(): Parameters<typeof chromium.launch>[0] {
@@ -159,10 +177,15 @@ async function waitForRuntimeIdentityPass(page: Page, label: string): Promise<Ru
 async function openCollaborationPanel(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__KG_MAIN_PANEL_OPEN_READY__ === true, null, { timeout: 60_000 })
   await page.waitForSelector('[aria-label="Markdown Workspace"]', { timeout: 60_000 })
-  await page.evaluate(() => {
-    window.dispatchEvent(new CustomEvent('kg:mainPanelOpen', { detail: { tab: 'collaboration' } }))
-  })
-  await page.waitForSelector('#main-panel-collaboration-tab[aria-selected="true"]', { timeout: 30_000 })
+  const selectedTab = page.locator('#main-panel-collaboration-tab[aria-selected="true"]')
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('kg:mainPanelOpen', { detail: { tab: 'collaboration' } }))
+    })
+    if (await selectedTab.isVisible().catch(() => false)) return
+    await page.waitForTimeout(500)
+  }
+  throw new Error('collaboration panel did not acknowledge the bounded open request')
 }
 
 async function readMainPanelText(page: Page): Promise<string> {
@@ -273,6 +296,16 @@ async function main(): Promise<void> {
   const browser = await chromium.launch(resolveBrowserLaunchOptions())
   const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 950 } })
   const guestContext = await browser.newContext({ viewport: { width: 1440, height: 950 } })
+  await Promise.all([
+    ownerContext.addInitScript(
+      ({ key, value }) => window.localStorage.setItem(key, value),
+      { key: KNOWGRPH_STORAGE_DEVICE_ID_KEY, value: OWNER_DEVICE_ID },
+    ),
+    guestContext.addInitScript(
+      ({ key, value }) => window.localStorage.setItem(key, value),
+      { key: KNOWGRPH_STORAGE_DEVICE_ID_KEY, value: GUEST_DEVICE_ID },
+    ),
+  ])
   const ownerPage = await ownerContext.newPage()
   const guestPage = await guestContext.newPage()
   const pageErrors: string[] = []

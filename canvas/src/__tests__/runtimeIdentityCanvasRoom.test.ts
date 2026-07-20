@@ -104,3 +104,55 @@ export async function testRuntimeIdentityDevicePrincipalIsOpaqueAndStable(): Pro
     throw new Error('Expected stable opaque principals only for valid persistent client device ids')
   }
 }
+
+export async function testRuntimeIdentityCanvasRoomCloseReliesOnAutomaticCloseReply(): Promise<void> {
+  const peerMessages: SentMessage[] = []
+  let closeCallCount = 0
+  const closingAttachment = {
+    workspaceId: 'kgws:canonical-docs',
+    roomId: KNOWGRPH_RUNTIME_IDENTITY_ROOM_ID,
+    userId: 'user-a',
+    sessionId: 'session-a',
+    devicePrincipalId: '1'.repeat(64),
+    displayName: 'Device A',
+    role: 'editor',
+    joinedAt: Date.now(),
+    caretLine: null,
+    runtimeDevice: 'device-a',
+    runtimeInstanceId: 'runtime-a',
+  }
+  const closingSocket = {
+    deserializeAttachment: () => closingAttachment,
+    close: () => {
+      closeCallCount += 1
+      throw new Error('webSocketClose must not close an already-closed hibernation socket')
+    },
+  } as unknown as WebSocket
+  const peerSocket = {
+    deserializeAttachment: () => ({
+      ...closingAttachment,
+      userId: 'user-b',
+      sessionId: 'session-b',
+      devicePrincipalId: '2'.repeat(64),
+      displayName: 'Device B',
+      runtimeDevice: 'device-b',
+      runtimeInstanceId: 'runtime-b',
+    }),
+    send: (text: string) => peerMessages.push(JSON.parse(text) as SentMessage),
+  } as unknown as WebSocket
+  const room = new KnowgrphCanvasSyncRoom({
+    storage: { put: async () => undefined },
+    getWebSockets: () => [closingSocket, peerSocket],
+  })
+
+  room.webSocketClose(closingSocket, 1000, 'client disconnected', true)
+  const departure = peerMessages.find(message => message.type === 'peer.left')
+  if (
+    closeCallCount !== 0
+    || departure?.authenticatedSessionId !== 'session-a'
+    || departure.authenticatedDevicePrincipalId !== '1'.repeat(64)
+    || departure.runtimeInstanceId !== 'runtime-a'
+  ) {
+    throw new Error(`Expected automatic close handling and one authenticated peer departure, got ${JSON.stringify({ closeCallCount, peerMessages })}`)
+  }
+}
