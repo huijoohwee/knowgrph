@@ -32,27 +32,27 @@ jobs:
 
     steps:
       - name: Checkout knowgrph
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: knowgrph
           fetch-depth: 0
 
       - name: Checkout publish mirror for drift verification
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: huijoohwee/huijoohwee
           ref: main
           path: huijoohwee
 
       - name: Checkout schema mirror for drift verification
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: huijoohwee/huijoohwee.github.io
           ref: main
           path: huijoohwee.github.io
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
@@ -61,7 +61,7 @@ jobs:
             knowgrph/canvas/package-lock.json
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
@@ -75,7 +75,7 @@ jobs:
         run: npm run --silent runtime:docs-dependency:resolve -- --github-output >> "$GITHUB_OUTPUT"
 
       - name: Checkout Agentic Canvas OS docs SSOT
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ steps.agentic_canvas_os_docs.outputs.repository }}
           ref: ${{ steps.agentic_canvas_os_docs.outputs.ref }}

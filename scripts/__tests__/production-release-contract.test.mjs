@@ -9,6 +9,25 @@ const agentReadySmoke = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'check
 const docsSeedScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'seed-storage-docs-to-cloudflare.mjs'), 'utf8')
 const docsSeedLibrary = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'lib', 'seed-storage-documents-d1.mjs'), 'utf8')
 
+test('GitHub workflows use Node 24 action majors', () => {
+  const workflowRoot = path.resolve(repoRoot, '.github', 'workflows')
+  const workflowSource = fs.readdirSync(workflowRoot)
+    .filter(fileName => fileName.endsWith('.yml') || fileName.endsWith('.yaml'))
+    .map(fileName => fs.readFileSync(path.resolve(workflowRoot, fileName), 'utf8'))
+    .join('\n')
+
+  assert.doesNotMatch(workflowSource, /actions\/checkout@v[1-6]\b/)
+  assert.doesNotMatch(workflowSource, /actions\/setup-node@v[1-6]\b/)
+  assert.doesNotMatch(workflowSource, /actions\/setup-python@v[1-6]\b/)
+  assert.doesNotMatch(workflowSource, /actions\/upload-artifact@v[1-6]\b/)
+  assert.doesNotMatch(workflowSource, /actions\/download-artifact@v[1-7]\b/)
+  assert.match(workflowSource, /actions\/checkout@v7\b/)
+  assert.match(workflowSource, /actions\/setup-node@v7\b/)
+  assert.match(workflowSource, /actions\/setup-python@v7\b/)
+  assert.match(workflowSource, /actions\/upload-artifact@v7\b/)
+  assert.match(workflowSource, /actions\/download-artifact@v8\b/)
+})
+
 test('production release rebuilds the canvas with the exact authorized candidate revision', () => {
   const verifyJob = releaseWorkflow.slice(
     releaseWorkflow.indexOf('\n  verify:'),

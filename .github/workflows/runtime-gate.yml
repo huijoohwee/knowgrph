@@ -49,10 +49,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
@@ -66,7 +66,7 @@ jobs:
         run: npm run --silent runtime:docs-dependency:resolve -- --github-output >> "$GITHUB_OUTPUT"
 
       - name: Checkout Agentic Canvas OS docs SSOT
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ steps.agentic_canvas_os_docs.outputs.repository }}
           ref: ${{ steps.agentic_canvas_os_docs.outputs.ref }}
