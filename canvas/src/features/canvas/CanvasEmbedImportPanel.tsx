@@ -1,7 +1,7 @@
 import React from 'react'
 import { CanvasEmbedPanelShell } from '@/features/canvas/CanvasEmbedPanelShell'
 import {
-  CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL,
+  CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL,
   selectCanvasEmbedImport,
 } from '@/features/canvas/canvasEmbedImportContract'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -41,7 +41,7 @@ export function CanvasEmbedImportPanel(props: { onClose: () => void }) {
               setValue(event.target.value)
               if (error) setError('')
             }}
-            placeholder={`<iframe src="${CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL}"></iframe>`}
+            placeholder={`<iframe src="${CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL}"></iframe>`}
             className={`mt-2 w-full resize-y rounded-lg border p-3 font-mono text-xs outline-none focus:ring-2 focus:ring-[var(--kg-canvas-accent)] ${UI_THEME_TOKENS.input.bg} ${UI_THEME_TOKENS.input.border} ${UI_THEME_TOKENS.input.text}`}
           />
           <p className={`mt-2 text-xs ${UI_THEME_TOKENS.text.secondary}`}>Bridge type: <code>knowgrph.canvas-embed.select</code>, version <code>1</code>.</p>

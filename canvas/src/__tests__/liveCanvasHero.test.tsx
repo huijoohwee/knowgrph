@@ -371,7 +371,7 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
   }
   if (!heroHookSource.includes("|| (isRootAlias ? WORKSPACE_README_SOURCE_PATH : '')")
     || !heroHookSource.includes('selectedEmbedSource?.embedUrl')
-    || !heroHookSource.includes('resolveCanonicalWorkspaceReadmeCanvasEmbedRuntimeUrl()')) {
+    || !heroHookSource.includes('resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl()')) {
     throw new Error('expected Home to resolve either the selected embed or the canonical Share canvas embed URL')
   }
   if (!heroHookSource.includes('readPersistedLiveCanvasHeroSourceSelection')) {

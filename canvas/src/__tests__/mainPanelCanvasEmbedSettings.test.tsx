@@ -7,35 +7,44 @@ import {
   matchesCanvasEmbedQuery,
 } from '@/features/panels/views/CanvasEmbedSettingsRows'
 import {
-  CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL,
+  CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL,
   readCanvasEmbedIframeSrc,
 } from '@/features/canvas/canvasEmbedImportContract'
-import { normalizeCanonicalWorkspaceReadmeCanvasEmbedUrl } from '@/features/canvas/canvasEmbedPresets'
-import { resolveCanonicalWorkspaceReadmeCanvasEmbedRuntimeUrl } from '@/features/canvas/canvasEmbedPresets'
+import {
+  CANONICAL_AGENT_DEFINITIONS_DOCUMENT_PATH,
+  normalizeLiveCanvasHeroCanvasEmbedUrl,
+  resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl,
+} from '@/features/canvas/canvasEmbedPresets'
+import { decodePublishedDocShareToken } from '@/features/canvas/canvasDocShareToken.mjs'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 import { readLiveCanvasHeroSourceSelection, LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT } from '@/features/canvas/liveCanvasHeroSourceSelection'
 
 export async function testMainPanelCanvasEmbedSettingsReuseSharedImportPanel(): Promise<void> {
   if (CANVAS_EMBED_SETTINGS_ROW_COUNT !== 1) throw new Error('expected one Canvas Embed settings row')
-  if (!CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL.startsWith('https://airvio.co/knowgrph/share/')) {
-    throw new Error('expected the canonical Workspace README share URL to remain source-backed')
+  if (!CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL.startsWith('https://airvio.co/knowgrph/share/')) {
+    throw new Error('expected the canonical Agent Definitions share URL to remain source-backed')
   }
   for (const rendererParam of ['kgCanvasSurfaceMode=2d', 'kgCanvasRenderMode=2d', 'kgCanvas2dRenderer=storyboard', 'openEditorWorkspace=1']) {
-    if (!CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL.includes(rendererParam)) {
+    if (!CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL.includes(rendererParam)) {
       throw new Error(`expected the canonical embed preset to select the Storyboard 2D renderer via ${rendererParam}`)
     }
   }
-  const migratedLegacySelection = normalizeCanonicalWorkspaceReadmeCanvasEmbedUrl(`${CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL}&kgPreview=1&kgLiveHero=1`)
+  const canonicalUrl = new URL(CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL)
+  const identity = decodePublishedDocShareToken(canonicalUrl.pathname.split('/').pop())
+  if (identity?.canonicalPath !== CANONICAL_AGENT_DEFINITIONS_DOCUMENT_PATH || identity.workspaceId !== null) {
+    throw new Error(`expected the canonical embed token to resolve Agent Definitions, got ${JSON.stringify(identity)}`)
+  }
+  const migratedLegacySelection = normalizeLiveCanvasHeroCanvasEmbedUrl(`${CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL}&kgPreview=1&kgLiveHero=1`)
   if (migratedLegacySelection.includes('kgPreview=') || migratedLegacySelection.includes('kgLiveHero=')) {
     throw new Error(`expected stale canonical Hero preview flags to migrate to the direct Storyboard iframe, got ${migratedLegacySelection}`)
   }
-  const localRuntimeEmbed = resolveCanonicalWorkspaceReadmeCanvasEmbedRuntimeUrl('http://localhost:5174')
+  const localRuntimeEmbed = resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl('http://localhost:5174')
   if (!localRuntimeEmbed.startsWith('http://localhost:5174/knowgrph/share/')) {
     throw new Error(`expected Dev to mirror the canonical share token through its same-origin runtime, got ${localRuntimeEmbed}`)
   }
-  if (readCanvasEmbedIframeSrc(`<iframe src="${CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL}"></iframe>`) !== CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL) {
-    throw new Error('expected the canonical Workspace README URL to use the shared iframe parser')
+  if (readCanvasEmbedIframeSrc(`<iframe src="${CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL}"></iframe>`) !== CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL) {
+    throw new Error('expected the canonical Agent Definitions URL to use the shared iframe parser')
   }
   if (!matchesCanvasEmbedQuery('iframe postmessage') || matchesCanvasEmbedQuery('unrelated-provider')) {
     throw new Error('expected Canvas Embed settings search to stay scoped to the embed contract')
@@ -55,8 +64,8 @@ export async function testMainPanelCanvasEmbedSettingsReuseSharedImportPanel(): 
     const buttons = Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]
     const importButton = buttons.find(button => button.textContent?.trim() === 'Import canvas embed')
     if (!importButton) throw new Error('expected MainPanel Settings to expose Import canvas embed')
-    const presetButton = buttons.find(button => button.textContent?.trim() === 'Use Workspace README background')
-    if (!presetButton) throw new Error('expected MainPanel Settings to expose the Workspace README embed preset')
+    const presetButton = buttons.find(button => button.textContent?.trim() === 'Use Agent Definitions background')
+    if (!presetButton) throw new Error('expected MainPanel Settings to expose the Agent Definitions embed preset')
     await act(async () => {
       presetButton.click()
       await waitForFrames(dom.window as unknown as Window, 1)
