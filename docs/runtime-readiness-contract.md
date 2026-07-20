@@ -42,7 +42,7 @@ deployed_verification:
 
 ## Authority
 
-The opening frontmatter is the machine source of truth for the Dev runtime-readiness gate. Agentic Canvas OS `SKILLS.md` governs lightweight agent-variant catalog membership, while Knowgrph's validated registry owns its exact agent IDs and derived `/*-agent` invocations. The external dictionaries remain the shared token grammar SSOT without duplicating each runtime registry. This contract records the only Agentic Canvas OS repository and revision pin; Integration, runtime-verification, and release workflows resolve their checkout inputs from it instead of copying the SHA.
+The opening frontmatter is the machine source of truth for the Dev runtime-readiness gate. Agentic Canvas OS `SKILLS.md` governs lightweight agent-variant catalog membership, while Knowgrph's validated registry owns its exact agent IDs and derived `/*-agent` invocations. The external dictionaries remain the shared token grammar SSOT without duplicating each runtime registry. This contract records the only Agentic Canvas OS repository and revision pin; Integration, runtime-verification, and release-verification workflows resolve their checkout inputs from it instead of copying the SHA, and fetch full local history so the network-free gate can prove the live-proof introduction revision.
 
 The pinned `AGENT-TOOLKIT.md` and its `/agent.toolkit #agent-toolkit @agent-toolkit-observer` grammar expose the native Toolkit boundary without copying its implementation. Agentic Canvas OS remains the sole execution, instrumentation, evaluation, and reviewed-learning owner; Knowgrph performs read-only catalog resolution and adds no request-time service or external Toolkit dependency.
 

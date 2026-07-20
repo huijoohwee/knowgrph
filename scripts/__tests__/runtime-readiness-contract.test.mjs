@@ -60,6 +60,9 @@ test('runtime docs workflow policy fails closed for missing consumers and copied
     () => validateRuntimeDocsWorkflowPolicy([{
       workflowPath: '.github/workflows/example.yml',
       source: `
+- name: Checkout application source
+  with:
+    fetch-depth: 0
 - name: Install dependencies
 - name: Resolve Agentic Canvas OS docs dependency
   id: agentic_canvas_os_docs
@@ -68,10 +71,34 @@ test('runtime docs workflow policy fails closed for missing consumers and copied
   with:
     repository: \${{ steps.agentic_canvas_os_docs.outputs.repository }}
     ref: \${{ steps.agentic_canvas_os_docs.outputs.ref }}
+    fetch-depth: 0
     fallback_ref: ${'a'.repeat(40)}
   note: agentic-canvas-os
 `,
     }]),
     /must not copy an immutable checkout ref/,
+  )
+})
+
+test('runtime docs workflow policy requires full local history for proof provenance', () => {
+  assert.throws(
+    () => validateRuntimeDocsWorkflowPolicy([{
+      workflowPath: '.github/workflows/example.yml',
+      source: `
+- name: Install dependencies
+- name: Resolve Agentic Canvas OS docs dependency
+  id: agentic_canvas_os_docs
+  run: npm run --silent runtime:docs-dependency:resolve -- --github-output
+- name: Checkout Agentic Canvas OS docs SSOT
+  with:
+    repository: \${{ steps.agentic_canvas_os_docs.outputs.repository }}
+    ref: \${{ steps.agentic_canvas_os_docs.outputs.ref }}
+  note: agentic-canvas-os
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+`,
+    }]),
+    /must fetch full Git history/,
   )
 })
