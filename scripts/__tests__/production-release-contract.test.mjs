@@ -79,6 +79,15 @@ test('verified production mirror is published only after live smoke', () => {
   assert.match(deployJob, /HUIJOOHWEE_PUSH_TOKEN/)
 })
 
+test('deploy dependency bootstrap retries bounded transient registry failures', () => {
+  const deployJob = releaseWorkflow.slice(releaseWorkflow.indexOf('\n  deploy:'))
+
+  assert.match(deployJob, /for attempt in 1 2 3; do/)
+  assert.match(deployJob, /if npm ci; then/)
+  assert.match(deployJob, /if \[ "\$attempt" -eq 3 \]; then/)
+  assert.match(deployJob, /sleep "\$\(\(attempt \* 10\)\)"/)
+})
+
 test('generated mirror and rollback are bound to immutable runtime identities', () => {
   assert.match(pagesSyncScript, /knowgrph-production-runtime-readiness\/v1/)
   assert.match(pagesSyncScript, /\.well-known', 'runtime-readiness\.json'/)
