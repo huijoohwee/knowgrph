@@ -32,10 +32,10 @@ export function testLoaderPerfFinalizesFallbackAndEarlyReturns() {
 export function testPwaShellPrecachesHashedAssetsAndCachesLocalJson() {
   const filePath = path.resolve(process.cwd(), 'vite.config.ts')
   const text = readUtf8(filePath)
-  if (!text.includes("assets/*.{js,css,woff,woff2,ttf}")) {
+  if (!text.includes("assets/**/*.{js,css,woff,woff2,ttf}")) {
     throw new Error('Expected PWA precache glob to include all hashed asset chunks, not only entry bundles')
   }
-  if (!text.includes("globIgnores: ['assets/monaco-*.js', 'assets/mermaid-*.js']")) {
+  if (!text.includes("globIgnores: ['assets/**/monaco-*.js', 'assets/**/mermaid-*.js']")) {
     throw new Error('Expected PWA precache to keep oversized Monaco and Mermaid bundles on runtime cache only')
   }
   if (!text.includes("request.destination === 'worker'")) {

@@ -30,7 +30,7 @@ import { serializeMarkdownPipeTable } from './src/features/markdown/ui/markdownD
 import { createWebpageMetaHandler } from './src/lib/websites/webpageMetaServer'
 import { createLocalFileRangeHandler } from './src/lib/assets/server/localFileRangeServer'
 import { createRemoteVideoFrameHandler, createRemoteVideoFramePublicAssetHandler, REMOTE_VIDEO_FRAME_PUBLIC_PREFIX } from './src/lib/rich-media/server/videoFrameServer'
-import { createKgFsPathPolicy, createWorkspaceArtifactBridgePlugin, decodeStrictBase64, decodeXlsxArtifactBase64 } from './viteWorkspaceArtifactBridge'
+import { createKgFsPathPolicy, createWorkspaceArtifactBridgePlugin, decodeStrictBase64, decodeXlsxArtifactBase64 } from './viteWorkspaceArtifactBridge'; import { buildVersionedAssetFileNames } from './viteBuildAssetNamespace.mjs'
 import { buildWebpageProxyRuntimePlan } from './src/lib/websites/webpageProxyRuntimePolicy'
 import {
   buildWebpageSandboxCsp,
@@ -6900,7 +6900,7 @@ export default defineConfig(({ command, mode }) => {
     // Keep Vite quiet for known lazy vendor chunks; hygiene keeps tighter per-chunk budgets for regressions.
     chunkSizeWarningLimit: 3000,
     rollupOptions: {
-      output: {
+      output: { ...buildVersionedAssetFileNames(runtimeIdentity.sourceRevision),
         ...(process.env.KG_LOW_MEM_BUILD === '1'
           ? { inlineDynamicImports: true as const }
           : {
@@ -7083,8 +7083,8 @@ export default defineConfig(({ command, mode }) => {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         navigateFallback: 'index.html',
         importScripts: ['knowgrph-chat-stream-sw.js'],
-        globPatterns: ['index.html', 'manifest.webmanifest', 'favicon.svg', 'apple-touch-icon.png', 'assets/*.{js,css,woff,woff2,ttf}'],
-        globIgnores: ['assets/monaco-*.js', 'assets/mermaid-*.js'],
+        globPatterns: ['index.html', 'manifest.webmanifest', 'favicon.svg', 'apple-touch-icon.png', 'assets/**/*.{js,css,woff,woff2,ttf}'],
+        globIgnores: ['assets/**/monaco-*.js', 'assets/**/mermaid-*.js'],
         runtimeCaching: [
           {
             urlPattern: ({ request }) =>
