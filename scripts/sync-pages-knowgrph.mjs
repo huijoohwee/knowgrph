@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import {
   agentReadyHomepageLinkHeaderValue,
   buildAgentReadyStaticFiles,
@@ -20,6 +21,17 @@ const liveCanvasHeroMarkdownSource = path.resolve(knowgrphRoot, 'docs', 'documen
 const grphSharedRoot = path.resolve(knowgrphRoot, 'grph-shared')
 const redirectsPath = path.resolve(githubRoot, 'huijoohwee', '_redirects')
 const headersPath = path.resolve(githubRoot, 'huijoohwee', '_headers')
+const runtimeReadinessPath = path.resolve(githubRoot, 'huijoohwee', '.well-known', 'runtime-readiness.json')
+const sourceRevision = String(process.env.KNOWGRPH_SOURCE_REVISION || execFileSync(
+  'git', ['rev-parse', 'HEAD'], { cwd: knowgrphRoot, encoding: 'utf8' },
+)).trim()
+if (!/^[0-9a-f]{40}$/.test(sourceRevision)) throw new Error('Knowgrph source revision must be an exact lowercase 40-character SHA')
+const runtimeReadinessBody = `${JSON.stringify({
+  schema: 'knowgrph-production-runtime-readiness/v1',
+  status: 'verified-build',
+  sourceRevision,
+  mirror: 'huijoohwee/huijoohwee',
+}, null, 2)}\n`
 const agentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready.mjs')
 const agentReadyFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', '[[path]].js')
 const agentReadyFeatureSource = filename => path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'agent-ready', filename)
@@ -635,6 +647,7 @@ for (const rel of obsoleteGeneratedMirrorFiles) {
 const existingHeaders = await fs.readFile(headersPath, 'utf8')
 const nextHeaders = buildAgentReadyHeaders(existingHeaders, agentReadyArtifacts)
 const headersNeedUpdate = nextHeaders !== existingHeaders
+const runtimeReadinessNeedsUpdate = await textFileNeedsUpdate(runtimeReadinessBody, runtimeReadinessPath)
 
 if (checkMode) {
   const hasDrift = (
@@ -673,6 +686,7 @@ if (checkMode) {
     agentReadyStaticFilesToWrite.length > 0 ||
     obsoleteGeneratedMirrorFilesToRemove.length > 0 ||
     headersNeedUpdate ||
+    runtimeReadinessNeedsUpdate ||
     await existsDir(obsoleteLegacyMirrorDir)
   )
   if (hasDrift) {
@@ -744,6 +758,7 @@ if (checkMode) {
       for (const rel of obsoleteGeneratedMirrorFilesToRemove.slice(0, 20)) console.error(`  - ${rel}`)
     }
     if (headersNeedUpdate) console.error('  - `huijoohwee/_headers` generated agent-ready block is out of sync')
+    if (runtimeReadinessNeedsUpdate) console.error('  - `huijoohwee/.well-known/runtime-readiness.json` is out of sync')
     if (await existsDir(obsoleteLegacyMirrorDir)) {
       console.error('  - obsolete legacy publish directory still exists')
     }
@@ -753,6 +768,7 @@ if (checkMode) {
     console.log('[knowgrph] publish sync is up to date')
   }
 } else {
+  if (runtimeReadinessNeedsUpdate) await writeTextFile(runtimeReadinessPath, runtimeReadinessBody)
   await fs.mkdir(targetDir, { recursive: true })
   let copiedCount = 0
   for (const rel of sourceFiles) {

@@ -29,6 +29,7 @@ const workflowTriggers = workflow => {
 const validateDeploymentIsolation = (contract, workflowSources) => {
   const allowed = new Set(contract.deployment.allowed_workflows)
   const requiredTrigger = contract.deployment.required_trigger
+  const requiredBranch = contract.deployment.required_branch
   const forbiddenTriggers = new Set(contract.deployment.forbidden_triggers)
   const deploymentPatterns = contract.deployment.command_patterns.map(pattern => new RegExp(pattern, 'i'))
   const seenAllowed = new Set()
@@ -41,8 +42,12 @@ const validateDeploymentIsolation = (contract, workflowSources) => {
     seenAllowed.add(rel)
     const workflow = load(source)
     const triggers = workflowTriggers(workflow)
+    const configuredBranches = workflow?.on?.[requiredTrigger]?.branches
     if (!triggers.includes(requiredTrigger) || triggers.some(trigger => forbiddenTriggers.has(trigger))) {
-      throw new Error(`${rel} must use ${requiredTrigger} without automatic deployment triggers`)
+      throw new Error(`${rel} must use only the protected ${requiredTrigger} deployment trigger`)
+    }
+    if (!Array.isArray(configuredBranches) || configuredBranches.length !== 1 || configuredBranches[0] !== requiredBranch) {
+      throw new Error(`${rel} must restrict ${requiredTrigger} deployment to ${requiredBranch}`)
     }
   }
 
