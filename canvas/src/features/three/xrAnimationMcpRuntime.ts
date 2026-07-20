@@ -3,9 +3,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
 import {
   XR_ANIMATION_PRESETS,
-  isXrAnimationPresetId,
   resolveXrAnimationPreset,
-  xrAnimationPresetCompatible,
   type XrAnimationPresetId,
   type XrAnimationTrackKind,
 } from './xrAnimationCatalog'
@@ -13,7 +11,6 @@ import {
   XR_CHOREOGRAPHY_EASINGS,
   XR_CHOREOGRAPHY_GAITS,
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
-  resolveXrMotionReferenceStage,
   serializeXrMotionReferencePlan,
   type XrChoreographyEasing,
   type XrChoreographyGait,
@@ -21,20 +18,17 @@ import {
   type XrMotionReferenceVector,
 } from './xrMotionReferenceModel'
 import {
-  clearXrMotionReferenceCastAnimation,
   markXrMotionReferenceSaved,
   readXrMotionReferenceRuntime,
   restoreXrMotionReferenceRuntimeSnapshot,
   selectXrMotionReferenceCameraMark,
   selectXrMotionReferenceCastMark,
-  setXrMotionReferenceCastAnimation,
   setXrMotionReferenceCameraMarkChoreography,
-  setXrMotionReferenceCastMarkChoreography,
   setXrMotionReferencePlayhead,
 } from './xrMotionReferenceRuntime'
 import { readBoundXrSelectedActorId, selectBoundXrActor } from './xrSelectedActorBinding'
 import { requestXrMotionReferenceCameraPlaybackReapply } from './xrCameraPlaybackControlsRuntime'
-import { hydrateCanonicalXrMotionReferenceRuntime } from './XrMotionReferenceRuntimeBridge'
+import { hydrateCanonicalXrMotionReferenceRuntime, hydrateCanonicalXrPhysicsRuntime } from './XrMotionReferenceRuntimeBridge'
 import { buildXrMotionReferencePackage } from './xrMotionReferencePackage'
 import { xrMotionReferenceTimelineDocumentKey } from './xrMotionReferenceTimeline'
 import {
@@ -50,9 +44,14 @@ import {
   THREE_OBJECT_KEYBOARD_MAX_COMMAND_DISTANCE_METERS,
   THREE_OBJECT_KEYBOARD_STEP_METERS,
   readThreeKeyboardMovementKeys,
-  resolveThreeObjectKeyboardMotionPosition,
   type ThreeKeyboardMovementKey,
 } from './threeKeyboardChoreography'
+import { readXrPhysicsRuntime, readXrPhysicsRuntimeFrame } from './xrPhysicsRuntime'
+import { resolveXrSubjectKeyboardMotion, type XrSubjectMotionResolution } from './xrSubjectMotionConstraints'
+import {
+  applyXrConstrainedCastMarkChoreography,
+} from './xrConstrainedCastMarkRuntime'
+import { updateXrAnimationAssignment } from './xrAnimationAssignmentRuntime'
 
 const XR_ANIMATION_CONTROL_OPERATIONS = Object.freeze([
   'apply',
@@ -101,6 +100,12 @@ export type XrAnimationControlResult = Readonly<{
   operation?: XrAnimationControlOperation
   targetId?: string
   package?: XrMotionReferencePackage
+  motion?: Readonly<{
+    status: XrSubjectMotionResolution['status']
+    requestedDistanceMeters: number
+    appliedDistanceMeters: number
+    position: XrMotionReferenceVector
+  }>
   scene?: ReturnType<typeof inspectLocalAnimation>
 }>
 
@@ -466,6 +471,7 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
   const control = normalizeControl(input)
   if (!control) return { ok: false, message: 'Use a supported structured animation operation or native /animation.control invocation.' }
   if (!sceneReady() || !hydrateCanonicalXrMotionReferenceRuntime()) return { ok: false, message: 'Open or create a graph document before controlling XR animation.' }
+  hydrateCanonicalXrPhysicsRuntime()
   const targetId = resolvedTargetId(control)
 
   if (control.operation === 'move-object') {
@@ -475,24 +481,32 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
     const markId = control.markId || (selectedMark?.kind === 'cast' && selectedMark.actorId === targetId ? selectedMark.markId : '')
     const mark = track?.marks.find(candidate => candidate.id === markId)
     if (!track || !mark) return { ok: false, message: 'Select a valid cast mark before moving a 3D object.' }
-    const stage = resolveXrMotionReferenceStage(previousRuntime.plan.stageId)
-    const nextPosition = resolveThreeObjectKeyboardMotionPosition({
-      bounds: {
-        halfDepth: stage.sizeMeters[1] / 2,
-        halfWidth: stage.sizeMeters[0] / 2,
-      },
+    const physics = readXrPhysicsRuntime()
+    const motion = resolveXrSubjectKeyboardMotion({
+      actorId: targetId,
       distanceMeters: control.distanceMeters,
       keys: control.keys,
+      markId,
+      physics,
+      physicsFrame: physics.phase === 'stopped' ? undefined : readXrPhysicsRuntimeFrame(),
+      plan: previousRuntime.plan,
       position: mark.position,
+      timeSeconds: mark.timeSeconds,
     })
-    if (!nextPosition) return { ok: false, message: 'Use one or more supported WASD or arrow movement keys.' }
-    const changed = nextPosition[0] !== mark.position[0] || nextPosition[2] !== mark.position[2]
+    if (!motion) return { ok: false, message: 'Use one or more supported WASD or arrow movement keys.' }
+    const nextPosition = motion.position
+    const appliedDistanceMeters = Math.hypot(nextPosition[0] - mark.position[0], nextPosition[2] - mark.position[2])
+    const motionResult = Object.freeze({ status: motion.status, requestedDistanceMeters: control.distanceMeters, appliedDistanceMeters, position: nextPosition })
+    if (motion.status === 'physics-owned') return { ok: false, message: 'Stop XR physics before editing this object\'s authored motion.', motion: motionResult }
+    if (motion.status === 'obstructed') return { ok: false, message: `${track.label} movement is obstructed by the authored XR scene.`, motion: motionResult }
+    const changed = appliedDistanceMeters > 1e-12
     if (changed) {
-      setXrMotionReferenceCastMarkChoreography({
+      const applied = applyXrConstrainedCastMarkChoreography({
         actorId: targetId,
         markId,
         position: nextPosition as XrMotionReferenceVector,
       })
+      if (!applied.applied) return { ok: false, message: 'The constrained 3D object movement could not be applied.', motion: motionResult }
       if (!persistPlan()) {
         restoreXrMotionReferenceRuntimeSnapshot(previousRuntime)
         return { ok: false, message: 'The 3D object movement could not be written to graph metadata.' }
@@ -504,8 +518,9 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
     return {
       ok: true,
       message: changed
-        ? `Moved ${track.label} with ${control.keys.join('+')} by ${control.distanceMeters.toFixed(3)} m.`
-        : `${track.label} is already at the stage boundary.`,
+        ? `Moved ${track.label} with ${control.keys.join('+')} by ${appliedDistanceMeters.toFixed(3)} m${motion.status === 'partial' ? ` of ${control.distanceMeters.toFixed(3)} m requested` : ''}.`
+        : `${track.label} position is unchanged.`,
+      motion: motionResult,
       operation: control.operation,
       targetId,
       scene: inspectLocalAnimation(),
@@ -522,7 +537,8 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
     } else {
       const track = previousRuntime.plan.cast.find(candidate => candidate.actorId === targetId)
       if (!track?.marks.some(mark => mark.id === control.markId)) return { ok: false, message: 'Select a valid cast mark before configuring choreography.' }
-      setXrMotionReferenceCastMarkChoreography({ actorId: targetId, markId: control.markId, easing: control.easing, gait: control.gait, position: control.position })
+      const applied = applyXrConstrainedCastMarkChoreography({ actorId: targetId, markId: control.markId, easing: control.easing, gait: control.gait, position: control.position })
+      if (!applied.applied && applied.reason !== 'unchanged') return { ok: false, message: applied.reason === 'physics-owned' ? 'Stop XR physics before editing this object\'s authored motion.' : 'The cast mark position is obstructed by the authored XR scene.' }
       selectXrMotionReferenceCastMark(targetId, control.markId)
     }
     if (!persistPlan()) {
@@ -548,28 +564,20 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
     return { ok: true, message: control.operation === 'scrub' ? `Animation playhead moved to ${readXrMotionReferenceRuntime().playheadSeconds.toFixed(2)}s.` : `Animation playback ${control.operation === 'play' ? 'started' : 'paused'}.`, operation: control.operation, scene: inspectLocalAnimation() }
   }
 
-  const track = readXrMotionReferenceRuntime().plan.cast.find(candidate => candidate.actorId === targetId)
-  if (!track) return { ok: false, message: 'Select a cast actor before applying or clearing animation.' }
   const previousRuntime = readXrMotionReferenceRuntime()
-  if (control.operation === 'clear') {
-    if (control.trackKind && track.animation && track.animation.kind !== control.trackKind) {
-      return { ok: false, message: `${track.label} has ${track.animation.kind}, not ${control.trackKind}.`, operation: control.operation, targetId }
-    }
-    clearXrMotionReferenceCastAnimation(targetId)
-  } else {
-    if (!isXrAnimationPresetId(control.presetId)) return { ok: false, message: `Unknown animation preset: ${control.presetId || '(empty)'}.` }
-    const preset = resolveXrAnimationPreset(control.presetId)
-    if (control.trackKind && control.trackKind !== preset.kind) return { ok: false, message: `${preset.id} is a ${preset.kind} preset, not ${control.trackKind}.` }
-    const subject = readXrMotionReferenceRuntime().plan.subjects.find(candidate => candidate.id === targetId)
-    if (!xrAnimationPresetCompatible({ preset, assetId: subject?.assetId, category: subject?.category, graphActor: !subject })) return { ok: false, message: `${preset.label} is not compatible with ${subject?.label || track.label}.` }
-    setXrMotionReferenceCastAnimation(targetId, preset.id)
-  }
+  const assignment = updateXrAnimationAssignment({
+    operation: control.operation,
+    presetId: control.presetId,
+    targetId,
+    trackKind: control.trackKind,
+  })
+  if (!assignment.ok) return { ok: false, message: assignment.message, operation: control.operation, targetId }
   if (!persistPlan()) {
     restoreXrMotionReferenceRuntimeSnapshot(previousRuntime)
     return { ok: false, message: 'The animation plan could not be written to graph metadata.' }
   }
+  if (assignment.positionMarksChanged) hydrateCanonicalXrPhysicsRuntime()
   selectBoundXrActor(targetId)
   activateAnimationSurface()
-  const applied = readXrMotionReferenceRuntime().plan.cast.find(candidate => candidate.actorId === targetId)?.animation
-  return { ok: true, message: applied ? `${resolveXrAnimationPreset(applied.presetId).label} applied to ${track.label}.` : `Animation cleared from ${track.label}.`, operation: control.operation, targetId, scene: inspectLocalAnimation() }
+  return { ok: true, message: assignment.message, operation: control.operation, targetId, scene: inspectLocalAnimation() }
 }

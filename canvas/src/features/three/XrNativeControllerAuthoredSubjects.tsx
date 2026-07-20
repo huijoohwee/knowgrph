@@ -19,7 +19,7 @@ export function XrNativeControllerAuthoredSubjects() {
     readXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
   )
-  const { motionActorId, livePose } = useMotionControlAnimationPose()
+  const { boundingBoxEnabled, motionActorId, livePose } = useMotionControlAnimationPose()
   return (
     <group
       name="kg_xr_native_controller_authored_subjects"
@@ -40,6 +40,7 @@ export function XrNativeControllerAuthoredSubjects() {
             position={xrMotionReferenceWorldPosition(subjectPosition, 1, 0)}
             stageScale={1}
             selected={runtime.selectedShotTargetId === subject.id}
+            showIdentificationBounds={boundingBoxEnabled}
             onSelect={() => selectBoundXrShotTarget(subject.id)}
           />
         )

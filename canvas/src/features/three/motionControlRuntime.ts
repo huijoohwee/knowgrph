@@ -377,7 +377,7 @@ async function inferPose(generation: number): Promise<void> {
     lostFrameCount = 0
     const boundingBox = resolveMotionControlTrackingBoundingBox(landmarks)
     if (boundingBox) roi = { x: boundingBox.x, y: boundingBox.y, size: boundingBox.width }
-    const nextPose = smoothMotionControlPose(snapshot.pose, Object.freeze({ timestampMs: Date.now(), confidence, landmarks, worldLandmarks }))
+    const nextPose = smoothMotionControlPose(snapshot.pose, Object.freeze({ timestampMs: now, confidence, landmarks, worldLandmarks }))
     publish({
       confidence,
       latencyMs,
@@ -567,7 +567,6 @@ export async function stopMotionControl(message = 'Motion Control is off.'): Pro
     if (stopPromise === operation) stopPromise = null
   }
 }
-
 export function inspectMotionControlRuntime() {
   return {
     schema: snapshot.schema,

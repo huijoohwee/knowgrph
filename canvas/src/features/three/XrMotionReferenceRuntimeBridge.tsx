@@ -4,10 +4,12 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { resetCameraFramingRuntimeForDocument } from '@/features/strybldr/cameraFramingRuntime'
 import {
   resolveXrMotionReferenceStage,
+  sampleXrMotionReferenceFacingY,
+  sampleXrMotionReferenceMarks,
   xrMotionReferenceSceneKey,
 } from './xrMotionReferenceModel'
 import { hydrateXrMotionReferenceRuntime, readXrMotionReferenceRuntime } from './xrMotionReferenceRuntime'
-import { resolveXrMotionReferenceColliderStructures, resolveXrSceneLibraryAsset } from './xrSceneLibrary'
+import { resolveXrMotionReferenceColliderStructures } from './xrSceneLibrary'
 import {
   XR_PHYSICS_GRAPH_METADATA_KEY,
   buildXrPhysicsStructureColliders,
@@ -15,8 +17,33 @@ import {
 import { hydrateXrPhysicsRuntime } from './xrPhysicsRuntime'
 import { synchronizeBoundXrActorFromGraphSelection } from './xrSelectedActorBinding'
 import { resolveXrMotionReferencePersistedValue } from './xrMotionReferencePersistedValue'
+import { resolveXrSubjectFootprint } from './xrMotionReferenceSubjectPlacement'
 
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
+
+function physicsMotionSourceSignature(
+  sceneKey: string,
+  nodes: readonly Readonly<{ id?: unknown; label?: unknown }>[],
+  plan: ReturnType<typeof readXrMotionReferenceRuntime>['plan'],
+): string {
+  return JSON.stringify({
+    sceneKey,
+    nodes: nodes.map(node => [node.id, node.label]),
+    stageId: plan.stageId,
+    durationSeconds: plan.durationSeconds,
+    subjects: plan.subjects.map(subject => [
+      subject.id,
+      subject.assetId,
+      subject.position,
+      subject.rotationYDegrees,
+      subject.scale,
+    ]),
+    cast: plan.cast.map(track => [
+      track.actorId,
+      track.marks.map(mark => [mark.timeSeconds, mark.position]),
+    ]),
+  })
+}
 
 export function hydrateCanonicalXrMotionReferenceRuntime(): boolean {
   const state = useGraphStore.getState()
@@ -47,17 +74,18 @@ export function hydrateCanonicalXrPhysicsRuntime(): boolean {
   )
   const motion = readXrMotionReferenceRuntime()
   const subjects = motion.plan.subjects.map(subject => {
-    const asset = resolveXrSceneLibraryAsset(subject.assetId)
     const track = motion.plan.cast.find(candidate => candidate.actorId === subject.id)
-    const position = track?.marks[0]?.position || subject.position
+    const position = track ? sampleXrMotionReferenceMarks(track.marks, motion.playheadSeconds) : subject.position
+    const facingYRadians = track ? sampleXrMotionReferenceFacingY(track.marks, motion.playheadSeconds) : 0
     return {
       subjectId: subject.id,
       position,
-      sizeMeters: asset.dimensionsMeters.map(value => value * subject.scale) as [number, number, number],
+      sizeMeters: resolveXrSubjectFootprint(subject, facingYRadians).sizeMeters,
     }
   })
   hydrateXrPhysicsRuntime({
     sceneKey: motion.sceneKey,
+    sourceSignature: physicsMotionSourceSignature(motion.sceneKey, state.graphData?.nodes || [], motion.plan),
     persistedValue: documentReady ? state.graphData?.metadata?.[XR_PHYSICS_GRAPH_METADATA_KEY] : null,
     subjects,
     staticColliders: buildXrPhysicsStructureColliders(resolveXrMotionReferenceColliderStructures(resolveXrMotionReferenceStage(motion.plan.stageId))),

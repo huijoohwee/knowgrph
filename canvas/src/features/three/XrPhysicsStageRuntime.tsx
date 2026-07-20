@@ -95,8 +95,10 @@ export function XrPhysicsStageRuntime({
           quaternion: object.quaternion.clone(),
         })
       }
+      const captured = capturedRef.current.get(body.subjectId)!
       const position = xrMotionReferenceWorldPosition(bodyState.position, stageScale, groundY)
       object.position.set(position[0], position[1], position[2])
+      object.quaternion.copy(captured.quaternion)
       object.userData.kgXrPhysicsActive = true
       object.updateMatrixWorld()
     }

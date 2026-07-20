@@ -35,6 +35,8 @@ const RIGHT_HIP = 24
 const LEFT_KNEE = 25
 const RIGHT_KNEE = 26
 const MOTION_AXIS_DEAD_ZONE = 0.08
+const MOTION_POSE_SMOOTHING_RESPONSE_PER_SECOND = -Math.log(1 - 0.42) * 30
+const MOTION_POSE_MAX_SMOOTHING_DELTA_SECONDS = 0.2
 
 type MotionControlCalibration = Readonly<{ lateral: number; depth: number }>
 
@@ -156,8 +158,18 @@ export function motionControlPoseToControllerInput(frame: MotionControlPoseFrame
   })
 }
 
-export function smoothMotionControlPose(previous: MotionControlPoseFrame | null, next: MotionControlPoseFrame, alpha = 0.42): MotionControlPoseFrame {
+export function resolveMotionControlPoseSmoothingAlpha(deltaSeconds: number): number {
+  const boundedDelta = Math.max(0, Math.min(
+    MOTION_POSE_MAX_SMOOTHING_DELTA_SECONDS,
+    Number.isFinite(deltaSeconds) ? deltaSeconds : 0,
+  ))
+  return 1 - Math.exp(-MOTION_POSE_SMOOTHING_RESPONSE_PER_SECOND * boundedDelta)
+}
+
+export function smoothMotionControlPose(previous: MotionControlPoseFrame | null, next: MotionControlPoseFrame): MotionControlPoseFrame {
   if (!previous || previous.landmarks.length !== next.landmarks.length) return next
+  const alpha = resolveMotionControlPoseSmoothingAlpha((next.timestampMs - previous.timestampMs) / 1000)
+  if (alpha <= 0) return previous
   const blend = (before: MotionControlLandmark, after: MotionControlLandmark): MotionControlLandmark => Object.freeze({
     x: before.x + (after.x - before.x) * alpha,
     y: before.y + (after.y - before.y) * alpha,

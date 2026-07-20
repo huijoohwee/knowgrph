@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import {
   XR_CHOREOGRAPHY_EASINGS,
   XR_CHOREOGRAPHY_GAITS,
+  XR_MOTION_REFERENCE_MAX_COORDINATE_METERS,
   type XrChoreographyEasing,
   type XrChoreographyGait,
   type XrMotionReferenceCameraMark,
@@ -76,8 +77,8 @@ export function XrChoreographyMarkControls({ target, warning, compact = false, s
               <PanelTextInput
                 className="h-5 w-11 min-w-0 px-1 py-0 text-[9px]"
                 type="number"
-                min={-1000}
-                max={1000}
+                min={axis === 'Y' ? 0 : -XR_MOTION_REFERENCE_MAX_COORDINATE_METERS}
+                max={XR_MOTION_REFERENCE_MAX_COORDINATE_METERS}
                 step={0.1}
                 value={target.mark.position[index]}
                 aria-label={`Cast mark ${axis} position in meters`}
@@ -102,8 +103,8 @@ export function XrChoreographyMarkControls({ target, warning, compact = false, s
               <PanelTextInput
                 className="h-7 min-w-0 px-1 text-[10px]"
                 type="number"
-                min={-1000}
-                max={1000}
+                min={axis === 'Y' ? 0 : -XR_MOTION_REFERENCE_MAX_COORDINATE_METERS}
+                max={XR_MOTION_REFERENCE_MAX_COORDINATE_METERS}
                 step={0.1}
                 value={target.mark.position[index]}
                 aria-label={`Cast mark ${axis} position in meters`}

@@ -2,31 +2,55 @@ import type { XrMotionReferenceStagePreset, XrMotionReferenceSubject, XrMotionRe
 import { resolveXrSceneLibraryAsset } from './xrSceneLibrary'
 
 const SUBJECT_GAP_METERS = 0.8
-const STAGE_EDGE_GAP_METERS = 0.6
+export const XR_SUBJECT_STAGE_EDGE_GAP_METERS = 0.6
 
-type SubjectFootprint = Readonly<{
+export type XrSubjectFootprint = Readonly<{
   halfX: number
+  halfY: number
   halfZ: number
+  sizeMeters: XrMotionReferenceVector
+}>
+
+type PositionedSubjectFootprint = Pick<XrSubjectFootprint, 'halfX' | 'halfZ'> & Readonly<{
   position: XrMotionReferenceVector
 }>
 
-function subjectFootprint(subject: XrMotionReferenceSubject): SubjectFootprint {
+export function resolveXrSubjectFootprint(
+  subject: XrMotionReferenceSubject,
+  facingYRadians = 0,
+): XrSubjectFootprint {
   const asset = resolveXrSceneLibraryAsset(subject.assetId)
-  const radians = subject.rotationYDegrees * Math.PI / 180
+  const radians = subject.rotationYDegrees * Math.PI / 180 + facingYRadians
   const cosine = Math.abs(Math.cos(radians))
   const sine = Math.abs(Math.sin(radians))
-  const halfWidth = asset.dimensionsMeters[0] * subject.scale / 2
-  const halfDepth = asset.dimensionsMeters[2] * subject.scale / 2
+  const width = asset.dimensionsMeters[0] * subject.scale
+  const height = asset.dimensionsMeters[1] * subject.scale
+  const depth = asset.dimensionsMeters[2] * subject.scale
+  const sizeMeters: XrMotionReferenceVector = [
+    cosine * width + sine * depth,
+    height,
+    sine * width + cosine * depth,
+  ]
   return {
-    halfX: cosine * halfWidth + sine * halfDepth,
-    halfZ: sine * halfWidth + cosine * halfDepth,
-    position: subject.position,
+    halfX: sizeMeters[0] / 2,
+    halfY: sizeMeters[1] / 2,
+    halfZ: sizeMeters[2] / 2,
+    sizeMeters,
   }
 }
 
+export function resolveXrSubjectPlanarRadius(subject: XrMotionReferenceSubject): number {
+  const asset = resolveXrSceneLibraryAsset(subject.assetId)
+  return Math.hypot(asset.dimensionsMeters[0], asset.dimensionsMeters[2]) * subject.scale / 2
+}
+
+function positionedSubjectFootprint(subject: XrMotionReferenceSubject): PositionedSubjectFootprint {
+  return { ...resolveXrSubjectFootprint(subject), position: subject.position }
+}
+
 function footprintsOverlap(
-  candidate: SubjectFootprint,
-  existing: SubjectFootprint,
+  candidate: PositionedSubjectFootprint,
+  existing: PositionedSubjectFootprint,
 ): boolean {
   return Math.abs(candidate.position[0] - existing.position[0]) < candidate.halfX + existing.halfX + SUBJECT_GAP_METERS
     && Math.abs(candidate.position[2] - existing.position[2]) < candidate.halfZ + existing.halfZ + SUBJECT_GAP_METERS
@@ -40,9 +64,9 @@ export function resolveNextXrSubjectPlacement(
   const asset = resolveXrSceneLibraryAsset(assetId)
   const halfX = asset.dimensionsMeters[0] / 2
   const halfZ = asset.dimensionsMeters[2] / 2
-  const maxX = Math.max(0, stage.sizeMeters[0] / 2 - halfX - STAGE_EDGE_GAP_METERS)
-  const maxZ = Math.max(0, stage.sizeMeters[1] / 2 - halfZ - STAGE_EDGE_GAP_METERS)
-  const existing = subjects.map(subjectFootprint)
+  const maxX = Math.max(0, stage.sizeMeters[0] / 2 - halfX - XR_SUBJECT_STAGE_EDGE_GAP_METERS)
+  const maxZ = Math.max(0, stage.sizeMeters[1] / 2 - halfZ - XR_SUBJECT_STAGE_EDGE_GAP_METERS)
+  const existing = subjects.map(positionedSubjectFootprint)
   const normalizedAnchors = [
     [-0.28, -0.15],
     [0.28, -0.15],

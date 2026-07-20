@@ -200,6 +200,7 @@ export function MotionControlFloatingPanelView() {
             />
             Bounding box · {state.boundingBoxEnabled ? 'Enabled' : 'Disabled (default)'}
           </label>
+          <p className={cn('text-[9px]', UI_THEME_TOKENS.text.tertiary)}>Shows the live pose ROI and catalog-authored XR object bounds.</p>
           <div role="status" aria-live="polite" aria-atomic="true" data-kg-motion-control-live-status="1">
             <p className={cn('text-[10px]', state.phase === 'error' ? UI_THEME_TOKENS.status.error : UI_THEME_TOKENS.text.secondary)}>{state.message}</p>
             {state.fallbackReason ? <p className={cn('text-[10px]', UI_THEME_TOKENS.status.warning)}>{state.fallbackReason}</p> : null}
@@ -214,7 +215,7 @@ export function MotionControlFloatingPanelView() {
           <span><b>Inference</b><br />{state.latencyMs.toFixed(1)} ms · {state.framesPerSecond.toFixed(1)} FPS</span>
         </section>
 
-        <MotionControlTargetCards running={state.phase === 'running'} onOpenTarget={openTarget} />
+        <MotionControlTargetCards livePoseActive={Boolean(state.pose)} onOpenTarget={openTarget} />
 
         <section className={cn('grid gap-1 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-motion-control-invocations="shared-catalog">
           <h3 className="text-[11px] font-semibold">MCP · / · @ · #</h3>

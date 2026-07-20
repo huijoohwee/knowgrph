@@ -187,7 +187,6 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
   if (smoothed.timestampMs !== 3 || smoothed.landmarks.length !== 33 || smoothed.worldLandmarks.length !== 33) {
     throw new Error('expected stable 33-landmark normalized and world-coordinate smoothing')
   }
-
   const invocation = buildMotionControlInvocation('start', 'auto')
   if (invocation !== '/motion.control @canvas #pose operation=start backend=auto') {
     throw new Error(`expected canonical / @ # Motion Control invocation, received ${invocation}`)
@@ -441,9 +440,21 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
     ['src', 'features', 'three', 'MotionControlFloatingPanelView.tsx'],
     ['src', 'features', 'three', 'MotionControlTargetCards.tsx'],
     ['src', 'features', 'three', 'MotionControlXrLifecycleGuard.tsx'],
+    ['src', 'features', 'three', 'CameraMotionMarkRetime.tsx'],
+    ['src', 'features', 'three', 'XrKeyboardChoreographyRuntime.tsx'],
+    ['src', 'features', 'three', 'XrMotionReferenceRuntimeBridge.tsx'],
+    ['src', 'features', 'three', 'XrMotionReferenceStage.tsx'],
+    ['src', 'features', 'three', 'XrNativeControllerAuthoredSubjects.tsx'],
+    ['src', 'features', 'three', 'XrSceneLibrarySubject.tsx'],
     ['src', 'features', 'three', 'motionControlTargetRuntime.ts'],
     ['src', 'features', 'three', 'motionControlSurfaceRuntime.ts'],
     ['src', 'features', 'three', 'motionControlMcpRuntime.ts'],
+    ['src', 'features', 'three', 'xrAnimationMcpRuntime.ts'],
+    ['src', 'features', 'three', 'xrConstrainedCastMarkRuntime.ts'],
+    ['src', 'features', 'three', 'xrMotionReferenceSubjectPlacement.ts'],
+    ['src', 'features', 'three', 'xrPhysicsContactDrag.ts'],
+    ['src', 'features', 'three', 'xrPhysicsStepper.ts'],
+    ['src', 'features', 'three', 'xrSubjectMotionConstraints.ts'],
     ['src', 'features', 'command-menu', 'mediaCatalogModeRuntime.ts'],
     ['src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx'],
     ['src', 'features', 'three', 'xrSceneMcpRuntime.ts'],

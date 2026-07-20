@@ -19,6 +19,7 @@ import {
 type JsonSchema = Readonly<{
   additionalProperties?: boolean
   const?: unknown
+  items?: JsonSchema
   oneOf?: readonly JsonSchema[]
   properties?: Readonly<Record<string, JsonSchema>>
   required?: readonly string[]
@@ -143,13 +144,26 @@ export async function testMotionControlBoundingBoxIsStrictlyInvocableWithoutCame
     const controlContract = contracts.find(contract => contract.name === 'control_local_motion_control')
     const openSchema = controlContract?.inputSchema?.oneOf?.find(schema => schema.properties?.operation?.const === 'open')
     const previewSchema = inspectContract?.outputSchema?.properties?.preview
+    const xr3dSchema = inspectContract?.outputSchema?.properties?.targets?.properties?.surfaces?.properties?.xr3d
+    const identificationSchema = xr3dSchema?.properties?.objectIdentification
+    const identificationRecordSchema = identificationSchema?.properties?.records?.items
+    const identificationCountSchema = identificationSchema?.properties?.counts
     if (openSchema?.additionalProperties !== false
       || openSchema.properties?.boundingBox?.type !== 'boolean'
       || !inspectContract?.outputSchema?.required?.includes('preview')
       || previewSchema?.additionalProperties !== false
       || !previewSchema.required?.includes('boundingBoxEnabled')
-      || !previewSchema.required.includes('boundingBoxAvailable')) {
-      throw new Error('expected agent-ready schemas to accept one strict boolean toggle and expose no preview geometry')
+      || !previewSchema.required.includes('boundingBoxAvailable')
+      || !xr3dSchema?.required?.includes('objectIdentification')
+      || identificationSchema?.additionalProperties !== false
+      || identificationRecordSchema?.additionalProperties !== false
+      || !identificationRecordSchema?.required?.includes('catalogDimensionsMeters')
+      || !identificationRecordSchema.required.includes('physicsBodyMode')
+      || identificationRecordSchema.properties?.boundingBox !== undefined
+      || identificationRecordSchema.properties?.trackId !== undefined
+      || identificationCountSchema?.additionalProperties !== false
+      || !identificationCountSchema.required?.includes('physicsAttached')) {
+      throw new Error('expected strict bounding-box control plus scene-derived identification schemas without camera geometry or track identities')
     }
   } finally {
     setMotionControlBoundingBoxEnabled(false)

@@ -166,11 +166,11 @@ export const XR_MOTION_REFERENCE_MAX_CAST_TRACKS = 12
 export const XR_MOTION_REFERENCE_MAX_SUBJECTS = 48
 export const XR_MOTION_REFERENCE_MAX_CAST_MARKS = 32
 export const XR_MOTION_REFERENCE_MAX_CAMERA_MARKS = 32
+export const XR_MOTION_REFERENCE_MAX_COORDINATE_METERS = 50
 const MIN_DURATION_SECONDS = 1
 const MAX_DURATION_SECONDS = 30
 const MIN_FPS = 6
 const MAX_FPS = 30
-const MAX_COORDINATE_METERS = 50
 
 const CAST_COLORS = [
   '#38bdf8', '#f97316', '#a78bfa', '#22c55e', '#f43f5e', '#eab308',
@@ -212,9 +212,9 @@ function normalizeTime(value: unknown, durationSeconds: number): number {
 function normalizeVector(value: unknown, fallback: XrMotionReferenceVector = [0, 0, 0]): XrMotionReferenceVector {
   if (!Array.isArray(value) || value.length < 3) return Object.freeze([...fallback]) as unknown as XrMotionReferenceVector
   return Object.freeze([
-    round(clamp(finiteNumber(value[0], fallback[0]), -MAX_COORDINATE_METERS, MAX_COORDINATE_METERS)),
-    round(clamp(finiteNumber(value[1], fallback[1]), 0, MAX_COORDINATE_METERS)),
-    round(clamp(finiteNumber(value[2], fallback[2]), -MAX_COORDINATE_METERS, MAX_COORDINATE_METERS)),
+    round(clamp(finiteNumber(value[0], fallback[0]), -XR_MOTION_REFERENCE_MAX_COORDINATE_METERS, XR_MOTION_REFERENCE_MAX_COORDINATE_METERS)),
+    round(clamp(finiteNumber(value[1], fallback[1]), 0, XR_MOTION_REFERENCE_MAX_COORDINATE_METERS)),
+    round(clamp(finiteNumber(value[2], fallback[2]), -XR_MOTION_REFERENCE_MAX_COORDINATE_METERS, XR_MOTION_REFERENCE_MAX_COORDINATE_METERS)),
   ]) as unknown as XrMotionReferenceVector
 }
 
@@ -411,15 +411,20 @@ export function readXrMotionReferencePlan(value: unknown, nodes: readonly GraphN
   const stage = resolveXrMotionReferenceStage(stageId)
   const cast = Object.freeze(sourceCast.map(track => {
     if (track.animation?.kind !== 'action-path') return track
-    const marks = buildXrAnimationActionPath({
+    const generatedMarks = buildXrAnimationActionPath({
       presetId: track.animation.presetId,
       durationSeconds,
       origin: track.marks[0]?.position || [0, 0, 0],
       stageSizeMeters: stage.sizeMeters,
     })
+    const materializedMarksMatch = track.marks.length === generatedMarks.length
+      && track.marks.every((mark, index) => mark.timeSeconds === generatedMarks[index]?.timeSeconds)
+    const marks = materializedMarksMatch
+      ? track.marks
+      : normalizeMarks(generatedMarks, track.actorId, durationSeconds, generatedMarks[0]?.position || [0, 0, 0])
     return Object.freeze({
       ...track,
-      marks: normalizeMarks(marks, track.actorId, durationSeconds, marks[0]?.position || [0, 0, 0]),
+      marks,
     })
   }))
   return Object.freeze({

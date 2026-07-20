@@ -98,11 +98,16 @@ export function assertXrSubjectAssetSwapCrud(): void {
   addXrMotionReferenceSubject({ assetId: XR_SCENE_LIBRARY_DEFAULT_ASSET_ID, label: 'AIR ONE' })
   const helicopter = readXrMotionReferenceRuntime().plan.subjects[0]!
   setXrMotionReferenceSubjectTransform({ subjectId: helicopter.id, position: [2, 3, -4], rotationYDegrees: 35, scale: 1.4 })
+  const constrainedTransform = readXrMotionReferenceRuntime().plan.subjects.find(subject => subject.id === helicopter.id)!
+  if (constrainedTransform.position[0] !== 2 || constrainedTransform.position[1] !== 3
+    || constrainedTransform.position[2] < -4 || constrainedTransform.rotationYDegrees !== 35 || constrainedTransform.scale !== 1.4) {
+    throw new Error(`expected subject transform to retain requested axes that fit and constrain only the stage-overflowing axis, got ${JSON.stringify(constrainedTransform)}`)
+  }
   setXrMotionReferenceSubjectAsset({ subjectId: helicopter.id, assetId: 'vehicle-sedan' })
   let swapped = readXrMotionReferenceRuntime().plan
   const car = swapped.subjects.find(subject => subject.id === helicopter.id)
   if (!car || car.assetId !== 'vehicle-sedan' || car.label !== 'AIR ONE'
-    || car.position.join('|') !== '2|3|-4' || car.rotationYDegrees !== 35 || car.scale !== 1.4
+    || car.position.join('|') !== constrainedTransform.position.join('|') || car.rotationYDegrees !== 35 || car.scale !== 1.4
     || swapped.cast.find(track => track.actorId === car.id)?.marks[0]?.gait !== 'wheeled') {
     throw new Error(`expected Helicopter to change to Car without changing subject identity or transform, got ${JSON.stringify(swapped)}`)
   }
@@ -124,7 +129,7 @@ export function assertXrSubjectAssetSwapCrud(): void {
   }
   const roundTrip = readXrMotionReferencePlan(serializeXrMotionReferencePlan(restoredPlan))
   if (roundTrip.subjects[0]?.assetId !== XR_SCENE_LIBRARY_DEFAULT_ASSET_ID
-    || roundTrip.subjects[0]?.position.join('|') !== '2|3|-4') {
+    || roundTrip.subjects[0]?.position.join('|') !== constrainedTransform.position.join('|')) {
     throw new Error('expected changed 3D assets and transforms to survive canonical plan serialization')
   }
 }
