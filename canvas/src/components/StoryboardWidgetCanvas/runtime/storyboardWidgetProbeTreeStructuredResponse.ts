@@ -192,10 +192,15 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
   threadRootId?: string
   invocationTokens: readonly string[]
   invocationResolutions?: readonly ProbeTreeMcpInvocationResolution[]
+  onRejected?: (reason: string) => void
 }): StoryboardWidgetProbeTreeStructuredMaterialization | null {
+  const reject = (reason: string): null => {
+    args.onRejected?.(reason)
+    return null
+  }
   const graphData = args.graphData
   const anchorNodeId = readNodeId(args.anchorNode)
-  if (!graphData || !anchorNodeId) return null
+  if (!graphData || !anchorNodeId) return reject('The graph or selected source card identity was unavailable.')
   const surface = extractChatResponseStructuredSurface(String(args.responseText || ''))
   const surfaceNodes = surface?.nodes || []
   const sourceWidgets = surfaceNodes.filter(node => node.properties['chat:structuredRole'] === 'widget')
@@ -204,12 +209,14 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
   const sourceEnvelopeAccepted = args.responseSource === 'provider'
     ? sourceWidgets.length === 0 && panels.length === 0
     : sourceWidgets.length === 1 && panels.length === 1 && readString(panels[0]?.label) === 'Probe-Tree Branches'
-  if (
-    !sourceEnvelopeAccepted
-    || responseCards.length < 2
-    || responseCards.length > 4
-  ) return null
-  const relevantCards = responseCards.filter(isStructuredProbeCard).map(card => {
+  if (!sourceEnvelopeAccepted) {
+    return reject('The response envelope included unsupported widgets or panels, or omitted the required MCP envelope.')
+  }
+  if (responseCards.length < 2 || responseCards.length > 4) {
+    return reject(`The response contained ${responseCards.length} cards; exactly 2-4 are required.`)
+  }
+  const structuredCards = responseCards.filter(isStructuredProbeCard)
+  const relevantCards = structuredCards.map(card => {
     const question = card.properties.question || card.properties.summary || card.label
     const contextAnchors = resolveProbeTreeContextAnchors({
       contextText: args.contextText,
@@ -228,7 +235,9 @@ export function materializeStoryboardWidgetProbeTreeStructuredResponse(args: {
     }
   }).filter(card => card != null)
   const cards = selectLargestDistinctProbeCardSet(relevantCards)
-  if (cards.length < 2) return null
+  if (cards.length < 2) {
+    return reject(`Only ${cards.length} of ${responseCards.length} cards remained after structure, query relevance, semantic-choice, and mutual-distinctness validation.`)
+  }
 
   const removedNodeIds = collectReplacedProbeTreeNodeIds(graphData, anchorNodeId)
   const retainedNodes = (graphData.nodes || []).filter(node => !removedNodeIds.has(readNodeId(node)))
