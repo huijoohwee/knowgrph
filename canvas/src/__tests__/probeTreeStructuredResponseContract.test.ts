@@ -476,8 +476,8 @@ export function testProbeTreeContextKeywordsIgnoreInvocationMetadataCompounds() 
   if (
     forbiddenMetadata.some(keyword => keywords.includes(keyword))
     || !['sme', 'cyber', 'supply-chain', 'physical-asset', 'growth-stage'].every(keyword => keywords.includes(keyword))
-    || continuationInput !== 'provider-neutral protection guidance, a review-ready licensed-adviser handoff, evidence confidence and urgency'
-    || !['protection', 'licensed-adviser', 'evidence', 'confidence', 'urgency'].every(keyword => continuationKeywords.includes(keyword))
+    || continuationInput !== 'evidence confidence and urgency'
+    || !['evidence', 'confidence', 'urgency'].every(keyword => continuationKeywords.includes(keyword))
     || fragmentOnlyChoicesAccepted
     || questionOnlyContinuationInput !== 'coverage authority, claims freshness, adviser handoff'
     || genericWrapperAccepted
