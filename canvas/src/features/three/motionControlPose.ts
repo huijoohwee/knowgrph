@@ -10,6 +10,13 @@ export type MotionControlLandmark = Readonly<{
   presence: number
 }>
 
+export type MotionControlBoundingBox = Readonly<{
+  x: number
+  y: number
+  width: number
+  height: number
+}>
+
 export type MotionControlPoseFrame = Readonly<{
   timestampMs: number
   confidence: number
@@ -53,6 +60,27 @@ const controllerAxis = (value: number): number => {
   const magnitude = Math.abs(normalized)
   if (magnitude <= MOTION_AXIS_DEAD_ZONE) return 0
   return Math.sign(normalized) * (magnitude - MOTION_AXIS_DEAD_ZONE) / (1 - MOTION_AXIS_DEAD_ZONE)
+}
+
+export function resolveMotionControlTrackingBoundingBox(landmarks: readonly MotionControlLandmark[]): MotionControlBoundingBox | null {
+  let reliableCount = 0
+  let minX = 1
+  let maxX = 0
+  let minY = 1
+  let maxY = 0
+  for (const landmark of landmarks) {
+    if (!reliable(landmark)) continue
+    reliableCount += 1
+    minX = Math.min(minX, landmark.x)
+    maxX = Math.max(maxX, landmark.x)
+    minY = Math.min(minY, landmark.y)
+    maxY = Math.max(maxY, landmark.y)
+  }
+  if (reliableCount < 8) return null
+  const size = clamp(Math.max(maxX - minX, maxY - minY) * 1.45, 0.35, 1)
+  const x = clamp((minX + maxX - size) / 2, 0, 1 - size)
+  const y = clamp((minY + maxY - size) / 2, 0, 1 - size)
+  return Object.freeze({ x, y, width: size, height: size })
 }
 
 function armAngles(shoulder: MotionControlLandmark, elbow: MotionControlLandmark, side: -1 | 1) {

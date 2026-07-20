@@ -11,7 +11,9 @@ import {
 } from './motionControlConfig'
 import {
   resetMotionControlCalibration,
+  resolveMotionControlTrackingBoundingBox,
   smoothMotionControlPose,
+  type MotionControlBoundingBox,
   type MotionControlLandmark,
   type MotionControlPoseFrame,
 } from './motionControlPose'
@@ -36,6 +38,8 @@ export type MotionControlSnapshot = Readonly<{
   latencyMs: number
   framesPerSecond: number
   pose: MotionControlPoseFrame | null
+  boundingBoxEnabled: boolean
+  boundingBox: MotionControlBoundingBox | null
   revision: number
 }>
 
@@ -64,6 +68,8 @@ let snapshot: MotionControlSnapshot = Object.freeze({
   latencyMs: 0,
   framesPerSecond: 0,
   pose: null,
+  boundingBoxEnabled: false,
+  boundingBox: null,
   revision: 0,
 })
 
@@ -104,6 +110,12 @@ export function readMotionControlSnapshot(): MotionControlSnapshot {
 export function subscribeMotionControl(listener: () => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
+}
+
+export function setMotionControlBoundingBoxEnabled(enabled: boolean): MotionControlSnapshot {
+  if (snapshot.boundingBoxEnabled === enabled) return snapshot
+  publish({ boundingBoxEnabled: enabled })
+  return snapshot
 }
 
 export function bindMotionControlPreview(video: HTMLVideoElement | null): () => void {
@@ -314,21 +326,6 @@ function worldLandmarkFromModel(values: Float32Array, index: number): MotionCont
   })
 }
 
-function updateTrackedRoi(landmarks: readonly MotionControlLandmark[]): void {
-  const reliable = landmarks.filter(landmark => landmark.visibility >= MOTION_CONTROL_MIN_CONFIDENCE && landmark.presence >= MOTION_CONTROL_MIN_CONFIDENCE)
-  if (reliable.length < 8) return
-  const xs = reliable.map(landmark => landmark.x)
-  const ys = reliable.map(landmark => landmark.y)
-  const minX = Math.min(...xs)
-  const maxX = Math.max(...xs)
-  const minY = Math.min(...ys)
-  const maxY = Math.max(...ys)
-  const size = Math.min(1, Math.max(0.35, Math.max(maxX - minX, maxY - minY) * 1.45))
-  const x = Math.max(0, Math.min(1 - size, (minX + maxX - size) / 2))
-  const y = Math.max(0, Math.min(1 - size, (minY + maxY - size) / 2))
-  roi = { x, y, size }
-}
-
 async function inferPose(generation: number): Promise<void> {
   const model = compiledModel
   const video = captureVideo
@@ -372,18 +369,21 @@ async function inferPose(generation: number): Promise<void> {
         latencyMs,
         framesPerSecond: snapshot.framesPerSecond ? snapshot.framesPerSecond * 0.72 + instantaneousFps * 0.28 : instantaneousFps,
         pose: null,
+        boundingBox: null,
         message: 'Looking for one centered, full-body pose.',
       })
       return
     }
     lostFrameCount = 0
-    updateTrackedRoi(landmarks)
+    const boundingBox = resolveMotionControlTrackingBoundingBox(landmarks)
+    if (boundingBox) roi = { x: boundingBox.x, y: boundingBox.y, size: boundingBox.width }
     const nextPose = smoothMotionControlPose(snapshot.pose, Object.freeze({ timestampMs: Date.now(), confidence, landmarks, worldLandmarks }))
     publish({
       confidence,
       latencyMs,
       framesPerSecond: snapshot.framesPerSecond ? snapshot.framesPerSecond * 0.72 + instantaneousFps * 0.28 : instantaneousFps,
       pose: nextPose,
+      boundingBox,
       message: 'Tracking one local pose.',
     })
   } finally {
@@ -412,7 +412,7 @@ function scheduleInference(generation: number): void {
           if (generation !== activeGeneration) return
           void stopMotionControl(stopMessage).then(() => {
             if (snapshot.phase !== 'off' || snapshot.message !== stopMessage) return
-            publish({ phase: 'error', message: `Pose inference failed: ${message}`, pose: null, confidence: 0 })
+            publish({ phase: 'error', message: `Pose inference failed: ${message}`, pose: null, boundingBox: null, confidence: 0 })
           })
         })
       })
@@ -442,7 +442,7 @@ export async function startMotionControl(preference: MotionControlBackendPrefere
   let requestedStream: MediaStream | null = null
   let requestedVideo: HTMLVideoElement | null = null
   let compiledCandidate: CompiledModel | null = null
-  publish({ phase: 'requesting-camera', requestedBackend: preference, permission: 'prompting', message: 'Waiting for camera permission.', fallbackReason: '', pose: null })
+  publish({ phase: 'requesting-camera', requestedBackend: preference, permission: 'prompting', message: 'Waiting for camera permission.', fallbackReason: '', pose: null, boundingBox: null })
   try {
     requestedStream = await navigator.mediaDevices.getUserMedia({
       audio: false,
@@ -521,6 +521,7 @@ export async function startMotionControl(preference: MotionControlBackendPrefere
       fullyAccelerated: false,
       message: `Motion Control could not start: ${message}`,
       pose: null,
+      boundingBox: null,
     })
   }
   return snapshot
@@ -551,6 +552,7 @@ export async function stopMotionControl(message = 'Motion Control is off.'): Pro
       latencyMs: 0,
       framesPerSecond: 0,
       pose: null,
+      boundingBox: null,
     })
     const pendingInference = inferencePromise
     if (pendingInference) await pendingInference.catch(() => void 0)
@@ -591,6 +593,7 @@ export function inspectMotionControlRuntime() {
       webGpu: typeof navigator !== 'undefined' && 'gpu' in navigator,
     },
     drivers: { selectedHumanoid: true, nativePhysicsController: true },
+    preview: { boundingBoxEnabled: snapshot.boundingBoxEnabled, boundingBoxAvailable: snapshot.boundingBox !== null },
     privacy: { frameUpload: false, framePersistence: false, localInference: true },
   }
 }
