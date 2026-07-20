@@ -1,5 +1,6 @@
 import { activateCanvasGraphSurfaceMode } from '@/lib/canvas/canvas3dMode'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { setMediaCatalogMode } from '@/features/command-menu/mediaCatalogModeRuntime'
 import type { JSONValue } from '@/lib/graph/types'
 import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
@@ -116,6 +117,7 @@ function activateXrSceneWorkspace(): void {
     setCanvasRenderMode: nextState.setCanvasRenderMode,
   })
   if (!nextState.floatingPanelOpen) {
+    setMediaCatalogMode('xr-3d')
     nextState.setFloatingPanelView('media')
     nextState.setFloatingPanelOpen(true)
   }

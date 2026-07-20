@@ -58,4 +58,14 @@ test('Motion Control asset and invocation docs retain their bounded and start-on
     assert.match(document, /operation=start backend=<auto\|webgpu\|wasm>/)
     assert.doesNotMatch(document, /operation=<open\|start\|stop> backend=/)
   }
+  for (const target of ['3D for XR', 'Animation']) {
+    assert.match(productDocument, new RegExp(target))
+  }
+  for (const existingTool of ['knowgrph.control_local_xr_scene', 'knowgrph.control_local_animation']) {
+    assert.match(productDocument, new RegExp(existingTool.replaceAll('.', '\\.')))
+    assert.match(apiDocument, new RegExp(existingTool.replaceAll('.', '\\.')))
+  }
+  assert.match(productDocument, /Capture remains active across only the open Motion Control, Media's explicit 3D for XR submode, and Animation FloatingPanel surfaces while XR remains active/)
+  assert.match(productDocument, /Authored animation assignments and action-path marks stay canonical and resume/)
+  assert.match(apiDocument, /they add no MCP tool, operation, schema, or arbitrary target input/)
 })

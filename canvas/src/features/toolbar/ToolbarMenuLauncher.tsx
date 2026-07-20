@@ -19,6 +19,7 @@ import {
   FLOATING_PANEL_DEFAULT_WIDTH_FALLBACK_PX,
 } from '@/lib/ui/floatingPanelGeometry'
 import { readGeospatialOverlayEnabledPreference } from '@/lib/geospatial/geospatialModePreference'
+import { MotionControlXrLifecycleGuard } from '@/features/three/MotionControlXrLifecycleGuard'
 
 const ToolbarToolMenuLazy = React.lazy(() =>
   import('@/lib/toolbar/ToolbarToolMenu.impl').then(mod => ({ default: mod.ToolbarToolMenu })),
@@ -178,6 +179,7 @@ export function ToolbarMenuLauncher({
 
   return (
     <>
+      <MotionControlXrLifecycleGuard />
       <IconButton
         ref={toolMenuButtonRef}
         className={`App-toolbar__btn ${UI_THEME_TOKENS.icon.color}`}

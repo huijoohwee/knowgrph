@@ -1,6 +1,7 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ChevronDown } from 'lucide-react'
+import { setMediaCatalogMode } from '@/features/command-menu/mediaCatalogModeRuntime'
 import { useOrchestratorPanelState } from '@/features/panels/hooks/useOrchestratorPanelState'
 import { GRAPH_TRAVERSAL_FLOATING_PANEL_EVENT } from '@/features/panels/utils/useMainPanelRect'
 import OrchestratorSettingsSection from '@/features/panels/views/OrchestratorSettingsSection'
@@ -126,7 +127,7 @@ export function ToolbarToolMenu({
     uiIconStrokeWidth,
     workspaceViewMode,
     workspaceCanvasPaneOpen,
-    canvasRenderMode,
+    canvasRenderMode, canvas3dMode,
     canvas2dRenderer,
   } = useGraphStore(
     useShallow(state => ({
@@ -136,7 +137,7 @@ export function ToolbarToolMenu({
       uiIconStrokeWidth: state.uiIconStrokeWidth,
       workspaceViewMode: state.workspaceViewMode,
       workspaceCanvasPaneOpen: state.workspaceCanvasPaneOpen,
-      canvasRenderMode: state.canvasRenderMode,
+      canvasRenderMode: state.canvasRenderMode, canvas3dMode: state.canvas3dMode,
       canvas2dRenderer: state.canvas2dRenderer,
     })),
   )
@@ -205,9 +206,10 @@ export function ToolbarToolMenu({
   }, [geospatialModeEnabled])
 
   const handleSelectView = React.useCallback((view: RequestedFloatingPanelView) => {
+    if (view === 'media') setMediaCatalogMode(canvasRenderMode === '3d' && canvas3dMode === 'xr' ? 'xr-3d' : 'media')
     setFloatingPanelView(view)
     if (view === 'geo') void ensureGeospatialEnabled()
-  }, [ensureGeospatialEnabled, setFloatingPanelView])
+  }, [canvas3dMode, canvasRenderMode, ensureGeospatialEnabled, setFloatingPanelView])
 
   const handleFloatingPanelPointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
@@ -376,9 +378,8 @@ export function ToolbarToolMenu({
     if (!requestedFloatingPanelView || !requestedFloatingPanelViewSeq || handledRequestedViewSeqRef.current === requestedFloatingPanelViewSeq) return
     handledRequestedViewSeqRef.current = requestedFloatingPanelViewSeq
     setFloatingPanelMinimized(false)
-    setFloatingPanelView(requestedFloatingPanelView)
-    if (requestedFloatingPanelView === 'geo') void ensureGeospatialEnabled()
-  }, [ensureGeospatialEnabled, requestedFloatingPanelView, requestedFloatingPanelViewSeq, setFloatingPanelView])
+    handleSelectView(requestedFloatingPanelView)
+  }, [handleSelectView, requestedFloatingPanelView, requestedFloatingPanelViewSeq])
 
   React.useEffect(() => {
     if (floatingPanelView === 'renderer') return

@@ -26,6 +26,12 @@ import {
   type MotionControlBackendPreference,
   type MotionControlSnapshot,
 } from './motionControlRuntime'
+import { MotionControlTargetCards } from './MotionControlTargetCards'
+import {
+  MOTION_CONTROL_XR_UNAVAILABLE_MESSAGE,
+  openMotionControlSurface,
+  type MotionControlCompanionTarget,
+} from './motionControlSurfaceRuntime'
 
 const POSE_CONNECTIONS = Object.freeze([
   [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
@@ -93,14 +99,6 @@ export function MotionControlFloatingPanelView() {
     const canvas = overlayRef.current
     if (canvas) drawPoseOverlay(canvas, state)
   }, [state])
-  React.useEffect(() => () => {
-    queueMicrotask(() => {
-      const liveState = useGraphStore.getState()
-      if (liveState.floatingPanelOpen && liveState.floatingPanelView === 'motionControl') return
-      void stopMotionControl('Motion Control stopped when its panel closed.')
-    })
-  }, [])
-
   const runControl = React.useCallback(async (operation: Exclude<MotionControlOperation, 'open'>) => {
     const setOperationPending = operation === 'start' ? setStartPending : setStopPending
     setOperationPending(true)
@@ -115,6 +113,17 @@ export function MotionControlFloatingPanelView() {
       setOperationPending(false)
     }
   }, [backend, pushUiToast])
+
+  const openTarget = React.useCallback((target: MotionControlCompanionTarget) => {
+    const opened = openMotionControlSurface(target)
+    pushUiToast({
+      id: `motion-control:target:${target}:${opened ? 'ok' : 'error'}`,
+      kind: opened ? 'success' : 'error',
+      message: opened
+        ? `Motion Control remains available while ${target === 'xr-3d' ? '3D for XR' : 'Animation'} is open.`
+        : MOTION_CONTROL_XR_UNAVAILABLE_MESSAGE,
+    })
+  }, [pushUiToast])
 
   const inspection = inspectLocalMotionControl()
   const runtimeBusy = state.phase === 'requesting-camera' || state.phase === 'loading-model' || state.phase === 'running'
@@ -168,6 +177,8 @@ export function MotionControlFloatingPanelView() {
           <span><b>Confidence</b><br />{(state.confidence * 100).toFixed(0)}%</span>
           <span><b>Inference</b><br />{state.latencyMs.toFixed(1)} ms · {state.framesPerSecond.toFixed(1)} FPS</span>
         </section>
+
+        <MotionControlTargetCards running={state.phase === 'running'} onOpenTarget={openTarget} />
 
         <section className={cn('grid gap-1 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-motion-control-invocations="shared-catalog">
           <h3 className="text-[11px] font-semibold">MCP · / · @ · #</h3>

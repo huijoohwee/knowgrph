@@ -1,6 +1,4 @@
 import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { activateCanvasGraphSurfaceMode } from '@/lib/canvas/canvas3dMode'
 import {
   inspectMotionControlRuntime,
   readMotionControlSnapshot,
@@ -15,6 +13,13 @@ import {
   MOTION_CONTROL_MCP_SCHEMA,
   MOTION_CONTROL_WEB_MCP_TOOL_IDS,
 } from './motionControlMcpContract.mjs'
+import {
+  inspectMotionControlTargets,
+} from './motionControlTargetRuntime'
+import {
+  MOTION_CONTROL_XR_UNAVAILABLE_MESSAGE,
+  openMotionControlSurface,
+} from './motionControlSurfaceRuntime'
 
 export type MotionControlOperation = 'open' | 'start' | 'stop'
 export type MotionControlInput = Readonly<{
@@ -82,15 +87,6 @@ function normalizeControl(input: MotionControlInput): NormalizedControl | null {
   return { invocation: '', operation, backend }
 }
 
-function activateMotionControlSurface(): void {
-  const state = useGraphStore.getState()
-  activateCanvasGraphSurfaceMode({ mode: 'xr', setCanvas3dMode: state.setCanvas3dMode, setCanvasRenderMode: state.setCanvasRenderMode })
-  state.setFloatingPanelView('motionControl')
-  state.setFloatingPanelOpen(true)
-  state.setBottomSurfaceTab('timeline')
-  state.setBottomSurfaceCollapsed(false)
-}
-
 export function inspectLocalMotionControl() {
   const canonical = canonicalTokens()
   const runtime = inspectMotionControlRuntime()
@@ -107,6 +103,7 @@ export function inspectLocalMotionControl() {
       start: `${canonical.command} ${canonical.binding} ${canonical.semantic} operation=start backend=auto|webgpu|wasm`,
       stop: `${canonical.command} ${canonical.binding} ${canonical.semantic} operation=stop`,
     } : null,
+    targets: inspectMotionControlTargets(),
   }
 }
 
@@ -117,7 +114,14 @@ export async function controlLocalMotionControl(input: MotionControlInput) {
     const stopped = await stopMotionControl()
     return { ok: true, message: stopped.message, operation: control.operation, motionControl: inspectLocalMotionControl() }
   }
-  activateMotionControlSurface()
+  if (!openMotionControlSurface('motion-control')) {
+    return {
+      ok: false,
+      message: MOTION_CONTROL_XR_UNAVAILABLE_MESSAGE,
+      operation: control.operation,
+      motionControl: inspectLocalMotionControl(),
+    }
+  }
   if (control.operation === 'open') {
     return { ok: true, message: 'Motion Control opened in XR Mode. Camera access still requires Start.', operation: control.operation, motionControl: inspectLocalMotionControl() }
   }
