@@ -42,7 +42,6 @@ jobs:
         with:
           repository: huijoohwee/huijoohwee
           path: huijoohwee
-          token: ${{ secrets.HUIJOOHWEE_PUSH_TOKEN }}
 
       - name: Checkout schema mirror
         uses: actions/checkout@v7

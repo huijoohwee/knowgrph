@@ -62,6 +62,10 @@ test('production release reconciles competing Cloudflare Pages Git deployment ow
 })
 
 test('verified production mirror is published only after live smoke', () => {
+  const verifyJob = releaseWorkflow.slice(
+    releaseWorkflow.indexOf('\n  verify:'),
+    releaseWorkflow.indexOf('\n  deploy:'),
+  )
   const deployJob = releaseWorkflow.slice(releaseWorkflow.indexOf('\n  deploy:'))
   const deployIndex = deployJob.indexOf('name: Deploy verified artifact')
   const smokeIndex = deployJob.indexOf('name: Verify live runtime')
@@ -70,6 +74,7 @@ test('verified production mirror is published only after live smoke', () => {
   assert.ok(deployIndex >= 0)
   assert.ok(smokeIndex > deployIndex)
   assert.ok(publishIndex > smokeIndex)
+  assert.doesNotMatch(verifyJob, /HUIJOOHWEE_PUSH_TOKEN/)
   assert.match(deployJob, /git push origin HEAD:main/)
   assert.match(deployJob, /HUIJOOHWEE_PUSH_TOKEN/)
 })
