@@ -4,8 +4,8 @@ id: "md:knowgrph-agentic-entity-component-system-prd-tad"
 author: "airvio / joohwee"
 date: "2026-07-20"
 updated: "2026-07-20"
-version: "1.0.0"
-status: "source-implemented-integration-pending"
+version: "1.0.1"
+status: "runtime-ready"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
 frontmatter_contract: "required"
@@ -17,8 +17,15 @@ readiness:
   kgc_persistence: "focused proof passed"
   mcp_stdio: "focused proof passed"
   canvas_projection: "focused proof passed"
-  protected_integration: "pending"
+  protected_integration: "passed"
   production: "not authorized"
+integration_evidence:
+  agentic_canvas_os_merge_sha: "6c3da4029c06ad5cd6167300b2855c47977e2720"
+  knowgrph_pr_head_sha: "0c05ff3d3bf1198d59315537ba796eec64c826bf"
+  knowgrph_merge_sha: "b58de2bd21819e65e919a5ef9533ef12aa6a8fa6"
+  collaboration_verification_digest: "1f896513ae2ffa52c652e60074cf9e576303a861f64eb2ca1762d67c49ea7f0d"
+  integration_gate_run: "https://github.com/huijoohwee/knowgrph/actions/runs/29723826783"
+  deployment: "not run"
 orientation: ["solo-dev", "AI-native", "min-viable-max-value", "cost-explicit", "FOSS-first", "token-economical", "harness-first"]
 constraints:
   - "native Knowgrph ECS with exactly five public exports"
@@ -305,12 +312,14 @@ Fixed tests cover the exact public export set, three KGC node schemas, exact thr
 | Collaboration selection | `docs/collaboration-runtime-contract.md`, `package.json`, `scripts/__tests__/collaboration-contract.test.mjs` | Focused selector + affected runtime gate |
 | Invocation truth | Agentic Canvas OS dictionaries, FACTS, and monthly todo shard | `npm run docs:check` + protected docs PR |
 
-## Completion Conditions
+## Completion Evidence
 
-This document may change to `runtime-ready` only after:
+The `runtime-ready` state records that:
 
-1. focused ECS, KGC, MCP, Canvas, typecheck, collaboration, hygiene, and diff checks pass;
-2. the exact Agentic Canvas OS invocation-catalog SHA is protected and pinned;
-3. the final app/docs pair passes the collaboration gate;
-4. the Knowgrph protected Integration Gate accepts the exact ECS commit; and
-5. the final handoff states that Prod, mirrors, network services, and Cloudflare were untouched.
+1. focused ECS, KGC, MCP, Canvas, typecheck, collaboration, hygiene, and diff checks passed;
+2. the protected Agentic Canvas OS invocation catalog is pinned at `6c3da4029c06ad5cd6167300b2855c47977e2720`;
+3. the final app/docs pair passed the two-peer collaboration gate at Knowgrph head `0c05ff3d3bf1198d59315537ba796eec64c826bf` with digest `1f896513ae2ffa52c652e60074cf9e576303a861f64eb2ca1762d67c49ea7f0d`;
+4. the protected Integration Gate accepted that head and PR #211 merged as `b58de2bd21819e65e919a5ef9533ef12aa6a8fa6`; and
+5. Prod, the publication mirror, network services, and Cloudflare were not mutated.
+
+This evidence closes Dev integration only. It grants no production or deployment authority.
