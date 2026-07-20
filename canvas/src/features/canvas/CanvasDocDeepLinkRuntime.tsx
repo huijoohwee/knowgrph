@@ -2,7 +2,13 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import type { UiToastInput } from '@/hooks/store/store-types/core'
 import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
-import { buildDefaultDocViewUrl, buildDocViewUrl, consumeDeepLinkParams, parseDocDeepLink } from './canvasDocDeepLink'
+import {
+  buildDefaultDocViewUrl,
+  buildDocViewUrl,
+  clearRetainedLocalDocDeepLinkPath,
+  consumeDeepLinkParams,
+  parseDocDeepLink,
+} from './canvasDocDeepLink'
 import type { DefaultRemoteDocDeepLink } from './canvasDocDeepLink'
 import type { RemoteDocDeepLink } from './canvasDocDeepLink'
 import {
@@ -53,6 +59,7 @@ async function handleLocalDeepLink(
     const entry = entries.find(e => e.path === targetPath)
 
     if (!entry || entry.kind !== 'file') {
+      clearRetainedLocalDocDeepLinkPath()
       pushUiToast({ id: toastId, kind: 'error', message: `File not found: ${workspaceBasename(targetPath) || relativePath}`, ttlMs: 5000, dismissible: true })
       return
     }
@@ -88,6 +95,7 @@ async function handleLocalDeepLink(
       dismissible: false,
     })
   } catch (err) {
+    clearRetainedLocalDocDeepLinkPath()
     const message = err instanceof Error ? err.message : 'Failed to open document'
     pushUiToast({ id: toastId, kind: 'error', message, ttlMs: 5000, dismissible: true })
   }

@@ -4,14 +4,22 @@ import { LS_KEYS } from '@/lib/config'
 import { lsJson, lsSetJson } from '@/lib/persistence'
 import { normalizeMarkdownWorkspaceSelectionPath } from '@/lib/markdown-workspace-runtime/markdownWorkspaceSelectionPath'
 import { isInitializationWorkspacePath } from '@/features/workspace-fs/workspaceFs'
-import { readLocalDocDeepLinkPathFromCurrentLocation } from '@/features/canvas/canvasDocDeepLink'
+import {
+  clearRetainedLocalDocDeepLinkPath,
+  readLocalDocDeepLinkPathFromCurrentLocation,
+} from '@/features/canvas/canvasDocDeepLink'
 
-export function resolveInitialMarkdownExplorerActivePath(value: unknown): WorkspacePath | null {
+export type MarkdownExplorerInitialPathSource = 'deep-link' | 'persisted'
+
+export function resolveInitialMarkdownExplorerActivePath(
+  value: unknown,
+  source: MarkdownExplorerInitialPathSource = 'persisted',
+): WorkspacePath | null {
   const v = typeof value === 'string' ? value : null
   if (!v) return null
   try {
     const normalized = normalizeMarkdownWorkspaceSelectionPath(v as WorkspacePath)
-    return isInitializationWorkspacePath(normalized) ? null : normalized
+    return source === 'persisted' && isInitializationWorkspacePath(normalized) ? null : normalized
   } catch {
     return null
   }
@@ -26,7 +34,10 @@ type MarkdownExplorerState = {
 }
 
 function readInitialMarkdownExplorerActivePath(): WorkspacePath | null {
-  const deepLinkPath = resolveInitialMarkdownExplorerActivePath(readLocalDocDeepLinkPathFromCurrentLocation())
+  const deepLinkPath = resolveInitialMarkdownExplorerActivePath(
+    readLocalDocDeepLinkPathFromCurrentLocation(),
+    'deep-link',
+  )
   if (deepLinkPath) return deepLinkPath
   return lsJson(
     LS_KEYS.markdownExplorerActivePath,
@@ -43,6 +54,13 @@ export const useMarkdownExplorerStore = create<MarkdownExplorerState>(set => ({
     const normalized = normalizeMarkdownWorkspaceSelectionPath(path)
     set(prev => {
       if (prev.activePath === normalized) return prev
+      const retainedDeepLinkPath = resolveInitialMarkdownExplorerActivePath(
+        readLocalDocDeepLinkPathFromCurrentLocation(),
+        'deep-link',
+      )
+      if (retainedDeepLinkPath && retainedDeepLinkPath !== normalized) {
+        clearRetainedLocalDocDeepLinkPath()
+      }
       lsSetJson(LS_KEYS.markdownExplorerActivePath, normalized)
       return {
         activePath: normalized,

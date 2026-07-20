@@ -180,7 +180,7 @@ export async function testWorkspaceEnsureSeedKeepsUserDeletedDefaultSeedEntryRem
     restore()
   }
 }
-export function testWorkspaceStartupActivePathPrefersCanonicalXrStarterForDefaultSeedFamily() {
+export function testWorkspaceStartupActivePathUsesSelectorAwareValidationStarterForDefaultSeedFamily() {
   const next = resolveWorkspaceStartupActivePath({
     workspaceFilePaths: [
       WORKSPACE_README_SEED_PATH,
@@ -190,8 +190,8 @@ export function testWorkspaceStartupActivePathPrefersCanonicalXrStarterForDefaul
     activePath: null,
     preferDefaultStarter: true,
   })
-  if (next !== XR_PHYSICS_WORKSPACE_SEED_PATH) {
-    throw new Error(`expected default seed startup to prefer the canonical XR starter, got ${String(next)}`)
+  if (next !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected default seed startup to use the selector-aware validation starter, got ${String(next)}`)
   }
 }
 
