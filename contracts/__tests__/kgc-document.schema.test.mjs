@@ -93,7 +93,7 @@ test("kgc-document schema is re-exported from the aggregate contracts entry poin
 });
 
 test("canonical field constants are stable", () => {
-  assert.deepEqual(KGC_NODE_FIELDS, ["id", "label", "type", "status"]);
+  assert.deepEqual(KGC_NODE_FIELDS, ["id", "label", "type", "status", "properties"]);
   assert.deepEqual(KGC_EDGE_FIELDS, ["id", "source", "target"]);
   assert.equal(KGC_COMPUTING_FLOW_SCHEMA, "kgc-computing-flow/v1");
 });
@@ -106,15 +106,137 @@ test("normalizeKgcNode / normalizeKgcEdge coerce to canonical string fields", ()
     label: "L",
     type: "t",
     status: "s",
+    properties: {},
   });
   // non-object -> all empty strings, never throws
-  assert.deepEqual(normalizeKgcNode(null), { id: "", label: "", type: "", status: "" });
+  assert.deepEqual(normalizeKgcNode(null), {
+    id: "",
+    label: "",
+    type: "",
+    status: "",
+    properties: {},
+  });
   assert.deepEqual(normalizeKgcEdge({ id: "e1", source: "a", target: "b", junk: true }), {
     id: "e1",
     source: "a",
     target: "b",
   });
   assert.deepEqual(normalizeKgcEdge(42), { id: "", source: "", target: "" });
+});
+
+test("node properties preserve canonical JSON-safe data through parse and serialize", () => {
+  const properties = {
+    ecsEntity: {
+      components: { Position: { y: 2, x: 1 }, Tags: { values: ["npc", null, true] } },
+      entityRef: "npc.one",
+    },
+  };
+  const input = {
+    flow: {
+      nodes: [{ id: "entity-1", label: "NPC", type: "EcsEntity", status: "ready", properties }],
+      edges: [],
+    },
+  };
+
+  const once = parseKgcDocument(input);
+  const twice = parseKgcDocument(serializeKgcDocument(once));
+  assert.deepEqual(once.flow.nodes[0].properties, properties);
+  assert.deepEqual(twice.flow.nodes[0].properties, properties);
+  assert.equal(serializeKgcDocument(once), serializeKgcDocument(twice));
+});
+
+test("node properties reject non-JSON-safe values without breaking parser totality", () => {
+  const cyclic = {};
+  cyclic.self = cyclic;
+  assert.deepEqual(normalizeKgcNode({ id: "n1", properties: cyclic }).properties, {});
+  assert.deepEqual(normalizeKgcNode({ id: "n2", properties: { invalid: undefined } }).properties, {});
+});
+
+test("node properties preserve reserved keys as safe own properties", () => {
+  const properties = JSON.parse(
+    '{"__proto__":{"safe":true},"constructor":{"prototype":"data"},"prototype":"value"}',
+  );
+  const normalized = normalizeKgcNode({ id: "reserved", properties }).properties;
+  assert.equal(Object.getPrototypeOf(normalized), Object.prototype);
+  assert.equal(Object.hasOwn(normalized, "__proto__"), true);
+  assert.equal(Object.hasOwn(normalized, "constructor"), true);
+  assert.equal(Object.hasOwn(normalized, "prototype"), true);
+  assert.deepEqual(normalized, properties);
+
+  const roundTrip = parseKgcDocument(
+    serializeKgcDocument({ flow: { nodes: [{ id: "reserved", properties }], edges: [] } }),
+  );
+  assert.deepEqual(roundTrip.flow.nodes[0].properties, properties);
+});
+
+test("markdown extraction preserves inline JSON-safe node properties", () => {
+  const markdown = [
+    "---",
+    'kgSchema: "kgc-computing-flow/v1"',
+    "flow:",
+    "  nodes:",
+    '    - id: "entity-1"',
+    '      label: "NPC"',
+    '      type: "EcsEntity"',
+    '      status: "ready"',
+    '      properties: {"ecsEntity":{"components":{"Position":{"x":1}},"entityRef":"npc.one"}}',
+    "  edges: []",
+    "---",
+  ].join("\n");
+  assert.deepEqual(extractFlowFromMarkdown(markdown).nodes[0].properties, {
+    ecsEntity: { components: { Position: { x: 1 } }, entityRef: "npc.one" },
+  });
+});
+
+test("markdown extraction preserves block-style ECS node properties", () => {
+  const markdown = [
+    "---",
+    'kgSchema: "kgc-computing-flow/v1"',
+    "flow:",
+    "  nodes:",
+    '    - id: "schema-position"',
+    '      type: "EcsComponentSchema"',
+    "      properties:",
+    "        ecsComponent:",
+    '          name: "Position"',
+    "          fields:",
+    '            x: "f32"',
+    '    - id: "entity-guide"',
+    '      type: "EcsEntity"',
+    "      properties:",
+    "        ecsEntity:",
+    '          entityRef: "npc.guide"',
+    "          components:",
+    "            Position:",
+    "              x: 1",
+    '    - id: "decision-one"',
+    '      type: "EcsDecision"',
+    "      properties:",
+    "        ecsDecision:",
+    '          decisionId: "decision-one"',
+    '          decisionType: "world_tick_result"',
+    '          entityRef: "npc.guide"',
+    "          payload:",
+    "            accepted: true",
+    '          producedAt: "2026-07-20T00:00:00.000Z"',
+    "  edges: []",
+    "---",
+  ].join("\n");
+  const extracted = extractFlowFromMarkdown(markdown);
+  assert.deepEqual(extracted.nodes.map((node) => node.properties), [
+    { ecsComponent: { fields: { x: "f32" }, name: "Position" } },
+    { ecsEntity: { components: { Position: { x: 1 } }, entityRef: "npc.guide" } },
+    {
+      ecsDecision: {
+        decisionId: "decision-one",
+        decisionType: "world_tick_result",
+        entityRef: "npc.guide",
+        payload: { accepted: true },
+        producedAt: "2026-07-20T00:00:00.000Z",
+      },
+    },
+  ]);
+  assert.deepEqual(parseKgcDocument(markdown).flow, extracted);
 });
 
 test("normalizeKgcFlow preserves ordering and drops non-significant fields", () => {
@@ -195,6 +317,7 @@ test("single-node fallback Kgc_Document round-trips (identical count/ids/edges)"
     label: "Shot 1",
     type: "video-remix-shot",
     status: "planned",
+    properties: {},
   });
   assert.equal(back.flow.edges.length, 0);
 });

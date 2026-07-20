@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Framework-agnostic, dependency-free canonical contracts (SSOT) shared by the knowgrph control plane (Cloudflare Workers + Pages + AI Gateway) and its product surfaces. Platform target is Cloudflare-only.",
+  "description": "Framework-agnostic canonical contracts (SSOT) shared by the knowgrph control plane (Cloudflare Workers + Pages + AI Gateway) and its product surfaces. Platform target is Cloudflare-only.",
   "main": "index.js",
   "exports": {
     ".": "./index.js",
@@ -23,5 +23,8 @@
   },
   "scripts": {
     "test": "node --test __tests__/*.test.mjs"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.1"
   }
 }

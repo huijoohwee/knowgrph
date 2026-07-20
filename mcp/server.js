@@ -14,7 +14,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { runVideoRemixAsync } from "./video-remix-runtime.js"; import { runShowrunnerLocalTool } from "./showrunner-runtime.js"; import { runOsStatusTool } from "./os-status-runtime.js"; import { callSealionSidecarTool } from "./sealion-sidecar-runtime.js"; import { callBrowserApiRuntime } from "./browser-api-runtime.js"; import { runProbeTreeTool } from "./probe-tree-runtime.js"; import { runSmeRiskCopilotTool } from "./sme-risk-copilot-runtime.js"; import { handleAnnotateImageTool, handleAnnotateVideoFrameTool } from "./annotation-runtime.js"; import { runAgentSandboxPolicyTool } from "./agent-sandbox-policy-runtime.js"; import { runAgenticCanvasOsDocsInvokeTool } from "./agentic-canvas-os-docs-runtime.js"; import { isExternalToolGatewayToolName } from "./external-tool-gateway-contract.js"; import { runExternalToolGatewayTool } from "./external-tool-gateway-runtime.js"; import { runExportPublishTool } from "./export-publish-runtime.js";
+import { runVideoRemixAsync } from "./video-remix-runtime.js"; import { runShowrunnerLocalTool } from "./showrunner-runtime.js"; import { runOsStatusTool } from "./os-status-runtime.js"; import { callSealionSidecarTool } from "./sealion-sidecar-runtime.js"; import { callBrowserApiRuntime } from "./browser-api-runtime.js"; import { runProbeTreeTool } from "./probe-tree-runtime.js"; import { runSmeRiskCopilotTool } from "./sme-risk-copilot-runtime.js"; import { handleAnnotateImageTool, handleAnnotateVideoFrameTool } from "./annotation-runtime.js"; import { runAgentSandboxPolicyTool } from "./agent-sandbox-policy-runtime.js"; import { runAgenticCanvasOsDocsInvokeTool } from "./agentic-canvas-os-docs-runtime.js"; import { isExternalToolGatewayToolName } from "./external-tool-gateway-contract.js"; import { runExternalToolGatewayTool } from "./external-tool-gateway-runtime.js"; import { runExportPublishTool } from "./export-publish-runtime.js"; import { createEcsRuntime } from "./ecs-runtime.js"; import { isEcsToolName } from "./ecs-tool-contract.js";
 import {
   addMemoryLayerMemory,
   assembleMemoryLayerPrompt,
@@ -32,7 +32,6 @@ import { buildKnowgrphVdeoxplnMarkdown, buildKnowgrphVdeoxplnRegistry, buildKnow
 import { KNOWGRPH_MCP_APP_RESOURCE_URI, buildKnowgrphMcpAppsCapabilities, buildKnowgrphMcpAppsResourceDescriptor, buildKnowgrphMcpAppsResourceReadResult } from "../canvas/src/features/agent-ready/mcpAppsReadyContract.mjs";
 import { runLocalAgentRuntime } from "./local-agent-runtime.js";
 const MAX_OUTPUT_CHARS = Number(process.env.KNOWGRPH_MCP_MAX_OUTPUT_CHARS ?? "20000"); const DEFAULT_TIMEOUT_MS = Number(process.env.KNOWGRPH_MCP_TIMEOUT_MS ?? "600000"); const KNOWGRPH_HTML_VIDEO_ENGINE = "KNOWGRPH_HTML_VIDEO_ENGINE";
-
 const KNOWGRPH_ROOT = resolveRootDir();
 const PYTHON_BIN = process.env.KNOWGRPH_PYTHON?.trim() || "python3";
 const LOCAL_MCP_STORAGE_BASE_URL = (
@@ -47,7 +46,7 @@ const ALLOW_EXTERNAL_PATHS =
   (process.env.KNOWGRPH_ALLOW_EXTERNAL_PATHS || "").trim().toLowerCase() === "1";
 const DEFAULT_UI_HOST = process.env.KNOWGRPH_UI_HOST?.trim() || "127.0.0.1";
 const DEFAULT_UI_PORT = Number(process.env.KNOWGRPH_UI_PORT?.trim() || "5173");
-const LOCAL_MCP_TOOLS = buildKnowgrphLocalMcpToolDefinitions({ defaultUiHost: DEFAULT_UI_HOST, defaultUiPort: DEFAULT_UI_PORT });
+const LOCAL_MCP_TOOLS = buildKnowgrphLocalMcpToolDefinitions({ defaultUiHost: DEFAULT_UI_HOST, defaultUiPort: DEFAULT_UI_PORT }); const ECS_RUNTIME = createEcsRuntime({ rootDir: KNOWGRPH_ROOT });
 const LOCAL_MCP_PROMPTS = buildKnowgrphAgentReadyPromptContracts();
 const LOCAL_MCP_RESOURCE_TEMPLATES = buildKnowgrphAgentReadyResourceTemplateContracts();
 const LOCAL_PUBLISHED_SOURCE_TOOL_EXECUTORS = createPublishedAgentReadyToolExecutors({
@@ -356,7 +355,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const toolName = request.params?.name;
   const args = request.params?.arguments ?? {};
 
-  try { if (isExternalToolGatewayToolName(toolName)) { const payload = await runExternalToolGatewayTool(toolName, args); return jsonToolResult(payload, payload.ok === false); }
+  try { if (isEcsToolName(toolName)) { const payload = await ECS_RUNTIME.run(toolName, args); return jsonToolResult(payload, payload.ok === false); } if (isExternalToolGatewayToolName(toolName)) { const payload = await runExternalToolGatewayTool(toolName, args); return jsonToolResult(payload, payload.ok === false); }
     if (toolName === KNOWGRPH_LOCAL_MCP_TOOL_NAMES.uiLaunch) {
       const target = typeof args.target === "string" ? args.target : "canvas";
       const host = typeof args.host === "string" && args.host.trim() ? args.host.trim() : DEFAULT_UI_HOST;

@@ -80,6 +80,7 @@ test('canonical contract is valid and selects deduplicated affected checks', asy
   const contract = await readContract()
   const plan = selectAffectedCommands([
     'canvas/src/app/main.ts',
+    'ecs/world.js',
     'mcp/server.js',
     'package.json',
     'README.md',
@@ -91,6 +92,15 @@ test('canonical contract is valid and selects deduplicated affected checks', asy
     ['npm', 'run', 'check'],
     ['npm', 'run', 'runtime:check'],
   ])
+})
+
+test('Agentic ECS source always selects the runtime gate', async () => {
+  const contract = await readContract()
+  const plan = selectAffectedCommands(['ecs/worldTick.js'], contract)
+
+  assert.deepEqual(plan.scopes, ['runtime'])
+  assert.deepEqual(plan.unmatchedPaths, [])
+  assert.deepEqual(plan.commands, [['npm', 'run', 'runtime:check']])
 })
 
 test('Rich Media preview timing owners always select schema and browser contract gates', async () => {

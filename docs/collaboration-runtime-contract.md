@@ -2,7 +2,7 @@
 title: "Knowgrph Collaboration Runtime Contract"
 doc_type: "Runtime Contract"
 status: "active"
-contract_version: 22
+contract_version: 23
 frontmatter_contract: "required"
 ci_command_timeout_ms: 300000
 invocation:
@@ -61,7 +61,7 @@ ci_scopes:
       - ["npm", "--prefix", "canvas", "run", "test:smoke:rich-media:timing-schema"]
       - ["npm", "--prefix", "canvas", "run", "test:ci:unit", "--", "richMedia.browserSmokeContract"]
   runtime:
-    roots: ["cloudflare/workers/", "contracts/", "mcp/", "web/"]
+    roots: ["cloudflare/workers/", "contracts/", "ecs/", "mcp/", "web/"]
     commands:
       - ["npm", "run", "runtime:check"]
   documentation:
@@ -121,7 +121,7 @@ Draft pull requests may omit the declaration while their scope is being formed. 
 - Every affected-scope command has the canonical bounded timeout; non-terminating checks fail closed instead of freezing the gate.
 - Unknown changed paths fail safe through `fallback_commands`.
 - Superseded runs on the same pull request or branch are cancelled.
-- `runtime:check` owns the focused runtime/property suite, external invocation-dictionary validation, canonical stage topology, deterministic mock replay, and zero-spend proof.
+- `runtime:check` owns the focused runtime/property suite, including the native `ecs/` core and MCP lifecycle, external invocation-dictionary validation, canonical stage topology, deterministic mock replay, and zero-spend proof.
 - `npm run collaboration:contract:check` auto-discovers every workflow that references Agentic Canvas OS and requires dependency installation, the contract resolver, and the checkout in order; checkout repository and immutable ref must come from resolver outputs, never copied workflow YAML.
 - `npm run --silent collaboration:contract:check -- --json` validates against `schemas/collaboration-runtime-report.v1.schema.json` before emitting `knowgrph.collaboration-runtime-report/v1`, including deployment isolation, discovered runtime-docs workflow consumers and checks, pull-request coordination status, and the canonical `sourceRevision`. Integration sets that revision to the pull-request head SHA, or `github.sha` for a push, so a merge-ref checkout cannot obscure which source commit produced the artifact. Local runs derive it from `git rev-parse HEAD`. Integration uploads the report as the seven-day `collaboration-contract-report` artifact, downloads it, and runs `collaboration:report:check -- --json` against the stored file. The resulting machine envelope is uploaded as the separate seven-day `collaboration-validation-result` artifact, downloaded, and revalidated against both its schema and the downloaded report before the canonical gate. The report validator accepts either an artifact path or `-` for UTF-8 JSON from stdin; the optional leading `--json` emits structured success identity on stdout or a structured failure envelope on stderr with a nonzero exit code. Every success envelope carries the report's `sourceRevision` and `reportDigest`, the lowercase SHA-256 of the exact report bytes including whitespace and final newline. Every JSON envelope is validated against `schemas/collaboration-runtime-validation.v1.schema.json` before it is written, so contract drift fails closed.
 - `npm run --silent collaboration:report:schema` emits that exact canonical Draft 2020-12 schema through the shared cached loader, so external machine consumers do not need repository-path knowledge or a copied schema.
