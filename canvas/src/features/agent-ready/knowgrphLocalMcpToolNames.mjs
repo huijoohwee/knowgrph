@@ -47,6 +47,9 @@ export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = Object.freeze({
   showrunnerGetArtifact: "knowgrph.showrunner.get_artifact",
   sandboxPolicyValidate: "knowgrph.sandbox.policy.validate",
   sandboxPolicyAuthorize: "knowgrph.sandbox.policy.authorize",
+  ecsSessionStart: "knowgrph.ecs.session_start",
+  ecsWorldTick: "knowgrph.ecs.world_tick",
+  ecsDecisionPersist: "knowgrph.ecs.decision_persist",
   osStatus: KNOWGRPH_OS_STATUS_TOOL_NAME,
   vdeoxplnList: "knowgrph.vdeoxpln.list",
 });

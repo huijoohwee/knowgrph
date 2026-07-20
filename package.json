@@ -84,8 +84,9 @@
     "export:publish": "npm run build --workspace=grph-shared && node ./scripts/export-publish.mjs",
     "export:verify:live": "npm run build --workspace=grph-shared && node ./scripts/verify-export-live.mjs",
     "export:ledger:verify": "node ./scripts/fleet.js verify",
-    "runtime:ci": "node --test --test-concurrency=1 cloudflare/workers/knowgrph-mcp/__tests__/*.test.mjs web/__tests__/*.test.mjs contracts/__tests__/*.test.mjs",
-    "runtime:test": "node --test --test-concurrency=1 cloudflare/workers/knowgrph-mcp/__tests__/*.test.mjs cloudflare/workers/knowgrph-mcp/__pbt__/*.test.mjs mcp/__tests__/*.test.mjs mcp/__pbt__/*.test.mjs web/__tests__/*.test.mjs web/__pbt__/*.test.mjs contracts/__tests__/*.test.mjs contracts/__pbt__/*.test.mjs",
+    "ecs:test": "node --test --test-concurrency=1 ecs/__tests__/*.test.mjs ecs/__pbt__/*.pbt.test.mjs",
+    "runtime:ci": "node --test --test-concurrency=1 ecs/__tests__/*.test.mjs cloudflare/workers/knowgrph-mcp/__tests__/*.test.mjs web/__tests__/*.test.mjs contracts/__tests__/*.test.mjs",
+    "runtime:test": "node --test --test-concurrency=1 ecs/__tests__/*.test.mjs ecs/__pbt__/*.pbt.test.mjs cloudflare/workers/knowgrph-mcp/__tests__/*.test.mjs cloudflare/workers/knowgrph-mcp/__pbt__/*.test.mjs mcp/__tests__/*.test.mjs mcp/__pbt__/*.test.mjs web/__tests__/*.test.mjs web/__pbt__/*.test.mjs contracts/__tests__/*.test.mjs contracts/__pbt__/*.test.mjs",
     "payment:stripe:configure": "node ./scripts/configure-stripe-payment-worker.mjs",
     "payment:stripe:readiness": "node ./scripts/check-stripe-payment-readiness.mjs",
     "payment:agentic:readiness": "node ./scripts/check-agentic-payment-readiness.mjs",
@@ -149,12 +150,12 @@
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.23",
     "jsonwebtoken": "9.0.2",
+    "js-yaml": "^4.1.1",
     "yjs": "^13.6.31"
   },
   "devDependencies": {
     "ajv": "8.17.1",
     "fast-check": "3.23.2",
-    "js-yaml": "^4.1.1",
     "wrangler": "4.110.0",
     "zod": "^4.4.3"
   }

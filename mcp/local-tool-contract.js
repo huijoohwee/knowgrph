@@ -10,6 +10,7 @@ import { buildProbeTreeLocalToolDefinitions } from "./probe-tree-tool-contract.j
 import { buildSmeRiskCopilotLocalToolDefinitions } from "./sme-risk-copilot-tool-contract.js";
 import { buildAgentSandboxPolicyToolDefinitions } from "./agent-sandbox-policy-tool-contract.js"; import { VIDEO_WORKFLOW_INPUT_SCHEMA } from "./video-remix/workflow-contract.js";
 import { EXPORT_PUBLISH_INPUT_SCHEMA, EXPORT_PUBLISH_OUTPUT_SCHEMA } from "./export-publish-contract.js";
+import { buildEcsLocalToolDefinitions } from "./ecs-tool-contract.js";
 export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES;
 
 const VDEOXPLN_LIST_OUTPUT_SCHEMA = Object.freeze({
@@ -524,6 +525,7 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
       },
     }, READ_ONLY_TOOL_ANNOTATIONS),
     ...buildAgentSandboxPolicyToolDefinitions({ toolNames: KNOWGRPH_LOCAL_MCP_TOOL_NAMES, withDefaults: withLocalMcpDescriptorDefaults, readOnlyAnnotations: READ_ONLY_TOOL_ANNOTATIONS }),
+    ...buildEcsLocalToolDefinitions({ withDefaults: withLocalMcpDescriptorDefaults, annotations: LOCAL_PROCESS_TOOL_ANNOTATIONS }),
     withLocalMcpDescriptorDefaults(buildOsStatusToolDefinition(), READ_ONLY_TOOL_ANNOTATIONS), withLocalMcpDescriptorDefaults({
       name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList,
       description:

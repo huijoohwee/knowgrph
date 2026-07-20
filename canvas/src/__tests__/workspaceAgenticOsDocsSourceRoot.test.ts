@@ -8,6 +8,8 @@ import {
 } from '@/lib/workspace/workspaceStoreSyncSettings'
 import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
 import { readWorkspaceInitializationDocsMirrorEntries } from '@/features/workspace-fs/workspaceSeedProvider'
+import { resolveWorkspaceDocsMirrorLocalRootRequests } from '@/features/workspace-fs/workspaceDocsMirrorLocalRoots'
+import { resetCanonicalAgenticDocsMirrorCacheForTests } from '@/features/workspace-fs/workspaceGithubDocsMirror'
 
 export function testWorkspaceSourceRootPathsIncludeAgenticOsDocsRoot(): void {
   const { restore } = initJsdomHarness()
@@ -48,6 +50,61 @@ export async function testWorkspaceSeedProviderIncludesSiblingAgenticOsDocsMirro
     if (!relPaths.has('agentic-canvas-os/docs/RUNTIME-READINESS.md')) throw new Error(`expected sibling agentic-canvas-os/docs entry to keep its workspace root prefix, got ${JSON.stringify([...relPaths])}`)
     if (relPaths.has('RUNTIME-READINESS.md')) throw new Error('expected sibling agentic-canvas-os/docs entry not to flatten into the docs root')
   } finally {
+    if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    if (typeof previousAgenticDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT = previousAgenticDocsAbsRoot
+    else delete process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT
+    await fsPromises.rm(tmpRoot, { recursive: true, force: true })
+  }
+}
+
+export function testWorkspaceDocsMirrorLocalRootsPromotesAgenticFallbackWhenPrimaryRootIsAbsent(): void {
+  const fallbackOnly = resolveWorkspaceDocsMirrorLocalRootRequests({
+    docsAbsRoot: '',
+    agenticDocsAbsRoot: '/tmp/agentic-canvas-os/docs',
+  })
+  if (fallbackOnly.length !== 1 || fallbackOnly[0]?.workspaceRootName) {
+    throw new Error(`expected the sole Agentic docs root to project unprefixed, got ${JSON.stringify(fallbackOnly)}`)
+  }
+  const combined = resolveWorkspaceDocsMirrorLocalRootRequests({
+    docsAbsRoot: '/tmp/knowgrph/docs',
+    agenticDocsAbsRoot: '/tmp/agentic-canvas-os/docs',
+  })
+  if (combined[1]?.workspaceRootName !== 'agentic-canvas-os/docs') {
+    throw new Error(`expected a secondary Agentic docs root to retain its namespace, got ${JSON.stringify(combined)}`)
+  }
+}
+
+export async function testWorkspaceSeedProviderUsesLocalAgenticDocsWhenGitHubIsUnavailable() {
+  const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+  const previousAgenticDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT
+  const previousFetch = globalThis.fetch
+  const globals = globalThis as typeof globalThis & { window?: Window }
+  const previousWindow = globals.window
+  const tmpRoot = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'kg-agentic-docs-fallback-'))
+  const agenticDocsRoot = path.join(tmpRoot, 'agentic-canvas-os', 'docs')
+  try {
+    delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
+    process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT = agenticDocsRoot
+    await fsPromises.mkdir(agenticDocsRoot, { recursive: true })
+    await fsPromises.writeFile(path.join(agenticDocsRoot, 'README.md'), '# Local Agentic Docs\n')
+    globalThis.fetch = async () => new Response('', { status: 403 })
+    delete globals.window
+    resetCanonicalAgenticDocsMirrorCacheForTests()
+
+    const mirrored = await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
+    const readme = mirrored.find(entry => entry.relPath === 'README.md')
+    if (readme?.text !== '# Local Agentic Docs\n') {
+      throw new Error(`expected local README fallback after GitHub 403, got ${JSON.stringify(mirrored)}`)
+    }
+    if (mirrored.some(entry => entry.relPath === 'agentic-canvas-os/docs/README.md')) {
+      throw new Error('expected the sole Agentic docs root to materialize directly beneath /docs')
+    }
+  } finally {
+    resetCanonicalAgenticDocsMirrorCacheForTests()
+    globalThis.fetch = previousFetch
+    if (previousWindow) globals.window = previousWindow
+    else delete globals.window
     if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot
     else delete process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
     if (typeof previousAgenticDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT = previousAgenticDocsAbsRoot

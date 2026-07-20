@@ -12,6 +12,7 @@ import { importNodeFsPromises, importNodePath } from '@/features/workspace-fs/wo
 import { isWorkspaceDocsMirrorGitHubSourceUrl, readCanonicalAgenticCanvasOsDocsMirrorEntries, readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl } from '@/features/workspace-fs/workspaceGithubDocsMirror'
 import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBase64 } from '@/features/workspace-fs/workspaceSourceMirrorFormats'
 import { readWorkspaceMirrorRootEntries } from '@/features/workspace-fs/workspaceMirrorRootEntries'
+import { resolveWorkspaceDocsMirrorLocalRootRequests } from '@/features/workspace-fs/workspaceDocsMirrorLocalRoots'
 const KG_FS_WRITE_PATH = '/__kg_fs_write', KG_FS_LIST_PATH = '/__kg_fs_list'
 const WORKSPACE_DOCS_MIRROR_MAX_FILES = 500, WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES = 500 * 1024
 const LOCAL_DOCS_MIRROR_CACHE_TTL_MS = 1000, CANONICAL_STORAGE_DOCS_ROOT = 'agentic-canvas-os/docs'
@@ -150,7 +151,6 @@ const readWorkspaceInitializationDocsAbsRoot = (): string => {
 }
 
 const AGENTIC_CANVAS_OS_DOCS_REPOSITORY_FOLDER_NAME = 'docs'
-const AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT_NAME = 'agentic-canvas-os/docs'
 
 const readAbsParentRoot = (absRoot: string): string => {
   const normalized = normalizeAbsRoot(absRoot)
@@ -1563,16 +1563,11 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
     ? readWorkspaceInitializationKnowgrphStorageBaseUrl()
     : ''
   const knowgrphStorageWorkspaceId = knowgrphStorageBaseUrl && sourceFilesSelection ? buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState({ folderName: sourceFilesSelection.folderName, accessMode: sourceFilesSelection.accessMode as 'fs-access' | 'opfs' | 'file-input' | null, folderCacheId: sourceFilesSelection.localMarkdownFolderCacheId, selectedFolderPath: sourceFilesSelection.selectedFolderPath || null }) : ''
-  const docsAbsRoot = readWorkspaceInitializationDocsAbsRoot()
-  if (docsAbsRoot) {
-    const rootMirrorEntries = [
-      ...await readWorkspaceMirrorRootEntries({ absRoot: docsAbsRoot, readViaProxy: readWorkspaceDocsMirrorEntriesViaProxy, readViaNodeFs: readWorkspaceDocsMirrorEntriesViaNodeFs }),
-      ...await readWorkspaceMirrorRootEntries({ absRoot: readWorkspaceInitializationAgenticOsDocsAbsRoot(), workspaceRootName: AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT_NAME, readViaProxy: readWorkspaceDocsMirrorEntriesViaProxy, readViaNodeFs: readWorkspaceDocsMirrorEntriesViaNodeFs }),
-    ]
-    if (rootMirrorEntries.length > 0) {
-      if (!preferCompleteDataset) return rootMirrorEntries
-      completeDatasetCandidates.push(rootMirrorEntries)
-    }
+  const localRootRequests = resolveWorkspaceDocsMirrorLocalRootRequests({ docsAbsRoot: readWorkspaceInitializationDocsAbsRoot(), agenticDocsAbsRoot: readWorkspaceInitializationAgenticOsDocsAbsRoot() })
+  const rootMirrorEntries = (await Promise.all(localRootRequests.map(request => readWorkspaceMirrorRootEntries({ ...request, readViaProxy: readWorkspaceDocsMirrorEntriesViaProxy, readViaNodeFs: readWorkspaceDocsMirrorEntriesViaNodeFs })))).flat()
+  if (rootMirrorEntries.length > 0) {
+    if (!preferCompleteDataset) return rootMirrorEntries
+    completeDatasetCandidates.push(rootMirrorEntries)
   }
   if (knowgrphStorageBaseUrl && sourceFilesSelection) {
     if (knowgrphStorageWorkspaceId) {
@@ -1661,11 +1656,6 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
         completeDatasetCandidates.push(viaUrl)
       }
     }
-  }
-  if (!docsAbsRoot) {
-    return preferCompleteDataset
-      ? chooseBestWorkspaceDocsMirrorDataset(completeDatasetCandidates)
-      : []
   }
   return preferCompleteDataset
     ? chooseBestWorkspaceDocsMirrorDataset(completeDatasetCandidates)

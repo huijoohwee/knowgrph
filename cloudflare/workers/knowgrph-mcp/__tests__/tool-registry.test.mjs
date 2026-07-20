@@ -227,31 +227,64 @@ test("Agentic Canvas OS docs invocation is cataloged remotely as read-only", () 
   assert.equal(descriptor.inputSchema.properties.token.type, "string");
 });
 
-test("Agentic Canvas OS docs invocation resolves prefixed tokens remotely", async (t) => {
+test("Agentic Canvas OS docs invocation resolves prefixed tokens remotely", async () => {
   const sourceRevision = "a".repeat(40);
-  const proofRevision = "b".repeat(40);
-  t.mock.method(globalThis, "fetch", async (input) => {
-    const url = String(input);
-    if (url.endsWith("/repos/huijoohwee/agentic-canvas-os/commits/main")) {
-      return Response.json({ sha: sourceRevision });
+  const requestedUrls = [];
+  const dictionaryCommand = [
+    "---",
+    "dictionary_entries:",
+    "  - /query",
+    "---",
+    "",
+    "| Token | Purpose |",
+    "| --- | --- |",
+    "| `/query` | Resolve one query through the docs invocation boundary. |",
+  ].join("\n");
+  const fetchImpl = async (input) => {
+    const requestUrl = String(input);
+    requestedUrls.push(requestUrl);
+    if (requestUrl === "https://api.github.com/repos/huijoohwee/agentic-canvas-os/commits/main") {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ sha: sourceRevision }),
+      };
     }
-    if (url.includes("/repos/huijoohwee/agentic-canvas-os/commits?")) {
-      return Response.json([{ sha: proofRevision }]);
+    if (requestUrl.startsWith("https://api.github.com/repos/huijoohwee/agentic-canvas-os/commits?")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => [],
+      };
     }
-    if (url.startsWith(`https://raw.githubusercontent.com/huijoohwee/agentic-canvas-os/${sourceRevision}/docs/`)) {
-      return new Response("", { status: 200 });
+    const rawDocsPrefix = `https://raw.githubusercontent.com/huijoohwee/agentic-canvas-os/${sourceRevision}/docs/`;
+    if (requestUrl.startsWith(rawDocsPrefix)) {
+      return {
+        ok: true,
+        status: 200,
+        text: async () => requestUrl.endsWith("/DICTIONARY-COMMAND.md") ? dictionaryCommand : "",
+      };
     }
-    return new Response("not found", { status: 404 });
-  });
-
-  const result = await executeKnowgrphMcpToolAsync(AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME, {
-    token: "/query",
-  });
+    throw new Error(`Unexpected Agentic Canvas OS docs request: ${requestUrl}`);
+  };
+  const result = await executeKnowgrphMcpToolAsync(
+    AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
+    { token: "/query" },
+    { fetchImpl },
+  );
 
   assert.equal(result.ok, true);
   assert.equal(result.structuredContent?.sourceRevision, sourceRevision);
   assert.equal(result.structuredContent?.invocation?.token, "/query");
   assert.equal(result.structuredContent?.invocation?.sourcePath, "DICTIONARY-COMMAND.md#/query");
+  assert.equal(requestedUrls[0], "https://api.github.com/repos/huijoohwee/agentic-canvas-os/commits/main");
+  assert.equal(requestedUrls.length, 8);
+  assert.ok(requestedUrls.includes(
+    `https://raw.githubusercontent.com/huijoohwee/agentic-canvas-os/${sourceRevision}/docs/DICTIONARY-COMMAND.md`,
+  ));
+  assert.ok(requestedUrls.includes(
+    `https://api.github.com/repos/huijoohwee/agentic-canvas-os/commits?sha=${sourceRevision}&path=docs/LIVE-AGENT-PROVIDER-PROOF.md&per_page=100`,
+  ));
 });
 
 test("Director tool: live mode without approvals halts with zero paid calls (Property 2 / R2.3 sanity check)", () => {

@@ -30,7 +30,7 @@ It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
    - Owners:
      - `mcp/server.js`
      - `mcp/local-tool-contract.js`
-   - Scope: read-only published Source Files retrieval, Agentic Canvas OS docs `/` `#` `@` invocation lookup, prompt/resource/template discovery, local UI launch, local pipelines, local superagent harness, deny-first sandbox policy validation and authorization preflight, approval-gated video-remix run manifests, local browser API bridge, SEA-LION sidecar calls, HTML video rendering, visual annotation, scoped memory, local probe-tree branching, AI Showrunner dry-runs, zero-token OS status, vdeoxpln registry inspection, and credential-gated Google/Microsoft spreadsheet or slide publication
+   - Scope: read-only published Source Files retrieval, Agentic Canvas OS docs `/` `#` `@` invocation lookup, prompt/resource/template discovery, local UI launch, local pipelines, a private Dev-only KGC-backed ECS session runtime, local superagent harness, deny-first sandbox policy validation and authorization preflight, approval-gated video-remix run manifests, local browser API bridge, SEA-LION sidecar calls, HTML video rendering, visual annotation, scoped memory, local probe-tree branching, AI Showrunner dry-runs, zero-token OS status, vdeoxpln registry inspection, and credential-gated Google/Microsoft spreadsheet or slide publication
    - Transport: stdio only
    - MCP Apps metadata: advertises the shared `ui://knowgrph/agent-ready` resource, no-auth `securitySchemes`, mirrored `_meta.securitySchemes` for UI-linked tools, and widget-accessibility metadata from the shared contract
 
@@ -96,6 +96,20 @@ Canonical local tool inventory owner:
   - `target=workspaceEditor` → opens Workspace Editor (`?openEditorWorkspace=1`)
   - `target=geospatial` → enables Geospatial overlay (`?kgGeo=1`, DEV behavior)
 - `knowgrph.ui.stop` — stops the dev server started by `knowgrph.ui.launch`
+
+### Agentic ECS tools
+
+The existing official SDK stdio server exposes exactly three ECS tools. They add no transport, HTTP route, public session registry, network call, production action, or Cloudflare capability.
+
+| Tool | Invocation metadata | Arguments | Terminal behavior |
+|---|---|---|---|
+| `knowgrph.ecs.session_start` | `/ecs.session-start #agentic-ecs @source.frontmatter` | `{ kgcPath, scope?, binding? }` | Realpath-validates a repository-contained `.md` source, binds its device/inode, reads through a verified no-follow handle, hydrates one opaque World, and returns a private UUID session id. |
+| `knowgrph.ecs.world_tick` | `/ecs.world-tick #agentic-ecs @ecs-session` | `{ sessionId, input?, scope?, binding? }` | Advances ordered code-injected systems transactionally and returns canonical decisions, sanitized deferred state, and validated plural `cost_logs`; any post-commit pending-retention failure caused by a conflicting or invalid/noncanonical Decision reports `tickCommitted: true`. |
+| `knowgrph.ecs.decision_persist` | `/ecs.decision-persist #agentic-ecs @ecs-session` | `{ sessionId, scope?, binding? }` | Revalidates the bound source inside the same-path queue, accepts only its identity or a bounded prior queued ECS replacement lineage, and atomically persists pending validated `EcsDecision` nodes; terminal success disposes the session. |
+
+The canonical stdio construction injects no systems or decision executor, so its default tick is a successful zero-system/no-reasoning tick with one canonical zero Cost_Log and no pending Decision. Embedding hosts may inject reviewed systems/execution only at runtime construction; MCP callers cannot author either.
+
+The private session store uses a finite TTL, maximum count, and lazy expiry sweep. Closed input schemas reject extra arguments; the shared result envelope requires `ok` and `execution_boundary` while admitting tool-specific fields. Root-escaping traversal, symlink/parent/target swap, non-Markdown source, scope/binding mismatch, unknown/expired session, and caller-supplied decisions fail closed; normalized paths that remain beneath the root are allowed. Public error/deferred codes are allowlisted and system labels are deterministic. Allowlists constrain field shape, not retained string content, so embedding hosts must keep secrets out of Decision identifiers/fields/payload, deferred request identifiers, and canonical Cost_Log fields. Sanitized thrown-error/projection metadata and World internals do not reflect source bytes, prompts, arbitrary executor codes, or function names. An inactive expired session is removed only after successful disposal without mutating KGC; disposal failure retains it, extends its TTL, and exposes a retryable error. If source rename succeeds but World disposal fails, the retained session carries the replacement identity for an idempotent close retry.
 
 ### Pipeline / data tools
 

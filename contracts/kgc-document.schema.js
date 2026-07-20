@@ -1,4 +1,6 @@
 // =============================================================================
+
+import { JSON_SCHEMA, load as loadYaml } from "js-yaml";
 // Kgc_Document (`kgc-computing-flow/v1`) — canonical parser / serializer (SSOT)
 // knowgrph-acos-mcp-connector spec · Section 8 (Data models / shared contracts)
 // Task 8.6 · Requirement R7.3 · design.md › Correctness Properties › Property 13
@@ -16,7 +18,8 @@
 //
 // This module is the SINGLE SOURCE OF TRUTH for parsing, serializing and the
 // round-trip guarantee. It is:
-//   - framework-agnostic and dependency-free (no JSON-schema / YAML lib),
+//   - framework-agnostic and uses the repository-pinned YAML parser only for
+//     lossless Markdown-frontmatter fallback extraction,
 //   - plain ESM ("type":"module") reachable by every tier (.js / .mjs),
 //   - PURE + TOTAL: every exported function NEVER throws, makes ZERO network
 //     calls, and is fully deterministic.
@@ -33,7 +36,7 @@
 // parse∘serialize is idempotent up to equivalence).
 //
 // The canonical graph shape mirrors `buildStoryboardFlow` EXACTLY:
-//   node = { id, label, type, status }
+//   node = { id, label, type, status, properties }
 //   edge = { id, source, target }
 // =============================================================================
 
@@ -45,7 +48,7 @@
 export const KGC_COMPUTING_FLOW_SCHEMA = "kgc-computing-flow/v1";
 
 /** Round-trip-significant node field names (order is canonical). */
-export const KGC_NODE_FIELDS = Object.freeze(["id", "label", "type", "status"]);
+export const KGC_NODE_FIELDS = Object.freeze(["id", "label", "type", "status", "properties"]);
 
 /** Round-trip-significant edge field names (order is canonical). */
 export const KGC_EDGE_FIELDS = Object.freeze(["id", "source", "target"]);
@@ -71,12 +74,84 @@ function asArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function defineCanonicalProperty(target, key, value) {
+  Object.defineProperty(target, key, {
+    configurable: true,
+    enumerable: true,
+    value,
+    writable: true,
+  });
+}
+
+/**
+ * Clone a JSON-safe value while sorting object keys for stable serialization.
+ * Unsupported values are rejected by returning `undefined`; callers preserve
+ * the parser's totality by falling back to an empty properties object.
+ */
+function cloneCanonicalJson(value, ancestors = new Set()) {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return undefined;
+    return Object.is(value, -0) ? 0 : value;
+  }
+  if (typeof value !== "object" || ancestors.has(value)) return undefined;
+
+  ancestors.add(value);
+  if (Array.isArray(value)) {
+    const result = [];
+    for (let index = 0; index < value.length; index += 1) {
+      if (!(index in value)) {
+        ancestors.delete(value);
+        return undefined;
+      }
+      const item = cloneCanonicalJson(value[index], ancestors);
+      if (item === undefined) {
+        ancestors.delete(value);
+        return undefined;
+      }
+      result.push(item);
+    }
+    ancestors.delete(value);
+    return result;
+  }
+
+  if (!isPlainObject(value)) {
+    ancestors.delete(value);
+    return undefined;
+  }
+  const result = {};
+  for (const key of Object.keys(value).sort()) {
+    const item = cloneCanonicalJson(value[key], ancestors);
+    if (item === undefined) {
+      ancestors.delete(value);
+      return undefined;
+    }
+    defineCanonicalProperty(result, key, item);
+  }
+  ancestors.delete(value);
+  return result;
+}
+
+function normalizeKgcNodeProperties(value) {
+  let source = value;
+  if (typeof source === "string") {
+    try {
+      source = JSON.parse(source);
+    } catch {
+      return {};
+    }
+  }
+  const canonical = cloneCanonicalJson(source);
+  return isPlainObject(canonical) ? canonical : {};
+}
+
 // -----------------------------------------------------------------------------
 // Normalization — turn loose input into the canonical node/edge/flow shape
 // -----------------------------------------------------------------------------
 
 /**
- * Normalize a single node into the canonical `{ id, label, type, status }`
+ * Normalize a single node into the canonical
+ * `{ id, label, type, status, properties }`
  * shape. Total: any input yields an object (with empty-string fields for a
  * non-object input).
  */
@@ -87,6 +162,7 @@ export function normalizeKgcNode(node) {
     label: asString(source.label),
     type: asString(source.type),
     status: asString(source.status),
+    properties: normalizeKgcNodeProperties(source.properties),
   };
 }
 
@@ -155,10 +231,25 @@ export function extractFlowFromMarkdown(markdown) {
   // fences) when present; otherwise scan the whole document.
   let start = 0;
   let end = lines.length;
+  let frontmatterSource = null;
   if (lines[0] !== undefined && lines[0].trim() === FRONTMATTER_FENCE) {
     start = 1;
     const closing = lines.slice(1).findIndex((l) => l.trim() === FRONTMATTER_FENCE);
-    if (closing >= 0) end = closing + 1;
+    if (closing >= 0) {
+      end = closing + 1;
+      frontmatterSource = lines.slice(start, end).join("\n");
+    }
+  }
+
+  if (frontmatterSource !== null) {
+    try {
+      const frontmatter = loadYaml(frontmatterSource, { json: false, schema: JSON_SCHEMA });
+      if (isPlainObject(frontmatter) && Object.hasOwn(frontmatter, "flow")) {
+        return normalizeKgcFlow(frontmatter.flow);
+      }
+    } catch {
+      // Keep the historical total line parser as a malformed-YAML fallback.
+    }
   }
 
   const nodes = [];
@@ -280,6 +371,7 @@ export function serializeKgcDocument(doc) {
         label: node.label,
         type: node.type,
         status: node.status,
+        properties: node.properties,
       })),
       edges: parsed.flow.edges.map((edge) => ({
         id: edge.id,
@@ -307,6 +399,7 @@ export function serializeKgcFlow(flow) {
       label: node.label,
       type: node.type,
       status: node.status,
+      properties: node.properties,
     })),
     edges: normalized.edges.map((edge) => ({
       id: edge.id,
