@@ -50,6 +50,12 @@ Public route ownership remains `airvio.co/api/storage/*`, but server-side reads 
 
 `huijoohwee/content/knowgrph` is the primary Prod artifact mirror. `huijoohwee/knowgrph` is a generated public-route compatibility surface for managed root files such as `index.html`, `llms.txt`, `manifest.webmanifest`, `settings-flow.json`, `sw.js`, and `assets/**`; it is not the source owner. Cloudflare Pages control files remain authoritative only at the publish repo root: `huijoohwee/_headers` and `huijoohwee/_redirects`. Mirrored nested `_headers` or `_redirects` under `content/knowgrph` are not deploy authority and should not be synced.
 
+The source-revision namespace owns each published `/knowgrph/assets/**` URL. The Pages Function may
+pass through an immutable response only after the asset binding returns a successful non-HTML
+asset; a transient missing asset or HTML SPA fallback is returned as `503` with `no-store` and a
+short retry signal. This keeps partial deployment propagation from mutating a release URL in the
+browser cache while preserving immutable caching for verified asset bytes.
+
 ### 2026-07-11 Root Live Canvas Hero Release Record
 
 - Source repo `knowgrph` shipped `a86bdbc9` (`restore source-backed apex FlowCanvas hero`) and `ada81a16` (`isolate apex hero from unloaded persisted source text`).

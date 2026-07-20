@@ -54,3 +54,71 @@ export async function testPublishedDocHtmlUsesKnowgrphAppShellAsset(): Promise<v
     throw new Error('expected the embeddable published document route to omit conflicting X-Frame-Options')
   }
 }
+
+export async function testStaticAssetRejectsUnavailableOrHtmlFallbackWithoutCaching(): Promise<void> {
+  for (const upstream of [
+    { status: 200, contentType: 'text/html; charset=utf-8', body: '<!doctype html><main id="root"></main>' },
+    { status: 404, contentType: 'text/plain; charset=utf-8', body: 'not found' },
+  ]) {
+    const response = await onRequest({
+      request: new Request('https://airvio.co/knowgrph/assets/revision/Toolbar.js'),
+      env: {
+        ASSETS: {
+          fetch: async () => new Response(upstream.body, {
+            status: upstream.status,
+            headers: {
+              'cache-control': 'public, max-age=31536000, immutable',
+              'content-type': upstream.contentType,
+            },
+          }),
+        },
+      },
+      next: async () => new Response('unexpected next()'),
+    } as never)
+
+    if (response.status !== 503 || response.headers.get('x-knowgrph-asset-status') !== 'temporarily-unavailable') {
+      throw new Error(`expected upstream ${upstream.status} asset fallback to become a retryable 503, got ${response.status}`)
+    }
+    if (response.headers.get('cache-control') !== 'no-store, max-age=0' || response.headers.get('retry-after') !== '1') {
+      throw new Error(`expected failed asset response to forbid caching, got ${response.headers.get('cache-control')}`)
+    }
+    if (response.headers.get('content-type') !== 'text/plain; charset=utf-8') {
+      throw new Error(`expected failed asset response to discard fallback content type, got ${response.headers.get('content-type')}`)
+    }
+  }
+}
+
+export async function testStaticAssetPassesThroughJavascriptResponse(): Promise<void> {
+  let forwardedOrigin = ''
+  const response = await onRequest({
+    request: new Request('https://airvio.co/knowgrph/assets/revision/Toolbar.js', {
+      headers: { origin: 'https://airvio.co' },
+    }),
+    env: {
+      ASSETS: {
+        fetch: async (input: RequestInfo | URL) => {
+          const request = input instanceof Request ? input : new Request(input)
+          forwardedOrigin = request.headers.get('origin') || ''
+          return new Response('export const toolbar = true;', {
+            status: 200,
+            headers: {
+              'cache-control': 'public, max-age=31536000, immutable',
+              'content-type': 'application/javascript; charset=utf-8',
+            },
+          })
+        },
+      },
+    },
+    next: async () => new Response('unexpected next()'),
+  } as never)
+
+  if (!response.ok || await response.text() !== 'export const toolbar = true;') {
+    throw new Error(`expected JavaScript asset response to pass through, got ${response.status}`)
+  }
+  if (response.headers.get('cache-control') !== 'public, max-age=31536000, immutable') {
+    throw new Error(`expected valid revision asset to retain immutable caching, got ${response.headers.get('cache-control')}`)
+  }
+  if (forwardedOrigin) {
+    throw new Error(`expected Pages asset binding request to omit origin, got ${forwardedOrigin}`)
+  }
+}
