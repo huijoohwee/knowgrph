@@ -1,7 +1,7 @@
-import { normalizeCanonicalWorkspaceReadmeCanvasEmbedUrl } from '@/features/canvas/canvasEmbedPresets'
+import { normalizeLiveCanvasHeroCanvasEmbedUrl } from '@/features/canvas/canvasEmbedPresets'
 
 export const LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT = 'kg-live-canvas-hero-source-select'
-const LIVE_CANVAS_HERO_SOURCE_SESSION_KEY = 'kg-live-canvas-hero-source/v1'
+const LIVE_CANVAS_HERO_SOURCE_SESSION_KEY = 'kg-live-canvas-hero-source/v2'
 
 export type LiveCanvasHeroSourceSelection = {
   sourcePath: string
@@ -10,7 +10,7 @@ export type LiveCanvasHeroSourceSelection = {
 
 function normalizeLiveCanvasHeroSourceSelection(value: Partial<LiveCanvasHeroSourceSelection> | null | undefined): LiveCanvasHeroSourceSelection | null {
   const sourcePath = String(value?.sourcePath || '').trim()
-  const embedUrl = normalizeCanonicalWorkspaceReadmeCanvasEmbedUrl(String(value?.embedUrl || '').trim())
+  const embedUrl = normalizeLiveCanvasHeroCanvasEmbedUrl(String(value?.embedUrl || '').trim())
   if (!sourcePath || !embedUrl) return null
   return { sourcePath, embedUrl }
 }

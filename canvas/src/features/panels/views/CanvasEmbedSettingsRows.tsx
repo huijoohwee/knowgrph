@@ -1,10 +1,7 @@
 import React from 'react'
 import { CanvasEmbedImportPanel } from '@/features/canvas/CanvasEmbedImportPanel'
-import {
-  CANONICAL_WORKSPACE_README_CANVAS_EMBED_URL,
-  selectCanvasEmbedImport,
-} from '@/features/canvas/canvasEmbedImportContract'
-import { resolveCanonicalWorkspaceReadmeCanvasEmbedRuntimeUrl } from '@/features/canvas/canvasEmbedPresets'
+import { selectCanvasEmbedImport } from '@/features/canvas/canvasEmbedImportContract'
+import { resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl } from '@/features/canvas/canvasEmbedPresets'
 import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import { getUiSectionActionClassName } from '@/lib/ui/sectionChipChrome'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -50,10 +47,10 @@ export function CanvasEmbedSettingsRows() {
               type="button"
               className={getUiSectionActionClassName('primary')}
               onClick={() => {
-                selectCanvasEmbedImport(resolveCanonicalWorkspaceReadmeCanvasEmbedRuntimeUrl(), { liveHeroPreview: false })
+                selectCanvasEmbedImport(resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl(), { liveHeroPreview: false })
               }}
             >
-              <span className={UI_TEXT_TRUNCATE}>Use Workspace README background</span>
+              <span className={UI_TEXT_TRUNCATE}>Use Agent Definitions background</span>
             </button>
             <span className={`min-w-0 ${UI_TEXT_TRUNCATE} ${UI_THEME_TOKENS.text.secondary}`}>
               Set the Live Canvas Hero background from shared embed code.

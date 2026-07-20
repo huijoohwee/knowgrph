@@ -342,7 +342,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
             {liveCanvasHeroEmbedPreview && liveCanvasHeroEmbedGraph ? (
                 <section
                   className="absolute inset-0 pointer-events-auto opacity-100"
-                  aria-label={liveCanvasHeroEmbedPreviewSurface === 'storyboard' ? 'Shared interactive workspace README Storyboard canvas' : 'Shared interactive workspace README command-route canvas'}
+                  aria-label={liveCanvasHeroEmbedPreviewSurface === 'storyboard' ? 'Shared interactive Storyboard canvas' : 'Shared interactive command-route canvas'}
                   data-kg-live-canvas-hero-embed-preview="true"
                   data-kg-live-canvas-hero-interactive="true"
                   data-kg-live-canvas-hero-embed-surface={liveCanvasHeroEmbedPreviewSurface || 'flow'}
