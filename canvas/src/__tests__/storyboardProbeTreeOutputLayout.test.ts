@@ -389,6 +389,12 @@ export function testProbeTreeGenerationDoesNotRearmStoryboardInitialFit() {
     transformIsIdentity: false,
     visibleCardCount: 0,
   }), 'expected same-document topology growth to preserve an established non-identity camera through transient offscreen projection frames')
+  assert(!shouldRequestStoryboardOverlayImplicitFit({
+    pendingCount: 3,
+    recoverOffscreenRemount: true,
+    transformIsIdentity: true,
+    visibleCardCount: 0,
+  }), 'expected topology remounts to preserve established camera authority while the live transform is transiently unavailable')
   assert(shouldRequestStoryboardOverlayImplicitFit({
     pendingCount: 2,
     recoverOffscreenRemount: false,
