@@ -242,17 +242,31 @@ async function waitForActiveDocumentReady(page: Page): Promise<void> {
   )
 }
 
+async function selectExpectedDocument(page: Page): Promise<void> {
+  const expectedDocumentName = basename(DOC_PATH)
+  const directoryNames = DOC_PATH.split('/').filter(Boolean).slice(0, -1)
+  for (const directoryName of directoryNames) {
+    const directory = page.getByText(directoryName, { exact: true }).first()
+    await directory.waitFor({ state: 'visible', timeout: 30_000 })
+    await directory.click()
+  }
+  const sourceFile = page.getByText(expectedDocumentName, { exact: true }).first()
+  await sourceFile.waitFor({ state: 'visible', timeout: 30_000 })
+  await sourceFile.click()
+  await waitForActiveDocumentReady(page)
+}
+
 async function appendMarkerThroughActiveEditor(page: Page, marker: string): Promise<void> {
   const mainPanel = page.getByRole('complementary', { name: 'Main panel', exact: true })
   await mainPanel.getByRole('button', { name: 'Close', exact: true }).click()
   await mainPanel.waitFor({ state: 'hidden', timeout: 30_000 })
 
   const editorSurface = page.locator('.kg-markdown-editor-pane .view-lines')
+  await editorSurface.waitFor({ state: 'visible', timeout: 30_000 })
   const editorSurfaceCount = await editorSurface.count()
   if (editorSurfaceCount !== 1) {
     throw new Error(`expected one active Markdown editor surface, got ${editorSurfaceCount}`)
   }
-  await editorSurface.waitFor({ state: 'visible', timeout: 30_000 })
   await editorSurface.click()
   const editorFocused = await page.evaluate(() => {
     const editorRoot = document.querySelector('.kg-markdown-editor-pane .monaco-editor')
@@ -337,6 +351,11 @@ async function main(): Promise<void> {
         throw new Error(`expected owner and guest ${key} to match`)
       }
     }
+
+    await Promise.all([
+      selectExpectedDocument(ownerPage),
+      selectExpectedDocument(guestPage),
+    ])
 
     await Promise.all([
       openCollaborationPanel(ownerPage),
