@@ -240,7 +240,7 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
   if (rootScripts['demo:xr-physics'] !== 'npm run dev:xr-physics --workspace=@knowgrph/canvas --') {
     throw new Error('expected the repository demo command to delegate to the Canvas workspace')
   }
-  const expectedCanvasScript = `VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT=$PWD/../docs VITE_KNOWGRPH_RUN_READY_REPO_LOCAL=1 ${WORKSPACE_RUN_READY_DEMO_ENV}=${XR_PHYSICS_RUN_READY_DEMO_ID} vite --configLoader runner --port 5174 --strictPort`
+  const expectedCanvasScript = `VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT=$PWD/../../huijoohwee/docs VITE_KNOWGRPH_RUN_READY_REPO_LOCAL=1 ${WORKSPACE_RUN_READY_DEMO_ENV}=${XR_PHYSICS_RUN_READY_DEMO_ID} vite --configLoader runner --port 5174 --strictPort`
   if (canvasScripts['dev:xr-physics'] !== expectedCanvasScript) {
     throw new Error('expected the Canvas demo command to activate repo-local source authority and the shared run-ready selector')
   }

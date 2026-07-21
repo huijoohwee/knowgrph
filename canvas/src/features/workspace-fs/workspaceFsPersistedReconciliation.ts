@@ -11,6 +11,13 @@ import { readWorkspaceInitializationDocsMirrorEntries } from './workspaceSeedPro
 import { loadWorkspaceSourceIndex, setWorkspaceEntrySource } from './sourceIndex'
 import type { WorkspaceEntry, WorkspacePath } from './types'
 import { isLegacyWorkspaceSourcePath } from './workspaceLegacySourceRoots'
+import {
+  isLegacyAuthoredMarkdownNotePath,
+  isMigratedAuthoredMarkdownNoteMirrorPath,
+  preserveAuthoredMarkdownNoteSource,
+  resolveAuthoredMarkdownNotePath,
+} from './workspaceAuthoredNotes'
+import { WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH } from './workspaceSourceRoots'
 
 type WorkspaceRecordMap = { entries: WorkspaceEntry }
 type WorkspaceCollections = PersistedCollectionMap<WorkspaceRecordMap>
@@ -18,10 +25,12 @@ type WorkspaceDocsMirrorEntry = {
   relPath: string
   text: string
   updatedAtMs: number
-  authority?: 'agentic-canvas-os-github'
+  authority?: 'agentic-canvas-os-github' | 'huijoohwee-demo-docs-github' | 'huijoohwee-output-docs-github'
 }
 
 const WORKSPACE_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/docs')
+const WORKSPACE_AGENTIC_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/agentic-canvas-os/docs')
+const WORKSPACE_OUTPUT_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/docs_')
 let lastDocsMirrorSyncSignature = ''
 
 const normalizeUpdatedAtMs = (value: unknown, fallback = Date.now()): number => {
@@ -49,7 +58,14 @@ const normalizeDocsMirrorRelPath = (value: string): string => {
 }
 
 export const toWorkspaceDocsMirrorPath = (relPath: string): WorkspacePath => {
-  const normalizedRelPath = normalizeDocsMirrorRelPath(relPath)
+  const mountedRelPath = String(relPath || '').trim().replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '')
+  if (mountedRelPath.toLowerCase().startsWith('agentic-canvas-os/docs/')) {
+    return normalizeWorkspacePath(`/${mountedRelPath}`)
+  }
+  if (mountedRelPath.toLowerCase().startsWith('docs_/')) {
+    return normalizeWorkspacePath(`/${mountedRelPath}`)
+  }
+  const normalizedRelPath = normalizeDocsMirrorRelPath(mountedRelPath)
   return normalizeWorkspacePath(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/${normalizedRelPath}`)
 }
 
@@ -102,6 +118,52 @@ export const removeLegacyWorkspaceSourceEntries = async (
     changed = true
   }
   return changed
+}
+
+export const migrateLegacyAuthoredMarkdownNotes = async (
+  collections: WorkspaceCollections,
+): Promise<boolean> => {
+  const sourceIndex = loadWorkspaceSourceIndex()
+  const rows = await collections.entries.find().exec()
+  const occupiedPaths = new Set(rows.map(row => normalizeWorkspacePath(String(row.get('path') || ''))))
+  const legacyRows = rows
+    .filter(row => row.get('kind') === 'file' && isLegacyAuthoredMarkdownNotePath(
+      normalizeWorkspacePath(String(row.get('path') || '')),
+      sourceIndex,
+    ))
+    .sort((left, right) => String(left.get('path') || '').localeCompare(String(right.get('path') || '')))
+  if (legacyRows.length === 0) return false
+  if (!occupiedPaths.has(WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH)) {
+    await collections.entries.incrementalUpsert({
+      path: WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH,
+      parentPath: '/',
+      kind: 'folder',
+      name: workspaceBasename(WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH),
+      updatedAtMs: Date.now(),
+    })
+    occupiedPaths.add(WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH)
+  }
+  for (const row of legacyRows) {
+    const legacyPath = normalizeWorkspacePath(String(row.get('path') || ''))
+    const destinationPath = resolveAuthoredMarkdownNotePath({ legacyPath, occupiedPaths })
+    await collections.entries.incrementalUpsert({
+      path: destinationPath,
+      parentPath: WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH,
+      kind: 'file',
+      name: workspaceBasename(destinationPath),
+      text: String(row.get('text') ?? ''),
+      updatedAtMs: normalizeUpdatedAtMs(row.get('updatedAtMs')),
+    })
+    await row.remove()
+    occupiedPaths.delete(legacyPath)
+    occupiedPaths.add(destinationPath)
+    const source = sourceIndex[legacyPath]
+    setWorkspaceEntrySource(legacyPath, null, { persist: 'sync' })
+    if (source) {
+      setWorkspaceEntrySource(destinationPath, preserveAuthoredMarkdownNoteSource(source), { persist: 'sync' })
+    }
+  }
+  return true
 }
 
 export const removeNoncanonicalXrPhysicsFiles = async (
@@ -194,12 +256,20 @@ export const syncWorkspaceDocsMirrorEntries = async (
     }
   }
   if (desiredEntriesByPath.size === 0) return false
+  const workspaceSourceIndex = loadWorkspaceSourceIndex()
+  for (const desiredPath of desiredEntriesByPath.keys()) {
+    if (isMigratedAuthoredMarkdownNoteMirrorPath(desiredPath, workspaceSourceIndex)) {
+      desiredEntriesByPath.delete(desiredPath)
+    }
+  }
   const canonicalXrSeedDesired = CANONICAL_XR_PHYSICS_WORKSPACE_SEED_ENABLED
     && desiredEntriesByPath.get(XR_PHYSICS_WORKSPACE_SEED_PATH)?.kind === 'file'
-  const canonicalAgenticDocsOwnTree = docsEntries.every(
-    entry => entry.authority === 'agentic-canvas-os-github',
+  const agenticRuntimeDesiredPaths = new Set(
+    [...desiredEntriesByPath.keys()].filter(path => (
+      path === WORKSPACE_AGENTIC_DOCS_MIRROR_ROOT_PATH
+      || path.startsWith(`${WORKSPACE_AGENTIC_DOCS_MIRROR_ROOT_PATH}/`)
+    )),
   )
-  const workspaceSourceIndex = loadWorkspaceSourceIndex()
   const sourceOwnedDocsPaths = buildWorkspaceDocsMirrorSourceOwnedPathSet(workspaceSourceIndex)
   const existingRows = await collections.entries.find().exec()
   let changed = false
@@ -207,7 +277,15 @@ export const syncWorkspaceDocsMirrorEntries = async (
     const row = existingRows[i]
     if (!row) continue
     const existingPath = normalizeWorkspacePath(String(row.get('path') || ''))
-    if (!existingPath.startsWith(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/`)) continue
+    const underVisibleDocs = existingPath.startsWith(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/`)
+    const underRuntimeDocs = existingPath.startsWith(`${WORKSPACE_AGENTIC_DOCS_MIRROR_ROOT_PATH}/`)
+    const underOutputDocs = existingPath.startsWith(`${WORKSPACE_OUTPUT_DOCS_MIRROR_ROOT_PATH}/`)
+    if (!underVisibleDocs && !underRuntimeDocs && !underOutputDocs) continue
+    if (isMigratedAuthoredMarkdownNoteMirrorPath(existingPath, workspaceSourceIndex)) {
+      await row.remove()
+      changed = true
+      continue
+    }
     const desired = desiredEntriesByPath.get(existingPath) || null
     const protectedXrNamedFolder = CANONICAL_XR_PHYSICS_WORKSPACE_SEED_ENABLED
       && row.get('kind') === 'folder'
@@ -220,13 +298,18 @@ export const syncWorkspaceDocsMirrorEntries = async (
     }
     const canonicalXrSeedMustWin = canonicalXrSeedDesired
       && existingPath === XR_PHYSICS_WORKSPACE_SEED_PATH
-    if (!canonicalAgenticDocsOwnTree && sourceOwnedDocsPaths.has(existingPath) && !canonicalXrSeedMustWin) {
+    const runtimeTwinPath = underVisibleDocs
+      ? normalizeWorkspacePath(`${WORKSPACE_AGENTIC_DOCS_MIRROR_ROOT_PATH}/${existingPath.slice(`${WORKSPACE_DOCS_MIRROR_ROOT_PATH}/`.length)}`)
+      : null
+    const staleFlattenedRuntimeDoc = !!runtimeTwinPath && agenticRuntimeDesiredPaths.has(runtimeTwinPath)
+    if (underOutputDocs && !desired) continue
+    if (!staleFlattenedRuntimeDoc && sourceOwnedDocsPaths.has(existingPath) && !canonicalXrSeedMustWin) {
       desiredEntriesByPath.delete(existingPath)
       continue
     }
     if (!desired) {
       await row.remove()
-      if (canonicalAgenticDocsOwnTree) clearWorkspaceEntrySource(existingPath)
+      if (underRuntimeDocs || staleFlattenedRuntimeDoc) clearWorkspaceEntrySource(existingPath)
       changed = true
       continue
     }

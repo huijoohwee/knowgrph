@@ -9,7 +9,7 @@ import {
 import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 import { readCachedWorkspaceDocsMirrorEntries, readFirstKnowgrphStorageDocText, readWorkspaceDocsMirrorTextViaFetch as readTextViaFetch } from '@/features/workspace-fs/workspaceSeedProviderStorageCache'
 import { importNodeFsPromises, importNodePath } from '@/features/workspace-fs/workspaceSeedNodeModules'
-import { isWorkspaceDocsMirrorGitHubSourceUrl, readCanonicalAgenticCanvasOsDocsMirrorEntries, readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl } from '@/features/workspace-fs/workspaceGithubDocsMirror'
+import { isWorkspaceDocsMirrorGitHubSourceUrl, readCanonicalAgenticCanvasOsDocsMirrorEntries, readCanonicalHuijoohweeDemoDocsMirrorEntries, readCanonicalHuijoohweeOutputDocsMirrorEntries, readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl } from '@/features/workspace-fs/workspaceGithubDocsMirror'
 import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBase64 } from '@/features/workspace-fs/workspaceSourceMirrorFormats'
 import { readWorkspaceMirrorRootEntries } from '@/features/workspace-fs/workspaceMirrorRootEntries'
 import { resolveWorkspaceDocsMirrorLocalRootRequests } from '@/features/workspace-fs/workspaceDocsMirrorLocalRoots'
@@ -166,6 +166,12 @@ const readWorkspaceInitializationAgenticOsDocsAbsRoot = (): string => {
   const docsMirrorBaseRoot = readWorkspaceMirrorBaseAbsRoot()
   const repositoryParentRoot = readAbsParentRoot(docsMirrorBaseRoot)
   return repositoryParentRoot ? `${repositoryParentRoot}/agentic-canvas-os/${AGENTIC_CANVAS_OS_DOCS_REPOSITORY_FOLDER_NAME}` : ''
+}
+
+const readWorkspaceInitializationOutputDocsAbsRoot = (): string => {
+  const docsRoot = readWorkspaceInitializationDocsAbsRoot()
+  const parentRoot = readAbsParentRoot(docsRoot)
+  return parentRoot ? `${parentRoot}/docs_` : ''
 }
 
 const readWorkspaceInitializationChatLogAbsRoot = (): string => {
@@ -1312,7 +1318,12 @@ const normalizeSelectedFolderMirrorPath = (value: string): string => {
   return asFolder
 }
 
-export type WorkspaceDocsMirrorEntry = { relPath: string; text: string; updatedAtMs: number; authority?: 'agentic-canvas-os-github' }
+export type WorkspaceDocsMirrorEntry = {
+  relPath: string
+  text: string
+  updatedAtMs: number
+  authority?: 'agentic-canvas-os-github' | 'huijoohwee-demo-docs-github' | 'huijoohwee-output-docs-github'
+}
 
 const readWorkspaceDocsMirrorDatasetScore = (entries: ReadonlyArray<WorkspaceDocsMirrorEntry>): number => {
   const list = Array.isArray(entries) ? entries : []
@@ -1548,8 +1559,22 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
   })
   // #endregion
   if (!repoLocalRunReady) {
-    const canonicalGitHubEntries = await readCanonicalAgenticCanvasOsDocsMirrorEntries({ maxFiles: WORKSPACE_DOCS_MIRROR_MAX_FILES, maxFileBytes: WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES })
-    if (canonicalGitHubEntries.length > 0) return canonicalGitHubEntries
+    const [canonicalDemoEntries, canonicalOutputEntries, canonicalAgenticEntries] = await Promise.all([
+      readCanonicalHuijoohweeDemoDocsMirrorEntries({ maxFiles: WORKSPACE_DOCS_MIRROR_MAX_FILES, maxFileBytes: WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES }),
+      readCanonicalHuijoohweeOutputDocsMirrorEntries({ maxFiles: WORKSPACE_DOCS_MIRROR_MAX_FILES, maxFileBytes: WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES }),
+      readCanonicalAgenticCanvasOsDocsMirrorEntries({ maxFiles: WORKSPACE_DOCS_MIRROR_MAX_FILES, maxFileBytes: WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES }),
+    ])
+    const namespacedOutputEntries = canonicalOutputEntries.map(entry => ({
+      ...entry,
+      relPath: `docs_/${normalizeMirrorRelPath(entry.relPath)}`,
+    }))
+    const namespacedAgenticEntries = canonicalAgenticEntries.map(entry => ({
+      ...entry,
+      relPath: `${CANONICAL_STORAGE_DOCS_ROOT}/${normalizeMirrorRelPath(entry.relPath)}`,
+    }))
+    if (canonicalDemoEntries.length > 0 || namespacedOutputEntries.length > 0 || namespacedAgenticEntries.length > 0) {
+      return [...canonicalDemoEntries, ...namespacedOutputEntries, ...namespacedAgenticEntries]
+    }
     if (defaultSourceUrlIsGitHub) {
       const viaGitHubDefaultSource = await readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl({
         url: defaultSourceUrl,
@@ -1562,7 +1587,7 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
   const sourceFilesSelection = await resolveWorkspaceDocsRootFromSourceFilesSelection()
   const knowgrphStorageBaseUrl = readWorkspaceDocsMirrorStorageFallbackEnabled() ? readWorkspaceInitializationKnowgrphStorageBaseUrl() : ''
   const knowgrphStorageWorkspaceId = knowgrphStorageBaseUrl && sourceFilesSelection ? buildKnowgrphWorkspaceIdFromSourceFilesWorkspaceState({ folderName: sourceFilesSelection.folderName, accessMode: sourceFilesSelection.accessMode as 'fs-access' | 'opfs' | 'file-input' | null, folderCacheId: sourceFilesSelection.localMarkdownFolderCacheId, selectedFolderPath: sourceFilesSelection.selectedFolderPath || null }) : ''
-  const localRootRequests = resolveWorkspaceDocsMirrorLocalRootRequests({ docsAbsRoot: readWorkspaceInitializationDocsAbsRoot(), agenticDocsAbsRoot: repoLocalRunReady ? '' : readWorkspaceInitializationAgenticOsDocsAbsRoot() })
+  const localRootRequests = resolveWorkspaceDocsMirrorLocalRootRequests({ docsAbsRoot: readWorkspaceInitializationDocsAbsRoot(), outputDocsAbsRoot: readWorkspaceInitializationOutputDocsAbsRoot(), agenticDocsAbsRoot: readWorkspaceInitializationAgenticOsDocsAbsRoot() })
   const rootMirrorEntries = (await Promise.all(localRootRequests.map(request => readWorkspaceMirrorRootEntries({ ...request, readViaProxy: readWorkspaceDocsMirrorEntriesViaProxy, readViaNodeFs: readWorkspaceDocsMirrorEntriesViaNodeFs })))).flat()
   if (rootMirrorEntries.length > 0) {
     if (!preferCompleteDataset) return rootMirrorEntries

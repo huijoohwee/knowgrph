@@ -1,6 +1,13 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
+  ["workspace.docsRootFallback.rejectsViteAppShell","@/__tests__/workspaceDocsRootFallbackPayload.test","testWorkspaceDocsRootFallbackRejectsViteAppShell"],
+  ["workspace.docsRootFallback.acceptsMarkdown","@/__tests__/workspaceDocsRootFallbackPayload.test","testWorkspaceDocsRootFallbackAcceptsMarkdown"],
+  ["workspace.docsRootFallback.rejectsBlankText","@/__tests__/workspaceDocsRootFallbackPayload.test","testWorkspaceDocsRootFallbackRejectsBlankText"],
+  ["markdown.workspace.switch.primesCanvasForUnhydratedFile","@/__tests__/workspaceDocumentSwitchCanvasPrime.test","testWorkspaceDocumentSwitchPrimesCanvasForUnhydratedFile"],
+  ["markdown.workspace.switch.skipsCanvasPrimeForHydratedFile","@/__tests__/workspaceDocumentSwitchCanvasPrime.test","testWorkspaceDocumentSwitchDoesNotPrimeCanvasForHydratedFile"],
+  ["markdown.workspace.switch.skipsCanvasPrimeForStalePath","@/__tests__/workspaceDocumentSwitchCanvasPrime.test","testWorkspaceDocumentSwitchDoesNotPrimeCanvasForStalePendingPath"],
+  ["markdown.workspace.switch.blankPrimeClearsStaleGraph","@/__tests__/workspaceDocumentSwitchCanvasPrime.test","testWorkspaceDocumentSwitchBlankPrimeClearsStaleGraph"],
   ["agenticOs.remoteGrammar.provenance.revisionBound","@/__tests__/agenticOsRemoteGrammarProvenance.test","testAgenticOsRemoteGrammarProvenanceRebasesExactDictionaryFragments"],
   ["agenticOs.remoteGrammar.provenance.fetchFailClosed","@/__tests__/agenticOsRemoteGrammarProvenance.test","testAgenticOsRemoteGrammarFetchRegistersOnlyRevisionBoundProvenance"],
   ["viewport.storyboardWidget.overlay.distinctRichMediaCollision","@/__tests__/storyboardWidgetActiveSurfaceObstacleCollection.test","testStoryboardWidgetPinnedCardTreatsDistinctRichMediaAsCollisionObstacle"],
@@ -188,6 +195,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["canvas.gameFps.persistence.browserSafeMerge","@/__tests__/gameFpsRunReadyContract.test","testGameFpsDecisionStoreUsesBrowserSafeCanonicalMerge"],
   ["canvas.gameFps.bootstrap.activeSourceSkipsDocsMirror","@/__tests__/gameFpsRunReadyContract.test","testGameFpsRepoLocalActiveSourceSkipsDocsMirrorFetch"],
   ["canvas.agenticEcs.projection.documentTextSeam","@/__tests__/agenticEcsCanvasProjection.test","testAgenticEcsCanvasProjectionUsesDocumentTextApplySeam"],
+  ["workspace.sourceFiles.agenticDocs.runtimeOnly","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceSourceRootPathsKeepAgenticOsDocsOutOfExplorer"],
   ["workspace.docsMirror.localRoots.agenticFallback","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceDocsMirrorLocalRootsPromotesAgenticFallbackWhenPrimaryRootIsAbsent"],
   ["workspace.docsMirror.localRoots.githubUnavailable","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceSeedProviderUsesLocalAgenticDocsWhenGitHubIsUnavailable"],
 ]

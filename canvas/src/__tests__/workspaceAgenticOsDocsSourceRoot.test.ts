@@ -6,12 +6,16 @@ import {
   readWorkspaceImportShareExportRootPathSetting,
   writeWorkspaceImportShareExportRootPathSetting,
 } from '@/lib/workspace/workspaceStoreSyncSettings'
-import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
+import {
+  projectWorkspaceEntriesToSourceFilesExplorer,
+  resolveWorkspaceSourceRootPaths,
+} from '@/features/workspace-fs/workspaceSourceRoots'
 import { readWorkspaceInitializationDocsMirrorEntries } from '@/features/workspace-fs/workspaceSeedProvider'
 import { resolveWorkspaceDocsMirrorLocalRootRequests } from '@/features/workspace-fs/workspaceDocsMirrorLocalRoots'
 import { resetCanonicalAgenticDocsMirrorCacheForTests } from '@/features/workspace-fs/workspaceGithubDocsMirror'
+import { toWorkspaceDocsMirrorPath } from '@/features/workspace-fs/workspaceFsPersistedReconciliation'
 
-export function testWorkspaceSourceRootPathsIncludeAgenticOsDocsRoot(): void {
+export function testWorkspaceSourceRootPathsKeepAgenticOsDocsOutOfExplorer(): void {
   const { restore } = initJsdomHarness()
   const previousDocsAbsRoot = process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT
   const previousValue = readWorkspaceImportShareExportRootPathSetting()
@@ -19,8 +23,40 @@ export function testWorkspaceSourceRootPathsIncludeAgenticOsDocsRoot(): void {
     process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = path.join(os.tmpdir(), 'kg-root', 'docs')
     writeWorkspaceImportShareExportRootPathSetting('/docs_')
     const roots = resolveWorkspaceSourceRootPaths()
-    if (!roots.includes('/agentic-canvas-os/docs')) {
-      throw new Error(`expected sibling agentic-canvas-os/docs root to participate in workspace source roots, got ${roots.join(', ')}`)
+    if (roots.includes('/agentic-canvas-os/docs')) {
+      throw new Error(`expected runtime-only agentic-canvas-os/docs root to stay out of Source Files, got ${roots.join(', ')}`)
+    }
+    if (!roots.includes('/notes')) {
+      throw new Error(`expected authored notes to remain isolated as a workspace source root, got ${roots.join(', ')}`)
+    }
+    if (!roots.includes('/docs_')) {
+      throw new Error(`expected generated output root to remain visible in Source Files, got ${roots.join(', ')}`)
+    }
+    if (!roots.includes('/docs')) {
+      throw new Error(`expected runnable demo root to remain visible in Source Files, got ${roots.join(', ')}`)
+    }
+    const visible = projectWorkspaceEntriesToSourceFilesExplorer([
+      { path: '/agentic-canvas-os', parentPath: '/', kind: 'folder', name: 'agentic-canvas-os', updatedAtMs: 1 },
+      { path: '/agentic-canvas-os/docs', parentPath: '/agentic-canvas-os', kind: 'folder', name: 'docs', updatedAtMs: 1 },
+      { path: '/agentic-canvas-os/docs/AGENTS.md', parentPath: '/agentic-canvas-os/docs', kind: 'file', name: 'AGENTS.md', text: '# Runtime', updatedAtMs: 1 },
+      { path: '/docs', parentPath: '/', kind: 'folder', name: 'docs', updatedAtMs: 1 },
+      { path: '/docs/demo.md', parentPath: '/docs', kind: 'file', name: 'demo.md', text: '# Demo', updatedAtMs: 1 },
+      { path: '/docs_', parentPath: '/', kind: 'folder', name: 'docs_', updatedAtMs: 1 },
+      { path: '/docs_/output.md', parentPath: '/docs_', kind: 'file', name: 'output.md', text: '# Output', updatedAtMs: 1 },
+      { path: '/unrelated.md', parentPath: '/', kind: 'file', name: 'unrelated.md', text: '# Hidden', updatedAtMs: 1 },
+    ], roots)
+    const visiblePaths = visible.map(entry => entry.path)
+    if (visiblePaths.join(',') !== '/docs,/docs/demo.md,/docs_,/docs_/output.md') {
+      throw new Error(`expected Explorer to project only operator-owned source roots, got ${visiblePaths.join(', ')}`)
+    }
+    if (toWorkspaceDocsMirrorPath('agentic-canvas-os/docs/AGENTS.md') !== '/agentic-canvas-os/docs/AGENTS.md') {
+      throw new Error('expected Agentic Canvas OS documents to retain their runtime-only workspace namespace')
+    }
+    if (toWorkspaceDocsMirrorPath('workspace-seeds/demo.md') !== '/docs/workspace-seeds/demo.md') {
+      throw new Error('expected demo documents to remain mounted under the visible /docs root')
+    }
+    if (toWorkspaceDocsMirrorPath('docs_/runs/output.md') !== '/docs_/runs/output.md') {
+      throw new Error('expected generated outputs to remain mounted under the visible /docs_ root')
     }
   } finally {
     writeWorkspaceImportShareExportRootPathSetting(previousValue)
@@ -68,9 +104,13 @@ export function testWorkspaceDocsMirrorLocalRootsPromotesAgenticFallbackWhenPrim
   }
   const combined = resolveWorkspaceDocsMirrorLocalRootRequests({
     docsAbsRoot: '/tmp/knowgrph/docs',
+    outputDocsAbsRoot: '/tmp/huijoohwee/docs_',
     agenticDocsAbsRoot: '/tmp/agentic-canvas-os/docs',
   })
-  if (combined[1]?.workspaceRootName !== 'agentic-canvas-os/docs') {
+  if (combined[1]?.workspaceRootName !== 'docs_') {
+    throw new Error(`expected the output root to retain its docs_ namespace, got ${JSON.stringify(combined)}`)
+  }
+  if (combined[2]?.workspaceRootName !== 'agentic-canvas-os/docs') {
     throw new Error(`expected a secondary Agentic docs root to retain its namespace, got ${JSON.stringify(combined)}`)
   }
 }

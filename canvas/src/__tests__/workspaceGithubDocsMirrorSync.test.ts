@@ -161,6 +161,29 @@ export async function testWorkspaceSeedProviderGitHubDocsMirrorDefaultSourceWins
         },
       },
       {
+        test: u => u === 'https://api.github.com/repos/huijoohwee/huijoohwee/git/refs/heads/main',
+        handler: () => jsonResponse({ object: { sha: 'commit-sha-demo-docs' } }),
+      },
+      {
+        test: u => u === 'https://api.github.com/repos/huijoohwee/huijoohwee/git/commits/commit-sha-demo-docs',
+        handler: () => jsonResponse({ tree: { sha: 'tree-sha-demo-docs' } }),
+      },
+      {
+        test: u => u === 'https://api.github.com/repos/huijoohwee/huijoohwee/git/trees/tree-sha-demo-docs?recursive=1',
+        handler: () => jsonResponse({ truncated: false, tree: [
+          { path: 'docs/demo.md', type: 'blob' },
+          { path: 'docs_/output.md', type: 'blob' },
+        ] }),
+      },
+      {
+        test: u => u === 'https://raw.githubusercontent.com/huijoohwee/huijoohwee/main/docs/demo.md',
+        handler: () => textResponse('# canonical demo\n'),
+      },
+      {
+        test: u => u === 'https://raw.githubusercontent.com/huijoohwee/huijoohwee/main/docs_/output.md',
+        handler: () => textResponse('# canonical output\n'),
+      },
+      {
         test: u => u === 'https://api.github.com/repos/huijoohwee/agentic-canvas-os/git/refs/heads/main',
         handler: () => jsonResponse({ object: { sha: 'commit-sha-docs' } }),
       },
@@ -215,29 +238,35 @@ export async function testWorkspaceSeedProviderGitHubDocsMirrorDefaultSourceWins
     if (localMirrorReadCount !== 0) {
       throw new Error('expected canonical Agentic Canvas OS GitHub docs to win before reading a local docs projection')
     }
-    if (byPath.get('alpha.md') !== '# remote alpha\n') {
-      throw new Error(`expected alpha.md to come from GitHub, got ${String(byPath.get('alpha.md') || '')}`)
+    if (byPath.get('demo.md') !== '# canonical demo\n') {
+      throw new Error(`expected demo.md to come from the canonical demo repository, got ${String(byPath.get('demo.md') || '')}`)
     }
-    if (byPath.get('data.json') !== '{"remote":true}\n') {
+    if (byPath.get('docs_/output.md') !== '# canonical output\n') {
+      throw new Error(`expected output.md to retain the canonical output namespace, got ${String(byPath.get('docs_/output.md') || '')}`)
+    }
+    if (byPath.get('agentic-canvas-os/docs/alpha.md') !== '# remote alpha\n') {
+      throw new Error(`expected Agentic alpha.md to retain its runtime namespace, got ${String(byPath.get('agentic-canvas-os/docs/alpha.md') || '')}`)
+    }
+    if (byPath.get('agentic-canvas-os/docs/data.json') !== '{"remote":true}\n') {
       throw new Error('expected GitHub docs mirror to include supported JSON source files')
     }
-    if (byPath.get('model.gltf') !== '{"asset":{"version":"2.0"}}\n') {
+    if (byPath.get('agentic-canvas-os/docs/model.gltf') !== '{"asset":{"version":"2.0"}}\n') {
       throw new Error('expected GitHub docs mirror to include GLTF source files')
     }
-    if (byPath.get('model.glb') !== 'AAECAw==') {
+    if (byPath.get('agentic-canvas-os/docs/model.glb') !== 'AAECAw==') {
       throw new Error('expected GitHub docs mirror to base64-encode GLB source files')
     }
-    if (byPath.has('image.png') || byPath.has('content/knowgrph/index.html')) {
+    if (byPath.has('agentic-canvas-os/docs/image.png') || byPath.has('content/knowgrph/index.html')) {
       throw new Error('expected GitHub docs mirror to stay within the configured docs tree and Source Files mirror formats')
     }
-    if (mirrored.some(entry => entry.authority !== 'agentic-canvas-os-github')) {
-      throw new Error('expected every canonical GitHub entry to carry authoritative tree ownership for stale-file reconciliation')
+    if (!mirrored.some(entry => entry.authority === 'huijoohwee-demo-docs-github') || !mirrored.some(entry => entry.authority === 'huijoohwee-output-docs-github') || !mirrored.some(entry => entry.authority === 'agentic-canvas-os-github')) {
+      throw new Error('expected demo, output, and runtime documents to retain distinct repository authority')
     }
     if (
       normalizeMarkdownWorkspaceDocsSourcePathFromCanonicalPath('agentic-canvas-os/docs/alpha.md')
-      !== 'workspace:/docs/alpha.md'
+      !== 'workspace:/agentic-canvas-os/docs/alpha.md'
     ) {
-      throw new Error('expected Agentic Canvas OS D1 paths to materialize into the canonical /docs workspace root')
+      throw new Error('expected Agentic Canvas OS D1 paths to retain their runtime-only workspace namespace')
     }
     const canonicalCandidates = readStorageCanonicalPathCandidatesForWorkspacePath('/docs/alpha.md')
     if (canonicalCandidates[0] !== 'agentic-canvas-os/docs/alpha.md') {

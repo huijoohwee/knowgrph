@@ -15,6 +15,12 @@ import { loadWorkspaceSourceIndex, setWorkspaceEntrySource } from './sourceIndex
 import { LS_KEYS } from '@/lib/config'
 import { lsBool, lsRemove, lsSetBool } from '@/lib/persistence'
 import { isLegacyWorkspaceSourcePath } from './workspaceLegacySourceRoots'
+import {
+  isLegacyAuthoredMarkdownNotePath,
+  preserveAuthoredMarkdownNoteSource,
+  resolveAuthoredMarkdownNotePath,
+} from './workspaceAuthoredNotes'
+import { WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH } from './workspaceSourceRoots'
 
 export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry[] }): WorkspaceFs {
   const entriesByPath = new Map<string, WorkspaceEntry>()
@@ -103,10 +109,51 @@ export function createMemoryWorkspaceFs(args?: { initialEntries?: WorkspaceEntry
     return changed
   }
 
+  const migrateLegacyAuthoredMarkdownNotes = (): boolean => {
+    const sourceIndex = loadWorkspaceSourceIndex()
+    const occupiedPaths = new Set(entriesByPath.keys())
+    const legacyEntries = [...entriesByPath.values()]
+      .filter(entry => entry.kind === 'file' && isLegacyAuthoredMarkdownNotePath(entry.path, sourceIndex))
+      .sort((left, right) => left.path.localeCompare(right.path))
+    if (legacyEntries.length === 0) return false
+    if (!entriesByPath.has(WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH)) {
+      entriesByPath.set(WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH, {
+        path: WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH,
+        parentPath: WORKSPACE_ROOT_PATH,
+        kind: 'folder',
+        name: workspaceBasename(WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH),
+        updatedAtMs: Date.now(),
+      })
+      occupiedPaths.add(WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH)
+    }
+    for (const entry of legacyEntries) {
+      const destinationPath = resolveAuthoredMarkdownNotePath({
+        legacyPath: entry.path,
+        occupiedPaths,
+      })
+      entriesByPath.set(destinationPath, {
+        ...entry,
+        path: destinationPath,
+        parentPath: WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH,
+        name: workspaceBasename(destinationPath),
+      })
+      entriesByPath.delete(entry.path)
+      occupiedPaths.delete(entry.path)
+      occupiedPaths.add(destinationPath)
+      const source = sourceIndex[entry.path]
+      setWorkspaceEntrySource(entry.path, null, { persist: 'sync' })
+      if (source) {
+        setWorkspaceEntrySource(destinationPath, preserveAuthoredMarkdownNoteSource(source), { persist: 'sync' })
+      }
+    }
+    return true
+  }
+
   const ensureSeed = async (): Promise<boolean> => {
     ensureRoot()
     let changed = false
     if (removeLegacyWorkspaceSourceEntries()) changed = true
+    if (migrateLegacyAuthoredMarkdownNotes()) changed = true
 
     const hasAnyFilesNow = [...entriesByPath.values()].some(e => e.kind === 'file')
     if (CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE && !hasAnyFilesNow) {

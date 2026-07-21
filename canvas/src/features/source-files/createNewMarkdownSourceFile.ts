@@ -4,8 +4,7 @@ import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
-import { ensureWorkspaceDocsMirrorFolder, upsertWorkspaceDocsMirrorText } from '@/features/workspace-fs/workspaceSeedProvider'
-import { WORKSPACE_DOCS_SOURCE_ROOT_PATH } from '@/features/workspace-fs/workspaceSourceRoots'
+import { WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH } from '@/features/workspace-fs/workspaceSourceRoots'
 import { formatWorkspaceUtcSessionTimestamp } from '@/features/workspace-fs/workspaceTimestamp'
 import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { openMarkdownWorkspaceEditorPane } from '@/features/workspace-table/workspaceTableSsot'
@@ -47,28 +46,14 @@ async function createTimestampedMarkdownSourceFile(args: {
   return normalizeWorkspacePath(createdPath)
 }
 
-async function persistNewMarkdownSourceFileToDocsMirror(args: {
-  path: WorkspacePath
-  parentPath: WorkspacePath
-  text: string
-}): Promise<void> {
-  await ensureWorkspaceDocsMirrorFolder({ workspacePath: args.parentPath })
-  await upsertWorkspaceDocsMirrorText({
-    workspacePath: args.path,
-    text: args.text,
-    allowBlankText: true,
-  })
-}
-
 export async function createNewMarkdownSourceFile(args?: CreateNewMarkdownSourceFileArgs): Promise<WorkspacePath> {
-  const parentPath = normalizeWorkspacePath(args?.parentPath || WORKSPACE_DOCS_SOURCE_ROOT_PATH)
+  const parentPath = normalizeWorkspacePath(args?.parentPath || WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH)
   const text = String(args?.text ?? '')
   const createdPath = await createTimestampedMarkdownSourceFile({
     parentPath,
     timestampMs: Number.isFinite(args?.timestampMs) ? Number(args?.timestampMs) : Date.now(),
     text,
   })
-  await persistNewMarkdownSourceFileToDocsMirror({ path: createdPath, parentPath, text })
   openMarkdownWorkspaceEditorPane(useGraphStore.getState())
   useMarkdownExplorerStore.getState().setActivePath(createdPath)
   setWorkspaceEntrySource(createdPath, { kind: 'local', originalName: null }, { persist: 'sync' })
@@ -76,7 +61,7 @@ export async function createNewMarkdownSourceFile(args?: CreateNewMarkdownSource
 }
 
 export function createNewMarkdownSourceFileAndOpenViewer(args?: CreateNewMarkdownSourceFileArgs): { id: string; name: string } | null {
-  const parentPath = normalizeWorkspacePath(args?.parentPath || WORKSPACE_DOCS_SOURCE_ROOT_PATH)
+  const parentPath = normalizeWorkspacePath(args?.parentPath || WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH)
   void createNewMarkdownSourceFile({ ...args, parentPath }).catch(e => {
     try {
       useGraphStore.getState().pushUiToast({

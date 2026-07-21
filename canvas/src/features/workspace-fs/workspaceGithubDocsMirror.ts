@@ -14,13 +14,25 @@ const CANONICAL_GITHUB_DOCS_MIRROR_CACHE_TTL_MS = 60_000
 
 export const CANONICAL_AGENTIC_CANVAS_OS_DOCS_GITHUB_URL =
   'https://github.com/huijoohwee/agentic-canvas-os/tree/main/docs'
+export const CANONICAL_HUIJOOHWEE_DEMO_DOCS_GITHUB_URL =
+  'https://github.com/huijoohwee/huijoohwee/tree/main/docs'
+export const CANONICAL_HUIJOOHWEE_OUTPUT_DOCS_GITHUB_URL =
+  'https://github.com/huijoohwee/huijoohwee/tree/main/docs_'
 
 let canonicalDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
 let canonicalDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
+let canonicalDemoDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
+let canonicalDemoDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
+let canonicalOutputDatasetCache: { entries: WorkspaceDocsMirrorEntry[]; expiresAtMs: number } | null = null
+let canonicalOutputDatasetInFlight: Promise<WorkspaceDocsMirrorEntry[]> | null = null
 
 export const resetCanonicalAgenticDocsMirrorCacheForTests = (): void => {
   canonicalDatasetCache = null
   canonicalDatasetInFlight = null
+  canonicalDemoDatasetCache = null
+  canonicalDemoDatasetInFlight = null
+  canonicalOutputDatasetCache = null
+  canonicalOutputDatasetInFlight = null
 }
 
 const normalizeRepoRelPath = (value: string): string => {
@@ -154,5 +166,59 @@ export const readCanonicalAgenticCanvasOsDocsMirrorEntries = async (args: {
     return entries.map(entry => ({ ...entry }))
   } finally {
     canonicalDatasetInFlight = null
+  }
+}
+
+export const readCanonicalHuijoohweeDemoDocsMirrorEntries = async (args: {
+  maxFiles: number
+  maxFileBytes: number
+}): Promise<WorkspaceDocsMirrorEntry[]> => {
+  if (canonicalDemoDatasetCache && canonicalDemoDatasetCache.expiresAtMs > Date.now()) {
+    return canonicalDemoDatasetCache.entries.map(entry => ({ ...entry }))
+  }
+  if (!canonicalDemoDatasetInFlight) {
+    canonicalDemoDatasetInFlight = readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl({
+      url: CANONICAL_HUIJOOHWEE_DEMO_DOCS_GITHUB_URL,
+      maxFiles: args.maxFiles,
+      maxFileBytes: args.maxFileBytes,
+      requireCompleteDataset: true,
+    }).then(entries => entries.map(entry => ({ ...entry, authority: 'huijoohwee-demo-docs-github' })))
+  }
+  try {
+    const entries = await canonicalDemoDatasetInFlight
+    canonicalDemoDatasetCache = {
+      entries: entries.map(entry => ({ ...entry })),
+      expiresAtMs: Date.now() + CANONICAL_GITHUB_DOCS_MIRROR_CACHE_TTL_MS,
+    }
+    return entries.map(entry => ({ ...entry }))
+  } finally {
+    canonicalDemoDatasetInFlight = null
+  }
+}
+
+export const readCanonicalHuijoohweeOutputDocsMirrorEntries = async (args: {
+  maxFiles: number
+  maxFileBytes: number
+}): Promise<WorkspaceDocsMirrorEntry[]> => {
+  if (canonicalOutputDatasetCache && canonicalOutputDatasetCache.expiresAtMs > Date.now()) {
+    return canonicalOutputDatasetCache.entries.map(entry => ({ ...entry }))
+  }
+  if (!canonicalOutputDatasetInFlight) {
+    canonicalOutputDatasetInFlight = readWorkspaceDocsMirrorEntriesFromGitHubSourceUrl({
+      url: CANONICAL_HUIJOOHWEE_OUTPUT_DOCS_GITHUB_URL,
+      maxFiles: args.maxFiles,
+      maxFileBytes: args.maxFileBytes,
+      requireCompleteDataset: true,
+    }).then(entries => entries.map(entry => ({ ...entry, authority: 'huijoohwee-output-docs-github' })))
+  }
+  try {
+    const entries = await canonicalOutputDatasetInFlight
+    canonicalOutputDatasetCache = {
+      entries: entries.map(entry => ({ ...entry })),
+      expiresAtMs: Date.now() + CANONICAL_GITHUB_DOCS_MIRROR_CACHE_TTL_MS,
+    }
+    return entries.map(entry => ({ ...entry }))
+  } finally {
+    canonicalOutputDatasetInFlight = null
   }
 }

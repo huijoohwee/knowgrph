@@ -35,6 +35,8 @@ export const normalizeMarkdownWorkspaceDocsSourcePathFromCanonicalPath = (canoni
   const markerIndex = lower.indexOf(marker)
   if (markerIndex >= 0) {
     docsRelative = normalized.slice(markerIndex + marker.length)
+    const rel = docsRelative.split('/').filter(Boolean).join('/')
+    return rel ? `workspace:/${CANONICAL_DOCS_ROOT}/${rel}` : ''
   } else if (lower.startsWith('docs/')) {
     docsRelative = normalized.slice('docs/'.length)
   } else {
@@ -93,6 +95,10 @@ export const readStorageCanonicalPathCandidatesForDocument = (args: {
       push(`docs/${rel}`)
     }
   }
+  if (sourcePath.startsWith(`workspace:/${CANONICAL_DOCS_ROOT}/`)) {
+    pushWorkspaceCanonical(sourcePath)
+    push(sourcePath)
+  }
   return [...out]
 }
 
@@ -113,6 +119,9 @@ export const readStorageCanonicalPathCandidatesForWorkspacePath = (
     const rel = normalized.slice('/docs/'.length).replace(/^\/+/, '')
     push(`${CANONICAL_DOCS_ROOT}/${rel}`)
     push(`docs/${rel}`)
+  }
+  if (normalized.startsWith(`/${CANONICAL_DOCS_ROOT}/`)) {
+    push(normalized.slice(1))
   }
   if (normalized.split('/').filter(Boolean).length === 1) {
     const basename = normalized.slice(1)

@@ -36,7 +36,6 @@ import {
   readWorkspaceSelectionResolvedTextForActivePath,
   type MarkdownWorkspaceSelectionResolvedTextCache,
 } from './markdownWorkspaceSelectionResolvedText'
-
 export {
   isWorkspaceDocumentSwitchApplySettled,
   isWorkspace2dRendererPresetStaleForDocument,
@@ -45,12 +44,10 @@ export {
   shouldApplyStableWorkspaceSelectionToCanvas,
   shouldHydrateStableWorkspaceSelectionText,
 } from './markdownWorkspaceDocumentSwitchApply'
-
 export {
   readWorkspaceSelectionEntryTextForActivePath,
   readWorkspaceSelectionResolvedTextForActivePath,
 } from './markdownWorkspaceSelectionResolvedText'
-
 export type MarkdownWorkspaceSelectionArgs = {
   activePath: WorkspacePath | null
   setActivePath: (path: WorkspacePath) => void
@@ -80,7 +77,6 @@ export type MarkdownWorkspaceSelectionArgs = {
   clearStatus: () => void
   setHighlightedLineRange: (value: null) => void
 }
-
 export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionArgs) {
   const storageFallbackByPathRef = React.useRef<Map<string, string>>(new Map())
   const resolvedTextCacheRef = React.useRef<MarkdownWorkspaceSelectionResolvedTextCache | null>(null)
@@ -94,7 +90,6 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     },
     [args.activePath, args.lastRequestedActivePathRef, args.setActivePath],
   )
-
   const [selectionPath, setSelectionPath] = React.useState<WorkspacePath | null>(null)
   const selectionPathRef = React.useRef<WorkspacePath | null>(null)
   const pendingSelectionPathRef = React.useRef<WorkspacePath | null>(null)
@@ -102,7 +97,6 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     pendingSelectionPathRef.current = null
   }
   selectionPathRef.current = pendingSelectionPathRef.current || selectionPath
-
   const setSelectionPathSafe = React.useCallback((path: WorkspacePath | null) => {
     const normalized = normalizeMarkdownWorkspaceSelectionPath(path)
     if (selectionPathRef.current === normalized) return
@@ -257,6 +251,12 @@ export function useMarkdownWorkspaceSelection(args: MarkdownWorkspaceSelectionAr
     canonicalMarkdownText: args.markdownDocumentText,
     readPendingSwitchNextPath,
     setActiveMarkdownDocument: args.setActiveMarkdownDocument,
+    prime: {
+      activeEntryKind, activeDocumentKey, activeDocumentSourceUrl, inlineText: activeEntryText,
+      updatedAtMs: activeEntry?.updatedAtMs, graphDataSource: args.graphDataSource,
+      markdownDocumentName: args.markdownDocumentName, markdownDocumentText: args.markdownDocumentText,
+      canvas2dRenderer: args.canvas2dRenderer,
+    },
   })
 
   React.useEffect(() => {

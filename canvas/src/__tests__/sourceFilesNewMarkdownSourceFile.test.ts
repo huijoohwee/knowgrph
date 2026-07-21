@@ -4,16 +4,14 @@ import {
   createNewMarkdownSourceFile,
 } from '@/features/source-files/createNewMarkdownSourceFile'
 import { getWorkspaceFs, resetWorkspaceFsForTests } from '@/features/workspace-fs/workspaceFs'
-import { loadWorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
-import {
-  shouldPreserveWorkspaceDocsMirrorSyncEntry,
-} from '@/features/workspace-fs/workspaceDocsMirrorSourceOwnership'
+import { loadWorkspaceSourceIndex, setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
+import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
 import { LS_KEYS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
 
 const KG_HUIJOOHWEE_DOCS_ROOT = '/workspace/huijoohwee/docs'
 
-export async function testCreateNewMarkdownSourceFileDefaultsToDocsRoot() {
+export async function testCreateNewMarkdownSourceFileDefaultsToAuthoredNotesRoot() {
   resetWorkspaceFsForTests()
   useGraphStore.getState().resetAll()
   useMarkdownExplorerStore.getState().setActivePath(null)
@@ -25,10 +23,10 @@ export async function testCreateNewMarkdownSourceFileDefaultsToDocsRoot() {
     const firstPath = await createNewMarkdownSourceFile({ timestampMs })
     const secondPath = await createNewMarkdownSourceFile({ timestampMs })
 
-    if (firstPath !== `/docs/${firstName}`) {
-      throw new Error(`expected first Launch markdown file in /docs, got ${JSON.stringify(firstPath)}`)
+    if (firstPath !== `/notes/${firstName}`) {
+      throw new Error(`expected first Launch markdown file in /notes, got ${JSON.stringify(firstPath)}`)
     }
-    if (secondPath !== `/docs/${secondName}`) {
+    if (secondPath !== `/notes/${secondName}`) {
       throw new Error(`expected same-second Launch markdown collision to allocate a fresh timestamp, got ${JSON.stringify(secondPath)}`)
     }
 
@@ -57,7 +55,7 @@ export async function testCreateNewMarkdownSourceFileDefaultsToDocsRoot() {
   }
 }
 
-export async function testCreateNewMarkdownSourceFilePersistsBlankFileToDocsMirror() {
+export async function testCreateNewMarkdownSourceFileDoesNotWriteIntoDocsMirror() {
   resetWorkspaceFsForTests()
   useGraphStore.getState().resetAll()
   useMarkdownExplorerStore.getState().setActivePath(null)
@@ -81,17 +79,16 @@ export async function testCreateNewMarkdownSourceFilePersistsBlankFileToDocsMirr
     const timestampMs = Date.UTC(2026, 6, 9, 0, 3, 4)
     const fileName = buildNewMarkdownSourceFileName(timestampMs)
     const createdPath = await createNewMarkdownSourceFile({ timestampMs })
-    if (createdPath !== `/docs/${fileName}`) {
-      throw new Error(`expected Launch-created markdown path in /docs, got ${JSON.stringify(createdPath)}`)
+    if (createdPath !== `/notes/${fileName}`) {
+      throw new Error(`expected Launch-created markdown path in /notes, got ${JSON.stringify(createdPath)}`)
     }
-
-    const folderCall = calls.find(call => call.url === '/__kg_fs_write' && call.body.includes('"mkdirOnly":true'))
-    if (!folderCall || !folderCall.body.includes(KG_HUIJOOHWEE_DOCS_ROOT)) {
-      throw new Error('expected New .md to synchronously ensure the sibling docs mirror folder')
-    }
-    const fileCall = calls.find(call => call.url === '/__kg_fs_write' && call.body.includes(`${KG_HUIJOOHWEE_DOCS_ROOT}/${fileName}`))
-    if (!fileCall || !fileCall.body.includes('"text":""')) {
-      throw new Error('expected New .md to synchronously persist a blank markdown file in the sibling docs mirror')
+    const docsWrite = calls.find(call => (
+      call.method === 'POST'
+      && call.url === '/__kg_fs_write'
+      && call.body.includes(KG_HUIJOOHWEE_DOCS_ROOT)
+    ))
+    if (docsWrite) {
+      throw new Error(`expected authored notes to stay out of the canonical docs mirror, got ${JSON.stringify(docsWrite)}`)
     }
   } finally {
     if (typeof previousAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousAbsRoot
@@ -129,25 +126,49 @@ export async function testCreateNewMarkdownSourceFileSurvivesDocsMirrorRefreshSy
       }
     }
 
-    if (!shouldPreserveWorkspaceDocsMirrorSyncEntry({ path: createdPath, sourceIndex })) {
-      throw new Error('expected docs mirror refresh sync to preserve Launch-created local markdown file')
+    if (!resolveWorkspaceSourceRootPaths().includes('/notes')) {
+      throw new Error('expected authored notes to remain materialized through workspace source-root refreshes')
     }
+  } finally {
+    useMarkdownExplorerStore.getState().setActivePath(null)
+    useGraphStore.getState().resetAll()
+    resetWorkspaceFsForTests()
+  }
+}
 
-    if (shouldPreserveWorkspaceDocsMirrorSyncEntry({
-      path: '/docs/__tests__/mirror-owned.md',
-      sourceIndex,
-    })) {
-      throw new Error('expected unindexed docs mirror markdown file to remain eligible for stale mirror cleanup')
+export async function testLegacyLaunchMarkdownFileMigratesOutOfDocsRoot() {
+  resetWorkspaceFsForTests()
+  useGraphStore.getState().resetAll()
+  useMarkdownExplorerStore.getState().setActivePath(null)
+  try {
+    const fs = await getWorkspaceFs()
+    await fs.ensureSeed()
+    const docsFolderExists = (await fs.listEntries()).some(entry => entry.path === '/docs')
+    if (!docsFolderExists) await fs.createFolder({ parentPath: '/', name: 'docs' })
+    const legacyPath = await fs.createFile({
+      parentPath: '/docs',
+      name: 'note_20260709T000203Z.md',
+      text: '# Local note',
+    })
+    setWorkspaceEntrySource(legacyPath, { kind: 'local', originalName: null }, { persist: 'sync' })
+
+    const changed = await fs.ensureSeed()
+    if (!changed || await fs.readFileText(legacyPath) !== null) {
+      throw new Error(`expected locally authored legacy note to leave the canonical docs namespace: ${legacyPath}`)
     }
-
-    const nestedSourceIndex = {
-      '/docs/__tests__/new-md-refresh/nested.md': { kind: 'local', originalName: null },
-    } as const
-    if (!shouldPreserveWorkspaceDocsMirrorSyncEntry({
-      path: '/docs/__tests__/new-md-refresh',
-      sourceIndex: nestedSourceIndex,
-    })) {
-      throw new Error('expected docs mirror refresh sync to preserve ancestor folders for source-indexed local files')
+    const sourceIndex = loadWorkspaceSourceIndex()
+    let migratedPath = ''
+    for (const path of Object.keys(sourceIndex)) {
+      if (!path.startsWith('/notes/note_20260709T000203Z') || sourceIndex[path]?.kind !== 'local') continue
+      if (await fs.readFileText(path) !== '# Local note') continue
+      migratedPath = path
+      break
+    }
+    if (await fs.readFileText(migratedPath) !== '# Local note') {
+      throw new Error('expected legacy authored note text to survive migration into /notes')
+    }
+    if (sourceIndex[legacyPath] || sourceIndex[migratedPath]?.kind !== 'local') {
+      throw new Error(`expected local source ownership to migrate with the note, got ${JSON.stringify(sourceIndex)}`)
     }
   } finally {
     useMarkdownExplorerStore.getState().setActivePath(null)
