@@ -229,6 +229,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["sourceFiles.newMarkdown.defaultsToAuthoredNotesRoot","@/__tests__/sourceFilesNewMarkdownSourceFile.test","testCreateNewMarkdownSourceFileDefaultsToAuthoredNotesRoot"],
   ["sourceFiles.newMarkdown.doesNotWriteDocsMirror","@/__tests__/sourceFilesNewMarkdownSourceFile.test","testCreateNewMarkdownSourceFileDoesNotWriteIntoDocsMirror"],
   ["sourceFiles.newMarkdown.authoredNotesRefreshPreservesLocal","@/__tests__/sourceFilesNewMarkdownSourceFile.test","testCreateNewMarkdownSourceFileSurvivesDocsMirrorRefreshSync"],
+  ["sourceFiles.newMarkdown.authoredNoteSurvivesReloadBesideLargeMirror","@/__tests__/sourceFilesNewMarkdownSourceFile.test","testAuthoredMarkdownNoteSurvivesReloadBesideLargeDocsMirror"],
   ["sourceFiles.newMarkdown.migratesLegacyDocsNote","@/__tests__/sourceFilesNewMarkdownSourceFile.test","testLegacyLaunchMarkdownFileMigratesOutOfDocsRoot"],
   ["sourceFiles.folderPicker.webkitRelativePath.stripsRootFolder","@/__tests__/webkitRelativePath.test","testWebkitRelativePathStripsRootFolder"],
   ["sourceFiles.folderPicker.webkitRelativePath.fallsBackToFileName","@/__tests__/webkitRelativePath.test","testWebkitRelativePathFallsBackToFileName"],

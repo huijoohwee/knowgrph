@@ -8,8 +8,21 @@ import { loadWorkspaceSourceIndex, setWorkspaceEntrySource } from '@/features/wo
 import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
 import { LS_KEYS } from '@/lib/config'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { MemoryStorage } from '@/tests/lib/memoryStorage'
+import { initWindowHarness } from '@/tests/lib/windowHarness'
 
 const KG_HUIJOOHWEE_DOCS_ROOT = '/workspace/huijoohwee/docs'
+
+class SizeLimitedStorage extends MemoryStorage {
+  constructor(private readonly maxValueChars: number) {
+    super()
+  }
+
+  override setItem(key: string, value: string): void {
+    if (value.length > this.maxValueChars) throw new DOMException('Quota exceeded', 'QuotaExceededError')
+    super.setItem(key, value)
+  }
+}
 
 export async function testCreateNewMarkdownSourceFileDefaultsToAuthoredNotesRoot() {
   resetWorkspaceFsForTests()
@@ -133,6 +146,46 @@ export async function testCreateNewMarkdownSourceFileSurvivesDocsMirrorRefreshSy
     useMarkdownExplorerStore.getState().setActivePath(null)
     useGraphStore.getState().resetAll()
     resetWorkspaceFsForTests()
+  }
+}
+
+export async function testAuthoredMarkdownNoteSurvivesReloadBesideLargeDocsMirror() {
+  const { restore } = initWindowHarness({ storage: new SizeLimitedStorage(3_000) })
+  try {
+    const firstModuleUrl = new URL(
+      `../features/workspace-fs/workspaceFsPersisted.ts?authored-note-before-reload=${Date.now()}`,
+      import.meta.url,
+    ).href
+    const firstModule = await import(firstModuleUrl) as typeof import('@/features/workspace-fs/workspaceFsPersisted')
+    const firstFs = firstModule.createWorkspacePersistedFs()
+    await firstFs.createFolder({ parentPath: '/', name: 'docs_' })
+    await firstFs.createFile({
+      parentPath: '/docs_',
+      name: 'large-canonical-mirror.md',
+      text: '# Canonical mirror\n\n' + 'x'.repeat(8_000),
+    })
+    await firstFs.createFolder({ parentPath: '/', name: 'notes' })
+    const notePath = await firstFs.createFile({
+      parentPath: '/notes',
+      name: 'note_20260721T133700Z.md',
+      text: '',
+    })
+
+    const secondModuleUrl = new URL(
+      `../features/workspace-fs/workspaceFsPersisted.ts?authored-note-after-reload=${Date.now() + 1}`,
+      import.meta.url,
+    ).href
+    const secondModule = await import(secondModuleUrl) as typeof import('@/features/workspace-fs/workspaceFsPersisted')
+    const reloadedFs = secondModule.createWorkspacePersistedFs()
+    if (await reloadedFs.readFileText(notePath) !== '') {
+      throw new Error(`expected empty authored Markdown note to survive workspace reload: ${notePath}`)
+    }
+    const reloadedEntries = await reloadedFs.listEntries()
+    if (!reloadedEntries.some(entry => entry.path === notePath && entry.kind === 'file')) {
+      throw new Error(`expected authored note in reloaded Source Files tree: ${notePath}`)
+    }
+  } finally {
+    restore()
   }
 }
 
