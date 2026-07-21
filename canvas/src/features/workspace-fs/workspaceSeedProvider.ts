@@ -13,7 +13,7 @@ import { isWorkspaceDocsMirrorGitHubSourceUrl, readCanonicalAgenticCanvasOsDocsM
 import { isWorkspaceSourceMirrorFileName, shouldEncodeWorkspaceSourceMirrorAsBase64 } from '@/features/workspace-fs/workspaceSourceMirrorFormats'
 import { readWorkspaceMirrorRootEntries } from '@/features/workspace-fs/workspaceMirrorRootEntries'
 import { resolveWorkspaceDocsMirrorLocalRootRequests } from '@/features/workspace-fs/workspaceDocsMirrorLocalRoots'
-import { isGameFpsRepoLocalRunReadyBootstrap } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { isWorkspaceRepoLocalRunReadyBootstrap } from '@/features/workspace-fs/workspaceRunReadyDemos'
 const KG_FS_WRITE_PATH = '/__kg_fs_write', KG_FS_LIST_PATH = '/__kg_fs_list'
 const WORKSPACE_DOCS_MIRROR_MAX_FILES = 500, WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTES = 500 * 1024
 const LOCAL_DOCS_MIRROR_CACHE_TTL_MS = 1000, CANONICAL_STORAGE_DOCS_ROOT = 'agentic-canvas-os/docs'
@@ -1532,7 +1532,7 @@ export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
 }): Promise<WorkspaceDocsMirrorEntry[]> {
   const preferCompleteDataset = args?.preferCompleteDataset === true, traceId = nextWorkspaceMirrorDebugTraceId('bootstrap')
   const completeDatasetCandidates: WorkspaceDocsMirrorEntry[][] = [], defaultSourceUrl = readWorkspaceImportDefaultSourceUrlSetting()
-  const defaultSourceUrlIsGitHub = isWorkspaceDocsMirrorGitHubSourceUrl(defaultSourceUrl), repoLocalRunReady = isGameFpsRepoLocalRunReadyBootstrap()
+  const defaultSourceUrlIsGitHub = isWorkspaceDocsMirrorGitHubSourceUrl(defaultSourceUrl), repoLocalRunReady = isWorkspaceRepoLocalRunReadyBootstrap()
   // #region debug-point A:workspace-mirror-bootstrap-entry
   reportWorkspaceMirrorDebug({
     hypothesisId: 'A',

@@ -20,6 +20,8 @@ export const GAME_FPS_SAVE_PATH = normalizeWorkspacePath('/game-fps/mission-1-de
 
 export type GameFpsDecisionStoreSnapshot = Readonly<{
   status: 'idle' | 'saving' | 'saved' | 'error'
+  errorKind: 'load' | 'write' | null
+  hydrationBlocked: boolean
   retainedCount: number
   savedCount: number
   error: string | null
@@ -46,6 +48,8 @@ const pending = new Map<string, GameFpsDecisionRecord>()
 let saveQueue: Promise<GameFpsDecisionStoreSnapshot> | null = null
 let snapshot: GameFpsDecisionStoreSnapshot = Object.freeze({
   status: 'idle',
+  errorKind: null,
+  hydrationBlocked: false,
   retainedCount: 0,
   savedCount: 0,
   error: null,
@@ -77,13 +81,22 @@ export function subscribeGameFpsDecisionStore(listener: () => void): () => void 
 }
 
 export function reportGameFpsDecisionLoadFailure(error: unknown): GameFpsDecisionStoreSnapshot {
-  return publish({ status: 'error', error: `Unreadable ${GAME_FPS_SAVE_PATH}: ${errorMessage(error)}` })
+  return publish({
+    status: 'error',
+    errorKind: 'load',
+    hydrationBlocked: true,
+    error: `Unreadable ${GAME_FPS_SAVE_PATH}: ${errorMessage(error)}`,
+  })
 }
 
 export function queueGameFpsDecisions(decisions: readonly GameFpsDecisionRecord[]): void {
   const normalized = normalizeDecisionBatch([...decisions]) as GameFpsDecisionRecord[]
   for (const decision of normalized) pending.set(decision.decisionId, decision)
-  publish({ status: pending.size > 0 ? 'idle' : snapshot.status, error: null })
+  if (snapshot.hydrationBlocked || snapshot.status === 'error') {
+    publish({})
+    return
+  }
+  publish({ status: pending.size > 0 ? 'idle' : snapshot.status, errorKind: null, error: null })
 }
 
 export async function loadGameFpsSavedDecisions(
@@ -99,7 +112,9 @@ export async function loadGameFpsSavedDecisions(
       if ((node as { type?: unknown } | null)?.type !== ECS_DECISION_NODE_TYPE) return
       decisions.push(normalizeDecisionNode(node, index) as GameFpsDecisionRecord)
     })
-    publish({ status: 'idle', savedCount: decisions.length, error: null })
+    if (!snapshot.hydrationBlocked) {
+      publish({ status: 'idle', errorKind: null, savedCount: decisions.length, error: null })
+    }
     return decisions
   } catch (error) {
     reportGameFpsDecisionLoadFailure(error)
@@ -125,15 +140,20 @@ export async function resetGameFpsLocalSave(
     const readBack = await workspace.readFileText(GAME_FPS_SAVE_PATH)
     if (readBack !== EMPTY_SAVE_DOCUMENT) throw new Error('Reset save read-back mismatch')
     pending.clear()
-    return publish({ status: 'saved', savedCount: 0, error: null })
+    return publish({ status: 'saved', errorKind: null, hydrationBlocked: false, savedCount: 0, error: null })
   } catch (error) {
-    return publish({ status: 'error', error: errorMessage(error) })
+    return publish({
+      status: 'error',
+      errorKind: snapshot.hydrationBlocked ? 'load' : 'write',
+      error: errorMessage(error),
+    })
   }
 }
 
 async function persistPending(workspaceOverride?: WorkspaceFs): Promise<GameFpsDecisionStoreSnapshot> {
-  if (pending.size === 0) return publish({ status: 'saved', savedCount: snapshot.savedCount, error: null })
-  publish({ status: 'saving', error: null })
+  if (snapshot.hydrationBlocked) return publish({})
+  if (pending.size === 0) return publish({ status: 'saved', errorKind: null, savedCount: snapshot.savedCount, error: null })
+  publish({ status: 'saving', errorKind: null, error: null })
   const batch = [...pending.values()]
   let workspace: WorkspaceFs | null = null
   let previousText: string | null = null
@@ -161,6 +181,7 @@ async function persistPending(workspaceOverride?: WorkspaceFs): Promise<GameFpsD
     for (const decision of batch) pending.delete(decision.decisionId)
     return publish({
       status: 'saved',
+      errorKind: null,
       savedCount: snapshot.savedCount + batch.length,
       error: null,
     })
@@ -185,11 +206,12 @@ async function persistPending(workspaceOverride?: WorkspaceFs): Promise<GameFpsD
       } catch (rollbackError) {
         return publish({
           status: 'error',
+          errorKind: 'write',
           error: `${errorMessage(error)}; rollback failed: ${errorMessage(rollbackError)}`,
         })
       }
     }
-    return publish({ status: 'error', error: errorMessage(error) })
+    return publish({ status: 'error', errorKind: 'write', error: errorMessage(error) })
   }
 }
 
@@ -207,6 +229,8 @@ export function resetGameFpsDecisionStoreForTests(): void {
   saveQueue = null
   snapshot = Object.freeze({
     status: 'idle',
+    errorKind: null,
+    hydrationBlocked: false,
     retainedCount: 0,
     savedCount: 0,
     error: null,

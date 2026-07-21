@@ -5,8 +5,9 @@ import {
   setMediaCatalogMode,
   type MediaCatalogMode,
 } from '@/features/command-menu/mediaCatalogModeRuntime'
+import { openGameModeSurface } from '@/features/game-fps/gameModeRuntime'
 
-export type MotionControlSurfaceTarget = 'motion-control' | 'xr-3d' | 'animation'
+export type MotionControlSurfaceTarget = 'motion-control' | 'xr-3d' | 'animation' | 'game-mode'
 export type MotionControlCompanionTarget = Exclude<MotionControlSurfaceTarget, 'motion-control'>
 export const MOTION_CONTROL_XR_UNAVAILABLE_MESSAGE = 'Motion Control requires XR Mode, but this document currently prevents XR activation.'
 
@@ -19,9 +20,10 @@ export const MOTION_CONTROL_SURFACE_CATALOG = Object.freeze({
   'motion-control': Object.freeze({ label: 'Motion Control', view: 'motionControl' }),
   'xr-3d': Object.freeze({ label: '3D for XR', view: 'media' }),
   animation: Object.freeze({ label: 'Animation', view: 'animation' }),
+  'game-mode': Object.freeze({ label: 'Game Mode', view: 'gameMode' }),
 } satisfies Record<MotionControlSurfaceTarget, MotionControlSurfaceSpec>)
 
-const MOTION_CONTROL_DIRECT_CAPTURE_VIEWS = new Set<FloatingPanelView>(['motionControl', 'animation'])
+const MOTION_CONTROL_DIRECT_CAPTURE_VIEWS = new Set<FloatingPanelView>(['motionControl', 'animation', 'gameMode'])
 
 export function motionControlCaptureSurfaceIsOpen(input: Readonly<{
   canvas3dMode: string
@@ -36,6 +38,7 @@ export function motionControlCaptureSurfaceIsOpen(input: Readonly<{
 }
 
 export function openMotionControlSurface(target: MotionControlSurfaceTarget): boolean {
+  if (target === 'game-mode') return openGameModeSurface({ surfaceMode: 'xr' })
   const state = useGraphStore.getState()
   activateCanvasGraphSurfaceMode({
     mode: 'xr',

@@ -128,6 +128,8 @@ export function ToolbarMenuLauncher({
             ? 'animation'
           : tab === 'motionControl'
             ? 'motionControl'
+          : tab === 'gameMode'
+            ? 'gameMode'
           : tab === 'camera'
             ? 'camera'
           : tab === 'chat'

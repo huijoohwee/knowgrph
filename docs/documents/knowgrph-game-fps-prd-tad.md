@@ -4,7 +4,7 @@ id: "md:knowgrph-game-fps-prd-tad"
 author: "airvio / joohwee"
 date: "2026-07-21"
 updated: "2026-07-21"
-version: "2.0.0"
+version: "2.2.0"
 status: "runtime-ready"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
@@ -13,24 +13,29 @@ domain: "knowgrph"
 execution_boundary: "dev-only"
 publish_scope: "local-only"
 readiness:
+  candidate_commit: "fbb615be92ea58e6e4cfc981feb2122ea81e79b2"
   source_contract: "passed"
   focused_runtime: "passed"
-  browser_smoke: "passed"
-  protected_integration: "pending"
+  core_browser_smoke: "passed"
+  external_share_browser_smoke: "passed"
+  protected_integration: "passed"
   production: "not authorized"
 constraints:
   - "one procedural offline single-player mission"
-  - "no sign-in, camera permission, passkey, model, network, or Cloudflare requirement"
+  - "core gameplay requires no sign-in, camera permission, passkey, model, network, or Cloudflare service"
   - "native Knowgrph ECS with ephemeral runtime state"
   - "only validated Decisions persist through browser-local WorkspaceFs"
   - "deterministic in-repo AABB collision and hitscan"
   - "no Rapier, Yuka, behavior-tree, navmesh, or edge-ML dependency"
+  - "browser-local WebMCP only; no new stdio, HTTP gateway, or deployment transport"
   - "no automatic Git operation or production deployment"
 source_references:
   agentic_ecs: "docs/documents/knowgrph-agentic-entity-component-system-prd-tad.md"
   runtime_contract: "docs/runtime-readiness-contract.md"
   game_runtime: "canvas/src/features/game-fps/"
-  renderer_owner: "canvas/src/features/three/ThreeGraph.impl.tsx"
+  renderer_owner: "canvas/src/lib/three/ThreeGraph.impl.tsx"
+  motion_control: "canvas/src/features/three/motionControlRuntime.ts"
+  xr_owner: "canvas/src/features/three/xrNativeControllerDemoRuntime.ts"
   workspace_fs: "canvas/src/features/workspace-fs/workspaceFs.ts"
   workspace_upsert: "canvas/src/features/workspace-fs/upsertWorkspaceTextDocument.ts"
   cost_log_contract: "contracts/cost-log.schema.js"
@@ -42,9 +47,9 @@ source_references:
 
 ## Outcome
 
-Knowgrph gains one small, source-backed first-person mission inside its existing Three.js Canvas. A player can open the local Dev demo, move, aim, fire one hitscan weapon, face four deterministic NPCs, complete the objective, and persist validated mission Decisions without an account, permission prompt, model call, remote asset fetch, or Cloudflare request.
+Knowgrph gains one browser-local FloatingPanel **Game Mode** that runs a bounded first-person mission inside the existing React Three Fiber Canvas. It opens from a source-backed run-ready document, Motion Control's shared target catalog, browser WebMCP, or the strict `/game.mode @canvas #gameplay` invocation. Desktop, pointer, touch, and optional Motion Control input feed one deterministic native Agentic ECS mission with four scored NPC actions, normalized slab AABB hitscan, visible HUD/runtime errors, and Decisions-only WorkspaceFs persistence.
 
-This document is the implementation contract. The focused gate and local browser smoke passed at candidate commit `649e3dd1a89a9ae78d5af17930829bf9869c00fc`; the exact evidence is recorded in `knowgrph-game-fps-runtime-readiness.md`. Protected integration remains pending, and no production or Cloudflare deployment is authorized by this work.
+Core gameplay requires no camera, account, passkey, model, remote asset, gameplay network call, or Cloudflare service. Optional Motion Control retains its existing explicit camera-permission and LiteRT pose-inference boundary and contributes normalized controller input only; it does not choose NPC actions. The focused, core-browser, and opt-in external-source gates passed again at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` after PR #263 merged; no production or Cloudflare deployment is authorized.
 
 ## Product Requirements
 
@@ -54,36 +59,41 @@ Knowgrph has a native Three.js renderer, a deterministic Agentic ECS, and browse
 
 ### Primary user
 
-Mei is a mobile-first player who wants to open a browser link and play a short FPS mission immediately. Her completion signal is a playable first frame with no sign-in, camera request, or blocking network request, followed by a locally resumable mission-completion Decision.
+Mei is a mobile-first player who wants to open a source-backed browser workspace and play a short FPS mission immediately. Her completion signal is a playable first frame with no sign-in, camera request, or gameplay network dependency, followed by an explicit local Save of validated mission Decisions.
 
 ### Primary journey
 
 | Stage | Player action | Runtime owner | Durable effect |
 |---|---|---|---|
-| Open | Apply the source-backed game document or run the local demo command | Existing run-ready demo registry | None |
-| Play | Move, look, aim, and fire | `canvas/src/features/game-fps/` plus the existing Three renderer | None |
+| Open | Apply a known source-authored run-ready document, choose **Game Mode**, or invoke `/game.mode @canvas #gameplay` | Run-ready registry plus central Game Mode owner | None |
+| Play | Move, look, aim, and fire with desktop, pointer, touch, or optional Motion Control input | `canvas/src/features/game-fps/` plus the existing Three renderer | None |
 | React | Observe NPCs choose hold, alert, engage, or flee | Deterministic ECS systems | Pending Decisions only |
 | Complete | Resolve the mission objective | Mission runtime | Validated pending Decisions |
-| Save | Confirm mission completion | Browser-local WorkspaceFs adapter | KGC `EcsDecision` nodes only |
+| Save | Select **Save** after a terminal result; retry explicitly if needed | Browser-local WorkspaceFs adapter | KGC `EcsDecision` nodes only |
 | Return | Reopen the same browser workspace | Hydration/resume adapter | Reconstructed mission progress |
 
 ### Must scope
 
 - One procedural map built from in-repo primitives; no manifest, GLB, texture, R2, CDN, or runtime asset download.
 - One local single-player mission, one weapon, four NPCs, one completion objective, and one retry/reset path.
-- Keyboard and pointer controls plus touch controls where supported by the existing browser input owner.
+- One FloatingPanel Game Mode lifecycle: `open`, `start`, `stop`, `restart`, `fire`, `reload`, `save`, and `exit`.
+- Desktop keyboard/pointer and mobile touch controls, plus optional reuse of the existing Motion Control pose adapter.
 - One fixed-step deterministic simulation using the native Agentic ECS.
 - In-repo axis-aligned bounding-box collision and ray-versus-AABB hitscan.
 - Deterministic NPC utility scoring with a closed action set: `hold`, `alert`, `engage`, `flee`.
 - A HUD that reports health, ammo, NPC count, mission state, save state, and explicit errors.
-- Browser-local, Decisions-only KGC persistence through WorkspaceFs on completion.
-- Source tests, focused runtime proof, and local browser smoke.
+- Browser-local, Decisions-only KGC persistence through an explicit, idempotent Save; terminal results remain pending until that action succeeds.
+- Strict native `/game.mode @canvas #gameplay` invocation and browser-local `knowgrph.inspect_local_game_mode` / `knowgrph.control_local_game_mode` WebMCP.
+- Stop followed by Start resumes the exact in-memory tick and player state; Restart is the explicit fresh-run action.
+- Synchronous WebGL admission, one existing Canvas, XR pause/restore ownership, and visible fail-closed runtime errors.
+- Source-authored `run_ready_demo.id` activation through the known registry, independent of an imported path and fail-closed on identity conflict.
+- Source tests, focused runtime proof, core browser smoke, and opt-in external-source browser acceptance.
 
 ### Deferred scope
 
 - WebAuthn/passkeys, identity, accounts, cloud sync, and cross-device saves.
-- Camera access, QR pairing, multiplayer, server-authoritative hit checks, leaderboards, and matchmaking.
-- Hosted or local LLMs, agent reasoning, narrative generation, model escalation, edge ML, LiteRT policy models, ONNX Runtime, and token budgets.
+- New camera flows, QR pairing, multiplayer, server-authoritative hit checks, leaderboards, and matchmaking. Existing optional Motion Control keeps its explicit local camera boundary.
+- Hosted or local LLMs, agent reasoning, narrative generation, model escalation, edge-ML policy models, ONNX Runtime, and token budgets. Existing Motion Control LiteRT pose inference is input only, not NPC policy.
 - Rapier, Yuka, `behaviortree.js`, recastnavigation, bitECS, or another game/ECS engine.
 - Remote assets, service workers added specifically for this demo, D1, R2, KV, Durable Objects, Workers, Pages, or production routes.
 - Automatic Git commits, pushes, pull requests, or deployments from the browser runtime.
@@ -94,8 +104,9 @@ Mei is a mobile-first player who wants to open a browser link and play a short F
 2. As Mei, movement, aim, fire, and HUD feedback remain one coherent local loop.
 3. As Mei, four NPCs react consistently to the same input sequence.
 4. As Mei, a malformed save is never silently replaced; I can inspect the error and explicitly reset it.
-5. As Mei, completing the mission writes only validated Decisions to my browser-local workspace.
-6. As a maintainer, I can prove the runtime is model-free, dependency-free, deterministic, and Dev-only.
+5. As Mei, explicitly saving a completed mission writes only validated Decisions to my browser-local workspace.
+6. As an operator or agent, I can inspect and control the same local Game Mode through one strict invocation grammar and browser WebMCP contract.
+7. As a maintainer, I can prove the core runtime is model-free, dependency-free, deterministic, and Dev-only.
 
 ### Acceptance criteria
 
@@ -134,7 +145,7 @@ No token ceiling, escalation, retry, fallback model, or synthetic non-zero cost 
 
 #### AC-6: decision-only local save
 
-Given mission completion, when persistence succeeds, then browser-local WorkspaceFs contains only canonical `EcsDecision` additions using the supported `dialogue_outcome`, `quest_flag`, or `world_tick_result` types. Component arrays, world snapshots, cost logs, credentials, and raw input history are not written.
+Given mission completion, when Mei explicitly selects **Save** and persistence succeeds, then browser-local WorkspaceFs contains only canonical `EcsDecision` additions using the supported `dialogue_outcome`, `quest_flag`, or `world_tick_result` types. Component arrays, world snapshots, cost logs, credentials, and raw input history are not written.
 
 In repo-local Dev mode, the existing Source Files bridge may attempt its normal best-effort mirror. A mirror failure does not convert a local success into a Git claim, and the game never launches a Git process or creates a commit automatically.
 
@@ -148,6 +159,18 @@ Given a write failure, pending Decisions remain in memory, the previous document
 
 Given the candidate source, when `npm run game-fps:runtime-ready` passes, then its evidence covers focused game tests, Agentic ECS tests, Canvas type checking, a production-format local build, and the source-backed seed contract. A separate local browser smoke proves visible play and save/reset behavior. Neither command deploys or performs a remote mutation.
 
+#### AC-9: strict invocation and browser WebMCP
+
+Given an invocation, exactly one `/game.mode`, one `@canvas`, and one `#gameplay` token is accepted. Duplicate sigils, unknown keys, mixed structured/native input, and invalid lifecycle operations fail closed. Browser agent-ready registration exposes only `knowgrph.inspect_local_game_mode` and `knowgrph.control_local_game_mode` for this surface; it adds no stdio tool, HTTP mutation route, remote gateway, or deployment authority.
+
+#### AC-10: XR, Motion Control, and Canvas ownership
+
+Given a running XR controller document, entering Game Mode pauses its current frame and mounts the game stage inside the same Canvas. Opening Motion Control exits to the shared XR owner, preserves the stopped Game Mode mission, and lets XR resume. Reopening Game Mode pauses a fresh XR frame; exiting restores that exact frame and resumes only the owner Game Mode paused.
+
+#### AC-11: synchronous admission and resumable lifecycle
+
+WebGL support is resolved synchronously before mission start. Unsupported WebGL or unreadable Decisions keeps the mission stopped and exposes a local error. Stop followed by Start resumes the same in-memory mission; malformed hydration blocks Start and Restart until **Reset local save** succeeds.
+
 ### Success metrics
 
 | Metric | Must target |
@@ -156,7 +179,7 @@ Given the candidate source, when `npm run game-fps:runtime-ready` passes, then i
 | NPC count | Exactly four reactive NPCs |
 | Deterministic replay | Two identical input traces yield identical canonical results |
 | Runtime model calls | 0 |
-| Runtime network calls | 0 required; 0 Cloudflare calls |
+| Gameplay network calls | 0 required; opt-in acceptance performs one verifier preflight read plus one exact product/browser source fetch |
 | Token and inference cost | 0 tokens; USD 0 |
 | Persistent data | Validated Decisions only |
 | New runtime dependencies | 0 |
@@ -169,9 +192,13 @@ Given the candidate source, when `npm run game-fps:runtime-ready` passes, then i
 | Concern | Canonical owner | Rule |
 |---|---|---|
 | Game domain | `canvas/src/features/game-fps/` | Mission config, systems, input normalization, HUD projection, local save adapter |
+| Surface lifecycle | `canvas/src/features/game-fps/gameModeRuntime.ts` | Own open/start/stop/restart/save/exit state and previous-surface restoration |
+| FloatingPanel | `canvas/src/features/game-fps/GameModeFloatingPanelView.tsx` | Project shared runtime state and actions; never create a second world or renderer |
+| Invocation/WebMCP | `canvas/src/features/game-fps/gameModeMcpRuntime.ts` plus browser agent-ready registration | Enforce the strict native tuple and browser-local inspect/control schema |
 | Entity simulation | `ecs/` | Reuse the five-function native ECS API and its transactional `worldTick` |
-| Rendering | `canvas/src/features/three/ThreeGraph.impl.tsx` | Reuse the single React Three Fiber Canvas; do not mount a second WebGL renderer |
-| Camera/input arbitration | Existing Three controls plus the game stage | Game mode owns first-person framing while active and releases it on exit |
+| Rendering | `canvas/src/lib/three/ThreeGraph.impl.tsx` | Reuse the single React Three Fiber Canvas; do not mount a second WebGL renderer |
+| Camera/input arbitration | Existing Three controls, game stage, and Motion Control adapter | Game Mode owns first-person framing while active; Motion Control contributes normalized input only |
+| XR lifecycle | Existing XR controller runtime and shared surface catalog | Pause, resume, and restore the existing owner without replacing its Canvas or world |
 | Browser persistence | `canvas/src/features/workspace-fs/` | Use WorkspaceFs and its existing source-file bridge; do not add storage or Git owners |
 | Cost truth | `contracts/cost-log.schema.js` | Accept only the canonical model-free zero record for the no-reasoning tick |
 | Activation | `docs/workspace-seeds/knowgrph-game-fps-demo.md` | Source-backed `game-fps` run-ready demo |
@@ -182,8 +209,9 @@ Given the candidate source, when `npm run game-fps:runtime-ready` passes, then i
 ```mermaid
 flowchart LR
   SEED["Source-backed game seed"] --> ACTIVATE["Run-ready activation"]
+  INVOKE["/game.mode @canvas #gameplay or browser WebMCP"] --> ACTIVATE
   ACTIVATE --> RUNTIME["Game FPS runtime"]
-  INPUT["Keyboard, pointer, or touch"] --> NORMALIZE["Normalized input frame"]
+  INPUT["Desktop, pointer, touch, or optional Motion Control"] --> NORMALIZE["Normalized input frame"]
   NORMALIZE --> TICK["Fixed Agentic ECS World_Tick"]
   RUNTIME --> TICK
   TICK --> AI["Deterministic NPC scoring"]
@@ -191,9 +219,10 @@ flowchart LR
   TICK --> VIEW["Immutable scene and HUD projection"]
   VIEW --> THREE["Existing R3F Canvas"]
   TICK --> PENDING["Validated pending Decisions"]
-  PENDING --> COMPLETE{"Mission complete?"}
-  COMPLETE -->|no| TICK
-  COMPLETE -->|yes| SAVE["Browser-local WorkspaceFs save"]
+  PENDING --> TERMINAL{"Terminal result?"}
+  TERMINAL -->|no| TICK
+  TERMINAL -->|yes| WAIT["Pending until explicit Save"]
+  WAIT --> SAVE["Browser-local WorkspaceFs save"]
   SAVE -. "best-effort in repo-local Dev" .-> MIRROR["Existing Source Files mirror"]
 ```
 
@@ -217,7 +246,7 @@ Only meaningful transitions emit a Decision. Per-frame transforms, aim vectors, 
 
 ### Persistence and resume
 
-The local save path is owned by the game adapter under WorkspaceFs. At mission completion it merges canonical Decisions idempotently by `decisionId`; existing authored bytes remain untouched except for the supported KGC Decision insertion. Resume derives mission progress from the validated Decision index before the first tick.
+The local save path is owned by the game adapter under WorkspaceFs. A terminal result leaves canonical Decisions pending; only explicit **Save** merges them idempotently by `decisionId`. Existing authored bytes remain untouched except for supported KGC Decision insertion. Resume derives mission progress from the validated Decision index before the first tick.
 
 Malformed existing KGC is not equivalent to an absent save. The runtime reports the precise local path and error, does not create a partial World, and waits for explicit reset. Reset and retry are user actions, not recovery side effects.
 
@@ -231,7 +260,7 @@ Malformed existing KGC is not equivalent to an absent save. The runtime reports 
 | Malformed existing save | Preserve bytes, block hydration, expose explicit reset |
 | Local write failure | Preserve prior bytes and pending Decisions, expose retry |
 | Repo-local mirror failure | Keep truthful browser-local save status and report mirror as best-effort failure |
-| WebGL unavailable | Show a local unsupported-state message; do not fall back to a remote renderer |
+| WebGL unavailable | Fail the synchronous admission probe, keep the mission stopped, and show a local unsupported state without a remote or second renderer |
 
 ## Architecture Decisions
 
@@ -263,34 +292,42 @@ The runtime writes canonical KGC Decisions through the existing browser-local fi
 
 **Status:** Accepted for this increment.
 
-Open-and-play is the only onboarding path. Passkeys, QR/camera flows, accounts, multiplayer, and cloud profiles are explicitly deferred. The runtime must not touch `navigator.credentials` or `getUserMedia`.
+Open-and-play is the only onboarding path. Passkeys, new QR/camera flows, accounts, multiplayer, and cloud profiles are explicitly deferred. Core Game Mode must not touch `navigator.credentials` or `getUserMedia`; only the existing optional Motion Control Start flow may request local camera access.
 
 ### ADR-6: Keep readiness local and Dev-only
 
 **Status:** Accepted for this increment.
 
-Runtime readiness means focused source proof plus a local browser smoke bound to the candidate commit. It does not mean merged, deployed, publicly reachable, or production-ready. Production and Cloudflare lanes require a separate operator-authorized release workflow.
+Runtime readiness means focused source proof plus a local browser smoke bound to an exact commit. Protected integration is recorded as a separate repository gate; neither result means deployed, publicly reachable, or production-ready. Production and Cloudflare lanes require a separate operator-authorized release workflow.
+
+### ADR-7: Reuse shared XR/Motion owners and expose browser-local control
+
+**Status:** Accepted for this increment.
+
+Game Mode uses the existing Canvas View Mode → Surface Mode → XR Mode owner and the existing Motion Control target catalog. It pauses and restores the shared XR controller rather than copying physics state or remounting a renderer. Agent access is limited to the strict native invocation tuple and two browser WebMCP contracts; the private Agentic ECS stdio lane remains exactly three tools, and no new gateway or deployment surface is added.
 
 ## Runtime Readiness Gate
 
-The single source of truth for evidence is `docs/documents/knowgrph-game-fps-runtime-readiness.md`. Its local runtime-readiness checklist passed at candidate commit `649e3dd1a89a9ae78d5af17930829bf9869c00fc`, so this PRD and the workspace seed are `runtime-ready`. Protected integration and release remain separate gates.
+The single source of truth for evidence is `docs/documents/knowgrph-game-fps-runtime-readiness.md`. Its local runtime-readiness checklist passed again at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2`, so this PRD and the workspace seeds are `runtime-ready`. PR #263 passed the separate protected-integration gate; release remains unauthorized.
 
 The expected focused command is:
 
 ```bash
 npm run game-fps:runtime-ready
+npm run game-fps:browser-smoke
+KG_GAME_MODE_VALIDATION_SHARE_URL='<operator-supplied share URL>' npm -C canvas run test:smoke:game-mode-xr-share:browser
 ```
 
-It must be finite, local, and read-only apart from ordinary build/test artifacts. It must not access a paid model, make a required network call, write repository content, deploy, or mutate Cloudflare.
+The first two commands are finite and local apart from ordinary build/test artifacts. The opt-in third command reads only the operator-supplied public Markdown into localhost candidate code and applies a local/supplied-origin allowlist. No command accesses a paid model, writes the supplied URL/token into repository bytes or evidence, deploys, mutates the public source, or mutates Cloudflare.
 
 ## Agent-Platform Readiness
 
 | Dimension | Scope |
 |---|---|
-| Agentic OS-ready | Not added. The game consumes the existing ECS contract and creates no new agent runtime. |
-| AI Agent-ready | Won't in this increment. No model, prompt, reasoning request, or agent-discovery surface exists. |
-| MCP Gateway-ready | Won't in this increment. The game adds no MCP tool or transport. |
+| Agentic OS-ready | Canonical `/game.mode @canvas #gameplay` metadata is projected through the pinned Agentic OS invocation dictionary; protected cross-repo integration remains separately evidenced. |
+| AI Agent-ready | Existing browser agent-ready registration exposes read-only inspection and mutating lifecycle control without adding a model, prompt, reasoning path, or autonomous persistence. |
+| MCP-ready | `knowgrph.inspect_local_game_mode` and `knowgrph.control_local_game_mode` are browser-local WebMCP only. No stdio, HTTP mutation route, remote gateway, or deployment authority is added; the private Agentic ECS lane remains exactly three tools. |
 
 ## Release Boundary
 
-The deliverable is a Dev/local runtime-readiness candidate. No Pages build upload, Worker deployment, D1/R2/KV/DO mutation, production route change, public smoke, or release claim belongs to this scope. A future release must begin from a protected integrated SHA and explicit operator authorization.
+The deliverable is a Dev/local runtime-readiness candidate. No Pages build upload, Worker deployment, D1/R2/KV/DO mutation, production route change, or release claim belongs to this scope. The opt-in acceptance read exact operator-supplied public Markdown bytes and exercised them against localhost candidate code; it does not prove the public document contains the new Game Mode metadata or that candidate code is publicly deployed. A future release must begin from a protected integrated SHA and explicit operator authorization.

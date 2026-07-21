@@ -108,7 +108,7 @@ function buildMotionControlTargetsOutputSchema(buildWebName) {
       surfaces: {
         type: 'object',
         additionalProperties: false,
-        required: ['xr3d', 'animation'],
+        required: ['xr3d', 'animation', 'gameMode'],
         properties: {
           xr3d: {
             type: 'object',
@@ -149,6 +149,21 @@ function buildMotionControlTargetsOutputSchema(buildWebName) {
               },
               invocation: { type: 'string', minLength: 1 },
               webMcpTool: { const: buildWebName(XR_ANIMATION_WEB_MCP_TOOL_IDS.control) },
+            },
+          },
+          gameMode: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['label', 'view', 'active', 'surfaceMode', 'phase', 'enemiesAlive', 'invocation', 'webMcpTool'],
+            properties: {
+              label: { const: 'Game Mode' },
+              view: { const: 'gameMode' },
+              active: { type: 'boolean' },
+              surfaceMode: { type: 'string', enum: ['3d', 'xr'] },
+              phase: { type: 'string', enum: ['stopped', 'playing', 'won', 'lost'] },
+              enemiesAlive: { type: 'integer', minimum: 0, maximum: 4 },
+              invocation: { type: 'string', pattern: '^/game\\.mode\\s+@canvas\\s+#gameplay' },
+              webMcpTool: { const: buildWebName('control_local_game_mode') },
             },
           },
         },

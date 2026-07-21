@@ -28,6 +28,10 @@ import {
   GAME_FPS_ZERO_COST_LOG,
   type GameFpsSnapshot,
 } from '../features/game-fps/gameFpsModel'
+import {
+  gameFpsInputPatchFromPressedCodes,
+  updateGameFpsPressedCode,
+} from '../features/game-fps/gameFpsInput'
 import { readWebglSupport } from '../lib/three/webglSupport'
 
 function gameplayProjection(snapshot: GameFpsSnapshot) {
@@ -167,6 +171,20 @@ test('WebGL support resolves synchronously and releases its probe context', () =
   assert.equal(readWebglSupport(unsupportedDocument), false)
   assert.equal(readWebglSupport(supportedDocument), true)
   assert.equal(released, true)
+})
+
+test('desktop movement key release neutralizes input without invalidating the next W cycle', () => {
+  const pressedCodes = new Set<string>()
+
+  assert.equal(updateGameFpsPressedCode(pressedCodes, 'KeyW', true), true)
+  assert.equal(gameFpsInputPatchFromPressedCodes(pressedCodes).forward, 1)
+  assert.equal(updateGameFpsPressedCode(pressedCodes, 'KeyW', false), true)
+  assert.equal(gameFpsInputPatchFromPressedCodes(pressedCodes).forward, 0)
+
+  assert.equal(updateGameFpsPressedCode(pressedCodes, 'KeyW', true), true)
+  assert.equal(gameFpsInputPatchFromPressedCodes(pressedCodes).forward, 1)
+  assert.equal(updateGameFpsPressedCode(pressedCodes, 'KeyW', false), true)
+  assert.equal(gameFpsInputPatchFromPressedCodes(pressedCodes).forward, 0)
 })
 
 test('NPC scoring uses the closed stable priority only when its decision interval fires', async () => {

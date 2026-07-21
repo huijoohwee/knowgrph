@@ -160,7 +160,7 @@ export function MotionControlFloatingPanelView() {
       id: `motion-control:target:${target}:${opened ? 'ok' : 'error'}`,
       kind: opened ? 'success' : 'error',
       message: opened
-        ? `Motion Control remains available while ${target === 'xr-3d' ? '3D for XR' : 'Animation'} is open.`
+        ? `Motion Control remains available while ${target === 'xr-3d' ? '3D for XR' : target === 'game-mode' ? 'Game Mode' : 'Animation'} is open.`
         : MOTION_CONTROL_XR_UNAVAILABLE_MESSAGE,
     })
   }, [pushUiToast])

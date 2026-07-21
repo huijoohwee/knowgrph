@@ -222,6 +222,10 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
     '/motion.control @canvas #pose operation=start backend=auto',
     'knowgrph.inspect_local_motion_control',
     'knowgrph.control_local_motion_control',
+    '/game.mode @canvas #gameplay operation=open',
+    'knowgrph.inspect_local_game_mode',
+    'knowgrph.control_local_game_mode',
+    'temporarily suspend the native XR controller stage and restore it on exit',
   ]) {
     if (!markdownText.includes(required)) throw new Error(`expected native demo contract to include ${required}`)
   }
@@ -252,12 +256,13 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
   const aspectMaskSource = sourceText('features', 'three', 'XrCameraAspectMask.tsx')
   const sessionPanelSource = sourceText('lib', 'three', 'ThreeGraphXr.tsx')
   const threeGraphSource = sourceText('lib', 'three', 'ThreeGraph.impl.tsx')
+  const xrRunReadyRuntimeSource = sourceText('features', 'canvas', 'XrPhysicsRunReadyDemoRuntime.tsx')
   if (!canvasPageSource.includes("data-kg-xr-physics-run-ready={xrPhysicsRunReadyDemo ? 'full-frame'")) {
     throw new Error('expected run-ready launch to project the existing viewport without editor chrome')
   }
-  if (!canvasPageSource.includes("canvasRenderMode={xrPhysicsRunReadyDemo ? '3d'")
+  if (!canvasPageSource.includes("canvasRenderMode={dedicatedRunReadyDemo ? '3d'")
     || !canvasPageSource.includes("canvas3dMode={xrPhysicsRunReadyDemo ? 'xr'")) {
-    throw new Error('expected late document UI restores to remain unable to replace the dedicated XR surface')
+    throw new Error('expected late document UI restores to remain unable to replace any dedicated run-ready surface')
   }
   if (
     !canvasPageSource.includes('workspaceVisibleCanvasLeft={workspaceCanvasPaneVisible ? workspacePaneBoundaryCss : undefined}')
@@ -273,13 +278,18 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
     throw new Error('expected the standalone playground to retain exclusive stage ownership across lifecycle transitions')
   }
   if (
-    !aspectMaskSource.includes('isXrPhysicsRunReadyDemoActive(markdownDocumentName)')
-    || !sessionPanelSource.includes('isXrPhysicsRunReadyDemoActive(markdownDocumentName)')
+    !aspectMaskSource.includes('isXrPhysicsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)')
+    || !sessionPanelSource.includes('isXrPhysicsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)')
   ) {
     throw new Error('expected standalone and canonical-document launches to suppress editor optics and session chrome')
   }
   if (!threeGraphSource.includes('XR_PHYSICS_RUN_READY_GRAPH') || !threeGraphSource.includes('!xrDocumentLoaded && !xrPhysicsRunReadyDemo')) {
     throw new Error('expected standalone launch to bypass the authored XR empty-world loading surface')
+  }
+  if (!xrRunReadyRuntimeSource.includes('pausedForGameModeRef')
+    || !xrRunReadyRuntimeSource.includes('pauseXrNativeControllerDemo()')
+    || !xrRunReadyRuntimeSource.includes('resumeXrNativeControllerDemo()')) {
+    throw new Error('expected Game Mode to pause and resume the existing XR controller without resetting its world')
   }
 
   const expectedProviderUrl = buildLocalFsFetchPath(SEED_PATH)

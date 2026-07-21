@@ -131,7 +131,7 @@ export function testLiveCanvasHeroPhysicsPlaygroundSourceFidelity(): void {
   const { text, graphData, sourceFile } = readPhysicsPlaygroundSource()
   if (
     sourceFile.source?.path !== `workspace:${XR_PHYSICS_WORKSPACE_SEED_PATH}`
-    || XR_PHYSICS_DEMO_PUBLISHED_CANONICAL_PATH !== 'agentic-canvas-os/docs/workspace-seeds/knowgrph-physics-playground-demo.md'
+    || XR_PHYSICS_DEMO_PUBLISHED_CANONICAL_PATH !== `agentic-canvas-os/${XR_PHYSICS_DEMO_REPO_REL_PATH}`
   ) {
     throw new Error('expected local and published Physics Playground identities to resolve one canonical startup source')
   }

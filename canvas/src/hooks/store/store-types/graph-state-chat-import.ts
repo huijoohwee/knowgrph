@@ -55,6 +55,7 @@ export type FloatingPanelView =
   | 'media'
   | 'animation'
   | 'motionControl'
+  | 'gameMode'
   | 'camera'
   | 'design'
   | 'chat'

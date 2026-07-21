@@ -1,4 +1,7 @@
 import { readEnvString } from '@/lib/config.env'
+import { parseMarkdownFrontmatter, splitMarkdownLines } from '@/lib/markdown'
+import { extractYamlFrontmatterHeaderBlock } from '@/lib/markdown/frontmatter'
+import { hashStringToHexCached } from '@/lib/hash/textHashCache'
 
 export const WORKSPACE_RUN_READY_DEMO_ENV = 'VITE_KNOWGRPH_RUN_READY_DEMO'
 export const CARE_AGENT_RUN_READY_DEMO_ID = 'care-agent'
@@ -29,6 +32,9 @@ const normalizeDemoId = (value: string): string =>
     .trim()
     .toLowerCase()
     .replace(/[_\s]+/g, '-')
+
+const RUN_READY_FRONTMATTER_CACHE_LIMIT = 48
+const runReadyFrontmatterIdCache = new Map<string, string | null>()
 
 export const WORKSPACE_RUN_READY_DEMO_SEEDS: readonly WorkspaceRunReadyDemoSeed[] = [
   {
@@ -119,32 +125,73 @@ export const resolveWorkspaceRunReadyDemoIdForDocumentPath = (
   return ''
 }
 
+function resolveWorkspaceRunReadyDemoIdForDocumentText(
+  documentText: string | null | undefined,
+): string | null {
+  const block = extractYamlFrontmatterHeaderBlock(String(documentText || ''))
+  if (!block) return null
+  const cacheKey = hashStringToHexCached('workspace-run-ready-demo', block.rawBlock)
+  if (runReadyFrontmatterIdCache.has(cacheKey)) {
+    return runReadyFrontmatterIdCache.get(cacheKey) ?? null
+  }
+  const parsed = parseMarkdownFrontmatter(splitMarkdownLines(block.rawBlock))
+  const declaration = parsed.meta.run_ready_demo
+  let resolved: string | null = null
+  if (declaration !== undefined) {
+    if (!declaration || typeof declaration !== 'object' || Array.isArray(declaration)) {
+      resolved = ''
+    } else {
+      const requested = normalizeDemoId((declaration as Record<string, unknown>).id as string)
+      resolved = resolveWorkspaceRunReadyDemoSeed(requested)?.id || ''
+    }
+  }
+  runReadyFrontmatterIdCache.set(cacheKey, resolved)
+  if (runReadyFrontmatterIdCache.size > RUN_READY_FRONTMATTER_CACHE_LIMIT) {
+    const oldestKey = runReadyFrontmatterIdCache.keys().next().value
+    if (typeof oldestKey === 'string') runReadyFrontmatterIdCache.delete(oldestKey)
+  }
+  return resolved
+}
+
+export const resolveWorkspaceRunReadyDemoIdForDocument = (
+  documentPath: string | null | undefined,
+  documentText: string | null | undefined,
+): string => {
+  const pathId = resolveWorkspaceRunReadyDemoIdForDocumentPath(documentPath)
+  const sourceId = resolveWorkspaceRunReadyDemoIdForDocumentText(documentText)
+  if (sourceId == null) return pathId
+  if (!sourceId || (pathId && pathId !== sourceId)) return ''
+  return sourceId
+}
+
 export const readWorkspaceRunReadyDemoId = (
   documentPath?: string | null,
+  documentText?: string | null,
 ): string => {
   const explicitlySelected = resolveWorkspaceRunReadyDemoSeed(
     readEnvString(WORKSPACE_RUN_READY_DEMO_ENV, ''),
   )
   if (explicitlySelected) return explicitlySelected.id
-  return resolveWorkspaceRunReadyDemoIdForDocumentPath(documentPath)
+  return resolveWorkspaceRunReadyDemoIdForDocument(documentPath, documentText)
 }
 
 export const isXrPhysicsRunReadyDemoActive = (
   documentPath?: string | null,
+  documentText?: string | null,
 ): boolean => (
-  readWorkspaceRunReadyDemoId(documentPath) === XR_PHYSICS_RUN_READY_DEMO_ID
+  readWorkspaceRunReadyDemoId(documentPath, documentText) === XR_PHYSICS_RUN_READY_DEMO_ID
 )
 
 export const isGameFpsRunReadyDemoActive = (
   documentPath?: string | null,
+  documentText?: string | null,
 ): boolean => (
-  readWorkspaceRunReadyDemoId(documentPath) === GAME_FPS_RUN_READY_DEMO_ID
+  readWorkspaceRunReadyDemoId(documentPath, documentText) === GAME_FPS_RUN_READY_DEMO_ID
 )
 
-export const isGameFpsRepoLocalRunReadyBootstrap = (): boolean => {
+export const isWorkspaceRepoLocalRunReadyBootstrap = (): boolean => {
   const value = readEnvString('VITE_KNOWGRPH_RUN_READY_REPO_LOCAL', '').trim().toLowerCase()
-  const repoLocal = value === '1' || value === 'true' || value === 'yes' || value === 'on'
-  return repoLocal && readWorkspaceRunReadyDemoId() === GAME_FPS_RUN_READY_DEMO_ID
+  return value === '1' || value === 'true' || value === 'yes' || value === 'on'
 }
 
 export const resolveWorkspaceValidationSeedRelPath = (args: {

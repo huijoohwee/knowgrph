@@ -50,6 +50,9 @@ export async function testFloatingPanelDesignLayersViewRendersAsDiv() {
     if (!labels.includes(UI_LABELS.geo)) {
       throw new Error(`expected floating panel views to include ${UI_LABELS.geo}, got ${JSON.stringify(labels)}`)
     }
+    if (!labels.includes(UI_LABELS.gameMode)) {
+      throw new Error(`expected floating panel views to include ${UI_LABELS.gameMode}, got ${JSON.stringify(labels)}`)
+    }
     if (labels.some(label => label.toLowerCase() === 'discovery')) {
       throw new Error(`expected floating panel views to remove legacy Discovery tab after Props Panel Discovery Widget consolidation, got ${JSON.stringify(labels)}`)
     }

@@ -41,6 +41,7 @@ import { buildXrSceneWebMcpToolBuilders } from './xrSceneWebMcpTools'
 import { buildCameraWebMcpToolBuilders } from './cameraWebMcpTools'
 import { buildXrAnimationWebMcpToolBuilders } from './xrAnimationWebMcpTools'
 import { buildMotionControlWebMcpToolBuilders } from './motionControlWebMcpTools'
+import { buildGameModeWebMcpToolBuilders } from './gameModeWebMcpTools'
 import type { AgentReadyToolContract, ModelContextLike, ModelContextRegistrationState, WebMcpNavigator, WebMcpRuntimeState, WebMcpTool, WebMcpToolInput } from './webMcpRuntimeTypes'
 
 const WEB_MCP_TOOL_CONTRACTS = buildKnowgrphAgentReadyToolContracts({
@@ -59,6 +60,7 @@ const XR_SCENE_WEB_MCP_TOOL_BUILDERS = buildXrSceneWebMcpToolBuilders(findWebToo
 const CAMERA_WEB_MCP_TOOL_BUILDERS = buildCameraWebMcpToolBuilders(findWebToolContract)
 const XR_ANIMATION_WEB_MCP_TOOL_BUILDERS = buildXrAnimationWebMcpToolBuilders(findWebToolContract)
 const MOTION_CONTROL_WEB_MCP_TOOL_BUILDERS = buildMotionControlWebMcpToolBuilders(findWebToolContract)
+const GAME_MODE_WEB_MCP_TOOL_BUILDERS = buildGameModeWebMcpToolBuilders(findWebToolContract)
 const SEARCH_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.search)
 const FETCH_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.fetch)
 const SOURCE_FILES_TOOL_CONTRACT = findWebToolContract(KNOWGRPH_AGENT_READY_TOOL_IDS.listSourceFiles)
@@ -507,6 +509,7 @@ const WEB_MCP_TOOL_BUILDERS: Record<string, () => WebMcpTool> = {
   ...CAMERA_WEB_MCP_TOOL_BUILDERS,
   ...XR_ANIMATION_WEB_MCP_TOOL_BUILDERS,
   ...MOTION_CONTROL_WEB_MCP_TOOL_BUILDERS,
+  ...GAME_MODE_WEB_MCP_TOOL_BUILDERS,
   ...XR_SCENE_WEB_MCP_TOOL_BUILDERS,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocal2dZoomViewport]: buildInspectLocal2dZoomViewportTool,
   [KNOWGRPH_AGENT_READY_TOOL_IDS.inspectLocalSourceFilesSnapshot]: buildInspectLocalSourceFilesSnapshotTool,

@@ -12,6 +12,12 @@ import {
   claimThreeViewportInputOwnership,
   releaseThreeViewportInputOwnership,
 } from '@/features/three/threeViewportInputOwnership'
+import { readMotionControlSnapshot } from '@/features/three/motionControlRuntime'
+import { motionControlPoseToControllerInput } from '@/features/three/motionControlPose'
+import {
+  applyGameFpsMotionControlInput,
+  releaseGameFpsMotionControlInput,
+} from './gameFpsMotionControlAdapter'
 
 const INPUT_OWNER_ID = 'game-fps:first-person'
 const ACTION_COLORS = Object.freeze({
@@ -43,6 +49,7 @@ export function GameFpsMissionStage() {
     const input = claimed ? installGameFpsDesktopInput(canvas) : null
     return () => {
       input?.dispose()
+      releaseGameFpsMotionControlInput()
       releaseThreeViewportInputOwnership(INPUT_OWNER_ID)
       delete canvas.dataset.kgGameFpsInputOwner
       delete canvas.dataset.kgGameFpsFirstFrame
@@ -50,6 +57,9 @@ export function GameFpsMissionStage() {
   }, [gl])
 
   useFrame((_, deltaSeconds) => {
+    applyGameFpsMotionControlInput(
+      motionControlPoseToControllerInput(readMotionControlSnapshot().pose),
+    )
     const before = snapshotRef.current
     if (before.phase === 'playing' && !before.runtimeError) {
       void advanceGameFpsBy(deltaSeconds).catch(() => undefined)

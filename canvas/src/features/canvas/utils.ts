@@ -30,6 +30,7 @@ export type FloatingPanelOpenEventDetail = {
     | 'media'
     | 'animation'
     | 'motionControl'
+    | 'gameMode'
     | 'geo'
     | 'storyboardWidget'
     | 'flowchart'
