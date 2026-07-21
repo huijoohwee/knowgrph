@@ -692,8 +692,9 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered)) {')) {
     throw new Error('expected Flow runtime workspace-open preservation to keep balanced visible transforms without viewport-fit drift gating')
   }
-  if (!runtimeText.includes('if (shouldPreserveStabilizedWorkspaceOverlayCamera({')) {
-    throw new Error('expected Flow runtime to preserve an established workspace camera through transient topology coverage changes')
+  if (!runtimeText.includes('if (shouldPreserveEstablishedWorkspaceOverlayCamera({')
+    || !runtimeText.includes('initializedForView: lastInitTransformZoomViewKeyRef.current === zoomViewKey,')) {
+    throw new Error('expected Flow runtime to preserve the initialized view camera through transient topology coverage changes')
   }
   if (!runtimeText.includes('const workspaceOverlayStabilizedRef = React.useRef(false)')) {
     throw new Error('expected Flow runtime workspace-open recovery to track stabilized transform authority after THEN-layout convergence')
@@ -781,7 +782,7 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   }
   if (!runtimeText.includes('const deriveExpectedOverlayCollectiveIds = React.useCallback((graphData: any): string[] => {')
     || !runtimeText.includes('const isOverlayCollectiveCoverageComplete = React.useCallback((args: {')
-    || !runtimeText.includes('shouldPreserveStabilizedWorkspaceOverlayCamera({')
+    || !runtimeText.includes('shouldPreserveEstablishedWorkspaceOverlayCamera({')
     || !runtimeText.includes('overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered)')) {
     throw new Error('expected Flow runtime to establish camera authority from complete collective coverage, then preserve it through later topology growth')
   }
