@@ -1,6 +1,6 @@
 import { CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT, normalizeChatLocalStorageRootPath } from '@/features/chat/chatStorageConfig'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
-import type { WorkspacePath } from '@/features/workspace-fs/types'
+import type { WorkspaceEntry, WorkspacePath } from '@/features/workspace-fs/types'
 import { readWorkspaceImportShareExportRootPathSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
 export const WORKSPACE_DOCS_SOURCE_ROOT_PATH = '/docs' as WorkspacePath
@@ -40,6 +40,7 @@ export function resolveWorkspaceSourceRootPaths(args?: {
   ]) {
     const normalized = normalizeWorkspacePath(candidate as WorkspacePath)
     if (!normalized || normalized === '/') continue
+    if (isWorkspaceRuntimeOnlyReferencePath(normalized)) continue
     if (unique.has(normalized)) continue
     unique.add(normalized)
     ordered.push(normalized)
@@ -57,6 +58,7 @@ export function normalizeWorkspaceSourceRootPaths(rootPaths?: ReadonlyArray<stri
     const raw = String(input[i] || '').trim()
     if (!raw) continue
     const normalized = normalizeWorkspacePath(raw as WorkspacePath)
+    if (isWorkspaceRuntimeOnlyReferencePath(normalized)) continue
     if (unique.has(normalized)) continue
     unique.add(normalized)
     ordered.push(normalized)
@@ -68,6 +70,22 @@ export function isWorkspaceRuntimeOnlyReferencePath(path: string): boolean {
   const normalizedPath = normalizeWorkspacePath(path as WorkspacePath)
   return normalizedPath === WORKSPACE_AGENTIC_OS_DOCS_SOURCE_ROOT_PATH
     || normalizedPath.startsWith(`${WORKSPACE_AGENTIC_OS_DOCS_SOURCE_ROOT_PATH}/`)
+}
+
+export function projectWorkspaceEntriesToSourceFilesExplorer(
+  entries: ReadonlyArray<WorkspaceEntry>,
+  rootPaths?: ReadonlyArray<string>,
+): WorkspaceEntry[] {
+  const roots = normalizeWorkspaceSourceRootPaths(rootPaths)
+  return entries.filter(entry => {
+    const path = normalizeWorkspacePath(entry?.path)
+    if (!path || path === '/' || isWorkspaceRuntimeOnlyReferencePath(path)) return false
+    for (const root of roots) {
+      if (path === root || path.startsWith(`${root}/`)) return true
+      if (entry.kind === 'folder' && root.startsWith(`${path}/`)) return true
+    }
+    return false
+  })
 }
 
 export function isWorkspacePathUnderSourceRoots(path: string, rootPaths?: ReadonlyArray<string>): boolean {

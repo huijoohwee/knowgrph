@@ -10,7 +10,10 @@ import type { WorkspaceSourceIndex } from '@/features/workspace-fs/sourceIndex'
 import { subscribeWorkspaceFsChanged } from '@/features/workspace-fs/workspaceFsEvents'
 import { mergeWorkspaceEntriesIntoSourceFiles } from '@/features/workspace-fs/syncToSourceFiles'
 import { buildWorkspaceEntriesSemanticKey } from '@/features/workspace-fs/workspaceEntriesSemanticKey'
-import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
+import {
+  projectWorkspaceEntriesToSourceFilesExplorer,
+  resolveWorkspaceSourceRootPaths,
+} from '@/features/workspace-fs/workspaceSourceRoots'
 import { buildMaterializedWorkspaceForceIncludePaths, hydrateWorkspaceEntriesInlineText } from '@/features/source-files/sourceFilesRuntimeShared'
 import {
   readWorkspaceAutoRefreshEnabledSetting,
@@ -93,6 +96,7 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
   const workspaceSeedSyncSignatureRef = React.useRef('')
   const workspaceRefreshSemanticKeyRef = React.useRef('')
   const [workspaceSyncSettingsRev, setWorkspaceSyncSettingsRev] = React.useState(0)
+  const chatLocalStorageRootPath = useGraphStore(state => state.chatLocalStorageRootPath)
   const entriesIndex = React.useMemo(() => buildWorkspaceEntriesIndex(args.entries), [args.entries])
 
   React.useEffect(() => {
@@ -481,12 +485,19 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
     return () => el.removeEventListener('pointerdown', onDown)
   }, [resizeHandleEl, setSidebarWidthPx])
 
+  const sourceFilesExplorerEntries = React.useMemo(() => {
+    return projectWorkspaceEntriesToSourceFilesExplorer(
+      args.entries,
+      resolveWorkspaceSourceRootPaths({ chatLocalStorageRootPath }),
+    )
+  }, [args.entries, chatLocalStorageRootPath, workspaceSyncSettingsRev])
+
   const filteredEntries = React.useMemo(() => {
     const q = String(args.search || '').trim().toLowerCase()
-    if (!q) return args.entries
+    if (!q) return sourceFilesExplorerEntries
     const searchText = q.length >= 3
     const keepPaths = new Set<string>()
-    for (const entry of args.entries) {
+    for (const entry of sourceFilesExplorerEntries) {
       if (entry.kind !== 'file') continue
       const nameHit = String(entry.name || '').toLowerCase().includes(q)
       if (nameHit) {
@@ -499,11 +510,11 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
       if (rawText.toLowerCase().includes(q)) keepPaths.add(entry.path)
     }
     const result: WorkspaceEntry[] = []
-    for (const entry of args.entries) {
+    for (const entry of sourceFilesExplorerEntries) {
       if (entry.kind === 'folder' || keepPaths.has(entry.path)) result.push(entry)
     }
     return result
-  }, [args.entries, args.search])
+  }, [args.search, sourceFilesExplorerEntries])
 
   const resolveFolderContractDocPath = React.useCallback(
     (folderPath: WorkspacePath, mode: FolderModeContract): WorkspacePath => {
@@ -532,6 +543,7 @@ export function useMarkdownWorkspaceExplorerState(args: MarkdownWorkspaceRuntime
   return {
     getFs,
     refresh,
+    sourceFilesExplorerEntries,
     filteredEntries,
     resolveFolderContractDocPath,
     pickFolderContractTargetPath,

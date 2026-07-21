@@ -6,7 +6,10 @@ import {
   readWorkspaceImportShareExportRootPathSetting,
   writeWorkspaceImportShareExportRootPathSetting,
 } from '@/lib/workspace/workspaceStoreSyncSettings'
-import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
+import {
+  projectWorkspaceEntriesToSourceFilesExplorer,
+  resolveWorkspaceSourceRootPaths,
+} from '@/features/workspace-fs/workspaceSourceRoots'
 import { readWorkspaceInitializationDocsMirrorEntries } from '@/features/workspace-fs/workspaceSeedProvider'
 import { resolveWorkspaceDocsMirrorLocalRootRequests } from '@/features/workspace-fs/workspaceDocsMirrorLocalRoots'
 import { resetCanonicalAgenticDocsMirrorCacheForTests } from '@/features/workspace-fs/workspaceGithubDocsMirror'
@@ -30,6 +33,20 @@ export function testWorkspaceSourceRootPathsKeepAgenticOsDocsOutOfExplorer(): vo
     }
     if (!roots.includes('/docs')) {
       throw new Error(`expected runnable demo root to remain visible in Source Files, got ${roots.join(', ')}`)
+    }
+    const visible = projectWorkspaceEntriesToSourceFilesExplorer([
+      { path: '/agentic-canvas-os', parentPath: '/', kind: 'folder', name: 'agentic-canvas-os', updatedAtMs: 1 },
+      { path: '/agentic-canvas-os/docs', parentPath: '/agentic-canvas-os', kind: 'folder', name: 'docs', updatedAtMs: 1 },
+      { path: '/agentic-canvas-os/docs/AGENTS.md', parentPath: '/agentic-canvas-os/docs', kind: 'file', name: 'AGENTS.md', text: '# Runtime', updatedAtMs: 1 },
+      { path: '/docs', parentPath: '/', kind: 'folder', name: 'docs', updatedAtMs: 1 },
+      { path: '/docs/demo.md', parentPath: '/docs', kind: 'file', name: 'demo.md', text: '# Demo', updatedAtMs: 1 },
+      { path: '/docs_', parentPath: '/', kind: 'folder', name: 'docs_', updatedAtMs: 1 },
+      { path: '/docs_/output.md', parentPath: '/docs_', kind: 'file', name: 'output.md', text: '# Output', updatedAtMs: 1 },
+      { path: '/unrelated.md', parentPath: '/', kind: 'file', name: 'unrelated.md', text: '# Hidden', updatedAtMs: 1 },
+    ], roots)
+    const visiblePaths = visible.map(entry => entry.path)
+    if (visiblePaths.join(',') !== '/docs,/docs/demo.md,/docs_,/docs_/output.md') {
+      throw new Error(`expected Explorer to project only operator-owned source roots, got ${visiblePaths.join(', ')}`)
     }
   } finally {
     writeWorkspaceImportShareExportRootPathSetting(previousValue)
