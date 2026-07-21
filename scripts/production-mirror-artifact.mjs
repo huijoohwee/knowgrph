@@ -21,6 +21,9 @@ export const productionMirrorArtifactEntries = [
 
 const manifestSchema = 'knowgrph-production-mirror-artifact/v1'
 const exactRevisionPattern = /^[0-9a-f]{40}$/
+const isolatedGitEnvironment = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')),
+)
 
 const assertSafeRoot = (root, label) => {
   const resolved = path.resolve(root)
@@ -56,6 +59,7 @@ const isManagedPath = relativePath => productionMirrorArtifactEntries.some(entry
 const readGitText = (root, args) => execFileSync('git', args, {
   cwd: root,
   encoding: 'utf8',
+  env: isolatedGitEnvironment,
   stdio: ['ignore', 'pipe', 'pipe'],
 }).trim()
 
@@ -63,6 +67,7 @@ const readDeletedPaths = root => {
   const output = execFileSync('git', ['diff', '--name-only', '--diff-filter=D', '-z', 'HEAD', '--'], {
     cwd: root,
     encoding: 'buffer',
+    env: isolatedGitEnvironment,
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   return output.toString('utf8').split('\0').filter(Boolean).map(normalizeRelativePath).sort()

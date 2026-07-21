@@ -11,6 +11,15 @@ import {
   reconcileProductionMirrorArtifact,
 } from '../production-mirror-artifact.mjs'
 
+const isolatedGitEnvironment = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')),
+)
+
+const runGit = (root, args) => execFileSync('git', args, {
+  cwd: root,
+  env: isolatedGitEnvironment,
+})
+
 const writeFile = async (root, relativePath, body) => {
   const filePath = path.resolve(root, relativePath)
   await fs.mkdir(path.dirname(filePath), { recursive: true })
@@ -18,11 +27,11 @@ const writeFile = async (root, relativePath, body) => {
 }
 
 const initializeRepository = root => {
-  execFileSync('git', ['init', '--quiet'], { cwd: root })
-  execFileSync('git', ['config', 'user.name', 'Runtime Test'], { cwd: root })
-  execFileSync('git', ['config', 'user.email', 'runtime-test@example.com'], { cwd: root })
-  execFileSync('git', ['add', '-A'], { cwd: root })
-  execFileSync('git', ['commit', '--quiet', '-m', 'base'], { cwd: root })
+  runGit(root, ['init', '--quiet'])
+  runGit(root, ['config', 'user.name', 'Runtime Test'])
+  runGit(root, ['config', 'user.email', 'runtime-test@example.com'])
+  runGit(root, ['add', '-A'])
+  runGit(root, ['commit', '--quiet', '-m', 'base'])
 }
 
 const createBaseMirror = async root => {
@@ -68,7 +77,7 @@ test('reconciliation copies hidden readiness markers and removes tracked stale a
   await fs.mkdir(artifactRoot, { recursive: true })
   await createBaseMirror(verifiedMirror)
   initializeRepository(verifiedMirror)
-  execFileSync('git', ['clone', '--quiet', verifiedMirror, deployMirror])
+  await fs.cp(verifiedMirror, deployMirror, { recursive: true })
 
   await Promise.all([
     fs.rm(path.resolve(verifiedMirror, 'content/knowgrph/assets/old'), { force: true, recursive: true }),
