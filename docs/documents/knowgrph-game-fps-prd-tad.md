@@ -4,7 +4,7 @@ id: "md:knowgrph-game-fps-prd-tad"
 author: "airvio / joohwee"
 date: "2026-07-21"
 updated: "2026-07-21"
-version: "2.4.0"
+version: "2.5.0"
 status: "runtime-ready"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
@@ -36,6 +36,9 @@ constraints:
   - "no automatic Git operation or production deployment"
   - "XR Game Mode has one authored scene owner; the fallback scene/environment implementation is deleted and alternate variants are forbidden"
   - "unattended gameplay remains healthy at tick zero until normalized player engagement"
+  - "optional AR Tabletop Broadcast is opt-in and camera-permissioned on the same boundary as Motion Control; it never gates core gameplay"
+  - "AR Tabletop Broadcast is a read-only projection over the immutable post-tick scene; it never mounts a second renderer/Canvas, mutates Component_Store, or drives NPC decisions"
+  - "AR uses WebXR immersive-ar (browser standard) with a lazily loaded FOSS MindAR.js/AR.js image-target fallback; browser-local and offline; FORBID Supabase, remote realtime, and any source copy or dependency"
 source_references:
   agentic_ecs: "docs/documents/knowgrph-agentic-entity-component-system-prd-tad.md"
   runtime_contract: "docs/runtime-readiness-contract.md"
@@ -50,6 +53,9 @@ source_references:
   cost_log_contract: "contracts/cost-log.schema.js"
   workspace_seed: "docs/workspace-seeds/knowgrph-game-fps-demo.md"
   runtime_proof: "docs/documents/knowgrph-game-fps-runtime-readiness.md"
+  ar_broadcast_runtime: "canvas/src/features/game-fps/arBroadcastRuntime.ts"
+  ar_broadcast_validation_seed: "docs/workspace-seeds/knowgrph-physics-playground-demo.md"
+  ar_inspiration_reference_only: "github.co (inspiration only; no source copy, no dependency; Supabase forbidden)"
 ---
 
 # Knowgrph Game FPS PRD/TAD
@@ -59,6 +65,8 @@ source_references:
 Knowgrph gains one browser-local FloatingPanel **Game Mode** that runs a bounded first-person mission inside the existing React Three Fiber Canvas. It opens from a source-backed run-ready document, Motion Control's shared target catalog, browser WebMCP, or the strict `/game.mode @canvas #gameplay` invocation. The authored XR atmosphere, world, props, and paused frame remain visibly mounted while Game Mode supplies only its first-person camera and actor overlay. Toolbar **Canvas View Mode → Surface Mode → XR Mode** and FloatingPanel **Media**, **Animation**, **Motion Control**, **Game Mode**, and **Camera** project the same Canvas and authored scene rather than creating scene variants. Desktop, pointer, touch, optional Motion Control, and MCP input arm one deterministic native Agentic ECS mission with four scored NPC actions, normalized slab AABB hitscan, visible HUD/runtime errors, and Decisions-only WorkspaceFs persistence.
 
 Core gameplay requires no camera, account, passkey, model, remote asset, gameplay network call, or Cloudflare service. Optional Motion Control retains its existing explicit camera-permission and LiteRT pose-inference boundary and contributes normalized controller input only; it does not choose NPC actions. The pre-follow-up baseline gates passed at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` after PR #263 merged. The authored-XR composition and ready-clock follow-up passed PR #273's protected Integration Gate and exact-main acceptance at `0b0e70787edb80e71d368d56c1478ffd9655ce0d`; no production or Cloudflare deployment is authorized.
+
+An optional **AR Tabletop Broadcast** companion may, on explicit opt-in, project the same authored ECS scene as a miniature anchored on a real-world surface and frame it for a live "tabletop broadcast" capture. It is browser-based, mobile-first, local-first, and offline-first, and requests the camera only on the same explicit boundary as Motion Control. It is a read-only projection that never gates core gameplay, never mounts a second renderer or Canvas, never mutates Component_Store, never drives NPC decisions, and adds no network, Supabase, or Cloudflare dependency. The effect is inspired by the AR-World-Cup miniature-on-a-table demo but copies none of its source and takes no dependency on it (Supabase and any remote realtime backend are forbidden). See ADR-8.
 
 ## Product Requirements
 
@@ -103,11 +111,24 @@ Mei is a mobile-first player who wants to open a source-backed browser workspace
 ### Deferred scope
 
 - WebAuthn/passkeys, identity, accounts, cloud sync, and cross-device saves.
-- New camera flows, QR pairing, multiplayer, server-authoritative hit checks, leaderboards, and matchmaking. Existing optional Motion Control keeps its explicit local camera boundary.
+- QR pairing, multiplayer, AR multiplayer spectating, server-authoritative hit checks, leaderboards, and matchmaking. The optional AR Tabletop Broadcast (specified below) and the existing Motion Control keep their explicit opt-in local camera boundary; no other new camera flow is added.
+- Any copy of, or runtime/build dependency on, `ar-world-cup` (inspiration only), and any Supabase or remote realtime backend for AR or game state — AR and mission state stay local in the native Agentic ECS and KGC.
 - Hosted or local LLMs, agent reasoning, narrative generation, model escalation, edge-ML policy models, ONNX Runtime, and token budgets. Existing Motion Control LiteRT pose inference is input only, not NPC policy.
 - Rapier, Yuka, `behaviortree.js`, recastnavigation, bitECS, or another game/ECS engine.
 - Remote assets, service workers added specifically for this demo, D1, R2, KV, Durable Objects, Workers, Pages, or production routes.
 - Automatic Git commits, pushes, pull requests, or deployments from the browser runtime.
+
+### Optional AR Tabletop Broadcast (opt-in companion)
+
+A bounded, optional companion that films the live authored ECS scene as a miniature "tabletop broadcast" — inspired by the AR miniature-on-a-table effect, sharing none of its source and taking no dependency on it (Supabase and any remote realtime backend are forbidden). Scope:
+
+- **Opt-in and non-gating.** Core gameplay never requires it; it activates only on an explicit Start that requests local camera access on the same boundary as Motion Control (no frame upload, no frame persistence). Declining leaves the mission fully playable and unchanged.
+- **Browser-based, mobile-first, local-first, offline-first.** The primary anchor path is the **WebXR immersive-ar** device API (surface hit-test + anchors) on capable mobile browsers; the fallback for browsers without WebXR-AR (e.g. iOS Safari) is a **lazily loaded, FOSS image-target tracker (MindAR.js or AR.js)** cached in the PWA. No network, Supabase, or Cloudflare call is required to anchor, project, or film.
+- **Read-only projection.** It renders the existing authored XR/ECS scene, read from the immutable post-`World_Tick` projection, as a miniature anchored on the detected surface, composited over the live camera feed. It never mounts a second renderer or Canvas, never mutates Component_Store, and never becomes the NPC decision policy; the deterministic `World_Tick` and replay (AC-2) stay unaffected.
+- **Broadcast framing reuses existing owners.** Filming and framing reuse the existing camera source (fixed-follow / free-orbit), Timeline camera-marks, and the existing capture/export path — no new renderer or recorder.
+- **MCP-invocable.** Strict native `/ar.broadcast @canvas #broadcast` with exactly one supported operation from `open`, `start`, `anchor`, `record`, `stop`, `exit`; browser-local WebMCP exposes only `knowgrph.inspect_local_ar_broadcast` and `knowgrph.control_local_ar_broadcast` — no stdio, HTTP, gateway, or deployment surface.
+- **No new Must-scope dependency.** The WebXR path is a browser standard (no dependency); the image-target fallback is an optional module loaded only when AR broadcast is opted into on a non-WebXR browser, so the Must-scope "zero new runtime dependencies" holds.
+- **Validation surface.** Exercised against the native XR physics-playground seed (`docs/workspace-seeds/knowgrph-physics-playground-demo.md`), which already provides the shared XR Canvas, selectable camera source, the Motion Control camera boundary, and the `/ @ #` MCP grammar — all local-only with no external calls.
 
 ### User stories
 
@@ -118,6 +139,7 @@ Mei is a mobile-first player who wants to open a source-backed browser workspace
 5. As Mei, explicitly saving a completed mission writes only validated Decisions to my browser-local workspace.
 6. As an operator or agent, I can inspect and control the same local Game Mode through one strict invocation grammar and browser WebMCP contract.
 7. As a maintainer, I can prove the core runtime is model-free, dependency-free, deterministic, and Dev-only.
+8. As Mei, I can optionally point my phone at a table and film the mission as a live miniature "tabletop broadcast," entirely offline and camera-opt-in, without changing how the mission plays, ticks, or saves.
 
 ### Acceptance criteria
 
@@ -184,6 +206,14 @@ Every catalogued XR terrain/environment derives one 3D collision profile from th
 
 WebGL support is resolved synchronously before mission start. Unsupported WebGL or unreadable Decisions keeps the mission stopped and exposes a local error. Start prepares a healthy ready frame at tick zero; only accepted desktop, pointer, touch, Motion Control, or MCP gameplay input arms fixed ticks. Blur, document hiding, or pointer-control release pauses the clock without changing mission state. Stop followed by Start resumes the same in-memory mission when its spatial profile still matches; an authored-terrain profile mismatch restarts on the current XR profile. Malformed hydration blocks Start and Restart until **Reset local save** succeeds.
 
+#### AC-12: opt-in offline AR tabletop broadcast
+
+Given core gameplay running, when the operator explicitly starts AR Tabletop Broadcast via `/ar.broadcast @canvas #broadcast operation=start`, then local camera access is requested on the same boundary as Motion Control (no frame upload, no frame persistence), the authored ECS scene is projected as a miniature anchored on a detected real-world surface over the live camera feed, and no sign-in, network, Supabase, or Cloudflare call occurs. Declining, or never starting AR broadcast, leaves the mission fully playable, tickable, and savable without change.
+
+#### AC-13: read-only projection, deterministic, dependency-bounded
+
+Given AR Tabletop Broadcast active, when the mission ticks, then AR reads only the immutable post-tick scene and HUD projection: two identical input traces still yield byte-equivalent canonical results (AC-2 holds), Component_Store is not mutated, and AR never selects an NPC action. The primary anchor path is WebXR immersive-ar; where unavailable, a lazily loaded FOSS image-target tracker (MindAR.js or AR.js) is used. Neither path copies from or depends externally, and neither introduces Supabase, a remote realtime backend, or a new Must-scope runtime dependency. Camera-permission denial, missing surface/anchor, and absence of both WebXR-AR and the fallback fail closed with a visible local error and leave the mission running.
+
 ### Success metrics
 
 | Metric | Must target |
@@ -211,7 +241,8 @@ WebGL support is resolved synchronously before mission start. Unsupported WebGL 
 | Invocation/WebMCP | `canvas/src/features/game-fps/gameModeMcpRuntime.ts` plus browser agent-ready registration | Enforce the strict native tuple and browser-local inspect/control schema |
 | Entity simulation | `ecs/` | Reuse the five-function native ECS API and its transactional `worldTick` |
 | Rendering | `canvas/src/lib/three/ThreeGraph.impl.tsx` plus the canonical XR stage owners | Reuse the single React Three Fiber Canvas and authored XR world; Game Mode may add only actors and first-person framing, never an alternate environment, clear owner, world, or renderer |
-| Camera/input arbitration | Existing Three controls, authored-stage placement, game stage, and Motion Control adapter | Game Mode owns first-person framing in the authored coordinate space while active; Motion Control contributes normalized input only; immersive entry is unavailable during gameplay |
+| Camera/input arbitration | Existing Three controls, authored-stage placement, game stage, and Motion Control adapter | Game Mode owns first-person framing in the authored coordinate space while active; Motion Control contributes normalized input only; immersive entry is unavailable during first-person gameplay |
+| AR Tabletop Broadcast (optional) | `canvas/src/features/game-fps/arBroadcastRuntime.ts` | Opt-in, camera-permissioned WebXR immersive-ar projection (lazily loaded MindAR.js/AR.js image-target fallback) that reads the immutable post-tick scene projection and reuses the existing camera source and capture/export path; a broadcast/spectator projection distinct from first-person gameplay; never a second renderer/Canvas, never mutates Component_Store or NPC policy, never adds network/Supabase/Cloudflare |
 | Collision profile | `canvas/src/features/three/xrCanonicalSceneSpatialSource.ts` | Project the active authored or native-controller XR stage through one canonical 3D spatial source, retain every non-boundary slab for ray occlusion, filter ground interactions by actor-height overlap, and admit clear deterministic spawns; alternate Game-owned collision-profile variants are forbidden |
 | XR lifecycle | `canvas/src/features/three/xrSceneSurfaceRuntime.ts`, existing XR controller runtime, and shared surface catalog | Route Media, Animation, Motion Control, Game Mode, and Camera through one XR activation owner; pause, resume, and restore without replacing the Canvas or world |
 | Browser persistence | `canvas/src/features/workspace-fs/` | Use WorkspaceFs and its existing source-file bridge; do not add storage or Git owners |
@@ -265,6 +296,12 @@ The local save path is owned by the game adapter under WorkspaceFs. A terminal r
 
 Malformed existing KGC is not equivalent to an absent save. The runtime reports the precise local path and error, does not create a partial World, and waits for explicit reset. Reset and retry are user actions, not recovery side effects.
 
+### AR Tabletop Broadcast projection
+
+AR Tabletop Broadcast is an optional, opt-in projection layer over the same React Three Fiber Canvas. It consumes the immutable post-`World_Tick` scene projection (the same projection the HUD and scene reads use) and renders it as a miniature anchored on a detected real-world surface, composited over the live camera feed. It is a read-only consumer: it never advances the tick, mutates Component_Store, or influences NPC scoring, so deterministic replay (AC-2) is unaffected.
+
+Anchoring uses the **WebXR immersive-ar** device API (surface hit-test + anchors) where available; otherwise a lazily loaded, PWA-cached FOSS image-target tracker (**MindAR.js** or **AR.js**) provides a marker-anchored fallback. Both run fully on-device and offline. Camera access is requested only on explicit Start, on the same boundary as Motion Control — no frame upload, no frame persistence. Broadcast framing reuses the existing camera source (fixed-follow / free-orbit), Timeline camera-marks, and the existing capture/export path; it introduces no second renderer, recorder, or Canvas. No AR state is sent to Supabase, a remote realtime backend, or any Cloudflare resource; mission state remains in the native Agentic ECS and KGC. The effect is inspired by the AR miniature-on-a-table demo but shares none of its source and takes no dependency on it.
+
 ### Error model
 
 | Failure | Required result |
@@ -276,6 +313,9 @@ Malformed existing KGC is not equivalent to an absent save. The runtime reports 
 | Local write failure | Preserve prior bytes and pending Decisions, expose retry |
 | Repo-local mirror failure | Keep truthful browser-local save status and report mirror as best-effort failure |
 | WebGL unavailable | Fail the synchronous admission probe, keep the mission stopped, and show a local unsupported state without a remote or second renderer |
+| AR camera permission denied | Keep the mission running, do not start AR broadcast, and show a local opt-in-declined state; never block or alter gameplay |
+| No AR surface/anchor found | Keep the mission running, expose a local "no surface detected" state, and allow retry; never fabricate an anchor |
+| WebXR-AR and image-target fallback both unavailable | Fail AR broadcast closed with a visible local unsupported state; the mission and its save path are unaffected |
 
 ## Architecture Decisions
 
@@ -321,6 +361,12 @@ Runtime readiness means focused source proof plus a local browser smoke bound to
 
 Game Mode uses the existing Canvas View Mode → Surface Mode → XR Mode owner and the existing Motion Control target catalog. FloatingPanel Media, Animation, Motion Control, Game Mode, and Camera are projections over that same surface. Game Mode keeps the authored XR scene mounted, pauses its controller input/simulation, and overlays gameplay without copying geometry, physics state, lights, clear-color state, collision profiles, or renderer ownership. The deleted fallback scene/environment must not return under another name or condition. The Game clock remains ready until normalized player engagement, preventing an obscured or unattended workspace from reaching a terminal state. Agent access is limited to the strict native invocation tuple and two browser WebMCP contracts; the private Agentic ECS stdio lane remains exactly three tools, and no new gateway or deployment surface is added.
 
+### ADR-8: Optional AR Tabletop Broadcast via WebXR with a FOSS image-target fallback
+
+**Status:** Accepted for this increment (optional, opt-in; outside the Must-scope dependency budget).
+
+An optional companion films the authored ECS scene as a live miniature "tabletop broadcast." The primary anchor runtime is the **WebXR immersive-ar** device API (browser standard, no dependency); the fallback for browsers without WebXR-AR is a **lazily loaded FOSS image-target tracker (MindAR.js, MIT, or AR.js, MIT)**, cached in the PWA and loaded only when AR broadcast is opted into on a non-WebXR browser, so the Must-scope zero-new-dependency guarantee holds. The effect is inspired externally, but **no source is copied and no dependency is taken on it, and Supabase (its realtime/state backend) and any remote realtime backend are forbidden** — AR state stays local in the native Agentic ECS and KGC. AR broadcast is a read-only projection over the immutable post-tick scene (never a second renderer/Canvas, never a Component_Store mutation, never the NPC policy), reuses the existing camera source, Timeline camera-marks, and capture/export path, and requests camera access only on explicit Start on the same boundary as Motion Control. 8th Wall and other proprietary AR SDKs are rejected on the FOSS-first gate. It is validated against the native XR physics-playground seed and adds no stdio, HTTP, gateway, or deployment surface — only the browser-local `knowgrph.inspect_local_ar_broadcast` / `knowgrph.control_local_ar_broadcast` WebMCP tools.
+
 ## Runtime Readiness Gate
 
 The single source of truth for evidence is `docs/documents/knowgrph-game-fps-runtime-readiness.md`. Its baseline local runtime-readiness checklist passed at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2`, and PR #263 passed the separate protected-integration gate. The XR visual-fidelity and ready-clock follow-up passed PR #273's protected gate plus focused source, TypeScript, build, core-browser, and operator-supplied external-share acceptance on exact main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d`. That historical run proved authored-scene retention and non-mounting of the then-named fallback; it is not evidence that fallback source or renamed variants were deleted. The current scene-authority follow-up requires its own source, browser, and protected proof. Release remains unauthorized.
@@ -341,7 +387,7 @@ The first two commands are finite and local apart from ordinary build/test artif
 |---|---|
 | Agentic OS-ready | Canonical `/game.mode @canvas #gameplay` metadata is projected through the pinned Agentic OS invocation dictionary; protected cross-repo integration remains separately evidenced. |
 | AI Agent-ready | Existing browser agent-ready registration exposes read-only inspection and mutating lifecycle control without adding a model, prompt, reasoning path, or autonomous persistence. |
-| MCP-ready | `knowgrph.inspect_local_game_mode` and `knowgrph.control_local_game_mode` are browser-local WebMCP only. No stdio, HTTP mutation route, remote gateway, or deployment authority is added; the private Agentic ECS lane remains exactly three tools. |
+| MCP-ready | `knowgrph.inspect_local_game_mode` / `knowgrph.control_local_game_mode`, and the optional AR broadcast pair `knowgrph.inspect_local_ar_broadcast` / `knowgrph.control_local_ar_broadcast`, are browser-local WebMCP only. No stdio, HTTP mutation route, remote gateway, or deployment authority is added; the private Agentic ECS stdio lane remains exactly three tools. |
 
 ## Release Boundary
 
