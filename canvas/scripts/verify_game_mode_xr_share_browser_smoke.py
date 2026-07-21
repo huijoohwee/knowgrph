@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urljoin, urlparse
 
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, expect, sync_playwright
 
 from lib.game_mode_xr_share_smoke_source import (
@@ -26,6 +27,9 @@ OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
 ACTIVE_SCREENSHOT_PATH = OUTPUT_DIR / "game-mode-xr-share-browser-smoke-active.png"
 RESTORED_SCREENSHOT_PATH = OUTPUT_DIR / "game-mode-xr-share-browser-smoke-restored.png"
 EVIDENCE_PATH = OUTPUT_DIR / "game-mode-xr-share-browser-smoke.json"
+NAVIGATION_CONTEXT_DESTROYED_MESSAGE = (
+    "Execution context was destroyed, most likely because of a navigation"
+)
 
 
 def local_chromium_executable() -> str | None:
@@ -53,7 +57,13 @@ def poll_evaluate(
     deadline = time.monotonic() + timeout_ms / 1000
     last_value: Any = None
     while time.monotonic() < deadline:
-        last_value = page.evaluate(script)
+        try:
+            last_value = page.evaluate(script)
+        except PlaywrightError as error:
+            if NAVIGATION_CONTEXT_DESTROYED_MESSAGE not in str(error):
+                raise
+            page.wait_for_load_state("domcontentloaded")
+            continue
         if predicate(last_value):
             return last_value
         page.wait_for_timeout(interval_ms)
@@ -152,6 +162,12 @@ def main() -> None:
         page.on("response", on_response)
 
         try:
+            motion_panel = page.locator('[data-kg-motion-control-floating-panel="1"]').first
+            xr_hud = page.locator('[data-kg-xr-playground-hud="1"]').first
+            # Let Vite finish cold dependency optimization before the one-shot deep link is consumed.
+            page.goto(f"{BASE_URL}/knowgrph/", wait_until="domcontentloaded")
+            expect(motion_panel).to_be_visible(timeout=120_000)
+            expect(xr_hud).to_be_visible(timeout=120_000)
             page.goto(target_url, wait_until="domcontentloaded")
 
             imported = poll_evaluate(
@@ -201,9 +217,7 @@ def main() -> None:
             if not product_document_url or normalized_origin(product_document_url) != supplied_origin:
                 raise AssertionError("product deep-link owner did not resolve the supplied document origin")
 
-            motion_panel = page.locator('[data-kg-motion-control-floating-panel="1"]').first
             expect(motion_panel).to_be_visible(timeout=120_000)
-            xr_hud = page.locator('[data-kg-xr-playground-hud="1"]').first
             expect(xr_hud).to_be_visible(timeout=120_000)
             expect(xr_hud).to_have_attribute("data-kg-xr-playground-phase", "running")
 

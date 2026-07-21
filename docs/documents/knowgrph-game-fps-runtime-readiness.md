@@ -9,15 +9,16 @@ execution_boundary: "dev-only"
 publish_scope: "local-only"
 source_contract: "docs/documents/knowgrph-game-fps-prd-tad.md"
 workspace_seed: "docs/workspace-seeds/knowgrph-game-fps-demo.md"
-candidate_commit: "067ed16d0a8c77d1c612d6f63aa791ae02fba19c"
-verified_at: "2026-07-21T07:01:46Z"
+candidate_commit: "fbb615be92ea58e6e4cfc981feb2122ea81e79b2"
+verified_at: "2026-07-21T07:50:51Z"
+protected_pull_request: "https://github.com/huijoohwee/knowgrph/pull/263"
 agentic_runtime_docs_commit: "41cd9855dbcec074b2182a9eaea455c54c117fe4"
 deployment: "not authorized"
 ---
 
 # Knowgrph Game FPS Runtime Readiness
 
-This file is the evidence ledger for the local/Dev Game Mode increment. Source, build, core-browser, external-source, XR/Motion, invocation, persistence, and no-hardcode gates passed at exact implementation candidate `067ed16d0a8c77d1c612d6f63aa791ae02fba19c`. This is a local runtime-readiness claim only; protected integration remains pending and production is not authorized.
+This file is the evidence ledger for the local/Dev Game Mode increment. Source, build, core-browser, external-source, XR/Motion, invocation, persistence, and no-hardcode gates passed again at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` after PR #263 merged. This is a local runtime-readiness claim only; production remains unauthorized.
 
 ## Canonical commands
 
@@ -54,23 +55,23 @@ The runtime-ready and core-browser commands cover game unit/integration tests, d
 | Hardcode guard | Supplied URL/token and its decoded canonical path are absent from repository bytes | passed |
 | Network | Core gameplay made no non-local request; external acceptance made one verifier preflight read plus one exact product/browser source fetch | passed |
 | Focused integration | Exact-candidate source, ECS, Canvas typecheck, build, and browser gates pass | passed |
-| Protected integration | Draft PR checks and protected merge | pending |
+| Protected integration | PR #263 Integration Gate and protected squash merge | passed |
 | Release boundary | No Pages/Worker/Cloudflare deployment performed | passed |
 
 ## Core browser smoke record
 
 | Field | Recorded evidence |
 |---|---|
-| Candidate | `067ed16d0a8c77d1c612d6f63aa791ae02fba19c` |
+| Candidate | `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` |
 | Local target | `http://localhost:4185/`, Google Chrome headless |
 | Viewport | Mobile acceptance `390x844`; desktop keyboard/fire inputs exercised in the same trace |
 | First frame | Playable frame visible; four NPCs and touch controls visible |
-| Movement | Player moved from `[0, 2]` to `[0, 0.39]`; key release neutralized input and a second `W` cycle reached Z `-0.38` |
+| Movement | Player moved from `[0, 2]` to `[0, 0.46]`; key release neutralized input and a second `W` cycle reached Z `-0.17` |
 | Browser WebMCP | Registered and active with schema `knowgrph-game-mode-mcp/v1`; duplicate semantic binding rejected |
 | Fire | Ammo changed from `8` to `7`; HUD reported a hit |
-| Fixed runtime | Tick advanced from `17` to `105` |
-| Completion | Phase `won`, enemies alive `0`, pending Decision count `25`, reload observed |
-| Save/resume | Explicit Save wrote `25` Decisions to `/game-fps/mission-1-decisions.md`; reload restored phase `won` |
+| Fixed runtime | Tick advanced from `14` to `102` |
+| Completion | Phase `won`, enemies alive `0`, pending Decision count `24`, reload observed |
+| Save/resume | Explicit Save wrote `24` Decisions to `/game-fps/mission-1-decisions.md`; reload restored phase `won` |
 | Malformed save | HUD named `/game-fps/mission-1-decisions.md`; original bytes remained intact; retry stayed hidden; explicit reset returned phase `playing` and save status `saved` |
 | Runtime requests | Non-local requests `[]`; local runtime-bridge request paths `[]` |
 | Errors | Console errors `[]`; page errors `[]`; failed responses `[]` |
@@ -82,8 +83,8 @@ The core browser smoke exercised the runtime and local persistence directly; the
 
 | Field | Recorded evidence |
 |---|---|
-| Candidate | `067ed16d0a8c77d1c612d6f63aa791ae02fba19c` |
-| Source boundary | Environment-only operator input; `12,141` exact public Markdown bytes imported into localhost |
+| Candidate | `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` |
+| Source boundary | Environment-only operator input; exact public Markdown bytes at execution time imported into localhost |
 | Product fetch | Product deep-link owner derived the document URL; exactly one matching fetch observed |
 | Renderer | WebGL supported; exactly one Canvas with stable DOM identity across Game Mode/Motion/XR transitions |
 | Game Mode | Shared `xr` surface, phase `playing`, four NPC rows, actions `hold`, `alert`, `engage`, `flee` |
@@ -98,7 +99,7 @@ This acceptance proves compatibility between the exact supplied public source by
 
 ## Verified command results
 
-At the exact implementation candidate:
+At the exact protected main commit:
 
 - `npm run game-fps:runtime-ready` passed the 14-module source contract, 59 Agentic ECS tests, 20 focused Game Mode tests, subset source contracts, Canvas TypeScript, and an 8,519-module production Vite build namespaced under the full candidate SHA.
 - `npm run game-fps:browser-smoke` passed desktop/mobile interaction, browser WebMCP, explicit persistence, reload, malformed hydration, explicit Reset, request, and error assertions.
@@ -108,4 +109,4 @@ At the exact implementation candidate:
 
 ## Promotion rule
 
-Local runtime readiness is achieved when every local evidence row passes at one exact candidate commit. Protected integration remains a separate repository gate and does not change this ledger's local-only status. Neither result authorizes production, Cloudflare, or public-surface claims.
+Local runtime readiness is achieved when every local evidence row passes at one exact commit. Protected integration passed separately through PR #263 and does not change this ledger's local-only status. Neither result authorizes production, Cloudflare, or public-surface claims.

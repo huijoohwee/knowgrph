@@ -4,7 +4,7 @@ id: "md:knowgrph-game-fps-prd-tad"
 author: "airvio / joohwee"
 date: "2026-07-21"
 updated: "2026-07-21"
-version: "2.1.0"
+version: "2.2.0"
 status: "runtime-ready"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
@@ -13,12 +13,12 @@ domain: "knowgrph"
 execution_boundary: "dev-only"
 publish_scope: "local-only"
 readiness:
-  candidate_commit: "067ed16d0a8c77d1c612d6f63aa791ae02fba19c"
+  candidate_commit: "fbb615be92ea58e6e4cfc981feb2122ea81e79b2"
   source_contract: "passed"
   focused_runtime: "passed"
   core_browser_smoke: "passed"
   external_share_browser_smoke: "passed"
-  protected_integration: "pending"
+  protected_integration: "passed"
   production: "not authorized"
 constraints:
   - "one procedural offline single-player mission"
@@ -49,7 +49,7 @@ source_references:
 
 Knowgrph gains one browser-local FloatingPanel **Game Mode** that runs a bounded first-person mission inside the existing React Three Fiber Canvas. It opens from a source-backed run-ready document, Motion Control's shared target catalog, browser WebMCP, or the strict `/game.mode @canvas #gameplay` invocation. Desktop, pointer, touch, and optional Motion Control input feed one deterministic native Agentic ECS mission with four scored NPC actions, normalized slab AABB hitscan, visible HUD/runtime errors, and Decisions-only WorkspaceFs persistence.
 
-Core gameplay requires no camera, account, passkey, model, remote asset, gameplay network call, or Cloudflare service. Optional Motion Control retains its existing explicit camera-permission and LiteRT pose-inference boundary and contributes normalized controller input only; it does not choose NPC actions. The focused, core-browser, and opt-in external-source gates passed at candidate commit `067ed16d0a8c77d1c612d6f63aa791ae02fba19c`; protected integration remains pending, and no production or Cloudflare deployment is authorized.
+Core gameplay requires no camera, account, passkey, model, remote asset, gameplay network call, or Cloudflare service. Optional Motion Control retains its existing explicit camera-permission and LiteRT pose-inference boundary and contributes normalized controller input only; it does not choose NPC actions. The focused, core-browser, and opt-in external-source gates passed again at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` after PR #263 merged; no production or Cloudflare deployment is authorized.
 
 ## Product Requirements
 
@@ -298,7 +298,7 @@ Open-and-play is the only onboarding path. Passkeys, new QR/camera flows, accoun
 
 **Status:** Accepted for this increment.
 
-Runtime readiness means focused source proof plus a local browser smoke bound to the candidate commit. It does not mean merged, deployed, publicly reachable, or production-ready. Production and Cloudflare lanes require a separate operator-authorized release workflow.
+Runtime readiness means focused source proof plus a local browser smoke bound to an exact commit. Protected integration is recorded as a separate repository gate; neither result means deployed, publicly reachable, or production-ready. Production and Cloudflare lanes require a separate operator-authorized release workflow.
 
 ### ADR-7: Reuse shared XR/Motion owners and expose browser-local control
 
@@ -308,7 +308,7 @@ Game Mode uses the existing Canvas View Mode → Surface Mode → XR Mode owner 
 
 ## Runtime Readiness Gate
 
-The single source of truth for evidence is `docs/documents/knowgrph-game-fps-runtime-readiness.md`. Its local runtime-readiness checklist passed at candidate commit `067ed16d0a8c77d1c612d6f63aa791ae02fba19c`, so this PRD and the workspace seeds are `runtime-ready`. Protected integration and release remain separate gates.
+The single source of truth for evidence is `docs/documents/knowgrph-game-fps-runtime-readiness.md`. Its local runtime-readiness checklist passed again at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2`, so this PRD and the workspace seeds are `runtime-ready`. PR #263 passed the separate protected-integration gate; release remains unauthorized.
 
 The expected focused command is:
 

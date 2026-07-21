@@ -84,8 +84,8 @@ runtime_validation:
   validation_input_forbid_hardcode_in_repo: true
   validation_input_locator_persisted: false
   external_proof: "operator-supplied public document bytes were read into the localhost candidate; no deploy or public mutation occurred"
-  candidate_commit: "067ed16d0a8c77d1c612d6f63aa791ae02fba19c"
-  verified_at: "2026-07-21T07:01:46Z"
+  candidate_commit: "fbb615be92ea58e6e4cfc981feb2122ea81e79b2"
+  verified_at: "2026-07-21T07:50:51Z"
   launch_states: ["idle", "loading", "ready", "error"]
   mission_states: ["stopped", "playing", "won", "lost"]
   persistence_states: ["idle", "saving", "saved", "error"]
@@ -147,7 +147,7 @@ flow:
 
 # Knowgrph Game FPS Mission
 
-This source document is the canonical local activation contract for the bounded Game FPS mission. The focused gate and local browser smoke passed at candidate commit `067ed16d0a8c77d1c612d6f63aa791ae02fba19c`, verified at `2026-07-21T07:01:46Z`; the demo is runtime-ready for local/Dev use only.
+This source document is the canonical local activation contract for the bounded Game FPS mission. The focused, local-browser, and external-source gates passed again at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2`, verified through `2026-07-21T07:50:51Z`; the demo is runtime-ready for local/Dev use only, with no production deployment authorized.
 
 ## Run the runtime-ready demo
 
