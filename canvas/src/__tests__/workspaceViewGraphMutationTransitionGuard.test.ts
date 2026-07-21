@@ -438,6 +438,13 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
     || !sourceComposeText.includes('lastWorkspaceOpenStoryboardWidgetFitGraphKey = graphKey')) {
     throw new Error('expected same-document source recomposition not to request a fresh Storyboard fit after Widget or Rich Media generation')
   }
+  const existingDocumentFitSeedIndex = sourceComposeText.indexOf(
+    'resolveFlowWidgetStateGraphKey({ graphData: store.graphData })',
+  )
+  const composedGraphMutationIndex = sourceComposeText.indexOf("if (change === 'order-only')")
+  if (existingDocumentFitSeedIndex < 0 || composedGraphMutationIndex < 0 || existingDocumentFitSeedIndex > composedGraphMutationIndex) {
+    throw new Error('expected composed source changes to seed Storyboard fit ownership from the existing document before graph replacement')
+  }
 }
 
 export function testRunAllLayoutLockBlocksWorkspaceFrameMutation() {
