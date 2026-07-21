@@ -9,10 +9,15 @@ const requiredPaths = [
   'canvas/src/features/game-fps/gameFpsMission.ts',
   'canvas/src/features/game-fps/gameFpsRuntime.ts',
   'canvas/src/features/game-fps/gameFpsDecisionStore.ts',
+  'canvas/src/features/game-fps/gameModeRuntime.ts',
+  'canvas/src/features/game-fps/gameModeMcpContract.mjs',
+  'canvas/src/features/game-fps/gameModeMcpRuntime.ts',
+  'canvas/src/features/game-fps/GameModeFloatingPanelView.tsx',
   'canvas/src/features/game-fps/GameFpsMissionStage.tsx',
   'canvas/src/features/game-fps/GameFpsHud.tsx',
   'canvas/src/features/canvas/GameFpsRunReadyDemoRuntime.tsx',
   'canvas/src/__tests__/gameFpsMissionCore.test.ts',
+  'canvas/src/__tests__/gameModeRuntime.test.ts',
   'docs/workspace-seeds/knowgrph-game-fps-demo.md',
   'docs/documents/knowgrph-game-fps-prd-tad.md',
   'docs/documents/knowgrph-game-fps-runtime-readiness.md',
@@ -56,7 +61,7 @@ for (const dependency of forbiddenDependencies) {
 }
 
 const featureDir = path.join(root, 'canvas/src/features/game-fps')
-const featureFiles = (await readdir(featureDir)).filter(name => /\.tsx?$/.test(name)).sort()
+const featureFiles = (await readdir(featureDir)).filter(name => /\.(?:tsx?|mjs)$/.test(name)).sort()
 const featureSources = await Promise.all(featureFiles.map(async name => ({
   name,
   source: await readFile(path.join(featureDir, name), 'utf8'),
@@ -79,11 +84,19 @@ if (seed?.mission?.model_calls !== 0 || seed?.mission?.network_required !== fals
 if (seed?.persistence?.automatic_git_commit !== false) {
   throw new Error('game-fps seed must not claim automatic Git commits')
 }
+if (seed?.kgFloatingPanelView !== 'gameMode' || seed?.kgFloatingPanelOpen !== true) {
+  throw new Error('game-fps seed must open the canonical Game Mode FloatingPanel')
+}
+if (seed?.game_mode?.invocation !== '/game.mode @canvas #gameplay operation=start'
+  || seed?.game_mode?.inspect_tool !== 'knowgrph.inspect_local_game_mode'
+  || seed?.game_mode?.control_tool !== 'knowgrph.control_local_game_mode') {
+  throw new Error('game-fps seed must declare the canonical Game Mode invocation and browser WebMCP pair')
+}
 
 const threeGraph = await text('canvas/src/lib/three/ThreeGraph.impl.tsx')
 const stageMounts = threeGraph.match(/<GameFpsMissionStageLazy\b/g)?.length ?? 0
 if (stageMounts !== 1) throw new Error(`expected one Game FPS stage mount, received ${stageMounts}`)
-if (!threeGraph.includes('!gameFpsRunReadyDemo ? <ControlsLazy')) {
+if (!threeGraph.includes('!gameFpsActive ? <ControlsLazy')) {
   throw new Error('Game FPS must suppress the shared OrbitControls owner')
 }
 

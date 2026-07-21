@@ -95,6 +95,7 @@ export const UI_LABELS = {
   timeline: 'Timeline',
   xr: 'XR',
   motionControl: 'Motion Control',
+  gameMode: 'Game Mode',
   samples: 'Samples',
   close: 'Close',
   save: 'Save',

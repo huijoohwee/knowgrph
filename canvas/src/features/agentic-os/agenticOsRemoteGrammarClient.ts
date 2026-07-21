@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { readEnvString } from '@/lib/config.env'
-import { isGameFpsRepoLocalRunReadyBootstrap } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { isWorkspaceRepoLocalRunReadyBootstrap } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import {
   AGENTIC_CANVAS_OS_DOCS_CONTROL_PLANE_PATH,
   AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
@@ -398,7 +398,7 @@ export function useAgenticOsRemoteGrammarCatalog(args: {
   )
   useEffect(() => {
     // Dedicated repo-local demos must remain usable without a control-plane service.
-    if (isGameFpsRepoLocalRunReadyBootstrap()) return
+    if (isWorkspaceRepoLocalRunReadyBootstrap()) return
     const sigils = (args.sigils || []).filter((value, index, values) => REMOTE_GRAMMAR_SIGIL_ORDER.includes(value) && values.indexOf(value) === index)
     if (sigils.length === 0) return
     sigils.forEach(sigil => {

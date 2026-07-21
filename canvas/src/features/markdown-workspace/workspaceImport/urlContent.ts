@@ -51,7 +51,7 @@ import {
   type WebpageViewMode,
 } from './urlContentHeuristics'
 import { resolveSameOriginWorkspaceImportFetchPath } from './sameOriginFetchPath'
-type FetchWorkspaceUrlContentOpts = { mode?: FetchMode; onProgress?: (percentage: number) => void; viewHint?: WebpageViewMode; canvas2dRenderer?: Canvas2dRendererId | null; documentSemanticMode?: 'document' | 'keyword' | null }
+type FetchWorkspaceUrlContentOpts = { mode?: FetchMode; onProgress?: (percentage: number) => void; viewHint?: WebpageViewMode; canvas2dRenderer?: Canvas2dRendererId | null; documentSemanticMode?: 'document' | 'keyword' | null; preferDirectFetch?: boolean }
 type WorkspaceWebpageDomExportFn = typeof exportWebpageDomViaHiddenIframe
 let workspaceWebpageDomExportOverride: WorkspaceWebpageDomExportFn | null = null
 const SHARE_THINKING_CLICK_TEXT_HINTS = ['Show thinking trajectory', 'Show thinking', 'Show reasoning', 'Show thought process', 'View thinking', 'View reasoning', 'Thinking', 'Reasoning', '\u663e\u793a\u601d\u8003\u8fc7\u7a0b']
@@ -127,7 +127,8 @@ async function fetchWorkspaceUrlContentImpl(rawUrl: string, opts?: FetchWorkspac
   const isHttpUrl = /^https?:\/\//i.test(normalizedUrl)
   const isFileUrl = /^file:\/\//i.test(normalizedUrl)
   const isRootRelativeFetch = isRootRelativeFetchUrl(normalizedUrl)
-  const directFetchPath = sameOriginFetchPath || (isRootRelativeFetch ? normalizedUrl : '')
+  const directFetchPath = sameOriginFetchPath
+    || (isRootRelativeFetch || (isHttpUrl && opts?.preferDirectFetch === true) ? normalizedUrl : '')
   const isLocalRepoPath =
     (!isHttpUrl && !isRootRelativeFetch && !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(normalizedUrl)) || isFileUrl
   const localFsFetchPath =

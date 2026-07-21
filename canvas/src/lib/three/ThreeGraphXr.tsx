@@ -106,6 +106,7 @@ export function CanvasXrEntryPanel({
   spatialRuntimeStatus?: 'idle' | 'loading' | 'ready' | 'empty' | 'error'
 }) {
   const markdownDocumentName = useGraphStore(state => state.markdownDocumentName)
+  const markdownDocumentText = useGraphStore(state => state.markdownDocumentText)
   const [status, setStatus] = React.useState<'checking' | 'supported' | 'unsupported' | 'requesting' | 'active' | 'ending' | 'error'>('checking')
   const [sessionMode, setSessionMode] = React.useState<XrSessionMode>('immersive-ar')
   const [sessionSupport, setSessionSupport] = React.useState<XrSessionSupport>({})
@@ -357,7 +358,7 @@ export function CanvasXrEntryPanel({
     }
   }, [rendererRef, sessionMode])
 
-  if (!active || isXrPhysicsRunReadyDemoActive(markdownDocumentName)) return null
+  if (!active || isXrPhysicsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)) return null
   const spatialChrome = surfaceKind === 'spatial-capture' ? (
     <>
       <section

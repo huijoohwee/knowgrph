@@ -230,10 +230,11 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
     throw new Error('expected Motion Control to emit only controller invocations accepted by the canonical XR parser')
   }
   if (inspection.targets.surfaces.xr3d.webMcpTool !== targets.surfaces.xr3d.webMcpTool
-    || inspection.targets.surfaces.animation.webMcpTool !== targets.surfaces.animation.webMcpTool) {
+    || inspection.targets.surfaces.animation.webMcpTool !== targets.surfaces.animation.webMcpTool
+    || inspection.targets.surfaces.gameMode.webMcpTool !== 'knowgrph.control_local_game_mode') {
     throw new Error('expected Motion Control WebMCP inspection to expose the shared target projection')
   }
-  for (const view of ['motionControl', 'animation'] as const) {
+  for (const view of ['motionControl', 'animation', 'gameMode'] as const) {
     if (!motionControlCaptureSurfaceIsOpen({
       canvasRenderMode: '3d',
       canvas3dMode: 'xr',

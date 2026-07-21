@@ -80,6 +80,14 @@ motion_control:
   invocation: "/motion.control @canvas #pose operation=start backend=auto"
   inspect_tool: "knowgrph.inspect_local_motion_control"
   control_tool: "knowgrph.control_local_motion_control"
+game_mode:
+  companion_view: "gameMode"
+  invocation: "/game.mode @canvas #gameplay operation=open"
+  inspect_tool: "knowgrph.inspect_local_game_mode"
+  control_tool: "knowgrph.control_local_game_mode"
+  lifecycle: "temporarily suspend the native XR controller stage and restore it on exit"
+  decision_persistence: "browser-local WorkspaceFs; game Decisions only"
+  validation_input_forbid_hardcode_in_repo: true
 kgXrMotionReference:
   schema: "knowgrph-xr-motion-reference/v1"
   stageId: "singapore"

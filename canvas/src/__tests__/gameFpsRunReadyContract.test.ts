@@ -3,7 +3,7 @@ import path from 'node:path'
 import {
   GAME_FPS_DEMO_WORKSPACE_SEED_BASENAME,
   GAME_FPS_RUN_READY_DEMO_ID,
-  isGameFpsRepoLocalRunReadyBootstrap,
+  isWorkspaceRepoLocalRunReadyBootstrap,
   isGameFpsRunReadyDemoActive,
   resolveWorkspaceRunReadyDemoIdForDocumentPath,
   resolveWorkspaceRunReadyDemoSeed,
@@ -47,21 +47,25 @@ export function testGameFpsRunReadyRegistryUsesCanonicalSourceDocument() {
       throw new Error(`unrelated Game FPS-like path activated: ${unrelated}`)
     }
   }
+  const importedSourceText = `---\nrun_ready_demo:\n  id: "${GAME_FPS_RUN_READY_DEMO_ID}"\n---\n\n# Imported Game Mode source\n`
+  if (!isGameFpsRunReadyDemoActive('/imports/operator-supplied-source.md', importedSourceText)) {
+    throw new Error('source-authored Game FPS identity must activate independently of its import path')
+  }
 
   const previousDemo = process.env.VITE_KNOWGRPH_RUN_READY_DEMO
   const previousRepoLocal = process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL
   try {
     process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL = '1'
     process.env.VITE_KNOWGRPH_RUN_READY_DEMO = GAME_FPS_RUN_READY_DEMO_ID
-    if (!isGameFpsRepoLocalRunReadyBootstrap()) {
+    if (!isWorkspaceRepoLocalRunReadyBootstrap()) {
       throw new Error('Game FPS repo-local environment did not activate its offline bootstrap')
     }
     process.env.VITE_KNOWGRPH_RUN_READY_DEMO = 'xr-physics'
-    if (isGameFpsRepoLocalRunReadyBootstrap()) {
-      throw new Error('Game FPS repo-local bootstrap leaked into the XR demo')
+    if (!isWorkspaceRepoLocalRunReadyBootstrap()) {
+      throw new Error('XR repo-local environment did not retain the shared offline bootstrap')
     }
     process.env.VITE_KNOWGRPH_RUN_READY_DEMO = 'game_fps'
-    if (!isGameFpsRepoLocalRunReadyBootstrap()) {
+    if (!isWorkspaceRepoLocalRunReadyBootstrap()) {
       throw new Error('normalized Game FPS demo id did not retain repo-local policy')
     }
   } finally {
@@ -86,7 +90,7 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
   if ((threeGraph.match(/<GameFpsMissionStageLazy\b/g) || []).length !== 1) {
     throw new Error('ThreeGraph must mount exactly one Game FPS stage')
   }
-  if (!threeGraph.includes('!gameFpsRunReadyDemo ? <ControlsLazy')) {
+  if (!threeGraph.includes('!gameFpsActive ? <ControlsLazy')) {
     throw new Error('Game FPS activation must suppress OrbitControls')
   }
   if (!canvasPage.includes('data-kg-game-fps-run-ready')) {
@@ -98,6 +102,9 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
   if (!stage.includes("advanceGameFpsBy(deltaSeconds).catch(() => undefined)")) {
     throw new Error('Game FPS stage must consume rejected ticks after the runtime publishes its error')
   }
+  if (hud.includes('advanceGameFpsBy') || hud.includes('restartGameFpsMission') || !hud.includes('restartGameMode')) {
+    throw new Error('Game FPS HUD must only normalize input and route restart through the central Game Mode owner')
+  }
   if (!runtime.includes('publishRuntimeFailure(error)') || !hud.includes('data-kg-game-fps-runtime-error')) {
     throw new Error('Game FPS rejected ticks must publish a visible HUD error')
   }
@@ -106,9 +113,13 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
     throw new Error('Game FPS must expose a visible local error when WebGL is unavailable')
   }
   if (!threeGraph.includes('useState(readWebglSupport)')
+    || !threeGraph.includes('gameMode.active ? gameMode.webglSupported : webglSupported')
     || threeGraph.includes('setWebglSupported')
     || !webglSupport.includes("canvas.getContext('webgl2')")) {
     throw new Error('Game FPS must resolve WebGL support synchronously before mounting R3F Canvas')
+  }
+  if (!threeGraph.includes('const rendererLifecycleKey = `scene-canvas-${mode}`')) {
+    throw new Error('Game Mode must retain the current R3F Canvas identity while changing stages')
   }
 }
 
@@ -136,14 +147,14 @@ export function testGameFpsBrowserSmokeContractIsLocalAndInteractive() {
   ]) {
     if (!verifier.includes(expected)) throw new Error(`Game FPS verifier missing ${expected}`)
   }
-  if (!remoteGrammar.includes('if (isGameFpsRepoLocalRunReadyBootstrap()) return')) {
-    throw new Error('repo-local Game FPS bootstrap must not prime the remote grammar control plane')
+  if (!remoteGrammar.includes('if (isWorkspaceRepoLocalRunReadyBootstrap()) return')) {
+    throw new Error('repo-local run-ready bootstrap must not prime the remote grammar control plane')
   }
   if (!seedProvider.includes("agenticDocsAbsRoot: repoLocalRunReady ? ''")) {
     throw new Error('repo-local Game FPS bootstrap must not resolve a missing sibling docs checkout')
   }
-  if (!sourceFilesRuntime.includes("if (isGameFpsRepoLocalRunReadyBootstrap()) return ''")) {
-    throw new Error('repo-local Game FPS activation must not scan the unrelated docs mirror')
+  if (!sourceFilesRuntime.includes("if (isWorkspaceRepoLocalRunReadyBootstrap()) return ''")) {
+    throw new Error('repo-local run-ready activation must not scan the unrelated docs mirror')
   }
 }
 

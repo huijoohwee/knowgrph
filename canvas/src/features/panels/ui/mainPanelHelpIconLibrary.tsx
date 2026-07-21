@@ -72,6 +72,7 @@ export const MAIN_PANEL_TYPE_ICON_KEYS = [
   'floatingPanel.media',
   'floatingPanel.animation',
   'floatingPanel.motionControl',
+  'floatingPanel.gameMode',
   'floatingPanel.camera',
   'floatingPanel.design',
   'floatingPanel.chat',
@@ -339,6 +340,11 @@ export const MAIN_PANEL_TYPE_ICON_META_BY_KEY = {
     label: 'Motion Control',
     Icon: Accessibility,
   },
+  'floatingPanel.gameMode': {
+    category: 'FloatingPanel surface',
+    label: 'Game Mode',
+    Icon: Cuboid,
+  },
   'floatingPanel.camera': {
     category: 'FloatingPanel surface',
     label: 'Camera',
@@ -423,6 +429,7 @@ export type FloatingPanelTypeIconView =
   | 'media'
   | 'animation'
   | 'motionControl'
+  | 'gameMode'
   | 'camera'
   | 'design'
   | 'chat'
@@ -445,6 +452,7 @@ export const FLOATING_PANEL_TYPE_ICON_KEY_BY_VIEW = {
   media: 'floatingPanel.media',
   animation: 'floatingPanel.animation',
   motionControl: 'floatingPanel.motionControl',
+  gameMode: 'floatingPanel.gameMode',
   camera: 'floatingPanel.camera',
   design: 'floatingPanel.design',
   chat: 'floatingPanel.chat',

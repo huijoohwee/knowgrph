@@ -50,7 +50,8 @@ export function XrGraphStage({ data }: { data: GraphData }) {
   )
   const stage = resolveXrMotionReferenceStage(runtime.plan.stageId)
   const markdownDocumentName = useGraphStore(state => state.markdownDocumentName)
-  const runReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName)
+  const markdownDocumentText = useGraphStore(state => state.markdownDocumentText)
+  const runReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)
   const stageScale = runReadyDemo
     ? XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE
     : XR_MOTION_STAGE_SPAN / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)

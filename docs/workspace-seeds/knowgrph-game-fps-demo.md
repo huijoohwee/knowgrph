@@ -7,7 +7,8 @@ publish_scope: "local-only"
 execution_boundary: "dev-only"
 kgCanvasRenderMode: "3d"
 kgCanvas3dMode: "3d"
-kgFloatingPanelOpen: false
+kgFloatingPanelOpen: true
+kgFloatingPanelView: "gameMode"
 kgBottomPanelOpen: false
 kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
@@ -42,6 +43,14 @@ mission:
   npc_actions: ["hold", "alert", "engage", "flee"]
   model_calls: 0
   network_required: false
+game_mode:
+  surface: "FloatingPanel Game Mode"
+  invocation: "/game.mode @canvas #gameplay operation=start"
+  inspect_tool: "knowgrph.inspect_local_game_mode"
+  control_tool: "knowgrph.control_local_game_mode"
+  renderer_owner: "existing React Three Fiber Canvas"
+  motion_control_input: "shared pose-to-controller adapter"
+  xr_surface: "shared XR Mode; no parallel surface id"
 persistence:
   owner: "browser-local WorkspaceFs"
   format: "KGC EcsDecision nodes"
@@ -51,6 +60,7 @@ persistence:
   repo_local_mirror: "best-effort existing Source Files bridge"
   automatic_git_commit: false
 runtime_validation:
+  validation_input_forbid_hardcode_in_repo: true
   candidate_commit: "649e3dd1a89a9ae78d5af17930829bf9869c00fc"
   verified_at: "2026-07-21T04:30:22Z"
   required_states: ["ready", "running", "complete", "save-error", "save-complete"]

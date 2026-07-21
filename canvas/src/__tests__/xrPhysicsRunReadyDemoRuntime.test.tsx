@@ -16,6 +16,7 @@ import {
   XR_PHYSICS_RUN_READY_DEMO_ID,
   XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME,
   isXrPhysicsRunReadyDemoActive,
+  resolveWorkspaceRunReadyDemoIdForDocument,
   resolveWorkspaceRunReadyDemoIdForDocumentPath,
 } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { resetGraphStoreForTests, useGraphStore } from '@/hooks/useGraphStore'
@@ -213,6 +214,25 @@ export async function testXrPhysicsRunReadyRuntimeActivatesFromCanonicalSourceDo
       throw new Error(`expected unrelated or conflicting document path ${unrelatedDocumentPath} not to activate XR physics`)
     }
   }
+  const importedSourceText = [
+    '---',
+    'run_ready_demo:',
+    `  id: "${XR_PHYSICS_RUN_READY_DEMO_ID}"`,
+    '---',
+    '',
+    '# Imported XR source',
+  ].join('\n')
+  const importedPath = '/imports/operator-supplied-source.md'
+  if (
+    resolveWorkspaceRunReadyDemoIdForDocument(importedPath, importedSourceText) !== XR_PHYSICS_RUN_READY_DEMO_ID
+    || !isXrPhysicsRunReadyDemoActive(importedPath, importedSourceText)
+  ) {
+    throw new Error('expected source-authored run_ready_demo.id to activate independently of its import path')
+  }
+  const conflictingSourceText = importedSourceText.replace(XR_PHYSICS_RUN_READY_DEMO_ID, 'game-fps')
+  if (isXrPhysicsRunReadyDemoActive(canonicalDocsPath, conflictingSourceText)) {
+    throw new Error('expected conflicting path and source-authored run-ready identities to fail closed')
+  }
 
   process.env[WORKSPACE_RUN_READY_DEMO_ENV] = CARE_AGENT_RUN_READY_DEMO_ID
   if (isXrPhysicsRunReadyDemoActive(canonicalDocsPath)) {
@@ -277,7 +297,7 @@ export async function testXrPhysicsRunReadyRuntimeActivatesFromCanonicalSourceDo
     }
 
     await act(async () => {
-      useGraphStore.getState().setMarkdownDocument(canonicalDocsPath, '# Canonical XR physics demo', {
+      useGraphStore.getState().setMarkdownDocument(importedPath, importedSourceText, {
         autoEnableFrontmatter: false,
         applyViewPreset: false,
       })
@@ -285,7 +305,7 @@ export async function testXrPhysicsRunReadyRuntimeActivatesFromCanonicalSourceDo
     const running = readXrNativeControllerDemo()
     const activatedGraph = useGraphStore.getState()
     if (running.phase !== 'running' || running.mode !== 'ball') {
-      throw new Error(`expected the applied canonical document to start the native Ball runtime under npm run dev, got ${JSON.stringify(running)}`)
+      throw new Error(`expected the imported source-authored document to start the native Ball runtime under npm run dev, got ${JSON.stringify(running)}`)
     }
     if (
       activatedGraph.canvasRenderMode !== '3d'
@@ -293,7 +313,7 @@ export async function testXrPhysicsRunReadyRuntimeActivatesFromCanonicalSourceDo
       || activatedGraph.floatingPanelOpen
       || !activatedGraph.bottomSurfaceCollapsed
     ) {
-      throw new Error('expected canonical document activation to make the existing XR canvas runtime-ready')
+      throw new Error('expected source-authored document activation to make the existing XR canvas runtime-ready')
     }
 
     await act(async () => {
@@ -303,7 +323,7 @@ export async function testXrPhysicsRunReadyRuntimeActivatesFromCanonicalSourceDo
       })
     })
     if (readXrNativeControllerDemo().phase !== 'off') {
-      throw new Error('expected leaving the canonical XR document to release the native playground runtime')
+      throw new Error('expected leaving the source-authored XR document to release the native playground runtime')
     }
 
     process.env[WORKSPACE_RUN_READY_DEMO_ENV] = CARE_AGENT_RUN_READY_DEMO_ID

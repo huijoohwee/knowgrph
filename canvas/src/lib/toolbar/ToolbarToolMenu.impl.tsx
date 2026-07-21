@@ -81,6 +81,7 @@ const FloatingPanelChatLazy = React.lazy(() => import('@/features/chat/FloatingP
 const MediaCatalogPanelLazy = React.lazy(() => import('@/features/command-menu/CommandMenuCatalogPanel'))
 const XrAnimationFloatingPanelViewLazy = React.lazy(() => import('@/features/three/XrAnimationFloatingPanelView'))
 const MotionControlFloatingPanelViewLazy = React.lazy(() => import('@/features/three/MotionControlFloatingPanelView'))
+const GameModeFloatingPanelViewLazy = React.lazy(() => import('@/features/game-fps/GameModeFloatingPanelView'))
 const StoryboardWidgetFloatingPanelViewLazy = React.lazy(() => import('@/features/storyboard-widget-manager/StoryboardWidgetFloatingPanelView').then(mod => ({ default: mod.StoryboardWidgetFloatingPanelView })))
 const FlowchartFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/FlowchartFloatingPanelView').then(mod => ({ default: mod.FlowchartFloatingPanelView })))
 const GitGraphFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/GitGraphFloatingPanelView').then(mod => ({ default: mod.GitGraphFloatingPanelView })))
@@ -90,7 +91,35 @@ const ArchitectureFloatingPanelViewLazy = React.lazy(() => import('@/features/gi
 const EventModelingFloatingPanelViewLazy = React.lazy(() => import('@/features/gitgraph/EventModelingFloatingPanelView').then(mod => ({ default: mod.EventModelingFloatingPanelView })))
 const StrybldrCameraFloatingPanelViewLazy = React.lazy(() => import('@/features/strybldr/StrybldrCameraFloatingPanelView').then(mod => ({ default: mod.StrybldrCameraFloatingPanelView })))
 
-const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'promptPresets', 'view', 'animation', 'motionControl', 'camera', 'chat', 'geo', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'architecture', 'eventModeling'])
+const FLOATING_PANEL_FULL_HEIGHT_VIEWS = new Set<FloatingPanelView>(['skillsCommands', 'promptPresets', 'view', 'animation', 'motionControl', 'gameMode', 'camera', 'chat', 'geo', 'storyboardWidget', 'flowchart', 'gitGraph', 'gantt', 'timeline', 'architecture', 'eventModeling'])
+
+const FLOATING_PANEL_PRIMARY_VIEW_BUTTON_SPECS: FloatingPanelViewButtonSpec[] = [
+  { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.propsPanel },
+  { view: 'skillsCommands', title: UI_LABELS.skillsCommands, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.skillsCommands }, { view: 'promptPresets', title: UI_LABELS.promptPresets, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.promptPresets },
+  { view: 'view', title: UI_LABELS.view, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.view },
+  { view: 'media', title: 'Media', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.media },
+  { view: 'animation', title: 'Animation', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.animation },
+  { view: 'motionControl', title: UI_LABELS.motionControl, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.motionControl },
+  { view: 'gameMode', title: UI_LABELS.gameMode, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gameMode },
+  { view: 'camera', title: 'Camera', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.camera },
+  { view: 'design', title: 'Design', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.design },
+  { view: 'chat', title: UI_LABELS.chat, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.chat },
+  { view: 'geo', title: UI_LABELS.geo, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.geo },
+  { view: 'renderer', title: UI_LABELS.renderer, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.renderer },
+  { view: 'storyboardWidget', title: 'Storyboard Widget', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.storyboardWidget },
+  { view: 'flowchart', title: 'Flowchart', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.flowchart },
+  { view: 'gitGraph', title: UI_LABELS.gitGraph, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gitGraph },
+  { view: 'gantt', title: UI_LABELS.gantt, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gantt },
+  { view: 'timeline', title: UI_LABELS.timeline, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.timeline },
+  { view: 'architecture', title: 'Architecture', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.architecture },
+  { view: 'eventModeling', title: 'Event Model', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.eventModeling },
+]
+
+const FLOATING_PANEL_VISIBLE_OVERFLOW_OPTIONS: FloatingPanelOverflowOption[] = [{
+  id: 'graphTraversal',
+  title: UI_LABELS.graphTraversal,
+  icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.graphTraversal,
+}]
 
 export function ToolbarToolMenu({
   pipelineStatus,
@@ -270,55 +299,18 @@ export function ToolbarToolMenu({
     UI_THEME_TOKENS.text.primary,
   )
 
-  const floatingPanelPrimaryViewButtonSpecs = React.useMemo<FloatingPanelViewButtonSpec[]>(
-    () => [
-      { view: 'propsPanel', title: UI_LABELS.propsPanel, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.propsPanel },
-      { view: 'skillsCommands', title: UI_LABELS.skillsCommands, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.skillsCommands }, { view: 'promptPresets', title: UI_LABELS.promptPresets, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.promptPresets },
-      { view: 'view', title: UI_LABELS.view, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.view },
-      { view: 'media', title: 'Media', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.media },
-      { view: 'animation', title: 'Animation', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.animation },
-      { view: 'motionControl', title: UI_LABELS.motionControl, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.motionControl },
-      { view: 'camera', title: 'Camera', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.camera },
-      { view: 'design', title: 'Design', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.design },
-      { view: 'chat', title: UI_LABELS.chat, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.chat },
-      { view: 'geo', title: UI_LABELS.geo, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.geo },
-      { view: 'renderer', title: UI_LABELS.renderer, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.renderer },
-      { view: 'storyboardWidget', title: 'Storyboard Widget', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.storyboardWidget },
-      { view: 'flowchart', title: 'Flowchart', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.flowchart },
-      { view: 'gitGraph', title: UI_LABELS.gitGraph, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gitGraph },
-      { view: 'gantt', title: UI_LABELS.gantt, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.gantt },
-      { view: 'timeline', title: UI_LABELS.timeline, icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.timeline },
-      { view: 'architecture', title: 'Architecture', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.architecture },
-      { view: 'eventModeling', title: 'Event Model', icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.eventModeling },
-    ],
-    [],
-  )
-  const floatingPanelOverflowOptions = React.useMemo<FloatingPanelOverflowOption[]>(
-    () => [
-      {
-        id: 'graphTraversal',
-        title: UI_LABELS.graphTraversal,
-        icon: FLOATING_PANEL_TYPE_ICON_BY_VIEW.graphTraversal,
-      },
-    ],
-    [],
-  )
-  const visibleOverflowOptions = React.useMemo(
-    () => floatingPanelOverflowOptions.filter(option => !option.hidden),
-    [floatingPanelOverflowOptions],
-  )
   const isOverflowViewActive = floatingPanelView === 'graphTraversal'
   const overflowValue = React.useMemo(() => {
     if (floatingPanelView === 'graphTraversal') {
       return floatingPanelView
     }
-    const fallback = visibleOverflowOptions.find(option => !option.disabled)?.id ?? visibleOverflowOptions[0]?.id
+    const fallback = FLOATING_PANEL_VISIBLE_OVERFLOW_OPTIONS.find(option => !option.disabled)?.id ?? FLOATING_PANEL_VISIBLE_OVERFLOW_OPTIONS[0]?.id
     return fallback ?? 'graphTraversal'
-  }, [floatingPanelView, visibleOverflowOptions])
+  }, [floatingPanelView])
 
   const viewButtons = (
     <>
-      {floatingPanelPrimaryViewButtonSpecs.map(spec => {
+      {FLOATING_PANEL_PRIMARY_VIEW_BUTTON_SPECS.map(spec => {
         if (spec.hidden) return null
         const Icon = spec.icon
         return (
@@ -337,10 +329,10 @@ export function ToolbarToolMenu({
           </IconButton>
         )
       })}
-      {visibleOverflowOptions.length > 0 ? (
+      {FLOATING_PANEL_VISIBLE_OVERFLOW_OPTIONS.length > 0 ? (
         <ToolbarDropdownSelect
           value={overflowValue}
-          options={visibleOverflowOptions}
+          options={FLOATING_PANEL_VISIBLE_OVERFLOW_OPTIONS}
           title="More floating views"
           showTooltip={false}
           isButtonActive={isOverflowViewActive}
@@ -492,6 +484,11 @@ export function ToolbarToolMenu({
             {floatingPanelView === 'motionControl' && (
               <React.Suspense fallback={null}>
                 <MotionControlFloatingPanelViewLazy />
+              </React.Suspense>
+            )}
+            {floatingPanelView === 'gameMode' && (
+              <React.Suspense fallback={null}>
+                <GameModeFloatingPanelViewLazy />
               </React.Suspense>
             )}
             {floatingPanelView === 'camera' && (

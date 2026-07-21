@@ -33,6 +33,7 @@ export async function importWorkspaceUrl(args: {
   canvas2dRenderer?: Canvas2dRendererId | null
   documentSemanticMode?: WorkspaceUrlImportDocumentModeId | null
   viewHint?: 'markdown' | 'json' | 'html'
+  preferDirectFetch?: boolean
   fetchUrlContent?: typeof fetchWorkspaceUrlContent
 }): Promise<WorkspaceImportResult> {
   const rawUrl = String(args.urlRaw || '').trim()
@@ -96,6 +97,7 @@ export async function importWorkspaceUrl(args: {
     viewHint: args.viewHint === 'json' ? 'json' : args.viewHint === 'html' ? 'html' : 'markdown',
     canvas2dRenderer: args.canvas2dRenderer,
     documentSemanticMode: args.documentSemanticMode,
+    preferDirectFetch: args.preferDirectFetch,
     onProgress: p => {
       try {
         args.onProgress?.({ phase: 'fetching', current: p, total: 100, label: 'Fetching' })
