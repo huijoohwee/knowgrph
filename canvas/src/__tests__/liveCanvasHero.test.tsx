@@ -272,6 +272,16 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
   if (!hasLiveCanvasHeroBlockingSearchParams('?kgDoc=workspace-readme.md&kgPreview=1', '/knowgrph/')) {
     throw new Error('expected a document preview query to suppress the outer Live Canvas Hero')
   }
+  for (const homeOwnedSearch of [
+    '?kgReleaseProof=163e44a5ecbd92ac3547878cc558a946a2a92ede',
+    '?kgTrace=network-2',
+    '?kgCanvasSurfaceMode=2d&kgCanvasRenderMode=2d&kgCanvas2dRenderer=storyboard&openEditorWorkspace=1',
+    '?kgPath=%2Fknowgrph%2Fshare%2FeyJjYW5vbmljYWxQYXRoIjoiZG9jcyJ9',
+  ]) {
+    if (hasLiveCanvasHeroBlockingSearchParams(homeOwnedSearch, '/knowgrph/')) {
+      throw new Error(`expected Home-owned runtime parameters to retain the Live Canvas Hero: ${homeOwnedSearch}`)
+    }
+  }
   const suppressions = [
     { isRootAlias: false },
     { sourceFilesBootstrapReady: false },
