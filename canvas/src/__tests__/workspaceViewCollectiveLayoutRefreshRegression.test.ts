@@ -692,6 +692,9 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered)) {')) {
     throw new Error('expected Flow runtime workspace-open preservation to keep balanced visible transforms without viewport-fit drift gating')
   }
+  if (!runtimeText.includes('if (shouldPreserveStabilizedWorkspaceOverlayCamera({')) {
+    throw new Error('expected Flow runtime to preserve an established workspace camera through transient topology coverage changes')
+  }
   if (!runtimeText.includes('const workspaceOverlayStabilizedRef = React.useRef(false)')) {
     throw new Error('expected Flow runtime workspace-open recovery to track stabilized transform authority after THEN-layout convergence')
   }
@@ -778,9 +781,9 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   }
   if (!runtimeText.includes('const deriveExpectedOverlayCollectiveIds = React.useCallback((graphData: any): string[] => {')
     || !runtimeText.includes('const isOverlayCollectiveCoverageComplete = React.useCallback((args: {')
-    || !runtimeText.includes('overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered) && workspaceOverlayStabilizedRef.current')
+    || !runtimeText.includes('shouldPreserveStabilizedWorkspaceOverlayCamera({')
     || !runtimeText.includes('overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered)')) {
-    throw new Error('expected Flow runtime workspace-open preserve-current guards to require full live overlay collective coverage before stabilizing a centered frontmatter landing')
+    throw new Error('expected Flow runtime to establish camera authority from complete collective coverage, then preserve it through later topology growth')
   }
   if (!runtimeText.includes('const collectiveOverlayFitIds = storyboardWidgetMode ? deriveExpectedOverlayCollectiveIds(graphDataForFit) : []')
     || !runtimeText.includes('const hasCollectiveFlowWidgets = storyboardWidgetMode && collectiveOverlayFitIds.length > 0')

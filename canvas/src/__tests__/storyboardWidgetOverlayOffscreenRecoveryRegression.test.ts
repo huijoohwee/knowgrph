@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { shouldPreserveStabilizedWorkspaceOverlayCamera } from '@/components/FlowCanvas/workspaceVisibleViewportRecovery'
+
 export function testStoryboardWidgetRuntimeUsesOverlayCollectiveViewportStateForRecovery() {
   const runtimePath = path.resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'useFlowCanvasRuntime.ts')
   const runtimeText = fs.readFileSync(runtimePath, 'utf8')
@@ -40,8 +42,8 @@ export function testStoryboardWidgetRuntimeUsesOverlayCollectiveViewportStateFor
     || runtimeText.includes('const shouldRecenterOverlayCollective =')) {
     throw new Error('expected Flow runtime to remove automatic overlay recovery/recentering so ordinary pan/zoom stays infinite-canvas')
   }
-  if (!runtimeText.includes('workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered) && workspaceOverlayStabilizedRef.current')) {
-    throw new Error('expected workspace-open stabilized preservation to revalidate balanced or centered overlay collective state')
+  if (!runtimeText.includes('if (shouldPreserveStabilizedWorkspaceOverlayCamera({')) {
+    throw new Error('expected workspace-open stabilized preservation to keep camera authority through transient topology coverage changes')
   }
   if (runtimeText.includes('const workspaceOpenCurrentTransformUsable =')
     || runtimeText.includes('const initOverlayCollectiveState = storyboardWidgetMode')) {
@@ -76,6 +78,18 @@ export function testStoryboardWidgetRuntimeUsesOverlayCollectiveViewportStateFor
   }
   if (!runtimeText.includes('workspace-open-visible-balanced-preserve-current')) {
     throw new Error('expected workspace-open preserve path to remain active after overlay-collective visibility gating')
+  }
+  if (!shouldPreserveStabilizedWorkspaceOverlayCamera({
+    workspaceEditorOverlayOpen: true,
+    workspaceOverlayStabilized: true,
+  })) {
+    throw new Error('expected a stabilized open workspace to preserve its camera during ordinary topology growth')
+  }
+  if (shouldPreserveStabilizedWorkspaceOverlayCamera({
+    workspaceEditorOverlayOpen: true,
+    workspaceOverlayStabilized: false,
+  })) {
+    throw new Error('expected an unstabilized workspace to retain initial visible-viewport recovery authority')
   }
 }
 
