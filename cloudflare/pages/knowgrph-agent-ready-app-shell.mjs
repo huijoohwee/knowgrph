@@ -36,7 +36,11 @@ const unavailableStaticAssetResponse = (request) =>
 export const fetchKnowgrphStaticAsset = async (context) => {
   const headers = new Headers(context.request.headers);
   headers.delete("origin");
-  const assetRequest = new Request(context.request.url, {
+  const assetUrl = new URL(context.request.url);
+  if (assetUrl.pathname.endsWith("/.well-known/runtime-readiness.json")) {
+    assetUrl.pathname = "/.well-known/runtime-readiness.json";
+  }
+  const assetRequest = new Request(assetUrl, {
     method: context.request.method,
     headers,
   });

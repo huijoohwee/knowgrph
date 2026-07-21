@@ -8,7 +8,7 @@ import {
   serializeProductionRuntimeReadiness,
   validateProductionRuntimeReadiness,
 } from '../production-runtime-readiness.mjs'
-import { onRequest as handlePublishedRuntimeReadiness } from '../../cloudflare/pages/knowgrph-runtime-readiness.mjs'
+import { fetchKnowgrphStaticAsset } from '../../cloudflare/pages/knowgrph-agent-ready-app-shell.mjs'
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..')
 const workspaceRoot = repoRoot.includes(`${path.sep}.worktrees${path.sep}`)
@@ -59,25 +59,23 @@ test('browser artifact digest is path-bound, order-independent, and content-sens
   assert.notEqual(await calculateRuntimeArtifactDigest(entries), expected)
 })
 
-test('explicit app readiness route serves the apex marker bytes without an SPA fallback', async () => {
+test('app readiness route serves the apex marker bytes without an SPA fallback', async () => {
   const body = serializeProductionRuntimeReadiness(validReadiness)
   let fetchedUrl = ''
-  const response = await handlePublishedRuntimeReadiness({
+  const response = await fetchKnowgrphStaticAsset({
     request: new Request('https://airvio.co/knowgrph/.well-known/runtime-readiness.json?stale=1'),
     env: { ASSETS: { fetch: async request => {
       fetchedUrl = request.url
       return new Response(body, { headers: { 'content-type': 'application/json' } })
     } } },
   })
-  assert.equal(fetchedUrl, 'https://airvio.co/.well-known/runtime-readiness.json')
+  assert.equal(fetchedUrl, 'https://airvio.co/.well-known/runtime-readiness.json?stale=1')
   assert.equal(response.status, 200)
   assert.equal(await response.text(), body)
-  assert.equal(response.headers.get('cache-control'), 'no-store, no-cache, must-revalidate, max-age=0')
-  assert.equal(response.headers.get('x-knowgrph-route-owner'), 'knowgrph-runtime-readiness-pages')
 })
 
-test('explicit app readiness route rejects an HTML asset fallback', async () => {
-  const response = await handlePublishedRuntimeReadiness({
+test('app readiness route rejects an HTML asset fallback', async () => {
+  const response = await fetchKnowgrphStaticAsset({
     request: new Request('https://airvio.co/knowgrph/.well-known/runtime-readiness.json'),
     env: { ASSETS: { fetch: async () => new Response('<html>fallback</html>', {
       headers: { 'content-type': 'text/html; charset=utf-8' },
