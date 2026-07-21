@@ -7,13 +7,13 @@ import {
   matchesCanvasEmbedQuery,
 } from '@/features/panels/views/CanvasEmbedSettingsRows'
 import {
-  CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL,
+  CANONICAL_STARTUP_CANVAS_EMBED_URL,
   readCanvasEmbedIframeSrc,
 } from '@/features/canvas/canvasEmbedImportContract'
 import {
-  CANONICAL_AGENT_DEFINITIONS_DOCUMENT_PATH,
+  CANONICAL_STARTUP_DOCUMENT_PATH,
   normalizeLiveCanvasHeroCanvasEmbedUrl,
-  resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl,
+  resolveCanonicalStartupCanvasEmbedRuntimeUrl,
 } from '@/features/canvas/canvasEmbedPresets'
 import { buildDefaultDocViewUrl } from '@/features/canvas/canvasDocDeepLink'
 import { decodePublishedDocShareToken } from '@/features/canvas/canvasDocShareToken.mjs'
@@ -23,35 +23,39 @@ import { readLiveCanvasHeroSourceSelection, LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT
 
 export async function testMainPanelCanvasEmbedSettingsReuseSharedImportPanel(): Promise<void> {
   if (CANVAS_EMBED_SETTINGS_ROW_COUNT !== 1) throw new Error('expected one Canvas Embed settings row')
-  if (!CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL.startsWith('https://airvio.co/knowgrph/share/')) {
-    throw new Error('expected the canonical Agent Definitions share URL to remain source-backed')
+  if (!CANONICAL_STARTUP_CANVAS_EMBED_URL.startsWith('https://airvio.co/knowgrph/share/')) {
+    throw new Error('expected the canonical startup share URL to remain source-backed')
   }
-  for (const rendererParam of ['kgCanvasSurfaceMode=2d', 'kgCanvasRenderMode=2d', 'kgCanvas2dRenderer=storyboard', 'openEditorWorkspace=1']) {
-    if (!CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL.includes(rendererParam)) {
-      throw new Error(`expected the canonical embed preset to select the Storyboard 2D renderer via ${rendererParam}`)
+  const canonicalUrl = new URL(CANONICAL_STARTUP_CANVAS_EMBED_URL)
+  for (const rendererParam of ['kgCanvasSurfaceMode', 'kgCanvasRenderMode', 'kgCanvas2dRenderer', 'openEditorWorkspace']) {
+    if (canonicalUrl.searchParams.has(rendererParam)) {
+      throw new Error(`expected the startup document frontmatter to own ${rendererParam}`)
     }
   }
-  const canonicalUrl = new URL(CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL)
   const identity = decodePublishedDocShareToken(canonicalUrl.pathname.split('/').pop())
-  if (identity?.canonicalPath !== CANONICAL_AGENT_DEFINITIONS_DOCUMENT_PATH || identity.workspaceId !== null) {
-    throw new Error(`expected the canonical embed token to resolve Agent Definitions, got ${JSON.stringify(identity)}`)
+  if (identity?.canonicalPath !== CANONICAL_STARTUP_DOCUMENT_PATH || identity.workspaceId !== null) {
+    throw new Error(`expected the canonical embed token to resolve the Physics Playground, got ${JSON.stringify(identity)}`)
   }
-  const migratedLegacySelection = normalizeLiveCanvasHeroCanvasEmbedUrl(`${CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL}&kgPreview=1&kgLiveHero=1`)
-  if (migratedLegacySelection.includes('kgPreview=') || migratedLegacySelection.includes('kgLiveHero=')) {
-    throw new Error(`expected stale canonical Hero preview flags to migrate to the direct Storyboard iframe, got ${migratedLegacySelection}`)
+  const migratedLegacySelection = normalizeLiveCanvasHeroCanvasEmbedUrl(
+    `${CANONICAL_STARTUP_CANVAS_EMBED_URL}?kgPreview=1&kgLiveHero=1&kgCanvasSurfaceMode=2d&kgCanvasRenderMode=2d&kgCanvas2dRenderer=storyboard&openEditorWorkspace=1`,
+  )
+  for (const staleParam of ['kgPreview', 'kgLiveHero', 'kgCanvasSurfaceMode', 'kgCanvasRenderMode', 'kgCanvas2dRenderer', 'openEditorWorkspace']) {
+    if (new URL(migratedLegacySelection).searchParams.has(staleParam)) {
+      throw new Error(`expected the Physics Playground frontmatter to replace stale ${staleParam} overrides`)
+    }
   }
-  const localRuntimeEmbed = resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl('http://localhost:5174')
+  const localRuntimeEmbed = resolveCanonicalStartupCanvasEmbedRuntimeUrl('http://localhost:5174')
   if (!localRuntimeEmbed.startsWith('http://localhost:5174/knowgrph/share/')) {
     throw new Error(`expected Dev to mirror the canonical share token through its same-origin runtime, got ${localRuntimeEmbed}`)
   }
-  const candidateRuntimeEmbed = resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl('https://1234abcd.joohwee.pages.dev')
+  const candidateRuntimeEmbed = resolveCanonicalStartupCanvasEmbedRuntimeUrl('https://1234abcd.joohwee.pages.dev')
   if (!candidateRuntimeEmbed.startsWith('https://1234abcd.joohwee.pages.dev/knowgrph/share/')) {
     throw new Error(`expected an exact Pages deployment to retain its same-deployment canvas, got ${candidateRuntimeEmbed}`)
   }
   const previousStorageBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
   process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://airvio.co'
   try {
-    const productionDocUrl = buildDefaultDocViewUrl(CANONICAL_AGENT_DEFINITIONS_DOCUMENT_PATH)
+    const productionDocUrl = buildDefaultDocViewUrl(CANONICAL_STARTUP_DOCUMENT_PATH)
     if (!productionDocUrl.startsWith('https://airvio.co/api/storage/doc-default/')) {
       throw new Error(`expected candidate document hydration to use the canonical storage owner, got ${productionDocUrl}`)
     }
@@ -59,10 +63,10 @@ export async function testMainPanelCanvasEmbedSettingsReuseSharedImportPanel(): 
     if (typeof previousStorageBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousStorageBaseUrl
     else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
   }
-  if (readCanvasEmbedIframeSrc(`<iframe src="${CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL}"></iframe>`) !== CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL) {
-    throw new Error('expected the canonical Agent Definitions URL to use the shared iframe parser')
+  if (readCanvasEmbedIframeSrc(`<iframe src="${CANONICAL_STARTUP_CANVAS_EMBED_URL}"></iframe>`) !== CANONICAL_STARTUP_CANVAS_EMBED_URL) {
+    throw new Error('expected the canonical Physics Playground URL to use the shared iframe parser')
   }
-  if (!matchesCanvasEmbedQuery('iframe postmessage') || matchesCanvasEmbedQuery('unrelated-provider')) {
+  if (!matchesCanvasEmbedQuery('iframe postmessage') || !matchesCanvasEmbedQuery('physics xr') || matchesCanvasEmbedQuery('unrelated-provider')) {
     throw new Error('expected Canvas Embed settings search to stay scoped to the embed contract')
   }
 
@@ -80,17 +84,17 @@ export async function testMainPanelCanvasEmbedSettingsReuseSharedImportPanel(): 
     const buttons = Array.from(container.querySelectorAll('button')) as HTMLButtonElement[]
     const importButton = buttons.find(button => button.textContent?.trim() === 'Import canvas embed')
     if (!importButton) throw new Error('expected MainPanel Settings to expose Import canvas embed')
-    const presetButton = buttons.find(button => button.textContent?.trim() === 'Use Agent Definitions background')
-    if (!presetButton) throw new Error('expected MainPanel Settings to expose the Agent Definitions embed preset')
+    const presetButton = buttons.find(button => button.textContent?.trim() === 'Use Physics Playground background')
+    if (!presetButton) throw new Error('expected MainPanel Settings to expose the Physics Playground startup preset')
     await act(async () => {
       presetButton.click()
       await waitForFrames(dom.window as unknown as Window, 1)
     })
     const selectedUrl = new URL(selectedEmbedUrl)
     if (!selectedUrl.pathname.startsWith('/knowgrph/share/')
-      || selectedUrl.searchParams.get('kgCanvas2dRenderer') !== 'storyboard'
-      || selectedUrl.searchParams.get('openEditorWorkspace') !== '1') {
-      throw new Error(`expected the preset to preserve the canonical Storyboard share identity, got ${selectedEmbedUrl}`)
+      || selectedUrl.searchParams.has('kgCanvas2dRenderer')
+      || selectedUrl.searchParams.has('openEditorWorkspace')) {
+      throw new Error(`expected the preset to preserve the canonical frontmatter-owned Physics Playground identity, got ${selectedEmbedUrl}`)
     }
     await act(async () => {
       importButton.click()

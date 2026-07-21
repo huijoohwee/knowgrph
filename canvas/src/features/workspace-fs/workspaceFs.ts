@@ -545,7 +545,7 @@ export function resolveWorkspaceStartupActivePath(args: {
   const workspaceFilePathSet = new Set(workspaceFilePaths)
   const activePath = args.activePath ? normalizeWorkspacePath(args.activePath) : null
   const activePathExists = !!(activePath && workspaceFilePathSet.has(activePath))
-  const preferredStarterPath = TEST_VALIDATION_WORKSPACE_SEED_PATH
+  const preferredStarterPath = CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE ? TEST_VALIDATION_WORKSPACE_SEED_PATH : XR_PHYSICS_WORKSPACE_SEED_PATH
   if (args.forceValidationSeedIfPresent === true && workspaceFilePathSet.has(TEST_VALIDATION_WORKSPACE_SEED_PATH)) {
     return TEST_VALIDATION_WORKSPACE_SEED_PATH
   }

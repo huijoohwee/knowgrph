@@ -1,7 +1,7 @@
 import { normalizeLiveCanvasHeroCanvasEmbedUrl } from '@/features/canvas/canvasEmbedPresets'
 
 export const LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT = 'kg-live-canvas-hero-source-select'
-const LIVE_CANVAS_HERO_SOURCE_SESSION_KEY = 'kg-live-canvas-hero-source/v2'
+const LIVE_CANVAS_HERO_SOURCE_SESSION_KEY = 'kg-live-canvas-hero-source/v3'
 
 export type LiveCanvasHeroSourceSelection = {
   sourcePath: string

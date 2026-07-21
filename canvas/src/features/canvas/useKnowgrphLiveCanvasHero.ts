@@ -20,7 +20,10 @@ import {
 } from './liveCanvasHeroSourceSelection'
 import { resolveLiveCanvasHeroEmbedUrl } from './liveCanvasHeroEmbed'
 import { deriveLiveCanvasHeroCommandRouteGraph } from './liveCanvasHeroProjection'
-import { resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl } from './canvasEmbedPresets'
+import {
+  CANONICAL_STARTUP_DOCUMENT_PATH,
+  resolveCanonicalStartupCanvasEmbedRuntimeUrl,
+} from './canvasEmbedPresets'
 
 export type LiveCanvasHeroWorkspaceSourceState = {
   defaultSeedOnly: boolean
@@ -260,10 +263,10 @@ export function useKnowgrphLiveCanvasHero(args: {
   const effectiveLiveCanvasHeroSource = React.useMemo(() => {
     const source = liveCanvasHeroSource || rootAliasFallbackSource
     const sourcePath = selectedEmbedSource?.sourcePath
-      || source?.sourcePath
-      || (isRootAlias ? WORKSPACE_README_SOURCE_PATH : '')
+      || (isRootAlias ? CANONICAL_STARTUP_DOCUMENT_PATH : source?.sourcePath)
+      || ''
     const embedUrl = selectedEmbedSource?.embedUrl
-      || (isRootAlias ? resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl() : resolveLiveCanvasHeroEmbedUrl({
+      || (isRootAlias ? resolveCanonicalStartupCanvasEmbedRuntimeUrl() : resolveLiveCanvasHeroEmbedUrl({
         sourcePath,
         baseUrl: import.meta.env.BASE_URL,
       }))

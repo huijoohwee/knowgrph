@@ -18,7 +18,7 @@
 
 **Workspace Persistence**: The `sourceFiles` workspace is persisted locally via IndexedDB (Dexie) so Source Files survive reloads and act as a lightweight file-system abstraction; the persisted payload is intentionally minimal (no heavy parsed graph blobs) and includes workspace metadata (folder name/access mode/selected folder path). Local-folder-backed entries fall back to cached text when folder handles are unavailable.
 
-**Initialization-File Bootstrap Contract**: The default initialization-file family is sourced from `huijoohwee/docs` and materialized into the root of the local workspace as `/workspace-readme.md`, `/knowgrph-agentic-video-canvas-demo.md`, and `/knowgrph-maps-places.md`. `workspace-readme.md` is the canonical Live Canvas Hero document seed, `knowgrph-agentic-video-canvas-demo.md` is the canonical agentic-video validation seed, and `knowgrph-maps-places.md` is the canonical geospatial seed. Source Files and workspace bootstrap must treat those root-level workspace paths as the activation ids while treating `huijoohwee/docs` as the source-text SSOT.
+**Initialization-File Bootstrap Contract**: The canonical family contains the three legacy root seeds sourced from `huijoohwee/docs`—`/workspace-readme.md`, `/knowgrph-agentic-video-canvas-demo.md`, and `/knowgrph-maps-places.md`—plus `/docs/workspace-seeds/knowgrph-physics-playground-demo.md`, sourced from Knowgrph and published under the same path in Agentic Canvas OS. A cold unselected workspace starts from the physics seed; its frontmatter owns XR/3D and Motion Control initialization. Explicit deep links, imported embeds, persisted non-initialization documents, and a custom validation-seed environment remain authoritative in their declared scopes.
 
 **Imported-Document Activation Rule**: During the exact UI import path, the first imported workspace file chosen for focus becomes the active raw-frontmatter authority before any composed source-file replay runs. This prevents a previously selected document from reapplying stale renderer/surface frontmatter over the newly imported preset document.
 
@@ -83,16 +83,16 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant BOOT as workspaceFs.ensureSeed
-  participant DOCS as huijoohwee/docs
+  participant DOCS as Canonical seed sources
   participant WS as IndexedDB Workspace
   participant SF as workspaceSeedSourceFiles
   participant MD as setMarkdownDocument
   participant FM as applyCanvasFrontmatterPreset
 
-  BOOT->>DOCS: load workspace-readme/agentic-video/maps source text
-  BOOT->>WS: materialize /workspace-readme.md, /knowgrph-agentic-video-canvas-demo.md, /knowgrph-maps-places.md
-  WS->>SF: reconcile canonical root-level source-file ids
-  SF->>MD: activate selected initialization file
+  BOOT->>DOCS: load editorial/video/maps plus source-owned physics text
+  BOOT->>WS: materialize the canonical four-seed family
+  WS->>SF: reconcile canonical source-file ids and paths
+  SF->>MD: activate physics on cold start or preserve an explicit selection
   MD->>FM: apply frontmatter-selected renderer/document/surface mode
 ```
 

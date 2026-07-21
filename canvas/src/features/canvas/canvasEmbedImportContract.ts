@@ -1,7 +1,7 @@
 import { resolveLiveCanvasHeroEmbedUrl } from '@/features/canvas/liveCanvasHeroEmbed'
 import type { LiveCanvasHeroSourceSelection } from '@/features/canvas/liveCanvasHeroSourceSelection'
 import { selectLiveCanvasHeroSource } from '@/features/canvas/liveCanvasHeroSourceSelection'
-export { CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL } from '@/features/canvas/canvasEmbedPresets'
+export { CANONICAL_STARTUP_CANVAS_EMBED_URL } from '@/features/canvas/canvasEmbedPresets'
 
 export const KNOWGRPH_CANVAS_EMBED_SELECT_MESSAGE = 'knowgrph.canvas-embed.select'
 export const KNOWGRPH_CANVAS_EMBED_MESSAGE_VERSION = 1

@@ -180,7 +180,7 @@ export async function testWorkspaceEnsureSeedKeepsUserDeletedDefaultSeedEntryRem
     restore()
   }
 }
-export function testWorkspaceStartupActivePathUsesSelectorAwareValidationStarterForDefaultSeedFamily() {
+export function testWorkspaceStartupActivePathUsesPhysicsPlaygroundForDefaultSeedFamily() {
   const next = resolveWorkspaceStartupActivePath({
     workspaceFilePaths: [
       WORKSPACE_README_SEED_PATH,
@@ -190,12 +190,12 @@ export function testWorkspaceStartupActivePathUsesSelectorAwareValidationStarter
     activePath: null,
     preferDefaultStarter: true,
   })
-  if (next !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
-    throw new Error(`expected default seed startup to use the selector-aware validation starter, got ${String(next)}`)
+  if (next !== XR_PHYSICS_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected default seed startup to use the Physics Playground, got ${String(next)}`)
   }
 }
 
-export function testWorkspaceStartupActivePathPrefersValidationSeedForCustomValidationTarget() {
+export function testWorkspaceStartupActivePathFallsBackToReadmeWithoutPhysicsSeed() {
   const next = resolveWorkspaceStartupActivePath({
     workspaceFilePaths: [
       WORKSPACE_README_SEED_PATH,
@@ -205,8 +205,8 @@ export function testWorkspaceStartupActivePathPrefersValidationSeedForCustomVali
     activePath: null,
     preferDefaultStarter: true,
   })
-  if (next !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
-    throw new Error(`expected custom validation target startup to prefer validation seed, got ${String(next)}`)
+  if (next !== WORKSPACE_README_SEED_PATH) {
+    throw new Error(`expected startup without the Physics Playground seed to fall back to the workspace README, got ${String(next)}`)
   }
 }
 
