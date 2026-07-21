@@ -74,6 +74,44 @@ const resolveHomeCanvasBody = async page => {
   return frame ? frame.locator('body') : page.locator('body')
 }
 
+const readHomeSourceAuthority = async page => {
+  const target = resolveHomeCanvasFrame(page) || page
+  return target.evaluate(() => ({
+    prematureSceneMounts: window.__kgHomeSourceAuthorityEvidence || [],
+    sceneRootCount: document.querySelectorAll('[data-kg-xr-scene-media-drop="1"]').length,
+    documentLoadedRootCount: document.querySelectorAll(
+      '[data-kg-xr-scene-media-drop="1"][data-kg-xr-document-loaded="1"]',
+    ).length,
+    canvasCount: document.querySelectorAll('[data-kg-xr-scene-media-drop="1"] canvas').length,
+    emptyWorldCount: document.querySelectorAll('[data-kg-xr-empty-world="1"]').length,
+    gameStageCount: document.querySelectorAll('[data-kg-game-fps-stage]').length,
+  }))
+}
+
+const waitForHomeSourceAuthority = async page => {
+  const deadline = Date.now() + 30_000
+  let lastEvidence = null
+  let lastError = null
+  while (Date.now() < deadline) {
+    try {
+      lastEvidence = await readHomeSourceAuthority(page)
+      if (
+        lastEvidence.sceneRootCount === 1
+        && lastEvidence.documentLoadedRootCount === 1
+        && lastEvidence.canvasCount === 1
+      ) return lastEvidence
+    } catch (error) {
+      // The remote-document handoff may replace the frame; always re-resolve it on the next poll.
+      lastError = error
+    }
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  throw new Error(
+    `Home source authority did not stabilize: ${JSON.stringify(lastEvidence)}`,
+    { cause: lastError },
+  )
+}
+
 const markerAtApex = await fetchMarker('/.well-known/runtime-readiness.json')
 const markerAtApp = await fetchMarker('/knowgrph/.well-known/runtime-readiness.json')
 assert.equal(markerAtApex.body, markerAtApp.body, 'apex and /knowgrph readiness markers must be byte-identical')
@@ -89,6 +127,7 @@ await context.addInitScript(() => {
   const recordPrematureSceneMount = () => {
     const sceneRoots = document.querySelectorAll('[data-kg-xr-scene-media-drop="1"]')
     const canonicalSourceReady = document.querySelector('[data-kg-xr-physics-run-ready="full-frame"]')
+      || Array.from(sceneRoots).every(root => root.getAttribute('data-kg-xr-document-loaded') === '1')
     if (sceneRoots.length === 0 || canonicalSourceReady) return
     prematureSceneMounts.push({
       rootCount: sceneRoots.length,
@@ -144,16 +183,10 @@ try {
   assert.match(heroCanvasText, /Beach Ball/)
   assert.match(heroCanvasText, /Rocket/)
   assert.doesNotMatch(heroCanvasText, /Validation seed fallback/)
-  const homeCanvasTarget = resolveHomeCanvasFrame(home) || home
-  const homeSourceAuthority = await homeCanvasTarget.evaluate(() => ({
-    prematureSceneMounts: window.__kgHomeSourceAuthorityEvidence || [],
-    sceneRootCount: document.querySelectorAll('[data-kg-xr-scene-media-drop="1"]').length,
-    canvasCount: document.querySelectorAll('[data-kg-xr-scene-media-drop="1"] canvas').length,
-    emptyWorldCount: document.querySelectorAll('[data-kg-xr-empty-world="1"]').length,
-    gameStageCount: document.querySelectorAll('[data-kg-game-fps-stage]').length,
-  }))
+  const homeSourceAuthority = await waitForHomeSourceAuthority(home)
   assert.deepEqual(homeSourceAuthority.prematureSceneMounts, [], 'Home mounted an XR world before canonical source readiness')
   assert.equal(homeSourceAuthority.sceneRootCount, 1, 'Home must retain exactly one canonical XR scene root')
+  assert.equal(homeSourceAuthority.documentLoadedRootCount, 1, 'Home XR scene root must own the loaded source document')
   assert.equal(homeSourceAuthority.canvasCount, 1, 'Home must retain exactly one canonical XR Canvas')
   assert.equal(homeSourceAuthority.emptyWorldCount, 0, 'Home must never retain an empty-world fallback')
   assert.equal(homeSourceAuthority.gameStageCount, 0, 'Home must not activate Game Mode before explicit invocation')
