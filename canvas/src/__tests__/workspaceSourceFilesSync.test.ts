@@ -94,6 +94,39 @@ export async function testWorkspaceSourceFilesSyncPreservesParsedGraphRevision()
   if (next[0]?.parsedGraphRevision !== 7) throw new Error('expected parsedGraphRevision to be preserved across workspace source sync')
 }
 
+export async function testWorkspaceSourceFilesSyncDropsStaleRuntimeOnlyAgenticDocsProjection() {
+  const runtimeOnlyPath = '/agentic-canvas-os/docs/AGENT-DEFINITIONS.md'
+  const next = mergeWorkspaceEntriesIntoSourceFiles({
+    existing: [
+      {
+        id: 'ws-runtime-doc',
+        name: 'AGENT-DEFINITIONS.md',
+        text: '# Runtime reference',
+        enabled: true,
+        status: 'parsed',
+        source: { kind: 'local', path: `workspace:${runtimeOnlyPath}` },
+      },
+    ],
+    workspaceEntries: [
+      {
+        kind: 'file',
+        path: runtimeOnlyPath,
+        parentPath: '/agentic-canvas-os/docs',
+        name: 'AGENT-DEFINITIONS.md',
+        text: '# Runtime reference',
+        updatedAtMs: 1,
+      },
+    ],
+    sourcesByPath: { [runtimeOnlyPath]: { kind: 'local', originalName: 'AGENT-DEFINITIONS.md' } },
+    preserveExistingWorkspaceEntries: true,
+    workspaceDocsOnly: true,
+  })
+
+  if (next.some(file => file.source?.path === `workspace:${runtimeOnlyPath}`)) {
+    throw new Error('expected stale Agentic Canvas OS runtime reference to be removed from Source Files')
+  }
+}
+
 export async function testWorkspaceSourceFilesSyncDoesNotOverwriteExistingTextWithBlankWorkspaceInlineText() {
   const existing: SourceFile[] = [
     {
