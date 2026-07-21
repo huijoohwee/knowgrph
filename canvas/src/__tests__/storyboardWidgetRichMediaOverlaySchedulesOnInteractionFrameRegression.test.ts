@@ -14,7 +14,7 @@ export function testFlowCanvasSchedulesRichMediaOverlayOnInteractionFrame() {
   if (!flowText.includes('onInteractionFrame={handleInteractionFrame}')) {
     throw new Error('expected FlowCanvas to forward interaction frames to FlowCanvasMediaOverlays')
   }
-  if (!flowText.includes('if (storyboardWidgetMode) mediaOverlayInteractionFrameSchedulerRef.current?.()')) {
+  if (!flowText.includes('if (storyboardWidgetMode) {\n      mediaOverlayInteractionFrameSchedulerRef.current?.()')) {
     throw new Error('expected FlowCanvas to schedule rich-media layout from live Storyboard Widget shared surface interaction frames without affecting Flow Canvas')
   }
   if (!flowText.includes('registerInteractionFrameLayoutScheduler={registerMediaOverlayInteractionFrameScheduler}')) {
@@ -48,6 +48,39 @@ export function testFlowCanvasSchedulesRichMediaOverlayOnInteractionFrame() {
   }
   if (!overlaysText.includes("loop: storyboardRichMediaWorldTransformProjectionMode ? 'always' : 'onDemand'")) {
     throw new Error('expected every Storyboard Rich Media projection mode to resize on the same animation-frame cadence as Card overlays while zooming')
+  }
+}
+
+export function testStoryboardCardsFlushOnTheSameNativeZoomFrameAsRichMedia() {
+  const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
+  const flowSharedPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'shared.ts')
+  const surfacePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'StoryboardWidgetCanvasSurface.tsx')
+  const layerPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'StoryboardCardOverlayLayer2d.tsx')
+  const projectionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'useStoryboardCardOverlayProjection2d.ts')
+  const flowText = readFileSync(flowCanvasPath, 'utf8')
+  const flowSharedText = readFileSync(flowSharedPath, 'utf8')
+  const surfaceText = readFileSync(surfacePath, 'utf8')
+  const layerText = readFileSync(layerPath, 'utf8')
+  const projectionText = readFileSync(projectionPath, 'utf8')
+
+  if (!flowSharedText.includes('onOverlayInteractionFrame?: () => void')) {
+    throw new Error('expected FlowCanvas to expose a synchronous shared-overlay projection frame callback')
+  }
+  if (!flowText.includes('mediaOverlayInteractionFrameSchedulerRef.current?.()\n      onOverlayInteractionFrame?.()')) {
+    throw new Error('expected Rich Media and Card projections to flush together after the native zoom transform changes')
+  }
+  if (!surfaceText.includes('cardOverlayInteractionFrameSchedulerRef.current?.()')
+    || !surfaceText.includes('registerInteractionFrameProjectionScheduler={registerCardOverlayInteractionFrameScheduler}')) {
+    throw new Error('expected the Storyboard surface to bridge native zoom frames into the Card projection owner')
+  }
+  if (!layerText.includes('registerInteractionFrameProjectionScheduler?: (scheduler: null | (() => void)) => void')
+    || !layerText.includes('registerInteractionFrameProjectionScheduler: props.registerInteractionFrameProjectionScheduler')) {
+    throw new Error('expected the Card layer to register its synchronous projection flush')
+  }
+  if (!projectionText.includes('registerInteractionFrameProjectionScheduler?: (scheduler: null | (() => void)) => void')
+    || !projectionText.includes('registerInteractionFrameProjectionScheduler?.(applyProjection)')
+    || !projectionText.includes('const tick = () => {\n      applyProjection()')) {
+    throw new Error('expected Card projection to share the native interaction frame while retaining its fallback RAF tick')
   }
 }
 
