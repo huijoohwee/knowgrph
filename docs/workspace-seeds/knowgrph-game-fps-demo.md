@@ -51,8 +51,8 @@ persistence:
   repo_local_mirror: "best-effort existing Source Files bridge"
   automatic_git_commit: false
 runtime_validation:
-  candidate_commit: "98cb837652806cf786c22db786ddba5c7833f4df"
-  verified_at: "2026-07-21T04:20:00Z"
+  candidate_commit: "649e3dd1a89a9ae78d5af17930829bf9869c00fc"
+  verified_at: "2026-07-21T04:30:22Z"
   required_states: ["ready", "running", "complete", "save-error", "save-complete"]
   deterministic_replay: true
   local_assets_only: true
@@ -112,7 +112,7 @@ flow:
 
 # Knowgrph Game FPS Mission
 
-This source document is the canonical local activation contract for the bounded Game FPS mission. The focused gate and local browser smoke passed at candidate commit `98cb837652806cf786c22db786ddba5c7833f4df`; the demo is runtime-ready for local/Dev use only.
+This source document is the canonical local activation contract for the bounded Game FPS mission. The focused gate and local browser smoke passed at candidate commit `649e3dd1a89a9ae78d5af17930829bf9869c00fc`; the demo is runtime-ready for local/Dev use only.
 
 ## Run the runtime-ready demo
 

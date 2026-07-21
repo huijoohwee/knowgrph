@@ -9,14 +9,14 @@ execution_boundary: "dev-only"
 publish_scope: "local-only"
 source_contract: "docs/documents/knowgrph-game-fps-prd-tad.md"
 workspace_seed: "docs/workspace-seeds/knowgrph-game-fps-demo.md"
-candidate_commit: "98cb837652806cf786c22db786ddba5c7833f4df"
-verified_at: "2026-07-21T04:20:00Z"
+candidate_commit: "649e3dd1a89a9ae78d5af17930829bf9869c00fc"
+verified_at: "2026-07-21T04:30:22Z"
 deployment: "not authorized"
 ---
 
 # Knowgrph Game FPS Runtime Readiness
 
-This file is the evidence ledger for the local/Dev game increment. The focused runtime gate and browser smoke passed at exact candidate commit `98cb837652806cf786c22db786ddba5c7833f4df`. This is a local runtime-readiness claim only; protected integration remains pending and production is not authorized.
+This file is the evidence ledger for the local/Dev game increment. The focused runtime gate and browser smoke passed at exact candidate commit `649e3dd1a89a9ae78d5af17930829bf9869c00fc`. This is a local runtime-readiness claim only; protected integration remains pending and production is not authorized.
 
 ## Canonical commands
 
@@ -50,15 +50,15 @@ The focused command must cover game unit/integration tests, deterministic replay
 
 | Field | Recorded evidence |
 |---|---|
-| Candidate | `98cb837652806cf786c22db786ddba5c7833f4df` |
+| Candidate | `649e3dd1a89a9ae78d5af17930829bf9869c00fc` |
 | Local target | `http://localhost:4185/`, Google Chrome headless |
 | Viewport | Mobile acceptance `390x844`; desktop keyboard/fire inputs exercised in the same trace |
 | First frame | Playable frame visible; four NPCs and touch controls visible |
-| Movement | Player moved from `[0, 2]` to `[0, -0.24]` using desktop forward input |
+| Movement | Player moved from `[0, 2]` to `[0, -1.64]` using desktop forward input |
 | Fire | Ammo changed from `8` to `7`; HUD reported a hit |
-| Fixed runtime | Tick advanced from `10` to `64` |
-| Completion | Phase `won`, enemies alive `0`, pending Decision count `25` |
-| Save/resume | Saved `25` Decisions to `/game-fps/mission-1-decisions.md`; reload restored phase `won` |
+| Fixed runtime | Tick advanced from `11` to `82` |
+| Completion | Phase `won`, enemies alive `0`, pending Decision count `26` |
+| Save/resume | Saved `26` Decisions to `/game-fps/mission-1-decisions.md`; reload restored phase `won` |
 | Malformed save | HUD named `/game-fps/mission-1-decisions.md`; original bytes remained intact; retry stayed hidden; explicit reset returned phase `playing` and save status `saved` |
 | Runtime requests | Non-local requests `[]`; local runtime-bridge request paths `[]` |
 | Errors | Console errors `[]`; page errors `[]`; failed responses `[]` |
@@ -70,7 +70,7 @@ The browser smoke exercised the runtime and local persistence directly; the scre
 
 At the candidate commit:
 
-- `npm run game-fps:runtime-ready` passed the 9-module source contract, 59 Agentic ECS tests, 10 focused Game FPS tests, subset source contracts, Canvas TypeScript check, and production-format local Vite build.
+- `npm run game-fps:runtime-ready` passed the 9-module source contract, 59 Agentic ECS tests, 11 focused Game FPS tests, subset source contracts, Canvas TypeScript check, and production-format local Vite build.
 - `npm run game-fps:browser-smoke` passed the interaction, persistence, reload, malformed-save, explicit-reset, request, and error assertions listed above.
 - `npm run hygiene:check`, focused ESLint, and `git diff --check` passed.
 
