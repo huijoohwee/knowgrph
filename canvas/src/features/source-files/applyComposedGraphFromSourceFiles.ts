@@ -22,6 +22,7 @@ import {
   getSourceFileTextHash,
   isWorkspaceBackedSourceFile,
 } from '@/features/source-files/sourceFilesSignatures'
+import { resolveFlowWidgetStateGraphKey } from '@/lib/storyboardWidget/widgetStateScope'
 
 let pendingComposeRaf: number | null = null
 let pendingComposeAfterWorkspaceOverlayClose = false
@@ -31,6 +32,7 @@ let workspaceOverlayComposeRetryUnsubscribe: (() => void) | null = null
 let lastAppliedComposedImportModesSignature = ''
 let pendingComposedGraphSignature = ''
 let lastAppliedComposedGraphSignature = ''
+let lastWorkspaceOpenStoryboardWidgetFitGraphKey = ''
 
 type ComposeSourceFilesOptions = {
   includeWorkspaceBacked?: boolean
@@ -196,6 +198,9 @@ function requestWorkspaceOpenStoryboardWidgetFit(graphData: ReturnType<typeof co
   const st = useGraphStore.getState()
   if (!isWorkspaceEditorOverlayOpen(st)) return
   if (st.canvasRenderMode !== '2d' || st.canvas2dRenderer !== 'storyboard') return
+  const graphKey = resolveFlowWidgetStateGraphKey({ graphData }) || ''
+  if (!graphKey || graphKey === lastWorkspaceOpenStoryboardWidgetFitGraphKey) return
+  lastWorkspaceOpenStoryboardWidgetFitGraphKey = graphKey
   st.requestZoom('fit', { intent: 'fitToView' })
 }
 
