@@ -61,6 +61,7 @@ const WORKSPACE_SEED_BASENAME_BY_PATH = new Map<WorkspacePath, string>([
 ])
 const WORKSPACE_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/docs')
 const WORKSPACE_AGENTIC_OS_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/agentic-canvas-os/docs')
+const WORKSPACE_OUTPUT_DOCS_MIRROR_ROOT_PATH = normalizeWorkspacePath('/docs_')
 const readChatLocalStorageRootPath = (): WorkspacePath => {
   const value = lsJson<string>(
     LS_KEYS.chatLocalStorageRootPath,
@@ -88,6 +89,16 @@ const isWorkspaceDocsMirrorPath = (path: WorkspacePath): boolean => isWorkspaceU
 const isWorkspaceAgenticOsDocsMirrorPath = (path: WorkspacePath): boolean => isWorkspaceUnderRoot(path, WORKSPACE_AGENTIC_OS_DOCS_MIRROR_ROOT_PATH)
 const isWorkspaceDocsBackedMirrorPath = (path: WorkspacePath): boolean => isWorkspaceDocsMirrorPath(path) || isWorkspaceAgenticOsDocsMirrorPath(path)
 const isWorkspaceChatMirrorPath = (path: WorkspacePath): boolean => isWorkspaceUnderRoot(path, readChatLocalStorageRootPath())
+
+export const shouldPersistWorkspaceEntryInLocalSnapshot = (entry: WorkspaceEntry): boolean => {
+  if (!readWorkspaceSourceFilesDocsOnlySetting()) return true
+  const path = normalizeWorkspacePath(entry.path)
+  return !(
+    isWorkspaceUnderRoot(path, WORKSPACE_DOCS_MIRROR_ROOT_PATH)
+    || isWorkspaceUnderRoot(path, WORKSPACE_AGENTIC_OS_DOCS_MIRROR_ROOT_PATH)
+    || isWorkspaceUnderRoot(path, WORKSPACE_OUTPUT_DOCS_MIRROR_ROOT_PATH)
+  )
+}
 
 const scheduleWorkspaceDocsMirrorFolderEnsure = (workspacePath: WorkspacePath): void => {
   if (typeof window === 'undefined') {
@@ -132,6 +143,9 @@ const getDb = async () => {
       collectionNames: ['entries'],
       recordKeyByCollection: {
         entries: row => normalizeWorkspacePath(String(row.path || '')),
+      },
+      shouldPersistRecordByCollection: {
+        entries: shouldPersistWorkspaceEntryInLocalSnapshot,
       },
     })
   })()

@@ -11,6 +11,9 @@ type PersistedSnapshot<Collections extends PersistedRecordMap> = {
 type PersistedCollectionKeyResolvers<Collections extends PersistedRecordMap> = Partial<{
   [CollectionName in keyof Collections]: (record: Collections[CollectionName]) => string
 }>
+type PersistedCollectionRecordFilters<Collections extends PersistedRecordMap> = Partial<{
+  [CollectionName in keyof Collections]: (record: Collections[CollectionName]) => boolean
+}>
 
 const cloneRecord = <T>(value: T): T => {
   const cloned = toCloneSafeValue(value)
@@ -101,6 +104,7 @@ export const createPersistedCollectionDb = <Collections extends PersistedRecordM
   collectionNames: Array<keyof Collections>
   persistent?: boolean
   recordKeyByCollection?: PersistedCollectionKeyResolvers<Collections>
+  shouldPersistRecordByCollection?: PersistedCollectionRecordFilters<Collections>
 }): PersistedCollectionDb<Collections> => {
   const storage = args.persistent === false ? null : getLocalStorage()
   let persistenceEnabled = !!storage
@@ -163,7 +167,21 @@ export const createPersistedCollectionDb = <Collections extends PersistedRecordM
   const flushSnapshot = (): void => {
     if (!storage || !persistenceEnabled) return
     try {
-      storage.setItem(args.storageKey, JSON.stringify(snapshot))
+      const persistedSnapshot = createEmptySnapshot<Collections>(args.collectionNames)
+      for (let collectionIndex = 0; collectionIndex < args.collectionNames.length; collectionIndex += 1) {
+        const collectionName = args.collectionNames[collectionIndex]!
+        const filter = args.shouldPersistRecordByCollection?.[collectionName]
+        const entries = Object.entries(snapshot[collectionName]) as Array<[
+          string,
+          Collections[typeof collectionName],
+        ]>
+        for (let entryIndex = 0; entryIndex < entries.length; entryIndex += 1) {
+          const [recordKey, record] = entries[entryIndex]!
+          if (filter && !filter(record)) continue
+          readMutableSnapshotCollection(persistedSnapshot, collectionName)[recordKey] = record
+        }
+      }
+      storage.setItem(args.storageKey, JSON.stringify(persistedSnapshot))
     } catch {
       persistenceEnabled = false
     }
