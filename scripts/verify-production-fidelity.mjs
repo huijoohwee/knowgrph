@@ -88,9 +88,14 @@ try {
   const appText = await app.locator('body').innerText()
   assert.match(appText, /Explorer|Storyboard|Markdown/)
   assert.ok(browserAssetScripts.length > 0, 'browser proof must load exact-revision Knowgrph JavaScript assets')
-  assert.ok(
-    browserAssetScripts.every(pathname => pathname.startsWith(`/knowgrph/assets/${expectedSourceRevision}/`)),
-    `browser loaded JavaScript outside the exact release namespace: ${browserAssetScripts.join(', ')}`,
+  const exactReleaseAssetPrefix = `/knowgrph/assets/${expectedSourceRevision}/`
+  const scriptsOutsideExactReleaseNamespace = [
+    ...new Set(browserAssetScripts.filter(pathname => !pathname.startsWith(exactReleaseAssetPrefix))),
+  ]
+  assert.deepEqual(
+    scriptsOutsideExactReleaseNamespace,
+    [],
+    `browser loaded JavaScript outside the exact release namespace: ${scriptsOutsideExactReleaseNamespace.join(', ')}`,
   )
   assert.deepEqual(poisonedModules, [], `JavaScript module requests returned HTML: ${poisonedModules.join(', ')}`)
   assert.deepEqual(pageErrors, [], `uncaught browser errors: ${pageErrors.join(' | ')}`)
