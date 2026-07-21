@@ -57,3 +57,60 @@ export async function testMediaOverlayWorldProjectionKeepsUnscaledCardChromeMetr
     restore()
   }
 }
+
+export async function testMediaOverlayWorldProjectionUsesSharedPaintScale() {
+  const { dom, restore } = initJsdomHarness('<!doctype html><html><body><section id="root"></section></body></html>')
+  try {
+    const root = dom.window.document.getElementById('root')
+    if (!root) throw new Error('expected root container')
+    const panel = dom.window.document.createElement('section')
+    root.appendChild(panel)
+    const cameraScale = 0.334
+    const sharedPaintScale = 0.58
+    const tx = 10
+    const ty = 20
+    const worldCenter = { x: 500, y: 400 }
+    const panelSize = { w: 360, h: 203 }
+    const loop = startMediaOverlayLayoutLoop2d({
+      enabled: true,
+      loop: 'onDemand',
+      items: [{ id: 'media-panel' }],
+      density: 'default',
+      viewportW: 1175,
+      viewportH: 962,
+      readTransform: () => ({
+        k: cameraScale,
+        x: tx,
+        y: ty,
+        applyX: (value: number) => value * cameraScale + tx,
+        applyY: (value: number) => value * cameraScale + ty,
+      }) as any,
+      computeSizingZoomK: () => sharedPaintScale,
+      panelDisplay: 'flex',
+      projectWithWorldTransformScale: true,
+      getPanelSizeForId: () => panelSize,
+      getElementForId: id => id === 'media-panel' ? panel : null,
+      getNodeWorldCenterForId: () => worldCenter,
+      sizingConfig: { widthRatio: 0.2, widthMinPx: 210, widthMaxPx: 360 },
+      clampToViewport: null,
+    })
+
+    loop.schedule()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+    const paintedScale = Number((panel.style as CSSStyleDeclaration & { zoom?: string }).zoom || 0)
+    if (Math.abs(paintedScale - sharedPaintScale) > 1e-6) {
+      throw new Error(`expected Rich Media to use the shared Card paint scale ${sharedPaintScale}, got ${paintedScale}`)
+    }
+    const paintedCenterX = Number.parseFloat(panel.style.left) * paintedScale + panelSize.w * paintedScale / 2
+    const paintedCenterY = Number.parseFloat(panel.style.top) * paintedScale + panelSize.h * paintedScale / 2
+    const expectedCenterX = worldCenter.x * cameraScale + tx
+    const expectedCenterY = worldCenter.y * cameraScale + ty
+    if (Math.abs(paintedCenterX - expectedCenterX) > 0.51 || Math.abs(paintedCenterY - expectedCenterY) > 0.51) {
+      throw new Error(`expected shared paint scale to preserve the camera-projected center ${expectedCenterX},${expectedCenterY}, got ${paintedCenterX},${paintedCenterY}`)
+    }
+    loop.stop()
+  } finally {
+    restore()
+  }
+}
