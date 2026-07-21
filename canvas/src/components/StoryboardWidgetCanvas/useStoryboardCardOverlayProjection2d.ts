@@ -30,6 +30,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
   nodeById: ReadonlyMap<string, GraphNode>
   overlayElsRef: React.RefObject<Map<string, HTMLElement>>
   readCardSize: (node: GraphNode) => { width: number; height: number }
+  registerInteractionFrameProjectionScheduler?: (scheduler: null | (() => void)) => void
   rootRef: React.RefObject<HTMLElement | null>
 }) {
   const {
@@ -44,6 +45,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
     nodeById,
     overlayElsRef,
     readCardSize,
+    registerInteractionFrameProjectionScheduler,
     rootRef,
   } = args
   const zoomLayoutBaseBoxByCardIdRef = React.useRef<Map<string, VectorPaintedOverlayScaleProjectionBase>>(new Map())
@@ -70,10 +72,9 @@ export function useStoryboardCardOverlayProjection2d(args: {
     if (!active || cards.length === 0) return
     let frame = 0
     let initialTimer = 0
-    const update = () => {
+    const applyProjection = () => {
       const currentTransform = getTransform()
       if (fixedLayoutEnabled && shouldFreezeProjectionForFlowPortHandleDrag()) {
-        frame = window.requestAnimationFrame(update)
         return
       }
       const transformScale = currentTransform && Number.isFinite(currentTransform.k) && currentTransform.k > 0 ? currentTransform.k : 1
@@ -360,13 +361,18 @@ export function useStoryboardCardOverlayProjection2d(args: {
         emitStoryboardWidgetGeometryCommitted()
       }
       lastOverlayTransformRef.current = currentTransform ? { k: currentTransform.k, x: currentTransform.x, y: currentTransform.y } : null
-      frame = window.requestAnimationFrame(update)
     }
+    const tick = () => {
+      applyProjection()
+      frame = window.requestAnimationFrame(tick)
+    }
+    registerInteractionFrameProjectionScheduler?.(applyProjection)
     initialTimer = window.setTimeout(() => {
       initialTimer = 0
-      update()
+      tick()
     }, 0)
     return () => {
+      registerInteractionFrameProjectionScheduler?.(null)
       if (initialTimer) window.clearTimeout(initialTimer)
       window.cancelAnimationFrame(frame)
     }
@@ -382,6 +388,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
     nodeById,
     overlayElsRef,
     readCardSize,
+    registerInteractionFrameProjectionScheduler,
     rootRef,
   ])
 

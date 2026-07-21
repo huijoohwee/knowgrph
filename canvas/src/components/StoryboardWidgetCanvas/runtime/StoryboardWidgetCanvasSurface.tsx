@@ -83,6 +83,13 @@ export default function StoryboardWidgetCanvasSurface(props: {
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
   createPortal: typeof import('react-dom').createPortal
 }) {
+  const cardOverlayInteractionFrameSchedulerRef = React.useRef<null | (() => void)>(null)
+  const flushCardOverlayInteractionFrame = React.useCallback(() => {
+    cardOverlayInteractionFrameSchedulerRef.current?.()
+  }, [])
+  const registerCardOverlayInteractionFrameScheduler = React.useCallback((scheduler: null | (() => void)) => {
+    cardOverlayInteractionFrameSchedulerRef.current = scheduler
+  }, [])
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const graphContentRevision = useGraphStore(s => s.graphContentRevision)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
@@ -451,6 +458,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
             props.flowRuntimeRefRef.current = ref
           }}
           onInteractionFrame={props.hasOverlayEditors ? props.emitStoryboardWidgetInteractionFrame : undefined}
+          onOverlayInteractionFrame={storyboardCardsActive ? flushCardOverlayInteractionFrame : undefined}
         />
       )}
 
@@ -487,6 +495,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
         runWorkflowNode={props.runWorkflowNode}
         schema={schema}
         widgetRegistry={props.widgetRegistry}
+        registerInteractionFrameProjectionScheduler={registerCardOverlayInteractionFrameScheduler}
       />
 
       {props.noGraphLoaded && !props.geospatialWidgetPanelMode && (

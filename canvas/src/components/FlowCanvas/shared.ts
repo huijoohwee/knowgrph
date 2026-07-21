@@ -45,6 +45,7 @@ export type FlowCanvasProps = {
   allowNodeDragOverride?: boolean
   exposeRuntimeRef?: (ref: React.MutableRefObject<FlowNativeRuntime | null>) => void
   onInteractionFrame?: () => void
+  onOverlayInteractionFrame?: () => void
   hideSelectedNodeGlyph?: boolean
   hideSelectedNodePortHandles?: boolean
   hideNodeIds?: string[]
