@@ -135,6 +135,49 @@ export function readResolvedStoryboardWidgetDropTransform(args: {
   return null
 }
 
+export type StoryboardWidgetDropCameraAuthority = {
+  zoomViewKey: string
+  transform: { k: number; x: number; y: number }
+}
+
+export function captureStoryboardWidgetDropCameraAuthority(args: {
+  getLiveZoomTransform: () => { k: number; x: number; y: number } | null
+  zoomViewKeyRef: React.MutableRefObject<string | null>
+  draftGraphDataRef: React.MutableRefObject<GraphData | null>
+  baseGraphData: GraphData | null
+}): StoryboardWidgetDropCameraAuthority | null {
+  const transform = readResolvedStoryboardWidgetDropTransform({
+    ...args,
+    allowNeutralFallback: true,
+    useProjectedRichMediaShell: true,
+  })
+  if (!transform) return null
+  return {
+    zoomViewKey: String(args.zoomViewKeyRef.current || '').trim(),
+    transform,
+  }
+}
+
+export function restoreStoryboardWidgetDropCameraAuthority(args: {
+  authority: StoryboardWidgetDropCameraAuthority | null
+  zoomViewKeyRef: React.MutableRefObject<string | null>
+  requestBalancedLayout?: boolean
+}): void {
+  const authority = args.authority
+  if (!authority) return
+  const currentZoomViewKey = String(args.zoomViewKeyRef.current || '').trim()
+  if (authority.zoomViewKey && currentZoomViewKey && authority.zoomViewKey !== currentZoomViewKey) return
+  const store = useGraphStore.getState()
+  const zoomState = {
+    ...authority.transform,
+    graphDataRevision: store.graphDataRevision,
+  }
+  store.setZoomState(zoomState)
+  if (authority.zoomViewKey) store.setZoomStateForKey(authority.zoomViewKey, zoomState)
+  if (args.requestBalancedLayout === true) store.requestStoryboardWidgetLayoutRebalance()
+  store.requestZoomTransform(authority.transform)
+}
+
 export function snapToGridPx(value: number, stepPx: number): number {
   if (!Number.isFinite(value)) return 0
   const step = Number.isFinite(stepPx) ? Math.max(1, Math.floor(stepPx)) : 1

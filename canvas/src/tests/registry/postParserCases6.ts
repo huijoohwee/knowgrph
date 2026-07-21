@@ -118,6 +118,8 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["canvas.storyboardWidget.probeTree.entrypoints.noConflict","@/__tests__/agenticOsKnowgrphDocInvocation.test","testProbeTreeToolbarAndSlashRunShareOneIdempotentBranchSet"],
   ["viewport.storyboardWidget.overlay.probeTreePinDefaultPreservesExplicitState","@/__tests__/storyboardWidgetDefaultsPinnedToNodeRegression.test","testStoryboardWidgetProbeTreeLayoutPinDefaultPreservesExplicitState"],
   ["storyboardWidget.widget.probeTreeReveal.preservesPinsAndViewport","@/__tests__/storyboardWidgetToolbarRestore.test","testStoryboardWidgetProbeTreeRevealPreservesExplicitPinsAndViewport"],
+  ["storyboardWidget.widget.drop.restoresCameraAndBalancesCollective","@/__tests__/storyboardWidgetDropBalancedCollective.test","testStoryboardWidgetDropRestoresCameraAndRequestsBalancedCollective"],
+  ["storyboardWidget.widget.drop.frontmatterGrowthReseedsWholeCollective","@/__tests__/storyboardWidgetDropBalancedCollective.test","testFrontmatterGrowthReseedsWholeBalancedCollective"],
   ["zoom.viewKey.storyboardSourceRevisionStable","@/__tests__/graphMetaKeyPending.test","testStoryboardActive2dZoomViewKeyStaysStableAcrossSourceRevisions"],
   ["zoom.pick.storyboardPreservesAcrossRevisions","@/__tests__/zoomStatePick.test","testPickInitialZoomTransformCanPreserveSameDocumentStoryboardZoom"],
   ["canvas.storyboardWidget.probeTree.run.typedFrontmatterIdentity","@/__tests__/probeTreeWidgetRunTypedGraph.test","testProbeTreeWidgetRunResolvesTypedFrontmatterNodeIdentity"],

@@ -50,6 +50,8 @@ import {
   pickFiniteNumber,
   readFiniteGeoLatLng,
   readResolvedStoryboardWidgetDropTransform,
+  captureStoryboardWidgetDropCameraAuthority,
+  restoreStoryboardWidgetDropCameraAuthority,
 } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
 import { buildBytePlusImageWidgetSeedProperties } from '@/features/integrations/byteplusImageGenerationDefaults'
 import { buildBytePlusVideoWidgetSeedProperties } from '@/features/integrations/byteplusVideoGenerationDefaults'
@@ -168,6 +170,27 @@ export function useStoryboardWidgetDropBridge(args: {
   setLastDroppedWidgetToken: React.Dispatch<React.SetStateAction<number>>
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
 }) {
+  const preserveDropCameraAndBalanceCollective = React.useCallback((requestBalancedLayout: boolean) => {
+    const authority = captureStoryboardWidgetDropCameraAuthority({
+      getLiveZoomTransform: args.getLiveZoomTransform,
+      zoomViewKeyRef: args.zoomViewKeyRef,
+      draftGraphDataRef: args.draftGraphDataRef,
+      baseGraphData: args.baseGraphData,
+    })
+    const restore = (requestLayout: boolean) => restoreStoryboardWidgetDropCameraAuthority({
+      authority,
+      zoomViewKeyRef: args.zoomViewKeyRef,
+      requestBalancedLayout: requestLayout,
+    })
+    restore(requestBalancedLayout)
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        restore(false)
+        window.requestAnimationFrame(() => restore(false))
+      })
+    }
+  }, [args.baseGraphData, args.draftGraphDataRef, args.getLiveZoomTransform, args.zoomViewKeyRef])
+
   const openPendingOverlayNode = React.useCallback((rawId: unknown) => {
     const id = String(rawId || '').trim()
     if (!id) return
@@ -374,8 +397,9 @@ export function useStoryboardWidgetDropBridge(args: {
           if (dropGeo) void requestGeospatialCurrentLocation(dropGeo).catch(() => void 0)
         }
       }
+      preserveDropCameraAndBalanceCollective(true)
     },
-    [args, openPendingOverlayNode, syncGrabMapsDiscoveryGeoFromDropCursor],
+    [args, openPendingOverlayNode, preserveDropCameraAndBalanceCollective, syncGrabMapsDiscoveryGeoFromDropCursor],
   )
 
   const addRichMediaPanelFromMediaAtWorld = React.useCallback((payload: { media: MediaDragPayload; releaseClientPoint?: { clientX: number; clientY: number }; x: number; y: number }) => {
@@ -419,8 +443,9 @@ export function useStoryboardWidgetDropBridge(args: {
     useGraphStore.setState({ selectionSource: 'canvas', selectedNodeId: actualId, selectedEdgeId: null, selectedGroupId: null, selectedNodeIds: [actualId], selectedEdgeIds: [], selectedGroupIds: [] })
     args.scheduleForceSelect(actualId, { minHoldMs: 700 })
     args.setPendingOverlayNode({ id: actualId, type: FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID, label, x, y, fx: x, fy: y, vx: 0, vy: 0, properties: buildRichMediaPanelDroppedMediaProperties({ ...payload.media, url: mediaUrl, label }) as never })
+    preserveDropCameraAndBalanceCollective(true)
     return actualId
-  }, [args])
+  }, [args, preserveDropCameraAndBalanceCollective])
 
   React.useEffect(() => {
     if (!(args.active || args.widgetDropCaptureEnabled)) return

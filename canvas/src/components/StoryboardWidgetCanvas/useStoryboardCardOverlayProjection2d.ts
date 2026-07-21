@@ -9,6 +9,9 @@ import type { GraphNode } from '@/lib/graph/types'
 import { computeStoryboardWidgetOverlayScreenBox, type StoryboardWidgetOverlayDragTransform } from '@/lib/storyboardWidget/overlayWorldDrag'
 import { readFlowWidgetPinnedInCanvas, type FlowWidgetPinnedById } from '@/lib/storyboardWidget/flowWidgetPinnedState'
 import { screenToWorld } from '@/lib/zoom/viewport'
+import { defaultSchema } from '@/lib/graph/schema'
+import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
+import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
 
 type ProjectedCardBox = { left: number; top: number; scale: number }
 type AppliedCardBox = ProjectedCardBox & { display: string }
@@ -45,6 +48,10 @@ export function useStoryboardCardOverlayProjection2d(args: {
   const lastOverlayTransformRef = React.useRef<StoryboardWidgetOverlayDragTransform | null>(null)
   const lastPinnedByCardIdRef = React.useRef<Map<string, boolean>>(new Map())
   const lastAppliedBoxByCardIdRef = React.useRef<Map<string, AppliedCardBox>>(new Map())
+  const collectiveLayoutCacheRef = React.useRef<{
+    key: string
+    byId: Map<string, { left: number; top: number }>
+  }>({ key: '', byId: new Map() })
 
   const clearCardProjection = React.useCallback((cardId: string) => {
     lastAppliedBoxByCardIdRef.current.delete(cardId)
@@ -127,16 +134,192 @@ export function useStoryboardCardOverlayProjection2d(args: {
           width,
           height,
         })
-        rawCenterXSum += rawBox.left + width * rawBox.scale / 2
-        rawCenterYSum += rawBox.top + height * rawBox.scale / 2
-        rawCenterCount += 1
         pending.push({ rawBox, card, el: element, width, height })
+      }
+      if (fixedLayoutEnabled && pending.length > 0) {
+        const gapPx = 28
+        let layoutItems = pending.map(item => ({
+          id: item.card.id,
+          left: item.rawBox.left,
+          top: item.rawBox.top,
+          width: item.width * item.rawBox.scale,
+          height: item.height * item.rawBox.scale,
+          movable: true,
+        }))
+        const surfaceId = String(pending[0]?.el.dataset.kgStoryboardWidgetSurface || '').trim()
+        const richMediaObstacles = Array.from(document.querySelectorAll<HTMLElement>('[data-kg-rich-media-overlay="1"]'))
+          .filter(el => !surfaceId || String(el.dataset.kgStoryboardWidgetSurface || '').trim() === surfaceId)
+          .map(el => {
+            const rect = el.getBoundingClientRect()
+            return {
+              id: `rich-media:${String(el.dataset.kgRichMediaOverlayId || el.dataset.kgWidget || el.dataset.nodeId || '').trim()}`,
+              left: rect.left - (viewportRect?.left || 0),
+              top: rect.top - (viewportRect?.top || 0),
+              width: rect.width,
+              height: rect.height,
+            }
+          })
+          .filter(item => item.id !== 'rich-media:' && item.width > 0 && item.height > 0)
+        const layoutInputKey = [
+          `${viewport.width}x${viewport.height}`,
+          ...layoutItems.map(item => `${item.id}:${Math.round(item.left)},${Math.round(item.top)},${Math.round(item.width)}x${Math.round(item.height)}`),
+          ...richMediaObstacles.map(item => `${item.id}:${Math.round(item.left)},${Math.round(item.top)},${Math.round(item.width)}x${Math.round(item.height)}`),
+        ].join('|')
+        let relaxedById = collectiveLayoutCacheRef.current.key === layoutInputKey
+          ? collectiveLayoutCacheRef.current.byId
+          : null
+        if (!relaxedById) {
+          const overlaps = (
+            left: { left: number; top: number; width: number; height: number },
+            right: { left: number; top: number; width: number; height: number },
+          ) => left.left < right.left + right.width + gapPx
+            && right.left < left.left + left.width + gapPx
+            && left.top < right.top + right.height + gapPx
+            && right.top < left.top + left.height + gapPx
+          const hasUnresolvedOverlap = (items: typeof layoutItems) => {
+            if (items.some(item => richMediaObstacles.some(obstacle => overlaps(item, obstacle)))) return true
+            for (let leftIndex = 0; leftIndex < items.length; leftIndex += 1) {
+              for (let rightIndex = leftIndex + 1; rightIndex < items.length; rightIndex += 1) {
+                if (overlaps(items[leftIndex]!, items[rightIndex]!)) return true
+              }
+            }
+            return false
+          }
+          let relaxed = layoutItems
+          for (let pass = 0; pass < 4 && hasUnresolvedOverlap(relaxed); pass += 1) {
+            const passPositions = relaxOverlayPanelsWithCollision({
+              schema: defaultSchema,
+              items: relaxed,
+              obstacles: richMediaObstacles,
+              gapPx,
+              strength: 0.88,
+              iterations: 16,
+              steps: 18,
+              anchorStrength: 0.04,
+              maxAnchorShiftPx: computeOverlayMaxAnchorShiftPx(viewport.width, viewport.height),
+              maxSpeedPxPerStep: 180,
+            })
+            const passById = new Map(passPositions.map(item => [item.id, item]))
+            relaxed = relaxed.map(item => ({ ...item, ...(passById.get(item.id) || {}) }))
+          }
+          const exactlySettled: typeof layoutItems = []
+          for (let itemIndex = 0; itemIndex < relaxed.length; itemIndex += 1) {
+            const item = relaxed[itemIndex]!
+            const blockers = [...richMediaObstacles, ...exactlySettled]
+            if (!blockers.some(blocker => overlaps(item, blocker))) {
+              exactlySettled.push(item)
+              continue
+            }
+            const xCandidates = new Set<number>([item.left])
+            const yCandidates = new Set<number>([item.top])
+            for (let blockerIndex = 0; blockerIndex < blockers.length; blockerIndex += 1) {
+              const blocker = blockers[blockerIndex]!
+              xCandidates.add(blocker.left - item.width - gapPx)
+              xCandidates.add(blocker.left + blocker.width + gapPx)
+              yCandidates.add(blocker.top - item.height - gapPx)
+              yCandidates.add(blocker.top + blocker.height + gapPx)
+            }
+            const candidates = Array.from(xCandidates).flatMap(left => Array.from(yCandidates).map(top => ({ left, top })))
+              .sort((left, right) => {
+                const leftScore = Math.abs(left.left - item.left) + Math.abs(left.top - item.top)
+                const rightScore = Math.abs(right.left - item.left) + Math.abs(right.top - item.top)
+                if (leftScore !== rightScore) return leftScore - rightScore
+                if (left.top !== right.top) return left.top - right.top
+                return left.left - right.left
+              })
+            const open = candidates.find(candidate => !blockers.some(blocker => overlaps({ ...item, ...candidate }, blocker)))
+            exactlySettled.push(open ? { ...item, ...open } : item)
+          }
+          relaxed = exactlySettled
+          relaxedById = new Map(relaxed.map(item => [item.id, { left: item.left, top: item.top }]))
+          collectiveLayoutCacheRef.current = { key: layoutInputKey, byId: relaxedById }
+        }
+        for (let i = 0; i < pending.length; i += 1) {
+          const item = pending[i]!
+          const next = relaxedById.get(item.card.id)
+          if (!next) continue
+          item.rawBox = { ...item.rawBox, left: next.left, top: next.top }
+        }
+      }
+      for (let i = 0; i < pending.length; i += 1) {
+        const item = pending[i]!
+        rawCenterXSum += item.rawBox.left + item.width * item.rawBox.scale / 2
+        rawCenterYSum += item.rawBox.top + item.height * item.rawBox.scale / 2
+        rawCenterCount += 1
       }
       const projectionAnchorX = rawCenterCount > 0 ? rawCenterXSum / rawCenterCount : viewport.width / 2
       const projectionAnchorY = rawCenterCount > 0 ? rawCenterYSum / rawCenterCount : viewport.height / 2
+      const finalGapPx = 28
+      const finalSurfaceId = String(pending[0]?.el.dataset.kgStoryboardWidgetSurface || '').trim()
+      const finalRichMediaObstacles = fixedLayoutEnabled
+        ? Array.from(document.querySelectorAll<HTMLElement>('[data-kg-rich-media-overlay="1"]'))
+            .filter(el => !finalSurfaceId || String(el.dataset.kgStoryboardWidgetSurface || '').trim() === finalSurfaceId)
+            .map(el => {
+              const rect = el.getBoundingClientRect()
+              return { left: rect.left - (viewportRect?.left || 0), top: rect.top - (viewportRect?.top || 0), width: rect.width, height: rect.height }
+            })
+            .filter(item => item.width > 0 && item.height > 0)
+        : []
+      const finalSettledCardBoxes: Array<{ left: number; top: number; width: number; height: number }> = []
+      const finalRectsOverlap = (
+        left: { left: number; top: number; width: number; height: number },
+        right: { left: number; top: number; width: number; height: number },
+      ) => left.left < right.left + right.width + finalGapPx
+        && right.left < left.left + left.width + finalGapPx
+        && left.top < right.top + right.height + finalGapPx
+        && right.top < left.top + left.height + finalGapPx
       for (let index = 0; index < pending.length; index += 1) {
         const item = pending[index]!
-        const box = readProjectedBox(item.card.id, item.rawBox, item.width, item.height, projectionAnchorX, projectionAnchorY)
+        let box = readProjectedBox(item.card.id, item.rawBox, item.width, item.height, projectionAnchorX, projectionAnchorY)
+        if (fixedLayoutEnabled) {
+          const previouslyApplied = lastAppliedBoxByCardIdRef.current.get(item.card.id) || null
+          const currentDomRect = item.el.getBoundingClientRect()
+          const projectionOffsetLeft = previouslyApplied
+            ? currentDomRect.left - (viewportRect?.left || 0) - previouslyApplied.left
+            : 0
+          const projectionOffsetTop = previouslyApplied
+            ? currentDomRect.top - (viewportRect?.top || 0) - previouslyApplied.top
+            : 0
+          const projectedRect = {
+            left: box.left + projectionOffsetLeft,
+            top: box.top + projectionOffsetTop,
+            width: item.width * box.scale,
+            height: item.height * box.scale,
+          }
+          const blockers = [...finalRichMediaObstacles, ...finalSettledCardBoxes]
+          if (blockers.some(blocker => finalRectsOverlap(projectedRect, blocker))) {
+            const xCandidates = new Set<number>([projectedRect.left])
+            const yCandidates = new Set<number>([projectedRect.top])
+            for (let blockerIndex = 0; blockerIndex < blockers.length; blockerIndex += 1) {
+              const blocker = blockers[blockerIndex]!
+              xCandidates.add(blocker.left - projectedRect.width - finalGapPx)
+              xCandidates.add(blocker.left + blocker.width + finalGapPx)
+              yCandidates.add(blocker.top - projectedRect.height - finalGapPx)
+              yCandidates.add(blocker.top + blocker.height + finalGapPx)
+            }
+            const open = Array.from(xCandidates)
+              .flatMap(left => Array.from(yCandidates).map(top => ({ left, top })))
+              .filter(candidate => !blockers.some(blocker => finalRectsOverlap({ ...projectedRect, ...candidate }, blocker)))
+              .sort((left, right) => {
+                const leftScore = Math.abs(left.left - projectedRect.left) + Math.abs(left.top - projectedRect.top)
+                const rightScore = Math.abs(right.left - projectedRect.left) + Math.abs(right.top - projectedRect.top)
+                if (leftScore !== rightScore) return leftScore - rightScore
+                if (left.top !== right.top) return left.top - right.top
+                return left.left - right.left
+              })[0]
+            if (open) box = {
+              ...box,
+              left: open.left - projectionOffsetLeft,
+              top: open.top - projectionOffsetTop,
+            }
+          }
+          finalSettledCardBoxes.push({
+            left: box.left + projectionOffsetLeft,
+            top: box.top + projectionOffsetTop,
+            width: item.width * box.scale,
+            height: item.height * box.scale,
+          })
+        }
         const display = box.scale <= 0.02 ? 'none' : ''
         const previousBox = lastAppliedBoxByCardIdRef.current.get(item.card.id) || null
         const boxChanged = !previousBox
