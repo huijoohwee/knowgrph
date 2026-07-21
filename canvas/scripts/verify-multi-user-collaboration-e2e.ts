@@ -11,7 +11,7 @@ const DEFAULT_OWNER_APP_URL = 'http://127.0.0.1:5173/'
 const DEFAULT_GUEST_APP_URL = 'http://127.0.0.1:5174/'
 const DEFAULT_WORKER_URL = 'http://127.0.0.1:8787'
 const DEFAULT_WORKSPACE_ID = 'kgws:test-room'
-const DEFAULT_DOC_PATH = '/docs/README.md'
+const DEFAULT_DOC_PATH = '/docs/workspace-seeds/knowgrph-physics-playground-demo.md'
 const CLIENT_DEVICE_ID_PATTERN = /^dev:[A-Za-z0-9:-]{16,128}$/
 const OWNER_APP_URL = process.env.KG_COLLABORATION_E2E_OWNER_URL || DEFAULT_OWNER_APP_URL
 const GUEST_APP_URL = process.env.KG_COLLABORATION_E2E_GUEST_URL || DEFAULT_GUEST_APP_URL
@@ -188,6 +188,13 @@ async function openCollaborationPanel(page: Page): Promise<void> {
   throw new Error('collaboration panel did not acknowledge the bounded open request')
 }
 
+async function closeFloatingPanelIfOpen(page: Page): Promise<void> {
+  const floatingPanel = page.locator('[data-kg-floating-panel-root="true"]')
+  if (!await floatingPanel.isVisible().catch(() => false)) return
+  await floatingPanel.getByRole('button', { name: 'Close', exact: true }).click()
+  await floatingPanel.waitFor({ state: 'hidden', timeout: 30_000 })
+}
+
 async function readMainPanelText(page: Page): Promise<string> {
   return await page.getByRole('complementary', { name: 'Main panel', exact: true }).innerText()
 }
@@ -242,17 +249,39 @@ async function waitForActiveDocumentReady(page: Page): Promise<void> {
   )
 }
 
+async function selectExpectedDocument(page: Page): Promise<void> {
+  const expectedDocumentName = basename(DOC_PATH)
+  const activeDocument = await readBrowserStoreSnapshot(page)
+  if (
+    basename(activeDocument.markdownDocumentName) === expectedDocumentName
+    && activeDocument.markdownDocumentText.trim().length > 0
+  ) return
+  const refreshButton = page.getByRole('button', { name: 'Refresh', exact: true })
+  await refreshButton.waitFor({ state: 'visible', timeout: 30_000 })
+  await refreshButton.click()
+  const directoryNames = DOC_PATH.split('/').filter(Boolean).slice(0, -1)
+  for (const directoryName of directoryNames) {
+    const directory = page.getByRole('button', { name: `Folder ${directoryName}`, exact: true }).first()
+    await directory.waitFor({ state: 'visible', timeout: 30_000 })
+    await directory.click()
+  }
+  const sourceFile = page.getByRole('button', { name: `File ${expectedDocumentName}`, exact: true }).first()
+  await sourceFile.waitFor({ state: 'visible', timeout: 60_000 })
+  await sourceFile.click()
+  await waitForActiveDocumentReady(page)
+}
+
 async function appendMarkerThroughActiveEditor(page: Page, marker: string): Promise<void> {
   const mainPanel = page.getByRole('complementary', { name: 'Main panel', exact: true })
   await mainPanel.getByRole('button', { name: 'Close', exact: true }).click()
   await mainPanel.waitFor({ state: 'hidden', timeout: 30_000 })
 
   const editorSurface = page.locator('.kg-markdown-editor-pane .view-lines')
+  await editorSurface.waitFor({ state: 'visible', timeout: 30_000 })
   const editorSurfaceCount = await editorSurface.count()
   if (editorSurfaceCount !== 1) {
     throw new Error(`expected one active Markdown editor surface, got ${editorSurfaceCount}`)
   }
-  await editorSurface.waitFor({ state: 'visible', timeout: 30_000 })
   await editorSurface.click()
   const editorFocused = await page.evaluate(() => {
     const editorRoot = document.querySelector('.kg-markdown-editor-pane .monaco-editor')
@@ -337,6 +366,16 @@ async function main(): Promise<void> {
         throw new Error(`expected owner and guest ${key} to match`)
       }
     }
+
+    await Promise.all([
+      selectExpectedDocument(ownerPage),
+      selectExpectedDocument(guestPage),
+    ])
+
+    await Promise.all([
+      closeFloatingPanelIfOpen(ownerPage),
+      closeFloatingPanelIfOpen(guestPage),
+    ])
 
     await Promise.all([
       openCollaborationPanel(ownerPage),
