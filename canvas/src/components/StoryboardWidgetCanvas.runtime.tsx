@@ -363,6 +363,7 @@ export default function StoryboardWidgetCanvasRuntime(
     renderGraphDataOverride: overlayRenderGraphDataOverride,
     schema,
     selectedNodeId,
+    lastDroppedWidgetNodeIdRef,
     viewportW,
     viewportH,
     canvasWindowOffset,
