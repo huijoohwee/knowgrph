@@ -238,7 +238,12 @@ jobs:
       - name: Deploy verified artifact
         id: deploy_pages
         working-directory: knowgrph
-        run: npx --no-install wrangler pages deploy ../huijoohwee --project-name="$CLOUDFLARE_PAGES_PROJECT" --branch=main --commit-dirty=true
+        run: npx --no-install wrangler pages deploy ../huijoohwee --project-name="$CLOUDFLARE_PAGES_PROJECT" --branch=main --commit-hash="${{ github.sha }}" --commit-dirty=true
+
+      - name: Capture exact candidate deployment origin
+        id: candidate
+        working-directory: knowgrph
+        run: npm run --silent runtime:pages:capture-candidate -- --commit-sha "${{ github.sha }}"
 
       - name: Reconcile canonical docs into D1
         working-directory: knowgrph
@@ -248,10 +253,11 @@ jobs:
         working-directory: knowgrph
         run: ./.github/workflows/smoke-test.sh
 
-      - name: Verify apex and Knowgrph browser fidelity
+      - name: Verify exact deployment markers and public browser fidelity
         working-directory: knowgrph
         env:
           PRODUCTION_ORIGIN: https://airvio.co
+          PRODUCTION_MARKER_ORIGIN: ${{ steps.candidate.outputs.deployment_url }}
           PRODUCTION_IMMUTABLE_MANIFEST_DIGEST: ${{ needs.verify.outputs.manifest_digest }}
           RELEASE_SHA: ${{ github.sha }}
         run: |
