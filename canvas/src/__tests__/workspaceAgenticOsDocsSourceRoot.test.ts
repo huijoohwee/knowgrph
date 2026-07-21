@@ -13,6 +13,7 @@ import {
 import { readWorkspaceInitializationDocsMirrorEntries } from '@/features/workspace-fs/workspaceSeedProvider'
 import { resolveWorkspaceDocsMirrorLocalRootRequests } from '@/features/workspace-fs/workspaceDocsMirrorLocalRoots'
 import { resetCanonicalAgenticDocsMirrorCacheForTests } from '@/features/workspace-fs/workspaceGithubDocsMirror'
+import { toWorkspaceDocsMirrorPath } from '@/features/workspace-fs/workspaceFsPersistedReconciliation'
 
 export function testWorkspaceSourceRootPathsKeepAgenticOsDocsOutOfExplorer(): void {
   const { restore } = initJsdomHarness()
@@ -47,6 +48,15 @@ export function testWorkspaceSourceRootPathsKeepAgenticOsDocsOutOfExplorer(): vo
     const visiblePaths = visible.map(entry => entry.path)
     if (visiblePaths.join(',') !== '/docs,/docs/demo.md,/docs_,/docs_/output.md') {
       throw new Error(`expected Explorer to project only operator-owned source roots, got ${visiblePaths.join(', ')}`)
+    }
+    if (toWorkspaceDocsMirrorPath('agentic-canvas-os/docs/AGENTS.md') !== '/agentic-canvas-os/docs/AGENTS.md') {
+      throw new Error('expected Agentic Canvas OS documents to retain their runtime-only workspace namespace')
+    }
+    if (toWorkspaceDocsMirrorPath('workspace-seeds/demo.md') !== '/docs/workspace-seeds/demo.md') {
+      throw new Error('expected demo documents to remain mounted under the visible /docs root')
+    }
+    if (toWorkspaceDocsMirrorPath('docs_/runs/output.md') !== '/docs_/runs/output.md') {
+      throw new Error('expected generated outputs to remain mounted under the visible /docs_ root')
     }
   } finally {
     writeWorkspaceImportShareExportRootPathSetting(previousValue)
@@ -94,9 +104,13 @@ export function testWorkspaceDocsMirrorLocalRootsPromotesAgenticFallbackWhenPrim
   }
   const combined = resolveWorkspaceDocsMirrorLocalRootRequests({
     docsAbsRoot: '/tmp/knowgrph/docs',
+    outputDocsAbsRoot: '/tmp/huijoohwee/docs_',
     agenticDocsAbsRoot: '/tmp/agentic-canvas-os/docs',
   })
-  if (combined[1]?.workspaceRootName !== 'agentic-canvas-os/docs') {
+  if (combined[1]?.workspaceRootName !== 'docs_') {
+    throw new Error(`expected the output root to retain its docs_ namespace, got ${JSON.stringify(combined)}`)
+  }
+  if (combined[2]?.workspaceRootName !== 'agentic-canvas-os/docs') {
     throw new Error(`expected a secondary Agentic docs root to retain its namespace, got ${JSON.stringify(combined)}`)
   }
 }

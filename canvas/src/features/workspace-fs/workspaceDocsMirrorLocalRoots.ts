@@ -9,12 +9,17 @@ const normalizeRoot = (value: unknown): string => String(value || '').trim()
 
 export function resolveWorkspaceDocsMirrorLocalRootRequests(args: {
   docsAbsRoot: unknown
+  outputDocsAbsRoot?: unknown
   agenticDocsAbsRoot: unknown
 }): WorkspaceDocsMirrorLocalRootRequest[] {
   const docsAbsRoot = normalizeRoot(args.docsAbsRoot)
+  const outputDocsAbsRoot = normalizeRoot(args.outputDocsAbsRoot)
   const agenticDocsAbsRoot = normalizeRoot(args.agenticDocsAbsRoot)
   if (!docsAbsRoot) return agenticDocsAbsRoot ? [{ absRoot: agenticDocsAbsRoot }] : []
   const requests: WorkspaceDocsMirrorLocalRootRequest[] = [{ absRoot: docsAbsRoot }]
+  if (outputDocsAbsRoot) {
+    requests.push({ absRoot: outputDocsAbsRoot, workspaceRootName: 'docs_' })
+  }
   if (agenticDocsAbsRoot) {
     requests.push({
       absRoot: agenticDocsAbsRoot,
