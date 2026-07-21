@@ -42,8 +42,12 @@ export function shouldRequestStoryboardOverlayImplicitFit(args: {
   transformIsIdentity: boolean
   visibleCardCount: number
 }): boolean {
+  // A remount after this document already painted is topology churn, not a new
+  // camera. Flow initialization owns real recovery; fitting here can overwrite
+  // the established transform while the runtime is briefly unavailable.
+  if (args.recoverOffscreenRemount) return false
   if (!args.transformIsIdentity) return false
-  return args.recoverOffscreenRemount || args.visibleCardCount === 0 || args.pendingCount > 1
+  return args.visibleCardCount === 0 || args.pendingCount > 1
 }
 
 export function useStoryboardCardOverlayProjection2d(args: {
