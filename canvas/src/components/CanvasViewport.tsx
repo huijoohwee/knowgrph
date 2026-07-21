@@ -336,6 +336,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   useForbidBrowserZoomWheel(rootRef, true, { stopPropagation: false })
   const workspaceXrViewportInset = xrPhysicsRunReadyDemo
     && !gameFpsActive
+    && !liveCanvasHeroVisible
     && workspaceEditorOverlayOpen
     && String(workspaceVisibleCanvasLeft || '').trim()
       ? String(workspaceVisibleCanvasLeft).trim()
@@ -358,6 +359,37 @@ export function CanvasViewport(props: CanvasViewportProps) {
       aria-label={gameFpsActive ? 'Deterministic Game Mode' : xrPhysicsRunReadyDemo ? 'Interactive XR Physics Playground' : variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}
     >
       <React.Suspense fallback={null}>
+        {liveCanvasHeroVisible && liveCanvasHeroSource ? (
+          <section
+            className="absolute inset-0 z-[40]"
+            data-kg-live-canvas-hero-viewport-owner="true"
+          >
+            <section
+              className={`absolute inset-0 opacity-100 ${liveCanvasHeroSource.embedUrl ? 'pointer-events-auto' : 'pointer-events-none bg-[var(--kg-canvas-bg)]'}`}
+              aria-label={liveCanvasHeroSource.embedUrl ? 'Shared interactive canvas background' : 'Home background unavailable'}
+              data-kg-live-canvas-hero-background={liveCanvasHeroSource.embedUrl ? 'shared-embed' : 'unavailable'}
+              data-kg-live-canvas-hero-source={liveCanvasHeroSource.sourcePath}
+              data-kg-live-canvas-hero-source-graph-id={liveCanvasHeroSource.graphId || undefined}
+            >
+              {liveCanvasHeroSource.embedUrl ? (
+                <iframe
+                  ref={liveCanvasHeroEmbedRef}
+                  key={liveCanvasHeroSource.embedUrl}
+                  src={liveCanvasHeroSource.embedUrl}
+                  title={`Interactive canvas embed for ${liveCanvasHeroSource.sourcePath}`}
+                  className="absolute inset-0 h-full w-full border-0 bg-transparent"
+                  sandbox="allow-forms allow-popups allow-same-origin allow-scripts"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  data-kg-live-canvas-hero-selected-embed="true"
+                  data-kg-live-canvas-hero-embed-url={liveCanvasHeroSource.embedUrl}
+                />
+              ) : null}
+            </section>
+            <LiveCanvasHeroLazy source={liveCanvasHeroSource} sourceFiles={sourceFiles} onEnter={dismissLiveCanvasHero} />
+          </section>
+        ) : null}
         {!documentSwitchOwnsViewport && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
           <section className="absolute inset-0 z-[10]">
             {liveCanvasHeroEmbedPreview && liveCanvasHeroEmbedGraph ? (
@@ -383,34 +415,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
                     />
                   )}
                 </section>
-            ) : liveCanvasHeroVisible && liveCanvasHeroSource ? (
-              <>
-                <section
-                  className={`absolute inset-0 opacity-100 ${liveCanvasHeroSource.embedUrl ? 'pointer-events-auto' : 'pointer-events-none bg-[var(--kg-canvas-bg)]'}`}
-                  aria-label={liveCanvasHeroSource.embedUrl ? 'Shared interactive canvas background' : 'Home background unavailable'}
-                  data-kg-live-canvas-hero-background={liveCanvasHeroSource.embedUrl ? 'shared-embed' : 'unavailable'}
-                  data-kg-live-canvas-hero-source={liveCanvasHeroSource.sourcePath}
-                  data-kg-live-canvas-hero-source-graph-id={liveCanvasHeroSource.graphId || undefined}
-                >
-                  {liveCanvasHeroSource.embedUrl ? (
-                    <iframe
-                      ref={liveCanvasHeroEmbedRef}
-                      key={liveCanvasHeroSource.embedUrl}
-                      src={liveCanvasHeroSource.embedUrl}
-                      title={`Interactive canvas embed for ${liveCanvasHeroSource.sourcePath}`}
-                      className="absolute inset-0 h-full w-full border-0 bg-transparent"
-                      sandbox="allow-forms allow-popups allow-same-origin allow-scripts"
-                      allow="autoplay; fullscreen; picture-in-picture"
-                      allowFullScreen
-                      referrerPolicy="strict-origin-when-cross-origin"
-                      data-kg-live-canvas-hero-selected-embed="true"
-                      data-kg-live-canvas-hero-embed-url={liveCanvasHeroSource.embedUrl}
-                    />
-                  ) : null}
-                </section>
-                <LiveCanvasHeroLazy source={liveCanvasHeroSource} sourceFiles={sourceFiles} onEnter={dismissLiveCanvasHero} />
-              </>
-            ) : (
+            ) : !liveCanvasHeroVisible ? (
               <>
                 <section
                   className={`absolute inset-0 ${sharedGraphCanvasSurfaceActive ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}
@@ -453,7 +458,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
                   ) : null}
                 </section>
               </>
-            )}
+            ) : null}
           </section>
         )}
         {bridgeOnlyWidgetDropActive ? (
@@ -465,7 +470,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
             <StoryboardWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled />
           </section>
         ) : null}
-        {!documentSwitchOwnsViewport && !geospatialOverlayOwnsViewport && canvasRenderMode === '3d' && !heavyRuntimeIntentBlocked ? (
+        {!documentSwitchOwnsViewport && !geospatialOverlayOwnsViewport && !liveCanvasHeroVisible && canvasRenderMode === '3d' && !heavyRuntimeIntentBlocked ? (
           <section className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
             <ThreeGraphLazy active mode={effectiveCanvas3dMode} />
           </section>
@@ -575,7 +580,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
           </>
         ) : null}
       </React.Suspense>
-      {xrPhysicsRunReadyDemo && !gameFpsActive ? <XrNativeControllerDemoHud /> : null}
+      {xrPhysicsRunReadyDemo && !gameFpsActive && !liveCanvasHeroVisible ? <XrNativeControllerDemoHud /> : null}
       {gameFpsHudVisible ? <GameFpsHudLazy /> : null}
       {variant === 'workspace' ? <CanvasEmbedCodePanelHost /> : null}
     </section>

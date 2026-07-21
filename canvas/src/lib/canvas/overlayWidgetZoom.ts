@@ -213,3 +213,16 @@ export function computeCollectiveFollowPinnedScale(args: {
   }
   return fitScaleToViewport(baseScale, args.zoomK)
 }
+
+export type CollectiveFollowScaleFromBaselineArgs = Omit<Parameters<typeof computeCollectiveFollowPinnedScale>[0], 'zoomK'> & {
+  zoomK: number
+  baselineZoomK?: number | null
+}
+
+export function computeCollectiveFollowScaleFromBaseline(args: CollectiveFollowScaleFromBaselineArgs): number {
+  const { baselineZoomK, zoomK, ...scaleArgs } = args
+  return computeCollectiveFollowPinnedScale({
+    ...scaleArgs,
+    zoomK: computeCollectiveFollowZoomK({ zoomK, baselineZoomK }),
+  })
+}

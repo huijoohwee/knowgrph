@@ -13,7 +13,7 @@ import {
 test('runtime docs dependency resolves one checkout repository and immutable ref', async () => {
   const contract = await readRuntimeReadinessContract()
   const dependency = resolveRuntimeDocsDependency(contract)
-  assert.equal(contract.docs_dependency.ref, '41cd9855dbcec074b2182a9eaea455c54c117fe4')
+  assert.equal(contract.docs_dependency.ref, '1da944f95c3b355db89580d449d0e8a6ce75688c')
   assert.ok(contract.docs_dependency.required_files.includes('CANONICAL-LIFECYCLE.md'))
   assert.ok(contract.docs_dependency.required_files.includes('AGENT-TOOLKIT.md'))
   assert.ok(contract.docs_dependency.required_files.includes('schemas/production-runtime-readiness.v2.schema.json'))

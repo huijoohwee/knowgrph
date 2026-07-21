@@ -17,19 +17,25 @@ const isSameDeploymentRuntimeHost = (hostname: string): boolean => {
 
 export const CANONICAL_STARTUP_CANVAS_EMBED_URL = `https://airvio.co${CANONICAL_STARTUP_SHARE_PATH}`
 
+const applyCanonicalStartupShellIsolation = (url: URL): URL => {
+  url.searchParams.set('kgPreview', '1')
+  return url
+}
+
 export function resolveCanonicalStartupCanvasEmbedRuntimeUrl(runtimeOrigin?: string | null): string {
   const rawOrigin = String(runtimeOrigin || (typeof window !== 'undefined' ? window.location?.origin : '') || '').trim()
-  if (!rawOrigin) return CANONICAL_STARTUP_CANVAS_EMBED_URL
+  const embed = new URL(CANONICAL_STARTUP_CANVAS_EMBED_URL)
+  if (!rawOrigin) return applyCanonicalStartupShellIsolation(embed).toString()
   try {
     const origin = new URL(rawOrigin)
-    if (!isSameDeploymentRuntimeHost(origin.hostname)) return CANONICAL_STARTUP_CANVAS_EMBED_URL
-    const embed = new URL(CANONICAL_STARTUP_CANVAS_EMBED_URL)
-    embed.protocol = origin.protocol
-    embed.host = origin.host
-    return embed.toString()
+    if (isSameDeploymentRuntimeHost(origin.hostname)) {
+      embed.protocol = origin.protocol
+      embed.host = origin.host
+    }
   } catch {
-    return CANONICAL_STARTUP_CANVAS_EMBED_URL
+    // Keep the canonical production origin when the runtime origin is malformed.
   }
+  return applyCanonicalStartupShellIsolation(embed).toString()
 }
 
 export function normalizeLiveCanvasHeroCanvasEmbedUrl(value: string): string {
@@ -39,7 +45,7 @@ export function normalizeLiveCanvasHeroCanvasEmbedUrl(value: string): string {
     const url = new URL(raw)
     const supportedOrigin = url.origin === 'https://airvio.co' || isSameDeploymentRuntimeHost(url.hostname)
     if (!supportedOrigin || url.pathname !== CANONICAL_STARTUP_SHARE_PATH) return raw
-    url.searchParams.delete('kgPreview')
+    url.searchParams.set('kgPreview', '1')
     url.searchParams.delete('kgLiveHero')
     url.searchParams.delete('kgCanvasSurfaceMode')
     url.searchParams.delete('kgCanvasRenderMode')
