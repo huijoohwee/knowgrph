@@ -770,9 +770,10 @@ export function useFlowCanvasRuntime(args: {
     if (
       storyboardWidgetMode
       && workspaceEditorOverlayOpen === true
-      && hasNonIdentityTransform
       && (alreadyInitializedForKey || workspaceOverlayUserControlledRef.current)
     ) {
+      // The established camera can intentionally be the 100% identity transform.
+      // Topology growth must not reinterpret identity as permission to fit again.
       __flowCanvasDebug.lastRuntimeTransform = `${Math.round(current.x)},${Math.round(current.y)},${Math.round(current.k * 1000) / 1000}`
       __flowCanvasDebug.lastExpectedFit = 'infinite-canvas:user-controlled-or-initialized'
       __flowCanvasDebug.lastRecoveryReason = workspaceOverlayUserControlledRef.current
