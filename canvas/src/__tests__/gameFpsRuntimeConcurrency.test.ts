@@ -3,10 +3,13 @@ import test from 'node:test'
 import {
   acknowledgeGameFpsDecisions,
   advanceGameFpsBy,
+  captureGameFpsAdvance,
+  queueGameFpsFire,
   readGameFpsRunId,
   readGameFpsSnapshot,
   resetGameFpsRuntimeForTests,
   restartGameFpsMission,
+  setGameFpsInput,
   startGameFpsMission,
   stopGameFpsMission,
   subscribeGameFpsSnapshot,
@@ -52,6 +55,56 @@ test('Stop during an underway World_Tick preserves exactly that completed tick',
   assert.equal(settled.phase, 'stopped')
   assert.equal(settled.tick, 1, 'the atomic tick already underway must settle before Stop takes effect')
   assert.equal(readGameFpsSnapshot(), settled)
+})
+
+test('queued World_Ticks preserve the movement input active at enqueue across key release', async () => {
+  resetGameFpsRuntimeForTests()
+  const initial = startGameFpsMission()
+
+  setGameFpsInput({ forward: 1 })
+  const firstAdvance = advanceGameFpsBy(0.25)
+  setGameFpsInput({ forward: 0 })
+  const firstMoved = await firstAdvance
+  assert.equal(firstMoved.tick, 15)
+  assert.notEqual(firstMoved.player.z, initial.player.z)
+
+  const released = await advanceGameFpsBy(0.25)
+  assert.equal(released.player.z, firstMoved.player.z, 'release must neutralize later queued ticks')
+
+  setGameFpsInput({ forward: 1 })
+  const secondAdvance = advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS * 2)
+  setGameFpsInput({ forward: 0 })
+  const secondMoved = await secondAdvance
+  assert.notEqual(secondMoved.player.z, released.player.z, 'a second press cycle must retain its own queued input')
+})
+
+test('queued one-shot input remains staged until a fixed World_Tick consumes it', async () => {
+  resetGameFpsRuntimeForTests()
+  const initial = startGameFpsMission()
+
+  queueGameFpsFire()
+  const beforeStep = await advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  assert.equal(beforeStep.tick, 0)
+  assert.equal(beforeStep.ammo, initial.ammo)
+
+  const fired = await advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  assert.equal(fired.tick, 1)
+  assert.equal(fired.ammo, initial.ammo - 1)
+})
+
+test('captured World_Tick input is opaque and can be consumed only once', async () => {
+  resetGameFpsRuntimeForTests()
+  const initial = startGameFpsMission()
+
+  queueGameFpsFire()
+  const advance = captureGameFpsAdvance(GAME_FPS_FIXED_STEP_SECONDS)
+  const fired = await advance()
+  assert.equal(fired.tick, 1)
+  assert.equal(fired.ammo, initial.ammo - 1)
+
+  await assert.rejects(advance(), /already consumed/)
+  assert.equal(readGameFpsSnapshot().tick, fired.tick)
+  assert.equal(readGameFpsSnapshot().ammo, fired.ammo)
 })
 
 test('Stop then immediate Start resumes the same mission after its underway World_Tick settles', async () => {

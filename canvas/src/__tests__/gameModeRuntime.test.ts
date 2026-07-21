@@ -15,8 +15,10 @@ import {
 import { installGameFpsDesktopInput } from '@/features/game-fps/gameFpsInput'
 import {
   advanceGameFpsBy,
+  queueGameFpsFire,
   readGameFpsSpatialProfile,
   readGameFpsSnapshot,
+  reloadGameFpsWeapon,
   setGameFpsInput,
 } from '@/features/game-fps/gameFpsRuntime'
 import {
@@ -320,6 +322,62 @@ test('Game Mode waits for normalized player engagement and pauses without advanc
   pauseGameModeSimulation()
   await advanceGameModeSimulationBy(0.25)
   assert.equal(readGameFpsSnapshot().tick, pausedTick)
+})
+
+test('Game Mode preserves rendered-frame input across its outer simulation queue', async () => {
+  await startGameMode({ decisions: [], webglSupported: true })
+  armGameModeSimulation()
+  const initial = readGameFpsSnapshot()
+
+  setGameFpsInput({ forward: 1 })
+  const queuedAdvance = advanceGameModeSimulationBy(0.25)
+  setGameFpsInput({ forward: 0 })
+  const moved = await queuedAdvance
+
+  assert.equal(moved.tick, 15)
+  assert.notEqual(moved.player.z, initial.player.z)
+})
+
+test('Game Mode stages one-shot input across sub-step outer advances exactly once', async () => {
+  await startGameMode({ decisions: [], webglSupported: true })
+  armGameModeSimulation()
+  const initial = readGameFpsSnapshot()
+
+  setGameFpsInput({ lookYawDelta: 0.2 })
+  queueGameFpsFire()
+  const beforeStep = await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  assert.equal(beforeStep.tick, 0)
+  assert.equal(beforeStep.ammo, initial.ammo)
+
+  const fired = await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  assert.equal(fired.tick, 1)
+  assert.equal(fired.ammo, initial.ammo - 1)
+  assert.notEqual(fired.player.yaw, initial.player.yaw)
+
+  reloadGameFpsWeapon()
+  await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  const reloaded = await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  assert.equal(reloaded.tick, 2)
+  assert.equal(reloaded.ammo, initial.ammo)
+
+  const neutral = await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS)
+  assert.equal(neutral.tick, 3)
+  assert.equal(neutral.ammo, reloaded.ammo)
+  assert.equal(neutral.player.yaw, reloaded.player.yaw)
+})
+
+test('Game Mode projects invalid frame deltas as visible runtime failures', async () => {
+  await startGameMode({ decisions: [], webglSupported: true })
+  armGameModeSimulation()
+
+  await assert.rejects(
+    advanceGameModeSimulationBy(Number.NaN),
+    /deltaSeconds must be a non-negative finite number/,
+  )
+
+  assert.equal(readGameModeSnapshot().launchStatus, 'error')
+  assert.equal(readGameModeSnapshot().simulationStatus, 'idle')
+  assert.match(readGameFpsSnapshot().runtimeError || '', /deltaSeconds must be a non-negative finite number/)
 })
 
 test('Game Mode desktop lifecycle events fence queued simulation work', async () => {

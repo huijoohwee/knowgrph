@@ -6,7 +6,7 @@ import {
   readGameFpsSnapshot,
   subscribeGameFpsSnapshot,
 } from './gameFpsRuntime'
-import { GAME_FPS_NPC_IDS } from './gameFpsModel'
+import { GAME_FPS_MAX_FRAME_SECONDS, GAME_FPS_NPC_IDS } from './gameFpsModel'
 import { installGameFpsDesktopInput } from './gameFpsInput'
 import {
   claimThreeViewportInputOwnership,
@@ -21,10 +21,10 @@ import {
 import {
   advanceGameModeSimulationBy,
   readGameModeSnapshot,
-  subscribeGameModeSnapshot,
 } from './gameModeRuntime'
 
 const INPUT_OWNER_ID = 'game-fps:first-person'
+const READY_FRAME_COUNT = 2
 const ACTION_COLORS = Object.freeze({
   hold: new Color('#60a5fa'),
   alert: new Color('#facc15'),
@@ -41,15 +41,11 @@ export function GameFpsMissionStage({ coordinateScale = 1 }: {
   coordinateScale?: number
 }) {
   const { camera, gl } = useThree()
-  const gameMode = React.useSyncExternalStore(
-    subscribeGameModeSnapshot,
-    readGameModeSnapshot,
-    readGameModeSnapshot,
-  )
   const snapshotRef = React.useRef(readGameFpsSnapshot())
   const stageRootRef = React.useRef<Group | null>(null)
   const npcMeshRefs = React.useRef(new Map<string, Mesh>())
   const firstFramePublishedRef = React.useRef(false)
+  const readyFrameCountRef = React.useRef(0)
   const inputClaimedRef = React.useRef(false)
   const cameraLocalPosition = React.useMemo(() => new Vector3(), [])
   const cameraLocalRotation = React.useMemo(() => new Euler(0, 0, 0, 'YXZ'), [])
@@ -70,6 +66,7 @@ export function GameFpsMissionStage({ coordinateScale = 1 }: {
     return () => {
       inputClaimedRef.current = false
       input?.dispose()
+      readyFrameCountRef.current = 0
       releaseGameFpsMotionControlInput()
       releaseThreeViewportInputOwnership(INPUT_OWNER_ID)
       delete canvas.dataset.kgGameFpsInputOwner
@@ -84,7 +81,9 @@ export function GameFpsMissionStage({ coordinateScale = 1 }: {
       motionControlPoseToControllerInput(readMotionControlSnapshot().pose),
     )
     const before = snapshotRef.current
-    if (before.phase === 'playing' && !before.runtimeError && gameMode.simulationStatus === 'running') {
+    if (before.phase === 'playing'
+      && !before.runtimeError
+      && readGameModeSnapshot().simulationStatus === 'running') {
       void advanceGameModeSimulationBy(deltaSeconds).catch(() => undefined)
     }
     const snapshot = readGameFpsSnapshot()
@@ -115,12 +114,18 @@ export function GameFpsMissionStage({ coordinateScale = 1 }: {
       mesh.scale.y = Math.max(0.12, npc.health / 100)
       setMeshColor(mesh, ACTION_COLORS[npc.action])
     }
-    if (snapshot.runtimeError) {
+    if (snapshot.runtimeError || snapshot.phase === 'stopped' || !inputClaimedRef.current) {
       firstFramePublishedRef.current = false
+      readyFrameCountRef.current = 0
       delete gl.domElement.dataset.kgGameFpsFirstFrame
-    } else if (!firstFramePublishedRef.current && inputClaimedRef.current && snapshot.phase !== 'stopped') {
-      firstFramePublishedRef.current = true
-      gl.domElement.dataset.kgGameFpsFirstFrame = '1'
+    } else if (!firstFramePublishedRef.current) {
+      readyFrameCountRef.current = deltaSeconds > 0 && deltaSeconds <= GAME_FPS_MAX_FRAME_SECONDS
+        ? readyFrameCountRef.current + 1
+        : 0
+      if (readyFrameCountRef.current >= READY_FRAME_COUNT) {
+        firstFramePublishedRef.current = true
+        gl.domElement.dataset.kgGameFpsFirstFrame = '1'
+      }
     }
   })
 

@@ -11,7 +11,7 @@ import {
 } from '@/features/three/xrSceneSurfaceRuntime'
 import {
   acknowledgeGameFpsDecisions,
-  advanceGameFpsBy,
+  captureGameFpsAdvance,
   hasGameFpsMission,
   publishRuntimeFailure,
   readGameFpsRunId,
@@ -343,6 +343,13 @@ export function pauseGameModeSimulation(message = 'Game Mode paused; resume with
 
 export function advanceGameModeSimulationBy(deltaSeconds: number): Promise<ReturnType<typeof readGameFpsSnapshot>> {
   if (snapshot.simulationStatus !== 'running') return Promise.resolve(readGameFpsSnapshot())
+  let gameAdvance: ReturnType<typeof captureGameFpsAdvance>
+  try {
+    gameAdvance = captureGameFpsAdvance(deltaSeconds)
+  } catch (error) {
+    publishGameModeRuntimeFailure(error)
+    return Promise.reject(error)
+  }
   const queuedGeneration = simulationGeneration
   const queuedRunId = readGameFpsRunId()
   let resolveResult!: (value: ReturnType<typeof readGameFpsSnapshot>) => void
@@ -362,7 +369,7 @@ export function advanceGameModeSimulationBy(deltaSeconds: number): Promise<Retur
         resolveResult(refreshedMission)
         return
       }
-      const mission = await advanceGameFpsBy(deltaSeconds)
+      const mission = await gameAdvance()
       if (queuedGeneration === simulationGeneration && snapshot.simulationStatus === 'running') {
         if (mission.runtimeError) {
           fenceSimulationAdvances()

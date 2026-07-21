@@ -170,6 +170,15 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
   if (!stage.includes("advanceGameModeSimulationBy(deltaSeconds).catch(() => undefined)")) {
     throw new Error('Game FPS stage must consume rejected ticks after the runtime publishes its error')
   }
+  if (!stage.includes("readGameModeSnapshot().simulationStatus === 'running'")
+    || stage.includes('subscribeGameModeSnapshot')
+    || stage.includes('useSyncExternalStore')) {
+    throw new Error('Game FPS frame gating must read the live runtime owner without stalling R3F on a React subscription')
+  }
+  if (!stage.includes('readyFrameCountRef.current >= READY_FRAME_COUNT')
+    || !stage.includes('deltaSeconds <= GAME_FPS_MAX_FRAME_SECONDS')) {
+    throw new Error('Game FPS browser readiness must wait for a settled retained-Canvas frame pump')
+  }
   if (hud.includes('advanceGameFpsBy') || hud.includes('restartGameFpsMission') || !hud.includes('restartGameMode')) {
     throw new Error('Game FPS HUD must only normalize input and route restart through the central Game Mode owner')
   }
