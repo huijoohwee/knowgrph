@@ -36,6 +36,16 @@ const isScreenBoxVisible = (
   return width > 0 && height > 0 && box.left + width > 0 && box.top + height > 0 && box.left < viewport.width && box.top < viewport.height
 }
 
+export function shouldRequestStoryboardOverlayImplicitFit(args: {
+  pendingCount: number
+  recoverOffscreenRemount: boolean
+  transformIsIdentity: boolean
+  visibleCardCount: number
+}): boolean {
+  if (!args.transformIsIdentity) return false
+  return args.recoverOffscreenRemount || args.visibleCardCount === 0 || args.pendingCount > 1
+}
+
 export function useStoryboardCardOverlayProjection2d(args: {
   active: boolean
   cards: ReadonlyArray<StoryboardCardModel>
@@ -196,7 +206,12 @@ export function useStoryboardCardOverlayProjection2d(args: {
         }
         const transformIsIdentity = !currentTransform
           || (Math.abs(currentTransform.k - 1) < 1e-6 && Math.abs(currentTransform.x) < 1e-6 && Math.abs(currentTransform.y) < 1e-6)
-        if (recoverOffscreenRemount || visibleCardCount === 0 || (pending.length > 1 && transformIsIdentity)) {
+        if (shouldRequestStoryboardOverlayImplicitFit({
+          pendingCount: pending.length,
+          recoverOffscreenRemount,
+          transformIsIdentity,
+          visibleCardCount,
+        })) {
           requestZoom('fit', { intent: 'fitToView' })
         }
       }

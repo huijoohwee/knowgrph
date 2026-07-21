@@ -14,6 +14,7 @@ import {
 } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeLayout'
 import { normalizeProbeTreeCandidateEdges } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetProbeTreeCandidateEdges'
 import { resolveStoryboardWidgetWorkflowRichMediaPanelTargetNodeId } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRichMediaPanel'
+import { shouldRequestStoryboardOverlayImplicitFit } from '@/components/StoryboardWidgetCanvas/useStoryboardCardOverlayProjection2d'
 import { applyStoryboardCanvasGraphPropertyAuthority } from '@/components/StoryboardWidgetCanvas/runtime/storyboardCanvasGraphAuthority'
 import { resolveStoryboardWidgetOverlayEdgeGraphAuthority } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetOverlayEdgeGraphAuthority'
 import {
@@ -378,9 +379,22 @@ export function testProbeTreeGenerationDoesNotRearmStoryboardInitialFit() {
   assert(workflowRunSource.includes('onInvocationStart: () => disableAutoZoomModesForUserGesture(useGraphStore.getState())'), 'expected the native Storyboard Probe-Tree runner to disable persistent auto-fit at invocation start')
   assert(projectionSource.includes('const initialFitCompletedDocumentKeys = new Set<string>()'), 'expected same-document projection remounts to share one session-scoped initial-fit commitment')
   assert(projectionSource.includes('(pending.length > 0 && !initialFitCompleted) || recoverOffscreenRemount'), 'expected a clean initial fit to wait for measurable cards while allowing one offscreen remount recovery')
-  assert(projectionSource.includes('visibleCardCount === 0 || (pending.length > 1 && transformIsIdentity)'), 'expected a clean identity multi-card load to fit once without relying on an empty registration frame')
+  assert(projectionSource.includes('if (!args.transformIsIdentity) return false')
+    && projectionSource.includes('args.visibleCardCount === 0 || args.pendingCount > 1'), 'expected implicit fit to preserve established cameras while retaining identity multi-card initialization')
   assert(projectionSource.includes('recoverOffscreenRemount'), 'expected a restarted or refreshed Storyboard projection to recover when every measurable card is outside the viewport')
   assert(projectionSource.includes('!hadProjectedCardsBeforeFrame'), 'expected offscreen recovery to remain a remount-only gate rather than continuous auto-fit after user pan')
+  assert(!shouldRequestStoryboardOverlayImplicitFit({
+    pendingCount: 3,
+    recoverOffscreenRemount: true,
+    transformIsIdentity: false,
+    visibleCardCount: 0,
+  }), 'expected same-document topology growth to preserve an established non-identity camera through transient offscreen projection frames')
+  assert(shouldRequestStoryboardOverlayImplicitFit({
+    pendingCount: 2,
+    recoverOffscreenRemount: false,
+    transformIsIdentity: true,
+    visibleCardCount: 2,
+  }), 'expected a first-load identity camera with multiple cards to retain implicit initial fit')
 }
 
 export function testProbeTreeToolbarPublicationVersionsOneCanonicalGraph() {
