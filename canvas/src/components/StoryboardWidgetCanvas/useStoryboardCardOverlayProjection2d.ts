@@ -13,43 +13,6 @@ import { screenToWorld } from '@/lib/zoom/viewport'
 type ProjectedCardBox = { left: number; top: number; scale: number }
 type AppliedCardBox = ProjectedCardBox & { display: string }
 
-const INITIAL_FIT_DOCUMENT_HISTORY_LIMIT = 64
-const initialFitCompletedDocumentKeys = new Set<string>()
-
-const rememberInitialFitDocumentKey = (key: string): void => {
-  if (initialFitCompletedDocumentKeys.has(key)) return
-  initialFitCompletedDocumentKeys.add(key)
-  while (initialFitCompletedDocumentKeys.size > INITIAL_FIT_DOCUMENT_HISTORY_LIMIT) {
-    const oldest = initialFitCompletedDocumentKeys.values().next().value
-    if (typeof oldest !== 'string') break
-    initialFitCompletedDocumentKeys.delete(oldest)
-  }
-}
-
-const isScreenBoxVisible = (
-  box: ProjectedCardBox,
-  size: { width: number; height: number },
-  viewport: { width: number; height: number },
-): boolean => {
-  const width = Math.max(1, size.width) * Math.max(0.001, box.scale)
-  const height = Math.max(1, size.height) * Math.max(0.001, box.scale)
-  return width > 0 && height > 0 && box.left + width > 0 && box.top + height > 0 && box.left < viewport.width && box.top < viewport.height
-}
-
-export function shouldRequestStoryboardOverlayImplicitFit(args: {
-  pendingCount: number
-  recoverOffscreenRemount: boolean
-  transformIsIdentity: boolean
-  visibleCardCount: number
-}): boolean {
-  // A remount after this document already painted is topology churn, not a new
-  // camera. Flow initialization owns real recovery; fitting here can overwrite
-  // the established transform while the runtime is briefly unavailable.
-  if (args.recoverOffscreenRemount) return false
-  if (!args.transformIsIdentity) return false
-  return args.visibleCardCount === 0 || args.pendingCount > 1
-}
-
 export function useStoryboardCardOverlayProjection2d(args: {
   active: boolean
   cards: ReadonlyArray<StoryboardCardModel>
@@ -59,13 +22,10 @@ export function useStoryboardCardOverlayProjection2d(args: {
   fixedLayoutEnabled: boolean
   getTransform: () => StoryboardWidgetOverlayDragTransform | null
   graphRevision: number
-  markdownDocumentName: string | null
   nodeById: ReadonlyMap<string, GraphNode>
   overlayElsRef: React.RefObject<Map<string, HTMLElement>>
   readCardSize: (node: GraphNode) => { width: number; height: number }
-  requestZoom: (action: 'fit', options: { intent: 'fitToView' }) => void
   rootRef: React.RefObject<HTMLElement | null>
-  storyboardWidgetSurfaceId: string
 }) {
   const {
     active,
@@ -76,19 +36,15 @@ export function useStoryboardCardOverlayProjection2d(args: {
     fixedLayoutEnabled,
     getTransform,
     graphRevision,
-    markdownDocumentName,
     nodeById,
     overlayElsRef,
     readCardSize,
-    requestZoom,
     rootRef,
-    storyboardWidgetSurfaceId,
   } = args
   const zoomLayoutBaseBoxByCardIdRef = React.useRef<Map<string, VectorPaintedOverlayScaleProjectionBase>>(new Map())
   const lastOverlayTransformRef = React.useRef<StoryboardWidgetOverlayDragTransform | null>(null)
   const lastPinnedByCardIdRef = React.useRef<Map<string, boolean>>(new Map())
   const lastAppliedBoxByCardIdRef = React.useRef<Map<string, AppliedCardBox>>(new Map())
-  const initialFitCommitKeyRef = React.useRef('')
 
   const clearCardProjection = React.useCallback((cardId: string) => {
     lastAppliedBoxByCardIdRef.current.delete(cardId)
@@ -112,8 +68,6 @@ export function useStoryboardCardOverlayProjection2d(args: {
       const devicePixelRatio = Number.isFinite(window.devicePixelRatio) ? Math.max(1, window.devicePixelRatio) : 1
       const viewportRect = rootRef.current?.getBoundingClientRect() || null
       const viewport = { width: Math.max(1, Math.floor(viewportRect?.width || 1)), height: Math.max(1, Math.floor(viewportRect?.height || 1)) }
-      const hadProjectedCardsBeforeFrame = lastAppliedBoxByCardIdRef.current.size > 0
-      let visibleCardCount = 0
       let rawCenterXSum = 0
       let rawCenterYSum = 0
       let rawCenterCount = 0
@@ -183,7 +137,6 @@ export function useStoryboardCardOverlayProjection2d(args: {
       for (let index = 0; index < pending.length; index += 1) {
         const item = pending[index]!
         const box = readProjectedBox(item.card.id, item.rawBox, item.width, item.height, projectionAnchorX, projectionAnchorY)
-        if (isScreenBoxVisible(box, { width: item.width, height: item.height }, viewport)) visibleCardCount += 1
         const display = box.scale <= 0.02 ? 'none' : ''
         const previousBox = lastAppliedBoxByCardIdRef.current.get(item.card.id) || null
         const boxChanged = !previousBox
@@ -195,29 +148,6 @@ export function useStoryboardCardOverlayProjection2d(args: {
         applyVectorPaintedOverlayBox(item.el, { left: box.left, top: box.top, scale: box.scale, display })
         lastAppliedBoxByCardIdRef.current.set(item.card.id, { left: box.left, top: box.top, scale: box.scale, display })
         emitStoryboardWidgetGeometryCommitted()
-      }
-      const initialFitDocumentKey = `${storyboardWidgetSurfaceId}::${String(markdownDocumentName || '').trim()}`
-      const initialFitCompleted = initialFitCommitKeyRef.current === initialFitDocumentKey
-        || initialFitCompletedDocumentKeys.has(initialFitDocumentKey)
-      const recoverOffscreenRemount = pending.length > 0
-        && initialFitCompleted
-        && !hadProjectedCardsBeforeFrame
-        && visibleCardCount === 0
-      if ((pending.length > 0 && !initialFitCompleted) || recoverOffscreenRemount) {
-        if (!initialFitCompleted) {
-          initialFitCommitKeyRef.current = initialFitDocumentKey
-          rememberInitialFitDocumentKey(initialFitDocumentKey)
-        }
-        const transformIsIdentity = !currentTransform
-          || (Math.abs(currentTransform.k - 1) < 1e-6 && Math.abs(currentTransform.x) < 1e-6 && Math.abs(currentTransform.y) < 1e-6)
-        if (shouldRequestStoryboardOverlayImplicitFit({
-          pendingCount: pending.length,
-          recoverOffscreenRemount,
-          transformIsIdentity,
-          visibleCardCount,
-        })) {
-          requestZoom('fit', { intent: 'fitToView' })
-        }
       }
       lastOverlayTransformRef.current = currentTransform ? { k: currentTransform.k, x: currentTransform.x, y: currentTransform.y } : null
       frame = window.requestAnimationFrame(update)
@@ -239,13 +169,10 @@ export function useStoryboardCardOverlayProjection2d(args: {
     fixedLayoutEnabled,
     getTransform,
     graphRevision,
-    markdownDocumentName,
     nodeById,
     overlayElsRef,
     readCardSize,
-    requestZoom,
     rootRef,
-    storyboardWidgetSurfaceId,
   ])
 
   return { clearCardProjection }
