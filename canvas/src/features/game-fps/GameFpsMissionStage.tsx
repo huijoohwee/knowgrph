@@ -6,14 +6,21 @@ import {
   readGameFpsSnapshot,
   subscribeGameFpsSnapshot,
 } from './gameFpsRuntime'
-import { GAME_FPS_MAX_FRAME_SECONDS, GAME_FPS_NPC_IDS } from './gameFpsModel'
+import {
+  GAME_FPS_FIXED_STEP_SECONDS,
+  GAME_FPS_MAX_FRAME_SECONDS,
+  GAME_FPS_NPC_IDS,
+} from './gameFpsModel'
 import { installGameFpsDesktopInput } from './gameFpsInput'
 import {
   claimThreeViewportInputOwnership,
   releaseThreeViewportInputOwnership,
 } from '@/features/three/threeViewportInputOwnership'
 import { readMotionControlSnapshot } from '@/features/three/motionControlRuntime'
-import { motionControlPoseToControllerInput } from '@/features/three/motionControlPose'
+import {
+  isMotionControlPoseTracked,
+  motionControlPoseToControllerInput,
+} from '@/features/three/motionControlPose'
 import {
   applyGameFpsMotionControlInput,
   releaseGameFpsMotionControlInput,
@@ -21,10 +28,16 @@ import {
 import {
   advanceGameModeSimulationBy,
   readGameModeSnapshot,
+  reportGameModeSimulationFailure,
 } from './gameModeRuntime'
+import {
+  bindGameFpsSimulationInputQueue,
+  createGameFpsSimulationClock,
+} from './gameFpsSimulationClock'
 
 const INPUT_OWNER_ID = 'game-fps:first-person'
 const READY_FRAME_COUNT = 2
+const SIMULATION_CLOCK_INTERVAL_MS = GAME_FPS_FIXED_STEP_SECONDS * 1000
 const ACTION_COLORS = Object.freeze({
   hold: new Color('#60a5fa'),
   alert: new Color('#facc15'),
@@ -76,16 +89,33 @@ export function GameFpsMissionStage({ coordinateScale = 1 }: {
     }
   }, [gl])
 
-  useFrame((_, deltaSeconds) => {
-    applyGameFpsMotionControlInput(
-      motionControlPoseToControllerInput(readMotionControlSnapshot().pose),
-    )
-    const before = snapshotRef.current
-    if (before.phase === 'playing'
-      && !before.runtimeError
-      && readGameModeSnapshot().simulationStatus === 'running') {
-      void advanceGameModeSimulationBy(deltaSeconds).catch(() => undefined)
+  React.useEffect(() => {
+    const clock = createGameFpsSimulationClock({
+      runStep: async () => {
+        const pose = readMotionControlSnapshot().pose
+        applyGameFpsMotionControlInput(
+          motionControlPoseToControllerInput(pose),
+          isMotionControlPoseTracked(pose),
+        )
+        const mission = readGameFpsSnapshot()
+        if (mission.phase !== 'playing'
+          || mission.runtimeError
+          || readGameModeSnapshot().simulationStatus !== 'running') return
+        await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS)
+      },
+      onStepError: reportGameModeSimulationFailure,
+      minimumStepIntervalMs: SIMULATION_CLOCK_INTERVAL_MS,
+    })
+    const releaseInputQueue = bindGameFpsSimulationInputQueue(clock.queueInputStep)
+    const timer = window.setInterval(clock.requestStep, SIMULATION_CLOCK_INTERVAL_MS)
+    return () => {
+      releaseInputQueue()
+      window.clearInterval(timer)
+      clock.dispose()
     }
+  }, [])
+
+  useFrame((_, deltaSeconds) => {
     const snapshot = readGameFpsSnapshot()
     snapshotRef.current = snapshot
     gl.domElement.dataset.kgGameFpsSpatialProfile = readGameFpsSpatialProfile().id

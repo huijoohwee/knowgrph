@@ -16,19 +16,24 @@ export const testGlobalCancelEventsHelperCentralizesPointerBlurAndVisibilityFall
   g.document = dom.window.document
 
   let pointerCount = 0
+  const releasedPointerIds: number[] = []
   const unsubscribePointer = subscribeGlobalCancelEvents({
-    listener: () => {
+    listener: event => {
       pointerCount += 1
+      if (event && 'pointerId' in event) releasedPointerIds.push(Number(event.pointerId))
     },
     capture: true,
     visibilityBehavior: 'off',
   })
-  dom.window.dispatchEvent(new dom.window.Event('pointerup', { bubbles: true }))
-  dom.window.dispatchEvent(new dom.window.Event('pointercancel', { bubbles: true }))
+  dom.window.dispatchEvent(Object.assign(new dom.window.Event('pointerup', { bubbles: true }), { pointerId: 41 }))
+  dom.window.dispatchEvent(Object.assign(new dom.window.Event('pointercancel', { bubbles: true }), { pointerId: 42 }))
   dom.window.dispatchEvent(new dom.window.Event('blur'))
   await new Promise<void>(resolve => setTimeout(resolve, 0))
   if (pointerCount !== 3) {
     throw new Error(`expected shared global cancel helper to react to pointerup, pointercancel, and blur, got ${pointerCount}`)
+  }
+  if (releasedPointerIds.join(',') !== '41,42') {
+    throw new Error(`expected shared global cancel helper to preserve pointer identity, got ${releasedPointerIds.join(',')}`)
   }
   unsubscribePointer()
 

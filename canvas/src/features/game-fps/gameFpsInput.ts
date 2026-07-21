@@ -6,6 +6,8 @@ import {
 import type { GameFpsInputPatch } from './gameFpsModel'
 import { armGameModeSimulation, pauseGameModeSimulation } from './gameModeRuntime'
 
+export type GameFpsTouchAction = 'forward' | 'back' | 'left' | 'right' | 'look-left' | 'look-right'
+
 const MOVE_CODES: ReadonlySet<string> = new Set([
   'ArrowDown',
   'ArrowLeft',
@@ -42,6 +44,27 @@ export function gameFpsInputPatchFromPressedCodes(codes: ReadonlySet<string>): G
     strafe,
     sprint: codes.has('ShiftLeft') || codes.has('ShiftRight'),
   }
+}
+
+export function gameFpsInputPatchFromHeldTouches(
+  heldTouches: ReadonlyMap<number, GameFpsTouchAction>,
+): GameFpsInputPatch {
+  const actions = new Set(heldTouches.values())
+  return {
+    forward: Number(actions.has('forward')) - Number(actions.has('back')),
+    strafe: Number(actions.has('right')) - Number(actions.has('left')),
+  }
+}
+
+export function releaseGameFpsHeldTouch(
+  heldTouches: Map<number, GameFpsTouchAction>,
+  event?: Event,
+): void {
+  if (event && 'pointerId' in event) {
+    heldTouches.delete(Number(event.pointerId))
+    return
+  }
+  heldTouches.clear()
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -121,6 +144,10 @@ export function installGameFpsDesktopInput(element: HTMLCanvasElement): GameFpsI
     releaseInput()
     pauseGameModeSimulation('Game Mode paused when the window lost focus.')
   }
+  const onWindowResize = () => {
+    releaseInput()
+    pauseGameModeSimulation('Game Mode paused while the viewport changed.')
+  }
   const onVisibilityChange = () => {
     if (document.visibilityState !== 'hidden') return
     releaseInput()
@@ -130,6 +157,7 @@ export function installGameFpsDesktopInput(element: HTMLCanvasElement): GameFpsI
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
   window.addEventListener('blur', onWindowBlur)
+  window.addEventListener('resize', onWindowResize)
   document.addEventListener('visibilitychange', onVisibilityChange)
   document.addEventListener('mousemove', onMouseMove)
   document.addEventListener('mousedown', onMouseDown)
@@ -142,6 +170,7 @@ export function installGameFpsDesktopInput(element: HTMLCanvasElement): GameFpsI
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
       window.removeEventListener('blur', onWindowBlur)
+      window.removeEventListener('resize', onWindowResize)
       document.removeEventListener('visibilitychange', onVisibilityChange)
       document.removeEventListener('mousemove', onMouseMove)
       document.removeEventListener('mousedown', onMouseDown)

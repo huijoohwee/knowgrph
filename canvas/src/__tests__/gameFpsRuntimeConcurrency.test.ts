@@ -10,6 +10,7 @@ import {
   resetGameFpsRuntimeForTests,
   restartGameFpsMission,
   setGameFpsInput,
+  setGameFpsMotionInput,
   startGameFpsMission,
   stopGameFpsMission,
   subscribeGameFpsSnapshot,
@@ -19,10 +20,19 @@ import {
   GAME_FPS_MISSION_ID,
   type GameFpsSnapshot,
 } from '../features/game-fps/gameFpsModel'
+import {
+  bindGameFpsSimulationInputQueue,
+  createGameFpsSimulationClock,
+  queueGameFpsSimulationInputStep,
+} from '../features/game-fps/gameFpsSimulationClock'
 
 async function reachInFlightWorldTick(): Promise<void> {
   await Promise.resolve()
   await Promise.resolve()
+}
+
+async function settleSimulationClock(): Promise<void> {
+  for (let index = 0; index < 8; index += 1) await Promise.resolve()
 }
 
 function maximumTickDecision(decisionId: string) {
@@ -76,6 +86,190 @@ test('queued World_Ticks preserve the movement input active at enqueue across ke
   setGameFpsInput({ forward: 0 })
   const secondMoved = await secondAdvance
   assert.notEqual(secondMoved.player.z, released.player.z, 'a second press cycle must retain its own queued input')
+})
+
+test('a movement press released between rendered frames survives until one fixed World_Tick', async () => {
+  resetGameFpsRuntimeForTests()
+  const initial = startGameFpsMission()
+
+  setGameFpsInput({ forward: 1 })
+  setGameFpsInput({ forward: 0 })
+  const beforeStep = await advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  assert.equal(beforeStep.tick, 0)
+  assert.equal(beforeStep.player.z, initial.player.z)
+
+  const moved = await advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  assert.equal(moved.tick, 1)
+  assert.notEqual(moved.player.z, initial.player.z)
+
+  const neutral = await advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS)
+  assert.equal(neutral.player.z, moved.player.z, 'the buffered movement edge must be consumed exactly once')
+})
+
+test('a held analog axis is not doubled by its buffered movement edge', async () => {
+  resetGameFpsRuntimeForTests()
+  const initial = startGameFpsMission()
+
+  setGameFpsInput({ forward: 0.25 })
+  const first = await advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS)
+  const second = await advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS)
+  const firstDisplacement = first.player.z - initial.player.z
+  const secondDisplacement = second.player.z - first.player.z
+
+  assert.ok(Math.abs(firstDisplacement - secondDisplacement) < 1e-10)
+})
+
+test('a buffered local movement pulse composes with Motion Control independent of frame sampling', async () => {
+  const run = async (deltas: readonly number[]) => {
+    resetGameFpsRuntimeForTests()
+    startGameFpsMission()
+    setGameFpsMotionInput({ forward: 0, strafe: 1, sprint: false, primary: false })
+    setGameFpsInput({ forward: 1 })
+    setGameFpsInput({ forward: 0 })
+    for (const delta of deltas) await advanceGameFpsBy(delta)
+    return readGameFpsSnapshot().player
+  }
+
+  const oneFrame = await run([GAME_FPS_FIXED_STEP_SECONDS])
+  const twoFrames = await run([
+    GAME_FPS_FIXED_STEP_SECONDS / 2,
+    GAME_FPS_FIXED_STEP_SECONDS / 2,
+  ])
+  assert.equal(oneFrame.x, twoFrames.x)
+  assert.equal(oneFrame.z, twoFrames.z)
+  assert.notEqual(oneFrame.x, 0)
+  assert.notEqual(oneFrame.z, 5.04)
+})
+
+test('the fixed clock coalesces one input-aware step under backpressure and fences disposal', async () => {
+  let releaseFirstStep!: () => void
+  const firstStep = new Promise<void>(resolve => {
+    releaseFirstStep = resolve
+  })
+  let inputRevision = 0
+  const sampledRevisions: number[] = []
+  const clock = createGameFpsSimulationClock({
+    runStep: async () => {
+      sampledRevisions.push(inputRevision)
+      if (sampledRevisions.length === 1) await firstStep
+    },
+    onStepError: error => assert.fail(error instanceof Error ? error : String(error)),
+    minimumStepIntervalMs: 0,
+  })
+  const releaseInputQueue = bindGameFpsSimulationInputQueue(clock.queueInputStep)
+
+  clock.requestStep()
+  await settleSimulationClock()
+  inputRevision = 1
+  queueGameFpsSimulationInputStep()
+  queueGameFpsSimulationInputStep()
+  assert.deepEqual(sampledRevisions, [0])
+  releaseFirstStep()
+  await settleSimulationClock()
+  assert.deepEqual(sampledRevisions, [0, 1], 'pending intervals must become one live-input step')
+
+  let releaseDisposedStep!: () => void
+  const disposedStep = new Promise<void>(resolve => {
+    releaseDisposedStep = resolve
+  })
+  let disposedStepCount = 0
+  const disposedClock = createGameFpsSimulationClock({
+    runStep: async () => {
+      disposedStepCount += 1
+      await disposedStep
+    },
+    onStepError: error => assert.fail(error instanceof Error ? error : String(error)),
+    minimumStepIntervalMs: 0,
+  })
+  disposedClock.requestStep()
+  await settleSimulationClock()
+  disposedClock.requestStep()
+  disposedClock.dispose()
+  releaseDisposedStep()
+  await settleSimulationClock()
+  assert.equal(disposedStepCount, 1)
+  releaseInputQueue()
+  clock.dispose()
+})
+
+test('a disposed fixed clock ignores a late in-flight step rejection', async () => {
+  let rejectStep!: (error: Error) => void
+  const inFlightStep = new Promise<void>((_, reject) => {
+    rejectStep = reject
+  })
+  const publishedErrors: unknown[] = []
+  const clock = createGameFpsSimulationClock({
+    runStep: () => inFlightStep,
+    onStepError: error => publishedErrors.push(error),
+    minimumStepIntervalMs: 0,
+  })
+
+  clock.requestStep()
+  await settleSimulationClock()
+  clock.dispose()
+  rejectStep(new Error('stale Game Mode stage failure'))
+  await settleSimulationClock()
+
+  assert.deepEqual(publishedErrors, [])
+})
+
+test('input wakeups cannot advance the fixed clock faster than its interval', async () => {
+  let currentTimeMs = 0
+  let nextHandle = 0
+  const scheduled = new Map<number, { at: number; callback: () => void }>()
+  const schedule = (callback: () => void, delayMs: number) => {
+    const handle = nextHandle + 1
+    nextHandle = handle
+    scheduled.set(handle, { at: currentTimeMs + delayMs, callback })
+    return handle
+  }
+  const advanceTimeTo = async (targetTimeMs: number) => {
+    while (true) {
+      const next = [...scheduled.entries()]
+        .filter(([, value]) => value.at <= targetTimeMs)
+        .sort((left, right) => left[1].at - right[1].at || left[0] - right[0])[0]
+      if (!next) break
+      scheduled.delete(next[0])
+      currentTimeMs = next[1].at
+      next[1].callback()
+      await settleSimulationClock()
+    }
+    currentTimeMs = targetTimeMs
+    await settleSimulationClock()
+  }
+  let stepCount = 0
+  const clock = createGameFpsSimulationClock({
+    runStep: async () => {
+      stepCount += 1
+    },
+    onStepError: error => assert.fail(error instanceof Error ? error : String(error)),
+    minimumStepIntervalMs: 16,
+    now: () => currentTimeMs,
+    schedule,
+    cancelScheduled: handle => scheduled.delete(Number(handle)),
+  })
+
+  for (let timeMs = 0; timeMs < 105; timeMs += 1) {
+    clock.queueInputStep()
+    await settleSimulationClock()
+    await advanceTimeTo(timeMs + 1)
+  }
+  assert.equal(stepCount, 7, 'a 16 ms clock may start only at 0, 16, …, 96 ms')
+  clock.dispose()
+})
+
+test('overlapping movement taps retain every axis until the next fixed World_Tick', async () => {
+  resetGameFpsRuntimeForTests()
+  const initial = startGameFpsMission()
+
+  setGameFpsInput({ forward: 1, strafe: 0 })
+  setGameFpsInput({ forward: 1, strafe: 1 })
+  setGameFpsInput({ forward: 0, strafe: 1 })
+  setGameFpsInput({ forward: 0, strafe: 0 })
+  const moved = await advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS)
+
+  assert.notEqual(moved.player.x, initial.player.x)
+  assert.notEqual(moved.player.z, initial.player.z)
 })
 
 test('queued one-shot input remains staged until a fixed World_Tick consumes it', async () => {

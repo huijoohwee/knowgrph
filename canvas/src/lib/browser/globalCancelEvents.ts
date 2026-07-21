@@ -1,7 +1,7 @@
 export type GlobalCancelVisibilityBehavior = 'any' | 'hidden-only' | 'off'
 
 export function subscribeGlobalCancelEvents(args: {
-  listener: () => void
+  listener: (event?: Event) => void
   capture?: boolean
   includePointerDown?: boolean
   includeLostPointerCapture?: boolean
@@ -11,10 +11,10 @@ export function subscribeGlobalCancelEvents(args: {
   const visibilityBehavior = args.visibilityBehavior || 'off'
   if (typeof window === 'undefined') return () => void 0
 
-  const handle = () => {
-    args.listener()
+  const handle = (event: Event) => {
+    args.listener(event)
   }
-  const onVisibility = () => {
+  const onVisibility = (event: Event) => {
     if (visibilityBehavior === 'off') return
     if (visibilityBehavior === 'hidden-only') {
       try {
@@ -23,7 +23,7 @@ export function subscribeGlobalCancelEvents(args: {
         return
       }
     }
-    args.listener()
+    args.listener(event)
   }
 
   window.addEventListener('pointerup', handle, useCapture)
@@ -56,7 +56,7 @@ export function subscribeGlobalCancelEvents(args: {
 }
 
 export function subscribeGlobalCancelWatchdog(args: {
-  listener: () => void
+  listener: (event?: Event) => void
   capture?: boolean
   includePointerDown?: boolean
   includeLostPointerCapture?: boolean
@@ -80,7 +80,7 @@ export function subscribeGlobalCancelWatchdog(args: {
 }
 
 export function subscribeGlobalCancelIntervalWatchdog(args: {
-  listener: () => void
+  listener: (event?: Event) => void
   capture?: boolean
   includePointerDown?: boolean
   includeLostPointerCapture?: boolean
