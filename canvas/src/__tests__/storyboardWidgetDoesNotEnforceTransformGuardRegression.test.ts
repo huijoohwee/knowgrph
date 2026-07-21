@@ -18,7 +18,7 @@ export function testStoryboardWidgetDoesNotEnforceTransformGuard() {
   if (!text.includes('const initKey = zoomViewKey')) {
     throw new Error('expected StoryboardWidget to reuse zoomViewKey-based camera initialization like D3')
   }
-  if (!runtimeText.includes('const initKey = zoomViewKey') || runtimeText.includes('`storyboardWidget:${zoomViewKey}`')) {
-    throw new Error('expected StoryboardWidget render and runtime camera guards to share the exact same zoomViewKey identity')
+  if (!runtimeText.includes('const initKey = storyboardCameraViewKey') || runtimeText.includes('`storyboardWidget:${zoomViewKey}`')) {
+    throw new Error('expected StoryboardWidget runtime camera guards to share one document-scoped camera identity')
   }
 }
