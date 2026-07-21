@@ -11,6 +11,7 @@ const normalizeOrigin = value => {
 }
 
 const browserOrigin = normalizeOrigin(process.env.PRODUCTION_ORIGIN)
+const publicOrigin = normalizeOrigin(process.env.PRODUCTION_PUBLIC_ORIGIN || 'https://airvio.co')
 const markerOrigin = normalizeOrigin(process.env.PRODUCTION_MARKER_ORIGIN || browserOrigin)
 const expectedSourceRevision = String(process.env.RELEASE_SHA || '').trim()
 const expectedManifestDigest = String(process.env.PRODUCTION_IMMUTABLE_MANIFEST_DIGEST || '').trim()
@@ -77,6 +78,9 @@ try {
   const heroFrame = await heroFrameHandle?.contentFrame()
   assert.ok(heroFrame, 'home hero must mount its Knowgrph canvas iframe')
   await waitForCanvas(heroFrame)
+  const heroCanvasText = await heroFrame.locator('body').innerText()
+  assert.match(heroCanvasText, /Agent Definitions Runtime Contract|agent-definitions-runtime/)
+  assert.doesNotMatch(heroCanvasText, /Validation seed fallback/)
 
   const app = await context.newPage()
   await app.goto(`${browserOrigin}/knowgrph?kgReleaseProof=${expectedSourceRevision}`, { waitUntil: 'domcontentloaded', timeout: 45_000 })
@@ -84,9 +88,14 @@ try {
   const appText = await app.locator('body').innerText()
   assert.match(appText, /Explorer|Storyboard|Markdown/)
   assert.ok(browserAssetScripts.length > 0, 'browser proof must load exact-revision Knowgrph JavaScript assets')
-  assert.ok(
-    browserAssetScripts.every(pathname => pathname.startsWith(`/knowgrph/assets/${expectedSourceRevision}/`)),
-    `browser loaded JavaScript outside the exact release namespace: ${browserAssetScripts.join(', ')}`,
+  const exactReleaseAssetPrefix = `/knowgrph/assets/${expectedSourceRevision}/`
+  const scriptsOutsideExactReleaseNamespace = [
+    ...new Set(browserAssetScripts.filter(pathname => !pathname.startsWith(exactReleaseAssetPrefix))),
+  ]
+  assert.deepEqual(
+    scriptsOutsideExactReleaseNamespace,
+    [],
+    `browser loaded JavaScript outside the exact release namespace: ${scriptsOutsideExactReleaseNamespace.join(', ')}`,
   )
   assert.deepEqual(poisonedModules, [], `JavaScript module requests returned HTML: ${poisonedModules.join(', ')}`)
   assert.deepEqual(pageErrors, [], `uncaught browser errors: ${pageErrors.join(' | ')}`)
@@ -97,6 +106,7 @@ try {
 process.stdout.write(`${JSON.stringify({
   status: 'passed',
   browserOrigin,
+  publicOrigin,
   markerOrigin,
   sourceRevision: markerAtApex.marker.source.revision,
   agenticCanvasOsRevision: markerAtApex.marker.agenticCanvasOs.revision,

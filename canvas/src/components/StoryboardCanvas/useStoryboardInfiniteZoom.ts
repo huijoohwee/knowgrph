@@ -26,6 +26,19 @@ import {
 } from '@/components/StoryboardCanvas/storyboardInfiniteZoomMetrics'
 import { resolveStoryboardInfiniteZoomRequestTransform } from '@/components/StoryboardCanvas/storyboardInfiniteZoomRequest'
 
+const STORYBOARD_INITIAL_FIT_HISTORY_LIMIT = 64
+const completedStoryboardInitialFitKeys = new Set<string>()
+
+function rememberCompletedStoryboardInitialFitKey(fitKey: string): void {
+  completedStoryboardInitialFitKeys.delete(fitKey)
+  completedStoryboardInitialFitKeys.add(fitKey)
+  while (completedStoryboardInitialFitKeys.size > STORYBOARD_INITIAL_FIT_HISTORY_LIMIT) {
+    const oldestFitKey = completedStoryboardInitialFitKeys.values().next().value
+    if (!oldestFitKey) break
+    completedStoryboardInitialFitKeys.delete(oldestFitKey)
+  }
+}
+
 export function useStoryboardInfiniteZoom(args: {
   active: boolean
   graphData: GraphData | null
@@ -374,8 +387,12 @@ export function useStoryboardInfiniteZoom(args: {
     const viewportH = Math.max(1, Math.round(dims.height || 1))
     if (viewportW <= 1 || viewportH <= 1) return
     const fitKey = `${zoomViewKey}:${viewportW}x${viewportH}`
-    if (lastInitialFitKeyRef.current === fitKey) return
+    if (
+      lastInitialFitKeyRef.current === fitKey
+      || completedStoryboardInitialFitKeys.has(fitKey)
+    ) return
     lastInitialFitKeyRef.current = fitKey
+    rememberCompletedStoryboardInitialFitKey(fitKey)
     if ((metrics.graphData.nodes || []).length <= 1) return
     const requestState = useGraphStore.getState()
     const resolved = resolveStoryboardInfiniteZoomRequestTransform({

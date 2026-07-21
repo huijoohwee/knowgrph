@@ -609,8 +609,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeTextIncludesAll('workspaceEditorOverlayOpen !== true', 'Date.now() - lastUserInteractionAtMsRef.current < 500')) {
     throw new Error('expected Flow runtime to bypass recent-interaction init-fit suppression while Workspace overlay is open')
   }
-  if (!runtimeTextIncludesAll('alreadyInitializedForKey', 'workspaceEditorOverlayOpen === true', '&& hasNonIdentityTransform', 'Workspace-open recovery owns stale/offscreen correction from live overlay') && !runtimeTextIncludesAll('workspaceEditorOverlayOpen === true', '&& hasNonIdentityTransform', 'return')) {
-    throw new Error('expected Flow runtime workspace-open init-fit guard to preserve existing non-identity transforms')
+  if (!runtimeTextIncludesAll('workspaceEditorOverlayOpen === true', 'alreadyInitializedForKey || workspaceOverlayUserControlledRef.current', 'The established camera can intentionally be the 100% identity transform.')) {
+    throw new Error('expected Flow runtime workspace-open init-fit guard to preserve established transforms, including intentional identity')
   }
   if (!runtimeTextIncludesAll('const collectiveOverlayFitIds = storyboardWidgetMode ? deriveExpectedOverlayCollectiveIds(graphDataForFit) : []', 'const hasCollectiveFlowWidgets = storyboardWidgetMode && collectiveOverlayFitIds.length > 0')) {
     throw new Error('expected Flow runtime init fit strategy to detect collective Storyboard Widget overlays before selecting centered-fit mode')
@@ -693,11 +693,18 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     throw new Error('expected Flow runtime workspace-open preservation to keep balanced visible transforms without viewport-fit drift gating')
   }
   if (!runtimeText.includes('if (shouldPreserveEstablishedWorkspaceOverlayCamera({')
-    || !runtimeText.includes('initializedForView: lastInitTransformZoomViewKeyRef.current === zoomViewKey,')) {
+    || !runtimeText.includes('initializedForView: hasInitializedStoryboardZoomView(lastInitTransformZoomViewKeyRef.current, storyboardCameraViewKey),')) {
     throw new Error('expected Flow runtime to preserve the initialized view camera through transient topology coverage changes')
   }
   if (!runtimeText.includes('const workspaceOverlayStabilizedRef = React.useRef(false)')) {
     throw new Error('expected Flow runtime workspace-open recovery to track stabilized transform authority after THEN-layout convergence')
+  }
+  if (!runtimeText.includes('const initializedStoryboardZoomViewKeys = new Set<string>()')
+    || !runtimeText.includes('const storyboardCameraViewKey = React.useMemo(() => {')
+    || !runtimeText.includes('buildFlowZoomGraphMetaKey({')
+    || !runtimeText.includes('hasInitializedStoryboardZoomView(lastInitTransformZoomViewKeyRef.current, initKey)')
+    || !runtimeText.includes('rememberInitializedStoryboardZoomView(initKey)')) {
+    throw new Error('expected Storyboard camera initialization authority to survive same-page Flow renderer remounts for the stable view key')
   }
   if (!runtimeText.includes('const workspaceOverlayZoomViewKeyRef = React.useRef<string | null>(null)')) {
     throw new Error('expected Flow runtime workspace-open recovery to track active zoom view key for transform-authority resets')
@@ -750,21 +757,21 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
     || !runtimeText.includes('if (hasRenderableGraphNodes && !frontmatterDocumentModeRequested) return false')) {
     throw new Error('expected Flow runtime workspace-open pre-init draw suppression to keep Storyboard Widget frontmatter document mode off the generic renderable-graph early-draw path')
   }
-  if (!runtimeText.includes('if (lastInitTransformZoomViewKeyRef.current !== zoomViewKey) return')) {
+  if (!runtimeText.includes('if (!hasInitializedStoryboardZoomView(lastInitTransformZoomViewKeyRef.current, storyboardCameraViewKey)) return')) {
     throw new Error('expected Flow runtime workspace-open deferred draw flush to wait for current zoom view key init transform readiness')
   }
   if (!runtimeText.includes('workspace-open-preinit-recovery-suppressed')
-    || !runtimeText.includes('if (workspaceEditorOverlayOpen && lastInitTransformZoomViewKeyRef.current !== zoomViewKey && !overlayBounds) {')) {
+    || !runtimeText.includes('if (workspaceEditorOverlayOpen && !hasInitializedStoryboardZoomView(lastInitTransformZoomViewKeyRef.current, storyboardCameraViewKey) && !overlayBounds) {')) {
     throw new Error('expected Flow runtime workspace-open recovery to suppress generic pre-init corrective transforms while allowing bounded overlay-bounds fits')
   }
   if (!runtimeText.includes('if (shouldDeferWorkspaceOpenDraw()) return')
     || !runtimeText.includes('scheduleFlowDraw()')) {
     throw new Error('expected Flow runtime workspace-open draw paths to gate scheduleFlowDraw behind viewport-settle deferral')
   }
-  if (!runtimeText.includes('if (prev != null && prev !== zoomViewKey) {')) {
+  if (!runtimeText.includes('if (prev != null && prev !== storyboardCameraViewKey) {')) {
     throw new Error('expected Flow runtime workspace-open recovery to reset stabilized/user-controlled authority when active view key changes')
   }
-  if (!runtimeTextIncludesAll('if (open && !prev) {', 'lastInitTransformZoomViewKeyRef.current !== zoomViewKey', 'lastInitTransformZoomViewKeyRef.current = null')
+  if (!runtimeTextIncludesAll('if (open && !prev) {', 'lastInitTransformZoomViewKeyRef.current !== storyboardCameraViewKey', 'lastInitTransformZoomViewKeyRef.current = null')
     || runtimeText.includes('lastOffscreenOverlayRecoveryKeyRef.current = null')) {
     throw new Error('expected Flow runtime workspace reopen edge to reset only stale zoom-key memoization while preserving the current initialized transform')
   }
@@ -777,8 +784,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('storyboardWidgetMode && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true')) {
     throw new Error('expected Flow runtime non-workspace init-preserve guard to preserve initialized transforms without topology-change refits')
   }
-  if (!runtimeText.includes('workspaceEditorOverlayOpen === true\n      && hasNonIdentityTransform')) {
-    throw new Error('expected Flow runtime workspace-open init-preserve guard to preserve current transform before skipping re-fit')
+  if (!runtimeText.includes('workspaceEditorOverlayOpen === true\n      && (alreadyInitializedForKey || workspaceOverlayUserControlledRef.current)')) {
+    throw new Error('expected Flow runtime workspace-open init-preserve guard to preserve established identity before skipping re-fit')
   }
   if (!runtimeText.includes('const deriveExpectedOverlayCollectiveIds = React.useCallback((graphData: any): string[] => {')
     || !runtimeText.includes('const isOverlayCollectiveCoverageComplete = React.useCallback((args: {')

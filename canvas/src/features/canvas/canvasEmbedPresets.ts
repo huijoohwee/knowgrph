@@ -5,6 +5,14 @@ const CANONICAL_AGENT_DEFINITIONS_SHARE_PATH = `/knowgrph/share/${encodePublishe
   canonicalPath: CANONICAL_AGENT_DEFINITIONS_DOCUMENT_PATH,
 })}`
 const LOCAL_RUNTIME_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
+const CLOUDFLARE_PAGES_RUNTIME_SUFFIX = '.joohwee.pages.dev'
+
+const isSameDeploymentRuntimeHost = (hostname: string): boolean => {
+  const normalizedHostname = hostname.toLowerCase()
+  return LOCAL_RUNTIME_HOSTS.has(normalizedHostname)
+    || normalizedHostname === 'joohwee.pages.dev'
+    || normalizedHostname.endsWith(CLOUDFLARE_PAGES_RUNTIME_SUFFIX)
+}
 
 export const CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL = `https://airvio.co${CANONICAL_AGENT_DEFINITIONS_SHARE_PATH}?kgCanvasSurfaceMode=2d&kgCanvasRenderMode=2d&kgCanvas2dRenderer=storyboard&openEditorWorkspace=1`
 
@@ -13,7 +21,7 @@ export function resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl(runtimeOri
   if (!rawOrigin) return CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL
   try {
     const origin = new URL(rawOrigin)
-    if (!LOCAL_RUNTIME_HOSTS.has(origin.hostname.toLowerCase())) return CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL
+    if (!isSameDeploymentRuntimeHost(origin.hostname)) return CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL
     const embed = new URL(CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL)
     embed.protocol = origin.protocol
     embed.host = origin.host
@@ -28,7 +36,7 @@ export function normalizeLiveCanvasHeroCanvasEmbedUrl(value: string): string {
   if (!raw) return ''
   try {
     const url = new URL(raw)
-    const supportedOrigin = url.origin === 'https://airvio.co' || LOCAL_RUNTIME_HOSTS.has(url.hostname.toLowerCase())
+    const supportedOrigin = url.origin === 'https://airvio.co' || isSameDeploymentRuntimeHost(url.hostname)
     if (!supportedOrigin || url.pathname !== CANONICAL_AGENT_DEFINITIONS_SHARE_PATH) return raw
     url.searchParams.delete('kgPreview')
     url.searchParams.delete('kgLiveHero')
@@ -39,7 +47,7 @@ export function normalizeLiveCanvasHeroCanvasEmbedUrl(value: string): string {
     const runtimeOrigin = typeof window !== 'undefined' ? String(window.location?.origin || '').trim() : ''
     if (runtimeOrigin) {
       const runtime = new URL(runtimeOrigin)
-      if (LOCAL_RUNTIME_HOSTS.has(runtime.hostname.toLowerCase())) {
+      if (isSameDeploymentRuntimeHost(runtime.hostname)) {
         url.protocol = runtime.protocol
         url.host = runtime.host
       }

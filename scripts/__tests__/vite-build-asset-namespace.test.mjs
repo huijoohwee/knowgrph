@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import test from 'node:test'
 
 import {
@@ -16,6 +17,19 @@ test('build assets are isolated under the exact source revision', () => {
     chunkFileNames: `assets/${SOURCE_REVISION}/[name]-[hash].js`,
     assetFileNames: `assets/${SOURCE_REVISION}/[name]-[hash][extname]`,
   })
+})
+
+test('application and worker bundles share the exact revision namespace', () => {
+  const viteConfig = fs.readFileSync(new URL('../../canvas/vite.config.ts', import.meta.url), 'utf8')
+  const versionedOutputReferences = viteConfig.match(
+    /buildVersionedAssetFileNames\(runtimeIdentity\.sourceRevision\)/g,
+  ) || []
+
+  assert.equal(versionedOutputReferences.length, 2)
+  assert.match(
+    viteConfig,
+    /worker: \{[\s\S]*?rollupOptions: \{ output: \{ \.\.\.buildVersionedAssetFileNames\(runtimeIdentity\.sourceRevision\) \} \}/,
+  )
 })
 
 test('build asset isolation fails closed without an exact revision', () => {
