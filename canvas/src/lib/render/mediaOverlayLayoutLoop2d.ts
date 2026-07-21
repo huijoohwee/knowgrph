@@ -259,32 +259,32 @@ export function startMediaOverlayLayoutLoop2d(args: {
         : null
       const projectedWorldBox = args.projectWithWorldTransformScale === true
         ? {
-            left: t.applyX(center.x - w / 2),
-            top: t.applyY(center.y - h / 2),
-            scale: rawK,
+            left: cx - (w * k) / 2,
+            top: cy - (h * k) / 2,
+            scale: k,
           }
         : null
       const screenAnchor = args.getScreenAnchorForId?.(id) || null
       const anchoredWorldBox = screenAnchor && Number.isFinite(screenAnchor.clientX) && Number.isFinite(screenAnchor.clientY)
         ? {
-            left: Number(screenAnchor.clientX) - (w * rawK) / 2,
-            top: Number(screenAnchor.clientY) - (h * rawK) / 2,
-            scale: rawK,
+            left: Number(screenAnchor.clientX) - (w * k) / 2,
+            top: Number(screenAnchor.clientY) - (h * k) / 2,
+            scale: k,
           }
         : null
       if (anchoredWorldBox && rawK > 0) {
         const worldTopLeft = {
-          x: (anchoredWorldBox.left - t.x) / rawK,
-          y: (anchoredWorldBox.top - t.y) / rawK,
+          x: (Number(screenAnchor?.clientX) - t.x) / rawK - w / 2,
+          y: (Number(screenAnchor?.clientY) - t.y) / rawK - h / 2,
         }
         if (Number.isFinite(worldTopLeft.x) && Number.isFinite(worldTopLeft.y)) {
           args.onResolvedWorldTopLeftForId?.(id, worldTopLeft)
         }
       }
       const preferredCenter = anchoredWorldBox
-        ? { cx: anchoredWorldBox.left + (w * rawK) / 2, cy: anchoredWorldBox.top + (h * rawK) / 2 }
+        ? { cx: anchoredWorldBox.left + (w * anchoredWorldBox.scale) / 2, cy: anchoredWorldBox.top + (h * anchoredWorldBox.scale) / 2 }
         : projectedWorldBox
-        ? { cx: projectedWorldBox.left + w / 2, cy: projectedWorldBox.top + h / 2 }
+        ? { cx: projectedWorldBox.left + (w * projectedWorldBox.scale) / 2, cy: projectedWorldBox.top + (h * projectedWorldBox.scale) / 2 }
         : projectedZoomBox
         ? { cx: projectedZoomBox.left + w / 2, cy: projectedZoomBox.top + h / 2 }
         : scaleChanged && previousBox
