@@ -430,6 +430,14 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   if (!sourceComposeText.includes('isWorkspaceGraphMutationBlocked') || !sourceComposeText.includes('if (isWorkspaceGraphMutationBlocked(store)) return')) {
     throw new Error('expected composed source-file import modes to skip frontmatter preset replay during workspace graph mutation locks')
   }
+  if (!sourceComposeText.includes("import { resolveFlowWidgetStateGraphKey } from '@/lib/storyboardWidget/widgetStateScope'")) {
+    throw new Error('expected composed source-file workspace fit to share the Widget/Rich Media document identity')
+  }
+  if (!sourceComposeText.includes("let lastWorkspaceOpenStoryboardWidgetFitGraphKey = ''")
+    || !sourceComposeText.includes('if (!graphKey || graphKey === lastWorkspaceOpenStoryboardWidgetFitGraphKey) return')
+    || !sourceComposeText.includes('lastWorkspaceOpenStoryboardWidgetFitGraphKey = graphKey')) {
+    throw new Error('expected same-document source recomposition not to request a fresh Storyboard fit after Widget or Rich Media generation')
+  }
 }
 
 export function testRunAllLayoutLockBlocksWorkspaceFrameMutation() {
