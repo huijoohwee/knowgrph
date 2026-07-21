@@ -14,12 +14,15 @@ execution_boundary: "dev-only"
 publish_scope: "local-only"
 readiness:
   baseline_protected_commit: "fbb615be92ea58e6e4cfc981feb2122ea81e79b2"
+  follow_up_protected_merge_commit: "0b0e70787edb80e71d368d56c1478ffd9655ce0d"
+  exact_main_runtime_commit: "0b0e70787edb80e71d368d56c1478ffd9655ce0d"
+  follow_up_verified_at: "2026-07-21T10:08:11Z"
   source_contract: "passed"
   focused_runtime: "passed"
   core_browser_smoke: "passed"
   external_share_browser_smoke: "passed"
-  protected_integration: "baseline PR #263 passed; XR visual-fidelity PR #273 pending"
-  xr_visual_fidelity_follow_up: "local candidate passed; protected integration pending"
+  protected_integration: "baseline PR #263 and XR visual-fidelity PR #273 passed"
+  xr_visual_fidelity_follow_up: "protected and exact-main acceptance passed"
   production: "not authorized"
 constraints:
   - "one procedural offline single-player mission"
@@ -52,7 +55,7 @@ source_references:
 
 Knowgrph gains one browser-local FloatingPanel **Game Mode** that runs a bounded first-person mission inside the existing React Three Fiber Canvas. It opens from a source-backed run-ready document, Motion Control's shared target catalog, browser WebMCP, or the strict `/game.mode @canvas #gameplay` invocation. On XR, the authored atmosphere, world, props, and paused frame remain visibly mounted while Game Mode supplies only its first-person camera and actor overlay. Desktop, pointer, touch, optional Motion Control, and MCP input arm one deterministic native Agentic ECS mission with four scored NPC actions, normalized slab AABB hitscan, visible HUD/runtime errors, and Decisions-only WorkspaceFs persistence.
 
-Core gameplay requires no camera, account, passkey, model, remote asset, gameplay network call, or Cloudflare service. Optional Motion Control retains its existing explicit camera-permission and LiteRT pose-inference boundary and contributes normalized controller input only; it does not choose NPC actions. The pre-follow-up baseline gates passed at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` after PR #263 merged. The authored-XR composition and ready-clock follow-up is a locally accepted PR #273 candidate until protected integration and exact-main acceptance complete; no production or Cloudflare deployment is authorized.
+Core gameplay requires no camera, account, passkey, model, remote asset, gameplay network call, or Cloudflare service. Optional Motion Control retains its existing explicit camera-permission and LiteRT pose-inference boundary and contributes normalized controller input only; it does not choose NPC actions. The pre-follow-up baseline gates passed at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` after PR #263 merged. The authored-XR composition and ready-clock follow-up passed PR #273's protected Integration Gate and exact-main acceptance at `0b0e70787edb80e71d368d56c1478ffd9655ce0d`; no production or Cloudflare deployment is authorized.
 
 ## Product Requirements
 
@@ -162,7 +165,7 @@ Given a write failure, pending Decisions remain in memory, the previous document
 
 #### AC-8: Dev-only readiness
 
-Given the candidate source, when `npm run game-fps:runtime-ready` passes, then its evidence covers focused game tests, Agentic ECS tests, Canvas type checking, a production-format local build, and the source-backed seed contract. A separate local browser smoke proves visible play and save/reset behavior. Neither command deploys or performs a remote mutation.
+Given an exact runtime source revision, when `npm run game-fps:runtime-ready` passes, then its evidence covers focused game tests, Agentic ECS tests, Canvas type checking, a production-format local build, and the source-backed seed contract. A separate local browser smoke proves visible play and save/reset behavior. Neither command deploys or performs a remote mutation.
 
 #### AC-9: strict invocation and browser WebMCP
 
@@ -316,7 +319,7 @@ Game Mode uses the existing Canvas View Mode → Surface Mode → XR Mode owner 
 
 ## Runtime Readiness Gate
 
-The single source of truth for evidence is `docs/documents/knowgrph-game-fps-runtime-readiness.md`. Its baseline local runtime-readiness checklist passed at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2`, and PR #263 passed the separate protected-integration gate. The XR visual-fidelity and ready-clock follow-up has passed focused source, TypeScript, core-browser, and operator-supplied external-share acceptance on its isolated candidate; protected integration remains pending. Release remains unauthorized.
+The single source of truth for evidence is `docs/documents/knowgrph-game-fps-runtime-readiness.md`. Its baseline local runtime-readiness checklist passed at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2`, and PR #263 passed the separate protected-integration gate. The XR visual-fidelity and ready-clock follow-up passed PR #273's protected gate plus focused source, TypeScript, build, core-browser, and operator-supplied external-share acceptance on exact main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d`. Release remains unauthorized.
 
 The expected focused command is:
 
@@ -326,7 +329,7 @@ npm run game-fps:browser-smoke
 KG_GAME_MODE_VALIDATION_SHARE_URL='<operator-supplied share URL>' npm -C canvas run test:smoke:game-mode-xr-share:browser
 ```
 
-The first two commands are finite and local apart from ordinary build/test artifacts. The opt-in third command reads only the operator-supplied public Markdown into localhost candidate code and applies a local/supplied-origin allowlist. No command accesses a paid model, writes the supplied URL/token into repository bytes or evidence, deploys, mutates the public source, or mutates Cloudflare.
+The first two commands are finite and local apart from ordinary build/test artifacts. The opt-in third command reads only the operator-supplied public Markdown into the local exact-main runtime and applies a local/supplied-origin allowlist. No command accesses a paid model, writes the supplied URL/token into repository bytes or evidence, deploys, mutates the public source, or mutates Cloudflare.
 
 ## Agent-Platform Readiness
 
@@ -338,4 +341,4 @@ The first two commands are finite and local apart from ordinary build/test artif
 
 ## Release Boundary
 
-The deliverable is a Dev/local runtime-readiness candidate. No Pages build upload, Worker deployment, D1/R2/KV/DO mutation, production route change, or release claim belongs to this scope. The opt-in acceptance read exact operator-supplied public Markdown bytes and exercised them against localhost candidate code; it does not prove the public document contains the new Game Mode metadata or that candidate code is publicly deployed. A future release must begin from a protected integrated SHA and explicit operator authorization.
+The deliverable is protected and exact-main ready for Dev/local runtime use. No Pages build upload, Worker deployment, D1/R2/KV/DO mutation, production route change, or release claim belongs to this scope. The opt-in acceptance read exact operator-supplied public Markdown bytes and exercised them against the local exact-main runtime; it does not prove the public document contains the new Game Mode metadata or that the runtime is publicly deployed. A future release must begin from a protected integrated SHA and explicit operator authorization.

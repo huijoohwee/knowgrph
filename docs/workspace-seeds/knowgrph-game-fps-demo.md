@@ -3,7 +3,7 @@ title: "Knowgrph Game FPS Mission"
 doc_type: "Workspace Demo"
 status: "runtime-ready"
 runtime_status: "runtime-ready"
-game_mode_xr_fidelity_status: "local PR #273 candidate passed; protected integration pending"
+game_mode_xr_fidelity_status: "protected PR #273 and exact-main acceptance passed"
 publish_scope: "local-only"
 execution_boundary: "dev-only"
 kgCanvasRenderMode: "3d"
@@ -85,11 +85,14 @@ persistence:
 runtime_validation:
   validation_input_forbid_hardcode_in_repo: true
   validation_input_locator_persisted: false
-  external_proof: "operator-supplied public document bytes were read into the localhost candidate; no deploy or public mutation occurred"
+  external_proof: "operator-supplied public document bytes were read into the local exact-main runtime; no deploy or public mutation occurred"
   baseline_protected_commit: "fbb615be92ea58e6e4cfc981feb2122ea81e79b2"
   baseline_verified_at: "2026-07-21T07:50:51Z"
   follow_up_pull_request: 273
-  follow_up_status: "local candidate passed; protected integration pending"
+  follow_up_protected_merge_commit: "0b0e70787edb80e71d368d56c1478ffd9655ce0d"
+  exact_main_runtime_commit: "0b0e70787edb80e71d368d56c1478ffd9655ce0d"
+  follow_up_verified_at: "2026-07-21T10:08:11Z"
+  follow_up_status: "protected and exact-main acceptance passed"
   launch_states: ["idle", "loading", "ready", "error"]
   mission_states: ["stopped", "playing", "won", "lost"]
   persistence_states: ["idle", "saving", "saved", "error"]
@@ -133,7 +136,7 @@ flow:
       properties:
         role: "validation"
         state: "runtime-ready"
-        output: "Bind source, browser, determinism, cost, persistence, and no-deploy evidence to the candidate commit."
+        output: "Bind source, browser, determinism, cost, persistence, and no-deploy evidence to the exact tested runtime commit."
   connections:
     - from: "game_fps_entry"
       to: "game_fps_simulation"
@@ -151,7 +154,7 @@ flow:
 
 # Knowgrph Game FPS Mission
 
-This source document is the canonical local activation contract for the bounded Game FPS mission. The focused, local-browser, and external-source gates passed for the pre-follow-up baseline at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2`, verified through `2026-07-21T07:50:51Z`; the demo is runtime-ready for local/Dev use only, with no production deployment authorized.
+This source document is the canonical local activation contract for the bounded Game FPS mission. The focused, local-browser, and external-source gates passed for the pre-follow-up baseline at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2`, verified through `2026-07-21T07:50:51Z`. PR #273 then passed protected integration, and the authored-XR follow-up reran on exact main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d` through `2026-07-21T10:08:11Z`; the demo is runtime-ready for local/Dev use only, with no production deployment authorized.
 
 ## Run the runtime-ready demo
 
@@ -190,16 +193,16 @@ Terminal mission results do not auto-save. Validated Decisions stay pending unti
 - [x] Canvas typecheck and production-format local build pass.
 - [x] Local browser smoke proves movement, aim, fire, NPC reaction, completion, and HUD feedback.
 - [x] FloatingPanel Game Mode owns Open, Start, Stop, Restart, Fire, Reload, Save, and Exit on the existing 3D/shared-XR Canvas.
-- [x] Local PR #273 candidate: tick-zero health and Decisions remain stable until normalized player engagement; Stop/Start resumes exact in-memory state. Protected integration is pending.
-- [x] Local PR #273 candidate: XR keeps its authored scene, atmosphere, props, placement, and collision catalog under Game Mode while its input/simulation pause and restore exactly on exit. Protected integration is pending.
-- [x] Local PR #273 candidate: every authored XR preset filters non-obstructing vertical slabs, admits clear player/NPC spawns, and replaces a stale live or stopped spatial profile before gameplay. Protected integration is pending.
+- [x] Protected PR #273 and exact-main proof: tick-zero health and Decisions remain stable until normalized player engagement; Stop/Start resumes exact in-memory state.
+- [x] Protected PR #273 and exact-main proof: XR keeps its authored scene, atmosphere, props, placement, and collision catalog under Game Mode while its input/simulation pause and restore exactly on exit.
+- [x] Protected PR #273 and exact-main proof: every authored XR preset filters non-obstructing vertical slabs, admits clear player/NPC spawns, and replaces a stale live or stopped spatial profile before gameplay.
 - [x] Terminal Decisions remain pending until explicit Save writes validated Decisions only through WorkspaceFs; no terminal auto-save exists.
 - [x] Malformed KGC blocks Start and Restart until explicit Reset; write failure retains pending Decisions for retry.
 - [x] The strict `/game.mode @canvas #gameplay` contract and browser-local WebMCP schema/tools reject duplicate or conflicting bindings.
 - [x] Source-authored runtime identity activates imports without a path alias and fails closed on path/source conflict.
 - [x] The synchronous WebGL gate and HUD expose unsupported and runtime-error states without a remote renderer.
 - [x] Browser proof records zero non-local, local runtime-bridge, or Cloudflare requests; ordinary localhost application assets remain local build inputs.
-- [x] Separate compatibility proof read operator-supplied public document bytes into the localhost candidate; it did not deploy or mutate a public document.
+- [x] Separate compatibility proof read operator-supplied public document bytes into the local exact-main runtime; it did not deploy or mutate a public document.
 - [x] No deployment or automatic Git operation occurs.
 
 Proof belongs in `docs/documents/knowgrph-game-fps-runtime-readiness.md`; do not turn these boxes green from source inspection alone.

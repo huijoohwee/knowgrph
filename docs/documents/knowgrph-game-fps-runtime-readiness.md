@@ -13,14 +13,17 @@ baseline_protected_commit: "fbb615be92ea58e6e4cfc981feb2122ea81e79b2"
 baseline_verified_at: "2026-07-21T07:50:51Z"
 baseline_protected_pull_request: "https://github.com/huijoohwee/knowgrph/pull/263"
 follow_up_pull_request: "https://github.com/huijoohwee/knowgrph/pull/273"
-follow_up_status: "local candidate passed; protected integration pending"
+follow_up_protected_merge_commit: "0b0e70787edb80e71d368d56c1478ffd9655ce0d"
+exact_main_runtime_commit: "0b0e70787edb80e71d368d56c1478ffd9655ce0d"
+follow_up_verified_at: "2026-07-21T10:08:11Z"
+follow_up_status: "protected PR #273 and exact-main acceptance passed"
 agentic_runtime_docs_commit: "41cd9855dbcec074b2182a9eaea455c54c117fe4"
 deployment: "not authorized"
 ---
 
 # Knowgrph Game FPS Runtime Readiness
 
-This file is the evidence ledger for the local/Dev Game Mode increment. Source, build, core-browser, external-source, XR/Motion, invocation, persistence, and no-hardcode gates passed for the pre-follow-up baseline at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` after PR #263 merged. This is a local runtime-readiness claim only; production remains unauthorized.
+This file is the evidence ledger for the local/Dev Game Mode increment. PR #263 established the pre-follow-up baseline at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2`. PR #273 then merged the authored-XR composition, spatial-profile, and ready-clock follow-up, and source, build, core-browser, external-source, XR/Motion, invocation, persistence, and no-hardcode gates reran on exact main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d`. This is a local runtime-readiness claim only; production remains unauthorized.
 
 ## Canonical commands
 
@@ -31,7 +34,7 @@ npm run demo:game-fps
 KG_GAME_MODE_VALIDATION_SHARE_URL='<operator-supplied share URL>' npm -C canvas run test:smoke:game-mode-xr-share:browser
 ```
 
-The runtime-ready and core-browser commands cover game unit/integration tests, deterministic replay, Agentic ECS proof, Canvas type checking, a production-format local build, workspace-seed validation, and local interaction/persistence. They require no non-local request. The opt-in share command accepts its source only through the environment, performs one allowlisted verifier preflight read to establish exact bytes plus exactly one product/browser document fetch, and runs those bytes against localhost candidate code. The supplied URL, opaque token, decoded path, and content checksum must never be written into repository bytes or proof artifacts. None of these commands deploys or performs a public mutation.
+The runtime-ready and core-browser commands cover game unit/integration tests, deterministic replay, Agentic ECS proof, Canvas type checking, a production-format local build, workspace-seed validation, and local interaction/persistence. They require no non-local request. The opt-in share command accepts its source only through the environment, performs one allowlisted verifier preflight read to establish exact bytes plus exactly one product/browser document fetch, and runs those bytes against the local exact-main runtime. The supplied URL, opaque token, decoded path, and content checksum must never be written into repository bytes or proof artifacts. None of these commands deploys or performs a public mutation.
 
 ## Evidence ledger
 
@@ -50,31 +53,31 @@ The runtime-ready and core-browser commands cover game unit/integration tests, d
 | Malformed save | Hydration blocks Start/Restart, bytes remain intact, HUD names the path, only explicit Reset replaces | passed |
 | WebGL | Synchronous capability gate keeps an unsupported mission stopped and renders a local error | passed |
 | Canvas/XR | One existing R3F Canvas; XR pauses for Game Mode, restores exactly, and continues afterward | passed |
-| XR visual fidelity follow-up | Authored XR atmosphere, terrain, props, and scene anchors stay mounted under Game Mode; fallback arena is absent | candidate passed; protected pending |
-| XR profile admission follow-up | All catalogued XR presets filter walkable/overhead slabs, admit five non-overlapping ground-actor spawns, and replace stale profiles across live/stopped surface or terrain changes | candidate passed; protected pending |
-| Ready clock follow-up | Tick, health, and Decisions stay unchanged until normalized desktop, pointer, touch, Motion Control, or MCP engagement | candidate passed; protected pending |
+| XR visual fidelity follow-up | Authored XR atmosphere, terrain, props, and scene anchors stay mounted under Game Mode; fallback arena is absent | exact-main passed |
+| XR profile admission follow-up | All catalogued XR presets filter walkable/overhead slabs, admit five non-overlapping ground-actor spawns, and replace stale profiles across live/stopped surface or terrain changes | exact-main passed |
+| Ready clock follow-up | Tick, health, and Decisions stay unchanged until normalized desktop, pointer, touch, Motion Control, or MCP engagement | exact-main passed |
 | Stop/Start | Stop preserves current tick/player state; Start resumes that same in-memory mission | passed |
 | Source identity | Known source-authored `run_ready_demo.id` activates after import/rename and conflicts fail closed | passed |
 | Core browser | Visible movement, fire, four score rows, completion, explicit save, reload, malformed-save reset | passed |
 | External source | Exact supplied Markdown bytes, strict WebMCP, Motion/XR round trip, stable Canvas, allowlisted network | passed |
 | Hardcode guard | Supplied URL/token and its decoded canonical path are absent from repository bytes | passed |
 | Network | Core gameplay made no non-local request; external acceptance made one verifier preflight read plus one exact product/browser source fetch | passed |
-| Focused integration | Local-candidate source, ECS, Canvas typecheck, build, and browser gates pass | passed |
-| Protected integration | PR #263 Integration Gate and protected squash merge | passed |
+| Focused integration | Exact-main source, ECS, Canvas typecheck, build, and browser gates pass | passed |
+| Protected integration | PR #263 baseline and PR #273 follow-up Integration Gates and protected squash merges | passed |
 | Release boundary | No Pages/Worker/Cloudflare deployment performed | passed |
 
 ## Core browser smoke record
 
 | Field | Recorded evidence |
 |---|---|
-| Baseline protected commit | `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` |
+| Exact-main runtime commit | `0b0e70787edb80e71d368d56c1478ffd9655ce0d` |
 | Local target | `http://localhost:4185/`, Google Chrome headless |
 | Viewport | Mobile acceptance `390x844`; desktop keyboard/fire inputs exercised in the same trace |
 | First frame | Playable frame visible; four NPCs and touch controls visible |
-| Movement | Player moved from `[0, 2]` to `[0, 0.46]`; key release neutralized input and a second `W` cycle reached Z `-0.17` |
+| Movement | Player moved from `[0, 2]` to `[0, 0.74]`; key release neutralized input and a second `W` cycle reached Z `-0.03` |
 | Browser WebMCP | Registered and active with schema `knowgrph-game-mode-mcp/v1`; duplicate semantic binding rejected |
 | Fire | Ammo changed from `8` to `7`; HUD reported a hit |
-| Fixed runtime | Tick advanced from `14` to `102` |
+| Fixed runtime | Tick remained `0` until input, then advanced to `85` |
 | Completion | Phase `won`, enemies alive `0`, pending Decision count `24`, reload observed |
 | Save/resume | Explicit Save wrote `24` Decisions to `/game-fps/mission-1-decisions.md`; reload restored phase `won` |
 | Malformed save | HUD named `/game-fps/mission-1-decisions.md`; original bytes remained intact; retry stayed hidden; explicit reset returned phase `playing` and save status `saved` |
@@ -88,7 +91,7 @@ The core browser smoke exercised the runtime and local persistence directly; the
 
 | Field | Recorded evidence |
 |---|---|
-| Baseline protected commit | `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` |
+| Exact-main runtime commit | `0b0e70787edb80e71d368d56c1478ffd9655ce0d` |
 | Source boundary | Environment-only operator input; exact public Markdown bytes at execution time imported into localhost |
 | Product fetch | Product deep-link owner derived the document URL; exactly one matching fetch observed |
 | Renderer | WebGL supported; exactly one Canvas with stable DOM identity across Game Mode/Motion/XR transitions |
@@ -100,13 +103,13 @@ The core browser smoke exercised the runtime and local persistence directly; the
 | Errors | Console errors `0`; page errors `0`; failed responses `0` |
 | Local artifacts | `data/outputs/game-mode-xr-share-browser-smoke.json` and screenshots are ignored proof outputs |
 
-This acceptance proves compatibility between the exact supplied public source bytes and localhost candidate code. It does not prove the public document contains the new Game Mode block, that candidate code is deployed, or that any public state was mutated.
+This acceptance proves compatibility between the exact supplied public source bytes and the local exact-main runtime. It does not prove the public document contains the new Game Mode block, that the runtime is publicly deployed, or that any public state was mutated.
 
-## XR visual-fidelity follow-up candidate record
+## XR visual-fidelity exact-main record
 
 | Field | Recorded evidence |
 |---|---|
-| Candidate lane | Isolated PR #273 candidate; protected integration pending |
+| Protected lane | PR #273 passed Integration Gate and merged as `0b0e70787edb80e71d368d56c1478ffd9655ce0d`; exact-main acceptance reran through `2026-07-21T10:08:11Z` |
 | Scene composition | `kg_graph_xr_stage`, `kg_xr_native_controller_demo`, `kg_xr_stage_preset_singapore`, and `kg_xr_playground_treasure` remained exported before and during Game Mode |
 | Game overlay | `kg_game_fps_mission` plus four named NPC roots mounted in the same GLTF scene snapshot |
 | Fallback rejection | `kg_game_fps_arena` was absent while the shared surface reported `xr-authored` and retained-scene ownership |
@@ -118,7 +121,7 @@ This acceptance proves compatibility between the exact supplied public source by
 | XR lifecycle | The paused XR frame remained byte-equivalent during Game Mode and resumed from that exact frame after exit |
 | Network/errors | Only localhost and the supplied origin were allowed; console errors `0`, page errors `0`, failed responses `0` |
 
-The follow-up proof used the environment-only operator source and wrote only ignored local artifacts. The supplied URL, token, decoded path, and checksum are not repository evidence. This section becomes protected-main evidence only after PR #273 merges and the same acceptance reruns at that exact main SHA.
+The follow-up proof used the environment-only operator source and wrote only ignored local artifacts. The supplied URL, token, decoded path, and checksum are not repository evidence. PR #273 merged through the protected gate, and the same acceptance reran on that exact main SHA.
 
 ## Baseline protected-main command results
 
@@ -130,10 +133,10 @@ At the exact protected main commit:
 - Focused XR/Motion contracts, five runtime-doc dependency contracts, the external-input no-hardcode guard, focused ESLint, and `git diff --check` passed.
 - Runtime docs resolve Agentic Canvas OS protected commit `41cd9855dbcec074b2182a9eaea455c54c117fe4`; no copied or mutable ref is accepted.
 
-## Follow-up candidate command results
+## Follow-up exact-main command results
 
-The PR #273 candidate passed 27 focused Game FPS source tests, including all-preset spatial admission and live/stopped profile replacement, plus Canvas TypeScript, core browser smoke, the environment-driven no-hardcode gate, and enhanced external XR-share acceptance with authored-scene retention, shared placement/collision ownership, pause fencing, and idle-until-engaged assertions. Its protected Integration Gate remains pending.
+At exact main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d`, `npm run game-fps:runtime-ready` passed the 16-module source contract, 59 Agentic ECS tests, 27 focused Game FPS source tests, Canvas TypeScript, and an 8,522-module production Vite build namespaced under the exact SHA. Core browser smoke, the environment-driven no-hardcode gate, and enhanced external XR-share acceptance passed with authored-scene retention, shared placement/collision ownership, all-preset admission, pause fencing, idle-until-engaged behavior, exact XR restoration, and zero browser errors. PR #273's protected Integration Gate passed before the squash merge.
 
 ## Promotion rule
 
-Local runtime readiness is achieved when every local evidence row passes at one exact commit. Protected integration passed separately through PR #263 for the baseline; the visual-fidelity follow-up remains a local candidate until PR #273 merges and exact-main acceptance passes. Neither result authorizes production, Cloudflare, or public-surface claims.
+Local runtime readiness is achieved when every local evidence row passes at one exact commit. PR #263 remains the historical baseline; PR #273 and exact-main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d` carry the current authored-XR Game Mode proof. Neither result authorizes production, Cloudflare, or public-surface claims.

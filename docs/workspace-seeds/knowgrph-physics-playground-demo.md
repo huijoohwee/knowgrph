@@ -3,7 +3,7 @@ title: "Knowgrph Native XR Physics Playground"
 doc_type: "Workspace Demo"
 status: "runtime-ready"
 runtime_status: "runtime-ready"
-game_mode_xr_fidelity_status: "local PR #273 candidate passed; protected integration pending"
+game_mode_xr_fidelity_status: "protected PR #273 and exact-main acceptance passed"
 publish_scope: "local-only"
 kgCanvasSurfaceMode: "xr"
 kgCanvasRenderMode: "3d"
@@ -104,6 +104,7 @@ game_mode:
   inspect_tool: "knowgrph.inspect_local_game_mode"
   control_tool: "knowgrph.control_local_game_mode"
   lifecycle: "retain the authored XR scene while suspending its controller input and simulation; restore both on exit"
+  controller_handoff: "temporarily suspend the native XR controller stage and restore it on exit"
   renderer_owner: "the existing React Three Fiber Canvas in shared XR Mode; never a second Canvas"
   scene_composition: "authored XR atmosphere, terrain, props, and paused frame plus the Game Mode first-person actor overlay; no fallback arena"
   spatial_profile: "reuse the authored stage placement, playable bounds, and ground-obstructing native-controller static colliders; admit deterministic clear spawns and replace stale surface/terrain profiles"
@@ -167,8 +168,12 @@ kgXrMotionReference:
           gait: "wheeled"
   camera: []
 runtime_validation:
-  candidate_commit: "067ed16d0a8c77d1c612d6f63aa791ae02fba19c"
-  verified_at: "2026-07-21T07:01:46Z"
+  baseline_local_candidate_commit: "067ed16d0a8c77d1c612d6f63aa791ae02fba19c"
+  baseline_local_verified_at: "2026-07-21T07:01:46Z"
+  follow_up_pull_request: 273
+  follow_up_protected_merge_commit: "0b0e70787edb80e71d368d56c1478ffd9655ce0d"
+  exact_main_runtime_commit: "0b0e70787edb80e71d368d56c1478ffd9655ce0d"
+  follow_up_verified_at: "2026-07-21T10:08:11Z"
   mode_activation: ["xr surface", "3d renderer", "xr stage"]
   required_states: ["ready", "running", "paused"]
   controller_parity: ["ball", "rocket"]
@@ -178,7 +183,7 @@ runtime_validation:
   editor_chrome: true
   dedicated_editor_chrome: false
   validation_input_locator_persisted: false
-  external_proof: "operator-supplied public document bytes were read into the localhost candidate; no deploy or public mutation occurred"
+  external_proof: "operator-supplied public document bytes were read into the local exact-main runtime; no deploy or public mutation occurred"
 mcp_control:
   inspect_tool: "knowgrph.inspect_local_xr_scene_assets"
   control_tool: "knowgrph.control_local_xr_scene"
@@ -284,11 +289,11 @@ Switching between Ball and Rocket changes the active controller and procedural p
 - [x] Default Helicopter, Airplane, Car, and Ball asset choices are local catalog content with no downloaded models.
 - [x] FloatingPanel Game Mode reuses the same 3D/shared-XR Canvas and provides Open, Start, Stop, Restart, Fire, Reload, Save, and Exit.
 - [x] Strict `/game.mode @canvas #gameplay` invocation and browser-local WebMCP schema/tools reject duplicate or conflicting bindings.
-- [x] Local PR #273 candidate: Game Mode retains the authored XR world and atmosphere, shares its placement/collider catalog, suppresses the fallback arena, and restores the exact continuing XR frame on Exit. Protected integration is pending.
-- [x] Local PR #273 candidate: every catalogued XR terrain/environment filters walkable-low and overhead slabs, admits clear player/NPC spawns, and replaces stale live/stopped spatial profiles. Protected integration is pending.
-- [x] Local PR #273 candidate: Game Mode remains healthy at tick zero until normalized input, and Stop/Start preserves exact in-memory state. Protected integration is pending.
+- [x] Protected PR #273 and exact-main proof: Game Mode retains the authored XR world and atmosphere, shares its placement/collider catalog, suppresses the fallback arena, and restores the exact continuing XR frame on Exit.
+- [x] Protected PR #273 and exact-main proof: every catalogued XR terrain/environment filters walkable-low and overhead slabs, admits clear player/NPC spawns, and replaces stale live/stopped spatial profiles.
+- [x] Protected PR #273 and exact-main proof: Game Mode remains healthy at tick zero until normalized input, and Stop/Start preserves exact in-memory state.
 - [x] Motion Control is optional player input only; NPCs retain the deterministic four-action scored policy.
 - [x] Terminal Decisions remain pending until explicit Save; malformed hydration blocks Start and Restart until explicit Reset.
 - [x] Source-authored `run_ready_demo.id` owns imported activation without a path alias and conflicts fail closed.
-- [x] Separate compatibility proof read operator-supplied public document bytes into the localhost candidate; it did not deploy or mutate a public document.
+- [x] Separate compatibility proof read operator-supplied public document bytes into the local exact-main runtime; it did not deploy or mutate a public document.
 - [x] No remote assets, provider calls, or external runtime dependencies are required.
