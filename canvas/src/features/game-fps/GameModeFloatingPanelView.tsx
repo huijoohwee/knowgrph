@@ -153,6 +153,7 @@ export function GameModeFloatingPanelView() {
       data-kg-game-mode-floating-panel="1"
       data-kg-game-mode-active={gameMode.active ? '1' : '0'}
       data-kg-game-mode-phase={mission.phase}
+      data-kg-game-mode-simulation={gameMode.simulationStatus}
       data-kg-game-mode-mcp="knowgrph.control_local_game_mode"
     >
       <FloatingPanelCatalogHeader
@@ -160,7 +161,7 @@ export function GameModeFloatingPanelView() {
         subtitle="Deterministic ECS gameplay"
         actionsLabel="Game Mode actions"
         actions={<>
-          <button type="button" className="App-toolbar__btn" disabled={pendingOperation !== null || mission.phase === 'playing' || decisions.hydrationBlocked} onClick={() => void runControl('start')} data-kg-game-mode-start="1">
+          <button type="button" className="App-toolbar__btn" disabled={pendingOperation !== null || mission.phase !== 'stopped' || decisions.hydrationBlocked} onClick={() => void runControl('start')} data-kg-game-mode-start="1">
             <Gamepad2 className="h-3.5 w-3.5" aria-hidden="true" /> Start
           </button>
           <button type="button" className="App-toolbar__btn" disabled={pendingOperation !== null || !gameMode.active} onClick={() => void runControl('stop')} data-kg-game-mode-stop="1">
@@ -170,7 +171,7 @@ export function GameModeFloatingPanelView() {
       />
       <section className={floatingPanelCatalogBodyClassName('grid content-start gap-2 px-1 pb-2')}>
         <section className={cn('grid grid-cols-3 gap-2 rounded border p-2 text-[10px]', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} aria-label="Game Mode telemetry">
-          <span><b>Status</b><br />{gameMode.launchStatus}</span>
+          <span><b>Status</b><br />{gameMode.launchStatus} · {gameMode.simulationStatus}</span>
           <span><b>Mission</b><br />{mission.phase}</span>
           <span><b>Surface</b><br />{gameMode.surfaceMode}</span>
           <span><b>Health</b><br />{mission.player.health}</span>
@@ -216,7 +217,7 @@ export function GameModeFloatingPanelView() {
             <button type="button" className="App-toolbar__btn" onClick={() => switchCompanion('motion-control')} data-kg-game-mode-open-companion="motion-control">Motion Control</button>
             <button type="button" className="App-toolbar__btn" onClick={() => switchCompanion('xr-3d')} data-kg-game-mode-open-companion="xr"><View className="h-3.5 w-3.5" aria-hidden="true" /> XR Mode</button>
           </div>
-          <p className={cn('text-[9px]', UI_THEME_TOKENS.text.tertiary)}>Exiting restores the authored XR scene, selected object, physics world, and shared controller owner without copying them into gameplay.</p>
+          <p className={cn('text-[9px]', UI_THEME_TOKENS.text.tertiary)}>On XR, Game Mode retains the paused authored scene while its first-person overlay owns camera and gameplay; exit resumes the shared controller owner.</p>
         </section>
 
         <section className={cn('grid gap-1 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-game-mode-invocations="shared-catalog">

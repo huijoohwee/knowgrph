@@ -172,10 +172,10 @@ export const MotionControlTargetCards = React.memo(function MotionControlTargetC
         </header>
         <p className={cn('text-[10px]', UI_THEME_TOKENS.text.secondary)}>
           {gameMode.active
-            ? `${gameMode.phase} · ${gameMode.enemiesAlive} NPC remaining · ${gameMode.surfaceMode}`
+            ? `${gameMode.phase} · ${gameMode.simulationStatus} · ${gameMode.enemiesAlive} NPC remaining · ${gameMode.surfaceMode}`
             : 'Open the deterministic ECS mission inside the shared XR Canvas.'}
         </p>
-        <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>The existing pose-to-controller adapter feeds movement, sprint, and rising-edge fire without adding another camera or inference pipeline.</p>
+        <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>The authored XR scene stays visible and paused under gameplay. The existing pose adapter arms movement, sprint, and rising-edge fire without adding another camera or inference pipeline.</p>
         <TargetInvocation invocation={gameMode.invocation} />
         <p className={cn('truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)}>WebMCP · {gameMode.webMcpTool}</p>
       </article>

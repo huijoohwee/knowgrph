@@ -40,35 +40,32 @@ import {
 import { XrRendererClearController } from '@/lib/three/XrRendererClearController'
 import { GameFpsWebglUnsupportedState } from '@/features/game-fps/GameFpsWebglUnsupportedState'
 import { readGameModeSnapshot, subscribeGameModeSnapshot } from '@/features/game-fps/gameModeRuntime'
+import { GAME_FPS_ARENA_CLEAR_COLOR, resolveGameModeSceneComposition } from '@/features/game-fps/gameModeSceneComposition'
 import { readWebglSupport } from '@/lib/three/webglSupport'
-
+import { XR_NATIVE_CONTROLLER_SKY_COLOR } from '@/features/three/xrNativeControllerPresentation'
+import { XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE } from '@/features/three/xrNativeControllerDemoRuntime'
 const SceneLazy = React.lazy(() =>
   import('@/lib/three/Scene.impl').then(mod => ({
     default: mod.Scene,
   })),
 )
-
 const ControlsLazy = React.lazy(() =>
   import('@/features/three/Controls').then(mod => ({
     default: mod.Controls,
   })),
 )
-
 const GameFpsMissionStageLazy = React.lazy(() =>
   import('@/features/game-fps/GameFpsMissionStage').then(mod => ({
     default: mod.GameFpsMissionStage,
   })),
 )
-
 const XR_WORLD_CONTENT_SCALE_MIN = 0.0001
 const XR_WORLD_CONTENT_SCALE_MAX = 10_000
 const XR_PHYSICS_RUN_READY_GRAPH: GraphData = { type: 'Graph', nodes: [], edges: [] }
-
 function readXrStageMetersPerUnit(): number {
   const stage = resolveXrMotionReferenceStage(readXrMotionReferenceRuntime().plan.stageId)
   return Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1) / XR_MOTION_STAGE_SPAN
 }
-
 function boundedInverseFitScale(fit: GlbFit | null): number {
   const fitScale = Number(fit?.scale)
   if (!Number.isFinite(fitScale) || fitScale <= 0) return 1
@@ -233,7 +230,12 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   const hasGraph = !!sceneGraphForRender
   const hasGlbAsset = !!glbAsset && shouldRenderGlbAsset
   const hasSpatialCaptureManifest = !!spatialCaptureManifest
-  const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded && !xrPhysicsRunReadyDemo && !gameFpsActive
+  const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded && !xrPhysicsRunReadyDemo
+  const sceneComposition = resolveGameModeSceneComposition({
+    authoredWorldAvailable: hasGraph || hasGlbAsset || hasSpatialCaptureManifest || hasXrEmptyWorld,
+    canvasMode: mode, gameFpsActive,
+    gameModeActive: gameMode.active, gameModeSurface: gameMode.surfaceMode,
+  })
   const hasRenderableScene = gameFpsActive || hasGraph || hasGlbAsset || hasSpatialCaptureManifest || hasXrEmptyWorld
   const xrStandaloneFit = hasSpatialCaptureManifest
     ? spatialCaptureFit
@@ -256,7 +258,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   positionsRef.current = positions3d
   const containerRef = React.useRef<HTMLElement | null>(null)
   const xrSceneMediaDrop = useXrSceneMediaDrop({
-    active: active && mode === 'xr',
+    active: active && mode === 'xr' && !gameFpsActive,
     targetRef: containerRef,
   })
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null)
@@ -269,13 +271,12 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     void theme
     return resolveSceneBackgroundColor(effectiveSchema, mode)
   }, [effectiveSchema, mode, theme])
-  const rendererClearColor = gameFpsActive
-    ? '#07151b'
-    : hasXrEmptyWorld
-    ? '#0b2f4a'
-    : hasGraph
-      ? sceneBackgroundColor
-      : '#000000'
+  const rendererClearColor = sceneComposition.rendererClearOwner === 'game-arena'
+    ? GAME_FPS_ARENA_CLEAR_COLOR
+    : sceneComposition.retainAuthoredXrScene && xrPhysicsRunReadyDemo
+      ? XR_NATIVE_CONTROLLER_SKY_COLOR
+      : hasXrEmptyWorld ? '#0b2f4a'
+        : hasGraph ? sceneBackgroundColor : '#000000'
   const rendererDefaultClearAlpha = gameFpsActive || hasXrEmptyWorld || hasGraph ? 1 : 0
   const rendererLifecycleKey = `scene-canvas-${mode}`
   useEffect(() => {
@@ -428,6 +429,12 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       </section>
     )
   }
+  const gameFpsCoordinateScale = sceneComposition.retainAuthoredXrScene
+    ? xrPhysicsRunReadyDemo ? XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE : 1 / xrStageMetersPerUnit
+    : 1
+  const gameFpsStage = gameFpsActive
+    ? <GameFpsMissionStageLazy coordinateScale={gameFpsCoordinateScale} presentation={sceneComposition.gamePresentation} />
+    : null
   return (
     <section
       ref={containerRef}
@@ -438,6 +445,8 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       data-kg-xr-scene-media-drop={mode === 'xr' ? '1' : undefined}
       data-kg-game-fps-stage={gameFpsActive ? 'active' : undefined}
       data-kg-game-mode-surface={gameMode.active ? gameMode.surfaceMode : undefined}
+      data-kg-game-mode-scene={gameMode.active ? sceneComposition.gamePresentation : undefined}
+      data-kg-authored-xr-scene-retained={sceneComposition.retainAuthoredXrScene ? '1' : undefined}
       data-kg-three-viewport-gestures={gameFpsActive ? 'first-person' : 'orbit-pan-cursor-zoom'}
       onDragOver={xrSceneMediaDrop.onDragOver}
       onDrop={xrSceneMediaDrop.onDrop}
@@ -496,12 +505,13 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
           xrSurface={mode === 'xr'}
         />
         <React.Suspense fallback={null}>
-          {gameFpsActive ? <GameFpsMissionStageLazy /> : null}
-          {!gameFpsActive ? <XrWorldPlacement
+          {sceneComposition.gamePresentation === 'arena' ? gameFpsStage : null}
+          {sceneComposition.renderAuthoredWorld ? <XrWorldPlacement
             active={mode === 'xr'}
             contentScale={xrWorldContentScale}
             contentOffset={xrWorldContentOffset}
           >
+            {sceneComposition.gamePresentation === 'xr-authored' ? gameFpsStage : null}
             {hasXrEmptyWorld ? (
               <group name="kg_xr_empty_world">
                 <XrEmptyWorldStage />
@@ -512,7 +522,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
                 data={sceneGraphForRender as GraphData}
                 schema={effectiveSchema as GraphSchema}
                 positions={positions}
-                paused={paused}
+                paused={paused || gameFpsActive}
                 onSelectNode={onSelectNode}
                 onHoverNode={hoverEnabled ? handleHoverNode : undefined}
                 onHoverEdge={hoverEnabled ? handleHoverEdge : undefined}
@@ -546,7 +556,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
               />
             ) : null}
           </XrWorldPlacement> : null}
-          {!gameFpsActive ? <ControlsLazy
+          {sceneComposition.renderOrbitControls ? <ControlsLazy
             schema={effectiveSchema as GraphSchema}
             positions={positions}
             paused={paused}
@@ -566,10 +576,10 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
         </React.Suspense>
       </Canvas>
       {mode === 'xr' && xrDocumentLoaded && !gameFpsActive ? <XrCameraAspectMask /> : null}
-      {hasXrEmptyWorld ? <XrEmptyWorldHud /> : null}
+      {hasXrEmptyWorld && !gameFpsActive ? <XrEmptyWorldHud /> : null}
       <CanvasXrEntryPanel
         key={`${rendererLifecycleKey}-session-panel`}
-        active={active && mode === 'xr'}
+        active={active && mode === 'xr' && !gameFpsActive}
         rendererRef={threeGlRef}
         surfaceKind={spatialCaptureManifest ? 'spatial-capture' : 'graph'}
         spatialRuntimeStatus={spatialRuntimeStatus}

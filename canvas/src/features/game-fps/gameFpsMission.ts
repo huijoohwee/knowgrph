@@ -12,13 +12,13 @@ import {
 } from './gameFpsGeometry'
 import {
   GAME_FPS_FIXED_STEP_SECONDS,
+  GAME_FPS_ARENA_SPATIAL_PROFILE,
   GAME_FPS_FIRE_RESULTS,
   GAME_FPS_MISSION_ID,
   GAME_FPS_NPC_ACTIONS,
   GAME_FPS_NPC_DECISION_INTERVAL_TICKS,
   GAME_FPS_NPC_HITBOX_HALF_EXTENTS,
   GAME_FPS_NPC_SEEDS,
-  GAME_FPS_PLAYER_SPAWN,
   GAME_FPS_WEAPON,
   gameFpsFireResultFromCode,
   gameFpsNpcActionFromCode,
@@ -29,6 +29,7 @@ import {
   type GameFpsNpcSnapshot,
   type GameFpsPhase,
   type GameFpsPlayerSnapshot,
+  type GameFpsSpatialProfile,
   type GameFpsTickInput,
 } from './gameFpsModel'
 
@@ -91,6 +92,7 @@ export type GameFpsAuthoredMission = Readonly<{
   playerEntityId: number
   missionEntityId: number
   npcEntityIds: ReadonlyMap<string, number>
+  spatialProfile: GameFpsSpatialProfile
 }>
 
 export type GameFpsNpcUtilityObservation = Readonly<{
@@ -259,8 +261,10 @@ function zeroCostLog(value: unknown): GameFpsCostLog {
 export function createGameFpsAuthoredMission(args: {
   runId: number
   decisions?: readonly unknown[]
+  spatialProfile?: GameFpsSpatialProfile
 }): GameFpsAuthoredMission {
   const replay = replayDecisions(args.decisions || [])
+  const spatialProfile = args.spatialProfile || GAME_FPS_ARENA_SPATIAL_PROFILE
   const entityIds = new Map<string, number>()
   let playerEntityId = -1
   let missionEntityId = -1
@@ -298,7 +302,7 @@ export function createGameFpsAuthoredMission(args: {
       x: context.read(playerEntityId, 'Transform', 'x'),
       z: context.read(playerEntityId, 'Transform', 'z'),
     }
-    const next = resolveGameFpsMovement(origin, delta, 0.35)
+    const next = resolveGameFpsMovement(origin, delta, 0.35, spatialProfile.map)
     context.write(playerEntityId, 'Transform', 'x', next.x)
     context.write(playerEntityId, 'Transform', 'z', next.z)
   }
@@ -344,7 +348,7 @@ export function createGameFpsAuthoredMission(args: {
       if (context.read(entityId, 'Npc', 'active') !== 1) continue
       const x = context.read(entityId, 'Transform', 'x')
       const z = context.read(entityId, 'Transform', 'z')
-      if (!hasGameFpsLineOfSight({ x: playerX, z: playerZ }, { x, z })) continue
+      if (!hasGameFpsLineOfSight({ x: playerX, z: playerZ }, { x, z }, spatialProfile.map)) continue
       candidates.push(Object.freeze({
         entityRef: id,
         center: [x, NPC_TARGET_HEIGHT, z] as const,
@@ -396,7 +400,7 @@ export function createGameFpsAuthoredMission(args: {
       }
       const distance = gameFpsHorizontalDistance(position, player)
       const health = context.read(entityId, 'Health', 'current')
-      const lineOfSight = hasGameFpsLineOfSight(position, player)
+      const lineOfSight = hasGameFpsLineOfSight(position, player, spatialProfile.map)
       const previousAction = context.read(entityId, 'NpcBrain', 'action')
       const action = decisionIntervalFires
         ? GAME_FPS_NPC_ACTIONS.indexOf(selectGameFpsNpcAction(scoreGameFpsNpcActions({
@@ -426,7 +430,7 @@ export function createGameFpsAuthoredMission(args: {
           x: ((player.x - position.x) / distance) * moveSpeed * GAME_FPS_FIXED_STEP_SECONDS * away,
           z: ((player.z - position.z) / distance) * moveSpeed * GAME_FPS_FIXED_STEP_SECONDS * away,
         }
-        const next = resolveGameFpsMovement(position, delta, 0.4)
+        const next = resolveGameFpsMovement(position, delta, 0.4, spatialProfile.map)
         context.write(entityId, 'Transform', 'x', next.x)
         context.write(entityId, 'Transform', 'z', next.z)
         context.write(entityId, 'Transform', 'yaw', Math.atan2(-(player.x - next.x), -(player.z - next.z)))
@@ -484,7 +488,7 @@ export function createGameFpsAuthoredMission(args: {
   playerEntityId = allocateEntity(world, {
     entityRef: PLAYER_REF,
     components: {
-      Transform: { ...GAME_FPS_PLAYER_SPAWN },
+      Transform: { ...spatialProfile.playerSpawn },
       Health: { current: replay.playerHealth, maximum: PLAYER_MAX_HEALTH },
       Player: { active: replay.playerHealth > 0 ? 1 : 0 },
       Weapon: {
@@ -495,7 +499,7 @@ export function createGameFpsAuthoredMission(args: {
       },
     },
   })
-  for (const seed of GAME_FPS_NPC_SEEDS) {
+  for (const seed of spatialProfile.npcSeeds) {
     const health = replay.npcHealth.get(seed.id) ?? NPC_MAX_HEALTH
     entityIds.set(seed.id, allocateEntity(world, {
       entityRef: seed.id,
@@ -518,7 +522,7 @@ export function createGameFpsAuthoredMission(args: {
       },
     },
   })
-  return Object.freeze({ world, playerEntityId, missionEntityId, npcEntityIds: entityIds })
+  return Object.freeze({ world, playerEntityId, missionEntityId, npcEntityIds: entityIds, spatialProfile })
 }
 
 function component(entity: RuntimeEntity, name: string): Record<string, number> {

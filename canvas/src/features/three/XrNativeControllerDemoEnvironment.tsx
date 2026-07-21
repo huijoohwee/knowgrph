@@ -19,6 +19,10 @@ import {
 import { XrNativeControllerDemoAerialSetpieces } from './XrNativeControllerDemoAerialSetpieces'
 import { XrStagePresetGeometry } from './XrStagePresetGeometry'
 import type { XrMotionReferenceStagePreset } from './xrSceneLibrary'
+import {
+  XR_NATIVE_CONTROLLER_FOG_COLOR,
+  XR_NATIVE_CONTROLLER_SKY_COLOR,
+} from './xrNativeControllerPresentation'
 
 export const XR_NATIVE_DYNAMIC_BODY_Y_OFFSETS: Readonly<Record<string, number>> = Object.freeze({
   'native-crate-a': 0.72,
@@ -36,8 +40,8 @@ export function XrNativeControllerDemoSceneAtmosphere({ stageScale }: { stageSca
   React.useEffect(() => {
     const previousBackground = scene.background
     const previousFog = scene.fog
-    const background = new Color('#78c8f5')
-    const fog = new Fog('#9bd8f2', stageScale * 38, stageScale * 92)
+    const background = new Color(XR_NATIVE_CONTROLLER_SKY_COLOR)
+    const fog = new Fog(XR_NATIVE_CONTROLLER_FOG_COLOR, stageScale * 38, stageScale * 92)
     scene.background = background
     scene.fog = fog
     return () => {

@@ -16,6 +16,13 @@ from lib.game_mode_xr_share_smoke_source import (
     origin_label,
     parse_validation_source,
 )
+from lib.game_mode_xr_share_scene_contract import (
+    assert_scene_contract,
+    assert_stable_renderer_canvas,
+    install_restored_frame_capture,
+    read_scene_contract,
+    read_xr_state,
+)
 
 
 BASE_URL = os.environ.get(
@@ -70,57 +77,8 @@ def poll_evaluate(
     raise AssertionError("timed out waiting for the expected browser runtime state")
 
 
-def read_xr_state(page: Page) -> dict[str, Any]:
-    return page.evaluate(
-        """
-        async () => {
-          const runtime = await import('/src/features/three/xrNativeControllerDemoRuntime.ts')
-          return {
-            snapshot: runtime.readXrNativeControllerDemo(),
-            frame: runtime.readSharedXrNativeControllerDemoFrame(),
-          }
-        }
-        """
-    )
-
-
 def comparable_xr_frame(frame: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in frame.items() if key != "phase"}
-
-
-def assert_stable_renderer_canvas(page: Page) -> None:
-    state = page.evaluate(
-        """
-        () => {
-          const canvases = Array.from(document.querySelectorAll('[data-kg-xr-scene-media-drop="1"] canvas'))
-          return {
-            count: canvases.length,
-            same: canvases.length === 1 && window.__kgGameModeXrShareCanvas === canvases[0],
-          }
-        }
-        """
-    )
-    if state != {"count": 1, "same": True}:
-        raise AssertionError(f"shared XR/Game Mode renderer canvas was not stable: {state}")
-
-
-def install_restored_frame_capture(page: Page) -> None:
-    page.evaluate(
-        """
-        async () => {
-          const runtime = await import('/src/features/three/xrNativeControllerDemoRuntime.ts')
-          window.__kgGameModeXrRestoredFrame = null
-          const unsubscribe = runtime.subscribeXrNativeControllerDemo(() => {
-            if (runtime.readXrNativeControllerDemo().phase !== 'running') return
-            window.__kgGameModeXrRestoredFrame = JSON.parse(JSON.stringify(
-              runtime.readSharedXrNativeControllerDemoFrame(),
-            ))
-            unsubscribe()
-          })
-          window.__kgGameModeXrRestoredFrameCancel = unsubscribe
-        }
-        """
-    )
 
 
 def main() -> None:
@@ -239,6 +197,8 @@ def main() -> None:
             )
             if initial_canvas != {"count": 1, "stored": True}:
                 raise AssertionError(f"initial XR renderer did not expose exactly one canvas: {initial_canvas}")
+            initial_scene = read_scene_contract(page)
+            assert_scene_contract(initial_scene, game_active=False)
 
             initial_xr = read_xr_state(page)
             if initial_xr["snapshot"]["phase"] != "running" or initial_xr["snapshot"]["mode"] != "rocket":
@@ -286,10 +246,27 @@ def main() -> None:
             expect(page.locator('canvas[data-kg-game-fps-first-frame="1"]')).to_have_count(1, timeout=30_000)
             expect(page.locator('[data-kg-game-fps-stage="active"]')).to_have_count(1)
             expect(page.locator('[data-kg-game-fps-stage="active"] canvas')).to_have_count(1)
+            expect(page.locator('[data-kg-authored-xr-scene-retained="1"]')).to_have_count(1)
+            expect(page.locator('[data-kg-game-mode-scene="xr-authored"]')).to_have_count(1)
+            expect(game_hud).to_have_attribute("data-kg-game-fps-simulation", "ready")
+            expect(game_hud).to_have_attribute("data-kg-game-fps-health", "100")
+            expect(game_hud).to_have_attribute("data-kg-game-fps-tick", "0")
+            expect(game_hud).to_have_attribute("data-kg-game-fps-pending-decisions", "0")
             if game_hud.get_attribute("data-kg-game-fps-runtime-error"):
                 raise AssertionError("Game Mode HUD reported a runtime error")
             expect(page.locator('[data-kg-game-mode-runtime-error="1"]')).to_have_count(0)
             assert_stable_renderer_canvas(page)
+            active_scene = read_scene_contract(page)
+            assert_scene_contract(active_scene, game_active=True)
+
+            page.wait_for_timeout(12_500)
+            if (
+                game_hud.get_attribute("data-kg-game-fps-simulation") != "ready"
+                or game_hud.get_attribute("data-kg-game-fps-health") != "100"
+                or game_hud.get_attribute("data-kg-game-fps-tick") != "0"
+                or game_hud.get_attribute("data-kg-game-fps-pending-decisions") != "0"
+            ):
+                raise AssertionError("unattended Game Mode advanced before normalized player engagement")
 
             npc_rows = page.locator('[data-kg-game-mode-npc-scores="1"] > article')
             if npc_rows.count() != 4:
@@ -313,7 +290,8 @@ def main() -> None:
                   const strictStart = await control.execute({
                     invocation: '/game.mode @canvas #gameplay operation=start',
                   })
-                  return { registered: true, beforeStop, invalid, stopped, strictStart }
+                  const engaged = await control.execute({ operation: 'fire' })
+                  return { registered: true, beforeStop, invalid, stopped, strictStart, engaged }
                 }
                 """
             )
@@ -336,6 +314,8 @@ def main() -> None:
                 raise AssertionError("Game Mode WebMCP inspection did not expose the runtime-ready contract")
             if web_mcp["invalid"].get("ok") is not False:
                 raise AssertionError("Game Mode WebMCP accepted a duplicate binding token")
+            if web_mcp["beforeStop"]["gameMode"]["simulationStatus"] != "ready":
+                raise AssertionError("Game Mode did not remain ready before the first normalized input")
 
             mission_before_stop = before_stop["mission"]
             stopped_mission = web_mcp["stopped"]["game"]["mission"]
@@ -354,6 +334,11 @@ def main() -> None:
                 or resumed_mission["player"] != mission_before_stop["player"]
             ):
                 raise AssertionError("strict WebMCP start did not resume the stopped mission unchanged")
+            if (
+                web_mcp["engaged"].get("ok") is not True
+                or web_mcp["engaged"]["game"]["gameMode"]["simulationStatus"] != "running"
+            ):
+                raise AssertionError("Game Mode WebMCP fire did not arm deterministic simulation")
 
             resumed_tick = resumed_mission["tick"]
             poll_evaluate(
@@ -541,6 +526,9 @@ def main() -> None:
                     "canvasCount": 1,
                     "stableDomIdentity": True,
                     "webglSupported": True,
+                    "authoredXrNodesRetained": True,
+                    "authoredStageCoordinatesShared": True,
+                    "fallbackArenaSuppressed": True,
                 },
                 "gameMode": {
                     "surface": "xr",
@@ -549,6 +537,9 @@ def main() -> None:
                     "actions": ["hold", "alert", "engage", "flee"],
                     "webMcpStrict": True,
                     "stopStartStatePreserved": True,
+                    "idleUntilEngaged": True,
+                    "pendingDecisionsStableUntilEngaged": True,
+                    "xrSpatialProfileReused": True,
                 },
                 "motionControl": {
                     "companionRoundTrip": True,

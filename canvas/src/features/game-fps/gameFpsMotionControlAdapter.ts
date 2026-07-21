@@ -1,7 +1,9 @@
 import type { XrNativeControllerInput } from '@/features/three/xrNativeControllerInput'
 import { setGameFpsMotionInput } from './gameFpsRuntime'
+import { armGameModeSimulation } from './gameModeRuntime'
 
 export function applyGameFpsMotionControlInput(input: XrNativeControllerInput): void {
+  if (input.source === 'motion') armGameModeSimulation()
   setGameFpsMotionInput({
     forward: -input.moveZ,
     strafe: input.moveX,

@@ -11,8 +11,10 @@ import {
   applyGameFpsMotionControlInput,
   releaseGameFpsMotionControlInput,
 } from '@/features/game-fps/gameFpsMotionControlAdapter'
+import { installGameFpsDesktopInput } from '@/features/game-fps/gameFpsInput'
 import {
   advanceGameFpsBy,
+  readGameFpsSpatialProfile,
   readGameFpsSnapshot,
   resetGameFpsRuntimeForTests,
   setGameFpsInput,
@@ -25,14 +27,24 @@ import {
   inspectLocalGameMode,
 } from '@/features/game-fps/gameModeMcpRuntime'
 import {
+  advanceGameModeSimulationBy,
+  armGameModeSimulation,
   exitGameModeSurface,
   openGameModeSurface,
+  pauseGameModeSimulation,
   readGameModeSnapshot,
   resetGameModeRuntimeForTests,
   restartGameMode,
   startGameMode,
   stopGameMode,
 } from '@/features/game-fps/gameModeRuntime'
+import { resolveGameModeSceneComposition } from '@/features/game-fps/gameModeSceneComposition'
+import { readGameModeXrSpatialProfile } from '@/features/game-fps/gameModeXrSpatialProfile'
+import {
+  hasGameFpsLineOfSight,
+  isGameFpsPositionValid,
+  resolveGameFpsMovement,
+} from '@/features/game-fps/gameFpsGeometry'
 import { GAME_FPS_FIXED_STEP_SECONDS } from '@/features/game-fps/gameFpsModel'
 import {
   queueGameFpsDecisions,
@@ -40,6 +52,8 @@ import {
   resetGameFpsDecisionStoreForTests,
 } from '@/features/game-fps/gameFpsDecisionStore'
 import { createXrNativeControllerInput } from '@/features/three/xrNativeControllerInput'
+import { setSharedXrNativeControllerDemoTerrain } from '@/features/three/xrNativeControllerDemoRuntime'
+import { XR_MOTION_REFERENCE_STAGE_PRESETS } from '@/features/three/xrSceneLibrary'
 import { motionControlCaptureSurfaceIsOpen } from '@/features/three/motionControlSurfaceRuntime'
 import {
   GAME_FPS_DEMO_WORKSPACE_SEED_BASENAME,
@@ -56,6 +70,7 @@ const waitForUnmountTeardown = async (): Promise<void> => {
 }
 
 test.beforeEach(() => {
+  setSharedXrNativeControllerDemoTerrain('singapore')
   resetGameFpsRuntimeForTests()
   resetGameFpsDecisionStoreForTests()
   resetGameModeRuntimeForTests()
@@ -107,6 +122,120 @@ test('Game Mode activates the current XR surface and restores its owner on exit'
   assert.equal(useGraphStore.getState().floatingPanelOpen, true)
 })
 
+test('Game Mode retains the authored XR world while standalone gameplay keeps its arena', () => {
+  const xrOverlay = resolveGameModeSceneComposition({
+    authoredWorldAvailable: true,
+    canvasMode: 'xr',
+    gameFpsActive: true,
+    gameModeActive: true,
+    gameModeSurface: 'xr',
+  })
+  assert.deepEqual(xrOverlay, {
+    gamePresentation: 'xr-authored',
+    renderAuthoredWorld: true,
+    renderOrbitControls: false,
+    retainAuthoredXrScene: true,
+    rendererClearOwner: 'authored-world',
+  })
+  const standalone = resolveGameModeSceneComposition({
+    authoredWorldAvailable: false,
+    canvasMode: '3d',
+    gameFpsActive: true,
+    gameModeActive: true,
+    gameModeSurface: '3d',
+  })
+  assert.equal(standalone.gamePresentation, 'arena')
+  assert.equal(standalone.renderAuthoredWorld, false)
+  assert.equal(standalone.rendererClearOwner, 'game-arena')
+
+  const spatialProfile = readGameModeXrSpatialProfile()
+  assert.equal(spatialProfile.id, 'xr-authored')
+  const treasure = spatialProfile.map.blockers.find(blocker => blocker.id === 'native-treasure-block')
+  assert.ok(treasure)
+  assert.equal(spatialProfile.map.blockers.some(blocker => blocker.id.startsWith('terrain:')), false)
+  assert.ok(spatialProfile.npcSeeds.every(npc => (
+    Math.abs(npc.x) < spatialProfile.map.halfWidth && Math.abs(npc.z) < spatialProfile.map.halfDepth
+  )))
+  const approach = { x: treasure.centerX - treasure.halfWidth - 0.36, z: treasure.centerZ }
+  assert.deepEqual(
+    resolveGameFpsMovement(approach, { x: 1, z: 0 }, 0.35, spatialProfile.map),
+    approach,
+  )
+  assert.equal(hasGameFpsLineOfSight(
+    { x: treasure.centerX - treasure.halfWidth - 1, z: treasure.centerZ },
+    { x: treasure.centerX + treasure.halfWidth + 1, z: treasure.centerZ },
+    spatialProfile.map,
+  ), false)
+})
+
+test('Game Mode waits for normalized player engagement and pauses without advancing', async () => {
+  await startGameMode({ decisions: [], surfaceMode: '3d', webglSupported: true })
+  assert.equal(readGameModeSnapshot().simulationStatus, 'ready')
+  const pendingDecisionCount = readGameFpsSnapshot().pendingDecisions.length
+  for (let index = 0; index < 60; index += 1) {
+    await advanceGameModeSimulationBy(0.25)
+  }
+  assert.equal(readGameFpsSnapshot().tick, 0)
+  assert.equal(readGameFpsSnapshot().player.health, 100)
+  assert.equal(readGameFpsSnapshot().pendingDecisions.length, pendingDecisionCount)
+
+  armGameModeSimulation()
+  assert.equal(readGameModeSnapshot().simulationStatus, 'running')
+  const queuedAdvances = Array.from({ length: 10 }, () => advanceGameModeSimulationBy(0.25))
+  pauseGameModeSimulation()
+  await Promise.all(queuedAdvances)
+  assert.equal(readGameFpsSnapshot().tick, 0, 'pause must fence advances already queued by rendered frames')
+
+  armGameModeSimulation()
+  await advanceGameModeSimulationBy(0.25)
+  assert.ok(readGameFpsSnapshot().tick > 0)
+  const pausedTick = readGameFpsSnapshot().tick
+  pauseGameModeSimulation()
+  await advanceGameModeSimulationBy(0.25)
+  assert.equal(readGameFpsSnapshot().tick, pausedTick)
+})
+
+test('Game Mode desktop lifecycle events fence queued simulation work', async () => {
+  const { dom, restore } = initJsdomHarness()
+  try {
+    await startGameMode({ decisions: [], surfaceMode: '3d', webglSupported: true })
+    const canvas = dom.window.document.createElement('canvas')
+    const input = installGameFpsDesktopInput(canvas)
+    const expectPausedWithoutAdvance = async (dispatch: () => void) => {
+      armGameModeSimulation()
+      const tick = readGameFpsSnapshot().tick
+      const queued = advanceGameModeSimulationBy(0.25)
+      dispatch()
+      await queued
+      assert.equal(readGameModeSnapshot().simulationStatus, 'paused')
+      assert.equal(readGameFpsSnapshot().tick, tick)
+    }
+
+    await expectPausedWithoutAdvance(() => dom.window.dispatchEvent(new dom.window.Event('blur')))
+    await expectPausedWithoutAdvance(() => {
+      Object.defineProperty(dom.window.document, 'visibilityState', { configurable: true, value: 'hidden' })
+      dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'))
+    })
+    await expectPausedWithoutAdvance(() => {
+      dom.window.document.dispatchEvent(new dom.window.Event('pointerlockchange'))
+    })
+    input.dispose()
+  } finally {
+    restore()
+  }
+})
+
+test('Game Mode terminal missions leave the running simulation state', async () => {
+  await startGameMode({ decisions: [], surfaceMode: '3d', webglSupported: true })
+  armGameModeSimulation()
+  for (let index = 0; index < 60 && readGameFpsSnapshot().phase === 'playing'; index += 1) {
+    await advanceGameModeSimulationBy(0.25)
+  }
+  assert.equal(readGameFpsSnapshot().phase, 'lost')
+  assert.equal(readGameModeSnapshot().simulationStatus, 'idle')
+  assert.match(readGameModeSnapshot().message, /mission lost at tick 716/i)
+})
+
 test('Game Mode restores a previous 2D surface on explicit exit', () => {
   const state = useGraphStore.getState()
   state.setCanvas3dMode('xr')
@@ -121,6 +250,7 @@ test('Game Mode restores a previous 2D surface on explicit exit', () => {
 
 test('Motion Control input composes with Game FPS and primary fires only on a rising edge', async () => {
   await startGameMode({ decisions: [], surfaceMode: 'xr', webglSupported: true })
+  assert.equal(readGameFpsSpatialProfile().id, 'xr-authored')
   const forwardAndFire = createXrNativeControllerInput({
     moveZ: -1,
     primary: true,
@@ -161,6 +291,79 @@ test('Game Mode Stop and Start resume the same in-memory mission', async () => {
   assert.deepEqual(resumed.player, beforeStop.player)
 })
 
+test('Game Mode restarts with the requested spatial profile across live and stopped surface changes', async () => {
+  await startGameMode({ decisions: [], surfaceMode: '3d', webglSupported: true })
+  setGameFpsInput({ forward: 1 })
+  await advanceGameFpsBy(0.2)
+  setGameFpsInput({ forward: 0 })
+  assert.ok(readGameFpsSnapshot().tick > 0)
+  assert.equal(readGameFpsSpatialProfile().id, 'arena')
+
+  const xr = await startGameMode({ surfaceMode: 'xr', webglSupported: true })
+  assert.equal(readGameFpsSpatialProfile().id, 'xr-authored')
+  assert.equal(readGameFpsSnapshot().tick, 0)
+  assert.equal(xr.simulationStatus, 'ready')
+  assert.match(xr.message, /restarted for the xr-authored spatial profile/i)
+
+  stopGameMode()
+  exitGameModeSurface({ restorePreviousSurface: false })
+  await startGameMode({ surfaceMode: '3d', webglSupported: true })
+  assert.equal(readGameFpsSpatialProfile().id, 'arena')
+  assert.equal(readGameFpsSnapshot().tick, 0)
+})
+
+test('Game Mode refreshes the XR spatial profile when the authored terrain changes', async () => {
+  await startGameMode({ decisions: [], surfaceMode: 'xr', webglSupported: true })
+  const singapore = readGameFpsSpatialProfile()
+  assert.deepEqual([singapore.map.halfWidth, singapore.map.halfDepth], [16, 12])
+
+  stopGameMode()
+  exitGameModeSurface({ restorePreviousSurface: false })
+  setSharedXrNativeControllerDemoTerrain('neutral-volume')
+  const neutral = await startGameMode({ surfaceMode: 'xr', webglSupported: true })
+  const refreshed = readGameFpsSpatialProfile()
+  assert.equal(refreshed.id, 'xr-authored')
+  assert.deepEqual([refreshed.map.halfWidth, refreshed.map.halfDepth], [8, 6])
+  assert.notDeepEqual(refreshed.map.blockers, singapore.map.blockers)
+  assert.equal(readGameFpsSnapshot().tick, 0)
+  assert.match(neutral.message, /restarted for the xr-authored spatial profile/i)
+})
+
+test('every authored XR preset admits collision-free ground-actor spawns', () => {
+  for (const preset of XR_MOTION_REFERENCE_STAGE_PRESETS) {
+    setSharedXrNativeControllerDemoTerrain(preset.id)
+    const profile = readGameModeXrSpatialProfile()
+    const spawns = [profile.playerSpawn, ...profile.npcSeeds]
+    for (const spawn of spawns) {
+      assert.equal(
+        isGameFpsPositionValid(spawn, 0.45, profile.map),
+        true,
+        `${preset.id} must not place ${'id' in spawn ? spawn.id : 'player'} inside a blocker`,
+      )
+    }
+    for (let index = 0; index < spawns.length; index += 1) {
+      for (let peerIndex = index + 1; peerIndex < spawns.length; peerIndex += 1) {
+        const distance = Math.hypot(
+          spawns[index].x - spawns[peerIndex].x,
+          spawns[index].z - spawns[peerIndex].z,
+        )
+        assert.ok(distance >= 1.2, `${preset.id} spawn pair ${index}/${peerIndex} must not overlap`)
+      }
+    }
+  }
+
+  setSharedXrNativeControllerDemoTerrain('street-grid')
+  const street = readGameModeXrSpatialProfile()
+  assert.equal(street.map.blockers.some(blocker => (
+    ['stage:west-walk', 'stage:east-walk', 'stage:crossing'].includes(blocker.id)
+  )), false)
+  setSharedXrNativeControllerDemoTerrain('aerial-sky')
+  const aerial = readGameModeXrSpatialProfile()
+  assert.equal(aerial.map.blockers.some(blocker => blocker.id.startsWith('stage:cloud-bank')), false)
+  assert.equal(aerial.map.blockers.some(blocker => blocker.id === 'stage:flight-corridor'), false)
+  assert.equal(aerial.map.blockers.some(blocker => blocker.id.startsWith('stage:ground-mass')), true)
+})
+
 test('Game Mode fails closed for unreadable Decisions and unavailable WebGL', async () => {
   reportGameFpsDecisionLoadFailure(new Error('malformed local save'))
   queueGameFpsDecisions([{
@@ -195,8 +398,10 @@ test('Game Mode panel projects shared owners without a second renderer, world, o
   assert.equal(panel.includes('<Canvas'), false)
   assert.equal(panel.includes('createGameFpsAuthoredMission'), false)
   assert.match(panel, /GAME_FPS_SAVE_PATH/)
-  assert.match(renderer, /gameFpsActive \? <GameFpsMissionStageLazy \/>/)
-  assert.match(renderer, /!gameFpsActive \? <XrWorldPlacement/)
+  assert.match(renderer, /GameFpsMissionStageLazy coordinateScale=\{gameFpsCoordinateScale\} presentation=\{sceneComposition\.gamePresentation\}/)
+  assert.match(renderer, /sceneComposition\.renderAuthoredWorld \? <XrWorldPlacement/)
+  assert.match(renderer, /data-kg-authored-xr-scene-retained/)
+  assert.match(renderer, /active=\{active && mode === 'xr' && !gameFpsActive\}/)
   assert.match(renderer, /const rendererLifecycleKey = `scene-canvas-\$\{mode\}`/)
   assert.match(viewport, /gameFpsActive \? <GameFpsHudLazy \/>/)
   assert.equal(runReadyRuntime.includes('persistGameModePendingDecisions'), false)
