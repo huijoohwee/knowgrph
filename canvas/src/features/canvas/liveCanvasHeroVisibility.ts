@@ -17,14 +17,35 @@ export type LiveCanvasHeroVisibilityArgs = {
   markdownDocumentText: string | null | undefined
 }
 
-export function hasLiveCanvasHeroBlockingSearchParams(search: string, _rootAliasPath: string): boolean {
+const HOME_OWNED_SEARCH_PARAMS = new Set([
+  'kgCanvas2dRenderer',
+  'kgCanvasRenderMode',
+  'kgCanvasSurfaceMode',
+  'kgReleaseProof',
+  'kgTrace',
+  'openEditorWorkspace',
+])
+
+const normalizeRoutePath = (value: string): string => {
+  const rawPath = String(value || '').trim()
+  const withLeadingSlash = rawPath.startsWith('/') ? rawPath : `/${rawPath}`
+  return withLeadingSlash.length > 1 && withLeadingSlash.endsWith('/') ? withLeadingSlash.slice(0, -1) : withLeadingSlash
+}
+
+export function hasLiveCanvasHeroBlockingSearchParams(search: string, rootAliasPath: string): boolean {
   const rawSearch = String(search || '').trim()
   if (!rawSearch) return false
   const params = new URLSearchParams(rawSearch.startsWith('?') ? rawSearch.slice(1) : rawSearch)
-  // The single-root runtime rewrites a direct workspace route such as
-  // /knowgrph/ to /?kgPath=/knowgrph/. That remains workspace ownership, not
-  // a Home alias. Treat every route query as a boundary for the apex hero.
-  return Array.from(params.entries()).length > 0
+  const normalizedRootAliasPath = normalizeRoutePath(rootAliasPath)
+  for (const [name, value] of params) {
+    if (HOME_OWNED_SEARCH_PARAMS.has(name)) continue
+    if (name === 'kgPath') {
+      const routePath = normalizeRoutePath(value)
+      if (routePath.startsWith(`${normalizedRootAliasPath}/share/`)) continue
+    }
+    return true
+  }
+  return false
 }
 
 export function shouldShowLiveCanvasHero(args: LiveCanvasHeroVisibilityArgs): boolean {
