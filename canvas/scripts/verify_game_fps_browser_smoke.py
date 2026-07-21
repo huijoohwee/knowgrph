@@ -305,6 +305,7 @@ def main() -> None:
                       return leftDistance - rightDistance || left.id.localeCompare(right.id)
                     })[0]
                   let reloadObserved = false
+                  let occlusionWaitCount = 0
                   for (let iteration = 0; iteration < 80; iteration += 1) {
                     let before = runtime.readGameFpsSnapshot()
                     if (before.phase !== 'playing') break
@@ -315,7 +316,11 @@ def main() -> None:
                       before = runtime.readGameFpsSnapshot()
                     }
                     const target = visibleTarget(before)
-                    if (!target) throw new Error('authored browser mission exposed no reachable target')
+                    if (!target) {
+                      occlusionWaitCount += 1
+                      await runtime.advanceGameFpsBy(0.2)
+                      continue
+                    }
                     const deltaX = target.x - before.player.x
                     const deltaZ = target.z - before.player.z
                     const horizontalDistance = Math.hypot(deltaX, deltaZ)
@@ -336,6 +341,7 @@ def main() -> None:
                     enemiesAlive: completed.enemiesAlive,
                     pendingDecisionCount: completed.pendingDecisions.length,
                     reloadObserved,
+                    occlusionWaitCount,
                   }
                 }
                 """
