@@ -261,7 +261,7 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
     throw new Error('expected run-ready launch to project the existing viewport without editor chrome')
   }
   if (!canvasPageSource.includes("canvasRenderMode={dedicatedRunReadyDemo ? '3d'")
-    || !canvasPageSource.includes("canvas3dMode={xrPhysicsRunReadyDemo ? 'xr'")) {
+    || !canvasPageSource.includes("canvas3dMode={dedicatedRunReadyDemo ? 'xr'")) {
     throw new Error('expected late document UI restores to remain unable to replace any dedicated run-ready surface')
   }
   if (

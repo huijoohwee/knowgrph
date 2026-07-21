@@ -38,7 +38,10 @@ import {
   type GameFpsTickInput,
 } from '../features/game-fps/gameFpsModel'
 import {
+  gameFpsInputPatchFromHeldTouches,
   gameFpsInputPatchFromPressedCodes,
+  releaseGameFpsHeldTouch,
+  type GameFpsTouchAction,
   updateGameFpsPressedCode,
 } from '../features/game-fps/gameFpsInput'
 import { readWebglSupport } from '../lib/three/webglSupport'
@@ -361,6 +364,22 @@ test('desktop movement key release neutralizes input without invalidating the ne
   assert.equal(gameFpsInputPatchFromPressedCodes(pressedCodes).forward, 1)
   assert.equal(updateGameFpsPressedCode(pressedCodes, 'KeyW', false), true)
   assert.equal(gameFpsInputPatchFromPressedCodes(pressedCodes).forward, 0)
+})
+
+test('mobile pointer release preserves movement held by another touch', () => {
+  const heldTouches = new Map<number, GameFpsTouchAction>([
+    [41, 'forward'],
+    [42, 'right'],
+  ])
+  assert.deepEqual(gameFpsInputPatchFromHeldTouches(heldTouches), { forward: 1, strafe: 1 })
+
+  const pointerUp = Object.assign(new Event('pointerup'), { pointerId: 41 })
+  releaseGameFpsHeldTouch(heldTouches, pointerUp)
+  assert.deepEqual([...heldTouches], [[42, 'right']])
+  assert.deepEqual(gameFpsInputPatchFromHeldTouches(heldTouches), { forward: 0, strafe: 1 })
+
+  releaseGameFpsHeldTouch(heldTouches, new Event('blur'))
+  assert.equal(heldTouches.size, 0)
 })
 
 test('NPC scoring uses the closed stable priority only when its decision interval fires', async () => {

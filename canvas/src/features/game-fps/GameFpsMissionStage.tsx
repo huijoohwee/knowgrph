@@ -6,14 +6,21 @@ import {
   readGameFpsSnapshot,
   subscribeGameFpsSnapshot,
 } from './gameFpsRuntime'
-import { GAME_FPS_NPC_IDS } from './gameFpsModel'
+import {
+  GAME_FPS_FIXED_STEP_SECONDS,
+  GAME_FPS_MAX_FRAME_SECONDS,
+  GAME_FPS_NPC_IDS,
+} from './gameFpsModel'
 import { installGameFpsDesktopInput } from './gameFpsInput'
 import {
   claimThreeViewportInputOwnership,
   releaseThreeViewportInputOwnership,
 } from '@/features/three/threeViewportInputOwnership'
 import { readMotionControlSnapshot } from '@/features/three/motionControlRuntime'
-import { motionControlPoseToControllerInput } from '@/features/three/motionControlPose'
+import {
+  isMotionControlPoseTracked,
+  motionControlPoseToControllerInput,
+} from '@/features/three/motionControlPose'
 import {
   applyGameFpsMotionControlInput,
   releaseGameFpsMotionControlInput,
@@ -21,10 +28,16 @@ import {
 import {
   advanceGameModeSimulationBy,
   readGameModeSnapshot,
-  subscribeGameModeSnapshot,
+  reportGameModeSimulationFailure,
 } from './gameModeRuntime'
+import {
+  bindGameFpsSimulationInputQueue,
+  createGameFpsSimulationClock,
+} from './gameFpsSimulationClock'
 
 const INPUT_OWNER_ID = 'game-fps:first-person'
+const READY_FRAME_COUNT = 2
+const SIMULATION_CLOCK_INTERVAL_MS = GAME_FPS_FIXED_STEP_SECONDS * 1000
 const ACTION_COLORS = Object.freeze({
   hold: new Color('#60a5fa'),
   alert: new Color('#facc15'),
@@ -41,15 +54,11 @@ export function GameFpsMissionStage({ coordinateScale = 1 }: {
   coordinateScale?: number
 }) {
   const { camera, gl } = useThree()
-  const gameMode = React.useSyncExternalStore(
-    subscribeGameModeSnapshot,
-    readGameModeSnapshot,
-    readGameModeSnapshot,
-  )
   const snapshotRef = React.useRef(readGameFpsSnapshot())
   const stageRootRef = React.useRef<Group | null>(null)
   const npcMeshRefs = React.useRef(new Map<string, Mesh>())
   const firstFramePublishedRef = React.useRef(false)
+  const readyFrameCountRef = React.useRef(0)
   const inputClaimedRef = React.useRef(false)
   const cameraLocalPosition = React.useMemo(() => new Vector3(), [])
   const cameraLocalRotation = React.useMemo(() => new Euler(0, 0, 0, 'YXZ'), [])
@@ -70,6 +79,7 @@ export function GameFpsMissionStage({ coordinateScale = 1 }: {
     return () => {
       inputClaimedRef.current = false
       input?.dispose()
+      readyFrameCountRef.current = 0
       releaseGameFpsMotionControlInput()
       releaseThreeViewportInputOwnership(INPUT_OWNER_ID)
       delete canvas.dataset.kgGameFpsInputOwner
@@ -79,14 +89,33 @@ export function GameFpsMissionStage({ coordinateScale = 1 }: {
     }
   }, [gl])
 
-  useFrame((_, deltaSeconds) => {
-    applyGameFpsMotionControlInput(
-      motionControlPoseToControllerInput(readMotionControlSnapshot().pose),
-    )
-    const before = snapshotRef.current
-    if (before.phase === 'playing' && !before.runtimeError && gameMode.simulationStatus === 'running') {
-      void advanceGameModeSimulationBy(deltaSeconds).catch(() => undefined)
+  React.useEffect(() => {
+    const clock = createGameFpsSimulationClock({
+      runStep: async () => {
+        const pose = readMotionControlSnapshot().pose
+        applyGameFpsMotionControlInput(
+          motionControlPoseToControllerInput(pose),
+          isMotionControlPoseTracked(pose),
+        )
+        const mission = readGameFpsSnapshot()
+        if (mission.phase !== 'playing'
+          || mission.runtimeError
+          || readGameModeSnapshot().simulationStatus !== 'running') return
+        await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS)
+      },
+      onStepError: reportGameModeSimulationFailure,
+      minimumStepIntervalMs: SIMULATION_CLOCK_INTERVAL_MS,
+    })
+    const releaseInputQueue = bindGameFpsSimulationInputQueue(clock.queueInputStep)
+    const timer = window.setInterval(clock.requestStep, SIMULATION_CLOCK_INTERVAL_MS)
+    return () => {
+      releaseInputQueue()
+      window.clearInterval(timer)
+      clock.dispose()
     }
+  }, [])
+
+  useFrame((_, deltaSeconds) => {
     const snapshot = readGameFpsSnapshot()
     snapshotRef.current = snapshot
     gl.domElement.dataset.kgGameFpsSpatialProfile = readGameFpsSpatialProfile().id
@@ -115,12 +144,18 @@ export function GameFpsMissionStage({ coordinateScale = 1 }: {
       mesh.scale.y = Math.max(0.12, npc.health / 100)
       setMeshColor(mesh, ACTION_COLORS[npc.action])
     }
-    if (snapshot.runtimeError) {
+    if (snapshot.runtimeError || snapshot.phase === 'stopped' || !inputClaimedRef.current) {
       firstFramePublishedRef.current = false
+      readyFrameCountRef.current = 0
       delete gl.domElement.dataset.kgGameFpsFirstFrame
-    } else if (!firstFramePublishedRef.current && inputClaimedRef.current && snapshot.phase !== 'stopped') {
-      firstFramePublishedRef.current = true
-      gl.domElement.dataset.kgGameFpsFirstFrame = '1'
+    } else if (!firstFramePublishedRef.current) {
+      readyFrameCountRef.current = deltaSeconds > 0 && deltaSeconds <= GAME_FPS_MAX_FRAME_SECONDS
+        ? readyFrameCountRef.current + 1
+        : 0
+      if (readyFrameCountRef.current >= READY_FRAME_COUNT) {
+        firstFramePublishedRef.current = true
+        gl.domElement.dataset.kgGameFpsFirstFrame = '1'
+      }
     }
   })
 

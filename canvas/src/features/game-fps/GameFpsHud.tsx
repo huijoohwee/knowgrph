@@ -14,13 +14,16 @@ import {
   subscribeGameModeSnapshot,
 } from './gameModeRuntime'
 import {
+  gameFpsInputPatchFromHeldTouches,
+  releaseGameFpsHeldTouch,
+  type GameFpsTouchAction,
+} from './gameFpsInput'
+import {
   readGameFpsDecisionStore,
   resetGameFpsLocalSave,
   subscribeGameFpsDecisionStore,
 } from './gameFpsDecisionStore'
 import { subscribeGlobalCancelEvents } from '@/lib/browser/globalCancelEvents'
-
-type TouchAction = 'forward' | 'back' | 'left' | 'right' | 'look-left' | 'look-right'
 
 const actionButtonClass = 'min-h-11 min-w-11 rounded-xl border border-white/25 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur-sm active:bg-cyan-700/80'
 
@@ -40,16 +43,12 @@ export function GameFpsHud() {
     readGameFpsDecisionStore,
     readGameFpsDecisionStore,
   )
-  const heldTouchesRef = React.useRef(new Map<number, TouchAction>())
+  const heldTouchesRef = React.useRef(new Map<number, GameFpsTouchAction>())
 
   const publishHeldMovement = React.useCallback(() => {
-    const actions = new Set(heldTouchesRef.current.values())
-    setGameFpsInput({
-      forward: Number(actions.has('forward')) - Number(actions.has('back')),
-      strafe: Number(actions.has('right')) - Number(actions.has('left')),
-    })
+    setGameFpsInput(gameFpsInputPatchFromHeldTouches(heldTouchesRef.current))
   }, [])
-  const beginTouch = React.useCallback((action: TouchAction) => (event: React.PointerEvent<HTMLButtonElement>) => {
+  const beginTouch = React.useCallback((action: GameFpsTouchAction) => (event: React.PointerEvent<HTMLButtonElement>) => {
     event.preventDefault()
     armGameModeSimulation()
     try {
@@ -69,10 +68,10 @@ export function GameFpsHud() {
     publishHeldMovement()
   }, [publishHeldMovement])
 
-  const cancelHeldTouches = React.useCallback(() => {
-    heldTouchesRef.current.clear()
-    setGameFpsInput({ forward: 0, strafe: 0, sprint: false })
-  }, [])
+  const cancelHeldTouches = React.useCallback((event?: Event) => {
+    releaseGameFpsHeldTouch(heldTouchesRef.current, event)
+    publishHeldMovement()
+  }, [publishHeldMovement])
 
   React.useEffect(() => subscribeGlobalCancelEvents({
     listener: cancelHeldTouches,

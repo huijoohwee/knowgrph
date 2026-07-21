@@ -2,10 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { assertPinnedAgenticOsDictionaryTokensForTest, PINNED_MOTION_CONTROL_DICTIONARY_TOKENS } from '@/__tests__/helpers/pinnedAgenticOsDictionary'
 import { resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
-import {
-  readMediaCatalogMode,
-  setMediaCatalogMode,
-} from '@/features/command-menu/mediaCatalogModeRuntime'
+import { readMediaCatalogMode, setMediaCatalogMode } from '@/features/command-menu/mediaCatalogModeRuntime'
 import {
   installKnowgrphWebMcpRuntime,
   resetKnowgrphWebMcpRuntimeForTests,
@@ -18,6 +15,7 @@ import {
   inspectLocalMotionControl,
 } from '@/features/three/motionControlMcpRuntime'
 import {
+  isMotionControlPoseTracked,
   motionControlPoseToAnimationPose,
   motionControlPoseToControllerInput,
   resetMotionControlCalibration,
@@ -174,8 +172,9 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
   unreliableLandmarks[11] = Object.freeze({ ...unreliableLandmarks[11]!, visibility: 0.1 })
   unreliableLandmarks[15] = landmark(0.44, 0.5)
   unreliableLandmarks[16] = landmark(0.56, 0.5)
-  if (motionControlPoseToControllerInput(Object.freeze({ ...leaningFrame, landmarks: Object.freeze(unreliableLandmarks) })).source !== 'none') {
-    throw new Error('expected unreliable required joints to fail closed instead of driving XR controls')
+  const unreliableFrame = Object.freeze({ ...leaningFrame, landmarks: Object.freeze(unreliableLandmarks) })
+  if (isMotionControlPoseTracked(unreliableFrame) || motionControlPoseToControllerInput(unreliableFrame).source !== 'none') {
+    throw new Error('expected unreliable control-driving joints to report tracking loss and fail closed')
   }
   const raisedLandmarks = [...frame.landmarks]
   raisedLandmarks[13] = landmark(0.2, 0.18, -0.08)

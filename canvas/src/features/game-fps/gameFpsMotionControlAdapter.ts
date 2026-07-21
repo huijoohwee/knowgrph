@@ -1,9 +1,16 @@
 import type { XrNativeControllerInput } from '@/features/three/xrNativeControllerInput'
 import { setGameFpsMotionInput } from './gameFpsRuntime'
-import { armGameModeSimulation } from './gameModeRuntime'
+import { authorizeGameModeMotionInput } from './gameModeRuntime'
 
-export function applyGameFpsMotionControlInput(input: XrNativeControllerInput): void {
-  if (input.source === 'motion') armGameModeSimulation()
+export function applyGameFpsMotionControlInput(
+  input: XrNativeControllerInput,
+  tracked: boolean,
+): void {
+  const active = input.source === 'motion'
+  if (!authorizeGameModeMotionInput({ active, tracked })) {
+    releaseGameFpsMotionControlInput()
+    return
+  }
   setGameFpsMotionInput({
     forward: -input.moveZ,
     strafe: input.moveX,
