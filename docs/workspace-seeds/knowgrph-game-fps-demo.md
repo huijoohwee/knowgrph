@@ -1,8 +1,8 @@
 ---
 title: "Knowgrph Game FPS Mission"
 doc_type: "Workspace Demo"
-status: "implementation-pending"
-runtime_status: "implementation-pending"
+status: "runtime-ready"
+runtime_status: "runtime-ready"
 publish_scope: "local-only"
 execution_boundary: "dev-only"
 kgCanvasRenderMode: "3d"
@@ -51,6 +51,8 @@ persistence:
   repo_local_mirror: "best-effort existing Source Files bridge"
   automatic_git_commit: false
 runtime_validation:
+  candidate_commit: "db96d16921968d98afd8755437e507ac3a323322"
+  verified_at: "2026-07-21T03:22:34Z"
   required_states: ["ready", "running", "complete", "save-error", "save-complete"]
   deterministic_replay: true
   local_assets_only: true
@@ -69,8 +71,8 @@ flow:
       pos: {x: -420, y: 0}
       properties:
         role: "lifecycle"
-        state: "implementation-pending"
-        output: "Apply this document to start the local procedural mission after the runtime readiness gate passes."
+        state: "runtime-ready"
+        output: "Apply this document to start the locally verified procedural mission."
     - id: "game_fps_simulation"
       type: "GameFpsSimulation"
       label: "Deterministic Mission"
@@ -91,7 +93,7 @@ flow:
       pos: {x: 440, y: 0}
       properties:
         role: "validation"
-        state: "implementation-pending"
+        state: "runtime-ready"
         output: "Bind source, browser, determinism, cost, persistence, and no-deploy evidence to the candidate commit."
   connections:
     - from: "game_fps_entry"
@@ -110,9 +112,9 @@ flow:
 
 # Knowgrph Game FPS Mission
 
-This source document is the canonical local activation contract for the bounded Game FPS mission. Its `implementation-pending` state is intentional until the focused gate and local browser smoke pass at the candidate commit.
+This source document is the canonical local activation contract for the bounded Game FPS mission. The focused gate and local browser smoke passed at candidate commit `db96d16921968d98afd8755437e507ac3a323322`; the demo is runtime-ready for local/Dev use only.
 
-## Run after the readiness gate is green
+## Run the runtime-ready demo
 
 ```bash
 npm run demo:game-fps
@@ -134,13 +136,13 @@ The exact visible labels are runtime-owned. No action requests camera, passkey, 
 
 ## Evidence state
 
-- [ ] Focused source tests and deterministic replay pass.
-- [ ] Agentic ECS model-free tick returns one canonical zero Cost_Log.
-- [ ] Canvas typecheck and production-format local build pass.
-- [ ] Local browser smoke proves movement, aim, fire, NPC reaction, completion, and HUD feedback.
-- [ ] Mission completion writes validated Decisions only through WorkspaceFs.
-- [ ] Malformed KGC blocks hydration until explicit reset; write failure retains pending Decisions for retry.
-- [ ] Network trace contains no required runtime request and no Cloudflare call.
-- [ ] No deployment or automatic Git operation occurs.
+- [x] Focused source tests and deterministic replay pass.
+- [x] Agentic ECS model-free tick returns one canonical zero Cost_Log.
+- [x] Canvas typecheck and production-format local build pass.
+- [x] Local browser smoke proves movement, aim, fire, NPC reaction, completion, and HUD feedback.
+- [x] Mission completion writes validated Decisions only through WorkspaceFs.
+- [x] Malformed KGC blocks hydration until explicit reset; write failure retains pending Decisions for retry.
+- [x] Browser proof records zero non-local, local runtime-bridge, or Cloudflare requests; ordinary localhost application assets remain local build inputs.
+- [x] No deployment or automatic Git operation occurs.
 
 Proof belongs in `docs/documents/knowgrph-game-fps-runtime-readiness.md`; do not turn these boxes green from source inspection alone.

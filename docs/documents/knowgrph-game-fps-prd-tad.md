@@ -5,7 +5,7 @@ author: "airvio / joohwee"
 date: "2026-07-21"
 updated: "2026-07-21"
 version: "2.0.0"
-status: "implementation-pending"
+status: "runtime-ready"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
 frontmatter_contract: "required"
@@ -13,9 +13,9 @@ domain: "knowgrph"
 execution_boundary: "dev-only"
 publish_scope: "local-only"
 readiness:
-  source_contract: "review-ready"
-  focused_runtime: "pending"
-  browser_smoke: "pending"
+  source_contract: "passed"
+  focused_runtime: "passed"
+  browser_smoke: "passed"
   protected_integration: "pending"
   production: "not authorized"
 constraints:
@@ -44,7 +44,7 @@ source_references:
 
 Knowgrph gains one small, source-backed first-person mission inside its existing Three.js Canvas. A player can open the local Dev demo, move, aim, fire one hitscan weapon, face four deterministic NPCs, complete the objective, and persist validated mission Decisions without an account, permission prompt, model call, remote asset fetch, or Cloudflare request.
 
-This document is the implementation contract, not runtime evidence. The status stays `implementation-pending` until the focused gate and browser smoke in `knowgrph-game-fps-runtime-readiness.md` pass at the exact candidate commit. No production or Cloudflare deployment is authorized by this work.
+This document is the implementation contract. The focused gate and local browser smoke passed at candidate commit `db96d16921968d98afd8755437e507ac3a323322`; the exact evidence is recorded in `knowgrph-game-fps-runtime-readiness.md`. Protected integration remains pending, and no production or Cloudflare deployment is authorized by this work.
 
 ## Product Requirements
 
@@ -273,7 +273,7 @@ Runtime readiness means focused source proof plus a local browser smoke bound to
 
 ## Runtime Readiness Gate
 
-The single source of truth for evidence is `docs/documents/knowgrph-game-fps-runtime-readiness.md`. Before its checklist passes, this PRD and the workspace seed must remain `implementation-pending`.
+The single source of truth for evidence is `docs/documents/knowgrph-game-fps-runtime-readiness.md`. Its local runtime-readiness checklist passed at candidate commit `db96d16921968d98afd8755437e507ac3a323322`, so this PRD and the workspace seed are `runtime-ready`. Protected integration and release remain separate gates.
 
 The expected focused command is:
 
