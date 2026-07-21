@@ -9,6 +9,7 @@ import {
   resolveWorkspaceSeedSourcePath,
 } from '@/features/source-files/workspaceSeedSourceFiles'
 import {
+  isWorkspaceRuntimeOnlyReferencePath,
   isWorkspacePathUnderSourceRoots,
   normalizeWorkspaceSourceRootPaths,
 } from '@/features/workspace-fs/workspaceSourceRoots'
@@ -111,6 +112,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
     const path = String(e.path || '').trim()
     if (!path) continue
     if (internalSpatialCapturePayloadPaths.has(path)) continue
+    if (isWorkspaceRuntimeOnlyReferencePath(path)) continue
     if (forceIncludeOnly && !forceInclude.has(path)) continue
     const underWorkspaceSourceRoot = isWorkspacePathUnderSourceRoots(path, args.workspaceSourceRootPaths || workspaceSourceRootPaths)
     if (workspaceDocsOnly && !underWorkspaceSourceRoot && !forceInclude.has(path)) continue
@@ -192,6 +194,7 @@ export function mergeWorkspaceEntriesIntoSourceFiles(args: {
       if (nextWorkspaceBySourcePath.has(sourcePath)) continue
       const workspacePath = sourcePath.slice('workspace:'.length)
       if (!workspacePath) continue
+      if (isWorkspaceRuntimeOnlyReferencePath(workspacePath)) continue
       if (internalSpatialCapturePayloadPaths.has(workspacePath)) continue
       const basename = workspacePath.replace(/\\/g, '/').replace(/\/+$/, '').split('/').pop() || ''
       const seedSourcePath = resolveWorkspaceSeedSourcePath(workspacePath)

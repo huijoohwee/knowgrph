@@ -64,6 +64,12 @@ export function normalizeWorkspaceSourceRootPaths(rootPaths?: ReadonlyArray<stri
   return ordered
 }
 
+export function isWorkspaceRuntimeOnlyReferencePath(path: string): boolean {
+  const normalizedPath = normalizeWorkspacePath(path as WorkspacePath)
+  return normalizedPath === WORKSPACE_AGENTIC_OS_DOCS_SOURCE_ROOT_PATH
+    || normalizedPath.startsWith(`${WORKSPACE_AGENTIC_OS_DOCS_SOURCE_ROOT_PATH}/`)
+}
+
 export function isWorkspacePathUnderSourceRoots(path: string, rootPaths?: ReadonlyArray<string>): boolean {
   const normalizedPath = normalizeWorkspacePath(path as WorkspacePath)
   const roots = normalizeWorkspaceSourceRootPaths(rootPaths)
