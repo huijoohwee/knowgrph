@@ -200,7 +200,13 @@ export default React.memo(function FlowCanvasInteractionRuntime(
       return
     }
     const storyboardWidgetMode = canvas2dRenderer === 'storyboard'
-    if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return
+    const requestState = useGraphStore.getState()
+    if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(requestState)) {
+      // Fit requests raised by source recomposition during a mutation lock must
+      // not remain queued and fire against the settled graph on the next render.
+      if (zoomRequest.type === 'fit') requestState.clearZoomRequest()
+      return
+    }
     const widthEffective = viewportW
     applyZoomRequestNative({
       zoomRequest,
