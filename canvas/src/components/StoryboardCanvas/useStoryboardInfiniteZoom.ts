@@ -17,6 +17,7 @@ import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphData } from '@/lib/graph/types'
 import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
+import { resolveFlowWidgetStateGraphKey } from '@/lib/storyboardWidget/widgetStateScope'
 import {
   buildStoryboardTransform,
   buildStoryboardTransformCss,
@@ -155,6 +156,10 @@ export function useStoryboardInfiniteZoom(args: {
   const effectiveZoomState = React.useMemo(
     () => getEffectiveZoomStateForKey({ zoomViewKey, zoomStateByKey, zoomState }),
     [zoomStateByKey, zoomState, zoomViewKey],
+  )
+  const storyboardCameraViewKey = React.useMemo(
+    () => resolveFlowWidgetStateGraphKey({ graphData: args.graphData }) || zoomViewKey,
+    [args.graphData, zoomViewKey],
   )
   const commitStateRef = React.useRef({
     dims,
@@ -389,7 +394,7 @@ export function useStoryboardInfiniteZoom(args: {
     const viewportW = Math.max(1, Math.round(dims.width || 1))
     const viewportH = Math.max(1, Math.round(dims.height || 1))
     if (viewportW <= 1 || viewportH <= 1) return
-    const fitKey = `${zoomViewKey}:${viewportW}x${viewportH}`
+    const fitKey = `${storyboardCameraViewKey}:${viewportW}x${viewportH}`
     if (
       lastInitialFitKeyRef.current === fitKey
       || completedStoryboardInitialFitKeys.has(fitKey)
@@ -428,6 +433,7 @@ export function useStoryboardInfiniteZoom(args: {
     metrics.signatureKey,
     viewPinned,
     viewportFitFillRatio,
+    storyboardCameraViewKey,
     zoomDurationFitMs,
     zoomDurationSelectionMs,
     zoomViewKey,
