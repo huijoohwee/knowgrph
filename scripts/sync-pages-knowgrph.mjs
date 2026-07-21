@@ -385,7 +385,7 @@ const fileExists = async (filePath) => {
 }
 
 const agentReadyRuntimeCopies = [
-  [agentReadyCommerceSource, agentReadyCommerceTarget], [agentReadyAppShellSource, agentReadyAppShellTarget],
+  [agentReadyCommerceSource, agentReadyCommerceTarget], [agentReadyAppShellSource, agentReadyAppShellTarget], [path.resolve(knowgrphRoot, 'cloudflare/pages/knowgrph-runtime-readiness.mjs'), path.resolve(mirrorRoot, 'functions/knowgrph/.well-known/runtime-readiness.json.js')],
   [semanticKeyContractSource, semanticKeyContractTarget],
   [xrSceneMcpContractSource, xrSceneMcpContractTarget], [xrAnimationMcpContractSource, xrAnimationMcpContractTarget], [motionControlMcpContractSource, motionControlMcpContractTarget], [path.resolve(knowgrphRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs'), path.resolve(mirrorRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs')],
   [richMediaTextMarkdownContractSource, richMediaTextMarkdownContractTarget],

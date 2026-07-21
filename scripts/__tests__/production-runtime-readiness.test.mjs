@@ -8,6 +8,7 @@ import {
   serializeProductionRuntimeReadiness,
   validateProductionRuntimeReadiness,
 } from '../production-runtime-readiness.mjs'
+import { onRequest as handlePublishedRuntimeReadiness } from '../../cloudflare/pages/knowgrph-runtime-readiness.mjs'
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..')
 const workspaceRoot = repoRoot.includes(`${path.sep}.worktrees${path.sep}`)
@@ -56,4 +57,32 @@ test('browser artifact digest is path-bound, order-independent, and content-sens
   assert.equal(await calculateRuntimeArtifactDigest([...entries].reverse()), expected)
   await fs.writeFile(second, 'changed', 'utf8')
   assert.notEqual(await calculateRuntimeArtifactDigest(entries), expected)
+})
+
+test('explicit app readiness route serves the apex marker bytes without an SPA fallback', async () => {
+  const body = serializeProductionRuntimeReadiness(validReadiness)
+  let fetchedUrl = ''
+  const response = await handlePublishedRuntimeReadiness({
+    request: new Request('https://airvio.co/knowgrph/.well-known/runtime-readiness.json?stale=1'),
+    env: { ASSETS: { fetch: async request => {
+      fetchedUrl = request.url
+      return new Response(body, { headers: { 'content-type': 'application/json' } })
+    } } },
+  })
+  assert.equal(fetchedUrl, 'https://airvio.co/.well-known/runtime-readiness.json')
+  assert.equal(response.status, 200)
+  assert.equal(await response.text(), body)
+  assert.equal(response.headers.get('cache-control'), 'no-store, no-cache, must-revalidate, max-age=0')
+  assert.equal(response.headers.get('x-knowgrph-route-owner'), 'knowgrph-runtime-readiness-pages')
+})
+
+test('explicit app readiness route rejects an HTML asset fallback', async () => {
+  const response = await handlePublishedRuntimeReadiness({
+    request: new Request('https://airvio.co/knowgrph/.well-known/runtime-readiness.json'),
+    env: { ASSETS: { fetch: async () => new Response('<html>fallback</html>', {
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    }) } },
+  })
+  assert.equal(response.status, 503)
+  assert.doesNotMatch(await response.text(), /fallback/)
 })
