@@ -803,7 +803,16 @@ export function useFlowCanvasRuntime(args: {
     ) return
 
     const state = useGraphStore.getState()
-    if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(state)) return
+    if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(state)) {
+      if (workspaceEditorOverlayOpen === true) {
+        // A mutation lock suppresses camera writes, but the document already on
+        // screen still owns the current transform. Remember that authority so
+        // the first post-lock topology revision cannot re-arm initial fit.
+        lastInitTransformZoomViewKeyRef.current = initKey
+        rememberInitializedStoryboardZoomView(initKey)
+      }
+      return
+    }
     const zoomState = pickZoomStateForView({
       zoomViewKey,
       zoomStateByKey: state.zoomStateByKey,
