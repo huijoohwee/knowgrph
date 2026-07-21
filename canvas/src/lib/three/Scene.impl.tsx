@@ -789,7 +789,7 @@ export function Scene({
           paused={paused}
         />
       ) : null}
-      {mode === 'xr' ? <XrGraphStage data={data} /> : null}
+      {mode === 'xr' ? <XrGraphStage data={data} paused={Boolean(paused)} /> : null}
       {mode !== 'xr' ? <group ref={sceneGroupRef}>
         <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragRef} paused={paused} mode={mode} />
         {mode === 'voxel' ? (

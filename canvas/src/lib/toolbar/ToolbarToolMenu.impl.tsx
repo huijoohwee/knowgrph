@@ -47,6 +47,7 @@ import { WorkspaceDataViewFloatingPanelView } from '@/features/markdown-workspac
 import { PanelFormDensityProvider } from '@/lib/ui/panelFormControls'
 import { useWorkspaceDataViewFloatingDensity } from '@/features/markdown-workspace/main/viewer/workspaceDataViewFloatingStore'
 import { GeoView } from '@/lib/toolbar/ToolbarToolMenuGeoView'
+import { routeToolbarXrScenePanel } from '@/features/three/toolbarXrScenePanelRouting'
 import {
   FloatingPanelHeaderStatus,
   useFloatingPanelDevStatusMetrics,
@@ -235,6 +236,7 @@ export function ToolbarToolMenu({
   }, [geospatialModeEnabled])
 
   const handleSelectView = React.useCallback((view: RequestedFloatingPanelView) => {
+    if (routeToolbarXrScenePanel({ view, canvasRenderMode, canvas3dMode })) return
     if (view === 'media') setMediaCatalogMode(canvasRenderMode === '3d' && canvas3dMode === 'xr' ? 'xr-3d' : 'media')
     setFloatingPanelView(view)
     if (view === 'geo') void ensureGeospatialEnabled()

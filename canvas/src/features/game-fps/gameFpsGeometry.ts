@@ -1,4 +1,4 @@
-import { GAME_FPS_MAP, type GameFpsBlocker, type GameFpsSpatialMap } from './gameFpsModel'
+import type { GameFpsBlocker, GameFpsSpatialMap } from './gameFpsModel'
 
 export type GameFpsPoint = Readonly<{ x: number; z: number }>
 export type GameFpsRayAabbCandidate = Readonly<{
@@ -9,6 +9,14 @@ export type GameFpsRayAabbCandidate = Readonly<{
 export type GameFpsRayAabbHit = Readonly<{ entityRef: string; distance: number }>
 
 const EPSILON = 1e-8
+const GROUND_ACTOR_STEP_HEIGHT_METERS = 0.45
+const GROUND_ACTOR_HEIGHT_METERS = 1.8
+
+function obstructsGroundActor(blocker: GameFpsBlocker): boolean {
+  const bottom = blocker.centerY - blocker.halfHeight
+  const top = blocker.centerY + blocker.halfHeight
+  return top > GROUND_ACTOR_STEP_HEIGHT_METERS && bottom < GROUND_ACTOR_HEIGHT_METERS
+}
 
 export function clampGameFpsPitch(value: number): number {
   return Math.max(-1.2, Math.min(1.2, value))
@@ -20,7 +28,8 @@ export function normalizeGameFpsYaw(value: number): number {
 }
 
 function insideBlocker(point: GameFpsPoint, blocker: GameFpsBlocker, radius: number): boolean {
-  return Math.abs(point.x - blocker.centerX) < blocker.halfWidth + radius
+  return obstructsGroundActor(blocker)
+    && Math.abs(point.x - blocker.centerX) < blocker.halfWidth + radius
     && Math.abs(point.z - blocker.centerZ) < blocker.halfDepth + radius
 }
 
@@ -29,8 +38,8 @@ export function isGameFpsPositionValid(
   radius: number,
   map: GameFpsSpatialMap,
 ): boolean {
-  if (Math.abs(point.x) > map.halfWidth - radius) return false
-  if (Math.abs(point.z) > map.halfDepth - radius) return false
+  if (Math.abs(point.x - map.centerX) > map.halfWidth - radius) return false
+  if (Math.abs(point.z - map.centerZ) > map.halfDepth - radius) return false
   return !map.blockers.some(blocker => insideBlocker(point, blocker, radius))
 }
 
@@ -38,7 +47,7 @@ export function resolveGameFpsMovement(
   origin: GameFpsPoint,
   delta: GameFpsPoint,
   radius: number,
-  map: GameFpsSpatialMap = GAME_FPS_MAP,
+  map: GameFpsSpatialMap,
 ): GameFpsPoint {
   const both = { x: origin.x + delta.x, z: origin.z + delta.z }
   if (isGameFpsPositionValid(both, radius, map)) return both
@@ -82,9 +91,12 @@ function segmentIntersectsBlocker(
 export function hasGameFpsLineOfSight(
   start: GameFpsPoint,
   end: GameFpsPoint,
-  map: GameFpsSpatialMap = GAME_FPS_MAP,
+  map: GameFpsSpatialMap,
 ): boolean {
-  return !map.blockers.some(blocker => segmentIntersectsBlocker(start, end, blocker))
+  return !map.blockers.some(blocker => {
+    if (!obstructsGroundActor(blocker)) return false
+    return segmentIntersectsBlocker(start, end, blocker)
+  })
 }
 
 export function gameFpsHorizontalDistance(left: GameFpsPoint, right: GameFpsPoint): number {

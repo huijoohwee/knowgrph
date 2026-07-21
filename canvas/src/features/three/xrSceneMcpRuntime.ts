@@ -1,6 +1,4 @@
-import { activateCanvasGraphSurfaceMode } from '@/lib/canvas/canvas3dMode'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { setMediaCatalogMode } from '@/features/command-menu/mediaCatalogModeRuntime'
 import type { JSONValue } from '@/lib/graph/types'
 import {
   XR_MOTION_REFERENCE_GRAPH_METADATA_KEY,
@@ -83,6 +81,7 @@ import {
   type XrSceneControlInput,
   type XrSceneTransition,
 } from './xrSceneControlNormalization'
+import { activateXrSceneSurface } from './xrSceneSurfaceRuntime'
 
 export { normalizeXrSceneControl }
 export type { XrSceneControlAction, XrSceneControlInput, XrSceneTransition }
@@ -110,27 +109,20 @@ function hydrateActiveXrScene(): boolean {
   return true
 }
 
-function activateXrSceneWorkspace(): void {
-  const nextState = useGraphStore.getState()
-  activateCanvasGraphSurfaceMode({
-    mode: 'xr',
-    setCanvas3dMode: nextState.setCanvas3dMode,
-    setCanvasRenderMode: nextState.setCanvasRenderMode,
+function activateXrSceneWorkspace(): boolean {
+  const state = useGraphStore.getState()
+  const shouldOpenMedia = !state.floatingPanelOpen || state.floatingPanelView === 'gameMode'
+  return activateXrSceneSurface({
+    ...(shouldOpenMedia ? { panelView: 'media', openPanel: true } : {}),
+    timeline: true,
   })
-  if (!nextState.floatingPanelOpen) {
-    setMediaCatalogMode('xr-3d')
-    nextState.setFloatingPanelView('media')
-    nextState.setFloatingPanelOpen(true)
-  }
-  nextState.setBottomSurfaceTab('timeline')
-  nextState.setBottomSurfaceCollapsed(false)
 }
 
 function sameJson(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right)
 }
 
-function persistAndActivateXrScene(includePhysics = false): boolean {
+function persistXrScene(includePhysics = false): boolean {
   const state = useGraphStore.getState()
   const serializedMotion = serializeXrMotionReferencePlan(readXrMotionReferenceRuntime().plan)
   const serializedPhysics = serializeXrPhysicsRuntimeWorld() as unknown as JSONValue
@@ -143,7 +135,6 @@ function persistAndActivateXrScene(includePhysics = false): boolean {
   if (includePhysics && !sameJson(metadata?.[XR_PHYSICS_GRAPH_METADATA_KEY], serializedPhysics)) return false
   markXrMotionReferenceSaved(serializedMotion)
   if (includePhysics) markXrPhysicsRuntimeSaved(metadata?.[XR_PHYSICS_GRAPH_METADATA_KEY])
-  activateXrSceneWorkspace()
   return true
 }
 
@@ -154,7 +145,6 @@ function persistXrPhysicsConfig(): boolean {
   const savedValue = useGraphStore.getState().graphData?.metadata?.[XR_PHYSICS_GRAPH_METADATA_KEY]
   if (!sameJson(savedValue, serialized)) return false
   markXrPhysicsRuntimeSaved(savedValue)
-  activateXrSceneWorkspace()
   return true
 }
 
@@ -273,7 +263,6 @@ function runXrPhysicsControl(physics: XrPhysicsControlInput): XrPhysicsControlRe
     else if (physics.operation === 'reset') resetSharedXrNativeControllerDemo()
     else if (physics.operation === 'exit') exitXrNativeControllerDemo()
     else return { ok: false, message: 'Use a supported native XR controller operation.' }
-    activateXrSceneWorkspace()
     const demo = readXrNativeControllerDemo()
     return { ok: true, message: `Native XR ${demo.mode} controller is ${demo.phase}.` }
   }
@@ -282,23 +271,19 @@ function runXrPhysicsControl(physics: XrPhysicsControlInput): XrPhysicsControlRe
       if (before.world.bodies.length === 0) return { ok: false, message: 'Attach at least one XR body before entering Play mode.' }
       exitXrNativeControllerDemo()
       playXrPhysicsRuntime()
-      activateXrSceneWorkspace()
       return { ok: true, message: 'XR dynamics Play mode started.' }
     }
     if (physics.operation === 'pause') {
       if (before.phase !== 'playing') return { ok: false, message: 'XR dynamics can pause only while playing.' }
       pauseXrPhysicsRuntime()
-      activateXrSceneWorkspace()
       return { ok: true, message: 'XR dynamics paused.' }
     }
     if (physics.operation === 'stop') {
       stopXrPhysicsRuntime()
-      activateXrSceneWorkspace()
       return { ok: true, message: 'XR dynamics stopped and authored transforms restored.' }
     }
     if (physics.operation === 'reset') {
       resetXrPhysicsRuntime()
-      activateXrSceneWorkspace()
       return { ok: true, message: 'XR dynamics reset to authored spawn transforms.' }
     }
     if (physics.operation === 'step') {
@@ -306,7 +291,6 @@ function runXrPhysicsControl(physics: XrPhysicsControlInput): XrPhysicsControlRe
       const ticks = physics.ticks || 1
       const result = stepXrPhysicsRuntimeTicks(ticks)
       if (result.subSteps !== ticks) return { ok: false, message: 'XR dynamics could not advance the requested fixed steps.' }
-      activateXrSceneWorkspace()
       return { ok: true, message: `XR dynamics advanced ${ticks} fixed ${ticks === 1 ? 'step' : 'steps'}.` }
     }
     if (before.phase !== 'stopped') return { ok: false, message: 'Stop XR dynamics before editing world settings.' }
@@ -329,7 +313,6 @@ function runXrPhysicsControl(physics: XrPhysicsControlInput): XrPhysicsControlRe
     if (!physics.impulse || !applyXrPhysicsImpulse(subjectId, physics.impulse)) {
       return { ok: false, message: 'Impulses require a dynamic body in playing or paused XR dynamics.' }
     }
-    activateXrSceneWorkspace()
     return { ok: true, message: `Impulse applied to ${subject.label}.`, subjectId }
   }
   if (before.phase !== 'stopped') return { ok: false, message: 'Stop XR dynamics before editing body components.' }
@@ -361,6 +344,9 @@ export function controlLocalXrScene(input: XrSceneControlInput): XrSceneControlR
   const control = normalizeXrSceneControl(input)
   if (!control) return { ok: false, message: 'Use a supported XR action or an invocation such as /xr.place @person-adult transition=linear.' }
   if (!hydrateActiveXrScene()) return { ok: false, message: 'Open or create a graph document before controlling the XR scene.' }
+  if (!activateXrSceneWorkspace()) {
+    return { ok: false, message: 'XR scene control requires an available shared XR Mode surface.' }
+  }
 
   if (control.action === 'physics' && control.physics) {
     const result = runXrPhysicsControl(control.physics)
@@ -370,7 +356,6 @@ export function controlLocalXrScene(input: XrSceneControlInput): XrSceneControlR
     if (!commitXrArPlacement()) {
       return { ok: false, message: 'Enter an immersive AR session and acquire a current reticle hit before placing the scene.' }
     }
-    activateXrSceneWorkspace()
     return { ok: true, message: 'XR scene placed at the current real-world reticle.', action: control.action, scene: inspectLocalXrSceneAssets() }
   }
 
@@ -486,7 +471,7 @@ export function controlLocalXrScene(input: XrSceneControlInput): XrSceneControlR
     message = `${subject.label} removed from the XR stage.`
   }
 
-  if (!persistAndActivateXrScene(physicsChanged)) {
+  if (!persistXrScene(physicsChanged)) {
     restoreXrMotionReferenceRuntimeSnapshot(previousMotion)
     restoreXrPhysicsRuntimeSnapshot(previousPhysics)
     return { ok: false, message: 'The XR scene could not be written to graph metadata.' }

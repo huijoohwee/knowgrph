@@ -212,6 +212,10 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
   }
   if (id.startsWith('surface:')) {
     const mode = id.slice('surface:'.length) as CanvasSurfaceModeId
+    if (mode === 'xr') {
+      onOpenShared3dPanel?.('xr')
+      return
+    }
     const activated = applyCanvasSurfaceModeSelection({
       mode,
       geospatialEnabled,
@@ -226,7 +230,7 @@ export const applyCanvasViewSelection = (params: CanvasViewActionParams) => {
       setCanvas3dMode,
       setSchema,
     })
-    if (activated && (mode === '3d' || mode === 'xr')) onOpenShared3dPanel?.(mode)
+    if (activated && mode === '3d') onOpenShared3dPanel?.(mode)
     return
   }
   if (id === 'animation:force' || id === 'animation:orbit') {

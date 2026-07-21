@@ -6,6 +6,7 @@ const modLayoutDatasetKeyStable = () => import('@/__tests__/layoutDatasetKeyStab
 const modCanvas3dMode = () => import('@/__tests__/canvas3dMode.test')
 const modCanvasXrSessionPolicy = () => import('@/__tests__/canvasXrSessionPolicy.test')
 const modCanvasXrPanelSurface = () => import('@/__tests__/canvasXrPanelSurface.test')
+const modCanvasXrSharedSurfaceOwnership = () => import('@/__tests__/canvasXrSharedSurfaceOwnership.test')
 const modXrAgenticEcsComposition = () => import('@/__tests__/xrAgenticEcsComposition.test')
 const modXrMotionReferencePackage = () => import('@/__tests__/xrMotionReferencePackage.test')
 const modXrCameraMoves = () => import('@/__tests__/xrCameraMoves.test')
@@ -89,8 +90,12 @@ export const runSchemaTests = async (results: TestResult[]) => {
     await mod.testVoxelModeRejectsGeospatialMode()
   })
   await execTest(results, 'canvas.viewSelection.xrSurfaceMode', async () => {
-    const mod = await modCanvas3dMode()
+    const mod = await modCanvasXrSharedSurfaceOwnership()
     await mod.testXrModeNormalizesAndCanvasViewSelectionActivatesSurface()
+  })
+  await execTest(results, 'canvas.xrMode.storeActivationSharedOwner', async () => {
+    const mod = await modCanvasXrSharedSurfaceOwnership()
+    await mod.testCanvasStoreRoutesXrActivationThroughSharedOwner()
   })
   await execTest(results, 'canvas.xrMode.nativeSessionPolicy', async () => {
     const mod = await modCanvasXrSessionPolicy()
@@ -99,6 +104,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'canvas.xrMode.panelSurface', async () => {
     const mod = await modCanvasXrPanelSurface()
     await mod.testXrModeUsesCanonicalFloatingPanel()
+  })
+  await execTest(results, 'canvas.xrMode.sharedSurfaceOwnershipBoundaries', async () => {
+    const mod = await modCanvasXrSharedSurfaceOwnership()
+    await mod.testXrSceneSurfaceOwnershipSourceBoundaries()
   })
   await execTest(results, 'canvas.xrMode.agenticEcsCompositionBoundary', async () => {
     const mod = await modXrAgenticEcsComposition()
@@ -301,8 +310,12 @@ export const runSchemaTests = async (results: TestResult[]) => {
     await mod.testWorkspaceImportXrStandalonePlyRuntimeUsesTransferBackedWorkerParser()
   })
   await execTest(results, 'canvas.viewSelection.shared3dSurfaceModeOwner', async () => {
-    const mod = await modCanvas3dMode()
+    const mod = await modCanvasXrSharedSurfaceOwnership()
     await mod.testCanvasSurfaceMode3dSelectionUsesSharedOwner()
+  })
+  await execTest(results, 'canvas.frontmatter.xrSharedPanelSurfaceOwner', async () => {
+    const mod = await modCanvasXrSharedSurfaceOwnership()
+    await mod.testXrSurfaceFrontmatterPresetActivatesXrCanvasMode()
   })
   await execTest(results, 'canvas.renderSettings.xrModeSelect', async () => {
     const mod = await modCanvas3dMode()

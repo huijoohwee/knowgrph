@@ -113,21 +113,29 @@ export async function controlLocalGameMode(input: GameModeControlInput) {
   }
   if (control.operation === 'open') {
     const opened = openGameModeSurface()
-    return { ok: opened, message: opened ? readGameModeSnapshot().message : 'Game Mode could not activate the Canvas.', operation: control.operation, game: inspectLocalGameMode() }
+    return { ok: opened, message: readGameModeSnapshot().message, operation: control.operation, game: inspectLocalGameMode() }
   }
   if (control.operation === 'start') {
     const result = await startGameMode()
     return { ok: result.launchStatus === 'ready', message: result.message, operation: control.operation, game: inspectLocalGameMode() }
   }
   if (control.operation === 'stop') {
+    const gameMode = readGameModeSnapshot()
+    const mission = readGameFpsSnapshot()
+    if (!gameMode.active || mission.phase === 'stopped') {
+      return { ok: false, message: 'Stop requires an active Game Mode mission.', operation: control.operation, game: inspectLocalGameMode() }
+    }
     const result = stopGameMode()
     return { ok: true, message: result.message, operation: control.operation, game: inspectLocalGameMode() }
   }
   if (control.operation === 'restart') {
-    const result = restartGameMode()
+    const result = await restartGameMode()
     return { ok: result.launchStatus === 'ready', message: result.message, operation: control.operation, game: inspectLocalGameMode() }
   }
   if (control.operation === 'exit') {
+    if (!readGameModeSnapshot().active) {
+      return { ok: false, message: 'Exit requires an active Game Mode surface.', operation: control.operation, game: inspectLocalGameMode() }
+    }
     const result = exitGameModeSurface()
     return { ok: true, message: result.message, operation: control.operation, game: inspectLocalGameMode() }
   }

@@ -14,7 +14,7 @@ import {
   isGameFpsRunReadyDemoActive,
   isXrPhysicsRunReadyDemoActive,
 } from '@/features/workspace-fs/workspaceRunReadyDemos'
-import { exitGameModeSurface, readGameModeSnapshot, subscribeGameModeSnapshot } from '@/features/game-fps/gameModeRuntime'
+import { readGameModeSnapshot, subscribeGameModeSnapshot } from '@/features/game-fps/gameModeRuntime'
 import { XrNativeControllerDemoHud } from '@/features/three/XrNativeControllerDemoHud'
 
 import { getCanvas2dSurfaceId, isCanvas2dRendererId, isStoryboardCanvas2dRenderer, supportsCanvas2dMinimap } from '@/lib/config.render'
@@ -146,12 +146,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
     readGameModeSnapshot,
     readGameModeSnapshot,
   )
-  const gameFpsActive = gameFpsRunReadyDemo || gameMode.active
-  React.useEffect(() => {
-    if (!gameMode.active) return
-    if (canvasRenderMode === '3d' && canvas3dMode === gameMode.surfaceMode) return
-    exitGameModeSurface({ restorePreviousSurface: false })
-  }, [canvas3dMode, canvasRenderMode, gameMode.active, gameMode.surfaceMode])
+  const gameFpsActive = gameMode.active
+  const gameFpsHudVisible = gameFpsActive
+    || (gameFpsRunReadyDemo && gameMode.launchStatus === 'error')
   const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
   const explorerActivePath = useMarkdownExplorerStore(s => s.activePath)
   const activeSourceFile = React.useMemo(
@@ -579,7 +576,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
         ) : null}
       </React.Suspense>
       {xrPhysicsRunReadyDemo && !gameFpsActive ? <XrNativeControllerDemoHud /> : null}
-      {gameFpsActive ? <GameFpsHudLazy /> : null}
+      {gameFpsHudVisible ? <GameFpsHudLazy /> : null}
       {variant === 'workspace' ? <CanvasEmbedCodePanelHost /> : null}
     </section>
   )

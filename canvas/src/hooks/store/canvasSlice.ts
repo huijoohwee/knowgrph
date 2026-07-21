@@ -61,6 +61,7 @@ import { computeEffectiveFrontmatterMode } from '@/lib/graph/frontmatterMode'
 import { buildFlowWidgetOverlayEligibleNodeIdSet } from '@/lib/graph/flowWidgetEligibility'
 import { readLayoutMode2d } from '@/lib/graph/layoutMode'
 import { normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
+import { interceptSharedXrSurfaceTransition } from '@/lib/canvas/canvasSurfaceOwnershipRuntime'
 import { coerceCanvas2dRendererForSchema } from '@/lib/canvas/renderModeConstraints'
 import { buildWorkspaceGraphMutationTransitionState } from '@/features/workspace-table/workspaceTableSsot'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
@@ -82,7 +83,6 @@ import {
 } from '@/lib/canvas/camera-options-2d'
 
 type SetGraph = StoreApi<GraphState>['setState']
-
 export {
   applyCanvasSliceStorageMigrations,
   planCanvasSliceStorageMigrations,
@@ -104,10 +104,8 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
     v => coerceViewportControlsPreset(v),
   )
   const initialViewportControlsPreset = initialViewportControlsPresetStored
-
   const initialStoryboardWidgetSelectionOnDrag = lsBool(LS_KEYS.storyboardWidgetSelectionOnDrag, false)
   const initialStoryboardWidgetOverlayWheelProxyEnabled = lsBool(LS_KEYS.storyboardWidgetOverlayWheelProxyEnabled, true)
-
   const initialInfiniteCanvasInteractionMode = lsJson(
     LS_KEYS.infiniteCanvasInteractionMode,
     DEFAULT_INFINITE_CANVAS_INTERACTION_MODE,
@@ -386,6 +384,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       })
       return
     }
+    if (interceptSharedXrSurfaceTransition(cur, { canvasRenderMode: m })) return
     set(state => {
       const requested = m === '3d' ? '3d' : '2d'
       const semanticMode = String(state.documentSemanticMode || 'document')
@@ -506,6 +505,7 @@ export const createCanvasSlice = (set: SetGraph, get: () => GraphState) => {
       })
       return
     }
+    if (interceptSharedXrSurfaceTransition(cur, { canvas3dMode: normalizeCanvas3dMode(mode) })) return
     set(state => {
       const requested = normalizeCanvas3dMode(mode)
       const next = resolveCanvas3dMode({

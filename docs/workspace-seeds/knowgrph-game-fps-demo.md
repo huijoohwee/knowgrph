@@ -7,7 +7,8 @@ game_mode_xr_fidelity_status: "protected PR #273 and exact-main acceptance passe
 publish_scope: "local-only"
 execution_boundary: "dev-only"
 kgCanvasRenderMode: "3d"
-kgCanvas3dMode: "3d"
+kgCanvasSurfaceMode: "xr"
+kgCanvas3dMode: "xr"
 kgFloatingPanelOpen: true
 kgFloatingPanelView: "gameMode"
 kgBottomPanelOpen: false
@@ -36,7 +37,7 @@ run_ready_demo:
 mission:
   id: "mission-1"
   seed: 170721
-  map: "procedural-training-yard"
+  map: "shared-authored-xr-scene"
   mode: "single-player"
   npc_count: 4
   weapon: "training-rifle"
@@ -66,13 +67,15 @@ game_mode:
   inspect_tool: "knowgrph.inspect_local_game_mode"
   control_tool: "knowgrph.control_local_game_mode"
   renderer_owner: "existing React Three Fiber Canvas"
-  canvas_surfaces: ["3d", "shared xr"]
-  webgl_gate: "synchronous probe; fail closed on the local fallback surface"
+  canvas_surfaces: ["xr"]
+  scene_owner: "the canonical authored XR world shared by Canvas View Mode and FloatingPanel Media, Animation, Motion Control, Game Mode, and Camera"
+  variant_policy: "the fallback scene and environment implementation is deleted; renamed, conditional, or alternate variants are forbidden"
+  webgl_gate: "synchronous probe; fail closed with the local unsupported state without mounting another scene or renderer"
   simulation_clock: "ready until normalized desktop, pointer, touch, Motion Control, or MCP input arms deterministic ticks"
   stop_start: "resume the exact in-memory mission tick and state"
   hud: "lifecycle, mission, persistence, and runtime errors remain visible"
   motion_control_input: "optional shared pose-to-controller adapter only; never the NPC decision policy"
-  xr_surface: "retain the paused authored XR scene under the first-person gameplay overlay; restore XR input and simulation ownership on exit"
+  xr_surface: "retain the paused authored XR scene under the first-person gameplay actor overlay; preserve that same scene across panel changes and restore XR input and simulation ownership on exit"
 persistence:
   owner: "browser-local WorkspaceFs"
   format: "KGC EcsDecision nodes"
@@ -114,7 +117,7 @@ flow:
       properties:
         role: "lifecycle"
         state: "runtime-ready"
-        output: "Apply this document to start the locally verified procedural mission."
+        output: "Apply this document to start the locally verified mission in the shared authored XR scene."
     - id: "game_fps_simulation"
       type: "GameFpsSimulation"
       label: "Deterministic Mission"
@@ -162,9 +165,9 @@ This source document is the canonical local activation contract for the bounded 
 npm run demo:game-fps
 ```
 
-Then open **Explorer → Source Files → docs → workspace-seeds → knowgrph-game-fps-demo.md** and apply this document. Activation is owned by the source-authored `run_ready_demo.id`; an imported document needs no hardcoded path alias and may use any non-conflicting path, while a path/source identity conflict fails closed. The mission uses only procedural in-repo geometry and the existing single Three renderer.
+Then open **Explorer → Source Files → docs → workspace-seeds → knowgrph-game-fps-demo.md** and apply this document. Activation is owned by the source-authored `run_ready_demo.id`; an imported document needs no hardcoded path alias and may use any non-conflicting path, while a path/source identity conflict fails closed. The mission reuses the selected authored XR terrain, props, placement, and collider catalog in the existing single Three renderer. Game Mode adds only its first-person camera and actor overlay; it owns no replacement environment.
 
-Open **FloatingPanel → Game Mode** and use **Open**, **Start**, **Stop**, **Restart**, **Fire**, **Reload**, **Save**, and **Exit**. Start prepares a healthy tick-zero frame; the deterministic clock begins only after normalized player engagement. Stop followed by Start resumes the exact in-memory tick and mission state. Restart creates a fresh deterministic mission. On XR, the authored world stays visibly mounted and paused under the first-person gameplay overlay; Exit restores its input and simulation owner on the same Canvas.
+Open **FloatingPanel → Game Mode** and use **Open**, **Start**, **Stop**, **Restart**, **Fire**, **Reload**, **Save**, and **Exit**. Start prepares a healthy tick-zero frame; the deterministic clock begins only after normalized player engagement. Stop followed by Start resumes the exact in-memory tick and mission state. Restart creates a fresh deterministic mission. The authored XR world stays visibly mounted and paused under the first-person gameplay overlay; Exit restores its input and simulation owner on the same Canvas. Switching among **Media**, **Animation**, **Motion Control**, **Game Mode**, and **Camera** changes only the FloatingPanel projection and never replaces that Canvas or world.
 
 The native invocation prefix is exactly `/game.mode @canvas #gameplay`; add one supported `operation` value for control calls. Browser-local WebMCP exposes schema `knowgrph-game-mode-mcp/v1` through `knowgrph.inspect_local_game_mode` and `knowgrph.control_local_game_mode`.
 
@@ -182,7 +185,7 @@ The native invocation prefix is exactly `/game.mode @canvas #gameplay`; add one 
 | Leave Game Mode | Exit button | Exit button |
 | Retry failed save | Retry save button | Retry save button |
 
-The exact visible labels are runtime-owned. The synchronous WebGL probe fails closed before mission start and leaves a visible local fallback error without a second or remote renderer. Motion Control can optionally normalize pose input through the shared adapter, but it never selects NPC actions and the core mission never requests camera access. No action requests passkey, sign-in, model access, remote asset access, or Cloudflare connectivity.
+The exact visible labels are runtime-owned. The synchronous WebGL probe fails closed before mission start and leaves a visible local unsupported-state error without a second scene, Canvas, or remote renderer. Motion Control can optionally normalize pose input through the shared adapter, but it never selects NPC actions and the core mission never requests camera access. No action requests passkey, sign-in, model access, remote asset access, or Cloudflare connectivity.
 
 Terminal mission results do not auto-save. Validated Decisions stay pending until **Save** is explicitly selected. A malformed saved document is preserved byte-for-byte and blocks **Start** and **Restart** until **Reset local save** is explicitly selected; a failed write retains pending Decisions for retry.
 
@@ -192,9 +195,10 @@ Terminal mission results do not auto-save. Validated Decisions stay pending unti
 - [x] Agentic ECS model-free tick returns one canonical zero Cost_Log.
 - [x] Canvas typecheck and production-format local build pass.
 - [x] Local browser smoke proves movement, aim, fire, NPC reaction, completion, and HUD feedback.
-- [x] FloatingPanel Game Mode owns Open, Start, Stop, Restart, Fire, Reload, Save, and Exit on the existing 3D/shared-XR Canvas.
+- [x] FloatingPanel Game Mode owns Open, Start, Stop, Restart, Fire, Reload, Save, and Exit on the existing shared XR Canvas.
 - [x] Protected PR #273 and exact-main proof: tick-zero health and Decisions remain stable until normalized player engagement; Stop/Start resumes exact in-memory state.
 - [x] Protected PR #273 and exact-main proof: XR keeps its authored scene, atmosphere, props, placement, and collision catalog under Game Mode while its input/simulation pause and restore exactly on exit.
+- [ ] Current scene-authority follow-up must prove the former fallback scene/environment source is deleted, alternate variants are statically forbidden, and Media, Animation, Motion Control, Game Mode, and Camera preserve one Canvas and authored XR world. PR #273's non-mount proof is historical and does not prove deletion.
 - [x] Protected PR #273 and exact-main proof: every authored XR preset filters non-obstructing vertical slabs, admits clear player/NPC spawns, and replaces a stale live or stopped spatial profile before gameplay.
 - [x] Terminal Decisions remain pending until explicit Save writes validated Decisions only through WorkspaceFs; no terminal auto-save exists.
 - [x] Malformed KGC blocks Start and Restart until explicit Reset; write failure retains pending Decisions for retry.

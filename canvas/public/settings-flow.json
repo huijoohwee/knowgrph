@@ -6714,7 +6714,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L194; canvas/src/hooks/store/canvasSlice.ts:L373; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L190"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L194; canvas/src/hooks/store/canvasSlice.ts:L371; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L190"
   },
   "canvas3dMode": {
     "area": "Canvas Rendering",
@@ -6732,7 +6732,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L208; canvas/src/hooks/store/canvasSlice.ts:L498; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L191"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L208; canvas/src/hooks/store/canvasSlice.ts:L497; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L191"
   },
   "viewportControlsPreset": {
     "area": "Canvas Interaction (Viewport Controls)",
@@ -6840,7 +6840,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L282; canvas/src/hooks/store/canvasSlice.ts:L199; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L56"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L282; canvas/src/hooks/store/canvasSlice.ts:L197; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L56"
   },
   "fitToScreenMode": {
     "area": "Canvas Zoom Modes",
@@ -6858,7 +6858,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L291; canvas/src/hooks/store/canvasSlice.ts:L226; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L59"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L291; canvas/src/hooks/store/canvasSlice.ts:L224; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L59"
   },
   "zoomToSelectionMode": {
     "area": "Canvas Zoom Modes",
@@ -6876,7 +6876,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L300; canvas/src/hooks/store/canvasSlice.ts:L249; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L62"
+    "lineRange": "canvas/src/features/settings/registry-ui.graph-and-orchestrator.part2.ts:L300; canvas/src/hooks/store/canvasSlice.ts:L247; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L62"
   },
   "zoomDurationFitMs": {
     "area": "Canvas Zoom Actions",
@@ -9452,7 +9452,7 @@
     "imports": [
       "zustand"
     ],
-    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L373; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L190; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
+    "lineRange": "canvas/src/features/settings/registry-presets.ts:L9; canvas/src/hooks/store/canvasSlice.ts:L371; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L190; canvas/src/hooks/store/schemaSlice.ts:L343; canvas/src/hooks/store/store-types/graph-state-canvas-runtime.ts:L114"
   },
   "CLICK_URL": {
     "area": "Config Constants",

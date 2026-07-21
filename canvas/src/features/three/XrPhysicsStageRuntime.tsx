@@ -37,9 +37,11 @@ function readAuthoredPosition(subjectId: string): readonly [number, number, numb
 export function XrPhysicsStageRuntime({
   stageScale,
   groundY,
+  paused = false,
 }: {
   stageScale: number
   groundY: number
+  paused?: boolean
 }) {
   const runtime = React.useSyncExternalStore(
     subscribeXrPhysicsRuntime,
@@ -59,11 +61,12 @@ export function XrPhysicsStageRuntime({
   }, [])
 
   React.useEffect(() => {
-    if (runtime.phase === 'stopped') restoreAuthoredTransforms()
-  }, [restoreAuthoredTransforms, runtime.phase])
+    if (!paused && runtime.phase === 'stopped') restoreAuthoredTransforms()
+  }, [paused, restoreAuthoredTransforms, runtime.phase])
   React.useEffect(() => restoreAuthoredTransforms, [restoreAuthoredTransforms])
 
   useFrame((state, deltaSeconds) => {
+    if (paused) return
     const current = readXrPhysicsRuntime()
     if (current.phase === 'stopped') return
 

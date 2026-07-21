@@ -7,13 +7,19 @@ import {
   selectGameFpsRayAabbHit,
 } from '../features/game-fps/gameFpsGeometry'
 import {
+  captureGameFpsAuthoredMission,
+  createGameFpsAuthoredMission,
+  tickGameFpsAuthoredMission,
+} from '../features/game-fps/gameFpsMission'
+import {
   scoreGameFpsNpcActions,
   selectGameFpsNpcAction,
-} from '../features/game-fps/gameFpsMission'
+} from '../features/game-fps/gameFpsNpcPolicy'
 import {
   acknowledgeGameFpsDecisions,
   advanceGameFpsBy,
   queueGameFpsFire,
+  readGameFpsSpatialProfile,
   readGameFpsSnapshot,
   reloadGameFpsWeapon,
   resetGameFpsRuntimeForTests,
@@ -26,7 +32,10 @@ import {
   GAME_FPS_NPC_ACTIONS,
   GAME_FPS_NPC_DECISION_INTERVAL_TICKS,
   GAME_FPS_ZERO_COST_LOG,
+  gameFpsSpatialProfilesMatch,
   type GameFpsSnapshot,
+  type GameFpsSpatialProfile,
+  type GameFpsTickInput,
 } from '../features/game-fps/gameFpsModel'
 import {
   gameFpsInputPatchFromPressedCodes,
@@ -69,7 +78,10 @@ function canonicalSerialization(value: unknown): string {
 }
 
 function visibleTarget(snapshot: GameFpsSnapshot) {
-  return snapshot.npcs.filter(npc => npc.health > 0 && hasGameFpsLineOfSight(snapshot.player, npc))
+  const spatialMap = readGameFpsSpatialProfile().map
+  return snapshot.npcs.filter(npc => (
+    npc.health > 0 && hasGameFpsLineOfSight(snapshot.player, npc, spatialMap)
+  ))
     .sort((left, right) => {
       const leftDistance = Math.hypot(left.x - snapshot.player.x, left.z - snapshot.player.z)
       const rightDistance = Math.hypot(right.x - snapshot.player.x, right.z - snapshot.player.z)
@@ -152,6 +164,170 @@ test('slab hitscan returns the AABB entry and resolves equal-distance targets by
     ],
   })
   assert.deepEqual(selected, { entityRef: 'npc-alpha', distance: 4.5 })
+})
+
+const FIRE_ONLY_INPUT: GameFpsTickInput = Object.freeze({
+  forward: 0,
+  strafe: 0,
+  lookYawDelta: 0,
+  lookPitchDelta: 0,
+  sprint: false,
+  fire: true,
+  reload: false,
+})
+
+function hitscanProfile(blocker: GameFpsSpatialProfile['map']['blockers'][number]): GameFpsSpatialProfile {
+  return Object.freeze({
+    id: 'xr-authored',
+    map: Object.freeze({
+      centerX: 0,
+      centerZ: 0,
+      halfWidth: 10,
+      halfDepth: 10,
+      blockers: Object.freeze([Object.freeze(blocker)]),
+    }),
+    playerSpawn: Object.freeze({ x: 0, z: 0, yaw: 0, pitch: 0 }),
+    npcSeeds: Object.freeze([
+      Object.freeze({ id: 'npc-scout', x: 0, z: -5 }),
+      Object.freeze({ id: 'npc-west', x: -8, z: -8 }),
+      Object.freeze({ id: 'npc-east', x: 8, z: -8 }),
+      Object.freeze({ id: 'npc-guard', x: 8, z: 8 }),
+    ]),
+  })
+}
+
+test('mission construction enforces the bounded positive-safe run identifier contract', () => {
+  const spatialProfile = hitscanProfile(Object.freeze({
+    id: 'run-id-boundary-blocker',
+    centerX: 8,
+    centerY: 0.25,
+    centerZ: 8,
+    halfWidth: 0.25,
+    halfHeight: 0.25,
+    halfDepth: 0.25,
+  }))
+
+  for (const runId of [0, Number.MAX_SAFE_INTEGER]) {
+    assert.throws(
+      () => createGameFpsAuthoredMission({ runId, spatialProfile }),
+      /runId must be a bounded positive safe integer/,
+    )
+  }
+  assert.doesNotThrow(() => createGameFpsAuthoredMission({
+    runId: Number.MAX_SAFE_INTEGER - 1,
+    spatialProfile,
+  }))
+})
+
+test('authored 3D blocker slabs let the eye ray clear low cover and stop at nearer eye-height cover', async () => {
+  const lowCover = Object.freeze({
+    id: 'low-cover',
+    centerX: 0,
+    centerY: 0.25,
+    centerZ: -2.5,
+    halfWidth: 1,
+    halfHeight: 0.25,
+    halfDepth: 0.5,
+  })
+  const lowCoverMission = createGameFpsAuthoredMission({
+    runId: 1,
+    spatialProfile: hitscanProfile(lowCover),
+  })
+  const lowCoverShot = await tickGameFpsAuthoredMission(lowCoverMission, FIRE_ONLY_INPUT)
+  assert.equal(lowCoverShot.capture.fireResult, 'hit')
+  assert.equal(
+    lowCoverShot.decisions.some(decision => decision.payload.event === 'weapon_hit' && decision.payload.targetRef === 'npc-scout'),
+    true,
+    'cover below the player eye ray must not shield the authored NPC slab',
+  )
+
+  const eyeHeightCover = Object.freeze({
+    ...lowCover,
+    id: 'eye-height-cover',
+    centerY: 1.6,
+    halfHeight: 0.5,
+  })
+  const eyeHeightMission = createGameFpsAuthoredMission({
+    runId: 2,
+    spatialProfile: hitscanProfile(eyeHeightCover),
+  })
+  const blockedShot = await tickGameFpsAuthoredMission(eyeHeightMission, FIRE_ONLY_INPUT)
+  assert.equal(blockedShot.capture.fireResult, 'miss')
+  assert.equal(
+    blockedShot.decisions.some(decision => decision.payload.event === 'weapon_hit'),
+    false,
+    'the nearest authored blocker slab must win before the NPC slab',
+  )
+})
+
+test('spatial profile identity changes when an authored collider moves vertically', () => {
+  const profile = hitscanProfile(Object.freeze({
+    id: 'vertical-profile-collider',
+    centerX: 0,
+    centerY: 1,
+    centerZ: -2,
+    halfWidth: 1,
+    halfHeight: 1,
+    halfDepth: 1,
+  }))
+  const movedVertically = Object.freeze({
+    ...profile,
+    map: Object.freeze({
+      ...profile.map,
+      blockers: Object.freeze([
+        Object.freeze({ ...profile.map.blockers[0]!, centerY: 1.5 }),
+      ]),
+    }),
+  })
+  const resizedVertically = Object.freeze({
+    ...profile,
+    map: Object.freeze({
+      ...profile.map,
+      blockers: Object.freeze([
+        Object.freeze({ ...profile.map.blockers[0]!, halfHeight: 1.5 }),
+      ]),
+    }),
+  })
+
+  assert.equal(gameFpsSpatialProfilesMatch(profile, profile), true)
+  assert.equal(gameFpsSpatialProfilesMatch(profile, movedVertically), false)
+  assert.equal(gameFpsSpatialProfilesMatch(profile, resizedVertically), false)
+})
+
+test('the ECS clock fails before its u32 tick can overflow', async () => {
+  const maximumTick = 0xffff_fffe
+  const mission = createGameFpsAuthoredMission({
+    runId: 1,
+    decisions: [{
+      decisionId: 'game-fps:run-1:tick-max:npc-action',
+      decisionType: 'world_tick_result',
+      entityRef: 'npc-scout',
+      payload: {
+        event: 'npc_action',
+        missionId: GAME_FPS_MISSION_ID,
+        runId: 1,
+        tick: maximumTick,
+        action: 'hold',
+      },
+      producedAt: '2026-01-01T00:00:00.000Z',
+    }],
+    spatialProfile: hitscanProfile(Object.freeze({
+      id: 'clock-boundary-cover',
+      centerX: 5,
+      centerY: 1,
+      centerZ: 5,
+      halfWidth: 1,
+      halfHeight: 1,
+      halfDepth: 1,
+    })),
+  })
+  assert.equal(captureGameFpsAuthoredMission(mission).tick, maximumTick)
+
+  await assert.rejects(
+    () => tickGameFpsAuthoredMission(mission, { ...FIRE_ONLY_INPUT, fire: false }),
+    /exhausted its bounded tick range/,
+  )
+  assert.equal(captureGameFpsAuthoredMission(mission).tick, maximumTick)
 })
 
 test('WebGL support resolves synchronously and releases its probe context', () => {

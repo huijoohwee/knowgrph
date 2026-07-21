@@ -40,7 +40,7 @@ The runtime-ready and core-browser commands cover game unit/integration tests, d
 
 | Gate | Required evidence | State |
 |---|---|---|
-| Source scope | One procedural map, four NPCs, one hitscan weapon, no new runtime dependency | passed |
+| Source scope | One canonical authored XR scene/profile, four NPCs, one hitscan weapon, no alternate environment or new runtime dependency | passed for PR #273 retention baseline |
 | Determinism | Two identical seeds/input traces produce byte-identical canonical results | passed |
 | Collision/weapon | Stable AABB movement plus normalized slab hitscan ordered by `(distance, entityRef)` | passed |
 | NPC policy | Closed scored actions on a 12-tick interval with stable tie-breaking and no reasoning request | passed |
@@ -53,7 +53,8 @@ The runtime-ready and core-browser commands cover game unit/integration tests, d
 | Malformed save | Hydration blocks Start/Restart, bytes remain intact, HUD names the path, only explicit Reset replaces | passed |
 | WebGL | Synchronous capability gate keeps an unsupported mission stopped and renders a local error | passed |
 | Canvas/XR | One existing R3F Canvas; XR pauses for Game Mode, restores exactly, and continues afterward | passed |
-| XR visual fidelity follow-up | Authored XR atmosphere, terrain, props, and scene anchors stay mounted under Game Mode; fallback arena is absent | exact-main passed |
+| XR visual fidelity follow-up | Authored XR atmosphere, terrain, props, and scene anchors stay mounted under Game Mode | exact-main passed |
+| Scene-authority cleanup | Delete the fallback scene/environment implementation, forbid renamed/conditional variants, and preserve one Canvas/world across Media, Animation, Motion Control, Game Mode, and Camera | current follow-up proof required |
 | XR profile admission follow-up | All catalogued XR presets filter walkable/overhead slabs, admit five non-overlapping ground-actor spawns, and replace stale profiles across live/stopped surface or terrain changes | exact-main passed |
 | Ready clock follow-up | Tick, health, and Decisions stay unchanged until normalized desktop, pointer, touch, Motion Control, or MCP engagement | exact-main passed |
 | Stop/Start | Stop preserves current tick/player state; Start resumes that same in-memory mission | passed |
@@ -112,7 +113,8 @@ This acceptance proves compatibility between the exact supplied public source by
 | Protected lane | PR #273 passed Integration Gate and merged as `0b0e70787edb80e71d368d56c1478ffd9655ce0d`; exact-main acceptance reran through `2026-07-21T10:08:11Z` |
 | Scene composition | `kg_graph_xr_stage`, `kg_xr_native_controller_demo`, `kg_xr_stage_preset_singapore`, and `kg_xr_playground_treasure` remained exported before and during Game Mode |
 | Game overlay | `kg_game_fps_mission` plus four named NPC roots mounted in the same GLTF scene snapshot |
-| Fallback rejection | `kg_game_fps_arena` was absent while the shared surface reported `xr-authored` and retained-scene ownership |
+| Historical non-mount proof | The then-named `kg_game_fps_arena` node was absent while the shared surface reported `xr-authored` and retained-scene ownership; this does not prove source deletion or forbid renamed variants |
+| Scene-authority deletion gate | The current follow-up must prove no fallback environment source, alternate clear owner, non-XR collision profile, conditional scene branch, or renamed environment subtree remains, and must cycle Media, Animation, Motion Control, Game Mode, and Camera without changing Canvas identity or authored-world transforms |
 | Camera | The existing Canvas DOM node remained stable; Game Mode published its first-person camera framing while OrbitControls stayed suppressed |
 | Spatial alignment | The Game overlay shared the authored placement transform/scale and reused the XR native-controller playable bounds and static collider catalog; immersive entry was suspended during gameplay |
 | Profile admission | Structural profile identity rejected stale 3D/XR and same-XR terrain geometry; every catalogued preset admitted clear player/NPC spawns after walkable-low and overhead collider filtering |
@@ -121,7 +123,7 @@ This acceptance proves compatibility between the exact supplied public source by
 | XR lifecycle | The paused XR frame remained byte-equivalent during Game Mode and resumed from that exact frame after exit |
 | Network/errors | Only localhost and the supplied origin were allowed; console errors `0`, page errors `0`, failed responses `0` |
 
-The follow-up proof used the environment-only operator source and wrote only ignored local artifacts. The supplied URL, token, decoded path, and checksum are not repository evidence. PR #273 merged through the protected gate, and the same acceptance reran on that exact main SHA.
+The follow-up proof used the environment-only operator source and wrote only ignored local artifacts. The supplied URL, token, decoded path, and checksum are not repository evidence. PR #273 merged through the protected gate, and the same acceptance reran on that exact main SHA. Its exact-name non-mount assertion remains historical evidence only; the stronger deletion/variant-forbid contract requires a new protected result.
 
 ## Baseline protected-main command results
 
@@ -139,4 +141,4 @@ At exact main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d`, `npm run game-f
 
 ## Promotion rule
 
-Local runtime readiness is achieved when every local evidence row passes at one exact commit. PR #263 remains the historical baseline; PR #273 and exact-main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d` carry the current authored-XR Game Mode proof. Neither result authorizes production, Cloudflare, or public-surface claims.
+Local runtime readiness is achieved when every local evidence row for the claimed scope passes at one exact commit. PR #263 remains the historical baseline; PR #273 and exact-main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d` carry the authored-XR retention and lifecycle proof, not fallback-source deletion proof. The current scene-authority cleanup must receive its own exact protected result before its pending row becomes passed. No result authorizes production, Cloudflare, or public-surface claims.

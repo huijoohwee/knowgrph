@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   GAME_FPS_DEMO_WORKSPACE_SEED_BASENAME,
@@ -9,6 +9,7 @@ import {
   resolveWorkspaceRunReadyDemoSeed,
 } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { readWorkspaceActiveDocumentResolvedText } from '@/features/source-files/sourceFilesRuntimeActive'
+import { resolveAuthoredWorldPaused } from '@/lib/three/authoredWorldPause'
 
 const repoRoot = path.resolve(process.cwd(), '..')
 
@@ -77,25 +78,88 @@ export function testGameFpsRunReadyRegistryUsesCanonicalSourceDocument() {
 }
 
 export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
+  if (resolveAuthoredWorldPaused(false, false)
+    || !resolveAuthoredWorldPaused(true, false)
+    || !resolveAuthoredWorldPaused(false, true)) {
+    throw new Error('authored-world pause policy must stop on either outer suspension or Game ownership')
+  }
+  const gameSourceDirectory = path.join(repoRoot, 'canvas/src/features/game-fps')
+  for (const entry of readdirSync(gameSourceDirectory, { withFileTypes: true })) {
+    if (!entry.isFile() || !/\.(?:mjs|ts|tsx)$/.test(entry.name)) continue
+    const gameSource = readFileSync(path.join(gameSourceDirectory, entry.name), 'utf8')
+    const forbiddenToken = `${entry.name}\n${gameSource}`.match(/arena|fallback/i)?.[0]
+    if (forbiddenToken) {
+      throw new Error(`Game source ${entry.name} contains forbidden ${forbiddenToken} variant ownership`)
+    }
+  }
+  const xrAuthoritySourcePaths = [
+    'canvas/src/components/CanvasViewport.tsx',
+    'canvas/src/features/canvas/GameFpsRunReadyDemoRuntime.tsx',
+    'canvas/src/features/canvas/XrPhysicsRunReadyDemoRuntime.tsx',
+    'canvas/src/features/three/XrGraphStage.tsx',
+    'canvas/src/features/three/XrMotionReferenceRuntimeBridge.tsx',
+    'canvas/src/features/three/xrCanonicalSceneSpatialSource.ts',
+    'canvas/src/features/three/xrSceneSurfaceRuntime.ts',
+    'canvas/src/lib/three/ThreeGraph.impl.tsx',
+  ]
+  const forbiddenXrGameVariant = /GameFpsArenaEnvironment|kg_game_fps_arena|GAME_FPS_(?:MAP|ARENA_SPATIAL_PROFILE)|game-arena|gameModeSceneComposition|fallback[-_\s]*arena|arena[-_\s]*fallback/i
+  for (const relPath of xrAuthoritySourcePaths) {
+    const authoritySource = source(relPath)
+    const forbiddenMarker = authoritySource.match(forbiddenXrGameVariant)?.[0]
+    if (forbiddenMarker) {
+      throw new Error(`Shared XR authority ${relPath} contains forbidden Game environment variant ${forbiddenMarker}`)
+    }
+  }
   const threeGraph = source('canvas/src/lib/three/ThreeGraph.impl.tsx')
   const stage = source('canvas/src/features/game-fps/GameFpsMissionStage.tsx')
   const hud = source('canvas/src/features/game-fps/GameFpsHud.tsx')
   const runtime = source('canvas/src/features/game-fps/gameFpsRuntime.ts')
+  const modeRuntime = source('canvas/src/features/game-fps/gameModeRuntime.ts')
+  const documentRuntime = source('canvas/src/features/canvas/GameFpsRunReadyDemoRuntime.tsx')
   const webglUnsupported = source('canvas/src/features/game-fps/GameFpsWebglUnsupportedState.tsx')
   const webglSupport = source('canvas/src/lib/three/webglSupport.ts')
+  const glbAssetModel = source('canvas/src/lib/three/GlbAssetModel.tsx')
+  const spatialCaptureStage = source('canvas/src/features/three/SpatialCaptureManifestStage.tsx')
   const canvasPage = source('canvas/src/pages/Canvas.tsx')
   const viewport = source('canvas/src/components/CanvasViewport.tsx')
   const gameCanvasCount = (stage.match(/<Canvas(?:\s|>)/g) || []).length
+  const threeCanvasCount = (threeGraph.match(/<Canvas(?:\s|>)/g) || []).length
+  const xrWorldPlacement = threeGraph.match(/<XrWorldPlacement\b[\s\S]*?<\/XrWorldPlacement>/)?.[0] || ''
+  const gameStageSlotCount = (threeGraph.match(/\{gameFpsStage\}/g) || []).length
+  const missionGeometryTags = [...stage.matchAll(/<([A-Za-z][A-Za-z0-9]*Geometry)\b/g)].map(match => match[1])
   if (gameCanvasCount !== 0) throw new Error('Game FPS stage must not create another R3F Canvas')
-  if ((threeGraph.match(/<GameFpsMissionStageLazy\b/g) || []).length !== 1) {
-    throw new Error('ThreeGraph must mount exactly one Game FPS stage')
+  if (threeCanvasCount !== 1) throw new Error(`ThreeGraph must own exactly one R3F Canvas, found ${threeCanvasCount}`)
+  if ((threeGraph.match(/<GameFpsMissionStageLazy\b/g) || []).length !== 1
+    || gameStageSlotCount !== 1
+    || !xrWorldPlacement.includes('{gameFpsStage}')) {
+    throw new Error('ThreeGraph must mount exactly one Game FPS stage only inside XrWorldPlacement')
   }
-  if (!threeGraph.includes('sceneComposition.renderOrbitControls ? <ControlsLazy')) {
+  if (missionGeometryTags.length !== 1
+    || missionGeometryTags[0] !== 'capsuleGeometry'
+    || /<(?:ambientLight|directionalLight|hemisphereLight|pointLight|spotLight|Environment|Sky|Stars)\b/.test(stage)) {
+    throw new Error(`Game FPS mission stage must own NPC presentation only, never environment lights or geometry: ${missionGeometryTags.join(',')}`)
+  }
+  if (!threeGraph.includes('{!gameFpsActive ? <ControlsLazy')) {
     throw new Error('Game FPS activation must suppress OrbitControls')
   }
-  if (!threeGraph.includes('sceneComposition.renderAuthoredWorld ? <XrWorldPlacement')
+  const authoredWorldTargets = ['SceneLazy', 'GlbAssetModel', 'SpatialCaptureManifestStage']
+  const missingPauseTargets = authoredWorldTargets.filter(component => {
+    const mount = xrWorldPlacement.match(new RegExp(`<${component}\\b[\\s\\S]*?\\n\\s*/>`))?.[0] || ''
+    return !mount.includes('paused={authoredWorldPaused}')
+  })
+  const spatialCaptureMount = xrWorldPlacement.match(/<SpatialCaptureManifestStage\b[\s\S]*?\n\s*\/>/)?.[0] || ''
+  if (!threeGraph.includes('const authoredWorldPaused = resolveAuthoredWorldPaused(paused, gameFpsActive)')
+    || missingPauseTargets.length > 0
+    || !spatialCaptureMount.includes('dimmed={paused}')
+    || (xrWorldPlacement.match(/paused=\{authoredWorldPaused\}/g) || []).length !== authoredWorldTargets.length
     || !threeGraph.includes('data-kg-authored-xr-scene-retained')) {
-    throw new Error('XR Game Mode must retain the shared authored world in the existing Canvas')
+    throw new Error(`XR Game Mode must freeze every retained authored-world branch; missing ${missingPauseTargets.join(',') || 'exact pause ownership'}`)
+  }
+  if (!glbAssetModel.includes('if (paused) return')
+    || !spatialCaptureStage.includes('if (!paused && elapsedMs - sortState.lastProgressiveMs')
+    || !spatialCaptureStage.includes("|| paused\n      || !(geometry instanceof THREE.InstancedBufferGeometry)")
+    || !spatialCaptureStage.includes("resolveSpatialCaptureOpacityScale('gaussian-splat', dimmed)")) {
+    throw new Error('retained GLB and spatial-capture branches must consume the shared pause by halting animation, progressive work, and sorting')
   }
   if (!canvasPage.includes('data-kg-game-fps-run-ready')) {
     throw new Error('Canvas page is missing the full-frame Game FPS readiness selector')
@@ -109,8 +173,14 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
   if (hud.includes('advanceGameFpsBy') || hud.includes('restartGameFpsMission') || !hud.includes('restartGameMode')) {
     throw new Error('Game FPS HUD must only normalize input and route restart through the central Game Mode owner')
   }
+  if (!hud.includes('subscribeGlobalCancelEvents') || !hud.includes('onLostPointerCapture={endTouch}')) {
+    throw new Error('Game FPS mobile controls must clear held input through the shared global cancel owner')
+  }
   if (!runtime.includes('publishRuntimeFailure(error)') || !hud.includes('data-kg-game-fps-runtime-error')) {
     throw new Error('Game FPS rejected ticks must publish a visible HUD error')
+  }
+  if (!modeRuntime.includes('publishRuntimeFailure(error)')) {
+    throw new Error('Game Mode launch and spatial failures must publish through the Game FPS HUD runtime owner')
   }
   if (!threeGraph.includes('<GameFpsWebglUnsupportedState />')
     || !webglUnsupported.includes('data-kg-game-fps-error="webgl-unsupported"')) {
@@ -124,6 +194,20 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
   }
   if (!threeGraph.includes('const rendererLifecycleKey = `scene-canvas-${mode}`')) {
     throw new Error('Game Mode must retain the current R3F Canvas identity while changing stages')
+  }
+  if (!documentRuntime.includes('resolveWorkspaceRunReadyDemoIdForDocument(')) {
+    throw new Error('Game FPS document activation must wait for its source-authored document before launching gameplay')
+  }
+  if (!/const gameFpsActive = mode === 'xr' && gameMode\.active\b/.test(threeGraph)
+    || !/const gameFpsActive = gameMode\.active\b/.test(viewport)
+    || /gameFpsRunReadyDemo\s*\|\|\s*gameMode\.active/.test(`${threeGraph}\n${viewport}`)) {
+    throw new Error('Game renderer and viewport activity must derive only from explicit Game Mode ownership')
+  }
+  const rendererClearOwnership = threeGraph.match(
+    /const rendererClearColor[\s\S]*?const rendererLifecycleKey/,
+  )?.[0] || ''
+  if (!rendererClearOwnership || rendererClearOwnership.includes('gameFpsActive')) {
+    throw new Error('Game Mode must reuse the authored XR renderer clear owner without a Game-conditioned variant')
   }
 }
 

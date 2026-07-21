@@ -1,7 +1,6 @@
-import { applyCanvasSurfaceModeSelection, getCanvasSurfaceModeDisabledCopy, getVoxelModeInapplicableReason, isVoxelModeApplicable, normalizeCanvas3dMode, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
+import { getVoxelModeInapplicableReason, isVoxelModeApplicable, resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
 import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions'
 import { buildCanvasViewOptions, getCanvasViewRendererOptions } from '@/components/toolbar/canvasViewMenu'
-import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatterPreset'
 import type { CanvasViewModelState, CanvasViewOptionId } from '@/components/toolbar/canvasViewTypes'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { LS_KEYS } from '@/lib/config.ls.keys'
@@ -56,113 +55,6 @@ export function testVoxelModeRejectsGeospatialMode() {
   const resolved = resolveCanvas3dMode({ ...args, requested: 'voxel' })
   if (resolved !== '3d') {
     throw new Error(`Expected Voxel Mode request to fall back to 3D in Geospatial Mode, got ${resolved}`)
-  }
-}
-
-export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
-  if (normalizeCanvas3dMode('xr') !== 'xr') {
-    throw new Error('Expected XR Mode to normalize as a first-class 3D canvas mode')
-  }
-
-  let selectedRenderMode: '2d' | '3d' | null = null
-  let canvas3dMode: string | null = null
-  const calls: string[] = []
-  const timelineBottomCalls: string[] = []
-
-  applyCanvasViewSelection({
-    id: 'surface:xr',
-    ensureBaselineUnlocked: () => true,
-    geospatialEnabled: false,
-    onOpenGeospatialMode: () => {
-      throw new Error('Expected XR Mode selection to avoid opening Geospatial Mode when geospatial is disabled')
-    },
-    canvas2dRenderer: 'd3',
-    canvas3dMode: '3d',
-    canvasRenderMode: '2d',
-    documentSemanticMode: 'document',
-    frontmatterModeEnabled: false,
-    multiDimTableModeEnabled: false,
-    renderMediaAsNodes: false,
-    timelineEnabled: true,
-    ...NOOP_BOTTOM_SURFACE_ACTIONS,
-    schema: BLOCK_SCHEMA,
-    setCanvas2dRenderer: () => {},
-    setCanvasRenderMode: mode => {
-      calls.push(`render:${mode}`)
-      selectedRenderMode = mode
-    },
-    setCanvas3dMode: mode => {
-      calls.push(`3d:${mode}`)
-      canvas3dMode = mode
-    },
-    setSchema: () => {},
-    setRenderMediaAsNodes: () => {},
-    setTimelineEnabled: () => {},
-    setDocumentSemanticMode: () => {},
-    setFrontmatterModeEnabled: () => {},
-    setMultiDimTableModeEnabled: () => {},
-  })
-
-  if (selectedRenderMode !== '3d') {
-    throw new Error(`Expected XR Mode selection to activate 3D canvas rendering, got ${String(selectedRenderMode)}`)
-  }
-  if (canvas3dMode !== 'xr') {
-    throw new Error(`Expected XR Mode selection to set canvas3dMode=xr, got ${String(canvas3dMode)}`)
-  }
-  if (calls.join('|') !== '3d:xr|render:3d') {
-    throw new Error(`Expected XR Mode selection to preserve XR before activating the 3D render surface, got ${calls.join('|')}`)
-  }
-}
-
-export function testCanvasSurfaceMode3dSelectionUsesSharedOwner() {
-  const canvasViewActionsText = readFileSync(resolve(process.cwd(), 'src/components/toolbar/canvasViewActions.ts'), 'utf8') + readFileSync(resolve(process.cwd(), 'src/components/toolbar/Canvas2dRendererSelect.tsx'), 'utf8')
-  const canvasViewMenuText = readFileSync(resolve(process.cwd(), 'src/components/toolbar/canvasViewMenu.ts'), 'utf8')
-  if (!canvasViewActionsText.includes('applyCanvasSurfaceModeSelection')) {
-    throw new Error('Expected Canvas View Surface Mode actions to reuse the shared surface-mode selection owner')
-  }
-  if (!canvasViewMenuText.includes('getCanvasSurfaceModeDisabledCopy') || !canvasViewMenuText.includes('listCanvasSurfaceModeSpecs')) {
-    throw new Error('Expected Canvas View Surface Mode to reuse shared specs and disabled copy')
-  }
-  if (canvasViewMenuText.includes('view:geospatial')) {
-    throw new Error('Expected Geospatial Mode to be owned by Surface Mode, not a stale view-scoped option id')
-  }
-  if (canvasViewActionsText.includes("setCanvas3dMode('3d')") || !canvasViewActionsText.includes('onOpenShared3dPanel?.(mode)') || !canvasViewActionsText.includes("mode === 'xr' ? 'motionControl' : 'camera'") || !canvasViewActionsText.includes('if (!state.floatingPanelOpen)') || !canvasViewActionsText.includes("setBottomSurfaceTab('timeline')") || !canvasViewActionsText.includes('setBottomSurfaceCollapsed(false)')) {
-    throw new Error('Expected 3D/XR to preserve an open panel, default XR to Motion Control, and restore BottomPanel Timeline')
-  }
-
-  const calls: string[] = []
-  const selected = applyCanvasSurfaceModeSelection({
-    mode: '3d',
-    canvas2dRenderer: 'storyboard',
-    documentSemanticMode: 'document',
-    frontmatterModeEnabled: false,
-    multiDimTableModeEnabled: false,
-    geospatialEnabled: false,
-    layoutMode: 'block',
-    schema: BLOCK_SCHEMA,
-    onOpenGeospatialMode: () => {
-      throw new Error('Expected direct 3D selection to avoid opening Geospatial Mode when geospatial is disabled')
-    },
-    setCanvas2dRenderer: () => calls.push('renderer'),
-    setCanvas3dMode: mode => calls.push(`3d:${mode}`),
-    setCanvasRenderMode: mode => calls.push(`render:${mode}`),
-    setSchema: () => calls.push('schema'),
-  })
-  if (!selected || calls.join('|') !== '3d:3d|render:3d') {
-    throw new Error(`Expected shared 3D surface selection to activate 3D exactly once, got selected=${String(selected)} calls=${calls.join('|')}`)
-  }
-
-  const radialDisabled = getCanvasSurfaceModeDisabledCopy({
-    canvas2dRenderer: 'storyboard',
-    documentSemanticMode: 'document',
-    frontmatterModeEnabled: false,
-    multiDimTableModeEnabled: false,
-    geospatialEnabled: false,
-    layoutMode: 'radial',
-    schema: { ...BLOCK_SCHEMA, layout: { mode: 'radial' } } as GraphSchema,
-  }, '3d')
-  if (radialDisabled?.reason !== '3D Mode is disabled in Radial Layout') {
-    throw new Error(`Expected shared 3D disabled copy to cover radial layout, got ${JSON.stringify(radialDisabled)}`)
   }
 }
 
@@ -280,26 +172,12 @@ export function testRenderSettings3dModeSelectPreservesXrMode() {
   }
 }
 
-export function testXrSurfaceFrontmatterPresetActivatesXrCanvasMode() {
-  const store = useGraphStore.getState()
-  store.resetAll()
-  store.setCanvasRenderMode('2d')
-  store.setCanvas3dMode('3d')
-  const changed = applyCanvasFrontmatterPreset({
-    rawText: ['---', 'kgCanvasSurfaceMode: "xr"', '---', '', '# XR Demo'].join('\n'),
-  })
-  const next = useGraphStore.getState()
-  if (!changed || next.canvasRenderMode !== '3d' || next.canvas3dMode !== 'xr') {
-    throw new Error(`expected XR surface frontmatter to activate Canvas XR Mode, got ${JSON.stringify({ changed, canvasRenderMode: next.canvasRenderMode, canvas3dMode: next.canvas3dMode })}`)
-  }
-}
-
 export function testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate() {
   const threeGraph = readFileSync(resolve(process.cwd(), 'src/lib/three/ThreeGraph.impl.tsx'), 'utf8')
   if (!threeGraph.includes('parseGlbAssetDocument(canvasMarkdownDocument.text)')) {
     throw new Error('Expected ThreeGraph to detect model asset documents from the Canvas-applied markdown render context')
   }
-  if (!threeGraph.includes('const hasRenderableScene = hasGraph || hasGlbAsset')) {
+  if (!threeGraph.includes('const hasRenderableScene = gameFpsActive || hasGraph || hasGlbAsset')) {
     throw new Error('Expected ThreeGraph to keep the canvas mounted for model asset documents without graph nodes')
   }
   if (!threeGraph.includes('const sceneGraphForRender = useMemo<GraphData | null>(() => {') || !threeGraph.includes(': { ...sceneGraph, edges: [] }')) {
@@ -323,7 +201,7 @@ export function testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate() {
 export function testXrModeGraphSceneUsesDistinctSpatialStageInsteadOfPlain3dGlobe() {
   const scene = readFileSync(resolve(process.cwd(), 'src/lib/three/Scene.impl.tsx'), 'utf8')
   const stage = readFileSync(resolve(process.cwd(), 'src/features/three/XrGraphStage.tsx'), 'utf8')
-  if (!scene.includes("{mode === 'xr' ? <XrGraphStage data={data} /> : null}")) {
+  if (!scene.includes("{mode === 'xr' ? <XrGraphStage data={data} paused={Boolean(paused)} /> : null}")) {
     throw new Error('Expected XR Mode graph scenes to mount the native motion-reference stage')
   }
   if (!scene.includes("mode === '3d' ? (\n          <GlobeEffects")) {

@@ -1,21 +1,28 @@
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { activateCanvasGraphSurfaceMode } from '@/lib/canvas/canvas3dMode'
 import { readWebglSupport } from '@/lib/three/webglSupport'
+import type { WorkspaceFs } from '@/features/workspace-fs/types'
+import {
+  hydrateCanonicalXrMotionReferenceRuntime,
+  hydrateCanonicalXrPhysicsRuntime,
+} from '@/features/three/XrMotionReferenceRuntimeBridge'
+import {
+  activateXrSceneSurface,
+  registerXrSceneGameModeExitHandler,
+} from '@/features/three/xrSceneSurfaceRuntime'
 import {
   acknowledgeGameFpsDecisions,
   advanceGameFpsBy,
   hasGameFpsMission,
+  publishRuntimeFailure,
+  readGameFpsRunId,
   readGameFpsSpatialProfile,
   readGameFpsSnapshot,
+  refreshGameFpsMissionSpatialProfile,
   restartGameFpsMission,
   startGameFpsMission,
   stopGameFpsMission,
 } from './gameFpsRuntime'
-import {
-  GAME_FPS_ARENA_SPATIAL_PROFILE,
-  gameFpsSpatialProfilesMatch,
-  type GameFpsSpatialProfile,
-} from './gameFpsModel'
+import { gameFpsSpatialProfilesMatch, type GameFpsSpatialProfile } from './gameFpsModel'
 import {
   loadGameFpsSavedDecisions,
   persistPendingGameFpsDecisions,
@@ -23,14 +30,24 @@ import {
   readGameFpsDecisionStore,
 } from './gameFpsDecisionStore'
 import { readGameModeXrSpatialProfile } from './gameModeXrSpatialProfile'
+import {
+  subscribeXrMotionReferenceRuntime,
+} from '@/features/three/xrMotionReferenceRuntime'
+import {
+  subscribeXrNativeControllerDemo,
+} from '@/features/three/xrNativeControllerDemoRuntime'
+import {
+  pauseXrPhysicsRuntime,
+  playXrPhysicsRuntime,
+  readXrPhysicsRuntime,
+} from '@/features/three/xrPhysicsRuntime'
 
-export type GameModeSurfaceMode = '3d' | 'xr'
 export type GameModeLaunchStatus = 'idle' | 'loading' | 'ready' | 'error'
 export type GameModeSimulationStatus = 'idle' | 'ready' | 'running' | 'paused'
 
 export type GameModeSnapshot = Readonly<{
   active: boolean
-  surfaceMode: GameModeSurfaceMode
+  surfaceMode: 'xr'
   webglSupported: boolean
   launchStatus: GameModeLaunchStatus
   simulationStatus: GameModeSimulationStatus
@@ -44,15 +61,20 @@ type PreviousCanvasSurface = Readonly<Pick<
   GraphStoreState,
   'canvasRenderMode' | 'canvas3dMode' | 'floatingPanelOpen' | 'floatingPanelView'
 >>
+type AuthoredXrRuntimeOwnership = Readonly<{
+  physicsWasPlaying: boolean
+  timelineWasPlaying: boolean
+}>
 
 const listeners = new Set<Listener>()
 let launchGeneration = 0
 let simulationGeneration = 0
 let simulationQueue: Promise<void> = Promise.resolve()
 let previousCanvasSurface: PreviousCanvasSurface | null = null
+let authoredXrRuntimeOwnership: AuthoredXrRuntimeOwnership | null = null
 let snapshot: GameModeSnapshot = Object.freeze({
   active: false,
-  surfaceMode: '3d',
+  surfaceMode: 'xr',
   webglSupported: false,
   launchStatus: 'idle',
   simulationStatus: 'idle',
@@ -70,15 +92,81 @@ function fenceSimulationAdvances(): void {
   simulationGeneration += 1
 }
 
-function resolveSurfaceMode(requested?: GameModeSurfaceMode): GameModeSurfaceMode {
-  if (requested) return requested
+function suspendAuthoredXrRuntime(entering: boolean): void {
   const state = useGraphStore.getState()
-  return state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr' ? 'xr' : '3d'
+  if (entering && !authoredXrRuntimeOwnership) {
+    authoredXrRuntimeOwnership = Object.freeze({
+      physicsWasPlaying: readXrPhysicsRuntime().phase === 'playing',
+      timelineWasPlaying: state.timelineTransportPlaying === true,
+    })
+  }
+  pauseXrPhysicsRuntime()
+  state.setTimelineTransportState({ playing: false })
 }
 
-function resolveSpatialProfile(surfaceMode: GameModeSurfaceMode): GameFpsSpatialProfile {
-  return surfaceMode === 'xr' ? readGameModeXrSpatialProfile() : GAME_FPS_ARENA_SPATIAL_PROFILE
+function restoreAuthoredXrRuntime(): void {
+  const ownership = authoredXrRuntimeOwnership
+  authoredXrRuntimeOwnership = null
+  if (!ownership) return
+  if (ownership.physicsWasPlaying) playXrPhysicsRuntime()
+  else pauseXrPhysicsRuntime()
+  useGraphStore.getState().setTimelineTransportState({ playing: ownership.timelineWasPlaying })
 }
+
+function resolveSpatialProfile(): GameFpsSpatialProfile {
+  return readGameModeXrSpatialProfile()
+}
+
+function runtimeFailureMessage(error: unknown): string {
+  return error instanceof Error && error.message
+    ? error.message
+    : String(error || 'Game Mode runtime failed')
+}
+
+function queuedMissionPublishedRuntimeFailure(error: unknown, queuedRunId: number): boolean {
+  const mission = readGameFpsSnapshot()
+  return readGameFpsRunId() === queuedRunId
+    && mission.runtimeError === runtimeFailureMessage(error)
+}
+
+function spatialProfileRefreshMessage(): string {
+  return `Deterministic ECS mission restarted for the ${readGameFpsSpatialProfile().id} spatial profile; move, aim, or fire to engage.`
+}
+
+function publishGameModeRuntimeFailure(error: unknown): GameModeSnapshot {
+  const currentMission = readGameFpsSnapshot()
+  const failedMission = currentMission.runtimeError ? currentMission : publishRuntimeFailure(error)
+  fenceSimulationAdvances()
+  return publish({
+    launchStatus: 'error',
+    simulationStatus: 'idle',
+    message: failedMission.runtimeError || runtimeFailureMessage(error),
+  })
+}
+
+function replaceIncompatibleLiveMission(): ReturnType<typeof readGameFpsSnapshot> | null {
+  if (!snapshot.active || !hasGameFpsMission()) return null
+  const mission = refreshGameFpsMissionSpatialProfile()
+  if (!mission) return null
+  fenceSimulationAdvances()
+  publish({
+    launchStatus: 'ready',
+    simulationStatus: 'ready',
+    message: spatialProfileRefreshMessage(),
+  })
+  return mission
+}
+
+function refreshLiveMissionFromSharedScene(): void {
+  try {
+    replaceIncompatibleLiveMission()
+  } catch (error) {
+    publishGameModeRuntimeFailure(error)
+  }
+}
+
+subscribeXrMotionReferenceRuntime(refreshLiveMissionFromSharedScene)
+subscribeXrNativeControllerDemo(refreshLiveMissionFromSharedScene)
 
 export function readGameModeSnapshot(): GameModeSnapshot {
   return snapshot
@@ -90,11 +178,14 @@ export function subscribeGameModeSnapshot(listener: Listener): () => void {
 }
 
 export function openGameModeSurface(options: Readonly<{
-  surfaceMode?: GameModeSurfaceMode
   openPanel?: boolean
   webglSupported?: boolean
 }> = {}): boolean {
-  const surfaceMode = resolveSurfaceMode(options.surfaceMode)
+  if (!hydrateCanonicalXrMotionReferenceRuntime()) {
+    publish({ launchStatus: 'error', simulationStatus: 'idle', message: 'Game Mode requires a hydrated authored document on the shared XR Mode scene.' })
+    return false
+  }
+  hydrateCanonicalXrPhysicsRuntime()
   const state = useGraphStore.getState()
   const entering = !snapshot.active
   if (entering) {
@@ -106,43 +197,49 @@ export function openGameModeSurface(options: Readonly<{
       floatingPanelView: state.floatingPanelView,
     })
   }
-  activateCanvasGraphSurfaceMode({
-    mode: surfaceMode,
-    setCanvas3dMode: state.setCanvas3dMode,
-    setCanvasRenderMode: state.setCanvasRenderMode,
-  })
-  const activeState = useGraphStore.getState()
-  if (activeState.canvasRenderMode !== '3d' || activeState.canvas3dMode !== surfaceMode) {
+  let spatialProfileRefreshed = false
+  try {
+    const activated = activateXrSceneSurface({
+      ...(options.openPanel === false ? {} : { panelView: 'gameMode', openPanel: true }),
+      beforePanelCommit: () => {
+        if (hasGameFpsMission()) {
+          spatialProfileRefreshed = Boolean(refreshGameFpsMissionSpatialProfile())
+        }
+      },
+    })
+    if (activated) {
+      suspendAuthoredXrRuntime(entering)
+      const mission = readGameFpsSnapshot()
+      publish({
+        active: true,
+        surfaceMode: 'xr',
+        webglSupported: options.webglSupported ?? readWebglSupport(),
+        launchStatus: mission.phase === 'stopped' ? snapshot.launchStatus : 'ready',
+        simulationStatus: entering
+          ? mission.phase === 'playing' ? 'ready' : mission.phase === 'stopped' && hasGameFpsMission() ? 'paused' : 'idle'
+          : snapshot.simulationStatus,
+        message: spatialProfileRefreshed
+          ? spatialProfileRefreshMessage()
+          : 'Game Mode opened on the shared XR Mode scene.',
+      })
+      return true
+    }
     if (entering) previousCanvasSurface = null
+    publish({ launchStatus: 'error', simulationStatus: 'idle', message: 'Game Mode requires an available shared XR Mode surface.' })
+    return false
+  } catch (error) {
+    if (entering) previousCanvasSurface = null
+    publishGameModeRuntimeFailure(error)
     return false
   }
-  if (options.openPanel !== false) {
-    activeState.setFloatingPanelView('gameMode')
-    activeState.setFloatingPanelOpen(true)
-  }
-  const mission = readGameFpsSnapshot()
-  publish({
-    active: true,
-    surfaceMode,
-    webglSupported: options.webglSupported ?? readWebglSupport(),
-    launchStatus: mission.phase === 'stopped' ? snapshot.launchStatus : 'ready',
-    simulationStatus: entering
-      ? mission.phase === 'playing' ? 'ready' : mission.phase === 'stopped' && hasGameFpsMission() ? 'paused' : 'idle'
-      : snapshot.simulationStatus,
-    message: `Game Mode opened on ${surfaceMode === 'xr' ? 'XR Mode' : '3D'}.`,
-  })
-  return true
 }
 
 export async function startGameMode(options: Readonly<{
   decisions?: readonly unknown[]
-  surfaceMode?: GameModeSurfaceMode
   openPanel?: boolean
   webglSupported?: boolean
 }> = {}): Promise<GameModeSnapshot> {
-  if (!openGameModeSurface(options)) {
-    return publish({ launchStatus: 'error', message: 'Game Mode could not activate the requested Canvas surface.' })
-  }
+  if (!openGameModeSurface(options)) return snapshot
   const generation = launchGeneration + 1
   launchGeneration = generation
   const decisionStore = readGameFpsDecisionStore()
@@ -155,24 +252,32 @@ export async function startGameMode(options: Readonly<{
   if (!webglSupported) {
     fenceSimulationAdvances()
     stopGameFpsMission()
-    return publish({ launchStatus: 'error', simulationStatus: 'idle', message: 'WebGL is unavailable; Game Mode stayed stopped on the local fallback surface.' })
+    return publish({ launchStatus: 'error', simulationStatus: 'idle', message: 'WebGL is unavailable; Game Mode stayed stopped on the shared XR surface.' })
   }
   if (!Object.hasOwn(options, 'decisions') && hasGameFpsMission()) {
     const current = readGameFpsSnapshot()
     const previousSpatialProfile = readGameFpsSpatialProfile()
-    const spatialProfile = resolveSpatialProfile(snapshot.surfaceMode)
+    const spatialProfile = resolveSpatialProfile()
     if (!gameFpsSpatialProfilesMatch(previousSpatialProfile, spatialProfile)) {
       fenceSimulationAdvances()
-      const mission = startGameFpsMission({ spatialProfile })
+      const mission = startGameFpsMission()
       return publish({
         launchStatus: 'ready',
         simulationStatus: mission.phase === 'playing' ? 'ready' : 'idle',
         message: `Deterministic ECS mission restarted for the ${spatialProfile.id} spatial profile; move, aim, or fire to engage.`,
       })
     }
+    if (current.runtimeError) {
+      fenceSimulationAdvances()
+      return publish({
+        launchStatus: 'error',
+        simulationStatus: 'idle',
+        message: `${current.runtimeError} Restart Game Mode before resuming.`,
+      })
+    }
     if (current.phase === 'stopped') {
       fenceSimulationAdvances()
-      const mission = startGameFpsMission({ spatialProfile })
+      const mission = startGameFpsMission()
       return publish({
         launchStatus: 'ready',
         simulationStatus: mission.phase === 'playing' ? 'ready' : 'idle',
@@ -181,6 +286,7 @@ export async function startGameMode(options: Readonly<{
           : `Deterministic ECS mission restored (${mission.phase}); restart explicitly for a fresh run.`,
       })
     }
+    if (current.phase === 'playing' && snapshot.message === spatialProfileRefreshMessage()) return snapshot
     return publish({
       launchStatus: 'ready',
       simulationStatus: current.phase === 'playing'
@@ -201,7 +307,6 @@ export async function startGameMode(options: Readonly<{
     if (generation !== launchGeneration || !snapshot.active) return snapshot
     const mission = startGameFpsMission({
       decisions,
-      spatialProfile: resolveSpatialProfile(snapshot.surfaceMode),
     })
     fenceSimulationAdvances()
     return publish({
@@ -213,8 +318,12 @@ export async function startGameMode(options: Readonly<{
     })
   } catch (error) {
     if (generation !== launchGeneration) return snapshot
-    const message = error instanceof Error && error.message ? error.message : String(error || 'Decision hydration failed')
-    return publish({ launchStatus: 'error', simulationStatus: 'idle', message })
+    if (!Object.hasOwn(options, 'decisions')) {
+      stopGameFpsMission()
+      const message = readGameFpsDecisionStore().error || runtimeFailureMessage(error)
+      return publish({ launchStatus: 'error', simulationStatus: 'idle', message })
+    }
+    return publishGameModeRuntimeFailure(error)
   }
 }
 
@@ -235,6 +344,7 @@ export function pauseGameModeSimulation(message = 'Game Mode paused; resume with
 export function advanceGameModeSimulationBy(deltaSeconds: number): Promise<ReturnType<typeof readGameFpsSnapshot>> {
   if (snapshot.simulationStatus !== 'running') return Promise.resolve(readGameFpsSnapshot())
   const queuedGeneration = simulationGeneration
+  const queuedRunId = readGameFpsRunId()
   let resolveResult!: (value: ReturnType<typeof readGameFpsSnapshot>) => void
   let rejectResult!: (reason: unknown) => void
   const result = new Promise<ReturnType<typeof readGameFpsSnapshot>>((resolve, reject) => {
@@ -247,6 +357,11 @@ export function advanceGameModeSimulationBy(deltaSeconds: number): Promise<Retur
       return
     }
     try {
+      const refreshedMission = replaceIncompatibleLiveMission()
+      if (refreshedMission) {
+        resolveResult(refreshedMission)
+        return
+      }
       const mission = await advanceGameFpsBy(deltaSeconds)
       if (queuedGeneration === simulationGeneration && snapshot.simulationStatus === 'running') {
         if (mission.runtimeError) {
@@ -262,10 +377,11 @@ export function advanceGameModeSimulationBy(deltaSeconds: number): Promise<Retur
       }
       resolveResult(mission)
     } catch (error) {
-      if (queuedGeneration === simulationGeneration) {
-        fenceSimulationAdvances()
-        const message = error instanceof Error && error.message ? error.message : String(error || 'Game FPS tick failed')
-        publish({ launchStatus: 'error', simulationStatus: 'idle', message })
+      if (
+        queuedGeneration === simulationGeneration
+        || queuedMissionPublishedRuntimeFailure(error, queuedRunId)
+      ) {
+        publishGameModeRuntimeFailure(error)
       }
       rejectResult(error)
     }
@@ -280,11 +396,15 @@ export function stopGameMode(): GameModeSnapshot {
   return publish({ launchStatus: 'ready', simulationStatus: 'paused', message: 'Game Mode stopped; the local mission remains available to resume.' })
 }
 
-export function restartGameMode(options: Readonly<{ webglSupported?: boolean }> = {}): GameModeSnapshot {
-  launchGeneration += 1
+export async function restartGameMode(options: Readonly<{
+  webglSupported?: boolean
+  workspace?: WorkspaceFs
+}> = {}): Promise<GameModeSnapshot> {
+  const generation = launchGeneration + 1
+  launchGeneration = generation
   fenceSimulationAdvances()
   if (!snapshot.active && !openGameModeSurface()) {
-    return publish({ launchStatus: 'error', message: 'Game Mode could not activate the Canvas.' })
+    return snapshot
   }
   const decisionStore = readGameFpsDecisionStore()
   if (decisionStore.hydrationBlocked) {
@@ -294,11 +414,27 @@ export function restartGameMode(options: Readonly<{ webglSupported?: boolean }> 
   const webglSupported = options.webglSupported ?? readWebglSupport()
   if (!webglSupported) {
     stopGameFpsMission()
-    return publish({ webglSupported: false, launchStatus: 'error', simulationStatus: 'idle', message: 'WebGL is unavailable; Game Mode stayed stopped on the local fallback surface.' })
+    return publish({ webglSupported: false, launchStatus: 'error', simulationStatus: 'idle', message: 'WebGL is unavailable; Game Mode stayed stopped on the shared XR surface.' })
   }
-  publish({ webglSupported })
-  restartGameFpsMission(resolveSpatialProfile(snapshot.surfaceMode))
-  return publish({ launchStatus: 'ready', simulationStatus: 'ready', message: 'Game Mode restarted; move, aim, or fire to engage.' })
+  publish({ webglSupported, launchStatus: 'loading', simulationStatus: 'idle', message: 'Validating local Decisions before restart…' })
+  let persistedDecisions: readonly unknown[]
+  try {
+    persistedDecisions = await loadGameFpsSavedDecisions(options.workspace ? { workspace: options.workspace } : {})
+  } catch (error) {
+    if (generation !== launchGeneration) return snapshot
+    stopGameFpsMission()
+    const message = readGameFpsDecisionStore().error || runtimeFailureMessage(error)
+    return publish({ launchStatus: 'error', simulationStatus: 'idle', message })
+  }
+  if (generation !== launchGeneration || !snapshot.active) return snapshot
+  try {
+    restartGameFpsMission({ persistedDecisions })
+    return publish({ launchStatus: 'ready', simulationStatus: 'ready', message: 'Game Mode restarted; move, aim, or fire to engage.' })
+  } catch (error) {
+    if (generation !== launchGeneration) return snapshot
+    stopGameFpsMission()
+    return publishGameModeRuntimeFailure(error)
+  }
 }
 
 export function exitGameModeSurface(options: Readonly<{ restorePreviousSurface?: boolean }> = {}): GameModeSnapshot {
@@ -308,6 +444,7 @@ export function exitGameModeSurface(options: Readonly<{ restorePreviousSurface?:
   const previous = previousCanvasSurface
   previousCanvasSurface = null
   const next = publish({ active: false, launchStatus: 'idle', simulationStatus: 'idle', message: 'Game Mode exited; the previous Canvas surface can resume.' })
+  restoreAuthoredXrRuntime()
   if (options.restorePreviousSurface !== false && previous) {
     const state = useGraphStore.getState()
     state.setCanvas3dMode(previous.canvas3dMode)
@@ -318,11 +455,17 @@ export function exitGameModeSurface(options: Readonly<{ restorePreviousSurface?:
   return next
 }
 
-export async function persistGameModePendingDecisions() {
+registerXrSceneGameModeExitHandler(() => {
+  if (snapshot.active) exitGameModeSurface({ restorePreviousSurface: false })
+})
+
+export async function persistGameModePendingDecisions(options: Readonly<{
+  workspace?: WorkspaceFs
+}> = {}) {
   const mission = readGameFpsSnapshot()
   const decisions = [...mission.pendingDecisions]
   if (decisions.length > 0) queueGameFpsDecisions(decisions)
-  const result = await persistPendingGameFpsDecisions()
+  const result = await persistPendingGameFpsDecisions(options)
   if (result.status === 'saved' && decisions.length > 0) {
     acknowledgeGameFpsDecisions(decisions.map(decision => decision.decisionId))
   }
@@ -334,9 +477,10 @@ export function resetGameModeRuntimeForTests(): GameModeSnapshot {
   fenceSimulationAdvances()
   previousCanvasSurface = null
   stopGameFpsMission()
+  restoreAuthoredXrRuntime()
   return publish({
     active: false,
-    surfaceMode: '3d',
+    surfaceMode: 'xr',
     webglSupported: false,
     launchStatus: 'idle',
     simulationStatus: 'idle',

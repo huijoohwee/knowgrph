@@ -7,11 +7,20 @@ from urllib.parse import urlparse
 
 from playwright.sync_api import expect, sync_playwright
 
+from lib.game_mode_xr_share_scene_contract import (
+    assert_game_overlay_subtree,
+    read_scene_contract,
+)
+
 
 BASE_URL = os.environ.get("KG_GAME_FPS_SMOKE_BASE_URL", "http://localhost:4185").rstrip("/")
 OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
 SCREENSHOT_PATH = OUTPUT_DIR / "game-fps-browser-smoke.png"
 EVIDENCE_PATH = OUTPUT_DIR / "game-fps-browser-smoke.json"
+GAME_FPS_AUTHORED_XR_NODES = {
+    "kg_graph_xr_stage",
+    "kg_xr_motion_reference_stage",
+}
 
 
 def numeric_attribute(locator, name: str) -> float:
@@ -33,6 +42,45 @@ def local_chromium_executable() -> str | None:
         if candidate and candidate.is_file() and os.access(candidate, os.X_OK):
             return str(candidate)
     return None
+
+
+def assert_game_fps_xr_scene(page) -> dict[str, object]:
+    renderer = page.evaluate(
+        """
+        () => {
+          const roots = Array.from(document.querySelectorAll('[data-kg-xr-scene-media-drop="1"]'))
+          const canvases = roots.flatMap(root => Array.from(root.querySelectorAll('canvas')))
+          return { rootCount: roots.length, canvasCount: canvases.length }
+        }
+        """
+    )
+    if renderer != {"rootCount": 1, "canvasCount": 1}:
+        raise AssertionError(f"Game FPS did not use exactly one authored XR Canvas: {renderer}")
+
+    scene = read_scene_contract(page)
+    if scene.get("ready") is not True:
+        raise AssertionError(f"Game FPS XR scene snapshot was unavailable: {scene}")
+    names = set(scene.get("names") or [])
+    missing_authored_nodes = sorted(GAME_FPS_AUTHORED_XR_NODES - names)
+    if missing_authored_nodes:
+        raise AssertionError(
+            "Game FPS replaced the authored XR graph scene: "
+            f"missing={missing_authored_nodes}, observed={sorted(names)}"
+        )
+    assert_game_overlay_subtree(scene)
+    if (
+        scene.get("retained") != "1"
+        or scene.get("presentation") != "xr-authored"
+        or scene.get("spatialProfile") != "xr-authored"
+        or not str(scene.get("cameraFov") or "").strip()
+    ):
+        raise AssertionError(f"Game FPS did not publish the canonical XR scene contract: {scene}")
+    return {
+        "surface": "xr",
+        "canvasCount": 1,
+        "authoredXrSceneRetained": True,
+        "gameMissionSubtreeActorsOnly": True,
+    }
 
 
 def main() -> None:
@@ -73,6 +121,7 @@ def main() -> None:
             hud = page.locator('[data-kg-game-fps-hud="1"]').first
             expect(hud).to_be_visible(timeout=120_000)
             page.wait_for_selector('canvas[data-kg-game-fps-first-frame="1"]', timeout=120_000)
+            scene_evidence = assert_game_fps_xr_scene(page)
 
             initial_tick = numeric_attribute(hud, "data-kg-game-fps-tick")
             initial_x = numeric_attribute(hud, "data-kg-game-fps-player-x")
@@ -147,20 +196,37 @@ def main() -> None:
             page.set_viewport_size({"width": 390, "height": 844})
             touch_forward = page.locator('[data-kg-game-fps-touch="forward"]').first
             expect(touch_forward).to_be_visible()
+            touch_before_x = numeric_attribute(hud, "data-kg-game-fps-player-x")
+            touch_before_z = numeric_attribute(hud, "data-kg-game-fps-player-z")
             touch_forward.dispatch_event("pointerdown", {"pointerId": 41, "pointerType": "touch"})
-            page.wait_for_timeout(200)
+            page.wait_for_timeout(300)
+            touch_moved_x = numeric_attribute(hud, "data-kg-game-fps-player-x")
+            touch_moved_z = numeric_attribute(hud, "data-kg-game-fps-player-z")
+            if abs(touch_moved_x - touch_before_x) < 0.001 and abs(touch_moved_z - touch_before_z) < 0.001:
+                raise AssertionError("touch forward input did not move the player")
             touch_forward.dispatch_event("pointerup", {"pointerId": 41, "pointerType": "touch"})
+            page.wait_for_timeout(150)
+            touch_released_x = numeric_attribute(hud, "data-kg-game-fps-player-x")
+            touch_released_z = numeric_attribute(hud, "data-kg-game-fps-player-z")
+            page.wait_for_timeout(250)
+            if (
+                abs(numeric_attribute(hud, "data-kg-game-fps-player-x") - touch_released_x) > 0.02
+                or abs(numeric_attribute(hud, "data-kg-game-fps-player-z") - touch_released_z) > 0.02
+            ):
+                raise AssertionError("touch release did not neutralize mobile movement")
 
             restart = page.locator('[data-kg-game-fps-action="restart"]').first
             restart.click()
+            expect(hud).to_have_attribute("data-kg-game-fps-tick", "0", timeout=30_000)
             completion = page.evaluate(
                 """
                 async () => {
                   const runtime = await import('/src/features/game-fps/gameFpsRuntime.ts')
                   const geometry = await import('/src/features/game-fps/gameFpsGeometry.ts')
                   const fixedStep = 1 / 60
+                  const spatialMap = runtime.readGameFpsSpatialProfile().map
                   const visibleTarget = snapshot => snapshot.npcs
-                    .filter(npc => npc.health > 0 && geometry.hasGameFpsLineOfSight(snapshot.player, npc))
+                    .filter(npc => npc.health > 0 && geometry.hasGameFpsLineOfSight(snapshot.player, npc, spatialMap))
                     .sort((left, right) => {
                       const leftDistance = Math.hypot(left.x - snapshot.player.x, left.z - snapshot.player.z)
                       const rightDistance = Math.hypot(right.x - snapshot.player.x, right.z - snapshot.player.z)
@@ -304,6 +370,7 @@ def main() -> None:
                 "targetUrl": target_url,
                 "viewport": {"width": 390, "height": 844},
                 "firstFrame": True,
+                "renderer": scene_evidence,
                 "movement": {"from": [initial_x, initial_z], "to": [moved_x, moved_z]},
                 "desktopRelease": {
                     "releasedAt": [released_x, released_z],

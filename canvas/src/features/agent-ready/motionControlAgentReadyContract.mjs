@@ -159,7 +159,7 @@ function buildMotionControlTargetsOutputSchema(buildWebName) {
               label: { const: 'Game Mode' },
               view: { const: 'gameMode' },
               active: { type: 'boolean' },
-              surfaceMode: { type: 'string', enum: ['3d', 'xr'] },
+              surfaceMode: { type: 'string', const: 'xr' },
               simulationStatus: { type: 'string', enum: ['idle', 'ready', 'running', 'paused'] },
               phase: { type: 'string', enum: ['stopped', 'playing', 'won', 'lost'] },
               enemiesAlive: { type: 'integer', minimum: 0, maximum: 4 },

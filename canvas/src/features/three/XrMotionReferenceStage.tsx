@@ -37,19 +37,20 @@ import {
   releaseThreeObjectInputOwnership,
   threeObjectDragTerminationMatchesPointer,
 } from '@/features/three/threeObjectInputOwnership'
-
 type XrCastTrack = ReturnType<typeof readXrMotionReferenceRuntime>['plan']['cast'][number]
 type XrCastMark = XrCastTrack['marks'][number]
-
+function useRetainedWhilePaused<T>(value: T, paused: boolean): T {
+  const retainedRef = React.useRef(value)
+  React.useLayoutEffect(() => { if (!paused) retainedRef.current = value }, [paused, value])
+  return paused ? retainedRef.current : value
+}
 function setStagePointerCursor(event: ThreeEvent<PointerEvent>, cursor: 'grab' | 'grabbing' | 'default') {
   const target = event.nativeEvent.target as HTMLElement | null
   if (target?.style) target.style.cursor = cursor
 }
-
 function xrPhysicsOwnsSubject(subjectId: string): boolean {
   return xrPhysicsOwnsAuthoredSubject(readXrPhysicsRuntime(), subjectId)
 }
-
 function rayInCoordinateRoot(
   ray: THREE.Ray,
   coordinateRootRef?: React.RefObject<THREE.Object3D | null>,
@@ -62,13 +63,7 @@ function rayInCoordinateRoot(
 }
 
 function CastMarkControl({
-  actorId,
-  children,
-  controlSurface = 'mark',
-  mark,
-  scale,
-  groundY,
-  coordinateRootRef,
+  actorId, children, controlSurface = 'mark', mark, scale, groundY, coordinateRootRef, inputEnabled,
 }: {
   actorId: string
   children: React.ReactNode
@@ -77,6 +72,7 @@ function CastMarkControl({
   scale: number
   groundY: number
   coordinateRootRef?: React.RefObject<THREE.Object3D | null>
+  inputEnabled: boolean
 }) {
   const draggingRef = React.useRef(false)
   const activePointerIdRef = React.useRef<number | null>(null)
@@ -124,28 +120,31 @@ function CastMarkControl({
       releaseThreeObjectPointerCapture(event)
     }
   }, [clearDrag])
-  React.useEffect(() => clearDrag, [clearDrag])
+  React.useEffect(() => {
+    if (!inputEnabled) clearDrag()
+    return clearDrag
+  }, [clearDrag, inputEnabled])
   return (
     <group
       name={`kg_xr_motion_cast_${controlSurface}_control_${actorId}_${mark.id}`}
-      userData={{ actorId, markId: mark.id, kgXrAnimationControl: true, controlSurface, draggableAxes: 'xz' }}
-      onPointerOver={event => {
+      userData={{ actorId, markId: mark.id, kgXrAnimationControl: true, controlSurface, draggableAxes: 'xz', interactive: inputEnabled }}
+      onPointerOver={inputEnabled ? event => {
         event.stopPropagation()
         if (xrPhysicsOwnsSubject(actorId)) {
           setStagePointerCursor(event, 'default')
           return
         }
         setStagePointerCursor(event, draggingRef.current ? 'grabbing' : 'grab')
-      }}
-      onPointerOut={event => {
+      } : undefined}
+      onPointerOut={inputEnabled ? event => {
         if (!draggingRef.current) setStagePointerCursor(event, 'default')
-      }}
-      onClick={event => {
+      } : undefined}
+      onClick={inputEnabled ? event => {
         event.stopPropagation()
         selectBoundXrActor(actorId)
         selectXrMotionReferenceCastMark(actorId, mark.id)
-      }}
-      onPointerDown={event => {
+      } : undefined}
+      onPointerDown={inputEnabled ? event => {
         if (xrPhysicsOwnsSubject(actorId)) return
         if (!canStartThreeObjectDrag(event.button)) return
         event.stopPropagation()
@@ -180,8 +179,8 @@ function CastMarkControl({
         }
         setStagePointerCursor(event, 'grabbing')
         captureThreeObjectPointer(event)
-      }}
-      onPointerMove={event => {
+      } : undefined}
+      onPointerMove={inputEnabled ? event => {
         if (!draggingRef.current || event.pointerId !== activePointerIdRef.current) return
         isolateThreeObjectPointerEvent(event)
         const dragStart = dragStartClientRef.current
@@ -209,9 +208,9 @@ function CastMarkControl({
         if (Math.abs(nextPosition[0] - mark.position[0]) < 0.001
           && Math.abs(nextPosition[2] - mark.position[2]) < 0.001) return
         applyXrConstrainedCastMarkChoreography({ actorId, markId: mark.id, position: nextPosition })
-      }}
-      onPointerUp={finishDrag}
-      onPointerCancel={finishDrag}
+      } : undefined}
+      onPointerUp={inputEnabled ? finishDrag : undefined}
+      onPointerCancel={inputEnabled ? finishDrag : undefined}
     >
       {children}
     </group>
@@ -273,14 +272,7 @@ function resolveCastControlMark(track: XrCastTrack, selectedMarkId: string, play
 }
 
 function CastTrack({
-  track,
-  playheadSeconds,
-  scale,
-  groundY,
-  renderLiveActor,
-  livePose,
-  selectedMarkId,
-  coordinateRootRef,
+  track, playheadSeconds, scale, groundY, renderLiveActor, livePose, selectedMarkId, coordinateRootRef, inputEnabled,
 }: {
   track: XrCastTrack
   playheadSeconds: number
@@ -290,6 +282,7 @@ function CastTrack({
   livePose?: ReturnType<typeof sampleXrAnimationPose> | null
   selectedMarkId: string
   coordinateRootRef?: React.RefObject<THREE.Object3D | null>
+  inputEnabled: boolean
 }) {
   const sampled = sampleXrMotionReferenceMarks(track.marks, playheadSeconds)
   const sampledPosition = xrMotionReferenceWorldPosition(sampled, scale, groundY)
@@ -329,6 +322,7 @@ function CastTrack({
             scale={scale}
             groundY={groundY}
             coordinateRootRef={coordinateRootRef}
+            inputEnabled={inputEnabled}
           >
             <mesh
               name={`kg_xr_motion_cast_mark_${track.actorId}_${index + 1}`}
@@ -368,6 +362,7 @@ function CastTrack({
         scale={scale}
         groundY={groundY}
         coordinateRootRef={coordinateRootRef}
+        inputEnabled={inputEnabled}
       ><group
         name={`kg_xr_motion_cast_live_${track.actorId}`}
         position={livePosition}
@@ -435,18 +430,23 @@ export function XrMotionReferenceStage({
   span,
   groundY,
   coordinateRootRef,
+  paused = false,
 }: {
   graphData: GraphData | null
   span: number
   groundY: number
   coordinateRootRef?: React.RefObject<THREE.Object3D | null>
+  paused?: boolean
 }) {
-  const runtime = React.useSyncExternalStore(
+  const liveRuntime = React.useSyncExternalStore(
     subscribeXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
     readXrMotionReferenceRuntime,
   )
-  const { boundingBoxEnabled, motionActorId, livePose } = useMotionControlAnimationPose()
+  const runtime = useRetainedWhilePaused(liveRuntime, paused)
+  const liveMotionControl = useMotionControlAnimationPose()
+  const motionControl = useRetainedWhilePaused(liveMotionControl, paused)
+  const { boundingBoxEnabled, motionActorId, livePose } = motionControl
   const stage = resolveXrMotionReferenceStage(runtime.plan.stageId)
   const scale = span / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
   const subjectIds = React.useMemo(() => new Set(runtime.plan.subjects.map(subject => subject.id)), [runtime.plan.subjects])
@@ -466,12 +466,12 @@ export function XrMotionReferenceStage({
       renderOrder={THREE_RENDER_ORDER.groups - 10}
       userData={{ schema: runtime.plan.schema, stageId: stage.id, playheadSeconds: runtime.playheadSeconds, selectedMark: runtime.selectedMark }}
     >
-      <XrKeyboardChoreographyRuntime />
+      {!paused ? <XrKeyboardChoreographyRuntime /> : null}
       <XrStagePresetGeometry
         stage={stage}
         span={span}
         groundY={groundY}
-        onFloorPoint={runtime.castMarkArmed ? placeCastMark : undefined}
+        onFloorPoint={!paused && runtime.castMarkArmed ? placeCastMark : undefined}
         coordinateRootRef={coordinateRootRef}
       />
       <group name="kg_xr_motion_cast_tracks">
@@ -483,6 +483,7 @@ export function XrMotionReferenceStage({
             scale={scale}
             groundY={groundY}
             coordinateRootRef={coordinateRootRef}
+            inputEnabled={!paused}
             renderLiveActor={!subjectIds.has(track.actorId)}
             livePose={!subjectIds.has(track.actorId) && track.actorId === motionActorId ? livePose : null}
             selectedMarkId={runtime.selectedMark?.kind === 'cast' && runtime.selectedMark.actorId === track.actorId
@@ -513,7 +514,7 @@ export function XrMotionReferenceStage({
               stageScale={scale}
               selected={runtime.selectedShotTargetId === subject.id}
               showIdentificationBounds={boundingBoxEnabled}
-              onSelect={() => selectBoundXrShotTarget(subject.id)}
+              onSelect={!paused ? () => selectBoundXrShotTarget(subject.id) : undefined}
             />
           )
           return actorControlMark ? (
@@ -525,6 +526,7 @@ export function XrMotionReferenceStage({
               scale={scale}
               groundY={groundY}
               coordinateRootRef={coordinateRootRef}
+              inputEnabled={!paused}
             >
               {subjectNode}
             </CastMarkControl>
@@ -558,15 +560,15 @@ export function XrMotionReferenceStage({
               position={position}
               quaternion={quaternion}
               userData={{ markId: mark.id, moveId: mark.moveId, rig: mark.rig, sensorId: mark.settings.sensorId, lensMm: mark.settings.focalLengthMm, focusDistanceMeters: mark.settings.focusDistanceMeters, aspectRatio: mark.settings.aspectRatio, selected, kgXrAnimationControl: true }}
-              onClick={event => {
+              onClick={!paused ? event => {
                 event.stopPropagation()
                 selectXrMotionReferenceCameraMark(mark.id)
-              }}
-              onPointerOver={event => {
+              } : undefined}
+              onPointerOver={!paused ? event => {
                 event.stopPropagation()
                 setStagePointerCursor(event, 'grab')
-              }}
-              onPointerOut={event => setStagePointerCursor(event, 'default')}
+              } : undefined}
+              onPointerOut={!paused ? event => setStagePointerCursor(event, 'default') : undefined}
             >
               <mesh>
                 <coneGeometry args={[scale * 0.34, scale * 0.8, 4]} />
