@@ -385,8 +385,9 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   if (!interactionRuntimeText.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected native FlowCanvas zoom request runtime to import the shared workspace graph mutation guard')
   }
-  if (!interactionRuntimeText.includes('if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return')) {
-    throw new Error('expected native FlowCanvas zoom requests to stop while Run all holds the shared graph mutation guard')
+  if (!interactionRuntimeText.includes('if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(requestState)) {')
+    || !interactionRuntimeText.includes("if (zoomRequest.type === 'fit') requestState.clearZoomRequest()")) {
+    throw new Error('expected native FlowCanvas zoom requests to discard blocked source fits instead of firing after graph mutation settles')
   }
   const runAllPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowRunAll.ts')
   const runAllText = readFileSync(runAllPath, 'utf8')
