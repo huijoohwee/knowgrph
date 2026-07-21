@@ -21,6 +21,7 @@ import {
   type GameFpsSnapshot,
   type GameFpsTickInput,
 } from './gameFpsModel'
+import { queueGameFpsSimulationInputStep } from './gameFpsSimulationClock'
 import {
   readGameModeXrSpatialProfile,
   readGameModeXrSpatialSourceKey,
@@ -46,11 +47,37 @@ type MutableMotionInput = {
   fireQueued: boolean
 }
 
+type GameFpsMovementInput = Readonly<Pick<
+  GameFpsTickInput,
+  'forward' | 'strafe' | 'sprint'
+>>
+
+type CapturedGameFpsInput = Readonly<{
+  continuous: GameFpsTickInput
+  movementPulse: GameFpsMovementInput | null
+}>
+
+type PendingTickActions = {
+  movementPulse: GameFpsMovementInput | null
+  lookYawDelta: number
+  lookPitchDelta: number
+  fire: boolean
+  reload: boolean
+}
+
 type InFlightTick = {
   readonly mission: GameFpsAuthoredMission
   stopped: boolean
   resumeRequested: boolean
 }
+
+type GameFpsAdvanceRequest = Readonly<{
+  deltaSeconds: number
+  generation: number
+  input: CapturedGameFpsInput
+}>
+
+export type GameFpsAdvance = () => Promise<GameFpsSnapshot>
 
 const listeners = new Set<Listener>()
 const pendingDecisions = new Map<string, GameFpsDecisionRecord>()
@@ -63,6 +90,8 @@ let tickQueue: Promise<void> = Promise.resolve()
 let inFlightTick: InFlightTick | null = null
 let input: MutableInput = freshInput()
 let motionInput: MutableMotionInput = freshMotionInput()
+let bufferedMovementInput: GameFpsMovementInput | null = null
+let pendingTickActions: PendingTickActions = freshPendingTickActions()
 
 function createIdleSnapshot(
   spatialProfile: GameFpsSpatialProfile,
@@ -113,6 +142,40 @@ function freshMotionInput(): MutableMotionInput {
     primaryHeld: false,
     fireQueued: false,
   }
+}
+
+function freshPendingTickActions(): PendingTickActions {
+  return {
+    movementPulse: null,
+    lookYawDelta: 0,
+    lookPitchDelta: 0,
+    fire: false,
+    reload: false,
+  }
+}
+
+function freezeMovementInput(
+  forward: number,
+  strafe: number,
+  sprint: boolean,
+): GameFpsMovementInput {
+  return Object.freeze({ forward, strafe, sprint })
+}
+
+function mergeMovementAxis(pending: number, current: number): number {
+  if (current === 0) return pending
+  if (pending === 0 || Math.sign(pending) === Math.sign(current)) return current
+  return clampGameFpsUnit(pending + current)
+}
+
+function consumeBufferedMovementInput(): GameFpsMovementInput | null {
+  const pending = bufferedMovementInput
+  bufferedMovementInput = null
+  if (!pending) return null
+  const forward = input.forward === 0 ? pending.forward : 0
+  const strafe = input.strafe === 0 ? pending.strafe : 0
+  if (forward === 0 && strafe === 0) return null
+  return freezeMovementInput(forward, strafe, pending.sprint)
 }
 
 function freezeDecision(value: GameFpsDecisionRecord): GameFpsDecisionRecord {
@@ -209,37 +272,76 @@ function replaceMission(
   accumulatorSeconds = 0
   input = freshInput()
   motionInput = freshMotionInput()
+  bufferedMovementInput = null
+  pendingTickActions = freshPendingTickActions()
   return publish(captureGameFpsAuthoredMission(nextMission), GAME_FPS_ZERO_COST_LOG, undefined, true)
 }
 
-function tickInput(firstSubStep: boolean): GameFpsTickInput {
-  const value = Object.freeze({
+function captureAdvanceInput(): CapturedGameFpsInput {
+  const movementPulse = consumeBufferedMovementInput()
+  const continuous = Object.freeze({
     forward: clampGameFpsUnit(input.forward + motionInput.forward),
     strafe: clampGameFpsUnit(input.strafe + motionInput.strafe),
-    lookYawDelta: firstSubStep ? input.lookYawDelta : 0,
-    lookPitchDelta: firstSubStep ? input.lookPitchDelta : 0,
+    lookYawDelta: input.lookYawDelta,
+    lookPitchDelta: input.lookPitchDelta,
     sprint: input.sprint || motionInput.sprint,
-    fire: firstSubStep && (input.fireQueued || motionInput.fireQueued),
-    reload: firstSubStep && input.reloadQueued,
+    fire: input.fireQueued || motionInput.fireQueued,
+    reload: input.reloadQueued,
   })
-  if (firstSubStep) {
-    input.lookYawDelta = 0
-    input.lookPitchDelta = 0
-    input.fireQueued = false
-    input.reloadQueued = false
-    motionInput.fireQueued = false
+  input.lookYawDelta = 0
+  input.lookPitchDelta = 0
+  input.fireQueued = false
+  input.reloadQueued = false
+  motionInput.fireQueued = false
+  return Object.freeze({ continuous, movementPulse })
+}
+
+function stageTickActions(queuedInput: CapturedGameFpsInput): void {
+  const continuous = queuedInput.continuous
+  if (queuedInput.movementPulse) {
+    const pending = pendingTickActions.movementPulse
+    pendingTickActions.movementPulse = freezeMovementInput(
+      clampGameFpsUnit((pending?.forward || 0) + queuedInput.movementPulse.forward),
+      clampGameFpsUnit((pending?.strafe || 0) + queuedInput.movementPulse.strafe),
+      Boolean(pending?.sprint || queuedInput.movementPulse.sprint),
+    )
   }
+  pendingTickActions.lookYawDelta = clampGameFpsLookDelta(
+    pendingTickActions.lookYawDelta + continuous.lookYawDelta,
+  )
+  pendingTickActions.lookPitchDelta = clampGameFpsLookDelta(
+    pendingTickActions.lookPitchDelta + continuous.lookPitchDelta,
+  )
+  pendingTickActions.fire ||= continuous.fire
+  pendingTickActions.reload ||= continuous.reload
+}
+
+function tickInput(queuedInput: CapturedGameFpsInput, firstSubStep: boolean): GameFpsTickInput {
+  const continuous = queuedInput.continuous
+  const movementPulse = firstSubStep ? pendingTickActions.movementPulse : null
+  const value = Object.freeze({
+    forward: clampGameFpsUnit(continuous.forward + (movementPulse?.forward || 0)),
+    strafe: clampGameFpsUnit(continuous.strafe + (movementPulse?.strafe || 0)),
+    lookYawDelta: firstSubStep ? pendingTickActions.lookYawDelta : 0,
+    lookPitchDelta: firstSubStep ? pendingTickActions.lookPitchDelta : 0,
+    sprint: continuous.sprint || Boolean(movementPulse?.sprint),
+    fire: firstSubStep && pendingTickActions.fire,
+    reload: firstSubStep && pendingTickActions.reload,
+  })
+  if (firstSubStep) pendingTickActions = freshPendingTickActions()
   return value
 }
 
 async function advanceCurrentMission(
   deltaSeconds: number,
   expectedGeneration: number,
+  queuedInput: CapturedGameFpsInput,
 ): Promise<GameFpsSnapshot> {
   if (!mission || snapshot.phase !== 'playing' || snapshot.runtimeError) return snapshot
   const refreshedMission = refreshGameFpsMissionSpatialProfile()
   if (refreshedMission) return refreshedMission
   const activeMission = mission
+  stageTickActions(queuedInput)
   accumulatorSeconds += Math.min(deltaSeconds, GAME_FPS_MAX_FRAME_SECONDS)
   let stepped = false
   let firstSubStep = true
@@ -255,7 +357,7 @@ async function advanceCurrentMission(
     inFlightTick = tickLifecycle
     let result: Awaited<ReturnType<typeof tickGameFpsAuthoredMission>>
     try {
-      result = await tickGameFpsAuthoredMission(activeMission, tickInput(firstSubStep))
+      result = await tickGameFpsAuthoredMission(activeMission, tickInput(queuedInput, firstSubStep))
     } catch (error) {
       if (mission === activeMission && tickLifecycle.stopped && tickLifecycle.resumeRequested) {
         throw new ResumedGameFpsTickFailure(error)
@@ -318,6 +420,8 @@ export function stopGameFpsMission(): GameFpsSnapshot {
   accumulatorSeconds = 0
   input = freshInput()
   motionInput = freshMotionInput()
+  bufferedMovementInput = null
+  pendingTickActions = freshPendingTickActions()
   return publishPhase('stopped')
 }
 
@@ -339,6 +443,9 @@ export function subscribeGameFpsSnapshot(listener: Listener): () => void {
 }
 
 export function setGameFpsInput(patch: GameFpsInputPatch): void {
+  const movementPatched = patch.forward !== undefined
+    || patch.strafe !== undefined
+    || patch.sprint !== undefined
   if (patch.forward !== undefined) input.forward = clampGameFpsUnit(patch.forward)
   if (patch.strafe !== undefined) input.strafe = clampGameFpsUnit(patch.strafe)
   if (patch.lookYawDelta !== undefined) {
@@ -348,6 +455,22 @@ export function setGameFpsInput(patch: GameFpsInputPatch): void {
     input.lookPitchDelta = clampGameFpsLookDelta(input.lookPitchDelta + patch.lookPitchDelta)
   }
   if (patch.sprint !== undefined) input.sprint = Boolean(patch.sprint)
+  if (movementPatched && (input.forward !== 0 || input.strafe !== 0)) {
+    const pending = bufferedMovementInput
+    bufferedMovementInput = freezeMovementInput(
+      mergeMovementAxis(pending?.forward || 0, input.forward),
+      mergeMovementAxis(pending?.strafe || 0, input.strafe),
+      Boolean(pending?.sprint || input.sprint),
+    )
+  }
+  queueGameFpsSimulationInputStep()
+}
+
+export function discardGameFpsTransientInput(): void {
+  input = freshInput()
+  motionInput = freshMotionInput()
+  bufferedMovementInput = null
+  pendingTickActions = freshPendingTickActions()
 }
 
 export function setGameFpsMotionInput(patch: Readonly<{
@@ -366,10 +489,12 @@ export function setGameFpsMotionInput(patch: Readonly<{
 
 export function queueGameFpsFire(): void {
   input.fireQueued = true
+  queueGameFpsSimulationInputStep()
 }
 
 export function reloadGameFpsWeapon(): void {
   input.reloadQueued = true
+  queueGameFpsSimulationInputStep()
 }
 
 export function restartGameFpsMission(options: Readonly<{
@@ -383,11 +508,26 @@ export function refreshGameFpsMissionSpatialProfile(): GameFpsSnapshot | null {
   return replaceMission()
 }
 
-export function advanceGameFpsBy(deltaSeconds: number): Promise<GameFpsSnapshot> {
+export function captureGameFpsAdvance(deltaSeconds: number): GameFpsAdvance {
   if (!Number.isFinite(deltaSeconds) || deltaSeconds < 0) {
-    return Promise.reject(new Error('Game FPS deltaSeconds must be a non-negative finite number'))
+    throw new Error('Game FPS deltaSeconds must be a non-negative finite number')
   }
-  const queuedGeneration = generation
+  const request = Object.freeze({
+    deltaSeconds,
+    generation,
+    input: captureAdvanceInput(),
+  })
+  let consumed = false
+  return () => {
+    if (consumed) {
+      return Promise.reject(new Error('Game FPS advance was already consumed'))
+    }
+    consumed = true
+    return enqueueGameFpsAdvance(request)
+  }
+}
+
+function enqueueGameFpsAdvance(request: GameFpsAdvanceRequest): Promise<GameFpsSnapshot> {
   let resolveResult: (value: GameFpsSnapshot) => void
   let rejectResult: (reason: unknown) => void
   const result = new Promise<GameFpsSnapshot>((resolve, reject) => {
@@ -395,15 +535,15 @@ export function advanceGameFpsBy(deltaSeconds: number): Promise<GameFpsSnapshot>
     rejectResult = reject
   })
   tickQueue = tickQueue.catch(() => undefined).then(async () => {
-    if (queuedGeneration !== generation) {
+    if (request.generation !== generation) {
       resolveResult(snapshot)
       return
     }
     try {
-      resolveResult(await advanceCurrentMission(deltaSeconds, queuedGeneration))
+      resolveResult(await advanceCurrentMission(request.deltaSeconds, request.generation, request.input))
     } catch (error) {
       const resumedTickFailure = error instanceof ResumedGameFpsTickFailure
-      if (queuedGeneration !== generation && !resumedTickFailure) {
+      if (request.generation !== generation && !resumedTickFailure) {
         resolveResult(snapshot)
         return
       }
@@ -417,6 +557,14 @@ export function advanceGameFpsBy(deltaSeconds: number): Promise<GameFpsSnapshot>
     }
   })
   return result
+}
+
+export function advanceGameFpsBy(deltaSeconds: number): Promise<GameFpsSnapshot> {
+  try {
+    return captureGameFpsAdvance(deltaSeconds)()
+  } catch (error) {
+    return Promise.reject(error)
+  }
 }
 
 export function acknowledgeGameFpsDecisions(decisionIds: readonly string[]): GameFpsSnapshot {
@@ -442,6 +590,8 @@ export function resetGameFpsRuntimeForTests(): GameFpsSnapshot {
   inFlightTick = null
   input = freshInput()
   motionInput = freshMotionInput()
+  bufferedMovementInput = null
+  pendingTickActions = freshPendingTickActions()
   const previousRevision = snapshot.revision
   snapshot = createIdleSnapshot(readGameModeXrSpatialProfile(), previousRevision + 1)
   for (const listener of [...listeners]) listener()

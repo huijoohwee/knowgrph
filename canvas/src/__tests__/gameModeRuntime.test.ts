@@ -8,15 +8,13 @@ import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatt
 import { controlLocalCamera } from '@/features/strybldr/cameraMcpRuntime'
 import { controlLocalAnimation } from '@/features/three/xrAnimationMcpRuntime'
 import { controlLocalXrScene } from '@/features/three/xrSceneMcpRuntime'
-import {
-  applyGameFpsMotionControlInput,
-  releaseGameFpsMotionControlInput,
-} from '@/features/game-fps/gameFpsMotionControlAdapter'
 import { installGameFpsDesktopInput } from '@/features/game-fps/gameFpsInput'
 import {
   advanceGameFpsBy,
+  queueGameFpsFire,
   readGameFpsSpatialProfile,
   readGameFpsSnapshot,
+  reloadGameFpsWeapon,
   setGameFpsInput,
 } from '@/features/game-fps/gameFpsRuntime'
 import {
@@ -26,6 +24,7 @@ import {
   openGameModeSurface,
   pauseGameModeSimulation,
   readGameModeSnapshot,
+  reportGameModeSimulationFailure,
   resetGameModeRuntimeForTests,
   startGameMode,
   stopGameMode,
@@ -40,7 +39,6 @@ import {
   GAME_FPS_MISSION_ID,
   GAME_FPS_SHARED_XR_PROFILE_ID,
 } from '@/features/game-fps/gameFpsModel'
-import { createXrNativeControllerInput } from '@/features/three/xrNativeControllerInput'
 import { readXrNativeControllerCamera } from '@/features/three/xrNativeControllerCameraRuntime'
 import {
   hydrateCanonicalXrMotionReferenceRuntime,
@@ -322,6 +320,107 @@ test('Game Mode waits for normalized player engagement and pauses without advanc
   assert.equal(readGameFpsSnapshot().tick, pausedTick)
 })
 
+test('Game Mode preserves rendered-frame input across its outer simulation queue', async () => {
+  await startGameMode({ decisions: [], webglSupported: true })
+  armGameModeSimulation()
+  const initial = readGameFpsSnapshot()
+
+  setGameFpsInput({ forward: 1 })
+  const queuedAdvance = advanceGameModeSimulationBy(0.25)
+  setGameFpsInput({ forward: 0 })
+  const moved = await queuedAdvance
+
+  assert.equal(moved.tick, 15)
+  assert.notEqual(moved.player.z, initial.player.z)
+})
+
+test('Game Mode preserves a movement edge across a stalled render interval', async () => {
+  await startGameMode({ decisions: [], webglSupported: true })
+  armGameModeSimulation()
+  const initial = readGameFpsSnapshot()
+
+  setGameFpsInput({ forward: 1 })
+  setGameFpsInput({ forward: 0 })
+  await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  const moved = await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  assert.notEqual(moved.player.z, initial.player.z)
+
+  const neutral = await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS)
+  assert.equal(neutral.player.z, moved.player.z)
+})
+
+test('Game Mode pause discards movement buffered before a lifecycle fence', async () => {
+  await startGameMode({ decisions: [], webglSupported: true })
+  armGameModeSimulation()
+  const initial = readGameFpsSnapshot()
+
+  setGameFpsInput({ forward: 1 })
+  setGameFpsInput({ forward: 0 })
+  await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  pauseGameModeSimulation()
+  armGameModeSimulation()
+  const resumed = await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+
+  assert.equal(resumed.tick, 1)
+  assert.equal(resumed.player.z, initial.player.z)
+})
+
+test('Game Mode stages one-shot input across sub-step outer advances exactly once', async () => {
+  await startGameMode({ decisions: [], webglSupported: true })
+  armGameModeSimulation()
+  const initial = readGameFpsSnapshot()
+
+  setGameFpsInput({ lookYawDelta: 0.2 })
+  queueGameFpsFire()
+  const beforeStep = await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  assert.equal(beforeStep.tick, 0)
+  assert.equal(beforeStep.ammo, initial.ammo)
+
+  const fired = await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  assert.equal(fired.tick, 1)
+  assert.equal(fired.ammo, initial.ammo - 1)
+  assert.notEqual(fired.player.yaw, initial.player.yaw)
+
+  reloadGameFpsWeapon()
+  await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  const reloaded = await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS / 2)
+  assert.equal(reloaded.tick, 2)
+  assert.equal(reloaded.ammo, initial.ammo)
+
+  const neutral = await advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS)
+  assert.equal(neutral.tick, 3)
+  assert.equal(neutral.ammo, reloaded.ammo)
+  assert.equal(neutral.player.yaw, reloaded.player.yaw)
+})
+
+test('Game Mode projects invalid frame deltas as visible runtime failures', async () => {
+  await startGameMode({ decisions: [], webglSupported: true })
+  armGameModeSimulation()
+
+  await assert.rejects(
+    advanceGameModeSimulationBy(Number.NaN),
+    /deltaSeconds must be a non-negative finite number/,
+  )
+
+  assert.equal(readGameModeSnapshot().launchStatus, 'error')
+  assert.equal(readGameModeSnapshot().simulationStatus, 'idle')
+  assert.match(readGameFpsSnapshot().runtimeError || '', /deltaSeconds must be a non-negative finite number/)
+})
+
+test('Game Mode publishes unexpected simulation-step failures exactly once', async () => {
+  await startGameMode({ decisions: [], webglSupported: true })
+  armGameModeSimulation()
+
+  const failed = reportGameModeSimulationFailure(new Error('Motion Control conversion failed'))
+  assert.equal(failed.launchStatus, 'error')
+  assert.equal(failed.simulationStatus, 'idle')
+  assert.equal(failed.message, 'Motion Control conversion failed')
+  assert.equal(readGameFpsSnapshot().runtimeError, 'Motion Control conversion failed')
+
+  const duplicate = reportGameModeSimulationFailure(new Error('Motion Control conversion failed'))
+  assert.equal(duplicate.revision, failed.revision)
+})
+
 test('Game Mode desktop lifecycle events fence queued simulation work', async () => {
   const { dom, restore } = initJsdomHarness()
   try {
@@ -337,6 +436,7 @@ test('Game Mode desktop lifecycle events fence queued simulation work', async ()
       assert.equal(readGameFpsSnapshot().tick, tick)
     }
     await expectPausedWithoutAdvance(() => dom.window.dispatchEvent(new dom.window.Event('blur')))
+    await expectPausedWithoutAdvance(() => dom.window.dispatchEvent(new dom.window.Event('resize')))
     await expectPausedWithoutAdvance(() => {
       Object.defineProperty(dom.window.document, 'visibilityState', { configurable: true, value: 'hidden' })
       dom.window.document.dispatchEvent(new dom.window.Event('visibilitychange'))
@@ -358,27 +458,6 @@ test('Game Mode terminal missions leave the running simulation state', async () 
   assert.equal(terminalMission.phase, 'lost')
   assert.equal(readGameModeSnapshot().simulationStatus, 'idle')
   assert.equal(readGameModeSnapshot().message, `Deterministic ECS mission lost at tick ${terminalMission.tick}.`)
-})
-
-test('Motion Control input composes with Game FPS and primary fires only on a rising edge', async () => {
-  await startGameMode({ decisions: [], webglSupported: true })
-  assert.equal(readGameFpsSpatialProfile().id, GAME_FPS_SHARED_XR_PROFILE_ID)
-  const forwardAndFire = createXrNativeControllerInput({
-    moveZ: -1, primary: true, modifier: true, source: 'motion',
-  })
-  applyGameFpsMotionControlInput(forwardAndFire)
-  const before = readGameFpsSnapshot()
-  await advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS)
-  const first = readGameFpsSnapshot()
-  assert.ok(first.player.z < before.player.z)
-  assert.equal(first.ammo, before.ammo - 1)
-  applyGameFpsMotionControlInput(forwardAndFire)
-  await advanceGameFpsBy(0.25)
-  assert.equal(readGameFpsSnapshot().ammo, first.ammo, 'held primary must not auto-fire every frame')
-  releaseGameFpsMotionControlInput()
-  applyGameFpsMotionControlInput(forwardAndFire)
-  await advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS)
-  assert.equal(readGameFpsSnapshot().ammo, first.ammo - 1, 'a new primary edge must fire once')
 })
 
 test('Game Mode Stop and Start resume the same in-memory mission', async () => {

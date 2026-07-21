@@ -216,6 +216,7 @@ export function StoryboardCardOverlayLayer2d(props: {
   runWorkflowNode?: (nodeId: string) => Promise<void> | void
   schema: GraphSchema | null
   widgetRegistry: ReadonlyArray<WidgetRegistryEntry>
+  registerInteractionFrameProjectionScheduler?: (scheduler: null | (() => void)) => void
 }) {
   const { active, commitGraphData, storyboardWidgetSurfaceId, getTransform, getWheelForwardTarget, graphData, graphRevision, onNodeChange, removeNodeById, removePendingNodeById, runWorkflowNode, schema, widgetRegistry } = props
   const strybldrStoryboardCardAspectMode = useGraphStore(s => s.strybldrStoryboardCardAspectMode)
@@ -321,6 +322,7 @@ export function StoryboardCardOverlayLayer2d(props: {
     overlayElsRef,
     readCardSize,
     rootRef,
+    registerInteractionFrameProjectionScheduler: props.registerInteractionFrameProjectionScheduler,
   })
   const register = React.useCallback((id: string, el: HTMLElement | null) => {
     const key = String(id || '').trim()

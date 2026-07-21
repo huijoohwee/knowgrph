@@ -112,6 +112,7 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
   }
   const threeGraph = source('canvas/src/lib/three/ThreeGraph.impl.tsx')
   const stage = source('canvas/src/features/game-fps/GameFpsMissionStage.tsx')
+  const simulationClock = source('canvas/src/features/game-fps/gameFpsSimulationClock.ts')
   const hud = source('canvas/src/features/game-fps/GameFpsHud.tsx')
   const runtime = source('canvas/src/features/game-fps/gameFpsRuntime.ts')
   const modeRuntime = source('canvas/src/features/game-fps/gameModeRuntime.ts')
@@ -167,8 +168,27 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
   if (!viewport.includes('<GameFpsHudLazy />')) {
     throw new Error('Canvas viewport is missing the Game FPS HUD owner')
   }
-  if (!stage.includes("advanceGameModeSimulationBy(deltaSeconds).catch(() => undefined)")) {
-    throw new Error('Game FPS stage must consume rejected ticks after the runtime publishes its error')
+  if (!stage.includes('window.setInterval(clock.requestStep, SIMULATION_CLOCK_INTERVAL_MS)')
+    || !stage.includes('window.clearInterval(timer)')
+    || !stage.includes('clock.dispose()')
+    || !stage.includes('bindGameFpsSimulationInputQueue(clock.queueInputStep)')
+    || !stage.includes('advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS)')
+    || stage.includes('advanceGameModeSimulationBy(deltaSeconds)')
+    || !stage.includes('minimumStepIntervalMs: SIMULATION_CLOCK_INTERVAL_MS')
+    || !stage.includes('onStepError: reportGameModeSimulationFailure')
+    || !stage.includes('isMotionControlPoseTracked(pose)')
+    || !simulationClock.includes('lastStepStartedAt + options.minimumStepIntervalMs - now()')
+    || !simulationClock.includes('queueInputStep: requestStep')) {
+    throw new Error('Game FPS must own one disposable fixed simulation clock with tracked Motion input and visible failures independent from R3F projection frames')
+  }
+  if (!stage.includes('readGameModeSnapshot().simulationStatus')
+    || stage.includes('subscribeGameModeSnapshot')
+    || stage.includes('useSyncExternalStore')) {
+    throw new Error('Game FPS clock gating must read the live runtime owner without stalling R3F on a React subscription')
+  }
+  if (!stage.includes('readyFrameCountRef.current >= READY_FRAME_COUNT')
+    || !stage.includes('deltaSeconds <= GAME_FPS_MAX_FRAME_SECONDS')) {
+    throw new Error('Game FPS browser readiness must wait for a settled retained-Canvas frame pump')
   }
   if (hud.includes('advanceGameFpsBy') || hud.includes('restartGameFpsMission') || !hud.includes('restartGameMode')) {
     throw new Error('Game FPS HUD must only normalize input and route restart through the central Game Mode owner')

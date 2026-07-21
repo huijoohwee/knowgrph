@@ -11,7 +11,8 @@ import {
 } from '@/features/three/xrSceneSurfaceRuntime'
 import {
   acknowledgeGameFpsDecisions,
-  advanceGameFpsBy,
+  captureGameFpsAdvance,
+  discardGameFpsTransientInput,
   hasGameFpsMission,
   publishRuntimeFailure,
   readGameFpsRunId,
@@ -70,6 +71,7 @@ const listeners = new Set<Listener>()
 let launchGeneration = 0
 let simulationGeneration = 0
 let simulationQueue: Promise<void> = Promise.resolve()
+let motionInputRequiresNeutral = false
 let previousCanvasSurface: PreviousCanvasSurface | null = null
 let authoredXrRuntimeOwnership: AuthoredXrRuntimeOwnership | null = null
 let snapshot: GameModeSnapshot = Object.freeze({
@@ -335,14 +337,48 @@ export function armGameModeSimulation(): GameModeSnapshot {
   return publish({ simulationStatus: 'running', message: 'Deterministic ECS mission running.' })
 }
 
+export function authorizeGameModeMotionInput(input: Readonly<{
+  active: boolean
+  tracked: boolean
+}>): boolean {
+  if (!input.tracked) {
+    motionInputRequiresNeutral = true
+    return false
+  }
+  if (!input.active) {
+    motionInputRequiresNeutral = false
+    return true
+  }
+  if (motionInputRequiresNeutral) return false
+  return armGameModeSimulation().simulationStatus === 'running'
+}
+
+export function reportGameModeSimulationFailure(error: unknown): GameModeSnapshot {
+  const mission = readGameFpsSnapshot()
+  if (
+    snapshot.launchStatus === 'error'
+    && mission.runtimeError === runtimeFailureMessage(error)
+  ) return snapshot
+  return publishGameModeRuntimeFailure(error)
+}
+
 export function pauseGameModeSimulation(message = 'Game Mode paused; resume with player input.'): GameModeSnapshot {
   fenceSimulationAdvances()
+  motionInputRequiresNeutral = true
+  discardGameFpsTransientInput()
   if (snapshot.simulationStatus !== 'running') return snapshot
   return publish({ simulationStatus: 'paused', message })
 }
 
 export function advanceGameModeSimulationBy(deltaSeconds: number): Promise<ReturnType<typeof readGameFpsSnapshot>> {
   if (snapshot.simulationStatus !== 'running') return Promise.resolve(readGameFpsSnapshot())
+  let gameAdvance: ReturnType<typeof captureGameFpsAdvance>
+  try {
+    gameAdvance = captureGameFpsAdvance(deltaSeconds)
+  } catch (error) {
+    publishGameModeRuntimeFailure(error)
+    return Promise.reject(error)
+  }
   const queuedGeneration = simulationGeneration
   const queuedRunId = readGameFpsRunId()
   let resolveResult!: (value: ReturnType<typeof readGameFpsSnapshot>) => void
@@ -362,7 +398,7 @@ export function advanceGameModeSimulationBy(deltaSeconds: number): Promise<Retur
         resolveResult(refreshedMission)
         return
       }
-      const mission = await advanceGameFpsBy(deltaSeconds)
+      const mission = await gameAdvance()
       if (queuedGeneration === simulationGeneration && snapshot.simulationStatus === 'running') {
         if (mission.runtimeError) {
           fenceSimulationAdvances()
@@ -392,6 +428,7 @@ export function advanceGameModeSimulationBy(deltaSeconds: number): Promise<Retur
 export function stopGameMode(): GameModeSnapshot {
   launchGeneration += 1
   fenceSimulationAdvances()
+  motionInputRequiresNeutral = true
   stopGameFpsMission()
   return publish({ launchStatus: 'ready', simulationStatus: 'paused', message: 'Game Mode stopped; the local mission remains available to resume.' })
 }
@@ -403,6 +440,7 @@ export async function restartGameMode(options: Readonly<{
   const generation = launchGeneration + 1
   launchGeneration = generation
   fenceSimulationAdvances()
+  motionInputRequiresNeutral = true
   if (!snapshot.active && !openGameModeSurface()) {
     return snapshot
   }
@@ -440,6 +478,7 @@ export async function restartGameMode(options: Readonly<{
 export function exitGameModeSurface(options: Readonly<{ restorePreviousSurface?: boolean }> = {}): GameModeSnapshot {
   launchGeneration += 1
   fenceSimulationAdvances()
+  motionInputRequiresNeutral = true
   stopGameFpsMission()
   const previous = previousCanvasSurface
   previousCanvasSurface = null
@@ -475,6 +514,7 @@ export async function persistGameModePendingDecisions(options: Readonly<{
 export function resetGameModeRuntimeForTests(): GameModeSnapshot {
   launchGeneration += 1
   fenceSimulationAdvances()
+  motionInputRequiresNeutral = false
   previousCanvasSurface = null
   stopGameFpsMission()
   restoreAuthoredXrRuntime()

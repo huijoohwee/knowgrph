@@ -279,7 +279,7 @@ export function testWorkspaceImportXrStandalonePlyUsesSpatialRendererInsteadOfGr
   for (const marker of [
     'parseStandaloneSpatialCaptureManifest(canvasMarkdownDocument.text)',
     'if (spatialCaptureManifest) return null',
-    'const hasRenderableScene = hasGraph || hasGlbAsset || hasSpatialCaptureManifest',
+    'const hasRenderableScene = gameFpsActive || hasGraph || hasGlbAsset || hasSpatialCaptureManifest || hasXrEmptyWorld',
     '<SpatialCaptureManifestStage',
     "surfaceKind={spatialCaptureManifest ? 'spatial-capture' : 'graph'}",
     'spatialRuntimeStatus={spatialRuntimeStatus}',

@@ -34,6 +34,20 @@ const LEFT_HIP = 23
 const RIGHT_HIP = 24
 const LEFT_KNEE = 25
 const RIGHT_KNEE = 26
+const CONTROLLER_REQUIRED_LANDMARKS = Object.freeze([
+  LEFT_SHOULDER,
+  RIGHT_SHOULDER,
+  LEFT_WRIST,
+  RIGHT_WRIST,
+  LEFT_HIP,
+  RIGHT_HIP,
+])
+const CONTROLLER_REQUIRED_WORLD_LANDMARKS = Object.freeze([
+  LEFT_SHOULDER,
+  RIGHT_SHOULDER,
+  LEFT_HIP,
+  RIGHT_HIP,
+])
 const MOTION_AXIS_DEAD_ZONE = 0.08
 const MOTION_POSE_SMOOTHING_RESPONSE_PER_SECOND = -Math.log(1 - 0.42) * 30
 const MOTION_POSE_MAX_SMOOTHING_DELTA_SECONDS = 0.2
@@ -124,8 +138,15 @@ export function motionControlPoseToAnimationPose(frame: MotionControlPoseFrame |
   })
 }
 
+export function isMotionControlPoseTracked(frame: MotionControlPoseFrame | null): frame is MotionControlPoseFrame {
+  if (!frame || frame.landmarks.length < 25 || frame.confidence < 0.5) return false
+  const world = frame.worldLandmarks.length >= 25 ? frame.worldLandmarks : frame.landmarks
+  return reliableIndexes(frame.landmarks, CONTROLLER_REQUIRED_LANDMARKS)
+    && reliableIndexes(world, CONTROLLER_REQUIRED_WORLD_LANDMARKS)
+}
+
 export function motionControlPoseToControllerInput(frame: MotionControlPoseFrame | null): XrNativeControllerInput {
-  if (!frame || frame.landmarks.length < 25 || frame.confidence < 0.5) return createXrNativeControllerInput()
+  if (!isMotionControlPoseTracked(frame)) return createXrNativeControllerInput()
   const landmarks = frame.landmarks
   const world = frame.worldLandmarks.length >= 25 ? frame.worldLandmarks : landmarks
   const torsoReliable = reliableIndexes(landmarks, [LEFT_SHOULDER, RIGHT_SHOULDER, LEFT_HIP, RIGHT_HIP])

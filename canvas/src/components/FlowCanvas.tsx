@@ -42,6 +42,7 @@ export default function FlowCanvas({
   allowNodeDragOverride,
   exposeRuntimeRef,
   onInteractionFrame,
+  onOverlayInteractionFrame,
   hideSelectedNodeGlyph = false,
   hideSelectedNodePortHandles,
   hideNodeIds,
@@ -260,9 +261,12 @@ export default function FlowCanvas({
 
   const handleInteractionFrame = React.useCallback(() => {
     lastUserInteractionAtMsRef.current = Date.now()
-    if (storyboardWidgetMode) mediaOverlayInteractionFrameSchedulerRef.current?.()
+    if (storyboardWidgetMode) {
+      mediaOverlayInteractionFrameSchedulerRef.current?.()
+      onOverlayInteractionFrame?.()
+    }
     onInteractionFrame?.()
-  }, [storyboardWidgetMode, onInteractionFrame])
+  }, [storyboardWidgetMode, onInteractionFrame, onOverlayInteractionFrame])
   const registerMediaOverlayInteractionFrameScheduler = React.useCallback((scheduler: null | (() => void)) => {
     mediaOverlayInteractionFrameSchedulerRef.current = scheduler
   }, [])
