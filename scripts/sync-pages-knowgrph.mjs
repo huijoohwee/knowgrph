@@ -180,6 +180,7 @@ const joinRel = (...parts) => parts.join('/')
 const joinToken = (...parts) => parts.join('')
 const joinKebab = (...parts) => parts.join('-')
 const obsoleteGeneratedMirrorFiles = new Set([
+  joinRel('knowgrph', '.well-known', 'runtime-readiness.json'),
   joinRel('canvas', 'src', 'features', 'agent-ready', joinToken('knowgrph', 'Skill', 'Pack', 'Contract.mjs')),
   joinRel('canvas', 'src', 'features', 'chat', joinToken('knowgrph', 'Skill', 'Pack', 'ChatArtifacts.ts')),
   joinRel('canvas', 'src', 'features', 'panels', 'views', joinToken('skill', 'Pack', 'McpApiDocs.ts')),
@@ -385,8 +386,7 @@ const fileExists = async (filePath) => {
 }
 
 const agentReadyRuntimeCopies = [
-  [agentReadyCommerceSource, agentReadyCommerceTarget], [agentReadyAppShellSource, agentReadyAppShellTarget],
-  [semanticKeyContractSource, semanticKeyContractTarget],
+  [agentReadyCommerceSource, agentReadyCommerceTarget], [agentReadyAppShellSource, agentReadyAppShellTarget], [semanticKeyContractSource, semanticKeyContractTarget],
   [xrSceneMcpContractSource, xrSceneMcpContractTarget], [xrAnimationMcpContractSource, xrAnimationMcpContractTarget], [motionControlMcpContractSource, motionControlMcpContractTarget], [path.resolve(knowgrphRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs'), path.resolve(mirrorRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs')],
   [richMediaTextMarkdownContractSource, richMediaTextMarkdownContractTarget],
   ...['knowgrphAgentReadyOutputSchemas.mjs', 'mcpAppsContractText.mjs', 'mcpAppsOnboarding.mjs', 'motionControlAgentReadyContract.mjs', 'probeTreeUserInputRelevance.mjs'].map(filename => [agentReadyFeatureSource(filename), agentReadyFeatureTarget(filename)]),
@@ -532,7 +532,7 @@ if (!(await existsDir(distDir))) {
 const sourceFiles = await listFiles(distDir)
 const rootManagedSourceFiles = [{ rel: 'knowgrph-live-canvas-hero.md', src: liveCanvasHeroMarkdownSource }]
 const runtimeReadiness = await buildProductionRuntimeReadiness({
-  sourceRevision, knowgrphRoot, mirrorRoot, contentRoot: targetDir, publicRoot: publicRouteDir,
+  sourceRevision, knowgrphRoot, mirrorRoot, contentRoot: targetDir,
   artifactEntries: [
   ...sourceFiles
     .filter(isPublicManagedRelativePath)

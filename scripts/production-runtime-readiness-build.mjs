@@ -28,11 +28,10 @@ export const buildProductionRuntimeReadiness = async ({
   knowgrphRoot,
   mirrorRoot,
   contentRoot,
-  publicRoot,
   artifactEntries,
 }) => {
   const relativePath = path.posix.join('.well-known', 'runtime-readiness.json')
-  const paths = [mirrorRoot, contentRoot, publicRoot].map(root => path.resolve(root, relativePath))
+  const paths = [mirrorRoot, contentRoot].map(root => path.resolve(root, relativePath))
   const artifactDigest = await calculateRuntimeArtifactDigest(artifactEntries)
   const immutableManifest = await buildImmutableReleaseManifest({
     sourceRevision,
