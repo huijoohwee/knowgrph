@@ -126,7 +126,7 @@ The runtime direction:
 - FloatingPanel Chat and KGC keep source-backed runtime materialization on the existing Markdown → KTV frontmatter → Canvas path.
 - Local MCP, Pages HTTP MCP, Browser WebMCP, and approved Cloudflare control-plane owners are separate surfaces with explicit transport boundaries.
 
-This README describes the Dev repo. `agentic-canvas-os/docs` remains docs-control runtime proof only; Prod mirror and Cloudflare state stay gated until the operator explicitly opens those lanes.
+This README describes the Dev repo. `agentic-canvas-os/docs` remains docs-control runtime proof only. Its latest protected green revision is promoted by the scheduled lifecycle PR, and only a protected green Knowgrph `main` push may trigger the automatic Prod mirror and Cloudflare release.
 
 ### 2D Renderer: Storyboard template
 
@@ -139,7 +139,7 @@ That template is intentionally local-first:
 - runtime outputs start blank until an operator-approved local or live run returns evidence;
 - `paid_call_count` starts at `0`;
 - `source_url`, provider job ids, stream URLs, generated asset URLs, and runtime proof paths stay operator-supplied or runtime-generated;
-- Prod mirror and Cloudflare are blocked until explicit instruction;
+- Prod mirror and Cloudflare are blocked from local, pull-request, and unprotected lanes; protected green `main` owns automatic release;
 - Storyboard projection is view state only: authored frontmatter and source payloads own data, while visible connectors are projections of `flow.edges`;
 - semantic HTML projection should use landmarks such as `main`, `section`, `article`, `header`, `nav`, `aside`, `figure`, `figcaption`, and `table` before falling back to generic layout wrappers.
 
@@ -249,7 +249,7 @@ npm run goal:run
 
 ## Repository role
 
-This repository is the Dev source of truth. Prod sync and Cloudflare deployment are explicit operator actions — normal implementation, testing, and documentation work stays in Dev until publish or deploy is requested. The live public surface is `https://airvio.co/knowgrph`.
+This repository is the Dev source of truth and the sole production deployment owner. Normal implementation and pull-request validation stay in Dev; after protected integration, a green `main` push automatically rebuilds, attests, deploys, browser-verifies, and publishes the generated mirror. The live public surfaces are `https://airvio.co/` and `https://airvio.co/knowgrph`.
 
 ## Workspace surfaces
 

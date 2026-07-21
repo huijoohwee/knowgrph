@@ -15,6 +15,7 @@ direct MCP verification.
 Use this after publishing from `knowgrph` into `../huijoohwee` and deploying to
 Cloudflare Pages. The goal is to confirm:
 
+- the apex and `/knowgrph` readiness markers are byte-identical and bind the exact release SHA
 - the `/knowgrph` app shell is reachable
 - discovery and health routes are live
 - the MCP Streamable HTTP surface accepts a real session
@@ -70,6 +71,10 @@ curl -A 'Mozilla/5.0' -sS -o /dev/null -w 'GET /.well-known/api-catalog -> %{htt
   https://airvio.co/.well-known/api-catalog
 curl -A 'Mozilla/5.0' -sS -o /dev/null -w 'GET /knowgrph/mcp/health -> %{http_code} | %{content_type}\n' \
   https://airvio.co/knowgrph/mcp/health
+curl -A 'Mozilla/5.0' -sS -o /dev/null -w 'GET readiness -> %{http_code} | %{content_type}\n' \
+  https://airvio.co/.well-known/runtime-readiness.json
+curl -A 'Mozilla/5.0' -sS -o /dev/null -w 'GET /knowgrph readiness -> %{http_code} | %{content_type}\n' \
+  https://airvio.co/knowgrph/.well-known/runtime-readiness.json
 ```
 
 Expected content types:
@@ -81,6 +86,15 @@ Expected content types:
 - `/knowgrph/llms.txt` -> `text/plain`
 - `/.well-known/api-catalog` -> `application/linkset+json`
 - `/knowgrph/mcp/health` -> `application/json`
+- both runtime-readiness routes -> `application/json`, schema `knowgrph-production-runtime-readiness/v2`, and byte-identical bodies
+
+The release workflow runs the browser-level equivalent automatically before it publishes the mirror. To repeat that exact proof against a known release:
+
+```bash
+RELEASE_SHA=<40-character-knowgrph-sha> \
+PRODUCTION_IMMUTABLE_MANIFEST_DIGEST=<64-character-sha256> \
+npm run production:fidelity:check
+```
 
 ## AI Gateway Draft-Lane Gate
 
@@ -108,6 +122,8 @@ Open [airvio.co/knowgrph](https://airvio.co/knowgrph/) and confirm:
 
 - the page title is `knowgrph`
 - the main shell renders instead of a blank page or edge error
+- the apex hero renders `Map intent.`, `Orchestrate agents.`, and `Prove outcomes.` with a ready canvas iframe
+- neither surface remains on `Switching document` or `Preparing canvas view...`
 - the top-level controls are present: `Launch`, `Workspace View`, `Interaction`,
   `Settings`, `History`, `Help`
 - the explorer/doc surface loads the seeded workspace content

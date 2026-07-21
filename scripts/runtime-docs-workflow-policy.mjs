@@ -4,6 +4,7 @@ import { repoRoot } from './collaboration-contract.mjs'
 
 const workflowFilePattern = /\.ya?ml$/i
 const agenticCanvasOsMarker = 'agentic-canvas-os'
+const promoterMarker = 'runtime-docs-workflow: promoter'
 const orderedStepChecks = [
   { id: 'dependencies-installed', marker: 'name: Install dependencies' },
   { id: 'contract-resolver-after-install', marker: 'name: Resolve Agentic Canvas OS docs dependency' },
@@ -92,12 +93,32 @@ export const validateRuntimeDocsWorkflowConsumer = ({ workflowPath, source }) =>
   )
 }
 
+export const validateRuntimeDocsWorkflowPromoter = ({ workflowPath, source }) => {
+  const checks = [
+    [/schedule:\s*\n\s*- cron:/, 'scheduled trigger'],
+    [/secrets\.HUIJOOHWEE_PUSH_TOKEN/, 'non-recursive automation token'],
+    [/node \.\/scripts\/promote-agentic-canvas-os-revision\.mjs/, 'protected revision resolver'],
+    [/ref: \$\{\{ steps\.promotion\.outputs\.revision \}\}/, 'resolved revision checkout'],
+    [/fetch-depth:\s*0/, 'full-history checkout'],
+    [/gh pr merge "\$url" --auto --squash/, 'protected auto-merge'],
+  ]
+  for (const [pattern, label] of checks) {
+    requireWorkflowSource(pattern.test(source), workflowPath, `missing promoter ${label}`)
+  }
+  requireWorkflowSource(!/workflow_dispatch:/.test(source), workflowPath, 'promoter must not require manual dispatch')
+  requireWorkflowSource(!/ref: [0-9a-f]{40}/.test(source), workflowPath, 'promoter must not copy an immutable ref')
+}
+
 export const validateRuntimeDocsWorkflowPolicy = workflowSources => {
-  const consumers = workflowSources.filter(workflow => workflow.source.includes(agenticCanvasOsMarker))
+  const promoters = workflowSources.filter(workflow => workflow.source.includes(promoterMarker))
+  const consumers = workflowSources.filter(workflow => (
+    workflow.source.includes(agenticCanvasOsMarker) && !workflow.source.includes(promoterMarker)
+  ))
   if (consumers.length === 0) {
     throw new Error('expected at least one Agentic Canvas OS workflow consumer')
   }
   consumers.forEach(validateRuntimeDocsWorkflowConsumer)
+  promoters.forEach(validateRuntimeDocsWorkflowPromoter)
   return {
     id: 'runtime-docs-workflow/v1',
     status: 'passed',

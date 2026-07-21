@@ -3,6 +3,7 @@ name: Integration
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited, ready_for_review]
+  merge_group:
   push:
     branches:
       - main
@@ -19,6 +20,7 @@ jobs:
   integration-gate:
     name: Integration Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       KNOWGRPH_PR_BODY: ${{ github.event.pull_request.body || '' }}
       KNOWGRPH_PR_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
@@ -27,32 +29,32 @@ jobs:
       KNOWGRPH_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
       KNOWGRPH_REPOSITORY: ${{ github.repository }}
       KNOWGRPH_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
-      KNOWGRPH_TARGET_REF: refs/heads/${{ github.event.pull_request.head.ref || github.ref_name }}
+      KNOWGRPH_TARGET_REF: ${{ github.event_name == 'merge_group' && 'refs/heads/main' || format('refs/heads/{0}', github.event.pull_request.head.ref || github.ref_name) }}
       KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: ${{ github.workspace }}/agentic-canvas-os/docs
 
     steps:
       - name: Checkout knowgrph
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           path: knowgrph
           fetch-depth: 0
 
       - name: Checkout publish mirror for drift verification
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: huijoohwee/huijoohwee
           ref: main
           path: huijoohwee
 
       - name: Checkout schema mirror for drift verification
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: huijoohwee/huijoohwee.github.io
           ref: main
           path: huijoohwee.github.io
 
       - name: Setup Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 20
           cache: npm
@@ -61,7 +63,7 @@ jobs:
             knowgrph/canvas/package-lock.json
 
       - name: Setup Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.11'
 
@@ -75,7 +77,7 @@ jobs:
         run: npm run --silent runtime:docs-dependency:resolve -- --github-output >> "$GITHUB_OUTPUT"
 
       - name: Checkout Agentic Canvas OS docs SSOT
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ${{ steps.agentic_canvas_os_docs.outputs.repository }}
           ref: ${{ steps.agentic_canvas_os_docs.outputs.ref }}
@@ -92,7 +94,7 @@ jobs:
         run: test "$(git -C ../agentic-canvas-os rev-parse HEAD)" = "${{ steps.agentic_canvas_os_docs.outputs.ref }}"
 
       - name: Upload immutable release manifest
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: immutable-release-manifest
           path: ${{ runner.temp }}/immutable-release-manifest.json
@@ -100,7 +102,7 @@ jobs:
           retention-days: 7
 
       - name: Download immutable release manifest proof
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: immutable-release-manifest
           path: ${{ runner.temp }}/immutable-release-manifest-proof
@@ -113,11 +115,11 @@ jobs:
         working-directory: knowgrph
         env:
           KNOWGRPH_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          KNOWGRPH_REQUIRE_REMOTE_SCOPE_CHECK: true
+          KNOWGRPH_REQUIRE_REMOTE_SCOPE_CHECK: ${{ github.event_name == 'pull_request' }}
         run: npm run --silent collaboration:contract:check -- --json > collaboration-contract-report.json
 
       - name: Upload collaboration contract report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: collaboration-contract-report
           path: knowgrph/collaboration-contract-report.json
@@ -125,7 +127,7 @@ jobs:
           retention-days: 7
 
       - name: Download collaboration contract report proof
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: collaboration-contract-report
           path: knowgrph/collaboration-contract-report-proof
@@ -135,7 +137,7 @@ jobs:
         run: npm run --silent collaboration:report:check -- --json collaboration-contract-report-proof/collaboration-contract-report.json > collaboration-validation-result.json
 
       - name: Upload collaboration validation result
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: collaboration-validation-result
           path: knowgrph/collaboration-validation-result.json
@@ -143,7 +145,7 @@ jobs:
           retention-days: 7
 
       - name: Download collaboration validation result proof
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: collaboration-validation-result
           path: knowgrph/collaboration-validation-result-proof

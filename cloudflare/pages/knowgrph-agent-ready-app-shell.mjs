@@ -13,7 +13,8 @@ export const fetchKnowgrphAppShellAsset = async (context, appBasePath) => {
 };
 
 export const handlesKnowgrphStaticAsset = (pathname, appBasePath) =>
-  pathname.startsWith(`${appBasePath}/assets/`);
+  pathname.startsWith(`${appBasePath}/assets/`)
+  || pathname === `${appBasePath}/.well-known/runtime-readiness.json`;
 
 const isHtmlAssetFallback = (response) => {
   const contentType = String(response.headers.get("content-type") || "").toLowerCase();
