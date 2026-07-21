@@ -327,6 +327,16 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   if (!autoZoomText.includes('graphLayoutSignature,')) {
     throw new Error('expected selection auto-zoom signatures to receive the semantic Storyboard Widget layout signature')
   }
+  const storyboardInfiniteZoomPath = resolve(process.cwd(), 'src', 'components', 'StoryboardCanvas', 'useStoryboardInfiniteZoom.ts')
+  const storyboardInfiniteZoomText = readFileSync(storyboardInfiniteZoomPath, 'utf8')
+  if (!storyboardInfiniteZoomText.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
+    throw new Error('expected the outer Storyboard surface to share workspace camera ownership state')
+  }
+  const workspaceCameraGuardIndex = storyboardInfiniteZoomText.indexOf('if (isWorkspaceEditorOverlayOpen(requestState)) return')
+  const implicitInitialFitIndex = storyboardInfiniteZoomText.indexOf("zoomRequest: { type: 'fit', intent: 'fitToView', at: 0 }")
+  if (workspaceCameraGuardIndex < 0 || implicitInitialFitIndex < 0 || workspaceCameraGuardIndex > implicitInitialFitIndex) {
+    throw new Error('expected the outer Storyboard surface to suppress implicit initial fit before the workspace-owned camera can mutate')
+  }
   const signaturePath = resolve(process.cwd(), 'src', 'lib', 'zoom', 'autoModeSignatures.ts')
   const signatureText = readFileSync(signaturePath, 'utf8')
   if (!signatureText.includes('graphLayoutSignature?: string | null')) {
