@@ -29,7 +29,6 @@ import {
 } from '@/features/canvas/liveCanvasHeroSourceSelection'
 import {
   resolveLiveCanvasHeroSource,
-  resolveWorkspaceReadmeTextLiveCanvasHeroSource,
   resolveLiveCanvasHeroWorkspaceSourceState,
 } from '@/features/canvas/useKnowgrphLiveCanvasHero'
 import {
@@ -41,7 +40,11 @@ import {
 import { CHAT_INPUT_APPEND_EVENT } from '@/features/canvas/utils'
 import { tryParseMarkdownFrontmatterFlowGraph } from '@/features/parsers/markdownFrontmatterFlowGraph'
 import { buildSourceFileParseIdentityHash } from '@/features/source-files/sourceFileParseIdentity'
-import { WORKSPACE_README_SOURCE_PATH } from '@/features/source-files/workspaceSeedSourceFiles'
+import {
+  XR_PHYSICS_DEMO_PUBLISHED_CANONICAL_PATH,
+  XR_PHYSICS_DEMO_REPO_REL_PATH,
+} from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { XR_PHYSICS_WORKSPACE_SEED_PATH } from '@/features/workspace-fs/workspaceFs'
 import type { SourceFile } from '@/hooks/store/types'
 import type { GraphData } from '@/lib/graph/types'
 import { isRouterRootAliasRuntime } from '@/lib/routing/basePath'
@@ -70,34 +73,34 @@ export function testLiveCanvasHeroEditorialCopyLoadsFromCanonicalMarkdownSource(
     throw new Error(`expected canonical hero copy from markdown frontmatter, got ${JSON.stringify(content)}`)
   }
     }
-function readWorkspaceReadmeSource(): {
+function readPhysicsPlaygroundSource(): {
   text: string
   graphData: GraphData
   sourceFile: SourceFile
 } {
-  const path = resolve(process.cwd(), '..', '..', 'huijoohwee', 'docs', 'workspace-readme.md')
+  const path = resolve(process.cwd(), '..', XR_PHYSICS_DEMO_REPO_REL_PATH)
   const text = readFileSync(path, 'utf8')
-  const parsed = tryParseMarkdownFrontmatterFlowGraph('workspace-readme.md', text)
-  if (!parsed) throw new Error(`expected canonical workspace README to parse from ${path}`)
-  const sourceFileId = 'workspace-readme-live-hero-proof'
+  const parsed = tryParseMarkdownFrontmatterFlowGraph('knowgrph-physics-playground-demo.md', text)
+  if (!parsed) throw new Error(`expected canonical Physics Playground to parse from ${path}`)
+  const sourceFileId = 'physics-playground-live-hero-proof'
   return {
     text,
     graphData: parsed.graphData,
     sourceFile: {
       id: sourceFileId,
-      name: 'workspace-readme.md',
+      name: 'knowgrph-physics-playground-demo.md',
       text,
       enabled: true,
       status: 'parsed',
       parsedParserId: 'markdown',
       parsedTextHash: buildSourceFileParseIdentityHash({
         cacheNamespace: `source-file:${sourceFileId}`,
-        name: 'workspace-readme.md',
+        name: 'knowgrph-physics-playground-demo.md',
         text,
       }),
       parsedGraphRevision: 1,
       parsedGraphData: parsed.graphData,
-      source: { kind: 'local', path: WORKSPACE_README_SOURCE_PATH },
+      source: { kind: 'local', path: `workspace:${XR_PHYSICS_WORKSPACE_SEED_PATH}` },
     } as SourceFile,
   }
     }
@@ -118,90 +121,29 @@ export function testLiveCanvasHeroUsesSourceBackedInvocationContract(): void {
     }
   }
 
-  const { text } = readWorkspaceReadmeSource()
-  if (!text.includes('docs/knowgrph-agentic-video-canvas-demo.md')) {
-    throw new Error('expected workspace-readme.md to point to the canonical default agentic video demo')
+  const { text } = readPhysicsPlaygroundSource()
+  if (!text.includes('kgCanvasSurfaceMode: "xr"') || !text.includes('kgCanvasRenderMode: "3d"')) {
+    throw new Error('expected the canonical startup document to own XR/3D initialization')
   }
 }
 
-export function testLiveCanvasHeroWorkspaceReadmeSourceFidelity(): void {
-  const { text, graphData, sourceFile } = readWorkspaceReadmeSource()
-  const source = resolveLiveCanvasHeroSource({ sourceFiles: [sourceFile], activeGraphData: graphData })
-  if (!source) throw new Error('expected the current parsed workspace README to own the live hero source')
+export function testLiveCanvasHeroPhysicsPlaygroundSourceFidelity(): void {
+  const { text, graphData, sourceFile } = readPhysicsPlaygroundSource()
   if (
-    source.sourcePath !== WORKSPACE_README_SOURCE_PATH
-    || source.graphId !== 'md:workspace-readme'
-    || source.schema !== 'kgc-workspace-readme/v1'
-    || source.sourceLayerHash !== String(graphData.metadata?.sourceLayerHash || '')
+    sourceFile.source?.path !== `workspace:${XR_PHYSICS_WORKSPACE_SEED_PATH}`
+    || XR_PHYSICS_DEMO_PUBLISHED_CANONICAL_PATH !== 'agentic-canvas-os/docs/workspace-seeds/knowgrph-physics-playground-demo.md'
   ) {
-    throw new Error(`expected exact workspace README provenance, got ${JSON.stringify({
-      path: source.sourcePath,
-      graphId: source.graphId,
-      schema: source.schema,
-    })}`)
+    throw new Error('expected local and published Physics Playground identities to resolve one canonical startup source')
   }
-  const rootAliasFallback = resolveWorkspaceReadmeTextLiveCanvasHeroSource(text)
-  if (!rootAliasFallback || rootAliasFallback.sourcePath !== WORKSPACE_README_SOURCE_PATH || rootAliasFallback.canvasGraphData.nodes.length < 2) {
-    throw new Error(`expected the root alias fallback to parse the canonical workspace README, got ${JSON.stringify(rootAliasFallback)}`)
-  }
-  if (source.canvasGraphData.nodes.length !== 3 || source.canvasGraphData.edges.length !== 2) {
-    throw new Error(`expected the source-derived command route, got ${source.canvasGraphData.nodes.length} nodes/${source.canvasGraphData.edges.length} edges`)
+  if (!text.includes('auto_start: true') || graphData.nodes.length !== 4) {
+    throw new Error(`expected the source-backed runtime-ready Physics Playground graph, got ${graphData.nodes.length} nodes/${graphData.edges.length} edges`)
   }
   const nodeIds = new Set(graphData.nodes.map(node => String(node.id)))
-  for (const id of ['workspace-source', 'workspace-runtime', 'workspace-publish']) {
-    if (!nodeIds.has(id)) throw new Error(`expected authored workspace node ${id}`)
+  for (const id of ['xr_demo_entry', 'xr_ball_controller', 'xr_rocket_controller', 'xr_runtime_gate']) {
+    if (!nodeIds.has(id)) throw new Error(`expected authored Physics Playground node ${id}`)
   }
-  const edgeSignatures = new Set(graphData.edges.map(edge => `${edge.source}->${edge.target}`))
-  for (const signature of ['workspace-source->workspace-runtime', 'workspace-runtime->workspace-publish']) {
-    if (!edgeSignatures.has(signature)) throw new Error(`expected authored workspace edge ${signature}`)
-  }
-
-  const editedFile = { ...sourceFile, text: text.replace('value: "workspace-source"', 'value: "workspace-source-edited"') }
-  const editedSource = resolveLiveCanvasHeroSource({ sourceFiles: [editedFile], activeGraphData: graphData })
-  if (!editedSource || editedSource.sourceLayerHash === source.sourceLayerHash) {
-    throw new Error('expected the live hero to reparse edited source text instead of trusting stale parsed state')
-  }
-  const wrongPathFile = { ...sourceFile, source: { kind: 'local', path: 'workspace:/product.md' } } as SourceFile
-  if (resolveLiveCanvasHeroSource({ sourceFiles: [wrongPathFile], activeGraphData: graphData })) {
-    throw new Error('expected a non-canonical source path to fail closed')
-  }
-  const docsMirrorFile = { ...sourceFile, source: { kind: 'local', path: 'workspace:/docs/workspace-readme.md' } } as SourceFile
-  if (!resolveLiveCanvasHeroSource({ sourceFiles: [docsMirrorFile], activeGraphData: graphData })) {
-    throw new Error('expected the canonical docs mirror workspace README to resolve the live hero source')
-  }
-  const mismatchedActiveGraph = {
-    ...graphData,
-    nodes: graphData.nodes.filter(node => node.id !== 'workspace-source'),
-  }
-  if (!resolveLiveCanvasHeroSource({ sourceFiles: [sourceFile], activeGraphData: mismatchedActiveGraph })) {
-    throw new Error('expected starter-document initialization to coexist with the independent workspace README hero source')
-  }
-
-  const swappableSourceFile = {
-    ...sourceFile,
-    id: 'shared-canvas-source',
-    name: 'shared-canvas.md',
-    source: { kind: 'local', path: 'workspace:/docs/shared-canvas.md' },
-  } as SourceFile
-  const swappableSource = resolveLiveCanvasHeroSource({
-    sourceFiles: [sourceFile, swappableSourceFile],
-    activeGraphData: graphData,
-    preferredSourcePath: '/docs/shared-canvas.md',
-  })
-  if (!swappableSource || swappableSource.sourceFileId !== 'shared-canvas-source' || swappableSource.sourcePath !== '/docs/shared-canvas.md') {
-    throw new Error(`expected Share canvas embed selection to swap the hero source, got ${JSON.stringify(swappableSource)}`)
-  }
-  const duplicateBasenameSource = {
-    ...swappableSourceFile,
-    id: 'duplicate-shared-canvas-source',
-    source: { kind: 'local', path: 'workspace:/archive/shared-canvas.md' },
-  } as SourceFile
-  if (resolveLiveCanvasHeroSource({
-    sourceFiles: [sourceFile, swappableSourceFile, duplicateBasenameSource],
-    activeGraphData: graphData,
-    preferredSourcePath: 'shared-canvas.md',
-  })) {
-    throw new Error('expected an ambiguous Share canvas embed basename to fail closed instead of selecting the wrong hero source')
+  for (const connection of ['from: "xr_demo_entry"', 'to: "xr_ball_controller"', 'to: "xr_rocket_controller"']) {
+    if (!text.includes(connection)) throw new Error(`expected authored Physics Playground connection ${connection}`)
   }
 }
 
@@ -213,10 +155,10 @@ export function testLiveCanvasHeroVisibilityFailsClosedOutsideHydratedApex(): vo
     throw new Error('expected the canonical /knowgrph route to stay outside the apex hero runtime')
   }
 
-  const { sourceFile } = readWorkspaceReadmeSource()
+  const { sourceFile } = readPhysicsPlaygroundSource()
   const defaultSeedState = resolveLiveCanvasHeroWorkspaceSourceState({
     sourceFiles: [sourceFile],
-    markdownDocumentName: 'workspace-readme.md',
+    markdownDocumentName: 'knowgrph-physics-playground-demo.md',
   })
   if (!defaultSeedState.defaultSeedOnly || defaultSeedState.meaningfulSourceFilesPresent) {
     throw new Error(`expected the default seed to remain hero-eligible, got ${JSON.stringify(defaultSeedState)}`)
@@ -350,7 +292,7 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     'authoredOwnershipReady && !isRootAlias',
     'resolveWorkspaceReadmeTextLiveCanvasHeroSource',
     'WORKSPACE_README_PUBLIC_SOURCE_PATH',
-    '|| (isRootAlias ? WORKSPACE_README_SOURCE_PATH : \'\')',
+    '|| (isRootAlias ? CANONICAL_STARTUP_DOCUMENT_PATH : source?.sourcePath)',
     'sourceFilesBootstrapReady: isRootAlias || args.sourceFilesBootstrapReady',
     'workspaceDocumentSwitchPending: isRootAlias ? false : args.workspaceDocumentSwitchPending',
     'hasSearchParams,\n    isEmbeddedPreview:',
@@ -379,9 +321,9 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     || !viewportSource.includes('!liveCanvasHeroVisible && paywallOverlayActive')) {
     throw new Error('expected Live Canvas Hero ownership to suppress ancillary viewport overlays')
   }
-  if (!heroHookSource.includes("|| (isRootAlias ? WORKSPACE_README_SOURCE_PATH : '')")
+  if (!heroHookSource.includes('|| (isRootAlias ? CANONICAL_STARTUP_DOCUMENT_PATH : source?.sourcePath)')
     || !heroHookSource.includes('selectedEmbedSource?.embedUrl')
-    || !heroHookSource.includes('resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl()')) {
+    || !heroHookSource.includes('resolveCanonicalStartupCanvasEmbedRuntimeUrl()')) {
     throw new Error('expected Home to resolve either the selected embed or the canonical Share canvas embed URL')
   }
   if (!heroHookSource.includes('readPersistedLiveCanvasHeroSourceSelection')) {

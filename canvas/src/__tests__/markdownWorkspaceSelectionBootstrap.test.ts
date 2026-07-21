@@ -33,8 +33,8 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
     lastRequestedActivePath: null,
     nowMs: 10_000,
   })
-  if (startup !== TEST_VALIDATION_WORKSPACE_SEED_PATH || startup.includes('/share/')) {
-    throw new Error(`expected bootstrap helper to use the selector-aware validation seed without a share route, got ${String(startup)}`)
+  if (startup !== XR_PHYSICS_WORKSPACE_SEED_PATH || startup.includes('/share/')) {
+    throw new Error(`expected bootstrap helper to use the source-backed Physics Playground without a share route, got ${String(startup)}`)
   }
 
   const startupWithWorkspaceCorpus = resolveMarkdownWorkspaceBootstrapActivePath({
@@ -48,13 +48,13 @@ export function testMarkdownWorkspaceSelectionBootstrapCentralizesStartupAndFall
     lastRequestedActivePath: null,
     nowMs: 10_000,
   })
-  if (startupWithWorkspaceCorpus !== '/docs/a.md') {
-    throw new Error(`expected XR seed presence not to override the first unselected workspace document, got ${String(startupWithWorkspaceCorpus)}`)
+  if (startupWithWorkspaceCorpus !== XR_PHYSICS_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected the canonical Physics Playground to own a cold unselected workspace even when other documents exist, got ${String(startupWithWorkspaceCorpus)}`)
   }
 
   const sourceFilesStarter = resolveWorkspaceStartupDefaultStarterPath(defaultSeedEntries)
-  if (sourceFilesStarter !== TEST_VALIDATION_WORKSPACE_SEED_PATH) {
-    throw new Error(`expected initial Source Files bootstrap to reuse the selector-aware validation starter, got ${String(sourceFilesStarter)}`)
+  if (sourceFilesStarter !== XR_PHYSICS_WORKSPACE_SEED_PATH) {
+    throw new Error(`expected initial Source Files bootstrap to reuse the Physics Playground starter, got ${String(sourceFilesStarter)}`)
   }
 
   const preserveExplicitReadmeWithXrAvailable = resolveMarkdownWorkspaceBootstrapActivePath({
