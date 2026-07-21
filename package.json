@@ -82,6 +82,7 @@
     "runtime:verify:deployed": "node ./scripts/verify-deployed-runtime.mjs",
     "runtime:pages:owner-enforce": "node ./scripts/pages-production-deployment.mjs enforce-direct-upload-owner",
     "runtime:pages:capture-current": "node ./scripts/pages-production-deployment.mjs capture-current",
+    "runtime:pages:capture-candidate": "node ./scripts/pages-production-deployment.mjs capture-candidate",
     "runtime:pages:rollback": "node ./scripts/pages-production-deployment.mjs rollback",
     "runtime:proof": "node ./scripts/capture-runtime-proof.mjs",
     "runtime:demo-pack": "node ./scripts/build-demo-pack-from-proof.mjs",

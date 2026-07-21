@@ -88,7 +88,7 @@ Expected content types:
 - `/knowgrph/mcp/health` -> `application/json`
 - both runtime-readiness routes -> `application/json`, schema `knowgrph-production-runtime-readiness/v2`, and byte-identical bodies
 
-The release workflow runs the browser-level equivalent automatically before it publishes the mirror. To repeat that exact proof against a known release:
+The release workflow proves the canonical `airvio.co` runtime first, resolves the exact successful Pages deployment for the protected SHA through the Cloudflare API, reads its immutable marker routes through that direct origin, and keeps the Home/app browser proof on `airvio.co` with exact-SHA JavaScript namespaces before it publishes the mirror. To repeat the public custom-domain proof from a non-challenged operator network:
 
 ```bash
 RELEASE_SHA=<40-character-knowgrph-sha> \

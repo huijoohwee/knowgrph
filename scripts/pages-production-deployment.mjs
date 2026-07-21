@@ -50,6 +50,30 @@ if (command === 'enforce-direct-upload-owner') {
   writeOutput('deployment_id', deployment.id)
   writeOutput('commit_sha', commitSha)
   console.log(`Captured production rollback target ${deployment.id}.`)
+} else if (command === 'capture-candidate') {
+  const commitSha = option(args, '--commit-sha')
+  if (!/^[0-9a-f]{40}$/.test(commitSha)) {
+    throw new Error('candidate commit SHA must be an exact lowercase 40-character SHA')
+  }
+  const response = await cloudflare(`${baseUrl}?env=production&per_page=20`)
+  const deployment = response.result?.find(item => (
+    item?.environment === 'production'
+      && item?.latest_stage?.status === 'success'
+      && item?.deployment_trigger?.metadata?.commit_hash === commitSha
+  ))
+  if (!deployment?.id) throw new Error(`no successful production Pages deployment represents ${commitSha}`)
+  const deploymentUrl = new URL(String(deployment.url || ''))
+  const pagesHostname = `${projectName}.pages.dev`
+  if (
+    deploymentUrl.protocol !== 'https:'
+      || (deploymentUrl.hostname !== pagesHostname && !deploymentUrl.hostname.endsWith(`.${pagesHostname}`))
+  ) {
+    throw new Error('candidate deployment URL is not an HTTPS origin owned by the configured Pages project')
+  }
+  writeOutput('deployment_id', deployment.id)
+  writeOutput('deployment_url', deploymentUrl.origin)
+  writeOutput('commit_sha', commitSha)
+  console.log(`Captured exact candidate deployment ${deployment.id} for ${commitSha}.`)
 } else if (command === 'rollback') {
   const deploymentId = option(args, '--deployment-id')
   if (!/^[A-Za-z0-9-]{8,64}$/.test(deploymentId)) throw new Error('rollback deployment id is invalid')
@@ -57,7 +81,7 @@ if (command === 'enforce-direct-upload-owner') {
   if (!response.result?.id) throw new Error('Cloudflare rollback response did not identify a deployment')
   console.log(`Rolled production back to Pages deployment ${deploymentId}.`)
 } else {
-  throw new Error('usage: pages-production-deployment.mjs <enforce-direct-upload-owner|capture-current|rollback> [--deployment-id <id>]')
+  throw new Error('usage: pages-production-deployment.mjs <enforce-direct-upload-owner|capture-current|capture-candidate|rollback> [options]')
 }
 
 async function cloudflare(url, init = {}) {
