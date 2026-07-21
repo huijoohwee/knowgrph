@@ -17,7 +17,7 @@ export function testLaunchImportFallbackSnapshotsFileListBeforeClearingInput() {
   }
 }
 
-export function testLaunchDropdownNewMarkdownUsesSharedAuthoredNotesCreator() {
+export function testLaunchDropdownNewMarkdownUsesSharedDocsCreator() {
   const p = resolve(process.cwd(), 'src', 'lib', 'toolbar', 'LaunchDropdown.impl.tsx')
   const text = readFileSync(p, 'utf8')
   const helper = readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'createNewMarkdownSourceFile.ts'), 'utf8')
