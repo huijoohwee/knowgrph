@@ -16,6 +16,7 @@ import { UI_SELECTORS } from '@/lib/config'
 import type { ViewportControlsPreset } from '@/lib/config.viewport-controls'
 import { defaultSchema } from '@/lib/graph/schema'
 import type { GraphData } from '@/lib/graph/types'
+import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'
 import {
   buildStoryboardTransform,
   buildStoryboardTransformCss,
@@ -383,6 +384,8 @@ export function useStoryboardInfiniteZoom(args: {
 
   React.useEffect(() => {
     if (!args.active || !zoomViewKey || viewPinned || hasUserInteractedRef.current) return
+    const requestState = useGraphStore.getState()
+    if (isWorkspaceEditorOverlayOpen(requestState)) return
     const viewportW = Math.max(1, Math.round(dims.width || 1))
     const viewportH = Math.max(1, Math.round(dims.height || 1))
     if (viewportW <= 1 || viewportH <= 1) return
@@ -394,7 +397,6 @@ export function useStoryboardInfiniteZoom(args: {
     lastInitialFitKeyRef.current = fitKey
     rememberCompletedStoryboardInitialFitKey(fitKey)
     if ((metrics.graphData.nodes || []).length <= 1) return
-    const requestState = useGraphStore.getState()
     const resolved = resolveStoryboardInfiniteZoomRequestTransform({
       zoomRequest: { type: 'fit', intent: 'fitToView', at: 0 },
       graphData: metrics.graphData,
