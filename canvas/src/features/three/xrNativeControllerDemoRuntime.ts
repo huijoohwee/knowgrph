@@ -594,3 +594,5 @@ export function stepSharedXrNativeControllerDemo(deltaSeconds: number): number {
 export function readSharedXrNativeControllerDemoFrame(): XrNativeControllerDemoFrame {
   return readXrNativeControllerDemoRuntimeFrame(sharedRuntime)
 }
+
+export const readSharedXrNativeControllerDemoColliders = (): readonly XrPhysicsStaticCollider[] => sharedRuntime.colliders

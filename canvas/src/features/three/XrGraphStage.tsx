@@ -23,6 +23,7 @@ import {
   XR_MOTION_STAGE_SPAN,
 } from '@/features/three/xrMotionReferenceCoordinates'
 import { stopMotionControl } from '@/features/three/motionControlRuntime'
+import { readGameModeSnapshot, subscribeGameModeSnapshot } from '@/features/game-fps/gameModeRuntime'
 
 export { XR_MOTION_STAGE_SPAN } from '@/features/three/xrMotionReferenceCoordinates'
 export const XR_MOTION_STAGE_FLOOR_DEPTH = -72
@@ -47,6 +48,11 @@ export function XrGraphStage({ data }: { data: GraphData }) {
     subscribeXrNativeControllerDemo,
     readXrNativeControllerDemo,
     readXrNativeControllerDemo,
+  )
+  const gameMode = React.useSyncExternalStore(
+    subscribeGameModeSnapshot,
+    readGameModeSnapshot,
+    readGameModeSnapshot,
   )
   const stage = resolveXrMotionReferenceStage(runtime.plan.stageId)
   const markdownDocumentName = useGraphStore(state => state.markdownDocumentName)
@@ -77,6 +83,7 @@ export function XrGraphStage({ data }: { data: GraphData }) {
           </>
         ) : null}
         <XrNativeControllerDemoStage
+          inputEnabled={!gameMode.active}
           stageScale={stageScale}
           groundY={XR_MOTION_STAGE_GROUND_Y}
           retainStage={runReadyDemo}

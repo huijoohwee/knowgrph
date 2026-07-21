@@ -96,6 +96,50 @@ export type GameFpsBlocker = Readonly<{
   height: number
 }>
 
+export type GameFpsSpatialMap = Readonly<{
+  halfWidth: number
+  halfDepth: number
+  blockers: readonly GameFpsBlocker[]
+}>
+
+export type GameFpsSpatialProfile = Readonly<{
+  id: 'arena' | 'xr-authored'
+  map: GameFpsSpatialMap
+  playerSpawn: Readonly<Omit<GameFpsPlayerSnapshot, 'health'>>
+  npcSeeds: readonly Readonly<{ id: (typeof GAME_FPS_NPC_SEEDS)[number]['id']; x: number; z: number }>[]
+}>
+
+function compareGameFpsSpatialIds(left: { id: string }, right: { id: string }): number {
+  return left.id < right.id ? -1 : left.id > right.id ? 1 : 0
+}
+
+function gameFpsSpatialProfileSignature(profile: GameFpsSpatialProfile): string {
+  const blockers = [...profile.map.blockers].sort(compareGameFpsSpatialIds).map(blocker => [
+    blocker.id,
+    blocker.centerX,
+    blocker.centerZ,
+    blocker.halfWidth,
+    blocker.halfDepth,
+    blocker.height,
+  ])
+  const npcSeeds = [...profile.npcSeeds].sort(compareGameFpsSpatialIds).map(npc => [npc.id, npc.x, npc.z])
+  return JSON.stringify([
+    profile.id,
+    profile.map.halfWidth,
+    profile.map.halfDepth,
+    blockers,
+    [profile.playerSpawn.x, profile.playerSpawn.z, profile.playerSpawn.yaw, profile.playerSpawn.pitch],
+    npcSeeds,
+  ])
+}
+
+export function gameFpsSpatialProfilesMatch(
+  left: GameFpsSpatialProfile,
+  right: GameFpsSpatialProfile,
+): boolean {
+  return gameFpsSpatialProfileSignature(left) === gameFpsSpatialProfileSignature(right)
+}
+
 export const GAME_FPS_MAP = Object.freeze({
   halfWidth: 18,
   halfDepth: 24,
@@ -114,6 +158,13 @@ export const GAME_FPS_NPC_SEEDS = Object.freeze([
   Object.freeze({ id: 'npc-east', x: 10, z: -9 }),
   Object.freeze({ id: 'npc-guard', x: -4, z: -20 }),
 ])
+
+export const GAME_FPS_ARENA_SPATIAL_PROFILE: GameFpsSpatialProfile = Object.freeze({
+  id: 'arena',
+  map: GAME_FPS_MAP,
+  playerSpawn: GAME_FPS_PLAYER_SPAWN,
+  npcSeeds: GAME_FPS_NPC_SEEDS,
+})
 
 export const GAME_FPS_NPC_HITBOX_HALF_EXTENTS = Object.freeze([0.72, 0.9, 0.72] as const)
 

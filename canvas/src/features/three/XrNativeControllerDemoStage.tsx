@@ -39,11 +39,13 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
 }
 
 export function XrNativeControllerDemoStage({
+  inputEnabled = true,
   stageScale,
   groundY,
   retainStage = false,
   stage,
 }: {
+  inputEnabled?: boolean
   stageScale: number
   groundY: number
   retainStage?: boolean
@@ -72,7 +74,7 @@ export function XrNativeControllerDemoStage({
       setSharedXrNativeControllerDemoInput(createXrNativeControllerInput())
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (runtime.phase === 'off' || isInteractiveTarget(event.target)) return
+      if (!inputEnabled || runtime.phase === 'off' || isInteractiveTarget(event.target)) return
       if (event.code === 'KeyR') {
         if (!event.repeat) resetSharedXrNativeControllerDemo()
         event.preventDefault()
@@ -86,7 +88,7 @@ export function XrNativeControllerDemoStage({
       if (!xrNativeControllerInputCode(event.code)) return
       const wasCaptured = pressedCodesRef.current.delete(event.code)
       if (shouldConsumeXrNativeControllerKeyUp({
-        active: runtime.phase !== 'off',
+        active: inputEnabled && runtime.phase !== 'off',
         code: event.code,
         editableTarget: isInteractiveTarget(event.target),
         wasCaptured,
@@ -101,17 +103,19 @@ export function XrNativeControllerDemoStage({
       window.removeEventListener('blur', clearInput)
       clearInput()
     }
-  }, [runtime.phase])
+  }, [inputEnabled, runtime.phase])
 
   useFrame((_state, deltaSeconds) => {
-    const keyboard = readXrNativeControllerKeyboardInput(pressedCodesRef.current)
-    const pads = typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function'
-      ? Array.from(navigator.getGamepads()).filter(Boolean)
-      : []
-    const gamepad = readXrNativeControllerGamepadInput(pads[0])
-    const motion = motionControlPoseToControllerInput(readMotionControlSnapshot().pose)
-    setSharedXrNativeControllerDemoInput(mergeXrNativeControllerInputs(keyboard, gamepad, motion))
-    stepSharedXrNativeControllerDemo(deltaSeconds)
+    if (inputEnabled) {
+      const keyboard = readXrNativeControllerKeyboardInput(pressedCodesRef.current)
+      const pads = typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function'
+        ? Array.from(navigator.getGamepads()).filter(Boolean)
+        : []
+      const gamepad = readXrNativeControllerGamepadInput(pads[0])
+      const motion = motionControlPoseToControllerInput(readMotionControlSnapshot().pose)
+      setSharedXrNativeControllerDemoInput(mergeXrNativeControllerInputs(keyboard, gamepad, motion))
+      stepSharedXrNativeControllerDemo(deltaSeconds)
+    }
     const frame = readSharedXrNativeControllerDemoFrame()
     const root = playerRootRef.current
     if (root) {
@@ -173,8 +177,9 @@ export function XrNativeControllerDemoStage({
           phase: runtime.phase,
           mode: runtime.mode,
           objective: runtime.objective,
-          input: 'keyboard-gamepad',
+          input: inputEnabled ? 'keyboard-gamepad-motion' : 'game-mode-suspended',
           followCamera: runtime.followCamera,
+          stageScale,
           terrainId: runtime.terrainId,
         }}
       >

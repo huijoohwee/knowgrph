@@ -6,7 +6,13 @@ import {
   setGameFpsInput,
   subscribeGameFpsSnapshot,
 } from './gameFpsRuntime'
-import { persistGameModePendingDecisions, restartGameMode } from './gameModeRuntime'
+import {
+  armGameModeSimulation,
+  persistGameModePendingDecisions,
+  readGameModeSnapshot,
+  restartGameMode,
+  subscribeGameModeSnapshot,
+} from './gameModeRuntime'
 import {
   readGameFpsDecisionStore,
   resetGameFpsLocalSave,
@@ -18,6 +24,11 @@ type TouchAction = 'forward' | 'back' | 'left' | 'right' | 'look-left' | 'look-r
 const actionButtonClass = 'min-h-11 min-w-11 rounded-xl border border-white/25 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur-sm active:bg-cyan-700/80'
 
 export function GameFpsHud() {
+  const gameMode = React.useSyncExternalStore(
+    subscribeGameModeSnapshot,
+    readGameModeSnapshot,
+    readGameModeSnapshot,
+  )
   const mission = React.useSyncExternalStore(
     subscribeGameFpsSnapshot,
     readGameFpsSnapshot,
@@ -39,6 +50,7 @@ export function GameFpsHud() {
   }, [])
   const beginTouch = React.useCallback((action: TouchAction) => (event: React.PointerEvent<HTMLButtonElement>) => {
     event.preventDefault()
+    armGameModeSimulation()
     try {
       event.currentTarget.setPointerCapture(event.pointerId)
     } catch {
@@ -61,6 +73,15 @@ export function GameFpsHud() {
     setGameFpsInput({ forward: 0, strafe: 0, sprint: false })
   }, [])
 
+  const fire = React.useCallback(() => {
+    armGameModeSimulation()
+    queueGameFpsFire()
+  }, [])
+  const reload = React.useCallback(() => {
+    armGameModeSimulation()
+    reloadGameFpsWeapon()
+  }, [])
+
   const phaseLabel = mission.runtimeError
     ? 'Mission runtime blocked'
     : mission.phase === 'won'
@@ -68,7 +89,9 @@ export function GameFpsHud() {
     : mission.phase === 'lost'
       ? 'Mission failed'
       : mission.phase === 'playing'
-        ? 'Resolve all four encounters'
+        ? gameMode.simulationStatus === 'running'
+          ? 'Resolve all four encounters'
+          : 'Ready · move, aim, or fire to engage'
         : 'Preparing mission'
   const saveLabel = save.status === 'saving'
     ? 'Saving Decisions…'
@@ -87,6 +110,7 @@ export function GameFpsHud() {
       aria-label="Game FPS mission HUD"
       data-kg-game-fps-hud="1"
       data-kg-game-fps-phase={mission.phase}
+      data-kg-game-fps-simulation={gameMode.simulationStatus}
       data-kg-game-fps-health={String(mission.player.health)}
       data-kg-game-fps-ammo={String(mission.ammo)}
       data-kg-game-fps-enemies-alive={String(mission.enemiesAlive)}
@@ -94,6 +118,7 @@ export function GameFpsHud() {
       data-kg-game-fps-player-x={mission.player.x.toFixed(4)}
       data-kg-game-fps-player-z={mission.player.z.toFixed(4)}
       data-kg-game-fps-tick={String(mission.tick)}
+      data-kg-game-fps-pending-decisions={String(mission.pendingDecisions.length)}
       data-kg-game-fps-save-status={save.status}
       data-kg-game-fps-save-error={save.error || undefined}
       data-kg-game-fps-runtime-error={mission.runtimeError || undefined}
@@ -138,8 +163,8 @@ export function GameFpsHud() {
       <section className="pointer-events-auto absolute bottom-3 right-3 flex max-w-[52vw] flex-wrap items-end justify-end gap-1 pb-[env(safe-area-inset-bottom)]" aria-label="Aim and weapon controls">
         <button className={actionButtonClass} type="button" data-kg-game-fps-touch="look-left" aria-label="Aim left" onPointerDown={beginTouch('look-left')} onPointerUp={endTouch} onPointerCancel={endTouch}>Aim ◀</button>
         <button className={actionButtonClass} type="button" data-kg-game-fps-touch="look-right" aria-label="Aim right" onPointerDown={beginTouch('look-right')} onPointerUp={endTouch} onPointerCancel={endTouch}>Aim ▶</button>
-        <button className={`${actionButtonClass} bg-rose-800/80`} type="button" data-kg-game-fps-action="fire" onClick={queueGameFpsFire}>Fire</button>
-        <button className={actionButtonClass} type="button" data-kg-game-fps-action="reload" onClick={reloadGameFpsWeapon}>Reload</button>
+        <button className={`${actionButtonClass} bg-rose-800/80`} type="button" data-kg-game-fps-action="fire" onClick={fire}>Fire</button>
+        <button className={actionButtonClass} type="button" data-kg-game-fps-action="reload" onClick={reload}>Reload</button>
         <button className={actionButtonClass} type="button" data-kg-game-fps-action="restart" disabled={save.hydrationBlocked} onClick={() => restartGameMode()}>Restart</button>
         {terminal && !save.hydrationBlocked ? (
           <button className={actionButtonClass} type="button" data-kg-game-fps-action="save" disabled={save.status === 'saving'} onClick={() => void persistGameModePendingDecisions()}>Save Decisions</button>

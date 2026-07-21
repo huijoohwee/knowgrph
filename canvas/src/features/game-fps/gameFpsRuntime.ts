@@ -7,6 +7,7 @@ import {
 } from './gameFpsMission'
 import {
   GAME_FPS_FIXED_STEP_SECONDS,
+  GAME_FPS_ARENA_SPATIAL_PROFILE,
   GAME_FPS_MAX_FRAME_SECONDS,
   GAME_FPS_NPC_SEEDS,
   GAME_FPS_PLAYER_SPAWN,
@@ -14,9 +15,11 @@ import {
   GAME_FPS_ZERO_COST_LOG,
   clampGameFpsLookDelta,
   clampGameFpsUnit,
+  gameFpsSpatialProfilesMatch,
   type GameFpsCostLog,
   type GameFpsDecisionRecord,
   type GameFpsInputPatch,
+  type GameFpsSpatialProfile,
   type GameFpsSnapshot,
   type GameFpsTickInput,
 } from './gameFpsModel'
@@ -145,9 +148,12 @@ function maximumPersistedRunId(decisions: readonly unknown[]): number {
   return maximum
 }
 
-function replaceMission(decisions: readonly unknown[] = []): GameFpsSnapshot {
+function replaceMission(
+  decisions: readonly unknown[] = [],
+  spatialProfile?: GameFpsSpatialProfile,
+): GameFpsSnapshot {
   const nextRunId = Math.max(runId, maximumPersistedRunId(decisions)) + 1
-  const nextMission = createGameFpsAuthoredMission({ runId: nextRunId, decisions })
+  const nextMission = createGameFpsAuthoredMission({ runId: nextRunId, decisions, spatialProfile })
   runId = nextRunId
   generation += 1
   mission = nextMission
@@ -204,9 +210,15 @@ async function advanceCurrentMission(deltaSeconds: number): Promise<GameFpsSnaps
   return stepped ? publish(capture, costLog) : snapshot
 }
 
-export function startGameFpsMission(options: { decisions?: readonly unknown[] } = {}): GameFpsSnapshot {
-  if (Object.hasOwn(options, 'decisions')) return replaceMission(options.decisions || [])
-  if (!mission) return replaceMission()
+export function startGameFpsMission(options: {
+  decisions?: readonly unknown[]
+  spatialProfile?: GameFpsSpatialProfile
+} = {}): GameFpsSnapshot {
+  if (Object.hasOwn(options, 'decisions')) return replaceMission(options.decisions || [], options.spatialProfile)
+  if (!mission) return replaceMission([], options.spatialProfile)
+  if (options.spatialProfile && !gameFpsSpatialProfilesMatch(mission.spatialProfile, options.spatialProfile)) {
+    return replaceMission([], options.spatialProfile)
+  }
   if (snapshot.phase !== 'stopped') return snapshot
   return publish(captureGameFpsAuthoredMission(mission), snapshot.lastCostLog)
 }
@@ -226,6 +238,10 @@ export function stopGameFpsMission(): GameFpsSnapshot {
 
 export function readGameFpsSnapshot(): GameFpsSnapshot {
   return snapshot
+}
+
+export function readGameFpsSpatialProfile(): GameFpsSpatialProfile {
+  return mission?.spatialProfile || GAME_FPS_ARENA_SPATIAL_PROFILE
 }
 
 export function subscribeGameFpsSnapshot(listener: Listener): () => void {
@@ -267,8 +283,8 @@ export function reloadGameFpsWeapon(): void {
   input.reloadQueued = true
 }
 
-export function restartGameFpsMission(): GameFpsSnapshot {
-  return replaceMission()
+export function restartGameFpsMission(spatialProfile?: GameFpsSpatialProfile): GameFpsSnapshot {
+  return replaceMission([], spatialProfile)
 }
 
 export function advanceGameFpsBy(deltaSeconds: number): Promise<GameFpsSnapshot> {

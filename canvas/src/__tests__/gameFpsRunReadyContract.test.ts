@@ -90,8 +90,12 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
   if ((threeGraph.match(/<GameFpsMissionStageLazy\b/g) || []).length !== 1) {
     throw new Error('ThreeGraph must mount exactly one Game FPS stage')
   }
-  if (!threeGraph.includes('!gameFpsActive ? <ControlsLazy')) {
+  if (!threeGraph.includes('sceneComposition.renderOrbitControls ? <ControlsLazy')) {
     throw new Error('Game FPS activation must suppress OrbitControls')
+  }
+  if (!threeGraph.includes('sceneComposition.renderAuthoredWorld ? <XrWorldPlacement')
+    || !threeGraph.includes('data-kg-authored-xr-scene-retained')) {
+    throw new Error('XR Game Mode must retain the shared authored world in the existing Canvas')
   }
   if (!canvasPage.includes('data-kg-game-fps-run-ready')) {
     throw new Error('Canvas page is missing the full-frame Game FPS readiness selector')
@@ -99,7 +103,7 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
   if (!viewport.includes('<GameFpsHudLazy />')) {
     throw new Error('Canvas viewport is missing the Game FPS HUD owner')
   }
-  if (!stage.includes("advanceGameFpsBy(deltaSeconds).catch(() => undefined)")) {
+  if (!stage.includes("advanceGameModeSimulationBy(deltaSeconds).catch(() => undefined)")) {
     throw new Error('Game FPS stage must consume rejected ticks after the runtime publishes its error')
   }
   if (hud.includes('advanceGameFpsBy') || hud.includes('restartGameFpsMission') || !hud.includes('restartGameMode')) {

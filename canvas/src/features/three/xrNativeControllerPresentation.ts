@@ -1,0 +1,2 @@
+export const XR_NATIVE_CONTROLLER_SKY_COLOR = '#78c8f5'
+export const XR_NATIVE_CONTROLLER_FOG_COLOR = '#9bd8f2'
