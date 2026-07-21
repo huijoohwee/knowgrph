@@ -354,8 +354,8 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   if (!flowRuntimeText.includes('if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(state)) return')) {
     throw new Error('expected native FlowCanvas runtime fit to stop while Run all holds the shared graph mutation guard')
   }
-  if (!flowRuntimeText.includes('const initKey = storyboardWidgetMode ? `storyboardWidget:${zoomViewKey}` : zoomViewKey')) {
-    throw new Error('expected Storyboard Widget init fit to key by stable document/view identity')
+  if (!flowRuntimeText.includes('const initKey = zoomViewKey') || flowRuntimeText.includes('`storyboardWidget:${zoomViewKey}`')) {
+    throw new Error('expected Storyboard Widget init fit and preservation guards to share one stable document/view identity')
   }
   if (flowRuntimeText.includes('const initKey = storyboardWidgetMode ? `storyboardWidget:${storyboardWidgetLayoutSignature}` : zoomViewKey')) {
     throw new Error('expected same-document Storyboard topology growth not to re-arm initial fit')
