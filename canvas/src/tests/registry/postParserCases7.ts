@@ -1,6 +1,9 @@
 import type { TestCaseTuple } from '../runner/testRunnerTypes'
 
 export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
+  ["workspace.docsRootFallback.rejectsViteAppShell","@/__tests__/workspaceDocsRootFallbackPayload.test","testWorkspaceDocsRootFallbackRejectsViteAppShell"],
+  ["workspace.docsRootFallback.acceptsMarkdown","@/__tests__/workspaceDocsRootFallbackPayload.test","testWorkspaceDocsRootFallbackAcceptsMarkdown"],
+  ["workspace.docsRootFallback.rejectsBlankText","@/__tests__/workspaceDocsRootFallbackPayload.test","testWorkspaceDocsRootFallbackRejectsBlankText"],
   ["markdown.workspace.switch.primesCanvasForUnhydratedFile","@/__tests__/workspaceDocumentSwitchCanvasPrime.test","testWorkspaceDocumentSwitchPrimesCanvasForUnhydratedFile"],
   ["markdown.workspace.switch.skipsCanvasPrimeForHydratedFile","@/__tests__/workspaceDocumentSwitchCanvasPrime.test","testWorkspaceDocumentSwitchDoesNotPrimeCanvasForHydratedFile"],
   ["markdown.workspace.switch.skipsCanvasPrimeForStalePath","@/__tests__/workspaceDocumentSwitchCanvasPrime.test","testWorkspaceDocumentSwitchDoesNotPrimeCanvasForStalePendingPath"],

@@ -21,8 +21,14 @@ import {
 } from '@/features/source-files/workspaceActiveEntryCache'
 import { normalizeRuntimeStorageMediaAccessUrlsInText } from '@/lib/storage/runtimeMediaUrl'
 import { isWorkspaceRepoLocalRunReadyBootstrap } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { shouldRejectMarkdownDocumentPayload } from '@/lib/markdown/markdownDocumentPayloadGuards'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
+
+export const isAcceptableWorkspaceDocsRootFallbackPayload = (value: unknown): value is string => {
+  const text = typeof value === 'string' ? value : ''
+  return !!text.trim() && !shouldRejectMarkdownDocumentPayload(text)
+}
 
 const resolveCanonicalDocsMirrorRepairText = async (args: {
   activePath: WorkspacePath
@@ -140,7 +146,7 @@ const readWorkspaceDocsRootFileFallbackText = async (
       const response = await fetch(localFsUrl)
       if (!response.ok) continue
       const text = await response.text()
-      if (text.trim()) return text
+      if (isAcceptableWorkspaceDocsRootFallbackPayload(text)) return text
     } catch {
       void 0
     }
