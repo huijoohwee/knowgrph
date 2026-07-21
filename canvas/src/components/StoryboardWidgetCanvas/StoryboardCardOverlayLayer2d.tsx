@@ -317,13 +317,10 @@ export function StoryboardCardOverlayLayer2d(props: {
     fixedLayoutEnabled,
     getTransform,
     graphRevision,
-    markdownDocumentName,
     nodeById,
     overlayElsRef,
     readCardSize,
-    requestZoom,
     rootRef,
-    storyboardWidgetSurfaceId,
   })
   const register = React.useCallback((id: string, el: HTMLElement | null) => {
     const key = String(id || '').trim()
