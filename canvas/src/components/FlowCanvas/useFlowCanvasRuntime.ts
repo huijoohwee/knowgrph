@@ -48,7 +48,7 @@ import {
   buildWorkspaceVisibleViewportFitRecoveryKey,
   computeWorkspaceOverlayVisibleViewportFitTransform,
   deriveFlowOverlayCollectiveViewportState,
-  shouldPreserveStabilizedWorkspaceOverlayCamera,
+  shouldPreserveEstablishedWorkspaceOverlayCamera,
   STORYBOARD_WIDGET_WORKSPACE_RECOVERY_MAX_VISUAL_SCALE,
 } from '@/components/FlowCanvas/workspaceVisibleViewportRecovery'
 import { readStoryboardCardSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
@@ -1000,7 +1000,8 @@ export function useFlowCanvasRuntime(args: {
       syncFlowCanvasDebugToast({ enabled: true })
       return
     }
-    if (shouldPreserveStabilizedWorkspaceOverlayCamera({
+    if (shouldPreserveEstablishedWorkspaceOverlayCamera({
+      initializedForView: lastInitTransformZoomViewKeyRef.current === zoomViewKey,
       workspaceEditorOverlayOpen,
       workspaceOverlayStabilized: workspaceOverlayStabilizedRef.current,
     })) {
