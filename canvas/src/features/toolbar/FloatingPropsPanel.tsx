@@ -11,11 +11,14 @@ const EMPTY_WIDGET_REGISTRY: WidgetRegistryEntry[] = []
 
 export function FloatingPropsPanel() {
   const effectiveWidgetRegistry = useGraphStore(s => s.effectiveWidgetRegistry ?? EMPTY_WIDGET_REGISTRY)
+  const canvasRenderMode = useGraphStore(s => s.canvasRenderMode)
+  const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const widgetPaletteEntries = React.useMemo(
     () => (Array.isArray(effectiveWidgetRegistry) ? effectiveWidgetRegistry : []).filter(isPropsPanelWidgetPaletteEntry),
     [effectiveWidgetRegistry],
   )
-  const widgetDragEnabled = widgetPaletteEntries.length > 0
+  const storyboardRendererActive = canvasRenderMode === '2d' && canvas2dRenderer === 'storyboard'
+  const widgetDragEnabled = storyboardRendererActive && widgetPaletteEntries.length > 0
 
   return (
     <section
@@ -23,6 +26,11 @@ export function FloatingPropsPanel() {
       aria-label="Props Panel"
       data-kg-props-panel-surface="widget-palette"
     >
+      {!storyboardRendererActive ? (
+        <p className={`px-3 py-2 text-xs ${UI_THEME_TOKENS.text.secondary}`} role="status">
+          Switch Canvas View Mode to 2D Renderer: Storyboard to drag widgets onto the canvas.
+        </p>
+      ) : null}
       <WidgetPalette entries={widgetPaletteEntries} dragEnabled={widgetDragEnabled} />
     </section>
   )
