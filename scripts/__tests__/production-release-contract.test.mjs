@@ -13,6 +13,7 @@ const pagesSyncScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'sync-
 const productionReadinessBuild = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'production-runtime-readiness-build.mjs'), 'utf8')
 const pagesDeploymentScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'pages-production-deployment.mjs'), 'utf8')
 const productionFidelityScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'verify-production-fidelity.mjs'), 'utf8')
+const productionMirrorArtifactScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'production-mirror-artifact.mjs'), 'utf8')
 
 test('GitHub workflows pin Node 24 actions to immutable revisions', () => {
   const workflowRoot = path.resolve(repoRoot, '.github', 'workflows')
@@ -135,6 +136,26 @@ test('production artifact includes the public app-shell mirror fetched by Pages 
 
   assert.match(artifactStep, /huijoohwee\/content\/knowgrph/)
   assert.match(artifactStep, /huijoohwee\/knowgrph/)
+  assert.match(artifactStep, /include-hidden-files: true/)
+  assert.match(artifactStep, /\.knowgrph-production-artifact-manifest\.json/)
+})
+
+test('deploy reconciles verified additions and deletions into the exact mirror base', () => {
+  const deployJob = releaseWorkflow.slice(releaseWorkflow.indexOf('\n  deploy:'))
+  const downloadIndex = deployJob.indexOf('name: Download verified artifacts')
+  const reconcileIndex = deployJob.indexOf('name: Reconcile verified artifact into exact mirror base')
+  const deployIndex = deployJob.indexOf('name: Deploy verified artifact')
+
+  assert.match(releaseWorkflow, /mirror_revision: \$\{\{ steps\.mirror_revision\.outputs\.revision \}\}/)
+  assert.match(deployJob, /ref: \$\{\{ needs\.verify\.outputs\.mirror_revision \}\}/)
+  assert.match(deployJob, /path: \$\{\{ runner\.temp \}\}\/production-mirror-artifact/)
+  assert.match(deployJob, /production:mirror-artifact:reconcile/)
+  assert.ok(downloadIndex >= 0)
+  assert.ok(reconcileIndex > downloadIndex)
+  assert.ok(deployIndex > reconcileIndex)
+  assert.match(productionMirrorArtifactScript, /deletedPaths/)
+  assert.match(productionMirrorArtifactScript, /Production artifact cannot delete unmanaged path/)
+  assert.match(productionMirrorArtifactScript, /readiness markers must be byte-identical/)
 })
 
 test('production release reconciles the exact canonical docs revision before live smoke', () => {

@@ -4,7 +4,7 @@ id: "md:knowgrph-agentic-entity-component-system-prd-tad"
 author: "airvio / joohwee"
 date: "2026-07-20"
 updated: "2026-07-20"
-version: "1.0.1"
+version: "1.0.2"
 status: "runtime-ready"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
@@ -43,9 +43,11 @@ traceability:
   feature_surface: "Knowgrph Agentic ECS"
   document: "docs/documents/knowgrph-agentic-entity-component-system-prd-tad.md"
 source_references:
-  requirements: "../.kiro/specs/knowgrph-agentic-ecs/requirements.md"
-  design: "../.kiro/specs/knowgrph-agentic-ecs/design.md"
-  tasks: "../.kiro/specs/knowgrph-agentic-ecs/tasks.md"
+  public_api: "ecs/index.js"
+  hydration: "ecs/hydration.js"
+  world_tick: "ecs/worldTick.js"
+  decision_persistence: "ecs/decisionPersistence.js"
+  browser_decision_document: "ecs/decisionDocument.js"
   collaboration: "docs/collaboration-runtime-contract.md"
   kgc_contract: "contracts/kgc-document.schema.js"
   cost_contract: "contracts/cost-log.schema.js"
@@ -61,7 +63,7 @@ Knowgrph gains a small native Entity Component System (ECS) that hydrates an opa
 
 The ECS is not a game engine, graph database, agent framework, model gateway, renderer, or deployment service. It is a Dev-only runtime layer whose persistent authority remains KGC.
 
-The upstream source contracts are the sibling Kiro requirements, design, and tasks documents. This combined PRD/TAD is the review and runtime-readiness handoff inside the Knowgrph repository.
+This combined PRD/TAD and the repository-owned `ecs/` runtime sources are the canonical contract. The source references above replace the removed planning-only Kiro paths.
 
 ## Product Requirements
 

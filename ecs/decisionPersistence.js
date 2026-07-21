@@ -1,22 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { constants as fileSystemConstants, promises as nodeFileSystem } from "node:fs";
 import path from "node:path";
-import { JSON_SCHEMA, load as loadYaml } from "js-yaml";
 
 import {
-  DECISION_TYPES,
-  ECS_DECISION_NODE_TYPE,
-  KgcNodeContractError,
-  buildDecisionKgcNode,
-  compareCanonicalStrings,
-  decisionRecordsEqual,
-  normalizeDecisionNode,
-  normalizeDecisionRecord,
-  readKgcNodeState,
-  stableStringifyJson,
-} from "./kgcNodeContract.js";
+  mergeDecisionsIntoKgcMarkdown,
+  normalizeDecisionBatch,
+} from "./decisionDocument.js";
+import { KgcNodeContractError } from "./kgcNodeContract.js";
 
-export { DECISION_TYPES };
+export {
+  deserializeDecisionNode,
+  serializeDecisionNode,
+} from "./decisionDocument.js";
+export { DECISION_TYPES } from "./kgcNodeContract.js";
 
 // This queue prevents lost updates between callers in this JavaScript process.
 // It is not a cross-process/file-system lock; repository coordination remains
@@ -25,74 +21,6 @@ const PERSISTENCE_PATH_TAILS = new Map();
 const TRUSTED_PATH_IDENTITIES = new Map();
 const MAX_TRUSTED_PATHS = 256;
 const MAX_TRUSTED_PREDECESSORS = 256;
-
-function quoteYamlString(value) {
-  return JSON.stringify(value);
-}
-
-export function serializeDecisionNode(decisionRecord) {
-  const node = buildDecisionKgcNode(decisionRecord);
-  return [
-    `    - id: ${quoteYamlString(node.id)}`,
-    `      label: ${quoteYamlString(node.label)}`,
-    `      type: ${quoteYamlString(node.type)}`,
-    `      status: ${quoteYamlString(node.status)}`,
-    `      properties: ${stableStringifyJson(node.properties)}`,
-  ].join("\n");
-}
-
-export function deserializeDecisionNode(input) {
-  let node = input;
-  if (typeof input === "string") {
-    let parsed;
-    try {
-      parsed = loadYaml(input, { json: false, schema: JSON_SCHEMA });
-    } catch (error) {
-      throw new KgcNodeContractError(
-        "ECS_DECISION_INVALID_YAML",
-        `Decision node YAML is invalid: ${error instanceof Error ? error.message : String(error)}`,
-        "decision",
-      );
-    }
-    if (Array.isArray(parsed)) [node] = parsed;
-    else if (Array.isArray(parsed?.flow?.nodes)) [node] = parsed.flow.nodes;
-    else node = parsed;
-  }
-  if (!node || node.type !== ECS_DECISION_NODE_TYPE) {
-    throw new KgcNodeContractError(
-      "ECS_DECISION_INVALID_NODE",
-      `Decision node type must be ${ECS_DECISION_NODE_TYPE}`,
-      "decision.type",
-    );
-  }
-  return normalizeDecisionNode(node);
-}
-
-function validateBatch(decisions) {
-  if (!Array.isArray(decisions)) {
-    throw new KgcNodeContractError(
-      "ECS_DECISION_BATCH_REQUIRED",
-      "decisions must be an array",
-      "decisions",
-    );
-  }
-  const byId = new Map();
-  decisions.forEach((decision, index) => {
-    const normalized = normalizeDecisionRecord(decision, `decisions[${index}]`);
-    const existing = byId.get(normalized.decisionId);
-    if (existing) {
-      throw new KgcNodeContractError(
-        "ECS_DECISION_DUPLICATE_ID",
-        `decisionId ${normalized.decisionId} occurs more than once in the batch`,
-        normalized.decisionId,
-      );
-    }
-    byId.set(normalized.decisionId, normalized);
-  });
-  return [...byId.values()].sort((left, right) =>
-    compareCanonicalStrings(left.decisionId, right.decisionId),
-  );
-}
 
 function isInsideRoot(rootPath, candidatePath) {
   const relativePath = path.relative(rootPath, candidatePath);
@@ -266,158 +194,6 @@ async function runInPersistenceTurn(canonicalPath, operation) {
   }
 }
 
-function frontmatterLines(markdown) {
-  const opening = markdown.match(/^(?:\uFEFF)?---[ \t]*(\r?\n)/);
-  if (!opening) {
-    throw new KgcNodeContractError(
-      "ECS_KGC_FRONTMATTER_REQUIRED",
-      "KGC Markdown must begin with YAML frontmatter",
-      "frontmatter",
-    );
-  }
-  const contentStart = opening[0].length;
-  const remainder = markdown.slice(contentStart);
-  const closing = /(^|\r?\n)---[ \t]*(?=\r?\n|$)/.exec(remainder);
-  if (!closing) {
-    throw new KgcNodeContractError(
-      "ECS_KGC_FRONTMATTER_REQUIRED",
-      "KGC Markdown frontmatter has no closing fence",
-      "frontmatter",
-    );
-  }
-  const contentEnd = contentStart + closing.index + closing[1].length;
-  const content = markdown.slice(contentStart, contentEnd);
-  const lines = [];
-  const linePattern = /([^\r\n]*)(\r\n|\n|$)/g;
-  let match;
-  while ((match = linePattern.exec(content)) !== null) {
-    if (match[0] === "") break;
-    lines.push({
-      content: match[1],
-      end: match.index + match[0].length,
-      ending: match[2],
-      start: match.index,
-    });
-  }
-  return { content, contentStart, lines, lineEnding: opening[1] };
-}
-
-function leadingSpaces(line) {
-  if (line.startsWith("\t")) return -1;
-  const indentation = line.match(/^ */)?.[0].length ?? 0;
-  return indentation;
-}
-
-function appendNodesToMarkdown(markdown, serializedNodes) {
-  if (serializedNodes.length === 0) return markdown;
-  const frontmatter = frontmatterLines(markdown);
-  const flowIndex = frontmatter.lines.findIndex((line) => /^\s*flow:\s*$/.test(line.content));
-  if (flowIndex < 0) {
-    throw new KgcNodeContractError(
-      "ECS_KGC_BLOCK_FLOW_REQUIRED",
-      "KGC frontmatter must contain block-style flow",
-      "flow",
-    );
-  }
-  const flowIndent = leadingSpaces(frontmatter.lines[flowIndex].content);
-  let nodesIndex = -1;
-  for (let index = flowIndex + 1; index < frontmatter.lines.length; index += 1) {
-    const line = frontmatter.lines[index];
-    if (line.content.trim() === "") continue;
-    const indentation = leadingSpaces(line.content);
-    if (indentation <= flowIndent) break;
-    if (/^\s*nodes:\s*(?:\[\])?\s*$/.test(line.content)) {
-      nodesIndex = index;
-      break;
-    }
-  }
-  if (nodesIndex < 0) {
-    throw new KgcNodeContractError(
-      "ECS_KGC_BLOCK_NODES_REQUIRED",
-      "KGC frontmatter must contain block-style flow.nodes",
-      "flow.nodes",
-    );
-  }
-
-  const nodesLine = frontmatter.lines[nodesIndex];
-  const nodesIndent = leadingSpaces(nodesLine.content);
-  if (nodesIndent <= flowIndent || nodesIndent - flowIndent !== 2) {
-    throw new KgcNodeContractError(
-      "ECS_KGC_BLOCK_NODES_REQUIRED",
-      "flow.nodes must be indented two spaces beneath flow",
-      "flow.nodes",
-    );
-  }
-  const block = serializedNodes
-    .map((node) => node.replace(/\n/g, frontmatter.lineEnding))
-    .join(frontmatter.lineEnding);
-  if (/nodes:\s*\[\]\s*$/.test(nodesLine.content)) {
-    const replacement = `${" ".repeat(nodesIndent)}nodes:${frontmatter.lineEnding}${block}${frontmatter.lineEnding}`;
-    return (
-      markdown.slice(0, frontmatter.contentStart + nodesLine.start) +
-      replacement +
-      markdown.slice(frontmatter.contentStart + nodesLine.end)
-    );
-  }
-
-  let firstChildIndex = -1;
-  for (let index = nodesIndex + 1; index < frontmatter.lines.length; index += 1) {
-    const line = frontmatter.lines[index];
-    if (line.content.trim() === "") continue;
-    if (leadingSpaces(line.content) <= nodesIndent) break;
-    firstChildIndex = index;
-    break;
-  }
-  if (
-    firstChildIndex >= 0 &&
-    frontmatter.lines[firstChildIndex].content.trim() === "[]"
-  ) {
-    const emptyChild = frontmatter.lines[firstChildIndex];
-    return (
-      markdown.slice(0, frontmatter.contentStart + emptyChild.start) +
-      block +
-      frontmatter.lineEnding +
-      markdown.slice(frontmatter.contentStart + emptyChild.end)
-    );
-  }
-
-  let insertionOffset = frontmatter.content.length;
-  for (let index = nodesIndex + 1; index < frontmatter.lines.length; index += 1) {
-    const line = frontmatter.lines[index];
-    if (line.content.trim() === "") continue;
-    if (leadingSpaces(line.content) <= nodesIndent) {
-      insertionOffset = line.start;
-      break;
-    }
-  }
-  return (
-    markdown.slice(0, frontmatter.contentStart + insertionOffset) +
-    block +
-    frontmatter.lineEnding +
-    markdown.slice(frontmatter.contentStart + insertionOffset)
-  );
-}
-
-function existingDecisionIndex(nodes) {
-  const decisions = new Map();
-  const nodeIds = new Set();
-  nodes.forEach((node, nodeIndex) => {
-    if (typeof node?.id === "string" && node.id !== "") nodeIds.add(node.id);
-    if (node?.type !== ECS_DECISION_NODE_TYPE) return;
-    const decision = normalizeDecisionNode(node, nodeIndex);
-    const existing = decisions.get(decision.decisionId);
-    if (existing) {
-      throw new KgcNodeContractError(
-        "ECS_DECISION_DUPLICATE_ID",
-        `source KGC contains duplicate decisionId ${decision.decisionId}`,
-        decision.decisionId,
-      );
-    }
-    decisions.set(decision.decisionId, decision);
-  });
-  return { decisions, nodeIds };
-}
-
 function persistenceFailure(error, retainedDecisions) {
   return {
     ok: false,
@@ -435,43 +211,17 @@ async function persistValidatedDecisions(kgcPath, decisions, fileSystem, options
     const original = safePersistence
       ? await readBoundPersistenceSource(kgcPath, fileSystem, options.expectedFileIdentity)
       : await fileSystem.readFile(kgcPath, "utf8");
-    const { nodes } = readKgcNodeState(original);
-    const existing = existingDecisionIndex(nodes);
-    const additions = [];
-    let idempotentCount = 0;
-    for (const decision of decisions) {
-      const prior = existing.decisions.get(decision.decisionId);
-      if (prior) {
-        if (!decisionRecordsEqual(prior, decision)) {
-          throw new KgcNodeContractError(
-            "ECS_DECISION_ID_CONFLICT",
-            `decisionId ${decision.decisionId} already exists with different content`,
-            decision.decisionId,
-          );
-        }
-        idempotentCount += 1;
-        continue;
-      }
-      const node = buildDecisionKgcNode(decision);
-      if (existing.nodeIds.has(node.id)) {
-        throw new KgcNodeContractError(
-          "ECS_DECISION_NODE_ID_CONFLICT",
-          `KGC node id ${node.id} is already in use`,
-          decision.decisionId,
-        );
-      }
-      additions.push(decision);
-    }
-    if (additions.length === 0) {
+    const mergeResult = mergeDecisionsIntoKgcMarkdown(original, decisions);
+    if (mergeResult.persistedCount === 0) {
       return {
         ok: true,
         persistedCount: 0,
-        idempotentCount,
+        idempotentCount: mergeResult.idempotentCount,
         ...(safePersistence ? { fileIdentity: options.expectedFileIdentity } : {}),
       };
     }
 
-    const updated = appendNodesToMarkdown(original, additions.map(serializeDecisionNode));
+    const updated = mergeResult.markdown;
     const directory = path.dirname(kgcPath);
     tempPath = path.join(directory, `.${path.basename(kgcPath)}.${randomUUID()}.tmp`);
     if (safePersistence) {
@@ -498,8 +248,8 @@ async function persistValidatedDecisions(kgcPath, decisions, fileSystem, options
     }
     return {
       ok: true,
-      persistedCount: additions.length,
-      idempotentCount,
+      persistedCount: mergeResult.persistedCount,
+      idempotentCount: mergeResult.idempotentCount,
       ...(replacementIdentity ? { fileIdentity: replacementIdentity } : {}),
     };
   } catch (error) {
@@ -524,7 +274,7 @@ export async function persistDecisions(kgcPath, decisions, options = {}) {
         "kgcPath",
       );
     }
-    batch = validateBatch(decisions);
+    batch = normalizeDecisionBatch(decisions);
   } catch (error) {
     return persistenceFailure(error, Array.isArray(decisions) ? decisions : []);
   }
