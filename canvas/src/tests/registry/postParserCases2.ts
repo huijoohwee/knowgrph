@@ -275,6 +275,7 @@ export const TEST_CASES_POST_PARSER_2: TestCaseTuple[] = [
   ["mediaOverlayPool.richMediaPanel.preservesUntouchedVariantsAcrossConnectedOverrides","@/__tests__/mediaOverlayPoolPrioritization.test","testMediaOverlayPoolPreservesUntouchedRichMediaVariantsAcrossConnectedChannelOverrides"],
   ["mediaOverlayLayout2d.fallbackWhenPosMissing","@/__tests__/mediaOverlayLayoutLoop2dFallback.test","testMediaOverlayLayoutLoop2dFallsBackWhenNodePosMissing"],
   ["mediaOverlayLayout2d.worldProjection.cardChromeMetrics","@/__tests__/mediaOverlayWorldProjectionChrome.test","testMediaOverlayWorldProjectionKeepsUnscaledCardChromeMetrics"],
+  ["mediaOverlayLayout2d.worldProjection.sharedCardPaintScale","@/__tests__/mediaOverlayWorldProjectionChrome.test","testMediaOverlayWorldProjectionUsesSharedPaintScale"],
   ["mediaOverlayLayout2d.infiniteCanvas.noViewportBounce","@/__tests__/mediaOverlayLayoutLoop2dFallback.test","testMediaOverlayLayoutLoop2dPreservesInfiniteCanvasOffscreenPositions"],
   ["mediaOverlayLayout2d.frontmatter.visibleMarginReseed","@/__tests__/mediaOverlayLayoutLoop2dFallback.test","testMediaOverlayLayoutLoop2dReseedsManualFrontmatterOverlapsInsideVisibleMargins"],
   ["mediaOverlayLayout2d.frontmatter.missingCenterFallback","@/__tests__/mediaOverlayLayoutLoop2dFallback.test","testMediaOverlayLayoutLoop2dFallbackPositionsManualFrontmatterMissingCenters"],
