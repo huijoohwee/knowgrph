@@ -742,7 +742,7 @@ export function useFlowCanvasRuntime(args: {
       const meta = (sceneGraphData?.metadata || null) as Record<string, unknown> | null
       if (meta?.pending === true) return
     }
-    const initKey = storyboardWidgetMode ? `storyboardWidget:${zoomViewKey}` : zoomViewKey
+    const initKey = zoomViewKey
     const alreadyInitializedForKey = lastInitTransformZoomViewKeyRef.current === initKey
     const current = runtime.transform || d3.zoomIdentity
     const hasNonIdentityTransform = current.k !== 1 || current.x !== 0 || current.y !== 0
