@@ -103,43 +103,36 @@ const buildStoryboardCardPlacements2d = (args: {
   const gapY = grid.enabled ? Math.max(grid.y * 2, DEFAULT_GRID_GAP) : DEFAULT_GRID_GAP
   const cellWidth = grid.enabled ? ceilToStep(maxCardWidth + gapX, grid.x) : maxCardWidth + gapX
   const cellHeight = grid.enabled ? ceilToStep(maxCardHeight + gapY, grid.y) : maxCardHeight + gapY
-  const visibleLanes = board.lanes
-    .map(lane => ({ ...lane, cards: lane.cards
-      .filter(card => isStoryboardFixedCardOwnedNode(nodeById.get(card.id)))
-      .filter(card => {
-        const node = nodeById.get(card.id)
-        return !isProbeTreeLayoutOwnedNode(node) || readStoryboardCardCenter2d(node) == null
-      })
-      .filter(card => includeUnpinned || readFlowWidgetPinnedInCanvas(flowWidgetPinnedByNodeId, card.id)) }))
-    .filter(lane => lane.cards.length > 0)
-  const columnCount = Math.max(1, visibleLanes.length)
-  const rowCount = Math.max(1, visibleLanes.reduce((max, lane) => Math.max(max, lane.cards.length), 0))
+  const cardCount = packedCards.length
+  const targetAspect = 16 / 9
+  const cellAspect = cellWidth / Math.max(1, cellHeight)
+  const columnCount = Math.max(1, Math.min(cardCount, Math.ceil(Math.sqrt(cardCount * targetAspect / cellAspect))))
+  const rowCount = Math.max(1, Math.ceil(cardCount / columnCount))
   const centerLaneOffset = (columnCount - 1) / 2
   const centerRowOffset = (rowCount - 1) / 2
 
-  for (let laneIndex = 0; laneIndex < visibleLanes.length; laneIndex += 1) {
-    const lane = visibleLanes[laneIndex]!
-    for (let rowIndex = 0; rowIndex < lane.cards.length; rowIndex += 1) {
-      const card = lane.cards[rowIndex]!
-      const node = nodeById.get(card.id)
-      const size = node ? readPlacementSize(node) : defaultSize
-      const rawCenter = {
-        x: origin.x + (laneIndex - centerLaneOffset) * cellWidth,
-        y: origin.y + (rowIndex - centerRowOffset) * cellHeight,
-      }
-      if (!grid.enabled) {
-        out.set(card.id, rawCenter)
-        continue
-      }
-      const snappedTopLeft = snapPointToGrid({
-        x: rawCenter.x - size.width / 2,
-        y: rawCenter.y - size.height / 2,
-      }, grid)
-      out.set(card.id, {
-        x: snappedTopLeft.x + size.width / 2,
-        y: snappedTopLeft.y + size.height / 2,
-      })
+  for (let index = 0; index < packedCards.length; index += 1) {
+    const card = packedCards[index]!
+    const node = nodeById.get(card.id)
+    const size = node ? readPlacementSize(node) : defaultSize
+    const columnIndex = index % columnCount
+    const rowIndex = Math.floor(index / columnCount)
+    const rawCenter = {
+      x: origin.x + (columnIndex - centerLaneOffset) * cellWidth,
+      y: origin.y + (rowIndex - centerRowOffset) * cellHeight,
     }
+    if (!grid.enabled) {
+      out.set(card.id, rawCenter)
+      continue
+    }
+    const snappedTopLeft = snapPointToGrid({
+      x: rawCenter.x - size.width / 2,
+      y: rawCenter.y - size.height / 2,
+    }, grid)
+    out.set(card.id, {
+      x: snappedTopLeft.x + size.width / 2,
+      y: snappedTopLeft.y + size.height / 2,
+    })
   }
   return out
 }

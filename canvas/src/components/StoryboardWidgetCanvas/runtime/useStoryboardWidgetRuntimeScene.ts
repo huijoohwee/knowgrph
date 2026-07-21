@@ -52,7 +52,10 @@ import {
   shouldUseStoryboardWidgetFloatingScreenAuthority,
 } from '@/lib/storyboardWidget/widgetPlacementAuthority'
 import { resolveStoryboardWidgetGraphDataForNodeAuthority } from '@/lib/storyboardWidget/storyboardWidgetGraphAuthority'
-import { collectActiveRichMediaWorldObstacles } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRuntimeRichMediaObstacles'
+import {
+  collectActiveRichMediaWorldObstacles,
+  collectActiveStoryboardCardWorldObstacles,
+} from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRuntimeRichMediaObstacles'
 import { buildGraphDocumentMetaKey } from '@/lib/graph/graphMetaKey'
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import { defaultSchema, type GraphSchema } from '@/lib/graph/schema'
@@ -1065,6 +1068,17 @@ export function useStoryboardWidgetRuntimeScene(args: {
       zoomY,
       zoomK,
     })
+    const activeStoryboardCardWorldObstacles = collectActiveStoryboardCardWorldObstacles({
+      storyboardWidgetSurfaceId: args.storyboardWidgetSurfaceId,
+      resolveActiveSurfaceOverlayWidgetId,
+      zoomX,
+      zoomY,
+      zoomK,
+    })
+    const activeCollectiveWorldObstacles = [
+      ...activeRichMediaWorldObstacles,
+      ...activeStoryboardCardWorldObstacles,
+    ]
     const seedCollisionSchema = (args.schema || defaultSchema) as GraphSchema
     const overlapsSeedRect = (
       a: { left: number; top: number; width: number; height: number },
@@ -1077,8 +1091,8 @@ export function useStoryboardWidgetRuntimeScene(args: {
       const by2 = b.top + b.height + gap
       return a.left < bx2 && b.left < ax2 && a.top < by2 && b.top < ay2
     }
-    const avoidActiveRichMediaSeedObstacles = (placed: Array<{ id: string; x: number; y: number }>) => {
-      if (activeRichMediaWorldObstacles.length === 0 || placed.length === 0) return placed
+    const avoidActiveCollectiveSeedObstacles = (placed: Array<{ id: string; x: number; y: number }>) => {
+      if (activeCollectiveWorldObstacles.length === 0 || placed.length === 0) return placed
       let items = placed.map(p => ({
         id: p.id,
         left: p.x,
@@ -1088,14 +1102,14 @@ export function useStoryboardWidgetRuntimeScene(args: {
         movable: true,
       }))
       const hasObstacleOverlap = () => items.some(item =>
-        activeRichMediaWorldObstacles.some(obstacle => overlapsSeedRect(item, obstacle, gapWorld)),
+        activeCollectiveWorldObstacles.some(obstacle => obstacle.id !== item.id && overlapsSeedRect(item, obstacle, gapWorld)),
       )
       if (!hasObstacleOverlap()) return placed
       for (let pass = 0; pass < 3 && hasObstacleOverlap(); pass += 1) {
         const relaxed = relaxOverlayPanelsWithCollision({
           schema: seedCollisionSchema,
           items,
-          obstacles: activeRichMediaWorldObstacles,
+          obstacles: activeCollectiveWorldObstacles.filter(obstacle => !items.some(item => item.id === obstacle.id)),
           gapPx: gapWorld,
           strength: 0.85,
           iterations: 12,
@@ -1146,7 +1160,7 @@ export function useStoryboardWidgetRuntimeScene(args: {
     const balancedHeroRowGapScale = frontmatterRenderSettings?.balancedHeroRowGapScale
     const balancedHeroRowStaggerScale = frontmatterRenderSettings?.balancedHeroRowStaggerScale
     const placeSpreadGridInBounds = (ids: string[], bounds: { minX: number; minY: number; maxX: number; maxY: number }) =>
-      avoidActiveRichMediaSeedObstacles(placeWidgetsCenteredInGroupBounds({
+      avoidActiveCollectiveSeedObstacles(placeWidgetsCenteredInGroupBounds({
         ids,
         bounds: normalizeSeedBoundsToViewport(bounds),
         cellW,
@@ -1349,6 +1363,7 @@ export function useStoryboardWidgetRuntimeScene(args: {
       !initialCollectiveCenteringPass
       && !layoutRebalanceRequested
       && !forceSceneEmptyReseed
+      && !isFrontmatterFlow
       && pendingRaw.length > 0
     ) ? pendingRaw : []
     let pending = (
@@ -1361,7 +1376,13 @@ export function useStoryboardWidgetRuntimeScene(args: {
             ...forcedLayoutRebalanceIds,
           ]))
     ).sort((a, b) => a.localeCompare(b))
-    const fullFrontmatterCollectiveIds = isFrontmatterFlow ? Array.from(new Set(effectiveOrFallbackOpenIds.map(id => String(id || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)) : []
+    const fullFrontmatterCollectiveIds = isFrontmatterFlow
+      ? Array.from(new Set(
+          effectiveOrFallbackOpenIds
+            .map(id => String(id || '').trim())
+            .filter(id => id && !hasAuthoritativeGraphWorldAnchor(id)),
+        )).sort((a, b) => a.localeCompare(b))
+      : []
     const shouldReseedWholeFrontmatterCollective =
       isFrontmatterFlow
       && fullFrontmatterCollectiveIds.length > 0
@@ -1472,7 +1493,7 @@ export function useStoryboardWidgetRuntimeScene(args: {
         }
         changed = true
       }
-      const obstacleAdjusted = avoidActiveRichMediaSeedObstacles(autoSeedIds
+      const obstacleAdjusted = avoidActiveCollectiveSeedObstacles(autoSeedIds
         .map(id => {
           const world = nextWorld[id]
           if (!world || !Number.isFinite(world.x) || !Number.isFinite(world.y)) return null

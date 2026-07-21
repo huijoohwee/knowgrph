@@ -78,3 +78,38 @@ export function collectActiveRichMediaWorldObstacles(args: {
   }
   return obstacles
 }
+
+export function collectActiveStoryboardCardWorldObstacles(args: {
+  storyboardWidgetSurfaceId: string | null | undefined
+  resolveActiveSurfaceOverlayWidgetId: (id: string) => string
+  zoomX: number
+  zoomY: number
+  zoomK: number
+}): StoryboardWidgetWorldObstacle[] {
+  if (typeof document === 'undefined') return []
+  const surfaceRoot = findStoryboardWidgetOverlaySurfaceRoot(args.storyboardWidgetSurfaceId)
+  const surfaceRect = surfaceRoot?.getBoundingClientRect() || null
+  const surfaceOffsetLeft = surfaceRect && Number.isFinite(surfaceRect.left) ? Number(surfaceRect.left) : 0
+  const surfaceOffsetTop = surfaceRect && Number.isFinite(surfaceRect.top) ? Number(surfaceRect.top) : 0
+  const roots = queryStoryboardWidgetOverlayRootsForSurface({
+    surfaceId: args.storyboardWidgetSurfaceId,
+    selector: '[data-kg-storyboard-fixed-card="1"][data-node-id]',
+  })
+  const obstacles: StoryboardWidgetWorldObstacle[] = []
+  const safeZoomK = Math.max(0.001, args.zoomK)
+  for (let i = 0; i < roots.length; i += 1) {
+    const el = roots[i]!
+    const rawId = String(el.dataset.nodeId || '').trim()
+    const id = args.resolveActiveSurfaceOverlayWidgetId(rawId)
+    if (!id) continue
+    const rect = el.getBoundingClientRect()
+    if (!(rect.width > 0) || !(rect.height > 0)) continue
+    const left = (Number(rect.left) - surfaceOffsetLeft - args.zoomX) / safeZoomK
+    const top = (Number(rect.top) - surfaceOffsetTop - args.zoomY) / safeZoomK
+    const width = Number(rect.width) / safeZoomK
+    const height = Number(rect.height) / safeZoomK
+    if (![left, top, width, height].every(Number.isFinite)) continue
+    obstacles.push({ id, left, top, width, height })
+  }
+  return obstacles
+}

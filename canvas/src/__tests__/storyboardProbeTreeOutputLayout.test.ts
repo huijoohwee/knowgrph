@@ -366,7 +366,7 @@ export function testProbeTreeGenerationDoesNotRearmStoryboardInitialFit() {
   const workflowRunSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/storyboardWidgetWorkflowRunAction.ts'), 'utf8')
   const projectionSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/useStoryboardCardOverlayProjection2d.ts'), 'utf8')
   assert(source.includes("if ((metrics.graphData.nodes || []).length <= 1) return"), 'expected initial Storyboard fit to wait for measured cards')
-  assert(source.includes('const fitKey = `${zoomViewKey}:${viewportW}x${viewportH}`'), 'expected initial Storyboard fit identity to remain stable across same-document graph growth')
+  assert(source.includes('const fitKey = `${storyboardCameraViewKey}:${viewportW}x${viewportH}`'), 'expected initial Storyboard fit identity to remain stable across same-document graph growth')
   assert(source.includes('const completedStoryboardInitialFitKeys = new Set<string>()'), 'expected completed Storyboard fits to survive topology-driven hook remounts')
   assert(source.includes('completedStoryboardInitialFitKeys.has(fitKey)'), 'expected a remounted Storyboard viewport to preserve the established camera')
   assert(source.includes('STORYBOARD_INITIAL_FIT_HISTORY_LIMIT = 64'), 'expected remount-stable Storyboard fit history to remain bounded')

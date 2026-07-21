@@ -577,6 +577,18 @@ export function useStoryboardWidgetOverlayCollision(args: {
           if (isTransientOffscreenRichMediaOverlayRoot(entry.el, rect)) continue
           pinnedObstacles.push({ id: `rich-media:${id}`, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
         }
+        const lastDroppedWidgetNodeId = String(args.lastDroppedWidgetNodeIdRef.current || '').trim()
+        const storyboardCardEls = queryActiveSurfaceOverlays('article[aria-label^="Storyboard card"][data-node-id]')
+        for (let i = 0; i < storyboardCardEls.length; i += 1) {
+          const el = storyboardCardEls[i]!
+          const id = String(el.dataset.nodeId || '').trim()
+          // During a drop, the existing cards are authored placement obstacles.
+          // Only the newly dropped card may move into the open cascade cell.
+          if (!id || id === lastDroppedWidgetNodeId) continue
+          const rect = el.getBoundingClientRect()
+          if (!(rect.width > 0 && rect.height > 0)) continue
+          pinnedObstacles.push({ id: `storyboard-card:${id}`, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
+        }
       }
       const storedCollectiveItems = overlayNodeIds
         .map(rawId => {
