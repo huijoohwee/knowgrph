@@ -3,7 +3,7 @@ title: "Knowgrph Native XR Physics Playground"
 doc_type: "Workspace Demo"
 status: "runtime-ready"
 runtime_status: "runtime-ready"
-game_mode_xr_fidelity_status: "protected PR #273 and exact-main acceptance passed"
+game_mode_xr_fidelity_status: "single-source authority contract"
 publish_scope: "local-only"
 kgCanvasSurfaceMode: "xr"
 kgCanvasRenderMode: "3d"
@@ -22,6 +22,7 @@ run_ready_demo:
   identity_authority: "source-authored run_ready_demo.id"
   imported_path_alias_required: false
   identity_conflict: "fail closed when path and source identity disagree"
+  canonical_consumers: ["home-apex", "workspace", "game-mode-overlay"]
   dev_command: "npm run dev"
   canonical_source_file: "/docs/workspace-seeds/knowgrph-physics-playground-demo.md"
   env_selector: "VITE_KNOWGRPH_RUN_READY_DEMO=xr-physics"
@@ -34,6 +35,11 @@ run_ready_demo:
   document_presentation: "workspace-playground"
   auto_start: true
   external_dependencies: []
+home_apex:
+  source_authority: "/docs/workspace-seeds/knowgrph-physics-playground-demo.md"
+  scene_authority: "the authored XR Physics Playground world in this document"
+  game_mode_projection: "actor, camera, and controls overlay only"
+  forbidden_variants: ["fallback arena", "standalone game scene", "duplicate world", "legacy environment"]
 native_controller_demo:
   runtime_owner: "XR Simulation workbench"
   default_controller: "ball"
@@ -103,10 +109,13 @@ game_mode:
   web_mcp_schema: "knowgrph-game-mode-mcp/v1"
   inspect_tool: "knowgrph.inspect_local_game_mode"
   control_tool: "knowgrph.control_local_game_mode"
+  source_authority: "/docs/workspace-seeds/knowgrph-physics-playground-demo.md"
+  activation_scope: "optional overlay on the active authored XR world; never a standalone Home source"
   lifecycle: "retain the authored XR scene while suspending its controller input and simulation; restore both on exit"
   controller_handoff: "temporarily suspend the native XR controller stage and restore it on exit"
   renderer_owner: "the existing React Three Fiber Canvas in shared XR Mode; never a second Canvas"
-  scene_composition: "one canonical authored XR atmosphere, terrain, props, and paused frame plus the Game Mode first-person actor overlay; the fallback scene/environment implementation is deleted and variants are forbidden"
+  scene_composition: "one canonical authored XR atmosphere, terrain, props, and paused frame plus the Game Mode first-person actor overlay"
+  scene_variant_policy: "fallback, renamed, conditional, duplicate, stale, and legacy arena or environment producers are forbidden"
   spatial_profile: "reuse the canonical active XR stage placement, playable bounds, and projection-aware static colliders; admit deterministic clear spawns and replace stale surface/terrain profiles"
   simulation_clock: "ready at tick zero until normalized desktop, pointer, touch, Motion Control, or MCP input"
   webgl_gate: "synchronous probe; fail closed with the local unsupported state without mounting another scene or renderer"
@@ -260,9 +269,11 @@ From the repository root, run `npm run dev`. In Knowgrph, open **Explorer → So
 
 The same runtime is MCP-controllable through `knowgrph.control_local_xr_scene`; use `/xr.physics @canvas #controller operation=develop-run mode=ball`, then `operation=select mode=rocket`, `operation=pause`, `operation=resume`, or `operation=reset`. While this document remains applied, an `exit` transition is immediately reclaimed as a fresh Ball run so the authored editor preview cannot replace the native stage. Applying another document releases the document-owned runtime.
 
-**FloatingPanel → Game Mode** is a companion projection on the same React Three Fiber Canvas and authored XR world used by **Media**, **Animation**, **Motion Control**, and **Camera**. Its native invocation prefix is exactly `/game.mode @canvas #gameplay`; add one supported operation from **Open**, **Start**, **Stop**, **Restart**, **Fire**, **Reload**, **Save**, or **Exit**. Browser-local WebMCP exposes schema `knowgrph-game-mode-mcp/v1` through `knowgrph.inspect_local_game_mode` and `knowgrph.control_local_game_mode`. The synchronous WebGL probe fails closed before mission start and exposes a visible local unsupported state without a second scene or renderer.
+This document is the sole source authority for the Home Apex background, the workspace Physics Playground, and Game Mode when opened from either surface. Game Mode is an optional actor, camera, and controls overlay on this authored world; no standalone Game Mode document, arena, terrain, environment, or second Canvas participates in Home activation.
 
-Opening Game Mode while XR owns the surface keeps the authored atmosphere, Singapore terrain, props, and exact paused frame visibly mounted in the same Canvas. Only the first-person gameplay camera and actor overlay change. The former fallback scene/environment implementation is deleted; a renamed, conditional, or alternate replacement is forbidden rather than merely hidden. Start prepares a healthy tick-zero frame and waits for normalized desktop, pointer, touch, Motion Control, or MCP engagement before deterministic ticks begin. Stop followed by Start resumes the exact in-memory Game Mode tick and state. Exiting restores XR input and simulation ownership so its deterministic stage continues. Switching the FloatingPanel among Media, Animation, Motion Control, Game Mode, and Camera preserves the same Canvas and authored scene. Motion Control remains an optional normalized player-input source only; its camera/LiteRT pipeline never becomes the four-action NPC decision policy.
+**FloatingPanel → Game Mode** uses the same React Three Fiber Canvas and authored XR world as **Media**, **Animation**, **Motion Control**, and **Camera**. Its native invocation prefix is exactly `/game.mode @canvas #gameplay`; add one supported operation from **Open**, **Start**, **Stop**, **Restart**, **Fire**, **Reload**, **Save**, or **Exit**. Browser-local WebMCP exposes schema `knowgrph-game-mode-mcp/v1` through `knowgrph.inspect_local_game_mode` and `knowgrph.control_local_game_mode`. The synchronous WebGL probe fails closed before mission start and exposes a visible local unsupported state without mounting another scene or renderer.
+
+Opening Game Mode while XR owns the surface keeps the authored atmosphere, Singapore terrain, props, and exact paused frame visibly mounted in the same Canvas. Only the first-person gameplay camera and actor overlay change. Fallback, renamed, conditional, duplicate, stale, and legacy arena or environment producers are forbidden at source. Start prepares a healthy tick-zero frame and waits for normalized desktop, pointer, touch, Motion Control, or MCP engagement before deterministic ticks begin. Stop followed by Start resumes the exact in-memory Game Mode tick and state. Exiting restores XR input and simulation ownership so its deterministic stage continues. Switching the FloatingPanel among Media, Animation, Motion Control, Game Mode, and Camera preserves the same Canvas and authored scene. Motion Control remains an optional normalized player-input source only; its camera/LiteRT pipeline never becomes the four-action NPC decision policy.
 
 Terminal Game Mode results remain pending and are not auto-saved. **Save** is the only operation that persists validated game Decisions through browser-local WorkspaceFs. Malformed saved bytes remain intact and block **Start** and **Restart** until the operator explicitly chooses **Reset local save**.
 
@@ -287,10 +298,11 @@ Switching between Ball and Rocket changes the active controller and procedural p
 - [x] Applying the document keeps Explorer available and starts with Beach Ball selected.
 - [x] Procedural Singapore terrain, landmark skyline, source-authored selectable vehicle subjects, key-to-treasure objective, cannons, barrels, and pins are local runtime content.
 - [x] Default Helicopter, Airplane, Car, and Ball asset choices are local catalog content with no downloaded models.
+- [x] This document is the sole canonical source for Home Apex, workspace Physics Playground, and its optional Game Mode overlay.
 - [x] FloatingPanel Game Mode reuses the same authored XR Canvas and provides Open, Start, Stop, Restart, Fire, Reload, Save, and Exit.
 - [x] Strict `/game.mode @canvas #gameplay` invocation and browser-local WebMCP schema/tools reject duplicate or conflicting bindings.
 - [x] Protected PR #273 and exact-main proof: Game Mode retains the authored XR world and atmosphere, shares its placement/collider catalog, and restores the exact continuing XR frame on Exit.
-- [ ] Current scene-authority follow-up must prove the former fallback scene/environment source is deleted, alternate variants are statically forbidden, and Media, Animation, Motion Control, Game Mode, and Camera preserve one Canvas and authored XR world. PR #273 proved non-mounting only, not deletion.
+- [x] The source contract forbids fallback, renamed, conditional, duplicate, stale, and legacy arena/environment producers instead of hiding an alternate scene downstream.
 - [x] Protected PR #273 and exact-main proof: every catalogued XR terrain/environment filters walkable-low and overhead slabs, admits clear player/NPC spawns, and replaces stale live/stopped spatial profiles.
 - [x] Protected PR #273 and exact-main proof: Game Mode remains healthy at tick zero until normalized input, and Stop/Start preserves exact in-memory state.
 - [x] Motion Control is optional player input only; NPCs retain the deterministic four-action scored policy.

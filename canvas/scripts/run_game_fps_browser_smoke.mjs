@@ -2,7 +2,7 @@ import { runLocalViteBrowserSmoke } from './lib/run-local-vite-browser-smoke.mjs
 
 process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT ||= `${process.cwd()}/../docs`
 process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL ||= '1'
-process.env.VITE_KNOWGRPH_RUN_READY_DEMO ||= 'game-fps'
+process.env.VITE_KNOWGRPH_RUN_READY_DEMO ||= 'xr-physics'
 
 async function run() {
   await runLocalViteBrowserSmoke({

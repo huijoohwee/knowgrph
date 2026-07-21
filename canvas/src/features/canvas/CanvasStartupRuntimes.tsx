@@ -3,7 +3,6 @@ import { CanvasStartupDebugRuntime } from '@/features/canvas/CanvasStartupDebugR
 import { CanvasStartupSsotBridgeRuntime } from '@/features/canvas/CanvasStartupSsotBridgeRuntime'
 import { SourceFilesPersistenceBootstrap } from '@/features/source-files/SourceFilesPersistenceBootstrap'
 import { XrPhysicsRunReadyDemoRuntime } from '@/features/canvas/XrPhysicsRunReadyDemoRuntime'
-import { GameFpsRunReadyDemoRuntime } from '@/features/canvas/GameFpsRunReadyDemoRuntime'
 
 export function CanvasStartupRuntimes() {
   return (
@@ -12,7 +11,6 @@ export function CanvasStartupRuntimes() {
       <SourceFilesPersistenceBootstrap />
       <CanvasStartupSsotBridgeRuntime />
       <XrPhysicsRunReadyDemoRuntime />
-      <GameFpsRunReadyDemoRuntime />
     </>
   )
 }

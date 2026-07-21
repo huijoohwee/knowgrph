@@ -11,6 +11,13 @@ AUTHORED_XR_NODES = {
     "kg_xr_stage_preset_singapore",
     "kg_xr_playground_treasure",
 }
+CANONICAL_XR_TERRAIN_NODE = "kg_xr_native_terrain_singapore"
+FORBIDDEN_XR_ROOT_NODES = {
+    "kg_game_fps_arena",
+    "kg_xr_empty_world",
+    "kg_xr_empty_world_stage",
+    "kg_xr_motion_reference_stage",
+}
 GAME_MISSION_NODE = "kg_game_fps_mission"
 GAME_NPC_NODES = {
     "kg_game_fps_npc_npc-scout",
@@ -135,6 +142,8 @@ def read_scene_contract(page: Page) -> dict[str, Any]:
             meshNodeCount: nodes.filter(node => Number.isInteger(node?.mesh)).length,
             retained: root?.getAttribute('data-kg-authored-xr-scene-retained') || '',
             presentation: root?.getAttribute('data-kg-game-mode-scene') || '',
+            documentLoaded: root?.getAttribute('data-kg-xr-document-loaded') || '',
+            emptyWorld: root?.getAttribute('data-kg-xr-empty-world') || '',
             cameraFov: canvas?.getAttribute('data-kg-game-fps-camera-fov') || '',
             spatialProfile: canvas?.getAttribute('data-kg-game-fps-spatial-profile') || '',
             nativeStageScale: Number(nativeStage?.extras?.stageScale || 0),
@@ -250,6 +259,36 @@ def assert_scene_contract(contract: dict[str, Any], *, game_active: bool) -> Non
     if contract.get("ready") is not True:
         raise AssertionError(f"Three scene snapshot was unavailable: {contract}")
     names = set(contract.get("names") or [])
+    forbidden_roots = sorted(
+        name
+        for name in names
+        if name in FORBIDDEN_XR_ROOT_NODES
+        or name.startswith("kg_game_fps_arena")
+        or name.startswith("kg_xr_empty_world")
+    )
+    if forbidden_roots:
+        raise AssertionError(
+            "canonical XR physics scene mounted a fallback or legacy root: "
+            f"{forbidden_roots}"
+        )
+    if contract.get("emptyWorld"):
+        raise AssertionError(
+            "canonical XR physics scene published the source-free empty-world DOM state"
+        )
+    if contract.get("documentLoaded") != "1":
+        raise AssertionError(
+            "canonical XR physics scene did not publish the loaded source document"
+        )
+    if contract.get("presentation") == "arena":
+        raise AssertionError(
+            "canonical XR physics scene published the legacy arena presentation"
+        )
+    named_counts = contract.get("namedNodeCounts") or {}
+    if named_counts.get(CANONICAL_XR_TERRAIN_NODE) != 1:
+        raise AssertionError(
+            "canonical XR physics scene must contain exactly one native controller terrain: "
+            f"{named_counts.get(CANONICAL_XR_TERRAIN_NODE, 0)}"
+        )
     missing_xr = sorted(AUTHORED_XR_NODES - names)
     if missing_xr:
         raise AssertionError(f"authored XR scene nodes were missing: {missing_xr}")

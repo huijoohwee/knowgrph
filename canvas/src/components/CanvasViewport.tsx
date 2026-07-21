@@ -10,10 +10,7 @@ import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { UI_RESPONSIVE_CANVAS_MINIMAP_OVERLAY_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
-import {
-  isGameFpsRunReadyDemoActive,
-  isXrPhysicsRunReadyDemoActive,
-} from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { readGameModeSnapshot, subscribeGameModeSnapshot } from '@/features/game-fps/gameModeRuntime'
 import { XrNativeControllerDemoHud } from '@/features/three/XrNativeControllerDemoHud'
 
@@ -140,7 +137,6 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
   const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)
-  const gameFpsRunReadyDemo = isGameFpsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)
   const gameMode = React.useSyncExternalStore(
     subscribeGameModeSnapshot,
     readGameModeSnapshot,
@@ -148,7 +144,6 @@ export function CanvasViewport(props: CanvasViewportProps) {
   )
   const gameFpsActive = gameMode.active
   const gameFpsHudVisible = gameFpsActive
-    || (gameFpsRunReadyDemo && gameMode.launchStatus === 'error')
   const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
   const explorerActivePath = useMarkdownExplorerStore(s => s.activePath)
   const activeSourceFile = React.useMemo(
