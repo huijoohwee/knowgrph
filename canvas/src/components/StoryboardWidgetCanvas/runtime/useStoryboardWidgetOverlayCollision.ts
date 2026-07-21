@@ -50,6 +50,7 @@ import {
 } from '@/lib/storyboardWidget/widgetPlacementAuthority'
 import { reportRuntimeTrace } from '@/lib/debug/runtimeTrace'
 import { distinctStoryboardOverlayRectsOverlap } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetRuntimeRichMediaObstacles'
+import { resolveStoryboardWidgetDroppedNodeCollisionPolicy } from '@/components/StoryboardWidgetCanvas/runtime/storyboardWidgetDroppedNodeCollisionPolicy'
 // #region debug-point A:overlay-collision
 const STORYBOARD_MEDIA_PANEL_LOOP_TRACE_SCOPE = 'storyboard-media-panel-loop'
 const reportStoryboardMediaPanelLoopOverlayCollisionDebug = (args: {
@@ -131,6 +132,7 @@ export function useStoryboardWidgetOverlayCollision(args: {
   renderGraphDataOverride: GraphData | null
   schema: any
   selectedNodeId: string | null
+  lastDroppedWidgetNodeIdRef: React.MutableRefObject<string | null>
   viewportW: number
   viewportH: number
   canvasWindowOffset: { left: number; top: number }
@@ -749,7 +751,7 @@ export function useStoryboardWidgetOverlayCollision(args: {
         overlayMeasurementWarmupStartedAtMsRef.current = null
         overlayMeasurementWarmupAttemptsRef.current = 0
       }
-      const fixedId = (() => {
+      const fallbackFixedId = (() => {
         if (pinnedObstacles.some(obstacle => String(obstacle.id || '').startsWith('rich-media:'))) return ''
         const sel = String(selectedNodeId || '').trim()
         if (sel && items.some(it => it.id === sel)) return sel
@@ -757,6 +759,13 @@ export function useStoryboardWidgetOverlayCollision(args: {
         if (overlayOnlyModeEnabled) return [...items].map(it => it.id).sort((a, b) => a.localeCompare(b))[0] || ''
         return items[0]?.id || ''
       })()
+      const droppedNodeCollisionPolicy = resolveStoryboardWidgetDroppedNodeCollisionPolicy({
+        candidateNodeIds: items.map(item => item.id),
+        selectedNodeId,
+        lastDroppedWidgetNodeId: args.lastDroppedWidgetNodeIdRef.current,
+        fallbackFixedNodeId: fallbackFixedId,
+      })
+      const fixedId = droppedNodeCollisionPolicy.fixedNodeId
 
       const shouldResolveItems = (candidates: Array<{ id: string; left: number; top: number; width?: number; height?: number }>) => {
         for (let i = 0; i < candidates.length; i += 1) for (let j = i + 1; j < candidates.length; j += 1) {
@@ -855,7 +864,11 @@ export function useStoryboardWidgetOverlayCollision(args: {
         top: it.top,
         width: it.width ?? floatingScaled.width,
         height: it.height ?? floatingScaled.height,
-        movable: it.movable && (!fixedId || it.id !== fixedId),
+        movable: it.movable && (
+          droppedNodeCollisionPolicy.exclusivelyMovableNodeId
+            ? it.id === droppedNodeCollisionPolicy.exclusivelyMovableNodeId
+            : (!fixedId || it.id !== fixedId)
+        ),
       }))
       const preserveInfiniteCanvasWorld = (world: Array<{ id: string; left: number; top: number; width: number; height: number; movable: boolean }>) =>
         world.map(it => {
@@ -1061,6 +1074,7 @@ export function useStoryboardWidgetOverlayCollision(args: {
   }, [
     canvasWindowOffset,
     canvasWindowOffsetRef,
+    args.lastDroppedWidgetNodeIdRef,
     draftGraphDataRef,
     frontmatterFlowRenderSettings,
     getLiveNodeWorldPos,
@@ -1072,6 +1086,7 @@ export function useStoryboardWidgetOverlayCollision(args: {
     runtimeActive,
     schema,
     selectedNodeId,
+    storyboardWidgetSurfaceId,
     viewportH,
     viewportW,
     zoomViewKeyRef,

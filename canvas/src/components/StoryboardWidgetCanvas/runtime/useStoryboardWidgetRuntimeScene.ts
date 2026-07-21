@@ -1345,16 +1345,27 @@ export function useStoryboardWidgetRuntimeScene(args: {
       )
         ? unanchoredPinnedOpenIds
         : []
-    let pending = Array.from(new Set([
-      ...pendingRaw,
-      ...overlapEligible,
-      ...forcedInitialCollectiveIds,
-      ...forcedLayoutRebalanceIds,
-    ])).sort((a, b) => a.localeCompare(b))
+    const incrementalUnplacedNodeIds = (
+      !initialCollectiveCenteringPass
+      && !layoutRebalanceRequested
+      && !forceSceneEmptyReseed
+      && pendingRaw.length > 0
+    ) ? pendingRaw : []
+    let pending = (
+      incrementalUnplacedNodeIds.length > 0
+        ? incrementalUnplacedNodeIds
+        : Array.from(new Set([
+            ...pendingRaw,
+            ...overlapEligible,
+            ...forcedInitialCollectiveIds,
+            ...forcedLayoutRebalanceIds,
+          ]))
+    ).sort((a, b) => a.localeCompare(b))
     const fullFrontmatterCollectiveIds = isFrontmatterFlow ? Array.from(new Set(effectiveOrFallbackOpenIds.map(id => String(id || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)) : []
     const shouldReseedWholeFrontmatterCollective =
       isFrontmatterFlow
       && fullFrontmatterCollectiveIds.length > 0
+      && incrementalUnplacedNodeIds.length === 0
       && (() => {
         if (forceSceneEmptyReseed) return true
         return pending.length > 0 && pending.length < fullFrontmatterCollectiveIds.length

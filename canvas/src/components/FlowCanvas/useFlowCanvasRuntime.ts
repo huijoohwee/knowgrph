@@ -900,7 +900,7 @@ export function useFlowCanvasRuntime(args: {
         },
       )
     }
-    if (storyboardWidgetMode && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true && hasNonIdentityTransform) return
+    if (storyboardWidgetMode && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true) return
     if (!storyboardWidgetMode && alreadyInitializedForKey && hasNonIdentityTransform) return
     const preserveCurrentTransform =
       !fitToScreenMode &&

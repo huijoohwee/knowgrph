@@ -215,18 +215,27 @@ export function testStoryboardWidgetRunCommitsActiveSharedInlineEditorBeforeRun(
   if (!plainTextInput.includes('dataAttributes?: Record<`data-${string}`, string | number | boolean | undefined>') || !plainTextInput.includes('{...dataAttributes}')) {
     throw new Error('expected PlainTextInputEditor to preserve generic data attributes for shared inline editor commit markers')
   }
+  const runCaptureIndex = toolbarText.indexOf('if (event.button === 0 && runButton) {')
+  const capturedCommitIndex = toolbarText.indexOf('commitActiveCardInlineTextEditor()', runCaptureIndex)
+  const capturedRunIndex = toolbarText.indexOf('onRun()', capturedCommitIndex)
   if (!toolbarText.includes("import { commitActiveCardInlineTextEditor } from '@/lib/cards/CardInlineTextEditor'")
-    || !toolbarText.includes('onPointerDown={() => {')
-    || !toolbarText.includes('commitActiveCardInlineTextEditor()')
-    || toolbarText.indexOf('commitActiveCardInlineTextEditor()') > toolbarText.indexOf('onClick={onRun}')) {
+    || !toolbarText.includes('onPointerDownCapture={handleToolbarPointerDownCapture}')
+    || runCaptureIndex < 0
+    || capturedCommitIndex < runCaptureIndex
+    || capturedRunIndex < capturedCommitIndex) {
     throw new Error('expected Storyboard Widget Run action to commit the active shared inline editor before invoking Run')
   }
-  if (!overlayElementsText.includes('const graphDataForRunResolution = args.draftGraphDataRef?.current')
+  const runCallbackIndex = overlayElementsText.indexOf('onRun={() => {')
+  const liveRunGraphIndex = overlayElementsText.indexOf('const graphDataForRunResolution = args.draftGraphDataRef?.current')
+  const targetResolutionIndex = overlayElementsText.indexOf('const targetNodeIds = resolveStoryboardWidgetAutoRunNodeIds({')
+  if (runCallbackIndex < 0
+    || liveRunGraphIndex < runCallbackIndex
+    || targetResolutionIndex < liveRunGraphIndex
     || !overlayElementsText.includes('const targetNodeIds = resolveStoryboardWidgetAutoRunNodeIds({')
     || !overlayElementsText.includes('nodeId: actionNodeId')
     || !overlayElementsText.includes('for (const targetNodeId of targetNodeIds) {')
     || !overlayElementsText.includes('void args.runWorkflowNode(targetNodeId)')) {
-    throw new Error('expected Widget Run to reuse shared downstream runnable target resolution after committing the active KTV edit')
+    throw new Error('expected Widget Run to read the live draft graph inside the callback after committing the active KTV edit')
   }
   if (!overlayElementsText.includes('draftGraphDataRef?: React.MutableRefObject<GraphData | null>')) {
     throw new Error('expected Widget Run to resolve downstream runnable targets from the live draft graph after KTV edits')

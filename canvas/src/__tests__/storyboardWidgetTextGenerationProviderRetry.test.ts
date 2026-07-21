@@ -40,6 +40,11 @@ export async function testStoryboardWidgetRetriesIncompleteResponsesWithoutReaso
       return responseStream([
         { type: 'response.output_text.delta', delta: text },
         { type: 'response.output_text.done', text },
+        { type: 'response.content_part.done', part: { type: 'output_text', text } },
+        {
+          type: 'response.output_item.done',
+          item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text }] },
+        },
         {
           type: 'response.completed',
           response: {
