@@ -4,6 +4,7 @@ import {
   setGameFpsInput,
 } from './gameFpsRuntime'
 import type { GameFpsInputPatch } from './gameFpsModel'
+import { armGameModeSimulation, pauseGameModeSimulation } from './gameModeRuntime'
 
 const MOVE_CODES: ReadonlySet<string> = new Set([
   'ArrowDown',
@@ -65,14 +66,17 @@ export function installGameFpsDesktopInput(element: HTMLCanvasElement): GameFpsI
   const onKeyDown = (event: KeyboardEvent) => {
     if (isEditableTarget(event.target)) return
     if (updateGameFpsPressedCode(pressed, event.code, true)) {
+      armGameModeSimulation()
       publishMovement()
       event.preventDefault()
       return
     }
     if (event.code === 'KeyR' && !event.repeat) {
+      armGameModeSimulation()
       reloadGameFpsWeapon()
       event.preventDefault()
     } else if (event.code === 'Space' && !event.repeat) {
+      armGameModeSimulation()
       queueGameFpsFire()
       event.preventDefault()
     }
@@ -84,6 +88,7 @@ export function installGameFpsDesktopInput(element: HTMLCanvasElement): GameFpsI
   }
   const onMouseMove = (event: MouseEvent) => {
     if (document.pointerLockElement !== element) return
+    if (event.movementX || event.movementY) armGameModeSimulation()
     setGameFpsInput({
       lookYawDelta: -event.movementX * 0.0022,
       lookPitchDelta: -event.movementY * 0.0018,
@@ -91,11 +96,15 @@ export function installGameFpsDesktopInput(element: HTMLCanvasElement): GameFpsI
   }
   const onMouseDown = (event: MouseEvent) => {
     if (event.button !== 0 || document.pointerLockElement !== element) return
+    armGameModeSimulation()
     queueGameFpsFire()
   }
   const onPointerLockChange = () => {
     element.dataset.kgGameFpsPointerLock = document.pointerLockElement === element ? 'locked' : 'released'
-    if (document.pointerLockElement !== element) releaseInput()
+    if (document.pointerLockElement !== element) {
+      releaseInput()
+      pauseGameModeSimulation('Game Mode paused when pointer control was released.')
+    }
   }
   const requestPointerLock = async () => {
     if (document.pointerLockElement === element) return
@@ -103,14 +112,25 @@ export function installGameFpsDesktopInput(element: HTMLCanvasElement): GameFpsI
     if (result && typeof (result as Promise<void>).then === 'function') await result
   }
   const onCanvasClick = () => {
+    armGameModeSimulation()
     void requestPointerLock().catch(() => {
       element.dataset.kgGameFpsPointerLock = 'unavailable'
     })
   }
+  const onWindowBlur = () => {
+    releaseInput()
+    pauseGameModeSimulation('Game Mode paused when the window lost focus.')
+  }
+  const onVisibilityChange = () => {
+    if (document.visibilityState !== 'hidden') return
+    releaseInput()
+    pauseGameModeSimulation('Game Mode paused while the document is hidden.')
+  }
 
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
-  window.addEventListener('blur', releaseInput)
+  window.addEventListener('blur', onWindowBlur)
+  document.addEventListener('visibilitychange', onVisibilityChange)
   document.addEventListener('mousemove', onMouseMove)
   document.addEventListener('mousedown', onMouseDown)
   document.addEventListener('pointerlockchange', onPointerLockChange)
@@ -121,7 +141,8 @@ export function installGameFpsDesktopInput(element: HTMLCanvasElement): GameFpsI
     dispose() {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
-      window.removeEventListener('blur', releaseInput)
+      window.removeEventListener('blur', onWindowBlur)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       document.removeEventListener('mousemove', onMouseMove)
       document.removeEventListener('mousedown', onMouseDown)
       document.removeEventListener('pointerlockchange', onPointerLockChange)

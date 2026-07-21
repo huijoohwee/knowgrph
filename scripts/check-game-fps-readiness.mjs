@@ -10,6 +10,8 @@ const requiredPaths = [
   'canvas/src/features/game-fps/gameFpsRuntime.ts',
   'canvas/src/features/game-fps/gameFpsDecisionStore.ts',
   'canvas/src/features/game-fps/gameModeRuntime.ts',
+  'canvas/src/features/game-fps/gameModeSceneComposition.ts',
+  'canvas/src/features/game-fps/gameModeXrSpatialProfile.ts',
   'canvas/src/features/game-fps/gameModeMcpContract.mjs',
   'canvas/src/features/game-fps/gameModeMcpRuntime.ts',
   'canvas/src/features/game-fps/GameModeFloatingPanelView.tsx',
@@ -96,8 +98,11 @@ if (seed?.game_mode?.invocation !== '/game.mode @canvas #gameplay operation=star
 const threeGraph = await text('canvas/src/lib/three/ThreeGraph.impl.tsx')
 const stageMounts = threeGraph.match(/<GameFpsMissionStageLazy\b/g)?.length ?? 0
 if (stageMounts !== 1) throw new Error(`expected one Game FPS stage mount, received ${stageMounts}`)
-if (!threeGraph.includes('!gameFpsActive ? <ControlsLazy')) {
+if (!threeGraph.includes('sceneComposition.renderOrbitControls ? <ControlsLazy')) {
   throw new Error('Game FPS must suppress the shared OrbitControls owner')
+}
+if (!threeGraph.includes('sceneComposition.renderAuthoredWorld ? <XrWorldPlacement')) {
+  throw new Error('XR Game Mode must retain the authored XR world owner')
 }
 
 console.log(`OK game-fps source contract (${featureFiles.length} feature modules, procedural local-only mission)`)

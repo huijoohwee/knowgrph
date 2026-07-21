@@ -154,12 +154,13 @@ function buildMotionControlTargetsOutputSchema(buildWebName) {
           gameMode: {
             type: 'object',
             additionalProperties: false,
-            required: ['label', 'view', 'active', 'surfaceMode', 'phase', 'enemiesAlive', 'invocation', 'webMcpTool'],
+            required: ['label', 'view', 'active', 'surfaceMode', 'simulationStatus', 'phase', 'enemiesAlive', 'invocation', 'webMcpTool'],
             properties: {
               label: { const: 'Game Mode' },
               view: { const: 'gameMode' },
               active: { type: 'boolean' },
               surfaceMode: { type: 'string', enum: ['3d', 'xr'] },
+              simulationStatus: { type: 'string', enum: ['idle', 'ready', 'running', 'paused'] },
               phase: { type: 'string', enum: ['stopped', 'playing', 'won', 'lost'] },
               enemiesAlive: { type: 'integer', minimum: 0, maximum: 4 },
               invocation: { type: 'string', pattern: '^/game\\.mode\\s+@canvas\\s+#gameplay' },

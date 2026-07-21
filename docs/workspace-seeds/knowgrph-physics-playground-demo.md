@@ -3,6 +3,7 @@ title: "Knowgrph Native XR Physics Playground"
 doc_type: "Workspace Demo"
 status: "runtime-ready"
 runtime_status: "runtime-ready"
+game_mode_xr_fidelity_status: "local PR #273 candidate passed; protected integration pending"
 publish_scope: "local-only"
 kgCanvasSurfaceMode: "xr"
 kgCanvasRenderMode: "3d"
@@ -102,8 +103,11 @@ game_mode:
   web_mcp_schema: "knowgrph-game-mode-mcp/v1"
   inspect_tool: "knowgrph.inspect_local_game_mode"
   control_tool: "knowgrph.control_local_game_mode"
-  lifecycle: "temporarily suspend the native XR controller stage and restore it on exit"
+  lifecycle: "retain the authored XR scene while suspending its controller input and simulation; restore both on exit"
   renderer_owner: "the existing React Three Fiber Canvas in shared XR Mode; never a second Canvas"
+  scene_composition: "authored XR atmosphere, terrain, props, and paused frame plus the Game Mode first-person actor overlay; no fallback arena"
+  spatial_profile: "reuse the authored stage placement, playable bounds, and ground-obstructing native-controller static colliders; admit deterministic clear spawns and replace stale surface/terrain profiles"
+  simulation_clock: "ready at tick zero until normalized desktop, pointer, touch, Motion Control, or MCP input"
   webgl_gate: "synchronous probe; fail closed on the local fallback surface"
   stop_start: "resume the exact in-memory mission tick and state"
   decision_persistence: "browser-local WorkspaceFs; terminal Decisions remain pending until explicit Save and are never auto-saved"
@@ -253,7 +257,7 @@ The same runtime is MCP-controllable through `knowgrph.control_local_xr_scene`; 
 
 **FloatingPanel → Game Mode** is a companion surface on the same React Three Fiber Canvas. Its native invocation prefix is exactly `/game.mode @canvas #gameplay`; add one supported operation from **Open**, **Start**, **Stop**, **Restart**, **Fire**, **Reload**, **Save**, or **Exit**. Browser-local WebMCP exposes schema `knowgrph-game-mode-mcp/v1` through `knowgrph.inspect_local_game_mode` and `knowgrph.control_local_game_mode`. The synchronous WebGL probe fails closed before mission start and exposes a visible local fallback without a second or remote renderer.
 
-Opening Game Mode while XR owns the surface pauses the existing XR stage rather than mounting a parallel renderer. Stop followed by Start resumes the exact in-memory Game Mode tick and state. Exiting Game Mode restores the prior XR owner and lets its deterministic stage continue. Motion Control is an optional normalized player-input source only; its camera/LiteRT pipeline never becomes the four-action NPC decision policy.
+Opening Game Mode while XR owns the surface keeps the authored atmosphere, Singapore terrain, props, and exact paused frame visibly mounted in the same Canvas. Only the first-person gameplay camera and actor overlay change; the fallback arena is not mounted. Start prepares a healthy tick-zero frame and waits for normalized desktop, pointer, touch, Motion Control, or MCP engagement before deterministic ticks begin. Stop followed by Start resumes the exact in-memory Game Mode tick and state. Exiting restores XR input and simulation ownership so its deterministic stage continues. Motion Control remains an optional normalized player-input source only; its camera/LiteRT pipeline never becomes the four-action NPC decision policy.
 
 Terminal Game Mode results remain pending and are not auto-saved. **Save** is the only operation that persists validated game Decisions through browser-local WorkspaceFs. Malformed saved bytes remain intact and block **Start** and **Restart** until the operator explicitly chooses **Reset local save**.
 
@@ -280,7 +284,9 @@ Switching between Ball and Rocket changes the active controller and procedural p
 - [x] Default Helicopter, Airplane, Car, and Ball asset choices are local catalog content with no downloaded models.
 - [x] FloatingPanel Game Mode reuses the same 3D/shared-XR Canvas and provides Open, Start, Stop, Restart, Fire, Reload, Save, and Exit.
 - [x] Strict `/game.mode @canvas #gameplay` invocation and browser-local WebMCP schema/tools reject duplicate or conflicting bindings.
-- [x] Game Mode pauses XR ownership, Stop/Start preserves exact in-memory state, and Exit restores the continuing XR stage.
+- [x] Local PR #273 candidate: Game Mode retains the authored XR world and atmosphere, shares its placement/collider catalog, suppresses the fallback arena, and restores the exact continuing XR frame on Exit. Protected integration is pending.
+- [x] Local PR #273 candidate: every catalogued XR terrain/environment filters walkable-low and overhead slabs, admits clear player/NPC spawns, and replaces stale live/stopped spatial profiles. Protected integration is pending.
+- [x] Local PR #273 candidate: Game Mode remains healthy at tick zero until normalized input, and Stop/Start preserves exact in-memory state. Protected integration is pending.
 - [x] Motion Control is optional player input only; NPCs retain the deterministic four-action scored policy.
 - [x] Terminal Decisions remain pending until explicit Save; malformed hydration blocks Start and Restart until explicit Reset.
 - [x] Source-authored `run_ready_demo.id` owns imported activation without a path alias and conflicts fail closed.

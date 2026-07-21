@@ -9,16 +9,18 @@ execution_boundary: "dev-only"
 publish_scope: "local-only"
 source_contract: "docs/documents/knowgrph-game-fps-prd-tad.md"
 workspace_seed: "docs/workspace-seeds/knowgrph-game-fps-demo.md"
-candidate_commit: "fbb615be92ea58e6e4cfc981feb2122ea81e79b2"
-verified_at: "2026-07-21T07:50:51Z"
-protected_pull_request: "https://github.com/huijoohwee/knowgrph/pull/263"
+baseline_protected_commit: "fbb615be92ea58e6e4cfc981feb2122ea81e79b2"
+baseline_verified_at: "2026-07-21T07:50:51Z"
+baseline_protected_pull_request: "https://github.com/huijoohwee/knowgrph/pull/263"
+follow_up_pull_request: "https://github.com/huijoohwee/knowgrph/pull/273"
+follow_up_status: "local candidate passed; protected integration pending"
 agentic_runtime_docs_commit: "41cd9855dbcec074b2182a9eaea455c54c117fe4"
 deployment: "not authorized"
 ---
 
 # Knowgrph Game FPS Runtime Readiness
 
-This file is the evidence ledger for the local/Dev Game Mode increment. Source, build, core-browser, external-source, XR/Motion, invocation, persistence, and no-hardcode gates passed again at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` after PR #263 merged. This is a local runtime-readiness claim only; production remains unauthorized.
+This file is the evidence ledger for the local/Dev Game Mode increment. Source, build, core-browser, external-source, XR/Motion, invocation, persistence, and no-hardcode gates passed for the pre-follow-up baseline at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` after PR #263 merged. This is a local runtime-readiness claim only; production remains unauthorized.
 
 ## Canonical commands
 
@@ -48,13 +50,16 @@ The runtime-ready and core-browser commands cover game unit/integration tests, d
 | Malformed save | Hydration blocks Start/Restart, bytes remain intact, HUD names the path, only explicit Reset replaces | passed |
 | WebGL | Synchronous capability gate keeps an unsupported mission stopped and renders a local error | passed |
 | Canvas/XR | One existing R3F Canvas; XR pauses for Game Mode, restores exactly, and continues afterward | passed |
+| XR visual fidelity follow-up | Authored XR atmosphere, terrain, props, and scene anchors stay mounted under Game Mode; fallback arena is absent | candidate passed; protected pending |
+| XR profile admission follow-up | All catalogued XR presets filter walkable/overhead slabs, admit five non-overlapping ground-actor spawns, and replace stale profiles across live/stopped surface or terrain changes | candidate passed; protected pending |
+| Ready clock follow-up | Tick, health, and Decisions stay unchanged until normalized desktop, pointer, touch, Motion Control, or MCP engagement | candidate passed; protected pending |
 | Stop/Start | Stop preserves current tick/player state; Start resumes that same in-memory mission | passed |
 | Source identity | Known source-authored `run_ready_demo.id` activates after import/rename and conflicts fail closed | passed |
 | Core browser | Visible movement, fire, four score rows, completion, explicit save, reload, malformed-save reset | passed |
 | External source | Exact supplied Markdown bytes, strict WebMCP, Motion/XR round trip, stable Canvas, allowlisted network | passed |
 | Hardcode guard | Supplied URL/token and its decoded canonical path are absent from repository bytes | passed |
 | Network | Core gameplay made no non-local request; external acceptance made one verifier preflight read plus one exact product/browser source fetch | passed |
-| Focused integration | Exact-candidate source, ECS, Canvas typecheck, build, and browser gates pass | passed |
+| Focused integration | Local-candidate source, ECS, Canvas typecheck, build, and browser gates pass | passed |
 | Protected integration | PR #263 Integration Gate and protected squash merge | passed |
 | Release boundary | No Pages/Worker/Cloudflare deployment performed | passed |
 
@@ -62,7 +67,7 @@ The runtime-ready and core-browser commands cover game unit/integration tests, d
 
 | Field | Recorded evidence |
 |---|---|
-| Candidate | `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` |
+| Baseline protected commit | `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` |
 | Local target | `http://localhost:4185/`, Google Chrome headless |
 | Viewport | Mobile acceptance `390x844`; desktop keyboard/fire inputs exercised in the same trace |
 | First frame | Playable frame visible; four NPCs and touch controls visible |
@@ -83,7 +88,7 @@ The core browser smoke exercised the runtime and local persistence directly; the
 
 | Field | Recorded evidence |
 |---|---|
-| Candidate | `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` |
+| Baseline protected commit | `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` |
 | Source boundary | Environment-only operator input; exact public Markdown bytes at execution time imported into localhost |
 | Product fetch | Product deep-link owner derived the document URL; exactly one matching fetch observed |
 | Renderer | WebGL supported; exactly one Canvas with stable DOM identity across Game Mode/Motion/XR transitions |
@@ -97,7 +102,25 @@ The core browser smoke exercised the runtime and local persistence directly; the
 
 This acceptance proves compatibility between the exact supplied public source bytes and localhost candidate code. It does not prove the public document contains the new Game Mode block, that candidate code is deployed, or that any public state was mutated.
 
-## Verified command results
+## XR visual-fidelity follow-up candidate record
+
+| Field | Recorded evidence |
+|---|---|
+| Candidate lane | Isolated PR #273 candidate; protected integration pending |
+| Scene composition | `kg_graph_xr_stage`, `kg_xr_native_controller_demo`, `kg_xr_stage_preset_singapore`, and `kg_xr_playground_treasure` remained exported before and during Game Mode |
+| Game overlay | `kg_game_fps_mission` plus four named NPC roots mounted in the same GLTF scene snapshot |
+| Fallback rejection | `kg_game_fps_arena` was absent while the shared surface reported `xr-authored` and retained-scene ownership |
+| Camera | The existing Canvas DOM node remained stable; Game Mode published its first-person camera framing while OrbitControls stayed suppressed |
+| Spatial alignment | The Game overlay shared the authored placement transform/scale and reused the XR native-controller playable bounds and static collider catalog; immersive entry was suspended during gameplay |
+| Profile admission | Structural profile identity rejected stale 3D/XR and same-XR terrain geometry; every catalogued preset admitted clear player/NPC spawns after walkable-low and overhead collider filtering |
+| Idle admission | After Start, 12.5 seconds without normalized input remained `ready`, tick `0`, health `100`, four NPCs, and no runtime error |
+| Engagement | Strict browser WebMCP Fire armed the clock; fixed ticks then advanced and the HUD remained healthy |
+| XR lifecycle | The paused XR frame remained byte-equivalent during Game Mode and resumed from that exact frame after exit |
+| Network/errors | Only localhost and the supplied origin were allowed; console errors `0`, page errors `0`, failed responses `0` |
+
+The follow-up proof used the environment-only operator source and wrote only ignored local artifacts. The supplied URL, token, decoded path, and checksum are not repository evidence. This section becomes protected-main evidence only after PR #273 merges and the same acceptance reruns at that exact main SHA.
+
+## Baseline protected-main command results
 
 At the exact protected main commit:
 
@@ -107,6 +130,10 @@ At the exact protected main commit:
 - Focused XR/Motion contracts, five runtime-doc dependency contracts, the external-input no-hardcode guard, focused ESLint, and `git diff --check` passed.
 - Runtime docs resolve Agentic Canvas OS protected commit `41cd9855dbcec074b2182a9eaea455c54c117fe4`; no copied or mutable ref is accepted.
 
+## Follow-up candidate command results
+
+The PR #273 candidate passed 27 focused Game FPS source tests, including all-preset spatial admission and live/stopped profile replacement, plus Canvas TypeScript, core browser smoke, the environment-driven no-hardcode gate, and enhanced external XR-share acceptance with authored-scene retention, shared placement/collision ownership, pause fencing, and idle-until-engaged assertions. Its protected Integration Gate remains pending.
+
 ## Promotion rule
 
-Local runtime readiness is achieved when every local evidence row passes at one exact commit. Protected integration passed separately through PR #263 and does not change this ledger's local-only status. Neither result authorizes production, Cloudflare, or public-surface claims.
+Local runtime readiness is achieved when every local evidence row passes at one exact commit. Protected integration passed separately through PR #263 for the baseline; the visual-fidelity follow-up remains a local candidate until PR #273 merges and exact-main acceptance passes. Neither result authorizes production, Cloudflare, or public-surface claims.

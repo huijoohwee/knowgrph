@@ -143,6 +143,7 @@ export function inspectMotionControlTargets() {
         ...MOTION_CONTROL_SURFACE_CATALOG['game-mode'],
         active: gameMode.active,
         surfaceMode: gameMode.surfaceMode,
+        simulationStatus: gameMode.simulationStatus,
         phase: gameMission.phase,
         enemiesAlive: gameMission.enemiesAlive,
         invocation: buildGameModeInvocation(gameMode.active ? 'restart' : 'start'),

@@ -8,6 +8,7 @@ import {
   readGameFpsDecisionStore,
 } from './gameFpsDecisionStore'
 import {
+  armGameModeSimulation,
   exitGameModeSurface,
   openGameModeSurface,
   persistGameModePendingDecisions,
@@ -141,6 +142,7 @@ export async function controlLocalGameMode(input: GameModeControlInput) {
   if (mission.phase !== 'playing' || mission.runtimeError) {
     return { ok: false, message: 'Start a healthy Game Mode mission before using weapon controls.', operation: control.operation, game: inspectLocalGameMode() }
   }
+  armGameModeSimulation()
   if (control.operation === 'fire') queueGameFpsFire()
   else reloadGameFpsWeapon()
   return { ok: true, message: control.operation === 'fire' ? 'Fire queued for the next fixed ECS tick.' : 'Reload queued for the next fixed ECS tick.', operation: control.operation, game: inspectLocalGameMode() }
