@@ -37,7 +37,7 @@
 
 - **Bootstrap source roots**:
   - The editorial, video-validation, and geospatial seeds remain sourced from `huijoohwee/docs` and materialized into the workspace root.
-  - The default XR physics seed is owned at `knowgrph/docs/workspace-seeds/knowgrph-physics-playground-demo.md`, published as `agentic-canvas-os/docs/workspace-seeds/knowgrph-physics-playground-demo.md`, and materialized at `/docs/workspace-seeds/knowgrph-physics-playground-demo.md`.
+  - The default XR physics seed is owned at `knowgrph/docs/workspace-seeds/knowgrph-physics-playground-demo.md`, published under the canonical path resolved by `XR_PHYSICS_DEMO_PUBLISHED_CANONICAL_PATH`, and materialized at `/docs/workspace-seeds/knowgrph-physics-playground-demo.md`.
 - **Canonical initialization-file family**:
   - `/workspace-readme.md`
   - `/knowgrph-agentic-video-canvas-demo.md`
