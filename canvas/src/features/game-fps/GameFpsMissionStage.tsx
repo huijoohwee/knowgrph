@@ -51,7 +51,9 @@ export function GameFpsMissionStage() {
 
   useFrame((_, deltaSeconds) => {
     const before = snapshotRef.current
-    if (before.phase === 'playing') void advanceGameFpsBy(deltaSeconds)
+    if (before.phase === 'playing' && !before.runtimeError) {
+      void advanceGameFpsBy(deltaSeconds).catch(() => undefined)
+    }
     const snapshot = readGameFpsSnapshot()
     snapshotRef.current = snapshot
 
@@ -68,7 +70,10 @@ export function GameFpsMissionStage() {
       mesh.scale.y = Math.max(0.12, npc.health / 100)
       setMeshColor(mesh, ACTION_COLORS[npc.action])
     }
-    if (!firstFramePublishedRef.current && snapshot.phase !== 'stopped') {
+    if (snapshot.runtimeError) {
+      firstFramePublishedRef.current = false
+      delete gl.domElement.dataset.kgGameFpsFirstFrame
+    } else if (!firstFramePublishedRef.current && snapshot.phase !== 'stopped') {
       firstFramePublishedRef.current = true
       gl.domElement.dataset.kgGameFpsFirstFrame = '1'
     }

@@ -135,9 +135,12 @@ async function persistPending(workspaceOverride?: WorkspaceFs): Promise<GameFpsD
   if (pending.size === 0) return publish({ status: 'saved', savedCount: snapshot.savedCount, error: null })
   publish({ status: 'saving', error: null })
   const batch = [...pending.values()]
+  let workspace: WorkspaceFs | null = null
+  let previousText: string | null = null
   try {
-    const workspace = workspaceOverride ?? await getWorkspaceFs()
-    const current = await workspace.readFileText(GAME_FPS_SAVE_PATH) ?? EMPTY_SAVE_DOCUMENT
+    workspace = workspaceOverride ?? await getWorkspaceFs()
+    previousText = await workspace.readFileText(GAME_FPS_SAVE_PATH)
+    const current = previousText ?? EMPTY_SAVE_DOCUMENT
     const merged = mergeDecisionsIntoKgcMarkdown(current, batch)
     await ensureWorkspaceFolderTreeIfMissing({
       fs: workspace,
@@ -162,6 +165,30 @@ async function persistPending(workspaceOverride?: WorkspaceFs): Promise<GameFpsD
       error: null,
     })
   } catch (error) {
+    if (workspace) {
+      try {
+        const currentText = await workspace.readFileText(GAME_FPS_SAVE_PATH)
+        if (currentText !== previousText) {
+          if (previousText == null) {
+            if (currentText != null) await workspace.deleteEntry(GAME_FPS_SAVE_PATH)
+          } else {
+            await upsertWorkspaceTextDocument({
+              fs: workspace,
+              parentPath: normalizeWorkspacePath('/game-fps'),
+              name: 'mission-1-decisions.md',
+              text: previousText,
+            })
+          }
+          const restoredText = await workspace.readFileText(GAME_FPS_SAVE_PATH)
+          if (restoredText !== previousText) throw new Error('Decision save rollback read-back mismatch')
+        }
+      } catch (rollbackError) {
+        return publish({
+          status: 'error',
+          error: `${errorMessage(error)}; rollback failed: ${errorMessage(rollbackError)}`,
+        })
+      }
+    }
     return publish({ status: 'error', error: errorMessage(error) })
   }
 }

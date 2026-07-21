@@ -25,6 +25,15 @@ const DECISION: GameFpsDecisionRecord = Object.freeze({
   producedAt: '2026-01-01T00:00:00.000Z',
 })
 
+const PRIOR_SAVE = [
+  '---',
+  'flow:',
+  '  nodes: []',
+  '  edges: []',
+  '---',
+  '',
+].join('\n')
+
 function testWorkspace(initialText?: string): WorkspaceFs {
   const entries = new Map<string, WorkspaceEntry>()
   entries.set('/', { path: '/', parentPath: null, kind: 'folder', name: '', updatedAtMs: 0 })
@@ -81,7 +90,7 @@ test('Game FPS Decision save verifies read-back and is idempotent', async () => 
 
 test('Game FPS Decision write failure retains pending state and source bytes', async () => {
   resetGameFpsDecisionStoreForTests()
-  const base = testWorkspace()
+  const base = testWorkspace(PRIOR_SAVE)
   const failing: WorkspaceFs = {
     ...base,
     writeFileText: async () => { throw new Error('write denied') },
@@ -94,6 +103,35 @@ test('Game FPS Decision write failure retains pending state and source bytes', a
   assert.equal(failed.retainedCount, 1)
   assert.match(failed.error || '', /denied/)
   assert.equal(await failing.readFileText(GAME_FPS_SAVE_PATH), before)
+})
+
+test('Game FPS Decision verification failure rolls source bytes back and retains pending state', async () => {
+  resetGameFpsDecisionStoreForTests()
+  const base = testWorkspace(PRIOR_SAVE)
+  let injectStaleReadBack = false
+  let staleReadBackInjected = false
+  const mismatchedReadBack: WorkspaceFs = {
+    ...base,
+    readFileText: async path => {
+      if (path === GAME_FPS_SAVE_PATH && injectStaleReadBack && !staleReadBackInjected) {
+        staleReadBackInjected = true
+        return PRIOR_SAVE
+      }
+      return base.readFileText(path)
+    },
+    writeFileText: async (path, text) => {
+      await base.writeFileText(path, text)
+      injectStaleReadBack = true
+    },
+  }
+
+  queueGameFpsDecisions([DECISION])
+  const failed = await persistPendingGameFpsDecisions({ workspace: mismatchedReadBack })
+
+  assert.equal(failed.status, 'error')
+  assert.equal(failed.retainedCount, 1)
+  assert.match(failed.error || '', /read-back did not contain/)
+  assert.equal(await base.readFileText(GAME_FPS_SAVE_PATH), PRIOR_SAVE)
 })
 
 test('Game FPS malformed save fails closed until explicit reset', async () => {

@@ -207,6 +207,10 @@ def main() -> None:
             hud = page.locator('[data-kg-game-fps-hud="1"]').first
             expect(hud).to_be_visible(timeout=120_000)
             expect(hud).to_have_attribute("data-kg-game-fps-save-status", "error", timeout=10_000)
+            save_error = hud.get_attribute("data-kg-game-fps-save-error") or ""
+            if "/game-fps/mission-1-decisions.md" not in save_error:
+                raise AssertionError(f"malformed save error did not name the local path: {save_error}")
+            expect(hud.get_by_role("alert")).to_contain_text("/game-fps/mission-1-decisions.md")
             reset_save = page.locator('[data-kg-game-fps-action="reset-save"]').first
             expect(reset_save).to_be_visible()
             expect(page.locator('[data-kg-game-fps-action="retry-save"]')).to_have_count(0)
@@ -264,6 +268,7 @@ def main() -> None:
                 "save": saved,
                 "reload": {"restoredPhase": restored_phase},
                 "malformedSave": {
+                    "error": save_error,
                     "preservedBeforeReset": preserved == malformed_save,
                     "retryHidden": True,
                     "resetPhase": hud.get_attribute("data-kg-game-fps-phase"),

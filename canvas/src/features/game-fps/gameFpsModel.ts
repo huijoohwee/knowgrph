@@ -1,6 +1,7 @@
 export const GAME_FPS_MISSION_ID = 'game-fps-mission-1'
 export const GAME_FPS_FIXED_STEP_SECONDS = 1 / 60
 export const GAME_FPS_MAX_FRAME_SECONDS = 0.25
+export const GAME_FPS_NPC_DECISION_INTERVAL_TICKS = 12
 
 export const GAME_FPS_NPC_ACTIONS = ['hold', 'alert', 'engage', 'flee'] as const
 export type GameFpsNpcAction = (typeof GAME_FPS_NPC_ACTIONS)[number]
@@ -64,6 +65,7 @@ export type GameFpsSnapshot = Readonly<{
   elapsedSeconds: number
   pendingDecisions: readonly GameFpsDecisionRecord[]
   lastCostLog: GameFpsCostLog
+  runtimeError: string | null
   revision: number
 }>
 
@@ -113,13 +115,14 @@ export const GAME_FPS_NPC_SEEDS = Object.freeze([
   Object.freeze({ id: 'npc-guard', x: -4, z: -20 }),
 ])
 
+export const GAME_FPS_NPC_HITBOX_HALF_EXTENTS = Object.freeze([0.72, 0.9, 0.72] as const)
+
 export const GAME_FPS_WEAPON = Object.freeze({
   magazineCapacity: 8,
   initialReserve: 24,
   damage: 45,
   cooldownSeconds: 0.18,
   rangeMeters: 40,
-  targetRadiusMeters: 0.72,
 })
 
 export const GAME_FPS_ZERO_COST_LOG: GameFpsCostLog = Object.freeze({

@@ -65,7 +65,9 @@ export function GameFpsHud() {
     setGameFpsInput({ forward: 0, strafe: 0, sprint: false })
   }, [])
 
-  const phaseLabel = mission.phase === 'won'
+  const phaseLabel = mission.runtimeError
+    ? 'Mission runtime blocked'
+    : mission.phase === 'won'
     ? 'Mission complete'
     : mission.phase === 'lost'
       ? 'Mission failed'
@@ -96,12 +98,24 @@ export function GameFpsHud() {
       data-kg-game-fps-player-z={mission.player.z.toFixed(4)}
       data-kg-game-fps-tick={String(mission.tick)}
       data-kg-game-fps-save-status={save.status}
+      data-kg-game-fps-save-error={save.error || undefined}
+      data-kg-game-fps-runtime-error={mission.runtimeError || undefined}
     >
       <header className="absolute left-3 right-3 top-3 flex items-start justify-between gap-3 pt-[env(safe-area-inset-top)]">
         <section className="rounded-xl border border-white/20 bg-slate-950/75 px-3 py-2 shadow-lg backdrop-blur-sm">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200">Mission 1 · Local deterministic ECS</p>
           <p className="mt-1 text-sm font-semibold" data-kg-game-fps-objective>{phaseLabel}</p>
           <p className="mt-1 text-[11px] text-slate-300">{saveLabel}</p>
+          {save.error ? (
+            <p className="mt-1 max-w-[70vw] break-words text-[11px] text-rose-200" role="alert">
+              {save.error}
+            </p>
+          ) : null}
+          {mission.runtimeError ? (
+            <p className="mt-1 max-w-[70vw] break-words text-[11px] text-rose-200" role="alert">
+              {mission.runtimeError}
+            </p>
+          ) : null}
         </section>
         <section className="grid grid-cols-3 gap-1 rounded-xl border border-white/20 bg-slate-950/75 px-3 py-2 text-center shadow-lg backdrop-blur-sm">
           <span className="text-[10px] text-slate-300">HEALTH<strong className="block text-sm text-white">{mission.player.health}</strong></span>

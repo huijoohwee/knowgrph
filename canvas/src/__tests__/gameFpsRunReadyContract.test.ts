@@ -75,6 +75,9 @@ export function testGameFpsRunReadyRegistryUsesCanonicalSourceDocument() {
 export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
   const threeGraph = source('canvas/src/lib/three/ThreeGraph.impl.tsx')
   const stage = source('canvas/src/features/game-fps/GameFpsMissionStage.tsx')
+  const hud = source('canvas/src/features/game-fps/GameFpsHud.tsx')
+  const runtime = source('canvas/src/features/game-fps/gameFpsRuntime.ts')
+  const webglUnsupported = source('canvas/src/features/game-fps/GameFpsWebglUnsupportedState.tsx')
   const canvasPage = source('canvas/src/pages/Canvas.tsx')
   const viewport = source('canvas/src/components/CanvasViewport.tsx')
   const gameCanvasCount = (stage.match(/<Canvas(?:\s|>)/g) || []).length
@@ -90,6 +93,16 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
   }
   if (!viewport.includes('<GameFpsHudLazy />')) {
     throw new Error('Canvas viewport is missing the Game FPS HUD owner')
+  }
+  if (!stage.includes("advanceGameFpsBy(deltaSeconds).catch(() => undefined)")) {
+    throw new Error('Game FPS stage must consume rejected ticks after the runtime publishes its error')
+  }
+  if (!runtime.includes('publishRuntimeFailure(error)') || !hud.includes('data-kg-game-fps-runtime-error')) {
+    throw new Error('Game FPS rejected ticks must publish a visible HUD error')
+  }
+  if (!threeGraph.includes('<GameFpsWebglUnsupportedState />')
+    || !webglUnsupported.includes('data-kg-game-fps-error="webgl-unsupported"')) {
+    throw new Error('Game FPS must expose a visible local error when WebGL is unavailable')
   }
 }
 
@@ -111,6 +124,7 @@ export function testGameFpsBrowserSmokeContractIsLocalAndInteractive() {
     'data-kg-game-fps-action',
     'restoredPhase',
     'preservedBeforeReset',
+    'data-kg-game-fps-save-error',
     'nonLocalRequests',
     'consoleErrors',
   ]) {

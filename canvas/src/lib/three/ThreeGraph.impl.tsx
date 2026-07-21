@@ -38,6 +38,7 @@ import {
   isXrPhysicsRunReadyDemoActive,
 } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { XrRendererClearController } from '@/lib/three/XrRendererClearController'
+import { GameFpsWebglUnsupportedState } from '@/features/game-fps/GameFpsWebglUnsupportedState'
 
 const SceneLazy = React.lazy(() =>
   import('@/lib/three/Scene.impl').then(mod => ({
@@ -431,7 +432,11 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
         data-kg-xr-scene-media-drop={mode === 'xr' ? '1' : undefined}
         onDragOver={xrSceneMediaDrop.onDragOver}
         onDrop={xrSceneMediaDrop.onDrop}
-      />
+      >
+        {webglSupported === false && gameFpsRunReadyDemo ? (
+          <GameFpsWebglUnsupportedState />
+        ) : null}
+      </section>
     )
   }
   return (

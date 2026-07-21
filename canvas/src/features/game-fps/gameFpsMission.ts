@@ -4,17 +4,19 @@ import { snapshotWorld } from '../../../../ecs/world.js'
 import {
   gameFpsHorizontalDistance,
   gameFpsLookDirection,
-  gameFpsRayTargetDistance,
   hasGameFpsLineOfSight,
   normalizeGameFpsYaw,
   clampGameFpsPitch,
   resolveGameFpsMovement,
+  selectGameFpsRayAabbHit,
 } from './gameFpsGeometry'
 import {
   GAME_FPS_FIXED_STEP_SECONDS,
   GAME_FPS_FIRE_RESULTS,
   GAME_FPS_MISSION_ID,
   GAME_FPS_NPC_ACTIONS,
+  GAME_FPS_NPC_DECISION_INTERVAL_TICKS,
+  GAME_FPS_NPC_HITBOX_HALF_EXTENTS,
   GAME_FPS_NPC_SEEDS,
   GAME_FPS_PLAYER_SPAWN,
   GAME_FPS_WEAPON,
@@ -90,6 +92,33 @@ export type GameFpsAuthoredMission = Readonly<{
   missionEntityId: number
   npcEntityIds: ReadonlyMap<string, number>
 }>
+
+export type GameFpsNpcUtilityObservation = Readonly<{
+  health: number
+  playerDistance: number
+  lineOfSight: boolean
+}>
+
+export type GameFpsNpcUtilityScores = Readonly<Record<GameFpsNpcAction, number>>
+
+export function scoreGameFpsNpcActions(
+  observation: GameFpsNpcUtilityObservation,
+): GameFpsNpcUtilityScores {
+  return Object.freeze({
+    hold: observation.playerDistance >= 17 ? 3 : 0,
+    alert: observation.playerDistance <= 17 ? 3 : 0,
+    engage: observation.lineOfSight && observation.playerDistance <= 9 ? 4 : 0,
+    flee: observation.health <= 35 ? 5 : 0,
+  })
+}
+
+export function selectGameFpsNpcAction(scores: GameFpsNpcUtilityScores): GameFpsNpcAction {
+  let selected: GameFpsNpcAction = GAME_FPS_NPC_ACTIONS[0]
+  for (const action of GAME_FPS_NPC_ACTIONS.slice(1)) {
+    if (scores[action] > scores[selected]) selected = action
+  }
+  return selected
+}
 
 function record(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -309,24 +338,32 @@ export function createGameFpsAuthoredMission(args: {
       context.read(playerEntityId, 'Transform', 'yaw'),
       context.read(playerEntityId, 'Transform', 'pitch'),
     )
-    let target: { id: string; entityId: number; distance: number } | null = null
+    const origin = [playerX, PLAYER_ENTITY_HEIGHT, playerZ] as const
+    const candidates = []
     for (const [id, entityId] of entityIds) {
       if (context.read(entityId, 'Npc', 'active') !== 1) continue
       const x = context.read(entityId, 'Transform', 'x')
       const z = context.read(entityId, 'Transform', 'z')
       if (!hasGameFpsLineOfSight({ x: playerX, z: playerZ }, { x, z })) continue
-      const distance = gameFpsRayTargetDistance({
-        origin: [playerX, PLAYER_ENTITY_HEIGHT, playerZ],
-        direction,
-        target: [x, NPC_TARGET_HEIGHT, z],
-        radius: GAME_FPS_WEAPON.targetRadiusMeters,
-      })
-      if (distance == null || distance > GAME_FPS_WEAPON.rangeMeters) continue
-      if (!target || distance < target.distance) target = { id, entityId, distance }
+      candidates.push(Object.freeze({
+        entityRef: id,
+        center: [x, NPC_TARGET_HEIGHT, z] as const,
+        halfExtents: GAME_FPS_NPC_HITBOX_HALF_EXTENTS,
+      }))
     }
-    if (!target) {
+    const hit = selectGameFpsRayAabbHit({
+      origin,
+      direction,
+      maxDistance: GAME_FPS_WEAPON.rangeMeters,
+      candidates,
+    })
+    if (!hit) {
       context.write(playerEntityId, 'Weapon', 'result', GAME_FPS_FIRE_RESULTS.indexOf('miss'))
       return
+    }
+    const target = {
+      id: hit.entityRef,
+      entityId: entityIds.get(hit.entityRef)!,
     }
     const previousHealth = context.read(target.entityId, 'Health', 'current')
     const remainingHealth = Math.max(0, previousHealth - GAME_FPS_WEAPON.damage)
@@ -345,6 +382,8 @@ export function createGameFpsAuthoredMission(args: {
 
   const npcSystem = (context: EcsContext) => {
     if (context.read(missionEntityId, 'Mission', 'phase') !== PHASE_PLAYING) return
+    const tick = context.read(missionEntityId, 'Mission', 'tick')
+    const decisionIntervalFires = tick % GAME_FPS_NPC_DECISION_INTERVAL_TICKS === 0
     const player = {
       x: context.read(playerEntityId, 'Transform', 'x'),
       z: context.read(playerEntityId, 'Transform', 'z'),
@@ -358,21 +397,21 @@ export function createGameFpsAuthoredMission(args: {
       const distance = gameFpsHorizontalDistance(position, player)
       const health = context.read(entityId, 'Health', 'current')
       const lineOfSight = hasGameFpsLineOfSight(position, player)
-      const action = health <= 35
-        ? ACTION_FLEE
-        : lineOfSight && distance <= 9
-          ? ACTION_ENGAGE
-          : distance <= 17
-            ? ACTION_ALERT
-            : ACTION_HOLD
       const previousAction = context.read(entityId, 'NpcBrain', 'action')
-      if (action !== previousAction) {
+      const action = decisionIntervalFires
+        ? GAME_FPS_NPC_ACTIONS.indexOf(selectGameFpsNpcAction(scoreGameFpsNpcActions({
+          health,
+          playerDistance: distance,
+          lineOfSight,
+        })))
+        : previousAction
+      if (decisionIntervalFires && action !== previousAction) {
         context.write(entityId, 'NpcBrain', 'action', action)
         emitDecision(
           context,
           'world_tick_result',
           id,
-          context.read(missionEntityId, 'Mission', 'tick'),
+          tick,
           {
             event: 'npc_action',
             action: gameFpsNpcActionFromCode(action),

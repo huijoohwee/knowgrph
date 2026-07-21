@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { hasGameFpsLineOfSight } from '../features/game-fps/gameFpsGeometry'
+import {
+  gameFpsRayAabbDistance,
+  hasGameFpsLineOfSight,
+  selectGameFpsRayAabbHit,
+} from '../features/game-fps/gameFpsGeometry'
+import {
+  scoreGameFpsNpcActions,
+  selectGameFpsNpcAction,
+} from '../features/game-fps/gameFpsMission'
 import {
   acknowledgeGameFpsDecisions,
   advanceGameFpsBy,
@@ -15,6 +23,8 @@ import {
 import {
   GAME_FPS_FIXED_STEP_SECONDS,
   GAME_FPS_MISSION_ID,
+  GAME_FPS_NPC_ACTIONS,
+  GAME_FPS_NPC_DECISION_INTERVAL_TICKS,
   GAME_FPS_ZERO_COST_LOG,
   type GameFpsSnapshot,
 } from '../features/game-fps/gameFpsModel'
@@ -30,8 +40,27 @@ function gameplayProjection(snapshot: GameFpsSnapshot) {
     fireResult: snapshot.fireResult,
     tick: snapshot.tick,
     elapsedSeconds: snapshot.elapsedSeconds,
+    pendingDecisions: snapshot.pendingDecisions,
     lastCostLog: snapshot.lastCostLog,
+    runtimeError: snapshot.runtimeError,
   }
+}
+
+function hudProjection(snapshot: GameFpsSnapshot) {
+  return {
+    phase: snapshot.phase,
+    health: snapshot.player.health,
+    ammo: snapshot.ammo,
+    reserve: snapshot.reserve,
+    enemiesAlive: snapshot.enemiesAlive,
+    fireResult: snapshot.fireResult,
+    tick: snapshot.tick,
+    runtimeError: snapshot.runtimeError,
+  }
+}
+
+function canonicalSerialization(value: unknown): string {
+  return JSON.stringify(value)
 }
 
 function visibleTarget(snapshot: GameFpsSnapshot) {
@@ -73,24 +102,78 @@ test('Game FPS core serializes fixed World_Ticks with deterministic zero-cost ou
   startGameFpsMission()
   setGameFpsInput({ forward: 1, strafe: 0.25, lookYawDelta: 0.2 })
   await Promise.all([
-    advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS),
-    advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS),
+    advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS * 7),
+    advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS * (GAME_FPS_NPC_DECISION_INTERVAL_TICKS - 7)),
   ])
   const first = readGameFpsSnapshot()
-  assert.equal(first.tick, 2)
+  assert.equal(first.tick, GAME_FPS_NPC_DECISION_INTERVAL_TICKS)
+  assert.ok(first.pendingDecisions.some(decision => decision.payload.event === 'npc_action'))
   assert.deepEqual(first.lastCostLog, GAME_FPS_ZERO_COST_LOG)
   assert.equal(first.lastCostLog.model, 'none')
   assert.equal(first.lastCostLog.prompt_tokens + first.lastCostLog.completion_tokens, 0)
 
-  const expected = gameplayProjection(first)
+  const expectedMission = canonicalSerialization(gameplayProjection(first))
+  const expectedHud = canonicalSerialization(hudProjection(first))
   resetGameFpsRuntimeForTests()
   startGameFpsMission()
   setGameFpsInput({ forward: 1, strafe: 0.25, lookYawDelta: 0.2 })
   await Promise.all([
-    advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS),
-    advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS),
+    advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS * 7),
+    advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS * (GAME_FPS_NPC_DECISION_INTERVAL_TICKS - 7)),
   ])
-  assert.deepEqual(gameplayProjection(readGameFpsSnapshot()), expected)
+  const replayed = readGameFpsSnapshot()
+  assert.equal(canonicalSerialization(gameplayProjection(replayed)), expectedMission)
+  assert.equal(canonicalSerialization(hudProjection(replayed)), expectedHud)
+})
+
+test('slab hitscan returns the AABB entry and resolves equal-distance targets by entityRef', () => {
+  const origin = [0, 1, 0] as const
+  const direction = [0, 0, -2] as const
+  const halfExtents = [1, 0.5, 0.5] as const
+  assert.equal(gameFpsRayAabbDistance({
+    origin,
+    direction,
+    center: [0.8, 1, -5],
+    halfExtents,
+  }), 4.5)
+
+  const selected = selectGameFpsRayAabbHit({
+    origin,
+    direction,
+    maxDistance: 10,
+    candidates: [
+      { entityRef: 'npc-zeta', center: [0.8, 1, -5], halfExtents },
+      { entityRef: 'npc-alpha', center: [-0.8, 1, -5], halfExtents },
+    ],
+  })
+  assert.deepEqual(selected, { entityRef: 'npc-alpha', distance: 4.5 })
+})
+
+test('NPC scoring uses the closed stable priority only when its decision interval fires', async () => {
+  const tiedScores = scoreGameFpsNpcActions({ health: 100, playerDistance: 17, lineOfSight: false })
+  assert.deepEqual(Object.keys(tiedScores), [...GAME_FPS_NPC_ACTIONS])
+  assert.equal(tiedScores.hold, tiedScores.alert)
+  assert.equal(selectGameFpsNpcAction(tiedScores), 'hold')
+
+  resetGameFpsRuntimeForTests()
+  startGameFpsMission()
+  await advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS * (GAME_FPS_NPC_DECISION_INTERVAL_TICKS - 1))
+  const beforeInterval = readGameFpsSnapshot()
+  assert.ok(beforeInterval.npcs.every(npc => npc.action === 'hold'))
+  assert.ok(beforeInterval.pendingDecisions.every(decision => decision.payload.event !== 'npc_action'))
+
+  await advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS)
+  const afterInterval = readGameFpsSnapshot()
+  const actionDecisions = afterInterval.pendingDecisions.filter(decision => decision.payload.event === 'npc_action')
+  assert.ok(actionDecisions.length > 0)
+  assert.ok(actionDecisions.every(decision => decision.payload.tick === GAME_FPS_NPC_DECISION_INTERVAL_TICKS))
+
+  await advanceGameFpsBy(GAME_FPS_FIXED_STEP_SECONDS * GAME_FPS_NPC_DECISION_INTERVAL_TICKS)
+  assert.equal(
+    readGameFpsSnapshot().pendingDecisions.filter(decision => decision.payload.event === 'npc_action').length,
+    actionDecisions.length,
+    'unchanged utility winners must not emit duplicate transition Decisions',
+  )
 })
 
 test('one weapon, reload, all four utility actions, and mission completion stay local', async () => {

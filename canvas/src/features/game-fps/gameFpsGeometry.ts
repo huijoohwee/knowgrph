@@ -1,6 +1,12 @@
 import { GAME_FPS_MAP, type GameFpsBlocker } from './gameFpsModel'
 
 export type GameFpsPoint = Readonly<{ x: number; z: number }>
+export type GameFpsRayAabbCandidate = Readonly<{
+  entityRef: string
+  center: readonly [number, number, number]
+  halfExtents: readonly [number, number, number]
+}>
+export type GameFpsRayAabbHit = Readonly<{ entityRef: string; distance: number }>
 
 const EPSILON = 1e-8
 
@@ -85,20 +91,59 @@ export function gameFpsLookDirection(yaw: number, pitch: number): readonly [numb
   ])
 }
 
-export function gameFpsRayTargetDistance(args: {
+export function gameFpsRayAabbDistance(args: {
   origin: readonly [number, number, number]
   direction: readonly [number, number, number]
-  target: readonly [number, number, number]
-  radius: number
+  center: readonly [number, number, number]
+  halfExtents: readonly [number, number, number]
 }): number | null {
-  const offsetX = args.target[0] - args.origin[0]
-  const offsetY = args.target[1] - args.origin[1]
-  const offsetZ = args.target[2] - args.origin[2]
-  const along = offsetX * args.direction[0]
-    + offsetY * args.direction[1]
-    + offsetZ * args.direction[2]
-  if (along <= 0) return null
-  const offsetSquared = offsetX ** 2 + offsetY ** 2 + offsetZ ** 2
-  const perpendicularSquared = Math.max(0, offsetSquared - along ** 2)
-  return perpendicularSquared <= args.radius ** 2 ? along : null
+  const directionLength = Math.hypot(...args.direction)
+  if (!Number.isFinite(directionLength) || directionLength <= EPSILON) return null
+  const direction = args.direction.map(value => value / directionLength)
+  let entryDistance = Number.NEGATIVE_INFINITY
+  let exitDistance = Number.POSITIVE_INFINITY
+
+  for (const axis of [0, 1, 2] as const) {
+    const halfExtent = args.halfExtents[axis]
+    if (!Number.isFinite(halfExtent) || halfExtent < 0) return null
+    const minimum = args.center[axis] - halfExtent
+    const maximum = args.center[axis] + halfExtent
+    const axisDirection = direction[axis]
+    if (Math.abs(axisDirection) <= EPSILON) {
+      if (args.origin[axis] < minimum || args.origin[axis] > maximum) return null
+      continue
+    }
+    const first = (minimum - args.origin[axis]) / axisDirection
+    const second = (maximum - args.origin[axis]) / axisDirection
+    entryDistance = Math.max(entryDistance, Math.min(first, second))
+    exitDistance = Math.min(exitDistance, Math.max(first, second))
+    if (entryDistance > exitDistance) return null
+  }
+
+  if (exitDistance <= EPSILON) return null
+  return entryDistance > EPSILON ? entryDistance : exitDistance
+}
+
+export function selectGameFpsRayAabbHit(args: {
+  origin: readonly [number, number, number]
+  direction: readonly [number, number, number]
+  maxDistance: number
+  candidates: readonly GameFpsRayAabbCandidate[]
+}): GameFpsRayAabbHit | null {
+  let selected: GameFpsRayAabbHit | null = null
+  for (const candidate of args.candidates) {
+    const distance = gameFpsRayAabbDistance({
+      origin: args.origin,
+      direction: args.direction,
+      center: candidate.center,
+      halfExtents: candidate.halfExtents,
+    })
+    if (distance == null || distance > args.maxDistance) continue
+    const winsDistance = !selected || distance < selected.distance
+    const winsEntityTie = selected && distance === selected.distance && candidate.entityRef < selected.entityRef
+    if (winsDistance || winsEntityTie) {
+      selected = Object.freeze({ entityRef: candidate.entityRef, distance })
+    }
+  }
+  return selected
 }

@@ -60,6 +60,7 @@ let snapshot: GameFpsSnapshot = Object.freeze({
   elapsedSeconds: 0,
   pendingDecisions: Object.freeze([]),
   lastCostLog: GAME_FPS_ZERO_COST_LOG,
+  runtimeError: null,
   revision: 0,
 })
 
@@ -79,16 +80,34 @@ function freezeDecision(value: GameFpsDecisionRecord): GameFpsDecisionRecord {
   return Object.freeze({ ...value, payload: Object.freeze({ ...value.payload }) })
 }
 
+function runtimeErrorMessage(error: unknown): string {
+  return error instanceof Error && error.message
+    ? error.message
+    : String(error || 'Game FPS tick failed')
+}
+
+function publishRuntimeFailure(error: unknown): GameFpsSnapshot {
+  snapshot = Object.freeze({
+    ...snapshot,
+    runtimeError: runtimeErrorMessage(error),
+    revision: snapshot.revision + 1,
+  })
+  for (const listener of [...listeners]) listener()
+  return snapshot
+}
+
 function publish(
   capture: GameFpsMissionCapture,
   costLog: GameFpsCostLog,
   phaseOverride?: GameFpsSnapshot['phase'],
+  clearRuntimeError = false,
 ): GameFpsSnapshot {
   snapshot = Object.freeze({
     ...capture,
     phase: phaseOverride || capture.phase,
     pendingDecisions: Object.freeze([...pendingDecisions.values()]),
     lastCostLog: costLog,
+    runtimeError: clearRuntimeError ? null : snapshot.runtimeError,
     revision: snapshot.revision + 1,
   })
   for (const listener of [...listeners]) listener()
@@ -115,7 +134,7 @@ function replaceMission(decisions: readonly unknown[] = []): GameFpsSnapshot {
   mission = nextMission
   accumulatorSeconds = 0
   input = freshInput()
-  return publish(captureGameFpsAuthoredMission(nextMission), GAME_FPS_ZERO_COST_LOG)
+  return publish(captureGameFpsAuthoredMission(nextMission), GAME_FPS_ZERO_COST_LOG, undefined, true)
 }
 
 function tickInput(firstSubStep: boolean): GameFpsTickInput {
@@ -138,7 +157,7 @@ function tickInput(firstSubStep: boolean): GameFpsTickInput {
 }
 
 async function advanceCurrentMission(deltaSeconds: number): Promise<GameFpsSnapshot> {
-  if (!mission || snapshot.phase !== 'playing') return snapshot
+  if (!mission || snapshot.phase !== 'playing' || snapshot.runtimeError) return snapshot
   accumulatorSeconds += Math.min(deltaSeconds, GAME_FPS_MAX_FRAME_SECONDS)
   let stepped = false
   let firstSubStep = true
@@ -231,6 +250,7 @@ export function advanceGameFpsBy(deltaSeconds: number): Promise<GameFpsSnapshot>
     try {
       resolveResult(await advanceCurrentMission(deltaSeconds))
     } catch (error) {
+      publishRuntimeFailure(error)
       rejectResult(error)
     }
   })
@@ -267,6 +287,7 @@ export function resetGameFpsRuntimeForTests(): GameFpsSnapshot {
     elapsedSeconds: 0,
     pendingDecisions: Object.freeze([]),
     lastCostLog: GAME_FPS_ZERO_COST_LOG,
+    runtimeError: null,
     revision: previousRevision + 1,
   })
   for (const listener of [...listeners]) listener()
