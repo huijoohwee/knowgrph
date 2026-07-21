@@ -22,6 +22,9 @@ export function testWorkspaceSourceRootPathsIncludeAgenticOsDocsRoot(): void {
     if (!roots.includes('/agentic-canvas-os/docs')) {
       throw new Error(`expected sibling agentic-canvas-os/docs root to participate in workspace source roots, got ${roots.join(', ')}`)
     }
+    if (!roots.includes('/notes')) {
+      throw new Error(`expected authored notes to remain isolated as a workspace source root, got ${roots.join(', ')}`)
+    }
   } finally {
     writeWorkspaceImportShareExportRootPathSetting(previousValue)
     if (typeof previousDocsAbsRoot === 'string') process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT = previousDocsAbsRoot

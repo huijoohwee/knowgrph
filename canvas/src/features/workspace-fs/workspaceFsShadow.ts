@@ -1,6 +1,8 @@
 import type { WorkspaceEntry, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, normalizeWorkspacePath, workspaceBasename } from './path'
 import { isLegacyWorkspaceSourcePath } from './workspaceLegacySourceRoots'
+import { isMigratedAuthoredMarkdownNoteMirrorPath } from './workspaceAuthoredNotes'
+import { loadWorkspaceSourceIndex } from './sourceIndex'
 
 export const SHADOW_MAX_FILE_TEXT_CHARS = 2_000_000
 
@@ -52,8 +54,12 @@ export const deleteShadowEntry = (path: WorkspacePath) => {
 
 export const snapshotShadowEntries = (): WorkspaceEntry[] => {
   const shadow = ensureShadow()
+  const sourceIndex = loadWorkspaceSourceIndex()
   for (const path of [...shadow.keys()]) {
-    if (isLegacyWorkspaceSourcePath(path)) deleteShadowEntry(path)
+    if (
+      isLegacyWorkspaceSourcePath(path)
+      || isMigratedAuthoredMarkdownNoteMirrorPath(path, sourceIndex)
+    ) deleteShadowEntry(path)
   }
   return [...shadow.values()]
 }
@@ -81,6 +87,10 @@ export const mergeEntriesWithShadow = (entries: WorkspaceEntry[]): WorkspaceEntr
 export const readShadowFileText = (path: WorkspacePath): string | null => {
   const shadow = ensureShadow()
   const normalized = normalizeWorkspacePath(path)
+  if (isMigratedAuthoredMarkdownNoteMirrorPath(normalized, loadWorkspaceSourceIndex())) {
+    deleteShadowEntry(normalized)
+    return null
+  }
   const entry = shadow.get(normalized)
   if (!entry || entry.kind !== 'file') return null
   return String(entry.text ?? '')
