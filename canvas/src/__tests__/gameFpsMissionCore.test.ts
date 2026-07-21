@@ -28,6 +28,7 @@ import {
   GAME_FPS_ZERO_COST_LOG,
   type GameFpsSnapshot,
 } from '../features/game-fps/gameFpsModel'
+import { readWebglSupport } from '../lib/three/webglSupport'
 
 function gameplayProjection(snapshot: GameFpsSnapshot) {
   return {
@@ -147,6 +148,25 @@ test('slab hitscan returns the AABB entry and resolves equal-distance targets by
     ],
   })
   assert.deepEqual(selected, { entityRef: 'npc-alpha', distance: 4.5 })
+})
+
+test('WebGL support resolves synchronously and releases its probe context', () => {
+  let released = false
+  const supportedDocument = {
+    createElement: () => ({
+      getContext: () => ({
+        getExtension: () => ({ loseContext: () => { released = true } }),
+      }),
+    }),
+  } as unknown as Document
+  const unsupportedDocument = {
+    createElement: () => ({ getContext: () => null }),
+  } as unknown as Document
+
+  assert.equal(readWebglSupport(null), false)
+  assert.equal(readWebglSupport(unsupportedDocument), false)
+  assert.equal(readWebglSupport(supportedDocument), true)
+  assert.equal(released, true)
 })
 
 test('NPC scoring uses the closed stable priority only when its decision interval fires', async () => {

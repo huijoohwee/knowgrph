@@ -78,6 +78,7 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
   const hud = source('canvas/src/features/game-fps/GameFpsHud.tsx')
   const runtime = source('canvas/src/features/game-fps/gameFpsRuntime.ts')
   const webglUnsupported = source('canvas/src/features/game-fps/GameFpsWebglUnsupportedState.tsx')
+  const webglSupport = source('canvas/src/lib/three/webglSupport.ts')
   const canvasPage = source('canvas/src/pages/Canvas.tsx')
   const viewport = source('canvas/src/components/CanvasViewport.tsx')
   const gameCanvasCount = (stage.match(/<Canvas(?:\s|>)/g) || []).length
@@ -103,6 +104,11 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
   if (!threeGraph.includes('<GameFpsWebglUnsupportedState />')
     || !webglUnsupported.includes('data-kg-game-fps-error="webgl-unsupported"')) {
     throw new Error('Game FPS must expose a visible local error when WebGL is unavailable')
+  }
+  if (!threeGraph.includes('useState(readWebglSupport)')
+    || threeGraph.includes('setWebglSupported')
+    || !webglSupport.includes("canvas.getContext('webgl2')")) {
+    throw new Error('Game FPS must resolve WebGL support synchronously before mounting R3F Canvas')
   }
 }
 

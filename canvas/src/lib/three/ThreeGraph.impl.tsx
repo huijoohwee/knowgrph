@@ -39,6 +39,7 @@ import {
 } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { XrRendererClearController } from '@/lib/three/XrRendererClearController'
 import { GameFpsWebglUnsupportedState } from '@/features/game-fps/GameFpsWebglUnsupportedState'
+import { readWebglSupport } from '@/lib/three/webglSupport'
 
 const SceneLazy = React.lazy(() =>
   import('@/lib/three/Scene.impl').then(mod => ({
@@ -124,23 +125,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   const threeSceneRef = React.useRef<ThreeScene | null>(null)
   const threeCameraRef = React.useRef<Camera | null>(null)
   const threeGlRef = React.useRef<WebGLRenderer | null>(null)
-  const [webglSupported, setWebglSupported] = useState<boolean | null>(null)
-  useEffect(() => {
-    if (typeof document === 'undefined') {
-      setWebglSupported(false)
-      return
-    }
-    try {
-      const canvas = document.createElement('canvas')
-      const gl =
-        canvas.getContext('webgl2') ||
-        canvas.getContext('webgl') ||
-        canvas.getContext('experimental-webgl' as never)
-      setWebglSupported(!!gl)
-    } catch {
-      setWebglSupported(false)
-    }
-  }, [])
+  const [webglSupported] = useState(readWebglSupport)
   const paused = !active
   const graph = useActiveGraphRenderData() as GraphData | null
   const xrStageMetersPerUnit = React.useSyncExternalStore(
