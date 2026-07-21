@@ -17,9 +17,45 @@ import {
   readWebsiteCrawlMarkdownDeepLinkRequest,
 } from '@/lib/websites/openWebsiteCrawlMarkdownArtifactInExplorer'
 
+type PushUiToast = (toast: UiToastInput) => void
+
+const remoteDeepLinkImports = new Map<string, Promise<void>>()
+
+type RemoteDeepLinkImportLifecycle = {
+  importDocument: () => Promise<void>
+  readLiveSearch: () => string
+  consumeSearch: (search: string) => void
+  reportError: (error: unknown) => void
+}
+
+export function runRemoteDeepLinkImportLifecycle(
+  inFlightImports: Map<string, Promise<void>>,
+  currentSearch: string,
+  lifecycle: RemoteDeepLinkImportLifecycle,
+): Promise<void> {
+  const activeImport = inFlightImports.get(currentSearch)
+  if (activeImport) return activeImport
+
+  const pendingImport = Promise.resolve()
+    .then(lifecycle.importDocument)
+    .then(() => {
+      const liveSearch = lifecycle.readLiveSearch()
+      if (liveSearch !== currentSearch) return
+      lifecycle.consumeSearch(liveSearch)
+    })
+    .catch(lifecycle.reportError)
+    .finally(() => {
+      if (inFlightImports.get(currentSearch) === pendingImport) {
+        inFlightImports.delete(currentSearch)
+      }
+    })
+  inFlightImports.set(currentSearch, pendingImport)
+  return pendingImport
+}
+
 function openCrawlMarkdownRequest(
   crawlRequest: NonNullable<ReturnType<typeof readWebsiteCrawlMarkdownDeepLinkRequest>>,
-  pushUiToast: (t: UiToastInput) => void,
+  pushUiToast: PushUiToast,
 ): void {
   const toastId = 'deep-link:crawl-artifact'
   pushUiToast({ id: toastId, kind: 'neutral', message: 'Opening crawl artifact…', ttlMs: null, dismissible: false })
@@ -35,7 +71,7 @@ function openCrawlMarkdownRequest(
 
 async function handleLocalDeepLink(
   relativePath: string,
-  pushUiToast: (t: UiToastInput) => void,
+  pushUiToast: PushUiToast,
   options: { applyToGraph: boolean },
 ): Promise<void> {
   const toastId = 'deep-link:doc-local'
@@ -103,7 +139,7 @@ async function handleLocalDeepLink(
 
 async function handleRemoteDeepLink(
   link: RemoteDocDeepLink | DefaultRemoteDocDeepLink,
-  pushUiToast: (t: UiToastInput) => void,
+  pushUiToast: PushUiToast,
 ): Promise<void> {
   const docUrl = link.kind === 'default-remote'
     ? buildDefaultDocViewUrl(link.canonicalPath)
@@ -154,6 +190,24 @@ async function handleRemoteDeepLink(
   })
 }
 
+function importRemoteDeepLinkOnce(
+  currentSearch: string,
+  link: RemoteDocDeepLink | DefaultRemoteDocDeepLink,
+  pushUiToast: PushUiToast,
+): Promise<void> {
+  return runRemoteDeepLinkImportLifecycle(remoteDeepLinkImports, currentSearch, {
+    importDocument: () => handleRemoteDeepLink(link, pushUiToast),
+    readLiveSearch: () => typeof window !== 'undefined'
+      ? String(window.location.search || '')
+      : currentSearch,
+    consumeSearch: consumeDeepLinkParams,
+    reportError: err => {
+      const message = err instanceof Error ? err.message : 'Failed to load shared document'
+      pushUiToast({ id: 'deep-link:doc-import', kind: 'error', message, ttlMs: 5000, dismissible: true })
+    },
+  })
+}
+
 export function CanvasDocDeepLinkRuntime(props: { search: string }) {
   const { search } = props
   const pushUiToast = useGraphStore(s => s.pushUiToast)
@@ -171,17 +225,14 @@ export function CanvasDocDeepLinkRuntime(props: { search: string }) {
       return
     }
     const previewRequested = new URLSearchParams(currentSearch.startsWith('?') ? currentSearch.slice(1) : currentSearch).get('kgPreview') === '1'
-    consumeDeepLinkParams(currentSearch)
 
     if (link.kind === 'local') {
+      consumeDeepLinkParams(currentSearch)
       void handleLocalDeepLink(link.relativePath, pushUiToast, {
         applyToGraph: previewRequested,
       })
     } else {
-      void handleRemoteDeepLink(link, pushUiToast).catch(err => {
-        const message = err instanceof Error ? err.message : 'Failed to load shared document'
-        pushUiToast({ id: 'deep-link:doc-import', kind: 'error', message, ttlMs: 5000, dismissible: true })
-      })
+      void importRemoteDeepLinkOnce(currentSearch, link, pushUiToast)
     }
   }, [search, pushUiToast, sourceFilesBootstrapReady])
 

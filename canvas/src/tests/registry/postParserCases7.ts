@@ -8,6 +8,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["markdown.workspace.switch.skipsCanvasPrimeForHydratedFile","@/__tests__/workspaceDocumentSwitchCanvasPrime.test","testWorkspaceDocumentSwitchDoesNotPrimeCanvasForHydratedFile"],
   ["markdown.workspace.switch.skipsCanvasPrimeForStalePath","@/__tests__/workspaceDocumentSwitchCanvasPrime.test","testWorkspaceDocumentSwitchDoesNotPrimeCanvasForStalePendingPath"],
   ["markdown.workspace.switch.blankPrimeClearsStaleGraph","@/__tests__/workspaceDocumentSwitchCanvasPrime.test","testWorkspaceDocumentSwitchBlankPrimeClearsStaleGraph"],
+  ["workspace.deepLink.remoteDoc.retainsIntentUntilImportSuccess","@/__tests__/canvasDocDeepLinkRuntimeRegression.test","testCanvasDocDeepLinkRemoteImportLifecycle"],
   ["agenticOs.remoteGrammar.provenance.revisionBound","@/__tests__/agenticOsRemoteGrammarProvenance.test","testAgenticOsRemoteGrammarProvenanceRebasesExactDictionaryFragments"],
   ["agenticOs.remoteGrammar.provenance.fetchFailClosed","@/__tests__/agenticOsRemoteGrammarProvenance.test","testAgenticOsRemoteGrammarFetchRegistersOnlyRevisionBoundProvenance"],
   ["viewport.storyboardWidget.overlay.distinctRichMediaCollision","@/__tests__/storyboardWidgetActiveSurfaceObstacleCollection.test","testStoryboardWidgetPinnedCardTreatsDistinctRichMediaAsCollisionObstacle"],

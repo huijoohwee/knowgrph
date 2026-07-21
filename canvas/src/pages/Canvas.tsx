@@ -251,6 +251,8 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
                 canvasRenderMode={dedicatedRunReadyDemo ? '3d' : canvasRenderMode}
                 canvas3dMode={dedicatedRunReadyDemo ? 'xr' : canvas3dMode}
                 canvas2dRenderer={canvas2dRenderer}
+                documentSwitchPending={hasDocDeepLinkParams}
+                documentSwitchPendingLabel="Loading shared canvas..."
               />
             </React.Suspense>
           </main>
