@@ -67,8 +67,10 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
   ]) {
     if (!palettePreviewText.includes(snippet)) throw new Error(`expected widget palette layout preview snippet: ${snippet}`)
   }
-  if (!floatingPanelText.includes('const widgetDragEnabled = widgetPaletteEntries.length > 0')) {
-    throw new Error('expected floating props panel widget drag to stay enabled whenever widget palette entries are available')
+  if (!floatingPanelText.includes("const storyboardRendererActive = canvasRenderMode === '2d' && canvas2dRenderer === 'storyboard'")
+    || !floatingPanelText.includes('const widgetDragEnabled = storyboardRendererActive && widgetPaletteEntries.length > 0')
+    || !floatingPanelText.includes('Switch Canvas View Mode to 2D Renderer: Storyboard to drag widgets onto the canvas.')) {
+    throw new Error('expected floating props panel widget drag to be available only on the 2D Storyboard renderer with explicit guidance elsewhere')
   }
   if (!floatingPanelText.includes('filter(isPropsPanelWidgetPaletteEntry)')) {
     throw new Error('expected FloatingPanel Props Panel to filter palette entries through the shared neutral palette helper')
@@ -112,7 +114,7 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
   if (!canvasViewportText.includes('const bridgeOnlyWidgetDropActive = !documentSwitchOwnsViewport')
     || !canvasViewportText.includes("active2dSurface !== 'storyboard'")
     || !canvasViewportText.includes('<StoryboardWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled />')) {
-    throw new Error('expected normal 2D canvas surfaces to mount the lightweight widget drop bridge used by the Props Panel palette')
+    throw new Error('expected normal 2D canvas surfaces to mount the lightweight widget drop bridge used by media drops')
   }
   const defaultRegistryEntries = ensureDefaultWidgetRegistryEntries([], '2026-07-09T00:00:00.000Z').entries
   const seededPalette = defaultRegistryEntries
