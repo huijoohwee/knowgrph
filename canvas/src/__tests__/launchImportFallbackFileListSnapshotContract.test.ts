@@ -17,7 +17,7 @@ export function testLaunchImportFallbackSnapshotsFileListBeforeClearingInput() {
   }
 }
 
-export function testLaunchDropdownNewMarkdownUsesSharedDocsCreator() {
+export function testLaunchDropdownNewMarkdownUsesSharedAuthoredNotesCreator() {
   const p = resolve(process.cwd(), 'src', 'lib', 'toolbar', 'LaunchDropdown.impl.tsx')
   const text = readFileSync(p, 'utf8')
   const helper = readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'createNewMarkdownSourceFile.ts'), 'utf8')
@@ -31,18 +31,18 @@ export function testLaunchDropdownNewMarkdownUsesSharedDocsCreator() {
   ]
   const missing = required.filter(snippet => !text.includes(snippet))
   if (missing.length) {
-    throw new Error(`expected Launch dropdown New .md to use the shared docs creator: ${missing.join(', ')}`)
+    throw new Error(`expected Launch dropdown New .md to use the shared authored-notes creator: ${missing.join(', ')}`)
   }
 
   const helperRequired = [
-    'WORKSPACE_DOCS_SOURCE_ROOT_PATH',
+    'WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH',
     'formatWorkspaceUtcSessionTimestamp',
     'ensureWorkspaceFolderTreeIfMissing',
     'setWorkspaceEntrySource',
   ]
   const helperMissing = helperRequired.filter(snippet => !helper.includes(snippet))
   if (helperMissing.length) {
-    throw new Error(`expected source-file creator to own docs-root timestamped markdown creation: ${helperMissing.join(', ')}`)
+    throw new Error(`expected source-file creator to own authored-notes timestamped markdown creation: ${helperMissing.join(', ')}`)
   }
   if (helper.includes("name: 'note.md'") || helper.includes('WORKSPACE_ROOT_PATH')) {
     throw new Error('expected new markdown source helper to remove the stale root note.md hardcode')
