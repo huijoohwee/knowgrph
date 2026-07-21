@@ -189,3 +189,33 @@ export const testMarkdownDocumentGraphApplyRequestsFitAfterViewPresetGraphApply 
     throw new Error(`expected view-preset markdown graph apply to request a fit-to-view refresh, got ${JSON.stringify(zoomRequest)}`)
   }
 }
+
+export const testMarkdownDocumentGraphApplyPreservesCameraForSameDocumentContentUpdate = async () => {
+  useGraphStore.getState().resetAll()
+  const text = buildFrontmatterFlowMarkdown()
+  const first = await useGraphStore.getState().setActiveMarkdownDocument({
+    name: 'source-switch.md',
+    text,
+    applyViewPreset: true,
+    applyToGraph: true,
+    forceApplyToGraph: true,
+    normalizeMermaidMmd: false,
+  })
+  if (!first) throw new Error('expected initial markdown graph apply to succeed')
+
+  useGraphStore.getState().clearZoomRequest()
+  const updatedText = `${text}\n\nSame-document content update.`
+  const updated = await useGraphStore.getState().setActiveMarkdownDocument({
+    name: 'source-switch.md',
+    text: updatedText,
+    applyViewPreset: true,
+    applyToGraph: true,
+    forceApplyToGraph: true,
+    normalizeMermaidMmd: false,
+  })
+  if (!updated) throw new Error('expected same-document markdown graph apply to succeed')
+  const zoomRequest = useGraphStore.getState().zoomRequest
+  if (zoomRequest) {
+    throw new Error(`expected same-document content update to preserve the active camera, got ${JSON.stringify(zoomRequest)}`)
+  }
+}

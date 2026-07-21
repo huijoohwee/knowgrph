@@ -255,6 +255,7 @@ import type { TestCaseTuple } from '../runner/testRunnerTypes'; export const TES
   ["importRenderPipeline.markdownGraphApply.rejectsStaleStrybldrSourceGraph","@/__tests__/markdownDocumentGraphApplyDedupe.test","testMarkdownDocumentGraphApplyRejectsStaleStrybldrSourceGraph"],
   ["importRenderPipeline.markdownGraphApply.rejectsEmptyCachedStrybldrSourceGraph","@/__tests__/markdownDocumentGraphApplyDedupe.test","testMarkdownDocumentGraphApplyRejectsEmptyCachedStrybldrSourceGraph"],
   ["importRenderPipeline.markdownGraphApply.requestsFitAfterViewPresetGraphApply","@/__tests__/markdownDocumentGraphApplyDedupe.test","testMarkdownDocumentGraphApplyRequestsFitAfterViewPresetGraphApply"],
+  ["importRenderPipeline.markdownGraphApply.preservesCameraForSameDocumentContentUpdate","@/__tests__/markdownDocumentGraphApplyDedupe.test","testMarkdownDocumentGraphApplyPreservesCameraForSameDocumentContentUpdate"],
   ["importRenderPipeline.frontmatterMermaid.groups","@/__tests__/mermaidFrontmatterRender.test","testMermaidFrontmatterModeKeepsMermaidNodesAndGroups"],
   ["importRenderPipeline.frontmatterMermaid.gitGraph.diagramOnly","@/__tests__/mermaidFrontmatterRender.test","testMermaidFrontmatterGitGraphPreservesDiagramWithoutFlowchartTopology"],
   ["importRenderPipeline.frontmatterFlow.gitGraph.metadataCode","@/__tests__/mermaidFrontmatterRender.test","testFrontmatterFlowGitGraphRendererCanReadMermaidMetadata"],

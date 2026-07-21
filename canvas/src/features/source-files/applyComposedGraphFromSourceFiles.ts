@@ -364,6 +364,11 @@ export function applyComposedGraphFromSourceFiles(options: ComposeSourceFilesOpt
   if (composeSignature) lastAppliedComposedGraphSignature = composeSignature
   pendingComposedGraphSignature = ''
 
+  if (!lastWorkspaceOpenStoryboardWidgetFitGraphKey) {
+    lastWorkspaceOpenStoryboardWidgetFitGraphKey =
+      resolveFlowWidgetStateGraphKey({ graphData: store.graphData }) || ''
+  }
+
   if (change === 'order-only') {
     store.setGraphDataPreservingLayout(graphData)
     requestWorkspaceOpenStoryboardWidgetFit(graphData)

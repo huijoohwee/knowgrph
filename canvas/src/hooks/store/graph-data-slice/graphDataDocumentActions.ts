@@ -331,6 +331,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
     const rawText = String(args?.text || '')
     const normalizedText = args?.normalizeMermaidMmd === false ? rawText : normalizeMermaidMmdToMarkdown(name, rawText)
     const previousState = get()
+    const didSwitchActiveDocument = previousState.markdownDocumentName !== name
     const canonicalText = typeof args?.canonicalMarkdownText === 'string'
       ? args.canonicalMarkdownText
       : previousState.markdownDocumentName === name
@@ -432,6 +433,7 @@ export function createGraphDataDocumentActions(set: SetGraph, get: GetGraph) {
       }
       const requestActiveDocumentFit = (): void => {
         if (!applyViewPresetForSwitch) return
+        if (!didSwitchActiveDocument) return
         const active = get()
         if (active.markdownDocumentName !== name || active.markdownDocumentText !== text) return
         active.requestZoom('fit', { intent: 'fitToView' })

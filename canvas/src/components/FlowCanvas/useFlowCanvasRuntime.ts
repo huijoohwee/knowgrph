@@ -443,6 +443,11 @@ export function useFlowCanvasRuntime(args: {
     const open = workspaceEditorOverlayOpen === true
     const prev = workspaceOverlayOpenPrevRef.current
     if (open && !prev) {
+      // The already-rendered camera owns this document even when workspace graph
+      // mutation temporarily suppresses the init effect during overlay startup.
+      // Otherwise the first same-document topology change can re-arm initial fit.
+      lastInitTransformZoomViewKeyRef.current = storyboardCameraViewKey
+      rememberInitializedStoryboardZoomView(storyboardCameraViewKey)
       workspaceOverlayOpenedAtMsRef.current = Date.now()
       workspaceOverlayUserControlledRef.current = false
       workspaceOverlayStabilizedRef.current = false
@@ -452,7 +457,6 @@ export function useFlowCanvasRuntime(args: {
       workspaceVisibleViewportFitRecoveryKeyRef.current = null
       // Workspace open must preserve current transform authority. Explicit
       // fit/reset actions own viewport fitting; ordinary pan/zoom stays infinite.
-      if (lastInitTransformZoomViewKeyRef.current !== storyboardCameraViewKey) lastInitTransformZoomViewKeyRef.current = null
       resetFlowCanvasDebugStatus({ dismissToast: true })
       clearWorkspaceViewportSettleRetry()
     }
@@ -799,7 +803,16 @@ export function useFlowCanvasRuntime(args: {
     ) return
 
     const state = useGraphStore.getState()
-    if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(state)) return
+    if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(state)) {
+      if (workspaceEditorOverlayOpen === true) {
+        // A mutation lock suppresses camera writes, but the document already on
+        // screen still owns the current transform. Remember that authority so
+        // the first post-lock topology revision cannot re-arm initial fit.
+        lastInitTransformZoomViewKeyRef.current = initKey
+        rememberInitializedStoryboardZoomView(initKey)
+      }
+      return
+    }
     const zoomState = pickZoomStateForView({
       zoomViewKey,
       zoomStateByKey: state.zoomStateByKey,

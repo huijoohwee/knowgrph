@@ -771,9 +771,10 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('if (prev != null && prev !== storyboardCameraViewKey) {')) {
     throw new Error('expected Flow runtime workspace-open recovery to reset stabilized/user-controlled authority when active view key changes')
   }
-  if (!runtimeTextIncludesAll('if (open && !prev) {', 'lastInitTransformZoomViewKeyRef.current !== storyboardCameraViewKey', 'lastInitTransformZoomViewKeyRef.current = null')
+  if (!runtimeTextIncludesAll('if (open && !prev) {', 'lastInitTransformZoomViewKeyRef.current = storyboardCameraViewKey', 'rememberInitializedStoryboardZoomView(storyboardCameraViewKey)')
+    || runtimeText.includes('if (lastInitTransformZoomViewKeyRef.current !== storyboardCameraViewKey) lastInitTransformZoomViewKeyRef.current = null')
     || runtimeText.includes('lastOffscreenOverlayRecoveryKeyRef.current = null')) {
-    throw new Error('expected Flow runtime workspace reopen edge to reset only stale zoom-key memoization while preserving the current initialized transform')
+    throw new Error('expected Flow runtime workspace reopen edge to claim the rendered document camera without clearing initialized transform authority')
   }
   if (!runtimeTextIncludesAll('if (!open) {', 'Keep the initialized Storyboard Widget transform through close') || runtimeText.includes('Drop init/recovery memoization on close')) {
     throw new Error('expected Flow runtime workspace close edge to preserve initialized transform authority until the next reopen owns the reset')
@@ -786,6 +787,14 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   }
   if (!runtimeText.includes('workspaceEditorOverlayOpen === true\n      && (alreadyInitializedForKey || workspaceOverlayUserControlledRef.current)')) {
     throw new Error('expected Flow runtime workspace-open init-preserve guard to preserve established identity before skipping re-fit')
+  }
+  const overlayOpenCameraClaimIndex = runtimeText.indexOf('lastInitTransformZoomViewKeyRef.current = storyboardCameraViewKey')
+  const overlayOpenCameraRememberIndex = runtimeText.indexOf('rememberInitializedStoryboardZoomView(storyboardCameraViewKey)')
+  const overlayOpenTimestampIndex = runtimeText.indexOf('workspaceOverlayOpenedAtMsRef.current = Date.now()')
+  if (overlayOpenCameraClaimIndex < 0
+    || overlayOpenCameraRememberIndex < overlayOpenCameraClaimIndex
+    || overlayOpenTimestampIndex < overlayOpenCameraRememberIndex) {
+    throw new Error('expected workspace overlay startup to claim the already-rendered document camera before a blocked init effect can miss it')
   }
   if (!runtimeText.includes('const deriveExpectedOverlayCollectiveIds = React.useCallback((graphData: any): string[] => {')
     || !runtimeText.includes('const isOverlayCollectiveCoverageComplete = React.useCallback((args: {')

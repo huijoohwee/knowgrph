@@ -369,8 +369,10 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   if (!flowRuntimeText.includes("import { isWorkspaceEditorOverlayOpen, isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected native FlowCanvas runtime fit to import the shared workspace graph mutation guard')
   }
-  if (!flowRuntimeText.includes('if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(state)) return')) {
-    throw new Error('expected native FlowCanvas runtime fit to stop while Run all holds the shared graph mutation guard')
+  if (!flowRuntimeText.includes('if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(state)) {')
+    || !flowRuntimeText.includes('lastInitTransformZoomViewKeyRef.current = initKey')
+    || !flowRuntimeText.includes('rememberInitializedStoryboardZoomView(initKey)')) {
+    throw new Error('expected native FlowCanvas runtime fit to stop while preserving current document camera authority during the shared graph mutation guard')
   }
   if (!flowRuntimeText.includes('const initKey = storyboardCameraViewKey') || flowRuntimeText.includes('`storyboardWidget:${zoomViewKey}`')) {
     throw new Error('expected Storyboard Widget init fit and preservation guards to share one stable document/view identity')
@@ -383,8 +385,9 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   if (!interactionRuntimeText.includes("import { isWorkspaceGraphMutationBlocked } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected native FlowCanvas zoom request runtime to import the shared workspace graph mutation guard')
   }
-  if (!interactionRuntimeText.includes('if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(useGraphStore.getState())) return')) {
-    throw new Error('expected native FlowCanvas zoom requests to stop while Run all holds the shared graph mutation guard')
+  if (!interactionRuntimeText.includes('if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(requestState)) {')
+    || !interactionRuntimeText.includes("if (zoomRequest.type === 'fit') requestState.clearZoomRequest()")) {
+    throw new Error('expected native FlowCanvas zoom requests to discard blocked source fits instead of firing after graph mutation settles')
   }
   const runAllPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetWorkflowRunAll.ts')
   const runAllText = readFileSync(runAllPath, 'utf8')
@@ -437,6 +440,13 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
     || !sourceComposeText.includes('if (!graphKey || graphKey === lastWorkspaceOpenStoryboardWidgetFitGraphKey) return')
     || !sourceComposeText.includes('lastWorkspaceOpenStoryboardWidgetFitGraphKey = graphKey')) {
     throw new Error('expected same-document source recomposition not to request a fresh Storyboard fit after Widget or Rich Media generation')
+  }
+  const existingDocumentFitSeedIndex = sourceComposeText.indexOf(
+    'resolveFlowWidgetStateGraphKey({ graphData: store.graphData })',
+  )
+  const composedGraphMutationIndex = sourceComposeText.indexOf("if (change === 'order-only')")
+  if (existingDocumentFitSeedIndex < 0 || composedGraphMutationIndex < 0 || existingDocumentFitSeedIndex > composedGraphMutationIndex) {
+    throw new Error('expected composed source changes to seed Storyboard fit ownership from the existing document before graph replacement')
   }
 }
 
