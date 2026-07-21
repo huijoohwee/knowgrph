@@ -16,6 +16,9 @@ kgMultiDimTableModeEnabled: false
 run_ready_demo:
   id: "game-fps"
   activation: "applied-source-document"
+  identity_authority: "source-authored run_ready_demo.id"
+  imported_path_alias_required: false
+  identity_conflict: "fail closed when path and source identity disagree"
   dev_command: "npm run demo:game-fps"
   readiness_command: "npm run game-fps:runtime-ready"
   canonical_source_file: "/docs/workspace-seeds/knowgrph-game-fps-demo.md"
@@ -46,28 +49,50 @@ mission:
 game_mode:
   surface: "FloatingPanel Game Mode"
   invocation: "/game.mode @canvas #gameplay operation=start"
+  invocation_prefix: "/game.mode @canvas #gameplay"
+  invocation_policy: "exactly one /game.mode command, one @canvas binding, and one #gameplay semantic"
+  operations: ["open", "start", "stop", "restart", "fire", "reload", "save", "exit"]
+  operation_invocations:
+    open: "/game.mode @canvas #gameplay operation=open"
+    start: "/game.mode @canvas #gameplay operation=start"
+    stop: "/game.mode @canvas #gameplay operation=stop"
+    restart: "/game.mode @canvas #gameplay operation=restart"
+    fire: "/game.mode @canvas #gameplay operation=fire"
+    reload: "/game.mode @canvas #gameplay operation=reload"
+    save: "/game.mode @canvas #gameplay operation=save"
+    exit: "/game.mode @canvas #gameplay operation=exit"
+  web_mcp_schema: "knowgrph-game-mode-mcp/v1"
   inspect_tool: "knowgrph.inspect_local_game_mode"
   control_tool: "knowgrph.control_local_game_mode"
   renderer_owner: "existing React Three Fiber Canvas"
-  motion_control_input: "shared pose-to-controller adapter"
-  xr_surface: "shared XR Mode; no parallel surface id"
+  canvas_surfaces: ["3d", "shared xr"]
+  webgl_gate: "synchronous probe; fail closed on the local fallback surface"
+  stop_start: "resume the exact in-memory mission tick and state"
+  hud: "lifecycle, mission, persistence, and runtime errors remain visible"
+  motion_control_input: "optional shared pose-to-controller adapter only; never the NPC decision policy"
+  xr_surface: "pause the existing XR stage while Game Mode owns the shared Canvas; restore XR ownership on exit"
 persistence:
   owner: "browser-local WorkspaceFs"
   format: "KGC EcsDecision nodes"
-  writes: "mission-completion Decisions only"
-  malformed_save: "fail closed until explicit reset"
+  writes: "explicit Save after a terminal result; never automatic"
+  terminal_result: "validated Decisions remain pending until explicit Save"
+  malformed_save: "preserve bytes and block Start and Restart until explicit Reset"
   write_failure: "retain pending Decisions and expose retry"
   repo_local_mirror: "best-effort existing Source Files bridge"
   automatic_git_commit: false
 runtime_validation:
   validation_input_forbid_hardcode_in_repo: true
-  candidate_commit: "649e3dd1a89a9ae78d5af17930829bf9869c00fc"
-  verified_at: "2026-07-21T04:30:22Z"
-  required_states: ["ready", "running", "complete", "save-error", "save-complete"]
+  validation_input_locator_persisted: false
+  external_proof: "operator-supplied public document bytes were read into the localhost candidate; no deploy or public mutation occurred"
+  candidate_commit: "067ed16d0a8c77d1c612d6f63aa791ae02fba19c"
+  verified_at: "2026-07-21T07:01:46Z"
+  launch_states: ["idle", "loading", "ready", "error"]
+  mission_states: ["stopped", "playing", "won", "lost"]
+  persistence_states: ["idle", "saving", "saved", "error"]
   deterministic_replay: true
   local_assets_only: true
-  external_calls: false
-  camera_permission: false
+  gameplay_external_calls: false
+  core_camera_permission: false
   credentials_api: false
   cloudflare_calls: false
   deployment: false
@@ -96,7 +121,7 @@ flow:
       pos: {x: 0, y: 120}
       properties:
         role: "persistence"
-        output: "Persist validated completion Decisions through browser-local WorkspaceFs; retry or explicitly reset on failure."
+        output: "Keep terminal Decisions pending until explicit Save through browser-local WorkspaceFs; retry writes or explicitly Reset malformed hydration."
     - id: "game_fps_gate"
       type: "GameFpsValidation"
       label: "Local Runtime Gate"
@@ -122,7 +147,7 @@ flow:
 
 # Knowgrph Game FPS Mission
 
-This source document is the canonical local activation contract for the bounded Game FPS mission. The focused gate and local browser smoke passed at candidate commit `649e3dd1a89a9ae78d5af17930829bf9869c00fc`; the demo is runtime-ready for local/Dev use only.
+This source document is the canonical local activation contract for the bounded Game FPS mission. The focused gate and local browser smoke passed at candidate commit `067ed16d0a8c77d1c612d6f63aa791ae02fba19c`, verified at `2026-07-21T07:01:46Z`; the demo is runtime-ready for local/Dev use only.
 
 ## Run the runtime-ready demo
 
@@ -130,7 +155,11 @@ This source document is the canonical local activation contract for the bounded 
 npm run demo:game-fps
 ```
 
-Then open **Explorer → Source Files → docs → workspace-seeds → knowgrph-game-fps-demo.md** and apply this document. The mission must use only procedural in-repo geometry and the existing single Three renderer.
+Then open **Explorer → Source Files → docs → workspace-seeds → knowgrph-game-fps-demo.md** and apply this document. Activation is owned by the source-authored `run_ready_demo.id`; an imported document needs no hardcoded path alias and may use any non-conflicting path, while a path/source identity conflict fails closed. The mission uses only procedural in-repo geometry and the existing single Three renderer.
+
+Open **FloatingPanel → Game Mode** and use **Open**, **Start**, **Stop**, **Restart**, **Fire**, **Reload**, **Save**, and **Exit**. Stop followed by Start resumes the exact in-memory tick and mission state. Restart creates a fresh deterministic mission. Exit releases Game Mode and restores the prior 3D or XR surface owner on the same Canvas.
+
+The native invocation prefix is exactly `/game.mode @canvas #gameplay`; add one supported `operation` value for control calls. Browser-local WebMCP exposes schema `knowgrph-game-mode-mcp/v1` through `knowgrph.inspect_local_game_mode` and `knowgrph.control_local_game_mode`.
 
 ## Controls
 
@@ -139,10 +168,16 @@ Then open **Explorer → Source Files → docs → workspace-seeds → knowgrph-
 | Move | W/A/S/D or arrow keys | Movement control |
 | Look/aim | Pointer movement while the game stage owns input | Look control |
 | Fire | Primary pointer action | Fire control |
-| Reset mission | Reset button | Reset button |
+| Reload | Reload control | Reload control |
+| Stop / resume | Stop, then Start | Stop, then Start |
+| Fresh mission | Restart button | Restart button |
+| Persist terminal Decisions | Save button | Save button |
+| Leave Game Mode | Exit button | Exit button |
 | Retry failed save | Retry save button | Retry save button |
 
-The exact visible labels are runtime-owned. No action requests camera, passkey, sign-in, model access, remote asset access, or Cloudflare connectivity.
+The exact visible labels are runtime-owned. The synchronous WebGL probe fails closed before mission start and leaves a visible local fallback error without a second or remote renderer. Motion Control can optionally normalize pose input through the shared adapter, but it never selects NPC actions and the core mission never requests camera access. No action requests passkey, sign-in, model access, remote asset access, or Cloudflare connectivity.
+
+Terminal mission results do not auto-save. Validated Decisions stay pending until **Save** is explicitly selected. A malformed saved document is preserved byte-for-byte and blocks **Start** and **Restart** until **Reset local save** is explicitly selected; a failed write retains pending Decisions for retry.
 
 ## Evidence state
 
@@ -150,9 +185,15 @@ The exact visible labels are runtime-owned. No action requests camera, passkey, 
 - [x] Agentic ECS model-free tick returns one canonical zero Cost_Log.
 - [x] Canvas typecheck and production-format local build pass.
 - [x] Local browser smoke proves movement, aim, fire, NPC reaction, completion, and HUD feedback.
-- [x] Mission completion writes validated Decisions only through WorkspaceFs.
-- [x] Malformed KGC blocks hydration until explicit reset; write failure retains pending Decisions for retry.
+- [x] FloatingPanel Game Mode owns Open, Start, Stop, Restart, Fire, Reload, Save, and Exit on the existing 3D/shared-XR Canvas.
+- [x] Stop/Start resumes exact in-memory state; XR pauses while Game Mode owns the Canvas and restores on exit.
+- [x] Terminal Decisions remain pending until explicit Save writes validated Decisions only through WorkspaceFs; no terminal auto-save exists.
+- [x] Malformed KGC blocks Start and Restart until explicit Reset; write failure retains pending Decisions for retry.
+- [x] The strict `/game.mode @canvas #gameplay` contract and browser-local WebMCP schema/tools reject duplicate or conflicting bindings.
+- [x] Source-authored runtime identity activates imports without a path alias and fails closed on path/source conflict.
+- [x] The synchronous WebGL gate and HUD expose unsupported and runtime-error states without a remote renderer.
 - [x] Browser proof records zero non-local, local runtime-bridge, or Cloudflare requests; ordinary localhost application assets remain local build inputs.
+- [x] Separate compatibility proof read operator-supplied public document bytes into the localhost candidate; it did not deploy or mutate a public document.
 - [x] No deployment or automatic Git operation occurs.
 
 Proof belongs in `docs/documents/knowgrph-game-fps-runtime-readiness.md`; do not turn these boxes green from source inspection alone.
