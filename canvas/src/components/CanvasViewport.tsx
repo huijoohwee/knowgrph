@@ -10,7 +10,10 @@ import { useForbidBrowserZoomWheel } from '@/lib/ui/forbidBrowserZoom'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { UI_RESPONSIVE_CANVAS_MINIMAP_OVERLAY_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { resolveCanvas3dMode } from '@/lib/canvas/canvas3dMode'
-import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import {
+  isGameFpsRunReadyDemoActive,
+  isXrPhysicsRunReadyDemoActive,
+} from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { XrNativeControllerDemoHud } from '@/features/three/XrNativeControllerDemoHud'
 
 import { getCanvas2dSurfaceId, isCanvas2dRendererId, isStoryboardCanvas2dRenderer, supportsCanvas2dMinimap } from '@/lib/config.render'
@@ -61,6 +64,9 @@ const MarkdownMetricsDevOverlayLazy = React.lazy(() =>
 )
 const DesignCanvasLazy = React.lazy(() => import('@/components/DesignCanvas'))
 const ThreeGraphLazy = React.lazy(() => import('@/lib/three/ThreeGraph.impl'))
+const GameFpsHudLazy = React.lazy(() =>
+  import('@/features/game-fps/GameFpsHud').then(mod => ({ default: mod.GameFpsHud })),
+)
 const MinimapLazy = React.lazy(() => import('@/features/minimap/Minimap'))
 const StrybldrTimelineBottomPanelLazy = React.lazy(() =>
   import('@/features/strybldr/StrybldrTimelineBottomPanel').then(mod => ({ default: mod.StrybldrTimelineBottomPanel })),
@@ -132,6 +138,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
   const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName)
+  const gameFpsRunReadyDemo = isGameFpsRunReadyDemoActive(markdownDocumentName)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
   const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
   const explorerActivePath = useMarkdownExplorerStore(s => s.activePath)
@@ -155,7 +162,10 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const active2dSurface = workspaceStoryboardSurfaceActive ? 'storyboard' : rawActive2dSurface
   const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceStoryboardSurfaceActive
   const sharedGraphCanvasSurfaceActive = active2dSurface === 'd3'
-  const safeGraphData = activeGraphData || ({ nodes: [], edges: [] } as GraphData)
+  const safeGraphData = React.useMemo(
+    () => activeGraphData || ({ nodes: [], edges: [] } as GraphData),
+    [activeGraphData],
+  )
   const liveCanvasHeroEmbedPreview = isLiveCanvasHeroEmbedPreview(variant)
   const liveCanvasHeroEmbedPreviewSurface = resolveLiveCanvasHeroEmbedPreviewSurface(variant)
   const liveCanvasHeroEmbedGraph = React.useMemo(
@@ -282,7 +292,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const isTouchViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
   const [activatedHeavyRuntimeSurfaces, setActivatedHeavyRuntimeSurfaces] = React.useState<Partial<Record<'3d' | 'geo', true>>>({})
-  const heavyRuntimeIntentSurface = xrPhysicsRunReadyDemo ? null : resolveCanvasViewportHeavyRuntimeIntentSurface({
+  const heavyRuntimeIntentSurface = xrPhysicsRunReadyDemo || gameFpsRunReadyDemo ? null : resolveCanvasViewportHeavyRuntimeIntentSurface({
     isTouchViewport,
     geospatialOverlayOwnsViewport,
     canvasRenderMode,
@@ -301,6 +311,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     && !liveCanvasHeroEmbedPreview
     && !heavyRuntimeIntentBlocked
     && !isNarrowViewport
+    && !gameFpsRunReadyDemo
     && (
       (activeSurface === '2d' && supportsCanvas2dMinimap(canvas2dRenderer))
       || (activeSurface === '3d' && effectiveCanvas3dMode === '3d')
@@ -555,6 +566,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
         ) : null}
       </React.Suspense>
       {xrPhysicsRunReadyDemo ? <XrNativeControllerDemoHud /> : null}
+      {gameFpsRunReadyDemo ? <GameFpsHudLazy /> : null}
       {variant === 'workspace' ? <CanvasEmbedCodePanelHost /> : null}
     </section>
   )

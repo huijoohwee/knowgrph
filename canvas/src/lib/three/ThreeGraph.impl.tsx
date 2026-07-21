@@ -33,7 +33,10 @@ import {
 } from '@/features/three/xrMotionReferenceRuntime'
 import { XR_MOTION_STAGE_SPAN } from '@/features/three/xrMotionReferenceCoordinates'
 import { resolveCssVar } from '@/lib/ui/theme-tokens'
-import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import {
+  isGameFpsRunReadyDemoActive,
+  isXrPhysicsRunReadyDemoActive,
+} from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { XrRendererClearController } from '@/lib/three/XrRendererClearController'
 
 const SceneLazy = React.lazy(() =>
@@ -45,6 +48,12 @@ const SceneLazy = React.lazy(() =>
 const ControlsLazy = React.lazy(() =>
   import('@/features/three/Controls').then(mod => ({
     default: mod.Controls,
+  })),
+)
+
+const GameFpsMissionStageLazy = React.lazy(() =>
+  import('@/features/game-fps/GameFpsMissionStage').then(mod => ({
+    default: mod.GameFpsMissionStage,
   })),
 )
 
@@ -102,6 +111,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   } = useGraphStore()
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
   const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName)
+  const gameFpsRunReadyDemo = isGameFpsRunReadyDemoActive(markdownDocumentName)
   const markdownDocumentSourceUrl = useGraphStore(s => s.markdownDocumentSourceUrl)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
   const markdownDocumentApplyViewPreset = useGraphStore(s => s.markdownDocumentApplyViewPreset)
@@ -230,7 +240,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   const hasGlbAsset = !!glbAsset && shouldRenderGlbAsset
   const hasSpatialCaptureManifest = !!spatialCaptureManifest
   const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded && !xrPhysicsRunReadyDemo
-  const hasRenderableScene = hasGraph || hasGlbAsset || hasSpatialCaptureManifest || hasXrEmptyWorld
+  const hasRenderableScene = gameFpsRunReadyDemo || hasGraph || hasGlbAsset || hasSpatialCaptureManifest || hasXrEmptyWorld
   const xrStandaloneFit = hasSpatialCaptureManifest
     ? spatialCaptureFit
     : hasGlbAsset
@@ -265,13 +275,19 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
     void theme
     return resolveSceneBackgroundColor(effectiveSchema, mode)
   }, [effectiveSchema, mode, theme])
-  const rendererClearColor = hasXrEmptyWorld
+  const rendererClearColor = gameFpsRunReadyDemo
+    ? '#07151b'
+    : hasXrEmptyWorld
     ? '#0b2f4a'
     : hasGraph
       ? sceneBackgroundColor
       : '#000000'
-  const rendererDefaultClearAlpha = hasXrEmptyWorld || hasGraph ? 1 : 0
-  const rendererLifecycleKey = hasXrEmptyWorld ? 'xr-empty-world-canvas' : 'scene-canvas'
+  const rendererDefaultClearAlpha = gameFpsRunReadyDemo || hasXrEmptyWorld || hasGraph ? 1 : 0
+  const rendererLifecycleKey = gameFpsRunReadyDemo
+    ? 'game-fps-mission-canvas'
+    : hasXrEmptyWorld
+      ? 'xr-empty-world-canvas'
+      : 'scene-canvas'
   useEffect(() => {
     draggedNodeIdRef.current = draggedNodeId
   }, [draggedNodeId])
@@ -395,8 +411,8 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
   }, [])
 
   const { dragOverridesRef, overlayHiddenNodeIdSet, overlayLayer, requestSchedule, scheduleRef } = useThreeRichMediaOverlayController({
-    active: active && mode !== 'xr',
-    sceneGraph: mode === 'xr' ? null : sceneGraphForRender,
+    active: active && mode !== 'xr' && !gameFpsRunReadyDemo,
+    sceneGraph: mode === 'xr' || gameFpsRunReadyDemo ? null : sceneGraphForRender,
     effectiveSchema,
     positions: positions3d,
     glCanvasRef,
@@ -426,7 +442,8 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
       data-kg-xr-exclusive-stage={mode === 'xr' && (hasGraph || hasXrEmptyWorld) ? '1' : undefined}
       data-kg-xr-empty-world={hasXrEmptyWorld ? '1' : undefined}
       data-kg-xr-scene-media-drop={mode === 'xr' ? '1' : undefined}
-      data-kg-three-viewport-gestures="orbit-pan-cursor-zoom"
+      data-kg-game-fps-stage={gameFpsRunReadyDemo ? 'active' : undefined}
+      data-kg-three-viewport-gestures={gameFpsRunReadyDemo ? 'first-person' : 'orbit-pan-cursor-zoom'}
       onDragOver={xrSceneMediaDrop.onDragOver}
       onDrop={xrSceneMediaDrop.onDrop}
       onContextMenu={event => {
@@ -484,6 +501,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
           xrSurface={mode === 'xr'}
         />
         <React.Suspense fallback={null}>
+          {gameFpsRunReadyDemo ? <GameFpsMissionStageLazy /> : null}
           <XrWorldPlacement
             active={mode === 'xr'}
             contentScale={xrWorldContentScale}
@@ -494,7 +512,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
                 <XrEmptyWorldStage />
               </group>
             ) : null}
-            {hasGraph ? (
+            {hasGraph && !gameFpsRunReadyDemo ? (
               <SceneLazy
                 data={sceneGraphForRender as GraphData}
                 schema={effectiveSchema as GraphSchema}
@@ -533,7 +551,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
               />
             ) : null}
           </XrWorldPlacement>
-          <ControlsLazy
+          {!gameFpsRunReadyDemo ? <ControlsLazy
             schema={effectiveSchema as GraphSchema}
             positions={positions}
             paused={paused}
@@ -548,7 +566,7 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
                 void 0
               }
             }}
-          />
+          /> : null}
           <OverlayFrameSync enabled={active && mode !== 'xr'} scheduleRef={scheduleRef} />
         </React.Suspense>
       </Canvas>
@@ -562,8 +580,8 @@ export default function ThreeGraph({ active = true, mode = '3d' }: { active?: bo
         spatialRuntimeStatus={spatialRuntimeStatus}
         spatialRuntimeFidelity={spatialRuntimeFidelity}
       />
-      {mode !== 'xr' ? overlayLayer : null}
-      {mode !== 'xr' ? <GraphHoverTooltip
+      {mode !== 'xr' && !gameFpsRunReadyDemo ? overlayLayer : null}
+      {mode !== 'xr' && !gameFpsRunReadyDemo ? <GraphHoverTooltip
         hoverInfo={hoverInfo}
         containerRef={containerRef as unknown as React.RefObject<HTMLElement | null>}
         nodes={sceneGraphForRender?.nodes as GraphNode[] | undefined}

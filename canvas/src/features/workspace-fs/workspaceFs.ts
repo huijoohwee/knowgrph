@@ -3,7 +3,7 @@ import { WORKSPACE_ROOT_PATH, ancestorPathsForWorkspacePath, normalizeWorkspaceP
 import { readEnvString } from '@/lib/config.env'
 import { readWorkspaceInitializationDocsMirrorEntries, readWorkspaceInitializationSeedText } from './workspaceSeedProvider'
 import {
-  WORKSPACE_RUN_READY_DEMO_ENV,
+  GAME_FPS_RUN_READY_DEMO_ID, WORKSPACE_RUN_READY_DEMO_ENV,
   XR_PHYSICS_DEMO_REPO_REL_PATH,
   XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME,
   resolveWorkspaceRunReadyDemoSeed,
@@ -373,7 +373,7 @@ const WORKSPACE_SEED_SPECS: readonly WorkspaceSeedSpec[] = [
     fallbackText: '',
     sourceLoader: loadXrPhysicsDemoSeedSource,
   }] : []),
-]
+].filter(seed => WORKSPACE_RUN_READY_DEMO?.id !== GAME_FPS_RUN_READY_DEMO_ID || seed.path === TEST_VALIDATION_WORKSPACE_SEED_PATH)
 const WORKSPACE_SEED_PATH_SET = new Set<WorkspacePath>(WORKSPACE_SEED_SPECS.map(seed => seed.path))
 const WORKSPACE_SEED_SOURCE_REL_PATH_SET = new Set<WorkspacePath>(
   WORKSPACE_SEED_SPECS
