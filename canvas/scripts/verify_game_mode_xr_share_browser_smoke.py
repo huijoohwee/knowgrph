@@ -5,11 +5,16 @@ import os
 import time
 from pathlib import Path
 from typing import Any, Callable
-from urllib.error import HTTPError
-from urllib.parse import parse_qs, quote, unquote, urljoin, urlparse
-from urllib.request import Request, urlopen
+from urllib.parse import parse_qs, quote, urljoin, urlparse
 
 from playwright.sync_api import Page, expect, sync_playwright
+
+from lib.game_mode_xr_share_smoke_source import (
+    fetch_validation_markdown,
+    normalized_origin,
+    origin_label,
+    parse_validation_source,
+)
 
 
 BASE_URL = os.environ.get(
@@ -21,67 +26,6 @@ OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
 ACTIVE_SCREENSHOT_PATH = OUTPUT_DIR / "game-mode-xr-share-browser-smoke-active.png"
 RESTORED_SCREENSHOT_PATH = OUTPUT_DIR / "game-mode-xr-share-browser-smoke-restored.png"
 EVIDENCE_PATH = OUTPUT_DIR / "game-mode-xr-share-browser-smoke.json"
-MAX_SOURCE_BYTES = 2_000_000
-
-
-def normalized_origin(value: str) -> tuple[str, str, int]:
-    parsed = urlparse(value)
-    scheme = parsed.scheme.lower()
-    hostname = (parsed.hostname or "").lower()
-    default_port = 443 if scheme == "https" else 80
-    return scheme, hostname, parsed.port or default_port
-
-
-def origin_label(origin: tuple[str, str, int]) -> str:
-    return f"{origin[0]}://{origin[1]}:{origin[2]}"
-
-
-def parse_validation_source() -> tuple[str, str, tuple[str, str, int]]:
-    if not VALIDATION_SHARE_URL:
-        raise AssertionError("KG_GAME_MODE_VALIDATION_SHARE_URL is required")
-    parsed = urlparse(VALIDATION_SHARE_URL)
-    path_parts = [part for part in parsed.path.split("/") if part]
-    token = unquote(path_parts[-1]).strip() if path_parts else ""
-    if parsed.scheme not in {"http", "https"} or not parsed.hostname or not token:
-        raise AssertionError("validation share input must be an absolute HTTP(S) URL with an opaque path token")
-    if parsed.username or parsed.password:
-        raise AssertionError("validation share input must not contain user credentials")
-    return VALIDATION_SHARE_URL, token, normalized_origin(VALIDATION_SHARE_URL)
-
-
-def fetch_validation_markdown(
-    share_url: str,
-    allowed_origin: tuple[str, str, int],
-) -> bytes:
-    request = Request(
-        share_url,
-        headers={
-            "Accept": "text/markdown",
-            "User-Agent": "Mozilla/5.0 AppleWebKit/537.36 Chrome/138 Safari/537.36",
-        },
-    )
-    try:
-        with urlopen(request, timeout=30) as response:
-            if normalized_origin(response.geturl()) != allowed_origin:
-                raise AssertionError("validation source redirected outside its supplied origin")
-            if response.status != 200:
-                raise AssertionError(f"validation source returned HTTP {response.status}")
-            content_type = str(response.headers.get("content-type") or "").lower()
-            if "markdown" not in content_type and "text/plain" not in content_type:
-                raise AssertionError("validation source did not return Markdown")
-            body = response.read(MAX_SOURCE_BYTES + 1)
-            if len(body) > MAX_SOURCE_BYTES:
-                raise AssertionError("validation source exceeded the browser-smoke size limit")
-            body.decode("utf-8")
-            return body
-    except AssertionError:
-        raise
-    except HTTPError as error:
-        raise AssertionError(f"validation source returned HTTP {error.code}") from None
-    except Exception as error:
-        raise AssertionError(
-            f"validation source could not be fetched ({type(error).__name__})"
-        ) from None
 
 
 def local_chromium_executable() -> str | None:
@@ -170,7 +114,7 @@ def install_restored_frame_capture(page: Page) -> None:
 
 
 def main() -> None:
-    share_url, share_token, supplied_origin = parse_validation_source()
+    share_url, share_token, supplied_origin = parse_validation_source(VALIDATION_SHARE_URL)
     expected_markdown_bytes = fetch_validation_markdown(share_url, supplied_origin)
     local_origin = normalized_origin(BASE_URL)
     target_url = f"{BASE_URL}/knowgrph/?kgShare={quote(share_token, safe='')}"
@@ -241,6 +185,21 @@ def main() -> None:
             )
             if imported_identity != {"pathId": "", "sourceId": "xr-physics"}:
                 raise AssertionError(f"imported source identity was not frontmatter-owned: {imported_identity}")
+            product_document_url = page.evaluate(
+                """
+                async targetUrl => {
+                  const docs = await import('/src/features/canvas/canvasDocDeepLink.ts')
+                  const link = docs.parseDocDeepLink(new URL(targetUrl).search)
+                  if (!link || link.kind === 'local') return ''
+                  return link.kind === 'default-remote'
+                    ? docs.buildDefaultDocViewUrl(link.canonicalPath)
+                    : docs.buildDocViewUrl(link.workspaceId, link.canonicalPath)
+                }
+                """,
+                target_url,
+            )
+            if not product_document_url or normalized_origin(product_document_url) != supplied_origin:
+                raise AssertionError("product deep-link owner did not resolve the supplied document origin")
 
             motion_panel = page.locator('[data-kg-motion-control-floating-panel="1"]').first
             expect(motion_panel).to_be_visible(timeout=120_000)
@@ -429,6 +388,9 @@ def main() -> None:
                     "Motion Control handoff did not stop the resumable Game Mode mission without rewinding: "
                     f"before={mission_before_companion}, after={companion_exit}"
                 )
+            expect(xr_hud).to_be_visible(timeout=30_000)
+            expect(xr_hud).to_have_attribute("data-kg-xr-playground-phase", "running")
+            motion_xr_started = read_xr_state(page)
             page.wait_for_timeout(350)
             companion_stable = page.evaluate(
                 """
@@ -437,6 +399,21 @@ def main() -> None:
             )
             if companion_stable != companion_exit["mission"]:
                 raise AssertionError("the stopped Game Mode mission changed while Motion Control owned the surface")
+            motion_xr_later = poll_evaluate(
+                page,
+                """
+                async () => {
+                  const runtime = await import('/src/features/three/xrNativeControllerDemoRuntime.ts')
+                  return {
+                    snapshot: runtime.readXrNativeControllerDemo(),
+                    frame: runtime.readSharedXrNativeControllerDemoFrame(),
+                  }
+                }
+                """,
+                lambda value: value["snapshot"]["phase"] == "running"
+                and int(value["frame"]["stepCount"]) > int(motion_xr_started["frame"]["stepCount"]),
+                timeout_ms=30_000,
+            )
             reopen_game = page.locator('[data-kg-motion-control-open-target="game-mode"]').first
             reopen_game.click()
             expect(game_panel).to_be_visible(timeout=30_000)
@@ -452,8 +429,13 @@ def main() -> None:
             assert_stable_renderer_canvas(page)
 
             final_paused_xr = read_xr_state(page)
-            if final_paused_xr["snapshot"]["phase"] != "paused" or final_paused_xr["frame"] != paused_xr["frame"]:
-                raise AssertionError("Motion Control companion routing mutated the paused XR frame")
+            if (
+                final_paused_xr["snapshot"]["phase"] != "paused"
+                or int(final_paused_xr["frame"]["stepCount"]) < int(motion_xr_later["frame"]["stepCount"])
+                or final_paused_xr["frame"]["mode"] != motion_xr_later["frame"]["mode"]
+                or final_paused_xr["frame"]["objective"] != motion_xr_later["frame"]["objective"]
+            ):
+                raise AssertionError("reopened Game Mode did not pause the resumed XR owner in place")
 
             install_restored_frame_capture(page)
             exit_game = page.locator('[data-kg-game-mode-action="exit"]').first
@@ -481,7 +463,7 @@ def main() -> None:
                 lambda value: isinstance(value, dict),
                 timeout_ms=30_000,
             )
-            if comparable_xr_frame(restored_frame) != comparable_xr_frame(paused_xr["frame"]):
+            if comparable_xr_frame(restored_frame) != comparable_xr_frame(final_paused_xr["frame"]):
                 raise AssertionError("XR mode, objective, or body state was not restored exactly on Game Mode exit")
             assert_stable_renderer_canvas(page)
 
@@ -501,8 +483,6 @@ def main() -> None:
             allowed_origins = {local_origin, supplied_origin}
             unexpected_origin_count = 0
             unexpected_origins: set[str] = set()
-            local_proxy_observed = False
-            external_request_count = 0
             for request_url in requests:
                 parsed = urlparse(request_url)
                 if parsed.scheme not in {"http", "https"}:
@@ -511,10 +491,7 @@ def main() -> None:
                 if origin not in allowed_origins:
                     unexpected_origin_count += 1
                     unexpected_origins.add(f"request:{origin_label(origin)}")
-                if origin == supplied_origin:
-                    external_request_count += 1
                 if origin == local_origin and parsed.path == "/__fetch_remote":
-                    local_proxy_observed = True
                     proxied_targets = parse_qs(parsed.query).get("url", [])
                     proxy_target_origin = normalized_origin(
                         urljoin(f"{BASE_URL}/", proxied_targets[0])
@@ -530,8 +507,9 @@ def main() -> None:
                     "browser runtime contacted an origin outside the local and supplied allowlist: "
                     f"{sorted(unexpected_origins)}"
                 )
-            if not local_proxy_observed and external_request_count == 0:
-                raise AssertionError("browser runtime did not fetch the supplied validation source")
+            product_document_fetch_count = requests.count(product_document_url)
+            if product_document_fetch_count != 1:
+                raise AssertionError("browser runtime did not fetch the exact product-derived validation document once")
             if console_error_count or page_error_count or failed_response_count:
                 raise AssertionError(
                     "browser errors were observed: "
@@ -561,6 +539,7 @@ def main() -> None:
                 "motionControl": {
                     "companionRoundTrip": True,
                     "missionStoppedAndPreserved": True,
+                    "xrResumedAndProgressed": True,
                 },
                 "xr": {
                     "pausedDuringGameMode": True,
@@ -573,6 +552,7 @@ def main() -> None:
                 "network": {
                     "allowlistOnly": True,
                     "sourceFetchObserved": True,
+                    "productDocumentFetchCount": product_document_fetch_count,
                     "consoleErrors": console_error_count,
                     "pageErrors": page_error_count,
                     "failedResponses": failed_response_count,

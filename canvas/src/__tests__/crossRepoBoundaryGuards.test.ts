@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { decodePublishedDocShareToken } from '@/features/canvas/canvasDocShareToken.mjs'
 
 function listFilesRecursively(dir: string, opts?: { ignoreDirNames?: Set<string> }): string[] {
   const entries = readdirSync(dir, { withFileTypes: true })
@@ -325,7 +326,20 @@ export function testForbidHardcodedRuntimeValidationInputInRepo() {
   const pathParts = normalizedInputPath.split('/').filter(Boolean)
   const basename = pathParts[pathParts.length - 1] || ''
   const pathTail = pathParts.slice(-3).join('/')
-  const forbiddenNeedles = Array.from(new Set([normalizedInputPath, pathTail, basename].filter(v => v.length >= 4)))
+  let declaredCanonicalPath = ''
+  try {
+    const parsed = new URL(runtimeInputPath)
+    const token = decodeURIComponent(parsed.pathname.split('/').filter(Boolean).at(-1) || '')
+    declaredCanonicalPath = String(decodePublishedDocShareToken(token)?.canonicalPath || '').replace(/\\/g, '/')
+  } catch {
+    declaredCanonicalPath = ''
+  }
+  const forbiddenNeedles = Array.from(new Set([
+    normalizedInputPath,
+    pathTail,
+    basename,
+    declaredCanonicalPath,
+  ].filter(v => v.length >= 4)))
   if (!forbiddenNeedles.length) return
 
   const ignoreDirNames = new Set([

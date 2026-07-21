@@ -1,4 +1,5 @@
 import { runLocalViteBrowserSmoke } from './lib/run-local-vite-browser-smoke.mjs'
+import { decodePublishedDocShareToken } from '../src/features/canvas/canvasDocShareToken.mjs'
 
 const validationShareUrl = String(process.env.KG_GAME_MODE_VALIDATION_SHARE_URL || '').trim()
 if (!validationShareUrl) {
@@ -6,10 +7,17 @@ if (!validationShareUrl) {
 }
 
 let validationOrigin = ''
+let validationSeedBasename = ''
 try {
   const parsed = new URL(validationShareUrl)
-  const token = parsed.pathname.split('/').filter(Boolean).at(-1) || ''
-  if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname || !token || parsed.username || parsed.password) {
+  const token = decodeURIComponent(parsed.pathname.split('/').filter(Boolean).at(-1) || '')
+  const source = decodePublishedDocShareToken(token)
+  validationSeedBasename = String(source?.canonicalPath || '').split('/').filter(Boolean).at(-1) || ''
+  if (!['http:', 'https:'].includes(parsed.protocol)
+    || !parsed.hostname
+    || !validationSeedBasename
+    || parsed.username
+    || parsed.password) {
     throw new Error('invalid validation share URL')
   }
   validationOrigin = parsed.origin
@@ -19,7 +27,7 @@ try {
 
 process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT ||= `${process.cwd()}/../docs`
 process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL = '1'
-process.env.VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH = 'docs/workspace-seeds/knowgrph-physics-playground-demo.md'
+process.env.VITE_TEST_VALIDATION_SOURCE_FILE_REL_PATH = validationSeedBasename
 delete process.env.VITE_KNOWGRPH_RUN_READY_DEMO
 process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = validationOrigin
 
