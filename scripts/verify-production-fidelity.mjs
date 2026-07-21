@@ -30,7 +30,7 @@ const fetchMarker = async pathname => {
   return { body, marker: JSON.parse(body) }
 }
 
-const PHYSICS_PLAYGROUND_PATTERN = /Interactive XR Physics Playground/
+const PHYSICS_PLAYGROUND_PATTERN = /Physics runtime running with (?:ball|rocket) selected\./
 
 const isCanvasReady = text => text.length > 200
   && !text.includes('Preparing canvas view...')
@@ -41,9 +41,12 @@ const isCanvasReady = text => text.length > 200
 const waitForCanvas = async resolveBody => {
   const deadline = Date.now() + 45_000
   let lastError = null
+  let lastText = ''
   while (Date.now() < deadline) {
     try {
-      const text = await resolveBody().innerText({ timeout: 2_000 })
+      const body = await resolveBody()
+      const text = await body.innerText({ timeout: 2_000 })
+      lastText = text
       if (isCanvasReady(text)) return text
     } catch (error) {
       // Document selection replaces the frame; re-resolve it until the selected canvas owns the page.
@@ -51,7 +54,22 @@ const waitForCanvas = async resolveBody => {
     }
     await new Promise(resolve => setTimeout(resolve, 250))
   }
-  throw new Error('Canvas did not reach a stable ready state within 45 seconds', { cause: lastError })
+  const observed = lastText.replace(/\s+/g, ' ').trim().slice(0, 240)
+  const detail = observed ? ` Last observed text: ${observed}` : ''
+  throw new Error(`Canvas did not reach a stable ready state within 45 seconds.${detail}`, { cause: lastError })
+}
+
+const resolveHomeCanvasBody = async page => {
+  const frame = page.frames().find(candidate => {
+    if (candidate === page.mainFrame()) return false
+    try {
+      return new URL(candidate.url()).pathname.startsWith('/knowgrph')
+    } catch {
+      return false
+    }
+  })
+  // The Home startup handoff may promote the selected canvas into the top-level surface.
+  return frame ? frame.locator('body') : page.locator('body')
 }
 
 const markerAtApex = await fetchMarker('/.well-known/runtime-readiness.json')
@@ -88,9 +106,10 @@ try {
   for (const phrase of ['Map intent.', 'Orchestrate agents.', 'Prove outcomes.']) assert.ok(heading.includes(phrase))
   const heroFrameElement = home.locator('iframe').first()
   await heroFrameElement.waitFor({ state: 'attached', timeout: 30_000 })
-  const heroCanvasText = await waitForCanvas(() => heroFrameElement.contentFrame().locator('body'))
+  const heroCanvasText = await waitForCanvas(() => resolveHomeCanvasBody(home))
   assert.match(heroCanvasText, PHYSICS_PLAYGROUND_PATTERN)
-  assert.match(heroCanvasText, /Physics runtime running with (?:ball|rocket) selected\./)
+  assert.match(heroCanvasText, /Beach Ball/)
+  assert.match(heroCanvasText, /Rocket/)
   assert.doesNotMatch(heroCanvasText, /Validation seed fallback/)
 
   const app = await context.newPage()
