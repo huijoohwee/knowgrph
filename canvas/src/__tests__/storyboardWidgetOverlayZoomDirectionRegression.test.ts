@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK, computeWidgetScaledSize, projectCollectiveScreenLayoutForZoom, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
+import { computeCollectiveFollowPinnedScale, computeCollectiveFollowScaleFromBaseline, computeCollectiveFollowZoomK, computeWidgetScaledSize, projectCollectiveScreenLayoutForZoom, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import { coerceRichMediaPanelSizePx } from '@/lib/render/richMediaSsot'
 import { computeTransformScaleAboutViewportFrameCenter, screenToWorld } from '@/lib/zoom/viewport'
@@ -180,6 +180,40 @@ export function testStoryboardWidgetRichMediaCollectiveSizingDoesNotReverseZoomD
   }
 }
 
+export function testStoryboardNewCardScaleUsesSharedRichMediaZoomBaseline() {
+  const sharedArgs = {
+    zoomK: 0.55,
+    baselineZoomK: 0.42,
+    viewportW: 1280,
+    viewportH: 720,
+    count: 2,
+    baseWidth: 360,
+    baseHeight: 203,
+    hardMinScale: 0.58,
+    hardMaxScale: 1,
+    fitToViewport: false,
+  }
+  const cardScale = computeCollectiveFollowScaleFromBaseline(sharedArgs)
+  const richMediaScale = computeCollectiveFollowScaleFromBaseline(sharedArgs)
+  if (cardScale !== richMediaScale) {
+    throw new Error(`expected new Card and Rich Media overlays to share one baseline-relative scale, card=${cardScale} media=${richMediaScale}`)
+  }
+  if (Math.abs(cardScale - sharedArgs.zoomK) < 0.1) {
+    throw new Error(`expected baseline-relative overlay scale instead of raw camera k, got ${cardScale}`)
+  }
+
+  const srcRoot = path.resolve(process.cwd(), 'src')
+  const cardProjectionText = fs.readFileSync(path.join(srcRoot, 'components', 'StoryboardWidgetCanvas', 'useStoryboardCardOverlayProjection2d.ts'), 'utf8')
+  const mediaText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx'), 'utf8')
+  assertTextIncludes(cardProjectionText, [
+    'storyboardCardZoomBaselineKRef',
+    'computeCollectiveFollowScaleFromBaseline({',
+  ], 'expected newly added Storyboard Cards to reuse the baseline-relative overlay zoom owner')
+  assertTextIncludes(mediaText, [
+    'computeCollectiveFollowScaleFromBaseline({',
+  ], 'expected Rich Media overlays to reuse the same baseline-relative overlay zoom owner')
+}
+
 export function testStoryboardWidgetCollectiveScaleUsesRequestedLayoutAspect() {
   const srcRoot = path.resolve(process.cwd(), 'src')
   const neutralZoomPath = path.join(srcRoot, 'lib', 'canvas', 'overlayWidgetZoom.ts')
@@ -273,7 +307,7 @@ export function testStoryboardWidgetLiveCollectiveScaleFollowsZoomWithoutViewpor
   const mediaViewportText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowCanvas', 'flowCanvasMediaLayoutViewport.ts'), 'utf8')
   assertTextIncludes(mediaText, [
     'fitToViewport: storyboardWidgetSurfaceRendererMode ? false : undefined',
-    'computeCollectiveFollowZoomK({',
+    'computeCollectiveFollowScaleFromBaseline({',
     'const readMediaLayoutViewport = React.useCallback',
     'readLayoutViewport: readMediaLayoutViewport',
     'coerceRichMediaPanelSizeForLayoutViewport({ readLayoutViewport: readMediaLayoutViewport',

@@ -415,6 +415,7 @@ export const TEST_CASES_POST_PARSER_3: TestCaseTuple[] = [
   ["ui.flowWidget.zoomHelpers.rendererNeutralFlowCanvas","@/__tests__/storyboardWidgetOverlayZoomDirectionRegression.test","testFlowCanvasZoomHelpersStayRendererNeutral"],
   ["ui.flowWidget.zoomHelpers.collectiveAspectAware","@/__tests__/storyboardWidgetOverlayZoomDirectionRegression.test","testStoryboardWidgetCollectiveScaleUsesRequestedLayoutAspect"],
   ["ui.flowWidget.zoomHelpers.liveCollectiveFollowsZoom","@/__tests__/storyboardWidgetOverlayZoomDirectionRegression.test","testStoryboardWidgetLiveCollectiveScaleFollowsZoomWithoutViewportFitClamp"],
+  ["ui.flowWidget.zoomHelpers.newCardSharesRichMediaBaseline","@/__tests__/storyboardWidgetOverlayZoomDirectionRegression.test","testStoryboardNewCardScaleUsesSharedRichMediaZoomBaseline"],
   ["ui.flowWidget.zoomLayout.proportionalScreenProjection","@/__tests__/storyboardWidgetOverlayZoomDirectionRegression.test","testStoryboardWidgetOverlayZoomUsesProportionalScreenProjection"],
   ["ui.flowWidget.zoomLayout.proportionalMetricProbe","@/__tests__/storyboardWidgetOverlayZoomDirectionRegression.test","testStoryboardWidgetOverlayMetricProbeScalesProportionallyAcrossZoom"],
   ["ui.flowWidget.toolbar.runtimeZoomActions","@/__tests__/storyboardWidgetOverlayZoomDirectionRegression.test","testStoryboardWidgetToolbarExposesRuntimeZoomActions"],
