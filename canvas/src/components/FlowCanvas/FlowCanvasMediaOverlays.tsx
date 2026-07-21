@@ -8,7 +8,7 @@ import { resolveFlowCanvasMediaOverlayInteractionPolicy } from '@/components/Flo
 import { __flowCanvasDebug, syncFlowCanvasDebugWindow } from '@/components/FlowCanvas/flowCanvasDebug'
 import type { FlowNativeDrawArgs, FlowNativeRuntime } from '@/components/FlowCanvas/nativeRuntime'
 import { requestFlowNativeDraw, setFlowNativeTransform } from '@/components/FlowCanvas/nativeRuntime'
-import { computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK } from '@/lib/canvas/overlayWidgetZoom'
+import { computeCollectiveFollowScaleFromBaseline } from '@/lib/canvas/overlayWidgetZoom'
 import { readVectorPaintedOverlayScale } from '@/lib/canvas/vectorPaintedOverlayProjection'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { disableAutoZoomModesForUserGesture } from '@/lib/canvas/auto-zoom-modes'
@@ -348,23 +348,20 @@ export default function FlowCanvasMediaOverlays(args: {
   }, [canvas2dRenderer, storyboardWidgetSurfaceId, mediaLayoutItemIdsKey])
   const computeOverlaySizingScale = React.useCallback((zoomK: number, itemCount: number, panelW: number, panelH: number) => {
     const layoutViewport = clampMediaLayoutViewportToFrame16x9(readMediaLayoutViewport())
-    const sizingZoomK = (() => {
-      if (!storyboardWidgetSurfaceRendererMode) return zoomK
-      const safeZoomK = Number.isFinite(zoomK) && zoomK > 0 ? zoomK : 1
-      if (
+    const safeZoomK = Number.isFinite(zoomK) && zoomK > 0 ? zoomK : 1
+    if (
+      storyboardWidgetSurfaceRendererMode
+      && (
         storyboardWidgetZoomBaselineKRef.current == null
         || !Number.isFinite(storyboardWidgetZoomBaselineKRef.current)
         || storyboardWidgetZoomBaselineKRef.current <= 0
-      ) {
-        storyboardWidgetZoomBaselineKRef.current = safeZoomK
-      }
-      return computeCollectiveFollowZoomK({
-        zoomK: safeZoomK,
-        baselineZoomK: storyboardWidgetZoomBaselineKRef.current,
-      })
-    })()
-    return computeCollectiveFollowPinnedScale({
-      zoomK: sizingZoomK,
+      )
+    ) {
+      storyboardWidgetZoomBaselineKRef.current = safeZoomK
+    }
+    return computeCollectiveFollowScaleFromBaseline({
+      zoomK: safeZoomK,
+      baselineZoomK: storyboardWidgetSurfaceRendererMode ? storyboardWidgetZoomBaselineKRef.current : 1,
       viewportW: layoutViewport.width,
       viewportH: layoutViewport.height,
       count: itemCount,
