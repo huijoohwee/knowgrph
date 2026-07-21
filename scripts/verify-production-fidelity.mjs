@@ -10,7 +10,8 @@ const normalizeOrigin = value => {
   return url.toString().replace(/\/$/, '')
 }
 
-const origin = normalizeOrigin(process.env.PRODUCTION_ORIGIN)
+const browserOrigin = normalizeOrigin(process.env.PRODUCTION_ORIGIN)
+const markerOrigin = normalizeOrigin(process.env.PRODUCTION_MARKER_ORIGIN || browserOrigin)
 const expectedSourceRevision = String(process.env.RELEASE_SHA || '').trim()
 const expectedManifestDigest = String(process.env.PRODUCTION_IMMUTABLE_MANIFEST_DIGEST || '').trim()
 if (!/^[0-9a-f]{40}$/.test(expectedSourceRevision)) throw new Error('RELEASE_SHA must be an exact lowercase 40-character SHA')
@@ -19,7 +20,7 @@ if (!/^[0-9a-f]{64}$/.test(expectedManifestDigest)) {
 }
 
 const fetchMarker = async pathname => {
-  const response = await fetch(`${origin}${pathname}`, {
+  const response = await fetch(`${markerOrigin}${pathname}`, {
     headers: { accept: 'application/json', 'cache-control': 'no-cache' },
   })
   const body = await response.text()
@@ -50,10 +51,15 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true })
 const context = await browser.newContext({ serviceWorkers: 'block' })
 const pageErrors = []
 const poisonedModules = []
+const browserAssetScripts = []
 context.on('page', page => page.on('pageerror', error => pageErrors.push(error.message)))
 context.on('response', response => {
   const request = response.request()
   const contentType = String(response.headers()['content-type'] || '').toLowerCase()
+  const url = new URL(response.url())
+  if (request.resourceType() === 'script' && url.pathname.startsWith('/knowgrph/assets/')) {
+    browserAssetScripts.push(url.pathname)
+  }
   if (request.resourceType() === 'script' && contentType.includes('text/html')) {
     poisonedModules.push(response.url())
   }
@@ -61,7 +67,7 @@ context.on('response', response => {
 
 try {
   const home = await context.newPage()
-  await home.goto(`${origin}/?kgReleaseProof=${expectedSourceRevision}`, { waitUntil: 'domcontentloaded', timeout: 45_000 })
+  await home.goto(`${browserOrigin}/?kgReleaseProof=${expectedSourceRevision}`, { waitUntil: 'domcontentloaded', timeout: 45_000 })
   await home.locator('h1').filter({ hasText: 'Map intent.' }).waitFor({ state: 'visible', timeout: 30_000 })
   const heading = await home.locator('h1').innerText()
   for (const phrase of ['Map intent.', 'Orchestrate agents.', 'Prove outcomes.']) assert.ok(heading.includes(phrase))
@@ -73,10 +79,15 @@ try {
   await waitForCanvas(heroFrame)
 
   const app = await context.newPage()
-  await app.goto(`${origin}/knowgrph?kgReleaseProof=${expectedSourceRevision}`, { waitUntil: 'domcontentloaded', timeout: 45_000 })
+  await app.goto(`${browserOrigin}/knowgrph?kgReleaseProof=${expectedSourceRevision}`, { waitUntil: 'domcontentloaded', timeout: 45_000 })
   await waitForCanvas(app.mainFrame())
   const appText = await app.locator('body').innerText()
   assert.match(appText, /Explorer|Storyboard|Markdown/)
+  assert.ok(browserAssetScripts.length > 0, 'browser proof must load exact-revision Knowgrph JavaScript assets')
+  assert.ok(
+    browserAssetScripts.every(pathname => pathname.startsWith(`/knowgrph/assets/${expectedSourceRevision}/`)),
+    `browser loaded JavaScript outside the exact release namespace: ${browserAssetScripts.join(', ')}`,
+  )
   assert.deepEqual(poisonedModules, [], `JavaScript module requests returned HTML: ${poisonedModules.join(', ')}`)
   assert.deepEqual(pageErrors, [], `uncaught browser errors: ${pageErrors.join(' | ')}`)
 } finally {
@@ -85,7 +96,8 @@ try {
 
 process.stdout.write(`${JSON.stringify({
   status: 'passed',
-  origin,
+  browserOrigin,
+  markerOrigin,
   sourceRevision: markerAtApex.marker.source.revision,
   agenticCanvasOsRevision: markerAtApex.marker.agenticCanvasOs.revision,
   artifactDigest: markerAtApex.marker.artifact.digest,
