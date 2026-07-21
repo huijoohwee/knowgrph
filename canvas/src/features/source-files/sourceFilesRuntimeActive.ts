@@ -20,6 +20,7 @@ import {
   rememberWorkspaceActiveEntrySnapshot,
 } from '@/features/source-files/workspaceActiveEntryCache'
 import { normalizeRuntimeStorageMediaAccessUrlsInText } from '@/lib/storage/runtimeMediaUrl'
+import { isGameFpsRepoLocalRunReadyBootstrap } from '@/features/workspace-fs/workspaceRunReadyDemos'
 
 const normalizeString = (value: unknown): string => String(value || '').trim()
 
@@ -151,6 +152,7 @@ const readWorkspaceDocsMirrorFallbackText = async (
   activePath: WorkspacePath,
   _fallbackByActivePath?: Map<string, string>,
 ): Promise<string> => {
+  if (isGameFpsRepoLocalRunReadyBootstrap()) return ''
   const normalizedPath = normalizeWorkspacePath(String(activePath || '').trim())
   if (!normalizedPath) return ''
   const candidates = buildWorkspaceDocsMirrorRelPathCandidates(normalizedPath)

@@ -18,6 +18,7 @@ import {
   XR_PHYSICS_WORKSPACE_ROOT_ALIAS_PATH,
   XR_PHYSICS_WORKSPACE_SEED_PATH,
 } from './workspaceFs'
+import { isGameFpsRepoLocalRunReadyBootstrap } from './workspaceRunReadyDemos'
 import { ensureWorkspaceDocsMirrorFolder, readWorkspaceInitializationDocsMirrorEntries, upsertWorkspaceDocsMirrorText, upsertWorkspaceInitializationSeedText } from './workspaceSeedProvider'
 import { notifyWorkspaceFsChanged } from './workspaceFsEvents'
 import {
@@ -170,7 +171,7 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
     let changed = false
     if (await removeLegacyWorkspaceSourceEntries(collections)) changed = true
     const docsOnlyMode = readWorkspaceSourceFilesDocsOnlySetting()
-    const sourceDocsMirrorEntries = docsOnlyMode
+    const sourceDocsMirrorEntries = docsOnlyMode && !isGameFpsRepoLocalRunReadyBootstrap()
       ? await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
       : []
     const docsMirrorEntries = docsOnlyMode

@@ -29,7 +29,10 @@ import {
 } from '@/lib/ui/responsiveElementClasses'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { isRouterRootAliasRuntime } from '@/lib/routing/basePath'
-import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import {
+  isGameFpsRunReadyDemoActive,
+  isXrPhysicsRunReadyDemoActive,
+} from '@/features/workspace-fs/workspaceRunReadyDemos'
 
 import { CanvasStartupRuntimes } from '@/features/canvas/CanvasStartupRuntimes'
 
@@ -58,7 +61,9 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
   const location = useLocation()
   const { isEmbeddedPreview, setIsEmbeddedPreview, detectEmbeddedPreviewWriteback } = useCanvasEmbeddedPreviewRuntime(location.search)
   const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive()
-  const previewOnly = isEmbeddedPreview || xrPhysicsRunReadyDemo
+  const gameFpsRunReadyDemo = isGameFpsRunReadyDemoActive()
+  const dedicatedRunReadyDemo = xrPhysicsRunReadyDemo || gameFpsRunReadyDemo
+  const previewOnly = isEmbeddedPreview || dedicatedRunReadyDemo
   const hasSearchParams = React.useMemo(() => String(location.search || '').trim().length > 0, [location.search])
   const hasDocDeepLinkParams = React.useMemo(() => Boolean(parseDocDeepLink(String(location.search || ''))), [location.search])
   const [liveCanvasHeroOwnsWorkspace, setLiveCanvasHeroOwnsWorkspace] = React.useState(() => (
@@ -239,16 +244,21 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
         {previewOnly ? (
           <main
             className="flex-1 relative overflow-hidden"
-            aria-label={xrPhysicsRunReadyDemo ? 'XR Physics Playground' : 'Canvas Preview Only'}
+            aria-label={gameFpsRunReadyDemo
+              ? 'Deterministic FPS Mission'
+              : xrPhysicsRunReadyDemo
+                ? 'XR Physics Playground'
+                : 'Canvas Preview Only'}
             data-kg-xr-physics-run-ready={xrPhysicsRunReadyDemo ? 'full-frame' : undefined}
+            data-kg-game-fps-run-ready={gameFpsRunReadyDemo ? 'full-frame' : undefined}
           >
             <React.Suspense fallback={null}>
               <CanvasViewportLazy
                 variant="embeddedPreview"
-                geospatialModeEnabled={xrPhysicsRunReadyDemo ? false : geospatialModeEnabled}
+                geospatialModeEnabled={dedicatedRunReadyDemo ? false : geospatialModeEnabled}
                 workspaceEditorOverlayOpen={false}
-                canvasRenderMode={xrPhysicsRunReadyDemo ? '3d' : canvasRenderMode}
-                canvas3dMode={xrPhysicsRunReadyDemo ? 'xr' : canvas3dMode}
+                canvasRenderMode={dedicatedRunReadyDemo ? '3d' : canvasRenderMode}
+                canvas3dMode={xrPhysicsRunReadyDemo ? 'xr' : dedicatedRunReadyDemo ? '3d' : canvas3dMode}
                 canvas2dRenderer={canvas2dRenderer}
               />
             </React.Suspense>

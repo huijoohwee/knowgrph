@@ -9,6 +9,10 @@ export const XR_PHYSICS_RUN_READY_DEMO_ID = 'xr-physics'
 export const XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME = 'knowgrph-physics-playground-demo.md'
 export const XR_PHYSICS_DEMO_REPO_REL_PATH = `docs/workspace-seeds/${XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME}`
 export const XR_PHYSICS_DEMO_CODEBASE_REL_PATH = `knowgrph/${XR_PHYSICS_DEMO_REPO_REL_PATH}`
+export const GAME_FPS_RUN_READY_DEMO_ID = 'game-fps'
+export const GAME_FPS_DEMO_WORKSPACE_SEED_BASENAME = 'knowgrph-game-fps-demo.md'
+export const GAME_FPS_DEMO_REPO_REL_PATH = `docs/workspace-seeds/${GAME_FPS_DEMO_WORKSPACE_SEED_BASENAME}`
+export const GAME_FPS_DEMO_CODEBASE_REL_PATH = `knowgrph/${GAME_FPS_DEMO_REPO_REL_PATH}`
 
 export type WorkspaceRunReadyDemoSeed = {
   id: string
@@ -64,6 +68,20 @@ export const WORKSPACE_RUN_READY_DEMO_SEEDS: readonly WorkspaceRunReadyDemoSeed[
     sourceRoot: 'knowgrph/docs',
     cleanCanvasRecommended: true,
   },
+  {
+    id: GAME_FPS_RUN_READY_DEMO_ID,
+    label: 'Knowgrph Deterministic FPS Mission',
+    validationSeedRelPath: GAME_FPS_DEMO_WORKSPACE_SEED_BASENAME,
+    seedRelPathCandidates: [
+      GAME_FPS_DEMO_REPO_REL_PATH,
+      `workspace-seeds/${GAME_FPS_DEMO_WORKSPACE_SEED_BASENAME}`,
+      `docs/${GAME_FPS_DEMO_WORKSPACE_SEED_BASENAME}`,
+      GAME_FPS_DEMO_WORKSPACE_SEED_BASENAME,
+      GAME_FPS_DEMO_CODEBASE_REL_PATH,
+    ],
+    sourceRoot: 'knowgrph/docs',
+    cleanCanvasRecommended: true,
+  },
 ]
 
 export const resolveWorkspaceRunReadyDemoSeed = (demoId: string): WorkspaceRunReadyDemoSeed | null => {
@@ -115,6 +133,18 @@ export const isXrPhysicsRunReadyDemoActive = (
 ): boolean => (
   readWorkspaceRunReadyDemoId(documentPath) === XR_PHYSICS_RUN_READY_DEMO_ID
 )
+
+export const isGameFpsRunReadyDemoActive = (
+  documentPath?: string | null,
+): boolean => (
+  readWorkspaceRunReadyDemoId(documentPath) === GAME_FPS_RUN_READY_DEMO_ID
+)
+
+export const isGameFpsRepoLocalRunReadyBootstrap = (): boolean => {
+  const value = readEnvString('VITE_KNOWGRPH_RUN_READY_REPO_LOCAL', '').trim().toLowerCase()
+  const repoLocal = value === '1' || value === 'true' || value === 'yes' || value === 'on'
+  return repoLocal && readWorkspaceRunReadyDemoId() === GAME_FPS_RUN_READY_DEMO_ID
+}
 
 export const resolveWorkspaceValidationSeedRelPath = (args: {
   explicitRelPath: string

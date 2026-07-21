@@ -1,0 +1,158 @@
+import React from 'react'
+import {
+  advanceGameFpsBy,
+  queueGameFpsFire,
+  readGameFpsSnapshot,
+  reloadGameFpsWeapon,
+  restartGameFpsMission,
+  setGameFpsInput,
+  startGameFpsMission,
+  subscribeGameFpsSnapshot,
+} from './gameFpsRuntime'
+import {
+  persistPendingGameFpsDecisions,
+  readGameFpsDecisionStore,
+  resetGameFpsLocalSave,
+  subscribeGameFpsDecisionStore,
+} from './gameFpsDecisionStore'
+
+type TouchAction = 'forward' | 'back' | 'left' | 'right' | 'look-left' | 'look-right'
+
+const actionButtonClass = 'min-h-11 min-w-11 rounded-xl border border-white/25 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur-sm active:bg-cyan-700/80'
+
+export function GameFpsHud() {
+  const mission = React.useSyncExternalStore(
+    subscribeGameFpsSnapshot,
+    readGameFpsSnapshot,
+    readGameFpsSnapshot,
+  )
+  const save = React.useSyncExternalStore(
+    subscribeGameFpsDecisionStore,
+    readGameFpsDecisionStore,
+    readGameFpsDecisionStore,
+  )
+  const heldTouchesRef = React.useRef(new Map<number, TouchAction>())
+
+  const publishHeldMovement = React.useCallback(() => {
+    const actions = new Set(heldTouchesRef.current.values())
+    setGameFpsInput({
+      forward: Number(actions.has('forward')) - Number(actions.has('back')),
+      strafe: Number(actions.has('right')) - Number(actions.has('left')),
+    })
+  }, [])
+  const beginTouch = React.useCallback((action: TouchAction) => (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // Synthetic and partially supported touch implementations may not expose an active capture target.
+    }
+    heldTouchesRef.current.set(event.pointerId, action)
+    if (action === 'look-left' || action === 'look-right') {
+      setGameFpsInput({ lookYawDelta: action === 'look-left' ? 0.12 : -0.12 })
+      void advanceGameFpsBy(1 / 60)
+      return
+    }
+    publishHeldMovement()
+  }, [publishHeldMovement])
+  const endTouch = React.useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    heldTouchesRef.current.delete(event.pointerId)
+    publishHeldMovement()
+  }, [publishHeldMovement])
+
+  React.useEffect(() => () => {
+    heldTouchesRef.current.clear()
+    setGameFpsInput({ forward: 0, strafe: 0, sprint: false })
+  }, [])
+
+  const phaseLabel = mission.runtimeError
+    ? 'Mission runtime blocked'
+    : mission.phase === 'won'
+    ? 'Mission complete'
+    : mission.phase === 'lost'
+      ? 'Mission failed'
+      : mission.phase === 'playing'
+        ? 'Resolve all four encounters'
+        : 'Preparing mission'
+  const saveLabel = save.status === 'saving'
+    ? 'Saving Decisions…'
+    : save.status === 'saved'
+      ? 'Decisions saved locally'
+      : save.status === 'error'
+        ? 'Local save needs attention'
+        : mission.pendingDecisions.length > 0
+          ? 'Decision pending'
+          : 'Local save ready'
+
+  return (
+    <section
+      className="pointer-events-none absolute inset-0 z-[230] select-none overflow-hidden text-white"
+      aria-label="Game FPS mission HUD"
+      data-kg-game-fps-hud="1"
+      data-kg-game-fps-phase={mission.phase}
+      data-kg-game-fps-health={String(mission.player.health)}
+      data-kg-game-fps-ammo={String(mission.ammo)}
+      data-kg-game-fps-enemies-alive={String(mission.enemiesAlive)}
+      data-kg-game-fps-fire-result={mission.fireResult}
+      data-kg-game-fps-player-x={mission.player.x.toFixed(4)}
+      data-kg-game-fps-player-z={mission.player.z.toFixed(4)}
+      data-kg-game-fps-tick={String(mission.tick)}
+      data-kg-game-fps-save-status={save.status}
+      data-kg-game-fps-save-error={save.error || undefined}
+      data-kg-game-fps-runtime-error={mission.runtimeError || undefined}
+    >
+      <header className="absolute left-3 right-3 top-3 flex items-start justify-between gap-3 pt-[env(safe-area-inset-top)]">
+        <section className="rounded-xl border border-white/20 bg-slate-950/75 px-3 py-2 shadow-lg backdrop-blur-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200">Mission 1 · Local deterministic ECS</p>
+          <p className="mt-1 text-sm font-semibold" data-kg-game-fps-objective>{phaseLabel}</p>
+          <p className="mt-1 text-[11px] text-slate-300">{saveLabel}</p>
+          {save.error ? (
+            <p className="mt-1 max-w-[70vw] break-words text-[11px] text-rose-200" role="alert">
+              {save.error}
+            </p>
+          ) : null}
+          {mission.runtimeError ? (
+            <p className="mt-1 max-w-[70vw] break-words text-[11px] text-rose-200" role="alert">
+              {mission.runtimeError}
+            </p>
+          ) : null}
+        </section>
+        <section className="grid grid-cols-3 gap-1 rounded-xl border border-white/20 bg-slate-950/75 px-3 py-2 text-center shadow-lg backdrop-blur-sm">
+          <span className="text-[10px] text-slate-300">HEALTH<strong className="block text-sm text-white">{mission.player.health}</strong></span>
+          <span className="text-[10px] text-slate-300">AMMO<strong className="block text-sm text-white">{mission.ammo}/{mission.reserve}</strong></span>
+          <span className="text-[10px] text-slate-300">NPC<strong className="block text-sm text-white">{mission.enemiesAlive}</strong></span>
+        </section>
+      </header>
+
+      <span className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2" aria-hidden="true">
+        <span className="absolute left-[7px] top-0 h-4 w-px bg-white/90" />
+        <span className="absolute left-0 top-[7px] h-px w-4 bg-white/90" />
+      </span>
+
+      <section className="pointer-events-auto absolute bottom-3 left-3 grid grid-cols-3 gap-1 pb-[env(safe-area-inset-bottom)]" aria-label="Touch movement controls">
+        <span />
+        <button className={actionButtonClass} type="button" data-kg-game-fps-touch="forward" aria-label="Move forward" onPointerDown={beginTouch('forward')} onPointerUp={endTouch} onPointerCancel={endTouch}>▲</button>
+        <span />
+        <button className={actionButtonClass} type="button" data-kg-game-fps-touch="left" aria-label="Move left" onPointerDown={beginTouch('left')} onPointerUp={endTouch} onPointerCancel={endTouch}>◀</button>
+        <button className={actionButtonClass} type="button" data-kg-game-fps-touch="back" aria-label="Move back" onPointerDown={beginTouch('back')} onPointerUp={endTouch} onPointerCancel={endTouch}>▼</button>
+        <button className={actionButtonClass} type="button" data-kg-game-fps-touch="right" aria-label="Move right" onPointerDown={beginTouch('right')} onPointerUp={endTouch} onPointerCancel={endTouch}>▶</button>
+      </section>
+
+      <section className="pointer-events-auto absolute bottom-3 right-3 flex max-w-[52vw] flex-wrap items-end justify-end gap-1 pb-[env(safe-area-inset-bottom)]" aria-label="Aim and weapon controls">
+        <button className={actionButtonClass} type="button" data-kg-game-fps-touch="look-left" aria-label="Aim left" onPointerDown={beginTouch('look-left')} onPointerUp={endTouch} onPointerCancel={endTouch}>Aim ◀</button>
+        <button className={actionButtonClass} type="button" data-kg-game-fps-touch="look-right" aria-label="Aim right" onPointerDown={beginTouch('look-right')} onPointerUp={endTouch} onPointerCancel={endTouch}>Aim ▶</button>
+        <button className={`${actionButtonClass} bg-rose-800/80`} type="button" data-kg-game-fps-action="fire" onClick={queueGameFpsFire}>Fire</button>
+        <button className={actionButtonClass} type="button" data-kg-game-fps-action="reload" onClick={reloadGameFpsWeapon}>Reload</button>
+        <button className={actionButtonClass} type="button" data-kg-game-fps-action="restart" onClick={restartGameFpsMission}>Restart</button>
+        {save.status === 'error' && save.retainedCount > 0 ? (
+          <button className={actionButtonClass} type="button" data-kg-game-fps-action="retry-save" onClick={() => void persistPendingGameFpsDecisions()}>Retry save</button>
+        ) : null}
+        {save.status === 'error' && save.retainedCount === 0 ? (
+          <button className={actionButtonClass} type="button" data-kg-game-fps-action="reset-save" onClick={() => void resetGameFpsLocalSave().then(result => {
+            if (result.status === 'saved') startGameFpsMission({ decisions: [] })
+          })}>Reset local save</button>
+        ) : null}
+      </section>
+    </section>
+  )
+}
