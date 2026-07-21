@@ -43,7 +43,7 @@ export function testStoryboardWidgetRuntimeUsesOverlayCollectiveViewportStateFor
     throw new Error('expected Flow runtime to remove automatic overlay recovery/recentering so ordinary pan/zoom stays infinite-canvas')
   }
   if (!runtimeText.includes('if (shouldPreserveEstablishedWorkspaceOverlayCamera({')
-    || !runtimeText.includes('initializedForView: lastInitTransformZoomViewKeyRef.current === zoomViewKey,')) {
+    || !runtimeText.includes('initializedForView: hasInitializedStoryboardZoomView(lastInitTransformZoomViewKeyRef.current, zoomViewKey),')) {
     throw new Error('expected workspace-open established camera authority to survive transient topology coverage changes')
   }
   if (runtimeText.includes('const workspaceOpenCurrentTransformUsable =')
@@ -62,7 +62,7 @@ export function testStoryboardWidgetRuntimeUsesOverlayCollectiveViewportStateFor
     || !recoveryText.includes("buildScopedGraphSemanticKey('storyboard-widget-workspace-visible-viewport-fit'")) {
     throw new Error('expected workspace-open recovery to use one bounded overlay-bounds fit without recurring viewport churn')
   }
-  if (!runtimeText.includes('lastInitTransformZoomViewKeyRef.current !== zoomViewKey && !overlayBounds')) {
+  if (!runtimeText.includes('!hasInitializedStoryboardZoomView(lastInitTransformZoomViewKeyRef.current, zoomViewKey) && !overlayBounds')) {
     throw new Error('expected workspace-open recovery to allow live overlay-bounds fitting even before init key catches up')
   }
   if (!runtimeText.includes('if (workspaceEditorOverlayOpen && workspaceOverlayUserControlledRef.current) {')
