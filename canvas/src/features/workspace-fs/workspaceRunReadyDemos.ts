@@ -9,6 +9,7 @@ export const XR_PHYSICS_RUN_READY_DEMO_ID = 'xr-physics'
 export const XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME = 'knowgrph-physics-playground-demo.md'
 export const XR_PHYSICS_DEMO_REPO_REL_PATH = `docs/workspace-seeds/${XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME}`
 export const XR_PHYSICS_DEMO_CODEBASE_REL_PATH = `knowgrph/${XR_PHYSICS_DEMO_REPO_REL_PATH}`
+export const XR_PHYSICS_DEMO_PUBLISHED_CANONICAL_PATH = `agentic-canvas-os/${XR_PHYSICS_DEMO_REPO_REL_PATH}`
 export const GAME_FPS_RUN_READY_DEMO_ID = 'game-fps'
 export const GAME_FPS_DEMO_WORKSPACE_SEED_BASENAME = 'knowgrph-game-fps-demo.md'
 export const GAME_FPS_DEMO_REPO_REL_PATH = `docs/workspace-seeds/${GAME_FPS_DEMO_WORKSPACE_SEED_BASENAME}`

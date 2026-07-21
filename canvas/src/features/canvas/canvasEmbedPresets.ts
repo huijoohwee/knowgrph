@@ -1,8 +1,9 @@
 import { encodePublishedDocShareToken } from '@/features/canvas/canvasDocShareToken.mjs'
+import { XR_PHYSICS_DEMO_PUBLISHED_CANONICAL_PATH } from '@/features/workspace-fs/workspaceRunReadyDemos'
 
-export const CANONICAL_AGENT_DEFINITIONS_DOCUMENT_PATH = 'agentic-canvas-os/docs/AGENT-DEFINITIONS.md'
-const CANONICAL_AGENT_DEFINITIONS_SHARE_PATH = `/knowgrph/share/${encodePublishedDocShareToken({
-  canonicalPath: CANONICAL_AGENT_DEFINITIONS_DOCUMENT_PATH,
+export const CANONICAL_STARTUP_DOCUMENT_PATH = XR_PHYSICS_DEMO_PUBLISHED_CANONICAL_PATH
+const CANONICAL_STARTUP_SHARE_PATH = `/knowgrph/share/${encodePublishedDocShareToken({
+  canonicalPath: CANONICAL_STARTUP_DOCUMENT_PATH,
 })}`
 const LOCAL_RUNTIME_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
 const CLOUDFLARE_PAGES_RUNTIME_SUFFIX = '.joohwee.pages.dev'
@@ -14,20 +15,20 @@ const isSameDeploymentRuntimeHost = (hostname: string): boolean => {
     || normalizedHostname.endsWith(CLOUDFLARE_PAGES_RUNTIME_SUFFIX)
 }
 
-export const CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL = `https://airvio.co${CANONICAL_AGENT_DEFINITIONS_SHARE_PATH}?kgCanvasSurfaceMode=2d&kgCanvasRenderMode=2d&kgCanvas2dRenderer=storyboard&openEditorWorkspace=1`
+export const CANONICAL_STARTUP_CANVAS_EMBED_URL = `https://airvio.co${CANONICAL_STARTUP_SHARE_PATH}`
 
-export function resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl(runtimeOrigin?: string | null): string {
+export function resolveCanonicalStartupCanvasEmbedRuntimeUrl(runtimeOrigin?: string | null): string {
   const rawOrigin = String(runtimeOrigin || (typeof window !== 'undefined' ? window.location?.origin : '') || '').trim()
-  if (!rawOrigin) return CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL
+  if (!rawOrigin) return CANONICAL_STARTUP_CANVAS_EMBED_URL
   try {
     const origin = new URL(rawOrigin)
-    if (!isSameDeploymentRuntimeHost(origin.hostname)) return CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL
-    const embed = new URL(CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL)
+    if (!isSameDeploymentRuntimeHost(origin.hostname)) return CANONICAL_STARTUP_CANVAS_EMBED_URL
+    const embed = new URL(CANONICAL_STARTUP_CANVAS_EMBED_URL)
     embed.protocol = origin.protocol
     embed.host = origin.host
     return embed.toString()
   } catch {
-    return CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL
+    return CANONICAL_STARTUP_CANVAS_EMBED_URL
   }
 }
 
@@ -37,13 +38,13 @@ export function normalizeLiveCanvasHeroCanvasEmbedUrl(value: string): string {
   try {
     const url = new URL(raw)
     const supportedOrigin = url.origin === 'https://airvio.co' || isSameDeploymentRuntimeHost(url.hostname)
-    if (!supportedOrigin || url.pathname !== CANONICAL_AGENT_DEFINITIONS_SHARE_PATH) return raw
+    if (!supportedOrigin || url.pathname !== CANONICAL_STARTUP_SHARE_PATH) return raw
     url.searchParams.delete('kgPreview')
     url.searchParams.delete('kgLiveHero')
-    url.searchParams.set('kgCanvasSurfaceMode', '2d')
-    url.searchParams.set('kgCanvasRenderMode', '2d')
-    url.searchParams.set('kgCanvas2dRenderer', 'storyboard')
-    url.searchParams.set('openEditorWorkspace', '1')
+    url.searchParams.delete('kgCanvasSurfaceMode')
+    url.searchParams.delete('kgCanvasRenderMode')
+    url.searchParams.delete('kgCanvas2dRenderer')
+    url.searchParams.delete('openEditorWorkspace')
     const runtimeOrigin = typeof window !== 'undefined' ? String(window.location?.origin || '').trim() : ''
     if (runtimeOrigin) {
       const runtime = new URL(runtimeOrigin)

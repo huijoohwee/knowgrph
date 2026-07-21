@@ -1,7 +1,7 @@
 import React from 'react'
 import { CanvasEmbedImportPanel } from '@/features/canvas/CanvasEmbedImportPanel'
 import { selectCanvasEmbedImport } from '@/features/canvas/canvasEmbedImportContract'
-import { resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl } from '@/features/canvas/canvasEmbedPresets'
+import { resolveCanonicalStartupCanvasEmbedRuntimeUrl } from '@/features/canvas/canvasEmbedPresets'
 import { useCanvasKeyTypeValueStaticRowProps } from '@/features/panels/ui/canvasKeyTypeValueRuntime'
 import { getUiSectionActionClassName } from '@/lib/ui/sectionChipChrome'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
@@ -15,6 +15,7 @@ const CANVAS_EMBED_SEARCH_INDEX = [
   'live canvas hero',
   'home background',
   'import canvas embed',
+  'physics playground startup xr',
 ].join(' ')
 
 export const CANVAS_EMBED_SETTINGS_ROW_COUNT = 1
@@ -47,13 +48,13 @@ export function CanvasEmbedSettingsRows() {
               type="button"
               className={getUiSectionActionClassName('primary')}
               onClick={() => {
-                selectCanvasEmbedImport(resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl(), { liveHeroPreview: false })
+                selectCanvasEmbedImport(resolveCanonicalStartupCanvasEmbedRuntimeUrl(), { liveHeroPreview: false })
               }}
             >
-              <span className={UI_TEXT_TRUNCATE}>Use Agent Definitions background</span>
+              <span className={UI_TEXT_TRUNCATE}>Use Physics Playground background</span>
             </button>
             <span className={`min-w-0 ${UI_TEXT_TRUNCATE} ${UI_THEME_TOKENS.text.secondary}`}>
-              Set the Live Canvas Hero background from shared embed code.
+              Cold starts use the source-backed Physics Playground; imports can replace Home for the current session.
             </span>
           </section>
         )}

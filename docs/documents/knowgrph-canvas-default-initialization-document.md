@@ -35,20 +35,22 @@
 
 ### Initialization-File Bootstrap Contract
 
-- **Bootstrap source root**:
-  - The canonical initialization-file source root is `huijoohwee/docs`.
-  - Runtime seed loading reads source text from that docs root and materializes the files into the workspace root.
+- **Bootstrap source roots**:
+  - The editorial, video-validation, and geospatial seeds remain sourced from `huijoohwee/docs` and materialized into the workspace root.
+  - The default XR physics seed is owned at `knowgrph/docs/workspace-seeds/knowgrph-physics-playground-demo.md`, published as `agentic-canvas-os/docs/workspace-seeds/knowgrph-physics-playground-demo.md`, and materialized at `/docs/workspace-seeds/knowgrph-physics-playground-demo.md`.
 - **Canonical initialization-file family**:
   - `/workspace-readme.md`
   - `/knowgrph-agentic-video-canvas-demo.md`
   - `/knowgrph-maps-places.md`
+  - `/docs/workspace-seeds/knowgrph-physics-playground-demo.md`
 - **Materialization rule**:
-  - Workspace-visible initialization files stay root-level for deterministic explorer ordering and stable source-file ids, while their authoritative source text lives under `huijoohwee/docs`.
+  - The three legacy initialization files stay root-level for deterministic explorer ordering and stable source-file ids. The physics seed keeps its source-owned `/docs/workspace-seeds/...` path so Dev, D1 publication, opaque share identity, and runtime selection resolve one document.
 - **Frontmatter SSOT**:
   - `workspace-readme.md` lands on `2d + d3 + Frontmatter Mode`.
-  - `knowgrph-agentic-video-canvas-demo.md` lands on `2d + Storyboard Widget + Frontmatter Mode` and remains the default validation/loading demo.
+  - `knowgrph-agentic-video-canvas-demo.md` lands on `2d + Storyboard Widget + Frontmatter Mode` and remains the explicit agentic-video validation/loading demo.
   - `Load preset` must refresh its runtime `/docs/knowgrph-agentic-video-canvas-demo.md` mirror from this canonical initialization source before parsing, so generated runtime projections cannot replace the authored text/image/video stage graph across local ports.
   - `knowgrph-maps-places.md` lands on `Geospatial Mode` from frontmatter and keeps document/frontmatter semantics enabled.
+  - `knowgrph-physics-playground-demo.md` is the cold-start default and lands on `XR + 3D`, opens Motion Control, and auto-starts the native physics runtime from frontmatter. A custom `VITE_KNOWGRPH_TEST_VALIDATION_SEED` remains an explicit validation-only override.
 - **Activation precedence**:
   - On workspace bootstrap and exact UI import, the activated initialization file becomes the raw-frontmatter authority before composed source-file replay or metadata/layout helpers run.
   - A previously active document must not reapply stale frontmatter over the newly activated initialization file.
@@ -117,12 +119,13 @@
   - Must ensure `layout.mode` is 'force'.
   - Must ensure `frontmatterModeEnabled` is true.
   - Must ensure Frontmatter Mode never yields an empty canvas: if no frontmatter Mermaid nodes exist, render the full graph.
-  - Must materialize the canonical 3-file initialization family (`workspace-readme.md`, `knowgrph-agentic-video-canvas-demo.md`, `knowgrph-maps-places.md`) from `huijoohwee/docs`.
-  - Must keep initialization-file content in `huijoohwee/docs` as the bootstrap SSOT while exposing root-level workspace paths for activation and source-file reconciliation.
+  - Must materialize the canonical initialization family: the three legacy root files from `huijoohwee/docs` plus the source-owned physics seed at `/docs/workspace-seeds/knowgrph-physics-playground-demo.md`.
+  - Must preserve each seed's canonical source owner and activation path; no downstream mirror or renderer query may replace frontmatter authority.
   - Must default `workspace-readme.md` to `canvasRenderMode='2d'`, `canvas2dRenderer='d3'`, `documentSemanticMode='document'`, and `frontmatterModeEnabled=true` from frontmatter.
   - Must default `knowgrph-agentic-video-canvas-demo.md` to `canvasRenderMode='2d'`, `canvas2dRenderer='storyboard'`, `documentSemanticMode='document'`, and `frontmatterModeEnabled=true` from frontmatter.
+  - Must choose `knowgrph-physics-playground-demo.md` for a cold unselected workspace and apply its `canvasSurfaceMode='xr'`, `canvasRenderMode='3d'`, `canvas3dMode='xr'`, and Motion Control state from frontmatter.
   - Must keep geospatial startup opt-in for non-geospatial sessions, while allowing the canonical geospatial initialization file to enable geospatial mode directly from frontmatter.
-  - Must keep FloatingPanel closed by default and restore its shared baseline view as `propsPanel` rather than forcing Geo on startup.
+  - Must keep the generic FloatingPanel baseline closed with `propsPanel`; the canonical physics seed may explicitly open `motionControl` through frontmatter.
   - Must default `View Lock` OFF by initializing `documentStructureBaselineLock` to false in the shared UI slice.
   - Must ensure `graphLayersVisible` is true.
   - Must compute 2D zoom/layout view keys from a shared schema-layout fingerprint (include `schema.layout.flow`) so keyed zoom state and cached layout positions do not drift across D3/Flow/Design/Storyboard Widget.
