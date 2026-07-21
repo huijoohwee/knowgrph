@@ -332,6 +332,14 @@ export function testRunAllLayoutLockSuppressesAutoZoomUntilMutationGuardReleases
   if (!storyboardInfiniteZoomText.includes("import { isWorkspaceEditorOverlayOpen } from '@/features/workspace-table/workspaceTableSsot'")) {
     throw new Error('expected the outer Storyboard surface to share workspace camera ownership state')
   }
+  if (!storyboardInfiniteZoomText.includes("import { resolveFlowWidgetStateGraphKey } from '@/lib/storyboardWidget/widgetStateScope'")) {
+    throw new Error('expected Storyboard initial fit to share the stable document identity used by Widget and Rich Media layout state')
+  }
+  if (!storyboardInfiniteZoomText.includes('const storyboardCameraViewKey = React.useMemo(')
+    || !storyboardInfiniteZoomText.includes('() => resolveFlowWidgetStateGraphKey({ graphData: args.graphData }) || zoomViewKey')
+    || !storyboardInfiniteZoomText.includes('const fitKey = `${storyboardCameraViewKey}:${viewportW}x${viewportH}`')) {
+    throw new Error('expected same-document Widget topology growth not to re-arm Storyboard implicit initial fit')
+  }
   const workspaceCameraGuardIndex = storyboardInfiniteZoomText.indexOf('if (isWorkspaceEditorOverlayOpen(requestState)) return')
   const implicitInitialFitIndex = storyboardInfiniteZoomText.indexOf("zoomRequest: { type: 'fit', intent: 'fitToView', at: 0 }")
   if (workspaceCameraGuardIndex < 0 || implicitInitialFitIndex < 0 || workspaceCameraGuardIndex > implicitInitialFitIndex) {
