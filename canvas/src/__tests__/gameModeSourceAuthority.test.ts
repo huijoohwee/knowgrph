@@ -15,6 +15,7 @@ const source = (...parts: string[]) => readFileSync(resolve(repoRoot, ...parts),
 
 test('XR Physics is the only source-backed authority for the Game Mode overlay', () => {
   const physicsSource = source('docs', 'workspace-seeds', XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME)
+  const canvasScripts = JSON.parse(source('canvas', 'package.json')).scripts as Record<string, string>
   assert.equal(resolveWorkspaceRunReadyDemoSeed('game-fps'), null)
   assert.equal(
     resolveWorkspaceRunReadyDemoIdForDocument(
@@ -44,6 +45,13 @@ test('XR Physics is the only source-backed authority for the Game Mode overlay',
     /GameFpsRunReadyDemoRuntime/,
   )
   assert.equal(JSON.parse(source('package.json')).scripts?.['demo:game-fps'], undefined)
+  assert.equal(canvasScripts['predev:game-fps'], undefined)
+  assert.equal(canvasScripts['dev:game-fps'], undefined)
+  assert.equal(
+    existsSync(resolve(canvasRoot, 'src/__tests__/gameFpsRunReadyContract.test.ts')),
+    false,
+  )
+  assert.equal(existsSync(resolve(canvasRoot, 'src/tests/subsetGameFpsSmoke.ts')), false)
 })
 
 test('Game Mode browser proof starts explicitly on the XR Physics source', () => {

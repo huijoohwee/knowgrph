@@ -364,6 +364,15 @@ test('desktop movement key release neutralizes input without invalidating the ne
   assert.equal(gameFpsInputPatchFromPressedCodes(pressedCodes).forward, 1)
   assert.equal(updateGameFpsPressedCode(pressedCodes, 'KeyW', false), true)
   assert.equal(gameFpsInputPatchFromPressedCodes(pressedCodes).forward, 0)
+
+  assert.deepEqual(
+    gameFpsInputPatchFromPressedCodes(new Set(['KeyW', 'KeyD', 'ShiftLeft'])),
+    { forward: 1, strafe: 1, sprint: true },
+  )
+  assert.deepEqual(
+    gameFpsInputPatchFromPressedCodes(new Set(['KeyW', 'KeyS', 'KeyA', 'KeyD'])),
+    { forward: 0, strafe: 0, sprint: false },
+  )
 })
 
 test('mobile pointer release preserves movement held by another touch', () => {

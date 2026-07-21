@@ -9,6 +9,7 @@ const requiredPaths = [
   'canvas/src/features/game-fps/gameFpsMission.ts',
   'canvas/src/features/game-fps/gameFpsNpcPolicy.ts',
   'canvas/src/features/game-fps/gameFpsRuntime.ts',
+  'canvas/src/features/game-fps/gameFpsSimulationClock.ts',
   'canvas/src/features/game-fps/gameFpsDecisionStore.ts',
   'canvas/src/features/game-fps/gameModeRuntime.ts',
   'canvas/src/features/game-fps/gameModeXrSpatialProfile.ts',
@@ -26,8 +27,10 @@ const requiredPaths = [
   'canvas/src/__tests__/gameFpsMissionCore.test.ts',
   'canvas/src/__tests__/gameFpsRuntimeConcurrency.test.ts',
   'canvas/src/__tests__/gameModeRuntime.test.ts',
+  'canvas/src/__tests__/gameModeMotionInputRuntime.test.ts',
   'canvas/src/__tests__/gameModePersistenceRuntime.test.ts',
   'canvas/src/__tests__/gameModeSpatialSourceRuntime.test.ts',
+  'canvas/src/__tests__/gameModeSourceAuthority.test.ts',
   'canvas/src/__tests__/canvasSurfaceGameDeparture.test.ts',
   'canvas/src/__tests__/canvasXrSharedSurfaceOwnership.test.ts',
   'docs/workspace-seeds/knowgrph-physics-playground-demo.md',
@@ -83,6 +86,8 @@ const forbiddenStandaloneSourcePaths = [
   'canvas/src/features/canvas/GameFpsRunReadyDemoRuntime.tsx',
   'canvas/src/features/game-fps/gameModeSceneComposition.ts',
   'canvas/src/__tests__/gameFpsPersistedSeed.test.ts',
+  'canvas/src/__tests__/gameFpsRunReadyContract.test.ts',
+  'canvas/src/tests/subsetGameFpsSmoke.ts',
   'docs/workspace-seeds/knowgrph-game-fps-demo.md',
 ]
 for (const relPath of forbiddenStandaloneSourcePaths) {
@@ -99,6 +104,8 @@ const standaloneRouteOwners = [
   ['canvas/src/features/workspace-fs/workspaceRunReadyDemos.ts', /GAME_FPS_(?:RUN_READY_DEMO_ID|DEMO_)|isGameFpsRunReadyDemoActive|knowgrph-game-fps-demo\.md/],
   ['canvas/src/components/CanvasViewport.tsx', /isGameFpsRunReadyDemoActive|gameFpsRunReadyDemo/],
   ['canvas/src/pages/Canvas.tsx', /isGameFpsRunReadyDemoActive|gameFpsRunReadyDemo|data-kg-game-fps-run-ready/],
+  ['canvas/package.json', /"(?:predev|dev):game-fps"|VITE_KNOWGRPH_RUN_READY_DEMO=game-fps|gameFpsPersistedSeed|subsetGameFpsSmoke/],
+  ['canvas/src/tests/registry/postParserCases7.ts', /gameFpsRunReadyContract|canvas\.gameFps\.runReady|activeSourceSkipsDocsMirror/],
   ['package.json', /"demo:game-fps"/],
 ]
 for (const [relPath, pattern] of standaloneRouteOwners) {
@@ -157,6 +164,9 @@ if (JSON.stringify(gameAwareThreeOwners) !== JSON.stringify(expectedGameAwareThr
   throw new Error(`Game-aware Three ownership must remain renderer mount plus actor-only stage, received ${gameAwareThreeOwners.join(', ')}`)
 }
 const missionStageSource = featureSources.find(({ name }) => name === 'GameFpsMissionStage.tsx')?.source || ''
+const simulationClockSource = featureSources.find(({ name }) => name === 'gameFpsSimulationClock.ts')?.source || ''
+const modelSource = featureSources.find(({ name }) => name === 'gameFpsModel.ts')?.source || ''
+const decisionStoreSource = featureSources.find(({ name }) => name === 'gameFpsDecisionStore.ts')?.source || ''
 const missionStageTags = [...missionStageSource.matchAll(/^\s*<([a-z][A-Za-z0-9]*)\b/gm)].map(match => match[1])
 const missionStageComponentTags = [...missionStageSource.matchAll(/^\s*<([A-Z][A-Za-z0-9]*)\b/gm)].map(match => match[1])
 const allowedMissionStageTags = ['group', 'mesh', 'capsuleGeometry', 'meshStandardMaterial']
@@ -164,6 +174,34 @@ if (missionStageTags.length !== allowedMissionStageTags.length
   || missionStageTags.some(tag => !allowedMissionStageTags.includes(tag))
   || missionStageComponentTags.length > 0) {
   throw new Error(`Game FPS stage must contain only its actor root and NPC mesh template, received ${[...missionStageTags, ...missionStageComponentTags].join(', ')}`)
+}
+if (!modelSource.includes('export const GAME_FPS_FIXED_STEP_SECONDS = 1 / 60')
+  || !missionStageSource.includes('window.setInterval(clock.requestStep, SIMULATION_CLOCK_INTERVAL_MS)')
+  || !missionStageSource.includes('window.clearInterval(timer)')
+  || !missionStageSource.includes('clock.dispose()')
+  || !missionStageSource.includes('bindGameFpsSimulationInputQueue(clock.queueInputStep)')
+  || !missionStageSource.includes('advanceGameModeSimulationBy(GAME_FPS_FIXED_STEP_SECONDS)')
+  || missionStageSource.includes('advanceGameModeSimulationBy(deltaSeconds)')
+  || !missionStageSource.includes('minimumStepIntervalMs: SIMULATION_CLOCK_INTERVAL_MS')
+  || !missionStageSource.includes('onStepError: reportGameModeSimulationFailure')
+  || !missionStageSource.includes('isMotionControlPoseTracked(pose)')
+  || !simulationClockSource.includes('lastStepStartedAt + options.minimumStepIntervalMs - now()')
+  || !simulationClockSource.includes('queueInputStep: requestStep')) {
+  throw new Error('Game Mode must retain one fixed, disposable, input-queued simulation clock with visible failures')
+}
+if (!missionStageSource.includes('readGameModeSnapshot().simulationStatus')
+  || missionStageSource.includes('subscribeGameModeSnapshot')
+  || missionStageSource.includes('useSyncExternalStore')) {
+  throw new Error('Game Mode simulation gating must read the runtime owner without a render-loop subscription')
+}
+if (!missionStageSource.includes('readyFrameCountRef.current >= READY_FRAME_COUNT')
+  || !missionStageSource.includes('deltaSeconds <= GAME_FPS_MAX_FRAME_SECONDS')) {
+  throw new Error('Game Mode browser readiness must wait for a settled retained-Canvas frame pump')
+}
+if (!decisionStoreSource.includes("from '../../../../ecs/decisionDocument.js'")
+  || /from\s+['"]node:|persistDecisions|persistDecision\s*\(/.test(decisionStoreSource)
+  || !decisionStoreSource.includes('verification.persistedCount !== 0')) {
+  throw new Error('Game Mode Decisions must retain the canonical browser-safe merge and verified read-back owner')
 }
 
 const physicsSeedPath = 'docs/workspace-seeds/knowgrph-physics-playground-demo.md'
