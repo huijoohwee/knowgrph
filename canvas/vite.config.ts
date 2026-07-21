@@ -6960,7 +6960,7 @@ export default defineConfig(({ command, mode }) => {
     },
   },
   worker: {
-    format: 'es',
+    format: 'es', rollupOptions: { output: { ...buildVersionedAssetFileNames(runtimeIdentity.sourceRevision) } },
   },
   resolve: {
     preserveSymlinks: true,
