@@ -66,10 +66,21 @@ async function listProductionSourceFiles(absDir) {
     if (entry.isDirectory()) return listProductionSourceFiles(absPath)
     if (!entry.isFile()) return []
     const relPath = path.relative(root, absPath).split(path.sep).join('/')
-    if (!/\.(?:jsx?|mjs|tsx?)$/.test(relPath)
-      || /(?:^|\/)(?:__tests__|tests)(?:\/|$)/.test(relPath)
+    if (!/\.(?:jsx?|mjs|py|tsx?)$/.test(relPath)
+      || /(?:^|\/)(?:__pbt__|__tests__|fixtures|test|tests)(?:\/|$)/.test(relPath)
       || /\.test\.[^.]+$/.test(relPath)) return []
     return [relPath]
+  }))
+  return nested.flat()
+}
+
+async function listMarkdownFiles(absDir) {
+  const entries = await readdir(absDir, { withFileTypes: true })
+  const nested = await Promise.all(entries.map(async entry => {
+    const absPath = path.join(absDir, entry.name)
+    if (entry.isDirectory()) return listMarkdownFiles(absPath)
+    if (!entry.isFile() || !/\.md$/i.test(entry.name)) return []
+    return [path.relative(root, absPath).split(path.sep).join('/')]
   }))
   return nested.flat()
 }
@@ -114,6 +125,50 @@ for (const [relPath, pattern] of standaloneRouteOwners) {
   }
 }
 
+const authorityExecutableRoots = [
+  'canvas/src',
+  'canvas/scripts',
+  'ecs',
+  'mcp',
+]
+const authorityExecutablePaths = (await Promise.all(authorityExecutableRoots.map(async relPath => {
+  const absPath = path.join(root, relPath)
+  try {
+    if ((await stat(absPath)).isDirectory()) return listProductionSourceFiles(absPath)
+  } catch {
+    // Optional runtime roots do not weaken the required Canvas source scan.
+  }
+  return []
+}))).flat().sort()
+const authorityExecutableSources = await Promise.all(authorityExecutablePaths.map(async relPath => ({
+  relPath,
+  source: await text(relPath),
+})))
+const authorityConfigSources = await Promise.all(['package.json', 'canvas/package.json'].map(async relPath => ({
+  relPath,
+  source: await text(relPath),
+})))
+const deletedStandaloneMarkers = [
+  [/\bGameFpsArenaEnvironment\b/, 'GameFpsArenaEnvironment'],
+  [/\bGAME_FPS_ARENA_CLEAR_COLOR\b/, 'GAME_FPS_ARENA_CLEAR_COLOR'],
+  [/\bgameModeSceneComposition\b/, 'gameModeSceneComposition'],
+  [/\bGameFpsRunReadyDemoRuntime\b/, 'GameFpsRunReadyDemoRuntime'],
+  [/\bGAME_FPS_RUN_READY_DEMO_ID\b/, 'GAME_FPS_RUN_READY_DEMO_ID'],
+  [/\bisGameFpsRunReadyDemoActive\b/, 'isGameFpsRunReadyDemoActive'],
+  [/\bgameFpsRunReadyDemo\b/, 'gameFpsRunReadyDemo'],
+  [/data-kg-game-fps-run-ready/, 'data-kg-game-fps-run-ready'],
+  [/knowgrph-game-fps-demo\.md/, 'knowgrph-game-fps-demo.md'],
+  [/VITE_KNOWGRPH_RUN_READY_DEMO\s*(?:=|\|\|=|:)\s*['"]?game-fps\b/, 'game-fps run-ready selector'],
+  [/"(?:demo|dev|predev):game-fps"/, 'standalone Game FPS package script'],
+]
+for (const { relPath, source } of [...authorityExecutableSources, ...authorityConfigSources]) {
+  for (const [pattern, marker] of deletedStandaloneMarkers) {
+    if (pattern.test(source)) {
+      throw new Error(`deleted standalone Game Mode marker ${marker} returned in ${relPath}`)
+    }
+  }
+}
+
 const canvasPackage = JSON.parse(await text('canvas/package.json'))
 const dependencies = { ...canvasPackage.dependencies, ...canvasPackage.devDependencies }
 for (const dependency of forbiddenDependencies) {
@@ -146,11 +201,7 @@ if (gameThreeOwners.length !== 1 || gameThreeOwners[0] !== 'GameFpsMissionStage.
   throw new Error(`Game FPS Three ownership must be actor-only in GameFpsMissionStage.tsx, received ${gameThreeOwners.join(', ')}`)
 }
 
-const productionSourcePaths = (await listProductionSourceFiles(path.join(root, 'canvas/src'))).sort()
-const productionSources = await Promise.all(productionSourcePaths.map(async relPath => ({
-  relPath,
-  source: await text(relPath),
-})))
+const productionSources = authorityExecutableSources.filter(({ relPath }) => relPath.startsWith('canvas/src/'))
 const gameAwarePattern = /\b(?:GameFpsMissionStage|gameFpsActive|gameMode\.active|readGameModeSnapshot|subscribeGameModeSnapshot)\b|from\s+['"][^'"]*(?:features\/game-fps|\/game-fps\/|\.\/game(?:Fps|Mode))/
 const threePresentationPattern = /@react-three\/fiber|from\s+['"]three(?:\/|['"])|<(?:Canvas|primitive|group|mesh|ambientLight|directionalLight|hemisphereLight|pointLight|spotLight|Environment|Sky|Stars|[A-Za-z][A-Za-z0-9]*Geometry)\b/
 const gameAwareThreeOwners = productionSources
@@ -215,6 +266,52 @@ if (physicsSeed?.game_mode?.invocation !== '/game.mode @canvas #gameplay operati
   || physicsSeed?.game_mode?.inspect_tool !== 'knowgrph.inspect_local_game_mode'
   || physicsSeed?.game_mode?.control_tool !== 'knowgrph.control_local_game_mode') {
   throw new Error('the Physics source must declare explicit Game Mode overlay invocation and browser WebMCP ownership')
+}
+if (physicsSeed?.run_ready_demo?.canonical_source_file !== `/${physicsSeedPath}`
+  || physicsSeed?.home_apex?.source_authority !== `/${physicsSeedPath}`
+  || physicsSeed?.game_mode?.source_authority !== `/${physicsSeedPath}`) {
+  throw new Error('the Physics source must remain the single Home Apex, XR Physics, and Game Mode source authority')
+}
+
+const workspaceSeedPaths = (await listMarkdownFiles(path.join(root, 'docs/workspace-seeds'))).sort()
+const gameOrPhysicsDemoIdPattern = /(?:^|-)(?:game-(?:fps|mode)|(?:fps|mode)-game|xr-physics|physics-(?:xr|playground))(?:-|$)/
+for (const relPath of workspaceSeedPaths) {
+  if (relPath === physicsSeedPath) continue
+  const source = await text(relPath)
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(source)
+  if (!match) continue
+  const frontmatter = loadYaml(match[1])
+  if (!frontmatter || typeof frontmatter !== 'object' || Array.isArray(frontmatter)) continue
+  const runReadyDemo = frontmatter.run_ready_demo
+  const runReadyId = String(
+    runReadyDemo && typeof runReadyDemo === 'object' && !Array.isArray(runReadyDemo)
+      ? runReadyDemo.id || ''
+      : '',
+  ).trim().toLowerCase().replace(/[_\s]+/g, '-')
+  const surfaceMode = String(frontmatter.kgCanvasSurfaceMode || '').trim().toLowerCase()
+  const threeMode = String(frontmatter.kgCanvas3dMode || '').trim().toLowerCase()
+  const declaresStandaloneXrWorld = Boolean(runReadyId) && (surfaceMode === 'xr' || threeMode === 'xr')
+  const declaresGameOrHomeAuthority = Object.hasOwn(frontmatter, 'game_mode')
+    || Object.hasOwn(frontmatter, 'game_mode_xr_fidelity_status')
+    || Object.hasOwn(frontmatter, 'home_apex')
+    || Object.hasOwn(frontmatter, 'native_controller_demo')
+  const pathLooksLikeAlternateAuthority = gameOrPhysicsDemoIdPattern.test(
+    path.basename(relPath, path.extname(relPath)).toLowerCase().replace(/[_\s]+/g, '-'),
+  )
+  if (gameOrPhysicsDemoIdPattern.test(runReadyId)
+    || declaresStandaloneXrWorld
+    || declaresGameOrHomeAuthority
+    || pathLooksLikeAlternateAuthority) {
+    throw new Error(`alternate standalone Game Mode/XR Physics source authority is forbidden: ${relPath}`)
+  }
+}
+
+const xrPhysicsAuthorityPattern = /\bXR_PHYSICS_RUN_READY_DEMO_ID\b|['"]xr-physics['"]|knowgrph-physics-playground-demo\.md/
+const xrPhysicsThreeOwners = productionSources
+  .filter(({ source }) => xrPhysicsAuthorityPattern.test(source) && threePresentationPattern.test(source))
+  .map(({ relPath }) => relPath)
+if (xrPhysicsThreeOwners.length > 0) {
+  throw new Error(`XR Physics identity must not create another Three world owner, received ${xrPhysicsThreeOwners.join(', ')}`)
 }
 
 async function resolveAgenticCanvasOsDocsRoot() {

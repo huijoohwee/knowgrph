@@ -14,6 +14,20 @@ const productionReadinessBuild = fs.readFileSync(path.resolve(repoRoot, 'scripts
 const pagesDeploymentScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'pages-production-deployment.mjs'), 'utf8')
 const productionFidelityScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'verify-production-fidelity.mjs'), 'utf8')
 const productionMirrorArtifactScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'production-mirror-artifact.mjs'), 'utf8')
+const gameModeSourceAuthorityScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'check-game-fps-readiness.mjs'), 'utf8')
+const packageScripts = JSON.parse(fs.readFileSync(path.resolve(repoRoot, 'package.json'), 'utf8')).scripts
+
+test('integration forbids alternate standalone Game Mode and XR Physics source owners', () => {
+  assert.equal(packageScripts['game-mode:source-authority'], 'node ./scripts/check-game-fps-readiness.mjs')
+  assert.match(packageScripts['conflict:source'], /^npm run game-mode:source-authority && /)
+  assert.match(gameModeSourceAuthorityScript, /authorityExecutableRoots/)
+  assert.match(gameModeSourceAuthorityScript, /deletedStandaloneMarkers/)
+  assert.match(gameModeSourceAuthorityScript, /workspaceSeedPaths/)
+  assert.match(gameModeSourceAuthorityScript, /declaresStandaloneXrWorld/)
+  assert.match(gameModeSourceAuthorityScript, /gameAwareThreeOwners/)
+  assert.match(gameModeSourceAuthorityScript, /xrPhysicsThreeOwners/)
+  assert.match(gameModeSourceAuthorityScript, /__pbt__\|__tests__\|fixtures\|test\|tests/)
+})
 
 test('GitHub workflows pin Node 24 actions to immutable revisions', () => {
   const workflowRoot = path.resolve(repoRoot, '.github', 'workflows')
@@ -104,6 +118,12 @@ test('verified production mirror is published only after live smoke', () => {
   assert.match(productionFidelityScript, /page\.locator\('body'\)/)
   assert.doesNotMatch(productionFidelityScript, /contentFrame\(\)\.locator\('body'\)/)
   assert.match(productionFidelityScript, /Validation seed fallback/)
+  assert.match(productionFidelityScript, /__kgHomeSourceAuthorityEvidence/)
+  assert.match(productionFidelityScript, /prematureSceneMounts/)
+  assert.match(productionFidelityScript, /data-kg-xr-scene-media-drop/)
+  assert.match(productionFidelityScript, /data-kg-xr-empty-world/)
+  assert.match(productionFidelityScript, /Home must retain exactly one canonical XR Canvas/)
+  assert.match(productionFidelityScript, /Home must not activate Game Mode before explicit invocation/)
   assert.doesNotMatch(verifyJob, /HUIJOOHWEE_PUSH_TOKEN/)
   assert.match(deployJob, /git push origin HEAD:main/)
   assert.match(deployJob, /HUIJOOHWEE_PUSH_TOKEN/)

@@ -37,6 +37,7 @@ export function testXrPhysicsHomeSceneAuthorityRejectsFallbackVariants(): void {
   const xrGraphStageSource = readSource('features', 'three', 'XrGraphStage.tsx')
   const threeGraphSource = readSource('lib', 'three', 'ThreeGraph.impl.tsx')
   const gameMissionSource = readSource('features', 'game-fps', 'GameFpsMissionStage.tsx')
+  const canvasPageSource = readSource('pages', 'Canvas.tsx')
   const staleCompositionPath = resolve(
     process.cwd(),
     'src',
@@ -59,6 +60,10 @@ export function testXrPhysicsHomeSceneAuthorityRejectsFallbackVariants(): void {
   if (!threeGraphSource.includes("const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded && !xrPhysicsRunReadyDemo")
     || !threeGraphSource.includes('xrPhysicsRunReadyDemo ? XR_PHYSICS_RUN_READY_GRAPH : null')) {
     throw new Error('expected xr-physics to materialize its source graph without entering the source-free empty world')
+  }
+  if (!canvasPageSource.includes('documentSwitchPending={hasDocDeepLinkParams}')
+    || !canvasPageSource.includes('documentSwitchPendingLabel="Loading shared canvas..."')) {
+    throw new Error('expected embedded document previews to retain viewport ownership until their canonical source finishes loading')
   }
 
   const forbiddenLegacyMarkers = [

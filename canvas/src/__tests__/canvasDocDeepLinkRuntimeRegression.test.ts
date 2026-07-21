@@ -132,4 +132,97 @@ export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () =>
   if (!text.includes('preferDirectFetch: true')) {
     throw new Error('Expected the storage deep-link runtime to fetch its configured CORS endpoint directly without a failing proxy preflight')
   }
+  const localBranchIndex = text.indexOf("if (link.kind === 'local')")
+  const localConsumeIndex = text.indexOf('consumeDeepLinkParams(currentSearch)', localBranchIndex)
+  const remoteImportIndex = text.indexOf('void importRemoteDeepLinkOnce(currentSearch, link, pushUiToast)')
+  if (
+    localBranchIndex < 0
+    || localConsumeIndex < localBranchIndex
+    || remoteImportIndex < localConsumeIndex
+    || !text.includes('importDocument: () => handleRemoteDeepLink(link, pushUiToast)')
+  ) {
+    throw new Error('Expected local links to consume immediately while remote links remain addressable until import succeeds')
+  }
+  if (!text.includes('const remoteDeepLinkImports = new Map<string, Promise<void>>()')
+    || !text.includes('const activeImport = inFlightImports.get(currentSearch)')
+    || !text.includes('if (activeImport) return activeImport')) {
+    throw new Error('Expected StrictMode remounts to share one in-flight remote document import')
+  }
+  if (!text.includes('if (liveSearch !== currentSearch) return')
+    || !text.includes('consumeSearch: consumeDeepLinkParams')) {
+    throw new Error('Expected a completed remote import not to consume a newer deep-link navigation')
+  }
+}
+
+export const testCanvasDocDeepLinkRemoteImportLifecycle = async () => {
+  const { runRemoteDeepLinkImportLifecycle } = await import('@/features/canvas/CanvasDocDeepLinkRuntime')
+  const inFlightImports = new Map<string, Promise<void>>()
+  const currentSearch = '?kgShare=canonical-source&kgPreview=1'
+  let importCalls = 0
+  let consumedSearch = ''
+  let finishImport: (() => void) | null = null
+  const lifecycle = {
+    importDocument: () => {
+      importCalls += 1
+      return new Promise<void>(resolve => {
+        finishImport = resolve
+      })
+    },
+    readLiveSearch: () => currentSearch,
+    consumeSearch: (search: string) => {
+      consumedSearch = search
+    },
+    reportError: () => {
+      throw new Error('successful import must not report an error')
+    },
+  }
+
+  const firstImport = runRemoteDeepLinkImportLifecycle(inFlightImports, currentSearch, lifecycle)
+  const strictModeRemountImport = runRemoteDeepLinkImportLifecycle(inFlightImports, currentSearch, lifecycle)
+  if (firstImport !== strictModeRemountImport) {
+    throw new Error('expected StrictMode remounts to share the exact in-flight import promise')
+  }
+  await Promise.resolve()
+  if (importCalls !== 1 || !finishImport) {
+    throw new Error(`expected one remote import, got ${importCalls}`)
+  }
+  finishImport()
+  await firstImport
+  if (consumedSearch !== currentSearch || inFlightImports.size !== 0) {
+    throw new Error('expected successful remote import to consume its URL and release the in-flight lease')
+  }
+
+  let failedConsumeCalls = 0
+  let reportedErrors = 0
+  const failedImport = runRemoteDeepLinkImportLifecycle(inFlightImports, currentSearch, {
+    importDocument: async () => {
+      throw new Error('unavailable')
+    },
+    readLiveSearch: () => currentSearch,
+    consumeSearch: () => {
+      failedConsumeCalls += 1
+    },
+    reportError: () => {
+      reportedErrors += 1
+    },
+  })
+  const failedStrictModeRemount = runRemoteDeepLinkImportLifecycle(inFlightImports, currentSearch, {
+    importDocument: async () => {
+      throw new Error('duplicate import must not run')
+    },
+    readLiveSearch: () => currentSearch,
+    consumeSearch: () => {
+      failedConsumeCalls += 1
+    },
+    reportError: () => {
+      reportedErrors += 1
+    },
+  })
+  if (failedImport !== failedStrictModeRemount) {
+    throw new Error('expected failed StrictMode remounts to share the active import')
+  }
+  await failedImport
+  if (failedConsumeCalls !== 0 || reportedErrors !== 1 || inFlightImports.size !== 0) {
+    throw new Error('expected a rejected remote import to retain its URL, report once, and release its in-flight lease')
+  }
 }

@@ -59,15 +59,17 @@ const waitForCanvas = async resolveBody => {
   throw new Error(`Canvas did not reach a stable ready state within 45 seconds.${detail}`, { cause: lastError })
 }
 
-const resolveHomeCanvasBody = async page => {
-  const frame = page.frames().find(candidate => {
+const resolveHomeCanvasFrame = page => page.frames().find(candidate => {
     if (candidate === page.mainFrame()) return false
     try {
       return new URL(candidate.url()).pathname.startsWith('/knowgrph')
     } catch {
       return false
     }
-  })
+  }) || null
+
+const resolveHomeCanvasBody = async page => {
+  const frame = resolveHomeCanvasFrame(page)
   // The Home startup handoff may promote the selected canvas into the top-level surface.
   return frame ? frame.locator('body') : page.locator('body')
 }
@@ -82,6 +84,34 @@ await validateProductionRuntimeReadiness(markerAtApex.marker, {
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
 const context = await browser.newContext({ serviceWorkers: 'block' })
+await context.addInitScript(() => {
+  const prematureSceneMounts = []
+  const recordPrematureSceneMount = () => {
+    const sceneRoots = document.querySelectorAll('[data-kg-xr-scene-media-drop="1"]')
+    const canonicalSourceReady = document.querySelector('[data-kg-xr-physics-run-ready="full-frame"]')
+    if (sceneRoots.length === 0 || canonicalSourceReady) return
+    prematureSceneMounts.push({
+      rootCount: sceneRoots.length,
+      documentLoaded: Array.from(sceneRoots).map(root => root.getAttribute('data-kg-xr-document-loaded')),
+      emptyWorldCount: document.querySelectorAll('[data-kg-xr-empty-world="1"]').length,
+      gameStageCount: document.querySelectorAll('[data-kg-game-fps-stage]').length,
+    })
+  }
+  new MutationObserver(recordPrematureSceneMount).observe(document, {
+    attributes: true,
+    childList: true,
+    subtree: true,
+    attributeFilter: [
+      'data-kg-xr-document-loaded',
+      'data-kg-xr-physics-run-ready',
+      'data-kg-xr-scene-media-drop',
+    ],
+  })
+  Object.defineProperty(window, '__kgHomeSourceAuthorityEvidence', {
+    configurable: false,
+    get: () => prematureSceneMounts.slice(),
+  })
+})
 const pageErrors = []
 const poisonedModules = []
 const browserAssetScripts = []
@@ -106,11 +136,27 @@ try {
   for (const phrase of ['Map intent.', 'Orchestrate agents.', 'Prove outcomes.']) assert.ok(heading.includes(phrase))
   const heroFrameElement = home.locator('iframe').first()
   await heroFrameElement.waitFor({ state: 'attached', timeout: 30_000 })
+  const heroFrameSrc = await heroFrameElement.getAttribute('src')
+  assert.ok(heroFrameSrc, 'Home must mount the canonical shared-canvas iframe')
+  assert.equal(new URL(heroFrameSrc, browserOrigin).searchParams.get('kgPreview'), '1')
   const heroCanvasText = await waitForCanvas(() => resolveHomeCanvasBody(home))
   assert.match(heroCanvasText, PHYSICS_PLAYGROUND_PATTERN)
   assert.match(heroCanvasText, /Beach Ball/)
   assert.match(heroCanvasText, /Rocket/)
   assert.doesNotMatch(heroCanvasText, /Validation seed fallback/)
+  const homeCanvasTarget = resolveHomeCanvasFrame(home) || home
+  const homeSourceAuthority = await homeCanvasTarget.evaluate(() => ({
+    prematureSceneMounts: window.__kgHomeSourceAuthorityEvidence || [],
+    sceneRootCount: document.querySelectorAll('[data-kg-xr-scene-media-drop="1"]').length,
+    canvasCount: document.querySelectorAll('[data-kg-xr-scene-media-drop="1"] canvas').length,
+    emptyWorldCount: document.querySelectorAll('[data-kg-xr-empty-world="1"]').length,
+    gameStageCount: document.querySelectorAll('[data-kg-game-fps-stage]').length,
+  }))
+  assert.deepEqual(homeSourceAuthority.prematureSceneMounts, [], 'Home mounted an XR world before canonical source readiness')
+  assert.equal(homeSourceAuthority.sceneRootCount, 1, 'Home must retain exactly one canonical XR scene root')
+  assert.equal(homeSourceAuthority.canvasCount, 1, 'Home must retain exactly one canonical XR Canvas')
+  assert.equal(homeSourceAuthority.emptyWorldCount, 0, 'Home must never retain an empty-world fallback')
+  assert.equal(homeSourceAuthority.gameStageCount, 0, 'Home must not activate Game Mode before explicit invocation')
 
   const app = await context.newPage()
   await app.goto(`${browserOrigin}/knowgrph?kgReleaseProof=${expectedSourceRevision}`, { waitUntil: 'domcontentloaded', timeout: 45_000 })
