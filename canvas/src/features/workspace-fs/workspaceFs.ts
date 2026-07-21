@@ -3,9 +3,10 @@ import { WORKSPACE_ROOT_PATH, ancestorPathsForWorkspacePath, normalizeWorkspaceP
 import { readEnvString } from '@/lib/config.env'
 import { readWorkspaceInitializationDocsMirrorEntries, readWorkspaceInitializationSeedText } from './workspaceSeedProvider'
 import {
-  GAME_FPS_RUN_READY_DEMO_ID, WORKSPACE_RUN_READY_DEMO_ENV,
+  WORKSPACE_RUN_READY_DEMO_ENV,
   XR_PHYSICS_DEMO_REPO_REL_PATH,
   XR_PHYSICS_DEMO_WORKSPACE_SEED_BASENAME,
+  isWorkspaceRepoLocalRunReadyBootstrap,
   resolveWorkspaceRunReadyDemoSeed,
   resolveWorkspaceValidationSeedRelPath,
 } from './workspaceRunReadyDemos'
@@ -279,6 +280,9 @@ const TEST_VALIDATION_WORKSPACE_SEED_REL_PATH_CANDIDATES = (() => {
 })()
 export const CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE =
   TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
+const REPO_LOCAL_VALIDATION_SOURCE_EXCLUSIVE = REPO_LOCAL_RUN_READY_SOURCE_EXCLUSIVE || (
+  isWorkspaceRepoLocalRunReadyBootstrap() && CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE
+)
 const normalizedValidationSeedSourcePath = normalizeWorkspacePath(TEST_VALIDATION_WORKSPACE_SEED_REL_PATH)
 export const TEST_VALIDATION_WORKSPACE_SEED_PATH =
   CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE
@@ -373,7 +377,7 @@ const WORKSPACE_SEED_SPECS: readonly WorkspaceSeedSpec[] = [
     fallbackText: '',
     sourceLoader: loadXrPhysicsDemoSeedSource,
   }] : []),
-].filter(seed => WORKSPACE_RUN_READY_DEMO?.id !== GAME_FPS_RUN_READY_DEMO_ID || seed.path === TEST_VALIDATION_WORKSPACE_SEED_PATH)
+].filter(seed => !REPO_LOCAL_VALIDATION_SOURCE_EXCLUSIVE || seed.path === TEST_VALIDATION_WORKSPACE_SEED_PATH)
 const WORKSPACE_SEED_PATH_SET = new Set<WorkspacePath>(WORKSPACE_SEED_SPECS.map(seed => seed.path))
 const WORKSPACE_SEED_SOURCE_REL_PATH_SET = new Set<WorkspacePath>(
   WORKSPACE_SEED_SPECS
@@ -472,7 +476,7 @@ export function expandWorkspaceSeedFileEntries(path: WorkspacePath, text: string
 }
 
 export async function getWorkspaceSeedFiles(): Promise<WorkspaceSeedFile[]> {
-  const docsMirrorEntries = REPO_LOCAL_RUN_READY_SOURCE_EXCLUSIVE
+  const docsMirrorEntries = REPO_LOCAL_VALIDATION_SOURCE_EXCLUSIVE
     ? []
     : await readWorkspaceInitializationDocsMirrorEntries({ preferCompleteDataset: true })
   const loaded = await Promise.all(
@@ -488,7 +492,7 @@ export async function getWorkspaceSeedFiles(): Promise<WorkspaceSeedFile[]> {
           relPaths: seed.sourceRelPaths,
           fallbackText: seed.fallbackText,
           docsMirrorEntries,
-          sourceExclusive: REPO_LOCAL_RUN_READY_SOURCE_EXCLUSIVE,
+          sourceExclusive: REPO_LOCAL_VALIDATION_SOURCE_EXCLUSIVE,
         })),
       }
     }),

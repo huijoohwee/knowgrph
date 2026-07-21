@@ -129,4 +129,7 @@ export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () =>
   if (!text.includes("link.kind === 'default-remote'")) {
     throw new Error('Expected the deep-link runtime to route default-workspace shared documents through the shared storage markdown reader')
   }
+  if (!text.includes('preferDirectFetch: true')) {
+    throw new Error('Expected the storage deep-link runtime to fetch its configured CORS endpoint directly without a failing proxy preflight')
+  }
 }

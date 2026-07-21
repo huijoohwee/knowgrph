@@ -32,7 +32,8 @@ export function useXrNativeControllerDemoCamera({
   suspended: boolean
 }) {
   const markdownDocumentName = useGraphStore(state => state.markdownDocumentName)
-  const runReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName)
+  const markdownDocumentText = useGraphStore(state => state.markdownDocumentText)
+  const runReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)
   const activeRef = React.useRef(false)
   const controlsCapabilitiesRef = React.useRef<null | {
     enablePan: boolean

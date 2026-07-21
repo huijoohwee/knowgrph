@@ -2,76 +2,49 @@ import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { isGameFpsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import {
-  acknowledgeGameFpsDecisions,
-  readGameFpsSnapshot,
-  startGameFpsMission,
-  stopGameFpsMission,
-  subscribeGameFpsSnapshot,
-} from '@/features/game-fps/gameFpsRuntime'
-import {
-  loadGameFpsSavedDecisions,
-  persistPendingGameFpsDecisions,
-  queueGameFpsDecisions,
-  reportGameFpsDecisionLoadFailure,
-} from '@/features/game-fps/gameFpsDecisionStore'
+  exitGameModeSurface,
+  readGameModeSnapshot,
+  startGameMode,
+} from '@/features/game-fps/gameModeRuntime'
 
 export function GameFpsRunReadyDemoRuntime() {
   const markdownDocumentName = useGraphStore(state => state.markdownDocumentName)
-  const active = isGameFpsRunReadyDemoActive(markdownDocumentName)
-  const mission = React.useSyncExternalStore(
-    subscribeGameFpsSnapshot,
-    readGameFpsSnapshot,
-    readGameFpsSnapshot,
-  )
-  const launchGenerationRef = React.useRef(0)
-  const persistedDecisionKeyRef = React.useRef('')
+  const markdownDocumentText = useGraphStore(state => state.markdownDocumentText)
+  const active = isGameFpsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)
+  const dedicatedDemo = isGameFpsRunReadyDemoActive()
+  const ownsDocumentLaunchRef = React.useRef(false)
+  const unmountTeardownTokenRef = React.useRef(0)
 
   React.useLayoutEffect(() => {
-    const generation = launchGenerationRef.current + 1
-    launchGenerationRef.current = generation
+    unmountTeardownTokenRef.current += 1
+    return () => {
+      const teardownToken = unmountTeardownTokenRef.current + 1
+      unmountTeardownTokenRef.current = teardownToken
+      queueMicrotask(() => {
+        if (unmountTeardownTokenRef.current !== teardownToken) return
+        if (!ownsDocumentLaunchRef.current) return
+        ownsDocumentLaunchRef.current = false
+        if (isGameFpsRunReadyDemoActive()) return
+        if (readGameModeSnapshot().active) exitGameModeSurface()
+      })
+    }
+  }, [])
+
+  React.useLayoutEffect(() => {
     if (!active) {
-      stopGameFpsMission()
+      if (ownsDocumentLaunchRef.current) {
+        ownsDocumentLaunchRef.current = false
+        exitGameModeSurface()
+      }
       return undefined
     }
-    const graph = useGraphStore.getState()
-    graph.setCanvasRenderMode('3d')
-    graph.setCanvas3dMode('3d')
-    graph.setFloatingPanelOpen(false)
-    graph.setBottomSurfaceCollapsed(true)
-    void loadGameFpsSavedDecisions()
-      .then(decisions => {
-        if (launchGenerationRef.current !== generation) return
-        startGameFpsMission({ decisions })
-      })
-      .catch(error => {
-        reportGameFpsDecisionLoadFailure(error)
-      })
-    return () => {
-      if (launchGenerationRef.current !== generation) return
-      launchGenerationRef.current += 1
-      stopGameFpsMission()
+    if (!ownsDocumentLaunchRef.current && !readGameModeSnapshot().active) {
+      ownsDocumentLaunchRef.current = true
     }
-  }, [active])
-
-  React.useEffect(() => {
-    if (
-      !active
-      || (mission.phase !== 'won' && mission.phase !== 'lost')
-      || mission.pendingDecisions.length === 0
-    ) return
-    const key = mission.pendingDecisions.map(decision => decision.decisionId).sort().join('|')
-    if (persistedDecisionKeyRef.current === key) return
-    persistedDecisionKeyRef.current = key
-    const decisions = [...mission.pendingDecisions]
-    queueGameFpsDecisions(decisions)
-    void persistPendingGameFpsDecisions().then(result => {
-      if (result.status === 'saved') {
-        acknowledgeGameFpsDecisions(decisions.map(decision => decision.decisionId))
-      } else {
-        persistedDecisionKeyRef.current = ''
-      }
-    })
-  }, [active, mission.pendingDecisions, mission.phase, mission.revision])
+    void startGameMode({ surfaceMode: '3d', openPanel: !dedicatedDemo })
+    if (dedicatedDemo) useGraphStore.getState().setBottomSurfaceCollapsed(true)
+    return undefined
+  }, [active, dedicatedDemo])
 
   return null
 }

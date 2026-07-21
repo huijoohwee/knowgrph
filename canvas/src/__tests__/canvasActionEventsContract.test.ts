@@ -123,8 +123,8 @@ export const testCanvasActionEmittersUseSharedDispatcherBoundary = () => {
   if (!utilsText.includes('requestFloatingPanelOpen(detail)') || !utilsText.includes('requestPropsPanelOpen(detail)')) {
     throw new Error('expected canvas emitters to call the shared floating panel bridge before dispatching passive events')
   }
-  if (!utilsText.includes("'media'") || !utilsText.includes("'animation'") || !launcherText.includes("tab === 'media'") || !launcherText.includes("tab === 'animation'")) {
-    throw new Error('expected shared floating panel open events to support Media and Animation views')
+  if (!utilsText.includes("'media'") || !utilsText.includes("'animation'") || !utilsText.includes("'gameMode'") || !launcherText.includes("tab === 'media'") || !launcherText.includes("tab === 'animation'") || !launcherText.includes("tab === 'gameMode'")) {
+    throw new Error('expected shared floating panel open events to support Media, Animation, and Game Mode views')
   }
   if (!launcherText.includes('installFloatingPanelBridge({') || !launcherText.includes('openFloatingPanel')) {
     throw new Error('expected ToolbarMenuLauncher to register the shared floating panel bridge')

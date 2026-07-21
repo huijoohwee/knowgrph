@@ -15,6 +15,10 @@ import { readXrMotionReferenceRuntime } from './xrMotionReferenceRuntime'
 import { readBoundXrSelectedActorId } from './xrSelectedActorBinding'
 import { resolveXrSceneLibraryAsset } from './xrSceneLibrary'
 import { MOTION_CONTROL_SURFACE_CATALOG } from './motionControlSurfaceRuntime'
+import { buildGameModeInvocation } from '@/features/game-fps/gameModeMcpRuntime'
+import { GAME_MODE_WEB_MCP_TOOL_IDS } from '@/features/game-fps/gameModeMcpContract.mjs'
+import { readGameModeSnapshot } from '@/features/game-fps/gameModeRuntime'
+import { readGameFpsSnapshot } from '@/features/game-fps/gameFpsRuntime'
 
 type AuthoredSubjectIdentity = Pick<XrMotionReferenceSubject, 'id' | 'assetId' | 'category' | 'label'>
 type PhysicsBodyIdentity = Pick<XrPhysicsRuntimeSnapshot['world']['bodies'][number], 'subjectId' | 'mode'>
@@ -76,6 +80,8 @@ export function inspectMotionControlTargets() {
   const scene = inspectLocalXrSceneAssets()
   const physics = readXrPhysicsRuntime()
   const animation = inspectLocalAnimation()
+  const gameMode = readGameModeSnapshot()
+  const gameMission = readGameFpsSnapshot()
   const controller = scene.physics.controllerDemo
   const actorId = readBoundXrSelectedActorId()
   const track = runtime.plan.cast.find(candidate => candidate.actorId === actorId)
@@ -132,6 +138,15 @@ export function inspectMotionControlTargets() {
           ? buildXrAnimationInvocation(animationPreset.id)
           : buildXrAnimationTransportInvocation('play'),
         webMcpTool: animation.webMcpTools.control,
+      },
+      gameMode: {
+        ...MOTION_CONTROL_SURFACE_CATALOG['game-mode'],
+        active: gameMode.active,
+        surfaceMode: gameMode.surfaceMode,
+        phase: gameMission.phase,
+        enemiesAlive: gameMission.enemiesAlive,
+        invocation: buildGameModeInvocation(gameMode.active ? 'restart' : 'start'),
+        webMcpTool: `knowgrph.${GAME_MODE_WEB_MCP_TOOL_IDS.control}`,
       },
     },
   }

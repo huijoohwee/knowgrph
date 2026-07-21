@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Clapperboard } from 'lucide-react'
+import { Box, Clapperboard, Gamepad2 } from 'lucide-react'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { requestXrSimulationWorkbenchOpen } from '@/features/command-menu/xrSimulationWorkbenchOpenRequest'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
@@ -24,6 +24,8 @@ import {
 import { selectBoundXrShotTarget } from './xrSelectedActorBinding'
 import { inspectMotionControlTargets } from './motionControlTargetRuntime'
 import type { MotionControlCompanionTarget } from './motionControlSurfaceRuntime'
+import { readGameModeSnapshot, subscribeGameModeSnapshot } from '@/features/game-fps/gameModeRuntime'
+import { readGameFpsSnapshot, subscribeGameFpsSnapshot } from '@/features/game-fps/gameFpsRuntime'
 
 type MotionControlTargetCardsProps = Readonly<{
   livePoseActive: boolean
@@ -65,12 +67,23 @@ export const MotionControlTargetCards = React.memo(function MotionControlTargetC
     readXrPhysicsRuntime,
     readXrPhysicsRuntime,
   )
+  const gameModeRuntime = React.useSyncExternalStore(
+    subscribeGameModeSnapshot,
+    readGameModeSnapshot,
+    readGameModeSnapshot,
+  )
+  const gameMission = React.useSyncExternalStore(
+    subscribeGameFpsSnapshot,
+    readGameFpsSnapshot,
+    readGameFpsSnapshot,
+  )
   const selectedNodeId = useGraphStore(state => state.selectedNodeId)
-  const targets = React.useMemo(inspectMotionControlTargets, [controller.revision, grammarCatalog.version, physics.revision, runtime.revision, selectedNodeId])
+  const targets = React.useMemo(inspectMotionControlTargets, [controller.revision, gameMission.revision, gameModeRuntime.revision, grammarCatalog.version, physics.revision, runtime.revision, selectedNodeId])
   const xr3d = targets.surfaces.xr3d
   const objectIdentification = xr3d.objectIdentification
   const selectedObject = objectIdentification.records.find(record => record.selected) || null
   const animation = targets.surfaces.animation
+  const gameMode = targets.surfaces.gameMode
   const animationTarget = animation.selectedTarget
   const animationStatus = !animation.sceneReady
     ? 'Open or create a graph document to control XR animation.'
@@ -149,6 +162,22 @@ export const MotionControlTargetCards = React.memo(function MotionControlTargetC
         <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>Vehicles, props, and other compatible assets retain authored motion. Live pose overrides only a selected compatible humanoid; assigned presets and path marks resume after Stop.</p>
         <TargetInvocation invocation={animation.invocation} />
         <p className={cn('truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)}>WebMCP · {animation.webMcpTool}</p>
+      </article>
+
+      <article className={cn('grid gap-1 rounded border p-2', UI_THEME_TOKENS.panel.border, UI_THEME_TOKENS.panel.bg)} data-kg-motion-control-target="game-mode">
+        <header className="flex items-center gap-2">
+          <Gamepad2 className="size-4" aria-hidden="true" />
+          <h3 className="text-[11px] font-semibold">Game Mode</h3>
+          <button type="button" className="App-toolbar__btn ml-auto" onClick={() => onOpenTarget('game-mode')} data-kg-motion-control-open-target="game-mode">Open</button>
+        </header>
+        <p className={cn('text-[10px]', UI_THEME_TOKENS.text.secondary)}>
+          {gameMode.active
+            ? `${gameMode.phase} · ${gameMode.enemiesAlive} NPC remaining · ${gameMode.surfaceMode}`
+            : 'Open the deterministic ECS mission inside the shared XR Canvas.'}
+        </p>
+        <p className={cn('text-[10px]', UI_THEME_TOKENS.text.tertiary)}>The existing pose-to-controller adapter feeds movement, sprint, and rising-edge fire without adding another camera or inference pipeline.</p>
+        <TargetInvocation invocation={gameMode.invocation} />
+        <p className={cn('truncate text-[9px]', UI_THEME_TOKENS.text.tertiary)}>WebMCP · {gameMode.webMcpTool}</p>
       </article>
     </section>
   )

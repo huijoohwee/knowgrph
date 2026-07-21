@@ -135,6 +135,7 @@ async function handleRemoteDeepLink(
       fs,
       urlRaw: docUrl,
       parentPath: WORKSPACE_ROOT_PATH,
+      preferDirectFetch: true,
     }),
   ))
   bulkSetWorkspaceEntrySources(res.sources)

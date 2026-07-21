@@ -33,6 +33,14 @@ type MutableInput = {
   reloadQueued: boolean
 }
 
+type MutableMotionInput = {
+  forward: number
+  strafe: number
+  sprint: boolean
+  primaryHeld: boolean
+  fireQueued: boolean
+}
+
 const listeners = new Set<Listener>()
 const pendingDecisions = new Map<string, GameFpsDecisionRecord>()
 let mission: GameFpsAuthoredMission | null = null
@@ -41,6 +49,7 @@ let runId = 0
 let generation = 0
 let tickQueue: Promise<void> = Promise.resolve()
 let input: MutableInput = freshInput()
+let motionInput: MutableMotionInput = freshMotionInput()
 
 let snapshot: GameFpsSnapshot = Object.freeze({
   phase: 'stopped',
@@ -73,6 +82,16 @@ function freshInput(): MutableInput {
     sprint: false,
     fireQueued: false,
     reloadQueued: false,
+  }
+}
+
+function freshMotionInput(): MutableMotionInput {
+  return {
+    forward: 0,
+    strafe: 0,
+    sprint: false,
+    primaryHeld: false,
+    fireQueued: false,
   }
 }
 
@@ -134,17 +153,18 @@ function replaceMission(decisions: readonly unknown[] = []): GameFpsSnapshot {
   mission = nextMission
   accumulatorSeconds = 0
   input = freshInput()
+  motionInput = freshMotionInput()
   return publish(captureGameFpsAuthoredMission(nextMission), GAME_FPS_ZERO_COST_LOG, undefined, true)
 }
 
 function tickInput(firstSubStep: boolean): GameFpsTickInput {
   const value = Object.freeze({
-    forward: input.forward,
-    strafe: input.strafe,
+    forward: clampGameFpsUnit(input.forward + motionInput.forward),
+    strafe: clampGameFpsUnit(input.strafe + motionInput.strafe),
     lookYawDelta: firstSubStep ? input.lookYawDelta : 0,
     lookPitchDelta: firstSubStep ? input.lookPitchDelta : 0,
-    sprint: input.sprint,
-    fire: firstSubStep && input.fireQueued,
+    sprint: input.sprint || motionInput.sprint,
+    fire: firstSubStep && (input.fireQueued || motionInput.fireQueued),
     reload: firstSubStep && input.reloadQueued,
   })
   if (firstSubStep) {
@@ -152,6 +172,7 @@ function tickInput(firstSubStep: boolean): GameFpsTickInput {
     input.lookPitchDelta = 0
     input.fireQueued = false
     input.reloadQueued = false
+    motionInput.fireQueued = false
   }
   return value
 }
@@ -190,11 +211,16 @@ export function startGameFpsMission(options: { decisions?: readonly unknown[] } 
   return publish(captureGameFpsAuthoredMission(mission), snapshot.lastCostLog)
 }
 
+export function hasGameFpsMission(): boolean {
+  return mission !== null
+}
+
 export function stopGameFpsMission(): GameFpsSnapshot {
   if (!mission || snapshot.phase === 'stopped') return snapshot
   generation += 1
   accumulatorSeconds = 0
   input = freshInput()
+  motionInput = freshMotionInput()
   return publish(captureGameFpsAuthoredMission(mission), snapshot.lastCostLog, 'stopped')
 }
 
@@ -217,6 +243,20 @@ export function setGameFpsInput(patch: GameFpsInputPatch): void {
     input.lookPitchDelta = clampGameFpsLookDelta(input.lookPitchDelta + patch.lookPitchDelta)
   }
   if (patch.sprint !== undefined) input.sprint = Boolean(patch.sprint)
+}
+
+export function setGameFpsMotionInput(patch: Readonly<{
+  forward: number
+  strafe: number
+  sprint: boolean
+  primary: boolean
+}>): void {
+  const primary = patch.primary === true
+  if (primary && !motionInput.primaryHeld) motionInput.fireQueued = true
+  motionInput.forward = clampGameFpsUnit(patch.forward)
+  motionInput.strafe = clampGameFpsUnit(patch.strafe)
+  motionInput.sprint = patch.sprint === true
+  motionInput.primaryHeld = primary
 }
 
 export function queueGameFpsFire(): void {
@@ -272,6 +312,7 @@ export function resetGameFpsRuntimeForTests(): GameFpsSnapshot {
   runId = 0
   generation += 1
   input = freshInput()
+  motionInput = freshMotionInput()
   const previousRevision = snapshot.revision
   snapshot = Object.freeze({
     phase: 'stopped',

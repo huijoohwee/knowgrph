@@ -88,6 +88,46 @@ def main() -> None:
             moved_z = numeric_attribute(hud, "data-kg-game-fps-player-z")
             if abs(moved_x - initial_x) < 0.001 and abs(moved_z - initial_z) < 0.001:
                 raise AssertionError("W input did not move the player")
+            page.wait_for_timeout(300)
+            released_x = numeric_attribute(hud, "data-kg-game-fps-player-x")
+            released_z = numeric_attribute(hud, "data-kg-game-fps-player-z")
+            if abs(released_x - moved_x) > 0.02 or abs(released_z - moved_z) > 0.02:
+                raise AssertionError("W key release did not neutralize desktop movement")
+            page.keyboard.down("KeyW")
+            page.wait_for_timeout(180)
+            page.keyboard.up("KeyW")
+            page.wait_for_timeout(100)
+            second_cycle_z = numeric_attribute(hud, "data-kg-game-fps-player-z")
+            if abs(second_cycle_z - released_z) < 0.001:
+                raise AssertionError("a second W cycle was no longer accepted after key release")
+
+            webmcp = page.evaluate(
+                """
+                async () => {
+                  const tools = Array.from(navigator.modelContext?.tools || [])
+                  const inspect = tools.find(tool => tool.name === 'knowgrph.inspect_local_game_mode')
+                  const control = tools.find(tool => tool.name === 'knowgrph.control_local_game_mode')
+                  if (!inspect || !control) return { registered: false }
+                  const snapshot = await inspect.execute()
+                  const rejected = await control.execute({ invocation: '/game.mode @canvas @canvas #gameplay operation=open' })
+                  return {
+                    registered: true,
+                    active: snapshot.gameMode.active,
+                    phase: snapshot.mission.phase,
+                    schema: snapshot.schema,
+                    rejectedDuplicateBinding: rejected.ok === false,
+                  }
+                }
+                """
+            )
+            if webmcp != {
+                "registered": True,
+                "active": True,
+                "phase": "playing",
+                "schema": "knowgrph-game-mode-mcp/v1",
+                "rejectedDuplicateBinding": True,
+            }:
+                raise AssertionError(f"Game Mode browser WebMCP was not runtime ready: {webmcp}")
 
             fire = page.locator('[data-kg-game-fps-action="fire"]').first
             expect(fire).to_be_visible()
@@ -167,6 +207,9 @@ def main() -> None:
             if not completion["reloadObserved"]:
                 raise AssertionError("browser completion did not exercise reload")
             expect(hud).to_have_attribute("data-kg-game-fps-phase", "won", timeout=10_000)
+            save_decisions = page.locator('[data-kg-game-fps-action="save"]').first
+            expect(save_decisions).to_be_visible(timeout=10_000)
+            save_decisions.click()
             expect(hud).to_have_attribute("data-kg-game-fps-save-status", "saved", timeout=10_000)
             saved = page.evaluate(
                 """
@@ -262,6 +305,11 @@ def main() -> None:
                 "viewport": {"width": 390, "height": 844},
                 "firstFrame": True,
                 "movement": {"from": [initial_x, initial_z], "to": [moved_x, moved_z]},
+                "desktopRelease": {
+                    "releasedAt": [released_x, released_z],
+                    "secondCycleZ": second_cycle_z,
+                },
+                "webMcp": webmcp,
                 "fire": {"ammoBefore": initial_ammo, "ammoAfter": fired_ammo, "result": fire_result},
                 "tick": {"before": initial_tick, "after": current_tick},
                 "completion": completion,

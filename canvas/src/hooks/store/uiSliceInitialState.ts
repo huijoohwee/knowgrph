@@ -72,6 +72,7 @@ export const createUiInitialState = (
           || view === 'media'
           || view === 'animation'
           || view === 'motionControl'
+          || view === 'gameMode'
           || view === 'view'
           || view === 'camera'
           || view === 'design'

@@ -14,6 +14,7 @@ import {
   isGameFpsRunReadyDemoActive,
   isXrPhysicsRunReadyDemoActive,
 } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { exitGameModeSurface, readGameModeSnapshot, subscribeGameModeSnapshot } from '@/features/game-fps/gameModeRuntime'
 import { XrNativeControllerDemoHud } from '@/features/three/XrNativeControllerDemoHud'
 
 import { getCanvas2dSurfaceId, isCanvas2dRendererId, isStoryboardCanvas2dRenderer, supportsCanvas2dMinimap } from '@/lib/config.render'
@@ -137,9 +138,20 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const graphDataRevision = useGraphStore(s => s.graphDataRevision || 0)
   const sourceFiles = useGraphStore(s => s.sourceFiles)
   const markdownDocumentName = useGraphStore(s => s.markdownDocumentName)
-  const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName)
-  const gameFpsRunReadyDemo = isGameFpsRunReadyDemoActive(markdownDocumentName)
   const markdownDocumentText = useGraphStore(s => s.markdownDocumentText)
+  const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)
+  const gameFpsRunReadyDemo = isGameFpsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)
+  const gameMode = React.useSyncExternalStore(
+    subscribeGameModeSnapshot,
+    readGameModeSnapshot,
+    readGameModeSnapshot,
+  )
+  const gameFpsActive = gameFpsRunReadyDemo || gameMode.active
+  React.useEffect(() => {
+    if (!gameMode.active) return
+    if (canvasRenderMode === '3d' && canvas3dMode === gameMode.surfaceMode) return
+    exitGameModeSurface({ restorePreviousSurface: false })
+  }, [canvas3dMode, canvasRenderMode, gameMode.active, gameMode.surfaceMode])
   const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
   const explorerActivePath = useMarkdownExplorerStore(s => s.activePath)
   const activeSourceFile = React.useMemo(
@@ -292,7 +304,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const isTouchViewport = useMediaQuery('(max-width: 768px), (pointer: coarse)')
   const isNarrowViewport = useMediaQuery('(max-width: 768px)')
   const [activatedHeavyRuntimeSurfaces, setActivatedHeavyRuntimeSurfaces] = React.useState<Partial<Record<'3d' | 'geo', true>>>({})
-  const heavyRuntimeIntentSurface = xrPhysicsRunReadyDemo || gameFpsRunReadyDemo ? null : resolveCanvasViewportHeavyRuntimeIntentSurface({
+  const heavyRuntimeIntentSurface = xrPhysicsRunReadyDemo || gameFpsActive ? null : resolveCanvasViewportHeavyRuntimeIntentSurface({
     isTouchViewport,
     geospatialOverlayOwnsViewport,
     canvasRenderMode,
@@ -311,7 +323,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     && !liveCanvasHeroEmbedPreview
     && !heavyRuntimeIntentBlocked
     && !isNarrowViewport
-    && !gameFpsRunReadyDemo
+    && !gameFpsActive
     && (
       (activeSurface === '2d' && supportsCanvas2dMinimap(canvas2dRenderer))
       || (activeSurface === '3d' && effectiveCanvas3dMode === '3d')
@@ -326,6 +338,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
   const rootRef = React.useRef<HTMLElement | null>(null)
   useForbidBrowserZoomWheel(rootRef, true, { stopPropagation: false })
   const workspaceXrViewportInset = xrPhysicsRunReadyDemo
+    && !gameFpsActive
     && workspaceEditorOverlayOpen
     && String(workspaceVisibleCanvasLeft || '').trim()
       ? String(workspaceVisibleCanvasLeft).trim()
@@ -345,7 +358,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
           width: `calc(100% - ${workspaceXrViewportInset})`,
         } : {}),
       }}
-      aria-label={xrPhysicsRunReadyDemo ? 'Interactive XR Physics Playground' : variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}
+      aria-label={gameFpsActive ? 'Deterministic Game Mode' : xrPhysicsRunReadyDemo ? 'Interactive XR Physics Playground' : variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}
     >
       <React.Suspense fallback={null}>
         {!documentSwitchOwnsViewport && !geospatialOverlayOwnsViewport && canvasRenderMode === '2d' && (
@@ -565,8 +578,8 @@ export function CanvasViewport(props: CanvasViewportProps) {
           </>
         ) : null}
       </React.Suspense>
-      {xrPhysicsRunReadyDemo ? <XrNativeControllerDemoHud /> : null}
-      {gameFpsRunReadyDemo ? <GameFpsHudLazy /> : null}
+      {xrPhysicsRunReadyDemo && !gameFpsActive ? <XrNativeControllerDemoHud /> : null}
+      {gameFpsActive ? <GameFpsHudLazy /> : null}
       {variant === 'workspace' ? <CanvasEmbedCodePanelHost /> : null}
     </section>
   )

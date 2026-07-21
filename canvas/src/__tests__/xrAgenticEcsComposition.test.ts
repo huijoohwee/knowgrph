@@ -56,6 +56,8 @@ const EXPECTED_XR_BROWSER_WEB_MCP_TOOLS = Object.freeze([
   'knowgrph.control_local_animation',
   'knowgrph.inspect_local_motion_control',
   'knowgrph.control_local_motion_control',
+  'knowgrph.inspect_local_game_mode',
+  'knowgrph.control_local_game_mode',
 ])
 
 function assertSameValues(actual: readonly string[], expected: readonly string[], label: string): void {
@@ -197,7 +199,7 @@ export function testXrAgenticEcsCompositionBoundaryRemainsExplicit(): void {
   const xrBrowserToolNames = browserContracts
     .map(contract => contract.webName)
     .filter(webName => EXPECTED_XR_BROWSER_WEB_MCP_TOOLS.includes(webName))
-  assertSameValues(xrBrowserToolNames, EXPECTED_XR_BROWSER_WEB_MCP_TOOLS, 'XR, Animation, and Motion Control browser WebMCP tools')
+  assertSameValues(xrBrowserToolNames, EXPECTED_XR_BROWSER_WEB_MCP_TOOLS, 'XR, Animation, Motion Control, and Game Mode browser WebMCP tools')
   const webMcpRuntimeSource = readFileSync(
     resolve(repositoryRoot, 'canvas', 'src', 'features', 'agent-ready', 'webMcpRuntime.ts'),
     'utf8',

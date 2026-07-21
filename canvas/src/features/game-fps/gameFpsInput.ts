@@ -5,7 +5,7 @@ import {
 } from './gameFpsRuntime'
 import type { GameFpsInputPatch } from './gameFpsModel'
 
-const MOVE_CODES = new Set([
+const MOVE_CODES: ReadonlySet<string> = new Set([
   'ArrowDown',
   'ArrowLeft',
   'ArrowRight',
@@ -17,6 +17,19 @@ const MOVE_CODES = new Set([
   'ShiftLeft',
   'ShiftRight',
 ])
+
+export function updateGameFpsPressedCode(
+  pressedCodes: Set<string>,
+  code: string,
+  pressed: boolean,
+): boolean {
+  if (!MOVE_CODES.has(code)) return false
+  if (pressed) {
+    pressedCodes.add(code)
+    return true
+  }
+  return pressedCodes.delete(code)
+}
 
 export function gameFpsInputPatchFromPressedCodes(codes: ReadonlySet<string>): GameFpsInputPatch {
   const forward = Number(codes.has('KeyW') || codes.has('ArrowUp'))
@@ -51,8 +64,7 @@ export function installGameFpsDesktopInput(element: HTMLCanvasElement): GameFpsI
   }
   const onKeyDown = (event: KeyboardEvent) => {
     if (isEditableTarget(event.target)) return
-    if (MOVE_CODES.has(event.code)) {
-      pressed.add(event.code)
+    if (updateGameFpsPressedCode(pressed, event.code, true)) {
       publishMovement()
       event.preventDefault()
       return
@@ -66,7 +78,7 @@ export function installGameFpsDesktopInput(element: HTMLCanvasElement): GameFpsI
     }
   }
   const onKeyUp = (event: KeyboardEvent) => {
-    if (!MOVE_CODES.delete(event.code)) return
+    if (!updateGameFpsPressedCode(pressed, event.code, false)) return
     publishMovement()
     event.preventDefault()
   }
