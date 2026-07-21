@@ -44,25 +44,25 @@ test("publish sync includes the published agent-ready dependency closure", () =>
 
 test("publish sync includes the cross-root semantic-key dependency", () => {
   assert.match(syncScript, /semanticKeyContractSource = path\.resolve\(knowgrphRoot, 'contracts', 'semantic-key\.js'\)/);
-  assert.match(syncScript, /semanticKeyContractTarget = path\.resolve\(githubRoot, 'huijoohwee', 'contracts', 'semantic-key\.js'\)/);
+  assert.match(syncScript, /semanticKeyContractTarget = path\.resolve\(mirrorRoot, 'contracts', 'semantic-key\.js'\)/);
   assert.match(syncScript, /\[semanticKeyContractSource, semanticKeyContractTarget\]/);
 });
 
 test("publish sync includes the XR scene tool contract dependency", () => {
   assert.match(syncScript, /xrSceneMcpContractSource = path\.resolve\(knowgrphRoot, 'canvas', 'src', 'features', 'three', 'xrSceneMcpContract\.mjs'\)/);
-  assert.match(syncScript, /xrSceneMcpContractTarget = path\.resolve\(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'three', 'xrSceneMcpContract\.mjs'\)/);
+  assert.match(syncScript, /xrSceneMcpContractTarget = path\.resolve\(mirrorRoot, 'canvas', 'src', 'features', 'three', 'xrSceneMcpContract\.mjs'\)/);
   assert.match(syncScript, /\[xrSceneMcpContractSource, xrSceneMcpContractTarget\]/);
 });
 
 test("publish sync includes the XR animation tool contract dependency", () => {
   assert.match(syncScript, /xrAnimationMcpContractSource = path\.resolve\(knowgrphRoot, 'canvas', 'src', 'features', 'three', 'xrAnimationMcpContract\.mjs'\)/);
-  assert.match(syncScript, /xrAnimationMcpContractTarget = path\.resolve\(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'three', 'xrAnimationMcpContract\.mjs'\)/);
+  assert.match(syncScript, /xrAnimationMcpContractTarget = path\.resolve\(mirrorRoot, 'canvas', 'src', 'features', 'three', 'xrAnimationMcpContract\.mjs'\)/);
   assert.match(syncScript, /\[xrAnimationMcpContractSource, xrAnimationMcpContractTarget\]/);
 });
 
 test("publish sync includes the motion-control tool contract dependency", () => {
   assert.match(syncScript, /motionControlMcpContractSource = path\.resolve\(knowgrphRoot, 'canvas', 'src', 'features', 'three', 'motionControlMcpContract\.mjs'\)/);
-  assert.match(syncScript, /motionControlMcpContractTarget = path\.resolve\(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'three', 'motionControlMcpContract\.mjs'\)/);
+  assert.match(syncScript, /motionControlMcpContractTarget = path\.resolve\(mirrorRoot, 'canvas', 'src', 'features', 'three', 'motionControlMcpContract\.mjs'\)/);
   assert.match(syncScript, /\[motionControlMcpContractSource, motionControlMcpContractTarget\]/);
 });
 

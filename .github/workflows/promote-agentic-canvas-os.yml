@@ -1,0 +1,80 @@
+name: Promote Agentic Canvas OS Docs
+# runtime-docs-workflow: promoter
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: promote-agentic-canvas-os-docs
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote Protected Docs Revision
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ secrets.HUIJOOHWEE_PUSH_TOKEN }}
+
+    steps:
+      - name: Checkout Knowgrph main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.HUIJOOHWEE_PUSH_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve latest protected docs revision
+        id: promotion
+        run: node ./scripts/promote-agentic-canvas-os-revision.mjs
+
+      - name: Checkout exact Agentic Canvas OS revision
+        if: steps.promotion.outputs.changed == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: huijoohwee/agentic-canvas-os
+          ref: ${{ steps.promotion.outputs.revision }}
+          path: agentic-canvas-os
+          fetch-depth: 0
+
+      - name: Validate exact docs source
+        if: steps.promotion.outputs.changed == 'true'
+        run: |
+          test "$(git -C agentic-canvas-os rev-parse HEAD)" = "${{ steps.promotion.outputs.revision }}"
+          npm --prefix agentic-canvas-os ci
+          npm --prefix agentic-canvas-os run docs:check
+          node --test scripts/__tests__/runtime-readiness-contract.test.mjs scripts/__tests__/promote-agentic-canvas-os-revision.test.mjs
+        env:
+          KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: ${{ github.workspace }}/agentic-canvas-os/docs
+
+      - name: Open protected promotion pull request
+        if: steps.promotion.outputs.changed == 'true'
+        env:
+          DOCS_REVISION: ${{ steps.promotion.outputs.revision }}
+        run: |
+          branch="agent/automation/agentic-canvas-os-${DOCS_REVISION:0:12}"
+          base_sha="$(git rev-parse HEAD)"
+          git config user.name "knowgrph-lifecycle[bot]"
+          git config user.email "knowgrph-lifecycle[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add docs/runtime-readiness-contract.md
+          git commit -m "Promote Agentic Canvas OS ${DOCS_REVISION:0:12}"
+          git push --set-upstream origin "$branch"
+          body=$'---\naction: /change\nscope: "#runtime.readiness"\nactor: "@agentic-docs-promoter"\nbase_sha: "'"$base_sha"$'"\n---\n\nAutomatically promotes the latest protected, green Agentic Canvas OS docs revision.\n'
+          url="$(gh pr create --draft --base main --head "$branch" --title "Promote Agentic Canvas OS ${DOCS_REVISION:0:12}" --body "$body")"
+          gh pr edit "$url" --add-label automerge
+          gh pr ready "$url"
+          gh pr merge "$url" --auto --squash
