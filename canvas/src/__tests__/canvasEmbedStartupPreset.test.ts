@@ -6,6 +6,7 @@ import { XR_PHYSICS_DEMO_PUBLISHED_CANONICAL_PATH } from '@/features/workspace-f
 export function testCanvasEmbedStartupPresetUsesPhysicsPlaygroundSource(): void {
   const viewport = readFileSync(resolve(process.cwd(), 'src/components/CanvasViewport.tsx'), 'utf8')
   const heroRuntime = readFileSync(resolve(process.cwd(), 'src/features/canvas/useKnowgrphLiveCanvasHero.ts'), 'utf8')
+  const presets = readFileSync(resolve(process.cwd(), 'src/features/canvas/canvasEmbedPresets.ts'), 'utf8')
   for (const contract of [
     "get('kgCanvas2dRenderer')",
     'isCanvas2dRendererId(renderer)',
@@ -20,6 +21,9 @@ export function testCanvasEmbedStartupPresetUsesPhysicsPlaygroundSource(): void 
   }
   if (!heroRuntime.includes('isRootAlias ? resolveCanonicalStartupCanvasEmbedRuntimeUrl()')) {
     throw new Error('expected every apex Dev origin to initialize the canonical same-runtime Physics Playground')
+  }
+  if (!presets.includes("url.searchParams.set('kgPreview', '1')")) {
+    throw new Error('expected the canonical Home background to isolate its shell without overriding source-owned XR startup')
   }
   if (!heroRuntime.includes('isRootAlias ? CANONICAL_STARTUP_DOCUMENT_PATH : source?.sourcePath')) {
     throw new Error('expected the apex source identity and embedded document to share one canonical owner')
