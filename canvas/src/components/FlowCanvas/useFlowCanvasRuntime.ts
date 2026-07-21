@@ -53,6 +53,23 @@ import {
 } from '@/components/FlowCanvas/workspaceVisibleViewportRecovery'
 import { readStoryboardCardSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
 
+const STORYBOARD_INITIALIZED_VIEW_HISTORY_LIMIT = 64
+const initializedStoryboardZoomViewKeys = new Set<string>()
+
+const hasInitializedStoryboardZoomView = (refKey: string | null, zoomViewKey: string): boolean =>
+  refKey === zoomViewKey || initializedStoryboardZoomViewKeys.has(zoomViewKey)
+
+const rememberInitializedStoryboardZoomView = (zoomViewKey: string): void => {
+  const key = String(zoomViewKey || '').trim()
+  if (!key || initializedStoryboardZoomViewKeys.has(key)) return
+  initializedStoryboardZoomViewKeys.add(key)
+  while (initializedStoryboardZoomViewKeys.size > STORYBOARD_INITIALIZED_VIEW_HISTORY_LIMIT) {
+    const oldest = initializedStoryboardZoomViewKeys.values().next().value
+    if (typeof oldest !== 'string') break
+    initializedStoryboardZoomViewKeys.delete(oldest)
+  }
+}
+
 export function useFlowCanvasRuntime(args: {
   active: boolean
   storyboardWidgetSurfaceId?: string
@@ -519,7 +536,7 @@ export function useFlowCanvasRuntime(args: {
   const shouldSuppressWorkspacePreInitDraw = React.useCallback((): boolean => {
     if (String(canvas2dRenderer || '') !== 'storyboard') return false
     if (workspaceEditorOverlayOpen !== true) return false
-    if (lastInitTransformZoomViewKeyRef.current === zoomViewKey) return false
+    if (hasInitializedStoryboardZoomView(lastInitTransformZoomViewKeyRef.current, zoomViewKey)) return false
     const hasRenderableGraphNodes =
       Array.isArray(graphDataForZoomRequests?.nodes)
       && graphDataForZoomRequests.nodes.length > 0
@@ -549,7 +566,7 @@ export function useFlowCanvasRuntime(args: {
     if (String(canvas2dRenderer || '') !== 'storyboard') return
     if (workspaceEditorOverlayOpen !== true) return
     if (!workspaceDeferredDrawPendingRef.current) return
-    if (lastInitTransformZoomViewKeyRef.current !== zoomViewKey) return
+    if (!hasInitializedStoryboardZoomView(lastInitTransformZoomViewKeyRef.current, zoomViewKey)) return
     const visibleViewport = resolveVisibleFlowViewportWidth()
     if (!isWorkspaceVisibleViewportSettled(visibleViewport)) return
     clearWorkspaceViewportSettleRetry()
@@ -744,7 +761,9 @@ export function useFlowCanvasRuntime(args: {
       if (meta?.pending === true) return
     }
     const initKey = zoomViewKey
-    const alreadyInitializedForKey = lastInitTransformZoomViewKeyRef.current === initKey
+    const alreadyInitializedForKey = storyboardWidgetMode
+      ? hasInitializedStoryboardZoomView(lastInitTransformZoomViewKeyRef.current, initKey)
+      : lastInitTransformZoomViewKeyRef.current === initKey
     const current = runtime.transform || d3.zoomIdentity
     const hasNonIdentityTransform = current.k !== 1 || current.x !== 0 || current.y !== 0
     if (hasWorkspaceCanvasUserInteractionAfterOpen()) workspaceOverlayUserControlledRef.current = true
@@ -761,6 +780,7 @@ export function useFlowCanvasRuntime(args: {
         : 'workspace-open-initialized-init-preserve-current'
       syncFlowCanvasDebugToast({ enabled: true })
       lastInitTransformZoomViewKeyRef.current = initKey
+      rememberInitializedStoryboardZoomView(initKey)
       return
     }
     if (
@@ -919,6 +939,7 @@ export function useFlowCanvasRuntime(args: {
         : d3.zoomIdentity.translate(fitSeed.x, fitSeed.y).scale(fitSeed.k)
     const next = d3.zoomIdentity.translate(seed.x, seed.y).scale(seed.k)
     lastInitTransformZoomViewKeyRef.current = initKey
+    if (storyboardWidgetMode) rememberInitializedStoryboardZoomView(initKey)
     if (Math.abs(current.k - next.k) > 1e-9 || Math.abs(current.x - next.x) > 1e-6 || Math.abs(current.y - next.y) > 1e-6) {
       cancelFlowZoomRequestAnim(runtime)
       setFlowNativeTransform(runtime, next)
@@ -1001,7 +1022,7 @@ export function useFlowCanvasRuntime(args: {
       return
     }
     if (shouldPreserveEstablishedWorkspaceOverlayCamera({
-      initializedForView: lastInitTransformZoomViewKeyRef.current === zoomViewKey,
+      initializedForView: hasInitializedStoryboardZoomView(lastInitTransformZoomViewKeyRef.current, zoomViewKey),
       workspaceEditorOverlayOpen,
       workspaceOverlayStabilized: workspaceOverlayStabilizedRef.current,
     })) {
@@ -1017,7 +1038,7 @@ export function useFlowCanvasRuntime(args: {
       )
     if (overlayOnlyNeedsVisibleViewportFit && overlayBounds && fitWorkspaceOverlayBoundsToVisibleViewport({ runtime, overlayBounds, visibleViewport })) return
     if (!scene || scene.nodes.length === 0) return
-    if (workspaceEditorOverlayOpen && lastInitTransformZoomViewKeyRef.current !== zoomViewKey && !overlayBounds) {
+    if (workspaceEditorOverlayOpen && !hasInitializedStoryboardZoomView(lastInitTransformZoomViewKeyRef.current, zoomViewKey) && !overlayBounds) {
       __flowCanvasDebug.lastRecoveryReason = 'workspace-open-preinit-recovery-suppressed'
       syncFlowCanvasDebugToast({ enabled: true })
       return

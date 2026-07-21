@@ -699,6 +699,11 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeText.includes('const workspaceOverlayStabilizedRef = React.useRef(false)')) {
     throw new Error('expected Flow runtime workspace-open recovery to track stabilized transform authority after THEN-layout convergence')
   }
+  if (!runtimeText.includes('const initializedStoryboardZoomViewKeys = new Set<string>()')
+    || !runtimeText.includes('hasInitializedStoryboardZoomView(lastInitTransformZoomViewKeyRef.current, initKey)')
+    || !runtimeText.includes('rememberInitializedStoryboardZoomView(initKey)')) {
+    throw new Error('expected Storyboard camera initialization authority to survive same-page Flow renderer remounts for the stable view key')
+  }
   if (!runtimeText.includes('const workspaceOverlayZoomViewKeyRef = React.useRef<string | null>(null)')) {
     throw new Error('expected Flow runtime workspace-open recovery to track active zoom view key for transform-authority resets')
   }
