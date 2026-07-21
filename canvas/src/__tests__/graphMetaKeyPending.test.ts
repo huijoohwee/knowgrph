@@ -2,6 +2,7 @@ import type { GraphData } from '@/lib/graph/types'
 import { buildGraphDocumentMetaKey, buildGraphMetaKey, buildGraphMetaKeyIgnoringPending, readBaselineGraphMetaKey } from '@/lib/graph/graphMetaKey'
 import { buildActive2dZoomViewKey } from '@/lib/canvas/active-2d-zoom-view-key'
 import { defaultSchema } from '@/lib/graph/schema'
+import { buildFlowZoomGraphMetaKey } from '@/components/FlowCanvas/layout'
 
 export function testGraphMetaKeyIgnoringPendingStaysStableAcrossPendingFlag() {
   const pending: GraphData = {
@@ -117,6 +118,31 @@ export function testStoryboardActive2dZoomViewKeyStaysStableAcrossSourceRevision
   const flowSecond = build('flow', second)
   if (!flowFirst || !flowSecond || flowFirst === flowSecond) {
     throw new Error('expected non-Storyboard renderers to retain source-revision isolation')
+  }
+
+  const nativeStoryboardPathFirst = buildFlowZoomGraphMetaKey({ canvas2dRenderer: 'storyboard', graphData: first })
+  const nativeStoryboardPathSecond = buildFlowZoomGraphMetaKey({ canvas2dRenderer: 'storyboard', graphData: second })
+  if (nativeStoryboardPathFirst !== 'frontmatter-flow:markdown:workspace.md' || nativeStoryboardPathFirst !== nativeStoryboardPathSecond) {
+    throw new Error(`expected native Storyboard camera identity to follow the source document instead of its topology revision, got ${JSON.stringify({ nativeStoryboardPathFirst, nativeStoryboardPathSecond })}`)
+  }
+
+  const sourceLessFirst: GraphData = {
+    ...first,
+    metadata: { kind: 'frontmatter-flow', sourceLayerHash: 'revision-a' },
+  }
+  const sourceLessSecond: GraphData = {
+    ...sourceLessFirst,
+    metadata: { kind: 'frontmatter-flow', sourceLayerHash: 'revision-b' },
+  }
+  const nativeStoryboardFirst = buildFlowZoomGraphMetaKey({ canvas2dRenderer: 'storyboard', graphData: sourceLessFirst })
+  const nativeStoryboardSecond = buildFlowZoomGraphMetaKey({ canvas2dRenderer: 'storyboard', graphData: sourceLessSecond })
+  if (nativeStoryboardFirst !== 'frontmatter-flow:' || nativeStoryboardFirst !== nativeStoryboardSecond) {
+    throw new Error(`expected native Storyboard camera identity to ignore same-document topology revisions without a source path, got ${JSON.stringify({ nativeStoryboardFirst, nativeStoryboardSecond })}`)
+  }
+  const nativeFlowFirst = buildFlowZoomGraphMetaKey({ canvas2dRenderer: 'flow', graphData: sourceLessFirst })
+  const nativeFlowSecond = buildFlowZoomGraphMetaKey({ canvas2dRenderer: 'flow', graphData: sourceLessSecond })
+  if (nativeFlowFirst === nativeFlowSecond) {
+    throw new Error('expected non-Storyboard native Flow camera identity to retain source-revision isolation')
   }
 }
 

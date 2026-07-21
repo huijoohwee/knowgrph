@@ -13,7 +13,7 @@ import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import { readOverlaySizingConfigForDensity, type OverlayDensitySizingConfigInput } from '@/lib/render/overlaySizing2d'
 import { MEDIA_PANEL_LAYOUT_FRAME_16X9 } from '@/lib/render/mediaPanelSpec'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { deriveRankdir, buildGraphMetaKeyIgnoringPending } from '@/components/FlowCanvas/layout'
+import { buildFlowZoomGraphMetaKey, deriveRankdir, buildGraphMetaKeyIgnoringPending } from '@/components/FlowCanvas/layout'
 import { readFlowConfig } from '@/components/FlowCanvas/config'
 import { readFlowPresentation } from '@/components/FlowCanvas/presentation'
 import { useFlowComputedPositions } from '@/components/FlowCanvas/useFlowComputedPositions'
@@ -250,7 +250,7 @@ export function useFlowCanvasLayoutState(args: UseFlowCanvasLayoutStateArgs) {
       schemaLayoutEngineJson,
       frontmatterModeEnabled: effectiveFrontmatter,
       documentSemanticMode: String(documentSemanticMode),
-      graphMetaKey: buildGraphMetaKeyIgnoringPending(sceneGraphData),
+      graphMetaKey: buildFlowZoomGraphMetaKey({ canvas2dRenderer, graphData: sceneGraphData }),
       renderMediaAsNodes: renderMediaAsNodes === true,
       mediaPanelDensity: String(mediaPanelDensity),
       collapsedGroupIdsKey,
