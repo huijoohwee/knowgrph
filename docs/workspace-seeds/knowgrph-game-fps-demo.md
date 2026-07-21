@@ -51,8 +51,8 @@ persistence:
   repo_local_mirror: "best-effort existing Source Files bridge"
   automatic_git_commit: false
 runtime_validation:
-  candidate_commit: "db96d16921968d98afd8755437e507ac3a323322"
-  verified_at: "2026-07-21T03:22:34Z"
+  candidate_commit: "98cb837652806cf786c22db786ddba5c7833f4df"
+  verified_at: "2026-07-21T04:20:00Z"
   required_states: ["ready", "running", "complete", "save-error", "save-complete"]
   deterministic_replay: true
   local_assets_only: true
@@ -79,7 +79,7 @@ flow:
       pos: {x: 0, y: -120}
       properties:
         role: "runtime"
-        output: "Run fixed ECS ticks, AABB collision, hitscan, and four authored NPC policies with no model or network."
+        output: "Run fixed ECS ticks, AABB collision, slab hitscan, and four scored NPC actions with no model or network."
     - id: "game_fps_save"
       type: "GameFpsPersistence"
       label: "Local Decisions Save"
@@ -112,7 +112,7 @@ flow:
 
 # Knowgrph Game FPS Mission
 
-This source document is the canonical local activation contract for the bounded Game FPS mission. The focused gate and local browser smoke passed at candidate commit `db96d16921968d98afd8755437e507ac3a323322`; the demo is runtime-ready for local/Dev use only.
+This source document is the canonical local activation contract for the bounded Game FPS mission. The focused gate and local browser smoke passed at candidate commit `98cb837652806cf786c22db786ddba5c7833f4df`; the demo is runtime-ready for local/Dev use only.
 
 ## Run the runtime-ready demo
 
