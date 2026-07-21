@@ -4,12 +4,15 @@ import type { WorkspacePath } from '@/features/workspace-fs/types'
 import { readWorkspaceImportShareExportRootPathSetting } from '@/lib/workspace/workspaceStoreSyncSettings'
 
 export const WORKSPACE_DOCS_SOURCE_ROOT_PATH = '/docs' as WorkspacePath
+export const WORKSPACE_OUTPUT_SOURCE_ROOT_PATH = '/docs_' as WorkspacePath
 export const WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH = '/notes' as WorkspacePath
+// Agentic Canvas OS documents remain available to the workspace runtime, but are
+// reference material rather than operator-owned Source Files.
 export const WORKSPACE_AGENTIC_OS_DOCS_SOURCE_ROOT_PATH = '/agentic-canvas-os/docs' as WorkspacePath
 export const DEFAULT_WORKSPACE_SOURCE_ROOT_PATHS: WorkspacePath[] = [
   WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH,
+  WORKSPACE_OUTPUT_SOURCE_ROOT_PATH,
   WORKSPACE_DOCS_SOURCE_ROOT_PATH,
-  WORKSPACE_AGENTIC_OS_DOCS_SOURCE_ROOT_PATH,
   CHAT_LOCAL_STORAGE_ROOT_PATH_DEFAULT,
 ]
 
@@ -31,8 +34,8 @@ export function resolveWorkspaceSourceRootPaths(args?: {
   for (const candidate of [
     WORKSPACE_AUTHORED_NOTES_SOURCE_ROOT_PATH,
     docsRoot,
+    WORKSPACE_OUTPUT_SOURCE_ROOT_PATH,
     WORKSPACE_DOCS_SOURCE_ROOT_PATH,
-    WORKSPACE_AGENTIC_OS_DOCS_SOURCE_ROOT_PATH,
     chatRoot,
   ]) {
     const normalized = normalizeWorkspacePath(candidate as WorkspacePath)
