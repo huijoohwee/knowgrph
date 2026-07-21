@@ -39,6 +39,13 @@ export type FlowOverlayCollectiveViewportState = {
   fitsVisibleViewport: boolean
 }
 
+export function shouldPreserveStabilizedWorkspaceOverlayCamera(args: {
+  workspaceEditorOverlayOpen: boolean
+  workspaceOverlayStabilized: boolean
+}): boolean {
+  return args.workspaceEditorOverlayOpen && args.workspaceOverlayStabilized
+}
+
 const roundViewportPart = (value: number): number =>
   Number.isFinite(value) ? Math.round(value) : 0
 

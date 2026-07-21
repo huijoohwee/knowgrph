@@ -48,6 +48,7 @@ import {
   buildWorkspaceVisibleViewportFitRecoveryKey,
   computeWorkspaceOverlayVisibleViewportFitTransform,
   deriveFlowOverlayCollectiveViewportState,
+  shouldPreserveStabilizedWorkspaceOverlayCamera,
   STORYBOARD_WIDGET_WORKSPACE_RECOVERY_MAX_VISUAL_SCALE,
 } from '@/components/FlowCanvas/workspaceVisibleViewportRecovery'
 import { readStoryboardCardSize2d } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
@@ -999,6 +1000,14 @@ export function useFlowCanvasRuntime(args: {
       syncFlowCanvasDebugToast({ enabled: true })
       return
     }
+    if (shouldPreserveStabilizedWorkspaceOverlayCamera({
+      workspaceEditorOverlayOpen,
+      workspaceOverlayStabilized: workspaceOverlayStabilizedRef.current,
+    })) {
+      __flowCanvasDebug.lastRecoveryReason = 'workspace-open-stabilized-preserve-current'
+      syncFlowCanvasDebugToast({ enabled: true })
+      return
+    }
     const overlayOnlyNeedsVisibleViewportFit =
       !!overlayBounds
       && (
@@ -1061,11 +1070,6 @@ export function useFlowCanvasRuntime(args: {
     })
     __flowCanvasDebug.lastRuntimeTransform = `${Math.round(current.x)},${Math.round(current.y)},${Math.round(current.k * 1000) / 1000}`
     __flowCanvasDebug.lastExpectedFit = 'infinite-canvas:preserve-current'
-    if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered) && workspaceOverlayStabilizedRef.current) {
-      __flowCanvasDebug.lastRecoveryReason = 'workspace-open-stabilized-preserve-current'
-      syncFlowCanvasDebugToast({ enabled: true })
-      return
-    }
     if (workspaceEditorOverlayOpen && collectiveVisible && overlayCollectiveCoverageComplete && (collectiveBalanced || collectiveCentered)) {
       // Preserve already-visible centroid-centered transforms while the workspace overlay is open.
       workspaceOverlayStabilizedRef.current = true
