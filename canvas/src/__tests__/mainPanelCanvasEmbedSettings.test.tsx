@@ -15,6 +15,7 @@ import {
   normalizeLiveCanvasHeroCanvasEmbedUrl,
   resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl,
 } from '@/features/canvas/canvasEmbedPresets'
+import { buildDefaultDocViewUrl } from '@/features/canvas/canvasDocDeepLink'
 import { decodePublishedDocShareToken } from '@/features/canvas/canvasDocShareToken.mjs'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
@@ -42,6 +43,21 @@ export async function testMainPanelCanvasEmbedSettingsReuseSharedImportPanel(): 
   const localRuntimeEmbed = resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl('http://localhost:5174')
   if (!localRuntimeEmbed.startsWith('http://localhost:5174/knowgrph/share/')) {
     throw new Error(`expected Dev to mirror the canonical share token through its same-origin runtime, got ${localRuntimeEmbed}`)
+  }
+  const candidateRuntimeEmbed = resolveCanonicalAgentDefinitionsCanvasEmbedRuntimeUrl('https://1234abcd.joohwee.pages.dev')
+  if (!candidateRuntimeEmbed.startsWith('https://1234abcd.joohwee.pages.dev/knowgrph/share/')) {
+    throw new Error(`expected an exact Pages deployment to retain its same-deployment canvas, got ${candidateRuntimeEmbed}`)
+  }
+  const previousStorageBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
+  process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = 'https://airvio.co'
+  try {
+    const productionDocUrl = buildDefaultDocViewUrl(CANONICAL_AGENT_DEFINITIONS_DOCUMENT_PATH)
+    if (!productionDocUrl.startsWith('https://airvio.co/api/storage/doc-default/')) {
+      throw new Error(`expected candidate document hydration to use the canonical storage owner, got ${productionDocUrl}`)
+    }
+  } finally {
+    if (typeof previousStorageBaseUrl === 'string') process.env.VITE_KNOWGRPH_STORAGE_BASE_URL = previousStorageBaseUrl
+    else delete process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
   }
   if (readCanvasEmbedIframeSrc(`<iframe src="${CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL}"></iframe>`) !== CANONICAL_AGENT_DEFINITIONS_CANVAS_EMBED_URL) {
     throw new Error('expected the canonical Agent Definitions URL to use the shared iframe parser')
