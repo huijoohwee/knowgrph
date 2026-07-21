@@ -35,12 +35,12 @@ import {
   type GameModeOperation,
 } from './gameModeMcpRuntime'
 import {
-  exitGameModeSurface,
   readGameModeSnapshot,
   restartGameMode,
   subscribeGameModeSnapshot,
 } from './gameModeRuntime'
 import {
+  readGameFpsSpatialProfile,
   readGameFpsSnapshot,
   subscribeGameFpsSnapshot,
 } from './gameFpsRuntime'
@@ -51,7 +51,7 @@ import {
   subscribeGameFpsDecisionStore,
 } from './gameFpsDecisionStore'
 import { gameFpsHorizontalDistance, hasGameFpsLineOfSight } from './gameFpsGeometry'
-import { scoreGameFpsNpcActions } from './gameFpsMission'
+import { scoreGameFpsNpcActions } from './gameFpsNpcPolicy'
 
 const GAME_MODE_GRAMMAR_SIGILS = ['/', '@', '#'] as const
 const GAME_MODE_REQUIRED_TOKENS = Object.freeze([
@@ -111,7 +111,7 @@ export function GameModeFloatingPanelView() {
     try {
       const result = await resetGameFpsLocalSave()
       if (result.status === 'saved') {
-        restartGameMode()
+        await restartGameMode()
         pushUiToast({ id: 'game-mode:reset-save:ok', kind: 'success', message: 'Local Game Mode Decisions reset explicitly.' })
       } else {
         pushUiToast({ id: 'game-mode:reset-save:error', kind: 'error', message: result.error || 'Local Decision reset failed.' })
@@ -122,7 +122,6 @@ export function GameModeFloatingPanelView() {
   }, [pushUiToast])
 
   const switchCompanion = React.useCallback((target: 'motion-control' | 'xr-3d') => {
-    exitGameModeSurface()
     const opened = openMotionControlSurface(target)
     pushUiToast({
       id: `game-mode:companion:${target}:${opened ? 'ok' : 'error'}`,
@@ -133,9 +132,10 @@ export function GameModeFloatingPanelView() {
     })
   }, [pushUiToast])
 
+  const spatialProfile = readGameFpsSpatialProfile()
   const npcRows = mission.npcs.map(npc => {
     const playerDistance = gameFpsHorizontalDistance(mission.player, npc)
-    const lineOfSight = hasGameFpsLineOfSight(mission.player, npc)
+    const lineOfSight = hasGameFpsLineOfSight(mission.player, npc, spatialProfile.map)
     return {
       ...npc,
       playerDistance,

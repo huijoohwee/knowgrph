@@ -17,6 +17,10 @@ import {
   readGeospatialOverlayEnabledPreferenceRaw,
   writeGeospatialOverlayEnabledPreference,
 } from '@/lib/geospatial/geospatialModePreference'
+import {
+  activateXrSceneSurface,
+  XR_SCENE_FLOATING_PANEL_VIEWS,
+} from '@/features/three/xrSceneSurfaceRuntime'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -256,16 +260,47 @@ export function applyCanvasFrontmatterPreset(args: {
   }
   const canvasRenderMode = surfacePreset.canvasRenderMode
   const canvas3dMode = surfacePreset.canvas3dMode
-  if (canvasRenderMode === '3d' && canvas3dMode && useGraphStore.getState().canvas3dMode !== canvas3dMode) {
-    store.setCanvas3dMode(canvas3dMode)
-    changed = true
-  }
-  if (canvasRenderMode && store.canvasRenderMode !== canvasRenderMode) {
-    if (store.documentStructureBaselineLock === true && documentStructureBaselineLock !== true) {
-      store.setDocumentStructureBaselineLock(false)
+  const xrScenePanelView = XR_SCENE_FLOATING_PANEL_VIEWS.find(view => view === preset?.floatingPanelView)
+  const sharedXrSurfaceRequested = canvasRenderMode === '3d' && canvas3dMode === 'xr'
+  const effectiveCanvasRenderMode = canvasRenderMode ?? store.canvasRenderMode
+  const effectiveCanvas3dMode = canvas3dMode ?? store.canvas3dMode
+  const sharedXrPanelRequested = Boolean(xrScenePanelView)
+    && effectiveCanvasRenderMode === '3d'
+    && effectiveCanvas3dMode === 'xr'
+  const sharedXrSurfaceRouted = sharedXrSurfaceRequested || sharedXrPanelRequested
+  let sharedXrSurfaceActivated = false
+  if (sharedXrSurfaceRouted) {
+    const before = useGraphStore.getState()
+    sharedXrSurfaceActivated = activateXrSceneSurface({
+      ...(xrScenePanelView ? { panelView: xrScenePanelView } : {}),
+      ...(preset?.floatingPanelOpen === true ? { openPanel: true } : {}),
+    })
+    const after = useGraphStore.getState()
+    if (!sharedXrSurfaceActivated) {
+      after.pushUiToast({
+        id: 'frontmatter:xr-scene:unavailable',
+        kind: 'error',
+        message: 'The document requested a shared XR Mode surface that is unavailable.',
+      })
     }
-    store.setCanvasRenderMode(canvasRenderMode)
-    if (useGraphStore.getState().canvasRenderMode === canvasRenderMode) changed = true
+    if (sharedXrSurfaceActivated && (
+      before.canvasRenderMode !== after.canvasRenderMode
+      || before.canvas3dMode !== after.canvas3dMode
+      || before.floatingPanelView !== after.floatingPanelView
+      || before.floatingPanelOpen !== after.floatingPanelOpen
+    )) changed = true
+  } else {
+    if (canvasRenderMode === '3d' && canvas3dMode && useGraphStore.getState().canvas3dMode !== canvas3dMode) {
+      store.setCanvas3dMode(canvas3dMode)
+      changed = true
+    }
+    if (canvasRenderMode && store.canvasRenderMode !== canvasRenderMode) {
+      if (store.documentStructureBaselineLock === true && documentStructureBaselineLock !== true) {
+        store.setDocumentStructureBaselineLock(false)
+      }
+      store.setCanvasRenderMode(canvasRenderMode)
+      if (useGraphStore.getState().canvasRenderMode === canvasRenderMode) changed = true
+    }
   }
   if (canvas3dMode === '3d' && store.canvas3dMode !== '3d') {
     store.setCanvas3dMode('3d')
@@ -322,21 +357,21 @@ export function applyCanvasFrontmatterPreset(args: {
       changed = true
     }
   }
-  if (preset?.floatingPanelView) {
+  if (preset?.floatingPanelView && !(sharedXrSurfaceRouted && xrScenePanelView)) {
     const current = useGraphStore.getState()
     if (current.floatingPanelView !== preset.floatingPanelView) {
       current.setFloatingPanelView(preset.floatingPanelView)
       changed = true
     }
   }
-  if (preset?.floatingPanelOpen === true) {
+  if (preset?.floatingPanelOpen === true && !(sharedXrSurfaceRouted && xrScenePanelView)) {
     const current = useGraphStore.getState()
     if (current.floatingPanelOpen !== true) {
       current.setFloatingPanelOpen(true)
       changed = true
     }
   }
-  if (preset?.floatingPanelOpen === false) {
+  if (preset?.floatingPanelOpen === false && (!(sharedXrSurfaceRouted && xrScenePanelView) || sharedXrSurfaceActivated)) {
     const current = useGraphStore.getState()
     if (current.floatingPanelOpen !== false) {
       current.setFloatingPanelOpen(false)
@@ -344,7 +379,7 @@ export function applyCanvasFrontmatterPreset(args: {
     }
   }
 
-  if (canvas3dMode && useGraphStore.getState().canvas3dMode !== canvas3dMode) {
+  if (!sharedXrSurfaceRequested && canvas3dMode && useGraphStore.getState().canvas3dMode !== canvas3dMode) {
     store.setCanvas3dMode(canvas3dMode)
     changed = true
   }

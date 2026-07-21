@@ -1,13 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import {
-  resolveXrPanelRuntimeStack,
-  resolveXrPanelSourceProfile,
-} from '@/features/three/xrPanelModel'
-import {
-  reconcileNextSubjectLabelAfterDrop,
-  reconcileXrTransformNumberDraft,
-} from '@/features/command-menu/xrMediaAuthoringDrafts'
+import { resolveXrPanelRuntimeStack, resolveXrPanelSourceProfile } from '@/features/three/xrPanelModel'
+import { reconcileNextSubjectLabelAfterDrop, reconcileXrTransformNumberDraft } from '@/features/command-menu/xrMediaAuthoringDrafts'
 import {
   XR_MOTION_REFERENCE_DEFAULT_STAGE_ID,
   XR_MOTION_REFERENCE_STAGE_PRESETS,
@@ -23,11 +17,9 @@ import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/storyboardWidget/richM
 import { sampleXrAnimationPose } from '@/features/three/xrAnimationCatalog'
 import { resolveMotionControlSubjectPose } from '@/features/three/useMotionControlAnimationPose'
 import { buildMotionControlAnimationTarget, buildMotionControlObjectIdentification } from '@/features/three/motionControlTargetRuntime'
-
 function readSource(...parts: string[]): string {
   return readFileSync(resolve(process.cwd(), 'src', ...parts), 'utf8')
 }
-
 export function testXrModeUsesCanonicalFloatingPanel() {
   const spatialAssetTools = readSource('features', 'three', 'SpatialAssetToolsPanel.tsx')
   const mediaCatalog = readSource('features', 'command-menu', 'MediaCatalogPanelView.tsx')
@@ -85,7 +77,6 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     canonicalFrontmatter.indexOf('export function readFloatingPanelViewPreset'),
     canonicalFrontmatter.indexOf('function coerceCanvasWorkspaceFrontmatterPreset'),
   )
-
   for (const marker of [
     'data-kg-media-3d-spatial-tools="1"',
     'data-kg-media-3d-spatial-format',
@@ -247,12 +238,11 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   ]) {
     if (!xrPanelModel.includes(marker)) throw new Error(`expected shared XR panel model to expose ${marker}`)
   }
-
   if (bottomTypes.includes("| 'xr'") || bottomPanel.includes('XrPanelViewLazy') || bottomPanel.includes("view === 'xr'") || viewport.includes('xrBottomPanelVisible')) {
     throw new Error('expected legacy BottomPanel XR types, toggle, mount, and viewport routing to be removed')
   }
-  if (!floatingTypes.includes("| 'camera'") || !floatingTypes.includes("| 'animation'") || !floatingTypes.includes("| 'motionControl'") || !floatingTypes.includes("| 'media'") || floatingTypes.includes("| 'xr'") || !uiInitialState.includes("view === 'camera'") || !uiInitialState.includes("view === 'animation'") || !uiInitialState.includes("view === 'motionControl'") || !uiInitialState.includes("view === 'media'") || uiInitialState.includes("view === 'xr'")) {
-    throw new Error('expected Media, Animation, Motion Control, and Camera to remain first-class FloatingPanel panels with the duplicate XR route removed')
+  if (!floatingTypes.includes("| 'camera'") || !floatingTypes.includes("| 'animation'") || !floatingTypes.includes("| 'motionControl'") || !floatingTypes.includes("| 'gameMode'") || !floatingTypes.includes("| 'media'") || floatingTypes.includes("| 'xr'") || !uiInitialState.includes("view === 'camera'") || !uiInitialState.includes("view === 'animation'") || !uiInitialState.includes("view === 'motionControl'") || !uiInitialState.includes("view === 'gameMode'") || !uiInitialState.includes("view === 'media'") || uiInitialState.includes("view === 'xr'")) {
+    throw new Error('expected Media, Animation, Motion Control, Game Mode, and Camera to remain first-class FloatingPanel panels with the duplicate XR route removed')
   }
   if (
     !floatingPanel.includes('StrybldrCameraFloatingPanelViewLazy') ||
@@ -264,39 +254,46 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     !floatingPanel.includes("floatingPanelView === 'motionControl'") ||
     !floatingPanel.includes("{ view: 'motionControl'") ||
     !floatingPanel.includes('MotionControlFloatingPanelViewLazy') ||
+    !floatingPanel.includes("floatingPanelView === 'gameMode'") ||
+    !floatingPanel.includes("{ view: 'gameMode'") ||
+    !floatingPanel.includes('GameModeFloatingPanelViewLazy') ||
     !floatingPanel.includes("floatingPanelView === 'media'") ||
     floatingPanel.includes('XrPanelViewLazy') ||
     floatingPanel.includes("{ view: 'xr'")
   ) {
-    throw new Error('expected FloatingPanel Media, Animation, Motion Control, and Camera to own canonical projections without a duplicate XR panel')
+    throw new Error('expected FloatingPanel Media, Animation, Motion Control, Game Mode, and Camera to own canonical projections without a duplicate XR panel')
   }
   const mediaViewIndex = floatingPanel.indexOf("{ view: 'media'")
   const animationViewIndex = floatingPanel.indexOf("{ view: 'animation'")
   const motionControlViewIndex = floatingPanel.indexOf("{ view: 'motionControl'")
+  const gameModeViewIndex = floatingPanel.indexOf("{ view: 'gameMode'")
   const cameraViewIndex = floatingPanel.indexOf("{ view: 'camera'")
-  if (!(mediaViewIndex >= 0 && mediaViewIndex < animationViewIndex && animationViewIndex < motionControlViewIndex && motionControlViewIndex < cameraViewIndex)
-    || !floatingPanel.includes("'animation', 'motionControl', 'camera'")) {
-    throw new Error('expected full-height Motion Control immediately to the right of Animation and before Camera')
+  if (!(mediaViewIndex >= 0 && mediaViewIndex < animationViewIndex && animationViewIndex < motionControlViewIndex && motionControlViewIndex < gameModeViewIndex && gameModeViewIndex < cameraViewIndex)
+    || !floatingPanel.includes("'animation', 'motionControl', 'gameMode', 'camera'")) {
+    throw new Error('expected full-height Motion Control and Game Mode between Animation and Camera')
   }
   if (
     !floatingBridge.includes("| 'camera'") ||
     !floatingBridge.includes("| 'animation'") ||
     !floatingBridge.includes("| 'motionControl'") ||
+    !floatingBridge.includes("| 'gameMode'") ||
     !floatingBridge.includes("| 'media'") ||
     floatingBridge.includes("| 'xr'") ||
     !toolbarLauncher.includes("tab === 'camera'") ||
     !toolbarLauncher.includes("tab === 'animation'") ||
     !toolbarLauncher.includes("tab === 'motionControl'") ||
+    !toolbarLauncher.includes("tab === 'gameMode'") ||
     toolbarLauncher.includes("tab === 'xr'") ||
     !iconLibrary.includes("'floatingPanel.camera'") ||
     !iconLibrary.includes("'floatingPanel.animation'") ||
     !iconLibrary.includes("'floatingPanel.motionControl'") ||
+    !iconLibrary.includes("'floatingPanel.gameMode'") ||
     iconLibrary.includes("'floatingPanel.xr'")
   ) {
-    throw new Error('expected the FloatingPanel bridge, launcher, and help registry to remove the duplicate XR route without aliases')
+    throw new Error('expected the five XR scene panels to share the FloatingPanel bridge, launcher, and help registry without aliases')
   }
-  if (!floatingPanelPresetSource.includes("raw === 'camera'") || !floatingPanelPresetSource.includes("raw === 'animation'") || !floatingPanelPresetSource.includes("raw === 'motionControl'") || !floatingPanelPresetSource.includes("raw === 'media'") || floatingPanelPresetSource.includes("raw === 'xr'") || !appliedFrontmatter.includes('readFloatingPanelViewPreset')) {
-    throw new Error('expected FloatingPanel frontmatter routing to use Media, Animation, Motion Control, and Camera without the stale XR projection')
+  if (!floatingPanelPresetSource.includes("raw === 'camera'") || !floatingPanelPresetSource.includes("raw === 'animation'") || !floatingPanelPresetSource.includes("raw === 'motionControl'") || !floatingPanelPresetSource.includes("raw === 'gameMode'") || !floatingPanelPresetSource.includes("raw === 'media'") || floatingPanelPresetSource.includes("raw === 'xr'") || !appliedFrontmatter.includes('readFloatingPanelViewPreset')) {
+    throw new Error('expected FloatingPanel frontmatter routing to use Media, Animation, Motion Control, Game Mode, and Camera without the stale XR projection')
   }
   for (const marker of ['data-kg-media-mode-switcher="header-icons"', 'data-kg-media-library-toggle="1"', 'data-kg-media-3d-toggle="1"', 'title="Media"', 'title="3D for XR"', 'subscribeMediaCatalogMode', 'readMediaCatalogMode', '<XrMediaLibraryPanel']) {
     if (!mediaCatalog.includes(marker)) throw new Error(`expected Media to own the canonical 3D entry through ${marker}`)
@@ -401,7 +398,7 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     || !xrProceduralBall.includes('kg_xr_procedural_ball_geometry')) {
     throw new Error('expected the asset-library Ball and native controller Ball to reuse one procedural geometry owner')
   }
-  for (const marker of ['requestXrSimulationWorkbenchOpen()', "state.setFloatingPanelView('media')", "state.setFloatingPanelOpen(true)"]) {
+  for (const marker of ['requestXrSimulationWorkbenchOpen()', "activateXrSceneSurface({ panelView: 'media', openPanel: true, timeline: true })"]) {
     if (!xrCameraMotion.includes(marker)) throw new Error(`expected the XR Simulation Timeline lane to route through the canonical Media workbench owner via ${marker}`)
   }
   for (const marker of ['subscribeXrSimulationWorkbenchOpenRequest', 'readXrSimulationWorkbenchOpenRevision']) {
@@ -501,11 +498,9 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   for (const marker of ['CollapsibleSection', 'ExpandCollapseAllButton', 'useCollapsibleSectionGroup', 'defaultCollapsed={false}', 'headerClassName="px-0"']) {
     if (!xrMediaLibrary.includes(marker)) throw new Error(`expected Media 3D sections to reuse shared disclosure behavior through ${marker}`)
   }
-
   if (existsSync(resolve(process.cwd(), 'src', 'components', 'toolbar', 'Canvas3dModeSelect.tsx'))) {
     throw new Error('expected Canvas View Surface Mode to remain the only mounted 3D/XR selector')
   }
-
   const plyProfile = resolveXrPanelSourceProfile('---\nkgSpatialCaptureFormat: "ply"\nkgAssetFormat: "ply"\nkgXrIngestionCacheKey: "abc123"\nkgXrRenderCacheKey: "abc123"\n---')
   if (plyProfile.kind !== 'spatial-capture' || plyProfile.format !== 'ply' || !plyProfile.isSpatialCapture || plyProfile.renderCacheKey !== 'abc123') {
     throw new Error(`expected PLY spatial capture profile, got ${JSON.stringify(plyProfile)}`)
@@ -538,7 +533,6 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   if (spzProfile.format !== 'spz' || spzItem?.state !== 'unsupported' || !spzItem.value.includes('Recognized source')) {
     throw new Error(`expected SPZ to be recognized without claiming runtime support, got ${JSON.stringify({ spzProfile, spzItem })}`)
   }
-
   const stagePayload = normalizeMediaDragPayload(buildXrStageMediaDragPayload(XR_MOTION_REFERENCE_STAGE_PRESETS[0]!))
   if (
     stagePayload?.label !== '3D for XR'
@@ -559,7 +553,6 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   if (reconcileNextSubjectLabelAfterDrop('  THIEF  ', 'THIEF') !== '' || reconcileNextSubjectLabelAfterDrop('PILOT', 'THIEF') !== 'PILOT') {
     throw new Error('expected a committed drag to clear only the matching next-subject label draft')
   }
-
   const assetPayload = normalizeMediaDragPayload(buildXrAssetMediaDragPayload(XR_SCENE_LIBRARY_ASSETS[0]!, 'linear', '  THIEF  '))
   if (assetPayload?.xrScene?.entityKind !== 'asset' || assetPayload.xrScene.entityId !== XR_SCENE_LIBRARY_ASSETS[0]!.id || assetPayload.xrScene.transition !== 'linear' || assetPayload.xrScene.subjectLabel !== 'THIEF') {
     throw new Error(`expected asset drag payload to retain typed XR placement metadata, got ${JSON.stringify(assetPayload)}`)
@@ -583,7 +576,6 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   ) {
     throw new Error(`expected persisted XR metadata to hydrate the live Rich Media renderer, got ${JSON.stringify(richMediaState?.xrScene)}`)
   }
-
   const implementationText = [spatialAssetTools, mediaCatalog, xrMediaLibrary, xrSceneMediaDrag, xrSceneMediaDrop, sharedCameraFraming, cameraFramingRuntime, cameraFramingPose, cameraFramingControls, xrPanelModel, cameraPanel, cameraModel, floatingPanel, xrProceduralBall, xrProceduralVehicle, xrSingaporeTerrain, xrNativeAuthoredSubjects].join('\n')
   for (const token of [['super', 'splat'].join(''), ['play', 'canvas'].join(''), ['pc', 'ui'].join(''), ['splat', 'Data'].join('')]) {
     if (implementationText.toLowerCase().includes(token.toLowerCase())) {

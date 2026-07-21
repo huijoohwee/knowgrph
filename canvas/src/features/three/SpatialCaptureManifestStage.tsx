@@ -125,7 +125,7 @@ function waitForSpatialCapturePreviewFirstPaint(): Promise<void> {
 
 function buildPointCloudMaterial(args: {
   hasColor: boolean
-  paused: boolean
+  dimmed: boolean
   pointCount: number
 }): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
@@ -136,7 +136,7 @@ function buildPointCloudMaterial(args: {
     defines: args.hasColor ? { KG_HAS_POINT_COLOR: '1' } : undefined,
     uniforms: {
       baseColor: { value: new THREE.Color('#dbeafe') },
-      opacityScale: { value: args.paused ? 0.66 : 0.96 },
+      opacityScale: { value: resolveSpatialCaptureOpacityScale('point-cloud', args.dimmed) },
       pointScale: { value: resolvePointCloudMaterialScale(args.pointCount) },
     },
     vertexShader: `
@@ -178,6 +178,14 @@ function buildPointCloudMaterial(args: {
       }
     `,
   })
+}
+
+export function resolveSpatialCaptureOpacityScale(
+  kind: 'point-cloud' | 'gaussian-splat',
+  dimmed: boolean,
+): number {
+  if (kind === 'gaussian-splat') return dimmed ? 0.42 : 1
+  return dimmed ? 0.66 : 0.96
 }
 
 function SpatialCaptureStatusMarker({ color }: { color: string }) {
@@ -273,11 +281,13 @@ function SpatialCaptureSelectionOverlay({
 export function SpatialCaptureManifestStage({
   manifest,
   paused,
+  dimmed = paused,
   onLoadStateChange,
   onFitChange,
 }: {
   manifest: StandaloneSpatialCaptureManifest
   paused: boolean
+  dimmed?: boolean
   onLoadStateChange?: (state: LoadState) => void
   onFitChange?: (fit: GlbFit | null) => void
 }) {
@@ -401,7 +411,7 @@ export function SpatialCaptureManifestStage({
     if (!gaussianSplatMaterial || state.status !== 'ready') return
     const crop = resolveGaussianSplatCropBounds(state.load.pointCloud, editorSettings)
     const scaleCeiling = resolveGaussianSplatScaleCeiling(state.load.pointCloud, editorSettings)
-    gaussianSplatMaterial.uniforms.opacityScale.value = paused ? 0.42 : 1.0
+    gaussianSplatMaterial.uniforms.opacityScale.value = resolveSpatialCaptureOpacityScale('gaussian-splat', dimmed)
     gaussianSplatMaterial.uniforms.viewportSize.value.set(Math.max(1, size.width), Math.max(1, size.height))
     gaussianSplatMaterial.uniforms.editorVisualization.value = editorSettings.visualization === 'centers' ? 1 : editorSettings.visualization === 'rings' ? 2 : 0
     gaussianSplatMaterial.uniforms.editorOpacityFloor.value = editorSettings.opacityFloor
@@ -410,7 +420,7 @@ export function SpatialCaptureManifestStage({
     gaussianSplatMaterial.uniforms.editorCropMax.value.set(...crop.max)
     gaussianSplatMaterial.uniforms.editorBrightness.value = editorSettings.brightness
     gaussianSplatMaterial.uniforms.editorSaturation.value = editorSettings.saturation
-  }, [editorSettings, gaussianSplatMaterial, paused, size.height, size.width, state])
+  }, [dimmed, editorSettings, gaussianSplatMaterial, size.height, size.width, state])
   React.useEffect(() => () => gaussianSplatMaterial?.dispose(), [gaussianSplatMaterial])
   useFrame(({ clock }) => {
     if (
@@ -454,10 +464,10 @@ export function SpatialCaptureManifestStage({
     if (state.status !== 'ready' || state.load.pointCloud.kind === 'gaussian-splat') return null
     return buildPointCloudMaterial({
       hasColor: !!state.load.pointCloud.colors,
-      paused,
+      dimmed,
       pointCount: state.load.pointCloud.pointCount,
     })
-  }, [paused, state])
+  }, [dimmed, state])
   React.useEffect(() => () => pointCloudMaterial?.dispose(), [pointCloudMaterial])
   React.useEffect(() => {
     onFitChange?.(fit)

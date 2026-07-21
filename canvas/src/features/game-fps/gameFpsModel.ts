@@ -5,6 +5,9 @@ export const GAME_FPS_NPC_DECISION_INTERVAL_TICKS = 12
 
 export const GAME_FPS_NPC_ACTIONS = ['hold', 'alert', 'engage', 'flee'] as const
 export type GameFpsNpcAction = (typeof GAME_FPS_NPC_ACTIONS)[number]
+export const GAME_FPS_NPC_IDS = ['npc-scout', 'npc-west', 'npc-east', 'npc-guard'] as const
+export type GameFpsNpcId = (typeof GAME_FPS_NPC_IDS)[number]
+export const GAME_FPS_SHARED_XR_PROFILE_ID = 'xr-authored' as const
 
 export const GAME_FPS_FIRE_RESULTS = [
   'idle',
@@ -90,23 +93,26 @@ export type GameFpsTickInput = Readonly<{
 export type GameFpsBlocker = Readonly<{
   id: string
   centerX: number
+  centerY: number
   centerZ: number
   halfWidth: number
+  halfHeight: number
   halfDepth: number
-  height: number
 }>
 
 export type GameFpsSpatialMap = Readonly<{
+  centerX: number
+  centerZ: number
   halfWidth: number
   halfDepth: number
   blockers: readonly GameFpsBlocker[]
 }>
 
 export type GameFpsSpatialProfile = Readonly<{
-  id: 'arena' | 'xr-authored'
+  id: typeof GAME_FPS_SHARED_XR_PROFILE_ID
   map: GameFpsSpatialMap
   playerSpawn: Readonly<Omit<GameFpsPlayerSnapshot, 'health'>>
-  npcSeeds: readonly Readonly<{ id: (typeof GAME_FPS_NPC_SEEDS)[number]['id']; x: number; z: number }>[]
+  npcSeeds: readonly Readonly<{ id: GameFpsNpcId; x: number; z: number }>[]
 }>
 
 function compareGameFpsSpatialIds(left: { id: string }, right: { id: string }): number {
@@ -117,14 +123,17 @@ function gameFpsSpatialProfileSignature(profile: GameFpsSpatialProfile): string 
   const blockers = [...profile.map.blockers].sort(compareGameFpsSpatialIds).map(blocker => [
     blocker.id,
     blocker.centerX,
+    blocker.centerY,
     blocker.centerZ,
     blocker.halfWidth,
+    blocker.halfHeight,
     blocker.halfDepth,
-    blocker.height,
   ])
   const npcSeeds = [...profile.npcSeeds].sort(compareGameFpsSpatialIds).map(npc => [npc.id, npc.x, npc.z])
   return JSON.stringify([
     profile.id,
+    profile.map.centerX,
+    profile.map.centerZ,
     profile.map.halfWidth,
     profile.map.halfDepth,
     blockers,
@@ -139,32 +148,6 @@ export function gameFpsSpatialProfilesMatch(
 ): boolean {
   return gameFpsSpatialProfileSignature(left) === gameFpsSpatialProfileSignature(right)
 }
-
-export const GAME_FPS_MAP = Object.freeze({
-  halfWidth: 18,
-  halfDepth: 24,
-  blockers: Object.freeze([
-    Object.freeze({ id: 'cover-west', centerX: -6, centerZ: -7, halfWidth: 2, halfDepth: 1, height: 2.4 }),
-    Object.freeze({ id: 'cover-east', centerX: 7, centerZ: -12, halfWidth: 1.5, halfDepth: 2.5, height: 3 }),
-    Object.freeze({ id: 'cover-center', centerX: 0, centerZ: -15, halfWidth: 2.2, halfDepth: 1, height: 2.2 }),
-  ] satisfies readonly GameFpsBlocker[]),
-})
-
-export const GAME_FPS_PLAYER_SPAWN = Object.freeze({ x: 0, z: 2, yaw: 0, pitch: 0 })
-
-export const GAME_FPS_NPC_SEEDS = Object.freeze([
-  Object.freeze({ id: 'npc-scout', x: 0, z: -7 }),
-  Object.freeze({ id: 'npc-west', x: -12, z: -4 }),
-  Object.freeze({ id: 'npc-east', x: 10, z: -9 }),
-  Object.freeze({ id: 'npc-guard', x: -4, z: -20 }),
-])
-
-export const GAME_FPS_ARENA_SPATIAL_PROFILE: GameFpsSpatialProfile = Object.freeze({
-  id: 'arena',
-  map: GAME_FPS_MAP,
-  playerSpawn: GAME_FPS_PLAYER_SPAWN,
-  npcSeeds: GAME_FPS_NPC_SEEDS,
-})
 
 export const GAME_FPS_NPC_HITBOX_HALF_EXTENTS = Object.freeze([0.72, 0.9, 0.72] as const)
 

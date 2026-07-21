@@ -5,7 +5,16 @@ from typing import Any
 
 from playwright.sync_api import Error as PlaywrightError
 
+from lib.game_mode_xr_share_scene_contract import (
+    AUTHORED_XR_NODES,
+    GAME_NODES,
+    GAME_NPC_NODES,
+    assert_authored_scene_identity,
+    assert_game_scene_delta,
+    assert_scene_contract,
+)
 from verify_game_mode_xr_share_browser_smoke import poll_evaluate
+from lib.game_mode_xr_share_evidence import audit_request_origins
 
 
 class FakePage:
@@ -54,6 +63,169 @@ class PollEvaluateTest(unittest.TestCase):
 
         self.assertIs(raised.exception, error)
         self.assertEqual(page.load_states, [])
+
+
+class RequestOriginAuditTest(unittest.TestCase):
+    local_origin = ("http", "localhost", 4186)
+    supplied_origin = ("https", "airvio.co", 443)
+    product_document_url = "https://airvio.co/knowgrph/share/operator-token"
+
+    def audit(self, requests: list[str]) -> int:
+        return audit_request_origins(
+            requests,
+            base_url="http://localhost:4186",
+            local_origin=self.local_origin,
+            supplied_origin=self.supplied_origin,
+            product_document_url=self.product_document_url,
+        )
+
+    def test_accepts_one_exact_product_document_request(self) -> None:
+        self.assertEqual(
+            self.audit(
+                [
+                    "http://localhost:4186/knowgrph/",
+                    self.product_document_url,
+                    "http://localhost:4186/src/main.tsx",
+                ]
+            ),
+            1,
+        )
+
+    def test_rejects_another_request_on_the_supplied_origin(self) -> None:
+        with self.assertRaisesRegex(AssertionError, "supplied-document"):
+            self.audit(
+                [
+                    self.product_document_url,
+                    "https://airvio.co/favicon.ico",
+                ]
+            )
+
+    def test_rejects_a_different_supplied_document_behind_the_local_proxy(self) -> None:
+        with self.assertRaisesRegex(AssertionError, "proxy-supplied-document"):
+            self.audit(
+                [
+                    self.product_document_url,
+                    "http://localhost:4186/__fetch_remote?url=https%3A%2F%2Fairvio.co%2Fother.md",
+                ]
+            )
+
+
+class SceneContractTest(unittest.TestCase):
+    @staticmethod
+    def active_contract() -> dict[str, Any]:
+        npc_names = sorted(GAME_NPC_NODES)
+        names = sorted(AUTHORED_XR_NODES | GAME_NODES)
+        return {
+            "ready": True,
+            "names": names,
+            "nodeCount": len(names),
+            "namedNodeCounts": {name: 1 for name in names},
+            "unnamedNodeCount": 0,
+            "lightNodeCount": 2,
+            "meshNodeCount": 8,
+            "retained": "1",
+            "presentation": "xr-authored",
+            "cameraFov": "50",
+            "spatialProfile": "xr-authored",
+            "nativeStageScale": 0.08,
+            "gameStageScale": 0.08,
+            "authoredSceneSignature": "canonical-xr-scene",
+            "missionSubtree": {
+                "directChildCount": 4,
+                "directChildNames": npc_names,
+                "descendantCount": 4,
+                "descendantNames": npc_names,
+                "unnamedDescendantCount": 0,
+                "lightDescendantCount": 0,
+                "meshDescendantCount": 4,
+            },
+        }
+
+    @staticmethod
+    def baseline_contract() -> dict[str, Any]:
+        names = sorted(AUTHORED_XR_NODES)
+        return {
+            "ready": True,
+            "names": names,
+            "nodeCount": len(names),
+            "namedNodeCounts": {name: 1 for name in names},
+            "unnamedNodeCount": 0,
+            "lightNodeCount": 2,
+            "meshNodeCount": 4,
+            "authoredSceneSignature": "canonical-xr-scene",
+        }
+
+    def test_accepts_only_four_npc_meshes_in_game_mission_subtree(self) -> None:
+        assert_scene_contract(self.active_contract(), game_active=True)
+
+    def test_rejects_environment_light_or_unnamed_mission_variants(self) -> None:
+        variants = {
+            "environment": {"directChildCount": 5},
+            "nested": {"descendantCount": 5},
+            "unnamed": {"unnamedDescendantCount": 1},
+            "light": {"lightDescendantCount": 1},
+            "non-mesh": {"meshDescendantCount": 3},
+        }
+        for label, mutation in variants.items():
+            with self.subTest(label=label):
+                contract = self.active_contract()
+                contract["missionSubtree"] = {**contract["missionSubtree"], **mutation}
+                with self.assertRaisesRegex(AssertionError, "non-NPC variant"):
+                    assert_scene_contract(contract, game_active=True)
+
+    def test_active_scene_delta_adds_only_mission_and_four_npc_actors(self) -> None:
+        assert_game_scene_delta(
+            self.baseline_contract(),
+            self.active_contract(),
+            context="Game Mode activation",
+        )
+
+    def test_rejects_game_conditioned_sibling_scene_variants(self) -> None:
+        variants = {
+            "environment": {"name": "kg_game_environment", "light": 0, "mesh": 1},
+            "light": {"name": "kg_game_light", "light": 1, "mesh": 0},
+            "duplicate-actor": {
+                "name": sorted(GAME_NPC_NODES)[0],
+                "light": 0,
+                "mesh": 1,
+            },
+        }
+        for label, variant in variants.items():
+            with self.subTest(label=label):
+                active = self.active_contract()
+                name = str(variant["name"])
+                active["namedNodeCounts"] = {
+                    **active["namedNodeCounts"],
+                    name: active["namedNodeCounts"].get(name, 0) + 1,
+                }
+                active["nodeCount"] += 1
+                active["lightNodeCount"] += int(variant["light"])
+                active["meshNodeCount"] += int(variant["mesh"])
+                with self.assertRaisesRegex(AssertionError, "scene delta"):
+                    assert_game_scene_delta(
+                        self.baseline_contract(),
+                        active,
+                        context=f"Game Mode {label}",
+                    )
+
+        active = self.active_contract()
+        active["nodeCount"] += 1
+        active["unnamedNodeCount"] += 1
+        with self.assertRaisesRegex(AssertionError, "scene delta"):
+            assert_game_scene_delta(
+                self.baseline_contract(),
+                active,
+                context="Game Mode unnamed sibling",
+            )
+
+    def test_compares_authored_scene_identity_across_panel_projections(self) -> None:
+        baseline = self.active_contract()
+        current = self.active_contract()
+        assert_authored_scene_identity(baseline, current, context="Media")
+
+        current["authoredSceneSignature"] = "alternate-scene"
+        with self.assertRaisesRegex(AssertionError, "Camera"):
+            assert_authored_scene_identity(baseline, current, context="Camera")
 
 
 if __name__ == "__main__":

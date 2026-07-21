@@ -4,7 +4,7 @@ id: "md:knowgrph-game-fps-prd-tad"
 author: "airvio / joohwee"
 date: "2026-07-21"
 updated: "2026-07-21"
-version: "2.3.0"
+version: "2.4.0"
 status: "runtime-ready"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
@@ -23,9 +23,10 @@ readiness:
   external_share_browser_smoke: "passed"
   protected_integration: "baseline PR #263 and XR visual-fidelity PR #273 passed"
   xr_visual_fidelity_follow_up: "protected and exact-main acceptance passed"
+  scene_authority_cleanup: "dedicated protected and exact-main acceptance pending"
   production: "not authorized"
 constraints:
-  - "one procedural offline single-player mission"
+  - "one bounded offline single-player mission on the canonical authored XR scene"
   - "core gameplay requires no sign-in, camera permission, passkey, model, network, or Cloudflare service"
   - "native Knowgrph ECS with ephemeral runtime state"
   - "only validated Decisions persist through browser-local WorkspaceFs"
@@ -33,7 +34,7 @@ constraints:
   - "no Rapier, Yuka, behavior-tree, navmesh, or edge-ML dependency"
   - "browser-local WebMCP only; no new stdio, HTTP gateway, or deployment transport"
   - "no automatic Git operation or production deployment"
-  - "XR Game Mode retains the authored scene and suppresses its standalone fallback arena"
+  - "XR Game Mode has one authored scene owner; the fallback scene/environment implementation is deleted and alternate variants are forbidden"
   - "unattended gameplay remains healthy at tick zero until normalized player engagement"
 source_references:
   agentic_ecs: "docs/documents/knowgrph-agentic-entity-component-system-prd-tad.md"
@@ -42,6 +43,8 @@ source_references:
   renderer_owner: "canvas/src/lib/three/ThreeGraph.impl.tsx"
   motion_control: "canvas/src/features/three/motionControlRuntime.ts"
   xr_owner: "canvas/src/features/three/xrNativeControllerDemoRuntime.ts"
+  xr_surface_owner: "canvas/src/features/three/xrSceneSurfaceRuntime.ts"
+  canvas_surface_departure_owner: "canvas/src/lib/canvas/canvasSurfaceOwnershipRuntime.ts"
   workspace_fs: "canvas/src/features/workspace-fs/workspaceFs.ts"
   workspace_upsert: "canvas/src/features/workspace-fs/upsertWorkspaceTextDocument.ts"
   cost_log_contract: "contracts/cost-log.schema.js"
@@ -53,7 +56,7 @@ source_references:
 
 ## Outcome
 
-Knowgrph gains one browser-local FloatingPanel **Game Mode** that runs a bounded first-person mission inside the existing React Three Fiber Canvas. It opens from a source-backed run-ready document, Motion Control's shared target catalog, browser WebMCP, or the strict `/game.mode @canvas #gameplay` invocation. On XR, the authored atmosphere, world, props, and paused frame remain visibly mounted while Game Mode supplies only its first-person camera and actor overlay. Desktop, pointer, touch, optional Motion Control, and MCP input arm one deterministic native Agentic ECS mission with four scored NPC actions, normalized slab AABB hitscan, visible HUD/runtime errors, and Decisions-only WorkspaceFs persistence.
+Knowgrph gains one browser-local FloatingPanel **Game Mode** that runs a bounded first-person mission inside the existing React Three Fiber Canvas. It opens from a source-backed run-ready document, Motion Control's shared target catalog, browser WebMCP, or the strict `/game.mode @canvas #gameplay` invocation. The authored XR atmosphere, world, props, and paused frame remain visibly mounted while Game Mode supplies only its first-person camera and actor overlay. Toolbar **Canvas View Mode → Surface Mode → XR Mode** and FloatingPanel **Media**, **Animation**, **Motion Control**, **Game Mode**, and **Camera** project the same Canvas and authored scene rather than creating scene variants. Desktop, pointer, touch, optional Motion Control, and MCP input arm one deterministic native Agentic ECS mission with four scored NPC actions, normalized slab AABB hitscan, visible HUD/runtime errors, and Decisions-only WorkspaceFs persistence.
 
 Core gameplay requires no camera, account, passkey, model, remote asset, gameplay network call, or Cloudflare service. Optional Motion Control retains its existing explicit camera-permission and LiteRT pose-inference boundary and contributes normalized controller input only; it does not choose NPC actions. The pre-follow-up baseline gates passed at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` after PR #263 merged. The authored-XR composition and ready-clock follow-up passed PR #273's protected Integration Gate and exact-main acceptance at `0b0e70787edb80e71d368d56c1478ffd9655ce0d`; no production or Cloudflare deployment is authorized.
 
@@ -80,7 +83,7 @@ Mei is a mobile-first player who wants to open a source-backed browser workspace
 
 ### Must scope
 
-- One procedural map built from in-repo primitives; no manifest, GLB, texture, R2, CDN, or runtime asset download.
+- One selected authored XR terrain/environment and collider profile from the existing local catalog; Game Mode owns no replacement environment, manifest, GLB, texture, R2, CDN, or runtime asset download.
 - One local single-player mission, one weapon, four NPCs, one completion objective, and one retry/reset path.
 - One FloatingPanel Game Mode lifecycle: `open`, `start`, `stop`, `restart`, `fire`, `reload`, `save`, and `exit`.
 - Desktop keyboard/pointer and mobile touch controls, plus optional reuse of the existing Motion Control pose adapter.
@@ -93,7 +96,7 @@ Mei is a mobile-first player who wants to open a source-backed browser workspace
 - Stop followed by Start resumes the exact in-memory tick and player state; Restart is the explicit fresh-run action.
 - Synchronous WebGL admission, one existing Canvas, XR pause/restore ownership, and visible fail-closed runtime errors.
 - A ready simulation clock that does not advance or damage an unattended player until normalized player engagement.
-- XR scene composition that retains the authored world and atmosphere while omitting the standalone fallback arena.
+- One XR scene composition owner that retains the authored world and atmosphere; the former fallback scene/environment source is deleted, and renamed, conditional, or alternate variants are forbidden.
 - Source-authored `run_ready_demo.id` activation through the known registry, independent of an imported path and fail-closed on identity conflict.
 - Source tests, focused runtime proof, core browser smoke, and opt-in external-source browser acceptance.
 
@@ -120,7 +123,7 @@ Mei is a mobile-first player who wants to open a source-backed browser workspace
 
 #### AC-1: open and play
 
-Given a clean browser-local workspace, when the game seed is applied, then the procedural mission reaches a playable frame without sign-in, camera permission, passkey API access, remote asset fetch, or Cloudflare request.
+Given a clean browser-local workspace, when the game seed is applied, then the bounded mission reaches a playable frame in the canonical authored XR scene without sign-in, camera permission, passkey API access, remote asset fetch, or Cloudflare request.
 
 #### AC-2: deterministic mission
 
@@ -173,13 +176,13 @@ Given an invocation, exactly one `/game.mode`, one `@canvas`, and one `#gameplay
 
 #### AC-10: XR, Motion Control, and Canvas ownership
 
-Given a running XR controller document, entering Game Mode pauses its current frame and input while keeping its authored atmosphere, terrain, props, and scene graph visibly mounted inside the same Canvas. Game Mode overlays its first-person camera and actors and must not mount the standalone procedural arena or replacement lights. Opening Motion Control exits to the shared XR owner, preserves the stopped Game Mode mission, and lets XR resume. Reopening Game Mode pauses a fresh XR frame; exiting restores that exact frame and resumes only the owner Game Mode paused.
+Given a running XR controller document, entering Game Mode pauses its current frame and input while keeping its authored atmosphere, terrain, props, and scene graph visibly mounted inside the same Canvas. Game Mode overlays its first-person camera and actors. No fallback scene/environment implementation remains to mount, and renamed, conditional, or alternate replacement geometry, lights, clear-color owner, collision profile, or renderer branch is forbidden. Opening Motion Control exits to the shared XR owner, preserves the stopped Game Mode mission, and lets XR resume. Reopening Game Mode pauses a fresh XR frame; exiting restores that exact frame and resumes only the owner Game Mode paused. Switching among FloatingPanel Media, Animation, Motion Control, Game Mode, and Camera preserves the same Canvas DOM identity and authored XR world.
 
-Every catalogued XR terrain/environment derives a ground-actor collision profile from the authored static catalog. Walkable low slabs and overhead references are not flattened into walls, and deterministic admission places the player and four NPCs clear of retained blockers. A 3D/XR surface change or authored-terrain geometry change replaces an incompatible stopped or live mission with a healthy tick-zero mission on the new spatial profile; invisible stale colliders are forbidden.
+Every catalogued XR terrain/environment derives one 3D collision profile from the authored static catalog. All non-boundary slabs remain available to ray occlusion; only slabs intersecting the ground-actor vertical band constrain spawn admission, movement, and NPC line of sight. Deterministic admission places the player and four NPCs clear of those ground blockers. An authored-terrain geometry change replaces an incompatible stopped or live mission with a healthy tick-zero mission on the new spatial profile; invisible stale colliders and non-XR profile variants are forbidden.
 
 #### AC-11: synchronous admission and resumable lifecycle
 
-WebGL support is resolved synchronously before mission start. Unsupported WebGL or unreadable Decisions keeps the mission stopped and exposes a local error. Start prepares a healthy ready frame at tick zero; only accepted desktop, pointer, touch, Motion Control, or MCP gameplay input arms fixed ticks. Blur, document hiding, or pointer-control release pauses the clock without changing mission state. Stop followed by Start resumes the same in-memory mission when its spatial profile still matches; a surface/terrain mismatch restarts on the requested profile. Malformed hydration blocks Start and Restart until **Reset local save** succeeds.
+WebGL support is resolved synchronously before mission start. Unsupported WebGL or unreadable Decisions keeps the mission stopped and exposes a local error. Start prepares a healthy ready frame at tick zero; only accepted desktop, pointer, touch, Motion Control, or MCP gameplay input arms fixed ticks. Blur, document hiding, or pointer-control release pauses the clock without changing mission state. Stop followed by Start resumes the same in-memory mission when its spatial profile still matches; an authored-terrain profile mismatch restarts on the current XR profile. Malformed hydration blocks Start and Restart until **Reset local save** succeeds.
 
 ### Success metrics
 
@@ -203,13 +206,14 @@ WebGL support is resolved synchronously before mission start. Unsupported WebGL 
 |---|---|---|
 | Game domain | `canvas/src/features/game-fps/` | Mission config, systems, input normalization, HUD projection, local save adapter |
 | Surface lifecycle | `canvas/src/features/game-fps/gameModeRuntime.ts` | Own open/start/stop/restart/save/exit state and previous-surface restoration |
+| Canvas departure | `canvas/src/lib/canvas/canvasSurfaceOwnershipRuntime.ts` plus the canonical store transitions | Exit and stop active Game Mode synchronously when the root Canvas leaves XR; retain the requested 2D, 3D, voxel, or schema-coerced destination and suppress only intermediate states inside the central XR activation transaction |
 | FloatingPanel | `canvas/src/features/game-fps/GameModeFloatingPanelView.tsx` | Project shared runtime state and actions; never create a second world or renderer |
 | Invocation/WebMCP | `canvas/src/features/game-fps/gameModeMcpRuntime.ts` plus browser agent-ready registration | Enforce the strict native tuple and browser-local inspect/control schema |
 | Entity simulation | `ecs/` | Reuse the five-function native ECS API and its transactional `worldTick` |
-| Rendering | `canvas/src/lib/three/ThreeGraph.impl.tsx` plus `gameModeSceneComposition.ts` | Reuse the single React Three Fiber Canvas; retain authored XR scene ownership under the Game overlay; do not mount a second WebGL renderer or XR fallback arena |
+| Rendering | `canvas/src/lib/three/ThreeGraph.impl.tsx` plus the canonical XR stage owners | Reuse the single React Three Fiber Canvas and authored XR world; Game Mode may add only actors and first-person framing, never an alternate environment, clear owner, world, or renderer |
 | Camera/input arbitration | Existing Three controls, authored-stage placement, game stage, and Motion Control adapter | Game Mode owns first-person framing in the authored coordinate space while active; Motion Control contributes normalized input only; immersive entry is unavailable during gameplay |
-| Collision profile | Existing XR native-controller terrain collider catalog plus the standalone Game FPS map | XR gameplay structurally matches the current authored profile, filters non-obstructing vertical spans, and admits clear deterministic spawns; standalone 3D keeps its procedural arena profile |
-| XR lifecycle | Existing XR controller runtime and shared surface catalog | Pause, resume, and restore the existing owner without replacing its Canvas or world |
+| Collision profile | `canvas/src/features/three/xrCanonicalSceneSpatialSource.ts` | Project the active authored or native-controller XR stage through one canonical 3D spatial source, retain every non-boundary slab for ray occlusion, filter ground interactions by actor-height overlap, and admit clear deterministic spawns; alternate Game-owned collision-profile variants are forbidden |
+| XR lifecycle | `canvas/src/features/three/xrSceneSurfaceRuntime.ts`, existing XR controller runtime, and shared surface catalog | Route Media, Animation, Motion Control, Game Mode, and Camera through one XR activation owner; pause, resume, and restore without replacing the Canvas or world |
 | Browser persistence | `canvas/src/features/workspace-fs/` | Use WorkspaceFs and its existing source-file bridge; do not add storage or Git owners |
 | Cost truth | `contracts/cost-log.schema.js` | Accept only the canonical model-free zero record for the no-reasoning tick |
 | Activation | `docs/workspace-seeds/knowgrph-game-fps-demo.md` | Source-backed `game-fps` run-ready demo |
@@ -241,17 +245,17 @@ No node in this topology is a model, remote service, Cloudflare resource, Git op
 
 ### Mission model
 
-The mission configuration is constant and source-controlled. It defines world bounds, collision boxes, player spawn, four NPC spawns, weapon range/damage/cooldown/ammo, fixed tick duration, and objective thresholds. Runtime component storage remains ephemeral.
+The mission rules are constant and source-controlled. The selected authored XR profile supplies world bounds, collision boxes, and admitted player/four-NPC spawns; the mission supplies weapon range/damage/cooldown/ammo, fixed tick duration, and objective thresholds. Runtime component storage remains ephemeral.
 
 The simulation advances from normalized input frames rather than DOM events. A bounded accumulator may run more than one fixed tick per render frame, but it must cap catch-up work and never make the simulation result depend on display refresh rate. Rendering reads an immutable projection after a committed tick.
 
 ### Collision and hitscan
 
-World obstacles and actors use source-authored AABBs. Movement resolves one axis at a time in a stable order and clamps to the world boundary. XR projection retains only authored colliders whose vertical span obstructs a ground actor, then uses a deterministic bounded grid to admit non-overlapping player/NPC spawns for every catalogued terrain/environment. Hitscan uses a normalized camera ray, slab intersection, positive distance, weapon range, and stable `(distance, entityRef)` ordering to choose at most one target. There are no projectile entities, mesh-collider generation, navmesh, or floating dependency fallbacks.
+World obstacles and actors use source-authored AABBs. Movement resolves one axis at a time in a stable order and clamps to the world boundary. XR projection retains every authored non-boundary collider as a 3D slab; spawn admission, movement, and NPC line of sight consider only slabs whose vertical span obstructs a ground actor. A deterministic bounded grid admits non-overlapping player/NPC spawns for every catalogued terrain/environment. Hitscan considers the full 3D slab catalog and actors using a normalized camera ray, slab intersection, positive distance, weapon range, and stable `(distance, entityRef)` ordering to choose at most one target. There are no projectile entities, mesh-collider generation, navmesh, or floating dependency fallbacks.
 
 ### NPC system
 
-NPC utility scores derive only from canonical numeric observations such as health, player distance, line-of-sight, alert state, and deterministic tick counters. Stable action priority resolves equal scores. Pathing is bounded steering around the procedural AABBs; it does not claim general navigation.
+NPC utility scores derive only from canonical numeric observations such as health, player distance, line-of-sight, alert state, and deterministic tick counters. Stable action priority resolves equal scores. Pathing is bounded steering around the authored XR AABBs; it does not claim general navigation.
 
 Only meaningful transitions emit a Decision. Per-frame transforms, aim vectors, and intermediate utility scores remain ephemeral. The game systems never call `requestReasoning`.
 
@@ -285,7 +289,7 @@ The game mounts a dedicated stage inside the existing `ThreeGraph` React Three F
 
 **Status:** Accepted for this increment.
 
-The procedural mission needs only bounded movement collision and one hitscan weapon, so deterministic AABB and ray/AABB functions remain in the game feature cluster. Rapier and mesh physics are not installed or claimed. General rigid-body physics is outside this increment.
+The bounded mission needs only ground-actor movement collision and one hitscan weapon, so deterministic AABB and ray/AABB functions remain in the game feature cluster while consuming the shared authored XR collider profile. Rapier and mesh physics are not installed or claimed. General rigid-body physics is outside this increment.
 
 ### ADR-3: Use deterministic authored NPC scoring
 
@@ -315,11 +319,11 @@ Runtime readiness means focused source proof plus a local browser smoke bound to
 
 **Status:** Accepted for this increment.
 
-Game Mode uses the existing Canvas View Mode → Surface Mode → XR Mode owner and the existing Motion Control target catalog. It keeps the authored XR scene mounted, pauses its controller input/simulation, and overlays gameplay without copying geometry, physics state, lights, or renderer ownership. The Game clock remains ready until normalized player engagement, preventing an obscured or unattended workspace from reaching a terminal state. Agent access is limited to the strict native invocation tuple and two browser WebMCP contracts; the private Agentic ECS stdio lane remains exactly three tools, and no new gateway or deployment surface is added.
+Game Mode uses the existing Canvas View Mode → Surface Mode → XR Mode owner and the existing Motion Control target catalog. FloatingPanel Media, Animation, Motion Control, Game Mode, and Camera are projections over that same surface. Game Mode keeps the authored XR scene mounted, pauses its controller input/simulation, and overlays gameplay without copying geometry, physics state, lights, clear-color state, collision profiles, or renderer ownership. The deleted fallback scene/environment must not return under another name or condition. The Game clock remains ready until normalized player engagement, preventing an obscured or unattended workspace from reaching a terminal state. Agent access is limited to the strict native invocation tuple and two browser WebMCP contracts; the private Agentic ECS stdio lane remains exactly three tools, and no new gateway or deployment surface is added.
 
 ## Runtime Readiness Gate
 
-The single source of truth for evidence is `docs/documents/knowgrph-game-fps-runtime-readiness.md`. Its baseline local runtime-readiness checklist passed at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2`, and PR #263 passed the separate protected-integration gate. The XR visual-fidelity and ready-clock follow-up passed PR #273's protected gate plus focused source, TypeScript, build, core-browser, and operator-supplied external-share acceptance on exact main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d`. Release remains unauthorized.
+The single source of truth for evidence is `docs/documents/knowgrph-game-fps-runtime-readiness.md`. Its baseline local runtime-readiness checklist passed at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2`, and PR #263 passed the separate protected-integration gate. The XR visual-fidelity and ready-clock follow-up passed PR #273's protected gate plus focused source, TypeScript, build, core-browser, and operator-supplied external-share acceptance on exact main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d`. That historical run proved authored-scene retention and non-mounting of the then-named fallback; it is not evidence that fallback source or renamed variants were deleted. The current scene-authority follow-up requires its own source, browser, and protected proof. Release remains unauthorized.
 
 The expected focused command is:
 
@@ -341,4 +345,4 @@ The first two commands are finite and local apart from ordinary build/test artif
 
 ## Release Boundary
 
-The deliverable is protected and exact-main ready for Dev/local runtime use. No Pages build upload, Worker deployment, D1/R2/KV/DO mutation, production route change, or release claim belongs to this scope. The opt-in acceptance read exact operator-supplied public Markdown bytes and exercised them against the local exact-main runtime; it does not prove the public document contains the new Game Mode metadata or that the runtime is publicly deployed. A future release must begin from a protected integrated SHA and explicit operator authorization.
+The historical baseline and XR visual-fidelity follow-up are protected and exact-main ready for Dev/local runtime use. The current scene-authority cleanup remains a local candidate until its dedicated protected and exact-main rows pass. No Pages build upload, Worker deployment, D1/R2/KV/DO mutation, production route change, or release claim belongs to this scope. The opt-in acceptance reads exact operator-supplied public Markdown bytes and exercises them against the local candidate runtime; it does not prove the public document contains the new Game Mode metadata or that the runtime is publicly deployed. A future release must begin from a protected integrated SHA and explicit operator authorization.

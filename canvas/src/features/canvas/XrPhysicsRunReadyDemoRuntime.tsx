@@ -13,6 +13,7 @@ import {
 import { stopXrPhysicsRuntime } from '@/features/three/xrPhysicsRuntime'
 import { ensureXrPhysicsRunReadyDemoRunning } from './xrPhysicsRunReadyLifecycle'
 import { readGameModeSnapshot, subscribeGameModeSnapshot } from '@/features/game-fps/gameModeRuntime'
+import { activateXrSceneSurface } from '@/features/three/xrSceneSurfaceRuntime'
 
 export function XrPhysicsRunReadyDemoRuntime() {
   const markdownDocumentName = useGraphStore(state => state.markdownDocumentName)
@@ -73,10 +74,9 @@ export function XrPhysicsRunReadyDemoRuntime() {
     }
     const state = useGraphStore.getState()
     if (!surfaceInitializedRef.current) {
-      surfaceInitializedRef.current = true
       const activatesXrSurface = state.canvasRenderMode !== '3d' || state.canvas3dMode !== 'xr'
-      state.setCanvasRenderMode('3d')
-      state.setCanvas3dMode('xr')
+      if (!activateXrSceneSurface()) return undefined
+      surfaceInitializedRef.current = true
       if (activatesXrSurface) {
         state.setFloatingPanelOpen(false)
         state.setBottomSurfaceCollapsed(true)

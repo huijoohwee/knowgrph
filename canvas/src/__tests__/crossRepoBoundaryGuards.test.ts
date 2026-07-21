@@ -1,5 +1,6 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { decodePublishedDocShareToken } from '@/features/canvas/canvasDocShareToken.mjs'
 
 function listFilesRecursively(dir: string, opts?: { ignoreDirNames?: Set<string> }): string[] {
@@ -342,26 +343,22 @@ export function testForbidHardcodedRuntimeValidationInputInRepo() {
   ].filter(v => v.length >= 4)))
   if (!forbiddenNeedles.length) return
 
-  const ignoreDirNames = new Set([
-    'node_modules',
-    'dist',
-    'build',
-    'coverage',
-    '.git',
-    '.trae',
-    'data',
-  ])
-  const files = listFilesRecursively(KNOWGRPH_ROOT, { ignoreDirNames })
-    .filter(f => /\.(ts|tsx|js|jsx|json|md|mjs|cjs|py|yml|yaml|toml|gltf|glb)$/.test(f))
+  const files = execFileSync(
+    'git',
+    ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
+    { cwd: KNOWGRPH_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+  ).split('\0').filter(Boolean)
 
   const violations: Array<{ file: string; needle: string }> = []
-  for (const file of files) {
+  for (const relativePath of files) {
+    const file = resolve(KNOWGRPH_ROOT, relativePath)
+    if (!existsSync(file)) continue
     const st = statSync(file)
     if (!st.isFile()) continue
     const text = readFileSync(file, 'utf8').replace(/\\/g, '/')
     for (const needle of forbiddenNeedles) {
       if (text.includes(needle)) {
-        violations.push({ file, needle })
+        violations.push({ file: relativePath, needle })
         break
       }
     }

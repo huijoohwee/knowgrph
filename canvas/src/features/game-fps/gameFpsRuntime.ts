@@ -2,20 +2,18 @@ import {
   captureGameFpsAuthoredMission,
   createGameFpsAuthoredMission,
   tickGameFpsAuthoredMission,
+  validateGameFpsDecisions,
   type GameFpsAuthoredMission,
   type GameFpsMissionCapture,
 } from './gameFpsMission'
 import {
   GAME_FPS_FIXED_STEP_SECONDS,
-  GAME_FPS_ARENA_SPATIAL_PROFILE,
   GAME_FPS_MAX_FRAME_SECONDS,
-  GAME_FPS_NPC_SEEDS,
-  GAME_FPS_PLAYER_SPAWN,
+  GAME_FPS_MISSION_ID,
   GAME_FPS_WEAPON,
   GAME_FPS_ZERO_COST_LOG,
   clampGameFpsLookDelta,
   clampGameFpsUnit,
-  gameFpsSpatialProfilesMatch,
   type GameFpsCostLog,
   type GameFpsDecisionRecord,
   type GameFpsInputPatch,
@@ -23,6 +21,10 @@ import {
   type GameFpsSnapshot,
   type GameFpsTickInput,
 } from './gameFpsModel'
+import {
+  readGameModeXrSpatialProfile,
+  readGameModeXrSpatialSourceKey,
+} from './gameModeXrSpatialProfile'
 
 type Listener = () => void
 
@@ -44,37 +46,52 @@ type MutableMotionInput = {
   fireQueued: boolean
 }
 
+type InFlightTick = {
+  readonly mission: GameFpsAuthoredMission
+  stopped: boolean
+  resumeRequested: boolean
+}
+
 const listeners = new Set<Listener>()
 const pendingDecisions = new Map<string, GameFpsDecisionRecord>()
 let mission: GameFpsAuthoredMission | null = null
+let missionSpatialSourceKey: string | null = null
 let accumulatorSeconds = 0
 let runId = 0
 let generation = 0
 let tickQueue: Promise<void> = Promise.resolve()
+let inFlightTick: InFlightTick | null = null
 let input: MutableInput = freshInput()
 let motionInput: MutableMotionInput = freshMotionInput()
 
-let snapshot: GameFpsSnapshot = Object.freeze({
-  phase: 'stopped',
-  player: Object.freeze({ ...GAME_FPS_PLAYER_SPAWN, health: 100 }),
-  npcs: Object.freeze(GAME_FPS_NPC_SEEDS.map(seed => Object.freeze({
-    id: seed.id,
-    x: seed.x,
-    z: seed.z,
-    health: 100,
-    action: 'hold' as const,
-  }))),
-  ammo: GAME_FPS_WEAPON.magazineCapacity,
-  reserve: GAME_FPS_WEAPON.initialReserve,
-  enemiesAlive: GAME_FPS_NPC_SEEDS.length,
-  fireResult: 'idle',
-  tick: 0,
-  elapsedSeconds: 0,
-  pendingDecisions: Object.freeze([]),
-  lastCostLog: GAME_FPS_ZERO_COST_LOG,
-  runtimeError: null,
-  revision: 0,
-})
+function createIdleSnapshot(
+  spatialProfile: GameFpsSpatialProfile,
+  revision: number,
+): GameFpsSnapshot {
+  return Object.freeze({
+    phase: 'stopped',
+    player: Object.freeze({ ...spatialProfile.playerSpawn, health: 100 }),
+    npcs: Object.freeze(spatialProfile.npcSeeds.map(seed => Object.freeze({
+      id: seed.id,
+      x: seed.x,
+      z: seed.z,
+      health: 100,
+      action: 'hold' as const,
+    }))),
+    ammo: GAME_FPS_WEAPON.magazineCapacity,
+    reserve: GAME_FPS_WEAPON.initialReserve,
+    enemiesAlive: spatialProfile.npcSeeds.length,
+    fireResult: 'idle',
+    tick: 0,
+    elapsedSeconds: 0,
+    pendingDecisions: Object.freeze([]),
+    lastCostLog: GAME_FPS_ZERO_COST_LOG,
+    runtimeError: null,
+    revision,
+  })
+}
+
+let snapshot: GameFpsSnapshot = createIdleSnapshot(readGameModeXrSpatialProfile(), 0)
 
 function freshInput(): MutableInput {
   return {
@@ -108,7 +125,17 @@ function runtimeErrorMessage(error: unknown): string {
     : String(error || 'Game FPS tick failed')
 }
 
-function publishRuntimeFailure(error: unknown): GameFpsSnapshot {
+class ResumedGameFpsTickFailure extends Error {
+  readonly runtimeFailure: unknown
+
+  constructor(runtimeFailure: unknown) {
+    super(runtimeErrorMessage(runtimeFailure))
+    this.name = 'ResumedGameFpsTickFailure'
+    this.runtimeFailure = runtimeFailure
+  }
+}
+
+export function publishRuntimeFailure(error: unknown): GameFpsSnapshot {
   snapshot = Object.freeze({
     ...snapshot,
     runtimeError: runtimeErrorMessage(error),
@@ -136,12 +163,23 @@ function publish(
   return snapshot
 }
 
+function publishPhase(phase: GameFpsSnapshot['phase']): GameFpsSnapshot {
+  snapshot = Object.freeze({
+    ...snapshot,
+    phase,
+    revision: snapshot.revision + 1,
+  })
+  for (const listener of [...listeners]) listener()
+  return snapshot
+}
+
 function maximumPersistedRunId(decisions: readonly unknown[]): number {
   let maximum = 0
   for (const value of decisions) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) continue
     const payload = (value as { payload?: unknown }).payload
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) continue
+    if ((payload as { missionId?: unknown }).missionId !== GAME_FPS_MISSION_ID) continue
     const candidate = Number((payload as { runId?: unknown }).runId)
     if (Number.isSafeInteger(candidate) && candidate > maximum) maximum = candidate
   }
@@ -149,14 +187,25 @@ function maximumPersistedRunId(decisions: readonly unknown[]): number {
 }
 
 function replaceMission(
-  decisions: readonly unknown[] = [],
-  spatialProfile?: GameFpsSpatialProfile,
+  decisionsForRunId: readonly unknown[] = [],
+  replayDecisions = true,
 ): GameFpsSnapshot {
-  const nextRunId = Math.max(runId, maximumPersistedRunId(decisions)) + 1
-  const nextMission = createGameFpsAuthoredMission({ runId: nextRunId, decisions, spatialProfile })
+  if (!replayDecisions) validateGameFpsDecisions(decisionsForRunId)
+  const maximumKnownRunId = Math.max(runId, maximumPersistedRunId(decisionsForRunId))
+  if (maximumKnownRunId >= Number.MAX_SAFE_INTEGER - 1) {
+    throw new Error('Game FPS mission exhausted its bounded run identifier range')
+  }
+  const nextRunId = maximumKnownRunId + 1
+  const spatialProfile = readGameModeXrSpatialProfile()
+  const nextMission = createGameFpsAuthoredMission({
+    runId: nextRunId,
+    decisions: replayDecisions ? decisionsForRunId : [],
+    spatialProfile,
+  })
   runId = nextRunId
   generation += 1
   mission = nextMission
+  missionSpatialSourceKey = readGameModeXrSpatialSourceKey()
   accumulatorSeconds = 0
   input = freshInput()
   motionInput = freshMotionInput()
@@ -183,16 +232,41 @@ function tickInput(firstSubStep: boolean): GameFpsTickInput {
   return value
 }
 
-async function advanceCurrentMission(deltaSeconds: number): Promise<GameFpsSnapshot> {
+async function advanceCurrentMission(
+  deltaSeconds: number,
+  expectedGeneration: number,
+): Promise<GameFpsSnapshot> {
   if (!mission || snapshot.phase !== 'playing' || snapshot.runtimeError) return snapshot
+  const refreshedMission = refreshGameFpsMissionSpatialProfile()
+  if (refreshedMission) return refreshedMission
+  const activeMission = mission
   accumulatorSeconds += Math.min(deltaSeconds, GAME_FPS_MAX_FRAME_SECONDS)
   let stepped = false
   let firstSubStep = true
-  let capture = captureGameFpsAuthoredMission(mission)
+  let capture = captureGameFpsAuthoredMission(activeMission)
   let costLog = snapshot.lastCostLog
   while (accumulatorSeconds + 1e-10 >= GAME_FPS_FIXED_STEP_SECONDS) {
     accumulatorSeconds = Math.max(0, accumulatorSeconds - GAME_FPS_FIXED_STEP_SECONDS)
-    const result = await tickGameFpsAuthoredMission(mission, tickInput(firstSubStep))
+    const tickLifecycle: InFlightTick = {
+      mission: activeMission,
+      stopped: false,
+      resumeRequested: false,
+    }
+    inFlightTick = tickLifecycle
+    let result: Awaited<ReturnType<typeof tickGameFpsAuthoredMission>>
+    try {
+      result = await tickGameFpsAuthoredMission(activeMission, tickInput(firstSubStep))
+    } catch (error) {
+      if (mission === activeMission && tickLifecycle.stopped && tickLifecycle.resumeRequested) {
+        throw new ResumedGameFpsTickFailure(error)
+      }
+      throw error
+    } finally {
+      if (inFlightTick === tickLifecycle) inFlightTick = null
+    }
+    if (mission !== activeMission) return snapshot
+    const stoppedDuringTick = generation !== expectedGeneration && tickLifecycle.stopped
+    if (generation !== expectedGeneration && !stoppedDuringTick) return snapshot
     firstSubStep = false
     stepped = true
     capture = result.capture
@@ -201,6 +275,12 @@ async function advanceCurrentMission(deltaSeconds: number): Promise<GameFpsSnaps
       if (!pendingDecisions.has(decision.decisionId)) {
         pendingDecisions.set(decision.decisionId, freezeDecision(decision))
       }
+    }
+    if (stoppedDuringTick) {
+      accumulatorSeconds = 0
+      const stoppedSnapshot = publish(capture, costLog, 'stopped')
+      if (!tickLifecycle.resumeRequested || mission !== activeMission) return stoppedSnapshot
+      return publish(capture, costLog, 'playing')
     }
     if (capture.phase !== 'playing') {
       accumulatorSeconds = 0
@@ -212,14 +292,15 @@ async function advanceCurrentMission(deltaSeconds: number): Promise<GameFpsSnaps
 
 export function startGameFpsMission(options: {
   decisions?: readonly unknown[]
-  spatialProfile?: GameFpsSpatialProfile
 } = {}): GameFpsSnapshot {
-  if (Object.hasOwn(options, 'decisions')) return replaceMission(options.decisions || [], options.spatialProfile)
-  if (!mission) return replaceMission([], options.spatialProfile)
-  if (options.spatialProfile && !gameFpsSpatialProfilesMatch(mission.spatialProfile, options.spatialProfile)) {
-    return replaceMission([], options.spatialProfile)
-  }
+  if (Object.hasOwn(options, 'decisions')) return replaceMission(options.decisions || [])
+  if (!mission) return replaceMission()
+  if (missionSpatialSourceKey !== readGameModeXrSpatialSourceKey()) return replaceMission()
   if (snapshot.phase !== 'stopped') return snapshot
+  if (inFlightTick?.mission === mission && inFlightTick.stopped) {
+    inFlightTick.resumeRequested = true
+    return publishPhase('playing')
+  }
   return publish(captureGameFpsAuthoredMission(mission), snapshot.lastCostLog)
 }
 
@@ -229,11 +310,15 @@ export function hasGameFpsMission(): boolean {
 
 export function stopGameFpsMission(): GameFpsSnapshot {
   if (!mission || snapshot.phase === 'stopped') return snapshot
+  if (inFlightTick?.mission === mission) {
+    inFlightTick.stopped = true
+    inFlightTick.resumeRequested = false
+  }
   generation += 1
   accumulatorSeconds = 0
   input = freshInput()
   motionInput = freshMotionInput()
-  return publish(captureGameFpsAuthoredMission(mission), snapshot.lastCostLog, 'stopped')
+  return publishPhase('stopped')
 }
 
 export function readGameFpsSnapshot(): GameFpsSnapshot {
@@ -241,7 +326,11 @@ export function readGameFpsSnapshot(): GameFpsSnapshot {
 }
 
 export function readGameFpsSpatialProfile(): GameFpsSpatialProfile {
-  return mission?.spatialProfile || GAME_FPS_ARENA_SPATIAL_PROFILE
+  return mission?.spatialProfile || readGameModeXrSpatialProfile()
+}
+
+export function readGameFpsRunId(): number {
+  return runId
 }
 
 export function subscribeGameFpsSnapshot(listener: Listener): () => void {
@@ -283,8 +372,15 @@ export function reloadGameFpsWeapon(): void {
   input.reloadQueued = true
 }
 
-export function restartGameFpsMission(spatialProfile?: GameFpsSpatialProfile): GameFpsSnapshot {
-  return replaceMission([], spatialProfile)
+export function restartGameFpsMission(options: Readonly<{
+  persistedDecisions?: readonly unknown[]
+}> = {}): GameFpsSnapshot {
+  return replaceMission(options.persistedDecisions || [], false)
+}
+
+export function refreshGameFpsMissionSpatialProfile(): GameFpsSnapshot | null {
+  if (!mission || missionSpatialSourceKey === readGameModeXrSpatialSourceKey()) return null
+  return replaceMission()
 }
 
 export function advanceGameFpsBy(deltaSeconds: number): Promise<GameFpsSnapshot> {
@@ -304,8 +400,18 @@ export function advanceGameFpsBy(deltaSeconds: number): Promise<GameFpsSnapshot>
       return
     }
     try {
-      resolveResult(await advanceCurrentMission(deltaSeconds))
+      resolveResult(await advanceCurrentMission(deltaSeconds, queuedGeneration))
     } catch (error) {
+      const resumedTickFailure = error instanceof ResumedGameFpsTickFailure
+      if (queuedGeneration !== generation && !resumedTickFailure) {
+        resolveResult(snapshot)
+        return
+      }
+      if (resumedTickFailure) {
+        publishRuntimeFailure(error.runtimeFailure)
+        rejectResult(error.runtimeFailure)
+        return
+      }
       publishRuntimeFailure(error)
       rejectResult(error)
     }
@@ -316,37 +422,28 @@ export function advanceGameFpsBy(deltaSeconds: number): Promise<GameFpsSnapshot>
 export function acknowledgeGameFpsDecisions(decisionIds: readonly string[]): GameFpsSnapshot {
   let changed = false
   for (const decisionId of new Set(decisionIds)) changed = pendingDecisions.delete(decisionId) || changed
-  if (!changed || !mission) return snapshot
-  const phaseOverride = snapshot.phase === 'stopped' ? 'stopped' : undefined
-  return publish(captureGameFpsAuthoredMission(mission), snapshot.lastCostLog, phaseOverride)
+  if (!changed) return snapshot
+  snapshot = Object.freeze({
+    ...snapshot,
+    pendingDecisions: Object.freeze([...pendingDecisions.values()]),
+    revision: snapshot.revision + 1,
+  })
+  for (const listener of [...listeners]) listener()
+  return snapshot
 }
 
 export function resetGameFpsRuntimeForTests(): GameFpsSnapshot {
   mission = null
+  missionSpatialSourceKey = null
   pendingDecisions.clear()
   accumulatorSeconds = 0
   runId = 0
   generation += 1
+  inFlightTick = null
   input = freshInput()
   motionInput = freshMotionInput()
   const previousRevision = snapshot.revision
-  snapshot = Object.freeze({
-    phase: 'stopped',
-    player: Object.freeze({ ...GAME_FPS_PLAYER_SPAWN, health: 100 }),
-    npcs: Object.freeze(GAME_FPS_NPC_SEEDS.map(seed => Object.freeze({
-      id: seed.id, x: seed.x, z: seed.z, health: 100, action: 'hold' as const,
-    }))),
-    ammo: GAME_FPS_WEAPON.magazineCapacity,
-    reserve: GAME_FPS_WEAPON.initialReserve,
-    enemiesAlive: GAME_FPS_NPC_SEEDS.length,
-    fireResult: 'idle',
-    tick: 0,
-    elapsedSeconds: 0,
-    pendingDecisions: Object.freeze([]),
-    lastCostLog: GAME_FPS_ZERO_COST_LOG,
-    runtimeError: null,
-    revision: previousRevision + 1,
-  })
+  snapshot = createIdleSnapshot(readGameModeXrSpatialProfile(), previousRevision + 1)
   for (const listener of [...listeners]) listener()
   return snapshot
 }

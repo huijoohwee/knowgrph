@@ -11,6 +11,7 @@ import {
 import { readXrMotionReferenceRuntime } from '@/features/three/xrMotionReferenceRuntime'
 import { readThreeObjectInputOwnership } from '@/features/three/threeObjectInputOwnership'
 import type { CanonicalCameraInvocationTokens } from './cameraMcpInvocationCatalog'
+import { activateXrSceneSurface } from '@/features/three/xrSceneSurfaceRuntime'
 
 export type CameraSourceSelection = Readonly<{
   action: 'select'
@@ -67,10 +68,15 @@ export function controlLocalCameraSource<T>(
   selection: CameraSourceSelection,
   inspect: () => T,
 ) {
+  if (!activateXrSceneSurface({ panelView: 'camera', openPanel: true })) {
+    return {
+      ok: false,
+      action: selection.action,
+      message: 'Camera source selection requires an available shared XR Mode surface.',
+      camera: inspect(),
+    } as const
+  }
   selectXrNativeControllerCameraMode(selection.cameraId)
-  const state = useGraphStore.getState()
-  state.setFloatingPanelView('camera')
-  state.setFloatingPanelOpen(true)
   return {
     ok: true,
     action: selection.action,

@@ -1,6 +1,10 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
-import { isGameFpsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import {
+  GAME_FPS_RUN_READY_DEMO_ID,
+  isGameFpsRunReadyDemoActive,
+  resolveWorkspaceRunReadyDemoIdForDocument,
+} from '@/features/workspace-fs/workspaceRunReadyDemos'
 import {
   exitGameModeSurface,
   readGameModeSnapshot,
@@ -10,7 +14,11 @@ import {
 export function GameFpsRunReadyDemoRuntime() {
   const markdownDocumentName = useGraphStore(state => state.markdownDocumentName)
   const markdownDocumentText = useGraphStore(state => state.markdownDocumentText)
-  const active = isGameFpsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)
+  const graphDataReady = useGraphStore(state => Boolean(state.graphData))
+  const active = resolveWorkspaceRunReadyDemoIdForDocument(
+    markdownDocumentName,
+    markdownDocumentText,
+  ) === GAME_FPS_RUN_READY_DEMO_ID
   const dedicatedDemo = isGameFpsRunReadyDemoActive()
   const ownsDocumentLaunchRef = React.useRef(false)
   const unmountTeardownTokenRef = React.useRef(0)
@@ -38,13 +46,14 @@ export function GameFpsRunReadyDemoRuntime() {
       }
       return undefined
     }
+    if (!graphDataReady) return undefined
     if (!ownsDocumentLaunchRef.current && !readGameModeSnapshot().active) {
       ownsDocumentLaunchRef.current = true
     }
-    void startGameMode({ surfaceMode: '3d', openPanel: !dedicatedDemo })
+    void startGameMode({ openPanel: !dedicatedDemo })
     if (dedicatedDemo) useGraphStore.getState().setBottomSurfaceCollapsed(true)
     return undefined
-  }, [active, dedicatedDemo])
+  }, [active, dedicatedDemo, graphDataReady])
 
   return null
 }

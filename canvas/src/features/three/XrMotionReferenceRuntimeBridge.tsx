@@ -3,21 +3,19 @@ import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { resetCameraFramingRuntimeForDocument } from '@/features/strybldr/cameraFramingRuntime'
 import {
-  resolveXrMotionReferenceStage,
   sampleXrMotionReferenceFacingY,
   sampleXrMotionReferenceMarks,
   xrMotionReferenceSceneKey,
 } from './xrMotionReferenceModel'
 import { hydrateXrMotionReferenceRuntime, readXrMotionReferenceRuntime } from './xrMotionReferenceRuntime'
-import { resolveXrMotionReferenceColliderStructures } from './xrSceneLibrary'
 import {
   XR_PHYSICS_GRAPH_METADATA_KEY,
-  buildXrPhysicsStructureColliders,
 } from './xrPhysicsModel'
 import { hydrateXrPhysicsRuntime } from './xrPhysicsRuntime'
 import { synchronizeBoundXrActorFromGraphSelection } from './xrSelectedActorBinding'
 import { resolveXrMotionReferencePersistedValue } from './xrMotionReferencePersistedValue'
 import { resolveXrSubjectFootprint } from './xrMotionReferenceSubjectPlacement'
+import { resolveXrCanonicalSceneSpatialSource } from './xrCanonicalSceneSpatialSource'
 
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
 
@@ -73,6 +71,10 @@ export function hydrateCanonicalXrPhysicsRuntime(): boolean {
     && String(state.markdownDocumentText || '').trim(),
   )
   const motion = readXrMotionReferenceRuntime()
+  const spatialSource = resolveXrCanonicalSceneSpatialSource({
+    projection: 'authored',
+    stageId: motion.plan.stageId,
+  })
   const subjects = motion.plan.subjects.map(subject => {
     const track = motion.plan.cast.find(candidate => candidate.actorId === subject.id)
     const position = track ? sampleXrMotionReferenceMarks(track.marks, motion.playheadSeconds) : subject.position
@@ -88,7 +90,7 @@ export function hydrateCanonicalXrPhysicsRuntime(): boolean {
     sourceSignature: physicsMotionSourceSignature(motion.sceneKey, state.graphData?.nodes || [], motion.plan),
     persistedValue: documentReady ? state.graphData?.metadata?.[XR_PHYSICS_GRAPH_METADATA_KEY] : null,
     subjects,
-    staticColliders: buildXrPhysicsStructureColliders(resolveXrMotionReferenceColliderStructures(resolveXrMotionReferenceStage(motion.plan.stageId))),
+    staticColliders: spatialSource.staticColliders,
   })
   return documentReady
 }

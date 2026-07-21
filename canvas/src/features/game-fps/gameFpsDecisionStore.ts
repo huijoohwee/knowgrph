@@ -13,6 +13,7 @@ import {
   readKgcNodeState,
 } from '../../../../ecs/kgcNodeContract.js'
 import type { GameFpsDecisionRecord } from './gameFpsModel'
+import { validateGameFpsDecisions } from './gameFpsMission'
 
 export type { GameFpsDecisionRecord } from './gameFpsModel'
 
@@ -45,7 +46,7 @@ const EMPTY_SAVE_DOCUMENT = [
 
 const listeners = new Set<() => void>()
 const pending = new Map<string, GameFpsDecisionRecord>()
-let saveQueue: Promise<GameFpsDecisionStoreSnapshot> | null = null
+let mutationQueue: Promise<GameFpsDecisionStoreSnapshot> | null = null
 let snapshot: GameFpsDecisionStoreSnapshot = Object.freeze({
   status: 'idle',
   errorKind: null,
@@ -112,21 +113,28 @@ export async function loadGameFpsSavedDecisions(
       if ((node as { type?: unknown } | null)?.type !== ECS_DECISION_NODE_TYPE) return
       decisions.push(normalizeDecisionNode(node, index) as GameFpsDecisionRecord)
     })
+    const normalizedDecisions = normalizeDecisionBatch(decisions) as GameFpsDecisionRecord[]
+    validateGameFpsDecisions(normalizedDecisions)
     if (!snapshot.hydrationBlocked) {
-      publish({ status: 'idle', errorKind: null, savedCount: decisions.length, error: null })
+      const preserveRetainedWriteFailure = pending.size > 0
+        && snapshot.status === 'error'
+        && snapshot.errorKind === 'write'
+      const preserveSavedStatus = snapshot.status === 'saved'
+        && snapshot.errorKind === null
+      publish(preserveRetainedWriteFailure || preserveSavedStatus
+        ? { savedCount: normalizedDecisions.length }
+        : { status: 'idle', errorKind: null, savedCount: normalizedDecisions.length, error: null })
     }
-    return decisions
+    return normalizedDecisions
   } catch (error) {
     reportGameFpsDecisionLoadFailure(error)
     throw error
   }
 }
 
-export async function resetGameFpsLocalSave(
-  options: { workspace?: WorkspaceFs } = {},
-): Promise<GameFpsDecisionStoreSnapshot> {
+async function resetLocalSave(workspaceOverride?: WorkspaceFs): Promise<GameFpsDecisionStoreSnapshot> {
   try {
-    const workspace = options.workspace ?? await getWorkspaceFs()
+    const workspace = workspaceOverride ?? await getWorkspaceFs()
     await ensureWorkspaceFolderTreeIfMissing({
       fs: workspace,
       folderPath: normalizeWorkspacePath('/game-fps'),
@@ -148,6 +156,21 @@ export async function resetGameFpsLocalSave(
       error: errorMessage(error),
     })
   }
+}
+
+function enqueueDecisionMutation(
+  mutation: () => Promise<GameFpsDecisionStoreSnapshot>,
+): Promise<GameFpsDecisionStoreSnapshot> {
+  mutationQueue = (mutationQueue ?? Promise.resolve(snapshot))
+    .catch(() => snapshot)
+    .then(mutation)
+  return mutationQueue
+}
+
+export function resetGameFpsLocalSave(
+  options: { workspace?: WorkspaceFs } = {},
+): Promise<GameFpsDecisionStoreSnapshot> {
+  return enqueueDecisionMutation(() => resetLocalSave(options.workspace))
 }
 
 async function persistPending(workspaceOverride?: WorkspaceFs): Promise<GameFpsDecisionStoreSnapshot> {
@@ -178,11 +201,14 @@ async function persistPending(workspaceOverride?: WorkspaceFs): Promise<GameFpsD
     if (verification.persistedCount !== 0 || verification.idempotentCount !== batch.length) {
       throw new Error('Decision save read-back did not contain every pending Decision')
     }
+    const savedCount = readKgcNodeState(readBack).nodes.filter((node: unknown) => (
+      (node as { type?: unknown } | null)?.type === ECS_DECISION_NODE_TYPE
+    )).length
     for (const decision of batch) pending.delete(decision.decisionId)
     return publish({
       status: 'saved',
       errorKind: null,
-      savedCount: snapshot.savedCount + batch.length,
+      savedCount,
       error: null,
     })
   } catch (error) {
@@ -218,15 +244,12 @@ async function persistPending(workspaceOverride?: WorkspaceFs): Promise<GameFpsD
 export function persistPendingGameFpsDecisions(
   options: { workspace?: WorkspaceFs } = {},
 ): Promise<GameFpsDecisionStoreSnapshot> {
-  saveQueue = (saveQueue ?? Promise.resolve(snapshot))
-    .catch(() => snapshot)
-    .then(() => persistPending(options.workspace))
-  return saveQueue
+  return enqueueDecisionMutation(() => persistPending(options.workspace))
 }
 
 export function resetGameFpsDecisionStoreForTests(): void {
   pending.clear()
-  saveQueue = null
+  mutationQueue = null
   snapshot = Object.freeze({
     status: 'idle',
     errorKind: null,

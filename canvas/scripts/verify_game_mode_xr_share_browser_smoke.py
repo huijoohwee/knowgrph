@@ -5,7 +5,7 @@ import os
 import time
 from pathlib import Path
 from typing import Any, Callable
-from urllib.parse import parse_qs, quote, urljoin, urlparse
+from urllib.parse import quote
 
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, expect, sync_playwright
@@ -13,15 +13,20 @@ from playwright.sync_api import Page, expect, sync_playwright
 from lib.game_mode_xr_share_smoke_source import (
     fetch_validation_markdown,
     normalized_origin,
-    origin_label,
     parse_validation_source,
 )
 from lib.game_mode_xr_share_scene_contract import (
+    assert_authored_scene_identity,
+    assert_game_scene_delta,
     assert_scene_contract,
     assert_stable_renderer_canvas,
     install_restored_frame_capture,
     read_scene_contract,
     read_xr_state,
+)
+from lib.game_mode_xr_share_evidence import (
+    audit_request_origins,
+    build_browser_evidence,
 )
 
 
@@ -36,6 +41,13 @@ RESTORED_SCREENSHOT_PATH = OUTPUT_DIR / "game-mode-xr-share-browser-smoke-restor
 EVIDENCE_PATH = OUTPUT_DIR / "game-mode-xr-share-browser-smoke.json"
 NAVIGATION_CONTEXT_DESTROYED_MESSAGE = (
     "Execution context was destroyed, most likely because of a navigation"
+)
+XR_SCENE_PANEL_PROJECTIONS = (
+    ("media", '[data-kg-media-panel="1"]'),
+    ("animation", '[data-kg-animation-floating-panel="1"]'),
+    ("motionControl", '[data-kg-motion-control-floating-panel="1"]'),
+    ("gameMode", '[data-kg-game-mode-floating-panel="1"]'),
+    ("camera", '[data-kg-camera-panel-surface="floatingPanel"]'),
 )
 
 
@@ -79,6 +91,34 @@ def poll_evaluate(
 
 def comparable_xr_frame(frame: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in frame.items() if key != "phase"}
+
+
+def verify_panel_scene_continuity(
+    page: Page,
+    baseline_scene: dict[str, Any],
+) -> list[str]:
+    visited: list[str] = []
+    for panel_view, panel_selector in XR_SCENE_PANEL_PROJECTIONS:
+        trigger = page.locator(
+            f'[data-kg-floating-panel-view-trigger="{panel_view}"]'
+        ).first
+        expect(trigger).to_be_visible(timeout=30_000)
+        trigger.click()
+        expect(page.locator(panel_selector).first).to_be_visible(timeout=30_000)
+        assert_stable_renderer_canvas(page)
+        projected_scene = read_scene_contract(page)
+        assert_scene_contract(projected_scene, game_active=False)
+        assert_authored_scene_identity(
+            baseline_scene,
+            projected_scene,
+            context=f"FloatingPanel {panel_view}",
+        )
+        expect(page.locator('[data-kg-xr-playground-hud="1"]').first).to_have_attribute(
+            "data-kg-xr-playground-phase",
+            "running",
+        )
+        visited.append(panel_view)
+    return visited
 
 
 def main() -> None:
@@ -204,6 +244,14 @@ def main() -> None:
             if initial_xr["snapshot"]["phase"] != "running" or initial_xr["snapshot"]["mode"] != "rocket":
                 raise AssertionError(f"initial XR controller was not running in rocket mode: {initial_xr['snapshot']}")
 
+            panel_scene_continuity = verify_panel_scene_continuity(page, initial_scene)
+            motion_trigger = page.locator(
+                '[data-kg-floating-panel-view-trigger="motionControl"]'
+            ).first
+            motion_trigger.click()
+            expect(motion_panel).to_be_visible(timeout=30_000)
+            assert_stable_renderer_canvas(page)
+
             open_game = page.locator('[data-kg-motion-control-open-target="game-mode"]').first
             expect(open_game).to_be_attached()
             open_game.scroll_into_view_if_needed()
@@ -258,6 +306,12 @@ def main() -> None:
             assert_stable_renderer_canvas(page)
             active_scene = read_scene_contract(page)
             assert_scene_contract(active_scene, game_active=True)
+            assert_authored_scene_identity(initial_scene, active_scene, context="Game Mode")
+            game_scene_delta = assert_game_scene_delta(
+                initial_scene,
+                active_scene,
+                context="Game Mode activation",
+            )
 
             page.wait_for_timeout(12_500)
             if (
@@ -465,6 +519,9 @@ def main() -> None:
             if comparable_xr_frame(restored_frame) != comparable_xr_frame(final_paused_xr["frame"]):
                 raise AssertionError("XR mode, objective, or body state was not restored exactly on Game Mode exit")
             assert_stable_renderer_canvas(page)
+            restored_scene = read_scene_contract(page)
+            assert_scene_contract(restored_scene, game_active=False)
+            assert_authored_scene_identity(initial_scene, restored_scene, context="Game Mode exit")
 
             restored_step_count = int(restored_frame["stepCount"])
             progressed_frame = poll_evaluate(
@@ -479,94 +536,33 @@ def main() -> None:
                 raise AssertionError("restored XR controller did not continue in its preserved mode")
             page.screenshot(path=str(RESTORED_SCREENSHOT_PATH), full_page=True)
 
-            allowed_origins = {local_origin, supplied_origin}
-            unexpected_origin_count = 0
-            unexpected_origins: set[str] = set()
-            for request_url in requests:
-                parsed = urlparse(request_url)
-                if parsed.scheme not in {"http", "https"}:
-                    continue
-                origin = normalized_origin(request_url)
-                if origin not in allowed_origins:
-                    unexpected_origin_count += 1
-                    unexpected_origins.add(f"request:{origin_label(origin)}")
-                if origin == local_origin and parsed.path == "/__fetch_remote":
-                    proxied_targets = parse_qs(parsed.query).get("url", [])
-                    proxy_target_origin = normalized_origin(
-                        urljoin(f"{BASE_URL}/", proxied_targets[0])
-                    ) if len(proxied_targets) == 1 else ("", "", 80)
-                    if (
-                        len(proxied_targets) != 1
-                        or proxy_target_origin not in allowed_origins
-                    ):
-                        unexpected_origin_count += 1
-                        unexpected_origins.add(f"proxy:{origin_label(proxy_target_origin)}")
-            if unexpected_origin_count:
-                raise AssertionError(
-                    "browser runtime contacted an origin outside the local and supplied allowlist: "
-                    f"{sorted(unexpected_origins)}"
-                )
-            product_document_fetch_count = requests.count(product_document_url)
-            if product_document_fetch_count != 1:
-                raise AssertionError("browser runtime did not fetch the exact product-derived validation document once")
+            product_document_fetch_count = audit_request_origins(
+                requests,
+                base_url=BASE_URL,
+                local_origin=local_origin,
+                supplied_origin=supplied_origin,
+                product_document_url=product_document_url,
+            )
             if console_error_count or page_error_count or failed_response_count:
                 raise AssertionError(
                     "browser errors were observed: "
                     f"console={console_error_count}, page={page_error_count}, responses={failed_response_count}"
                 )
 
-            evidence = {
-                "schema": "knowgrph-game-mode-xr-share-browser-smoke/v1",
-                "source": {
-                    "env": "KG_GAME_MODE_VALIDATION_SHARE_URL",
-                    "exactPublicMarkdownBytesImported": True,
-                    "publicMarkdownBytes": len(expected_markdown_bytes),
-                },
-                "renderer": {
-                    "canvasCount": 1,
-                    "stableDomIdentity": True,
-                    "webglSupported": True,
-                    "authoredXrNodesRetained": True,
-                    "authoredStageCoordinatesShared": True,
-                    "fallbackArenaSuppressed": True,
-                },
-                "gameMode": {
-                    "surface": "xr",
-                    "phase": "playing",
-                    "npcRows": 4,
-                    "actions": ["hold", "alert", "engage", "flee"],
-                    "webMcpStrict": True,
-                    "stopStartStatePreserved": True,
-                    "idleUntilEngaged": True,
-                    "pendingDecisionsStableUntilEngaged": True,
-                    "xrSpatialProfileReused": True,
-                },
-                "motionControl": {
-                    "companionRoundTrip": True,
-                    "missionStoppedAndPreserved": True,
-                    "xrResumedAndProgressed": True,
-                },
-                "xr": {
-                    "pausedDuringGameMode": True,
-                    "frameRestoredExactly": True,
-                    "mode": restored_frame["mode"],
-                    "objective": restored_frame["objective"],
-                    "bodyCount": len(restored_frame["bodies"]),
-                    "continuedProgress": int(progressed_frame["stepCount"]) > restored_step_count,
-                },
-                "network": {
-                    "allowlistOnly": True,
-                    "sourceFetchObserved": True,
-                    "productDocumentFetchCount": product_document_fetch_count,
-                    "consoleErrors": console_error_count,
-                    "pageErrors": page_error_count,
-                    "failedResponses": failed_response_count,
-                },
-                "screenshots": {
-                    "active": ACTIVE_SCREENSHOT_PATH.name,
-                    "restored": RESTORED_SCREENSHOT_PATH.name,
-                },
-            }
+            evidence = build_browser_evidence(
+                public_markdown_bytes=len(expected_markdown_bytes),
+                panel_scene_continuity=panel_scene_continuity,
+                game_scene_delta=game_scene_delta,
+                restored_frame=restored_frame,
+                progressed_frame=progressed_frame,
+                restored_step_count=restored_step_count,
+                product_document_fetch_count=product_document_fetch_count,
+                console_error_count=console_error_count,
+                page_error_count=page_error_count,
+                failed_response_count=failed_response_count,
+                active_screenshot_name=ACTIVE_SCREENSHOT_PATH.name,
+                restored_screenshot_name=RESTORED_SCREENSHOT_PATH.name,
+            )
             EVIDENCE_PATH.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
             print("OK game-mode-xr-share-browser-smoke")
             print(f"Evidence: {EVIDENCE_PATH}")
