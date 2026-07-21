@@ -296,6 +296,10 @@ export function testLiveCanvasHeroUsesInteractiveWorkspaceCanvas(): void {
     'sourceFilesBootstrapReady: isRootAlias || args.sourceFilesBootstrapReady',
     'workspaceDocumentSwitchPending: isRootAlias ? false : args.workspaceDocumentSwitchPending',
     'hasSearchParams,\n    isEmbeddedPreview:',
+    'data-kg-live-canvas-hero-viewport-owner="true"',
+    '&& !liveCanvasHeroVisible\n    && workspaceEditorOverlayOpen',
+    "!liveCanvasHeroVisible && canvasRenderMode === '3d'",
+    'xrPhysicsRunReadyDemo && !gameFpsActive && !liveCanvasHeroVisible',
   ]) {
     if (!`${viewportSource}\n${heroSource}\n${heroHookSource}`.includes(contract)) throw new Error(`expected interactive workspace canvas contract ${contract}`)
   }
