@@ -23,6 +23,16 @@ const WORKSPACE_ID_PARAM = 'kgWorkspaceId'
 const CANONICAL_PATH_PARAM = 'kgCanonicalPath'
 const APP_BASE_PATH = '/knowgrph'
 
+const resolveConfiguredStorageDocUrl = (path: string): string => {
+  const storageBaseUrl = String(readEnvString('VITE_KNOWGRPH_STORAGE_BASE_URL', '') || '').trim()
+  if (!storageBaseUrl) return path
+  try {
+    return new URL(path, storageBaseUrl.endsWith('/') ? storageBaseUrl : `${storageBaseUrl}/`).toString()
+  } catch {
+    return path
+  }
+}
+
 export type RemoteDocDeepLink = { kind: 'remote'; workspaceId: string; canonicalPath: string }
 export type DefaultRemoteDocDeepLink = { kind: 'default-remote'; canonicalPath: string }
 export type LocalDocDeepLink = { kind: 'local'; relativePath: string }
@@ -109,11 +119,11 @@ export function clearRetainedLocalDocDeepLinkPath(): void {
 }
 
 export function buildDocViewUrl(workspaceId: string, canonicalPath: string): string {
-  return buildKnowgrphStorageDocPath(workspaceId, canonicalPath)
+  return resolveConfiguredStorageDocUrl(buildKnowgrphStorageDocPath(workspaceId, canonicalPath))
 }
 
 export function buildDefaultDocViewUrl(canonicalPath: string): string {
-  return buildKnowgrphStorageDefaultDocPath(canonicalPath)
+  return resolveConfiguredStorageDocUrl(buildKnowgrphStorageDefaultDocPath(canonicalPath))
 }
 
 export function buildPublishedDocSharePath(args: {

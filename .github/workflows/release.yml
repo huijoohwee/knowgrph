@@ -118,6 +118,7 @@ jobs:
         working-directory: knowgrph
         env:
           KNOWGRPH_SOURCE_REVISION: ${{ github.sha }}
+          VITE_KNOWGRPH_STORAGE_BASE_URL: https://airvio.co
         run: npm run pages:build-sync
 
       - name: Verify source-to-mirror parity
@@ -256,7 +257,8 @@ jobs:
       - name: Verify exact deployment markers and public browser fidelity
         working-directory: knowgrph
         env:
-          PRODUCTION_ORIGIN: https://airvio.co
+          PRODUCTION_ORIGIN: ${{ steps.candidate.outputs.deployment_url }}
+          PRODUCTION_PUBLIC_ORIGIN: https://airvio.co
           PRODUCTION_MARKER_ORIGIN: ${{ steps.candidate.outputs.deployment_url }}
           PRODUCTION_IMMUTABLE_MANIFEST_DIGEST: ${{ needs.verify.outputs.manifest_digest }}
           RELEASE_SHA: ${{ github.sha }}
