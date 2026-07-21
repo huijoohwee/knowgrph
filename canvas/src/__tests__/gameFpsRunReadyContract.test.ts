@@ -212,6 +212,7 @@ export function testGameFpsRunReadySurfaceReusesSingleThreeCanvas() {
 }
 
 export function testGameFpsBrowserSmokeContractIsLocalAndInteractive() {
+  const canvasPackage = JSON.parse(source('canvas/package.json')) as { scripts?: Record<string, string> }
   const runner = source('canvas/scripts/run_game_fps_browser_smoke.mjs')
   const verifier = source('canvas/scripts/verify_game_fps_browser_smoke.py')
   const remoteGrammar = source('canvas/src/features/agentic-os/agenticOsRemoteGrammarClient.ts')
@@ -238,8 +239,17 @@ export function testGameFpsBrowserSmokeContractIsLocalAndInteractive() {
   if (!remoteGrammar.includes('if (isWorkspaceRepoLocalRunReadyBootstrap()) return')) {
     throw new Error('repo-local run-ready bootstrap must not prime the remote grammar control plane')
   }
-  if (!seedProvider.includes("agenticDocsAbsRoot: repoLocalRunReady ? ''")) {
-    throw new Error('repo-local Game FPS bootstrap must not resolve a missing sibling docs checkout')
+  const expectedDevScript = 'VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT=$PWD/../../huijoohwee/docs VITE_KNOWGRPH_RUN_READY_REPO_LOCAL=1 VITE_KNOWGRPH_RUN_READY_DEMO=game-fps vite --configLoader runner --port 5175 --strictPort'
+  if (canvasPackage.scripts?.['dev:game-fps'] !== expectedDevScript) {
+    throw new Error('Game FPS dev startup must reuse the current upstream docs-root authority')
+  }
+  for (const rootResolver of [
+    'outputDocsAbsRoot: readWorkspaceInitializationOutputDocsAbsRoot()',
+    'agenticDocsAbsRoot: readWorkspaceInitializationAgenticOsDocsAbsRoot()',
+  ]) {
+    if (!seedProvider.includes(rootResolver)) {
+      throw new Error(`repo-local Game FPS bootstrap is missing upstream root resolver ${rootResolver}`)
+    }
   }
   if (!sourceFilesRuntime.includes("if (isWorkspaceRepoLocalRunReadyBootstrap()) return ''")) {
     throw new Error('repo-local run-ready activation must not scan the unrelated docs mirror')
