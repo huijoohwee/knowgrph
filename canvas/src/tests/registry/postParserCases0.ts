@@ -336,6 +336,7 @@ import type { TestCaseTuple } from '../runner/testRunnerTypes'; export const TES
   ["viewport.storyboardWidget.overlay.dragHandleLocalOwner","@/__tests__/storyboardWidgetOverlayDragHandleLocalOwnerRegression.test","testStoryboardWidgetOverlayDragHandleStaysLocalWithoutSpace"],
   ["viewport.storyboardWidget.overlay.collision.notLiveTick","@/__tests__/storyboardWidgetOverlayCollisionResolverNotTiedToLiveTickRegression.test","testStoryboardWidgetOverlayCollisionResolveIsNotScheduledFromLiveInteractionTick"],
   ["viewport.storyboardWidget.overlay.collision.convergesWithoutRetryChurn","@/__tests__/storyboardWidgetOverlayBalancedSpreadRegression.test","testStoryboardWidgetOverlayCollisionRebalancesStoredVerticalClusters"],
+  ["viewport.storyboardWidget.overlay.collision.droppedNodeMovesExclusively","@/__tests__/storyboardWidgetDroppedNodeCollisionPolicy.test","testStoryboardWidgetDroppedNodeCollisionMovesOnlyNewCard"],
   ["viewport.storyboardWidget.overlay.layoutRebalance.centeredBalancedSpread","@/__tests__/storyboardWidgetOverlayBalancedSpreadRegression.test","testStoryboardWidgetLayoutRebalanceUsesCenteredBalancedSpreadRuntime"],
   ["viewport.flowCanvas.mediaOverlayPlanning.avoidsDuplicateStateFeedback","@/__tests__/storyboardWidgetOverlayBalancedSpreadRegression.test","testFlowCanvasMediaOverlayPlanningAvoidsDuplicateStateFeedback"],
   ["viewport.flowCanvas.layout.fallbackSeed.reusesSharedLookup","@/__tests__/flowCanvasSharedLookupRegression.test","testFlowCanvasLayoutFallbackSeedUsesSharedLookup"],

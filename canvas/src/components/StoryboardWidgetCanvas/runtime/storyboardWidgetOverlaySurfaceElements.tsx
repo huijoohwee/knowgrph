@@ -110,10 +110,6 @@ export function buildOverlayEditorElements(args: {
       ? args.lastStableRenderGraphDataOverride
       : args.renderGraphDataOverride,
   )
-  const graphDataForRunResolution = args.draftGraphDataRef?.current
-    || (useStableFrontmatterGraphAuthority
-    ? args.lastStableRenderGraphDataOverride
-    : args.renderGraphDataOverride)
   const orderedOverlayEditorNodeIds = orderStoryboardWidgetOverlayNodeIdsByRenderGraph({
     ids: args.overlayEditorNodeIds,
     nodes: (
@@ -203,6 +199,10 @@ export function buildOverlayEditorElements(args: {
         onSetProperties={(props) => args.setNodePropertiesById(actionNodeId, props)}
         onValidate={() => args.validateNodeById(actionNodeId)}
         onRun={() => {
+          const graphDataForRunResolution = args.draftGraphDataRef?.current
+            || (useStableFrontmatterGraphAuthority
+              ? args.lastStableRenderGraphDataOverride
+              : args.renderGraphDataOverride)
           const targetNodeIds = resolveStoryboardWidgetAutoRunNodeIds({
             graphData: graphDataForRunResolution,
             nodeId: actionNodeId,

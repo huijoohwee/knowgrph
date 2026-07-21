@@ -161,8 +161,13 @@ export function testWorkspaceViewUpdateSchedulesStoryboardWidgetCollectiveCollis
   if (runtimeText.includes('const reseedEligible = effectiveOpenIds')) {
     throw new Error('expected pinned widget auto-seed to avoid reseeding already-placed world positions on layout-signature churn')
   }
-  if (!runtimeText.includes('...pendingRaw,\n      ...overlapEligible,\n      ...forcedInitialCollectiveIds,\n      ...forcedLayoutRebalanceIds,')) {
+  if (!runtimeText.includes('...pendingRaw,\n            ...overlapEligible,\n            ...forcedInitialCollectiveIds,\n            ...forcedLayoutRebalanceIds,')) {
     throw new Error('expected pinned widget auto-seed to only seed missing, overlapping, initial collective, or explicit layout-rebalance world positions')
+  }
+  if (!runtimeText.includes('const incrementalUnplacedNodeIds = (')
+    || !runtimeText.includes('? incrementalUnplacedNodeIds')
+    || !runtimeText.includes('&& incrementalUnplacedNodeIds.length === 0')) {
+    throw new Error('expected incremental Widget/Rich Media additions to seed independently without reseeding the existing collective')
   }
   if (!runtimeText.includes('const effectiveOrFallbackOpenIds = effectiveOpenIds.length > 0')
     || !runtimeText.includes("graphMetaKind === 'frontmatter-flow'")
@@ -598,8 +603,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (!runtimeTextIncludesAll('const seed = shouldUseInitialTransform', '? (initialTransform as d3.ZoomTransform)')) {
     throw new Error('expected Flow runtime zoom seeding to fallback from unusable initial transforms to fit/current guard path')
   }
-  if (!runtimeText.includes('if (storyboardWidgetMode && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true && hasNonIdentityTransform) return')) {
-    throw new Error('expected Flow runtime initialization to preserve already-initialized non-workspace Storyboard Widget transforms after workspace close')
+  if (!runtimeText.includes('if (storyboardWidgetMode && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true) return')) {
+    throw new Error('expected Flow runtime initialization to preserve already-initialized non-workspace Storyboard Widget transforms, including an intentional 100% identity camera')
   }
   if (!runtimeTextIncludesAll('workspaceEditorOverlayOpen !== true', 'Date.now() - lastUserInteractionAtMsRef.current < 500')) {
     throw new Error('expected Flow runtime to bypass recent-interaction init-fit suppression while Workspace overlay is open')
@@ -765,8 +770,8 @@ export function testWorkspaceViewUpdateSchedulesFrontmatterMediaOverlayLayoutRef
   if (runtimeText.includes('const currentTransformUsable =') || runtimeText.includes('const initOverlayCollectiveState = storyboardWidgetMode')) {
     throw new Error('expected Flow runtime init guard to stop rejecting current transforms because the overlay collective is offscreen')
   }
-  if (!runtimeText.includes('workspaceEditorOverlayOpen !== true && hasNonIdentityTransform')) {
-    throw new Error('expected Flow runtime non-workspace init-preserve guard to preserve initialized non-identity transforms without close-edge refits')
+  if (!runtimeText.includes('storyboardWidgetMode && alreadyInitializedForKey && workspaceEditorOverlayOpen !== true')) {
+    throw new Error('expected Flow runtime non-workspace init-preserve guard to preserve initialized transforms without topology-change refits')
   }
   if (!runtimeText.includes('workspaceEditorOverlayOpen === true\n      && hasNonIdentityTransform')) {
     throw new Error('expected Flow runtime workspace-open init-preserve guard to preserve current transform before skipping re-fit')

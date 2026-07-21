@@ -7,6 +7,13 @@ import {
   RunTextProviderIncompleteError,
 } from './runTextProviderResponse'
 
+const TERMINAL_AGGREGATE_EVENT_TYPES = new Set([
+  'response.output_text.done',
+  'response.content_part.done',
+  'response.output_item.done',
+  'response.completed',
+])
+
 export async function readRunTextEventStream(args: {
   body: ReadableStream<Uint8Array>
   extractText: (payload: unknown) => string
@@ -35,7 +42,7 @@ export async function readRunTextEventStream(args: {
     const eventType = payload && typeof payload === 'object'
       ? String((payload as { type?: unknown }).type || '').trim().toLowerCase()
       : ''
-    const isTerminalAggregate = eventType === 'response.output_text.done' || eventType === 'response.completed'
+    const isTerminalAggregate = TERMINAL_AGGREGATE_EVENT_TYPES.has(eventType)
     if (isTerminalAggregate && fullText) {
       if (next === fullText || fullText.endsWith(next)) return
       if (next.startsWith(fullText)) {
