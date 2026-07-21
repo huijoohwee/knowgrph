@@ -337,6 +337,7 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
   const toolbarToolMenuSource = source('src', 'lib', 'toolbar', 'ToolbarToolMenu.impl.tsx')
   const xrSceneMcpSource = source('src', 'features', 'three', 'xrSceneMcpRuntime.ts')
   const xrCameraMotionSource = source('src', 'features', 'three', 'XrCameraMotionSection.tsx')
+  const xrSceneSurfaceSource = source('src', 'features', 'three', 'xrSceneSurfaceRuntime.ts')
   const stageSource = source('src', 'features', 'three', 'XrNativeControllerDemoStage.tsx')
   for (const marker of [
     "import('@litertjs/core')",
@@ -394,15 +395,12 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
     if (!targetRuntimeSource.includes(marker)) throw new Error(`expected centralized Motion Control target ownership marker ${marker}`)
   }
   for (const marker of [
-    "'motion-control': Object.freeze",
-    "'xr-3d': Object.freeze",
-    'animation: Object.freeze',
-    "input.floatingPanelView === 'media' && input.mediaCatalogMode === 'xr-3d'",
-    "activeState.canvasRenderMode !== '3d' || activeState.canvas3dMode !== 'xr'",
-    "if (target === 'xr-3d') setMediaCatalogMode('xr-3d')",
+    "'motion-control': Object.freeze", "'xr-3d': Object.freeze", 'animation: Object.freeze', "input.floatingPanelView === 'media' && input.mediaCatalogMode === 'xr-3d'", 'activateXrSceneSurface({', 'panelView: MOTION_CONTROL_SURFACE_CATALOG[target].view',
   ]) {
     if (!surfaceRuntimeSource.includes(marker)) throw new Error(`expected centralized Motion Control surface ownership marker ${marker}`)
   }
+  const staleSurfaceOwner = ['activateCanvasGraphSurfaceMode', "setCanvas3dMode('xr')", "setMediaCatalogMode('xr-3d')"].find(marker => surfaceRuntimeSource.includes(marker))
+  if (staleSurfaceOwner) throw new Error(`expected Motion Control to remove local XR surface owner ${staleSurfaceOwner}`)
   if (!lifecycleGuardSource.includes('motionControlCaptureSurfaceIsOpen')
     || !lifecycleGuardSource.includes('subscribeMediaCatalogMode')
     || !lifecycleGuardSource.includes('subscribeMotionControl')
@@ -418,13 +416,14 @@ export async function testMotionControlRuntimeIsLiteRtInvocableAndXrReady() {
     || !mediaPanelSource.includes("setMediaCatalogMode('xr-3d')")) {
     throw new Error('expected Media and 3D for XR to share one observable catalog-mode owner')
   }
-  const toolbarCatalogModeSelection = toolbarToolMenuSource.indexOf("setMediaCatalogMode(canvasRenderMode === '3d' && canvas3dMode === 'xr' ? 'xr-3d' : 'media')")
-  const toolbarPanelSelection = toolbarToolMenuSource.indexOf('setFloatingPanelView(view)', toolbarCatalogModeSelection)
-  if (toolbarCatalogModeSelection < 0
-    || toolbarPanelSelection < toolbarCatalogModeSelection
+  const toolbarXrRouting = toolbarToolMenuSource.indexOf('routeToolbarXrScenePanel({ view, canvasRenderMode, canvas3dMode })')
+  const toolbarPanelSelection = toolbarToolMenuSource.indexOf('setFloatingPanelView(view)', toolbarXrRouting)
+  if (toolbarXrRouting < 0
+    || toolbarPanelSelection < toolbarXrRouting
     || !toolbarToolMenuSource.includes('handleSelectView(requestedFloatingPanelView)')
-    || !xrSceneMcpSource.includes("setMediaCatalogMode('xr-3d')")
-    || !xrCameraMotionSource.includes("setMediaCatalogMode('xr-3d')")) {
+    || !xrSceneSurfaceSource.includes("if (activation.panelView === 'media') setMediaCatalogMode('xr-3d')")
+    || !xrSceneMcpSource.includes('activateXrSceneSurface({')
+    || !xrCameraMotionSource.includes("activateXrSceneSurface({ panelView: 'media', openPanel: true, timeline: true })")) {
     throw new Error('expected every XR Media entry route to publish the 3D for XR submode before opening Media')
   }
   if (!stageSource.includes('mergeXrNativeControllerInputs(keyboard, gamepad, motion)')) {

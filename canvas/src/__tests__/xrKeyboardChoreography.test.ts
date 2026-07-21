@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { GraphData } from '@/lib/graph/types'
 import {
-  registerAgenticOsRemoteGrammarCatalogEntries,
   resetAgenticOsRemoteGrammarCatalogForTests,
 } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
+import { registerPinnedAgenticOsDictionaryTokensForTest } from '@/__tests__/helpers/pinnedAgenticOsDictionary'
 import {
   buildCameraKeyboardInvocation,
   controlLocalCamera,
@@ -45,20 +45,7 @@ const KEYBOARD_DICTIONARY_TOKENS = {
 
 function registerCanonicalCameraGrammar(): void {
   resetAgenticOsRemoteGrammarCatalogForTests()
-  for (const [kind, tokens] of Object.entries(KEYBOARD_DICTIONARY_TOKENS)) {
-    const fileName = kind === 'command'
-      ? 'DICTIONARY-COMMAND.md'
-      : kind === 'semantic'
-        ? 'DICTIONARY-SEMANTIC.md'
-        : 'DICTIONARY-BINDING.md'
-    const source = readFileSync(resolve(process.cwd(), '..', '..', 'agentic-canvas-os', 'docs', fileName), 'utf8')
-    for (const token of tokens) {
-      if (!source.includes(`  - "${token}"`) || !source.includes(`| \`${token}\` |`)) {
-        throw new Error(`expected upstream ${fileName} to own ${token}`)
-      }
-    }
-    registerAgenticOsRemoteGrammarCatalogEntries(tokens.map(token => ({ token, kind, sourcePath: fileName })))
-  }
+  registerPinnedAgenticOsDictionaryTokensForTest(KEYBOARD_DICTIONARY_TOKENS)
 }
 
 function buildKeyboardCameraGraph(): GraphData {

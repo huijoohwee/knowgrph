@@ -1,9 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { resolveSpatialCaptureOpacityScale } from '@/features/three/SpatialCaptureManifestStage'
 
 export function testSpatialCaptureRenderStageUsesBoundedGaussianSortCadence() {
+  const spatialStageSource = readFileSync(
+    resolve(process.cwd(), 'src', 'features', 'three', 'SpatialCaptureManifestStage.tsx'),
+    'utf8',
+  )
+  const threeGraphSource = readFileSync(
+    resolve(process.cwd(), 'src', 'lib', 'three', 'ThreeGraph.impl.tsx'),
+    'utf8',
+  )
   const source = [
-    readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'SpatialCaptureManifestStage.tsx'), 'utf8'),
+    spatialStageSource,
     readFileSync(resolve(process.cwd(), 'src', 'features', 'three', 'spatialCaptureGeometryRuntime.ts'), 'utf8'),
   ].join('\n')
   for (const marker of [
@@ -32,7 +41,7 @@ export function testSpatialCaptureRenderStageUsesBoundedGaussianSortCadence() {
     'readSpatialCaptureGeometryCount(geometry, state.load) < state.load.pointCloud.pointCount',
     'sortState.pendingDirection = nextDirection',
     'elapsedMs - sortState.pendingSinceMs < SPATIAL_CAPTURE_SORT_SETTLE_MS',
-    'gaussianSplatMaterial.uniforms.opacityScale.value = paused ? 0.42 : 1.0',
+    "gaussianSplatMaterial.uniforms.opacityScale.value = resolveSpatialCaptureOpacityScale('gaussian-splat', dimmed)",
     'gaussianSplatMaterial.uniforms.viewportSize.value.set(Math.max(1, size.width), Math.max(1, size.height))',
     "state.load.pointCloud.kind !== 'gaussian-splat'\n      || paused\n      || !(geometry instanceof THREE.InstancedBufferGeometry)",
     'updateGaussianSplatGeometrySort(geometry, state.load, pendingDirection)',
@@ -46,5 +55,24 @@ export function testSpatialCaptureRenderStageUsesBoundedGaussianSortCadence() {
     "geometry.setAttribute('splatCenter', new THREE.InstancedBufferAttribute(load.pointCloud.positions, 3))",
   ]) {
     if (source.includes(staleMarker)) throw new Error(`unexpected stale initial sort marker ${staleMarker}`)
+  }
+
+  const spatialStageMount = threeGraphSource.match(
+    /<SpatialCaptureManifestStage\b[\s\S]*?\n\s*\/>/,
+  )?.[0] || ''
+  if (!spatialStageMount.includes('paused={authoredWorldPaused}')
+    || !spatialStageMount.includes('dimmed={paused}')) {
+    throw new Error('Game Mode must freeze Spatial Capture updates while reserving visual dimming for the inactive Canvas')
+  }
+  for (const [kind, dimmed, expected] of [
+    ['point-cloud', false, 0.96],
+    ['point-cloud', true, 0.66],
+    ['gaussian-splat', false, 1],
+    ['gaussian-splat', true, 0.42],
+  ] as const) {
+    const actual = resolveSpatialCaptureOpacityScale(kind, dimmed)
+    if (actual !== expected) {
+      throw new Error(`unexpected ${kind} opacity for dimmed=${String(dimmed)}: ${actual}`)
+    }
   }
 }

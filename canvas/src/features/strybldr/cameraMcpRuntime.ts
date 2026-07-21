@@ -1,4 +1,3 @@
-import { activateCanvasGraphSurfaceMode } from '@/lib/canvas/canvas3dMode'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   XR_MOTION_REFERENCE_CAMERA_RIGS,
@@ -68,6 +67,7 @@ import {
 } from './cameraOptics'
 import { controlLocalCameraSource, inspectLocalCameraSource, isCameraSourceInvocation, normalizeCameraSourceSelection } from './cameraSourceMcpRuntime'
 import type { XrNativeControllerCameraMode } from '@/features/three/xrNativeControllerCameraCatalog'
+import { activateXrSceneSurface } from '@/features/three/xrSceneSurfaceRuntime'
 export type CameraControlAction = 'select' | 'frame' | 'animate' | 'playback' | 'scrub'
 export type CameraControlInput = Readonly<{
   invocation?: string
@@ -309,17 +309,15 @@ function normalizeCameraControl(input: CameraControlInput): NormalizedCameraCont
   }
 }
 
-function ensureSharedCameraPanel(): void {
+function ensureSharedCameraPanel(): boolean {
   const state = useGraphStore.getState()
-  if (state.floatingPanelOpen) return
+  if (state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr') {
+    return activateXrSceneSurface({ panelView: 'camera', openPanel: true })
+  }
+  if (state.floatingPanelOpen && state.floatingPanelView === 'camera') return true
   state.setFloatingPanelView('camera')
   state.setFloatingPanelOpen(true)
-}
-
-function openCameraChoreographyTimeline(): void {
-  const state = useGraphStore.getState()
-  state.setBottomSurfaceTab('timeline')
-  state.setBottomSurfaceCollapsed(false)
+  return true
 }
 
 function resolveCameraAnchor(targetId: string, requireSubject = false): string {
@@ -362,13 +360,8 @@ function hydrateActiveMotionReference(): boolean {
   return true
 }
 
-function activateCameraChoreographySurface(): void {
-  const state = useGraphStore.getState()
-  activateCanvasGraphSurfaceMode({
-    mode: 'xr',
-    setCanvas3dMode: state.setCanvas3dMode,
-    setCanvasRenderMode: state.setCanvasRenderMode,
-  })
+function activateCameraChoreographySurface(): boolean {
+  return activateXrSceneSurface({ panelView: 'camera', openPanel: true, timeline: true })
 }
 
 function persistMotionReference(): boolean {
@@ -477,6 +470,12 @@ export function controlLocalCamera(input: CameraControlInput): CameraControlResu
     if (choreographyPlaying) {
       return { ok: false, action: control.action, message: 'Pause Camera choreography before applying keyboard-driven Camera movement.' }
     }
+    const surfaceReady = control.action === 'animate'
+      ? activateCameraChoreographySurface()
+      : ensureSharedCameraPanel()
+    if (!surfaceReady) {
+      return { ok: false, action: control.action, message: 'Camera control requires an available shared XR Mode surface.' }
+    }
     const keyboardResult = applyCameraKeyboardChoreography({
       action: control.action as 'animate' | 'frame',
       amount: control.amount,
@@ -486,12 +485,9 @@ export function controlLocalCamera(input: CameraControlInput): CameraControlResu
       requireAnchorMatch: control.targetId === 'selected-actor',
     })
     if (!keyboardResult.ok) return { ok: false, action: control.action, message: keyboardResult.message }
-    ensureSharedCameraPanel()
     if (control.action === 'animate') {
       const timeSeconds = keyboardResult.timeSeconds || 0
       setCameraTimelineState({ timeSeconds, playing: false })
-      activateCameraChoreographySurface()
-      openCameraChoreographyTimeline()
     }
     return { ok: true, action: control.action, message: keyboardResult.message, camera: inspectLocalCamera() }
   }
@@ -505,7 +501,9 @@ export function controlLocalCamera(input: CameraControlInput): CameraControlResu
     if (choreographyPlaying) {
       return { ok: false, action: control.action, message: 'Pause Camera choreography before applying an explicit framing pose.' }
     }
-    ensureSharedCameraPanel()
+    if (!ensureSharedCameraPanel()) {
+      return { ok: false, action: control.action, message: 'Camera framing requires an available shared Camera panel.' }
+    }
     const framing = publishCameraFramingRuntime(resolveCameraFrame(control, anchorId))
     return {
       ok: true,
@@ -523,6 +521,9 @@ export function controlLocalCamera(input: CameraControlInput): CameraControlResu
     const replacesExistingMark = runtime.plan.camera.some(mark => Math.abs(mark.timeSeconds - timeSeconds) < 0.0005)
     if (!control.moveId && runtime.plan.camera.length >= XR_MOTION_REFERENCE_MAX_CAMERA_MARKS && !replacesExistingMark) {
       return { ok: false, action: control.action, message: `Camera choreography already has the maximum ${XR_MOTION_REFERENCE_MAX_CAMERA_MARKS} marks.` }
+    }
+    if (!activateCameraChoreographySurface()) {
+      return { ok: false, action: control.action, message: 'Camera choreography requires an available shared XR Mode surface.' }
     }
     const previousRuntime = runtime
     const framing = resolveCameraFrame(control, anchorId)
@@ -556,9 +557,6 @@ export function controlLocalCamera(input: CameraControlInput): CameraControlResu
     const timelineTimeSeconds = moveResult?.startTimeSeconds ?? timeSeconds
     setXrMotionReferencePlayhead(timelineTimeSeconds)
     setCameraTimelineState({ timeSeconds: timelineTimeSeconds, playing: false })
-    activateCameraChoreographySurface()
-    ensureSharedCameraPanel()
-    openCameraChoreographyTimeline()
     return {
       ok: true,
       action: control.action,
@@ -569,9 +567,9 @@ export function controlLocalCamera(input: CameraControlInput): CameraControlResu
     }
   }
 
-  activateCameraChoreographySurface()
-  ensureSharedCameraPanel()
-  openCameraChoreographyTimeline()
+  if (!activateCameraChoreographySurface()) {
+    return { ok: false, action: control.action, message: 'Camera choreography requires an available shared XR Mode surface.' }
+  }
 
   if (control.action === 'scrub') {
     setXrMotionReferencePlayhead(timeSeconds)

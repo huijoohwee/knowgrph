@@ -1,11 +1,18 @@
+import { useGraphStore } from '@/hooks/useGraphStore'
+import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { readXrNativeControllerDemo } from '@/features/three/xrNativeControllerDemoRuntime'
+import { readXrMotionReferenceRuntime } from '@/features/three/xrMotionReferenceRuntime'
 import {
-  readSharedXrNativeControllerDemoColliders,
-  readXrNativeControllerDemo,
-} from '@/features/three/xrNativeControllerDemoRuntime'
-import { resolveXrMotionReferenceStage } from '@/features/three/xrSceneLibrary'
-import { resolveXrTerrainPerimeter } from '@/features/three/xrTerrainPerimeter'
+  resolveXrCanonicalSceneProjection,
+  resolveXrCanonicalSceneSpatialSource,
+} from '@/features/three/xrCanonicalSceneSpatialSource'
 import { isGameFpsPositionValid, type GameFpsPoint } from './gameFpsGeometry'
-import type { GameFpsBlocker, GameFpsSpatialMap, GameFpsSpatialProfile } from './gameFpsModel'
+import {
+  GAME_FPS_SHARED_XR_PROFILE_ID,
+  type GameFpsBlocker,
+  type GameFpsSpatialMap,
+  type GameFpsSpatialProfile,
+} from './gameFpsModel'
 
 const BOUNDARY_COLLIDER_IDS = new Set([
   'native-island-west',
@@ -13,23 +20,30 @@ const BOUNDARY_COLLIDER_IDS = new Set([
   'native-island-north',
   'native-island-south',
 ])
-const GROUND_ACTOR_STEP_HEIGHT_METERS = 0.45
-const GROUND_ACTOR_HEIGHT_METERS = 1.8
 const SPAWN_CLEARANCE_METERS = 0.45
 const SPAWN_GRID_STEP_METERS = 0.5
 const MINIMUM_SPAWN_SEPARATION_METERS = 1.2
 
-function isBoundaryCollider(id: string): boolean {
-  return BOUNDARY_COLLIDER_IDS.has(id) || /^terrain:[^:]+:(?:west|east|north|south)$/.test(id)
+function readSpatialSourceSelection() {
+  const state = useGraphStore.getState()
+  const motion = readXrMotionReferenceRuntime()
+  const projection = resolveXrCanonicalSceneProjection({
+    controllerPhase: readXrNativeControllerDemo().phase,
+    physicsRunReady: isXrPhysicsRunReadyDemoActive(
+      state.markdownDocumentName,
+      state.markdownDocumentText,
+    ),
+  })
+  return Object.freeze({ projection, stageId: motion.plan.stageId })
 }
 
-function obstructsGroundActor(collider: Readonly<{
-  center: readonly [number, number, number]
-  sizeMeters: readonly [number, number, number]
-}>): boolean {
-  const bottom = collider.center[1] - collider.sizeMeters[1] / 2
-  const top = collider.center[1] + collider.sizeMeters[1] / 2
-  return top > GROUND_ACTOR_STEP_HEIGHT_METERS && bottom < GROUND_ACTOR_HEIGHT_METERS
+export function readGameModeXrSpatialSourceKey(): string {
+  const selection = readSpatialSourceSelection()
+  return `${selection.projection}:${selection.stageId}`
+}
+
+function isBoundaryCollider(id: string): boolean {
+  return BOUNDARY_COLLIDER_IDS.has(id) || /^terrain:[^:]+:(?:west|east|north|south)$/.test(id)
 }
 
 function spawnCandidates(preferred: GameFpsPoint, map: GameFpsSpatialMap): readonly GameFpsPoint[] {
@@ -38,7 +52,10 @@ function spawnCandidates(preferred: GameFpsPoint, map: GameFpsSpatialMap): reado
   const candidates: GameFpsPoint[] = [preferred]
   for (let zStep = -maximumZStep; zStep <= maximumZStep; zStep += 1) {
     for (let xStep = -maximumXStep; xStep <= maximumXStep; xStep += 1) {
-      candidates.push({ x: xStep * SPAWN_GRID_STEP_METERS, z: zStep * SPAWN_GRID_STEP_METERS })
+      candidates.push({
+        x: map.centerX + xStep * SPAWN_GRID_STEP_METERS,
+        z: map.centerZ + zStep * SPAWN_GRID_STEP_METERS,
+      })
     }
   }
   return candidates.sort((left, right) => {
@@ -63,27 +80,33 @@ function resolveSpawn(
 }
 
 export function readGameModeXrSpatialProfile(): GameFpsSpatialProfile {
-  const stage = resolveXrMotionReferenceStage(readXrNativeControllerDemo().terrainId)
-  const perimeter = resolveXrTerrainPerimeter(stage)
-  const blockers = readSharedXrNativeControllerDemoColliders()
-    .filter(collider => !isBoundaryCollider(collider.id) && obstructsGroundActor(collider))
+  const selection = readSpatialSourceSelection()
+  const spatialSource = resolveXrCanonicalSceneSpatialSource({
+    projection: selection.projection,
+    stageId: selection.stageId,
+  })
+  const { perimeter } = spatialSource
+  const blockers = spatialSource.staticColliders
+    .filter(collider => !isBoundaryCollider(collider.id))
     .map<GameFpsBlocker>(collider => Object.freeze({
       id: collider.id,
       centerX: collider.center[0],
+      centerY: collider.center[1],
       centerZ: collider.center[2],
       halfWidth: collider.sizeMeters[0] / 2,
+      halfHeight: collider.sizeMeters[1] / 2,
       halfDepth: collider.sizeMeters[2] / 2,
-      height: collider.sizeMeters[1],
     }))
   const halfWidth = perimeter.halfWidthMeters
   const halfDepth = perimeter.halfDepthMeters
-  const map = Object.freeze({ halfWidth, halfDepth, blockers: Object.freeze(blockers) })
-  const playerPosition = resolveSpawn({ x: 0, z: halfDepth * 0.42 }, map, [])
+  const [centerX, centerZ] = perimeter.centerMeters
+  const map = Object.freeze({ centerX, centerZ, halfWidth, halfDepth, blockers: Object.freeze(blockers) })
+  const playerPosition = resolveSpawn({ x: centerX, z: centerZ + halfDepth * 0.42 }, map, [])
   const npcPreferences = [
-    { id: 'npc-scout' as const, x: 0, z: -halfDepth * 0.24 },
-    { id: 'npc-west' as const, x: -halfWidth * 0.44, z: -halfDepth * 0.08 },
-    { id: 'npc-east' as const, x: halfWidth * 0.44, z: -halfDepth * 0.08 },
-    { id: 'npc-guard' as const, x: -halfWidth * 0.2, z: -halfDepth * 0.66 },
+    { id: 'npc-scout' as const, x: centerX, z: centerZ - halfDepth * 0.24 },
+    { id: 'npc-west' as const, x: centerX - halfWidth * 0.44, z: centerZ - halfDepth * 0.08 },
+    { id: 'npc-east' as const, x: centerX + halfWidth * 0.44, z: centerZ - halfDepth * 0.08 },
+    { id: 'npc-guard' as const, x: centerX - halfWidth * 0.2, z: centerZ - halfDepth * 0.66 },
   ]
   const occupied: GameFpsPoint[] = [playerPosition]
   const npcSeeds = npcPreferences.map(preference => {
@@ -92,7 +115,7 @@ export function readGameModeXrSpatialProfile(): GameFpsSpatialProfile {
     return Object.freeze({ id: preference.id, ...position })
   })
   return Object.freeze({
-    id: 'xr-authored',
+    id: GAME_FPS_SHARED_XR_PROFILE_ID,
     map,
     playerSpawn: Object.freeze({ ...playerPosition, yaw: 0, pitch: 0 }),
     npcSeeds: Object.freeze(npcSeeds),

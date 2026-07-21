@@ -1,4 +1,3 @@
-import { activateCanvasGraphSurfaceMode } from '@/lib/canvas/canvas3dMode'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import {
   XR_ANIMATION_PRESETS,
@@ -51,6 +50,7 @@ import {
   applyXrConstrainedCastMarkChoreography,
 } from './xrConstrainedCastMarkRuntime'
 import { updateXrAnimationAssignment } from './xrAnimationAssignmentRuntime'
+import { activateXrSceneSurface } from './xrSceneSurfaceRuntime'
 
 const XR_ANIMATION_CONTROL_OPERATIONS = Object.freeze([
   'apply',
@@ -384,13 +384,8 @@ function persistPlan(): boolean {
   return true
 }
 
-function activateAnimationSurface(): void {
-  const state = useGraphStore.getState()
-  activateCanvasGraphSurfaceMode({ mode: 'xr', setCanvas3dMode: state.setCanvas3dMode, setCanvasRenderMode: state.setCanvasRenderMode })
-  state.setFloatingPanelView('animation')
-  state.setFloatingPanelOpen(true)
-  state.setBottomSurfaceTab('timeline')
-  state.setBottomSurfaceCollapsed(false)
+function activateAnimationSurface(): boolean {
+  return activateXrSceneSurface({ panelView: 'animation', openPanel: true, timeline: true })
 }
 
 function updateTransport(operation: 'play' | 'pause' | 'scrub', timeSeconds: number): void {
@@ -456,6 +451,9 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
   if (!control) return { ok: false, message: 'Use a supported structured animation operation or native /animation.control invocation.' }
   if (!sceneReady() || !hydrateCanonicalXrMotionReferenceRuntime()) return { ok: false, message: 'Open or create a graph document before controlling XR animation.' }
   hydrateCanonicalXrPhysicsRuntime()
+  if (control.operation !== 'export' && !activateAnimationSurface()) {
+    return { ok: false, message: 'XR Animation requires an available shared XR Mode surface.' }
+  }
   const targetId = resolvedTargetId(control)
 
   if (control.operation === 'move-object') {
@@ -498,7 +496,6 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
     }
     selectXrMotionReferenceCastMark(targetId, markId)
     selectBoundXrActor(targetId)
-    activateAnimationSurface()
     return {
       ok: true,
       message: changed
@@ -530,7 +527,6 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
       return { ok: false, message: 'The choreography mark could not be written to graph metadata.' }
     }
     if (control.markKind === 'cast') selectBoundXrActor(targetId)
-    activateAnimationSurface()
     const warnings = resolveXrChoreographySpeedWarnings(readXrMotionReferenceRuntime().plan)
     return { ok: true, message: `Updated ${control.markKind} mark choreography${warnings.length ? ` with ${warnings.length} speed warning${warnings.length === 1 ? '' : 's'}` : ''}.`, operation: control.operation, targetId: control.markKind === 'cast' ? targetId : 'camera', scene: inspectLocalAnimation() }
   }
@@ -544,7 +540,6 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
 
   if (control.operation === 'play' || control.operation === 'pause' || control.operation === 'scrub') {
     updateTransport(control.operation, control.timeSeconds)
-    activateAnimationSurface()
     return { ok: true, message: control.operation === 'scrub' ? `Animation playhead moved to ${readXrMotionReferenceRuntime().playheadSeconds.toFixed(2)}s.` : `Animation playback ${control.operation === 'play' ? 'started' : 'paused'}.`, operation: control.operation, scene: inspectLocalAnimation() }
   }
 
@@ -562,6 +557,5 @@ export function controlLocalAnimation(input: XrAnimationControlInput): XrAnimati
   }
   if (assignment.positionMarksChanged) hydrateCanonicalXrPhysicsRuntime()
   selectBoundXrActor(targetId)
-  activateAnimationSurface()
   return { ok: true, message: assignment.message, operation: control.operation, targetId, scene: inspectLocalAnimation() }
 }

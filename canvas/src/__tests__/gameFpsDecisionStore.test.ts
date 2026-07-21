@@ -19,6 +19,7 @@ const DECISION: GameFpsDecisionRecord = Object.freeze({
   payload: Object.freeze({
     event: 'mission_completed',
     missionId: 'game-fps-mission-1',
+    runId: 1,
     status: 'won',
     tick: 42,
   }),
@@ -79,12 +80,14 @@ test('Game FPS Decision save verifies read-back and is idempotent', async () => 
   const saved = await persistPendingGameFpsDecisions({ workspace })
   assert.equal(saved.status, 'saved')
   assert.equal(saved.retainedCount, 0)
+  assert.equal(saved.savedCount, 1)
   assert.deepEqual(await loadGameFpsSavedDecisions({ workspace }), [DECISION])
 
   queueGameFpsDecisions([DECISION])
   const idempotent = await persistPendingGameFpsDecisions({ workspace })
   assert.equal(idempotent.status, 'saved')
   assert.equal(idempotent.retainedCount, 0)
+  assert.equal(idempotent.savedCount, 1)
   assert.deepEqual(await loadGameFpsSavedDecisions({ workspace }), [DECISION])
 })
 
@@ -103,6 +106,12 @@ test('Game FPS Decision write failure retains pending state and source bytes', a
   assert.equal(failed.retainedCount, 1)
   assert.match(failed.error || '', /denied/)
   assert.equal(await failing.readFileText(GAME_FPS_SAVE_PATH), before)
+  await loadGameFpsSavedDecisions({ workspace: base })
+  const afterRestartValidation = readGameFpsDecisionStore()
+  assert.equal(afterRestartValidation.status, 'error')
+  assert.equal(afterRestartValidation.errorKind, 'write')
+  assert.equal(afterRestartValidation.retainedCount, 1)
+  assert.match(afterRestartValidation.error || '', /denied/)
 })
 
 test('Game FPS Decision verification failure rolls source bytes back and retains pending state', async () => {

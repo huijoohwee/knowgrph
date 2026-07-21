@@ -171,8 +171,9 @@ function testTurningPathSeedsCurrentPlayheadFacingAndKeepsItFixed(): void {
   )
   assert(
     stageRuntime.includes('capture.object.quaternion.copy(capture.quaternion)')
-      && stageRuntime.includes("if (runtime.phase === 'stopped') restoreAuthoredTransforms()"),
-    'stopping physics must continue to restore the authored quaternion',
+      && stageRuntime.includes("if (!paused && runtime.phase === 'stopped') restoreAuthoredTransforms()")
+      && stageRuntime.includes('if (paused) return'),
+    'stopping physics must restore the authored quaternion unless Game owns the frozen XR scene',
   )
 }
 

@@ -1,5 +1,5 @@
 import { allocateEntity, createWorld, registerComponent, worldTick } from '../../../../ecs/index.js'
-import { normalizeDecisionRecord } from '../../../../ecs/kgcNodeContract.js'
+import { normalizeDecisionBatch } from '../../../../ecs/decisionDocument.js'
 import { snapshotWorld } from '../../../../ecs/world.js'
 import {
   gameFpsHorizontalDistance,
@@ -9,16 +9,16 @@ import {
   clampGameFpsPitch,
   resolveGameFpsMovement,
   selectGameFpsRayAabbHit,
+  type GameFpsRayAabbCandidate,
 } from './gameFpsGeometry'
 import {
   GAME_FPS_FIXED_STEP_SECONDS,
-  GAME_FPS_ARENA_SPATIAL_PROFILE,
   GAME_FPS_FIRE_RESULTS,
   GAME_FPS_MISSION_ID,
   GAME_FPS_NPC_ACTIONS,
   GAME_FPS_NPC_DECISION_INTERVAL_TICKS,
   GAME_FPS_NPC_HITBOX_HALF_EXTENTS,
-  GAME_FPS_NPC_SEEDS,
+  GAME_FPS_NPC_IDS,
   GAME_FPS_WEAPON,
   gameFpsFireResultFromCode,
   gameFpsNpcActionFromCode,
@@ -32,6 +32,7 @@ import {
   type GameFpsSpatialProfile,
   type GameFpsTickInput,
 } from './gameFpsModel'
+import { scoreGameFpsNpcActions, selectGameFpsNpcAction } from './gameFpsNpcPolicy'
 
 const PLAYER_REF = 'game-fps:player'
 const MISSION_REF = `game-fps:mission:${GAME_FPS_MISSION_ID}`
@@ -47,6 +48,7 @@ const PHASE_PLAYING = 1
 const PHASE_WON = 2
 const PHASE_LOST = 3
 const DECISION_EPOCH_MS = Date.UTC(2026, 0, 1)
+const MAX_GAME_FPS_TICK = 0xffff_fffe
 
 type EcsContext = {
   query(names: string[]): number[]
@@ -95,33 +97,6 @@ export type GameFpsAuthoredMission = Readonly<{
   spatialProfile: GameFpsSpatialProfile
 }>
 
-export type GameFpsNpcUtilityObservation = Readonly<{
-  health: number
-  playerDistance: number
-  lineOfSight: boolean
-}>
-
-export type GameFpsNpcUtilityScores = Readonly<Record<GameFpsNpcAction, number>>
-
-export function scoreGameFpsNpcActions(
-  observation: GameFpsNpcUtilityObservation,
-): GameFpsNpcUtilityScores {
-  return Object.freeze({
-    hold: observation.playerDistance >= 17 ? 3 : 0,
-    alert: observation.playerDistance <= 17 ? 3 : 0,
-    engage: observation.lineOfSight && observation.playerDistance <= 9 ? 4 : 0,
-    flee: observation.health <= 35 ? 5 : 0,
-  })
-}
-
-export function selectGameFpsNpcAction(scores: GameFpsNpcUtilityScores): GameFpsNpcAction {
-  let selected: GameFpsNpcAction = GAME_FPS_NPC_ACTIONS[0]
-  for (const action of GAME_FPS_NPC_ACTIONS.slice(1)) {
-    if (scores[action] > scores[selected]) selected = action
-  }
-  return selected
-}
-
 function record(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${label} must be an object`)
@@ -144,13 +119,17 @@ function boundedHealth(value: unknown, label: string): number {
 
 function decisionTick(payload: Record<string, unknown>): number {
   const tick = Number(payload.tick)
-  if (!Number.isSafeInteger(tick) || tick < 0) throw new Error('Game FPS Decision tick must be a non-negative integer')
+  if (!Number.isSafeInteger(tick) || tick < 0 || tick > MAX_GAME_FPS_TICK) {
+    throw new Error(`Game FPS Decision tick must be an integer from 0 to ${MAX_GAME_FPS_TICK}`)
+  }
   return tick
 }
 
 function decisionRunId(payload: Record<string, unknown>): number {
   const runId = Number(payload.runId)
-  if (!Number.isSafeInteger(runId) || runId < 1) throw new Error('Game FPS Decision runId must be a positive integer')
+  if (!Number.isSafeInteger(runId) || runId < 1 || runId >= Number.MAX_SAFE_INTEGER) {
+    throw new Error('Game FPS Decision runId must be a bounded positive safe integer')
+  }
   return runId
 }
 
@@ -158,8 +137,8 @@ function resetReplayState(state: ReplayState): void {
   state.tick = 0
   state.phase = PHASE_PLAYING
   state.playerHealth = PLAYER_MAX_HEALTH
-  state.npcHealth = new Map(GAME_FPS_NPC_SEEDS.map(seed => [seed.id, NPC_MAX_HEALTH]))
-  state.npcActions = new Map(GAME_FPS_NPC_SEEDS.map(seed => [seed.id, ACTION_HOLD]))
+  state.npcHealth = new Map(GAME_FPS_NPC_IDS.map(id => [id, NPC_MAX_HEALTH]))
+  state.npcActions = new Map(GAME_FPS_NPC_IDS.map(id => [id, ACTION_HOLD]))
 }
 
 function replayDecisions(values: readonly unknown[]): ReplayState {
@@ -167,10 +146,10 @@ function replayDecisions(values: readonly unknown[]): ReplayState {
     tick: 0,
     phase: PHASE_PLAYING,
     playerHealth: PLAYER_MAX_HEALTH,
-    npcHealth: new Map(GAME_FPS_NPC_SEEDS.map(seed => [seed.id, NPC_MAX_HEALTH])),
-    npcActions: new Map(GAME_FPS_NPC_SEEDS.map(seed => [seed.id, ACTION_HOLD])),
+    npcHealth: new Map(GAME_FPS_NPC_IDS.map(id => [id, NPC_MAX_HEALTH])),
+    npcActions: new Map(GAME_FPS_NPC_IDS.map(id => [id, ACTION_HOLD])),
   }
-  const normalized = values.map((value, index) => normalizeDecisionRecord(value, `decisions[${index}]`))
+  const normalized = (normalizeDecisionBatch([...values]) as GameFpsDecisionRecord[])
     .filter(decision => decision.payload.missionId === GAME_FPS_MISSION_ID)
     .map(decision => ({ decision, runId: decisionRunId(decision.payload) }))
     .sort((left, right) => {
@@ -221,6 +200,10 @@ function replayDecisions(values: readonly unknown[]): ReplayState {
   return state
 }
 
+export function validateGameFpsDecisions(values: readonly unknown[]): void {
+  void replayDecisions(values)
+}
+
 function phaseName(code: number): Exclude<GameFpsPhase, 'stopped'> {
   return code === PHASE_WON ? 'won' : code === PHASE_LOST ? 'lost' : 'playing'
 }
@@ -261,18 +244,21 @@ function zeroCostLog(value: unknown): GameFpsCostLog {
 export function createGameFpsAuthoredMission(args: {
   runId: number
   decisions?: readonly unknown[]
-  spatialProfile?: GameFpsSpatialProfile
+  spatialProfile: GameFpsSpatialProfile
 }): GameFpsAuthoredMission {
+  const runId = decisionRunId({ runId: args.runId })
   const replay = replayDecisions(args.decisions || [])
-  const spatialProfile = args.spatialProfile || GAME_FPS_ARENA_SPATIAL_PROFILE
+  const spatialProfile = args.spatialProfile
   const entityIds = new Map<string, number>()
   let playerEntityId = -1
   let missionEntityId = -1
-  const emitDecision = makeDecisionFactory(args.runId)
+  const emitDecision = makeDecisionFactory(runId)
 
   const clockSystem = (context: EcsContext) => {
     if (context.read(missionEntityId, 'Mission', 'phase') !== PHASE_PLAYING) return
-    context.write(missionEntityId, 'Mission', 'tick', context.read(missionEntityId, 'Mission', 'tick') + 1)
+    const currentTick = context.read(missionEntityId, 'Mission', 'tick')
+    if (currentTick >= MAX_GAME_FPS_TICK) throw new Error('Game FPS mission exhausted its bounded tick range')
+    context.write(missionEntityId, 'Mission', 'tick', currentTick + 1)
     context.write(
       missionEntityId,
       'Mission',
@@ -343,12 +329,15 @@ export function createGameFpsAuthoredMission(args: {
       context.read(playerEntityId, 'Transform', 'pitch'),
     )
     const origin = [playerX, PLAYER_ENTITY_HEIGHT, playerZ] as const
-    const candidates = []
+    const candidates: GameFpsRayAabbCandidate[] = spatialProfile.map.blockers.map(blocker => Object.freeze({
+      entityRef: `blocker:${blocker.id}`,
+      center: [blocker.centerX, blocker.centerY, blocker.centerZ] as const,
+      halfExtents: [blocker.halfWidth, blocker.halfHeight, blocker.halfDepth] as const,
+    }))
     for (const [id, entityId] of entityIds) {
       if (context.read(entityId, 'Npc', 'active') !== 1) continue
       const x = context.read(entityId, 'Transform', 'x')
       const z = context.read(entityId, 'Transform', 'z')
-      if (!hasGameFpsLineOfSight({ x: playerX, z: playerZ }, { x, z }, spatialProfile.map)) continue
       candidates.push(Object.freeze({
         entityRef: id,
         center: [x, NPC_TARGET_HEIGHT, z] as const,
@@ -361,13 +350,14 @@ export function createGameFpsAuthoredMission(args: {
       maxDistance: GAME_FPS_WEAPON.rangeMeters,
       candidates,
     })
-    if (!hit) {
+    const targetEntityId = hit ? entityIds.get(hit.entityRef) : undefined
+    if (targetEntityId === undefined) {
       context.write(playerEntityId, 'Weapon', 'result', GAME_FPS_FIRE_RESULTS.indexOf('miss'))
       return
     }
     const target = {
-      id: hit.entityRef,
-      entityId: entityIds.get(hit.entityRef)!,
+      id: hit!.entityRef,
+      entityId: targetEntityId,
     }
     const previousHealth = context.read(target.entityId, 'Health', 'current')
     const remainingHealth = Math.max(0, previousHealth - GAME_FPS_WEAPON.damage)
@@ -476,7 +466,14 @@ export function createGameFpsAuthoredMission(args: {
     }
   }
 
-  const world = createWorld({ systems: [clockSystem, playerSystem, weaponSystem, npcSystem, missionSystem] })
+  const gameSystem = (context: EcsContext, input: GameFpsTickInput) => {
+    clockSystem(context)
+    playerSystem(context, input)
+    weaponSystem(context, input)
+    npcSystem(context)
+    missionSystem(context)
+  }
+  const world = createWorld({ systems: [gameSystem] })
   registerComponent(world, 'Transform', { x: 'f32', z: 'f32', yaw: 'f32', pitch: 'f32' })
   registerComponent(world, 'Health', { current: 'f32', maximum: 'f32' })
   registerComponent(world, 'Player', { active: 'u8' })
@@ -540,7 +537,7 @@ export function captureGameFpsAuthoredMission(mission: GameFpsAuthoredMission): 
   const playerHealth = component(playerEntity, 'Health')
   const weapon = component(playerEntity, 'Weapon')
   const missionState = component(missionEntity, 'Mission')
-  const npcs = GAME_FPS_NPC_SEEDS.map(seed => {
+  const npcs = mission.spatialProfile.npcSeeds.map(seed => {
     const entity = byRef.get(seed.id)!
     const transform = component(entity, 'Transform')
     const health = component(entity, 'Health')

@@ -1,11 +1,9 @@
 import type { FloatingPanelView } from '@/hooks/store/store-types/graph-state-chat-import'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { activateCanvasGraphSurfaceMode } from '@/lib/canvas/canvas3dMode'
 import {
-  setMediaCatalogMode,
   type MediaCatalogMode,
 } from '@/features/command-menu/mediaCatalogModeRuntime'
 import { openGameModeSurface } from '@/features/game-fps/gameModeRuntime'
+import { activateXrSceneSurface } from './xrSceneSurfaceRuntime'
 
 export type MotionControlSurfaceTarget = 'motion-control' | 'xr-3d' | 'animation' | 'game-mode'
 export type MotionControlCompanionTarget = Exclude<MotionControlSurfaceTarget, 'motion-control'>
@@ -38,19 +36,10 @@ export function motionControlCaptureSurfaceIsOpen(input: Readonly<{
 }
 
 export function openMotionControlSurface(target: MotionControlSurfaceTarget): boolean {
-  if (target === 'game-mode') return openGameModeSurface({ surfaceMode: 'xr' })
-  const state = useGraphStore.getState()
-  activateCanvasGraphSurfaceMode({
-    mode: 'xr',
-    setCanvas3dMode: state.setCanvas3dMode,
-    setCanvasRenderMode: state.setCanvasRenderMode,
+  if (target === 'game-mode') return openGameModeSurface()
+  return activateXrSceneSurface({
+    panelView: MOTION_CONTROL_SURFACE_CATALOG[target].view,
+    openPanel: true,
+    timeline: true,
   })
-  const activeState = useGraphStore.getState()
-  if (activeState.canvasRenderMode !== '3d' || activeState.canvas3dMode !== 'xr') return false
-  if (target === 'xr-3d') setMediaCatalogMode('xr-3d')
-  activeState.setFloatingPanelView(MOTION_CONTROL_SURFACE_CATALOG[target].view)
-  activeState.setFloatingPanelOpen(true)
-  activeState.setBottomSurfaceTab('timeline')
-  activeState.setBottomSurfaceCollapsed(false)
-  return true
 }

@@ -13,7 +13,6 @@ import {
   setSharedXrNativeControllerDemoTerrain,
   subscribeXrNativeControllerDemo,
 } from '@/features/three/xrNativeControllerDemoRuntime'
-import { resolveXrMotionReferenceStage } from '@/features/three/xrMotionReferenceModel'
 import {
   readXrMotionReferenceRuntime,
   subscribeXrMotionReferenceRuntime,
@@ -23,7 +22,10 @@ import {
   XR_MOTION_STAGE_SPAN,
 } from '@/features/three/xrMotionReferenceCoordinates'
 import { stopMotionControl } from '@/features/three/motionControlRuntime'
-import { readGameModeSnapshot, subscribeGameModeSnapshot } from '@/features/game-fps/gameModeRuntime'
+import {
+  resolveXrCanonicalSceneProjection,
+  resolveXrCanonicalSceneSpatialSource,
+} from './xrCanonicalSceneSpatialSource'
 
 export { XR_MOTION_STAGE_SPAN } from '@/features/three/xrMotionReferenceCoordinates'
 export const XR_MOTION_STAGE_FLOOR_DEPTH = -72
@@ -36,7 +38,7 @@ function stopMotionControlAfterXrUnmount() {
   })
 }
 
-export function XrGraphStage({ data }: { data: GraphData }) {
+export function XrGraphStage({ data, paused = false }: { data: GraphData; paused?: boolean }) {
   React.useEffect(() => stopMotionControlAfterXrUnmount, [])
   const stageRootRef = React.useRef<Group | null>(null)
   const runtime = React.useSyncExternalStore(
@@ -49,19 +51,21 @@ export function XrGraphStage({ data }: { data: GraphData }) {
     readXrNativeControllerDemo,
     readXrNativeControllerDemo,
   )
-  const gameMode = React.useSyncExternalStore(
-    subscribeGameModeSnapshot,
-    readGameModeSnapshot,
-    readGameModeSnapshot,
-  )
-  const stage = resolveXrMotionReferenceStage(runtime.plan.stageId)
   const markdownDocumentName = useGraphStore(state => state.markdownDocumentName)
   const markdownDocumentText = useGraphStore(state => state.markdownDocumentText)
   const runReadyDemo = isXrPhysicsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)
+  const projection = resolveXrCanonicalSceneProjection({
+    controllerPhase: controllerDemo.phase,
+    physicsRunReady: runReadyDemo,
+  })
+  const { stage } = resolveXrCanonicalSceneSpatialSource({
+    projection,
+    stageId: runtime.plan.stageId,
+  })
   const stageScale = runReadyDemo
     ? XR_NATIVE_CONTROLLER_DEMO_STAGE_SCALE
     : XR_MOTION_STAGE_SPAN / Math.max(stage.sizeMeters[0], stage.sizeMeters[1], 1)
-  const nativeControllerOwnsStage = runReadyDemo || controllerDemo.phase !== 'off'
+  const nativeControllerOwnsStage = projection === 'native-controller'
   React.useEffect(() => {
     if (nativeControllerOwnsStage) setSharedXrNativeControllerDemoTerrain(stage.id)
   }, [nativeControllerOwnsStage, stage.id])
@@ -78,12 +82,17 @@ export function XrGraphStage({ data }: { data: GraphData }) {
               span={XR_MOTION_STAGE_SPAN}
               groundY={XR_MOTION_STAGE_GROUND_Y}
               coordinateRootRef={stageRootRef}
+              paused={paused}
             />
-            <XrPhysicsStageRuntime stageScale={stageScale} groundY={XR_MOTION_STAGE_GROUND_Y} />
+            <XrPhysicsStageRuntime
+              stageScale={stageScale}
+              groundY={XR_MOTION_STAGE_GROUND_Y}
+              paused={paused}
+            />
           </>
         ) : null}
         <XrNativeControllerDemoStage
-          inputEnabled={!gameMode.active}
+          inputEnabled={!paused}
           stageScale={stageScale}
           groundY={XR_MOTION_STAGE_GROUND_Y}
           retainStage={runReadyDemo}

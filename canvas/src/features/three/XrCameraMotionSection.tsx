@@ -1,5 +1,4 @@
 import React from 'react'
-import { setMediaCatalogMode } from '@/features/command-menu/mediaCatalogModeRuntime'
 import { requestXrSimulationWorkbenchOpen } from '@/features/command-menu/xrSimulationWorkbenchOpenRequest'
 import { useShallow } from 'zustand/react/shallow'
 import { TimelineTransportInlineClip, TimelineTransportTimeAxisClip } from '@/components/timeline/TimelineTransportControls'
@@ -42,6 +41,7 @@ import { downloadBlob } from '@/lib/graph/save'
 import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { cn } from '@/lib/utils'
+import { activateXrSceneSurface } from './xrSceneSurfaceRuntime'
 
 export function XrCameraMotionSection() {
   const activeGraphData = useActiveGraphRenderData(true)
@@ -156,12 +156,16 @@ export function XrCameraMotionSection() {
   }, [documentLoaded, pushUiToast])
 
   const openSimulationWorkbench = React.useCallback(() => {
-    const state = useGraphStore.getState()
-    setMediaCatalogMode('xr-3d')
-    state.setFloatingPanelView('media')
-    state.setFloatingPanelOpen(true)
+    if (!activateXrSceneSurface({ panelView: 'media', openPanel: true, timeline: true })) {
+      pushUiToast({
+        id: 'xr:simulation-workbench:surface-error',
+        kind: 'error',
+        message: 'XR simulation requires an available shared XR Mode surface.',
+      })
+      return
+    }
     requestXrSimulationWorkbenchOpen()
-  }, [])
+  }, [pushUiToast])
 
   const nativeControllerActive = nativeController.phase !== 'off'
   const simulationPhase = nativeControllerActive ? nativeController.phase : physics.phase

@@ -113,8 +113,8 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     setFrontmatterModeEnabled: () => {},
     setMultiDimTableModeEnabled: () => {},
   })
-  if (sharedPanelOpenRequests !== 1 || surfaceCalls.join('|') !== '3d:xr|render:3d') {
-    throw new Error(`expected XR surface activation to open its shared camera panel once, got ${JSON.stringify({ sharedPanelOpenRequests, surfaceCalls })}`)
+  if (sharedPanelOpenRequests !== 1 || surfaceCalls.length !== 0) {
+    throw new Error(`expected XR surface activation to delegate once without raw surface setters, got ${JSON.stringify({ sharedPanelOpenRequests, surfaceCalls })}`)
   }
   hydrateXrMotionReferenceRuntime({
     sceneKey: 'test-scene',
@@ -416,7 +416,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   for (const marker of ['/xr.animate', '#travel', '#hold']) {
     if (xrSceneMcpContractSource.includes(marker) || xrSceneMcpRuntimeSource.includes(marker)) throw new Error(`expected first-class Animation to retire legacy XR scene token ${marker}`)
   }
-  for (const marker of ['inspectLocalXrSceneAssets', 'controlLocalXrScene', 'serializeXrMotionReferencePlan', 'activateCanvasGraphSurfaceMode', 'hydrateCanonicalXrMotionReferenceRuntime']) {
+  for (const marker of ['inspectLocalXrSceneAssets', 'controlLocalXrScene', 'serializeXrMotionReferencePlan', 'activateXrSceneSurface', 'hydrateCanonicalXrMotionReferenceRuntime']) {
     if (!xrSceneMcpRuntimeSource.includes(marker)) throw new Error(`expected browser-local XR MCP control runtime to expose ${marker}`)
   }
   if (xrSceneMcpRuntimeSource.includes("setFloatingPanelView('camera')")) {
@@ -488,9 +488,9 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     || !xrCameraMotionSource.includes('data-kg-xr-timeline-document-loaded=')) {
     throw new Error('expected the Camera motion projection to reject retained graph data when no document is loaded')
   }
-  if (!threeGraphSource.includes("active: active && mode !== 'xr'")
-    || !threeGraphSource.includes("sceneGraph: mode === 'xr' ? null : sceneGraphForRender")
-    || !threeGraphSource.includes("{mode !== 'xr' ? overlayLayer : null}")
+  if (!threeGraphSource.includes("active: active && mode !== 'xr' && !gameFpsActive")
+    || !threeGraphSource.includes("sceneGraph: mode === 'xr' || gameFpsActive ? null : sceneGraphForRender")
+    || !threeGraphSource.includes("{mode !== 'xr' && !gameFpsActive ? overlayLayer : null}")
     || !threeGraphSource.includes('data-kg-xr-exclusive-stage=')) {
     throw new Error('expected XR graph staging to exclude the standard rich-media overlay projection')
   }
@@ -500,11 +500,19 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     || !sceneSource.includes("{mode !== 'xr' && fogColorEffective")) {
     throw new Error('expected XR motion reference to own the graph scene without nodes, edges, starfield, or graph fog interference')
   }
-  for (const marker of ['onOpenShared3dPanel', 'if (!state.floatingPanelOpen)', "mode === 'xr' ? 'motionControl' : 'camera'", 'setFloatingPanelOpen(true)', "setBottomSurfaceTab('timeline')", 'setBottomSurfaceCollapsed(false)']) {
+  for (const marker of ['onOpenShared3dPanel', "if (mode === 'xr')", 'XR_SCENE_FLOATING_PANEL_VIEWS.find', "currentXrView !== 'gameMode'", 'activateXrSceneSurface({ panelView, openPanel: true, timeline: true })', 'if (!state.floatingPanelOpen)']) {
     if (!canvasViewSelectSource.includes(marker)) throw new Error(`expected 3D/XR Surface Mode to open its canonical panel via ${marker}`)
   }
-  if (canvasViewSelectSource.includes("state.setFloatingPanelView('camera')")) {
-    throw new Error('expected Surface Mode to preserve an already-open panel instead of forcing Camera')
+  const xrSelectionStart = canvasViewSelectSource.indexOf("if (mode === 'xr') {")
+  const plain3dSelectionStart = canvasViewSelectSource.indexOf('if (!state.floatingPanelOpen)', xrSelectionStart)
+  const xrSelectionBranch = xrSelectionStart >= 0 && plain3dSelectionStart > xrSelectionStart
+    ? canvasViewSelectSource.slice(xrSelectionStart, plain3dSelectionStart)
+    : ''
+  if (/set(?:Canvas|Floating|Bottom|Media)/.test(xrSelectionBranch)) {
+    throw new Error('expected XR Surface Mode to delegate without raw surface setter variants')
+  }
+  if (xrSelectionBranch.includes("state.setFloatingPanelView('camera')")) {
+    throw new Error('expected XR Surface Mode to preserve an already-open shared panel instead of forcing Camera')
   }
   if (!runtimeBridgeSource.includes('hydrateXrMotionReferenceRuntime({')
     || !runtimeBridgeSource.includes('xrMotionReferenceSceneKey')

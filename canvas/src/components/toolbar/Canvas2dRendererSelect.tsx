@@ -12,6 +12,10 @@ import { applyCanvasViewSelection } from '@/components/toolbar/canvasViewActions
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import { UI_RESPONSIVE_EXTRA_WIDE_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME } from '@/lib/ui/responsiveElementClasses'
 import { useMinimapCollapsed } from '@/features/minimap/minimapVisibility'
+import {
+  activateXrSceneSurface,
+  XR_SCENE_FLOATING_PANEL_VIEWS,
+} from '@/features/three/xrSceneSurfaceRuntime'
 
 type Canvas2dRendererSelectProps = {
   iconSizeClass: string
@@ -137,13 +141,24 @@ export function Canvas2dRendererSelect({
           geospatialEnabled,
           onOpenGeospatialMode,
           onOpenShared3dPanel: mode => {
-            if (!state.floatingPanelOpen) {
-              state.setFloatingPanelView(mode === 'xr' ? 'motionControl' : 'camera')
-              state.setFloatingPanelOpen(true)
-            }
             if (mode === 'xr') {
-              state.setBottomSurfaceTab('timeline')
-              state.setBottomSurfaceCollapsed(false)
+              const current = useGraphStore.getState()
+              const currentXrView = XR_SCENE_FLOATING_PANEL_VIEWS.find(view => view === current.floatingPanelView)
+              const panelView = current.floatingPanelOpen && currentXrView && currentXrView !== 'gameMode'
+                ? currentXrView
+                : 'motionControl'
+              if (!activateXrSceneSurface({ panelView, openPanel: true, timeline: true })) {
+                current.pushUiToast({
+                  id: 'canvas-view:xr:unavailable',
+                  kind: 'error',
+                  message: 'The shared XR Mode surface is unavailable for this document.',
+                })
+              }
+              return
+            }
+            if (!state.floatingPanelOpen) {
+              state.setFloatingPanelView('camera')
+              state.setFloatingPanelOpen(true)
             }
           },
           canvas2dRenderer: state.canvas2dRenderer,

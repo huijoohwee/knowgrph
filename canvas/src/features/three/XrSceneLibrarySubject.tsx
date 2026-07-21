@@ -291,11 +291,11 @@ export function XrSceneLibrarySubject({
       position={position}
       rotation={[0, THREE.MathUtils.degToRad(subject.rotationYDegrees) + facingYRadians, 0]}
       scale={stageScale * subject.scale}
-      userData={{ subjectId: subject.id, assetId: subject.assetId, category: subject.category, label: subject.label, selectable: true, selected }}
-      onClick={event => {
+      userData={{ subjectId: subject.id, assetId: subject.assetId, category: subject.category, label: subject.label, selectable: Boolean(onSelect), selected }}
+      onClick={onSelect ? event => {
         event.stopPropagation()
-        onSelect?.()
-      }}
+        onSelect()
+      } : undefined}
     >
       {selected ? (
         <mesh

@@ -6,7 +6,7 @@ import {
   readGameFpsSnapshot,
   subscribeGameFpsSnapshot,
 } from './gameFpsRuntime'
-import { GAME_FPS_MAP, GAME_FPS_NPC_SEEDS } from './gameFpsModel'
+import { GAME_FPS_NPC_IDS } from './gameFpsModel'
 import { installGameFpsDesktopInput } from './gameFpsInput'
 import {
   claimThreeViewportInputOwnership,
@@ -23,7 +23,6 @@ import {
   readGameModeSnapshot,
   subscribeGameModeSnapshot,
 } from './gameModeRuntime'
-import type { GameFpsScenePresentation } from './gameModeSceneComposition'
 
 const INPUT_OWNER_ID = 'game-fps:first-person'
 const ACTION_COLORS = Object.freeze({
@@ -38,49 +37,8 @@ function setMeshColor(mesh: Mesh, color: Color): void {
   if (material?.color) material.color.copy(color)
 }
 
-function GameFpsArenaEnvironment() {
-  return (
-    <group name="kg_game_fps_arena">
-      <ambientLight intensity={0.62} />
-      <hemisphereLight args={['#b9e6ff', '#172033', 0.72]} />
-      <directionalLight position={[8, 16, 5]} intensity={1.2} castShadow />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[GAME_FPS_MAP.halfWidth * 2, GAME_FPS_MAP.halfDepth * 2]} />
-        <meshStandardMaterial color="#1f3b36" roughness={0.95} />
-      </mesh>
-      <mesh position={[0, 1.5, -GAME_FPS_MAP.halfDepth]} castShadow receiveShadow>
-        <boxGeometry args={[GAME_FPS_MAP.halfWidth * 2, 3, 0.5]} />
-        <meshStandardMaterial color="#314158" />
-      </mesh>
-      <mesh position={[0, 1.5, GAME_FPS_MAP.halfDepth]} castShadow receiveShadow>
-        <boxGeometry args={[GAME_FPS_MAP.halfWidth * 2, 3, 0.5]} />
-        <meshStandardMaterial color="#314158" />
-      </mesh>
-      <mesh position={[-GAME_FPS_MAP.halfWidth, 1.5, 0]} castShadow receiveShadow>
-        <boxGeometry args={[0.5, 3, GAME_FPS_MAP.halfDepth * 2]} />
-        <meshStandardMaterial color="#26364c" />
-      </mesh>
-      <mesh position={[GAME_FPS_MAP.halfWidth, 1.5, 0]} castShadow receiveShadow>
-        <boxGeometry args={[0.5, 3, GAME_FPS_MAP.halfDepth * 2]} />
-        <meshStandardMaterial color="#26364c" />
-      </mesh>
-      {GAME_FPS_MAP.blockers.map(blocker => (
-        <mesh key={blocker.id} position={[blocker.centerX, blocker.height / 2, blocker.centerZ]} castShadow receiveShadow>
-          <boxGeometry args={[blocker.halfWidth * 2, blocker.height, blocker.halfDepth * 2]} />
-          <meshStandardMaterial color="#64748b" roughness={0.82} />
-        </mesh>
-      ))}
-      <gridHelper args={[GAME_FPS_MAP.halfWidth * 2, 18, '#4b8074', '#29473f']} position={[0, 0.01, 0]} />
-    </group>
-  )
-}
-
-export function GameFpsMissionStage({
-  coordinateScale = 1,
-  presentation,
-}: {
+export function GameFpsMissionStage({ coordinateScale = 1 }: {
   coordinateScale?: number
-  presentation: GameFpsScenePresentation
 }) {
   const { camera, gl } = useThree()
   const gameMode = React.useSyncExternalStore(
@@ -107,7 +65,6 @@ export function GameFpsMissionStage({
     const claimed = claimThreeViewportInputOwnership(INPUT_OWNER_ID)
     inputClaimedRef.current = claimed
     canvas.dataset.kgGameFpsInputOwner = claimed ? INPUT_OWNER_ID : 'blocked'
-    canvas.dataset.kgGameFpsPresentation = presentation
     canvas.dataset.kgGameFpsSpatialProfile = readGameFpsSpatialProfile().id
     const input = claimed ? installGameFpsDesktopInput(canvas) : null
     return () => {
@@ -117,11 +74,10 @@ export function GameFpsMissionStage({
       releaseThreeViewportInputOwnership(INPUT_OWNER_ID)
       delete canvas.dataset.kgGameFpsInputOwner
       delete canvas.dataset.kgGameFpsFirstFrame
-      delete canvas.dataset.kgGameFpsPresentation
       delete canvas.dataset.kgGameFpsSpatialProfile
       delete canvas.dataset.kgGameFpsCameraFov
     }
-  }, [gl, presentation])
+  }, [gl])
 
   useFrame((_, deltaSeconds) => {
     applyGameFpsMotionControlInput(
@@ -169,15 +125,16 @@ export function GameFpsMissionStage({
   })
 
   return (
-    <group ref={stageRootRef} name="kg_game_fps_mission" scale={coordinateScale} userData={{ coordinateScale, presentation }}>
-      {presentation === 'arena' ? <GameFpsArenaEnvironment /> : null}
-      {GAME_FPS_NPC_SEEDS.map(npc => (
+    <group ref={stageRootRef} name="kg_game_fps_mission" scale={coordinateScale} userData={{ coordinateScale }}>
+      {GAME_FPS_NPC_IDS.map(id => {
+        const npc = snapshotRef.current.npcs.find(candidate => candidate.id === id)!
+        return (
         <mesh
-          key={npc.id}
-          name={`kg_game_fps_npc_${npc.id}`}
+          key={id}
+          name={`kg_game_fps_npc_${id}`}
           ref={mesh => {
-            if (mesh) npcMeshRefs.current.set(npc.id, mesh)
-            else npcMeshRefs.current.delete(npc.id)
+            if (mesh) npcMeshRefs.current.set(id, mesh)
+            else npcMeshRefs.current.delete(id)
           }}
           position={[npc.x, 0.9, npc.z]}
           castShadow
@@ -185,7 +142,8 @@ export function GameFpsMissionStage({
           <capsuleGeometry args={[0.45, 0.9, 4, 8]} />
           <meshStandardMaterial color="#60a5fa" roughness={0.55} />
         </mesh>
-      ))}
+        )
+      })}
     </group>
   )
 }
