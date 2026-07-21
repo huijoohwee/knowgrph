@@ -64,10 +64,11 @@ test('app readiness route serves the apex marker bytes without an SPA fallback',
   let fetchedUrl = ''
   const response = await fetchKnowgrphStaticAsset({
     request: new Request('https://airvio.co/knowgrph/.well-known/runtime-readiness.json?stale=1'),
-    env: { ASSETS: { fetch: async request => {
+    env: { ASSETS: { fetch: async () => { throw new Error('readiness must use the route continuation') } } },
+    next: async request => {
       fetchedUrl = request.url
       return new Response(body, { headers: { 'content-type': 'application/json' } })
-    } } },
+    },
   })
   assert.equal(fetchedUrl, 'https://airvio.co/.well-known/runtime-readiness.json?stale=1')
   assert.equal(response.status, 200)
@@ -77,9 +78,10 @@ test('app readiness route serves the apex marker bytes without an SPA fallback',
 test('app readiness route rejects an HTML asset fallback', async () => {
   const response = await fetchKnowgrphStaticAsset({
     request: new Request('https://airvio.co/knowgrph/.well-known/runtime-readiness.json'),
-    env: { ASSETS: { fetch: async () => new Response('<html>fallback</html>', {
+    env: {},
+    next: async () => new Response('<html>fallback</html>', {
       headers: { 'content-type': 'text/html; charset=utf-8' },
-    }) } },
+    }),
   })
   assert.equal(response.status, 503)
   assert.doesNotMatch(await response.text(), /fallback/)

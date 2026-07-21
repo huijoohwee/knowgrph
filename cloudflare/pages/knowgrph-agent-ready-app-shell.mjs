@@ -44,9 +44,12 @@ export const fetchKnowgrphStaticAsset = async (context) => {
     method: context.request.method,
     headers,
   });
-  const response = typeof context.env?.ASSETS?.fetch === "function"
-    ? await context.env.ASSETS.fetch(assetRequest)
-    : await context.next(assetRequest);
+  const isRuntimeReadiness = assetUrl.pathname === "/.well-known/runtime-readiness.json";
+  const response = isRuntimeReadiness && typeof context.next === "function"
+    ? await context.next(assetRequest)
+    : typeof context.env?.ASSETS?.fetch === "function"
+      ? await context.env.ASSETS.fetch(assetRequest)
+      : await context.next(assetRequest);
   if (response.ok && !isHtmlAssetFallback(response)) return response;
   return unavailableStaticAssetResponse(context.request);
 };
