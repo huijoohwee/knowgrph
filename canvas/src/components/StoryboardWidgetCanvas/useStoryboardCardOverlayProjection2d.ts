@@ -5,6 +5,7 @@ import { readStoryboardCardCenter2d, type StoryboardCardPlacement } from '@/comp
 import { shouldFreezeProjectionForFlowPortHandleDrag } from '@/components/StoryboardWidget/flowPortHandlePointerDrag'
 import { emitStoryboardWidgetGeometryCommitted } from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import { applyVectorPaintedOverlayBox, projectVectorPaintedOverlayZoomBox, type VectorPaintedOverlayScaleProjectionBase } from '@/lib/canvas/vectorPaintedOverlayProjection'
+import { computeCollectiveFollowScaleFromBaseline } from '@/lib/canvas/overlayWidgetZoom'
 import type { GraphNode } from '@/lib/graph/types'
 import { computeStoryboardWidgetOverlayScreenBox, type StoryboardWidgetOverlayDragTransform } from '@/lib/storyboardWidget/overlayWorldDrag'
 import { readFlowWidgetPinnedInCanvas, type FlowWidgetPinnedById } from '@/lib/storyboardWidget/flowWidgetPinnedState'
@@ -12,6 +13,7 @@ import { screenToWorld } from '@/lib/zoom/viewport'
 import { defaultSchema } from '@/lib/graph/schema'
 import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
 import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
+import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 
 type ProjectedCardBox = { left: number; top: number; scale: number }
 type AppliedCardBox = ProjectedCardBox & { display: string }
@@ -45,6 +47,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
     rootRef,
   } = args
   const zoomLayoutBaseBoxByCardIdRef = React.useRef<Map<string, VectorPaintedOverlayScaleProjectionBase>>(new Map())
+  const storyboardCardZoomBaselineKRef = React.useRef<number | null>(null)
   const lastOverlayTransformRef = React.useRef<StoryboardWidgetOverlayDragTransform | null>(null)
   const lastPinnedByCardIdRef = React.useRef<Map<string, boolean>>(new Map())
   const lastAppliedBoxByCardIdRef = React.useRef<Map<string, AppliedCardBox>>(new Map())
@@ -60,6 +63,10 @@ export function useStoryboardCardOverlayProjection2d(args: {
   }, [])
 
   React.useEffect(() => {
+    if (!active) storyboardCardZoomBaselineKRef.current = null
+  }, [active])
+
+  React.useEffect(() => {
     if (!active || cards.length === 0) return
     let frame = 0
     let initialTimer = 0
@@ -70,7 +77,13 @@ export function useStoryboardCardOverlayProjection2d(args: {
         return
       }
       const transformScale = currentTransform && Number.isFinite(currentTransform.k) && currentTransform.k > 0 ? currentTransform.k : 1
-      const paintScale = transformScale
+      if (
+        storyboardCardZoomBaselineKRef.current == null
+        || !Number.isFinite(storyboardCardZoomBaselineKRef.current)
+        || storyboardCardZoomBaselineKRef.current <= 0
+      ) {
+        storyboardCardZoomBaselineKRef.current = transformScale
+      }
       const previousTransform = lastOverlayTransformRef.current
       const devicePixelRatio = Number.isFinite(window.devicePixelRatio) ? Math.max(1, window.devicePixelRatio) : 1
       const viewportRect = rootRef.current?.getBoundingClientRect() || null
@@ -110,6 +123,20 @@ export function useStoryboardCardOverlayProjection2d(args: {
         lastPinnedByCardIdRef.current.set(card.id, cardPinned)
         const fixedPlacement = fixedLayoutEnabled && cardPinned ? referencePlacement : null
         const { width, height } = readCardSize(node)
+        const paintScale = fixedLayoutEnabled
+          ? computeCollectiveFollowScaleFromBaseline({
+              zoomK: transformScale,
+              baselineZoomK: storyboardCardZoomBaselineKRef.current,
+              viewportW: viewport.width,
+              viewportH: viewport.height,
+              count: cards.length,
+              baseWidth: width,
+              baseHeight: height,
+              hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.min,
+              hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.max,
+              fitToViewport: false,
+            })
+          : transformScale
         if (fixedLayoutEnabled && previousPinned === true && cardPinned === false && !dragWorldOverrideByCardIdRef.current.has(card.id)) {
           const liveBox = lastAppliedBoxByCardIdRef.current.get(card.id) || null
           const sx = liveBox ? liveBox.left + width * liveBox.scale / 2 : null
