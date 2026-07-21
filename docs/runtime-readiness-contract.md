@@ -13,10 +13,10 @@ stage_contract:
   order: ["research", "storyboard", "render", "edit", "publish", "checkout"]
 docs_dependency:
   repository: "https://github.com/huijoohwee/agentic-canvas-os.git"
-  ref: "45df5f8ae216dc975b1328d2e795deb8a26db2d9"
+  ref: "751075ae638ae9602790b950f24263a29af0b055"
   root_env: "KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT"
   default_relative_root: "../agentic-canvas-os/docs"
-  required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "CANONICAL-LIFECYCLE.md", "RUNTIME-PROOF.md", "LIVE-AGENT-PROVIDER-PROOF.md", "PROGRESSIVE-AGENTS.md", "AGENT-TOOLKIT.md", "SKILLS.md"]
+  required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "CANONICAL-LIFECYCLE.md", "RUNTIME-PROOF.md", "LIVE-AGENT-PROVIDER-PROOF.md", "PROGRESSIVE-AGENTS.md", "AGENT-TOOLKIT.md", "SKILLS.md", "schemas/production-runtime-readiness.v2.schema.json"]
   proof_tokens: ["/runtime-ready.check", "/session.start", "/release.complete", "/knowgrph.probe-tree", "/ecs.session-start", "/ecs.world-tick", "/ecs.decision-persist", "/agent.toolkit", "/camera.select", "/xr.stage", "/xr.place", "/xr.transform", "/xr.label", "/xr.remove", "/xr.physics", "/xr.present", "#runtime-ready", "#multi-agent-collaboration", "#knowgrph.probe-tree", "#agentic-ecs", "#agent-toolkit", "#transform", "#world", "#body", "#impulse", "#controller", "#reticle", "@operator", "@working-directory", "@source.frontmatter", "@runtime-proof", "@knowgrph.probe-tree", "@mcp-gateway", "@ecs-session", "@agent-toolkit-observer", "@scene", "/sandbox.policy.validate", "#agent-sandbox-policy", "@sandbox-policy"]
 local_proof:
   provider_mode: "mock"
@@ -43,6 +43,8 @@ deployed_verification:
 ## Authority
 
 The opening frontmatter is the machine source of truth for the Dev runtime-readiness gate. Agentic Canvas OS `SKILLS.md` governs lightweight agent-variant catalog membership, while Knowgrph's validated registry owns its exact agent IDs and derived `/*-agent` invocations. The external dictionaries remain the shared token grammar SSOT without duplicating each runtime registry. This contract records the only Agentic Canvas OS repository and revision pin; Integration, runtime-verification, and release-verification workflows resolve their checkout inputs from it instead of copying the SHA, and fetch full local history so the network-free gate can prove the live-proof introduction revision.
+
+The pinned `schemas/production-runtime-readiness.v2.schema.json` is the public release-attestation SSOT. A protected Knowgrph release must validate one byte-identical marker for `/`, `/knowgrph`, and the generated mirror; the marker binds the Knowgrph commit and tree, Agentic Canvas OS docs/catalog revision, immutable-manifest digest, and deterministic browser-artifact digest. Knowgrph remains the only `airvio.co` deployment owner.
 
 The pinned `AGENT-TOOLKIT.md` and its `/agent.toolkit #agent-toolkit @agent-toolkit-observer` grammar expose the native Toolkit boundary without copying its implementation. Agentic Canvas OS remains the sole execution, instrumentation, evaluation, and reviewed-learning owner; Knowgrph performs read-only catalog resolution and adds no request-time service or external Toolkit dependency.
 

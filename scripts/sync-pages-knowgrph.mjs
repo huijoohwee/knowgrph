@@ -3,10 +3,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import {
-  agentReadyHomepageLinkHeaderValue,
-  buildAgentReadyStaticFiles,
-} from '../cloudflare/pages/knowgrph-agent-ready.mjs'
+import { agentReadyHomepageLinkHeaderValue, buildAgentReadyStaticFiles } from '../cloudflare/pages/knowgrph-agent-ready.mjs'
+import { buildProductionRuntimeReadiness, findRuntimeReadinessPathsNeedingUpdate, productionRuntimeReadinessHeaderLines } from './production-runtime-readiness-build.mjs'
 
 const checkMode = process.argv.includes('--check')
 const __filename = fileURLToPath(import.meta.url)
@@ -14,70 +12,63 @@ const __dirname = path.dirname(__filename)
 
 const knowgrphRoot = path.resolve(__dirname, '..')
 const githubRoot = path.resolve(knowgrphRoot, '..')
+const mirrorRoot = path.resolve(process.env.KNOWGRPH_PUBLISH_REPOSITORY_ROOT || path.resolve(githubRoot, 'huijoohwee'))
 const distDir = path.resolve(knowgrphRoot, 'canvas', 'dist')
-const targetDir = path.resolve(githubRoot, 'huijoohwee', 'content', 'knowgrph')
-const publicRouteDir = path.resolve(githubRoot, 'huijoohwee', 'knowgrph')
+const targetDir = path.resolve(mirrorRoot, 'content', 'knowgrph')
+const publicRouteDir = path.resolve(mirrorRoot, 'knowgrph')
 const liveCanvasHeroMarkdownSource = path.resolve(knowgrphRoot, 'docs', 'documents', 'knowgrph-live-canvas-hero.md')
 const grphSharedRoot = path.resolve(knowgrphRoot, 'grph-shared')
-const redirectsPath = path.resolve(githubRoot, 'huijoohwee', '_redirects')
-const headersPath = path.resolve(githubRoot, 'huijoohwee', '_headers')
-const runtimeReadinessPath = path.resolve(githubRoot, 'huijoohwee', '.well-known', 'runtime-readiness.json')
+const redirectsPath = path.resolve(mirrorRoot, '_redirects')
+const headersPath = path.resolve(mirrorRoot, '_headers')
 const sourceRevision = String(process.env.KNOWGRPH_SOURCE_REVISION || execFileSync(
   'git', ['rev-parse', 'HEAD'], { cwd: knowgrphRoot, encoding: 'utf8' },
 )).trim()
 if (!/^[0-9a-f]{40}$/.test(sourceRevision)) throw new Error('Knowgrph source revision must be an exact lowercase 40-character SHA')
-const runtimeReadinessBody = `${JSON.stringify({
-  schema: 'knowgrph-production-runtime-readiness/v1',
-  status: 'verified-build',
-  sourceRevision,
-  mirror: 'huijoohwee/huijoohwee',
-}, null, 2)}\n`
 const agentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready.mjs')
-const agentReadyFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', '[[path]].js')
+const agentReadyFunctionTarget = path.resolve(mirrorRoot, 'functions', 'knowgrph', '[[path]].js')
 const agentReadyFeatureSource = filename => path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'agent-ready', filename)
-const agentReadyFeatureTarget = filename => path.resolve(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'agent-ready', filename)
+const agentReadyFeatureTarget = filename => path.resolve(mirrorRoot, 'canvas', 'src', 'features', 'agent-ready', filename)
 const xrSceneMcpContractSource = path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'three', 'xrSceneMcpContract.mjs')
-const xrSceneMcpContractTarget = path.resolve(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'three', 'xrSceneMcpContract.mjs')
+const xrSceneMcpContractTarget = path.resolve(mirrorRoot, 'canvas', 'src', 'features', 'three', 'xrSceneMcpContract.mjs')
 const xrAnimationMcpContractSource = path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'three', 'xrAnimationMcpContract.mjs')
-const xrAnimationMcpContractTarget = path.resolve(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'three', 'xrAnimationMcpContract.mjs')
+const xrAnimationMcpContractTarget = path.resolve(mirrorRoot, 'canvas', 'src', 'features', 'three', 'xrAnimationMcpContract.mjs')
 const motionControlMcpContractSource = path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'three', 'motionControlMcpContract.mjs')
-const motionControlMcpContractTarget = path.resolve(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'three', 'motionControlMcpContract.mjs')
+const motionControlMcpContractTarget = path.resolve(mirrorRoot, 'canvas', 'src', 'features', 'three', 'motionControlMcpContract.mjs')
 const richMediaTextMarkdownContractSource = path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'rich-media', 'richMediaTextMarkdownContract.mjs')
-const richMediaTextMarkdownContractTarget = path.resolve(githubRoot, 'huijoohwee', 'canvas', 'src', 'features', 'rich-media', 'richMediaTextMarkdownContract.mjs')
+const richMediaTextMarkdownContractTarget = path.resolve(mirrorRoot, 'canvas', 'src', 'features', 'rich-media', 'richMediaTextMarkdownContract.mjs')
 const youtubeTranscriptFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'youtube-transcript.mjs')
-const youtubeTranscriptFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', '__youtube_transcript.js')
+const youtubeTranscriptFunctionTarget = path.resolve(mirrorRoot, 'functions', '__youtube_transcript.js')
 const videoFrameFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'video-frame.mjs')
-const videoFrameFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', '__video_frame.js')
-const agentReadyDocRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'doc', '[[path]].js')
-const agentReadyDefaultDocRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'doc-default', '[[path]].js')
-const agentReadyShareRouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'share', '[[path]].js')
+const videoFrameFunctionTarget = path.resolve(mirrorRoot, 'functions', '__video_frame.js')
+const agentReadyDocRouteTarget = path.resolve(mirrorRoot, 'functions', 'knowgrph', 'doc', '[[path]].js')
+const agentReadyDefaultDocRouteTarget = path.resolve(mirrorRoot, 'functions', 'knowgrph', 'doc-default', '[[path]].js')
+const agentReadyShareRouteTarget = path.resolve(mirrorRoot, 'functions', 'knowgrph', 'share', '[[path]].js')
 const agentReadySharedSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-shared.mjs')
 const agentReadyDiscoverySource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-discovery.mjs')
 const agentReadyCommerceSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-commerce.mjs')
 const agentReadyAppShellSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready-app-shell.mjs')
-const agentReadySharedTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'knowgrph-agent-ready-shared.mjs')
+const agentReadySharedTarget = path.resolve(mirrorRoot, 'functions', 'knowgrph', 'knowgrph-agent-ready-shared.mjs')
 const agentReadyDiscoveryTarget = path.resolve(
-  githubRoot,
-  'huijoohwee',
+  mirrorRoot,
   'functions',
   'knowgrph',
   'knowgrph-agent-ready-discovery.mjs',
 )
-const agentReadyCommerceTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'knowgrph-agent-ready-commerce.mjs')
-const agentReadyAppShellTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph', 'knowgrph-agent-ready-app-shell.mjs')
-const agentReadyCommerceX402RouteTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'api', 'payments', 'commerce', 'x402.js')
+const agentReadyCommerceTarget = path.resolve(mirrorRoot, 'functions', 'knowgrph', 'knowgrph-agent-ready-commerce.mjs')
+const agentReadyAppShellTarget = path.resolve(mirrorRoot, 'functions', 'knowgrph', 'knowgrph-agent-ready-app-shell.mjs')
+const agentReadyCommerceX402RouteTarget = path.resolve(mirrorRoot, 'functions', 'api', 'payments', 'commerce', 'x402.js')
 const agentReadyCommerceX402RouteBody = `import { buildKnowgrphX402PaymentRequiredResponse } from "../../../knowgrph/knowgrph-agent-ready-commerce.mjs";\n\nexport async function onRequest(context) {\n  return buildKnowgrphX402PaymentRequiredResponse(context.request, context.env || {});\n}\n`
 const agentReadyRuntimeSharedEntries = [
   'dist/hash/signature.js',
   'dist/payments/agenticCommerceSsot.js',
 ]
 const semanticKeyContractSource = path.resolve(knowgrphRoot, 'contracts', 'semantic-key.js')
-const semanticKeyContractTarget = path.resolve(githubRoot, 'huijoohwee', 'contracts', 'semantic-key.js')
+const semanticKeyContractTarget = path.resolve(mirrorRoot, 'contracts', 'semantic-key.js')
 const videoFrameSharedProviderSource = path.resolve(knowgrphRoot, 'grph-shared', 'dist', 'rich-media', 'providers.js')
-const videoFrameSharedProviderTarget = path.resolve(githubRoot, 'huijoohwee', 'grph-shared', 'dist', 'rich-media', 'providers.js')
-const rootAgentReadySharedTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'knowgrph-agent-ready-shared.mjs')
+const videoFrameSharedProviderTarget = path.resolve(mirrorRoot, 'grph-shared', 'dist', 'rich-media', 'providers.js')
+const rootAgentReadySharedTarget = path.resolve(mirrorRoot, 'functions', 'knowgrph-agent-ready-shared.mjs')
 const rootAgentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'root-agent-ready-index.mjs')
-const rootAgentReadyFunctionTarget = path.resolve(githubRoot, 'huijoohwee', 'functions', 'index.js')
+const rootAgentReadyFunctionTarget = path.resolve(mirrorRoot, 'functions', 'index.js')
 const agentReadyToolContractSource = path.resolve(
   knowgrphRoot,
   'canvas',
@@ -87,8 +78,7 @@ const agentReadyToolContractSource = path.resolve(
   'knowgrphAgentReadyToolContract.mjs',
 )
 const agentReadyToolContractTarget = path.resolve(
-  githubRoot,
-  'huijoohwee',
+  mirrorRoot,
   'canvas',
   'src',
   'features',
@@ -104,8 +94,7 @@ const agentReadyPromptContractSource = path.resolve(
   'knowgrphAgentReadyPromptContract.mjs',
 )
 const agentReadyPromptContractTarget = path.resolve(
-  githubRoot,
-  'huijoohwee',
+  mirrorRoot,
   'canvas',
   'src',
   'features',
@@ -121,8 +110,7 @@ const agentReadyResourceContractSource = path.resolve(
   'knowgrphAgentReadyResourceContract.mjs',
 )
 const agentReadyResourceContractTarget = path.resolve(
-  githubRoot,
-  'huijoohwee',
+  mirrorRoot,
   'canvas',
   'src',
   'features',
@@ -151,8 +139,7 @@ const publishedDocShareTokenSource = path.resolve(
   'canvasDocShareToken.mjs',
 )
 const publishedDocShareTokenTarget = path.resolve(
-  githubRoot,
-  'huijoohwee',
+  mirrorRoot,
   'canvas',
   'src',
   'features',
@@ -168,8 +155,7 @@ const knowgrphStorageSyncContractSource = path.resolve(
   'knowgrphStorageSyncContract.ts',
 )
 const knowgrphStorageSyncContractTarget = path.resolve(
-  githubRoot,
-  'huijoohwee',
+  mirrorRoot,
   'canvas',
   'src',
   'lib',
@@ -177,9 +163,9 @@ const knowgrphStorageSyncContractTarget = path.resolve(
   'knowgrphStorageSyncContract.ts',
 )
 const sharedD1Source = path.resolve(knowgrphRoot, 'cloudflare', 'workers', 'shared', 'd1.ts')
-const sharedD1Target = path.resolve(githubRoot, 'huijoohwee', 'cloudflare', 'workers', 'shared', 'd1.ts')
+const sharedD1Target = path.resolve(mirrorRoot, 'cloudflare', 'workers', 'shared', 'd1.ts')
 const sharedPublishedDocSource = path.resolve(knowgrphRoot, 'cloudflare', 'workers', 'shared', 'publishedDoc.ts')
-const sharedPublishedDocTarget = path.resolve(githubRoot, 'huijoohwee', 'cloudflare', 'workers', 'shared', 'publishedDoc.ts')
+const sharedPublishedDocTarget = path.resolve(mirrorRoot, 'cloudflare', 'workers', 'shared', 'publishedDoc.ts')
 const publicManagedRootFiles = new Set([
   'favicon.svg',
   'index.html',
@@ -189,7 +175,7 @@ const publicManagedRootFiles = new Set([
   'settings-flow.json',
   'sw.js',
 ])
-const obsoleteLegacyMirrorDir = path.resolve(githubRoot, 'huijoohwee', '__' + 'repo_file')
+const obsoleteLegacyMirrorDir = path.resolve(mirrorRoot, '__' + 'repo_file')
 const joinRel = (...parts) => parts.join('/')
 const joinToken = (...parts) => parts.join('')
 const joinKebab = (...parts) => parts.join('-')
@@ -274,7 +260,7 @@ const collectGrphSharedRuntimeCopies = async (entryRelativePaths) => {
     .sort((a, b) => a.localeCompare(b))
     .map(rel => [
       path.resolve(grphSharedRoot, rel),
-      path.resolve(githubRoot, 'huijoohwee', 'grph-shared', rel),
+      path.resolve(mirrorRoot, 'grph-shared', rel),
     ])
 }
 
@@ -401,7 +387,7 @@ const fileExists = async (filePath) => {
 const agentReadyRuntimeCopies = [
   [agentReadyCommerceSource, agentReadyCommerceTarget], [agentReadyAppShellSource, agentReadyAppShellTarget],
   [semanticKeyContractSource, semanticKeyContractTarget],
-  [xrSceneMcpContractSource, xrSceneMcpContractTarget], [xrAnimationMcpContractSource, xrAnimationMcpContractTarget], [motionControlMcpContractSource, motionControlMcpContractTarget], [path.resolve(knowgrphRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs'), path.resolve(githubRoot, 'huijoohwee/canvas/src/features/strybldr/cameraMcpContract.mjs')],
+  [xrSceneMcpContractSource, xrSceneMcpContractTarget], [xrAnimationMcpContractSource, xrAnimationMcpContractTarget], [motionControlMcpContractSource, motionControlMcpContractTarget], [path.resolve(knowgrphRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs'), path.resolve(mirrorRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs')],
   [richMediaTextMarkdownContractSource, richMediaTextMarkdownContractTarget],
   ...['knowgrphAgentReadyOutputSchemas.mjs', 'mcpAppsContractText.mjs', 'mcpAppsOnboarding.mjs', 'motionControlAgentReadyContract.mjs', 'probeTreeUserInputRelevance.mjs'].map(filename => [agentReadyFeatureSource(filename), agentReadyFeatureTarget(filename)]),
   ...(await collectGrphSharedRuntimeCopies(agentReadyRuntimeSharedEntries)),
@@ -478,6 +464,7 @@ const buildAgentReadyHeaders = (existing, artifacts) => {
   )
   const appShellHeaderLines = [
     GENERATED_APP_SHELL_HEADERS_START,
+    ...productionRuntimeReadinessHeaderLines,
     '/content/knowgrph/index.html',
     '  Cache-Control: no-store, no-cache, no-transform, must-revalidate, max-age=0',
     '/content/knowgrph/manifest.webmanifest',
@@ -543,15 +530,21 @@ if (!(await existsDir(distDir))) {
 }
 
 const sourceFiles = await listFiles(distDir)
-const rootManagedSourceFiles = [
-  {
-    rel: 'knowgrph-live-canvas-hero.md',
-    src: liveCanvasHeroMarkdownSource,
-  },
-]
+const rootManagedSourceFiles = [{ rel: 'knowgrph-live-canvas-hero.md', src: liveCanvasHeroMarkdownSource }]
+const runtimeReadiness = await buildProductionRuntimeReadiness({
+  sourceRevision, knowgrphRoot, mirrorRoot, contentRoot: targetDir, publicRoot: publicRouteDir,
+  artifactEntries: [
+  ...sourceFiles
+    .filter(isPublicManagedRelativePath)
+    .map(relativePath => ({ relativePath, absolutePath: path.resolve(distDir, relativePath) })),
+  ...rootManagedSourceFiles.map(entry => ({ relativePath: entry.rel, absolutePath: entry.src })),
+  ],
+})
+const { relativePath: runtimeReadinessRelativePath, paths: runtimeReadinessPaths, body: runtimeReadinessBody } = runtimeReadiness
 const sourceSet = new Set([
   ...sourceFiles,
   ...rootManagedSourceFiles.map(entry => entry.rel),
+  runtimeReadinessRelativePath,
 ])
 const filesToCopy = []
 for (const rel of sourceFiles) {
@@ -636,18 +629,19 @@ const sharedPublishedDocNeedsUpdate = await plainFileNeedsUpdate(sharedPublished
 const agentReadyArtifacts = await buildAgentReadyStaticFiles()
 const agentReadyStaticFilesToWrite = []
 for (const [rel, artifact] of Object.entries(agentReadyArtifacts)) {
-  const dst = path.resolve(githubRoot, 'huijoohwee', rel)
+  const dst = path.resolve(mirrorRoot, rel)
   if (await textFileNeedsUpdate(artifact.body, dst)) agentReadyStaticFilesToWrite.push(rel)
 }
 const obsoleteGeneratedMirrorFilesToRemove = []
 for (const rel of obsoleteGeneratedMirrorFiles) {
-  const dst = path.resolve(githubRoot, 'huijoohwee', rel)
+  const dst = path.resolve(mirrorRoot, rel)
   if (await fileExists(dst)) obsoleteGeneratedMirrorFilesToRemove.push(rel)
 }
 const existingHeaders = await fs.readFile(headersPath, 'utf8')
 const nextHeaders = buildAgentReadyHeaders(existingHeaders, agentReadyArtifacts)
 const headersNeedUpdate = nextHeaders !== existingHeaders
-const runtimeReadinessNeedsUpdate = await textFileNeedsUpdate(runtimeReadinessBody, runtimeReadinessPath)
+const runtimeReadinessPathsNeedingUpdate = await findRuntimeReadinessPathsNeedingUpdate(runtimeReadiness)
+const runtimeReadinessNeedsUpdate = runtimeReadinessPathsNeedingUpdate.length > 0
 
 if (checkMode) {
   const hasDrift = (
@@ -758,7 +752,9 @@ if (checkMode) {
       for (const rel of obsoleteGeneratedMirrorFilesToRemove.slice(0, 20)) console.error(`  - ${rel}`)
     }
     if (headersNeedUpdate) console.error('  - `huijoohwee/_headers` generated agent-ready block is out of sync')
-    if (runtimeReadinessNeedsUpdate) console.error('  - `huijoohwee/.well-known/runtime-readiness.json` is out of sync')
+    for (const runtimeReadinessPath of runtimeReadinessPathsNeedingUpdate) {
+      console.error(`  - \`${toPosixRel(mirrorRoot, runtimeReadinessPath)}\` is out of sync`)
+    }
     if (await existsDir(obsoleteLegacyMirrorDir)) {
       console.error('  - obsolete legacy publish directory still exists')
     }
@@ -768,7 +764,7 @@ if (checkMode) {
     console.log('[knowgrph] publish sync is up to date')
   }
 } else {
-  if (runtimeReadinessNeedsUpdate) await writeTextFile(runtimeReadinessPath, runtimeReadinessBody)
+  for (const runtimeReadinessPath of runtimeReadinessPathsNeedingUpdate) await writeTextFile(runtimeReadinessPath, runtimeReadinessBody)
   await fs.mkdir(targetDir, { recursive: true })
   let copiedCount = 0
   for (const rel of sourceFiles) {
@@ -897,13 +893,13 @@ if (checkMode) {
   let agentReadyStaticUpdated = 0
   for (const rel of agentReadyStaticFilesToWrite) {
     const artifact = agentReadyArtifacts[rel]
-    const dst = path.resolve(githubRoot, 'huijoohwee', rel)
+    const dst = path.resolve(mirrorRoot, rel)
     await writeTextFile(dst, artifact.body)
     agentReadyStaticUpdated += 1
   }
   let obsoleteGeneratedMirrorFilesRemoved = 0
   for (const rel of obsoleteGeneratedMirrorFilesToRemove) {
-    await fs.rm(path.resolve(githubRoot, 'huijoohwee', rel), { force: true })
+    await fs.rm(path.resolve(mirrorRoot, rel), { force: true })
     obsoleteGeneratedMirrorFilesRemoved += 1
   }
   if (headersNeedUpdate) {

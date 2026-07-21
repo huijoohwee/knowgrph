@@ -5,29 +5,29 @@ import test from 'node:test'
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..')
 const releaseWorkflow = fs.readFileSync(path.resolve(repoRoot, '.github', 'workflows', 'release.yml'), 'utf8')
+const promotionWorkflow = fs.readFileSync(path.resolve(repoRoot, '.github', 'workflows', 'promote-agentic-canvas-os.yml'), 'utf8')
 const agentReadySmoke = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'check-agent-ready.mjs'), 'utf8')
 const docsSeedScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'seed-storage-docs-to-cloudflare.mjs'), 'utf8')
 const docsSeedLibrary = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'lib', 'seed-storage-documents-d1.mjs'), 'utf8')
 const pagesSyncScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'sync-pages-knowgrph.mjs'), 'utf8')
+const productionReadinessBuild = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'production-runtime-readiness-build.mjs'), 'utf8')
 const pagesDeploymentScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'pages-production-deployment.mjs'), 'utf8')
 
-test('GitHub workflows use Node 24 action majors', () => {
+test('GitHub workflows pin Node 24 actions to immutable revisions', () => {
   const workflowRoot = path.resolve(repoRoot, '.github', 'workflows')
   const workflowSource = fs.readdirSync(workflowRoot)
     .filter(fileName => fileName.endsWith('.yml') || fileName.endsWith('.yaml'))
     .map(fileName => fs.readFileSync(path.resolve(workflowRoot, fileName), 'utf8'))
     .join('\n')
 
-  assert.doesNotMatch(workflowSource, /actions\/checkout@v[1-6]\b/)
-  assert.doesNotMatch(workflowSource, /actions\/setup-node@v[1-6]\b/)
-  assert.doesNotMatch(workflowSource, /actions\/setup-python@v[1-6]\b/)
-  assert.doesNotMatch(workflowSource, /actions\/upload-artifact@v[1-6]\b/)
-  assert.doesNotMatch(workflowSource, /actions\/download-artifact@v[1-7]\b/)
-  assert.match(workflowSource, /actions\/checkout@v7\b/)
-  assert.match(workflowSource, /actions\/setup-node@v7\b/)
-  assert.match(workflowSource, /actions\/setup-python@v7\b/)
-  assert.match(workflowSource, /actions\/upload-artifact@v7\b/)
-  assert.match(workflowSource, /actions\/download-artifact@v8\b/)
+  const actionUses = [...workflowSource.matchAll(/uses:\s*(actions\/[A-Za-z0-9_.-]+)@([^\s#]+)/g)]
+  assert.ok(actionUses.length > 0)
+  for (const [, action, revision] of actionUses) {
+    assert.match(revision, /^[0-9a-f]{40}$/, `${action} must use an immutable commit SHA`)
+  }
+  for (const action of ['checkout', 'setup-node', 'setup-python', 'upload-artifact', 'download-artifact']) {
+    assert.match(workflowSource, new RegExp(`actions/${action}@[0-9a-f]{40}`))
+  }
 })
 
 test('production release rebuilds the canvas with the exact authorized candidate revision', () => {
@@ -54,6 +54,14 @@ test('production release is automatic only for protected main and retains rollba
   assert.match(releaseWorkflow, /if: failure\(\) && steps\.deploy_pages\.outcome == 'success'/)
 })
 
+test('Agentic Canvas OS docs promote automatically through protected Knowgrph integration', () => {
+  assert.match(promotionWorkflow, /schedule:\s*\n\s*- cron:/)
+  assert.doesNotMatch(promotionWorkflow, /workflow_dispatch:/)
+  assert.match(promotionWorkflow, /secrets\.HUIJOOHWEE_PUSH_TOKEN/)
+  assert.match(promotionWorkflow, /gh pr create --draft/)
+  assert.match(promotionWorkflow, /gh pr merge "\$url" --auto --squash/)
+})
+
 test('production release reconciles competing Cloudflare Pages Git deployment ownership', () => {
   assert.match(pagesDeploymentScript, /enforce-direct-upload-owner/)
   assert.match(pagesDeploymentScript, /method: 'PATCH'/)
@@ -69,11 +77,13 @@ test('verified production mirror is published only after live smoke', () => {
   const deployJob = releaseWorkflow.slice(releaseWorkflow.indexOf('\n  deploy:'))
   const deployIndex = deployJob.indexOf('name: Deploy verified artifact')
   const smokeIndex = deployJob.indexOf('name: Verify live runtime')
+  const fidelityIndex = deployJob.indexOf('name: Verify apex and Knowgrph browser fidelity')
   const publishIndex = deployJob.indexOf('name: Publish verified production mirror')
 
   assert.ok(deployIndex >= 0)
   assert.ok(smokeIndex > deployIndex)
-  assert.ok(publishIndex > smokeIndex)
+  assert.ok(fidelityIndex > smokeIndex)
+  assert.ok(publishIndex > fidelityIndex)
   assert.doesNotMatch(verifyJob, /HUIJOOHWEE_PUSH_TOKEN/)
   assert.match(deployJob, /git push origin HEAD:main/)
   assert.match(deployJob, /HUIJOOHWEE_PUSH_TOKEN/)
@@ -89,8 +99,10 @@ test('deploy dependency bootstrap retries bounded transient registry failures', 
 })
 
 test('generated mirror and rollback are bound to immutable runtime identities', () => {
-  assert.match(pagesSyncScript, /knowgrph-production-runtime-readiness\/v1/)
-  assert.match(pagesSyncScript, /\.well-known', 'runtime-readiness\.json'/)
+  assert.match(productionReadinessBuild, /knowgrph-production-runtime-readiness\/v2/)
+  assert.match(pagesSyncScript, /runtimeReadinessPaths/)
+  assert.match(productionReadinessBuild, /calculateRuntimeArtifactDigest/)
+  assert.match(productionReadinessBuild, /calculateImmutableReleaseManifestDigest/)
   assert.match(pagesSyncScript, /sourceRevision/)
   assert.match(pagesDeploymentScript, /deployment_trigger\?\.metadata\?\.commit_hash/)
   assert.match(pagesDeploymentScript, /\/rollback`/)

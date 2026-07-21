@@ -15,6 +15,7 @@ jobs:
   verify:
     name: Verify Release Candidate
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     outputs:
       docs_repository: ${{ steps.agentic_canvas_os_docs.outputs.repository }}
       docs_revision: ${{ steps.agentic_canvas_os_docs.outputs.ref }}
@@ -25,7 +26,7 @@ jobs:
 
     steps:
       - name: Checkout exact protected main commit
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.sha }}
           path: knowgrph
@@ -38,19 +39,19 @@ jobs:
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
 
       - name: Checkout production mirror
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: huijoohwee/huijoohwee
           path: huijoohwee
 
       - name: Checkout schema mirror
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: huijoohwee/huijoohwee.github.io
           path: huijoohwee.github.io
 
       - name: Setup Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 22
           cache: npm
@@ -59,7 +60,7 @@ jobs:
             knowgrph/canvas/package-lock.json
 
       - name: Setup Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.11'
 
@@ -83,7 +84,7 @@ jobs:
         run: npm run --silent runtime:docs-dependency:resolve -- --github-output >> "$GITHUB_OUTPUT"
 
       - name: Checkout Agentic Canvas OS docs SSOT
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ${{ steps.agentic_canvas_os_docs.outputs.repository }}
           ref: ${{ steps.agentic_canvas_os_docs.outputs.ref }}
@@ -102,7 +103,7 @@ jobs:
           npm run --silent release:manifest:check -- "$RUNNER_TEMP/immutable-release-manifest.json" --source-sha "$RELEASE_SHA" --docs-sha "${{ steps.agentic_canvas_os_docs.outputs.ref }}" --digest "${{ steps.immutable_manifest.outputs.digest }}"
 
       - name: Upload immutable release manifest
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: immutable-release-manifest-${{ github.sha }}
           path: ${{ runner.temp }}/immutable-release-manifest.json
@@ -128,7 +129,7 @@ jobs:
         run: npm run pages:functions:build
 
       - name: Upload verified release artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: production-${{ github.sha }}
           path: |
@@ -150,6 +151,7 @@ jobs:
     name: Deploy, Verify, And Publish Mirror
     needs: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment: production
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -159,28 +161,28 @@ jobs:
 
     steps:
       - name: Checkout exact candidate
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.sha }}
           path: knowgrph
           fetch-depth: 1
 
       - name: Checkout production mirror
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: huijoohwee/huijoohwee
           path: huijoohwee
           token: ${{ secrets.HUIJOOHWEE_PUSH_TOKEN }}
 
       - name: Checkout exact Agentic Canvas OS docs SSOT
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ${{ needs.verify.outputs.docs_repository }}
           ref: ${{ needs.verify.outputs.docs_revision }}
           path: agentic-canvas-os
 
       - name: Setup Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 22
           cache: npm
@@ -203,13 +205,13 @@ jobs:
           done
 
       - name: Download verified artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: production-${{ github.sha }}
           path: huijoohwee
 
       - name: Download immutable manifest
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: immutable-release-manifest-${{ github.sha }}
           path: ${{ runner.temp }}/immutable-release-manifest-proof
@@ -246,6 +248,23 @@ jobs:
         working-directory: knowgrph
         run: ./.github/workflows/smoke-test.sh
 
+      - name: Verify apex and Knowgrph browser fidelity
+        working-directory: knowgrph
+        env:
+          PRODUCTION_ORIGIN: https://airvio.co
+          PRODUCTION_IMMUTABLE_MANIFEST_DIGEST: ${{ needs.verify.outputs.manifest_digest }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          for attempt in 1 2 3; do
+            if npm run production:fidelity:check; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep 15
+          done
+
       - name: Publish verified production mirror
         working-directory: huijoohwee
         env:
@@ -263,7 +282,7 @@ jobs:
 
       - name: Checkout rollback Knowgrph source
         if: failure() && steps.deploy_pages.outcome == 'success'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ steps.previous.outputs.commit_sha }}
           path: rollback-knowgrph
@@ -281,7 +300,7 @@ jobs:
 
       - name: Checkout rollback Agentic Canvas OS docs
         if: failure() && steps.deploy_pages.outcome == 'success'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ${{ steps.rollback_docs.outputs.repository }}
           ref: ${{ steps.rollback_docs.outputs.ref }}
