@@ -34,7 +34,6 @@
     "demo:care-agent": "npm run dev:care-agent --workspace=@knowgrph/canvas --",
     "demo:risk-copilot": "npm run dev:risk-copilot --workspace=@knowgrph/canvas --",
     "demo:xr-physics": "npm run dev:xr-physics --workspace=@knowgrph/canvas --",
-    "demo:game-fps": "npm run dev:game-fps --workspace=@knowgrph/canvas --",
     "dev:all": "bash scripts/dev-all.sh",
     "build": "npm run build --workspace=@knowgrph/canvas",
     "smoke:prepare": "npm run build --workspace=grph-shared",

@@ -29,10 +29,7 @@ import {
 } from '@/lib/ui/responsiveElementClasses'
 import { useMediaQuery } from '@/lib/ui/useMediaQuery'
 import { isRouterRootAliasRuntime } from '@/lib/routing/basePath'
-import {
-  isGameFpsRunReadyDemoActive,
-  isXrPhysicsRunReadyDemoActive,
-} from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { isXrPhysicsRunReadyDemoActive } from '@/features/workspace-fs/workspaceRunReadyDemos'
 
 import { CanvasStartupRuntimes } from '@/features/canvas/CanvasStartupRuntimes'
 
@@ -61,8 +58,7 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
   const location = useLocation()
   const { isEmbeddedPreview, setIsEmbeddedPreview, detectEmbeddedPreviewWriteback } = useCanvasEmbeddedPreviewRuntime(location.search)
   const xrPhysicsRunReadyDemo = isXrPhysicsRunReadyDemoActive()
-  const gameFpsRunReadyDemo = isGameFpsRunReadyDemoActive()
-  const dedicatedRunReadyDemo = xrPhysicsRunReadyDemo || gameFpsRunReadyDemo
+  const dedicatedRunReadyDemo = xrPhysicsRunReadyDemo
   const previewOnly = isEmbeddedPreview || dedicatedRunReadyDemo
   const hasSearchParams = React.useMemo(() => String(location.search || '').trim().length > 0, [location.search])
   const hasDocDeepLinkParams = React.useMemo(() => Boolean(parseDocDeepLink(String(location.search || ''))), [location.search])
@@ -244,13 +240,8 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
         {previewOnly ? (
           <main
             className="flex-1 relative overflow-hidden"
-            aria-label={gameFpsRunReadyDemo
-              ? 'Deterministic FPS Mission'
-              : xrPhysicsRunReadyDemo
-                ? 'XR Physics Playground'
-                : 'Canvas Preview Only'}
+            aria-label={xrPhysicsRunReadyDemo ? 'XR Physics Playground' : 'Canvas Preview Only'}
             data-kg-xr-physics-run-ready={xrPhysicsRunReadyDemo ? 'full-frame' : undefined}
-            data-kg-game-fps-run-ready={gameFpsRunReadyDemo ? 'full-frame' : undefined}
           >
             <React.Suspense fallback={null}>
               <CanvasViewportLazy

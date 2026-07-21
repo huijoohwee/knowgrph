@@ -8,7 +8,8 @@ frontmatter_contract: "required"
 execution_boundary: "dev-only"
 publish_scope: "local-only"
 source_contract: "docs/documents/knowgrph-game-fps-prd-tad.md"
-workspace_seed: "docs/workspace-seeds/knowgrph-game-fps-demo.md"
+workspace_seed: "docs/workspace-seeds/knowgrph-physics-playground-demo.md"
+activation: "explicit /game.mode @canvas #gameplay overlay on xr-physics"
 baseline_protected_commit: "fbb615be92ea58e6e4cfc981feb2122ea81e79b2"
 baseline_verified_at: "2026-07-21T07:50:51Z"
 baseline_protected_pull_request: "https://github.com/huijoohwee/knowgrph/pull/263"
@@ -30,11 +31,11 @@ This file is the evidence ledger for the local/Dev Game Mode increment. PR #263 
 ```bash
 npm run game-fps:runtime-ready
 npm run game-fps:browser-smoke
-npm run demo:game-fps
+npm run demo:xr-physics
 KG_GAME_MODE_VALIDATION_SHARE_URL='<operator-supplied share URL>' npm -C canvas run test:smoke:game-mode-xr-share:browser
 ```
 
-The runtime-ready and core-browser commands cover game unit/integration tests, deterministic replay, Agentic ECS proof, Canvas type checking, a production-format local build, workspace-seed validation, and local interaction/persistence. They require no non-local request. The opt-in share command accepts its source only through the environment, performs one allowlisted verifier preflight read to establish exact bytes plus exactly one product/browser document fetch, and runs those bytes against the local exact-main runtime. The supplied URL, opaque token, decoded path, and content checksum must never be written into repository bytes or proof artifacts. None of these commands deploys or performs a public mutation.
+The runtime-ready and core-browser commands cover game unit/integration tests, deterministic replay, Agentic ECS proof, Canvas type checking, a production-format local build, canonical Physics-source validation, explicit Game Mode activation, and local interaction/persistence. They require no non-local request. The opt-in share command accepts its source only through the environment, performs one allowlisted verifier preflight read to establish exact bytes plus exactly one product/browser document fetch, and runs those bytes against the local exact-main runtime. The supplied URL, opaque token, decoded path, and content checksum must never be written into repository bytes or proof artifacts. None of these commands deploys or performs a public mutation.
 
 ## Evidence ledger
 
@@ -54,11 +55,11 @@ The runtime-ready and core-browser commands cover game unit/integration tests, d
 | WebGL | Synchronous capability gate keeps an unsupported mission stopped and renders a local error | passed |
 | Canvas/XR | One existing R3F Canvas; XR pauses for Game Mode, restores exactly, and continues afterward | passed |
 | XR visual fidelity follow-up | Authored XR atmosphere, terrain, props, and scene anchors stay mounted under Game Mode | exact-main passed |
-| Scene-authority cleanup | Delete the fallback scene/environment implementation, forbid renamed/conditional variants, and preserve one Canvas/world across Media, Animation, Motion Control, Game Mode, and Camera | current follow-up proof required |
+| Scene-authority cleanup | Delete the fallback scene/environment implementation and standalone Game FPS source/auto-start route, forbid renamed/conditional variants, and preserve one Canvas/world across Media, Animation, Motion Control, Game Mode, and Camera | source cleanup implemented; protected and exact-main proof required |
 | XR profile admission follow-up | All catalogued XR presets filter walkable/overhead slabs, admit five non-overlapping ground-actor spawns, and replace stale profiles across live/stopped surface or terrain changes | exact-main passed |
 | Ready clock follow-up | Tick, health, and Decisions stay unchanged until normalized desktop, pointer, touch, Motion Control, or MCP engagement | exact-main passed |
 | Stop/Start | Stop preserves current tick/player state; Start resumes that same in-memory mission | passed |
-| Source identity | Known source-authored `run_ready_demo.id` activates after import/rename and conflicts fail closed | passed |
+| Source identity | `xr-physics` is the only XR/Game source-authored run-ready identity; Game Mode requires explicit invocation and no standalone game seed/env route exists | current follow-up proof required |
 | Core browser | Visible movement, fire, four score rows, completion, explicit save, reload, malformed-save reset | passed |
 | External source | Exact supplied Markdown bytes, strict WebMCP, Motion/XR round trip, stable Canvas, allowlisted network | passed |
 | Hardcode guard | Supplied URL/token and its decoded canonical path are absent from repository bytes | passed |
@@ -74,7 +75,7 @@ The runtime-ready and core-browser commands cover game unit/integration tests, d
 | Exact-main runtime commit | `0b0e70787edb80e71d368d56c1478ffd9655ce0d` |
 | Local target | `http://localhost:4185/`, Google Chrome headless |
 | Viewport | Mobile acceptance `390x844`; desktop keyboard/fire inputs exercised in the same trace |
-| First frame | Playable frame visible; four NPCs and touch controls visible |
+| First frame | Canonical Physics frame visible; explicit `/game.mode @canvas #gameplay` activation added four NPCs and touch controls without replacing the world |
 | Movement | Player moved from `[0, 2]` to `[0, 0.74]`; key release neutralized input and a second `W` cycle reached Z `-0.03` |
 | Browser WebMCP | Registered and active with schema `knowgrph-game-mode-mcp/v1`; duplicate semantic binding rejected |
 | Fire | Ammo changed from `8` to `7`; HUD reported a hit |
@@ -114,7 +115,7 @@ This acceptance proves compatibility between the exact supplied public source by
 | Scene composition | `kg_graph_xr_stage`, `kg_xr_native_controller_demo`, `kg_xr_stage_preset_singapore`, and `kg_xr_playground_treasure` remained exported before and during Game Mode |
 | Game overlay | `kg_game_fps_mission` plus four named NPC roots mounted in the same GLTF scene snapshot |
 | Historical non-mount proof | The then-named `kg_game_fps_arena` node was absent while the shared surface reported `xr-authored` and retained-scene ownership; this does not prove source deletion or forbid renamed variants |
-| Scene-authority deletion gate | The current follow-up must prove no fallback environment source, alternate clear owner, non-XR collision profile, conditional scene branch, or renamed environment subtree remains, and must cycle Media, Animation, Motion Control, Game Mode, and Camera without changing Canvas identity or authored-world transforms |
+| Scene-authority deletion gate | The current follow-up deletes the standalone Game FPS seed/registry/auto-start owner and must prove no fallback environment source, generic motion-reference root, empty-world root, alternate clear owner, non-XR collision profile, conditional scene branch, or renamed environment subtree remains on the canonical Physics surface |
 | Camera | The existing Canvas DOM node remained stable; Game Mode published its first-person camera framing while OrbitControls stayed suppressed |
 | Spatial alignment | The Game overlay shared the authored placement transform/scale and reused the XR native-controller playable bounds and static collider catalog; immersive entry was suspended during gameplay |
 | Profile admission | Structural profile identity rejected stale 3D/XR and same-XR terrain geometry; every catalogued preset admitted clear player/NPC spawns after walkable-low and overhead collider filtering |
@@ -141,4 +142,4 @@ At exact main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d`, `npm run game-f
 
 ## Promotion rule
 
-Local runtime readiness is achieved when every local evidence row for the claimed scope passes at one exact commit. PR #263 remains the historical baseline; PR #273 and exact-main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d` carry the authored-XR retention and lifecycle proof, not fallback-source deletion proof. The current scene-authority cleanup must receive its own exact protected result before its pending row becomes passed. No result authorizes production, Cloudflare, or public-surface claims.
+Local runtime readiness is achieved when every local evidence row for the claimed scope passes at one exact commit. PR #263 remains the historical baseline; PR #273 and exact-main commit `0b0e70787edb80e71d368d56c1478ffd9655ce0d` carry the authored-XR retention and lifecycle proof, not standalone-source deletion proof. The current scene-authority cleanup must receive its own exact protected result before its pending rows become passed. No result authorizes production, Cloudflare, or public-surface claims.

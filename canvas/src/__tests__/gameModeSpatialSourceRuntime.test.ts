@@ -1,20 +1,15 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import test from 'node:test'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { useGraphStore } from '@/hooks/useGraphStore'
-import { GameFpsRunReadyDemoRuntime } from '@/features/canvas/GameFpsRunReadyDemoRuntime'
 import { GameFpsHud } from '@/features/game-fps/GameFpsHud'
 import {
   advanceGameFpsBy,
   readGameFpsSpatialProfile,
   readGameFpsSnapshot,
-  resetGameFpsRuntimeForTests,
   setGameFpsInput,
-  startGameFpsMission,
-  stopGameFpsMission,
 } from '@/features/game-fps/gameFpsRuntime'
 import {
   advanceGameModeSimulationBy,
@@ -37,20 +32,12 @@ import {
   setXrMotionReferenceStage,
 } from '@/features/three/xrMotionReferenceRuntime'
 import { XR_MOTION_REFERENCE_STAGE_PRESETS } from '@/features/three/xrSceneLibrary'
-import {
-  GAME_FPS_DEMO_WORKSPACE_SEED_BASENAME,
-  WORKSPACE_RUN_READY_DEMO_ENV,
-} from '@/features/workspace-fs/workspaceRunReadyDemos'
+import { WORKSPACE_RUN_READY_DEMO_ENV } from '@/features/workspace-fs/workspaceRunReadyDemos'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
-import { MemoryStorage } from '@/tests/lib/memoryStorage'
 import { mountReactRoot, unmountReactRoot } from '@/tests/lib/reactRootHarness'
-import { initWindowHarness } from '@/tests/lib/windowHarness'
 import { installGameModeRuntimeTestLifecycle } from './helpers/gameModeRuntimeTestLifecycle'
 
 const source = (...parts: string[]) => readFileSync(resolve(process.cwd(), ...parts), 'utf8')
-const waitForUnmountTeardown = async (): Promise<void> => {
-  await new Promise<void>(resolveTask => setTimeout(resolveTask, 0))
-}
 
 installGameModeRuntimeTestLifecycle('game-mode-spatial-source-runtime')
 
@@ -212,8 +199,9 @@ test('Game Mode panel projects shared owners without a second renderer, world, o
   const modeRuntime = source('src', 'features', 'game-fps', 'gameModeRuntime.ts')
   const viewport = source('src', 'components', 'CanvasViewport.tsx')
   const xrRuntime = source('src', 'features', 'canvas', 'XrPhysicsRunReadyDemoRuntime.tsx')
-  const runReadyRuntime = source('src', 'features', 'canvas', 'GameFpsRunReadyDemoRuntime.tsx')
   const hud = source('src', 'features', 'game-fps', 'GameFpsHud.tsx')
+  assert.equal(existsSync(resolve(process.cwd(), 'src/features/canvas/GameFpsRunReadyDemoRuntime.tsx')), false)
+  assert.equal(existsSync(resolve(process.cwd(), '../docs/workspace-seeds/knowgrph-game-fps-demo.md')), false)
   assert.equal(panel.includes('<Canvas'), false)
   assert.equal(panel.includes('createGameFpsAuthoredMission'), false)
   assert.match(panel, /GAME_FPS_SAVE_PATH/)
@@ -227,7 +215,6 @@ test('Game Mode panel projects shared owners without a second renderer, world, o
   assert.match(renderer, /active=\{active && mode === 'xr' && !gameFpsActive\}/)
   assert.match(renderer, /const rendererLifecycleKey = `scene-canvas-\$\{mode\}`/)
   assert.match(viewport, /gameFpsHudVisible \? <GameFpsHudLazy \/>/)
-  assert.equal(runReadyRuntime.includes('persistGameModePendingDecisions'), false)
   assert.match(hud, /data-kg-game-fps-action="save"/)
   assert.match(
     hud,
@@ -244,7 +231,7 @@ test('Game Mode panel projects shared owners without a second renderer, world, o
   const initializedIndex = xrRuntime.indexOf('surfaceInitializedRef.current = true')
   assert.ok(activationGuardIndex >= 0 && initializedIndex > activationGuardIndex)
 
-  const productionSources = [missionStage, model, gameRuntime, modeRuntime, renderer, runReadyRuntime]
+  const productionSources = [missionStage, model, gameRuntime, modeRuntime, renderer]
   for (const forbiddenMarker of [
     'GameFpsArenaEnvironment',
     'kg_game_fps_arena',
@@ -258,99 +245,5 @@ test('Game Mode panel projects shared owners without a second renderer, world, o
       false,
       `Game Mode production source must forbid ${forbiddenMarker}`,
     )
-  }
-})
-
-test('Game FPS document runtime cancels StrictMode replay teardown and restores its surface on true unmount', async () => {
-  const previousDemo = process.env[WORKSPACE_RUN_READY_DEMO_ENV]
-  const { restore: restoreWindow } = initWindowHarness({ storage: new MemoryStorage() })
-  const { dom, restore: restoreDom } = initJsdomHarness(
-    '<!doctype html><html><body><section id="root"></section></body></html>',
-  )
-  const container = dom.window.document.getElementById('root')
-  if (!container) throw new Error('missing Game FPS React root container')
-  Object.defineProperty(dom.window.HTMLCanvasElement.prototype, 'getContext', {
-    configurable: true,
-    value: () => ({
-      getExtension: (name: string) => name === 'WEBGL_lose_context'
-        ? { loseContext: () => void 0 }
-        : null,
-    }),
-  })
-  const before = useGraphStore.getState()
-  const restoreGraphState = {
-    canvasRenderMode: before.canvasRenderMode,
-    canvasRenderModeLastFree: before.canvasRenderModeLastFree,
-    canvasRenderModeIsAuto: before.canvasRenderModeIsAuto,
-    canvas3dMode: before.canvas3dMode,
-    floatingPanelOpen: before.floatingPanelOpen,
-    floatingPanelView: before.floatingPanelView,
-    markdownDocumentName: before.markdownDocumentName,
-    markdownDocumentText: before.markdownDocumentText,
-    markdownDocumentApplyViewPreset: before.markdownDocumentApplyViewPreset,
-  }
-  const runtimeElement = React.createElement(
-    React.StrictMode,
-    null,
-    React.createElement(GameFpsRunReadyDemoRuntime),
-  )
-  let root: ReturnType<typeof createRoot> | null = null
-  try {
-    delete process.env[WORKSPACE_RUN_READY_DEMO_ENV]
-    useGraphStore.setState({
-      canvasRenderMode: '2d',
-      canvas3dMode: 'xr',
-      floatingPanelOpen: true,
-      floatingPanelView: 'motionControl',
-      markdownDocumentName: `/docs/workspace-seeds/${GAME_FPS_DEMO_WORKSPACE_SEED_BASENAME}`,
-      markdownDocumentText: '# Canonical Game FPS demo',
-      markdownDocumentApplyViewPreset: false,
-    })
-    startGameFpsMission({ decisions: [] })
-    stopGameFpsMission()
-    root = createRoot(container)
-    await mountReactRoot(root, runtimeElement, { window: dom.window as unknown as Window, frames: 1 })
-    await waitForUnmountTeardown()
-    const strictModeStable = readGameModeSnapshot()
-    assert.equal(strictModeStable.active, true)
-    assert.equal(strictModeStable.surfaceMode, 'xr')
-    assert.equal(readGameFpsSnapshot().phase, 'playing')
-    assert.equal(useGraphStore.getState().canvasRenderMode, '3d')
-    assert.equal(useGraphStore.getState().canvas3dMode, 'xr')
-
-    const selectedGameSource = useGraphStore.getState().markdownDocumentName
-    exitGameModeSurface()
-    await waitForUnmountTeardown()
-    assert.equal(useGraphStore.getState().markdownDocumentName, selectedGameSource)
-    assert.equal(readGameModeSnapshot().active, false, 'explicit Exit must stay exited while the Game source remains selected')
-    assert.equal(readGameFpsSnapshot().phase, 'stopped')
-    await startGameMode({ decisions: [], webglSupported: true })
-    assert.equal(readGameModeSnapshot().active, true)
-
-    await unmountReactRoot(root, { window: dom.window as unknown as Window })
-    root = null
-    await waitForUnmountTeardown()
-    assert.equal(readGameModeSnapshot().active, false)
-    assert.equal(readGameFpsSnapshot().phase, 'stopped')
-    assert.equal(useGraphStore.getState().canvasRenderMode, '2d')
-    assert.equal(useGraphStore.getState().canvas3dMode, 'xr')
-    assert.equal(useGraphStore.getState().floatingPanelView, 'motionControl')
-    assert.equal(useGraphStore.getState().floatingPanelOpen, true)
-  } finally {
-    if (root) {
-      try {
-        await unmountReactRoot(root, { window: dom.window as unknown as Window })
-        await waitForUnmountTeardown()
-      } catch {
-        // Preserve an earlier assertion failure.
-      }
-    }
-    resetGameFpsRuntimeForTests()
-    resetGameModeRuntimeForTests()
-    useGraphStore.setState(restoreGraphState)
-    restoreDom()
-    restoreWindow()
-    if (previousDemo === undefined) delete process.env[WORKSPACE_RUN_READY_DEMO_ENV]
-    else process.env[WORKSPACE_RUN_READY_DEMO_ENV] = previousDemo
   }
 })

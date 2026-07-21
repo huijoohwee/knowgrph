@@ -51,7 +51,7 @@ source_references:
   workspace_fs: "canvas/src/features/workspace-fs/workspaceFs.ts"
   workspace_upsert: "canvas/src/features/workspace-fs/upsertWorkspaceTextDocument.ts"
   cost_log_contract: "contracts/cost-log.schema.js"
-  workspace_seed: "docs/workspace-seeds/knowgrph-game-fps-demo.md"
+  workspace_seed: "docs/workspace-seeds/knowgrph-physics-playground-demo.md"
   runtime_proof: "docs/documents/knowgrph-game-fps-runtime-readiness.md"
   ar_broadcast_runtime: "canvas/src/features/game-fps/arBroadcastRuntime.ts"
   ar_broadcast_validation_seed: "docs/workspace-seeds/knowgrph-physics-playground-demo.md"
@@ -62,7 +62,7 @@ source_references:
 
 ## Outcome
 
-Knowgrph gains one browser-local FloatingPanel **Game Mode** that runs a bounded first-person mission inside the existing React Three Fiber Canvas. It opens from a source-backed run-ready document, Motion Control's shared target catalog, browser WebMCP, or the strict `/game.mode @canvas #gameplay` invocation. The authored XR atmosphere, world, props, and paused frame remain visibly mounted while Game Mode supplies only its first-person camera and actor overlay. Toolbar **Canvas View Mode → Surface Mode → XR Mode** and FloatingPanel **Media**, **Animation**, **Motion Control**, **Game Mode**, and **Camera** project the same Canvas and authored scene rather than creating scene variants. Desktop, pointer, touch, optional Motion Control, and MCP input arm one deterministic native Agentic ECS mission with four scored NPC actions, normalized slab AABB hitscan, visible HUD/runtime errors, and Decisions-only WorkspaceFs persistence.
+Knowgrph gains one browser-local FloatingPanel **Game Mode** that runs a bounded first-person mission inside the existing React Three Fiber Canvas. The canonical Physics Playground document owns the only source-backed XR world; Game Mode opens explicitly from FloatingPanel, Motion Control's shared target catalog, browser WebMCP, or the strict `/game.mode @canvas #gameplay` invocation. It never owns a second run-ready document or automatic startup route. The authored XR atmosphere, world, props, and paused frame remain visibly mounted while Game Mode supplies only its first-person camera and actor overlay. Toolbar **Canvas View Mode → Surface Mode → XR Mode** and FloatingPanel **Media**, **Animation**, **Motion Control**, **Game Mode**, and **Camera** project the same Canvas and authored scene rather than creating scene variants. Desktop, pointer, touch, optional Motion Control, and MCP input arm one deterministic native Agentic ECS mission with four scored NPC actions, normalized slab AABB hitscan, visible HUD/runtime errors, and Decisions-only WorkspaceFs persistence.
 
 Core gameplay requires no camera, account, passkey, model, remote asset, gameplay network call, or Cloudflare service. Optional Motion Control retains its existing explicit camera-permission and LiteRT pose-inference boundary and contributes normalized controller input only; it does not choose NPC actions. The pre-follow-up baseline gates passed at protected main commit `fbb615be92ea58e6e4cfc981feb2122ea81e79b2` after PR #263 merged. The authored-XR composition and ready-clock follow-up passed PR #273's protected Integration Gate and exact-main acceptance at `0b0e70787edb80e71d368d56c1478ffd9655ce0d`; no production or Cloudflare deployment is authorized.
 
@@ -82,7 +82,7 @@ Mei is a mobile-first player who wants to open a source-backed browser workspace
 
 | Stage | Player action | Runtime owner | Durable effect |
 |---|---|---|---|
-| Open | Apply a known source-authored run-ready document, choose **Game Mode**, or invoke `/game.mode @canvas #gameplay` | Run-ready registry plus central Game Mode owner | None |
+| Open | Apply the canonical Physics Playground source, then choose **Game Mode** or invoke `/game.mode @canvas #gameplay` | Physics source registry plus central Game Mode owner | None |
 | Play | Move, look, aim, and fire with desktop, pointer, touch, or optional Motion Control input | `canvas/src/features/game-fps/` plus the existing Three renderer | None |
 | React | Observe NPCs choose hold, alert, engage, or flee | Deterministic ECS systems | Pending Decisions only |
 | Complete | Resolve the mission objective | Mission runtime | Validated pending Decisions |
@@ -105,7 +105,7 @@ Mei is a mobile-first player who wants to open a source-backed browser workspace
 - Synchronous WebGL admission, one existing Canvas, XR pause/restore ownership, and visible fail-closed runtime errors.
 - A ready simulation clock that does not advance or damage an unattended player until normalized player engagement.
 - One XR scene composition owner that retains the authored world and atmosphere; the former fallback scene/environment source is deleted, and renamed, conditional, or alternate variants are forbidden.
-- Source-authored `run_ready_demo.id` activation through the known registry, independent of an imported path and fail-closed on identity conflict.
+- Exactly one source-authored `run_ready_demo.id`: `xr-physics`; Game Mode is an explicit overlay and never a document-driven or environment-selected startup variant.
 - Source tests, focused runtime proof, core browser smoke, and opt-in external-source browser acceptance.
 
 ### Deferred scope
@@ -145,7 +145,7 @@ A bounded, optional companion that films the live authored ECS scene as a miniat
 
 #### AC-1: open and play
 
-Given a clean browser-local workspace, when the game seed is applied, then the bounded mission reaches a playable frame in the canonical authored XR scene without sign-in, camera permission, passkey API access, remote asset fetch, or Cloudflare request.
+Given a clean browser-local workspace with the canonical Physics Playground source applied, when Game Mode is opened explicitly, then the bounded mission reaches a playable frame in that authored XR scene without sign-in, camera permission, passkey API access, remote asset fetch, or Cloudflare request.
 
 #### AC-2: deterministic mission
 
@@ -247,14 +247,14 @@ Given AR Tabletop Broadcast active, when the mission ticks, then AR reads only t
 | XR lifecycle | `canvas/src/features/three/xrSceneSurfaceRuntime.ts`, existing XR controller runtime, and shared surface catalog | Route Media, Animation, Motion Control, Game Mode, and Camera through one XR activation owner; pause, resume, and restore without replacing the Canvas or world |
 | Browser persistence | `canvas/src/features/workspace-fs/` | Use WorkspaceFs and its existing source-file bridge; do not add storage or Git owners |
 | Cost truth | `contracts/cost-log.schema.js` | Accept only the canonical model-free zero record for the no-reasoning tick |
-| Activation | `docs/workspace-seeds/knowgrph-game-fps-demo.md` | Source-backed `game-fps` run-ready demo |
+| Activation | `docs/workspace-seeds/knowgrph-physics-playground-demo.md` plus `/game.mode @canvas #gameplay` | One source-backed `xr-physics` world plus explicit Game Mode overlay; no standalone game seed or auto-start route |
 | Proof | `docs/documents/knowgrph-game-fps-runtime-readiness.md` | Exact commands and evidence state |
 
 ### Runtime topology
 
 ```mermaid
 flowchart LR
-  SEED["Source-backed game seed"] --> ACTIVATE["Run-ready activation"]
+  SEED["Canonical Physics source"] --> ACTIVATE["Explicit Game Mode activation"]
   INVOKE["/game.mode @canvas #gameplay or browser WebMCP"] --> ACTIVATE
   ACTIVATE --> RUNTIME["Game FPS runtime"]
   INPUT["Desktop, pointer, touch, or optional Motion Control"] --> NORMALIZE["Normalized input frame"]

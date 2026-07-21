@@ -9,6 +9,8 @@ from playwright.sync_api import expect, sync_playwright
 
 from lib.game_mode_xr_share_scene_contract import (
     assert_game_overlay_subtree,
+    assert_game_scene_delta,
+    assert_scene_contract,
     read_scene_contract,
 )
 
@@ -17,9 +19,15 @@ BASE_URL = os.environ.get("KG_GAME_FPS_SMOKE_BASE_URL", "http://localhost:4185")
 OUTPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "outputs"
 SCREENSHOT_PATH = OUTPUT_DIR / "game-fps-browser-smoke.png"
 EVIDENCE_PATH = OUTPUT_DIR / "game-fps-browser-smoke.json"
-GAME_FPS_AUTHORED_XR_NODES = {
+PHYSICS_REQUIRED_SCENE_NODES = {
     "kg_graph_xr_stage",
-    "kg_xr_motion_reference_stage",
+    "kg_xr_native_controller_demo",
+    "kg_xr_stage_preset_singapore",
+    "kg_xr_playground_treasure",
+}
+FORBIDDEN_STANDALONE_SCENE_NAMES = {
+    "kg_game_fps_arena",
+    "kg_game_fps_environment",
 }
 
 
@@ -44,7 +52,77 @@ def local_chromium_executable() -> str | None:
     return None
 
 
-def assert_game_fps_xr_scene(page) -> dict[str, object]:
+def assert_no_standalone_scene_nodes(scene: dict[str, object]) -> None:
+    names = set(scene.get("names") or [])
+    forbidden = sorted(
+        name
+        for name in names
+        if name in FORBIDDEN_STANDALONE_SCENE_NAMES
+        or name.startswith("kg_xr_empty_world")
+    )
+    if forbidden:
+        raise AssertionError(f"standalone/fallback scene nodes were present: {forbidden}")
+
+
+def wait_for_xr_physics_scene(page) -> dict[str, object]:
+    expect(page.locator('[data-kg-xr-physics-run-ready="full-frame"]')).to_be_visible(
+        timeout=120_000
+    )
+    expect(page.locator('[data-kg-xr-playground-hud="1"]')).to_have_attribute(
+        "data-kg-xr-playground-phase", "running", timeout=120_000
+    )
+    scene: dict[str, object] = {"ready": False, "names": []}
+    for _ in range(240):
+        scene = read_scene_contract(page)
+        names = set(scene.get("names") or [])
+        if scene.get("ready") is True and PHYSICS_REQUIRED_SCENE_NODES <= names:
+            break
+        page.wait_for_timeout(500)
+    assert_scene_contract(scene, game_active=False)
+    assert_no_standalone_scene_nodes(scene)
+    stale_game_mode = page.evaluate(
+        """
+        async () => {
+          const mode = await import('/src/features/game-fps/gameModeRuntime.ts')
+          return {
+            active: mode.readGameModeSnapshot().active,
+            hudCount: document.querySelectorAll('[data-kg-game-fps-hud="1"]').length,
+          }
+        }
+        """
+    )
+    if stale_game_mode != {"active": False, "hudCount": 0}:
+        raise AssertionError(
+            f"Game Mode activated before an explicit invocation: {stale_game_mode}"
+        )
+    return scene
+
+
+def activate_game_mode(page, *, expect_ready: bool = True) -> dict[str, object]:
+    baseline_scene = wait_for_xr_physics_scene(page)
+    result = page.evaluate(
+        """
+        async () => {
+          const runtime = await import('/src/features/game-fps/gameModeMcpRuntime.ts')
+          return runtime.controlLocalGameMode({
+            invocation: '/game.mode @canvas #gameplay operation=start',
+          })
+        }
+        """
+    )
+    launch_status = ((result or {}).get("game") or {}).get("gameMode", {}).get(
+        "launchStatus"
+    )
+    if expect_ready and (result or {}).get("ok") is not True:
+        raise AssertionError(f"explicit Game Mode invocation failed: {result}")
+    if not expect_ready and launch_status not in {"ready", "error"}:
+        raise AssertionError(
+            f"explicit Game Mode invocation did not publish a terminal launch status: {result}"
+        )
+    return {"baselineScene": baseline_scene, "invocation": result}
+
+
+def assert_game_fps_xr_scene(page, baseline_scene) -> dict[str, object]:
     renderer = page.evaluate(
         """
         () => {
@@ -58,28 +136,21 @@ def assert_game_fps_xr_scene(page) -> dict[str, object]:
         raise AssertionError(f"Game FPS did not use exactly one authored XR Canvas: {renderer}")
 
     scene = read_scene_contract(page)
-    if scene.get("ready") is not True:
-        raise AssertionError(f"Game FPS XR scene snapshot was unavailable: {scene}")
-    names = set(scene.get("names") or [])
-    missing_authored_nodes = sorted(GAME_FPS_AUTHORED_XR_NODES - names)
-    if missing_authored_nodes:
-        raise AssertionError(
-            "Game FPS replaced the authored XR graph scene: "
-            f"missing={missing_authored_nodes}, observed={sorted(names)}"
-        )
+    assert_scene_contract(scene, game_active=True)
+    assert_no_standalone_scene_nodes(scene)
     assert_game_overlay_subtree(scene)
-    if (
-        scene.get("retained") != "1"
-        or scene.get("presentation") != "xr-authored"
-        or scene.get("spatialProfile") != "xr-authored"
-        or not str(scene.get("cameraFov") or "").strip()
-    ):
-        raise AssertionError(f"Game FPS did not publish the canonical XR scene contract: {scene}")
+    scene_delta = assert_game_scene_delta(
+        baseline_scene,
+        scene,
+        context="explicit Game Mode browser-smoke activation",
+    )
     return {
         "surface": "xr",
         "canvasCount": 1,
         "authoredXrSceneRetained": True,
         "gameMissionSubtreeActorsOnly": True,
+        "standaloneSceneNodes": [],
+        **scene_delta,
     }
 
 
@@ -118,10 +189,11 @@ def main() -> None:
         page.on("pageerror", lambda error: page_errors.append(str(error)))
         try:
             page.goto(target_url, wait_until="domcontentloaded")
+            activation = activate_game_mode(page)
             hud = page.locator('[data-kg-game-fps-hud="1"]').first
             expect(hud).to_be_visible(timeout=120_000)
             page.wait_for_selector('canvas[data-kg-game-fps-first-frame="1"]', timeout=120_000)
-            scene_evidence = assert_game_fps_xr_scene(page)
+            scene_evidence = assert_game_fps_xr_scene(page, activation["baselineScene"])
 
             initial_tick = numeric_attribute(hud, "data-kg-game-fps-tick")
             initial_x = numeric_attribute(hud, "data-kg-game-fps-player-x")
@@ -294,6 +366,7 @@ def main() -> None:
                 raise AssertionError(f"browser Decisions save was not readable: {saved}")
 
             page.reload(wait_until="domcontentloaded")
+            activate_game_mode(page)
             hud = page.locator('[data-kg-game-fps-hud="1"]').first
             expect(hud).to_be_visible(timeout=120_000)
             page.wait_for_selector('canvas[data-kg-game-fps-first-frame="1"]', timeout=120_000)
@@ -313,6 +386,7 @@ def main() -> None:
                 malformed_save,
             )
             page.reload(wait_until="domcontentloaded")
+            activate_game_mode(page, expect_ready=False)
             hud = page.locator('[data-kg-game-fps-hud="1"]').first
             expect(hud).to_be_visible(timeout=120_000)
             expect(hud).to_have_attribute("data-kg-game-fps-save-status", "error", timeout=10_000)
@@ -370,6 +444,11 @@ def main() -> None:
                 "targetUrl": target_url,
                 "viewport": {"width": 390, "height": 844},
                 "firstFrame": True,
+                "activation": {
+                    "source": "xr-physics",
+                    "invocation": "/game.mode @canvas #gameplay operation=start",
+                    "automaticGameModeBeforeInvocation": False,
+                },
                 "renderer": scene_evidence,
                 "movement": {"from": [initial_x, initial_z], "to": [moved_x, moved_z]},
                 "desktopRelease": {

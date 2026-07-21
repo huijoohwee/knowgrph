@@ -7,6 +7,8 @@ from playwright.sync_api import Error as PlaywrightError
 
 from lib.game_mode_xr_share_scene_contract import (
     AUTHORED_XR_NODES,
+    CANONICAL_XR_TERRAIN_NODE,
+    FORBIDDEN_XR_ROOT_NODES,
     GAME_NODES,
     GAME_NPC_NODES,
     assert_authored_scene_identity,
@@ -114,7 +116,7 @@ class SceneContractTest(unittest.TestCase):
     @staticmethod
     def active_contract() -> dict[str, Any]:
         npc_names = sorted(GAME_NPC_NODES)
-        names = sorted(AUTHORED_XR_NODES | GAME_NODES)
+        names = sorted(AUTHORED_XR_NODES | GAME_NODES | {CANONICAL_XR_TERRAIN_NODE})
         return {
             "ready": True,
             "names": names,
@@ -125,6 +127,8 @@ class SceneContractTest(unittest.TestCase):
             "meshNodeCount": 8,
             "retained": "1",
             "presentation": "xr-authored",
+            "documentLoaded": "1",
+            "emptyWorld": "",
             "cameraFov": "50",
             "spatialProfile": "xr-authored",
             "nativeStageScale": 0.08,
@@ -143,7 +147,7 @@ class SceneContractTest(unittest.TestCase):
 
     @staticmethod
     def baseline_contract() -> dict[str, Any]:
-        names = sorted(AUTHORED_XR_NODES)
+        names = sorted(AUTHORED_XR_NODES | {CANONICAL_XR_TERRAIN_NODE})
         return {
             "ready": True,
             "names": names,
@@ -152,8 +156,14 @@ class SceneContractTest(unittest.TestCase):
             "unnamedNodeCount": 0,
             "lightNodeCount": 2,
             "meshNodeCount": 4,
+            "documentLoaded": "1",
+            "emptyWorld": "",
             "authoredSceneSignature": "canonical-xr-scene",
         }
+
+    def test_accepts_canonical_native_terrain_before_and_after_game_mode(self) -> None:
+        assert_scene_contract(self.baseline_contract(), game_active=False)
+        assert_scene_contract(self.active_contract(), game_active=True)
 
     def test_accepts_only_four_npc_meshes_in_game_mission_subtree(self) -> None:
         assert_scene_contract(self.active_contract(), game_active=True)
@@ -217,6 +227,50 @@ class SceneContractTest(unittest.TestCase):
                 active,
                 context="Game Mode unnamed sibling",
             )
+
+    def test_rejects_fallback_and_legacy_scene_roots(self) -> None:
+        forbidden_variants = {
+            *FORBIDDEN_XR_ROOT_NODES,
+            "kg_game_fps_arena_wall",
+            "kg_xr_empty_world_grid",
+        }
+        for forbidden_root in sorted(forbidden_variants):
+            with self.subTest(forbidden_root=forbidden_root):
+                contract = self.baseline_contract()
+                contract["names"] = sorted([*contract["names"], forbidden_root])
+                contract["namedNodeCounts"] = {
+                    **contract["namedNodeCounts"],
+                    forbidden_root: 1,
+                }
+                with self.assertRaisesRegex(AssertionError, "fallback or legacy root"):
+                    assert_scene_contract(contract, game_active=False)
+
+    def test_rejects_empty_world_dom_state_and_noncanonical_native_terrain(self) -> None:
+        empty_world = self.baseline_contract()
+        empty_world["emptyWorld"] = "1"
+        with self.assertRaisesRegex(AssertionError, "empty-world DOM state"):
+            assert_scene_contract(empty_world, game_active=False)
+
+        for terrain_count in (0, 2):
+            with self.subTest(terrain_count=terrain_count):
+                contract = self.baseline_contract()
+                contract["namedNodeCounts"] = {
+                    **contract["namedNodeCounts"],
+                    CANONICAL_XR_TERRAIN_NODE: terrain_count,
+                }
+                with self.assertRaisesRegex(AssertionError, "exactly one native controller terrain"):
+                    assert_scene_contract(contract, game_active=False)
+
+    def test_rejects_unloaded_document_and_legacy_arena_presentation(self) -> None:
+        unloaded = self.baseline_contract()
+        unloaded["documentLoaded"] = "0"
+        with self.assertRaisesRegex(AssertionError, "loaded source document"):
+            assert_scene_contract(unloaded, game_active=False)
+
+        arena = self.baseline_contract()
+        arena["presentation"] = "arena"
+        with self.assertRaisesRegex(AssertionError, "legacy arena presentation"):
+            assert_scene_contract(arena, game_active=False)
 
     def test_compares_authored_scene_identity_across_panel_projections(self) -> None:
         baseline = self.active_contract()

@@ -22,6 +22,7 @@ const modXrSubjectMotionConstraints = () => import('@/__tests__/xrSubjectMotionC
 const modXrLegacyPositionWriterConstraints = () => import('@/__tests__/xrLegacyPositionWriterConstraints.test')
 const modXrMotionControlAcceptanceConstraints = () => import('@/__tests__/xrMotionControlAcceptanceConstraints.test')
 const modXrPhysicsPlayheadOwnership = () => import('@/__tests__/xrPhysicsPlayheadOwnership.test')
+const modXrPhysicsHomeSceneAuthorityContract = () => import('@/__tests__/xrPhysicsHomeSceneAuthorityContract.test')
 const modXrPhysicsRuntime = () => import('@/__tests__/xrPhysicsRuntime.test')
 const modXrPhysicsTuning = () => import('@/__tests__/xrPhysicsTuning.test')
 const modXrArPlacementRuntime = () => import('@/__tests__/xrArPlacementRuntime.test')
@@ -176,6 +177,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'canvas.xrMode.physics.playheadOwnership', async () => {
     const mod = await modXrPhysicsPlayheadOwnership()
     await mod.testXrPhysicsPlayheadHydrationPreservesActiveOwnership()
+  })
+  await execTest(results, 'canvas.xrMode.physics.homeSceneAuthority', async () => {
+    const mod = await modXrPhysicsHomeSceneAuthorityContract()
+    await mod.testXrPhysicsHomeSceneAuthorityRejectsFallbackVariants()
   })
   await execTest(results, 'canvas.xrMode.physics.sourceIdentityLifecycle', async () => {
     const mod = await modXrSubjectMotionConstraints()

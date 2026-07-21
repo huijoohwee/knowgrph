@@ -17,7 +17,8 @@ const requiredPaths = [
   'canvas/src/features/game-fps/GameModeFloatingPanelView.tsx',
   'canvas/src/features/game-fps/GameFpsMissionStage.tsx',
   'canvas/src/features/game-fps/GameFpsHud.tsx',
-  'canvas/src/features/canvas/GameFpsRunReadyDemoRuntime.tsx',
+  'canvas/src/features/canvas/CanvasStartupRuntimes.tsx',
+  'canvas/src/features/workspace-fs/workspaceRunReadyDemos.ts',
   'canvas/src/features/three/xrCanonicalSceneSpatialSource.ts',
   'canvas/src/features/three/xrSceneSurfaceRuntime.ts',
   'canvas/src/features/three/toolbarXrScenePanelRouting.ts',
@@ -29,7 +30,7 @@ const requiredPaths = [
   'canvas/src/__tests__/gameModeSpatialSourceRuntime.test.ts',
   'canvas/src/__tests__/canvasSurfaceGameDeparture.test.ts',
   'canvas/src/__tests__/canvasXrSharedSurfaceOwnership.test.ts',
-  'docs/workspace-seeds/knowgrph-game-fps-demo.md',
+  'docs/workspace-seeds/knowgrph-physics-playground-demo.md',
   'docs/documents/knowgrph-game-fps-prd-tad.md',
   'docs/documents/knowgrph-game-fps-runtime-readiness.md',
   'ecs/decisionDocument.js',
@@ -78,11 +79,32 @@ function parseFrontmatter(markdown, relPath) {
 
 for (const relPath of requiredPaths) await text(relPath)
 
-try {
-  await stat(path.join(root, 'canvas/src/features/game-fps/gameModeSceneComposition.ts'))
-  throw new Error('the deleted Game-owned replacement scene source must remain absent')
-} catch (error) {
-  if (error?.code !== 'ENOENT') throw error
+const forbiddenStandaloneSourcePaths = [
+  'canvas/src/features/canvas/GameFpsRunReadyDemoRuntime.tsx',
+  'canvas/src/features/game-fps/gameModeSceneComposition.ts',
+  'canvas/src/__tests__/gameFpsPersistedSeed.test.ts',
+  'docs/workspace-seeds/knowgrph-game-fps-demo.md',
+]
+for (const relPath of forbiddenStandaloneSourcePaths) {
+  try {
+    await stat(path.join(root, relPath))
+    throw new Error(`the deleted standalone Game Mode source must remain absent: ${relPath}`)
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+  }
+}
+
+const standaloneRouteOwners = [
+  ['canvas/src/features/canvas/CanvasStartupRuntimes.tsx', /GameFpsRunReadyDemoRuntime/],
+  ['canvas/src/features/workspace-fs/workspaceRunReadyDemos.ts', /GAME_FPS_(?:RUN_READY_DEMO_ID|DEMO_)|isGameFpsRunReadyDemoActive|knowgrph-game-fps-demo\.md/],
+  ['canvas/src/components/CanvasViewport.tsx', /isGameFpsRunReadyDemoActive|gameFpsRunReadyDemo/],
+  ['canvas/src/pages/Canvas.tsx', /isGameFpsRunReadyDemoActive|gameFpsRunReadyDemo|data-kg-game-fps-run-ready/],
+  ['package.json', /"demo:game-fps"/],
+]
+for (const [relPath, pattern] of standaloneRouteOwners) {
+  if (pattern.test(await text(relPath))) {
+    throw new Error(`standalone Game Mode source authority returned in ${relPath}`)
+  }
 }
 
 const canvasPackage = JSON.parse(await text('canvas/package.json'))
@@ -144,26 +166,62 @@ if (missionStageTags.length !== allowedMissionStageTags.length
   throw new Error(`Game FPS stage must contain only its actor root and NPC mesh template, received ${[...missionStageTags, ...missionStageComponentTags].join(', ')}`)
 }
 
-const seedPath = 'docs/workspace-seeds/knowgrph-game-fps-demo.md'
-const seed = parseFrontmatter(await text(seedPath), seedPath)
-if (seed?.run_ready_demo?.id !== 'game-fps') throw new Error('game-fps seed id is not canonical')
-if (seed?.mission?.npc_count !== 4) throw new Error('game-fps seed must declare exactly four NPCs')
-if (seed?.mission?.model_calls !== 0 || seed?.mission?.network_required !== false) {
-  throw new Error('game-fps seed must declare a zero-model, local-only mission')
+const physicsSeedPath = 'docs/workspace-seeds/knowgrph-physics-playground-demo.md'
+const physicsSeedSource = await text(physicsSeedPath)
+const physicsSeed = parseFrontmatter(physicsSeedSource, physicsSeedPath)
+if (physicsSeed?.run_ready_demo?.id !== 'xr-physics') {
+  throw new Error('the canonical source seed must remain xr-physics')
 }
-if (seed?.persistence?.automatic_git_commit !== false) {
-  throw new Error('game-fps seed must not claim automatic Git commits')
+if (physicsSeed?.game_mode?.invocation !== '/game.mode @canvas #gameplay operation=open'
+  || physicsSeed?.game_mode?.operation_invocations?.start !== '/game.mode @canvas #gameplay operation=start'
+  || physicsSeed?.game_mode?.inspect_tool !== 'knowgrph.inspect_local_game_mode'
+  || physicsSeed?.game_mode?.control_tool !== 'knowgrph.control_local_game_mode') {
+  throw new Error('the Physics source must declare explicit Game Mode overlay invocation and browser WebMCP ownership')
 }
-if (seed?.kgFloatingPanelView !== 'gameMode' || seed?.kgFloatingPanelOpen !== true) {
-  throw new Error('game-fps seed must open the canonical Game Mode FloatingPanel')
+
+async function resolveAgenticCanvasOsDocsRoot() {
+  const configured = String(process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT || '').trim()
+  if (configured) {
+    const resolved = path.resolve(configured)
+    try {
+      if ((await stat(resolved)).isDirectory()) return resolved
+    } catch {
+      // The configured source is mandatory when provided.
+    }
+    throw new Error(`KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT is not a readable directory: ${resolved}`)
+  }
+  const visited = new Set()
+  let cursor = root
+  while (true) {
+    for (const candidate of [
+      path.join(cursor, 'agentic-canvas-os', 'docs'),
+      path.join(path.dirname(cursor), 'agentic-canvas-os', 'docs'),
+    ]) {
+      if (visited.has(candidate)) continue
+      visited.add(candidate)
+      try {
+        if ((await stat(candidate)).isDirectory()) return candidate
+      } catch {
+        // Keep walking toward a shared workspace root.
+      }
+    }
+    const parent = path.dirname(cursor)
+    if (parent === cursor) return null
+    cursor = parent
+  }
 }
-if (seed?.kgCanvasRenderMode !== '3d' || seed?.kgCanvasSurfaceMode !== 'xr' || seed?.kgCanvas3dMode !== 'xr') {
-  throw new Error('game-fps seed must select the canonical shared XR Canvas surface')
-}
-if (seed?.game_mode?.invocation !== '/game.mode @canvas #gameplay operation=start'
-  || seed?.game_mode?.inspect_tool !== 'knowgrph.inspect_local_game_mode'
-  || seed?.game_mode?.control_tool !== 'knowgrph.control_local_game_mode') {
-  throw new Error('game-fps seed must declare the canonical Game Mode invocation and browser WebMCP pair')
+
+const agenticCanvasOsDocsRoot = await resolveAgenticCanvasOsDocsRoot()
+if (agenticCanvasOsDocsRoot) {
+  const projectedPhysicsSeedPath = path.join(
+    agenticCanvasOsDocsRoot,
+    'workspace-seeds',
+    'knowgrph-physics-playground-demo.md',
+  )
+  const projectedPhysicsSeedSource = await readFile(projectedPhysicsSeedPath, 'utf8')
+  if (projectedPhysicsSeedSource !== physicsSeedSource) {
+    throw new Error(`Physics source bytes differ from the Agentic Canvas OS projection: ${projectedPhysicsSeedPath}`)
+  }
 }
 
 const threeGraph = await text('canvas/src/lib/three/ThreeGraph.impl.tsx')
@@ -194,4 +252,4 @@ if (!xrWorldPlacement.includes('{gameFpsStage}')
   throw new Error(`XR Game Mode must freeze every retained authored-world branch; missing ${missingPauseTargets.join(',') || 'exact pause ownership'}`)
 }
 
-console.log(`OK game-fps source contract (${featureFiles.length} feature modules, authored-XR local-only mission)`)
+console.log(`OK game-mode source contract (${featureFiles.length} feature modules, one Physics source plus explicit authored-XR overlay)`)
