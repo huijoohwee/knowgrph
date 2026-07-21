@@ -39,17 +39,21 @@ export async function testMainPanelCanvasEmbedSettingsReuseSharedImportPanel(): 
   const migratedLegacySelection = normalizeLiveCanvasHeroCanvasEmbedUrl(
     `${CANONICAL_STARTUP_CANVAS_EMBED_URL}?kgPreview=1&kgLiveHero=1&kgCanvasSurfaceMode=2d&kgCanvasRenderMode=2d&kgCanvas2dRenderer=storyboard&openEditorWorkspace=1`,
   )
-  for (const staleParam of ['kgPreview', 'kgLiveHero', 'kgCanvasSurfaceMode', 'kgCanvasRenderMode', 'kgCanvas2dRenderer', 'openEditorWorkspace']) {
-    if (new URL(migratedLegacySelection).searchParams.has(staleParam)) {
+  const migratedCanonicalUrl = new URL(migratedLegacySelection)
+  if (migratedCanonicalUrl.searchParams.get('kgPreview') !== '1') {
+    throw new Error('expected the canonical Physics Playground frame to remain isolated from persisted workspace chrome')
+  }
+  for (const staleParam of ['kgLiveHero', 'kgCanvasSurfaceMode', 'kgCanvasRenderMode', 'kgCanvas2dRenderer', 'openEditorWorkspace']) {
+    if (migratedCanonicalUrl.searchParams.has(staleParam)) {
       throw new Error(`expected the Physics Playground frontmatter to replace stale ${staleParam} overrides`)
     }
   }
   const localRuntimeEmbed = resolveCanonicalStartupCanvasEmbedRuntimeUrl('http://localhost:5174')
-  if (!localRuntimeEmbed.startsWith('http://localhost:5174/knowgrph/share/')) {
+  if (!localRuntimeEmbed.startsWith('http://localhost:5174/knowgrph/share/') || new URL(localRuntimeEmbed).searchParams.get('kgPreview') !== '1') {
     throw new Error(`expected Dev to mirror the canonical share token through its same-origin runtime, got ${localRuntimeEmbed}`)
   }
   const candidateRuntimeEmbed = resolveCanonicalStartupCanvasEmbedRuntimeUrl('https://1234abcd.joohwee.pages.dev')
-  if (!candidateRuntimeEmbed.startsWith('https://1234abcd.joohwee.pages.dev/knowgrph/share/')) {
+  if (!candidateRuntimeEmbed.startsWith('https://1234abcd.joohwee.pages.dev/knowgrph/share/') || new URL(candidateRuntimeEmbed).searchParams.get('kgPreview') !== '1') {
     throw new Error(`expected an exact Pages deployment to retain its same-deployment canvas, got ${candidateRuntimeEmbed}`)
   }
   const previousStorageBaseUrl = process.env.VITE_KNOWGRPH_STORAGE_BASE_URL
@@ -92,6 +96,7 @@ export async function testMainPanelCanvasEmbedSettingsReuseSharedImportPanel(): 
     })
     const selectedUrl = new URL(selectedEmbedUrl)
     if (!selectedUrl.pathname.startsWith('/knowgrph/share/')
+      || selectedUrl.searchParams.get('kgPreview') !== '1'
       || selectedUrl.searchParams.has('kgCanvas2dRenderer')
       || selectedUrl.searchParams.has('openEditorWorkspace')) {
       throw new Error(`expected the preset to preserve the canonical frontmatter-owned Physics Playground identity, got ${selectedEmbedUrl}`)
