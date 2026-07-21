@@ -1,7 +1,19 @@
 import dagre from 'dagre'
+import { buildGraphDocumentMetaKey, buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
 
 export { buildGraphMetaKey } from '@/lib/graph/graphMetaKey'
 export { buildGraphMetaKeyIgnoringPending } from '@/lib/graph/graphMetaKey'
+
+export function buildFlowZoomGraphMetaKey(args: {
+  canvas2dRenderer: unknown
+  graphData: { metadata?: unknown } | null
+}): string {
+  if (String(args.canvas2dRenderer || '') === 'storyboard') {
+    const documentKey = buildGraphDocumentMetaKey(args.graphData)
+    if (documentKey) return documentKey
+  }
+  return buildGraphMetaKeyIgnoringPending(args.graphData)
+}
 
 export function deriveRankdir(args: { flowRankdir: unknown; schemaOrientation?: unknown }): 'TB' | 'LR' {
   const r = String(args.flowRankdir || '').toUpperCase()
