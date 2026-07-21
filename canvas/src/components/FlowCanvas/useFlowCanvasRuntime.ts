@@ -443,6 +443,11 @@ export function useFlowCanvasRuntime(args: {
     const open = workspaceEditorOverlayOpen === true
     const prev = workspaceOverlayOpenPrevRef.current
     if (open && !prev) {
+      // The already-rendered camera owns this document even when workspace graph
+      // mutation temporarily suppresses the init effect during overlay startup.
+      // Otherwise the first same-document topology change can re-arm initial fit.
+      lastInitTransformZoomViewKeyRef.current = storyboardCameraViewKey
+      rememberInitializedStoryboardZoomView(storyboardCameraViewKey)
       workspaceOverlayOpenedAtMsRef.current = Date.now()
       workspaceOverlayUserControlledRef.current = false
       workspaceOverlayStabilizedRef.current = false
@@ -452,7 +457,6 @@ export function useFlowCanvasRuntime(args: {
       workspaceVisibleViewportFitRecoveryKeyRef.current = null
       // Workspace open must preserve current transform authority. Explicit
       // fit/reset actions own viewport fitting; ordinary pan/zoom stays infinite.
-      if (lastInitTransformZoomViewKeyRef.current !== storyboardCameraViewKey) lastInitTransformZoomViewKeyRef.current = null
       resetFlowCanvasDebugStatus({ dismissToast: true })
       clearWorkspaceViewportSettleRetry()
     }
