@@ -162,23 +162,23 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
           onSubmit={handleSubmit}
           data-kg-live-canvas-hero-command-deck="true"
         >
-          <label className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--kg-text-secondary)]" htmlFor="knowgrph-live-canvas-hero-query">
+          <LiveCanvasHeroPromptPresetPicker
+            activePresetId={selectedPromptPresetId}
+            runtime={props.promptPresetsRuntime}
+            onSelect={selection => {
+              setSelectedPromptPresetId(selection.id)
+              setSelectedPromptPresetPrompt(selection.prompt)
+              setDraft(selection.prompt)
+              setErrorText('')
+            }}
+          />
+          <label className="mt-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--kg-text-secondary)]" htmlFor="knowgrph-live-canvas-hero-query">
             Prompt Presets
           </label>
           <LiveCanvasHeroQueryEditor value={draft} onChange={setDraft} />
           {selectedPromptPresetId === 'video-agent' && model.sourceLabel ? <p className="mt-2 truncate text-[10px] text-[var(--kg-text-secondary)]" title={model.sourceWorkspacePath || model.sourceLabel}>Script: {model.sourceLabel}</p> : null}
-          <section className="mt-3 h-36 shrink-0 overflow-y-auto overscroll-contain pr-1" aria-label="Prompt preset controls" data-kg-live-canvas-hero-prompt-controls-scroll="fixed">
+          <section className="mt-3 h-24 shrink-0 overflow-y-auto overscroll-contain pr-1" aria-label="Prompt preset controls" data-kg-live-canvas-hero-prompt-controls-scroll="fixed">
             <section className="grid gap-2">
-            <LiveCanvasHeroPromptPresetPicker
-              activePresetId={selectedPromptPresetId}
-              runtime={props.promptPresetsRuntime}
-              onSelect={selection => {
-                setSelectedPromptPresetId(selection.id)
-                setSelectedPromptPresetPrompt(selection.prompt)
-                setDraft(selection.prompt)
-                setErrorText('')
-              }}
-            />
             {!invocation && promptParameters.length ? (
               <fieldset className="h-16 overflow-hidden" data-kg-live-canvas-hero-prompt-parameters="true">
                 <legend className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--kg-text-secondary)]">

@@ -104,7 +104,7 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
     if (!commandDeck?.classList.contains('h-[29rem]') || !commandDeck.classList.contains('shrink-0') || !commandDeck.classList.contains('overflow-hidden')) {
       throw new Error('expected the Home prompt panel height to remain fixed across presets')
     }
-    for (const className of ['h-36', 'overflow-y-auto', 'overscroll-contain']) {
+    for (const className of ['h-24', 'overflow-y-auto', 'overscroll-contain']) {
       if (!promptControlsViewport?.classList.contains(className)) throw new Error(`expected fixed prompt controls viewport class ${className}`)
     }
     const projectedTokens = Array.from(editor.querySelectorAll('[data-kg-inline-invocation-edit-token="1"]')).map(node => node.textContent)
@@ -131,9 +131,13 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
       throw new Error(`expected Prompt Presets to replace the video-only Home label, got ${JSON.stringify(promptPresetsLabel?.textContent)}`)
     }
     const presetSelect = container.querySelector('[data-kg-live-canvas-hero-prompt-preset-select="true"]') as HTMLSelectElement | null
+    const presetCatalog = container.querySelector('[data-kg-live-canvas-hero-prompt-presets="true"]')
     const presetOptions = [...(presetSelect?.options || [])]
     if (!presetSelect || presetOptions.map(option => option.value).join(',') !== promptPresets.map(preset => preset.id).join(',')) {
       throw new Error(`expected Home to render the shared Prompt Presets catalog as a dropdown, got ${presetOptions.map(option => option.value).join(',')}`)
+    }
+    if (!presetCatalog || !promptPresetsLabel || !(presetCatalog.compareDocumentPosition(promptPresetsLabel) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING)) {
+      throw new Error('expected the Catalog selector to precede Prompt Presets in semantic and visual order')
     }
     if (submittedQueries.length !== 0 || completedCount !== 0) throw new Error('expected zero embedded Chat submissions on mount')
     await act(async () => {
