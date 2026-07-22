@@ -131,6 +131,8 @@ export function testPwaRuntimeTracksStandaloneInstallAndUpdateState() {
 export function testPwaIndexHtmlIncludesInstallMeta() {
   const htmlPath = path.resolve(process.cwd(), 'index.html')
   const htmlText = readUtf8(htmlPath)
+  const manifestText = readUtf8(path.resolve(process.cwd(), 'public/manifest.webmanifest'))
+  const faviconText = readUtf8(path.resolve(process.cwd(), 'public/favicon.svg'))
   if (!htmlText.includes('rel="apple-touch-icon"')) {
     throw new Error('Expected index.html to include apple-touch-icon link for iOS PWA install')
   }
@@ -142,6 +144,20 @@ export function testPwaIndexHtmlIncludesInstallMeta() {
   }
   if (!htmlText.includes('href="%BASE_URL%manifest.webmanifest"')) {
     throw new Error('Expected index.html manifest link to resolve from the configured base path so rewritten custom domains do not bind to an apex-root manifest')
+  }
+  for (const identityMarker of [
+    '<title>airvio agentic canvas</title>',
+    'name="application-name" content="airvio agentic canvas"',
+    'name="apple-mobile-web-app-title" content="airvio agentic canvas"',
+    'href="/favicon.svg?v=airvio"',
+  ]) {
+    if (!htmlText.includes(identityMarker)) throw new Error(`Expected Home Apex browser identity marker ${identityMarker}`)
+  }
+  if (!manifestText.includes('"name": "airvio agentic canvas"') || !manifestText.includes('"short_name": "airvio"')) {
+    throw new Error('Expected the installable Home Apex identity to use Airvio branding')
+  }
+  if (!faviconText.includes('aria-label="Airvio favicon"')) {
+    throw new Error('Expected Home Apex to publish the reviewed Airvio favicon asset')
   }
 }
 
