@@ -13,10 +13,16 @@ const modXrCameraMoves = () => import('@/__tests__/xrCameraMoves.test')
 const modXrShootWorkflow = () => import('@/__tests__/xrShootWorkflow.test')
 const modXrAnimationRuntime = () => import('@/__tests__/xrAnimationRuntime.test')
 const modMotionControlRuntime = () => import('@/__tests__/motionControlRuntime.test')
+const modMotionControlStartStopRace = () => import('@/__tests__/motionControlStartStopRace.test')
+const modMotionCaptureLifecycleFailure = () => import('@/__tests__/motionCaptureLifecycleFailure.test')
 const modMotionControlSmoothing = () => import('@/__tests__/motionControlSmoothing.test')
 const modMotionControlBoundingBox = () => import('@/__tests__/motionControlBoundingBox.test')
 const modMotionControlMultiObjectIdentification = () => import('@/__tests__/motionControlMultiObjectIdentification.test')
 const modMotionControlCleanRoomBoundary = () => import('@/__tests__/motionControlCleanRoomBoundary.test')
+const modMotionControlCapturePlatform = () => import('@/__tests__/motionControlCapturePlatform.test')
+const modMotionCaptureResearchIntegrity = () => import('@/__tests__/motionCaptureResearchIntegrity.test')
+const modMotionControlCaptureInvocation = () => import('@/__tests__/motionControlCaptureInvocation.test')
+const modMotionCapturePeerRuntime = () => import('@/__tests__/motionCapturePeerRuntime.test')
 const modXrKeyboardChoreography = () => import('@/__tests__/xrKeyboardChoreography.test')
 const modXrSubjectMotionConstraints = () => import('@/__tests__/xrSubjectMotionConstraints.test')
 const modXrLegacyPositionWriterConstraints = () => import('@/__tests__/xrLegacyPositionWriterConstraints.test')
@@ -134,6 +140,10 @@ export const runSchemaTests = async (results: TestResult[]) => {
     const mod = await modMotionControlRuntime()
     await mod.testMotionControlRuntimeIsLiteRtInvocableAndXrReady()
   })
+  await execTest(results, 'canvas.xrMode.motionControlStartStopRace', async () => {
+    const mod = await modMotionControlStartStopRace()
+    await mod.testMotionControlExplicitStopCancelsConcurrentStart()
+  })
   await execTest(results, 'canvas.xrMode.motionControlSmoothing', async () => {
     const mod = await modMotionControlSmoothing()
     await mod.testMotionControlSmoothingIsInferenceRateInvariant()
@@ -157,6 +167,26 @@ export const runSchemaTests = async (results: TestResult[]) => {
   await execTest(results, 'canvas.xrMode.motionControlCleanRoomBoundary', async () => {
     const mod = await modMotionControlCleanRoomBoundary()
     await mod.testMotionControlProductionRemainsCleanRoomAndDependencyFree()
+  })
+  await execTest(results, 'canvas.xrMode.motionControlCapturePlatform', async () => {
+    const mod = await modMotionControlCapturePlatform()
+    await mod.testMotionCapturePlatformIsProviderNeutralBoundedAndEvidenceGraded()
+  })
+  await execTest(results, 'canvas.xrMode.motionCaptureLifecycleFailure', async () => {
+    const mod = await modMotionCaptureLifecycleFailure()
+    await mod.testMotionCaptureLifecycleTeardownIsFailureSafe()
+  })
+  await execTest(results, 'canvas.xrMode.motionCaptureResearchIntegrity', async () => {
+    const mod = await modMotionCaptureResearchIntegrity()
+    await mod.testMotionCaptureResearchGradePreservesRecordingLocalEvidence()
+  })
+  await execTest(results, 'canvas.xrMode.motionControlCaptureInvocation', async () => {
+    const mod = await modMotionControlCaptureInvocation()
+    await mod.testMotionCaptureInvocationAndWebMcpConvergeWithoutPayloadDisclosure()
+  })
+  await execTest(results, 'canvas.xrMode.motionCapturePeerRuntime', async () => {
+    const mod = await modMotionCapturePeerRuntime()
+    await mod.testMotionCapturePeerRuntimeSharesOnlyBoundedDerivedObservations()
   })
   await execTest(results, 'canvas.xrMode.keyboardChoreography', async () => {
     const mod = await modXrKeyboardChoreography()

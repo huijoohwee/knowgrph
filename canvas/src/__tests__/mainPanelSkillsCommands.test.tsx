@@ -237,6 +237,9 @@ export async function testFloatingPanelSkillsCommandsViewReusesMediaPanelLayout(
     const skillsSearchToggle = container.querySelector('[data-kg-skills-commands-search-toggle="1"]') as HTMLButtonElement | null
     const subjectGroupToggle = container.querySelector('[data-kg-skills-commands-grammar-toggle="subject"]') as HTMLButtonElement | null
     const objectGroupToggle = container.querySelector('[data-kg-skills-commands-grammar-toggle="object"]') as HTMLButtonElement | null
+    const motionCaptureProjection = container.querySelector('[data-kg-motion-capture-projection="skills"]')
+    const motionCaptureInvocation = motionCaptureProjection?.querySelector('[data-kg-motion-capture-invocation="canonical"]')
+    const motionCaptureWebMcp = motionCaptureProjection?.querySelector('[data-kg-motion-capture-web-mcp="1"]')
     if (
       !panel ||
       panel.getAttribute('data-kg-floating-panel-catalog-layout') !== 'media-reuse' ||
@@ -259,9 +262,15 @@ export async function testFloatingPanelSkillsCommandsViewReusesMediaPanelLayout(
       subjectGroupToggle.getAttribute('aria-pressed') !== 'true' ||
       objectGroupToggle.getAttribute('aria-pressed') !== 'false' ||
       !(sharedSearchToggle instanceof dom.window.HTMLButtonElement) ||
-      skillsSearchToggle !== sharedSearchToggle
+      skillsSearchToggle !== sharedSearchToggle ||
+      !motionCaptureProjection ||
+      motionCaptureProjection.getAttribute('data-kg-motion-capture-runtime-ready') === null ||
+      !motionCaptureInvocation?.textContent?.includes('/motion.control') ||
+      !motionCaptureInvocation.textContent.includes('@canvas') ||
+      !motionCaptureInvocation.textContent.includes('#pose') ||
+      !motionCaptureWebMcp?.textContent?.includes('knowgrph.control_local_motion_control')
     ) {
-      throw new Error('Expected FloatingPanel Skills & Commands to reuse the shared fixed Media catalog header/search layout with prefix and SVO grouping controls')
+      throw new Error('Expected Skills & Commands to reuse the shared Media layout and canonical Motion Capture invocation projection')
     }
     const groupDisclosureActions = container.querySelector('[data-kg-skills-commands-disclosure-actions="header"]') as HTMLElement | null
     const groupDisclosureButton = groupDisclosureActions?.querySelector('button') as HTMLButtonElement | null

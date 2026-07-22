@@ -60,6 +60,9 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   const timelineBottomPanel = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
   const xrCameraMotion = readSource('features', 'three', 'XrCameraMotionSection.tsx')
   const xrAnimationPanel = readSource('features', 'three', 'XrAnimationFloatingPanelView.tsx')
+  const motionControlPanel = readSource('features', 'three', 'MotionControlFloatingPanelView.tsx')
+  const motionCaptureProjection = readSource('features', 'three', 'MotionCapturePlatformProjection.tsx')
+  const motionCaptureLifecycleGuard = readSource('features', 'three', 'MotionControlXrLifecycleGuard.tsx')
   const motionControlTargetCards = readSource('features', 'three', 'MotionControlTargetCards.tsx')
   const motionControlTargetRuntime = readSource('features', 'three', 'motionControlTargetRuntime.ts')
   const motionControlAgentReadyContract = readSource('features', 'agent-ready', 'motionControlAgentReadyContract.mjs')
@@ -297,6 +300,9 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   }
   for (const marker of ['data-kg-media-mode-switcher="header-icons"', 'data-kg-media-library-toggle="1"', 'data-kg-media-3d-toggle="1"', 'title="Media"', 'title="3D for XR"', 'subscribeMediaCatalogMode', 'readMediaCatalogMode', '<XrMediaLibraryPanel']) {
     if (!mediaCatalog.includes(marker)) throw new Error(`expected Media to own the canonical 3D entry through ${marker}`)
+  }
+  if (!motionControlPanel.includes('<MotionCapturePlatformProjection variant="full"') || !mediaCatalog.includes('<MotionCapturePlatformProjection variant="media"') || !motionCaptureProjection.includes('data-kg-motion-capture-research-ready') || !motionCaptureProjection.includes('data-kg-motion-capture-peer-sharing') || !motionCaptureProjection.includes('disabled={!captureSurfaceActive || session.sources.length === 0') || !motionCaptureProjection.includes('disabled={!captureSurfaceActive || !peerSharing.available') || !motionCaptureLifecycleGuard.includes('stopMotionCaptureOutsideXrSurface')) {
+    throw new Error('expected Motion Control and Media to share an evidence-gated, peer-ready capture platform projection')
   }
   if (!mediaCatalogModeRuntime.includes("let snapshot: MediaCatalogMode = 'media'") || !mediaCatalogModeRuntime.includes('for (const listener of listeners) listener()')) {
     throw new Error('expected Media and 3D for XR to share one observable catalog mode owner')
