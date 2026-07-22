@@ -122,7 +122,7 @@ Open [airvio.co/knowgrph](https://airvio.co/knowgrph/) and confirm:
 
 - the page title is `knowgrph`
 - the main shell renders instead of a blank page or edge error
-- the apex hero renders `Map intent.`, `Orchestrate agents.`, and `Prove outcomes.` with a ready canvas iframe
+- the apex hero renders `Map intent`, `Run agents`, and `Get results` with a ready canvas iframe
 - neither surface remains on `Switching document` or `Preparing canvas view...`
 - the top-level controls are present: `Launch`, `Workspace View`, `Interaction`,
   `Settings`, `History`, `Help`
