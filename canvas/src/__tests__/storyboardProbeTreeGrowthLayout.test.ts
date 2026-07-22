@@ -71,12 +71,12 @@ export function testProbeTreeInitialSiblingBatchBalancesAroundOccupiedCards() {
   assert(normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData: normalized, threadRootId: 'root' }) === normalized, 'expected the settled collision-free first turn to remain idempotent')
 }
 
-export function testProbeTreeFrontmatterLayoutIgnoresNonRenderedStructuralObstacles() {
+export function testProbeTreeFrontmatterLayoutIgnoresWidgetEligibleNodesOutsideVisibleBundle() {
   const hiddenObstacleNodes = Array.from({ length: 8 }, (_, columnIndex) => (
     Array.from({ length: 5 }, (_, verticalIndex) => ({
       id: `hidden-${columnIndex + 1}-${verticalIndex + 1}`,
-      type: 'Section',
-      label: 'Hidden structural node',
+      type: 'TextGeneration',
+      label: 'Eligible but hidden card',
       x: (columnIndex + 1) * 430,
       y: (verticalIndex - 2) * 680,
       properties: {},
@@ -84,7 +84,11 @@ export function testProbeTreeFrontmatterLayoutIgnoresNonRenderedStructuralObstac
   )).flat()
   const graphData: GraphData = {
     type: 'Graph',
-    metadata: { kind: 'frontmatter-flow', frontmatterFlowSettings: { gridSize: 20 } },
+    metadata: {
+      kind: 'frontmatter-flow',
+      frontmatterFlowSettings: { gridSize: 20 },
+      frontmatterMeta: { widget_bundle: { graph: { nodes_ref: ['root', 'a', 'b'] } } },
+    },
     nodes: [
       { id: 'root', type: 'TextGeneration', label: 'Root', x: 0, y: 0, properties: {} },
       ...hiddenObstacleNodes,
@@ -112,11 +116,11 @@ export function testProbeTreeFrontmatterLayoutIgnoresNonRenderedStructuralObstac
   const branchPositions = ['a', 'b'].map(id => readPosition(normalized, id))
   assert(
     Math.max(...branchPositions.map(position => position.x)) <= 860,
-    `expected hidden frontmatter structural nodes not to push rendered Probe-Tree output away from its source, got ${JSON.stringify(branchPositions)}`,
+    `expected widget-eligible nodes outside the rendered frontmatter bundle not to push Probe-Tree output away from its source, got ${JSON.stringify(branchPositions)}`,
   )
   assert(branchPositions.every(position => position.x > 0), `expected compact branches to remain forward of their source, got ${JSON.stringify(branchPositions)}`)
   assertProbeCardsDoNotOverlap(normalized, ['a', 'b'])
-  assert(hiddenObstacleNodes.every(node => normalized.nodes.find(candidate => candidate.id === node.id) === node), 'expected ignored structural nodes to remain byte-identical')
+  assert(hiddenObstacleNodes.every(node => normalized.nodes.find(candidate => candidate.id === node.id) === node), 'expected ignored non-rendered nodes to remain byte-identical')
   assert(normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData: normalized, threadRootId: 'root' }) === normalized, 'expected compact migrated layout to remain idempotent')
 }
 
