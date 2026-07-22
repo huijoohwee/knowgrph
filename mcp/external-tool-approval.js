@@ -79,7 +79,7 @@ export function createExternalToolApprovalToken(args = {}) {
   return Object.freeze({ ...token, signature: signTokenPayload(token, secret) });
 }
 
-export function authorizeExternalToolAction(args = {}) {
+export function verifyExternalToolApproval(args = {}) {
   const actionDigest = String(args.actionDigest || "").trim();
   const token = args.token;
   if (!token || typeof token !== "object" || Array.isArray(token)) {
@@ -111,7 +111,13 @@ export function authorizeExternalToolAction(args = {}) {
   if (consumedTokenIds.has(tokenId)) {
     throw new ExternalToolApprovalError("approval_consumed", "Approval token has already been consumed.", actionDigest);
   }
-  // Reserve before the egressing mutation so concurrent calls cannot reuse the token.
-  consumedTokenIds.add(tokenId);
   return Object.freeze({ ok: true, gateId: EXTERNAL_FILE_WRITE_GATE_ID, tokenId, actionDigest });
+}
+
+export function authorizeExternalToolAction(args = {}) {
+  const verified = verifyExternalToolApproval(args);
+  const consumedTokenIds = args.consumedTokenIds;
+  // Reserve before the egressing mutation so concurrent calls cannot reuse the token.
+  consumedTokenIds.add(verified.tokenId);
+  return verified;
 }

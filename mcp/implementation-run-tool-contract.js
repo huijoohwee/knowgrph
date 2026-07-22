@@ -108,19 +108,19 @@ export function buildImplementationRunToolDefinitions({ toolNames, withDefaults 
   return [
     withDefaults(descriptor(
       toolNames.implementationRunPlan,
-      "Validate a managed implementation run and return an exact non-mutating execution plan, source revision, policy decision, and containment boundary.",
+      "Use this when a local MCP host needs to validate a managed implementation run and return an exact non-mutating execution plan, source revision, policy decision, and containment boundary.",
       IMPLEMENTATION_RUN_SPEC_SCHEMA,
       READ_ONLY,
     ), READ_ONLY),
     withDefaults(descriptor(
       toolNames.implementationRunStart,
-      "Idempotently persist and start one bounded isolated implementation run under the local durable supervisor; it stops at delivery_ready and never merges or deploys.",
+      "Use this when a local MCP host needs to idempotently persist and start one bounded isolated implementation run under the local durable supervisor; it stops at delivery_ready and never merges or deploys.",
       IMPLEMENTATION_RUN_SPEC_SCHEMA,
       LOCAL_MUTATION,
     ), LOCAL_MUTATION),
     withDefaults(descriptor(
       toolNames.implementationRunList,
-      "List durable implementation runs or read one run without starting agents or changing repository state.",
+      "Use this when a local MCP host needs to list durable implementation runs or read one run without starting agents or changing repository state.",
       {
         type: "object",
         additionalProperties: false,
@@ -136,7 +136,7 @@ export function buildImplementationRunToolDefinitions({ toolNames, withDefaults 
     ), READ_ONLY),
     withDefaults(descriptor(
       toolNames.implementationRunControl,
-      "Request a supervisor-owned pause, cancel, retry, or explicit review decision using compare-and-swap revision fencing.",
+      "Use this when a local MCP host needs to request a supervisor-owned pause, cancel, retry, or explicit review decision using compare-and-swap revision fencing.",
       {
         type: "object",
         additionalProperties: false,

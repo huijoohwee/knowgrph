@@ -34,11 +34,8 @@ const sha256Hex = async (text: string): Promise<string> => {
 export async function testKnowgrphVdeoxplnRegistryProjectsToAgentSkillsMainPanelAndMcp() {
   const repoRoot = path.resolve(process.cwd(), '..')
   const contractText = fs.readFileSync(path.resolve(process.cwd(), 'src', 'features', 'agent-ready', 'knowgrphVdeoxplnContract.mjs'), 'utf8')
-  if (contractText.includes('from "grph-shared/hash/signature"')) {
-    throw new Error('expected Pages-bundled vdeoxpln contract to avoid package-only hash helper imports')
-  }
-  if (!contractText.includes('from "../../../../grph-shared/dist/hash/signature.js"')) {
-    throw new Error('expected vdeoxpln semantic keys to use the synced shared hash runtime')
+  if (contractText.includes('grph-shared') || !contractText.includes('from "../../../../contracts/semantic-key.js"')) {
+    throw new Error('expected vdeoxpln semantic keys to retain the source-owned semantic-key contract')
   }
   const syncScriptText = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'sync-pages-knowgrph.mjs'), 'utf8')
   if (!syncScriptText.includes("'dist/hash/signature.js'")) {
@@ -52,6 +49,17 @@ export async function testKnowgrphVdeoxplnRegistryProjectsToAgentSkillsMainPanel
   const localMcp = registry.find(vdeoxpln => vdeoxpln.id === KNOWGRPH_VDEOXPLN_IDS.localMcp)
   for (const token of ['/implementation.run', '#managed-implementation-run', '@work-item', '@implementation-run']) {
     if (!localMcp?.triggers.includes(token)) throw new Error(`expected local MCP vdeoxpln triggers to include ${token}`)
+  }
+  const applicationComposition = registry.find(vdeoxpln => vdeoxpln.id === KNOWGRPH_VDEOXPLN_IDS.applicationComposition)
+  for (const token of ['/application.compose', '#application-composition', '@application-manifest', '@component-catalog', '@integration-profile', '@runtime-proof']) {
+    if (!applicationComposition?.triggers.includes(token)) throw new Error(`expected application composition triggers to include ${token}`)
+  }
+  for (const tool of [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.applicationCatalog, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.applicationPlan, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.applicationExecute]) {
+    if (!applicationComposition?.tools.local.includes(tool)) throw new Error(`expected application composition to route ${tool}`)
+  }
+  const applicationPlan = buildKnowgrphVdeoxplnRoutingPlan({ intentText: applicationComposition?.triggers.join(' '), requestedOutputs: ['immutable application-composition-plan/v1'] })
+  if (applicationPlan.selectedVdeoxplnId !== KNOWGRPH_VDEOXPLN_IDS.applicationComposition || applicationPlan.executionStages.some(stage => stage.id === 'floating-panel-chat' || stage.kind === 'ai-assisted')) {
+    throw new Error(`expected application composition to use only its exact local MCP route, got ${JSON.stringify(applicationPlan.executionStages)}`)
   }
 
   const ids = registry.map(vdeoxpln => vdeoxpln.id)

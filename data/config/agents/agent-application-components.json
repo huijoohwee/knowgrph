@@ -81,7 +81,7 @@
         "additionalProperties": false,
         "required": ["template"],
         "properties": {
-          "template": { "type": "string", "minLength": 1, "maxLength": 20000 }
+          "template": { "type": "string", "minLength": 1, "maxLength": 20000, "pattern": "\\{\\{input\\}\\}" }
         }
       },
       "runtime": {

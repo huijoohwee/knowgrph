@@ -27,8 +27,6 @@ const MAX_MANIFEST_BYTES = 128 * 1024;
 const MAX_COMPONENTS = 100;
 const MAX_NODES = 64;
 const MAX_EDGES = 128;
-const FORBIDDEN_CONFIG_KEY = /(?:^|[_-])(?:authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password|cookie|command|args|cwd|endpoint|server[_-]?url|url|headers?|env|provider|deploy|publish|adapter|transport|tool[_-]?result)(?:$|[_-])/i;
-const URL_VALUE = /(?:https?|file):\/\//i;
 const validatorFactory = new AjvJsonSchemaValidator(new Ajv2020({ strict: false }));
 const validatorCache = new Map();
 const compareCodeUnits = (left, right) => left < right ? -1 : left > right ? 1 : 0;
@@ -44,14 +42,17 @@ const stableValue = (value, path = "$", ancestors = new WeakSet()) => {
   if (ancestors.has(value)) throw new TypeError(`${path} contains a cycle.`);
   ancestors.add(value);
   if (Array.isArray(value)) {
-    if (Object.keys(value).length !== value.length || Reflect.ownKeys(value).some((key) => typeof key === "symbol")) throw new TypeError(`${path} contains a sparse or decorated array.`);
+    const ownKeys = Reflect.ownKeys(value);
+    if (ownKeys.length !== value.length + 1 || ownKeys.some((key) => typeof key === "symbol")) throw new TypeError(`${path} contains a sparse, decorated, or accessor array.`);
+    for (let index = 0; index < value.length; index += 1) { const descriptor = Object.getOwnPropertyDescriptor(value, String(index)); if (!descriptor?.enumerable || !("value" in descriptor)) throw new TypeError(`${path} contains a sparse, decorated, or accessor array.`); }
     const normalized = value.map((entry, index) => stableValue(entry, `${path}[${index}]`, ancestors));
     ancestors.delete(value);
     return normalized;
   }
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) throw new TypeError(`${path} contains a non-JSON object.`);
-  if (Reflect.ownKeys(value).some((key) => typeof key === "symbol")) throw new TypeError(`${path} contains a symbol key.`);
+  const ownKeys = Reflect.ownKeys(value);
+  if (ownKeys.some((key) => typeof key === "symbol") || ownKeys.some((key) => { const descriptor = Object.getOwnPropertyDescriptor(value, key); return !descriptor?.enumerable || !("value" in descriptor); })) throw new TypeError(`${path} contains a symbol, hidden property, or accessor.`);
   const normalized = Object.create(null);
   for (const key of Object.keys(value).sort(compareCodeUnits)) normalized[key] = stableValue(value[key], `${path}.${key}`, ancestors);
   ancestors.delete(value);
@@ -162,16 +163,17 @@ const validId = (value) => new RegExp(SAFE_ID).test(String(value || ""));
 const validRevision = (value) => new RegExp(EXACT_REVISION).test(String(value || ""));
 const normalizePort = (port, direction, label, errors) => {
   const keys = direction === "input" ? ["name", "schemaRef", "kinds", "required"] : ["name", "schemaRef", "kinds"];
+  const kinds = Array.isArray(port?.kinds) ? port.kinds : [];
   exactKeys(port, keys, label, errors);
   if (!validId(port?.name) || String(port?.name).length > 120) errors.push(`${label}.name is invalid.`);
   if (port?.schemaRef !== APPLICATION_VALUE_SCHEMA_ID) errors.push(`${label}.schemaRef is unsupported.`);
   if (!Array.isArray(port?.kinds) || !port.kinds.length || new Set(port.kinds).size !== port.kinds.length) errors.push(`${label}.kinds must be a non-empty unique array.`);
-  for (const kind of port?.kinds || []) if (!APPLICATION_VALUE_SCHEMA.properties.kind.enum.includes(kind)) errors.push(`${label}.kinds contains unsupported ${kind}.`);
+  for (const kind of kinds) if (!APPLICATION_VALUE_SCHEMA.properties.kind.enum.includes(kind)) errors.push(`${label}.kinds contains unsupported ${kind}.`);
   if (direction === "input" && typeof port?.required !== "boolean") errors.push(`${label}.required must be boolean.`);
-  return deepFreezeApplicationValue({ name: port?.name, schemaRef: port?.schemaRef, schema: APPLICATION_VALUE_SCHEMA, schemaDigest: digestApplicationValue(APPLICATION_VALUE_SCHEMA), kinds: [...(port?.kinds || [])].sort(compareCodeUnits), ...(direction === "input" ? { required: port?.required } : {}) });
+  return deepFreezeApplicationValue({ name: port?.name, schemaRef: port?.schemaRef, schema: APPLICATION_VALUE_SCHEMA, schemaDigest: digestApplicationValue(APPLICATION_VALUE_SCHEMA), kinds: [...kinds].sort(compareCodeUnits), ...(direction === "input" ? { required: port?.required } : {}) });
 };
 const normalizeCapabilities = (entries, label, errors, { nonEmpty = false } = {}) => {
-  if (!Array.isArray(entries) || (nonEmpty && !entries.length)) { errors.push(`${label} must be ${nonEmpty ? "a non-empty" : "an"} array.`); return []; }
+  if (!Array.isArray(entries) || (nonEmpty && !entries.length) || entries.length > 32) { errors.push(`${label} must be ${nonEmpty ? "a non-empty" : "an"} array with at most 32 entries.`); return []; }
   const normalized = entries.map((entry, index) => {
     exactKeys(entry, ["id", "revision"], `${label}[${index}]`, errors);
     if (!validId(entry?.id) || !validId(entry?.revision)) errors.push(`${label}[${index}] is invalid.`);
@@ -189,7 +191,7 @@ export function validateApplicationComponentCatalog(document = componentCatalogD
   if (!Array.isArray(document?.components) || !document.components.length || document.components.length > MAX_COMPONENTS) errors.push(`catalog.components must contain 1-${MAX_COMPONENTS} entries.`);
   const normalized = [];
   const keys = new Set();
-  for (const [index, component] of (document?.components || []).entries()) {
+  for (const [index, component] of (Array.isArray(document?.components) ? document.components : []).entries()) {
     const label = `catalog.components[${index}]`;
     const errorCount = errors.length;
     if (!isRecord(component)) { errors.push(`${label} must be an object.`); continue; }
@@ -198,10 +200,12 @@ export function validateApplicationComponentCatalog(document = componentCatalogD
     const key = `${component?.id}@${component?.revision}`;
     if (keys.has(key)) errors.push(`${label} duplicates ${key}.`);
     keys.add(key);
+    if (typeof component?.title !== "string" || !component.title.trim() || component.title.length > 160) errors.push(`${label}.title must be a non-empty string of at most 160 characters.`);
+    if (typeof component?.description !== "string" || !component.description.trim() || component.description.length > 500) errors.push(`${label}.description must be a non-empty string of at most 500 characters.`);
     if (!["experimental", "stable", "deprecated"].includes(component?.stability)) errors.push(`${label}.stability is invalid.`);
-    if (!Array.isArray(component?.inputs) || !Array.isArray(component?.outputs) || !component?.outputs?.length) errors.push(`${label} ports are invalid.`);
-    const inputs = (component?.inputs || []).map((port, portIndex) => normalizePort(port, "input", `${label}.inputs[${portIndex}]`, errors));
-    const outputs = (component?.outputs || []).map((port, portIndex) => normalizePort(port, "output", `${label}.outputs[${portIndex}]`, errors));
+    if (!Array.isArray(component?.inputs) || component.inputs.length > 32 || !Array.isArray(component?.outputs) || !component?.outputs?.length || component.outputs.length > 32) errors.push(`${label} inputs and outputs must be arrays with at most 32 entries, and outputs must be non-empty.`);
+    const inputs = (Array.isArray(component?.inputs) ? component.inputs.slice(0, 33) : []).map((port, portIndex) => normalizePort(port, "input", `${label}.inputs[${portIndex}]`, errors));
+    const outputs = (Array.isArray(component?.outputs) ? component.outputs.slice(0, 33) : []).map((port, portIndex) => normalizePort(port, "output", `${label}.outputs[${portIndex}]`, errors));
     for (const [direction, ports] of [["inputs", inputs], ["outputs", outputs]]) if (new Set(ports.map((port) => port.name)).size !== ports.length) errors.push(`${label}.${direction} contains duplicate names.`);
     if (!isRecord(component?.configSchema) || component.configSchema.$schema !== DRAFT_2020_12 || component.configSchema.additionalProperties !== false) errors.push(`${label}.configSchema must be a closed Draft 2020-12 schema.`);
     else try { schemaValidator(component.configSchema); } catch (error) { errors.push(`${label}.configSchema is invalid: ${error instanceof Error ? error.message : String(error)}`); }
@@ -237,15 +241,6 @@ export const APPLICATION_COMPONENT_CATALOG = catalogValidation.catalog;
 export const APPLICATION_COMPONENT_CATALOG_DIGEST = catalogValidation.catalogDigest;
 export const listApplicationComponents = () => APPLICATION_COMPONENT_CATALOG.components.map((component) => structuredClone(component));
 
-const forbiddenConfig = (value, path = "config", errors = []) => {
-  if (Array.isArray(value)) value.forEach((entry, index) => forbiddenConfig(entry, `${path}[${index}]`, errors));
-  else if (isRecord(value)) for (const [key, entry] of Object.entries(value)) {
-    if (FORBIDDEN_CONFIG_KEY.test(key)) errors.push(`${path}.${key} is forbidden; runtime authority must remain host-owned.`);
-    forbiddenConfig(entry, `${path}.${key}`, errors);
-  }
-  else if (typeof value === "string" && URL_VALUE.test(value)) errors.push(`${path} may not contain caller-supplied transport URLs.`);
-  return errors;
-};
 const componentByRef = (catalog, ref) => catalog.components.find((component) => component.id === ref.id && component.revision === ref.revision);
 const portByName = (ports, name) => ports.find((port) => port.name === name);
 const endpointKey = (endpoint) => `${endpoint.node}.${endpoint.port}`;
@@ -291,7 +286,6 @@ export function compileApplicationManifest(raw, { catalog = APPLICATION_COMPONEN
       continue;
     }
     for (const message of validateJsonSchema(component.configSchema, node.config)) diagnostics.push({ code: "component_config_invalid", message, nodeId: node.id, component: node.component });
-    for (const message of forbiddenConfig(node.config, `nodes.${node.id}.config`)) diagnostics.push({ code: "caller_authority_forbidden", message, nodeId: node.id });
     resolved.set(node.id, component);
     effectiveOutputKinds.set(node.id, Object.fromEntries(component.outputs.map((port) => [port.name, component.id === "core.input" && port.name === "value" && node.config?.value?.kind ? [node.config.value.kind] : [...port.kinds]])));
   }

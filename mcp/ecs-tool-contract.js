@@ -41,7 +41,7 @@ const ECS_TOOL_DEFINITIONS = Object.freeze([
   {
     name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.ecsSessionStart,
     title: "Start Agentic ECS session",
-    description: `Hydrate one existing repository KGC Markdown document into an ephemeral ECS session. Invocation: ${ECS_INVOCATION_GRAMMAR[KNOWGRPH_LOCAL_MCP_TOOL_NAMES.ecsSessionStart]}`,
+    description: `Use this when a local MCP host needs to hydrate one existing repository KGC Markdown document into an ephemeral ECS session. Invocation: ${ECS_INVOCATION_GRAMMAR[KNOWGRPH_LOCAL_MCP_TOOL_NAMES.ecsSessionStart]}`,
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -57,7 +57,7 @@ const ECS_TOOL_DEFINITIONS = Object.freeze([
   {
     name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.ecsWorldTick,
     title: "Advance Agentic ECS world",
-    description: `Advance one ephemeral ECS World and retain only completed Decisions for terminal persistence. Invocation: ${ECS_INVOCATION_GRAMMAR[KNOWGRPH_LOCAL_MCP_TOOL_NAMES.ecsWorldTick]}`,
+    description: `Use this when a local MCP host needs to advance one ephemeral ECS World and retain only completed Decisions for terminal persistence. Invocation: ${ECS_INVOCATION_GRAMMAR[KNOWGRPH_LOCAL_MCP_TOOL_NAMES.ecsWorldTick]}`,
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -74,7 +74,7 @@ const ECS_TOOL_DEFINITIONS = Object.freeze([
   {
     name: KNOWGRPH_LOCAL_MCP_TOOL_NAMES.ecsDecisionPersist,
     title: "Persist Agentic ECS Decisions",
-    description: `Persist only completed Decisions retained by the referenced ECS session, then close it. Invocation: ${ECS_INVOCATION_GRAMMAR[KNOWGRPH_LOCAL_MCP_TOOL_NAMES.ecsDecisionPersist]}`,
+    description: `Use this when a local MCP host needs to persist only completed Decisions retained by the referenced ECS session, then close it. Invocation: ${ECS_INVOCATION_GRAMMAR[KNOWGRPH_LOCAL_MCP_TOOL_NAMES.ecsDecisionPersist]}`,
     inputSchema: {
       type: "object",
       additionalProperties: false,
