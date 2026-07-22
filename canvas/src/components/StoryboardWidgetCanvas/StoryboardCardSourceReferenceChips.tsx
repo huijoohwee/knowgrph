@@ -28,7 +28,10 @@ export function StoryboardCardSourceReferenceChips(props: {
             data-kg-storyboard-card-source-node-id={reference.nodeId}
             data-kg-storyboard-card-source-target-fields={reference.targetFieldIds.join(',')}
             title={`Connected source: ${reference.label}`}
+            onPointerDown={event => event.stopPropagation()}
+            onMouseDown={event => event.stopPropagation()}
             onClick={event => {
+              event.preventDefault()
               event.stopPropagation()
               props.onActivate?.(reference)
             }}
