@@ -510,6 +510,7 @@ import type { TestCaseTuple } from '../runner/testRunnerTypes'; export const TES
   ["dnd.flowWidgetDragPayload.textPlainFallback","@/__tests__/flowWidgetDrag.test","testFlowWidgetDragPayloadReadsFromTextPlainFallback"],
   ["dnd.flowWidgetDragPayload.uriListFallback","@/__tests__/flowWidgetDrag.test","testFlowWidgetDragPayloadReadsFromUriListFallback"],
   ["dnd.flowWidgetDragPayload.registryShape","@/__tests__/flowWidgetDrag.test","testFlowWidgetDragPayloadCarriesRegistryShape"],
+  ["dnd.flowWidgetDragPayload.explicitTypePrecedence","@/__tests__/flowWidgetDrag.test","testFlowWidgetDragTypeDoesNotClaimGenericMediaFallbacks"],
   ["dnd.flowWidgetDragPayload.pointerReleaseEvent","@/__tests__/flowWidgetDrag.test","testFlowWidgetPointerDragDispatchesDropReleaseEvent"],
   ["dnd.flowWidgetDragPayload.pointerReleaseTrackedPoint","@/__tests__/flowWidgetDrag.test","testFlowWidgetPointerDragReleaseUsesTrackedPointForNativeDragEnd"],
   ["io.widgetBundle.roundtrip.includesRegistryMetadata","@/__tests__/widgetBundleRoundtrip.test","testWidgetBundleRoundtripParsesWithRegistryMetadata"],
