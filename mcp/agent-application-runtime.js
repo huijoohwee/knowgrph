@@ -177,13 +177,19 @@ export function createAgentApplicationRuntime({ adapterRegistry, executionLedger
   if (!adapterRegistry || typeof adapterRegistry.resolve !== "function" || !SHA256.test(adapterRegistry.policyDigest) || typeof adapterRegistry.resolveNodeOwnerEvidence !== "function") throw new TypeError("Application runtime requires an exact host adapter registry.");
   if (!(executionLedger instanceof Map)) throw new TypeError("Application execution ledger must be Map-backed.");
   if (!Number.isInteger(maxLedgerEntries) || maxLedgerEntries < 1 || maxLedgerEntries > 100_000 || !Number.isInteger(ledgerTtlMs) || ledgerTtlMs < 60_000 || ledgerTtlMs > 7 * 24 * 60 * 60 * 1000) throw new TypeError("Application execution ledger bounds are invalid.");
+  const suppliedCatalog = adapterRegistry.componentCatalog || APPLICATION_COMPONENT_CATALOG;
+  const activeCatalogDigest = adapterRegistry.componentCatalogDigest || APPLICATION_COMPONENT_CATALOG_DIGEST;
+  let activeCatalog;
+  try { activeCatalog = deepFreezeApplicationValue(JSON.parse(stableApplicationJson(suppliedCatalog))); }
+  catch { throw new TypeError("Application runtime component catalog must be immutable pure JSON data."); }
+  if (!activeCatalog || activeCatalog.schemaVersion !== APPLICATION_COMPONENT_CATALOG.schemaVersion || activeCatalog.catalogRevision !== APPLICATION_COMPONENT_CATALOG.catalogRevision || !Array.isArray(activeCatalog.components) || !activeCatalog.components.length || activeCatalog.components.length > 100 || !SHA256.test(activeCatalogDigest) || digestApplicationValue(activeCatalog) !== activeCatalogDigest) throw new TypeError("Application runtime component catalog evidence is invalid.");
 
   const catalog = (args = {}) => {
     if (!exactArgumentKeys(args, [])) return fail("invalid_catalog_input", "Catalog accepts exactly an empty object.");
     let integrations; try { integrations = projectIntegrations(adapterRegistry.integrations); } catch { integrations = null; }
     if (!integrations) return fail("integration_catalog_invalid", "Host integration evidence does not satisfy the exact public catalog contract.");
     const components = [];
-    for (const component of APPLICATION_COMPONENT_CATALOG.components) {
+    for (const component of activeCatalog.components) {
       let resolution; try { resolution = adapterRegistry.resolve(component); } catch { resolution = null; }
       if (!resolution?.ok) { const error = publicOwnerFailure(resolution?.error, "component_adapter_unavailable"); return fail(error.code, error.message); }
       const adapter = projectPublicAdapter(resolution.adapter);
@@ -198,12 +204,12 @@ export function createAgentApplicationRuntime({ adapterRegistry, executionLedger
         sideEffect: component.runtime.sideEffect, replay: component.runtime.replay, adapter,
       });
     }
-    return deepFreezeApplicationValue({ ok: true, schemaVersion: CATALOG_RESULT_SCHEMA_ID, catalogRevision: APPLICATION_COMPONENT_CATALOG.catalogRevision, catalogDigest: APPLICATION_COMPONENT_CATALOG_DIGEST, adapterPolicyDigest: adapterRegistry.policyDigest, components, integrations });
+    return deepFreezeApplicationValue({ ok: true, schemaVersion: CATALOG_RESULT_SCHEMA_ID, catalogRevision: activeCatalog.catalogRevision, catalogDigest: activeCatalogDigest, adapterPolicyDigest: adapterRegistry.policyDigest, components, integrations });
   };
 
   const plan = (args = {}) => {
     if (!exactArgumentKeys(args, ["manifest", "mode"]) || !["dry-run", "live"].includes(args.mode)) return fail("invalid_plan_input", "Plan accepts exactly manifest and execution mode.");
-    const compiled = compileApplicationManifest(args.manifest);
+    const compiled = compileApplicationManifest(args.manifest, { catalog: activeCatalog, catalogDigest: activeCatalogDigest });
     if (!compiled.ok) return fail("application_manifest_invalid", "Application planning failed closed.", { diagnostics: publicDiagnostics(compiled.diagnostics), diagnosticsTruncated: compiled.diagnostics.length > 256 });
     if (compiled.manifest.runtimeProof.adapterPolicyDigest !== adapterRegistry.policyDigest) return fail("adapter_policy_drift", "runtimeProof.adapterPolicyDigest does not match the exact active adapter policy.");
     const nodes = [];
@@ -216,7 +222,7 @@ export function createAgentApplicationRuntime({ adapterRegistry, executionLedger
       let owner; try { owner = adapterRegistry.resolveNodeOwnerEvidence(node, component, resolution.adapter); } catch { owner = null; }
       if (!owner?.ok) { const error = publicOwnerFailure(owner?.error); return fail(error.code, error.message, { nodeId: node.id }); }
       const ownerEvidence = projectOwnerEvidence(owner.evidence);
-      if (!ownerEvidence) return fail("owner_evidence_invalid", "Runtime owner evidence does not satisfy the exact public contract.", { nodeId: node.id });
+      if (!ownerEvidence || ownerEvidence.ownerId !== component.runtime.ownerId) return fail("owner_evidence_invalid", "Runtime owner evidence does not satisfy the exact public contract.", { nodeId: node.id });
       nodes.push({
         id: node.id,
         component: { id: component.id, revision: component.revision, sourceDigest: component.source.sourceDigest, definitionDigest: component.definitionDigest, configSchemaDigest: component.configSchemaDigest },
@@ -256,7 +262,7 @@ export function createAgentApplicationRuntime({ adapterRegistry, executionLedger
     }
     if (executionLedger.size >= maxLedgerEntries) return boundEarly(fail("application_ledger_full", "The bounded execution ledger is full; reconcile or provision a host-owned ledger before another run."));
     executionLedger.set(args.idempotencyKey, deepFreezeApplicationValue({ executionDigest, state: "running", protected: false }));
-    const compiled = compileApplicationManifest(args.manifest);
+    const compiled = compileApplicationManifest(args.manifest, { catalog: activeCatalog, catalogDigest: activeCatalogDigest });
     const values = new Map();
     const steps = [];
     const startedAt = Date.now();
