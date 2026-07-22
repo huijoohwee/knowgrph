@@ -68,6 +68,7 @@ const VISION_REVIEW_PASSES: readonly ImageToGlbVisionReviewPass[] = [
     iteration: 1,
     stage: 'reference-analysis',
     verdict: 'revise',
+    reviewer: { evidenceDigest: REVIEW_EVIDENCE.projectionDigest, kind: 'native-deterministic' },
     observations: ['The first silhouette lacked a distinct upper profile.'],
     evidence: REVIEW_EVIDENCE,
   },
@@ -75,6 +76,7 @@ const VISION_REVIEW_PASSES: readonly ImageToGlbVisionReviewPass[] = [
     iteration: 2,
     stage: 'procedural-geometry',
     verdict: 'approved',
+    reviewer: { evidenceDigest: 'independent-provider-review-2', kind: 'independent-provider' },
     observations: ['The procedural volume and contour now express the reviewed reference silhouette.'],
     evidence: REVIEW_EVIDENCE,
   },
@@ -82,6 +84,7 @@ const VISION_REVIEW_PASSES: readonly ImageToGlbVisionReviewPass[] = [
     iteration: 3,
     stage: 'artifact-review',
     verdict: 'approved',
+    reviewer: { evidenceDigest: 'independent-provider-review-3', kind: 'independent-provider' },
     observations: ['The scene remains editable as native Three.js meshes and lines.'],
     evidence: REVIEW_EVIDENCE,
   },
@@ -114,7 +117,7 @@ function paintRect(pixels: ImageReferencePixels, left: number, top: number, righ
   }
 }
 
-function buildRingFrameReference(): ImageReferencePixels {
+function buildStructuredReference(): ImageReferencePixels {
   const pixels = createTransparentPixels()
   paintRect(pixels, 7, 8, 64, 17)
   paintRect(pixels, 9, 18, 22, 22)
@@ -129,6 +132,12 @@ function buildAsymmetricReference(): ImageReferencePixels {
   const pixels = createTransparentPixels()
   paintRect(pixels, 8, 10, 28, 60, { r: 72, g: 132, b: 184 })
   paintRect(pixels, 29, 42, 62, 60, { r: 44, g: 92, b: 142 })
+  return pixels
+}
+
+function buildSingleVolumeReference(): ImageReferencePixels {
+  const pixels = createTransparentPixels()
+  paintRect(pixels, 12, 9, 59, 62, { r: 96, g: 148, b: 208 })
   return pixels
 }
 
@@ -191,6 +200,7 @@ export function testImageToGlbReviewRejectsMissingReferenceProjectionEvidence() 
       iteration: 1,
       stage: 'reference-analysis',
       verdict: 'revise',
+      reviewer: { evidenceDigest: REVIEW_EVIDENCE.projectionDigest, kind: 'native-deterministic' },
       observations: ['A final approval is still required.'],
       evidence: REVIEW_EVIDENCE,
     }],
@@ -207,92 +217,99 @@ export function testImageToGlbReviewRejectsMissingReferenceProjectionEvidence() 
   if (missingEvidence.valid || !missingEvidence.violations.some(item => item.code === 'invalid-vision-review-evidence')) {
     throw new Error(`expected unevidenced approval to be rejected, got ${JSON.stringify(missingEvidence)}`)
   }
+  const dishonestApproval = validateImageToGlbProceduralJob({
+    ...job,
+    visionReviewPasses: job.visionReviewPasses.map((pass, index) => index === job.visionReviewPasses.length - 1
+      ? { ...pass, reviewer: { evidenceDigest: pass.evidence.projectionDigest, kind: 'native-deterministic' as const } }
+      : pass),
+  })
+  if (dishonestApproval.valid || !dishonestApproval.violations.some(item => item.code === 'invalid-vision-review-evidence')) {
+    throw new Error(`expected native evidence to be unable to self-approve, got ${JSON.stringify(dishonestApproval)}`)
+  }
 }
 
 export function testImageToGlbReferenceBuildsReviewedNamedPartGraph() {
   const result = createReviewedImageToGlbScene({
-    pixels: buildRingFrameReference(),
+    pixels: buildStructuredReference(),
     sourceUrl: 'workspace:/media/reference-object.png',
   })
-  if (result.analysis.profile !== 'ring-frame') throw new Error(`expected measured ring-frame profile, got ${result.analysis.profile}`)
-  const names = new Set(result.scene.children.map(child => child.name))
-  for (const name of ['Upper annular shell', 'Central recessed rim', 'Curved support 1', 'Curved support 4', 'Lower tray', 'Lower tray rim']) {
-    if (!names.has(name)) throw new Error(`expected reference-derived named part ${name}, got ${JSON.stringify([...names])}`)
+  if (result.analysis.profile !== 'contour-volume') throw new Error(`expected general contour-volume profile, got ${result.analysis.profile}`)
+  const meshes: THREE.Mesh[] = []
+  result.scene.traverse(object => {
+    const mesh = object as THREE.Mesh
+    if (mesh.isMesh) meshes.push(mesh)
+  })
+  const names = meshes.map(mesh => mesh.name).sort()
+  const manifestNames = result.job.partManifest.map(part => part.name).sort()
+  if (JSON.stringify(names) !== JSON.stringify(manifestNames) || meshes.some(mesh => mesh.geometry.type !== 'ExtrudeGeometry')) {
+    throw new Error(`expected the measured manifest to map one-to-one to native contour volumes, got ${JSON.stringify(names)}`)
   }
-  if (!result.job.program.source.includes('new THREE.TorusGeometry') || !result.job.program.source.includes('new THREE.TubeGeometry')) {
-    throw new Error('expected the reviewable program to reproduce the ring, supports, and lower tray with procedural constructors')
+  if (
+    !result.job.program.source.includes('new THREE.ExtrudeGeometry')
+    || !result.job.program.source.includes('new THREE.QuaternionKeyframeTrack')
+    || result.job.program.source.includes('new THREE.BoxGeometry')
+  ) {
+    throw new Error('expected reviewable source to reproduce connected contours and its action clip without stale box-band templates')
   }
   if (result.job.programDigest !== result.scene.userData.imageToGlb?.programDigest) {
     throw new Error('expected reviewable program and exported runtime scene to share one digest owner')
   }
   const validation = validateImageToGlbProceduralJob(result.job)
   if (!validation.valid) throw new Error(`expected measured procedural job to validate, got ${JSON.stringify(validation.violations)}`)
+
+  const singleVolume = createReviewedImageToGlbScene({
+    pixels: buildSingleVolumeReference(),
+    sourceUrl: 'workspace:/media/single-volume.png',
+  })
+  const singleValidation = validateImageToGlbProceduralJob(singleVolume.job)
+  if (singleVolume.job.partManifest.length !== 1 || !singleValidation.valid) {
+    throw new Error(`expected a common one-piece silhouette to remain exportable, got ${JSON.stringify({ parts: singleVolume.job.partManifest.length, violations: singleValidation.violations })}`)
+  }
 }
 
-export function testImageToGlbRingFramePreservesMeasuredConstructionFidelity() {
+export function testImageToGlbContourVolumePreservesMeasuredConstructionFidelity() {
   const result = createReviewedImageToGlbScene({
-    pixels: buildRingFrameReference(),
+    pixels: buildStructuredReference(),
     sourceUrl: 'workspace:/media/reference-object.png',
   })
   const sceneBox = new THREE.Box3().setFromObject(result.scene)
   const sceneSize = sceneBox.getSize(new THREE.Vector3())
   const widthHeightRatio = sceneSize.x / sceneSize.y
-  if (widthHeightRatio < 1.35 || widthHeightRatio > 1.75) {
-    throw new Error(`expected a wide, low ring-frame silhouette, got width/height ${widthHeightRatio.toFixed(3)}`)
+  if (Math.abs(widthHeightRatio - result.analysis.aspectRatio) > 0.08 || sceneSize.z <= 0.1) {
+    throw new Error(`expected front aspect and non-flat inferred depth, got ${JSON.stringify(sceneSize.toArray())}`)
   }
-  const meshes = result.scene.children.filter((child): child is THREE.Mesh => child instanceof THREE.Mesh)
+  const meshes: THREE.Mesh[] = []
+  result.scene.traverse(object => {
+    const mesh = object as THREE.Mesh
+    if (mesh.isMesh) meshes.push(mesh)
+  })
   const meshNames = meshes.map(mesh => mesh.name).sort()
   const manifestNames = result.job.partManifest.map(part => part.name).sort()
   if (JSON.stringify(meshNames) !== JSON.stringify(manifestNames)) {
     throw new Error('expected the reviewed manifest to map one-to-one to actual native meshes')
   }
-  const shell = result.scene.getObjectByName('Upper annular shell') as THREE.Mesh | null
-  const tray = result.scene.getObjectByName('Lower tray') as THREE.Mesh | null
-  const lowerRim = result.scene.getObjectByName('Lower tray rim') as THREE.Mesh | null
-  if (shell?.geometry.type !== 'LatheGeometry' || tray?.geometry.type !== 'LatheGeometry') {
-    throw new Error('expected flattened shell and rounded tray profiles instead of generic torus/cylinder volumes')
-  }
-  const ribs = meshes.filter(mesh => mesh.name.startsWith('Radial upper rib '))
-  const supports = meshes.filter(mesh => mesh.name.startsWith('Curved support '))
-  if (ribs.length !== 8 || supports.length !== 4 || ribs.some(mesh => mesh.geometry.type !== 'TubeGeometry')) {
-    throw new Error(`expected eight rounded ribs and four curved supports, got ${ribs.length}/${supports.length}`)
-  }
-  const plan = result.scene.userData.ringFrameConstructionPlan as {
-    apertureRadius: number
-    outerDiameter: number
+  const plan = result.scene.userData.contourRebuildPlan as {
+    components: readonly { depth: number; inferredSurfaceConfidence: number; outline: readonly [number, number][] }[]
+    quality: { acceptedSpanCount: number; componentCount: number; rawSpanCount: number; withinBudgets: boolean }
   } | undefined
-  if (!plan) throw new Error('expected the scene to retain its measured scalar construction plan')
-  const minimumRibRadius = Math.min(...ribs.flatMap(rib => {
-    const positions = rib.geometry.getAttribute('position')
-    const radii: number[] = []
-    for (let index = 0; index < positions.count; index += 1) {
-      radii.push(Math.hypot(positions.getX(index), positions.getZ(index)))
-    }
-    return radii
-  }))
-  if (minimumRibRadius < plan.apertureRadius + plan.outerDiameter * 0.007) {
-    throw new Error(`expected ribs to preserve the central aperture, got minimum radius ${minimumRibRadius.toFixed(3)}`)
+  if (!plan?.quality.withinBudgets || plan.quality.componentCount !== meshes.length || plan.quality.acceptedSpanCount > plan.quality.rawSpanCount) {
+    throw new Error(`expected compact bounded contour evidence, got ${JSON.stringify(plan?.quality)}`)
   }
-  if (!tray || !lowerRim) throw new Error('expected lower tray and rim')
-  const traySize = new THREE.Box3().setFromObject(tray).getSize(new THREE.Vector3())
-  const rimSize = new THREE.Box3().setFromObject(lowerRim).getSize(new THREE.Vector3())
-  if (Math.abs(traySize.x - rimSize.x) / traySize.x > 0.05 || Math.abs(traySize.z - rimSize.z) / traySize.z > 0.05) {
-    throw new Error(`expected tray/rim footprints to agree within 5%, got ${JSON.stringify({ tray: traySize.toArray(), rim: rimSize.toArray() })}`)
+  if (plan.components.some(component => component.depth <= 0 || component.inferredSurfaceConfidence <= 0 || component.inferredSurfaceConfidence >= 1)) {
+    throw new Error('expected every hidden surface to have bounded inferred depth and confidence')
   }
-  const primaryMaterial = shell.material as THREE.MeshPhysicalMaterial
-  const expectedReferenceColor = new THREE.Color(0xc6a67c)
-  const maximumColorChannelDifference = Math.max(
-    Math.abs(primaryMaterial.color.r - expectedReferenceColor.r),
-    Math.abs(primaryMaterial.color.g - expectedReferenceColor.g),
-    Math.abs(primaryMaterial.color.b - expectedReferenceColor.b),
-  )
-  if (maximumColorChannelDifference > 0.00001) {
-    throw new Error('expected sampled sRGB reference color to be converted by the installed Three.js color policy')
+  const actionManifest = result.scene.userData.imageToGlbActionReadiness as { parts?: unknown[] } | undefined
+  if (actionManifest?.parts?.length !== meshes.length || result.scene.animations.length !== 1) {
+    throw new Error('expected one stable rigid pivot/socket identity per mesh and one reviewed inspection loop')
+  }
+  const quality = result.scene.userData.imageToGlb?.qualityReport as { passed?: boolean; metrics?: { geometry?: { triangleCount?: number } } } | undefined
+  if (!quality?.passed || !quality.metrics?.geometry?.triangleCount) {
+    throw new Error(`expected attached passing geometry/material/action quality evidence, got ${JSON.stringify(quality)}`)
   }
 }
 
 export function testImageToGlbReviewedSceneIsFilenameInvariant() {
-  const pixels = buildRingFrameReference()
+  const pixels = buildStructuredReference()
   const first = createReviewedImageToGlbScene({ pixels, sourceUrl: 'workspace:/media/first-name.png' })
   const second = createReviewedImageToGlbScene({ pixels, sourceUrl: 'workspace:/media/unrelated-name.jpg' })
   if (
@@ -307,27 +324,32 @@ export function testImageToGlbReviewedSceneIsFilenameInvariant() {
 
 export function testImageToGlbSceneDependsOnReferencePixelsNotSourceUrlHash() {
   const sourceUrl = 'workspace:/media/same-reference-url.png'
-  const ring = createReviewedImageToGlbScene({ pixels: buildRingFrameReference(), sourceUrl })
+  const structured = createReviewedImageToGlbScene({ pixels: buildStructuredReference(), sourceUrl })
   const asymmetric = createReviewedImageToGlbScene({ pixels: buildAsymmetricReference(), sourceUrl })
-  if (ring.job.referenceDigest === asymmetric.job.referenceDigest || ring.job.programDigest === asymmetric.job.programDigest) {
+  if (structured.job.referenceDigest === asymmetric.job.referenceDigest || structured.job.programDigest === asymmetric.job.programDigest) {
     throw new Error('expected the reconstruction to change with reference pixels even when the source URL is identical')
   }
-  if (ring.analysis.profile === asymmetric.analysis.profile) {
-    throw new Error(`expected distinct measured part plans, got ${ring.analysis.profile}`)
+  const firstPlan = structured.scene.userData.contourRebuildPlan
+  const secondPlan = asymmetric.scene.userData.contourRebuildPlan
+  if (JSON.stringify(firstPlan) === JSON.stringify(secondPlan) || structured.scene.userData.imageToGlb?.projectionDigest === asymmetric.scene.userData.imageToGlb?.projectionDigest) {
+    throw new Error('expected distinct pixel evidence to produce distinct compact plans and native geometry')
   }
 }
 
 export async function testImageToGlbRuntimeExportProducesGlbAndExternalBufferGltf() {
   await withGlbExporterFileReader(async () => {
     const reconstruction = createReviewedImageToGlbScene({
-      pixels: buildRingFrameReference(),
+      pixels: buildStructuredReference(),
       sourceUrl: 'workspace:/media/reference-object.png',
     })
-    const artifacts = await exportImageToGlbRuntimeArtifacts({
+    const exportPromise = exportImageToGlbRuntimeArtifacts({
       job: reconstruction.job,
       scene: reconstruction.scene,
       artifactStem: 'reference-object',
     })
+    const racingMesh = reconstruction.scene.getObjectByName(reconstruction.job.partManifest[0]?.name || '') as THREE.Mesh
+    racingMesh.visible = false
+    const artifacts = await exportPromise
     const glbInspection = inspectGlbBytes(artifacts.glb.bytes)
     if (!glbInspection.validContainer || !glbInspection.validGltfAsset) {
       throw new Error(`expected native GLTFExporter GLB, got ${JSON.stringify(glbInspection)}`)
@@ -345,12 +367,25 @@ export async function testImageToGlbRuntimeExportProducesGlbAndExternalBufferGlt
     if (gltfInspection.firstBufferByteLength !== artifacts.gltf.externalBuffers[0]?.bytes.byteLength) {
       throw new Error('expected editable glTF buffer metadata to match the emitted external .bin bytes')
     }
-    const gltfDocument = JSON.parse(artifacts.gltf.text) as { materials?: unknown[]; meshes?: unknown[]; nodes?: unknown[] }
-    if ((gltfDocument.meshes?.length || 0) < 8 || (gltfDocument.materials?.length || 0) < 2 || (gltfDocument.nodes?.length || 0) < 8) {
-      throw new Error(`expected the exported glTF to preserve the reviewed named-part graph, got ${JSON.stringify({ meshes: gltfDocument.meshes?.length, materials: gltfDocument.materials?.length, nodes: gltfDocument.nodes?.length })}`)
+    const gltfDocument = JSON.parse(artifacts.gltf.text) as { animations?: Array<{ channels?: unknown[] }>; materials?: unknown[]; meshes?: unknown[]; nodes?: unknown[] }
+    if (
+      gltfDocument.meshes?.length !== reconstruction.job.partManifest.length
+      || (gltfDocument.materials?.length || 0) < 1
+      || (gltfDocument.nodes?.length || 0) < reconstruction.job.partManifest.length * 3
+      || gltfDocument.animations?.length !== 1
+      || gltfDocument.animations[0]?.channels?.length !== 1
+    ) {
+      throw new Error(`expected glTF to preserve exact meshes, pivot/socket nodes, PBR materials, and the inspection clip, got ${JSON.stringify({ animations: gltfDocument.animations?.length, meshes: gltfDocument.meshes?.length, materials: gltfDocument.materials?.length, nodes: gltfDocument.nodes?.length })}`)
     }
     for (const part of reconstruction.job.partManifest) {
       if (!artifacts.gltf.text.includes(JSON.stringify(part.name))) throw new Error(`expected editable glTF to preserve named part ${part.name}`)
+    }
+
+    const dataSource = `data:image/png;base64,${'A'.repeat(100_000)}`
+    const dataReconstruction = createReviewedImageToGlbScene({ pixels: buildStructuredReference(), sourceUrl: dataSource })
+    const dataArtifacts = await exportImageToGlbRuntimeArtifacts({ job: dataReconstruction.job, scene: dataReconstruction.scene })
+    if (dataArtifacts.gltf.text.includes('data:image') || dataArtifacts.gltf.text.length > 80_000) {
+      throw new Error(`expected bounded digest-only source provenance in model extras, got ${dataArtifacts.gltf.text.length} characters`)
     }
   })
 }
@@ -358,7 +393,7 @@ export async function testImageToGlbRuntimeExportProducesGlbAndExternalBufferGlt
 export async function testImageToGlbRuntimeExportRejectsSceneProgramDrift() {
   await withGlbExporterFileReader(async () => {
     const reconstruction = createReviewedImageToGlbScene({
-      pixels: buildRingFrameReference(),
+      pixels: buildStructuredReference(),
       sourceUrl: 'workspace:/media/reference-object.png',
     })
     reconstruction.scene.userData.imageToGlb.programDigest = 'stale-program-digest'
@@ -377,20 +412,51 @@ export async function testImageToGlbRuntimeExportRejectsSceneProgramDrift() {
 export async function testImageToGlbRuntimeExportRejectsReviewedGeometryTampering() {
   await withGlbExporterFileReader(async () => {
     const reconstruction = createReviewedImageToGlbScene({
-      pixels: buildRingFrameReference(),
+      pixels: buildStructuredReference(),
       sourceUrl: 'workspace:/media/reference-object.png',
     })
-    const support = reconstruction.scene.getObjectByName('Curved support 1')
-    if (!support) throw new Error('expected reviewed support geometry')
-    support.position.x += 0.2
+    const part = reconstruction.scene.getObjectByName(reconstruction.job.partManifest[0]?.name || '')
+    if (!part) throw new Error('expected reviewed contour geometry')
+    part.position.x += 0.2
     let message = ''
     try {
       await exportImageToGlbRuntimeArtifacts({ job: reconstruction.job, scene: reconstruction.scene })
     } catch (error) {
       message = error instanceof Error ? error.message : String(error)
     }
-    if (!message.includes('drifted from the reviewed projection')) {
+    if (!message.includes('drifted from the reviewed projection') && !message.includes('invalid action hierarchy')) {
       throw new Error(`expected geometry tampering to block GLB/glTF export, got ${message || 'no error'}`)
+    }
+
+    for (const mutate of [
+      (candidate: ReviewedImageToGlbScene) => {
+        const mesh = candidate.scene.getObjectByName(candidate.job.partManifest[0]?.name || '') as THREE.Mesh
+        mesh.visible = false
+      },
+      (candidate: ReviewedImageToGlbScene) => {
+        const mesh = candidate.scene.getObjectByName(candidate.job.partManifest[0]?.name || '') as THREE.Mesh
+        const material = mesh.material as THREE.MeshStandardMaterial
+        material.emissive.set(0xff0000)
+        material.opacity = 0.2
+        material.transparent = true
+      },
+      (candidate: ReviewedImageToGlbScene) => {
+        const action = candidate.scene.userData.imageToGlbActionReadiness as { parts: Array<{ socketName: string }> }
+        candidate.scene.getObjectByName(action.parts[0]?.socketName || '')?.position.set(99, 99, 99)
+      },
+    ]) {
+      const candidate = createReviewedImageToGlbScene({
+        pixels: buildStructuredReference(),
+        sourceUrl: 'workspace:/media/reference-object.png',
+      })
+      mutate(candidate)
+      let tamperMessage = ''
+      try {
+        await exportImageToGlbRuntimeArtifacts({ job: candidate.job, scene: candidate.scene })
+      } catch (error) {
+        tamperMessage = error instanceof Error ? error.message : String(error)
+      }
+      if (!tamperMessage) throw new Error('expected visibility, material, and attachment-node tampering to fail export')
     }
   })
 }
