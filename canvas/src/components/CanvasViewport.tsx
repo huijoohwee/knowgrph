@@ -159,15 +159,13 @@ export function CanvasViewport(props: CanvasViewportProps) {
     [documentSwitchPending, explorerActivePath, markdownDocumentName, sourceFiles],
   )
   const rawActive2dSurface = getCanvas2dSurfaceId(canvas2dRenderer)
-  const workspaceStoryboardSurfaceActive = workspaceEditorOverlayOpen === true
+  const workspaceStoryboardSurfaceActive = !documentSwitchPending
+    && workspaceEditorOverlayOpen === true
     && isStoryboardCanvas2dRenderer(canvas2dRenderer)
     && canvasRenderMode === '2d'
-    && (
-      (!documentSwitchPending && isFrontmatterFlowGraph(activeGraphData))
-      || isFrontmatterFlowGraph(activeSourceFile?.parsedGraphData)
-    )
+    && (isFrontmatterFlowGraph(activeGraphData) || isFrontmatterFlowGraph(activeSourceFile?.parsedGraphData))
   const active2dSurface = workspaceStoryboardSurfaceActive ? 'storyboard' : rawActive2dSurface
-  const documentSwitchBlocksCanvas = documentSwitchPending && !workspaceStoryboardSurfaceActive
+  const documentSwitchBlocksCanvas = documentSwitchPending
   const sharedGraphCanvasSurfaceActive = active2dSurface === 'd3'
   const safeGraphData = React.useMemo(
     () => activeGraphData || ({ nodes: [], edges: [] } as GraphData),

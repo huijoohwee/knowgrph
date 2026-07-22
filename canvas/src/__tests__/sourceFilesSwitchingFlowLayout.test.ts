@@ -267,6 +267,11 @@ export function testSourceFilesFileSelectionPromotesActiveCanvasPath() {
 }
 
 export function testSourceFilesPendingSwitchUsesExplorerSourceAuthority() {
+  const viewportText = readFileSync(resolve(process.cwd(), 'src/components/CanvasViewport.tsx'), 'utf8')
+  if (!viewportText.includes('const workspaceStoryboardSurfaceActive = !documentSwitchPending')
+    || !viewportText.includes('const documentSwitchBlocksCanvas = documentSwitchPending')) {
+    throw new Error('expected every pending Source Files handoff to block stale storyboard and canvas runtime mounts')
+  }
   const sourceFiles = [
     { id: 'a', name: 'notes/a.md', enabled: true, source: { kind: 'local', path: '/notes/a.md' } },
     { id: 'b', name: 'notes/b.md', enabled: true, source: { kind: 'local', path: '/notes/b.md' } },
