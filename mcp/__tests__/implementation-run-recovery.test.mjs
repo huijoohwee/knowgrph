@@ -121,7 +121,11 @@ test("periodic recovery adopts a live supervisor and notices its later death", a
     return state;
   });
   const deadline = Date.now() + 5000;
-  while (!spawns && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 25));
+  while (Date.now() < deadline) {
+    const current = await runtime.store.read(adopted.runId);
+    if (spawns === 1 && current.supervisor.status === "active") break;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
   assert.equal(spawns, 1);
   assert.equal((await runtime.store.read(adopted.runId)).supervisor.status, "active");
 });
