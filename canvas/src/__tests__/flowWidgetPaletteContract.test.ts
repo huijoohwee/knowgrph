@@ -310,6 +310,12 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
   if (!widgetDropBridgeText.includes('if (session.nativeDragStarted === true) return')) {
     throw new Error('expected unresolved native drags to keep the pointer session alive for dragend commit')
   }
+  const nativeDropStart = widgetDropBridgeText.indexOf('const onDropCapture = (ev: DragEvent) => {')
+  const nativeWidgetPayloadRead = widgetDropBridgeText.indexOf('const payload = readFlowWidgetDragPayloadFromDataTransfer', nativeDropStart)
+  const nativeMediaFallback = widgetDropBridgeText.indexOf('if (hasMediaDragPayload(dt)) {', nativeDropStart)
+  if (nativeDropStart < 0 || nativeWidgetPayloadRead < nativeDropStart || nativeMediaFallback < nativeWidgetPayloadRead) {
+    throw new Error('expected native Storyboard drops to resolve a valid widget payload before the generic media fallback')
+  }
   if (!widgetSharedText.includes('export function readProjectedRichMediaShellTransform')
     || !widgetSharedText.includes('export function readResolvedStoryboardWidgetDropTransform')) {
     throw new Error('expected Storyboard widget drops to share Rich Media shell transform fallback from the shared surface owner')

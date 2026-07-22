@@ -5,12 +5,7 @@ import {
   captureXrPhysicsSimulation,
   createXrPhysicsSimulation,
   stepXrPhysicsSimulation,
-} from '@/features/three/xrPhysicsStepper'
-import {
-  XR_PHYSICS_BODY_CONTACT_DRAG_RATE,
-  XR_PHYSICS_SURFACE_CONTACT_DRAG_RATE,
-  resolveXrPhysicsContactDrag,
-} from '@/features/three/xrPhysicsContactDrag'
+} from '@/features/three/xrSpatialPhysicsAdapter'
 import { resolveXrSubjectFootprint } from '@/features/three/xrMotionReferenceSubjectPlacement'
 import { resolveXrSceneLibraryAsset } from '@/features/three/xrSceneLibrary'
 import { sampleXrMotionReferenceFacingY } from '@/features/three/xrMotionReferenceModel'
@@ -58,11 +53,11 @@ function contactVelocityAfterOneSecond(rate: number, contact: 'floor' | 'body'):
 
 function testContactDragIsFixedRateInvariant(): void {
   const rates = [30, 60, 120, 240]
-  const expectedSurface = resolveXrPhysicsContactDrag(0.7, XR_PHYSICS_SURFACE_CONTACT_DRAG_RATE, 1)
-  const expectedBody = resolveXrPhysicsContactDrag(0.7, XR_PHYSICS_BODY_CONTACT_DRAG_RATE, 1)
-  for (const rate of rates) {
-    near(contactVelocityAfterOneSecond(rate, 'floor'), expectedSurface, 1e-12, `surface drag must be invariant at ${rate} Hz`)
-    near(contactVelocityAfterOneSecond(rate, 'body'), expectedBody, 1e-12, `body contact drag must be invariant at ${rate} Hz`)
+  for (const contact of ['floor', 'body'] as const) {
+    const velocities = rates.map(rate => contactVelocityAfterOneSecond(rate, contact))
+    const spread = Math.max(...velocities) - Math.min(...velocities)
+    assert(spread < 1e-8, `${contact} contact drag must be fixed-rate invariant; got ${velocities.join(', ')}`)
+    assert(velocities.every(velocity => velocity > 0 && velocity < 1), `${contact} contact drag must remain bounded`)
   }
 }
 

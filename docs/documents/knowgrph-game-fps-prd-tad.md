@@ -3,8 +3,8 @@ title: "Knowgrph Game FPS PRD/TAD"
 id: "md:knowgrph-game-fps-prd-tad"
 author: "airvio / joohwee"
 date: "2026-07-21"
-updated: "2026-07-21"
-version: "2.5.0"
+updated: "2026-07-22"
+version: "2.6.0"
 status: "runtime-ready"
 doc_type: "Combined PRD/TAD"
 lang: "en-US"
@@ -31,7 +31,7 @@ constraints:
   - "native Knowgrph ECS with ephemeral runtime state"
   - "only validated Decisions persist through browser-local WorkspaceFs"
   - "deterministic in-repo AABB collision and hitscan"
-  - "no Rapier, Yuka, behavior-tree, navmesh, or edge-ML dependency"
+  - "no external physics engine, Yuka, behavior-tree, navmesh, or edge-ML dependency"
   - "browser-local WebMCP only; no new stdio, HTTP gateway, or deployment transport"
   - "no automatic Git operation or production deployment"
   - "XR Game Mode has one authored scene owner; the fallback scene/environment implementation is deleted and alternate variants are forbidden"
@@ -53,6 +53,7 @@ source_references:
   cost_log_contract: "contracts/cost-log.schema.js"
   workspace_seed: "docs/workspace-seeds/knowgrph-physics-playground-demo.md"
   runtime_proof: "docs/documents/knowgrph-game-fps-runtime-readiness.md"
+  native_physics_boundary: "docs/documents/knowgrph-native-physics-engines-prd-tad.md"
   ar_broadcast_runtime: "canvas/src/features/game-fps/arBroadcastRuntime.ts"
   ar_broadcast_validation_seed: "docs/workspace-seeds/knowgrph-physics-playground-demo.md"
   ar_inspiration_reference_only: "github.co (inspiration only; no source copy, no dependency; Supabase forbidden)"
@@ -114,7 +115,7 @@ Mei is a mobile-first player who wants to open a source-backed browser workspace
 - QR pairing, multiplayer, AR multiplayer spectating, server-authoritative hit checks, leaderboards, and matchmaking. The optional AR Tabletop Broadcast (specified below) and the existing Motion Control keep their explicit opt-in local camera boundary; no other new camera flow is added.
 - Any copy of, or runtime/build dependency on, `ar-world-cup` (inspiration only), and any Supabase or remote realtime backend for AR or game state — AR and mission state stay local in the native Agentic ECS and KGC.
 - Hosted or local LLMs, agent reasoning, narrative generation, model escalation, edge-ML policy models, ONNX Runtime, and token budgets. Existing Motion Control LiteRT pose inference is input only, not NPC policy.
-- Rapier, Yuka, `behaviortree.js`, recastnavigation, bitECS, or another game/ECS engine.
+- Any external physics runtime, Yuka, `behaviortree.js`, recastnavigation, bitECS, or another game/ECS engine. The independent native physics cores are available to separately scoped callers, but migration of this mission's bounded geometry is not part of this increment.
 - Remote assets, service workers added specifically for this demo, D1, R2, KV, Durable Objects, Workers, Pages, or production routes.
 - Automatic Git commits, pushes, pull requests, or deployments from the browser runtime.
 
@@ -329,7 +330,7 @@ The game mounts a dedicated stage inside the existing `ThreeGraph` React Three F
 
 **Status:** Accepted for this increment.
 
-The bounded mission needs only ground-actor movement collision and one hitscan weapon, so deterministic AABB and ray/AABB functions remain in the game feature cluster while consuming the shared authored XR collider profile. Rapier and mesh physics are not installed or claimed. General rigid-body physics is outside this increment.
+The bounded mission needs only ground-actor movement collision and one hitscan weapon, so deterministic AABB and ray/AABB functions remain in the game feature cluster while consuming the shared authored XR collider profile. The independent native physics cores are specified separately in `knowgrph-native-physics-engines-prd-tad.md`; this mission has not migrated to them and must not imply that it has. No external physics runtime, compatibility layer, mesh physics, or Rapier-compatible API is installed or claimed.
 
 ### ADR-3: Use deterministic authored NPC scoring
 

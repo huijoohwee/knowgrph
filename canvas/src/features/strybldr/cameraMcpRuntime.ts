@@ -311,10 +311,10 @@ function normalizeCameraControl(input: CameraControlInput): NormalizedCameraCont
 
 function ensureSharedCameraPanel(): boolean {
   const state = useGraphStore.getState()
+  if (state.floatingPanelOpen) return true
   if (state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr') {
     return activateXrSceneSurface({ panelView: 'camera', openPanel: true })
   }
-  if (state.floatingPanelOpen && state.floatingPanelView === 'camera') return true
   state.setFloatingPanelView('camera')
   state.setFloatingPanelOpen(true)
   return true

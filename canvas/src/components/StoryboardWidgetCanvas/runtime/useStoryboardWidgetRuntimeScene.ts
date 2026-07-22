@@ -74,7 +74,7 @@ const STORYBOARD_WIDGET_RUNTIME_SCENE_TRACE_KEY = '__storyboardWidgetRuntimeScen
 
 type FlowRuntimeZoomTransform = { k: number; x: number; y: number }
 
-function readFiniteRuntimeZoomTransform(runtime: FlowNativeRuntime | null | undefined): FlowRuntimeZoomTransform | null {
+export function readFiniteRuntimeZoomTransform(runtime: FlowNativeRuntime | null | undefined): FlowRuntimeZoomTransform | null {
   const t = runtime?.transform || null
   const k = typeof t?.k === 'number' && Number.isFinite(t.k) && t.k > 0 ? t.k : null
   const x = typeof t?.x === 'number' && Number.isFinite(t.x) ? t.x : null
