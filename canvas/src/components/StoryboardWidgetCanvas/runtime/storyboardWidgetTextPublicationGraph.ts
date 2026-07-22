@@ -11,8 +11,11 @@ import type { StoryboardWidgetWorkflowNodeResolutionContext } from '@/components
 import { readGraphNodeProperties } from '@/lib/cards/graphNodeCardFields'
 import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config'
 import { isRichMediaOutputTargetNode } from '@/features/chat/richMediaRun'
+import { isCanonicalNodeIdEqual } from '@/lib/graph/canonicalNodeIds'
+import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphNode } from '@/lib/graph/types'
+import { bumpStoryboardWidgetDraftGraphDataRevision } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
 
 const readString = (value: unknown): string => {
   const scalar = unwrapGraphCellValue(value)
@@ -49,6 +52,46 @@ const mergeOwnedTextOutputPanel = (args: {
     : args.graphData
 }
 
+export function mergeStoryboardWidgetRunInputTopology(args: {
+  graphData: GraphData
+  sourceGraphData: GraphData | null | undefined
+  anchorNodeId: string
+}): GraphData {
+  const anchorNodeId = readString(args.anchorNodeId)
+  if (!anchorNodeId || !args.sourceGraphData) return args.graphData
+  const sourceNodes = Array.isArray(args.sourceGraphData.nodes) ? args.sourceGraphData.nodes : []
+  const incomingEdges = (Array.isArray(args.sourceGraphData.edges) ? args.sourceGraphData.edges : [])
+    .filter(edge => isCanonicalNodeIdEqual(readGraphEdgeEndpoints(edge).tgt, anchorNodeId))
+  if (incomingEdges.length === 0) return args.graphData
+
+  const nodes = [...(args.graphData.nodes || [])]
+  const edges = [...(args.graphData.edges || [])]
+  let changed = false
+  for (const incomingEdge of incomingEdges) {
+    const endpoints = readGraphEdgeEndpoints(incomingEdge)
+    if (!endpoints.src || !endpoints.tgt) continue
+    const sourceNode = sourceNodes.find(node => isCanonicalNodeIdEqual(node.id, endpoints.src))
+    if (sourceNode && !nodes.some(node => isCanonicalNodeIdEqual(node.id, sourceNode.id))) {
+      nodes.push(sourceNode)
+      changed = true
+    }
+    const edgeId = readString(incomingEdge.id)
+    const edgeExists = edges.some(edge => {
+      if (edgeId && readString(edge.id) === edgeId) return true
+      const current = readGraphEdgeEndpoints(edge)
+      return isCanonicalNodeIdEqual(current.src, endpoints.src)
+        && isCanonicalNodeIdEqual(current.tgt, endpoints.tgt)
+    })
+    if (!edgeExists) {
+      edges.push(incomingEdge)
+      changed = true
+    }
+  }
+  return changed
+    ? bumpStoryboardWidgetDraftGraphDataRevision({ ...args.graphData, nodes, edges })
+    : args.graphData
+}
+
 export function buildStoryboardWidgetTextPublicationGraph(args: {
   context: StoryboardWidgetWorkflowNodeResolutionContext
   baseGraphData: GraphData | null
@@ -65,13 +108,18 @@ export function buildStoryboardWidgetTextPublicationGraph(args: {
     args.context.renderGraph,
     args.liveDraftGraphData,
   ]
-  let graphData = sourceGraphs.reduce<GraphData>((current, sourceGraphData) => (
-    mergeStoryboardWidgetExplicitRunTargetTopology({
+  let graphData = sourceGraphs.reduce<GraphData>((current, sourceGraphData) => {
+    const withInputs = mergeStoryboardWidgetRunInputTopology({
       graphData: current,
+      sourceGraphData,
+      anchorNodeId: args.anchorNodeId,
+    })
+    return mergeStoryboardWidgetExplicitRunTargetTopology({
+      graphData: withInputs,
       liveGraphData: sourceGraphData,
       sourceNodeId: args.anchorNodeId,
     })
-  ), args.baseGraphData)
+  }, args.baseGraphData)
   const anchorNode = (graphData.nodes || []).find(node => readString(node.id) === args.anchorNodeId)
   const hasExplicitRichMediaTarget = anchorNode
     ? resolveStoryboardWidgetWorkflowDownstreamRunTargetIds({ node: anchorNode, graphData })

@@ -156,6 +156,19 @@ export function testExistingTextOutputBecomesSelectableVersionOnRerun() {
     versionCreatedAt: '2026-07-19T02:00:00.000Z',
     loading: true,
   })
+  const streamingGraph = harness.readGraph()
+  const streamingPanel = streamingGraph.nodes.find(node => node.id === panel.id)
+  const streamingVersions = streamingPanel?.properties.outputVersions as Array<Record<string, unknown>> | undefined
+  const streamingPanelState = streamingPanel ? buildRichMediaPanelOverlayState({ node: streamingPanel }) : undefined
+  if (
+    streamingPanel?.properties.selectedOutputVersionId !== 'run-current'
+    || streamingVersions?.length !== 2
+    || streamingVersions[1]?.id !== 'run-current'
+    || streamingVersions[1]?.output !== '# Revised report\n\nStreaming partial.'
+    || resolveRichMediaPanelDisplayText(streamingPanelState) !== '# Revised report\n\nStreaming partial.'
+  ) {
+    throw new Error(`expected a stable SSE run version to expose its live tail through the shared Rich Media Viewer surface, got ${JSON.stringify(streamingGraph)}`)
+  }
   harness.publishers.publishTextRunOutputToRichMediaPanel({
     anchorNode: source,
     outputText: '# Revised report\n\nVersion two.',

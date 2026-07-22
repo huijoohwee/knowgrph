@@ -3,6 +3,7 @@ import type { TestCaseTuple } from '../runner/testRunnerTypes'
 export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["canvas.probeTree.richMediaProjection.preservesNamedWorkflowOutput","@/__tests__/probeTreeRichMediaProjection.test","testProbeTreeWorkflowPanelPreservesPublishedTextAcrossEmptyLineageValue"],
   ["storyboardWidget.workflowPublication.terminalRepairsLaggingCanonicalAuthority","@/__tests__/storyboardWidgetWorkflowPublicationTransaction.test","testTerminalPublicationRepairsLaggingCanonicalAuthorityFromUnchangedDraft"],
+  ["storyboardWidget.workflowPublication.preservesIncomingRichMediaWidgetTopology","@/__tests__/storyboardWidgetWorkflowPublicationTransaction.test","testTextPublicationPreservesIncomingRichMediaWidgetTopology"],
   ["storyboardWidget.videoScript.thinkingDefaultsToEnabled","@/__tests__/storyboardWidgetWorkflowTextThinking.test","testVideoScriptWorkflowDefaultsToEnabledThinkingMode"],
   ["storyboardWidget.videoScript.thinkingPreservesTypedOverride","@/__tests__/storyboardWidgetWorkflowTextThinking.test","testVideoScriptWorkflowPreservesTypedThinkingOverride"],
   ["storyboardWidget.textGeneration.thinkingPreservesGlobalMode","@/__tests__/storyboardWidgetWorkflowTextThinking.test","testOrdinaryTextWorkflowPreservesGlobalThinkingMode"],
@@ -136,6 +137,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["canvas.probeTree.widgetRun.rejectsOverboundedProviderCards","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunRejectsOverboundedProviderCardsAndUsesMcpResult"],
   ["canvas.probeTree.widgetRun.refusesGenericNoModelFallback","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunRefusesGenericNoModelFallback"],
   ["canvas.probeTree.widgetRun.repairsRejectedFoodStallCardsOnce","@/__tests__/probeTreeWidgetRunProviderRepair.test","testProbeTreeWidgetRunRepairsRejectedFoodStallCardsOnce"],
+  ["canvas.probeTree.widgetRun.acceptsMalayAffixGrounding","@/__tests__/probeTreeWidgetRunProviderRepair.test","testProbeTreeWidgetRunAcceptsMalayAffixGrounding"],
   ["canvas.probeTree.widgetRun.multilingualContinuationSwitch","@/__tests__/probeTreeWidgetRunMultilingualContinuation.test","testProbeTreeWidgetRunFollowsUserAuthoredContinuationLanguageSwitch"],
   ["canvas.probeTree.widgetRun.surfacesProviderTransportFailure","@/__tests__/probeTreeWidgetRunMcpContract.test","testProbeTreeWidgetRunSurfacesProviderTransportFailure"],
   ["canvas.probeTree.widgetRun.usesActiveChatRoute","@/__tests__/probeTreeWidgetRunRoute.test","testProbeTreeWidgetRunUsesActiveChatRouteOverStaleCardProvider"],

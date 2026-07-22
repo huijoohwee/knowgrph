@@ -103,3 +103,58 @@ export async function testProbeTreeWidgetRunRepairsRejectedFoodStallCardsOnce() 
     throw new Error(`expected one bounded provider repair to replace rejected echo cards, got ${JSON.stringify({ prompts, result, cards })}`)
   }
 }
+
+export async function testProbeTreeWidgetRunAcceptsMalayAffixGrounding() {
+  const authoredRequest = '/knowgrph.probe-tree beli dekat Johor, atau negeri lain?'
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [{ id: 'johor-sourcing', type: 'TextGeneration', label: 'Widget Card', properties: { prompt: authoredRequest } }],
+    edges: [],
+  }
+  const response = providerCards([
+    {
+      question: 'Semasa membeli, sejauh mana pembekal perlu berdekatan supaya pemeriksaan stok mudah?',
+      rationale: 'Jarak pembekal mengubah kos dan kualiti pemeriksaan sebelum pesanan.',
+      evidenceNeeded: 'Keutamaan pengguna untuk pemeriksaan stok.',
+      selectionOptions: [
+        'Utamakan lawatan pemeriksaan sebelum membuat pesanan',
+        'Benarkan semakan video untuk menjimatkan perjalanan',
+      ],
+    },
+    {
+      question: 'Untuk membeli stok ulangan, adakah gudang perlu berdekatan bagi penghantaran lebih pantas?',
+      rationale: 'Kelajuan bekalan semula mengubah jumlah stok yang perlu disimpan.',
+      evidenceNeeded: 'Keutamaan pengguna untuk kelajuan bekalan semula.',
+      selectionOptions: [
+        'Utamakan penghantaran hari sama walaupun pilihan produk terhad',
+        'Terima penghantaran lebih lambat untuk pilihan produk lebih luas',
+      ],
+    },
+  ])
+  let providerCalls = 0
+  const result = await runStoryboardWidgetProbeTreeMcpInvocation({
+    graphForRun: graphData,
+    nodeIds: ['johor-sourcing'],
+    fallbackNode: graphData.nodes[0]!,
+    invokeMcp: async () => zeroModelBridge(),
+    generateProviderResponse: async () => {
+      providerCalls += 1
+      return response
+    },
+    providerModel: 'test-provider',
+    onMaterialized: () => undefined,
+    publishOutput: output => output.baseGraphData || null,
+  })
+  const cards = (result?.graphData.nodes || []).filter(node => node.properties.probeTreeResponseMode === 'llm-contract')
+  if (
+    providerCalls !== 1
+    || result?.providerAttempts !== 1
+    || !result.providerAccepted
+    || cards.length !== 2
+    || cards.some(card => !Array.isArray(card.properties.probeTreeUserInputAnchors)
+      || !card.properties.probeTreeUserInputAnchors.includes('beli')
+      || !card.properties.probeTreeUserInputAnchors.includes('dekat'))
+  ) {
+    throw new Error(`expected Malay derivational forms such as membeli and berdekatan to retain source-verbatim Probe-Tree anchors, got ${JSON.stringify({ providerCalls, result, cards })}`)
+  }
+}

@@ -344,7 +344,8 @@ export function createStoryboardWidgetWorkflowRichMediaPublishers(args: {
       }
       for (const panelNodeId of panelNodeIds) {
         const existingPanelProps = readPanelProperties(panelNodeId)
-        const patch = panelArgs.loading === true
+        const streamVersionId = panelArgs.loading === true ? panelArgs.versionId?.trim() : ''
+        const patch = panelArgs.loading === true && !streamVersionId
           ? { ...basePatch, ...buildRichMediaTextOutputBaselinePatch(existingPanelProps) }
           : {
               ...basePatch,
