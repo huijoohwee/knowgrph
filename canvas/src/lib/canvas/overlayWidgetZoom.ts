@@ -112,6 +112,13 @@ export function computeCollectiveFollowZoomK(args: {
   return zoomK / Math.max(0.001, baselineZoomK)
 }
 
+export function computeCollectiveCameraFollowScaleFromBaseline(args: {
+  zoomK: number
+  baselineZoomK?: number | null
+}): number {
+  return Math.max(0.001, computeCollectiveFollowZoomK(args))
+}
+
 export function computeCollectiveFollowPinnedScale(args: {
   zoomK: number
   extent?: ZoomScaleExtent | null

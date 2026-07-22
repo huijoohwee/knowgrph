@@ -106,6 +106,13 @@ export default function StoryboardWidgetCanvasSurface(props: {
     () => resolveFlowWidgetStateGraphKey({ graphData: props.storyboardSourceGraphData || null }),
     [props.storyboardSourceGraphData],
   )
+  const storyboardCollectiveZoomBaselineKRef = React.useRef<number | null>(null)
+  const storyboardCollectiveZoomBaselineKeyRef = React.useRef('')
+  const storyboardCollectiveZoomBaselineKey = `${props.storyboardWidgetSurfaceId}|${flowWidgetStateGraphKey || ''}`
+  if (storyboardCollectiveZoomBaselineKeyRef.current !== storyboardCollectiveZoomBaselineKey) {
+    storyboardCollectiveZoomBaselineKeyRef.current = storyboardCollectiveZoomBaselineKey
+    storyboardCollectiveZoomBaselineKRef.current = null
+  }
   const effectiveFlowWidgetPinnedByNodeId = React.useMemo(() => resolveScopedFlowWidgetNodeMap({
     graphMetaKey: flowWidgetStateGraphKey,
     keyedByGraphMetaKey: flowWidgetPinnedByNodeIdByGraphMetaKey,
@@ -451,6 +458,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
           excludeRichMediaOverlayNodeIds={flowCanvasRichMediaOverlayExcludedNodeIds}
           flowWidgetPinnedByNodeIdOverride={effectiveFlowWidgetPinnedByNodeId}
           flowWidgetStateGraphKeyOverride={flowWidgetStateGraphKey}
+          storyboardCollectiveZoomBaselineKRef={storyboardCollectiveZoomBaselineKRef}
           onNodeChange={props.patchNodeById}
           onNodePropertiesChange={props.patchNodePropertiesById}
           onNodeRemove={props.removeNodeById}
@@ -485,6 +493,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
         flowWidgetStateGraphKey={flowWidgetStateGraphKey}
         fixedCardReferencePlacements={stableStoryboardCardPlacements}
         storyboardWidgetSurfaceId={props.storyboardWidgetSurfaceId}
+        storyboardCollectiveZoomBaselineKRef={storyboardCollectiveZoomBaselineKRef}
         getTransform={props.getLiveZoomTransform}
         getWheelForwardTarget={() => props.rootRef.current?.querySelector('[data-kg-canvas-interactive="1"]') || null}
         graphData={storyboardGraphData}
