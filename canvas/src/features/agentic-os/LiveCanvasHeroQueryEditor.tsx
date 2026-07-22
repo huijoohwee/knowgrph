@@ -10,7 +10,7 @@ export function LiveCanvasHeroQueryEditor(props: {
 
   return (
     <section
-      className="relative mt-2 h-44 overflow-hidden rounded-xl border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-code-bg)_88%,transparent)]"
+      className="relative mt-2 h-44 shrink-0 overflow-hidden rounded-xl border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-code-bg)_88%,transparent)]"
       data-kg-live-canvas-hero-query-scroll="inline"
       onKeyDownCapture={event => {
         if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {

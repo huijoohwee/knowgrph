@@ -158,7 +158,7 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
         </p>
 
         <form
-          className="mt-4 flex h-[29rem] flex-col overflow-hidden rounded-2xl border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_72%,transparent)] p-3 shadow-[0_18px_64px_color-mix(in_srgb,var(--kg-canvas-bg)_72%,transparent)] backdrop-blur-xl md:mt-6 md:p-4"
+          className="mt-4 flex h-[29rem] shrink-0 flex-col overflow-hidden rounded-2xl border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_72%,transparent)] p-3 shadow-[0_18px_64px_color-mix(in_srgb,var(--kg-canvas-bg)_72%,transparent)] backdrop-blur-xl md:mt-6 md:p-4"
           onSubmit={handleSubmit}
           data-kg-live-canvas-hero-command-deck="true"
         >

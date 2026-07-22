@@ -90,7 +90,7 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
       throw new Error(`expected Hero to reuse the Card/Widget/Chat view-edit surface with raw source fidelity, got ${JSON.stringify(commandProxy?.value)}`)
     }
     const editorViewport = container.querySelector('[data-kg-live-canvas-hero-query-scroll="inline"]') as HTMLElement | null
-    if (!editorViewport?.classList.contains('h-44') || !editorViewport.classList.contains('overflow-hidden')) {
+    if (!editorViewport?.classList.contains('h-44') || !editorViewport.classList.contains('shrink-0') || !editorViewport.classList.contains('overflow-hidden')) {
       throw new Error('expected the Home prompt editor viewport height to remain fixed as preset content changes')
     }
     for (const className of ['h-full', 'overflow-y-auto', 'overscroll-contain']) {
@@ -101,7 +101,7 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
     }
     const commandDeck = container.querySelector('[data-kg-live-canvas-hero-command-deck="true"]') as HTMLElement | null
     const promptControlsViewport = container.querySelector('[data-kg-live-canvas-hero-prompt-controls-scroll="fixed"]') as HTMLElement | null
-    if (!commandDeck?.classList.contains('h-[29rem]') || !commandDeck.classList.contains('overflow-hidden')) {
+    if (!commandDeck?.classList.contains('h-[29rem]') || !commandDeck.classList.contains('shrink-0') || !commandDeck.classList.contains('overflow-hidden')) {
       throw new Error('expected the Home prompt panel height to remain fixed across presets')
     }
     for (const className of ['h-36', 'overflow-y-auto', 'overscroll-contain']) {
