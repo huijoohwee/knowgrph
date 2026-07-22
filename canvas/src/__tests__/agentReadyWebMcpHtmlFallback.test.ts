@@ -8,6 +8,10 @@ import {
 import { PUBLISHED_AGENT_READY_TOOL_EXECUTORS_BROWSER_SOURCE } from '@/features/agent-ready/publishedToolExecutors.mjs'
 import { WEB_MCP_LIFECYCLE_CONTROLLER_BROWSER_SOURCE } from '@/features/agent-ready/webMcpLifecycleBrowserSource.mjs'
 import { webMcpScript } from '../../../cloudflare/pages/knowgrph-agent-ready.mjs'
+import {
+  hasWebMcpLifecycleContract,
+  injectWebMcpScript,
+} from '../../../cloudflare/pages/webmcp-html-injection.mjs'
 
 type RegisteredTool = {
   name: string
@@ -23,6 +27,32 @@ type RegisteredTool = {
 
 const readWebMcpContextState = (document: Document): string =>
   String(document.documentElement.dataset.kgWebmcpContext || '')
+
+export async function testAgentReadyHtmlInjectionRequiresLifecycleContractNotToolNameCoincidence(): Promise<void> {
+  const toolNames = buildKnowgrphAgentReadyToolContracts({
+    defaultWorkspaceId: 'kgws:canonical-docs',
+  }).map((tool) => tool.webName)
+  const toolNameOnlyShell = `<!doctype html><html><head></head><body>${toolNames.join(' ')}</body></html>`
+  if (hasWebMcpLifecycleContract(toolNameOnlyShell)) {
+    throw new Error('expected tool-name coincidence to remain insufficient lifecycle evidence')
+  }
+
+  const response = await injectWebMcpScript(new Response(toolNameOnlyShell, {
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  }), webMcpScript)
+  const body = await response.text()
+  if (!hasWebMcpLifecycleContract(body) || !body.includes('fallback-readable')) {
+    throw new Error('expected the Pages HTML owner to inject the canonical WebMCP lifecycle when the app shell only contains tool names')
+  }
+
+  const reinjected = await injectWebMcpScript(new Response(body, {
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  }), webMcpScript)
+  const reinjectedBody = await reinjected.text()
+  if (reinjectedBody !== body) {
+    throw new Error('expected lifecycle-complete HTML injection to be idempotent')
+  }
+}
 
 export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOriginStoragePaths(): Promise<void> {
   const previousFetch = globalThis.fetch

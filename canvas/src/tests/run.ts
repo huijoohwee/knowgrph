@@ -399,6 +399,11 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     const modAgentReadyHtmlFallback = await import('../__tests__/agentReadyWebMcpHtmlFallback.test')
     await execTest(
       results,
+      'agentReady.webMcpHtmlFallback.injection.requiresLifecycleContract',
+      modAgentReadyHtmlFallback.testAgentReadyHtmlInjectionRequiresLifecycleContractNotToolNameCoincidence,
+    )
+    await execTest(
+      results,
       'agentReady.webMcpHtmlFallback.lateBinding.sameOriginStoragePaths',
       modAgentReadyHtmlFallback.testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOriginStoragePaths,
     )
