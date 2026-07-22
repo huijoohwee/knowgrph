@@ -78,25 +78,6 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
   const root = createRoot(container)
   let fullscreenTarget: Element | null = null
   let exitFullscreenCalls = 0
-  let releasedVideoPauseCalls = 0
-  let releasedVideoLoadCalls = 0
-  const videoPrototype = dom.window.HTMLVideoElement.prototype
-  const originalVideoPause = Object.getOwnPropertyDescriptor(videoPrototype, 'pause')
-  const originalVideoLoad = Object.getOwnPropertyDescriptor(videoPrototype, 'load')
-  Object.defineProperty(videoPrototype, 'pause', {
-    configurable: true,
-    value: function pause() {
-      if (this.getAttribute('data-kg-media-catalog-preview-preload') === '1') releasedVideoPauseCalls += 1
-    },
-  })
-  Object.defineProperty(videoPrototype, 'load', {
-    configurable: true,
-    value: function load() {
-      if (this.getAttribute('data-kg-media-catalog-preview-preload') === '1' && !this.hasAttribute('src')) {
-        releasedVideoLoadCalls += 1
-      }
-    },
-  })
   Object.defineProperty(dom.window.document, 'fullscreenElement', {
     configurable: true,
     get: () => fullscreenTarget,
@@ -128,7 +109,13 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
       if (!(preview instanceof dom.window.HTMLElement)) throw new Error('expected expanded media catalog preview')
       if (preview.getAttribute('data-kg-media-catalog-preview-kind') !== kind) throw new Error(`expected ${kind} after keyboard navigation`)
       if (preview.getAttribute('data-kg-media-catalog-preview-count') !== '2') throw new Error('expected navigation to exclude audio and include two image/video items')
-      if (!preview.querySelector(kind === 'video' ? 'video' : 'img')) throw new Error(`expected Rich Media Panel to render ${kind}`)
+      const activePanels = preview.querySelectorAll('[data-kg-media-catalog-preview-item-active="1"]')
+      const activePanel = activePanels[0]
+      if (activePanels.length !== 1) throw new Error(`expected one active preview deck item, got ${activePanels.length}`)
+      if (!(activePanel instanceof dom.window.HTMLElement)) throw new Error('expected one active preview deck item')
+      const resource = activePanel.querySelector(kind === 'video' ? 'video' : 'img')
+      if (!(resource instanceof dom.window.HTMLElement)) throw new Error(`expected active Rich Media Panel to render ${kind}`)
+      return resource
     }
     const assertPreloadKind = (kind: 'image' | 'video') => {
       const preview = dom.window.document.querySelector('[data-kg-media-catalog-preview="1"]')
@@ -144,10 +131,20 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
         throw new Error('expected preload resources to stay visually isolated without suppressing browser fetches')
       }
       const resource = preview.querySelector(`[data-kg-media-catalog-preview-preload-kind="${kind}"]`)
-      if (!(resource instanceof dom.window.HTMLElement) || !resource.hasAttribute('src')) {
+      if (!(resource instanceof dom.window.HTMLElement) || resource.getAttribute('aria-hidden') !== 'true') {
         throw new Error(`expected adjacent ${kind} preload resource`)
       }
-      return resource
+      const media = resource.querySelector(kind === 'video' ? 'video' : 'img')
+      if (!(media instanceof dom.window.HTMLElement) || !media.hasAttribute('src')) {
+        throw new Error(`expected adjacent ${kind} preview deck media`)
+      }
+      if (
+        kind === 'video'
+        && (!(media instanceof dom.window.HTMLVideoElement) || media.preload !== 'metadata' || media.autoplay || media.loop)
+      ) {
+        throw new Error('expected the adjacent video deck item to remain metadata-only')
+      }
+      return media
     }
     assertPreviewKind('image')
     const initialVideoPreload = assertPreloadKind('video')
@@ -181,11 +178,14 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
         dom.window.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
         await waitForFrames(dom.window, 2)
       })
-      assertPreviewKind(kind)
+      const activeResource = assertPreviewKind(kind)
       assertPreloadKind(kind === 'image' ? 'video' : 'image')
+      if (kind === 'video' && activeResource !== initialVideoPreload) {
+        throw new Error('expected navigation to promote the metadata-ready video element without remounting it')
+      }
     }
-    if (initialVideoPreload.hasAttribute('src') || releasedVideoPauseCalls < 1 || releasedVideoLoadCalls < 1) {
-      throw new Error('expected obsolete video preload to pause, clear its source, and release its resource')
+    if (!initialVideoPreload.hasAttribute('src') || !initialVideoPreload.isConnected) {
+      throw new Error('expected the stable preview deck to retain the reusable video element while open')
     }
     const previousButton = dom.window.document.querySelector('[data-kg-media-catalog-preview-previous="1"]')
     const nextButton = dom.window.document.querySelector('[data-kg-media-catalog-preview-next="1"]')
@@ -196,7 +196,9 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
       nextButton.click()
       await waitForFrames(dom.window, 2)
     })
-    assertPreviewKind('video')
+    if (assertPreviewKind('video') !== initialVideoPreload) {
+      throw new Error('expected button navigation to reuse the preloaded video element')
+    }
     assertPreloadKind('image')
     await act(async () => {
       previousButton.click()
@@ -243,13 +245,11 @@ export async function assertMediaCatalogPreviewKeyboardNavigation() {
     if (dom.window.document.querySelector('[data-kg-media-catalog-preview="1"]')) {
       throw new Error('expected close action to unmount the expanded preview')
     }
-    if (dom.window.document.querySelector('[data-kg-media-catalog-preview-preload="1"]') || finalVideoPreload.hasAttribute('src')) {
-      throw new Error('expected close action to remove and release adjacent preload resources')
+    if (dom.window.document.querySelector('[data-kg-media-catalog-preview-preload="1"]') || finalVideoPreload.isConnected) {
+      throw new Error('expected close action to unmount the complete preview deck')
     }
   } finally {
     await act(async () => root.unmount())
-    if (originalVideoPause) Object.defineProperty(videoPrototype, 'pause', originalVideoPause)
-    if (originalVideoLoad) Object.defineProperty(videoPrototype, 'load', originalVideoLoad)
     restore()
   }
 }
