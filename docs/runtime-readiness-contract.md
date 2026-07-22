@@ -13,7 +13,7 @@ stage_contract:
   order: ["research", "storyboard", "render", "edit", "publish", "checkout"]
 docs_dependency:
   repository: "https://github.com/huijoohwee/agentic-canvas-os.git"
-  ref: "a1da4aacab8d44efe8214c4004a0476ffc711e2e"
+  ref: "050cd1a91635ad07b4ff569325257f163495fee2"
   root_env: "KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT"
   default_relative_root: "../agentic-canvas-os/docs"
   required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "CANONICAL-LIFECYCLE.md", "RUNTIME-PROOF.md", "LIVE-AGENT-PROVIDER-PROOF.md", "PROGRESSIVE-AGENTS.md", "AGENT-TOOLKIT.md", "APPLICATION-COMPOSITION.md", "SKILLS.md", "schemas/production-runtime-readiness.v2.schema.json"]
@@ -50,7 +50,7 @@ The apex Home owner ignores non-routing release, trace, canvas-background, and e
 
 The pinned `AGENT-TOOLKIT.md` and its `/agent.toolkit #agent-toolkit @agent-toolkit-observer` grammar expose the native Toolkit boundary without copying its implementation. Agentic Canvas OS remains the sole execution, instrumentation, evaluation, and reviewed-learning owner; Knowgrph performs read-only catalog resolution and adds no request-time service or external Toolkit dependency.
 
-The pinned `APPLICATION-COMPOSITION.md` and its `/application.compose #application-composition @application-manifest @component-catalog @integration-profile @runtime-proof` grammar govern provider-neutral composition. Knowgrph implements the independent local catalog, mode-bound immutable planner, and bounded sequencer through `knowgrph.application.catalog`, `knowgrph.application.plan`, and `knowgrph.application.execute`. Catalog and plan make zero model or external calls. Execute replans and digest-fences the exact source, revisions, schemas, capabilities, owners, and adapters before delegating each step; it never accepts a caller adapter, provider, command, endpoint, credential, transport, approval array, or raw tool result. This integration copies no external implementation and adds no request-time Agentic Canvas OS or Symphony dependency.
+The pinned `APPLICATION-COMPOSITION.md` and its `/application.compose #application-composition @application-manifest @component-catalog @integration-profile @runtime-proof` grammar govern provider-neutral composition. Knowgrph implements the independent local catalog, mode-bound immutable planner, and bounded sequencer through `knowgrph.application.catalog`, `knowgrph.application.plan`, and `knowgrph.application.execute`. Catalog and plan make zero model or external calls. Execute replans and digest-fences the exact source, revisions, schemas, capabilities, owners, and adapters before delegating each step. Its closed top-level MCP arguments never accept a caller adapter, provider, transport, approval array, or raw tool result, and built-in component schemas expose no caller command, endpoint, or credential fields. Embedding hosts may admit bounded source-bound JSON component packs only through the private initialization API; extension `node.config` remains governed by the selected closed schema and host review, while MCP cannot register a pack, adapter, resolver, package, URL, or executable. This integration copies no external implementation and adds no request-time Agentic Canvas OS, Symphony, or LangChain dependency.
 
 ## Promotion Rule
 
