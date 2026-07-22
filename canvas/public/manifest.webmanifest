@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "airvio agentic canvas",
+  "name": "airvio agentic canvas os",
   "short_name": "airvio",
-  "description": "Airvio agentic canvas.",
+  "description": "Airvio agentic canvas OS.",
   "lang": "en",
   "dir": "ltr",
   "start_url": ".",

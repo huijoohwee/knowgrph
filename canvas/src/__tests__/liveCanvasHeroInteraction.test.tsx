@@ -126,6 +126,10 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
     for (const requiredText of [content.eyebrow, ...content.headline, ...content.posture]) {
       if (!heroText.includes(requiredText)) throw new Error(`expected hero UI to render markdown-backed copy ${JSON.stringify(requiredText)}`)
     }
+    const brandMark = container.querySelector('[data-kg-live-canvas-hero-brand-mark="airvio-favicon"]') as HTMLElement | null
+    if (!brandMark?.getAttribute('style')?.includes('/favicon.svg?v=airvio')) {
+      throw new Error('expected the shared Airvio favicon to replace the legacy blue Home Apex eyebrow dot')
+    }
     const promptPresetsLabel = container.querySelector('label[for="knowgrph-live-canvas-hero-query"]')
     if (promptPresetsLabel?.textContent?.trim() !== 'Prompt Presets' || heroText.includes('Agentic Video Canvas')) {
       throw new Error(`expected Prompt Presets to replace the video-only Home label, got ${JSON.stringify(promptPresetsLabel?.textContent)}`)

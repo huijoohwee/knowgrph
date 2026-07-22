@@ -146,14 +146,14 @@ export function testPwaIndexHtmlIncludesInstallMeta() {
     throw new Error('Expected index.html manifest link to resolve from the configured base path so rewritten custom domains do not bind to an apex-root manifest')
   }
   for (const identityMarker of [
-    '<title>airvio agentic canvas</title>',
-    'name="application-name" content="airvio agentic canvas"',
-    'name="apple-mobile-web-app-title" content="airvio agentic canvas"',
+    '<title>airvio agentic canvas os</title>',
+    'name="application-name" content="airvio agentic canvas os"',
+    'name="apple-mobile-web-app-title" content="airvio agentic canvas os"',
     'href="/favicon.svg?v=airvio"',
   ]) {
     if (!htmlText.includes(identityMarker)) throw new Error(`Expected Home Apex browser identity marker ${identityMarker}`)
   }
-  if (!manifestText.includes('"name": "airvio agentic canvas"') || !manifestText.includes('"short_name": "airvio"')) {
+  if (!manifestText.includes('"name": "airvio agentic canvas os"') || !manifestText.includes('"short_name": "airvio"')) {
     throw new Error('Expected the installable Home Apex identity to use Airvio branding')
   }
   if (!faviconText.includes('aria-label="Airvio favicon"')) {

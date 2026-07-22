@@ -145,7 +145,12 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
         data-kg-live-canvas-hero-editorial="overlay"
       >
         <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--kg-text-secondary)]">
-          <span className="h-2 w-2 rounded-full bg-[var(--kg-canvas-accent)] shadow-[0_0_18px_var(--kg-canvas-accent)]" aria-hidden="true" />
+          <span
+            className="h-3 w-3 shrink-0 bg-contain bg-center bg-no-repeat"
+            style={{ backgroundImage: "url('/favicon.svg?v=airvio')" }}
+            aria-hidden="true"
+            data-kg-live-canvas-hero-brand-mark="airvio-favicon"
+          />
           {content.eyebrow}
         </p>
         <h1 id="knowgrph-live-canvas-hero-title" className="mt-3 text-balance text-3xl font-semibold leading-[1.02] tracking-[-0.045em] md:mt-4 md:text-5xl lg:text-[3.5rem]">

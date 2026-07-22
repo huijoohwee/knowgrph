@@ -8,8 +8,8 @@ updated: 2026-07-22
 author: airvio / joohwee
 domain: knowgrph
 tags: [agent-ready, live-canvas, hero, discovery]
-title: airvio · agentic canvas
-eyebrow: airvio · agentic canvas
+title: airvio · agentic canvas os
+eyebrow: airvio · agentic canvas os
 headline:
   - Map intent
   - Run agents
