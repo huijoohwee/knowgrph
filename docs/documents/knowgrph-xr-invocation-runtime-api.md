@@ -4,7 +4,7 @@
 
 FloatingPanel **Skills & Commands** hydrates the exact-revision Agentic Canvas OS `/`, `@`, and `#` dictionary as authoring metadata. A row inserts its token byte-for-byte into the active card editor; it does not execute an incomplete bare command.
 
-Repo-local run-ready surfaces hydrate through the same-origin `/knowgrph/control-plane/mcp` route. They never suppress hydration or fall through to the production control plane. The panel exposes its hydration status, catalog version, and exact source revision as runtime data attributes.
+Repo-local run-ready surfaces hydrate through the same-origin `/knowgrph/control-plane/mcp` route. They never suppress hydration or fall through to the production control plane. One shared, epoch-fenced group hydrator deduplicates `/`, `@`, and `#` requests, retries only sigils that resolved on a losing docs revision, and settles as `fresh`, `stale`, or `blocked` rather than retaining `loading` after work completes. The panel exposes its hydration status, catalog version, and exact source revision as runtime data attributes.
 
 FloatingPanel **Media** owns complete dynamic XR invocations. Every visible invocation chip sends the identical displayed string, as the sole `invocation` input field, to `knowgrph.control_local_xr_scene`.
 
