@@ -423,14 +423,14 @@ export default function StoryboardWidgetCanvasSurface(props: {
         const sx = release.clientX - rect.left
         const sy = release.clientY - rect.top
         if (!Number.isFinite(sx) || !Number.isFinite(sy) || sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
+        const pos = readSurfaceDrop(release.clientX, release.clientY)
+        if (!pos) return
         const dropKey = `${payload.registryEntryId}:${Math.round(sx)}:${Math.round(sy)}`
         if (props.shouldDedupeWidgetDrop(dropKey)) {
           ev.preventDefault()
           ev.stopPropagation()
           return
         }
-        const pos = readSurfaceDrop(release.clientX, release.clientY)
-        if (!pos) return
         props.addNodeFromRegistryAtWorld({ entry, x: pos.x, y: pos.y })
         props.upsertUiToast({
           id: 'storyboard-widget-drop-widget',
