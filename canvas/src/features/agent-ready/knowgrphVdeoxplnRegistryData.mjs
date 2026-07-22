@@ -337,4 +337,3 @@ export const buildRawKnowgrphVdeoxplnRegistry = ({
     publish: ["pages-agent-skills", "mainpanel-mcp", "browser-webmcp"],
   },
 ]);
-
