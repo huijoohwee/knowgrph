@@ -278,10 +278,11 @@ jobs:
           PRODUCTION_PUBLIC_ORIGIN: https://airvio.co
           PRODUCTION_MARKER_ORIGIN: ${{ steps.candidate.outputs.deployment_url }}
           PRODUCTION_IMMUTABLE_MANIFEST_DIGEST: ${{ needs.verify.outputs.manifest_digest }}
+          PRODUCTION_BROWSER_HEADLESS: 'false'
           RELEASE_SHA: ${{ github.sha }}
         run: |
           for attempt in 1 2 3; do
-            if npm run production:fidelity:check; then
+            if xvfb-run --auto-servernum npm run production:fidelity:check; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
