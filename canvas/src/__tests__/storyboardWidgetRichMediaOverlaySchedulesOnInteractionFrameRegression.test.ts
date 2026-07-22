@@ -98,7 +98,9 @@ export function testStoryboardCardsReadTheLiveNativeCameraFrameBeforeWorkspaceFa
   const surfaceText = readFileSync(surfacePath, 'utf8')
   const mediaText = readFileSync(mediaPath, 'utf8')
   if (!surfaceText.includes('const getSynchronizedStoryboardCameraTransform = React.useCallback(() => {')
-    || !surfaceText.includes('readFiniteRuntimeZoomTransform(props.flowRuntimeRefRef.current?.current)\n      || props.getLiveZoomTransform()')) {
+    || !surfaceText.includes('const flowRuntimeRefRef = props.flowRuntimeRefRef')
+    || !surfaceText.includes('const getLiveZoomTransform = props.getLiveZoomTransform')
+    || !surfaceText.includes('readFiniteRuntimeZoomTransform(flowRuntimeRefRef.current?.current)\n      || getLiveZoomTransform()')) {
     throw new Error('expected Storyboard cards to read the native runtime camera frame before the workspace-safe fallback')
   }
   if (!surfaceText.includes('getTransform={getSynchronizedStoryboardCameraTransform}')) {
