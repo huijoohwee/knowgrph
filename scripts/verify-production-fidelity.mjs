@@ -31,6 +31,11 @@ const fetchMarker = async pathname => {
 }
 
 const PHYSICS_PLAYGROUND_PATTERN = /Physics runtime running with (?:ball|rocket) selected\./
+const WEBGL_SOFTWARE_RENDERING_ARGS = [
+  '--use-gl=angle',
+  '--use-angle=swiftshader-webgl',
+  '--enable-unsafe-swiftshader',
+]
 
 const isCanvasReady = text => text.length > 200
   && !text.includes('Preparing canvas view...')
@@ -120,7 +125,12 @@ await validateProductionRuntimeReadiness(markerAtApex.marker, {
   immutableManifestDigest: expectedManifestDigest,
 })
 
-const browser = await chromium.launch({ channel: 'chrome', headless: true })
+const browser = await chromium.launch({
+  channel: 'chrome',
+  headless: true,
+  // Release proof runs only the trusted immutable candidate and needs WebGL on GPU-less CI hosts.
+  args: WEBGL_SOFTWARE_RENDERING_ARGS,
+})
 const context = await browser.newContext({ serviceWorkers: 'block' })
 await context.addInitScript(() => {
   const prematureSceneMounts = []
