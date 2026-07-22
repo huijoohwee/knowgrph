@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import { loadAgentSandboxPolicy, authorizeAgentSandboxOperation } from "./agent-sandbox-policy-runtime.js";
 import { buildAgenticCanvasOsDocsCatalog } from "./agentic-canvas-os-docs-core.mjs";
 import { assertFileProof, executableProof, fileProof } from "./implementation-run-managed-process.js";
+import { readRuntimeReadinessContract, resolveRuntimeDocsDependency } from "../scripts/runtime-readiness-contract.mjs";
 
 const execFileAsync = promisify(execFile);
 const REQUIRED_BINDINGS = Object.freeze(["@work-item", "@implementation-run"]);
@@ -241,10 +242,21 @@ async function readCatalog(agenticCanvasOsRoot) {
   return buildAgenticCanvasOsDocsCatalog(Object.fromEntries(files.map((file, index) => [file, contents[index]])));
 }
 
-export async function preflightImplementationRun(spec, { env = process.env } = {}) {
+export async function supportedImplementationRunAcosRevision() {
+  return resolveRuntimeDocsDependency(await readRuntimeReadinessContract()).ref;
+}
+
+export async function preflightImplementationRun(spec, { env = process.env, supportedAcosRevision } = {}) {
   const diagnostics = [];
   let host;
   try { host = loadImplementationRunHostConfig(env); } catch (error) { return { ok: false, diagnostics: [{ code: "host_config_invalid", message: error.message }] }; }
+  let supportedRevision = "";
+  try {
+    supportedRevision = supportedAcosRevision ?? await supportedImplementationRunAcosRevision();
+    if (!SHA.test(supportedRevision)) throw new Error("The supported ACOS revision must be an exact lowercase 40-character Git SHA.");
+  } catch (error) {
+    diagnostics.push({ code: "acos_revision_contract_invalid", message: error.message });
+  }
   const real = async (candidate, label) => {
     try { return await fs.realpath(candidate); } catch (error) { diagnostics.push({ code: `${label}_unavailable`, message: error.message }); return ""; }
   };
@@ -301,6 +313,7 @@ export async function preflightImplementationRun(spec, { env = process.env } = {
       ]);
       acosRevision = acosHead;
       if (path.resolve(acosTop) !== configuredAcosRoot || acosBranch !== "main" || acosHead !== acosRemote || acosStatus) diagnostics.push({ code: "acos_source_not_ready", message: "Trusted ACOS root must be clean canonical main exactly at refs/remotes/origin/main." });
+      if (supportedRevision && acosHead !== supportedRevision) diagnostics.push({ code: "acos_revision_unsupported", message: `Trusted ACOS HEAD ${acosHead} is not the supported runtime-readiness revision ${supportedRevision}.` });
       const scriptPath = await fs.realpath(path.join(configuredAcosRoot, "scripts", "device-branch.mjs"));
       if (!within(configuredAcosRoot, scriptPath)) diagnostics.push({ code: "acos_script_invalid", message: "ACOS device script must be a regular file inside the trusted root." });
       acosScriptProof = { role: "acos-device-script", ...await fileProof(scriptPath) };
@@ -356,6 +369,7 @@ export async function preflightImplementationRun(spec, { env = process.env } = {
     originUrl,
     originIdentity,
     acosRevision,
+    supportedAcosRevision: supportedRevision,
     acosScriptProof,
     worktreePath,
     acosSemanticScope,

@@ -3,6 +3,7 @@ import path from "node:path";
 export const AGENTIC_DEVICE_RESULT_SCHEMA = "agentic-device-command-result/v1";
 const ACTIONS = new Set(["start", "resume", "heartbeat", "review", "park"]);
 const SHA = /^[a-f0-9]{40}$/;
+const PARK_STASH_STATUSES = new Set(["pending", "restored"]);
 const validPullRequestUrl = (value) => {
   try { return ["http:", "https:"].includes(new URL(value).protocol); } catch { return false; }
 };
@@ -39,8 +40,20 @@ export function parseAgenticDeviceResult(stdout, { action, expectedStatus, sessi
   if (payload.pullRequest.isDraft !== expectedDraft) throw new Error(`ACOS ${action} returned an invalid pull-request draft state.`);
   if (["start", "resume", "heartbeat"].includes(action) && (lease.status !== "active" || !payload.branch)) throw new Error(`ACOS ${action} omitted active lease identity.`);
   if (action === "review" && (lease.status !== "review_ready" || !payload.pullRequest?.url || !payload.branch)) throw new Error("ACOS review omitted review-ready pull-request identity.");
-  if (action === "park" && lease.status !== "parked") throw new Error("ACOS park omitted parked lease identity.");
+  if (action === "park") assertParkEvidence(payload, lease);
   return payload;
+}
+
+function assertParkEvidence(payload, lease) {
+  const headFieldsValid = lease.status === "parked" && SHA.test(lease.parkHeadSha || "") && payload.headSha === lease.parkHeadSha && SHA.test(lease.parkBranchHeadSha || "") && lease.parkSourceEpoch === lease.epoch && lease.parkSourceFenceSha === lease.fenceSha;
+  if (!headFieldsValid) throw new Error("ACOS park omitted exact parked head and source-fence evidence.");
+  const stashFields = [lease.parkStashRef, lease.parkStashSha, lease.parkStashMessage, lease.parkStashStatus];
+  const withoutStash = stashFields.every((value) => value === null);
+  const expectedRef = `refs/agentic-canvas-os/parked/${lease.branch}/epoch-${lease.epoch}`;
+  const expectedMessage = `park: ${lease.branch} epoch ${lease.epoch} fence ${lease.fenceSha}`;
+  const withStash = lease.parkStashRef === expectedRef && SHA.test(lease.parkStashSha || "") && lease.parkStashMessage === expectedMessage && PARK_STASH_STATUSES.has(lease.parkStashStatus);
+  if (!withoutStash && !withStash) throw new Error("ACOS park omitted internally consistent immutable stash evidence.");
+  if (payload.stashRef !== lease.parkStashRef || payload.stashSha !== lease.parkStashSha || payload.stashStatus !== lease.parkStashStatus) throw new Error("ACOS park top-level stash evidence does not match its lease projection.");
 }
 
 export function parseAgenticDeviceFailure(stdout, action) {

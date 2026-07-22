@@ -132,7 +132,7 @@ Broad `list` calls return compact summaries ordered by stable run ID, scan bound
 
 ## ACOS upgrade boundary
 
-Every run pins the exact clean ACOS commit and device-script proof that created its lifecycle state. Before promoting a new supported ACOS revision, query `list` page by page and drain active states (`queued`, `claiming`, `provisioning`, `running`, `verifying`, `delivery_ready`, and `paused`) by completing or canceling them; explicitly resolve any parked partial work. Then update the runtime-readiness revision pin and restart the MCP service. A canonical ACOS upgrade intentionally blocks an old run's resume instead of silently migrating lease or stash state across versions.
+Every run pins the exact clean ACOS commit and device-script proof that created its lifecycle state. Preflight also requires that commit to equal `docs_dependency.ref` in `docs/runtime-readiness-contract.md`; a token-complete checkout at any other clean `main` revision fails with `acos_revision_unsupported` before durable state or a worktree exists. Before promoting a new supported ACOS revision, query `list` page by page and drain active states (`queued`, `claiming`, `provisioning`, `running`, `verifying`, `delivery_ready`, and `paused`) by completing or canceling them; explicitly resolve any parked partial work. Then update the runtime-readiness revision pin and restart the MCP service. A canonical ACOS upgrade intentionally blocks an old run's resume instead of silently migrating lease or stash state across versions.
 
 ## Containment and trust boundary
 

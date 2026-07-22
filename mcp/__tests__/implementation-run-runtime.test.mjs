@@ -51,7 +51,7 @@ async function fixture(t) {
     "policy.json": policy,
   });
   await fs.mkdir(worktreeRoot, { recursive: true });
-  await initializeRepository(acosRoot, {
+  const acosRevision = await initializeRepository(acosRoot, {
     "docs/FACTS.md": "---\ndictionary_entries: []\n---\n",
     "docs/DICTIONARY-COMMAND.md": "---\ndictionary_entries:\n  - \"/implementation.run\"\n---\n| `/implementation.run` | Managed implementation run |\n",
     "docs/DICTIONARY-SEMANTIC.md": "---\ndictionary_entries:\n  - \"#managed-implementation-run\"\n---\n| `#managed-implementation-run` | Managed implementation run |\n",
@@ -84,7 +84,7 @@ async function fixture(t) {
     idempotencyKey: "fixture-idempotency-key",
     bounds: { maxAttempts: 2, maxRuntimeMs: 60000, maxOutputBytes: 65536, leaseTtlSeconds: 600 },
   };
-  return { base, repoRoot, worktreeRoot, sourceRevision, env, spec };
+  return { base, repoRoot, worktreeRoot, sourceRevision, acosRevision, env, spec };
 }
 
 const fakeSpawn = () => {
@@ -95,10 +95,16 @@ const fakeSpawn = () => {
   queueMicrotask(() => child.emit("spawn"));
   return child;
 };
+const fixtureRuntime = (fx, options = {}) => createImplementationRunRuntime({
+  rootDir: fx.repoRoot,
+  env: fx.env,
+  supportedAcosRevision: fx.acosRevision,
+  ...options,
+});
 
 test("implementation-run plan is non-mutating and validates exact catalog membership", async (t) => {
   const fx = await fixture(t);
-  const runtime = createImplementationRunRuntime({ rootDir: fx.repoRoot, env: fx.env, spawnImpl: fakeSpawn });
+  const runtime = fixtureRuntime(fx, { spawnImpl: fakeSpawn });
   const planned = await runtime.plan(fx.spec);
   assert.equal(planned.ok, true, JSON.stringify(planned.diagnostics));
   assert.equal(planned.mutation, "none");
@@ -115,10 +121,25 @@ test("implementation-run plan is non-mutating and validates exact catalog member
   assert.equal(traversal.error.code, "invalid_arguments");
 });
 
+test("token-complete ACOS at an older revision is rejected before durable or worktree mutation", async (t) => {
+  const fx = await fixture(t);
+  const unsupportedRevision = fx.acosRevision === "f".repeat(40) ? "e".repeat(40) : "f".repeat(40);
+  const runtime = fixtureRuntime(fx, { spawnImpl: fakeSpawn, supportedAcosRevision: unsupportedRevision });
+  const planned = await runtime.plan(fx.spec);
+  assert.equal(planned.ok, false);
+  assert.equal(planned.mutation, "none");
+  assert.ok(planned.diagnostics.some((entry) => entry.code === "acos_revision_unsupported"));
+  const started = await runtime.start(fx.spec);
+  assert.equal(started.ok, false);
+  assert.equal(started.error.code, "acos_revision_unsupported");
+  assert.equal(await fs.lstat(path.join(fx.repoRoot, ".knowgrph-workspace")).then(() => true, () => false), false);
+  assert.equal(await fs.lstat(path.join(fx.worktreeRoot, `implementation-${fx.spec.workItem.id}-${crypto.createHash("sha256").update(fx.spec.idempotencyKey).digest("hex").slice(0, 24)}`)).then(() => true, () => false), false);
+});
+
 test("implementation-run start is durable, idempotent before fresh-target preflight, and CAS-controlled", async (t) => {
   const fx = await fixture(t);
   let spawnCount = 0;
-  const runtime = createImplementationRunRuntime({ rootDir: fx.repoRoot, env: fx.env, spawnImpl: (...args) => { spawnCount += 1; return fakeSpawn(...args); } });
+  const runtime = fixtureRuntime(fx, { spawnImpl: (...args) => { spawnCount += 1; return fakeSpawn(...args); } });
   const started = await runtime.start(fx.spec);
   assert.equal(started.ok, true);
   assert.match(started.runId, /^ir_[a-f0-9]{24}$/);
@@ -147,7 +168,7 @@ test("implementation-run start is durable, idempotent before fresh-target prefli
 
 test("distinct runs sharing a caller scope receive deterministic disjoint 96-bit ACOS identities", async (t) => {
   const fx = await fixture(t);
-  const runtime = createImplementationRunRuntime({ rootDir: fx.repoRoot, env: fx.env, spawnImpl: fakeSpawn });
+  const runtime = fixtureRuntime(fx, { spawnImpl: fakeSpawn });
   const secondSpec = { ...fx.spec, idempotencyKey: "fixture-idempotency-key-second" };
   const [firstPlan, secondPlan] = await Promise.all([runtime.plan(fx.spec), runtime.plan(secondSpec)]);
   assert.equal(firstPlan.ok, true);
@@ -165,12 +186,12 @@ test("distinct runs sharing a caller scope receive deterministic disjoint 96-bit
 test("implementation-run preflight rejects symlinked allowed paths and unregistered runner fields", async (t) => {
   const fx = await fixture(t);
   await fs.symlink(os.tmpdir(), path.join(fx.repoRoot, "src"));
-  const runtime = createImplementationRunRuntime({ rootDir: fx.repoRoot, env: fx.env, spawnImpl: fakeSpawn });
+  const runtime = fixtureRuntime(fx, { spawnImpl: fakeSpawn });
   const symlinked = await runtime.plan(fx.spec);
   assert.equal(symlinked.ok, false);
   assert.ok(symlinked.diagnostics.some((entry) => entry.code === "allowed_path_symlink"));
   const invalidEnv = { ...fx.env, KNOWGRPH_IMPLEMENTATION_RUNNERS_JSON: JSON.stringify({ fixture: { executable: process.execPath, args: [], environment: [], command: "forbidden" } }) };
-  const invalidRuntime = createImplementationRunRuntime({ rootDir: fx.repoRoot, env: invalidEnv, spawnImpl: fakeSpawn });
+  const invalidRuntime = fixtureRuntime(fx, { env: invalidEnv, spawnImpl: fakeSpawn });
   const invalid = await invalidRuntime.plan(fx.spec);
   assert.equal(invalid.ok, false);
   assert.ok(invalid.diagnostics.some((entry) => entry.code === "host_config_invalid"));
@@ -178,7 +199,7 @@ test("implementation-run preflight rejects symlinked allowed paths and unregiste
 
 test("caller-shaped and deployment-like verifier commands fail before durable mutation", async (t) => {
   const fx = await fixture(t);
-  const runtime = createImplementationRunRuntime({ rootDir: fx.repoRoot, env: fx.env, spawnImpl: fakeSpawn });
+  const runtime = fixtureRuntime(fx, { spawnImpl: fakeSpawn });
   for (const argv of [["/usr/bin/npm", "publish"], ["/usr/bin/git", "push"], ["/usr/bin/node", "-e", "process.exit()"]]) {
     const rejected = await runtime.start({ ...fx.spec, verification: [{ argv, timeoutMs: 10000 }] });
     assert.equal(rejected.ok, false);
@@ -186,14 +207,14 @@ test("caller-shaped and deployment-like verifier commands fail before durable mu
   }
   for (const [profileId, config] of Object.entries({ npm_publish: { executable: "/usr/bin/npm", args: ["publish"] }, git_push: { executable: "/usr/bin/git", args: ["push"] }, node_eval: { executable: "/usr/bin/node", args: ["-e", "process.exit()"] } })) {
     const env = { ...fx.env, KNOWGRPH_IMPLEMENTATION_VERIFIERS_JSON: JSON.stringify({ [profileId]: { ...config, environment: [], timeoutMs: 10000 } }) };
-    const rejected = await createImplementationRunRuntime({ rootDir: fx.repoRoot, env, spawnImpl: fakeSpawn }).start({ ...fx.spec, verification: [{ profileId }], idempotencyKey: `blocked-${profileId}` });
+    const rejected = await fixtureRuntime(fx, { env, spawnImpl: fakeSpawn }).start({ ...fx.spec, verification: [{ profileId }], idempotencyKey: `blocked-${profileId}` });
     assert.equal(rejected.ok, false);
     assert.ok(rejected.error.details.some((entry) => entry.code === "host_config_invalid"));
   }
   const oversizedSpec = { ...fx.spec, workItem: { ...fx.spec.workItem, acceptance: Array.from({ length: 50 }, () => "z".repeat(4096)) }, idempotencyKey: "oversized-caller-spec" };
   assert.equal((await runtime.start(oversizedSpec)).error.code, "invalid_arguments");
   const oversizedRegistryEnv = { ...fx.env, KNOWGRPH_IMPLEMENTATION_VERIFIERS_JSON: JSON.stringify({ node_version: { executable: process.execPath, args: ["a".repeat(4096), "b".repeat(4096)], environment: [], timeoutMs: 10000 } }) };
-  const oversizedRegistry = await createImplementationRunRuntime({ rootDir: fx.repoRoot, env: oversizedRegistryEnv, spawnImpl: fakeSpawn }).start(fx.spec);
+  const oversizedRegistry = await fixtureRuntime(fx, { env: oversizedRegistryEnv, spawnImpl: fakeSpawn }).start(fx.spec);
   assert.equal(oversizedRegistry.ok, false);
   assert.ok(oversizedRegistry.error.details.some((entry) => entry.code === "host_config_invalid"));
   assert.equal(await fs.lstat(path.join(fx.repoRoot, ".knowgrph-workspace")).then(() => true, () => false), false);
@@ -202,7 +223,7 @@ test("caller-shaped and deployment-like verifier commands fail before durable mu
 test("implementation-run preflight rejects username-only HTTP origin credentials", async (t) => {
   const fx = await fixture(t);
   await git(fx.repoRoot, ["remote", "set-url", "origin", "https://token-value@example.invalid/org/repo.git"]);
-  const runtime = createImplementationRunRuntime({ rootDir: fx.repoRoot, env: fx.env, spawnImpl: fakeSpawn });
+  const runtime = fixtureRuntime(fx, { spawnImpl: fakeSpawn });
   const planned = await runtime.plan(fx.spec);
   assert.equal(planned.ok, false);
   assert.ok(planned.diagnostics.some((entry) => entry.code === "origin_identity_invalid"));
@@ -219,7 +240,7 @@ test("implementation-run preflight rejects ignored untracked and oversized polic
   await git(fx.repoRoot, ["commit", "-m", "ignore local policy"]);
   await git(fx.repoRoot, ["update-ref", "refs/remotes/origin/main", "HEAD"]);
   await fs.writeFile(policyPath, original);
-  let runtime = createImplementationRunRuntime({ rootDir: fx.repoRoot, env: fx.env, spawnImpl: fakeSpawn });
+  let runtime = fixtureRuntime(fx, { spawnImpl: fakeSpawn });
   let planned = await runtime.plan(fx.spec);
   assert.equal(planned.ok, false);
   assert.ok(planned.diagnostics.some((entry) => entry.code === "sandbox_policy_source_invalid"));
@@ -236,7 +257,7 @@ test("implementation-run preflight rejects ignored untracked and oversized polic
   await git(fx.repoRoot, ["add", "policy.json"]);
   await git(fx.repoRoot, ["commit", "-m", "oversize policy"]);
   await git(fx.repoRoot, ["update-ref", "refs/remotes/origin/main", "HEAD"]);
-  runtime = createImplementationRunRuntime({ rootDir: fx.repoRoot, env: fx.env, spawnImpl: fakeSpawn });
+  runtime = fixtureRuntime(fx, { spawnImpl: fakeSpawn });
   planned = await runtime.start({ ...fx.spec, idempotencyKey: "oversized-policy-key" });
   assert.equal(planned.ok, false);
   assert.equal(await fs.lstat(path.join(fx.repoRoot, ".knowgrph-workspace")).then(() => true, () => false), false);

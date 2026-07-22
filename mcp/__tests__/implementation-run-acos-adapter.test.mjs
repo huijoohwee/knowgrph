@@ -27,6 +27,16 @@ const result = (action, status, leaseStatus = status) => ({
     baseSha: "a".repeat(40),
     fenceSha: "b".repeat(40),
     pullRequestUrl,
+    reviewHeadSha: null,
+    deliveryHeadSha: null,
+    parkHeadSha: null,
+    parkBranchHeadSha: null,
+    parkSourceEpoch: null,
+    parkSourceFenceSha: null,
+    parkStashRef: null,
+    parkStashSha: null,
+    parkStashMessage: null,
+    parkStashStatus: null,
   },
 });
 
@@ -70,16 +80,47 @@ test("ACOS adapter preserves typed command failures without parsing prose", () =
   assert.equal(parseAgenticDeviceFailure("human output", "start"), null);
 });
 
-test("adapter accepts the merged ACOS bea4ce5f v2 start projection", () => {
+test("adapter accepts the merged ACOS 5cf05080 v2 start projection", () => {
   const fixture = {
     schema: "agentic-device-command-result/v1", ok: true, action: "start", status: "active",
     repoRoot: worktreePath, branch, worktreePath, provisioned: true,
     pullRequest: { url: pullRequestUrl, number: 12, isDraft: true },
     lease: {
       schema: "agentic-writer-lease/v2", status: "active", epoch: 4, sessionId, device: "fixture-device", scope: "managed-item", branch, worktreePath,
-      baseSha: "a".repeat(40), fenceSha: "b".repeat(40), pullRequestUrl, reviewHeadSha: null, deliveryHeadSha: null, parkHeadSha: null, parkStashRef: null,
+      baseSha: "a".repeat(40), fenceSha: "b".repeat(40), pullRequestUrl, reviewHeadSha: null, deliveryHeadSha: null,
+      parkHeadSha: null, parkBranchHeadSha: null, parkSourceEpoch: null, parkSourceFenceSha: null,
+      parkStashRef: null, parkStashSha: null, parkStashMessage: null, parkStashStatus: null,
       acquiredAt: "2026-07-22T00:00:00.000Z", heartbeatAt: "2026-07-22T00:00:00.000Z", expiresAt: "2026-07-22T00:10:00.000Z",
     },
   };
   assert.equal(parseAgenticDeviceResult(JSON.stringify(fixture), { action: "start", expectedStatus: "active", sessionId }).lease.schema, "agentic-writer-lease/v2");
+});
+
+test("adapter requires exact immutable ACOS park evidence and matching top-level stash projection", () => {
+  const stashRef = `refs/agentic-canvas-os/parked/${branch}/epoch-4`;
+  const parked = {
+    ...result("park", "parked"),
+    headSha: "c".repeat(40),
+    stashRef,
+    stashSha: "d".repeat(40),
+    stashStatus: "pending",
+    lease: {
+      ...result("park", "parked").lease,
+      parkHeadSha: "c".repeat(40),
+      parkBranchHeadSha: "e".repeat(40),
+      parkSourceEpoch: 4,
+      parkSourceFenceSha: "b".repeat(40),
+      parkStashRef: stashRef,
+      parkStashSha: "d".repeat(40),
+      parkStashMessage: `park: ${branch} epoch 4 fence ${"b".repeat(40)}`,
+      parkStashStatus: "pending",
+    },
+  };
+  assert.equal(parseAgenticDeviceResult(JSON.stringify(parked), { action: "park", expectedStatus: "parked", sessionId }).stashSha, "d".repeat(40));
+  assert.throws(() => parseAgenticDeviceResult(JSON.stringify({ ...parked, stashSha: "f".repeat(40) }), { action: "park", expectedStatus: "parked", sessionId }), /does not match/);
+  assert.throws(() => parseAgenticDeviceResult(JSON.stringify({ ...parked, headSha: "f".repeat(40) }), { action: "park", expectedStatus: "parked", sessionId }), /parked head/);
+  assert.throws(() => parseAgenticDeviceResult(JSON.stringify({ ...parked, lease: { ...parked.lease, parkSourceEpoch: 3 } }), { action: "park", expectedStatus: "parked", sessionId }), /source-fence/);
+  assert.throws(() => parseAgenticDeviceResult(JSON.stringify({ ...parked, lease: { ...parked.lease, parkStashRef: `${stashRef}-wrong` } }), { action: "park", expectedStatus: "parked", sessionId }), /stash evidence/);
+  assert.throws(() => parseAgenticDeviceResult(JSON.stringify({ ...parked, lease: { ...parked.lease, parkStashMessage: "park: unbound" } }), { action: "park", expectedStatus: "parked", sessionId }), /stash evidence/);
+  assert.throws(() => parseAgenticDeviceResult(JSON.stringify({ ...parked, lease: { ...parked.lease, parkStashStatus: null } }), { action: "park", expectedStatus: "parked", sessionId }), /stash evidence/);
 });

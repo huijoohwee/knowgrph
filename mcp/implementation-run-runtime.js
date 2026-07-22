@@ -87,7 +87,7 @@ const sanitizedSupervisorEnvironment = (env, state) => {
   return Object.fromEntries([...new Set(names)].filter((name) => typeof env[name] === "string").map((name) => [name, env[name]]));
 };
 
-export function createImplementationRunRuntime({ rootDir, env = process.env, spawnImpl = spawn, now = () => new Date(), recoveryIntervalMs = 30000 } = {}) {
+export function createImplementationRunRuntime({ rootDir, env = process.env, spawnImpl = spawn, now = () => new Date(), recoveryIntervalMs = 30000, supportedAcosRevision } = {}) {
   const runtimeRoot = path.resolve(rootDir || process.cwd());
   const store = new ImplementationRunStore({ rootDir: runtimeRoot, now });
   let recoveryPromise = null;
@@ -215,7 +215,7 @@ export function createImplementationRunRuntime({ rootDir, env = process.env, spa
   async function plan(raw) {
     const validation = validateImplementationRunSpec(raw);
     if (!validation.ok) return errorPayload("invalid_arguments", "Implementation-run specification is invalid.", validation.errors);
-    const preflight = await preflightImplementationRun(validation.spec, { env });
+    const preflight = await preflightImplementationRun(validation.spec, { env, supportedAcosRevision });
     const result = {
       schema: "knowgrph-implementation-run-plan/v1",
       ok: preflight.ok,
@@ -255,7 +255,10 @@ export function createImplementationRunRuntime({ rootDir, env = process.env, spa
       if (error?.code !== "ENOENT") return errorPayload("state_read_failed", error.message);
     }
     const planned = await plan(validation.spec);
-    if (!planned.ok) return errorPayload("preflight_failed", "Implementation-run preflight failed without mutation.", planned.diagnostics || planned.error?.details);
+    if (!planned.ok) {
+      const unsupported = planned.diagnostics?.find((entry) => entry.code === "acos_revision_unsupported");
+      return errorPayload(unsupported?.code || "preflight_failed", "Implementation-run preflight failed without mutation.", planned.diagnostics || planned.error?.details);
+    }
     let created;
     try { created = await store.create({ spec: planned.normalizedSpec, plan: { ...planned, normalizedSpec: undefined } }); } catch (error) {
       return errorPayload(error.code || "state_create_failed", error.message);

@@ -101,6 +101,7 @@ execFileSync("git", ["-C", request.workspacePath, "commit", "-m", "feat: managed
     "docs/DICTIONARY-BINDING.md": "---\ndictionary_entries:\n  - \"@work-item\"\n  - \"@implementation-run\"\n---\n| `@work-item` | Item |\n| `@implementation-run` | Run |\n",
     "scripts/device-branch.mjs": "// trusted fixture\n",
   });
+  const acosRevision = (await git(acosRoot, ["rev-parse", "HEAD"])).stdout.trim();
   const verifierProfiles = Object.fromEntries(Array.from(
     { length: options.verificationCount || 1 },
     (_, index) => [`fixture_verify_${index}`, { executable: trueExecutable, args: [], environment: [], timeoutMs: 10000 }],
@@ -127,7 +128,7 @@ execFileSync("git", ["-C", request.workspacePath, "commit", "-m", "feat: managed
     idempotencyKey: "supervisor-integration-key",
     bounds: { maxAttempts: options.maxAttempts || 3, maxRuntimeMs: 120000, maxOutputBytes: 65536, leaseTtlSeconds: 600 },
   };
-  const runtime = createImplementationRunRuntime({ rootDir: repoRoot, env });
+  const runtime = createImplementationRunRuntime({ rootDir: repoRoot, env, supportedAcosRevision: acosRevision });
   const planned = await runtime.plan(spec);
   assert.equal(planned.ok, true, JSON.stringify(planned.diagnostics));
   const created = await runtime.store.create({ spec: planned.normalizedSpec, plan: { ...planned, normalizedSpec: undefined } });
@@ -142,11 +143,29 @@ export async function own(store, state, token) {
   });
 }
 
-export const machinePayload = (state, lease, pullRequest, action, status, provisioned = false) => ({
-  schema: "agentic-device-command-result/v1", ok: true, action, status,
-  repoRoot: state.plan.derivedWorktreePath, worktreePath: state.plan.derivedWorktreePath,
-  branch: lease.branch, provisioned, pullRequest: { ...pullRequest, isDraft: status !== "review_ready" }, lease: { ...lease, status },
-});
+export const machinePayload = (state, lease, pullRequest, action, status, provisioned = false) => {
+  let projectedLease = { ...lease, status };
+  if (action === "park") {
+    const hasStash = Boolean(projectedLease.parkStashSha);
+    projectedLease = {
+      ...projectedLease,
+      parkHeadSha: projectedLease.parkHeadSha || state.plan.sourceRevision,
+      parkBranchHeadSha: projectedLease.parkBranchHeadSha || projectedLease.fenceSha,
+      parkSourceEpoch: projectedLease.epoch,
+      parkSourceFenceSha: projectedLease.fenceSha,
+      parkStashRef: hasStash ? `refs/agentic-canvas-os/parked/${projectedLease.branch}/epoch-${projectedLease.epoch}` : null,
+      parkStashSha: hasStash ? projectedLease.parkStashSha : null,
+      parkStashMessage: hasStash ? `park: ${projectedLease.branch} epoch ${projectedLease.epoch} fence ${projectedLease.fenceSha}` : null,
+      parkStashStatus: hasStash ? projectedLease.parkStashStatus || "pending" : null,
+    };
+  }
+  return {
+    schema: "agentic-device-command-result/v1", ok: true, action, status,
+    repoRoot: state.plan.derivedWorktreePath, worktreePath: state.plan.derivedWorktreePath,
+    branch: projectedLease.branch, provisioned, pullRequest: { ...pullRequest, isDraft: status !== "review_ready" }, lease: projectedLease,
+    ...(action === "park" ? { headSha: projectedLease.parkHeadSha, stashRef: projectedLease.parkStashRef, stashSha: projectedLease.parkStashSha, stashStatus: projectedLease.parkStashStatus } : {}),
+  };
+};
 
 export async function provisionLane(fx, state, sessionId) {
   const branch = `agent/test/${state.plan.acosSemanticScope}`;
