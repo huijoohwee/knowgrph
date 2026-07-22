@@ -22,7 +22,7 @@ import {
   stepXrNativeControllerDemoRuntime,
   stepXrNativeControllerDemoRuntimeTicks,
 } from '@/features/three/xrNativeControllerDemoRuntime'
-import { setXrPhysicsSimulationBodyPose } from '@/features/three/xrPhysicsStepper'
+import { setXrPhysicsSimulationBodyPose } from '@/features/three/xrSpatialPhysicsAdapter'
 import { resolveXrMotionReferenceStage } from '@/features/three/xrSceneLibrary'
 import { resolveXrTerrainPerimeter } from '@/features/three/xrTerrainPerimeter'
 import { resolveXrNativeControllerFollowFraming } from '@/features/three/xrNativeControllerCameraFraming'
@@ -333,6 +333,6 @@ export function testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute() {
     assert(!/https?:\/\//i.test(text) && !/\.(?:glb|gltf)(?:\b|['"])/i.test(text), `${pathParts.at(-1)} must not locate remote or downloaded model assets`)
   }
   const runtimeSource = source('features', 'three', 'xrNativeControllerDemoRuntime.ts')
-  assert(runtimeSource.includes("from './xrPhysicsStepper'"), 'controller demo must reuse the existing deterministic solver')
+  assert(runtimeSource.includes("from './xrSpatialPhysicsAdapter'"), 'controller demo must reuse the native spatial physics owner')
   assert(!/from ['"](?![.@/])/.test(runtimeSource), 'headless controller runtime must not add an external dependency')
 }
