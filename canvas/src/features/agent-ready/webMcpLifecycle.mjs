@@ -6,6 +6,8 @@ export const createWebMcpLifecycleController = (args = {}) => {
   const lateBindingRetryDelayMs = Number(args.lateBindingRetryDelayMs || 500)
   const lateBindingMaxAttempts = Number(args.lateBindingMaxAttempts || 20)
   const markRuntimeState = typeof args.markRuntimeState === 'function' ? args.markRuntimeState : () => {}
+  const markHostBindingState = typeof args.markHostBindingState === 'function' ? args.markHostBindingState : () => {}
+  const fallbackModelContextBindings = []
 
   if (!root || !lifecycleState || typeof lifecycleState !== 'object') {
     throw new Error('root and state are required')
@@ -100,6 +102,7 @@ export const createWebMcpLifecycleController = (args = {}) => {
         if (controller && typeof controller.abort === 'function') controller.abort()
       })
     }
+    lifecycleState.registrations.delete(active)
     lifecycleState.activeRegisteredContext = nextContext
   }
 
@@ -162,6 +165,7 @@ export const createWebMcpLifecycleController = (args = {}) => {
     if (installed) {
       clearLateBindingRetry()
       markRuntimeState('installed')
+      markHostBindingState('installed')
       return true
     }
     return false
@@ -171,7 +175,7 @@ export const createWebMcpLifecycleController = (args = {}) => {
     if (!root.window || typeof root.window.setTimeout !== 'function') return
     if (lifecycleState.lateBindingRetryId !== null) return
     if (lifecycleState.lateBindingAttemptCount >= lateBindingMaxAttempts) {
-      markRuntimeState('retry-exhausted')
+      markHostBindingState('retry-exhausted')
       return
     }
     lifecycleState.lateBindingRetryId = root.window.setTimeout(() => {
@@ -179,6 +183,23 @@ export const createWebMcpLifecycleController = (args = {}) => {
       lifecycleState.lateBindingAttemptCount += 1
       if (!tryInstallLateBoundModelContext(nav)) scheduleLateBindingRetry(nav)
     }, lateBindingRetryDelayMs)
+  }
+
+  const publishFallbackReadiness = (nav, restartRetryCycle = false) => {
+    if (restartRetryCycle) {
+      clearLateBindingRetry()
+      lifecycleState.lateBindingAttemptCount = 0
+      if (lifecycleState.fallbackContext) {
+        installToolsIntoModelContext(lifecycleState.fallbackContext)
+      }
+    }
+    markRuntimeState(
+      toolNames.every((toolName) => nav.modelContext && Array.isArray(nav.modelContext.tools) && nav.modelContext.tools.some((entry) => entry && entry.name === toolName))
+        ? 'fallback-readable'
+        : 'awaiting-model-context',
+    )
+    markHostBindingState('awaiting-model-context')
+    scheduleLateBindingRetry(nav)
   }
 
   const defineFallbackModelContext = (nav, context) => {
@@ -192,29 +213,67 @@ export const createWebMcpLifecycleController = (args = {}) => {
       enumerable: false,
       get: () => currentContext,
       set: (value) => {
-        currentContext = value || context
-        if (currentContext !== context) void tryInstallLateBoundModelContext(nav)
+        const nextContext = value || context
+        if (currentContext === nextContext) return
+        currentContext = nextContext
+        if (currentContext !== context) {
+          if (!tryInstallLateBoundModelContext(nav)) publishFallbackReadiness(nav)
+          return
+        }
+        publishFallbackReadiness(nav, true)
       },
     }
     try {
       Object.defineProperty(nav, 'modelContext', descriptor)
+      fallbackModelContextBindings.push({ target: nav, descriptor })
     } catch {
       nav.modelContext = context
     }
     if (doc && !doc.modelContext) {
       try {
         Object.defineProperty(doc, 'modelContext', descriptor)
+        fallbackModelContextBindings.push({ target: doc, descriptor })
       } catch {
         void 0
       }
     }
   }
 
+  const dispose = () => {
+    clearLateBindingRetry()
+    releasePreviousRegisteredContext(null)
+    const fallbackContext = lifecycleState.fallbackContext
+    for (const binding of fallbackModelContextBindings.splice(0)) {
+      const installedDescriptor = Object.getOwnPropertyDescriptor(binding.target, 'modelContext')
+      if (installedDescriptor?.get !== binding.descriptor.get
+        || installedDescriptor?.set !== binding.descriptor.set) continue
+      const currentContext = binding.target.modelContext
+      if (!Reflect.deleteProperty(binding.target, 'modelContext')) continue
+      if (!currentContext || currentContext === fallbackContext) continue
+      try {
+        Object.defineProperty(binding.target, 'modelContext', {
+          configurable: true,
+          enumerable: installedDescriptor.enumerable === true,
+          writable: true,
+          value: currentContext,
+        })
+      } catch {
+        binding.target.modelContext = currentContext
+      }
+    }
+    lifecycleState.fallbackContext = null
+    lifecycleState.lateBindingAttemptCount = 0
+  }
+
   const install = () => {
     const nav = readGlobalNavigator()
     markRuntimeState('installing')
+    markHostBindingState('installing')
     const docContext = root.document && root.document.modelContext
-    if (docContext && !nav.modelContext) {
+    const isHostModelContext = (context) => Boolean(
+      context && context !== lifecycleState.fallbackContext,
+    )
+    if (isHostModelContext(docContext) && !nav.modelContext) {
       try {
         Object.defineProperty(nav, 'modelContext', {
           configurable: true,
@@ -228,21 +287,18 @@ export const createWebMcpLifecycleController = (args = {}) => {
         nav.modelContext = docContext
       }
     }
-    if (docContext && installToolsIntoModelContext(docContext)) {
+    if (isHostModelContext(docContext) && installToolsIntoModelContext(docContext)) {
       markRuntimeState('installed')
+      markHostBindingState('installed')
       return
     }
-    if (nav.modelContext && installToolsIntoModelContext(nav.modelContext)) {
+    if (isHostModelContext(nav.modelContext) && installToolsIntoModelContext(nav.modelContext)) {
       markRuntimeState('installed')
+      markHostBindingState('installed')
       return
     }
     if (!nav.modelContext) defineFallbackModelContext(nav, createFallbackModelContext())
-    markRuntimeState(
-      toolNames.every((toolName) => nav.modelContext && Array.isArray(nav.modelContext.tools) && nav.modelContext.tools.some((entry) => entry && entry.name === toolName))
-        ? 'fallback-readable'
-        : 'awaiting-model-context',
-    )
-    scheduleLateBindingRetry(nav)
+    publishFallbackReadiness(nav)
   }
 
   return {
@@ -251,7 +307,9 @@ export const createWebMcpLifecycleController = (args = {}) => {
     installToolsIntoModelContext,
     tryInstallLateBoundModelContext,
     scheduleLateBindingRetry,
+    publishFallbackReadiness,
     defineFallbackModelContext,
+    dispose,
     readGlobalNavigator,
   }
 }

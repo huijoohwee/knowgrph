@@ -32,6 +32,7 @@ import {
 } from '@/features/three/xrSceneMcpContract.mjs'
 import { AGENTIC_CANVAS_OS_DOCS_KIND_FILES } from '../../../../mcp/agentic-canvas-os-docs-contract.mjs'
 import { buildAgenticCanvasOsDocsInvokePayload } from '../../../../mcp/agentic-canvas-os-docs-core.mjs'
+import { resolveAgenticCanvasOsDocsRoot } from '../../../../mcp/agentic-canvas-os-docs-runtime.js'
 
 type PinnedAgenticOsTokenSpec = Readonly<Record<AgenticOsDictionaryInvocationKind, readonly string[]>>
 const dictionaryTokens = (dictionary: unknown): readonly string[] => (
@@ -99,13 +100,7 @@ function findAncestorContaining(start: string, relativePath: string): string {
 }
 
 function resolveAgenticOsDocsRoot(repositoryRoot: string): string {
-  const configured = String(process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT || '').trim()
-  if (configured) {
-    const resolved = resolve(configured)
-    assert(existsSync(resolved), `configured Agentic Canvas OS docs root does not exist: ${resolved}`)
-    return resolved
-  }
-  return resolve(findAncestorContaining(repositoryRoot, 'agentic-canvas-os/docs'), 'agentic-canvas-os', 'docs')
+  return resolveAgenticCanvasOsDocsRoot({ rootDir: repositoryRoot, env: process.env })
 }
 
 function readPinnedSources(): Readonly<{
@@ -128,7 +123,7 @@ function readPinnedSources(): Readonly<{
   }
 }
 
-export function registerPinnedAgenticOsDictionaryTokensForTest(spec: PinnedAgenticOsTokenSpec): string {
+function readPinnedCatalog() {
   const { revision, docsContentByFileName } = readPinnedSources()
   const payload = buildAgenticCanvasOsDocsInvokePayload({
     docsContentByFileName,
@@ -141,7 +136,17 @@ export function registerPinnedAgenticOsDictionaryTokensForTest(spec: PinnedAgent
   }
   assert(payload.sourceRevision === revision, `expected production catalog payload revision ${revision}`)
   assert(payload.sourceRootUrl.includes(`/blob/${revision}/docs`), `expected production catalog root to bind ${revision}`)
-  const catalog = payload.catalog
+  return { catalog: payload.catalog, docsContentByFileName, revision }
+}
+
+export function registerPinnedAgenticOsDictionaryCatalogForTest(): string {
+  const { catalog, revision } = readPinnedCatalog()
+  registerAgenticOsRemoteGrammarCatalogEntries(catalog)
+  return revision
+}
+
+export function registerPinnedAgenticOsDictionaryTokensForTest(spec: PinnedAgenticOsTokenSpec): string {
+  const { catalog, docsContentByFileName, revision } = readPinnedCatalog()
   const catalogByToken = new Map(catalog.map(entry => [entry.token, entry]))
   const selected: AgenticOsRemoteGrammarCatalogEntry[] = []
   for (const [kind, tokens] of Object.entries(spec) as Array<[AgenticOsDictionaryInvocationKind, readonly string[]]>) {

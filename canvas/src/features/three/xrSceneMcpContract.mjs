@@ -36,9 +36,15 @@ export const buildXrStageInvocation = stageId => (
   `${XR_SCENE_INVOCATION_COMMANDS.stage} @${cleanTarget(stageId)}`
 )
 
-export const buildXrPlaceInvocation = (assetId, transition = 'linear') => {
+export const buildXrPlaceInvocation = (assetId, transition = 'linear', label = '') => {
   const target = `@${cleanTarget(assetId)}`
-  return `${XR_SCENE_INVOCATION_COMMANDS.place} ${target} transition=${cleanTransition(transition)}`
+  const normalizedLabel = String(label || '').trim()
+  return [
+    XR_SCENE_INVOCATION_COMMANDS.place,
+    target,
+    `transition=${cleanTransition(transition)}`,
+    normalizedLabel ? `label=${encodeURIComponent(normalizedLabel)}` : '',
+  ].filter(Boolean).join(' ')
 }
 
 export const buildXrTransformInvocation = (subjectId, transform = {}) => {

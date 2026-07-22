@@ -2,7 +2,7 @@
 title: "Knowgrph XR Mode PRD & TAD"
 doc_type: "PRD+TAD"
 doc_id: "KXR-001"
-version: "0.5.0"
+version: "0.5.1"
 status: "Accepted; native physics ownership corrected"
 date: "2026-06-17"
 authors:
@@ -152,18 +152,18 @@ If Knowgrph exposes XR Mode as a first-class Canvas surface and adds a determini
 * **Given** XR Mode renders graph data, **when** the Three.js scene mounts, **then** it mounts the XR spatial stage and excludes plain 3D globe effects.
 * > **VCC translation**: `Verify ThreeGraph resolves one explicit XR authority, Scene mounts XrCanonicalPhysicsStage or lazy XrMotionReferenceGraphStage, and GlobeEffects remain unmounted in XR`
 
+**KXR-E1-S1-AC4 — Operator panel continuity.** **Given** Media or Skills & Commands is already open, **when** the user changes Surface Mode to XR Mode, **then** the same panel remains open while XR and Timeline activate; a closed, unrelated, or Game Mode panel enters through Motion Control. **VCC:** `canvas.viewSelection.xrSurfaceMode` and `canvas.viewSelection.shared3dSurfaceModeOwner`.
+
 ### Workflow: XR Surface Activation
 
-**Trigger**: User selects `xr` from Canvas View Mode toolbar or opens a document with `kgCanvasSurfaceMode: "xr"` frontmatter.
-**Actors**: Solo Dev, Canvas View Controller, Zustand Graph Store, Three.js Renderer.
+**Trigger**: User selects `xr` from Canvas View Mode toolbar or opens a document with `kgCanvasSurfaceMode: "xr"` frontmatter. **Actors**: Solo Dev, Canvas View Controller, Zustand Graph Store, Three.js Renderer.
 
 **Happy Path**:
 1. Solo Dev selects `xr` from the Canvas toolbar or imports a document with XR frontmatter → Canvas View Controller receives the mode change intent.
-2. Canvas View Controller normalizes the mode to `canvasRenderMode: "3d"` and `canvas3dMode: "xr"` → Zustand Graph Store updates state.
+2. Canvas View Controller resolves the entry panel, preserving open Media or Skills & Commands ownership and otherwise selecting Motion Control, then normalizes `canvasRenderMode: "3d"` and `canvas3dMode: "xr"` → FloatingPanel remains invocation-ready and Zustand Graph Store updates state.
 3. Three.js Renderer reactively mounts the XR spatial stage and excludes plain 3D globe effects → Solo Dev sees the XR inspection surface.
 
-**Alternate Paths**:
-- Already in XR mode: Canvas View Controller detects the mode is unchanged → no store mutation, no re-mount; workflow complete without render churn.
+**Alternate Paths**: Already in XR mode, Canvas View Controller detects the mode is unchanged → no store mutation, no re-mount; workflow complete without render churn.
 
 **Error Paths**:
 - WebGL context lost: Three.js Renderer emits a context-lost event → Canvas displays a non-blocking recovery message and attempts context restoration on next user interaction.
