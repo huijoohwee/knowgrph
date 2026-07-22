@@ -6,6 +6,7 @@ import {
   readStoryboardWidgetPlacementSize2d,
   type StoryboardCardPlacement,
 } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
+import { applyAuthoredPlacementsForNewStoryboardCards2d } from '@/components/StoryboardWidgetCanvas/storyboardIncrementalLayout2d'
 import type { WidgetRegistryEntry } from '@/features/storyboard-widget-manager/widgetRegistryTypes'
 import type { CanvasAspectRatioMode } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import { readSnapGridConfigFromSchema } from '@/lib/canvas/gridSnap'
@@ -42,13 +43,16 @@ export function useStableStoryboardCardPlacements2d(args: {
 }): ReadonlyMap<string, StoryboardCardPlacement> {
   const grid = readSnapGridConfigFromSchema(args.schema)
   const identity = `${buildGraphDocumentMetaKey(args.graphData) || String(args.layoutKey || '').trim()}:${args.aspectRatioMode}:${grid.enabled ? `${grid.x}:${grid.y}` : 'free'}`
-  const candidate = React.useMemo(() => {
+  const nodeById = React.useMemo(() => {
+    const out = new Map<string, GraphNode>()
     const nodes = Array.isArray(args.graphData?.nodes) ? args.graphData.nodes : []
-    const nodeById = new Map<string, GraphNode>()
     for (const node of nodes) {
       const id = String(node?.id || '').trim()
-      if (id) nodeById.set(id, node)
+      if (id) out.set(id, node)
     }
+    return out
+  }, [args.graphData])
+  const candidate = React.useMemo(() => {
     const board = buildStoryboardBoardModel({
       graphData: args.graphData,
       graphRevision: args.graphRevision,
@@ -62,7 +66,7 @@ export function useStableStoryboardCardPlacements2d(args: {
       readPlacementSize: node => readStoryboardWidgetPlacementSize2d(node, args.aspectRatioMode),
       schema: args.schema,
     })
-  }, [args.aspectRatioMode, args.graphData, args.graphRevision, args.schema, args.widgetRegistry])
+  }, [args.aspectRatioMode, args.graphData, args.graphRevision, args.schema, args.widgetRegistry, nodeById])
   const probeTreeLayoutOwnedNodeIds = React.useMemo(() => new Set(
     (args.graphData?.nodes || []).filter(isProbeTreeLayoutOwnedNode).map(node => String(node.id || '').trim()).filter(Boolean),
   ), [args.graphData])
@@ -70,7 +74,12 @@ export function useStableStoryboardCardPlacements2d(args: {
   if (!stableRef.current || stableRef.current.identity !== identity) {
     stableRef.current = { identity, placements: new Map(candidate) }
   } else {
-    stableRef.current.placements = reconcileStableStoryboardCardPlacements2d(stableRef.current.placements, candidate, probeTreeLayoutOwnedNodeIds)
+    const incrementalCandidate = applyAuthoredPlacementsForNewStoryboardCards2d({
+      candidate,
+      nodeById,
+      previous: stableRef.current.placements,
+    })
+    stableRef.current.placements = reconcileStableStoryboardCardPlacements2d(stableRef.current.placements, incrementalCandidate, probeTreeLayoutOwnedNodeIds)
   }
   return stableRef.current.placements
 }
