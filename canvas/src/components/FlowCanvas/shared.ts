@@ -54,6 +54,7 @@ export type FlowCanvasProps = {
   excludeNativeSceneNodeIds?: string[]
   flowWidgetPinnedByNodeIdOverride?: Record<string, boolean>
   flowWidgetStateGraphKeyOverride?: string | null
+  storyboardCollectiveZoomBaselineKRef?: React.MutableRefObject<number | null>
   storyboardWidgetSurfaceId?: string
   forbidCircleNodes?: boolean
   onNodeChange?: (nodeId: string, patch: Partial<GraphNode>, sourceGraphData?: GraphData | null) => void

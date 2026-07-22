@@ -206,6 +206,7 @@ export function StoryboardCardOverlayLayer2d(props: {
   flowWidgetStateGraphKey: string | null
   fixedCardReferencePlacements: ReadonlyMap<string, StoryboardCardPlacement>
   storyboardWidgetSurfaceId: string
+  storyboardCollectiveZoomBaselineKRef?: React.MutableRefObject<number | null>
   graphData: GraphData | null
   graphRevision: number
   onNodeChange: (nodeId: string, patch: Partial<GraphNode>, sourceGraphData?: GraphData | null) => void
@@ -323,6 +324,7 @@ export function StoryboardCardOverlayLayer2d(props: {
     readCardSize,
     rootRef,
     registerInteractionFrameProjectionScheduler: props.registerInteractionFrameProjectionScheduler,
+    storyboardCollectiveZoomBaselineKRef: props.storyboardCollectiveZoomBaselineKRef,
   })
   const register = React.useCallback((id: string, el: HTMLElement | null) => {
     const key = String(id || '').trim()
