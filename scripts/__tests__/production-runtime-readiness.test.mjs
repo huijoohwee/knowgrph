@@ -5,6 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import {
   calculateRuntimeArtifactDigest,
+  resolveProductionRuntimeReadinessSchemaPath,
   serializeProductionRuntimeReadiness,
   validateProductionRuntimeReadiness,
 } from '../production-runtime-readiness.mjs'
@@ -41,6 +42,23 @@ test('production readiness validates exact runtime identities and rejects drift'
     /source revision mismatch/,
   )
   assert.match(serializeProductionRuntimeReadiness(validReadiness), /"surfaces": \[/)
+})
+
+test('production readiness resolves Agentic Canvas OS schemas from a linked Knowgrph worktree', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'knowgrph-readiness-root-'))
+  const docsRoot = path.join(root, 'agentic-canvas-os', 'docs')
+  const taskRoot = path.join(root, '.worktrees', 'knowgrph', 'xr-runtime')
+  try {
+    await fs.mkdir(docsRoot, { recursive: true })
+    await fs.mkdir(taskRoot, { recursive: true })
+    await fs.writeFile(path.join(docsRoot, 'FACTS.md'), '# Source marker\n', 'utf8')
+    assert.equal(
+      resolveProductionRuntimeReadinessSchemaPath({ rootDir: taskRoot, env: {} }),
+      path.join(docsRoot, 'schemas', 'production-runtime-readiness.v2.schema.json'),
+    )
+  } finally {
+    await fs.rm(root, { recursive: true, force: true })
+  }
 })
 
 test('browser artifact digest is path-bound, order-independent, and content-sensitive', async () => {

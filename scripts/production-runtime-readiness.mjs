@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import Ajv2020 from 'ajv/dist/2020.js'
+import { resolveAgenticCanvasOsDocsRoot } from '../mcp/agentic-canvas-os-docs-runtime.js'
 import { repoRoot } from './collaboration-contract.mjs'
 
 export const PRODUCTION_RUNTIME_READINESS_SCHEMA = 'knowgrph-production-runtime-readiness/v2'
@@ -9,13 +10,8 @@ export const PRODUCTION_RUNTIME_READINESS_FILENAME = 'runtime-readiness.json'
 const SCHEMA_FILENAME = 'production-runtime-readiness.v2.schema.json'
 let validatorPromise = null
 
-const resolveDocsRoot = () => path.resolve(
-  process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT
-    || path.resolve(repoRoot, '..', 'agentic-canvas-os', 'docs'),
-)
-
-export const resolveProductionRuntimeReadinessSchemaPath = () => path.resolve(
-  resolveDocsRoot(),
+export const resolveProductionRuntimeReadinessSchemaPath = ({ rootDir = repoRoot, env = process.env } = {}) => path.resolve(
+  resolveAgenticCanvasOsDocsRoot({ rootDir, env }),
   'schemas',
   SCHEMA_FILENAME,
 )

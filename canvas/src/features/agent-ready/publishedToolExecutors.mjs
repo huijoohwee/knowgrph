@@ -1,3 +1,5 @@
+import { createBrowserSafeFunctionSource } from './browserFunctionSource.mjs'
+
 export const createPublishedAgentReadyToolExecutors = (args = {}) => {
   const toolNames = args.toolNames || {}
   const defaultWorkspaceId = String(args.defaultWorkspaceId || '').trim()
@@ -345,12 +347,6 @@ export const createPublishedAgentReadyToolExecutors = (args = {}) => {
   if (toolNames.inspectAgentSurface) executors[toolNames.inspectAgentSurface] = async () => buildAgentSurfaceInspection()
   return executors
 }
-
-const createBrowserSafeFunctionSource = (fn) => `((...args) => {
-  const n = (value) => value
-  const __name = (value) => value
-  return (${Function.prototype.toString.call(fn)})(...args)
-})`
 
 export const PUBLISHED_AGENT_READY_TOOL_EXECUTORS_BROWSER_SOURCE =
   createBrowserSafeFunctionSource(createPublishedAgentReadyToolExecutors)

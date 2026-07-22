@@ -6,6 +6,7 @@ import {
   createMockResponse,
 } from '@/__tests__/helpers/webMcpRuntimeFixture'
 import { PUBLISHED_AGENT_READY_TOOL_EXECUTORS_BROWSER_SOURCE } from '@/features/agent-ready/publishedToolExecutors.mjs'
+import { WEB_MCP_LIFECYCLE_CONTROLLER_BROWSER_SOURCE } from '@/features/agent-ready/webMcpLifecycleBrowserSource.mjs'
 import { webMcpScript } from '../../../cloudflare/pages/knowgrph-agent-ready.mjs'
 
 type RegisteredTool = {
@@ -31,8 +32,10 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
   const nativeRegistrationSignals: AbortSignal[] = []
 
   try {
-    if (!webMcpScript.includes('createWebMcpLifecycleController')) {
-      throw new Error('expected HTML fallback script to embed the shared WebMCP lifecycle controller')
+    if (!webMcpScript.includes(`const createWebMcpLifecycleController = ${WEB_MCP_LIFECYCLE_CONTROLLER_BROWSER_SOURCE};`)
+      || !WEB_MCP_LIFECYCLE_CONTROLLER_BROWSER_SOURCE.includes('fallbackModelContextBindings')
+      || !WEB_MCP_LIFECYCLE_CONTROLLER_BROWSER_SOURCE.includes('dispose')) {
+      throw new Error('expected HTML fallback script to serialize the complete canonical WebMCP lifecycle controller')
     }
     if (!webMcpScript.includes('createPublishedDocIdentityResolver')) {
       throw new Error('expected HTML fallback script to embed the canonical published-doc identity resolver')

@@ -21,6 +21,16 @@ export const XR_SCENE_FLOATING_PANEL_VIEWS = [
 
 export type XrSceneFloatingPanelView = (typeof XR_SCENE_FLOATING_PANEL_VIEWS)[number]
 
+export function resolveXrSurfaceEntryPanelView(input: Readonly<{
+  floatingPanelOpen: boolean
+  floatingPanelView: string
+}>): XrSceneFloatingPanelView | undefined {
+  if (!input.floatingPanelOpen) return 'motionControl'
+  if (input.floatingPanelView === 'skillsCommands') return undefined
+  const scenePanelView = XR_SCENE_FLOATING_PANEL_VIEWS.find(view => view === input.floatingPanelView)
+  return scenePanelView && scenePanelView !== 'gameMode' ? scenePanelView : 'motionControl'
+}
+
 export type XrSceneSurfaceActivation = Readonly<{
   panelView?: XrSceneFloatingPanelView
   openPanel?: boolean
