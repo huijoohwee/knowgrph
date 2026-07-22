@@ -32,7 +32,7 @@ If a native host detaches, its AbortSignal-backed registrations are released, th
 - Runtime owner: `canvas/src/features/three/xrSceneMcpRuntime.ts`.
 - Invocation grammar owner: `canvas/src/features/three/xrSceneMcpContract.mjs`.
 - Exact-revision dictionary metadata owner: Agentic Canvas OS `DICTIONARY-COMMAND.md`, `DICTIONARY-SEMANTIC.md`, and `DICTIONARY-BINDING.md`.
-- Local docs discovery owner: `mcp/agentic-canvas-os-docs-runtime.js`; explicit roots win, otherwise a marker-backed ancestor search resolves the canonical sibling checkout from linked worktrees. Configured revisions must equal checkout `HEAD`, and the docs tree must be clean.
+- Local docs discovery owner: `mcp/agentic-canvas-os-docs-runtime.js`; explicit roots win, otherwise a marker-backed ancestor search resolves the canonical sibling checkout, with Git common-directory recovery for registered worktrees outside the workspace tree. Configured revisions must equal checkout `HEAD`, and the docs tree must be clean.
 - Browser registration owner: `canvas/src/features/agent-ready/webMcpRuntime.ts`.
 - Lifecycle owner: `canvas/src/features/agent-ready/webMcpLifecycle.mjs`; the published fallback serializes this owner through `webMcpLifecycleBrowserSource.mjs` instead of maintaining a second implementation.
 - Workspace mutation diagnostics stay in the shared in-memory runtime trace; XR Media persistence performs no hardcoded localhost debug-collector requests.

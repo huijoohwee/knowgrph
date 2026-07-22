@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 
 import {
@@ -97,13 +97,31 @@ export const resolveAgenticCanvasOsDocsRoot = ({
     }
     return resolved;
   }
-  let cursor = path.resolve(rootDir);
-  while (true) {
-    const candidate = path.join(cursor, "agentic-canvas-os", "docs");
-    if (existsSync(path.join(candidate, "FACTS.md"))) return candidate;
-    const parent = path.dirname(cursor);
-    if (parent === cursor) break;
-    cursor = parent;
+  const findMarkerBackedAncestorRoot = (startDir) => {
+    let cursor = path.resolve(startDir);
+    while (true) {
+      const candidate = path.join(cursor, "agentic-canvas-os", "docs");
+      if (existsSync(path.join(candidate, "FACTS.md"))) return candidate;
+      const parent = path.dirname(cursor);
+      if (parent === cursor) return "";
+      cursor = parent;
+    }
+  };
+  const ancestorRoot = findMarkerBackedAncestorRoot(rootDir);
+  if (ancestorRoot) return ancestorRoot;
+  try {
+    const gitCommonDir = normalizeText(execFileSync(
+      "git",
+      ["-C", path.resolve(rootDir), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    ));
+    const canonicalRepositoryRoot = path.basename(gitCommonDir) === ".git"
+      ? path.dirname(gitCommonDir)
+      : gitCommonDir;
+    const canonicalRoot = findMarkerBackedAncestorRoot(canonicalRepositoryRoot);
+    if (canonicalRoot) return canonicalRoot;
+  } catch {
+    // Non-Git callers still receive the marker-backed resolution error below.
   }
   throw new Error(`Could not resolve agentic-canvas-os/docs from ${path.resolve(rootDir)}`);
 };

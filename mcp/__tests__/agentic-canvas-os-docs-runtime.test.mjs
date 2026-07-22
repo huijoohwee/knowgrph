@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,8 +51,30 @@ test("linked Knowgrph worktrees resolve the canonical ancestor Agentic Canvas OS
     mkdirSync(docsRoot, { recursive: true });
     mkdirSync(taskRoot, { recursive: true });
     writeFileSync(path.join(docsRoot, "FACTS.md"), "# Source marker\n");
-    assert.equal(resolveAgenticCanvasOsDocsRoot({ rootDir: taskRoot, env: {} }), docsRoot);
+    assert.equal(realpathSync(resolveAgenticCanvasOsDocsRoot({ rootDir: taskRoot, env: {} })), realpathSync(docsRoot));
   } finally {
+    rmSync(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("registered external Knowgrph worktrees recover the canonical docs root from Git metadata", () => {
+  const workspaceRoot = mkdtempSync(path.join(tmpdir(), "knowgrph-external-docs-root-"));
+  const externalParent = mkdtempSync(path.join(tmpdir(), "knowgrph-external-worktree-"));
+  const repositoryRoot = path.join(workspaceRoot, "knowgrph");
+  const docsRoot = path.join(workspaceRoot, "agentic-canvas-os", "docs");
+  const taskRoot = path.join(externalParent, "xr-invocation-runtime");
+  try {
+    mkdirSync(repositoryRoot, { recursive: true });
+    mkdirSync(docsRoot, { recursive: true });
+    writeFileSync(path.join(repositoryRoot, "README.md"), "# Knowgrph fixture\n");
+    writeFileSync(path.join(docsRoot, "FACTS.md"), "# Source marker\n");
+    execFileSync("git", ["init", "-q"], { cwd: repositoryRoot });
+    execFileSync("git", ["add", "README.md"], { cwd: repositoryRoot });
+    execFileSync("git", ["-c", "user.name=Knowgrph Test", "-c", "user.email=test@knowgrph.local", "commit", "-qm", "test source"], { cwd: repositoryRoot });
+    execFileSync("git", ["worktree", "add", "--detach", taskRoot, "HEAD"], { cwd: repositoryRoot, stdio: "ignore" });
+    assert.equal(realpathSync(resolveAgenticCanvasOsDocsRoot({ rootDir: taskRoot, env: {} })), realpathSync(docsRoot));
+  } finally {
+    rmSync(externalParent, { recursive: true, force: true });
     rmSync(workspaceRoot, { recursive: true, force: true });
   }
 });

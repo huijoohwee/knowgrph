@@ -12,10 +12,6 @@ import {
 import { fetchKnowgrphStaticAsset } from '../../cloudflare/pages/knowgrph-agent-ready-app-shell.mjs'
 
 const repoRoot = path.resolve(import.meta.dirname, '..', '..')
-const workspaceRoot = repoRoot.includes(`${path.sep}.worktrees${path.sep}`)
-  ? repoRoot.split(`${path.sep}.worktrees${path.sep}`)[0]
-  : path.resolve(repoRoot, '..')
-process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT ||= path.resolve(workspaceRoot, 'agentic-canvas-os', 'docs')
 
 const sha = character => character.repeat(40)
 const digest = character => character.repeat(64)
