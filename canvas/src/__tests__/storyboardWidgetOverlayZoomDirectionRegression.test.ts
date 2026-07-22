@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { computeCollectiveFollowPinnedScale, computeCollectiveFollowScaleFromBaseline, computeCollectiveFollowZoomK, computeWidgetScaledSize, projectCollectiveScreenLayoutForZoom, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
+import { computeCollectiveCameraFollowScaleFromBaseline, computeCollectiveFollowPinnedScale, computeCollectiveFollowZoomK, computeWidgetScaledSize, projectCollectiveScreenLayoutForZoom, WIDGET_BASE_SIZE } from '@/lib/canvas/overlayWidgetZoom'
 import { computeMediaOverlaySizing } from '@/lib/render/mediaOverlaySizing'
 import { coerceRichMediaPanelSizePx } from '@/lib/render/richMediaSsot'
 import { computeTransformScaleAboutViewportFrameCenter, screenToWorld } from '@/lib/zoom/viewport'
@@ -184,34 +184,45 @@ export function testStoryboardNewCardScaleUsesSharedRichMediaZoomBaseline() {
   const sharedArgs = {
     zoomK: 0.55,
     baselineZoomK: 0.42,
-    viewportW: 1280,
-    viewportH: 720,
-    count: 2,
-    baseWidth: 360,
-    baseHeight: 203,
-    hardMinScale: 0.58,
-    hardMaxScale: 1,
-    fitToViewport: false,
   }
-  const cardScale = computeCollectiveFollowScaleFromBaseline(sharedArgs)
-  const richMediaScale = computeCollectiveFollowScaleFromBaseline(sharedArgs)
+  const cardScale = computeCollectiveCameraFollowScaleFromBaseline(sharedArgs)
+  const richMediaScale = computeCollectiveCameraFollowScaleFromBaseline(sharedArgs)
   if (cardScale !== richMediaScale) {
     throw new Error(`expected new Card and Rich Media overlays to share one baseline-relative scale, card=${cardScale} media=${richMediaScale}`)
   }
-  if (Math.abs(cardScale - sharedArgs.zoomK) < 0.1) {
-    throw new Error(`expected baseline-relative overlay scale instead of raw camera k, got ${cardScale}`)
+  const expectedScale = sharedArgs.zoomK / sharedArgs.baselineZoomK
+  if (Math.abs(cardScale - expectedScale) > 1e-9) {
+    throw new Error(`expected exact camera-to-baseline overlay scale ${expectedScale}, got ${cardScale}`)
+  }
+
+  const zoomedOutK = 0.12
+  const baselineK = 0.37
+  const zoomedOutScale = computeCollectiveCameraFollowScaleFromBaseline({ zoomK: zoomedOutK, baselineZoomK: baselineK })
+  const worldCenterDistance = 1500
+  const panelWidth = 360
+  const baselineGap = worldCenterDistance * baselineK - panelWidth
+  const zoomedOutGap = worldCenterDistance * zoomedOutK - panelWidth * zoomedOutScale
+  if (Math.abs(zoomedOutGap - baselineGap * zoomedOutScale) > 1e-9) {
+    throw new Error(`expected card/panel gap to preserve layout similarity across zoom, baselineGap=${baselineGap} zoomedOutGap=${zoomedOutGap}`)
   }
 
   const srcRoot = path.resolve(process.cwd(), 'src')
   const cardProjectionText = fs.readFileSync(path.join(srcRoot, 'components', 'StoryboardWidgetCanvas', 'useStoryboardCardOverlayProjection2d.ts'), 'utf8')
   const mediaText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx'), 'utf8')
+  const surfaceText = fs.readFileSync(path.join(srcRoot, 'components', 'StoryboardWidgetCanvas', 'runtime', 'StoryboardWidgetCanvasSurface.tsx'), 'utf8')
   assertTextIncludes(cardProjectionText, [
     'storyboardCardZoomBaselineKRef',
-    'computeCollectiveFollowScaleFromBaseline({',
+    'computeCollectiveCameraFollowScaleFromBaseline({',
+    'storyboardCollectiveZoomBaselineKRef',
   ], 'expected newly added Storyboard Cards to reuse the baseline-relative overlay zoom owner')
   assertTextIncludes(mediaText, [
-    'computeCollectiveFollowScaleFromBaseline({',
+    'computeCollectiveCameraFollowScaleFromBaseline({',
+    'storyboardCollectiveZoomBaselineKRef',
   ], 'expected Rich Media overlays to reuse the same baseline-relative overlay zoom owner')
+  assertTextIncludes(surfaceText, [
+    'const storyboardCollectiveZoomBaselineKRef = React.useRef<number | null>(null)',
+    'storyboardCollectiveZoomBaselineKRef={storyboardCollectiveZoomBaselineKRef}',
+  ], 'expected the shared Storyboard surface to own one Card/Rich Media zoom baseline')
 }
 
 export function testStoryboardWidgetCollectiveScaleUsesRequestedLayoutAspect() {
@@ -294,10 +305,11 @@ export function testStoryboardWidgetLiveCollectiveScaleFollowsZoomWithoutViewpor
 
   const srcRoot = path.resolve(process.cwd(), 'src')
   const placementText = fs.readFileSync(path.join(srcRoot, 'components', 'StoryboardWidget', 'useWidgetPlacementRuntime.ts'), 'utf8')
+  const placementStateText = fs.readFileSync(path.join(srcRoot, 'components', 'StoryboardWidget', 'widgetPlacementRuntimeState.ts'), 'utf8')
   if (!placementText.includes('fitToViewport: false')) {
     throw new Error('expected Storyboard Widget placement to follow zoom instead of fitting every zoom step back into the viewport')
   }
-  if (!placementText.includes('computeCollectiveFollowZoomK({')) {
+  if (!placementText.includes('computeCollectiveFollowZoomK,') || !placementStateText.includes('args.computeCollectiveFollowZoomK({')) {
     throw new Error('expected screen-authority Storyboard widgets to normalize viewport zoom against their live baseline')
   }
   if (placementText.includes('const frontmatterPanelScaleZoomK = frontmatterVisibleViewportAuthority ? 1 : zoomK')) {
@@ -306,7 +318,7 @@ export function testStoryboardWidgetLiveCollectiveScaleFollowsZoomWithoutViewpor
   const mediaText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx'), 'utf8')
   const mediaViewportText = fs.readFileSync(path.join(srcRoot, 'components', 'FlowCanvas', 'flowCanvasMediaLayoutViewport.ts'), 'utf8')
   assertTextIncludes(mediaText, [
-    'fitToViewport: storyboardWidgetSurfaceRendererMode ? false : undefined',
+    'computeCollectiveCameraFollowScaleFromBaseline({',
     'computeCollectiveFollowScaleFromBaseline({',
     'const readMediaLayoutViewport = React.useCallback',
     'readLayoutViewport: readMediaLayoutViewport',

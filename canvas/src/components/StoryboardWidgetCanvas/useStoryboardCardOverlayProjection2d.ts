@@ -5,7 +5,7 @@ import { readStoryboardCardCenter2d, type StoryboardCardPlacement } from '@/comp
 import { shouldFreezeProjectionForFlowPortHandleDrag } from '@/components/StoryboardWidget/flowPortHandlePointerDrag'
 import { emitStoryboardWidgetGeometryCommitted } from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import { applyVectorPaintedOverlayBox, projectVectorPaintedOverlayZoomBox, readVectorPaintedOverlayScale, type VectorPaintedOverlayScaleProjectionBase } from '@/lib/canvas/vectorPaintedOverlayProjection'
-import { computeCollectiveFollowScaleFromBaseline } from '@/lib/canvas/overlayWidgetZoom'
+import { computeCollectiveCameraFollowScaleFromBaseline } from '@/lib/canvas/overlayWidgetZoom'
 import type { GraphNode } from '@/lib/graph/types'
 import { computeStoryboardWidgetOverlayScreenBox, type StoryboardWidgetOverlayDragTransform } from '@/lib/storyboardWidget/overlayWorldDrag'
 import { readFlowWidgetPinnedInCanvas, type FlowWidgetPinnedById } from '@/lib/storyboardWidget/flowWidgetPinnedState'
@@ -13,7 +13,6 @@ import { screenToWorld } from '@/lib/zoom/viewport'
 import { defaultSchema } from '@/lib/graph/schema'
 import { relaxOverlayPanelsWithCollision } from '@/lib/ui/relaxOverlayPanelsWithCollision'
 import { computeOverlayMaxAnchorShiftPx } from '@/lib/ui/overlayAnchorShift'
-import { COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9 } from '@/lib/ui/overlayScaleLimits'
 
 type ProjectedCardBox = { left: number; top: number; scale: number }
 type AppliedCardBox = ProjectedCardBox & { display: string }
@@ -32,6 +31,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
   readCardSize: (node: GraphNode) => { width: number; height: number }
   registerInteractionFrameProjectionScheduler?: (scheduler: null | (() => void)) => void
   rootRef: React.RefObject<HTMLElement | null>
+  storyboardCollectiveZoomBaselineKRef?: React.MutableRefObject<number | null>
 }) {
   const {
     active,
@@ -47,9 +47,11 @@ export function useStoryboardCardOverlayProjection2d(args: {
     readCardSize,
     registerInteractionFrameProjectionScheduler,
     rootRef,
+    storyboardCollectiveZoomBaselineKRef,
   } = args
   const zoomLayoutBaseBoxByCardIdRef = React.useRef<Map<string, VectorPaintedOverlayScaleProjectionBase>>(new Map())
-  const storyboardCardZoomBaselineKRef = React.useRef<number | null>(null)
+  const localStoryboardCardZoomBaselineKRef = React.useRef<number | null>(null)
+  const storyboardCardZoomBaselineKRef = storyboardCollectiveZoomBaselineKRef || localStoryboardCardZoomBaselineKRef
   const lastOverlayTransformRef = React.useRef<StoryboardWidgetOverlayDragTransform | null>(null)
   const lastPinnedByCardIdRef = React.useRef<Map<string, boolean>>(new Map())
   const lastAppliedBoxByCardIdRef = React.useRef<Map<string, AppliedCardBox>>(new Map())
@@ -66,8 +68,8 @@ export function useStoryboardCardOverlayProjection2d(args: {
   }, [])
 
   React.useEffect(() => {
-    if (!active) storyboardCardZoomBaselineKRef.current = null
-  }, [active])
+    if (!active && !storyboardCollectiveZoomBaselineKRef) storyboardCardZoomBaselineKRef.current = null
+  }, [active, storyboardCardZoomBaselineKRef, storyboardCollectiveZoomBaselineKRef])
 
   React.useEffect(() => {
     settledWorldByCardIdRef.current = { key: '', worldById: new Map() }
@@ -133,17 +135,9 @@ export function useStoryboardCardOverlayProjection2d(args: {
         const fixedPlacement = fixedLayoutEnabled && cardPinned ? referencePlacement : null
         const { width, height } = readCardSize(node)
         const paintScale = fixedLayoutEnabled
-          ? computeCollectiveFollowScaleFromBaseline({
+          ? computeCollectiveCameraFollowScaleFromBaseline({
               zoomK: transformScale,
               baselineZoomK: storyboardCardZoomBaselineKRef.current,
-              viewportW: viewport.width,
-              viewportH: viewport.height,
-              count: cards.length,
-              baseWidth: width,
-              baseHeight: height,
-              hardMinScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.min,
-              hardMaxScale: COLLECTIVE_OVERLAY_SCALE_LIMITS_16X9.richMedia.max,
-              fitToViewport: false,
             })
           : transformScale
         if (fixedLayoutEnabled && previousPinned === true && cardPinned === false && !dragWorldOverrideByCardIdRef.current.has(card.id)) {
@@ -357,6 +351,8 @@ export function useStoryboardCardOverlayProjection2d(args: {
     readCardSize,
     registerInteractionFrameProjectionScheduler,
     rootRef,
+    storyboardCardZoomBaselineKRef,
+    storyboardCollectiveZoomBaselineKRef,
   ])
 
   return { clearCardProjection }
