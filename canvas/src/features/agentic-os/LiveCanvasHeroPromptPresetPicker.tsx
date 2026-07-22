@@ -71,31 +71,28 @@ export function LiveCanvasHeroPromptPresetPicker(props: {
       {loading ? <p className="mt-1 text-[10px] text-[var(--kg-text-secondary)]">Loading prompt presets…</p> : null}
       {statusMessage ? <p className="mt-1 text-[10px] text-red-500" role="alert">{statusMessage}</p> : null}
       {!loading && !catalogError ? (
-        <nav
-          className="mt-1 flex min-w-0 gap-1.5 overflow-x-auto pb-1"
-          aria-label="Prompt preset choices"
-          data-kg-live-canvas-hero-prompt-preset-list="true"
+        <select
+          className="mt-1 min-h-9 w-full rounded-lg border border-[color:var(--kg-border)] bg-[color:var(--kg-panel-bg)]/80 px-2.5 py-1.5 text-xs text-[var(--kg-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)]"
+          aria-label="Prompt preset"
+          title={presets.find(preset => preset.id === activePresetId)?.description}
+          value={activePresetId}
+          disabled={Boolean(loadingPresetId)}
+          data-kg-live-canvas-hero-prompt-preset-select="true"
+          onChange={event => {
+            const preset = presets.find(candidate => candidate.id === event.target.value)
+            if (preset) void selectPreset(preset)
+          }}
         >
-          {presets.map(preset => {
-            const active = activePresetId === preset.id
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)] ${active ? 'border-[var(--kg-canvas-accent)] bg-[color-mix(in_srgb,var(--kg-canvas-accent)_16%,transparent)] text-[var(--kg-text-primary)]' : 'border-[color:var(--kg-border)] bg-[color:var(--kg-panel-bg)]/70 text-[var(--kg-text-secondary)] hover:text-[var(--kg-text-primary)]'}`}
-                aria-pressed={active}
-                aria-label={`Load ${preset.label} prompt preset`}
-                title={`${preset.description} Load without submitting.`}
-                disabled={Boolean(loadingPresetId)}
-                data-kg-live-canvas-hero-prompt-preset={preset.id}
-                data-kg-prompt-preset-activation={preset.activation}
-                onClick={() => { void selectPreset(preset) }}
-              >
-                {loadingPresetId === preset.id ? 'Loading…' : preset.label}
-              </button>
-            )
-          })}
-        </nav>
+          {presets.map(preset => (
+            <option
+              key={preset.id}
+              value={preset.id}
+              data-kg-prompt-preset-activation={preset.activation}
+            >
+              {loadingPresetId === preset.id ? `Loading ${preset.label}…` : preset.label}
+            </option>
+          ))}
+        </select>
       ) : null}
     </fieldset>
   )

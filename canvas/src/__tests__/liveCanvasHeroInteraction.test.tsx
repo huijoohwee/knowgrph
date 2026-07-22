@@ -37,7 +37,7 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
   let completedCount = 0
   const model = buildLiveCanvasHeroModel()
   const expectedDefaultQuery = model.defaultQuery
-  const investmentPrompt = '/investment-research-agent #runtime-ready Assess the active workspace sources.'
+  const investmentPrompt = '/investment-research-agent @source.body #runtime-ready Assess the active workspace sources.'
   const promptPresets: PromptPreset[] = [
     {
       id: 'video-agent',
@@ -122,13 +122,15 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
     if (promptPresetsLabel?.textContent?.trim() !== 'Prompt Presets' || heroText.includes('Agentic Video Canvas')) {
       throw new Error(`expected Prompt Presets to replace the video-only Home label, got ${JSON.stringify(promptPresetsLabel?.textContent)}`)
     }
-    const presetButtons = [...container.querySelectorAll<HTMLButtonElement>('[data-kg-live-canvas-hero-prompt-preset]')]
-    if (presetButtons.map(button => button.dataset.kgLiveCanvasHeroPromptPreset).join(',') !== promptPresets.map(preset => preset.id).join(',')) {
-      throw new Error(`expected Home to render the shared Prompt Presets catalog, got ${presetButtons.map(button => button.dataset.kgLiveCanvasHeroPromptPreset).join(',')}`)
+    const presetSelect = container.querySelector('[data-kg-live-canvas-hero-prompt-preset-select="true"]') as HTMLSelectElement | null
+    const presetOptions = [...(presetSelect?.options || [])]
+    if (!presetSelect || presetOptions.map(option => option.value).join(',') !== promptPresets.map(preset => preset.id).join(',')) {
+      throw new Error(`expected Home to render the shared Prompt Presets catalog as a dropdown, got ${presetOptions.map(option => option.value).join(',')}`)
     }
     if (submittedQueries.length !== 0 || completedCount !== 0) throw new Error('expected zero embedded Chat submissions on mount')
     await act(async () => {
-      presetButtons[1]?.click()
+      presetSelect.value = 'investment-research-agent'
+      Simulate.change(presetSelect)
       await waitForFrames(dom.window as unknown as Window, 3)
     })
     if (commandProxy.value !== investmentPrompt || submittedQueries.length !== 0) {
@@ -137,8 +139,20 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
     if (container.querySelector('[data-kg-live-canvas-hero-invocation-group]')) {
       throw new Error('expected video-only invocation controls to stay hidden for a non-video prompt preset')
     }
+    const parameterChips = [...container.querySelectorAll<HTMLButtonElement>('[data-kg-live-canvas-hero-prompt-parameter]')]
+    if (parameterChips.map(button => button.dataset.kgLiveCanvasHeroPromptParameter).join(',') !== '@source.body,#runtime-ready') {
+      throw new Error(`expected source-derived non-video parameter chips, got ${parameterChips.map(button => button.dataset.kgLiveCanvasHeroPromptParameter).join(',')}`)
+    }
     await act(async () => {
-      presetButtons[0]?.click()
+      parameterChips[1]?.click()
+      await waitForFrames(dom.window as unknown as Window, 2)
+    })
+    if (commandProxy.value.includes('#runtime-ready') || submittedQueries.length !== 0) {
+      throw new Error('expected parameter chips to edit locally without submitting')
+    }
+    await act(async () => {
+      presetSelect.value = 'video-agent'
+      Simulate.change(presetSelect)
       await waitForFrames(dom.window as unknown as Window, 3)
     })
     if (commandProxy.value !== expectedDefaultQuery || !container.querySelector('[data-kg-live-canvas-hero-invocation-group="provider"]')) {

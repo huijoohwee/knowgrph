@@ -34,6 +34,11 @@ import {
 } from '@/features/chat/generationInvocation'
 import { LiveCanvasHeroQueryEditor } from '@/features/agentic-os/LiveCanvasHeroQueryEditor'
 import { LiveCanvasHeroPromptPresetPicker } from '@/features/agentic-os/LiveCanvasHeroPromptPresetPicker'
+import {
+  liveCanvasHeroPromptHasParameter,
+  readLiveCanvasHeroPromptParameters,
+  toggleLiveCanvasHeroPromptParameter,
+} from '@/features/agentic-os/liveCanvasHeroPromptParameters'
 import type { PromptPresetSelectionRuntime } from '@/features/chat/promptPresetSelectionRuntime'
 
 export type LiveCanvasHeroProps = {
@@ -72,16 +77,22 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
   const content = React.useMemo(readLiveCanvasHeroContent, [])
   const [draft, setDraft] = React.useState(model.defaultQuery)
   const [selectedPromptPresetId, setSelectedPromptPresetId] = React.useState('video-agent')
+  const [selectedPromptPresetPrompt, setSelectedPromptPresetPrompt] = React.useState(model.defaultQuery)
   const previousDefaultQueryRef = React.useRef(model.defaultQuery)
   const [errorText, setErrorText] = React.useState('')
   const [importPanelOpen, setImportPanelOpen] = React.useState(false)
   const invocation = React.useMemo(() => parseGenerationInvocation(draft), [draft])
   const selectedKinds = invocation?.kinds || []
+  const promptParameters = React.useMemo(
+    () => readLiveCanvasHeroPromptParameters(selectedPromptPresetPrompt),
+    [selectedPromptPresetPrompt],
+  )
 
   React.useEffect(() => {
     const previous = previousDefaultQueryRef.current
     previousDefaultQueryRef.current = model.defaultQuery
     setDraft(current => current === previous ? model.defaultQuery : current)
+    setSelectedPromptPresetPrompt(current => current === previous ? model.defaultQuery : current)
   }, [model.defaultQuery])
 
   React.useEffect(() => {
@@ -162,10 +173,36 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
               runtime={props.promptPresetsRuntime}
               onSelect={selection => {
                 setSelectedPromptPresetId(selection.id)
+                setSelectedPromptPresetPrompt(selection.prompt)
                 setDraft(selection.prompt)
                 setErrorText('')
               }}
             />
+            {!invocation && promptParameters.length ? (
+              <fieldset data-kg-live-canvas-hero-prompt-parameters="true">
+                <legend className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--kg-text-secondary)]">
+                  Parameters
+                </legend>
+                <nav className="mt-1 flex flex-wrap gap-1.5" aria-label="Prompt parameters">
+                  {promptParameters.map(parameter => {
+                    const active = liveCanvasHeroPromptHasParameter(draft, parameter)
+                    return (
+                      <button
+                        key={parameter}
+                        type="button"
+                        className={`shrink-0 rounded-full border px-2.5 py-1 font-mono text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)] ${active ? 'border-[var(--kg-canvas-accent)] bg-[color-mix(in_srgb,var(--kg-canvas-accent)_16%,transparent)] text-[var(--kg-text-primary)]' : 'border-[color:var(--kg-border)] bg-[color:var(--kg-panel-bg)]/70 text-[var(--kg-text-secondary)] hover:text-[var(--kg-text-primary)]'}`}
+                        aria-pressed={active}
+                        title={`${active ? 'Remove' : 'Add'} ${parameter}`}
+                        data-kg-live-canvas-hero-prompt-parameter={parameter}
+                        onClick={() => setDraft(current => toggleLiveCanvasHeroPromptParameter(current, parameter))}
+                      >
+                        {parameter}
+                      </button>
+                    )
+                  })}
+                </nav>
+              </fieldset>
+            ) : null}
             {invocation ? (
               <section className="grid gap-2" aria-label="Video prompt invocation controls">
                 {(['Route', 'Provider', 'Specification', 'Outputs'] as const).map(group => <fieldset key={group} data-kg-live-canvas-hero-invocation-group={group.toLowerCase()}>
