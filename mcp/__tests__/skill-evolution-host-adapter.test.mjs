@@ -141,12 +141,15 @@ test("runs five roles in sanitized subprocesses with a dedicated worker for ever
   }
 });
 
-test("rejects relative, bare, and dynamic imports so helper drift is outside the executable closure", async (t) => {
+test("rejects unpinned imports and builtin-mediated repository reads", async (t) => {
   const directory = await mkdtemp(path.join(repoRoot, ".skill-evolution-import-test-"));
   const helper = path.join(directory, "helper.mjs");
   const staticAdapter = path.join(directory, "static-adapter.mjs");
   const bareAdapter = path.join(directory, "bare-adapter.mjs");
   const dynamicAdapter = path.join(directory, "dynamic-adapter.mjs");
+  const moduleAdapter = path.join(directory, "module-adapter.mjs");
+  const fsVmAdapter = path.join(directory, "fs-vm-adapter.mjs");
+  const processAdapter = path.join(directory, "process-adapter.mjs");
   t.after(() => rm(directory, { recursive: true, force: true }));
   await writeFile(helper, "export default true;\n");
   await writeFile(staticAdapter, [
@@ -164,6 +167,28 @@ test("rejects relative, bare, and dynamic imports so helper drift is outside the
   await writeFile(dynamicAdapter, [
     "export function createSkillEvolutionAdapter() {",
     "  return { authorize: async ({ loadHelper }) => loadHelper ? import('./helper.mjs') : true };",
+    "}",
+  ].join("\n"));
+  await writeFile(moduleAdapter, [
+    'import { createRequire } from "node:module";',
+    "const require = createRequire(import.meta.url);",
+    "export function createSkillEvolutionAdapter() {",
+    '  return { authorize: async () => require("./helper.mjs") };',
+    "}",
+  ].join("\n"));
+  await writeFile(fsVmAdapter, [
+    'import fs from "node:fs";',
+    'import vm from "node:vm";',
+    "export function createSkillEvolutionAdapter() {",
+    `  return { authorize: async () => vm.runInThisContext(fs.readFileSync(${JSON.stringify(helper)}, "utf8")) };`,
+    "}",
+  ].join("\n"));
+  await writeFile(processAdapter, [
+    "export function createSkillEvolutionAdapter() {",
+    "  return { authorize: async () => {",
+    '    const fs = process.getBuiltinModule("node:fs");',
+    `    return fs.readFileSync(${JSON.stringify(helper)}, "utf8");`,
+    "  } };",
     "}",
   ].join("\n"));
 
@@ -187,6 +212,14 @@ test("rejects relative, bare, and dynamic imports so helper drift is outside the
   const dynamicImport = createSkillEvolutionHostAdapter({ rootDir: repoRoot, env: await envFor(dynamicAdapter) });
   assert.equal(await dynamicImport.authorize({ loadHelper: false }), true);
   await assert.rejects(dynamicImport.authorize({ loadHelper: true }), (error) => error.code === "adapter_failed");
+
+  for (const adapterPath of [moduleAdapter, fsVmAdapter]) {
+    const adapter = createSkillEvolutionHostAdapter({ rootDir: repoRoot, env: await envFor(adapterPath) });
+    await assert.rejects(adapter.authorize({}), (error) => error.code === "adapter_unavailable");
+  }
+
+  const processImport = createSkillEvolutionHostAdapter({ rootDir: repoRoot, env: await envFor(processAdapter) });
+  await assert.rejects(processImport.authorize({}), (error) => error.code === "adapter_failed");
 });
 
 test("exposes only the methods allowed for each process role", async () => {

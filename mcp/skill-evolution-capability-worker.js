@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
-import { builtinModules } from "node:module";
 import path from "node:path";
 import { SourceTextModule, SyntheticModule } from "node:vm";
 
 const MAX_RPC_BYTES = 256 * 1024;
 const SHA256 = /^[a-f0-9]{64}$/;
 const FORBIDDEN_RUNTIME_MARKER = ["skill", "opt"].join("");
+const ADAPTER_BUILTINS = new Set(["node:crypto"]);
 const ROLE_METHODS = Object.freeze({
   authorization: Object.freeze(["authorize"]),
   sourceVerifier: Object.freeze(["verifySources", "verifyMutation"]),
@@ -51,8 +51,8 @@ function safeError(error) {
 
 async function verifiedModule(rootArg, moduleArg, expectedDigest) {
   if (!SHA256.test(expectedDigest)) throw new Error("invalid digest");
-  const root = await fs.realpath(path.resolve(rootArg));
-  const modulePath = await fs.realpath(path.resolve(moduleArg));
+  const root = path.resolve(rootArg);
+  const modulePath = path.resolve(moduleArg);
   const relative = path.relative(root, modulePath);
   if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
     throw new Error("module outside root");
@@ -78,9 +78,8 @@ async function loadSelfContainedModule({ modulePath, source }, expectedDigest) {
     importModuleDynamically: rejectDynamicImport,
   });
   await module.link(async (specifier) => {
-    const builtinName = specifier.startsWith("node:") ? specifier.slice(5) : "";
-    if (!builtinName || !builtinModules.includes(builtinName)) {
-      throw new Error("adapter imports must be explicit node: builtins");
+    if (!ADAPTER_BUILTINS.has(specifier)) {
+      throw new Error("adapter import is outside the pinned capability surface");
     }
     if (!builtinCache.has(specifier)) {
       const namespace = await import(specifier);

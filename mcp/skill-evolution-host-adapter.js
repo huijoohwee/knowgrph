@@ -103,14 +103,14 @@ function sanitizedChildEnv() {
   return Object.freeze({ LANG: "C", LC_ALL: "C", TZ: "UTC" });
 }
 
-function permissionArgs(root) {
+function permissionArgs(readPaths) {
   const flag = process.allowedNodeEnvironmentFlags.has("--permission")
     ? "--permission"
     : process.allowedNodeEnvironmentFlags.has("--experimental-permission")
       ? "--experimental-permission"
       : null;
   if (!flag) throw runtimeError("adapter_unavailable", "This Node runtime cannot isolate adapter filesystem writes.");
-  return [flag, `--allow-fs-read=${root}`];
+  return [flag, ...readPaths.map((readPath) => `--allow-fs-read=${readPath}`)];
 }
 
 function waitForWorker(workerPromise, role, signal, timeoutMs) {
@@ -224,7 +224,10 @@ export function createSkillEvolutionHostAdapter({
       {
         cwd: resolved.root,
         env: sanitizedChildEnv(),
-        execArgv: ["--experimental-vm-modules", ...permissionArgs(resolved.root)],
+        execArgv: [
+          "--experimental-vm-modules",
+          ...permissionArgs([WORKER_PATH, resolved.candidate]),
+        ],
         serialization: "json",
           stdio: ["ignore", "ignore", "ignore", "ipc"],
         },
