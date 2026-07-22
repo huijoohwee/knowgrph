@@ -1,10 +1,12 @@
-import type { Object3D } from 'three'
+import * as THREE from 'three'
 import type { GLTFExporterOptions } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { inspectGlbBytes, inspectGltfJson, type GlbContainerInspection, type GltfJsonInspection } from '@/lib/assets/gltfFormat'
 import {
   validateImageToGlbProceduralJob,
   type ImageToGlbProceduralJob,
 } from './imageToGlbContract'
+import { validateImageToGlbActionReadiness } from './imageToGlbActionReadiness'
+import { assertImageToGlbQualityForExport } from './imageToGlbQualityGate'
 import { inspectImageToGlbScene } from './imageToGlbSceneEvidence'
 
 export type ImageToGlbExternalBufferArtifact = {
@@ -53,7 +55,7 @@ function requireBrowserExporterRuntime(): void {
   }
 }
 
-export function buildImageToGlbExporterOptions(scene: Object3D, binary: boolean): GLTFExporterOptions {
+export function buildImageToGlbExporterOptions(scene: THREE.Object3D, binary: boolean): GLTFExporterOptions {
   return {
     animations: Array.isArray(scene.animations) ? scene.animations : [],
     binary,
@@ -64,7 +66,7 @@ export function buildImageToGlbExporterOptions(scene: Object3D, binary: boolean)
   }
 }
 
-async function exportWithGltfExporter(scene: Object3D, binary: boolean): Promise<ArrayBuffer | Record<string, unknown>> {
+async function exportWithGltfExporter(scene: THREE.Object3D, binary: boolean): Promise<ArrayBuffer | Record<string, unknown>> {
   requireBrowserExporterRuntime()
   const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
   const exporter = new GLTFExporter()
@@ -122,7 +124,7 @@ function assertExportableJob(job: ImageToGlbProceduralJob): void {
   }
 }
 
-function assertSceneMatchesReviewedJob(scene: Object3D, job: ImageToGlbProceduralJob): void {
+function assertSceneMatchesReviewedJob(scene: THREE.Object3D, job: ImageToGlbProceduralJob): void {
   let provenance: Record<string, unknown> | null = null
   scene.traverse(object => {
     if (provenance) return
@@ -136,6 +138,10 @@ function assertSceneMatchesReviewedJob(scene: Object3D, job: ImageToGlbProcedura
   ) {
     throw new Error('Image to GLB refused to export a scene that does not match the reviewed program, reference, and named-part manifest.')
   }
+  const actionValidation = validateImageToGlbActionReadiness(scene)
+  if (!actionValidation.valid) {
+    throw new Error(`Image to GLB refused to export an invalid action hierarchy: ${actionValidation.violations.map(item => item.code).join(', ')}`)
+  }
   const sceneEvidence = inspectImageToGlbScene(scene)
   const reviewedProjectionDigest = job.visionReviewPasses[job.visionReviewPasses.length - 1]?.evidence.projectionDigest
   const manifestByName = new Map(job.partManifest.map(part => [part.name, part]))
@@ -143,6 +149,92 @@ function assertSceneMatchesReviewedJob(scene: Object3D, job: ImageToGlbProcedura
     && sceneEvidence.parts.length === job.partManifest.length
   if (sceneEvidence.projectionDigest !== reviewedProjectionDigest || !scenePartsMatchManifest) {
     throw new Error('Image to GLB refused to export native geometry that drifted from the reviewed projection and part graph.')
+  }
+  assertImageToGlbQualityForExport(scene, job)
+}
+
+function clonePlainValue<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
+function cloneImageToGlbExportScene(scene: THREE.Object3D): THREE.Object3D {
+  const snapshot = scene.clone(true)
+  const originals: THREE.Object3D[] = []
+  const clones: THREE.Object3D[] = []
+  scene.traverse(object => originals.push(object))
+  snapshot.traverse(object => clones.push(object))
+  if (originals.length !== clones.length) throw new Error('Image to GLB could not create an exact owned export snapshot.')
+  const geometryClones = new Map<THREE.BufferGeometry, THREE.BufferGeometry>()
+  const materialClones = new Map<THREE.Material, THREE.Material>()
+  const cloneGeometry = (geometry: THREE.BufferGeometry) => {
+    const existing = geometryClones.get(geometry)
+    if (existing) return existing
+    const clone = geometry.clone()
+    geometryClones.set(geometry, clone)
+    return clone
+  }
+  const cloneMaterial = (material: THREE.Material) => {
+    const existing = materialClones.get(material)
+    if (existing) return existing
+    const clone = material.clone()
+    materialClones.set(material, clone)
+    return clone
+  }
+  originals.forEach((original, index) => {
+    const clone = clones[index]
+    if (!clone) throw new Error('Image to GLB export snapshot traversal drifted from the reviewed scene.')
+    clone.userData = clonePlainValue(original.userData)
+    const originalMesh = original as THREE.Mesh
+    const cloneMesh = clone as THREE.Mesh
+    if (!originalMesh.isMesh || !cloneMesh.isMesh) return
+    cloneMesh.geometry = cloneGeometry(originalMesh.geometry)
+    cloneMesh.material = Array.isArray(originalMesh.material)
+      ? originalMesh.material.map(cloneMaterial)
+      : cloneMaterial(originalMesh.material)
+  })
+  snapshot.animations = scene.animations.map(clip => clip.clone())
+  snapshot.updateMatrixWorld(true)
+  return snapshot
+}
+
+function disposeImageToGlbExportScene(scene: THREE.Object3D): void {
+  const geometries = new Set<THREE.BufferGeometry>()
+  const materials = new Set<THREE.Material>()
+  scene.traverse(object => {
+    const mesh = object as THREE.Mesh
+    if (!mesh.isMesh) return
+    geometries.add(mesh.geometry)
+    const candidates = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+    candidates.forEach(material => materials.add(material))
+  })
+  geometries.forEach(geometry => geometry.dispose())
+  materials.forEach(material => material.dispose())
+}
+
+function assertExporterDocumentMatchesJob(args: {
+  document: Record<string, unknown>
+  job: ImageToGlbProceduralJob
+  scene: THREE.Object3D
+}): void {
+  const meshes = Array.isArray(args.document.meshes) ? args.document.meshes : []
+  const animations = Array.isArray(args.document.animations) ? args.document.animations : []
+  const nodes = Array.isArray(args.document.nodes) ? args.document.nodes : []
+  const nodeNames = new Set(nodes.map(node => String(asRecord(node)?.name || '')).filter(Boolean))
+  const actionManifest = args.scene.userData.imageToGlbActionReadiness as {
+    modelRootName?: string
+    parts?: Array<{ meshName?: string; pivotName?: string; socketName?: string }>
+  } | undefined
+  const expectedNames = [
+    actionManifest?.modelRootName,
+    ...(actionManifest?.parts || []).flatMap(part => [part.meshName, part.pivotName, part.socketName]),
+  ].filter((name): name is string => Boolean(name))
+  if (
+    meshes.length !== args.job.partManifest.length
+    || animations.length !== 1
+    || expectedNames.length !== 1 + args.job.partManifest.length * 3
+    || expectedNames.some(name => !nodeNames.has(name))
+  ) {
+    throw new Error('Three.js GLTFExporter output drifted from the reviewed mesh, action-node, or animation manifest.')
   }
 }
 
@@ -152,40 +244,47 @@ function assertSceneMatchesReviewedJob(scene: Object3D, job: ImageToGlbProcedura
  */
 export async function exportImageToGlbRuntimeArtifacts(args: {
   job: ImageToGlbProceduralJob
-  scene: Object3D
+  scene: THREE.Object3D
   artifactStem?: string
 }): Promise<ImageToGlbRuntimeArtifacts> {
-  assertExportableJob(args.job)
-  assertSceneMatchesReviewedJob(args.scene, args.job)
+  const job = clonePlainValue(args.job)
+  const scene = cloneImageToGlbExportScene(args.scene)
   const artifactStem = normalizeArtifactStem(args.artifactStem)
-  const glbResult = await exportWithGltfExporter(args.scene, true)
-  if (!(glbResult instanceof ArrayBuffer)) throw new Error('Three.js GLTFExporter did not produce a GLB ArrayBuffer.')
-  const glbInspection = inspectGlbBytes(glbResult)
-  if (!glbInspection.validContainer || !glbInspection.validGltfAsset || !glbInspection.validBinReference) {
-    throw new Error('Three.js GLTFExporter produced an invalid GLB container.')
-  }
+  try {
+    assertExportableJob(job)
+    assertSceneMatchesReviewedJob(scene, job)
+    const glbResult = await exportWithGltfExporter(scene, true)
+    if (!(glbResult instanceof ArrayBuffer)) throw new Error('Three.js GLTFExporter did not produce a GLB ArrayBuffer.')
+    const glbInspection = inspectGlbBytes(glbResult)
+    if (!glbInspection.validContainer || !glbInspection.validGltfAsset || !glbInspection.validBinReference) {
+      throw new Error('Three.js GLTFExporter produced an invalid GLB container.')
+    }
 
-  const gltfResult = await exportWithGltfExporter(args.scene, false)
-  if (gltfResult instanceof ArrayBuffer) throw new Error('Three.js GLTFExporter did not produce editable glTF JSON.')
-  const gltf = externalizeGltfBuffers({ exporterResult: gltfResult, artifactStem })
-  const gltfInspection = inspectGltfJson(gltf.text)
+    const gltfResult = await exportWithGltfExporter(scene, false)
+    if (gltfResult instanceof ArrayBuffer) throw new Error('Three.js GLTFExporter did not produce editable glTF JSON.')
+    assertExporterDocumentMatchesJob({ document: gltfResult, job, scene })
+    const gltf = externalizeGltfBuffers({ exporterResult: gltfResult, artifactStem })
+    const gltfInspection = inspectGltfJson(gltf.text)
 
-  return {
-    job: args.job,
-    glb: {
-      fileName: `${artifactStem}.glb`,
-      mimeType: 'model/gltf-binary',
-      blob: new Blob([glbResult], { type: 'model/gltf-binary' }),
-      bytes: glbResult,
-      inspection: glbInspection,
-    },
-    gltf: {
-      fileName: `${artifactStem}.gltf`,
-      mimeType: 'model/gltf+json',
-      blob: new Blob([gltf.text], { type: 'model/gltf+json' }),
-      text: gltf.text,
-      inspection: gltfInspection,
-      externalBuffers: gltf.externalBuffers,
-    },
+    return {
+      job,
+      glb: {
+        fileName: `${artifactStem}.glb`,
+        mimeType: 'model/gltf-binary',
+        blob: new Blob([glbResult], { type: 'model/gltf-binary' }),
+        bytes: glbResult,
+        inspection: glbInspection,
+      },
+      gltf: {
+        fileName: `${artifactStem}.gltf`,
+        mimeType: 'model/gltf+json',
+        blob: new Blob([gltf.text], { type: 'model/gltf+json' }),
+        text: gltf.text,
+        inspection: gltfInspection,
+        externalBuffers: gltf.externalBuffers,
+      },
+    }
+  } finally {
+    disposeImageToGlbExportScene(scene)
   }
 }

@@ -12,10 +12,19 @@ import {
   type ImageToGlbVisionReviewPass,
 } from './imageToGlbContract'
 import {
-  buildRingFrameScene,
-  createRingFrameProgram,
-  deriveRingFrameConstructionPlan,
-} from './imageToGlbRingFrame'
+  createImageToGlbActionReadiness,
+  validateImageToGlbActionReadiness,
+} from './imageToGlbActionReadiness'
+import {
+  buildContourRebuildScene,
+  createContourRebuildProgram,
+  deriveContourRebuildPlan,
+} from './imageToGlbContourRebuild'
+import {
+  attachImageToGlbQualityReport,
+  evaluateImageToGlbQuality,
+  measureImageToGlbFrontProjectionScore,
+} from './imageToGlbQualityGate'
 import { inspectImageToGlbScene } from './imageToGlbSceneEvidence'
 
 type RgbColor = { b: number; g: number; r: number }
@@ -29,15 +38,15 @@ export type ImageToGlbSilhouetteSpan = {
 }
 
 export type ImageToGlbReferenceAnalysis = {
+  analysisConfidence: number
   aspectRatio: number
   backgroundMethod: 'alpha' | 'edge-palette'
   bottomWidthRatio: number
   foregroundCoverage: number
   height: number
   palette: readonly RgbColor[]
-  profile: 'ring-frame' | 'silhouette-relief'
+  profile: 'contour-volume'
   referenceDigest: string
-  silhouetteScore: number
   spans: readonly ImageToGlbSilhouetteSpan[]
   symmetryScore: number
   topWidthRatio: number
@@ -60,10 +69,6 @@ type PixelMask = {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 const rounded = (value: number) => Number(value.toFixed(5))
-
-function colorHex(color: RgbColor): string {
-  return `0x${[color.r, color.g, color.b].map(value => clamp(Math.round(value), 0, 255).toString(16).padStart(2, '0')).join('')}`
-}
 
 function colorDistanceSquared(first: RgbColor, second: RgbColor): number {
   return (first.r - second.r) ** 2 + (first.g - second.g) ** 2 + (first.b - second.b) ** 2
@@ -290,82 +295,30 @@ export function analyzeImageToGlbReference(pixels: ImageReferencePixels): ImageT
   if (spans.length < 3) throw new Error('Reference-image analysis found too little procedural structure.')
   const symmetry = symmetryScore(pixels, mask)
   const topWidthRatio = clamp(spanWidthNear(spans, 0.38), 0, 1)
-  const middleRuns = spans.filter(span => Math.abs(span.y) <= 0.1)
-  const middleHasGap = middleRuns.length >= 2 && middleRuns.some(span => span.x < -0.12) && middleRuns.some(span => span.x > 0.12)
   const bottomWidthRatio = clamp(spanWidthNear(spans, -0.38), 0, 1)
-  const ringFrameScore = [topWidthRatio, middleHasGap ? 1 : 0, bottomWidthRatio, symmetry]
-    .reduce((sum, value) => sum + value, 0) / 4
-  const profile = topWidthRatio >= 0.62 && middleHasGap && bottomWidthRatio >= 0.25 && symmetry >= 0.55
-    ? 'ring-frame'
-    : 'silhouette-relief'
-  const referenceDigest = hashStringToHex(Array.from(pixels.data).join(','))
+  const referenceDigest = hashStringToHex(`${pixels.width}x${pixels.height}:${Array.from(pixels.data).join(',')}`)
   const palette = foregroundPalette(pixels, mask)
+  const coverage = foregroundCoverage(pixels, mask)
+  const analysisConfidence = clamp(
+    0.64 + Math.min(spans.length / 24, 1) * 0.12 + coverage * 0.1 + symmetry * 0.08,
+    0,
+    0.94,
+  )
   return {
+    analysisConfidence,
     aspectRatio: (mask.right - mask.left + 1) / (mask.bottom - mask.top + 1),
     backgroundMethod: method,
     bottomWidthRatio,
-    foregroundCoverage: foregroundCoverage(pixels, mask),
+    foregroundCoverage: coverage,
     height: pixels.height,
     palette,
-    profile,
+    profile: 'contour-volume',
     referenceDigest,
-    silhouetteScore: profile === 'ring-frame' ? clamp(0.56 + ringFrameScore * 0.38, 0, 0.94) : 0.88,
     spans,
     symmetryScore: symmetry,
     topWidthRatio,
     width: pixels.width,
   }
-}
-
-function material(color: RgbColor): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({
-    color: Number(colorHex(color)),
-    roughness: 0.42,
-    metalness: 0.08,
-  })
-}
-
-function addNamedMesh(group: THREE.Group, mesh: THREE.Mesh, name: string): void {
-  mesh.name = name
-  mesh.castShadow = true
-  mesh.receiveShadow = true
-  group.add(mesh)
-}
-
-function buildSilhouetteScene(analysis: ImageToGlbReferenceAnalysis, partManifest: ImageToGlbPartManifestEntry[]): THREE.Group {
-  const group = new THREE.Group()
-  const worldWidth = 2.8
-  const worldHeight = clamp(worldWidth / analysis.aspectRatio, 1.5, 3.4)
-  analysis.spans.forEach((span, index) => {
-    const depth = 0.2 + (1 - Math.abs(span.y)) * 0.22
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(Math.max(0.035, span.width * worldWidth), Math.max(0.035, span.height * worldHeight * 1.08), depth, 2, 2, 2),
-      material(span.color),
-    )
-    mesh.position.set(span.x * worldWidth, span.y * worldHeight, (depth - 0.2) * 0.45)
-    addNamedMesh(group, mesh, `Reference silhouette band ${index + 1}`)
-    partManifest.push({ name: mesh.name, primitive: 'BoxGeometry', role: 'reference-derived silhouette segment' })
-  })
-  return group
-}
-
-function silhouetteProgram(analysis: ImageToGlbReferenceAnalysis): string {
-  const spanLines = analysis.spans.map((span, index) => (
-    `  addBand(${index + 1}, ${span.x}, ${span.y}, ${span.width}, ${span.height}, ${colorHex(span.color)})`
-  )).join('\n')
-  return `import * as THREE from 'three'
-
-export function buildImageToGlbReviewedScene() {
-  const group = new THREE.Group()
-  const width = 2.8, height = ${rounded(clamp(2.8 / analysis.aspectRatio, 1.5, 3.4))}
-  const addBand = (index: number, x: number, y: number, bandWidth: number, bandHeight: number, color: number) => {
-    const depth = 0.2 + (1 - Math.abs(y)) * 0.22
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.035, bandWidth * width), Math.max(0.035, bandHeight * height * 1.08), depth, 2, 2, 2), new THREE.MeshStandardMaterial({ color, roughness: 0.42, metalness: 0.24 }))
-    mesh.name = \`Reference silhouette band \${index}\`; mesh.position.set(x * width, y * height, (depth - 0.2) * 0.45); group.add(mesh)
-  }
-${spanLines}
-  return group
-}`
 }
 
 export function createReviewedImageToGlbScene(args: {
@@ -374,35 +327,32 @@ export function createReviewedImageToGlbScene(args: {
 }): ReviewedImageToGlbScene {
   const analysis = analyzeImageToGlbReference(args.pixels)
   const partManifest: ImageToGlbPartManifestEntry[] = []
-  const ringFramePlan = analysis.profile === 'ring-frame'
-    ? deriveRingFrameConstructionPlan(analysis)
-    : null
-  const color = analysis.palette[0] || { r: 190, g: 163, b: 125 }
-  const accent = analysis.palette[1] || color
-  const scene = analysis.profile === 'ring-frame'
-    ? buildRingFrameScene({ accent, color, partManifest, plan: ringFramePlan! })
-    : buildSilhouetteScene(analysis, partManifest)
+  const contourRebuildPlan = deriveContourRebuildPlan(analysis)
+  if (!contourRebuildPlan.quality.withinBudgets) {
+    throw new Error('Image to GLB contour reconstruction exceeded its procedural quality budget.')
+  }
+  const scene = buildContourRebuildScene({ partManifest, plan: contourRebuildPlan })
+  scene.name = 'Image to GLB reviewed procedural scene'
+  const actionReadiness = createImageToGlbActionReadiness(scene)
+  const actionValidation = validateImageToGlbActionReadiness(scene, actionReadiness.manifest)
   const program: ImageToGlbProceduralProgram = {
     entrypoint: 'buildImageToGlbReviewedScene',
     language: 'typescript',
-    source: analysis.profile === 'ring-frame'
-      ? createRingFrameProgram({ accent, color, plan: ringFramePlan! })
-      : silhouetteProgram(analysis),
+    source: createContourRebuildProgram(contourRebuildPlan),
   }
   const programDigest = hashStringToHex(program.source)
   const sceneEvidence = inspectImageToGlbScene(scene)
   const projectionDigest = sceneEvidence.projectionDigest
   const expectedParts = partManifest.map(part => part.name)
   const missingParts = expectedParts.filter(part => !sceneEvidence.foundParts.includes(part))
-  const aspectError = Math.abs(sceneEvidence.aspectRatio - analysis.aspectRatio) / Math.max(sceneEvidence.aspectRatio, analysis.aspectRatio, 0.001)
-  const measuredSilhouetteScore = clamp(analysis.silhouetteScore * 0.62 + (1 - clamp(aspectError, 0, 1)) * 0.38, 0, 0.96)
+  const measuredSilhouetteScore = measureImageToGlbFrontProjectionScore({ analysis, scene })
   const evidence = {
     expectedParts,
     foundParts: sceneEvidence.foundParts,
     programDigest,
     projectionDigest,
     referenceDigest: analysis.referenceDigest,
-    reviewedViews: ['reference-front', 'native-scene-bounds', 'native-part-graph'],
+    reviewedViews: ['reference-front', 'native-scene-bounds', 'native-part-graph', 'rigid-part-pivots', 'inspection-loop'],
     silhouetteScore: measuredSilhouetteScore,
     unresolvedIssues: missingParts.map(part => `Missing native scene part: ${part}`),
   }
@@ -411,21 +361,24 @@ export function createReviewedImageToGlbScene(args: {
       iteration: 1,
       stage: 'reference-analysis',
       verdict: 'revise',
-      observations: [`Read ${analysis.width}x${analysis.height} reference pixels with ${analysis.backgroundMethod} isolation; selected ${analysis.profile}.`],
+      reviewer: { evidenceDigest: projectionDigest, kind: 'native-deterministic' },
+      observations: [`Read ${analysis.width}x${analysis.height} reference pixels with ${analysis.backgroundMethod} isolation at analysis confidence ${analysis.analysisConfidence.toFixed(3)}; selected ${analysis.profile}.`],
       evidence,
     },
     {
       iteration: 2,
       stage: 'procedural-geometry',
-      verdict: 'approved',
-      observations: [`Built and traversed ${sceneEvidence.foundParts.length} named native Three.js parts from the measured silhouette, gaps, symmetry, and palette.`],
+      verdict: 'validated',
+      reviewer: { evidenceDigest: projectionDigest, kind: 'native-deterministic' },
+      observations: [`Validated ${sceneEvidence.foundParts.length} named native Three.js contour volumes from measured silhouette runs, negative spaces, symmetry, and palette evidence.`],
       evidence,
     },
     {
       iteration: 3,
       stage: 'artifact-review',
-      verdict: 'approved',
-      observations: [`Approved the exact program and measured native part graph at silhouette score ${measuredSilhouetteScore.toFixed(3)} for GLB and external-buffer glTF export.`],
+      verdict: 'validated',
+      reviewer: { evidenceDigest: projectionDigest, kind: 'native-deterministic' },
+      observations: [`Validated the exact program, rigid-part pivot graph, attachment sockets, bounded inspection loop, and native projection at score ${measuredSilhouetteScore.toFixed(3)}.`],
       evidence,
     },
   ]
@@ -437,8 +390,9 @@ export function createReviewedImageToGlbScene(args: {
     referenceDigest: analysis.referenceDigest,
     visionReviewPasses,
   })
-  scene.name = 'Image to GLB reviewed procedural scene'
   scene.userData.imageToGlb = {
+    actionReadiness: actionReadiness.manifest,
+    contourRebuildPlan,
     partManifest,
     procedural: true,
     profile: analysis.profile,
@@ -446,15 +400,41 @@ export function createReviewedImageToGlbScene(args: {
     projectionDigest,
     projectionAspectRatio: sceneEvidence.aspectRatio,
     referenceDigest: analysis.referenceDigest,
-    ringFramePlan,
-    sourceUrl: args.sourceUrl,
+    sourceKind: job.source.kind,
+    sourceReferenceDigest: analysis.referenceDigest,
   }
+  const qualityReport = evaluateImageToGlbQuality({
+    action: {
+      clipCount: scene.animations.length,
+      fingerprint: hashStringToHex(JSON.stringify(actionReadiness.manifest)),
+      pivotCount: actionReadiness.manifest.parts.length,
+      socketCount: actionReadiness.manifest.parts.length,
+      valid: actionValidation.valid,
+      violations: actionValidation.violations.map(violation => `${violation.code}: ${violation.message}`),
+    },
+    analysis,
+    componentCount: contourRebuildPlan.components.length,
+    job,
+    programSource: program.source,
+    reconstruction: {
+      acceptedSpanCount: contourRebuildPlan.quality.acceptedSpanCount,
+      inferredSurfaceConfidence: contourRebuildPlan.quality.inferredSurfaceConfidence,
+      rawSpanCount: contourRebuildPlan.quality.rawSpanCount,
+      retainedAreaRatio: contourRebuildPlan.quality.retainedAreaRatio,
+      withinBudgets: contourRebuildPlan.quality.withinBudgets,
+    },
+    scene,
+  })
+  if (!qualityReport.passed) {
+    throw new Error(`Image to GLB quality gate failed: ${qualityReport.violations.map(violation => violation.code).join(', ')}`)
+  }
+  attachImageToGlbQualityReport(scene, qualityReport)
   return { analysis, job, scene }
 }
 
 export async function generateReviewedImageToGlbScene(args: {
   sourceUrl: string
 }): Promise<ReviewedImageToGlbScene> {
-  const pixels = await loadImageReferencePixels({ sourceUrl: args.sourceUrl, maxDimension: 144 })
+  const pixels = await loadImageReferencePixels({ sourceUrl: args.sourceUrl, maxDimension: 192 })
   return createReviewedImageToGlbScene({ pixels, sourceUrl: args.sourceUrl })
 }

@@ -26,7 +26,8 @@ export type ImageToGlbRunInput = {
 
 export type ImageToGlbProceduralLanguage = 'javascript' | 'typescript'
 export type ImageToGlbVisionReviewStage = 'reference-analysis' | 'procedural-geometry' | 'scene-edit' | 'artifact-review'
-export type ImageToGlbVisionReviewVerdict = 'revise' | 'approved' | 'rejected'
+export type ImageToGlbVisionReviewVerdict = 'revise' | 'validated' | 'approved' | 'rejected'
+export type ImageToGlbVisionReviewerKind = 'native-deterministic' | 'independent-provider'
 
 export type ImageToGlbProceduralProgram = {
   language: ImageToGlbProceduralLanguage
@@ -38,6 +39,10 @@ export type ImageToGlbVisionReviewPass = {
   iteration: number
   stage: ImageToGlbVisionReviewStage
   verdict: ImageToGlbVisionReviewVerdict
+  reviewer: {
+    evidenceDigest: string
+    kind: ImageToGlbVisionReviewerKind
+  }
   observations: readonly string[]
   evidence: {
     expectedParts: readonly string[]
@@ -214,7 +219,11 @@ function validReviewStage(value: unknown): value is ImageToGlbVisionReviewStage 
 }
 
 function validReviewVerdict(value: unknown): value is ImageToGlbVisionReviewVerdict {
-  return value === 'revise' || value === 'approved' || value === 'rejected'
+  return value === 'revise' || value === 'validated' || value === 'approved' || value === 'rejected'
+}
+
+function validReviewerKind(value: unknown): value is ImageToGlbVisionReviewerKind {
+  return value === 'native-deterministic' || value === 'independent-provider'
 }
 
 /**
@@ -278,6 +287,8 @@ export function validateImageToGlbVisionReviewPasses(passes: readonly ImageToGlb
       || pass.iteration !== expectedIteration
       || !validReviewStage(pass.stage)
       || !validReviewVerdict(pass.verdict)
+      || !validReviewerKind(pass.reviewer?.kind)
+      || !cleanString(pass.reviewer?.evidenceDigest)
       || !Array.isArray(pass.observations)
       || pass.observations.every(observation => !cleanString(observation))
     ) {
@@ -310,13 +321,24 @@ export function validateImageToGlbVisionReviewPasses(passes: readonly ImageToGlb
       })
       break
     }
+    if (
+      (pass.verdict === 'validated' && pass.reviewer.kind !== 'native-deterministic')
+      || (pass.verdict === 'approved' && pass.reviewer.kind !== 'independent-provider')
+      || (pass.reviewer.kind === 'native-deterministic' && pass.reviewer.evidenceDigest !== evidence.projectionDigest)
+    ) {
+      violations.push({
+        code: 'invalid-vision-review-evidence',
+        message: 'Validated passes require projection-bound native evidence; approved passes require a distinct independent-provider receipt.',
+      })
+      break
+    }
     expectedIteration += 1
   }
   const finalPass = passes[passes.length - 1]
-  if (!finalPass || finalPass.verdict !== 'approved') {
+  if (!finalPass || (finalPass.verdict !== 'validated' && finalPass.verdict !== 'approved')) {
     violations.push({
       code: 'unapproved-vision-review',
-      message: 'The final vision-review pass must approve the procedural scene before export.',
+      message: 'The final review pass must deterministically validate or independently approve the procedural scene before export.',
     })
   } else if (
     finalPass.evidence.silhouetteScore < 0.55
@@ -352,8 +374,8 @@ export function validateImageToGlbProceduralJob(job: ImageToGlbProceduralJob | n
   if (!cleanString(job?.programDigest) || job?.programDigest !== expectedProgramDigest) {
     violations.push({ code: 'program-digest-mismatch', message: 'The job program digest must identify the exact reviewable procedural source.' })
   }
-  if (!Array.isArray(job?.partManifest) || job.partManifest.length < 3) {
-    violations.push({ code: 'missing-part-manifest', message: 'A reviewed procedural job requires at least three named scene parts.' })
+  if (!Array.isArray(job?.partManifest) || job.partManifest.length < 1) {
+    violations.push({ code: 'missing-part-manifest', message: 'A reviewed procedural job requires at least one named scene part.' })
   }
   if (
     cleanString(job?.referenceDigest)
