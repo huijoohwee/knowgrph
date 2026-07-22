@@ -118,7 +118,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["canvas.storyboardWidget.probeTree.entrypoints.noConflict","@/__tests__/agenticOsKnowgrphDocInvocation.test","testProbeTreeToolbarAndSlashRunShareOneIdempotentBranchSet"],
   ["viewport.storyboardWidget.overlay.probeTreePinDefaultPreservesExplicitState","@/__tests__/storyboardWidgetDefaultsPinnedToNodeRegression.test","testStoryboardWidgetProbeTreeLayoutPinDefaultPreservesExplicitState"],
   ["storyboardWidget.widget.probeTreeReveal.preservesPinsAndViewport","@/__tests__/storyboardWidgetToolbarRestore.test","testStoryboardWidgetProbeTreeRevealPreservesExplicitPinsAndViewport"],
-  ["storyboardWidget.widget.drop.restoresCameraAndBalancesCollective","@/__tests__/storyboardWidgetDropBalancedCollective.test","testStoryboardWidgetDropRestoresCameraAndRequestsBalancedCollective"],
+  ["storyboardWidget.widget.drop.restoresCameraWithoutLayoutMutation","@/__tests__/storyboardWidgetDropBalancedCollective.test","testStoryboardWidgetDropRestoresCameraWithoutRebalancingCollective"],
   ["storyboardWidget.widget.drop.frontmatterGrowthReseedsWholeCollective","@/__tests__/storyboardWidgetDropBalancedCollective.test","testFrontmatterGrowthReseedsWholeBalancedCollective"],
   ["storyboardWidget.widget.collectiveCameraMotion.freezesBalancedWorldLayout","@/__tests__/storyboardWidgetDropBalancedCollective.test","testFixedCardProjectionFreezesBalancedWorldLayoutDuringCollectiveCameraMotion"],
   ["zoom.viewKey.storyboardSourceRevisionStable","@/__tests__/graphMetaKeyPending.test","testStoryboardActive2dZoomViewKeyStaysStableAcrossSourceRevisions"],

@@ -243,13 +243,12 @@ export function getCachedStoryboardWidgetOverlayEdgeGraph(args: {
     sort: true,
   })
   const nodeHandleSemanticKey = buildOverlayNodeHandleSignature(baseGraph.nodes)
-  const graphSemanticKey = graphRevision > 0
-    ? `rev:${graphRevision}`
-    : hashSignatureParts([
-        'overlay-graph-semantic',
-        buildOverlayTopologyLayoutSignature(graph),
-        nodeHandleSemanticKey,
-      ])
+  const graphSemanticKey = hashSignatureParts([
+    'overlay-graph-semantic',
+    graphRevision > 0 ? `rev:${graphRevision}` : '',
+    buildOverlayTopologyLayoutSignature(overlayEdgeGraphData),
+    nodeHandleSemanticKey,
+  ])
   const cacheKey = hashSignatureParts([
     'overlay-graph-lookup',
     graphSemanticKey,

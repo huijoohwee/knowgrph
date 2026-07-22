@@ -177,6 +177,39 @@ export function testStoryboardCardMediaDropOverlayGraphRequiresExplicitConsumerE
   assert(mediaEdges.length === 1, `expected explicit card-media edge not to be duplicated by derived overlay edge, got ${JSON.stringify(mediaEdges)}`)
 }
 
+export function testStoryboardOverlayGraphRefreshesWhenEdgeArrivesWithinSameRevision() {
+  const source = buildCardNode('story-source')
+  const target = buildCardNode('story-target')
+  const graphWithoutEdge: GraphData = {
+    type: 'Graph',
+    nodes: [source, target],
+    edges: [],
+  }
+  const overlayNodeIds = ['story-source', 'story-target']
+  const initial = getCachedStoryboardWidgetOverlayEdgeGraph({
+    graphData: graphWithoutEdge,
+    graphRevision: 9191,
+    overlayNodeIds,
+    preferCurrentGraphDataRefs: true,
+  })
+  assert(initial?.edges.length === 0, `expected the initial overlay lookup to have no edge, got ${JSON.stringify(initial?.edges)}`)
+
+  const graphWithEdge: GraphData = {
+    ...graphWithoutEdge,
+    edges: [{ id: 'edge-story-source-target', source: 'story-source', target: 'story-target', label: 'linksTo', properties: {} }],
+  }
+  const refreshed = getCachedStoryboardWidgetOverlayEdgeGraph({
+    graphData: graphWithEdge,
+    graphRevision: 9191,
+    overlayNodeIds,
+    preferCurrentGraphDataRefs: true,
+  })
+  assert(
+    refreshed?.edges.some(edge => edge.id === 'edge-story-source-target'),
+    `expected an edge materialized after its target card to invalidate the same-revision overlay cache, got ${JSON.stringify(refreshed?.edges)}`,
+  )
+}
+
 export function testStoryboardCardMediaDropReusesInboundRichMediaPanelEdge() {
   const card = buildCardNode()
   const first = applyStoryboardCardMediaDropGraph({
