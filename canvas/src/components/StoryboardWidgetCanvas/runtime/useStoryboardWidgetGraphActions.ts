@@ -84,6 +84,17 @@ export function appendStoryboardWidgetAuthoredEdge(graphData: GraphData, edge: G
   return bumpStoryboardWidgetDraftGraphDataRevision({ ...graphData, edges: [...edges, edge] }, opts)
 }
 
+export function publishStoryboardWidgetAuthoredGraphMutation(args: {
+  nextGraphData: GraphData
+  draftGraphDataRef: { current: GraphData | null }
+  setDraftGraphData: (graphData: GraphData) => void
+  persistDraftGraphData?: (graphData: GraphData) => void
+}): void {
+  args.draftGraphDataRef.current = args.nextGraphData
+  args.setDraftGraphData(args.nextGraphData)
+  args.persistDraftGraphData?.(args.nextGraphData)
+}
+
 export function useStoryboardWidgetGraphActions(args: {
   active: boolean
   draftGraphData: GraphData | null
@@ -102,6 +113,7 @@ export function useStoryboardWidgetGraphActions(args: {
   selectEdge: (edgeId: string | null) => void
   addEdge: (edge: GraphData['edges'][number]) => void
   addNode: (node: GraphNode) => void
+  persistDraftGraphData?: (graphData: GraphData) => void
   setToolMode: React.Dispatch<React.SetStateAction<ToolMode>>
   setPendingEdgeSourceId: React.Dispatch<React.SetStateAction<string | null>>
   setPendingEdgeSourcePortKey: React.Dispatch<React.SetStateAction<string | null>>
@@ -264,9 +276,13 @@ export function useStoryboardWidgetGraphActions(args: {
           readDraftRevisionFloor(args.baseGraphData),
         )
         const nextDraftGraphData = appendStoryboardWidgetAuthoredEdge(authoringGraphData, result.edge, { revisionFloor })
-        args.draftGraphDataRef.current = nextDraftGraphData
-        args.setDraftGraphData(nextDraftGraphData)
         args.addEdge(result.edge)
+        publishStoryboardWidgetAuthoredGraphMutation({
+          nextGraphData: nextDraftGraphData,
+          draftGraphDataRef: args.draftGraphDataRef,
+          setDraftGraphData: args.setDraftGraphData,
+          persistDraftGraphData: args.persistDraftGraphData,
+        })
         materializeConnectedMediaValue({ sourceNode, targetNode, sourcePort, targetPort })
         disableAutoZoomModesForUserGesture(useGraphStore.getState())
         args.setSelectionSource('canvas')
@@ -385,8 +401,12 @@ export function useStoryboardWidgetGraphActions(args: {
         revisionFloor,
       })
       if (nextDraftGraphData !== args.draftGraphDataRef.current) {
-        args.draftGraphDataRef.current = nextDraftGraphData
-        args.setDraftGraphData(nextDraftGraphData)
+        publishStoryboardWidgetAuthoredGraphMutation({
+          nextGraphData: nextDraftGraphData,
+          draftGraphDataRef: args.draftGraphDataRef,
+          setDraftGraphData: args.setDraftGraphData,
+          persistDraftGraphData: args.persistDraftGraphData,
+        })
       }
       if (nodeArgs.skipPendingSelect !== true) args.pendingSelectNodeIdRef.current = actualId
       return actualId
