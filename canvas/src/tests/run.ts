@@ -373,6 +373,18 @@ const runNodeOnlyUiTests = async (results: TestResult[]) => {
     )
 
     const modWebMcpRuntime = await import('../__tests__/webMcpRuntime.test')
+    const modWebMcpLifecycle = await import('../__tests__/webMcpLifecycle.test')
+    await execTest(
+      results,
+      'agentReady.webMcpRuntime.fallbackRetry.truthfulReadiness',
+      modWebMcpLifecycle.testWebMcpFallbackReadinessSurvivesHostRetryExhaustion,
+    )
+    const modWebMcpRuntimeReset = await import('../__tests__/webMcpRuntimeReset.test')
+    await execTest(
+      results,
+      'agentReady.webMcpRuntime.fallbackReset.sameDocumentReinstall',
+      modWebMcpRuntimeReset.testWebMcpRuntimeResetDetachesOwnedFallbackForSameDocumentReinstall,
+    )
     await execTest(
       results,
       'agentReady.webMcpRuntime.lateBinding.sameOriginStoragePaths',
