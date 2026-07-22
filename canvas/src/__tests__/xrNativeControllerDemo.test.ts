@@ -245,7 +245,7 @@ export function testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute() {
   const workbench = source('features', 'command-menu', 'XrSimulationWorkbench.tsx')
   const controls = source('features', 'command-menu', 'XrNativeControllerDemoControls.tsx')
   const stage = source('features', 'three', 'XrNativeControllerDemoStage.tsx')
-  const graphStage = source('features', 'three', 'XrGraphStage.tsx')
+  const graphStage = source('features', 'three', 'XrCanonicalPhysicsStage.tsx')
   const camera = source('features', 'three', 'useXrNativeControllerDemoCamera.ts')
   const cameraFraming = source('features', 'three', 'xrNativeControllerCameraFraming.ts')
   const cameraRuntime = source('features', 'three', 'xrNativeControllerCameraRuntime.ts')

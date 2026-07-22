@@ -252,7 +252,7 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
   const sourceText = (...parts: string[]) => fs.readFileSync(path.join(REPO_ROOT, 'canvas', 'src', ...parts), 'utf8')
   const canvasPageSource = sourceText('pages', 'Canvas.tsx')
   const viewportSource = sourceText('components', 'CanvasViewport.tsx')
-  const graphStageSource = sourceText('features', 'three', 'XrGraphStage.tsx')
+  const graphStageSource = sourceText('features', 'three', 'XrCanonicalPhysicsStage.tsx')
   const aspectMaskSource = sourceText('features', 'three', 'XrCameraAspectMask.tsx')
   const sessionPanelSource = sourceText('lib', 'three', 'ThreeGraphXr.tsx')
   const threeGraphSource = sourceText('lib', 'three', 'ThreeGraph.impl.tsx')
@@ -274,8 +274,10 @@ export async function testXrPhysicsDemoRunReadyModeLoadsNativeInRepoSeed() {
   if (!viewportSource.includes('<XrNativeControllerDemoHud') || !viewportSource.includes('isXrPhysicsRunReadyDemoActive')) {
     throw new Error('expected the shared viewport to own the standalone controller HUD')
   }
-  if (!graphStageSource.includes('nativeControllerOwnsStage') || !graphStageSource.includes('retainStage={runReadyDemo}')) {
-    throw new Error('expected the standalone playground to retain exclusive stage ownership across lifecycle transitions')
+  if (!graphStageSource.includes('<XrNativeControllerDemoStage')
+    || !graphStageSource.includes('retainStage')
+    || graphStageSource.includes('XrMotionReferenceStage')) {
+    throw new Error('expected the standalone playground to retain an exclusive native stage with no fallback constructor')
   }
   if (
     !aspectMaskSource.includes('isXrPhysicsRunReadyDemoActive(markdownDocumentName, markdownDocumentText)')

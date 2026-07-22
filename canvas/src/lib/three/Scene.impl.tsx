@@ -34,7 +34,7 @@ import { intersectRayWithZPlane } from '@/features/three/raycast'
 import { listVoxelLayers, resolveVoxelLayerKey } from '@/features/three/voxelLayers'
 import { VoxelDistricts, VoxelDistrictAmbientField } from '@/features/three/VoxelDistricts'
 import { VoxelBridgeTubes } from '@/features/three/VoxelBridgeTubes'
-import { XrGraphStage } from '@/features/three/XrGraphStage'
+import { XrSceneStage, type XrGraphStageAuthority } from '@/features/three/XrSceneStage'
 import { buildSelectionAnchorIdSets } from '@/lib/selection/anchorIds'
 import { buildSelectedEdgeEndpointNodeIdSet } from '@/lib/graph/edgeEndpoints'
 
@@ -43,18 +43,15 @@ function clamp(value: number, min: number, max: number): number {
   if (value > max) return max
   return value
 }
-
 const clamp01 = (v: number): number => {
   if (v < 0) return 0
   if (v > 1) return 1
   return v
 }
-
 const easeOutCubic = (t: number): number => {
   const u = 1 - clamp01(t)
   return 1 - u * u * u
 }
-
 const VOXEL_CLUSTER_PULSE_RING_COLOR = '#ff3b3b'
 
 function VoxelLayerPlates({
@@ -206,6 +203,7 @@ export function Scene({
   dragOverridesRef,
   hiddenNodeIdSet,
   mode = '3d',
+  xrGraphStageAuthority,
   backgroundColor,
 }: {
   data: GraphData;
@@ -223,6 +221,7 @@ export function Scene({
   dragOverridesRef?: React.MutableRefObject<Record<string, Vec3>>;
   hiddenNodeIdSet?: Set<string>;
   mode?: Canvas3dModeId;
+  xrGraphStageAuthority?: XrGraphStageAuthority;
   backgroundColor: string;
 }) {
   const selectedNodeId = useGraphStore(s => s.selectedNodeId)
@@ -789,7 +788,7 @@ export function Scene({
           paused={paused}
         />
       ) : null}
-      {mode === 'xr' ? <XrGraphStage data={data} paused={Boolean(paused)} /> : null}
+      {mode === 'xr' ? <XrSceneStage authority={xrGraphStageAuthority} data={data} paused={Boolean(paused)} /> : null}
       {mode !== 'xr' ? <group ref={sceneGroupRef}>
         <Physics3D positions={positions} nodes={data.nodes} edges={data.edges} schema={schema} dragOverrides={dragRef} paused={paused} mode={mode} />
         {mode === 'voxel' ? (

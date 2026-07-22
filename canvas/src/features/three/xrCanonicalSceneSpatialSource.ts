@@ -24,12 +24,9 @@ export type XrCanonicalSceneSpatialSource = Readonly<{
 }>
 
 export function resolveXrCanonicalSceneProjection(input: Readonly<{
-  controllerPhase: string
   physicsRunReady: boolean
 }>): XrCanonicalSceneProjection {
-  return input.physicsRunReady || input.controllerPhase !== 'off'
-    ? 'native-controller'
-    : 'authored'
+  return input.physicsRunReady ? 'native-controller' : 'authored'
 }
 
 export function resolveXrCanonicalSceneSpatialSource(input: Readonly<{

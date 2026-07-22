@@ -4,7 +4,7 @@ import { THREE_RENDER_ORDER } from '@/features/three/renderOrder'
 import {
   XR_MOTION_STAGE_FLOOR_DEPTH,
   XR_MOTION_STAGE_SPAN,
-} from '@/features/three/XrGraphStage'
+} from '@/features/three/xrMotionReferenceCoordinates'
 import {
   readXrArPlacementRuntime,
   subscribeXrArPlacementRuntime,
