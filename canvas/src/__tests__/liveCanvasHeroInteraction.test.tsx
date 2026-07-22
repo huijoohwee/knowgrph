@@ -89,6 +89,13 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
     if (!editor || !commandProxy || commandProxy.value !== expectedDefaultQuery) {
       throw new Error(`expected Hero to reuse the Card/Widget/Chat view-edit surface with raw source fidelity, got ${JSON.stringify(commandProxy?.value)}`)
     }
+    const editorViewport = container.querySelector('[data-kg-live-canvas-hero-query-scroll="inline"]') as HTMLElement | null
+    if (!editorViewport?.classList.contains('h-44') || !editorViewport.classList.contains('overflow-hidden')) {
+      throw new Error('expected the Home prompt editor viewport height to remain fixed as preset content changes')
+    }
+    for (const className of ['h-full', 'overflow-y-auto', 'overscroll-contain']) {
+      if (!editor.classList.contains(className)) throw new Error(`expected inline prompt scrolling class ${className}`)
+    }
     if (container.querySelector('textarea:not(.sr-only)')) {
       throw new Error('expected Hero to remove the legacy visible textarea projection')
     }
