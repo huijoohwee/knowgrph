@@ -33,6 +33,8 @@ import {
   type GenerationSpecification,
 } from '@/features/chat/generationInvocation'
 import { LiveCanvasHeroQueryEditor } from '@/features/agentic-os/LiveCanvasHeroQueryEditor'
+import { LiveCanvasHeroPromptPresetPicker } from '@/features/agentic-os/LiveCanvasHeroPromptPresetPicker'
+import type { PromptPresetSelectionRuntime } from '@/features/chat/promptPresetSelectionRuntime'
 
 export type LiveCanvasHeroProps = {
   onEnter?: () => void
@@ -47,6 +49,7 @@ type ReadyLiveCanvasHeroModel = Extract<LiveCanvasHeroModel, { status: 'ready' }
 
 type LiveCanvasHeroEditorialProps = LiveCanvasHeroProps & {
   model: ReadyLiveCanvasHeroModel
+  promptPresetsRuntime?: PromptPresetSelectionRuntime
 }
 
 const heroActionControlClassName = 'inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-lg border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_72%,transparent)] p-2.5 text-[var(--kg-text-primary)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)] disabled:cursor-wait disabled:opacity-60'
@@ -68,6 +71,7 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
   const { model } = props
   const content = React.useMemo(readLiveCanvasHeroContent, [])
   const [draft, setDraft] = React.useState(model.defaultQuery)
+  const [selectedPromptPresetId, setSelectedPromptPresetId] = React.useState('video-agent')
   const previousDefaultQueryRef = React.useRef(model.defaultQuery)
   const [errorText, setErrorText] = React.useState('')
   const [importPanelOpen, setImportPanelOpen] = React.useState(false)
@@ -148,42 +152,55 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
           data-kg-live-canvas-hero-command-deck="true"
         >
           <label className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--kg-text-secondary)]" htmlFor="knowgrph-live-canvas-hero-query">
-            Agentic Video Canvas
+            Prompt Presets
           </label>
           <LiveCanvasHeroQueryEditor value={draft} onChange={setDraft} />
-          {model.sourceLabel ? <p className="mt-2 truncate text-[10px] text-[var(--kg-text-secondary)]" title={model.sourceWorkspacePath || model.sourceLabel}>Script: {model.sourceLabel}</p> : null}
-          <section className="mt-3 grid gap-2" aria-label="Agentic video invocation controls">
-            {(['Route', 'Provider', 'Specification', 'Outputs'] as const).map(group => <fieldset key={group} data-kg-live-canvas-hero-invocation-group={group.toLowerCase()}>
-              <legend className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--kg-text-secondary)]">{group}</legend>
-              <nav className="mt-1 flex flex-wrap gap-1.5" aria-label={`${group} invocations`}>{model.invocations.filter(invocation => invocation.group === group).map(invocation => {
-              const active = liveCanvasHeroQueryHasToken(draft, invocation.token)
-              const attrs = buildAgenticOsInvocationChipAttrs(invocation.token) || {}
-              return (
-                <button
-                  key={invocation.token}
-                  type="button"
-                  className={`shrink-0 rounded-full border px-2.5 py-1 font-mono text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)] ${active ? 'border-[var(--kg-canvas-accent)] bg-[color-mix(in_srgb,var(--kg-canvas-accent)_16%,transparent)] text-[var(--kg-text-primary)]' : 'border-[color:var(--kg-border)] bg-[color:var(--kg-panel-bg)]/70 text-[var(--kg-text-secondary)] hover:text-[var(--kg-text-primary)]'}`}
-                  aria-pressed={active}
-                  title={buildAgenticOsInvocationChipTitle(invocation.token) || invocation.summary}
-                  data-kg-live-canvas-hero-invocation-token={invocation.token}
-                  onClick={() => setDraft(current => {
-                    const providerOption = GENERATION_PROVIDER_INVOCATIONS.find(item => item.token === invocation.token)
-                    if (providerOption) return setGenerationProvider(current, providerOption.provider)
-                    if (invocation.token.startsWith('#spec.')) return setGenerationSpecification(current, invocation.token.slice('#spec.'.length) as GenerationSpecification)
-                    const kindOption = GENERATION_KIND_INVOCATIONS.find(item => item.token === invocation.token)
-                    if (kindOption) {
-                      const next = selectedKinds.includes(kindOption.kind) ? selectedKinds.filter(kind => kind !== kindOption.kind) : [...selectedKinds, kindOption.kind]
-                      return next.length ? setGenerationKinds(current, next) : current
-                    }
-                    return appendLiveCanvasHeroToken(current, invocation.token)
-                  })}
-                  {...attrs}
-                >
-                  {invocation.token}
-                </button>
-              )
-              })}</nav>
-            </fieldset>)}
+          {selectedPromptPresetId === 'video-agent' && model.sourceLabel ? <p className="mt-2 truncate text-[10px] text-[var(--kg-text-secondary)]" title={model.sourceWorkspacePath || model.sourceLabel}>Script: {model.sourceLabel}</p> : null}
+          <section className="mt-3 grid gap-2" aria-label="Prompt preset controls">
+            <LiveCanvasHeroPromptPresetPicker
+              activePresetId={selectedPromptPresetId}
+              runtime={props.promptPresetsRuntime}
+              onSelect={selection => {
+                setSelectedPromptPresetId(selection.id)
+                setDraft(selection.prompt)
+                setErrorText('')
+              }}
+            />
+            {invocation ? (
+              <section className="grid gap-2" aria-label="Video prompt invocation controls">
+                {(['Route', 'Provider', 'Specification', 'Outputs'] as const).map(group => <fieldset key={group} data-kg-live-canvas-hero-invocation-group={group.toLowerCase()}>
+                  <legend className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--kg-text-secondary)]">{group}</legend>
+                  <nav className="mt-1 flex flex-wrap gap-1.5" aria-label={`${group} invocations`}>{model.invocations.filter(invocation => invocation.group === group).map(invocation => {
+                    const active = liveCanvasHeroQueryHasToken(draft, invocation.token)
+                    const attrs = buildAgenticOsInvocationChipAttrs(invocation.token) || {}
+                    return (
+                      <button
+                        key={invocation.token}
+                        type="button"
+                        className={`shrink-0 rounded-full border px-2.5 py-1 font-mono text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kg-canvas-accent)] ${active ? 'border-[var(--kg-canvas-accent)] bg-[color-mix(in_srgb,var(--kg-canvas-accent)_16%,transparent)] text-[var(--kg-text-primary)]' : 'border-[color:var(--kg-border)] bg-[color:var(--kg-panel-bg)]/70 text-[var(--kg-text-secondary)] hover:text-[var(--kg-text-primary)]'}`}
+                        aria-pressed={active}
+                        title={buildAgenticOsInvocationChipTitle(invocation.token) || invocation.summary}
+                        data-kg-live-canvas-hero-invocation-token={invocation.token}
+                        onClick={() => setDraft(current => {
+                          const providerOption = GENERATION_PROVIDER_INVOCATIONS.find(item => item.token === invocation.token)
+                          if (providerOption) return setGenerationProvider(current, providerOption.provider)
+                          if (invocation.token.startsWith('#spec.')) return setGenerationSpecification(current, invocation.token.slice('#spec.'.length) as GenerationSpecification)
+                          const kindOption = GENERATION_KIND_INVOCATIONS.find(item => item.token === invocation.token)
+                          if (kindOption) {
+                            const next = selectedKinds.includes(kindOption.kind) ? selectedKinds.filter(kind => kind !== kindOption.kind) : [...selectedKinds, kindOption.kind]
+                            return next.length ? setGenerationKinds(current, next) : current
+                          }
+                          return appendLiveCanvasHeroToken(current, invocation.token)
+                        })}
+                        {...attrs}
+                      >
+                        {invocation.token}
+                      </button>
+                    )
+                  })}</nav>
+                </fieldset>)}
+              </section>
+            ) : null}
           </section>
 
           <section className="mt-4 flex flex-wrap items-center gap-2">

@@ -19,8 +19,8 @@ export function LiveCanvasHeroQueryEditor(props: {
     >
       <MarkdownInlineTextEditSurface
         value={props.value}
-        ariaLabel="Agentic Video Canvas"
-        placeholder="Describe the agentic video workflow"
+        ariaLabel="Prompt Presets"
+        placeholder="Select or edit a source-backed prompt preset"
         className="min-h-16 bg-transparent px-3 py-2.5 font-mono text-xs leading-5 text-[var(--kg-code-text)] outline-none"
         commandMode={null}
         editorRef={editorRef}

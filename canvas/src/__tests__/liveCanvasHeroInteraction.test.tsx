@@ -10,6 +10,12 @@ import {
   readLiveCanvasHeroSourceSelection,
 } from '@/features/canvas/liveCanvasHeroSourceSelection'
 import { installEmbeddedCanvasChatCommandBridge } from '@/features/canvas/embeddedCanvasChatCommand'
+import {
+  PROMPT_PRESET_ACTIVE_LLM_CHAT_ROUTE,
+  PROMPT_PRESET_CATALOG_WORKSPACE_PATH,
+  type PromptPreset,
+} from '@/features/chat/promptPresetCatalog'
+import { AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME } from '../../../mcp/agentic-canvas-os-docs-contract.mjs'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 
@@ -31,6 +37,42 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
   let completedCount = 0
   const model = buildLiveCanvasHeroModel()
   const expectedDefaultQuery = model.defaultQuery
+  const investmentPrompt = '/investment-research-agent #runtime-ready Assess the active workspace sources.'
+  const promptPresets: PromptPreset[] = [
+    {
+      id: 'video-agent',
+      label: 'Video Agent',
+      slashCommand: '/video-prompt-preset',
+      runtimeCommand: '/video-agent',
+      description: 'Source-backed video prompt.',
+      activation: 'source-backed-canvas',
+      invocationModes: ['llm-chat-response', 'mcp-invocation'],
+      chatRoute: PROMPT_PRESET_ACTIVE_LLM_CHAT_ROUTE,
+      mcpTool: AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
+      mcpToken: '/video-agent',
+      prompt: expectedDefaultQuery,
+    },
+    {
+      id: 'investment-research-agent',
+      label: 'Investment Research Agent',
+      slashCommand: '/investment-research-prompt-preset',
+      runtimeCommand: '/investment-research-agent',
+      description: 'Source-grounded investment research prompt.',
+      activation: 'chat-agent',
+      invocationModes: ['llm-chat-response', 'mcp-invocation'],
+      chatRoute: PROMPT_PRESET_ACTIVE_LLM_CHAT_ROUTE,
+      mcpTool: AGENTIC_CANVAS_OS_DOCS_MCP_TOOL_NAME,
+      mcpToken: '/investment-research-agent',
+      prompt: investmentPrompt,
+    },
+  ]
+  const promptPresetsRuntime = {
+    loadCatalog: async () => ({ ok: true as const, presets: promptPresets, sourcePath: PROMPT_PRESET_CATALOG_WORKSPACE_PATH }),
+    loadPrompt: async (id: string) => {
+      const preset = promptPresets.find(candidate => candidate.id === id)
+      return preset ? { ok: true as const, prompt: preset.prompt } : { ok: false as const, error: `Unknown prompt preset: ${id}` }
+    },
+  }
 
   try {
     const content = readLiveCanvasHeroContent()
@@ -38,8 +80,9 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
       <LiveCanvasHeroEditorial
         model={model}
         onEnter={() => { completedCount += 1 }}
+        promptPresetsRuntime={promptPresetsRuntime}
       />
-    ), { window: dom.window as unknown as Window, frames: 2 })
+    ), { window: dom.window as unknown as Window, frames: 4 })
 
     const editor = container.querySelector('[data-kg-live-canvas-hero-query="1"][data-kg-card-inline-viewer-edit-surface="1"][data-kg-markdown-contenteditable-core="1"]') as HTMLElement | null
     const commandProxy = container.querySelector('[data-kg-card-inline-viewer-edit-command-proxy="1"]') as HTMLTextAreaElement | null
@@ -68,7 +111,32 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
     for (const requiredText of [content.eyebrow, ...content.headline, ...content.posture]) {
       if (!heroText.includes(requiredText)) throw new Error(`expected hero UI to render markdown-backed copy ${JSON.stringify(requiredText)}`)
     }
+    const promptPresetsLabel = container.querySelector('label[for="knowgrph-live-canvas-hero-query"]')
+    if (promptPresetsLabel?.textContent?.trim() !== 'Prompt Presets' || heroText.includes('Agentic Video Canvas')) {
+      throw new Error(`expected Prompt Presets to replace the video-only Home label, got ${JSON.stringify(promptPresetsLabel?.textContent)}`)
+    }
+    const presetButtons = [...container.querySelectorAll<HTMLButtonElement>('[data-kg-live-canvas-hero-prompt-preset]')]
+    if (presetButtons.map(button => button.dataset.kgLiveCanvasHeroPromptPreset).join(',') !== promptPresets.map(preset => preset.id).join(',')) {
+      throw new Error(`expected Home to render the shared Prompt Presets catalog, got ${presetButtons.map(button => button.dataset.kgLiveCanvasHeroPromptPreset).join(',')}`)
+    }
     if (submittedQueries.length !== 0 || completedCount !== 0) throw new Error('expected zero embedded Chat submissions on mount')
+    await act(async () => {
+      presetButtons[1]?.click()
+      await waitForFrames(dom.window as unknown as Window, 3)
+    })
+    if (commandProxy.value !== investmentPrompt || submittedQueries.length !== 0) {
+      throw new Error(`expected preset selection to load without submitting, got ${JSON.stringify({ value: commandProxy.value, submittedQueries })}`)
+    }
+    if (container.querySelector('[data-kg-live-canvas-hero-invocation-group]')) {
+      throw new Error('expected video-only invocation controls to stay hidden for a non-video prompt preset')
+    }
+    await act(async () => {
+      presetButtons[0]?.click()
+      await waitForFrames(dom.window as unknown as Window, 3)
+    })
+    if (commandProxy.value !== expectedDefaultQuery || !container.querySelector('[data-kg-live-canvas-hero-invocation-group="provider"]')) {
+      throw new Error('expected the Video Agent preset to restore its source-backed prompt and video controls')
+    }
     const openAiToken = container.querySelector('[data-kg-live-canvas-hero-invocation-token="@provider.openai"]') as HTMLButtonElement | null
     if (!openAiToken) throw new Error('expected source-backed @provider.openai provider token')
     await act(async () => {

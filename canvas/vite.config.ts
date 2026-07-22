@@ -31,6 +31,7 @@ import { createWebpageMetaHandler } from './src/lib/websites/webpageMetaServer'
 import { createLocalFileRangeHandler } from './src/lib/assets/server/localFileRangeServer'
 import { createRemoteVideoFrameHandler, createRemoteVideoFramePublicAssetHandler, REMOTE_VIDEO_FRAME_PUBLIC_PREFIX } from './src/lib/rich-media/server/videoFrameServer'
 import { createKgFsPathPolicy, createWorkspaceArtifactBridgePlugin, decodeStrictBase64, decodeXlsxArtifactBase64 } from './viteWorkspaceArtifactBridge'; import { buildVersionedAssetFileNames } from './viteBuildAssetNamespace.mjs'
+import { isWorkspaceMirrorReadPathAllowed, resolveWorkspaceMirrorReadRoots } from './viteWorkspaceMirrorReadRoots'
 import { buildWebpageProxyRuntimePlan } from './src/lib/websites/webpageProxyRuntimePolicy'
 import {
   buildWebpageSandboxCsp,
@@ -5207,16 +5208,14 @@ function createKgFsListHandler(): import('vite').Connect.NextHandleFunction {
   const MAX_FILE_COUNT_DEFAULT = 500
   const MAX_FILE_BYTES = 500 * 1024
   const workspaceMirrorRoot = path.resolve(repoRoot, '..')
-  const allowedRoots = [
-    workspaceMirrorRoot,
-    path.resolve(repoRoot, '..', '..'),
-    path.resolve(repoRoot),
-    path.resolve(repoRoot, '..'),
-  ]
-  const isAllowed = (candidate: string): boolean => {
-    const resolved = path.resolve(candidate)
-    return allowedRoots.some(root => resolved === root || resolved.startsWith(root + path.sep))
-  }
+  const allowedRoots = resolveWorkspaceMirrorReadRoots({
+    repoRoot,
+    configuredRoots: [
+      process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT,
+      process.env.VITE_WORKSPACE_INITIALIZATION_AGENTIC_CANVAS_OS_DOCS_ABS_ROOT,
+    ],
+  })
+  const isAllowed = (candidate: string): boolean => isWorkspaceMirrorReadPathAllowed(candidate, allowedRoots)
   const toHostPath = (candidate: string): string => {
     const raw = String(candidate || '').trim()
     if (!raw) return ''
