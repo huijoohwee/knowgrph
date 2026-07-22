@@ -2,6 +2,7 @@ import type { GraphState } from '@/hooks/store/types'
 import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 
 type ComposedSourceSelectionState = Pick<GraphState, 'sourceFiles' | 'markdownDocumentName'>
+export type ComposedSourceActivePathAuthority = 'markdown-document' | 'workspace-selection'
 
 export function normalizeComposedSourcePath(raw: unknown): string {
   const text = String(raw || '').trim().replace(/\\/g, '/')
@@ -15,10 +16,16 @@ export function resolvePreferredComposedActivePath(args: {
   markdownDocumentName?: unknown
   explorerActivePath?: unknown
   fallbackName?: unknown
+  activePathAuthority?: ComposedSourceActivePathAuthority
 }): string {
+  const markdownDocumentPath = normalizeComposedSourcePath(args.markdownDocumentName)
+  const workspaceSelectionPath = normalizeComposedSourcePath(args.explorerActivePath)
+  if (args.activePathAuthority === 'workspace-selection' && workspaceSelectionPath) {
+    return workspaceSelectionPath
+  }
   return (
-    normalizeComposedSourcePath(args.markdownDocumentName) ||
-    normalizeComposedSourcePath(args.explorerActivePath) ||
+    markdownDocumentPath ||
+    workspaceSelectionPath ||
     normalizeComposedSourcePath(args.fallbackName)
   )
 }
@@ -69,11 +76,13 @@ export function resolvePreferredComposedSourceFile(args: {
   explorerActivePath?: unknown
   fallbackName?: unknown
   enabledOnly?: boolean
+  activePathAuthority?: ComposedSourceActivePathAuthority
 }): GraphState['sourceFiles'][number] | null {
   const targetPath = resolvePreferredComposedActivePath({
     markdownDocumentName: args.markdownDocumentName,
     explorerActivePath: args.explorerActivePath,
     fallbackName: args.fallbackName,
+    activePathAuthority: args.activePathAuthority,
   })
   const exact = findComposedSourceFileByPath({
     sourceFiles: args.sourceFiles,
@@ -131,6 +140,7 @@ export function resolvePreferredEnabledComposedSourceFile(args: {
   markdownDocumentName?: unknown
   explorerActivePath?: unknown
   fallbackName?: unknown
+  activePathAuthority?: ComposedSourceActivePathAuthority
 }): GraphState['sourceFiles'][number] | null {
   return resolvePreferredComposedSourceFile({
     ...args,

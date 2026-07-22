@@ -220,4 +220,5 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["workspace.sourceFiles.agenticDocs.runtimeOnly","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceSourceRootPathsKeepAgenticOsDocsOutOfExplorer"],
   ["workspace.docsMirror.localRoots.agenticFallback","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceDocsMirrorLocalRootsPromotesAgenticFallbackWhenPrimaryRootIsAbsent"],
   ["workspace.docsMirror.localRoots.githubUnavailable","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceSeedProviderUsesLocalAgenticDocsWhenGitHubIsUnavailable"],
+  ["workspace.selection.switch.pendingUsesExplorerSourceAuthority","@/__tests__/sourceFilesSwitchingFlowLayout.test","testSourceFilesPendingSwitchUsesExplorerSourceAuthority"],
 ]
