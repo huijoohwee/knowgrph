@@ -23,20 +23,12 @@ function requireBootstrapGuardBeforeMount(source: string, mountMarker: string, c
 }
 
 export function testXrPhysicsHomeSceneAuthorityRejectsFallbackVariants(): void {
-  for (const controllerPhase of ['off', 'running', 'paused']) {
-    const projection = resolveXrCanonicalSceneProjection({
-      controllerPhase,
-      physicsRunReady: true,
-    })
-    if (projection !== 'native-controller') {
-      throw new Error(`expected canonical xr-physics to start and remain native-controller during ${controllerPhase}`)
-    }
+  const canonicalProjection = resolveXrCanonicalSceneProjection({ physicsRunReady: true })
+  if (canonicalProjection !== 'native-controller') {
+    throw new Error('expected canonical xr-physics source identity to own the native controller')
   }
 
-  const authoredProjection = resolveXrCanonicalSceneProjection({
-    controllerPhase: 'off',
-    physicsRunReady: false,
-  })
+  const authoredProjection = resolveXrCanonicalSceneProjection({ physicsRunReady: false })
   if (authoredProjection !== 'authored') {
     throw new Error('expected non-canonical authored XR documents to retain the shared motion-reference projection')
   }
@@ -61,7 +53,10 @@ export function testXrPhysicsHomeSceneAuthorityRejectsFallbackVariants(): void {
   const bridgeSource = readSource('features', 'three', 'XrMotionReferenceRuntimeBridge.tsx')
   const startupRuntimesSource = readSource('features', 'canvas', 'CanvasStartupRuntimes.tsx')
   const canvasViewportSource = readSource('components', 'CanvasViewport.tsx')
-  const xrGraphStageSource = readSource('features', 'three', 'XrGraphStage.tsx')
+  const canonicalPhysicsStageSource = readSource('features', 'three', 'XrCanonicalPhysicsStage.tsx')
+  const motionReferenceGraphStageSource = readSource('features', 'three', 'XrMotionReferenceGraphStage.tsx')
+  const xrSceneStageSource = readSource('features', 'three', 'XrSceneStage.tsx')
+  const sceneSource = readSource('lib', 'three', 'Scene.impl.tsx')
   const threeGraphSource = readSource('lib', 'three', 'ThreeGraph.impl.tsx')
   const gameMissionSource = readSource('features', 'game-fps', 'GameFpsMissionStage.tsx')
   const staleCompositionPath = resolve(
@@ -71,6 +66,7 @@ export function testXrPhysicsHomeSceneAuthorityRejectsFallbackVariants(): void {
     'game-fps',
     'gameModeSceneComposition.ts',
   )
+  const staleMixedStagePath = resolve(process.cwd(), 'src', 'features', 'three', 'XrGraphStage.tsx')
 
   for (const marker of [
     'resolving',
@@ -149,20 +145,36 @@ export function testXrPhysicsHomeSceneAuthorityRejectsFallbackVariants(): void {
     'XR run-ready lifecycle source authority',
   )
 
-  for (const marker of [
-    "const nativeControllerOwnsStage = projection === 'native-controller'",
-    '{!nativeControllerOwnsStage ? (',
-    '{nativeControllerOwnsStage ? (',
-    '<XrMotionReferenceStage',
-    '<XrNativeControllerDemoStage',
-    'retainStage={runReadyDemo}',
-  ]) {
-    requireSourceMarker(xrGraphStageSource, marker, 'shared XR projection contract')
+  for (const marker of ['<XrNativeControllerDemoStage', '<XrNativeControllerDemoSceneAtmosphere', 'retainStage']) {
+    requireSourceMarker(canonicalPhysicsStageSource, marker, 'canonical Physics stage contract')
   }
-  const nativeControllerStageMount = xrGraphStageSource.lastIndexOf('<XrNativeControllerDemoStage')
-  const nativeControllerStageBranch = xrGraphStageSource.lastIndexOf('{nativeControllerOwnsStage ? (', nativeControllerStageMount)
-  if (nativeControllerStageMount < 0 || nativeControllerStageBranch < 0 || nativeControllerStageMount - nativeControllerStageBranch > 160) {
-    throw new Error('native-controller environment must be conditionally mounted, never retained as hidden duplicate geometry')
+  for (const forbidden of ['XrMotionReferenceStage', 'XrPhysicsStageRuntime', 'isXrPhysicsRunReadyDemoActive']) {
+    if (canonicalPhysicsStageSource.includes(forbidden)) {
+      throw new Error(`canonical Physics stage must not import or construct fallback owner ${forbidden}`)
+    }
+  }
+  for (const marker of ['<XrMotionReferenceStage', '<XrPhysicsStageRuntime']) {
+    requireSourceMarker(motionReferenceGraphStageSource, marker, 'authored motion-reference stage contract')
+  }
+  if (motionReferenceGraphStageSource.includes('XrNativeControllerDemoStage')) {
+    throw new Error('authored motion-reference stage must not import the canonical Physics constructor')
+  }
+  for (const marker of [
+    "authority === 'native-controller'",
+    '<XrCanonicalPhysicsStage',
+    "authority === 'motion-reference'",
+    '<XrMotionReferenceGraphStageLazy',
+  ]) {
+    requireSourceMarker(xrSceneStageSource, marker, 'XR selector must select one explicit lazy owner')
+  }
+  requireSourceMarker(sceneSource, '<XrSceneStage authority={xrGraphStageAuthority}', 'Scene must delegate to the explicit XR selector')
+  requireSourceMarker(
+    threeGraphSource,
+    "xrPhysicsRunReadyDemo ? 'native-controller' : 'motion-reference'",
+    'ThreeGraph source identity must decide the XR stage before construction',
+  )
+  if (existsSync(staleMixedStagePath)) {
+    throw new Error('expected the mixed XR stage owner to be deleted rather than hidden or retained')
   }
 
   for (const marker of [

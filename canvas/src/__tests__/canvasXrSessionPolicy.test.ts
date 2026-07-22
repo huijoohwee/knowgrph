@@ -60,9 +60,10 @@ export async function testXrSessionPolicyPrefersNativeArWithoutProviderDependenc
     readFileSync(resolve(process.cwd(), 'src/lib/three/ThreeGraphXrSessionPolicy.ts'), 'utf8'),
   ].join('\n')
   const worldSource = readFileSync(resolve(process.cwd(), 'src/lib/three/ThreeGraph.impl.tsx'), 'utf8')
+  const sceneLayoutSource = readFileSync(resolve(process.cwd(), 'src/lib/three/threeGraphSceneLayout.ts'), 'utf8')
   const rendererClearSource = readFileSync(resolve(process.cwd(), 'src/lib/three/XrRendererClearController.tsx'), 'utf8')
   const graphSceneSource = readFileSync(resolve(process.cwd(), 'src/lib/three/Scene.impl.tsx'), 'utf8')
-  const graphStageSource = readFileSync(resolve(process.cwd(), 'src/features/three/XrGraphStage.tsx'), 'utf8')
+  const graphStageSource = readFileSync(resolve(process.cwd(), 'src/features/three/XrMotionReferenceGraphStage.tsx'), 'utf8')
   const placementStageSource = readFileSync(resolve(process.cwd(), 'src/features/three/XrArPlacementStage.tsx'), 'utf8')
   const emptyWorldSource = readFileSync(resolve(process.cwd(), 'src/features/three/XrEmptyWorldStage.tsx'), 'utf8')
   const motionStageSource = readFileSync(resolve(process.cwd(), 'src/features/three/XrMotionReferenceStage.tsx'), 'utf8')
@@ -111,8 +112,10 @@ export async function testXrSessionPolicyPrefersNativeArWithoutProviderDependenc
   if (!placementStageSource.includes('runtime.read().immersiveSessionActive')) {
     throw new Error('expected physical content scale and floor offset to apply in both immersive AR and VR')
   }
-  if (!worldSource.includes('1 / fitScale')
-    || !worldSource.includes('Number.isFinite(floorY) ? -floorY : 0')
+  if (!sceneLayoutSource.includes('1 / fitScale')
+    || !sceneLayoutSource.includes('Number.isFinite(floorY) ? -floorY : 0')
+    || !worldSource.includes('boundedInverseFitScale(xrStandaloneFit)')
+    || !worldSource.includes('fitFloorOffset(xrStandaloneFit)')
     || !worldSource.includes('xrStageMetersPerUnit')) {
     throw new Error('expected XR placement to use bounded physical scale and floor alignment for every world surface')
   }

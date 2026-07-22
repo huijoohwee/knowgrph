@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 
 import {
@@ -30,7 +31,6 @@ export const resolveAgenticCanvasOsDocsRevision = async ({ absoluteDocsRoot, env
     if (!SOURCE_REVISION_PATTERN.test(configuredRevision)) {
       throw new Error("KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_REVISION must be an exact 40-character SHA");
     }
-    return configuredRevision;
   }
   const repositoryRoot = path.resolve(absoluteDocsRoot, "..");
   const docsPathspec = path.relative(repositoryRoot, absoluteDocsRoot) || ".";
@@ -42,6 +42,9 @@ export const resolveAgenticCanvasOsDocsRevision = async ({ absoluteDocsRoot, env
   const revision = normalizeText(stdout);
   if (!SOURCE_REVISION_PATTERN.test(revision)) {
     throw new Error("Agentic Canvas OS docs checkout did not resolve to an exact Git SHA");
+  }
+  if (configuredRevision && configuredRevision !== revision) {
+    throw new Error(`KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_REVISION ${configuredRevision} does not match docs checkout HEAD ${revision}`);
   }
   return revision;
 };
@@ -87,8 +90,40 @@ export const resolveAgenticCanvasOsDocsRoot = ({
   env = process.env,
 } = {}) => {
   const explicitRoot = normalizeText(env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT);
-  if (explicitRoot) return path.resolve(explicitRoot);
-  return path.resolve(rootDir, "..", "agentic-canvas-os", "docs");
+  if (explicitRoot) {
+    const resolved = path.resolve(explicitRoot);
+    if (!existsSync(path.join(resolved, "FACTS.md"))) {
+      throw new Error(`KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT is not a readable Agentic Canvas OS docs root: ${resolved}`);
+    }
+    return resolved;
+  }
+  const findMarkerBackedAncestorRoot = (startDir) => {
+    let cursor = path.resolve(startDir);
+    while (true) {
+      const candidate = path.join(cursor, "agentic-canvas-os", "docs");
+      if (existsSync(path.join(candidate, "FACTS.md"))) return candidate;
+      const parent = path.dirname(cursor);
+      if (parent === cursor) return "";
+      cursor = parent;
+    }
+  };
+  const ancestorRoot = findMarkerBackedAncestorRoot(rootDir);
+  if (ancestorRoot) return ancestorRoot;
+  try {
+    const gitCommonDir = normalizeText(execFileSync(
+      "git",
+      ["-C", path.resolve(rootDir), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    ));
+    const canonicalRepositoryRoot = path.basename(gitCommonDir) === ".git"
+      ? path.dirname(gitCommonDir)
+      : gitCommonDir;
+    const canonicalRoot = findMarkerBackedAncestorRoot(canonicalRepositoryRoot);
+    if (canonicalRoot) return canonicalRoot;
+  } catch {
+    // Non-Git callers still receive the marker-backed resolution error below.
+  }
+  throw new Error(`Could not resolve agentic-canvas-os/docs from ${path.resolve(rootDir)}`);
 };
 
 export async function runAgenticCanvasOsDocsInvokeTool(args = {}, {

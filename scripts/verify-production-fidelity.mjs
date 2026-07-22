@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright'
+import {
+  encodePublishedDocShareToken,
+  resolvePublishedDocIdentity,
+} from '../canvas/src/features/canvas/canvasDocShareToken.mjs'
+import { LIVE_CANVAS_HERO_SOURCE_SESSION_KEY } from '../canvas/src/features/canvas/liveCanvasHeroSourceSelectionContract.mjs'
 import { validateProductionRuntimeReadiness } from './production-runtime-readiness.mjs'
 
 const normalizeOrigin = value => {
@@ -174,7 +179,7 @@ const browser = await chromium.launch({
   args: WEBGL_SOFTWARE_RENDERING_ARGS,
 })
 const context = await browser.newContext({ serviceWorkers: 'block' })
-await context.addInitScript(() => {
+const installHomeSourceAuthorityEvidence = targetContext => targetContext.addInitScript(() => {
   const prematureSceneMounts = []
   const sceneAuthorityMounts = []
   const observedSceneRoots = new WeakSet()
@@ -223,6 +228,7 @@ await context.addInitScript(() => {
     get: () => sceneAuthorityMounts.slice(),
   })
 })
+await installHomeSourceAuthorityEvidence(context)
 const pageErrors = []
 const poisonedModules = []
 const browserAssetScripts = []
@@ -239,6 +245,7 @@ context.on('response', response => {
   }
 })
 
+let staleSelectionContext = null
 try {
   const home = await context.newPage()
   await home.goto(`${browserOrigin}/?kgReleaseProof=${expectedSourceRevision}`, { waitUntil: 'domcontentloaded', timeout: 45_000 })
@@ -270,6 +277,56 @@ try {
   assert.equal(homeSourceAuthority.emptyWorldCount, 0, 'Home must never retain an empty-world fallback')
   assert.equal(homeSourceAuthority.gameStageCount, 0, 'Home must not activate Game Mode before explicit invocation')
 
+  const canonicalHomeIdentity = resolvePublishedDocIdentity({
+    shareUrl: new URL(heroFrameSrc, browserOrigin).toString(),
+    appBasePath: '/knowgrph',
+  })
+  assert.ok(canonicalHomeIdentity?.canonicalPath, 'Home iframe must expose a decodable canonical document identity')
+  const conflictingShareToken = encodePublishedDocShareToken({
+    canonicalPath: `${canonicalHomeIdentity.canonicalPath}.conflicting`,
+  })
+  staleSelectionContext = await browser.newContext({ serviceWorkers: 'block' })
+  await staleSelectionContext.addInitScript(({ key, selection }) => {
+    if (window.location.pathname === '/') {
+      window.sessionStorage.setItem(key, JSON.stringify(selection))
+    }
+  }, {
+    key: LIVE_CANVAS_HERO_SOURCE_SESSION_KEY,
+    selection: {
+      sourcePath: canonicalHomeIdentity.canonicalPath,
+      embedUrl: `${browserOrigin}/knowgrph/share/${conflictingShareToken}?kgPreview=1`,
+    },
+  })
+  await installHomeSourceAuthorityEvidence(staleSelectionContext)
+  staleSelectionContext.on('page', page => page.on('pageerror', error => pageErrors.push(error.message)))
+  const staleHome = await staleSelectionContext.newPage()
+  await staleHome.goto(`${browserOrigin}/?kgReleaseProof=${expectedSourceRevision}`, { waitUntil: 'domcontentloaded', timeout: 45_000 })
+  await staleHome.locator('h1').filter({ hasText: 'Map intent.' }).waitFor({ state: 'visible', timeout: 30_000 })
+  const staleHeroFrame = staleHome.locator('iframe').first()
+  await staleHeroFrame.waitFor({ state: 'attached', timeout: 30_000 })
+  const staleHeroFrameSrc = await staleHeroFrame.getAttribute('src')
+  assert.ok(staleHeroFrameSrc, 'Home must recover a canonical iframe from a persisted source conflict')
+  const recoveredIdentity = resolvePublishedDocIdentity({
+    shareUrl: new URL(staleHeroFrameSrc, browserOrigin).toString(),
+    appBasePath: '/knowgrph',
+  })
+  assert.deepEqual(recoveredIdentity, canonicalHomeIdentity, 'persisted source conflict must recover the canonical Home document')
+  const retainedSelection = await staleHome.evaluate(key => window.sessionStorage.getItem(key), LIVE_CANVAS_HERO_SOURCE_SESSION_KEY)
+  assert.equal(retainedSelection, null, 'persisted source conflict must be removed at the Home source owner')
+  const recoveredCanvasText = await waitForCanvas(() => resolveHomeCanvasBody(staleHome))
+  assert.match(recoveredCanvasText, PHYSICS_PLAYGROUND_PATTERN)
+  const recoveredSourceAuthority = await waitForHomeSourceAuthority(staleHome)
+  assert.deepEqual(recoveredSourceAuthority.prematureSceneMounts, [], 'stale Home source recovery mounted a premature XR world')
+  assert.deepEqual(
+    recoveredSourceAuthority.sceneAuthorityMounts.map(mount => mount.authority),
+    recoveredSourceAuthority.sceneAuthorityMounts.map(() => 'native-controller'),
+    `stale Home source recovery constructed a fallback XR owner: ${JSON.stringify(recoveredSourceAuthority.sceneAuthorityMounts)}`,
+  )
+  assert.equal(recoveredSourceAuthority.sceneRootCount, 1, 'stale Home source recovery must retain one XR root')
+  assert.equal(recoveredSourceAuthority.canvasCount, 1, 'stale Home source recovery must retain one Canvas')
+  assert.equal(recoveredSourceAuthority.emptyWorldCount, 0, 'stale Home source recovery must never mount empty-world')
+  assert.equal(recoveredSourceAuthority.gameStageCount, 0, 'stale Home source recovery must never mount Game fallback')
+
   const app = await context.newPage()
   await app.goto(`${browserOrigin}/knowgrph?kgReleaseProof=${expectedSourceRevision}`, { waitUntil: 'domcontentloaded', timeout: 45_000 })
   const appText = await waitForCanvas(() => app.locator('body'))
@@ -288,6 +345,7 @@ try {
   assert.deepEqual(poisonedModules, [], `JavaScript module requests returned HTML: ${poisonedModules.join(', ')}`)
   assert.deepEqual(pageErrors, [], `uncaught browser errors: ${pageErrors.join(' | ')}`)
 } finally {
+  await staleSelectionContext?.close()
   await browser.close()
 }
 

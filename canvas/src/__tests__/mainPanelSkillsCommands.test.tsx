@@ -11,6 +11,7 @@ import { FloatingPanelSkillsCommandsView } from '@/features/toolbar/FloatingPane
 import SkillsCommandsView from '@/features/panels/views/SkillsCommandsView'
 import { resolveChatInvocationCatalogEntries } from '@/features/chat/chatInvocationRegistry'
 import { buildImageToThreeJsPromptPreset } from '@/features/image-to-threejs/imageToThreeJsPromptPreset'
+import { registerPinnedAgenticOsDictionaryCatalogForTest } from '@/__tests__/helpers/pinnedAgenticOsDictionary'
 import { setActiveCardInlineTextExternalCommandTarget } from '@/lib/cards/cardInlineTextExternalCommands'
 import { registerAgenticOsRemoteGrammarCatalogEntries, resetAgenticOsRemoteGrammarCatalogForTests } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
@@ -29,23 +30,7 @@ const setInputValue = (window: InputHarnessWindow, input: HTMLInputElement, valu
 }
 
 const registerAuthoritativeGrammar = () => {
-  const fileByKind = {
-    command: 'DICTIONARY-COMMAND.md',
-    semantic: 'DICTIONARY-SEMANTIC.md',
-    binding: 'DICTIONARY-BINDING.md',
-  } as const
-  registerAgenticOsRemoteGrammarCatalogEntries(Object.entries(fileByKind).flatMap(([kind, fileName]) => {
-    const source = readFileSync(resolve(process.cwd(), '../../agentic-canvas-os/docs', fileName), 'utf8')
-    const match = /^dictionary_entries:\n((?:[ ]{2}- .+\n)+)/m.exec(source)
-    if (!match) throw new Error(`Expected ${fileName} to expose dictionary_entries`)
-    return match[1].split(/\r?\n/).map(line => line.trim().replace(/^- /, '').replace(/^"|"$/g, '')).filter(Boolean).map(token => ({
-      token,
-      kind,
-      label: token.replace(/^[/#@]/, '').replace(/[._-]+/g, ' '),
-      sourcePath: `${fileName}#${token}`,
-      sourceUrl: `https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/${fileName}#${token}`,
-    }))
-  }))
+  registerPinnedAgenticOsDictionaryCatalogForTest()
 }
 
 export async function testFloatingPanelSkillsCommandsViewRendersSlashInvokableSkills() {
@@ -548,7 +533,7 @@ export function testSkillsCommandsMovedFromMainPanelIntoFloatingPanelTab() {
     !skillsCommandsView.includes('floatingPanelCatalogCompactRowTitleClassName()') ||
     !skillsCommandsView.includes('floatingPanelCatalogCompactRowMetaClassName()') ||
     !skillsCommandsView.includes('renderAgenticOsInvocationKeywordChip') ||
-    !skillsCommandsView.includes('DATA_VIEW_INLINE_TEXT_CHIP_ROW_CLASSNAME') ||
+    !skillsCommandsView.includes('resolveInlineInvocationChipClassName') ||
     !skillsCommandsView.includes('data-kg-skill-command-token-chip') ||
     !skillsCommandsView.includes("from '@/features/panels/ui/CollapsibleSection'") ||
     !floatingSkillsPanel.includes("from '@/features/panels/ui/ExpandCollapseAllButton'") ||

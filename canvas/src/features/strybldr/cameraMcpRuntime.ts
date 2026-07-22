@@ -66,6 +66,7 @@ import {
   type CameraSensorFormatId,
 } from './cameraOptics'
 import { controlLocalCameraSource, inspectLocalCameraSource, isCameraSourceInvocation, normalizeCameraSourceSelection } from './cameraSourceMcpRuntime'
+import { ensureSharedCameraPanel } from './cameraPanelSurfaceRuntime'
 import type { XrNativeControllerCameraMode } from '@/features/three/xrNativeControllerCameraCatalog'
 import { activateXrSceneSurface } from '@/features/three/xrSceneSurfaceRuntime'
 export type CameraControlAction = 'select' | 'frame' | 'animate' | 'playback' | 'scrub'
@@ -309,17 +310,6 @@ function normalizeCameraControl(input: CameraControlInput): NormalizedCameraCont
   }
 }
 
-function ensureSharedCameraPanel(): boolean {
-  const state = useGraphStore.getState()
-  if (state.floatingPanelOpen) return true
-  if (state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr') {
-    return activateXrSceneSurface({ panelView: 'camera', openPanel: true })
-  }
-  state.setFloatingPanelView('camera')
-  state.setFloatingPanelOpen(true)
-  return true
-}
-
 function resolveCameraAnchor(targetId: string, requireSubject = false): string {
   if (targetId === 'selected-actor') return readBoundXrSelectedActorId()
   if (targetId && targetId !== 'camera') return targetId
@@ -356,8 +346,7 @@ function resolveCameraFrame(control: NormalizedCameraControl, anchorId: string) 
 function hydrateActiveMotionReference(): boolean {
   const state = useGraphStore.getState()
   if (!state.graphData || !String(state.markdownDocumentName || '').trim() || !String(state.markdownDocumentText || '').trim()) return false
-  hydrateCanonicalXrMotionReferenceRuntime()
-  return true
+  return hydrateCanonicalXrMotionReferenceRuntime()
 }
 
 function activateCameraChoreographySurface(): boolean {

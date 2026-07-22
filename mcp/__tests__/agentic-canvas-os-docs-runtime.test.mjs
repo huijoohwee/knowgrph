@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,6 +13,7 @@ import {
 } from "../agentic-canvas-os-docs-contract.mjs";
 import {
   resolveAgenticCanvasOsDocsRoot,
+  resolveAgenticCanvasOsDocsRevision,
   runAgenticCanvasOsDocsInvokeTool,
 } from "../agentic-canvas-os-docs-runtime.js";
 import {
@@ -24,16 +27,90 @@ import { buildKnowgrphLocalMcpToolDefinitions, KNOWGRPH_LOCAL_MCP_TOOL_NAMES } f
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const KNOWGRPH_ROOT = path.resolve(__dirname, "..", "..");
-const DOCS_ROOT = process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT
-  ? path.resolve(process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT)
-  : path.resolve(KNOWGRPH_ROOT, "..", "agentic-canvas-os", "docs");
 const DOCS_ENV = process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT
-  ? { KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: DOCS_ROOT }
+  ? { KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT: path.resolve(process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT) }
   : {};
-const DOCS_AVAILABLE = existsSync(path.join(DOCS_ROOT, "FACTS.md"));
+const DOCS_ROOT = (() => {
+  try {
+    return resolveAgenticCanvasOsDocsRoot({ rootDir: KNOWGRPH_ROOT, env: DOCS_ENV });
+  } catch (error) {
+    if (DOCS_ENV.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT) throw error;
+    return "";
+  }
+})();
+const DOCS_AVAILABLE = Boolean(DOCS_ROOT) && existsSync(path.join(DOCS_ROOT, "FACTS.md"));
 
-test("Agentic Canvas OS docs root resolves from explicit configuration or the sibling default", () => {
+test("Agentic Canvas OS docs root resolves from explicit configuration or an ancestor workspace", { skip: !DOCS_AVAILABLE }, () => {
   assert.equal(resolveAgenticCanvasOsDocsRoot({ rootDir: KNOWGRPH_ROOT, env: DOCS_ENV }), DOCS_ROOT);
+});
+
+test("linked Knowgrph worktrees resolve the canonical ancestor Agentic Canvas OS docs root", () => {
+  const workspaceRoot = mkdtempSync(path.join(tmpdir(), "knowgrph-docs-root-"));
+  const docsRoot = path.join(workspaceRoot, "agentic-canvas-os", "docs");
+  const taskRoot = path.join(workspaceRoot, ".worktrees", "knowgrph", "xr-invocation-runtime");
+  try {
+    mkdirSync(docsRoot, { recursive: true });
+    mkdirSync(taskRoot, { recursive: true });
+    writeFileSync(path.join(docsRoot, "FACTS.md"), "# Source marker\n");
+    assert.equal(realpathSync(resolveAgenticCanvasOsDocsRoot({ rootDir: taskRoot, env: {} })), realpathSync(docsRoot));
+  } finally {
+    rmSync(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("registered external Knowgrph worktrees recover the canonical docs root from Git metadata", () => {
+  const workspaceRoot = mkdtempSync(path.join(tmpdir(), "knowgrph-external-docs-root-"));
+  const externalParent = mkdtempSync(path.join(tmpdir(), "knowgrph-external-worktree-"));
+  const repositoryRoot = path.join(workspaceRoot, "knowgrph");
+  const docsRoot = path.join(workspaceRoot, "agentic-canvas-os", "docs");
+  const taskRoot = path.join(externalParent, "xr-invocation-runtime");
+  try {
+    mkdirSync(repositoryRoot, { recursive: true });
+    mkdirSync(docsRoot, { recursive: true });
+    writeFileSync(path.join(repositoryRoot, "README.md"), "# Knowgrph fixture\n");
+    writeFileSync(path.join(docsRoot, "FACTS.md"), "# Source marker\n");
+    execFileSync("git", ["init", "-q"], { cwd: repositoryRoot });
+    execFileSync("git", ["add", "README.md"], { cwd: repositoryRoot });
+    execFileSync("git", ["-c", "user.name=Knowgrph Test", "-c", "user.email=test@knowgrph.local", "commit", "-qm", "test source"], { cwd: repositoryRoot });
+    execFileSync("git", ["worktree", "add", "--detach", taskRoot, "HEAD"], { cwd: repositoryRoot, stdio: "ignore" });
+    assert.equal(realpathSync(resolveAgenticCanvasOsDocsRoot({ rootDir: taskRoot, env: {} })), realpathSync(docsRoot));
+  } finally {
+    rmSync(externalParent, { recursive: true, force: true });
+    rmSync(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("configured docs revision must match checkout HEAD with a clean docs tree", async () => {
+  const workspaceRoot = mkdtempSync(path.join(tmpdir(), "knowgrph-docs-revision-"));
+  const repositoryRoot = path.join(workspaceRoot, "agentic-canvas-os");
+  const docsRoot = path.join(repositoryRoot, "docs");
+  try {
+    mkdirSync(docsRoot, { recursive: true });
+    writeFileSync(path.join(docsRoot, "FACTS.md"), "# Canonical bytes\n");
+    execFileSync("git", ["init", "-q"], { cwd: repositoryRoot });
+    execFileSync("git", ["add", "docs/FACTS.md"], { cwd: repositoryRoot });
+    execFileSync("git", ["-c", "user.name=Knowgrph Test", "-c", "user.email=test@knowgrph.local", "commit", "-qm", "test docs"], { cwd: repositoryRoot });
+    const headRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
+
+    await assert.rejects(
+      resolveAgenticCanvasOsDocsRevision({
+        absoluteDocsRoot: docsRoot,
+        env: { KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_REVISION: "b".repeat(40) },
+      }),
+      /does not match docs checkout HEAD/,
+    );
+
+    writeFileSync(path.join(docsRoot, "FACTS.md"), "# Dirty bytes\n");
+    await assert.rejects(
+      resolveAgenticCanvasOsDocsRevision({
+        absoluteDocsRoot: docsRoot,
+        env: { KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_REVISION: headRevision },
+      }),
+      /uncommitted content/,
+    );
+  } finally {
+    rmSync(workspaceRoot, { recursive: true, force: true });
+  }
 });
 
 test("local MCP descriptor exposes Agentic Canvas OS docs invocation as read-only", () => {

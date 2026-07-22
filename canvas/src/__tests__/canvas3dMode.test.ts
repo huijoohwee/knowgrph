@@ -200,8 +200,8 @@ export function testXrModeRendersGlbAssetDocumentsWithoutWebxrSessionGate() {
 
 export function testXrModeGraphSceneUsesDistinctSpatialStageInsteadOfPlain3dGlobe() {
   const scene = readFileSync(resolve(process.cwd(), 'src/lib/three/Scene.impl.tsx'), 'utf8')
-  const stage = readFileSync(resolve(process.cwd(), 'src/features/three/XrGraphStage.tsx'), 'utf8')
-  if (!scene.includes("{mode === 'xr' ? <XrGraphStage data={data} paused={Boolean(paused)} /> : null}")) {
+  const stage = readFileSync(resolve(process.cwd(), 'src/features/three/XrMotionReferenceGraphStage.tsx'), 'utf8') + readFileSync(resolve(process.cwd(), 'src/features/three/XrSceneStage.tsx'), 'utf8')
+  if (!scene.includes('<XrSceneStage authority={xrGraphStageAuthority} data={data} paused={Boolean(paused)} />') || !stage.includes('<XrMotionReferenceGraphStageLazy data={data} paused={paused} />')) {
     throw new Error('Expected XR Mode graph scenes to mount the native motion-reference stage')
   }
   if (!scene.includes("mode === '3d' ? (\n          <GlobeEffects")) {

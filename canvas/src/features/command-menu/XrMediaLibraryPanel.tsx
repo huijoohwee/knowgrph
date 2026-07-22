@@ -2,9 +2,9 @@ import React from 'react'
 import { Armchair, Box, Building2, Car, PawPrint, Trash2, TreePine, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
 import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
-import { splitInvocationTokenSegments } from '@/lib/markdown/invocationTokens'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
 import { PanelSelect, PanelTextInput } from '@/lib/ui/panelFormControls'
 import type { MediaDragPayload } from '@/lib/ui/mediaDragPayload'
@@ -14,7 +14,6 @@ import { cn } from '@/lib/utils'
 import {
   XR_MOTION_REFERENCE_DEFAULT_STAGE_ID,
   XR_MOTION_REFERENCE_STAGE_PRESETS,
-  type XrMotionReferenceStageId,
 } from '@/features/three/xrMotionReferenceModel'
 import {
   XR_SCENE_LIBRARY_DEFAULT_ASSET_ID,
@@ -68,6 +67,8 @@ import { XrCatalogThumb } from './XrMediaCatalogThumbs'
 import { XrMediaLibrarySummary } from './XrMediaLibraryHeader'
 import { isXrMediaInvocationMetadataReady } from './xrMediaInvocationMetadata'
 import { buildXrMediaLibraryProjection } from './xrMediaLibrarySearch'
+import { buildXrMediaInvocationControlInput } from './xrMediaInvocationRuntime'
+import { resolveXrSceneDocumentReady } from '@/features/three/xrSceneDocumentReadiness'
 
 type XrSceneLibraryFilter = 'all' | XrSceneLibraryCategory
 
@@ -95,11 +96,7 @@ function XrMediaCatalogThumb({ Icon, color, label }: { Icon: LucideIcon; color: 
   )
 }
 
-function XrInvocationButton({ invocation, disabled, onInvoke }: { invocation: string; disabled: boolean; onInvoke: () => void }) {
-  const compactInvocation = splitInvocationTokenSegments(invocation)
-    .filter(segment => segment.kind === 'token')
-    .map(segment => segment.value)
-    .join(' ')
+export function XrInvocationButton({ invocation, disabled, onInvoke }: { invocation: string; disabled: boolean; onInvoke: (invocation: string) => void }) {
   return (
     <button
       type="button"
@@ -107,11 +104,11 @@ function XrInvocationButton({ invocation, disabled, onInvoke }: { invocation: st
       disabled={disabled}
       title={`Invoke ${invocation}`}
       aria-label={`Invoke ${invocation}`}
-      onClick={onInvoke}
+      onClick={() => onInvoke(invocation)}
       data-kg-media-xr-invocation={invocation}
       data-kg-media-xr-invocation-chip-renderer="shared-markdown-sigil"
     >
-      {renderMarkdownSigilInlineText(compactInvocation || invocation, {
+      {renderMarkdownSigilInlineText(invocation, {
         renderKeywordChip: ({ value, className }) => renderAgenticOsInvocationKeywordChip({ value, className, sourceLink: false }),
       })}
     </button>
@@ -206,10 +203,10 @@ function XrAssetRow({
   subjectLabel: string
   transition: XrSceneTransition
   onTransitionChange: (transition: XrSceneTransition) => void
-  onPlace: (asset: XrSceneLibraryAsset, transition: XrSceneTransition) => void
+  onPlace: (invocation: string) => void
 }) {
   const Icon = CATEGORY_ICONS[asset.category]
-  const invocation = buildXrPlaceInvocation(asset.id, asset.mobile ? transition : 'hold')
+  const invocation = buildXrPlaceInvocation(asset.id, asset.mobile ? transition : 'hold', subjectLabel)
   return (
     <XrLibraryCard
       Icon={Icon}
@@ -237,7 +234,7 @@ function XrAssetRow({
               <option value="hold">Hold</option>
             </PanelSelect>
           ) : null}
-          <XrInvocationButton invocation={invocation} disabled={disabled} onInvoke={() => onPlace(asset, transition)} />
+          <XrInvocationButton invocation={invocation} disabled={disabled} onInvoke={onPlace} />
         </>
       )}
     />
@@ -245,6 +242,7 @@ function XrAssetRow({
 }
 
 export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
+  const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
   const grammarCatalog = useAgenticOsRemoteGrammarCatalog({ sigils: XR_SCENE_GRAMMAR_SIGILS })
   const {
     graphData,
@@ -288,7 +286,12 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
     window.addEventListener(XR_SCENE_MEDIA_DROP_COMMITTED_EVENT, onCommittedDrop)
     return () => window.removeEventListener(XR_SCENE_MEDIA_DROP_COMMITTED_EVENT, onCommittedDrop)
   }, [])
-  const sceneReady = Boolean(graphData && String(markdownDocumentName || '').trim() && String(markdownDocumentText || '').trim())
+  const sceneReady = resolveXrSceneDocumentReady({
+    sourceFilesBootstrapReady,
+    graphData,
+    markdownDocumentName,
+    markdownDocumentText,
+  })
   const sourceMetadataReady = isXrMediaInvocationMetadataReady(grammarCatalog)
   const runControl = React.useCallback((input: XrSceneControlInput) => {
     const result = controlLocalXrScene(input)
@@ -300,15 +303,14 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
     return result
   }, [pushUiToast, sceneReady])
 
-  const selectEnvironment = React.useCallback((stageId: XrMotionReferenceStageId) => {
-    runControl({ action: 'stage', stageId })
+  const runInvocation = React.useCallback((invocation: string) => {
+    return runControl(buildXrMediaInvocationControlInput(invocation))
   }, [runControl])
 
-  const placeAsset = React.useCallback((asset: XrSceneLibraryAsset, transition: XrSceneTransition) => {
-    const label = nextLabel.trim()
-    const result = runControl({ action: 'place', assetId: asset.id, transition, ...(label ? { label } : {}) })
+  const placeAsset = React.useCallback((invocation: string) => {
+    const result = runInvocation(invocation)
     if (result.ok) setNextLabel('')
-  }, [nextLabel, runControl])
+  }, [runInvocation])
 
   const commitSubjectLabel = React.useCallback((subjectId: string) => {
     const nextValue = String(subjectLabelDrafts[subjectId] || '').trim()
@@ -365,7 +367,7 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
             <span className={UI_THEME_TOKENS.text.tertiary}>Terrain / Environment</span>
             <PanelSelect
               value={runtime.plan.stageId}
-              onChange={event => selectEnvironment(event.target.value as XrMotionReferenceStageId)}
+              onChange={event => runInvocation(buildXrStageInvocation(event.target.value))}
               aria-label="Change XR terrain or environment"
               data-kg-media-xr-terrain-selector="1"
               data-kg-media-xr-default-terrain={XR_MOTION_REFERENCE_DEFAULT_STAGE_ID}
@@ -393,9 +395,13 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
         {selectedAsset ? (
           <section className="flex min-w-0 justify-end">
             <XrInvocationButton
-              invocation={buildXrPlaceInvocation(selectedAsset.id, assetTransitions[selectedAsset.id] || 'linear')}
+              invocation={buildXrPlaceInvocation(
+                selectedAsset.id,
+                selectedAsset.mobile ? assetTransitions[selectedAsset.id] || 'linear' : 'hold',
+                nextLabel,
+              )}
               disabled={!sceneReady}
-              onInvoke={() => placeAsset(selectedAsset, assetTransitions[selectedAsset.id] || 'linear')}
+              onInvoke={placeAsset}
             />
           </section>
         ) : null}
@@ -426,7 +432,7 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
                   dragPayload={buildXrStageMediaDragPayload(stage)}
                   active={active}
                   dataAttributes={{ 'data-kg-media-xr-environment': stage.id }}
-                  footer={<XrInvocationButton invocation={buildXrStageInvocation(stage.id)} disabled={!sceneReady} onInvoke={() => selectEnvironment(stage.id)} />}
+                  footer={<XrInvocationButton invocation={buildXrStageInvocation(stage.id)} disabled={!sceneReady} onInvoke={runInvocation} />}
                 />
               )
             })}
@@ -484,12 +490,7 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
                   <XrInvocationButton
                     invocation={buildXrTransformInvocation(subject.id, subject)}
                     disabled={!sceneReady}
-                    onInvoke={() => setSubjectTransform(subject.id, {
-                      position: subject.position,
-                      rotationYDegrees: subject.rotationYDegrees,
-                      scale: subject.scale,
-                      color: subject.color,
-                    })}
+                    onInvoke={runInvocation}
                   />
                 </header>
                 <label className="grid gap-1 text-[9px]">

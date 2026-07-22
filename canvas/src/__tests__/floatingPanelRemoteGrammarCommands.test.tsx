@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { Simulate } from 'react-dom/test-utils'
 import { CAMERA_REQUIRED_METADATA_TOKENS, CameraMcpInvocationSection } from '@/features/strybldr/CameraMcpInvocationSection'
 import { FloatingPanelChatComposer } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposer'
+import SkillsCommandsView from '@/features/panels/views/SkillsCommandsView'
 import { buildFloatingPanelChatComposerOverlayParts } from '@/features/chat/floatingPanelChat/FloatingPanelChatComposerMediaOverlay'
 import { buildChatInvocationSystemPrompt, parseChatInvocationDirectives } from '@/features/chat/chatInvocationRegistry'
 import { findAgenticOsInvocationByToken } from '@/features/agentic-os/agenticOsDocInvocations'
@@ -132,7 +133,7 @@ export async function testFloatingPanelChatComposerWiresRemoteAgenticOsGrammar()
                 kind: 'command',
                 label: 'Remote only',
                 summary: 'Live remote grammar suggestion',
-                sourcePath: 'https://github.com/huijoohwee/agentic-canvas-os/blob/main/docs/DICTIONARY-COMMAND.md',
+                sourcePath: 'DICTIONARY-COMMAND.md#/remote.only',
                 keywords: ['remote', 'live'],
               },
             ],
@@ -203,6 +204,10 @@ export async function testFloatingPanelChatComposerWiresRemoteAgenticOsGrammar()
     }
     if ((toolsCall.body.params as { arguments?: { query?: string } })?.arguments?.query !== '/remo') {
       throw new Error(`expected remote grammar tools/call to query the live token text, got ${JSON.stringify(toolsCall.body)}`)
+    }
+    const hydratedEntry = getAgenticOsRemoteGrammarCatalogEntries().find(entry => entry.token === '/remote.only')
+    if (hydratedEntry?.sourceUrl !== `https://github.com/huijoohwee/agentic-canvas-os/blob/${'a'.repeat(40)}/docs/DICTIONARY-COMMAND.md#/remote.only`) {
+      throw new Error(`expected remote grammar provenance to bind the exact docs revision, got ${String(hydratedEntry?.sourceUrl || '')}`)
     }
   } finally {
     if (typeof previousAgentReadyBaseUrl === 'string') process.env.VITE_KNOWGRPH_AGENT_READY_BASE_URL = previousAgentReadyBaseUrl
@@ -316,6 +321,87 @@ export async function testRemoteAgenticOsGrammarIgnoresBareLocalhostOriginWithou
     globalThis.fetch = originalFetch
     restore()
     void dom
+  }
+}
+
+export async function testRepoLocalSkillsCommandsHydratesSameOriginGrammar() {
+  const originalFetch = globalThis.fetch
+  const previousRepoLocal = process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL
+  const previousAgentReadyBaseUrl = process.env.VITE_KNOWGRPH_AGENT_READY_BASE_URL
+  const sourceRevision = 'c'.repeat(40)
+  const calls: Array<{ url: string, method: string, query: string }> = []
+  resetAgenticOsRemoteGrammarCatalogForTests()
+  process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL = '1'
+  delete process.env.VITE_KNOWGRPH_AGENT_READY_BASE_URL
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+    const method = String(body.method || '')
+    const query = String((body.params as { arguments?: { query?: string } } | undefined)?.arguments?.query || '')
+    calls.push({ url: String(input), method, query })
+    if (method === 'initialize') {
+      return new Response(JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { protocolVersion: '2024-11-05' } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'mcp-session-id': 'repo-local-grammar-session' },
+      })
+    }
+    const kind = query === '/' ? 'command' : query === '#' ? 'semantic' : 'binding'
+    await new Promise(resolve => setTimeout(resolve, query === '/' ? 0 : query === '#' ? 10 : 20))
+    const token = `${query}repo-local-xr`
+    const fileName = kind === 'command'
+      ? 'DICTIONARY-COMMAND.md'
+      : kind === 'semantic'
+        ? 'DICTIONARY-SEMANTIC.md'
+        : 'DICTIONARY-BINDING.md'
+    return new Response(JSON.stringify({
+      jsonrpc: '2.0',
+      id: body.id,
+      result: {
+        structuredContent: {
+          ok: true,
+          sourceRevision,
+          catalog: [{ token, kind, label: `Repo-local ${kind}`, sourcePath: `${fileName}#${token}` }],
+        },
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })
+  }) as typeof fetch
+
+  const { dom, restore } = initJsdomHarness()
+  const container = dom.window.document.createElement('section')
+  dom.window.document.body.appendChild(container)
+  const root = createRoot(container as unknown as HTMLElement)
+  try {
+    await mountReactRoot(root, <SkillsCommandsView searchQuery="repo-local-xr" />, {
+      window: dom.window as unknown as Window,
+      frames: 6,
+      tasks: 10,
+    })
+    await new Promise(resolve => setTimeout(resolve, 40))
+    await waitForTasks(6)
+    await waitForFrames(dom.window as unknown as Window, 4)
+    const panel = container.querySelector('[data-kg-floating-panel-skills-commands="true"]')
+    const expectedTokens = ['/repo-local-xr', '#repo-local-xr', '@repo-local-xr']
+    const missingTokens = expectedTokens.filter(token => !container.querySelector(`[data-kg-skill-command-token="${token}"]`))
+    if (missingTokens.length > 0
+      || panel?.getAttribute('data-kg-floating-panel-skills-commands-metadata-status') !== 'fresh'
+      || panel?.getAttribute('data-kg-floating-panel-skills-commands-source-revision') !== sourceRevision) {
+      throw new Error(`expected repo-local Skills & Commands to hydrate exact-revision / # @ grammar, missing=${missingTokens.join(',')} html=${container.innerHTML}`)
+    }
+    const toolCalls = calls.filter(call => call.method === 'tools/call')
+    if (toolCalls.length !== 3
+      || toolCalls.some(call => call.url !== 'http://localhost/knowgrph/control-plane/mcp')
+      || toolCalls.map(call => call.query).sort().join('|') !== '#|/|@') {
+      throw new Error(`expected repo-local grammar to use same-origin MCP once per sigil, got ${JSON.stringify(calls)}`)
+    }
+  } finally {
+    await unmountReactRoot(root, { window: dom.window as unknown as Window })
+    container.remove()
+    restore()
+    resetAgenticOsRemoteGrammarCatalogForTests()
+    globalThis.fetch = originalFetch
+    if (typeof previousRepoLocal === 'string') process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL = previousRepoLocal
+    else delete process.env.VITE_KNOWGRPH_RUN_READY_REPO_LOCAL
+    if (typeof previousAgentReadyBaseUrl === 'string') process.env.VITE_KNOWGRPH_AGENT_READY_BASE_URL = previousAgentReadyBaseUrl
+    else delete process.env.VITE_KNOWGRPH_AGENT_READY_BASE_URL
   }
 }
 

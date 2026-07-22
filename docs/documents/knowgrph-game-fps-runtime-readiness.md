@@ -56,6 +56,7 @@ The runtime-ready and core-browser commands cover game unit/integration tests, d
 | Canvas/XR | One existing R3F Canvas; XR pauses for Game Mode, restores exactly, and continues afterward | passed |
 | XR visual fidelity follow-up | Authored XR atmosphere, terrain, props, and scene anchors stay mounted under Game Mode | exact-main passed |
 | Scene-authority cleanup | Delete the fallback scene/environment implementation and standalone Game FPS source/auto-start route, forbid renamed/conditional variants, and preserve one Canvas/world across Media, Animation, Motion Control, Game Mode, and Camera | source cleanup implemented; protected and exact-main proof required |
+| Home XR source authority | Persist `sourcePath` plus decoded URL as one validated document identity; delete conflicts, migrate local Physics aliases to the canonical share, delete the mixed `XrGraphStage` owner, and lazy-load Motion Reference only for noncanonical authored XR | focused source/unit proof passed; protected and public stale-session proof required |
 | XR profile admission follow-up | All catalogued XR presets filter walkable/overhead slabs, admit five non-overlapping ground-actor spawns, and replace stale profiles across live/stopped surface or terrain changes | exact-main passed |
 | Ready clock follow-up | Tick, health, and Decisions stay unchanged until normalized desktop, pointer, touch, Motion Control, or MCP engagement | exact-main passed |
 | Stop/Start | Stop preserves current tick/player state; Start resumes that same in-memory mission | passed |

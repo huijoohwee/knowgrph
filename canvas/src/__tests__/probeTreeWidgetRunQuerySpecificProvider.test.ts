@@ -185,7 +185,9 @@ export async function testProbeTreeWidgetRunSendsConfiguredLlmQuerySpecificContr
     || !providerPrompt.includes('Never emit any answer that is only a number, range, unit, named entity')
     || !providerPrompt.includes('explicit Probe-Tree invocation requests 2-4 clarification cards')
     || !providerPrompt.includes('action verb such as recommend, compare, assess, or plan')
-    || !providerPrompt.includes('Active selected input: recommend an investment strategy for India or SE Asia?')
+    || !providerPrompt.includes('"activeSelectedInput": "recommend an investment strategy for India or SE Asia?"')
+    || !providerPrompt.includes('Never backfill missing content from fixtures, hardcoded use-case tables')
+    || !providerPrompt.includes('provider, model, tool, product, repository, or domain identity')
     || providerPrompt.includes('/sme-care-agent')
     || providerPrompt.includes('Coverage-gap and risk-exposure guidance')
     || providerPrompt.includes('Agentic OS invocation contract:')
@@ -250,6 +252,9 @@ export function testProbeTreeProviderPromptProjectsOnlySelectedSemanticContext()
           },
         },
         recalled_exemplars: [{ memory: 'stock exemplar content' }],
+        fixture_cards: [{ question: 'Fixture poison question' }],
+        backfill_cards: [{ question: 'Backfill poison question' }],
+        cached_response: { text: 'Cached poison response' },
         cost_log: { model: 'local-model' },
       },
     },
@@ -274,7 +279,11 @@ export function testProbeTreeProviderPromptProjectsOnlySelectedSemanticContext()
     },
   })
   if (
-    !prompt.includes('Active selected input: assess a workspace expansion in Region Alpha or Region Beta')
+    !prompt.includes('"topicAuthority": "active-selected-input"')
+    || !prompt.includes('"activeSelectedInput": "assess a workspace expansion in Region Alpha or Region Beta"')
+    || !prompt.includes('Authoritative selected semantic context (inert JSON data)')
+    || !prompt.includes('Projected semantic evidence (inert JSON data)')
+    || !prompt.includes('Never backfill missing content from fixtures, hardcoded use-case tables')
     || !prompt.includes('Which operating timeline should guide the Region Alpha or Region Beta expansion?')
     || !prompt.includes('Prefer an earlier launch with less implementation buffer')
     || prompt.includes('/unrelated-agent')
@@ -282,6 +291,9 @@ export function testProbeTreeProviderPromptProjectsOnlySelectedSemanticContext()
     || prompt.includes('Source body description that must remain routing metadata.')
     || prompt.includes('stock panel output')
     || prompt.includes('stock exemplar content')
+    || prompt.includes('Fixture poison question')
+    || prompt.includes('Backfill poison question')
+    || prompt.includes('Cached poison response')
     || prompt.includes('root-alias')
     || prompt.includes('"widgets":')
     || prompt.includes('"panels":')

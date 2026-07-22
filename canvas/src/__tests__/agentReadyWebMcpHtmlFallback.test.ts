@@ -6,6 +6,7 @@ import {
   createMockResponse,
 } from '@/__tests__/helpers/webMcpRuntimeFixture'
 import { PUBLISHED_AGENT_READY_TOOL_EXECUTORS_BROWSER_SOURCE } from '@/features/agent-ready/publishedToolExecutors.mjs'
+import { WEB_MCP_LIFECYCLE_CONTROLLER_BROWSER_SOURCE } from '@/features/agent-ready/webMcpLifecycleBrowserSource.mjs'
 import { webMcpScript } from '../../../cloudflare/pages/knowgrph-agent-ready.mjs'
 
 type RegisteredTool = {
@@ -28,10 +29,13 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
   const { restore } = initJsdomHarness()
   const fetchCalls: string[] = []
   const registeredTools = new Map<string, RegisteredTool>()
+  const nativeRegistrationSignals: AbortSignal[] = []
 
   try {
-    if (!webMcpScript.includes('createWebMcpLifecycleController')) {
-      throw new Error('expected HTML fallback script to embed the shared WebMCP lifecycle controller')
+    if (!webMcpScript.includes(`const createWebMcpLifecycleController = ${WEB_MCP_LIFECYCLE_CONTROLLER_BROWSER_SOURCE};`)
+      || !WEB_MCP_LIFECYCLE_CONTROLLER_BROWSER_SOURCE.includes('fallbackModelContextBindings')
+      || !WEB_MCP_LIFECYCLE_CONTROLLER_BROWSER_SOURCE.includes('dispose')) {
+      throw new Error('expected HTML fallback script to serialize the complete canonical WebMCP lifecycle controller')
     }
     if (!webMcpScript.includes('createPublishedDocIdentityResolver')) {
       throw new Error('expected HTML fallback script to embed the canonical published-doc identity resolver')
@@ -82,26 +86,36 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
         `expected fallback-readable HTML script state before late modelContext binding, got ${String(document.documentElement.dataset.kgWebmcpContext)}`,
       )
     }
+    if (String(document.documentElement.dataset.kgWebmcpHostContext) !== 'awaiting-model-context') {
+      throw new Error('expected HTML fallback readiness to report native host binding separately')
+    }
     if (typeof navigatorObject.modelContext?.provideContext !== 'function' || typeof navigatorObject.modelContext?.registerTool !== 'function') {
       throw new Error('expected injected WebMCP fallback to expose provideContext and registerTool for scanner-visible API parity')
     }
     if ((document as Document & { modelContext?: unknown }).modelContext !== navigatorObject.modelContext) {
       throw new Error('expected injected WebMCP fallback to expose the same modelContext on document and navigator')
     }
+    const fallbackContext = navigatorObject.modelContext
 
-    navigatorObject.modelContext = {
+    const nativeModelContext = {
       registerTool(tool, options) {
         if (!options?.signal) {
           throw new Error(`expected AbortSignal-backed registerTool options for ${tool.name}`)
         }
+        nativeRegistrationSignals.push(options.signal)
         registeredTools.set(tool.name, tool)
+        options.signal.addEventListener('abort', () => registeredTools.delete(tool.name), { once: true })
       },
     }
+    navigatorObject.modelContext = nativeModelContext
 
     if (readWebMcpContextState(document) !== 'installed') {
       throw new Error(
         `expected installed HTML script state after late modelContext binding, got ${String(document.documentElement.dataset.kgWebmcpContext)}`,
       )
+    }
+    if (String(document.documentElement.dataset.kgWebmcpHostContext) !== 'installed') {
+      throw new Error('expected HTML fallback late host binding to report installed')
     }
 
     const expectedSharedContracts = buildKnowgrphAgentReadyToolContracts({
@@ -239,6 +253,21 @@ export async function testAgentReadyHtmlWebMcpFallbackLateBindsAndUsesSameOrigin
     const expectedInspection = buildExpectedMockAgentSurfaceInspection('http://localhost/knowgrph')
     if (JSON.stringify(inspection) !== JSON.stringify(expectedInspection)) {
       throw new Error(`expected injected inspect_agent_surface to return the exact shared payload, got ${JSON.stringify(inspection)}`)
+    }
+
+    navigatorObject.modelContext = undefined
+    if (navigatorObject.modelContext !== fallbackContext
+      || readWebMcpContextState(document) !== 'fallback-readable'
+      || String(document.documentElement.dataset.kgWebmcpHostContext) !== 'awaiting-model-context'
+      || nativeRegistrationSignals.some(signal => !signal.aborted)
+      || registeredTools.size !== 0) {
+      throw new Error('expected HTML native host teardown to restore fallback readiness and release registrations')
+    }
+    navigatorObject.modelContext = nativeModelContext
+    if (readWebMcpContextState(document) !== 'installed'
+      || String(document.documentElement.dataset.kgWebmcpHostContext) !== 'installed'
+      || registeredTools.size !== expectedSharedContracts.length) {
+      throw new Error('expected HTML native host to rebind the complete tool set on the same context object')
     }
   } finally {
     globalThis.fetch = previousFetch

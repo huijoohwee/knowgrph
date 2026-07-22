@@ -297,13 +297,23 @@ const collectProbeTreeComparableStems = value => new Set(
 
 const matchedContextKeywords = (contextKeywords, value) => {
   const text = String(value || "").toLowerCase();
-  const comparableWords = new Set(collectProbeTreeWordSegments(text).map(part => part.normalized));
+  const comparableWordList = collectProbeTreeWordSegments(text).map(part => part.normalized);
+  const comparableWords = new Set(comparableWordList);
   const comparableStems = collectProbeTreeComparableStems(text);
   return contextKeywords.filter(keyword => (
     comparableWords.has(normalizeProbeTreeWord(keyword))
     || new RegExp(`(^|[^\\p{L}\\p{N}\\p{M}-])${buildProbeTreeKeywordPattern(keyword)}([^\\p{L}\\p{N}\\p{M}-]|$)`, "iu").test(text)
     || (/[^\x00-\x7F]/.test(keyword) && text.includes(String(keyword).toLowerCase()))
     || (!keyword.includes("-") && comparableStems.has(normalizeProbeTreeKeywordStem(keyword)))
+    || (() => {
+      const normalizedKeyword = normalizeProbeTreeWord(keyword);
+      if (normalizedKeyword.includes("-") || Array.from(normalizedKeyword).length < 4) return false;
+      return comparableWordList.some(word => (
+        word.length >= normalizedKeyword.length + 2
+        && word.length <= normalizedKeyword.length * 2
+        && word.includes(normalizedKeyword)
+      ));
+    })()
   ));
 };
 

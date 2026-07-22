@@ -168,6 +168,10 @@ export function testRuntimeTraceResidueUsesSharedInMemoryTrace() {
   if (!traceHelperText.includes('export function reportRuntimeTrace(entry: RuntimeTraceEntry): void {')) {
     throw new Error('expected runtime debug residue to centralize through the shared in-memory trace helper')
   }
+  const workspaceSeedProviderText = readFileSync(resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'workspaceSeedProvider.ts'), 'utf8')
+  if (!workspaceSeedProviderText.includes('reportRuntimeTrace({')) {
+    throw new Error('expected workspace mirror diagnostics to reuse the shared in-memory trace helper')
+  }
   for (const relativePath of [
     ['features', 'workspace-fs', 'workspaceSeedProvider.ts'],
     ['components', 'FlowCanvas', 'useFlowCanvasGraphState.ts'],
@@ -180,14 +184,11 @@ export function testRuntimeTraceResidueUsesSharedInMemoryTrace() {
     ['hooks', 'store', 'graph-data-slice', 'graphDataNodeActions.ts'],
   ] as const) {
     const text = readFileSync(resolve(process.cwd(), 'src', ...relativePath), 'utf8')
-    if (text.includes('http://127.0.0.1:7777/event')) {
+    if (/http:\/\/127\.0\.0\.1:\d+\/event/.test(text)) {
       throw new Error(`forbid dead local debug collectors in runtime sources: ${relativePath.join('/')}`)
     }
     if (text.includes('[DEBUG]')) {
       throw new Error(`forbid inline debug log payload prefixes in runtime sources: ${relativePath.join('/')}`)
-    }
-    if (!text.includes('reportRuntimeTrace({')) {
-      throw new Error(`expected runtime sources to reuse the shared in-memory trace helper: ${relativePath.join('/')}`)
     }
   }
 }

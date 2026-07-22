@@ -289,6 +289,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["ui.canvas.liveHero.rawChatHandoff.sharedAppendEvent","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroChatHandoffFlushesThroughSharedAppendEvent"],
   ["ui.canvas.liveHero.interactiveWorkspaceCanvas","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroUsesInteractiveWorkspaceCanvas"],
   ["ui.canvas.liveHero.canvasEmbedSelectionEvent","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroCanvasEmbedSelectionEvent"],
+  ["ui.canvas.liveHero.canvasEmbedSelectionIdentity","@/__tests__/liveCanvasHeroSourceIdentity.test","testLiveCanvasHeroSelectionIdentityCleansStaleCanonicalVariants"],
   ["ui.canvas.liveHero.canvasEmbedVisibleAction","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroEmbedUrlUsesSelectedOrSourceAddress"],
   ["ui.canvas.liveHero.canvasEmbedImportWorkflow","@/__tests__/liveCanvasHero.test","testLiveCanvasHeroImportEmbedAcceptsIframeAndPostMessage"],
   ["ui.canvas.liveHero.canvasEmbedStartupPreset","@/__tests__/canvasEmbedStartupPreset.test","testCanvasEmbedStartupPresetUsesPhysicsPlaygroundSource"],
@@ -296,4 +297,7 @@ export const TEST_CASES_POST_PARSER_5: TestCaseTuple[] = [
   ["ui.mainPanel.settings.canvasEmbedImportWorkflow","@/__tests__/mainPanelCanvasEmbedSettings.test","testMainPanelCanvasEmbedSettingsReuseSharedImportPanel"],
   ["ui.canvas.liveHero.embeddedChatSubmitInteraction","@/__tests__/liveCanvasHeroInteraction.test","testLiveCanvasHeroInteractionSubmitsToEmbeddedChat"],
   ["agentReady.rootAlias.appShell","@/__tests__/rootAgentReadyAlias.test","testRootAgentReadyAliasCanonicalizesPublishedAppShellMount"],
+  ["ui.floatingPanel.media.xrLiteralInvocation","@/__tests__/xrMediaInvocationRuntime.test","testXrMediaInvocationChipsDispatchDisplayedLiteral"],
+  ["ui.floatingPanel.skillsCommands.xrInvocationInsertion","@/__tests__/xrSkillsCommandsInvocation.test","testSkillsCommandsXrGrammarInsertsExactTokens"],
+  ["canvas.xrMode.cameraPanelContinuity","@/__tests__/cameraMcpPanelContinuity.test","testCameraPanelActivationPreservesOpenXrOperatorPanels"],
 ]
