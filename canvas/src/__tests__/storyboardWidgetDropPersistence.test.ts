@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { resolveStoryboardWidgetPostCommitDraftGraphData } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetGraphActions'
+import {
+  publishStoryboardWidgetAuthoredGraphMutation,
+  resolveStoryboardWidgetPostCommitDraftGraphData,
+} from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetGraphActions'
 import type { GraphData } from '@/lib/graph/types'
 import { projectComposedGraphToSourceLayer } from '@/lib/graph/sourceLayers'
 import { resolveStoryboardWidgetDraftGraphDataForBaseReset } from '@/lib/storyboardWidget/storyboardWidgetDraftGraphData'
@@ -160,5 +163,45 @@ export function testStoryboardWidgetConsecutiveDropsPreservePendingDraftNodesAnd
   const graphActionsSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetGraphActions.ts'), 'utf8')
   if (!graphActionsSource.includes('mergeStoryboardWidgetDraftGraphDataWithLiveAdditions({')) {
     throw new Error('expected consecutive palette additions to use append-only canonical union instead of deletion-aware base reconciliation')
+  }
+}
+
+export function testStoryboardWidgetAuthoredChainPublishesDurableDraftGraph() {
+  const graphData: GraphData = {
+    type: 'Graph',
+    nodes: [
+      { id: 'n1', type: 'TextGeneration', label: 'Widget Card n1', properties: {} },
+      { id: 'n2', type: 'RichMedia', label: 'Rich Media Panel n1', properties: {} },
+      { id: 'n3', type: 'TextGeneration', label: 'Widget Card n2', properties: {} },
+    ],
+    edges: [
+      { id: 'e1', source: 'n1', target: 'n2', type: 'Edge', label: 'linksTo', properties: {} },
+      { id: 'e2', source: 'n2', target: 'n3', type: 'Edge', label: 'linksTo', properties: {} },
+    ],
+  }
+  const draftGraphDataRef: { current: GraphData | null } = { current: null }
+  let renderedDraft: GraphData | null = null
+  let persistedDraft: GraphData | null = null
+  publishStoryboardWidgetAuthoredGraphMutation({
+    nextGraphData: graphData,
+    draftGraphDataRef,
+    setDraftGraphData: next => { renderedDraft = next },
+    persistDraftGraphData: next => { persistedDraft = next },
+  })
+  if (draftGraphDataRef.current !== graphData || renderedDraft !== graphData || persistedDraft !== graphData) {
+    throw new Error('expected every authored node/edge mutation to publish the exact merged draft through the durable graph owner')
+  }
+  if (persistedDraft.nodes.length !== 3 || persistedDraft.edges.length !== 2) {
+    throw new Error('expected the durable draft to retain the middle Rich Media Panel and both incident edges')
+  }
+
+  const runtimeSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas.runtime.tsx'), 'utf8')
+  if (!runtimeSource.includes('persistDraftGraphData: persistPublishedStoryboardCardMediaGraphForSurface')) {
+    throw new Error('expected palette node/edge mutations to use the shared durable graph persistence owner')
+  }
+  const graphActionsSource = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetGraphActions.ts'), 'utf8')
+  const authoredMutationPublicationCount = graphActionsSource.split('persistDraftGraphData: args.persistDraftGraphData').length - 1
+  if (authoredMutationPublicationCount !== 2) {
+    throw new Error(`expected both palette node and authored-edge mutations to persist, got ${authoredMutationPublicationCount} durable publication paths`)
   }
 }
