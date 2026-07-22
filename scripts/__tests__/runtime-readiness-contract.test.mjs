@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
+import path from 'node:path'
 import test from 'node:test'
 import {
   formatGitHubOutput,
@@ -13,7 +15,16 @@ import {
 test('runtime docs dependency resolves one checkout repository and immutable ref', async () => {
   const contract = await readRuntimeReadinessContract()
   const dependency = resolveRuntimeDocsDependency(contract)
-  assert.equal(contract.docs_dependency.ref, '1da944f95c3b355db89580d449d0e8a6ce75688c')
+  assert.match(contract.docs_dependency.ref, /^[0-9a-f]{40}$/)
+  const checkedOutDocsRoot = String(process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT || '').trim()
+  if (checkedOutDocsRoot) {
+    const checkedOutDocsRevision = execFileSync(
+      'git',
+      ['-C', path.dirname(checkedOutDocsRoot), 'rev-parse', 'HEAD'],
+      { encoding: 'utf8' },
+    ).trim()
+    assert.equal(contract.docs_dependency.ref, checkedOutDocsRevision)
+  }
   assert.ok(contract.docs_dependency.required_files.includes('CANONICAL-LIFECYCLE.md'))
   assert.ok(contract.docs_dependency.required_files.includes('AGENT-TOOLKIT.md'))
   assert.ok(contract.docs_dependency.required_files.includes('schemas/production-runtime-readiness.v2.schema.json'))
