@@ -31,6 +31,7 @@ export type FlowWidgetPointerDragSession = {
 }
 
 export const FLOW_WIDGET_POINTER_DRAG_DROP_EVENT = 'kg:flow-widget-pointer-drag-drop'
+export const FLOW_WIDGET_DRAG_LABEL_MIME = 'text/x-kg-flow-widget-label'
 
 export type FlowWidgetPointerDragDropDetail = FlowWidgetPointerDragSession & {
   clientX: number
@@ -306,8 +307,7 @@ export function hasFlowWidgetDragType(dataTransfer: DataTransfer): boolean {
   })()
   if (types.includes(FLOW_WIDGET_DRAG_MIME)) return true
   if (types.includes('application/json')) return true
-  if (types.includes('text/uri-list')) return true
-  if (types.includes('text/plain')) return true
+  if (types.includes(FLOW_WIDGET_DRAG_LABEL_MIME)) return true
   return false
 }
 
@@ -346,7 +346,7 @@ export function setFlowWidgetDragDataTransfer(args: {
   const label = String(args.label || '').trim()
   if (label) {
     try {
-      dt.setData('text/x-kg-flow-widget-label', label)
+      dt.setData(FLOW_WIDGET_DRAG_LABEL_MIME, label)
     } catch {
       void 0
     }

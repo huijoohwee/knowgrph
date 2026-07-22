@@ -567,13 +567,16 @@ export function useStoryboardWidgetDropBridge(args: {
     }
     const onDragOverCapture = (ev: DragEvent) => {
       const dt = ev.dataTransfer
-      if (!dt || (!hasFlowWidgetDragType(dt) && !hasMediaDragPayload(dt))) return
-      if (hasMediaDragPayload(dt) && !args.widgetDropBridgeOnly) return
+      if (!dt) return
+      const hasWidgetDrag = hasFlowWidgetDragType(dt)
+      const hasMediaDrag = !hasWidgetDrag && hasMediaDragPayload(dt)
+      if (!hasWidgetDrag && !hasMediaDrag) return
+      if (hasMediaDrag && !args.widgetDropBridgeOnly) return
       const rect = readDropRect()
       if (!rect) return
       const x = ev.clientX
       const y = ev.clientY
-      if (hasMediaDragPayload(dt) && isMediaDropClaimedByNestedTarget(x, y)) return
+      if (hasMediaDrag && isMediaDropClaimedByNestedTarget(x, y)) return
       if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return
       try {
         ev.preventDefault()
@@ -585,6 +588,42 @@ export function useStoryboardWidgetDropBridge(args: {
     const onDropCapture = (ev: DragEvent) => {
       const dt = ev.dataTransfer
       if (!dt) return
+      const payload = readFlowWidgetDragPayloadFromDataTransfer({ getData: mime => dt.getData(mime) })
+      if (payload) {
+        const rect = readDropRect()
+        if (!rect) return
+        args.setCanvasWindowOffsetFromRect(rect)
+        const release = resolveFlowWidgetDragEventReleaseClientPoint(ev)
+        const sx = release.clientX - rect.left
+        const sy = release.clientY - rect.top
+        if (!Number.isFinite(sx) || !Number.isFinite(sy)) return
+        if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
+        const entry = resolveWidgetRegistryEntryForDrop(args.widgetRegistryRef.current || [], payload)
+        if (!entry) return
+        const status = appendDeferredWidgetAtClientPoint({ entry, registryEntryId: payload.registryEntryId, layoutVariantId: payload.layoutVariantId }, release.clientX, release.clientY)
+        if (status === 'await-transform') {
+          scheduleDeferredDropCommit(retryOpts => appendDeferredWidgetAtClientPoint({ entry, registryEntryId: payload.registryEntryId, layoutVariantId: payload.layoutVariantId }, release.clientX, release.clientY, retryOpts))
+        } else if (status !== 'committed') {
+          try {
+            ev.preventDefault()
+            ev.stopPropagation()
+            ;(ev as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.()
+          } catch {
+            void 0
+          }
+          return
+        }
+        clearActiveFlowWidgetPointerDragSession()
+        try {
+          ev.preventDefault()
+          ev.stopPropagation()
+          ;(ev as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.()
+        } catch {
+          void 0
+        }
+        return
+      }
+
       if (hasMediaDragPayload(dt)) {
         if (!args.widgetDropBridgeOnly) return
         const rect = readDropRect()
@@ -605,40 +644,6 @@ export function useStoryboardWidgetDropBridge(args: {
         } catch {
           void 0
         }
-        return
-      }
-      const payload = readFlowWidgetDragPayloadFromDataTransfer({ getData: mime => dt.getData(mime) })
-      if (!payload) return
-      const rect = readDropRect()
-      if (!rect) return
-      args.setCanvasWindowOffsetFromRect(rect)
-      const release = resolveFlowWidgetDragEventReleaseClientPoint(ev)
-      const sx = release.clientX - rect.left
-      const sy = release.clientY - rect.top
-      if (!Number.isFinite(sx) || !Number.isFinite(sy)) return
-      if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
-      const entry = resolveWidgetRegistryEntryForDrop(args.widgetRegistryRef.current || [], payload)
-      if (!entry) return
-      const status = appendDeferredWidgetAtClientPoint({ entry, registryEntryId: payload.registryEntryId, layoutVariantId: payload.layoutVariantId }, release.clientX, release.clientY)
-      if (status === 'await-transform') {
-        scheduleDeferredDropCommit(retryOpts => appendDeferredWidgetAtClientPoint({ entry, registryEntryId: payload.registryEntryId, layoutVariantId: payload.layoutVariantId }, release.clientX, release.clientY, retryOpts))
-      } else if (status !== 'committed') {
-        try {
-          ev.preventDefault()
-          ev.stopPropagation()
-          ;(ev as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.()
-        } catch {
-          void 0
-        }
-        return
-      }
-      clearActiveFlowWidgetPointerDragSession()
-      try {
-        ev.preventDefault()
-        ev.stopPropagation()
-        ;(ev as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.()
-      } catch {
-        void 0
       }
     }
     const onMediaPointerDragDropCapture = (event: Event) => {
