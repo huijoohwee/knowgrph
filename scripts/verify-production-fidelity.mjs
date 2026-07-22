@@ -15,6 +15,7 @@ const publicOrigin = normalizeOrigin(process.env.PRODUCTION_PUBLIC_ORIGIN || 'ht
 const markerOrigin = normalizeOrigin(process.env.PRODUCTION_MARKER_ORIGIN || browserOrigin)
 const expectedSourceRevision = String(process.env.RELEASE_SHA || '').trim()
 const expectedManifestDigest = String(process.env.PRODUCTION_IMMUTABLE_MANIFEST_DIGEST || '').trim()
+const browserHeadless = String(process.env.PRODUCTION_BROWSER_HEADLESS || 'true').trim() !== 'false'
 if (!/^[0-9a-f]{40}$/.test(expectedSourceRevision)) throw new Error('RELEASE_SHA must be an exact lowercase 40-character SHA')
 if (!/^[0-9a-f]{64}$/.test(expectedManifestDigest)) {
   throw new Error('PRODUCTION_IMMUTABLE_MANIFEST_DIGEST must be an exact lowercase SHA-256 digest')
@@ -31,6 +32,11 @@ const fetchMarker = async pathname => {
 }
 
 const PHYSICS_PLAYGROUND_PATTERN = /Physics runtime running with (?:ball|rocket) selected\./
+const WEBGL_SOFTWARE_RENDERING_ARGS = [
+  '--use-gl=angle',
+  '--use-angle=swiftshader-webgl',
+  '--enable-unsafe-swiftshader',
+]
 
 const isCanvasReady = text => text.length > 200
   && !text.includes('Preparing canvas view...')
@@ -59,33 +65,67 @@ const waitForCanvas = async resolveBody => {
   throw new Error(`Canvas did not reach a stable ready state within 45 seconds.${detail}`, { cause: lastError })
 }
 
-const resolveHomeCanvasFrame = page => page.frames().find(candidate => {
+const resolveHomeCanvasFrames = page => page.frames().filter(candidate => {
     if (candidate === page.mainFrame()) return false
     try {
-      return new URL(candidate.url()).pathname.startsWith('/knowgrph')
+      const url = new URL(candidate.url())
+      return url.pathname.replace(/\/$/, '') === '/knowgrph'
+        && url.searchParams.get('kgPreview') === '1'
     } catch {
       return false
     }
-  }) || null
+  })
 
 const resolveHomeCanvasBody = async page => {
-  const frame = resolveHomeCanvasFrame(page)
+  const frame = resolveHomeCanvasFrames(page).at(-1)
   // The Home startup handoff may promote the selected canvas into the top-level surface.
   return frame ? frame.locator('body') : page.locator('body')
 }
 
 const readHomeSourceAuthority = async page => {
-  const target = resolveHomeCanvasFrame(page) || page
-  return target.evaluate(() => ({
-    prematureSceneMounts: window.__kgHomeSourceAuthorityEvidence || [],
-    sceneRootCount: document.querySelectorAll('[data-kg-xr-scene-media-drop="1"]').length,
-    documentLoadedRootCount: document.querySelectorAll(
-      '[data-kg-xr-scene-media-drop="1"][data-kg-xr-document-loaded="1"]',
-    ).length,
-    canvasCount: document.querySelectorAll('[data-kg-xr-scene-media-drop="1"] canvas').length,
-    emptyWorldCount: document.querySelectorAll('[data-kg-xr-empty-world="1"]').length,
-    gameStageCount: document.querySelectorAll('[data-kg-game-fps-stage]').length,
-  }))
+  const frames = resolveHomeCanvasFrames(page)
+  const targets = frames.length > 0 ? frames : [page]
+  const evidenceByTarget = await Promise.all(targets.map(async target => ({
+    url: target.url(),
+    ...await target.evaluate(() => ({
+      prematureSceneMounts: window.__kgHomeSourceAuthorityEvidence || [],
+      sceneRootCount: document.querySelectorAll('[data-kg-xr-scene-media-drop="1"]').length,
+      documentLoadedRootCount: document.querySelectorAll(
+        '[data-kg-xr-scene-media-drop="1"][data-kg-xr-document-loaded="1"]',
+      ).length,
+      canvasCount: document.querySelectorAll('[data-kg-xr-scene-media-drop="1"] canvas').length,
+      emptyWorldCount: document.querySelectorAll('[data-kg-xr-empty-world="1"]').length,
+      gameStageCount: document.querySelectorAll('[data-kg-game-fps-stage]').length,
+      viewportLabels: Array.from(document.querySelectorAll('[data-kg-canvas-viewport-root="1"]'))
+        .map(element => element.getAttribute('aria-label')),
+      heavyRuntimeIntents: Array.from(document.querySelectorAll('[data-kg-canvas-heavy-runtime-intent]'))
+        .map(element => element.getAttribute('data-kg-canvas-heavy-runtime-intent')),
+      bodyTextTail: String(document.body?.innerText || '').replace(/\s+/g, ' ').trim().slice(-500),
+    })),
+  })))
+  return evidenceByTarget.reduce((total, evidence) => ({
+    targetUrls: [...total.targetUrls, evidence.url],
+    prematureSceneMounts: [...total.prematureSceneMounts, ...evidence.prematureSceneMounts],
+    sceneRootCount: total.sceneRootCount + evidence.sceneRootCount,
+    documentLoadedRootCount: total.documentLoadedRootCount + evidence.documentLoadedRootCount,
+    canvasCount: total.canvasCount + evidence.canvasCount,
+    emptyWorldCount: total.emptyWorldCount + evidence.emptyWorldCount,
+    gameStageCount: total.gameStageCount + evidence.gameStageCount,
+    viewportLabels: [...total.viewportLabels, ...evidence.viewportLabels],
+    heavyRuntimeIntents: [...total.heavyRuntimeIntents, ...evidence.heavyRuntimeIntents],
+    bodyTextTail: evidence.bodyTextTail || total.bodyTextTail,
+  }), {
+    targetUrls: [],
+    prematureSceneMounts: [],
+    sceneRootCount: 0,
+    documentLoadedRootCount: 0,
+    canvasCount: 0,
+    emptyWorldCount: 0,
+    gameStageCount: 0,
+    viewportLabels: [],
+    heavyRuntimeIntents: [],
+    bodyTextTail: '',
+  })
 }
 
 const waitForHomeSourceAuthority = async page => {
@@ -120,7 +160,12 @@ await validateProductionRuntimeReadiness(markerAtApex.marker, {
   immutableManifestDigest: expectedManifestDigest,
 })
 
-const browser = await chromium.launch({ channel: 'chrome', headless: true })
+const browser = await chromium.launch({
+  channel: 'chrome',
+  headless: browserHeadless,
+  // Release proof runs only the trusted immutable candidate and needs WebGL on GPU-less CI hosts.
+  args: WEBGL_SOFTWARE_RENDERING_ARGS,
+})
 const context = await browser.newContext({ serviceWorkers: 'block' })
 await context.addInitScript(() => {
   const prematureSceneMounts = []
