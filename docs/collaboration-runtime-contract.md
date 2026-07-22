@@ -166,6 +166,7 @@ The automatic gate passes only with at least two distinct authenticated device p
 - Canonical mode requires every registered repository to be clean and exactly equal to its fetched canonical SHA. The port number never selects application or documentation source code.
 - The centralized Agentic Canvas OS docs entry resolves beside the registered Knowgrph main worktree, even when the command starts in a linked task worktree, and requires its `docs` root. Stale, ahead, divergent, dirty, or missing sources fail closed with the responsible source identity.
 - `npm run dev` and `npm run dev:apex` infer task mode when the application checkout is on a contract-valid `agent/<device>/<semantic-scope>` branch. `KG_DEV_SOURCE_MODE` remains an expert override for an explicit canonical or task check. Task mode permits divergence only for the source whose contract declares `task_divergence_allowed: true`; the shared Agentic Canvas OS docs revision remains clean and canonical.
+- Normal Vite startup binds `127.0.0.1` with strict port ownership. It must fail when another runtime already owns the requested port instead of opening a second IPv6 `localhost` listener that can route the same browser URL to stale sources or an unavailable local storage proxy.
 - Already-running servers retain the SHA they started with. Restart them after `origin/main` advances so the startup gate can validate the new canonical source.
 
 ## Checkout-Free Object Publication

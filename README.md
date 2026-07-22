@@ -411,7 +411,7 @@ Feature-specific planning belongs in canonical docs instead of the root README:
 
 ## E2E Agentic Video Generation
 
-Home **Agentic Video Canvas** and FloatingPanel Chat share one editable query contract:
+Home **Prompt Presets** and FloatingPanel **Prompt Presets** read the same source-backed catalog and selection runtime. Selecting a preset loads its editable prompt without submitting Chat or approving provider spend. Video Agent additionally exposes its route, provider, specification, and output controls:
 
 ```text
 /video-agent @provider.byteplus @text @image @audio @video #spec.low @script.md

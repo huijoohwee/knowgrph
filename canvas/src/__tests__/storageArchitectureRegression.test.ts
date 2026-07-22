@@ -501,3 +501,10 @@ export function testCanvasStrictPortDevBuildsLinkedPackagesBeforeVite() {
     throw new Error('expected dev:5173 to stay scoped to the strict-port Vite command')
   }
 }
+
+export function testCanvasDevUsesSingleLoopbackPortOwner() {
+  const viteConfigText = readFileSync(resolve(process.cwd(), 'vite.config.ts'), 'utf8')
+  if (!viteConfigText.includes("host: '127.0.0.1'") || !viteConfigText.includes('strictPort: true')) {
+    throw new Error('expected normal Vite startup to own one strict IPv4 loopback port and reject competing localhost servers')
+  }
+}
