@@ -13,11 +13,11 @@ stage_contract:
   order: ["research", "storyboard", "render", "edit", "publish", "checkout"]
 docs_dependency:
   repository: "https://github.com/huijoohwee/agentic-canvas-os.git"
-  ref: "0b3e0c901d3af43acbb18d086d21b9196cab83a1"
+  ref: "a1da4aacab8d44efe8214c4004a0476ffc711e2e"
   root_env: "KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT"
   default_relative_root: "../agentic-canvas-os/docs"
-  required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "CANONICAL-LIFECYCLE.md", "RUNTIME-PROOF.md", "LIVE-AGENT-PROVIDER-PROOF.md", "PROGRESSIVE-AGENTS.md", "AGENT-TOOLKIT.md", "SKILLS.md", "schemas/production-runtime-readiness.v2.schema.json"]
-  proof_tokens: ["/runtime-ready.check", "/session.start", "/release.complete", "/knowgrph.probe-tree", "/implementation.run", "/ecs.session-start", "/ecs.world-tick", "/ecs.decision-persist", "/agent.toolkit", "/camera.select", "/xr.stage", "/xr.place", "/xr.transform", "/xr.label", "/xr.remove", "/xr.physics", "/xr.present", "#runtime-ready", "#multi-agent-collaboration", "#knowgrph.probe-tree", "#managed-implementation-run", "#agentic-ecs", "#agent-toolkit", "#transform", "#world", "#body", "#impulse", "#controller", "#reticle", "@operator", "@working-directory", "@work-item", "@implementation-run", "@source.frontmatter", "@runtime-proof", "@knowgrph.probe-tree", "@mcp-gateway", "@ecs-session", "@agent-toolkit-observer", "@scene", "/sandbox.policy.validate", "#agent-sandbox-policy", "@sandbox-policy"]
+  required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "CANONICAL-LIFECYCLE.md", "RUNTIME-PROOF.md", "LIVE-AGENT-PROVIDER-PROOF.md", "PROGRESSIVE-AGENTS.md", "AGENT-TOOLKIT.md", "APPLICATION-COMPOSITION.md", "SKILLS.md", "schemas/production-runtime-readiness.v2.schema.json"]
+  proof_tokens: ["/runtime-ready.check", "/session.start", "/release.complete", "/knowgrph.probe-tree", "/implementation.run", "/application.compose", "/ecs.session-start", "/ecs.world-tick", "/ecs.decision-persist", "/agent.toolkit", "/camera.select", "/xr.stage", "/xr.place", "/xr.transform", "/xr.label", "/xr.remove", "/xr.physics", "/xr.present", "#runtime-ready", "#multi-agent-collaboration", "#knowgrph.probe-tree", "#managed-implementation-run", "#application-composition", "#agentic-ecs", "#agent-toolkit", "#transform", "#world", "#body", "#impulse", "#controller", "#reticle", "@operator", "@working-directory", "@work-item", "@implementation-run", "@application-manifest", "@component-catalog", "@integration-profile", "@source.frontmatter", "@runtime-proof", "@knowgrph.probe-tree", "@mcp-gateway", "@ecs-session", "@agent-toolkit-observer", "@scene", "/sandbox.policy.validate", "#agent-sandbox-policy", "@sandbox-policy"]
 local_proof:
   provider_mode: "mock"
   network_allowed: false
@@ -49,6 +49,8 @@ The pinned `schemas/production-runtime-readiness.v2.schema.json` is the public r
 The apex Home owner ignores non-routing release, trace, canvas-background, and editor-visibility parameters, including `kgReleaseProof`, `kgTrace`, the `kgCanvas*` render selectors, and a shared-document `kgPath`. These parameters may configure or attest Home but cannot silently transfer route ownership to the workspace. A direct `/knowgrph/` alias or a document-preview route remains workspace-owned and suppresses Home.
 
 The pinned `AGENT-TOOLKIT.md` and its `/agent.toolkit #agent-toolkit @agent-toolkit-observer` grammar expose the native Toolkit boundary without copying its implementation. Agentic Canvas OS remains the sole execution, instrumentation, evaluation, and reviewed-learning owner; Knowgrph performs read-only catalog resolution and adds no request-time service or external Toolkit dependency.
+
+The pinned `APPLICATION-COMPOSITION.md` and its `/application.compose #application-composition @application-manifest @component-catalog @integration-profile @runtime-proof` grammar govern provider-neutral composition. Knowgrph implements the independent local catalog, mode-bound immutable planner, and bounded sequencer through `knowgrph.application.catalog`, `knowgrph.application.plan`, and `knowgrph.application.execute`. Catalog and plan make zero model or external calls. Execute replans and digest-fences the exact source, revisions, schemas, capabilities, owners, and adapters before delegating each step; it never accepts a caller adapter, provider, command, endpoint, credential, transport, approval array, or raw tool result. This integration copies no external implementation and adds no request-time Agentic Canvas OS or Symphony dependency.
 
 ## Promotion Rule
 

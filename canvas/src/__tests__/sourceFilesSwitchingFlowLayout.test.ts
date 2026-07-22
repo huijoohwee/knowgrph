@@ -17,6 +17,7 @@ import {
 } from '@/lib/markdown-workspace-runtime/useMarkdownWorkspaceSelection'
 import { readWorkspaceActiveDocumentResolvedText } from '@/features/source-files/sourceFilesRuntimeActive'
 import { shouldProactivelyReapplyActiveWorkspaceMarkdownDocument } from '@/features/source-files/sourceFilesRuntimeMaterialization'
+import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-files/composedSourceSelection'
 
 export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresInteractionPositions() {
   const ingestText = readFileSync(resolve(process.cwd(), 'src/features/source-files/sourceFilesIngestIntegration.ts'), 'utf8')
@@ -29,6 +30,7 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
   const topologyText = readFileSync(resolve(process.cwd(), 'src/components/FlowCanvas/flowLayoutTopologyKey.ts'), 'utf8')
   const activeGraphDataText = readFileSync(resolve(process.cwd(), 'src/hooks/active-graph-data/useActiveGraphData.impl.ts'), 'utf8')
   const runtimeMaterializationText = readFileSync(resolve(process.cwd(), 'src/features/source-files/sourceFilesRuntimeMaterialization.ts'), 'utf8')
+  const canvasViewportText = readFileSync(resolve(process.cwd(), 'src/components/CanvasViewport.tsx'), 'utf8')
 
   if (!ingestText.includes('autoEnableFrontmatter: false') || !ingestText.includes('applyViewPreset: opts?.applyToGraph === true')) {
     throw new Error('expected Source Files import activation to apply YAML/frontmatter presets only when graph apply is explicit')
@@ -156,6 +158,10 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
   if (viewShellText.includes("React.startTransition(() => {\n        setSelectionSource('editor')")) {
     throw new Error('expected Source Files row selection to update the active file synchronously under renderer load')
   }
+  if (!canvasViewportText.includes("activePathAuthority: documentSwitchPending ? 'workspace-selection' : 'markdown-document'")
+    || !canvasViewportText.includes('(!documentSwitchPending && isFrontmatterFlowGraph(activeGraphData))')) {
+    throw new Error('expected a pending Source Files switch to exclude the previous document graph from Canvas surface authority')
+  }
   if (!topologyText.includes("buildScopedGraphSemanticKey('flow-layout-topology'")) {
     throw new Error('expected Flow layout topology identity to reuse the shared semantic-key helper')
   }
@@ -257,6 +263,35 @@ export function testSourceFilesFileSelectionPromotesActiveCanvasPath() {
   })
   if (folderSelection !== null) {
     throw new Error('expected folder selection to preserve folder contract active path handling')
+  }
+}
+
+export function testSourceFilesPendingSwitchUsesExplorerSourceAuthority() {
+  const viewportText = readFileSync(resolve(process.cwd(), 'src/components/CanvasViewport.tsx'), 'utf8')
+  if (!viewportText.includes('const workspaceStoryboardSurfaceActive = !documentSwitchPending')
+    || !viewportText.includes('const documentSwitchBlocksCanvas = documentSwitchPending')) {
+    throw new Error('expected every pending Source Files handoff to block stale storyboard and canvas runtime mounts')
+  }
+  const sourceFiles = [
+    { id: 'a', name: 'notes/a.md', enabled: true, source: { kind: 'local', path: '/notes/a.md' } },
+    { id: 'b', name: 'notes/b.md', enabled: true, source: { kind: 'local', path: '/notes/b.md' } },
+  ] as never
+  const transitioning = resolvePreferredEnabledComposedSourceFile({
+    sourceFiles,
+    markdownDocumentName: 'notes/a.md',
+    explorerActivePath: '/notes/b.md',
+    activePathAuthority: 'workspace-selection',
+  })
+  if (transitioning?.id !== 'b') {
+    throw new Error('expected a pending Source Files switch to project only the Explorer-selected source')
+  }
+  const settled = resolvePreferredEnabledComposedSourceFile({
+    sourceFiles,
+    markdownDocumentName: 'notes/a.md',
+    explorerActivePath: '/notes/b.md',
+  })
+  if (settled?.id !== 'a') {
+    throw new Error('expected normal Canvas source resolution to preserve the applied Markdown document authority')
   }
 }
 

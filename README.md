@@ -149,7 +149,7 @@ The template's local runtime lane is source → ideation → invocation → Stor
 
 | Surface | How an agent uses it |
 | --- | --- |
-| Local stdio MCP (`mcp/server.js`) | Starts from an external MCP client and exposes Knowgrph-owned local tools: Source Files search/fetch, UI launch, pipelines, memory, probe tree, showrunner, OS status, SuperAgent, video remix, browser bridge, HTML video, annotation, and vdeoxpln inspection. |
+| Local stdio MCP (`mcp/server.js`) | Starts from an external MCP client and exposes Knowgrph-owned local tools: Source Files search/fetch, UI launch, pipelines, memory, probe tree, showrunner, OS status, SuperAgent, video remix, browser bridge, HTML video, annotation, exact agent/LLM application catalog-plan-execute composition, and vdeoxpln inspection. |
 | MainPanel MCP | Browser-local readiness and non-secret setup view for Knowgrph-owned and external MCP tool servers. |
 | FloatingPanel Chat | In-canvas assistant with workspace, selection, invocation grammar, KGC generation, and source-aware context. |
 | 2D Renderer: Storyboard | Projects frontmatter-owned source, ideation, invocation, runtime, review, and publish lanes into Cards, Widgets, Rich Media Panels, and timeline views. |
@@ -189,6 +189,8 @@ For the canonical webpage embed boundary, see [`docs/documents/knowgrph-embeddab
 | Local stdio MCP | `mcp/server.js` | Repo-local MCP surface for hosts that want the same grammar tool and the richer local tool catalog without the remote control plane | Shipped |
 
 An MCP-compatible LLM can install the public Knowgrph server for discovery and retrieval, then route grammar invocation to the control-plane MCP surface when it needs live `/`, `#`, and `@` resolution against the current Agentic Canvas OS documentation contract.
+
+For local provider-neutral application building, invoke `/application.compose #application-composition @application-manifest @component-catalog @integration-profile @runtime-proof`. The local stdio tools `knowgrph.application.catalog`, `knowgrph.application.plan`, and `knowgrph.application.execute` expose exact-version components, immutable mode-bound plans, and bounded owner-delegated execution; see [`docs/agent-application-composition.md`](docs/agent-application-composition.md).
 
 Baseline runs are provable **offline with deterministic mock providers**. Real providers activate only when host-owned keys are wired and the matching gate is approved.
 

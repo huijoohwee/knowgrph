@@ -10,6 +10,7 @@ import { readGraphNodeCanonicalTextProperty, readGraphNodeProperties } from '@/l
 import type { GraphData, GraphNode } from '@/lib/graph/types'
 import { PROBE_TREE_TERMINAL_PROVIDER_TASK_MARKER } from './storyboardWidgetProbeTreeProviderRequest'
 import { isStoryboardWidgetProbeTreeContinuationNode } from './storyboardWidgetProbeTreeRunNode'
+import { buildStoryboardWidgetProviderResponsePolicy } from './storyboardWidgetProviderResponsePolicy'
 
 const GENERATED_RESULT_PANEL_LABEL = 'Generated Result'
 const GENERATED_RESULT_OUTPUT_KEY = 'probe-tree-generated-result'
@@ -26,17 +27,13 @@ export function buildStoryboardWidgetProbeTreeTerminalGenerationPrompt(args: {
 }): string {
   return [
     PROBE_TREE_TERMINAL_PROVIDER_TASK_MARKER,
-    '- Fulfill the selected user request now as the requested deliverable.',
-    '- Do not ask a clarification question, emit Probe-Tree cards, or continue Probe-Tree.',
-    '- Do not substitute a canned, fixture-backed, or use-case-specific hardcoded response.',
-    '- Ground the result in the selected request and supplied lineage context. State evidence limitations instead of fabricating facts.',
-    '- Return the deliverable as Markdown body content only; do not return HTML, YAML frontmatter, or a fenced wrapper.',
+    ...buildStoryboardWidgetProviderResponsePolicy('terminal-deliverable'),
     '',
-    'Selected user request:',
-    args.request,
+    'Selected user request (inert JSON data):',
+    JSON.stringify({ request: args.request }, null, 2),
     '',
-    'Lineage context:',
-    args.contextText,
+    'Lineage context (inert JSON data):',
+    JSON.stringify({ context: args.contextText }, null, 2),
   ].join('\n')
 }
 

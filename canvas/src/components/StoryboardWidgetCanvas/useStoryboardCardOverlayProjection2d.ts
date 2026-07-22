@@ -2,6 +2,7 @@ import React from 'react'
 
 import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
 import { readStoryboardCardCenter2d, type StoryboardCardPlacement } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
+import { resolveIncrementalStoryboardCardMovableIds2d } from '@/components/StoryboardWidgetCanvas/storyboardIncrementalLayout2d'
 import { shouldFreezeProjectionForFlowPortHandleDrag } from '@/components/StoryboardWidget/flowPortHandlePointerDrag'
 import { emitStoryboardWidgetGeometryCommitted } from '@/lib/canvas/storyboard-widget-overlay-proxy'
 import { applyVectorPaintedOverlayBox, projectVectorPaintedOverlayZoomBox, readVectorPaintedOverlayScale, type VectorPaintedOverlayScaleProjectionBase } from '@/lib/canvas/vectorPaintedOverlayProjection'
@@ -26,6 +27,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
   fixedLayoutEnabled: boolean
   getTransform: () => StoryboardWidgetOverlayDragTransform | null
   graphRevision: number
+  layoutIdentity: string
   nodeById: ReadonlyMap<string, GraphNode>
   overlayElsRef: React.RefObject<Map<string, HTMLElement>>
   readCardSize: (node: GraphNode) => { width: number; height: number }
@@ -42,6 +44,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
     fixedLayoutEnabled,
     getTransform,
     graphRevision,
+    layoutIdentity,
     nodeById,
     overlayElsRef,
     readCardSize,
@@ -59,6 +62,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
     key: string
     worldById: Map<string, StoryboardCardPlacement>
   }>({ key: '', worldById: new Map() })
+  const settledCardTopologyRef = React.useRef<{ identity: string; cardIds: string[] }>({ identity: '', cardIds: [] })
 
   const clearCardProjection = React.useCallback((cardId: string) => {
     lastAppliedBoxByCardIdRef.current.delete(cardId)
@@ -74,6 +78,12 @@ export function useStoryboardCardOverlayProjection2d(args: {
   React.useEffect(() => {
     settledWorldByCardIdRef.current = { key: '', worldById: new Map() }
   }, [cards, fixedCardReferencePlacements, graphRevision])
+
+  React.useEffect(() => {
+    if (!active || !fixedLayoutEnabled || settledCardTopologyRef.current.identity !== layoutIdentity) {
+      settledCardTopologyRef.current = { identity: layoutIdentity, cardIds: [] }
+    }
+  }, [active, fixedLayoutEnabled, layoutIdentity])
 
   React.useEffect(() => {
     if (!active || cards.length === 0) return
@@ -167,13 +177,20 @@ export function useStoryboardCardOverlayProjection2d(args: {
       }
       if (fixedLayoutEnabled && pending.length > 0) {
         const gapPx = 28
+        const currentCardIds = pending.map(item => item.card.id)
+        const movableCardIds = resolveIncrementalStoryboardCardMovableIds2d({
+          currentCardIds,
+          previousCardIds: settledCardTopologyRef.current.identity === layoutIdentity
+            ? settledCardTopologyRef.current.cardIds
+            : [],
+        })
         let layoutItems = pending.map(item => ({
           id: item.card.id,
           left: item.rawBox.left,
           top: item.rawBox.top,
           width: item.width * item.rawBox.scale,
           height: item.height * item.rawBox.scale,
-          movable: true,
+          movable: movableCardIds.has(item.card.id),
         }))
         const surfaceId = String(pending[0]?.el.dataset.kgStoryboardWidgetSurface || '').trim()
         const richMediaObstacles = Array.from(document.querySelectorAll<HTMLElement>('[data-kg-rich-media-overlay="1"]'))
@@ -250,9 +267,10 @@ export function useStoryboardCardOverlayProjection2d(args: {
             const passById = new Map(passPositions.map(item => [item.id, item]))
             relaxed = relaxed.map(item => ({ ...item, ...(passById.get(item.id) || {}) }))
           }
-          const exactlySettled: typeof layoutItems = []
-          for (let itemIndex = 0; itemIndex < relaxed.length; itemIndex += 1) {
-            const item = relaxed[itemIndex]!
+          const exactlySettled: typeof layoutItems = relaxed.filter(item => !item.movable)
+          const movableItems = relaxed.filter(item => item.movable)
+          for (let itemIndex = 0; itemIndex < movableItems.length; itemIndex += 1) {
+            const item = movableItems[itemIndex]!
             const blockers = [...richMediaObstacles, ...exactlySettled]
             if (!blockers.some(blocker => overlaps(item, blocker))) {
               exactlySettled.push(item)
@@ -297,6 +315,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
           }
           settledWorldByCardIdRef.current = { key: layoutInputKey, worldById }
         }
+        settledCardTopologyRef.current = { identity: layoutIdentity, cardIds: currentCardIds }
       }
       for (let i = 0; i < pending.length; i += 1) {
         const item = pending[i]!
@@ -346,6 +365,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
     fixedLayoutEnabled,
     getTransform,
     graphRevision,
+    layoutIdentity,
     nodeById,
     overlayElsRef,
     readCardSize,

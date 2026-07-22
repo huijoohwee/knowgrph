@@ -288,6 +288,22 @@ export async function testKnowgrphLocalMcpToolContractStaysSharedAndStable() {
     throw new Error(`expected SuperAgent providerMode to document BytePlus ModelArk placeholder, got ${JSON.stringify(providerMode)}`)
   }
 
+  const applicationCatalog = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.applicationCatalog)
+  const applicationPlan = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.applicationPlan)
+  const applicationExecute = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.applicationExecute)
+  if (!applicationCatalog || !applicationPlan || !applicationExecute) throw new Error('expected all three exact application composition tools')
+  assertAnnotations(applicationCatalog, { readOnlyHint: true, destructiveHint: false, openWorldHint: false, idempotentHint: true })
+  assertAnnotations(applicationPlan, { readOnlyHint: true, destructiveHint: false, openWorldHint: false, idempotentHint: true })
+  assertAnnotations(applicationExecute, { readOnlyHint: false, destructiveHint: true, openWorldHint: true, idempotentHint: true })
+  if (!applicationPlan.inputSchema.properties?.mode || !applicationExecute.inputSchema.properties?.expectedPlanDigest) {
+    throw new Error('expected application plan/execute schemas to bind mode and exact plan digest')
+  }
+  for (const tool of [applicationCatalog, applicationPlan, applicationExecute]) {
+    if (!String((tool.inputSchema as { $schema?: string }).$schema || '').includes('2020-12') || !tool.outputSchema || !('oneOf' in tool.outputSchema)) {
+      throw new Error(`expected strict Draft 2020-12 application schemas for ${tool.name}`)
+    }
+  }
+
   const vdeoxplnTool = tools.find(tool => tool.name === contract.KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList)
   if (!vdeoxplnTool) {
     throw new Error('expected knowgrph.vdeoxpln.list tool definition')

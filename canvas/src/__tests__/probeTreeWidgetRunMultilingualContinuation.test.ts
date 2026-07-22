@@ -114,13 +114,13 @@ export async function testProbeTreeWidgetRunFollowsUserAuthoredContinuationLangu
   })
   const cards = (result?.graphData.nodes || []).filter(node => node.properties.parentNodeId === 'multilingual-child')
   const serializedCards = JSON.stringify(cards)
-  const initialActiveInputLine = prompts[0]?.split('\n').find(line => line.startsWith('Active selected input:')) || ''
+  const activeInputProjection = `"activeSelectedInput": "${userAuthoredOther}"`
   if (
     prompts.length !== 2
-    || initialActiveInputLine !== `Active selected input: ${userAuthoredOther}`
-    || initialActiveInputLine.includes(selectedEnglishOption)
-    || !prompts[0]?.includes('dominant natural language and script of the Active selected input')
-    || !prompts[1]?.includes('Preserve the dominant natural language and script of the Active selected input during repair')
+    || !prompts[0]?.includes(activeInputProjection)
+    || prompts[0]?.includes(`"activeSelectedInput": "${selectedEnglishOption}`)
+    || !prompts[0]?.includes('dominant natural language and script of the active selected input')
+    || !prompts[1]?.includes('Preserve the dominant natural language and script of the active selected input during repair')
     || result?.providerAttempts !== 2
     || !result.providerAccepted
     || result.responseSource !== 'provider'
