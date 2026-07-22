@@ -13,11 +13,11 @@ stage_contract:
   order: ["research", "storyboard", "render", "edit", "publish", "checkout"]
 docs_dependency:
   repository: "https://github.com/huijoohwee/agentic-canvas-os.git"
-  ref: "dfb881f51eb2bc4d65cb2a4bfe7e1a56abe0b80d"
+  ref: "0b3e0c901d3af43acbb18d086d21b9196cab83a1"
   root_env: "KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT"
   default_relative_root: "../agentic-canvas-os/docs"
   required_files: ["FACTS.md", "DICTIONARY-COMMAND.md", "DICTIONARY-SEMANTIC.md", "DICTIONARY-BINDING.md", "START-WORKFLOW.md", "RELEASE-WORKFLOW.md", "CANONICAL-LIFECYCLE.md", "RUNTIME-PROOF.md", "LIVE-AGENT-PROVIDER-PROOF.md", "PROGRESSIVE-AGENTS.md", "AGENT-TOOLKIT.md", "SKILLS.md", "schemas/production-runtime-readiness.v2.schema.json"]
-  proof_tokens: ["/runtime-ready.check", "/session.start", "/release.complete", "/knowgrph.probe-tree", "/ecs.session-start", "/ecs.world-tick", "/ecs.decision-persist", "/agent.toolkit", "/camera.select", "/xr.stage", "/xr.place", "/xr.transform", "/xr.label", "/xr.remove", "/xr.physics", "/xr.present", "#runtime-ready", "#multi-agent-collaboration", "#knowgrph.probe-tree", "#agentic-ecs", "#agent-toolkit", "#transform", "#world", "#body", "#impulse", "#controller", "#reticle", "@operator", "@working-directory", "@source.frontmatter", "@runtime-proof", "@knowgrph.probe-tree", "@mcp-gateway", "@ecs-session", "@agent-toolkit-observer", "@scene", "/sandbox.policy.validate", "#agent-sandbox-policy", "@sandbox-policy"]
+  proof_tokens: ["/runtime-ready.check", "/session.start", "/release.complete", "/knowgrph.probe-tree", "/implementation.run", "/ecs.session-start", "/ecs.world-tick", "/ecs.decision-persist", "/agent.toolkit", "/camera.select", "/xr.stage", "/xr.place", "/xr.transform", "/xr.label", "/xr.remove", "/xr.physics", "/xr.present", "#runtime-ready", "#multi-agent-collaboration", "#knowgrph.probe-tree", "#managed-implementation-run", "#agentic-ecs", "#agent-toolkit", "#transform", "#world", "#body", "#impulse", "#controller", "#reticle", "@operator", "@working-directory", "@work-item", "@implementation-run", "@source.frontmatter", "@runtime-proof", "@knowgrph.probe-tree", "@mcp-gateway", "@ecs-session", "@agent-toolkit-observer", "@scene", "/sandbox.policy.validate", "#agent-sandbox-policy", "@sandbox-policy"]
 local_proof:
   provider_mode: "mock"
   network_allowed: false

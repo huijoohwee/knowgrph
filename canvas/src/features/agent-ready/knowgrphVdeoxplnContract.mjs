@@ -155,12 +155,12 @@ const RAW_VDEOXPLN = Object.freeze([
   {
     id: KNOWGRPH_VDEOXPLN_IDS.localMcp,
     title: "Knowgrph Local MCP",
-    purpose: "Expose Knowgrph-owned local Source Files, Agentic Canvas OS docs invocation, UI, pipeline, SuperAgent, video-remix, browser bridge, SEA-LION, HTML video, visual annotation, memory, probe-tree, showrunner, OS status, and vdeoxpln tools through the stdio MCP server.",
+    purpose: "Expose Knowgrph-owned local Source Files, Agentic Canvas OS docs invocation, managed implementation runs, UI, pipeline, SuperAgent, video-remix, browser bridge, SEA-LION, HTML video, visual annotation, memory, probe-tree, showrunner, OS status, and vdeoxpln tools through the stdio MCP server.",
     scope: "local-stdio",
     mutation: "local-confirmed",
-    triggers: ["local mcp", "agentic canvas os docs", "/", "#", "@", "launch canvas", "run pipeline", "graphrag", "superagent", "video remix", "browser api", "sealion sidecar", "html video", "visual annotation", "memory layer", "probe tree", "showrunner", "os status", "list vdeoxpln"],
+    triggers: ["local mcp", "agentic canvas os docs", "managed implementation run", "/implementation.run", "#managed-implementation-run", "@work-item", "@implementation-run", "/", "#", "@", "launch canvas", "run pipeline", "graphrag", "superagent", "video remix", "browser api", "sealion sidecar", "html video", "visual annotation", "memory layer", "probe tree", "showrunner", "os status", "list vdeoxpln"],
     inputs: ["local root", "agentic canvas os invocation token", "workspace file", "graph data", "pipeline config", "reference URL", "source cards", "browser API runtime", "Southeast Asian language text", "render spec", "annotation asset", "memory scope", "probe branch", "creative brief"],
-    outputs: ["local tool result", "Agentic Canvas OS docs invocation result", "pipeline artifact", "superagent report", "video remix run manifest", "SEA-LION sidecar result", "render manifest", "annotation result", "memory result", "probe checkpoint", "showrunner artifact", "OS status snapshot", "vdeoxpln registry snapshot"],
+    outputs: ["local tool result", "Agentic Canvas OS docs invocation result", "durable implementation-run state", "review-ready pull-request handoff", "pipeline artifact", "superagent report", "video remix run manifest", "SEA-LION sidecar result", "render manifest", "annotation result", "memory result", "probe checkpoint", "showrunner artifact", "OS status snapshot", "vdeoxpln registry snapshot"],
     owners: [
       "mcp/local-tool-contract.js",
       "mcp/server.js",
