@@ -133,9 +133,9 @@ export const createResilientWorkspaceFs = (inner: WorkspaceFs): WorkspaceFs => {
         }
         return readShadowFileText(p)
       }),
-    writeFileText: (path: WorkspacePath, text: string) =>
+    writeFileText: (path: WorkspacePath, text: string, options) =>
       run('writeFileText', async fs => {
-        await fs.writeFileText(path, text)
+        await fs.writeFileText(path, text, options)
         const p = normalizeWorkspacePath(path)
         upsertShadowEntry({
           path: p,
@@ -173,9 +173,9 @@ export const createResilientWorkspaceFs = (inner: WorkspaceFs): WorkspaceFs => {
         })
         return path
       }),
-    deleteEntry: (path: WorkspacePath) =>
+    deleteEntry: (path: WorkspacePath, options) =>
       run('deleteEntry', async fs => {
-        await fs.deleteEntry(path)
+        await fs.deleteEntry(path, options)
         deleteShadowEntry(path)
       }),
   }

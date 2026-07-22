@@ -18,7 +18,16 @@ const requiredPaths = [
   'canvas/src/features/game-fps/GameModeFloatingPanelView.tsx',
   'canvas/src/features/game-fps/GameFpsMissionStage.tsx',
   'canvas/src/features/game-fps/GameFpsHud.tsx',
+  'canvas/scripts/source-authority-test-bootstrap.mjs',
+  'canvas/src/features/canvas/CanvasDocDeepLinkRuntime.tsx',
+  'canvas/src/features/canvas/CanvasSourceAuthorityBoundary.tsx',
   'canvas/src/features/canvas/CanvasStartupRuntimes.tsx',
+  'canvas/src/features/source-files/sourceFilesBootstrapReadiness.ts',
+  'canvas/src/features/source-files/SourceFilesPersistenceBootstrap.tsx',
+  'canvas/src/features/three/XrMotionReferenceRuntimeBridge.tsx',
+  'canvas/src/features/three/XrGraphStage.tsx',
+  'canvas/src/components/CanvasViewport.tsx',
+  'canvas/src/features/workspace-fs/workspaceFsMutationTransaction.ts',
   'canvas/src/features/workspace-fs/workspaceRunReadyDemos.ts',
   'canvas/src/features/three/xrCanonicalSceneSpatialSource.ts',
   'canvas/src/features/three/xrSceneSurfaceRuntime.ts',
@@ -360,6 +369,70 @@ if (agenticCanvasOsDocsRoot) {
 }
 
 const threeGraph = await text('canvas/src/lib/three/ThreeGraph.impl.tsx')
+const gameSourceTestCommand = String(canvasPackage.scripts?.['test:smoke:game-fps:source'] || '')
+if (!gameSourceTestCommand.includes('--import ./scripts/source-authority-test-bootstrap.mjs')
+  || !gameSourceTestCommand.includes('--test-concurrency=1')) {
+  throw new Error('Game Mode source validation must preload settled source authority and run its mutable runtime serially')
+}
+const sourceAuthorityLifecycle = await text('canvas/src/features/source-files/sourceFilesBootstrapReadiness.ts')
+const sourceAuthorityBootstrap = await text('canvas/src/features/source-files/SourceFilesPersistenceBootstrap.tsx')
+const canvasStartupRuntimes = await text('canvas/src/features/canvas/CanvasStartupRuntimes.tsx')
+const canvasSourceAuthorityBoundary = await text('canvas/src/features/canvas/CanvasSourceAuthorityBoundary.tsx')
+const appSource = await text('canvas/src/App.tsx')
+const xrRuntimeBridge = await text('canvas/src/features/three/XrMotionReferenceRuntimeBridge.tsx')
+const xrGraphStage = await text('canvas/src/features/three/XrGraphStage.tsx')
+const canvasViewport = await text('canvas/src/components/CanvasViewport.tsx')
+const deepLinkRuntime = await text('canvas/src/features/canvas/CanvasDocDeepLinkRuntime.tsx')
+const persistedWorkspaceFs = await text('canvas/src/features/workspace-fs/workspaceFsPersisted.ts')
+const sourceAuthorityLifecycleMarkers = [
+  "export type SourceFilesBootstrapPhase = 'resolving' | 'ready' | 'error'",
+  "type: 'begin-document-intent'",
+  "type: 'complete-document-intent'",
+  "type: 'fail-document-intent'",
+  "if (current.documentIntent?.key !== normalizedKey) return current",
+  "state.basePhase === 'error'",
+]
+const missingSourceAuthorityLifecycleMarkers = sourceAuthorityLifecycleMarkers.filter(
+  marker => !sourceAuthorityLifecycle.includes(marker),
+)
+if (missingSourceAuthorityLifecycleMarkers.length > 0
+  || !sourceAuthorityBootstrap.includes('beginSourceFilesDocumentIntent(documentIntentKey)')
+  || !sourceAuthorityBootstrap.includes('completeSourceFilesBootstrap()')
+  || !sourceAuthorityBootstrap.includes('failSourceFilesBootstrap(error)')) {
+  throw new Error(`XR source authority must retain one fail-closed base plus keyed document transaction; missing ${missingSourceAuthorityLifecycleMarkers.join(', ') || 'bootstrap terminal ownership'}`)
+}
+if (!canvasViewport.includes("const sourceFilesBootstrapReady = sourceFilesBootstrap.phase === 'ready'")
+  || !canvasViewport.includes('data-kg-source-authority-phase={sourceFilesBootstrap.phase}')
+  || !canvasViewport.includes('sourceFilesBootstrapReady && !documentSwitchOwnsViewport')
+  || !canvasViewport.includes('sourceFilesBootstrapReady && xrPhysicsRunReadyDemo')
+  || !canvasViewport.includes('const gameFpsHudVisible = gameFpsActive && sourceFilesBootstrapReady')
+  || !canvasStartupRuntimes.includes('{sourceFilesBootstrapReady ? <XrPhysicsRunReadyDemoRuntime /> : null}')
+  || !xrRuntimeBridge.includes('if (!sourceFilesBootstrapReady) return')
+  || (xrRuntimeBridge.match(/if \(!readSourceFilesBootstrapReady\(\)\) return false/g) || []).length !== 2
+  || !canvasSourceAuthorityBoundary.includes('<SourceFilesDocumentIntentProvider intentKey={intentKey}>')
+  || !canvasSourceAuthorityBoundary.includes('resolveCanvasSourceAuthorityIntent')
+  || !canvasSourceAuthorityBoundary.includes('pathname: String(location.pathname')
+  || !canvasSourceAuthorityBoundary.includes('failSourceFilesDocumentIntent')
+  || !appSource.includes('<CanvasSourceAuthorityBoundary>')
+  || !appSource.includes('<XrMotionReferenceRuntimeBridge />')) {
+  throw new Error('Three, native XR, Game Mode, HUD, and hydration owners must remain fenced behind settled source authority')
+}
+const xrSceneAuthority = threeGraph.match(/const xrSceneAuthority = mode !== 'xr'[\s\S]*?const xrStandaloneFit/)?.[0] || ''
+if (!/xrPhysicsRunReadyDemo\s*\? 'native-controller'\s*: hasGraph\s*\? 'motion-reference'/.test(xrSceneAuthority)
+  || !xrSceneAuthority.includes("? 'empty-world'")
+  || !threeGraph.includes("const hasXrEmptyWorld = mode === 'xr' && !xrDocumentLoaded && !xrPhysicsRunReadyDemo")
+  || (threeGraph.match(/data-kg-xr-scene-authority=\{xrSceneAuthority\}/g) || []).length !== 2) {
+  throw new Error('canonical XR Physics must first mount native-controller; authored motion-reference and settled empty-world must remain disjoint')
+}
+if (!xrGraphStage.includes('{nativeControllerOwnsStage ? (')
+  || xrGraphStage.includes('visible={nativeControllerOwnsStage}')
+  || !deepLinkRuntime.includes('createWorkspaceFsMutationTransaction(fs)')
+  || !deepLinkRuntime.includes('cancelIntent: () => {')
+  || !deepLinkRuntime.includes('mirrorToHost: false')
+  || !deepLinkRuntime.includes('...removedSourcePaths')
+  || !persistedWorkspaceFs.includes('options?.mirrorToHost !== false && isWorkspaceDocsBackedMirrorPath(p)')) {
+  throw new Error('canonical XR source activation must unmount hidden duplicate stages and roll back stale local-only imports across every persisted source owner')
+}
 const stageMounts = threeGraph.match(/<GameFpsMissionStageLazy\b/g)?.length ?? 0
 if (stageMounts !== 1) throw new Error(`expected one Game FPS stage mount, received ${stageMounts}`)
 const positiveGameConditionedMounts = [...threeGraph.matchAll(

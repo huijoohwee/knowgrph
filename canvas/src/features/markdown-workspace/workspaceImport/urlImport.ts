@@ -35,6 +35,7 @@ export async function importWorkspaceUrl(args: {
   viewHint?: 'markdown' | 'json' | 'html'
   preferDirectFetch?: boolean
   fetchUrlContent?: typeof fetchWorkspaceUrlContent
+  mirrorToHost?: boolean
 }): Promise<WorkspaceImportResult> {
   const rawUrl = String(args.urlRaw || '').trim()
   if (!rawUrl) return { createdPaths: [], sources: [], skipped: [], failed: [] }
@@ -127,6 +128,7 @@ export async function importWorkspaceUrl(args: {
         url: sourceUrl,
         importedName: fetched.name,
         importedText: fetched.text,
+        mirrorToHost: args.mirrorToHost,
       })
   const webpageUrlArtifactPath = webpageUrlArtifact?.exportMarkdownPath || null
   const createdPath = sharePrimaryPath
@@ -153,6 +155,7 @@ export async function importWorkspaceUrl(args: {
     importedThinkingText: fetched.thinkingText,
     ...(fetched.thinkingTextTask ? { importedThinkingTextTask: fetched.thinkingTextTask } : {}),
     importedWorkspacePath: normalized,
+    mirrorToHost: args.mirrorToHost,
   })
   const sources: WorkspaceImportResult['sources'] = [{ path: normalized, source: { kind: 'url', url: sourceUrl } }]
   const jsonSourceDocuments: NonNullable<WorkspaceImportResult['jsonSourceDocuments']> = []

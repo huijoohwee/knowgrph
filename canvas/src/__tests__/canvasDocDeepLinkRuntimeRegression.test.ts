@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { findComposedSourceFileByPath } from '@/features/source-files/composedSourceSelection'
 
 const readUtf8 = (absPath: string): string => fs.readFileSync(absPath, { encoding: 'utf8' })
 
@@ -9,31 +10,40 @@ export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () =>
   const helperText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'canvas', 'canvasDocDeepLink.ts'))
   const shareTokenText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'canvas', 'canvasDocShareToken.mjs'))
   const explorerStoreText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'markdown-explorer', 'store.ts'))
+  const crawlOpenText = readUtf8(path.resolve(process.cwd(), 'src', 'lib', 'websites', 'openWebsiteCrawlMarkdownArtifactInExplorer.ts'))
+  const persistedWorkspaceFsText = readUtf8(path.resolve(process.cwd(), 'src', 'features', 'workspace-fs', 'workspaceFsPersisted.ts'))
   if (!text.includes("from './canvasDocDeepLink'")) {
     throw new Error('Expected document deep links to use the shared parser/URL helper')
   }
-  if (!text.includes("import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'")) {
-    throw new Error('Expected document deep links to use the shared Source Files bootstrap readiness owner')
+  for (const lifecycleMarker of [
+    'beginSourceFilesDocumentIntent',
+    'completeSourceFilesDocumentIntent',
+    'failSourceFilesDocumentIntent',
+    'useSourceFilesBootstrapHydrated',
+  ]) {
+    if (!text.includes(lifecycleMarker)) {
+      throw new Error(`Expected document deep links to use shared keyed source authority: ${lifecycleMarker}`)
+    }
   }
-  const bootstrapReadyHookIndex = text.indexOf('const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()')
-  const bootstrapReadyGuardIndex = text.indexOf('if (!sourceFilesBootstrapReady) return')
-  const liveSearchIndex = text.indexOf("const currentSearch = typeof window !== 'undefined'")
+  const bootstrapReadyHookIndex = text.indexOf('const sourceFilesBootstrapHydrated = useSourceFilesBootstrapHydrated()')
+  const bootstrapReadyGuardIndex = text.indexOf('if (!sourceFilesBootstrapHydrated || !intentKey) return')
+  const routedSearchIndex = text.indexOf("const currentSearch = String(search || '')")
   const parseDeepLinkIndex = text.indexOf('const link = parseDocDeepLink(currentSearch)')
-  const consumeDeepLinkIndex = text.indexOf('consumeDeepLinkParams(currentSearch)')
+  const consumeDeepLinkIndex = text.lastIndexOf('consumeDeepLinkParams(liveSearch)')
   if (
     bootstrapReadyHookIndex < 0
     || bootstrapReadyGuardIndex < 0
-    || liveSearchIndex < 0
+    || routedSearchIndex < 0
     || parseDeepLinkIndex < 0
     || consumeDeepLinkIndex < 0
     || bootstrapReadyHookIndex > bootstrapReadyGuardIndex
-    || bootstrapReadyGuardIndex > liveSearchIndex
+    || bootstrapReadyGuardIndex > routedSearchIndex
     || bootstrapReadyGuardIndex > parseDeepLinkIndex
     || bootstrapReadyGuardIndex > consumeDeepLinkIndex
   ) {
     throw new Error('Expected document deep links to remain unconsumed until persisted Source Files startup finishes')
   }
-  if (!text.includes('[search, pushUiToast, sourceFilesBootstrapReady]')) {
+  if (!text.includes('[intentKey, search, pushUiToast, sourceFilesBootstrapHydrated]')) {
     throw new Error('Expected Source Files bootstrap readiness to re-run deferred document deep links')
   }
   if (!explorerStoreText.includes('readLocalDocDeepLinkPathFromCurrentLocation()')) {
@@ -66,10 +76,15 @@ export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () =>
   if (!text.includes('name: workspaceDocumentKey(targetPath)')) {
     throw new Error('Expected local document deep links to use canonical workspace document keys')
   }
+  if (!text.includes('const entryText = await fs.readFileText(targetPath)')
+    || !text.includes('if (entryText == null)')
+    || !text.includes('if (activated !== true)')) {
+    throw new Error('Expected local document links to resolve full file text and fail closed unless activation succeeds')
+  }
   if (!text.includes('applyToGraph: options.applyToGraph') || !text.includes('normalizeWebpageFrontmatterToMarkdown: false')) {
     throw new Error('Expected local document deep links to keep graph application under the explicit preview option')
   }
-  if (!text.includes("get('kgPreview') === '1'") || !text.includes('applyToGraph: previewRequested')) {
+  if (!text.includes('isCanvasDocPreviewRequested(currentSearch)') || !text.includes('applyToGraph: previewRequested')) {
     throw new Error('Expected source-addressed canvas preview links to hydrate their graph while normal local document links stay passive')
   }
   if (!text.includes('forceApplyToGraph: options.applyToGraph')) {
@@ -99,14 +114,14 @@ export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () =>
   if (text.includes('consumedRef') || text.includes('consumedSearchRef')) {
     throw new Error('Expected document deep-link consumption to avoid stale one-shot latches')
   }
-  if (!text.includes('window.location.search') || !text.includes('parseDocDeepLink(currentSearch)')) {
-    throw new Error('Expected document deep-link parsing to use the live URL search instead of a stale router prop snapshot')
+  if (!text.includes('buildDocDeepLinkIntentKey') || !text.includes('readCurrentIntentKey')) {
+    throw new Error('Expected document imports to compare canonical intent identity instead of mutable unrelated query params')
   }
   if (!helperText.includes("window.dispatchEvent(new PopStateEvent('popstate'") || !helperText.includes("window.dispatchEvent(new Event('popstate'))")) {
     throw new Error('Expected document deep-link consumption to notify the router after URL cleanup')
   }
-  if (!helperText.includes("const DEFAULT_DEEP_LINK_PREFIX = '/doc-default/'")) {
-    throw new Error('Expected document deep-link helpers to support default-workspace share routes')
+  if (!helperText.includes('resolvePublishedDocIdentity({')) {
+    throw new Error('Expected document deep-link helpers to reuse the shared published-document identity resolver')
   }
   if (!helperText.includes('buildPublishedDocShareUrlFromSource')) {
     throw new Error('Expected published Share URL generation to reuse the shared document deep-link helper')
@@ -132,53 +147,125 @@ export const testCanvasDocDeepLinkSelectsDocumentBeforePassiveGraphApply = () =>
   if (!text.includes('preferDirectFetch: true')) {
     throw new Error('Expected the storage deep-link runtime to fetch its configured CORS endpoint directly without a failing proxy preflight')
   }
-  const localBranchIndex = text.indexOf("if (link.kind === 'local')")
-  const localConsumeIndex = text.indexOf('consumeDeepLinkParams(currentSearch)', localBranchIndex)
-  const remoteImportIndex = text.indexOf('void importRemoteDeepLinkOnce(currentSearch, link, pushUiToast)')
+  const localBranchIndex = text.lastIndexOf("if (link.kind === 'local')")
+  const localApplyIndex = text.indexOf('commitDocument: relativePath => handleLocalDeepLink(', localBranchIndex)
+  const localCompletionIndex = text.indexOf('completeIntent: completeCurrentDocumentIntent', localApplyIndex)
+  const remoteImportIndex = text.indexOf('void importRemoteDeepLinkOnce(intentKey, currentSearch, link, pushUiToast)')
   if (
     localBranchIndex < 0
-    || localConsumeIndex < localBranchIndex
-    || remoteImportIndex < localConsumeIndex
-    || !text.includes('importDocument: () => handleRemoteDeepLink(link, pushUiToast)')
+    || localApplyIndex < localBranchIndex
+    || localCompletionIndex < localApplyIndex
+    || remoteImportIndex < localCompletionIndex
+    || !text.includes('prepareDocument: () => prepareRemoteDeepLink(link, pushUiToast)')
+    || !text.includes('commitDocument: (prepared, context) => commitRemoteDeepLink(link, pushUiToast, prepared, context.isCurrentIntent)')
   ) {
-    throw new Error('Expected local links to consume immediately while remote links remain addressable until import succeeds')
+    throw new Error('Expected every document link to complete source activation before consuming its URL')
   }
-  if (!text.includes('const remoteDeepLinkImports = new Map<string, Promise<void>>()')
-    || !text.includes('const activeImport = inFlightImports.get(currentSearch)')
+  if (!text.includes('const documentDeepLinkImports = new Map<string, Promise<void>>()')
+    || !text.includes('const activeImport = inFlightImports.get(intentKey)')
     || !text.includes('if (activeImport) return activeImport')) {
-    throw new Error('Expected StrictMode remounts to share one in-flight remote document import')
+    throw new Error('Expected StrictMode remounts to share one keyed in-flight document import across local and remote sources')
   }
-  if (!text.includes('if (liveSearch !== currentSearch) return')
-    || !text.includes('consumeSearch: consumeDeepLinkParams')) {
+  if (!text.includes('const isCurrentIntent = (): boolean => lifecycle.readCurrentIntentKey() === intentKey')
+    || !text.includes('const prepared = await lifecycle.prepareDocument()')
+    || !text.includes('await lifecycle.commitDocument(prepared, { isCurrentIntent })')
+    || !text.includes("dismissUiToast('deep-link:doc-import')")
+    || !text.includes('completeSourceFilesDocumentIntent(intentKey)')
+    || !text.includes('consumeDeepLinkParams(liveSearch)')) {
     throw new Error('Expected a completed remote import not to consume a newer deep-link navigation')
+  }
+  if (text.includes('applyWorkspaceImportToCanvasBestEffort')
+    || !text.includes("import('@/features/workspace-fs/applyWorkspaceImportToCanvas')")
+    || !text.includes('fetchUrlContent: async () => prepared.content')
+    || !text.includes('createWorkspaceFsMutationTransaction(fs)')
+    || !text.includes('rollbackWorkspace: () => transaction.rollback()')
+    || !text.includes('mirrorToHost: false')
+    || !text.includes('...removedSourcePaths')
+    || !text.includes('setWorkspaceEntrySource(path, null)')
+    || !text.includes("if (res.createdPaths.length === 0) throw new Error('Shared document import created no workspace file')")
+    || !text.includes('if (!activated) throw new Error')) {
+    throw new Error('Expected shared document imports to fail closed on source projection or activation failure')
+  }
+  if (!persistedWorkspaceFsText.includes('options?.mirrorToHost !== false && isWorkspaceDocsBackedMirrorPath(p)')
+    || !persistedWorkspaceFsText.includes('args.mirrorToHost !== false && isWorkspaceDocsBackedMirrorPath(path)')) {
+    throw new Error('Expected transactional workspace mutations to prevent host mirror writes below the URL importer')
+  }
+  if (!text.includes('findComposedSourceFileByPath({')
+    || !text.includes('enabledOnly: true')
+    || text.includes("normalizeWorkspacePath(String(file?.source?.path || ''))")) {
+    throw new Error('Expected remote source ownership to reuse the shared workspace-aware enabled SourceFile selector')
+  }
+  const importedWorkspaceSource = {
+    id: 'sf-imported-xr',
+    name: 'xr-source.md',
+    text: '# Authored XR source',
+    enabled: true,
+    source: {
+      kind: 'url',
+      url: 'https://example.invalid/docs/xr-source.md',
+      path: 'workspace:/docs/xr-source.md',
+    },
+  } as unknown as import('@/hooks/store/types').GraphState['sourceFiles'][number]
+  const importedWorkspaceMatch = findComposedSourceFileByPath({
+    sourceFiles: [importedWorkspaceSource],
+    targetPath: '/docs/xr-source.md',
+    enabledOnly: true,
+  })
+  if (importedWorkspaceMatch?.id !== importedWorkspaceSource.id) {
+    throw new Error('Expected imported workspace SourceFile keys to match their canonical explorer path')
+  }
+  const disabledImportedWorkspaceMatch = findComposedSourceFileByPath({
+    sourceFiles: [{ ...importedWorkspaceSource, enabled: false }],
+    targetPath: '/docs/xr-source.md',
+    enabledOnly: true,
+  })
+  if (disabledImportedWorkspaceMatch !== null) {
+    throw new Error('Expected remote source ownership checks to reject disabled imported SourceFiles')
+  }
+  const crawlBranchIndex = text.indexOf("if (link.kind === 'local' && crawlRequest)")
+  const crawlLifecycleIndex = text.indexOf('runRemoteDeepLinkImportLifecycle', crawlBranchIndex)
+  const crawlConsumeIndex = text.indexOf('consumeWebsiteCrawlMarkdownDeepLinkRequest()', crawlBranchIndex)
+  if (crawlBranchIndex < 0
+    || crawlLifecycleIndex < crawlBranchIndex
+    || crawlConsumeIndex < crawlLifecycleIndex
+    || crawlOpenText.includes('applyWorkspaceImportToCanvasBestEffort')
+    || !crawlOpenText.includes('skipComposedGraphApply: true')
+    || !crawlOpenText.includes('if (!activated) return null')
+    || !crawlOpenText.includes("window.dispatchEvent(new PopStateEvent('popstate'")) {
+    throw new Error('Expected crawl document intent to consume only after strict activation and router notification')
   }
 }
 
 export const testCanvasDocDeepLinkRemoteImportLifecycle = async () => {
   const { runRemoteDeepLinkImportLifecycle } = await import('@/features/canvas/CanvasDocDeepLinkRuntime')
   const inFlightImports = new Map<string, Promise<void>>()
-  const currentSearch = '?kgShare=canonical-source&kgPreview=1'
+  const intentKey = 'canonical-source-preview'
   let importCalls = 0
+  let commitCalls = 0
   let consumedSearch = ''
   let finishImport: (() => void) | null = null
   const lifecycle = {
-    importDocument: () => {
+    prepareDocument: () => {
       importCalls += 1
-      return new Promise<void>(resolve => {
-        finishImport = resolve
+      return new Promise<string>(resolve => {
+        finishImport = () => resolve('prepared-source')
       })
     },
-    readLiveSearch: () => currentSearch,
-    consumeSearch: (search: string) => {
-      consumedSearch = search
+    commitDocument: async prepared => {
+      if (prepared !== 'prepared-source') throw new Error('expected prepared source bytes to reach commit')
+      commitCalls += 1
+    },
+    readCurrentIntentKey: () => intentKey,
+    completeIntent: () => {
+      consumedSearch = intentKey
     },
     reportError: () => {
       throw new Error('successful import must not report an error')
     },
   }
 
-  const firstImport = runRemoteDeepLinkImportLifecycle(inFlightImports, currentSearch, lifecycle)
-  const strictModeRemountImport = runRemoteDeepLinkImportLifecycle(inFlightImports, currentSearch, lifecycle)
+  const firstImport = runRemoteDeepLinkImportLifecycle(inFlightImports, intentKey, lifecycle)
+  const strictModeRemountImport = runRemoteDeepLinkImportLifecycle(inFlightImports, intentKey, lifecycle)
   if (firstImport !== strictModeRemountImport) {
     throw new Error('expected StrictMode remounts to share the exact in-flight import promise')
   }
@@ -188,30 +275,36 @@ export const testCanvasDocDeepLinkRemoteImportLifecycle = async () => {
   }
   finishImport()
   await firstImport
-  if (consumedSearch !== currentSearch || inFlightImports.size !== 0) {
+  if (commitCalls !== 1 || consumedSearch !== intentKey || inFlightImports.size !== 0) {
     throw new Error('expected successful remote import to consume its URL and release the in-flight lease')
   }
 
   let failedConsumeCalls = 0
   let reportedErrors = 0
-  const failedImport = runRemoteDeepLinkImportLifecycle(inFlightImports, currentSearch, {
-    importDocument: async () => {
+  const failedImport = runRemoteDeepLinkImportLifecycle(inFlightImports, intentKey, {
+    prepareDocument: async () => {
       throw new Error('unavailable')
     },
-    readLiveSearch: () => currentSearch,
-    consumeSearch: () => {
+    commitDocument: async () => {
+      throw new Error('failed preparation must not commit')
+    },
+    readCurrentIntentKey: () => intentKey,
+    completeIntent: () => {
       failedConsumeCalls += 1
     },
     reportError: () => {
       reportedErrors += 1
     },
   })
-  const failedStrictModeRemount = runRemoteDeepLinkImportLifecycle(inFlightImports, currentSearch, {
-    importDocument: async () => {
+  const failedStrictModeRemount = runRemoteDeepLinkImportLifecycle(inFlightImports, intentKey, {
+    prepareDocument: async () => {
       throw new Error('duplicate import must not run')
     },
-    readLiveSearch: () => currentSearch,
-    consumeSearch: () => {
+    commitDocument: async () => {
+      throw new Error('duplicate import must not commit')
+    },
+    readCurrentIntentKey: () => intentKey,
+    completeIntent: () => {
       failedConsumeCalls += 1
     },
     reportError: () => {

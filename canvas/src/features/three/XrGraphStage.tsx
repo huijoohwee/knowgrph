@@ -91,13 +91,15 @@ export function XrGraphStage({ data, paused = false }: { data: GraphData; paused
             />
           </>
         ) : null}
-        <XrNativeControllerDemoStage
-          inputEnabled={!paused}
-          stageScale={stageScale}
-          groundY={XR_MOTION_STAGE_GROUND_Y}
-          retainStage={runReadyDemo}
-          stage={stage}
-        />
+        {nativeControllerOwnsStage ? (
+          <XrNativeControllerDemoStage
+            inputEnabled={!paused}
+            stageScale={stageScale}
+            groundY={XR_MOTION_STAGE_GROUND_Y}
+            retainStage={runReadyDemo}
+            stage={stage}
+          />
+        ) : null}
       </group>
     </>
   )

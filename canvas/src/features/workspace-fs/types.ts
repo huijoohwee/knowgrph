@@ -11,14 +11,18 @@ export type WorkspaceEntry = {
   updatedAtMs: number
 }
 
+export type WorkspaceFsMutationOptions = {
+  mirrorToHost?: boolean
+}
+
 export type WorkspaceFs = {
   ensureSeed: () => Promise<boolean>
   listEntries: () => Promise<WorkspaceEntry[]>
   readFileText: (path: WorkspacePath) => Promise<string | null>
-  writeFileText: (path: WorkspacePath, text: string) => Promise<void>
-  createFile: (args: { parentPath: WorkspacePath; name: string; text: string }) => Promise<WorkspacePath>
-  createFolder: (args: { parentPath: WorkspacePath; name: string }) => Promise<WorkspacePath>
-  deleteEntry: (path: WorkspacePath) => Promise<void>
+  writeFileText: (path: WorkspacePath, text: string, options?: WorkspaceFsMutationOptions) => Promise<void>
+  createFile: (args: { parentPath: WorkspacePath; name: string; text: string } & WorkspaceFsMutationOptions) => Promise<WorkspacePath>
+  createFolder: (args: { parentPath: WorkspacePath; name: string } & WorkspaceFsMutationOptions) => Promise<WorkspacePath>
+  deleteEntry: (path: WorkspacePath, options?: WorkspaceFsMutationOptions) => Promise<void>
 }
 
 export type WorkspaceOutlineItem = {
