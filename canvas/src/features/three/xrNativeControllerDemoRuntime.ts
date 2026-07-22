@@ -15,7 +15,7 @@ import {
   stepXrPhysicsSimulation,
   type XrPhysicsBodyState,
   type XrPhysicsSimulation,
-} from './xrPhysicsStepper'
+} from './xrSpatialPhysicsAdapter'
 import {
   XR_MOTION_REFERENCE_DEFAULT_STAGE_ID,
   resolveXrMotionReferenceStage,
@@ -380,14 +380,15 @@ function notify(): void {
 
 export function createXrNativeControllerDemoRuntime(): XrNativeControllerDemoRuntime {
   const world = demoWorld()
-  const simulation = createXrPhysicsSimulation(world)
+  const colliders = terrainColliders(XR_MOTION_REFERENCE_DEFAULT_STAGE_ID)
+  const simulation = createXrPhysicsSimulation(world, colliders)
   const playerConfig = world.bodies.find(body => body.subjectId === XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID)!
   const position = readXrPhysicsSimulationBody(simulation, XR_NATIVE_CONTROLLER_DEMO_PLAYER_ID)!.position
   return {
     accumulatorSeconds: 0,
     ballRotation: [0, 0, 0],
     bodyRotations: createBodyRotations(),
-    colliders: terrainColliders(XR_MOTION_REFERENCE_DEFAULT_STAGE_ID),
+    colliders,
     input: createXrNativeControllerInput(),
     mode: 'ball',
     objective: 'find-key',
@@ -404,7 +405,7 @@ export function createXrNativeControllerDemoRuntime(): XrNativeControllerDemoRun
 }
 
 export function resetXrNativeControllerDemoRuntime(runtime: XrNativeControllerDemoRuntime): void {
-  resetXrPhysicsSimulation(runtime.simulation, runtime.world)
+  resetXrPhysicsSimulation(runtime.simulation, runtime.world, runtime.colliders)
   runtime.accumulatorSeconds = 0
   runtime.ballRotation = [0, 0, 0]
   for (const rotation of Object.values(runtime.bodyRotations)) rotation.splice(0, 3, 0, 0, 0)

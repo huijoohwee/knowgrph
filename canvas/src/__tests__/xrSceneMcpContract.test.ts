@@ -285,7 +285,9 @@ function assertExpandedCleanRoomBoundary(): void {
   const paths = [
     'src/features/three/xrPhysicsModel.ts',
     'src/features/three/xrPhysicsRuntime.ts',
-    'src/features/three/xrPhysicsStepper.ts',
+    'src/features/three/xrSpatialPhysicsAdapter.ts',
+    'src/features/physics/spatialPhysicsEngine.ts',
+    'src/features/physics/spatialPhysicsStep.ts',
     'src/features/three/xrNativeControllerInput.ts',
     'src/features/three/xrNativeControllerDemoRuntime.ts',
     'src/features/three/XrNativeControllerDemoStage.tsx',

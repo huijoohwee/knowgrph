@@ -13,7 +13,7 @@ import {
   captureXrPhysicsSimulation,
   createXrPhysicsSimulation,
   stepXrPhysicsSimulation,
-} from '@/features/three/xrPhysicsStepper'
+} from '@/features/three/xrSpatialPhysicsAdapter'
 import {
   applyXrPhysicsImpulse,
   attachXrPhysicsBody,
@@ -549,7 +549,9 @@ function testImplementationBoundary(): void {
   assert(XR_PHYSICS_GRAPH_METADATA_KEY === 'kgXrPhysicsWorld', 'physics must use its versioned graph metadata owner')
   const implementation = [
     source('features', 'three', 'xrPhysicsModel.ts'),
-    source('features', 'three', 'xrPhysicsStepper.ts'),
+    source('features', 'three', 'xrSpatialPhysicsAdapter.ts'),
+    source('features', 'physics', 'spatialPhysicsEngine.ts'),
+    source('features', 'physics', 'spatialPhysicsStep.ts'),
     source('features', 'three', 'xrPhysicsRuntime.ts'),
     readFileSync(resolve(process.cwd(), 'package.json'), 'utf8'),
     readFileSync(resolve(process.cwd(), 'package-lock.json'), 'utf8'),
@@ -564,7 +566,9 @@ function testImplementationBoundary(): void {
   }
   for (const implementationSource of [
     source('features', 'three', 'xrPhysicsModel.ts'),
-    source('features', 'three', 'xrPhysicsStepper.ts'),
+    source('features', 'three', 'xrSpatialPhysicsAdapter.ts'),
+    source('features', 'physics', 'spatialPhysicsEngine.ts'),
+    source('features', 'physics', 'spatialPhysicsStep.ts'),
     source('features', 'three', 'xrPhysicsRuntime.ts'),
   ]) {
     assert(implementationSource.split('\n').length < 600, 'new physics source files must remain below the source budget')

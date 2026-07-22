@@ -375,6 +375,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   const sceneSubjectSource = readSource('features', 'three', 'XrSceneLibrarySubject.tsx')
   const mediaCatalogViewSource = readSource('features', 'command-menu', 'MediaCatalogPanelView.tsx')
   const xrMediaLibrarySource = readSource('features', 'command-menu', 'XrMediaLibraryPanel.tsx')
+  const xrMediaInvocationRuntimeSource = readSource('features', 'command-menu', 'xrMediaInvocationRuntime.ts')
   const xrSceneMcpContractSource = readSource('features', 'three', 'xrSceneMcpContract.mjs')
   const xrSceneMcpRuntimeSource = readSource('features', 'three', 'xrSceneMcpRuntime.ts')
   const timelineBottomPanelSource = readSource('features', 'gitgraph', 'TimelineBottomPanelView.tsx')
@@ -407,9 +408,10 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   for (const marker of ['data-kg-media-3d-toggle="1"', '<XrMediaLibraryPanel', '3D for XR', "if (xrSurfaceActive) setMediaCatalogMode('xr-3d')"]) {
     if (!mediaCatalogViewSource.includes(marker)) throw new Error(`expected FloatingPanel Media to expose ${marker}`)
   }
-  for (const marker of ['data-kg-media-xr-environments="1"', 'data-kg-media-xr-subject-library="1"', 'data-kg-media-xr-next-label="1"', 'data-kg-media-xr-assets-mcp=', 'data-kg-media-xr-invocation=', 'data-kg-media-xr-invocation-chip-renderer="shared-markdown-sigil"', 'renderMarkdownSigilInlineText', 'renderAgenticOsInvocationKeywordChip', 'sourceLink: false', 'splitInvocationTokenSegments(invocation)', 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'data-kg-media-xr-asset-transition=', 'data-kg-media-xr-subject-transition=', 'controlLocalXrScene']) {
+  for (const marker of ['data-kg-media-xr-environments="1"', 'data-kg-media-xr-subject-library="1"', 'data-kg-media-xr-next-label="1"', 'data-kg-media-xr-assets-mcp=', 'data-kg-media-xr-invocation=', 'data-kg-media-xr-invocation-chip-renderer="shared-markdown-sigil"', 'renderMarkdownSigilInlineText(invocation', 'renderAgenticOsInvocationKeywordChip', 'sourceLink: false', 'UI_INLINE_CHIP_GROUP_CLASSNAME', 'data-kg-media-xr-asset-transition=', 'data-kg-media-xr-subject-transition=', 'buildXrMediaInvocationControlInput(invocation)', 'onInvoke={runInvocation}', 'controlLocalXrScene']) {
     if (!xrMediaLibrarySource.includes(marker)) throw new Error(`expected the native XR Media library to expose ${marker}`)
   }
+  if (!xrMediaInvocationRuntimeSource.includes('Object.freeze({ invocation })')) throw new Error('expected XR Media invocation dispatch to carry only the displayed literal')
   for (const marker of ['/xr.stage', '/xr.place', 'transition=']) {
     if (!xrSceneMcpContractSource.includes(marker)) throw new Error(`expected XR MCP invocation grammar to expose ${marker}`)
   }

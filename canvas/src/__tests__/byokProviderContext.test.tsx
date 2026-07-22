@@ -4,6 +4,7 @@ import FloatingPanelChat from '@/features/chat/FloatingPanelChat'
 import { resolveFloatingPanelChatCredentialContext } from '@/features/chat/floatingPanelChat/floatingPanelChatCredentialContext'
 import { resolveSubmitRuntimeFriendlyMessage } from '@/features/chat/floatingPanelChat/floatingPanelChatSubmitErrors'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { CHAT_OPENAI_ENDPOINT_URL } from '@/lib/chatEndpoint'
 import { initJsdomHarness } from '@/tests/lib/jsdomHarness'
 import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/reactRootHarness'
 
@@ -63,6 +64,24 @@ export async function testFloatingPanelChatRendersSelectedTextGenerationProvider
     const keyInput = container.querySelector('[data-kg-chat-api-key-input="true"]') as HTMLInputElement | null
     if (keyInput?.getAttribute('aria-label') !== 'BytePlus ModelArk BYOK API key') {
       throw new Error(`expected selected BytePlus card to own the credential label, got ${keyInput?.getAttribute('aria-label')}`)
+    }
+    const modelSelect = container.querySelector('[data-kg-chat-model-select="true"]') as HTMLSelectElement | null
+    if (modelSelect?.value !== 'seed-2-0-lite-260228') {
+      throw new Error(`expected selected BytePlus card to own the footer model, got ${modelSelect?.value}`)
+    }
+    await act(async () => {
+      modelSelect.value = 'gpt-5-nano'
+      modelSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+      await waitForFrames(dom.window as unknown as Window, 2)
+    })
+    const updatedNode = useGraphStore.getState().graphData?.nodes.find(node => node.id === 'byteplus-card')
+    const updatedProperties = updatedNode?.properties as Record<string, unknown> | undefined
+    if (
+      updatedProperties?.chatProvider !== 'openai'
+      || updatedProperties.chatEndpointUrl !== CHAT_OPENAI_ENDPOINT_URL
+      || updatedProperties.chatModel !== 'gpt-5-nano'
+    ) {
+      throw new Error(`expected selected footer model change to update the complete provider route, got ${JSON.stringify(updatedProperties)}`)
     }
   } finally {
     await unmountReactRoot(root, { window: dom.window as unknown as Window })

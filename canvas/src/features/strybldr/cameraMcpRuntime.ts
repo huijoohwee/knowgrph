@@ -66,6 +66,7 @@ import {
   type CameraSensorFormatId,
 } from './cameraOptics'
 import { controlLocalCameraSource, inspectLocalCameraSource, isCameraSourceInvocation, normalizeCameraSourceSelection } from './cameraSourceMcpRuntime'
+import { ensureSharedCameraPanel } from './cameraPanelSurfaceRuntime'
 import type { XrNativeControllerCameraMode } from '@/features/three/xrNativeControllerCameraCatalog'
 import { activateXrSceneSurface } from '@/features/three/xrSceneSurfaceRuntime'
 export type CameraControlAction = 'select' | 'frame' | 'animate' | 'playback' | 'scrub'
@@ -307,17 +308,6 @@ function normalizeCameraControl(input: CameraControlInput): NormalizedCameraCont
     markId: String(parsed?.markId || input.markId || '').trim(),
     invocation: String(parsed?.invocation || input.invocation || '').trim(),
   }
-}
-
-function ensureSharedCameraPanel(): boolean {
-  const state = useGraphStore.getState()
-  if (state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr') {
-    return activateXrSceneSurface({ panelView: 'camera', openPanel: true })
-  }
-  if (state.floatingPanelOpen && state.floatingPanelView === 'camera') return true
-  state.setFloatingPanelView('camera')
-  state.setFloatingPanelOpen(true)
-  return true
 }
 
 function resolveCameraAnchor(targetId: string, requireSubject = false): string {

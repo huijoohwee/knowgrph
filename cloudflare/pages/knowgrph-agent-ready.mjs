@@ -772,7 +772,7 @@ export const webMcpScript = `(() => {
     if (typeof document === "undefined" || !document.documentElement) return;
     document.documentElement.dataset.kgWebmcpTools = toolNames.join(",");
     document.documentElement.dataset.kgWebmcpContext = state;
-  };
+  }; const markWebMcpHostBinding = (state) => { if (typeof document !== "undefined" && document.documentElement) document.documentElement.dataset.kgWebmcpHostContext = state; };
   const buildDocPath = (canonicalPath, workspaceId = "") => {
     const normalizedCanonicalPath = normalizeString(canonicalPath);
     const normalizedWorkspaceId = normalizeString(workspaceId);
@@ -840,7 +840,7 @@ export const webMcpScript = `(() => {
   const createPublishedAgentReadyToolExecutors = ${PUBLISHED_AGENT_READY_TOOL_EXECUTORS_BROWSER_SOURCE};
   const createWebMcpLifecycleController = (args = {}) => {
     const root = args.root, lifecycleState = args.state, tools = Array.isArray(args.tools) ? args.tools : [], toolNames = Array.isArray(args.toolNames) ? args.toolNames : [];
-    const lateBindingRetryDelayMs = Number(args.lateBindingRetryDelayMs || 500), lateBindingMaxAttempts = Number(args.lateBindingMaxAttempts || 20), markRuntimeState = typeof args.markRuntimeState === "function" ? args.markRuntimeState : () => {};
+    const lateBindingRetryDelayMs = Number(args.lateBindingRetryDelayMs || 500), lateBindingMaxAttempts = Number(args.lateBindingMaxAttempts || 20), markRuntimeState = typeof args.markRuntimeState === "function" ? args.markRuntimeState : () => {}, markHostBindingState = typeof args.markHostBindingState === "function" ? args.markHostBindingState : () => {};
     if (!root || !lifecycleState || typeof lifecycleState !== "object") throw new Error("root and state are required");
     const readGlobalNavigator = () => {
       const windowNavigator = root.window && root.window.navigator;
@@ -898,7 +898,7 @@ export const webMcpScript = `(() => {
       if (registrationState) registrationState.abortControllers.forEach((controller) => {
         if (controller && typeof controller.abort === "function") controller.abort();
       });
-      lifecycleState.activeRegisteredContext = nextContext;
+      lifecycleState.registrations.delete(active); lifecycleState.activeRegisteredContext = nextContext;
     };
     const clearLateBindingRetry = () => {
       if (lifecycleState.lateBindingRetryId === null || !root.window || typeof root.window.clearTimeout !== "function") return;
@@ -941,13 +941,13 @@ export const webMcpScript = `(() => {
       if (!context || context === lifecycleState.fallbackContext) return false;
       if (!installToolsIntoModelContext(context)) return false;
       clearLateBindingRetry();
-      markRuntimeState("installed");
+      markRuntimeState("installed"); markHostBindingState("installed");
       return true;
     };
     const scheduleLateBindingRetry = (nav) => {
       if (!root.window || typeof root.window.setTimeout !== "function" || lifecycleState.lateBindingRetryId !== null) return;
       if (lifecycleState.lateBindingAttemptCount >= lateBindingMaxAttempts) {
-        markRuntimeState("retry-exhausted");
+        markHostBindingState("retry-exhausted");
         return;
       }
       lifecycleState.lateBindingRetryId = root.window.setTimeout(() => {
@@ -956,32 +956,32 @@ export const webMcpScript = `(() => {
         if (!tryInstallLateBoundModelContext(nav)) scheduleLateBindingRetry(nav);
       }, lateBindingRetryDelayMs);
     };
+    const publishFallbackReadiness = (nav, restartRetryCycle = false) => { if (restartRetryCycle) { clearLateBindingRetry(); lifecycleState.lateBindingAttemptCount = 0; if (lifecycleState.fallbackContext) installToolsIntoModelContext(lifecycleState.fallbackContext); } markRuntimeState(toolNames.every((toolName) => nav.modelContext && Array.isArray(nav.modelContext.tools) && nav.modelContext.tools.some((entry) => entry && entry.name === toolName)) ? "fallback-readable" : "awaiting-model-context"); markHostBindingState("awaiting-model-context"); scheduleLateBindingRetry(nav); };
     const defineFallbackModelContext = (nav, context) => {
       lifecycleState.fallbackContext = context;
       const doc = root.document;
       let currentContext = (doc && doc.modelContext && doc.modelContext !== context) ? doc.modelContext : nav.modelContext && nav.modelContext !== context ? nav.modelContext : context;
       const descriptor = { configurable: true, enumerable: false, get: () => currentContext, set: (value) => {
-        currentContext = value || context;
-        if (currentContext !== context) void tryInstallLateBoundModelContext(nav);
+        const nextContext = value || context; if (currentContext === nextContext) return; currentContext = nextContext;
+        if (currentContext !== context) { if (!tryInstallLateBoundModelContext(nav)) publishFallbackReadiness(nav); return; } publishFallbackReadiness(nav, true);
       } };
       try { Object.defineProperty(nav, "modelContext", descriptor); } catch { nav.modelContext = context; }
       if (doc && !doc.modelContext) try { Object.defineProperty(doc, "modelContext", descriptor); } catch { void 0; }
     };
     const install = () => {
-      const nav = readGlobalNavigator(), docContext = root.document && root.document.modelContext;
-      markRuntimeState("installing");
-      if (docContext && !nav.modelContext) try {
+      const nav = readGlobalNavigator(), docContext = root.document && root.document.modelContext, isHostModelContext = (context) => Boolean(context && context !== lifecycleState.fallbackContext);
+      markRuntimeState("installing"); markHostBindingState("installing");
+      if (isHostModelContext(docContext) && !nav.modelContext) try {
         Object.defineProperty(nav, "modelContext", { configurable: true, enumerable: false, get: () => root.document && root.document.modelContext, set: (value) => {
           if (value && value !== docContext) void installToolsIntoModelContext(value);
         } });
       } catch { nav.modelContext = docContext; }
-      if (docContext && installToolsIntoModelContext(docContext)) return markRuntimeState("installed");
-      if (nav.modelContext && installToolsIntoModelContext(nav.modelContext)) return markRuntimeState("installed");
+      if (isHostModelContext(docContext) && installToolsIntoModelContext(docContext)) { markRuntimeState("installed"); return markHostBindingState("installed"); }
+      if (isHostModelContext(nav.modelContext) && installToolsIntoModelContext(nav.modelContext)) { markRuntimeState("installed"); return markHostBindingState("installed"); }
       if (!nav.modelContext) defineFallbackModelContext(nav, createFallbackModelContext());
-      markRuntimeState(toolNames.every((toolName) => nav.modelContext && Array.isArray(nav.modelContext.tools) && nav.modelContext.tools.some((entry) => entry && entry.name === toolName)) ? "fallback-readable" : "awaiting-model-context");
-      scheduleLateBindingRetry(nav);
+      publishFallbackReadiness(nav);
     };
-    return { install, clearLateBindingRetry, installToolsIntoModelContext, tryInstallLateBoundModelContext, scheduleLateBindingRetry, defineFallbackModelContext, readGlobalNavigator };
+    return { install, clearLateBindingRetry, installToolsIntoModelContext, tryInstallLateBoundModelContext, scheduleLateBindingRetry, publishFallbackReadiness, defineFallbackModelContext, readGlobalNavigator };
   };
   const toolExecutors = createPublishedAgentReadyToolExecutors({
     toolNames: {
@@ -1028,7 +1028,7 @@ export const webMcpScript = `(() => {
     toolNames,
     lateBindingRetryDelayMs: lateBindingRetryDelayMs,
     lateBindingMaxAttempts: lateBindingMaxAttempts,
-    markRuntimeState: markWebMcpRuntime,
+    markRuntimeState: markWebMcpRuntime, markHostBindingState: markWebMcpHostBinding,
   });
   webMcpLifecycle.install();
 })();`;

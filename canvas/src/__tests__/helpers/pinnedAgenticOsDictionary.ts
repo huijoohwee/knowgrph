@@ -128,7 +128,7 @@ function readPinnedSources(): Readonly<{
   }
 }
 
-export function registerPinnedAgenticOsDictionaryTokensForTest(spec: PinnedAgenticOsTokenSpec): string {
+function readPinnedCatalog() {
   const { revision, docsContentByFileName } = readPinnedSources()
   const payload = buildAgenticCanvasOsDocsInvokePayload({
     docsContentByFileName,
@@ -141,7 +141,17 @@ export function registerPinnedAgenticOsDictionaryTokensForTest(spec: PinnedAgent
   }
   assert(payload.sourceRevision === revision, `expected production catalog payload revision ${revision}`)
   assert(payload.sourceRootUrl.includes(`/blob/${revision}/docs`), `expected production catalog root to bind ${revision}`)
-  const catalog = payload.catalog
+  return { catalog: payload.catalog, docsContentByFileName, revision }
+}
+
+export function registerPinnedAgenticOsDictionaryCatalogForTest(): string {
+  const { catalog, revision } = readPinnedCatalog()
+  registerAgenticOsRemoteGrammarCatalogEntries(catalog)
+  return revision
+}
+
+export function registerPinnedAgenticOsDictionaryTokensForTest(spec: PinnedAgenticOsTokenSpec): string {
+  const { catalog, docsContentByFileName, revision } = readPinnedCatalog()
   const catalogByToken = new Map(catalog.map(entry => [entry.token, entry]))
   const selected: AgenticOsRemoteGrammarCatalogEntry[] = []
   for (const [kind, tokens] of Object.entries(spec) as Array<[AgenticOsDictionaryInvocationKind, readonly string[]]>) {

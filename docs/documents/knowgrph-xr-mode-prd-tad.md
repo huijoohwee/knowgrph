@@ -2,8 +2,8 @@
 title: "Knowgrph XR Mode PRD & TAD"
 doc_type: "PRD+TAD"
 doc_id: "KXR-001"
-version: "0.4.0"
-status: "Accepted; Blender pipeline updates active"
+version: "0.5.0"
+status: "Accepted; native physics ownership corrected"
 date: "2026-06-17"
 authors:
   - "airvio"
@@ -41,7 +41,6 @@ tags:
   - "modeling"
   - "rigging"
   - "animation"
-  - "simulation"
   - "rendering"
   - "compositing"
   - "motion-tracking"
@@ -72,7 +71,7 @@ The min-viable-max-value scope is not a new immersive product shell. It is a fir
 - WebXR Device API is the browser standard for VR/AR device access, using `navigator.xr.isSessionSupported()` and `navigator.xr.requestSession()` behind user activation and permission boundaries.
 - Three.js supports WebXR rendering by enabling `renderer.xr.enabled`, setting an animation loop, and attaching XR session UI / controller inputs.
 - glTF/GLB is the preferred runtime model format for Three.js delivery; glTF Transform supports `inspect`, `optimize`, Meshopt/Draco geometry compression, and WebP/KTX2 texture compression; PlayCanvas SuperSplat, PlayCanvas Engine, Spark, and Splat Transform remain reference-only systems for splat editing, rendering, and conversion ergonomics.
-- VTracer is MIT-licensed FOSS for colored raster-to-vector conversion; Potrace is a mature FOSS bitmap tracer best suited to black/white or thresholded inputs.
+- VTracer is MIT-licensed FOSS for colored raster-to-vector conversion; Potrace is a mature FOSS bitmap tracer best suited to black/white or thresholded inputs. Rapier is a principles-only physics reference: Knowgrph copies no source, prose, schema, algorithm, example, fixture, test, constant, API, or serialization format; installs no Rapier package or compatibility layer; and claims no API or numerical compatibility. The supported native scope is authoritative in `knowgrph-native-physics-engines-prd-tad.md`.
 
 ---
 
@@ -306,7 +305,7 @@ If Knowgrph exposes XR Mode as a first-class Canvas surface and adds a determini
 
 ### User Story
 
-**KXR-E5-S1**: As a Solo Dev, I want the XR Mode to feature a Blender-inspired 3D pipeline, so that I can configure modeling, rigging, animation, simulation, rendering, compositing, motion tracking, and video editing through document-native metadata.
+**KXR-E5-S1**: As a Solo Dev, I want XR Mode to compose modeling, rigging, animation, native physics projection, rendering, compositing, motion tracking, and video editing without giving presentation metadata ownership of simulation state.
 
 ### Acceptance Criteria
 
@@ -318,9 +317,9 @@ If Knowgrph exposes XR Mode as a first-class Canvas surface and adds a determini
 * **Given** modeling and rigging configurations are declared, **when** nodes and edges are rendered, **then** nodes use parametric SDF hulls and curved edges skin their vertex groups dynamically onto multi-joint bone armatures.
 * > **VCC translation**: `Verify bones hierarchies are initialized and vertex shader skins meshes according to joint weights`
 
-**KXR-E5-S1-AC3** - Animation & simulation solver
-* **Given** animation actions and simulation physics are active, **when** the frame updates, **then** node positions update via Verlet integration while the NLA mixer updates keyframe paths.
-* > **VCC translation**: `Verify Verlet solver updates node position buffers and NLA mixer advances timelines`
+**KXR-E5-S1-AC3** - Animation and native physics projection
+* **Given** animation actions and a supported native physics world are active, **when** the caller advances a fixed step, **then** the physics owner publishes its dimension-specific body projection while the existing animation owner advances keyframe paths independently.
+* > **VCC translation**: `Verify focused native-physics and XR runtime suites preserve fixed-step body projection without transferring Timeline or mixer ownership`
 
 **KXR-E5-S1-AC4** - Compositing & video sequencer
 * **Given** rendering effects and sequencer tracks are enabled, **when** playing the timeline, **then** the compositor blends background, graph, and UI render passes, while the sequencer executes rendering, text captions, and trace events in sync.
@@ -329,7 +328,7 @@ If Knowgrph exposes XR Mode as a first-class Canvas surface and adds a determini
 ### Workflow: Blender-Inspired 3D Pipeline Activation
 
 **Trigger**: User opens a document with `kgAsset3dPipeline` frontmatter metadata in XR Mode.
-**Actors**: Solo Dev, Frontmatter Parser, Pipeline Coordinator, Modeling/Rigging/Animation/Simulation/Rendering/Compositing/Tracking/Sequencer modules, R3F Viewport.
+**Actors**: Solo Dev, Frontmatter Parser, Pipeline Coordinator, native physics adapter, Modeling/Rigging/Animation/Rendering/Compositing/Tracking/Sequencer modules, R3F Viewport.
 
 **Happy Path**:
 1. Frontmatter Parser extracts `kgAsset3dPipeline` object → validated against schema.
@@ -338,14 +337,14 @@ If Knowgrph exposes XR Mode as a first-class Canvas surface and adds a determini
 4. Solo Dev interacts with the spatial scene → pipeline stages respond reactively to state changes.
 
 **Alternate Paths**:
-- Partial pipeline: Only some stages are declared (e.g., `modeling` and `rendering` without `simulation`) → Coordinator activates only declared modules; undeclared modules remain dormant with no resource allocation.
+- Partial pipeline: Only some presentation stages are declared (for example, `modeling` and `rendering`) → Coordinator activates only declared modules; native physics remains independently configured and undeclared presentation modules consume no resources.
 - Default fallback: No `kgAsset3dPipeline` in frontmatter → Coordinator applies default PBR material and standard layout without custom pipeline stages.
 
 **Error Paths**:
 - Shader compilation failure: Rendering module catches WebGL shader error → falls back to default PBR material → logs the error with shader source reference.
-- Simulation divergence: Verlet solver detects position values exceeding safe bounds → circuit-breaker halts simulation → nodes freeze at last valid position → user is notified via console warning.
+- Invalid or non-finite simulation state: Native physics rejects the step before projection → the adapter retains the last accepted body state → the caller surfaces a typed local failure.
 
-**Postconditions**: Pipeline modules are instantiated per frontmatter spec; R3F viewport renders the configured stages; undeclared modules consume no resources; shader or simulation failures degrade gracefully without crashing the canvas.
+**Postconditions**: Presentation modules are instantiated per frontmatter spec; the R3F viewport renders configured stages; physics body state remains dimension-specific; shader or physics-adapter failures degrade gracefully without crashing the canvas.
 
 ---
 
@@ -400,7 +399,7 @@ MVP is complete when:
 - PNG conversion has a deterministic FOSS harness path to SVG with zero token spend.
 - Generated or imported model assets carry inspectable metadata and a clear fallback reason when conversion is unsuitable.
 - Existing renderer derivation remains the SSOT; XR Mode never forks GraphData.
-- The declarative `kgAsset3dPipeline` coordinator reactively configures custom shader, skeleton, and physics solver passes.
+- The declarative `kgAsset3dPipeline` coordinator configures supported presentation stages; physics configuration and stepping remain owned by the separate dimension-specific native physics contract.
 
 ## Dependencies
 
@@ -422,7 +421,7 @@ MVP is complete when:
 | Should the 8 MB PNG input default be adjusted for mobile-first or bulk-import profiles? | Technical Reviewer | Before export integration |
 | Should generated GLB assets be committed, stored in workspace storage, or treated as ephemeral build artifacts? | Solo Dev | Before export integration |
 | Which WebXR device/browser pair is the canonical smoke-test target? | Solo Dev | Before live XR validation |
-| For larger graphs (600+ nodes), should the simulation solver run on a Web Worker or WASM thread to prevent main thread frame drops? | Technical Reviewer | Before simulation implementation |
+| Should a proven native physics workload move to a Web Worker after profiling shows a main-thread budget breach? Wasm and external compatibility APIs remain out of scope. | Technical Reviewer | Before worker execution |
 
 ---
 
@@ -444,7 +443,7 @@ flowchart LR
   Pipeline --> Mod["1. Modeling Engine"]
   Pipeline --> Rig["2. Rigging & Armatures"]
   Pipeline --> Anim["3. Animation Mixer"]
-  Pipeline --> Sim["4. Simulation Solver"]
+  Pipeline --> Sim["4. Native Physics Adapter"]
   Pipeline --> Rend["5. Post-Renderer"]
   Pipeline --> Comp["6. Compositing Graph"]
   Pipeline --> Track["7. Motion Tracker"]
@@ -620,14 +619,15 @@ flowchart LR
 * **VCC Conditions**:
   * `canvas.xrPipeline.animationSimulation` animation frame updates pass.
 
-### Component: XR Simulation Solver
-* **Responsibility**: Computes soft-body spring physics and collision constraints.
-* **Interfaces**: `solvePhysics(nodes: GraphNode[], edges: GraphEdge[], delta: number): void`
-* **Dependencies**: Physics solver math, Verlet integrator.
-* **Configuration**: `simulation.solver`, `simulation.gravityStrength`, `simulation.collisionRadius`.
-* **FOSS / Vendor**: FOSS.
+### Component: XR Native Physics Adapter
+* **Responsibility**: Adapts normalized XR cuboid bodies and authored static colliders to the canonical 3D fixed-step owner, then projects accepted linear body state into the retained XR scene.
+* **Interfaces**: Existing XR world normalization, explicit fixed-step, body read/capture, impulse, pose, reset, and contact projection contracts.
+* **Dependencies**: `canvas/src/features/physics/spatialPhysicsEngine.ts`, `xrPhysicsModel.ts`, and `XrPhysicsStageRuntime.tsx`.
+* **Configuration**: The persisted XR world contract owns gravity, fixed-step bound, floor, cuboid bodies, damping, material response, and collision masks.
+* **FOSS / Vendor**: Independently authored Knowgrph code; Rapier packages and compatibility layers are forbidden.
 * **VCC Conditions**:
-  * `canvas.xrPipeline.animationSimulation` Verlet loop converges under budget.
+  * Focused native 3D and XR runtime tests preserve deterministic stepping, swept cuboid contacts, impulses, pause/resume, and authored-scene retention.
+  * The shared engine additionally proves sphere colliders, sensors, ordered events, queries, and versioned snapshots while the XR persisted adapter remains cuboid-based; rotation, torque, capsules, mesh/soft bodies, joints, and motors remain unclaimed.
 
 ### Component: XR Post-Rendering Stack
 * **Responsibility**: Orchestrates post-processing passes (SSAO, Bloom, Depth of Field).
@@ -705,7 +705,7 @@ flowchart LR
 | Ingest | Workspace loader | YAML Frontmatter | `kgAsset3dPipeline` object | Workspace text | Ignore missing pipeline block |
 | Transform | Pipeline coordinator | `kgAsset3dPipeline` | Configured R3F viewport parameters | Zustand store | Apply default PBR/layout settings on null |
 | Store | Three.js Renderer | Configured params | Render pass graphs, Armature skeletons | WebGL context | Render blank stage on shader compiler error |
-| Serve | R3F Viewport | Skeleton / Mesh / Physics buffers | Screen/Headset frames | Runtime frame buffer | Circuit break if simulation diverges |
+| Serve | R3F Viewport | Skeleton, mesh, and accepted native body projections | Screen/Headset frames | Runtime frame buffer | Retain the last accepted projection if the physics adapter rejects a step |
 | Consume | User | Viewport frames | Interacted / inspected visual scene | None | Fallback to default render on target failure |
 
 ---
@@ -766,7 +766,7 @@ flowchart LR
 | Observability | Conversion path hides cost | Harness emits cost log for every run | Cost-log fixture |
 | Token Cost | Deterministic conversion | No model call | Token cost fields are zero |
 | TCO | Solo-dev MVP | Reuse existing stack; FOSS conversion | ADR cost review |
-| Token Cost | Complex 3D simulation loops | Capped CPU physics step, zero model usage | Simulation frame step validation |
+| Token Cost | Native 3D fixed steps | Bounded CPU step, zero model usage | Focused native physics and XR runtime validation |
 
 ---
 
@@ -807,7 +807,7 @@ Rollback:
 | Harness | SVG->GLB compile + inspect | `canvas/src/lib/xr/xrAssetConversion.ts`, `canvas/src/features/markdown-workspace/workspaceImport/xrModelAsset.ts` | Present |
 | Pipeline | 3D Pipeline coordinator | `canvas/src/features/three/pipeline/XrPipelineCoordinator.ts` | Proposed |
 | Pipeline | Modeling & Rigging modules | `canvas/src/features/three/pipeline/modeling.ts`, `canvas/src/features/three/pipeline/rigging.ts` | Proposed |
-| Pipeline | Animation & Simulation modules | `canvas/src/features/three/pipeline/animation.ts`, `canvas/src/features/three/pipeline/simulation.ts` | Proposed |
+| Pipeline / Physics | Proposed Animation module plus present native 3D/XR adapter | `canvas/src/features/three/pipeline/animation.ts`; `canvas/src/features/physics/spatialPhysicsEngine.ts`; `canvas/src/features/three/XrPhysicsStageRuntime.tsx` | Mixed: Animation proposed; Physics present |
 | Pipeline | Post-rendering & Compositor modules | `canvas/src/features/three/pipeline/rendering.ts`, `canvas/src/features/three/pipeline/compositing.ts` | Proposed |
 | Pipeline | Motion Tracking & Sequencer modules | `canvas/src/features/three/pipeline/tracking.ts`, `canvas/src/features/three/pipeline/sequencer.ts` | Proposed |
 | Test | XR mode schema tests | `canvas/src/__tests__/canvas3dMode.test.ts` | Present |
@@ -944,7 +944,7 @@ The MVP goal is to make existing assets spatially inspectable. That can be achie
 Implementing a complex, multi-stage 3D pipeline natively in the rendering code can easily lead to hardcoded components and rigid rendering behaviors that drift from document-native representation.
 
 ### Decision
-Expose the configuration of the 8-stage 3D pipeline reactively through a new `kgAsset3dPipeline` frontmatter spec. The Three.js/R3F viewport dynamically adapts modeling, armature rigging, physics simulations, and compositing blend nodes based on this document specification.
+Expose presentation configuration for the 8-stage 3D pipeline reactively through `kgAsset3dPipeline` frontmatter. The Three.js/R3F viewport adapts supported modeling, armature, animation, and compositing stages. Physics state does not use that presentation schema: it remains under the independent dimension-specific native physics owners and their existing feature adapters.
 
 ### Alternatives Considered
 1. **Document-native spec coordinator**: Retains universality and neutrality, mapping spec parameters to dynamic runtime components.
@@ -976,7 +976,7 @@ Each row is a project-scoped instantiation of the universal CID grammar applied 
 | Adaptability | Enable frontmatter-driven pipeline configuration | - [ ] Design pipeline stages configurably through `kgAsset3dPipeline`; enable runtime adaptation; forbid hardcoded pipeline constants |
 | Architecture | Design XR component interactions | - [ ] Map XR component relationships through Journey-To-System table; design interactions via integration contracts; forbid undocumented dependencies |
 | Boundaries | Define XR Mode scope | - [ ] Establish clear scope in In Scope / Out Of Scope sections; define XR-specific boundaries; forbid scope creep into proprietary tooling |
-| Components | Specify modular pipeline units | - [ ] Define component boundaries per pipeline stage (modeling, rigging, animation, simulation, rendering, compositing, tracking, sequencer); forbid monolithic pipeline designs |
+| Components | Specify modular pipeline units | - [ ] Define presentation boundaries for modeling, rigging, animation, rendering, compositing, tracking, and sequencing; keep native physics state in its dimension-specific owner; forbid monolithic or competing simulation owners |
 | Data | Specify XR data flows | - [ ] Map data flows per epic (surface activation, model ingest, PNG->SVG->GLB, pipeline activation); forbid undocumented format transitions |
 | Decisions | Document XR architectural rationale | - [ ] Record every ADR with TCO comparison and FOSS-first evaluation; forbid unexplained architectural choices |
 | FOSS | Default to open-source XR dependencies | - [ ] Identify FOSS alternative before any proprietary selection (VTracer, Potrace, Three.js, R3F); document TCO comparison in ADR; forbid undocumented vendor lock-in |
@@ -1010,7 +1010,7 @@ Each row is a project-scoped instantiation of the universal CID grammar applied 
 | KXR-E4-S1-AC3 | XR Renderer + Asset Optimizer | Smoke + inspect proof | Browser and inspect reports stay under budget |
 | KXR-E5-S1-AC1 | XR 3D Pipeline Coordinator | Frontmatter loading | `canvas.xrPipeline.modelingRigging` tests pass |
 | KXR-E5-S1-AC2 | XR Modeling & Rigging Engines | SDF mesh and armature skeletons | Skinned bone weights are applied and SDF meshes compile |
-| KXR-E5-S1-AC3 | XR Animation & Simulation Solver | Verlet updates and NLA blend paths | Verlet solver converges and NLA mixer advances frames |
+| KXR-E5-S1-AC3 | XR Native Physics Adapter + Animation owner | Fixed-step body projection and independent animation advancement | Native physics and XR runtime suites preserve owner separation and accepted body state |
 | KXR-E5-S1-AC4 | XR Compositor & Sequencer | Composer passes and timeline playback | Compositor blends passes and sequencer emits synchronized updates |
 
 ---
