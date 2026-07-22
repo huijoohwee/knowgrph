@@ -71,12 +71,37 @@ export function testFrontmatterGrowthReseedsWholeBalancedCollective() {
   for (const snippet of [
     "'[data-kg-rich-media-overlay=\"1\"]'",
     'relaxOverlayPanelsWithCollision({',
-    'const currentDomRect = item.el.getBoundingClientRect()',
-    'const projectionOffsetTop = previouslyApplied',
-    'const finalSettledCardBoxes:',
+    'settledWorldByCardIdRef',
+    'const worldById = new Map<string, StoryboardCardPlacement>()',
+    'if (fixedLayoutEnabled) return rawBox',
   ]) {
     if (!projectionText.includes(snippet)) {
       throw new Error(`expected fixed-card projection to enforce balanced Widget/Rich Media layout via ${snippet}`)
+    }
+  }
+}
+
+export function testFixedCardProjectionFreezesBalancedWorldLayoutDuringCollectiveCameraMotion() {
+  const projectionPath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'useStoryboardCardOverlayProjection2d.ts')
+  const projectionText = readFileSync(projectionPath, 'utf8')
+  for (const snippet of [
+    'settledWorldByCardIdRef',
+    'worldById: Map<string, StoryboardCardPlacement>',
+    'if (fixedLayoutEnabled) return rawBox',
+    'screenToWorld({',
+  ]) {
+    if (!projectionText.includes(snippet)) {
+      throw new Error(`expected fixed Card projection to preserve one world-space collective through drag/pan/zoom via ${snippet}`)
+    }
+  }
+  for (const stale of [
+    'const currentDomRect = item.el.getBoundingClientRect()',
+    'const projectionOffsetLeft = previouslyApplied',
+    'const finalSettledCardBoxes:',
+    'STORYBOARD_WIDGET_SCREEN_AUTHORITY_COLLECTIVE_PAN_EVENT',
+  ]) {
+    if (projectionText.includes(stale)) {
+      throw new Error(`expected camera motion to avoid per-frame Card/Rich Media layout mutation via ${stale}`)
     }
   }
 }
