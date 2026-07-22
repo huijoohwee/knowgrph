@@ -9,6 +9,7 @@ import { useGraphStore } from '@/hooks/useGraphStore'
 import { computeArrangeCenters, type ArrangeAction2d } from '@/lib/canvas/arrange2d'
 import { isEditableTarget, readArrangeShortcut, readNudgeDelta } from '@/lib/canvas/arrangeShortcuts'
 import { readSnapGridConfigFromSchema, snapScalarToGrid } from '@/lib/canvas/gridSnap'
+import { graphActivationFitTargetsGraph, isGraphActivationFitRequest } from '@/lib/zoom/graphActivationFit'
 
 export default React.memo(function FlowCanvasInteractionRuntime(
   props: FlowCanvasInteractionRuntimeProps,
@@ -187,25 +188,29 @@ export default React.memo(function FlowCanvasInteractionRuntime(
     if (!active) return
     const runtime = runtimeRef.current
     if (!zoomRequest) return
+    const storyboardWidgetMode = canvas2dRenderer === 'storyboard'
+    const requestState = useGraphStore.getState()
+    const graphActivationFit = isGraphActivationFitRequest(zoomRequest)
+    if (graphActivationFit && !graphActivationFitTargetsGraph({ request: zoomRequest, graphData: graphDataForZoomRequests })) return
+    if (!runtime && graphActivationFit) return
     if (!runtime) {
       try {
-        const st = useGraphStore.getState()
         if (canvas2dRenderer === 'storyboard' && (zoomRequest.type === 'fit' || zoomRequest.type === 'reset')) {
-          st.setFlowWidgetWorldPosByNodeId({})
+          requestState.setFlowWidgetWorldPosByNodeId({})
         }
-        st.clearZoomRequest()
+        requestState.clearZoomRequest()
       } catch {
         void 0
       }
       return
     }
-    const storyboardWidgetMode = canvas2dRenderer === 'storyboard'
-    const requestState = useGraphStore.getState()
     if (storyboardWidgetMode && isWorkspaceGraphMutationBlocked(requestState)) {
       // Fit requests raised by source recomposition during a mutation lock must
       // not remain queued and fire against the settled graph on the next render.
-      if (zoomRequest.type === 'fit') requestState.clearZoomRequest()
-      return
+      if (!graphActivationFit) {
+        if (zoomRequest.type === 'fit') requestState.clearZoomRequest()
+        return
+      }
     }
     const widthEffective = viewportW
     applyZoomRequestNative({
