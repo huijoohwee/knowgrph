@@ -33,6 +33,7 @@ CATALOG_PREVIEW_READY_BUDGET_MS = max(
     1,
     int(os.environ.get("KG_MEDIA_PREVIEW_READY_BUDGET_MS", "500")),
 )
+ASYNC_SURFACE_READY_TIMEOUT_MS = 15_000
 
 
 def assert_canvas_has_visual_content(canvas, artifact_name: str) -> None:
@@ -126,8 +127,9 @@ def open_text_edit_input(page):
 def assert_catalog_preview_parent_placement(page, kind: str) -> None:
     page.locator(f'[data-kg-smoke-open-{kind}-preview="1"]').click()
     preview = page.locator(f'[data-kg-media-catalog-preview-kind="{kind}"]').first
-    panel = preview.locator('[data-kg-rich-media-panel="1"]').first
-    media = preview.locator("video" if kind == "video" else "img").first
+    active_item = preview.locator('[data-kg-media-catalog-preview-item-active="1"]').first
+    panel = active_item.locator('[data-kg-rich-media-panel="1"]').first
+    media = active_item.locator("video" if kind == "video" else "img").first
     expect(preview).to_be_visible()
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-placement", "legacy-lightbox")
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-count", "1")
@@ -228,55 +230,110 @@ def assert_video_metadata_identity(video, label: str) -> dict[str, float]:
     }
 
 
+def arm_catalog_preview_promotion_timing(preview, target_id: str, button_selector: str, kind: str) -> None:
+    preview.evaluate(
+        """
+        (element, args) => {
+          const target = element.querySelector(`[data-kg-media-catalog-preview-deck-item="${args.targetId}"]`)
+          const button = element.querySelector(args.buttonSelector)
+          const media = target?.querySelector(args.kind === 'video' ? 'video' : 'img')
+          if (!(target instanceof HTMLElement) || !(button instanceof HTMLButtonElement) || !media) {
+            throw new Error(`cannot arm ${args.kind} preview promotion timing`)
+          }
+          window.__kgMediaPromotion = null
+          let clickedAt = -1
+          button.addEventListener('click', () => {
+            clickedAt = performance.now()
+          }, { capture: true, once: true })
+          const observer = new MutationObserver(() => {
+            if (clickedAt < 0 || target.getAttribute('data-kg-media-catalog-preview-item-active') !== '1') return
+            const promotedMedia = target.querySelector(args.kind === 'video' ? 'video' : 'img')
+            window.__kgMediaPromotion = {
+              complete: args.kind === 'image' ? promotedMedia?.complete === true : undefined,
+              elapsedMs: performance.now() - clickedAt,
+              haveMetadata: args.kind === 'video' ? promotedMedia?.HAVE_METADATA : undefined,
+              naturalWidth: args.kind === 'image' ? promotedMedia?.naturalWidth : undefined,
+              readyState: args.kind === 'video' ? promotedMedia?.readyState : undefined,
+              sameNode: promotedMedia === media,
+            }
+            observer.disconnect()
+          })
+          observer.observe(target, {
+            attributes: true,
+            attributeFilter: ['data-kg-media-catalog-preview-item-active'],
+          })
+        }
+        """,
+        {"buttonSelector": button_selector, "kind": kind, "targetId": target_id},
+    )
+
+
+def read_catalog_preview_promotion_timing(page, kind: str) -> float:
+    page.wait_for_function("() => window.__kgMediaPromotion !== null", timeout=5000)
+    result = page.evaluate("() => window.__kgMediaPromotion")
+    if not isinstance(result, dict) or result.get("sameNode") is not True:
+        raise AssertionError(f"expected {kind} promotion to preserve the preloaded DOM node, got {result}")
+    if kind == "video":
+        if int(result.get("readyState") or 0) < int(result.get("haveMetadata") or 1):
+            raise AssertionError(f"expected promoted video metadata to remain ready, got {result}")
+    elif result.get("complete") is not True or int(result.get("naturalWidth") or 0) <= 0:
+        raise AssertionError(f"expected promoted image pixels to remain ready, got {result}")
+    elapsed_ms = float(result.get("elapsedMs") or 0)
+    if elapsed_ms > CATALOG_PREVIEW_READY_BUDGET_MS:
+        raise AssertionError(
+            f"expected preloaded {kind} promotion within {CATALOG_PREVIEW_READY_BUDGET_MS}ms, got {elapsed_ms:.1f}ms"
+        )
+    return elapsed_ms
+
+
 def assert_catalog_preview_arrow_navigation(page) -> dict[str, object]:
     cold_started_at = float(page.evaluate("() => performance.now()"))
     page.locator('[data-kg-smoke-open-image-preview="1"]').click()
     preview = page.locator('[data-kg-media-catalog-preview="1"]').first
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "image")
-    visible_image = preview.locator('[data-kg-media-catalog-preview-panel="1"] img').first
+    visible_image = preview.locator('[data-kg-media-catalog-preview-item-active="1"] img').first
     wait_for_image_ready(page, visible_image, 5000)
     cold_ready_ms = float(page.evaluate("startedAt => performance.now() - startedAt", cold_started_at))
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-count", "2")
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-touch-navigation", "horizontal-swipe")
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-count", "1")
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-kinds", "video")
-    preloaded_video = preview.locator('[data-kg-media-catalog-preview-preload-kind="video"]').first
+    preloaded_video = preview.locator('[data-kg-media-catalog-preview-preload-kind="video"] video').first
     wait_for_video_metadata(page, preloaded_video, 5000)
+    preload_state = preloaded_video.evaluate(
+        "element => ({ autoplay: element.autoplay, loop: element.loop, preload: element.preload })"
+    )
+    if preload_state != {"autoplay": False, "loop": False, "preload": "metadata"}:
+        raise AssertionError(f"expected adjacent video to remain metadata-only, got {preload_state}")
     preloaded_video_metadata = assert_video_metadata_identity(preloaded_video, "preloaded video")
 
     previous_button = preview.locator('[data-kg-media-catalog-preview-previous="1"]')
     next_button = preview.locator('[data-kg-media-catalog-preview-next="1"]')
     expect(previous_button).to_be_visible()
     expect(next_button).to_be_visible()
-    video_started_at = float(page.evaluate("() => performance.now()"))
+    arm_catalog_preview_promotion_timing(
+        preview,
+        "smoke-video",
+        '[data-kg-media-catalog-preview-next="1"]',
+        "video",
+    )
     next_button.click()
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "video")
-    visible_video = preview.locator('[data-kg-media-catalog-preview-panel="1"] video').first
-    wait_for_video_metadata(page, visible_video, CATALOG_PREVIEW_READY_BUDGET_MS)
+    visible_video = preview.locator('[data-kg-media-catalog-preview-item-active="1"] video').first
+    video_ready_ms = read_catalog_preview_promotion_timing(page, "video")
     visible_video_metadata = assert_video_metadata_identity(visible_video, "visible video")
-    video_ready_ms = float(page.evaluate("startedAt => performance.now() - startedAt", video_started_at))
-    if video_ready_ms > CATALOG_PREVIEW_READY_BUDGET_MS:
-        raise AssertionError(
-            f"expected preloaded video metadata ready within {CATALOG_PREVIEW_READY_BUDGET_MS}ms, got {video_ready_ms:.1f}ms"
-        )
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-kinds", "image")
-    preloaded_image = preview.locator('[data-kg-media-catalog-preview-preload-kind="image"]').first
+    preloaded_image = preview.locator('[data-kg-media-catalog-preview-preload-kind="image"] img').first
     wait_for_image_ready(page, preloaded_image, 5000)
-    preloaded_started_at = float(page.evaluate("() => performance.now()"))
+    arm_catalog_preview_promotion_timing(
+        preview,
+        "smoke-image",
+        '[data-kg-media-catalog-preview-previous="1"]',
+        "image",
+    )
     previous_button.click()
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", "image")
-    try:
-        wait_for_image_ready(page, visible_image, CATALOG_PREVIEW_READY_BUDGET_MS)
-    except PlaywrightTimeoutError as error:
-        elapsed_ms = float(page.evaluate("startedAt => performance.now() - startedAt", preloaded_started_at))
-        raise AssertionError(
-            f"expected preloaded image preview ready within {CATALOG_PREVIEW_READY_BUDGET_MS}ms, got >={elapsed_ms:.1f}ms"
-        ) from error
-    preloaded_ready_ms = float(page.evaluate("startedAt => performance.now() - startedAt", preloaded_started_at))
-    if preloaded_ready_ms > CATALOG_PREVIEW_READY_BUDGET_MS:
-        raise AssertionError(
-            f"expected preloaded image preview ready within {CATALOG_PREVIEW_READY_BUDGET_MS}ms, got {preloaded_ready_ms:.1f}ms"
-        )
+    preloaded_ready_ms = read_catalog_preview_promotion_timing(page, "image")
     expect(preview).to_have_attribute("data-kg-media-catalog-preview-preload-kinds", "video")
 
     def swipe(start_x: int, start_y: int, end_x: int, end_y: int) -> None:
@@ -310,7 +367,7 @@ def assert_catalog_preview_arrow_navigation(page) -> dict[str, object]:
     ):
         page.keyboard.press(key)
         expect(preview).to_have_attribute("data-kg-media-catalog-preview-kind", expected_kind)
-        expect(preview.locator("video" if expected_kind == "video" else "img").first).to_be_visible()
+        expect(preview.locator(f'[data-kg-media-catalog-preview-item-active="1"] {"video" if expected_kind == "video" else "img"}').first).to_be_visible()
 
     preview.locator('[data-kg-media-catalog-preview-close="1"]').click()
     expect(preview).to_have_count(0)
@@ -360,7 +417,10 @@ def main() -> None:
                 '[data-kg-smoke-panel="text-preview"] [data-kg-rich-media-markdown-preview="1"]'
             ).first
             expect(preview_surface).to_be_visible()
-            expect(page.locator('[data-kg-smoke-panel="text-preview"] table')).to_have_count(1)
+            expect(page.locator('[data-kg-smoke-panel="text-preview"] table')).to_have_count(
+                1,
+                timeout=ASYNC_SURFACE_READY_TIMEOUT_MS,
+            )
 
             edit_input = open_text_edit_input(page)
             edit_input.fill("## Browser updated\n\nRuntime edit OK.")

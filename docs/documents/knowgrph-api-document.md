@@ -28,8 +28,7 @@ API and MCP contracts are owned upstream in Dev. Production mirrors should recei
 
 ## Image-to-Three.js skill contract
 
-- Canonical API contract: [knowgrph-image-to-threejs-api.md](knowgrph-image-to-threejs-api.md) owns the typed input, manifest, native Three.js lifecycle, shared surface propagation, no-copy boundary, proof, and deployment gate.
-
+- Canonical API contracts: [knowgrph-image-to-threejs-api.md](knowgrph-image-to-threejs-api.md) owns typed image projection and lifecycle; [knowgrph-image-to-glb-api.md](knowgrph-image-to-glb-api.md) owns compact connected-contour reconstruction, rigid pivots and sockets, the inspection clip, separated quality admission, GLB/editable glTF fidelity, and external-inspiration isolation.
 ## Canvas iframe embed contract
 
 - UI entry: Editor Workspace → Source Files → right-click a file → **Share canvas embed**.

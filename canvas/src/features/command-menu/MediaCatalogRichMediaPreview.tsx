@@ -1,8 +1,7 @@
 import React from 'react'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
-import RichMediaPanel from '@/components/RichMediaPanel'
 import PreviewOverlay from '@/features/panels/views/preview-panel/ui/PreviewOverlay'
-import { readUploadedMediaPanelItemRuntimeUrl, type UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
+import type { UploadedMediaPanelItem } from '@/lib/storage/uploadedMediaPanelItems'
 import { UI_THEME_TOKENS } from '@/lib/ui/theme-tokens'
 import {
   MEDIA_EXPANDED_PREVIEW_OVERLAY_CLASS_NAME,
@@ -10,14 +9,11 @@ import {
   MEDIA_EXPANDED_PREVIEW_PLAYER_CLASS_NAME,
   MEDIA_EXPANDED_PREVIEW_PLAYER_FRAME_CLASS_NAME,
   MEDIA_EXPANDED_PREVIEW_MEDIA_CLASS_NAME,
-  MEDIA_EXPANDED_PREVIEW_RICH_PANEL_CLASS_NAME,
 } from '@/lib/ui/mediaExpandedPreviewLayout'
 import { MediaExpandedPreviewFullscreenButton } from '@/lib/ui/MediaExpandedPreviewFullscreenButton'
 import { cn } from '@/lib/utils'
-import {
-  MediaCatalogPreviewPreloads,
-  resolveMediaCatalogPreviewPreloadItems,
-} from './MediaCatalogPreviewPreloads'
+import { MediaCatalogPreviewDeck } from './MediaCatalogPreviewDeck'
+import { resolveMediaCatalogPreviewDeckItems } from './mediaCatalogPreviewDeckPlan'
 import { useMediaCatalogPreviewNavigation } from './useMediaCatalogPreviewNavigation'
 
 export function MediaCatalogRichMediaPreview(props: {
@@ -28,12 +24,12 @@ export function MediaCatalogRichMediaPreview(props: {
 }) {
   const { item, items, onClose, onNavigate } = props
   const previewRef = React.useRef<HTMLElement | null>(null)
-  const runtimeUrl = readUploadedMediaPanelItemRuntimeUrl(item)
   const navigation = useMediaCatalogPreviewNavigation({ item, items, onNavigate })
-  const preloadItems = React.useMemo(
-    () => resolveMediaCatalogPreviewPreloadItems(navigation.adjacentItems),
-    [navigation.adjacentItems],
+  const deckItems = React.useMemo(
+    () => resolveMediaCatalogPreviewDeckItems(item, navigation.adjacentItems),
+    [item, navigation.adjacentItems],
   )
+  const preloadItems = deckItems.filter(deckItem => deckItem.id !== item.id)
 
   return (
     <PreviewOverlay
@@ -113,25 +109,9 @@ export function MediaCatalogRichMediaPreview(props: {
         ) : null}
         <section className={MEDIA_EXPANDED_PREVIEW_PLAYER_FRAME_CLASS_NAME}>
           <section className={MEDIA_EXPANDED_PREVIEW_MEDIA_CLASS_NAME} data-kg-media-catalog-preview-panel="1">
-            <section className={MEDIA_EXPANDED_PREVIEW_RICH_PANEL_CLASS_NAME}>
-              <RichMediaPanel
-                key={item.id}
-                overlayId={`floating-media-preview:${item.id}`}
-                title={item.name || 'Uploaded media'}
-                url={runtimeUrl}
-                openUrl={runtimeUrl}
-                kind={item.kind}
-                interactive={item.kind !== 'image'}
-                videoControls={item.kind === 'video'}
-                panelChrome="storyboardWidget"
-                frameMode="surface"
-                placementOwner="parent"
-                style={{ height: '100%', width: '100%' }}
-              />
-            </section>
+            <MediaCatalogPreviewDeck activeItemId={item.id} items={deckItems} />
           </section>
         </section>
-        <MediaCatalogPreviewPreloads items={preloadItems} />
       </section>
     </PreviewOverlay>
   )

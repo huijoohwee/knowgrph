@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 export function testRichMediaBrowserSmokeContract() {
   const appSource = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8')
   const smokePageSource = readFileSync(new URL('../features/testing/RichMediaBrowserSmokePage.tsx', import.meta.url), 'utf8')
-  const preloadSource = readFileSync(new URL('../features/command-menu/MediaCatalogPreviewPreloads.tsx', import.meta.url), 'utf8')
+  const previewDeckSource = readFileSync(new URL('../features/command-menu/MediaCatalogPreviewDeck.tsx', import.meta.url), 'utf8')
   const packageJson = readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
   const runnerSource = readFileSync(new URL('../../scripts/run_rich_media_browser_smoke.mjs', import.meta.url), 'utf8')
   const verifierSource = readFileSync(new URL('../../scripts/verify_rich_media_browser_smoke.py', import.meta.url), 'utf8')
@@ -77,12 +77,12 @@ export function testRichMediaBrowserSmokeContract() {
 
   for (const snippet of [
     'data-kg-media-catalog-preview-preloads="1"',
-    'pointer-events-none fixed -left-2 -top-2 h-px w-px overflow-hidden opacity-0',
-    "resource.setAttribute('src', item.url)",
-    'Strict Mode replays cleanup; setup must restore the source it owns.',
+    'key={item.id}',
+    'data-kg-media-catalog-preview-item-active',
+    "active ? 'visible z-10 pointer-events-auto' : 'invisible z-0 pointer-events-none'",
   ]) {
-    if (!preloadSource.includes(snippet)) {
-      throw new Error(`expected media preview preloads to remain fetchable while visually isolated: ${snippet}`)
+    if (!previewDeckSource.includes(snippet)) {
+      throw new Error(`expected the media preview deck to preserve keyed adjacent resources across navigation: ${snippet}`)
     }
   }
 
@@ -139,6 +139,7 @@ export function testRichMediaBrowserSmokeContract() {
     'input_locator.wait_for(state="visible", timeout=5000)',
     'expected rich media text edit panel to reveal the inline editor surface',
     'KG_RICH_MEDIA_SMOKE_BASE_URL',
+    'ASYNC_SURFACE_READY_TIMEOUT_MS = 15_000',
     'data-kg-smoke-panel="storyboard-widget"',
     'image_threejs_surfaces = (',
     '("image-threejs-card-jpg", "raster", "jpg")',
@@ -162,8 +163,11 @@ export function testRichMediaBrowserSmokeContract() {
     '"preloaded": preloaded_video_metadata',
     '"visible": visible_video_metadata',
     'subprocess.run(',
-    'expected preloaded image preview ready within',
-    'expected preloaded video metadata ready within',
+    'def arm_catalog_preview_promotion_timing(',
+    'def read_catalog_preview_promotion_timing(',
+    'window.__kgMediaPromotion',
+    'expected adjacent video to remain metadata-only',
+    'expected {kind} promotion to preserve the preloaded DOM node',
     '"criterion": "readyState >= HAVE_METADATA"',
     'preloadedTransitionReadyMs',
     'OK rich-media-browser-smoke',
