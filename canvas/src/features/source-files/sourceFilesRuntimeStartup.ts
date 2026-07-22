@@ -124,7 +124,7 @@ export function createWorkspaceStartupSourceRootEntriesReader(args: {
   }
 }
 
-export async function resolveInitialWorkspaceStartupState(): Promise<{
+export async function resolveInitialWorkspaceStartupState(args?: { fs?: WorkspaceFs }): Promise<{
   activePath: WorkspacePath | null
   workspaceEntries: WorkspaceEntry[]
 }> {
@@ -132,7 +132,7 @@ export async function resolveInitialWorkspaceStartupState(): Promise<{
   const preferCustomValidationSeed =
     CUSTOM_TEST_VALIDATION_WORKSPACE_SEED_ACTIVE &&
     TEST_VALIDATION_WORKSPACE_SEED_REL_PATH !== DEFAULT_TEST_VALIDATION_WORKSPACE_SEED_REL_PATH
-  const fs = await getWorkspaceFs()
+  const fs = args?.fs || await getWorkspaceFs()
   await fs.ensureSeed()
   const startupWorkspaceEntries = await fs.listEntries()
   const readStartupSourceRootEntries = createWorkspaceStartupSourceRootEntriesReader({

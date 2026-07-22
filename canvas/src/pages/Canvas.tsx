@@ -9,7 +9,7 @@ import { useCanvasWorkspacePaneRuntime } from '@/features/canvas/useCanvasWorksp
 import { dispatchRuntimeZoomAction } from '@/lib/canvas/runtimeZoomDispatch'
 import { useCanvasGeospatialRuntime } from '@/features/canvas/useCanvasGeospatialRuntime'
 import { shouldOpenEditorWorkspaceFromSearch } from '@/features/canvas/canvasQueryBootstrapSearch'
-import { parseDocDeepLink } from '@/features/canvas/canvasDocDeepLink'
+import { buildDocDeepLinkIntentKey } from '@/features/canvas/canvasDocDeepLink'
 import { CanvasRootRuntime } from '@/features/canvas/CanvasRootRuntime'
 import { GraphStoreRuntime } from '@/features/canvas/GraphStoreRuntime'
 import { useCanvasEmbeddedPreviewRuntime } from '@/features/canvas/useCanvasEmbeddedPreviewRuntime'
@@ -61,7 +61,11 @@ export default function CanvasPage(props: { bootstrapRuntimesEnabled?: boolean }
   const dedicatedRunReadyDemo = xrPhysicsRunReadyDemo
   const previewOnly = isEmbeddedPreview || dedicatedRunReadyDemo
   const hasSearchParams = React.useMemo(() => String(location.search || '').trim().length > 0, [location.search])
-  const hasDocDeepLinkParams = React.useMemo(() => Boolean(parseDocDeepLink(String(location.search || ''))), [location.search])
+  const documentIntentKey = React.useMemo(
+    () => buildDocDeepLinkIntentKey(String(location.search || '')),
+    [location.search],
+  )
+  const hasDocDeepLinkParams = Boolean(documentIntentKey)
   const [liveCanvasHeroOwnsWorkspace, setLiveCanvasHeroOwnsWorkspace] = React.useState(() => (
     isRouterRootAliasRuntime(import.meta.env.BASE_URL)
   ))

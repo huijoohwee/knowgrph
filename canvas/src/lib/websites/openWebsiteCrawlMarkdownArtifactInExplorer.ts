@@ -1,8 +1,6 @@
 import { openMarkdownWorkspacePathInExplorer } from '@/features/markdown-workspace/openMarkdownWorkspacePathInExplorer'
-import {
-  activateFirstImportedWorkspaceFile,
-  applyWorkspaceImportToCanvasBestEffort,
-} from '@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions'
+import { activateFirstImportedWorkspaceFile } from '@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions'
+import { applyWorkspaceImportToCanvas } from '@/features/workspace-fs/applyWorkspaceImportToCanvas'
 import { ensureWorkspaceFolderTreeIfMissing } from '@/features/workspace-fs/ensureFolderTreeIfMissing'
 import { normalizeWorkspacePath, splitWorkspacePath } from '@/features/workspace-fs/path'
 import { setWorkspaceEntrySource } from '@/features/workspace-fs/sourceIndex'
@@ -51,7 +49,13 @@ export function consumeWebsiteCrawlMarkdownDeepLinkRequest(): void {
   url.searchParams.delete(WEBSITE_CRAWL_ARTIFACT_QUERY_PARAM)
   url.searchParams.delete(WEBSITE_CRAWL_SOURCE_URL_QUERY_PARAM)
   url.searchParams.delete('kgDoc')
-  window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+  const currentState = window.history.state
+  window.history.replaceState(currentState, '', `${url.pathname}${url.search}${url.hash}`)
+  try {
+    window.dispatchEvent(new PopStateEvent('popstate', { state: currentState }))
+  } catch {
+    window.dispatchEvent(new Event('popstate'))
+  }
 }
 
 export async function openWebsiteCrawlMarkdownArtifactInExplorer(args: {
@@ -82,12 +86,13 @@ export async function openWebsiteCrawlMarkdownArtifactInExplorer(args: {
   if (/^https?:\/\//i.test(sourceUrl)) {
     setWorkspaceEntrySource(workspacePath, { kind: 'url', url: sourceUrl }, { persist: 'sync' })
   }
-  await applyWorkspaceImportToCanvasBestEffort({
+  await applyWorkspaceImportToCanvas({
     fs,
     createdPaths: [workspacePath],
-    opts: { applyToGraph: false },
+    opts: { applyToGraph: false, skipComposedGraphApply: true },
   })
-  await activateFirstImportedWorkspaceFile({ fs, createdPaths: [workspacePath], applyToGraph: false })
+  const activated = await activateFirstImportedWorkspaceFile({ fs, createdPaths: [workspacePath], applyToGraph: false })
+  if (!activated) return null
   notifyWorkspaceFsChanged({ op: 'batch', path: workspacePath })
   return openMarkdownWorkspacePathInExplorer(workspacePath)
 }

@@ -89,11 +89,14 @@ const readHomeSourceAuthority = async page => {
     url: target.url(),
     ...await target.evaluate(() => ({
       prematureSceneMounts: window.__kgHomeSourceAuthorityEvidence || [],
+      sceneAuthorityMounts: window.__kgHomeXrSceneAuthorityEvidence || [],
       sceneRootCount: document.querySelectorAll('[data-kg-xr-scene-media-drop="1"]').length,
       documentLoadedRootCount: document.querySelectorAll(
         '[data-kg-xr-scene-media-drop="1"][data-kg-xr-document-loaded="1"]',
       ).length,
       canvasCount: document.querySelectorAll('[data-kg-xr-scene-media-drop="1"] canvas').length,
+      sceneAuthorities: Array.from(document.querySelectorAll('[data-kg-xr-scene-media-drop="1"]'))
+        .map(element => element.getAttribute('data-kg-xr-scene-authority')),
       emptyWorldCount: document.querySelectorAll('[data-kg-xr-empty-world="1"]').length,
       gameStageCount: document.querySelectorAll('[data-kg-game-fps-stage]').length,
       viewportLabels: Array.from(document.querySelectorAll('[data-kg-canvas-viewport-root="1"]'))
@@ -106,9 +109,11 @@ const readHomeSourceAuthority = async page => {
   return evidenceByTarget.reduce((total, evidence) => ({
     targetUrls: [...total.targetUrls, evidence.url],
     prematureSceneMounts: [...total.prematureSceneMounts, ...evidence.prematureSceneMounts],
+    sceneAuthorityMounts: [...total.sceneAuthorityMounts, ...evidence.sceneAuthorityMounts],
     sceneRootCount: total.sceneRootCount + evidence.sceneRootCount,
     documentLoadedRootCount: total.documentLoadedRootCount + evidence.documentLoadedRootCount,
     canvasCount: total.canvasCount + evidence.canvasCount,
+    sceneAuthorities: [...total.sceneAuthorities, ...evidence.sceneAuthorities],
     emptyWorldCount: total.emptyWorldCount + evidence.emptyWorldCount,
     gameStageCount: total.gameStageCount + evidence.gameStageCount,
     viewportLabels: [...total.viewportLabels, ...evidence.viewportLabels],
@@ -117,9 +122,11 @@ const readHomeSourceAuthority = async page => {
   }), {
     targetUrls: [],
     prematureSceneMounts: [],
+    sceneAuthorityMounts: [],
     sceneRootCount: 0,
     documentLoadedRootCount: 0,
     canvasCount: 0,
+    sceneAuthorities: [],
     emptyWorldCount: 0,
     gameStageCount: 0,
     viewportLabels: [],
@@ -169,7 +176,21 @@ const browser = await chromium.launch({
 const context = await browser.newContext({ serviceWorkers: 'block' })
 await context.addInitScript(() => {
   const prematureSceneMounts = []
+  const sceneAuthorityMounts = []
+  const observedSceneRoots = new WeakSet()
+  const recordSceneAuthorityMount = () => {
+    const sceneRoots = document.querySelectorAll('[data-kg-xr-scene-media-drop="1"]')
+    for (const root of sceneRoots) {
+      if (observedSceneRoots.has(root)) continue
+      observedSceneRoots.add(root)
+      sceneAuthorityMounts.push({
+        authority: root.getAttribute('data-kg-xr-scene-authority'),
+        documentLoaded: root.getAttribute('data-kg-xr-document-loaded'),
+      })
+    }
+  }
   const recordPrematureSceneMount = () => {
+    recordSceneAuthorityMount()
     const sceneRoots = document.querySelectorAll('[data-kg-xr-scene-media-drop="1"]')
     const canonicalSourceReady = document.querySelector('[data-kg-xr-physics-run-ready="full-frame"]')
       || Array.from(sceneRoots).every(root => root.getAttribute('data-kg-xr-document-loaded') === '1')
@@ -177,6 +198,7 @@ await context.addInitScript(() => {
     prematureSceneMounts.push({
       rootCount: sceneRoots.length,
       documentLoaded: Array.from(sceneRoots).map(root => root.getAttribute('data-kg-xr-document-loaded')),
+      sceneAuthorities: Array.from(sceneRoots).map(root => root.getAttribute('data-kg-xr-scene-authority')),
       emptyWorldCount: document.querySelectorAll('[data-kg-xr-empty-world="1"]').length,
       gameStageCount: document.querySelectorAll('[data-kg-game-fps-stage]').length,
     })
@@ -188,12 +210,17 @@ await context.addInitScript(() => {
     attributeFilter: [
       'data-kg-xr-document-loaded',
       'data-kg-xr-physics-run-ready',
+      'data-kg-xr-scene-authority',
       'data-kg-xr-scene-media-drop',
     ],
   })
   Object.defineProperty(window, '__kgHomeSourceAuthorityEvidence', {
     configurable: false,
     get: () => prematureSceneMounts.slice(),
+  })
+  Object.defineProperty(window, '__kgHomeXrSceneAuthorityEvidence', {
+    configurable: false,
+    get: () => sceneAuthorityMounts.slice(),
   })
 })
 const pageErrors = []
@@ -230,9 +257,16 @@ try {
   assert.doesNotMatch(heroCanvasText, /Validation seed fallback/)
   const homeSourceAuthority = await waitForHomeSourceAuthority(home)
   assert.deepEqual(homeSourceAuthority.prematureSceneMounts, [], 'Home mounted an XR world before canonical source readiness')
+  assert.ok(homeSourceAuthority.sceneAuthorityMounts.length > 0, 'Home must record its first XR scene authority')
+  assert.deepEqual(
+    homeSourceAuthority.sceneAuthorityMounts.map(mount => mount.authority),
+    homeSourceAuthority.sceneAuthorityMounts.map(() => 'native-controller'),
+    `Home recovered from a non-canonical XR scene owner: ${JSON.stringify(homeSourceAuthority.sceneAuthorityMounts)}`,
+  )
   assert.equal(homeSourceAuthority.sceneRootCount, 1, 'Home must retain exactly one canonical XR scene root')
   assert.equal(homeSourceAuthority.documentLoadedRootCount, 1, 'Home XR scene root must own the loaded source document')
   assert.equal(homeSourceAuthority.canvasCount, 1, 'Home must retain exactly one canonical XR Canvas')
+  assert.deepEqual(homeSourceAuthority.sceneAuthorities, ['native-controller'], 'Home canonical Physics must retain native-controller scene authority')
   assert.equal(homeSourceAuthority.emptyWorldCount, 0, 'Home must never retain an empty-world fallback')
   assert.equal(homeSourceAuthority.gameStageCount, 0, 'Home must not activate Game Mode before explicit invocation')
 

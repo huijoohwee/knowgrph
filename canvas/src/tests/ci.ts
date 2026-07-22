@@ -408,6 +408,8 @@ if (!g.ResizeObserver) {
 }
 
 async function main() {
+  const { completeSourceFilesBootstrap } = await import('@/features/source-files/sourceFilesBootstrapReadiness')
+  completeSourceFilesBootstrap()
   const { runAllTests } = await import('@/tests/run')
   const { readCurrentRunningTest } = await import('@/tests/runner/execTest')
   const startedAt = Date.now()

@@ -536,9 +536,8 @@ export function testWorkspaceBootstrapMaterializeNormalizesActiveWorkspacePathRe
   const key = buildMaterializedWorkspaceActivePathKey({
     explorerActivePath: 'workspace:/notes/demo.md/' as never,
   })
-  if (key !== '/notes/demo.md') {
-    throw new Error(`expected workspace materialization active-path key helper to reuse canonical normalized path strings, got ${String(key)}`)
-  }
+  const equivalentKey = buildMaterializedWorkspaceActivePathKey({ activePathOverride: '/notes/demo.md' as never })
+  if (!key || key !== equivalentKey) throw new Error(`expected workspace materialization active-path key helper to hash equivalent normalized path strings identically, got ${String(key)} and ${String(equivalentKey)}`)
 
   const forceIncludePaths = buildMaterializedWorkspaceForceIncludePaths({ explorerActivePath: 'workspace:/notes/demo.md/' as never })
   if (forceIncludePaths.length !== 1 || forceIncludePaths[0] !== '/notes/demo.md') {

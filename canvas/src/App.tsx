@@ -11,6 +11,7 @@ import { applyThemeMode, getInitialThemeMode } from '@/lib/ui/theme'
 import { ensureWorkspaceLayoutTokensInstalled } from '@/lib/workspace/workspaceLayoutSettings'
 import { KnowgrphRuntimeIdentityRuntime } from '@/features/runtime-identity/KnowgrphRuntimeIdentityRuntime'
 import { XrMotionReferenceRuntimeBridge } from '@/features/three/XrMotionReferenceRuntimeBridge'
+import { CanvasSourceAuthorityBoundary } from '@/features/canvas/CanvasSourceAuthorityBoundary'
 
 const PerformanceAutomationReadoutLazy = lazy(async () => ({
   default: (await import('@/features/canvas/PerformanceAutomationReadout')).PerformanceAutomationReadout,
@@ -186,38 +187,40 @@ export default function App() {
   }, [])
   return (
     <Router basename={basename}>
-      <AppThemeRuntime />
-      <KnowgrphRuntimeIdentityRuntime />
-      <XrMotionReferenceRuntimeBridge />
-      <CanvasRouteRuntime />
-      {performanceAutomationReadoutEnabled ? (
+      <CanvasSourceAuthorityBoundary>
+        <AppThemeRuntime />
+        <KnowgrphRuntimeIdentityRuntime />
+        <XrMotionReferenceRuntimeBridge />
+        <CanvasRouteRuntime />
+        {performanceAutomationReadoutEnabled ? (
+          <Suspense fallback={null}>
+            <PerformanceAutomationReadoutLazy />
+          </Suspense>
+        ) : null}
         <Suspense fallback={null}>
-          <PerformanceAutomationReadoutLazy />
+          <ToastHostLazy />
         </Suspense>
-      ) : null}
-      <Suspense fallback={null}>
-        <ToastHostLazy />
-      </Suspense>
-      <ErrorBoundary>
-        <Routes>
-          <Route
-            path="/*"
-            element={richMediaBrowserSmokeRequested ? (
-              <Suspense fallback={null}>
-                <RichMediaBrowserSmokePageLazy />
-              </Suspense>
-            ) : mobileKeyboardBrowserSmokeRequested ? (
-              <Suspense fallback={null}>
-                <MobileKeyboardBrowserSmokePageLazy />
-              </Suspense>
-            ) : storyboardRichMediaDropSmokeRequested ? (
-              <Suspense fallback={null}>
-                <StoryboardRichMediaDropSmokePageLazy />
-              </Suspense>
-            ) : <Canvas />}
-          />
-        </Routes>
-      </ErrorBoundary>
+        <ErrorBoundary>
+          <Routes>
+            <Route
+              path="/*"
+              element={richMediaBrowserSmokeRequested ? (
+                <Suspense fallback={null}>
+                  <RichMediaBrowserSmokePageLazy />
+                </Suspense>
+              ) : mobileKeyboardBrowserSmokeRequested ? (
+                <Suspense fallback={null}>
+                  <MobileKeyboardBrowserSmokePageLazy />
+                </Suspense>
+              ) : storyboardRichMediaDropSmokeRequested ? (
+                <Suspense fallback={null}>
+                  <StoryboardRichMediaDropSmokePageLazy />
+                </Suspense>
+              ) : <Canvas />}
+            />
+          </Routes>
+        </ErrorBoundary>
+      </CanvasSourceAuthorityBoundary>
     </Router>
   )
 }
