@@ -36,6 +36,7 @@ import { useStableStoryboardCardPlacements2d } from '@/components/StoryboardWidg
 import { buildRichMediaPanelOverlayExcludeNodeIdSet } from '@/lib/render/richMediaSsot'
 import { isRichMediaPanelNode } from '@/lib/render/richMediaPanelNode'
 import { readFlowEdgePortKey } from '@/lib/graph/flowPorts'
+import { readFiniteRuntimeZoomTransform } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetRuntimeScene'
 
 export default function StoryboardWidgetCanvasSurface(props: {
   rootRef: React.RefObject<HTMLElement | null>
@@ -83,6 +84,8 @@ export default function StoryboardWidgetCanvasSurface(props: {
   upsertUiToast: (args: { id: string; kind: 'neutral' | 'warning' | 'success' | 'error'; message: string; ttlMs?: number }) => void
   createPortal: typeof import('react-dom').createPortal
 }) {
+  const flowRuntimeRefRef = props.flowRuntimeRefRef
+  const getLiveZoomTransform = props.getLiveZoomTransform
   const cardOverlayInteractionFrameSchedulerRef = React.useRef<null | (() => void)>(null)
   const flushCardOverlayInteractionFrame = React.useCallback(() => {
     cardOverlayInteractionFrameSchedulerRef.current?.()
@@ -90,6 +93,10 @@ export default function StoryboardWidgetCanvasSurface(props: {
   const registerCardOverlayInteractionFrameScheduler = React.useCallback((scheduler: null | (() => void)) => {
     cardOverlayInteractionFrameSchedulerRef.current = scheduler
   }, [])
+  const getSynchronizedStoryboardCameraTransform = React.useCallback(() => {
+    return readFiniteRuntimeZoomTransform(flowRuntimeRefRef.current?.current)
+      || getLiveZoomTransform()
+  }, [flowRuntimeRefRef, getLiveZoomTransform])
   const canvas2dRenderer = useGraphStore(s => s.canvas2dRenderer)
   const graphContentRevision = useGraphStore(s => s.graphContentRevision)
   const graphDataRevision = useGraphStore(s => s.graphDataRevision)
@@ -266,7 +273,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
   useStoryboardSharedSurfacePan({
     active: props.active,
     emitInteractionFrame: props.emitStoryboardWidgetInteractionFrame,
-    getLiveZoomTransform: props.getLiveZoomTransform,
+    getLiveZoomTransform: getSynchronizedStoryboardCameraTransform,
     rootRef: props.rootRef,
     storyboardWidgetSurfaceId: props.storyboardWidgetSurfaceId,
     zoomViewKeyRef: props.zoomViewKeyRef,
@@ -279,7 +286,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
     const sy = clientY - rect.top
     if (!Number.isFinite(sx) || !Number.isFinite(sy) || sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return null
     const transform = readResolvedStoryboardWidgetDropTransform({
-      getLiveZoomTransform: props.getLiveZoomTransform,
+      getLiveZoomTransform: getSynchronizedStoryboardCameraTransform,
       zoomViewKeyRef: props.zoomViewKeyRef,
       draftGraphDataRef: { current: flowCanvasGraphDataOverride || props.renderGraphDataOverride || props.storyboardSourceGraphData || null },
       baseGraphData: props.storyboardSourceGraphData || null,
@@ -290,7 +297,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
       sx,
       sy,
     })
-  }, [flowCanvasGraphDataOverride, props])
+  }, [flowCanvasGraphDataOverride, getSynchronizedStoryboardCameraTransform, props])
 
   const appendMediaPanelAtClientPoint = React.useCallback((payload: import('@/lib/ui/mediaDragPayload').MediaDragPayload, clientX: number, clientY: number) => {
     if (props.geospatialWidgetPanelMode || !props.canEdit) return false
@@ -494,7 +501,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
         fixedCardReferencePlacements={stableStoryboardCardPlacements}
         storyboardWidgetSurfaceId={props.storyboardWidgetSurfaceId}
         storyboardCollectiveZoomBaselineKRef={storyboardCollectiveZoomBaselineKRef}
-        getTransform={props.getLiveZoomTransform}
+        getTransform={getSynchronizedStoryboardCameraTransform}
         getWheelForwardTarget={() => props.rootRef.current?.querySelector('[data-kg-canvas-interactive="1"]') || null}
         graphData={storyboardGraphData}
         graphRevision={graphContentRevision || graphDataRevision || 0}

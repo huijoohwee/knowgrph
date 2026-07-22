@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { readFileSync, readdirSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 import {
   buildKnowgrphAgentReadyToolContracts,
@@ -27,6 +27,7 @@ import {
 } from '@/features/three/xrSceneMcpContract.mjs'
 import { KNOWGRPH_STORAGE_DEFAULT_WORKSPACE_ID } from '@/lib/storage/knowgrphStorageSyncContract'
 import { AGENTIC_CANVAS_OS_DOCS_KIND_FILES } from '../../../mcp/agentic-canvas-os-docs-contract.mjs'
+import { resolveAgenticCanvasOsDocsRoot } from '../../../mcp/agentic-canvas-os-docs-runtime.js'
 import {
   ECS_INVOCATION_GRAMMAR,
   ECS_TOOL_NAMES,
@@ -71,25 +72,6 @@ function assertSameValues(actual: readonly string[], expected: readonly string[]
 const dictionaryTokens = (dictionary: unknown): readonly string[] => (
   Object.values((dictionary || {}) as Record<string, unknown>).map(String)
 )
-
-function resolveAgenticCanvasOsDocsRoot(): string {
-  const configured = String(process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT || '').trim()
-  if (configured) {
-    const resolved = resolve(configured)
-    if (!existsSync(resolved)) throw new Error(`configured Agentic Canvas OS docs root does not exist: ${resolved}`)
-    return resolved
-  }
-
-  let cursor = resolve(process.cwd())
-  while (true) {
-    const candidate = resolve(cursor, 'agentic-canvas-os', 'docs')
-    if (existsSync(candidate)) return candidate
-    const parent = dirname(cursor)
-    if (parent === cursor) break
-    cursor = parent
-  }
-  throw new Error('could not resolve the sibling agentic-canvas-os/docs source root')
-}
 
 function assertSourceDictionaryOwnsToken(docsRoot: string, token: string): void {
   const kind = token.startsWith('/')
@@ -238,6 +220,6 @@ export function testXrAgenticEcsCompositionBoundaryRemainsExplicit(): void {
     ...dictionaryTokens(MOTION_CONTROL_INVOCATION_SEMANTICS),
     ...dictionaryTokens(MOTION_CONTROL_INVOCATION_BINDINGS),
   ])
-  const docsRoot = resolveAgenticCanvasOsDocsRoot()
+  const docsRoot = resolveAgenticCanvasOsDocsRoot({ rootDir: process.cwd(), env: process.env })
   sourceBackedTokens.forEach(token => assertSourceDictionaryOwnsToken(docsRoot, token))
 }
