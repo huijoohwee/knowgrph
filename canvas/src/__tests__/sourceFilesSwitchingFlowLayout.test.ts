@@ -19,6 +19,7 @@ import { readWorkspaceActiveDocumentResolvedText } from '@/features/source-files
 import { shouldProactivelyReapplyActiveWorkspaceMarkdownDocument } from '@/features/source-files/sourceFilesRuntimeMaterialization'
 import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-files/composedSourceSelection'
 import {
+  createGraphActivationFitRequest,
   graphActivationFitTargetsGraph,
   resolveGraphActivationFitDecision,
 } from '@/lib/zoom/graphActivationFit'
@@ -155,9 +156,11 @@ export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresIn
   if (
     !documentActionsText.includes('const graphApplied = await get().applyMarkdownDocumentToGraph(') ||
     !documentActionsText.includes('if (graphApplied) {\n          requestActiveDocumentFit()\n          return true\n        }') ||
+    !documentActionsText.includes('const zoomRequest = createGraphActivationFitRequest({ graphData: active.graphData })') ||
+    documentActionsText.includes("active.requestZoom('fit', { intent: 'fitToView' })") ||
     !documentActionsText.includes('applyViewPresetForSwitch &&\n          !isMarkdownLikeFileName(name) &&\n          active.markdownDocumentName === name')
   ) {
-    throw new Error('expected Markdown graph switches to require a committed graph while retaining the non-Markdown view-preset fallback')
+    throw new Error('expected Markdown switches to tag the committed active graph fit while retaining the non-Markdown view-preset fallback')
   }
   if (viewShellText.includes("React.startTransition(() => {\n        setSelectionSource('editor')")) {
     throw new Error('expected Source Files row selection to update the active file synchronously under renderer load')
@@ -325,6 +328,10 @@ export function testSourceFilesGraphActivationFitWaitsForMatchingDocument() {
   }
   if (!graphActivationFitTargetsGraph({ request: returnTransition.request, graphData: graphA })) {
     throw new Error('expected graph activation fit to run only after the target document owns the runtime')
+  }
+  const directActivation = createGraphActivationFitRequest({ graphData: graphA, now: 3 })
+  if (!directActivation || directActivation.targetGraphKey !== returnTransition.graphKey) {
+    throw new Error('expected direct document activation to use the same graph-targeted camera contract')
   }
   const sameGraph = resolveGraphActivationFitDecision({
     previousGraphKey: returnTransition.graphKey,

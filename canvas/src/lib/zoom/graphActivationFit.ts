@@ -11,6 +11,21 @@ export type GraphActivationFitRequest = Extract<ZoomRequest, { type: 'fit' }> & 
   targetGraphKey: string
 }
 
+export function createGraphActivationFitRequest(args: {
+  graphData: unknown
+  now?: number
+}): GraphActivationFitRequest | null {
+  const graphKey = resolveFlowWidgetStateGraphKey({ graphData: args.graphData }) || ''
+  if (!graphKey) return null
+  return {
+    type: 'fit',
+    intent: 'fitToView',
+    origin: 'graphActivation',
+    targetGraphKey: graphKey,
+    at: Number.isFinite(args.now) ? Number(args.now) : Date.now(),
+  }
+}
+
 export function resolveGraphActivationFitDecision(args: {
   previousGraphKey?: string | null
   graphData: unknown
@@ -22,16 +37,7 @@ export function resolveGraphActivationFitDecision(args: {
   if (!graphKey || !args.fitEligible || graphKey === previousGraphKey) {
     return { graphKey, request: null }
   }
-  return {
-    graphKey,
-    request: {
-      type: 'fit',
-      intent: 'fitToView',
-      origin: 'graphActivation',
-      targetGraphKey: graphKey,
-      at: Number.isFinite(args.now) ? Number(args.now) : Date.now(),
-    },
-  }
+  return { graphKey, request: createGraphActivationFitRequest(args) }
 }
 
 export function isGraphActivationFitRequest(request: ZoomRequest): request is GraphActivationFitRequest {
