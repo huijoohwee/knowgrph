@@ -337,6 +337,7 @@ export const TEST_CASES_POST_PARSER_4: TestCaseTuple[] = [
   ["workspaceFs.seedProvider.runtimeSyncsFullDocsMirrorTree","@/__tests__/workspaceSeedPersistence.test","testRuntimeSourceFilesSyncsFullDocsMirrorTree"],
   ["workspaceFs.bootstrap.materializesActiveWorkspaceEntryIntoParsedSourceFile","@/__tests__/workspaceSeedPersistence.test","testWorkspaceBootstrapMaterializesActiveWorkspaceEntryIntoParsedSourceFile"],
   ["workspaceFs.bootstrap.materialize.reusesProvidedWorkspaceSnapshot","@/__tests__/workspaceSeedPersistence.test","testWorkspaceBootstrapMaterializeReusesProvidedWorkspaceSnapshotWithoutExtraListEntries"],
+  ["workspaceFs.bootstrap.materialize.retriesGraphOwnerAfterActivePathDrift","@/__tests__/workspaceBootstrapSourceAuthority.test","testWorkspaceBootstrapRetriesGraphOwningMaterializationAfterActivePathDrift"],
   ["workspaceFs.bootstrap.materialize.sharedSnapshotHelpersCentralizeReuseRules","@/__tests__/workspaceSeedPersistence.test","testWorkspaceBootstrapMaterializeSharedSnapshotHelpersCentralizeReuseRules"],
   ["workspaceFs.sourceIndex.snapshotHelpersCentralizeReuseRules","@/__tests__/workspaceSeedPersistence.test","testWorkspaceSourceIndexSnapshotHelpersCentralizeReuseRules"],
   ["workspaceFs.bootstrap.materialize.avoidsImplicitGraphApply","@/__tests__/workspaceSeedPersistence.test","testWorkspaceBootstrapMaterializeDoesNotApplyGraphWithoutExplicitOptIn"],

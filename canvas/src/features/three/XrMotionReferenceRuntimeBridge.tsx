@@ -1,6 +1,10 @@
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import {
+  readSourceFilesBootstrapReady,
+  useSourceFilesBootstrapReady,
+} from '@/features/source-files/sourceFilesBootstrapReadiness'
 import { resetCameraFramingRuntimeForDocument } from '@/features/strybldr/cameraFramingRuntime'
 import {
   sampleXrMotionReferenceFacingY,
@@ -44,6 +48,7 @@ function physicsMotionSourceSignature(
 }
 
 export function hydrateCanonicalXrMotionReferenceRuntime(): boolean {
+  if (!readSourceFilesBootstrapReady()) return false
   const state = useGraphStore.getState()
   const documentReady = Boolean(
     state.graphData
@@ -64,6 +69,7 @@ export function hydrateCanonicalXrMotionReferenceRuntime(): boolean {
 }
 
 export function hydrateCanonicalXrPhysicsRuntime(): boolean {
+  if (!readSourceFilesBootstrapReady()) return false
   const state = useGraphStore.getState()
   const documentReady = Boolean(
     state.graphData
@@ -96,6 +102,7 @@ export function hydrateCanonicalXrPhysicsRuntime(): boolean {
 }
 
 export function XrMotionReferenceRuntimeBridge() {
+  const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
   const { graphData, markdownDocumentName, markdownDocumentText, selectedNodeId } = useGraphStore(useShallow(state => ({
     graphData: state.graphData,
     markdownDocumentName: state.markdownDocumentName,
@@ -106,10 +113,11 @@ export function XrMotionReferenceRuntimeBridge() {
   const persistedPhysicsValue = graphData?.metadata?.[XR_PHYSICS_GRAPH_METADATA_KEY]
 
   useIsomorphicLayoutEffect(() => {
+    if (!sourceFilesBootstrapReady) return
     const documentReady = hydrateCanonicalXrMotionReferenceRuntime()
     hydrateCanonicalXrPhysicsRuntime()
     if (documentReady) synchronizeBoundXrActorFromGraphSelection()
-  }, [graphData?.nodes, markdownDocumentName, markdownDocumentText, persistedPhysicsValue, persistedValue, selectedNodeId])
+  }, [graphData?.nodes, markdownDocumentName, markdownDocumentText, persistedPhysicsValue, persistedValue, selectedNodeId, sourceFilesBootstrapReady])
 
   return null
 }

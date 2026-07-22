@@ -14,7 +14,7 @@ import {
 import { resolveInitialWorkspaceStartupState } from '@/features/source-files/sourceFilesRuntimeStartup'
 import { buildSourceFilesCompositionSignature } from '@/features/source-files/sourceFilesSignatures'
 import { resolveWorkspaceSourceIndexSnapshot } from '@/features/workspace-fs/sourceIndex'
-import { scheduleApplyGraphOwnerComposedGraphFromSourceFilesWithSignature } from '@/features/source-files/applyComposedGraphFromSourceFiles'
+import { applyGraphOwnerComposedGraphFromSourceFiles } from '@/features/source-files/applyComposedGraphFromSourceFiles'
 import type { SourceFilesWorkspaceState } from '@/features/source-files/sourceFilesWorkspaceState'
 import { getWorkspaceFs } from '@/features/workspace-fs/workspaceFs'
 import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
@@ -34,6 +34,8 @@ type BootstrapWorkspaceMaterializationContext = {
   startupSourcesByPath: ReturnType<typeof resolveWorkspaceSourceIndexSnapshot>
   workspaceFs: Awaited<ReturnType<typeof getWorkspaceFs>>
 }
+
+const BOOTSTRAP_MATERIALIZATION_MAX_ATTEMPTS = 3
 
 export function restoreBootstrapPersistedSourceFiles(args: {
   persistedSourceFiles: unknown[]
@@ -71,15 +73,14 @@ function hasBootstrapActivePathDrifted(startupActivePath: ReturnType<typeof reso
   const currentActivePath = resolveMaterializedWorkspaceActivePath({
     explorerActivePath: useMarkdownExplorerStore.getState().activePath,
   })
-  if (!startupActivePath || !currentActivePath) return false
   return currentActivePath !== startupActivePath
 }
 
 export async function prepareBootstrapWorkspaceMaterialization(
   args: BootstrapWorkspaceMaterializationArgs = {},
 ): Promise<BootstrapWorkspaceMaterializationContext> {
-  const startup = args.startupState || await resolveInitialWorkspaceStartupState()
   const fs = args.fs || await getWorkspaceFs()
+  const startup = args.startupState || await resolveInitialWorkspaceStartupState({ fs })
   const startupActivePath = resolveMaterializedWorkspaceActivePath({
     activePathOverride: startup.activePath,
   })
@@ -122,41 +123,41 @@ export async function materializeBootstrapWorkspaceSourceFiles(
   workspaceEntries: ReturnType<typeof readReusableWorkspaceEntriesSnapshot>
   workspaceFs: Awaited<ReturnType<typeof getWorkspaceFs>>
 }> {
-  const context = await prepareBootstrapWorkspaceMaterialization(args)
-  if (hasBootstrapActivePathDrifted(context.startupActivePath)) {
-    return {
-      activePathKey: '',
-      sourceFiles: useGraphStore.getState().sourceFiles,
+  for (let attempt = 0; attempt < BOOTSTRAP_MATERIALIZATION_MAX_ATTEMPTS; attempt += 1) {
+    const context = await prepareBootstrapWorkspaceMaterialization({
+      ...args,
+      startupState: attempt === 0 ? args.startupState : undefined,
+    })
+    if (hasBootstrapActivePathDrifted(context.startupActivePath)) continue
+    const workspaceEntries = readReusableWorkspaceEntriesSnapshot(context.hydratedEntries)
+    await materializeActiveWorkspaceEntryIntoSourceFiles({
+      activePathOverride: context.startupActivePath,
+      fs: context.workspaceFs,
+      activeWorkspaceEntriesSnapshot: workspaceEntries,
       sourcesByPath: context.startupSourcesByPath,
-      workspaceEntries: readReusableWorkspaceEntriesSnapshot(context.hydratedEntries),
+      premergedSourceFiles: context.mergedSourceFiles,
+      applyToGraph: true,
+    })
+    if (hasBootstrapActivePathDrifted(context.startupActivePath)) continue
+    const store = useGraphStore.getState()
+    return {
+      activePathKey: buildMaterializedWorkspaceActivePathKey({
+        activePathOverride: context.startupActivePath,
+        workspaceEntriesSnapshot: workspaceEntries,
+        markdownDocumentName: store.markdownDocumentName,
+        markdownDocumentText: store.markdownDocumentText,
+        markdownDocumentApplyViewPreset: store.markdownDocumentApplyViewPreset,
+      }),
+      sourceFiles: context.mergedSourceFiles,
+      sourcesByPath: context.startupSourcesByPath,
+      workspaceEntries,
       workspaceFs: context.workspaceFs,
     }
   }
-  await materializeActiveWorkspaceEntryIntoSourceFiles({
-    activePathOverride: context.startupActivePath,
-    fs: context.workspaceFs,
-    activeWorkspaceEntriesSnapshot: readReusableWorkspaceEntriesSnapshot(context.hydratedEntries),
-    sourcesByPath: context.startupSourcesByPath,
-    premergedSourceFiles: context.mergedSourceFiles,
-    applyToGraph: true,
-  })
-  const store = useGraphStore.getState()
-  return {
-    activePathKey: buildMaterializedWorkspaceActivePathKey({
-      activePathOverride: context.startupActivePath,
-      workspaceEntriesSnapshot: readReusableWorkspaceEntriesSnapshot(context.hydratedEntries),
-      markdownDocumentName: store.markdownDocumentName,
-      markdownDocumentText: store.markdownDocumentText,
-      markdownDocumentApplyViewPreset: store.markdownDocumentApplyViewPreset,
-    }),
-    sourceFiles: context.mergedSourceFiles,
-    sourcesByPath: context.startupSourcesByPath,
-    workspaceEntries: readReusableWorkspaceEntriesSnapshot(context.hydratedEntries),
-    workspaceFs: context.workspaceFs,
-  }
+  throw new Error('Canvas source selection changed repeatedly during startup')
 }
 
-export function scheduleBootstrapComposedGraphSync(args?: {
+export function applyBootstrapComposedGraphSync(args?: {
   sourceFiles?: ReturnType<typeof useGraphStore.getState>['sourceFiles']
   precomputedSignature?: string
 }): string {
@@ -166,11 +167,7 @@ export function scheduleBootstrapComposedGraphSync(args?: {
       includeWorkspaceBacked: true,
       intent: 'explicit-graph-owner',
     })
-  try {
-    scheduleApplyGraphOwnerComposedGraphFromSourceFilesWithSignature(compositionSignature)
-  } catch {
-    void 0
-  }
+  applyGraphOwnerComposedGraphFromSourceFiles()
   return compositionSignature
 }
 

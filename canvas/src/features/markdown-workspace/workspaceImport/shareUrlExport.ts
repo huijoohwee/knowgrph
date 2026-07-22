@@ -100,6 +100,7 @@ export const persistImportedShareUrlArtifacts = async (args: {
   importedThinkingTextTask?: Promise<string>
   importedWorkspacePath: string
   rootFolderPath?: string
+  mirrorToHost?: boolean
 }): Promise<null | {
   exportToken: string
   exportFolderPath: string
@@ -147,13 +148,15 @@ export const persistImportedShareUrlArtifacts = async (args: {
     if (existingThinkingText !== null && !existingThinkingText.trim()) await args.fs.deleteEntry(exportThinkingPath)
     if (existingThinkingText === null || !existingThinkingText.trim()) removedPaths.push(exportThinkingPath)
   }
-  await ensureChatWorkspaceMirrorFolder(exportFolderPath)
-  await mirrorChatWorkspaceFileToHost({
-    workspacePath: exportMarkdownPath,
-    text: importedText,
-  })
-  if (thinkingText) await mirrorChatWorkspaceFileToHost({ workspacePath: exportThinkingPath, text: thinkingText })
-  if (args.importedThinkingTextTask) {
+  if (args.mirrorToHost !== false) {
+    await ensureChatWorkspaceMirrorFolder(exportFolderPath)
+    await mirrorChatWorkspaceFileToHost({
+      workspacePath: exportMarkdownPath,
+      text: importedText,
+    })
+    if (thinkingText) await mirrorChatWorkspaceFileToHost({ workspacePath: exportThinkingPath, text: thinkingText })
+  }
+  if (args.importedThinkingTextTask && args.mirrorToHost !== false) {
     void args.importedThinkingTextTask.then(async rawThinkingText => {
       const nextThinkingText = buildImportedShareThinkingFileText(rawThinkingText)
       if (!nextThinkingText || nextThinkingText === thinkingText) return

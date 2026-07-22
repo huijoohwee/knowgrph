@@ -607,6 +607,7 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   const runtimeMaterializationText = readFileSync(runtimeMaterializationPath, 'utf8')
   const runtimeStartupText = readFileSync(runtimeStartupPath, 'utf8')
   const importToCanvasText = readFileSync(importToCanvasPath, 'utf8')
+  const activePathAuthorityText = readFileSync(resolve(process.cwd(), 'src', 'features', 'source-files', 'sourceFilesActivePathAuthority.ts'), 'utf8')
 
   if (
     !runtimeSharedText.includes("from '@/features/source-files/sourceFilesRuntimeActive'") ||
@@ -621,7 +622,7 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   ) {
     throw new Error('expected workspace runtime shared facade to re-export active-resolution helpers from the active module and path/materialization helpers from the materialization module')
   }
-  if (runtimeSharedText.includes('export function buildInitialWorkspaceStartupSnapshot(args:') || runtimeSharedText.includes('export async function resolveInitialWorkspaceStartupState():')) {
+  if (runtimeSharedText.includes('export function buildInitialWorkspaceStartupSnapshot(args:') || runtimeSharedText.includes('export async function resolveInitialWorkspaceStartupState')) {
     throw new Error('expected workspace runtime shared module to stop owning startup implementation once the dedicated startup runtime module exists')
   }
   if (!runtimeMaterializationText.includes('applyToGraph?: boolean')) {
@@ -669,15 +670,15 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapStartupText.includes('function readBootstrapExistingSourceFiles(') || !bootstrapStartupText.includes('function readBootstrapSourceIndexSnapshot(')) {
     throw new Error('expected bootstrap startup orchestration to centralize bootstrap source-files and source-index snapshot reuse behind dedicated helpers')
   }
-  if (!bootstrapStartupText.includes('const context = await prepareBootstrapWorkspaceMaterialization(args)')) {
-    throw new Error('expected bootstrap startup materialization to delegate shared startup preparation to the dedicated helper')
+  if (!bootstrapStartupText.includes('const context = await prepareBootstrapWorkspaceMaterialization({') || !bootstrapStartupText.includes('startupState: attempt === 0 ? args.startupState : undefined,')) {
+    throw new Error('expected bootstrap startup materialization retries to delegate shared preparation while refreshing a drifted startup selection')
   }
   if (!bootstrapText.includes('buildMaterializedWorkspaceActivePathKey({')) {
     throw new Error('expected source files bootstrap to reuse the shared active workspace path key helper before rematerialization dedupe')
   }
   if (
-    !bootstrapStartupText.includes('activeWorkspaceEntriesSnapshot: readReusableWorkspaceEntriesSnapshot(context.hydratedEntries)') ||
-    !bootstrapStartupText.includes('workspaceEntries: readReusableWorkspaceEntriesSnapshot(context.hydratedEntries)')
+    !bootstrapStartupText.includes('const workspaceEntries = readReusableWorkspaceEntriesSnapshot(context.hydratedEntries)') ||
+    !bootstrapStartupText.includes('activeWorkspaceEntriesSnapshot: workspaceEntries')
   ) {
     throw new Error('expected source files bootstrap to reuse the shared workspace snapshot helper through the dedicated startup materialization context before passing entries into materialization')
   }
@@ -740,7 +741,7 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('const resolveBootstrapMountRequest = React.useCallback((args: {')) {
     throw new Error('expected source files bootstrap startup mount flow to centralize first-load request resolution in a dedicated helper')
   }
-  if (!bootstrapText.includes('const applyBootstrapMountRequest = React.useCallback((request: BootstrapMountRequest) => {')) {
+  if (!bootstrapText.includes('const applyBootstrapMountRequest = React.useCallback(async (request: BootstrapMountRequest): Promise<void> => {')) {
     throw new Error('expected source files bootstrap startup mount flow to centralize ref wiring, persisted restore, and first scheduling in a dedicated helper')
   }
   const bootstrapMountUsesPreparedActivePathRequest =
@@ -776,9 +777,7 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapStartupText.includes('resolveWorkspaceSourceIndexSnapshot(undefined)')) {
     throw new Error('expected source files bootstrap startup hydration to reuse the shared source-index snapshot helper')
   }
-  if (!bootstrapStartupText.includes('scheduleApplyGraphOwnerComposedGraphFromSourceFilesWithSignature(compositionSignature)')) {
-    throw new Error('expected source files bootstrap startup sync to reuse the precomputed graph-owner composition signature when scheduling compose apply')
-  }
+  if (!bootstrapStartupText.includes('applyGraphOwnerComposedGraphFromSourceFiles()')) throw new Error('expected source files bootstrap startup to apply graph-owner composition synchronously before publishing source readiness')
   if (!bootstrapStartupText.includes("intent: 'explicit-graph-owner'")) {
     throw new Error('expected bootstrap composed-graph signature tracking to use explicit graph-owner scope')
   }
@@ -791,13 +790,13 @@ export function testWorkspaceBootstrapActivePathRematerializeAvoidsImplicitGraph
   if (!bootstrapText.includes('materializeActiveWorkspaceEntryIntoSourceFiles({')) {
     throw new Error('expected active-path rematerialization to delegate apply-to-graph policy to shared materialization logic')
   }
-  if (!bootstrapText.includes('type ActivePathMaterializationRequest = {')) {
+  if (!bootstrapText.includes('type ActivePathMaterializationRequest,') || !activePathAuthorityText.includes('export type ActivePathMaterializationRequest = ActivePathSourceAuthorityRequest & {')) {
     throw new Error('expected source files bootstrap active-path sync to centralize queued retry payloads behind a dedicated request type')
   }
   if (!bootstrapText.includes('const resolveActivePathMaterializationRequest = React.useCallback((args?: {')) {
     throw new Error('expected source files bootstrap active-path sync to centralize active-path request resolution in a dedicated helper')
   }
-  if (!bootstrapText.includes('const runActivePathMaterialization = React.useCallback((request: ActivePathMaterializationRequest) => {')) {
+  if (!bootstrapText.includes('const runActivePathMaterialization = React.useCallback(async (request: ActivePathMaterializationRequest): Promise<void> => {')) {
     throw new Error('expected source files bootstrap active-path sync to centralize in-flight materialization execution in a dedicated helper')
   }
   if (!bootstrapText.includes('const syncActivePathMaterialization = React.useCallback((args?: {')) {
@@ -1507,11 +1506,12 @@ export function testSourceFilesBootstrapSkipsQueueEchoDuringInboundStorageApply(
   if (!text.includes('const readBootstrapMountSourceFilesSnapshot = React.useCallback((args: {')) {
     throw new Error('expected source files bootstrap mount to centralize startup sourceFiles snapshot selection behind a dedicated helper')
   }
-  if (!text.includes('const applyBootstrapInitialActivePathRequest = React.useCallback((request: ActivePathMaterializationRequest | null) => {')) {
+  if (!text.includes('const applyBootstrapInitialActivePathRequest = React.useCallback((request: ActivePathMaterializationRequest | null): void => {')) {
     throw new Error('expected source files bootstrap mount to centralize initial active-path request handoff behind a dedicated helper')
   }
-  if (!text.includes('runActivePathMaterialization(request)') || !text.includes('composeRequest: args.bootstrapMaterialization && !initialActivePathRequest')) {
-    throw new Error('expected source files bootstrap mount to run active-path materialization immediately and prevent stale bootstrap composition from racing the active document')
+  const bootstrapActivePathGuard = text.slice(text.indexOf('const applyBootstrapInitialActivePathRequest'), text.indexOf('const applyBootstrapInitialRematerializeRequest'))
+  if (!bootstrapActivePathGuard.includes('shouldSkipActivePathMaterializationRequest(request)') || !bootstrapActivePathGuard.includes("throw new Error('Canvas source selection changed after graph-owning startup materialization')") || bootstrapActivePathGuard.includes('runActivePathMaterialization(request)') || !text.includes('composeRequest: args.bootstrapMaterialization && !initialActivePathRequest')) {
+    throw new Error('expected source files bootstrap mount to fail closed instead of publishing a passive active-path fallback')
   }
   if (!text.includes('scheduleKnowgrphStorageQueueRequest(request.initialQueueRequest)')) {
     throw new Error('expected knowgrph storage workspace lifecycle apply path to reuse the prebuilt initial queue request instead of rebuilding queue request context downstream')
@@ -1625,7 +1625,7 @@ export function testSourceFilesBootstrapGuardsSafariStorageSyncHotPath() {
   if (!startupText.includes('const hydratedEntries = await hydrateWorkspaceEntriesInlineText({')) {
     throw new Error('expected source files bootstrap startup to use a shared inline hydration path across browsers')
   }
-  if (
+  if (!startupText.includes('activeWorkspaceEntriesSnapshot: workspaceEntries') &&
     !startupText.includes('activeWorkspaceEntriesSnapshot: readReusableWorkspaceEntriesSnapshot(context.hydratedEntries)') &&
     !startupText.includes('activeWorkspaceEntriesSnapshot: readReusableWorkspaceEntriesSnapshot(hydratedEntries)')
   ) {
@@ -1637,8 +1637,8 @@ export function testSourceFilesBootstrapGuardsSafariStorageSyncHotPath() {
   if (!startupText.includes("import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'")
     || !startupText.includes('function hasBootstrapActivePathDrifted(')
     || !startupText.includes('explorerActivePath: useMarkdownExplorerStore.getState().activePath')
-    || !startupText.includes('if (hasBootstrapActivePathDrifted(context.startupActivePath)) {')) {
-    throw new Error('expected source files bootstrap startup to drop stale startup materialization when the active Source Files path changes before bootstrap apply')
+    || !startupText.includes('if (hasBootstrapActivePathDrifted(context.startupActivePath)) continue')) {
+    throw new Error('expected source files bootstrap startup to retry graph-owning materialization when the active Source Files path changes before bootstrap apply')
   }
   if (!startupText.includes('premergedSourceFiles: context.mergedSourceFiles')) {
     throw new Error('expected source files bootstrap startup to pass the already-merged active source-files snapshot from the dedicated startup context directly into shared materialization')
@@ -1670,10 +1670,10 @@ export function testWorkspaceActiveMaterializationSkipsImportWhenGraphApplyDisab
   ) {
     throw new Error('expected runtime shared facade to keep active-resolution exports separate from path/materialization exports')
   }
-  if (runtimeSharedText.includes('export function buildInitialWorkspaceStartupSnapshot(args:') || runtimeSharedText.includes('export async function resolveInitialWorkspaceStartupState():')) {
+  if (runtimeSharedText.includes('export function buildInitialWorkspaceStartupSnapshot(args:') || runtimeSharedText.includes('export async function resolveInitialWorkspaceStartupState')) {
     throw new Error('expected runtime shared module to stay implementation-free once startup logic moves into the dedicated startup runtime module')
   }
-  if (!runtimeStartupText.includes('export async function resolveInitialWorkspaceStartupState():') || !runtimeStartupText.includes('const snapshot = buildInitialWorkspaceStartupSnapshot({')) {
+  if (!runtimeStartupText.includes('export async function resolveInitialWorkspaceStartupState(args?: { fs?: WorkspaceFs }):') || !runtimeStartupText.includes('const snapshot = buildInitialWorkspaceStartupSnapshot({')) {
     throw new Error('expected dedicated startup runtime module to own startup snapshot resolution and initialization flow')
   }
   if (!runtimeMaterializationText.includes('const activeSourcePath = resolveWorkspaceSourcePathKey(activePath)')) {

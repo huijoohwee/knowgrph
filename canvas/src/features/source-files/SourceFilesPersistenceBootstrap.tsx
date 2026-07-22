@@ -1,7 +1,8 @@
 import React from 'react'
-import { markSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
+import { beginSourceFilesDocumentIntent, completeSourceFilesBootstrap, failSourceFilesBootstrap } from '@/features/source-files/sourceFilesBootstrapReadiness'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { __canvasStartupDebug } from '@/features/canvas/canvasStartupDebug'
+import { buildDocDeepLinkIntentKey } from '@/features/canvas/canvasDocDeepLink'
 import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import {
   loadPersistedSourceFiles,
@@ -33,7 +34,7 @@ import {
   restoreBootstrapPersistedSourceFiles,
   restoreBootstrapWorkspaceState,
   runBootstrapSourceFileHydration,
-  scheduleBootstrapComposedGraphSync,
+  applyBootstrapComposedGraphSync,
 } from '@/features/source-files/sourceFilesBootstrapStartup'
 import { resolveWorkspaceSourceRootPaths } from '@/features/workspace-fs/workspaceSourceRoots'
 import {
@@ -72,6 +73,12 @@ import {
   type KnowgrphStorageRuntimeDependencies,
 } from '@/features/source-files/sourceFilesKnowgrphStorageRuntime'
 import { readKnowgrphStorageRuntimeSyncEnabled } from '@/features/source-files/sourceFilesKnowgrphStorageSettings'
+import {
+  createActivePathSourceAuthorityCoordinator,
+  materializeActivePathWithSourceAuthority,
+  resolveActivePathMaterializationSourceAuthority,
+  type ActivePathMaterializationRequest,
+} from '@/features/source-files/sourceFilesActivePathAuthority'
 const SOURCE_FILES_PERSIST_DELAY_MS = 600
 const ACTIVE_PATH_SWITCH_COMPOSE_SUPPRESS_MS = 800
 const markWorkspaceSeedSyncDebug = (source: string): void => {
@@ -169,13 +176,6 @@ const hasWorkspaceSourceFile = (sourceFiles: ReturnType<typeof useGraphStore.get
   })
 }
 
-type ActivePathMaterializationRequest = {
-  activePath: string
-  activePathKey: string
-  sourceFilesSnapshot: ReturnType<typeof useGraphStore.getState>['sourceFiles']
-  workspaceEntriesSnapshot: ReturnType<typeof readReusableWorkspaceEntriesSnapshot>
-}
-
 type WorkspaceFsMutationRequest = {
   op: string
   changedPath: string
@@ -267,6 +267,7 @@ export function SourceFilesPersistenceBootstrap() {
   const workspaceHydratedRef = React.useRef(false)
   const lastWorkspacePersistedRef = React.useRef<unknown>(null)
   const lastMaterializedActivePathRef = React.useRef('')
+  const activePathSourceAuthorityRef = React.useRef(createActivePathSourceAuthorityCoordinator())
   const lastQueuedKnowgrphStorageSignatureRef = React.useRef('')
   const lastQueuedKnowgrphStorageSourceFilesRef = React.useRef<ReturnType<typeof useGraphStore.getState>['sourceFiles']>([])
   const latestSourceFilesSnapshotRef = React.useRef<ReturnType<typeof useGraphStore.getState>['sourceFiles']>([])
@@ -570,6 +571,7 @@ export function SourceFilesPersistenceBootstrap() {
     return {
       activePath,
       activePathKey,
+      ...resolveActivePathMaterializationSourceAuthority(activePath),
       sourceFilesSnapshot: readCallerOwnedSourceFilesSnapshot(args?.sourceFilesSnapshot),
       workspaceEntriesSnapshot,
     }
@@ -578,6 +580,7 @@ export function SourceFilesPersistenceBootstrap() {
   const clearActivePathMaterializationRequest = React.useCallback(() => {
     lastMaterializedActivePathRef.current = ''
     queuedActivePathMaterializeRef.current = null
+    activePathSourceAuthorityRef.current.clear()
   }, [])
 
   const queueActivePathMaterializationRequest = React.useCallback((request: ActivePathMaterializationRequest) => {
@@ -590,29 +593,29 @@ export function SourceFilesPersistenceBootstrap() {
     return false
   }, [])
 
-  const runActivePathMaterialization = React.useCallback((request: ActivePathMaterializationRequest) => {
+  const runActivePathMaterialization = React.useCallback(async (request: ActivePathMaterializationRequest): Promise<void> => {
     activePathMaterializeInFlightRef.current = true
     suppressComposeUntilMsRef.current = Date.now() + ACTIVE_PATH_SWITCH_COMPOSE_SUPPRESS_MS
     lastMaterializedActivePathRef.current = request.activePathKey
-    void materializeActiveWorkspaceEntryIntoSourceFiles({
-      activePathOverride: request.activePath,
-      fs: reusableWorkspaceFsRef.current || undefined,
-      activeWorkspaceEntriesSnapshot: request.workspaceEntriesSnapshot,
-      sourceFilesSnapshot: request.sourceFilesSnapshot,
-      workspaceEntries: request.workspaceEntriesSnapshot,
-      sourcesByPath: reusableWorkspaceSourcesByPathRef.current || undefined,
-    }).catch(() => {
+    try {
+      await materializeActivePathWithSourceAuthority(request, {
+        activeWorkspaceEntriesSnapshot: request.workspaceEntriesSnapshot,
+        fs: reusableWorkspaceFsRef.current || undefined,
+        sourcesByPath: reusableWorkspaceSourcesByPathRef.current || undefined,
+      })
+    } catch (error) {
       if (lastMaterializedActivePathRef.current === request.activePathKey) {
         lastMaterializedActivePathRef.current = ''
       }
-    }).finally(() => {
+      throw error
+    } finally {
       activePathMaterializeInFlightRef.current = false
       const queuedRequest = queuedActivePathMaterializeRef.current
       queuedActivePathMaterializeRef.current = null
       if (queuedRequest && !shouldSkipActivePathMaterializationRequest(queuedRequest)) {
-        runActivePathMaterialization(queuedRequest)
+        activePathSourceAuthorityRef.current.launch(queuedRequest, runActivePathMaterialization)
       }
-    })
+    }
   }, [shouldSkipActivePathMaterializationRequest])
 
   const syncActivePathMaterialization = React.useCallback((args?: {
@@ -627,11 +630,12 @@ export function SourceFilesPersistenceBootstrap() {
       return
     }
     if (activePathMaterializeInFlightRef.current) {
+      activePathSourceAuthorityRef.current.begin(request)
       queueActivePathMaterializationRequest(request)
       return
     }
     if (shouldSkipActivePathMaterializationRequest(request)) return
-    runActivePathMaterialization(request)
+    activePathSourceAuthorityRef.current.launch(request, runActivePathMaterialization)
   }, [clearActivePathMaterializationRequest, queueActivePathMaterializationRequest, resolveActivePathMaterializationRequest, runActivePathMaterialization, shouldSkipActivePathMaterializationRequest])
 
   const resolveWorkspaceFsMutationRequest = React.useCallback((detail?: {
@@ -860,15 +864,11 @@ export function SourceFilesPersistenceBootstrap() {
     }
   }, [readBootstrapMountSourceFilesSnapshot, resolveActivePathMaterializationRequest, resolveSourceFilesComposeRequest, resolveWorkspaceRematerializeRequest])
 
-  const applyBootstrapInitialActivePathRequest = React.useCallback((request: ActivePathMaterializationRequest | null) => {
+  const applyBootstrapInitialActivePathRequest = React.useCallback((request: ActivePathMaterializationRequest | null): void => {
     if (!request) return
-    if (activePathMaterializeInFlightRef.current) {
-      queueActivePathMaterializationRequest(request)
-      return
-    }
     if (shouldSkipActivePathMaterializationRequest(request)) return
-    runActivePathMaterialization(request)
-  }, [queueActivePathMaterializationRequest, runActivePathMaterialization, shouldSkipActivePathMaterializationRequest])
+    throw new Error('Canvas source selection changed after graph-owning startup materialization')
+  }, [shouldSkipActivePathMaterializationRequest])
 
   const applyBootstrapInitialRematerializeRequest = React.useCallback((request: WorkspaceRematerializeRequest | null): boolean => {
     if (!request) return false
@@ -886,7 +886,7 @@ export function SourceFilesPersistenceBootstrap() {
     sourceFilesSnapshot?: ReturnType<typeof useGraphStore.getState>['sourceFiles']
   }): string => {
     if (!args.composeRequest?.shouldScheduleCompose) return ''
-    return scheduleBootstrapComposedGraphSync({
+    return applyBootstrapComposedGraphSync({
       sourceFiles: args.sourceFilesSnapshot,
       precomputedSignature: args.composeRequest.compositionSignature,
     })
@@ -915,7 +915,7 @@ export function SourceFilesPersistenceBootstrap() {
     lastWorkspacePersistedRef.current = persistedWorkspace
   }, [])
 
-  const applyBootstrapMountRequest = React.useCallback((request: BootstrapMountRequest) => {
+  const applyBootstrapMountRequest = React.useCallback(async (request: BootstrapMountRequest): Promise<void> => {
     applyBootstrapMaterializationResult(request.bootstrapMaterialization)
     applyBootstrapWorkspaceState(request.persistedWorkspace)
     applyBootstrapInitialActivePathRequest(request.initialActivePathRequest)
@@ -1421,29 +1421,27 @@ export function SourceFilesPersistenceBootstrap() {
         })
         hydratedRef.current = true
 
-        try {
-          await runBootstrapSourceFileHydration()
-        } catch {
-          void 0
-        }
-        let bootstrapMaterialization: Awaited<ReturnType<typeof materializeBootstrapWorkspaceSourceFiles>> | null = null
-        try {
-          bootstrapMaterialization = await materializeBootstrapWorkspaceSourceFiles({
-            existingSourceFiles: lastPersistedRef.current,
-            sourcesByPath: readReusableWorkspaceSourceIndexSnapshot(),
-          })
-        } catch {
-          void 0
-        }
+        await runBootstrapSourceFileHydration()
+        const bootstrapMaterialization = await materializeBootstrapWorkspaceSourceFiles({
+          existingSourceFiles: lastPersistedRef.current,
+          sourcesByPath: readReusableWorkspaceSourceIndexSnapshot(),
+        })
+        if (cancelled) return
         const bootstrapMountRequest = resolveBootstrapMountRequest({
           persistedWorkspace,
           bootstrapMaterialization,
         })
-        applyBootstrapMountRequest(bootstrapMountRequest)
-      } catch {
+        await applyBootstrapMountRequest(bootstrapMountRequest)
+        if (cancelled) return
+        const currentSearch = typeof window === 'undefined' ? '' : String(window.location.search || '')
+        const documentIntentKey = buildDocDeepLinkIntentKey(currentSearch)
+        if (documentIntentKey) beginSourceFilesDocumentIntent(documentIntentKey)
+        completeSourceFilesBootstrap()
+      } catch (error) {
         hydratedRef.current = true
         workspaceHydratedRef.current = true
-      } finally { if (!cancelled) markSourceFilesBootstrapReady() }
+        if (!cancelled) failSourceFilesBootstrap(error)
+      }
     })()
 
     return () => {

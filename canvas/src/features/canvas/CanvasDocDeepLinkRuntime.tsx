@@ -1,16 +1,27 @@
 import React from 'react'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useMarkdownExplorerStore } from '@/features/markdown-explorer/store'
 import type { UiToastInput } from '@/hooks/store/store-types/core'
-import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
+import { findComposedSourceFileByPath } from '@/features/source-files/composedSourceSelection'
 import {
+  beginSourceFilesDocumentIntent,
+  clearSourceFilesDocumentIntent,
+  completeSourceFilesDocumentIntent,
+  failSourceFilesDocumentIntent,
+  useSourceFilesBootstrapHydrated,
+} from '@/features/source-files/sourceFilesBootstrapReadiness'
+import {
+  buildDocDeepLinkIntentKey,
   buildDefaultDocViewUrl,
   buildDocViewUrl,
   clearRetainedLocalDocDeepLinkPath,
   consumeDeepLinkParams,
+  isCanvasDocPreviewRequested,
   parseDocDeepLink,
 } from './canvasDocDeepLink'
 import type { DefaultRemoteDocDeepLink } from './canvasDocDeepLink'
 import type { RemoteDocDeepLink } from './canvasDocDeepLink'
+import type { WorkspaceUrlContent } from '@/features/markdown-workspace/workspaceImport'
 import {
   consumeWebsiteCrawlMarkdownDeepLinkRequest,
   openWebsiteCrawlMarkdownArtifactInExplorer,
@@ -19,54 +30,133 @@ import {
 
 type PushUiToast = (toast: UiToastInput) => void
 
-const remoteDeepLinkImports = new Map<string, Promise<void>>()
+type GraphStoreSnapshot = ReturnType<typeof useGraphStore.getState>
 
-type RemoteDeepLinkImportLifecycle = {
-  importDocument: () => Promise<void>
-  readLiveSearch: () => string
-  consumeSearch: (search: string) => void
-  reportError: (error: unknown) => void
+const documentDeepLinkImports = new Map<string, Promise<void>>()
+const remoteDeepLinkImportTails = new WeakMap<Map<string, Promise<void>>, Promise<void>>()
+
+export function restoreSupersededCanvasImportGraphState(
+  stateBeforeCommit: GraphStoreSnapshot,
+  stateAfterCommit: GraphStoreSnapshot,
+): void {
+  useGraphStore.setState(currentState => {
+    const patch: Partial<GraphStoreSnapshot> = {}
+    for (const key of Object.keys(stateBeforeCommit) as Array<keyof GraphStoreSnapshot>) {
+      if (stateBeforeCommit[key] === stateAfterCommit[key]) continue
+      if (currentState[key] !== stateAfterCommit[key]) continue
+      ;(patch as Record<keyof GraphStoreSnapshot, unknown>)[key] = stateBeforeCommit[key]
+    }
+    return patch
+  })
 }
 
-export function runRemoteDeepLinkImportLifecycle(
+export function restoreSupersededCanvasImportActivePath(path: string | null): void {
+  useMarkdownExplorerStore.getState().setActivePath(path)
+}
+
+export async function compensateSupersededCanvasImport(args: {
+  rollbackWorkspace: () => Promise<void>
+  rollbackSources: () => void
+  graphStateBeforeCommit: GraphStoreSnapshot
+  graphStateAfterCommit: GraphStoreSnapshot
+  explorerActivePathBeforeCommit: string | null
+}): Promise<void> {
+  const rollbackErrors: unknown[] = []
+  try {
+    await args.rollbackWorkspace()
+  } catch (error) {
+    rollbackErrors.push(error)
+  }
+  try {
+    args.rollbackSources()
+  } catch (error) {
+    rollbackErrors.push(error)
+  }
+  try {
+    restoreSupersededCanvasImportGraphState(args.graphStateBeforeCommit, args.graphStateAfterCommit)
+  } catch (error) {
+    rollbackErrors.push(error)
+  }
+  try {
+    restoreSupersededCanvasImportActivePath(args.explorerActivePathBeforeCommit)
+  } catch (error) {
+    rollbackErrors.push(error)
+  }
+  if (rollbackErrors.length === 0) return
+  const rollbackDetail = rollbackErrors
+    .map(item => item instanceof Error ? item.message : String(item || 'unknown rollback failure'))
+    .join('; ')
+  throw new Error(`Shared document rollback failed: ${rollbackDetail}`)
+}
+
+type RemoteDeepLinkImportLifecycle<PreparedDocument> = {
+  prepareDocument: () => Promise<PreparedDocument>
+  commitDocument: (
+    prepared: PreparedDocument,
+    context: Readonly<{ isCurrentIntent: () => boolean }>,
+  ) => Promise<void>
+  readCurrentIntentKey: () => string
+  completeIntent: () => void
+  reportError: (error: unknown) => void
+  cancelIntent?: () => void
+}
+
+export function runRemoteDeepLinkImportLifecycle<PreparedDocument>(
   inFlightImports: Map<string, Promise<void>>,
-  currentSearch: string,
-  lifecycle: RemoteDeepLinkImportLifecycle,
+  intentKey: string,
+  lifecycle: RemoteDeepLinkImportLifecycle<PreparedDocument>,
 ): Promise<void> {
-  const activeImport = inFlightImports.get(currentSearch)
+  const activeImport = inFlightImports.get(intentKey)
   if (activeImport) return activeImport
 
-  const pendingImport = Promise.resolve()
-    .then(lifecycle.importDocument)
-    .then(() => {
-      const liveSearch = lifecycle.readLiveSearch()
-      if (liveSearch !== currentSearch) return
-      lifecycle.consumeSearch(liveSearch)
+  const precedingImport = remoteDeepLinkImportTails.get(inFlightImports)
+  const mutationQueue = precedingImport ? precedingImport.catch(() => undefined) : Promise.resolve()
+  const isCurrentIntent = (): boolean => lifecycle.readCurrentIntentKey() === intentKey
+  const cancelSupersededIntent = (): boolean => {
+    if (isCurrentIntent()) return false
+    lifecycle.cancelIntent?.()
+    return true
+  }
+  const pendingImport = mutationQueue
+    .then(async () => {
+      if (cancelSupersededIntent()) return
+      const prepared = await lifecycle.prepareDocument()
+      if (cancelSupersededIntent()) return
+      await lifecycle.commitDocument(prepared, { isCurrentIntent })
+      if (cancelSupersededIntent()) return
+      lifecycle.completeIntent()
     })
-    .catch(lifecycle.reportError)
+    .catch(error => {
+      if (cancelSupersededIntent()) return
+      lifecycle.reportError(error)
+    })
     .finally(() => {
-      if (inFlightImports.get(currentSearch) === pendingImport) {
-        inFlightImports.delete(currentSearch)
+      if (inFlightImports.get(intentKey) === pendingImport) {
+        inFlightImports.delete(intentKey)
+      }
+      if (remoteDeepLinkImportTails.get(inFlightImports) === pendingImport) {
+        remoteDeepLinkImportTails.delete(inFlightImports)
       }
     })
-  inFlightImports.set(currentSearch, pendingImport)
+  inFlightImports.set(intentKey, pendingImport)
+  remoteDeepLinkImportTails.set(inFlightImports, pendingImport)
   return pendingImport
 }
 
-function openCrawlMarkdownRequest(
+async function openCrawlMarkdownRequest(
   crawlRequest: NonNullable<ReturnType<typeof readWebsiteCrawlMarkdownDeepLinkRequest>>,
   pushUiToast: PushUiToast,
-): void {
+): Promise<void> {
   const toastId = 'deep-link:crawl-artifact'
   pushUiToast({ id: toastId, kind: 'neutral', message: 'Opening crawl artifact…', ttlMs: null, dismissible: false })
-  void openWebsiteCrawlMarkdownArtifactInExplorer(crawlRequest)
-    .then(result => {
-      if (!result) throw new Error('Crawl artifact is unavailable')
-      pushUiToast({ id: toastId, kind: 'success', message: 'Opened crawl Markdown in Source Files', ttlMs: 3000, dismissible: false })
-    })
-    .catch(error => {
-      pushUiToast({ id: toastId, kind: 'error', message: error instanceof Error ? error.message : 'Failed to open crawl artifact', ttlMs: 5000, dismissible: true })
-    })
+  try {
+    const result = await openWebsiteCrawlMarkdownArtifactInExplorer(crawlRequest)
+    if (!result) throw new Error('Crawl artifact is unavailable')
+    pushUiToast({ id: toastId, kind: 'success', message: 'Opened crawl Markdown in Source Files', ttlMs: 3000, dismissible: false })
+  } catch (error) {
+    pushUiToast({ id: toastId, kind: 'error', message: error instanceof Error ? error.message : 'Failed to open crawl artifact', ttlMs: 5000, dismissible: true })
+    throw error
+  }
 }
 
 async function handleLocalDeepLink(
@@ -96,31 +186,35 @@ async function handleLocalDeepLink(
 
     if (!entry || entry.kind !== 'file') {
       clearRetainedLocalDocDeepLinkPath()
-      pushUiToast({ id: toastId, kind: 'error', message: `File not found: ${workspaceBasename(targetPath) || relativePath}`, ttlMs: 5000, dismissible: true })
-      return
+      throw new Error(`File not found: ${workspaceBasename(targetPath) || relativePath}`)
     }
 
-    const markdownExplorer = await import('@/features/markdown-explorer/store')
     const graphStore = useGraphStore.getState()
     graphStore.setWorkspaceViewState({ mode: 'editor', paneOpen: true })
     graphStore.setSelectionSource('editor')
     graphStore.selectNode(null)
     graphStore.selectEdge(null)
-    markdownExplorer.useMarkdownExplorerStore.getState().setActivePath(targetPath)
+    useMarkdownExplorerStore.getState().setActivePath(targetPath)
 
-    const entryText = typeof entry.text === 'string' ? entry.text : ''
-    if (entryText) {
-      await applyActiveMarkdownDocumentPayload({
-        setActiveMarkdownDocument: graphStore.setActiveMarkdownDocument,
-        name: workspaceDocumentKey(targetPath),
-        text: entryText,
-        sourceUrl: null,
-        autoEnableFrontmatter: false,
-        applyViewPreset: options.applyToGraph,
-        applyToGraph: options.applyToGraph,
-        forceApplyToGraph: options.applyToGraph,
-        normalizeWebpageFrontmatterToMarkdown: false,
-      })
+    const entryText = await fs.readFileText(targetPath)
+    if (entryText == null) throw new Error(`File is unreadable: ${workspaceBasename(targetPath) || relativePath}`)
+    const activated = await applyActiveMarkdownDocumentPayload({
+      setActiveMarkdownDocument: graphStore.setActiveMarkdownDocument,
+      name: workspaceDocumentKey(targetPath),
+      text: entryText,
+      sourceUrl: null,
+      canonicalMarkdownText: entryText,
+      autoEnableFrontmatter: false,
+      applyViewPreset: options.applyToGraph,
+      applyToGraph: options.applyToGraph,
+      forceApplyToGraph: options.applyToGraph,
+      normalizeWebpageFrontmatterToMarkdown: false,
+    })
+    if (activated !== true) throw new Error(`Failed to activate ${workspaceBasename(targetPath) || relativePath}`)
+    const activeDocument = useGraphStore.getState()
+    if (useMarkdownExplorerStore.getState().activePath !== targetPath
+      || activeDocument.markdownDocumentName !== workspaceDocumentKey(targetPath)) {
+      throw new Error(`Source ownership changed while activating ${workspaceBasename(targetPath) || relativePath}`)
     }
 
     pushUiToast({
@@ -134,27 +228,55 @@ async function handleLocalDeepLink(
     clearRetainedLocalDocDeepLinkPath()
     const message = err instanceof Error ? err.message : 'Failed to open document'
     pushUiToast({ id: toastId, kind: 'error', message, ttlMs: 5000, dismissible: true })
+    throw err
   }
 }
 
-async function handleRemoteDeepLink(
+type PreparedRemoteDeepLink = Readonly<{
+  docUrl: string
+  content: WorkspaceUrlContent
+}>
+
+async function prepareRemoteDeepLink(
   link: RemoteDocDeepLink | DefaultRemoteDocDeepLink,
   pushUiToast: PushUiToast,
-): Promise<void> {
+): Promise<PreparedRemoteDeepLink> {
   const docUrl = link.kind === 'default-remote'
     ? buildDefaultDocViewUrl(link.canonicalPath)
     : buildDocViewUrl(link.workspaceId, link.canonicalPath)
+  pushUiToast({ id: 'deep-link:doc-import', kind: 'neutral', message: 'Loading shared document…', ttlMs: null, dismissible: false })
+  const { fetchWorkspaceUrlContent } = await import('@/features/markdown-workspace/workspaceImport') as typeof import('@/features/markdown-workspace/workspaceImport')
+  const content = await fetchWorkspaceUrlContent(docUrl, {
+    mode: 'import',
+    viewHint: 'markdown',
+    preferDirectFetch: true,
+  })
+  return Object.freeze({ docUrl, content })
+}
+
+async function commitRemoteDeepLink(
+  link: RemoteDocDeepLink | DefaultRemoteDocDeepLink,
+  pushUiToast: PushUiToast,
+  prepared: PreparedRemoteDeepLink,
+  isCurrentIntent: () => boolean,
+): Promise<void> {
   const toastId = 'deep-link:doc-import'
-
-  pushUiToast({ id: toastId, kind: 'neutral', message: 'Loading shared document…', ttlMs: null, dismissible: false })
-
+  const preparedName = String(prepared.content.name || '').trim()
+  const preparedMediaKind = prepared.content.sourceMediaKind
+  if (!/\.(?:md|markdown|mdx|mmd)$/i.test(preparedName)
+    || (preparedMediaKind && preparedMediaKind !== 'doc')
+    || !String(prepared.content.text || '').trim()) {
+    throw new Error('Shared document did not resolve to canonical Markdown')
+  }
   const [
     { getWorkspaceFs },
-    { WORKSPACE_ROOT_PATH },
-    { runWorkspaceFsChangedBatch },
-    { bulkSetWorkspaceEntrySources },
+    { normalizeWorkspacePath, workspaceDocumentKey, WORKSPACE_ROOT_PATH },
+    { runWorkspaceFsChangedBatch, suppressNextWorkspaceFsChangedEvent },
+    { bulkSetWorkspaceEntrySources, loadWorkspaceSourceIndex, setWorkspaceEntrySource },
     { importWorkspaceUrl },
-    { applyWorkspaceImportToCanvasBestEffort, normalizeWorkspaceImportResult, activateFirstImportedWorkspaceFile },
+    { normalizeWorkspaceImportResult, activateFirstImportedWorkspaceFile },
+    { applyWorkspaceImportToCanvas },
+    { createWorkspaceFsMutationTransaction },
   ] = await Promise.all([
     import('@/features/workspace-fs/workspaceFs') as Promise<typeof import('@/features/workspace-fs/workspaceFs')>,
     import('@/features/workspace-fs/path') as Promise<typeof import('@/features/workspace-fs/path')>,
@@ -162,25 +284,116 @@ async function handleRemoteDeepLink(
     import('@/features/workspace-fs/sourceIndex') as Promise<typeof import('@/features/workspace-fs/sourceIndex')>,
     import('@/features/markdown-workspace/workspaceImport') as Promise<typeof import('@/features/markdown-workspace/workspaceImport')>,
     import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions') as Promise<typeof import('@/features/markdown-workspace/useWorkspaceFileActions/importRuntimeActions')>,
+    import('@/features/workspace-fs/applyWorkspaceImportToCanvas') as Promise<typeof import('@/features/workspace-fs/applyWorkspaceImportToCanvas')>,
+    import('@/features/workspace-fs/workspaceFsMutationTransaction') as Promise<typeof import('@/features/workspace-fs/workspaceFsMutationTransaction')>,
   ])
 
   const fs = await getWorkspaceFs()
   await fs.ensureSeed()
-  const res = normalizeWorkspaceImportResult(await runWorkspaceFsChangedBatch(() =>
-    importWorkspaceUrl({
-      fs,
-      urlRaw: docUrl,
-      parentPath: WORKSPACE_ROOT_PATH,
-      preferDirectFetch: true,
-    }),
-  ))
-  bulkSetWorkspaceEntrySources(res.sources)
-  await applyWorkspaceImportToCanvasBestEffort({
-    fs,
-    createdPaths: res.createdPaths,
-    opts: { applyToGraph: true },
+  if (!isCurrentIntent()) throw new Error('Shared document intent was superseded before commit')
+  const transaction = createWorkspaceFsMutationTransaction(fs)
+  const graphStateBeforeCommit = useGraphStore.getState()
+  const explorerActivePathBeforeCommit = useMarkdownExplorerStore.getState().activePath
+  let sourceEntriesBeforeCommit: Map<string, ReturnType<typeof loadWorkspaceSourceIndex>[string] | null> | null = null
+  let createdPathSet = new Set<string>()
+  await runWorkspaceFsChangedBatch(async () => {
+    try {
+      const res = normalizeWorkspaceImportResult(await importWorkspaceUrl({
+        fs: transaction.fs,
+        urlRaw: prepared.docUrl,
+        parentPath: WORKSPACE_ROOT_PATH,
+        preferDirectFetch: true,
+        fetchUrlContent: async () => prepared.content,
+        mirrorToHost: false,
+      }))
+      if (!isCurrentIntent()) throw new Error('Shared document intent was superseded during workspace import')
+      if (res.createdPaths.length === 0) throw new Error('Shared document import created no workspace file')
+      if (res.failed.length > 0 || res.skipped.length > 0) {
+        throw new Error('Shared document import did not resolve to one supported workspace file')
+      }
+      createdPathSet = new Set(res.createdPaths.map(path => normalizeWorkspacePath(path)))
+      if (!res.sources.some(item => createdPathSet.has(normalizeWorkspacePath(item.path)) && item.source.kind === 'url')) {
+        throw new Error('Shared document import is missing URL source provenance')
+      }
+      const removedSourcePaths = new Set(
+        (res.removedPaths || []).map(path => normalizeWorkspacePath(path)).filter(Boolean),
+      )
+      const touchedSourcePaths = new Set([
+        ...res.sources.map(item => normalizeWorkspacePath(item.path)),
+        ...removedSourcePaths,
+      ])
+      const sourceIndexBeforeCommit = loadWorkspaceSourceIndex()
+      sourceEntriesBeforeCommit = new Map([...touchedSourcePaths].map(path => (
+        [path, sourceIndexBeforeCommit[path] || null] as const
+      )))
+      bulkSetWorkspaceEntrySources(res.sources)
+      for (const path of removedSourcePaths) {
+        if (!createdPathSet.has(path)) setWorkspaceEntrySource(path, null)
+      }
+      if (!isCurrentIntent()) throw new Error('Shared document intent was superseded before Canvas apply')
+      await applyWorkspaceImportToCanvas({
+        fs: transaction.fs,
+        createdPaths: res.createdPaths,
+        opts: {
+          applyToGraph: true,
+          skipComposedGraphApply: true,
+          removedPaths: res.removedPaths,
+        },
+      })
+      if (!isCurrentIntent()) throw new Error('Shared document intent was superseded before activation')
+      const activated = await activateFirstImportedWorkspaceFile({
+        fs: transaction.fs,
+        createdPaths: res.createdPaths,
+        applyToGraph: true,
+        jsonSourceDocuments: res.jsonSourceDocuments,
+      })
+      if (!isCurrentIntent()) throw new Error('Shared document intent was superseded during activation')
+      if (!activated) throw new Error('Shared document did not become the active Canvas source')
+      const activePath = normalizeWorkspacePath(useMarkdownExplorerStore.getState().activePath || '/')
+      const activeDocument = useGraphStore.getState()
+      const activeSourceFile = findComposedSourceFileByPath({
+        sourceFiles: activeDocument.sourceFiles,
+        targetPath: activePath,
+        enabledOnly: true,
+      })
+      if (!createdPathSet.has(activePath)
+        || activeDocument.markdownDocumentName !== workspaceDocumentKey(activePath)
+        || !activeSourceFile) {
+        throw new Error('Shared document source ownership did not survive activation')
+      }
+    } catch (error) {
+      const graphStateAfterFailedCommit = useGraphStore.getState()
+      try {
+        await compensateSupersededCanvasImport({
+          rollbackWorkspace: () => transaction.rollback(),
+          rollbackSources: () => {
+            if (!sourceEntriesBeforeCommit) return
+            for (const [path, source] of sourceEntriesBeforeCommit) {
+              setWorkspaceEntrySource(path, source, { persist: 'sync' })
+            }
+          },
+          graphStateBeforeCommit,
+          graphStateAfterCommit: graphStateAfterFailedCommit,
+          explorerActivePathBeforeCommit,
+        })
+      } catch (compensationError) {
+        if (compensationError instanceof Error) {
+          ;(compensationError as Error & { cause?: unknown }).cause = error
+        }
+        pushUiToast({
+          id: 'deep-link:doc-import-rollback',
+          kind: 'error',
+          message: compensationError instanceof Error ? compensationError.message : 'Shared document rollback failed',
+          ttlMs: null,
+          dismissible: true,
+        })
+        throw compensationError
+      } finally {
+        suppressNextWorkspaceFsChangedEvent()
+      }
+      throw error
+    }
   })
-  await activateFirstImportedWorkspaceFile({ fs, createdPaths: res.createdPaths, applyToGraph: true })
   pushUiToast({
     id: toastId,
     kind: 'success',
@@ -191,19 +404,30 @@ async function handleRemoteDeepLink(
 }
 
 function importRemoteDeepLinkOnce(
+  intentKey: string,
   currentSearch: string,
   link: RemoteDocDeepLink | DefaultRemoteDocDeepLink,
   pushUiToast: PushUiToast,
 ): Promise<void> {
-  return runRemoteDeepLinkImportLifecycle(remoteDeepLinkImports, currentSearch, {
-    importDocument: () => handleRemoteDeepLink(link, pushUiToast),
-    readLiveSearch: () => typeof window !== 'undefined'
-      ? String(window.location.search || '')
-      : currentSearch,
-    consumeSearch: consumeDeepLinkParams,
+  return runRemoteDeepLinkImportLifecycle(documentDeepLinkImports, intentKey, {
+    prepareDocument: () => prepareRemoteDeepLink(link, pushUiToast),
+    commitDocument: (prepared, context) => commitRemoteDeepLink(link, pushUiToast, prepared, context.isCurrentIntent),
+    readCurrentIntentKey: () => buildDocDeepLinkIntentKey(
+      typeof window !== 'undefined' ? String(window.location.search || '') : currentSearch,
+    ),
+    completeIntent: () => {
+      const liveSearch = typeof window !== 'undefined' ? String(window.location.search || '') : currentSearch
+      completeSourceFilesDocumentIntent(intentKey)
+      consumeDeepLinkParams(liveSearch)
+    },
     reportError: err => {
       const message = err instanceof Error ? err.message : 'Failed to load shared document'
       pushUiToast({ id: 'deep-link:doc-import', kind: 'error', message, ttlMs: 5000, dismissible: true })
+      failSourceFilesDocumentIntent(intentKey, err)
+    },
+    cancelIntent: () => {
+      useGraphStore.getState().dismissUiToast('deep-link:doc-import')
+      clearSourceFilesDocumentIntent(intentKey)
     },
   })
 }
@@ -211,30 +435,61 @@ function importRemoteDeepLinkOnce(
 export function CanvasDocDeepLinkRuntime(props: { search: string }) {
   const { search } = props
   const pushUiToast = useGraphStore(s => s.pushUiToast)
-  const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
+  const sourceFilesBootstrapHydrated = useSourceFilesBootstrapHydrated()
+  const intentKey = React.useMemo(() => buildDocDeepLinkIntentKey(String(search || '')), [search])
+
+  React.useLayoutEffect(() => {
+    if (!intentKey) return
+    beginSourceFilesDocumentIntent(intentKey)
+  }, [intentKey])
 
   React.useEffect(() => {
-    if (!sourceFilesBootstrapReady) return
-    const currentSearch = typeof window !== 'undefined' ? String(window.location.search || '') : String(search || '')
+    if (!sourceFilesBootstrapHydrated || !intentKey) return
+    const currentSearch = String(search || '')
     const link = parseDocDeepLink(currentSearch)
-    if (!link) return
-    const crawlRequest = readWebsiteCrawlMarkdownDeepLinkRequest()
-    if (link.kind === 'local' && crawlRequest) {
-      consumeWebsiteCrawlMarkdownDeepLinkRequest()
-      openCrawlMarkdownRequest(crawlRequest, pushUiToast)
+    if (!link) {
+      clearSourceFilesDocumentIntent(intentKey)
       return
     }
-    const previewRequested = new URLSearchParams(currentSearch.startsWith('?') ? currentSearch.slice(1) : currentSearch).get('kgPreview') === '1'
+    const readCurrentIntentKey = (): string => buildDocDeepLinkIntentKey(
+      typeof window !== 'undefined' ? String(window.location.search || '') : currentSearch,
+    )
+    const completeCurrentDocumentIntent = (): void => {
+      const liveSearch = typeof window !== 'undefined' ? String(window.location.search || '') : currentSearch
+      completeSourceFilesDocumentIntent(intentKey)
+      consumeDeepLinkParams(liveSearch)
+    }
+    const failCurrentDocumentIntent = (error: unknown): void => {
+      failSourceFilesDocumentIntent(intentKey, error)
+    }
+    const crawlRequest = readWebsiteCrawlMarkdownDeepLinkRequest()
+    if (link.kind === 'local' && crawlRequest) {
+      void runRemoteDeepLinkImportLifecycle(documentDeepLinkImports, intentKey, {
+        prepareDocument: async () => crawlRequest,
+        commitDocument: prepared => openCrawlMarkdownRequest(prepared, pushUiToast),
+        readCurrentIntentKey,
+        completeIntent: () => {
+          completeSourceFilesDocumentIntent(intentKey)
+          consumeWebsiteCrawlMarkdownDeepLinkRequest()
+        },
+        reportError: failCurrentDocumentIntent,
+      })
+      return
+    }
+    const previewRequested = isCanvasDocPreviewRequested(currentSearch)
 
     if (link.kind === 'local') {
-      consumeDeepLinkParams(currentSearch)
-      void handleLocalDeepLink(link.relativePath, pushUiToast, {
-        applyToGraph: previewRequested,
+      void runRemoteDeepLinkImportLifecycle(documentDeepLinkImports, intentKey, {
+        prepareDocument: async () => link.relativePath,
+        commitDocument: relativePath => handleLocalDeepLink(relativePath, pushUiToast, { applyToGraph: previewRequested }),
+        readCurrentIntentKey,
+        completeIntent: completeCurrentDocumentIntent,
+        reportError: failCurrentDocumentIntent,
       })
     } else {
-      void importRemoteDeepLinkOnce(currentSearch, link, pushUiToast)
+      void importRemoteDeepLinkOnce(intentKey, currentSearch, link, pushUiToast)
     }
-  }, [search, pushUiToast, sourceFilesBootstrapReady])
+  }, [intentKey, search, pushUiToast, sourceFilesBootstrapHydrated])
 
   return null
 }
