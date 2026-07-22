@@ -80,7 +80,7 @@ test("ACOS adapter preserves typed command failures without parsing prose", () =
   assert.equal(parseAgenticDeviceFailure("human output", "start"), null);
 });
 
-test("adapter accepts the merged ACOS 5cf05080 v2 start projection", () => {
+test("adapter accepts the merged ACOS 0b3e0c90 v2 start projection", () => {
   const fixture = {
     schema: "agentic-device-command-result/v1", ok: true, action: "start", status: "active",
     repoRoot: worktreePath, branch, worktreePath, provisioned: true,
