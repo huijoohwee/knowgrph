@@ -89,9 +89,18 @@ export async function testStoryboardCardsRenderConnectedTextAsSourceChipsWithout
   dom.window.document.body.appendChild(container)
   const root = createRoot(container)
   const activatedSourceNodeIds: string[] = []
+  const parentPointerEvents: string[] = []
   try {
     await act(async () => {
-      root.render(<StoryboardCardMetaScrollRail card={target} onSourceReferenceActivate={reference => activatedSourceNodeIds.push(reference.nodeId)} />)
+      root.render(
+        <section
+          onClick={() => parentPointerEvents.push('click')}
+          onMouseDown={() => parentPointerEvents.push('mousedown')}
+          onPointerDown={() => parentPointerEvents.push('pointerdown')}
+        >
+          <StoryboardCardMetaScrollRail card={target} onSourceReferenceActivate={reference => activatedSourceNodeIds.push(reference.nodeId)} />
+        </section>,
+      )
       await waitForFrames(dom.window, 4)
     })
     const chip = container.querySelector('[data-kg-storyboard-card-source-reference-chip="1"]')
@@ -102,11 +111,16 @@ export async function testStoryboardCardsRenderConnectedTextAsSourceChipsWithout
     }
     if (container.textContent?.includes(upstreamText)) throw new Error('expected source chip not to render upstream text')
     await act(async () => {
+      chip.dispatchEvent(new dom.window.MouseEvent('pointerdown', { bubbles: true }))
+      chip.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true }))
       chip.click()
       await waitForFrames(dom.window, 2)
     })
     if (activatedSourceNodeIds.join(',') !== 'source-widget') {
       throw new Error(`expected source chip click to activate its connected upstream node, got ${JSON.stringify(activatedSourceNodeIds)}`)
+    }
+    if (parentPointerEvents.length !== 0) {
+      throw new Error(`expected source chip activation not to trigger parent card pointer handlers, got ${JSON.stringify(parentPointerEvents)}`)
     }
   } finally {
     await act(async () => root.unmount())
