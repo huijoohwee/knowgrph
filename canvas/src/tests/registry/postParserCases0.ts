@@ -440,6 +440,7 @@ import type { TestCaseTuple } from '../runner/testRunnerTypes'; export const TES
   ["flowCanvas.resize.dirty","@/__tests__/flowCanvasResizeDirtyRegression.test","testFlowCanvasResizeMarksDirtySoCanvasDoesNotGoBlank"],
   ["ui.flowCanvas.richMediaOverlay.schedulesOnInteractionFrame","@/__tests__/storyboardWidgetRichMediaOverlaySchedulesOnInteractionFrameRegression.test","testFlowCanvasSchedulesRichMediaOverlayOnInteractionFrame"],
   ["ui.flowCanvas.storyboardOverlay.sharedNativeZoomFrame","@/__tests__/storyboardWidgetRichMediaOverlaySchedulesOnInteractionFrameRegression.test","testStoryboardCardsFlushOnTheSameNativeZoomFrameAsRichMedia"],
+  ["ui.flowCanvas.storyboardOverlay.liveNativeCameraFrame","@/__tests__/storyboardWidgetRichMediaOverlaySchedulesOnInteractionFrameRegression.test","testStoryboardCardsReadTheLiveNativeCameraFrameBeforeWorkspaceFallback"],
   ["ui.flowCanvas.richMediaOverlay.flushesBeforeEdgeFrame","@/__tests__/storyboardWidgetRichMediaOverlaySchedulesOnInteractionFrameRegression.test","testMediaOverlayLayoutLoopExposesSynchronousInteractionFlush"],
   ["ui.flowCanvas.richMediaOverlay.layoutLoop.quantizesAndSkipsNoopWrites","@/__tests__/storyboardWidgetRichMediaOverlaySchedulesOnInteractionFrameRegression.test","testMediaOverlayLayoutLoopQuantizesAndSkipsNoopBoxWrites"],
   ["ui.flowCanvas.richMediaOverlay.sizingClampsToWidgetScale","@/__tests__/storyboardWidgetRichMediaOverlaySizingClampsToWidgetScaleRegression.test","testStoryboardWidgetRichMediaOverlaySizingClampsToWidgetScale"],
