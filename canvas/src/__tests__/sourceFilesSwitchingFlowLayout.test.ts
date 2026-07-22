@@ -18,6 +18,10 @@ import {
 import { readWorkspaceActiveDocumentResolvedText } from '@/features/source-files/sourceFilesRuntimeActive'
 import { shouldProactivelyReapplyActiveWorkspaceMarkdownDocument } from '@/features/source-files/sourceFilesRuntimeMaterialization'
 import { resolvePreferredEnabledComposedSourceFile } from '@/features/source-files/composedSourceSelection'
+import {
+  graphActivationFitTargetsGraph,
+  resolveGraphActivationFitDecision,
+} from '@/lib/zoom/graphActivationFit'
 
 export function testSourceFilesSwitchingAppliesFileContentAndFlowLayoutIgnoresInteractionPositions() {
   const ingestText = readFileSync(resolve(process.cwd(), 'src/features/source-files/sourceFilesIngestIntegration.ts'), 'utf8')
@@ -267,6 +271,11 @@ export function testSourceFilesFileSelectionPromotesActiveCanvasPath() {
 }
 
 export function testSourceFilesPendingSwitchUsesExplorerSourceAuthority() {
+  const viewportText = readFileSync(resolve(process.cwd(), 'src/components/CanvasViewport.tsx'), 'utf8')
+  if (!viewportText.includes('const workspaceStoryboardSurfaceActive = !documentSwitchPending')
+    || !viewportText.includes('const documentSwitchBlocksCanvas = documentSwitchPending')) {
+    throw new Error('expected every pending Source Files handoff to block stale storyboard and canvas runtime mounts')
+  }
   const sourceFiles = [
     { id: 'a', name: 'notes/a.md', enabled: true, source: { kind: 'local', path: '/notes/a.md' } },
     { id: 'b', name: 'notes/b.md', enabled: true, source: { kind: 'local', path: '/notes/b.md' } },
@@ -287,6 +296,43 @@ export function testSourceFilesPendingSwitchUsesExplorerSourceAuthority() {
   })
   if (settled?.id !== 'a') {
     throw new Error('expected normal Canvas source resolution to preserve the applied Markdown document authority')
+  }
+}
+
+export function testSourceFilesGraphActivationFitWaitsForMatchingDocument() {
+  const graphA = { metadata: { kind: 'document', source: 'notes/a.md' } }
+  const graphB = { metadata: { kind: 'document', source: 'notes/b.md' } }
+  const nonFitTransition = resolveGraphActivationFitDecision({
+    previousGraphKey: 'document:notes/a.md',
+    graphData: graphB,
+    fitEligible: false,
+    now: 1,
+  })
+  if (nonFitTransition.graphKey !== 'document:notes/b.md' || nonFitTransition.request !== null) {
+    throw new Error('expected every graph activation to advance camera ownership without forcing an ineligible fit')
+  }
+  const returnTransition = resolveGraphActivationFitDecision({
+    previousGraphKey: nonFitTransition.graphKey,
+    graphData: graphA,
+    fitEligible: true,
+    now: 2,
+  })
+  if (!returnTransition.request || returnTransition.request.type !== 'fit') {
+    throw new Error('expected an eligible returning graph activation to request a camera-only fit')
+  }
+  if (graphActivationFitTargetsGraph({ request: returnTransition.request, graphData: graphB })) {
+    throw new Error('expected graph activation fit to wait while the outgoing document still owns the runtime')
+  }
+  if (!graphActivationFitTargetsGraph({ request: returnTransition.request, graphData: graphA })) {
+    throw new Error('expected graph activation fit to run only after the target document owns the runtime')
+  }
+  const sameGraph = resolveGraphActivationFitDecision({
+    previousGraphKey: returnTransition.graphKey,
+    graphData: graphA,
+    fitEligible: true,
+  })
+  if (sameGraph.request !== null) {
+    throw new Error('expected same-document recomposition not to re-fit or mutate the established camera')
   }
 }
 

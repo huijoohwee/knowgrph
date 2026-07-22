@@ -23,6 +23,7 @@ import {
   isWorkspaceBackedSourceFile,
 } from '@/features/source-files/sourceFilesSignatures'
 import { resolveFlowWidgetStateGraphKey } from '@/lib/storyboardWidget/widgetStateScope'
+import { resolveGraphActivationFitDecision } from '@/lib/zoom/graphActivationFit'
 
 let pendingComposeRaf: number | null = null
 let pendingComposeAfterWorkspaceOverlayClose = false
@@ -194,14 +195,24 @@ function applyComposedSourceImportModes(
 }
 
 function requestWorkspaceOpenStoryboardWidgetFit(graphData: ReturnType<typeof composeGraphFromSourceLayers>['graphData']) {
-  if (!isFrontmatterFlowGraph(graphData)) return
   const st = useGraphStore.getState()
-  if (!isWorkspaceEditorOverlayOpen(st)) return
-  if (st.canvasRenderMode !== '2d' || st.canvas2dRenderer !== 'storyboard') return
-  const graphKey = resolveFlowWidgetStateGraphKey({ graphData }) || ''
+  const decision = resolveGraphActivationFitDecision({
+    previousGraphKey: lastWorkspaceOpenStoryboardWidgetFitGraphKey,
+    graphData,
+    fitEligible: isFrontmatterFlowGraph(graphData)
+      && isWorkspaceEditorOverlayOpen(st)
+      && st.canvasRenderMode === '2d'
+      && st.canvas2dRenderer === 'storyboard',
+  })
+  const graphKey = decision.graphKey
+  if (!isFrontmatterFlowGraph(graphData)) {
+    lastWorkspaceOpenStoryboardWidgetFitGraphKey = graphKey
+    return
+  }
   if (!graphKey || graphKey === lastWorkspaceOpenStoryboardWidgetFitGraphKey) return
   lastWorkspaceOpenStoryboardWidgetFitGraphKey = graphKey
-  st.requestZoom('fit', { intent: 'fitToView' })
+  if (!decision.request) return
+  useGraphStore.setState({ zoomRequest: decision.request })
 }
 
 export function scheduleApplyGraphOwnerComposedGraphFromSourceFiles() {
