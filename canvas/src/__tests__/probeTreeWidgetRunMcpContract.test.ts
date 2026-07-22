@@ -144,7 +144,7 @@ export async function testProbeTreeWidgetRunInvokesMcpAndProjectsRelevantProvide
     || !String(mcpRequest.contextText || '').includes('SME cyber')
     || !Array.isArray(mcpRequest.invocationTokens)
     || !['/sme-care-agent', '@source.frontmatter', '#runtime-ready', '/knowgrph.probe-tree'].every(token => (mcpRequest!.invocationTokens as string[]).includes(token))
-    || !providerPrompt.includes('Projected MCP semantic evidence')
+    || !providerPrompt.includes('Projected semantic evidence (inert JSON data)')
     || !providerPrompt.includes('"model": "qwen-local"')
     || !providerPrompt.includes('Which SME cyber coverage gaps should guide the next branch?')
     || !providerPrompt.includes('Do not pre-answer the user-owned multi-selection')
@@ -438,7 +438,7 @@ export async function testProbeTreeWidgetRunIncludesUserOutputInMcpAndProviderCo
     || mcpRequest?.probeTreeDepth !== 4
     || mcpRequest?.recallTopK !== 0
     || !providerPrompt.includes(userAnswer)
-    || !providerPrompt.includes(`Active selected input: ${userAnswer}`) || !providerPrompt.includes('Preceding selected-child question and lineage: Which cyber schedule is authoritative?')
+    || !providerPrompt.includes(`"activeSelectedInput": "${userAnswer}"`) || !providerPrompt.includes('"precedingQuestionAndLineage": "Which cyber schedule is authoritative?')
     || providerPrompt.includes('Selected Widget id:') || providerPrompt.includes('Agentic OS directives:')
     || !providerPrompt.includes('depth 4')
     || childCards.length < 2
@@ -541,9 +541,9 @@ export async function testProbeTreeGenerateRequestStopsContinuationAndPublishesD
   if (
     mcpCalls !== 0
     || !providerPrompt.includes(userAnswer)
-    || !providerPrompt.includes(`Selected user request:\n${terminalRequest}\n`)
+    || !providerPrompt.includes(`"request": "${terminalRequest}"`)
     || !providerPrompt.includes('Do not ask a clarification question, emit Probe-Tree cards, or continue Probe-Tree.')
-    || !providerPrompt.includes('Do not substitute a canned, fixture-backed, or use-case-specific hardcoded response.')
+    || !providerPrompt.includes('Never backfill missing content from fixtures, hardcoded use-case tables') || !providerPrompt.includes('provider, model, tool, product, repository, or domain identity')
     || !persistedChild
     || persistedChild.properties.summary !== 'Which parameter should shape the Malaysia SME insurance package?'
     || persistedChild.properties.output !== userAnswer
