@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { readFiniteRuntimeZoomTransform } from '@/components/StoryboardWidgetCanvas/runtime/useStoryboardWidgetRuntimeScene'
 
 export function testFlowCanvasSchedulesRichMediaOverlayOnInteractionFrame() {
   const flowCanvasPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas.tsx')
@@ -81,6 +82,30 @@ export function testStoryboardCardsFlushOnTheSameNativeZoomFrameAsRichMedia() {
     || !projectionText.includes('registerInteractionFrameProjectionScheduler?.(applyProjection)')
     || !projectionText.includes('const tick = () => {\n      applyProjection()')) {
     throw new Error('expected Card projection to share the native interaction frame while retaining its fallback RAF tick')
+  }
+}
+
+export function testStoryboardCardsReadTheLiveNativeCameraFrameBeforeWorkspaceFallback() {
+  const live = readFiniteRuntimeZoomTransform({
+    transform: { k: 0.55, x: 241, y: -83 },
+  } as never)
+  if (!live || live.k !== 0.55 || live.x !== 241 || live.y !== -83) {
+    throw new Error('expected the shared runtime transform reader to preserve the exact live native camera frame')
+  }
+
+  const surfacePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'StoryboardWidgetCanvasSurface.tsx')
+  const mediaPath = resolve(process.cwd(), 'src', 'components', 'FlowCanvas', 'FlowCanvasMediaOverlays.tsx')
+  const surfaceText = readFileSync(surfacePath, 'utf8')
+  const mediaText = readFileSync(mediaPath, 'utf8')
+  if (!surfaceText.includes('const getSynchronizedStoryboardCameraTransform = React.useCallback(() => {')
+    || !surfaceText.includes('readFiniteRuntimeZoomTransform(props.flowRuntimeRefRef.current?.current)\n      || props.getLiveZoomTransform()')) {
+    throw new Error('expected Storyboard cards to read the native runtime camera frame before the workspace-safe fallback')
+  }
+  if (!surfaceText.includes('getTransform={getSynchronizedStoryboardCameraTransform}')) {
+    throw new Error('expected the Card projection owner to consume the synchronized native camera transform')
+  }
+  if (!mediaText.includes('readTransform: () => runtimeRef.current?.transform || d3.zoomIdentity')) {
+    throw new Error('expected Rich Media to retain the same native runtime camera transform owner')
   }
 }
 
