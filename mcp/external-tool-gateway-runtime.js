@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv";
 
 import {
@@ -25,6 +29,16 @@ const MAX_TOOL_LIST_COUNT = 500;
 const MAX_JSON_DEPTH = 12;
 const MAX_JSON_NODES = 6_000;
 const canonicalArtifactValidator = new AjvJsonSchemaValidator().getValidator(EXTERNAL_TOOL_CANONICAL_ARTIFACT_SCHEMA);
+const sourceDigest = (relativePaths) => {
+  const hash = createHash("sha256");
+  for (const relativePath of relativePaths) hash.update(relativePath).update("\0").update(readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)))).update("\0");
+  return hash.digest("hex");
+};
+export const EXTERNAL_TOOL_GATEWAY_OWNER_EVIDENCE = Object.freeze({
+  ownerId: "knowgrph.external-tool-gateway",
+  implementationRevision: "1.0.0",
+  implementationDigest: sourceDigest(["./external-tool-gateway-runtime.js", "./external-tool-gateway-contract.js", "./external-tool-profile-registry.js", "./external-tool-approval.js", "./external-tool-session.js"]),
+});
 
 class ExternalToolGatewayError extends Error {
   constructor(code, message, actionDigest = "") {
@@ -204,6 +218,8 @@ const toFailure = (error, fallbackDigest = "") => {
     "approval_not_configured",
     "capability_not_found",
     "capability_revision_mismatch",
+    "integration_profile_drift",
+    "integration_not_replay_safe",
     "idempotency_conflict",
     "invalid_artifact",
     "invalid_workspace_path",
@@ -250,6 +266,26 @@ export function createExternalToolGatewayRuntime(options = {}) {
       throw new ExternalToolGatewayError("capability_revision_mismatch", "External MCP capability revision changed; describe and approve it again.");
     }
     return capability;
+  };
+  const projectApplicationIntegration = (capability) => Object.freeze({
+    integrationProfileId: `kgip_${hashExternalToolValue({ id: capability.profile.id }).slice(0, 32)}`,
+    integrationProfileRevision: hashExternalToolValue(capability.profile),
+    capabilityId: capability.capabilityId,
+    capabilityRevision: capability.capabilityRevision,
+    schemaDigest: capability.tool.upstreamInputSchemaDigest,
+    artifactKind: capability.artifactKind,
+    approvalRequired: true,
+    replay: capability.tool.idempotencyArgumentName ? "idempotency-key" : "unsupported",
+  });
+  const listApplicationIntegrations = () => Object.freeze(registry.capabilities.map(projectApplicationIntegration).sort((left, right) => left.capabilityId < right.capabilityId ? -1 : left.capabilityId > right.capabilityId ? 1 : 0));
+  const resolveApplicationIntegration = (config = {}) => {
+    try {
+      const capability = resolveCapability(config.capabilityId, config.capabilityRevision);
+      const evidence = projectApplicationIntegration(capability);
+      if (evidence.integrationProfileId !== config.integrationProfileId || evidence.integrationProfileRevision !== config.integrationProfileRevision) throw new ExternalToolGatewayError("integration_profile_drift", "The opaque integration profile changed; replan explicitly.");
+      if (evidence.replay !== "idempotency-key") throw new ExternalToolGatewayError("integration_not_replay_safe", "External application execution requires an upstream idempotency binding.");
+      return { ok: true, evidence };
+    } catch (error) { return toFailure(error); }
   };
 
   const prepareCall = (args) => {
@@ -334,7 +370,9 @@ export function createExternalToolGatewayRuntime(options = {}) {
   };
 
   return Object.freeze({
-    registry,
+    ownerEvidence: EXTERNAL_TOOL_GATEWAY_OWNER_EVIDENCE,
+    listApplicationIntegrations,
+    resolveApplicationIntegration,
     catalog: (args) => listCapabilities(args),
     search: (args) => listCapabilities(args, args?.query),
     describe: (args) => run(EXTERNAL_TOOL_GATEWAY_TOOL_NAMES.describe, args),
