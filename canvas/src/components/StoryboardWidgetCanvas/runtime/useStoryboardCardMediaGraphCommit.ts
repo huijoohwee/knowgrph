@@ -28,18 +28,30 @@ export function useStoryboardCardMediaGraphCommit({
     setGraphDataPreservingLayout(nextDraft)
     return nextDraft
   }, [baseRevision, draftGraphDataRef, draftRevision, setDraftGraphData, setGraphDataPreservingLayout])
-  const commit = React.useCallback(async (graphData: GraphData, options?: StoryboardCardMediaGraphPersistenceOptions) => {
-    const persisted = await persistStoryboardCardMediaGraphSource(publish(graphData), {
+  const persistPublished = React.useCallback(async (graphData: GraphData, options?: StoryboardCardMediaGraphPersistenceOptions) => {
+    const persisted = await persistStoryboardCardMediaGraphSource(graphData, {
       ...options,
       sourceOwner: options?.sourceOwner || sourceOwner,
     })
     if (!persisted) throw new Error('The originating Canvas source is not a publishable graph document.')
-  }, [publish, sourceOwner])
+  }, [sourceOwner])
+  const commit = React.useCallback(async (graphData: GraphData, options?: StoryboardCardMediaGraphPersistenceOptions) => {
+    await persistPublished(publish(graphData), options)
+  }, [persistPublished, publish])
+  const reportSurfacePersistenceFailure = React.useCallback((error: unknown) => {
+    const detail = error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '').trim() : ''
+    upsertUiToast({ id: 'storyboard-card-media-persistence-failed', kind: 'error', message: detail || 'Canvas changes could not be persisted to the workspace.', ttlMs: 5200 })
+  }, [upsertUiToast])
   const commitForSurface = React.useCallback((graphData: GraphData) => {
-    void commit(graphData).catch(error => {
-      const detail = error && typeof error === 'object' && 'message' in error ? String((error as { message?: unknown }).message || '').trim() : ''
-      upsertUiToast({ id: 'storyboard-card-media-persistence-failed', kind: 'error', message: detail || 'Canvas changes could not be persisted to the workspace.', ttlMs: 5200 })
-    })
-  }, [commit, upsertUiToast])
-  return { publishStoryboardCardMediaGraph: publish, commitStoryboardCardMediaGraph: commit, commitStoryboardCardMediaGraphForSurface: commitForSurface }
+    void commit(graphData).catch(reportSurfacePersistenceFailure)
+  }, [commit, reportSurfacePersistenceFailure])
+  const persistPublishedForSurface = React.useCallback((graphData: GraphData) => {
+    void persistPublished(graphData).catch(reportSurfacePersistenceFailure)
+  }, [persistPublished, reportSurfacePersistenceFailure])
+  return {
+    publishStoryboardCardMediaGraph: publish,
+    commitStoryboardCardMediaGraph: commit,
+    commitStoryboardCardMediaGraphForSurface: commitForSurface,
+    persistPublishedStoryboardCardMediaGraphForSurface: persistPublishedForSurface,
+  }
 }
