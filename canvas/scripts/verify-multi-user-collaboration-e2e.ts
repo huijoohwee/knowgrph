@@ -41,6 +41,7 @@ const MACOS_BROWSER_CANDIDATES = [
 type BrowserStoreSnapshot = {
   markdownDocumentName: string
   markdownDocumentText: string
+  markdownWorkspaceIndexingInFlight: boolean
   sessionPhase: string
   statusText: string
   errorText: string
@@ -117,6 +118,7 @@ async function readBrowserStoreSnapshot(page: Page): Promise<BrowserStoreSnapsho
     return {
       markdownDocumentName: String(graphState.markdownDocumentName || ''),
       markdownDocumentText: String(graphState.markdownDocumentText || ''),
+      markdownWorkspaceIndexingInFlight: graphState.markdownWorkspaceIndexingInFlight === true,
       sessionPhase: String(collaborationState.phase || ''),
       statusText: String(collaborationState.statusText || ''),
       errorText: String(collaborationState.errorText || ''),
@@ -215,6 +217,7 @@ async function connectAuthenticatedRoom(page: Page): Promise<void> {
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     await openCollaborationPanel(page)
     await waitForActiveDocumentReady(page)
+    await closeFloatingPanelIfOpen(page)
     const connectButton = page.getByRole('button', { name: /Connect Room|Reconnect Room/, exact: false })
     await connectButton.waitFor({ state: 'visible', timeout: 30_000 })
     await connectButton.click({ timeout: 30_000 })
@@ -242,11 +245,15 @@ async function connectAuthenticatedRoom(page: Page): Promise<void> {
 
 async function waitForActiveDocumentReady(page: Page): Promise<void> {
   const expectedDocumentName = basename(DOC_PATH)
-  await waitForPageCondition(
-    page,
-    'active document readiness',
-    snapshot => basename(snapshot.markdownDocumentName) === expectedDocumentName && snapshot.markdownDocumentText.trim().length > 0,
+  const isReady = (snapshot: BrowserStoreSnapshot) => (
+    basename(snapshot.markdownDocumentName) === expectedDocumentName
+    && snapshot.markdownDocumentText.trim().length > 0
+    && snapshot.markdownWorkspaceIndexingInFlight === false
   )
+  await waitForPageCondition(page, 'active document readiness', isReady)
+  // Indexing starts on a short deferred task, so confirm readiness after that task can begin.
+  await page.waitForTimeout(250)
+  await waitForPageCondition(page, 'stable active document readiness', isReady)
 }
 
 async function selectExpectedDocument(page: Page): Promise<void> {

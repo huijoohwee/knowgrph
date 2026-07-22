@@ -46,7 +46,7 @@ function ToastCard({
   return (
     <aside
       className={cn(
-        'kg-toast-card pointer-events-auto flex-none',
+        'kg-toast-card pointer-events-none flex-none',
         'rounded border shadow-sm',
         'bg-[rgba(var(--panel-bg-rgb),var(--panel-opacity))]',
         UI_THEME_TOKENS.panel.border,
@@ -56,9 +56,9 @@ function ToastCard({
     >
       <section className={TOAST_ROW_GRID_CLASS_NAME}>
         <Icon className={cn('w-4 h-4 mt-0.5', toast.busy ? 'animate-spin' : '')} strokeWidth={uiIconStrokeWidth} aria-hidden="true" />
-        <section className="min-w-0">
+        <section className="min-w-0 pointer-events-none">
           <section className="whitespace-pre-wrap break-words text-xs leading-5">{message}</section>
-          <UiActionButtons actions={toast.actions} className="mt-2" />
+          <UiActionButtons actions={toast.actions} className="pointer-events-auto mt-2" />
         </section>
         <section className="mt-0.5 flex items-center gap-1 pointer-events-auto">
           <button
@@ -165,7 +165,7 @@ export function ToastHost() {
     >
       <ol className="kg-toast-list flex flex-col gap-2 items-end" aria-label="Toast list">
         {orderedToasts.map(t => (
-          <li key={t.id} className="list-none pointer-events-auto">
+          <li key={t.id} className="list-none pointer-events-none">
             <ToastCard toast={t} onDismiss={dismissUiToast} onTogglePinned={togglePinned} />
           </li>
         ))}
