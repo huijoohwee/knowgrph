@@ -89,6 +89,18 @@ export function testToastHostRendersBusySpinnerIcon() {
   if (!text.includes('className={TOAST_ROW_GRID_CLASS_NAME}')) {
     throw new Error('expected toast rows to reuse the responsive row owner')
   }
+  if (!text.includes('kg-toast-card pointer-events-none flex-none')) {
+    throw new Error('expected passive toast chrome to preserve access to underlying controls')
+  }
+  if (!text.includes('className="list-none pointer-events-none"')) {
+    throw new Error('expected toast list items to remain passive outside explicit controls')
+  }
+  if (!text.includes('className="pointer-events-auto mt-2"')) {
+    throw new Error('expected toast action buttons to remain interactive')
+  }
+  if (text.includes('kg-toast-card pointer-events-auto')) {
+    throw new Error('expected toast cards to avoid intercepting their full visual bounds')
+  }
   if (text.includes('grid grid-cols-[16px_minmax(0,1fr)_auto]')) {
     throw new Error('expected ToastHost to avoid inline arbitrary row grid sizing')
   }
