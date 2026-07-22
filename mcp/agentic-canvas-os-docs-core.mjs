@@ -367,23 +367,6 @@ export const buildAgenticCanvasOsDocsInvokePayload = ({
   const invocation = normalizedToken
     ? catalog.find((entry) => entry.token === normalizedToken) || null
     : null;
-  const fallbackInvocation = !invocation && normalizedToken
-    ? (() => {
-        const kind = kindForAgenticCanvasOsToken(normalizedToken);
-        const fileName = dictionaryFileForAgenticCanvasOsToken(normalizedToken);
-        if (!kind || !fileName) return null;
-        const sourcePath = `${fileName}#${normalizedToken}`;
-        return {
-          token: normalizedToken,
-          kind,
-          label: labelForToken(normalizedToken),
-          summary: "",
-          sourcePath,
-          sourceUrl: sourceUrlForPath(sourcePath, sourceRootUrl),
-        };
-      })()
-    : null;
-  const effectiveInvocation = invocation || fallbackInvocation;
   const resolvedInvocation = invocation && includeContent
     ? {
         ...invocation,
@@ -392,7 +375,7 @@ export const buildAgenticCanvasOsDocsInvokePayload = ({
           docsContentByFileName[dictionaryFileForAgenticCanvasOsToken(invocation.token)] || "",
         ),
       }
-    : effectiveInvocation;
+    : invocation;
   const filteredCatalog = normalizedToken
     ? []
     : catalog.filter(matchesQuery);
@@ -408,7 +391,7 @@ export const buildAgenticCanvasOsDocsInvokePayload = ({
   });
 
   return {
-    ok: !normalizedToken || Boolean(effectiveInvocation),
+    ok: !normalizedToken || Boolean(invocation),
     docsRoot: AGENTIC_CANVAS_OS_DOCS_WORKSPACE_ROOT,
     sourceRootUrl,
     sourceRevision: normalizedSourceRevision,
@@ -420,7 +403,7 @@ export const buildAgenticCanvasOsDocsInvokePayload = ({
     catalog: limitedCatalog,
     counts,
     truncated: filteredCatalog.length > limitedCatalog.length,
-    ...(!normalizedToken || effectiveInvocation
+    ...(!normalizedToken || invocation
       ? {}
       : {
           error: {

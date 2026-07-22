@@ -83,6 +83,8 @@ Canonical local tool inventory owner:
 
 - `mcp/local-tool-contract.js`
 
+Managed autonomous implementation runs are configured and operated through the four `knowgrph.implementation_run.*` tools. Required host registries, invocation examples, revision-fenced controls, delivery semantics, and the trusted-runner/no-kernel-isolation boundary are documented in `docs/managed-implementation-runs.md`.
+
 ### UI launcher
 
 - `search` — searches published Knowgrph Source Files and returns stable `kgdoc:` ids with citation-ready result URLs
