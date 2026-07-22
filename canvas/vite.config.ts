@@ -6985,9 +6985,9 @@ export default defineConfig(({ command, mode }) => {
       { find: '@', replacement: path.resolve(__dirname, './src') },
     ]
   },
-  server: {
+  server: { host: '127.0.0.1',
     port: 5173,
-    strictPort: false,
+    strictPort: true,
     watch: { ignored: [...DEFAULT_VITE_WATCH_IGNORED, createWorkspaceMirrorWatchPathIgnore(buildWorkspaceMirrorWatchIgnoredRoots({ repoRoot, canvasRoot: __dirname, workspaceRoot, docsRoot: process.env.VITE_WORKSPACE_INITIALIZATION_DOCS_ABS_ROOT, chatLogRoot: process.env.VITE_WORKSPACE_INITIALIZATION_CHAT_LOG_ABS_ROOT }))] },
     headers: {
       'Cache-Control': 'no-store',

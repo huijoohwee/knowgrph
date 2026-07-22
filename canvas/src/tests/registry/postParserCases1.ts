@@ -20,7 +20,7 @@ export const TEST_CASES_POST_PARSER_1: TestCaseTuple[] = [
   ["policy.storage.workflowPreview.activeDocsAvoidRxdbTerminology","@/__tests__/storageArchitectureRegression.test","testWorkflowPreviewSourceDocsAvoidRxdbTerminologyForActiveStorageDocs"],
   ["policy.docsUpdate.usesCentralizedWorkflowPreviewOwner","@/__tests__/storageArchitectureRegression.test","testDocsUpdateScriptUsesCentralizedWorkflowPreviewOwner"],
   ["policy.canvasBuild.usesWorkflowPreviewDocsOwner","@/__tests__/storageArchitectureRegression.test","testCanvasBuildUsesWorkflowPreviewDocsOwner"],
-  ["policy.canvasDev5173.buildsLinkedPackagesBeforeVite","@/__tests__/storageArchitectureRegression.test","testCanvasStrictPortDevBuildsLinkedPackagesBeforeVite"],
+  ["policy.canvasDev5173.buildsLinkedPackagesBeforeVite","@/__tests__/storageArchitectureRegression.test","testCanvasStrictPortDevBuildsLinkedPackagesBeforeVite"], ["policy.canvasDev.singleLoopbackPortOwner","@/__tests__/storageArchitectureRegression.test","testCanvasDevUsesSingleLoopbackPortOwner"],
   ["tests.jsdomHarness.rangeGeometryApis","@/__tests__/jsdomHarnessRangeGeometry.test","testJsdomHarnessProvidesRangeGeometryApis"],
   ["monaco.editor.longHtml.placeholderVisible","@/__tests__/monacoLongHtmlPlaceholderStyle.test","testMonacoLongHtmlPlaceholderIsVisibleAndEllipsized"],
   ["monaco.editor.htmlBlocks.previewNotInvisible","@/__tests__/monacoHtmlBlockPreviewNotInvisible.test","testMonacoHtmlBlockCollapseShowsPreview"],
