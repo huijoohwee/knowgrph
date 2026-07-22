@@ -15,7 +15,7 @@ import {
 test('runtime docs dependency resolves one checkout repository and immutable ref', async () => {
   const contract = await readRuntimeReadinessContract()
   const dependency = resolveRuntimeDocsDependency(contract)
-  assert.equal(contract.docs_dependency.ref, 'a1da4aacab8d44efe8214c4004a0476ffc711e2e')
+  assert.equal(contract.docs_dependency.ref, 'a71df39fe2331c9086485860b539eb7b819e185d')
   assert.match(contract.docs_dependency.ref, /^[0-9a-f]{40}$/)
   const checkedOutDocsRoot = String(process.env.KNOWGRPH_AGENTIC_CANVAS_OS_DOCS_ROOT || '').trim()
   if (checkedOutDocsRoot) {
@@ -29,6 +29,7 @@ test('runtime docs dependency resolves one checkout repository and immutable ref
   assert.ok(contract.docs_dependency.required_files.includes('CANONICAL-LIFECYCLE.md'))
   assert.ok(contract.docs_dependency.required_files.includes('AGENT-TOOLKIT.md'))
   assert.ok(contract.docs_dependency.required_files.includes('APPLICATION-COMPOSITION.md'))
+  assert.ok(contract.docs_dependency.required_files.includes('SKILL-EVOLUTION.md'))
   assert.ok(contract.docs_dependency.required_files.includes('schemas/production-runtime-readiness.v2.schema.json'))
   assert.deepEqual(
     ['/agent.toolkit', '#agent-toolkit', '@agent-toolkit-observer']
@@ -37,6 +38,11 @@ test('runtime docs dependency resolves one checkout repository and immutable ref
   )
   assert.deepEqual(
     ['/application.compose', '#application-composition', '@application-manifest', '@component-catalog', '@integration-profile', '@runtime-proof']
+      .map((token) => contract.docs_dependency.proof_tokens.includes(token)),
+    [true, true, true, true, true, true],
+  )
+  assert.deepEqual(
+    ['/skill.evolve', '#skill-evolution', '@skill-catalog', '@skill-policy', '@runtime-proof', '@operator']
       .map((token) => contract.docs_dependency.proof_tokens.includes(token)),
     [true, true, true, true, true, true],
   )
