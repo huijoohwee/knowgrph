@@ -552,10 +552,10 @@ export function useStoryboardWidgetDropBridge(args: {
       const sy = clientY - rect.top
       if (!Number.isFinite(sx) || !Number.isFinite(sy)) return 'rejected'
       if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return 'rejected'
-      const dropKey = `${payload.registryEntryId}:${payload.layoutVariantId || 'default'}:${Math.round(sx)}:${Math.round(sy)}`
-      if (args.shouldDedupeWidgetDrop(dropKey)) return 'rejected'
       const pos = resolveDropPos(sx, sy, opts)
       if (!pos) return 'await-transform'
+      const dropKey = `${payload.registryEntryId}:${payload.layoutVariantId || 'default'}:${Math.round(sx)}:${Math.round(sy)}`
+      if (args.shouldDedupeWidgetDrop(dropKey)) return 'rejected'
       addNodeFromRegistryAtWorld({ entry: payload.entry, layoutVariantId: payload.layoutVariantId, x: pos.x, y: pos.y })
       args.upsertUiToast({
         id: 'storyboard-widget-drop-widget',
@@ -761,9 +761,9 @@ export function useStoryboardWidgetDropBridge(args: {
       const sx = clientX - rect.left
       const sy = clientY - rect.top
       if (!Number.isFinite(sx) || !Number.isFinite(sy) || sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return 'rejected'
+      if (!pos) return 'await-transform'
       const dropKey = `${session.registryEntryId}:${session.layoutVariantId || 'default'}:${Math.round(sx)}:${Math.round(sy)}`
       if (args.shouldDedupeWidgetDrop(dropKey)) return 'rejected'
-      if (!pos) return 'await-transform'
       args.setCanvasWindowOffsetFromRect(rect)
       addNodeFromRegistryAtWorld({ entry, layoutVariantId: session.layoutVariantId, x: pos.x, y: pos.y })
       args.upsertUiToast({

@@ -132,6 +132,7 @@ export function readResolvedStoryboardWidgetDropTransform(args: {
   if (projectedTransform) return projectedTransform
   if (persistedTransform) return persistedTransform
   if (liveTransform && args.allowNeutralFallback === true) return liveTransform
+  if (args.allowNeutralFallback === true) return { k: 1, x: 0, y: 0 }
   return null
 }
 
