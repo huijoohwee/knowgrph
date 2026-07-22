@@ -24,7 +24,7 @@ import {
   stepXrPhysicsSimulation,
   type XrPhysicsBodyState,
   type XrPhysicsSimulation,
-} from './xrPhysicsStepper'
+} from './xrSpatialPhysicsAdapter'
 
 export type XrPhysicsRuntimePhase = 'stopped' | 'playing' | 'paused'
 
@@ -153,7 +153,7 @@ function replaceWorld(world: XrPhysicsWorldConfig, dirty: boolean): XrPhysicsRun
   if (xrPhysicsWorldSignature(world) === xrPhysicsWorldSignature(snapshot.world) && dirty === snapshot.dirty) {
     return snapshot
   }
-  simulation = createXrPhysicsSimulation(world)
+  simulation = createXrPhysicsSimulation(world, staticColliders)
   accumulatorSeconds = 0
   return publish({ ...snapshot, phase: 'stopped', world, dirty })
 }
@@ -204,7 +204,7 @@ export function subscribeXrPhysicsRuntime(listener: RuntimeListener): () => void
 export function restoreXrPhysicsRuntimeSnapshot(
   previous: XrPhysicsRuntimeSnapshot,
 ): XrPhysicsRuntimeSnapshot {
-  simulation = createXrPhysicsSimulation(previous.world)
+  simulation = createXrPhysicsSimulation(previous.world, staticColliders)
   accumulatorSeconds = 0
   const { revision: _revision, ...restored } = previous
   return publish(restored)
@@ -272,7 +272,7 @@ export function hydrateXrPhysicsRuntime(args: {
   const world = preserveDirty
     ? readXrPhysicsWorld(serializeXrPhysicsWorld(snapshot.world), activeSubjects)
     : persistedWorld
-  simulation = createXrPhysicsSimulation(world)
+  simulation = createXrPhysicsSimulation(world, colliders)
   accumulatorSeconds = 0
   return publish({
     sceneKey: String(args.sceneKey || ''),
@@ -326,7 +326,7 @@ export function configureXrPhysicsWorld(patch: XrPhysicsWorldPatch): XrPhysicsRu
 export function playXrPhysicsRuntime(): XrPhysicsRuntimeSnapshot {
   if (snapshot.phase === 'playing' || snapshot.world.bodies.length === 0) return snapshot
   if (snapshot.phase === 'stopped') {
-    resetXrPhysicsSimulation(simulation, snapshot.world)
+    resetXrPhysicsSimulation(simulation, snapshot.world, staticColliders)
     accumulatorSeconds = 0
   }
   return publish({ ...snapshot, phase: 'playing' })
@@ -340,7 +340,7 @@ export function pauseXrPhysicsRuntime(): XrPhysicsRuntimeSnapshot {
 
 function stop(resetEvenIfStopped: boolean): XrPhysicsRuntimeSnapshot {
   if (snapshot.phase === 'stopped' && !resetEvenIfStopped) return snapshot
-  resetXrPhysicsSimulation(simulation, snapshot.world)
+  resetXrPhysicsSimulation(simulation, snapshot.world, staticColliders)
   accumulatorSeconds = 0
   return publish({ ...snapshot, phase: 'stopped' })
 }

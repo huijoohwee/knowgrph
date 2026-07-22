@@ -186,6 +186,7 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["canvas.xrMode.physics.nativeController.objective","@/__tests__/xrNativeControllerDemo.test","testXrNativePlaygroundObjectiveIsGatedAndResettable"],
   ["canvas.xrMode.physics.nativeController.cannonReload","@/__tests__/xrNativeControllerDemo.test","testXrNativeCannonReloadTeleportsWithoutSweepingAcrossPlayground"],
   ["canvas.xrMode.physics.nativeController.integration","@/__tests__/xrNativeControllerDemo.test","testXrNativeControllerDemoUsesCanonicalSurfaceAndMcpRoute"],
+  ["canvas.xrMode.physics.spatialAdapter.contract","@/__tests__/xrSpatialPhysicsAdapter.test","testXrSpatialPhysicsAdapterPreservesXrContracts"],
   ["workspace.sourceFiles.xrPhysics.normalDevBootstrap","@/__tests__/xrPhysicsWorkspaceBootstrap.test","testXrPhysicsCanonicalSeedMaterializesOnceInFreshOrdinaryDevWorkspace"],
   ["workspace.sourceFiles.xrPhysics.existingMemoryBootstrap","@/__tests__/xrPhysicsWorkspaceBootstrap.test","testXrPhysicsCanonicalSeedReconcilesExistingMemoryWorkspace"],
   ["workspace.sourceFiles.xrPhysics.persistedDocsOnlyBootstrap","@/__tests__/xrPhysicsWorkspaceBootstrap.test","testXrPhysicsCanonicalSeedSurvivesFreshPersistedDocsOnlyBootstrap"],
