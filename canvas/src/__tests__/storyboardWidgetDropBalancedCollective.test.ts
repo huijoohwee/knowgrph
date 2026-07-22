@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { useGraphStore } from '@/hooks/useGraphStore'
 import { restoreStoryboardWidgetDropCameraAuthority } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
 
-export function testStoryboardWidgetDropRestoresCameraAndRequestsBalancedCollective() {
+export function testStoryboardWidgetDropRestoresCameraWithoutRebalancingCollective() {
   useGraphStore.getState().resetAll()
   useGraphStore.getState().setGraphData({
     type: 'Graph',
@@ -20,7 +20,7 @@ export function testStoryboardWidgetDropRestoresCameraAndRequestsBalancedCollect
       transform: { k: 1, x: 144, y: 96 },
     },
     zoomViewKeyRef,
-    requestBalancedLayout: true,
+    requestBalancedLayout: false,
   })
 
   const state = useGraphStore.getState()
@@ -34,8 +34,16 @@ export function testStoryboardWidgetDropRestoresCameraAndRequestsBalancedCollect
     || state.zoomRequest.payload.y !== 96) {
     throw new Error(`expected drop camera authority to reassert the exact active transform, got ${JSON.stringify(state.zoomRequest)}`)
   }
-  if (state.storyboardWidgetLayoutRebalanceRequest?.type !== 'balanced-spread') {
-    throw new Error(`expected drop to request one balanced collective layout, got ${JSON.stringify(state.storyboardWidgetLayoutRebalanceRequest)}`)
+  if (state.storyboardWidgetLayoutRebalanceRequest != null) {
+    throw new Error(`expected an authored drop to preserve the existing collective layout, got ${JSON.stringify(state.storyboardWidgetLayoutRebalanceRequest)}`)
+  }
+
+  const dropBridgePath = resolve(process.cwd(), 'src', 'components', 'StoryboardWidgetCanvas', 'runtime', 'useStoryboardWidgetDropBridge.ts')
+  const dropBridgeText = readFileSync(dropBridgePath, 'utf8')
+  if (!dropBridgeText.includes('const preserveDropCameraAfterInsert = React.useCallback(() => {')
+    || !dropBridgeText.includes('preserveDropCameraAfterInsert()')
+    || dropBridgeText.includes('preserveDropCameraAndBalanceCollective(true)')) {
+    throw new Error('expected Widget and Rich Media drops to preserve the camera without reseeding existing authored cards')
   }
 }
 
