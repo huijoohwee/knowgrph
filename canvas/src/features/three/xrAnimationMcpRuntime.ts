@@ -51,6 +51,7 @@ import {
 } from './xrConstrainedCastMarkRuntime'
 import { updateXrAnimationAssignment } from './xrAnimationAssignmentRuntime'
 import { activateXrSceneSurface } from './xrSceneSurfaceRuntime'
+import { readXrSceneDocumentReady } from './xrSceneDocumentReadiness'
 
 const XR_ANIMATION_CONTROL_OPERATIONS = Object.freeze([
   'apply',
@@ -365,8 +366,7 @@ function normalizeControl(input: XrAnimationControlInput): NormalizedAnimationCo
 }
 
 function sceneReady(): boolean {
-  const state = useGraphStore.getState()
-  return Boolean(state.graphData && String(state.markdownDocumentName || '').trim() && String(state.markdownDocumentText || '').trim())
+  return readXrSceneDocumentReady()
 }
 
 function resolvedTargetId(control: NormalizedAnimationControl): string {

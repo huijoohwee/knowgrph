@@ -61,6 +61,14 @@ const cleanTarget = (value: unknown): string => {
 }
 
 const cleanLabel = (value: unknown): string => String(value || '').trim()
+const decodeInvocationLabel = (value: unknown): string => {
+  const normalized = String(value || '').trim()
+  try {
+    return decodeURIComponent(normalized)
+  } catch {
+    return normalized
+  }
+}
 const textLength = (value: string): number => Array.from(value).length
 const hasBoundedText = (value: unknown, maxLength?: number): value is string => {
   if (typeof value !== 'string' || !value.trim()) return false
@@ -124,7 +132,7 @@ function parseXrSceneInvocation(invocationValue: unknown): Partial<NormalizedXrS
   if (!pairs) return null
   const transition = asTransition(pairs.transition)
   if (!transition || (action === 'label' && !String(pairs.label || '').trim())) return null
-  const label = cleanLabel(pairs.label)
+  const label = decodeInvocationLabel(pairs.label)
   if (textLength(label) > 80 || ((action === 'transform' || action === 'label' || action === 'remove') && textLength(target) > 160)) return null
   if (action === 'stage') return { action, stageId: target, invocation, transition }
   if (action === 'place') return { action, assetId: target, invocation, transition, label }

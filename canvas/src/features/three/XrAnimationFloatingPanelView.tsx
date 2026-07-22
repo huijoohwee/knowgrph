@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
 import { downloadBlob } from '@/lib/graph/save'
 import {
   FloatingPanelCatalogHeader,
@@ -61,6 +62,7 @@ import {
   xrMotionReferencePackageFilename,
 } from './xrMotionReferencePackage'
 import { XrChoreographyInspector } from './XrChoreographyInspector'
+import { resolveXrSceneDocumentReady } from './xrSceneDocumentReadiness'
 
 const XR_ANIMATION_GRAMMAR_SIGILS = ['/', '#', '@'] as const
 const XR_ANIMATION_REQUIRED_METADATA_TOKENS = Object.freeze([
@@ -224,6 +226,7 @@ function PresetGroup({
 }
 
 export function XrAnimationFloatingPanelView() {
+  const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
   const grammarCatalog = useAgenticOsRemoteGrammarCatalog({ sigils: XR_ANIMATION_GRAMMAR_SIGILS })
   const { graphData, markdownDocumentName, markdownDocumentText, pushUiToast, selectedNodeId, timelinePlaying } = useGraphStore(useShallow(state => ({
     graphData: state.graphData,
@@ -237,7 +240,12 @@ export function XrAnimationFloatingPanelView() {
   const selectedActorId = readBoundXrSelectedActorId()
   const animationInspection = inspectLocalAnimation()
   const search = useFloatingPanelCatalogSearch()
-  const sceneReady = Boolean(graphData && String(markdownDocumentName || '').trim() && String(markdownDocumentText || '').trim())
+  const sceneReady = resolveXrSceneDocumentReady({
+    sourceFilesBootstrapReady,
+    graphData,
+    markdownDocumentName,
+    markdownDocumentText,
+  })
   const visiblePresets = React.useMemo(() => XR_ANIMATION_PRESETS.filter(preset => matchesFloatingPanelCatalogSearch(search.normalizedSearchQuery, [preset.id, preset.label, preset.kind, preset.description, ...preset.keywords])), [search.normalizedSearchQuery])
   const visibleKeys = React.useMemo(() => visiblePresets.map(preset => preset.id), [visiblePresets])
   const { allCollapsed, collapseAll, collapsedKeys, expandAll, setCollapsed } = useCollapsibleSectionGroup(visibleKeys)

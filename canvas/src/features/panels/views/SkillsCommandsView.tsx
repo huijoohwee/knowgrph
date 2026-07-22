@@ -155,7 +155,10 @@ export default function SkillsCommandsView({
   const iconSizeClass = getIconSizeClass(uiIconScale)
   const iconColorClass = uiIconColorClass && uiIconColorClass.trim().length > 0 ? uiIconColorClass : UI_THEME_TOKENS.icon.color
   const renderEntries = React.useMemo<readonly SkillsCommandsRenderEntry[]>(
-    () => resolveSkillsCommandsRenderEntries(prefixFilter, searchQuery),
+    () => {
+      void grammarCatalog.version
+      return resolveSkillsCommandsRenderEntries(prefixFilter, searchQuery)
+    },
     [grammarCatalog.version, prefixFilter, searchQuery],
   )
   const entryGroups = React.useMemo(() => groupSkillsCommandsRenderEntries(renderEntries, grammarGroupBy), [grammarGroupBy, renderEntries])
@@ -187,6 +190,9 @@ export default function SkillsCommandsView({
       data-kg-floating-panel-catalog-list="skills-commands"
       data-kg-floating-panel-skills-commands-prefix-filter={prefixFilter}
       data-kg-floating-panel-skills-commands-grammar-group-by={grammarGroupBy}
+      data-kg-floating-panel-skills-commands-metadata-status={grammarCatalog.hydration.status}
+      data-kg-floating-panel-skills-commands-metadata-version={String(grammarCatalog.version)}
+      data-kg-floating-panel-skills-commands-source-revision={grammarCatalog.sourceRevision}
       aria-label="Skills & Commands"
     >
       <section className="grid min-w-0 gap-1" data-kg-floating-panel-catalog-list-rows={FLOATING_PANEL_CATALOG_COMPACT_ROW_LAYOUT}>

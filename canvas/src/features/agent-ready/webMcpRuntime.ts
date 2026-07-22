@@ -120,6 +120,11 @@ const markWebMcpRuntime = (state = WEB_MCP_TOOL_NAMES.join(',')): void => {
   document.documentElement.dataset.kgWebmcpContext = state
 }
 
+const markWebMcpHostBinding = (state: string): void => {
+  if (typeof document === 'undefined') return
+  document.documentElement.dataset.kgWebmcpHostContext = state
+}
+
 const normalizeString = (value: unknown): string => String(value || '').trim()
 
 const isLocalhostHost = (hostname: string): boolean => {
@@ -544,6 +549,7 @@ const webMcpLifecycle = createWebMcpLifecycleController({
   lateBindingRetryDelayMs: WEB_MCP_LATE_BINDING_RETRY_DELAY_MS,
   lateBindingMaxAttempts: WEB_MCP_LATE_BINDING_MAX_ATTEMPTS,
   markRuntimeState: markWebMcpRuntime,
+  markHostBindingState: markWebMcpHostBinding,
 })
 
 export function installKnowgrphWebMcpRuntime(): void {
@@ -552,14 +558,14 @@ export function installKnowgrphWebMcpRuntime(): void {
 }
 
 export function resetKnowgrphWebMcpRuntimeForTests(): void {
-  webMcpLifecycle.clearLateBindingRetry()
-  webMcpRuntimeState.fallbackContext = null
+  webMcpLifecycle.dispose()
   webMcpRuntimeState.activeRegisteredContext = null
   webMcpRuntimeState.registrations = new WeakMap<ModelContextLike, ModelContextRegistrationState>()
   webMcpRuntimeState.lateBindingAttemptCount = 0
   resetBrowserLocalSurfaceSnapshotsForTests()
   if (typeof document !== 'undefined') {
     delete document.documentElement.dataset.kgWebmcpContext
+    delete document.documentElement.dataset.kgWebmcpHostContext
     delete document.documentElement.dataset.kgWebmcpTools
   }
 }

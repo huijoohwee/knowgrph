@@ -14,7 +14,7 @@ import { UI_RESPONSIVE_EXTRA_WIDE_TOOLBAR_DROPDOWN_WIDTH_CLASSNAME } from '@/lib
 import { useMinimapCollapsed } from '@/features/minimap/minimapVisibility'
 import {
   activateXrSceneSurface,
-  XR_SCENE_FLOATING_PANEL_VIEWS,
+  resolveXrSurfaceEntryPanelView,
 } from '@/features/three/xrSceneSurfaceRuntime'
 
 type Canvas2dRendererSelectProps = {
@@ -143,10 +143,7 @@ export function Canvas2dRendererSelect({
           onOpenShared3dPanel: mode => {
             if (mode === 'xr') {
               const current = useGraphStore.getState()
-              const currentXrView = XR_SCENE_FLOATING_PANEL_VIEWS.find(view => view === current.floatingPanelView)
-              const panelView = current.floatingPanelOpen && currentXrView && currentXrView !== 'gameMode'
-                ? currentXrView
-                : 'motionControl'
+              const panelView = resolveXrSurfaceEntryPanelView(current)
               if (!activateXrSceneSurface({ panelView, openPanel: true, timeline: true })) {
                 current.pushUiToast({
                   id: 'canvas-view:xr:unavailable',
