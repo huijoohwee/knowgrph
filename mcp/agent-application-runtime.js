@@ -168,7 +168,7 @@ const withDeadline = async (invoke, deadlineAt, controller) => {
   try {
     const work = Promise.resolve().then(() => { if (controller.signal.aborted) throw abortError(controller.signal); return invoke(); });
     const aborted = new Promise((resolve, reject) => { onAbort = () => reject(abortError(controller.signal)); controller.signal.addEventListener("abort", onAbort, { once: true }); });
-    const timedOut = new Promise((resolve, reject) => { timer = setTimeout(() => { const error = deadlineError(); controller.abort(error); reject(error); }, remaining); timer.unref?.(); });
+    const timedOut = new Promise((resolve, reject) => { timer = setTimeout(() => { const error = deadlineError(); controller.abort(error); reject(error); }, remaining); });
     return await Promise.race([work, aborted, timedOut]);
   } finally { clearTimeout(timer); if (onAbort) controller.signal.removeEventListener("abort", onAbort); }
 };
