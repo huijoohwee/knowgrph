@@ -150,6 +150,7 @@ export const TEST_CASES_POST_PARSER_6: TestCaseTuple[] = [
   ["canvas.probeTree.outputLayout.collisionFreeContinuationBands","@/__tests__/storyboardProbeTreeOutputLayout.test","testProbeTreeBranchLayoutAvoidsOccupiedContinuationSlots"],
   ["canvas.probeTree.outputLayout.balancedGridSnappedForwardCascade","@/__tests__/storyboardProbeTreeOutputLayout.test","testProbeTreeThreadLayoutBuildsBalancedGridSnappedForwardCascade"],
   ["canvas.probeTree.outputLayout.firstTurnBalancesAroundOccupiedCards","@/__tests__/storyboardProbeTreeGrowthLayout.test","testProbeTreeInitialSiblingBatchBalancesAroundOccupiedCards"],
+  ["canvas.probeTree.outputLayout.currentMarkersRejectDistantVisibleBundle","@/__tests__/storyboardProbeTreeGrowthLayout.test","testProbeTreeFrontmatterLayoutIgnoresWidgetEligibleNodesOutsideVisibleBundle"],
   ["canvas.probeTree.outputLayout.denseCascadeKeepsEdgesParentLocal","@/__tests__/storyboardProbeTreeGrowthLayout.test","testProbeTreeDenseCascadeKeepsEdgesParentLocal"],
   ["canvas.probeTree.outputLayout.resetAllRebalancesEveryThread","@/__tests__/storyboardWidgetResetAllProbeTreeLayout.test","testProbeTreeResetAllClearsOutputsAndRebalancesEveryThread"],
   ["canvas.probeTree.outputLayout.resetAllLayoutOnlyNoNavigation","@/__tests__/storyboardWidgetResetAllProbeTreeLayout.test","testProbeTreeResetAllReflowsASettledLayoutWithoutStaleOutputOrNavigation"],

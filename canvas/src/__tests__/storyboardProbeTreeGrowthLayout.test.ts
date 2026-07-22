@@ -88,6 +88,9 @@ export function testProbeTreeFrontmatterLayoutIgnoresWidgetEligibleNodesOutsideV
       kind: 'frontmatter-flow',
       frontmatterFlowSettings: { gridSize: 20 },
       frontmatterMeta: { widget_bundle: { graph: { nodes_ref: ['root', 'a', 'b'] } } },
+      [PROBE_TREE_GRAPH_LAYOUT_VERSION_PROPERTY]: {
+        root: { version: PROBE_TREE_BALANCED_LAYOUT_VERSION, gridSize: 20 },
+      },
     },
     nodes: [
       { id: 'root', type: 'TextGeneration', label: 'Root', x: 0, y: 0, properties: {} },
@@ -104,7 +107,7 @@ export function testProbeTreeFrontmatterLayoutIgnoresWidgetEligibleNodesOutsideV
           parentNodeId: 'root',
           probeTreeThreadRootId: 'root',
           [PROBE_TREE_LAYOUT_MODE_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_MODE,
-          [PROBE_TREE_LAYOUT_VERSION_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_VERSION - 1,
+          [PROBE_TREE_LAYOUT_VERSION_PROPERTY]: PROBE_TREE_BALANCED_LAYOUT_VERSION,
           [PROBE_TREE_PINNED_BY_DEFAULT_PROPERTY]: true,
         },
       })),
@@ -113,6 +116,7 @@ export function testProbeTreeFrontmatterLayoutIgnoresWidgetEligibleNodesOutsideV
   }
 
   const normalized = normalizeStoryboardWidgetProbeTreeThreadLayout({ graphData, threadRootId: 'root' })
+  assert(normalized !== graphData, 'expected current-version markers not to preserve an excessively distant branch layout')
   const branchPositions = ['a', 'b'].map(id => readPosition(normalized, id))
   assert(
     Math.max(...branchPositions.map(position => position.x)) <= 860,

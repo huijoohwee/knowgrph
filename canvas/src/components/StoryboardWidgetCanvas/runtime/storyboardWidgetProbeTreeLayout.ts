@@ -320,6 +320,10 @@ export function normalizeStoryboardWidgetProbeTreeThreadLayout(args: {
     !threadNodeIds.has(readString(node.id))
     && isProbeTreeLayoutObstacle(node, visibleNodeIds)
   ))
+  const maxParentLocalHorizontalSpan = BRANCH_COLUMN_OFFSET * Math.max(
+    2,
+    occupiedOutsideThread.length + branchNodes.length,
+  )
   const graphLayoutIsCurrent = hasCurrentProbeTreeThreadLayoutAuthority(args.graphData, threadRootId, gridSize)
   const positionsRemainGridSnapped = branchNodes.every(node => {
     if (!hasFiniteNodePosition(node)) return false
@@ -335,8 +339,17 @@ export function normalizeStoryboardWidgetProbeTreeThreadLayout(args: {
     if (!parentNode) return false
     return readNodePosition(node).x - readNodePosition(parentNode).x >= RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX
   })
+  const positionsRemainParentLocal = branchNodes.every(node => {
+    if (!hasFiniteNodePosition(node)) return false
+    const properties = readProperties(node.properties)
+    const parentNodeId = readString(properties.parentNodeId || properties.parentGraphNodeId)
+    const parentNode = nodeById.get(parentNodeId)
+    if (!parentNode) return false
+    return readNodePosition(node).x - readNodePosition(parentNode).x <= maxParentLocalHorizontalSpan
+  })
   const positionsRemainValid = positionsRemainGridSnapped
     && positionsRemainForward
+    && positionsRemainParentLocal
     && hasCollisionFreeProbeTreePositions(branchNodes)
     && branchNodes.every(node => occupiedOutsideThread.every(occupied => !probeTreePositionsOverlap(
       readNodePosition(node),
