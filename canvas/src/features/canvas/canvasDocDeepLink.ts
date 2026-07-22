@@ -5,14 +5,13 @@ import {
   KNOWGRPH_STORAGE_ROUTE_PATHS,
 } from '@/lib/storage/knowgrphStorageSyncContract'
 import { readEnvString } from '@/lib/config.env'
+import { normalizeWorkspacePath } from '@/features/workspace-fs/path'
 import {
-  decodePublishedDocShareToken,
   encodePublishedDocShareToken,
   PUBLISHED_DOC_SHARE_TOKEN_PARAM,
+  resolvePublishedDocIdentity,
 } from './canvasDocShareToken.mjs'
 
-const DEEP_LINK_PREFIX = '/doc/'
-const DEFAULT_DEEP_LINK_PREFIX = '/doc-default/'
 const SHARE_DEEP_LINK_PREFIX = '/share/'
 const CANVAS_PREVIEW_PARAM = 'kgPreview'
 const LIVE_CANVAS_HERO_PREVIEW_PARAM = 'kgLiveHero'
@@ -37,50 +36,122 @@ export type RemoteDocDeepLink = { kind: 'remote'; workspaceId: string; canonical
 export type DefaultRemoteDocDeepLink = { kind: 'default-remote'; canonicalPath: string }
 export type LocalDocDeepLink = { kind: 'local'; relativePath: string }
 export type DocDeepLink = RemoteDocDeepLink | DefaultRemoteDocDeepLink | LocalDocDeepLink
+export type CanvasSourceAuthorityIntent = Readonly<{
+  key: string
+  error: string | null
+}>
+
+const EMPTY_SOURCE_AUTHORITY_INTENT: CanvasSourceAuthorityIntent = Object.freeze({ key: '', error: null })
+
+export function isCanvasDocPreviewRequested(search: string): boolean {
+  const normalizedSearch = search.startsWith('?') ? search.slice(1) : search
+  return new URLSearchParams(normalizedSearch).get(CANVAS_PREVIEW_PARAM) === '1'
+}
 
 export function parseDocDeepLink(search: string): DocDeepLink | null {
-  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+  const normalizedSearch = search.startsWith('?') ? search : `?${search}`
+  const params = new URLSearchParams(normalizedSearch.slice(1))
 
   const localRaw = String(params.get(LOCAL_DOC_PARAM) || '').trim()
   if (localRaw) {
     return { kind: 'local', relativePath: localRaw }
   }
 
-  const shareToken = decodePublishedDocShareToken(params.get(PUBLISHED_DOC_SHARE_TOKEN_PARAM))
-  if (shareToken) {
-    return shareToken.workspaceId
-      ? { kind: 'remote', workspaceId: shareToken.workspaceId, canonicalPath: shareToken.canonicalPath }
-      : { kind: 'default-remote', canonicalPath: shareToken.canonicalPath }
-  }
+  const identity = resolvePublishedDocIdentity({
+    shareUrl: normalizedSearch,
+    baseUrl: 'https://airvio.co',
+    appBasePath: APP_BASE_PATH,
+  })
+  if (!identity) return null
+  return identity.workspaceId
+    ? { kind: 'remote', workspaceId: identity.workspaceId, canonicalPath: identity.canonicalPath }
+    : { kind: 'default-remote', canonicalPath: identity.canonicalPath }
+}
 
-  const canonicalPathParam = String(params.get(CANONICAL_PATH_PARAM) || '').trim()
-  if (canonicalPathParam) {
-    const canonicalPath = decodeURIComponent(canonicalPathParam).trim()
-    if (!canonicalPath) return null
-    const workspaceIdParam = String(params.get(WORKSPACE_ID_PARAM) || '').trim()
-    if (!workspaceIdParam) {
-      return { kind: 'default-remote', canonicalPath }
+function buildDocDeepLinkIntentKeyFromLink(link: DocDeepLink, preview: number): string {
+  if (link.kind === 'local') return JSON.stringify([link.kind, normalizeWorkspacePath(link.relativePath), preview])
+  if (link.kind === 'remote') return JSON.stringify([link.kind, link.workspaceId, link.canonicalPath, preview])
+  return JSON.stringify([link.kind, link.canonicalPath, preview])
+}
+
+export function buildDocDeepLinkIntentKey(search: string): string {
+  const link = parseDocDeepLink(search)
+  return link ? buildDocDeepLinkIntentKeyFromLink(link, isCanvasDocPreviewRequested(search) ? 1 : 0) : ''
+}
+
+function isPublishedDocRoutePath(pathname: string): boolean {
+  const normalizedPath = `/${String(pathname || '').trim().replace(/^\/+|\/+$/g, '')}`
+  const scopedPath = normalizedPath === APP_BASE_PATH
+    ? '/'
+    : normalizedPath.startsWith(`${APP_BASE_PATH}/`)
+      ? normalizedPath.slice(APP_BASE_PATH.length)
+      : normalizedPath
+  return /^\/(?:share|doc|doc-default)(?:\/|$)/.test(scopedPath)
+}
+
+function buildMalformedSourceAuthorityIntent(pathname: string, search: string): CanvasSourceAuthorityIntent {
+  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+  const sourceParams = [
+    LOCAL_DOC_PARAM,
+    PUBLISHED_DOC_SHARE_TOKEN_PARAM,
+    WORKSPACE_ID_PARAM,
+    CANONICAL_PATH_PARAM,
+    DEEP_LINK_PARAM,
+  ].filter(name => params.has(name)).map(name => [name, params.get(name)])
+  return Object.freeze({
+    key: JSON.stringify(['invalid-source', String(pathname || ''), sourceParams]),
+    error: 'Invalid Canvas document source route',
+  })
+}
+
+export function resolveCanvasSourceAuthorityIntent(args: {
+  pathname: string
+  search: string
+}): CanvasSourceAuthorityIntent {
+  const pathname = String(args.pathname || '')
+  const search = String(args.search || '')
+  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+  const preview = isCanvasDocPreviewRequested(search) ? 1 : 0
+
+  if (params.has(LOCAL_DOC_PARAM)) {
+    const relativePath = String(params.get(LOCAL_DOC_PARAM) || '').trim()
+    if (!relativePath || normalizeWorkspacePath(relativePath) === '/') {
+      return buildMalformedSourceAuthorityIntent(pathname, search)
     }
-    const workspaceId = decodeURIComponent(workspaceIdParam).trim()
-    if (!workspaceId) return null
-    return { kind: 'remote', workspaceId, canonicalPath }
+    return Object.freeze({
+      key: buildDocDeepLinkIntentKeyFromLink({ kind: 'local', relativePath }, preview),
+      error: null,
+    })
   }
 
-  const rawPath = String(params.get(DEEP_LINK_PARAM) || '').trim()
-  if (rawPath.startsWith(DEFAULT_DEEP_LINK_PREFIX)) {
-    const canonicalPath = decodeURIComponent(rawPath.slice(DEFAULT_DEEP_LINK_PREFIX.length)).trim()
-    if (!canonicalPath) return null
-    return { kind: 'default-remote', canonicalPath }
+  const parsedSearchLink = parseDocDeepLink(search)
+  if (parsedSearchLink) {
+    return Object.freeze({ key: buildDocDeepLinkIntentKeyFromLink(parsedSearchLink, preview), error: null })
   }
-  if (!rawPath.startsWith(DEEP_LINK_PREFIX)) return null
-  const suffix = rawPath.slice(DEEP_LINK_PREFIX.length)
-  if (!suffix) return null
-  const firstSlash = suffix.indexOf('/')
-  if (firstSlash < 1) return null
-  const workspaceId = decodeURIComponent(suffix.slice(0, firstSlash)).trim()
-  const canonicalPath = decodeURIComponent(suffix.slice(firstSlash + 1)).trim()
-  if (!workspaceId || !canonicalPath) return null
-  return { kind: 'remote', workspaceId, canonicalPath }
+
+  const kgPath = String(params.get(DEEP_LINK_PARAM) || '').trim()
+  const hasExplicitPublishedSearch = params.has(PUBLISHED_DOC_SHARE_TOKEN_PARAM)
+    || params.has(WORKSPACE_ID_PARAM)
+    || params.has(CANONICAL_PATH_PARAM)
+    || (params.has(DEEP_LINK_PARAM) && isPublishedDocRoutePath(kgPath))
+  if (hasExplicitPublishedSearch) return buildMalformedSourceAuthorityIntent(pathname, search)
+  if (!isPublishedDocRoutePath(pathname)) return EMPTY_SOURCE_AUTHORITY_INTENT
+
+  const shareUrl = `${pathname || '/'}${search.startsWith('?') || !search ? search : `?${search}`}`
+  const identity = resolvePublishedDocIdentity({
+    shareUrl,
+    baseUrl: 'https://airvio.co',
+    appBasePath: APP_BASE_PATH,
+  }) || resolvePublishedDocIdentity({
+    shareUrl,
+    baseUrl: 'https://airvio.co',
+    appBasePath: '/',
+  })
+  if (!identity) return buildMalformedSourceAuthorityIntent(pathname, search)
+  const link: DocDeepLink = identity.workspaceId
+    ? { kind: 'remote', workspaceId: identity.workspaceId, canonicalPath: identity.canonicalPath }
+    : { kind: 'default-remote', canonicalPath: identity.canonicalPath }
+  return Object.freeze({ key: buildDocDeepLinkIntentKeyFromLink(link, preview), error: null })
 }
 
 export function readCurrentDocDeepLinkSearch(): string {

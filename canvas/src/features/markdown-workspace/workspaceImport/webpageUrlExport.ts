@@ -83,6 +83,7 @@ export const persistImportedWebpageUrlArtifact = async (args: {
   importedName: string
   importedText: string
   rootFolderPath?: string
+  mirrorToHost?: boolean
 }): Promise<null | { exportMarkdownPath: string; removedPaths?: string[] }> => {
   if (!isImportedWebpageUrlArtifactEligible(args)) return null
   const rootFolderPath = normalizeWorkspacePath(
@@ -127,7 +128,9 @@ export const persistImportedWebpageUrlArtifact = async (args: {
     url: args.url,
     keepPath: exportMarkdownPath,
   })
-  await ensureWorkspaceDocsMirrorFolder({ workspacePath: readParentPath(exportMarkdownPath) })
-  await upsertWorkspaceDocsMirrorText({ workspacePath: exportMarkdownPath, text: importedText })
+  if (args.mirrorToHost !== false) {
+    await ensureWorkspaceDocsMirrorFolder({ workspacePath: readParentPath(exportMarkdownPath) })
+    await upsertWorkspaceDocsMirrorText({ workspacePath: exportMarkdownPath, text: importedText })
+  }
   return { exportMarkdownPath: normalizeWorkspacePath(exportMarkdownPath), ...(removedPaths.length > 0 ? { removedPaths } : {}) }
 }

@@ -332,7 +332,7 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!canvasViewportText.includes('const MARKDOWN_METRICS_DEV_ENABLED = Boolean')) {
     throw new Error('expected CanvasViewport to gate markdown metrics overlay imports behind a cheap DEV constant')
   }
-  if (!canvasViewportText.includes('{!documentSwitchPending && MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}')) {
+  if (!canvasViewportText.includes('{!documentSwitchOwnsViewport && !liveCanvasHeroVisible && MARKDOWN_METRICS_DEV_ENABLED ? <MarkdownMetricsDevOverlayLazy layout={layout} /> : null}')) {
     throw new Error('expected CanvasViewport to mount the dev metrics overlay only through the DEV-gated lazy boundary')
   }
 
@@ -370,13 +370,13 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   }
 
   const canvasWorkspacePaneResizeHandleRuntimeText = readFileSync(resolve(root, 'src', 'features', 'canvas', 'canvasWorkspacePaneResizeHandleRuntime.ts'), 'utf8')
-  if (!canvasWorkspacePaneResizeHandleRuntimeText.includes("import { startPointerDrag } from 'grph-shared/dom/pointerDrag'")) {
-    throw new Error('expected canvasWorkspacePaneResizeHandleRuntime to own shared pointer-drag binding after the split')
+  if (!canvasWorkspacePaneResizeHandleRuntimeText.includes("import { bindResizeSeparatorDragRuntime } from '@/lib/ui/resizeSeparatorDrag'")) {
+    throw new Error('expected canvasWorkspacePaneResizeHandleRuntime to reuse the shared resize-separator drag owner after the split')
   }
-  if (!canvasWorkspacePaneResizeHandleRuntimeText.includes("import { createRafValueScheduler } from '@/lib/react/rafValueScheduler'")) {
-    throw new Error('expected canvasWorkspacePaneResizeHandleRuntime to own RAF-scheduled width updates after the split')
+  if (canvasWorkspacePaneResizeHandleRuntimeText.includes("from 'grph-shared/dom/pointerDrag'") || canvasWorkspacePaneResizeHandleRuntimeText.includes("from '@/lib/react/rafValueScheduler'")) {
+    throw new Error('expected canvasWorkspacePaneResizeHandleRuntime to avoid duplicating shared pointer-drag and RAF scheduling')
   }
-  if (!canvasWorkspacePaneResizeHandleRuntimeText.includes('bindCanvasWorkspacePaneResizeHandleRuntime')) {
+  if (!canvasWorkspacePaneResizeHandleRuntimeText.includes('bindCanvasWorkspacePaneResizeHandleRuntime') || !canvasWorkspacePaneResizeHandleRuntimeText.includes('return bindResizeSeparatorDragRuntime<number>({')) {
     throw new Error('expected canvasWorkspacePaneResizeHandleRuntime to expose the shared resize-handle binder after the split')
   }
 
@@ -415,8 +415,8 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (canvasPageText.includes("import { CanvasDocDeepLinkRuntime } from '@/features/canvas/CanvasDocDeepLinkRuntime'")) {
     throw new Error('expected Canvas page to avoid eagerly importing CanvasDocDeepLinkRuntime into the default route-shell boot path')
   }
-  if (!canvasPageText.includes("import { parseDocDeepLink } from '@/features/canvas/canvasDocDeepLink'")) {
-    throw new Error('expected Canvas page doc deep-link mount gate to reuse the canonical deep-link parser')
+  if (!canvasPageText.includes("import { buildDocDeepLinkIntentKey } from '@/features/canvas/canvasDocDeepLink'")) {
+    throw new Error('expected Canvas page doc deep-link mount gate to reuse the canonical keyed intent helper')
   }
   if (canvasPageText.includes("import { CanvasQueryBootstrapRuntime, shouldOpenEditorWorkspaceFromSearch } from '@/features/canvas/CanvasQueryBootstrapRuntime'")) {
     throw new Error('expected Canvas page to avoid eagerly importing CanvasQueryBootstrapRuntime into the default route-shell boot path')
@@ -448,11 +448,11 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   if (!canvasPageText.includes('const hasSearchParams = React.useMemo')) {
     throw new Error('expected Canvas page to compute whether query bootstrap runtime is needed before importing it')
   }
-  if (!canvasPageText.includes('const hasDocDeepLinkParams = React.useMemo')) {
-    throw new Error('expected Canvas page to compute whether doc deep-link runtime is needed before importing it')
+  if (!canvasPageText.includes('const documentIntentKey = React.useMemo')) {
+    throw new Error('expected Canvas page to compute a stable document intent before importing the deep-link runtime')
   }
-  if (!canvasPageText.includes("Boolean(parseDocDeepLink(String(location.search || '')))")) {
-    throw new Error('expected Canvas page doc deep-link mount gate to derive from parseDocDeepLink(location.search)')
+  if (!canvasPageText.includes("buildDocDeepLinkIntentKey(String(location.search || ''))") || !canvasPageText.includes('const hasDocDeepLinkParams = Boolean(documentIntentKey)')) {
+    throw new Error('expected Canvas page doc deep-link mount gate to derive from the canonical keyed document intent')
   }
   if (
     canvasPageText.includes("search.includes('doc=')")
@@ -1084,21 +1084,15 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   ) {
     throw new Error('expected vite config to forbid fine-grained three internal subchunks because they can break evaluation order in production')
   }
-  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/maplibre-gl/src/render/')) return 'maplibre-render'")) {
-    throw new Error('expected vite config to split maplibre render internals into a separate coarse chunk')
+  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre'")) {
+    throw new Error('expected vite config to keep maplibre internals in one evaluation-safe coarse chunk')
   }
-  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/maplibre-gl/src/source/')) return 'maplibre-source'")) {
-    throw new Error('expected vite config to split maplibre source internals into a separate coarse chunk')
-  }
-  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/maplibre-gl/src/shaders/')) return 'maplibre-shaders'")) {
-    throw new Error('expected vite config to split maplibre shader internals into a separate coarse chunk')
-  }
-  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/maplibre-gl/')) return 'maplibre-core'")) {
-    throw new Error('expected vite config to keep maplibre core isolated from render/source subchunks')
+  if (/return 'maplibre-(?:render|source|shaders|core|ui|style|geo|util|data)'/.test(viteConfigText)) {
+    throw new Error('expected vite config to forbid order-sensitive maplibre internal subchunks')
   }
   const genericSrcFallbackIndex = viteConfigText.indexOf("if (moduleId.includes('/src/')) return undefined")
-  if (!viteConfigText.includes('chunkSizeWarningLimit: 1700')) {
-    throw new Error('expected vite config chunk warning limit to match the intentional coarse Mermaid lazy chunk budget')
+  if (!viteConfigText.includes('chunkSizeWarningLimit: 3000')) {
+    throw new Error('expected vite config chunk warning limit to match the intentional evaluation-safe coarse runtime budget')
   }
   if (genericSrcFallbackIndex < 0) {
     throw new Error('expected vite config to retain a generic src fallback so local app modules stay on Rollup defaults unless a safer source chunking strategy is reintroduced')
@@ -1152,20 +1146,5 @@ export function testHeavyFeatureSurfacesUseTargetedLazyLoadingGates() {
   }
   if (viteConfigText.includes('@mermaid-js/layout-elk') || viteConfigText.includes("return 'mermaid-elk-core'")) {
     throw new Error('expected vite config to exclude Mermaid ELK chunks from production output')
-  }
-  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/maplibre-gl/src/ui/')) return 'maplibre-ui'")) {
-    throw new Error('expected vite config to split maplibre ui internals into a separate coarse chunk')
-  }
-  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/maplibre-gl/src/style/')) return 'maplibre-style'")) {
-    throw new Error('expected vite config to split maplibre style internals into a separate coarse chunk')
-  }
-  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/maplibre-gl/src/geo/')) return 'maplibre-geo'")) {
-    throw new Error('expected vite config to split maplibre geo internals into a separate coarse chunk')
-  }
-  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/maplibre-gl/src/util/')) return 'maplibre-util'")) {
-    throw new Error('expected vite config to split maplibre util internals into a separate coarse chunk')
-  }
-  if (!viteConfigText.includes("if (moduleId.includes('/node_modules/maplibre-gl/src/data/')) return 'maplibre-data'")) {
-    throw new Error('expected vite config to split maplibre data internals into a separate coarse chunk')
   }
 }

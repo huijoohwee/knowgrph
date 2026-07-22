@@ -1,4 +1,4 @@
-import type { WorkspaceEntry, WorkspaceFs, WorkspacePath } from './types'
+import type { WorkspaceEntry, WorkspaceFs, WorkspaceFsMutationOptions, WorkspacePath } from './types'
 import { WORKSPACE_ROOT_PATH, joinWorkspacePath, normalizeWorkspacePath } from './path'
 import {
   CANONICAL_XR_PHYSICS_WORKSPACE_SEED_ENABLED,
@@ -420,7 +420,7 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
     return String(row.get('text') ?? '')
   }
 
-  const writeFileText = async (path: WorkspacePath, text: string) => {
+  const writeFileText = async (path: WorkspacePath, text: string, options?: WorkspaceFsMutationOptions) => {
     const { collections } = await getDb()
     const p = normalizeWorkspacePath(path)
     const row = await collections.entries.findOne(p).exec()
@@ -432,15 +432,15 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
       text: nextText,
       updatedAtMs: Date.now(),
     })
-    const seedBasename = readWorkspaceSeedBasenameForPath(p)
+    const seedBasename = options?.mirrorToHost === false ? null : readWorkspaceSeedBasenameForPath(p)
     if (seedBasename) {
       void upsertWorkspaceInitializationSeedText({
         basename: seedBasename,
         text: nextText,
       })
-    } else if (isWorkspaceDocsBackedMirrorPath(p)) {
+    } else if (options?.mirrorToHost !== false && isWorkspaceDocsBackedMirrorPath(p)) {
       scheduleWorkspaceDocsMirrorTextUpsert(p, nextText)
-    } else if (isWorkspaceChatMirrorPath(p)) {
+    } else if (options?.mirrorToHost !== false && isWorkspaceChatMirrorPath(p)) {
       void upsertWorkspaceDocsMirrorText({
         workspacePath: p,
         text: nextText,
@@ -449,7 +449,7 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
     notifyWorkspaceFsChanged({ op: 'writeFileText', path: p })
   }
 
-  const createFolder = async (args: { parentPath: WorkspacePath; name: string }) => {
+  const createFolder = async (args: { parentPath: WorkspacePath; name: string; mirrorToHost?: boolean }) => {
     await ensureRoot()
     const { collections } = await getDb()
     const parent = normalizeWorkspacePath(args.parentPath)
@@ -469,16 +469,16 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
       name,
       updatedAtMs: Date.now(),
     })
-    if (isWorkspaceDocsBackedMirrorPath(path)) {
+    if (args.mirrorToHost !== false && isWorkspaceDocsBackedMirrorPath(path)) {
       scheduleWorkspaceDocsMirrorFolderEnsure(path)
-    } else if (isWorkspaceChatMirrorPath(path)) {
+    } else if (args.mirrorToHost !== false && isWorkspaceChatMirrorPath(path)) {
       void ensureWorkspaceDocsMirrorFolder({ workspacePath: path })
     }
     notifyWorkspaceFsChanged({ op: 'createFolder', path })
     return path
   }
 
-  const createFile = async (args: { parentPath: WorkspacePath; name: string; text: string }) => {
+  const createFile = async (args: { parentPath: WorkspacePath; name: string; text: string; mirrorToHost?: boolean }) => {
     await ensureRoot()
     const { collections } = await getDb()
     const parent = normalizeWorkspacePath(args.parentPath)
@@ -502,14 +502,14 @@ export function createWorkspacePersistedFs(): WorkspaceFs {
       text: String(args.text ?? ''),
       updatedAtMs: Date.now(),
     })
-    if (isWorkspaceDocsBackedMirrorPath(parent)) {
+    if (args.mirrorToHost !== false && isWorkspaceDocsBackedMirrorPath(parent)) {
       scheduleWorkspaceDocsMirrorFolderEnsure(parent)
-    } else if (isWorkspaceChatMirrorPath(parent)) {
+    } else if (args.mirrorToHost !== false && isWorkspaceChatMirrorPath(parent)) {
       void ensureWorkspaceDocsMirrorFolder({ workspacePath: parent })
     }
-    if (isWorkspaceDocsBackedMirrorPath(path)) {
+    if (args.mirrorToHost !== false && isWorkspaceDocsBackedMirrorPath(path)) {
       scheduleWorkspaceDocsMirrorTextUpsert(path, String(args.text ?? ''))
-    } else if (isWorkspaceChatMirrorPath(path)) {
+    } else if (args.mirrorToHost !== false && isWorkspaceChatMirrorPath(path)) {
       void upsertWorkspaceDocsMirrorText({
         workspacePath: path,
         text: String(args.text ?? ''),

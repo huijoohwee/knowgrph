@@ -22,9 +22,10 @@ import { isStrybldrStoryboardGraphData } from '@/features/strybldr/strybldrStory
 import { useKnowgrphLiveCanvasHero } from '@/features/canvas/useKnowgrphLiveCanvasHero'
 import { shouldDocumentSwitchOwnCanvasViewport } from '@/features/canvas/liveCanvasHeroVisibility'
 import { deriveLiveCanvasHeroCommandRouteGraph } from '@/features/canvas/liveCanvasHeroProjection'
-import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
+import { useSourceFilesBootstrapSnapshot } from '@/features/source-files/sourceFilesBootstrapReadiness'
 import { resolveCanvasViewportHeavyRuntimeIntentSurface } from '@/components/canvasViewportHeavyRuntimeIntent'
 import { CanvasEmbedCodePanelHost } from '@/components/CanvasEmbedCodePanelHost'
+import { CanvasSourceInitializationError } from '@/components/CanvasSourceInitializationError'
 import {
   createEmbeddedCanvasChatSubmitMessage,
   deliverEmbeddedCanvasChatSubmit,
@@ -143,8 +144,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
     readGameModeSnapshot,
   )
   const gameFpsActive = gameMode.active
-  const gameFpsHudVisible = gameFpsActive
-  const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
+  const sourceFilesBootstrap = useSourceFilesBootstrapSnapshot()
+  const sourceFilesBootstrapReady = sourceFilesBootstrap.phase === 'ready'
+  const gameFpsHudVisible = gameFpsActive && sourceFilesBootstrapReady
   const explorerActivePath = useMarkdownExplorerStore(s => s.activePath)
   const activeSourceFile = React.useMemo(
     () => resolvePreferredEnabledComposedSourceFile({
@@ -341,6 +343,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
     <section
       ref={rootRef}
       data-kg-canvas-viewport-root="1"
+      data-kg-source-authority-phase={sourceFilesBootstrap.phase}
       className="relative w-full h-full overflow-hidden"
       style={{
         touchAction: 'manipulation',
@@ -351,7 +354,15 @@ export function CanvasViewport(props: CanvasViewportProps) {
           width: `calc(100% - ${workspaceXrViewportInset})`,
         } : {}),
       }}
-      aria-label={gameFpsActive ? 'Deterministic Game Mode' : xrPhysicsRunReadyDemo ? 'Interactive XR Physics Playground' : variant === 'embeddedPreview' ? 'Canvas Preview Only' : 'Canvas viewport'}
+      aria-label={sourceFilesBootstrap.phase === 'error'
+        ? 'Canvas source initialization error'
+        : gameFpsActive
+          ? 'Deterministic Game Mode'
+          : sourceFilesBootstrapReady && xrPhysicsRunReadyDemo
+            ? 'Interactive XR Physics Playground'
+            : variant === 'embeddedPreview'
+              ? 'Canvas Preview Only'
+              : 'Canvas viewport'}
     >
       <React.Suspense fallback={null}>
         {liveCanvasHeroVisible && liveCanvasHeroSource ? (
@@ -465,7 +476,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
             <StoryboardWidgetDropBridgeLazy active={false} widgetDropCaptureEnabled />
           </section>
         ) : null}
-        {!documentSwitchOwnsViewport && !geospatialOverlayOwnsViewport && !liveCanvasHeroVisible && canvasRenderMode === '3d' && !heavyRuntimeIntentBlocked ? (
+        {sourceFilesBootstrapReady && !documentSwitchOwnsViewport && !geospatialOverlayOwnsViewport && !liveCanvasHeroVisible && canvasRenderMode === '3d' && !heavyRuntimeIntentBlocked ? (
           <section className={`absolute inset-0 z-[10] ${activeSurface === '3d' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
             <ThreeGraphLazy active mode={effectiveCanvas3dMode} />
           </section>
@@ -514,6 +525,9 @@ export function CanvasViewport(props: CanvasViewportProps) {
             </section>
           </section>
         ) : null}
+        {sourceFilesBootstrap.phase === 'error' && !liveCanvasHeroVisible
+          ? <CanvasSourceInitializationError error={sourceFilesBootstrap.error} />
+          : null}
 
         {variant === 'workspace' ? (
           <>
@@ -575,7 +589,7 @@ export function CanvasViewport(props: CanvasViewportProps) {
           </>
         ) : null}
       </React.Suspense>
-      {xrPhysicsRunReadyDemo && !gameFpsActive && !liveCanvasHeroVisible ? <XrNativeControllerDemoHud /> : null}
+      {sourceFilesBootstrapReady && xrPhysicsRunReadyDemo && !gameFpsActive && !liveCanvasHeroVisible ? <XrNativeControllerDemoHud /> : null}
       {gameFpsHudVisible ? <GameFpsHudLazy /> : null}
       {variant === 'workspace' ? <CanvasEmbedCodePanelHost /> : null}
     </section>

@@ -67,6 +67,19 @@ const normalizeAppBasePath = (value) => {
   return `/${normalized.replace(/^\/+|\/+$/g, "")}`;
 };
 
+const scopePublishedDocKgPath = (rawPath, appBasePath) => {
+  const normalizedBasePath = normalizeAppBasePath(appBasePath);
+  const normalizedRawPath = `/${String(rawPath || "").trim().replace(/^\/+/, "")}`;
+  if (
+    normalizedBasePath === "/"
+    || normalizedRawPath === normalizedBasePath
+    || normalizedRawPath.startsWith(`${normalizedBasePath}/`)
+  ) {
+    return normalizedRawPath;
+  }
+  return `${normalizedBasePath}${normalizedRawPath}`;
+};
+
 const normalizePublishedDocIdentity = (args) => {
   const canonicalPath = normalizeCanonicalPath(args?.canonicalPath);
   if (!canonicalPath) return null;
@@ -80,7 +93,9 @@ const parsePublishedDocPathname = (pathname, appBasePath) => {
   const normalizedBasePath = normalizeAppBasePath(appBasePath);
   const normalizedPathname = String(pathname || "").replace(/\/+$/, "") || "/";
   if (!normalizedPathname.startsWith(normalizedBasePath)) return null;
-  const scopedPath = normalizedPathname.slice(normalizedBasePath.length) || "/";
+  const scopedPath = normalizedBasePath === "/"
+    ? normalizedPathname
+    : normalizedPathname.slice(normalizedBasePath.length) || "/";
   if (scopedPath.startsWith(TOKEN_DOC_SHARE_PREFIX)) {
     const shareToken = decodeURIComponent(scopedPath.slice(TOKEN_DOC_SHARE_PREFIX.length)).trim();
     return decodePublishedDocShareToken(shareToken);
@@ -100,7 +115,7 @@ const parsePublishedDocPathname = (pathname, appBasePath) => {
   });
 };
 
-const parsePublishedDocSearchParams = (searchParams) => {
+const parsePublishedDocSearchParams = (searchParams, appBasePath) => {
   const shareToken = decodePublishedDocShareToken(searchParams?.get(PUBLISHED_DOC_SHARE_TOKEN_PARAM));
   if (shareToken) return shareToken;
   const canonicalPath = normalizeCanonicalPath(decodeURIComponent(String(searchParams?.get(CANONICAL_PATH_PARAM) || "")));
@@ -112,7 +127,8 @@ const parsePublishedDocSearchParams = (searchParams) => {
   }
   const rawPath = String(searchParams?.get("kgPath") || "").trim();
   if (!rawPath) return null;
-  return parsePublishedDocPathname(`${DEFAULT_APP_BASE_PATH}${rawPath}`, DEFAULT_APP_BASE_PATH);
+  const normalizedBasePath = normalizeAppBasePath(appBasePath);
+  return parsePublishedDocPathname(scopePublishedDocKgPath(rawPath, normalizedBasePath), normalizedBasePath);
 };
 
 export const encodePublishedDocShareToken = (args) => {
@@ -149,7 +165,8 @@ export const resolvePublishedDocIdentity = (args = {}) => {
   try {
     const normalizedBaseUrl = String(args.baseUrl || "https://airvio.co").trim() || "https://airvio.co";
     const url = new URL(shareUrl, normalizedBaseUrl);
-    return parsePublishedDocSearchParams(url.searchParams) || parsePublishedDocPathname(url.pathname, args.appBasePath);
+    return parsePublishedDocSearchParams(url.searchParams, args.appBasePath)
+      || parsePublishedDocPathname(url.pathname, args.appBasePath);
   } catch {
     return null;
   }
@@ -173,6 +190,18 @@ export const PUBLISHED_DOC_IDENTITY_RESOLVER_BROWSER_SOURCE = String.raw`(args =
     const normalized = String(value || "").trim();
     if (!normalized) return defaultAppBasePath;
     return "/" + normalized.replace(/^\/+|\/+$/g, "");
+  };
+  const scopePublishedDocKgPath = (rawPath, appBasePath) => {
+    const normalizedBasePath = normalizeAppBasePath(appBasePath);
+    const normalizedRawPath = "/" + String(rawPath || "").trim().replace(/^\/+/, "");
+    if (
+      normalizedBasePath === "/"
+      || normalizedRawPath === normalizedBasePath
+      || normalizedRawPath.startsWith(normalizedBasePath + "/")
+    ) {
+      return normalizedRawPath;
+    }
+    return normalizedBasePath + normalizedRawPath;
   };
   const normalizePublishedDocIdentity = (identityArgs) => {
     const canonicalPath = normalizeCanonicalPath(identityArgs && identityArgs.canonicalPath);
@@ -217,7 +246,9 @@ export const PUBLISHED_DOC_IDENTITY_RESOLVER_BROWSER_SOURCE = String.raw`(args =
     const normalizedBasePath = normalizeAppBasePath(appBasePath);
     const normalizedPathname = String(pathname || "").replace(/\/+$/, "") || "/";
     if (!normalizedPathname.startsWith(normalizedBasePath)) return null;
-    const scopedPath = normalizedPathname.slice(normalizedBasePath.length) || "/";
+    const scopedPath = normalizedBasePath === "/"
+      ? normalizedPathname
+      : normalizedPathname.slice(normalizedBasePath.length) || "/";
     if (scopedPath.startsWith("/share/")) {
       return decodePublishedDocShareTokenLocal(decodeURIComponent(scopedPath.slice("/share/".length)));
     }
@@ -235,7 +266,7 @@ export const PUBLISHED_DOC_IDENTITY_RESOLVER_BROWSER_SOURCE = String.raw`(args =
       canonicalPath: decodeURIComponent(suffix.slice(firstSlash + 1)),
     });
   };
-  const parsePublishedDocSearchParams = (searchParams) => {
+  const parsePublishedDocSearchParams = (searchParams, appBasePath) => {
     const shareToken = decodePublishedDocShareTokenLocal(searchParams && searchParams.get(publishedDocShareTokenParam));
     if (shareToken) return shareToken;
     const canonicalPath = normalizeCanonicalPath(
@@ -249,7 +280,8 @@ export const PUBLISHED_DOC_IDENTITY_RESOLVER_BROWSER_SOURCE = String.raw`(args =
     }
     const rawPath = String((searchParams && searchParams.get(kgPathParam)) || "").trim();
     if (!rawPath) return null;
-    return parsePublishedDocPathname(defaultAppBasePath + rawPath, defaultAppBasePath);
+    const normalizedBasePath = normalizeAppBasePath(appBasePath);
+    return parsePublishedDocPathname(scopePublishedDocKgPath(rawPath, normalizedBasePath), normalizedBasePath);
   };
 
   return (resolverArgs = {}) => {
@@ -260,7 +292,8 @@ export const PUBLISHED_DOC_IDENTITY_RESOLVER_BROWSER_SOURCE = String.raw`(args =
     try {
       const normalizedBaseUrl = String(resolverArgs.baseUrl || "https://airvio.co").trim() || "https://airvio.co";
       const url = new URL(shareUrl, normalizedBaseUrl);
-      return parsePublishedDocSearchParams(url.searchParams) || parsePublishedDocPathname(url.pathname, resolverArgs.appBasePath);
+      return parsePublishedDocSearchParams(url.searchParams, resolverArgs.appBasePath)
+        || parsePublishedDocPathname(url.pathname, resolverArgs.appBasePath);
     } catch {
       return null;
     }
@@ -283,6 +316,18 @@ export const createPublishedDocIdentityResolver = (args = {}) => {
     const normalized = String(value || "").trim();
     if (!normalized) return defaultAppBasePath;
     return `/${normalized.replace(/^\/+|\/+$/g, "")}`;
+  };
+  const scopePublishedDocKgPath = (rawPath, appBasePath) => {
+    const normalizedBasePath = normalizeAppBasePath(appBasePath);
+    const normalizedRawPath = `/${String(rawPath || "").trim().replace(/^\/+/, "")}`;
+    if (
+      normalizedBasePath === "/"
+      || normalizedRawPath === normalizedBasePath
+      || normalizedRawPath.startsWith(`${normalizedBasePath}/`)
+    ) {
+      return normalizedRawPath;
+    }
+    return `${normalizedBasePath}${normalizedRawPath}`;
   };
   const normalizePublishedDocIdentity = (identityArgs) => {
     const canonicalPath = normalizeCanonicalPath(identityArgs?.canonicalPath);
@@ -327,7 +372,9 @@ export const createPublishedDocIdentityResolver = (args = {}) => {
     const normalizedBasePath = normalizeAppBasePath(appBasePath);
     const normalizedPathname = String(pathname || "").replace(/\/+$/, "") || "/";
     if (!normalizedPathname.startsWith(normalizedBasePath)) return null;
-    const scopedPath = normalizedPathname.slice(normalizedBasePath.length) || "/";
+    const scopedPath = normalizedBasePath === "/"
+      ? normalizedPathname
+      : normalizedPathname.slice(normalizedBasePath.length) || "/";
     if (scopedPath.startsWith("/share/")) {
       return decodePublishedDocShareTokenLocal(decodeURIComponent(scopedPath.slice("/share/".length)));
     }
@@ -345,7 +392,7 @@ export const createPublishedDocIdentityResolver = (args = {}) => {
       canonicalPath: decodeURIComponent(suffix.slice(firstSlash + 1)),
     });
   };
-  const parsePublishedDocSearchParams = (searchParams) => {
+  const parsePublishedDocSearchParams = (searchParams, appBasePath) => {
     const shareToken = decodePublishedDocShareTokenLocal(searchParams?.get(publishedDocShareTokenParam));
     if (shareToken) return shareToken;
     const canonicalPath = normalizeCanonicalPath(decodeURIComponent(String(searchParams?.get(canonicalPathParam) || "")));
@@ -357,7 +404,8 @@ export const createPublishedDocIdentityResolver = (args = {}) => {
     }
     const rawPath = String(searchParams?.get(kgPathParam) || "").trim();
     if (!rawPath) return null;
-    return parsePublishedDocPathname(`${defaultAppBasePath}${rawPath}`, defaultAppBasePath);
+    const normalizedBasePath = normalizeAppBasePath(appBasePath);
+    return parsePublishedDocPathname(scopePublishedDocKgPath(rawPath, normalizedBasePath), normalizedBasePath);
   };
 
   return (resolverArgs = {}) => {
@@ -368,7 +416,8 @@ export const createPublishedDocIdentityResolver = (args = {}) => {
     try {
       const normalizedBaseUrl = String(resolverArgs.baseUrl || "https://airvio.co").trim() || "https://airvio.co";
       const url = new URL(shareUrl, normalizedBaseUrl);
-      return parsePublishedDocSearchParams(url.searchParams) || parsePublishedDocPathname(url.pathname, resolverArgs.appBasePath);
+      return parsePublishedDocSearchParams(url.searchParams, resolverArgs.appBasePath)
+        || parsePublishedDocPathname(url.pathname, resolverArgs.appBasePath);
     } catch {
       return null;
     }
