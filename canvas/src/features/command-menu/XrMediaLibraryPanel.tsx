@@ -2,6 +2,7 @@ import React from 'react'
 import { Armchair, Box, Building2, Car, PawPrint, Trash2, TreePine, UserRound, UsersRound, type LucideIcon } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useGraphStore } from '@/hooks/useGraphStore'
+import { useSourceFilesBootstrapReady } from '@/features/source-files/sourceFilesBootstrapReadiness'
 import { renderAgenticOsInvocationKeywordChip } from '@/features/agentic-os/agenticOsInvocationChips'
 import { useAgenticOsRemoteGrammarCatalog } from '@/features/agentic-os/agenticOsRemoteGrammarClient'
 import { renderMarkdownSigilInlineText } from '@/lib/ui/MarkdownSigilText'
@@ -67,6 +68,7 @@ import { XrMediaLibrarySummary } from './XrMediaLibraryHeader'
 import { isXrMediaInvocationMetadataReady } from './xrMediaInvocationMetadata'
 import { buildXrMediaLibraryProjection } from './xrMediaLibrarySearch'
 import { buildXrMediaInvocationControlInput } from './xrMediaInvocationRuntime'
+import { resolveXrSceneDocumentReady } from '@/features/three/xrSceneDocumentReadiness'
 
 type XrSceneLibraryFilter = 'all' | XrSceneLibraryCategory
 
@@ -240,6 +242,7 @@ function XrAssetRow({
 }
 
 export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
+  const sourceFilesBootstrapReady = useSourceFilesBootstrapReady()
   const grammarCatalog = useAgenticOsRemoteGrammarCatalog({ sigils: XR_SCENE_GRAMMAR_SIGILS })
   const {
     graphData,
@@ -283,7 +286,12 @@ export function XrMediaLibraryPanel({ searchText }: { searchText: string }) {
     window.addEventListener(XR_SCENE_MEDIA_DROP_COMMITTED_EVENT, onCommittedDrop)
     return () => window.removeEventListener(XR_SCENE_MEDIA_DROP_COMMITTED_EVENT, onCommittedDrop)
   }, [])
-  const sceneReady = Boolean(graphData && String(markdownDocumentName || '').trim() && String(markdownDocumentText || '').trim())
+  const sceneReady = resolveXrSceneDocumentReady({
+    sourceFilesBootstrapReady,
+    graphData,
+    markdownDocumentName,
+    markdownDocumentText,
+  })
   const sourceMetadataReady = isXrMediaInvocationMetadataReady(grammarCatalog)
   const runControl = React.useCallback((input: XrSceneControlInput) => {
     const result = controlLocalXrScene(input)

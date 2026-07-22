@@ -20,6 +20,7 @@ import { synchronizeBoundXrActorFromGraphSelection } from './xrSelectedActorBind
 import { resolveXrMotionReferencePersistedValue } from './xrMotionReferencePersistedValue'
 import { resolveXrSubjectFootprint } from './xrMotionReferenceSubjectPlacement'
 import { resolveXrCanonicalSceneSpatialSource } from './xrCanonicalSceneSpatialSource'
+import { resolveXrSceneDocumentReady } from './xrSceneDocumentReadiness'
 
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
 
@@ -48,13 +49,15 @@ function physicsMotionSourceSignature(
 }
 
 export function hydrateCanonicalXrMotionReferenceRuntime(): boolean {
-  if (!readSourceFilesBootstrapReady()) return false
+  const sourceFilesBootstrapReady = readSourceFilesBootstrapReady()
+  if (!sourceFilesBootstrapReady) return false
   const state = useGraphStore.getState()
-  const documentReady = Boolean(
-    state.graphData
-    && String(state.markdownDocumentName || '').trim()
-    && String(state.markdownDocumentText || '').trim(),
-  )
+  const documentReady = resolveXrSceneDocumentReady({
+    sourceFilesBootstrapReady,
+    graphData: state.graphData,
+    markdownDocumentName: state.markdownDocumentName,
+    markdownDocumentText: state.markdownDocumentText,
+  })
   const graphData = documentReady ? state.graphData : null
   const sceneKey = documentReady
     ? xrMotionReferenceSceneKey(state.markdownDocumentName || 'Untitled', graphData)
@@ -69,13 +72,15 @@ export function hydrateCanonicalXrMotionReferenceRuntime(): boolean {
 }
 
 export function hydrateCanonicalXrPhysicsRuntime(): boolean {
-  if (!readSourceFilesBootstrapReady()) return false
+  const sourceFilesBootstrapReady = readSourceFilesBootstrapReady()
+  if (!sourceFilesBootstrapReady) return false
   const state = useGraphStore.getState()
-  const documentReady = Boolean(
-    state.graphData
-    && String(state.markdownDocumentName || '').trim()
-    && String(state.markdownDocumentText || '').trim(),
-  )
+  const documentReady = resolveXrSceneDocumentReady({
+    sourceFilesBootstrapReady,
+    graphData: state.graphData,
+    markdownDocumentName: state.markdownDocumentName,
+    markdownDocumentText: state.markdownDocumentText,
+  })
   const motion = readXrMotionReferenceRuntime()
   const spatialSource = resolveXrCanonicalSceneSpatialSource({
     projection: 'authored',

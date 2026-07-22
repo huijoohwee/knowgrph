@@ -31,6 +31,7 @@ import {
   hydrateCanonicalXrMotionReferenceRuntime,
   hydrateCanonicalXrPhysicsRuntime,
 } from './XrMotionReferenceRuntimeBridge'
+import { readXrSceneDocumentReady } from './xrSceneDocumentReadiness'
 import { XR_PHYSICS_GRAPH_METADATA_KEY } from './xrPhysicsModel'
 import {
   applyXrPhysicsImpulse,
@@ -95,12 +96,7 @@ export type XrSceneControlResult = Readonly<{
 }>
 
 function sceneDocumentReady(): boolean {
-  const state = useGraphStore.getState()
-  return Boolean(
-    state.graphData
-    && String(state.markdownDocumentName || '').trim()
-    && String(state.markdownDocumentText || '').trim(),
-  )
+  return readXrSceneDocumentReady()
 }
 
 function hydrateActiveXrScene(): boolean {

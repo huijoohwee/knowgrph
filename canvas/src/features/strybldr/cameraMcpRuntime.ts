@@ -346,8 +346,7 @@ function resolveCameraFrame(control: NormalizedCameraControl, anchorId: string) 
 function hydrateActiveMotionReference(): boolean {
   const state = useGraphStore.getState()
   if (!state.graphData || !String(state.markdownDocumentName || '').trim() || !String(state.markdownDocumentText || '').trim()) return false
-  hydrateCanonicalXrMotionReferenceRuntime()
-  return true
+  return hydrateCanonicalXrMotionReferenceRuntime()
 }
 
 function activateCameraChoreographySurface(): boolean {

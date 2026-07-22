@@ -8,6 +8,8 @@ Repo-local run-ready surfaces hydrate through the same-origin `/knowgrph/control
 
 FloatingPanel **Media** owns complete dynamic XR invocations. Every visible invocation chip sends the identical displayed string, as the sole `invocation` input field, to `knowgrph.control_local_xr_scene`.
 
+XR scene, Animation, and Camera MCP controls share Source Files document authority. While bootstrap or a document intent is resolving or failed, MCP inspection reports the scene as not ready, Media and Animation controls stay disabled, and Camera choreography rejects mutation without changing runtime state or graph metadata.
+
 - Placement labels are URI-encoded in `/xr.place` and decoded before bounded scene mutation.
 - `/xr.transform` retains the selected asset, position, yaw, scale, and color.
 - Static placements retain `transition=hold`.
