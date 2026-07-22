@@ -36,7 +36,7 @@
     "demo:xr-physics": "npm run dev:xr-physics --workspace=@knowgrph/canvas --",
     "dev:all": "bash scripts/dev-all.sh",
     "build": "npm run build --workspace=@knowgrph/canvas",
-    "smoke:prepare": "npm run build --workspace=grph-shared",
+    "smoke:prepare": "npm -C canvas run prepare:linked-packages",
     "pages:build": "KG_SKIP_DOCS_UPDATE=1 VITE_BASE_PATH=/knowgrph/ npm run build --workspace=@knowgrph/canvas",
     "pages:check-sync": "node ./scripts/sync-pages-knowgrph.mjs --check",
     "pages:sync": "node ./scripts/sync-pages-knowgrph.mjs",

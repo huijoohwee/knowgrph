@@ -64,9 +64,16 @@ test('game source-authority gate discovers every workspace package manifest and 
 
 test('native physics check prepares linked packages before canvas runtime tests', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'package.json'), 'utf8'))
-  const command = manifest.scripts?.['native-physics:check']
-  assert.equal(typeof command, 'string')
-  assert.match(command, /^npm run smoke:prepare && /)
+  const canvasManifest = JSON.parse(
+    fs.readFileSync(path.join(repositoryRoot, 'canvas/package.json'), 'utf8'),
+  )
+  const nativePhysicsCommand = manifest.scripts?.['native-physics:check']
+
+  assert.equal(typeof nativePhysicsCommand, 'string')
+  assert.match(nativePhysicsCommand, /^npm run smoke:prepare && /)
+  assert.equal(manifest.scripts?.['smoke:prepare'], 'npm -C canvas run prepare:linked-packages')
+  assert.match(canvasManifest.scripts?.['prepare:linked-packages'] ?? '', /npm run build:grph-shared/)
+  assert.match(canvasManifest.scripts?.['prepare:linked-packages'] ?? '', /npm run build:gympgrph/)
 })
 
 test('native physics document records the independent scope without compatibility claims', () => {

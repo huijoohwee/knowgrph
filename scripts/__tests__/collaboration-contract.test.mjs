@@ -50,14 +50,14 @@ test('local collaboration browser identities remain stable across repeated gate 
   assert.notEqual(config.ownerClientDeviceId, config.guestClientDeviceId)
 })
 
-test('collaboration smoke preparation builds grph-shared before readiness checks', () => {
+test('collaboration smoke preparation builds linked packages before readiness checks', () => {
   const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
   const readiness = fs.readFileSync(new URL('../check-collaboration-readiness.mjs', import.meta.url), 'utf8')
   const viteConfig = fs.readFileSync(new URL('../../canvas/vite.config.ts', import.meta.url), 'utf8')
   const preparationIndex = readiness.indexOf("args: ['run', 'smoke:prepare']")
   const docsGuardIndex = readiness.indexOf("name: 'docs guard'")
 
-  assert.equal(pkg.scripts?.['smoke:prepare'], 'npm run build --workspace=grph-shared')
+  assert.equal(pkg.scripts?.['smoke:prepare'], 'npm -C canvas run prepare:linked-packages')
   assert.ok(preparationIndex >= 0)
   assert.ok(preparationIndex < docsGuardIndex)
   assert.match(readiness, /resolveCanonicalSourceRoots/)
