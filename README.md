@@ -121,12 +121,23 @@ The runtime direction:
 - `/` commands describe bounded actions such as `/mcp.capabilities`, `/tool.catalog`, `/tool.route`, `/computing-flow`, `/superagent.run`, and `/runtime-ready.check`.
 - `#` semantics scope intent, proof, and cost filters such as `#mcp`, `#tool-gateway`, `#computing-flow`, `#runtime-ready`, and `#long-horizon-harness`.
 - `@` bindings name the source or runtime surface, e.g. `@source.frontmatter`, `@source.body`, `@mcp-gateway`, `@tool-policy`, `@sandbox-workspace`, and `@message-gateway`.
+- The deterministic knowledge-graph lane uses the ACOS-owned exact tuples documented below; dictionary resolution is metadata-only and explicit stdio tool dispatch remains required.
 - MainPanel MCP shows readiness and non-secret setup metadata. It does not execute tools or store credentials in browser settings.
 - MainPanel readiness claims distinguish `documented`, `browser-published`, and `runtime-executable` states so doc guidance, browser snapshots, and executable MCP owners don't drift into one label.
 - FloatingPanel Chat and KGC keep source-backed runtime materialization on the existing Markdown → KTV frontmatter → Canvas path.
 - Local MCP, Pages HTTP MCP, Browser WebMCP, and approved Cloudflare control-plane owners are separate surfaces with explicit transport boundaries.
 
 This README describes the Dev repo. `agentic-canvas-os/docs` remains docs-control runtime proof only. Its latest protected green revision is promoted by the scheduled lifecycle PR, and only a protected green Knowgrph `main` push may trigger the automatic Prod mirror and Cloudflare release.
+
+### Deterministic local knowledge graph
+
+The current local stdio extension adds three direct tool identities: `knowgrph.knowledge_graph.ingest`, `knowgrph.knowledge_graph.query`, and `knowgrph.knowledge_graph.explain_edge`. A local MCP client invokes those names directly. ACOS-capable hosts use `/knowledge.graph.ingest #knowledge-graph #mcp #runtime-ready @working-directory @knowledge-graph @operator @runtime-proof`, `/knowledge.graph.query #knowledge-graph #mcp #vcc @knowledge-graph @runtime-proof`, or `/knowledge.graph.explain #knowledge-graph #mcp #vcc @knowledge-graph @runtime-proof` before the explicit mapped tool call.
+
+This path uses registered deterministic AST parsing for supported code and deterministic structural extraction for supported docs, SQL schemas, configs, and PDFs. Queries use lexical matching plus graph traversal, and every returned edge must be explainable from stored source evidence. Unsupported languages, file forms, PDF content, syntax, or relationships produce explicit diagnostics rather than guessed facts. Ingest, query, and edge explanation require no embeddings, vector store, model call, or network service.
+
+[`Graphify-Labs/graphify`](https://github.com/Graphify-Labs/graphify) is clean-room, architecture-only inspiration for the product category. Knowgrph copies none of its code, prose, schemas, tool definitions, tests, fixtures, assets, prompts, commands, or output formats and does not clone, vendor, import, execute, call, or depend on Graphify.
+
+The authoritative scope, provenance, diagnostics, and security requirements are in the [deterministic knowledge-graph runtime contract](docs/documents/knowgrph-deterministic-knowledge-graph-runtime.md).
 
 ### 2D Renderer: Storyboard template
 
@@ -149,7 +160,7 @@ The template's local runtime lane is source → ideation → invocation → Stor
 
 | Surface | How an agent uses it |
 | --- | --- |
-| Local stdio MCP (`mcp/server.js`) | Starts from an external MCP client and exposes Knowgrph-owned local tools: Source Files search/fetch, UI launch, pipelines, memory, probe tree, showrunner, OS status, SuperAgent, video remix, browser bridge, HTML video, annotation, exact agent/LLM application catalog-plan-execute composition, and vdeoxpln inspection. |
+| Local stdio MCP (`mcp/server.js`) | Starts from an external MCP client and exposes Knowgrph-owned local tools: deterministic knowledge-graph ingest/query/edge explanation, Source Files search/fetch, UI launch, pipelines, memory, probe tree, showrunner, OS status, SuperAgent, video remix, browser bridge, HTML video, annotation, exact agent/LLM application catalog-plan-execute composition, and vdeoxpln inspection. |
 | MainPanel MCP | Browser-local readiness and non-secret setup view for Knowgrph-owned and external MCP tool servers. |
 | FloatingPanel Chat | In-canvas assistant with workspace, selection, invocation grammar, KGC generation, and source-aware context. |
 | 2D Renderer: Storyboard | Projects frontmatter-owned source, ideation, invocation, runtime, review, and publish lanes into Cards, Widgets, Rich Media Panels, and timeline views. |
