@@ -20,6 +20,7 @@ import { runStoryboardRemoveAction } from '@/components/StoryboardCanvas/storybo
 import { mergeStoryboardMediaAlbumItems, toStoryboardMediaAlbumItem } from '@/components/StoryboardCanvas/storyboardCardMediaAlbum'
 import { buildStoryboardCardMediaTextareaAttachments } from '@/components/StoryboardCanvas/storyboardCardMediaProjection'
 import { buildStoryboardBoardModel, buildStoryboardInlineMediaCommandContext, type StoryboardCardModel } from '@/components/StoryboardCanvas/storyboardModel'
+import type { StoryboardCardSourceReference } from '@/components/StoryboardCanvas/storyboardCardConnectedSources'
 import { buildStoryboardToolbarProps } from '@/components/StoryboardCanvas/storyboardToolbarProps'
 import { writeActiveMarkdownDocumentTextIfPresent } from '@/hooks/store/graph-data-slice/graphDataFrontmatterFlowSync'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -52,12 +53,13 @@ function StoryboardCardOverlayItem(props: {
   onDuplicate: (card: StoryboardCardModel) => void; onOpenInSidepane: (card: StoryboardCardModel) => void; onProbeTree: (card: StoryboardCardModel) => void; onRemove: (card: StoryboardCardModel) => void; onRun: (card: StoryboardCardModel) => void; onSelect: (card: StoryboardCardModel) => void
   onCommitLane: (card: StoryboardCardModel, nextValue: string) => void; onCommitPrimaryText: (card: StoryboardCardModel, field: GraphNodeCardTextFieldSpec, nextValue: string) => void; onCommitTitle: (card: StoryboardCardModel, nextValue: string) => void; onCommitType: (card: StoryboardCardModel, nextValue: string) => void
   onDropMedia: (card: StoryboardCardModel, payload: MediaDragPayload) => void
+  onSourceReferenceActivate: (reference: StoryboardCardSourceReference) => void
   headerPinProps: FlowCanvasHeaderPinProps
   readCardSize: (node: GraphNode) => { width: number; height: number }
   onHeaderPointerDown: (event: React.PointerEvent<HTMLElement>, node: GraphNode) => void
   onResizePointerDown: (event: React.PointerEvent<HTMLButtonElement>, node: GraphNode) => void
 }) {
-  const { card, cardMoveEnabled, storyboardWidgetSurfaceId, headerPinProps, node, onCommitLane, onCommitPrimaryText, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onHeaderPointerDown, onOpenInSidepane, onProbeTree, onRemove, onResizePointerDown, onRun, onSelect, pendingMedia, readCardSize, register, selected } = props
+  const { card, cardMoveEnabled, storyboardWidgetSurfaceId, headerPinProps, node, onCommitLane, onCommitPrimaryText, onCommitTitle, onCommitType, onDropMedia, onDuplicate, onHeaderPointerDown, onOpenInSidepane, onProbeTree, onRemove, onResizePointerDown, onRun, onSelect, onSourceReferenceActivate, pendingMedia, readCardSize, register, selected } = props
   const { width, height } = readCardSize(node)
   const textModel = buildStoryboardCardTextModel(card)
   const displayMedia = pendingMedia || card.media
@@ -186,6 +188,7 @@ function StoryboardCardOverlayItem(props: {
             onCommitText={onCommitPrimaryText}
             onCommitType={onCommitType}
             onMediaCommandSelect={applyInlineMediaCommandToCard}
+            onSourceReferenceActivate={onSourceReferenceActivate}
           />
           {textModel.secondaryEditable && textModel.secondaryField?.id === 'output' ? (
             <StoryboardCardOutputEditSurface card={card} textModel={textModel} onActivate={() => onSelect(card)} onCommitText={onCommitPrimaryText} />
@@ -407,6 +410,14 @@ export function StoryboardCardOverlayLayer2d(props: {
     setSelectionSource('canvas')
     selectNode(card.id)
   }, [selectNode, setSelectionSource])
+  const focusSourceReference = React.useCallback((reference: StoryboardCardSourceReference) => {
+    const nodeId = String(reference.nodeId || '').trim()
+    if (!nodeId) return
+    setActiveCardId('')
+    setSelectionSource('canvas')
+    selectNode(nodeId)
+    requestZoom('selection')
+  }, [requestZoom, selectNode, setSelectionSource])
   const runCard = React.useCallback((card: StoryboardCardModel) => {
     selectCard(card)
     void runWorkflowNode?.(card.id)
@@ -561,6 +572,7 @@ export function StoryboardCardOverlayLayer2d(props: {
             onResizePointerDown={interactions.beginResize}
             onRun={runCard}
             onSelect={selectCard}
+            onSourceReferenceActivate={focusSourceReference}
             register={register}
             selected={selected}
           />
