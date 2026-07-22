@@ -4,7 +4,7 @@ import type { StoryboardCardModel } from '@/components/StoryboardCanvas/storyboa
 import { readStoryboardCardCenter2d, type StoryboardCardPlacement } from '@/components/StoryboardWidgetCanvas/storyboardCardPlacements2d'
 import { shouldFreezeProjectionForFlowPortHandleDrag } from '@/components/StoryboardWidget/flowPortHandlePointerDrag'
 import { emitStoryboardWidgetGeometryCommitted } from '@/lib/canvas/storyboard-widget-overlay-proxy'
-import { applyVectorPaintedOverlayBox, projectVectorPaintedOverlayZoomBox, type VectorPaintedOverlayScaleProjectionBase } from '@/lib/canvas/vectorPaintedOverlayProjection'
+import { applyVectorPaintedOverlayBox, projectVectorPaintedOverlayZoomBox, readVectorPaintedOverlayScale, type VectorPaintedOverlayScaleProjectionBase } from '@/lib/canvas/vectorPaintedOverlayProjection'
 import { computeCollectiveFollowScaleFromBaseline } from '@/lib/canvas/overlayWidgetZoom'
 import type { GraphNode } from '@/lib/graph/types'
 import { computeStoryboardWidgetOverlayScreenBox, type StoryboardWidgetOverlayDragTransform } from '@/lib/storyboardWidget/overlayWorldDrag'
@@ -53,20 +53,25 @@ export function useStoryboardCardOverlayProjection2d(args: {
   const lastOverlayTransformRef = React.useRef<StoryboardWidgetOverlayDragTransform | null>(null)
   const lastPinnedByCardIdRef = React.useRef<Map<string, boolean>>(new Map())
   const lastAppliedBoxByCardIdRef = React.useRef<Map<string, AppliedCardBox>>(new Map())
-  const collectiveLayoutCacheRef = React.useRef<{
+  const settledWorldByCardIdRef = React.useRef<{
     key: string
-    byId: Map<string, { left: number; top: number }>
-  }>({ key: '', byId: new Map() })
+    worldById: Map<string, StoryboardCardPlacement>
+  }>({ key: '', worldById: new Map() })
 
   const clearCardProjection = React.useCallback((cardId: string) => {
     lastAppliedBoxByCardIdRef.current.delete(cardId)
     lastPinnedByCardIdRef.current.delete(cardId)
     zoomLayoutBaseBoxByCardIdRef.current.delete(cardId)
+    settledWorldByCardIdRef.current.worldById.delete(cardId)
   }, [])
 
   React.useEffect(() => {
     if (!active) storyboardCardZoomBaselineKRef.current = null
   }, [active])
+
+  React.useEffect(() => {
+    settledWorldByCardIdRef.current = { key: '', worldById: new Map() }
+  }, [cards, fixedCardReferencePlacements, graphRevision])
 
   React.useEffect(() => {
     if (!active || cards.length === 0) return
@@ -94,6 +99,7 @@ export function useStoryboardCardOverlayProjection2d(args: {
       let rawCenterCount = 0
       const pending: Array<{ rawBox: ProjectedCardBox; card: StoryboardCardModel; el: HTMLElement; width: number; height: number }> = []
       const readProjectedBox = (cardId: string, rawBox: ProjectedCardBox, width: number, height: number, anchorX: number, anchorY: number) => {
+        if (fixedLayoutEnabled) return rawBox
         if (dragWorldOverrideByCardIdRef.current.has(cardId)) {
           zoomLayoutBaseBoxByCardIdRef.current.set(cardId, { left: rawBox.left, top: rawBox.top, scale: rawBox.scale, layoutScale: rawBox.scale })
           return rawBox
@@ -120,6 +126,8 @@ export function useStoryboardCardOverlayProjection2d(args: {
         if (!node || !element) continue
         const cardPinned = fixedLayoutEnabled ? readFlowWidgetPinnedInCanvas(effectiveFlowWidgetPinnedByNodeId, card.id) : true
         const referencePlacement = fixedCardReferencePlacements.get(card.id)
+        const dragPlacement = dragWorldOverrideByCardIdRef.current.get(card.id) || null
+        const settledPlacement = fixedLayoutEnabled ? settledWorldByCardIdRef.current.worldById.get(card.id) || null : null
         const previousPinned = lastPinnedByCardIdRef.current.get(card.id)
         lastPinnedByCardIdRef.current.set(card.id, cardPinned)
         const fixedPlacement = fixedLayoutEnabled && cardPinned ? referencePlacement : null
@@ -148,11 +156,10 @@ export function useStoryboardCardOverlayProjection2d(args: {
             dragWorldOverrideByCardIdRef.current.set(card.id, referencePlacement)
           }
         }
-        const nodeCenter = dragWorldOverrideByCardIdRef.current.get(card.id)
-          || (fixedLayoutEnabled ? readStoryboardCardCenter2d(node) || referencePlacement : referencePlacement || readStoryboardCardCenter2d(node))
-          || null
-        const x = fixedPlacement?.x ?? nodeCenter?.x ?? 0
-        const y = fixedPlacement?.y ?? nodeCenter?.y ?? 0
+        const nodeCenter = fixedLayoutEnabled ? readStoryboardCardCenter2d(node) || referencePlacement : referencePlacement || readStoryboardCardCenter2d(node)
+        const projectedCenter = dragPlacement || settledPlacement || fixedPlacement || nodeCenter || null
+        const x = projectedCenter?.x ?? 0
+        const y = projectedCenter?.y ?? 0
         const rawBox = computeStoryboardWidgetOverlayScreenBox({
           transform: currentTransform,
           centerWorld: { x, y },
@@ -179,24 +186,43 @@ export function useStoryboardCardOverlayProjection2d(args: {
           .filter(el => !surfaceId || String(el.dataset.kgStoryboardWidgetSurface || '').trim() === surfaceId)
           .map(el => {
             const rect = el.getBoundingClientRect()
+            const scale = readVectorPaintedOverlayScale(el)
             return {
               id: `rich-media:${String(el.dataset.kgRichMediaOverlayId || el.dataset.kgWidget || el.dataset.nodeId || '').trim()}`,
               left: rect.left - (viewportRect?.left || 0),
               top: rect.top - (viewportRect?.top || 0),
               width: rect.width,
               height: rect.height,
+              baseWidth: rect.width / scale,
+              baseHeight: rect.height / scale,
             }
           })
           .filter(item => item.id !== 'rich-media:' && item.width > 0 && item.height > 0)
         const layoutInputKey = [
           `${viewport.width}x${viewport.height}`,
-          ...layoutItems.map(item => `${item.id}:${Math.round(item.left)},${Math.round(item.top)},${Math.round(item.width)}x${Math.round(item.height)}`),
-          ...richMediaObstacles.map(item => `${item.id}:${Math.round(item.left)},${Math.round(item.top)},${Math.round(item.width)}x${Math.round(item.height)}`),
+          ...pending.map(item => `${item.card.id}:${Math.round(item.width)}x${Math.round(item.height)}`),
+          ...richMediaObstacles.map(item => `${item.id}:${Math.round(item.baseWidth)}x${Math.round(item.baseHeight)}`),
         ].join('|')
-        let relaxedById = collectiveLayoutCacheRef.current.key === layoutInputKey
-          ? collectiveLayoutCacheRef.current.byId
+        const cachedWorldById = settledWorldByCardIdRef.current.key === layoutInputKey
+          ? settledWorldByCardIdRef.current.worldById
           : null
-        if (!relaxedById) {
+        if (cachedWorldById) {
+          for (let index = 0; index < pending.length; index += 1) {
+            const item = pending[index]!
+            if (dragWorldOverrideByCardIdRef.current.has(item.card.id)) continue
+            const centerWorld = cachedWorldById.get(item.card.id)
+            if (!centerWorld) continue
+            item.rawBox = computeStoryboardWidgetOverlayScreenBox({
+              transform: currentTransform,
+              centerWorld,
+              devicePixelRatio,
+              paintScale: item.rawBox.scale,
+              snapToDevicePixels: true,
+              width: item.width,
+              height: item.height,
+            })
+          }
+        } else {
           const overlaps = (
             left: { left: number; top: number; width: number; height: number },
             right: { left: number; top: number; width: number; height: number },
@@ -259,14 +285,23 @@ export function useStoryboardCardOverlayProjection2d(args: {
             exactlySettled.push(open ? { ...item, ...open } : item)
           }
           relaxed = exactlySettled
-          relaxedById = new Map(relaxed.map(item => [item.id, { left: item.left, top: item.top }]))
-          collectiveLayoutCacheRef.current = { key: layoutInputKey, byId: relaxedById }
-        }
-        for (let i = 0; i < pending.length; i += 1) {
-          const item = pending[i]!
-          const next = relaxedById.get(item.card.id)
-          if (!next) continue
-          item.rawBox = { ...item.rawBox, left: next.left, top: next.top }
+          const relaxedById = new Map(relaxed.map(item => [item.id, { left: item.left, top: item.top }]))
+          const worldById = new Map<string, StoryboardCardPlacement>()
+          for (let index = 0; index < pending.length; index += 1) {
+            const item = pending[index]!
+            const next = relaxedById.get(item.card.id)
+            if (!next) continue
+            item.rawBox = { ...item.rawBox, left: next.left, top: next.top }
+            const centerWorld = screenToWorld({
+              transform: currentTransform,
+              sx: next.left + (item.width * item.rawBox.scale) / 2,
+              sy: next.top + (item.height * item.rawBox.scale) / 2,
+            })
+            if (Number.isFinite(centerWorld.x) && Number.isFinite(centerWorld.y)) {
+              worldById.set(item.card.id, centerWorld)
+            }
+          }
+          settledWorldByCardIdRef.current = { key: layoutInputKey, worldById }
         }
       }
       for (let i = 0; i < pending.length; i += 1) {
@@ -277,77 +312,9 @@ export function useStoryboardCardOverlayProjection2d(args: {
       }
       const projectionAnchorX = rawCenterCount > 0 ? rawCenterXSum / rawCenterCount : viewport.width / 2
       const projectionAnchorY = rawCenterCount > 0 ? rawCenterYSum / rawCenterCount : viewport.height / 2
-      const finalGapPx = 28
-      const finalSurfaceId = String(pending[0]?.el.dataset.kgStoryboardWidgetSurface || '').trim()
-      const finalRichMediaObstacles = fixedLayoutEnabled
-        ? Array.from(document.querySelectorAll<HTMLElement>('[data-kg-rich-media-overlay="1"]'))
-            .filter(el => !finalSurfaceId || String(el.dataset.kgStoryboardWidgetSurface || '').trim() === finalSurfaceId)
-            .map(el => {
-              const rect = el.getBoundingClientRect()
-              return { left: rect.left - (viewportRect?.left || 0), top: rect.top - (viewportRect?.top || 0), width: rect.width, height: rect.height }
-            })
-            .filter(item => item.width > 0 && item.height > 0)
-        : []
-      const finalSettledCardBoxes: Array<{ left: number; top: number; width: number; height: number }> = []
-      const finalRectsOverlap = (
-        left: { left: number; top: number; width: number; height: number },
-        right: { left: number; top: number; width: number; height: number },
-      ) => left.left < right.left + right.width + finalGapPx
-        && right.left < left.left + left.width + finalGapPx
-        && left.top < right.top + right.height + finalGapPx
-        && right.top < left.top + left.height + finalGapPx
       for (let index = 0; index < pending.length; index += 1) {
         const item = pending[index]!
-        let box = readProjectedBox(item.card.id, item.rawBox, item.width, item.height, projectionAnchorX, projectionAnchorY)
-        if (fixedLayoutEnabled) {
-          const previouslyApplied = lastAppliedBoxByCardIdRef.current.get(item.card.id) || null
-          const currentDomRect = item.el.getBoundingClientRect()
-          const projectionOffsetLeft = previouslyApplied
-            ? currentDomRect.left - (viewportRect?.left || 0) - previouslyApplied.left
-            : 0
-          const projectionOffsetTop = previouslyApplied
-            ? currentDomRect.top - (viewportRect?.top || 0) - previouslyApplied.top
-            : 0
-          const projectedRect = {
-            left: box.left + projectionOffsetLeft,
-            top: box.top + projectionOffsetTop,
-            width: item.width * box.scale,
-            height: item.height * box.scale,
-          }
-          const blockers = [...finalRichMediaObstacles, ...finalSettledCardBoxes]
-          if (blockers.some(blocker => finalRectsOverlap(projectedRect, blocker))) {
-            const xCandidates = new Set<number>([projectedRect.left])
-            const yCandidates = new Set<number>([projectedRect.top])
-            for (let blockerIndex = 0; blockerIndex < blockers.length; blockerIndex += 1) {
-              const blocker = blockers[blockerIndex]!
-              xCandidates.add(blocker.left - projectedRect.width - finalGapPx)
-              xCandidates.add(blocker.left + blocker.width + finalGapPx)
-              yCandidates.add(blocker.top - projectedRect.height - finalGapPx)
-              yCandidates.add(blocker.top + blocker.height + finalGapPx)
-            }
-            const open = Array.from(xCandidates)
-              .flatMap(left => Array.from(yCandidates).map(top => ({ left, top })))
-              .filter(candidate => !blockers.some(blocker => finalRectsOverlap({ ...projectedRect, ...candidate }, blocker)))
-              .sort((left, right) => {
-                const leftScore = Math.abs(left.left - projectedRect.left) + Math.abs(left.top - projectedRect.top)
-                const rightScore = Math.abs(right.left - projectedRect.left) + Math.abs(right.top - projectedRect.top)
-                if (leftScore !== rightScore) return leftScore - rightScore
-                if (left.top !== right.top) return left.top - right.top
-                return left.left - right.left
-              })[0]
-            if (open) box = {
-              ...box,
-              left: open.left - projectionOffsetLeft,
-              top: open.top - projectionOffsetTop,
-            }
-          }
-          finalSettledCardBoxes.push({
-            left: box.left + projectionOffsetLeft,
-            top: box.top + projectionOffsetTop,
-            width: item.width * box.scale,
-            height: item.height * box.scale,
-          })
-        }
+        const box = readProjectedBox(item.card.id, item.rawBox, item.width, item.height, projectionAnchorX, projectionAnchorY)
         const display = box.scale <= 0.02 ? 'none' : ''
         const previousBox = lastAppliedBoxByCardIdRef.current.get(item.card.id) || null
         const boxChanged = !previousBox
