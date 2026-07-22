@@ -19,6 +19,7 @@ import {
 import {
   buildAgentLiveProviderProofSummary,
   buildAgenticCanvasOsDocsCatalog,
+  buildAgenticCanvasOsDocsInvokePayload,
   buildProgressiveAgentsReadinessSummary,
   resolveAgentLiveProviderProofRevisionFromGitHub,
 } from "../agentic-canvas-os-docs-core.mjs";
@@ -154,6 +155,22 @@ test("standalone docs catalog retains the branch source URL without a revision",
   const query = catalog.find((entry) => entry.token === "/query");
 
   assert.equal(query?.sourceUrl, `${AGENTIC_CANVAS_OS_DOCS_SOURCE_ROOT_URL}/DICTIONARY-COMMAND.md#/query`);
+});
+
+test("docs invocation rejects syntactically valid tokens absent from the source catalog", () => {
+  const result = buildAgenticCanvasOsDocsInvokePayload({
+    docsContentByFileName: {
+      "FACTS.md": "",
+      "DICTIONARY-COMMAND.md": "---\ndictionary_entries:\n  - /known\n---\n| `/known` | Known |",
+      "DICTIONARY-SEMANTIC.md": "---\ndictionary_entries:\n  - #known\n---\n| `#known` | Known |",
+      "DICTIONARY-BINDING.md": "---\ndictionary_entries:\n  - @known\n---\n| `@known` | Known |",
+    },
+    sourceRevision: "a".repeat(40),
+    token: "/invented.but.valid",
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.invocation, null);
+  assert.equal(result.error.code, "unknown_invocation_token");
 });
 
 test("live provider proof revision falls back to exact read-only remote history", async () => {

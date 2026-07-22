@@ -49,6 +49,10 @@ export async function testKnowgrphVdeoxplnRegistryProjectsToAgentSkillsMainPanel
   if (!validation.ok) {
     throw new Error(`expected vdeoxpln registry to validate, got ${JSON.stringify(validation.errors)}`)
   }
+  const localMcp = registry.find(vdeoxpln => vdeoxpln.id === KNOWGRPH_VDEOXPLN_IDS.localMcp)
+  for (const token of ['/implementation.run', '#managed-implementation-run', '@work-item', '@implementation-run']) {
+    if (!localMcp?.triggers.includes(token)) throw new Error(`expected local MCP vdeoxpln triggers to include ${token}`)
+  }
 
   const ids = registry.map(vdeoxpln => vdeoxpln.id)
   if (new Set(ids).size !== ids.length) {
