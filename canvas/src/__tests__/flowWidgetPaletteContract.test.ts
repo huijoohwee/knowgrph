@@ -15,6 +15,8 @@ import {
   buildWidgetCardLayoutSeed,
 } from '@/lib/storyboardWidget/widgetCardLayoutVariants'
 import { listWidgetPaletteLayoutVariants } from '@/features/toolbar/widgetPaletteLayoutVariants'
+import { readResolvedStoryboardWidgetDropTransform } from '@/components/StoryboardWidgetCanvas/storyboardWidgetCanvasShared'
+import { useGraphStore } from '@/hooks/useGraphStore'
 
 export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel() {
   const paletteText = readFileSync(resolve(process.cwd(), 'src/features/toolbar/WidgetPalette.tsx'), 'utf8')
@@ -30,6 +32,34 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
   const bridgeOnlyText = readFileSync(resolve(process.cwd(), 'src/components/StoryboardWidgetDropBridge.tsx'), 'utf8')
   const storyboardWidgetConfigText = readFileSync(resolve(process.cwd(), 'src/lib/config.storyboard-widget.ts'), 'utf8')
   const copyText = readFileSync(resolve(process.cwd(), 'src/lib/config-copy/uiMeta.ts'), 'utf8')
+
+  const previousZoomState = useGraphStore.getState().zoomState
+  const previousZoomStateByKey = useGraphStore.getState().zoomStateByKey
+  try {
+    useGraphStore.setState({ zoomState: null, zoomStateByKey: {} })
+    const unresolvedEmptyCanvasTransform = readResolvedStoryboardWidgetDropTransform({
+      getLiveZoomTransform: () => null,
+      zoomViewKeyRef: { current: null },
+      draftGraphDataRef: { current: null },
+      baseGraphData: null,
+      allowNeutralFallback: false,
+    })
+    if (unresolvedEmptyCanvasTransform !== null) {
+      throw new Error(`expected an empty canvas to defer before its fallback frame, got ${JSON.stringify(unresolvedEmptyCanvasTransform)}`)
+    }
+    const emptyCanvasFallbackTransform = readResolvedStoryboardWidgetDropTransform({
+      getLiveZoomTransform: () => null,
+      zoomViewKeyRef: { current: null },
+      draftGraphDataRef: { current: null },
+      baseGraphData: null,
+      allowNeutralFallback: true,
+    })
+    if (emptyCanvasFallbackTransform?.k !== 1 || emptyCanvasFallbackTransform.x !== 0 || emptyCanvasFallbackTransform.y !== 0) {
+      throw new Error(`expected empty-canvas widget drops to resolve through an identity transform, got ${JSON.stringify(emptyCanvasFallbackTransform)}`)
+    }
+  } finally {
+    useGraphStore.setState({ zoomState: previousZoomState, zoomStateByKey: previousZoomStateByKey })
+  }
 
   const paletteSnippets = [
     'listWidgetPaletteLayoutVariants',
@@ -309,6 +339,24 @@ export function testFlowWidgetPaletteConsolidatesMediaWidgetsIntoRichMediaPanel(
   }
   if (!widgetDropBridgeText.includes('if (session.nativeDragStarted === true) return')) {
     throw new Error('expected unresolved native drags to keep the pointer session alive for dragend commit')
+  }
+  const deferredWidgetDropStart = widgetDropBridgeText.indexOf('const appendDeferredWidgetAtClientPoint =')
+  const deferredWidgetDropAwait = widgetDropBridgeText.indexOf("if (!pos) return 'await-transform'", deferredWidgetDropStart)
+  const deferredWidgetDropDedupe = widgetDropBridgeText.indexOf('if (args.shouldDedupeWidgetDrop(dropKey))', deferredWidgetDropStart)
+  if (deferredWidgetDropStart < 0 || deferredWidgetDropAwait < deferredWidgetDropStart || deferredWidgetDropDedupe < deferredWidgetDropAwait) {
+    throw new Error('expected native widget drops to await an empty-canvas transform before recording the committed drop dedupe key')
+  }
+  const pointerWidgetDropStart = widgetDropBridgeText.indexOf('const commitFlowWidgetPointerDrop =')
+  const pointerWidgetDropAwait = widgetDropBridgeText.indexOf("if (!pos) return 'await-transform'", pointerWidgetDropStart)
+  const pointerWidgetDropDedupe = widgetDropBridgeText.indexOf('if (args.shouldDedupeWidgetDrop(dropKey))', pointerWidgetDropStart)
+  if (pointerWidgetDropStart < 0 || pointerWidgetDropAwait < pointerWidgetDropStart || pointerWidgetDropDedupe < pointerWidgetDropAwait) {
+    throw new Error('expected pointer widget drops to await an empty-canvas transform before recording the committed drop dedupe key')
+  }
+  const surfaceWidgetDropStart = widgetSurfaceText.indexOf('const payload = readFlowWidgetDragPayloadFromDataTransfer')
+  const surfaceWidgetDropPosition = widgetSurfaceText.indexOf('const pos = readSurfaceDrop(release.clientX, release.clientY)', surfaceWidgetDropStart)
+  const surfaceWidgetDropDedupe = widgetSurfaceText.indexOf('if (props.shouldDedupeWidgetDrop(dropKey))', surfaceWidgetDropStart)
+  if (surfaceWidgetDropStart < 0 || surfaceWidgetDropPosition < surfaceWidgetDropStart || surfaceWidgetDropDedupe < surfaceWidgetDropPosition) {
+    throw new Error('expected the Storyboard surface to resolve an empty-canvas drop position before recording the committed drop dedupe key')
   }
   const nativeDropStart = widgetDropBridgeText.indexOf('const onDropCapture = (ev: DragEvent) => {')
   const nativeWidgetPayloadRead = widgetDropBridgeText.indexOf('const payload = readFlowWidgetDragPayloadFromDataTransfer', nativeDropStart)
