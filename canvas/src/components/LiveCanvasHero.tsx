@@ -158,7 +158,7 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
         </p>
 
         <form
-          className="mt-4 rounded-2xl border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_72%,transparent)] p-3 shadow-[0_18px_64px_color-mix(in_srgb,var(--kg-canvas-bg)_72%,transparent)] backdrop-blur-xl md:mt-6 md:p-4"
+          className="mt-4 flex h-[29rem] flex-col overflow-hidden rounded-2xl border border-[color:var(--kg-border)] bg-[color-mix(in_srgb,var(--kg-panel-bg)_72%,transparent)] p-3 shadow-[0_18px_64px_color-mix(in_srgb,var(--kg-canvas-bg)_72%,transparent)] backdrop-blur-xl md:mt-6 md:p-4"
           onSubmit={handleSubmit}
           data-kg-live-canvas-hero-command-deck="true"
         >
@@ -167,7 +167,8 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
           </label>
           <LiveCanvasHeroQueryEditor value={draft} onChange={setDraft} />
           {selectedPromptPresetId === 'video-agent' && model.sourceLabel ? <p className="mt-2 truncate text-[10px] text-[var(--kg-text-secondary)]" title={model.sourceWorkspacePath || model.sourceLabel}>Script: {model.sourceLabel}</p> : null}
-          <section className="mt-3 grid gap-2" aria-label="Prompt preset controls">
+          <section className="mt-3 h-36 shrink-0 overflow-y-auto overscroll-contain pr-1" aria-label="Prompt preset controls" data-kg-live-canvas-hero-prompt-controls-scroll="fixed">
+            <section className="grid gap-2">
             <LiveCanvasHeroPromptPresetPicker
               activePresetId={selectedPromptPresetId}
               runtime={props.promptPresetsRuntime}
@@ -179,11 +180,11 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
               }}
             />
             {!invocation && promptParameters.length ? (
-              <fieldset data-kg-live-canvas-hero-prompt-parameters="true">
+              <fieldset className="h-16 overflow-hidden" data-kg-live-canvas-hero-prompt-parameters="true">
                 <legend className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--kg-text-secondary)]">
                   Parameters
                 </legend>
-                <nav className="mt-1 flex flex-wrap gap-1.5" aria-label="Prompt parameters">
+                <nav className="mt-1 flex max-h-11 flex-wrap gap-1.5 overflow-y-auto overscroll-contain pr-1" aria-label="Prompt parameters">
                   {promptParameters.map(parameter => {
                     const active = liveCanvasHeroPromptHasParameter(draft, parameter)
                     return (
@@ -238,9 +239,10 @@ export function LiveCanvasHeroEditorial(props: LiveCanvasHeroEditorialProps) {
                 </fieldset>)}
               </section>
             ) : null}
+            </section>
           </section>
 
-          <section className="mt-4 flex flex-wrap items-center gap-2">
+          <section className="mt-auto flex shrink-0 flex-wrap items-center gap-2">
             <a
               href={resolveLiveCanvasHeroEnterHref(import.meta.env?.BASE_URL)}
               onClick={props.onEnter}

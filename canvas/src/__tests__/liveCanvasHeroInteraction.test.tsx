@@ -99,6 +99,14 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
     if (container.querySelector('textarea:not(.sr-only)')) {
       throw new Error('expected Hero to remove the legacy visible textarea projection')
     }
+    const commandDeck = container.querySelector('[data-kg-live-canvas-hero-command-deck="true"]') as HTMLElement | null
+    const promptControlsViewport = container.querySelector('[data-kg-live-canvas-hero-prompt-controls-scroll="fixed"]') as HTMLElement | null
+    if (!commandDeck?.classList.contains('h-[29rem]') || !commandDeck.classList.contains('overflow-hidden')) {
+      throw new Error('expected the Home prompt panel height to remain fixed across presets')
+    }
+    for (const className of ['h-36', 'overflow-y-auto', 'overscroll-contain']) {
+      if (!promptControlsViewport?.classList.contains(className)) throw new Error(`expected fixed prompt controls viewport class ${className}`)
+    }
     const projectedTokens = Array.from(editor.querySelectorAll('[data-kg-inline-invocation-edit-token="1"]')).map(node => node.textContent)
     for (const token of ['/video-agent', '@provider.byteplus', '@text', '@image', '@audio', '@video', '#spec.low']) {
       if (!projectedTokens.includes(token)) throw new Error(`expected shared Card/Widget/Chat invocation chip ${token}, got ${JSON.stringify(projectedTokens)}`)
@@ -142,6 +150,14 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
     const parameterChips = [...container.querySelectorAll<HTMLButtonElement>('[data-kg-live-canvas-hero-prompt-parameter]')]
     if (parameterChips.map(button => button.dataset.kgLiveCanvasHeroPromptParameter).join(',') !== '@source.body,#runtime-ready') {
       throw new Error(`expected source-derived non-video parameter chips, got ${parameterChips.map(button => button.dataset.kgLiveCanvasHeroPromptParameter).join(',')}`)
+    }
+    const parameterFieldset = container.querySelector('[data-kg-live-canvas-hero-prompt-parameters="true"]') as HTMLElement | null
+    const parameterNavigation = parameterFieldset?.querySelector('nav') as HTMLElement | null
+    if (!parameterFieldset?.classList.contains('h-16') || !parameterFieldset.classList.contains('overflow-hidden')) {
+      throw new Error('expected the Parameters selector height to remain fixed across presets')
+    }
+    for (const className of ['max-h-11', 'overflow-y-auto', 'overscroll-contain']) {
+      if (!parameterNavigation?.classList.contains(className)) throw new Error(`expected internally scrolling Parameters class ${className}`)
     }
     await act(async () => {
       parameterChips[1]?.click()
