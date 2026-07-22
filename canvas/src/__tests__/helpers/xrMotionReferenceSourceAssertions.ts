@@ -9,7 +9,8 @@ export function assertXrMotionReferenceStageSurfaceContracts(): void {
   const emptyWorldSource = readSource('features', 'three', 'XrEmptyWorldStage.tsx')
   const emptyWorldHudSource = readSource('features', 'three', 'XrEmptyWorldHud.tsx')
   const spatialAssetToolsSource = readSource('features', 'three', 'SpatialAssetToolsPanel.tsx')
-  const xrGraphStageSource = readSource('features', 'three', 'XrGraphStage.tsx')
+  const xrMotionReferenceGraphStageSource = readSource('features', 'three', 'XrMotionReferenceGraphStage.tsx')
+  const xrCanonicalPhysicsStageSource = readSource('features', 'three', 'XrCanonicalPhysicsStage.tsx')
   const xrEntrySource = readSource('lib', 'three', 'ThreeGraphXr.tsx')
   const threeGraphSource = readSource('lib', 'three', 'ThreeGraph.impl.tsx')
   const controlsSource = readSource('features', 'three', 'Controls.tsx')
@@ -29,7 +30,7 @@ export function assertXrMotionReferenceStageSurfaceContracts(): void {
     'data-kg-xr-panel-physics',
     'XR unavailable',
   ]
-  const cleanedXrSurfaces = `${xrGraphStageSource}\n${xrEntrySource}\n${spatialAssetToolsSource}`
+  const cleanedXrSurfaces = `${xrMotionReferenceGraphStageSource}\n${xrCanonicalPhysicsStageSource}\n${xrEntrySource}\n${spatialAssetToolsSource}`
   for (const marker of staleCanvasMarkers) {
     if (cleanedXrSurfaces.includes(marker)) throw new Error(`expected XR canvas cleanup to remove stale ${marker}`)
   }

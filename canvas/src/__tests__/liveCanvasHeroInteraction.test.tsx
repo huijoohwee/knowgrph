@@ -4,6 +4,7 @@ import { Simulate } from 'react-dom/test-utils'
 import { LiveCanvasHeroEditorial } from '@/components/LiveCanvasHero'
 import { readLiveCanvasHeroContent } from '@/features/agentic-os/liveCanvasHeroContent'
 import { buildLiveCanvasHeroModel } from '@/features/agentic-os/liveCanvasHeroModel'
+import { encodePublishedDocShareToken } from '@/features/canvas/canvasDocShareToken.mjs'
 import {
   LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT,
   readLiveCanvasHeroSourceSelection,
@@ -105,8 +106,9 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
     }
     const valueSetter = Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, 'value')?.set
     if (!valueSetter) throw new Error('expected textarea value setter')
+    const importedToken = encodePublishedDocShareToken({ canonicalPath: 'docs/imported-canvas.md' })
     await act(async () => {
-      valueSetter.call(importValue, '<iframe src="https://airvio.co/knowgrph/share/kg-imported-token"></iframe>')
+      valueSetter.call(importValue, `<iframe src="https://airvio.co/knowgrph/share/${importedToken}"></iframe>`)
       Simulate.change(importValue)
       await waitForFrames(dom.window as unknown as Window, 1)
     })
@@ -114,7 +116,7 @@ export async function testLiveCanvasHeroInteractionSubmitsToEmbeddedChat(): Prom
       useBackgroundButton.click()
       await waitForFrames(dom.window as unknown as Window, 1)
     })
-    if (!importedSelection?.embedUrl.includes('/share/kg-imported-token?kgPreview=1&kgLiveHero=1')) {
+    if (!importedSelection?.embedUrl.includes(`/share/${importedToken}?kgPreview=1&kgLiveHero=1`)) {
       throw new Error(`expected imported iframe to dispatch the canonical Hero source selection, got ${JSON.stringify({ importedSelection, value: importValue.value, panelText: importPanel.textContent })}`)
     }
     if (container.querySelector('[aria-label="Import canvas embed panel"]')) {

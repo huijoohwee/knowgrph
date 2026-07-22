@@ -1,6 +1,10 @@
 import { resolveLiveCanvasHeroEmbedUrl } from '@/features/canvas/liveCanvasHeroEmbed'
+import { resolvePublishedDocIdentity } from '@/features/canvas/canvasDocShareToken.mjs'
 import type { LiveCanvasHeroSourceSelection } from '@/features/canvas/liveCanvasHeroSourceSelection'
-import { selectLiveCanvasHeroSource } from '@/features/canvas/liveCanvasHeroSourceSelection'
+import {
+  resolveLiveCanvasHeroSourceSelection,
+  selectLiveCanvasHeroSource,
+} from '@/features/canvas/liveCanvasHeroSourceSelection'
 export { CANONICAL_STARTUP_CANVAS_EMBED_URL } from '@/features/canvas/canvasEmbedPresets'
 
 export const KNOWGRPH_CANVAS_EMBED_SELECT_MESSAGE = 'knowgrph.canvas-embed.select'
@@ -40,6 +44,11 @@ function inferSourcePath(url: URL, sourcePath: unknown): string {
   if (explicitPath) return explicitPath
   const documentPath = String(url.searchParams.get('kgDoc') || '').trim()
   if (documentPath) return `/${documentPath.replace(/^\/+/, '')}`
+  const publishedIdentity = resolvePublishedDocIdentity({
+    shareUrl: url.toString(),
+    appBasePath: '/knowgrph',
+  })
+  if (publishedIdentity?.canonicalPath) return publishedIdentity.canonicalPath
   return url.pathname || '/shared-canvas'
 }
 
@@ -59,7 +68,7 @@ function resolveSelection(args: { embedUrl: string; sourcePath?: unknown; option
   const embedUrl = args.options?.liveHeroPreview === false
     ? parsedUrl.toString()
     : resolveLiveCanvasHeroEmbedUrl({ sourcePath, selectedEmbedUrl: parsedUrl.toString() })
-  return embedUrl ? { sourcePath, embedUrl } : null
+  return embedUrl ? resolveLiveCanvasHeroSourceSelection({ sourcePath, embedUrl }) : null
 }
 
 export function resolveCanvasEmbedImport(value: unknown, options?: CanvasEmbedImportOptions): LiveCanvasHeroSourceSelection | null {

@@ -150,7 +150,7 @@ If Knowgrph exposes XR Mode as a first-class Canvas surface and adds a determini
 
 **KXR-E1-S1-AC3** - Distinct graph spatial stage
 * **Given** XR Mode renders graph data, **when** the Three.js scene mounts, **then** it mounts the XR spatial stage and excludes plain 3D globe effects.
-* > **VCC translation**: `Verify XrGraphStage component is rendered and GlobeEffects are unmounted in ThreeGraph.impl.tsx`
+* > **VCC translation**: `Verify ThreeGraph resolves one explicit XR authority, Scene mounts XrCanonicalPhysicsStage or lazy XrMotionReferenceGraphStage, and GlobeEffects remain unmounted in XR`
 
 ### Workflow: XR Surface Activation
 
@@ -505,7 +505,7 @@ flowchart LR
   * Input: `GraphData` or `GlbAssetDocument`, `Canvas3dModeId`, active/paused state.
   * Output: Three.js canvas with spatial stage; optional `XRSession`.
   * Errors: No WebGL or no renderable scene returns an empty bounded surface; no WebXR support returns a disabled entry state.
-* **Dependencies**: `ThreeGraph.impl.tsx`, `Scene.impl.tsx`, `XrGraphStage.tsx`, `GlbAssetModel.tsx`, `ThreeGraphXr.tsx`.
+* **Dependencies**: `ThreeGraph.impl.tsx`, `Scene.impl.tsx`, `XrCanonicalPhysicsStage.tsx`, `XrMotionReferenceGraphStage.tsx`, `GlbAssetModel.tsx`, `ThreeGraphXr.tsx`.
 * **Configuration**: Existing schema camera/layout settings; WebXR optional features `local-floor`, `bounded-floor`, and `hand-tracking`.
 * **FOSS / Vendor**: Three.js and React Three Fiber, both FOSS.
 * **VCC Conditions**:
@@ -801,7 +801,7 @@ Rollback:
 | Payload | GLB/GLTF loader payload | `canvas/src/lib/assets/modelAssetPayload.ts` | Present |
 | Renderer | Three.js Canvas surface | `canvas/src/lib/three/ThreeGraph.impl.tsx` | Present |
 | Renderer | Model asset scene | `canvas/src/lib/three/GlbAssetModel.tsx` | Present |
-| Renderer | XR graph stage | `canvas/src/features/three/XrGraphStage.tsx` | Present |
+| Renderer | Split XR stage owners | `canvas/src/features/three/{XrCanonicalPhysicsStage.tsx,XrMotionReferenceGraphStage.tsx}` | Native-only canonical owner; lazy authored Motion Reference owner |
 | Renderer | WebXR entry panel | `canvas/src/lib/three/ThreeGraphXr.tsx` | Present |
 | Harness | PNG->SVG conversion | `canvas/src/lib/xr/xrAssetConversion.ts` | Present |
 | Harness | SVG->GLB compile + inspect | `canvas/src/lib/xr/xrAssetConversion.ts`, `canvas/src/features/markdown-workspace/workspaceImport/xrModelAsset.ts` | Present |

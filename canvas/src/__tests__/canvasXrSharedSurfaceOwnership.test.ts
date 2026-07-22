@@ -397,7 +397,7 @@ export function testXrSceneSurfaceOwnershipSourceBoundaries() {
   } as const
   for (const [label, relativePath] of Object.entries(panelProjectionSources)) {
     const panelSource = readSource(relativePath)
-    if (/@react-three\/fiber|<Canvas(?:\s|>)|new\s+(?:THREE\.)?Scene\s*\(|<(?:Scene|XrGraphStage|GameFpsMissionStage)(?:\s|>)/.test(panelSource)) {
+    if (/@react-three\/fiber|<Canvas(?:\s|>)|new\s+(?:THREE\.)?Scene\s*\(|<(?:Scene|XrCanonicalPhysicsStage|XrMotionReferenceGraphStage|GameFpsMissionStage)(?:\s|>)/.test(panelSource)) {
       throw new Error(`expected ${label} panel to project controls only, never own a Three scene or R3F Canvas`)
     }
   }

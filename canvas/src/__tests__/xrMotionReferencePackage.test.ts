@@ -388,7 +388,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
   const ganttPlaybackControlsSource = readSource('features', 'gitgraph', 'useGanttTimelinePlaybackControls.ts')
   const ganttPlaybackRuntimeSource = readSource('features', 'gitgraph', 'GanttTimelineTransportPlaybackRuntime.tsx')
   const ganttHeaderToolsSource = readSource('features', 'gitgraph', 'GanttTimelineTransportHeaderTools.tsx')
-  const xrGraphStageSource = readSource('features', 'three', 'XrGraphStage.tsx')
+  const xrMotionReferenceGraphStageSource = readSource('features', 'three', 'XrMotionReferenceGraphStage.tsx')
   const threeGraphSource = readSource('lib', 'three', 'ThreeGraph.impl.tsx')
   const canvasViewSelectSource = readSource('components', 'toolbar', 'Canvas2dRendererSelect.tsx')
   const saveSource = readSource('lib', 'graph', 'save.ts')
@@ -466,7 +466,7 @@ export async function testXrMotionReferencePackageIsNativeDeterministicAndGraphB
     || !xrCameraMotionSource.includes('runtimeDurationSeconds={runtime.plan.durationSeconds}')
     || !xrTimelineProjectionSource.includes('buildXrMotionReferenceTimelineCode')
     || !ganttTransportPanelSource.includes('runtimeDurationSeconds')
-    || !xrGraphStageSource.includes('<XrMotionReferenceStage')) {
+    || !xrMotionReferenceGraphStageSource.includes('<XrMotionReferenceStage')) {
     throw new Error('expected BottomPanel Timeline to own the canonical XR motion projection while FloatingPanel Camera owns framing and SHOOT')
   }
   if (!ganttTransportSurfaceSource.includes('runtimeOnly: true')

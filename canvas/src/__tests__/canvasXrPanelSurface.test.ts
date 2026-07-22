@@ -35,7 +35,7 @@ export function testXrModeUsesCanonicalFloatingPanel() {
   const xrSceneMediaSurface = readSource('features', 'three', 'XrSceneMediaSurface.tsx')
   const xrStagePresetGeometry = readSource('features', 'three', 'XrStagePresetGeometry.tsx')
   const xrMotionReferenceStage = readSource('features', 'three', 'XrMotionReferenceStage.tsx')
-  const xrGraphStage = readSource('features', 'three', 'XrGraphStage.tsx')
+  const xrStageLifecycle = readSource('features', 'three', 'useXrStageMotionControlCleanup.ts')
   const xrSceneLibrarySubject = readSource('features', 'three', 'XrSceneLibrarySubject.tsx')
   const xrProceduralBall = readSource('features', 'three', 'XrProceduralBallGeometry.tsx')
   const xrProceduralVehicle = readSource('features', 'three', 'XrProceduralVehicleGeometry.tsx')
@@ -493,7 +493,7 @@ export function testXrModeUsesCanonicalFloatingPanel() {
     if (!`${xrMotionReferenceStage}\n${xrNativeAuthoredSubjects}`.includes(marker)) throw new Error(`expected selected XR actors to receive live humanoid pose through ${marker}`)
   }
   for (const marker of ['queueMicrotask(', 'useGraphStore.getState()', "state.canvasRenderMode === '3d' && state.canvas3dMode === 'xr'", 'stopMotionControlAfterXrUnmount']) {
-    if (!xrGraphStage.includes(marker)) throw new Error(`expected XR cleanup to survive StrictMode remounts through ${marker}`)
+    if (!xrStageLifecycle.includes(marker)) throw new Error(`expected XR cleanup to survive StrictMode remounts through ${marker}`)
   }
   for (const marker of ['CollapsibleSection', 'ExpandCollapseAllButton', 'useCollapsibleSectionGroup', 'defaultCollapsed={false}', 'headerClassName="px-0"']) {
     if (!xrMediaLibrary.includes(marker)) throw new Error(`expected Media 3D sections to reuse shared disclosure behavior through ${marker}`)

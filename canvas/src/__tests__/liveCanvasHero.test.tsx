@@ -14,6 +14,7 @@ import {
   shouldShowLiveCanvasHero,
 } from '@/features/canvas/liveCanvasHeroVisibility'
 import { buildCanvasEmbedIframeMarkup } from '@/features/canvas/canvasEmbedIframeMarkup'
+import { encodePublishedDocShareToken } from '@/features/canvas/canvasDocShareToken.mjs'
 import {
   KNOWGRPH_CANVAS_EMBED_MESSAGE_VERSION,
   KNOWGRPH_CANVAS_EMBED_SELECT_MESSAGE,
@@ -54,6 +55,9 @@ import { mountReactRoot, unmountReactRoot, waitForFrames } from '@/tests/lib/rea
 const EXPECTED_TOKENS = ['/video-agent', '@provider.byteplus', '@provider.openai', '#spec.low', '#spec.medium', '#spec.high', '@text', '@image', '@audio', '@video'] as const
 const EXPECTED_DEFAULT_QUERY_PREFIX = '/video-agent @provider.byteplus @text @image @audio @video #spec.low'
 const readExpectedDefaultQuery = () => buildLiveCanvasHeroModel().defaultQuery
+const buildPublishedCanvasEmbedUrl = (canonicalPath: string, workspaceId?: string | null): string => (
+  `https://airvio.co/knowgrph/share/${encodePublishedDocShareToken({ canonicalPath, workspaceId })}`
+)
 ;(globalThis as typeof globalThis & { __KNOWGRPH_LIVE_CANVAS_HERO_MARKDOWN__?: string }).__KNOWGRPH_LIVE_CANVAS_HERO_MARKDOWN__ = readFileSync(
   resolve(process.cwd(), '..', LIVE_CANVAS_HERO_DOC_PATH),
   'utf8',
@@ -375,9 +379,10 @@ export function testLiveCanvasHeroCanvasEmbedSelectionEvent(): void {
   }
   try {
     dom.window.addEventListener(LIVE_CANVAS_HERO_SOURCE_SELECT_EVENT, listener)
+    const publishedEmbedUrl = buildPublishedCanvasEmbedUrl('docs/shared-canvas.md')
     const selected = selectLiveCanvasHeroSource({
       sourcePath: '/docs/shared-canvas.md',
-      embedUrl: 'https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1',
+      embedUrl: `${publishedEmbedUrl}?kgPreview=1`,
     })
     if (!selected || selections.length !== 1) {
       throw new Error(`expected one shared canvas hero selection event, got ${JSON.stringify(selections)}`)
@@ -446,15 +451,16 @@ export function testLiveCanvasHeroEmbedUrlUsesSelectedOrSourceAddress(): void {
 }
 
 export function testLiveCanvasHeroImportEmbedAcceptsIframeAndPostMessage(): void {
-  const iframeSelection = resolveCanvasEmbedImport('<iframe src="https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1&amp;kgLiveHero=1"></iframe>')
-  if (iframeSelection?.embedUrl !== 'https://airvio.co/knowgrph/share/kg-public-token?kgPreview=1&kgLiveHero=1') {
+  const publishedEmbedUrl = buildPublishedCanvasEmbedUrl('docs/shared-canvas.md')
+  const iframeSelection = resolveCanvasEmbedImport(`<iframe src="${publishedEmbedUrl}?kgPreview=1&amp;kgLiveHero=1"></iframe>`)
+  if (iframeSelection?.embedUrl !== `${publishedEmbedUrl}?kgPreview=1&kgLiveHero=1`) {
     throw new Error(`expected pasted iframe markup to resolve the live embed selection, got ${JSON.stringify(iframeSelection)}`)
   }
   const messageSelection = resolveCanvasEmbedImport({
     type: KNOWGRPH_CANVAS_EMBED_SELECT_MESSAGE,
     version: KNOWGRPH_CANVAS_EMBED_MESSAGE_VERSION,
     sourcePath: '/docs/shared-canvas.md',
-    embedUrl: 'https://airvio.co/knowgrph/share/kg-public-token',
+    embedUrl: publishedEmbedUrl,
   })
   if (messageSelection?.sourcePath !== '/docs/shared-canvas.md' || !messageSelection.embedUrl.includes('kgPreview=1&kgLiveHero=1')) {
     throw new Error(`expected postMessage v1 to resolve the same live embed selection contract, got ${JSON.stringify(messageSelection)}`)
@@ -462,7 +468,7 @@ export function testLiveCanvasHeroImportEmbedAcceptsIframeAndPostMessage(): void
   if (resolveCanvasEmbedImport({
     type: KNOWGRPH_CANVAS_EMBED_SELECT_MESSAGE,
     version: 2,
-    embedUrl: 'https://airvio.co/knowgrph/share/kg-public-token',
+    embedUrl: publishedEmbedUrl,
   })) {
     throw new Error('expected unsupported postMessage versions to fail closed')
   }
