@@ -15,10 +15,10 @@ kgDocumentSemanticMode: "document"
 kgFrontmatterModeEnabled: true
 kgMultiDimTableModeEnabled: false
 kgDocumentStructureBaselineLock: false
-run_ready_demo:
+planned_run_ready_demo:
   id: "mmorpg"
   activation: "applied-source-document"
-  identity_authority: "source-authored run_ready_demo.id"
+  identity_authority: "future source-authored run_ready_demo.id after runtime-readiness approval"
   imported_path_alias_required: false
   identity_conflict: "fail closed when path and source identity disagree"
   dev_command: "npm run dev"
