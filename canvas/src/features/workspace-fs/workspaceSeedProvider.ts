@@ -19,16 +19,14 @@ const WORKSPACE_DOCS_MIRROR_MAX_FILES = 500, WORKSPACE_DOCS_MIRROR_MAX_FILE_BYTE
 const LOCAL_DOCS_MIRROR_CACHE_TTL_MS = 1000, CANONICAL_STORAGE_DOCS_ROOT = 'agentic-canvas-os/docs'
 // #region debug-point A:workspace-mirror-bootstrap
 const WORKSPACE_MIRROR_TRACE_SCOPE = 'workspace-mirror'
-let workspaceMirrorDebugSequence = 0
-let fsWriteAbortDebugSequence = 0
+let workspaceMirrorTraceSequence = 0
 const configuredDocsMirrorDatasetCache = new Map<string, {
   entries: WorkspaceDocsMirrorEntry[]
   expiresAtMs: number
 }>()
 const configuredDocsMirrorDatasetInFlight = new Map<string, Promise<WorkspaceDocsMirrorEntry[]>>()
-const nextWorkspaceMirrorDebugTraceId = (label: string): string => `${label}:${Date.now()}:${workspaceMirrorDebugSequence += 1}`
-const nextFsWriteAbortDebugTraceId = (label: string): string => `${label}:${Date.now()}:${fsWriteAbortDebugSequence += 1}`
-const reportWorkspaceMirrorDebug = (args: {
+const nextWorkspaceMirrorTraceId = (label: string): string => `${label}:${Date.now()}:${workspaceMirrorTraceSequence += 1}`
+const reportWorkspaceMirrorTrace = (args: {
   hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
   traceId: string
   location: string
@@ -46,41 +44,9 @@ const reportWorkspaceMirrorDebug = (args: {
   })
 }
 // #endregion
-// #region debug-point A:fs-write-abort
-const FS_WRITE_ABORT_DEBUG_SERVER_URL = 'http://127.0.0.1:7778/event'
-const FS_WRITE_ABORT_DEBUG_SESSION_ID = 'fs-write-abort'
-const FS_WRITE_ABORT_DEBUG_RUN_ID: 'pre-fix' | 'post-fix' = 'post-fix'
 const isHiddenDocumentWriteSkipActive = (): boolean => {
   return typeof document !== 'undefined' && document.visibilityState === 'hidden'
 }
-const reportFsWriteAbortDebug = (args: {
-  runId: 'pre-fix' | 'post-fix'
-  hypothesisId: 'A' | 'B' | 'C' | 'D' | 'E'
-  traceId: string
-  location: string
-  msg: string
-  data?: Record<string, unknown>
-}): void => {
-  if (typeof fetch !== 'function') return
-  if (isHiddenDocumentWriteSkipActive()) return
-  void fetch(FS_WRITE_ABORT_DEBUG_SERVER_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: FS_WRITE_ABORT_DEBUG_SESSION_ID,
-      runId: FS_WRITE_ABORT_DEBUG_RUN_ID,
-      hypothesisId: args.hypothesisId,
-      traceId: args.traceId,
-      location: args.location,
-      msg: `[DEBUG] ${args.msg}`,
-      data: args.data || {},
-      ts: Date.now(),
-    }),
-  }).catch(() => {
-    void 0
-  })
-}
-// #endregion
 const cloneWorkspaceDocsMirrorEntries = (
   entries: ReadonlyArray<WorkspaceDocsMirrorEntry>,
 ): WorkspaceDocsMirrorEntry[] => {
@@ -934,13 +900,12 @@ const buildPublishedSeedRelPath = (relPath: string): string => {
 const writeTextViaLocalFsProxy = async (absolutePath: string, text: string): Promise<boolean> => {
   if (typeof window === 'undefined' || typeof fetch !== 'function') return false
   if (isHiddenDocumentWriteSkipActive()) return false
-  const traceId = nextFsWriteAbortDebugTraceId('write-text')
+  const traceId = nextWorkspaceMirrorTraceId('write-text')
   try {
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => {
       // #region debug-point D:fs-write-timeout
-      reportFsWriteAbortDebug({
-        runId: 'pre-fix',
+      reportWorkspaceMirrorTrace({
         hypothesisId: 'D',
         traceId,
         location: 'workspaceSeedProvider.ts:writeTextViaLocalFsProxy.timeout',
@@ -956,8 +921,7 @@ const writeTextViaLocalFsProxy = async (absolutePath: string, text: string): Pro
     }, 5000)
     try {
       // #region debug-point A:fs-write-start
-      reportFsWriteAbortDebug({
-        runId: 'pre-fix',
+      reportWorkspaceMirrorTrace({
         hypothesisId: 'A',
         traceId,
         location: 'workspaceSeedProvider.ts:writeTextViaLocalFsProxy.fetch',
@@ -975,8 +939,7 @@ const writeTextViaLocalFsProxy = async (absolutePath: string, text: string): Pro
         signal: controller.signal,
       })
       // #region debug-point B:fs-write-response
-      reportFsWriteAbortDebug({
-        runId: 'pre-fix',
+      reportWorkspaceMirrorTrace({
         hypothesisId: 'B',
         traceId,
         location: 'workspaceSeedProvider.ts:writeTextViaLocalFsProxy.response',
@@ -990,8 +953,7 @@ const writeTextViaLocalFsProxy = async (absolutePath: string, text: string): Pro
     }
   } catch (error) {
     // #region debug-point C:fs-write-catch
-    reportFsWriteAbortDebug({
-      runId: 'pre-fix',
+    reportWorkspaceMirrorTrace({
       hypothesisId: 'C',
       traceId,
       location: 'workspaceSeedProvider.ts:writeTextViaLocalFsProxy.catch',
@@ -1011,13 +973,12 @@ const writeTextViaLocalFsProxy = async (absolutePath: string, text: string): Pro
 const writeBytesViaLocalFsProxy = async (absolutePath: string, bytes: ArrayBuffer | Uint8Array): Promise<boolean> => {
   if (typeof window === 'undefined' || typeof fetch !== 'function') return false
   if (isHiddenDocumentWriteSkipActive()) return false
-  const traceId = nextFsWriteAbortDebugTraceId('write-bytes')
+  const traceId = nextWorkspaceMirrorTraceId('write-bytes')
   try {
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => {
       // #region debug-point D:fs-bytes-timeout
-      reportFsWriteAbortDebug({
-        runId: 'pre-fix',
+      reportWorkspaceMirrorTrace({
         hypothesisId: 'D',
         traceId,
         location: 'workspaceSeedProvider.ts:writeBytesViaLocalFsProxy.timeout',
@@ -1033,8 +994,7 @@ const writeBytesViaLocalFsProxy = async (absolutePath: string, bytes: ArrayBuffe
     }, 5000)
     try {
       // #region debug-point A:fs-bytes-start
-      reportFsWriteAbortDebug({
-        runId: 'pre-fix',
+      reportWorkspaceMirrorTrace({
         hypothesisId: 'A',
         traceId,
         location: 'workspaceSeedProvider.ts:writeBytesViaLocalFsProxy.fetch',
@@ -1053,8 +1013,7 @@ const writeBytesViaLocalFsProxy = async (absolutePath: string, bytes: ArrayBuffe
         signal: controller.signal,
       })
       // #region debug-point B:fs-bytes-response
-      reportFsWriteAbortDebug({
-        runId: 'pre-fix',
+      reportWorkspaceMirrorTrace({
         hypothesisId: 'B',
         traceId,
         location: 'workspaceSeedProvider.ts:writeBytesViaLocalFsProxy.response',
@@ -1068,8 +1027,7 @@ const writeBytesViaLocalFsProxy = async (absolutePath: string, bytes: ArrayBuffe
     }
   } catch (error) {
     // #region debug-point C:fs-bytes-catch
-    reportFsWriteAbortDebug({
-      runId: 'pre-fix',
+    reportWorkspaceMirrorTrace({
       hypothesisId: 'C',
       traceId,
       location: 'workspaceSeedProvider.ts:writeBytesViaLocalFsProxy.catch',
@@ -1148,13 +1106,12 @@ const shouldBlockDuplicateMirrorDocumentOverwrite = async (args: {
 const ensureFolderViaLocalFsProxy = async (absolutePath: string): Promise<boolean> => {
   if (typeof window === 'undefined' || typeof fetch !== 'function') return false
   if (isHiddenDocumentWriteSkipActive()) return false
-  const traceId = nextFsWriteAbortDebugTraceId('mkdir')
+  const traceId = nextWorkspaceMirrorTraceId('mkdir')
   try {
     const controller = new AbortController()
     const timeoutId = window.setTimeout(() => {
       // #region debug-point D:fs-mkdir-timeout
-      reportFsWriteAbortDebug({
-        runId: 'pre-fix',
+      reportWorkspaceMirrorTrace({
         hypothesisId: 'D',
         traceId,
         location: 'workspaceSeedProvider.ts:ensureFolderViaLocalFsProxy.timeout',
@@ -1170,8 +1127,7 @@ const ensureFolderViaLocalFsProxy = async (absolutePath: string): Promise<boolea
     }, 5000)
     try {
       // #region debug-point A:fs-mkdir-start
-      reportFsWriteAbortDebug({
-        runId: 'pre-fix',
+      reportWorkspaceMirrorTrace({
         hypothesisId: 'A',
         traceId,
         location: 'workspaceSeedProvider.ts:ensureFolderViaLocalFsProxy.fetch',
@@ -1189,8 +1145,7 @@ const ensureFolderViaLocalFsProxy = async (absolutePath: string): Promise<boolea
         signal: controller.signal,
       })
       // #region debug-point B:fs-mkdir-response
-      reportFsWriteAbortDebug({
-        runId: 'pre-fix',
+      reportWorkspaceMirrorTrace({
         hypothesisId: 'B',
         traceId,
         location: 'workspaceSeedProvider.ts:ensureFolderViaLocalFsProxy.response',
@@ -1204,8 +1159,7 @@ const ensureFolderViaLocalFsProxy = async (absolutePath: string): Promise<boolea
     }
   } catch (error) {
     // #region debug-point C:fs-mkdir-catch
-    reportFsWriteAbortDebug({
-      runId: 'pre-fix',
+    reportWorkspaceMirrorTrace({
       hypothesisId: 'C',
       traceId,
       location: 'workspaceSeedProvider.ts:ensureFolderViaLocalFsProxy.catch',
@@ -1358,10 +1312,10 @@ const readWorkspaceDocsMirrorEntriesViaProxy = async (
   return readCachedConfiguredDocsMirrorEntries({
     cacheKey: docsAbsRoot,
     load: async () => {
-      const traceId = nextWorkspaceMirrorDebugTraceId('proxy')
+      const traceId = nextWorkspaceMirrorTraceId('proxy')
       const startedAtMs = Date.now()
       // #region debug-point B:workspace-mirror-proxy-start
-      reportWorkspaceMirrorDebug({
+      reportWorkspaceMirrorTrace({
         hypothesisId: 'B',
         traceId,
         location: 'workspaceSeedProvider.ts:readWorkspaceDocsMirrorEntriesViaProxy:start',
@@ -1383,7 +1337,7 @@ const readWorkspaceDocsMirrorEntriesViaProxy = async (
         })
         if (!response.ok) {
           // #region debug-point C:workspace-mirror-proxy-non-ok
-          reportWorkspaceMirrorDebug({
+          reportWorkspaceMirrorTrace({
             hypothesisId: 'C',
             traceId,
             location: 'workspaceSeedProvider.ts:readWorkspaceDocsMirrorEntriesViaProxy:non-ok',
@@ -1403,7 +1357,7 @@ const readWorkspaceDocsMirrorEntriesViaProxy = async (
         }
         if (json.ok !== true || !Array.isArray(json.files)) {
           // #region debug-point C:workspace-mirror-proxy-invalid-json
-          reportWorkspaceMirrorDebug({
+          reportWorkspaceMirrorTrace({
             hypothesisId: 'C',
             traceId,
             location: 'workspaceSeedProvider.ts:readWorkspaceDocsMirrorEntriesViaProxy:invalid-json',
@@ -1431,7 +1385,7 @@ const readWorkspaceDocsMirrorEntriesViaProxy = async (
           })
         }
         // #region debug-point D:workspace-mirror-proxy-success
-        reportWorkspaceMirrorDebug({
+        reportWorkspaceMirrorTrace({
           hypothesisId: 'D',
           traceId,
           location: 'workspaceSeedProvider.ts:readWorkspaceDocsMirrorEntriesViaProxy:success',
@@ -1446,7 +1400,7 @@ const readWorkspaceDocsMirrorEntriesViaProxy = async (
         return out
       } catch (error: unknown) {
         // #region debug-point E:workspace-mirror-proxy-error
-        reportWorkspaceMirrorDebug({
+        reportWorkspaceMirrorTrace({
           hypothesisId: 'E',
           traceId,
           location: 'workspaceSeedProvider.ts:readWorkspaceDocsMirrorEntriesViaProxy:error',
@@ -1541,11 +1495,11 @@ const readWorkspaceDocsMirrorEntriesFromDefaultSourceUrl = async (
 export async function readWorkspaceInitializationDocsMirrorEntries(args?: {
   preferCompleteDataset?: boolean
 }): Promise<WorkspaceDocsMirrorEntry[]> {
-  const preferCompleteDataset = args?.preferCompleteDataset === true, traceId = nextWorkspaceMirrorDebugTraceId('bootstrap')
+  const preferCompleteDataset = args?.preferCompleteDataset === true, traceId = nextWorkspaceMirrorTraceId('bootstrap')
   const completeDatasetCandidates: WorkspaceDocsMirrorEntry[][] = [], defaultSourceUrl = readWorkspaceImportDefaultSourceUrlSetting()
   const defaultSourceUrlIsGitHub = isWorkspaceDocsMirrorGitHubSourceUrl(defaultSourceUrl), repoLocalRunReady = isWorkspaceRepoLocalRunReadyBootstrap()
   // #region debug-point A:workspace-mirror-bootstrap-entry
-  reportWorkspaceMirrorDebug({
+  reportWorkspaceMirrorTrace({
     hypothesisId: 'A',
     traceId,
     location: 'workspaceSeedProvider.ts:readWorkspaceInitializationDocsMirrorEntries:entry',
