@@ -71,7 +71,7 @@ const readKnowgrphAgentReadyBaseUrl = (): string => {
   if (configuredBaseUrl) return configuredBaseUrl.replace(/\/+$/, '')
   if (typeof window !== 'undefined') {
     const currentOrigin = normalizeString(window.location?.origin)
-    if (currentOrigin && !isBareLocalhostOrigin(currentOrigin)) {
+    if (currentOrigin && (isWorkspaceRepoLocalRunReadyBootstrap() || !isBareLocalhostOrigin(currentOrigin))) {
       return new URL('/knowgrph/', currentOrigin.endsWith('/') ? currentOrigin : `${currentOrigin}/`)
         .toString()
         .replace(/\/+$/, '')
@@ -284,6 +284,7 @@ let remoteGrammarSourceRevision = ''
 let remoteGrammarHydrationStatus: AgenticOsRemoteGrammarHydrationStatus = 'idle'
 let remoteGrammarHydrationAttempts = 0
 let remoteGrammarHydrationError = ''
+let remoteGrammarHydrationEpoch = 0
 let remoteGrammarSuccessfulSigils = new Map<AgenticOsRemoteGrammarSigil, string>()
 let remoteGrammarLiveAgentProviderProof = emptyLiveProviderProof()
 let remoteGrammarProgressiveAgentsReadiness = emptyProgressiveAgentsReadiness()
@@ -299,6 +300,8 @@ let remoteGrammarSnapshot: AgenticOsRemoteGrammarSnapshot = {
 }
 const remoteGrammarListeners = new Set<() => void>()
 const remoteGrammarHydrationPromises = new Map<string, Promise<readonly AgenticOsRemoteGrammarCatalogEntry[]>>()
+let sharedAgenticOsRemoteGrammarClient = createAgenticOsRemoteGrammarClient()
+const beginRemoteGrammarHydrationCycle = () => { remoteGrammarHydrationEpoch += 1; sharedAgenticOsRemoteGrammarClient = createAgenticOsRemoteGrammarClient(); remoteGrammarHydrationPromises.clear() }
 
 const countRemoteGrammarEntries = (entries: readonly AgenticOsRemoteGrammarCatalogEntry[]): AgenticOsRemoteGrammarCatalogCounts => entries.reduce((counts, entry) => {
   const sigil = normalizeSigil(entry.token)
@@ -370,7 +373,7 @@ export function registerAgenticOsRemoteGrammarCatalogEntries(
 }
 
 export function resetAgenticOsRemoteGrammarCatalogForTests(): void {
-  remoteGrammarHydrationPromises.clear()
+  beginRemoteGrammarHydrationCycle()
   remoteGrammarEntriesByToken = new Map()
   remoteGrammarSourceRevision = ''
   remoteGrammarHydrationStatus = 'idle'
@@ -381,7 +384,6 @@ export function resetAgenticOsRemoteGrammarCatalogForTests(): void {
   remoteGrammarProgressiveAgentsReadiness = emptyProgressiveAgentsReadiness()
   emitRemoteGrammarSnapshot()
 }
-
 export function subscribeAgenticOsRemoteGrammarCatalog(listener: () => void): () => void {
   remoteGrammarListeners.add(listener)
   return () => remoteGrammarListeners.delete(listener)
@@ -397,14 +399,12 @@ export function useAgenticOsRemoteGrammarCatalog(args: {
     getAgenticOsRemoteGrammarCatalogSnapshot,
   )
   useEffect(() => {
-    // Dedicated repo-local demos must remain usable without a control-plane service.
-    if (isWorkspaceRepoLocalRunReadyBootstrap()) return
-    const sigils = (args.sigils || []).filter((value, index, values) => REMOTE_GRAMMAR_SIGIL_ORDER.includes(value) && values.indexOf(value) === index)
+    const sigils = sigilSignature.split(',').filter((value, index, values) => REMOTE_GRAMMAR_SIGIL_ORDER.includes(value as AgenticOsRemoteGrammarSigil) && values.indexOf(value) === index) as AgenticOsRemoteGrammarSigil[]
     if (sigils.length === 0) return
     sigils.forEach(sigil => {
       void primeAgenticOsRemoteGrammarCatalogBySigil(sigil)
     })
-  }, [args.sigils, sigilSignature])
+  }, [sigilSignature])
   return snapshot
 }
 
@@ -512,13 +512,12 @@ export function createAgenticOsRemoteGrammarClient(options: AgenticOsRemoteGramm
     },
   }
 }
-
-const sharedAgenticOsRemoteGrammarClient = createAgenticOsRemoteGrammarClient()
-
 export async function fetchAgenticOsRemoteGrammarCatalog(
   args: { query: string, signal?: AbortSignal },
 ): Promise<AgenticOsRemoteGrammarCatalogEntry[]> {
-  const payload = await sharedAgenticOsRemoteGrammarClient.searchCatalogSnapshot(args.query, { signal: args.signal })
+  const hydrationEpoch = remoteGrammarHydrationEpoch, client = sharedAgenticOsRemoteGrammarClient
+  const payload = await client.searchCatalogSnapshot(args.query, { signal: args.signal })
+  if (hydrationEpoch !== remoteGrammarHydrationEpoch) return []
   if (!/^[0-9a-f]{40}$/.test(payload.sourceRevision)) {
     throw new Error('Agentic OS remote grammar response is missing an exact docs revision')
   }
@@ -559,26 +558,28 @@ export async function primeAgenticOsRemoteGrammarCatalogBySigil(
   if (!options.force && remoteGrammarSourceRevision && remoteGrammarSuccessfulSigils.get(sigil) === remoteGrammarSourceRevision) {
     return remoteGrammarSnapshot.entries.filter(entry => normalizeSigil(entry.token) === sigil)
   }
-  const cacheKey = `${remoteGrammarSourceRevision || 'unresolved'}:${sigil}`
-  if (!remoteGrammarHydrationPromises.has(cacheKey) || options.force) {
+  const hydrationEpoch = remoteGrammarHydrationEpoch, cacheKey = `${hydrationEpoch}:${sigil}`
+  if (!remoteGrammarHydrationPromises.has(cacheKey)) {
     const promise = (async () => {
       remoteGrammarHydrationStatus = 'loading'
       remoteGrammarHydrationError = ''
       emitRemoteGrammarSnapshot()
       for (let attempt = 1; attempt <= 2; attempt += 1) {
+        if (hydrationEpoch !== remoteGrammarHydrationEpoch) return []
         remoteGrammarHydrationAttempts = Math.max(remoteGrammarHydrationAttempts, attempt)
         try {
           return await fetchAgenticOsRemoteGrammarCatalog({ query: sigil })
         } catch (error) {
-          if (error instanceof DOMException && error.name === 'AbortError') return []
+          if (hydrationEpoch !== remoteGrammarHydrationEpoch || (error instanceof DOMException && error.name === 'AbortError')) return []
           remoteGrammarHydrationError = error instanceof Error ? error.message : 'Agentic OS catalog hydration failed'
         }
       }
+      if (hydrationEpoch !== remoteGrammarHydrationEpoch) return []
       remoteGrammarHydrationStatus = remoteGrammarSnapshot.entries.length > 0 ? 'stale' : 'blocked'
       emitRemoteGrammarSnapshot()
       return []
     })().finally(() => {
-      remoteGrammarHydrationPromises.delete(cacheKey)
+      if (remoteGrammarHydrationPromises.get(cacheKey) === promise) remoteGrammarHydrationPromises.delete(cacheKey)
     })
     remoteGrammarHydrationPromises.set(cacheKey, promise)
   }
@@ -587,7 +588,7 @@ export async function primeAgenticOsRemoteGrammarCatalogBySigil(
 }
 
 export async function refreshAgenticOsRemoteGrammarCatalog(): Promise<AgenticOsRemoteGrammarSnapshot> {
-  remoteGrammarHydrationPromises.clear()
+  beginRemoteGrammarHydrationCycle()
   remoteGrammarSuccessfulSigils = new Map()
   remoteGrammarHydrationAttempts = 0
   remoteGrammarHydrationError = ''

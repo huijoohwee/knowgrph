@@ -5,6 +5,7 @@ import { applyCanvasFrontmatterPreset } from '@/features/parsers/canvasFrontmatt
 import { readMediaCatalogMode, setMediaCatalogMode } from '@/features/command-menu/mediaCatalogModeRuntime'
 import {
   activateXrSceneSurface,
+  resolveXrSurfaceEntryPanelView,
   XR_SCENE_FLOATING_PANEL_VIEWS,
 } from '@/features/three/xrSceneSurfaceRuntime'
 import { useGraphStore } from '@/hooks/useGraphStore'
@@ -40,6 +41,20 @@ function readSource(relativePath: string): string {
 export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
   if (normalizeCanvas3dMode('xr') !== 'xr') {
     throw new Error('Expected XR Mode to normalize as a first-class 3D canvas mode')
+  }
+  const entryPanelCases = [
+    { floatingPanelOpen: true, floatingPanelView: 'skillsCommands', expected: undefined },
+    { floatingPanelOpen: true, floatingPanelView: 'media', expected: 'media' },
+    { floatingPanelOpen: true, floatingPanelView: 'camera', expected: 'camera' },
+    { floatingPanelOpen: true, floatingPanelView: 'gameMode', expected: 'motionControl' },
+    { floatingPanelOpen: false, floatingPanelView: 'skillsCommands', expected: 'motionControl' },
+    { floatingPanelOpen: true, floatingPanelView: 'help', expected: 'motionControl' },
+  ] as const
+  for (const entryCase of entryPanelCases) {
+    const resolved = resolveXrSurfaceEntryPanelView(entryCase)
+    if (resolved !== entryCase.expected) {
+      throw new Error(`Expected XR entry panel ${entryCase.floatingPanelView}/${entryCase.floatingPanelOpen} to resolve ${String(entryCase.expected)}, got ${String(resolved)}`)
+    }
   }
 
   const rawSurfaceCalls: string[] = []
@@ -82,6 +97,17 @@ export function testXrModeNormalizesAndCanvasViewSelectionActivatesSurface() {
   const previous = useGraphStore.getState()
   const previousMediaMode = readMediaCatalogMode()
   try {
+    useGraphStore.setState({
+      canvasRenderMode: '2d',
+      canvas3dMode: '3d',
+      floatingPanelOpen: true,
+      floatingPanelView: 'skillsCommands',
+    })
+    const skillsEntryPanel = resolveXrSurfaceEntryPanelView(useGraphStore.getState())
+    if (!activateXrSceneSurface({ panelView: skillsEntryPanel, openPanel: true, timeline: true })
+      || useGraphStore.getState().floatingPanelView !== 'skillsCommands') {
+      throw new Error('Expected Surface Mode to XR Mode to preserve the open Skills & Commands operator panel')
+    }
     for (const panelView of XR_SCENE_FLOATING_PANEL_VIEWS) {
       useGraphStore.setState({
         canvasRenderMode: '2d',
@@ -237,8 +263,7 @@ export function testCanvasSurfaceMode3dSelectionUsesSharedOwner() {
     || !xrDelegationBranch.includes("onOpenShared3dPanel?.('xr')")
     || !xrDelegationBranch.includes('return')
     || /set(?:Canvas|Floating|Bottom|Media)/.test(xrDelegationBranch)
-    || !xrPanelBranch.includes('XR_SCENE_FLOATING_PANEL_VIEWS.find')
-    || !xrPanelBranch.includes("currentXrView !== 'gameMode'")
+    || !xrPanelBranch.includes('resolveXrSurfaceEntryPanelView(current)')
     || !xrPanelBranch.includes("activateXrSceneSurface({ panelView, openPanel: true, timeline: true })")
     || /set(?:Canvas|Floating|Bottom|Media)/.test(xrPanelBranch)
     || !canvas2dRendererSelectText.includes('if (!state.floatingPanelOpen)')) {
@@ -328,6 +353,7 @@ export function testXrSceneSurfaceOwnershipSourceBoundaries() {
   const surfaceOwnership = readSource('lib/canvas/canvasSurfaceOwnershipRuntime.ts')
   if (!['media', 'animation', 'motionControl', 'gameMode', 'camera'].every(view => surfaceRuntime.includes(`'${view}'`))
     || !surfaceRuntime.includes('activateCanvasGraphSurfaceMode')
+    || !surfaceRuntime.includes("input.floatingPanelView === 'skillsCommands'")
     || !surfaceRuntime.includes('registerXrSceneGameModeExitHandler')
     || !toolbar.includes('routeToolbarXrScenePanel({ view, canvasRenderMode, canvas3dMode })')
     || !toolbarRouting.includes('XR_SCENE_FLOATING_PANEL_VIEWS.find')
@@ -351,7 +377,7 @@ export function testXrSceneSurfaceOwnershipSourceBoundaries() {
   const canvasXrSelection = canvasXrSelectionStart >= 0 && canvasPlain3dSelectionStart > canvasXrSelectionStart
     ? rendererSelect.slice(canvasXrSelectionStart, canvasPlain3dSelectionStart)
     : ''
-  if (!canvasXrSelection.includes('XR_SCENE_FLOATING_PANEL_VIEWS.find')
+  if (!canvasXrSelection.includes('resolveXrSurfaceEntryPanelView(current)')
     || !canvasXrSelection.includes("activateXrSceneSurface({ panelView, openPanel: true, timeline: true })")
     || /set(?:Canvas|Floating|Bottom|Media)/.test(canvasXrSelection)) {
     throw new Error('expected Canvas View XR selection to invoke the shared scene owner without a raw surface setter variant')
