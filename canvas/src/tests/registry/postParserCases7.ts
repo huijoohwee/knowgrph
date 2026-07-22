@@ -221,4 +221,5 @@ export const TEST_CASES_POST_PARSER_7: TestCaseTuple[] = [
   ["workspace.docsMirror.localRoots.agenticFallback","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceDocsMirrorLocalRootsPromotesAgenticFallbackWhenPrimaryRootIsAbsent"],
   ["workspace.docsMirror.localRoots.githubUnavailable","@/__tests__/workspaceAgenticOsDocsSourceRoot.test","testWorkspaceSeedProviderUsesLocalAgenticDocsWhenGitHubIsUnavailable"],
   ["workspace.selection.switch.pendingUsesExplorerSourceAuthority","@/__tests__/sourceFilesSwitchingFlowLayout.test","testSourceFilesPendingSwitchUsesExplorerSourceAuthority"],
+  ["workspace.selection.switch.graphActivationFitTargetsDocument","@/__tests__/sourceFilesSwitchingFlowLayout.test","testSourceFilesGraphActivationFitWaitsForMatchingDocument"],
 ]
