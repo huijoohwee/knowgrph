@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv";
 
 import {
@@ -11,6 +15,7 @@ import {
   authorizeExternalToolAction,
   computeExternalToolActionDigest,
   createExternalToolApprovalToken,
+  verifyExternalToolApproval,
 } from "./external-tool-approval.js";
 import {
   ExternalToolProfileConfigError,
@@ -24,7 +29,19 @@ const MAX_TOOL_LIST_PAGES = 10;
 const MAX_TOOL_LIST_COUNT = 500;
 const MAX_JSON_DEPTH = 12;
 const MAX_JSON_NODES = 6_000;
+const MAX_APPROVAL_RESERVATIONS = 1_000;
+const MAX_CONSUMED_APPROVALS = 10_000;
 const canonicalArtifactValidator = new AjvJsonSchemaValidator().getValidator(EXTERNAL_TOOL_CANONICAL_ARTIFACT_SCHEMA);
+const sourceDigest = (relativePaths) => {
+  const hash = createHash("sha256");
+  for (const relativePath of relativePaths) hash.update(relativePath).update("\0").update(readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)))).update("\0");
+  return hash.digest("hex");
+};
+export const EXTERNAL_TOOL_GATEWAY_OWNER_EVIDENCE = Object.freeze({
+  ownerId: "knowgrph.external-tool-gateway",
+  implementationRevision: "1.0.0",
+  implementationDigest: sourceDigest(["./external-tool-gateway-runtime.js", "./external-tool-gateway-contract.js", "./external-tool-profile-registry.js", "./external-tool-approval.js", "./external-tool-session.js"]),
+});
 
 class ExternalToolGatewayError extends Error {
   constructor(code, message, actionDigest = "") {
@@ -38,6 +55,18 @@ class ExternalToolGatewayError extends Error {
 const readLimit = (value, fallback, max) => {
   const parsed = Number(value);
   return Number.isInteger(parsed) ? Math.max(1, Math.min(max, parsed)) : fallback;
+};
+const combineAbortSignals = (...signals) => {
+  const active = signals.filter((signal) => signal && typeof signal.addEventListener === "function");
+  if (active.length === 1) return { signal: active[0], dispose: () => {} };
+  const controller = new AbortController();
+  const listeners = [];
+  for (const signal of active) {
+    const abort = () => { if (!controller.signal.aborted) controller.abort(signal.reason); };
+    if (signal.aborted) abort();
+    else { signal.addEventListener("abort", abort, { once: true }); listeners.push([signal, abort]); }
+  }
+  return { signal: controller.signal, dispose: () => { for (const [signal, abort] of listeners) signal.removeEventListener("abort", abort); } };
 };
 
 const assertBoundedJson = (value) => {
@@ -201,9 +230,15 @@ const toFailure = (error, fallbackDigest = "") => {
     "approval_expired",
     "approval_invalid_signature",
     "approval_consumed",
+    "approval_reserved",
+    "approval_reservations_full",
+    "approval_ledger_full",
     "approval_not_configured",
+    "dispatch_marker_required",
     "capability_not_found",
     "capability_revision_mismatch",
+    "integration_profile_drift",
+    "integration_not_replay_safe",
     "idempotency_conflict",
     "invalid_artifact",
     "invalid_workspace_path",
@@ -226,10 +261,22 @@ export function createExternalToolGatewayRuntime(options = {}) {
   const env = options.env || process.env;
   const registry = options.registry || loadExternalToolProfileRegistry({ env });
   const approvalSecret = options.approvalSecret ?? env[EXTERNAL_MCP_APPROVAL_SECRET_ENV];
-  const consumedTokenIds = options.consumedTokenIds || new Set();
-  const receiptCache = options.receiptCache || new Map();
+  const consumedTokenIds = typeof options.consumedTokenIds === "undefined" ? new Set() : options.consumedTokenIds;
+  const consumedTokenExpiries = typeof options.consumedTokenExpiries === "undefined" ? new Map() : options.consumedTokenExpiries;
+  const maxConsumedTokenIds = options.maxConsumedTokenIds ?? MAX_CONSUMED_APPROVALS;
+  const approvalReservations = typeof options.approvalReservations === "undefined" ? new Set() : options.approvalReservations;
+  const maxApprovalReservations = options.maxApprovalReservations ?? MAX_APPROVAL_RESERVATIONS;
+  if (!(consumedTokenIds instanceof Set) || !(consumedTokenExpiries instanceof Map) || !Number.isInteger(maxConsumedTokenIds) || maxConsumedTokenIds < 1 || maxConsumedTokenIds > 100_000 || consumedTokenIds.size > maxConsumedTokenIds || consumedTokenExpiries.size > maxConsumedTokenIds || [...consumedTokenExpiries].some(([tokenId, expiresAt]) => !consumedTokenIds.has(tokenId) || typeof tokenId !== "string" || tokenId.length < 16 || tokenId.length > 128 || !Number.isInteger(expiresAt))) throw new TypeError("External consumed approval ledger bounds are invalid.");
+  if (!(approvalReservations instanceof Set) || approvalReservations.size > maxApprovalReservations || !Number.isInteger(maxApprovalReservations) || maxApprovalReservations < 1 || maxApprovalReservations > 10_000) throw new TypeError("External approval reservation bounds are invalid.");
+  const receiptCache = typeof options.receiptCache === "undefined" ? new Map() : options.receiptCache;
   const createSession = options.createSession || ((profile, sessionOptions) => createExternalToolSession(profile, sessionOptions));
+  if (!(receiptCache instanceof Map) || typeof createSession !== "function") throw new TypeError("External gateway host ledgers and session owner are invalid.");
   const now = options.now;
+  const readNow = () => { const value = typeof now === "function" ? now() : typeof now === "undefined" ? Date.now() : now; if (!Number.isFinite(value)) throw new TypeError("External gateway clock must return epoch milliseconds."); return Math.floor(value); };
+  const pruneConsumedApprovals = () => {
+    const nowMs = readNow();
+    for (const [tokenId, expiresAt] of consumedTokenExpiries) if (expiresAt <= nowMs) { consumedTokenExpiries.delete(tokenId); consumedTokenIds.delete(tokenId); }
+  };
 
   const listCapabilities = (args = {}, query = "") => {
     const artifactKinds = new Set(Array.isArray(args.artifactKinds) ? args.artifactKinds : []);
@@ -251,6 +298,30 @@ export function createExternalToolGatewayRuntime(options = {}) {
     }
     return capability;
   };
+  const projectApplicationIntegration = (capability) => Object.freeze({
+    integrationProfileId: `kgip_${hashExternalToolValue({ id: capability.profile.id }).slice(0, 32)}`,
+    integrationProfileRevision: hashExternalToolValue(capability.profile),
+    capabilityId: capability.capabilityId,
+    capabilityRevision: capability.capabilityRevision,
+    schemaDigest: capability.tool.upstreamInputSchemaDigest,
+    artifactKind: capability.artifactKind,
+    approvalRequired: true,
+    replay: capability.tool.idempotencyArgumentName ? "idempotency-key" : "unsupported",
+  });
+  const listApplicationIntegrations = () => Object.freeze(registry.capabilities.map(projectApplicationIntegration).sort((left, right) => left.capabilityId < right.capabilityId ? -1 : left.capabilityId > right.capabilityId ? 1 : 0));
+  const resolveApplicationIntegration = (config = {}) => {
+    try {
+      const capability = resolveCapability(config.capabilityId, config.capabilityRevision);
+      const evidence = projectApplicationIntegration(capability);
+      if (evidence.integrationProfileId !== config.integrationProfileId || evidence.integrationProfileRevision !== config.integrationProfileRevision) throw new ExternalToolGatewayError("integration_profile_drift", "The opaque integration profile changed; replan explicitly.");
+      if (evidence.replay !== "idempotency-key") throw new ExternalToolGatewayError("integration_not_replay_safe", "External application execution requires an upstream idempotency binding.");
+      return { ok: true, evidence };
+    } catch (error) { return toFailure(error); }
+  };
+  const validateApplicationArtifact = (artifact) => {
+    try { const normalized = validateCanonicalArtifact(artifact); return { ok: true, artifactDigest: hashExternalToolValue(normalized) }; }
+    catch (error) { return toFailure(error); }
+  };
 
   const prepareCall = (args) => {
     const capability = resolveCapability(args.capabilityId, args.capabilityRevision);
@@ -266,9 +337,11 @@ export function createExternalToolGatewayRuntime(options = {}) {
     return { capability, artifact, idempotencyKey, actionDigest };
   };
 
-  const call = async (args = {}) => {
+  const call = async (args = {}, internalContext = {}) => {
     let actionDigest = "";
     let session = null;
+    let reservedTokenId = "";
+    let detachSignals = () => {};
     try {
       const prepared = prepareCall(args);
       ({ actionDigest } = prepared);
@@ -278,7 +351,18 @@ export function createExternalToolGatewayRuntime(options = {}) {
         if (cached.actionDigest !== actionDigest) throw new ExternalToolGatewayError("idempotency_conflict", "idempotencyKey is already bound to a different external artifact action.", actionDigest);
         return { ok: true, cached: true, actionDigest, receipt: cached.receipt };
       }
-      const deadlineSignal = AbortSignal.timeout(prepared.capability.profile.transport.timeoutMs);
+      if (typeof internalContext.markSideEffectDispatched !== "function") throw new ExternalToolGatewayError("dispatch_marker_required", "External mutation requires a host dispatch marker.", actionDigest);
+      pruneConsumedApprovals();
+      const verifiedApproval = verifyExternalToolApproval({ token: args.approvalToken, secret: approvalSecret, actionDigest, consumedTokenIds, now });
+      if (consumedTokenIds.size >= maxConsumedTokenIds) throw new ExternalToolGatewayError("approval_ledger_full", "The bounded consumed-approval ledger is full.", actionDigest);
+      if (approvalReservations.has(verifiedApproval.tokenId)) throw new ExternalToolGatewayError("approval_reserved", "Approval token is already reserved by an in-flight external action.", actionDigest);
+      if (approvalReservations.size >= maxApprovalReservations) throw new ExternalToolGatewayError("approval_reservations_full", "The bounded approval reservation ledger is full.", actionDigest);
+      approvalReservations.add(verifiedApproval.tokenId);
+      reservedTokenId = verifiedApproval.tokenId;
+      const combined = combineAbortSignals(AbortSignal.timeout(prepared.capability.profile.transport.timeoutMs), args.signal);
+      const deadlineSignal = combined.signal;
+      detachSignals = combined.dispose;
+      deadlineSignal.throwIfAborted();
       session = await createSession(prepared.capability.profile, { env, signal: deadlineSignal });
       const liveTools = await listAllTools(session);
       const liveTool = liveTools.find((tool) => tool?.name === prepared.capability.tool.name);
@@ -288,13 +372,18 @@ export function createExternalToolGatewayRuntime(options = {}) {
       }
       const upstreamArguments = mapArtifactToUpstreamArguments(prepared.capability, prepared.artifact, prepared.idempotencyKey);
       validateAgainstSchema(liveTool.inputSchema, upstreamArguments, "upstream_arguments_invalid", "Mapped external MCP arguments are invalid");
-      authorizeExternalToolAction({
+      deadlineSignal.throwIfAborted();
+      pruneConsumedApprovals();
+      if (consumedTokenIds.size >= maxConsumedTokenIds) throw new ExternalToolGatewayError("approval_ledger_full", "The bounded consumed-approval ledger is full.", actionDigest);
+      const authorization = authorizeExternalToolAction({
         token: args.approvalToken,
         secret: approvalSecret,
         actionDigest,
         consumedTokenIds,
         now,
       });
+      consumedTokenExpiries.set(authorization.tokenId, Number(args.approvalToken.expiresAt));
+      if (typeof internalContext.markSideEffectDispatched === "function") internalContext.markSideEffectDispatched(actionDigest);
       const result = await session.callTool(prepared.capability.tool.name, upstreamArguments);
       if (result?.isError === true) throw new ExternalToolGatewayError("upstream_tool_error", "External MCP tool returned an error without exposing raw provider output.", actionDigest);
       const receipt = buildSanitizedReceipt({ ...prepared, result });
@@ -303,7 +392,9 @@ export function createExternalToolGatewayRuntime(options = {}) {
     } catch (error) {
       return toFailure(error, actionDigest);
     } finally {
-      await session?.close?.().catch(() => undefined);
+      detachSignals();
+      if (reservedTokenId) approvalReservations.delete(reservedTokenId);
+      try { Promise.resolve(session?.close?.()).catch(() => undefined); } catch { /* Cleanup cannot delay or replace the authoritative mutation result. */ }
     }
   };
 
@@ -329,11 +420,15 @@ export function createExternalToolGatewayRuntime(options = {}) {
         return toFailure(error);
       }
     }
-    if (toolName === EXTERNAL_TOOL_GATEWAY_TOOL_NAMES.call) return call(args);
+    if (toolName === EXTERNAL_TOOL_GATEWAY_TOOL_NAMES.call) return call(args, { markSideEffectDispatched: () => {} });
     throw new ExternalToolGatewayError("unknown_gateway_tool", "Unknown external MCP gateway tool.");
   };
 
   return Object.freeze({
+    ownerEvidence: EXTERNAL_TOOL_GATEWAY_OWNER_EVIDENCE,
+    listApplicationIntegrations,
+    resolveApplicationIntegration,
+    validateApplicationArtifact,
     catalog: (args) => listCapabilities(args),
     search: (args) => listCapabilities(args, args?.query),
     describe: (args) => run(EXTERNAL_TOOL_GATEWAY_TOOL_NAMES.describe, args),
@@ -345,8 +440,12 @@ export function createExternalToolGatewayRuntime(options = {}) {
 
 let defaultRuntime;
 
+export function getExternalToolGatewayRuntime() {
+  defaultRuntime ||= createExternalToolGatewayRuntime();
+  return defaultRuntime;
+}
+
 export async function runExternalToolGatewayTool(toolName, args = {}) {
   if (!isExternalToolGatewayToolName(toolName)) throw new ExternalToolGatewayError("unknown_gateway_tool", "Unknown external MCP gateway tool.");
-  defaultRuntime ||= createExternalToolGatewayRuntime();
-  return defaultRuntime.run(toolName, args);
+  return getExternalToolGatewayRuntime().run(toolName, args);
 }

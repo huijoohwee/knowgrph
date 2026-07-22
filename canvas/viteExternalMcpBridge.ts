@@ -28,7 +28,7 @@ type GatewayCapability = {
 type GatewayRuntime = {
   catalog: (args: { artifactKinds: string[]; limit: number }) => { ok: boolean; capabilities?: GatewayCapability[] }
   createApprovalToken: (args: Record<string, unknown>, options: { tokenId: string }) => Record<string, unknown>
-  call: (args: Record<string, unknown>) => Promise<Record<string, unknown>>
+  call: (args: Record<string, unknown>, context: { markSideEffectDispatched: (actionDigest: string) => void }) => Promise<Record<string, unknown>>
 }
 
 type PendingAction = {
@@ -90,6 +90,18 @@ const readGatewayError = (result: Record<string, unknown>): string => {
     ? result.error as { message?: unknown }
     : null
   return String(error?.message || 'External MCP invocation failed.').slice(0, 640)
+}
+
+export const invokeApprovedGatewayCall = async (runtime: Pick<GatewayRuntime, 'call'>, args: Record<string, unknown>, expectedActionDigest: string): Promise<Record<string, unknown>> => {
+  let dispatched = false
+  const result = await runtime.call(args, {
+    markSideEffectDispatched: actionDigest => {
+      if (actionDigest !== expectedActionDigest) throw new Error('External MCP dispatch digest changed after approval.')
+      dispatched = true
+    },
+  })
+  if (result.ok === true && result.cached !== true && !dispatched) throw new Error('External MCP gateway returned an unconfirmed mutation result.')
+  return result
 }
 
 export function createExternalMcpBridgePlugin(args?: { runtime?: GatewayRuntime }): Plugin {
@@ -173,7 +185,7 @@ export function createExternalMcpBridgePlugin(args?: { runtime?: GatewayRuntime 
             return writeJson(response, 403, { ok: false, error: 'External MCP approval is missing, expired, or does not match this action.' })
           }
           pending.delete(opaqueToken)
-          const result = await runtime.call({ ...action.callArgs, approvalToken: action.approvalToken })
+          const result = await invokeApprovedGatewayCall(runtime, { ...action.callArgs, approvalToken: action.approvalToken }, action.actionDigest)
           if (result.ok !== true) return writeJson(response, 502, { ok: false, error: readGatewayError(result) })
           const receipt = result.receipt && typeof result.receipt === 'object' && !Array.isArray(result.receipt)
             ? result.receipt as Record<string, unknown>

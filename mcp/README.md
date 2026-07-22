@@ -30,7 +30,7 @@ It is intentionally distinct from the other shipped Knowgrph MCP-ready surfaces:
    - Owners:
      - `mcp/server.js`
      - `mcp/local-tool-contract.js`
-   - Scope: read-only published Source Files retrieval, Agentic Canvas OS docs `/` `#` `@` invocation lookup, prompt/resource/template discovery, local UI launch, local pipelines, a private Dev-only KGC-backed ECS session runtime, local superagent harness, deny-first sandbox policy validation and authorization preflight, approval-gated video-remix run manifests, local browser API bridge, SEA-LION sidecar calls, HTML video rendering, visual annotation, scoped memory, local probe-tree branching, AI Showrunner dry-runs, zero-token OS status, vdeoxpln registry inspection, and credential-gated Google/Microsoft spreadsheet or slide publication
+   - Scope: read-only published Source Files retrieval, Agentic Canvas OS docs `/` `#` `@` invocation lookup, prompt/resource/template discovery, local UI launch, local pipelines, exact application catalog/plan/execute composition, a private Dev-only KGC-backed ECS session runtime, local superagent harness, deny-first sandbox policy validation and authorization preflight, approval-gated video-remix run manifests, local browser API bridge, SEA-LION sidecar calls, HTML video rendering, visual annotation, scoped memory, local probe-tree branching, AI Showrunner dry-runs, zero-token OS status, vdeoxpln registry inspection, and credential-gated Google/Microsoft spreadsheet or slide publication
    - Transport: stdio only
    - MCP Apps metadata: advertises the shared `ui://knowgrph/agent-ready` resource, no-auth `securitySchemes`, mirrored `_meta.securitySchemes` for UI-linked tools, and widget-accessibility metadata from the shared contract
 
@@ -84,6 +84,8 @@ Canonical local tool inventory owner:
 - `mcp/local-tool-contract.js`
 
 Managed autonomous implementation runs are configured and operated through the four `knowgrph.implementation_run.*` tools. Required host registries, invocation examples, revision-fenced controls, delivery semantics, and the trusted-runner/no-kernel-isolation boundary are documented in `docs/managed-implementation-runs.md`.
+
+Provider-neutral agent and LLM applications use the exact host invocation `/application.compose #application-composition @application-manifest @component-catalog @integration-profile @runtime-proof`. `knowgrph.application.catalog` returns authoring schemas and sanitized exact runtime evidence, `knowgrph.application.plan` creates an immutable mode-bound zero-call plan, and `knowgrph.application.execute` replans and delegates bounded steps to existing owners. Live external authorization is host-injected and never accepted as an MCP argument. See `docs/agent-application-composition.md`.
 
 ### UI launcher
 

@@ -69,6 +69,15 @@ const localToolNames = buildKnowgrphLocalMcpToolDefinitions().map((tool) => tool
 if (!localToolNames.includes(KNOWGRPH_LOCAL_MCP_TOOL_NAMES.vdeoxplnList)) {
   fail('local MCP tool contract must expose knowgrph.vdeoxpln.list')
 }
+for (const name of [KNOWGRPH_LOCAL_MCP_TOOL_NAMES.applicationCatalog, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.applicationPlan, KNOWGRPH_LOCAL_MCP_TOOL_NAMES.applicationExecute]) {
+  if (!localToolNames.includes(name)) fail(`local MCP tool contract must expose ${name}`)
+}
+const applicationComposition = registry.find((entry) => entry.id === KNOWGRPH_VDEOXPLN_IDS.applicationComposition)
+const canonicalApplicationInvocation = ['/application.compose', '#application-composition', '@application-manifest', '@component-catalog', '@integration-profile', '@runtime-proof']
+if (!applicationComposition || canonicalApplicationInvocation.some((token) => !applicationComposition.triggers.includes(token))) fail('application composition vdeoxpln must expose the exact canonical / # @ invocation')
+const applicationPlan = buildKnowgrphVdeoxplnRoutingPlan({ intentText: canonicalApplicationInvocation.join(' '), requestedOutputs: ['immutable application-composition-plan/v1'] })
+if (applicationPlan.status !== 'selected' || applicationPlan.selectedVdeoxplnId !== KNOWGRPH_VDEOXPLN_IDS.applicationComposition) fail(`application composition routing expected ${KNOWGRPH_VDEOXPLN_IDS.applicationComposition}, got ${applicationPlan.selectedVdeoxplnId || applicationPlan.status}`)
+if (applicationPlan.executionStages.some((stage) => stage.id === 'floating-panel-chat' || stage.kind === 'ai-assisted')) fail('application composition must route only through its exact local MCP owners without a second AI stage')
 
 const routeOnlyPlan = buildKnowgrphVdeoxplnRoutingPlan({
   routePath: '/knowgrph/.well-known/agent-skills/knowgrph-chat-to-canvas.md',

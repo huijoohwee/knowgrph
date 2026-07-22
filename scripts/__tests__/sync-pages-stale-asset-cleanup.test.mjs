@@ -42,6 +42,8 @@ test("publish sync includes the published agent-ready dependency closure", () =>
   assert.match(syncScript, /'mcpAppsOnboarding\.mjs'/);
   assert.match(syncScript, /'motionControlAgentReadyContract\.mjs'/);
   assert.match(syncScript, /'probeTreeUserInputRelevance\.mjs'/);
+  assert.match(syncScript, /'knowgrphVdeoxplnRegistryData\.mjs'/);
+  assert.match(syncScript, /'knowgrphApplicationCompositionVdeoxpln\.mjs'/);
   assert.match(syncScript, /cameraMcpContract\.mjs/);
   assert.match(syncScript, /richMediaTextMarkdownContractSource/);
   assert.match(syncScript, /\[richMediaTextMarkdownContractSource, richMediaTextMarkdownContractTarget\]/);
