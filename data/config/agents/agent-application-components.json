@@ -1,0 +1,256 @@
+{
+  "schemaVersion": "knowgrph.application-component-catalog/v1",
+  "catalogRevision": "1.0.0",
+  "components": [
+    {
+      "id": "core.input",
+      "revision": "1.0.0",
+      "title": "Application input",
+      "description": "Introduce one bounded canonical value into an application graph.",
+      "stability": "stable",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "value",
+          "schemaRef": "knowgrph.application-value/v1",
+          "kinds": ["agent-plan", "artifact", "external-receipt", "json", "text"]
+        }
+      ],
+      "configSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["value"],
+        "properties": {
+          "value": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "value"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["agent-plan", "artifact", "external-receipt", "json", "text"]
+              },
+              "value": {}
+            }
+          }
+        }
+      },
+      "runtime": {
+        "adapterKind": "core.input",
+        "interfaceId": "knowgrph.component-adapter",
+        "interfaceRevision": "knowgrph.component-adapter/v1",
+        "ownerId": "knowgrph.application-runtime",
+        "riskClass": "local-pure",
+        "readiness": "runtime-executable",
+        "providedCapabilities": [
+          { "id": "application.value.produce", "revision": "v1" }
+        ],
+        "requiredCapabilities": [
+          { "id": "application.core.input", "revision": "v1" }
+        ],
+        "sideEffect": "none",
+        "replay": "safe"
+      },
+      "migrations": []
+    },
+    {
+      "id": "prompt.template",
+      "revision": "1.0.0",
+      "title": "Prompt template",
+      "description": "Render a bounded text template with one canonical input value.",
+      "stability": "stable",
+      "inputs": [
+        {
+          "name": "input",
+          "schemaRef": "knowgrph.application-value/v1",
+          "kinds": ["agent-plan", "artifact", "external-receipt", "json", "text"],
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prompt",
+          "schemaRef": "knowgrph.application-value/v1",
+          "kinds": ["text"]
+        }
+      ],
+      "configSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["template"],
+        "properties": {
+          "template": { "type": "string", "minLength": 1, "maxLength": 20000 }
+        }
+      },
+      "runtime": {
+        "adapterKind": "prompt.template",
+        "interfaceId": "knowgrph.component-adapter",
+        "interfaceRevision": "knowgrph.component-adapter/v1",
+        "ownerId": "knowgrph.application-runtime",
+        "riskClass": "local-pure",
+        "readiness": "runtime-executable",
+        "providedCapabilities": [
+          { "id": "application.prompt.produce", "revision": "v1" }
+        ],
+        "requiredCapabilities": [
+          { "id": "application.prompt.template", "revision": "v1" }
+        ],
+        "sideEffect": "none",
+        "replay": "safe"
+      },
+      "migrations": []
+    },
+    {
+      "id": "agent.registered",
+      "revision": "1.0.0",
+      "title": "Registered agent plan",
+      "description": "Compile a registered Knowgrph agent into a provider-neutral zero-call plan.",
+      "stability": "stable",
+      "inputs": [
+        {
+          "name": "prompt",
+          "schemaRef": "knowgrph.application-value/v1",
+          "kinds": ["text"],
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "plan",
+          "schemaRef": "knowgrph.application-value/v1",
+          "kinds": ["agent-plan"]
+        }
+      ],
+      "configSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["agentDefinitionId"],
+        "properties": {
+          "agentDefinitionId": {
+            "type": "string",
+            "pattern": "^agent\\.[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "maxLength": 120
+          }
+        }
+      },
+      "runtime": {
+        "adapterKind": "agent.registered",
+        "interfaceId": "knowgrph.component-adapter",
+        "interfaceRevision": "knowgrph.component-adapter/v1",
+        "ownerId": "knowgrph.agent-runtime",
+        "riskClass": "model-plan-zero-call",
+        "readiness": "runtime-executable",
+        "providedCapabilities": [
+          { "id": "application.agent-plan.produce", "revision": "v1" }
+        ],
+        "requiredCapabilities": [
+          { "id": "application.agent.plan", "revision": "v1" }
+        ],
+        "sideEffect": "none",
+        "replay": "safe"
+      },
+      "migrations": []
+    },
+    {
+      "id": "integration.external-artifact",
+      "revision": "1.0.0",
+      "title": "Approved external artifact",
+      "description": "Send one canonical slides or spreadsheet artifact through an opaque host-approved MCP capability.",
+      "stability": "stable",
+      "inputs": [
+        {
+          "name": "artifact",
+          "schemaRef": "knowgrph.application-value/v1",
+          "kinds": ["artifact"],
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "receipt",
+          "schemaRef": "knowgrph.application-value/v1",
+          "kinds": ["external-receipt"]
+        }
+      ],
+      "configSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["integrationProfileId", "integrationProfileRevision", "capabilityId", "capabilityRevision"],
+        "properties": {
+          "integrationProfileId": { "type": "string", "pattern": "^kgip_[0-9a-f]{32}$" },
+          "integrationProfileRevision": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "capabilityId": { "type": "string", "pattern": "^kgcap_[0-9a-f]{32}$" },
+          "capabilityRevision": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      },
+      "runtime": {
+        "adapterKind": "integration.external-artifact",
+        "interfaceId": "knowgrph.component-adapter",
+        "interfaceRevision": "knowgrph.component-adapter/v1",
+        "ownerId": "knowgrph.external-tool-gateway",
+        "riskClass": "approval-gated-external-write",
+        "readiness": "host-profile-required",
+        "providedCapabilities": [
+          { "id": "application.external-receipt.produce", "revision": "v1" }
+        ],
+        "requiredCapabilities": [
+          { "id": "application.external-artifact", "revision": "v1" }
+        ],
+        "sideEffect": "external-write",
+        "replay": "idempotency-key"
+      },
+      "migrations": []
+    },
+    {
+      "id": "core.output",
+      "revision": "1.0.0",
+      "title": "Application output",
+      "description": "Expose one canonical graph value as a named application result.",
+      "stability": "stable",
+      "inputs": [
+        {
+          "name": "value",
+          "schemaRef": "knowgrph.application-value/v1",
+          "kinds": ["agent-plan", "artifact", "external-receipt", "json", "text"],
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "result",
+          "schemaRef": "knowgrph.application-value/v1",
+          "kinds": ["agent-plan", "artifact", "external-receipt", "json", "text"]
+        }
+      ],
+      "configSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string", "minLength": 1, "maxLength": 120 }
+        }
+      },
+      "runtime": {
+        "adapterKind": "core.output",
+        "interfaceId": "knowgrph.component-adapter",
+        "interfaceRevision": "knowgrph.component-adapter/v1",
+        "ownerId": "knowgrph.application-runtime",
+        "riskClass": "local-pure",
+        "readiness": "runtime-executable",
+        "providedCapabilities": [
+          { "id": "application.result.produce", "revision": "v1" }
+        ],
+        "requiredCapabilities": [
+          { "id": "application.core.output", "revision": "v1" }
+        ],
+        "sideEffect": "none",
+        "replay": "safe"
+      },
+      "migrations": []
+    }
+  ]
+}

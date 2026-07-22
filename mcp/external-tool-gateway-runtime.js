@@ -334,6 +334,7 @@ export function createExternalToolGatewayRuntime(options = {}) {
   };
 
   return Object.freeze({
+    registry,
     catalog: (args) => listCapabilities(args),
     search: (args) => listCapabilities(args, args?.query),
     describe: (args) => run(EXTERNAL_TOOL_GATEWAY_TOOL_NAMES.describe, args),
@@ -345,8 +346,12 @@ export function createExternalToolGatewayRuntime(options = {}) {
 
 let defaultRuntime;
 
+export function getExternalToolGatewayRuntime() {
+  defaultRuntime ||= createExternalToolGatewayRuntime();
+  return defaultRuntime;
+}
+
 export async function runExternalToolGatewayTool(toolName, args = {}) {
   if (!isExternalToolGatewayToolName(toolName)) throw new ExternalToolGatewayError("unknown_gateway_tool", "Unknown external MCP gateway tool.");
-  defaultRuntime ||= createExternalToolGatewayRuntime();
-  return defaultRuntime.run(toolName, args);
+  return getExternalToolGatewayRuntime().run(toolName, args);
 }
