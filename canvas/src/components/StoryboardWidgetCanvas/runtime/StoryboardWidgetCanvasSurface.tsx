@@ -291,6 +291,7 @@ export default function StoryboardWidgetCanvasSurface(props: {
       draftGraphDataRef: { current: flowCanvasGraphDataOverride || props.renderGraphDataOverride || props.storyboardSourceGraphData || null },
       baseGraphData: props.storyboardSourceGraphData || null,
       useProjectedRichMediaShell: true,
+      screenOrigin: { left: rect.left, top: rect.top },
     })
     return screenToWorld({
       transform,

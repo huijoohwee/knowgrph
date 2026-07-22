@@ -12,6 +12,7 @@ import { buildAgentSandboxPolicyToolDefinitions } from "./agent-sandbox-policy-t
 import { EXPORT_PUBLISH_INPUT_SCHEMA, EXPORT_PUBLISH_OUTPUT_SCHEMA } from "./export-publish-contract.js";
 import { buildEcsLocalToolDefinitions } from "./ecs-tool-contract.js";
 import { buildImplementationRunToolDefinitions } from "./implementation-run-tool-contract.js"; import { buildAgentApplicationToolDefinitions } from "./agent-application-tool-contract.js";
+import { buildSkillEvolutionToolDefinition } from "./skill-evolution-tool-contract.js";
 export const KNOWGRPH_LOCAL_MCP_TOOL_NAMES = SHARED_KNOWGRPH_LOCAL_MCP_TOOL_NAMES;
 
 const VDEOXPLN_LIST_OUTPUT_SCHEMA = Object.freeze({
@@ -592,5 +593,6 @@ export const buildKnowgrphLocalMcpToolDefinitions = (args = {}) => {
       },
     }, READ_ONLY_TOOL_ANNOTATIONS),
     ...buildAgentApplicationToolDefinitions({ toolNames: KNOWGRPH_LOCAL_MCP_TOOL_NAMES, withDefaults: withLocalMcpDescriptorDefaults }),
+    buildSkillEvolutionToolDefinition({ withDefaults: withLocalMcpDescriptorDefaults }),
   ];
 };
