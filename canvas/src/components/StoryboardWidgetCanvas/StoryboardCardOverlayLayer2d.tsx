@@ -319,6 +319,7 @@ export function StoryboardCardOverlayLayer2d(props: {
     fixedLayoutEnabled,
     getTransform,
     graphRevision,
+    layoutIdentity: props.flowWidgetStateGraphKey || markdownDocumentName || storyboardWidgetSurfaceId,
     nodeById,
     overlayElsRef,
     readCardSize,
