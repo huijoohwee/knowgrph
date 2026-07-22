@@ -2,11 +2,12 @@ import { FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID } from '@/lib/config'
 import { clampSnapGridSize, snapPointToGrid, SNAP_GRID_SIZE_DEFAULT } from '@/lib/canvas/gridSnap'
 import { resolveCanvasAspectRatioSize } from '@/lib/canvas/canvasAspectRatioDisplayControls'
 import { readGraphEdgeEndpoints } from '@/lib/graph/edgeEndpoints'
-import { isFlowWidgetEligibleNode } from '@/lib/graph/flowWidgetEligibility'
+import { filterGraphToFlowWidgetEligible } from '@/lib/graph/flowWidgetEligibility'
 import { isFrontmatterFlowGraph } from '@/lib/graph/frontmatterMode'
 import { unwrapGraphCellValue } from '@/lib/graph/nodeProperties'
 import type { GraphData, GraphNode, JSONValue } from '@/lib/graph/types'
 import { RICH_MEDIA_PANEL_DEFAULT_WIDTH_PX } from '@/lib/render/richMediaPanelDefaults'
+import { deriveFrontmatterFlowOverlayNodeIds } from '@/lib/storyboardWidget/frontmatterOverlayNodeIds'
 import {
   PROBE_TREE_BALANCED_LAYOUT_MODE,
   PROBE_TREE_BALANCED_LAYOUT_VERSION,
@@ -82,10 +83,16 @@ const hasFiniteNodePosition = (node: GraphNode): boolean => {
     && Number.isFinite(Number(unwrapGraphCellValue(position.y)))
 }
 
-const isProbeTreeLayoutObstacle = (graphData: GraphData, node: GraphNode): boolean => (
+const resolveProbeTreeLayoutObstacleNodeIds = (graphData: GraphData): ReadonlySet<string> | null => (
+  isFrontmatterFlowGraph(graphData)
+    ? new Set(deriveFrontmatterFlowOverlayNodeIds(filterGraphToFlowWidgetEligible(graphData)))
+    : null
+)
+
+const isProbeTreeLayoutObstacle = (node: GraphNode, visibleNodeIds: ReadonlySet<string> | null): boolean => (
   readString(node.type) !== FLOW_RICH_MEDIA_PANEL_NODE_TYPE_ID
   && hasFiniteNodePosition(node)
-  && (!isFrontmatterFlowGraph(graphData) || isFlowWidgetEligibleNode(node))
+  && (!visibleNodeIds || visibleNodeIds.has(readString(node.id)))
 )
 
 const hasCollisionFreeProbeTreePositions = (nodes: readonly GraphNode[]): boolean => {
@@ -197,9 +204,10 @@ export function resolveStoryboardWidgetProbeTreeBranchPositions(args: {
   if (count === 0) return []
   const gridSize = readProbeTreeLayoutGridSize(args.graphData)
   const anchorPosition = snapPointToGrid(readNodePosition(args.anchorNode), gridSize)
+  const visibleNodeIds = resolveProbeTreeLayoutObstacleNodeIds(args.graphData)
   const retainedNodes = (args.graphData.nodes || [])
     .filter(node => !args.removedNodeIds.has(readString(node.id)))
-    .filter(node => isProbeTreeLayoutObstacle(args.graphData, node))
+    .filter(node => isProbeTreeLayoutObstacle(node, visibleNodeIds))
   const occupiedPositions = retainedNodes.map(readNodePosition)
   const anchorProperties = readProperties(args.anchorNode.properties)
   const threadRootId = readString(anchorProperties.probeTreeThreadRootId) || readString(args.anchorNode.id)
@@ -307,9 +315,10 @@ export function normalizeStoryboardWidgetProbeTreeThreadLayout(args: {
   if (branchNodes.length === 0) return args.graphData
   const nodeById = new Map((args.graphData.nodes || []).map(node => [readString(node.id), node]))
   const gridSize = readProbeTreeLayoutGridSize(args.graphData)
+  const visibleNodeIds = resolveProbeTreeLayoutObstacleNodeIds(args.graphData)
   const occupiedOutsideThread = (args.graphData.nodes || []).filter(node => (
     !threadNodeIds.has(readString(node.id))
-    && isProbeTreeLayoutObstacle(args.graphData, node)
+    && isProbeTreeLayoutObstacle(node, visibleNodeIds)
   ))
   const graphLayoutIsCurrent = hasCurrentProbeTreeThreadLayoutAuthority(args.graphData, threadRootId, gridSize)
   const positionsRemainGridSnapped = branchNodes.every(node => {
