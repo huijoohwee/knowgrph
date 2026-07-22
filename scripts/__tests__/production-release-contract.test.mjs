@@ -10,6 +10,8 @@ const agentReadySmoke = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'check
 const docsSeedScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'seed-storage-docs-to-cloudflare.mjs'), 'utf8')
 const docsSeedLibrary = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'lib', 'seed-storage-documents-d1.mjs'), 'utf8')
 const pagesSyncScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'sync-pages-knowgrph.mjs'), 'utf8')
+const pagesFunctionsBuildScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'build-pages-functions-worker.mjs'), 'utf8')
+const agentReadyFunction = fs.readFileSync(path.resolve(repoRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready.mjs'), 'utf8')
 const productionReadinessBuild = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'production-runtime-readiness-build.mjs'), 'utf8')
 const pagesDeploymentScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'pages-production-deployment.mjs'), 'utf8')
 const productionFidelityScript = fs.readFileSync(path.resolve(repoRoot, 'scripts', 'verify-production-fidelity.mjs'), 'utf8')
@@ -57,6 +59,17 @@ test('production release rebuilds the canvas with the exact authorized candidate
   assert.match(verifyJob, /VITE_KNOWGRPH_STORAGE_BASE_URL: https:\/\/airvio\.co/)
   assert.match(verifyJob, /run: npm run pages:build-sync/)
   assert.doesNotMatch(verifyJob, /run: npm run pages:sync/)
+})
+
+test('Pages mirror sync preserves the agent-ready route local module closure', () => {
+  const localModuleImports = [...agentReadyFunction.matchAll(/from ["']\.\/([^"']+)["']/g)]
+    .map(([, fileName]) => fileName)
+
+  assert.ok(localModuleImports.length > 0)
+  for (const fileName of localModuleImports) {
+    assert.match(pagesSyncScript, new RegExp(fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+  }
+  assert.match(pagesFunctionsBuildScript, /process\.env\.KNOWGRPH_PUBLISH_REPOSITORY_ROOT/)
 })
 
 test('production release is automatic only for protected main and retains rollback evidence', () => {

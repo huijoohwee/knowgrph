@@ -24,8 +24,8 @@ const sourceRevision = String(process.env.KNOWGRPH_SOURCE_REVISION || execFileSy
   'git', ['rev-parse', 'HEAD'], { cwd: knowgrphRoot, encoding: 'utf8' },
 )).trim()
 if (!/^[0-9a-f]{40}$/.test(sourceRevision)) throw new Error('Knowgrph source revision must be an exact lowercase 40-character SHA')
-const agentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready.mjs')
-const agentReadyFunctionTarget = path.resolve(mirrorRoot, 'functions', 'knowgrph', '[[path]].js')
+const agentReadyFunctionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'knowgrph-agent-ready.mjs'), agentReadyFunctionTarget = path.resolve(mirrorRoot, 'functions', 'knowgrph', '[[path]].js')
+const webMcpHtmlInjectionSource = path.resolve(knowgrphRoot, 'cloudflare', 'pages', 'webmcp-html-injection.mjs'), webMcpHtmlInjectionTarget = path.resolve(mirrorRoot, 'functions', 'knowgrph', 'webmcp-html-injection.mjs')
 const agentReadyFeatureSource = filename => path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'agent-ready', filename)
 const agentReadyFeatureTarget = filename => path.resolve(mirrorRoot, 'canvas', 'src', 'features', 'agent-ready', filename)
 const xrSceneMcpContractSource = path.resolve(knowgrphRoot, 'canvas', 'src', 'features', 'three', 'xrSceneMcpContract.mjs')
@@ -390,7 +390,7 @@ const fileExists = async (filePath) => {
 }
 
 const agentReadyRuntimeCopies = [
-  [agentReadyCommerceSource, agentReadyCommerceTarget], [agentReadyAppShellSource, agentReadyAppShellTarget], [semanticKeyContractSource, semanticKeyContractTarget],
+  [agentReadyCommerceSource, agentReadyCommerceTarget], [agentReadyAppShellSource, agentReadyAppShellTarget], [webMcpHtmlInjectionSource, webMcpHtmlInjectionTarget], [semanticKeyContractSource, semanticKeyContractTarget],
   [xrSceneMcpContractSource, xrSceneMcpContractTarget], [xrAnimationMcpContractSource, xrAnimationMcpContractTarget], [motionControlMcpContractSource, motionControlMcpContractTarget], [gameModeMcpContractSource, gameModeMcpContractTarget], [path.resolve(knowgrphRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs'), path.resolve(mirrorRoot, 'canvas/src/features/strybldr/cameraMcpContract.mjs')],
   [richMediaTextMarkdownContractSource, richMediaTextMarkdownContractTarget],
   ...agentReadyBrowserRuntimeFilenames.map(filename => [agentReadyFeatureSource(filename), agentReadyFeatureTarget(filename)]),
