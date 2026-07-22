@@ -62,6 +62,13 @@ test('game source-authority gate discovers every workspace package manifest and 
   ]) assert.ok(paths.includes(expectedPath), `missing dependency boundary: ${expectedPath}`)
 })
 
+test('native physics check prepares linked packages before canvas runtime tests', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'package.json'), 'utf8'))
+  const command = manifest.scripts?.['native-physics:check']
+  assert.equal(typeof command, 'string')
+  assert.match(command, /^npm run smoke:prepare && /)
+})
+
 test('native physics document records the independent scope without compatibility claims', () => {
   const source = fs.readFileSync(
     path.join(repositoryRoot, 'docs/documents/knowgrph-native-physics-engines-prd-tad.md'),
