@@ -139,6 +139,7 @@ export function testRichMediaBrowserSmokeContract() {
     'input_locator.wait_for(state="visible", timeout=5000)',
     'expected rich media text edit panel to reveal the inline editor surface',
     'KG_RICH_MEDIA_SMOKE_BASE_URL',
+    'ASYNC_SURFACE_READY_TIMEOUT_MS = 15_000',
     'data-kg-smoke-panel="storyboard-widget"',
     'image_threejs_surfaces = (',
     '("image-threejs-card-jpg", "raster", "jpg")',

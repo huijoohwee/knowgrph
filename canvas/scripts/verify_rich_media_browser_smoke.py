@@ -33,6 +33,7 @@ CATALOG_PREVIEW_READY_BUDGET_MS = max(
     1,
     int(os.environ.get("KG_MEDIA_PREVIEW_READY_BUDGET_MS", "500")),
 )
+ASYNC_SURFACE_READY_TIMEOUT_MS = 15_000
 
 
 def assert_canvas_has_visual_content(canvas, artifact_name: str) -> None:
@@ -416,7 +417,10 @@ def main() -> None:
                 '[data-kg-smoke-panel="text-preview"] [data-kg-rich-media-markdown-preview="1"]'
             ).first
             expect(preview_surface).to_be_visible()
-            expect(page.locator('[data-kg-smoke-panel="text-preview"] table')).to_have_count(1)
+            expect(page.locator('[data-kg-smoke-panel="text-preview"] table')).to_have_count(
+                1,
+                timeout=ASYNC_SURFACE_READY_TIMEOUT_MS,
+            )
 
             edit_input = open_text_edit_input(page)
             edit_input.fill("## Browser updated\n\nRuntime edit OK.")
